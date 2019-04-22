@@ -76,6 +76,10 @@ FAutoConsoleVariableRef CVarMobileCompressLanscapeWeightMaps(
 
 #if WITH_EDITOR
 
+// Used to temporarily disable material instance updates (typically used for cases where multiple updates are called on sample component)
+// Instead, one call per component is done at the end
+LANDSCAPE_API bool GDisableUpdateLandscapeMaterialInstances = false;
+
 // Channel remapping
 extern const size_t ChannelOffsets[4];
 
@@ -115,7 +119,11 @@ void ULandscapeComponent::UpdateCachedBounds()
 	ULandscapeHeightfieldCollisionComponent* HFCollisionComponent = CollisionComponent.Get();
 	if (HFCollisionComponent)
 	{
-		HFCollisionComponent->Modify();
+        // In Landscape Layers the Collision Component is slave and doesn't need to be transacted
+		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		{
+			HFCollisionComponent->Modify();
+		}
 		HFCollisionComponent->CachedLocalBox = CachedLocalBox;
 		HFCollisionComponent->UpdateComponentToWorld();
 	}
@@ -421,7 +429,10 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 		{
 			const int8 MaterialLOD = It.Value();
 
-			MobileCombinationMaterialInstances[MobileMaterialIndex] = GetCombinationMaterial(&Context, MobileWeightmapLayerAllocations, MaterialLOD, true);
+			UMaterialInstanceConstant* MobileCombinationMaterialInstance = GetCombinationMaterial(&Context, MobileWeightmapLayerAllocations, MaterialLOD, true);
+			MobileCombinationMaterialInstances[MobileMaterialIndex] = MobileCombinationMaterialInstance;
+			Context.AddMaterialInstance(MobileCombinationMaterialInstance);
+						
 			++MobileMaterialIndex;
 		}
 	}
@@ -429,6 +440,9 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 
 void ULandscapeComponent::UpdateMaterialInstances()
 {
+	if (GDisableUpdateLandscapeMaterialInstances)
+		return;
+
 	// we're not having the material update context recreate the render state because we will manually do it for only this component
 	TOptional<FComponentRecreateRenderStateContext> RecreateRenderStateContext;
 	RecreateRenderStateContext.Emplace(this);
@@ -560,6 +574,13 @@ void ULandscapeComponent::PostEditUndo()
 	TSet<ULandscapeComponent*> Components;
 	Components.Add(this);
 	GetLandscapeProxy()->FlushGrassComponents(&Components);
+
+	ALandscape* LandscapeActor = GetLandscapeActor();
+	// Might be a ALandscapeStreamingProxy
+	if (LandscapeActor)
+	{
+		LandscapeActor->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+	}
 }
 
 void ALandscapeProxy::FixupWeightmaps()
@@ -650,8 +671,8 @@ void ULandscapeComponent::FixupWeightmaps()
 
 				if (TempUsage == nullptr)
 				{
-					TempUsage = &Proxy->WeightmapUsageMap.Add(WeightmapTexture, NewObject<ULandscapeWeightmapUsage>(GetLandscapeProxy()));
-					(*TempUsage)->ProceduralLayerGuid.Invalidate();
+					TempUsage = &Proxy->WeightmapUsageMap.Add(WeightmapTexture, GetLandscapeProxy()->CreateWeightmapUsage());
+					(*TempUsage)->LayerGuid.Invalidate();
 				}
 
 				ULandscapeWeightmapUsage* Usage = *TempUsage;
@@ -732,8 +753,42 @@ struct FLandscapeComponentAlphaInfo
 	}
 };
 
+struct FCollisionSize
+{
+public:
+	static FCollisionSize CreateSimple(bool bUseSimpleCollision, int32 InNumSubSections, int32 InSubsectionSizeQuads, int32 InMipLevel)
+	{
+		return bUseSimpleCollision ? Create(InNumSubSections, InSubsectionSizeQuads, InMipLevel) : FCollisionSize();
+	}
 
-void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const HeightmapTextureMipData, const FColor* const SimpleCollisionHeightmapTextureData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, bool bUpdateBounds/*=false*/, const FColor* XYOffsetTextureMipData/*=nullptr*/)
+	static FCollisionSize Create(int32 InNumSubSections, int32 InSubsectionSizeQuads, int32 InMipLevel)
+	{
+		return FCollisionSize(InNumSubSections, InSubsectionSizeQuads, InMipLevel);
+	}
+
+	FCollisionSize(FCollisionSize&& Other) = default;
+	FCollisionSize& operator=(FCollisionSize&& Other) = default;
+private:
+	FCollisionSize(int32 InNumSubsections, int32 InSubsectionSizeQuads, int32 InMipLevel)
+	{
+		SubsectionSizeVerts = ((InSubsectionSizeQuads + 1) >> InMipLevel);
+		SubsectionSizeQuads = SubsectionSizeVerts - 1;
+		SizeVerts = InNumSubsections * SubsectionSizeQuads + 1;
+		SizeVertsSquare = FMath::Square(SizeVerts);
+	}
+
+	FCollisionSize()
+	{
+	}
+
+public:
+	int32 SubsectionSizeVerts = 0;
+	int32 SubsectionSizeQuads = 0;
+	int32 SizeVerts = 0;
+	int32 SizeVertsSquare = 0;
+};
+
+bool ULandscapeComponent::UpdateCollisionHeightData(const FColor* const HeightmapTextureMipData, const FColor* const SimpleCollisionHeightmapTextureData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, bool bUpdateBounds/*=false*/, const FColor* XYOffsetTextureMipData/*=nullptr*/)
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
@@ -744,38 +799,38 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 
 	// Simple collision is not currently supported with mesh collision components
 	const bool bUsingSimpleCollision = (SimpleCollisionMipLevel > CollisionMipLevel && SimpleCollisionHeightmapTextureData && !XYOffsetmapTexture);
-
-	const int32 CollisionSubsectionSizeVerts = ((SubsectionSizeQuads + 1) >> CollisionMipLevel);
-	const int32 CollisionSubsectionSizeQuads = CollisionSubsectionSizeVerts - 1;
-	const int32 CollisionSizeVerts = NumSubsections * CollisionSubsectionSizeQuads + 1;
-	const int32 SimpleCollisionSubsectionSizeVerts = bUsingSimpleCollision ? ((SubsectionSizeQuads + 1) >> SimpleCollisionMipLevel) : 0;
-	const int32 SimpleCollisionSubsectionSizeQuads = bUsingSimpleCollision ? SimpleCollisionSubsectionSizeVerts - 1 : 0;
-	const int32 SimpleCollisionSizeVerts = bUsingSimpleCollision ? NumSubsections * SimpleCollisionSubsectionSizeQuads + 1 : 0;
-
-	const int32 TotalCollisionSize = FMath::Square(CollisionSizeVerts) + FMath::Square(SimpleCollisionSizeVerts);
+	
+	FCollisionSize CollisionSize = FCollisionSize::Create(NumSubsections, SubsectionSizeQuads, CollisionMipLevel);
+	FCollisionSize SimpleCollisionSize = FCollisionSize::CreateSimple(bUsingSimpleCollision, NumSubsections, SubsectionSizeQuads, SimpleCollisionMipLevel);
+		
+	const int32 TotalCollisionSize = CollisionSize.SizeVertsSquare + SimpleCollisionSize.SizeVertsSquare;
 
 	uint16* CollisionHeightData = nullptr;
 	uint16* CollisionXYOffsetData = nullptr;
 	bool CreatedNew = false;
 	bool ChangeType = false;
 
-	if (CollisionComp)
+    // In Landscape Layers the Collision Component is slave and doesn't need to be transacted
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		CollisionComp->Modify();
+		if (CollisionComp)
+		{
+			CollisionComp->Modify();
+		}
 	}
 
 	// Existing collision component is same type with collision
 	if (CollisionComp && ((XYOffsetmapTexture == nullptr) == (MeshCollisionComponent == nullptr)))
 	{
-		ComponentX1 = FMath::Min(ComponentX1, ComponentSizeQuads);
-		ComponentY1 = FMath::Min(ComponentY1, ComponentSizeQuads);
-		ComponentX2 = FMath::Max(ComponentX2, 0);
-		ComponentY2 = FMath::Max(ComponentY2, 0);
+		ComponentX1 = FMath::Clamp(ComponentX1, 0, ComponentSizeQuads);
+		ComponentY1 = FMath::Clamp(ComponentY1, 0, ComponentSizeQuads);
+		ComponentX2 = FMath::Clamp(ComponentX2, 0, ComponentSizeQuads);
+		ComponentY2 = FMath::Clamp(ComponentY2, 0, ComponentSizeQuads);
 
 		if (ComponentX2 < ComponentX1 || ComponentY2 < ComponentY1)
 		{
 			// nothing to do
-			return;
+			return false;
 		}
 
 		if (bUpdateBounds)
@@ -783,124 +838,35 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 			CollisionComp->CachedLocalBox = CachedLocalBox;
 			CollisionComp->UpdateComponentToWorld();
 		}
-
-		CollisionHeightData = (uint16*)CollisionComp->CollisionHeightData.Lock(LOCK_READ_WRITE);
-
-		if (XYOffsetmapTexture && MeshCollisionComponent)
-		{
-			CollisionXYOffsetData = (uint16*)MeshCollisionComponent->CollisionXYOffsetData.Lock(LOCK_READ_WRITE);
-		}
 	}
 	else
 	{
+		CreatedNew = true;
+		ChangeType = CollisionComp != nullptr;
 		ComponentX1 = 0;
 		ComponentY1 = 0;
 		ComponentX2 = ComponentSizeQuads;
 		ComponentY2 = ComponentSizeQuads;
 
-		TArray<uint8> DominantLayerData;
-		TArray<ULandscapeLayerInfoObject*> LayerInfos;
-		if (CollisionComp) // remove old component before changing to other type collision...
-		{
-			ChangeType = true;
+		RecreateCollisionComponent(bUsingSimpleCollision);
+		CollisionComp = CollisionComponent.Get();
+        MeshCollisionComponent = Cast<ULandscapeMeshCollisionComponent>(CollisionComp);
+	}
 
-			if (CollisionComp->DominantLayerData.GetElementCount())
-			{
-				check(CollisionComp->DominantLayerData.GetElementCount() >= TotalCollisionSize);
-				DominantLayerData.AddUninitialized(TotalCollisionSize);
+	CollisionHeightData = (uint16*)CollisionComp->CollisionHeightData.Lock(LOCK_READ_WRITE);
 
-				const uint8* SrcDominantLayerData = (uint8*)CollisionComp->DominantLayerData.Lock(LOCK_READ_ONLY);
-				FMemory::Memcpy(DominantLayerData.GetData(), SrcDominantLayerData, TotalCollisionSize * sizeof(uint8));
-				CollisionComp->DominantLayerData.Unlock();
-			}
-
-			if (CollisionComp->ComponentLayerInfos.Num())
-			{
-				LayerInfos = CollisionComp->ComponentLayerInfos;
-			}
-
-			if (Info)
-			{
-				Info->Modify();
-			}
-			Proxy->Modify();
-			CollisionComp->DestroyComponent();
-			CollisionComp = nullptr;
-		}
-
-		if (XYOffsetmapTexture)
-		{
-			MeshCollisionComponent = NewObject<ULandscapeMeshCollisionComponent>(Proxy, NAME_None, RF_Transactional);
-			CollisionComp = MeshCollisionComponent;
-		}
-		else
-		{
-			MeshCollisionComponent = nullptr;
-			CollisionComp = NewObject<ULandscapeHeightfieldCollisionComponent>(Proxy, NAME_None, RF_Transactional);
-		}
-
-		CollisionComp->SetRelativeLocation(RelativeLocation);
-		CollisionComp->SetupAttachment(Proxy->GetRootComponent(), NAME_None);
-		Proxy->CollisionComponents.Add(CollisionComp);
-
-		CollisionComp->RenderComponent = this;
-		CollisionComp->SetSectionBase(GetSectionBase());
-		CollisionComp->CollisionSizeQuads = CollisionSubsectionSizeQuads * NumSubsections;
-		CollisionComp->CollisionScale = (float)(ComponentSizeQuads) / (float)(CollisionComp->CollisionSizeQuads);
-		CollisionComp->SimpleCollisionSizeQuads = bUsingSimpleCollision ? SimpleCollisionSubsectionSizeQuads * NumSubsections : 0;
-		CollisionComp->CachedLocalBox = CachedLocalBox;
-		CollisionComp->SetGenerateOverlapEvents(Proxy->bGenerateOverlapEvents);
-		CreatedNew = true;
-
-		// Reallocate raw collision data
-		CollisionComp->CollisionHeightData.Lock(LOCK_READ_WRITE);
-		CollisionHeightData = (uint16*)CollisionComp->CollisionHeightData.Realloc(TotalCollisionSize);
-		FMemory::Memzero(CollisionHeightData, TotalCollisionSize * sizeof(uint16));
-
-		if (XYOffsetmapTexture && MeshCollisionComponent)
-		{
-			// Need XYOffsetData for Collision Component
-			MeshCollisionComponent->CollisionXYOffsetData.Lock(LOCK_READ_WRITE);
-			CollisionXYOffsetData = (uint16*)MeshCollisionComponent->CollisionXYOffsetData.Realloc(TotalCollisionSize * 2);
-			FMemory::Memzero(CollisionXYOffsetData, TotalCollisionSize * 2 * sizeof(uint16));
-		}
-
-		if (DominantLayerData.Num())
-		{
-			CollisionComp->DominantLayerData.Lock(LOCK_READ_WRITE);
-			uint8* DestDominantLayerData = (uint8*)CollisionComp->DominantLayerData.Realloc(TotalCollisionSize);
-			FMemory::Memcpy(DestDominantLayerData, DominantLayerData.GetData(), TotalCollisionSize * sizeof(uint8));
-			CollisionComp->DominantLayerData.Unlock();
-		}
-
-		if (LayerInfos.Num())
-		{
-			CollisionComp->ComponentLayerInfos = MoveTemp(LayerInfos);
-		}
+	if (XYOffsetmapTexture && MeshCollisionComponent)
+	{
+		CollisionXYOffsetData = (uint16*)MeshCollisionComponent->CollisionXYOffsetData.Lock(LOCK_READ_WRITE);
 	}
 
 	const int32 HeightmapSizeU = GetHeightmap()->Source.GetSizeX();
 	const int32 HeightmapSizeV = GetHeightmap()->Source.GetSizeY();
-	const int32 MipSizeU = HeightmapSizeU >> CollisionMipLevel;
-	const int32 MipSizeV = HeightmapSizeV >> CollisionMipLevel;
-
-	const int32 XYMipSizeU = XYOffsetmapTexture ? XYOffsetmapTexture->Source.GetSizeX() >> CollisionMipLevel : 0;
-	const int32 XYMipSizeV = XYOffsetmapTexture ? XYOffsetmapTexture->Source.GetSizeY() >> CollisionMipLevel : 0;
-
-	// Ratio to convert update region coordinate to collision mip coordinates
-	const float CollisionQuadRatio = (float)CollisionSubsectionSizeQuads / (float)SubsectionSizeQuads;
-
-	// XY offset into heightmap mip data
-	const int32 HeightmapOffsetX = FMath::RoundToInt(HeightmapScaleBias.Z * (float)HeightmapSizeU) >> CollisionMipLevel;
-	const int32 HeightmapOffsetY = FMath::RoundToInt(HeightmapScaleBias.W * (float)HeightmapSizeV) >> CollisionMipLevel;
-
-	//int32 WeightmapOffsetX = FMath::RoundToInt(WeightmapScaleBias.Z * (float)XYMipSizeU) >> CollisionMipLevel;
-	//int32 WeightmapOffsetY = FMath::RoundToInt(WeightmapScaleBias.W * (float)XYMipSizeV) >> CollisionMipLevel;
 
 	// Handle Material WPO baked into heightfield collision
 	// Material WPO is not currently supported for mesh collision components
 	const bool bUsingGrassMapHeights = Proxy->bBakeMaterialPositionOffsetIntoCollision && !MeshCollisionComponent && GrassData->HasData() && !IsGrassMapOutdated();
-	const uint16* GrassHeights = nullptr;
+	uint16* GrassHeights = nullptr;
 	if (bUsingGrassMapHeights)
 	{
 		if (CollisionMipLevel == 0)
@@ -916,150 +882,13 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 		}
 	}
 
-	const int32 SubSectionX1 = FMath::Max(0, FMath::DivideAndRoundDown(ComponentX1 - 1, SubsectionSizeQuads));
-	const int32 SubSectionY1 = FMath::Max(0, FMath::DivideAndRoundDown(ComponentY1 - 1, SubsectionSizeQuads));
-	const int32 SubSectionX2 = FMath::Min(FMath::DivideAndRoundUp(ComponentX2 + 1, SubsectionSizeQuads), NumSubsections);
-	const int32 SubSectionY2 = FMath::Min(FMath::DivideAndRoundUp(ComponentY2 + 1, SubsectionSizeQuads), NumSubsections);
-	for (int32 SubsectionY = SubSectionY1; SubsectionY < SubSectionY2; ++SubsectionY)
-	{
-		for (int32 SubsectionX = SubSectionX1; SubsectionX < SubSectionX2; ++SubsectionX)
-		{
-			// Area to update in subsection coordinates
-			const int32 SubX1 = ComponentX1 - SubsectionSizeQuads * SubsectionX;
-			const int32 SubY1 = ComponentY1 - SubsectionSizeQuads * SubsectionY;
-			const int32 SubX2 = ComponentX2 - SubsectionSizeQuads * SubsectionX;
-			const int32 SubY2 = ComponentY2 - SubsectionSizeQuads * SubsectionY;
-
-			// Area to update in collision mip level coords
-			const int32 CollisionSubX1 = FMath::FloorToInt((float)SubX1 * CollisionQuadRatio);
-			const int32 CollisionSubY1 = FMath::FloorToInt((float)SubY1 * CollisionQuadRatio);
-			const int32 CollisionSubX2 = FMath::CeilToInt( (float)SubX2 * CollisionQuadRatio);
-			const int32 CollisionSubY2 = FMath::CeilToInt( (float)SubY2 * CollisionQuadRatio);
-
-			// Clamp area to update
-			const int32 VertX1 = FMath::Clamp<int32>(CollisionSubX1, 0, CollisionSubsectionSizeQuads);
-			const int32 VertY1 = FMath::Clamp<int32>(CollisionSubY1, 0, CollisionSubsectionSizeQuads);
-			const int32 VertX2 = FMath::Clamp<int32>(CollisionSubX2, 0, CollisionSubsectionSizeQuads);
-			const int32 VertY2 = FMath::Clamp<int32>(CollisionSubY2, 0, CollisionSubsectionSizeQuads);
-
-			for (int32 VertY = VertY1; VertY <= VertY2; VertY++)
-			{
-				for (int32 VertX = VertX1; VertX <= VertX2; VertX++)
-				{
-					// this uses Quads as we don't want the duplicated vertices
-					const int32 CompVertX = CollisionSubsectionSizeQuads * SubsectionX + VertX;
-					const int32 CompVertY = CollisionSubsectionSizeQuads * SubsectionY + VertY;
-
-					if (GrassHeights)
-					{
-						uint16& CollisionHeight = CollisionHeightData[CompVertX + CompVertY * CollisionSizeVerts];
-						const uint16& NewHeight = GrassHeights[CompVertX + CompVertY * CollisionSizeVerts];
-						CollisionHeight = NewHeight;
-					}
-					else
-					{
-						// X/Y of the vertex we're looking indexed into the texture data
-						const int32 TexX = HeightmapOffsetX + CollisionSubsectionSizeVerts * SubsectionX + VertX;
-						const int32 TexY = HeightmapOffsetY + CollisionSubsectionSizeVerts * SubsectionY + VertY;
-						const FColor& TexData = HeightmapTextureMipData[TexX + TexY * MipSizeU];
-
-						// Copy collision data
-						uint16& CollisionHeight = CollisionHeightData[CompVertX + CompVertY * CollisionSizeVerts];
-						const uint16 NewHeight = TexData.R << 8 | TexData.G;
-
-						CollisionHeight = NewHeight;
-					}
-
-					if (XYOffsetmapTexture && XYOffsetTextureMipData && CollisionXYOffsetData)
-					{
-						const int32 TexX = CollisionSubsectionSizeVerts * SubsectionX + VertX;
-						const int32 TexY = CollisionSubsectionSizeVerts * SubsectionY + VertY;
-						const FColor& TexData = XYOffsetTextureMipData[TexX + TexY * XYMipSizeU];
-
-						// Copy collision data
-						const uint16 NewXOffset = TexData.R << 8 | TexData.G;
-						const uint16 NewYOffset = TexData.B << 8 | TexData.A;
-
-						const int32 XYIndex = CompVertX + CompVertY * CollisionSizeVerts;
-						CollisionXYOffsetData[XYIndex * 2] = NewXOffset;
-						CollisionXYOffsetData[XYIndex * 2 + 1] = NewYOffset;
-					}
-				}
-			}
-		}
-	}
-
+	UpdateCollisionHeightBuffer(ComponentX1, ComponentY1, ComponentX2, ComponentY2, CollisionMipLevel, HeightmapSizeU, HeightmapSizeV, HeightmapTextureMipData, CollisionHeightData, GrassHeights, XYOffsetTextureMipData, CollisionXYOffsetData);
+		
 	if (bUsingSimpleCollision)
 	{
-		const int32 SimpleMipSizeU = HeightmapSizeU >> SimpleCollisionMipLevel;
-		const int32 SimpleMipSizeV = HeightmapSizeV >> SimpleCollisionMipLevel;
-
-		// Ratio to convert update region coordinate to collision mip coordinates
-		const float SimpleCollisionQuadRatio = (float)SimpleCollisionSubsectionSizeQuads / (float)SubsectionSizeQuads;
-
-		// XY offset into heightmap mip data
-		const int32 SimpleHeightmapOffsetX = FMath::RoundToInt(HeightmapScaleBias.Z * (float)HeightmapSizeU) >> SimpleCollisionMipLevel;
-		const int32 SimpleHeightmapOffsetY = FMath::RoundToInt(HeightmapScaleBias.W * (float)HeightmapSizeV) >> SimpleCollisionMipLevel;
-
-		const uint16* SimpleCollisionGrassHeights = bUsingGrassMapHeights && GrassData->HeightMipData.Contains(SimpleCollisionMipLevel) ? GrassData->HeightMipData[SimpleCollisionMipLevel].GetData() : nullptr;
-		uint16* const SimpleCollisionHeightData = CollisionHeightData + FMath::Square(CollisionSizeVerts);
-
-		for (int32 SubsectionY = SubSectionY1; SubsectionY < SubSectionY2; ++SubsectionY)
-		{
-			for (int32 SubsectionX = SubSectionX1; SubsectionX < SubSectionX2; ++SubsectionX)
-			{
-				// Area to update in subsection coordinates
-				const int32 SubX1 = ComponentX1 - SubsectionSizeQuads * SubsectionX;
-				const int32 SubY1 = ComponentY1 - SubsectionSizeQuads * SubsectionY;
-				const int32 SubX2 = ComponentX2 - SubsectionSizeQuads * SubsectionX;
-				const int32 SubY2 = ComponentY2 - SubsectionSizeQuads * SubsectionY;
-
-				// Area to update in simple collision mip level coords
-				const int32 SimpleCollisionSubX1 = FMath::FloorToInt((float)SubX1 * SimpleCollisionQuadRatio);
-				const int32 SimpleCollisionSubY1 = FMath::FloorToInt((float)SubY1 * SimpleCollisionQuadRatio);
-				const int32 SimpleCollisionSubX2 = FMath::CeilToInt((float)SubX2 * SimpleCollisionQuadRatio);
-				const int32 SimpleCollisionSubY2 = FMath::CeilToInt((float)SubY2 * SimpleCollisionQuadRatio);
-
-				// Clamp area to update
-				const int32 SimpleVertX1 = FMath::Clamp<int32>(SimpleCollisionSubX1, 0, SimpleCollisionSubsectionSizeQuads);
-				const int32 SimpleVertY1 = FMath::Clamp<int32>(SimpleCollisionSubY1, 0, SimpleCollisionSubsectionSizeQuads);
-				const int32 SimpleVertX2 = FMath::Clamp<int32>(SimpleCollisionSubX2, 0, SimpleCollisionSubsectionSizeQuads);
-				const int32 SimpleVertY2 = FMath::Clamp<int32>(SimpleCollisionSubY2, 0, SimpleCollisionSubsectionSizeQuads);
-
-				for (int32 VertY = SimpleVertY1; VertY <= SimpleVertY2; VertY++)
-				{
-					for (int32 VertX = SimpleVertX1; VertX <= SimpleVertX2; VertX++)
-					{
-						// this uses Quads as we don't want the duplicated vertices
-						const int32 CompVertX = SimpleCollisionSubsectionSizeQuads * SubsectionX + VertX;
-						const int32 CompVertY = SimpleCollisionSubsectionSizeQuads * SubsectionY + VertY;
-
-						if (SimpleCollisionGrassHeights)
-						{
-							uint16& CollisionHeight = SimpleCollisionHeightData[CompVertX + CompVertY * SimpleCollisionSizeVerts];
-							const uint16& NewHeight = SimpleCollisionGrassHeights[CompVertX + CompVertY * SimpleCollisionSizeVerts];
-							CollisionHeight = NewHeight;
-						}
-						else
-						{
-							// X/Y of the vertex we're looking indexed into the texture data
-							const int32 TexX = SimpleHeightmapOffsetX + SimpleCollisionSubsectionSizeVerts * SubsectionX + VertX;
-							const int32 TexY = SimpleHeightmapOffsetY + SimpleCollisionSubsectionSizeVerts * SubsectionY + VertY;
-							const FColor& TexData = SimpleCollisionHeightmapTextureData[TexX + TexY * SimpleMipSizeU];
-
-							// Copy collision data
-							uint16& CollisionHeight = SimpleCollisionHeightData[CompVertX + CompVertY * SimpleCollisionSizeVerts];
-							uint16 NewHeight = TexData.R << 8 | TexData.G;
-
-							CollisionHeight = NewHeight;
-						}
-
-						// not supported
-						// if (XYOffsetmapTexture && XYOffsetTextureMipData && CollisionXYOffsetData)
-					}
-				}
-			}
-		}
+		uint16* SimpleCollisionGrassHeights = bUsingGrassMapHeights && GrassData->HeightMipData.Contains(SimpleCollisionMipLevel) ? GrassData->HeightMipData[SimpleCollisionMipLevel].GetData() : nullptr;
+		uint16* const SimpleCollisionHeightData = CollisionHeightData + CollisionSize.SizeVertsSquare;
+		UpdateCollisionHeightBuffer(ComponentX1, ComponentY1, ComponentX2, ComponentY2, SimpleCollisionMipLevel, HeightmapSizeU, HeightmapSizeV, SimpleCollisionHeightmapTextureData, SimpleCollisionHeightData, SimpleCollisionGrassHeights, nullptr, nullptr);
 	}
 
 	CollisionComp->CollisionHeightData.Unlock();
@@ -1069,7 +898,7 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 		MeshCollisionComponent->CollisionXYOffsetData.Unlock();
 	}
 
-	// If we updated an existing component, we need to update the PhysX copy of the data
+	// If we updated an existing component, we need to update the phys x heightfield edit data
 	if (!CreatedNew)
 	{
 		if (MeshCollisionComponent)
@@ -1083,6 +912,8 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 		}
 		else
 		{
+			// Ratio to convert update region coordinate to collision mip coordinates
+			const float CollisionQuadRatio = (float)CollisionSize.SubsectionSizeQuads / (float)SubsectionSizeQuads;
 			const int32 CollisionCompX1 = FMath::FloorToInt((float)ComponentX1 * CollisionQuadRatio);
 			const int32 CollisionCompY1 = FMath::FloorToInt((float)ComponentY1 * CollisionQuadRatio);
 			const int32 CollisionCompX2 = FMath::CeilToInt( (float)ComponentX2 * CollisionQuadRatio);
@@ -1102,10 +933,7 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 	{
 		AInstancedFoliageActor::MoveInstancesToNewComponent(Proxy->GetWorld(), OldCollisionComponent, CollisionComp);
 	}
-
-	// Set new collision component to pointer
-	CollisionComponent = CollisionComp;
-
+	
 	if (CreatedNew && !ChangeType)
 	{
 		UpdateCollisionLayerData();
@@ -1115,17 +943,22 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 	{
 		CollisionComp->RegisterComponent();
 	}
+
+	return CreatedNew;
 }
 
-void ULandscapeComponent::UpdateCollisionData(bool bRebuild)
+void ULandscapeComponent::DestroyCollisionData()
 {
 	ULandscapeHeightfieldCollisionComponent* CollisionComp = CollisionComponent.Get();
-	if (CollisionComp && bRebuild)
+	if (CollisionComp)
 	{
 		CollisionComp->DestroyComponent();
 		CollisionComponent = CollisionComp = nullptr;
 	}
+}
 
+void ULandscapeComponent::UpdateCollisionData()
+{
 	TArray<uint8> CollisionMipData;
 	TArray<uint8> SimpleCollisionMipData;
 	TArray<uint8> XYOffsetMipData;
@@ -1140,11 +973,281 @@ void ULandscapeComponent::UpdateCollisionData(bool bRebuild)
 		XYOffsetmapTexture->Source.GetMipData(XYOffsetMipData, CollisionMipLevel);
 	}
 
-	UpdateCollisionHeightData(
+	bool bCreatedNewComponent = UpdateCollisionHeightData(
 		(FColor*)CollisionMipData.GetData(),
 		SimpleCollisionMipLevel > CollisionMipLevel ? (FColor*)SimpleCollisionMipData.GetData() : nullptr,
 		0, 0, MAX_int32, MAX_int32, true,
 		XYOffsetmapTexture ? (FColor*)XYOffsetMipData.GetData() : nullptr);
+
+    // If the Collision Component hasn't changed we need to reflect its data to the underlying physics implementation
+	if (!bCreatedNewComponent)
+	{
+		ULandscapeHeightfieldCollisionComponent* CollisionComp = CollisionComponent.Get();
+		if (CollisionComp)
+		{
+			CollisionComp->RecreateCollision();
+		}
+	}
+}
+
+void ULandscapeComponent::RecreateCollisionComponent(bool bUseSimpleCollision)
+{
+	ULandscapeHeightfieldCollisionComponent* CollisionComp = CollisionComponent.Get();
+	ULandscapeMeshCollisionComponent* MeshCollisionComponent = nullptr;
+	TArray<uint8> DominantLayerData;
+	TArray<ULandscapeLayerInfoObject*> LayerInfos;
+	ALandscapeProxy* Proxy = GetLandscapeProxy();
+	ULandscapeInfo* Info = GetLandscapeInfo();
+	const FCollisionSize CollisionSize = FCollisionSize::Create(NumSubsections, SubsectionSizeQuads, CollisionMipLevel);
+	const FCollisionSize SimpleCollisionSize = FCollisionSize::CreateSimple(bUseSimpleCollision, NumSubsections, SubsectionSizeQuads, SimpleCollisionMipLevel);
+	const int32 TotalCollisionSize = CollisionSize.SizeVertsSquare + SimpleCollisionSize.SizeVertsSquare;
+
+	if (CollisionComp) // remove old component before changing to other type collision...
+	{
+		if (CollisionComp->DominantLayerData.GetElementCount())
+		{
+			check(CollisionComp->DominantLayerData.GetElementCount() >= TotalCollisionSize);
+			DominantLayerData.AddUninitialized(TotalCollisionSize);
+
+			const uint8* SrcDominantLayerData = (uint8*)CollisionComp->DominantLayerData.Lock(LOCK_READ_ONLY);
+			FMemory::Memcpy(DominantLayerData.GetData(), SrcDominantLayerData, TotalCollisionSize * CollisionComp->DominantLayerData.GetElementSize());
+			CollisionComp->DominantLayerData.Unlock();
+		}
+
+		if (CollisionComp->ComponentLayerInfos.Num())
+		{
+			LayerInfos = CollisionComp->ComponentLayerInfos;
+		}
+
+		if (Info)
+		{
+			Info->Modify();
+		}
+		Proxy->Modify();
+		CollisionComp->DestroyComponent();
+		CollisionComp = nullptr;
+	}
+
+	if (XYOffsetmapTexture)
+	{
+		MeshCollisionComponent = NewObject<ULandscapeMeshCollisionComponent>(Proxy, NAME_None, RF_Transactional);
+		CollisionComp = MeshCollisionComponent;
+	}
+	else
+	{
+		MeshCollisionComponent = nullptr;
+		CollisionComp = NewObject<ULandscapeHeightfieldCollisionComponent>(Proxy, NAME_None, RF_Transactional);
+	}
+
+	CollisionComp->SetRelativeLocation(RelativeLocation);
+	CollisionComp->SetupAttachment(Proxy->GetRootComponent(), NAME_None);
+	Proxy->CollisionComponents.Add(CollisionComp);
+
+	CollisionComp->RenderComponent = this;
+	CollisionComp->SetSectionBase(GetSectionBase());
+	CollisionComp->CollisionSizeQuads = CollisionSize.SubsectionSizeQuads * NumSubsections;
+	CollisionComp->CollisionScale = (float)(ComponentSizeQuads) / (float)(CollisionComp->CollisionSizeQuads);
+	CollisionComp->SimpleCollisionSizeQuads = SimpleCollisionSize.SubsectionSizeQuads * NumSubsections;
+	CollisionComp->CachedLocalBox = CachedLocalBox;
+	CollisionComp->SetGenerateOverlapEvents(Proxy->bGenerateOverlapEvents);
+
+	// Reallocate raw collision data
+	CollisionComp->CollisionHeightData.Lock(LOCK_READ_WRITE);
+	uint16* CollisionHeightData = (uint16*)CollisionComp->CollisionHeightData.Realloc(TotalCollisionSize);
+	FMemory::Memzero(CollisionHeightData, TotalCollisionSize * CollisionComp->CollisionHeightData.GetElementSize());
+	CollisionComp->CollisionHeightData.Unlock();
+	
+	if (XYOffsetmapTexture && MeshCollisionComponent)
+	{
+		// Need XYOffsetData for Collision Component
+		MeshCollisionComponent->CollisionXYOffsetData.Lock(LOCK_READ_WRITE);
+		uint16* CollisionXYOffsetData = (uint16*)MeshCollisionComponent->CollisionXYOffsetData.Realloc(TotalCollisionSize * 2);
+		FMemory::Memzero(CollisionXYOffsetData, TotalCollisionSize * 2 * MeshCollisionComponent->CollisionXYOffsetData.GetElementSize());
+		MeshCollisionComponent->CollisionXYOffsetData.Unlock();
+	}
+
+	if (DominantLayerData.Num())
+	{
+		CollisionComp->DominantLayerData.Lock(LOCK_READ_WRITE);
+		uint8* DestDominantLayerData = (uint8*)CollisionComp->DominantLayerData.Realloc(TotalCollisionSize);
+		FMemory::Memcpy(DestDominantLayerData, DominantLayerData.GetData(), TotalCollisionSize * CollisionComp->DominantLayerData.GetElementSize());
+		CollisionComp->DominantLayerData.Unlock();
+	}
+
+	if (LayerInfos.Num())
+	{
+		CollisionComp->ComponentLayerInfos = MoveTemp(LayerInfos);
+	}
+	CollisionComponent = CollisionComp;
+}
+
+void ULandscapeComponent::UpdateCollisionHeightBuffer(	int32 InComponentX1, int32 InComponentY1, int32 InComponentX2, int32 InComponentY2, int32 InCollisionMipLevel, int32 InHeightmapSizeU, int32 InHeightmapSizeV,
+														const FColor* const InHeightmapTextureMipData, uint16* OutCollisionHeightData, uint16* InGrassHeightData,
+														const FColor* const InXYOffsetTextureMipData, uint16* OutCollisionXYOffsetData)
+{
+	FCollisionSize CollisionSize = FCollisionSize::Create(NumSubsections, SubsectionSizeQuads, InCollisionMipLevel);
+
+	// Ratio to convert update region coordinate to collision mip coordinates
+	const float CollisionQuadRatio = (float)CollisionSize.SubsectionSizeQuads / (float)SubsectionSizeQuads;
+
+	const int32 SubSectionX1 = FMath::Max(0, FMath::DivideAndRoundDown(InComponentX1 - 1, SubsectionSizeQuads));
+	const int32 SubSectionY1 = FMath::Max(0, FMath::DivideAndRoundDown(InComponentY1 - 1, SubsectionSizeQuads));
+	const int32 SubSectionX2 = FMath::Min(FMath::DivideAndRoundUp(InComponentX2 + 1, SubsectionSizeQuads), NumSubsections);
+	const int32 SubSectionY2 = FMath::Min(FMath::DivideAndRoundUp(InComponentY2 + 1, SubsectionSizeQuads), NumSubsections);
+
+	const int32 MipSizeU = InHeightmapSizeU >> InCollisionMipLevel;
+	const int32 MipSizeV = InHeightmapSizeV >> InCollisionMipLevel;
+
+	const int32 HeightmapOffsetX = FMath::RoundToInt(HeightmapScaleBias.Z * (float)InHeightmapSizeU) >> InCollisionMipLevel;
+	const int32 HeightmapOffsetY = FMath::RoundToInt(HeightmapScaleBias.W * (float)InHeightmapSizeV) >> InCollisionMipLevel;
+
+	const int32 XYMipSizeU = XYOffsetmapTexture ? XYOffsetmapTexture->Source.GetSizeX() >> InCollisionMipLevel : 0;
+
+	for (int32 SubsectionY = SubSectionY1; SubsectionY < SubSectionY2; ++SubsectionY)
+	{
+		for (int32 SubsectionX = SubSectionX1; SubsectionX < SubSectionX2; ++SubsectionX)
+		{
+			// Area to update in subsection coordinates
+			const int32 SubX1 = InComponentX1 - SubsectionSizeQuads * SubsectionX;
+			const int32 SubY1 = InComponentY1 - SubsectionSizeQuads * SubsectionY;
+			const int32 SubX2 = InComponentX2 - SubsectionSizeQuads * SubsectionX;
+			const int32 SubY2 = InComponentY2 - SubsectionSizeQuads * SubsectionY;
+
+			// Area to update in collision mip level coords
+			const int32 CollisionSubX1 = FMath::FloorToInt((float)SubX1 * CollisionQuadRatio);
+			const int32 CollisionSubY1 = FMath::FloorToInt((float)SubY1 * CollisionQuadRatio);
+			const int32 CollisionSubX2 = FMath::CeilToInt((float)SubX2 * CollisionQuadRatio);
+			const int32 CollisionSubY2 = FMath::CeilToInt((float)SubY2 * CollisionQuadRatio);
+
+			// Clamp area to update
+			const int32 VertX1 = FMath::Clamp<int32>(CollisionSubX1, 0, CollisionSize.SubsectionSizeQuads);
+			const int32 VertY1 = FMath::Clamp<int32>(CollisionSubY1, 0, CollisionSize.SubsectionSizeQuads);
+			const int32 VertX2 = FMath::Clamp<int32>(CollisionSubX2, 0, CollisionSize.SubsectionSizeQuads);
+			const int32 VertY2 = FMath::Clamp<int32>(CollisionSubY2, 0, CollisionSize.SubsectionSizeQuads);
+
+			for (int32 VertY = VertY1; VertY <= VertY2; VertY++)
+			{
+				for (int32 VertX = VertX1; VertX <= VertX2; VertX++)
+				{
+					// this uses Quads as we don't want the duplicated vertices
+					const int32 CompVertX = CollisionSize.SubsectionSizeQuads * SubsectionX + VertX;
+					const int32 CompVertY = CollisionSize.SubsectionSizeQuads * SubsectionY + VertY;
+
+					if (InGrassHeightData)
+					{
+						uint16& CollisionHeight = OutCollisionHeightData[CompVertX + CompVertY * CollisionSize.SizeVerts];
+						const uint16& NewHeight = InGrassHeightData[CompVertX + CompVertY * CollisionSize.SizeVerts];
+						CollisionHeight = NewHeight;
+					}
+					else
+					{
+						// X/Y of the vertex we're looking indexed into the texture data
+						const int32 TexX = HeightmapOffsetX + CollisionSize.SubsectionSizeVerts * SubsectionX + VertX;
+						const int32 TexY = HeightmapOffsetY + CollisionSize.SubsectionSizeVerts * SubsectionY + VertY;
+						const FColor& TexData = InHeightmapTextureMipData[TexX + TexY * MipSizeU];
+
+						// Copy collision data
+						uint16& CollisionHeight = OutCollisionHeightData[CompVertX + CompVertY * CollisionSize.SizeVerts];
+						const uint16 NewHeight = TexData.R << 8 | TexData.G;
+
+						CollisionHeight = NewHeight;
+					}
+
+					if (XYOffsetmapTexture && InXYOffsetTextureMipData && OutCollisionXYOffsetData)
+					{
+						const int32 TexX = CollisionSize.SubsectionSizeVerts * SubsectionX + VertX;
+						const int32 TexY = CollisionSize.SubsectionSizeVerts * SubsectionY + VertY;
+						const FColor& TexData = InXYOffsetTextureMipData[TexX + TexY * XYMipSizeU];
+
+						// Copy collision data
+						const uint16 NewXOffset = TexData.R << 8 | TexData.G;
+						const uint16 NewYOffset = TexData.B << 8 | TexData.A;
+
+						const int32 XYIndex = CompVertX + CompVertY * CollisionSize.SizeVerts;
+						OutCollisionXYOffsetData[XYIndex * 2] = NewXOffset;
+						OutCollisionXYOffsetData[XYIndex * 2 + 1] = NewYOffset;
+					}
+				}
+			}
+		}
+	}
+}
+
+void ULandscapeComponent::UpdateDominantLayerBuffer(int32 InComponentX1, int32 InComponentY1, int32 InComponentX2, int32 InComponentY2, int32 InCollisionMipLevel, int32 InWeightmapSizeU, int32 InDataLayerIdx, const TArray<uint8*>& InCollisionDataPtrs, uint8* OutDominantLayerData)
+{
+	const int32 MipSizeU = InWeightmapSizeU >> InCollisionMipLevel;
+
+	FCollisionSize CollisionSize = FCollisionSize::Create(NumSubsections, SubsectionSizeQuads, CollisionMipLevel);
+	
+	// Ratio to convert update region coordinate to collision mip coordinates
+	const float CollisionQuadRatio = (float)CollisionSize.SubsectionSizeQuads / (float)SubsectionSizeQuads;
+
+	const int32 SubSectionX1 = FMath::Max(0, FMath::DivideAndRoundDown(InComponentX1 - 1, SubsectionSizeQuads));
+	const int32 SubSectionY1 = FMath::Max(0, FMath::DivideAndRoundDown(InComponentY1 - 1, SubsectionSizeQuads));
+	const int32 SubSectionX2 = FMath::Min(FMath::DivideAndRoundUp(InComponentX2 + 1, SubsectionSizeQuads), NumSubsections);
+	const int32 SubSectionY2 = FMath::Min(FMath::DivideAndRoundUp(InComponentY2 + 1, SubsectionSizeQuads), NumSubsections);
+	for (int32 SubsectionY = SubSectionY1; SubsectionY < SubSectionY2; ++SubsectionY)
+	{
+		for (int32 SubsectionX = SubSectionX1; SubsectionX < SubSectionX2; ++SubsectionX)
+		{
+			// Area to update in subsection coordinates
+			const int32 SubX1 = InComponentX1 - SubsectionSizeQuads * SubsectionX;
+			const int32 SubY1 = InComponentY1 - SubsectionSizeQuads * SubsectionY;
+			const int32 SubX2 = InComponentX2 - SubsectionSizeQuads * SubsectionX;
+			const int32 SubY2 = InComponentY2 - SubsectionSizeQuads * SubsectionY;
+
+			// Area to update in collision mip level coords
+			const int32 CollisionSubX1 = FMath::FloorToInt((float)SubX1 * CollisionQuadRatio);
+			const int32 CollisionSubY1 = FMath::FloorToInt((float)SubY1 * CollisionQuadRatio);
+			const int32 CollisionSubX2 = FMath::CeilToInt((float)SubX2 * CollisionQuadRatio);
+			const int32 CollisionSubY2 = FMath::CeilToInt((float)SubY2 * CollisionQuadRatio);
+
+			// Clamp area to update
+			const int32 VertX1 = FMath::Clamp<int32>(CollisionSubX1, 0, CollisionSize.SubsectionSizeQuads);
+			const int32 VertY1 = FMath::Clamp<int32>(CollisionSubY1, 0, CollisionSize.SubsectionSizeQuads);
+			const int32 VertX2 = FMath::Clamp<int32>(CollisionSubX2, 0, CollisionSize.SubsectionSizeQuads);
+			const int32 VertY2 = FMath::Clamp<int32>(CollisionSubY2, 0, CollisionSize.SubsectionSizeQuads);
+
+			for (int32 VertY = VertY1; VertY <= VertY2; VertY++)
+			{
+				for (int32 VertX = VertX1; VertX <= VertX2; VertX++)
+				{
+					// X/Y of the vertex we're looking indexed into the texture data
+					const int32 TexX = CollisionSize.SubsectionSizeVerts * SubsectionX + VertX;
+					const int32 TexY = CollisionSize.SubsectionSizeVerts * SubsectionY + VertY;
+					const int32 DataOffset = (TexX + TexY * MipSizeU) * sizeof(FColor);
+
+					uint8 DominantLayer = 255; // 255 as invalid value
+					int32 DominantWeight = 0;
+					for (int32 LayerIdx = 0; LayerIdx < InCollisionDataPtrs.Num(); LayerIdx++)
+					{
+						const uint8 LayerWeight = InCollisionDataPtrs[LayerIdx][DataOffset];
+
+						if (LayerIdx == InDataLayerIdx) // Override value for hole
+						{
+							if (LayerWeight > 170) // 255 * 0.66...
+							{
+								DominantLayer = LayerIdx;
+								DominantWeight = INT_MAX;
+							}
+						}
+						else if (LayerWeight > DominantWeight)
+						{
+							DominantLayer = LayerIdx;
+							DominantWeight = LayerWeight;
+						}
+					}
+
+					// this uses Quads as we don't want the duplicated vertices
+					const int32 CompVertX = CollisionSize.SubsectionSizeQuads * SubsectionX + VertX;
+					const int32 CompVertY = CollisionSize.SubsectionSizeQuads * SubsectionY + VertY;
+
+					// Set collision data
+					OutDominantLayerData[CompVertX + CompVertY * CollisionSize.SizeVerts] = DominantLayer;
+				}
+			}
+		}
+	}
 }
 
 void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const WeightmapTextureMipData, const FColor* const* const SimpleCollisionWeightmapTextureMipData, int32 ComponentX1, int32 ComponentY1, int32 ComponentX2, int32 ComponentY2)
@@ -1209,17 +1312,11 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 		}
 		else
 		{
-			const int32 CollisionSubsectionSizeVerts = ((SubsectionSizeQuads + 1) >> CollisionMipLevel);
-			const int32 CollisionSubsectionSizeQuads = CollisionSubsectionSizeVerts - 1;
-			const int32 CollisionSizeVerts = NumSubsections * CollisionSubsectionSizeQuads + 1;
-			const int32 SimpleCollisionSubsectionSizeVerts = bUsingSimpleCollision ? ((SubsectionSizeQuads + 1) >> SimpleCollisionMipLevel) : 0;
-			const int32 SimpleCollisionSubsectionSizeQuads = bUsingSimpleCollision ? SimpleCollisionSubsectionSizeVerts - 1 : 0;
-			const int32 SimpleCollisionSizeVerts = bUsingSimpleCollision ? NumSubsections * SimpleCollisionSubsectionSizeQuads + 1 : 0;
-
-			const int32 TotalCollisionSize = FMath::Square(CollisionSizeVerts) + FMath::Square(SimpleCollisionSizeVerts);
-
-			uint8* DominantLayerData = nullptr;
-
+			uint8* DominantLayerData = (uint8*)CollisionComp->DominantLayerData.Lock(LOCK_READ_WRITE);
+			FCollisionSize CollisionSize = FCollisionSize::Create(NumSubsections, SubsectionSizeQuads, CollisionMipLevel);
+			FCollisionSize SimpleCollisionSize = FCollisionSize::CreateSimple(bUsingSimpleCollision, NumSubsections, SubsectionSizeQuads, SimpleCollisionMipLevel);
+		
+				
 			// If there's no existing data, or the layer allocations have changed, we need to update the data for the whole component.
 			if (bExistingLayerMismatch || CollisionComp->DominantLayerData.GetElementCount() == 0)
 			{
@@ -1227,171 +1324,31 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 				ComponentY1 = 0;
 				ComponentX2 = ComponentSizeQuads;
 				ComponentY2 = ComponentSizeQuads;
+											
+				const int32 TotalCollisionSize = CollisionSize.SizeVertsSquare + SimpleCollisionSize.SizeVertsSquare;
 
-				CollisionComp->DominantLayerData.Lock(LOCK_READ_WRITE);
+				
 				DominantLayerData = (uint8*)CollisionComp->DominantLayerData.Realloc(TotalCollisionSize);
 				FMemory::Memzero(DominantLayerData, TotalCollisionSize);
-
 				CollisionComp->ComponentLayerInfos = CandidateLayers;
 			}
 			else
 			{
-				ComponentX1 = FMath::Min(ComponentX1, ComponentSizeQuads);
-				ComponentY1 = FMath::Min(ComponentY1, ComponentSizeQuads);
-				ComponentX2 = FMath::Max(ComponentX2, 0);
-				ComponentY2 = FMath::Max(ComponentY2, 0);
-
-				DominantLayerData = (uint8*)CollisionComp->DominantLayerData.Lock(LOCK_READ_WRITE);
+				ComponentX1 = FMath::Clamp(ComponentX1, 0, ComponentSizeQuads);
+				ComponentY1 = FMath::Clamp(ComponentY1, 0, ComponentSizeQuads);
+				ComponentX2 = FMath::Clamp(ComponentX2, 0, ComponentSizeQuads);
+				ComponentY2 = FMath::Clamp(ComponentY2, 0, ComponentSizeQuads);
 			}
 
 			const int32 WeightmapSizeU = ComponentWeightmapsTexture[0]->Source.GetSizeX();
-			const int32 MipSizeU = WeightmapSizeU >> CollisionMipLevel;
-
-			// Ratio to convert update region coordinate to collision mip coordinates
-			const float CollisionQuadRatio = (float)CollisionSubsectionSizeQuads / (float)SubsectionSizeQuads;
-
-			// gmartin: WeightmapScaleBias not handled?
-
-			const int32 SubSectionX1 = FMath::Max(0, FMath::DivideAndRoundDown(ComponentX1 - 1, SubsectionSizeQuads));
-			const int32 SubSectionY1 = FMath::Max(0, FMath::DivideAndRoundDown(ComponentY1 - 1, SubsectionSizeQuads));
-			const int32 SubSectionX2 = FMath::Min(FMath::DivideAndRoundUp(ComponentX2 + 1, SubsectionSizeQuads), NumSubsections);
-			const int32 SubSectionY2 = FMath::Min(FMath::DivideAndRoundUp(ComponentY2 + 1, SubsectionSizeQuads), NumSubsections);
-			for (int32 SubsectionY = SubSectionY1; SubsectionY < SubSectionY2; ++SubsectionY)
-			{
-				for (int32 SubsectionX = SubSectionX1; SubsectionX < SubSectionX2; ++SubsectionX)
-				{
-					// Area to update in subsection coordinates
-					const int32 SubX1 = ComponentX1 - SubsectionSizeQuads * SubsectionX;
-					const int32 SubY1 = ComponentY1 - SubsectionSizeQuads * SubsectionY;
-					const int32 SubX2 = ComponentX2 - SubsectionSizeQuads * SubsectionX;
-					const int32 SubY2 = ComponentY2 - SubsectionSizeQuads * SubsectionY;
-
-					// Area to update in collision mip level coords
-					const int32 CollisionSubX1 = FMath::FloorToInt((float)SubX1 * CollisionQuadRatio);
-					const int32 CollisionSubY1 = FMath::FloorToInt((float)SubY1 * CollisionQuadRatio);
-					const int32 CollisionSubX2 = FMath::CeilToInt( (float)SubX2 * CollisionQuadRatio);
-					const int32 CollisionSubY2 = FMath::CeilToInt( (float)SubY2 * CollisionQuadRatio);
-
-					// Clamp area to update
-					const int32 VertX1 = FMath::Clamp<int32>(CollisionSubX1, 0, CollisionSubsectionSizeQuads);
-					const int32 VertY1 = FMath::Clamp<int32>(CollisionSubY1, 0, CollisionSubsectionSizeQuads);
-					const int32 VertX2 = FMath::Clamp<int32>(CollisionSubX2, 0, CollisionSubsectionSizeQuads);
-					const int32 VertY2 = FMath::Clamp<int32>(CollisionSubY2, 0, CollisionSubsectionSizeQuads);
-
-					for (int32 VertY = VertY1; VertY <= VertY2; VertY++)
-					{
-						for (int32 VertX = VertX1; VertX <= VertX2; VertX++)
-						{
-							// X/Y of the vertex we're looking indexed into the texture data
-							const int32 TexX = CollisionSubsectionSizeVerts * SubsectionX + VertX;
-							const int32 TexY = CollisionSubsectionSizeVerts * SubsectionY + VertY;
-							const int32 DataOffset = (TexX + TexY * MipSizeU) * sizeof(FColor);
-
-							uint8 DominantLayer = 255; // 255 as invalid value
-							int32 DominantWeight = 0;
-							for (int32 LayerIdx = 0; LayerIdx < CandidateDataPtrs.Num(); LayerIdx++)
-							{
-								const uint8 LayerWeight = CandidateDataPtrs[LayerIdx][DataOffset];
-
-								if (LayerIdx == DataLayerIdx) // Override value for hole
-								{
-									if (LayerWeight > 170) // 255 * 0.66...
-									{
-										DominantLayer = LayerIdx;
-										DominantWeight = INT_MAX;
-									}
-								}
-								else if (LayerWeight > DominantWeight)
-								{
-									DominantLayer = LayerIdx;
-									DominantWeight = LayerWeight;
-								}
-							}
-
-							// this uses Quads as we don't want the duplicated vertices
-							const int32 CompVertX = CollisionSubsectionSizeQuads * SubsectionX + VertX;
-							const int32 CompVertY = CollisionSubsectionSizeQuads * SubsectionY + VertY;
-
-							// Set collision data
-							DominantLayerData[CompVertX + CompVertY*CollisionSizeVerts] = DominantLayer;
-						}
-					}
-				}
-			}
+						
+			// gmartin: WeightmapScaleBias not handled?			
+			UpdateDominantLayerBuffer(ComponentX1, ComponentY1, ComponentX2, ComponentY2, CollisionMipLevel, WeightmapSizeU, DataLayerIdx, CandidateDataPtrs, DominantLayerData);
 
 			if (bUsingSimpleCollision)
 			{
-				const int32 SimpleMipSizeU = WeightmapSizeU >> SimpleCollisionMipLevel;
-
-				// Ratio to convert update region coordinate to collision mip coordinates
-				const float SimpleCollisionQuadRatio = (float)SimpleCollisionSubsectionSizeQuads / (float)SubsectionSizeQuads;
-
-				// gmartin: WeightmapScaleBias not handled?
-
-				uint8* const SimpleCollisionHeightData = DominantLayerData + FMath::Square(CollisionSizeVerts);
-
-				for (int32 SubsectionY = SubSectionY1; SubsectionY < SubSectionY2; ++SubsectionY)
-				{
-					for (int32 SubsectionX = SubSectionX1; SubsectionX < SubSectionX2; ++SubsectionX)
-					{
-						// Area to update in subsection coordinates
-						const int32 SubX1 = ComponentX1 - SubsectionSizeQuads * SubsectionX;
-						const int32 SubY1 = ComponentY1 - SubsectionSizeQuads * SubsectionY;
-						const int32 SubX2 = ComponentX2 - SubsectionSizeQuads * SubsectionX;
-						const int32 SubY2 = ComponentY2 - SubsectionSizeQuads * SubsectionY;
-
-						// Area to update in simple collision mip level coords
-						const int32 SimpleCollisionSubX1 = FMath::FloorToInt((float)SubX1 * SimpleCollisionQuadRatio);
-						const int32 SimpleCollisionSubY1 = FMath::FloorToInt((float)SubY1 * SimpleCollisionQuadRatio);
-						const int32 SimpleCollisionSubX2 = FMath::CeilToInt( (float)SubX2 * SimpleCollisionQuadRatio);
-						const int32 SimpleCollisionSubY2 = FMath::CeilToInt( (float)SubY2 * SimpleCollisionQuadRatio);
-
-						// Clamp area to update
-						const int32 SimpleVertX1 = FMath::Clamp<int32>(SimpleCollisionSubX1, 0, SimpleCollisionSubsectionSizeQuads);
-						const int32 SimpleVertY1 = FMath::Clamp<int32>(SimpleCollisionSubY1, 0, SimpleCollisionSubsectionSizeQuads);
-						const int32 SimpleVertX2 = FMath::Clamp<int32>(SimpleCollisionSubX2, 0, SimpleCollisionSubsectionSizeQuads);
-						const int32 SimpleVertY2 = FMath::Clamp<int32>(SimpleCollisionSubY2, 0, SimpleCollisionSubsectionSizeQuads);
-
-						for (int32 VertY = SimpleVertY1; VertY <= SimpleVertY2; VertY++)
-						{
-							for (int32 VertX = SimpleVertX1; VertX <= SimpleVertX2; VertX++)
-							{
-								// X/Y of the vertex we're looking indexed into the texture data
-								const int32 TexX = SimpleCollisionSubsectionSizeVerts * SubsectionX + VertX;
-								const int32 TexY = SimpleCollisionSubsectionSizeVerts * SubsectionY + VertY;
-								const int32 DataOffset = (TexX + TexY * SimpleMipSizeU) * sizeof(FColor);
-
-								uint8 DominantLayer = 255; // 255 as invalid value
-								int32 DominantWeight = 0;
-								for (int32 LayerIdx = 0; LayerIdx < CandidateDataPtrs.Num(); LayerIdx++)
-								{
-									const uint8 LayerWeight = SimpleCollisionDataPtrs[LayerIdx][DataOffset];
-
-									if (LayerIdx == DataLayerIdx) // Override value for hole
-									{
-										if (LayerWeight > 170) // 255 * 0.66...
-										{
-											DominantLayer = LayerIdx;
-											DominantWeight = INT_MAX;
-										}
-									}
-									else if (LayerWeight > DominantWeight)
-									{
-										DominantLayer = LayerIdx;
-										DominantWeight = LayerWeight;
-									}
-								}
-
-								// this uses Quads as we don't want the duplicated vertices
-								const int32 CompVertX = SimpleCollisionSubsectionSizeQuads * SubsectionX + VertX;
-								const int32 CompVertY = SimpleCollisionSubsectionSizeQuads * SubsectionY + VertY;
-
-								// Set collision data
-								DominantLayerData[CompVertX + CompVertY * SimpleCollisionSizeVerts] = DominantLayer;
-							}
-						}
-					}
-				}
+				uint8* const SimpleCollisionHeightData = DominantLayerData + CollisionSize.SizeVertsSquare;
+				UpdateDominantLayerBuffer(ComponentX1, ComponentY1, ComponentX2, ComponentY2, SimpleCollisionMipLevel, WeightmapSizeU, DataLayerIdx, SimpleCollisionDataPtrs, SimpleCollisionHeightData);
 			}
 
 			CollisionComp->DominantLayerData.Unlock();
@@ -1684,13 +1641,13 @@ void ULandscapeComponent::GenerateHeightmapMips(TArray<FColor*>& HeightmapTextur
 
 void ULandscapeComponent::CreateEmptyTextureMips(UTexture2D* Texture, bool bClear /*= false*/)
 {
-	ETextureSourceFormat WeightmapFormat = Texture->Source.GetFormat();
-	int32 WeightmapSizeU = Texture->Source.GetSizeX();
-	int32 WeightmapSizeV = Texture->Source.GetSizeY();
+	ETextureSourceFormat Format = Texture->Source.GetFormat();
+	int32 SizeU = Texture->Source.GetSizeX();
+	int32 SizeV = Texture->Source.GetSizeY();
 
 	if (bClear)
 	{
-		Texture->Source.Init2DWithMipChain(WeightmapSizeU, WeightmapSizeV, WeightmapFormat);
+		Texture->Source.Init2DWithMipChain(SizeU, SizeV, Format);
 		int32 NumMips = Texture->Source.GetNumMips();
 		for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
 		{
@@ -1703,7 +1660,7 @@ void ULandscapeComponent::CreateEmptyTextureMips(UTexture2D* Texture, bool bClea
 	{
 		TArray<uint8> TopMipData;
 		Texture->Source.GetMipData(TopMipData, 0);
-		Texture->Source.Init2DWithMipChain(WeightmapSizeU, WeightmapSizeV, WeightmapFormat);
+		Texture->Source.Init2DWithMipChain(SizeU, SizeV, Format);
 		int32 NumMips = Texture->Source.GetNumMips();
 		uint8* MipData = Texture->Source.LockMip(0);
 		FMemory::Memcpy(MipData, TopMipData.GetData(), TopMipData.Num());
@@ -2583,7 +2540,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 
 					const int32 ThisAllocationLayers = FMath::Min<int32>(RemainingLayers, 4);
 					new(TextureAllocations) FWeightmapTextureAllocation(ComponentX, ComponentY, ThisAllocationLayers, WeightmapTexture, MipData);
-					ULandscapeWeightmapUsage* WeightmapUsage = WeightmapUsageMap.Add(WeightmapTexture, NewObject<ULandscapeWeightmapUsage>(this));
+					ULandscapeWeightmapUsage* WeightmapUsage = WeightmapUsageMap.Add(WeightmapTexture, CreateWeightmapUsage());
 					ComponentWeightmapTexturesUsage.Add(WeightmapUsage);
 
 					UE_LOG(LogLandscape, Log, TEXT("  ==> Storing %d channels in new texture %s"), ThisAllocationLayers, *WeightmapTexture->GetName());
@@ -2814,9 +2771,14 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 	// Must be after the FMaterialUpdateContext is destroyed
 	RecreateRenderStateContexts.Reset();
 
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		SetupProceduralLayers(NumComponentsX, NumComponentsY);
+		ALandscape* LandscapeActor = GetLandscapeActor();
+		check(LandscapeActor != nullptr);
+
+		// Create the default layer
+		LandscapeActor->CreateDefaultLayer(FIntPoint(NumComponentsX, NumComponentsY));
+		HasLayersContent = true;
 	}
 
 	if (GetLevel()->bIsVisible)
@@ -3543,6 +3505,13 @@ void ALandscape::PostEditMove(bool bFinished)
 	Super::PostEditMove(bFinished);
 }
 
+void ALandscape::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+}
+
 bool ALandscape::ShouldImport(FString* ActorPropString, bool IsMovingLevel)
 {
 	return GetWorld() != nullptr && !GetWorld()->IsGameWorld();
@@ -3735,7 +3704,8 @@ void ALandscapeProxy::RecreateCollisionComponents()
 		{
 			Comp->CollisionMipLevel = CollisionMipLevel;
 			Comp->SimpleCollisionMipLevel = SimpleCollisionMipLevel;
-			Comp->UpdateCollisionData(true);
+			Comp->DestroyCollisionData();
+			Comp->UpdateCollisionData();
 		}
 	}
 }
@@ -4423,7 +4393,8 @@ void ULandscapeComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 		SimpleCollisionMipLevel = FMath::Clamp<int32>(SimpleCollisionMipLevel, 0, FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
 		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 		{
-			UpdateCollisionData(true); // Rebuild for new CollisionMipLevel
+			DestroyCollisionData();
+			UpdateCollisionData(); // Rebuild for new CollisionMipLevel
 		}
 	}
 
@@ -4532,13 +4503,13 @@ void ULandscapeInfo::ClearSelectedRegion(bool bIsComponentwise /*= true*/)
 	}
 }
 
-void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* DataInterface, bool InCanUseCurrentEditingWeightmap, bool InSaveToTransactionBuffer, bool InInitPlatformDataAsync, TArray<UTexture2D*>* OutNewCreatedTextures)
+void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* DataInterface, bool InCanUseEditingWeightmap, bool InSaveToTransactionBuffer, bool InInitPlatformDataAsync, TArray<UTexture2D*>* OutNewCreatedTextures)
 {
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
 
-	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(InCanUseCurrentEditingWeightmap);
-	TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures(InCanUseCurrentEditingWeightmap);
-	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = GetWeightmapTexturesUsage(InCanUseCurrentEditingWeightmap);
+	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(InCanUseEditingWeightmap);
+	TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures(InCanUseEditingWeightmap);
+	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = GetWeightmapTexturesUsage(InCanUseEditingWeightmap);
 
 	int32 NeededNewChannels = 0;
 	for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
@@ -4615,6 +4586,11 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 
 					AllocInfo.WeightmapTextureIndex = TexIdx;
 					AllocInfo.WeightmapTextureChannel = ChanIdx;
+
+					if (InSaveToTransactionBuffer)
+					{
+						Usage->Modify();
+					}
 					Usage->ChannelUsage[ChanIdx] = this;
 
 					NeededNewChannels--;
@@ -4637,6 +4613,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 	int32 CurrentLayer = 0;
 	TArray<UTexture2D*> NewWeightmapTextures;
 	TArray<ULandscapeWeightmapUsage*> NewComponentWeightmapTexturesUsage;
+	
 	while (TotalNeededChannels > 0)
 	{
 		// UE_LOG(LogLandscape, Log, TEXT("Still need %d channels"), TotalNeededChannels);
@@ -4654,11 +4631,14 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 			{
 				ULandscapeWeightmapUsage* TryWeightmapUsage = ItPair.Value;
 				//
-				FGuid ProceduralLayerGuidToSeek = InCanUseCurrentEditingWeightmap ? CurrentProceduralLayerGuid : FGuid();
+				FGuid EditingLayerGUID = GetEditingLayerGUID();
+				check(!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem || !InCanUseEditingWeightmap || EditingLayerGUID.IsValid());
 
-				if (TryWeightmapUsage->FreeChannelCount() >= TotalNeededChannels && TryWeightmapUsage->ProceduralLayerGuid == ProceduralLayerGuidToSeek)
+				FGuid LayerGuidToSeek = InCanUseEditingWeightmap ? EditingLayerGUID : FGuid();
+
+				if (TryWeightmapUsage->FreeChannelCount() >= TotalNeededChannels && TryWeightmapUsage->LayerGuid == LayerGuidToSeek)
 				{
-					if (TryWeightmapUsage->FreeChannelCount() == 4)
+					if (TryWeightmapUsage->IsEmpty())
 					{
 						CurrentWeightmapTexture = ItPair.Key;
 						CurrentWeightmapUsage = TryWeightmapUsage;
@@ -4667,7 +4647,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 					else
 					{
 						// See if this candidate is closer than any others we've found
-						for (int32 ChanIdx = 0; ChanIdx < 4; ChanIdx++)
+						for (int32 ChanIdx = 0; ChanIdx < ULandscapeWeightmapUsage::NumChannels; ChanIdx++)
 						{
 							if (TryWeightmapUsage->ChannelUsage[ChanIdx] != nullptr)
 							{
@@ -4716,8 +4696,16 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 			}
 
 			// Store it in the usage map
-			CurrentWeightmapUsage = Proxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, NewObject<ULandscapeWeightmapUsage>(GetLandscapeProxy()));
-			CurrentWeightmapUsage->ProceduralLayerGuid = InCanUseCurrentEditingWeightmap ? CurrentProceduralLayerGuid : FGuid();
+			CurrentWeightmapUsage = Proxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, GetLandscapeProxy()->CreateWeightmapUsage());
+			if (InSaveToTransactionBuffer)
+			{
+				CurrentWeightmapUsage->Modify();
+			}
+
+			FGuid EditingLayerGUID = GetEditingLayerGUID();
+			check(!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem || !InCanUseEditingWeightmap || EditingLayerGUID.IsValid());
+
+			CurrentWeightmapUsage->LayerGuid = InCanUseEditingWeightmap ? EditingLayerGUID : FGuid();
 			// UE_LOG(LogLandscape, Log, TEXT("Making a new texture %s"), *CurrentWeightmapTexture->GetName());
 		}
 
@@ -4756,10 +4744,18 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 
 					// Remove the old allocation
 					ULandscapeWeightmapUsage* OldWeightmapUsage = ComponentWeightmapTexturesUsage[AllocInfo.WeightmapTextureIndex];
+					if (InSaveToTransactionBuffer)
+					{
+						OldWeightmapUsage->Modify();
+					}
 					OldWeightmapUsage->ChannelUsage[AllocInfo.WeightmapTextureChannel] = nullptr;
 				}
 
 				// Assign the new allocation
+				if (InSaveToTransactionBuffer)
+				{
+					CurrentWeightmapUsage->Modify();
+				}
 				CurrentWeightmapUsage->ChannelUsage[ChanIdx] = this;
 				AllocInfo.WeightmapTextureIndex = NewWeightmapTextures.Num() - 1;
 				AllocInfo.WeightmapTextureChannel = ChanIdx;
@@ -4790,8 +4786,8 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 	}
 
 	// Replace the weightmap textures
-	SetWeightmapTextures(MoveTemp(NewWeightmapTextures), InCanUseCurrentEditingWeightmap);
-	SetWeightmapTexturesUsage(MoveTemp(NewComponentWeightmapTexturesUsage), InCanUseCurrentEditingWeightmap);	
+	SetWeightmapTextures(MoveTemp(NewWeightmapTextures), InCanUseEditingWeightmap);
+	SetWeightmapTexturesUsage(MoveTemp(NewComponentWeightmapTexturesUsage), InCanUseEditingWeightmap);	
 }
 
 void ALandscapeProxy::RemoveInvalidWeightmaps()
@@ -4802,7 +4798,7 @@ void ALandscapeProxy::RemoveInvalidWeightmaps()
 		{
 			UTexture2D* Tex = It.Key();
 			ULandscapeWeightmapUsage* Usage = It.Value();
-			if (Usage->FreeChannelCount() == 4) // Invalid Weight-map
+			if (Usage->IsEmpty()) // Invalid Weight-map
 			{
 				if (Tex)
 				{
@@ -5047,12 +5043,24 @@ void ULandscapeComponent::InitWeightmapData(TArray<ULandscapeLayerInfoObject*>& 
 	LODIndexToMaterialIndex.Empty(1);
 	LODIndexToMaterialIndex.Add(0);
 
-	//  TODO: need to update procedural?
+	//  TODO: need to update layer system?
 }
 
 #define MAX_LANDSCAPE_EXPORT_COMPONENTS_NUM		16
 #define MAX_LANDSCAPE_PROP_TEXT_LENGTH			1024*1024*16
 
+
+bool ALandscapeProxy::Modify(bool bAlwaysMarkDirty)
+{
+	for (auto& Pair : WeightmapUsageMap)
+	{
+		if (Pair.Value)
+		{
+			Pair.Value->Modify(bAlwaysMarkDirty);
+		}
+	}
+	return Super::Modify(bAlwaysMarkDirty);
+}
 
 bool ALandscapeProxy::ShouldExport()
 {
@@ -5753,6 +5761,11 @@ UTexture2D* ALandscapeProxy::CreateLandscapeTexture(int32 InSizeX, int32 InSizeY
 	NewTexture->LODGroup = InLODGroup;
 
 	return NewTexture;
+}
+
+ULandscapeWeightmapUsage* ALandscapeProxy::CreateWeightmapUsage()
+{
+	return NewObject<ULandscapeWeightmapUsage>(this, ULandscapeWeightmapUsage::StaticClass(), NAME_None, RF_Transactional);
 }
 
 void ALandscapeProxy::RemoveOverlappingComponent(ULandscapeComponent* Component)

@@ -179,7 +179,7 @@ private:
 		LogWidget->AppendLine(GetLogColor(Verbosity), MoveTemp(Text));
 	}
 
-	bool CompilePatch(const TArray<FString>& Targets, TMap<FString, TArray<FString>>& ModuleToObjectFiles)
+	bool CompilePatch(const TArray<FString>& Targets, TMap<FString, TArray<FString>>& ModuleToObjectFiles, TMap<FString, FString>& ObjectFileToUnityObjectFile)
 	{
 		// Update the compile start time. This gets copied into the last patch time once a patch has been confirmed to have been applied.
 		NextPatchStartTime = FDateTime::UtcNow();
@@ -230,7 +230,7 @@ private:
 		}
 
 		// Override the linker path
-		Server.SetLinkerPath(*Manifest.LinkerPath);
+		Server.SetLinkerPath(*Manifest.LinkerPath, Manifest.LinkerEnvironment);
 
 		// Strip out all the files that haven't been modified
 		IFileManager& FileManager = IFileManager::Get();
@@ -250,6 +250,9 @@ private:
 				}
 			}
 		}
+
+		// Save off the mapping to unity file
+		ObjectFileToUnityObjectFile = MoveTemp(Manifest.ObjectFileToUnityObjectFile);
 		return true;
 	}
 

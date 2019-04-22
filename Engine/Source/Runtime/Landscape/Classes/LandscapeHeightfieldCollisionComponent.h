@@ -243,6 +243,8 @@ public:
 #if WITH_EDITORONLY_DATA
 	// Called from editor code to manage foliage instances on landscape.
 	LANDSCAPE_API void SnapFoliageInstances(const FBox& InInstanceBox);
+
+	LANDSCAPE_API void SnapFoliageInstances();
 #endif
 };
 

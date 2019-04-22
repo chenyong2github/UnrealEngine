@@ -19,6 +19,8 @@
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
 #include "Raster.h"
+#include "Landscape.h"
+#include "Settings/EditorExperimentalSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Landscape"
@@ -35,8 +37,10 @@ public:
 	typedef FVector InterpolantType;
 
 	/** Initialization constructor. */
-	FLandscapeSplineHeightsRasterPolicy(TArray<uint16>& InData, int32 InMinX, int32 InMinY, int32 InMaxX, int32 InMaxY, bool InbRaiseTerrain, bool InbLowerTerrain) :
-		Data(InData),
+	FLandscapeSplineHeightsRasterPolicy(TArray<uint16>& InHeightData, int32 InMinX, int32 InMinY, int32 InMaxX, int32 InMaxY, bool InbRaiseTerrain, bool InbLowerTerrain, TArray<uint8>* InHeightAlphaBlendData = nullptr, TArray<uint8>* InHeightFlagsData = nullptr) :
+		HeightData(InHeightData),
+		HeightAlphaBlendData(InHeightAlphaBlendData),
+		HeightFlagsData(InHeightFlagsData),
 		MinX(InMinX),
 		MinY(InMinY),
 		MaxX(InMaxX),
@@ -49,7 +53,6 @@ public:
 protected:
 
 	// FTriangleRasterizer policy interface.
-
 	int32 GetMinX() const { return MinX; }
 	int32 GetMaxX() const { return MaxX; }
 	int32 GetMinY() const { return MinY; }
@@ -57,21 +60,55 @@ protected:
 
 	inline void ProcessPixel(int32 X, int32 Y, const InterpolantType& Interpolant, bool BackFacing)
 	{
+		if (!bRaiseTerrain && !bLowerTerrain)
+		{
+			return;
+		}
+
 		const float CosInterpX = (Interpolant.X >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.X * PI));
 		const float CosInterpY = (Interpolant.Y >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.Y * PI));
-		const float Alpha = CosInterpX * CosInterpY;
-		uint16& Dest = Data[(Y - MinY)*(1 + MaxX - MinX) + X - MinX];
-		float Value = FMath::Lerp((float)Dest, Interpolant.Z, Alpha);
-		uint16 DValue = (uint16)FMath::Clamp<float>(Value, 0, (float)LandscapeDataAccess::MaxValue);
-		if ((bRaiseTerrain && DValue > Dest) ||
-			(bLowerTerrain && DValue < Dest))
+		const float Alpha = FMath::Clamp<float>(CosInterpX * CosInterpY, 0.f, 1.f);
+
+		int32 DataIndex = (Y - MinY)*(1 + MaxX - MinX) + X - MinX;
+		uint16& Dest = HeightData[DataIndex];
+
+		if (HeightAlphaBlendData)
 		{
-			Dest = DValue;
+			uint16 NewHeight = (uint16)FMath::Clamp<float>(Interpolant.Z, 0, (float)LandscapeDataAccess::MaxValue);
+			float InterpValue = (NewHeight * Alpha) + (Dest * (1.f - Alpha));
+			Dest = (uint16)FMath::Clamp<float>(InterpValue, 0, (float)LandscapeDataAccess::MaxValue);
+
+			uint8& DestAlphaValue = (*HeightAlphaBlendData)[DataIndex];
+			float InterpAlphaValue = DestAlphaValue * (1.f - Alpha);
+			DestAlphaValue = (uint8)FMath::Clamp<float>(InterpAlphaValue, 0.f, 255.f);
+
+			if (HeightFlagsData)
+			{
+				uint8& DestHeightFlagsValue = (*HeightFlagsData)[DataIndex];
+				uint8 Flags = DestHeightFlagsValue;
+				if (bLowerTerrain)
+					Flags |= 1; 
+				if (bRaiseTerrain)
+					Flags |= 2;
+				DestHeightFlagsValue = Flags;
+			}
+		}
+		else
+		{
+			float Value = FMath::Lerp((float)Dest, Interpolant.Z, Alpha);
+			uint16 DValue = (uint16)FMath::Clamp<float>(Value, 0, (float)LandscapeDataAccess::MaxValue);
+			if ((bRaiseTerrain && DValue > Dest) ||
+				(bLowerTerrain && DValue < Dest))
+			{
+				Dest = DValue;
+			}
 		}
 	}
 
 private:
-	TArray<uint16>& Data;
+	TArray<uint16>& HeightData;
+	TArray<uint8>* HeightAlphaBlendData;
+	TArray<uint8>* HeightFlagsData;
 	int32 MinX, MinY, MaxX, MaxY;
 	uint32 bRaiseTerrain : 1, bLowerTerrain : 1;
 };
@@ -116,7 +153,7 @@ private:
 	int32 MinX, MinY, MaxX, MaxY;
 };
 
-void RasterizeControlPointHeights(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, FLandscapeEditDataInterface& LandscapeEdit, FVector ControlPointLocation, const TArray<FLandscapeSplineInterpPoint>& Points, bool bRaiseTerrain, bool bLowerTerrain, TSet<ULandscapeComponent*>& ModifiedComponents)
+void RasterizeHeight(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, FLandscapeEditDataInterface& LandscapeEdit, bool bRaiseTerrain, bool bLowerTerrain, TSet<ULandscapeComponent*>& ModifiedComponents, TFunctionRef<void(FTriangleRasterizer<FLandscapeSplineHeightsRasterPolicy>&)> RasterizerFunction)
 {
 	if (!(bRaiseTerrain || bLowerTerrain))
 	{
@@ -128,18 +165,18 @@ void RasterizeControlPointHeights(int32& MinX, int32& MinY, int32& MaxX, int32& 
 		return;
 	}
 
-	TArray<uint16> Data;
-	Data.AddZeroed((1 + MaxY - MinY) * (1 + MaxX - MinX));
+	TArray<uint16> HeightData;
+	HeightData.AddZeroed((1 + MaxY - MinY) * (1 + MaxX - MinX));
 
 	int32 ValidMinX = MinX;
 	int32 ValidMinY = MinY;
 	int32 ValidMaxX = MaxX;
 	int32 ValidMaxY = MaxY;
-	LandscapeEdit.GetHeightData(ValidMinX, ValidMinY, ValidMaxX, ValidMaxY, Data.GetData(), 0);
+	LandscapeEdit.GetHeightData(ValidMinX, ValidMinY, ValidMaxX, ValidMaxY, HeightData.GetData(), 0);
 
 	if (ValidMinX > ValidMaxX || ValidMinY > ValidMaxY)
 	{
-		// The control point's bounds don't intersect any data, so skip it
+		// The bounds don't intersect any data, so skip it
 		MinX = ValidMinX;
 		MinY = ValidMinY;
 		MaxX = ValidMaxX;
@@ -148,43 +185,85 @@ void RasterizeControlPointHeights(int32& MinX, int32& MinY, int32& MaxX, int32& 
 		return;
 	}
 
-	FLandscapeEditDataInterface::ShrinkData(Data, MinX, MinY, MaxX, MaxY, ValidMinX, ValidMinY, ValidMaxX, ValidMaxY);
+	FLandscapeEditDataInterface::ShrinkData(HeightData, MinX, MinY, MaxX, MaxY, ValidMinX, ValidMinY, ValidMaxX, ValidMaxY);
+
+	const ALandscape* Landscape = LandscapeEdit.GetTargetLandscape();
+	bool bIsEditingLayerReservedForSplines = Landscape && Landscape->IsEditingLayerReservedForSplines();
+	check(!bIsEditingLayerReservedForSplines || (Landscape->GetLandscapeSplinesReservedLayer()->BlendMode == LSBM_AlphaBlend));
+
+	TArray<uint8> HeightAlphaBlendData;
+	TArray<uint8> HeightFlagsData;
+	TArray<uint8>* HeightAlphaBlendDataPtr = nullptr;
+	TArray<uint8>* HeightFlagsDataPtr = nullptr;
+
+	bool bCalculateNormals = true;
+	if (bIsEditingLayerReservedForSplines)
+	{
+		bCalculateNormals = false;
+
+		HeightAlphaBlendData.AddZeroed((1 + MaxY - MinY) * (1 + MaxX - MinX));
+		int32 AlphaValidMinX = MinX;
+		int32 AlphaValidMinY = MinY;
+		int32 AlphaValidMaxX = MaxX;
+		int32 AlphaValidMaxY = MaxY;
+		LandscapeEdit.GetHeightAlphaBlendData(AlphaValidMinX, AlphaValidMinY, AlphaValidMaxX, AlphaValidMaxY, HeightAlphaBlendData.GetData(), 0);
+		check(AlphaValidMinX == ValidMinX && AlphaValidMinY == ValidMinY && AlphaValidMaxX == ValidMaxX && AlphaValidMaxY == ValidMaxY);
+		FLandscapeEditDataInterface::ShrinkData(HeightAlphaBlendData, MinX, MinY, MaxX, MaxY, AlphaValidMinX, AlphaValidMinY, AlphaValidMaxX, AlphaValidMaxY);
+		HeightAlphaBlendDataPtr = &HeightAlphaBlendData;
+
+		HeightFlagsData.AddZeroed((1 + MaxY - MinY) * (1 + MaxX - MinX));
+		int32 FlagsValidMinX = MinX;
+		int32 FlagsValidMinY = MinY;
+		int32 FlagsValidMaxX = MaxX;
+		int32 FlagsValidMaxY = MaxY;
+		LandscapeEdit.GetHeightFlagsData(FlagsValidMinX, FlagsValidMinY, FlagsValidMaxX, FlagsValidMaxY, HeightFlagsData.GetData(), 0);
+		check(FlagsValidMinX == ValidMinX && FlagsValidMinY == ValidMinY && FlagsValidMaxX == ValidMaxX && FlagsValidMaxY == ValidMaxY);
+		FLandscapeEditDataInterface::ShrinkData(HeightFlagsData, MinX, MinY, MaxX, MaxY, FlagsValidMinX, FlagsValidMinY, FlagsValidMaxX, FlagsValidMaxY);
+		HeightFlagsDataPtr = &HeightFlagsData;
+	}
 
 	MinX = ValidMinX;
 	MinY = ValidMinY;
 	MaxX = ValidMaxX;
 	MaxY = ValidMaxY;
 
-	FTriangleRasterizer<FLandscapeSplineHeightsRasterPolicy> Rasterizer(
-		FLandscapeSplineHeightsRasterPolicy(Data, MinX, MinY, MaxX, MaxY, bRaiseTerrain, bLowerTerrain));
+	FTriangleRasterizer<FLandscapeSplineHeightsRasterPolicy> Rasterizer(FLandscapeSplineHeightsRasterPolicy(HeightData, MinX, MinY, MaxX, MaxY, bRaiseTerrain, bLowerTerrain, HeightAlphaBlendDataPtr, HeightFlagsDataPtr));
 
-	const FVector2D CenterPos = FVector2D(ControlPointLocation);
-	const FVector Center = FVector(1.0f, Points[0].StartEndFalloff, ControlPointLocation.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue);
+	RasterizerFunction(Rasterizer);
 
-	for (int32 i = Points.Num() - 1, j = 0; j < Points.Num(); i = j++)
-	{
-		// Solid center
-		const FVector2D Right0Pos = FVector2D(Points[i].Right);
-		const FVector2D Left1Pos = FVector2D(Points[j].Left);
-		const FVector2D Right1Pos = FVector2D(Points[j].Right);
-		const FVector Right0 = FVector(1.0f, Points[i].StartEndFalloff, Points[i].Right.Z);
-		const FVector Left1 = FVector(1.0f, Points[j].StartEndFalloff, Points[j].Left.Z);
-		const FVector Right1 = FVector(1.0f, Points[j].StartEndFalloff, Points[j].Right.Z);
-
-		Rasterizer.DrawTriangle(Center, Right0, Left1, CenterPos, Right0Pos, Left1Pos, false);
-		Rasterizer.DrawTriangle(Center, Left1, Right1, CenterPos, Left1Pos, Right1Pos, false);
-
-		// Falloff
-		FVector2D FalloffRight0Pos = FVector2D(Points[i].FalloffRight);
-		FVector2D FalloffLeft1Pos = FVector2D(Points[j].FalloffLeft);
-		FVector FalloffRight0 = FVector(0.0f, Points[i].StartEndFalloff, Points[i].FalloffRight.Z);
-		FVector FalloffLeft1 = FVector(0.0f, Points[j].StartEndFalloff, Points[j].FalloffLeft.Z);
-		Rasterizer.DrawTriangle(Right0, FalloffRight0, Left1, Right0Pos, FalloffRight0Pos, Left1Pos, false);
-		Rasterizer.DrawTriangle(FalloffRight0, Left1, FalloffLeft1, FalloffRight0Pos, Left1Pos, FalloffLeft1Pos, false);
-	}
-
-	LandscapeEdit.SetHeightData(MinX, MinY, MaxX, MaxY, Data.GetData(), 0, true);
+	LandscapeEdit.SetHeightData(MinX, MinY, MaxX, MaxY, HeightData.GetData(), 0, bCalculateNormals, nullptr, HeightAlphaBlendDataPtr ? HeightAlphaBlendDataPtr->GetData() : nullptr, HeightFlagsDataPtr ? HeightFlagsDataPtr->GetData() : nullptr, false, nullptr, nullptr, true, !bIsEditingLayerReservedForSplines);
 	LandscapeEdit.GetComponentsInRegion(MinX, MinY, MaxX, MaxY, &ModifiedComponents);
+}
+
+void RasterizeControlPointHeights(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, FLandscapeEditDataInterface& LandscapeEdit, FVector ControlPointLocation, const TArray<FLandscapeSplineInterpPoint>& Points, bool bRaiseTerrain, bool bLowerTerrain, TSet<ULandscapeComponent*>& ModifiedComponents)
+{
+	RasterizeHeight(MinX, MinY, MaxX, MaxY, LandscapeEdit, bRaiseTerrain, bLowerTerrain, ModifiedComponents, [&](FTriangleRasterizer<FLandscapeSplineHeightsRasterPolicy>& Rasterizer)
+	{
+		const FVector2D CenterPos = FVector2D(ControlPointLocation);
+		const FVector Center = FVector(1.0f, Points[0].StartEndFalloff, ControlPointLocation.Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue);
+
+		for (int32 i = Points.Num() - 1, j = 0; j < Points.Num(); i = j++)
+		{
+			// Solid center
+			const FVector2D Right0Pos = FVector2D(Points[i].Right);
+			const FVector2D Left1Pos = FVector2D(Points[j].Left);
+			const FVector2D Right1Pos = FVector2D(Points[j].Right);
+			const FVector Right0 = FVector(1.0f, Points[i].StartEndFalloff, Points[i].Right.Z);
+			const FVector Left1 = FVector(1.0f, Points[j].StartEndFalloff, Points[j].Left.Z);
+			const FVector Right1 = FVector(1.0f, Points[j].StartEndFalloff, Points[j].Right.Z);
+
+			Rasterizer.DrawTriangle(Center, Right0, Left1, CenterPos, Right0Pos, Left1Pos, false);
+			Rasterizer.DrawTriangle(Center, Left1, Right1, CenterPos, Left1Pos, Right1Pos, false);
+
+			// Falloff
+			FVector2D FalloffRight0Pos = FVector2D(Points[i].FalloffRight);
+			FVector2D FalloffLeft1Pos = FVector2D(Points[j].FalloffLeft);
+			FVector FalloffRight0 = FVector(0.0f, Points[i].StartEndFalloff, Points[i].FalloffRight.Z);
+			FVector FalloffLeft1 = FVector(0.0f, Points[j].StartEndFalloff, Points[j].FalloffLeft.Z);
+			Rasterizer.DrawTriangle(Right0, FalloffRight0, Left1, Right0Pos, FalloffRight0Pos, Left1Pos, false);
+			Rasterizer.DrawTriangle(FalloffRight0, Left1, FalloffLeft1, FalloffRight0Pos, Left1Pos, FalloffLeft1Pos, false);
+		}
+	});
 }
 
 void RasterizeControlPointAlpha(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, FLandscapeEditDataInterface& LandscapeEdit, FVector ControlPointLocation, const TArray<FLandscapeSplineInterpPoint>& Points, ULandscapeLayerInfoObject* LayerInfo, TSet<ULandscapeComponent*>& ModifiedComponents)
@@ -263,79 +342,39 @@ void RasterizeControlPointAlpha(int32& MinX, int32& MinY, int32& MaxX, int32& Ma
 
 void RasterizeSegmentHeight(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, FLandscapeEditDataInterface& LandscapeEdit, const TArray<FLandscapeSplineInterpPoint>& Points, bool bRaiseTerrain, bool bLowerTerrain, TSet<ULandscapeComponent*>& ModifiedComponents)
 {
-	if (!(bRaiseTerrain || bLowerTerrain))
+	RasterizeHeight(MinX, MinY, MaxX, MaxY, LandscapeEdit, bRaiseTerrain, bLowerTerrain, ModifiedComponents, [&](FTriangleRasterizer<FLandscapeSplineHeightsRasterPolicy>& Rasterizer)
 	{
-		return;
-	}
+		for (int32 j = 1; j < Points.Num(); j++)
+		{
+			// Middle
+			FVector2D Left0Pos = FVector2D(Points[j - 1].Left);
+			FVector2D Right0Pos = FVector2D(Points[j - 1].Right);
+			FVector2D Left1Pos = FVector2D(Points[j].Left);
+			FVector2D Right1Pos = FVector2D(Points[j].Right);
+			FVector Left0 = FVector(1.0f, Points[j - 1].StartEndFalloff, Points[j - 1].Left.Z);
+			FVector Right0 = FVector(1.0f, Points[j - 1].StartEndFalloff, Points[j - 1].Right.Z);
+			FVector Left1 = FVector(1.0f, Points[j].StartEndFalloff, Points[j].Left.Z);
+			FVector Right1 = FVector(1.0f, Points[j].StartEndFalloff, Points[j].Right.Z);
+			Rasterizer.DrawTriangle(Left0, Right0, Left1, Left0Pos, Right0Pos, Left1Pos, false);
+			Rasterizer.DrawTriangle(Right0, Left1, Right1, Right0Pos, Left1Pos, Right1Pos, false);
 
-	if (MinX > MaxX || MinY > MaxY)
-	{
-		return;
-	}
+			// Left Falloff
+			FVector2D FalloffLeft0Pos = FVector2D(Points[j - 1].FalloffLeft);
+			FVector2D FalloffLeft1Pos = FVector2D(Points[j].FalloffLeft);
+			FVector FalloffLeft0 = FVector(0.0f, Points[j - 1].StartEndFalloff, Points[j - 1].FalloffLeft.Z);
+			FVector FalloffLeft1 = FVector(0.0f, Points[j].StartEndFalloff, Points[j].FalloffLeft.Z);
+			Rasterizer.DrawTriangle(FalloffLeft0, Left0, FalloffLeft1, FalloffLeft0Pos, Left0Pos, FalloffLeft1Pos, false);
+			Rasterizer.DrawTriangle(Left0, FalloffLeft1, Left1, Left0Pos, FalloffLeft1Pos, Left1Pos, false);
 
-	TArray<uint16> Data;
-	Data.AddZeroed((1 + MaxY - MinY) * (1 + MaxX - MinX));
-
-	int32 ValidMinX = MinX;
-	int32 ValidMinY = MinY;
-	int32 ValidMaxX = MaxX;
-	int32 ValidMaxY = MaxY;
-	LandscapeEdit.GetHeightData(ValidMinX, ValidMinY, ValidMaxX, ValidMaxY, Data.GetData(), 0);
-
-	if (ValidMinX > ValidMaxX || ValidMinY > ValidMaxY)
-	{
-		// The segment's bounds don't intersect any data, so skip it
-		MinX = ValidMinX;
-		MinY = ValidMinY;
-		MaxX = ValidMaxX;
-		MaxY = ValidMaxY;
-
-		return;
-	}
-
-	FLandscapeEditDataInterface::ShrinkData(Data, MinX, MinY, MaxX, MaxY, ValidMinX, ValidMinY, ValidMaxX, ValidMaxY);
-
-	MinX = ValidMinX;
-	MinY = ValidMinY;
-	MaxX = ValidMaxX;
-	MaxY = ValidMaxY;
-
-	FTriangleRasterizer<FLandscapeSplineHeightsRasterPolicy> Rasterizer(
-		FLandscapeSplineHeightsRasterPolicy(Data, MinX, MinY, MaxX, MaxY, bRaiseTerrain, bLowerTerrain));
-
-	for (int32 j = 1; j < Points.Num(); j++)
-	{
-		// Middle
-		FVector2D Left0Pos = FVector2D(Points[j - 1].Left);
-		FVector2D Right0Pos = FVector2D(Points[j - 1].Right);
-		FVector2D Left1Pos = FVector2D(Points[j].Left);
-		FVector2D Right1Pos = FVector2D(Points[j].Right);
-		FVector Left0 = FVector(1.0f, Points[j - 1].StartEndFalloff, Points[j - 1].Left.Z);
-		FVector Right0 = FVector(1.0f, Points[j - 1].StartEndFalloff, Points[j - 1].Right.Z);
-		FVector Left1 = FVector(1.0f, Points[j].StartEndFalloff, Points[j].Left.Z);
-		FVector Right1 = FVector(1.0f, Points[j].StartEndFalloff, Points[j].Right.Z);
-		Rasterizer.DrawTriangle(Left0, Right0, Left1, Left0Pos, Right0Pos, Left1Pos, false);
-		Rasterizer.DrawTriangle(Right0, Left1, Right1, Right0Pos, Left1Pos, Right1Pos, false);
-
-		// Left Falloff
-		FVector2D FalloffLeft0Pos = FVector2D(Points[j - 1].FalloffLeft);
-		FVector2D FalloffLeft1Pos = FVector2D(Points[j].FalloffLeft);
-		FVector FalloffLeft0 = FVector(0.0f, Points[j - 1].StartEndFalloff, Points[j - 1].FalloffLeft.Z);
-		FVector FalloffLeft1 = FVector(0.0f, Points[j].StartEndFalloff, Points[j].FalloffLeft.Z);
-		Rasterizer.DrawTriangle(FalloffLeft0, Left0, FalloffLeft1, FalloffLeft0Pos, Left0Pos, FalloffLeft1Pos, false);
-		Rasterizer.DrawTriangle(Left0, FalloffLeft1, Left1, Left0Pos, FalloffLeft1Pos, Left1Pos, false);
-
-		// Right Falloff
-		FVector2D FalloffRight0Pos = FVector2D(Points[j - 1].FalloffRight);
-		FVector2D FalloffRight1Pos = FVector2D(Points[j].FalloffRight);
-		FVector FalloffRight0 = FVector(0.0f, Points[j - 1].StartEndFalloff, Points[j - 1].FalloffRight.Z);
-		FVector FalloffRight1 = FVector(0.0f, Points[j].StartEndFalloff, Points[j].FalloffRight.Z);
-		Rasterizer.DrawTriangle(Right0, FalloffRight0, Right1, Right0Pos, FalloffRight0Pos, Right1Pos, false);
-		Rasterizer.DrawTriangle(FalloffRight0, Right1, FalloffRight1, FalloffRight0Pos, Right1Pos, FalloffRight1Pos, false);
-	}
-
-	LandscapeEdit.SetHeightData(MinX, MinY, MaxX, MaxY, Data.GetData(), 0, true);
-	LandscapeEdit.GetComponentsInRegion(MinX, MinY, MaxX, MaxY, &ModifiedComponents);
+			// Right Falloff
+			FVector2D FalloffRight0Pos = FVector2D(Points[j - 1].FalloffRight);
+			FVector2D FalloffRight1Pos = FVector2D(Points[j].FalloffRight);
+			FVector FalloffRight0 = FVector(0.0f, Points[j - 1].StartEndFalloff, Points[j - 1].FalloffRight.Z);
+			FVector FalloffRight1 = FVector(0.0f, Points[j].StartEndFalloff, Points[j].FalloffRight.Z);
+			Rasterizer.DrawTriangle(Right0, FalloffRight0, Right1, Right0Pos, FalloffRight0Pos, Right1Pos, false);
+			Rasterizer.DrawTriangle(FalloffRight0, Right1, FalloffRight1, FalloffRight0Pos, Right1Pos, FalloffRight1Pos, false);
+		}
+	});
 }
 
 
@@ -423,6 +462,11 @@ bool ULandscapeInfo::ApplySplines(bool bOnlySelected)
 {
 	bool bResult = false;
 
+	ALandscape* Landscape = LandscapeActor.Get();
+	const FLandscapeLayer* Layer = Landscape ? Landscape->GetLandscapeSplinesReservedLayer() : nullptr;
+	FGuid SplinesTargetLayerGuid = Layer ? Layer->Guid : FGuid();
+	FScopedSetLandscapeEditingLayer Scope(Landscape, SplinesTargetLayerGuid, [=] { Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All); });
+
 	ForAllLandscapeProxies([&bResult, bOnlySelected, this](ALandscapeProxy* Proxy)
 	{
 		bResult |= ApplySplinesInternal(bOnlySelected, Proxy);
@@ -431,16 +475,16 @@ bool ULandscapeInfo::ApplySplines(bool bOnlySelected)
 	return bResult;
 }
 
-bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* Landscape)
+bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* Proxy)
 {
-	if (!Landscape || !Landscape->SplineComponent || Landscape->SplineComponent->ControlPoints.Num() == 0 || Landscape->SplineComponent->Segments.Num() == 0)
+	if (!Proxy || !Proxy->SplineComponent || Proxy->SplineComponent->ControlPoints.Num() == 0 || Proxy->SplineComponent->Segments.Num() == 0)
 	{
 		return false;
 	}
 
 	FScopedTransaction Transaction(LOCTEXT("LandscapeSpline_ApplySplines", "Apply Splines to Landscape"));
 
-	const FTransform SplineToLandscape = Landscape->SplineComponent->GetComponentTransform().GetRelativeTransform(Landscape->LandscapeActorToWorld());
+	const FTransform SplineToLandscape = Proxy->SplineComponent->GetComponentTransform().GetRelativeTransform(Proxy->LandscapeActorToWorld());
 
 	FLandscapeEditDataInterface LandscapeEdit(this);
 	TSet<ULandscapeComponent*> ModifiedComponents;
@@ -452,7 +496,7 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* L
 		return false;
 	}
 
-	for (const ULandscapeSplineControlPoint* ControlPoint : Landscape->SplineComponent->ControlPoints)
+	for (const ULandscapeSplineControlPoint* ControlPoint : Proxy->SplineComponent->ControlPoints)
 	{
 		if (bOnlySelected && !ControlPoint->IsSplineSelected())
 		{
@@ -517,7 +561,7 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* L
 		}
 	}
 
-	for (const ULandscapeSplineSegment* Segment : Landscape->SplineComponent->Segments)
+	for (const ULandscapeSplineSegment* Segment : Proxy->SplineComponent->Segments)
 	{
 		if (bOnlySelected && !Segment->IsSplineSelected())
 		{
@@ -581,14 +625,19 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* L
 
 	LandscapeEdit.Flush();
 
-	for (ULandscapeComponent* Component : ModifiedComponents)
+	ALandscape* Landscape = Proxy->GetLandscapeActor();
+	bool bSkipCollisionAndNavUpdate = Landscape && Landscape->IsEditingLayerReservedForSplines();
+	if (!bSkipCollisionAndNavUpdate)
 	{
-		// Recreate collision for modified components and update the navmesh
-		ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
-		if (CollisionComponent)
+		for (ULandscapeComponent* Component : ModifiedComponents)
 		{
-			CollisionComponent->RecreateCollision();
-			FNavigationSystem::UpdateComponentData(*CollisionComponent);
+			// Recreate collision for modified components and update the navmesh
+			ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+			if (CollisionComponent)
+			{
+				CollisionComponent->RecreateCollision();
+				FNavigationSystem::UpdateComponentData(*CollisionComponent);
+			}
 		}
 	}
 

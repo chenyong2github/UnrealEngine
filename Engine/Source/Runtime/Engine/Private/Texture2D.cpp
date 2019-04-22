@@ -1166,7 +1166,7 @@ bool UTexture2D::ShouldMipLevelsBeForcedResident() const
 	}
 
 #if WITH_EDITOR
-	if (GIsEditor && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape && (LODGroup == TEXTUREGROUP_Terrain_Heightmap || LODGroup == TEXTUREGROUP_Terrain_Weightmap))
+	if (GIsEditor && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && (LODGroup == TEXTUREGROUP_Terrain_Heightmap || LODGroup == TEXTUREGROUP_Terrain_Weightmap))
 	{
 		return true;
 	}
@@ -1309,8 +1309,13 @@ void UTexture2D::UpdateTextureRegions(int32 MipIndex, uint32 NumRegions, const F
 							);
 					}
 				}
-				DataCleanupFunc(RegionData->SrcData, RegionData->Regions);
-				delete RegionData;
+
+				// The deletion of source data may need to be deferred to the RHI thread after the updates occur
+				RHICmdList.EnqueueLambda([RegionData, DataCleanupFunc](FRHICommandList&)
+				{
+					DataCleanupFunc(RegionData->SrcData, RegionData->Regions);
+					delete RegionData;
+				});
 			});
 	}
 }

@@ -1534,7 +1534,8 @@ void FDynamicMeshEmitterData::Init( bool bInSelected,
 FParticleVertexFactoryBase* FDynamicMeshEmitterData::BuildVertexFactory(const FParticleSystemSceneProxy* InOwnerProxy)
 {
 	FParticleVertexFactoryBase* PoolVertexFactory = GParticleVertexFactoryPool.GetParticleVertexFactory(PVFT_Mesh, InOwnerProxy->GetScene().GetFeatureLevel(), this);
-	SetupVertexFactory((FMeshParticleVertexFactory*)PoolVertexFactory, StaticMesh->RenderData->LODResources[GetMeshLODIndexFromProxy(InOwnerProxy)]);
+	const uint32 LODIdx = GetMeshLODIndexFromProxy(InOwnerProxy);
+	SetupVertexFactory((FMeshParticleVertexFactory*)PoolVertexFactory, StaticMesh->RenderData->LODResources[LODIdx], LODIdx);
 	return PoolVertexFactory;
 }
 
@@ -1604,7 +1605,8 @@ FParticleVertexFactoryBase *FDynamicMeshEmitterData::CreateVertexFactory(ERHIFea
 	FMeshParticleVertexFactory *VertexFactory = ConstructMeshParticleVertexFactory(InFeatureLevel);
 
 	VertexFactory->SetParticleFactoryType(PVFT_Mesh);
-	SetupVertexFactory(VertexFactory, StaticMesh->RenderData->LODResources[GetMeshLODIndexFromProxy(InOwnerProxy)]);
+	const uint32 LODIdx = GetMeshLODIndexFromProxy(InOwnerProxy);
+	SetupVertexFactory(VertexFactory, StaticMesh->RenderData->LODResources[LODIdx], LODIdx);
 
 	const int32 InstanceVertexStride = GetDynamicVertexStride(InFeatureLevel);
 	const int32 DynamicParameterVertexStride = bUsesDynamicParameter ? GetDynamicParameterVertexStride() : 0;
@@ -1814,7 +1816,12 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 			}
 			check(StaticMesh != nullptr);
 
-			const FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[GetMeshLODIndexFromProxy(Proxy)];
+			const uint32 ChosenLODIdx = GetMeshLODIndexFromProxy(Proxy);
+			const FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[ChosenLODIdx];
+			if (ChosenLODIdx != MeshVertexFactory->GetLODIdx())
+			{
+				SetupVertexFactory(MeshVertexFactory, LODModel, ChosenLODIdx);
+			}
 
 			const bool bIsWireframe = AllowDebugViewmodes() && View->Family->EngineShowFlags.Wireframe;
 
@@ -2576,7 +2583,7 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 	}
 }
 
-void FDynamicMeshEmitterData::SetupVertexFactory( FMeshParticleVertexFactory* InVertexFactory, FStaticMeshLODResources& LODResources) const
+void FDynamicMeshEmitterData::SetupVertexFactory( FMeshParticleVertexFactory* InVertexFactory, const FStaticMeshLODResources& LODResources, uint32 LODIdx) const
 {
 		FMeshParticleVertexFactory::FDataType Data;
 
@@ -2635,6 +2642,7 @@ void FDynamicMeshEmitterData::SetupVertexFactory( FMeshParticleVertexFactory* In
 
 		Data.bInitialized = true;
 		InVertexFactory->SetData(Data);
+		InVertexFactory->SetLODIdx((uint8)LODIdx);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -7275,7 +7283,8 @@ void FParticleSystemSceneProxy::UpdateWorldSpacePrimitiveUniformBuffer() const
 			GetLightingChannelMask(),
 			0,
 			INDEX_NONE,
-			INDEX_NONE
+			INDEX_NONE,
+			AlwaysHasVelocity()
 			);
 		WorldSpacePrimitiveUniformBuffer.SetContents(PrimitiveUniformShaderParameters);
 		WorldSpacePrimitiveUniformBuffer.InitResource();

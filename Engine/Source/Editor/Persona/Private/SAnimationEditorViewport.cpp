@@ -641,6 +641,12 @@ void SAnimationEditorViewportTabBody::BindCommands()
 		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsUsingFixedBounds));
 
 	CommandList.MapAction(
+		ViewportShowMenuCommands.UsePreSkinnedBounds,
+		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::UsePreSkinnedBounds),
+		FCanExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::CanUsePreSkinnedBounds),
+		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsUsingPreSkinnedBounds));
+
+	CommandList.MapAction(
 		ViewportShowMenuCommands.ShowPreviewMesh,
 		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::ToggleShowPreviewMesh),
 		FCanExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::CanShowPreviewMesh),
@@ -1386,6 +1392,27 @@ bool SAnimationEditorViewportTabBody::IsUsingFixedBounds() const
 {
 	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
 	return PreviewComponent != NULL && PreviewComponent->bComponentUseFixedSkelBounds;
+}
+
+void SAnimationEditorViewportTabBody::UsePreSkinnedBounds()
+{
+	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+	if (PreviewComponent != NULL)
+	{
+		PreviewComponent->UsePreSkinnedBounds(!PreviewComponent->IsUsingPreSkinnedBounds());
+	}
+}
+
+bool SAnimationEditorViewportTabBody::CanUsePreSkinnedBounds() const
+{
+	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+	return PreviewComponent != NULL && IsShowBoundEnabled();
+}
+
+bool SAnimationEditorViewportTabBody::IsUsingPreSkinnedBounds() const
+{
+	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+	return PreviewComponent != NULL && PreviewComponent->IsUsingPreSkinnedBounds();
 }
 
 void SAnimationEditorViewportTabBody::HandlePreviewMeshChanged(class USkeletalMesh* OldSkeletalMesh, class USkeletalMesh* NewSkeletalMesh)

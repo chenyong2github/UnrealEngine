@@ -199,6 +199,8 @@ const TCHAR* FIOSPlatformMisc::GamePersistentDownloadDir()
 #endif
         Result = DownloadPath + Result;
         NSURL* URL = [NSURL fileURLWithPath : Result.GetNSString()];
+#if !PLATFORM_TVOS		
+		// this folder is expected to not exist on TVOS 
         if (![[NSFileManager defaultManager] fileExistsAtPath:[URL path]])
         {
             [[NSFileManager defaultManager] createDirectoryAtURL:URL withIntermediateDirectories : YES attributes : nil error : nil];
@@ -211,6 +213,7 @@ const TCHAR* FIOSPlatformMisc::GamePersistentDownloadDir()
         {
             NSLog(@"Error excluding %@ from backup %@",[URL lastPathComponent], error);
         }
+#endif		
     }
     return *GamePersistentDownloadDir;
 }
@@ -312,7 +315,9 @@ EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOrientatio
 }
 #endif
 
+#if !PLATFORM_TVOS
 UIInterfaceOrientation GInterfaceOrientation = UIInterfaceOrientationUnknown;
+#endif
 
 EDeviceScreenOrientation FIOSPlatformMisc::GetDeviceOrientation()
 {
@@ -492,7 +497,17 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
 				DeviceType = IOS_IPadPro3_129;
 			}
 		}
-
+        else if (Major == 11)
+        {
+            if (Minor <= 2)
+            {
+                DeviceType = IOS_IPadMini5;
+            }
+            else
+            {
+                DeviceType = IOS_IPadAir3;
+            }
+        }
 		// Default to highest settings currently available for any future device
 		else if (Major >= 9)
 		{
@@ -1257,6 +1272,13 @@ int32 FIOSPlatformMisc::IOSVersionCompare(uint8 Major, uint8 Minor, uint8 Revisi
 	return 0;
 }
 
+FString FIOSPlatformMisc::GetProjectVersion()
+{
+	NSDictionary* infoDictionary = [[NSBundle mainBundle] infoDictionary];
+	FString localVersionString = FString(infoDictionary[@"CFBundleShortVersionString"]);
+	return localVersionString;
+}
+
 bool FIOSPlatformMisc::RequestDeviceCheckToken(TFunction<void(const TArray<uint8>&)> QuerySucceededFunc, TFunction<void(const FString&, const FString&)> QueryFailedFunc)
 {
 	DCDevice* DeviceCheckDevice = [DCDevice currentDevice];
@@ -1668,6 +1690,20 @@ void FIOSPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCrash
 bool FIOSPlatformMisc::HasSeparateChannelForDebugOutput()
 {
     return FPlatformMisc::IsDebuggerPresent();
+}
+
+void FIOSPlatformMisc::GPUAssert()
+{
+    // make this a fatal error that ends here not in the log
+    // changed to 3 from NULL because clang noticed writing to NULL and warned about it
+    *(int32 *)13 = 123;
+}
+
+void FIOSPlatformMisc::MetalAssert()
+{
+    // make this a fatal error that ends here not in the log
+    // changed to 3 from NULL because clang noticed writing to NULL and warned about it
+    *(int32 *)7 = 123;
 }
 
 FIOSCrashContext::FIOSCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage)

@@ -637,6 +637,10 @@ protected:
 
 public:
 	static const FString& GetDefaultDemoSavePath();
+
+	static const uint32 FileMagic;
+	static const uint32 MaxFriendlyNameLen;
+	static const uint32 LatestVersion;
 };
 
 class LOCALFILENETWORKREPLAYSTREAMING_API FLocalFileNetworkReplayStreamingFactory : public INetworkReplayStreamingFactory, public FTickableGameObject
@@ -644,7 +648,8 @@ class LOCALFILENETWORKREPLAYSTREAMING_API FLocalFileNetworkReplayStreamingFactor
 public:
 	virtual void ShutdownModule() override;
 
-	virtual TSharedPtr<INetworkReplayStreamer> CreateReplayStreamer();
+	virtual TSharedPtr<INetworkReplayStreamer> CreateReplayStreamer() override;
+	virtual void Flush() override;
 
 	/** FTickableGameObject */
 	virtual void Tick(float DeltaTime) override;
@@ -653,5 +658,7 @@ public:
 	bool IsTickableWhenPaused() const override { return true; }
 
 protected:
+	bool HasAnyPendingRequests() const;
+
 	TArray<TSharedPtr<FLocalFileNetworkReplayStreamer>> LocalFileStreamers;
 };

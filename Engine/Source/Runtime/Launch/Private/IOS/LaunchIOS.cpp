@@ -57,7 +57,7 @@ void FAppEntry::Suspend(bool bIsInterrupt)
 			FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 			if (bIsInterrupt && DisableAudioSuspendOnAudioInterruptCvar)
 			{
-				if (FTaskGraphInterface::IsRunning())
+				if (FTaskGraphInterface::IsRunning() && !GIsRequestingExit)
 				{
 					FFunctionGraphTask::CreateAndDispatchWhenReady([AudioDevice]()
 					{
@@ -180,7 +180,7 @@ void FAppEntry::Resume(bool bIsInterrupt)
 void FAppEntry::PreInit(IOSAppDelegate* AppDelegate, UIApplication* Application)
 {
 	// make a controller object
-	UIViewController* IOSController = [[IOSViewController alloc] init];
+	IOSViewController* IOSController = [[IOSViewController alloc] init];
 	
 #if PLATFORM_TVOS
 	// @todo tvos: This may need to be exposed to the game so that when you click Menu it will background the app

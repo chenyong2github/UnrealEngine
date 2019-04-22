@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,6 +19,8 @@ class PARTY_API USocialDebugTools : public UObject, public FExec
 	static const int32 LocalUserNum = 0;
 
 public:
+	USocialManager& GetSocialManager() const;
+
 	// FExec
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out) override;
 
@@ -38,6 +40,9 @@ public:
 
 	DECLARE_DELEGATE_OneParam(FLeavePartyComplete, bool);
 	virtual void LeaveParty(const FString& Instance, const FLeavePartyComplete& OnComplete);
+
+	DECLARE_DELEGATE_OneParam(FCleanupPartiesComplete, bool);
+	virtual void CleanupParties(const FString& Instance, const FCleanupPartiesComplete& OnComplete);
 
 	DECLARE_DELEGATE_OneParam(FSetPartyMemberDataComplete, bool);
 	virtual void SetPartyMemberData(const FString& Instance, const UStruct* StructType, const void* StructData, const FSetPartyMemberDataComplete& OnComplete);
@@ -69,10 +74,16 @@ public:
 		FDelegateHandle PresenceReceivedDelegateHandle;
 		FDelegateHandle FriendInviteReceivedDelegateHandle;
 		FDelegateHandle PartyInviteReceivedDelegateHandle;
+		FDelegateHandle PartyJoinRequestReceivedDelegateHandle;
 	};
 
 	FInstanceContext& GetContext(const FString& Instance);
 	FInstanceContext* GetContextForUser(const FUniqueNetId& UserId);
+
+protected:
+	virtual bool RunCommand(const TCHAR* Cmd, const TArray<FString>& TargetInstances);
+	virtual void NotifyContextInitialized(const FInstanceContext& Context) { }
+
 private:
 
 	bool bAutoAcceptFriendInvites;
@@ -82,10 +93,11 @@ private:
 
 	TSharedPtr<IOnlinePartyJoinInfo> GetDefaultPartyJoinInfo() const;
 	IOnlineSubsystem* GetDefaultOSS() const;
-	void PrintExecUsage();
-	void PrintExecCommands();
+	void PrintExecUsage() const;
+	virtual void PrintExecCommands() const;
 
 	// OSS callback handlers
 	void HandleFriendInviteReceived(const FUniqueNetId& LocalUserId, const FUniqueNetId& FriendId);
 	void HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId);
+	void HandlePartyJoinRequestReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId, const FString& Platform, const FOnlinePartyData& PartyData);
 };

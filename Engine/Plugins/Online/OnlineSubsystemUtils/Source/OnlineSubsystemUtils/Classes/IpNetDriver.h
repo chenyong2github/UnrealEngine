@@ -23,6 +23,8 @@ class FSocket;
 UCLASS(transient, config=Engine)
 class ONLINESUBSYSTEMUTILS_API UIpNetDriver : public UNetDriver
 {
+	friend class FPacketIterator;
+
     GENERATED_UCLASS_BODY()
 
 	/** Should port unreachable messages be logged */
@@ -109,6 +111,17 @@ class ONLINESUBSYSTEMUTILS_API UIpNetDriver : public UNetDriver
 	/** @return TCPIP connection to server */
 	class UIpConnection* GetServerConnection();
 
+private:
+	/**
+	 * Whether or not a socket receive failure Error indicates a blocking error, which should 'break;' the receive loop
+	 */
+	static FORCEINLINE bool IsRecvFailBlocking(ESocketErrors Error)
+	{
+		// SE_ECONNABORTED is for PS4 LAN cable pulls
+		return Error == SE_NO_ERROR || Error == SE_EWOULDBLOCK || Error == SE_ECONNABORTED;
+	};
+
+public:
 	// Callback for platform handling when networking is taking a long time in a single frame (by default over 1 second).
 	// It may get called multiple times in a single frame if additional processing after a previous alert exceeds the threshold again
 	DECLARE_MULTICAST_DELEGATE(FOnNetworkProcessingCausingSlowFrame);

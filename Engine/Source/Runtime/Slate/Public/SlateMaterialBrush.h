@@ -36,18 +36,6 @@ struct FSlateMaterialBrush : public FSlateBrush
 		: FSlateBrush(ESlateBrushDrawType::Image, FName(TEXT("None")), FMargin(0), ESlateBrushTileType::NoTile, ESlateBrushImageType::FullColor, InImageSize, FLinearColor::White)
 	{}
 
-	/** Virtual destructor. */
-	virtual ~FSlateMaterialBrush()
-	{
-		if (FSlateApplication::IsInitialized())
-		{
-			if (FSlateRenderer* Renderer = FSlateApplication::Get().GetRenderer())
-			{
-				Renderer->ReleaseDynamicResource(*this);
-			}
-		}
-	}
-
 	/** Sets the material to use. */
 	void SetMaterial(UMaterialInterface* InMaterial)
 	{

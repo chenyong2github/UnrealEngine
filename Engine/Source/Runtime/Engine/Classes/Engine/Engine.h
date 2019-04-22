@@ -1911,10 +1911,7 @@ public:
 	/** Event triggered after a network failure of any kind has occurred */
 	FOnNetworkFailure& OnNetworkFailure() { return NetworkFailureEvent; }
 	/** Called by internal engine systems after a network failure has occurred */
-	void BroadcastNetworkFailure(UWorld * World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString = TEXT(""))
-	{
-		NetworkFailureEvent.Broadcast(World, NetDriver, FailureType, ErrorString);
-	}
+	void BroadcastNetworkFailure(UWorld * World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString = TEXT(""));
 
 	/** Event triggered after network lag is being experienced or lag has ended */
 	FOnNetworkLagStateChanged& OnNetworkLagStateChanged() { return NetworkLagStateChangedEvent; }
@@ -2052,6 +2049,13 @@ public:
 	 * Update FApp::CurrentTime/ FApp::DeltaTime while taking into account max tick rate.
 	 */
 	void UpdateTimeAndHandleMaxTickRate();
+
+	/**
+	 * Allows games to correct the negative delta
+	 *
+	 * @return new delta
+	 */
+	virtual double CorrectNegativeTimeDelta(double DeltaRealTime);
 
 	/** Causes the current CustomTimeStep to be shut down and then reinitialized. */
 	void ReinitializeCustomTimeStep();

@@ -843,9 +843,6 @@ void FVulkanCommandListContext::RHIEndFrame()
 
 void FVulkanCommandListContext::RHIPushEvent(const TCHAR* Name, FColor Color)
 {
-	FString EventName = Name;
-	EventStack.Add(Name);
-
 #if VULKAN_ENABLE_DRAW_MARKERS
 #if 0//VULKAN_SUPPORTS_DEBUG_UTILS
 	if (auto CmdBeginLabel = Device->GetCmdBeginDebugLabel())
@@ -928,9 +925,6 @@ void FVulkanCommandListContext::RHIPopEvent()
 
 		GpuProfiler.PopEvent();
 	}
-
-	check(EventStack.Num() > 0);
-	EventStack.Pop(false);
 }
 
 void FVulkanDynamicRHI::RHIGetSupportedResolution( uint32 &Width, uint32 &Height )
@@ -1394,6 +1388,74 @@ void FVulkanBufferView::Destroy()
 	}
 }
 
+static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRenderTargetLayout& RTLayout)
+{
+	VkRenderPassCreateInfo CreateInfo;
+	ZeroVulkanStruct(CreateInfo, VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
+	
+	uint32 NumSubpasses = 0;
+	uint32 NumDependencies = 0;
+
+	VkSubpassDescription SubpassDescriptions[2];
+	VkSubpassDependency SubpassDependencies[2];
+		
+	// main sub-pass
+	{
+		VkSubpassDescription& SubpassDesc = SubpassDescriptions[NumSubpasses++];
+		FMemory::Memzero(&SubpassDesc, sizeof(VkSubpassDescription));
+
+		SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		SubpassDesc.colorAttachmentCount = RTLayout.GetNumColorAttachments();
+		SubpassDesc.pColorAttachments = RTLayout.GetColorAttachmentReferences();
+		SubpassDesc.pResolveAttachments = RTLayout.GetResolveAttachmentReferences();
+		SubpassDesc.pDepthStencilAttachment = RTLayout.GetDepthStencilAttachmentReference();
+	}
+
+	// depth read sub-pass
+	VkAttachmentReference InputAttachments[MaxSimultaneousRenderTargets + 1];
+	if (RTLayout.GetSubpassHint() == ESubpassHint::DepthReadSubpass)
+	{
+		VkSubpassDescription& SubpassDesc = SubpassDescriptions[NumSubpasses++];
+		FMemory::Memzero(&SubpassDesc, sizeof(VkSubpassDescription));
+
+		SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		SubpassDesc.colorAttachmentCount = RTLayout.GetNumColorAttachments();
+		SubpassDesc.pColorAttachments = RTLayout.GetColorAttachmentReferences();
+		SubpassDesc.pResolveAttachments = RTLayout.GetResolveAttachmentReferences();
+
+		check(RTLayout.GetDepthStencilAttachmentReference());
+
+		uint32 NumInputAttachments = 1;
+		InputAttachments[0].attachment = RTLayout.GetDepthStencilAttachmentReference()->attachment;
+		InputAttachments[0].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		
+		SubpassDesc.inputAttachmentCount = NumInputAttachments;
+		SubpassDesc.pInputAttachments = InputAttachments;
+		// depth attachment is same as input attachment
+		SubpassDesc.pDepthStencilAttachment = InputAttachments;
+						
+		VkSubpassDependency& SubpassDep = SubpassDependencies[NumDependencies++];
+		SubpassDep.srcSubpass = 0;
+		SubpassDep.dstSubpass = 1;
+	    SubpassDep.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		SubpassDep.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		SubpassDep.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		SubpassDep.dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+		SubpassDep.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+	}
+	
+	CreateInfo.attachmentCount = RTLayout.GetNumAttachmentDescriptions();
+	CreateInfo.pAttachments = RTLayout.GetAttachmentDescriptions();
+	CreateInfo.subpassCount = NumSubpasses;
+	CreateInfo.pSubpasses = SubpassDescriptions;
+	CreateInfo.dependencyCount = NumDependencies;
+	CreateInfo.pDependencies = SubpassDependencies;
+	
+	VkRenderPass RenderPassHandle;
+	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateRenderPass(InDevice.GetInstanceHandle(), &CreateInfo, VULKAN_CPU_ALLOCATOR, &RenderPassHandle));
+	return RenderPassHandle;
+}
+
 FVulkanRenderPass::FVulkanRenderPass(FVulkanDevice& InDevice, const FVulkanRenderTargetLayout& InRTLayout) :
 	Layout(InRTLayout),
 	RenderPass(VK_NULL_HANDLE),
@@ -1401,23 +1463,7 @@ FVulkanRenderPass::FVulkanRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 	Device(InDevice)
 {
 	INC_DWORD_STAT(STAT_VulkanNumRenderPasses);
-
-	VkSubpassDescription SubpassDesc[1];
-	VkSubpassDependency SubpassDep[1];
-	uint32 NumDependencies = 0;
-	uint16 NumSubpasses = InRTLayout.SetupSubpasses(SubpassDesc, (uint32)(sizeof(SubpassDesc) / sizeof(SubpassDesc[0])),
-		SubpassDep, (uint32)(sizeof(SubpassDep) / sizeof(SubpassDep[0])), NumDependencies);
-
-	VkRenderPassCreateInfo CreateInfo;
-	ZeroVulkanStruct(CreateInfo, VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
-	CreateInfo.attachmentCount = InRTLayout.GetNumAttachmentDescriptions();
-	CreateInfo.pAttachments = InRTLayout.GetAttachmentDescriptions();
-	CreateInfo.subpassCount = NumSubpasses;
-	CreateInfo.pSubpasses = SubpassDesc;
-	CreateInfo.dependencyCount = NumDependencies;
-	CreateInfo.pDependencies = SubpassDep;
-
-	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateRenderPass(Device.GetInstanceHandle(), &CreateInfo, VULKAN_CPU_ALLOCATOR, &RenderPass));
+	RenderPass = CreateRenderPass(InDevice, InRTLayout);
 }
 
 FVulkanRenderPass::~FVulkanRenderPass()

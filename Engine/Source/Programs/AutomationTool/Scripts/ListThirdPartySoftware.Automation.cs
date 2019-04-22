@@ -32,7 +32,7 @@ class ListThirdPartySoftware : BuildCommand
 
 			IProcessResult Result;
 
-			Result = Run(UE4Build.GetUBTExecutable(), String.Format("{0} {1} -jsonexport=\"{2}\" -skipbuild", Target.Replace('|', ' '),  ProjectPath, OutputFile.FullName), Options: ERunOptions.Default);
+			Result = Run(UE4Build.GetUBTExecutable(), String.Format("{0} {1} -Mode=JsonExport -OutputFile=\"{2}\"", Target.Replace('|', ' '),  ProjectPath, OutputFile.FullName), Options: ERunOptions.Default);
 
 			if (Result.ExitCode != 0)
 			{
@@ -59,14 +59,6 @@ class ListThirdPartySoftware : BuildCommand
 				DirectoriesToScan.Add(DirectoryReference.Combine(ProjectFile.Directory, "Content"));
 			}
 
-			// Get the variables to be expanded in any runtime dependencies variables
-			Dictionary<string, string> Variables = new Dictionary<string, string>();
-			Variables.Add("EngineDir", CommandUtils.EngineDirectory.FullName);
-			if(ProjectFile != null)
-			{
-				Variables.Add("ProjectDir", ProjectFile.Directory.FullName);
-			}
-
 			// Add all the paths for each module, and its runtime dependencies
 			JsonObject Modules = Object.GetObjectField("Modules");
 			foreach(string ModuleName in Modules.KeyNames)
@@ -76,9 +68,12 @@ class ListThirdPartySoftware : BuildCommand
 
 				foreach(JsonObject RuntimeDependency in Module.GetObjectArrayField("RuntimeDependencies"))
 				{
-					string RuntimeDependencyPath = RuntimeDependency.GetStringField("Path");
-					RuntimeDependencyPath = Utils.ExpandVariables(RuntimeDependencyPath, Variables);
-					DirectoriesToScan.Add(new FileReference(RuntimeDependencyPath).Directory);
+					string RuntimeDependencyPath;
+					if(RuntimeDependency.TryGetStringField("SourcePath", out RuntimeDependencyPath) || RuntimeDependency.TryGetStringField("Path", out RuntimeDependencyPath))
+					{
+						List<FileReference> Files = FileFilter.ResolveWildcard(DirectoryReference.Combine(CommandUtils.EngineDirectory, "Source"), RuntimeDependencyPath);
+						DirectoriesToScan.UnionWith(Files.Select(x => x.Directory));
+					}
 				}
 			}
 
@@ -114,21 +109,27 @@ class ListThirdPartySoftware : BuildCommand
 		foreach(FileReference TpsFile in TpsFiles)
 		{
 			string Message = TpsFile.FullName;
-
-			string[] Lines = FileReference.ReadAllLines(TpsFile);
-			foreach(string Line in Lines)
+			try
 			{
-				const string RedirectPrefix = "Redirect:";
-
-				int Idx = Line.IndexOf(RedirectPrefix, StringComparison.InvariantCultureIgnoreCase);
-				if(Idx >= 0)
+				string[] Lines = FileReference.ReadAllLines(TpsFile);
+				foreach(string Line in Lines)
 				{
-					FileReference RedirectTpsFile = FileReference.Combine(TpsFile.Directory, Line.Substring(Idx + RedirectPrefix.Length).Trim());
-					Message = String.Format("{0} (redirect from {1})", RedirectTpsFile.FullName, TpsFile.FullName);
-					break;
+					const string RedirectPrefix = "Redirect:";
+
+					int Idx = Line.IndexOf(RedirectPrefix, StringComparison.InvariantCultureIgnoreCase);
+					if(Idx >= 0)
+					{
+						FileReference RedirectTpsFile = FileReference.Combine(TpsFile.Directory, Line.Substring(Idx + RedirectPrefix.Length).Trim());
+						Message = String.Format("{0} (redirect from {1})", RedirectTpsFile.FullName, TpsFile.FullName);
+						break;
+					}
 				}
 			}
-
+			catch (Exception Ex)
+			{
+				ExceptionUtils.AddContext(Ex, "while processing {0}", TpsFile);
+				throw;
+			}
 			OutputMessages.Add(Message);
 		}
 		OutputMessages.Sort();

@@ -1304,11 +1304,7 @@ namespace UnrealBuildTool
 			}
 
 			// Build the target's binaries.
-			DirectoryReference ExeDir = Binaries[0].OutputDir;
-			if (CppPlatform == CppPlatform.Mac && ExeDir.FullName.EndsWith(".app/Contents/MacOS"))
-			{
-				ExeDir = ExeDir.ParentDirectory.ParentDirectory.ParentDirectory;
-			}
+			DirectoryReference ExeDir = GetExecutableDir();
 			using(Timeline.ScopeEvent("UEBuildBinary.Build()"))
 			{
 				foreach (UEBuildBinary Binary in Binaries)
@@ -1533,6 +1529,20 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Gets the output directory for the main executable
+		/// </summary>
+		/// <returns>The executable directory</returns>
+		DirectoryReference GetExecutableDir()
+		{
+			DirectoryReference ExeDir = Binaries[0].OutputDir;
+			if (Platform == UnrealTargetPlatform.Mac && ExeDir.FullName.EndsWith(".app/Contents/MacOS"))
+			{
+				ExeDir = ExeDir.ParentDirectory.ParentDirectory.ParentDirectory;
+			}
+			return ExeDir;
+		}
+
+		/// <summary>
 		/// Check that copying a file from one location to another does not violate rules regarding restricted folders
 		/// </summary>
 		/// <param name="TargetFile">The destination location for the file</param>
@@ -1732,7 +1742,7 @@ namespace UnrealBuildTool
 				foreach(UEBuildModule Module in Modules.Values)
 				{
 					Writer.WriteObjectStart(Module.Name);
-					Module.ExportJson(Writer);
+					Module.ExportJson(Module.Binary?.OutputDir, GetExecutableDir(), Writer);
 					Writer.WriteObjectEnd();
 				}
 				Writer.WriteObjectEnd();
@@ -2084,14 +2094,17 @@ namespace UnrealBuildTool
 		private HashSet<string> GetHotReloadModuleNames()
 		{
 			HashSet<string> HotReloadModuleNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-			foreach (UEBuildBinary Binary in Binaries)
+			if (!ShouldCompileMonolithic())
 			{
-				List<UEBuildModule> GameModules = Binary.FindGameModules();
-				if (GameModules != null && GameModules.Count > 0)
+				foreach (UEBuildBinary Binary in Binaries)
 				{
-					if(!UnrealBuildTool.IsProjectInstalled() || EnabledPlugins.Where(x => x.Type == PluginType.Mod).Any(x => Binary.OutputFilePaths[0].IsUnderDirectory(x.Directory)))
+					List<UEBuildModule> GameModules = Binary.FindGameModules();
+					if (GameModules != null && GameModules.Count > 0)
 					{
-						HotReloadModuleNames.UnionWith(GameModules.OfType<UEBuildModuleCPP>().Select(x => x.Name));
+						if (!UnrealBuildTool.IsProjectInstalled() || EnabledPlugins.Where(x => x.Type == PluginType.Mod).Any(x => Binary.OutputFilePaths[0].IsUnderDirectory(x.Directory)))
+						{
+							HotReloadModuleNames.UnionWith(GameModules.OfType<UEBuildModuleCPP>().Select(x => x.Name));
+						}
 					}
 				}
 			}

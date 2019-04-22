@@ -7,6 +7,7 @@
 #include "CoreGlobals.h"
 #include "UObject/UObjectIterator.h"
 #include "Engine/NetConnection.h"
+#include "Engine/ChildConnection.h"
 
 UBasicReplicationGraph::UBasicReplicationGraph()
 {
@@ -41,11 +42,11 @@ void UBasicReplicationGraph::InitGlobalActorClassSettings()
 		
 		if (ActorCDO->bAlwaysRelevant || ActorCDO->bOnlyRelevantToOwner)
 		{
-			ClassInfo.CullDistanceSquared = 0.f;
+			ClassInfo.SetCullDistanceSquared(0.f);
 		}
 		else
 		{
-			ClassInfo.CullDistanceSquared = ActorCDO->NetCullDistanceSquared;
+			ClassInfo.SetCullDistanceSquared(ActorCDO->NetCullDistanceSquared);
 		}
 		
 		GlobalActorReplicationInfoMap.SetClassInfo( Class, ClassInfo );
@@ -183,4 +184,15 @@ int32 UBasicReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 
 
 	return Super::ServerReplicateActors(DeltaSeconds);
+}
+
+bool FConnectionAlwaysRelevantNodePair::operator==(UNetConnection* InConnection) const
+{
+	// Any children should be looking at their parent connections instead.
+	if (InConnection->GetUChildConnection() != nullptr)
+	{
+		InConnection = ((UChildConnection*)InConnection)->Parent;
+	}
+
+	return InConnection == NetConnection;
 }

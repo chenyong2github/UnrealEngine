@@ -12,12 +12,31 @@
 #include "FoliageTypeFactory.generated.h"
 
 UCLASS()
-class UFoliageTypeFactory : public UFactory
+class UFoliageType_InstancedStaticMeshFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
 	// UFactory interface
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
-	virtual uint32 GetMenuCategories() const;
+	virtual FString GetDefaultNewAssetName() const override
+	{
+		return TEXT("NewInstancedStaticMeshFoliage");
+	}
+	virtual FText GetToolTip() const override;
+	// End of UFactory interface
+};
+
+UCLASS()
+class UFoliageType_ActorFactory : public UFactory
+{
+	GENERATED_UCLASS_BODY()
+
+	// UFactory interface
+	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
+	virtual FString GetDefaultNewAssetName() const override
+	{
+		return TEXT("NewActorFoliage");
+	}
+	virtual FText GetToolTip() const override;
 	// End of UFactory interface
 };

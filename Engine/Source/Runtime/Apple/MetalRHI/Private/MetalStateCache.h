@@ -98,6 +98,8 @@ public:
 
 	void SetStateDirty(void);
 	
+	void SetShaderBufferDirty(EMetalShaderStages const Frequency, NSUInteger const Index);
+	
 	void SetRenderStoreActions(FMetalCommandEncoder& CommandEncoder, bool const bConditionalSwitch);
 	
 	void SetRenderState(FMetalCommandEncoder& CommandEncoder, FMetalCommandEncoder* PrologueEncoder);
@@ -114,6 +116,7 @@ public:
 	
 	bool PrepareToRestart(bool const bCurrentApplied);
 	
+	FMetalBuffer& GetDebugBuffer();
 	FMetalShaderParameterCache& GetShaderParameters(EMetalShaderStages const Stage) { return ShaderParameters[Stage]; }
 	FLinearColor const& GetBlendFactor() const { return BlendFactor; }
 	uint32 GetStencilRef() const { return StencilRef; }
@@ -145,6 +148,8 @@ public:
     bool IsLinearBuffer(EMetalShaderStages ShaderStage, uint32 BindIndex);
     FMetalShaderPipeline* GetPipelineState(void) const { return GraphicsPSO->GetPipeline(GetIndexType()); }
 	EPrimitiveType GetPrimitiveType() { check(IsValidRef(GraphicsPSO)); return GraphicsPSO->GetPrimitiveType(); }
+	mtlpp::VisibilityResultMode GetVisibilityResultMode() { return VisibilityMode; }
+	uint32 GetVisibilityResultOffset() { return VisibilityOffset; }
 	
 	FTexture2DRHIRef CreateFallbackDepthStencilSurface(uint32 Width, uint32 Height);
 	bool GetFallbackDepthStencilBound(void) const { return bFallbackDepthStencilBound; }
@@ -279,6 +284,7 @@ private:
 	FTextureRHIRef DepthStencilSurface;
 	/** A fallback depth-stencil surface for draw calls that write to depth without a depth-stencil surface bound. */
 	FTexture2DRHIRef FallbackDepthStencilSurface;
+	FMetalBuffer DebugBuffer;
 	mtlpp::RenderPassDescriptor RenderPassDesc;
 	uint32 RasterBits;
     uint8 PipelineBits;

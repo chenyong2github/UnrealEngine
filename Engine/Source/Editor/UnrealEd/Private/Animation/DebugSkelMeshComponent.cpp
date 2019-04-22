@@ -47,6 +47,14 @@ UDebugSkelMeshComponent::UDebugSkelMeshComponent(const FObjectInitializer& Objec
 
 FBoxSphereBounds UDebugSkelMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
+	// Override bounds with pre-skinned bounds if asking for them
+	if (IsUsingPreSkinnedBounds())
+	{
+		FBoxSphereBounds PreSkinnedLocalBounds;
+		GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
+		return PreSkinnedLocalBounds;
+	}
+
 	FBoxSphereBounds Result = Super::CalcBounds(LocalToWorld);
 
 	if (!IsUsingInGameBounds())
@@ -90,6 +98,16 @@ bool UDebugSkelMeshComponent::IsUsingInGameBounds() const
 void UDebugSkelMeshComponent::UseInGameBounds(bool bUseInGameBounds)
 {
 	bIsUsingInGameBounds = bUseInGameBounds;
+}
+
+bool UDebugSkelMeshComponent::IsUsingPreSkinnedBounds() const
+{
+	return bIsUsingPreSkinnedBounds;
+}
+
+void UDebugSkelMeshComponent::UsePreSkinnedBounds(bool bUsePreSkinnedBounds)
+{
+	bIsUsingPreSkinnedBounds = bUsePreSkinnedBounds;
 }
 
 bool UDebugSkelMeshComponent::CheckIfBoundsAreCorrrect()

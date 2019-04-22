@@ -42,14 +42,6 @@ static FAutoConsoleVariable CVarUseVulkanRealUBs(
 	ECVF_ReadOnly
 	);
 
-static FAutoConsoleVariable CVarVulkanEnableTessellation(
-	TEXT("r.Vulkan.EnableTessellation"),
-	0,
-	TEXT("0: Tessellation disabled[default]\n")
-	TEXT("1: Enable flat tessellation (experimental)"),
-	ECVF_ReadOnly
-);
-
 static TAutoConsoleVariable<int32> CVarDisableEngineAndAppRegistration(
 	TEXT("r.DisableEngineAndAppRegistration"),
 	0,
@@ -804,7 +796,7 @@ RHI_API bool RHISupportsTessellation(const EShaderPlatform Platform)
 {
 	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 	{
-		return (Platform == SP_PCD3D_SM5) || (Platform == SP_XBOXONE_D3D12) || (Platform == SP_OPENGL_SM5) || (Platform == SP_OPENGL_ES31_EXT) || (Platform == SP_METAL_SM5) || (IsVulkanSM5Platform(Platform) && CVarVulkanEnableTessellation->GetInt() != 0);
+		return (Platform == SP_PCD3D_SM5) || (Platform == SP_XBOXONE_D3D12) || (Platform == SP_OPENGL_SM5) || (Platform == SP_OPENGL_ES31_EXT) || (Platform == SP_METAL_SM5) /*|| (IsVulkanSM5Platform(Platform))*/;
 	}
 	return false;
 }
@@ -904,6 +896,14 @@ void FRHIRenderPassInfo::ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& Ou
 		}
 		OutRTInfo.NumUAVs = NumUAVs;
 	}
+}
+
+void FRHIRenderPassInfo::OnVerifyNumUAVsFailed(int32 InNumUAVs)
+{
+	bTooManyUAVs = true;
+	UE_LOG(LogRHI, Warning, TEXT("NumUAVs is %d which is greater the max %d. Trailing UAVs will be dropped"), InNumUAVs, MaxSimultaneousUAVs);
+	// Trigger an ensure to get callstack in dev builds
+	ensure(InNumUAVs <= MaxSimultaneousUAVs);
 }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -1007,6 +1007,15 @@ void FRHIRenderPassInfo::Validate() const
 	{
 		ensure(DepthStencilRenderTarget.Action == EDepthStencilTargetActions::DontLoad_DontStore);
 		ensure(DepthStencilRenderTarget.ExclusiveDepthStencil == FExclusiveDepthStencil::DepthNop_StencilNop);
+	}
+
+	if (SubpassHint == ESubpassHint::DepthReadSubpass)
+	{
+		// for depth read sub-pass
+		// 1. render pass must have depth target
+		// 2. depth target must support InputAttachement
+		ensure(DepthStencilRenderTarget.DepthStencilTarget);
+		ensure((DepthStencilRenderTarget.DepthStencilTarget->GetFlags() & TexCreate_InputAttachmentRead) != 0);
 	}
 }
 #endif

@@ -29,6 +29,7 @@
 #include "Misc/FileHelper.h"
 #include "ShaderCompiler.h"
 #include "NiagaraShader.h"
+#include "NiagaraScript.h" //@todo(ng) FNiagaraCompileEvent dependency (make sure this is used before submitting)
 
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
 
@@ -546,6 +547,7 @@ TSharedPtr<FNiagaraVMExecutableData> FNiagaraEditorModule::CompileScript(const F
 	TArray<FNiagaraCompileEvent> Messages;
 	if (TranslateResults.CompileEvents.Num() > 0)
 	{
+		Results.Data->LastCompileEvents.Append(TranslateResults.CompileEvents); //@todo(ng) get rid of Messages in the future
 		Messages.Append(TranslateResults.CompileEvents);
 	}
 	if (Results.CompileEvents.Num() > 0)
@@ -556,19 +558,19 @@ TSharedPtr<FNiagaraVMExecutableData> FNiagaraEditorModule::CompileScript(const F
 	FString OutGraphLevelErrorMessages;
 	for (const FNiagaraCompileEvent& Message : Messages)
 	{
-		if (Message.Type == FNiagaraCompileEventType::Log)
+		if (Message.Severity == FNiagaraCompileEventSeverity::Log)
 		{
 		#if defined(NIAGARA_SCRIPT_COMPILE_LOGGING_MEDIUM)
 			UE_LOG(LogNiagaraCompiler, Log, TEXT("%s"), *Message.Message);
 		#endif
 		}
-		else if (Message.Type == FNiagaraCompileEventType::Warning )
+		else if (Message.Severity == FNiagaraCompileEventSeverity::Warning )
 		{
 		#if defined(NIAGARA_SCRIPT_COMPILE_LOGGING_MEDIUM)
 			UE_LOG(LogNiagaraCompiler, Warning, TEXT("%s"), *Message.Message);
 		#endif
 		}
-		else if (Message.Type == FNiagaraCompileEventType::Error)
+		else if (Message.Severity == FNiagaraCompileEventSeverity::Error)
 		{
 		#if defined(NIAGARA_SCRIPT_COMPILE_LOGGING_MEDIUM)
 			UE_LOG(LogNiagaraCompiler, Error, TEXT("%s"), *Message.Message);
@@ -617,7 +619,7 @@ void FNiagaraEditorModule::TestCompileScriptFromConsole(const TArray<FString>& A
 			FShaderCompilerOutput Output;
 			FVectorVMCompilationOutput CompilationOutput;
 			double StartTime = FPlatformTime::Seconds();
-			bool bSucceeded = CompileShader_VectorVM(Input, Output, FString(FPlatformProcess::ShaderDir()), 0, CompilationOutput, GNiagaraSkipVectorVMBackendOptimizations);
+			bool bSucceeded = CompileShader_VectorVM(Input, Output, FString(FPlatformProcess::ShaderDir()), 0, CompilationOutput, GNiagaraSkipVectorVMBackendOptimizations != 0);
 			float DeltaTime = (float)(FPlatformTime::Seconds() - StartTime);
 
 			if (bSucceeded)
@@ -768,7 +770,7 @@ FNiagaraCompileResults FHlslNiagaraCompiler::CompileScript(const FNiagaraCompile
 			
 			CritSec.Lock();
 			double StartTime = FPlatformTime::Seconds();
-			CompileResults.bVMSucceeded = CompileShader_VectorVM(Input, Output, FString(FPlatformProcess::ShaderDir()), 0, CompilationOutput, GNiagaraSkipVectorVMBackendOptimizations);
+			CompileResults.bVMSucceeded = CompileShader_VectorVM(Input, Output, FString(FPlatformProcess::ShaderDir()), 0, CompilationOutput, GNiagaraSkipVectorVMBackendOptimizations != 0);
 			CompileResults.CompileTime = (float)(FPlatformTime::Seconds() - StartTime);
 			CritSec.Unlock();
 		}
@@ -903,14 +905,16 @@ FHlslNiagaraCompiler::FHlslNiagaraCompiler()
 void FHlslNiagaraCompiler::Error(FText ErrorText)
 {
 	FString ErrorString = FString::Printf(TEXT("%s"), *ErrorText.ToString());
-	CompileResults.CompileEvents.Add(FNiagaraCompileEvent(FNiagaraCompileEventType::Error, ErrorString));
+	CompileResults.Data->LastCompileEvents.Add(FNiagaraCompileEvent(FNiagaraCompileEventSeverity::Error, ErrorString)); //@todo(ng) cut out the compileresults.compileevent member since we don't need to separately log into general output log
+	CompileResults.CompileEvents.Add(FNiagaraCompileEvent(FNiagaraCompileEventSeverity::Error, ErrorString));
 	CompileResults.NumErrors++;
 }
 
 void FHlslNiagaraCompiler::Warning(FText WarningText)
 {
 	FString WarnString = FString::Printf(TEXT("%s"), *WarningText.ToString());
-	CompileResults.CompileEvents.Add(FNiagaraCompileEvent(FNiagaraCompileEventType::Warning, WarnString));
+	CompileResults.Data->LastCompileEvents.Add(FNiagaraCompileEvent(FNiagaraCompileEventSeverity::Warning, WarnString));
+	CompileResults.CompileEvents.Add(FNiagaraCompileEvent(FNiagaraCompileEventSeverity::Warning, WarnString));
 	CompileResults.NumWarnings++;
 }
 

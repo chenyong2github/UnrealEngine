@@ -188,6 +188,7 @@ public:
 
 	virtual void SetAppID(FString&& AppID) override;
 	virtual const FString& GetAppID() const override;
+	virtual const FString& GetAppVersion() const override;
 	virtual void SetUserID(const FString& InUserID) override;
 	virtual FString GetUserID() const override;
 
@@ -769,6 +770,11 @@ void FAnalyticsProviderET::SetAppID(FString&& InAppID)
 const FString& FAnalyticsProviderET::GetAppID() const
 {
 	return APIKey;
+}
+
+const FString& FAnalyticsProviderET::GetAppVersion() const
+{
+	return AppVersion;
 }
 
 void FAnalyticsProviderET::SetUserID(const FString& InUserID)

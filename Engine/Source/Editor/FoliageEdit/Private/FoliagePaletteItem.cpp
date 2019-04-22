@@ -44,7 +44,7 @@ FFoliagePaletteItemModel::FFoliagePaletteItemModel(FFoliageMeshUIInfoPtr InTypeI
 	}
 	else
 	{
-		AssetData = FAssetData(TypeInfo->Settings->GetClass()->GetDefaultObject<UFoliageType>()->GetStaticMesh());
+		AssetData = FAssetData(TypeInfo->Settings->GetClass()->GetDefaultObject<UFoliageType>()->GetSource());
 	}
 	
 
@@ -56,7 +56,7 @@ FFoliagePaletteItemModel::FFoliagePaletteItemModel(FFoliageMeshUIInfoPtr InTypeI
 	if (TypeInfo->Settings->IsAsset())
 	{
 		// Get the Foliage Type asset color
-		auto FoliageTypeAssetActions =  AssetToolsModule.Get().GetAssetTypeActionsForClass(UFoliageType_InstancedStaticMesh::StaticClass());
+		auto FoliageTypeAssetActions =  AssetToolsModule.Get().GetAssetTypeActionsForClass(TypeInfo->Settings->GetClass());
 		if (FoliageTypeAssetActions.IsValid())
 		{
 			ThumbnailConfig.AssetTypeColorOverride = FoliageTypeAssetActions.Pin()->GetTypeColor();

@@ -13,16 +13,18 @@
 #include "Units/RigUnitContext.h"
 #include "Animation/NodeMappingProviderInterface.h"
 #include "Units/RigUnit.h"
-#include "Units/RigUnit_Control.h"
+#include "Units/Control/RigUnit_Control.h"
 #include "ControlRig.generated.h"
 
 class IControlRigObjectBinding;
 struct FRigUnit;
-class UControlRig;
+class UScriptStruct;
 
 /** Delegate used to optionally gather inputs before evaluating a ControlRig */
 DECLARE_DELEGATE_OneParam(FPreEvaluateGatherInput, UControlRig*);
 DECLARE_DELEGATE_OneParam(FPostEvaluateQueryOutput, UControlRig*);
+
+#define DEBUG_CONTROLRIG_PROPERTYCHANGE !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 /** Runs logic for mapping input data to transforms (the "Rig") */
 UCLASS(Blueprintable, Abstract, editinlinenew)
@@ -31,13 +33,23 @@ class CONTROLRIG_API UControlRig : public UObject, public IControlRigInterface, 
 	GENERATED_BODY()
 
 	friend class UControlRigComponent;
+	friend class SControlRigStackView;
 
 public:
+	static const FName DeprecatedMetaName;
 	static const FName InputMetaName;
 	static const FName OutputMetaName;
 	static const FName AbstractMetaName;
+	static const FName CategoryMetaName;
 	static const FName DisplayNameMetaName;
+	static const FName MenuDescSuffixMetaName;
 	static const FName ShowVariableNameInTitleMetaName;
+	static const FName BoneNameMetaName;
+	static const FName ConstantMetaName;
+	static const FName TitleColorMetaName;
+	static const FName NodeColorMetaName;
+	static const FName KeywordsMetaName;
+	static const FName PrototypeNameMetaName;
 
 private:
 	/** Current delta time */
@@ -45,6 +57,8 @@ private:
 
 public:
 	UControlRig();
+
+	virtual void Serialize(FArchive& Ar) override;
 
 	/** Get the current delta time */
 	UFUNCTION(BlueprintPure, Category = "Animation")
@@ -65,7 +79,7 @@ public:
 	virtual UWorld* GetWorld() const override;
 
 	/** Initialize things for the ControlRig */
-	virtual void Initialize();
+	virtual void Initialize(bool bInitRigUnits = true);
 
 	/** IControlRigInterface implementation */
 	virtual void PreEvaluate_GameThread() override;
@@ -86,11 +100,11 @@ public:
 
 	/** Evaluate another animation ControlRig */
 	UFUNCTION(BlueprintPure, Category = "Hierarchy")
-	FTransform GetGlobalTransform(const FName JointName) const;
+	FTransform GetGlobalTransform(const FName BoneName) const;
 
 	/** Evaluate another animation ControlRig */
 	UFUNCTION(BlueprintPure, Category = "Hierarchy")
-	void SetGlobalTransform(const FName JointName, const FTransform& InTransform) ;
+	void SetGlobalTransform(const FName BoneName, const FTransform& InTransform) ;
 
 	/** Returns base hierarchy */
 	const FRigHierarchy& GetBaseHierarchy() const
@@ -131,6 +145,7 @@ public:
 #endif // WITH_EDITOR
 	// BEGIN UObject interface
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	virtual void BeginDestroy() override;
 	// END UObject interface
 
 #if WITH_EDITORONLY_DATA
@@ -141,6 +156,9 @@ public:
 
 	UPROPERTY(transient)
 	ERigExecutionType ExecutionType;
+
+	/** Execute the rig unit */
+	void Execute(const EControlRigState State);
 
 private:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Hierarchy")
@@ -157,11 +175,8 @@ private:
 #endif // WITH_EDITOR
 
 	/** list of operators. */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TArray<FControlRigOperator> Operators;
-
-	/** Execution form from Operators. Used for Execute function */
-	TArray<FRigExecutor> Executors;
 
 	/** Runtime object binding */
 	TSharedPtr<IControlRigObjectBinding> ObjectBinding;
@@ -169,11 +184,49 @@ private:
 	FPreEvaluateGatherInput OnPreEvaluateGatherInput;
 	FPostEvaluateQueryOutput OnPostEvaluateQueryOutput;
 
-	/** Instantiate Executor from Operators */
-	void InstantiateExecutor();
+	DECLARE_EVENT_TwoParams(UControlRig, FControlRigExecuteEvent, class UControlRig*, const EControlRigState);
+	FControlRigExecuteEvent& OnInitialized() { return InitializedEvent; }
+	FControlRigExecuteEvent& OnExecuted() { return ExecutedEvent; }
 
-	/** Execute the rig unit */
-	void Execute(const EControlRigState State);
+#if WITH_EDITOR
+	FControlRigLog* ControlRigLog;
+	bool bEnableControlRigLogging;
+#endif
+
+private:
+
+	/** The draw interface for the units to use */
+	FControlRigDrawInterface* DrawInterface;
+
+#if DEBUG_CONTROLRIG_PROPERTYCHANGE
+	// This is to debug class size when constructed and destroyed to verify match
+	// if this size changes, that implies more problem, where properties have been changed and layout has been modified
+	// also it caches if destructor and property has been chagned
+	// the name can be destroyed but we should make sure we have proper properties size/offset is linked
+	int32 DebugClassSize;
+	TArray<UScriptStruct*> Destructors;
+	struct FPropertyData
+	{
+		int32 Offset;
+		int32 Size;
+		FName PropertyName;
+	};
+	TArray<FPropertyData> PropertyData;
+	void ValidateDebugClassData();
+	void CacheDebugClassData();
+#endif // 	DEBUG_CONTROLRIG_PROPERTYCHANGE
+
+	/** Copy the operators from the generated class */
+	void InstantiateOperatorsFromGeneratedClass();
+	
+	/** Re-resolve operator property paths */
+	void ResolvePropertyPaths();
+
+	/** Broadcasts a notification whenever the controlrig is initialized. */
+	FControlRigExecuteEvent InitializedEvent;
+
+	/** Broadcasts a notification whenever the controlrig is executed / updated. */
+	FControlRigExecuteEvent ExecutedEvent;
 
 	/** INodeMappingInterface implementation */
 	virtual void GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutNodeItems) const override;
@@ -185,4 +238,6 @@ private:
 	friend class URigUnitEditor_Base;
 	friend class FControlRigEditor;
 	friend class SRigHierarchy;
+	friend class UEngineTestControlRig;
+	friend class FControlRigEditMode;
 };

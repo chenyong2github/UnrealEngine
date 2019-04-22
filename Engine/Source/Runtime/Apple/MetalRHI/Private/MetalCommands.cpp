@@ -88,7 +88,9 @@ mtlpp::PrimitiveType TranslatePrimitiveType(uint32 PrimitiveType)
 			}
 			return mtlpp::PrimitiveType::Triangle;
 		}
-		default:				UE_LOG(LogMetal, Fatal, TEXT("Unsupported primitive type %d"), (int32)PrimitiveType); return mtlpp::PrimitiveType::Triangle;
+		default:
+			METAL_FATAL_ERROR(TEXT("Unsupported primitive type %d"), (int32)PrimitiveType);
+			return mtlpp::PrimitiveType::Triangle;
 	}
 }
 
@@ -233,12 +235,10 @@ void FMetalRHICommandContext::RHISetGraphicsPipelineState(FGraphicsPipelineState
 {
 	@autoreleasepool {
 		FMetalGraphicsPipelineState* PipelineState = ResourceCast(GraphicsState);
-#if METAL_DEBUG_OPTIONS
-		if (GMetalResetOnPSOChange >= 4 && Context->GetCurrentState().GetGraphicsPSO() != PipelineState)
+		if (SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelResetOnBind && Context->GetCurrentState().GetGraphicsPSO() != PipelineState)
 		{
 			Context->GetCurrentRenderPass().GetCurrentCommandEncoder().ResetLive();
 		}
-#endif
 		Context->GetCurrentState().SetGraphicsPipelineState(PipelineState);
 		// Bad Arne!
 		RHISetStencilRef(0);

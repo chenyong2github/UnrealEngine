@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #include "ActiveSound.h"
+
 #include "EngineDefines.h"
 #include "Misc/App.h"
 #include "AudioThread.h"
@@ -17,6 +17,14 @@ FAutoConsoleVariableRef CVarAudioOcclusionEnabled(
 	AudioOcclusionDisabledCvar,
 	TEXT("Disables (1) or enables (0) audio occlusion.\n"),
 	ECVF_Default);
+
+static int32 AudioDisableConcurrencyStopSilentForLoopsCvar = 0;
+FAutoConsoleVariableRef CVarAudioDisableConcurrencyStopSilentForLoops(
+	TEXT("au.DisableConcurrencyStopSilentForLoops"),
+	AudioDisableConcurrencyStopSilentForLoopsCvar,
+	TEXT("Disables (1) or enables (0) audio concurrency for loops subscribing to stop silent.\n"),
+	ECVF_Default);
+
 
 FTraceDelegate FActiveSound::ActiveSoundTraceDelegate;
 TMap<FTraceHandle, FActiveSound::FAsyncTraceDetails> FActiveSound::TraceToActiveSoundMap;
@@ -39,6 +47,7 @@ FActiveSound::FActiveSound()
 	, bFinished(false)
 	, bIsPaused(false)
 	, bShouldStopDueToMaxConcurrency(false)
+	, bHasVirtualized(false)
 	, bRadioFilterSelected(false)
 	, bApplyRadioFilter(false)
 	, bHandleSubtitles(true)
@@ -157,16 +166,12 @@ void FActiveSound::AddReferencedObjects( FReferenceCollector& Collector)
 
 void FActiveSound::SetWorld(UWorld* InWorld)
 {
-	check(IsInGameThread());
-
 	World = InWorld;
 	WorldID = (InWorld ? InWorld->GetUniqueID() : 0);
 }
 
 void FActiveSound::SetSound(USoundBase* InSound)
 {
-	check(IsInGameThread());
-
 	Sound = InSound;
 	bApplyInteriorVolumes = (SoundClassOverride && SoundClassOverride->Properties.bApplyAmbientVolumes)
 							|| (Sound && Sound->ShouldApplyInteriorVolumes());
@@ -174,16 +179,35 @@ void FActiveSound::SetSound(USoundBase* InSound)
 
 void FActiveSound::SetSoundClass(USoundClass* SoundClass)
 {
-	check(IsInGameThread());
-
 	SoundClassOverride = SoundClass;
 	bApplyInteriorVolumes = (SoundClassOverride && SoundClassOverride->Properties.bApplyAmbientVolumes)
 							|| (Sound && Sound->ShouldApplyInteriorVolumes());
 }
 
+void FActiveSound::ClearAudioComponent()
+{
+	AudioComponentID = 0;
+	AudioComponentUserID = NAME_None;
+	AudioComponentName = NAME_None;
+
+	OwnerID = 0;
+	OwnerName = NAME_None;
+}
+
+void FActiveSound::SetAudioComponent(const FActiveSound& ActiveSound)
+{
+	AudioComponentID = ActiveSound.AudioComponentID;
+	AudioComponentUserID = ActiveSound.AudioComponentUserID;
+	AudioComponentName = ActiveSound.AudioComponentName;
+
+	OwnerID = ActiveSound.OwnerID;
+	OwnerName = ActiveSound.OwnerName;
+}
+
 void FActiveSound::SetAudioComponent(UAudioComponent* Component)
 {
 	check(IsInGameThread());
+	check(Component);
 
 	AActor* Owner = Component->GetOwner();
 
@@ -346,19 +370,34 @@ void FActiveSound::GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurre
 	if (!ConcurrencySet.Num() && Sound)
 	{
 		Sound->GetConcurrencyHandles(OutConcurrencyHandles);
-		return;
+	}
+	else
+	{
+		for (const USoundConcurrency* Concurrency : ConcurrencySet)
+		{
+			if (Concurrency)
+			{
+				OutConcurrencyHandles.Emplace(FConcurrencyHandle(*Concurrency));
+			}
+		}
 	}
 
-	for (const USoundConcurrency* Concurrency : ConcurrencySet)
+	if (IsLooping() && AudioDisableConcurrencyStopSilentForLoopsCvar)
 	{
-		if (Concurrency)
+		for (int32 i = OutConcurrencyHandles.Num() - 1; i >= 0; --i)
 		{
-			OutConcurrencyHandles.Emplace(FConcurrencyHandle(*Concurrency));
+			if (OutConcurrencyHandles[i].Settings.ResolutionRule == EMaxConcurrentResolutionRule::StopQuietest)
+			{
+				UE_LOG(LogAudio, Warning,
+					TEXT("Concurrency not observed for '%s': StopQuietest concurrency disabled for looping sounds"),
+					Sound ? *Sound->GetName() : TEXT("N/A"));
+				OutConcurrencyHandles.RemoveAtSwap(i, 1, false);
+			}
 		}
 	}
 }
 
-void FActiveSound::UpdateWaveInstances( TArray<FWaveInstance*> &InWaveInstances, const float DeltaTime )
+void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, const float DeltaTime)
 {
 	check(AudioDevice);
 
@@ -390,38 +429,6 @@ void FActiveSound::UpdateWaveInstances( TArray<FWaveInstance*> &InWaveInstances,
 
 	// Cache the closest listener ptr 
 	ClosestListenerPtr = &Listeners[ClosestListenerIndex];
-
-	bool bPerformDistanceCheckOptimization = true;
-
-	// If we have an attenuation node, we can't know until we evaluate the sound cue if it's audio output going to be audible via a distance check
-	if (Sound->HasAttenuationNode() || 
-		(AudioDevice->VirtualSoundsEnabled() && (Sound->IsAllowedVirtual() || (bHandleSubtitles && bHasExternalSubtitles))) ||
-		(bHasAttenuationSettings && (AttenuationSettings.FocusDistanceScale != 1.0f || AttenuationSettings.NonFocusDistanceScale != 1.0f)))
-	{
-		bPerformDistanceCheckOptimization = false;
-	}
-	else
-	{
-		// Check the global focus settings... if it's doing a distance scale, we can't optimize due to distance
-		const FGlobalFocusSettings& FocusSettings = AudioDevice->GetGlobalFocusSettings();
-		if (FocusSettings.FocusDistanceScale != 1.0f || FocusSettings.NonFocusDistanceScale != 1.0f)
-		{
-			bPerformDistanceCheckOptimization = false;
-		}
-	}
-
-	// Early out if the sound is further away than we could possibly hear it, but only do this for non-virtualizable sounds.
-	if (bPerformDistanceCheckOptimization)
-	{
-		// The apparent max distance factors the actual max distance of the sound scaled with the distance scale due to focus effects
-		float ApparentMaxDistance = MaxDistance * FocusDistanceScale;
-
-		// Check if we're out of range of being audible, and early return if there's no chance of making sounds
-		if (!Sound->IsVirtualizeWhenSilent() && !AudioDevice->LocationIsAudible(ClosestListenerPtr->Transform.GetLocation(), ApparentMaxDistance))
-		{
-			return;
-		}
-	}
 
 	FSoundParseParameters ParseParams;
 	ParseParams.Transform = Transform;
@@ -516,7 +523,7 @@ void FActiveSound::UpdateWaveInstances( TArray<FWaveInstance*> &InWaveInstances,
 
 	if (bFinished)
 	{
-		AudioDevice->StopActiveSound(this);
+		AudioDevice->AddSoundToStop(this);
 	}
 	else if (ThisSoundsWaveInstances.Num() > 0)
 	{
@@ -1332,6 +1339,8 @@ void FActiveSound::ApplyAttenuation(FSoundParseParameters& ParseParams, const FL
 			ParseParams.AttenuationDistance = ListenerData.AttenuationDistance;
 
 			ParseParams.ListenerToSoundDistance = ListenerData.ListenerToSoundDistance;
+
+			ParseParams.ListenerToSoundDistanceForPanning = ListenerData.ListenerToSoundDistanceForPanning;
 
 			ParseParams.AbsoluteAzimuth = AbsoluteAzimuth;
 		}

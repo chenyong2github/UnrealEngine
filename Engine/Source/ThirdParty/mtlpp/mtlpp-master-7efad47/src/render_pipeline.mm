@@ -776,6 +776,13 @@ namespace mtlpp
 #endif
 	}
 	
+	TileRenderPipelineDescriptor::TileRenderPipelineDescriptor()
+#if MTLPP_IS_AVAILABLE_IOS(11_0)
+	: ns::Object<MTLTileRenderPipelineDescriptor*>([[MTLTileRenderPipelineDescriptor alloc] init], ns::Ownership::Assign)
+#endif
+	{
+	}
+	
 	ns::AutoReleased<ns::String> TileRenderPipelineDescriptor::GetLabel() const
 	{
 		Validate();

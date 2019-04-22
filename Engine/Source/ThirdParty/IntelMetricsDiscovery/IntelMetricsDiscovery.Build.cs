@@ -7,8 +7,7 @@ public class IntelMetricsDiscovery : ModuleRules
 	public IntelMetricsDiscovery(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
-// #todo-rco: Temporarily disable
-/*
+
 		string IntelMetricsDiscoveryPath = Target.UEThirdPartySourceDirectory + "IntelMetricsDiscovery/MetricsDiscoveryHelper/";
 		bool bUseDebugBuild = false;
 		if ( (Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Win32) )
@@ -25,7 +24,6 @@ public class IntelMetricsDiscovery : ModuleRules
             PublicDefinitions.Add("INTEL_METRICSDISCOVERY=1");
         }
 		else
-*/
         {
             PublicDefinitions.Add("INTEL_METRICSDISCOVERY=0");
         }

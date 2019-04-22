@@ -27,16 +27,21 @@ struct CONTROLRIGDEVELOPER_API FControlRigBlueprintPropertyLink
 	GENERATED_BODY()
 
 	FControlRigBlueprintPropertyLink() 
-		: SourcePropertyHash(0)
+		: SourceLinkIndex(0)
+		, DestLinkIndex(0)
+		, SourcePropertyHash(0)
 		, DestPropertyHash(0)
 	{}
 
-	FControlRigBlueprintPropertyLink(const FString& InSourcePropertyPath, const FString& InDestPropertyPath)
+	FControlRigBlueprintPropertyLink(const FString& InSourcePropertyPath, const FString& InDestPropertyPath, uint32 InSourceLinkIndex, uint32 InDestLinkIndex)
 		: SourcePropertyPath(InSourcePropertyPath)
 		, DestPropertyPath(InDestPropertyPath)
+		, SourceLinkIndex(InSourceLinkIndex)
+		, DestLinkIndex(InDestLinkIndex)
 		, SourcePropertyHash(FCrc::StrCrc32<TCHAR>(*SourcePropertyPath))
 		, DestPropertyHash(FCrc::StrCrc32<TCHAR>(*DestPropertyPath))
-	{}
+	{
+	}
 
 	friend bool operator==(const FControlRigBlueprintPropertyLink& A, const FControlRigBlueprintPropertyLink& B)
 	{
@@ -46,10 +51,24 @@ struct CONTROLRIGDEVELOPER_API FControlRigBlueprintPropertyLink
 	const FString& GetSourcePropertyPath() const { return SourcePropertyPath; }
 	const FString& GetDestPropertyPath() const { return DestPropertyPath; }
 
-	uint32 GetSourcePropertyHash() const { return SourcePropertyHash; }
-	uint32 GetDestPropertyHash() const { return DestPropertyHash; }
+	int32 GetSourceLinkIndex() const { return SourceLinkIndex; }
+	int32 GetDestLinkIndex() const { return DestLinkIndex; }
 
 private:
+
+	FString GetSourceUnitName() const { return GetUnitName(SourcePropertyPath); }
+	FString GetDestUnitName() const { return GetUnitName(DestPropertyPath); }
+
+	static FString GetUnitName(FString Input)
+	{
+		int32 ParseIndex = 0;
+		if (Input.FindChar(TCHAR('.'), ParseIndex))
+		{
+			return Input.Left(ParseIndex);
+		}
+		return Input;
+	}
+
 	/** Path to the property we are linking from */
 	UPROPERTY(VisibleAnywhere, Category="Links")
 	FString SourcePropertyPath;
@@ -58,12 +77,23 @@ private:
 	UPROPERTY(VisibleAnywhere, Category="Links")
 	FString DestPropertyPath;
 
+	/** Index of the link on the source unit */
+	UPROPERTY()
+	int32 SourceLinkIndex;
+
+	/** Index of the link on the destination unit */
+	UPROPERTY()
+	int32 DestLinkIndex;
+
 	// Hashed strings for faster comparisons
-	UPROPERTY(VisibleAnywhere, Category="Links")
+	UPROPERTY()
 	uint32 SourcePropertyHash;
 
-	UPROPERTY(VisibleAnywhere, Category="Links")
+	// Hashed strings for faster comparisons
+	UPROPERTY()
 	uint32 DestPropertyHash;
+
+	friend class FControlRigBlueprintCompilerContext;
 };
 
 UCLASS(BlueprintType)
@@ -91,7 +121,7 @@ public:
 #endif	// #if WITH_EDITOR
 
 	/** Make a property link between the specified properties - used by the compiler */
-	void MakePropertyLink(const FString& InSourcePropertyPath, const FString& InDestPropertyPath);
+	void MakePropertyLink(const FString& InSourcePropertyPath, const FString& InDestPropertyPath, int32 InSourceLinkIndex, int32 InDestLinkIndex);
 
 	/** IInterface_PreviewMeshProvider interface */
 	virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
@@ -99,19 +129,19 @@ public:
 
 private:
 	/** Links between the various properties we have */
-	UPROPERTY(EditAnywhere, Category="Links")
+	UPROPERTY()
 	TArray<FControlRigBlueprintPropertyLink> PropertyLinks;
 
 	/** list of operators. Visible for debug purpose for now */
-	UPROPERTY(VisibleAnywhere, Category = "Links")
-	TArray<FControlRigOperator> Operators;
+	UPROPERTY()
+	TArray<FControlRigOperator> Operators_DEPRECATED;
 
 	// need list of "allow query property" to "source" - whether rig unit or property itself
 	// this will allow it to copy data to target
-	UPROPERTY(VisibleAnywhere, Category = "Links")
+	UPROPERTY()
 	TMap<FName, FString> AllowSourceAccessProperties;
 
-	UPROPERTY(VisibleAnywhere, Category = "Hierarchy")
+	UPROPERTY()
 	FRigHierarchy Hierarchy;
 
 	/** The default skeletal mesh to use when previewing this asset */
@@ -121,4 +151,5 @@ private:
 	friend class FControlRigBlueprintCompilerContext;
 	friend class SRigHierarchy;
 	friend class FControlRigEditor;
+	friend class UEngineTestControlRig;
 };

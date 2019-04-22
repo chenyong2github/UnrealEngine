@@ -16,6 +16,7 @@
 #include "Channel.h"
 #include "DDoSDetection.h"
 #include "IPAddress.h"
+#include "Net/DelinquencyAnalytics.h"
 
 #include "NetDriver.generated.h"
 
@@ -736,7 +737,7 @@ public:
 	void UpdateStandbyCheatStatus(void);
 
 	/** Sets the analytics provider */
-	void ENGINE_API SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider);
+	virtual void ENGINE_API SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider);
 
 #if DO_ENABLE_NET_TEST
 	FPacketSimulationSettings	PacketSimulationSettings;
@@ -1161,6 +1162,22 @@ public:
 
 	/** Called when an actor channel is remotely opened for an actor. */
 	ENGINE_API virtual void NotifyActorChannelOpen(UActorChannel* Channel, AActor* Actor) {}
+	
+	/** Called when an actor channel is cleaned up foor an actor. */
+	ENGINE_API virtual void NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason) {}
+
+	/**
+	 * Returns the current delinquency analytics and resets them.
+	 * This would be similar to calls to Get and Reset separately, except that the caller
+	 * will assume ownership of data in this case.
+	 */
+	ENGINE_API void ConsumeAsyncLoadDelinquencyAnalytics(FNetAsyncLoadDelinquencyAnalytics& Out);
+
+	/** Returns the current delinquency analytics. */
+	ENGINE_API const FNetAsyncLoadDelinquencyAnalytics& GetAsyncLoadDelinquencyAnalytics() const;
+
+	/** Resets the current delinquency analytics. */
+	ENGINE_API void ResetAsyncLoadDelinquencyAnalytics();
 
 protected:
 
@@ -1227,7 +1244,6 @@ private:
 	FActorDestructionInfo* CreateDestructionInfo(UNetDriver* NetDriver, AActor* ThisActor, FActorDestructionInfo *DestructionInfo);
 
 	void CreateReplicatedStaticActorDestructionInfo(UNetDriver* NetDriver, ULevel* Level, const FReplicatedStaticActorDestructionInfo& Info);
-
 
 	void FlushActorDormancyInternal(AActor *Actor);
 

@@ -456,6 +456,11 @@ uint32 FWindowsPlatformProcess::GetCurrentProcessId()
 	return ::GetCurrentProcessId();
 }
 
+uint32 FWindowsPlatformProcess::GetCurrentCoreNumber()
+{
+	return ::GetCurrentProcessorNumber();
+}
+
 void FWindowsPlatformProcess::SetThreadAffinityMask( uint64 AffinityMask )
 {
 	if( AffinityMask != FPlatformAffinity::GetNoAffinityMask() )
@@ -1262,8 +1267,8 @@ bool FEventWin::Wait(uint32 WaitTime, const bool bIgnoreThreadIdleStats /*= fals
 	WaitForStats();
 
 	SCOPE_CYCLE_COUNTER( STAT_EventWait );
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(EventWait, IsInGameThread());
-	check( Event );
+	CSV_SCOPED_WAIT_CONDITIONAL(WaitTime > 0 && IsInGameThread());
+	check(Event);
 
 	FThreadIdleStats::FScopeIdle Scope( bIgnoreThreadIdleStats );
 	return (WaitForSingleObject( Event, WaitTime ) == WAIT_OBJECT_0);

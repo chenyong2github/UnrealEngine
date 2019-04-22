@@ -171,7 +171,7 @@ public:
 	void StopQuietSoundsDueToMaxConcurrency();
 };
 
-typedef TMap<FConcurrencyGroupID, FConcurrencyGroup> FConcurrencyGroups;
+typedef TMap<FConcurrencyGroupID, FConcurrencyGroup*> FConcurrencyGroups;
 
 struct FSoundInstanceEntry
 {
@@ -212,17 +212,11 @@ public:
 	FSoundConcurrencyManager(class FAudioDevice* InAudioDevice);
 	ENGINE_API ~FSoundConcurrencyManager();
 
-	void CreateNewGroupsFromHandles(
-		const FActiveSound& NewActiveSound,
-		const TArray<FConcurrencyHandle>& ConcurrencyHandles,
-		TArray<FConcurrencyGroup*>& OutGroupsToApply
-	);
-
 	/** Returns a newly allocated active sound given the input active sound struct. Will return nullptr if the active sound concurrency evaluation doesn't allow for it. */
-	FActiveSound* CreateNewActiveSound(const FActiveSound& NewActiveSound);
+	FActiveSound* CreateNewActiveSound(const FActiveSound& NewActiveSound, bool bIsRetriggering);
 
 	/** Removes the active sound from concurrency tracking when active sound is stopped. */
-	void StopActiveSound(FActiveSound* ActiveSound);
+	void RemoveActiveSound(FActiveSound* ActiveSound);
 
 	/** Stops any active sounds due to max concurrency quietest sound resolution rule */
 	void UpdateQuietSoundsToStop();
@@ -230,19 +224,31 @@ public:
 private: // Methods
 	/** Evaluates whether or not the sound can play given the concurrency group's rules. Appends permissible
 	sounds to evict in order for sound to play (if required) and returns the desired concurrency group. */
-	FConcurrencyGroup* CanPlaySound(const FActiveSound& NewActiveSound, const FConcurrencyGroupID GroupID, TArray<FActiveSound*>& OutSoundsToEvict);
+	FConcurrencyGroup* CanPlaySound(const FActiveSound& NewActiveSound, const FConcurrencyGroupID GroupID, TArray<FActiveSound*>& OutSoundsToEvict, bool bIsRetriggering);
 
 	/** Creates a new concurrency group and returns pointer to said group */
 	FConcurrencyGroup& CreateNewConcurrencyGroup(const FConcurrencyHandle& ConcurrencyHandle);
+
+	/** Creates new concurrency groups from handle array */
+	void CreateNewGroupsFromHandles(
+		const FActiveSound& NewActiveSound,
+		const TArray<FConcurrencyHandle>& ConcurrencyHandles,
+		TArray<FConcurrencyGroup*>& OutGroupsToApply
+	);
 
 	/**  Creates an active sound to play, assigning it to the provided concurrency groups, and evicting required sounds */
 	FActiveSound* CreateAndEvictActiveSounds(const FActiveSound& NewActiveSound, const TArray<FConcurrencyGroup*>& GroupsToApply, const TArray<FActiveSound*>& SoundsToEvict);
 
 	/** Finds an active sound able to be evicted based on the provided concurrency settings. */
-	FActiveSound* GetEvictableSound(const FActiveSound& NewActiveSound, const FConcurrencyGroup& ConcurrencyGroup);
+	FActiveSound* GetEvictableSound(const FActiveSound& NewActiveSound, const FConcurrencyGroup& ConcurrencyGroup, bool bIsRetriggering);
+
+	/** Helper functions for finding evictable sounds for the given concurrency rule */
+	FActiveSound* GetEvictableSoundStopFarthest(const FActiveSound& NewActiveSound, const FConcurrencyGroup& ConcurrencyGroup, bool bIsRetriggering) const;
+	FActiveSound* GetEvictableSoundStopLowestPriority(const FActiveSound& NewActiveSound, const FConcurrencyGroup& ConcurrencyGroup, bool bIsRetriggering) const;
+	FActiveSound* GetEvictableSoundStopOldest(const FActiveSound& NewActiveSound, const FConcurrencyGroup& ConcurrencyGroup, bool bIsRetriggering) const;
 
 	/** Handles concurrency evaluation that happens per USoundConcurrencyObject */
-	FActiveSound* EvaluateConcurrency(const FActiveSound& NewActiveSound, TArray<FConcurrencyHandle>& ConcurrencyHandles);
+	FActiveSound* EvaluateConcurrency(const FActiveSound& NewActiveSound, TArray<FConcurrencyHandle>& ConcurrencyHandles, bool bIsRetriggering);
 
 private: // Data
 	/** Owning audio device ptr for the concurrency manager. */

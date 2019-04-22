@@ -631,6 +631,8 @@ public:
 
 	/**
 	 * Socket we automatically attach to on the AutoAttachParent, if bAutoManageAttachment is true.
+	 * If no auto attach socket name is set during registration, the current attach socket will be
+	 * assigned to AutoAttachSocketName and used when activated.
 	 * @see bAutoManageAttachment
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Attachment, meta=(EditCondition="bAutoManageAttachment"))

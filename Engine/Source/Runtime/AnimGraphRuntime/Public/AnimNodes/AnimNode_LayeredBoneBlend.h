@@ -129,4 +129,6 @@ private:
 	// Rebuild cache data from the skeleton
 	void RebuildCacheData(const USkeleton* InSkeleton);
 	bool IsCacheInvalid(const USkeleton* InSkeleton) const;
+
+	friend class UAnimGraphNode_LayeredBoneBlend;
 };

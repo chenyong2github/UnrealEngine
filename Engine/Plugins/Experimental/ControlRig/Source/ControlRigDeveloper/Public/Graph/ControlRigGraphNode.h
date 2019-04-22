@@ -121,6 +121,13 @@ class CONTROLRIGDEVELOPER_API UControlRigGraphNode : public UEdGraphNode
 	GENERATED_BODY()
 
 	friend class FControlRigGraphNodeDetailsCustomization;
+	friend class FControlRigBlueprintCompilerContext;
+	friend class UControlRigGraph;
+	friend class UControlRigGraphSchema;
+	friend class FControlRigGraphTraverser;
+	friend class FControlRigGraphPanelPinFactory;
+	friend class FControlRigEditor;
+	friend class SGraphPinCurveFloat;
 
 private:
 	/** The property we represent. For template nodes this represents the struct/property type name. */
@@ -146,20 +153,18 @@ private:
 	mutable FText NodeTitle;
 
 	/** Cached info about input/output pins */
+	TArray<TSharedRef<FControlRigField>> ExecutionInfos;
 	TArray<TSharedRef<FControlRigField>> InputInfos;
 	TArray<TSharedRef<FControlRigField>> InputOutputInfos;
 	TArray<TSharedRef<FControlRigField>> OutputInfos;
 
 public:
-	UControlRigGraphNode()
-		: Dimensions(0.0f, 0.0f)
-		, NodeTitleFull(FText::GetEmpty())
-		, NodeTitle(FText::GetEmpty())
-	{
-	}
+	UControlRigGraphNode();
 
 	// UEdGraphNode Interface.
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FLinearColor GetNodeBodyTintColor() const;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	virtual void AllocateDefaultPins() override;
 	virtual void ReconstructNode() override;
@@ -174,6 +179,11 @@ public:
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;	
 	virtual void PrepareForCopying() override;
 	virtual void PostPasteNode() override;
+
+	virtual bool IsDeprecated() const;
+	virtual bool ShouldWarnOnDeprecation() const;
+	virtual FString GetDeprecationMessage() const;
+
 	// UK2Node Interface
 	// @TODO: need to find a better way to handle the following functions! 
 	// We cant derive from UK2Node as we don't want most of its functionality
@@ -193,6 +203,9 @@ public:
 
 	/** Get the property name we reference */
 	FName GetPropertyName() const { return PropertyName; }
+
+	/** Get the execution variable names */
+	const TArray<TSharedRef<FControlRigField>>& GetExecutionVariableInfo() const { return ExecutionInfos; }
 
 	/** Get the input variable names */
 	const TArray<TSharedRef<FControlRigField>>& GetInputVariableInfo() const { return InputInfos; }
@@ -232,9 +245,21 @@ public:
 
 	/** Insert a new array element after the element referred to by the property path */
 	void HandleInsertArrayElement(FString InPropertyPath);
+
+#if WITH_EDITORONLY_DATA
+	virtual void PostLoad() override;
+	void CacheHierarchyRefConnectionsOnPostLoad();
+#endif
+
+	/** Updates the cached node color based on the metadata on the rig unit */
+	void UpdateNodeColorFromMetadata();
+
 protected:
 	/** Rebuild the cached info about our inputs/outputs */
 	void CacheVariableInfo();
+
+	/** Helper function for AllocateDefaultPins */
+	void CreateExecutionPins(bool bAlwaysCreatePins);
 
 	/** Helper function for AllocateDefaultPins */
 	void CreateInputPins(bool bAlwaysCreatePins);
@@ -256,6 +281,9 @@ protected:
 
 	/** Create a ControlRig field from a field on the ControlRig class, if possible */
 	TSharedPtr<FControlRigField> CreateControlRigField(UField* Field, const FString& PropertyPath, int32 InArrayIndex = INDEX_NONE) const;
+
+	/** Get all fields that act as execution pins for this node */
+	void GetExecutionFields(TArray<TSharedRef<FControlRigField>>& OutFields) const;
 
 	/** Get all fields that act as inputs for this node */
 	void GetInputFields(TArray<TSharedRef<FControlRigField>>& OutFields) const;
@@ -306,4 +334,13 @@ protected:
 	 * If bCallModify is true then it is assumed that the array will be mutated.
 	 */
 	bool PerformArrayOperation(const FString& InPropertyPath, TFunctionRef<bool(FScriptArrayHelper&,int32)> InOperation, bool bCallModify, bool bPropagateToInstances) const;
+
+private:
+
+#if WITH_EDITORONLY_DATA
+	TArray<UEdGraphNode*> HierarchyRefOutputConnections;
+#endif
+
+	FLinearColor CachedTitleColorFromMetadata;
+	FLinearColor CachedNodeColorFromMetadata;
 };

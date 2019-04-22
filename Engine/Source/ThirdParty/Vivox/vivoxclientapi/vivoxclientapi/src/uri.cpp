@@ -42,7 +42,7 @@ namespace VivoxClientApi {
             return;
         }
         size_t len = strlen(uri);
-        if (len < (sizeof(m_data) - 1)) {
+        if (len < sizeof(m_data)) {
             memcpy(m_data, uri, len + 1);
         }
         else {

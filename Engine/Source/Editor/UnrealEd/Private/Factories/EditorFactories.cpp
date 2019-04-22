@@ -5879,6 +5879,7 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 			ImportOptions->bImportSkeletalMeshLODs = false;
 			ImportOptions->bImportAnimations = false;
 			ImportOptions->bImportMorph = false;
+			ImportOptions->VertexColorImportOption = EVertexColorImportOption::Ignore;
 		}
 		else if (ImportOptions->bImportAsSkeletalGeometry)
 		{

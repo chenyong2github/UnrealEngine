@@ -14,6 +14,8 @@
 * SOFTWARE.
 */
 
+#include <cstddef>
+
 namespace VivoxClientApi {
     ///
     /// The generic type for all error and status codes.
@@ -56,4 +58,5 @@ namespace VivoxClientApi {
     ///
     const char *GetVersion();
 
+	void SetMemFunctions(void*(*AllocateFunction)(size_t), void(*DeallocateFunction)(void*));
 }

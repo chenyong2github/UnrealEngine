@@ -200,7 +200,7 @@ public:
 private:
 	bool Open(FString const& Name, EShaderPlatform Platform);
 	bool Save(FPipelineFileCache::SaveMode Mode);
-	void Close();
+	void Close(bool bShuttingDown = false);
 
 	bool Precompile(FRHICommandListImmediate& RHICmdList, EShaderPlatform Platform, FPipelineCacheFileFormatPSO const& PSO);
 	void PreparePipelineBatch(TDoubleLinkedList<FPipelineCacheFileFormatPSORead*>& PipelineBatch);

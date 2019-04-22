@@ -265,6 +265,12 @@ void FRHICommandEndRenderPass::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHIEndRenderPass)();
 }
 
+void FRHICommandNextSubpass::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(NextSubpass);
+	INTERNAL_DECORATOR(RHINextSubpass)();
+}
+
 void FRHICommandBeginComputePass::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BeginComputePass);
@@ -609,6 +615,48 @@ void FRHICommandUpdateTextureReference::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHIUpdateTextureReference)(TextureRef, NewTexture);
 }
 
+void FRHIResourceUpdateInfo::ReleaseRefs()
+{
+	switch (Type)
+	{
+	case UT_VertexBuffer:
+		VertexBuffer.DestBuffer->Release();
+		if (VertexBuffer.SrcBuffer)
+		{
+			VertexBuffer.SrcBuffer->Release();
+		}
+		break;
+	case UT_IndexBuffer:
+		IndexBuffer.DestBuffer->Release();
+		if (IndexBuffer.SrcBuffer)
+		{
+			IndexBuffer.SrcBuffer->Release();
+		}
+		break;
+	case UT_VertexBufferSRV:
+		VertexBufferSRV.SRV->Release();
+		if (VertexBufferSRV.VertexBuffer)
+		{
+			VertexBufferSRV.VertexBuffer->Release();
+		}
+		break;
+	default:
+		// Unrecognized type, do nothing
+		break;
+	}
+}
+
+FRHICommandUpdateRHIResources::~FRHICommandUpdateRHIResources()
+{
+	if (bNeedReleaseRefs)
+	{
+		for (int32 Idx = 0; Idx < Num; ++Idx)
+		{
+			UpdateInfos[Idx].ReleaseRefs();
+		}
+	}
+}
+
 void FRHICommandUpdateRHIResources::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(UpdateRHIResources);
@@ -617,6 +665,16 @@ void FRHICommandUpdateRHIResources::Execute(FRHICommandListBase& CmdList)
 		FRHIResourceUpdateInfo& Info = UpdateInfos[Idx];
 		switch (Info.Type)
 		{
+		case FRHIResourceUpdateInfo::UT_VertexBuffer:
+			GDynamicRHI->RHITransferVertexBufferUnderlyingResource(
+				Info.VertexBuffer.DestBuffer,
+				Info.VertexBuffer.SrcBuffer);
+			break;
+		case FRHIResourceUpdateInfo::UT_IndexBuffer:
+			GDynamicRHI->RHITransferIndexBufferUnderlyingResource(
+				Info.IndexBuffer.DestBuffer,
+				Info.IndexBuffer.SrcBuffer);
+			break;
 		case FRHIResourceUpdateInfo::UT_VertexBufferSRV:
 			GDynamicRHI->RHIUpdateShaderResourceView(
 				Info.VertexBufferSRV.SRV,

@@ -73,11 +73,14 @@ struct FMetalTessellationPipelineDesc
 @public
 	mtlpp::RenderPipelineState RenderPipelineState;
 	mtlpp::ComputePipelineState ComputePipelineState;
+	mtlpp::RenderPipelineState DebugPipelineState;
 	FMetalTessellationPipelineDesc TessellationPipelineDesc;
-#if METAL_DEBUG_OPTIONS
+	TArray<uint32> BufferDataSizes[EMetalShaderStagesNum];
+	TMap<uint8, uint8> TextureTypes[EMetalShaderStagesNum];
 	FMetalDebugShaderResourceMask ResourceMask[EMetalShaderStagesNum];
 	mtlpp::RenderPipelineReflection RenderPipelineReflection;
 	mtlpp::ComputePipelineReflection ComputePipelineReflection;
+#if METAL_DEBUG_OPTIONS
 	ns::String VertexSource;
 	ns::String FragmentSource;
 	ns::String ComputeSource;
@@ -85,9 +88,7 @@ struct FMetalTessellationPipelineDesc
 	mtlpp::ComputePipelineDescriptor ComputeDesc;
 #endif
 }
-#if METAL_DEBUG_OPTIONS
 - (instancetype)init;
 - (void)initResourceMask;
 - (void)initResourceMask:(EMetalShaderFrequency)Frequency;
-#endif
 @end

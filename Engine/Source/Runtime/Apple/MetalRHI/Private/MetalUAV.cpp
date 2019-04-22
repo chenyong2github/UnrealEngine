@@ -663,7 +663,7 @@ void FMetalRHICommandContext::RHIClearTinyUAV(FUnorderedAccessViewRHIParamRef Un
 				case PF_FloatRGB:
 				case PF_FloatRGBA:
 				{
-					UE_LOG(LogMetal, Fatal, TEXT("No UAV pattern fill for format: %d"), Format);
+					METAL_FATAL_ERROR(TEXT("No UAV pattern fill for format: %d"), Format);
 					break;
 				}
 				case PF_DepthStencil:
@@ -695,7 +695,7 @@ void FMetalRHICommandContext::RHIClearTinyUAV(FUnorderedAccessViewRHIParamRef Un
 				case PF_MAX:
 				default:
 				{
-					UE_LOG(LogMetal, Fatal, TEXT("No UAV support for format: %d"), Format);
+					METAL_FATAL_ERROR(TEXT("No UAV support for format: %d"), Format);
 					break;
 				}
 			}
@@ -734,7 +734,7 @@ void FMetalRHICommandContext::RHIClearTinyUAV(FUnorderedAccessViewRHIParamRef Un
 				}
 				default:
 				{
-					UE_LOG(LogMetal, Fatal, TEXT("Invalid UAV pattern fill size (%d) for: %d"), NumBytes, Format);
+					METAL_FATAL_ERROR(TEXT("Invalid UAV pattern fill size (%d) for: %d"), NumBytes, Format);
 					break;
 				}
 			}

@@ -11,8 +11,29 @@
 #include "K2Node_Variable.h"
 #include "BlueprintNodeTemplateCache.h"
 #include "ControlRigBlueprintUtils.h"
+#include "Units/RigUnit.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigVariableNodeSpawner"
+
+const TArray<FString> GControlRigVariableNodeSpawnerAllowedStructTypes = {
+	TEXT("FBox"),
+	TEXT("FBox2D"),
+	TEXT("FColor"),
+	TEXT("FLinearColor"),
+	TEXT("FVector"),
+	TEXT("FVector2D"),
+	TEXT("FVector4"),
+	TEXT("FRotator"),
+	TEXT("FQuat"),
+	TEXT("FPlane"),
+	TEXT("FMatrix"),
+	TEXT("FRotationMatrix"),
+	TEXT("FScaleMatrix"),
+	TEXT("FTransform")
+};
+
+const TArray<FString> GControlRigVariableNodeSpawnerAllowedEnumTypes = {
+};
 
 UControlRigVariableNodeSpawner* UControlRigVariableNodeSpawner::CreateFromPinType(const FEdGraphPinType& InPinType, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
 {
@@ -86,6 +107,59 @@ UEdGraphNode* UControlRigVariableNodeSpawner::Invoke(UEdGraph* ParentGraph, FBin
 	}
 
 	return NewNode;
+}
+
+bool UControlRigVariableNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const
+{
+	if (EdGraphPinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
+	{
+		UStruct* Struct = Cast<UStruct>(EdGraphPinType.PinSubCategoryObject);
+		if (Struct == nullptr)
+		{
+			return true;
+		}
+		if (Struct->IsChildOf(FRigUnit::StaticStruct()))
+		{
+			return true;
+		}
+
+		UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Struct);
+		if (ScriptStruct == nullptr)
+		{
+			// for now filter out anything which is not a script struct
+			return true;
+		}
+
+		// check if it is any of the math types
+		FString StructName = ScriptStruct->GetStructCPPName();
+		if (!GControlRigVariableNodeSpawnerAllowedStructTypes.Contains(StructName))
+		{
+			return true;
+		}
+	}
+	else if (EdGraphPinType.PinCategory == UEdGraphSchema_K2::PC_Enum || 
+			EdGraphPinType.PinCategory == UEdGraphSchema_K2::PC_Byte)
+	{
+		UEnum* Enum = Cast<UEnum>(EdGraphPinType.PinSubCategoryObject);
+		if (Enum == nullptr)
+		{
+			return true;
+		}
+
+		if (!GControlRigVariableNodeSpawnerAllowedEnumTypes.Contains(Enum->CppType))
+		{
+			return true;
+		}
+	}
+	else if (EdGraphPinType.PinCategory == UEdGraphSchema_K2::AllObjectTypes ||
+			EdGraphPinType.PinCategory == UEdGraphSchema_K2::PC_Object ||
+			EdGraphPinType.PinCategory == UEdGraphSchema_K2::PC_Delegate || 
+			EdGraphPinType.PinCategory == UEdGraphSchema_K2::PC_Interface)
+	{
+		// we don't allow objects, delegate or interfaces
+		return true;
+	}
+	return Super::IsTemplateNodeFilteredOut(Filter);
 }
 
 FEdGraphPinType UControlRigVariableNodeSpawner::GetVarType() const

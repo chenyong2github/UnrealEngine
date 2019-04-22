@@ -27,6 +27,12 @@
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
+static TAutoConsoleVariable<int32> CVarStreamingOverlapAssetAndLevelTicks(
+	TEXT("r.Streaming.OverlapAssetAndLevelTicks"),
+	!WITH_EDITOR && (PLATFORM_PS4 || PLATFORM_XBOXONE),
+	TEXT("Ticks render asset streaming info on a high priority task thread while ticking levels on GT"),
+	ECVF_Default);
+
 bool TrackRenderAsset( const FString& AssetName );
 bool UntrackRenderAsset( const FString& AssetName );
 void ListTrackedRenderAssets( FOutputDevice& Ar, int32 NumTextures );
@@ -1333,6 +1339,7 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 
 	SCOPE_CYCLE_COUNTER(STAT_RenderAssetStreaming_GameThreadUpdateTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderAssetStreaming);
+	CSV_SCOPED_SET_WAIT_STAT(RenderAssetStreaming);
 
 	const bool bUseThreadingForPerf = FApp::ShouldUseThreadingForPerformance();
 
@@ -1395,12 +1402,13 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 			SetLastUpdateTime();
 		}
 
-		FEvent* SyncEvent;
+		FEvent* SyncEvent = nullptr;
 		// Optimization: overlapping UpdateStreamingRenderAssets() and IncrementalUpdate();
 		// Restrict this optimization to platforms tested to have a win;
 		// Platforms tested and results (ave exec time of UpdateResourceStreaming):
 		//   PS4 Pro - from ~0.55 ms/frame to ~0.15 ms/frame
-		const bool bOverlappedExecution = !!(PLATFORM_PS4) && !(WITH_EDITOR) && bUseThreadingForPerf;
+		//   XB1 X - from ~0.45 ms/frame to ~0.17 ms/frame
+		const bool bOverlappedExecution = bUseThreadingForPerf && CVarStreamingOverlapAssetAndLevelTicks.GetValueOnGameThread();
 		if (bOverlappedExecution)
 		{
 			SyncEvent = FPlatformProcess::GetSynchEventFromPool(false);

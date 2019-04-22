@@ -431,6 +431,7 @@ void ULevel::CreateReplicatedDestructionInfo(AActor* const Actor)
 	{
 		FReplicatedStaticActorDestructionInfo NewInfo;
 		NewInfo.PathName = Actor->GetFName();
+		NewInfo.FullName = Actor->GetFullName();
 		NewInfo.DestroyedPosition = Actor->GetActorLocation();
 		NewInfo.ObjOuter = Actor->GetOuter();
 		NewInfo.ObjClass = Actor->GetClass();
@@ -2013,11 +2014,20 @@ void ULevel::OnLevelScriptBlueprintChanged(ULevelScriptBlueprint* InBlueprint)
 		// Make sure this is OUR level scripting blueprint
 		ensureMsgf(InBlueprint == LevelScriptBlueprint, TEXT("Level ('%s') received OnLevelScriptBlueprintChanged notification for the wrong Blueprint ('%s')."), LevelScriptBlueprint ? *LevelScriptBlueprint->GetPathName() : TEXT("NULL"), *InBlueprint->GetPathName()) )
 	{
+		bool bResetDebugObject = false;
+
 		UClass* SpawnClass = (LevelScriptBlueprint->GeneratedClass) ? LevelScriptBlueprint->GeneratedClass : LevelScriptBlueprint->SkeletonGeneratedClass;
 
 		// Get rid of the old LevelScriptActor
 		if( LevelScriptActor )
 		{
+			// Clear the current debug object and indicate that it needs to be reset (below).
+			if (InBlueprint->GetObjectBeingDebugged() == LevelScriptActor)
+			{
+				bResetDebugObject = true;
+				InBlueprint->SetObjectBeingDebugged(nullptr);
+			}
+
 			LevelScriptActor->MarkPendingKill();
 			LevelScriptActor = nullptr;
 		}
@@ -2030,6 +2040,12 @@ void ULevel::OnLevelScriptBlueprintChanged(ULevelScriptBlueprint* InBlueprint)
 
 		if( LevelScriptActor )
 		{
+			// Reset the current debug object to the new instance if it was previously set to the old instance.
+			if (bResetDebugObject)
+			{
+				InBlueprint->SetObjectBeingDebugged(LevelScriptActor);
+			}
+
 			LevelScriptActor->ClearFlags(RF_Transactional);
 			check(LevelScriptActor->GetOuter() == this);
 			// Finally, fixup all the bound events to point to their new LSA

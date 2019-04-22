@@ -198,11 +198,13 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityTargetDataHandle
 		Data.Add(TSharedPtr<FGameplayAbilityTargetData>(DataPtr));
 	}
 
-	FGameplayAbilityTargetDataHandle(FGameplayAbilityTargetDataHandle&& Other) : Data(MoveTemp(Other.Data))	{ }
-	FGameplayAbilityTargetDataHandle(const FGameplayAbilityTargetDataHandle& Other) : Data(Other.Data) { }
+	FGameplayAbilityTargetDataHandle(FGameplayAbilityTargetDataHandle&& Other) : UniqueId(Other.UniqueId), Data(MoveTemp(Other.Data))	{ }
+	FGameplayAbilityTargetDataHandle(const FGameplayAbilityTargetDataHandle& Other) : UniqueId(Other.UniqueId), Data(Other.Data) { }
 
-	FGameplayAbilityTargetDataHandle& operator=(FGameplayAbilityTargetDataHandle&& Other) { Data = MoveTemp(Other.Data); return *this; }
-	FGameplayAbilityTargetDataHandle& operator=(const FGameplayAbilityTargetDataHandle& Other) { Data = Other.Data; return *this; }
+	FGameplayAbilityTargetDataHandle& operator=(FGameplayAbilityTargetDataHandle&& Other) { UniqueId = Other.UniqueId; Data = MoveTemp(Other.Data); return *this; }
+	FGameplayAbilityTargetDataHandle& operator=(const FGameplayAbilityTargetDataHandle& Other) { UniqueId = Other.UniqueId; Data = Other.Data; return *this; }
+
+	uint8 UniqueId = 0;
 
 	/** Raw storage of target data, do not modify this directly */
 	TArray<TSharedPtr<FGameplayAbilityTargetData>, TInlineAllocator<1> >	Data;
@@ -617,6 +619,8 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityTargetData_SingleTargetHit : public
 
 	virtual void ReplaceHitWith(AActor* NewHitActor, const FHitResult* NewHitResult)
 	{
+		bHitReplaced = true;
+
 		HitResult = FHitResult();
 		if (NewHitResult != nullptr)
 		{
@@ -629,6 +633,9 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityTargetData_SingleTargetHit : public
 	/** Hit result that stores data */
 	UPROPERTY()
 	FHitResult	HitResult;
+
+	UPROPERTY()
+	bool bHitReplaced = false;
 
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 

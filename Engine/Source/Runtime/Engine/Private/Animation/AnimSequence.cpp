@@ -43,7 +43,7 @@
 #define USE_SLERP 0
 #define LOCTEXT_NAMESPACE "AnimSequence"
 
-CSV_DEFINE_CATEGORY(Animation, (!UE_BUILD_SHIPPING));
+CSV_DEFINE_CATEGORY(Animation, false);
 
 DECLARE_CYCLE_STAT(TEXT("AnimSeq GetBonePose"), STAT_AnimSeq_GetBonePose, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("AnimSeq EvalCurveData"), STAT_AnimSeq_EvalCurveData, STATGROUP_Anim);
@@ -2657,18 +2657,19 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 	Ar << RotationCompressionFormat;
 	Ar << ScaleCompressionFormat;
 
+	Ar << CompressedTrackOffsets;
+	Ar << CompressedScaleOffsets;
+	Ar << CompressedSegments;
+
+	Ar << CompressedTrackToSkeletonMapTable;
+	Ar << CompressedCurveNames;
+
+	Ar << CompressedRawDataSize;
+	Ar << CompressedNumFrames;
+
 	if (Ar.IsLoading())
 	{
 		// Serialize the compressed byte stream from the archive to the buffer.
-		Ar << CompressedTrackOffsets;
-		Ar << CompressedScaleOffsets;
-		Ar << CompressedSegments;
-
-		Ar << CompressedTrackToSkeletonMapTable;
-		Ar << CompressedCurveNames;
-
-		Ar << CompressedRawDataSize;
-		Ar << CompressedNumFrames;
 		int32 NumBytes;
 		Ar << NumBytes;
 
@@ -2713,7 +2714,7 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 		}
 		else
 		{
-			if (FPlatformProperties::RequiresCookedData() && ((AnimEncoding*)RotationCodec)->CanBeMemoryMapped(*this, NumBytes))
+			if (FPlatformProperties::RequiresCookedData())
 			{
 				CompressedByteStream.Empty(NumBytes);
 				CompressedByteStream.AddUninitialized(NumBytes);
@@ -2750,6 +2751,8 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 		// Swap the byte stream into a buffer.
 		TArray<uint8> SerializedData;
 
+		const bool bIsCooking = !bDDCData && Ar.IsCooking();
+
 		if (!HasAnyFlags(RF_ClassDefaultObject))
 		{
 			// we must know the proper codecs to use
@@ -2757,7 +2760,7 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 
 			// and then use the codecs to byte swap
 			check(RotationCodec != NULL);
-			((AnimEncoding*)RotationCodec)->ByteSwapOut(*this, SerializedData, Ar.ForceByteSwapping());
+			((AnimEncoding*)RotationCodec)->ByteSwapOut(*this, SerializedData, Ar.ForceByteSwapping(), bIsCooking);
 		}
 
 		// Make sure the entire byte stream was serialized.
@@ -2765,14 +2768,9 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 
 		// Serialize the buffer to archive.
 		int32 Num = SerializedData.Num();
+		Ar << Num;
 
-
-
-		bool bUseBulkDataForSave = !bDDCData && Num && Ar.IsCooking() && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles) && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MemoryMappedAnimation);
-
-		// repairing the offsets will leave them inconsistent with the sequence itself, so we need to restore them later
-		TArray<int32> SavedCompressedTrackOffsets = CompressedTrackOffsets;
-		FCompressedOffsetData SavedCompressedScaleOffsets = CompressedScaleOffsets;
+		bool bUseBulkDataForSave = Num && bIsCooking && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles) && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MemoryMappedAnimation);
 
 		bool bSavebUseBulkDataForSave = false;
 		if (!bDDCData)
@@ -2787,21 +2785,7 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 				bSavebUseBulkDataForSave = true;
 			}
 		}
-		if (bUseBulkDataForSave)
-		{
-			bUseBulkDataForSave = ((AnimEncoding*)RotationCodec)->CanBeMemoryMapped(*this, Num);
-		}
 
-		Ar << CompressedTrackOffsets;
-		Ar << CompressedScaleOffsets;
-		Ar << CompressedSegments;
-
-		Ar << CompressedTrackToSkeletonMapTable;
-		Ar << CompressedCurveNames;
-
-		Ar << CompressedRawDataSize;
-		Ar << CompressedNumFrames;
-		Ar << Num;
 		// Count compressed data.
 		Ar.CountBytes(SerializedData.Num(), SerializedData.Num());
 
@@ -2814,6 +2798,30 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 			check(!bUseBulkDataForSave);
 		}
 
+#define TEST_IS_CORRECTLY_FORMATTED_FOR_MEMORY_MAPPING WITH_EDITOR
+#if TEST_IS_CORRECTLY_FORMATTED_FOR_MEMORY_MAPPING
+		if(!IsTemplate() && bIsCooking)
+		{
+			TArray<uint8> TempSerialized;
+			check(RotationCodec != NULL);
+			((AnimEncoding*)RotationCodec)->ByteSwapOut(*this, TempSerialized, Ar.ForceByteSwapping());
+
+			FMemoryReader MemoryReader(TempSerialized, true);
+			MemoryReader.SetByteSwapping(Ar.ForceByteSwapping());
+
+			TArray<uint8> SavedCompressedByteStream = CompressedByteStream;
+			CompressedByteStream.Empty();
+
+			((AnimEncoding*)RotationCodec)->ByteSwapIn(*this, MemoryReader);
+
+			check(CompressedByteStream.Num() == Num);
+
+			check(FMemory::Memcmp(SerializedData.GetData(), CompressedByteStream.GetData(), Num) == 0);
+
+			CompressedByteStream = SavedCompressedByteStream;
+		}
+#endif
+
 		if (bUseBulkDataForSave)
 		{
 #if WITH_EDITOR
@@ -2824,24 +2832,6 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 			OptionalBulk.SetBulkDataFlags(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_Force_NOT_InlinePayload | BULKDATA_MemoryMappedPayload);
 			OptionalBulk.ClearBulkDataFlags(BULKDATA_ForceInlinePayload);
 			OptionalBulk.Serialize(Ar, this);
-
-
-#define TEST_IS_CORRECTLY_FORMATTED_FOR_MEMORY_MAPPING WITH_EDITOR
-#if TEST_IS_CORRECTLY_FORMATTED_FOR_MEMORY_MAPPING
-			FMemoryReader MemoryReader(SerializedData, true);
-			MemoryReader.SetByteSwapping(Ar.ForceByteSwapping());
-			TArray<uint8> SavedCompressedByteStream = CompressedByteStream;
-
-			CompressedByteStream.Empty();
-
-			((AnimEncoding*)RotationCodec)->ByteSwapIn(*this, MemoryReader);
-
-			check(CompressedByteStream.Num() == Num);
-
-			check(FMemory::Memcmp(SerializedData.GetData(), CompressedByteStream.GetData(), Num) == 0);
-
-			CompressedByteStream = SavedCompressedByteStream;
-#endif
 #else
 			UE_LOG(LogAnimation, Fatal, TEXT("Can't save animation as bulk data in non-editor builds!"));
 #endif
@@ -2850,9 +2840,6 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 		{
 			Ar.Serialize(SerializedData.GetData(), SerializedData.Num());
 		}
-
-		CompressedTrackOffsets = SavedCompressedTrackOffsets;
-		CompressedScaleOffsets = SavedCompressedScaleOffsets;
 
 		FString CurveCodecPath = CurveCompressionCodec->GetPathName();
 		Ar << CurveCodecPath;

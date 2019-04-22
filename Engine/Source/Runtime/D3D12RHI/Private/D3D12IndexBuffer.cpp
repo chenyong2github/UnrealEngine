@@ -31,7 +31,10 @@ D3D12_RESOURCE_DESC CreateIndexBufferResourceDesc(uint32 Size, uint32 InUsage)
 
 FD3D12IndexBuffer::~FD3D12IndexBuffer()
 {
-	UpdateBufferStats<FD3D12IndexBuffer>(&ResourceLocation, false);
+	if (ResourceLocation.IsValid())
+	{
+		UpdateBufferStats<FD3D12IndexBuffer>(&ResourceLocation, false);
+	}
 }
 
 void FD3D12IndexBuffer::Rename(FD3D12ResourceLocation& NewLocation)
@@ -59,8 +62,35 @@ void FD3D12IndexBuffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
 	}
 }
 
+void FD3D12IndexBuffer::Swap(FD3D12IndexBuffer& Other)
+{
+	check(!LockedData.bLocked && !Other.LockedData.bLocked);
+	FRHIIndexBuffer::Swap(Other);
+	FD3D12BaseShaderResource::Swap(Other);
+	FD3D12TransientResource::Swap(Other);
+	FD3D12LinkedAdapterObject<FD3D12IndexBuffer>::Swap(Other);
+}
+
+void FD3D12IndexBuffer::ReleaseUnderlyingResource()
+{
+	check(!LockedData.bLocked && ResourceLocation.IsValid());
+	UpdateBufferStats<FD3D12IndexBuffer>(&ResourceLocation, false);
+	ResourceLocation.Clear();
+	FRHIIndexBuffer::ReleaseUnderlyingResource();
+	FD3D12IndexBuffer* NextIB = GetNextObject();
+	if (NextIB)
+	{
+		NextIB->ReleaseUnderlyingResource();
+	}
+}
+
 FIndexBufferRHIRef FD3D12DynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
+	if (CreateInfo.bWithoutNativeResource)
+	{
+		return new FD3D12IndexBuffer();
+	}
+
 	const D3D12_RESOURCE_DESC Desc = CreateIndexBufferResourceDesc(Size, InUsage);
 	const uint32 Alignment = 4;
 
@@ -84,8 +114,28 @@ void FD3D12DynamicRHI::RHIUnlockIndexBuffer(FIndexBufferRHIParamRef IndexBufferR
 	UnlockBuffer(nullptr, FD3D12DynamicRHI::ResourceCast(IndexBufferRHI));
 }
 
+void FD3D12DynamicRHI::RHITransferIndexBufferUnderlyingResource(FIndexBufferRHIParamRef DestIndexBuffer, FIndexBufferRHIParamRef SrcIndexBuffer)
+{
+	check(DestIndexBuffer);
+	FD3D12IndexBuffer* Dest = ResourceCast(DestIndexBuffer);
+	if (!SrcIndexBuffer)
+	{
+		Dest->ReleaseUnderlyingResource();
+	}
+	else
+	{
+		FD3D12IndexBuffer* Src = ResourceCast(SrcIndexBuffer);
+		Dest->Swap(*Src);
+	}
+}
+
 FIndexBufferRHIRef FD3D12DynamicRHI::CreateIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
+	if (CreateInfo.bWithoutNativeResource)
+	{
+		return new FD3D12IndexBuffer();
+	}
+
 	const D3D12_RESOURCE_DESC Desc = CreateIndexBufferResourceDesc(Size, InUsage);
 	const uint32 Alignment = 4;
 

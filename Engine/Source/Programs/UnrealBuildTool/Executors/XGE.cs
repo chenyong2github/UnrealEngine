@@ -457,11 +457,17 @@ namespace UnrealBuildTool
 				}
 			}
 
+			string XgConsolePath;
+			if(!TryGetXgConsoleExecutable(out XgConsolePath))
+			{
+				throw new BuildException("Unable to find xgConsole executable.");
+			}
+
 			bool bSilentCompileOutput = false;
 			string SilentOption = bSilentCompileOutput ? "/Silent" : "";
 
 			ProcessStartInfo XGEStartInfo = new ProcessStartInfo(
-				"xgConsole",
+				XgConsolePath,
 				string.Format("\"{0}\" /Rebuild /NoWait {1} /NoLogo {2} /ShowAgent /ShowTime {3}",
 					TaskFilePath,
 					bStopXGECompilationAfterErrors ? "/StopOnErrors" : "",

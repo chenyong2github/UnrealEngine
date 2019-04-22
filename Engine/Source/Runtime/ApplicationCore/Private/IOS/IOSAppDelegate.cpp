@@ -100,28 +100,6 @@ void InstallSignalHandlers()
 	sigaction(SIGSYS, &Action, NULL);
 }
 
-void EngineCrashHandler(const FGenericCrashContext& GenericContext)
-{
-    const FIOSCrashContext& Context = static_cast<const FIOSCrashContext&>(GenericContext);
-    
-    Context.ReportCrash();
-    if (GLog)
-    {
-        GLog->SetCurrentThreadAsMasterThread();
-        GLog->Flush();
-    }
-    if (GWarn)
-    {
-        GWarn->Flush();
-    }
-    if (GError)
-    {
-        GError->Flush();
-        GError->HandleError();
-    }
-    return Context.GenerateCrashInfo();
-}
-
 FDelegateHandle FIOSCoreDelegates::AddPushNotificationFilter(const FPushNotificationFilter& FilterDel)
 {
 	FDelegateHandle NewHandle(FDelegateHandle::EGenerateNewHandleType::GenerateNewHandle);
@@ -610,10 +588,10 @@ static IOSAppDelegate* CachedDelegate = nil;
 					else
 					{
 						AVAudioSessionCategoryOptions opts =
-							AVAudioSessionCategoryOptionAllowBluetooth |
 							AVAudioSessionCategoryOptionAllowBluetoothA2DP |
 #if !PLATFORM_TVOS
-    						AVAudioSessionCategoryOptionDefaultToSpeaker |
+							AVAudioSessionCategoryOptionAllowBluetooth |
+							AVAudioSessionCategoryOptionDefaultToSpeaker |
 #endif
 							AVAudioSessionCategoryOptionMixWithOthers;
 						
@@ -684,9 +662,9 @@ static IOSAppDelegate* CachedDelegate = nil;
 				else
 				{
 					AVAudioSessionCategoryOptions opts =
-						AVAudioSessionCategoryOptionAllowBluetooth |
 						AVAudioSessionCategoryOptionAllowBluetoothA2DP |
 #if !PLATFORM_TVOS
+						AVAudioSessionCategoryOptionAllowBluetooth |
 						AVAudioSessionCategoryOptionDefaultToSpeaker |
 #endif
 						AVAudioSessionCategoryOptionMixWithOthers;
@@ -714,9 +692,9 @@ static IOSAppDelegate* CachedDelegate = nil;
         if (self.bVoiceChatEnabled)
 		{
 			AVAudioSessionCategoryOptions opts =
-				AVAudioSessionCategoryOptionAllowBluetooth |
 				AVAudioSessionCategoryOptionAllowBluetoothA2DP |
 #if !PLATFORM_TVOS
+				AVAudioSessionCategoryOptionAllowBluetooth |
 				AVAudioSessionCategoryOptionDefaultToSpeaker |
 #endif
 				AVAudioSessionCategoryOptionMixWithOthers;
@@ -758,17 +736,22 @@ static IOSAppDelegate* CachedDelegate = nil;
 
 - (void)EnableVoiceChat:(bool)bEnable
 {
+	self.bVoiceChatEnabled = false;
+	
     // mobile will prompt for microphone access
     if (FApp::IsUnattended())
 	{
 		return;
 	}
-	[self SetFeature:EAudioFeature::VoiceChat Active:bEnable];
+	self.bVoiceChatEnabled = bEnable;
+	[self ToggleAudioSession:self.bAudioActive force:true];
+	//[self SetFeature:EAudioFeature::VoiceChat Active:bEnable];
 }
 
 - (bool)IsVoiceChatEnabled
 {
-	return [self IsFeatureActive:EAudioFeature::VoiceChat];
+	return self.bVoiceChatEnabled;
+	//return [self IsFeatureActive:EAudioFeature::VoiceChat];
 }
 
 
@@ -881,7 +864,7 @@ bool GIsSuspended = 0;
 		// Don't deadlock here because a msg box may appear super early blocking the game thread and then the app may go into the background
 		double	startTime = FPlatformTime::Seconds();
 
-		// don't wait for FDefaultGameMoviePlayer::WaitForMovieToFinish(), crash with 0x8badf00d if “Wait for Movies to Complete” is checked
+		// don't wait for FDefaultGameMoviePlayer::WaitForMovieToFinish(), crash with 0x8badf00d if "Wait for Movies to Complete" is checked
 		while(!self.bHasSuspended && !FAppEntry::IsStartupMoviePlaying() &&  (FPlatformTime::Seconds() - startTime) < cMaxThreadWaitTime)
 		{
             FIOSPlatformRHIFramePacer::Suspend();
@@ -928,7 +911,6 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 	OSVersion = [[[UIDevice currentDevice] systemVersion] floatValue];
 	if (!FPlatformMisc::IsDebuggerPresent() || GAlwaysReportCrash)
 	{
-        FPlatformMisc::SetCrashHandler(EngineCrashHandler);
 //        InstallSignalHandlers();
 	}
 
@@ -1394,6 +1376,8 @@ FCriticalSection RenderSuspend;
 	 If your application supports background execution, this method is called
 	 instead of applicationWillTerminate: when the user quits.
 	 */
+
+#if BUILD_EMBEDDED_APP
 	FIOSAsyncTask* AsyncTask = [[FIOSAsyncTask alloc] init];
 	AsyncTask.GameThreadCallback = ^ bool(void)
 	{
@@ -1401,6 +1385,9 @@ FCriticalSection RenderSuspend;
 		return true;
 	};
 	[AsyncTask FinishedTask];
+#else
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Broadcast();
+#endif //BUILD_EBMEDDED_APP
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)application
@@ -1459,21 +1446,22 @@ extern double GCStartTime;
 	FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
     
     // note that we are shutting down
-    GIsRequestingExit = true;
+    // TODO: fix the reason why we are hanging when asked to shutdown
+/*    GIsRequestingExit = true;
     
-    if (!bEngineInit)
+    if (!bEngineInit)*/
     {
         // we haven't yet made it to the point where the engine is initialized, so just exit the app
         _Exit(0);
     }
-    else
+/*    else
     {
         // wait for the game thread to shut down
         while (self.bHasStarted == true)
         {
             usleep(3);
         }
-    }
+    }*/
 }
 
 - (void)applicationDidReceiveMemoryWarning:(UIApplication *)application

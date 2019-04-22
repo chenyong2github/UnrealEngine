@@ -279,6 +279,14 @@ void UScrollBox::SetAllowOverscroll(bool NewAllowOverscroll)
 	}
 }
 
+void UScrollBox::EndInertialScrolling()
+{
+	if (MyScrollBox.IsValid())
+	{
+		MyScrollBox->EndInertialScrolling();
+	}
+}
+
 void UScrollBox::SlateHandleUserScrolled(float CurrentOffset)
 {
 	OnUserScrolled.Broadcast(CurrentOffset);

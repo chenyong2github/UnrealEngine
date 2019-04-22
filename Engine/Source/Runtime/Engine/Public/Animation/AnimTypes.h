@@ -19,6 +19,9 @@ struct FPassedMarker;
 #define DEFAULT_SAMPLERATE			30.f
 #define MINIMUM_ANIMATION_LENGTH	(1/DEFAULT_SAMPLERATE)
 
+// Enable this if you want to locally measure detailed anim perf.  Disabled by default as it is introduces a lot of additional profile markers and associated overhead.
+#define ENABLE_VERBOSE_ANIM_PERF_TRACKING 0
+
 namespace EAnimEventTriggerOffsets
 {
 	enum Type

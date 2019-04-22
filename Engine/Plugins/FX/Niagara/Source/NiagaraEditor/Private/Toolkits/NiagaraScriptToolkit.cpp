@@ -44,6 +44,8 @@
 #include "Developer/MessageLog/Public/MessageLogModule.h"
 
 #include "AssetTypeActions/AssetTypeActions_NiagaraScript.h"
+#include "NiagaraNodeFunctionCall.h" //@todo(ng) move this to message manager
+#include "NiagaraNodeEmitter.h" //@todo(ng) move this to message manager 
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptToolkit"
 
@@ -59,6 +61,7 @@ const FName FNiagaraScriptToolkit::NodeGraphTabId(TEXT("NiagaraEditor_NodeGraph"
 const FName FNiagaraScriptToolkit::DetailsTabId(TEXT("NiagaraEditor_Details"));
 const FName FNiagaraScriptToolkit::ParametersTabId(TEXT("NiagaraEditor_Parameters"));
 const FName FNiagaraScriptToolkit::StatsTabId(TEXT("NiagaraEditor_Stats"));
+const FName FNiagaraScriptToolkit::MessageLogTabID(TEXT("NiagaraEditor_MessageLog"));
 
 FNiagaraScriptToolkit::FNiagaraScriptToolkit()
 {
@@ -68,6 +71,119 @@ FNiagaraScriptToolkit::~FNiagaraScriptToolkit()
 {
 	EditedNiagaraScript->OnVMScriptCompiled().RemoveAll(this);
 	ScriptViewModel->GetGraphViewModel()->GetGraph()->RemoveOnGraphNeedsRecompileHandler(OnEditedScriptGraphChangedHandle);
+}
+
+//@todo(ng) move to message manager class
+TSharedRef<FTokenizedMessage> FNiagaraScriptToolkit::BuildMessageForCompileEvent(FNiagaraCompileEvent& InCompileEvent)
+{
+	TArray<FGuid>& ContextStackGuids = InCompileEvent.StackGuids;
+
+	UNiagaraScriptSourceBase* FunctionScriptSourceBase = EditedNiagaraScript->GetSource();
+	checkf(FunctionScriptSourceBase->IsA<UNiagaraScriptSource>(), TEXT("Script source for function call node is not assigned or is not of type UNiagaraScriptSource!"))
+		UNiagaraScriptSource* FunctionScriptSource = Cast<UNiagaraScriptSource>(FunctionScriptSourceBase);
+	checkf(FunctionScriptSource, TEXT("Script source base was somehow not a derived type!"));
+	UNiagaraGraph* ThisScriptGraph = FunctionScriptSource->NodeGraph;
+	checkf(ThisScriptGraph, TEXT("Function Script does not have a UNiagaraGraph!"));
+
+	TArray<TSharedRef<IMessageToken>> MessageTokens;
+	TOptional<UNiagaraGraph*> OriginatingGraph = RecursiveBuildMessageTokensFromContextStackAndGetOriginatingGraph(ContextStackGuids, ThisScriptGraph, MessageTokens);
+	if (OriginatingGraph.IsSet())
+	{
+		EMessageSeverity::Type MessageSeverity = EMessageSeverity::Info;
+		switch (InCompileEvent.Severity) {
+		case FNiagaraCompileEventSeverity::Error:
+			MessageSeverity = EMessageSeverity::Error;
+			break;
+		case FNiagaraCompileEventSeverity::Warning:
+			MessageSeverity = EMessageSeverity::Warning;
+			break;
+		case FNiagaraCompileEventSeverity::Log:
+			MessageSeverity = EMessageSeverity::Info;
+			break;
+		default:
+			verifyf(false, TEXT("Compile event severity type not handled!"));
+			MessageSeverity = EMessageSeverity::Info;
+			break;
+		}
+		TSharedRef<FTokenizedMessage> MessageToBuild = FTokenizedMessage::Create(MessageSeverity);
+
+		//Add message from compile event at start of message
+		MessageToBuild->AddToken(FTextToken::Create(FText::FromString(InCompileEvent.Message)));
+		//Now add the context stack of the scripts that were passed through to get to the originating graph
+		for (TSharedRef<IMessageToken> Token : MessageTokens)
+		{
+			MessageToBuild->AddToken(Token);
+		}
+		return MessageToBuild;
+	}
+	
+	// Failed to get originating graph!
+	verifyf(false, TEXT("Failed to find originating graph for compile event!"));
+	return FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("NiagaraCompileEventFailedToFindScript", "Could not find script(s) for compile event ! Please recompile script to get full compile info."));
+}
+
+//@todo(ng) move to message manager class
+TOptional<UNiagaraGraph*> FNiagaraScriptToolkit::RecursiveBuildMessageTokensFromContextStackAndGetOriginatingGraph(TArray<FGuid>& InContextStackNodeGuids, UNiagaraGraph* InGraphToSearch, TArray<TSharedRef<IMessageToken>>& OutMessageTokensToAdd)
+{
+	verifyf(InGraphToSearch, TEXT("Failed to get a node graph to search!"));
+
+	if (InGraphToSearch && InContextStackNodeGuids.Num() == 0)
+	{
+		//StackGuids arr has been cleared out which means we have walked the entire context and can now returnthe graph we are in.
+		return InGraphToSearch;
+	}
+
+	// Search in the current graph for a node with a GUID that matches a GUID in the list of Function Call and Emitter node GUIDs that define the context stack for a compile event
+	auto FindNodeInGraphWithContextStackGuid = [&InGraphToSearch, &InContextStackNodeGuids]()->TOptional<UEdGraphNode*> {
+		for (UEdGraphNode* GraphNode : InGraphToSearch->Nodes)
+		{
+			for (int i = 0; i < InContextStackNodeGuids.Num(); i++)
+			{
+				if (GraphNode->NodeGuid == InContextStackNodeGuids[i])
+				{
+					InContextStackNodeGuids.RemoveAt(i);
+					return GraphNode;
+				}
+			}
+		}
+		return TOptional<UEdGraphNode*>();
+	};
+
+	TOptional<UEdGraphNode*> ContextNode = FindNodeInGraphWithContextStackGuid();
+	if (ContextNode.IsSet())
+	{
+		// found a node in the current graph that has a GUID in the context list, now get the Niagara Script assigned to this node, add a message token and recursively call into the graph of that script.
+		UNiagaraNodeFunctionCall* FunctionCallNode = Cast<UNiagaraNodeFunctionCall>(ContextNode.GetValue());
+		if (FunctionCallNode)
+		{
+			UNiagaraScript* FunctionCallNodeAssignedScript = FunctionCallNode->FunctionScript;
+			checkf(FunctionCallNodeAssignedScript, TEXT("Script for function call node is not assigned!"));
+			UNiagaraScriptSourceBase* FunctionScriptSourceBase = FunctionCallNodeAssignedScript->GetSource();
+			checkf(FunctionScriptSourceBase->IsA<UNiagaraScriptSource>(), TEXT("Script source for function call node is not assigned or is not of type UNiagaraScriptSource!"));
+			UNiagaraScriptSource* FunctionScriptSource = Cast<UNiagaraScriptSource>(FunctionScriptSourceBase);
+			checkf(FunctionScriptSource, TEXT("Script source base was somehow not a derived type!"));
+			UNiagaraGraph* FunctionScriptGraph = FunctionScriptSource->NodeGraph;
+			checkf(FunctionScriptGraph, TEXT("Function Script does not have a UNiagaraGraph!"));
+
+			TSharedRef<FNiagaraAssetNameToken> VisitedGraphContextToken = FNiagaraAssetNameToken::Create(FunctionCallNodeAssignedScript->GetPathName(), FText::FromString(*FunctionCallNodeAssignedScript->GetName()));
+			OutMessageTokensToAdd.Add(VisitedGraphContextToken);
+			return RecursiveBuildMessageTokensFromContextStackAndGetOriginatingGraph(InContextStackNodeGuids, FunctionScriptGraph, OutMessageTokensToAdd);
+		}
+		UNiagaraNodeEmitter* EmitterNode = Cast<UNiagaraNodeEmitter>(ContextNode.GetValue());
+		if (EmitterNode)
+		{
+			UNiagaraScriptSource* EmitterScriptSource = EmitterNode->GetScriptSource();
+			UNiagaraGraph* EmitterScriptGraph = EmitterScriptSource->NodeGraph;
+			checkf(EmitterScriptGraph, TEXT("Emitter Script Source does not have a UNiagaraGraph!")); //@todo(ng) see about filtering the message log by emitter?
+
+			TSharedRef<FTextToken> SourceEmitterContextToken = FTextToken::Create(FText::FromString(EmitterNode->GetEmitterUniqueName()));
+			OutMessageTokensToAdd.Add(SourceEmitterContextToken);
+			return RecursiveBuildMessageTokensFromContextStackAndGetOriginatingGraph(InContextStackNodeGuids, EmitterScriptGraph, OutMessageTokensToAdd);
+		}
+		checkf(false, TEXT("Matching node is not a function call or emitter node!"));
+	}
+	verifyf(false, TEXT("Failed to walk the entire context stack, is this compile event out of date?"));
+	return TOptional<UNiagaraGraph*>();
 }
 
 void FNiagaraScriptToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -95,6 +211,10 @@ void FNiagaraScriptToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 		.SetDisplayName(LOCTEXT("StatsTab", "Stats"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+
+	InTabManager->RegisterTabSpawner(MessageLogTabID, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabMessageLog))
+		.SetDisplayName(LOCTEXT("NiagaraMessageLogTab", "Niagara Message Log"))
+		.SetGroup(WorkspaceMenuCategoryRef);
 }
 
 void FNiagaraScriptToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -146,10 +266,25 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	LogOptions.bShowFilters = false;
 	LogOptions.bAllowClear = false;
 	LogOptions.MaxPageCount = 1;
+
+	// Reuse any existing log, or create a new one (that is not held onto by the message log system)
+	auto CreateMessageLogListing = [&MessageLogModule, &LogOptions](const FName& LogName)->TSharedRef<IMessageLogListing> {
+		if (MessageLogModule.IsRegisteredLogListing(LogName))
+		{
+			return MessageLogModule.GetLogListing(LogName);
+		}
+		else
+		{
+			return  MessageLogModule.CreateLogListing(LogName, LogOptions);
+		}
+	};
+
 	StatsListing = MessageLogModule.CreateLogListing("MaterialEditorStats", LogOptions);
 	Stats = MessageLogModule.CreateLogListingWidget(StatsListing.ToSharedRef());
+	NiagaraMessageLogListing = CreateMessageLogListing(GetNiagaraScriptMessageLogName(EditedNiagaraScript));
+	NiagaraMessageLog = MessageLogModule.CreateLogListingWidget(NiagaraMessageLogListing.ToSharedRef());
 
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_Layout_v7")
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_Layout_v8")
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -190,9 +325,19 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 			)
 			->Split
 			(
+				FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)->SetSizeCoefficient(0.8f)
+				->Split
+				(
 				FTabManager::NewStack()
 				->SetSizeCoefficient(0.8f)
 				->AddTab(NodeGraphTabId, ETabState::OpenedTab)
+				)
+				->Split
+				(
+				FTabManager::NewStack()
+				->SetSizeCoefficient(0.2f)
+				->AddTab(MessageLogTabID, ETabState::OpenedTab)
+				)
 			)
 		)
 	);
@@ -207,6 +352,7 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	SetupCommands();
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
+	UpdateMessageLog();
 	UpdateModuleStats();
 	// @todo toolkit world centric editing
 	/*// Setup our tool's layout
@@ -290,6 +436,7 @@ void FNiagaraScriptToolkit::OnEditedScriptPropertyFinishedChanging(const FProper
 
 void FNiagaraScriptToolkit::OnVMScriptCompiled(UNiagaraScript* InScript)
 {
+	UpdateMessageLog();
 	UpdateModuleStats();
 }
 
@@ -374,6 +521,23 @@ TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabStats(const FSpawnTabArgs& A
 	return SpawnedTab;
 }
 
+TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabMessageLog(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId().TabType == MessageLogTabID);
+
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+		.Label(LOCTEXT("NiagaraMessageLogTitle", "Niagara Log"))
+		[
+			SNew(SBox)
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("NiagaraLog")))
+			[
+				NiagaraMessageLog.ToSharedRef()
+			]
+		];
+
+	return SpawnedTab;
+}
+
 void FNiagaraScriptToolkit::SetupCommands()
 {
 	GetToolkitCommands()->MapAction(
@@ -386,6 +550,13 @@ void FNiagaraScriptToolkit::SetupCommands()
 	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().RefreshNodes,
 		FExecuteAction::CreateRaw(this, &FNiagaraScriptToolkit::RefreshNodes));
+}
+
+const FName FNiagaraScriptToolkit::GetNiagaraScriptMessageLogName(UNiagaraScript* InScript) const
+{
+	checkf(InScript, TEXT("Tried to get MessageLog name for NiagaraScript but InScript was null!"));
+	FName LogListingName = *FString::Printf(TEXT("%s_%s_MessageLog"), *InScript->GetBaseChangeID().ToString(), *InScript->GetName());
+	return LogListingName;
 }
 
 void FNiagaraScriptToolkit::ExtendToolbar()
@@ -503,6 +674,53 @@ void FNiagaraScriptToolkit::AddReferencedObjects(FReferenceCollector& Collector)
 }
 
 
+
+void FNiagaraScriptToolkit::UpdateMessageLog()
+{
+	TArray< TSharedRef<class FTokenizedMessage> > Messages;
+
+	uint32 ErrorCount = 0;
+	uint32 WarningCount = 0;
+	for (FNiagaraCompileEvent CompileEvent : EditedNiagaraScript->GetVMExecutableData().LastCompileEvents)
+	{
+		Messages.Add(BuildMessageForCompileEvent(CompileEvent)); 
+		if (CompileEvent.Severity == FNiagaraCompileEventSeverity::Error)
+		{
+			ErrorCount++;
+		}
+		else if (CompileEvent.Severity == FNiagaraCompileEventSeverity::Warning)
+		{
+			WarningCount++;
+		}
+	}
+
+	const auto GetCompileCompleteMessageText = [&ErrorCount, &WarningCount](ENiagaraScriptCompileStatus Status)->const FText {
+		FText MessageText;
+		switch (Status)
+		{
+		default:
+		case ENiagaraScriptCompileStatus::NCS_Unknown:
+		case ENiagaraScriptCompileStatus::NCS_Dirty:
+			MessageText = LOCTEXT("NiagaraScriptCompileStatusUnknownInfo", "Script compile status unknown with {0} warning(s) and {1} error(s).");
+			return FText::Format(MessageText, FText::FromString(FString::FromInt(WarningCount)), FText::FromString(FString::FromInt(ErrorCount)));
+		case ENiagaraScriptCompileStatus::NCS_Error:
+			MessageText = LOCTEXT("NiagaraScriptCompileStatusErrorInfo", "Script failed to compile with {0} warning(s) and {1} error(s).");
+			return FText::Format(MessageText, FText::FromString(FString::FromInt(WarningCount)), FText::FromString(FString::FromInt(ErrorCount)));
+		case ENiagaraScriptCompileStatus::NCS_UpToDate:
+			MessageText = LOCTEXT("NiagaraScriptCompileStatusSuccessInfo", "Script successfully compiled.");
+			return MessageText;
+		case ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings:
+			MessageText = LOCTEXT("NiagaraScriptCompileStatusWarningInfo", "Script successfully compiled with {0} warning(s).");
+			return FText::Format(MessageText, FText::FromString(FString::FromInt(WarningCount)));
+		}
+	};
+
+	const FText CompileCompleteMessageText = GetCompileCompleteMessageText(ScriptViewModel->GetLatestCompileStatus());
+	Messages.Add(FTokenizedMessage::Create(EMessageSeverity::Info, CompileCompleteMessageText));
+
+	NiagaraMessageLogListing->ClearMessages();
+	NiagaraMessageLogListing->AddMessages(Messages);
+}
 
 void FNiagaraScriptToolkit::UpdateModuleStats()
 {

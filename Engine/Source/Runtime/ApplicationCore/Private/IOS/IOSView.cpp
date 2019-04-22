@@ -232,16 +232,11 @@ id<MTLDevice> GMetalDevice = nil;
 	// Initialize some variables
 	SwapCount = 0;
 
-#if PLATFORM_TVOS
-	// @todo tvos: This may need to be exposed to the game so that when you click Menu it will background the app
-	// this is basically the same way Android handles the Back button (maybe we should pass Menu button as back... maybe)
-	// @todo embedded: this will not work, because this view hasn't been added to a hierarchy yet, so the IOSController is guaranteed to be null. DELAY THIS
-	AppDelegate.IOSController.controllerUserInteractionEnabled = NO;
-#endif
-
 //	self.userInteractionEnabled = YES;
 //	self.clearsContextBeforeDrawing = NO;
+#if !PLATFORM_TVOS
 	self.multipleTouchEnabled = YES;
+#endif
 
 	FMemory::Memzero(AllTouches, sizeof(AllTouches));
 	[self setAutoresizingMask: UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight];

@@ -32,6 +32,7 @@ DEFINE_LOG_CATEGORY(LogAudioDebug);
 DEFINE_STAT(STAT_AudioMemorySize);
 DEFINE_STAT(STAT_ActiveSounds);
 DEFINE_STAT(STAT_AudioSources);
+DEFINE_STAT(STAT_AudioVirtualLoops);
 DEFINE_STAT(STAT_WaveInstances);
 DEFINE_STAT(STAT_WavesDroppedDueToPriority);
 DEFINE_STAT(STAT_AudibleWavesDroppedDueToPriority);
@@ -64,6 +65,14 @@ FAutoConsoleVariableRef CVarDisableStereoSpread(
 	DisableStereoSpreadCvar,
 	TEXT("When set to 1, ignores the 3D Stereo Spread property in attenuation settings and instead renders audio from a singular point.\n")
 	TEXT("0: Not Disabled, 1: Disabled"),
+	ECVF_Default);
+
+static int32 AllowAudioSpatializationCVar = 1;
+FAutoConsoleVariableRef CVarAllowAudioSpatializationCVar(
+	TEXT("au.AllowAudioSpatialization"),
+	AllowAudioSpatializationCVar,
+	TEXT("Controls if we allow spatialization of audio, normally this is enabled.  If disabled all audio won't be spatialized, but will have attenuation.\n")
+	TEXT("0: Disable, >0: Enable"),
 	ECVF_Default);
 
 bool IsAudioPluginEnabled(EAudioPlugin PluginType)
@@ -372,7 +381,7 @@ void FSoundSource::SetFilterFrequency()
 void FSoundSource::UpdateStereoEmitterPositions()
 {
 	// Only call this function if we're told to use spatialization
-	check(WaveInstance->bUseSpatialization);
+	check(WaveInstance->GetUseSpatialization());
 	check(Buffer->NumChannels == 2);
 
 	if (!DisableStereoSpreadCvar && WaveInstance->StereoSpread > 0.0f)
@@ -417,7 +426,7 @@ void FSoundSource::DrawDebugInfo()
 			USoundBase* Sound = WaveInstance->ActiveSound->GetSound();
 			const FVector Location = WaveInstance->Location;
 
-			const bool bSpatialized = Buffer->NumChannels == 2 && WaveInstance->bUseSpatialization;
+			const bool bSpatialized = Buffer->NumChannels == 2 && WaveInstance->GetUseSpatialization();
 			const FVector LeftChannelSourceLoc = LeftChannelSourceLocation;
 			const FVector RightChannelSourceLoc = RightChannelSourceLocation;
 
@@ -527,7 +536,7 @@ FSpatializationParams FSoundSource::GetSpatializationParams()
 {
 	FSpatializationParams Params;
 
-	if (WaveInstance->bUseSpatialization)
+	if (WaveInstance->GetUseSpatialization())
 	{
 		FVector EmitterPosition = AudioDevice->GetListenerTransformedDirection(WaveInstance->Location, &Params.Distance);
 
@@ -811,6 +820,7 @@ FWaveInstance::FWaveInstance( FActiveSound* InActiveSound )
 	, StereoSpread(0.0f)
 	, AttenuationDistance(0.0f)
 	, ListenerToSoundDistance(0.0f)
+	, ListenerToSoundDistanceForPanning(0.0f)
 	, AbsoluteAzimuth(0.0f)
 	, PlaybackTime(0.0f)
 	, ReverbSendMethod(EReverbSendMethod::Linear)
@@ -968,6 +978,11 @@ float FWaveInstance::GetVolumeWeightedPriority() const
 bool FWaveInstance::IsStreaming() const
 {
 	return FPlatformProperties::SupportsAudioStreaming() && WaveData != nullptr && WaveData->IsStreaming();
+}
+
+bool FWaveInstance::GetUseSpatialization() const
+{
+	return AllowAudioSpatializationCVar && bUseSpatialization;
 }
 
 FString FWaveInstance::GetName() const

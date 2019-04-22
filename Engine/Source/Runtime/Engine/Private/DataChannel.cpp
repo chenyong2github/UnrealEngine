@@ -1871,12 +1871,14 @@ void UActorChannel::DestroyActorAndComponents()
 	}
 }
 
-bool UActorChannel::CleanUp( const bool bForDestroy, EChannelCloseReason CloseReason )
+bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseReason)
 {
 	SCOPE_CYCLE_COUNTER(Stat_ActorChanCleanUp);
 
 	checkf(Connection != nullptr, TEXT("UActorChannel::CleanUp: Connection is null!"));
 	checkf(Connection->Driver != nullptr, TEXT("UActorChannel::CleanUp: Connection->Driver is null!"));
+
+	Connection->Driver->NotifyActorChannelCleanedUp(this, CloseReason);
 
 	UReplicationConnectionDriver* const ConnectionDriver = Connection->GetReplicationConnectionDriver();
 	if (ConnectionDriver)
@@ -2383,6 +2385,12 @@ void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 			Bunch << ActorNetGUID;
 
 			Mark.Pop( Bunch );
+
+			// we can now map guid to channel, even if all the bunches get queued
+			if (Connection->InternalAck)
+			{
+				Connection->NotifyActorNetGUID(this);
+			}
 		}
 
 		// We need to queue this bunch if any of these are true:

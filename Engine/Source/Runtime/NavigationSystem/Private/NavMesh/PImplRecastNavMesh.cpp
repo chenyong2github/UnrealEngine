@@ -2169,6 +2169,10 @@ void FPImplRecastNavMesh::GetDebugGeometry(FRecastDebugGeometry& OutGeometry, in
 	int32 NumVertsToReserve = 0;
 	int32 NumIndicesToReserve = 0;
 
+	int32 ForbiddenFlags = OutGeometry.bMarkForbiddenPolys 
+		? GetFilterForbiddenFlags((const FRecastQueryFilter*)NavMeshOwner->GetDefaultQueryFilterImpl()) 
+		: 0;
+
 	const FRecastNavMeshGenerator* Generator = static_cast<const FRecastNavMeshGenerator*>(NavMeshOwner->GetGenerator());
 
 	if (Generator && Generator->IsBuildingRestrictedToActiveTiles()
@@ -2210,7 +2214,7 @@ void FPImplRecastNavMesh::GetDebugGeometry(FRecastDebugGeometry& OutGeometry, in
 				dtMeshTile const* const Tile = ConstNavMesh->getTileAt(TileLocation.X, TileLocation.Y, Layer);
 				if (Tile != nullptr && Tile->header != nullptr)
 				{
-					VertBase += GetTilesDebugGeometry(Generator, *Tile, VertBase, OutGeometry);
+					VertBase += GetTilesDebugGeometry(Generator, *Tile, VertBase, OutGeometry, INDEX_NONE, ForbiddenFlags);
 				}
 			}
 		}
@@ -2248,12 +2252,12 @@ void FPImplRecastNavMesh::GetDebugGeometry(FRecastDebugGeometry& OutGeometry, in
 				continue;
 			}
 
-			VertBase += GetTilesDebugGeometry(Generator, *Tile, VertBase, OutGeometry, TileIdx);
+			VertBase += GetTilesDebugGeometry(Generator, *Tile, VertBase, OutGeometry, TileIdx, ForbiddenFlags);
 		}
 	}
 }
 
-int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* Generator, const dtMeshTile& Tile, int32 VertBase, FRecastDebugGeometry& OutGeometry, int32 TileIdx) const
+int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* Generator, const dtMeshTile& Tile, int32 VertBase, FRecastDebugGeometry& OutGeometry, int32 TileIdx, uint16 ForbiddenFlags) const
 {
 	check(NavMeshOwner && DetourNavMesh);
 	dtMeshHeader const* const Header = Tile.header;
@@ -2289,7 +2293,10 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 		{
 			dtPolyDetail const* const DetailPoly = &Tile.detailMeshes[PolyIdx];
 
-			TArray<int32>* Indices = bIsBeingBuilt ? &OutGeometry.BuiltMeshIndices : &OutGeometry.AreaIndices[Poly->getArea()];
+			TArray<int32>* Indices = bIsBeingBuilt ? &OutGeometry.BuiltMeshIndices 
+				: ((Poly->flags & ForbiddenFlags) != 0
+					? &OutGeometry.ForbiddenIndices
+					: &OutGeometry.AreaIndices[Poly->getArea()]);
 
 			// one triangle at a time
 			for (int32 TriIdx = 0; TriIdx < DetailPoly->triCount; ++TriIdx)
@@ -2354,7 +2361,9 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 				, OffMeshConnection->rad
 			};
 
-			OutGeometry.OffMeshLinks.Add(Link);
+			(LinkPoly->flags & ForbiddenFlags) != 0
+				? OutGeometry.ForbiddenLinks.Add(Link)
+				: OutGeometry.OffMeshLinks.Add(Link);
 		}
 	}
 
@@ -2378,6 +2387,7 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 				Link.ValidEnds = GetValidEnds(*DetourNavMesh, Tile, *LinkPoly);
 
 				const int LinkIdx = OutGeometry.OffMeshSegments.Add(Link);
+				ensureMsgf((LinkPoly->flags & ForbiddenFlags) == 0, TEXT("Not implemented"));
 				OutGeometry.OffMeshSegmentAreas[Link.AreaID].Add(LinkIdx);
 			}
 		}

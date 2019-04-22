@@ -276,6 +276,9 @@ protected:
 		return FPaths::ProjectPersistentDownloadDir();
 	}
 
+	/** Notify used by CheckAvailability() */
+	virtual void OnHotfixAvailablityCheck(const TArray<FCloudFileHeader>& PendingChangedFiles, const TArray<FCloudFileHeader>& PendingRemoveFiles);
+
 	/** Finds the header associated with the file name */
 	FCloudFileHeader* GetFileHeaderFromDLName(const FString& FileName);
 

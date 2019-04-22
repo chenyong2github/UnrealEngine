@@ -119,9 +119,9 @@ FVulkanFramebuffer* FTransitionAndLayoutManager::GetOrCreateFramebuffer(FVulkanD
 	return Framebuffer;
 }
 
-FVulkanRenderPass* FVulkanCommandListContext::PrepareRenderPassForPSOCreation(const FGraphicsPipelineStateInitializer& Initializer, const TArray<FInputAttachmentData>& InputAttachmentData)
+FVulkanRenderPass* FVulkanCommandListContext::PrepareRenderPassForPSOCreation(const FGraphicsPipelineStateInitializer& Initializer)
 {
-	FVulkanRenderTargetLayout RTLayout(Initializer, InputAttachmentData);
+	FVulkanRenderTargetLayout RTLayout(Initializer);
 	return PrepareRenderPassForPSOCreation(RTLayout);
 }
 
@@ -625,20 +625,23 @@ void FVulkanCommandListContext::RHICopyToResolveTarget(FTextureRHIParamRef Sourc
 		return;
 	}
 
-	if (SourceTextureRHI == DestTextureRHI)
-	{
-		FRHITexture2D* SourceTexture2D = SourceTextureRHI->GetTexture2D();
-		if (SourceTexture2D)
-		{
-			FVulkanTexture2D* VulkanSourceTexture2D  = (FVulkanTexture2D*)SourceTexture2D;
-			if (VulkanSourceTexture2D->GetBackBuffer() != nullptr)
-			{
-				// skip Backbuffer implicit transition to Readable, to avoid splitting Post->UI renderpass
-				// do explicit transition when need to read from Backbuffer
-				return;
-			}
-		}
-	}
+	
+	// Disabled as it causes flicker on MALI
+	// TODO: With explicit render-pases this does not help with fusing Post->UI renderpass anyway
+	//if (SourceTextureRHI == DestTextureRHI)
+	//{
+	//	FRHITexture2D* SourceTexture2D = SourceTextureRHI->GetTexture2D();
+	//	if (SourceTexture2D)
+	//	{
+	//		FVulkanTexture2D* VulkanSourceTexture2D  = (FVulkanTexture2D*)SourceTexture2D;
+	//		if (VulkanSourceTexture2D->GetBackBuffer() != nullptr)
+	//		{
+	//			// skip Backbuffer implicit transition to Readable, to avoid splitting Post->UI renderpass
+	//			// do explicit transition when need to read from Backbuffer
+	//			return;
+	//		}
+	//	}
+	//}
 
 	RHITransitionResources(EResourceTransitionAccess::EReadable, &SourceTextureRHI, 1);
 
@@ -1767,6 +1770,14 @@ void FVulkanCommandListContext::RHIEndRenderPass()
 	RHIPopEvent();
 }
 
+void FVulkanCommandListContext::RHINextSubpass()
+{
+	check(TransitionAndLayoutManager.CurrentRenderPass);
+	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
+	VkCommandBuffer Cmd = CmdBuffer->GetHandle();
+	VulkanRHI::vkCmdNextSubpass(Cmd, VK_SUBPASS_CONTENTS_INLINE);
+}
+
 // Need a separate struct so we can memzero/remove dependencies on reference counts
 struct FRenderPassCompatibleHashableStruct
 {
@@ -1777,6 +1788,7 @@ struct FRenderPassCompatibleHashableStruct
 
 	uint8						NumAttachments;
 	uint8						NumSamples;
+	uint8						SubpassHint;
 	// +1 for DepthStencil
 	VkFormat					Formats[MaxSimultaneousRenderTargets + 1];
 };
@@ -1970,6 +1982,9 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		}
 	}
 
+	SubpassHint = ESubpassHint::None;
+	CompatibleHashInfo.SubpassHint = 0;
+
 	CompatibleHashInfo.NumSamples = NumSamples;
 
 	RenderPassCompatibleHash = FCrc::MemCrc32(&CompatibleHashInfo, sizeof(CompatibleHashInfo));
@@ -2130,6 +2145,9 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		}
 	}
 
+	SubpassHint = RPInfo.SubpassHint;
+	CompatibleHashInfo.SubpassHint = (uint8)RPInfo.SubpassHint;
+
 	CompatibleHashInfo.NumSamples = NumSamples;
 
 	RenderPassCompatibleHash = FCrc::MemCrc32(&CompatibleHashInfo, sizeof(CompatibleHashInfo));
@@ -2138,7 +2156,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 	bCalculatedHash = true;
 }
 
-FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(const FGraphicsPipelineStateInitializer& Initializer, const TArray<FInputAttachmentData>& InputAttachmentData)
+FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(const FGraphicsPipelineStateInitializer& Initializer)
 	: NumAttachmentDescriptions(0)
 	, NumColorAttachments(0)
 	, bHasDepthStencil(false)
@@ -2256,27 +2274,13 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(const FGraphicsPipelineStat
 		bHasDepthStencil = true;
 	}
 
+	SubpassHint = Initializer.SubpassHint;
+	CompatibleHashInfo.SubpassHint = (uint8)Initializer.SubpassHint;
+
 	CompatibleHashInfo.NumSamples = NumSamples;
 
 	RenderPassCompatibleHash = FCrc::MemCrc32(&CompatibleHashInfo, sizeof(CompatibleHashInfo));
 	RenderPassFullHash = FCrc::MemCrc32(&FullHashInfo, sizeof(FullHashInfo), RenderPassCompatibleHash);
 	NumUsedClearValues = bFoundClearOp ? NumAttachmentDescriptions : 0;
 	bCalculatedHash = true;
-}
-
-uint16 FVulkanRenderTargetLayout::SetupSubpasses(VkSubpassDescription* OutDescs, uint32 MaxDescs, VkSubpassDependency* OutDeps, uint32 MaxDeps, uint32& OutNumDependencies) const
-{
-	check(MaxDescs > 0);
-	FMemory::Memzero(OutDescs, sizeof(OutDescs[0]) * MaxDescs);
-	OutDescs[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	//OutDesc.flags = 0;
-	//OutDesc.inputAttachmentCount = 0;
-	OutDescs[0].colorAttachmentCount = GetNumColorAttachments();
-	OutDescs[0].pColorAttachments = GetColorAttachmentReferences();
-	OutDescs[0].pResolveAttachments = GetResolveAttachmentReferences();
-	OutDescs[0].pDepthStencilAttachment = GetDepthStencilAttachmentReference();
-	//OutDesc.preserveAttachmentCount = 0;
-
-	OutNumDependencies = 0;
-	return 1;
 }

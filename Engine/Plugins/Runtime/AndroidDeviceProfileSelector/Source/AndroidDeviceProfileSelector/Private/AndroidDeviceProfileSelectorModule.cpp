@@ -37,6 +37,8 @@ const FString FAndroidDeviceProfileSelectorModule::GetDeviceProfileName(const TM
 	FString DeviceModel = DeviceParameters.FindChecked("DeviceModel");
 	FString DeviceBuildNumber = DeviceParameters.FindChecked("DeviceBuildNumber");
 	FString UsingHoudini = DeviceParameters.FindChecked("UsingHoudini");
+	FString Hardware = DeviceParameters.FindChecked("Hardware");
+	FString Chipset = DeviceParameters.FindChecked("Chipset");
 
 	UE_LOG(LogAndroid, Log, TEXT("Checking %d rules from DeviceProfile ini file."), FAndroidDeviceProfileSelector::GetNumProfiles() );
 	UE_LOG(LogAndroid, Log, TEXT("  Default profile: %s"), *ProfileName);
@@ -49,8 +51,10 @@ const FString FAndroidDeviceProfileSelectorModule::GetDeviceProfileName(const TM
 	UE_LOG(LogAndroid, Log, TEXT("  DeviceModel: %s"), *DeviceModel);
 	UE_LOG(LogAndroid, Log, TEXT("  DeviceBuildNumber: %s"), *DeviceBuildNumber);
 	UE_LOG(LogAndroid, Log, TEXT("  UsingHoudini: %s"), *UsingHoudini);
+	UE_LOG(LogAndroid, Log, TEXT("  Hardware: %s"), *Hardware);
+	UE_LOG(LogAndroid, Log, TEXT("  Chipset: %s"), *Chipset);
 
-	ProfileName = FAndroidDeviceProfileSelector::FindMatchingProfile(GPUFamily, GLVersion, AndroidVersion, DeviceMake, DeviceModel, DeviceBuildNumber, VulkanAvailable, VulkanVersion, UsingHoudini, ProfileName);
+	ProfileName = FAndroidDeviceProfileSelector::FindMatchingProfile(GPUFamily, GLVersion, AndroidVersion, DeviceMake, DeviceModel, DeviceBuildNumber, VulkanAvailable, VulkanVersion, UsingHoudini, Hardware, Chipset, ProfileName);
 
 	UE_LOG(LogAndroid, Log, TEXT("Selected Device Profile: [%s]"), *ProfileName);
 

@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "HAL/UnrealMemory.h"
 
-#if defined(_MSC_VER) || PLATFORM_MAC || PLATFORM_IOS
+#if PLATFORM_MAC || PLATFORM_IOS
 	#define USE_ALIGNED_MALLOC 1
 #else
 	#define USE_ALIGNED_MALLOC 0

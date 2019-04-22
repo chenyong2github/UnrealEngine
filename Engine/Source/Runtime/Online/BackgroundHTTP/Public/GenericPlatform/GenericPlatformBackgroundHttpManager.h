@@ -16,5 +16,6 @@ class BACKGROUNDHTTP_API FGenericPlatformBackgroundHttpManager
 	: public FBackgroundHttpManagerImpl
 {
 public:
+	virtual bool IsGenericImplementation() const override { return true; }
 	virtual ~FGenericPlatformBackgroundHttpManager();
 };

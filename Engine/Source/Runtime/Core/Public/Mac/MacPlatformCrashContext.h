@@ -20,6 +20,32 @@ struct CORE_API FMacCrashContext : public FApplePlatformCrashContext
 	
 	/** Generates information for ensures sent via the CrashReporter */
 	void GenerateEnsureInfoAndLaunchReporter() const;
+
+	/** Captures all information about all threads */
+	void CaptureAllThreadContext(uint32 ThreadIdEnteredOn);
+
+protected:
+	virtual bool GetPlatformAllThreadContextsString(FString& OutStr) const override;
+
+private:
+	void AddThreadContext(
+		uint32 ThreadIdEnteredOn, 
+		uint32 ThreadId,
+		const FString& ThreadName,
+		const TArray<FCrashStackFrame>& PortableCallStack);
+
+	/**
+	* <Thread>
+	*   <CallStack>...</CallStack>
+	*   <IsCrashed>...</IsCrashed>
+	*   <Registers>...</Registers>
+	*   <ThreadID>...</ThreadID>
+	*   <ThreadName>...</ThreadName>
+	* </Thead>
+	* <Thread>...</Thread>
+	* ...
+	*/
+	FString AllThreadContexts;
 };
 
 typedef FMacCrashContext FPlatformCrashContext;

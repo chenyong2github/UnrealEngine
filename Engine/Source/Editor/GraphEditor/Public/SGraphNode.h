@@ -138,6 +138,9 @@ public:
 	/** @return the tint for the node's main body */
 	FSlateColor GetNodeBodyColor() const;
 
+	/** @return the image brush to use for the node */
+	virtual const FSlateBrush * GetNodeBodyBrush() const;
+
 	/** @return the tint for the node's title icon */
 	FSlateColor GetNodeTitleIconColor() const;
 

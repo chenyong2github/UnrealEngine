@@ -263,6 +263,70 @@ void FRenderAssetInstanceView::SwapData(FRenderAssetInstanceView* Lfs, FRenderAs
 	FMemory::Memswap(&Lfs->MaxTexelFactor , &Rhs->MaxTexelFactor, sizeof(Lfs->MaxTexelFactor));
 }
 
+void FRenderAssetInstanceView::OnVerifyElementIdxFailed(int32 Idx, bool bInRange, int32 IterationCount, TMap<const UPrimitiveComponent*, int32>* ComponentMapPtr, TArray<int32>* FreeIndicesPtr) const
+{
+	const UStreamableRenderAsset* AssetPtr = bInRange ? Elements[Idx].RenderAsset : nullptr;
+	const UPrimitiveComponent* CompPtr = bInRange ? Elements[Idx].Component : nullptr;
+	const int32 BoundsIdx = bInRange ? Elements[Idx].BoundsIndex : INDEX_NONE;
+	const float TexelFactor = bInRange ? Elements[Idx].TexelFactor : 0.f;
+	const int32 bForceLoad = bInRange ? Elements[Idx].bForceLoad : 0;
+	const int32 PrevAssetLink = bInRange ? Elements[Idx].PrevRenderAssetLink : INDEX_NONE;
+	const int32 NextAssetLink = bInRange ? Elements[Idx].NextRenderAssetLink : INDEX_NONE;
+	const int32 NextCompLink = bInRange ? Elements[Idx].NextComponentLink : INDEX_NONE;
+	const int32* CompLink = ComponentMapPtr ? ComponentMapPtr->Find(CompPtr) : nullptr;
+	const FRenderAssetDesc* AssetDesc = RenderAssetMap.Find(AssetPtr);
+	const int32 bFoundInFreeIndices = FreeIndicesPtr ? FreeIndicesPtr->Contains(Idx) : 0;
+
+	FString CompLinkStr;
+	if (CompLink)
+	{
+		int32 NextLink = *CompLink;
+		bool bLinkValid;
+		while (NextLink != INDEX_NONE)
+		{
+			bLinkValid = NextLink >= 0 && NextLink < Elements.Num();
+			CompLinkStr += FString::FromInt(NextLink);
+			CompLinkStr += bLinkValid ? TEXT("") : TEXT("(invalid)");
+			NextLink = bLinkValid ? Elements[NextLink].NextComponentLink : INDEX_NONE;
+			if (NextLink != INDEX_NONE)
+			{
+				CompLinkStr += TEXT("->");
+			}
+		}
+	}
+
+	FString AssetLinkStr;
+	if (AssetDesc)
+	{
+		int32 NextLink = AssetDesc->HeadLink;
+		bool bLinkValid = NextLink >= 0 && NextLink < Elements.Num();
+		if (bLinkValid && Elements[NextLink].PrevRenderAssetLink != INDEX_NONE)
+		{
+			AssetLinkStr += FString::FromInt(Elements[NextLink].PrevRenderAssetLink);
+			AssetLinkStr += TEXT("(?)->");
+		}
+		while (NextLink != INDEX_NONE)
+		{
+			AssetLinkStr += FString::FromInt(NextLink);
+			AssetLinkStr += bLinkValid ? TEXT("") : TEXT("(invalid)");
+			NextLink = bLinkValid ? Elements[NextLink].NextRenderAssetLink : INDEX_NONE;
+			bLinkValid = NextLink >= 0 && NextLink < Elements.Num();
+			if (NextLink != INDEX_NONE)
+			{
+				AssetLinkStr += TEXT("->");
+			}
+		}
+	}
+
+	UE_LOG(LogContentStreaming, Fatal,
+		TEXT("VerifyElementIdx failed: Num=%d, Idx=%d, Asset=%p, Comp=%p, BoundsIdx=%d, TexelFactor=%.2f, ")
+		TEXT("bForceLoad=%d, PrevAssetLink=%d, NextAssetLink=%d, NextCompLink=%d, CompMapEntry=%p, AssetMapEntry=%p, ")
+		TEXT("CompLinks=%s, AssetLinks=%s, bFoundInFreeIndices=%d, Iteration=%d"),
+		Elements.Num(), Idx, AssetPtr, CompPtr, BoundsIdx, TexelFactor,
+		bForceLoad, PrevAssetLink, NextAssetLink, NextCompLink, CompLink, AssetDesc,
+		*CompLinkStr, *AssetLinkStr, bFoundInFreeIndices, IterationCount);
+}
+
 void FRenderAssetInstanceAsyncView::UpdateBoundSizes_Async(
 	const TArray<FStreamingViewInfo>& ViewInfos,
 	const FStreamingViewInfoExtraArray& ViewInfoExtras,
@@ -513,8 +577,10 @@ void FRenderAssetInstanceAsyncView::GetRenderAssetScreenSize(
 		}
 		else
 		{
-			for (auto It = View->GetElementIterator(InAsset); It && (MaxSize_VisibleOnly < MAX_TEXTURE_SIZE || LogPrefix); ++It)
+			int32 IterationCount_DebuggingOnly = 0;
+			for (auto It = View->GetElementIterator(InAsset); It && (MaxSize_VisibleOnly < MAX_TEXTURE_SIZE || LogPrefix); ++It, ++IterationCount_DebuggingOnly)
 			{
+				View->VerifyElementIdx_DebuggingOnly(It.GetCurElementIdx_ForDebuggingOnly(), IterationCount_DebuggingOnly);
 				// Only handle elements that are in bounds.
 				if (ensure(BoundsViewInfo.IsValidIndex(It.GetBoundsIndex())))
 				{

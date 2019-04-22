@@ -91,7 +91,7 @@ void FRenderAssetInstanceState::RemoveBounds(int32 BoundsIndex)
 	}
 }
 
-void FRenderAssetInstanceState::AddElement(const UPrimitiveComponent* InComponent, const UStreamableRenderAsset* InAsset, int InBoundsIndex, float InTexelFactor, bool InForceLoad, int32*& ComponentLink)
+void FRenderAssetInstanceState::AddElement(const UPrimitiveComponent* InComponent, const UStreamableRenderAsset* InAsset, int InBoundsIndex, float InTexelFactor, bool InForceLoad, int32*& ComponentLink, int32 IterationCount_DebuggingOnly)
 {
 	check(InComponent && InAsset);
 
@@ -108,6 +108,8 @@ void FRenderAssetInstanceState::AddElement(const UPrimitiveComponent* InComponen
 		ElementIndex = Elements.Num();
 		Elements.Push(FElement());
 	}
+
+	VerifyElementIdx_DebuggingOnly(ElementIndex, IterationCount_DebuggingOnly, &ComponentMap, &FreeElementIndices);
 
 	FElement& Element = Elements[ElementIndex];
 
@@ -153,8 +155,10 @@ void FRenderAssetInstanceState::AddElement(const UPrimitiveComponent* InComponen
 	}
 }
 
-void FRenderAssetInstanceState::RemoveElement(int32 ElementIndex, int32& NextComponentLink, int32& BoundsIndex, const UStreamableRenderAsset*& Asset)
+void FRenderAssetInstanceState::RemoveElement(int32 ElementIndex, int32& NextComponentLink, int32& BoundsIndex, const UStreamableRenderAsset*& Asset, int32 IterationCount_DebuggingOnly)
 {
+	VerifyElementIdx_DebuggingOnly(ElementIndex, IterationCount_DebuggingOnly, &ComponentMap, &FreeElementIndices);
+
 	FElement& Element = Elements[ElementIndex];
 	NextComponentLink = Element.NextComponentLink; 
 	BoundsIndex = Element.BoundsIndex; 
@@ -217,6 +221,7 @@ FORCEINLINE bool operator<(const FBoxSphereBounds& Lhs, const FBoxSphereBounds& 
 
 void FRenderAssetInstanceState::AddRenderAssetElements(const UPrimitiveComponent* Component, const TArrayView<FStreamingRenderAssetPrimitiveInfo>& RenderAssetInstanceInfos, int32 BoundsIndex, int32*& ComponentLink)
 {
+	int32 IterationCount_DebuggingOnly = 0;
 	// Loop for each render asset - texel factor group (a group being of same texel factor sign)
 	for (int32 InfoIndex = 0; InfoIndex < RenderAssetInstanceInfos.Num();)
 	{
@@ -257,7 +262,7 @@ void FRenderAssetInstanceState::AddRenderAssetElements(const UPrimitiveComponent
 				}
 			}
 		}
-		AddElement(Component, Info.RenderAsset, BoundsIndex, MergedTexelFactor, Component->bForceMipStreaming, ComponentLink);
+		AddElement(Component, Info.RenderAsset, BoundsIndex, MergedTexelFactor, Component->bForceMipStreaming, ComponentLink, IterationCount_DebuggingOnly++);
 
 		InfoIndex += NumOfMergedElements;
 	}
@@ -413,12 +418,13 @@ void FRenderAssetInstanceState::RemoveComponent(const UPrimitiveComponent* Compo
 	int32 ElementIndex = INDEX_NONE;
 
 	ComponentMap.RemoveAndCopyValue(Component, ElementIndex);
+	int32 IterationCount_DebuggingOnly = 0;
 	while (ElementIndex != INDEX_NONE)
 	{
 		int32 BoundsIndex = INDEX_NONE;
 		const UStreamableRenderAsset* Texture = nullptr;
 
-		RemoveElement(ElementIndex, ElementIndex, BoundsIndex, Texture);
+		RemoveElement(ElementIndex, ElementIndex, BoundsIndex, Texture, IterationCount_DebuggingOnly++);
 
 		if (BoundsIndex != INDEX_NONE)
 		{

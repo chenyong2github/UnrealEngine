@@ -102,12 +102,6 @@ void FUnixCrashContext::InitFromSignal(int32 InSignal, siginfo_t* InInfo, void* 
 	Context = reinterpret_cast< ucontext_t* >( InContext );
 
 	FCString::Strcat(SignalDescription, ARRAY_COUNT( SignalDescription ) - 1, *DescribeSignal(Signal, Info, Context));
-
-	// Retrieve NumStackFramesToIgnore from signal data
-	if (Info && Info->si_value.sival_int != 0)
-	{
-		SetNumMinidumpFramesToIgnore(Info->si_value.sival_int);
-	}
 }
 
 void FUnixCrashContext::InitFromEnsureHandler(const TCHAR* EnsureMessage, const void* CrashAddress)
@@ -396,15 +390,21 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 		CrashGuid = FGuid::NewGuid().ToString();
 	}
 
-	/* Table showing the desired behavior when wanting to show a pop up or not. As well as avoiding starting CRC
-	 *  based on an *.ini setting bSendUnattendedBugReports and whether or not we are unattended
+
+	/* Table showing the desired behavior when wanting to start the CRC or not.
+	 *  based on an *.ini setting for bSendUnattendedBugReports or bAgreeToCrashUpload and whether or not we are unattended
 	 *
-	 *  Unattended | AgreeToUpload || Show Popup | Start CRC
-	 *  ----------------------------------------------------
-	 *      1      |       1       ||     0      |    1
-	 *      1      |       0       ||     0      |    0
-	 *      0      |       1       ||     0      |    1
-	 *      0      |       0       ||     1      |    1
+	 *  Unattended | AgreeToUpload | SendUnattendedBug || Start CRC
+	 *  ------------------------------------------------------------
+	 *      1      |       1       |         1         ||     1
+	 *      1      |       1       |         0         ||     1
+	 *      1      |       0       |         1         ||     1
+	 *      1      |       0       |         0         ||     0
+	 *      0      |       1       |         1         ||     1
+	 *      0      |       1       |         0         ||     1
+	 *      0      |       0       |         1         ||     1
+	 *      0      |       0       |         0         ||     1
+	 *
 	 */
 
 	// Suppress the user input dialog if we're running in unattended mode
@@ -429,13 +429,21 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
 	}
 
+	// If we are not an editor but still want to agree to upload for non-licensee check the settings
+	bool bAgreeToCrashUpload = false;
+	if (!UE_EDITOR && GConfig)
+	{
+		GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bAgreeToCrashUpload"), bAgreeToCrashUpload, GEngineIni);
+	}
+
 	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
+		bAgreeToCrashUpload = false;
 	}
 
-	bool bSkipCRC = bUnattended && !bSendUnattendedBugReports;
+	bool bSkipCRC = bUnattended && !bSendUnattendedBugReports && !bAgreeToCrashUpload;
 
 	if (!bSkipCRC)
 	{
@@ -480,7 +488,7 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 			uint64 TotalDiskSpace = 0;
 			uint64 TotalDiskFreeSpace = 0;
 			bool bLowDriveSpace = false;
-			if (FPlatformMisc::GetDiskTotalAndFreeSpace(*LogDstAbsolute, TotalDiskSpace, TotalDiskFreeSpace))
+			if (FPlatformMisc::GetDiskTotalAndFreeSpace(*CrashInfoAbsolute, TotalDiskSpace, TotalDiskFreeSpace))
 			{
 				if (TotalDiskFreeSpace < MinDriveSpaceForCrashLog)
 				{
@@ -554,11 +562,6 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 			if (bUnattended)
 			{
 				CrashReportClientArguments += TEXT(" -Unattended ");
-			}
-
-			if (bSendUnattendedBugReports)
-			{
-				CrashReportClientArguments += TEXT(" -SkipPopup ");
 			}
 
 			// Whether to clean up crash reports after send

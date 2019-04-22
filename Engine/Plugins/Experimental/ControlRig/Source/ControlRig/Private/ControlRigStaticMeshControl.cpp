@@ -2,7 +2,7 @@
 
 #include "ControlRigStaticMeshControl.h"
 #include "Components/StaticMeshComponent.h"
-#include "Units/RigUnit_Control_StaticMesh.h"
+#include "Units/Control/RigUnit_Control_StaticMesh.h"
 
 AControlRigStaticMeshControl::AControlRigStaticMeshControl(const FObjectInitializer& ObjectInitializer)
 	: AControlRigControl(ObjectInitializer)

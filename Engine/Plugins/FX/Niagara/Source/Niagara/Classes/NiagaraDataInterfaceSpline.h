@@ -11,7 +11,7 @@
 struct FNDISpline_InstanceData
 {
 	//Cached ptr to component we sample from. 
-	USplineComponent* Component;
+	TWeakObjectPtr<USplineComponent> Component;
 
 	//Cached ComponentToWorld.
 	FMatrix Transform;

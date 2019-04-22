@@ -70,7 +70,7 @@ void FWindowsVideoRecordingSystem::NextRecording()
 	}
 	else
 	{
-		CurrentFilename = Path + BaseFilename;
+		CurrentFilename = Path + BaseFilename + TEXT(".mp4");
 	}
 }
 

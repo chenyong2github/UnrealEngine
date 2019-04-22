@@ -1623,6 +1623,8 @@ FNetworkGUID UNetConnection::GetActorGUIDFromOpenBunch(FInBunch& Bunch)
 		}
 	}
 
+	NET_CHECKSUM( Bunch );
+
 	FNetworkGUID ActorGUID;
 	Bunch << ActorGUID;
 
@@ -2149,9 +2151,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 
 				// peek for guid
-				if (InternalAck && (Bunch.ChName == NAME_Actor))
+				if (InternalAck && bIgnoreActorBunches)
 				{
-					if (Bunch.bOpen && (!Bunch.bPartial || Bunch.bPartialInitial))
+					if (Bunch.bOpen && (!Bunch.bPartial || Bunch.bPartialInitial) && (Bunch.ChName == NAME_Actor))
 					{
 						FBitReaderMark Mark(Bunch);
 						FNetworkGUID ActorGUID = GetActorGUIDFromOpenBunch(Bunch);
@@ -2159,24 +2161,28 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 						if (ActorGUID.IsValid() && !ActorGUID.IsDefault())
 						{
-							if (IgnoredGuids.Contains(ActorGUID))
+							if (IgnoredBunchGuids.Contains(ActorGUID))
 							{
 								UE_LOG(LogNetTraffic, Verbose, TEXT("Adding Channel: %i to ignore list, ignoring guid: %s"), Bunch.ChIndex, *ActorGUID.ToString());
-								IgnoredChannels.Add(Bunch.ChIndex);
+								IgnoredBunchChannels.Add(Bunch.ChIndex);
 								continue;
 							}
 							else
 							{
-								if (IgnoredChannels.Remove(Bunch.ChIndex))
+								if (IgnoredBunchChannels.Remove(Bunch.ChIndex))
 								{
 									UE_LOG(LogNetTraffic, Verbose, TEXT("Removing Channel: %i from ignore list, got new guid: %s"), Bunch.ChIndex, *ActorGUID.ToString());
 								}
 							}
 						}
+						else
+						{
+							UE_LOG(LogNetTraffic, Warning, TEXT("Open bunch with invalid actor guid, Channel: %i"), Bunch.ChIndex);
+						}
 					}
 					else
 					{
-						if (IgnoredChannels.Contains(Bunch.ChIndex))
+						if (IgnoredBunchChannels.Contains(Bunch.ChIndex))
 						{
 							UE_LOG(LogNetTraffic, Verbose, TEXT("Ignoring bunch on channel: %i"), Bunch.ChIndex);
 							continue;
@@ -2284,6 +2290,20 @@ void UNetConnection::SetIgnoreAlreadyOpenedChannels(bool bInIgnoreAlreadyOpenedC
 	check(InternalAck);
 	bIgnoreAlreadyOpenedChannels = bInIgnoreAlreadyOpenedChannels;
 	IgnoringChannels.Reset();
+}
+
+void UNetConnection::SetIgnoreActorBunches(bool bInIgnoreActorBunches, TSet<FNetworkGUID>&& InIgnoredBunchGuids)
+{
+	check(InternalAck);
+	bIgnoreActorBunches = bInIgnoreActorBunches;
+
+	IgnoredBunchChannels.Empty();
+	InIgnoredBunchGuids.Empty();
+
+	if (bIgnoreActorBunches)
+	{
+		IgnoredBunchGuids = MoveTemp(InIgnoredBunchGuids);
+	}
 }
 
 int32 UNetConnection::WriteBitsToSendBuffer( 
@@ -3438,6 +3458,38 @@ void UNetConnection::CleanupStaleDormantReplicators()
 void UNetConnection::SetPendingCloseDueToSocketSendFailure()
 {
 	bConnectionPendingCloseDueToSocketSendFailure = true;
+}
+
+void UNetConnection::ConsumeQueuedActorDelinquencyAnalytics(FNetQueuedActorDelinquencyAnalytics& Out)
+{
+	if (UPackageMapClient* PackageMapClient = Cast<UPackageMapClient>(PackageMap))
+	{
+		return PackageMapClient->ConsumeQueuedActorDelinquencyAnalytics(Out);
+	}
+	else
+	{
+		Out.Reset();
+	}
+}
+
+const FNetQueuedActorDelinquencyAnalytics& UNetConnection::GetQueuedActorDelinquencyAnalytics() const
+{
+	static FNetQueuedActorDelinquencyAnalytics Empty;
+
+	if (UPackageMapClient const * const PackageMapClient = Cast<UPackageMapClient>(PackageMap))
+	{
+		return PackageMapClient->GetQueuedActorDelinquencyAnalytics();
+	}
+	
+	return Empty;
+}
+
+void UNetConnection::ResetQueuedActorDelinquencyAnalytics()
+{
+	if (UPackageMapClient* PackageMapClient = Cast<UPackageMapClient>(PackageMap))
+	{
+		PackageMapClient->ResetQueuedActorDelinquencyAnalytics();
+	}
 }
 
 /*-----------------------------------------------------------------------------

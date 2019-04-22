@@ -15,6 +15,8 @@
 #include "InstancedFoliageActor.h"
 #include "VREditorInteractor.h"
 #include "AI/NavigationSystemBase.h"
+#include "Settings/EditorExperimentalSettings.h"
+#include "Landscape.h"
 
 // VR Editor
 
@@ -1119,8 +1121,37 @@ public:
 	{
 	}
 
+	virtual bool ShouldUpdateEditingLayer() const { return GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem; }
+
+	virtual ELandscapeLayersContentUpdateFlag GetBeginToolContentUpdateFlag() const
+	{
+		bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap; 
+		return bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_Render : ELandscapeLayersContentUpdateFlag::Weightmap_Render;
+	}
+
+	virtual ELandscapeLayersContentUpdateFlag GetTickToolContentUpdateFlag() const
+	{
+		return GetBeginToolContentUpdateFlag();
+	}
+
+	virtual ELandscapeLayersContentUpdateFlag GetEndToolContentUpdateFlag() const
+	{
+		bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap; 
+		return bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_All : ELandscapeLayersContentUpdateFlag::Weightmap_All;
+	}
+
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
 	{
+		if (ShouldUpdateEditingLayer())
+		{
+			ALandscape* Landscape = this->EdMode->GetLandscape();
+			if (Landscape)
+			{
+				Landscape->RequestLayersContentUpdate(GetBeginToolContentUpdateFlag());
+				Landscape->SetEditingLayer(this->EdMode->GetCurrentLayerGuid());
+			}
+		}
+
 		if (!ensure(InteractorPositions.Num() == 0))
 		{
 			InteractorPositions.Empty(1);
@@ -1164,6 +1195,15 @@ public:
 
 			// Prevent landscape from baking textures while tool stroke is active
 			EdMode->CurrentToolTarget.LandscapeInfo->PostponeTextureBaking();
+
+			if (ShouldUpdateEditingLayer())
+			{
+				ALandscape* Landscape = this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
+				if (Landscape != nullptr)
+				{
+					Landscape->RequestLayersContentUpdate(GetTickToolContentUpdateFlag());
+				}
+			}
 		}
 	}
 
@@ -1179,6 +1219,16 @@ public:
 		EdMode->CurrentBrush->EndStroke();
 		EdMode->UpdateLayerUsageInformation(&EdMode->CurrentToolTarget.LayerInfo);
 		bExternalModifierPressed = false;
+
+		if (ShouldUpdateEditingLayer())
+		{
+			ALandscape* Landscape = this->EdMode->GetLandscape();
+			if (Landscape)
+			{
+				Landscape->RequestLayersContentUpdate(GetEndToolContentUpdateFlag());
+				Landscape->SetEditingLayer();
+			}
+		}
 	}
 
 	virtual bool MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y) override

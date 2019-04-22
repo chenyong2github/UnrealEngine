@@ -97,4 +97,15 @@ void UAnimGraphNode_LayeredBoneBlend::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 	Node.ValidateData();
 }
+
+void UAnimGraphNode_LayeredBoneBlend::ValidateAnimNodeDuringCompilation(class USkeleton* ForSkeleton, class FCompilerResultsLog& MessageLog)
+{
+	UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
+
+	// ensure to cache the data
+ 	if (Node.IsCacheInvalid(ForSkeleton))
+ 	{
+ 		Node.RebuildCacheData(ForSkeleton);
+ 	}
+}
 #undef LOCTEXT_NAMESPACE

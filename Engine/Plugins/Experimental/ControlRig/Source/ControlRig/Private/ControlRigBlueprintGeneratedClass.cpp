@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigBlueprintGeneratedClass.h"
-#include "Units/RigUnit_Control.h"
+#include "Units/Control/RigUnit_Control.h"
 
 UControlRigBlueprintGeneratedClass::UControlRigBlueprintGeneratedClass()
 {

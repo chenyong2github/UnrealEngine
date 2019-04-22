@@ -1499,6 +1499,7 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 		WaveInstance->StereoSpread = ParseParams.StereoSpread;
 		WaveInstance->AttenuationDistance = ParseParams.AttenuationDistance;
 		WaveInstance->ListenerToSoundDistance = ParseParams.ListenerToSoundDistance;
+		WaveInstance->ListenerToSoundDistanceForPanning = ParseParams.ListenerToSoundDistanceForPanning;
 		WaveInstance->AbsoluteAzimuth = ParseParams.AbsoluteAzimuth;
 
 		if (NumChannels <= 2)
@@ -1571,7 +1572,7 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 		WaveInstance->Location = ParseParams.Transform.GetTranslation();
 		WaveInstance->bIsStarted = true;
 		WaveInstance->bAlreadyNotifiedHook = false;
-		WaveInstance->bUseSpatialization = ParseParams.bUseSpatialization;
+		WaveInstance->SetUseSpatialization(ParseParams.bUseSpatialization);
 		WaveInstance->SpatializationMethod = ParseParams.SpatializationMethod;
 		WaveInstance->WaveData = this;
 		WaveInstance->NotifyBufferFinishedHooks = ParseParams.NotifyBufferFinishedHooks;
@@ -1579,7 +1580,7 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 		WaveInstance->bIsPaused = ParseParams.bIsPaused;
 
 		// If we're normalizing 3d stereo spatialized sounds, we need to scale by -6 dB
-		if (WaveInstance->bUseSpatialization && ParseParams.bApplyNormalizationToStereoSounds && NumChannels == 2)
+		if (WaveInstance->GetUseSpatialization() && ParseParams.bApplyNormalizationToStereoSounds && NumChannels == 2)
 		{
 			float WaveInstanceVolume = WaveInstance->GetVolume();
 			WaveInstance->SetVolume(WaveInstanceVolume * 0.5f);
@@ -1648,7 +1649,7 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 		}
 
 		// Sanity check
-		if( NumChannels > 2 && WaveInstance->bUseSpatialization && !WaveInstance->bReportedSpatializationWarning)
+		if( NumChannels > 2 && WaveInstance->GetUseSpatialization() && !WaveInstance->bReportedSpatializationWarning)
 		{
 			static TSet<USoundWave*> ReportedSounds;
 			if (!ReportedSounds.Contains(this))

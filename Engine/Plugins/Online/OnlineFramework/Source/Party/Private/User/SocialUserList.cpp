@@ -9,6 +9,8 @@
 #include "Interfaces/OnlinePresenceInterface.h"
 #include "SocialSettings.h"
 #include "Algo/Transform.h"
+#include "SocialManager.h"
+#include "Party/SocialParty.h"
 
 TSharedRef<FSocialUserList> FSocialUserList::CreateUserList(USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& InConfig)
 {
@@ -22,6 +24,7 @@ FSocialUserList::FSocialUserList(USocialToolkit& InOwnerToolkit, const FSocialUs
 	, ListConfig(InConfig)
 {
 	if (HasPresenceFilters() &&
+		ListConfig.RelationshipType != ESocialRelationship::Any &&
 		ListConfig.RelationshipType != ESocialRelationship::Friend &&
 		ListConfig.RelationshipType != ESocialRelationship::PartyInvite)
 	{
@@ -57,13 +60,24 @@ void FSocialUserList::InitializeList()
 	OwnerToolkit->OnUserBlocked().AddSP(this, &FSocialUserList::HandleUserBlocked);
 
 	// Run through all the users on the toolkit and add any that qualify for this list
+	check(Users.Num() == 0);
 	for (USocialUser* User : OwnerToolkit->GetAllUsers())
 	{
 		check(User);
 		TryAddUserFast(*User);
 	}
+	
+	if (EnumHasAnyFlags(ListConfig.ForbiddenPresenceFlags, ESocialUserStateFlags::SameParty) ||
+		EnumHasAnyFlags(ListConfig.RequiredPresenceFlags, ESocialUserStateFlags::SameParty))
+	{
+		OwnerToolkit->GetSocialManager().OnPartyJoined().AddSP(this, &FSocialUserList::HandlePartyJoined);
+		if (USocialParty* PersistentParty = OwnerToolkit->GetSocialManager().GetPersistentParty())
+		{
+			HandlePartyJoined(*PersistentParty);
+		}
+	}
 
-	if (ListConfig.bRequireAutoUpdate)
+	if (ListConfig.bAutoUpdate)
 	{
 		SetAutoUpdatePeriod(USocialSettings::GetUserListAutoUpdateRate());
 	}
@@ -202,8 +216,20 @@ void FSocialUserList::HandleRecentPlayerRemoved(USocialUser& RemovedUser, ESocia
 
 void FSocialUserList::HandleUserPresenceChanged(ESocialSubsystem SubsystemType, USocialUser* User)
 {
+	MarkUserAsDirty(*User);
+}
+
+void FSocialUserList::HandleUserGameSpecificStatusChanged(USocialUser* User)
+{
+	// passing dummy Subsystem because HandleUserPresence changed currently doesn't care
+	MarkUserAsDirty(*User);
+	UpdateNow();
+}
+
+void FSocialUserList::MarkUserAsDirty(USocialUser& User)
+{
 	// Save this dirtied user for re-evaluation during the next update
-	UsersWithDirtyPresence.Add(User);
+	UsersWithDirtyPresence.Add(&User);
 	bNeedsSort = true;
 }
 
@@ -241,11 +267,29 @@ void FSocialUserList::TryAddUserFast(USocialUser& User)
 				User.OnUserPresenceChanged().AddSP(this, &FSocialUserList::HandleUserPresenceChanged, &User);
 			}
 
+			if (ListConfig.GameSpecificStatusFilters.Num() > 0)
+			{
+				if (!User.OnUserGameSpecificStatusChanged().IsBoundToObject(this))
+				{
+					User.OnUserGameSpecificStatusChanged().AddSP(this, &FSocialUserList::HandleUserGameSpecificStatusChanged, &User);
+				}
+			}
+
 			// Check that the user's current presence is acceptable
 			if (EvaluateUserPresence(User, RelationshipSubsystem))
 			{
 				// Last step is to check the custom filter, if provided
 				bCanAdd = ListConfig.OnCustomFilterUser.IsBound() ? ListConfig.OnCustomFilterUser.Execute(User) : true;
+
+				// do an initial pass on the GameSpecificStatusFilters (these will only be run again when the user broadcasts OnGameSpecificStatusChanged)
+				for (TFunction<bool(const USocialUser&)> CustomFilterFunction : ListConfig.GameSpecificStatusFilters)
+				{
+					if (!bCanAdd)
+					{
+						break;
+					}
+					bCanAdd &= CustomFilterFunction(User);
+				}
 			}
 		}
 	}
@@ -304,6 +348,15 @@ void FSocialUserList::TryRemoveUserFast(USocialUser& User)
 			{
 				// We're going to keep the user based on the stock filters, but the custom filter can still veto
 				bRemoveUser = ListConfig.OnCustomFilterUser.IsBound() ? !ListConfig.OnCustomFilterUser.Execute(User) : false;
+
+				// do an initial pass on the GameSpecificStatusFilters (these will only be run again when the user broadcasts OnGameSpecificStatusChanged)
+				if (!bRemoveUser)
+				{
+					for (TFunction<bool(const USocialUser&)> CustomFilterFunction : ListConfig.GameSpecificStatusFilters)
+					{
+						bRemoveUser |= !CustomFilterFunction(User);
+					}
+				}
 			}
 		}
 	}
@@ -325,6 +378,7 @@ void FSocialUserList::TryRemoveUserFast(USocialUser& User)
 		{
 			// Not only does this user not qualify for the list, they don't even have the appropriate relationship anymore (so we no longer care about presence changes)
 			User.OnUserPresenceChanged().RemoveAll(this);
+			User.OnUserGameSpecificStatusChanged().RemoveAll(this);
 		}
 	}
 }
@@ -333,17 +387,31 @@ bool FSocialUserList::EvaluateUserPresence(const USocialUser& User, ESocialSubsy
 {
 	if (HasPresenceFilters())
 	{
+		bool bIsOnline = false;
+		bool bIsPlayingThisGame = false;
+		bool bInSameParty = false;
 		if (const FOnlineUserPresence* UserPresence = User.GetFriendPresenceInfo(SubsystemType))
 		{
-			return EvaluatePresenceFlag(UserPresence->bIsOnline, ESocialUserStateFlags::Online)
-				&& EvaluatePresenceFlag(UserPresence->bIsPlayingThisGame, ESocialUserStateFlags::SameApp);
-			// && EvaluatePresenceFlag(UserPresence->bIsJoinable, ESocialUserStateFlags::Joinable) <-- //@todo DanH: This property exists on presence, but is ALWAYS false... 
-			// && EvaluateFlag(UserPresence->?, ESocialUserStateFlag::SamePlatform)
-			// && EvaluateFlag(UserPresence->?, ESocialUserStateFlag::SameParty)
-			// && EvaluateFlag(UserPresence->?, ESocialUserStateFlag::LookingForGroup)
+			bIsOnline = UserPresence->bIsOnline;
+			bIsPlayingThisGame = UserPresence->bIsPlayingThisGame;
 		}
-		return false;
+		
+		if (OwnerToolkit.IsValid())
+		{
+			if (const USocialParty* CurrentParty = OwnerToolkit->GetSocialManager().GetPersistentParty())
+			{
+				bInSameParty = CurrentParty->ContainsUser(User);
+			}
+		}
+
+		return EvaluatePresenceFlag(bIsOnline, ESocialUserStateFlags::Online)
+			&& EvaluatePresenceFlag(bIsPlayingThisGame, ESocialUserStateFlags::SameApp)
+			&& EvaluatePresenceFlag(bInSameParty, ESocialUserStateFlags::SameParty);
+		// && EvaluatePresenceFlag(UserPresence->bIsJoinable, ESocialUserStateFlags::Joinable) <-- //@todo DanH: This property exists on presence, but is ALWAYS false... 
+		// && EvaluateFlag(UserPresence->?, ESocialUserStateFlag::SamePlatform)
+		// && EvaluateFlag(UserPresence->?, ESocialUserStateFlag::LookingForGroup)
 	}
+
 	return true;
 }
 
@@ -377,7 +445,7 @@ struct FUserSortData
 
 	bool operator<(const FUserSortData& OtherSortData) const
 	{
-		// Goes from if online, then alphabetical
+		// Goes from if online, playing this game, then alphabetical
 		if (OnlineStatus == OtherSortData.OnlineStatus)
 		{
 			if (PlayingThisGame == OtherSortData.PlayingThisGame)
@@ -386,7 +454,7 @@ struct FUserSortData
 			}
 			else
 			{
-				return false;
+				return PlayingThisGame > OtherSortData.PlayingThisGame;
 			}
 		}
 		else
@@ -408,6 +476,12 @@ bool FSocialUserList::HandleAutoUpdateList(float)
 
 void FSocialUserList::UpdateListInternal()
 {
+	if (NumIgnoreUpdateRequests > 0)
+	{
+		return;
+	}
+
+	
 	// Re-evaluate whether each user with dirtied presence is still fit for the list
 	for (TWeakObjectPtr<USocialUser> DirtyUser : UsersWithDirtyPresence)
 	{
@@ -434,7 +508,7 @@ void FSocialUserList::UpdateListInternal()
 
 		Users.RemoveAllSwap(
 			[this] (USocialUser* User)
-			{
+		{
 				if (PendingRemovals.Contains(User))
 				{
 					PendingRemovals.Remove(User);
@@ -445,7 +519,6 @@ void FSocialUserList::UpdateListInternal()
 				return false;
 			});
 
-		ensure(PendingRemovals.Num() == 0);
 		PendingRemovals.Reset();
 	}
 
@@ -484,4 +557,32 @@ void FSocialUserList::UpdateListInternal()
 		
 		OnUpdateComplete().Broadcast();
 	}
+}
+
+void FSocialUserList::HandlePartyJoined(USocialParty& Party)
+{
+	Party.OnPartyMemberCreated().AddSP(this, &FSocialUserList::HandlePartyMemberCreated);
+
+	// ignore updates while we populate the party members (lots of redundant actions)
+	NumIgnoreUpdateRequests++;
+	for (UPartyMember* PartyMember : Party.GetPartyMembers())
+	{
+		HandlePartyMemberCreated(*PartyMember);
+	}
+	NumIgnoreUpdateRequests--;
+
+	UpdateNow();
+}
+
+void FSocialUserList::HandlePartyMemberCreated(UPartyMember& Member)
+{
+	Member.OnLeftParty().AddSP(this, &FSocialUserList::HandlePartyMemberLeft, &Member);
+	MarkUserAsDirty(Member.GetSocialUser());
+	UpdateNow();
+}
+
+void FSocialUserList::HandlePartyMemberLeft(EMemberExitedReason Reason, UPartyMember* Member)
+{
+	MarkUserAsDirty(Member->GetSocialUser());
+	UpdateNow();
 }

@@ -10,6 +10,12 @@
 #include "ScopedTransaction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GraphEditorActions.h"
+#include "ControlRig.h"
+#include "ControlRigDAG.h"
+#include "ControlRigBlueprint.h"
+#include "ControlRigBlueprintGeneratedClass.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigGraphSchema"
 
@@ -33,6 +39,61 @@ void UControlRigGraphSchema::GetContextMenuActions(const UEdGraph* CurrentGraph,
 #endif
 }
 
+bool UControlRigGraphSchema::TryCreateConnection_DetectCycle(UEdGraphPin* PinA, UEdGraphPin* PinB) const
+{
+	check(PinA);
+	check(PinB);
+	if (PinA->GetOwningNode() == PinB->GetOwningNode())
+	{
+		return true;
+	}
+
+	const UEdGraphNode* NodeA = PinA->GetOwningNode();
+	const UEdGraphNode* NodeB = PinB->GetOwningNode();
+
+	FControlRigDAG DAG;
+	const UEdGraph* Graph = NodeA->GetGraph();
+	for (const UEdGraphNode* Node : Graph->Nodes)
+	{
+		DAG.AddNode();
+	}
+	for (int32 NodeIndex = 0; NodeIndex < Graph->Nodes.Num(); NodeIndex++)
+	{
+		const UEdGraphNode* Node = Graph->Nodes[NodeIndex];
+		for (int32 PinIndex = 0; PinIndex < Node->Pins.Num(); PinIndex++)
+		{
+			const UEdGraphPin* Pin = Node->Pins[PinIndex];
+			if (Pin->Direction != EGPD_Output)
+			{
+				continue;
+			}
+			for (const UEdGraphPin* LinkedPin : Pin->LinkedTo)
+			{
+				const UEdGraphNode* LinkedNode = LinkedPin->GetOwningNode();
+				int32 LinkedNodeIndex = Graph->Nodes.IndexOfByKey(LinkedNode);
+				int32 LinkedPinIndex = LinkedNode->Pins.IndexOfByKey(LinkedPin);
+				DAG.AddLink(NodeIndex, LinkedNodeIndex, PinIndex, LinkedPinIndex);
+			}
+		}
+	}
+
+	// finally add the link we are going to make
+	int32 NodeAIndex = Graph->Nodes.IndexOfByKey(NodeA);
+	int32 NodeBIndex = Graph->Nodes.IndexOfByKey(NodeB);
+	int32 PinAIndex = NodeA->Pins.IndexOfByKey(PinA);
+	int32 PinBIndex = NodeA->Pins.IndexOfByKey(PinB);
+	if (PinA->Direction == EGPD_Output)
+	{
+		DAG.AddLink(NodeAIndex, NodeBIndex, PinAIndex, PinBIndex);
+	}
+	else
+	{
+		DAG.AddLink(NodeBIndex, NodeAIndex, PinBIndex, PinAIndex);
+	}
+
+	return DAG.FindCycle().Num() > 0;
+}
+
 bool UControlRigGraphSchema::TryCreateConnection_Extended(UEdGraphPin* PinA, UEdGraphPin* PinB) const
 {
 	const FControlRigPinConnectionResponse Response = CanCreateConnection_Extended(PinA, PinB);
@@ -40,18 +101,20 @@ bool UControlRigGraphSchema::TryCreateConnection_Extended(UEdGraphPin* PinA, UEd
 
 	struct Local
 	{
-		static void BreakParentConnections_Recursive(UEdGraphPin* InPin)
+		static void BreakParentConnections_Recursive(UEdGraphPin* InPin, const UControlRigGraphSchema* This)
 		{
+			This->ResetPinDefaultsRecursive(InPin);
+
 			if(InPin->ParentPin)
 			{
 				InPin->ParentPin->Modify();
 				InPin->ParentPin->BreakAllPinLinks();
 				InPin->GetOwningNode()->PinConnectionListChanged(InPin->ParentPin);
-				BreakParentConnections_Recursive(InPin->ParentPin);
+				BreakParentConnections_Recursive(InPin->ParentPin, This);
 			}
 		}
 
-		static void BreakChildConnections_Recursive(UEdGraphPin* InPin)
+		static void BreakChildConnections_Recursive(UEdGraphPin* InPin, const UControlRigGraphSchema* This)
 		{
 			for(UEdGraphPin* SubPin : InPin->SubPins)
 			{
@@ -62,10 +125,32 @@ bool UControlRigGraphSchema::TryCreateConnection_Extended(UEdGraphPin* PinA, UEd
 					SubPin->GetOwningNode()->PinConnectionListChanged(SubPin);
 				}
 
-				BreakChildConnections_Recursive(SubPin);
+				BreakChildConnections_Recursive(SubPin, This);
 			}
 		}
 	};
+
+	// build a temporary dag to disallow cycles.
+	// we do this here only once since it's a costly calculation
+	// and we don't want to do it for every possible pin.
+	if (Response.Response.Response == CONNECT_RESPONSE_MAKE)
+	{
+		if (TryCreateConnection_DetectCycle(PinA, PinB))
+		{
+#if WITH_EDITOR
+			FNotificationInfo Info(LOCTEXT("ConnectResponse_Disallowed_Cycle", "Connection not allowed to avoid cycle."));
+			Info.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
+			Info.bFireAndForget = true;
+			Info.FadeOutDuration = 5.0f;
+			Info.ExpireDuration = 0.0f;
+			TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+			NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
+#endif
+			//PinA->GetOwningNode()->PinConnectionListChanged(PinA);
+			//PinB->GetOwningNode()->PinConnectionListChanged(PinB);
+			return false;
+		}
+	}
 
 	switch (Response.Response.Response)
 	{
@@ -81,21 +166,21 @@ bool UControlRigGraphSchema::TryCreateConnection_Extended(UEdGraphPin* PinA, UEd
 		case ECanCreateConnectionResponse_Extended::BreakChildren:
 			if(PinA->Direction == EGPD_Input)
 			{
-				Local::BreakChildConnections_Recursive(PinA);
+				Local::BreakChildConnections_Recursive(PinA, this);
 			}
 			else if(PinB->Direction == EGPD_Input)
 			{
-				Local::BreakChildConnections_Recursive(PinB);
+				Local::BreakChildConnections_Recursive(PinB, this);
 			}
 			break;
 		case ECanCreateConnectionResponse_Extended::BreakParent:
 			if(PinA->Direction == EGPD_Input)
 			{
-				Local::BreakParentConnections_Recursive(PinA);
+				Local::BreakParentConnections_Recursive(PinA, this);
 			}
 			else if(PinB->Direction == EGPD_Input)
 			{
-				Local::BreakParentConnections_Recursive(PinB);
+				Local::BreakParentConnections_Recursive(PinB, this);
 			}
 			break;
 		}
@@ -174,6 +259,58 @@ const FControlRigPinConnectionResponse UControlRigGraphSchema::CanCreateConnecti
 		return FControlRigPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectResponse_Disallowed_Different_Types", "Cannot link pins of differing types"));
 	}
 
+	struct Local
+	{
+		static bool HasNotConnectableMetaData(const UEdGraphPin* PinToCheck)
+		{
+			if (PinToCheck->ParentPin)
+			{
+				return HasNotConnectableMetaData(PinToCheck->ParentPin);
+			}
+
+			UControlRigGraphNode* RigNode = CastChecked<UControlRigGraphNode>(PinToCheck->GetOwningNode());
+			UScriptStruct* UnitStruct = RigNode->GetUnitScriptStruct();
+			if (UnitStruct)
+			{
+				FString PropertyName = PinToCheck->GetName();
+				int32 PeriodIndex = PropertyName.Find(TEXT("."));
+				if (PeriodIndex != INDEX_NONE)
+				{
+					PropertyName = PropertyName.Mid(PeriodIndex + 1);
+				}
+				UProperty* TargetProperty = UnitStruct->FindPropertyByName(*PropertyName);
+				if (TargetProperty)
+				{
+					return TargetProperty->HasMetaData(UControlRig::ConstantMetaName);
+				}
+			}
+
+			return false;
+		}
+	};
+
+	// check if this property can be connected to based on metadata
+	if (A->Direction == EGPD_Input)
+	{
+		if (Local::HasNotConnectableMetaData(A))
+		{
+			if (!Local::HasNotConnectableMetaData(B))
+			{
+				return FControlRigPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectResponse_Disallowed_Constant", "This pin is defined as constant."));
+			}
+		}
+	}
+	if (B->Direction == EGPD_Input)
+	{
+		if (Local::HasNotConnectableMetaData(B))
+		{
+			if (!Local::HasNotConnectableMetaData(A))
+			{
+				return FControlRigPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectResponse_Disallowed_Constant", "This pin is defined as constant."));
+			}
+		}
+	}
+
 	// Deal with many-to-one and one to many connections
 	if(A->Direction == EGPD_Input && A->LinkedTo.Num() > 0)
 	{
@@ -215,6 +352,14 @@ const FPinConnectionResponse UControlRigGraphSchema::CanCreateConnection(const U
 
 FLinearColor UControlRigGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
 {
+	const FName& TypeName = PinType.PinCategory;
+	if (TypeName == UEdGraphSchema_K2::PC_Struct)
+	{
+		if (PinType.PinSubCategoryObject == FControlRigExecuteContext::StaticStruct())
+		{
+			return FLinearColor::White;
+		}
+	}
 	return GetDefault<UEdGraphSchema_K2>()->GetPinTypeColor(PinType);
 }
 
@@ -225,7 +370,25 @@ void UControlRigGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNo
 	// cache this here, as BreakPinLinks can trigger a node reconstruction invalidating the TargetPin referenceS
 	UBlueprint* const Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(TargetPin.GetOwningNode());
 
+	TArray<UEdGraphPin*> LinkedTo;
+	LinkedTo.Append(TargetPin.LinkedTo);
+
 	Super::BreakPinLinks(TargetPin, bSendsNodeNotifcation);
+
+	if (TargetPin.Direction == EEdGraphPinDirection::EGPD_Input)
+	{
+		ResetPinDefaultsRecursive(&TargetPin);
+	}
+	else
+	{
+		for (UEdGraphPin* LinkedPin : LinkedTo)
+		{
+			if (LinkedPin->Direction == EEdGraphPinDirection::EGPD_Input)
+			{
+				ResetPinDefaultsRecursive(LinkedPin);
+			}
+		}
+	}
 
 	FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);	
 }
@@ -237,6 +400,14 @@ void UControlRigGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraph
 	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(TargetPin->GetOwningNode());
 
 	Super::BreakSinglePinLink(SourcePin, TargetPin);
+	if (SourcePin->Direction == EEdGraphPinDirection::EGPD_Input)
+	{
+		ResetPinDefaultsRecursive(SourcePin);
+	}
+	else if (TargetPin->Direction == EEdGraphPinDirection::EGPD_Input)
+	{
+		ResetPinDefaultsRecursive(TargetPin);
+	}
 
 	FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
 }
@@ -287,5 +458,29 @@ bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UE
 {
 	return GetDefault<UEdGraphSchema_K2>()->ArePinsCompatible(PinA, PinB, CallingContext, bIgnoreArray);
 }
+
+void UControlRigGraphSchema::RenameNode(UControlRigGraphNode* Node, const FName& InNewNodeName) const
+{
+	Node->NodeTitleFull = Node->NodeTitle = FText::FromName(InNewNodeName);
+	Node->Modify();
+}
+
+void UControlRigGraphSchema::ResetPinDefaultsRecursive(UEdGraphPin* InPin) const
+{
+	UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(InPin->GetOwningNode());
+	if (RigNode == nullptr)
+	{
+		return;
+	}
+
+	RigNode->SetupPinAutoGeneratedDefaults(InPin);
+
+	for (UEdGraphPin* SubPin : InPin->SubPins)
+	{
+		ResetPinDefaultsRecursive(SubPin);
+	}
+}
+
+
 
 #undef LOCTEXT_NAMESPACE

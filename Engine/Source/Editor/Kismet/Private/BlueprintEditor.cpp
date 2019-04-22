@@ -8327,17 +8327,6 @@ FReply FBlueprintEditor::OnSpawnGraphNodeByShortcut(FInputChord InChord, const F
 	return FReply::Handled();
 }
 
-void FBlueprintEditor::ToolkitBroughtToFront()
-{
-	UBlueprint* CurrentBlueprint = GetBlueprintObj();
-	if( CurrentBlueprint != NULL )
-	{
-		UObject* DebugInstance = CurrentBlueprint->GetObjectBeingDebugged();
-		CurrentBlueprint->SetObjectBeingDebugged( NULL );
-		CurrentBlueprint->SetObjectBeingDebugged( DebugInstance );
-	}
-}
-
 void FBlueprintEditor::OnNodeSpawnedByKeymap()
 {
 	UpdateNodeCreationStats( ENodeCreateAction::Keymap );
@@ -8380,7 +8369,7 @@ TSharedPtr<ISCSEditorCustomization> FBlueprintEditor::CustomizeSCSEditor(USceneC
 FText FBlueprintEditor::GetPIEStatus() const
 {
 	UBlueprint* CurrentBlueprint = GetBlueprintObj();
-	UWorld *DebugWorld = NULL;
+	UWorld *DebugWorld = nullptr;
 	ENetMode NetMode = NM_Standalone;
 	if (CurrentBlueprint)
 	{
@@ -8392,17 +8381,23 @@ FText FBlueprintEditor::GetPIEStatus() const
 		else
 		{
 			UObject* ObjOuter = CurrentBlueprint->GetObjectBeingDebugged();
-			while(DebugWorld == NULL && ObjOuter != NULL)
+			while(DebugWorld == nullptr && ObjOuter != nullptr)
 			{
 				ObjOuter = ObjOuter->GetOuter();
 				DebugWorld = Cast<UWorld>(ObjOuter);
 			}
+
+			if (DebugWorld)
+			{
+				// Redirect through streaming levels to find the owning world; this ensures that we always use the appropriate NetMode for the context string below.
+				if (DebugWorld->PersistentLevel != nullptr && DebugWorld->PersistentLevel->OwningWorld != nullptr)
+				{
+					DebugWorld = DebugWorld->PersistentLevel->OwningWorld;
+				}
+
+				NetMode = DebugWorld->GetNetMode();
+			}
 		}
-	}
-	
-	if (DebugWorld)
-	{
-		NetMode = DebugWorld->GetNetMode();
 	}
 
 	if (NetMode == NM_ListenServer || NetMode == NM_DedicatedServer)

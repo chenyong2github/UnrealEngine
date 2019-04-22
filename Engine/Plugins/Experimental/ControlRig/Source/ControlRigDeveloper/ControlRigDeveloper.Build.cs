@@ -34,6 +34,7 @@ namespace UnrealBuildTool.Rules
                     new string[]
                     {
                         "UnrealEd",
+						"Kismet",
                         "BlueprintGraph",
                         "PropertyEditor",
                     }

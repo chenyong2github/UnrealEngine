@@ -97,6 +97,11 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
 	void SetAllowOverscroll(bool NewAllowOverscroll);
+
+	/** Instantly stops any inertial scrolling that is currently in progress */
+	UFUNCTION(BlueprintCallable, Category = "Scroll")
+	void EndInertialScrolling();
+
 public:
 
 	/** Called when the scroll has changed */

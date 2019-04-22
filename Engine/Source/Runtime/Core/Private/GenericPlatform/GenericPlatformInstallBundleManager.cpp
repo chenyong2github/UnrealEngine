@@ -6,3 +6,5 @@ FInstallBundleCompleteMultiDelegate IPlatformInstallBundleManager::InstallBundle
 
 FInstallBundleCompleteMultiDelegate IPlatformInstallBundleManager::RemoveBundleCompleteDelegate;
 
+FInstallBundlePausedMultiDelegate IPlatformInstallBundleManager::PausedBundleDelegate;
+

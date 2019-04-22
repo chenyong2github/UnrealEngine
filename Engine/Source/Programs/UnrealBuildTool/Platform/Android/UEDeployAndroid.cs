@@ -1410,7 +1410,17 @@ namespace UnrealBuildTool
 		{
 			if (e.Data != null)
 			{
-				// apply filtering of the warning we want to ignore
+				// apply filtering of the warnings we want to ignore
+				if (e.Data.Contains("WARNING: The option 'android.enableD8' is deprecated and should not be used anymore."))
+				{
+					Log.TraceInformation("{0}", e.Data.Replace("WARNING: ", ">> "));
+					return;
+				}
+				if (e.Data.Contains("WARNING: The specified Android SDK Build Tools version"))
+				{
+					Log.TraceInformation("{0}", e.Data.Replace("WARNING: ", ">> "));
+					return;
+				}
 				if (e.Data.Contains("Warning: Resigning with jarsigner."))
 				{
 					Log.TraceInformation("{0}", e.Data.Replace("Warning: ", ">> "));
@@ -1420,6 +1430,10 @@ namespace UnrealBuildTool
 				{
 					Log.TraceInformation("{0}", e.Data.Replace("due to error", ""));
 					return;
+				}
+				if (e.Data.Contains("To suppress this warning,"))
+				{
+					Log.TraceInformation("{0}", e.Data.Replace(" warning,", ","));
 				}
 				Log.TraceInformation("{0}", e.Data);
 			}
@@ -2403,16 +2417,21 @@ namespace UnrealBuildTool
 				Text.AppendLine("\t\t<activity android:name=\"com.epicgames.ue4.GameActivity\"");
 				Text.AppendLine("\t\t          android:label=\"@string/app_name\"");
 				Text.AppendLine("\t\t          android:theme=\"@style/UE4SplashTheme\"");
-				Text.AppendLine(bAddDensity ? "\t\t          android:configChanges=\"mcc|mnc|uiMode|density|screenSize|orientation|keyboardHidden|keyboard\""
-											: "\t\t          android:configChanges=\"mcc|mnc|uiMode|screenSize|orientation|keyboardHidden|keyboard\"");
+				Text.AppendLine(bAddDensity ? "\t\t          android:configChanges=\"mcc|mnc|uiMode|density|screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden|keyboard\""
+											: "\t\t          android:configChanges=\"mcc|mnc|uiMode|screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden|keyboard\"");
 			}
 			else
 			{
 				Text.AppendLine("\t\t<activity android:name=\"com.epicgames.ue4.GameActivity\"");
 				Text.AppendLine("\t\t          android:label=\"@string/app_name\"");
 				Text.AppendLine("\t\t          android:theme=\"@android:style/Theme.Black.NoTitleBar.Fullscreen\"");
-				Text.AppendLine(bAddDensity ? "\t\t          android:configChanges=\"mcc|mnc|uiMode|density|screenSize|orientation|keyboardHidden|keyboard\""
-											: "\t\t          android:configChanges=\"mcc|mnc|uiMode|screenSize|orientation|keyboardHidden|keyboard\"");
+				Text.AppendLine(bAddDensity ? "\t\t          android:configChanges=\"mcc|mnc|uiMode|density|screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden|keyboard\""
+											: "\t\t          android:configChanges=\"mcc|mnc|uiMode|screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden|keyboard\"");
+
+			}
+			if (SDKLevelInt >= 24)
+			{
+				Text.AppendLine("\t\t          android:resizeableActivity=\"false\"");
 			}
 			Text.AppendLine("\t\t          android:launchMode=\"singleTask\"");
 			Text.AppendLine(string.Format("\t\t          android:screenOrientation=\"{0}\"", Orientation));
@@ -3015,18 +3034,11 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		private void CreateGradlePropertiesFiles(AndroidToolChain ToolChain, string Arch, string CompileSDKVersion, string BuildToolsVersion, string PackageName, string DestApkName, string NDKArch,
-			string UE4BuildFilesPath, string GameBuildFilesPath, string UE4BuildGradleAppPath, string UE4BuildPath, string UE4BuildGradlePath, bool bForDistribution)
+		private void GetMinTargetSDKVersions(AndroidToolChain ToolChain, string Arch, out int MinSDKVersion, out int TargetSDKVersion)
 		{
-			// Create gradle.properties
-			StringBuilder GradleProperties = new StringBuilder();
-
-			int StoreVersion = GetStoreVersion();
-			string VersionDisplayName = GetVersionDisplayName();
-			int MinSDKVersion;
 			ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
 			Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "MinSDKVersion", out MinSDKVersion);
-			int TargetSDKVersion = MinSDKVersion;
+			TargetSDKVersion = MinSDKVersion;
 			Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "TargetSDKVersion", out TargetSDKVersion);
 
 			// Make sure minSdkVersion is at least 13 (need this for appcompat-v13 used by AndroidPermissions)
@@ -3059,6 +3071,18 @@ namespace UnrealBuildTool
 					Log.TraceInformation("Fixing minSdkVersion; NDK level above 19 requires minSdkVersion of 21 (arch={0})", Arch.Substring(1));
 				}
 			}
+		}
+		
+		private void CreateGradlePropertiesFiles(string Arch, int MinSDKVersion, int TargetSDKVersion, string CompileSDKVersion, string BuildToolsVersion, string PackageName,
+			string DestApkName, string NDKArch,	string UE4BuildFilesPath, string GameBuildFilesPath, string UE4BuildGradleAppPath, string UE4BuildPath, string UE4BuildGradlePath, bool bForDistribution)
+		{
+			// Create gradle.properties
+			StringBuilder GradleProperties = new StringBuilder();
+
+			int StoreVersion = GetStoreVersion();
+			string VersionDisplayName = GetVersionDisplayName();
+
+			ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
 
 			GradleProperties.AppendLine("org.gradle.daemon=false");
 			GradleProperties.AppendLine("org.gradle.jvmargs=-XX:MaxHeapSize=4096m -Xmx9216m");
@@ -3317,7 +3341,7 @@ namespace UnrealBuildTool
 			string UE4OBBDataFileName = GetUE4JavaOBBDataFileName(TemplateDestinationBase);
 			string UE4DownloadShimFileName = GetUE4JavaDownloadShimFileName(UE4JavaFilePath);
 
-			// Template generated files           
+			// Template generated files
 			string JavaTemplateSourceDir = GetUE4TemplateJavaSourceDir(EngineDirectory);
 			IEnumerable<TemplateFile> templates = from template in Directory.EnumerateFiles(JavaTemplateSourceDir, "*.template")
 							let RealName = Path.GetFileNameWithoutExtension(template)
@@ -3927,9 +3951,14 @@ namespace UnrealBuildTool
 					// do any plugin requested copies
 					UPL.ProcessPluginNode(NDKArch, "gradleCopies", "");
 
+					// get min and target SDK versions
+					int MinSDKVersion = 0;
+					int TargetSDKVersion = 0;
+					GetMinTargetSDKVersions(ToolChain, Arch, out MinSDKVersion, out TargetSDKVersion);
+					
 					// move JavaLibs into subprojects
 					string JavaLibsDir = Path.Combine(UE4BuildPath, "JavaLibs");
-					PrepareJavaLibsForGradle(JavaLibsDir, UE4BuildGradlePath, CompileSDKVersion, BuildToolsVersion);
+					PrepareJavaLibsForGradle(JavaLibsDir, UE4BuildGradlePath, MinSDKVersion.ToString(), TargetSDKVersion.ToString(), CompileSDKVersion, BuildToolsVersion);
 
 					// Create local.properties
 					String LocalPropertiesFilename = Path.Combine(UE4BuildGradlePath, "local.properties");
@@ -3938,7 +3967,7 @@ namespace UnrealBuildTool
 					LocalProperties.AppendLine(string.Format("sdk.dir={0}", Environment.GetEnvironmentVariable("ANDROID_HOME").Replace("\\", "/")));
 					File.WriteAllText(LocalPropertiesFilename, LocalProperties.ToString());
 
-					CreateGradlePropertiesFiles(ToolChain, Arch, CompileSDKVersion, BuildToolsVersion, PackageName, DestApkName, NDKArch,
+					CreateGradlePropertiesFiles(Arch, MinSDKVersion, TargetSDKVersion, CompileSDKVersion, BuildToolsVersion, PackageName, DestApkName, NDKArch,
 						UE4BuildFilesPath, GameBuildFilesPath, UE4BuildGradleAppPath, UE4BuildPath, UE4BuildGradlePath, bForDistribution);
 
 					if (!bSkipGradleBuild)
@@ -3986,7 +4015,7 @@ namespace UnrealBuildTool
 								//RunCommandLineProgramWithException(UE4BuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleOptions + ShellParametersEnd, "Listing all tasks...");
 
 								GradleOptions = "clean";
-								RunCommandLineProgramWithException(UE4BuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleOptions + ShellParametersEnd, "Cleaning Gradle intermediates...");
+								RunCommandLineProgramWithExceptionAndFiltering(UE4BuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleOptions + ShellParametersEnd, "Cleaning Gradle intermediates...");
 							}
 						}
 						else
@@ -4122,6 +4151,12 @@ namespace UnrealBuildTool
 
 			Log.TraceInformation("Writing packageInfo pkgName:{0} storeVersion:{1} versionDisplayName:{2} to {3}", PackageInfoSource[0], PackageInfoSource[1], PackageInfoSource[2], DestPackageNameFileName);
 
+			string DestDirectory = Path.GetDirectoryName(DestPackageNameFileName);
+			if (!Directory.Exists(DestDirectory))
+			{
+				Directory.CreateDirectory(DestDirectory);
+			}
+
 			File.WriteAllLines(DestPackageNameFileName, PackageInfoSource);
 
 			return true;
@@ -4254,7 +4289,7 @@ namespace UnrealBuildTool
 											"\t\t}\n";
 					break;
 			}
-			
+
 			Dictionary<string, string> Replacements = new Dictionary<string, string>{
 				{ "//$${gameActivityImportAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityImportAdditions", "")},
 				{ "//$${gameActivityPostImportAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityPostImportAdditions", "")},
@@ -4273,6 +4308,8 @@ namespace UnrealBuildTool
   				{ "//$${gameActivityPostConfigRulesAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityPostConfigRulesAdditions", "")},
   				{ "//$${gameActivityFinalizeConfigRulesAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityFinalizeConfigRulesAdditions", "")},
 				{ "//$${gameActivityBeforeConfigRulesAppliedAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityBeforeConfigRulesAppliedAdditions", "")},
+				{ "//$${gameActivityAfterMainViewCreatedAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityAfterMainViewCreatedAdditions", "")},
+				{ "//$${gameActivityResizeKeyboardAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityResizeKeyboardAdditions", "")},
 				{ "//$${gameActivityLoggerCallbackAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityLoggerCallbackAdditions", "")},
 				{ "//$${soLoadLibrary}$$", UPL.ProcessPluginNode(NDKArch, "soLoadLibrary", LoadLibraryDefaults)},
 				{ "$${gameActivitySuperClass}$$", SuperClassDefault},
@@ -4467,7 +4504,7 @@ namespace UnrealBuildTool
 			return AARHandler;
 		}
 
-		private void PrepareJavaLibsForGradle(string JavaLibsDir, string UE4BuildGradlePath, string CompileSDKVersion, string BuildToolsVersion)
+		private void PrepareJavaLibsForGradle(string JavaLibsDir, string UE4BuildGradlePath, string InMinSdkVersion, string InTargetSdkVersion, string CompileSDKVersion, string BuildToolsVersion)
 		{
 			StringBuilder SettingsGradleContent = new StringBuilder();
 			StringBuilder ProjectDependencyContent = new StringBuilder();
@@ -4517,8 +4554,8 @@ namespace UnrealBuildTool
 				// Try to get the SDK target from the AndroidManifest.xml
 				string VersionCode = "";
 				string VersionName = "";
-				string MinSdkVersion = "";
-				string TargetSdkVersion = "";
+				string MinSdkVersion = InMinSdkVersion;
+				string TargetSdkVersion = InTargetSdkVersion;
 				XDocument ManifestXML;
 				if (File.Exists(ManifestFilename))
 				{

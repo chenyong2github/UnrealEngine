@@ -124,6 +124,15 @@ extern "C"
 	void *__dso_handle;
 }
 
+int32 GAndroidEnableNativeResizeEvent = 0;
+static FAutoConsoleVariableRef CVarEnableResizeNativeEvent(
+	TEXT("Android.EnableNativeResizeEvent"),
+	GAndroidEnableNativeResizeEvent,
+	TEXT("Whether native resize event is enabled on Android.\n")
+	TEXT(" 0: disabled (default)\n")
+	TEXT(" 1: enabled"),
+	ECVF_ReadOnly);
+
 int32 GAndroidEnableMouse = 0;
 static FAutoConsoleVariableRef CVarEnableMouse(
 	TEXT("Android.EnableMouse"),
@@ -173,6 +182,7 @@ static void OnAppCommandCB(struct android_app* app, int32_t cmd); //Lifetime eve
 
 static bool TryIgnoreClick(AInputEvent* event, size_t actionPointer);
 
+bool GAllowJavaBackButtonEvent = false;
 bool GHasInterruptionRequest = false;
 bool GIsInterrupted = false;
 
@@ -313,6 +323,14 @@ static void InitCommandLine()
 
 extern void AndroidThunkCpp_DismissSplashScreen();
 
+//Called in main thread for native window resizing
+static void OnNativeWindowResized(ANativeActivity* activity, ANativeWindow* window)
+{
+	static int8_t cmd = APP_CMD_WINDOW_RESIZED;
+	struct android_app* app = (struct android_app *)activity->instance;
+	write(app->msgwrite, &cmd, sizeof(cmd));
+}
+
 //Main function called from the android entry point
 int32 AndroidMain(struct android_app* state)
 {
@@ -430,6 +448,12 @@ int32 AndroidMain(struct android_app* state)
 	{
 		checkf(false, TEXT("Engine Preinit Failed"));
 		return PreInitResult;
+	}
+
+	// register callback for native window resize
+	if (GAndroidEnableNativeResizeEvent)
+	{
+		state->activity->callbacks->onNativeWindowResized = OnNativeWindowResized;
 	}
 
 	// initialize HMDs
@@ -1029,6 +1053,12 @@ static int32_t HandleInputCB(struct android_app* app, AInputEvent* event)
 					return 0;
 				}
 			}
+
+			// optionally forward back button
+			if (keyCode == AKEYCODE_BACK && GAllowJavaBackButtonEvent)
+			{
+				return 0;
+			}
 		}
 
 		return 1;
@@ -1397,6 +1427,11 @@ JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_HandleCustomTouchEvent(JNIEnv
 	UE_LOG(LogAndroid, Verbose, TEXT("Handle custom touch event %d (%d) x=%f y=%f"), TouchMessage.Type, action, x, y);
 	FAndroidInputInterface::QueueTouchInput(TouchesArray);
 #endif
+}
+
+JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_AllowJavaBackButtonEvent(JNIEnv* jenv, jobject thiz, jboolean allow)
+{
+	GAllowJavaBackButtonEvent = (allow == JNI_TRUE);
 }
 
 bool WaitForAndroidLoseFocusEvent(double TimeoutSeconds)

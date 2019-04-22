@@ -382,6 +382,7 @@ public:
 			, Topology(0)
 			, RenderPass(nullptr)
 			, Layout(nullptr)
+			, SubpassIndex(0)
 		{
 			FMemory::Memzero(Rasterizer);
 			FMemory::Memzero(DepthStencil);
@@ -393,6 +394,7 @@ public:
 		VkShaderModule ShaderModules[ShaderStage::NumStages];
 		const FVulkanRenderPass* RenderPass;
 		FVulkanGfxLayout* Layout;
+		uint8 SubpassIndex;
 
 		void GetOrCreateShaderModules(FVulkanShader*const* Shaders);
 		void PurgeShaderModules(FVulkanShader*const* Shaders);
@@ -436,6 +438,11 @@ public:
 			}
 
 			if (!(DepthStencil == In.DepthStencil))
+			{
+				return false;
+			}
+
+			if (!(SubpassIndex == In.SubpassIndex))
 			{
 				return false;
 			}

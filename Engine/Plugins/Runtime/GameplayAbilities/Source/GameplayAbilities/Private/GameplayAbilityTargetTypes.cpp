@@ -136,6 +136,8 @@ FGameplayAbilityTargetDataHandle FGameplayAbilityTargetingLocationInfo::MakeTarg
 
 bool FGameplayAbilityTargetDataHandle::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
+	Ar << UniqueId;
+
 	uint8 DataNum;
 	if (Ar.IsSaving())
 	{

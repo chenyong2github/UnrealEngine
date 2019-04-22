@@ -97,7 +97,7 @@ protected:
 		void SafeRelease();
 
 		/** Transfer ownership of buffers to a LOD resource */
-		template <int32 MaxNumUpdates>
+		template <uint32 MaxNumUpdates>
 		void TransferBuffers(FStaticMeshLODResources& LODResource, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher);
 
 		void CheckIsNull() const;

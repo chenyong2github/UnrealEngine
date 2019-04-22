@@ -7,12 +7,12 @@
 #include "Sound/SoundAttenuation.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Audio.h"
+#include "AudioDynamicParameter.h"
 #include "Sound/SoundConcurrency.h"
 #include "Components/AudioComponent.h"
 #include "Sound/AudioVolume.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSourceBus.h"
-#include "AudioDevice.h"
 
 class FAudioDevice;
 class USoundBase;
@@ -22,6 +22,7 @@ struct FSoundSubmixSendInfo;
 struct FSoundSourceBusSendInfo;
 class USoundWave;
 struct FListener;
+struct FAttenuationListenerData;
 
 /**
  *	Struct used for gathering the final parameters to apply to a wave instance
@@ -79,6 +80,9 @@ struct FSoundParseParameters
 	// The distance from the listener to the sound
 	float ListenerToSoundDistance;
 
+	// The distance from the listener to the sound (ignores attenuation settings)
+	float ListenerToSoundDistanceForPanning;
+
 	// The absolute azimuth angle of the sound relative to the forward listener vector (359 degrees to left, 1 degrees to right)
 	float AbsoluteAzimuth;
 
@@ -131,26 +135,29 @@ struct FSoundParseParameters
 	// The lowpass filter to apply if the sound is inside an ambient zone
 	float AmbientZoneFilterFrequency;
 
-	// Whether or not to ouput this audio to buses only
-	uint32 bOutputToBusOnly:1;
+	// Whether or not to output this audio to buses only
+	uint8 bOutputToBusOnly:1;
 
 	// Whether the sound should be spatialized
-	uint32 bUseSpatialization:1;
+	uint8 bUseSpatialization:1;
 
 	// Whether the sound should be seamlessly looped
-	uint32 bLooping:1;
+	uint8 bLooping:1;
 	
 	// Whether we have enabled low-pass filtering of this sound
-	uint32 bEnableLowPassFilter:1;
+	uint8 bEnableLowPassFilter:1;
 
 	// Whether this sound is occluded
-	uint32 bIsOccluded:1;
+	uint8 bIsOccluded:1;
 
 	// Whether or not this sound is manually paused (i.e. not by application-wide pause)
-	uint32 bIsPaused:1;
+	uint8 bIsPaused:1;
+
+	// Whether or not this sound can re-trigger
+	uint8 bEnableRetrigger : 1;
 
 	// Whether or not to apply a =6 dB attenuation to stereo spatialization sounds
-	uint32 bApplyNormalizationToStereoSounds:1;
+	uint8 bApplyNormalizationToStereoSounds:1;
 
 	FSoundParseParameters()
 		: SoundClass(nullptr)
@@ -167,6 +174,7 @@ struct FSoundParseParameters
 		, OmniRadius(0.0f)
 		, AttenuationDistance(0.0f)
 		, ListenerToSoundDistance(0.0f)
+		, ListenerToSoundDistanceForPanning(0.0f)
 		, AbsoluteAzimuth(0.0f)
 		, SoundSubmix(nullptr)
 		, ReverbSendMethod(EReverbSendMethod::Linear)
@@ -190,6 +198,7 @@ struct FSoundParseParameters
 		, bEnableLowPassFilter(false)
 		, bIsOccluded(false)
 		, bIsPaused(false)
+		, bEnableRetrigger(false)
 		, bApplyNormalizationToStereoSounds(false)
 	{
 	}
@@ -219,6 +228,8 @@ public:
 
 	uint64 GetAudioComponentID() const { return AudioComponentID; }
 	FName GetAudioComponentUserID() const { return AudioComponentUserID; }
+	void ClearAudioComponent();
+	void SetAudioComponent(const FActiveSound& ActiveSound);
 	void SetAudioComponent(UAudioComponent* Component);
 	void SetOwner(AActor* Owner);
 	FString GetAudioComponentName() const;
@@ -227,8 +238,7 @@ public:
 	uint32 GetWorldID() const { return WorldID; }
 	TWeakObjectPtr<UWorld> GetWeakWorld() const { return World; }
 	UWorld* GetWorld() const 
-	{ 
-		check(IsInGameThread()); 
+	{
 		return World.Get();
 	}
 	void SetWorld(UWorld* World);
@@ -254,6 +264,9 @@ public:
 
 	/** Whether or not the active sound is currently playing audible sound. */
 	bool IsPlayingAudio() const { return bIsPlayingAudio; }
+
+	/** Whether or not we're set to virtualize when silent. */
+	bool IsVirtualizeWhenSilent() const { return Sound && Sound->IsVirtualizeWhenSilent();  }
 
 	FAudioDevice* AudioDevice;
 
@@ -303,6 +316,9 @@ public:
 
 	/** Whether or not to stop this active sound due to max concurrency */
 	uint8 bShouldStopDueToMaxConcurrency:1;
+
+	/** Whether or not sound has been virtualized and then realized */
+	uint8 bHasVirtualized:1;
 
 	/** If true, the decision on whether to apply the radio filter has been made. */
 	uint8 bRadioFilterSelected:1;

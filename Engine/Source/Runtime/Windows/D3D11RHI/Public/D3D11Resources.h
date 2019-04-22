@@ -418,7 +418,7 @@ public:
 	 * Locks one of the texture's mip-maps.
 	 * @return A pointer to the specified texture data.
 	 */
-	void* Lock(uint32 MipIndex,uint32 ArrayIndex,EResourceLockMode LockMode,uint32& DestStride);
+	void* Lock(uint32 MipIndex,uint32 ArrayIndex,EResourceLockMode LockMode,uint32& DestStride,bool bForceLockDeferred = false);
 
 	/** Unlocks a previously locked mip-map. */
 	void Unlock(uint32 MipIndex,uint32 ArrayIndex);
@@ -694,6 +694,8 @@ public:
 	/** The index buffer resource */
 	TRefCountPtr<ID3D11Buffer> Resource;
 
+	FD3D11IndexBuffer() = default;
+
 	FD3D11IndexBuffer(ID3D11Buffer* InResource, uint32 InStride, uint32 InSize, uint32 InUsage)
 	: FRHIIndexBuffer(InStride,InSize,InUsage)
 	, Resource(InResource)
@@ -701,7 +703,26 @@ public:
 
 	virtual ~FD3D11IndexBuffer()
 	{
+		if (Resource)
+		{
+			UpdateBufferStats(Resource, false);
+		}
+	}
+
+	void Swap(FD3D11IndexBuffer& Other)
+	{
+		check(GetCurrentGPUAccess() == EResourceTransitionAccess::EReadable
+			&& GetCurrentGPUAccess() == Other.GetCurrentGPUAccess());
+		FRHIIndexBuffer::Swap(Other);
+		Resource.Swap(Other.Resource);
+	}
+
+	void ReleaseUnderlyingResource()
+	{
+		check(Resource);
 		UpdateBufferStats(Resource, false);
+		Resource = nullptr;
+		FRHIIndexBuffer::ReleaseUnderlyingResource();
 	}
 
 	// IRefCountedObject interface.
@@ -760,6 +781,8 @@ public:
 
 	TRefCountPtr<ID3D11Buffer> Resource;
 
+	FD3D11VertexBuffer() = default;
+
 	FD3D11VertexBuffer(ID3D11Buffer* InResource, uint32 InSize, uint32 InUsage)
 	: FRHIVertexBuffer(InSize,InUsage)
 	, Resource(InResource)
@@ -767,9 +790,28 @@ public:
 
 	virtual ~FD3D11VertexBuffer()
 	{
-		UpdateBufferStats(Resource, false);
+		if (Resource)
+		{
+			UpdateBufferStats(Resource, false);
+		}
 	}
-	
+
+	void Swap(FD3D11VertexBuffer& SrcBuffer)
+	{
+		check(GetCurrentGPUAccess() == EResourceTransitionAccess::EReadable
+			&& GetCurrentGPUAccess() == SrcBuffer.GetCurrentGPUAccess());
+		FRHIVertexBuffer::Swap(SrcBuffer);
+		Resource.Swap(SrcBuffer.Resource);
+	}
+
+	void ReleaseUnderlyingResource()
+	{
+		check(Resource);
+		UpdateBufferStats(Resource, false);
+		Resource = nullptr;
+		FRHIVertexBuffer::ReleaseUnderlyingResource();
+	}
+
 	// IRefCountedObject interface.
 	virtual uint32 AddRef() const
 	{

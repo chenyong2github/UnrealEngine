@@ -19,7 +19,7 @@
 
 #include "LandscapeEditorCommands.h"
 #include "LandscapeEditorDetailWidgets.h"
-#include "LandscapeEditorDetailCustomization_ProceduralBrushStack.h"
+#include "LandscapeEditorDetailCustomization_LayersBrushStack.h"
 #include "Settings/EditorExperimentalSettings.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor"
@@ -108,15 +108,15 @@ void FLandscapeEditorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	Customization_AlphaBrush = MakeShareable(new FLandscapeEditorDetailCustomization_AlphaBrush);
 	Customization_AlphaBrush->CustomizeDetails(DetailBuilder);
 
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		// Procedural Layers
-		Customization_ProceduralLayers = MakeShareable(new FLandscapeEditorDetailCustomization_ProceduralLayers);
-		Customization_ProceduralLayers->CustomizeDetails(DetailBuilder);
+		// Layers
+		Customization_Layers = MakeShareable(new FLandscapeEditorDetailCustomization_Layers);
+		Customization_Layers->CustomizeDetails(DetailBuilder);
 
 		// Brush Stack
-		Customization_ProceduralBrushStack = MakeShareable(new FLandscapeEditorDetailCustomization_ProceduralBrushStack);
-		Customization_ProceduralBrushStack->CustomizeDetails(DetailBuilder);
+		Customization_LayersBrushStack = MakeShareable(new FLandscapeEditorDetailCustomization_LayersBrushStack);
+		Customization_LayersBrushStack->CustomizeDetails(DetailBuilder);
 	}
 
 	// Target Layers:
@@ -143,7 +143,7 @@ FText FLandscapeEditorDetails::GetLocalizedName(FString Name)
 		LOCTEXT("ToolSet_Retopologize", "Retopologize");
 		LOCTEXT("ToolSet_Visibility", "Visibility");
 
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
 			LOCTEXT("ToolSet_BPCustom", "Blueprint Custom");
 		}
@@ -231,31 +231,7 @@ void FLandscapeEditorDetails::OnChangeTargetLandscape(TWeakObjectPtr<ULandscapeI
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode)
 	{
-		// Unregister from old one
-		if (LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid())
-		{
-			ALandscapeProxy* LandscapeProxy = LandscapeEdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
-			LandscapeProxy->OnMaterialChangedDelegate().RemoveAll(LandscapeEdMode);
-		}
-
-		LandscapeEdMode->CurrentToolTarget.LandscapeInfo = LandscapeInfo.Get();
-		LandscapeEdMode->UpdateTargetList();
-		// force a Leave and Enter the current tool, in case it has something about the current landscape cached
-		LandscapeEdMode->SetCurrentTool(LandscapeEdMode->CurrentToolIndex);
-		if (LandscapeEdMode->CurrentGizmoActor.IsValid())
-		{
-			LandscapeEdMode->CurrentGizmoActor->SetTargetLandscape(LandscapeEdMode->CurrentToolTarget.LandscapeInfo.Get());
-		}
-
-		// register to new one
-		if (LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid())
-		{
-			ALandscapeProxy* LandscapeProxy = LandscapeEdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
-			LandscapeProxy->OnMaterialChangedDelegate().AddRaw(LandscapeEdMode, &FEdModeLandscape::OnLandscapeMaterialChangedDelegate);
-		}
-
-		LandscapeEdMode->UpdateTargetList();
-		LandscapeEdMode->UpdateShownLayerList();
+		LandscapeEdMode->SetTargetLandscape(LandscapeInfo);
 	}
 }
 
@@ -324,7 +300,7 @@ TSharedRef<SWidget> FLandscapeEditorDetails::GetToolSelector()
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Retopologize"), NAME_None, LOCTEXT("Tool.Retopologize", "Retopologize"), LOCTEXT("Tool.Retopologize.Tooltip", "Automatically adjusts landscape vertices with an X/Y offset map to improve vertex density on cliffs, reducing texture stretching.\nNote: An X/Y offset map makes the landscape slower to render and paint on with other tools, so only use if needed"));
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Visibility"), NAME_None, LOCTEXT("Tool.Visibility", "Visibility"), LOCTEXT("Tool.Visibility.Tooltip", "Mask out individual quads in the landscape, leaving a hole."));
 
-			if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+			if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
 				MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_BPCustom"), NAME_None, LOCTEXT("Tool.SculptBPCustom", "Blueprint Custom"), LOCTEXT("Tool.SculptBPCustom.Tooltip", "Custom sculpting tools created using Blueprint."));
 			}
@@ -346,7 +322,7 @@ TSharedRef<SWidget> FLandscapeEditorDetails::GetToolSelector()
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Flatten"), NAME_None, LOCTEXT("Tool.Flatten", "Flatten"), LOCTEXT("Tool.Flatten.Tooltip", "Flattens an area of heightmap or blend layer"));
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Noise"), NAME_None, LOCTEXT("Tool.Noise", "Noise"), LOCTEXT("Tool.Noise.Tooltip", "Adds noise to the heightmap or blend layer"));
 
-			if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+			if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
 				MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_BPCustom"), NAME_None, LOCTEXT("Tool.PaintBPCustom", "Blueprint Custom"), LOCTEXT("Tool.PaintBPCustom.Tooltip", "Custom painting tools created using Blueprint."));
 			}

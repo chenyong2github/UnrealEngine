@@ -14,18 +14,20 @@ class ULandscapeWeightmapUsage : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
+	enum { NumChannels = 4 };
+
 public:
 	UPROPERTY()
-	ULandscapeComponent* ChannelUsage[4];
+	ULandscapeComponent* ChannelUsage[NumChannels];
 
 	UPROPERTY()
-	FGuid ProceduralLayerGuid;
+	FGuid LayerGuid;
 
 	int32 FreeChannelCount() const
 	{
 		int32 Count = 0;
 
-		for (int8 i = 0; i < 4; ++i)
+		for (int8 i = 0; i < NumChannels; ++i)
 		{
 			Count += (ChannelUsage[i] == nullptr) ? 1 : 0;
 		}
@@ -35,9 +37,14 @@ public:
 
 	void ClearUsage()
 	{
-		for (int8 i = 0; i < 4; ++i)
+		for (int8 i = 0; i < NumChannels; ++i)
 		{
 			ChannelUsage[i] = nullptr;
 		}
+	}
+
+	bool IsEmpty() const
+	{
+		return FreeChannelCount() == NumChannels;
 	}
 };

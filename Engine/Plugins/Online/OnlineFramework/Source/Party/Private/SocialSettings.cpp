@@ -2,6 +2,15 @@
 
 #include "SocialSettings.h"
 #include "SocialManager.h"
+#include "Misc/CommandLine.h"
+
+#if !UE_BUILD_SHIPPING
+int32 MaxPartySizeOverride = INDEX_NONE;
+FAutoConsoleVariableRef CVarMaxPartySize(
+	TEXT("SocialSettings.MaxPartySize"),
+	MaxPartySizeOverride,
+	TEXT("Override the maximum persistent party size allowed by the social system"));
+#endif
 
 USocialSettings::USocialSettings()
 {
@@ -28,8 +37,27 @@ bool USocialSettings::ShouldPreferPlatformInvites()
 	return SettingsCDO.bPreferPlatformInvites;
 }
 
+bool USocialSettings::MustSendPrimaryInvites()
+{
+	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
+	return SettingsCDO.bMustSendPrimaryInvites;
+}
+
 int32 USocialSettings::GetDefaultMaxPartySize()
 {
+#if !UE_BUILD_SHIPPING
+	if (MaxPartySizeOverride > 0)
+	{
+		return MaxPartySizeOverride;
+	}
+
+	static FString CommandLineOverridePartySize;
+	if (FParse::Value(FCommandLine::Get(), TEXT("MaxPartySize="), CommandLineOverridePartySize))
+	{
+		return FCString::Atoi(*CommandLineOverridePartySize);
+	}
+#endif
+
 	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
 	return SettingsCDO.DefaultMaxPartySize;
 }

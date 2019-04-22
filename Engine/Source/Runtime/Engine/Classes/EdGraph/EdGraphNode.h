@@ -660,6 +660,11 @@ public:
 	virtual FLinearColor GetNodeCommentColor() const;
 
 	/**
+	 * Gets the draw color of a node's body tine
+	 */
+	virtual FLinearColor GetNodeBodyTintColor() const;
+
+	/**
 	 * Gets the tooltip to display when over the node
 	 */
 	virtual FText GetTooltipText() const;

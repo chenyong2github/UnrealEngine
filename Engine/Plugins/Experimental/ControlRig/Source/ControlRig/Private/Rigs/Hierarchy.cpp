@@ -15,9 +15,9 @@ void FRigHierarchy::Sort()
 	TArray<int32> SortedArray;
 
 	// first figure out children and find roots
-	for (int32 Index = 0; Index < Joints.Num(); ++Index)
+	for (int32 Index = 0; Index < Bones.Num(); ++Index)
 	{
-		int32 ParentIndex = GetIndexSlow(Joints[Index].ParentName);
+		int32 ParentIndex = GetIndexSlow(Bones[Index].ParentName);
 		if (ParentIndex != INDEX_NONE)
 		{
 			TArray<int32>& ChildIndices = HierarchyTree.FindOrAdd(ParentIndex);
@@ -46,24 +46,24 @@ void FRigHierarchy::Sort()
 		}
 	}
 
-	check(SortedArray.Num() == Joints.Num());
+	check(SortedArray.Num() == Bones.Num());
 
 	// create new list with sorted
-	TArray<FRigJoint> NewSortedList;
-	NewSortedList.AddDefaulted(Joints.Num());
+	TArray<FRigBone> NewSortedList;
+	NewSortedList.AddDefaulted(Bones.Num());
 	for (int32 NewIndex = 0; NewIndex < SortedArray.Num(); ++NewIndex)
 	{
-		NewSortedList[NewIndex] = Joints[SortedArray[NewIndex]];
+		NewSortedList[NewIndex] = Bones[SortedArray[NewIndex]];
 	}
 
-	Joints = MoveTemp(NewSortedList);
+	Bones = MoveTemp(NewSortedList);
 
 	// now fix up parent Index
-	for (int32 JointIndex = 0; JointIndex < Joints.Num(); ++JointIndex)
+	for (int32 BoneIndex = 0; BoneIndex < Bones.Num(); ++BoneIndex)
 	{
-		Joints[JointIndex].ParentIndex = GetIndexSlow(Joints[JointIndex].ParentName);
+		Bones[BoneIndex].ParentIndex = GetIndexSlow(Bones[BoneIndex].ParentName);
 		// parent index always should be less than this index, even if invalid
-		check(Joints[JointIndex].ParentIndex < JointIndex);
+		check(Bones[BoneIndex].ParentIndex < BoneIndex);
 	}
 }
 
@@ -72,9 +72,9 @@ void FRigHierarchy::RefreshMapping()
 	Sort();
 
 	NameToIndexMapping.Empty();
-	for (int32 Index = 0; Index < Joints.Num(); ++Index)
+	for (int32 Index = 0; Index < Bones.Num(); ++Index)
 	{
-		NameToIndexMapping.Add(Joints[Index].Name, Index);
+		NameToIndexMapping.Add(Bones[Index].Name, Index);
 	}
 }
 
@@ -83,39 +83,44 @@ void FRigHierarchy::Initialize()
 	RefreshMapping();
 
 	// update parent index
-	for (int32 Index = 0; Index < Joints.Num(); ++Index)
+	for (int32 Index = 0; Index < Bones.Num(); ++Index)
 	{
-		Joints[Index].ParentIndex = GetIndex(Joints[Index].ParentName);
+		Bones[Index].ParentIndex = GetIndex(Bones[Index].ParentName);
 	}
 
 	// initialize transform
-	for (int32 Index = 0; Index < Joints.Num(); ++Index)
+	for (int32 Index = 0; Index < Bones.Num(); ++Index)
 	{
-		Joints[Index].GlobalTransform = Joints[Index].InitialTransform;
-		RecalculateLocalTransform(Joints[Index]);
+		Bones[Index].GlobalTransform = Bones[Index].InitialTransform;
+		RecalculateLocalTransform(Bones[Index]);
 
 		// update children
-		GetChildren(Index, Joints[Index].Dependents, false);
+		GetChildren(Index, Bones[Index].Dependents, false);
 	}
 }
 
 void FRigHierarchy::Reset()
 {
+	Bones.Reset();
+}
+
+void FRigHierarchy::ResetTransforms()
+{
 	// initialize transform
-	for (int32 Index = 0; Index < Joints.Num(); ++Index)
+	for (int32 Index = 0; Index < Bones.Num(); ++Index)
 	{
-		Joints[Index].GlobalTransform = Joints[Index].InitialTransform;
-		RecalculateLocalTransform(Joints[Index]);
+		Bones[Index].GlobalTransform = Bones[Index].InitialTransform;
+		RecalculateLocalTransform(Bones[Index]);
 	}
 }
 
-void FRigHierarchy::PropagateTransform(int32 JointIndex)
+void FRigHierarchy::PropagateTransform(int32 BoneIndex)
 {
-	const TArray<int32> Dependents = Joints[JointIndex].Dependents;
+	const TArray<int32> Dependents = Bones[BoneIndex].Dependents;
 	for (int32 DependentIndex = 0; DependentIndex<Dependents.Num(); ++DependentIndex)
 	{
 		int32 Index = Dependents[DependentIndex];
-		RecalculateGlobalTransform(Joints[Index]);
+		RecalculateGlobalTransform(Bones[Index]);
 		PropagateTransform(Index);
 	}
 }
@@ -155,19 +160,19 @@ bool FRigHierarchyRef::CreateHierarchy(const FName& RootName, const FRigHierarch
 		else
 		{
 			// add root, and all children
-			int32 JointIndex = SourceToCopy->GetIndex(RootName);
-			if (JointIndex != INDEX_NONE)
+			int32 BoneIndex = SourceToCopy->GetIndex(RootName);
+			if (BoneIndex != INDEX_NONE)
 			{
 				// add root first
-				NewHierarchy.AddJoint(RootName, NAME_None, SourceToCopy->Joints[JointIndex].InitialTransform);
+				NewHierarchy.AddBone(RootName, NAME_None, SourceToCopy->Bones[BoneIndex].InitialTransform);
 
 				// add all children
 				TArray<int32> ChildIndices;
 				SourceToCopy->GetChildren(RootName, ChildIndices, true);
 				for (int32 ChildIndex = 0; ChildIndex < ChildIndices.Num(); ++ChildIndex)
 				{
-					const FRigJoint& ChildJoint = SourceToCopy->Joints[ChildIndices[ChildIndex]];
-					NewHierarchy.AddJoint(ChildJoint.Name, ChildJoint.ParentName, ChildJoint.InitialTransform);
+					const FRigBone& ChildBone = SourceToCopy->Bones[ChildIndices[ChildIndex]];
+					NewHierarchy.AddBone(ChildBone.Name, ChildBone.ParentName, ChildBone.InitialTransform);
 				}
 			}
 			else
@@ -192,21 +197,21 @@ bool FRigHierarchyRef::MergeHierarchy(const FRigHierarchy* InSourceHierarchy)
 	FRigHierarchy* MyHierarchy = Get();
 	if (InSourceHierarchy && MyHierarchy)
 	{
-		for (int32 SourceJointIndex = 0; SourceJointIndex < InSourceHierarchy->GetNum(); ++SourceJointIndex)
+		for (int32 SourceBoneIndex = 0; SourceBoneIndex < InSourceHierarchy->GetNum(); ++SourceBoneIndex)
 		{
 			// first find same name, and apply to the this
-			const FRigJoint& SourceJoint = InSourceHierarchy->Joints[SourceJointIndex];
-			const int32 TargetIndex = MyHierarchy->GetIndex(SourceJoint.Name);
+			const FRigBone& SourceBone = InSourceHierarchy->Bones[SourceBoneIndex];
+			const int32 TargetIndex = MyHierarchy->GetIndex(SourceBone.Name);
 			if (TargetIndex != INDEX_NONE)
 			{
-				// copy source Joint
+				// copy source Bone
 				// if parent changed, it will derive that data
-				MyHierarchy->Joints[TargetIndex] = SourceJoint;
+				MyHierarchy->Bones[TargetIndex] = SourceBone;
 			}
 			else// if we don't find, that means it's new hierarchy
 			{
 				// parent should add first, so this should work
-				MyHierarchy->AddJoint(SourceJoint.Name, SourceJoint.ParentName, SourceJoint.InitialTransform, SourceJoint.LocalTransform, SourceJoint.GlobalTransform);
+				MyHierarchy->AddBone(SourceBone.Name, SourceBone.ParentName, SourceBone.InitialTransform, SourceBone.LocalTransform, SourceBone.GlobalTransform);
 			}
 		}
 

@@ -36,10 +36,10 @@ void SRichTextBlock::Construct( const FArguments& InArgs )
 		TSharedPtr<IRichTextMarkupParser> Parser = InArgs._Parser;
 		if ( !Parser.IsValid() )
 		{
-			Parser = FDefaultRichTextMarkupParser::Create();
+			Parser = FDefaultRichTextMarkupParser::GetStaticInstance();
 		}
 
-		TSharedPtr<FRichTextLayoutMarshaller> Marshaller = InArgs._Marshaller;
+		Marshaller = InArgs._Marshaller;
 		if (!Marshaller.IsValid())
 		{
 			Marshaller = FRichTextLayoutMarshaller::Create(Parser, nullptr, InArgs._Decorators, InArgs._DecoratorStyleSet);
@@ -164,6 +164,15 @@ void SRichTextBlock::SetMinDesiredWidth(const TAttribute<float>& InMinDesiredWid
 {
 	MinDesiredWidth = InMinDesiredWidth;
 	Invalidate(EInvalidateWidget::LayoutAndVolatility);
+}
+
+void SRichTextBlock::SetDecoratorStyleSet(const ISlateStyle* NewDecoratorStyleSet)
+{
+	if (Marshaller.IsValid())
+	{
+		Marshaller->SetDecoratorStyleSet(NewDecoratorStyleSet);
+		Refresh();
+	}
 }
 
 void SRichTextBlock::Refresh()

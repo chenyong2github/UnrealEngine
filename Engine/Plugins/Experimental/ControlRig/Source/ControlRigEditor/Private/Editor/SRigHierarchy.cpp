@@ -33,39 +33,76 @@
 #define LOCTEXT_NAMESPACE "SRigHierarchy"
 
 //////////////////////////////////////////////////////////////
-/// FRigTreeJoint
+/// FRigTreeBone
 ///////////////////////////////////////////////////////////
-FRigTreeJoint::FRigTreeJoint(const FName& InJoint, TWeakPtr<SRigHierarchy> InHierarchyHandler)
+FRigTreeBone::FRigTreeBone(const FName& InBone, TWeakPtr<SRigHierarchy> InHierarchyHandler)
 {
-	CachedJoint = InJoint;
+	CachedBone = InBone;
 }
 
-TSharedRef<ITableRow> FRigTreeJoint::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigTreeJoint> InRigTreeJoint, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy)
+TSharedRef<ITableRow> FRigTreeBone::MakeTreeRowWidget(TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigTreeBone> InRigTreeBone, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy)
 {
-	return SNew(SRigHierarchyItem, InOwnerTable, InRigTreeJoint, InCommandList)
-		.OnRenameJoint(InHierarchy.Get(), &SRigHierarchy::RenameJoint)
-		.OnVerifyJointNameChanged(InHierarchy.Get(), &SRigHierarchy::OnVerifyNameChanged);
+	return SNew(SRigHierarchyItem, InControlRigEditor, InOwnerTable, InRigTreeBone, InCommandList, InHierarchy)
+		.OnRenameBone(InHierarchy.Get(), &SRigHierarchy::RenameBone)
+		.OnVerifyBoneNameChanged(InHierarchy.Get(), &SRigHierarchy::OnVerifyNameChanged);
 }
 
-void FRigTreeJoint::RequestRename()
+void FRigTreeBone::RequestRename()
 {
 	OnRenameRequested.ExecuteIfBound();
 }
+
+//////////////////////////////////////////////////////////////
+/// FRigHierarchyDragDropOp
+///////////////////////////////////////////////////////////
+TSharedRef<FRigHierarchyDragDropOp> FRigHierarchyDragDropOp::New(TArray<FName> InBoneNames)
+{
+	TSharedRef<FRigHierarchyDragDropOp> Operation = MakeShared<FRigHierarchyDragDropOp>();
+	Operation->BoneNames = InBoneNames;
+	Operation->Construct();
+	return Operation;
+}
+
+TSharedPtr<SWidget> FRigHierarchyDragDropOp::GetDefaultDecorator() const
+{
+	return SNew(SBorder)
+		.Visibility(EVisibility::Visible)
+		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(GetJoinedBoneNames()))
+			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+		];
+}
+
+FString FRigHierarchyDragDropOp::GetJoinedBoneNames() const
+{
+	TArray<FString> BoneNameStrings;
+	for (const FName& BoneName : BoneNames)
+	{
+		BoneNameStrings.Add(BoneName.ToString());
+	}
+	return FString::Join(BoneNameStrings, TEXT(","));
+}
+
+
 //////////////////////////////////////////////////////////////
 /// SRigHierarchyItem
 ///////////////////////////////////////////////////////////
-void SRigHierarchyItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigTreeJoint> InRigTreeJoint, TSharedRef<FUICommandList> InCommandList)
+void SRigHierarchyItem::Construct(const FArguments& InArgs, TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigTreeBone> InRigTreeBone, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy)
 {
-	WeakRigTreeJoint = InRigTreeJoint;
+	WeakRigTreeBone = InRigTreeBone;
 	WeakCommandList = InCommandList;
+	ControlRigEditor = InControlRigEditor;
 
-	OnVerifyJointNameChanged = InArgs._OnVerifyJointNameChanged;
-	OnRenameJoint = InArgs._OnRenameJoint;
+	OnVerifyBoneNameChanged = InArgs._OnVerifyBoneNameChanged;
+	OnRenameBone = InArgs._OnRenameBone;
 
 	TSharedPtr< SInlineEditableTextBlock > InlineWidget;
 
-	STableRow<TSharedPtr<FRigTreeJoint>>::Construct(
-		STableRow<TSharedPtr<FRigTreeJoint>>::FArguments()
+	STableRow<TSharedPtr<FRigTreeBone>>::Construct(
+		STableRow<TSharedPtr<FRigTreeBone>>::FArguments()
+		.OnDragDetected(InHierarchy.Get(), &SRigHierarchy::OnDragDetected)
 		.Content()
 		[
 			SNew(SHorizontalBox)
@@ -82,20 +119,20 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, const TSharedRef<STa
 			]
 		], OwnerTable);
 
-	InRigTreeJoint->OnRenameRequested.BindSP(InlineWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
+	InRigTreeBone->OnRenameRequested.BindSP(InlineWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
 }
 
 FText SRigHierarchyItem::GetName() const
 {
-	return (FText::FromName(WeakRigTreeJoint.Pin()->CachedJoint));
+	return (FText::FromName(WeakRigTreeBone.Pin()->CachedBone));
 }
 
 bool SRigHierarchyItem::OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage)
 {
 	const FName NewName = FName(*InText.ToString());
-	if (OnVerifyJointNameChanged.IsBound())
+	if (OnVerifyBoneNameChanged.IsBound())
 	{
-		return OnVerifyJointNameChanged.Execute(WeakRigTreeJoint.Pin()->CachedJoint, NewName, OutErrorMessage);
+		return OnVerifyBoneNameChanged.Execute(WeakRigTreeBone.Pin()->CachedBone, NewName, OutErrorMessage);
 	}
 
 	// if not bound, just allow
@@ -109,13 +146,13 @@ void SRigHierarchyItem::OnNameCommitted(const FText& InText, ETextCommit::Type I
 	if (InCommitType == ETextCommit::OnEnter)
 	{
 		FName NewName = FName(*InText.ToString());
-		FName OldName = WeakRigTreeJoint.Pin()->CachedJoint;
+		FName OldName = WeakRigTreeBone.Pin()->CachedBone;
 
-		if (!OnRenameJoint.IsBound() || OnRenameJoint.Execute(OldName, NewName))
+		if (!OnRenameBone.IsBound() || OnRenameBone.Execute(OldName, NewName))
 		{
-			if (WeakRigTreeJoint.IsValid())
+			if (WeakRigTreeBone.IsValid())
 			{
-				WeakRigTreeJoint.Pin()->CachedJoint = NewName;
+				WeakRigTreeBone.Pin()->CachedBone = NewName;
 			}
 		}
 	}
@@ -183,8 +220,8 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 			.Padding(2.0f)
 			.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
 			[
-				SAssignNew(TreeView, STreeView<TSharedPtr<FRigTreeJoint>>)
-				.TreeItemsSource(&RootJoints)
+				SAssignNew(TreeView, STreeView<TSharedPtr<FRigTreeBone>>)
+				.TreeItemsSource(&RootBones)
 				.SelectionMode(ESelectionMode::Multi)
 				.OnGenerateRow(this, &SRigHierarchy::MakeTableRowWidget)
 				.OnGetChildren(this, &SRigHierarchy::HandleGetChildrenForTree)
@@ -227,54 +264,54 @@ void SRigHierarchy::OnFilterTextChanged(const FText& SearchText)
 
 void SRigHierarchy::RefreshTreeView()
 {
-	RootJoints.Reset();
-	FilteredRootJoints.Reset();
+	RootBones.Reset();
+	FilteredRootBones.Reset();
 
 	if (ControlRigBlueprint.IsValid())
 	{
 		FRigHierarchy& Hierarchy = ControlRigBlueprint->Hierarchy;
 
-		TMap<FName, TSharedPtr<FRigTreeJoint>> SearchTable;
+		TMap<FName, TSharedPtr<FRigTreeBone>> SearchTable;
 
 		FString FilteredString = FilterText.ToString();
 		const bool bSearchOff = FilteredString.IsEmpty();
-		for (int32 JointIndex = 0; JointIndex < Hierarchy.Joints.Num(); ++JointIndex)
+		for (int32 BoneIndex = 0; BoneIndex < Hierarchy.Bones.Num(); ++BoneIndex)
 		{
-			FRigJoint& Joint = Hierarchy.Joints[JointIndex];
+			FRigBone& Bone = Hierarchy.Bones[BoneIndex];
 
 			// create new item
 			if (bSearchOff)
 			{
-				TSharedPtr<FRigTreeJoint> NewItem = MakeShared<FRigTreeJoint>(Hierarchy.Joints[JointIndex].Name, SharedThis(this));
-				SearchTable.Add(Joint.Name, NewItem);
+				TSharedPtr<FRigTreeBone> NewItem = MakeShared<FRigTreeBone>(Hierarchy.Bones[BoneIndex].Name, SharedThis(this));
+				SearchTable.Add(Bone.Name, NewItem);
 
-				if (Joint.ParentName == NAME_None)
+				if (Bone.ParentName == NAME_None)
 				{
-					RootJoints.Add(NewItem);
+					RootBones.Add(NewItem);
 				}
 				else
 				{
 					// you have to find one
-					TSharedPtr<FRigTreeJoint>* FoundItem = SearchTable.Find(Joint.ParentName);
+					TSharedPtr<FRigTreeBone>* FoundItem = SearchTable.Find(Bone.ParentName);
 					check(FoundItem);
 					// add to children list
 					FoundItem->Get()->Children.Add(NewItem);
 				}
 			}
-			else if (Joint.Name.ToString().Contains(FilteredString))
+			else if (Bone.Name.ToString().Contains(FilteredString))
 			{
 				// if contains, just list out everything to root
-				TSharedPtr<FRigTreeJoint> NewItem = MakeShared<FRigTreeJoint>(Hierarchy.Joints[JointIndex].Name, SharedThis(this));
+				TSharedPtr<FRigTreeBone> NewItem = MakeShared<FRigTreeBone>(Hierarchy.Bones[BoneIndex].Name, SharedThis(this));
 				// during search, everything is on root
-				RootJoints.Add(NewItem);
+				RootBones.Add(NewItem);
 			}
 		}
 
 		if (bSearchOff)
 		{
-			for (int32 RootIndex = 0; RootIndex < RootJoints.Num(); ++RootIndex)
+			for (int32 RootIndex = 0; RootIndex < RootBones.Num(); ++RootIndex)
 			{
-				SetExpansionRecursive(RootJoints[RootIndex]);
+				SetExpansionRecursive(RootBones[RootIndex]);
 			}
 		}
 	}
@@ -282,31 +319,31 @@ void SRigHierarchy::RefreshTreeView()
 	TreeView->RequestTreeRefresh();
 }
 
-void SRigHierarchy::SetExpansionRecursive(TSharedPtr<FRigTreeJoint> InJoint)
+void SRigHierarchy::SetExpansionRecursive(TSharedPtr<FRigTreeBone> InBone)
 {
-	TreeView->SetItemExpansion(InJoint, true);
+	TreeView->SetItemExpansion(InBone, true);
 
-	for (int32 ChildIndex = 0; ChildIndex < InJoint->Children.Num(); ++ChildIndex)
+	for (int32 ChildIndex = 0; ChildIndex < InBone->Children.Num(); ++ChildIndex)
 	{
-		SetExpansionRecursive(InJoint->Children[ChildIndex]);
+		SetExpansionRecursive(InBone->Children[ChildIndex]);
 	}
 }
-TSharedRef<ITableRow> SRigHierarchy::MakeTableRowWidget(TSharedPtr<FRigTreeJoint> InItem, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SRigHierarchy::MakeTableRowWidget(TSharedPtr<FRigTreeBone> InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return InItem->MakeTreeRowWidget(OwnerTable, InItem.ToSharedRef(), CommandList.ToSharedRef(), SharedThis(this));
+	return InItem->MakeTreeRowWidget(ControlRigEditor.Pin(), OwnerTable, InItem.ToSharedRef(), CommandList.ToSharedRef(), SharedThis(this));
 }
 
-void SRigHierarchy::HandleGetChildrenForTree(TSharedPtr<FRigTreeJoint> InItem, TArray<TSharedPtr<FRigTreeJoint>>& OutChildren)
+void SRigHierarchy::HandleGetChildrenForTree(TSharedPtr<FRigTreeBone> InItem, TArray<TSharedPtr<FRigTreeBone>>& OutChildren)
 {
 	OutChildren = InItem.Get()->Children;
 }
 
-void SRigHierarchy::HandleGraphSelectionChanged(const TSet<UObject*>& SelectedJoints)
+void SRigHierarchy::HandleGraphSelectionChanged(const TSet<UObject*>& SelectedBones)
 {
 
 }
 
-void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeJoint> Selection, ESelectInfo::Type SelectInfo)
+void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeBone> Selection, ESelectInfo::Type SelectInfo)
 {
 	// need dummy object
 	if (Selection.IsValid())
@@ -315,18 +352,18 @@ void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeJoint> Selection, ESel
 
 		if (RigHierarchy)
 		{
-			const int32 JointIndex = RigHierarchy->GetIndex(Selection->CachedJoint);
-			if (JointIndex != INDEX_NONE)
+			const int32 BoneIndex = RigHierarchy->GetIndex(Selection->CachedBone);
+			if (BoneIndex != INDEX_NONE)
 			{
-				ControlRigEditor.Pin()->SetDetailStruct(MakeShareable(new FStructOnScope(FRigJoint::StaticStruct(), (uint8*)&RigHierarchy->Joints[JointIndex])));
-				ControlRigEditor.Pin()->SelectJoint(Selection->CachedJoint);
+				ControlRigEditor.Pin()->SetDetailStruct(MakeShareable(new FStructOnScope(FRigBone::StaticStruct(), (uint8*)&RigHierarchy->Bones[BoneIndex])));
+				ControlRigEditor.Pin()->SelectBone(Selection->CachedBone);
 				return;
 			}
 			else
 			{
 				// clear the current selection
 				ControlRigEditor.Pin()->ClearDetailObject();
-				ControlRigEditor.Pin()->SelectJoint(NAME_None);
+				ControlRigEditor.Pin()->SelectBone(NAME_None);
 			}
 		}
 
@@ -334,30 +371,30 @@ void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeJoint> Selection, ESel
 	}
 }
 
-TSharedPtr<FRigTreeJoint> FindJoint(const FName& InJointName, TSharedPtr<FRigTreeJoint> CurrentItem)
+TSharedPtr<FRigTreeBone> FindBone(const FName& InBoneName, TSharedPtr<FRigTreeBone> CurrentItem)
 {
-	if (CurrentItem->CachedJoint == InJointName)
+	if (CurrentItem->CachedBone == InBoneName)
 	{
 		return CurrentItem;
 	}
 
 	for (int32 ChildIndex = 0; ChildIndex < CurrentItem->Children.Num(); ++ChildIndex)
 	{
-		TSharedPtr<FRigTreeJoint> Found = FindJoint(InJointName, CurrentItem->Children[ChildIndex]);
+		TSharedPtr<FRigTreeBone> Found = FindBone(InBoneName, CurrentItem->Children[ChildIndex]);
 		if (Found.IsValid())
 		{
 			return Found;
 		}
 	}
 
-	return TSharedPtr<FRigTreeJoint>();
+	return TSharedPtr<FRigTreeBone>();
 }
 
-void SRigHierarchy::SelectJoint(const FName& JointName) const
+void SRigHierarchy::SelectBone(const FName& BoneName) const
 {
-	for (int32 RootIndex = 0; RootIndex < RootJoints.Num(); ++RootIndex)
+	for (int32 RootIndex = 0; RootIndex < RootBones.Num(); ++RootIndex)
 	{
-		TSharedPtr<FRigTreeJoint> Found = FindJoint(JointName, RootJoints[RootIndex]);
+		TSharedPtr<FRigTreeBone> Found = FindBone(BoneName, RootBones[RootIndex]);
 		if (Found.IsValid())
 		{
 			TreeView->SetSelection(Found);
@@ -442,8 +479,8 @@ void SRigHierarchy::RefreshHierarchy(const FAssetData& InAssetData)
 		ControlRigBlueprint->Modify();
 
 		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
-		const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRawRefBoneInfo();
-		const TArray<FTransform>& BonePoses = RefSkeleton.GetRawRefBonePose();
+		const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRefBoneInfo();
+		const TArray<FTransform>& BonePoses = RefSkeleton.GetRefBonePose();
 
 		for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
 		{
@@ -498,8 +535,8 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 		ControlRigBlueprint->Modify();
 
 		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
-		const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRawRefBoneInfo();
-		const TArray<FTransform>& BonePoses = RefSkeleton.GetRawRefBonePose();
+		const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRefBoneInfo();
+		const TArray<FTransform>& BonePoses = RefSkeleton.GetRefBonePose();
 
 		for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
 		{
@@ -508,7 +545,7 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 			{
 				// @todo: add optimized version without sorting, but if no sort, we should make sure not to use find index function
 				FName ParentName = (BoneInfos[BoneIndex].ParentIndex != INDEX_NONE) ? BoneInfos[BoneInfos[BoneIndex].ParentIndex].Name : NAME_None;
-				Hier->AddJoint(BoneInfos[BoneIndex].Name, ParentName, FAnimationRuntime::GetComponentSpaceTransform(RefSkeleton, BonePoses, BoneIndex));
+				Hier->AddBone(BoneInfos[BoneIndex].Name, ParentName, FAnimationRuntime::GetComponentSpaceTransform(RefSkeleton, BonePoses, BoneIndex));
 			}
 		}
 
@@ -540,14 +577,14 @@ void SRigHierarchy::HandleDeleteItem()
 		// clear detail view display
 		ControlRigEditor.Pin()->ClearDetailObject();
 
-		TArray<TSharedPtr<FRigTreeJoint>> SelectedItems = TreeView->GetSelectedItems();
+		TArray<TSharedPtr<FRigTreeBone>> SelectedItems = TreeView->GetSelectedItems();
 
 		for (int32 ItemIndex = 0; ItemIndex < SelectedItems.Num(); ++ItemIndex)
 		{
-			// when you select whole joints, you might not have them anymore
-			if (Hierarchy->GetIndex(SelectedItems[ItemIndex]->CachedJoint) != INDEX_NONE)
+			// when you select whole Bones, you might not have them anymore
+			if (Hierarchy->GetIndex(SelectedItems[ItemIndex]->CachedBone) != INDEX_NONE)
 			{
-				Hierarchy->DeleteJoint(SelectedItems[ItemIndex]->CachedJoint, true);
+				Hierarchy->DeleteBone(SelectedItems[ItemIndex]->CachedBone, true);
 			}
 		}
 
@@ -576,20 +613,20 @@ void SRigHierarchy::HandleNewItem()
 		FName ParentName = NAME_None;
 		FTransform ParentTransform = FTransform::Identity;
 
-		TArray<TSharedPtr<FRigTreeJoint>> SelectedItems = TreeView->GetSelectedItems();
+		TArray<TSharedPtr<FRigTreeBone>> SelectedItems = TreeView->GetSelectedItems();
 		if (SelectedItems.Num() > 0)
 		{
-			ParentName = SelectedItems[0]->CachedJoint;
+			ParentName = SelectedItems[0]->CachedBone;
 			ParentTransform = Hierarchy->GetGlobalTransform(ParentName);
 		}
 
-		const FName NewJointName = CreateUniqueName(TEXT("NewJoint"));
-		Hierarchy->AddJoint(NewJointName, ParentName, ParentTransform);
+		const FName NewBoneName = CreateUniqueName(TEXT("NewBone"));
+		Hierarchy->AddBone(NewBoneName, ParentName, ParentTransform);
 
 		RefreshTreeView();
 		ControlRigEditor.Pin()->OnHierarchyChanged();
 		// reselect current selected item
-		SelectJoint(NewJointName);
+		SelectBone(NewBoneName);
 	}
 }
 
@@ -610,17 +647,17 @@ void SRigHierarchy::HandleDuplicateItem()
 		FScopedTransaction Transaction(LOCTEXT("HierarchyTreeDuplicateSelected", "Duplicate selected items from hierarchy"));
 		ControlRigBlueprint->Modify();
 
-		TArray<TSharedPtr<FRigTreeJoint>> SelectedItems = TreeView->GetSelectedItems();
+		TArray<TSharedPtr<FRigTreeBone>> SelectedItems = TreeView->GetSelectedItems();
 		TArray<FName> NewNames;
 		for (int32 Index = 0; Index < SelectedItems.Num(); ++Index)
 		{
-			FName Name = SelectedItems[Index]->CachedJoint;
+			FName Name = SelectedItems[Index]->CachedBone;
 			FTransform Transform = Hierarchy->GetGlobalTransform(Name);
 
 			FName ParentName = Hierarchy->GetParentName(Name);
 
 			const FName NewName = CreateUniqueName(Name);
-			Hierarchy->AddJoint(NewName, ParentName, Transform);
+			Hierarchy->AddBone(NewName, ParentName, Transform);
 			NewNames.Add(NewName);
 		}
 
@@ -629,7 +666,7 @@ void SRigHierarchy::HandleDuplicateItem()
 		
 		for (int32 Index = 0; Index < NewNames.Num(); ++Index)
 		{
-			SelectJoint(NewNames[Index]);
+			SelectBone(NewNames[Index]);
 		}
 	}
 }
@@ -651,7 +688,7 @@ void SRigHierarchy::HandleRenameItem()
 		FScopedTransaction Transaction(LOCTEXT("HierarchyTreeRenameSelected", "Rename selected item from hierarchy"));
 		ControlRigBlueprint->Modify();
 
-		TArray<TSharedPtr<FRigTreeJoint>> SelectedItems = TreeView->GetSelectedItems();
+		TArray<TSharedPtr<FRigTreeBone>> SelectedItems = TreeView->GetSelectedItems();
 		if (SelectedItems.Num() > 0)
 		{
 			SelectedItems[0]->RequestRename();
@@ -703,7 +740,30 @@ void SRigHierarchy::PostUndo(bool bSuccess)
 	}
 }
 
-bool SRigHierarchy::RenameJoint(const FName& OldName, const FName& NewName)
+FReply SRigHierarchy::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	TArray<FName> DraggedBoneNames;
+	TArray<TSharedPtr<FRigTreeBone>> SelectedItems =TreeView->GetSelectedItems();
+	for (const TSharedPtr<FRigTreeBone>& SelectedItem : SelectedItems)
+	{
+		DraggedBoneNames.Add(SelectedItem->CachedBone);
+	}
+
+	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+	{
+		if (ControlRigEditor.IsValid())
+		{
+			TSharedRef<FRigHierarchyDragDropOp> DragDropOp = FRigHierarchyDragDropOp::New(MoveTemp(DraggedBoneNames));
+			DragDropOp->OnPerformDropToGraph.BindSP(ControlRigEditor.Pin().Get(), &FControlRigEditor::OnGraphNodeDropToPerform);
+			return FReply::Handled().BeginDragDrop(DragDropOp);
+		}
+	}
+
+	return FReply::Unhandled();
+}
+
+
+bool SRigHierarchy::RenameBone(const FName& OldName, const FName& NewName)
 {
 	ClearDetailPanel();
 
@@ -717,9 +777,10 @@ bool SRigHierarchy::RenameJoint(const FName& OldName, const FName& NewName)
 	if (Hierarchy)
 	{
 		Hierarchy->Rename(OldName, NewName);
-		SelectJoint(NewName);
+		SelectBone(NewName);
 
 		ControlRigEditor.Pin()->OnHierarchyChanged();
+		ControlRigEditor.Pin()->OnBoneRenamed(OldName, NewName);
 		return true;
 	}
 

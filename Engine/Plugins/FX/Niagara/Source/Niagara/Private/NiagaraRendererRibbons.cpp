@@ -136,7 +136,8 @@ void NiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVie
 				SceneProxy->GetLightingChannelMask(),
 				0,
 				INDEX_NONE,
-				INDEX_NONE
+				INDEX_NONE,
+				SceneProxy->AlwaysHasVelocity()
 				);
 			WorldSpacePrimitiveUniformBuffer.SetContents(PrimitiveUniformShaderParameters);
 			WorldSpacePrimitiveUniformBuffer.InitResource();

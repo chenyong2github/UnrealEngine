@@ -55,6 +55,7 @@ Landscape.cpp: Terrain rendering
 #include "MaterialUtilities.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Editor.h"
+#include "Algo/Transform.h"
 #endif
 #include "LandscapeVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
@@ -76,17 +77,17 @@ DEFINE_STAT(STAT_LandscapeComponentUsingSubSectionDrawCalls);
 DEFINE_STAT(STAT_LandscapeDrawCalls);
 DEFINE_STAT(STAT_LandscapeTriangles);
 
-DEFINE_STAT(STAT_LandscapeRegenerateProcedural_RenderThread);
-DEFINE_STAT(STAT_LandscapeRegenerateProceduralDrawCalls);
+DEFINE_STAT(STAT_LandscapeLayersRegenerate_RenderThread);
+DEFINE_STAT(STAT_LandscapeLayersRegenerateDrawCalls);
 
-DEFINE_STAT(STAT_LandscapeRegenerateProceduralHeightmaps);
-DEFINE_STAT(STAT_LandscapeResolveProceduralHeightmap);
+DEFINE_STAT(STAT_LandscapeLayersRegenerateHeightmaps);
+DEFINE_STAT(STAT_LandscapeLayersResolveHeightmaps);
 
-DEFINE_STAT(STAT_LandscapeProceduralUpdateMaterialInstance);
-DEFINE_STAT(STAT_LandscapeReallocateProceduralWeightmaps);
+DEFINE_STAT(STAT_LandscapeLayersUpdateMaterialInstance);
+DEFINE_STAT(STAT_LandscapeLayersReallocateWeightmaps);
 
-DEFINE_STAT(STAT_LandscapeResolveProceduralWeightmap);
-DEFINE_STAT(STAT_LandscapeRegenerateProceduralWeightmaps);
+DEFINE_STAT(STAT_LandscapeLayersResolveWeightmaps);
+DEFINE_STAT(STAT_LandscapeLayersRegenerateWeightmaps);
 
 DEFINE_STAT(STAT_LandscapeVertexMem);
 DEFINE_STAT(STAT_LandscapeOccluderMem);
@@ -169,7 +170,6 @@ ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitial
 
 #if WITH_EDITORONLY_DATA
 	EditToolRenderData = FLandscapeEditToolRenderData();
-	CurrentProceduralLayerGuid.Invalidate();
 #endif
 
 	LpvBiasMultiplier = 0.0f; // Bias is 0 for landscape, since it's single sided
@@ -219,46 +219,6 @@ UMaterialInstanceDynamic* ULandscapeComponent::GetMaterialInstanceDynamic(int32 
 	return nullptr;
 }
 
-void ULandscapeComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
-{
-	ULandscapeComponent* This = CastChecked<ULandscapeComponent>(InThis);
-
-#if WITH_EDITORONLY_DATA
-	Collector.AddReferencedObject(This->CurrentEditingHeightmapTexture);
-
-	if (This->CurrentEditingWeightmapLayerAllocations != nullptr)
-	{
-		for (FWeightmapLayerAllocationInfo& WeightmapLayerAllocation : *This->CurrentEditingWeightmapLayerAllocations)
-		{
-			Collector.AddReferencedObject(WeightmapLayerAllocation.LayerInfo);
-		}
-	}
-
-	if (This->CurrentEditingWeightmapTexturesUsage != nullptr)
-	{
-		for (ULandscapeWeightmapUsage* TextureUsage : *This->CurrentEditingWeightmapTexturesUsage)
-		{
-			if (TextureUsage != nullptr)
-			{
-				for (int32 i = 0; i < 4; ++i)
-				{
-					Collector.AddReferencedObject(TextureUsage->ChannelUsage[i]);
-				}
-			}
-		}
-	}	
-
-	if (This->CurrentEditingWeightmapTextures != nullptr)
-	{
-		for (UTexture2D* Weightmap : *This->CurrentEditingWeightmapTextures)
-		{
-			Collector.AddReferencedObject(Weightmap);
-		}
-	}
-#endif
-
-	Super::AddReferencedObjects(This, Collector);
-}
 
 #if WITH_EDITOR
 void ULandscapeComponent::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
@@ -581,7 +541,7 @@ void ULandscapeComponent::GetLayerDebugColorKey(int32& R, int32& G, int32& B) co
 			if (LayerStruct.DebugColorChannel > 0
 				&& LayerStruct.LayerInfoObj)
 			{
-				const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(true);
+				const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations();
 
 				for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 				{
@@ -993,7 +953,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	bGenerateOverlapEvents = false;
 #if WITH_EDITORONLY_DATA
 	MaxPaintedLayersPerComponent = 0;
-	HasProceduralContent = false;
+	HasLayersContent = false;
 #endif
 
 #if WITH_EDITOR
@@ -1036,13 +996,14 @@ ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 {
 #if WITH_EDITORONLY_DATA
 	bLockLocation = false;
-	PreviousExperimentalLandscapeProcedural = false;
+	PreviousExperimentalLandscapeLayers = false;
 	WasCompilingShaders = false;
-	ProceduralContentUpdateFlags = 0;
-	CombinedProcLayerWeightmapAllLayersResource = nullptr;
-	CurrentProcLayerWeightmapAllLayersResource = nullptr;
+	LayersContentUpdateFlags = 0;
+	CombinedLayersWeightmapAllMaterialLayersResource = nullptr;
+	CurrentLayersWeightmapAllMaterialLayersResource = nullptr;
 	WeightmapScratchExtractLayerTextureResource = nullptr;
 	WeightmapScratchPackLayerTextureResource = nullptr;
+	bLandscapeLayersAreInitialized = false;
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -1132,9 +1093,12 @@ void ULandscapeComponent::GetGeneratedTexturesAndMaterialInstances(TArray<UObjec
 		OutTexturesAndMaterials.Add(HeightmapTexture);
 	}
 
-	if (CurrentEditingHeightmapTexture != nullptr)
+	for (const auto& ItPair : LayersData)
 	{
-		OutTexturesAndMaterials.Add(CurrentEditingHeightmapTexture);
+		const FLandscapeLayerComponentData& LayerComponentData = ItPair.Value;
+
+		OutTexturesAndMaterials.Add(LayerComponentData.HeightmapData.Texture);
+		OutTexturesAndMaterials.Append(LayerComponentData.WeightmapData.Textures);
 	}
 
 	for (UTexture2D* Weightmap : WeightmapTextures)
@@ -1270,7 +1234,7 @@ void ULandscapeComponent::BeginDestroy()
 				{
 					(*Usage)->ChannelUsage[WeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel] = nullptr;
 
-					if ((*Usage)->FreeChannelCount() == 4)
+					if ((*Usage)->IsEmpty())
 					{
 						Proxy->WeightmapUsageMap.Remove(WeightmapTexture);
 					}
@@ -1388,14 +1352,16 @@ void ULandscapeComponent::OnUnregister()
 	}
 }
 
-UTexture2D* ULandscapeComponent::GetHeightmap(bool InReturnCurrentEditingHeightmap) const
+UTexture2D* ULandscapeComponent::GetHeightmap(bool InReturnEditingHeightmap) const
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnCurrentEditingHeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	if (InReturnEditingHeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		if (CurrentEditingHeightmapTexture != nullptr)
+		const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
+
+		if (EditingLayer != nullptr)
 		{
-			return CurrentEditingHeightmapTexture;
+			return EditingLayer->HeightmapData.Texture;
 		}
 	}
 #endif
@@ -1403,14 +1369,16 @@ UTexture2D* ULandscapeComponent::GetHeightmap(bool InReturnCurrentEditingHeightm
 	return HeightmapTexture;
 }
 
-const TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnCurrentEditingWeightmap) const
+const TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnEditingWeightmap) const
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnCurrentEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	if (InReturnEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		if (CurrentEditingWeightmapTextures != nullptr)
+		const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
+
+		if (EditingLayer != nullptr)
 		{
-			return *CurrentEditingWeightmapTextures;
+			return EditingLayer->WeightmapData.Textures;
 		}
 	}
 #endif
@@ -1418,14 +1386,16 @@ const TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InRetu
 	return WeightmapTextures;
 }
 
-TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnCurrentEditingWeightmap)
+TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnEditingWeightmap)
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnCurrentEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	if (InReturnEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		if (CurrentEditingWeightmapTextures != nullptr)
+		FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
+
+		if (EditingLayer != nullptr)
 		{
-			return *CurrentEditingWeightmapTextures;
+			return EditingLayer->WeightmapData.Textures;
 		}
 	}
 #endif
@@ -1433,14 +1403,16 @@ TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnCurr
 	return WeightmapTextures;
 }
 
-const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(bool InReturnCurrentEditingWeightmap) const
+const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(bool InReturnEditingWeightmap) const
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnCurrentEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	if (InReturnEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		if (CurrentEditingWeightmapLayerAllocations != nullptr)
+		const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
+
+		if (EditingLayer != nullptr)
 		{
-			return *CurrentEditingWeightmapLayerAllocations;
+			return EditingLayer->WeightmapData.LayerAllocations;
 		}
 	}
 #endif
@@ -1448,14 +1420,16 @@ const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLa
 	return WeightmapLayerAllocations;
 }
 
-TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(bool InReturnCurrentEditingWeightmap)
+TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(bool InReturnEditingWeightmap)
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnCurrentEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	if (InReturnEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		if (CurrentEditingWeightmapLayerAllocations != nullptr)
+		FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
+
+		if (EditingLayer != nullptr)
 		{
-			return *CurrentEditingWeightmapLayerAllocations;
+			return EditingLayer->WeightmapData.LayerAllocations;
 		}
 	}
 #endif
@@ -1465,25 +1439,63 @@ TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAll
 
 #if WITH_EDITOR
 
-void ULandscapeComponent::SetCurrentEditingProceduralLayer(FProceduralLayer* Layer, FProceduralLayerData* LayerData)
-{
-	// Update Current Heightmap
-	UTexture2D** LayerHeightmap = LayerData ? LayerData->Heightmaps.Find(GetHeightmap()) : nullptr;
-	SetCurrentEditingHeightmap(LayerHeightmap ? *LayerHeightmap : nullptr);
-
-	// Update Current Weightmaps
-	FWeightmapLayerData* WeightmapData = LayerData ? LayerData->WeightmapData.Find(this) : nullptr;
-	SetCurrentEditingWeightmapLayerAllocations(WeightmapData ? &WeightmapData->WeightmapLayerAllocations : nullptr);
-	SetCurrentEditingWeightmaps(WeightmapData ? &WeightmapData->Weightmaps : nullptr);
-	SetCurrentProceduralLayerGuid(WeightmapData && Layer ? Layer->Guid : FGuid());
-	SetCurrentEditingWeightmapTexturesUsage(WeightmapData ? &WeightmapData->WeightmapTextureUsages : nullptr);
+FLandscapeLayerComponentData* ULandscapeComponent::GetEditingLayer()
+{	
+	ALandscape* Landscape = GetLandscapeActor();
+	return Landscape != nullptr ? LayersData.Find(Landscape->GetEditingLayer()) : nullptr;
 }
 
-void ULandscapeComponent::SetCurrentEditingHeightmap(UTexture2D* InNewHeightmap)
+const FLandscapeLayerComponentData* ULandscapeComponent::GetEditingLayer() const
 {
-#if WITH_EDITORONLY_DATA
-	CurrentEditingHeightmapTexture = InNewHeightmap;
-#endif
+	ALandscape* Landscape = GetLandscapeActor();
+	return Landscape != nullptr ? LayersData.Find(Landscape->GetEditingLayer()) : nullptr;
+}
+
+FGuid ULandscapeComponent::GetEditingLayerGUID() const
+{
+	ALandscape* Landscape = GetLandscapeActor();
+	return Landscape != nullptr ? Landscape->GetEditingLayer() : FGuid();
+}
+
+const FLandscapeLayersGlobalComponentData& ULandscapeComponent::GetGlobalLayersData() const
+{
+	return GlobalLayersData;
+}
+
+FLandscapeLayersGlobalComponentData& ULandscapeComponent::GetGlobalLayersData() 
+{
+	return GlobalLayersData;
+}
+
+const FLandscapeLayerComponentData* ULandscapeComponent::GetLayerData(const FGuid& InLayerGuid) const 
+{
+	return LayersData.Find(InLayerGuid);
+}
+
+FLandscapeLayerComponentData* ULandscapeComponent::GetLayerData(const FGuid& InLayerGuid)
+{
+	return LayersData.Find(InLayerGuid);
+}
+
+void ULandscapeComponent::ForEachLayer(TFunctionRef<void(const FGuid&, struct FLandscapeLayerComponentData&)> Fn)
+{
+	for (auto& Pair : LayersData)
+	{
+		Fn(Pair.Key, Pair.Value);
+	}
+}
+
+void ULandscapeComponent::AddLayerData(const FGuid& InLayerGuid, const FLandscapeLayerComponentData& InData)
+{
+	Modify();
+	FLandscapeLayerComponentData& Data = LayersData.FindOrAdd(InLayerGuid);
+	Data = InData;
+}
+
+void ULandscapeComponent::RemoveLayerData(const FGuid& InLayerGuid)
+{
+	Modify();
+	LayersData.Remove(InLayerGuid);
 }
 
 void ULandscapeComponent::SetHeightmap(UTexture2D* NewHeightmap)
@@ -1492,13 +1504,15 @@ void ULandscapeComponent::SetHeightmap(UTexture2D* NewHeightmap)
 	HeightmapTexture = NewHeightmap;
 }
 
-void ULandscapeComponent::SetWeightmapTextures(const TArray<UTexture2D*>& InNewWeightmapTextures, bool InApplyToCurrentEditingWeightmap)
+void ULandscapeComponent::SetWeightmapTextures(const TArray<UTexture2D*>& InNewWeightmapTextures, bool InApplyToEditingWeightmap)
 {
 #if WITH_EDITORONLY_DATA
-	if (InApplyToCurrentEditingWeightmap && CurrentEditingWeightmapTextures != nullptr)
+	FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
+
+	if (InApplyToEditingWeightmap && EditingLayer != nullptr)
 	{
-		CurrentEditingWeightmapTextures->Reset(InNewWeightmapTextures.Num());
-		CurrentEditingWeightmapTextures->Append(InNewWeightmapTextures);
+		EditingLayer->WeightmapData.Textures.Reset(InNewWeightmapTextures.Num());
+		EditingLayer->WeightmapData.Textures.Append(InNewWeightmapTextures);
 	}
 	else
 #endif
@@ -1507,34 +1521,21 @@ void ULandscapeComponent::SetWeightmapTextures(const TArray<UTexture2D*>& InNewW
 	}
 }
 
-void ULandscapeComponent::SetCurrentEditingWeightmaps(TArray<UTexture2D*>* InNewWeightmapTextures)
-{
-#if WITH_EDITORONLY_DATA
-	CurrentEditingWeightmapTextures = InNewWeightmapTextures;
-#endif
-}
-
 void ULandscapeComponent::SetWeightmapLayerAllocations(const TArray<FWeightmapLayerAllocationInfo>& InNewWeightmapLayerAllocations)
 {
 	WeightmapLayerAllocations = InNewWeightmapLayerAllocations;
 }
 
-
-void ULandscapeComponent::SetCurrentEditingWeightmapLayerAllocations(TArray<FWeightmapLayerAllocationInfo>* InNewWeightmapLayerAllocations)
+TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnEditingWeightmap)
 {
 #if WITH_EDITORONLY_DATA
-	CurrentEditingWeightmapLayerAllocations = InNewWeightmapLayerAllocations;
-#endif
-}
-
-TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap)
-{
-#if WITH_EDITORONLY_DATA
-	if (InReturnCurrentEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	if (InReturnEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		if (CurrentEditingWeightmapTexturesUsage != nullptr)
+		FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
+
+		if (EditingLayer != nullptr)
 		{
-			return *CurrentEditingWeightmapTexturesUsage;
+			return EditingLayer->WeightmapData.TextureUsages;
 		}
 	}
 #endif
@@ -1542,14 +1543,16 @@ TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsag
 	return WeightmapTexturesUsage;
 }
 
-const TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap) const
+const TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnEditingWeightmap) const
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnCurrentEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	if (InReturnEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		if (CurrentEditingWeightmapTexturesUsage != nullptr)
+		const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
+
+		if (EditingLayer != nullptr)
 		{
-			return *CurrentEditingWeightmapTexturesUsage;
+			return EditingLayer->WeightmapData.TextureUsages;
 		}
 	}
 #endif
@@ -1557,20 +1560,15 @@ const TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTextur
 	return WeightmapTexturesUsage;
 }
 
-void ULandscapeComponent::SetCurrentEditingWeightmapTexturesUsage(TArray<ULandscapeWeightmapUsage*>* InNewWeightmapTexturesUsage)
+void ULandscapeComponent::SetWeightmapTexturesUsage(const TArray<ULandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, bool InApplyToEditingWeightmap )
 {
 #if WITH_EDITORONLY_DATA
-	CurrentEditingWeightmapTexturesUsage = InNewWeightmapTexturesUsage;
-#endif
-}
+	FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
 
-void ULandscapeComponent::SetWeightmapTexturesUsage(const TArray<ULandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, bool InApplyToCurrentEditingWeightmap )
-{
-#if WITH_EDITORONLY_DATA
-	if (InApplyToCurrentEditingWeightmap && CurrentEditingWeightmapTexturesUsage != nullptr)
+	if (InApplyToEditingWeightmap && EditingLayer != nullptr)
 	{
-		CurrentEditingWeightmapTexturesUsage->Reset(InNewWeightmapTexturesUsage.Num());
-		CurrentEditingWeightmapTexturesUsage->Append(InNewWeightmapTexturesUsage);
+		EditingLayer->WeightmapData.TextureUsages.Reset(InNewWeightmapTexturesUsage.Num());
+		EditingLayer->WeightmapData.TextureUsages.Append(InNewWeightmapTexturesUsage);
 	}
 	else
 #endif
@@ -1579,15 +1577,6 @@ void ULandscapeComponent::SetWeightmapTexturesUsage(const TArray<ULandscapeWeigh
 	}
 }
 
-void ULandscapeComponent::SetCurrentProceduralLayerGuid(const FGuid& InLayerGuid)
-{
-	CurrentProceduralLayerGuid = InLayerGuid;
-}
-
-const FGuid& ULandscapeComponent::GetCurrentProceduralLayerGuid() const
-{
-	return CurrentProceduralLayerGuid;
-}
 #endif
 
 void ALandscapeProxy::PostRegisterAllComponents()
@@ -1697,6 +1686,14 @@ void ALandscape::PostLoad()
 #endif
 	}
 
+#if WITH_EDITOR
+	for (FLandscapeLayer& Layer : LandscapeLayers)
+	{
+		// For now, only Layer reserved for Landscape Spline uses AlphaBlend
+		Layer.BlendMode = (Layer.Guid == LandscapeSplinesTargetLayerGuid) ? LSBM_AlphaBlend : LSBM_AdditiveBlend;
+	}
+#endif
+
 	Super::PostLoad();
 }
 
@@ -1731,9 +1728,9 @@ void ALandscapeProxy::PreSave(const class ITargetPlatform* TargetPlatform)
 		bHasLandscapeGrass = LandscapeComponents.ContainsByPredicate([](ULandscapeComponent* Component) { return Component->MaterialHasGrass(); });
 	}
 
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		HasProceduralContent = true;
+		HasLayersContent = true;
 	}
 #endif
 }
@@ -2107,15 +2104,7 @@ void ALandscapeProxy::PostLoad()
 	FOnFeatureLevelChanged::FDelegate FeatureLevelChangedDelegate = FOnFeatureLevelChanged::FDelegate::CreateUObject(this, &ALandscapeProxy::OnFeatureLevelChanged);
 	FeatureLevelChangedDelegateHandle = GetWorld()->AddOnFeatureLevelChangedHandler(FeatureLevelChangedDelegate);
 
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
-	{
-		ALandscape* Landscape = GetLandscapeActor();
 
-		if (Landscape != nullptr)
-		{
-			Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::All_Setup);
-		}
-	}
 #endif
 }
 
@@ -2206,7 +2195,7 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 	}
 }
 
-void ALandscapeProxy::ConditionalAssignCommonProperties(ALandscape* Landscape)
+void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 {
 	if (Landscape == nullptr)
 	{
@@ -2274,6 +2263,17 @@ void ALandscapeProxy::ConditionalAssignCommonProperties(ALandscape* Landscape)
 		TargetDisplayOrderList = Landscape->TargetDisplayOrderList;
 		bUpdated = true;
 	}
+		
+	
+	TSet<FGuid> LayerGuids;
+	Algo::Transform(Landscape->LandscapeLayers, LayerGuids, [](const FLandscapeLayer& Layer) { return Layer.Guid; });
+	bUpdated |= RemoveObsoleteLayers(LayerGuids);
+	
+	for (const FLandscapeLayer& Layer : Landscape->LandscapeLayers)
+	{
+		bUpdated |= AddLayer(Layer.Guid);
+	}
+
 
 	if (bUpdated)
 	{
@@ -2574,7 +2574,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 		for (ALandscapeStreamingProxy* StreamingProxy : Proxies)
 		{
 			StreamingProxy->LandscapeActor = LandscapeActor;
-			StreamingProxy->ConditionalAssignCommonProperties(Landscape);
+			StreamingProxy->FixupSharedData(Landscape);
 		}
 	}
 	else
@@ -2583,7 +2583,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 
 		Proxies.Add(StreamingProxy);
 		StreamingProxy->LandscapeActor = LandscapeActor;
-		StreamingProxy->ConditionalAssignCommonProperties(LandscapeActor.Get());
+		StreamingProxy->FixupSharedData(LandscapeActor.Get());
 	}
 
 	UpdateLayerInfoMap(Proxy);
@@ -2991,7 +2991,7 @@ void ALandscape::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunct
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		TickProcedural(DeltaTime, TickType, ThisTickFunction);
+		TickLayers(DeltaTime, TickType, ThisTickFunction);
 	}
 #endif
 }
@@ -2999,6 +2999,7 @@ void ALandscape::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunct
 void ALandscapeProxy::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Landscape);
+	LLM_SCOPE(ELLMTag::Landscape);
 #if WITH_EDITOR
 	// editor-only
 	UWorld* World = GetWorld();
@@ -3105,10 +3106,13 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 
 	for (FLandscapeComponentMaterialOverride& MaterialOverride : OverrideMaterials)
 	{
-		UMaterialInterface::TMicRecursionGuard RecursionGuard;
-		FGuid LocalStateId = MaterialOverride.Material->GetMaterial_Concurrent(RecursionGuard)->StateId;
-		Ar << LocalStateId;
-		Ar << MaterialOverride.LODIndex;
+		if (MaterialOverride.Material != nullptr)
+		{
+			UMaterialInterface::TMicRecursionGuard RecursionGuard;
+			FGuid LocalStateId = MaterialOverride.Material->GetMaterial_Concurrent(RecursionGuard)->StateId;
+			Ar << LocalStateId;
+			Ar << MaterialOverride.LODIndex;
+		}
 	}	
 
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
@@ -3122,10 +3126,13 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 
 	for (FLandscapeProxyMaterialOverride& MaterialOverride : Proxy->LandscapeMaterialsOverride)
 	{
-		UMaterialInterface::TMicRecursionGuard RecursionGuard;
-		FGuid LocalStateId = MaterialOverride.Material->GetMaterial_Concurrent(RecursionGuard)->StateId;
-		Ar << LocalStateId;
-		Ar << MaterialOverride.LODIndex;
+		if (MaterialOverride.Material != nullptr)
+		{
+			UMaterialInterface::TMicRecursionGuard RecursionGuard;
+			FGuid LocalStateId = MaterialOverride.Material->GetMaterial_Concurrent(RecursionGuard)->StateId;
+			Ar << LocalStateId;
+			Ar << MaterialOverride.LODIndex;
+		}
 	}
 }
 
@@ -3308,19 +3315,31 @@ void ALandscapeProxy::UpdateBakedTextures()
 }
 #endif
 
-void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components)
+template<class ContainerType>
+void InvalidateGeneratedComponentDataImpl(const ContainerType& Components)
 {
 	TMap<ALandscapeProxy*, TSet<ULandscapeComponent*>> ByProxy;
-	for (auto Component : Components)
+	for (auto Iter = Components.CreateConstIterator(); Iter; ++Iter)
 	{
+		ULandscapeComponent* Component = *Iter;
 		Component->BakedTextureMaterialGuid.Invalidate();
-
 		ByProxy.FindOrAdd(Component->GetLandscapeProxy()).Add(Component);
 	}
-	for (auto It = ByProxy.CreateConstIterator(); It; ++It)
+
+	for (auto Iter = ByProxy.CreateConstIterator(); Iter; ++Iter)
 	{
-		It.Key()->FlushGrassComponents(&It.Value());
+		Iter.Key()->FlushGrassComponents(&Iter.Value());
 	}
+}
+
+void ALandscapeProxy::InvalidateGeneratedComponentData()
+{
+	InvalidateGeneratedComponentDataImpl(LandscapeComponents);
+}
+
+void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components)
+{
+	InvalidateGeneratedComponentDataImpl(Components);
 }
 
 #undef LOCTEXT_NAMESPACE

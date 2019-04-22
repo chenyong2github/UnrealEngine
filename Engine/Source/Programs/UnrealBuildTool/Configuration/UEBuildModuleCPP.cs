@@ -919,7 +919,7 @@ namespace UnrealBuildTool
 			{
 				Writer.WriteLine("// PCH for {0}", IncludedFile.AbsolutePath);
 				WriteDefinitions(Definitions, Writer);
-				Writer.WriteLine("#include \"{0}\"", IncludedFile.AbsolutePath);
+				Writer.WriteLine("#include \"{0}\"", IncludedFile.AbsolutePath.Replace('\\', '/'));
 			}
 
 			// Create the item

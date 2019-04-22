@@ -5,6 +5,10 @@
 #include "IControlRigEditor.h"
 #include "ControlRigEditorEditMode.h"
 #include "AssetEditorModeManager.h"
+#include "DragAndDrop//GraphNodeDragDropOp.h"
+#include "ControlRigDefines.h"
+#include "ControlRigLog.h"
+#include "Drawing/ControlRigDrawInterface.h"
 
 class UControlRigBlueprint;
 class IPersonaToolkit;
@@ -101,11 +105,15 @@ public:
 
 	/** Try to set the selected nodes form some external source */
 	void SetSelectedNodes(const TArray<FString>& InSelectedPropertyPaths);
-	void SelectJoint(const FName& InJoint);
+	void SelectBone(const FName& InBone);
 	// this changes everytime you compile, so don't cache it expecting it will last. 
 	UControlRig* GetInstanceRig() const { return ControlRig;  }
 	// restart animation 
 	void OnHierarchyChanged();
+	void OnBoneRenamed(const FName& OldName, const FName& NewName);
+
+	void OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp> DragDropOp, UEdGraph* Graph, const FVector2D& NodePosition, const FVector2D& ScreenPosition);
+
 protected:
 	// FBlueprintEditor Interface
 	virtual void CreateDefaultCommands() override;
@@ -161,6 +169,9 @@ private:
 	/** Push a newly compiled/opened control rig to the edit mode */
 	void UpdateControlRig();
 
+	/** Update the bone name list for use in bone name combo boxes */
+	void CacheBoneNameList();
+
 	/** Rebind our anim instance to the preview's skeletal mesh component */
 	void RebindToSkeletalMeshComponent();
 
@@ -169,6 +180,8 @@ private:
 
 	void ToggleExecuteGraph();
 	bool IsExecuteGraphOn() const;
+
+	 void HandleMakeBoneGetterSetter(int32 UnitType, TArray<FName> BoneNames, EBoneGetterSetterMode Space, UEdGraph* Graph, FVector2D NodePosition);
 
 protected:
 
@@ -198,15 +211,30 @@ protected:
 	/** Recursion guard for selection */
 	bool bSelecting;
 
-	/** Joint Selection related */
-	FTransform GetJointTransform(const FName& InJoint, bool bLocal) const;
-	void SetJointTransform(const FName& InJoint, const FTransform& InTransform);
+	/** Bone Selection related */
+	FTransform GetBoneTransform(const FName& InBone, bool bLocal) const;
+	void SetBoneTransform(const FName& InBone, const FTransform& InTransform);
 
 	/** delegate for changing property */
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
-	/** Selected Joint from hierarchy tree */
-	FName SelectedJoint;
+	/** Selected Bone from hierarchy tree */
+	FName SelectedBone;
+
+	bool bControlRigEditorInitialized;
+
+	/** The log to use for errors resulting from the init phase of the units */
+	FControlRigLog ControlRigLog;
+	/** Once the log is collected update the graph */
+	void UpdateGraphCompilerErrors();
+
+	/** The draw interface to use for the control rig */
+	FControlRigDrawInterface DrawInterface;
+
+	/** This can be used to enable dumping of a unit test */
+	void DumpUnitTestCode();
 
 	friend class FControlRigEditorMode;
+	friend class SControlRigStackView;
+	friend class SRigHierarchy;
 };

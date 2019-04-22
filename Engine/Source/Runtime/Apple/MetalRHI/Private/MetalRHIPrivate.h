@@ -95,10 +95,10 @@ extern FMetalBufferFormat GMetalBufferFormats[PF_MAX];
 #define METAL_DEBUG_OPTIONS !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #if METAL_DEBUG_OPTIONS
 #define METAL_DEBUG_OPTION(Code) Code
-extern int32 GMetalResetOnPSOChange;
 #else
 #define METAL_DEBUG_OPTION(Code)
 #endif
+extern int32 GMetalResetOnPSOChange;
 
 #if MTLPP_CONFIG_VALIDATE && METAL_DEBUG_OPTIONS
 #define METAL_DEBUG_ONLY(Code) Code
@@ -108,6 +108,7 @@ extern int32 GMetalResetOnPSOChange;
 #define METAL_DEBUG_LAYER(Level, Code)
 #endif
 
+extern bool GMetalCommandBufferDebuggingEnabled;
 extern bool GMetalSupportsTileShaders;
 
 /** Set to 1 to enable GPU events in Xcode frame debugger */
@@ -135,6 +136,26 @@ extern bool GMetalSupportsTileShaders;
 #define METAL_TO_UNREAL_BUFFER_INDEX(Index) ((MaxMetalStreams - 1) - Index)
 
 #define METAL_NEW_NONNULL_DECL (__clang_major__ >= 9)
+
+#if PLATFORM_IOS
+#define METAL_FATAL_ERROR(Format, ...)  { UE_LOG(LogMetal, Warning, Format, __VA_ARGS__); FIOSPlatformMisc::MetalAssert(); }
+#else
+#define METAL_FATAL_ERROR(Format, ...)	UE_LOG(LogMetal, Fatal, Format, __VA_ARGS__)
+#endif
+#define METAL_FATAL_ASSERT(Condition, Format, ...) if (!(Condition)) { METAL_FATAL_ERROR(Format, __VA_ARGS__); }
+
+struct FMetalDebugInfo
+{
+	uint32 CmdBuffIndex;
+	uint32 EncoderIndex;
+	uint32 ContextIndex;
+	uint32 CommandIndex;
+	uint64 CommandBuffer;
+	uint32 PSOSignature[4];
+};
+
+// Get a compute pipeline state used to implement some debug features.
+mtlpp::ComputePipelineState GetMetalDebugComputeState();
 
 // Access the internal context for the device-owning DynamicRHI object
 FMetalDeviceContext& GetMetalDeviceContext();
@@ -168,7 +189,7 @@ FORCEINLINE mtlpp::IndexType GetMetalIndexType(EMetalIndexType IndexType)
 		case EMetalIndexType_None:
 		default:
 		{
-			UE_LOG(LogMetal, Fatal, TEXT("There is not equivalent mtlpp::IndexType for EMetalIndexType_None"));
+			METAL_FATAL_ERROR(TEXT("There is not equivalent mtlpp::IndexType for %d"), (uint32)IndexType);
 			return mtlpp::IndexType::UInt16;
 		}
 	}

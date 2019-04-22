@@ -54,17 +54,21 @@ public:
 	virtual void Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& Delegate) override;
 	virtual bool IsConnecting() const override;
 	virtual bool IsConnected() const override;
+	virtual FOnVoiceChatConnectedDelegate& OnVoiceChatConnected() override { return OnVoiceChatConnectedDelegate; }
 	virtual FOnVoiceChatDisconnectedDelegate& OnVoiceChatDisconnected() override { return OnVoiceChatDisconnectedDelegate; }
 	virtual FOnVoiceChatReconnectedDelegate& OnVoiceChatReconnected() override { return OnVoiceChatReconnectedDelegate; }
 	virtual void Login(FPlatformUserId PlatformId, const FString& PlayerName, const FString& Credentials, const FOnVoiceChatLoginCompleteDelegate& Delegate) override;
 	virtual void Logout(const FOnVoiceChatLogoutCompleteDelegate& Delegate) override;
 	virtual bool IsLoggingIn() const override;
 	virtual bool IsLoggedIn() const override;
+	virtual FOnVoiceChatLoggedInDelegate& OnVoiceChatLoggedIn() override { return OnVoiceChatLoggedInDelegate; }
+	virtual FOnVoiceChatLoggedOutDelegate& OnVoiceChatLoggedOut() override { return OnVoiceChatLoggedOutDelegate; }
 	virtual FString GetLoggedInPlayerName() const override;
 	virtual void BlockPlayers(const TArray<FString>& PlayerNames) override;
 	virtual void UnblockPlayers(const TArray<FString>& PlayerNames) override;
 	virtual void JoinChannel(const FString& ChannelName, const FString& ChannelCredentials, EVoiceChatChannelType ChannelType, const FOnVoiceChatChannelJoinCompleteDelegate& Delegate, TOptional<FVoiceChatChannel3dProperties> Channel3dProperties = TOptional<FVoiceChatChannel3dProperties>()) override;
 	virtual void LeaveChannel(const FString& Channel, const FOnVoiceChatChannelLeaveCompleteDelegate& Delegate) override;
+	virtual FOnVoiceChatChannelJoinedDelegate& OnVoiceChatChannelJoined() override { return OnVoiceChatChannelJoinedDelegate; }
 	virtual FOnVoiceChatChannelExitedDelegate& OnVoiceChatChannelExited() override { return OnVoiceChatChannelExitedDelegate; }
 	virtual FOnVoiceChatCallStatsUpdatedDelegate& OnVoiceChatCallStatsUpdated() override { return OnVoiceChatCallStatsUpdatedDelegate; }
 	virtual void Set3DPosition(const FString& ChannelName, const FVector& SpeakerPosition, const FVector& ListenerPosition, const FVector& ListenerForwardDirection, const FVector& ListenerUpDirection) override;
@@ -218,8 +222,12 @@ protected:
 
 	// Delegates
 	FOnVoiceChatAvailableAudioDevicesChangedDelegate OnVoiceChatAvailableAudioDevicesChangedDelegate;
+	FOnVoiceChatConnectedDelegate OnVoiceChatConnectedDelegate;
 	FOnVoiceChatDisconnectedDelegate OnVoiceChatDisconnectedDelegate;
 	FOnVoiceChatReconnectedDelegate OnVoiceChatReconnectedDelegate;
+	FOnVoiceChatLoggedInDelegate OnVoiceChatLoggedInDelegate;
+	FOnVoiceChatLoggedOutDelegate OnVoiceChatLoggedOutDelegate;
+	FOnVoiceChatChannelJoinedDelegate OnVoiceChatChannelJoinedDelegate;
 	FOnVoiceChatChannelExitedDelegate OnVoiceChatChannelExitedDelegate;
 	FOnVoiceChatPlayerAddedDelegate OnVoiceChatPlayerAddedDelegate;
 	FOnVoiceChatPlayerTalkingUpdatedDelegate OnVoiceChatPlayerTalkingUpdatedDelegate;

@@ -2780,7 +2780,7 @@ void UAssetManager::ScanPathsSynchronous(const TArray<FString>& PathsToScan) con
 
 			for (const FString& AlreadyScanned : AlreadyScannedDirectories)
 			{
-				if (PackageName.Contains(AlreadyScanned))
+				if (PackageName == AlreadyScanned || PackageName.StartsWith(AlreadyScanned + TEXT("/")))
 				{
 					bAlreadyScanned = true;
 					break;
@@ -2806,7 +2806,7 @@ void UAssetManager::ScanPathsSynchronous(const TArray<FString>& PathsToScan) con
 		{
 			for (const FString& AlreadyScanned : AlreadyScannedDirectories)
 			{
-				if (Path.Contains(AlreadyScanned))
+				if (Path == AlreadyScanned || Path.StartsWith(AlreadyScanned + TEXT("/")))
 				{
 					bAlreadyScanned = true;
 					break;

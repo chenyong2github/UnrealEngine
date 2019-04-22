@@ -167,20 +167,20 @@ namespace
 	{
 		// MSVC's link.exe is much more common, so treat this as our default
 		const std::wstring linkerPath = GetLinkerPath(linkerDb);
-		const std::wstring lowerCaseFilename = string::ToLower(file::GetFilename(linkerPath));
-		if (string::Contains(linkerPath.c_str(), L"lld"))
+		const std::wstring lowerCaseLinkerPath = string::ToLower(file::GetFilename(linkerPath));
+		if (string::Contains(lowerCaseLinkerPath.c_str(), L"lld"))
 		{
 			return coff::SymbolRemovalStrategy::LLD_COMPATIBLE;
 		}
-		else if (string::Contains(linkerPath.c_str(), L"lld-link"))
+		else if (string::Contains(lowerCaseLinkerPath.c_str(), L"lld-link"))
 		{
 			return coff::SymbolRemovalStrategy::LLD_COMPATIBLE;
 		}
-		else if (string::Contains(linkerPath.c_str(), L"ld.lld"))
+		else if (string::Contains(lowerCaseLinkerPath.c_str(), L"ld.lld"))
 		{
 			return coff::SymbolRemovalStrategy::LLD_COMPATIBLE;
 		}
-		else if (string::Contains(linkerPath.c_str(), L"ld64.lld"))
+		else if (string::Contains(lowerCaseLinkerPath.c_str(), L"ld64.lld"))
 		{
 			return coff::SymbolRemovalStrategy::LLD_COMPATIBLE;
 		}
@@ -366,12 +366,35 @@ namespace
 	}
 
 
-	// helper function that returns or generates the unique ID of an optional compiland
-	static inline uint32_t GetCompilandId(const symbols::Compiland* compiland, const wchar_t* const objPath)
+	// helper function that returns or generates the unique ID of an optional compiland.
+	// for files split off from amalgamated files, we need to use the original object path of the amalgamated file here,
+	// otherwise names of symbols would differ, leading to constructors of global instances being called again.
+	static inline uint32_t GetCompilandId(const symbols::Compiland* compiland, const wchar_t* const objPath, const types::vector<LiveModule::ModifiedObjFile>& modifiedObjFiles)
 	{
-		return compiland
-			? compiland->uniqueId									// compiland exists
-			: uniqueId::Generate(file::NormalizePath(objPath));		// new compiland, generate new unique ID
+		// try to find the given .obj path in the array of modified object files to check if there's an original amalgamated object path for it
+		for (size_t i = 0u; i < modifiedObjFiles.size(); ++i)
+		{
+			const LiveModule::ModifiedObjFile& objFile = modifiedObjFiles[i];
+
+			// don't bother checking strings if the amalgamated object path is empty anyway
+			if (!objFile.amalgamatedObjPath.empty())
+			{
+				if (string::Matches(objPath, objFile.objPath.c_str()))
+				{
+					return uniqueId::Generate(file::NormalizePath(objFile.amalgamatedObjPath.c_str()));
+				}
+			}
+		}
+
+		if (compiland)
+		{
+			// the compiland already exists
+			return compiland->uniqueId;
+		}
+		else
+		{
+			return uniqueId::Generate(file::NormalizePath(objPath));
+		}
 	}
 
 
@@ -441,7 +464,7 @@ namespace
 
 
 	template <typename T>
-	static types::vector<symbols::ObjPath> UpdateCoffCache(const T& compilands, CoffCache<coff::CoffDB>* coffCache, CacheUpdate::Enum updateType, coff::ReadFlags::Enum coffReadFlags)
+	static types::vector<symbols::ObjPath> UpdateCoffCache(const T& compilands, CoffCache<coff::CoffDB>* coffCache, CacheUpdate::Enum updateType, coff::ReadFlags::Enum coffReadFlags, const types::vector<LiveModule::ModifiedObjFile>& modifiedOrNewObjFiles)
 	{
 		LC_LOG_INDENT_DEV;
 
@@ -458,7 +481,7 @@ namespace
 			symbols::ObjPath objPath = it->first;
 			const std::wstring& wideObjPath = string::ToWideString(objPath);
 			const symbols::Compiland* compiland = it->second;
-			const uint32_t compilandUniqueId = GetCompilandId(compiland, wideObjPath.c_str());
+			const uint32_t compilandUniqueId = GetCompilandId(compiland, wideObjPath.c_str(), modifiedOrNewObjFiles);
 
 			const bool shouldUpdate = (updateType == CacheUpdate::NON_EXISTANT)
 				? (coffCache->Lookup(objPath) == nullptr)				// NON-EXISTANT: update cache only for files which don't have an entry yet
@@ -521,7 +544,10 @@ namespace
 		const size_t MODULE_ALIGNMENT = 64u * 1024u;
 		void* preferredBase = process::ScanMemoryRange(processHandle, lowerBound, upperBound, patchSize, MODULE_ALIGNMENT);
 
-		return pointer::AsInteger<executable::PreferredBase>(preferredBase);
+		const executable::PreferredBase preferredImageBase = pointer::AsInteger<executable::PreferredBase>(preferredBase);
+		LC_LOG_DEV("Preferred base address for image: 0x%" PRIX64 " (PID: %d)", preferredImageBase, processId);
+
+		return preferredImageBase;
 	}
 #endif
 
@@ -680,9 +706,11 @@ namespace
 			const size_t count = hookData.data->processes.size();
 			for (size_t p = 0u; p < count; ++p)
 			{
-				const unsigned int pid = hookData.data->processes[p].processId;
-				void* moduleBase = hookData.data->processes[p].moduleBase;
-				const DuplexPipe* pipe = hookData.data->processes[p].pipe;
+				const ModuleCache::ProcessData& processData = hookData.data->processes[p];
+
+				const unsigned int pid = processData.processId;
+				void* moduleBase = processData.moduleBase;
+				const DuplexPipe* pipe = processData.pipe;
 
 				LC_LOG_USER("Calling compile start hooks (PID: %d)", pid);
 				pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) });
@@ -705,9 +733,11 @@ namespace
 			const size_t count = hookData.data->processes.size();
 			for (size_t p = 0u; p < count; ++p)
 			{
-				const unsigned int pid = hookData.data->processes[p].processId;
-				void* moduleBase = hookData.data->processes[p].moduleBase;
-				const DuplexPipe* pipe = hookData.data->processes[p].pipe;
+				const ModuleCache::ProcessData& processData = hookData.data->processes[p];
+
+				const unsigned int pid = processData.processId;
+				void* moduleBase = processData.moduleBase;
+				const DuplexPipe* pipe = processData.pipe;
 
 				LC_LOG_USER("Calling compile success hooks (PID: %d)", pid);				
 				pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) });
@@ -730,9 +760,11 @@ namespace
 			const size_t count = hookData.data->processes.size();
 			for (size_t p = 0u; p < count; ++p)
 			{
-				const unsigned int pid = hookData.data->processes[p].processId;
-				void* moduleBase = hookData.data->processes[p].moduleBase;
-				const DuplexPipe* pipe = hookData.data->processes[p].pipe;
+				const ModuleCache::ProcessData& processData = hookData.data->processes[p];
+
+				const unsigned int pid = processData.processId;
+				void* moduleBase = processData.moduleBase;
+				const DuplexPipe* pipe = processData.pipe;
 
 				LC_LOG_USER("Calling compile error hooks (PID: %d)", pid);
 				pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) });
@@ -1191,11 +1223,11 @@ void LiveModule::UpdateDirectoryCache(DirectoryCache* cache)
 }
 
 
-LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, DirectoryCache* directoryCache, UpdateType::Enum updateType, const std::vector<std::wstring>& modifiedOrNewObjFiles)
+LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, DirectoryCache* directoryCache, UpdateType::Enum updateType, const types::vector<ModifiedObjFile>& modifiedOrNewObjFiles)
 {
 	telemetry::Scope updateScope("Update live module");
 
-	LC_LOG_DEV("\nLiveModule::Update -------------------------------------------\n");
+	LC_LOG_DEV("LiveModule Update: %S", m_moduleName.c_str());
 
 	GLiveCodingServer->GetStatusChangeDelegate().ExecuteIfBound(L"Checking modified files...");
 
@@ -1331,7 +1363,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 	{
 		for (size_t i = 0u; i < modifiedOrNewObjFiles.size(); ++i)
 		{
-			LC_LOG_USER("File %S was modified or is new", modifiedOrNewObjFiles[i].c_str());
+			LC_LOG_USER("File %S was modified or is new", modifiedOrNewObjFiles[i].objPath.c_str());
 		}
 
 		LC_LOG_USER("Building patch from %zu file(s) for Live Coding module %S", modifiedOrNewObjFiles.size(), m_moduleName.c_str());
@@ -1802,7 +1834,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 			const size_t count = modifiedOrNewObjFiles.size();
 			for (size_t i = 0u; i < count; ++i)
 			{
-				const std::wstring& wideObjPath = modifiedOrNewObjFiles[i];
+				const std::wstring& wideObjPath = modifiedOrNewObjFiles[i].objPath;
 				const symbols::ObjPath& objPath = string::ToUtf8String(wideObjPath);
 				symbols::Compiland* compiland = symbols::FindCompiland(m_compilandDB, objPath);
 
@@ -1945,11 +1977,11 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 		{
 			for (auto it = modifiedOrNewObjFiles.begin(); it != modifiedOrNewObjFiles.end(); ++it)
 			{
-				const symbols::ObjPath objPath(string::ToUtf8String(*it));
+				const symbols::ObjPath objPath(string::ToUtf8String(it->objPath));
 				const symbols::Compiland* compiland = symbols::FindCompiland(m_compilandDB, objPath);
 
 				// new compilands won't be found in the database, so there's no unique ID yet that we can use
-				const uint32_t compilandUniqueId = GetCompilandId(compiland, it->c_str());
+				const uint32_t compilandUniqueId = GetCompilandId(compiland, it->objPath.c_str(), modifiedOrNewObjFiles);
 
 				// this file was either modified or is new. in any case, the new .OBJ needs to be linked in, even
 				// though the file might be contained in a library.
@@ -2026,11 +2058,11 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 						// there is no entry yet for this COFF in the cache.
 						// this means that this .obj was not recompiled (otherwise it would have an entry already),
 						// but has been pulled in for the first time due to unresolved symbols.
-						auto task = scheduler::CreateTask(taskRoot, [this, objPath, coffReadFlags]()
+						auto task = scheduler::CreateTask(taskRoot, [this, objPath, coffReadFlags, &modifiedOrNewObjFiles]()
 						{
 							const symbols::Compiland* compiland = symbols::FindCompiland(m_compilandDB, objPath);
 							const std::wstring& wideObjPath = string::ToWideString(objPath);
-							const uint32_t compilandUniqueId = GetCompilandId(compiland, wideObjPath.c_str());
+							const uint32_t compilandUniqueId = GetCompilandId(compiland, wideObjPath.c_str(), modifiedOrNewObjFiles);
 
 								LC_LOG_DEV("Need %s for the first time, updating COFF cache", objPath.c_str());
 
@@ -2094,7 +2126,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 	}
 
 	// update the COFF cache for all compiled files
-	UpdateCoffCache(m_compiledCompilands, m_coffCache, CacheUpdate::ALL, coffReadFlags);
+	UpdateCoffCache(m_compiledCompilands, m_coffCache, CacheUpdate::ALL, coffReadFlags, modifiedOrNewObjFiles);
 
 	GLiveCodingServer->GetStatusChangeDelegate().ExecuteIfBound(L"Stripping COFFs...");
 
@@ -2123,7 +2155,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 			symbols::Compiland* compiland = symbols::FindCompiland(m_compilandDB, objPath);
 			const std::wstring wideObjPath = string::ToWideString(objPath);
 
-			const uint32_t compilandUniqueId = GetCompilandId(compiland, wideObjPath.c_str());
+			const uint32_t compilandUniqueId = GetCompilandId(compiland, wideObjPath.c_str(), modifiedOrNewObjFiles);
 
 			coff::ObjFile* objFile = coff::OpenObj(wideObjPath.c_str());
 			if (objFile && objFile->memoryFile)
@@ -2651,7 +2683,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 		const symbols::ObjPath& objPath = compilandIt->first;
 		const std::wstring& wideObjPath = string::ToWideString(objPath);
 		const symbols::Compiland* compiland = compilandIt->second;
-		const uint32_t compilandUniqueId = GetCompilandId(compiland, wideObjPath.c_str());
+		const uint32_t compilandUniqueId = GetCompilandId(compiland, wideObjPath.c_str(), modifiedOrNewObjFiles);
 
 		coff::ObjFile* coffFile = coff::OpenObj(wideObjPath.c_str());
 		if (coffFile && coffFile->memoryFile)
@@ -3238,7 +3270,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 		// update the COFF cache for new patch compilands.
 		// there may be files for which we don't have a database yet, even though we updated the database for all compiled files.
 		// this can happen when a new .obj that is part of a library is linked in for the first time.
-		types::vector<symbols::ObjPath> updatedCoffs = UpdateCoffCache(patch_compilandDB->compilands, m_coffCache, CacheUpdate::NON_EXISTANT, coffReadFlags);
+		types::vector<symbols::ObjPath> updatedCoffs = UpdateCoffCache(patch_compilandDB->compilands, m_coffCache, CacheUpdate::NON_EXISTANT, coffReadFlags, modifiedOrNewObjFiles);
 
 
 		// similarly, reconstruct symbols and dynamic initializers for new .obj that have been pulled in for the first time.
@@ -3390,9 +3422,11 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 				const size_t count = hookData.data->processes.size();
 				for (size_t p = 0u; p < count; ++p)
 				{
-					const unsigned int pid = hookData.data->processes[p].processId;
-					void* moduleBase = hookData.data->processes[p].moduleBase;
-					const DuplexPipe* pipe = hookData.data->processes[p].pipe;
+					const ModuleCache::ProcessData& hookProcessData = hookData.data->processes[p];
+
+					const unsigned int pid = hookProcessData.processId;
+					void* moduleBase = hookProcessData.moduleBase;
+					const DuplexPipe* pipe = hookProcessData.pipe;
 
 					LC_LOG_USER("Calling pre-patch hooks (PID: %d)", pid);
 					pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) });
@@ -3822,9 +3856,11 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 				{
 					++functionsPatchedCount;
 
-					const unsigned int pid = originalData.data->processes[p].processId;
-					void* moduleBase = originalData.data->processes[p].moduleBase;
-					process::Handle processHandle = originalData.data->processes[p].processHandle;
+					const ModuleCache::ProcessData& hookProcessData = originalData.data->processes[p];
+
+					const unsigned int pid = hookProcessData.processId;
+					void* moduleBase = hookProcessData.moduleBase;
+					process::Handle processHandle = hookProcessData.processHandle;
 
 					char* originalAddress = pointer::Offset<char*>(moduleBase, originalData.symbol->rva);
 					char* patchAddress = pointer::Offset<char*>(loadedPatches[p], patchSymbol->rva);
@@ -4004,7 +4040,7 @@ bool LiveModule::InstallCompiledPatches(LiveProcess* liveProcess, void* original
 		return true;
 	}
 
-	LC_LOG_DEV("\nLiveModule::InstallCompiledPatches ---------------------------\n");
+	LC_LOG_DEV("LiveModule InstallCompiledPatches: %S", m_moduleName.c_str());
 
 	telemetry::Scope wholeScope("Installing patches");
 
@@ -4251,7 +4287,7 @@ bool LiveModule::LoadPatchInfoAction::Execute(CommandType* command, const Duplex
 void LiveModule::UpdateDirectoryCache(const ImmutableString& path, symbols::Dependency* dependency, DirectoryCache* cache)
 {
 	const std::wstring& directoryOnly = file::GetDirectory(string::ToWideString(path));
-	dependency->parentDirectory = cache->AddDirectory(directoryOnly.c_str());
+	dependency->parentDirectory = cache->AddDirectory(directoryOnly);
 }
 
 

@@ -129,7 +129,7 @@ private:
 	int64 volatile UsedSize;
 	mtlpp::Buffer ParentBuffer;
 	mutable mtlpp::Heap ParentHeap;
-	TLockFreePointerListLIFO<ns::Range> FreeRanges;
+	TArray<int8> Blocks;
 };
 
 struct FMetalRingBufferRef
@@ -424,7 +424,7 @@ public:
 	void ReleaseBuffer(FMetalBuffer& Buffer);
 	void ReleaseTexture(FMetalSurface* Surface, FMetalTexture& Texture);
 	
-	void Compact(bool const bForce);
+	void Compact(class FMetalRenderPass* Pass, bool const bForce);
 	
 private:
 	uint32 GetMagazineIndex(uint32 Size);

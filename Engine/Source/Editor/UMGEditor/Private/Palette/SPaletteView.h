@@ -135,4 +135,7 @@ private:
 
 	/** Set to true to force a refresh of the treeview */
 	bool bRefreshRequested;
+
+	/** Are blutility widget supported. */
+	bool bAllowEditorWidget;
 };

@@ -795,7 +795,7 @@ public:
 	//~ End UPrimitiveComponent Interface
 
 	/** Get the pre-skinning local space bounds for this component. */
-	FBoxSphereBounds GetPreSkinnedLocalBounds() const;
+	void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const;
 
 	/**
 	 *	Sets the value of the bForceWireframe flag and reattaches the component as necessary.

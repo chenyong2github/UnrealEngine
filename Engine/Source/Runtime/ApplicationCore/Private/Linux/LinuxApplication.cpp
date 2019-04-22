@@ -1745,6 +1745,33 @@ void FLinuxApplication::SaveWindowPropertiesForEventLoop(void)
 void FLinuxApplication::ClearWindowPropertiesAfterEventLoop(void)
 {
 	SavedWindowPropertiesForEventLoop.Empty();
+
+	// This is a hack for 4.22.1 to avoid changing a header. We will be calling in from here at
+	// LinuxPlatformApplicationMisc.cpp in FLinuxPlatformApplicationMisc::PumpMessages
+	//
+	// In 4.23 this will be in a function: void FLinuxApplication::CheckIfApplicatioNeedsDeactivation()
+
+	// If FocusOutDeactivationTime is set we have had a focus out event and are waiting to see if we need to Deactivate the Application
+	if (!FMath::IsNearlyZero(FocusOutDeactivationTime))
+	{
+		// We still havent hit our timeout limit, keep waiting
+		if (FocusOutDeactivationTime > FPlatformTime::Seconds())
+		{
+			return;
+		}
+		// If we don't use bIsDragWindowButtonPressed the draged window will be destroyed because we
+		// deactivate the whole appliacton. TODO Is that a bug? Do we have to do something?
+		else if (!CurrentFocusWindow.IsValid() && !bIsDragWindowButtonPressed)
+		{
+			DeactivateApplication();
+
+			FocusOutDeactivationTime = 0.0;
+		}
+		else
+		{
+			FocusOutDeactivationTime = 0.0;
+		}
+	}
 }
 
 void FLinuxApplication::GetWindowPropertiesInEventLoop(SDL_HWindow NativeWindow, FWindowProperties& Properties)

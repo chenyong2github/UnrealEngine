@@ -167,7 +167,6 @@ public:
 public:
 	//~ Begin FAssetEditorToolkit Interface
 	virtual bool OnRequestClose() override;
-	virtual void ToolkitBroughtToFront() override;
 	// End of FAssetEditorToolkit 
 
 	//~ Begin IToolkit Interface

@@ -220,7 +220,7 @@ const FAnimationSharingScalability& UAnimationSharingManager::GetScalabilitySett
 
 void UAnimationSharingManager::SetupPerSkeletonData(const FPerSkeletonAnimationSharingSetup& SkeletonSetup)
 {
-	const USkeleton* Skeleton = SkeletonSetup.Skeleton.LoadSynchronous();
+	const USkeleton* Skeleton = SkeletonSetup.Skeleton;
 	UAnimationSharingStateProcessor* Processor = SkeletonSetup.StateProcessorClass ?SkeletonSetup.StateProcessorClass->GetDefaultObject<UAnimationSharingStateProcessor>() : nullptr;
 	UEnum* StateEnum = Processor ? Processor->GetAnimationStateEnum() : nullptr;
 	if (Skeleton && StateEnum && Processor)
@@ -749,7 +749,7 @@ uint8 UAnimSharingInstance::DetermineStateForActor(uint32 ActorIndex, bool& bSho
 
 bool UAnimSharingInstance::Setup(UAnimationSharingManager* AnimationSharingManager, const FPerSkeletonAnimationSharingSetup& SkeletonSetup, const FAnimationSharingScalability* InScalabilitySettings, uint32 Index)
 {
-	USkeletalMesh* SkeletalMesh = SkeletonSetup.SkeletalMesh.LoadSynchronous();
+	USkeletalMesh* SkeletalMesh = SkeletonSetup.SkeletalMesh;
 	/** Retrieve the state processor to use */
 	if (UAnimationSharingStateProcessor* Processor = SkeletonSetup.StateProcessorClass.GetDefaultObject())
 	{
@@ -788,7 +788,7 @@ bool UAnimSharingInstance::Setup(UAnimationSharingManager* AnimationSharingManag
 				SetupState(StateData, StateEntry, SkeletalMesh, SkeletonSetup, Index);
 
 				// Make sure we have at least one component set up
-				if (StateData.Components.Num() == 0)
+				if ((!StateData.bIsAdditive && StateData.Components.Num() == 0) ||(StateData.bIsAdditive && AdditiveInstanceStack.AvailableInstances.Num() == 0))
 				{
 					UE_LOG(LogAnimationSharing, Error, TEXT("No Components available for State %s"), *StateEnum->GetDisplayNameTextByValue(StateValue).ToString());
 					bErrors = true;
@@ -846,7 +846,7 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 	/** Setup overall data and flags */
 	StateData.bIsOnDemand = StateEntry.bOnDemand;
 	StateData.bIsAdditive = StateEntry.bAdditive;
-	StateData.AdditiveAnimationSequence = (StateEntry.bAdditive && StateEntry.AnimationSetups.IsValidIndex(0)) ? StateEntry.AnimationSetups[0].AnimSequence.LoadSynchronous() : nullptr;
+	StateData.AdditiveAnimationSequence = (StateEntry.bAdditive && StateEntry.AnimationSetups.IsValidIndex(0)) ? StateEntry.AnimationSetups[0].AnimSequence : nullptr;
 
 	/** Keep hard reference to animation sequence */
 	if (StateData.AdditiveAnimationSequence)
@@ -890,7 +890,7 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 		const FAnimationSetup& AnimationSetup = StateEntry.AnimationSetups[SetupIndex];
 		/** User can setup either an AnimBP or AnimationSequence */
 		UClass* AnimBPClass = AnimationSetup.AnimBlueprint.Get();
-		UAnimSequence* AnimSequence = AnimationSetup.AnimSequence.LoadSynchronous();
+		UAnimSequence* AnimSequence = AnimationSetup.AnimSequence;
 		
 		if (AnimBPClass == nullptr && AnimSequence == nullptr)
 		{

@@ -74,6 +74,7 @@ UControlRigGraphNode* FControlRigBlueprintUtils::InstantiateGraphNodeForProperty
 	NewNode->NodePosY = InLocation.Y;
 
 	NewNode->SetFlags(RF_Transactional);
+	NewNode->UpdateNodeColorFromMetadata();
 
 	return NewNode;
 }

@@ -21,6 +21,7 @@ public:
 	virtual void Shutdown() override;
 	virtual void AddRequest(const FBackgroundHttpRequestPtr Request) override;
 	virtual void RemoveRequest(const FBackgroundHttpRequestPtr Request) override;
+	virtual bool IsGenericImplementation() const override { return false;  }
 
 	/**
 	* Constructor
@@ -85,7 +86,7 @@ private:
 	void FinishRequest(FAppleBackgroundHttpRequestPtr Request);
 	void RetryRequest(FAppleBackgroundHttpRequestPtr Request, bool bShouldIncreaseRetryCount, bool bShouldStartImmediately, NSData* RetryData);
     void RemoveSessionTasksForRequest(FAppleBackgroundHttpRequestPtr Request);
-    void GenerateURLMapEntriesForRequest(FAppleBackgroundHttpRequestPtr Request);
+    bool GenerateURLMapEntriesForRequest(FAppleBackgroundHttpRequestPtr Request);
     void RemoveURLMapEntriesForRequest(FAppleBackgroundHttpRequestPtr Request);
     
 	bool IsRetryDataValid(NSData* RetryData) const;

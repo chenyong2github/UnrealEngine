@@ -35,7 +35,7 @@ public:
 		return UserJid;
 	}
 	virtual FOnXmppLoginComplete& OnLoginComplete() override { return OnXmppLoginCompleteDelegate; }
-	virtual FOnXmppLogingChanged& OnLoginChanged() override { return OnXmppLogingChangedDelegate; }
+	virtual FOnXmppLoginChanged& OnLoginChanged() override { return OnXmppLoginChangedDelegate; }
 	virtual FOnXmppLogoutComplete& OnLogoutComplete() override { return OnXmppLogoutCompleteDelegate; }
 
 	virtual IXmppPresencePtr Presence() override { return NULL; }
@@ -56,7 +56,7 @@ private:
 
 	// completion delegates
 	FOnXmppLoginComplete OnXmppLoginCompleteDelegate;
-	FOnXmppLogingChanged OnXmppLogingChangedDelegate;
+	FOnXmppLoginChanged OnXmppLoginChangedDelegate;
 	FOnXmppLogoutComplete OnXmppLogoutCompleteDelegate;	
 };
 

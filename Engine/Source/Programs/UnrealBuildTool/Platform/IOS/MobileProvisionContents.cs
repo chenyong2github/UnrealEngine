@@ -64,6 +64,37 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Gets the bundle id for this mobileprovision
+		/// </summary>
+		/// <returns>Bundle Identifier for the provision</returns>
+		public string GetBundleIdentifier()
+		{
+			XmlElement UniqueIdElement = null, UniqueIdEntitlement;
+			if (!NameToValue.TryGetValue("Entitlements", out UniqueIdEntitlement) || UniqueIdEntitlement.Name != "dict")
+			{
+				throw new BuildException("Missing Entitlements in MobileProvision");
+			}
+
+			foreach (XmlElement KeyElement in UniqueIdEntitlement.SelectNodes("key"))
+			{
+				Console.WriteLine("Found entitlement node:" + KeyElement.InnerText);
+				if (!KeyElement.InnerText.Equals("application-identifier"))
+				{
+					continue;
+				}
+				UniqueIdElement = KeyElement.NextSibling as XmlElement;
+				break;
+			}
+
+
+			if (UniqueIdElement == null)
+			{
+				throw new BuildException("Missing Bundle Identifier in MobileProvision");
+			}
+			return UniqueIdElement.InnerText.Substring(UniqueIdElement.InnerText.IndexOf('.') + 1);
+		}
+
+		/// <summary>
 		/// Gets the team unique id for this mobileprovision
 		/// </summary>
 		/// <param name="UniqueId">Receives the team unique id</param>
@@ -107,7 +138,7 @@ namespace UnrealBuildTool
 		public static XmlDocument ReadXml(FileReference Location)
 		{
 			// Provision data is stored as PKCS7-signed file in ASN.1 BER format
-			using(BinaryReader Reader = new BinaryReader(File.Open(Location.FullName, FileMode.Open)))
+			using(BinaryReader Reader = new BinaryReader(File.Open(Location.FullName, FileMode.Open, FileAccess.Read)))
 			{
 				long Length = Reader.BaseStream.Length;
 				while(Reader.BaseStream.Position < Length)

@@ -8,7 +8,7 @@
 class UControlRig;
 
 USTRUCT(BlueprintType)
-struct FRigJoint
+struct FRigBone
 {
 	GENERATED_BODY()
 
@@ -42,62 +42,62 @@ struct CONTROLRIG_API FRigHierarchy
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = FRigHierarchy)
-	TArray<FRigJoint> Joints;
+	TArray<FRigBone> Bones;
 
 	// can serialize fine? 
 	UPROPERTY()
 	TMap<FName, int32> NameToIndexMapping;
 
-	void AddJoint(const FName& NewJointName, const FName& Parent, const FTransform& InitTransform)
+	void AddBone(const FName& NewBoneName, const FName& Parent, const FTransform& InitTransform)
 	{
 		int32 ParentIndex = GetIndex(Parent);
 		bool bHasParent = (ParentIndex != INDEX_NONE);
 
-		FRigJoint NewJoint;
-		NewJoint.Name = NewJointName;
-		NewJoint.ParentIndex = ParentIndex;
-		NewJoint.ParentName = bHasParent? Parent : NAME_None;
-		NewJoint.InitialTransform = InitTransform;
-		NewJoint.GlobalTransform = InitTransform;
-		RecalculateLocalTransform(NewJoint);
+		FRigBone NewBone;
+		NewBone.Name = NewBoneName;
+		NewBone.ParentIndex = ParentIndex;
+		NewBone.ParentName = bHasParent? Parent : NAME_None;
+		NewBone.InitialTransform = InitTransform;
+		NewBone.GlobalTransform = InitTransform;
+		RecalculateLocalTransform(NewBone);
 
-		Joints.Add(NewJoint);
+		Bones.Add(NewBone);
 		RefreshMapping();
 	}
 
-	void AddJoint(const FName& NewJointName, const FName& Parent, const FTransform& InitTransform, const FTransform& LocalTransform, const FTransform& GlobalTransform)
+	void AddBone(const FName& NewBoneName, const FName& Parent, const FTransform& InitTransform, const FTransform& LocalTransform, const FTransform& GlobalTransform)
 	{
-		AddJoint(NewJointName, Parent, InitTransform);
+		AddBone(NewBoneName, Parent, InitTransform);
 
-		int32 NewIndex = GetIndex(NewJointName);
-		Joints[NewIndex].LocalTransform = LocalTransform;
-		Joints[NewIndex].GlobalTransform = GlobalTransform;
+		int32 NewIndex = GetIndex(NewBoneName);
+		Bones[NewIndex].LocalTransform = LocalTransform;
+		Bones[NewIndex].GlobalTransform = GlobalTransform;
 	}
 
-	void Reparent(const FName& InJoint, const FName& NewParent)
+	void Reparent(const FName& InBone, const FName& NewParent)
 	{
-		int32 Index = GetIndex(InJoint);
+		int32 Index = GetIndex(InBone);
 		// can't parent to itself
-		if (Index != INDEX_NONE && InJoint != NewParent)
+		if (Index != INDEX_NONE && InBone != NewParent)
 		{
 			// should allow reparent to none (no parent)
 			// if invalid, we consider to be none
 			int32 ParentIndex = GetIndex(NewParent);
 			bool bHasParent = (ParentIndex != INDEX_NONE);
-			FRigJoint& CurJoint = Joints[Index];
-			CurJoint.ParentIndex = ParentIndex;
-			CurJoint.ParentName = (bHasParent)? NewParent : NAME_None;
-			RecalculateLocalTransform(CurJoint);
+			FRigBone& CurBone = Bones[Index];
+			CurBone.ParentIndex = ParentIndex;
+			CurBone.ParentName = (bHasParent)? NewParent : NAME_None;
+			RecalculateLocalTransform(CurBone);
 
 			// we want to make sure parent is before the child
 			RefreshMapping();
 		}
 	}
 
-	void DeleteJoint(const FName& JointToDelete, bool bIncludeChildren)
+	void DeleteBone(const FName& BoneToDelete, bool bIncludeChildren)
 	{
 		TArray<int32> Children;
-		if (GetChildren(JointToDelete, Children, true) > 0)
+		if (GetChildren(BoneToDelete, Children, true) > 0)
 		{
 			// sort by child index
 			Children.Sort([](const int32& A, const int32& B) { return A < B; });
@@ -105,7 +105,7 @@ struct CONTROLRIG_API FRigHierarchy
 			// want to delete from end to the first 
 			for (int32 ChildIndex = Children.Num() - 1; ChildIndex >= 0; --ChildIndex)
 			{
-				Joints.RemoveAt(Children[ChildIndex]);
+				Bones.RemoveAt(Children[ChildIndex]);
 			}
 		}
 
@@ -114,45 +114,45 @@ struct CONTROLRIG_API FRigHierarchy
 		// difficulty in the future, so I'm changing to FindIndexSlow
 		// note that we're removing units here, but the index is removed from later
 		// to begin, so in theory it should be fine
-		int32 IndexToDelete = GetIndex(JointToDelete);
-		Joints.RemoveAt(IndexToDelete);
+		int32 IndexToDelete = GetIndex(BoneToDelete);
+		Bones.RemoveAt(IndexToDelete);
 
 		RefreshMapping();
 	}
 
-	FName GetParentName(const FName& InJoint) const
+	FName GetParentName(const FName& InBone) const
 	{
-		int32 Index = GetIndex(InJoint);
+		int32 Index = GetIndex(InBone);
 		if (Index != INDEX_NONE)
 		{
-			return Joints[Index].ParentName;
+			return Bones[Index].ParentName;
 		}
 
 		return NAME_None;
 	}
 
-	int32 GetParentIndex(const int32 JointIndex) const
+	int32 GetParentIndex(const int32 BoneIndex) const
 	{
-		if (JointIndex != INDEX_NONE)
+		if (BoneIndex != INDEX_NONE)
 		{
-			return Joints[JointIndex].ParentIndex;
+			return Bones[BoneIndex].ParentIndex;
 		}
 
 		return INDEX_NONE;
 	}
 	// list of names of children - this is not cheap, and is supposed to be used only for one time set up
-	int32 GetChildren(const FName& InJoint, TArray<int32>& OutChildren, bool bRecursively) const
+	int32 GetChildren(const FName& InBone, TArray<int32>& OutChildren, bool bRecursively) const
 	{
-		return GetChildren(GetIndex(InJoint), OutChildren, bRecursively);
+		return GetChildren(GetIndex(InBone), OutChildren, bRecursively);
 	}
 
-	int32 GetChildren(const int32 InJointIndex, TArray<int32>& OutChildren, bool bRecursively) const
+	int32 GetChildren(const int32 InBoneIndex, TArray<int32>& OutChildren, bool bRecursively) const
 	{
 		OutChildren.Reset();
 
-		if (InJointIndex != INDEX_NONE)
+		if (InBoneIndex != INDEX_NONE)
 		{
-			GetChildrenRecursive(InJointIndex, OutChildren, bRecursively);
+			GetChildrenRecursive(InBoneIndex, OutChildren, bRecursively);
 		}
 
 		return OutChildren.Num();
@@ -160,20 +160,20 @@ struct CONTROLRIG_API FRigHierarchy
 
 	FName GetName(int32 Index) const
 	{
-		if (Joints.IsValidIndex(Index))
+		if (Bones.IsValidIndex(Index))
 		{
-			return Joints[Index].Name;
+			return Bones[Index].Name;
 		}
 
 		return NAME_None;
 	}
 
-	int32 GetIndex(const FName& Joint) const
+	int32 GetIndex(const FName& Bone) const
 	{
 		// ensure if it does not match
-		//ensureAlways(Joints.Num() == NameToIndexMapping.Num());
+		//ensureAlways(Bones.Num() == NameToIndexMapping.Num());
 
-		const int32* Index = NameToIndexMapping.Find(Joint);
+		const int32* Index = NameToIndexMapping.Find(Bone);
 		if (Index)
 		{
 			return *Index;
@@ -187,32 +187,32 @@ struct CONTROLRIG_API FRigHierarchy
 	// ignore mapping, run slow search
 	// this is useful in editor while editing
 	// we don't want to build mapping data every time
-	int32 GetIndexSlow(const FName& Joint) const
+	int32 GetIndexSlow(const FName& Bone) const
 	{
-		for (int32 JointId = 0; JointId < Joints.Num(); ++JointId)
+		for (int32 BoneId = 0; BoneId < Bones.Num(); ++BoneId)
 		{
-			if (Joints[JointId].Name == Joint)
+			if (Bones[BoneId].Name == Bone)
 			{
-				return JointId;
+				return BoneId;
 			}
 		}
 
 		return INDEX_NONE;
 	}
 //#endif // WITH_EDITOR
-	void SetGlobalTransform(const FName& Joint, const FTransform& InTransform, bool bPropagateTransform = true)
+	void SetGlobalTransform(const FName& Bone, const FTransform& InTransform, bool bPropagateTransform = true)
 	{
-		SetGlobalTransform(GetIndex(Joint), InTransform, bPropagateTransform);
+		SetGlobalTransform(GetIndex(Bone), InTransform, bPropagateTransform);
 	}
 
 	void SetGlobalTransform(int32 Index, const FTransform& InTransform, bool bPropagateTransform = true)
 	{
-		if (Joints.IsValidIndex(Index))
+		if (Bones.IsValidIndex(Index))
 		{
-			FRigJoint& Joint = Joints[Index];
-			Joint.GlobalTransform = InTransform;
-			Joint.GlobalTransform.NormalizeRotation();
-			RecalculateLocalTransform(Joint);
+			FRigBone& Bone = Bones[Index];
+			Bone.GlobalTransform = InTransform;
+			Bone.GlobalTransform.NormalizeRotation();
+			RecalculateLocalTransform(Bone);
 
 			if (bPropagateTransform)
 			{
@@ -221,33 +221,33 @@ struct CONTROLRIG_API FRigHierarchy
 		}
 	}
 
-	FTransform GetGlobalTransform(const FName& Joint) const
+	FTransform GetGlobalTransform(const FName& Bone) const
 	{
-		return GetGlobalTransform(GetIndex(Joint));
+		return GetGlobalTransform(GetIndex(Bone));
 	}
 
 	FTransform GetGlobalTransform(int32 Index) const
 	{
-		if (Joints.IsValidIndex(Index))
+		if (Bones.IsValidIndex(Index))
 		{
-			return Joints[Index].GlobalTransform;
+			return Bones[Index].GlobalTransform;
 		}
 
 		return FTransform::Identity;
 	}
 
-	void SetLocalTransform(const FName& Joint, const FTransform& InTransform, bool bPropagateTransform = true)
+	void SetLocalTransform(const FName& Bone, const FTransform& InTransform, bool bPropagateTransform = true)
 	{
-		SetLocalTransform(GetIndex(Joint), InTransform, bPropagateTransform);
+		SetLocalTransform(GetIndex(Bone), InTransform, bPropagateTransform);
 	}
 
 	void SetLocalTransform(int32 Index, const FTransform& InTransform, bool bPropagateTransform = true)
 	{
-		if (Joints.IsValidIndex(Index))
+		if (Bones.IsValidIndex(Index))
 		{
-			FRigJoint& Joint = Joints[Index];
-			Joint.LocalTransform = InTransform;
-			RecalculateGlobalTransform(Joint);
+			FRigBone& Bone = Bones[Index];
+			Bone.LocalTransform = InTransform;
+			RecalculateGlobalTransform(Bone);
 
 			if (bPropagateTransform)
 			{
@@ -256,63 +256,63 @@ struct CONTROLRIG_API FRigHierarchy
 		}
 	}
 
-	FTransform GetLocalTransform(const FName& Joint) const
+	FTransform GetLocalTransform(const FName& Bone) const
 	{
-		return GetLocalTransform(GetIndex(Joint));
+		return GetLocalTransform(GetIndex(Bone));
 	}
 
 	FTransform GetLocalTransform(int32 Index) const
 	{
-		if (Joints.IsValidIndex(Index))
+		if (Bones.IsValidIndex(Index))
 		{
-			return Joints[Index].LocalTransform;
+			return Bones[Index].LocalTransform;
 		}
 
 		return FTransform::Identity;
 	}
 
-	void SetInitialTransform(const FName& Joint, const FTransform& InTransform)
+	void SetInitialTransform(const FName& Bone, const FTransform& InTransform)
 	{
-		SetInitialTransform(GetIndex(Joint), InTransform);
+		SetInitialTransform(GetIndex(Bone), InTransform);
 	}
 
 	void SetInitialTransform(int32 Index, const FTransform& InTransform)
 	{
-		if (Joints.IsValidIndex(Index))
+		if (Bones.IsValidIndex(Index))
 		{
-			FRigJoint& Joint = Joints[Index];
-			Joint.InitialTransform = InTransform;
-			Joint.InitialTransform.NormalizeRotation();
-			RecalculateLocalTransform(Joint);
+			FRigBone& Bone = Bones[Index];
+			Bone.InitialTransform = InTransform;
+			Bone.InitialTransform.NormalizeRotation();
+			RecalculateLocalTransform(Bone);
 		}
 	}
 
-	FTransform GetInitialTransform(const FName& Joint) const
+	FTransform GetInitialTransform(const FName& Bone) const
 	{
-		return GetInitialTransform(GetIndex(Joint));
+		return GetInitialTransform(GetIndex(Bone));
 	}
 
 	FTransform GetInitialTransform(int32 Index) const
 	{
-		if (Joints.IsValidIndex(Index))
+		if (Bones.IsValidIndex(Index))
 		{
-			return Joints[Index].InitialTransform;
+			return Bones[Index].InitialTransform;
 		}
 
 		return FTransform::Identity;
 	}
 	// @todo: move to private
-	void RecalculateLocalTransform(FRigJoint& InOutJoint)
+	void RecalculateLocalTransform(FRigBone& InOutBone)
 	{
-		bool bHasParent = InOutJoint.ParentIndex != INDEX_NONE;
-		InOutJoint.LocalTransform = (bHasParent) ? InOutJoint.GlobalTransform.GetRelativeTransform(Joints[InOutJoint.ParentIndex].GlobalTransform) : InOutJoint.GlobalTransform;
+		bool bHasParent = InOutBone.ParentIndex != INDEX_NONE;
+		InOutBone.LocalTransform = (bHasParent) ? InOutBone.GlobalTransform.GetRelativeTransform(Bones[InOutBone.ParentIndex].GlobalTransform) : InOutBone.GlobalTransform;
 	}
 
 	// @todo: move to private
-	void RecalculateGlobalTransform(FRigJoint& InOutJoint)
+	void RecalculateGlobalTransform(FRigBone& InOutBone)
 	{
-		bool bHasParent = InOutJoint.ParentIndex != INDEX_NONE;
-		InOutJoint.GlobalTransform = (bHasParent) ? InOutJoint.LocalTransform * Joints[InOutJoint.ParentIndex].GlobalTransform : InOutJoint.LocalTransform;
+		bool bHasParent = InOutBone.ParentIndex != INDEX_NONE;
+		InOutBone.GlobalTransform = (bHasParent) ? InOutBone.LocalTransform * Bones[InOutBone.ParentIndex].GlobalTransform : InOutBone.LocalTransform;
 	}
 
 	void Rename(const FName& OldName, const FName& NewName)
@@ -322,14 +322,14 @@ struct CONTROLRIG_API FRigHierarchy
 			const int32 Found = GetIndex(OldName);
 			if (Found != INDEX_NONE)
 			{
-				Joints[Found].Name = NewName;
+				Bones[Found].Name = NewName;
 
 				// go through find all children and rename them
-				for (int32 Index = 0; Index < Joints.Num(); ++Index)
+				for (int32 Index = 0; Index < Bones.Num(); ++Index)
 				{
-					if (Joints[Index].ParentName == OldName)
+					if (Bones[Index].ParentName == OldName)
 					{
-						Joints[Index].ParentName = NewName;
+						Bones[Index].ParentName = NewName;
 					}
 				}
 
@@ -338,26 +338,32 @@ struct CONTROLRIG_API FRigHierarchy
 		}
 	}
 
+	// updates all of the internal caches
 	void Initialize();
+
+	// clears the hierarchy and removes all content
 	void Reset();
+
+	// resets all of the transforms back to the initial transform
+	void ResetTransforms();
 
 	int32 GetNum() const
 	{
-		return Joints.Num();
+		return Bones.Num();
 	}
 private:
 	void RefreshMapping();
 	void Sort();
 
 	// list of names of children - this is not cheap, and is supposed to be used only for one time set up
-	int32 GetChildrenRecursive(const int32 InJointIndex, TArray<int32>& OutChildren, bool bRecursively) const
+	int32 GetChildrenRecursive(const int32 InBoneIndex, TArray<int32>& OutChildren, bool bRecursively) const
 	{
 		const int32 StartChildIndex = OutChildren.Num();
 
 		// all children should be later than parent
-		for (int32 ChildIndex = InJointIndex + 1; ChildIndex < Joints.Num(); ++ChildIndex)
+		for (int32 ChildIndex = InBoneIndex + 1; ChildIndex < Bones.Num(); ++ChildIndex)
 		{
-			if (Joints[ChildIndex].ParentIndex == InJointIndex)
+			if (Bones[ChildIndex].ParentIndex == InBoneIndex)
 			{
 				OutChildren.AddUnique(ChildIndex);
 			}
@@ -376,7 +382,7 @@ private:
 		return OutChildren.Num();
 	}
 
-	void PropagateTransform(int32 JointIndex);
+	void PropagateTransform(int32 BoneIndex);
 };
 
 USTRUCT()
@@ -412,9 +418,16 @@ struct FRigHierarchyContainer
 
 		// @todo reset whole hierarhcy
 	}
+
+	void ResetTransforms()
+	{
+		BaseHierarchy.ResetTransforms();
+
+		// @todo reset whole hierarhcy
+	}
 };
 
-USTRUCT(BlueprintType)
+USTRUCT()
 struct FRigHierarchyRef
 {
 	GENERATED_BODY()
@@ -478,4 +491,5 @@ private:
 		return nullptr;
 	}
 	friend class UControlRig;
+	friend class FControlRigUnitTestBase;
 };

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/Map.h"
 #include "Features/IModularFeature.h"
 #include "Delegates/Delegate.h"
 
@@ -28,7 +29,7 @@ public:
 	virtual void Start(const wchar_t* ProcessGroupName) = 0;
 	virtual void Stop() = 0;
 
-	virtual void SetLinkerPath(const wchar_t* LinkerPath) = 0;
+	virtual void SetLinkerPath(const wchar_t* LinkerPath, const TMap<FString, FString>& LinkerEnvironment) = 0;
 
 	DECLARE_DELEGATE(FBringToFrontDelegate);
 	virtual FBringToFrontDelegate& GetBringToFrontDelegate() = 0;
@@ -43,7 +44,8 @@ public:
 	virtual FLogOutputDelegate& GetLogOutputDelegate() = 0;
 
 	typedef TMap<FString, TArray<FString>> FModuleToObjectFiles;
-	DECLARE_DELEGATE_RetVal_TwoParams(bool, FCompileDelegate, const TArray<FString>&, FModuleToObjectFiles&)
+	typedef TMap<FString, FString> FObjectFileToUnityObjectFile;
+	DECLARE_DELEGATE_RetVal_ThreeParams(bool, FCompileDelegate, const TArray<FString>&, FModuleToObjectFiles&, FObjectFileToUnityObjectFile&)
 	virtual FCompileDelegate& GetCompileDelegate() = 0;
 
 	DECLARE_DELEGATE(FCompileStartedDelegate);

@@ -7,6 +7,9 @@
 #include "LC_AppSettings.h"
 #include "LC_Logging.h"
 
+// BEGIN EPIC MOD - Allow passing environment block for linker
+#include "Containers/StringConv.h"
+// END EPIC MOD
 
 namespace environment
 {
@@ -16,6 +19,25 @@ namespace environment
 		char* data;
 	};
 
+	// BEGIN EPIC MOD - Allow passing environment block for linker
+	Block* CreateBlockFromMap(const TMap<FString, FString>& Pairs)
+	{
+		std::vector<char> blockData;
+		for (const TPair<FString, FString>& Pair : Pairs)
+		{
+			auto AnsiString = StringCast<ANSICHAR>(*FString::Printf(TEXT("%s=%s"), *Pair.Key, *Pair.Value));
+			const char* AnsiStringData = AnsiString.Get();
+			blockData.insert(blockData.end(), AnsiStringData, strchr(AnsiStringData, 0) + 1);
+		}
+		blockData.push_back('\0');
+
+		Block* block = new Block;
+		block->size = blockData.size();
+		block->data = new char[blockData.size()];
+		memcpy(block->data, blockData.data(), blockData.size());
+		return block;
+	}
+	// END EPIC MOD
 
 	Block* CreateBlockFromFile(const wchar_t* path)
 	{
@@ -39,10 +61,17 @@ namespace environment
 			const char* start = memory;
 
 			// search for carriage return
-			while (memory[0] != '\r')
+			while ((memory < memoryEnd) && (memory[0] != '\r'))
 			{
 				++memory;
 			}
+
+			if (memory >= memoryEnd)
+			{
+				// reached the end
+				break;
+			}
+
 			const char* end = memory;
 
 			std::string line(start, end);
@@ -61,7 +90,7 @@ namespace environment
 			}
 
 			// skip carriage return and new line
-			while ((memory[0] == '\r') || (memory[0] == '\n'))
+			while ((memory < memoryEnd) && ((memory[0] == '\r') || (memory[0] == '\n')))
 			{
 				++memory;
 			}
@@ -140,7 +169,11 @@ namespace environment
 		value.resize(MAX_PATH);
 
 		size_t bytes = 0u;
-		_wgetenv_s(&bytes, &value[0], value.size(), variable);
+		const errno_t error = _wgetenv_s(&bytes, &value[0], value.size(), variable);
+		if (error != 0)
+		{
+			LC_LOG_DEV("Could not retrieve environment variable %S (Error: %d)", variable, error);
+		}
 
 		return value;
 	}

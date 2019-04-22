@@ -7,8 +7,9 @@ namespace UnrealBuildTool.Rules
 		public AudioMixer(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PrivateIncludePathModuleNames.Add("TargetPlatform");
+            PublicIncludePathModuleNames.Add("TargetPlatform");
 
-			PrivateIncludePaths.AddRange(
+            PrivateIncludePaths.AddRange(
 				new string[]
 				{
 					"Runtime/AudioMixer/Private",
@@ -28,7 +29,8 @@ namespace UnrealBuildTool.Rules
 				{
 					"CoreUObject",
 					"Engine",
-				}
+                    "NonRealtimeAudioRenderer"
+                }
 			);
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
@@ -87,16 +89,19 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 			{
-				string LibSndFilePath = Target.UEThirdPartyBinariesDirectory + "libsndfile/";
-				LibSndFilePath += Target.Platform == UnrealTargetPlatform.Win32
-					? "Win32"
-					: "Win64";
-					
-				PublicAdditionalLibraries.Add("libsndfile-1.lib");
+				string PlatformName = Target.Platform == UnrealTargetPlatform.Win32 ? "Win32" : "Win64";
+
+                string LibSndFilePath = Target.UEThirdPartyBinariesDirectory + "libsndfile/";
+                LibSndFilePath += PlatformName;
+
+
+                PublicAdditionalLibraries.Add("libsndfile-1.lib");
 				PublicDelayLoadDLLs.Add("libsndfile-1.dll");
 				PublicIncludePathModuleNames.Add("UELibSampleRate");
 				PublicLibraryPaths.Add(LibSndFilePath);
-			}
+
+                RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/libsndfile/" + PlatformName + "/libsndfile-1.dll");
+            }
 		}
 	}
 }

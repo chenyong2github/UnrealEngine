@@ -14,20 +14,34 @@
 #include "ClassViewerFilter.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/SClassPickerDialog.h"
+#include "EditorUtilityWidget.h"
 
 class FBlutilityBlueprintFactoryFilter : public IClassViewerFilter
 {
 public:
 	TSet< const UClass* > AllowedChildOfClasses;
 
+	TSet< const UClass*> DisallowedChildOfClasses;
+
 	bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs ) override
 	{
-		return InFilterFuncs->IfInChildOfClassesSet(AllowedChildOfClasses, InClass) != EFilterReturn::Failed;
+		if (DisallowedChildOfClasses.Num() == 0 && AllowedChildOfClasses.Num() == 0)
+		{
+			return true;
+		}
+		return (InFilterFuncs->IfInChildOfClassesSet(AllowedChildOfClasses, InClass) != EFilterReturn::Failed) 
+			&& (InFilterFuncs->IfInChildOfClassesSet(DisallowedChildOfClasses, InClass) == EFilterReturn::Failed);
 	}
 
 	virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef< const IUnloadedBlueprintData > InUnloadedClassData, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs) override
 	{
-		return InFilterFuncs->IfInChildOfClassesSet(AllowedChildOfClasses, InUnloadedClassData) != EFilterReturn::Failed;
+		if (DisallowedChildOfClasses.Num() == 0 && AllowedChildOfClasses.Num() == 0)
+		{
+			return true;
+		}
+
+		return InFilterFuncs->IfInChildOfClassesSet(AllowedChildOfClasses, InUnloadedClassData) != EFilterReturn::Failed
+			&& (InFilterFuncs->IfInChildOfClassesSet(DisallowedChildOfClasses, InUnloadedClassData) == EFilterReturn::Failed);;
 	}
 };
 
@@ -37,12 +51,9 @@ public:
 UEditorUtilityBlueprintFactory::UEditorUtilityBlueprintFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	UClass* DefaultParentClass = APlacedEditorUtilityBase::StaticClass();
-
 	bCreateNew = true;
 	bEditAfterNew = true;
 	SupportedClass = UEditorUtilityBlueprint::StaticClass();
-	ParentClass = DefaultParentClass;
 }
 
 bool UEditorUtilityBlueprintFactory::ConfigureProperties()
@@ -57,20 +68,15 @@ bool UEditorUtilityBlueprintFactory::ConfigureProperties()
 	FClassViewerInitializationOptions Options;
 	Options.Mode = EClassViewerMode::ClassPicker;
 	Options.DisplayMode = EClassViewerDisplayMode::ListView;
-	Options.bShowObjectRootClass = true;
-
 	// Only want blueprint actor base classes.
 	Options.bIsBlueprintBaseOnly = true;
-
 	// This will allow unloaded blueprints to be shown.
 	Options.bShowUnloadedBlueprints = true;
+	Options.bEditorClassesOnly = true;
 
 	TSharedPtr< FBlutilityBlueprintFactoryFilter > Filter = MakeShareable(new FBlutilityBlueprintFactoryFilter);
+	Filter->DisallowedChildOfClasses.Add(UEditorUtilityWidget::StaticClass());
 	Options.ClassFilter = Filter;
-
-	//Filter->AllowedChildOfClasses.Add(APlacedEditorUtilityBase::StaticClass());
-	Filter->AllowedChildOfClasses.Add(UGlobalEditorUtilityBase::StaticClass());
-
 
 	const FText TitleText = NSLOCTEXT("EditorFactories", "CreateBlueprintOptions", "Pick Parent Class");
 	UClass* ChosenClass = NULL;

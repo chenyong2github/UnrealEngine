@@ -1549,6 +1549,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		variables.put("memory", Integer.toString(totalMemory));
 
 		//variables.put("Profile", "Android");
+		variables.put("OverrideProfile", "true");
 		variables.put("hardware", hardware);
 		variables.put("ro.hardware", roHardware);
 		variables.put("processor", processor);
@@ -2051,6 +2052,15 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			}
 			catch (Exception e)
 			{
+			}
+		}
+
+		// clear Profile if OverrideProfile was not left set as well
+		if (variables.containsKey("Profile"))
+		{
+			if (!variables.containsKey("OverrideProfile"))
+			{
+				variables.remove("Profile");
 			}
 		}
 
@@ -2807,7 +2817,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
         	public void onGlobalLayout()
         	{
 				//Log.debug("VK: onGlobalLayout " + bKeyboardShowing);
-        		if( bKeyboardShowing )
+        		//if( bKeyboardShowing )
         		{
         			Rect visibleRect = new Rect();
         			View visibleView = mainView.getRootView();
@@ -2841,36 +2851,60 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
                     int visibleScreenYOffset = Math.max(bottomDiff, topDiff);
 
-        			nativeVirtualKeyboardShown( keyboardRect.left, keyboardRect.top, keyboardRect.right, keyboardRect.bottom );
 					//Log.debug("VK: show?" + visibleScreenYOffset + "," + newVirtualKeyboardInput.getY());
 
 					// Samsung Game Tools floating keyboard is only 1 pixel tall
 					if(visibleScreenYOffset > 200 || (bSamsungDevice && visibleScreenYOffset > 0))
                     {
-						//Log.debug("VK: show");
-						//#jira UE-55117 Android virtual keyboard can have text input hidden by software buttons
-						newVirtualKeyboardInput.getLayoutParams().width = Math.abs(visibleRect.right - visibleRect.left );
-						newVirtualKeyboardInput.setX(leftDiff);
-                    	newVirtualKeyboardInput.setY(keyboardYPos);
-                    	newVirtualKeyboardInput.setVisibility(View.VISIBLE);
-						newVirtualKeyboardInput.requestFocus();
+						if (bKeyboardShowing)
+						{
+							nativeVirtualKeyboardShown( keyboardRect.left, keyboardRect.top, keyboardRect.right, keyboardRect.bottom );
+
+							//Log.debug("VK: show");
+							//#jira UE-55117 Android virtual keyboard can have text input hidden by software buttons
+							newVirtualKeyboardInput.getLayoutParams().width = Math.abs(visibleRect.right - visibleRect.left);
+							newVirtualKeyboardInput.setX(leftDiff);
+							newVirtualKeyboardInput.setY(keyboardYPos);
+							newVirtualKeyboardInput.setVisibility(View.VISIBLE);
+							newVirtualKeyboardInput.requestFocus();
+						}
+
+						AndroidThunkJava_ResizeKeyboard(true, keyboardRect, visibleRect);
                     }
-                    else if(newVirtualKeyboardInput.getY() > 0)
+                    else
                     {
-						//Log.debug("VK: hide");
-						newVirtualKeyboardInput.setVisibility(View.GONE);
-						//set offscreen
-        				newVirtualKeyboardInput.setY(-1000); 
+						if (bKeyboardShowing)
+						{
+							nativeVirtualKeyboardShown( keyboardRect.left, keyboardRect.top, keyboardRect.right, keyboardRect.bottom );
+							
+							if (newVirtualKeyboardInput.getY() > 0)
+							{
+
+								//Log.debug("VK: hide");
+								newVirtualKeyboardInput.setVisibility(View.GONE);
+								//set offscreen
+								newVirtualKeyboardInput.setY(-1000);
+							}
+						}
+
+						AndroidThunkJava_ResizeKeyboard(false, keyboardRect, visibleRect);
                     }
         		}
         	}
         });
+
+//$${gameActivityAfterMainViewCreatedAdditions}$$
 
 		clipboardManager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
 
 //$${gameActivityOnCreateAdditions}$$
 		
 		Log.debug("==============> GameActive.onCreate complete!");
+	}
+
+	public void AndroidThunkJava_ResizeKeyboard(boolean bShow, Rect keyboardRect, Rect visibleRect)
+	{
+		//$${gameActivityResizeKeyboardAdditions}$$
 	}
 
 	@Override

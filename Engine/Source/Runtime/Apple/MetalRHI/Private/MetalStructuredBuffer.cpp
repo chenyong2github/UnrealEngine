@@ -35,7 +35,6 @@ FStructuredBufferRHIRef FMetalDynamicRHI::RHICreateStructuredBuffer(uint32 Strid
 	{
 		if (Buffer->GetUsage() & (BUF_Dynamic|BUF_Static))
 		{
-			LLM_SCOPE(ELLMTag::VertexBuffer);
 			SafeReleaseMetalBuffer(Buffer->CPUBuffer);
 			Buffer->CPUBuffer = nil;
 		}
@@ -93,7 +92,6 @@ struct FMetalRHICommandInitialiseStructuredBuffer : public FRHICommand<FMetalRHI
 			GetMetalDeviceContext().AsyncCopyFromBufferToBuffer(Buffer->CPUBuffer, 0, Buffer->Buffer, 0, Buffer->Buffer.GetLength());
 			if (Buffer->GetUsage() & (BUF_Dynamic|BUF_Static))
 			{
-				LLM_SCOPE(ELLMTag::VertexBuffer);
 				SafeReleaseMetalBuffer(Buffer->CPUBuffer);
 			}
 			else
@@ -159,7 +157,6 @@ FStructuredBufferRHIRef FMetalDynamicRHI::CreateStructuredBuffer_RenderThread(cl
 		{
 			if (VertexBuffer->GetUsage() & (BUF_Dynamic|BUF_Static))
 			{
-				LLM_SCOPE(ELLMTag::VertexBuffer);
 				SafeReleaseMetalBuffer(VertexBuffer->CPUBuffer);
 				VertexBuffer->CPUBuffer = nil;
 			}

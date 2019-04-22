@@ -456,6 +456,20 @@ inline bool IsUsingDBuffers(EShaderPlatform Platform)
 	return !!(GDBufferPlatformMask & (1u << Platform));
 }
 
+/** Returns whether the base pass should output to the velocity buffer is enabled for a given shader platform */
+inline bool IsUsingBasePassVelocity(EShaderPlatform Platform)
+{
+	extern RENDERCORE_API uint32 GBasePassVelocityPlatformMask;
+	return !!(GBasePassVelocityPlatformMask & (1u << Platform));
+}
+
+/** Returns whether the base pass should use selective outputs for a given shader platform */
+inline bool IsUsingSelectiveBasePassOutputs(EShaderPlatform Platform)
+{
+	extern RENDERCORE_API uint32 GSelectiveBasePassOutputsPlatformMask;
+	return !!(GSelectiveBasePassOutputsPlatformMask & (1u << Platform));
+}
+
 inline bool IsUsingPerPixelDBufferMask(EShaderPlatform Platform)
 {
 	switch (Platform)

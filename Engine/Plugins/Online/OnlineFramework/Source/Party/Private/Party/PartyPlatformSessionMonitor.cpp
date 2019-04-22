@@ -391,14 +391,11 @@ EOnlineSessionState::Type FPartyPlatformSessionMonitor::GetOssSessionState() con
 
 void FPartyPlatformSessionMonitor::EvaluateCurrentSession()
 {
-	if (!ensure(MonitoredParty.IsValid()))
+	// Bail if we've somehow lost track of the party or are already looking for a session
+	if (!ensure(MonitoredParty.IsValid()) || !TargetSessionId.IsEmpty())
 	{
 		return;
 	}
-
-	// It's possible we're the owner AND the session already exists - just update member rep data in that case
-	// If we're not in a session at all, and we're the owner, create the session
-	// 
 
 	UPartyMember& LocalUserMember = MonitoredParty->GetOwningLocalMember();
 	const IOnlineSessionPtr& SessionInterface = SessionManager->GetSessionInterface();
@@ -974,10 +971,10 @@ void FPartyPlatformSessionMonitor::ProcessJoinFailure()
 	const FPartyPlatformSessionInfo* ExistingSessionInfo = FindLocalPlatformSessionInfo();
 	if (ExistingSessionInfo && ExistingSessionInfo->SessionId != TargetSessionId)
 	{
+		UE_LOG(LogParty, Verbose, TEXT("PartyPlatformSessionMonitor targeted platform session [%s] out of date - retrying with updated id [%s]"), *TargetSessionId, *ExistingSessionInfo->SessionId);
 		TargetSessionId = FSessionId();
 
 		// The ID of our platform session changed during the find attempt, so try again right away
-		UE_LOG(LogParty, Verbose, TEXT("PartyPlatformSessionMonitor targeted platform session [%s] out of date - retrying with updated id [%s]"), *TargetSessionId, *ExistingSessionInfo->SessionId);
 		FindSession(*ExistingSessionInfo);
 	}
 	else

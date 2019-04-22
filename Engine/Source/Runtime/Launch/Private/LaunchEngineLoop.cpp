@@ -3142,7 +3142,7 @@ bool FEngineLoop::LoadStartupCoreModules()
 #endif
 
 	FModuleManager::Get().LoadModule(TEXT("PacketHandler"));
-
+	FModuleManager::Get().LoadModule(TEXT("NetworkReplayStreaming"));
 
 	return bSuccess;
 }
@@ -3403,14 +3403,19 @@ int32 FEngineLoop::Init()
 	// Ready to measure thread heartbeat
 	FThreadHeartBeat::Get().Start();
 
+	FShaderPipelineCache::PauseBatching();
+   	{
 #if defined(WITH_CODE_GUARD_HANDLER) && WITH_CODE_GUARD_HANDLER
-    void CheckImageIntegrity();
-    CheckImageIntegrity();
+         void CheckImageIntegrity();
+        CheckImageIntegrity();
 #endif
-	{
+    }
+    
+    {
 		SCOPED_BOOT_TIMING("FCoreDelegates::OnFEngineLoopInitComplete.Broadcast()");
 		FCoreDelegates::OnFEngineLoopInitComplete.Broadcast();
 	}
+	FShaderPipelineCache::ResumeBatching();
 
 #if BUILD_EMBEDDED_APP
 	FEmbeddedCommunication::AllowSleep(TEXT("Startup"));
@@ -4278,9 +4283,9 @@ void FEngineLoop::Tick()
 #if BUILD_EMBEDDED_APP
 	static double LastSleepTime = FPlatformTime::Seconds();
 	double TimeNow = FPlatformTime::Seconds();
-	if (LastSleepTime - TimeNow >= CVarSecondsBeforeEmbeddedAppSleeps.GetValueOnAnyThread())
+	if (LastSleepTime > 0 && TimeNow - LastSleepTime >= CVarSecondsBeforeEmbeddedAppSleeps.GetValueOnAnyThread())
 	{
-		LastSleepTime = TimeNow;
+		LastSleepTime = 0;
 		FEmbeddedCommunication::AllowSleep(TEXT("FirstTicks"));
 	}
 #endif
@@ -4927,7 +4932,7 @@ void FEngineLoop::PreInitHMDDevice()
 				{
 					if (ExplicitHMDName.Equals(HMDModuleName, ESearchCase::IgnoreCase))
 					{
-						bUnregisterHMDModule = false;
+						bUnregisterHMDModule = !HMDModule->PreInit();
 						break;
 					}
 				}

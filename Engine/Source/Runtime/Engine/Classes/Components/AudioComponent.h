@@ -163,6 +163,11 @@ class ENGINE_API UAudioComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound)
 	uint8 bSuppressSubtitles:1;
 
+	/** If true, re-triggers a loop if a listener comes back within range.
+	  * Only works for attenuated, non-virtualized sounds. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attenuation)
+	uint8 bRetriggerLoopOnProximity : 1;
+
 	/** Whether this audio component is previewing a sound */
 	uint8 bPreviewComponent:1;
 
@@ -189,6 +194,23 @@ class ENGINE_API UAudioComponent : public USceneComponent
 
 	/** Whether or not this audio component has been paused */
 	uint8 bIsPaused:1;
+
+	/** How playback management is based on whether a listener is within
+	  * proximity (sound's MaxDistance). */
+	enum class ERetriggerWhenInAudibleRange : uint8
+	{
+		/** Sound lifetime is not managed by listener proximity. */
+		Disabled,
+
+		/** Loop re-trigger is enabled and disable has been requested. */
+		DisableRequested,
+
+		/** Sound lifetime is managed by listener proximity (in case of sound being looping and non-virtualized) */
+		Enabled,
+	};
+
+	/** Whether or not the audio component can restart when listener is in proximity */
+	ERetriggerWhenInAudibleRange RetriggerWhenInAudibleRange;
 
 	/**
 	* True if we should automatically attach to AutoAttachParent when Played, and detach from our parent when playback is completed.
@@ -480,6 +502,12 @@ private:
 	/** Called by the ActiveSound to inform the component that playback is finished */
 	void PlaybackCompleted(bool bFailedToStart);
 
+	/** Whether or not the sound is audible. */
+	bool IsInAudibleRange(float* OutMaxDistance) const;
+
+	/** Returns true if in re-trigger range, false if not. */
+	bool GetRetriggerRate(float* OutRetriggerRate) const;
+
 public:
 
 	/** Sets the sound instance parameter. */
@@ -517,6 +545,8 @@ public:
 	/** Collects the various attenuation shapes that may be applied to the sound played by the audio component for visualization in the editor or via the in game debug visualization. */
 	void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const;
 
+	void OnUpdateProximityRetrigger(float DeltaTime);
+
 	/** Returns the active audio device to use for this component based on whether or not the component is playing in a world. */
 	FAudioDevice* GetAudioDevice() const;
 
@@ -550,6 +580,9 @@ public:
 private:
 
 	uint64 AudioComponentID;
+
+	float RetriggerTimeSinceLastUpdate;
+	float RetriggerUpdateInterval;
 
 	/** Saved relative transform before auto attachement. Used during detachment to restore the transform if we had automatically attached. */
 	FVector SavedAutoAttachRelativeLocation;
@@ -590,7 +623,8 @@ protected:
 	void PlayInternal(const float StartTime = 0.f, const float FadeInDuration = 0.f, const float FadeVolumeLevel = 1.f);
 
 private:
-	
+	void StopInternal();
+
 #if WITH_EDITORONLY_DATA
 	/** Utility function that updates which texture is displayed on the sprite dependent on the properties of the Audio Component. */
 	void UpdateSpriteTexture();

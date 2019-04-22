@@ -120,6 +120,7 @@ public:
 	static const FString CrashContextExtension;
 	static const FString RuntimePropertiesTag;
 	static const FString PlatformPropertiesTag;
+	static const FString EngineDataTag;
 	static const FString GameDataTag;
 	static const FString EnabledPluginsTag;
 	static const FString UE4MinidumpName;
@@ -213,6 +214,12 @@ public:
 	/** Helper to clean out old files in the crash report client config folder. */
 	static void PurgeOldCrashConfig();
 
+	/** Clears the engine data dictionary */
+	static void ResetEngineData();
+
+	/** Updates (or adds if not already present) arbitrary engine data to the crash context (will remove the key if passed an empty string) */
+	static void SetEngineData(const FString& Key, const FString& Value);
+
 	/** Clears the game data dictionary */
 	static void ResetGameData();
 
@@ -230,6 +237,9 @@ public:
 	
 	/** Sets the portable callstack to a specified stack */
 	virtual void SetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames);
+
+	/** Gets the portable callstack to a specified stack and puts it into OutCallStack */
+	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack);
 
 	/**
 	 * @return whether this crash is a non-crash event

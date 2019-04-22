@@ -36,6 +36,7 @@ public:
 	{
 		TitleAreaWidget = DefaultTitleAreaWidget;
 	}
+	virtual const FSlateBrush * GetNodeBodyBrush() const override;
 
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
 	virtual TSharedPtr<SGraphPin> GetHoveredPin( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) const override;
@@ -47,6 +48,8 @@ private:
 	}
 
 	EVisibility GetTitleVisibility() const;
+
+	EVisibility GetExecutionTreeVisibility() const;
 
 	EVisibility GetInputTreeVisibility() const;
 
@@ -71,6 +74,9 @@ private:
 private:
 	/** Cached widget title area */
 	TSharedPtr<SOverlay> TitleAreaWidget;
+
+	/** Widget representing collapsible execution pins */
+	TSharedPtr<STreeView<TSharedRef<FControlRigField>>> ExecutionTree;
 
 	/** Widget representing collapsible input pins */
 	TSharedPtr<STreeView<TSharedRef<FControlRigField>>> InputTree;

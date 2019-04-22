@@ -183,6 +183,14 @@ public:
 	void SetDefaultMediaPlayer(UMediaPlayer* NewMediaPlayer);
 #endif
 
+	/**
+	 * Allows tweaking the behavior for when the audio starves
+	 */
+	void SetSyncAudioAfterDropouts(bool bInSyncAudioAfterDropouts)
+	{
+		bSyncAudioAfterDropouts = bInSyncAudioAfterDropouts;
+	}
+
 public:
 
 	//~ TAttenuatedComponentVisualizer interface

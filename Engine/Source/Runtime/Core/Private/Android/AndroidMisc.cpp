@@ -44,6 +44,9 @@
 
 #if USE_ANDROID_JNI
 extern AAssetManager * AndroidThunkCpp_GetAssetManager();
+extern int32 GAndroidPackageVersion;
+#else
+#define GAndroidPackageVersion	1
 #endif
 
 static int32 GAndroidTraceMarkersEnabled = 0;
@@ -1166,6 +1169,10 @@ const FString FAndroidMisc::GetDeviceBuildNumber()
 const FString FAndroidMisc::GetOSLanguage()
 {
 	return OSLanguage;
+}
+
+const FString FAndroidMisc::GetProjectVersion() {
+	return FString::FromInt(GAndroidPackageVersion);
 }
 
 FString FAndroidMisc::GetDefaultLocale()

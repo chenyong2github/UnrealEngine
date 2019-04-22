@@ -19,11 +19,11 @@ bool FControlRigEditorEditMode::GetCameraTarget(FSphere& OutTarget) const
 		}
 	}
 
-	if (AreJointSelected())
+	if (AreBoneSelected())
 	{
-		for (int32 Index = 0; Index < SelectedJoints.Num(); ++Index)
+		for (int32 Index = 0; Index < SelectedBones.Num(); ++Index)
 		{
-			FTransform Transform = OnGetJointTransformDelegate.Execute(SelectedJoints[Index], false);
+			FTransform Transform = OnGetBoneTransformDelegate.Execute(SelectedBones[Index], false);
 			Box += Transform.GetLocation();
 		}
 	}

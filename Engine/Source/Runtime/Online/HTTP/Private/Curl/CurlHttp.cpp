@@ -266,12 +266,13 @@ FString FCurlHttpRequest::GetContentType() const
 
 int32 FCurlHttpRequest::GetContentLength() const
 {
-	return RequestPayload->GetContentLength();
+	return RequestPayload.IsValid() ? RequestPayload->GetContentLength() : 0;
 }
 
 const TArray<uint8>& FCurlHttpRequest::GetContent() const
 {
-	return RequestPayload->GetContent();
+	static const TArray<uint8> EmptyContent;
+	return RequestPayload.IsValid() ? RequestPayload->GetContent() : EmptyContent;
 }
 
 void FCurlHttpRequest::SetVerb(const FString& InVerb)

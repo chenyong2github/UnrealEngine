@@ -45,6 +45,14 @@ bool ALobbyBeaconPlayerState::IsValid() const
 	return UniqueId.IsValid();
 }
 
+void ALobbyBeaconPlayerState::OnRep_UniqueId()
+{
+	if (UniqueIdReplicatedEvent.IsBound())
+	{
+		UniqueIdReplicatedEvent.Broadcast(UniqueId);
+	}
+}
+
 void ALobbyBeaconPlayerState::OnRep_PartyOwner()
 {
 	if (PartyOwnerChangedEvent.IsBound())

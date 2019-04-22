@@ -1654,7 +1654,7 @@ ETextureReallocationStatus FD3D11DynamicRHI::CancelAsyncReallocateTexture2D_Rend
 }
 
 template<typename RHIResourceType>
-void* TD3D11Texture2D<RHIResourceType>::Lock(uint32 MipIndex,uint32 ArrayIndex,EResourceLockMode LockMode,uint32& DestStride)
+void* TD3D11Texture2D<RHIResourceType>::Lock(uint32 MipIndex,uint32 ArrayIndex,EResourceLockMode LockMode,uint32& DestStride,bool bForceLockDeferred)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D11LockTextureTime);
 
@@ -1681,7 +1681,7 @@ void* TD3D11Texture2D<RHIResourceType>::Lock(uint32 MipIndex,uint32 ArrayIndex,E
 #endif
 	if( LockMode == RLM_WriteOnly )
 	{
-		if (Flags & TexCreate_CPUWritable)
+		if (!bForceLockDeferred && (Flags & TexCreate_CPUWritable))
 		{
 			D3D11_MAPPED_SUBRESOURCE MappedTexture;
 			VERIFYD3D11RESULT_EX(D3DRHI->GetDeviceContext()->Map(GetResource(), Subresource, D3D11_MAP_WRITE, 0, &MappedTexture), D3DRHI->GetDevice());
@@ -1693,10 +1693,12 @@ void* TD3D11Texture2D<RHIResourceType>::Lock(uint32 MipIndex,uint32 ArrayIndex,E
 			// If we're writing to the texture, allocate a system memory buffer to receive the new contents.
 			LockedData.AllocData(MipBytes);
 			LockedData.Pitch = DestStride = NumBlocksX * BlockBytes;
+			LockedData.bLockDeferred = true;
 		}
 	}
 	else
 	{
+		check(!bForceLockDeferred);
 		// If we're reading from the texture, we create a staging resource, copy the texture contents to it, and map it.
 
 		// Create the staging texture.
@@ -1742,7 +1744,17 @@ void* TD3D11Texture2D<RHIResourceType>::Lock(uint32 MipIndex,uint32 ArrayIndex,E
 	}
 
 	// Add the lock to the outstanding lock list.
-	D3DRHI->GetThreadLocalLockTracker().Add(FD3D11LockedKey(GetResource(),Subresource),LockedData);
+	if (!bForceLockDeferred)
+	{
+		D3DRHI->AddLockedData(FD3D11LockedKey(GetResource(), Subresource), LockedData);
+	}
+	else
+	{
+		RunOnRHIThread([this, Subresource, LockedData]()
+		{
+			D3DRHI->AddLockedData(FD3D11LockedKey(GetResource(), Subresource), LockedData);
+		});
+	}
 
 	return (void*)LockedData.GetData();
 }
@@ -1755,11 +1767,9 @@ void TD3D11Texture2D<RHIResourceType>::Unlock(uint32 MipIndex,uint32 ArrayIndex)
 	// Calculate the subresource index corresponding to the specified mip-map.
 	const uint32 Subresource = D3D11CalcSubresource(MipIndex,ArrayIndex,this->GetNumMips());
 
-	// Find the object that is tracking this lock
-	FD3D11DynamicRHI::FD3D11LockTracker& OutstandingLocks = D3DRHI->GetThreadLocalLockTracker();
-	const FD3D11LockedKey LockedKey(GetResource(),Subresource);
-	FD3D11LockedData* LockedData = OutstandingLocks.Find(LockedKey);
-	checkf(LockedData, TEXT("Texture is either not locked or locked on a different thread"));
+	// Find the object that is tracking this lock and remove it from outstanding list
+	FD3D11LockedData LockedData;
+	verifyf(D3DRHI->RemoveLockedData(FD3D11LockedKey(GetResource(), Subresource), LockedData), TEXT("Texture is not locked"));
 
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 	if (D3DRHI->HandleSpecialUnlock(MipIndex, GetFlags(), GetResource(), RawTextureMemory))
@@ -1768,19 +1778,20 @@ void TD3D11Texture2D<RHIResourceType>::Unlock(uint32 MipIndex,uint32 ArrayIndex)
 	}
 	else
 #endif
-	if (Flags & TexCreate_CPUWritable)
+	if (!LockedData.bLockDeferred && (Flags & TexCreate_CPUWritable))
 	{
 		D3DRHI->GetDeviceContext()->Unmap(GetResource(), 0);
 	}
-	else if(!LockedData->StagingResource)
+	else if(!LockedData.StagingResource)
 	{
 		// If we're writing, we need to update the subresource
-		D3DRHI->GetDeviceContext()->UpdateSubresource(GetResource(), Subresource, NULL, LockedData->GetData(), LockedData->Pitch, 0);
-		LockedData->FreeData();
+		D3DRHI->GetDeviceContext()->UpdateSubresource(GetResource(), Subresource, NULL, LockedData.GetData(), LockedData.Pitch, 0);
+		LockedData.FreeData();
 	}
-
-	// Remove the lock from the outstanding lock list.
-	OutstandingLocks.Remove(LockedKey);
+	else
+	{
+		D3DRHI->GetDeviceContext()->Unmap(LockedData.StagingResource, 0);
+	}
 }
 
 void* FD3D11DynamicRHI::RHILockTexture2D(FTexture2DRHIParamRef TextureRHI,uint32 MipIndex,EResourceLockMode LockMode,uint32& DestStride,bool bLockWithinMiptail)
@@ -1806,13 +1817,15 @@ void* FD3D11DynamicRHI::LockTexture2D_RenderThread(
 	{
 		LockedTexture = RHILockTexture2D(Texture, MipIndex, LockMode, DestStride, bLockWithinMiptail);
 	}
+	else if (LockMode == RLM_ReadOnly)
+	{
+		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+		LockedTexture = RHILockTexture2D(Texture, MipIndex, LockMode, DestStride, bLockWithinMiptail);
+	}
 	else
 	{
-		RunOnRHIThread([this, Texture, MipIndex, LockMode, &DestStride, bLockWithinMiptail, &LockedTexture]()
-		{
-			LockedTexture = RHILockTexture2D(Texture, MipIndex, LockMode, DestStride, bLockWithinMiptail);
-		});
-		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+		FD3D11Texture2D* TextureD3D11 = ResourceCast(Texture);
+		LockedTexture = TextureD3D11->Lock(MipIndex, 0, LockMode, DestStride, true);
 	}
 	return LockedTexture;
 }
@@ -1891,9 +1904,13 @@ void FD3D11DynamicRHI::UpdateTexture2D_RenderThread(
 	}
 	else
 	{
-		RunOnRHIThread([this, Texture, MipIndex, UpdateRegion, SourcePitch, SourceData]()
+		const SIZE_T SourceDataSize = SourcePitch * UpdateRegion.Height;
+		uint8* SourceDataCopy = (uint8*)FMemory::Malloc(SourceDataSize);
+		FMemory::Memcpy(SourceDataCopy, SourceData, SourceDataSize);
+		RunOnRHIThread([this, Texture, MipIndex, UpdateRegion, SourcePitch, SourceDataCopy]()
 		{
-			RHIUpdateTexture2D(Texture, MipIndex, UpdateRegion, SourcePitch, SourceData);
+			RHIUpdateTexture2D(Texture, MipIndex, UpdateRegion, SourcePitch, SourceDataCopy);
+			FMemory::Free(SourceDataCopy);
 		});
 	}
 }
@@ -1961,9 +1978,13 @@ void FD3D11DynamicRHI::UpdateTexture3D_RenderThread(
 	}
 	else
 	{
-		RunOnRHIThread([this, Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData]()
+		const SIZE_T SourceDataSize = SourceDepthPitch * UpdateRegion.Depth;
+		uint8* SourceDataCopy = (uint8*)FMemory::Malloc(SourceDataSize);
+		FMemory::Memcpy(SourceDataCopy, SourceData, SourceDataSize);
+		RunOnRHIThread([this, Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceDataCopy]()
 		{
-			RHIUpdateTexture3D(Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData);
+			RHIUpdateTexture3D(Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceDataCopy);
+			FMemory::Free(SourceDataCopy);
 		});
 	}
 }
@@ -2028,13 +2049,16 @@ void* FD3D11DynamicRHI::RHILockTextureCubeFace_RenderThread(
 	{
 		LockedTexture = RHILockTextureCubeFace(Texture, FaceIndex, ArrayIndex, MipIndex, LockMode, DestStride, bLockWithinMiptail);
 	}
+	else if (LockMode == RLM_ReadOnly)
+	{
+		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+		LockedTexture = RHILockTextureCubeFace(Texture, FaceIndex, ArrayIndex, MipIndex, LockMode, DestStride, bLockWithinMiptail);
+	}
 	else
 	{
-		RunOnRHIThread([this, Texture, FaceIndex, ArrayIndex, MipIndex, LockMode, &DestStride, bLockWithinMiptail, &LockedTexture]()
-		{
-			LockedTexture = RHILockTextureCubeFace(Texture, FaceIndex, ArrayIndex, MipIndex, LockMode, DestStride, bLockWithinMiptail);
-		});
-		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+		FD3D11TextureCube* TextureCube = ResourceCast(Texture);
+		const uint32 D3DFace = GetD3D11CubeFace((ECubeFace)FaceIndex);
+		LockedTexture = TextureCube->Lock(MipIndex, D3DFace + ArrayIndex * 6, LockMode, DestStride, true);
 	}
 	return LockedTexture;
 }

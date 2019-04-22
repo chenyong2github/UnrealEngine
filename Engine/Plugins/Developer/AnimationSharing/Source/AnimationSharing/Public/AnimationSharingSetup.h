@@ -15,10 +15,6 @@ class ANIMATIONSHARING_API UAnimationSharingSetup : public UObject
 	GENERATED_UCLASS_BODY()
 public:
 
-#if WITH_EDITOR
-	virtual void PostLoad() override;
-#endif // WITH_EDITOR
-
 	UPROPERTY(EditAnywhere, config, Category = AnimationSharing)
 	TArray<FPerSkeletonAnimationSharingSetup> SkeletonSetups;
 

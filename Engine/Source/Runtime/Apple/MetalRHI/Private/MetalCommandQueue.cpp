@@ -17,8 +17,10 @@
 #include "command_buffer.hpp"
 
 #pragma mark - Private C++ Statics -
+NSUInteger FMetalCommandQueue::PermittedOptions = 0;
 uint64 FMetalCommandQueue::Features = 0;
 extern mtlpp::VertexFormat GMetalFColorVertexFormat;
+bool GMetalCommandBufferDebuggingEnabled = 0;
 
 #pragma mark - Public C++ Boilerplate -
 
@@ -93,8 +95,16 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 				if (Vers.majorVersion >= 12)
 				{
 					Features |= EMetalFeaturesMaxThreadsPerThreadgroup;
-					Features |= EMetalFeaturesFences;
-					Features |= EMetalFeaturesHeaps;
+					
+					if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
+					{
+						Features |= EMetalFeaturesFences;
+					}
+					
+					if (FParse::Param(FCommandLine::Get(),TEXT("metalheap")))
+					{
+						Features |= EMetalFeaturesHeaps;
+					}
 					
 					if (MaxShaderVersion >= 4)
 					{
@@ -112,16 +122,6 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 		if(Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v2) || Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily2_v3) || Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily1_v3))
 		{
 			Features |= EMetalFeaturesStencilView | EMetalFeaturesFunctionConstants | EMetalFeaturesGraphicsUAVs | EMetalFeaturesMemoryLessResources;
-			
-			if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
-			{
-				Features |= EMetalFeaturesFences;
-			}
-			
-			if (FParse::Param(FCommandLine::Get(),TEXT("metalheap")))
-			{
-				Features |= EMetalFeaturesHeaps;
-			}
 		}
 		
 		if(Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v2))
@@ -157,13 +157,31 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 				if (Vers.majorVersion >= 12)
 				{
 					Features |= EMetalFeaturesMaxThreadsPerThreadgroup;
-					Features |= EMetalFeaturesFences;
-					Features |= EMetalFeaturesHeaps;
+					
+                    if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
+                    {
+                        Features |= EMetalFeaturesFences;
+                    }
+                    
+                    if (FParse::Param(FCommandLine::Get(),TEXT("metalheap")))
+                    {
+                        Features |= EMetalFeaturesHeaps;
+                    }
 					
 					if (MaxShaderVersion >= 4)
 					{
 						Features |= EMetalFeaturesTextureBuffers;
-					}
+                    }
+                    
+                    if(Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily4_v1))
+                    {
+                        Features |= EMetalFeaturesTileShaders;
+                        
+                        // The below implies tile shaders which are necessary to order the draw calls and generate a buffer that shows what PSOs/draws ran on each tile.
+                        IConsoleVariable* GPUCrashDebuggingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
+                        GMetalCommandBufferDebuggingEnabled = (GPUCrashDebuggingCVar && GPUCrashDebuggingCVar->GetInt() != 0) || FParse::Param(FCommandLine::Get(),TEXT("metalgpudebug"));
+                    }
+                    
 					if (Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily5_v1))
 					{
 						Features |= EMetalFeaturesLayeredRendering;
@@ -257,6 +275,9 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 					Features |= EMetalFeaturesHeaps;
 				}
 			}
+            
+			IConsoleVariable* GPUCrashDebuggingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
+			GMetalCommandBufferDebuggingEnabled = (GPUCrashDebuggingCVar && GPUCrashDebuggingCVar->GetInt() != 0) || FParse::Param(FCommandLine::Get(),TEXT("metalgpudebug"));
 		}
     }
     else if ([Device.GetName().GetPtr() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound)
@@ -378,14 +399,15 @@ mtlpp::CommandBuffer FMetalCommandQueue::CreateCommandBuffer(void)
 	{
 		CmdBuffer = bUnretainedRefs ? MTLPP_VALIDATE(mtlpp::CommandQueue, CommandQueue, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, CommandBufferWithUnretainedReferences()) : MTLPP_VALIDATE(mtlpp::CommandQueue, CommandQueue, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, CommandBuffer());
 		
-		if (RuntimeDebuggingLevel > EMetalDebugLevelLogDebugGroups)
+		if (RuntimeDebuggingLevel >= EMetalDebugLevelLogDebugGroups)
 		{			
+			((NSObject<MTLCommandBuffer>*)CmdBuffer.GetPtr()).debugGroups = [[NSMutableArray new] autorelease];
 			METAL_DEBUG_ONLY(FMetalCommandBufferDebugging AddDebugging(CmdBuffer));
 			MTLPP_VALIDATION(mtlpp::CommandBufferValidationTable ValidatedCommandBuffer(CmdBuffer));
 		}
-		else if (RuntimeDebuggingLevel == EMetalDebugLevelLogDebugGroups)
+		if (RuntimeDebuggingLevel >= EMetalDebugLevelTrackResources)
 		{
-			((NSObject<MTLCommandBuffer>*)CmdBuffer.GetPtr()).debugGroups = [[NSMutableArray new] autorelease];
+			((NSObject<MTLCommandBuffer>*)CmdBuffer.GetPtr()).resourceTracker = [[FMetalResourceTracker new] autorelease];
 		}
 	}
 	CommandBufferFences.Push(new mtlpp::CommandBufferFence(CmdBuffer.GetCompletionFence()));
@@ -401,12 +423,10 @@ void FMetalCommandQueue::CommitCommandBuffer(mtlpp::CommandBuffer& CommandBuffer
 	MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, Commit());
 	
 	// Wait for completion when debugging command-buffers.
-#if METAL_DEBUG_OPTIONS
 	if (RuntimeDebuggingLevel >= EMetalDebugLevelWaitForComplete)
 	{
 		CommandBuffer.WaitUntilCompleted();
 	}
-#endif
 }
 
 void FMetalCommandQueue::SubmitCommandBuffers(TArray<mtlpp::CommandBuffer> BufferList, uint32 Index, uint32 Count)
@@ -483,7 +503,7 @@ mtlpp::Device& FMetalCommandQueue::GetDevice(void)
 	return Device;
 }
 
-mtlpp::ResourceOptions FMetalCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions Options) const
+mtlpp::ResourceOptions FMetalCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions Options)
 {
 	NSUInteger NewOptions = (Options & PermittedOptions);
 #if PLATFORM_IOS // Swizzle Managed to Shared for iOS - we can do this as they are equivalent, unlike Shared -> Managed on Mac.

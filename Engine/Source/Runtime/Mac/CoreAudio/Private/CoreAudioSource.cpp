@@ -360,7 +360,7 @@ void FCoreAudioSoundSource::Update( void )
 		{
 			Volume = WaveInstance->RadioFilterVolume;
 		}
-		else if( WaveInstance->bUseSpatialization )
+		else if( WaveInstance->GetUseSpatialization() )
 		{
 			FVector Direction = AudioDevice->InverseTransform.TransformPosition(WaveInstance->Location).GetSafeNormal();
 

@@ -862,8 +862,8 @@ bool UBlueprint::SupportsNativization(FText* OutReason) const
 
 void UBlueprint::SetObjectBeingDebugged(UObject* NewObject)
 {
-	// Unregister the old object
-	if (UObject* OldObject = CurrentObjectBeingDebugged.Get())
+	// Unregister the old object (even if PendingKill)
+	if (UObject* OldObject = CurrentObjectBeingDebugged.Get(true))
 	{
 		if (OldObject == NewObject)
 		{
@@ -906,36 +906,6 @@ void UBlueprint::SetWorldBeingDebugged(UWorld *NewWorld)
 void UBlueprint::GetReparentingRules(TSet< const UClass* >& AllowedChildrenOfClasses, TSet< const UClass* >& DisallowedChildrenOfClasses) const
 {
 
-}
-
-UObject* UBlueprint::GetObjectBeingDebugged()
-{
-	UObject* DebugObj = CurrentObjectBeingDebugged.Get();
-	if(DebugObj)
-	{
-		//Check whether the object has been deleted.
-		if(DebugObj->IsPendingKill())
-		{
-			SetObjectBeingDebugged(NULL);
-			DebugObj = NULL;
-		}
-	}
-	return DebugObj;
-}
-
-UWorld* UBlueprint::GetWorldBeingDebugged()
-{
-	UWorld* DebugWorld = CurrentWorldBeingDebugged.Get();
-	if (DebugWorld)
-	{
-		if(DebugWorld->IsPendingKill())
-		{
-			SetWorldBeingDebugged(NULL);
-			DebugWorld = NULL;
-		}
-	}
-
-	return DebugWorld;
 }
 
 void UBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const

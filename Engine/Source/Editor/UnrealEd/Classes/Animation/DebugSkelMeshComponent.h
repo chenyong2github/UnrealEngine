@@ -269,6 +269,10 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	UPROPERTY(transient)
 	bool bIsUsingInGameBounds;
 	
+	/** Does this component use pre-skinned bounds? This overrides other bounds settings */
+	UPROPERTY(transient)
+	bool bIsUsingPreSkinnedBounds;
+
 	/** Base skel mesh has support for suspending clothing, but single ticks are more of a debug feature when stepping through an animation
 	 *  So we control that using this flag
 	 */
@@ -341,6 +345,16 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	 * Set to use in-game bounds or bounds calculated from bones
 	 */
 	void UseInGameBounds(bool bUseInGameBounds);
+
+	/**
+	 * Does it use pre-skinned bounds
+	 */
+	bool IsUsingPreSkinnedBounds() const;
+
+	/**
+	 * Set to use pre-skinned bounds
+	 */
+	void UsePreSkinnedBounds(bool bUsePreSkinnedBounds);
 
 	/**
 	 * Test if in-game bounds are as big as preview bounds

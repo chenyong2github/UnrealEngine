@@ -417,6 +417,13 @@ void FVulkanPendingGfxState::PrepareForDraw(FVulkanCmdBuffer* CmdBuffer)
 
 	check(CmdBuffer->bHasPipeline);
 
+	// TODO: Add 'dirty' flag? Need to rebind only on PSO change
+	if (CurrentPipeline->bHasInputAttachments)
+	{
+		FVulkanFramebuffer* CurrentFramebuffer = Context.GetTransitionAndLayoutManager().CurrentFramebuffer;
+		UpdateInputAttachments(CurrentFramebuffer);
+	}
+	
 	bool bHasDescriptorSets = CurrentState->UpdateDescriptorSets(&Context, CmdBuffer);
 
 	UpdateDynamicStates(CmdBuffer);
@@ -554,7 +561,7 @@ void FVulkanPendingGfxState::UpdateInputAttachments(FVulkanFramebuffer* Framebuf
 			CurrentState->SetInputAttachment(AttachmentData.DescriptorSet, AttachmentData.BindingIndex, Framebuffer->AttachmentTextureViews[0], VK_IMAGE_LAYOUT_GENERAL);
 			break;
 		case FVulkanShaderHeader::EAttachmentType::Depth:
-			CurrentState->SetInputAttachment(AttachmentData.DescriptorSet, AttachmentData.BindingIndex, Framebuffer->GetPartialDepthTextureView(), VK_IMAGE_LAYOUT_GENERAL);
+			CurrentState->SetInputAttachment(AttachmentData.DescriptorSet, AttachmentData.BindingIndex, Framebuffer->GetPartialDepthTextureView(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 			break;
 		default:
 			check(0);

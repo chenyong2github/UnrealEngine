@@ -127,10 +127,16 @@ struct SLATECORE_API FSlateDebuggingMouseCaptureEventArgs
 {
 public:
 	FSlateDebuggingMouseCaptureEventArgs(
+		bool InCaptured,
+		uint32 InUserIndex,
+		uint32 InPointerIndex,
 		const TSharedPtr<SWidget>& InCapturingWidget
 	);
 
-	const TSharedPtr<SWidget>& CapturingWidget;
+	bool Captured;
+	uint32 UserIndex;
+	uint32 PointerIndex;
+	const TSharedPtr<SWidget>& CaptureWidget;
 };
 
 
@@ -195,14 +201,15 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWidgetNavigationEvent, const FSlateDebuggingNavigationEventArgs& /*EventArgs*/);
 	static FWidgetNavigationEvent NavigationEvent;
 
-	static void AttemptNavigation(const FNavigationEvent& InNavigationEvent, const FNavigationReply& InNavigationReply, const FWidgetPath& InNavigationSource, const TSharedPtr<SWidget>& InDestinationWidget);
+	static void BroadcastAttemptNavigation(const FNavigationEvent& InNavigationEvent, const FNavigationReply& InNavigationReply, const FWidgetPath& InNavigationSource, const TSharedPtr<SWidget>& InDestinationWidget);
 
 public:
 	/**  */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWidgetMouseCaptureEvent, const FSlateDebuggingMouseCaptureEventArgs& /*EventArgs*/);
 	static FWidgetMouseCaptureEvent MouseCaptureEvent;
 
-	static void MouseCapture(const TSharedPtr<SWidget>& InCapturingWidget);
+	static void BroadcastMouseCapture(uint32 UserIndex, uint32 PointerIndex, const TSharedPtr<SWidget>& InCapturingWidget);
+	static void BroadcastMouseCaptureLost(uint32 UserIndex, uint32 PointerIndex, const TSharedPtr<SWidget>& InWidgetLostCapture);
 
 public:
 	/**  */

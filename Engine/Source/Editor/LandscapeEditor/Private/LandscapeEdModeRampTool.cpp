@@ -19,6 +19,9 @@
 #include "LandscapeDataAccess.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "Raster.h"
+#include "Landscape.h"
+#include "Settings/EditorExperimentalSettings.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -474,7 +477,16 @@ public:
 
 	virtual void ApplyRamp()
 	{
+		FText Reason;
+		if (!EdMode->CanEditLayer(&Reason))
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, Reason);
+			return;
+		}
+
 		FScopedTransaction Transaction(LOCTEXT("Ramp_Apply", "Landscape Editing: Add ramp"));
+		ALandscape* Landscape = EdMode->GetLandscape();
+		FScopedSetLandscapeEditingLayer Scope(Landscape, EdMode->GetCurrentLayerGuid(), [&] { if (Landscape) { Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::Heightmap_All); } });
 
 		const ULandscapeInfo* LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo.Get();
 		const ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
@@ -570,17 +582,20 @@ public:
 			LandscapeEdit.SetHeightData(MinX, MinY, MaxX, MaxY, Data.GetData(), 0, true);
 			LandscapeEdit.Flush();
 
-			TSet<ULandscapeComponent*> Components;
-			if (LandscapeEdit.GetComponentsInRegion(MinX, MinY, MaxX, MaxY, &Components))
+			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
-				for (ULandscapeComponent* Component : Components)
+				TSet<ULandscapeComponent*> Components;
+				if (LandscapeEdit.GetComponentsInRegion(MinX, MinY, MaxX, MaxY, &Components))
 				{
-					// Recreate collision for modified components and update the navmesh
-					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
-					if (CollisionComponent)
+					for (ULandscapeComponent* Component : Components)
 					{
-						CollisionComponent->RecreateCollision();
-						FNavigationSystem::UpdateComponentData(*CollisionComponent);
+						// Recreate collision for modified components and update the navmesh
+						ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+						if (CollisionComponent)
+						{
+							CollisionComponent->RecreateCollision();
+							FNavigationSystem::UpdateComponentData(*CollisionComponent);
+						}
 					}
 				}
 			}
@@ -589,7 +604,7 @@ public:
 
 	bool CanApplyRamp()
 	{
-		return NumPoints == 2;
+		return EdMode->CanEditLayer() && (NumPoints == 2);
 	}
 
 	void ResetRamp()

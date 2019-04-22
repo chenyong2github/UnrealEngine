@@ -35,9 +35,6 @@ class FViewInfo;
 /** Whether to allow the indirect lighting cache to be applied to dynamic objects. */
 extern int32 GIndirectLightingCache;
 
-/** Whether some GBuffer targets are optional. */
-extern bool UseSelectiveBasePassOutputs();
-
 class FForwardLocalLightData
 {
 public:
@@ -393,7 +390,7 @@ public:
 		const bool bOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(Platform);
 		if (bOutputVelocity)
 		{
-			const int32 VelocityIndex = 4; // As defined in BasePassPixelShader.usf
+			const int32 VelocityIndex = IsForwardShadingEnabled(Platform) ? 1 : 4; // As defined in BasePassPixelShader.usf
 			OutEnvironment.SetRenderTargetOutputFormat(VelocityIndex, PF_G16R16);
 		}
 
@@ -596,8 +593,22 @@ void GetBasePassShaders<FUniformLightMapPolicy>(
 class FBasePassMeshProcessor : public FMeshPassProcessor
 {
 public:
+	enum class EFlags
+	{
+		None = 0,
 
-	FBasePassMeshProcessor(const FScene* InScene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InDrawRenderState, FMeshPassDrawListContext* InDrawListContext, ETranslucencyPass::Type InTranslucencyPassType = ETranslucencyPass::TPT_MAX);
+		// Informs the processor whether a depth-stencil target is bound when processed draw commands are issued.
+		CanUseDepthStencil = (1 << 0)
+	};
+
+	FBasePassMeshProcessor(
+		const FScene* InScene,
+		ERHIFeatureLevel::Type InFeatureLevel,
+		const FSceneView* InViewIfDynamicMeshCommand,
+		const FMeshPassProcessorRenderState& InDrawRenderState,
+		FMeshPassDrawListContext* InDrawListContext,
+		EFlags Flags,
+		ETranslucencyPass::Type InTranslucencyPassType = ETranslucencyPass::TPT_MAX);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
 
@@ -637,8 +648,11 @@ private:
 
 	const ETranslucencyPass::Type TranslucencyPassType;
 	const bool bTranslucentBasePass;
+	const bool bEnableReceiveDecalOutput;
 	EDepthDrawingMode EarlyZPassMode;
 };
+
+ENUM_CLASS_FLAGS(FBasePassMeshProcessor::EFlags);
 
 extern void SetDepthStencilStateForBasePass(FMeshPassProcessorRenderState& DrawRenderState, ERHIFeatureLevel::Type FeatureLevel, const FMeshBatch& Mesh, const FPrimitiveSceneProxy* PrimitiveSceneProxy, bool bEnableReceiveDecalOutput, bool bUseDebugViewPS, FDepthStencilStateRHIParamRef LodFadeOverrideDepthStencilState);
 extern void SetupBasePassState(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, const bool bShaderComplexity, FMeshPassProcessorRenderState& DrawRenderState);

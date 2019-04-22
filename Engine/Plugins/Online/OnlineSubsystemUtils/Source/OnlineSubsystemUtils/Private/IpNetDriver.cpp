@@ -25,6 +25,98 @@ Notes:
 #include "IPAddress.h"
 #include "Sockets.h"
 
+/**
+ * Initiating Connections / Handshaking Flow.
+ *
+ * Both Server and Clients will have have their own NetDrivers, and all UE Replicated Game traffic will be sent by or Received
+ * from the IpNetDriver. This traffic also includes logic for establishing connections, and re-establishing connections when
+ * something goes wrong.
+ *
+ * Handshaking is split across a couple of different places: NetDriver, PendingNetGame, World, PacketHandlers, and maybe others.
+ * The split is due to having separate needs, things such as: determining whether or not an incoming connection is sending data in "UE-Protocol",
+ * determining whether or not an address appears to be malicious, whether or not a given client has the correct version of a game, etc.
+ *
+ *****************************************************************************************
+ * IpNetDriver / IpConnection Startup and Handshaking
+ *****************************************************************************************
+ *
+ * Whenenever a server Loads a map (via UEngine::LoadMap), we will make a call into UWorld::Listen.
+ * That code is responsible for creating the main Game Net Driver, parsing out settings, and calling UNetDriver::InitListen.
+ * Ultimately, that code will be responsible for figuring out what IP / Port we bind to by calls to our configured Socket Subsystem
+ * (see ISocketSubsystem::GetLocalBindAddr and ISocketSubsystem::BindNextPort).
+ *
+ * Once the server is listening, it's ready to start accepting client connections.
+ *
+ * Whenever a client wants to Join a server, they will first establish a new UPendingNetGame in UEngine::Browse with the server's IP.
+ * UPendingNetGame::Initialize and UPendingNetGame::InitNetDriver are responsible for initializing settings and setting up the NetDriver respectively.
+ * Clients will immediately setup a UNetConnection for the server as a part of this initialization, and will start sending data to the server on that connection,
+ * initiating the handshaking process.
+ *
+ * On both Clients and Server, UIpNetDriver::TickDispatch is responsible for receiving packets.
+ * Whenever we receive a packet, we inspect its address and see whether or not it's from a connection we already know about.
+ * We determine whether or not we've established a connection for a given source address by simply keeping a map from FInternetAddr to UNetConnection.
+ *
+ * If a packet is from a connection that's already established, we pass the packet along to the connection via UNetConnection::ReceivedRawPacket.
+ * If a packet is not from a connection that's already established, we treat is as "connectionless" and begin the handshaking process.
+ *
+ * See StatelessConnectionHandlerComponent.cpp for details on how this handshaking works.
+ *
+ *****************************************************************************************
+ * UWorld / UPendingNetGame / AGameModeBase Startup and Handshaking
+ *****************************************************************************************
+ *
+ * After the UIpNetDriver and UIpNetConnection have completed their handshaking process on Client and Server,
+ * UPendingNetGame::SendInitialJoin will be called on the Client to kick off game level handshaking.
+ *
+ * Game Level Handshaking is done through a more structured and involved set of FNetControlMessages.
+ * The full set of control messages can be found in DataChannel.h.
+ *
+ * Most of the work for handling these control messages are done either in UWorld::NotifyControlMessage,
+ * and UPendingNetGame::NotifyControlMessage. Briefly, the flow looks like this:
+ *
+ * Client's UPendingNetGame::SendInitialJoin sends NMT_Hello.
+ *
+ * Server's UWorld::NotifyControlMessage receives NMT_Hello, sends NMT_Challenge.
+ *
+ * Client's UPendingNetGame::NotifyControlMessage receives NMT_Challenge, and sends back data in NMT_Login.
+ *
+ * Server's UWorld::NotifyControlMessage receives NMT_Login, verifies challenge data, and then calls AGameModeBase::PreLogin.
+ * If PreLogin doesn't report any errors, Server calls UWorld::WelcomePlayer, which call AGameModeBase::GameWelcomePlayer,
+ * and send NMT_Welcome with map information.
+ *
+ * Client's UPendingNetGame::NotifyControlMessage receives NMT_Welcome, reads the map info (so it can start loading later),
+ * and sends an NMT_NetSpeed message with the configured Net Speed of the client.
+ *
+ * Server's UWorld::NotifyControlMessage receives NMT_NetSpeed, and adjusts the connections Net Speed appropriately.
+ *
+ * At this point, the handshaking is considered to be complete, and the player is fully connected to the game.
+ * Depending on how long it takes to load the map, the client could still receive some non-handshake control messages
+ * on UPendingNetGame before control transitions to UWorld.
+ *
+ * There are also additional steps for handling Encryption when desired.
+ *
+ *****************************************************************************************
+ * Reestablishing Lost Connections
+ *****************************************************************************************
+ *
+ * Throughout the course of a game, it's possible for connections to be lost for a number of reasons.
+ * Internet could drop out, users could switch from LTE to WIFI, they could leave a game, etc.
+ *
+ * If the server initiated one of these disconnects, or is otherwise aware of it (due to a timeout or error),
+ * then the disconnect will be handled by closing the UNetConnection and notifying the game.
+ * At that point, it's up to a game to decide whether or not they support Join In Progress or Rejoins.
+ * If the game does support it, we will completely restart the handshaking flow as above.
+ *
+ * If something just briefly interrupts the client's connection, but the server is never made aware,
+ * then the engine / game will typically recover automatically (albeit with some packet loss / lag spike).
+ *
+ * However, if the Client's IP Address or Port change for any reason, but the server isn't aware of this,
+ * then we will begin a recovery process by redoing the low level handshake. In this case, game code
+ * will not be alerted.
+ *
+ * This process is covered in StatlessConnectionHandlerComponent.cpp.
+ */
+
 /** For backwards compatibility with the engine stateless connect code */
 #ifndef STATELESSCONNECT_HAS_RANDOM_SEQUENCE
 	#define STATELESSCONNECT_HAS_RANDOM_SEQUENCE 0
@@ -73,6 +165,259 @@ TAutoConsoleVariable<int32> CVarNetIpNetDriverReceiveThreadPollTimeMS(
 	TEXT("net.IpNetDriverReceiveThreadPollTimeMS"),
 	250,
 	TEXT("If net.IpNetDriverUseReceiveThread is true, the number of milliseconds to use as the timeout value for FSocket::Wait on the receive thread. A negative value means to wait indefinitely (FSocket::Shutdown should cancel it though)."));
+
+
+
+/**
+ * FPacketItrator
+ *
+ * Encapsulates the NetDriver TickDispatch code required for executing all variations of packet receives
+ * (FSocket::RecvFrom, FSocket::RecvMulti, and the Receive Thread),
+ * as well as implementing/abstracting-away some of the outermost (non-NetConnection-related) parts of the DDoS detection code.
+ */
+class FPacketIterator
+{
+	friend class UIpNetDriver;
+	
+private:
+	struct FCachedPacket
+	{
+		/** Whether or not socket receive succeeded. Don't rely on the Error field for this, due to implementation/platform uncertainties. */
+		bool bRecvSuccess;
+
+		/** Pre-allocated Data field, for storing packets of any expected size */
+		TArray<uint8, TFixedAllocator<MAX_PACKET_SIZE>> Data;
+
+		/** Receive address for the packet */
+		TSharedPtr<FInternetAddr> Address;
+
+		/** OS-level timestamp for the packet receive, if applicable */
+		double PacketTimestamp;
+
+		/** Error if receiving a packet failed */
+		ESocketErrors Error;
+	};
+	
+private:
+	FPacketIterator(UIpNetDriver* InDriver)
+		: bBreak(false)
+		, Driver(InDriver)
+		, DDoS(Driver->DDoS)
+		, SocketSubsystem(Driver->GetSocketSubsystem())
+		, Socket(Driver->Socket)
+		, SocketReceiveThreadRunnable(Driver->SocketReceiveThreadRunnable.Get())
+		, CurrentPacket()
+	{
+		if (SocketSubsystem != nullptr)
+		{
+			CurrentPacket.Address = SocketSubsystem->CreateInternetAddr();
+		}
+
+		AdvanceCurrentPacket();
+	}
+
+	FORCEINLINE FPacketIterator& operator++()
+	{
+		AdvanceCurrentPacket();
+
+		return *this;
+	}
+
+	FORCEINLINE explicit operator bool() const
+	{
+		return !bBreak;
+	}
+
+
+	/**
+	 * Retrieves the packet information from the current iteration. Avoid calling more than once, per iteration.
+	 *
+	 * @param OutData		Returns a pointer to the packet data
+	 * @param OutBytesRead	Returns the number of bytes read
+	 * @param OutError		Returns the socket error, if receiving failed
+	 * @param OutAddr		Returns the address the packet was received from
+	 * @return				Returns whether or not receiving was successful for the current packet
+	 */
+	bool GetCurrentPacket(const uint8*& OutData, uint32& OutBytesRead, ESocketErrors& OutError, TSharedPtr<FInternetAddr>& OutAddr)
+	{
+		bool bRecvSuccess = false;
+
+		OutData = CurrentPacket.Data.GetData();
+		OutBytesRead = CurrentPacket.Data.Num();
+		OutError = CurrentPacket.Error;
+		OutAddr = CurrentPacket.Address;
+		bRecvSuccess = CurrentPacket.bRecvSuccess;
+
+		return bRecvSuccess;
+	}
+
+	/**
+	 * Advances the current packet to the next iteration
+	 */
+	void AdvanceCurrentPacket()
+	{
+		bBreak = !ReceiveSinglePacket();
+	}
+
+	/**
+	 * Receives a single packet from the network socket, outputting to the CurrentPacket buffer.
+	 *
+	 * @return				Whether or not a packet or an error was successfully received
+	 */
+	bool ReceiveSinglePacket()
+	{
+		bool bReceivedPacketOrError = false;
+
+		CurrentPacket.bRecvSuccess = false;
+		CurrentPacket.Data.SetNumUninitialized(0, false);
+
+		if (CurrentPacket.Address.IsValid())
+		{
+			CurrentPacket.Address->SetAnyAddress();
+		}
+
+		CurrentPacket.PacketTimestamp = 0.0;
+		CurrentPacket.Error = SE_NO_ERROR;
+
+		while (true)
+		{
+			bReceivedPacketOrError = false;
+
+			if (SocketReceiveThreadRunnable != nullptr)
+			{
+				// Very-early-out - the NetConnection per frame time limit, limits all packet processing
+				// @todo #JohnB: This DDoS detection code will be redundant, as it's performed in the Receive Thread in a coming refactor
+				if (DDoS.ShouldBlockNetConnPackets())
+				{
+					// Approximate due to threading
+					uint32 DropCountApprox = SocketReceiveThreadRunnable->ReceiveQueue.Count();
+
+					SocketReceiveThreadRunnable->ReceiveQueue.Empty();
+
+					if (DropCountApprox > 0)
+					{
+						DDoS.IncDroppedPacketCounter(DropCountApprox);
+					}
+				}
+				else
+				{
+					UIpNetDriver::FReceivedPacket IncomingPacket;
+					const bool bHasPacket = SocketReceiveThreadRunnable->ReceiveQueue.Dequeue(IncomingPacket);
+
+					if (bHasPacket)
+					{
+						if (IncomingPacket.FromAddress.IsValid())
+						{
+							CurrentPacket.Address = IncomingPacket.FromAddress.ToSharedRef();
+						}
+
+						ESocketErrors CurError = IncomingPacket.Error;
+						bool bReceivedPacket = CurError == SE_NO_ERROR;
+
+						CurrentPacket.bRecvSuccess = bReceivedPacket;
+						CurrentPacket.PacketTimestamp = IncomingPacket.PlatformTimeSeconds;
+						CurrentPacket.Error = CurError;
+						bReceivedPacketOrError = bReceivedPacket;
+
+						if (bReceivedPacket)
+						{
+							int32 BytesRead = IncomingPacket.PacketBytes.Num();
+
+							if (IncomingPacket.PacketBytes.Num() <= MAX_PACKET_SIZE)
+							{
+								CurrentPacket.Data.SetNumUninitialized(BytesRead, false);
+
+								FMemory::Memcpy(CurrentPacket.Data.GetData(), IncomingPacket.PacketBytes.GetData(), BytesRead);
+							}
+							else
+							{
+								UE_LOG(LogNet, Warning, TEXT("IpNetDriver receive thread received a packet of %d bytes, which is larger than the data buffer size of %d bytes."),
+										BytesRead, MAX_PACKET_SIZE);
+
+								continue;
+							}
+						}
+						// Received an error
+						else if (!UIpNetDriver::IsRecvFailBlocking(CurError))
+						{
+							bReceivedPacketOrError = true;
+						}
+					}
+				}
+			}
+			else if (Socket != nullptr && SocketSubsystem != nullptr)
+			{
+				SCOPE_CYCLE_COUNTER(STAT_IpNetDriver_RecvFromSocket);
+
+				int32 BytesRead = 0;
+				bool bReceivedPacket = Socket->RecvFrom(CurrentPacket.Data.GetData(), MAX_PACKET_SIZE, BytesRead, *CurrentPacket.Address);
+
+				CurrentPacket.bRecvSuccess = bReceivedPacket;
+				bReceivedPacketOrError = bReceivedPacket;
+
+				if (bReceivedPacket)
+				{
+					// Fixed allocator, so no risk of realloc from copy-then-resize
+					CurrentPacket.Data.SetNumUninitialized(BytesRead, false);
+				}
+				else
+				{
+					ESocketErrors CurError = SocketSubsystem->GetLastErrorCode();
+
+					CurrentPacket.Error = CurError;
+					CurrentPacket.Data.SetNumUninitialized(0, false);
+
+					// Received an error
+					if (!UIpNetDriver::IsRecvFailBlocking(CurError))
+					{
+						bReceivedPacketOrError = true;
+					}
+				}
+
+				// Very-early-out - the NetConnection per frame time limit, limits all packet processing
+				if (bReceivedPacketOrError && DDoS.ShouldBlockNetConnPackets())
+				{
+					if (bReceivedPacket)
+					{
+						DDoS.IncDroppedPacketCounter();
+					}
+
+					continue;
+				}
+			}
+
+			// While loop only exists to allow 'continue' for DDoS and invalid packet code, above
+			break;
+		}
+
+		return bReceivedPacketOrError;
+	}
+
+
+private:
+	/** Specified internally, when the packet iterator should break/stop (no packets, DDoS limits triggered, etc.) */
+	bool bBreak;
+
+
+	/** Cached reference to the NetDriver, and NetDriver variables/values */
+
+	UIpNetDriver* Driver;
+
+	FDDoSDetection& DDoS;
+
+	ISocketSubsystem* SocketSubsystem;
+
+	FSocket*& Socket;
+
+	UIpNetDriver::FReceiveThreadRunnable* SocketReceiveThreadRunnable;
+
+	/** Stores information for the current packet being received (when using single-receive mode) */
+	FCachedPacket CurrentPacket;
+};
+
+/**
+ * UIpNetDriver
+ */
 
 UIpNetDriver::UIpNetDriver(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -254,6 +599,16 @@ bool UIpNetDriver::InitListen( FNetworkNotify* InNotify, FURL& LocalURL, bool bR
 	return true;
 }
 
+class FIpConnectionHelper
+{
+private:
+	friend class UIpNetDriver;
+	static void HandleSocketRecvError(UIpNetDriver* Driver, UIpConnection* Connection, const FString& ErrorString)
+	{
+		Connection->HandleSocketRecvError(Driver, ErrorString);
+	}
+};
+
 void UIpNetDriver::TickDispatch(float DeltaTime)
 {
 	LLM_SCOPE(ELLMTag::Networking);
@@ -277,19 +632,17 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 
 	FScopedLevelCollectionContextSwitch LCSwitch(FoundCollectionIndex, World);
 
-	ISocketSubsystem* SocketSubsystem = GetSocketSubsystem();
 
 	DDoS.PreFrameReceive(DeltaTime);
 
+	ISocketSubsystem* SocketSubsystem = GetSocketSubsystem();
 	const double StartReceiveTime = FPlatformTime::Seconds();
 	double AlarmTime = StartReceiveTime + GIpNetDriverMaxDesiredTimeSliceBeforeAlarmSecs;
 	const bool bSlowFrameChecks = OnNetworkProcessingCausingSlowFrame.IsBound();
 
-	// Process all incoming packets.
-	uint8 Data[MAX_PACKET_SIZE];
-	TSharedRef<FInternetAddr> FromAddr = SocketSubsystem->CreateInternetAddr();
 
-	for (; Socket != nullptr;)
+	// Process all incoming packets
+	for (FPacketIterator It(this); It; ++It)
 	{
 		// @todo: Remove the slow frame checks, eventually - potential DDoS and Switch platform constraint
 		if (bSlowFrameChecks)
@@ -303,49 +656,12 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 			}
 		}
 
+		uint8* Data = nullptr;
 		int32 BytesRead = 0;
-
-		// Reset the address on every pass. Otherwise if there's an error receiving, the address may be from a previous packet.
-		FromAddr->SetAnyAddress();
-
-		// Get data, if any.
-		bool bOk = false;
 		ESocketErrors Error = SE_NO_ERROR;
-		bool bUsingReceiveThread = SocketReceiveThreadRunnable.IsValid();
-
-		if (bUsingReceiveThread)
-		{
-			FReceivedPacket IncomingPacket;
-			const bool bHasPacket = SocketReceiveThreadRunnable->ReceiveQueue.Dequeue(IncomingPacket);
-			if (!bHasPacket)
-			{
-				break;
-			}
-
-			if (IncomingPacket.FromAddress.IsValid())
-			{
-				FromAddr = IncomingPacket.FromAddress.ToSharedRef();
-			}
-			Error = IncomingPacket.Error;
-			bOk = Error == SE_NO_ERROR;
-			
-			if (IncomingPacket.PacketBytes.Num() <= sizeof(Data))
-			{
-				FMemory::Memcpy(Data, IncomingPacket.PacketBytes.GetData(), IncomingPacket.PacketBytes.Num());
-				BytesRead = IncomingPacket.PacketBytes.Num();
-			}
-			else
-			{
-				UE_LOG(LogNet, Log, TEXT("IpNetDriver receive thread received a packet of %d bytes, which is larger than the data buffer size of %d bytes."), IncomingPacket.PacketBytes.Num(), sizeof(Data));
-				continue;
-			}
-		}
-		else
-		{
-			SCOPE_CYCLE_COUNTER(STAT_IpNetDriver_RecvFromSocket);
-			bOk = Socket->RecvFrom(Data, sizeof(Data), BytesRead, *FromAddr);
-		}
-
+		TSharedPtr<FInternetAddr> FromAddrPtr;
+		bool bOk = It.GetCurrentPacket((const uint8*&)Data, (uint32&)BytesRead, Error, FromAddrPtr);
+		TSharedRef<FInternetAddr> FromAddr = FromAddrPtr.ToSharedRef();
 		UNetConnection* Connection = nullptr;
 		UIpConnection* const MyServerConnection = GetServerConnection();
 
@@ -362,12 +678,7 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 		}
 		else
 		{
-			if (!bUsingReceiveThread)
-			{
-				Error = SocketSubsystem->GetLastErrorCode();
-			}
-
-			if (Error == SE_EWOULDBLOCK || Error == SE_NO_ERROR || Error == SE_ECONNABORTED)
+			if (IsRecvFailBlocking(Error))
 			{
 				// No data or no error? (SE_ECONNABORTED is for PS4 LAN cable pulls)
 				break;
@@ -414,13 +725,19 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 				// This should only occur on clients - on servers it leaves the NetDriver in an invalid/vulnerable state
 				if (MyServerConnection != nullptr)
 				{
-					GEngine->BroadcastNetworkFailure(GetWorld(), this, ENetworkFailure::ConnectionLost, ErrorString);
-					Shutdown();
+					// TODO: Maybe we should check to see whether or not the From address matches the server?
+					// If not, we could forward errors incorrectly, causing the connection to shut down.
 
+					FIpConnectionHelper::HandleSocketRecvError(this, MyServerConnection, ErrorString);
 					break;
 				}
 				else
 				{
+					// TODO: Should we also forward errors to connections here?
+					// If we did, instead of just shutting down the NetDriver completely we could instead
+					// boot the given connection.
+					// May be DDoS concerns with the cost of looking up the connections for malicious packets
+					// from sources that won't have connections.
 					UE_CLOG(!DDoS.CheckLogRestrictions(), LogNet, Warning, TEXT("%s"), *ErrorString);
 				}
 
@@ -429,16 +746,6 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 			}
 		}
 
-		// Very-early-out - the NetConnection per frame time limit, limits all packet processing
-		if (DDoS.ShouldBlockNetConnPackets())
-		{
-			if (bOk)
-			{
-				DDoS.IncDroppedPacketCounter();
-			}
-
-			continue;
-		}
 
 		// Figure out which socket the received data came from.
 		if (MyServerConnection)
@@ -629,6 +936,8 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(const TSharedRef<FInte
 						// @todo: There needs to be a proper/standardized copy API for this. Also in IpConnection.cpp
 						bool bIsValid = false;
 
+						const FString OldAddress = RemoteAddrRef->ToString(true);
+
 						RemoteAddrRef->SetIp(*Address->ToString(false), bIsValid);
 						RemoteAddrRef->SetPort(Address->GetPort());
 
@@ -651,7 +960,8 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(const TSharedRef<FInte
 
 						ReturnVal = FoundConn;
 
-						UE_LOG(LogNet, Log, TEXT("Updated IP address for connection %s to: %s"), *FoundConn->Describe(), *IncomingAddress);
+						// We shouldn't need to log IncomingAddress, as the UNetConnection should dump it with it's description.
+						UE_LOG(LogNet, Log, TEXT("Updated IP address for connection. Connection = %s, Old Address = %s"), *FoundConn->Describe(), *OldAddress);
 					}
 					else
 					{
@@ -837,7 +1147,8 @@ void UIpNetDriver::LowLevelDestroy()
 		}
 		// Free the memory the OS allocated for this socket
 		SocketSubsystem->DestroySocket(Socket);
-		Socket = NULL;
+		Socket = nullptr;
+
 		UE_LOG(LogExit, Log, TEXT("%s shut down"),*GetDescription() );
 	}
 
@@ -975,7 +1286,7 @@ uint32 UIpNetDriver::FReceiveThreadRunnable::Run()
 				IncomingPacket.Error = SocketSubsystem->GetLastErrorCode();
 
 				// Pass all other errors back to the Game Thread
-				if (IncomingPacket.Error == SE_EWOULDBLOCK || IncomingPacket.Error == SE_NO_ERROR || IncomingPacket.Error == SE_ECONNABORTED)
+				if (IsRecvFailBlocking(IncomingPacket.Error))
 				{
 					continue;
 				}

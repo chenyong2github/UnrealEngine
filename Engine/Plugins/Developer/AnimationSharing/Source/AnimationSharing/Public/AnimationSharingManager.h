@@ -531,6 +531,7 @@ protected:
 	FPerActorData* GetActorDataByHandle(uint32 InHandle);
 protected:
 	/** Array of unique skeletons, matches PerSkeletonData array entries*/
+	UPROPERTY(Transient)
 	TArray<const USkeleton*> Skeletons;
 
 	/** Sharing data required for the unique Skeleton setups */

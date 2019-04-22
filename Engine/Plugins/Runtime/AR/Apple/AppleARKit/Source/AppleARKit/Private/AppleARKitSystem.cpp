@@ -206,6 +206,7 @@ FAppleARKitSystem::FAppleARKitSystem()
 , CameraDepth(nullptr)
 , LastTrackedGeometry_DebugId(0)
 , FaceARSupport(nullptr)
+, TimecodeProvider(nullptr)
 {
 	// See Initialize(), as we need access to SharedThis()
 }

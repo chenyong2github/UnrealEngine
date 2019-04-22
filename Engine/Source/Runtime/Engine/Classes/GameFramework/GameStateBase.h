@@ -9,12 +9,15 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/Info.h"
 #include "GameFramework/GameModeBase.h"
+#include "Stats/Stats.h"
 #include "GameStateBase.generated.h"
 
 class APlayerState;
 class ASpectatorPawn;
 
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogGameState, Log, All);
+
+DECLARE_CYCLE_STAT_EXTERN( TEXT( "GetPlayerStateFromUniqueId" ), STAT_GetPlayerStateFromUniqueId, STATGROUP_Game , ENGINE_API);
 
 class AGameModeBase;
 class ASpectatorPawn;
@@ -85,6 +88,9 @@ public:
 	virtual float GetPlayerRespawnDelay(AController* Controller) const;
 
 	virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty > &OutLifetimeProps) const;
+
+	/** Returns the player state for a specified unique player Id */
+	APlayerState* GetPlayerStateFromUniqueNetId(const FUniqueNetIdWrapper& InPlayerId) const;
 
 	//~=============================================================================
 	// Interaction with GameModeBase

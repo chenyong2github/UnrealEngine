@@ -342,6 +342,7 @@ struct FReplicatedStaticActorDestructionInfo
 	GENERATED_BODY()
 
 	FName PathName;
+	FString FullName;
 	FVector	DestroyedPosition;
 	TWeakObjectPtr<UObject> ObjOuter;
 	UPROPERTY()

@@ -101,8 +101,6 @@ void ADebugCameraHUD::PostRender()
 			Canvas->DrawText(RenderFont, SpeedString, X, yl, 1.f, 1.f, FontRenderInfo);
 			yl += Y;
 
-			//Canvas->DrawText(FString::Printf(TEXT("CamLoc:%s CamRot:%s"), *CamLoc.ToString(), *CamRot.ToString() ));
-
 			const TCHAR* CVarComplexName = TEXT("g.DebugCameraTraceComplex");
 			bool bTraceComplex = true;
 
@@ -112,7 +110,7 @@ void ADebugCameraHUD::PostRender()
 
 			FCollisionQueryParams TraceParams(NAME_None, FCollisionQueryParams::GetUnknownStatId(), bTraceComplex, this);
 			FHitResult Hit;
-			bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, CamLoc, CamRot.Vector() * 100000.f + CamLoc, ECC_Pawn, TraceParams);
+			bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, CamLoc, CamRot.Vector() * 100000.f + CamLoc, ECC_Visibility, TraceParams);
 
 			yl += Y;
 			Canvas->DrawText(RenderFont, FString::Printf(TEXT("Trace info (%s = %d):"), CVarComplexName, bTraceComplex ? 1 : 0), X, yl, 1.f, 1.f, FontRenderInfo);
@@ -155,7 +153,16 @@ void ADebugCameraHUD::PostRender()
 					yl += Y;
 					Canvas->DrawText(RenderFont, "Material: NULL", X + Y, yl, 1.f, 1.f, FontRenderInfo );
 				}
-				DrawDebugLine( GetWorld(), Hit.Location, Hit.Location+Hit.Normal*30.f, FColor::White );
+
+				if (!DCC->bIsOrbitingSelectedActor)
+				{
+					DrawDebugLine(GetWorld(), Hit.Location, Hit.Location + Hit.Normal*30.f, FColor::White);
+
+					if (DCC->SelectedActor)
+					{
+						DrawDebugLine(GetWorld(), DCC->SelectedHitPoint.Location, DCC->SelectedHitPoint.Location + DCC->SelectedHitPoint.Normal*30.f, FColor::Red);
+					}
+				}
 			}
 			else
 			{
@@ -163,16 +170,32 @@ void ADebugCameraHUD::PostRender()
 				Canvas->DrawText( RenderFont, TEXT("No trace Hit"), X, yl, 1.f, 1.f, FontRenderInfo);
 			}
 
-			if ( DCC->bShowSelectedInfo && DCC->SelectedActor != NULL )
+			if (DCC->bShowSelectedInfo && DCC->SelectedActor != NULL)
 			{
-				yl += Y;
-				Canvas->DrawText(RenderFont,  FString::Printf(TEXT("Selected actor: '%s'"), *DCC->SelectedActor->GetFName().ToString()), X, yl, 1.f, 1.f, FontRenderInfo);
-				DisplayMaterials( X, yl, Y, Cast<UMeshComponent>(DCC->SelectedComponent) );
+				if (DCC->bIsOrbitingSelectedActor)
+				{
+					if (DCC->bOrbitPivotUseCenter)
+					{
+						yl += Y;
+						Canvas->DrawText(RenderFont, FString::Printf(TEXT("Orbiting actor (center): '%s'"), *DCC->SelectedActor->GetFName().ToString()), X, yl, 1.f, 1.f, FontRenderInfo);
+					}
+					else
+					{
+						yl += Y;
+						Canvas->DrawText(RenderFont, FString::Printf(TEXT("Orbiting actor (hitpoint): '%s'"), *DCC->SelectedActor->GetFName().ToString()), X, yl, 1.f, 1.f, FontRenderInfo);
+					}
+				}
+				else
+				{
+					yl += Y;
+					Canvas->DrawText(RenderFont, FString::Printf(TEXT("Selected actor: '%s'"), *DCC->SelectedActor->GetFName().ToString()), X, yl, 1.f, 1.f, FontRenderInfo);
+				}
+				DisplayMaterials(X, yl, Y, Cast<UMeshComponent>(DCC->SelectedComponent));
 			}
 
 
 			// controls display
-			yl += Y*15;
+			yl += Y*14;
 			
 			Canvas->SetDrawColor(64, 64, 255, 255);
 			Canvas->DrawText(RenderFont, TEXT("Controls"), X, yl, 1.f, 1.f, FontRenderInfo);
@@ -189,6 +212,12 @@ void ADebugCameraHUD::PostRender()
 			yl += Y;			
 			
 			Canvas->DrawText(RenderFont, TEXT("Toggle Display: BackSpace or XButton"), X, yl, 1.f, 1.f, FontRenderInfo);
+			yl += Y;
+
+			Canvas->DrawText(RenderFont, TEXT("Orbit Selected Hitpoint: O"), X, yl, 1.f, 1.f, FontRenderInfo);
+			yl += Y;
+
+			Canvas->DrawText(RenderFont, TEXT("Orbit Selected Actor: Shift-O"), X, yl, 1.f, 1.f, FontRenderInfo);
 			yl += Y;
 		}
 	}

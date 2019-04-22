@@ -73,9 +73,12 @@ public:
 
 	void SetMemberConnectionStatus(EMemberConnectionStatus NewMemberConnectionStatus)
 	{
-		PreviousMemberConnectionStatus = MemberConnectionStatus;
-		MemberConnectionStatus = NewMemberConnectionStatus;
-		TriggerOnMemberConnectionStatusChangedDelegates(*GetUserId(), MemberConnectionStatus, PreviousMemberConnectionStatus);
+		if (NewMemberConnectionStatus != MemberConnectionStatus)
+		{
+			PreviousMemberConnectionStatus = MemberConnectionStatus;
+			MemberConnectionStatus = NewMemberConnectionStatus;
+			TriggerOnMemberConnectionStatusChangedDelegates(*GetUserId(), MemberConnectionStatus, PreviousMemberConnectionStatus);
+		}
 	}
 };
 
@@ -624,6 +627,14 @@ enum class EKickMemberCompletionResult;
 enum class EPromoteMemberCompletionResult;
 enum class EInvitationResponse;
 
+enum class EPartySystemState
+{
+	Initializing = 0,
+	Initialized,
+	RequestingShutdown,
+	ShutDown,
+};
+
 ///////////////////////////////////////////////////////////////////
 // Completion delegates
 ///////////////////////////////////////////////////////////////////
@@ -634,6 +645,13 @@ enum class EInvitationResponse;
  * @param Result Result of the operation
  */
 DECLARE_DELEGATE_TwoParams(FOnRestorePartiesComplete, const FUniqueNetId& /*LocalUserId*/, const FOnlineError& /*Result*/);
+/**
+ * Cleanup parties async task completed callback
+ *
+ * @param LocalUserId id of user that initiated the request
+ * @param Result Result of the operation
+ */
+DECLARE_DELEGATE_TwoParams(FOnCleanupPartiesComplete, const FUniqueNetId& /*LocalUserId*/, const FOnlineError& /*Result*/);
 /**
  * Party creation async task completed callback
  *
@@ -925,6 +943,13 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyAnalyticsEvent), const FU
 PARTY_DECLARE_DELEGATETYPE(OnPartyAnalyticsEvent);
 
 /**
+* Notification of party system state change
+* @param NewState - new state this partysystem is in
+*/
+DECLARE_MULTICAST_DELEGATE_OneParam(F_PREFIX(OnPartySystemStateChange), EPartySystemState /*NewState*/);
+PARTY_DECLARE_DELEGATETYPE(OnPartySystemStateChange);
+
+/**
  * Interface definition for the online party services 
  * Allows for forming a party and communicating with party members
  */
@@ -943,6 +968,14 @@ public:
 	 * @param CompletionDelegate the delegate to trigger on completion
 	 */
 	virtual void RestoreParties(const FUniqueNetId& LocalUserId, const FOnRestorePartiesComplete& CompletionDelegate) = 0;
+	
+	/**
+	 * Cleanup party state. This will cleanup the local party state and attempt to cleanup party memberships on an external service if possible.  Intended to be called for development purposes.
+	 *
+	 * @param LocalUserId the user to cleanup the parties for
+	 * @param CompletionDelegate the delegate to trigger on completion
+	 */
+	virtual void CleanupParties(const FUniqueNetId& LocalUserId, const FOnCleanupPartiesComplete& CompletionDelegate) = 0;
 	
 	/**
 	 * Create a new party
@@ -1573,6 +1606,12 @@ public:
 	 * @param Attributes - attributes for the event
 	 */
 	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnPartyAnalyticsEvent, const FUniqueNetId& /*LocalUserId*/, const FString& /*EventName*/, const TArray<FAnalyticsEventAttribute>& /*Attributes*/);
+
+	/**
+	* Notification of party system state change
+	* @param NewState - new state this partysystem is in
+	*/
+	DEFINE_ONLINE_DELEGATE_ONE_PARAM(OnPartySystemStateChange, EPartySystemState /*NewState*/);
 
 	/**
 	 * Dump out party state for all known parties

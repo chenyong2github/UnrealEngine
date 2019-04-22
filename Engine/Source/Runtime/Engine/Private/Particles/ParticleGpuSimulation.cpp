@@ -10,6 +10,7 @@
 #include "Stats/Stats.h"
 #include "Misc/MemStack.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "RHIDefinitions.h"
 #include "RHI.h"
 #include "RenderingThread.h"
@@ -4467,6 +4468,8 @@ FAutoConsoleCommand DumpTileAllocsCommand(
 
 void FFXSystem::InitGPUSimulation()
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	check(ParticleSimulationResources == NULL);
 	ensure(GParticleSimulationTextureSizeX > 0 && GParticleSimulationTextureSizeY > 0);
 	/** How many tiles are in the simulation textures. */
@@ -4537,6 +4540,8 @@ void FFXSystem::AddGPUSimulation(FParticleSimulationGPU* Simulation)
 {
 	if (!IsPendingKill())
 	{
+		LLM_SCOPE(ELLMTag::Particles);
+
 		FFXSystem* FXSystem = this;
 		ENQUEUE_RENDER_COMMAND(FAddGPUSimulationCommand)(
 			[FXSystem, Simulation](FRHICommandListImmediate& RHICmdList)
@@ -4572,6 +4577,8 @@ void FFXSystem::RemoveGPUSimulation(FParticleSimulationGPU* Simulation)
 
 int32 FFXSystem::AddSortedGPUSimulation(FParticleSimulationGPU* Simulation, const FVector& ViewOrigin)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	check(FeatureLevel == ERHIFeatureLevel::SM5);
 	const int32 BufferOffset = ParticleSimulationResources->SortedParticleCount;
 	ParticleSimulationResources->SortedParticleCount += Simulation->VertexBuffer.ParticleCount;
@@ -4701,6 +4708,7 @@ void FFXSystem::SimulateGPUParticles(
 	FUniformBufferRHIParamRef SceneTexturesUniformBuffer
 	)
 {
+	LLM_SCOPE(ELLMTag::Particles);
 	check(IsInRenderingThread());
 	SCOPE_CYCLE_COUNTER(STAT_GPUParticleTickTime);
 
@@ -5276,6 +5284,8 @@ FGPUSpriteResources* BeginCreateGPUSpriteResources( const FGPUSpriteResourceData
 	FGPUSpriteResources* Resources = NULL;
 	if (RHISupportsGPUParticles())
 	{
+		LLM_SCOPE(ELLMTag::Particles);
+
 		Resources = new FGPUSpriteResources;
 		//@TODO Ideally FGPUSpriteEmitterInfo::Resources would be a TRefCountPtr<FGPUSpriteResources>, but
 		//since that class is defined in this file, we can't do that, so we just addref here instead

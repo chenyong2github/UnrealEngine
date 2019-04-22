@@ -23,6 +23,7 @@
 #include "GameFramework/GameStateBase.h"
 
 static const float SPEED_SCALE_ADJUSTMENT = 0.5f;
+static const float MIN_ORBIT_RADIUS = 30.0f;
 
 ADebugCameraController::ADebugCameraController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -46,6 +47,12 @@ ADebugCameraController::ADebugCameraController(const FObjectInitializer& ObjectI
 	PrimaryActorTick.bTickEvenWhenPaused = true;
 	bShouldPerformFullTickWhenPaused = true;
 	SetAsLocalPlayerController();
+
+	bIsOrbitingSelectedActor = false;
+	bOrbitPivotUseCenter = false;
+	LastOrbitPawnLocation = FVector::ZeroVector;
+	OrbitPivot = FVector::ZeroVector;
+	OrbitRadius = MIN_ORBIT_RADIUS;
 }
 
 void InitializeDebugCameraInputBindings()
@@ -65,6 +72,8 @@ void InitializeDebugCameraInputBindings()
 		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_DecreaseFOV", EKeys::Period));
 		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_ToggleDisplay", EKeys::BackSpace));
 		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_FreezeRendering", EKeys::F));
+		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_OrbitHitPoint", EKeys::O));
+		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_OrbitCenter", EKeys::O, true));
 
 		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_Select", EKeys::Gamepad_RightTrigger));
 		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_IncreaseSpeed", EKeys::Gamepad_RightShoulder));
@@ -92,6 +101,8 @@ void ADebugCameraController::SetupInputComponent()
 
 	InputComponent->BindAction("DebugCamera_ToggleDisplay", IE_Pressed, this, &ADebugCameraController::ToggleDisplay);
 	InputComponent->BindAction("DebugCamera_FreezeRendering", IE_Pressed, this, &ADebugCameraController::ToggleFreezeRendering);
+	InputComponent->BindAction("DebugCamera_OrbitHitPoint", IE_Pressed, this, &ADebugCameraController::ToggleOrbitHitPoint);
+	InputComponent->BindAction("DebugCamera_OrbitCenter", IE_Pressed, this, &ADebugCameraController::ToggleOrbitCenter);
 
 	InputComponent->BindTouch(IE_Pressed, this, &ADebugCameraController::OnTouchBegin);
 	InputComponent->BindTouch(IE_Released, this, &ADebugCameraController::OnTouchEnd);
@@ -140,6 +151,7 @@ void ADebugCameraController::Select( FHitResult const& Hit )
 	// store selection
 	SelectedActor = Hit.GetActor();
 	SelectedComponent = Hit.Component.Get();
+	SelectedHitPoint = Hit;
 
 	//BP Event
 	ReceiveOnActorSelected(SelectedActor, Hit.ImpactPoint, Hit.ImpactNormal, Hit);
@@ -358,6 +370,8 @@ void ADebugCameraController::OnDeactivate( APlayerController* RestoredPC )
 		bIsFrozenRendering = false;
 	}
 
+	bIsOrbitingSelectedActor = false;
+
 	DrawFrustum->SetVisibility(false);
 	ConsoleCommand(TEXT("show camfrustums"));
 	DrawFrustum->UnregisterComponent();
@@ -378,6 +392,204 @@ void ADebugCameraController::ToggleFreezeRendering()
 {
 	ConsoleCommand(TEXT("FreezeRendering"));
 	bIsFrozenRendering = !bIsFrozenRendering;
+}
+
+void ADebugCameraController::PreProcessInput(const float DeltaTime, const bool bGamePaused)
+{
+	if (bIsOrbitingSelectedActor)
+	{
+		PreProcessInputForOrbit(DeltaTime, bGamePaused);
+	}
+	else
+	{
+		Super::PreProcessInput(DeltaTime, bGamePaused);
+	}
+}
+
+void ADebugCameraController::UpdateRotation(float DeltaTime)
+{
+	if (bIsOrbitingSelectedActor)
+	{
+		UpdateRotationForOrbit(DeltaTime);
+	}
+	else
+	{
+		Super::UpdateRotation(DeltaTime);
+	}
+}
+
+void ADebugCameraController::PreProcessInputForOrbit(const float DeltaTime, const bool bGamePaused)
+{
+	if (bIsOrbitingSelectedActor)
+	{
+		if (APawn* const CurrentPawn = GetPawnOrSpectator())
+		{
+			if (UPawnMovementComponent* MovementComponent = CurrentPawn->GetMovementComponent())
+			{
+				// Reset velocity before processing input when orbiting to limit acceleration which 
+				// can cause overshooting and jittering as orbit attempts to maintain a fixed radius.
+				MovementComponent->Velocity = FVector::ZeroVector;
+				MovementComponent->UpdateComponentVelocity();
+			}
+		}
+	}
+}
+
+void ADebugCameraController::UpdateRotationForOrbit(float DeltaTime)
+{
+	APawn* const CurrentPawn = GetPawnOrSpectator();
+
+	if (bIsOrbitingSelectedActor && CurrentPawn)
+	{
+		bool bUpdatePawn = false;
+		FRotator ViewRotation = GetControlRotation();
+	
+		if (!CurrentPawn->GetLastMovementInputVector().IsZero())
+		{
+			FRotationMatrix ObjectToWorld(ViewRotation);
+			FVector MoveDelta(CurrentPawn->GetActorLocation() - LastOrbitPawnLocation);
+			FVector MoveDeltaObj = ObjectToWorld.GetTransposed().TransformVector(MoveDelta);
+
+			// Handle either forward or lateral motion but not both, because small forward
+			// motion deltas while moving laterally cause the distance from pivot to drift
+			if (FMath::IsNearlyZero(MoveDeltaObj.Y, 0.01f))
+			{
+				// Clamp delta to avoid flipping to opposite view
+				const float ForwardScale = 3.0f;
+				OrbitRadius = (MoveDeltaObj.X * ForwardScale > OrbitRadius - MIN_ORBIT_RADIUS) ? MIN_ORBIT_RADIUS : OrbitRadius - MoveDeltaObj.X * ForwardScale;
+			}
+			else
+			{
+				// Apply lateral movement component, constraining distance from orbit pivot
+				const float LateralScale = 2.0f;
+				FVector LateralDelta = ObjectToWorld.TransformVector(FVector(0.0f, MoveDeltaObj.Y * LateralScale, 0.0f));
+				ViewRotation = (OrbitPivot - LastOrbitPawnLocation - LateralDelta).ToOrientationRotator();
+			}
+			bUpdatePawn = true;
+		}
+		else if (!RotationInput.IsZero())
+		{
+			ViewRotation += RotationInput;
+
+			FVector Axis;
+			float Angle;
+			FVector OppositeViewVector = -1.0 * ViewRotation.Vector();
+			FQuat::FindBetween(FVector::UpVector, OppositeViewVector).ToAxisAndAngle(Axis, Angle);
+
+			// Clamp rotation to 10 degrees from Up vector
+			const float MinAngle = PI / 18.f;
+			const float MaxAngle = PI - MinAngle;
+			if (Angle < MinAngle || Angle > MaxAngle)
+			{
+				float AdjustedAngle = FMath::Clamp(Angle, MinAngle, MaxAngle);
+				OppositeViewVector = FQuat(Axis, AdjustedAngle).RotateVector(FVector::UpVector);
+				ViewRotation = (-1.0 * OppositeViewVector).ToOrientationRotator();
+			}
+
+			bUpdatePawn = true;
+		}
+
+		if (bUpdatePawn)
+		{
+			LastOrbitPawnLocation = OrbitPivot - ViewRotation.Vector() * OrbitRadius;
+			CurrentPawn->SetActorLocation(LastOrbitPawnLocation);
+
+			SetControlRotation(ViewRotation);
+			CurrentPawn->FaceRotation(ViewRotation);
+		}
+	}
+}
+
+bool ADebugCameraController::GetPivotForOrbit(FVector& PivotLocation) const
+{
+	if (SelectedActor)
+	{
+		if (bOrbitPivotUseCenter)
+		{
+			FBox BoundingBox(ForceInit);
+			int32 NumValidComponents = 0;
+
+			// Use the center of the bounding box of the current selected actor as the pivot point for orbiting the camera
+			int32 NumSelectedActors = 0;
+
+			TInlineComponentArray<UMeshComponent*> MeshComponents(SelectedActor);
+
+			for (int32 ComponentIndex = 0; ComponentIndex < MeshComponents.Num(); ++ComponentIndex)
+			{
+				UMeshComponent* MeshComponent = MeshComponents[ComponentIndex];
+
+				if (MeshComponent->IsRegistered() && MeshComponent->IsVisible())
+				{
+					BoundingBox += MeshComponent->Bounds.GetBox();
+					++NumValidComponents;
+				}
+			}
+
+			if (NumValidComponents > 0)
+			{
+				PivotLocation = BoundingBox.GetCenter();
+				return true;
+			}
+		}
+		else
+		{
+			PivotLocation = SelectedHitPoint.Location;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void ADebugCameraController::ToggleOrbit(bool bOrbitCenter)
+{
+	if (bIsOrbitingSelectedActor)
+	{
+		bIsOrbitingSelectedActor = false;
+	}
+	else
+	{
+		APawn* const CurrentPawn = GetPawnOrSpectator();
+		bOrbitPivotUseCenter = bOrbitCenter;
+		bIsOrbitingSelectedActor = (CurrentPawn && GetPivotForOrbit(OrbitPivot));
+
+		if (bIsOrbitingSelectedActor)
+		{
+			LastOrbitPawnLocation = CurrentPawn->GetActorLocation();
+			FVector ViewVector = OrbitPivot - LastOrbitPawnLocation;
+			float ViewLength = ViewVector.Size();
+
+			if (ViewLength == 0.0f)
+			{
+				bIsOrbitingSelectedActor = false;
+				return;
+			}
+			else if (ViewLength >= MIN_ORBIT_RADIUS)
+			{
+				OrbitRadius = ViewLength;
+			}
+			else
+			{
+				LastOrbitPawnLocation = OrbitPivot - ViewVector.GetSafeNormal() * MIN_ORBIT_RADIUS;
+				CurrentPawn->SetActorLocation(LastOrbitPawnLocation);
+				OrbitRadius = MIN_ORBIT_RADIUS;
+			}
+
+			FRotator ViewRotation = ViewVector.ToOrientationRotator();
+			SetControlRotation(ViewRotation);
+			CurrentPawn->FaceRotation(ViewRotation);
+		}
+	}
+}
+
+void ADebugCameraController::ToggleOrbitCenter()
+{
+	ToggleOrbit(true);
+}
+
+void ADebugCameraController::ToggleOrbitHitPoint()
+{
+	ToggleOrbit(false);
 }
 
 void ADebugCameraController::SelectTargetedObject()

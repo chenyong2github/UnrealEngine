@@ -51,6 +51,9 @@ public:
 	/** Use in-game Bound of preview mesh */
 	TSharedPtr< FUICommandInfo > UseFixedBounds;
 
+	/** Use pre-skinned Bound of preview mesh */
+	TSharedPtr< FUICommandInfo > UsePreSkinnedBounds;
+
 	/** Show/hide the preview mesh */
 	TSharedPtr< FUICommandInfo > ShowPreviewMesh;
 

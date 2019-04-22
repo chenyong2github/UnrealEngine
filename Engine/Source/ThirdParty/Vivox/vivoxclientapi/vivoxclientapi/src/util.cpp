@@ -13,6 +13,7 @@
 * SOFTWARE.
 */
 #include "vivoxclientapi/util.h"
+#include "allocator_utils.h"
 #include "VxcErrors.h"
 
 namespace VivoxClientApi {
@@ -29,13 +30,13 @@ namespace VivoxClientApi {
 	}
 	VCSStatus::VCSStatus(VCSStatusCode status, char *statusString)
 		: m_status(status)
-		, m_statusString(vx_strdup(statusString))
+		, m_statusString(StrDup(statusString))
 	{
 	}
 	VCSStatus::VCSStatus(const VCSStatus &other)
 	{
 		m_status = other.m_status;
-		m_statusString = other.m_statusString ? vx_strdup(other.m_statusString) : NULL;
+		m_statusString = other.m_statusString ? StrDup(other.m_statusString) : NULL;
 	}
 	VCSStatus::VCSStatus(VCSStatus &&other)
 	{
@@ -49,16 +50,16 @@ namespace VivoxClientApi {
 	{
 		if (m_statusString)
 		{
-			vx_free(m_statusString);
+			Deallocate(m_statusString);
 		}
 	}
 
 	VCSStatus& VCSStatus::operator=(const VCSStatus &other)
 	{
-		char* errorString = other.m_statusString ? vx_strdup(other.m_statusString) : NULL;
+		char* errorString = other.m_statusString ? StrDup(other.m_statusString) : NULL;
 		if (m_statusString)
 		{
-			vx_free(m_statusString);
+			Deallocate(m_statusString);
 		}
 		m_statusString = errorString;
 		return *this;
@@ -70,7 +71,7 @@ namespace VivoxClientApi {
 		{
 			if (m_statusString)
 			{
-				vx_free(m_statusString);
+				Deallocate(m_statusString);
 			}
 
 			m_status = other.m_status;

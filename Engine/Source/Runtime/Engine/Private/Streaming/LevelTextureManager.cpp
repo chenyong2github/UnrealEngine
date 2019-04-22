@@ -73,7 +73,8 @@ float FLevelRenderAssetManager::GetWorldTime() const
 		if (World && !World->IsPaused())
 		{
 			// In the editor, we only return a time for the PIE world.
-			if (!GIsEditor || World->IsPlayInEditor())
+			// TODO: figure out why there are more than one PIE world
+			if (!GIsEditor || (World->IsPlayInEditor() && World->Scene->GetFrameNumber()))
 			{
 				return World->GetTimeSeconds();
 			}

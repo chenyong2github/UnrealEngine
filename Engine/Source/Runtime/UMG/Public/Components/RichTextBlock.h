@@ -138,6 +138,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Widget")
 	virtual void SetText(const FText& InText);
 
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	void SetTextStyleSet(class UDataTable* NewTextStyleSet);
+
 	const FTextBlockStyle& GetDefaultTextStyle() const;
 	const FTextBlockStyle& GetCurrentDefaultTextStyle() const;
 
@@ -149,6 +152,7 @@ protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	
 	virtual void UpdateStyleData();
+	void RebuildStyleInstance();
 	virtual void CreateDecorators(TArray< TSharedRef< class ITextDecorator > >& OutDecorators);
 	virtual TSharedPtr< class IRichTextMarkupParser > CreateMarkupParser();
 	virtual TSharedPtr< class IRichTextMarkupWriter > CreateMarkupWriter();

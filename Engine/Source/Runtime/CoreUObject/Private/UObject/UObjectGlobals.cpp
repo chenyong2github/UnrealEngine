@@ -513,13 +513,15 @@ void StaticTick( float DeltaTime, bool bUseFullTimeLimit, float AsyncLoadingTime
 -----------------------------------------------------------------------------*/
 
 //
-// Safe load error-handling.
+// Safe load error-handling. Returns true if a message was emitted.
 //
-void SafeLoadError( UObject* Outer, uint32 LoadFlags, const TCHAR* ErrorMessage)
+bool SafeLoadError( UObject* Outer, uint32 LoadFlags, const TCHAR* ErrorMessage)
 {
+	bool bRetVal = false;
 	if( FParse::Param( FCommandLine::Get(), TEXT("TREATLOADWARNINGSASERRORS") ) == true )
 	{
 		UE_LOG(LogUObjectGlobals, Error, TEXT("%s"), ErrorMessage);
+		bRetVal = true;
 	}
 	else
 	{
@@ -527,8 +529,11 @@ void SafeLoadError( UObject* Outer, uint32 LoadFlags, const TCHAR* ErrorMessage)
 		if( (LoadFlags & LOAD_Quiet) == 0 && (LoadFlags & LOAD_NoWarn) == 0)
 		{ 
 			UE_LOG(LogUObjectGlobals, Warning, TEXT("%s"), ErrorMessage);
+			bRetVal = true;
 		}
 	}
+
+	return bRetVal;
 }
 
 UPackage* FindPackage( UObject* InOuter, const TCHAR* PackageName )

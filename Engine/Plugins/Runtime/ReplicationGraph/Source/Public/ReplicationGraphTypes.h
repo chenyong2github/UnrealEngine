@@ -357,7 +357,6 @@ struct FClassReplicationInfo
 	FClassReplicationInfo() { }
 	float DistancePriorityScale = 1.f;
 	float StarvationPriorityScale = 1.f;
-	float CullDistanceSquared = 0.f;
 	float AccumulatedNetPriorityBias = 0.f;
 	
 	uint8 ReplicationPeriodFrame = 1;
@@ -367,13 +366,22 @@ struct FClassReplicationInfo
 	TFunction<bool(AActor*)> FastSharedReplicationFunc = nullptr;
 	FName FastSharedReplicationFuncName = NAME_None;
 
+	void SetCullDistanceSquared(float InCullDistanceSquared)
+	{
+		CullDistanceSquared = InCullDistanceSquared;
+		CullDistance = FMath::Sqrt(CullDistanceSquared);
+	}
+
+	float GetCullDistance() const { return CullDistance; }
+	float GetCullDistanceSquared() const { return CullDistanceSquared; }
+
 	FString BuildDebugStringDelta() const
 	{
 		FClassReplicationInfo DefaultValues;
 		FString Str;
-		if (CullDistanceSquared != DefaultValues.CullDistanceSquared)
+		if (CullDistance != DefaultValues.CullDistance)
 		{
-			Str += FString::Printf(TEXT("CullDistance: %.2f "), FMath::Sqrt(CullDistanceSquared));
+			Str += FString::Printf(TEXT("CullDistance: %.2f "), CullDistance);
 		}
 		if (StarvationPriorityScale != DefaultValues.StarvationPriorityScale)
 		{
@@ -402,6 +410,12 @@ struct FClassReplicationInfo
 
 		return Str;
 	}
+
+private:
+
+	float CullDistance = 0.0f;
+	float CullDistanceSquared = 0.f;
+
 };
 
 struct FGlobalActorReplicationInfo;
@@ -724,7 +738,13 @@ struct FGlobalActorReplicationInfoMap
 
 	void AddDependentActor(AActor* Parent, AActor* Child)
 	{
-		if (Parent && Child)
+		const bool bIsParentValid = ensureMsgf(Parent && IsActorValidForReplication(Parent), TEXT("FGlobalActorReplicationInfoMap::AddDependentActor Invalid Parent! %s"),
+			*GetPathNameSafe(Parent));
+
+		const bool bIsChildValid = ensureMsgf(Child && IsActorValidForReplication(Child), TEXT("FGlobalActorReplicationInfoMap::AddDependentActor Invalid Child! %s"),
+			*GetPathNameSafe(Child));
+
+		if (bIsParentValid && bIsChildValid)
 		{
 			if (FGlobalActorReplicationInfo* ParentInfo = Find(Parent))
 			{
@@ -767,16 +787,16 @@ private:
 /** Per-Actor data that is stored per connection */
 struct FConnectionReplicationActorInfo
 {
-	FConnectionReplicationActorInfo() : bDormantOnConnection(0), bTearOff(0)  { }
+	FConnectionReplicationActorInfo() : bDormantOnConnection(0), bTearOff(0), bGridSpatilization_AlreadyDormant(0) { }
 
-	FConnectionReplicationActorInfo(const FGlobalActorReplicationInfo& GlobalInfo) : bDormantOnConnection(0), bTearOff(0)
+	FConnectionReplicationActorInfo(const FGlobalActorReplicationInfo& GlobalInfo) : bDormantOnConnection(0), bTearOff(0), bGridSpatilization_AlreadyDormant(0)
 	{
 		// Pull data from the global actor info. This is done for things that we just want to duplicate in both places so that we can avoid a lookup into the global map
 		// and also for things that we want to be overridden per (connection/actor)
 
 		ReplicationPeriodFrame = GlobalInfo.Settings.ReplicationPeriodFrame;
 		FastPath_ReplicationPeriodFrame = GlobalInfo.Settings.FastPath_ReplicationPeriodFrame;
-		CullDistanceSquared = GlobalInfo.Settings.CullDistanceSquared;
+		SetCullDistanceSquared(GlobalInfo.Settings.GetCullDistanceSquared());
 	}
 
 	/** Resets the data, except for the "settings" data that we pulled from GlobalInfo */
@@ -793,9 +813,22 @@ struct FConnectionReplicationActorInfo
 		// Note: purposefully not clearing bDormantOnConnection or bTearOff.
 	}
 
+	void SetCullDistanceSquared(float InCullDistanceSquared)
+	{
+		CullDistanceSquared = InCullDistanceSquared;
+		CullDistance = FMath::Sqrt(CullDistanceSquared);
+	}
+
+	float GetCullDistance() const { return CullDistance; }
+	float GetCullDistanceSquared() const { return CullDistanceSquared; }
+
 	UActorChannel* Channel = nullptr;
 
+private:
+	float CullDistance = 0.f;
 	float CullDistanceSquared = 0.f;
+
+public:
 	
 	/** Default replication */
 	uint32	NextReplicationFrameNum = 0;	/** The next frame we are allowed to replicate on */
@@ -812,6 +845,9 @@ struct FConnectionReplicationActorInfo
 
 	uint8 bDormantOnConnection:1;
 	uint8 bTearOff:1;
+
+	/** Used as an optimization when doing 2D Grid Spatilization, prevents replicating the dormancy of the same actor twice in splitscreen evaluations. */
+	uint8 bGridSpatilization_AlreadyDormant:1;
 
 	void LogDebugString(FOutputDevice& Ar) const;
 };
@@ -1086,6 +1122,13 @@ private:
 // Connection Gather Actor List Parameters
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------
+#if !defined(REPGRAPH_VIEWERS_PER_CONNECTION)
+#define REPGRAPH_VIEWERS_PER_CONNECTION 4
+#endif
+
+// Allocator for a connection and all of its sub connections
+typedef TInlineAllocator<REPGRAPH_VIEWERS_PER_CONNECTION> FReplicationGraphConnectionsAllocator;
+typedef TArray<FNetViewer, FReplicationGraphConnectionsAllocator> FNetViewerArray;
 
 // Parameter structure for what we actually pass down during the Gather phase.
 struct FConnectionGatherActorListParameters
@@ -1093,10 +1136,19 @@ struct FConnectionGatherActorListParameters
 	FConnectionGatherActorListParameters(FNetViewer& InViewer, UNetReplicationGraphConnection& InConnectionManager, TSet<FName>& InClientVisibleLevelNamesRef, uint32 InReplicationFrameNum, FGatheredReplicationActorLists& InOutGatheredReplicationLists)
 		: Viewer(InViewer), ConnectionManager(InConnectionManager), ReplicationFrameNum(InReplicationFrameNum), OutGatheredReplicationLists(InOutGatheredReplicationLists), ClientVisibleLevelNamesRef(InClientVisibleLevelNamesRef)
 	{
+		Viewers.Add(InViewer);
 	}
+
+	FConnectionGatherActorListParameters(FNetViewerArray& InViewers, UNetReplicationGraphConnection& InConnectionManager, TSet<FName>& InClientVisibleLevelNamesRef, uint32 InReplicationFrameNum, FGatheredReplicationActorLists& InOutGatheredReplicationLists)
+		: Viewer(InViewers[0]), Viewers(InViewers), ConnectionManager(InConnectionManager), ReplicationFrameNum(InReplicationFrameNum), OutGatheredReplicationLists(InOutGatheredReplicationLists), ClientVisibleLevelNamesRef(InClientVisibleLevelNamesRef)
+	{
+	}
+
 
 	/** In: The Data the nodes have to work with */
 	FNetViewer& Viewer;
+
+	FNetViewerArray Viewers;
 	UNetReplicationGraphConnection& ConnectionManager;
 	uint32 ReplicationFrameNum;
 
@@ -1121,13 +1173,12 @@ struct FConnectionGatherActorListParameters
 
 
 	// Cached off reference for fast Level Visibility lookup
-	TSet<FName>& ClientVisibleLevelNamesRef;
+	const TSet<FName>& ClientVisibleLevelNamesRef;
 
 private:
 
 	mutable FName LastCheckedVisibleLevelName;
 };
-
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------

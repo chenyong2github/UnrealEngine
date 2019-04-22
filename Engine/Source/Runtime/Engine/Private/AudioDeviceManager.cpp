@@ -66,6 +66,8 @@ FAudioDeviceManager::FAudioDeviceManager()
 	, bUsingAudioMixer(false)
 	, bPlayAllDeviceAudio(false)
 	, bVisualize3dDebug(false)
+	, bOnlyToggleAudioMixerOnce(false)
+	, bToggledAudioMixer(false)
 {
 	// Check for a command line debug sound argument.
 	FString DebugSound;
@@ -166,6 +168,8 @@ void FAudioDeviceManager::ToggleAudioMixer()
 						}
 					}
 
+					TArray<FAudioComponentPtr> RetriggerComponents = AudioDevice->GetProximityRetriggerComponents();
+
 					// Tear it down and delete the old audio device. This does a bunch of cleanup.
 					AudioDevice->Teardown();
 					delete AudioDevice;
@@ -180,6 +184,12 @@ void FAudioDeviceManager::ToggleAudioMixer()
 					if (AudioDevice->Init(AudioSettings->GetHighestMaxChannels()))
 					{
 						AudioDevice->SetMaxChannels(QualityLevelMaxChannels);
+					}
+
+					// Re-register the new audio device's re-trigger components
+					for (FAudioComponentPtr Component : RetriggerComponents)
+					{
+						AudioDevice->RegisterProximityRetriggeringAudioComponent(*Component);
 					}
 
 					// Transfer the sound mix modifiers to the new audio engine
@@ -263,6 +273,8 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 
 	bool bForceNoAudioMixer = FParse::Param(FCommandLine::Get(), TEXT("NoAudioMixer"));
 
+	bool bForceNonRealtimeRenderer = FParse::Param(FCommandLine::Get(), TEXT("DeterministicAudio"));
+
 	// If not using command line switch to use audio mixer, check the game platform engine ini file (e.g. WindowsEngine.ini) which enables it for player
 	bUsingAudioMixer = bForceAudioMixer;
 	if (!bForceAudioMixer && !bForceNoAudioMixer)
@@ -275,9 +287,25 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 		bUsingAudioMixer = false;
 	}
 
+	// Check for config bool that restricts audio mixer toggle to only once. This will allow us to patch audio mixer on or off after initial login.
+	GConfig->GetBool(TEXT("Audio"), TEXT("OnlyToggleAudioMixerOnce"), bOnlyToggleAudioMixerOnce, GEngineIni);
+
 	// Get the audio mixer and non-audio mixer device module names
 	GConfig->GetString(TEXT("Audio"), TEXT("AudioDeviceModuleName"), AudioDeviceModuleName, GEngineIni);
 	GConfig->GetString(TEXT("Audio"), TEXT("AudioMixerModuleName"), AudioMixerModuleName, GEngineIni);
+
+	if (bForceNonRealtimeRenderer)
+	{
+		AudioDeviceModule = FModuleManager::LoadModulePtr<IAudioDeviceModule>(TEXT("NonRealtimeAudioRenderer"));
+
+		static IConsoleVariable* IsUsingAudioMixerCvar = IConsoleManager::Get().FindConsoleVariable(TEXT("au.IsUsingAudioMixer"));
+		check(IsUsingAudioMixerCvar);
+		IsUsingAudioMixerCvar->Set(2, ECVF_SetByConstructor);
+
+		bUsingAudioMixer = true;
+
+		return AudioDeviceModule != nullptr;
+	}
 
 	if (bUsingAudioMixer && AudioMixerModuleName.Len() > 0)
 	{
@@ -548,16 +576,22 @@ void FAudioDeviceManager::UpdateActiveAudioDevices(bool bGameTicking)
 		SyncFence.Wait();
 	}
 
-	if (bUsingAudioMixer && !GCvarIsUsingAudioMixer)
+	if (!bOnlyToggleAudioMixerOnce || (bOnlyToggleAudioMixerOnce && !bToggledAudioMixer))
 	{
-		ToggleAudioMixer();
-		bUsingAudioMixer = false;
+		if (bUsingAudioMixer && !GCvarIsUsingAudioMixer)
+		{
+			ToggleAudioMixer();
+			bToggledAudioMixer = true;
+			bUsingAudioMixer = false;
+		}
+		else if (!bUsingAudioMixer && GCvarIsUsingAudioMixer)
+		{
+			ToggleAudioMixer();
+			bToggledAudioMixer = true;
+			bUsingAudioMixer = true;
+		}
 	}
-	else if (!bUsingAudioMixer && GCvarIsUsingAudioMixer)
-	{
-		ToggleAudioMixer();
-		bUsingAudioMixer = true;
-	}
+
 
 	for (FAudioDevice* AudioDevice : Devices)
 	{

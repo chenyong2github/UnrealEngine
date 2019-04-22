@@ -12,14 +12,20 @@ FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpRequest()
 {
 }
 
+FGenericPlatformBackgroundHttpRequest::~FGenericPlatformBackgroundHttpRequest()
+{
+	RequestWrapper.Release();
+}
+
 bool FGenericPlatformBackgroundHttpRequest::HandleDelayedProcess()
 {
 	//Our request may already have a response result from associating with another already completed request. If so, lets not spin up our RequestWrapper.
 	if (!GetResponse().IsValid())
 	{
+		//If we already have a Request Wrapper, lets keep it. Otherwise spin it up now.
 		if (!RequestWrapper.IsValid())
 		{
-			RequestWrapper = MakeShareable<FGenericPlatformBackgroundHttpWrapper>(new FGenericPlatformBackgroundHttpWrapper(SharedThis(this), NumberOfTotalRetries));
+			RequestWrapper.Reset(new FGenericPlatformBackgroundHttpWrapper(SharedThis(this), NumberOfTotalRetries));
 		}
 
 		if (ensureAlwaysMsgf(RequestWrapper.IsValid(), TEXT("Failure creating FGenericPlatformBackgroundHttpWrapper! Can not process BackgroundHttp request! RequestID:%s"), *GetRequestID()))
@@ -34,8 +40,8 @@ bool FGenericPlatformBackgroundHttpRequest::HandleDelayedProcess()
 
 void FGenericPlatformBackgroundHttpRequest::CancelRequest()
 {
-	FBackgroundHttpRequestImpl::CancelRequest();
 	RequestWrapper.Reset();
+	FBackgroundHttpRequestImpl::CancelRequest();
 }
 
 void FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpRequest::CompleteWithExistingResponseData(FBackgroundHttpResponsePtr BackgroundResponse)
@@ -82,7 +88,7 @@ void FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpWrappe
 		}
 		else
 		{
-			UE_LOG(LogBackgroundHttpRequest, Display, TEXT("No valid URL for Request. (No valid URL, or out of Retries) - RequestID:%s | RetryNumber:%d | MaxRetries:%d"), *OriginalRequest->GetRequestID(), CurrentRetryNumber, MaxRetries);
+			UE_LOG(LogBackgroundHttpRequest, Display, TEXT("No valid URL for Request. (No valid URL, or out of Retries) - RequestID:%s | RetryNumber:%d | MaxRetries:%d"), *OriginalRequest.Pin()->GetRequestID(), CurrentRetryNumber, MaxRetries);
 
 			//We don't have a valid URL, so just error immediately
 			HttpRequestComplete(HttpRequest, nullptr, false);
@@ -109,9 +115,9 @@ const FString FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundH
 	int URLIndexToUse = CurrentRetryNumber;
 
 	//Don't find a valid URL if we are already passed our retry count
-	if (URLIndexToUse <= MaxRetries)
+	if (HasRetriesRemaining())
 	{
-		const TArray<FString>& RequestURLList = OriginalRequest->GetURLList();
+		const TArray<FString>& RequestURLList = OriginalRequest.IsValid() ? OriginalRequest.Pin()->GetURLList() : TArray<FString>();
 		if (RequestURLList.Num() > 0)
 		{
 			//If our number is too high, lets loop back around to the start of the list
@@ -132,34 +138,45 @@ const FString FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundH
 
 void FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpWrapper::HttpRequestComplete(FHttpRequestPtr HttpRequestIn, FHttpResponsePtr HttpResponse, bool bSuccess)
 {
-	//Create a new FGenericPlatformBackgroundHttpRequest from the HttpRequest/Response
-	FBackgroundHttpResponsePtr ConstructedResponse = MakeShareable(new FGenericPlatformBackgroundHttpResponse(HttpRequestIn, HttpResponse, bSuccess));
-
-	//Let the FGenericPlatformBackgroundHttpResponse drive if this succeeded or not
-	const bool bRequestWasSuccessful = EHttpResponseCodes::IsOk(ConstructedResponse->GetResponseCode());
-
-	UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Underlying HttpRequest complete - RequestID:%s | bRequestWasSuccessfull:%d | CurrentRetryNumber:%d | MaxRetries:%d"), *OriginalRequest->GetRequestID(), (int)(bRequestWasSuccessful), CurrentRetryNumber, MaxRetries);
-
-	//Attempt a retry on failure
-	if (!bRequestWasSuccessful)
+	if (ensureAlwaysMsgf(OriginalRequest.IsValid(), TEXT("Recieved HttpRequestComplete callback with invalid OriginalRequest pointer! Can not complete request!")))
 	{
-		++CurrentRetryNumber;
-		MakeRequest();
+		//Create a new FGenericPlatformBackgroundHttpRequest from the HttpRequest/Response
+		FBackgroundHttpResponsePtr ConstructedResponse = MakeShareable(new FGenericPlatformBackgroundHttpResponse(HttpRequestIn, HttpResponse, bSuccess));
+
+		//Let the FGenericPlatformBackgroundHttpResponse drive if this succeeded or not
+		const bool bRequestWasSuccessful = EHttpResponseCodes::IsOk(ConstructedResponse->GetResponseCode());
+
+		UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Underlying HttpRequest complete - RequestID:%s | bRequestWasSuccessfull:%d | CurrentRetryNumber:%d | MaxRetries:%d"), *OriginalRequest.Pin()->GetRequestID(), (int)(bRequestWasSuccessful), CurrentRetryNumber, MaxRetries);
+
+		//Attempt a retry on failure
+		if (!bRequestWasSuccessful && HasRetriesRemaining())
+		{
+			++CurrentRetryNumber;
+			MakeRequest();
+		}
+		else
+		{
+			//Pass constructed response to our BackgroundRequest so it can complete itself using this response
+			OriginalRequest.Pin()->CompleteWithExistingResponseData(ConstructedResponse);
+		}
 	}
-	else
-	{
-		//Pass constructed response to our BackgroundRequest so it can complete itself using this response
-		OriginalRequest->CompleteWithExistingResponseData(ConstructedResponse);
-	}
+}
+
+bool FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpWrapper::HasRetriesRemaining() const
+{
+	return (CurrentRetryNumber <= MaxRetries);
 }
 
 void FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpWrapper::UpdateHttpProgress(FHttpRequestPtr UnderlyingHttpRequest, int32 BytesSent, int32 BytesReceived)
 {
-	const int32 ByteDifference = (LastProgressUpdateBytes > 0) ? BytesReceived - LastProgressUpdateBytes : BytesReceived;
-	ensureAlwaysMsgf((ByteDifference > 0), TEXT("Invalid Byte Difference in UpdateHttpProgress -- ByteDifference:%d | LastProgressUpdateBytes:%d | BytesSent:%d | BytesReceived:%d"), ByteDifference, LastProgressUpdateBytes, BytesSent, BytesReceived);
-	LastProgressUpdateBytes = BytesReceived;
+	if (ensureAlwaysMsgf(OriginalRequest.IsValid(), TEXT("Recieved UpdateHttpProgress callback with invalid OriginalRequest pointer! Can not update request progress!")))
+	{
+		const int32 ByteDifference = (LastProgressUpdateBytes > 0) ? BytesReceived - LastProgressUpdateBytes : BytesReceived;
+		ensureAlwaysMsgf((ByteDifference > 0), TEXT("Invalid Byte Difference in UpdateHttpProgress -- ByteDifference:%d | LastProgressUpdateBytes:%d | BytesSent:%d | BytesReceived:%d"), ByteDifference, LastProgressUpdateBytes, BytesSent, BytesReceived);
+		LastProgressUpdateBytes = BytesReceived;
 
-	UE_LOG(LogBackgroundHttpRequest, VeryVerbose, TEXT("HttpRequest Progress Update- RequestID:%s | BytesSent: %d | BytesReceived:%d | BytesReceivedSinceLastUpdate:%d"), *OriginalRequest->GetRequestID(), BytesSent, BytesReceived, ByteDifference);
-	
-	OriginalRequest->OnProgressUpdated().ExecuteIfBound(OriginalRequest, BytesReceived, ByteDifference);
+		UE_LOG(LogBackgroundHttpRequest, VeryVerbose, TEXT("HttpRequest Progress Update- RequestID:%s | BytesSent: %d | BytesReceived:%d | BytesReceivedSinceLastUpdate:%d"), *OriginalRequest.Pin()->GetRequestID(), BytesSent, BytesReceived, ByteDifference);
+
+		OriginalRequest.Pin()->OnProgressUpdated().ExecuteIfBound(OriginalRequest.Pin(), BytesReceived, ByteDifference);
+	}
 }

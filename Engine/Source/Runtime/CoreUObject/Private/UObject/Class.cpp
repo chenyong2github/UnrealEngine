@@ -2169,6 +2169,7 @@ void UScriptStruct::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, v
 		}
 		else
 		{
+#if WITH_TEXT_ARCHIVE_SUPPORT
 			FArchiveUObjectFromStructuredArchive Ar(Slot);
 			bItemSerialized = TheCppStructOps->Serialize(Ar, Value);
 			if (bItemSerialized && !Slot.IsFilled())
@@ -2176,6 +2177,9 @@ void UScriptStruct::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, v
 				// The struct said that serialization succeeded but it didn't actually write anything.
 				Slot.EnterRecord();
 			}
+#else
+			bItemSerialized = TheCppStructOps->Serialize(Slot.GetUnderlyingArchive(), Value);
+#endif
 		}		
 	}
 

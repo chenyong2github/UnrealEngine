@@ -154,13 +154,9 @@ int32 UVOIPStatics::GetNumBufferedPackets()
 APlayerState* UVOIPStatics::GetPlayerStateFromUniqueNetId(UWorld* InWorld, const FUniqueNetIdWrapper& InPlayerId)
 {
 	AGameStateBase* InBase = InWorld->GetGameState();
-	TArray<APlayerState*>& Players = InBase->PlayerArray;
-	for (APlayerState* Player : Players)
+	if (InBase)
 	{
-		if (Player->UniqueId == InPlayerId)
-		{
-			return Player;
-		}
+		return InBase->GetPlayerStateFromUniqueNetId(InPlayerId);
 	}
 
 	return nullptr;

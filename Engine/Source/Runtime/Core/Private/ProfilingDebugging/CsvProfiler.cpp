@@ -61,6 +61,9 @@ CSV_DEFINE_STAT_GLOBAL(FrameTime);
 
 DEFINE_LOG_CATEGORY_STATIC(LogCsvProfiler, Log, All);
 
+const char * GDefaultWaitStatName = "EventWait";
+const char * GIgnoreWaitStatName =  "[IGNORE]";
+
 TAutoConsoleVariable<int32> CVarCsvBlockOnCaptureEnd(
 	TEXT("csv.BlockOnCaptureEnd"), 
 	0,
@@ -1086,7 +1089,7 @@ private:
 						// Compress the data in Buffer into the GZipBuffer array
 						CompressedSize = GZipBuffer.Num();
 						if (FCompression::CompressMemory(
-							NAME_Zlib,
+							NAME_Gzip,
 							GZipBuffer.GetData(), CompressedSize,
 							Buffer.GetData(), BytesInBuffer,
 							ECompressionFlags::COMPRESS_BiasSpeed))
@@ -1636,6 +1639,21 @@ public:
 			((uint64)Events.GetAllocatedSize());
 	}
 
+	CSV_PROFILER_INLINE const char * GetWaitStatName() const
+	{
+		return WaitStatNameStack.Num() == 0 ? GDefaultWaitStatName : WaitStatNameStack.Last();
+	}
+
+	CSV_PROFILER_INLINE void PushWaitStatName(const char * WaitStatName)
+	{
+		WaitStatNameStack.Push(WaitStatName);
+	}
+	CSV_PROFILER_INLINE const char* PopWaitStatName()
+	{
+		check(WaitStatNameStack.Num() > 0);
+		return WaitStatNameStack.Pop();
+	}
+
 	// Raw stat data (written from the thread)
 	TSingleProducerSingleConsumerList<FCsvTimingMarker, 256> TimingMarkers;
 	TSingleProducerSingleConsumerList<FCsvCustomStat, 256> CustomStats;
@@ -1645,6 +1663,7 @@ public:
 	const FString ThreadName;
 
 	class FCsvProfilerThreadDataProcessor* DataProcessor;
+	TArray<const char*> WaitStatNameStack;
 };
 
 uint32 FCsvProfilerThreadData::TlsSlot = 0;
@@ -2013,7 +2032,9 @@ void FCsvProfilerThreadDataProcessor::Process(FCsvProcessThreadDataStats& OutSta
 
 	if (ThreadMarkers.Num() > 0)
 	{
+#if !UE_BUILD_SHIPPING
 		ensure(ThreadMarkers[0].GetTimestamp() >= LastProcessedTimestamp);
+#endif
 		LastProcessedTimestamp = ThreadMarkers.Last().GetTimestamp();
 	}
 
@@ -2108,8 +2129,10 @@ void FCsvProfilerThreadDataProcessor::Process(FCsvProcessThreadDataStats& OutSta
 				// AEnd would be missing 
 				if (FrameNumber >= 0 && bFoundStart)
 				{
+#if !UE_BUILD_SHIPPING
 					ensure(Marker.RawStatID == StartMarker.RawStatID);
 					ensure(Marker.GetTimestamp() >= StartMarker.GetTimestamp());
+#endif
 					if (Marker.GetTimestamp() > StartMarker.GetTimestamp())
 					{
 						uint64 ElapsedCycles = Marker.GetTimestamp() - StartMarker.GetTimestamp();
@@ -2587,12 +2610,7 @@ void FCsvProfiler::FinalizeCsvFile()
 	UE_LOG(LogCsvProfiler, Display, TEXT("  Frames : %d"), CaptureEndFrameCount);
 	UE_LOG(LogCsvProfiler, Display, TEXT("  Peak memory usage  : %.2fMB"), float(MemoryBytesAtEndOfCapture) / (1024.0f * 1024.0f));
 
-	if (EnumHasAnyFlags(CurrentFlags, ECsvProfilerFlags::WriteCompletionFile))
-	{
-		// Create a zero-byte file to signal completion.
-		FString CompletionFilename = OutputFilename + TEXT(".complete");
-		delete IFileManager::Get().CreateFileWriter(*CompletionFilename);
-	}
+	OnCSVProfileFinished().Broadcast(OutputFilename);
 
 	float FinalizeDuration = float(FPlatformTime::Seconds() - FinalizeStartTime);
 	UE_LOG(LogCsvProfiler, Display, TEXT("  CSV finalize time : %.3f seconds"), FinalizeDuration);
@@ -2650,6 +2668,57 @@ void FCsvProfiler::EndExclusiveStat(const char * StatName)
 	}
 #endif
 }
+
+
+void FCsvProfiler::BeginSetWaitStat(const char * StatName)
+{
+#if RECORD_TIMESTAMPS
+	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CSV_CATEGORY_INDEX(Exclusive)])
+	{
+		LLM_SCOPE(ELLMTag::CsvProfiler);
+		FCsvProfilerThreadData::Get().PushWaitStatName(StatName == nullptr ? GIgnoreWaitStatName : StatName);
+	}
+#endif
+}
+
+void FCsvProfiler::EndSetWaitStat()
+{
+#if RECORD_TIMESTAMPS
+	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CSV_CATEGORY_INDEX(Exclusive)])
+	{
+		FCsvProfilerThreadData::Get().PopWaitStatName();
+	}
+#endif
+}
+
+void FCsvProfiler::BeginWait()
+{
+#if RECORD_TIMESTAMPS
+	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CSV_CATEGORY_INDEX(Exclusive)])
+	{
+		const char* WaitStatName = FCsvProfilerThreadData::Get().GetWaitStatName();
+		if (WaitStatName != GIgnoreWaitStatName)
+		{
+			FCsvProfilerThreadData::Get().AddTimestampExclusiveBegin(WaitStatName);
+		}
+	}
+#endif
+}
+
+void FCsvProfiler::EndWait()
+{
+#if RECORD_TIMESTAMPS
+	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CSV_CATEGORY_INDEX(Exclusive)])
+	{
+		const char* WaitStatName = FCsvProfilerThreadData::Get().GetWaitStatName();
+		if (WaitStatName != GIgnoreWaitStatName)
+		{
+			FCsvProfilerThreadData::Get().AddTimestampExclusiveEnd(FCsvProfilerThreadData::Get().GetWaitStatName());
+		}
+	}
+#endif
+}
+
 
 void FCsvProfiler::RecordEventfInternal(int32 CategoryIndex, const TCHAR* Fmt, ...)
 {

@@ -16,6 +16,7 @@
 #include "Templates/UniquePtr.h"
 #include "Runtime/Launch/Resources/Version.h"
 #include "UObject/RenderingObjectVersion.h"
+#include "SceneTypes.h"
 #include "StaticMeshComponent.generated.h"
 
 class FColorVertexBuffer;
@@ -194,6 +195,10 @@ private:
 	class UStaticMesh* StaticMesh;
 
 public:
+
+	/** Custom data that can be read by a material through a material expression */
+	UPROPERTY()
+	FCustomPrimitiveData CustomPrimitiveData;
 
 	/** Helper function to get the FName of the private static mesh member */
 	static const FName GetMemberNameChecked_StaticMesh() { return GET_MEMBER_NAME_CHECKED(UStaticMeshComponent, StaticMesh); }

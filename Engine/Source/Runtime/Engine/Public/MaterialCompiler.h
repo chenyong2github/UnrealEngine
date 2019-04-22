@@ -293,6 +293,7 @@ public:
 	virtual int32 EyeAdaptation() = 0;
 	virtual int32 AtmosphericLightVector() = 0;
 	virtual int32 AtmosphericLightColor() = 0;
+	virtual int32 CustomPrimitiveData(int32 OutputIndex) = 0;
 	// The compiler can run in a different state and this affects caching of sub expression, Expressions are different (e.g. View.PrevWorldViewOrigin) when using previous frame's values
 	// If possible we should re-factor this to avoid having to deal with compiler state
 	virtual bool IsCurrentlyCompilingForPreviousFrame() const { return false; }
@@ -426,6 +427,9 @@ public:
 	virtual int32 ExternalTextureCoordinateOffset(int32 TextureReferenceIndex, TOptional<FName> ParameterName) override { return Compiler->ExternalTextureCoordinateOffset(TextureReferenceIndex, ParameterName); }
 	virtual int32 ExternalTextureCoordinateOffset(const FGuid& ExternalTextureGuid) override { return Compiler->ExternalTextureCoordinateOffset(ExternalTextureGuid); }
 
+	virtual int32 GetTextureReferenceIndex(UTexture* Texture) override { return Compiler->GetTextureReferenceIndex(Texture); }
+	virtual UTexture* GetReferencedTexture(int32 Index) override { return Compiler->GetReferencedTexture(Index); }
+
 	virtual	int32 PixelDepth() override { return Compiler->PixelDepth();	}
 	virtual int32 SceneDepth(int32 Offset, int32 ViewportUV, bool bUseOffset) override { return Compiler->SceneDepth(Offset, ViewportUV, bUseOffset); }
 	virtual int32 SceneColor(int32 Offset, int32 ViewportUV, bool bUseOffset) override { return Compiler->SceneColor(Offset, ViewportUV, bUseOffset); }
@@ -544,6 +548,11 @@ public:
 	virtual int32 AtmosphericLightColor() override
 	{
 		return Compiler->AtmosphericLightColor();
+	}
+	
+	virtual int32 CustomPrimitiveData(int32 OutputIndex) override
+	{
+		return Compiler->CustomPrimitiveData(OutputIndex);
 	}
 
 	virtual int32 TextureCoordinateOffset() override

@@ -391,9 +391,7 @@ void FOpenGLUniformBuffer::SetGLUniformBufferParams(GLuint InResource, uint32 In
 	AllocatedSize = InAllocatedSize;
 	bStreamDraw = bInStreamDraw;
 
-#if ENABLE_LOW_LEVEL_MEM_TRACKER
-	LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::UniformBuffer, InAllocatedSize, ELLMTracker::Default, ELLMAllocType::None);
-#endif
+	LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, ((uint8*)this)+1, InAllocatedSize)); //+1 because ptr must be unique for LLM
 }
 
 FOpenGLUniformBuffer::~FOpenGLUniformBuffer()
@@ -431,9 +429,8 @@ FOpenGLUniformBuffer::~FOpenGLUniformBuffer()
 			ReleaseUniformBuffer(IsValidRef(EmulatedBufferData), Resource, AllocatedSize);
 			Resource = 0; 
 		}
-#if ENABLE_LOW_LEVEL_MEM_TRACKER
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::UniformBuffer, -(int64)AllocatedSize, ELLMTracker::Default, ELLMAllocType::None);
-#endif
+
+		LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, ((uint8*)this)+1)); //+1 because ptr must be unique for LLM
 	}
 }
 
