@@ -28,6 +28,11 @@ FInputCapturePriority UInputBehavior::GetPriority()
 	return DefaultPriority;
 }
 
+void UInputBehavior::SetDefaultPriority(const FInputCapturePriority& Priority)
+{
+	DefaultPriority = Priority;
+}
+
 EInputDevices UInputBehavior::GetSupportedDevices()
 {
 	return EInputDevices::Mouse;

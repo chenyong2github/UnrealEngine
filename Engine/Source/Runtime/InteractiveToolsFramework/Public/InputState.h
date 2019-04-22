@@ -184,5 +184,36 @@ struct FInputDeviceState
 	{
 		return ((InputDevice & DeviceType) != EInputDevices::None);
 	}
+
+
+
+
+	//
+	// utility functions to pass as lambdas
+	// 
+
+	/** @return true if shift key is down in input state */
+	static bool IsShiftKeyDown(const FInputDeviceState& InputState)
+	{
+		return InputState.bShiftKeyDown;
+	}
+
+	/** @return true if ctrl key is down in input state */
+	static bool IsCtrlKeyDown(const FInputDeviceState& InputState)
+	{
+		return InputState.bCtrlKeyDown;
+	}
+
+	/** @return true if alt key is down in input state */
+	static bool IsAltKeyDown(const FInputDeviceState& InputState)
+	{
+		return InputState.bAltKeyDown;
+	}
+
+	/** @return true if Apple Command key is down in input state */
+	static bool IsCmdKeyDown(const FInputDeviceState& InputState)
+	{
+		return InputState.bCmdKeyDown;
+	}
 };
 

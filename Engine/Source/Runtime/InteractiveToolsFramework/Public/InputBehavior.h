@@ -188,12 +188,27 @@ struct INTERACTIVETOOLSFRAMEWORK_API FInputCaptureUpdate
  */
 struct INTERACTIVETOOLSFRAMEWORK_API FInputCapturePriority
 {
+	static constexpr int DEFAULT_GIZMO_PRIORITY = 50;
+	static constexpr int DEFAULT_TOOL_PRIORITY = 100;
+
 	/** Constant priority value */
 	int Priority;
 
-	FInputCapturePriority(int priority = 100) 
+	FInputCapturePriority(int priority = DEFAULT_TOOL_PRIORITY)
 	{
 		Priority = priority;
+	}
+
+	/** @return a priority lower than this priority */
+	FInputCapturePriority MakeLower(int DeltaAmount = 1) const
+	{
+		return FInputCapturePriority(Priority + DeltaAmount);
+	}
+
+	/** @return a priority higher than this priority */
+	FInputCapturePriority MakeHigher(int DeltaAmount = 1) const
+	{
+		return FInputCapturePriority(Priority - DeltaAmount);
 	}
 
 	friend bool operator<(const FInputCapturePriority& l, const FInputCapturePriority& r)
@@ -242,6 +257,10 @@ public:
 
 	/** The priority is used to resolve situations where multiple behaviors want the same capture */
 	virtual FInputCapturePriority GetPriority();
+
+	/** Configure the default priority of an instance of this behavior */
+	virtual void SetDefaultPriority(const FInputCapturePriority& Priority);
+
 
 	/** Which device types does this Behavior support */
 	virtual EInputDevices GetSupportedDevices();

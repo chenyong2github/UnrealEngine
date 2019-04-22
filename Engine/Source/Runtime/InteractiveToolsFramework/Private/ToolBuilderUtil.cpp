@@ -91,3 +91,38 @@ UObject* ToolBuilderUtil::FindFirstComponent(const FToolBuilderState& InputState
 
 
 
+
+TArray<UObject*> ToolBuilderUtil::FindAllComponents(const FToolBuilderState& InputState, const TFunction<bool(UObject*)>& Predicate)
+{
+	TArray<UObject*> Components;
+
+	if (InputState.SelectedComponents != nullptr && InputState.SelectedComponents->Num() > 0)
+	{
+		for (FSelectionIterator Iter(*InputState.SelectedComponents); Iter; ++Iter)
+		{
+			if (Predicate(*Iter))
+			{
+				Components.AddUnique(*Iter);
+			}
+		}
+	}
+	else
+	{
+		for (FSelectionIterator Iter(*InputState.SelectedActors); Iter; ++Iter)
+		{
+			if (AActor* Actor = Cast<AActor>(*Iter))
+			{
+				for (UActorComponent* Component : Actor->GetComponents())
+				{
+					if (Predicate(Component))
+					{
+						Components.AddUnique(Component);
+					}
+				}
+			}
+		}
+	}
+
+	return Components;
+}
+

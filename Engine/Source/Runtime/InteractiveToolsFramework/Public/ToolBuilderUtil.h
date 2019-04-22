@@ -24,6 +24,10 @@ namespace ToolBuilderUtil
 	INTERACTIVETOOLSFRAMEWORK_API
 	UObject* FindFirstComponent(const FToolBuilderState& InputState, const TFunction<bool(UObject*)>& Predicate);
 
+	/** First all components that passes predicate. Searches Components selection list first, then all Actors */
+	INTERACTIVETOOLSFRAMEWORK_API
+	TArray<UObject*> FindAllComponents(const FToolBuilderState& InputState, const TFunction<bool(UObject*)>& Predicate);
+
 	// @todo not sure that actors with multiple components are handled properly...
 	/** Count number of components of given type. If Component selection is not empty, returns that count, otherwise counts in all selected Actors */
 	template<typename ComponentType>
