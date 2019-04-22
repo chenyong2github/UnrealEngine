@@ -4,11 +4,33 @@
 
 #include "CoreMinimal.h"
 
+
+/**
+ * IModifierToggleBehaviorTarget is an interface that InputBehaviors can use to notify
+ * a target about modifier toggle states (like shift key being down, etc).
+ * The meaning of the modifier ID is client-defined (generally provided to the InputBehavior in a registration step)
+ */
+class IModifierToggleBehaviorTarget
+{
+public:
+	virtual ~IModifierToggleBehaviorTarget() {}
+
+	/**
+	 * Notify target of current modifier state
+	 * @param ModifierID client-defined integer that identifiers modifier
+	 * @param bIsOn is modifier current on or off
+	 */
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn)
+	{
+	}
+};
+
+
 /**
  * Functions required to apply standard "Click" state machines to a target object.
  * See USingleClickBehavior for an example of this kind of state machine.
  */
-class IClickBehaviorTarget
+class IClickBehaviorTarget : public IModifierToggleBehaviorTarget
 {
 public:
 	virtual ~IClickBehaviorTarget() {}
@@ -27,6 +49,53 @@ public:
 	 */
 	virtual void OnClicked(const FInputDeviceRay& ClickPos) = 0;
 };
+
+
+
+
+/**
+ * Target interface used by InputBehaviors that want to implement a multi-click sequence
+ * (eg such as drawing a polygon with multiple clicks)
+ */
+class IClickSequenceBehaviorTarget : public IModifierToggleBehaviorTarget
+{
+public:
+	virtual ~IClickSequenceBehaviorTarget() {}
+
+	/**
+	 * Test if target would like to begin sequence based on this click
+	 * @param ClickPos device position/ray at click point
+	 * @return true if target wants to begin sequence
+	 */
+	virtual bool CanBeginClickSequence(const FInputDeviceRay& ClickPos) = 0;
+
+	/**
+	 * Notify Target that click sequence can begin at click point
+	 * @param ClickPos device position/ray at click point
+	 */
+	virtual void OnBeginClickSequence(const FInputDeviceRay& ClickPos) = 0;
+	
+	/**
+	 * Notify Target device position has changed but a click hasn't ocurred yet (eg for interactive previews)
+	 * @param ClickPos device position/ray at click point
+	 */
+	virtual void OnNextSequencePreview(const FInputDeviceRay& ClickPos) = 0;
+
+	/**
+	 * Notify Target about next click in sqeuence
+	 * @param ClickPos device position/ray at click point
+	 * @return false if Target wants to terminate sequence
+	 */
+	virtual bool OnNextSequenceClick(const FInputDeviceRay& ClickPos) = 0;
+
+	/**
+	 * Notify Target that click sequence has been explicitly terminated (eg by escape key, cancel tool, etc)
+	 */
+	virtual void OnTerminateClickSequence() = 0;
+
+};
+
+
 
 
 

@@ -31,7 +31,7 @@ void USingleClickTool::Setup()
 	UInteractiveTool::Setup();
 
 	// add default button input behaviors for devices
-	USingleClickToolBehavior* MouseBehavior = NewObject<USingleClickToolBehavior>();
+	USingleClickInputBehavior* MouseBehavior = NewObject<USingleClickInputBehavior>();
 	MouseBehavior->Initialize(this);
 	AddInputBehavior(MouseBehavior);
 }

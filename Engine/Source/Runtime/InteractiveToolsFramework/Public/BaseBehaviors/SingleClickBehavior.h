@@ -9,7 +9,7 @@
 
 
 /**
- * USingleClickToolBehavior implements a standard "button-click"-style input behavior.
+ * USingleClickInputBehavior implements a standard "button-click"-style input behavior.
  * The state machine works as follows:
  *    1) on input-device-button-press, hit-test the target. If hit, begin capture
  *    2) on input-device-button-release, hit-test the target. If hit, call Target::OnClicked(). If not hit, ignore click.
@@ -21,18 +21,24 @@
  * The hit-test and on-clicked functions are provided by a IClickBehaviorTarget instance.
  */
 UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API USingleClickToolBehavior : public UAnyButtonInputBehavior
+class INTERACTIVETOOLSFRAMEWORK_API USingleClickInputBehavior : public UAnyButtonInputBehavior
 {
 	GENERATED_BODY()
 
 public:
-	USingleClickToolBehavior();
+	USingleClickInputBehavior();
 
 	/**
 	 * Initialize this behavior with the given Target
 	 * @param Target implementor of hit-test and on-clicked functions
 	 */
 	virtual void Initialize(IClickBehaviorTarget* Target);
+
+
+	/**
+	 * WantsCapture() will only return capture request if this function returns true (or is null)
+	 */
+	TFunction<bool(const FInputDeviceState&)> ModifierCheckFunc = nullptr;
 
 
 	// UInputBehavior implementation

@@ -4,21 +4,21 @@
 
 
 
-USingleClickToolBehavior::USingleClickToolBehavior()
+USingleClickInputBehavior::USingleClickInputBehavior()
 {
 	HitTestOnRelease = true;
 }
 
 
-void USingleClickToolBehavior::Initialize(IClickBehaviorTarget* TargetIn)
+void USingleClickInputBehavior::Initialize(IClickBehaviorTarget* TargetIn)
 {
 	this->Target = TargetIn;
 }
 
 
-FInputCaptureRequest USingleClickToolBehavior::WantsCapture(const FInputDeviceState& input)
+FInputCaptureRequest USingleClickInputBehavior::WantsCapture(const FInputDeviceState& input)
 {
-	if (IsPressed(input))
+	if (IsPressed(input) && (ModifierCheckFunc == nullptr || ModifierCheckFunc(input)) )
 	{
 		if ( Target->IsHitByClick(GetDeviceRay(input)) )
 		{
@@ -29,13 +29,13 @@ FInputCaptureRequest USingleClickToolBehavior::WantsCapture(const FInputDeviceSt
 }
 
 
-FInputCaptureUpdate USingleClickToolBehavior::BeginCapture(const FInputDeviceState& input, EInputCaptureSide eSide)
+FInputCaptureUpdate USingleClickInputBehavior::BeginCapture(const FInputDeviceState& input, EInputCaptureSide eSide)
 {
 	return FInputCaptureUpdate::Begin(this, EInputCaptureSide::Any);
 }
 
 
-FInputCaptureUpdate USingleClickToolBehavior::UpdateCapture(const FInputDeviceState& input, const FInputCaptureData& data)
+FInputCaptureUpdate USingleClickInputBehavior::UpdateCapture(const FInputDeviceState& input, const FInputCaptureData& data)
 {
 	if (IsReleased(input)) 
 	{
@@ -52,13 +52,13 @@ FInputCaptureUpdate USingleClickToolBehavior::UpdateCapture(const FInputDeviceSt
 }
 
 
-void USingleClickToolBehavior::ForceEndCapture(const FInputCaptureData& data)
+void USingleClickInputBehavior::ForceEndCapture(const FInputCaptureData& data)
 {
 	// nothing to do
 }
 
 
-void USingleClickToolBehavior::Clicked(const FInputDeviceState& input, const FInputCaptureData& data)
+void USingleClickInputBehavior::Clicked(const FInputDeviceState& input, const FInputCaptureData& data)
 {
 	Target->OnClicked(GetDeviceRay(input));
 }
