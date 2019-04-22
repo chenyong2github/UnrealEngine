@@ -108,27 +108,31 @@ namespace AutomationTool
 					bool bCanBeDisplayed = ProjectType == EProjectType.Content;
 					foreach (UnrealTargetConfiguration CodeTargetConfiguration in Enum.GetValues(typeof(UnrealTargetConfiguration)))
 					{
-						// Need to check for development receipt as we use that for the Engine code in DebugGame
-						UnrealTargetConfiguration EngineConfiguration = (CodeTargetConfiguration == UnrealTargetConfiguration.DebugGame) ? UnrealTargetConfiguration.Development : CodeTargetConfiguration;
-						FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(new DirectoryReference(OutputEnginePath), "UE4Game", CodeTargetPlatform, EngineConfiguration, Architecture);
-
-						if (FileReference.Exists(ReceiptFileName))
+						string[] TargetNames = new string[] { "UE4Game", "UE4Client", "UE4Server" };
+						foreach(string TargetName in TargetNames)
 						{
-							// Strip the output folder so that this can be used on any machine
-							string RelativeReceiptFileName = ReceiptFileName.MakeRelativeTo(new DirectoryReference(OutputDir));
+							// Need to check for development receipt as we use that for the Engine code in DebugGame
+							UnrealTargetConfiguration EngineConfiguration = (CodeTargetConfiguration == UnrealTargetConfiguration.DebugGame) ? UnrealTargetConfiguration.Development : CodeTargetConfiguration;
+							FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(new DirectoryReference(OutputEnginePath), TargetName, CodeTargetPlatform, EngineConfiguration, Architecture);
 
-							// If we have pre-compiled architectures for this platform then add an entry for each of these -
-							// there isn't a receipt for each architecture like some other platforms
-							if (AllArchNames.Count > 0)
+							if (FileReference.Exists(ReceiptFileName))
 							{
-								foreach (string Arch in AllArchNames)
+								// Strip the output folder so that this can be used on any machine
+								string RelativeReceiptFileName = ReceiptFileName.MakeRelativeTo(new DirectoryReference(OutputDir));
+
+								// If we have pre-compiled architectures for this platform then add an entry for each of these -
+								// there isn't a receipt for each architecture like some other platforms
+								if (AllArchNames.Count > 0)
 								{
-									InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, TargetType.Game, Arch, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
+									foreach (string Arch in AllArchNames)
+									{
+										InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, TargetType.Game, Arch, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
+									}
 								}
-							}
-							else
-							{
-								InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, TargetType.Game, Architecture, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
+								else
+								{
+									InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, TargetType.Game, Architecture, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
+								}
 							}
 						}
 					}
