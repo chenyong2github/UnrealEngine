@@ -83,7 +83,7 @@ UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderI
 	if (NewGizmo == nullptr)
 	{
 		PostMessage(FString::Printf(TEXT("UInteractiveGizmoManager::CreateGizmo: BuildGizmo() returned null")), EToolMessageLevel::Internal);
-		return false;
+		return nullptr;
 	}
 
 	NewGizmo->Setup();
