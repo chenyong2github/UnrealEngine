@@ -463,7 +463,7 @@ struct FGlobalActorReplicationInfo
 	/** Cached World Location of the actor */
 	FVector WorldLocation;
 
-	/** Mirrors AActor::NetDormany > DORM_Awake */
+	/** Mirrors AActor::NetDormancy > DORM_Awake */
 	bool bWantsToBeDormant = false;
 
 	/** Class default mirrors: state that is initialized directly from class defaults (and can be later changed on a per-actor basis) */
