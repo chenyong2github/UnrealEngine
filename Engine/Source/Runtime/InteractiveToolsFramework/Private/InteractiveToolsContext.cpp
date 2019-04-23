@@ -17,6 +17,9 @@ void UInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* QueriesAPI, I
 
 	ToolManager = NewObject<UInteractiveToolManager>(this);
 	ToolManager->Initialize(QueriesAPI, TransactionsAPI, InputRouter);
+
+	GizmoManager = NewObject<UInteractiveGizmoManager>(this);
+	GizmoManager->Initialize(QueriesAPI, TransactionsAPI, InputRouter);
 }
 
 
@@ -26,6 +29,9 @@ void UInteractiveToolsContext::Shutdown()
 	InputRouter->ForceTerminateAll();
 	InputRouter->Shutdown();
 	InputRouter = nullptr;
+
+	GizmoManager->Shutdown();
+	GizmoManager = nullptr;
 
 	ToolManager->Shutdown();
 	ToolManager = nullptr;

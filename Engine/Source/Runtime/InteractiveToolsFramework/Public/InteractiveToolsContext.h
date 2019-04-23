@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InteractiveToolManager.h"
+#include "InteractiveGizmoManager.h"
 #include "InteractiveToolsContext.generated.h"
 
 /**
@@ -38,4 +39,7 @@ public:
 	UPROPERTY()
 	UInteractiveToolManager* ToolManager;	
 
+	/** current UInteractiveGizmoManager for this Context */
+	UPROPERTY()
+	UInteractiveGizmoManager* GizmoManager;
 };

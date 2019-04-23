@@ -12,7 +12,7 @@ class UPackage;
 class FPrimitiveDrawInterface;
 class USelection;
 class UInteractiveToolManager;
-
+class UInteractiveGizmoManager;
 
 /**
  * FToolBuilderState is a bucket of state information that a ToolBuilder might need
@@ -22,25 +22,22 @@ class UInteractiveToolManager;
 struct INTERACTIVETOOLSFRAMEWORK_API FToolBuilderState
 {
 	/** The current UWorld */
-	UWorld* World;
+	UWorld* World = nullptr;
 	/** The current ToolManager */
-	UInteractiveToolManager* ToolManager;
+	UInteractiveToolManager* ToolManager = nullptr;
+	/** The current GizmoManager */
+	UInteractiveGizmoManager* GizmoManager = nullptr;
 
 	/** Current selected Actors. May be empty or nullptr. */
-	USelection* SelectedActors;
+	USelection* SelectedActors = nullptr;
 	/** Current selected Components. May be empty or nullptr. */
-	USelection* SelectedComponents;
+	USelection* SelectedComponents = nullptr;
 
 	/** Implementation that can build Sources (like MeshDescriptionSource) for Components */
-	IComponentSourceFactory* SourceBuilder;
+	IComponentSourceFactory* SourceBuilder = nullptr;
 
 	FToolBuilderState()
 	{
-		World = nullptr;
-		ToolManager = nullptr;
-		SelectedActors = nullptr;
-		SelectedComponents = nullptr;
-		SourceBuilder = nullptr;
 	}
 };
 

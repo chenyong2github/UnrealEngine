@@ -32,6 +32,7 @@ public:
 	virtual void GetCurrentSelectionState(FToolBuilderState& StateOut) const override
 	{
 		StateOut.ToolManager = ToolsContext->ToolManager;
+		StateOut.GizmoManager = ToolsContext->GizmoManager;
 		StateOut.World = EditorMode->GetWorld();
 		StateOut.SelectedActors = EditorMode->GetModeManager()->GetSelectedActors();
 		StateOut.SelectedComponents = EditorMode->GetModeManager()->GetSelectedComponents();
@@ -176,6 +177,7 @@ void UEdModeInteractiveToolsContext::PostInvalidation()
 void UEdModeInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
 	ToolManager->Tick(DeltaTime);
+	GizmoManager->Tick(DeltaTime);
 
 	if (bInvalidationPending)
 	{
@@ -203,6 +205,7 @@ void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* V
 	TempRenderContext RenderContext;
 	RenderContext.PDI = PDI;
 	ToolManager->Render(&RenderContext);
+	GizmoManager->Render(&RenderContext);
 }
 
 
@@ -308,10 +311,21 @@ bool UEdModeInteractiveToolsContext::MouseMove(FEditorViewportClient* ViewportCl
 	FInputDeviceState InputState = CurrentInputState;
 	InputState.InputDevice = EInputDevices::Mouse;
 
-	if (InputRouter->HasActiveMouseCapture())
-		UE_LOG(LogTemp, Warning, TEXT("MOUSE MOVE DURING CAPTURE?"));
+	InputState.SetKeyStates(
+		ViewportClient->IsShiftPressed(), ViewportClient->IsAltPressed(),
+		ViewportClient->IsCtrlPressed(), ViewportClient->IsCmdPressed());
 
-	InputRouter->PostHoverInputEvent(InputState);
+	if (InputRouter->HasActiveMouseCapture())
+	{
+		// This state occurs if InputBehavior did not release capture on mouse release. 
+		// UMultiClickSequenceInputBehavior does this, eg for multi-click draw-polygon sequences.
+		// It's not ideal though and maybe would be better done via multiple captures + hover...?
+		InputRouter->PostInputEvent(InputState);
+	}
+	else
+	{
+		InputRouter->PostHoverInputEvent(InputState);
+	}
 
 	return false;
 }
