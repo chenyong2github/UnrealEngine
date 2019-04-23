@@ -2469,6 +2469,25 @@ void ALandscape::RegenerateLayersHeightmaps()
 		AllLandscapeComponents.Append(Proxy->LandscapeComponents);
 	});
 
+	// Handle missing Heightmap CPUReadback (Undo of a delete landscape component can trigger that case)
+	if (LayersContentUpdateFlags & ELandscapeLayersContentUpdateFlag::Heightmap_All)
+	{
+		Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+		{
+			for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
+			{
+				UTexture2D* ComponentHeightmap = Component->GetHeightmap();
+				FLandscapeLayersTexture2DCPUReadBackResource** CPUReadback = Proxy->HeightmapsCPUReadBack.Find(ComponentHeightmap);
+				if (CPUReadback == nullptr)
+				{
+					FLandscapeLayersTexture2DCPUReadBackResource* NewCPUReadBackResource = new FLandscapeLayersTexture2DCPUReadBackResource(ComponentHeightmap->Source.GetSizeX(), ComponentHeightmap->Source.GetSizeY(), ComponentHeightmap->GetPixelFormat(), ComponentHeightmap->Source.GetNumMips());
+					BeginInitResource(NewCPUReadBackResource);
+					Proxy->HeightmapsCPUReadBack.Add(ComponentHeightmap, NewCPUReadBackResource);
+				}
+			}
+		});
+	}
+
 	if ((LayersContentUpdateFlags & ELandscapeLayersContentUpdateFlag::Heightmap_Render) != 0)
 	{
 		check(HeightmapRTList.Num() > 0);
