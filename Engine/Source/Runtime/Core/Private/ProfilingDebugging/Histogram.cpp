@@ -212,6 +212,32 @@ FString FHistogram::DumpToJsonString() const
 	return DumpToJsonString(&DefaultConvertBinToLabel);
 }
 
+FString FHistogram::DumpToJsonString2(TFunctionRef<FString (double, double)> ConvertBinToLabel) const
+{
+	// {"BinName":{"Count":Count,"Sum":Sum}}
+	FString Result;
+	if (LIKELY(Bins.Num()))
+	{
+		Result += TEXT('[');
+		for (int BinIdx = 0, LastBinIdx = Bins.Num() - 1; BinIdx < LastBinIdx+1; ++BinIdx)
+		{
+			const FBin& Bin = Bins[BinIdx];
+			if (BinIdx != 0)
+			{
+				Result += TEXT(',');
+			}
+			Result += FString::Printf(TEXT("{\"%s\":{\"Count\":%d,\"Sum\":%.5f}}"), *ConvertBinToLabel(Bin.MinValue, Bin.UpperBound), Bin.Count, Bin.Sum);
+		}
+		Result.AppendChar(TEXT(']'));
+	}
+	return Result;
+}
+
+FString FHistogram::DumpToJsonString2() const
+{
+	return DumpToJsonString2(&DefaultConvertBinToLabel);
+}
+
 FString FHistogram::DefaultConvertBinToLabel(double MinValue, double UpperBound)
 {
 	if (UpperBound >= FLT_MAX)
