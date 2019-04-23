@@ -208,6 +208,7 @@ protected:
 
 	FDiffControl GenerateGraphPanel();
 	FDiffControl GenerateDefaultsPanel();
+	FDiffControl GenerateClassSettingsPanel();
 	FDiffControl GenerateComponentsPanel();
 
 	/** Accessor and event handler for toggling between diff view modes (defaults, components, graph view, interface, macro): */
@@ -245,6 +246,7 @@ protected:
 	/** Stored references to widgets used to display various parts of a blueprint: */
 	FDiffControl GraphPanel;
 	FDiffControl DefaultsPanel;
+	FDiffControl ClassSettingsPanel;
 	FDiffControl ComponentsPanel;
 
 	/** A pointer to the window holding this */

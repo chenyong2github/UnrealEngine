@@ -864,6 +864,48 @@ TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateC
 	));
 }
 
+TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateClassSettingsCategoryEntry(FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasDifferences)
+{
+	const auto CreateSettingsRootEntry = [](FLinearColor Color) -> TSharedRef<SWidget>
+	{
+		return SNew(STextBlock)
+			.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SettingsTooltip", "The list of changes made to class settings"))
+			.ColorAndOpacity(Color)
+			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SettingsLabel", "Class Settings"));
+	};
+
+	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
+		FocusCallback
+		, FGenerateDiffEntryWidget::CreateStatic(CreateSettingsRootEntry, DiffViewUtils::LookupColor(bHasDifferences))
+		, Children
+	));
+}
+
+TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateClassSettingsCategoryEntryForMerge(FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasRemoteDifferences, bool bHasLocalDifferences, bool bHasConflicts)
+{
+	const auto CreateSettingsRootEntry = [](bool bInHasRemoteDifferences, bool bInHasLocalDifferences, bool bInHasConflicts) -> TSharedRef<SWidget>
+	{
+		const FLinearColor BaseColor = DiffViewUtils::LookupColor(bInHasRemoteDifferences || bInHasLocalDifferences, bInHasConflicts);
+		return  SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			[
+				SNew(STextBlock)
+				.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SettingsTooltip", "The list of changes made to class settings"))
+			.ColorAndOpacity(BaseColor)
+			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SettingsLabel", "Class Settings"))
+			]
+		+ DiffViewUtils::Box(true, DiffViewUtils::LookupColor(bInHasRemoteDifferences, bInHasConflicts))
+			+ DiffViewUtils::Box(true, BaseColor)
+			+ DiffViewUtils::Box(true, DiffViewUtils::LookupColor(bInHasLocalDifferences, bInHasConflicts));
+	};
+
+	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
+		FocusCallback
+		, FGenerateDiffEntryWidget::CreateStatic(CreateSettingsRootEntry, bHasRemoteDifferences, bHasLocalDifferences, bHasConflicts)
+		, Children
+	));
+}
+
 TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > DiffTreeView::CreateTreeView(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >* DifferencesList)
 {
 	const auto RowGenerator = [](TSharedPtr< FBlueprintDifferenceTreeEntry > Entry, const TSharedRef<STableViewBase>& Owner) -> TSharedRef< ITableRow >
