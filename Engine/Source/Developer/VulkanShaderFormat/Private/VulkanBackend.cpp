@@ -4541,7 +4541,7 @@ static ir_rvalue* GenShaderOutputSemantic(
 		}
 	}
 
-	if (Variable == NULL && Frequency == HSF_VertexShader)
+	if (Variable == NULL && (Frequency == HSF_VertexShader || Frequency == HSF_GeometryShader || Frequency == HSF_HullShader || Frequency == HSF_DomainShader))
 	{
 		const int PrefixLength = 15;
 		// Match SV_ClipDistance or SV_ClipDistanceN
