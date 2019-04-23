@@ -156,6 +156,9 @@ public:
 
 	void OnChanged(EConsoleVariableFlags SetBy)
 	{
+		// SetBy can include set flags. Discard them here
+		SetBy = EConsoleVariableFlags(SetBy & ~ECVF_SetFlagMask);
+
 		// you have to specify a SetBy e.g. ECVF_SetByCommandline
 		check(((uint32)SetBy & ECVF_SetByMask) || SetBy == ECVF_Default);
 
@@ -164,7 +167,7 @@ public:
 
 		// only change on main thread
 
-		Flags = (EConsoleVariableFlags)(((uint32)Flags & ~ECVF_SetByMask) | SetBy);
+		Flags = (EConsoleVariableFlags)(((uint32)Flags & ECVF_FlagMask) | SetBy);
 
 		OnChangedCallback.ExecuteIfBound(this);
 	}
@@ -261,7 +264,7 @@ private: // -----------------------------------------
 };
 
 template <class T>
-void OnCVarChange(T& Dst, const T& Src, EConsoleVariableFlags Flags)
+void OnCVarChange(T& Dst, const T& Src, EConsoleVariableFlags Flags, EConsoleVariableFlags SetBy)
 {
 	FConsoleManager& ConsoleManager = (FConsoleManager&)IConsoleManager::Get();
 
@@ -284,7 +287,10 @@ void OnCVarChange(T& Dst, const T& Src, EConsoleVariableFlags Flags)
 		check(0);
 	}
 
-	ConsoleManager.OnCVarChanged();
+	if ((SetBy & ECVF_Set_NoSinkCall_Unsafe)== 0)
+	{
+		ConsoleManager.OnCVarChanged();
+	}
 }
 
 // T: int32, float, FString
@@ -334,7 +340,7 @@ private: // ----------------------------------------------------
 	void OnChanged(EConsoleVariableFlags SetBy)
 	{
 		// propagate from main thread to render thread
-		OnCVarChange(Data.ShadowedValue[1], Data.ShadowedValue[0], Flags);
+		OnCVarChange(Data.ShadowedValue[1], Data.ShadowedValue[0], Flags, SetBy);
 		FConsoleVariableBase::OnChanged(SetBy);
 	}
 };
@@ -470,7 +476,7 @@ private: // ----------------------------------------------------
 		if(CanChange(SetBy))
 		{
 			// propagate from main thread to render thread or to reference
-			OnCVarChange(RefValue, MainValue, Flags);
+			OnCVarChange(RefValue, MainValue, Flags, SetBy);
 			FConsoleVariableBase::OnChanged(SetBy);
 		}
 	}
@@ -547,7 +553,7 @@ private: // ----------------------------------------------------
 		if (CanChange(SetBy))
 		{
 			// propagate from main thread to render thread or to reference
-			OnCVarChange(RefValue, MainValue, Flags);
+			OnCVarChange(RefValue, MainValue, Flags, SetBy);
 			FConsoleVariableBase::OnChanged(SetBy);
 		}
 	}
