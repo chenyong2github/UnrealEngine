@@ -3837,7 +3837,7 @@ const TCHAR* ConvertValueFromHumanFriendlyValue( const TCHAR* Value )
 CORE_API void OnSetCVarFromIniEntry(const TCHAR *IniFile, const TCHAR *Key, const TCHAR* Value, uint32 SetBy, bool bAllowCheating)
 {
 	check(IniFile && Key && Value);
-	check((SetBy & ~ECVF_SetByMask) == 0);
+	check((SetBy & ECVF_FlagMask) == 0);
 
 
 	Value = ConvertValueFromHumanFriendlyValue(Value);
