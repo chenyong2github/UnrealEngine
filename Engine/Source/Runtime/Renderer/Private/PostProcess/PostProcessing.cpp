@@ -1401,8 +1401,8 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					FSceneViewFamilyBlackboard SceneBlackboard;
 					SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
 	
-					FRDGTextureRef SceneColor = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"), eFC_0000);
-					FRDGTextureRef LocalSeparateTranslucency = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"), eFC_0000);
+					FRDGTextureRef SceneColor = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
+					FRDGTextureRef LocalSeparateTranslucency = Pass->CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"));
 
 					FRDGTextureRef NewSceneColor = SceneColor;
 
@@ -1415,7 +1415,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					}
 
 					// DOF passes were not added, therefore need to compose Separate translucency manually. 
-					if (NewSceneColor == SceneColor)
+					if (NewSceneColor == SceneColor && LocalSeparateTranslucency)
 					{
 						NewSceneColor = AddSeparateTranslucencyCompositionPass(GraphBuilder, InContext.View, SceneColor, LocalSeparateTranslucency);
 					}
@@ -1784,10 +1784,14 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					FSceneViewFamilyBlackboard SceneBlackboard;
 					SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
 	
-					FRDGTextureRef SceneColor = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"), eFC_0000);
-					FRDGTextureRef LocalSeparateTranslucency = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"), eFC_0000);
+					FRDGTextureRef SceneColor = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
+					FRDGTextureRef LocalSeparateTranslucency = Pass->CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"));
 
-					FRDGTextureRef NewSceneColor = AddSeparateTranslucencyCompositionPass(GraphBuilder, InContext.View, SceneColor, LocalSeparateTranslucency);
+					FRDGTextureRef NewSceneColor = SceneColor;
+					if (LocalSeparateTranslucency)
+					{
+						NewSceneColor = AddSeparateTranslucencyCompositionPass(GraphBuilder, InContext.View, SceneColor, LocalSeparateTranslucency);
+					}
 
 					Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, NewSceneColor);
 

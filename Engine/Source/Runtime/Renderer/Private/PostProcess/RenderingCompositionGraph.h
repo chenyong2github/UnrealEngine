@@ -341,7 +341,22 @@ struct FRenderingCompositePass
 	 * Registers a RDG texture for the provided input. Returns a fallback color if the requested
 	 * input is null. Used for compatibility when porting to RDG.
 	 */
-	FRDGTextureRef CreateRDGTextureForInput(
+	FRDGTextureRef CreateRDGTextureForOptionalInput(
+		FRDGBuilder& GraphBuilder,
+		EPassInputId InputId,
+		const TCHAR* InputName);
+
+	FRDGTextureRef CreateRDGTextureForRequiredInput(
+		FRDGBuilder& GraphBuilder,
+		EPassInputId InputId,
+		const TCHAR* InputName)
+	{
+		FRDGTextureRef Texture = CreateRDGTextureForOptionalInput(GraphBuilder, InputId, InputName);
+		checkf(Texture, TEXT("Required texture parameter %s was not set on the post process input %d"), InputName, int32(InputId));
+		return Texture;
+	}
+
+	FRDGTextureRef CreateRDGTextureForInputWithFallback(
 		FRDGBuilder& GraphBuilder,
 		EPassInputId InputId,
 		const TCHAR* InputName,
@@ -692,8 +707,8 @@ protected:
  *	{
  *		FRDGBuilder GraphBuilder(Context.RHICmdList);
  *
- *		FRDGTextureRef SceneColor = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"), eFC_0000);
- *		FRDGTextureRef SeparateTranslucency = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"), eFC_0000);
+ *		FRDGTextureRef SceneColor = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
+ *		FRDGTextureRef SeparateTranslucency = Pass->CreateRDGTextureForInputWithFallback(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"), eFC_0000);
  *
  *		// ...
  *

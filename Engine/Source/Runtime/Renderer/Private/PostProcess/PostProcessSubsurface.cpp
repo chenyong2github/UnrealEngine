@@ -773,7 +773,7 @@ FRenderingCompositeOutputRef VisualizeSubsurfaceShim(
 	{
 		FRDGBuilder GraphBuilder(CompositePassContext.RHICmdList);
 
-		FRDGTextureRef SceneTexture = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"), eFC_0000);
+		FRDGTextureRef SceneTexture = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
 		FRDGTextureRef SceneTextureOutput = Pass->FindOrCreateRDGTextureForOutput(GraphBuilder, ePId_Output0, SceneTexture->Desc, TEXT("SubsurfaceVisualize"));
 
 		const FScreenPassViewInfo ScreenPassView(CompositePassContext.View);

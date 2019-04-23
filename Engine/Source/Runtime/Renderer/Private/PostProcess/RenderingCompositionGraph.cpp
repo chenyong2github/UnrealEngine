@@ -1156,27 +1156,32 @@ FString FRenderingCompositePass::ConstructDebugName()
 	return Name;
 }
 
-FRDGTextureRef FRenderingCompositePass::CreateRDGTextureForInput(
+FRDGTextureRef FRenderingCompositePass::CreateRDGTextureForOptionalInput(
+	FRDGBuilder& GraphBuilder,
+	EPassInputId InputId,
+	const TCHAR* InputName)
+{
+	if (const FRenderingCompositeOutputRef* OutputRef = GetInput(InputId))
+	{
+		if (FRenderingCompositeOutput* Input = OutputRef->GetOutput())
+		{
+			return GraphBuilder.RegisterExternalTexture(Input->RequestInput(), InputName);
+		}
+	}
+	return nullptr;
+}
+
+FRDGTextureRef FRenderingCompositePass::CreateRDGTextureForInputWithFallback(
 	FRDGBuilder& GraphBuilder,
 	EPassInputId InputId,
 	const TCHAR* InputName,
 	EFallbackColor FallbackColor)
 {
-	TRefCountPtr<IPooledRenderTarget> RenderTarget;
-
-	if (const FRenderingCompositeOutputRef* OutputRef = GetInput(InputId))
+	if (FRDGTextureRef RDGTexture = CreateRDGTextureForOptionalInput(GraphBuilder, InputId, InputName))
 	{
-		if (FRenderingCompositeOutput* Input = OutputRef->GetOutput())
-		{
-			RenderTarget = Input->RequestInput();
-		}
+		return RDGTexture;
 	}
-
-	return RegisterExternalTextureWithFallback(
-		GraphBuilder,
-		RenderTarget,
-		GetFallbackTarget(FallbackColor),
-		InputName);
+	return GraphBuilder.RegisterExternalTexture(GetFallbackTarget(FallbackColor));
 }
 
 void FRenderingCompositePass::ExtractRDGTextureForOutput(FRDGBuilder& GraphBuilder, EPassOutputId OutputId, FRDGTextureRef Texture)

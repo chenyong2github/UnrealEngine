@@ -823,8 +823,8 @@ void FRCPassPostProcessTemporalAA::Process(FRenderingCompositePassContext& Conte
 	SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
 	
 	FTAAPassParameters Parameters = SavedParameters;
-	Parameters.SceneColorInput = CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"), eFC_0000);
-	Parameters.SceneMetadataInput = CreateRDGTextureForInput(GraphBuilder, ePId_Input1, TEXT("SceneColor"), eFC_0000);
+	Parameters.SceneColorInput = CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
+	Parameters.SceneMetadataInput = CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input1, TEXT("SceneColor"));
 
 	FTAAOutputs Outputs = Parameters.AddTemporalAAPass(
 		GraphBuilder,

@@ -908,9 +908,9 @@ FRenderingCompositeOutputRef ComputeMotionBlurShim(
 	{
 		FRDGBuilder GraphBuilder(InContext.RHICmdList);
 
-		FRDGTextureRef ColorTexture = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"), eFC_0000);
-		FRDGTextureRef DepthTexture = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input1, TEXT("SceneDepth"), eFC_0000);
-		FRDGTextureRef VelocityTexture = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input2, TEXT("SceneVelocity"), eFC_0000);
+		FRDGTextureRef ColorTexture = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
+		FRDGTextureRef DepthTexture = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input1, TEXT("SceneDepth"));
+		FRDGTextureRef VelocityTexture = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input2, TEXT("SceneVelocity"));
 
 		const FIntRect ColorViewportRect(InContext.SceneColorViewRect);
 		const FIntRect VelocityViewportRect(InContext.View.ViewRect);
