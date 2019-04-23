@@ -18,4 +18,7 @@
 #undef InterlockedCompareExchange64
 #undef InterlockedIncrement64
 #undef InterlockedDecrement64
+#undef InterlockedAnd
+#undef InterlockedOr
+#undef InterlockedXor
 

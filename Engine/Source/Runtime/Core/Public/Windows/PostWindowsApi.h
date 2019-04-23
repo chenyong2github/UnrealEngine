@@ -59,6 +59,9 @@ THIRD_PARTY_INCLUDES_END
 	#undef InterlockedCompareExchange64
 	#undef InterlockedIncrement64
 	#undef InterlockedDecrement64
+	#undef InterlockedAnd
+	#undef InterlockedOr
+	#undef InterlockedXor
 #endif
 
 // Restore any previously defined macros
