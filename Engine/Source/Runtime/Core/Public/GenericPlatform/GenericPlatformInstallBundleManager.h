@@ -124,6 +124,8 @@ struct FInstallBundleDownloadProgress
 	uint64 BytesDownloadedAndWritten = 0;
 	// Num bytes needed
 	uint64 TotalBytesToDownload = 0;
+	// Num bytes that failed to download
+	uint64 TotalBytesFailedToDownload = 0;
 	float PercentComplete = 0;
 };
 
