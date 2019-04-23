@@ -511,14 +511,6 @@ namespace Audio
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
-#if WITH_EDITOR
-		// Turn on to only hear PIE audio
-		bool bBypassMainAudioDevice = FParse::Param(FCommandLine::Get(), TEXT("AudioPIEOnly"));
-		if (bBypassMainAudioDevice && IsMainAudioDevice())
-		{
-			return true;
-		}
-#endif
 		// This function could be called in a task manager, which means the thread ID may change between calls.
 		ResetAudioRenderingThreadId();
 
