@@ -1945,10 +1945,10 @@ void FFoliageInfo::RemoveFromBaseHash(int32 InstanceIndex)
 // Destroy existing clusters and reassign all instances to new clusters
 void FFoliageInfo::ReallocateClusters(AInstancedFoliageActor* InIFA, UFoliageType* InSettings)
 {
-	if (Implementation->IsInitialized())
-	{
-		Implementation->Uninitialize();
-	}
+	// In case Foliage Type Changed recreate implementation
+	Implementation.Reset();
+	CreateImplementation(InSettings);
+	
 	// Remove everything
 	TArray<FFoliageInstance> OldInstances;
 	Exchange(Instances, OldInstances);
@@ -2823,6 +2823,10 @@ FFoliageInfo* AInstancedFoliageActor::AddMesh(UFoliageType* InType)
 	Modify();
 
 	FFoliageInfo* Info = &*FoliageInfos.Add(InType);
+	if (Info && !Info->Implementation.IsValid())
+	{
+		Info->CreateImplementation(InType);
+	}
 	Info->FoliageTypeUpdateGuid = InType->UpdateGuid;
 	InType->IsSelected = true;
 
