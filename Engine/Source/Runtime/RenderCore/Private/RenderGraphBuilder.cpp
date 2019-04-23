@@ -359,14 +359,14 @@ void FRDGBuilder::ValidatePass(const FRenderGraphPass* Pass) const
 			{
 				checkf(RenderTarget.GetLoadAction() != ERenderTargetLoadAction::ELoad,
 					TEXT("Can't load a render target %s that has never been produced."),
-					RenderTarget.GetTexture()->Name);
+					Texture->Name);
 
 				// TODO(RDG): should only be done when there is a store action.
 				Texture->bHasEverBeenProduced = true;
 				Texture->DebugFirstProducer = Pass;
 			}
 
-			bFoundRTBound = bFoundRTBound || IsBoundAsReadable(RenderTarget.GetTexture(), ParameterStruct);
+			bFoundRTBound = bFoundRTBound || IsBoundAsReadable(Texture, ParameterStruct);
 		}
 		for (int32 i = NumRenderTargets; i < RenderTargets->Output.Num(); i++)
 		{
@@ -375,15 +375,16 @@ void FRDGBuilder::ValidatePass(const FRenderGraphPass* Pass) const
 		}
 		ensureMsgf(!bGeneratingMips || bFoundRTBound, TEXT("GenerateMips enabled but no RT found as source!"));
 
-		FRDGTexture* Texture = RenderTargets->DepthStencil.Texture;
+		FRDGTexture* Texture = RenderTargets->DepthStencil.GetTexture();
 		if (Texture && !Texture->bHasEverBeenProduced)
 		{
-			checkf(RenderTargets->DepthStencil.DepthLoadAction != ERenderTargetLoadAction::ELoad,
-				TEXT("Can't load depth from a render target that has never been produced."));
-			checkf(RenderTargets->DepthStencil.StencilLoadAction != ERenderTargetLoadAction::ELoad,
-				TEXT("Can't load stencil from a render target that has never been produced."));
-			checkf(RenderTargets->DepthStencil.StencilStoreAction != ERenderTargetStoreAction::ENoAction,
-				TEXT("Using for the first time a render target without storing it, which doesn't make much sense."));
+			checkf(RenderTargets->DepthStencil.GetDepthLoadAction() != ERenderTargetLoadAction::ELoad,
+				TEXT("Can't load depth from render target %s that has never been produced."),
+				Texture->Name);
+
+			checkf(RenderTargets->DepthStencil.GetStencilLoadAction() != ERenderTargetLoadAction::ELoad,
+				TEXT("Can't load stencil from render target %s that has never been produced."),
+				Texture->Name);
 
 			Texture->bHasEverBeenProduced = true;
 			Texture->DebugFirstProducer = Pass;
@@ -419,11 +420,11 @@ void FRDGBuilder::CaptureAnyInterestingPassOutput(const FRenderGraphPass* Pass)
 		case UBMT_RENDER_TARGET_BINDING_SLOTS:
 		{
 			FRenderTargetBindingSlots* RESTRICT RenderTargets = ParameterStruct.GetMemberPtrAtOffset<FRenderTargetBindingSlots>(Offset);
-			if (RenderTargets->DepthStencil.Texture && 
-				(RenderTargets->DepthStencil.DepthStoreAction != ERenderTargetStoreAction::ENoAction || RenderTargets->DepthStencil.StencilStoreAction != ERenderTargetStoreAction::ENoAction) &&
-				GVisualizeTexture.ShouldCapture(RenderTargets->DepthStencil.Texture->Name))
+			if (RenderTargets->DepthStencil.GetTexture() && 
+				(RenderTargets->DepthStencil.GetDepthStoreAction() != ERenderTargetStoreAction::ENoAction || RenderTargets->DepthStencil.GetStencilStoreAction() != ERenderTargetStoreAction::ENoAction) &&
+				GVisualizeTexture.ShouldCapture(RenderTargets->DepthStencil.GetTexture()->Name))
 			{
-				GVisualizeTexture.CreateContentCapturePass(*this, RenderTargets->DepthStencil.Texture);
+				GVisualizeTexture.CreateContentCapturePass(*this, RenderTargets->DepthStencil.GetTexture());
 			}
 			for (int32 i = 0; i < RenderTargets->Output.Num(); i++)
 			{
@@ -526,9 +527,9 @@ void FRDGBuilder::WalkGraphDependencies()
 				}
 
 				const FDepthStencilBinding& DepthStencil = RenderTargets->DepthStencil;
-				if (DepthStencil.Texture)
+				if (DepthStencil.GetTexture())
 				{
-					DepthStencil.Texture->ReferenceCount++;
+					DepthStencil.GetTexture()->ReferenceCount++;
 				}
 			}
 			break;
@@ -1104,25 +1105,25 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 			}
 
 			const FDepthStencilBinding& DepthStencil = RenderTargets->DepthStencil;
-			if (DepthStencil.Texture)
+			if (DepthStencil.GetTexture())
 			{
-				AllocateRHITextureIfNeeded(DepthStencil.Texture, false);
+				AllocateRHITextureIfNeeded(DepthStencil.GetTexture(), false);
 
-				OutRPInfo->DepthStencilRenderTarget.DepthStencilTarget = DepthStencil.Texture->PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
+				OutRPInfo->DepthStencilRenderTarget.DepthStencilTarget = DepthStencil.GetTexture()->PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
 				OutRPInfo->DepthStencilRenderTarget.ResolveTarget = nullptr;
 				OutRPInfo->DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(
-					MakeRenderTargetActions(DepthStencil.DepthLoadAction, DepthStencil.DepthStoreAction),
-					MakeRenderTargetActions(DepthStencil.StencilLoadAction, DepthStencil.StencilStoreAction));
-				OutRPInfo->DepthStencilRenderTarget.ExclusiveDepthStencil = DepthStencil.DepthStencilAccess;
+					MakeRenderTargetActions(DepthStencil.GetDepthLoadAction(), DepthStencil.GetDepthStoreAction()),
+					MakeRenderTargetActions(DepthStencil.GetStencilLoadAction(), DepthStencil.GetStencilStoreAction()));
+				OutRPInfo->DepthStencilRenderTarget.ExclusiveDepthStencil = DepthStencil.GetDepthStencilAccess();
 
-				TransitionTexture(DepthStencil.Texture, EResourceTransitionAccess::EWritable, false);
+				TransitionTexture(DepthStencil.GetTexture(), EResourceTransitionAccess::EWritable, false);
 
 				NumSamples |= OutRPInfo->DepthStencilRenderTarget.DepthStencilTarget->GetNumSamples();
 				NumDepthStencilTargets++;
 					
 				#if RENDER_GRAPH_DEBUGGING
 				{
-					DepthStencil.Texture->DebugPassAccessCount++;
+					DepthStencil.GetTexture()->DebugPassAccessCount++;
 				}
 				#endif
 			}
@@ -1171,9 +1172,9 @@ void FRDGBuilder::UpdateAccessGuardForPassResources(const FRenderGraphPass* Pass
 			}
 			
 			const FDepthStencilBinding& DepthStencil = RenderTargets->DepthStencil;
-			if (DepthStencil.Texture)
+			if (DepthStencil.GetTexture())
 			{
-				DepthStencil.Texture->bAllowAccessToRHIResource = bAllowAccess;
+				DepthStencil.GetTexture()->bAllowAccessToRHIResource = bAllowAccess;
 			}
 		}
 	}
@@ -1366,9 +1367,9 @@ void FRDGBuilder::ReleaseUnecessaryResources(const FRenderGraphPass* Pass)
 					break;
 				}
 			}
-			if (RenderTargets->DepthStencil.Texture)
+			if (RenderTargets->DepthStencil.GetTexture())
 			{
-				ReleaseRHITextureIfPossible(RenderTargets->DepthStencil.Texture);
+				ReleaseRHITextureIfPossible(RenderTargets->DepthStencil.GetTexture());
 			}
 		}
 		break;

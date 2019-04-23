@@ -189,8 +189,13 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FDepthStencilBinding
 {
 	FDepthStencilBinding() = default;
 	FDepthStencilBinding(const FDepthStencilBinding&) = default;
-
-	FDepthStencilBinding(
+	
+	/**
+	 * Creates a render target binding informations for a depth/stencil texture.
+	 *
+	 * Notes: Load and store action are on explicit without default values, to force the user to not forget one of these.
+	 */
+	FORCEINLINE FDepthStencilBinding(
 		FRDGTexture* InTexture,
 		ERenderTargetLoadAction InDepthLoadAction,
 		ERenderTargetStoreAction InDepthStoreAction,
@@ -203,9 +208,11 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FDepthStencilBinding
 		, StencilLoadAction(InStencilLoadAction)
 		, StencilStoreAction(InStencilStoreAction)
 		, DepthStencilAccess(InDepthStencilAccess)
-	{}
+	{
+		check(Validate());
+	}
 
-	FDepthStencilBinding(
+	FORCEINLINE FDepthStencilBinding(
 		FRDGTexture* InTexture,
 		ERenderTargetLoadAction InDepthLoadAction,
 		ERenderTargetStoreAction InDepthStoreAction,
@@ -214,14 +221,48 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FDepthStencilBinding
 		, DepthLoadAction(InDepthLoadAction)
 		, DepthStoreAction(InDepthStoreAction)
 		, DepthStencilAccess(InDepthStencilAccess)
-	{}
+	{
+		check(Validate());
+	}
 
+	FORCEINLINE FRDGTexture* GetTexture() const
+	{
+		return Texture;
+	}
+	FORCEINLINE ERenderTargetLoadAction GetDepthLoadAction() const
+	{
+		return DepthLoadAction;
+	}
+	FORCEINLINE ERenderTargetStoreAction GetDepthStoreAction() const
+	{
+		return DepthStoreAction;
+	}
+	FORCEINLINE ERenderTargetLoadAction GetStencilLoadAction() const
+	{
+		return StencilLoadAction;
+	}
+	FORCEINLINE ERenderTargetStoreAction GetStencilStoreAction() const
+	{
+		return StencilStoreAction;
+	}
+	FORCEINLINE FExclusiveDepthStencil GetDepthStencilAccess() const
+	{
+		return DepthStencilAccess;
+	}
+
+private:
+	/** 
+	 * All parameters required to bind a depth render target deferred. This are purposefully private to
+	 * force the user to call FDepthStencilBinding() constructors, forcing him to specify the mendatory parameter without forgetting one.
+	 */
 	TAlignedShaderParameterPtr<FRDGTexture*> Texture = nullptr;
 	ERenderTargetLoadAction		DepthLoadAction		= ERenderTargetLoadAction::ENoAction;
 	ERenderTargetStoreAction	DepthStoreAction	= ERenderTargetStoreAction::ENoAction;
 	ERenderTargetLoadAction		StencilLoadAction	= ERenderTargetLoadAction::ENoAction;
 	ERenderTargetStoreAction	StencilStoreAction	= ERenderTargetStoreAction::ENoAction;
 	FExclusiveDepthStencil		DepthStencilAccess	= FExclusiveDepthStencil::DepthNop_StencilNop;
+
+	RENDERCORE_API bool Validate() const;
 };
 
 

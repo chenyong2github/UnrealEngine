@@ -707,12 +707,11 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 
 		if (bUseResponsiveStencilTest)
 		{
-			PassParameters->RenderTargets.DepthStencil.Texture = SceneBlackboard.SceneDepthBuffer;
-			PassParameters->RenderTargets.DepthStencil.DepthLoadAction = ERenderTargetLoadAction::ENoAction;
-			PassParameters->RenderTargets.DepthStencil.DepthStoreAction = ERenderTargetStoreAction::ENoAction;
-			PassParameters->RenderTargets.DepthStencil.StencilLoadAction = ERenderTargetLoadAction::ELoad;
-			PassParameters->RenderTargets.DepthStencil.StencilStoreAction = ERenderTargetStoreAction::EStore;
-			PassParameters->RenderTargets.DepthStencil.DepthStencilAccess = FExclusiveDepthStencil::DepthRead_StencilWrite;
+			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
+				SceneBlackboard.SceneDepthBuffer,
+				ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction,
+				ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore,
+				FExclusiveDepthStencil::DepthRead_StencilWrite);
 		}
 		
 		FTemporalAAPS::FPermutationDomain BasePermutationVector;

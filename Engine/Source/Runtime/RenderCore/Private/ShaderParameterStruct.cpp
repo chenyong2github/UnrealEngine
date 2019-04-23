@@ -309,6 +309,47 @@ void FShaderParameterBindings::BindForRootShaderParameters(const FShader* Shader
 	}
 }
 
+bool FDepthStencilBinding::Validate() const
+{
+	if (Texture)
+	{
+		EPixelFormat PixelFormat = Texture->Desc.Format;
+		const TCHAR* FormatString = GetPixelFormatString(PixelFormat);
+
+		bool bIsDepthFormat = PixelFormat == PF_DepthStencil || PixelFormat == PF_ShadowDepth || PixelFormat == PF_D24;
+		checkf(bIsDepthFormat,
+			TEXT("Can't bind texture %s as a depth stencil because its pixel format is %s."),
+			Texture->Name, FormatString);
+		
+		checkf(DepthStencilAccess != FExclusiveDepthStencil::DepthNop_StencilNop,
+			TEXT("Why binding texture %s if there is no access?"),
+			Texture->Name);
+
+		bool bHasStencil = PixelFormat == PF_DepthStencil;
+		if (!bHasStencil)
+		{
+			checkf(StencilLoadAction == ERenderTargetLoadAction::ENoAction && StencilStoreAction == ERenderTargetStoreAction::ENoAction,
+				TEXT("Unable to load stencil of texture %s that have a pixel format %s that does not support stencil."),
+				Texture->Name, FormatString);
+		
+			checkf(!DepthStencilAccess.IsUsingStencil(),
+				TEXT("Unable to have stencil access on texture %s that have a pixel format %s that does not support stencil."),
+				Texture->Name, FormatString);
+		}
+	}
+	else
+	{
+		checkf(DepthLoadAction == ERenderTargetLoadAction::ENoAction && DepthStoreAction == ERenderTargetStoreAction::ENoAction,
+			TEXT("Can't have a depth load or store action when no texture are bound."));
+		checkf(StencilLoadAction == ERenderTargetLoadAction::ENoAction && StencilStoreAction == ERenderTargetStoreAction::ENoAction,
+			TEXT("Can't have a stencil load or store action when no texture are bound."));
+		checkf(DepthStencilAccess == FExclusiveDepthStencil::DepthNop_StencilNop,
+			TEXT("Can't have a depth stencil access when no texture are bound."));
+	}
+
+	return true;
+}
+
 void EmitNullShaderParameterFatalError(const FShader* Shader, const FShaderParametersMetadata* ParametersMetadata, uint16 MemberOffset)
 {
 	const FShaderParametersMetadata* MemberContainingStruct = nullptr;
