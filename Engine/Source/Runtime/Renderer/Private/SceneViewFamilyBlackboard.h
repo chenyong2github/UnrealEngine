@@ -13,6 +13,7 @@ class FViewInfo;
 
 
 /** Contains reference on all available buffer for a given scene. */
+// TODO: rename to FSceneTextureParemeters
 BEGIN_SHADER_PARAMETER_STRUCT(FSceneViewFamilyBlackboard, )
 	// FSceneViewFamilyBlackboard::SceneLightingChannels needs to be accessed with SceneLightingChannels.Load(), so a shader accessing
 	// needs to know when it not valid since SceneLightingChannels could end up being a dummy system texture.
@@ -29,6 +30,18 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSceneViewFamilyBlackboard, )
 END_SHADER_PARAMETER_STRUCT()
 
 
+/** Contains reference on all samplers for FSceneViewFamilyBlackboard for platforms not supporting shared samplers. */
+BEGIN_SHADER_PARAMETER_STRUCT(FSceneTextureSamplerParameters, )
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthBufferSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneVelocityBufferSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneGBufferASampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneGBufferBSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneGBufferCSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneGBufferDSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneGBufferESampler)
+END_SHADER_PARAMETER_STRUCT()
+
+
 /** Sets up the the blackboard from available scene view family.
  *
  * Note: Once the entire renderer is built with a single render graph, would no longer need this function.
@@ -36,6 +49,9 @@ END_SHADER_PARAMETER_STRUCT()
 void SetupSceneViewFamilyBlackboard(
 	FRDGBuilder& GraphBuilder,
 	FSceneViewFamilyBlackboard* OutBlackboard);
+
+/** Sets up all the samplers. */
+void SetupSceneTextureSamplers(FSceneTextureSamplerParameters* OutSamplers);
 
 /** Returns a render graph texture resource reference onto the eye adaptation or fallback.
  */

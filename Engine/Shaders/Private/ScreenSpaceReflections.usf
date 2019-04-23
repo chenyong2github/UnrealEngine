@@ -4,15 +4,12 @@
 	ScreenSpaceReflections.usf: To generate screen space reflections as a postprocess
 =============================================================================*/
 
-#include "Common.ush"	
-#include "PostProcessCommon.ush"				
-#include "DeferredShadingCommon.ush"
+#include "Common.ush"
 #include "Random.ush"
 #include "BRDF.ush"
 #include "MonteCarlo.ush"
 #include "ScreenSpaceRayCast.ush"
-
-#define SSR_CONE_QUALITY 5
+#include "SceneViewFamilyBlackboard.ush"
 
 // .r:Intensity in 0..1 range .g:RoughnessMaskMul, b:EnableDiscard for FPostProcessScreenSpaceReflectionsStencilPS, a:(bTemporalAAIsOn?TemporalAAIndex:StateFrameIndexMod8)*1551
 float4 SSRParams;
@@ -23,6 +20,12 @@ float4 HZBUvFactorAndInvFactor;
 
 // Equivalent of View.ScreenPositionScaleBias, but for SSR.
 float4 PrevScreenPositionScaleBias;
+
+Texture2D SceneColor;
+SamplerState SceneColorSampler;
+
+Texture2D HZB;
+SamplerState HZBSampler;
 
 float GetRoughness(const in FGBufferData GBuffer)
 {
@@ -58,8 +61,7 @@ void ScreenSpaceReflectionsStencilPS(in float4 UVAndScreenPos : TEXCOORD0, out f
 {
 	const float2 UV = UVAndScreenPos.xy;
 	
-	const FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
-	const FGBufferData GBuffer = ScreenSpaceData.GBuffer;
+	FGBufferData GBuffer = GetGBufferDataFromSceneBlackboard(UV);
 	
 	const float Roughness = GetRoughness(GBuffer);
 	const float RoughnessFade = GetRoughnessFade(Roughness);
@@ -78,16 +80,17 @@ void ScreenSpaceReflectionsStencilPS(in float4 UVAndScreenPos : TEXCOORD0, out f
 }
 
 
-void ScreenSpaceReflectionsPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
+void ScreenSpaceReflectionsPS(
+	float4 SvPosition : SV_POSITION,
+	out float4 OutColor : SV_Target0)
 {
-	float2 UV = UVAndScreenPos.xy;
-	float2 ScreenPos = UVAndScreenPos.zw;
+	float2 UV = SvPosition.xy * View.BufferSizeAndInvSize.zw;
+	float2 ScreenPos = ViewportUVToScreenPos((SvPosition.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw);
 	uint2 PixelPos = (uint2)SvPosition.xy;
 
 	OutColor = 0;
 
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
-	FGBufferData GBuffer = ScreenSpaceData.GBuffer;
+	FGBufferData GBuffer = GetGBufferDataFromSceneBlackboard(UV);
 	
 	float Roughness = GetRoughness(GBuffer);
 	float RoughnessFade = GetRoughnessFade(Roughness);
@@ -99,7 +102,7 @@ void ScreenSpaceReflectionsPS(in noperspective float4 UVAndScreenPos : TEXCOORD0
 	}
 
 	const float3 N = GBuffer.WorldNormal;
-	const float SceneDepth = CalcSceneDepth(UV);
+	const float SceneDepth = GBuffer.Depth;
 	const float3 PositionTranslatedWorld = mul( float4( ScreenPos * SceneDepth, SceneDepth, 1 ), View.ScreenToTranslatedWorld ).xyz;
 	const float3 V = normalize(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld);
 
@@ -153,7 +156,7 @@ void ScreenSpaceReflectionsPS(in noperspective float4 UVAndScreenPos : TEXCOORD0
 
 #if 1
 			// TODO EnvBRDF isn't a perfect match anymore.
-			float3 H = mul( ImportanceSampleVisibleGGX( E, a2, TangentV ).xyz, TangentBasis );
+			float3 H = mul( ImportanceSampleVisibleGGX(UniformSampleDisk(E), a2, TangentV ).xyz, TangentBasis );
 			float3 L = 2 * dot( V, H ) * H - V;
 #elif 0
 			float3 H = mul( ImportanceSampleGGX( E, a2 ).xyz, TangentBasis );
@@ -186,7 +189,7 @@ void ScreenSpaceReflectionsPS(in noperspective float4 UVAndScreenPos : TEXCOORD0
 				float Level = 0;
 
 				bool bHit = RayCast(
-					PostprocessInput1, PostprocessInput1Sampler,
+					HZB, HZBSampler,
 					PositionTranslatedWorld, L, Roughness, SceneDepth, 
 					NumSteps, StepOffset,
 					HZBUvFactorAndInvFactor,
@@ -207,13 +210,10 @@ void ScreenSpaceReflectionsPS(in noperspective float4 UVAndScreenPos : TEXCOORD0
 				{
 					float2 SampleUV;
 					float Vignette;
-					ReprojectHit(PrevScreenPositionScaleBias, PostprocessInput3, PostprocessInput3Sampler, HitUVz, SampleUV, Vignette);
+					ReprojectHit(PrevScreenPositionScaleBias, SceneVelocityBuffer, SceneVelocityBufferSampler, HitUVz, SampleUV, Vignette);
 
-#if SSR_QUALITY == SSR_CONE_QUALITY
-					float4 SampleColor = SampleHCBLevel( PostprocessInput2, PostprocessInput2Sampler, SampleUV, Level, HZBUvFactorAndInvFactor ) * Vignette;
-#else
-					float4 SampleColor = SampleScreenColor( PostprocessInput0, PostprocessInput0Sampler, SampleUV ) * Vignette;
-#endif
+					float4 SampleColor = SampleScreenColor( SceneColor, SceneColorSampler, SampleUV ) * Vignette;
+
 					SampleColor.rgb *= rcp( 1 + Luminance(SampleColor.rgb) );
 
 					// Correct integration applies DGF below but for speed we apply EnvBRDF later when compositing
@@ -253,7 +253,7 @@ void ScreenSpaceReflectionsPS(in noperspective float4 UVAndScreenPos : TEXCOORD0
 		float Level = 0;
 
 		bool bHit = RayCast(
-			PostprocessInput1, PostprocessInput1Sampler,
+			HZB, HZBSampler,
 			PositionTranslatedWorld, R, Roughness, SceneDepth,
 			NumSteps, StepOffset,
 			HZBUvFactorAndInvFactor,
@@ -265,9 +265,9 @@ void ScreenSpaceReflectionsPS(in noperspective float4 UVAndScreenPos : TEXCOORD0
 		{
 			float2 SampleUV;
 			float Vignette;
-			ReprojectHit(PrevScreenPositionScaleBias, PostprocessInput3, PostprocessInput3Sampler, HitUVz, SampleUV, Vignette);
+			ReprojectHit(PrevScreenPositionScaleBias, SceneVelocityBuffer, SceneVelocityBufferSampler, HitUVz, SampleUV, Vignette);
 
-			OutColor = SampleScreenColor(PostprocessInput0, PostprocessInput0Sampler, SampleUV) * Vignette;
+			OutColor = SampleScreenColor(SceneColor, SceneColorSampler, SampleUV) * Vignette;
 		}
 	}
 	

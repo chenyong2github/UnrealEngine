@@ -853,8 +853,6 @@ public:
 
 	FHeightfieldLightingAtlas* HeightfieldLightingAtlas;
 
-	// Temporal AA result for SSR
-	FTemporalAAHistory SSRHistory;
 	// Temporal AA result for light shafts of last frame
 	FTemporalAAHistory LightShaftOcclusionHistory;
 	// Temporal AA result for light shafts of last frame
@@ -1257,7 +1255,6 @@ public:
 		EyeAdaptationRTManager.SafeRelease();
 		CombinedLUTRenderTarget.SafeRelease();
 		PrevFrameViewInfo.SafeRelease();
-		SSRHistory.SafeRelease();
 		LightShaftOcclusionHistory.SafeRelease();
 		LightShaftBloomHistoryRTs.Empty();
 		DistanceFieldAOHistoryRT.SafeRelease();

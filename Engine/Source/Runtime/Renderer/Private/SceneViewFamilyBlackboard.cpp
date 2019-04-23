@@ -37,6 +37,18 @@ void SetupSceneViewFamilyBlackboard(
 	}
 }
 
+void SetupSceneTextureSamplers(FSceneTextureSamplerParameters* OutSamplers)
+{
+	FSamplerStateRHIParamRef Sampler = TStaticSamplerState<SF_Point>::GetRHI();
+	OutSamplers->SceneDepthBufferSampler = Sampler;
+	OutSamplers->SceneVelocityBufferSampler = Sampler;
+	OutSamplers->SceneGBufferASampler = Sampler;
+	OutSamplers->SceneGBufferBSampler = Sampler;
+	OutSamplers->SceneGBufferCSampler = Sampler;
+	OutSamplers->SceneGBufferDSampler = Sampler;
+	OutSamplers->SceneGBufferESampler = Sampler;
+}
+
 FRDGTextureRef GetEyeAdaptationTexture(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
 	if (View.HasValidEyeAdaptation())

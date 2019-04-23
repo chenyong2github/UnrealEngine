@@ -24,6 +24,7 @@
 #include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/PostProcessSubsurface.h"
+#include "PostProcess/PostProcessTemporalAA.h"
 #include "PostProcess/ScreenSpaceReflections.h"
 #include "LightRendering.h"
 #include "LightPropagationVolumeSettings.h"
@@ -827,7 +828,35 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 		}
 		else if (bScreenSpaceReflections)
 		{
-			RenderScreenSpaceReflections(RHICmdList, View, ReflectionsColor, VelocityRT);
+			FRDGBuilder GraphBuilder(RHICmdList); // TODO: convert the entire reflections to render graph.
+			
+			FSceneViewFamilyBlackboard SceneBlackboard;
+			SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+
+			FRDGTextureRef CurrentSceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
+
+			FRDGTextureRef ScreenSpaceReflections = RenderScreenSpaceReflections(
+				GraphBuilder, SceneBlackboard, CurrentSceneColor, View);
+			
+			// Adds a temporal AA pass to clean up some of the noise.
+			const bool bTemporalFilter = IsSSRTemporalPassRequired(View, false);
+	
+			// TODO: denoise.
+			if (View.ViewState && bTemporalFilter)
+			{
+				FTAAPassParameters TAASettings(View);
+				TAASettings.Pass = ETAAPassConfig::ScreenSpaceReflections;
+				TAASettings.SceneColorInput = ScreenSpaceReflections;
+
+				ScreenSpaceReflections = TAASettings.AddTemporalAAPass(
+					GraphBuilder,
+					SceneBlackboard, View,
+					View.PrevViewInfo.SSRHistory,
+					&View.ViewState->PrevFrameViewInfo.SSRHistory).SceneColor;
+			}
+
+			GraphBuilder.QueueTextureExtraction(ScreenSpaceReflections, &ReflectionsColor);
+			GraphBuilder.Execute();
 		}
 
 		bool bPlanarReflections = false;
