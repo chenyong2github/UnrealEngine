@@ -302,6 +302,7 @@ FRDGTextureRef RenderScreenSpaceReflections(
 			ERenderGraphPassFlags::None,
 			[PassParameters, &View, PixelShader](FRHICommandList& RHICmdList)
 		{
+			SCOPED_GPU_STAT(RHICmdList, ScreenSpaceReflections);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 			RHICmdList.SetStencilRef(0x80);
 		
@@ -375,6 +376,7 @@ FRDGTextureRef RenderScreenSpaceReflections(
 			ERenderGraphPassFlags::None,
 			[PassParameters, &View, PixelShader, SSRStencilPrePass](FRHICommandList& RHICmdList)
 		{
+			SCOPED_GPU_STAT(RHICmdList, ScreenSpaceReflections);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 			RHICmdList.SetStencilRef(0x80);
 		
