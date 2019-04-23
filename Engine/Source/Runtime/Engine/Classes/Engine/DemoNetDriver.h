@@ -49,6 +49,7 @@ public:
 	virtual void StartTask() = 0;
 	virtual bool Tick() = 0;
 	virtual FName GetName() const = 0;
+	virtual bool ShouldPausePlayback() const { return true; }
 
 	TWeakObjectPtr<UDemoNetDriver> Driver;
 };
