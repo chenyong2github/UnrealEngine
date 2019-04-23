@@ -1782,7 +1782,7 @@ bool UStaticMeshComponent::SetStaticMesh(UStaticMesh* NewMesh)
 	StaticMesh = NewMesh;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	if (StaticMesh != nullptr && StaticMesh->RenderData != nullptr)
+	if (StaticMesh != nullptr && StaticMesh->RenderData != nullptr && FApp::CanEverRender())
 	{
 		checkf(StaticMesh->RenderData->IsInitialized(), TEXT("Uninitialized Renderdata for Mesh: %s, Mesh NeedsLoad: %i, Mesh NeedsPostLoad: %i, Mesh Loaded: %i, Mesh NeedInit: %i, Mesh IsDefault: %i")
 			, *StaticMesh->GetFName().ToString()
