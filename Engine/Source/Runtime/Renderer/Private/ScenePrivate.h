@@ -48,6 +48,7 @@
 #include "DebugViewModeRendering.h"
 #if RHI_RAYTRACING
 #include "RayTracing/RayTracingIESLightProfiles.h"
+#include "Halton.h"
 #endif
 
 /** Factor by which to grow occlusion tests **/
@@ -2659,6 +2660,7 @@ public:
 
 #if RHI_RAYTRACING
 	class FRayTracingDynamicGeometryCollection* RayTracingDynamicGeometryCollection;
+	FHaltonSequence HaltonSequence;
 #endif
 
 	/** Initialization constructor. */
