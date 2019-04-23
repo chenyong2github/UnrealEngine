@@ -167,7 +167,7 @@ public:
 						/*NumMips=*/ 1,
 						/*NumSamples=*/ 1,
 						/*Flags=*/ TexCreate_ShaderResource,
-													/*BulkData=*/ CreateInfo );
+						/*BulkData=*/ CreateInfo );
 					RHIBindDebugLabelName(TextureRHI, TEXT("E_Irradiance"));
 				}
 				break;
@@ -180,7 +180,7 @@ public:
 						SizeX, SizeY, SizeZ, PF_FloatRGBA,
 						/*NumMips=*/ 1,
 						/*Flags=*/ TexCreate_ShaderResource,
-													/*BulkData=*/ CreateInfo );
+						/*BulkData=*/ CreateInfo );
 					RHIBindDebugLabelName(TextureRHI, TEXT("E_Inscatter"));
 				}
 				break;

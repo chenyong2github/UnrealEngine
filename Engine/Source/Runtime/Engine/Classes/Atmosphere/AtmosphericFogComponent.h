@@ -99,39 +99,39 @@ class UAtmosphericFogComponent : public USceneComponent
 
 	~UAtmosphericFogComponent();
 
-	/** Global scattering factor. */
+	/** Scale the scattered luminance from the atmosphere sun light. Only affect the sky and atmospheric fog. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category=Atmosphere)
 	float SunMultiplier;
 
-	/** Scattering factor on object. */
+	/** Scale the scattered luminance from the atmosphere sun light only on surfaces, excludes the sky. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category=Atmosphere)
 	float FogMultiplier;
 
-	/** Fog density control factor. */
+	/** Scales the atmosphere transmittance over background. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category=Atmosphere)
 	float DensityMultiplier;
 
-	/** Fog density offset to control opacity [-1.f ~ 1.f]. */
+	/** Offset the atmosphere transmittance over background [-1.f ~ 1.f]. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category=Atmosphere)
 	float DensityOffset;
 
-	/** Distance scale. */
+	/** Scale the view position. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category=Atmosphere)
 	float DistanceScale;
 
-	/** Altitude scale (only Z scale). */
+	/** Scale the view altitude (only Z scale). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category=Atmosphere)
 	float AltitudeScale;
 
-	/** Distance offset, in km (to handle large distance) */
+	/** Apply a distance offset before evaluating the atmospheric fog, in km (to handle large distance). Only on surfaces, excludes the sky. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category=Atmosphere)
 	float DistanceOffset;
 
-	/** Ground offset. */
+	/** Offset the view altitude (along Z). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category=Atmosphere)
 	float GroundOffset;
 
-	/** Start Distance. */
+	/** The atmospheric fog start distance in centimeters. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category=Atmosphere)
 	float StartDistance;
 
@@ -139,19 +139,19 @@ class UAtmosphericFogComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = Atmosphere)
 	float SunDiscScale;
 
-	/** Default light brightness. Used when there is no sunlight placed in the level. Unit is lumens */
+	/** Default atmospheric sun light disc luminance. Used when there is no atmospheric sun light selected in the level. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Lighting)
 	float DefaultBrightness;
 
-	/** Default light color. Used when there is no sunlight placed in the level. */
+	/** Default atmospheric sun light disc color. Used when there is no sunlight placed in the level. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Lighting)
 	FColor DefaultLightColor;
 
-	/** Disable Sun Disk rendering. */
+	/** Disable sun disk rendering. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Lighting, meta=(ScriptName="DisableSunDiskValue"))
 	uint32 bDisableSunDisk : 1;
 
-	/** Disable Color scattering from ground. */
+	/** Disable color scattering from ground. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Lighting, meta=(ScriptName="DisableGroundScatteringValue"))
 	uint32 bDisableGroundScattering : 1;
 
@@ -242,9 +242,11 @@ protected:
 	 void AddFogIfNeeded();
 
 public:
-	/** The resource for Inscatter. */
+	// Stores colored transmittance from outer space to point in atmosphere.
 	class FAtmosphereTextureResource* TransmittanceResource;
+	// Stores ground illuminance as a function of sun direction and atmosphere radius.
 	class FAtmosphereTextureResource* IrradianceResource;
+	// Stores in-scattered luminance toward a point according to height and sun direction.
 	class FAtmosphereTextureResource* InscatterResource;
 	
 	/** Source vector data. */
@@ -283,7 +285,7 @@ private:
 	friend class FAtmosphericFogSceneInfo;
 };
 
-/** Used to store lightmap data during RerunConstructionScripts */
+/** Used to store data during RerunConstructionScripts */
 USTRUCT()
 struct FAtmospherePrecomputeInstanceData : public FSceneComponentInstanceData
 {

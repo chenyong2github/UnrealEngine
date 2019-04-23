@@ -35,7 +35,7 @@ namespace EAtmosphereRenderFlag
 	};
 }
 
-/** The properties of a atmospheric fog layer which are used for rendering. */
+/** The properties of a atmospheric fog layer which are used for rendering. (Render side of the application) */
 class FAtmosphericFogSceneInfo : public FRenderResource
 {
 public:

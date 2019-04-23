@@ -129,8 +129,8 @@ void GetTransmittanceRMuS(float2 UV, out float Radius, out float MuS)
     Radius = RadiusGround + (Radius * Radius) * (RadiusAtmosphere - RadiusGround);
     MuS = -0.15 + tan(1.5 * MuS) / tan(1.5) * (1.0 + 0.15);
 #else
-    r = RadiusGround + r * (RadiusAtmosphere - RadiusGround);
-    muS = -0.15 + muS * (1.0 + 0.15);
+	Radius = RadiusGround + Radius * (RadiusAtmosphere - RadiusGround);
+	MuS = -0.15 + MuS * (1.0 + 0.15);
 #endif
 }
 

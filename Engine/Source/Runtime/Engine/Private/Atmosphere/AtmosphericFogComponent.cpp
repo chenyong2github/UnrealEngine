@@ -41,6 +41,45 @@ FAtmospherePrecomputeParameters::FAtmospherePrecomputeParameters():
 
 
 //////////////////////////////////////////////////////////////////////////
+// FAtmospherePrecomputeDataHandler
+
+
+#if WITH_EDITOR
+#include "TickableEditorObject.h"
+
+class FAtmospherePrecomputeDataHandler : public FTickableEditorObject
+{
+public:
+	UAtmosphericFogComponent* Component;
+
+	FAtmospherePrecomputeDataHandler(UAtmosphericFogComponent* InComponent) : Component(InComponent)
+	{
+	}
+
+	/** FTickableEditorObject interface */
+	virtual void Tick(float DeltaTime) override
+	{
+		if (Component && Component->GameThreadServiceRequest.GetValue())
+		{
+			Component->UpdatePrecomputedData();
+			Component->GameThreadServiceRequest.Decrement();
+		}
+	}
+
+	virtual ETickableTickType GetTickableTickType() const override
+	{
+		return ETickableTickType::Always;
+	}
+
+	TStatId GetStatId() const override
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FAtmospherePrecomputeDataHandler, STATGROUP_Tickables);
+	}
+};
+#endif
+
+
+//////////////////////////////////////////////////////////////////////////
 // UAtmosphericFogComponent
 
 
@@ -141,40 +180,6 @@ void UAtmosphericFogComponent::PostLoad()
 		InitResource();
 	}
 }
-
-#if WITH_EDITOR
-#include "TickableEditorObject.h"
-
-class FAtmospherePrecomputeDataHandler : public FTickableEditorObject
-{
-public:
-	UAtmosphericFogComponent* Component;
-
-	FAtmospherePrecomputeDataHandler(UAtmosphericFogComponent* InComponent) : Component(InComponent)
-	{
-	}
-
-	/** FTickableEditorObject interface */
-	virtual void Tick( float DeltaTime ) override
-	{
-		if( Component && Component->GameThreadServiceRequest.GetValue()) 
-		{
-			Component->UpdatePrecomputedData();
-			Component->GameThreadServiceRequest.Decrement();
-		}              
-	}
-
-	virtual ETickableTickType GetTickableTickType() const override
-	{
-		return ETickableTickType::Always;
-	}
-
-	TStatId GetStatId() const override
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FAtmospherePrecomputeDataHandler, STATGROUP_Tickables);
-	}
-};
-#endif
 
 
 static TAutoConsoleVariable<int32> CVarAtmosphereRender(
