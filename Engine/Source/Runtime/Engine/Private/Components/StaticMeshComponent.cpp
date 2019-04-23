@@ -1782,6 +1782,18 @@ bool UStaticMeshComponent::SetStaticMesh(UStaticMesh* NewMesh)
 	StaticMesh = NewMesh;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	if (StaticMesh != nullptr && StaticMesh->RenderData != nullptr)
+	{
+		checkf(StaticMesh->RenderData->IsInitialized(), TEXT("Uninitialized Renderdata for Mesh: %s, Mesh NeedsLoad: %i, Mesh NeedsPostLoad: %i, Mesh Loaded: %i, Mesh NeedInit: %i, Mesh IsDefault: %i")
+			, *StaticMesh->GetFName().ToString()
+			, StaticMesh->HasAnyFlags(RF_NeedLoad)
+			, StaticMesh->HasAnyFlags(RF_NeedPostLoad)
+			, StaticMesh->HasAnyFlags(RF_LoadCompleted)
+			, StaticMesh->HasAnyFlags(RF_NeedInitialization)
+			, StaticMesh->HasAnyFlags(RF_ClassDefaultObject)
+		);
+	}
+
 	// Need to send this to render thread at some point
 	MarkRenderStateDirty();
 
