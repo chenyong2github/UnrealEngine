@@ -813,7 +813,10 @@ void FEdModeFoliage::OnObjectsReplaced(const TMap<UObject*, UObject*>& Replaceme
 						if (IFA->FoliageInfos.RemoveAndCopyValue(ReplacedFoliageType, FoliageInfo))
 						{
 							// Re-add the unique mesh info associated with the replaced foliage type
-							IFA->FoliageInfos.Add(Cast<UFoliageType>(ReplacementPair.Value), MoveTemp(FoliageInfo));
+							UFoliageType* ReplacementFoliageType = Cast<UFoliageType>(ReplacementPair.Value);
+							TUniqueObj<FFoliageInfo>& NewFoliageInfo = IFA->FoliageInfos.Add(ReplacementFoliageType, MoveTemp(FoliageInfo));
+							NewFoliageInfo->ReallocateClusters(IFA, ReplacementFoliageType);
+							
 							bAnyFoliageTypeReplaced = true;
 						}
 					}
