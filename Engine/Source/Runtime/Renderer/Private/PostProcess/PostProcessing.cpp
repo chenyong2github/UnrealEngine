@@ -1519,56 +1519,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 			// Motion Blur
 			if ((IsMotionBlurEnabled(View) || bVisualizeMotionBlur) && VelocityInput.IsValid())
 			{
-				FRenderingCompositePass* MotionBlurPass = Context.Graph.RegisterPass(new(FMemStack::Get()) TRCPassForRDG<3, 1>(
-					[bVisualizeMotionBlur](FRenderingCompositePass* Pass, FRenderingCompositePassContext& InContext)
-				{
-					FRDGBuilder GraphBuilder(InContext.RHICmdList);
-
-					const FIntRect ColorViewportRect = InContext.SceneColorViewRect;
-					const FIntRect DepthViewportRect = InContext.View.ViewRect;
-
-					const FScreenPassTexture ColorTexture = FScreenPassTexture::Create(
-						Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"), eFC_0000),
-						ColorViewportRect);
-
-					const FScreenPassTexture DepthTexture = FScreenPassTexture::Create(
-						Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input1, TEXT("SceneDepth"), eFC_0000),
-						DepthViewportRect);
-
-					const FScreenPassTexture VelocityTexture = FScreenPassTexture::Create(
-						Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input2, TEXT("SceneVelocity"), eFC_0000),
-						DepthViewportRect);
-
-					FScreenPassTexture OutColorTexture;
-
-					if (bVisualizeMotionBlur)
-					{
-						OutColorTexture = VisualizeMotionBlur(
-							GraphBuilder,
-							GraphBuilder.AllocObject<FScreenPassContext>(InContext.RHICmdList, InContext.View),
-							ColorTexture,
-							DepthTexture,
-							VelocityTexture);
-					}
-					else
-					{
-						OutColorTexture = ComputeMotionBlur(
-							GraphBuilder,
-							GraphBuilder.AllocObject<FScreenPassContext>(InContext.RHICmdList, InContext.View),
-							ColorTexture,
-							DepthTexture,
-							VelocityTexture);
-					}
-
-					Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, OutColorTexture.GetRDGTexture());
-
-					GraphBuilder.Execute();
-				}));
-
-				MotionBlurPass->SetInput(ePId_Input0, Context.FinalOutput);
-				MotionBlurPass->SetInput(ePId_Input1, Context.SceneDepth);
-				MotionBlurPass->SetInput(ePId_Input2, VelocityInput);
-				Context.FinalOutput = FRenderingCompositeOutputRef(MotionBlurPass, ePId_Output0);
+				Context.FinalOutput = ComputeMotionBlurShim(Context.Graph, Context.FinalOutput, Context.SceneDepth, VelocityInput, bVisualizeMotionBlur);
 			}
 
 			if(bVisualizeBloom)
@@ -1957,11 +1908,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 		if (View.Family->EngineShowFlags.VisualizeSSS)
 		{
 			ensureMsgf(!bUnscaledFinalOutput, TEXT("VisualizeSSS is incompatible with unscaled output."));
-
-			// the setup pass also does visualization, based on EngineShowFlags.VisualizeSSS
-			FRenderingCompositePass* PassVisualize = Context.Graph.RegisterPass(new(FMemStack::Get()) FSubsurfaceVisualizeCompositePass(Context.RHICmdList));
-			PassVisualize->SetInput(ePId_Input0, Context.FinalOutput);
-			Context.FinalOutput = FRenderingCompositeOutputRef(PassVisualize);
+			Context.FinalOutput = VisualizeSubsurfaceShim(RHICmdList, Context.Graph, Context.FinalOutput);
 		}
 
 		AddGBufferVisualizationOverview(Context, SeparateTranslucency, PreTonemapHDRColor, PostTonemapHDRColor, PreFlattenVelocity);

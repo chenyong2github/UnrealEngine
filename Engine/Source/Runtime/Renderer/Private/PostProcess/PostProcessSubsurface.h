@@ -18,28 +18,14 @@ bool IsSubsurfaceRequiredForView(const FViewInfo& View);
 // Returns whether checkerboard rendering is enabled for the provided format.
 bool IsSubsurfaceCheckerboardFormat(EPixelFormat SceneColorFormat);
 
-// Computes subsurface scattering on the scene texture and produces a new scene texture as output.
-FScreenPassTexture ComputeSubsurface(
-	FRDGBuilder& GraphBuilder,
-	FScreenPassContextRef Context,
-	const FScreenPassTexture& SceneTexture);
+//////////////////////////////////////////////////////////////////////////
+//! Shim methods to hook into the legacy pipeline until the full RDG conversion is complete.
 
-// Visualizes subsurface scattering profiles by overlaying an image on the provided scene texture.
-// Produces a new scene texture as output.
-FScreenPassTexture VisualizeSubsurface(
-	FRDGBuilder& GraphBuilder,
-	FScreenPassContextRef Context,
-	const FScreenPassTexture& SceneTexture);
+void ComputeSubsurfaceShim(FRHICommandListImmediate& RHICmdList, const TArray<FViewInfo>& Views);
 
-// An adapter to connect the new Render Graph implementation to the legacy Composition Graph.
-class FSubsurfaceVisualizeCompositePass : public TRenderingCompositePassBase<1, 1>
-{
-public:
-	FSubsurfaceVisualizeCompositePass(FRHICommandList& CmdList);
-	virtual ~FSubsurfaceVisualizeCompositePass() = default;
+FRenderingCompositeOutputRef VisualizeSubsurfaceShim(
+	FRHICommandListImmediate& RHICmdList,
+	FRenderingCompositionGraph& Graph,
+	FRenderingCompositeOutputRef Input);
 
-private:
-	void Process(FRenderingCompositePassContext& Context) override;
-	FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-	void Release() override { delete this; }
-};
+//////////////////////////////////////////////////////////////////////////

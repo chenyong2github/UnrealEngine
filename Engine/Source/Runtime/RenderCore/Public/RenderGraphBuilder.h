@@ -165,7 +165,8 @@ struct RENDERCORE_API FRenderGraphPass
 
 	virtual void Execute(FRHICommandListImmediate& RHICmdList) const = 0;
 
-	const TCHAR* GetName() const {
+	const TCHAR* GetName() const
+	{
 		return Name.GetTCHAR();
 	}
 
@@ -174,7 +175,8 @@ struct RENDERCORE_API FRenderGraphPass
 		return PassFlags;
 	}
 
-	bool IsCompute() const {
+	bool IsCompute() const
+	{
 		return (PassFlags & ERenderGraphPassFlags::Compute) == ERenderGraphPassFlags::Compute;
 	}
 	
@@ -466,7 +468,7 @@ public:
 			 */
 			checkf(
 				AllocatedUnusedPassParameters.Contains(static_cast<void *>(ParameterStruct)),
-				TEXT("The pass parameter structure has not been alloctaed for correct life time FRDGBuilder::AllocParameters() or has already ")
+				TEXT("The pass parameter structure has not been allocated for correct life time FRDGBuilder::AllocParameters() or has already ")
 				TEXT("been used by another previous FRDGBuilder::AddPass()."));
 
 			AllocatedUnusedPassParameters.Remove(static_cast<void *>(ParameterStruct));

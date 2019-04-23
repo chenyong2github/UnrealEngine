@@ -21,7 +21,6 @@ Texture2D DepthTexture;
 
 RWTexture2D<float4>	OutVelocityFlatTexture;
 RWTexture2D<float4>	OutVelocityTileTexture;
-RWTexture2D<float4>	OutDilatedVelocityTileTexture;
 
 SCREEN_PASS_TEXTURE_VIEWPORT(Velocity)
 SCREEN_PASS_TEXTURE_VIEWPORT(VelocityTile)
@@ -212,7 +211,7 @@ void VelocityGatherCS(
 	BRANCH
 	if (all(PixelPos.xy < VelocityTile_ViewportMax))
 	{
-		OutDilatedVelocityTileTexture[PixelPos] = MinMaxVelocity;
+		OutVelocityTileTexture[PixelPos] = MinMaxVelocity;
 	}
 }
 

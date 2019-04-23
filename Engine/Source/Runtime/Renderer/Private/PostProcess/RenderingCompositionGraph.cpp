@@ -1179,14 +1179,34 @@ FRDGTextureRef FRenderingCompositePass::CreateRDGTextureForInput(
 		InputName);
 }
 
-void FRenderingCompositePass::ExtractRDGTextureForOutput(
-	FRDGBuilder& GraphBuilder,
-	EPassOutputId OutputId,
-	FRDGTextureRef Texture)
+void FRenderingCompositePass::ExtractRDGTextureForOutput(FRDGBuilder& GraphBuilder, EPassOutputId OutputId, FRDGTextureRef Texture)
 {
 	if (FRenderingCompositeOutput* Output = GetOutput(OutputId))
 	{
 		Output->RenderTargetDesc = Texture->Desc;
 		GraphBuilder.QueueTextureExtraction(Texture, &Output->PooledRenderTarget, false);
 	}
+}
+
+FRDGTextureRef FRenderingCompositePass::FindOrCreateRDGTextureForOutput(
+	FRDGBuilder& GraphBuilder,
+	EPassOutputId OutputId,
+	const FRDGTextureDesc& TextureDesc,
+	const TCHAR* TextureName)
+{
+	if (FRenderingCompositeOutput* Output = GetOutput(OutputId))
+	{
+		const TRefCountPtr<IPooledRenderTarget>& ExistingTarget = Output->PooledRenderTarget;
+
+		if (ExistingTarget)
+		{
+			return GraphBuilder.RegisterExternalTexture(ExistingTarget, TextureName);
+		}
+		else
+		{
+			return GraphBuilder.CreateTexture(TextureDesc, TextureName);
+		}
+	}
+
+	return nullptr;
 }

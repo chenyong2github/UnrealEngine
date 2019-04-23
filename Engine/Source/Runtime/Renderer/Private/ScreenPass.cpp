@@ -104,29 +104,6 @@ FScreenPassTextureViewportParameters GetScreenPassTextureViewportParameters(cons
 	return Parameters;
 }
 
-FScreenPassTexture FScreenPassTexture::Create(FRDGTextureRef InTexture, FIntRect InViewport)
-{
-	check(InTexture);
-
-	FScreenPassTexture Texture;
-	Texture.Texture = InTexture;
-	Texture.Viewport = FScreenPassTextureViewport(InViewport, InTexture->Desc.Extent);
-	return Texture;
-}
-
-FScreenPassTexture FScreenPassTexture::CreateFullscreen(FRDGTextureRef InTexture)
-{
-	check(InTexture);
-
-	const FIntPoint Extent = InTexture->Desc.Extent;
-	const FIntRect PixelViewRect = FIntRect(FIntPoint::ZeroValue, Extent);
-
-	FScreenPassTexture Texture;
-	Texture.Texture = InTexture;
-	Texture.Viewport = FScreenPassTextureViewport(PixelViewRect, Extent);
-	return Texture;
-}
-
 FScreenPassTextureViewportTransform GetScreenPassTextureViewportTransform(
 	FVector2D SourceOffset,
 	FVector2D SourceExtent,
@@ -151,26 +128,10 @@ FScreenPassTextureViewportTransform GetScreenPassTextureViewportTransform(
 	return GetScreenPassTextureViewportTransform(SourceUVOffset, SourceUVExtent, DestinationUVOffset, DestinationUVExtent);
 }
 
-FScreenPassCommonParameters GetScreenPassCommonParameters(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
-{
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
-	FScreenPassCommonParameters Parameters;
-	Parameters.BilinearTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-	Parameters.ViewUniformBuffer = View.ViewUniformBuffer;
-	Parameters.SceneUniformBuffer = CreateSceneTextureUniformBuffer(
-		SceneContext, View.FeatureLevel, ESceneTextureSetupMode::All, EUniformBufferUsage::UniformBuffer_SingleFrame);
-	return Parameters;
-}
-
-FScreenPassContext::FScreenPassContext(FRHICommandListImmediate& RHICmdList, const FViewInfo& InView)
+FScreenPassViewInfo::FScreenPassViewInfo(const FViewInfo& InView)
 	: View(InView)
-	, ViewFamily(*View.Family)
-	, ViewState(View.ViewState)
+	, ScreenPassVS(View.ShaderMap)
 	, StereoPass(View.StereoPass)
 	, bHasHMDMask(IsHMDHiddenAreaMaskActive())
 	, bUseComputePasses(ShouldDoComputePostProcessing(InView))
-	, ShaderMap(View.ShaderMap)
-	, ScreenPassVS(View.ShaderMap)
-	, ScreenPassCommonParameters(GetScreenPassCommonParameters(RHICmdList, View))
 {}

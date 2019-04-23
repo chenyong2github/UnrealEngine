@@ -1757,44 +1757,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		ServiceLocalQueue();
 
-		{
-			FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
-
-			FRDGBuilder GraphBuilder(RHICmdList);
-
-			FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneRenderTargets.GetSceneColor(), TEXT("SceneColor"));
-
-			// Post-lighting composition lighting stage
-			// e.g. ScreenSpaceSubsurfaceScattering
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-			{
-				RDG_EVENT_SCOPE(GraphBuilder, "SubsurfaceScattering(ViewId=%d)", ViewIndex);
-
-				const FViewInfo& View = Views[ViewIndex];
-
-				if (IsSubsurfaceRequiredForView(View))
-				{
-					FScreenPassContext* Context = GraphBuilder.AllocObject<FScreenPassContext>(RHICmdList, View);
-
-					const FScreenPassTexture Input = FScreenPassTexture::Create(SceneColorTexture, View.ViewRect);
-
-					const FScreenPassTexture Output = ComputeSubsurface(GraphBuilder, Context, Input);
-
-					SceneColorTexture = Output.GetRDGTexture();
-				}
-			}
-
-			// Extract the result texture out and re-assign it to the scene render targets blackboard.
-			TRefCountPtr<IPooledRenderTarget> SceneColorTarget;
-			GraphBuilder.QueueTextureExtraction(SceneColorTexture, &SceneColorTarget, false);
-			GraphBuilder.Execute();
-
-			SceneRenderTargets.SetSceneColor(SceneColorTarget);
-
-			// The RT should be released as early as possible to allow sharing of that memory for other purposes.
-			// This becomes even more important with some limited VRam (XBoxOne).
-			SceneRenderTargets.SetLightAttenuation(nullptr);
-		}
+		ComputeSubsurfaceShim(RHICmdList, Views);
 
 #if RHI_RAYTRACING
 		if (SkyLightRT)

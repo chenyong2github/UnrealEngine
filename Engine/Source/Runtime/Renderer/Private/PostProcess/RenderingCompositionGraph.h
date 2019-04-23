@@ -348,6 +348,16 @@ struct FRenderingCompositePass
 		EFallbackColor FallbackColor);
 
 	/**
+	 * Attempts to find an persistent render target allocated for the output, or creates
+	 * a new one with the provided descriptor.
+	 */
+	FRDGTextureRef FindOrCreateRDGTextureForOutput(
+		FRDGBuilder& GraphBuilder,
+		EPassOutputId OutputId,
+		const FRDGTextureDesc& TextureDesc,
+		const TCHAR* TextureName);
+
+	/**
 	 * Registers a RDG texture to be extracted to the assigned output during graph execution.
 	 */
 	void ExtractRDGTextureForOutput(

@@ -74,7 +74,6 @@ SamplerState BilinearTextureSampler;
 
 // transforms ScreenPos to the screen pixel position, not the viewport local position (*xy +wz)
 // (0,0) left top, (width-1,height-1) at right bottom, in pixels (without offset to reach the pixel center)
-// 	use ComputePixelPosCenter(UVAndScreenPos.zw, bPixelCenter) instead of directly accessing this
 float4 ScreenPosToPixel;
 
 float4 SceneColorBufferUVViewport;
@@ -84,24 +83,6 @@ float4 SceneColorBufferUVViewport;
 float2 ViewportUVToPostProcessingSceneColorBufferUV(float2 ViewportUV)
 {
 	return ViewportUV * SceneColorBufferUVViewport.xy + SceneColorBufferUVViewport.zw;
-}
-
-// uses ScreenPosToPixel which is setup in FPostProcessPassParameters
-// for integer output bPixelCenter should be set to true (to avoid rounding errors), but often it's better to use "int2 PixelPos = (int2)SvPosition.xy;" instead
-// @param ScreenPos -1 .. 1, usually from UVAndScreenPos.zw
-// @param bCenter false: left top of the pixel and almost no fractional value, true: added 0.5 to be pixel center
-float2 ComputePixelPosCenter(float2 ScreenPos, bool bPixelCenter)
-{
-	float2 PixelOffset = bPixelCenter ? 0.5f : 0.0f;
-	return ScreenPos * ScreenPosToPixel.xy + ScreenPosToPixel.zw + PixelOffset;
-}
-
-// not well optimized but can be useful
-float2 ScreenPosFromPixelPos(float2 PixelPos, bool bPixelCenter)
-{
-	float2 PixelOffset = bPixelCenter ? 0.5f : 0.0f;
-
-	return (PixelPos - PixelOffset - ScreenPosToPixel.zw) / ScreenPosToPixel.xy;
 }
 
 // shape of the lens for vignette like effects and masking

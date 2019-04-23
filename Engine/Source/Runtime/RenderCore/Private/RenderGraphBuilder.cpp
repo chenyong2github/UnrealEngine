@@ -1485,7 +1485,7 @@ FRDGBuilder::~FRDGBuilder()
 
 	#if RENDER_GRAPH_DEBUGGING
 	{
-		checkf(bHasExecuted, TEXT("Render graph execution si required to ensure consistency with immediate mode."));
+		checkf(bHasExecuted, TEXT("Render graph execution is required to ensure consistency with immediate mode."));
 	}
 	#endif
 }
