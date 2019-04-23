@@ -27,4 +27,7 @@ private:
 	TSharedPtr< class SWidget > ContainerWidget;
 	TSharedPtr< class SSCSEditor > SCSEditor;
 	TSharedPtr< class SKismetInspector > Inspector;
+
+	/** Blueprint we are inspecting */
+	UBlueprint* Blueprint;
 };

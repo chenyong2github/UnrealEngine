@@ -83,7 +83,7 @@ public:
 	 *
 	 * @return The component template that can be editable for actual class.
 	 */
-	virtual UActorComponent* GetOrCreateEditableComponentTemplate(UBlueprint* ActualEditedBlueprint);
+	virtual UActorComponent* GetOrCreateEditableComponentTemplate(UBlueprint* ActualEditedBlueprint) const;
 	/**
 	 * Finds the component instance represented by this node contained within a given Actor instance.
 	 *
@@ -109,6 +109,7 @@ public:
 	 *								have been reinstanced following construction script execution).
 	 *
 	 * @note	Deliberately non-virtual, for performance reasons.
+	 * @warning This will not return the right component for components overridden by the inherited component handler, you need to call GetOrCreateEditableComponentTemplate instead
 	 * @return	The component template or instance represented by this node, if it's a component node.
 	 */
 	UActorComponent* GetComponentTemplate(bool bEvenIfPendingKill = false) const;
@@ -385,7 +386,7 @@ public:
 	//virtual FName GetVariableName() const override;
 	//virtual FString GetDisplayString() const override;
 	virtual FText GetDisplayName() const override;
-	virtual UActorComponent* GetOrCreateEditableComponentTemplate(UBlueprint* ActualEditedBlueprint) override;
+	virtual UActorComponent* GetOrCreateEditableComponentTemplate(UBlueprint* ActualEditedBlueprint) const override;
 	// End of FSCSEditorTreeNode public interface
 
 private:
@@ -416,7 +417,7 @@ public:
 	virtual FName GetVariableName() const override { return NAME_None; }
 	virtual FString GetDisplayString() const override;
 	virtual FText GetDisplayName() const override;
-	virtual UActorComponent* GetOrCreateEditableComponentTemplate(UBlueprint* ActualEditedBlueprint) override;
+	virtual UActorComponent* GetOrCreateEditableComponentTemplate(UBlueprint* ActualEditedBlueprint) const override;
 	virtual void OnCompleteRename(const FText& InNewName) override;
 	// End of FSCSEditorTreeNode public interface
 
@@ -464,7 +465,7 @@ public:
 	//virtual FString GetDisplayString() const override;
 	virtual FText GetDisplayName() const override;
 	virtual class USCS_Node* GetSCSNode() const override;
-	virtual UActorComponent* GetOrCreateEditableComponentTemplate(UBlueprint* ActualEditedBlueprint) override;
+	virtual UActorComponent* GetOrCreateEditableComponentTemplate(UBlueprint* ActualEditedBlueprint) const override;
 	virtual void OnCompleteRename(const FText& InNewName) override;
 	// End of FSCSEditorTreeNode public interface
 

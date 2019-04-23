@@ -644,10 +644,20 @@ TArray<FPropertySoftPath> DiffUtils::GetVisiblePropertiesInOrderDeclared(const U
 					NewPath.Push(PropertyIt->GetFName());
 					if (const UObjectProperty* ObjectProperty = Cast<UObjectProperty>(*PropertyIt))
 					{
+						bool bShouldRecurse = false;
 						const UObject* const* BaseObject = reinterpret_cast<const UObject* const*>( ObjectProperty->ContainerPtrToValuePtr<void>(ForObj) );
 						if (BaseObject && *BaseObject)
 						{
-							Ret.Append( GetVisiblePropertiesInOrderDeclared(*BaseObject, NewPath) );
+							// See if this is an object in the package, if so recurse into it
+							if ((*BaseObject)->IsIn(ForObj->GetOutermost()))
+							{
+								bShouldRecurse = true;
+								Ret.Append(GetVisiblePropertiesInOrderDeclared(*BaseObject, NewPath));
+							}
+						}
+						if (!bShouldRecurse)
+						{
+							Ret.Push(NewPath);
 						}
 					}
 					else
