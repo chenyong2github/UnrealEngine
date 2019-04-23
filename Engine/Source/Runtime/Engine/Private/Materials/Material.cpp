@@ -3121,9 +3121,7 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 			}
 		}
 
-		// Material reload can call this function again. Don't recreate since mesh
-		// draw commands cache a pointer to the uniform buffer
-		RecacheUniformExpressions(!FPlatformProperties::RequiresCookedData());
+		RecacheUniformExpressions(true);
 	}
 
 	if (ResourcesToFree.Num())
