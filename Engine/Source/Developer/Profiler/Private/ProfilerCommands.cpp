@@ -302,7 +302,7 @@ void FProfilerActionManager::ToggleDataCapture_Execute( const FGuid SessionInsta
 		EAppReturnType::Type Result = FPlatformMisc::MessageBoxExt
 		( 
 			EAppMsgType::YesNo, 
-			*LOCTEXT("TransferServiceSideCaptureQuestion", "Would like to transfer the captured stats file(s) to this machine? This may take some time.").ToString(), 
+			*LOCTEXT("TransferServiceSideCaptureQuestion", "Would you like to transfer the captured stats file(s) to this machine? This may take some time.").ToString(), 
 			*LOCTEXT("Question", "Question").ToString() 
 		);
 
