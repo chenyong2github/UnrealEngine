@@ -486,6 +486,13 @@ public:
 	void DeleteNode(TSharedRef<FSequencerDisplayNode> NodeToBeDeleted);
 	void DeleteSelectedNodes();
 
+	/** @return The list of nodes which must be moved to move the current selected nodes */
+	TArray<TSharedRef<FSequencerDisplayNode> > GetSelectedNodesToMove();
+
+	/** Called when a user executes the move to new folder menu item */
+	void MoveSelectedNodesToNewFolder();
+	void MoveNodeToFolder(TSharedRef<FSequencerDisplayNode> NodeToMove, UMovieSceneFolder* DestinationFolder);
+
 	/** Called when a user executes the copy track menu item */
 	void CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNode>>& ObjectNodes, /*out*/ FString& ExportedText);
 	void CopySelectedTracks(TArray<TSharedPtr<FSequencerTrackNode>>& TrackNodes, /*out*/ FString& ExportedText);

@@ -810,6 +810,7 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.EndSection();
 
 	TArray<UMovieSceneTrack*> AllTracks;
+	TArray<TSharedRef<FSequencerDisplayNode> > DragableNodes;
 	for (TSharedRef<FSequencerDisplayNode> Node : GetSequencer().GetSelection().GetSelectedOutlinerNodes())
 	{
 		if (Node->GetType() == ESequencerNode::Track)
@@ -820,8 +821,26 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				AllTracks.Add(Track);
 			}
 		}
+
+		if (Node->CanDrag())
+		{
+			DragableNodes.Add(Node);
+		}
 	}
-	
+
+	MenuBuilder.BeginSection("Organize", LOCTEXT("OrganizeContextMenuSectionName", "Organize"));
+	{
+		if (DragableNodes.Num())
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("MoveTracksToNewFolder", "Move to New Folder"),
+				LOCTEXT("MoveTracksToNewFolderTooltip", "Move the selected tracks to a new folder."),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"),
+				FUIAction(FExecuteAction::CreateSP(&GetSequencer(), &FSequencer::MoveSelectedNodesToNewFolder)));
+		}
+	}
+	MenuBuilder.EndSection();
+
 	if (AllTracks.Num())
 	{
 		MenuBuilder.BeginSection("GeneralTrackOptions", NSLOCTEXT("Sequencer", "TrackNodeGeneralOptions", "Track Options"));
