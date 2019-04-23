@@ -660,6 +660,10 @@ FActiveSound* FSoundConcurrencyManager::CreateAndEvictActiveSounds(const FActive
 			if (FAudioVirtualLoop::Virtualize(*SoundToEvict, bDoRangeCheck, VirtualLoop))
 			{
 				SoundToEvict->ClearAudioComponent();
+				if (USoundBase* Sound = SoundToEvict->GetSound())
+				{
+					UE_LOG(LogAudio, Verbose, TEXT("Playing ActiveSound %s Virtualizing: Evicted due to concurrency rules."), *Sound->GetName());
+				}
 				AudioDevice->AddVirtualLoop(VirtualLoop);
 			}
 		}
