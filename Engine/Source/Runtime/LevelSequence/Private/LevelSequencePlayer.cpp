@@ -339,9 +339,14 @@ void ULevelSequencePlayer::TakeFrameSnapshot(FLevelSequencePlayerSnapshot& OutSn
 	OutSnapshot.CurrentShotLocalTime = FQualifiedFrameTime(CurrentPlayTime, PlayPosition.GetInputRate());
 	OutSnapshot.CameraComponent = CachedCameraComponent.IsValid() ? CachedCameraComponent.Get() : nullptr;
 	OutSnapshot.ShotID = MovieSceneSequenceID::Invalid;
-	OutSnapshot.ActiveShot = nullptr;
 
-	UMovieSceneCinematicShotTrack* ShotTrack = Sequence->GetMovieScene()->FindMasterTrack<UMovieSceneCinematicShotTrack>();
+	OutSnapshot.ActiveShot = Cast<ULevelSequence>(Sequence);
+
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+
+	OutSnapshot.SourceTimecode = MovieScene->TimecodeSource.Timecode.ToString();
+
+	UMovieSceneCinematicShotTrack* ShotTrack = MovieScene->FindMasterTrack<UMovieSceneCinematicShotTrack>();
 	if (ShotTrack)
 	{
 		UMovieSceneCinematicShotSection* ActiveShot = nullptr;
