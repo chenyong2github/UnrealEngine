@@ -495,7 +495,7 @@ bool FWindowsPlatformProcess::GetApplicationMemoryUsage(uint32 ProcessId, SIZE_T
 	return bSuccess;
 }
 
-bool FWindowsPlatformProcess::GetPerFrameProcessorUsage(uint32 ProcessId, float& ProcessUsageFraction, float& OtherUsageFraction, float& IdleUsageFraction)
+bool FWindowsPlatformProcess::GetPerFrameProcessorUsage(uint32 ProcessId, float& ProcessUsageFraction, float& IdleUsageFraction)
 {
 	bool bSuccess = true;
 
@@ -580,11 +580,10 @@ bool FWindowsPlatformProcess::GetPerFrameProcessorUsage(uint32 ProcessId, float&
 	{
 		ProcessUsageFraction = LastProcessTime;
 		IdleUsageFraction = LastIdleTime;
-		OtherUsageFraction = FMath::Clamp(1.f - (LastProcessTime + LastIdleTime), 0.f, 1.f);
 	}
 	else
 	{
-		ProcessUsageFraction = OtherUsageFraction = IdleUsageFraction = 0.f;
+		ProcessUsageFraction = IdleUsageFraction = 0.f;
 	}
 
 	return bSuccess;
