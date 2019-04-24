@@ -4540,6 +4540,7 @@ void SSCSEditor::UpdateTree(bool bRegenerateTreeNodes)
 		RootNodes.Empty();
 
 		TSharedPtr<FSCSEditorTreeNode> ActorTreeNode = MakeShareable(new FSCSEditorTreeNodeRootActor(GetActorContext(),EditorMode == EComponentEditorMode::ActorInstance));
+		RefreshFilteredState(ActorTreeNode, false);
 		SCSTreeWidget->SetItemExpansion(ActorTreeNode, true);
 		RootNodes.Add(ActorTreeNode);
 
