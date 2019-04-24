@@ -5,26 +5,8 @@
 =============================================================================*/
 
 #include "DeferredShadingRenderer.h"
-#include "RayTracingOptions.h"
 
 static int32 GRayTracingSkyLight = 0;
-
-#if RHI_RAYTRACING
-bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProxy)
-{
-	if (SkyLightSceneProxy != nullptr)
-	{
-		const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
-		const bool bRayTracingSkyEnabled = (ForceAllRayTracingEffects > 0 || (SkyLightSceneProxy->bCastRayTracedShadow > 0 && ForceAllRayTracingEffects < 0));
-
-		return IsRayTracingEnabled() && bRayTracingSkyEnabled;
-	}
-	else
-	{
-		return false;
-	}
-}
-#endif
 
 #if RHI_RAYTRACING
 
@@ -85,6 +67,21 @@ static TAutoConsoleVariable<int32> CVarRayTracingSkyLightEnableTwoSidedGeometry(
 	TEXT("Enables two-sided geometry when tracing shadow rays (default = 0)"),
 	ECVF_RenderThreadSafe
 );
+
+bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProxy)
+{
+	if (SkyLightSceneProxy != nullptr)
+	{
+		const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
+		const bool bRayTracingSkyEnabled = (ForceAllRayTracingEffects > 0 || (SkyLightSceneProxy->bCastRayTracedShadow > 0 && ForceAllRayTracingEffects < 0));
+
+		return IsRayTracingEnabled() && bRayTracingSkyEnabled;
+	}
+	else
+	{
+		return false;
+	}
+}
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyLightData, "SkyLight");
 
