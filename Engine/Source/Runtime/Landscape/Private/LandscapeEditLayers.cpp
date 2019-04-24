@@ -1282,7 +1282,7 @@ void ALandscape::CreateLayersRenderingResource(const FIntPoint& InComponentCount
 
 		for (int32 i = 0; i < EHeightmapRTType::HeightmapRT_Count; ++i)
 		{
-			Landscape->HeightmapRTList[i] = NewObject<UTextureRenderTarget2D>(Landscape->GetOutermost());
+			Landscape->HeightmapRTList[i] = NewObject<UTextureRenderTarget2D>(Landscape);
 			check(Landscape->HeightmapRTList[i]);
 			Landscape->HeightmapRTList[i]->RenderTargetFormat = RTF_RGBA8;
 			Landscape->HeightmapRTList[i]->AddressX = TextureAddress::TA_Clamp;
@@ -1344,7 +1344,7 @@ void ALandscape::CreateLayersRenderingResource(const FIntPoint& InComponentCount
 
 		for (int32 i = 0; i < EWeightmapRTType::WeightmapRT_Count; ++i)
 		{
-			Landscape->WeightmapRTList[i] = NewObject<UTextureRenderTarget2D>(Landscape->GetOutermost());
+			Landscape->WeightmapRTList[i] = NewObject<UTextureRenderTarget2D>(Landscape);
 
 			check(Landscape->WeightmapRTList[i]);
 			Landscape->WeightmapRTList[i]->AddressX = TextureAddress::TA_Clamp;
@@ -3102,7 +3102,7 @@ void ALandscape::ReallocateLayersWeightmaps(const TArray<ULandscapeLayerInfoObje
 
 	for (ULandscapeComponent* Component : AllLandscapeComponents)
 	{
-		Component->ReallocateWeightmaps(nullptr, false, false, true, &NewCreatedTextures);
+		Component->ReallocateWeightmaps(nullptr, false, false, true, false, nullptr, &NewCreatedTextures);
 	}
 
 	// TODO: correctly only recreate what is required instead of everything..
@@ -3790,7 +3790,7 @@ void ALandscape::UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*
 				if (NeedToCreateMIC)
 				{
 					// Create the instance for this component, that will use the layer combination instance.
-					MaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(GetOutermost());
+					MaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(this);
 					Component->MaterialInstances[MaterialIndex] = MaterialInstance;
 				}
 
@@ -3828,7 +3828,7 @@ void ALandscape::UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*
 
 					if (NeedToCreateMIC || TessellationMaterialInstance == nullptr)
 					{
-						TessellationMaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(GetOutermost());
+						TessellationMaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(this);
 						TessellationMaterialInstance->SetParentEditorOnly(MaterialInstance);
 
 						MaterialInstances[TessellatedMaterialIndex] = TessellationMaterialInstance;
