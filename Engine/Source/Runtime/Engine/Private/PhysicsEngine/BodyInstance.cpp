@@ -104,7 +104,7 @@ FCollisionResponse::FCollisionResponse(ECollisionResponse DefaultResponse)
 }
 
 /** Set the response of a particular channel in the structure. */
-void FCollisionResponse::SetResponse(ECollisionChannel Channel, ECollisionResponse NewResponse)
+bool FCollisionResponse::SetResponse(ECollisionChannel Channel, ECollisionResponse NewResponse)
 {
 #if 1// @hack until PostLoad is disabled for CDO of BP WITH_EDITOR
 	ECollisionResponse DefaultResponse = FCollisionResponseContainer::GetDefaultResponseContainer().GetResponse(Channel);
@@ -118,34 +118,47 @@ void FCollisionResponse::SetResponse(ECollisionChannel Channel, ECollisionRespon
 	}
 #endif
 
-	ResponseToChannels.SetResponse(Channel, NewResponse);
+	return ResponseToChannels.SetResponse(Channel, NewResponse);
 }
 
 /** Set all channels to the specified response */
-void FCollisionResponse::SetAllChannels(ECollisionResponse NewResponse)
+bool FCollisionResponse::SetAllChannels(ECollisionResponse NewResponse)
 {
-	ResponseToChannels.SetAllChannels(NewResponse);
+	if (ResponseToChannels.SetAllChannels(NewResponse))
+	{
 #if 1// @hack until PostLoad is disabled for CDO of BP WITH_EDITOR
-	UpdateArrayFromResponseContainer();
+		UpdateArrayFromResponseContainer();
 #endif
+		return true;
+	}
+	return false;
 }
 
-void FCollisionResponse::ReplaceChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse)
+bool FCollisionResponse::ReplaceChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse)
 {
-	ResponseToChannels.ReplaceChannels(OldResponse, NewResponse);
+	if (ResponseToChannels.ReplaceChannels(OldResponse, NewResponse))
+	{
 #if 1// @hack until PostLoad is disabled for CDO of BP WITH_EDITOR
-	UpdateArrayFromResponseContainer();
+		UpdateArrayFromResponseContainer();
 #endif
+		return true;
+	}
+	return false;
 }
 
 /** Set all channels from ChannelResponse Array **/
-void FCollisionResponse::SetCollisionResponseContainer(const FCollisionResponseContainer& InResponseToChannels)
+bool FCollisionResponse::SetCollisionResponseContainer(const FCollisionResponseContainer& InResponseToChannels)
 {
-	ResponseToChannels = InResponseToChannels;
+	if (ResponseToChannels != InResponseToChannels)
+	{
+		ResponseToChannels = InResponseToChannels;
 #if 1// @hack until PostLoad is disabled for CDO of BP WITH_EDITOR
-	// this is only valid case that has to be updated
-	UpdateArrayFromResponseContainer();
+		// this is only valid case that has to be updated
+		UpdateArrayFromResponseContainer();
 #endif
+		return true;
+	}
+	return false;
 }
 
 void FCollisionResponse::SetResponsesArray(const TArray<FResponseChannel>& InChannelResponses)
@@ -460,32 +473,52 @@ void FBodyInstance::InvalidateCollisionProfileName()
 	bPendingCollisionProfileSetup = false;
 }
 
-void FBodyInstance::SetResponseToChannel(ECollisionChannel Channel, ECollisionResponse NewResponse)
+bool FBodyInstance::SetResponseToChannel(ECollisionChannel Channel, ECollisionResponse NewResponse)
 {
-	InvalidateCollisionProfileName();
-	CollisionResponses.SetResponse(Channel, NewResponse);
-	UpdatePhysicsFilterData();
+	if (CollisionResponses.SetResponse(Channel, NewResponse))
+	{
+		InvalidateCollisionProfileName();
+		UpdatePhysicsFilterData();
+		return true;
+	}
+
+	return false;
 }
 
-void FBodyInstance::SetResponseToAllChannels(ECollisionResponse NewResponse)
+bool FBodyInstance::SetResponseToAllChannels(ECollisionResponse NewResponse)
 {
-	InvalidateCollisionProfileName();
-	CollisionResponses.SetAllChannels(NewResponse);
-	UpdatePhysicsFilterData();
+	if (CollisionResponses.SetAllChannels(NewResponse))
+	{
+		InvalidateCollisionProfileName();
+		UpdatePhysicsFilterData();
+		return true;
+	}
+
+	return false;
 }
 	
-void FBodyInstance::ReplaceResponseToChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse)
+bool FBodyInstance::ReplaceResponseToChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse)
 {
-	InvalidateCollisionProfileName();
-	CollisionResponses.ReplaceChannels(OldResponse, NewResponse);
-	UpdatePhysicsFilterData();
+	if (CollisionResponses.ReplaceChannels(OldResponse, NewResponse))
+	{
+		InvalidateCollisionProfileName();
+		UpdatePhysicsFilterData();
+		return true;
+	}
+
+	return false;
 }
 
-void FBodyInstance::SetResponseToChannels(const FCollisionResponseContainer& NewReponses)
+bool FBodyInstance::SetResponseToChannels(const FCollisionResponseContainer& NewReponses)
 {
-	InvalidateCollisionProfileName();
-	CollisionResponses.SetCollisionResponseContainer(NewReponses);
-	UpdatePhysicsFilterData();
+	if (CollisionResponses.SetCollisionResponseContainer(NewReponses))
+	{
+		InvalidateCollisionProfileName();
+		UpdatePhysicsFilterData();
+		return true;
+	}
+
+	return false;
 }
 
 void FBodyInstance::SetObjectType(ECollisionChannel Channel)
