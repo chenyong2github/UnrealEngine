@@ -358,7 +358,8 @@ public:
 	{
 		checkSlow(Target.Frequency == SF_RayGen
 			   || Target.Frequency == SF_RayMiss
-			   || Target.Frequency == SF_RayHitGroup);
+			   || Target.Frequency == SF_RayHitGroup
+			   || Target.Frequency == SF_RayCallable);
 
 		if (!IsInitialized())
 		{
@@ -369,9 +370,7 @@ public:
 
 	inline uint32 GetRayTracingMaterialLibraryIndex()
 	{
-		checkSlow(Target.Frequency == SF_RayGen
-			|| Target.Frequency == SF_RayMiss
-			|| Target.Frequency == SF_RayHitGroup);
+		checkSlow(Target.Frequency == SF_RayHitGroup);
 
 		if (!IsInitialized())
 		{

@@ -71,6 +71,8 @@ public:
 
 	uint32 TotalPrimitiveCount = 0; // Combined number of primitives in all geometry instances
 
+	uint32 NumCallableShaderSlots = 0;
+
 	// #dxr_todo UE-68230: shader tables should be explicitly registered and unregistered with the scene
 	FD3D12RayTracingShaderTable* FindOrCreateShaderTable(const FD3D12RayTracingPipelineState* Pipeline);
 	FD3D12RayTracingShaderTable* FindExistingShaderTable(const FD3D12RayTracingPipelineState* Pipeline) const;

@@ -92,6 +92,7 @@ static bool IsRayTracingShader(const FShaderTarget& Target)
 	case SF_RayGen:
 	case SF_RayMiss:
 	case SF_RayHitGroup:
+	case SF_RayCallable:
 		return true;
 	default:
 		return false;
@@ -106,6 +107,7 @@ static uint32 GetAutoBindingSpace(const FShaderTarget& Target)
 	case SF_RayMiss:
 		return RAY_TRACING_REGISTER_SPACE_GLOBAL;
 	case SF_RayHitGroup:
+	case SF_RayCallable:
 		return RAY_TRACING_REGISTER_SPACE_LOCAL;
 	default:
 		return 0;
@@ -138,6 +140,7 @@ static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 		case SF_RayGen:
 		case SF_RayMiss:
 		case SF_RayHitGroup:
+		case SF_RayCallable:
 			return TEXT("lib_6_3");
 		}
 	}

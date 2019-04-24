@@ -34,8 +34,9 @@ enum EShaderFrequency
 	SF_RayGen			= 6,
 	SF_RayMiss			= 7,
 	SF_RayHitGroup		= 8,
+	SF_RayCallable		= 9,
 
-	SF_NumFrequencies	= 9,
+	SF_NumFrequencies	= 10,
 	SF_NumBits			= 4,
 };
 static_assert(SF_NumFrequencies <= (1 << SF_NumBits), "SF_NumFrequencies will not fit on SF_NumBits");
@@ -1204,6 +1205,7 @@ inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bI
 	case SF_RayGen:			String = TEXT("SF_RayGen"); break;
 	case SF_RayMiss:		String = TEXT("SF_RayMiss"); break;
 	case SF_RayHitGroup:	String = TEXT("SF_RayHitGroup"); break;
+	case SF_RayCallable:	String = TEXT("SF_RayCallable"); break;
 
 	default:
 		checkf(0, TEXT("Unknown ShaderFrequency %d"), (int32)Frequency);

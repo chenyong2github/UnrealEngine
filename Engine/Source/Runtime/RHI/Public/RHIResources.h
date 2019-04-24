@@ -2090,7 +2090,18 @@ public:
 			&& bAllowHitGroupIndexing == rhs.bAllowHitGroupIndexing
 			&& RayGenHash == rhs.RayGenHash
 			&& MissHash == rhs.MissHash
-			&& HitGroupHash == rhs.HitGroupHash;
+			&& HitGroupHash == rhs.HitGroupHash
+			&& CallableHash == rhs.CallableHash;
+	}
+
+	static friend uint32 GetTypeHash(const FRayTracingPipelineStateInitializer& Initializer)
+	{
+		return GetTypeHash(Initializer.MaxPayloadSizeInBytes) ^
+			GetTypeHash(Initializer.bAllowHitGroupIndexing) ^
+			GetTypeHash(Initializer.GetRayGenHash()) ^
+			GetTypeHash(Initializer.GetRayMissHash()) ^
+			GetTypeHash(Initializer.GetHitGroupHash()) ^
+			GetTypeHash(Initializer.GetCallableHash());
 	}
 
 	uint32 MaxPayloadSizeInBytes = 32; // sizeof FDefaultPayload declared in RayTracingCommon.ush
@@ -2100,6 +2111,7 @@ public:
 	const TArrayView<const FRayTracingShaderRHIParamRef>& GetRayGenTable()   const { return RayGenTable; }
 	const TArrayView<const FRayTracingShaderRHIParamRef>& GetMissTable()     const { return MissTable; }
 	const TArrayView<const FRayTracingShaderRHIParamRef>& GetHitGroupTable() const { return HitGroupTable; }
+	const TArrayView<const FRayTracingShaderRHIParamRef>& GetCallableTable() const { return CallableTable; }
 
 	// Shaders used as entry point to ray tracing work. At least one RayGen shader must be provided.
 	void SetRayGenShaderTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InRayGenShaders)
@@ -2125,9 +2137,18 @@ public:
 		HitGroupHash = ComputeShaderTableHash(HitGroupTable);
 	}
 
+	// Shaders that can be explicitly invoked from RayGen shaders by their Shader Binding Table (SBT) index.
+	// SetRayTracingCallableShader() command must be used to fill SBT slots before a shader can be called.
+	void SetCallableTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InCallableShaders)
+	{
+		CallableTable = InCallableShaders;
+		CallableHash = ComputeShaderTableHash(CallableTable);
+	}
+
 	uint64 GetHitGroupHash() const { return HitGroupHash; }
 	uint64 GetRayGenHash()   const { return RayGenHash; }
 	uint64 GetRayMissHash()  const { return MissHash; }
+	uint64 GetCallableHash() const { return CallableHash; }
 
 private:
 
@@ -2149,10 +2170,12 @@ private:
 	TArrayView<const FRayTracingShaderRHIParamRef> RayGenTable;
 	TArrayView<const FRayTracingShaderRHIParamRef> MissTable;
 	TArrayView<const FRayTracingShaderRHIParamRef> HitGroupTable;
+	TArrayView<const FRayTracingShaderRHIParamRef> CallableTable;
 
 	uint64 RayGenHash = 0;
 	uint64 MissHash = 0;
 	uint64 HitGroupHash = 0;
+	uint64 CallableHash = 0;
 };
 #endif // RHI_RAYTRACING
 

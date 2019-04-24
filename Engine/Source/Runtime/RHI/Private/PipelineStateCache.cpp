@@ -46,17 +46,6 @@ static inline uint32 GetTypeHash(const FGraphicsPipelineStateInitializer& Initia
 		^ Initializer.RenderTargetsEnabled ^ GetTypeHash(Initializer.RasterizerState) ^ GetTypeHash(Initializer.DepthStencilState);
 }
 
-#if RHI_RAYTRACING
-static inline uint32 GetTypeHash(const FRayTracingPipelineStateInitializer& Initializer)
-{
-	return GetTypeHash(Initializer.MaxPayloadSizeInBytes) ^
-		GetTypeHash(Initializer.bAllowHitGroupIndexing) ^
-		GetTypeHash(Initializer.GetRayGenHash()) ^
-		GetTypeHash(Initializer.GetRayMissHash()) ^
-		GetTypeHash(Initializer.GetHitGroupHash());
-}
-#endif
-
 static TAutoConsoleVariable<int32> GCVarAsyncPipelineCompile(
 	TEXT("r.AsyncPipelineCompile"),
 	1,

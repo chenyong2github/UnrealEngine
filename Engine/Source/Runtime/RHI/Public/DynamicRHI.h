@@ -130,6 +130,10 @@ struct FRayTracingSceneInitializer
 	// Desired hit shader can be selected by providing appropriate RayContributionToHitGroupIndex to TraceRay() function.
 	// Use ShaderSlot argument in SetRayTracingHitGroup() to assign shaders and resources for specific part of the shder binding table record.
 	uint32 ShaderSlotsPerGeometrySegment = 1;
+
+	// Defines how many different callable shaders with unique resource bindings can be bound to this scene.
+	// Shaders and resources are assigned to slots in the scene using SetRayTracingCallableShader().
+	uint32 NumCallableShaderSlots = 0;
 };
 
 /** The interface which is implemented by the dynamically bound RHI. */

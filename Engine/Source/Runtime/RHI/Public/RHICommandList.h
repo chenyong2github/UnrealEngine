@@ -1939,19 +1939,26 @@ struct FRHICommandRayTraceDispatch final : public FRHICommand<FRHICommandRayTrac
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandSetRayTracingHitGroup final : public FRHICommand<FRHICommandSetRayTracingHitGroup>
+struct FRHICommandSetRayTracingBindings final : public FRHICommand<FRHICommandSetRayTracingBindings>
 {
+	enum EBindingType
+	{
+		EBindingType_HitGroup,
+		EBindingType_CallableShader,
+	};
+
 	FRayTracingSceneRHIParamRef Scene;
 	uint32 InstanceIndex;
 	uint32 SegmentIndex;
 	uint32 ShaderSlot;
 	FRayTracingPipelineStateRHIParamRef Pipeline;
-	uint32 HitGroupIndex;
+	uint32 ShaderIndex;
 	uint32 NumUniformBuffers;
 	const FUniformBufferRHIParamRef* UniformBuffers; // Pointer to an array of uniform buffers, allocated inline within the command list
 	uint32 UserData;
+	EBindingType BindingType;
 
-	FRHICommandSetRayTracingHitGroup(FRayTracingSceneRHIParamRef InScene, uint32 InInstanceIndex, uint32 InSegmentIndex, uint32 InShaderSlot,
+	FRHICommandSetRayTracingBindings(FRayTracingSceneRHIParamRef InScene, uint32 InInstanceIndex, uint32 InSegmentIndex, uint32 InShaderSlot,
 		FRayTracingPipelineStateRHIParamRef InPipeline, uint32 InHitGroupIndex, uint32 InNumUniformBuffers, const FUniformBufferRHIParamRef* InUniformBuffers,
 		uint32 InUserData)
 		: Scene(InScene)
@@ -1959,10 +1966,28 @@ struct FRHICommandSetRayTracingHitGroup final : public FRHICommand<FRHICommandSe
 		, SegmentIndex(InSegmentIndex)
 		, ShaderSlot(InShaderSlot)
 		, Pipeline(InPipeline)
-		, HitGroupIndex(InHitGroupIndex)
+		, ShaderIndex(InHitGroupIndex)
 		, NumUniformBuffers(InNumUniformBuffers)
 		, UniformBuffers(InUniformBuffers)
 		, UserData(InUserData)
+		, BindingType(EBindingType_HitGroup)
+	{
+	}
+
+	FRHICommandSetRayTracingBindings(FRayTracingSceneRHIParamRef InScene, uint32 InShaderSlot,
+		FRayTracingPipelineStateRHIParamRef InPipeline, uint32 InShaderIndex, 
+		uint32 InNumUniformBuffers, const FUniformBufferRHIParamRef* InUniformBuffers,
+		uint32 InUserData)
+		: Scene(InScene)
+		, InstanceIndex(0)
+		, SegmentIndex(0)
+		, ShaderSlot(InShaderSlot)
+		, Pipeline(InPipeline)
+		, ShaderIndex(InShaderIndex)
+		, NumUniformBuffers(InNumUniformBuffers)
+		, UniformBuffers(InUniformBuffers)
+		, UserData(InUserData)
+		, BindingType(EBindingType_CallableShader)
 	{
 	}
 
@@ -3031,7 +3056,33 @@ public:
 				}
 			}
 
-			ALLOC_COMMAND(FRHICommandSetRayTracingHitGroup)(Scene, InstanceIndex, SegmentIndex, ShaderSlot, Pipeline, HitGroupIndex, NumUniformBuffers, InlineUniformBuffers, UserData);
+			ALLOC_COMMAND(FRHICommandSetRayTracingBindings)(Scene, InstanceIndex, SegmentIndex, ShaderSlot, Pipeline, HitGroupIndex, NumUniformBuffers, InlineUniformBuffers, UserData);
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetRayTracingCallableShader(
+		FRayTracingSceneRHIParamRef Scene, uint32 ShaderSlotInScene,
+		FRayTracingPipelineStateRHIParamRef Pipeline, uint32 ShaderIndexInPipeline,
+		uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
+		uint32 UserData)
+	{
+		if (Bypass())
+		{
+			GetContext().RHISetRayTracingCallableShader(Scene, ShaderSlotInScene, Pipeline, ShaderIndexInPipeline, NumUniformBuffers, UniformBuffers, UserData);
+		}
+		else
+		{
+			FUniformBufferRHIParamRef* InlineUniformBuffers = nullptr;
+			if (NumUniformBuffers)
+			{
+				InlineUniformBuffers = (FUniformBufferRHIParamRef*)Alloc(sizeof(FUniformBufferRHIParamRef) * NumUniformBuffers, alignof(FUniformBufferRHIParamRef));
+				for (uint32 Index = 0; Index < NumUniformBuffers; ++Index)
+				{
+					InlineUniformBuffers[Index] = UniformBuffers[Index];
+				}
+			}
+
+			ALLOC_COMMAND(FRHICommandSetRayTracingBindings)(Scene, ShaderSlotInScene, Pipeline, ShaderIndexInPipeline, NumUniformBuffers, InlineUniformBuffers, UserData);
 		}
 	}
 

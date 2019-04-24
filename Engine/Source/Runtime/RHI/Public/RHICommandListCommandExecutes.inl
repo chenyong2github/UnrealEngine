@@ -66,7 +66,7 @@ struct FRHICommandBuildAccelerationStructure;
 struct FRHICommandRayTraceOcclusion;
 struct FRHICommandRayTraceIntersection;
 struct FRHICommandRayTraceDispatch;
-struct FRHICommandSetRayTracingHitGroup;
+struct FRHICommandSetRayTracingBindings;
 
 enum class ECmdList;
 template <typename TShaderRHIParamRef> struct FRHICommandSetLocalUniformBuffer;
@@ -575,10 +575,17 @@ void FRHICommandRayTraceDispatch::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHIRayTraceDispatch)(Pipeline, RayGenShader, Scene, GlobalResourceBindings, Width, Height);
 }
 
-void FRHICommandSetRayTracingHitGroup::Execute(FRHICommandListBase& CmdList)
+void FRHICommandSetRayTracingBindings::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(SetRayTracingHitGroup);
-	INTERNAL_DECORATOR(RHISetRayTracingHitGroup)(Scene, InstanceIndex, SegmentIndex, ShaderSlot, Pipeline, HitGroupIndex, NumUniformBuffers, UniformBuffers, UserData);
+	if (BindingType == EBindingType_HitGroup)
+	{
+		INTERNAL_DECORATOR(RHISetRayTracingHitGroup)(Scene, InstanceIndex, SegmentIndex, ShaderSlot, Pipeline, ShaderIndex, NumUniformBuffers, UniformBuffers, UserData);
+	}
+	else
+	{
+		INTERNAL_DECORATOR(RHISetRayTracingCallableShader)(Scene, ShaderSlot, Pipeline, ShaderIndex, NumUniformBuffers, UniformBuffers, UserData);
+	}
 }
 
 #endif // RHI_RAYTRACING

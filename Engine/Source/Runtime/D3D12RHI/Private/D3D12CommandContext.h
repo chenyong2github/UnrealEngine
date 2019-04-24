@@ -354,6 +354,11 @@ public:
 		FRayTracingPipelineStateRHIParamRef Pipeline, uint32 HitGroupIndex,
 		uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
 		uint32 UserData) final override;
+	virtual void RHISetRayTracingCallableShader(
+		FRayTracingSceneRHIParamRef Scene, uint32 ShaderSlotInScene,
+		FRayTracingPipelineStateRHIParamRef Pipeline, uint32 ShaderIndexInPipeline,
+		uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
+		uint32 UserData) final override;
 #endif // D3D12_RHI_RAYTRACING
 
 	template<typename ObjectType, typename RHIType, typename Predicate>

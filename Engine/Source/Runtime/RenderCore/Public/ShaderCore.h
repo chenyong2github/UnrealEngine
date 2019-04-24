@@ -64,7 +64,7 @@ DECLARE_MEMORY_STAT_EXTERN(TEXT("Shader MapMemory"),STAT_Shaders_ShaderMapMemory
 
 inline TStatId GetMemoryStatType(EShaderFrequency ShaderFrequency)
 {
-	static_assert(9 == SF_NumFrequencies, "EShaderFrequency has a bad size.");
+	static_assert(10 == SF_NumFrequencies, "EShaderFrequency has a bad size.");
 
 	switch(ShaderFrequency)
 	{
@@ -73,6 +73,7 @@ inline TStatId GetMemoryStatType(EShaderFrequency ShaderFrequency)
 		case SF_RayGen:				return GET_STATID(STAT_PixelShaderMemory);
 		case SF_RayMiss:			return GET_STATID(STAT_PixelShaderMemory);
 		case SF_RayHitGroup:		return GET_STATID(STAT_PixelShaderMemory);
+		case SF_RayCallable:		return GET_STATID(STAT_PixelShaderMemory);
 	}
 	return GET_STATID(STAT_VertexShaderMemory);
 }
