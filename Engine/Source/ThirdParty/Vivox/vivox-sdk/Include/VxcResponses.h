@@ -1,7 +1,7 @@
 #pragma once
 /* Copyright (c) 2013-2018 by Mercer Road Corp
  *
- * Permission to use, copy, modify or distribute this software in binary or source form 
+ * Permission to use, copy, modify or distribute this software in binary or source form
  * for any purpose is allowed only under explicit prior consent in writing from Mercer Road Corp
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND MERCER ROAD CORP DISCLAIMS
@@ -25,7 +25,7 @@ extern "C" {
 
 /**
  * The response for vx_req_connector_create
- * 
+ *
  * The XML format of this response can be found here: \ref Connector_Create_1
  *
  * \see vx_req_connector_create
@@ -43,15 +43,15 @@ typedef struct vx_resp_connector_create {
     /**
      * Version number of SDK
      */
-    char* version_id;
+    char *version_id;
 } vx_resp_connector_create_t;
 
 /**
  * The response for vx_req_connector_initiate_shutdown
- * 
+ *
  * The XML for this response can be found here: \ref Connector_InitiateShutdown_1
- * 
- * \see vx_req_connector_initiate_shutdown 
+ *
+ * \see vx_req_connector_initiate_shutdown
  * \ingroup connector
  */
 typedef struct vx_resp_connector_initiate_shutdown {
@@ -63,14 +63,14 @@ typedef struct vx_resp_connector_initiate_shutdown {
      * DEPRECATED
      * @deprecated
      */
-    char* client_name;
+    char *client_name;
 } vx_resp_connector_initiate_shutdown_t;
 
 /**
  * The response for vx_req_account_login
  *
  * The XML for this response can be found here: \ref Account_Login_1
- * 
+ *
  * \see vx_req_account_login
  * \ingroup login
  */
@@ -90,7 +90,7 @@ typedef struct vx_resp_account_login {
     /**
     * Display Name of the account, if available
     */
-    char* display_name;
+    char *display_name;
     /**
      * The uri of the user
      */
@@ -113,7 +113,7 @@ typedef struct vx_resp_account_login {
  * The response for vx_req_account_authtoken_login
  *
  * The XML for this response can be found here: \ref Account_AuthTokenLogin_1
- * 
+ *
  * \see vx_req_account_authtoken_login
  * \ingroup login
  */
@@ -133,11 +133,11 @@ typedef struct vx_resp_account_authtoken_login {
     /**
     * User Name of the account
     */
-    char* user_name;
+    char *user_name;
     /**
     * Display Name of the account, if available
     */
-    char* display_name;
+    char *display_name;
     /**
      * The uri of the user
      */
@@ -160,7 +160,7 @@ typedef struct vx_resp_account_authtoken_login {
  * The response for vx_req_account_anonymous_login
  *
  * The XML for this response can be found here: \ref Account_AnonymousLogin_1
- * 
+ *
  * \see vx_req_account_anonymous_login
  * \ingroup login
  */
@@ -180,7 +180,7 @@ typedef struct vx_resp_account_anonymous_login {
     /**
     * Display Name of the account, if available
     */
-    char* displayname;
+    char *displayname;
     /**
      * The uri of the user
      */
@@ -223,7 +223,7 @@ typedef struct vx_resp_account_set_login_properties {
 
 /**
  * The response for vx_req_sessiongroup_create
- * 
+ *
  * The XML for this response can be found here:
  *
  * \see vx_req_sessiongroup_create
@@ -354,7 +354,7 @@ typedef struct vx_resp_sessiongroup_set_tx_session {
 
 /**
  * The response for vx_req_sessiongroup_set_tx_all_sessions
- * 
+ *
  * The XML for this response can be found here: \ref SessionGroup_SetTxAllSessions_1
  *
  * \see vx_req_sessiongroup_set_tx_all_sessions
@@ -369,7 +369,7 @@ typedef struct vx_resp_sessiongroup_set_tx_all_sessions {
 
 /**
  * The response for vx_req_sessiongroup_set_tx_no_session
- * 
+ *
  * The XML for this response can be found here: \ref SessionGroup_SetTxNoSession_1
  *
  * \see vx_req_sessiongroup_set_tx_no_session
@@ -384,7 +384,7 @@ typedef struct vx_resp_sessiongroup_set_tx_no_session {
 
 /**
  * The response for vx_req_sessiongroup_set_session_3d_position
- * 
+ *
  * The XML for this response can be found here: \ref SessionGroup_SetSession3DPosition_1
  *
  * \see vx_req_sessiongroup_set_session_3d_position
@@ -399,7 +399,7 @@ typedef struct vx_resp_sessiongroup_set_session_3d_position {
 
 /**
  * The response for vx_req_sessiongroup_control_audio_injection
- * 
+ *
  * The XML for this response can be found here: \ref SessionGroup_ControlAudioInjection_1
  *
  * \see vx_req_sessiongroup_control_audio_injection
@@ -414,7 +414,7 @@ typedef struct vx_resp_sessiongroup_control_audio_injection {
 
 /**
  * DEPRECATED - the response for vx_req_session_create
- * 
+ *
  * The XML for this response can be found here: \ref Session_Create_1
  *
  * \see vx_req_session_create
@@ -437,7 +437,7 @@ typedef struct vx_resp_session_create {
 
 /**
  * The response for vx_req_session_media_connect_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_MediaConnect_1
  *
  * \see vx_req_session_media_connect
@@ -452,7 +452,7 @@ typedef struct vx_resp_session_media_connect {
 
 /**
  * The response for vx_req_session_media_disconnect_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_MediaDisconnect_1
  *
  * \see vx_req_session_media_disconnect
@@ -467,7 +467,7 @@ typedef struct vx_resp_session_media_disconnect {
 
 /**
  * The response for vx_req_session_text_connect_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_TextConnect_1
  *
  * \see vx_req_session_text_connect
@@ -482,7 +482,7 @@ typedef struct vx_resp_session_text_connect {
 
 /**
  * The response for vx_req_session_text_disconnect_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_TextDisconnect_1
  *
  * \see vx_req_session_text_disconnect
@@ -497,7 +497,7 @@ typedef struct vx_resp_session_text_disconnect {
 
 /**
  * The response for vx_req_session_terminate_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_Terminate_1
  *
  * \see vx_req_session_terminate
@@ -512,7 +512,7 @@ typedef struct vx_resp_session_terminate {
 
 /**
  * The response for vx_req_session_mute_local_speaker_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_MuteLocalSpeaker_1
  *
  * \see vx_req_session_mute_local_speaker
@@ -527,7 +527,7 @@ typedef struct vx_resp_session_mute_local_speaker {
 
 /**
  * The response for vx_req_session_set_local_speaker_volume_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_SetLocalSpeakerVolume_1
  *
  * \see vx_req_session_set_local_speaker_volume
@@ -542,7 +542,7 @@ typedef struct vx_resp_session_set_local_speaker_volume {
 
 /**
  * The response for vx_req_session_channel_invite_user_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_InviteUser_1
  *
  * \see vx_req_session_channel_invite_user
@@ -554,7 +554,7 @@ typedef struct vx_resp_session_channel_invite_user {
 
 /**
  * The response for vx_req_session_set_participant_volume_for_me_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_SetParticipantVolumeForMe_1
  *
  * \see vx_req_session_set_participant_volume_for_me
@@ -569,7 +569,7 @@ typedef struct vx_resp_session_set_participant_volume_for_me {
 
 /**
  * The response for vx_req_session_set_participant_mute_for_me_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_SetParticipantMuteForMe_1
  *
  * \see vx_req_session_set_participant_mute_for_me
@@ -581,7 +581,7 @@ typedef struct vx_resp_session_set_participant_mute_for_me {
 
 /**
  * The response for vx_req_session_set_3d_position_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_Set3DPosition_1
  *
  * \see vx_req_session_set_3d_position
@@ -596,7 +596,7 @@ typedef struct vx_resp_session_set_3d_position {
 
 /**
  * The response for vx_req_session_set_voice_font_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_SetVoiceFont_1
  *
  * \see vx_req_session_set_voice_font
@@ -612,7 +612,7 @@ typedef struct vx_resp_session_set_voice_font {
 
 /**
  * The response for vx_req_account_channel_get_participants_t
- * 
+ *
  * \see vx_req_account_channel_get_participants
  * \ingroup obsolete
  */
@@ -628,7 +628,7 @@ typedef struct vx_resp_account_channel_get_participants {
     /**
     * The list of participants active in the channel
     */
-    vx_participant_t** participants;
+    vx_participant_t **participants;
     /**
      * The page number of the result set
      */
@@ -671,7 +671,7 @@ typedef struct vx_resp_account_send_user_app_data {
 } vx_resp_account_send_user_app_data_t;
 /**
  * The response for vx_req_account_channel_create_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelCreate_1
  *
  * \see vx_req_account_channel_create
@@ -685,12 +685,12 @@ typedef struct vx_resp_account_channel_create {
     /**
     * If the create call is successful the ChannelURI will be returned
     */
-    char* channel_uri;
+    char *channel_uri;
 } vx_resp_account_channel_create_t;
 
 /**
  * The response for vx_req_account_channel_update_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelUpdate_1
  *
  * \see vx_req_account_channel_update
@@ -702,7 +702,7 @@ typedef struct vx_resp_account_channel_update {
 
 /**
  * The response for vx_req_account_channel_delete_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelFavoriteDelete_1
  *
  * \see vx_req_account_channel_delete
@@ -715,7 +715,7 @@ typedef struct vx_resp_account_channel_delete {
 
 /**
  * The response for vx_req_account_channel_favorites_get_list_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelFavoritesGetList_1
  *
  * \see vx_req_account_channel_favorites_get_list
@@ -737,16 +737,16 @@ typedef struct vx_resp_account_channel_favorites_get_list {
     /**
     * The list of favorite groups returned in the result set
     */
-    vx_channel_favorite_group_t** groups;
+    vx_channel_favorite_group_t **groups;
     /**
     * The list of favorites returned in the result set
     */
-    vx_channel_favorite_t** favorites;
+    vx_channel_favorite_t **favorites;
 } vx_resp_account_channel_favorites_get_list_t;
 
 /**
  * The response for vx_req_account_channel_favorite_set_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelFavoriteSet_1
  *
  * \see vx_req_account_channel_favorite_set
@@ -765,7 +765,7 @@ typedef struct vx_resp_account_channel_favorite_set {
 
 /**
  * The response for vx_req_account_channel_favorite_delete_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelFavoriteDelete_1
  *
  * \see vx_req_account_channel_favorite_delete
@@ -777,7 +777,7 @@ typedef struct vx_resp_account_channel_favorite_delete {
 
 /**
  * The response for vx_req_account_channel_favorite_group_set_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelFavoriteGroupSet_1
  *
  * \see vx_req_account_channel_favorite_group_set
@@ -796,7 +796,7 @@ typedef struct vx_resp_account_channel_favorite_group_set {
 
 /**
  * The response for vx_req_account_channel_favorite_group_delete_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelFavoriteGroupDelete_1
  *
  * \see vx_req_account_channel_favorite_group_delete
@@ -808,7 +808,7 @@ typedef struct vx_resp_account_channel_favorite_group_delete {
 
 /**
  * The response for vx_req_account_channel_get_info_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelGetInfo_1
  *
  * \see vx_req_account_channel_get_info
@@ -822,12 +822,12 @@ typedef struct vx_resp_account_channel_get_info {
     /**
     * Structure containing information about the specified channel
     */
-    vx_channel_t* channel;
+    vx_channel_t *channel;
 } vx_resp_account_channel_get_info_t;
 
 /**
  * The response for vx_req_account_channel_search_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelSearch_1
  *
  * \see vx_req_account_channel_search
@@ -854,17 +854,16 @@ typedef struct vx_resp_account_channel_search {
      * The number of channels returned in the channels array
      */
     int channel_count;
-     /**
-     * The list of channels
-     */
-    vx_channel_t** channels;
-    
+    /**
+    * The list of channels
+    */
+    vx_channel_t **channels;
 } vx_resp_account_channel_search_t;
 
 #ifndef VX_DISABLE_PRESENCE
 /**
  * The response for vx_req_account_buddy_search_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_AccountSearch_1
  *
  * \see vx_req_account_buddy_search
@@ -878,7 +877,7 @@ typedef struct vx_resp_account_buddy_search {
     /**
      * The page number of the result set
      */
-    int page;    
+    int page;
     /**
      * The number of the first result returned in this set
      */
@@ -894,13 +893,13 @@ typedef struct vx_resp_account_buddy_search {
     /**
      * The list of buddies returned from the search
      */
-    vx_buddy_t** buddies;
+    vx_buddy_t **buddies;
 } vx_resp_account_buddy_search_t;
 #endif
 
 /**
  * The response for vx_req_account_channel_add_moderator_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelAddModerator_1
  *
  * \see vx_req_account_channel_add_moderator
@@ -915,7 +914,7 @@ typedef struct vx_resp_account_channel_add_moderator {
 
 /**
  * The response for vx_req_account_channel_remove_moderator_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelRemoveModerator_1
  *
  * \see vx_req_account_channel_remove_moderator
@@ -930,7 +929,7 @@ typedef struct vx_resp_account_channel_remove_moderator {
 
 /**
  * The response for vx_req_account_channel_get_moderators_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelGetModerators_1
  *
  * \see vx_req_account_channel_get_moderators
@@ -948,13 +947,13 @@ typedef struct vx_resp_account_channel_get_moderators {
     /**
     * List of moderators for this channel
     */
-    vx_participant_t** participants;
+    vx_participant_t **participants;
 } vx_resp_account_channel_get_moderators_t;
 
 #ifndef VX_DISABLE_ACL
 /**
  * The response for vx_req_account_channel_add_acl_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelAddACL_1
  *
  * \see vx_req_account_channel_add_acl
@@ -969,7 +968,7 @@ typedef struct vx_resp_account_channel_add_acl {
 
 /**
  * The response for vx_req_account_channel_remove_acl_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelRemoveACL_1
  *
  * \see vx_req_account_channel_remove_acl
@@ -981,7 +980,7 @@ typedef struct vx_resp_account_channel_remove_acl {
 
 /**
  * The response for vx_req_account_channel_get_acl_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ChannelGetACL_1
  *
  * \see vx_req_account_channel_get_acl
@@ -1000,14 +999,14 @@ typedef struct vx_resp_account_channel_get_acl {
     * List of users in the Channel's Access Control List.
     * NOTE: Only the uri field on the Participant structures is guaranteed to be present.
     */
-    vx_participant_t** participants;
+    vx_participant_t **participants;
 } vx_resp_account_channel_get_acl_t;
 
 #endif
 
 /**
  * The response for vx_req_channel_mute_user_t
- * 
+ *
  * The XML for this response can be found here: \ref Channel_MuteUser_1
  *
  * \see vx_req_channel_mute_user
@@ -1022,7 +1021,7 @@ typedef struct vx_resp_channel_mute_user {
 
 /**
  * The response for vx_req_channel_ban_user_t
- * 
+ *
  * The XML for this response can be found here: \ref Channel_BanUser_1
  *
  * \see vx_req_channel_ban_user
@@ -1034,7 +1033,7 @@ typedef struct vx_resp_channel_ban_user {
 
 /**
  * The response for vx_req_channel_get_banned_users_t
- * 
+ *
  * The XML for this response can be found here: \ref Channel_GetBannedUsers_1
  *
  * \see vx_req_channel_get_banned_users
@@ -1052,12 +1051,12 @@ typedef struct vx_resp_channel_get_banned_users {
     /**
     * List of users banned from the specified channel
     */
-    vx_participant_t** banned_users;
+    vx_participant_t **banned_users;
 } vx_resp_channel_get_banned_users_t;
 
 /**
  * The response for vx_req_channel_kick_user_t
- * 
+ *
  * The XML for this response can be found here: \ref Channel_KickUser_1
  *
  * \see vx_req_channel_kick_user
@@ -1069,7 +1068,7 @@ typedef struct vx_resp_channel_kick_user {
 
 /**
  * The response for vx_req_channel_mute_all_users_t
- * 
+ *
  * The XML for this response can be found here: \ref Channel_MuteAllUsers_1
  *
  * \see vx_req_channel_mute_all_users
@@ -1081,7 +1080,7 @@ typedef struct vx_resp_channel_mute_all_users {
 
 /**
  * The response for vx_req_channel_set_lock_mode_t
- * 
+ *
  * The XML for this response can be found here: \ref Channel_SetLockMode_1
  *
  * \see vx_req_channel_set_lock_mode
@@ -1093,7 +1092,7 @@ typedef struct vx_resp_channel_set_lock_mode {
 
 /**
  * The response for vx_req_connector_mute_local_mic_t
- * 
+ *
  * The XML for this response can be found here: \ref Connector_MuteLocalMic_1
  *
  * \see vx_req_connector_mute_local_mic
@@ -1108,7 +1107,7 @@ typedef struct vx_resp_connector_mute_local_mic {
 
 /**
  * The response for vx_req_connector_mute_local_speaker_t
- * 
+ *
  * The XML for this response can be found here: \ref Connector_MuteLocalSpeaker_1
  *
  * \see vx_req_connector_mute_local_speaker
@@ -1124,13 +1123,13 @@ typedef struct vx_resp_connector_mute_local_speaker {
 /**
  * DEPRECATED - use vx_resp_aux_set_mic_level_t instead.
  * The response for vx_req_connector_set_local_mic_volume_t
- * 
+ *
  * The XML for this response can be found here: \ref Connector_SetLocalMicVolume_1
  *
  *
  * \see vx_req_connector_set_local_mic_volume
  * \ingroup obsolete
- * \deprecated 
+ * \deprecated
  */
 typedef struct vx_resp_connector_set_local_mic_volume {
     /**
@@ -1142,13 +1141,13 @@ typedef struct vx_resp_connector_set_local_mic_volume {
 /**
  * DEPRECATED - use vx_resp_aux_set_speaker_level_t instead.
  * The response for vx_req_connector_set_local_speaker_volume_t
- * 
+ *
  * The XML for this response can be found here: \ref Connector_SetLocalSpeakerVolume_1
  *
  *
  * \see vx_req_connector_set_local_speaker_volume
  * \ingroup obsolete
- * \deprecated 
+ * \deprecated
  */
 typedef struct vx_resp_connector_set_local_speaker_volume {
     vx_resp_base_t base;
@@ -1156,7 +1155,7 @@ typedef struct vx_resp_connector_set_local_speaker_volume {
 
 /**
  * The response for vx_req_connector_get_local_audio_info_t
- * 
+ *
  * The XML for this response can be found here: \ref Connector_GetLocalAudioInfo_1
  *
  * \see vx_req_connector_get_local_audio_info
@@ -1188,7 +1187,7 @@ typedef struct vx_resp_connector_get_local_audio_info {
 #ifndef VX_DISABLE_PRESENCE
 /**
  * The response for vx_req_account_buddy_set_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_BuddySet_1
  *
  * \see vx_req_account_buddy_set
@@ -1207,7 +1206,7 @@ typedef struct vx_resp_account_buddy_set {
 
 /**
  * The response for vx_req_account_buddy_delete_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_BuddyDelete_1
  *
  * \see vx_req_account_buddy_delete
@@ -1222,7 +1221,7 @@ typedef struct vx_resp_account_buddy_delete {
 
 /**
  * The response for vx_req_account_buddygroup_set_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_BuddyGroupSet_1
  *
  * \see vx_req_account_buddygroup_set
@@ -1241,7 +1240,7 @@ typedef struct vx_resp_account_buddygroup_set {
 
 /**
  * The response for vx_req_account_buddygroup_delete_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_BuddyGroupDelete_1
  *
  * \see vx_req_account_buddygroup_delete
@@ -1256,7 +1255,7 @@ typedef struct vx_resp_account_buddygroup_delete {
 
 /**
  * DEPRECATED - The response for vx_req_account_list_buddies_and_groups_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ListBuddiesAndGroups_1
  *
  * \see vx_req_account_list_buddies_and_groups
@@ -1279,17 +1278,17 @@ typedef struct vx_resp_account_list_buddies_and_groups {
     /**
     * A collection of buddy structures
     */
-    vx_buddy_t** buddies;
+    vx_buddy_t **buddies;
     /**
     * A collection of group structures
     */
-    vx_group_t** groups;
+    vx_group_t **groups;
 } vx_resp_account_list_buddies_and_groups_t;
 #endif
 
 /**
  * The response for vx_req_session_send_message_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_SendMessage_1
  *
  * \see vx_req_session_send_message
@@ -1305,7 +1304,7 @@ typedef struct vx_resp_session_send_message {
 #ifndef VX_DISABLE_PRESENCE
 /**
  * The response for vx_req_account_set_presence_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_SetPresence_1
  *
  * \see vx_req_account_set_presence
@@ -1320,7 +1319,7 @@ typedef struct vx_resp_account_set_presence {
 
 /**
  * The response for vx_req_account_send_subscription_reply_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_SendSubscriptionReply_1
  *
  * \see vx_req_account_send_subscription_reply
@@ -1336,7 +1335,7 @@ typedef struct vx_resp_account_send_subscription_reply {
 
 /**
  * The response for vx_req_session_send_notification_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_SendNotification_1
  *
  * \see vx_req_session_send_notification
@@ -1351,7 +1350,7 @@ typedef struct vx_resp_session_send_notification {
 
 /**
  * The response for vx_req_session_send_dtmf_t
- * 
+ *
  * The XML for this response can be found here: \ref Session_SendDTMF_1
  *
  * \see vx_req_session_send_dtmf
@@ -1367,7 +1366,7 @@ typedef struct vx_resp_session_send_dtmf {
 #ifndef VX_DISABLE_PRESENCE
 /**
  * The response for vx_req_account_create_block_rule_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_CreateBlockRule_1
  *
  * \see vx_req_account_create_block_rule
@@ -1382,7 +1381,7 @@ typedef struct vx_resp_account_create_block_rule {
 
 /**
  * The response for vx_req_account_delete_block_rule_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_DeleteBlockRule_1
  *
  * \see vx_req_account_delete_block_rule
@@ -1397,7 +1396,7 @@ typedef struct vx_resp_account_delete_block_rule {
 
 /**
  * The response for vx_req_account_list_block_rules_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ListBlockRules_1
  *
  * \see vx_req_account_list_block_rules
@@ -1415,12 +1414,12 @@ typedef struct vx_resp_account_list_block_rules {
     /**
     * List of block rules for the given account
     */
-    vx_block_rule_t** block_rules;
+    vx_block_rule_t **block_rules;
 } vx_resp_account_list_block_rules_t;
 
 /**
  * The response for vx_req_account_create_auto_accept_rule_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_CreateAutoAcceptRule_1
  *
  * \see vx_req_account_create_auto_accept_rule
@@ -1435,7 +1434,7 @@ typedef struct vx_resp_account_create_auto_accept_rule {
 
 /**
  * The response for vx_req_account_delete_auto_accept_rule_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_DeleteAutoAcceptRule_1
  *
  * \see vx_req_account_delete_auto_accept_rule
@@ -1447,7 +1446,7 @@ typedef struct vx_resp_account_delete_auto_accept_rule {
 
 /**
  * The response for vx_req_account_list_auto_accept_rules_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ListAutoAcceptRules_1
  *
  * \see vx_req_account_list_auto_accept_rules
@@ -1465,7 +1464,7 @@ typedef struct vx_resp_account_list_auto_accept_rules {
     /**
     * The list of block rules for the given account
     */
-    vx_auto_accept_rule_t** auto_accept_rules;
+    vx_auto_accept_rule_t **auto_accept_rules;
 } vx_resp_account_list_auto_accept_rules_t;
 #endif
 
@@ -1473,7 +1472,7 @@ typedef struct vx_resp_account_list_auto_accept_rules {
  * \deprecated - DEPRECATED
  *
  * The response for vx_req_account_update_account_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_UpdateAccount_1
  * \see vx_req_account_update_account
  */
@@ -1486,9 +1485,9 @@ typedef struct vx_resp_account_update_account {
 
 /**
  * \deprecated - DEPRECATED
- * 
+ *
  * the response for vx_req_account_get_account_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_GetAccount_1
  *
  * \see vx_req_account_get_account
@@ -1501,12 +1500,12 @@ typedef struct vx_resp_account_get_account {
     /**
     * A pointer to a 'vx_account_t' struct, containing information about the account
     */
-    vx_account_t* account;
+    vx_account_t *account;
 } vx_resp_account_get_account_t;
 
 /*
  * The response for vx_req_account_send_sms_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_SendSMS_1
  *
  * \see vx_req_account_send_sms
@@ -1521,7 +1520,7 @@ typedef struct vx_resp_account_send_sms {
 
 /**
  * The response for vx_req_aux_connectivity_info_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_ConnectivityInfo_1
  *
  * \see vx_req_aux_connectivity_info
@@ -1536,20 +1535,20 @@ typedef struct vx_resp_aux_connectivity_info {
     /**
     * List of the test results for each test
     */
-    vx_connectivity_test_result_t** test_results;
+    vx_connectivity_test_result_t **test_results;
     /**
      * The well known ip address used.
      */
-    char* well_known_ip;
+    char *well_known_ip;
     /**
      * The stun server used.
      */
-    char* stun_server;
-    /** 
+    char *stun_server;
+    /**
      * The echo server used.
      */
-    char* echo_server;
-    /** 
+    char *echo_server;
+    /**
      * The echo port used.
      */
     int echo_port;
@@ -1577,7 +1576,7 @@ typedef struct vx_resp_aux_connectivity_info {
 
 /**
  * The response for vx_req_aux_get_render_devices_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_GetRenderDevices_1
  *
  * \see vx_req_aux_get_render_devices
@@ -1593,30 +1592,30 @@ typedef struct vx_resp_aux_get_render_devices {
     */
     int count;
     /**
-    * An array of pointers to 'vx_device_t' structs 
+    * An array of pointers to 'vx_device_t' structs
     */
-    vx_device_t** render_devices;
+    vx_device_t **render_devices;
     /**
     * The render device currently in use by the Vivox SDK.
     */
-    vx_device_t* current_render_device;
+    vx_device_t *current_render_device;
     /**
     * The effective render device
     */
-    vx_device_t* effective_render_device;
+    vx_device_t *effective_render_device;
     /**
      * The default system render device
      */
-    vx_device_t* default_render_device;
+    vx_device_t *default_render_device;
     /**
      * The default communication render device
      */
-    vx_device_t* default_communication_render_device;
+    vx_device_t *default_communication_render_device;
 } vx_resp_aux_get_render_devices_t;
 
 /**
  * The response for vx_req_aux_get_capture_devices_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_GetCaptureDevices_1
  *
  * \see vx_req_aux_get_capture_devices
@@ -1634,28 +1633,28 @@ typedef struct vx_resp_aux_get_capture_devices {
     /**
     * The list of capture devices
     */
-    vx_device_t** capture_devices;
+    vx_device_t **capture_devices;
     /**
     * The current capture device
     */
-    vx_device_t* current_capture_device;
+    vx_device_t *current_capture_device;
     /**
     * The effective capture device
     */
-    vx_device_t* effective_capture_device;
+    vx_device_t *effective_capture_device;
     /**
      * The default system capture device
      */
-    vx_device_t* default_capture_device;
+    vx_device_t *default_capture_device;
     /**
      * The default communication capture device
      */
-    vx_device_t* default_communication_capture_device;
+    vx_device_t *default_communication_capture_device;
 } vx_resp_aux_get_capture_devices_t;
 
 /**
  * The response for vx_req_aux_set_render_device_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_SetRenderDevice_1
  *
  * \see vx_req_aux_set_render_device
@@ -1670,7 +1669,7 @@ typedef struct vx_resp_aux_set_render_device {
 
 /**
  * The response for vx_req_aux_set_capture_device_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_SetCaptureDevice_1
  *
  * \see vx_req_aux_set_capture_device
@@ -1685,7 +1684,7 @@ typedef struct vx_resp_aux_set_capture_device {
 
 /**
  * The response for vx_req_aux_get_mic_level_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_GetMicLevel_1
  *
  * \see vx_req_aux_get_mic_level
@@ -1697,8 +1696,8 @@ typedef struct vx_resp_aux_get_mic_level {
      */
     vx_resp_base_t base;
     /**
-     * The master 'microphone' level. 
-     * Non negative integer value between 0 and 100 (inclusive). +6 increase represents a 
+     * The master 'microphone' level.
+     * Non negative integer value between 0 and 100 (inclusive). +6 increase represents a
      * doubling of energy, +20 increase represents a ten fold increase in energy. Default value is 50.
      */
     int level;
@@ -1706,7 +1705,7 @@ typedef struct vx_resp_aux_get_mic_level {
 
 /**
  * The response for vx_req_aux_get_speaker_level_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_GetSpeakerLevel_1
  *
  * \see vx_req_aux_get_speaker_level
@@ -1718,8 +1717,8 @@ typedef struct vx_resp_aux_get_speaker_level {
      */
     vx_resp_base_t base;
     /**
-    * The master 'speaker' level. 
-    * Non negative integer value between 0 and 100 (inclusive). +6 increase represents a doubling of energy, 
+    * The master 'speaker' level.
+    * Non negative integer value between 0 and 100 (inclusive). +6 increase represents a doubling of energy,
     * +20 increase represents a ten fold increase in energy. Default value is 50.
     */
     int level;
@@ -1727,7 +1726,7 @@ typedef struct vx_resp_aux_get_speaker_level {
 
 /**
  * The response for vx_req_aux_set_mic_level_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_SetMicLevel_1
  *
  * \see vx_req_aux_set_mic_level
@@ -1742,7 +1741,7 @@ typedef struct vx_resp_aux_set_mic_level {
 
 /**
  * The response for vx_req_aux_set_speaker_level_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_SetSpeakerLevel_1
  *
  * \see vx_req_aux_set_speaker_level_t
@@ -1757,7 +1756,7 @@ typedef struct vx_resp_aux_set_speaker_level {
 
 /**
  * The response for vx_req_aux_render_audio_start_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_RenderAudioStart_1
  *
  * \see vx_req_aux_render_audio_start
@@ -1769,7 +1768,7 @@ typedef struct vx_resp_aux_render_audio_start {
 
 /**
  * The response for vx_req_aux_render_audio_modify_t
- * 
+ *
  */
 typedef struct vx_resp_aux_render_audio_modify {
     vx_resp_base_t base;
@@ -1777,20 +1776,20 @@ typedef struct vx_resp_aux_render_audio_modify {
 
 /**
  * The response for vx_req_aux_get_vad_properties_t
- * 
+ *
  * \see vx_req_aux_set_vad_properties
  * \ingroup devices
  */
 typedef struct vx_resp_aux_get_vad_properties {
     vx_resp_base_t base;
     /**
-    * The 'Hangover time' - the time (in milliseconds) that it takes for the VAD to switch back to silence 
+    * The 'Hangover time' - the time (in milliseconds) that it takes for the VAD to switch back to silence
     * from speech mode after the last speech frame has been detected.
     */
     int vad_hangover;
     /**
     * The 'vad sensitivity' - A dimensionless value between 0 and 100, indicating the 'sensitivity of the VAD'.
-    * Increasing this value corresponds to decreasing the sensitivity of the VAD (i.e. '0' is most 
+    * Increasing this value corresponds to decreasing the sensitivity of the VAD (i.e. '0' is most
     * sensitive, while 100 is 'least sensitive').
     */
     int vad_sensitivity;
@@ -1806,7 +1805,7 @@ typedef struct vx_resp_aux_get_vad_properties {
 
 /**
  * The response for vx_req_aux_set_vad_properties_t
- * 
+ *
  * \see vx_req_aux_set_vad_properties
  * \ingroup devices
  */
@@ -1816,7 +1815,7 @@ typedef struct vx_resp_aux_set_vad_properties {
 
 /**
  * The response for vx_req_aux_render_audio_stop_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_RenderAudioStop_1
  *
  * \see vx_req_aux_render_audio_stop
@@ -1828,7 +1827,7 @@ typedef struct vx_resp_aux_render_audio_stop {
 
 /**
  * The response for vx_req_aux_capture_audio_start_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_CaptureAudioStart_1
  *
  * \see vx_req_aux_capture_audio_start
@@ -1842,7 +1841,7 @@ typedef struct vx_resp_aux_capture_audio_start {
 } vx_resp_aux_capture_audio_start_t;
 /**
  * The response for vx_req_aux_capture_audio_stop_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_CaptureAudioStop_1
  *
  * \see vx_req_aux_capture_audio_stop
@@ -1854,7 +1853,7 @@ typedef struct vx_resp_aux_capture_audio_stop {
      */
     vx_resp_base_t base;
     /**
-     * An opaque pointer to the captured audio buffer. This pointer is not marshalled 
+     * An opaque pointer to the captured audio buffer. This pointer is not marshalled
      * when working with the VivoxVoiceService.
      */
     void *audioBufferPtr;
@@ -1862,7 +1861,7 @@ typedef struct vx_resp_aux_capture_audio_stop {
 
 /**
  * The response for vx_req_aux_global_monitor_keyboard_mouse_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_GlobalMonitorKeyboardMouse_1
  *
  * \see vx_req_aux_global_monitor_keyboard_mouse
@@ -1877,7 +1876,7 @@ typedef struct vx_resp_aux_global_monitor_keyboard_mouse {
 
 /**
  * The response for vx_req_aux_set_idle_timeout_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_SetIdleTimeout_1
  *
  * \see vx_req_aux_set_idle_timeout
@@ -1892,7 +1891,7 @@ typedef struct vx_resp_aux_set_idle_timeout {
 
 /**
  * The response for vx_req_aux_create_account_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_CreateAccount_1
  *
  * \see vx_req_aux_create_account
@@ -1906,7 +1905,7 @@ typedef struct vx_resp_aux_create_account {
 
 /**
  * The response for vx_req_aux_reactivate_account_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_ReactivateAccount_1
  *
  * \see vx_req_aux_reactivate_account
@@ -1920,7 +1919,7 @@ typedef struct vx_resp_aux_reactivate_account {
 
 /**
  * The response for vx_req_aux_deactivate_account_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_DeactivateAccount_1
  *
  * \see vx_req_aux_deactivate_account
@@ -1934,7 +1933,7 @@ typedef struct vx_resp_aux_deactivate_account {
 
 /**
  * The response for vx_req_account_post_crash_dump
- * 
+ *
  * This response is not applicable to the XML interface.
  *
  * \see vx_req_account_post_crash_dump
@@ -1949,7 +1948,7 @@ typedef struct vx_resp_account_post_crash_dump {
 
 /**
  * The response for vx_req_aux_reset_password
- * 
+ *
  * The XML for this response can be found here: \ref Aux_ResetPassword_1
  *
  * \see vx_req_aux_reset_password
@@ -1964,7 +1963,7 @@ typedef struct vx_resp_aux_reset_password {
 
 /**
  * The response for vx_req_account_get_session_fonts_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_GetSessionFonts_1
  *
  * \see vx_req_account_get_session_fonts
@@ -1978,7 +1977,7 @@ typedef struct vx_resp_account_get_session_fonts {
     /**
     * List of session fonts
     */
-    vx_voice_font_t** session_fonts;
+    vx_voice_font_t **session_fonts;
     /**
     * Number of session fonts
     */
@@ -1987,7 +1986,7 @@ typedef struct vx_resp_account_get_session_fonts {
 
 /**
  * The response for vx_req_account_get_template_fonts_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_GetTemplateFonts_1
  *
  * \see vx_req_account_get_template_fonts
@@ -2001,7 +2000,7 @@ typedef struct vx_resp_account_get_template_fonts {
     /**
     * List of session fonts
     */
-    vx_voice_font_t** template_fonts;
+    vx_voice_font_t **template_fonts;
     /*
     * Number of session fonts
     */
@@ -2010,7 +2009,7 @@ typedef struct vx_resp_account_get_template_fonts {
 
 /**
  * The response for vx_req_aux_start_buffer_capture_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_StartBufferCapture_1
  *
  * \see vx_req_aux_start_buffer_capture
@@ -2025,7 +2024,7 @@ typedef struct vx_resp_aux_start_buffer_capture {
 
 /**
  * The response for vx_req_aux_play_audio_buffer_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_PlayAudioBuffer_1
  *
  * \see vx_req_aux_play_audio_buffer
@@ -2055,24 +2054,23 @@ typedef struct vx_resp_aux_diagnostic_state_dump {
     /**
      * Collection of connector objects in the state dump.
      */
-    vx_state_connector_t** state_connectors;
+    vx_state_connector_t **state_connectors;
     /**
     * The render device currently in use by the Vivox SDK.
     */
-    vx_device_t* current_render_device;
+    vx_device_t *current_render_device;
     /**
     * The effective render device
     */
-    vx_device_t* effective_render_device;
+    vx_device_t *effective_render_device;
     /**
     * The current capture device
     */
-    vx_device_t* current_capture_device;
+    vx_device_t *current_capture_device;
     /**
     * The effective capture device
     */
-    vx_device_t* effective_capture_device;
-
+    vx_device_t *effective_capture_device;
 } vx_resp_aux_diagnostic_state_dump_t;
 
 /**
@@ -2154,7 +2152,7 @@ typedef struct vx_resp_sessiongroup_get_stats {
      * The number of packets sent
      */
     int outgoing_sent;
-    /** 
+    /**
      * The number of render device underruns - mobile platforms only
      */
     int render_device_underruns;
@@ -2272,7 +2270,7 @@ typedef struct vx_resp_sessiongroup_get_stats {
 
 /**
  * The response for vx_req_account_send_message_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_SendMessage_1
  *
  * \see vx_req_account_send_message
@@ -2287,7 +2285,7 @@ typedef struct vx_resp_account_send_message {
 
 /**
  * The response for vx_req_aux_notify_application_state_change_t
- * 
+ *
  * The XML for this response can be found here: \ref Aux_NotifyApplicationStateChange_1
  *
  * \see vx_req_aux_notify_application_state_change
@@ -2302,7 +2300,7 @@ typedef struct vx_resp_aux_notify_application_state_change {
 
 /**
  * The response for vx_req_account_control_communications_t
- * 
+ *
  * The XML for this response can be found here: \ref Account_ControlCommunications_1
  *
  * \see vx_req_account_control_communications
@@ -2315,7 +2313,7 @@ typedef struct vx_resp_account_control_communications {
     /**
      * Line feed separated list of blocked URIs (only set for vx_control_communications_operation_list, otherwise null)
      */
-     char *blocked_uris;
+    char *blocked_uris;
 } vx_resp_account_control_communications_t;
 
 #ifndef VIVOX_TYPES_ONLY
