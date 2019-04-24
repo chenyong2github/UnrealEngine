@@ -158,7 +158,7 @@ class FCsvABTest
 public:
 	FCsvABTest() 
 		: ConsoleVariable(nullptr)
-		, StatFrameOffset(1)
+		, StatFrameOffset(0)
 		, SwitchDuration(7)
 		, PreviousValue(FLT_MAX)
 		, bPrevCapturing(false)
