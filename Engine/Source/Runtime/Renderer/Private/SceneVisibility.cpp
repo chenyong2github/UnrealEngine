@@ -225,6 +225,20 @@ static FAutoConsoleVariableRef CVarLightMaxDrawDistanceScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+#if !UE_BUILD_SHIPPING
+
+static TAutoConsoleVariable<float> CVarFreezeTemporalSequences(
+	TEXT("r.Test.FreezeTemporalSequences"), 0,
+	TEXT("Freezes all temporal sequences."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarFreezeTemporalHistories(
+	TEXT("r.Test.FreezeTemporalHistories"), 0,
+	TEXT("Freezes all temporal histories as well as the temporal sequence."),
+	ECVF_RenderThreadSafe);
+
+#endif
+
 DECLARE_CYCLE_STAT(TEXT("Occlusion Readback"), STAT_CLMM_OcclusionReadback, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("After Occlusion Readback"), STAT_CLMM_AfterOcclusionReadback, STATGROUP_CommandListMarkers);
 
@@ -2901,6 +2915,14 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			}
 		}
 	}
+	
+#if UE_BUILD_SHIPPING
+	const bool bFreezeTemporalHistories = false;
+	const bool bFreezeTemporalSequences = false;
+#else
+	bool bFreezeTemporalHistories = CVarFreezeTemporalHistories.GetValueOnRenderThread() != 0;
+	bool bFreezeTemporalSequences = bFreezeTemporalHistories || CVarFreezeTemporalSequences.GetValueOnRenderThread() != 0;
+#endif
 
 	// Setup motion blur parameters (also check for camera movement thresholds)
 	for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
@@ -2943,151 +2965,166 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		if (ViewState)
 		{
 			check(View.bViewStateIsReadOnly);
-			View.bViewStateIsReadOnly = ViewFamily.bWorldIsPaused || ViewFamily.EngineShowFlags.HitProxies;
+			View.bViewStateIsReadOnly = ViewFamily.bWorldIsPaused || ViewFamily.EngineShowFlags.HitProxies || bFreezeTemporalHistories;
 
 			ViewState->SetupDistanceFieldTemporalOffset(ViewFamily);
-		}
 
-		if( View.AntiAliasingMethod == AAM_TemporalAA && ViewState )
-		{
-			// Subpixel jitter for temporal AA
-			int32 TemporalAASamples = CVarTemporalAASamples.GetValueOnRenderThread();
-		
-			if( TemporalAASamples > 1 && View.bAllowTemporalJitter )
+			if (!View.bViewStateIsReadOnly && !bFreezeTemporalSequences)
 			{
-				float SampleX, SampleY;
+				ViewState->FrameIndex++;
+			}
+		}
+		
+		// Subpixel jitter for temporal AA
+		int32 CVarTemporalAASamplesValue = CVarTemporalAASamples.GetValueOnRenderThread();
 
+		bool bTemporalUpsampling = View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale;
+		
+		// Apply a sub pixel offset to the view.
+		if (View.AntiAliasingMethod == AAM_TemporalAA && ViewState && (CVarTemporalAASamplesValue > 0 || bTemporalUpsampling) && View.bAllowTemporalJitter)
+		{
+			float EffectivePrimaryResolutionFraction = float(View.ViewRect.Width()) / float(View.GetSecondaryViewRectSize().X);
+
+			// Compute number of TAA samples.
+			int32 TemporalAASamples = CVarTemporalAASamplesValue;
+			{
 				if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM4)
 				{
 					// Only support 2 samples for mobile temporal AA.
 					TemporalAASamples = 2;
 				}
-
-				if( TemporalAASamples == 2 )
-				{
-					#if 0
-						// 2xMSAA
-						// Pattern docs: http://msdn.microsoft.com/en-us/library/windows/desktop/ff476218(v=vs.85).aspx
-						//   N.
-						//   .S
-						float SamplesX[] = { -4.0f/16.0f, 4.0/16.0f };
-						float SamplesY[] = { -4.0f/16.0f, 4.0/16.0f };
-					#else
-						// This pattern is only used for mobile.
-						// Shift to reduce blur.
-						float SamplesX[] = { -8.0f/16.0f, 0.0/16.0f };
-						float SamplesY[] = { /* - */ 0.0f/16.0f, 8.0/16.0f };
-					#endif
-					ViewState->OnFrameRenderingSetup(ARRAY_COUNT(SamplesX), ViewFamily);
-					uint32 Index = ViewState->GetCurrentTemporalAASampleIndex();
-					SampleX = SamplesX[ Index ];
-					SampleY = SamplesY[ Index ];
-				}
-				else if( TemporalAASamples == 3 )
-				{
-					// 3xMSAA
-					//   A..
-					//   ..B
-					//   .C.
-					// Rolling circle pattern (A,B,C).
-					float SamplesX[] = { -2.0f/3.0f,  2.0/3.0f,  0.0/3.0f };
-					float SamplesY[] = { -2.0f/3.0f,  0.0/3.0f,  2.0/3.0f };
-					ViewState->OnFrameRenderingSetup(ARRAY_COUNT(SamplesX), ViewFamily);
-					uint32 Index = ViewState->GetCurrentTemporalAASampleIndex();
-					SampleX = SamplesX[ Index ];
-					SampleY = SamplesY[ Index ];
-				}
-				else if( TemporalAASamples == 4 )
-				{
-					// 4xMSAA
-					// Pattern docs: http://msdn.microsoft.com/en-us/library/windows/desktop/ff476218(v=vs.85).aspx
-					//   .N..
-					//   ...E
-					//   W...
-					//   ..S.
-					// Rolling circle pattern (N,E,S,W).
-					float SamplesX[] = { -2.0f/16.0f,  6.0/16.0f, 2.0/16.0f, -6.0/16.0f };
-					float SamplesY[] = { -6.0f/16.0f, -2.0/16.0f, 6.0/16.0f,  2.0/16.0f };
-					ViewState->OnFrameRenderingSetup(ARRAY_COUNT(SamplesX), ViewFamily);
-					uint32 Index = ViewState->GetCurrentTemporalAASampleIndex();
-					SampleX = SamplesX[ Index ];
-					SampleY = SamplesY[ Index ];
-				}
-				else if( TemporalAASamples == 5 )
-				{
-					// Compressed 4 sample pattern on same vertical and horizontal line (less temporal flicker).
-					// Compressed 1/2 works better than correct 2/3 (reduced temporal flicker).
-					//   . N .
-					//   W . E
-					//   . S .
-					// Rolling circle pattern (N,E,S,W).
-					float SamplesX[] = {  0.0f/2.0f,  1.0/2.0f,  0.0/2.0f, -1.0/2.0f };
-					float SamplesY[] = { -1.0f/2.0f,  0.0/2.0f,  1.0/2.0f,  0.0/2.0f };
-					ViewState->OnFrameRenderingSetup(ARRAY_COUNT(SamplesX), ViewFamily);
-					uint32 Index = ViewState->GetCurrentTemporalAASampleIndex();
-					SampleX = SamplesX[ Index ];
-					SampleY = SamplesY[ Index ];
-				}
-				else if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
+				else if (bTemporalUpsampling)
 				{
 					// When doing TAA upsample with screen percentage < 100%, we need extra temporal samples to have a
 					// constant temporal sample density for final output pixels to avoid output pixel aligned converging issues.
-					float EffectivePrimaryResolutionFraction = float(View.ViewRect.Width()) / float(View.GetSecondaryViewRectSize().X);
-					int32 EffectiveTemporalAASamples = float(TemporalAASamples) * FMath::Max(1.f, 1.f / (EffectivePrimaryResolutionFraction * EffectivePrimaryResolutionFraction));
-
-					ViewState->OnFrameRenderingSetup(EffectiveTemporalAASamples, ViewFamily);
-					uint32 TemporalSampleIndex = ViewState->GetCurrentTemporalAASampleIndex();
-
-					// Uniformly distribute temporal jittering in [-.5; .5], because there is no longer any alignement of input and output pixels.
-					SampleX = Halton(TemporalSampleIndex + 1, 2) - 0.5f;
-					SampleY = Halton(TemporalSampleIndex + 1, 3) - 0.5f;
-
-					View.MaterialTextureMipBias = -(FMath::Max(-FMath::Log2(EffectivePrimaryResolutionFraction), 0.0f) ) + CVarMinAutomaticViewMipBiasOffset.GetValueOnRenderThread();
-					View.MaterialTextureMipBias = FMath::Max(View.MaterialTextureMipBias, CVarMinAutomaticViewMipBias.GetValueOnRenderThread());
+					TemporalAASamples = float(TemporalAASamples) * FMath::Max(1.f, 1.f / (EffectivePrimaryResolutionFraction * EffectivePrimaryResolutionFraction));
 				}
-				else
+				else if (CVarTemporalAASamplesValue == 5)
 				{
-					ViewState->OnFrameRenderingSetup(TemporalAASamples, ViewFamily);
-					uint32 Index = ViewState->GetCurrentTemporalAASampleIndex();
-
-					float u1 = Halton( Index + 1, 2 );
-					float u2 = Halton( Index + 1, 3 );
-
-					// Generates samples in normal distribution
-					// exp( x^2 / Sigma^2 )
-					
-					static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TemporalAAFilterSize"));
-					float FilterSize = CVar->GetFloat();
-
-					// Scale distribution to set non-unit variance
-					// Variance = Sigma^2
-					float Sigma = 0.47f * FilterSize;
-
-					// Window to [-0.5, 0.5] output
-					// Without windowing we could generate samples far away on the infinite tails.
-					float OutWindow = 0.5f;
-					float InWindow = FMath::Exp( -0.5 * FMath::Square( OutWindow / Sigma ) );
-					
-					// Box-Muller transform
-					float Theta = 2.0f * PI * u2;
-					float r = Sigma * FMath::Sqrt( -2.0f * FMath::Loge( (1.0f - u1) * InWindow + u1 ) );
-					
-					SampleX = r * FMath::Cos( Theta );
-					SampleY = r * FMath::Sin( Theta );
+					TemporalAASamples = 4;
 				}
 
-				View.TemporalJitterPixels.X = SampleX;
-				View.TemporalJitterPixels.Y = SampleY;
-
-				View.ViewMatrices.HackAddTemporalAAProjectionJitter(FVector2D(SampleX * 2.0f / View.ViewRect.Width(), SampleY * -2.0f / View.ViewRect.Height()));
+				TemporalAASamples = FMath::Clamp(TemporalAASamples, 1, 255);
 			}
-		}
-		else if(ViewState && !View.bViewStateIsReadOnly)
-		{
-			// no TemporalAA
-			ViewState->OnFrameRenderingSetup(1, ViewFamily);
 
-			ViewState->PrevFrameViewInfo.TemporalAAHistory.SafeRelease();
+			// Compute the new sample index in the temporal sequence.
+			int32 TemporalSampleIndex = ViewState->TemporalAASampleIndex + 1;
+			if(TemporalSampleIndex >= TemporalAASamples)
+			{
+				TemporalSampleIndex = 0;
+			}
+
+			// Updates view state.
+			if (!View.bViewStateIsReadOnly && !bFreezeTemporalSequences)
+			{
+				ViewState->TemporalAASampleIndex = TemporalSampleIndex;
+			}
+
+			// Choose sub pixel sample coordinate in the temporal sequence.
+			float SampleX, SampleY;
+			if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM4)
+			{
+				float SamplesX[] = { -8.0f/16.0f, 0.0/16.0f };
+				float SamplesY[] = { /* - */ 0.0f/16.0f, 8.0/16.0f };
+				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				SampleX = SamplesX[ TemporalSampleIndex ];
+				SampleY = SamplesY[ TemporalSampleIndex ];
+			}
+			else if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
+			{
+				// Uniformly distribute temporal jittering in [-.5; .5], because there is no longer any alignement of input and output pixels.
+				SampleX = Halton(TemporalSampleIndex + 1, 2) - 0.5f;
+				SampleY = Halton(TemporalSampleIndex + 1, 3) - 0.5f;
+
+				View.MaterialTextureMipBias = -(FMath::Max(-FMath::Log2(EffectivePrimaryResolutionFraction), 0.0f) ) + CVarMinAutomaticViewMipBiasOffset.GetValueOnRenderThread();
+				View.MaterialTextureMipBias = FMath::Max(View.MaterialTextureMipBias, CVarMinAutomaticViewMipBias.GetValueOnRenderThread());
+			}
+			else if( CVarTemporalAASamplesValue == 2 )
+			{
+				// 2xMSAA
+				// Pattern docs: http://msdn.microsoft.com/en-us/library/windows/desktop/ff476218(v=vs.85).aspx
+				//   N.
+				//   .S
+				float SamplesX[] = { -4.0f/16.0f, 4.0/16.0f };
+				float SamplesY[] = { -4.0f/16.0f, 4.0/16.0f };
+				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				SampleX = SamplesX[ TemporalSampleIndex ];
+				SampleY = SamplesY[ TemporalSampleIndex ];
+			}
+			else if( CVarTemporalAASamplesValue == 3 )
+			{
+				// 3xMSAA
+				//   A..
+				//   ..B
+				//   .C.
+				// Rolling circle pattern (A,B,C).
+				float SamplesX[] = { -2.0f/3.0f,  2.0/3.0f,  0.0/3.0f };
+				float SamplesY[] = { -2.0f/3.0f,  0.0/3.0f,  2.0/3.0f };
+				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				SampleX = SamplesX[ TemporalSampleIndex ];
+				SampleY = SamplesY[ TemporalSampleIndex ];
+			}
+			else if( CVarTemporalAASamplesValue == 4 )
+			{
+				// 4xMSAA
+				// Pattern docs: http://msdn.microsoft.com/en-us/library/windows/desktop/ff476218(v=vs.85).aspx
+				//   .N..
+				//   ...E
+				//   W...
+				//   ..S.
+				// Rolling circle pattern (N,E,S,W).
+				float SamplesX[] = { -2.0f/16.0f,  6.0/16.0f, 2.0/16.0f, -6.0/16.0f };
+				float SamplesY[] = { -6.0f/16.0f, -2.0/16.0f, 6.0/16.0f,  2.0/16.0f };
+				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				SampleX = SamplesX[ TemporalSampleIndex ];
+				SampleY = SamplesY[ TemporalSampleIndex ];
+			}
+			else if( CVarTemporalAASamplesValue == 5 )
+			{
+				// Compressed 4 sample pattern on same vertical and horizontal line (less temporal flicker).
+				// Compressed 1/2 works better than correct 2/3 (reduced temporal flicker).
+				//   . N .
+				//   W . E
+				//   . S .
+				// Rolling circle pattern (N,E,S,W).
+				float SamplesX[] = {  0.0f/2.0f,  1.0/2.0f,  0.0/2.0f, -1.0/2.0f };
+				float SamplesY[] = { -1.0f/2.0f,  0.0/2.0f,  1.0/2.0f,  0.0/2.0f };
+				check(TemporalAASamples == ARRAY_COUNT(SamplesX));
+				SampleX = SamplesX[ TemporalSampleIndex ];
+				SampleY = SamplesY[ TemporalSampleIndex ];
+			}
+			else
+			{
+				float u1 = Halton( TemporalSampleIndex + 1, 2 );
+				float u2 = Halton( TemporalSampleIndex + 1, 3 );
+
+				// Generates samples in normal distribution
+				// exp( x^2 / Sigma^2 )
+					
+				static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TemporalAAFilterSize"));
+				float FilterSize = CVar->GetFloat();
+
+				// Scale distribution to set non-unit variance
+				// Variance = Sigma^2
+				float Sigma = 0.47f * FilterSize;
+
+				// Window to [-0.5, 0.5] output
+				// Without windowing we could generate samples far away on the infinite tails.
+				float OutWindow = 0.5f;
+				float InWindow = FMath::Exp( -0.5 * FMath::Square( OutWindow / Sigma ) );
+					
+				// Box-Muller transform
+				float Theta = 2.0f * PI * u2;
+				float r = Sigma * FMath::Sqrt( -2.0f * FMath::Loge( (1.0f - u1) * InWindow + u1 ) );
+					
+				SampleX = r * FMath::Cos( Theta );
+				SampleY = r * FMath::Sin( Theta );
+			}
+
+			View.TemporalJitterPixels.X = SampleX;
+			View.TemporalJitterPixels.Y = SampleY;
+
+			View.ViewMatrices.HackAddTemporalAAProjectionJitter(FVector2D(SampleX * 2.0f / View.ViewRect.Width(), SampleY * -2.0f / View.ViewRect.Height()));
 		}
 
 		// Setup a new FPreviousViewInfo from current frame infos.

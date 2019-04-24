@@ -155,7 +155,6 @@ FSceneViewState::FSceneViewState()
 	CachedVisibilityChunkIndex = INDEX_NONE;
 	MIDUsedCount = 0;
 	TemporalAASampleIndex = 0;
-	TemporalAASampleCount = 1;
 	FrameIndex = 0;
 	DistanceFieldTemporalSampleIndex = 0;
 	AOTileIntersectionResources = NULL;

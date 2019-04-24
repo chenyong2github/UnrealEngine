@@ -827,14 +827,6 @@ private:
 	TArray<UMaterialInstanceDynamic*> MIDPool;
 	uint32 MIDUsedCount;
 
-	// if TemporalAA is on this cycles through 0..TemporalAASampleCount-1, ResetViewState() puts it back to 0
-	uint8 TemporalAASampleIndex;
-	// >= 1, 1 means there is no TemporalAA
-	uint8 TemporalAASampleCount;
-
-	// counts up by one each frame, warped in 0..7 range, ResetViewState() puts it back to 0
-	uint32 FrameIndex;
-
 	// counts up by one each frame, warped in 0..3 range, ResetViewState() puts it back to 0
 	int32 DistanceFieldTemporalSampleIndex;
 
@@ -848,6 +840,12 @@ private:
 	bool bRoundRobinOcclusionEnabled;
 
 public:
+	
+	// if TemporalAA is on this cycles through 0..TemporalAASampleCount-1, ResetViewState() puts it back to 0
+	int8 TemporalAASampleIndex;
+
+	// counts up by one each frame, warped in 0..7 range, ResetViewState() puts it back to 0
+	uint32 FrameIndex;
 
 	// Previous frame's view info to use.
 	FPreviousViewInfo PrevFrameViewInfo;
@@ -979,12 +977,6 @@ public:
 		return TemporalAASampleIndex;
 	}
 
-	// call after OnFrameRenderingSetup()
-	uint32 GetCurrentTemporalAASampleCount() const
-	{
-		return TemporalAASampleCount;
-	}
-
 	// Returns the index of the frame with a desired power of two modulus.
 	inline uint32 GetFrameIndex(uint32 Pow2Modulus) const
 	{
@@ -1007,29 +999,6 @@ public:
 		PreExposure = 1.f;
 
 		ReleaseDynamicRHI();
-	}
-
-	// @param SampleCount 0 or 1 for no TemporalAA 
-	void OnFrameRenderingSetup(uint32 SampleCount, const FSceneViewFamily& Family)
-	{
-		if(!SampleCount)
-		{
-			SampleCount = 1;
-		}
-
-		TemporalAASampleCount = FMath::Min(SampleCount, (uint32)255);
-
-		if (!Family.bWorldIsPaused)
-		{
-			TemporalAASampleIndex++;
-
-			FrameIndex++;
-		}
-
-		if(TemporalAASampleIndex >= TemporalAASampleCount)
-		{
-			TemporalAASampleIndex = 0;
-		}
 	}
 
 	void SetupDistanceFieldTemporalOffset(const FSceneViewFamily& Family)

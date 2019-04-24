@@ -1262,7 +1262,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	{
 		ViewUniformShaderParameters.TemporalAAParams = FVector4(
 			ViewState->GetCurrentTemporalAASampleIndex(), 
-			ViewState->GetCurrentTemporalAASampleCount(),
+			0,
 			TemporalJitterPixels.X,
 			TemporalJitterPixels.Y);
 
