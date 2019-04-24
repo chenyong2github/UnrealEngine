@@ -87,11 +87,29 @@ static FAutoConsoleVariableRef CVarDebugLightDiscardProp(
 
 
 
+#if RHI_RAYTRACING
+bool ShouldRenderRayTracingShadows(const FLightSceneProxy& LightProxy)
+{
+	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
+	const bool bRTShadowsEnabled = (ForceAllRayTracingEffects > 0 || (GRayTracingShadows > 0 && ForceAllRayTracingEffects < 0));
+
+	return IsRayTracingEnabled() && bRTShadowsEnabled && LightProxy.CastsRaytracedShadow();
+}
+
+bool ShouldRenderRayTracingShadows(const FLightSceneInfoCompact& LightInfo)
+{
+	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
+	const bool bRTShadowsEnabled = (ForceAllRayTracingEffects > 0 || (GRayTracingShadows > 0 && ForceAllRayTracingEffects < 0));
+
+	return IsRayTracingEnabled() && bRTShadowsEnabled && LightInfo.bCastRaytracedShadow;
+}
+#endif // RHI_RAYTRACING
+
+
 FLightOcclusionType GetLightOcclusionType(const FLightSceneProxy& Proxy)
 {
 #if RHI_RAYTRACING
-	const bool bCastRaytracedShadow = IsRayTracingEnabled() && GRayTracingShadows == 1 && Proxy.CastsRaytracedShadow();
-	return bCastRaytracedShadow ? FLightOcclusionType::Raytraced : FLightOcclusionType::Shadowmap;
+	return ShouldRenderRayTracingShadows(Proxy) ? FLightOcclusionType::Raytraced : FLightOcclusionType::Shadowmap;
 #else
 	return FLightOcclusionType::Shadowmap;
 #endif
@@ -100,8 +118,7 @@ FLightOcclusionType GetLightOcclusionType(const FLightSceneProxy& Proxy)
 FLightOcclusionType GetLightOcclusionType(const FLightSceneInfoCompact& LightInfo)
 {
 #if RHI_RAYTRACING
-	const bool bCastRaytracedShadow = IsRayTracingEnabled() && GRayTracingShadows == 1 && LightInfo.bCastRaytracedShadow;
-	return bCastRaytracedShadow ? FLightOcclusionType::Raytraced : FLightOcclusionType::Shadowmap;
+	return ShouldRenderRayTracingShadows(LightInfo) ? FLightOcclusionType::Raytraced : FLightOcclusionType::Shadowmap;
 #else
 	return FLightOcclusionType::Shadowmap;
 #endif

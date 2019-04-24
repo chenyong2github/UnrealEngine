@@ -5,16 +5,26 @@
 =============================================================================*/
 
 #include "DeferredShadingRenderer.h"
+#include "RayTracingOptions.h"
 
 static int32 GRayTracingSkyLight = 0;
+
+#if RHI_RAYTRACING
 bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProxy)
 {
-#if RHI_RAYTRACING
-	return IsRayTracingEnabled() && SkyLightSceneProxy && SkyLightSceneProxy->bCastRayTracedShadow;
-#else
-	return false;
-#endif
+	if (SkyLightSceneProxy != nullptr)
+	{
+		const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
+		const bool bRayTracingSkyEnabled = (ForceAllRayTracingEffects > 0 || (SkyLightSceneProxy->bCastRayTracedShadow > 0 && ForceAllRayTracingEffects < 0));
+
+		return IsRayTracingEnabled() && bRayTracingSkyEnabled;
+	}
+	else
+	{
+		return false;
+	}
 }
+#endif
 
 #if RHI_RAYTRACING
 

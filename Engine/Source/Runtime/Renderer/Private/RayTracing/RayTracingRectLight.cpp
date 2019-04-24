@@ -41,11 +41,13 @@ static FAutoConsoleVariableRef CVarRayTracingStochasticRecLightIsTextureImportan
 	TEXT("Enable importance sampling for rect light evaluation (default = 1)")
 );
 
-bool ShouldRenderRayTracingStochasticRectLight(const FLightSceneInfo& LightSceneInfo)
+bool ShouldRenderRayTracingStochasticRectLight(const FLightSceneInfo& LightInfo)
 {
-	return IsRayTracingEnabled() && GRayTracingStochasticRectLight == 1
-		&& LightSceneInfo.Proxy->CastsRaytracedShadow()
-		&& LightSceneInfo.Proxy->GetLightType() == LightType_Rect;
+	return IsRayTracingEnabled() 
+		&& GRayTracingStochasticRectLight == 1 
+		&& GetForceRayTracingEffectsCVarValue() != 0
+		&& LightInfo.Proxy->CastsRaytracedShadow()
+		&& LightInfo.Proxy->GetLightType() == LightType_Rect;
 }
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRectLightData, )

@@ -26,7 +26,10 @@ static FAutoConsoleVariableRef CVarRayTracingAmbientOcclusion(
 
 bool ShouldRenderRayTracingAmbientOcclusion()
 {
-	return IsRayTracingEnabled() && GRayTracingAmbientOcclusion != 0;
+	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
+	const bool bRTAOEnabled = (ForceAllRayTracingEffects > 0 || (GRayTracingAmbientOcclusion > 0 && ForceAllRayTracingEffects < 0));
+
+	return IsRayTracingEnabled() && bRTAOEnabled;
 }
 
 static int32 GRayTracingAmbientOcclusionSamplesPerPixel = -1;

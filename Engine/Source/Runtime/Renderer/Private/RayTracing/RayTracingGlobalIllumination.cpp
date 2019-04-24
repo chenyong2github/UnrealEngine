@@ -179,6 +179,11 @@ void SetupLightParameters(
 
 bool ShouldRenderRayTracingGlobalIllumination(const TArray<FViewInfo>& Views)
 {
+	if (GetForceRayTracingEffectsCVarValue() >= 0)
+	{
+		return GetForceRayTracingEffectsCVarValue() > 0;
+	}
+
 	if (GRayTracingGlobalIllumination >= 0)
 	{
 		return (GRayTracingGlobalIllumination > 0);
@@ -325,11 +330,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 	TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT
 )
 {
-	if (GRayTracingGlobalIllumination == 0 || (GRayTracingGlobalIllumination == -1 && View.FinalPostProcessSettings.RayTracingGI == 0)) 
-	{
-		return;
-	}
-
 	SCOPED_GPU_STAT(RHICmdList, RayTracingGlobalIllumination);
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);

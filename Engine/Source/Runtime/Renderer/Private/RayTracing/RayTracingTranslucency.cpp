@@ -23,6 +23,16 @@
 #include "RayTracing/RaytracingOptions.h"
 #include "Raytracing/RaytracingLighting.h"
 
+
+static int32 GRayTracingTranslucency = -1;
+static TAutoConsoleVariable<int32> CVarRayTracingTranslucency(
+	TEXT("r.RayTracing.Translucency"),
+	GRayTracingTranslucency,
+	TEXT("-1: Value driven by postprocess volume (default) \n")
+	TEXT(" 0: ray tracing translucency off (use raster) \n")
+	TEXT(" 1: ray tracing translucency enabled"),
+	ECVF_RenderThreadSafe);
+
 static float GRayTracingTranslucencyMaxRoughness = -1;
 static FAutoConsoleVariableRef CVarRayTracingTranslucencyMaxRoughness(
 	TEXT("r.RayTracing.Translucency.MaxRoughness"),
@@ -94,6 +104,25 @@ static FAutoConsoleVariableRef CVarRayTracingTranslucencyRefraction(
 	TEXT("Enables refraction in ray traced Translucency (default = 1)"));
 
 DECLARE_GPU_STAT_NAMED(RayTracingTranslucency, TEXT("Ray Tracing Translucency"));
+
+#if RHI_RAYTRACING
+bool ShouldRenderRayTracingTranslucency(const TArray<FViewInfo>& Views)
+{
+	bool bAnyViewWithRaytracingTranslucency = false;
+	for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
+	{
+		const FViewInfo& View = Views[ViewIndex];
+		//#dxr_todo: UE-72557 multiview case
+		bAnyViewWithRaytracingTranslucency = bAnyViewWithRaytracingTranslucency || (View.FinalPostProcessSettings.TranslucencyType == ETranslucencyType::RayTracing);
+	}
+
+	const bool bTranslucencyCvarEnabled = GRayTracingTranslucency < 0 ? bAnyViewWithRaytracingTranslucency : GRayTracingTranslucency;
+	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
+	const bool bRayTracingTranslucencyEnabled = (ForceAllRayTracingEffects > 0 || (bTranslucencyCvarEnabled && ForceAllRayTracingEffects < 0));
+
+	return IsRayTracingEnabled() && bRayTracingTranslucencyEnabled;
+}
+#endif // RHI_RAYTRACING
 
 class FRayTracingTranslucencyRGS : public FGlobalShader
 {

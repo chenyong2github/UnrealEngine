@@ -190,6 +190,25 @@ bool IsReflectionCaptureAvailable()
 	return (!AllowStaticLightingVar || AllowStaticLightingVar->GetInt() != 0);
 }
 
+#if RHI_RAYTRACING
+bool ShouldRenderRayTracingReflections(const TArray<FViewInfo>& Views)
+{
+	bool bAnyViewWithRaytracingReflections = false;
+	for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
+	{
+		const FViewInfo& View = Views[ViewIndex];
+		//#dxr_todo: UE-72557 multiview case
+		bAnyViewWithRaytracingReflections = bAnyViewWithRaytracingReflections || (View.FinalPostProcessSettings.ReflectionsType == EReflectionsType::RayTracing);
+	}
+
+	const bool bReflectionsCvarEnabled = GRayTracingReflections < 0 ? bAnyViewWithRaytracingReflections : GRayTracingReflections;	
+	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
+	const bool bReflectionPassEnabled = (ForceAllRayTracingEffects > 0 || (bReflectionsCvarEnabled && ForceAllRayTracingEffects < 0));
+
+	return IsRayTracingEnabled() && bReflectionPassEnabled;
+}
+#endif // RHI_RAYTRACING
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FReflectionUniformParameters, "ReflectionStruct");
 
 void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformParameters& OutParameters)
@@ -704,13 +723,10 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 	// If we're currently capturing a reflection capture, output SpecularColor * IndirectIrradiance for metals so they are not black in reflections,
 	// Since we don't have multiple bounce specular reflections
 	bool bReflectionCapture = false;
-	bool bAnyViewWithRaytracingReflections = false;
 	for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
 	{
 		const FViewInfo& View = Views[ViewIndex];
 		bReflectionCapture = bReflectionCapture || View.bIsReflectionCapture;
-		//#dxr_todo: UE-72557 multiview case
-		bAnyViewWithRaytracingReflections = bAnyViewWithRaytracingReflections || (View.FinalPostProcessSettings.ReflectionsType == EReflectionsType::RayTracing);
 	}
 
 	if (bReflectionCapture)
@@ -719,7 +735,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 		return;	
 	}
 
-	const bool bRayTracedReflections = IsRayTracingEnabled() && (GRayTracingReflections < 0 ? bAnyViewWithRaytracingReflections : GRayTracingReflections);
+	const bool bRayTracedReflections = ShouldRenderRayTracingReflections(Views);
 
 	// The specular sky light contribution is also needed by RT Reflections as a fallback.
 	const bool bSkyLight = Scene->SkyLight

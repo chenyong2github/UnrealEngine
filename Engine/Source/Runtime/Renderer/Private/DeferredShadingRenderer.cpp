@@ -105,7 +105,6 @@ static TAutoConsoleVariable<int32> CVarParallelBasePass(
 );
 
 static int32 GRayTracing = 0;
-
 static TAutoConsoleVariable<int32> CVarRayTracing(
 	TEXT("r.RayTracing"),
 	GRayTracing,
@@ -114,6 +113,16 @@ static TAutoConsoleVariable<int32> CVarRayTracing(
 	TEXT(" 1: on"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+static int32 GForceAllRayTracingEffects = -1;
+static TAutoConsoleVariable<int32> CVarForceAllRayTracingEffects(
+	TEXT("r.RayTracing.ForceAllRayTracingEffects"),
+	GForceAllRayTracingEffects,
+	TEXT("Force all ray tracing effects ON/OFF.\n")
+	TEXT(" -1: Do not force (default) \n")
+	TEXT(" 0: All ray tracing effects disabled\n")
+	TEXT(" 1: All ray tracing effects enabled"),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarUseAODenoiser(
 	TEXT("r.AmbientOcclusion.Denoiser"),
 	2,
@@ -121,14 +130,6 @@ static TAutoConsoleVariable<int32> CVarUseAODenoiser(
 	TEXT(" 0: Disabled;\n")
 	TEXT(" 1: Forces the default denoiser of the renderer;\n")
 	TEXT(" 2: GScreenSpaceDenoiser witch may be overriden by a third party plugin (default)."),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarRayTracingTranslucency(
-	TEXT("r.RayTracing.Translucency"),
-	-1,
-	TEXT("-1: Value driven by postprocess volume (default) \n")
-	TEXT(" 0: ray tracing translucency off (use raster) \n")
-	TEXT(" 1: ray tracing translucency enabled"),
 	ECVF_RenderThreadSafe);
 
 #if !UE_BUILD_SHIPPING
@@ -1885,18 +1886,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_Translucency));
 
 #if RHI_RAYTRACING
-		bool bAnyViewWithRaytracingTranslucency = false;
-		for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
-		{
-			const FViewInfo& View = Views[ViewIndex];
-			//#dxr_todo: UE-72557 multiview case
-			bAnyViewWithRaytracingTranslucency = bAnyViewWithRaytracingTranslucency || (View.FinalPostProcessSettings.TranslucencyType == ETranslucencyType::RayTracing);
-		}
-
-		int32 RtTranslucencyCvar = CVarRayTracingTranslucency.GetValueOnRenderThread();
-		int32 bRaytracedTranslucency = RtTranslucencyCvar > -1 ? RtTranslucencyCvar : (bAnyViewWithRaytracingTranslucency? 1 : 0);
-
-		if (bRayTracingEnabled && bRaytracedTranslucency > 0)
+		if (ShouldRenderRayTracingTranslucency(Views))
 		{
 			ResolveSceneColor(RHICmdList);
 			RenderRayTracingTranslucency(RHICmdList);
@@ -2324,6 +2314,20 @@ void FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTexture(FRHIComm
 }
 
 #if RHI_RAYTRACING
+
+int32 GetForceRayTracingEffectsCVarValue()
+{
+	if (IsRayTracingEnabled())
+	{
+		static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.ForceAllRayTracingEffects"));
+		return CVar != nullptr ? CVar->GetInt() : -1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
 bool CanOverlayRayTracingOutput(const FViewInfo& View)
 {
 	return (View.RayTracingRenderMode != ERayTracingRenderMode::PathTracing)
