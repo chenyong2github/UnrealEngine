@@ -196,32 +196,49 @@ void FRigidBodyContactInfo::SwapOrder()
 // FCollisionResponseContainer
 
 /** Set the status of a particular channel in the structure. */
-void FCollisionResponseContainer::SetResponse(ECollisionChannel Channel, ECollisionResponse NewResponse)
+bool FCollisionResponseContainer::SetResponse(ECollisionChannel Channel, ECollisionResponse NewResponse)
 {
 	if (Channel < ARRAY_COUNT(EnumArray))
 	{
-		EnumArray[Channel] = NewResponse;
+		uint8& CurrentResponse = EnumArray[Channel];
+		if (CurrentResponse != NewResponse)
+		{
+			CurrentResponse = NewResponse;
+			return true;
+		}
 	}
+	return false;
 }
 
 /** Set all channels to the specified state */
-void FCollisionResponseContainer::SetAllChannels(ECollisionResponse NewResponse)
+bool FCollisionResponseContainer::SetAllChannels(ECollisionResponse NewResponse)
 {
+	bool bHasChanged = false;
 	for(int32 i=0; i<ARRAY_COUNT(EnumArray); i++)
 	{
-		EnumArray[i] = NewResponse;
-	}
-}
-
-void FCollisionResponseContainer::ReplaceChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse)
-{
-	for (int32 i = 0; i < ARRAY_COUNT(EnumArray); i++)
-	{
-		if(EnumArray[i] == OldResponse)
+		uint8& CurrentResponse = EnumArray[i];
+		if (CurrentResponse != NewResponse)
 		{
-			EnumArray[i] = NewResponse;
+			CurrentResponse = NewResponse;
+			bHasChanged = true;
 		}
 	}
+	return bHasChanged;
+}
+
+bool FCollisionResponseContainer::ReplaceChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse)
+{
+	bool bHasChanged = false;
+	for (int32 i = 0; i < ARRAY_COUNT(EnumArray); i++)
+	{
+		uint8& CurrentResponse = EnumArray[i];
+		if(CurrentResponse == OldResponse)
+		{
+			CurrentResponse = NewResponse;
+			bHasChanged = true;
+		}
+	}
+	return bHasChanged;
 }
 
 FCollisionResponseContainer FCollisionResponseContainer::CreateMinContainer(const FCollisionResponseContainer& A, const FCollisionResponseContainer& B)
