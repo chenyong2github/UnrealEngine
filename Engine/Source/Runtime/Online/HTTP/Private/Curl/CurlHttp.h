@@ -8,6 +8,7 @@
 #include "IHttpThreadedRequest.h"
 #include "Containers/Queue.h"
 #include "GenericPlatform/HttpRequestPayload.h"
+#include "HAL/ThreadSafeBool.h"
 
 class FCurlHttpResponse;
 
@@ -179,8 +180,8 @@ public:
 	 */
 	inline void MarkAsCompleted(CURLcode InCurlCompletionResult)
 	{
-		bCurlRequestCompleted = true;
 		CurlCompletionResult = InCurlCompletionResult;
+		bCurlRequestCompleted = true;
 	}
 	
 	/** 
@@ -328,7 +329,7 @@ private:
 	/** Set to true if request has been canceled */
 	bool			bCanceled;
 	/** Set to true when request has been completed */
-	bool			bCurlRequestCompleted;
+	FThreadSafeBool	bCurlRequestCompleted;
 	/** Set to true when request has "30* Multiple Choices" (e.g. 301 Moved Permanently, 302 temporary redirect, 308 Permanent Redirect, etc.) */
 	bool			bRedirected;
 	/** Set to true if request failed to be added to curl multi */
