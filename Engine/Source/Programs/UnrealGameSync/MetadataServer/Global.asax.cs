@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 using System.Web;
 using System.Web.Http;
 
-namespace UnrealGameSyncMetadataServer
+namespace MetadataServer
 {
 	public class WebApiApplication : System.Web.HttpApplication
 	{

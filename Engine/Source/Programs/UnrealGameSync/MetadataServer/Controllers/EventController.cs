@@ -2,10 +2,10 @@
 
 using System.Collections.Generic;
 using System.Web.Http;
-using UnrealGameSyncMetadataServer.Models;
-using UnrealGameSyncMetadataServer.Connectors;
+using MetadataServer.Models;
+using MetadataServer.Connectors;
 
-namespace UnrealGameSyncMetadataServer.Controllers
+namespace MetadataServer.Controllers
 {
 	public class EventController : ApiController
 	{

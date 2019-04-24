@@ -4,10 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.Web.Http;
-using UnrealGameSyncMetadataServer.Connectors;
-using UnrealGameSyncMetadataServer.Models;
+using MetadataServer.Connectors;
+using MetadataServer.Models;
 
-namespace UnrealGameSyncMetadataServer.Controllers
+namespace MetadataServer.Controllers
 {
 	public class UserController : ApiController
 	{

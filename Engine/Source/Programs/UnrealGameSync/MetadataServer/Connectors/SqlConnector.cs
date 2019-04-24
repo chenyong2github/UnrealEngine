@@ -10,9 +10,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using UnrealGameSyncMetadataServer.Models;
+using MetadataServer.Models;
 
-namespace UnrealGameSyncMetadataServer.Connectors
+namespace MetadataServer.Connectors
 {
 	public static class SqlConnector
 	{

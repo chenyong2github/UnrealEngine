@@ -3,10 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.Web.Http;
-using UnrealGameSyncMetadataServer.Connectors;
-using UnrealGameSyncMetadataServer.Models;
+using MetadataServer.Connectors;
+using MetadataServer.Models;
 
-namespace UnrealGameSyncMetadataServer.Controllers
+namespace MetadataServer.Controllers
 {
 	// Deprecated, use Latest or Build controllers instead
     public class CISController : ApiController
