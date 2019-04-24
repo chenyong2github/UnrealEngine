@@ -21,6 +21,7 @@ namespace UnrealGameSync
 			Normal,
 			Green,
 			Red,
+			Strong,
 			Custom
 		}
 
@@ -47,7 +48,22 @@ namespace UnrealGameSync
 				get; set;
 			}
 
-			public Color BackgroundColorDown
+			public Color BackgroundColorHover1
+			{
+				get; set;
+			}
+
+			public Color BackgroundColorHover2
+			{
+				get; set;
+			}
+
+			public Color BackgroundColorDown1
+			{
+				get; set;
+			}
+
+			public Color BackgroundColorDown2
 			{
 				get; set;
 			}
@@ -71,11 +87,6 @@ namespace UnrealGameSync
 			set { CustomColorsValue = value; UpdateThemeColors(); }
 		}
 
-		public new Color ForeColor
-		{
-			get { return base.ForeColor; }
-		}
-
 		public AlertButtonControl()
 		{
 			Theme = AlertButtonTheme.Normal;
@@ -91,21 +102,40 @@ namespace UnrealGameSync
 					Colors.BorderColor = Color.FromArgb(230, 232, 235);
 					Colors.BackgroundColor1 = Color.FromArgb(255, 255, 255);
 					Colors.BackgroundColor2 = Color.FromArgb(244, 245, 247);
-					Colors.BackgroundColorDown = Color.FromArgb(234, 235, 237);
+					Colors.BackgroundColorHover1 = Color.FromArgb(244, 245, 247);
+					Colors.BackgroundColorHover2 = Color.FromArgb(244, 245, 247);
+					Colors.BackgroundColorDown1 = Color.FromArgb(234, 235, 237);
+					Colors.BackgroundColorDown2 = Color.FromArgb(234, 235, 237);
 					break;
 				case AlertButtonTheme.Green:
 					Colors.ForeColor = Color.FromArgb(255, 255, 255);
 					Colors.BorderColor = Color.FromArgb(143, 199, 156);
 					Colors.BackgroundColor1 = Color.FromArgb(116, 192, 134);
 					Colors.BackgroundColor2 = Color.FromArgb(99, 175, 117);
-					Colors.BackgroundColorDown = Color.FromArgb(90, 165, 107);
+					Colors.BackgroundColorHover1 = Color.FromArgb(99, 175, 117);
+					Colors.BackgroundColorHover2 = Color.FromArgb(99, 175, 117);
+					Colors.BackgroundColorDown1 = Color.FromArgb(90, 165, 107);
+					Colors.BackgroundColorDown2 = Color.FromArgb(90, 165, 107);
 					break;
 				case AlertButtonTheme.Red:
 					Colors.ForeColor = Color.FromArgb(255, 255, 255);
 					Colors.BorderColor = Color.FromArgb(230, 232, 235);
 					Colors.BackgroundColor1 = Color.FromArgb(222, 108, 86);
 					Colors.BackgroundColor2 = Color.FromArgb(214, 69, 64);
-					Colors.BackgroundColorDown = Color.FromArgb(204, 59, 54);
+					Colors.BackgroundColorHover1 = Color.FromArgb(214, 69, 64);
+					Colors.BackgroundColorHover2 = Color.FromArgb(214, 69, 64);
+					Colors.BackgroundColorDown1 = Color.FromArgb(204, 59, 54);
+					Colors.BackgroundColorDown2 = Color.FromArgb(204, 59, 54);
+					break;
+				case AlertButtonTheme.Strong:
+					Colors.ForeColor = Color.FromArgb(255, 255, 255);
+					Colors.BorderColor = Color.FromArgb(230, 232, 235);
+					Colors.BackgroundColor1 = Color.FromArgb(214, 69, 64);
+					Colors.BackgroundColor2 = Color.FromArgb(214, 69, 64);
+					Colors.BackgroundColorHover1 = Color.FromArgb(222, 108, 86);
+					Colors.BackgroundColorHover2 = Color.FromArgb(222, 108, 86);
+					Colors.BackgroundColorDown1 = Color.FromArgb(204, 59, 54);
+					Colors.BackgroundColorDown2 = Color.FromArgb(204, 59, 54);
 					break;
 				case AlertButtonTheme.Custom:
 					Colors = CustomColorsValue;
@@ -162,8 +192,8 @@ namespace UnrealGameSync
 				Path.AddArc(Width - 1 - Diameter, 0, Diameter, Diameter, 270, 90);
 				Path.CloseFigure();
 
-				Color BackgroundColorMin = (bMouseDown && bMouseOver)? Colors.BackgroundColorDown : bMouseOver? Colors.BackgroundColor2 : Colors.BackgroundColor1;
-				Color BackgroundColorMax = (bMouseDown && bMouseOver)? Colors.BackgroundColorDown : Colors.BackgroundColor2;
+				Color BackgroundColorMin = (bMouseDown && bMouseOver)? Colors.BackgroundColorDown1 : bMouseOver? Colors.BackgroundColorHover1 : Colors.BackgroundColor1;
+				Color BackgroundColorMax = (bMouseDown && bMouseOver)? Colors.BackgroundColorDown2 : bMouseOver? Colors.BackgroundColorHover2 : Colors.BackgroundColor2;
 
 				using(LinearGradientBrush Brush = new LinearGradientBrush(new Point(0, 0), new Point(0, Height), BackgroundColorMin, BackgroundColorMax))
 				{

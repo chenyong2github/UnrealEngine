@@ -25,7 +25,7 @@ namespace UnrealGameSync
 
 		public bool bIsWarning;
 
-		public bool bStrongAlert = false;
+		public bool? bStrongAlert;
 
 		public IssueAlertWindow(IssueMonitor IssueMonitor, IssueData Issue, IssueAlertReason Reason)
 		{
@@ -53,12 +53,12 @@ namespace UnrealGameSync
 		{
 			base.OnPaintBackground(e);
 
-			if(bStrongAlert)
+			if(bStrongAlert ?? false)
 			{
 				Color StripeColor = bIsWarning? Color.FromArgb(216, 167, 64) : Color.FromArgb(214, 69, 64);
 				using(Brush StripeBrush = new SolidBrush(StripeColor))
 				{
-					e.Graphics.FillRectangle(StripeBrush, 0, 0, Bounds.Width - 1, Bounds.Height - 1);
+					e.Graphics.FillRectangle(StripeBrush, 0, 0, Bounds.Width, Bounds.Height);
 				}
 			}
 			else
@@ -86,6 +86,8 @@ namespace UnrealGameSync
 
 		public void SetIssue(IssueData NewIssue, IssueAlertReason NewReason)
 		{
+			bool bNewStrongAlert = false;
+
 			StringBuilder OwnerTextBuilder = new StringBuilder();
 			if(NewIssue.Owner == null)
 			{
@@ -96,6 +98,7 @@ namespace UnrealGameSync
 				if(String.Compare(NewIssue.Owner, IssueMonitor.UserName, StringComparison.OrdinalIgnoreCase) == 0 && NewIssue.NominatedBy != null)
 				{
 					OwnerTextBuilder.AppendFormat("You have been nominated to fix this issue by {0}.", Utility.FormatUserName(NewIssue.NominatedBy));
+					bNewStrongAlert = true;
 				}
 				else
 				{
@@ -114,7 +117,7 @@ namespace UnrealGameSync
 
 			Issue = NewIssue;
 
-			if(NewIssue.Summary != SummaryLabel.Text || OwnerText != OwnerLabel.Text || Reason != NewReason || bIsWarning != bNewIsWarning)
+			if(NewIssue.Summary != SummaryLabel.Text || OwnerText != OwnerLabel.Text || Reason != NewReason || bIsWarning != bNewIsWarning || bStrongAlert != bNewStrongAlert)
 			{
 				Rectangle PrevBounds = Bounds;
 				SuspendLayout();
@@ -122,31 +125,42 @@ namespace UnrealGameSync
 				SummaryLabel.Text = NewIssue.Summary;
 				OwnerLabel.Text = OwnerText;
 
-				if(bStrongAlert)
+				bool bForceUpdateButtons = false;
+				if(bStrongAlert != bNewStrongAlert)
 				{
-					SummaryLabel.ForeColor = Color.FromArgb(255, 255, 255);
-					SummaryLabel.LinkColor = Color.FromArgb(255, 255, 255);
-					OwnerLabel.ForeColor = Color.FromArgb(255, 255, 255);
-//					AcceptBtn.BackgroundColor1 = Color.FromArgb(214, 69, 64);//Color.FromArgb(255, 255, 255);
-//					AcceptBtn.BackgroundColor2 = Color.FromArgb(214, 69, 64);//Color.FromArgb(255, 255, 255);
-//					AcceptBtn.BorderColor = Color.FromArgb(255, 255, 255);
-//					AcceptBtn.ForeColor = Color.FromArgb(255, 255, 255);//DetailsBtn.ForeColor;
-					AcceptBtn.Margin = new Padding(0,0, 20, 0);//.Right = 20;
-					LatestBuildLinkLabel.LinkColor = Color.FromArgb(255, 255, 255);
+					bStrongAlert = bNewStrongAlert;
+
+					if(bNewStrongAlert)
+					{
+						SummaryLabel.ForeColor = Color.FromArgb(255, 255, 255);
+						SummaryLabel.LinkColor = Color.FromArgb(255, 255, 255);
+						OwnerLabel.ForeColor = Color.FromArgb(255, 255, 255);
+						AcceptBtn.Theme = AlertButtonControl.AlertButtonTheme.Strong;
+						LatestBuildLinkLabel.LinkColor = Color.FromArgb(255, 255, 255);
+					}
+					else
+					{
+						SummaryLabel.ForeColor = Color.FromArgb(32, 32, 64);
+						SummaryLabel.LinkColor = Color.FromArgb(32, 32, 64);
+						OwnerLabel.ForeColor = Color.FromArgb(32, 32, 64);
+						AcceptBtn.Theme = AlertButtonControl.AlertButtonTheme.Green;
+						LatestBuildLinkLabel.LinkColor = Color.FromArgb(16, 102, 192);
+					}
+
+					bForceUpdateButtons = true;
 				}
 
-				if(bIsWarning != bNewIsWarning)
+				if (bIsWarning != bNewIsWarning)
 				{
 					bIsWarning = bNewIsWarning;
-					IconPictureBox.Image = bIsWarning? Properties.Resources.AlertWarningIcon : Properties.Resources.AlertErrorIcon;
 				}
 
-				if(Reason != NewReason)
+				if(Reason != NewReason || bForceUpdateButtons)
 				{
 					Reason = NewReason;
 
 					List<Button> Buttons = new List<Button>();
-					if(!bStrongAlert)
+					if(!bStrongAlert.Value)
 					{
 						Buttons.Add(DetailsBtn);
 					}
