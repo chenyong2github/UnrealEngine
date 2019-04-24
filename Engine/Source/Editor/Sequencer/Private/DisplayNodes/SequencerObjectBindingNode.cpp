@@ -901,11 +901,8 @@ TSharedRef<SWidget> FSequencerObjectBindingNode::HandleAddTrackComboButtonGetMen
 		FGuid Guid = ObjectBindingNode->GetObjectBinding();
 		for (auto RuntimeObject : Sequencer.FindBoundObjects(Guid, Sequencer.GetFocusedTemplateID()))
 		{
-			////if (RuntimeObject->GetClass() == ObjectClass)
-			{
-				ObjectBindings.AddUnique(Guid);
-				continue;
-			}
+			ObjectBindings.AddUnique(Guid);
+			continue;
 		}
 	}
 
