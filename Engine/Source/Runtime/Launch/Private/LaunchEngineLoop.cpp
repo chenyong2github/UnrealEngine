@@ -990,11 +990,10 @@ static void UpdateCoreCsvStats_BeginFrame()
 	if (FCsvProfiler::Get()->IsCapturing())
 	{
 		const uint32 ProcessId = (uint32)GetCurrentProcessId();
-		float ProcessUsageFraction = 0.f, OtherUsageFraction = 0.f, IdleUsageFraction = 0.f;
-		FWindowsPlatformProcess::GetPerFrameProcessorUsage(ProcessId, ProcessUsageFraction, OtherUsageFraction, IdleUsageFraction);
+		float ProcessUsageFraction = 0.f, IdleUsageFraction = 0.f;
+		FWindowsPlatformProcess::GetPerFrameProcessorUsage(ProcessId, ProcessUsageFraction, IdleUsageFraction);
 
 		CSV_CUSTOM_STAT_GLOBAL(CPUUsage_Process, ProcessUsageFraction, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT_GLOBAL(CPUUsage_Other, OtherUsageFraction, ECsvCustomStatOp::Set);
 		CSV_CUSTOM_STAT_GLOBAL(CPUUsage_Idle, IdleUsageFraction, ECsvCustomStatOp::Set);
 	}
 #endif
