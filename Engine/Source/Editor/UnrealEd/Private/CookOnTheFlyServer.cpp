@@ -6624,7 +6624,7 @@ void UCookOnTheFlyServer::InitializeTargetPlatforms()
 void UCookOnTheFlyServer::TermSandbox()
 {
 	ClearAllCookedData();
-	PackageNameCache->ClearPackageFilenameCache();
+	PackageNameCache->ClearPackageFilenameCache(nullptr);
 	SandboxFile = nullptr;
 }
 
