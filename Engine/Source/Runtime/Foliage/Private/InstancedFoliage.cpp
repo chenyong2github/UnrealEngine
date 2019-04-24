@@ -2823,7 +2823,7 @@ FFoliageInfo* AInstancedFoliageActor::AddMesh(UFoliageType* InType)
 	Modify();
 
 	FFoliageInfo* Info = &*FoliageInfos.Add(InType);
-	if (Info && !Info->Implementation.IsValid())
+	if (!Info->Implementation.IsValid())
 	{
 		Info->CreateImplementation(InType);
 	}
