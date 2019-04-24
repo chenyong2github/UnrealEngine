@@ -429,15 +429,15 @@ void FRDGBuilder::CaptureAnyInterestingPassOutput(const FRenderGraphPass* Pass)
 			for (int32 i = 0; i < RenderTargets->Output.Num(); i++)
 			{
 				const FRenderTargetBinding& RenderTarget = RenderTargets->Output[i];
-				if (RenderTarget.GetTexture() &&
-					RenderTarget.GetStoreAction() != ERenderTargetStoreAction::ENoAction &&
+				if (!RenderTarget.GetTexture())
+				{
+					break;
+				}
+
+				if (RenderTarget.GetStoreAction() != ERenderTargetStoreAction::ENoAction &&
 					GVisualizeTexture.ShouldCapture(RenderTarget.GetTexture()->Name))
 				{
 					GVisualizeTexture.CreateContentCapturePass(*this, RenderTarget.GetTexture());
-				}
-				else
-				{
-					break;
 				}
 			}
 		}
