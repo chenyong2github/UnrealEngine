@@ -27,6 +27,7 @@ public class VulkanRHI : ModuleRules
 				"Core", 
 				"CoreUObject", 
 				"Engine", 
+				"ApplicationCore",
 				"RHI", 
 				"RenderCore", 
 				"UtilityShaders",
