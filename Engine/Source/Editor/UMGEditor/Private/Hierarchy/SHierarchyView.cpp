@@ -105,11 +105,6 @@ void SHierarchyView::Tick( const FGeometry& AllottedGeometry, const double InCur
 {
 	if ( bRebuildTreeRequested || bRefreshRequested )
 	{
-		if (!bExpandAllNodes)
-		{
-			FindExpandedItemNames();
-		}
-
 		if ( bRebuildTreeRequested )
 		{
 			RebuildTreeView();
@@ -117,15 +112,12 @@ void SHierarchyView::Tick( const FGeometry& AllottedGeometry, const double InCur
 
 		RefreshTree();
 
-		RestoreExpandedItems();
+		UpdateItemsExpansionFromModel();
 
 		OnEditorSelectionChanged();
 
 		bRefreshRequested = false;
 		bRebuildTreeRequested = false;
-		bExpandAllNodes = false;
-
-		ExpandedItemNames.Empty();
 	}
 }
 
@@ -184,8 +176,19 @@ void SHierarchyView::GetWidgetFilterStrings(TSharedPtr<FHierarchyModel> Item, TA
 void SHierarchyView::OnSearchChanged(const FText& InFilterText)
 {
 	bRefreshRequested = true;
-	bExpandAllNodes = InFilterText.IsEmpty();
-	FilterHandler->SetIsEnabled(!InFilterText.IsEmpty());
+	const bool bFilteringEnabled = !InFilterText.IsEmpty();
+	if (bFilteringEnabled != FilterHandler->GetIsEnabled())
+	{
+		FilterHandler->SetIsEnabled(bFilteringEnabled);
+		if (bFilteringEnabled)
+		{
+			SaveItemsExpansion();
+		}
+		else
+		{
+			RestoreItemsExpansion();
+		}
+	}
 	SearchBoxWidgetFilter->SetRawFilterText(InFilterText);
 	SearchBoxPtr->SetError(SearchBoxWidgetFilter->GetFilterErrorText());
 }
@@ -346,17 +349,23 @@ void SHierarchyView::OnObjectsReplaced(const TMap<UObject*, UObject*>& Replaceme
 	}
 }
 
-void SHierarchyView::RestoreExpandedItems()
+void SHierarchyView::UpdateItemsExpansionFromModel()
 {
-	EExpandBehavior ExpandBehavior = bExpandAllNodes ? EExpandBehavior::AlwaysExpand : EExpandBehavior::RestoreFromPrevious;
-
-	for ( TSharedPtr<FHierarchyModel>& Model : RootWidgets )
+	for (TSharedPtr<FHierarchyModel>& Model : RootWidgets)
 	{
-		RecursiveExpand(Model, ExpandBehavior);
+		RecursiveExpand(Model, EExpandBehavior::FromModel);
 	}
 }
 
-void SHierarchyView::FindExpandedItemNames()
+void SHierarchyView::RestoreItemsExpansion()
+{
+	for (TSharedPtr<FHierarchyModel>& Model : RootWidgets)
+	{
+		RecursiveExpand(Model, EExpandBehavior::RestoreFromPrevious);
+	}
+}
+
+void SHierarchyView::SaveItemsExpansion()
 {
 	ExpandedItemNames.Empty();
 
@@ -394,9 +403,15 @@ void SHierarchyView::RecursiveExpand(TSharedPtr<FHierarchyModel>& Model, EExpand
 		break;
 
 		case EExpandBehavior::AlwaysExpand:
-		default:
 		{
 			bShouldExpandItem = true;
+		}
+		break;
+
+		case EExpandBehavior::FromModel:
+		default:
+		{
+			bShouldExpandItem = Model->IsExpanded();
 		}
 		break;
 	}
@@ -409,11 +424,6 @@ void SHierarchyView::RecursiveExpand(TSharedPtr<FHierarchyModel>& Model, EExpand
 	for (TSharedPtr<FHierarchyModel>& ChildModel : Children)
 	{
 		RecursiveExpand(ChildModel, ExpandBehavior);
-	}
-
-	if (Model->IsExpanded())
-	{
-		WidgetTreeView->SetItemExpansion(Model, true);
 	}
 }
 
