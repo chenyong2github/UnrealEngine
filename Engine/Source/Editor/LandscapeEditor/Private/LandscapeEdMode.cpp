@@ -99,7 +99,7 @@ IMPLEMENT_HIT_PROXY(HNewLandscapeGrabHandleProxy, HHitProxy)
 
 ENGINE_API extern bool GDisableAutomaticTextureMaterialUpdateDependencies;
 
-void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, bool bMoveToCurrentLevel, FMaterialUpdateContext* InOutUpdateContext, TArray<FComponentRecreateRenderStateContext>* InOutRecreateRenderStateContext, bool InReregisterComponent)
+void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, ALandscapeProxy* TargetProxy, FMaterialUpdateContext* InOutUpdateContext, TArray<FComponentRecreateRenderStateContext>* InOutRecreateRenderStateContext, bool InReregisterComponent)
 {
 	ULandscapeInfo* Info = Comp->GetLandscapeInfo();
 	
@@ -108,10 +108,10 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, bool bMoveToCurrentLe
 	int32 HeightmapSizeU = (1 << FMath::CeilLogTwo(ComponentSizeVerts));
 	int32 HeightmapSizeV = (1 << FMath::CeilLogTwo(ComponentSizeVerts));
 
-	ALandscapeProxy* Proxy = Comp->GetLandscapeProxy();
-	Proxy->Modify();
-
-	UObject* TextureOuter = bMoveToCurrentLevel ? Comp->GetWorld()->GetCurrentLevel()->GetOutermost() : nullptr;
+	ALandscapeProxy* SrcProxy = Comp->GetLandscapeProxy();
+	ALandscapeProxy* DstProxy = TargetProxy ? TargetProxy : SrcProxy;
+	SrcProxy->Modify();
+	DstProxy->Modify();
 	
 	UTexture2D* OldHeightmapTexture = Comp->GetHeightmap(false);
 	UTexture2D* NewHeightmapTexture = NULL;
@@ -129,7 +129,7 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, bool bMoveToCurrentLe
 		LandscapeEdit.GetHeightDataFast(Comp->GetSectionBase().X, Comp->GetSectionBase().Y, Comp->GetSectionBase().X + Comp->ComponentSizeQuads, Comp->GetSectionBase().Y + Comp->ComponentSizeQuads, (uint16*)HeightData.GetData(), 0, (uint16*)NormalData.GetData());
 
 		// Create the new heightmap texture
-		NewHeightmapTexture = Proxy->CreateLandscapeTexture(HeightmapSizeU, HeightmapSizeV, TEXTUREGROUP_Terrain_Heightmap, TSF_BGRA8, TextureOuter);
+		NewHeightmapTexture = DstProxy->CreateLandscapeTexture(HeightmapSizeU, HeightmapSizeV, TEXTUREGROUP_Terrain_Heightmap, TSF_BGRA8);
 		ULandscapeComponent::CreateEmptyTextureMips(NewHeightmapTexture, true);
 		Comp->HeightmapScaleBias = NewHeightmapScaleBias;
 		Comp->SetHeightmap(NewHeightmapTexture);
@@ -195,11 +195,11 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, bool bMoveToCurrentLe
 	{
 		FLandscapeLayersTexture2DCPUReadBackResource* NewCPUReadBackResource = new FLandscapeLayersTexture2DCPUReadBackResource(NewHeightmapTexture->Source.GetSizeX(), NewHeightmapTexture->Source.GetSizeY(), NewHeightmapTexture->GetPixelFormat(), NewHeightmapTexture->Source.GetNumMips());
 		BeginInitResource(NewCPUReadBackResource);
-		Proxy->HeightmapsCPUReadBack.Add(NewHeightmapTexture, NewCPUReadBackResource);
+		DstProxy->HeightmapsCPUReadBack.Add(NewHeightmapTexture, NewCPUReadBackResource);
 
 		// Free OldHeightmapTexture's CPUReadBackResource if not used by any component
 		bool FreeCPUReadBack = true;
-		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
+		for (ULandscapeComponent* Component : SrcProxy->LandscapeComponents)
 		{
 			if (Component != Comp && Component->GetHeightmap(false) == OldHeightmapTexture)
 			{
@@ -209,14 +209,14 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, bool bMoveToCurrentLe
 		}
 		if (FreeCPUReadBack)
 		{
-			FLandscapeLayersTexture2DCPUReadBackResource** OldCPUReadBackResource = Proxy->HeightmapsCPUReadBack.Find(OldHeightmapTexture);
+			FLandscapeLayersTexture2DCPUReadBackResource** OldCPUReadBackResource = SrcProxy->HeightmapsCPUReadBack.Find(OldHeightmapTexture);
 			if (OldCPUReadBackResource)
 			{
 				if (FLandscapeLayersTexture2DCPUReadBackResource* ResourceToDelete = *OldCPUReadBackResource)
 				{
 					ReleaseResourceAndFlush(ResourceToDelete);
 					delete ResourceToDelete;
-					Proxy->HeightmapsCPUReadBack.Remove(OldHeightmapTexture);
+					SrcProxy->HeightmapsCPUReadBack.Remove(OldHeightmapTexture);
 				}
 			}
 		}
@@ -243,7 +243,7 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, bool bMoveToCurrentLe
 				// Restore new heightmap scale/bias
 				Comp->HeightmapScaleBias = NewHeightmapScaleBias;
 				{
-					UTexture2D* LayerHeightmapTexture = Proxy->CreateLandscapeTexture(HeightmapSizeU, HeightmapSizeV, TEXTUREGROUP_Terrain_Heightmap, TSF_BGRA8, TextureOuter);
+					UTexture2D* LayerHeightmapTexture = DstProxy->CreateLandscapeTexture(HeightmapSizeU, HeightmapSizeV, TEXTUREGROUP_Terrain_Heightmap, TSF_BGRA8);
 					ULandscapeComponent::CreateEmptyTextureMips(LayerHeightmapTexture, true);
 					LayerHeightmapTexture->PostEditChange();
 					// Set Layer heightmap texture
@@ -3646,7 +3646,7 @@ void FEdModeLandscape::DeleteLandscapeComponents(ULandscapeInfo* LandscapeInfo, 
 		// Changing Heightmap format for selected components
 		for (ULandscapeComponent* Component : HeightmapUpdateComponents)
 		{
-			ALandscape::SplitHeightmap(Component, false, &MaterialUpdateContext, &RecreateRenderStateContexts, false);
+			ALandscape::SplitHeightmap(Component, nullptr, &MaterialUpdateContext, &RecreateRenderStateContexts, false);
 		}
 
 		FMultiComponentReregisterContext RegisterContext(ComponentsToReregister);

@@ -259,11 +259,11 @@ UMaterialInstanceConstant* ULandscapeComponent::GetCombinationMaterial(FMaterial
 
 		// Find or set a matching MIC in the Landscape's map.
 		UMaterialInstanceConstant* CombinationMaterialInstance = Proxy->MaterialInstanceConstantMap.FindRef(*LayerKey);
-		if (CombinationMaterialInstance == nullptr || CombinationMaterialInstance->Parent != MaterialToUse || GetOutermost() != CombinationMaterialInstance->GetOutermost())
+		if (CombinationMaterialInstance == nullptr || CombinationMaterialInstance->Parent != MaterialToUse || GetOuter() != CombinationMaterialInstance->GetOuter())
 		{
 			FlushRenderingCommands();
 
-			ULandscapeMaterialInstanceConstant* LandscapeCombinationMaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(GetOutermost());
+			ULandscapeMaterialInstanceConstant* LandscapeCombinationMaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(GetOuter());
 			LandscapeCombinationMaterialInstance->bMobile = bMobile;
 			CombinationMaterialInstance = LandscapeCombinationMaterialInstance;
 			UE_LOG(LogLandscape, Log, TEXT("Looking for key %s, making new combination %s"), *LayerKey, *CombinationMaterialInstance->GetName());
@@ -353,7 +353,7 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 		if (CombinationMaterialInstance != nullptr)
 		{
 			// Create the instance for this component, that will use the layer combination instance.
-			UMaterialInstanceConstant* MaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(GetOutermost());
+			UMaterialInstanceConstant* MaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(this);
 			MaterialInstances[MaterialIndex] = MaterialInstance;
 
 			// Material Instances don't support Undo/Redo (the shader map goes out of sync and crashes happen)
@@ -392,7 +392,7 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 			// Setup material instance with disabled tessellation
 			if (CombinationMaterialInstance->GetMaterial()->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
 			{
-				ULandscapeMaterialInstanceConstant* TessellationMaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(GetOutermost());
+				ULandscapeMaterialInstanceConstant* TessellationMaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(this);
 				int32 TessellatedMaterialIndex = MaterialPerLOD.Num() + TessellatedMaterialCount++;
 				MaterialInstances[TessellatedMaterialIndex] = TessellationMaterialInstance;
 				MaterialIndexToDisabledTessellationMaterial[MaterialIndex] = TessellatedMaterialIndex;
@@ -4503,107 +4503,118 @@ void ULandscapeInfo::ClearSelectedRegion(bool bIsComponentwise /*= true*/)
 	}
 }
 
-void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* DataInterface, bool InCanUseEditingWeightmap, bool InSaveToTransactionBuffer, bool InInitPlatformDataAsync, TArray<UTexture2D*>* OutNewCreatedTextures)
+void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* DataInterface, bool InCanUseEditingWeightmap, bool InSaveToTransactionBuffer, bool InInitPlatformDataAsync, bool InForceReallocate, ALandscapeProxy* InTargetProxy, TArray<UTexture2D*>* OutNewCreatedTextures)
 {
-	ALandscapeProxy* Proxy = GetLandscapeProxy();
+	int32 NeededNewChannels = 0;
+	ALandscapeProxy* TargetProxy = InTargetProxy ? InTargetProxy : GetLandscapeProxy();
+
+	FGuid EditingLayerGUID = GetEditingLayerGUID();
+	check(!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem || !InCanUseEditingWeightmap || EditingLayerGUID.IsValid());
+	FGuid TargetLayerGuid = InCanUseEditingWeightmap ? EditingLayerGUID : FGuid();
 
 	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(InCanUseEditingWeightmap);
 	TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures(InCanUseEditingWeightmap);
 	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = GetWeightmapTexturesUsage(InCanUseEditingWeightmap);
 
-	int32 NeededNewChannels = 0;
-	for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
+	// When force reallocating, skip tests to see if allocations are necessary based on Component's WeightmapLayeAllocInfo
+	if (!InForceReallocate)
 	{
-		if (ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex == 255)
+		for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 		{
-			NeededNewChannels++;
+			if (ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex == 255)
+			{
+				NeededNewChannels++;
+			}
 		}
-	}
 
-	// All channels allocated!
-	if (NeededNewChannels == 0)
-	{
-		return;
+		// All channels allocated!
+		if (NeededNewChannels == 0)
+		{
+			return;
+		}
 	}
 
 	if (InSaveToTransactionBuffer)
 	{
 		Modify();
-		Proxy->Modify();
+		TargetProxy->Modify();
 	}
 
-	// UE_LOG(LogLandscape, Log, TEXT("----------------------"));
-	// UE_LOG(LogLandscape, Log, TEXT("Component %s needs %d layers (%d new)"), *GetName(), WeightmapLayerAllocations.Num(), NeededNewChannels);
-
-	// See if our existing textures have sufficient space
-	int32 ExistingTexAvailableChannels = 0;
-	for (int32 TexIdx = 0; TexIdx < ComponentWeightmapTextures.Num(); TexIdx++)
+	if (!InForceReallocate)
 	{
-		ULandscapeWeightmapUsage* Usage = ComponentWeightmapTexturesUsage[TexIdx];
-		check(Usage);
+		// UE_LOG(LogLandscape, Log, TEXT("----------------------"));
+		// UE_LOG(LogLandscape, Log, TEXT("Component %s needs %d layers (%d new)"), *GetName(), WeightmapLayerAllocations.Num(), NeededNewChannels);
 
-		ExistingTexAvailableChannels += Usage->FreeChannelCount();
-
-		if (ExistingTexAvailableChannels >= NeededNewChannels)
-		{
-			break;
-		}
-	}
-
-	if (ExistingTexAvailableChannels >= NeededNewChannels)
-	{
-		// UE_LOG(LogLandscape, Log, TEXT("Existing texture has available channels"));
-
-		// Allocate using our existing textures' spare channels.
-		int32 CurrentAlloc = 0;
+		// See if our existing textures have sufficient space
+		int32 ExistingTexAvailableChannels = 0;
 		for (int32 TexIdx = 0; TexIdx < ComponentWeightmapTextures.Num(); TexIdx++)
 		{
 			ULandscapeWeightmapUsage* Usage = ComponentWeightmapTexturesUsage[TexIdx];
+			check(Usage);
+			check(Usage->LayerGuid == TargetLayerGuid);
+			ExistingTexAvailableChannels += Usage->FreeChannelCount();
 
-			for (int32 ChanIdx = 0; ChanIdx < 4; ChanIdx++)
+			if (ExistingTexAvailableChannels >= NeededNewChannels)
 			{
-				if (Usage->ChannelUsage[ChanIdx] == nullptr)
+				break;
+			}
+		}
+
+		if (ExistingTexAvailableChannels >= NeededNewChannels)
+		{
+			// UE_LOG(LogLandscape, Log, TEXT("Existing texture has available channels"));
+
+			// Allocate using our existing textures' spare channels.
+			int32 CurrentAlloc = 0;
+			for (int32 TexIdx = 0; TexIdx < ComponentWeightmapTextures.Num(); TexIdx++)
+			{
+				ULandscapeWeightmapUsage* Usage = ComponentWeightmapTexturesUsage[TexIdx];
+
+				for (int32 ChanIdx = 0; ChanIdx < 4; ChanIdx++)
 				{
-					// Find next allocation to treat
-					for (; CurrentAlloc < ComponentWeightmapLayerAllocations.Num(); ++CurrentAlloc)
+					if (Usage->ChannelUsage[ChanIdx] == nullptr)
 					{
-						FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[CurrentAlloc];
-						
-						if (AllocInfo.WeightmapTextureIndex == 255)
+						// Find next allocation to treat
+						for (; CurrentAlloc < ComponentWeightmapLayerAllocations.Num(); ++CurrentAlloc)
 						{
-							break;
+							FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[CurrentAlloc];
+
+							if (AllocInfo.WeightmapTextureIndex == 255)
+							{
+								break;
+							}
 						}
-					}
 
-					FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[CurrentAlloc];
-					check(AllocInfo.WeightmapTextureIndex == 255);
+						FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[CurrentAlloc];
+						check(AllocInfo.WeightmapTextureIndex == 255);
 
-					// Zero out the data for this texture channel
-					if (DataInterface)
-					{
-						DataInterface->ZeroTextureChannel(ComponentWeightmapTextures[TexIdx], ChanIdx);
-					}
+						// Zero out the data for this texture channel
+						if (DataInterface)
+						{
+							DataInterface->ZeroTextureChannel(ComponentWeightmapTextures[TexIdx], ChanIdx);
+						}
 
-					AllocInfo.WeightmapTextureIndex = TexIdx;
-					AllocInfo.WeightmapTextureChannel = ChanIdx;
+						AllocInfo.WeightmapTextureIndex = TexIdx;
+						AllocInfo.WeightmapTextureChannel = ChanIdx;
 
-					if (InSaveToTransactionBuffer)
-					{
-						Usage->Modify();
-					}
-					Usage->ChannelUsage[ChanIdx] = this;
+						if (InSaveToTransactionBuffer)
+						{
+							Usage->Modify();
+						}
+						Usage->ChannelUsage[ChanIdx] = this;
 
-					NeededNewChannels--;
+						NeededNewChannels--;
 
-					if (NeededNewChannels == 0)
-					{
-						return;
+						if (NeededNewChannels == 0)
+						{
+							return;
+						}
 					}
 				}
 			}
+			// we should never get here.
+			check(false);
 		}
-		// we should never get here.
-		check(false);
 	}
 
 	// UE_LOG(LogLandscape, Log, TEXT("Reallocating."));
@@ -4627,16 +4638,11 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 
 			// see if we can find a suitable existing weightmap texture with sufficient channels
 			int32 BestDistanceSquared = MAX_int32;
-			for (auto& ItPair : Proxy->WeightmapUsageMap)
+			for (auto& ItPair : TargetProxy->WeightmapUsageMap)
 			{
 				ULandscapeWeightmapUsage* TryWeightmapUsage = ItPair.Value;
 				//
-				FGuid EditingLayerGUID = GetEditingLayerGUID();
-				check(!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem || !InCanUseEditingWeightmap || EditingLayerGUID.IsValid());
-
-				FGuid LayerGuidToSeek = InCanUseEditingWeightmap ? EditingLayerGUID : FGuid();
-
-				if (TryWeightmapUsage->FreeChannelCount() >= TotalNeededChannels && TryWeightmapUsage->LayerGuid == LayerGuidToSeek)
+				if (TryWeightmapUsage->FreeChannelCount() >= TotalNeededChannels && TryWeightmapUsage->LayerGuid == TargetLayerGuid)
 				{
 					if (TryWeightmapUsage->IsEmpty())
 					{
@@ -4675,7 +4681,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 			int32 WeightmapSize = (SubsectionSizeQuads + 1) * NumSubsections;
 
 			// We need a new weightmap texture
-			CurrentWeightmapTexture = GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8);
+			CurrentWeightmapTexture = TargetProxy->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8);
 
 			// Alloc dummy mips
 			CreateEmptyTextureMips(CurrentWeightmapTexture, true);
@@ -4696,16 +4702,13 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 			}
 
 			// Store it in the usage map
-			CurrentWeightmapUsage = Proxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, GetLandscapeProxy()->CreateWeightmapUsage());
+			CurrentWeightmapUsage = TargetProxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, TargetProxy->CreateWeightmapUsage());
 			if (InSaveToTransactionBuffer)
 			{
 				CurrentWeightmapUsage->Modify();
 			}
 
-			FGuid EditingLayerGUID = GetEditingLayerGUID();
-			check(!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem || !InCanUseEditingWeightmap || EditingLayerGUID.IsValid());
-
-			CurrentWeightmapUsage->LayerGuid = InCanUseEditingWeightmap ? EditingLayerGUID : FGuid();
+			CurrentWeightmapUsage->LayerGuid = TargetLayerGuid;
 			// UE_LOG(LogLandscape, Log, TEXT("Making a new texture %s"), *CurrentWeightmapTexture->GetName());
 		}
 
@@ -5366,7 +5369,7 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 
 	MobileWeightmapTextures.Empty();
 
-    UTexture2D* MobileWeightNormalmapTexture = GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8, nullptr, GMobileCompressLandscapeWeightMaps ? true : false );
+    UTexture2D* MobileWeightNormalmapTexture = GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8, GMobileCompressLandscapeWeightMaps ? true : false );
 	CreateEmptyTextureMips(MobileWeightNormalmapTexture);
 
 	{
@@ -5409,7 +5412,7 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 					// create a new weightmap texture if we've run out of channels
 					CurrentChannel = 0;
 					RemainingChannels = 4;
-                    CurrentWeightmapTexture = GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8, nullptr, GMobileCompressLandscapeWeightMaps ? true : false);
+                    CurrentWeightmapTexture = GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8, GMobileCompressLandscapeWeightMaps ? true : false);
 					CreateEmptyTextureMips(CurrentWeightmapTexture);
 					MobileWeightmapTextures.Add(CurrentWeightmapTexture);
 				}
@@ -5452,7 +5455,7 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 
 		for (int32 MaterialIndex = 0; MaterialIndex < MobileCombinationMaterialInstances.Num(); ++MaterialIndex)
 		{
-			UMaterialInstanceDynamic* NewMobileMaterialInstance = UMaterialInstanceDynamic::Create(MobileCombinationMaterialInstances[MaterialIndex], GetOutermost());
+			UMaterialInstanceDynamic* NewMobileMaterialInstance = UMaterialInstanceDynamic::Create(MobileCombinationMaterialInstances[MaterialIndex], this);
 
 			// Set the layer mask
 			for (const auto& Allocation : MobileWeightmapLayerAllocations)
@@ -5507,7 +5510,7 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 			MobileCombinationMaterialInstances[MaterialIndex] = GetCombinationMaterial(nullptr, MobileWeightmapLayerAllocations, MaterialLOD, true);
 			check(MobileCombinationMaterialInstances[MaterialIndex] != nullptr);
 
-			UMaterialInstanceConstant* NewMobileMaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(GetOutermost());
+			UMaterialInstanceConstant* NewMobileMaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(this);
 
 			NewMobileMaterialInstance->SetParentEditorOnly(MobileCombinationMaterialInstances[MaterialIndex]);
 
@@ -5748,10 +5751,9 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	PlatformData.InitializeFromUncompressedData(NewPlatformData);
 }
 
-UTexture2D* ALandscapeProxy::CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, UObject* OptionalOverrideOuter, bool bCompress) const
+UTexture2D* ALandscapeProxy::CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, bool bCompress) const
 {
-	UObject* TexOuter = OptionalOverrideOuter ? OptionalOverrideOuter : GetOutermost();
-	UTexture2D* NewTexture = NewObject<UTexture2D>(TexOuter);
+	UTexture2D* NewTexture = NewObject<UTexture2D>(const_cast<ALandscapeProxy*>(this));
 	NewTexture->Source.Init2DWithMipChain(InSizeX, InSizeY, InFormat);
 	NewTexture->SRGB = false;
 	NewTexture->CompressionNone = !bCompress;
