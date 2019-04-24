@@ -410,7 +410,7 @@ void FVisualizeTexturePresent::PresentContent(FRHICommandListImmediate& RHICmdLi
 		{
 		case 0:
 		{
-			DestRect = SrcRect;
+			DestRect = View.UnconstrainedViewRect;
 		}
 		break;
 
