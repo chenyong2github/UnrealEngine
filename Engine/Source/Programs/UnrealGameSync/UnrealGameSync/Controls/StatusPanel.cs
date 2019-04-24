@@ -33,7 +33,10 @@ namespace UnrealGameSync
 		{
 			FontCache.Add(FontStyle.Regular, BaseFont);
 
-			BadgeFont = new Font(BaseFont.FontFamily, BaseFont.Size - 1.25f, FontStyle.Bold);
+			using(Graphics Graphics = Graphics.FromHwnd(IntPtr.Zero))
+			{
+				BadgeFont = new Font(BaseFont.FontFamily, 7.0f/* * Graphics.DpiY / 96.0f*/, FontStyle.Bold);
+			}
 		}
 
 		public void Dispose()
@@ -130,11 +133,13 @@ namespace UnrealGameSync
 	class TextStatusElement : StatusElement
 	{
 		string Text;
+		Color Color;
 		FontStyle Style;
 
-		public TextStatusElement(string InText, FontStyle InStyle)
+		public TextStatusElement(string InText, Color InColor, FontStyle InStyle)
 		{
 			Text = InText;
+			Color = InColor;
 			Style = InStyle;
 		}
 
@@ -145,7 +150,7 @@ namespace UnrealGameSync
 
 		public override void Draw(Graphics Graphics, StatusElementResources Resources)
 		{
-			TextRenderer.DrawText(Graphics, Text, Resources.FindOrAddFont(Style), Bounds.Location, SystemColors.ControlText, TextFormatFlags.NoPadding);
+			TextRenderer.DrawText(Graphics, Text, Resources.FindOrAddFont(Style), Bounds.Location, Color, TextFormatFlags.NoPadding);
 		}
 	}
 
@@ -193,9 +198,19 @@ namespace UnrealGameSync
 		string Name;
 		Color BackgroundColor;
 		Color HoverBackgroundColor;
-		Action ClickAction;
+		Action<Point, Rectangle> ClickAction;
 
-		public BadgeStatusElement(string InName, Color InBackgroundColor, Action InClickAction)
+		public bool MergeLeft
+		{
+			get; set;
+		}
+
+		public bool MergeRight
+		{
+			get; set;
+		}
+
+		public BadgeStatusElement(string InName, Color InBackgroundColor, Action<Point, Rectangle> InClickAction)
 		{
 			Name = InName;
 			BackgroundColor = InBackgroundColor;
@@ -218,7 +233,7 @@ namespace UnrealGameSync
 		{
 			if(ClickAction != null)
 			{
-				ClickAction();
+				ClickAction(Location, Bounds);
 			}
 		}
 
@@ -226,15 +241,30 @@ namespace UnrealGameSync
 		{
 			Size LabelSize = TextRenderer.MeasureText(Name, Resources.BadgeFont);
 			int BadgeHeight = Resources.BadgeFont.Height + 1;
-			return new Size(LabelSize.Width + BadgeHeight - 4, BadgeHeight);
+			return new Size(LabelSize.Width + 1 + BadgeHeight - 4, BadgeHeight);
 		}
 
 		public override void Draw(Graphics Graphics, StatusElementResources Resources)
 		{
-			using(SolidBrush Brush = new SolidBrush(bMouseOver? HoverBackgroundColor : BackgroundColor))
+			SmoothingMode PrevSmoothingMode = Graphics.SmoothingMode;
+			Graphics.SmoothingMode = SmoothingMode.HighQuality;
+
+			using (GraphicsPath Path = new GraphicsPath())
 			{
-				Graphics.FillRectangle(Brush, Bounds);
+				Path.StartFigure();
+				Path.AddLine(Bounds.Left + (MergeLeft? 1 : 0), Bounds.Top, Bounds.Left - (MergeLeft? 1 : 0), Bounds.Bottom);
+				Path.AddLine(Bounds.Left - (MergeLeft? 1 : 0), Bounds.Bottom, Bounds.Right - 2 - (MergeRight? 1 : 0), Bounds.Bottom);
+				Path.AddLine(Bounds.Right - 2 - (MergeRight? 1 : 0), Bounds.Bottom, Bounds.Right - 2 + (MergeRight? 1 : 0), Bounds.Top);
+				Path.AddLine(Bounds.Right - 2 + (MergeRight? 1 : 0), Bounds.Top, Bounds.Left + (MergeLeft? 1 : 0), Bounds.Top);
+				Path.CloseFigure();
+
+				using(SolidBrush Brush = new SolidBrush(bMouseOver? HoverBackgroundColor : BackgroundColor))
+				{
+					Graphics.FillPath(Brush, Path);
+				}
 			}
+
+			Graphics.SmoothingMode = PrevSmoothingMode;
 			TextRenderer.DrawText(Graphics, Name, Resources.BadgeFont, Bounds, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsClipping);
 		}
 	}
@@ -271,6 +301,7 @@ namespace UnrealGameSync
 
 	class StatusLine
 	{
+		bool bModified;
 		List<StatusElement> Elements = new List<StatusElement>();
 
 		public StatusLine()
@@ -290,39 +321,79 @@ namespace UnrealGameSync
 			private set;
 		}
 
+		public bool RequiresLayout()
+		{
+			return bModified;
+		}
+
+		public void Clear()
+		{
+			Elements.Clear();
+			bModified = true;
+		}
+
+		public void Add(StatusElement Element)
+		{
+			Elements.Add(Element);
+			bModified = true;
+		}
+
 		public void AddIcon(Image InIcon)
 		{
 			Elements.Add(new IconStatusElement(InIcon));
+			bModified = true;
 		}
 
 		public void AddIcon(Image InStrip, Size InIconSize, int InIndex)
 		{
 			Elements.Add(new IconStripStatusElement(InStrip, InIconSize, InIndex));
+			bModified = true;
 		}
 
 		public void AddText(string InText, FontStyle InStyle = FontStyle.Regular)
 		{
-			Elements.Add(new TextStatusElement(InText, InStyle));
+			Elements.Add(new TextStatusElement(InText, SystemColors.ControlText, InStyle));
+			bModified = true;
+		}
+
+		public void AddText(string InText, Color InColor, FontStyle InStyle = FontStyle.Regular)
+		{
+			Elements.Add(new TextStatusElement(InText, InColor, InStyle));
+			bModified = true;
 		}
 
 		public void AddLink(string InText, FontStyle InStyle, Action InLinkAction)
 		{
 			Elements.Add(new LinkStatusElement(InText, InStyle, (P, R) => { InLinkAction(); }));
+			bModified = true;
 		}
 
 		public void AddLink(string InText, FontStyle InStyle, Action<Point, Rectangle> InLinkAction)
 		{
 			Elements.Add(new LinkStatusElement(InText, InStyle, InLinkAction));
+			bModified = true;
 		}
 
-		public void AddBadge(string InText, Color InBackgroundColor, Action InClickAction)
+		public void AddBadge(string InText, Color InBackgroundColor, Action<Point, Rectangle> InClickAction)
 		{
 			Elements.Add(new BadgeStatusElement(InText, InBackgroundColor, InClickAction));
+			if(Elements.Count >= 2)
+			{
+				BadgeStatusElement PrevBadge = Elements[Elements.Count - 2] as BadgeStatusElement;
+				BadgeStatusElement NextBadge = Elements[Elements.Count - 1] as BadgeStatusElement;
+				if(PrevBadge != null && NextBadge != null)
+				{
+					PrevBadge.MergeRight = true;
+					NextBadge.MergeLeft = true;
+				}
+			}
+			bModified = true;
 		}
 
 		public void AddProgressBar(float Progress)
 		{
 			Elements.Add(new ProgressBarStatusElement(Progress));
+			bModified = true;
 		}
 
 		public bool HitTest(Point Location, out StatusElement OutElement)
@@ -352,6 +423,8 @@ namespace UnrealGameSync
 				NextLocation = Element.Layout(Graphics, NextLocation, Resources);
 				Bounds = Rectangle.Union(Bounds, Element.Bounds);
 			}
+
+			bModified = false;
 		}
 
 		public void Draw(Graphics Graphics, StatusElementResources Resources)

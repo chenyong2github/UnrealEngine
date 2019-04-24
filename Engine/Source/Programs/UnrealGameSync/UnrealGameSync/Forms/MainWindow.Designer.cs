@@ -20,6 +20,7 @@ namespace UnrealGameSync
 			this.components = new System.ComponentModel.Container();
 			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainWindow));
 			this.TabPanel = new System.Windows.Forms.Panel();
+			this.DefaultControl = new UnrealGameSync.StatusPanel();
 			this.TabMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
 			this.TabMenu_OpenProject = new System.Windows.Forms.ToolStripMenuItem();
 			this.TabMenu_RecentProjects = new System.Windows.Forms.ToolStripMenuItem();
@@ -33,7 +34,7 @@ namespace UnrealGameSync
 			this.TabMenu_TabNames_ProjectFile = new System.Windows.Forms.ToolStripMenuItem();
 			this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
 			this.TabControl = new UnrealGameSync.TabControl();
-			this.DefaultControl = new UnrealGameSync.StatusPanel();
+			this.UpdateAlertPositionsTimer = new System.Windows.Forms.Timer(this.components);
 			this.TabPanel.SuspendLayout();
 			this.TabMenu.SuspendLayout();
 			this.tableLayoutPanel1.SuspendLayout();
@@ -50,6 +51,20 @@ namespace UnrealGameSync
 			this.TabPanel.Name = "TabPanel";
 			this.TabPanel.Size = new System.Drawing.Size(1335, 746);
 			this.TabPanel.TabIndex = 3;
+			// 
+			// DefaultControl
+			// 
+			this.DefaultControl.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+			this.DefaultControl.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(250)))), ((int)(((byte)(250)))), ((int)(((byte)(250)))));
+			this.DefaultControl.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+			this.DefaultControl.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.DefaultControl.Location = new System.Drawing.Point(0, 0);
+			this.DefaultControl.Margin = new System.Windows.Forms.Padding(0);
+			this.DefaultControl.Name = "DefaultControl";
+			this.DefaultControl.Size = new System.Drawing.Size(1335, 746);
+			this.DefaultControl.TabIndex = 0;
 			// 
 			// TabMenu
 			// 
@@ -163,19 +178,11 @@ namespace UnrealGameSync
 			this.TabControl.TabIndex = 2;
 			this.TabControl.Text = "TabControl";
 			// 
-			// DefaultControl
+			// UpdateAlertPositionsTimer
 			// 
-			this.DefaultControl.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-			this.DefaultControl.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(250)))), ((int)(((byte)(250)))), ((int)(((byte)(250)))));
-			this.DefaultControl.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-			this.DefaultControl.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-			this.DefaultControl.Location = new System.Drawing.Point(0, 0);
-			this.DefaultControl.Margin = new System.Windows.Forms.Padding(0);
-			this.DefaultControl.Name = "DefaultControl";
-			this.DefaultControl.Size = new System.Drawing.Size(1335, 746);
-			this.DefaultControl.TabIndex = 0;
+			this.UpdateAlertPositionsTimer.Enabled = true;
+			this.UpdateAlertPositionsTimer.Interval = 1000;
+			this.UpdateAlertPositionsTimer.Tick += new System.EventHandler(this.UpdateAlertPositionsTimer_Tick);
 			// 
 			// MainWindow
 			// 
@@ -217,5 +224,6 @@ namespace UnrealGameSync
 		private System.Windows.Forms.ToolStripMenuItem TabMenu_RecentProjects_ClearList;
 		private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
+		private System.Windows.Forms.Timer UpdateAlertPositionsTimer;
 	}
 }

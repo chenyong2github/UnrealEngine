@@ -42,6 +42,7 @@ namespace UnrealGameSync
 		void SetupScheduledSync();
 		void UpdateProgress();
 		void ModifyApplicationSettings();
+		void UpdateAlertWindows();
 	}
 
 	delegate void WorkspaceStartupCallback(WorkspaceControl Workspace, bool bCancel);
@@ -113,10 +114,10 @@ namespace UnrealGameSync
 			public Dictionary<string, List<BadgeInfo>> CustomBadges;
 		}
 
-		static Rectangle GoodBuildIcon = new Rectangle(0, 0, 16, 16);
-		static Rectangle MixedBuildIcon = new Rectangle(16, 0, 16, 16);
-		static Rectangle BadBuildIcon = new Rectangle(32, 0, 16, 16);
-		static Rectangle DefaultBuildIcon = new Rectangle(48, 0, 16, 16);
+		public static Rectangle GoodBuildIcon = new Rectangle(0, 0, 16, 16);
+		public static Rectangle MixedBuildIcon = new Rectangle(16, 0, 16, 16);
+		public static Rectangle BadBuildIcon = new Rectangle(32, 0, 16, 16);
+		public static Rectangle DefaultBuildIcon = new Rectangle(48, 0, 16, 16);
 		static Rectangle PromotedBuildIcon = new Rectangle(64, 0, 16, 16);
 		static Rectangle DetailsIcon = new Rectangle(80, 0, 16, 16);
 		static Rectangle InfoIcon = new Rectangle(96, 0, 16, 16);
@@ -148,6 +149,8 @@ namespace UnrealGameSync
 		UserSettings Settings;
 		UserWorkspaceSettings WorkspaceSettings;
 		UserProjectSettings ProjectSettings;
+
+		bool bUserHasOpenIssues = false;
 
 		public UserSelectedProjectSettings SelectedProject
 		{
@@ -189,6 +192,7 @@ namespace UnrealGameSync
 		bool bIsEnterpriseProject;
 		PerforceMonitor PerforceMonitor;
 		Workspace Workspace;
+		IssueMonitor IssueMonitor;
 		EventMonitor EventMonitor;
 		System.Windows.Forms.Timer UpdateTimer;
 		HashSet<int> PromotedChangeNumbers = new HashSet<int>();
@@ -244,7 +248,7 @@ namespace UnrealGameSync
 		System.Threading.Timer StartupTimer;
 		List<WorkspaceStartupCallback> StartupCallbacks;
 
-		public WorkspaceControl(IWorkspaceControlOwner InOwner, string InApiUrl, string InOriginalExecutableFileName, bool bInUnstable, DetectProjectSettingsTask DetectSettings, LineBasedTextWriter InLog, UserSettings InSettings)
+		public WorkspaceControl(IWorkspaceControlOwner InOwner, string InApiUrl, string InOriginalExecutableFileName, bool bInUnstable, DetectProjectSettingsTask DetectSettings, IssueMonitor InIssueMonitor, LineBasedTextWriter InLog, UserSettings InSettings)
 		{
 			InitializeComponent();
 
@@ -255,6 +259,7 @@ namespace UnrealGameSync
 			DataFolder = DetectSettings.DataFolder;
 			OriginalExecutableFileName = InOriginalExecutableFileName;
 			bUnstable = bInUnstable;
+			IssueMonitor = InIssueMonitor;
 			Log = InLog;
 			Settings = InSettings;
 			WorkspaceSettings = InSettings.FindOrAddWorkspace(DetectSettings.BranchClientPath);
@@ -342,6 +347,34 @@ namespace UnrealGameSync
 
 			StartupTimer = new System.Threading.Timer(x => MainThreadSynchronizationContext.Post((o) => { if(!IsDisposed){ StartupTimerElapsed(false); } }, null), null, TimeSpan.FromSeconds(20.0), TimeSpan.FromMilliseconds(-1.0));
 			StartupCallbacks = new List<WorkspaceStartupCallback>();
+
+			IssueMonitor.OnIssuesChanged += IssueMonitor_OnIssuesChangedAsync;
+		}
+
+		public void IssueMonitor_OnIssuesChangedAsync()
+		{
+			MainThreadSynchronizationContext.Post((o) => { if(IssueMonitor != null){ IssueMonitor_OnIssuesChanged(); } }, null);
+		}
+
+		public List<IssueData> GetOpenIssuesForUser()
+		{
+			return IssueMonitor.GetIssues().Where(x => x.FixChange <= 0 && String.Compare(x.Owner, Workspace.Perforce.UserName, StringComparison.OrdinalIgnoreCase) == 0).ToList();
+		}
+
+		public void IssueMonitor_OnIssuesChanged()
+		{
+			bool bPrevUserHasOpenIssues = bUserHasOpenIssues;
+			bUserHasOpenIssues = GetOpenIssuesForUser().Count > 0;
+			if(bUserHasOpenIssues != bPrevUserHasOpenIssues)
+			{
+				UpdateStatusPanel();
+				StatusPanel.Invalidate();
+			}
+		}
+
+		public IssueMonitor GetIssueMonitor()
+		{
+			return IssueMonitor;
 		}
 
 		private void CheckForStartupComplete()
@@ -579,6 +612,11 @@ namespace UnrealGameSync
 				StartupCallbacks = null;
 			}
 
+			if(IssueMonitor != null)
+			{
+				IssueMonitor.OnIssuesChanged -= IssueMonitor_OnIssuesChangedAsync;
+				IssueMonitor = null;
+			}
 			if(StartupTimer != null)
 			{
 				StartupTimer.Dispose();
@@ -734,7 +772,11 @@ namespace UnrealGameSync
 				}
 
 				// Get the max number of changes to ensure this
-				int NewPendingMaxChanges = ListIndexToChangeIndex[LastVisibleIndex];
+				int NewPendingMaxChanges = 0;
+				if(LastVisibleIndex >= 0)
+				{
+					NewPendingMaxChanges = ListIndexToChangeIndex[LastVisibleIndex];
+				}
 				NewPendingMaxChanges = PerforceMonitor.InitialMaxChangesValue + ((Math.Max(NewPendingMaxChanges - PerforceMonitor.InitialMaxChangesValue, 0) + BuildListExpandCount - 1) / BuildListExpandCount) * BuildListExpandCount;
 
 				// Shrink the number of changes retained by the PerforceMonitor class
@@ -1531,7 +1573,7 @@ namespace UnrealGameSync
 			public Rectangle LinkRect;
 		}
 
-		private ExpandRowLayout LayoutExpandRow(Graphics Graphics, Rectangle Bounds)
+		ExpandRowLayout LayoutExpandRow(Graphics Graphics, Rectangle Bounds)
 		{
 			ExpandRowLayout Layout = new ExpandRowLayout();
 
@@ -1601,7 +1643,7 @@ namespace UnrealGameSync
 				ExpandRowLayout ExpandLayout = LayoutExpandRow(e.Graphics, e.Bounds);
 				DrawExpandRow(e.Graphics, ExpandLayout);
 			}
-			else
+			else if(Workspace != null)
 			{
 				if(e.State.HasFlag(ListViewItemStates.Selected))
 				{
@@ -2411,25 +2453,9 @@ namespace UnrealGameSync
 			}
 		}
 
-		private static string FormatUserName(string UserName)
+		public static string FormatUserName(string UserName)
 		{
-			StringBuilder NormalUserName = new StringBuilder();
-			for(int Idx = 0; Idx < UserName.Length; Idx++)
-			{
-				if(Idx == 0 || UserName[Idx - 1] == '.')
-				{
-					NormalUserName.Append(Char.ToUpper(UserName[Idx]));
-				}
-				else if(UserName[Idx] == '.')
-				{
-					NormalUserName.Append(' ');
-				}
-				else
-				{
-					NormalUserName.Append(UserName[Idx]);
-				}
-			}
-			return NormalUserName.ToString();
+			return Utility.FormatUserName(UserName);
 		}
 
 		private static void AppendUserList(StringBuilder Builder, string Separator, string Format, IEnumerable<EventData> Reviews)
@@ -2845,6 +2871,18 @@ namespace UnrealGameSync
 				ProgramsLine.AddText("  |  ");
 				ProgramsLine.AddLink("Windows Explorer", FontStyle.Regular, () => { Process.Start("explorer.exe", String.Format("\"{0}\"", Path.GetDirectoryName(SelectedFileName))); });
 
+				if(Workspace.ProjectConfigFile.GetValue("Options.ShowBuildHealth", false))
+				{
+					ProgramsLine.AddText("  |  ");
+					ProgramsLine.AddLink("Build Health", FontStyle.Regular, (P, R) => { ShowBuildHealthMenu(R); });
+
+					if(bUserHasOpenIssues)
+					{
+						ProgramsLine.AddText("  |  ");
+						ProgramsLine.AddBadge("Close Build Issue", GetBuildBadgeColor(BadgeResult.Failure), (P, R) => ShowCloseBuildIssueMenu(R));
+					}
+				}
+
 				foreach(KeyValuePair<string, BadgeData> ServiceBadge in ServiceBadges)
 				{
 					ProgramsLine.AddText("  |  ");
@@ -2854,7 +2892,7 @@ namespace UnrealGameSync
 					}
 					else
 					{
-						ProgramsLine.AddBadge(ServiceBadge.Key, GetBuildBadgeColor(ServiceBadge.Value.Result), () => { Process.Start(ServiceBadge.Value.Url); });
+						ProgramsLine.AddBadge(ServiceBadge.Key, GetBuildBadgeColor(ServiceBadge.Value.Result), (P, R) => { Process.Start(ServiceBadge.Value.Url); });
 					}
 				}
 				ProgramsLine.AddText("  |  ");
@@ -2944,6 +2982,116 @@ namespace UnrealGameSync
 			}
 
 			StatusPanel.Set(Lines, Caption, Alert, TintColor);
+		}
+
+		private void ShowBuildHealthMenu(Rectangle Bounds)
+		{
+			while(BuildHealthContextMenu.Items[0] != BuildHealthContextMenu_Separator)
+			{
+				BuildHealthContextMenu.Items.RemoveAt(0);
+			}
+
+			List<IssueData> Issues = IssueMonitor.GetIssues();
+			if(Issues.Count == 0)
+			{
+				BuildHealthContextMenu_Separator.Visible = false;
+			}
+			else
+			{
+				BuildHealthContextMenu_Separator.Visible = true;
+				for(int Idx = 0; Idx < Issues.Count; Idx++)
+				{
+					IssueData Issue = Issues[Idx];
+
+					StringBuilder Description = new StringBuilder();
+					Description.AppendFormat("{0}: {1}", Issue.Id, Issue.Summary);
+					if(Issue.Owner == null)
+					{
+						Description.AppendFormat(" - Unassigned");
+					}
+					else
+					{
+						Description.AppendFormat(" - {0}", FormatUserName(Issue.Owner));
+						if(!Issue.AcknowledgedAt.HasValue)
+						{
+							Description.Append(" (?)");
+						}
+					}
+
+					Description.AppendFormat(" ({0})", Utility.FormatDurationMinutes((int)((Issue.RetrievedAt - Issue.CreatedAt).TotalMinutes + 1)));
+
+					ToolStripMenuItem Item = new ToolStripMenuItem(Description.ToString());
+					if(Issue.FixChange > 0)
+					{
+						Item.ForeColor = SystemColors.GrayText;
+					}
+					else if(Issue.Owner != null && String.Compare(Issue.Owner, Workspace.Perforce.UserName, StringComparison.OrdinalIgnoreCase) == 0)
+					{
+						Item.Font = new Font(Item.Font, FontStyle.Bold);
+					}
+					Item.Click += (s, e) => { BuildHealthContextMenu_Issue_Click(Issue); };
+					BuildHealthContextMenu.Items.Insert(Idx, Item);
+				}
+			}
+
+			BuildHealthContextMenu.Show(StatusPanel, new Point(Bounds.Right, Bounds.Bottom), ToolStripDropDownDirection.BelowLeft);
+		}
+
+		private void ShowCloseBuildIssueMenu(Rectangle Bounds)
+		{
+			List<IssueData> Issues = GetOpenIssuesForUser();
+			if(Issues.Count == 1)
+			{
+				CloseBuildIssueContextMenu_Issue_Click(Issues[0]);
+			}
+			else if(Issues.Count > 1)
+			{
+				CloseBuildIssueMenu.Items.Clear();
+
+				foreach(IssueData Issue in Issues)
+				{
+					StringBuilder Description = new StringBuilder();
+					Description.AppendFormat("{0}: {1}", Issue.Id, Issue.Summary);
+					Description.AppendFormat(" ({0})", Utility.FormatDurationMinutes((int)((Issue.RetrievedAt - Issue.CreatedAt).TotalMinutes + 1)));
+
+					ToolStripMenuItem Item = new ToolStripMenuItem(Description.ToString());
+					Item.Click += (s, e) => { CloseBuildIssueContextMenu_Issue_Click(Issue); };
+					CloseBuildIssueMenu.Items.Add(Item);
+				}
+
+				CloseBuildIssueMenu.Show(StatusPanel, new Point(Bounds.Right, Bounds.Bottom), ToolStripDropDownDirection.BelowLeft);
+			}
+		}
+
+		private void BuildHealthContextMenu_Issue_Click(IssueData Issue)
+		{
+			ShowIssueDetails(Issue);
+		}
+
+		private void CloseBuildIssueContextMenu_Issue_Click(IssueData Issue)
+		{
+			int FixChangeNumber = 0;
+			if(IssueFixedWindow.ShowModal(this, Workspace.Perforce, ref FixChangeNumber))
+			{
+				IssueUpdateData Update = new IssueUpdateData();
+				Update.Id = Issue.Id;
+				Update.FixChange = FixChangeNumber;
+				IssueMonitor.PostUpdate(Update);
+			}
+		}
+
+		public void ShowIssueDetails(IssueData Issue)
+		{
+			IssueDetailsWindow.ShowModal(this, IssueMonitor, Workspace.Perforce.ServerAndPort, Workspace.Perforce.UserName, Issue, Log, StreamName);
+		}
+
+		private void BuildHealthContextMenu_Settings_Click(object sender, EventArgs e)
+		{
+			IssueSettingsWindow IssueSettings = new IssueSettingsWindow(Settings);
+			if(IssueSettings.ShowDialog(this) == DialogResult.OK)
+			{
+				Owner.UpdateAlertWindows();
+			}
 		}
 
 		private void ShowRequiredSdkInfo()

@@ -63,6 +63,26 @@ namespace UnrealGameSync.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap AlertErrorIcon {
+            get {
+                object obj = ResourceManager.GetObject("AlertErrorIcon", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap AlertWarningIcon {
+            get {
+                object obj = ResourceManager.GetObject("AlertWarningIcon", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap DefaultErrorLogo {
             get {
                 object obj = ResourceManager.GetObject("DefaultErrorLogo", resourceCulture);

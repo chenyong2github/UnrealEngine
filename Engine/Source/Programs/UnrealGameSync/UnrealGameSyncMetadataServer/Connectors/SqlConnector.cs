@@ -1,10 +1,14 @@
 ﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Data.SQLite;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using UnrealGameSyncMetadataServer.Models;
 
@@ -304,6 +308,369 @@ namespace UnrealGameSyncMetadataServer.Connectors
 		private static bool MatchesWildcard(string Wildcard, string Project)
 		{
 			return Wildcard.EndsWith("...") && Project.StartsWith(Wildcard.Substring(0, Wildcard.Length - 4), StringComparison.InvariantCultureIgnoreCase);
+		}
+
+		private static string NormalizeUserName(string UserName)
+		{
+			return UserName.ToUpperInvariant();
+		}
+
+		public static long FindOrAddUserId(string Name)
+		{
+			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+				return FindOrAddUserId(Name, Connection);
+			}
+		}
+
+		private static long FindOrAddUserId(string Name, SQLiteConnection Connection)
+		{
+			if(Name.Length == 0)
+			{
+				return -1;
+			}
+
+			string NormalizedName = NormalizeUserName(Name);
+
+			using (SQLiteCommand Command = new SQLiteCommand("SELECT [Id] FROM [Users] WHERE Name = @Name", Connection))
+			{
+				Command.Parameters.AddWithValue("@Name", NormalizedName);
+				object UserId = Command.ExecuteScalar();
+				if(UserId != null)
+				{
+					return (long)UserId;
+				}
+			}
+
+			using (SQLiteCommand Command = new SQLiteCommand("INSERT OR IGNORE INTO [Users] (Name) VALUES (@Name); SELECT [Id] FROM [Users] WHERE Name = @Name", Connection))
+			{
+				Command.Parameters.AddWithValue("@Name", NormalizedName);
+				object UserId = Command.ExecuteScalar();
+				return (long)UserId;
+			}
+		}
+
+		public static long AddIssue(IssueData Issue)
+		{
+			long IssueId;
+			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+
+				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Issues] (Project, Summary, CreatedAt, FixChange) VALUES (@Project, @Summary, DATETIME('now'), 0)", Connection))
+				{
+					Command.Parameters.AddWithValue("@Project", Issue.Project);
+					Command.Parameters.AddWithValue("@Summary", Issue.Summary);
+					Command.ExecuteNonQuery();
+
+					IssueId = Connection.LastInsertRowId;
+				}
+			}
+			return IssueId;
+		}
+
+		public static IssueData GetIssue(long IssueId)
+		{
+			List<IssueData> Issues = GetIssuesInternal(IssueId, null);
+			if(Issues.Count == 0)
+			{
+				return null;
+			}
+			else
+			{
+				return Issues[0];
+			}
+		}
+
+		public static List<IssueData> GetIssues()
+		{
+			return GetIssuesInternal(-1, null);
+		}
+
+		public static List<IssueData> GetIssues(string UserName)
+		{
+			return GetIssuesInternal(-1, UserName);
+		}
+
+		private static List<IssueData> GetIssuesInternal(long IssueId, string UserName)
+		{
+			List<IssueData> Issues = new List<IssueData>();
+			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+
+				long UserId = -1;
+				if(UserName != null)
+				{
+					UserId = FindOrAddUserId(UserName);
+				}
+
+				StringBuilder CommandBuilder = new StringBuilder();
+				CommandBuilder.Append("SELECT");
+				CommandBuilder.Append(" Issues.Id, Issues.CreatedAt, DATETIME('now'), Issues.Project, Issues.Summary, OwnerUsers.Name, NominatedByUsers.Name, Issues.AcknowledgedAt, Issues.FixChange, Issues.ResolvedAt");
+				if(UserName != null)
+				{
+					CommandBuilder.Append(", IssueWatchers.UserId");
+				}
+				CommandBuilder.Append(" FROM [Issues]");
+				CommandBuilder.Append(" LEFT JOIN [Users] AS [OwnerUsers] ON OwnerUsers.Id = Issues.OwnerId");
+				CommandBuilder.Append(" LEFT JOIN [Users] AS [NominatedByUsers] ON NominatedByUsers.Id = Issues.NominatedById");
+				if(UserName != null)
+				{
+					CommandBuilder.Append(" LEFT JOIN [IssueWatchers] ON IssueWatchers.IssueId = Issues.Id AND IssueWatchers.UserId = @UserId");
+				}
+				if(IssueId != -1)
+				{
+					CommandBuilder.Append(" WHERE Issues.Id = @IssueId");
+				}
+				else
+				{
+					CommandBuilder.Append(" WHERE Issues.ResolvedAt IS NULL");
+				}
+
+				using (SQLiteCommand Command = new SQLiteCommand(CommandBuilder.ToString(), Connection))
+				{
+					if(IssueId != -1)
+					{
+						Command.Parameters.AddWithValue("@IssueId", IssueId);
+					}
+					if(UserName != null)
+					{
+						Command.Parameters.AddWithValue("@UserId", UserId);
+					}
+
+					using(SQLiteDataReader Reader = Command.ExecuteReader())
+					{
+						while(Reader.Read())
+						{
+							IssueData Issue = new IssueData();
+							Issue.Id = Reader.GetInt64(0);
+							Issue.CreatedAt = Reader.GetDateTime(1);
+							Issue.RetrievedAt = Reader.GetDateTime(2);
+							Issue.Project = Reader.GetString(3);
+							Issue.Summary = Reader.GetString(4);
+							Issue.Owner = Reader.IsDBNull(5)? null : Reader.GetString(5);
+							Issue.NominatedBy = Reader.IsDBNull(6)? null : Reader.GetString(6);
+							Issue.AcknowledgedAt = Reader.IsDBNull(7)? (DateTime?)null : Reader.GetDateTime(7);
+							Issue.FixChange = Reader.GetInt32(8);
+							Issue.ResolvedAt = Reader.IsDBNull(9)? (DateTime?)null : Reader.GetDateTime(9);
+							if(UserName != null)
+							{
+								Issue.bNotify = !Reader.IsDBNull(10);
+							}
+							Issues.Add(Issue);
+						}
+					}
+				}
+			}
+			return Issues;
+		}
+
+		public static void UpdateIssue(long IssueId, IssueUpdateData Issue)
+		{
+			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+
+				using (SQLiteCommand Command = new SQLiteCommand(Connection))
+				{
+					List<string> Columns = new List<string>();
+					List<string> Values = new List<string>();
+					if(Issue.Summary != null)
+					{
+						Columns.Add("Summary");
+						Values.Add("@Summary");
+						Command.Parameters.AddWithValue("@Summary", Issue.Summary);
+					}
+					if(Issue.Owner != null)
+					{
+						Columns.Add("OwnerId");
+						Values.Add("@OwnerId");
+						Command.Parameters.AddWithValue("OwnerId", FindOrAddUserId(Issue.Owner, Connection));
+					}
+					if(Issue.NominatedBy != null)
+					{
+						Columns.Add("NominatedById");
+						Values.Add("@NominatedById");
+						Command.Parameters.AddWithValue("NominatedById", FindOrAddUserId(Issue.NominatedBy, Connection));
+					}
+					if(Issue.Acknowledged.HasValue)
+					{
+						Columns.Add("AcknowledgedAt");
+						Values.Add(Issue.Acknowledged.Value? "DATETIME('now')" : "NULL");
+					}
+					if(Issue.FixChange.HasValue)
+					{
+						Columns.Add("FixChange");
+						Values.Add("@FixChange");
+						Command.Parameters.AddWithValue("FixChange", Issue.FixChange.Value);
+					}
+					if(Issue.Resolved.HasValue)
+					{
+						Columns.Add("ResolvedAt");
+						Values.Add(Issue.Resolved.Value? "DATETIME('now')" : "NULL");
+					}
+
+					Command.CommandText = String.Format("UPDATE [Issues] SET ({0}) = ({1}) WHERE Id = @IssueId", String.Join(", ", Columns), String.Join(", ", Values));
+					Command.Parameters.AddWithValue("@IssueId", IssueId);
+					Command.ExecuteNonQuery();
+				}
+			}
+		}
+
+		public static void AddWatcher(long IssueId, string UserName)
+		{
+			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+
+				long UserId = FindOrAddUserId(UserName, Connection);
+
+				using(SQLiteCommand Command = new SQLiteCommand("INSERT OR IGNORE INTO [IssueWatchers] (IssueId, UserId) VALUES (@IssueId, @UserId)", Connection))
+				{
+					Command.Parameters.AddWithValue("@IssueId", IssueId);
+					Command.Parameters.AddWithValue("@UserId", UserId);
+					Command.ExecuteNonQuery();
+				}
+			}
+		}
+
+		public static List<string> GetWatchers(long IssueId)
+		{
+			List<string> Watchers = new List<string>();
+			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+
+				StringBuilder CommandBuilder = new StringBuilder();
+				CommandBuilder.Append("SELECT Users.Name FROM [IssueWatchers]");
+				CommandBuilder.Append(" LEFT JOIN [Users] ON IssueWatchers.UserId = Users.Id");
+				CommandBuilder.Append(" WHERE IssueWatchers.IssueId = @IssueId");
+
+				using(SQLiteCommand Command = new SQLiteCommand(CommandBuilder.ToString(), Connection))
+				{
+					Command.Parameters.AddWithValue("@IssueId", IssueId);
+					using(SQLiteDataReader Reader = Command.ExecuteReader())
+					{
+						while(Reader.Read())
+						{
+							Watchers.Add(Reader.GetString(0));
+						}
+					}
+				}
+			}
+			return Watchers;
+		}
+
+		public static void RemoveWatcher(long IssueId, string UserName)
+		{
+			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+
+				long UserId = FindOrAddUserId(UserName, Connection);
+
+				using(SQLiteCommand Command = new SQLiteCommand("DELETE FROM [IssueWatchers] WHERE IssueId = @IssueId AND UserId = @UserId", Connection))
+				{
+					Command.Parameters.AddWithValue("@IssueId", IssueId);
+					Command.Parameters.AddWithValue("@UserId", UserId);
+					Command.ExecuteNonQuery();
+				}
+			}
+		}
+
+		public static long AddBuild(long IssueId, string Stream, int Change, string Name, string Url, int Outcome)
+		{
+			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+
+				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [IssueBuilds] (IssueId, Stream, Change, Name, Url, Outcome) VALUES (@IssueId, @Stream, @Change, @Name, @Url, @Outcome)", Connection))
+				{
+					Command.Parameters.AddWithValue("@IssueId", IssueId);
+					Command.Parameters.AddWithValue("@Stream", Stream);
+					Command.Parameters.AddWithValue("@Change", Change);
+					Command.Parameters.AddWithValue("@Name", Name);
+					Command.Parameters.AddWithValue("@Url", Url);
+					Command.Parameters.AddWithValue("@Outcome", Outcome);
+					Command.ExecuteNonQuery();
+
+					return Connection.LastInsertRowId;
+				}
+			}
+		}
+
+		public static List<IssueBuildData> GetBuilds(long IssueId)
+		{
+			List<IssueBuildData> Builds = new List<IssueBuildData>();
+			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+
+				using(SQLiteCommand Command = new SQLiteCommand("SELECT IssueBuilds.Id, IssueBuilds.Stream, IssueBuilds.Change, IssueBuilds.Name, IssueBuilds.Url, IssueBuilds.Outcome FROM [IssueBuilds] WHERE IssueBuilds.IssueId = @IssueId", Connection))
+				{
+					Command.Parameters.AddWithValue("@IssueId", IssueId);
+					using(SQLiteDataReader Reader = Command.ExecuteReader())
+					{
+						while(Reader.Read())
+						{
+							long Id = Reader.GetInt64(0);
+							string Stream = Reader.GetString(1);
+							int Change = Reader.GetInt32(2);
+							string Name = Reader.GetString(3);
+							string Url = Reader.GetString(4);
+							int Outcome = Reader.GetInt32(5);
+							Builds.Add(new IssueBuildData { Id = Id, Stream = Stream, Change = Change, Name = Name, Url = Url, Outcome = Outcome });
+						}
+					}
+				}
+			}
+			return Builds;
+		}
+
+		public static IssueBuildData GetBuild(long BuildId)
+		{
+			IssueBuildData Build = null;
+			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+
+				using(SQLiteCommand Command = new SQLiteCommand("SELECT IssueBuilds.Id, IssueBuilds.Stream, IssueBuilds.Change, IssueBuilds.Name, IssueBuilds.Url, IssueBuilds.Outcome FROM [IssueBuilds] WHERE IssueBuilds.Id = @BuildId", Connection))
+				{
+					Command.Parameters.AddWithValue("@BuildId", BuildId);
+					using(SQLiteDataReader Reader = Command.ExecuteReader())
+					{
+						while(Reader.Read())
+						{
+							long Id = Reader.GetInt64(0);
+							string Stream = Reader.GetString(1);
+							int Change = Reader.GetInt32(2);
+							string Name = Reader.GetString(3);
+							string Url = Reader.GetString(4);
+							int Outcome = Reader.GetInt32(5);
+
+							Build = new IssueBuildData { Id = Id, Stream = Stream, Change = Change, Name = Name, Url = Url, Outcome = Outcome };
+						}
+					}
+				}
+			}
+			return Build;
+		}
+
+		public static void UpdateBuild(long BuildId, int Outcome)
+		{
+			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+
+				using (SQLiteCommand Command = new SQLiteCommand("UPDATE [IssueBuilds] SET (Outcome) = (@Outcome) WHERE Id = @BuildId", Connection))
+				{
+					Command.Parameters.AddWithValue("@BuildId", BuildId);
+					Command.Parameters.AddWithValue("@Outcome", Outcome);
+					Command.ExecuteNonQuery();
+				}
+			}
 		}
 	}
 }

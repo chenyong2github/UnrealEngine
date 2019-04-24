@@ -38,7 +38,7 @@ namespace UnrealGameSync
 			// Add json to request body
 			if (!string.IsNullOrEmpty(RequestBody))
 			{
-				if (Method == "POST")
+				if (Method == "POST" || Method == "PUT")
 				{
 					byte[] bytes = Encoding.ASCII.GetBytes(RequestBody);
 					using (Stream RequestStream = Request.GetRequestStream())
@@ -78,9 +78,20 @@ namespace UnrealGameSync
 		{
 			return SendRequestInternal(URI, Resource, "POST", RequestBody, QueryParams);
 		}
+
+		public static string GET(string URI, string Resource, params string[] QueryParams)
+		{
+			return SendRequestInternal(URI, Resource, "GET", null, QueryParams);
+		}
+
 		public static T GET<T>(string URI, string Resource, params string[] QueryParams)
 		{
 			return new JavaScriptSerializer().Deserialize<T>(SendRequestInternal(URI, Resource, "GET", null, QueryParams));
+		}
+
+		public static string PUT<T>(string URI, string Resource, T Object, params string[] QueryParams)
+		{
+			return SendRequestInternal(URI, Resource, "PUT", new JavaScriptSerializer().Serialize(Object), QueryParams);
 		}
 	}
 }

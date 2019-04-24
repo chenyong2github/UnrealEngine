@@ -12,6 +12,30 @@ namespace UnrealGameSyncMetadataServer
 			config.MapHttpAttributeRoutes();
 
 			config.Routes.MapHttpRoute(
+				name: "IssueBuildsSubApi",
+				routeTemplate: "api/issues/{IssueId}/builds",
+				defaults: new { controller = "IssueBuildsSub" }
+			);
+
+			config.Routes.MapHttpRoute(
+				name: "IssueBuildsApi",
+				routeTemplate: "api/issuebuilds/{BuildId}",
+				defaults: new { controller = "IssueBuilds" }
+			);
+
+			config.Routes.MapHttpRoute(
+				name: "IssueEventsApi",
+				routeTemplate: "api/issues/{IssueId}/events",
+				defaults: new { controller = "IssueEvents" }
+			);
+
+			config.Routes.MapHttpRoute(
+				name: "IssueWatchersApi",
+				routeTemplate: "api/issues/{IssueId}/watchers",
+				defaults: new { controller = "IssueWatchers" }
+			);
+
+			config.Routes.MapHttpRoute(
 				name: "DefaultApi",
 				routeTemplate: "api/{controller}/{id}",
 				defaults: new { id = RouteParameter.Optional }

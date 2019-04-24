@@ -787,10 +787,19 @@ namespace UnrealGameSync
 
 		public bool FindChanges(IEnumerable<string> Filters, int MaxResults, out List<PerforceChangeSummary> Changes, TextWriter Log)
 		{
+			return FindChanges(Filters, null, MaxResults, out Changes, Log);
+		}
+
+		public bool FindChanges(IEnumerable<string> Filters, string ByUser, int MaxResults, out List<PerforceChangeSummary> Changes, TextWriter Log)
+		{
 			string Arguments = "changes -s submitted -t -L";
 			if(MaxResults > 0)
 			{
 				Arguments += String.Format(" -m {0}", MaxResults);
+			}
+			if(ByUser != null)
+			{
+				Arguments += String.Format(" -u \"{0}\"", ByUser);
 			}
 			foreach(string Filter in Filters)
 			{
@@ -1073,6 +1082,34 @@ namespace UnrealGameSync
 			}
 
 			Record = new PerforceDescribeRecord(Records[0]);
+			return true;
+		}
+
+		public bool DescribeMultiple(IEnumerable<int> ChangeNumbers, out List<PerforceDescribeRecord> OutRecords, TextWriter Log)
+		{
+			string CommandLine = String.Format("describe -s {0}", String.Join(" ", ChangeNumbers.Select(x => x.ToString())));
+
+			List<Dictionary<string, string>> RawRecords = new List<Dictionary<string,string>>();
+			if(!RunCommandWithBinaryOutput(CommandLine, RawRecords, CommandOptions.None, Log))
+			{
+				OutRecords = null;
+				return false;
+			}
+
+			List<PerforceDescribeRecord> Records = new List<PerforceDescribeRecord>();
+			foreach(Dictionary<string, string> RawRecord in RawRecords)
+			{
+				string Code;
+				if(!RawRecords[0].TryGetValue("code", out Code) || Code != "stat")
+				{
+					Log.WriteLine("Unexpected response from p4 {0}: {1}", CommandLine, String.Join(", ", RawRecords[0].Select(x => String.Format("( \"{0}\", \"{1}\" )", x.Key, x.Value))));
+					OutRecords = null;
+					return false;
+				}
+				Records.Add(new PerforceDescribeRecord(RawRecord));
+			}
+
+			OutRecords = Records;
 			return true;
 		}
 
