@@ -115,8 +115,8 @@ namespace ProxyMaterialUtilities
 		UMaterialInstanceConstant* OutMaterial = FMaterialUtilities::CreateInstancedMaterial(BaseMaterial, InOuter, AssetBasePath + AssetBaseName, RF_Public | RF_Standalone);
 		OutAssetsToSync.Add(OutMaterial);
 
-		OutMaterial->BasePropertyOverrides.TwoSided = FlattenMaterial.bTwoSided;
-		OutMaterial->BasePropertyOverrides.bOverride_TwoSided = FlattenMaterial.bTwoSided != false;
+		OutMaterial->BasePropertyOverrides.TwoSided = FlattenMaterial.bTwoSided && InMaterialProxySettings.bAllowTwoSidedMaterial;
+		OutMaterial->BasePropertyOverrides.bOverride_TwoSided = (FlattenMaterial.bTwoSided != false) && InMaterialProxySettings.bAllowTwoSidedMaterial;
 		OutMaterial->BasePropertyOverrides.DitheredLODTransition = FlattenMaterial.bDitheredLODTransition;
 		OutMaterial->BasePropertyOverrides.bOverride_DitheredLODTransition = FlattenMaterial.bDitheredLODTransition != false;
 
