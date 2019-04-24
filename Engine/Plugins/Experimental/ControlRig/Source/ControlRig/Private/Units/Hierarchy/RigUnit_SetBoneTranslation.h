@@ -3,19 +3,20 @@
 #pragma once
 
 #include "Units/RigUnit.h"
-#include "RigUnit_AddBoneTransform.generated.h"
+#include "RigUnit_SetBoneTranslation.generated.h"
 
 
 /**
- * AddBoneTransform is used to perform a change in the hierarchy by setting a single bone's transform.
+ * SetBoneTranslation is used to perform a change in the hierarchy by setting a single bone's Translation.
  */
-USTRUCT(meta=(DisplayName="Offset Transform", Category="Hierarchy", DocumentationPolicy="Strict", Keywords="Offset,AddToBoneTransform"))
-struct FRigUnit_AddBoneTransform : public FRigUnitMutable
+USTRUCT(meta=(DisplayName="Set Translation", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetBoneTranslation,SetPosition,SetLocation,SetBonePosition,SetBoneLocation"))
+struct FRigUnit_SetBoneTranslation : public FRigUnitMutable
 {
 	GENERATED_BODY()
 
-	FRigUnit_AddBoneTransform()
-		: bPostMultiply(false)
+	FRigUnit_SetBoneTranslation()
+		: Translation(FVector::ZeroVector)
+		, Space(EBoneGetterSetterMode::LocalSpace)
 		, bPropagateToChildren(false)
 		, CachedBoneIndex(INDEX_NONE)
 	{}
@@ -24,24 +25,23 @@ struct FRigUnit_AddBoneTransform : public FRigUnitMutable
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/**
-	 * The name of the Bone to set the transform for.
+	 * The name of the Bone to set the Translation for.
 	 */
 	UPROPERTY(meta = (Input, BoneName, Constant))
 	FName Bone;
 
 	/**
-	 * The transform value to set for the given Bone.
+	 * The Translation value to set for the given Bone.
 	 */
 	UPROPERTY(meta = (Input))
-	FTransform Transform;
+	FVector Translation;
 
 	/**
-	 * If set to true the transform will be post multiplied, otherwise pre multiplied.
-	 * Post multiplying means that the transform is understood as a parent space change,
-	 * while pre multiplying means that the transform is understood as a child space change.
+	 * Defines if the bone's Translation should be set
+	 * in local or global space.
 	 */
 	UPROPERTY(meta = (Input))
-	bool bPostMultiply;
+	EBoneGetterSetterMode Space;
 
 	/**
 	 * If set to true all of the global transforms of the children 

@@ -7073,6 +7073,11 @@ bool FBlueprintEditor::CanAddNewLocalVariable() const
 
 void FBlueprintEditor::OnAddNewLocalVariable()
 {
+	if (!CanAddNewLocalVariable())
+	{
+		return;
+	}
+
 	// Find the top level graph to place the local variables into
 	UEdGraph* TargetGraph = FBlueprintEditorUtils::GetTopLevelGraph(FocusedGraphEdPtr.Pin()->GetCurrentGraph());
 	check(TargetGraph->GetSchema()->GetGraphType(TargetGraph) == GT_Function);

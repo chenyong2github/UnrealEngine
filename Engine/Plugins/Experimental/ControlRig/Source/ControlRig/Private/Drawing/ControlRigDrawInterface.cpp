@@ -28,6 +28,16 @@ void FControlRigDrawInterface::DrawLine(const FTransform& WorldOffset, const FVe
 	DrawInstructions.Add(Instruction);
 }
 
+void FControlRigDrawInterface::DrawLines(const FTransform& WorldOffset, const TArray<FVector>& Positions, const FLinearColor& Color, float Thickness)
+{
+	FDrawIntruction Instruction(EDrawType_Lines, Color, Thickness);
+	for (const FVector& Point : Positions)
+	{
+		Instruction.Positions.Add(WorldOffset.TransformPosition(Point));
+	}
+	DrawInstructions.Add(Instruction);
+}
+
 void FControlRigDrawInterface::DrawLineStrip(const FTransform& WorldOffset, const TArray<FVector>& Positions, const FLinearColor& Color, float Thickness)
 {
 	FDrawIntruction Instruction(EDrawType_LineStrip, Color, Thickness);
