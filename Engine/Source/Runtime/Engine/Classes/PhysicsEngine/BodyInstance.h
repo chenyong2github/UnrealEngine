@@ -63,20 +63,20 @@ struct ENGINE_API FCollisionResponse
 	FCollisionResponse(ECollisionResponse DefaultResponse);
 
 	/** Set the response of a particular channel in the structure. */
-	void SetResponse(ECollisionChannel Channel, ECollisionResponse NewResponse);
+	bool SetResponse(ECollisionChannel Channel, ECollisionResponse NewResponse);
 
 	/** Set all channels to the specified response */
-	void SetAllChannels(ECollisionResponse NewResponse);
+	bool SetAllChannels(ECollisionResponse NewResponse);
 
 	/** Replace the channels matching the old response with the new response */
-	void ReplaceChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse);
+	bool ReplaceChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse);
 
 	/** Returns the response set on the specified channel */
 	FORCEINLINE_DEBUGGABLE ECollisionResponse GetResponse(ECollisionChannel Channel) const { return ResponseToChannels.GetResponse(Channel); }
 	const FCollisionResponseContainer& GetResponseContainer() const { return ResponseToChannels; }
 
 	/** Set all channels from ChannelResponse Array **/
-	void SetCollisionResponseContainer(const FCollisionResponseContainer& InResponseToChannels);
+	bool SetCollisionResponseContainer(const FCollisionResponseContainer& InResponseToChannels);
 	void SetResponsesArray(const TArray<FResponseChannel>& InChannelResponses);
 	void UpdateResponseContainerFromArray();
 
@@ -772,19 +772,19 @@ public:
 	void SetContactReportForceThreshold(float Threshold);
 
 	/** Set the collision response of this body to a particular channel */
-	void SetResponseToChannel(ECollisionChannel Channel, ECollisionResponse NewResponse);
+	bool SetResponseToChannel(ECollisionChannel Channel, ECollisionResponse NewResponse);
 
 	/** Get the collision response of this body to a particular channel */
 	FORCEINLINE_DEBUGGABLE ECollisionResponse GetResponseToChannel(ECollisionChannel Channel) const { return CollisionResponses.GetResponse(Channel); }
 
 	/** Set the response of this body to all channels */
-	void SetResponseToAllChannels(ECollisionResponse NewResponse);
+	bool SetResponseToAllChannels(ECollisionResponse NewResponse);
 
 	/** Replace the channels on this body matching the old response with the new response */
-	void ReplaceResponseToChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse);
+	bool ReplaceResponseToChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse);
 
 	/** Set the response of this body to the supplied settings */
-	void SetResponseToChannels(const FCollisionResponseContainer& NewReponses);
+	bool SetResponseToChannels(const FCollisionResponseContainer& NewReponses);
 
 	/** Get Collision ResponseToChannels container for this component **/
 	FORCEINLINE_DEBUGGABLE const FCollisionResponseContainer& GetResponseToChannels() const { return CollisionResponses.GetResponseContainer(); }
