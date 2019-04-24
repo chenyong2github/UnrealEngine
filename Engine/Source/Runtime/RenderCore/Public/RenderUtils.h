@@ -470,6 +470,13 @@ inline bool IsUsingSelectiveBasePassOutputs(EShaderPlatform Platform)
 	return !!(GSelectiveBasePassOutputsPlatformMask & (1u << Platform));
 }
 
+/** Returns whether distance fields are enabled for a given shader platform */
+inline bool IsUsingDistanceFields(EShaderPlatform Platform)
+{
+	extern RENDERCORE_API uint32 GDistanceFieldsPlatformMask;
+	return !!(GDistanceFieldsPlatformMask & (1u << Platform));
+}
+
 inline bool IsUsingPerPixelDBufferMask(EShaderPlatform Platform)
 {
 	switch (Platform)

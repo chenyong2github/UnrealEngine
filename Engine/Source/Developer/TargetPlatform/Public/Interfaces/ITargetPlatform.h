@@ -353,6 +353,11 @@ public:
 	*/
 	virtual bool UsesSelectiveBasePassOutputs() const = 0; 
 
+	/**
+	* Gets whether the platform will use distance fields.
+	*/
+	virtual bool UsesDistanceFields() const = 0;
+
 #if WITH_ENGINE
 	/**
 	 * Gets the format to use for a particular body setup.
