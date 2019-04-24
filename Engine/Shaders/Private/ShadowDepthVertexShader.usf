@@ -238,8 +238,8 @@ FShadowDepthDSToPS PassFinalizeTessellationOutput(FShadowDepthVSToDS Interpolant
 		WorldNormal,
 		O.Position, 
 #if PERSPECTIVE_CORRECT_DEPTH
-		O.ShadowDepth
-		O.DepthBias,
+		O.ShadowDepth,
+		O.DepthBias
 #else
 		ShadowDepth
 #endif
