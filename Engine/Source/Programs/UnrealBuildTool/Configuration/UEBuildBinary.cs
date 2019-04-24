@@ -328,12 +328,12 @@ namespace UnrealBuildTool
 		/// Called to allow the binary to find game modules.
 		/// </summary>
 		/// <returns>The OnlyModule if found, null if not</returns>
-		public List<UEBuildModule> FindGameModules()
+		public List<UEBuildModule> FindHotReloadModules()
 		{
 			List<UEBuildModule> GameModules = new List<UEBuildModule>();
 			foreach (UEBuildModule Module in Modules)
 			{
-				if (!UnrealBuildTool.IsUnderAnEngineDirectory(Module.ModuleDirectory))
+				if(Module.Rules.Context.bCanHotReload)
 				{
 					GameModules.Add(Module);
 				}

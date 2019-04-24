@@ -18,6 +18,11 @@ namespace UnrealBuildTool
 	public class RulesAssembly
 	{
 		/// <summary>
+		/// Outers scope for items created by this assembly. Used for chaining assemblies together.
+		/// </summary>
+		internal readonly RulesScope Scope;
+
+		/// <summary>
 		/// The compiled assembly
 		/// </summary>
 		private Assembly CompiledAssembly;
@@ -43,9 +48,9 @@ namespace UnrealBuildTool
 		private Dictionary<string, FileReference> TargetNameToTargetFile = new Dictionary<string, FileReference>(StringComparer.InvariantCultureIgnoreCase);
 
 		/// <summary>
-		/// Mapping from module file to its plugin info.
+		/// Mapping from module file to its context.
 		/// </summary>
-		private Dictionary<FileReference, PluginInfo> ModuleFileToPluginInfo;
+		private Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext;
 
 		/// <summary>
 		/// Cache for whether a module has source code
@@ -76,22 +81,23 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor. Compiles a rules assembly from the given source files.
 		/// </summary>
+		/// <param name="Scope">The scope of items created by this assembly</param>
 		/// <param name="BaseDir">The base directory for this assembly</param>
 		/// <param name="Plugins">All the plugins included in this assembly</param>
-		/// <param name="ModuleFiles">List of module files to compile</param>
+		/// <param name="ModuleFileToContext">List of module files to compile</param>
 		/// <param name="TargetFiles">List of target files to compile</param>
-		/// <param name="ModuleFileToPluginInfo">Mapping of module file to the plugin that contains it</param>
 		/// <param name="AssemblyFileName">The output path for the compiled assembly</param>
 		/// <param name="bContainsEngineModules">Whether this assembly contains engine modules. Used to initialize the default value for ModuleRules.bTreatAsEngineModule.</param>
 		/// <param name="bUseBackwardsCompatibleDefaults">Whether modules in this assembly should use backwards-compatible defaults.</param>
 		/// <param name="bReadOnly">Whether the modules and targets in this assembly are installed, and should be created with the bUsePrecompiled flag set</param> 
 		/// <param name="bSkipCompile">Whether to skip compiling this assembly</param>
 		/// <param name="Parent">The parent rules assembly</param>
-		public RulesAssembly(DirectoryReference BaseDir, IReadOnlyList<PluginInfo> Plugins, List<FileReference> ModuleFiles, List<FileReference> TargetFiles, Dictionary<FileReference, PluginInfo> ModuleFileToPluginInfo, FileReference AssemblyFileName, bool bContainsEngineModules, bool bUseBackwardsCompatibleDefaults, bool bReadOnly, bool bSkipCompile, RulesAssembly Parent)
+		internal RulesAssembly(RulesScope Scope, DirectoryReference BaseDir, IReadOnlyList<PluginInfo> Plugins, Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext, List<FileReference> TargetFiles, FileReference AssemblyFileName, bool bContainsEngineModules, bool bUseBackwardsCompatibleDefaults, bool bReadOnly, bool bSkipCompile, RulesAssembly Parent)
 		{
+			this.Scope = Scope;
 			this.BaseDir = BaseDir;
 			this.Plugins = Plugins;
-			this.ModuleFileToPluginInfo = ModuleFileToPluginInfo;
+			this.ModuleFileToContext = ModuleFileToContext;
 			this.bContainsEngineModules = bContainsEngineModules;
 			this.bUseBackwardsCompatibleDefaults = bUseBackwardsCompatibleDefaults;
 			this.bReadOnly = bReadOnly;
@@ -99,7 +105,7 @@ namespace UnrealBuildTool
 
 			// Find all the source files
 			HashSet<FileReference> AssemblySourceFiles = new HashSet<FileReference>();
-			AssemblySourceFiles.UnionWith(ModuleFiles);
+			AssemblySourceFiles.UnionWith(ModuleFileToContext.Keys);
 			AssemblySourceFiles.UnionWith(TargetFiles);
 
 			// Compile the assembly
@@ -110,7 +116,7 @@ namespace UnrealBuildTool
 			}
 
 			// Setup the module map
-			foreach (FileReference ModuleFile in ModuleFiles)
+			foreach (FileReference ModuleFile in ModuleFileToContext.Keys)
 			{
 				string ModuleName = ModuleFile.GetFileNameWithoutAnyExtensions();
 				if (!ModuleNameToModuleFile.ContainsKey(ModuleName))
@@ -371,7 +377,8 @@ namespace UnrealBuildTool
 				RulesObject.Name = ModuleName;
 				RulesObject.File = ModuleFileName;
 				RulesObject.Directory = ModuleFileName.Directory;
-				ModuleFileToPluginInfo.TryGetValue(RulesObject.File, out RulesObject.Plugin);
+				RulesObject.Context = ModuleFileToContext[RulesObject.File];
+				RulesObject.Plugin = RulesObject.Context.Plugin;
 				RulesObject.bTreatAsEngineModule = bContainsEngineModules;
 				RulesObject.bUseBackwardsCompatibleDefaults = bUseBackwardsCompatibleDefaults && Target.bUseBackwardsCompatibleDefaults;
 				RulesObject.bPrecompile = (RulesObject.bTreatAsEngineModule || ModuleName.Equals("UE4Game", StringComparison.OrdinalIgnoreCase)) && Target.bPrecompile;
@@ -392,15 +399,6 @@ namespace UnrealBuildTool
 				Exception MessageEx = (Ex is TargetInvocationException && Ex.InnerException != null)? Ex.InnerException : Ex;
 				throw new BuildException(Ex, "Unable to instantiate module '{0}': {1}\n(referenced via {2})", ModuleName, MessageEx.ToString(), ReferenceChain);
 			}
-		}
-
-		/// <summary>
-		/// Determines whether the given module name is a game module (as opposed to an engine module)
-		/// </summary>
-		public bool IsGameModule(string InModuleName)
-		{
-			FileReference ModuleFileName = GetModuleFileName(InModuleName);
-			return (ModuleFileName != null && !UnrealBuildTool.IsUnderAnEngineDirectory(ModuleFileName.Directory));
 		}
 
 		/// <summary>
@@ -667,14 +665,18 @@ namespace UnrealBuildTool
 		/// <returns>True if the module belongs to a plugin</returns>
 		public bool TryGetPluginForModule(FileReference ModuleFile, out PluginInfo Plugin)
 		{
-			if (ModuleFileToPluginInfo.TryGetValue(ModuleFile, out Plugin))
+			ModuleRulesContext Context;
+			if (ModuleFileToContext.TryGetValue(ModuleFile, out Context))
 			{
-				return true;
+				Plugin = Context.Plugin;
+				return Plugin != null;
 			}
-			else
+			if(Parent == null)
 			{
-				return (Parent == null) ? false : Parent.TryGetPluginForModule(ModuleFile, out Plugin);
+				Plugin = null;
+				return false;
 			}
+			return Parent.TryGetPluginForModule(ModuleFile, out Plugin);
 		}
 	}
 }

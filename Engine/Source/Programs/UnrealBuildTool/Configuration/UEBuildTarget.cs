@@ -932,7 +932,7 @@ namespace UnrealBuildTool
 					if(Binary.Type == UEBuildBinaryType.DynamicLinkLibrary)
 					{
 						DirectoryReference DirectoryName = Binary.OutputFilePath.Directory;
-						bool bIsGameBinary = RulesAssembly.IsGameModule(Binary.PrimaryModule.Name);
+						bool bIsGameBinary = Binary.PrimaryModule.Rules.Context.bCanBuildDebugGame;
 						FileReference ManifestFileName = FileReference.Combine(DirectoryName, ModuleManifest.GetStandardFileName(AppName, Platform, Configuration, Architecture, bIsGameBinary));
 
 						ModuleManifest Manifest;
@@ -1152,39 +1152,14 @@ namespace UnrealBuildTool
 			// Check there aren't any engine binaries with dependencies on game modules. This can happen when game-specific plugins override engine plugins.
 			foreach(UEBuildModule Module in Modules.Values)
 			{
-				if(Module.Binary != null && UnrealBuildTool.IsUnderAnEngineDirectory(Module.RulesFile.Directory))
+				if(Module.Binary != null)
 				{
-					DirectoryReference RootDirectory = UnrealBuildTool.EngineDirectory;
-
-					if (Module.RulesFile.IsUnderDirectory(UnrealBuildTool.EnterpriseDirectory))
-					{
-						RootDirectory = UnrealBuildTool.EnterpriseDirectory;
-					}
-
 					HashSet<UEBuildModule> ReferencedModules = Module.GetDependencies(bWithIncludePathModules: true, bWithDynamicallyLoadedModules: true);
-
-					// Make sure engine modules don't depend on enterprise or game modules and that enterprise modules don't depend on game modules
 					foreach(UEBuildModule ReferencedModule in ReferencedModules)
 					{
-						if(ReferencedModule.RulesFile != null && !ReferencedModule.RulesFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory) && !ReferencedModule.RulesFile.IsUnderDirectory(RootDirectory))
+						if(!Module.Rules.Context.Scope.Contains(ReferencedModule.Rules.Context.Scope) && !IsWhitelistedEnginePluginReference(Module.Name, ReferencedModule.Name))
 						{
-							string EngineModuleRelativePath = Module.RulesFile.MakeRelativeTo(UnrealBuildTool.EngineDirectory.ParentDirectory);
-							string ReferencedModuleRelativePath = (ProjectFile != null && ReferencedModule.RulesFile.IsUnderDirectory(ProjectFile.Directory)) ? ReferencedModule.RulesFile.MakeRelativeTo(ProjectFile.Directory.ParentDirectory) : ReferencedModule.RulesFile.FullName;
-							throw new BuildException("Engine module '{0}' should not depend on game module '{1}'", EngineModuleRelativePath, ReferencedModuleRelativePath);
-						}
-					}
-
-					// Make sure engine modules don't directly reference engine plugins
-					if(Module.RulesFile.IsUnderDirectory(UnrealBuildTool.EngineSourceDirectory) && !Module.RulesFile.IsUnderDirectory(TargetRulesFile.Directory))
-					{
-						foreach(UEBuildModule ReferencedModule in ReferencedModules)
-						{
-							if(ReferencedModule.RulesFile != null && ModuleToPlugin.ContainsKey(ReferencedModule) && !IsWhitelistedEnginePluginReference(Module.Name, ReferencedModule.Name))
-							{
-								string EngineModuleRelativePath = Module.RulesFile.MakeRelativeTo(UnrealBuildTool.EngineDirectory.ParentDirectory);
-								string ReferencedModuleRelativePath = ReferencedModule.RulesFile.MakeRelativeTo(UnrealBuildTool.EngineDirectory.ParentDirectory);
-								Log.TraceWarning("Warning: Engine module '{0}' should not depend on plugin module '{1}'", EngineModuleRelativePath, ReferencedModuleRelativePath);
-							}
+							throw new BuildException("Module '{0}' ({1}) should not reference module '{2}' ({3}). Hierarchy is {4}.", Module.Name, Module.Rules.Context.Scope.Name, ReferencedModule.Name, ReferencedModule.Rules.Context.Scope.Name, ReferencedModule.Rules.Context.Scope.FormatHierarchy());
 						}
 					}
 				}
@@ -2098,7 +2073,7 @@ namespace UnrealBuildTool
 			{
 				foreach (UEBuildBinary Binary in Binaries)
 				{
-					List<UEBuildModule> GameModules = Binary.FindGameModules();
+					List<UEBuildModule> GameModules = Binary.FindHotReloadModules();
 					if (GameModules != null && GameModules.Count > 0)
 					{
 						if (!UnrealBuildTool.IsProjectInstalled() || EnabledPlugins.Where(x => x.Type == PluginType.Mod).Any(x => Binary.OutputFilePaths[0].IsUnderDirectory(x.Directory)))
@@ -2388,24 +2363,13 @@ namespace UnrealBuildTool
 		{
 			// Get the root output directory and base name (target name/app name) for this binary
 			DirectoryReference BaseOutputDirectory;
-			if (ModuleRules.Plugin != null)
+			if(bUseSharedBuildEnvironment)
 			{
-				BaseOutputDirectory = ModuleRules.Plugin.Directory;
-			}
-			else if (RulesAssembly.IsGameModule(ModuleRules.Name) || !bUseSharedBuildEnvironment)
-			{
-				BaseOutputDirectory = ProjectDirectory;
+				BaseOutputDirectory = ModuleRules.Context.DefaultOutputBaseDir;
 			}
 			else
 			{
-				if (RulesAssembly.GetModuleFileName(ModuleRules.Name).IsUnderDirectory(UnrealBuildTool.EnterpriseDirectory))
-				{
-					BaseOutputDirectory = UnrealBuildTool.EnterpriseDirectory;
-				}
-				else
-				{
-					BaseOutputDirectory = UnrealBuildTool.EngineDirectory;
-				}
+				BaseOutputDirectory = ProjectDirectory;
 			}
 			return BaseOutputDirectory;
 		}
@@ -2422,7 +2386,7 @@ namespace UnrealBuildTool
 
 			// Get the configuration that this module will be built in. Engine modules compiled in DebugGame will use Development.
 			UnrealTargetConfiguration ModuleConfiguration = Configuration;
-			if (Configuration == UnrealTargetConfiguration.DebugGame && !RulesAssembly.IsGameModule(ModuleRules.Name) && !ModuleRules.Name.Equals(Rules.LaunchModuleName, StringComparison.InvariantCultureIgnoreCase))
+			if (Configuration == UnrealTargetConfiguration.DebugGame && !ModuleRules.Context.bCanBuildDebugGame && !ModuleRules.Name.Equals(Rules.LaunchModuleName, StringComparison.InvariantCultureIgnoreCase))
 			{
 				ModuleConfiguration = UnrealTargetConfiguration.Development;
 			}
@@ -2458,7 +2422,7 @@ namespace UnrealBuildTool
 
 			// Get the configuration that this module will be built in. Engine modules compiled in DebugGame will use Development.
 			UnrealTargetConfiguration ModuleConfiguration = Configuration;
-			if (Configuration == UnrealTargetConfiguration.DebugGame && !RulesAssembly.IsGameModule(Module.Name))
+			if (Configuration == UnrealTargetConfiguration.DebugGame && !Module.Rules.Context.bCanBuildDebugGame)
 			{
 				ModuleConfiguration = UnrealTargetConfiguration.Development;
 			}
@@ -3379,17 +3343,9 @@ namespace UnrealBuildTool
 				if (RulesObject.Type != ModuleRules.ModuleType.External)
 				{
 					// Get the base directory
-					if (RulesObject.Plugin != null)
+					if (bUseSharedBuildEnvironment)
 					{
-						GeneratedCodeDirectory = RulesObject.Plugin.Directory;
-					}
-					else if (bUseSharedBuildEnvironment && RulesObject.File.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
-					{
-						GeneratedCodeDirectory = UnrealBuildTool.EngineDirectory;
-					}
-					else if (bUseSharedBuildEnvironment && UnrealBuildTool.IsUnderAnEngineDirectory(RulesObject.File.Directory))
-					{
-						GeneratedCodeDirectory = UnrealBuildTool.EnterpriseDirectory;
+						GeneratedCodeDirectory = RulesObject.Context.DefaultOutputBaseDir;
 					}
 					else
 					{

@@ -414,6 +414,11 @@ namespace UnrealBuildTool
 		internal PluginInfo Plugin;
 
 		/// <summary>
+		/// The rules context for this instance
+		/// </summary>
+		internal ModuleRulesContext Context;
+
+		/// <summary>
 		/// Rules for the target that this module belongs to
 		/// </summary>
 		public readonly ReadOnlyTargetRules Target;

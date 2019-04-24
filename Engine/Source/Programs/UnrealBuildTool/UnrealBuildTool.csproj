@@ -139,6 +139,7 @@
     </When>
   </Choose>
   <ItemGroup>
+    <Compile Include="Configuration\ModuleRulesContext.cs" />
     <Compile Include="Executors\HybridExecutor.cs" />
     <Compile Include="Modes\BuildMode.cs" />
     <Compile Include="Modes\CleanMode.cs" />
@@ -194,6 +195,7 @@
     <Compile Include="System\CppIncludeParser.cs" />
     <Compile Include="System\FileMetadataPrefetch.cs" />
     <Compile Include="System\ParseMsvcTimingInfo.cs" />
+    <Compile Include="System\RulesScope.cs" />
     <Compile Include="System\SourceFileMetadataCache.cs" />
     <Compile Include="System\DataDrivenPlatformInfo.cs" />
     <Compile Include="System\DirectoryItem.cs" />

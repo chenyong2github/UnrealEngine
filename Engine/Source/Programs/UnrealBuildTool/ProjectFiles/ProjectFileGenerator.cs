@@ -1893,10 +1893,9 @@ namespace UnrealBuildTool
 				bool WantProjectFileForModule = true;
 
 				// We'll keep track of whether this is an "engine" or "external" module.  This is determined below while loading module rules.
-				bool IsEngineModule = UnrealBuildTool.IsUnderAnEngineDirectory(CurModuleFile.Directory);
 				bool IsThirdPartyModule = CurModuleFile.ContainsName("ThirdParty", UnrealBuildTool.RootDirectory);
 
-				if( IsEngineModule && !bIncludeEngineSource )
+				if( CurModuleFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory) && !bIncludeEngineSource )
 				{
 					// We were asked to exclude engine modules from the generated projects
 					WantProjectFileForModule = false;

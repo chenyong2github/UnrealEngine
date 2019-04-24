@@ -216,20 +216,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Determines whether a directory is part of the engine
-		/// </summary>
-		/// <param name="InDirectory"></param>
-		/// <returns>true if the directory is under of the engine directories, false if not</returns>
-		static public bool IsUnderAnEngineDirectory(DirectoryReference InDirectory)
-		{
-			// Enterprise modules are considered as engine modules
-			return InDirectory.IsUnderDirectory(UnrealBuildTool.EngineDirectory) 
-				|| InDirectory.IsUnderDirectory(UnrealBuildTool.EnterpriseSourceDirectory) 
-				|| InDirectory.IsUnderDirectory(UnrealBuildTool.EnterprisePluginsDirectory) 
-				|| InDirectory.IsUnderDirectory(UnrealBuildTool.EnterpriseIntermediateDirectory);
-		}
-
-		/// <summary>
 		/// Global options for UBT (any modes)
 		/// </summary>
 		class GlobalOptions
