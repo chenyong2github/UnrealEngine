@@ -7,10 +7,10 @@
 	"Category" : "Notifications",
 	"CreatedBy" : "Epic Games, Inc.",
 	"CreatedByURL" : "http://epicgames.com",
-	"EnabledByDefault" : true,
+	"EnabledByDefault" : false,
 	"Installed" : false,
 	"SupportedTargetPlatforms": [
-		"Android"
+		"Android", "IOS"
 	],
 	"Modules" :
 	[
@@ -18,7 +18,7 @@
 			"Name": "Firebase",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
-			"WhitelistPlatforms": [ "Android" ]
+			"WhitelistPlatforms": [ "Android", "IOS" ]
 		}
 	]
 }
