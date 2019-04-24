@@ -8,7 +8,7 @@ DEFINE_LOG_CATEGORY(WmfRingBuffer);
 
 WINDOWSPLATFORMFEATURES_START
 
-void FWmfRingBuffer::Push(const FGameplayMediaEncoderSample& Sample)
+void FWmfRingBuffer::Push(FGameplayMediaEncoderSample&& Sample)
 {
 	check(MaxDuration != 0);
 
@@ -21,7 +21,7 @@ void FWmfRingBuffer::Push(const FGameplayMediaEncoderSample& Sample)
 	}
 	else if (Samples.Num() == 0)
 	{
-		Samples.Add(Sample);
+		Samples.Add(MoveTemp(Sample));
 	}
 	else
 		// video encoding takes longer than audio thus video encoded samples arrive later and need to be placed
@@ -29,13 +29,15 @@ void FWmfRingBuffer::Push(const FGameplayMediaEncoderSample& Sample)
 	{
 		FTimespan TimestampToInsert = Sample.GetTime();
 
+		bool bIsSampleVideoKeyFrame = Sample.IsVideoKeyFrame();
+
 		int i = Samples.Num() - 1;
 		while (true)
 		{
 			if (Samples[i].GetType() == Sample.GetType() // don't change order of same stream cos video is not strictly timestamp-ordered (B-Frames)
 				|| TimestampToInsert >= Samples[i].GetTime())
 			{
-				Samples.Insert(Sample, i + 1);
+				Samples.Insert(MoveTemp(Sample), i + 1);
 				break;
 			}
 
@@ -43,7 +45,7 @@ void FWmfRingBuffer::Push(const FGameplayMediaEncoderSample& Sample)
 			{
 				if (Sample.GetType() == EMediaType::Video)
 				{
-					Samples.Insert(Sample, 0);
+					Samples.Insert(MoveTemp(Sample), 0);
 				}
 				// else: the first sample in the buffer always should be video key-frame, just drop audio sample
 				// this can happen during debugging due to big gaps in timestamps
@@ -55,7 +57,7 @@ void FWmfRingBuffer::Push(const FGameplayMediaEncoderSample& Sample)
 		}
 
 		// cleanup only on receiving key-frame and only when ring-buffer if full
-		if (!bCleanupPaused && Sample.IsVideoKeyFrame())
+		if (!bCleanupPaused && bIsSampleVideoKeyFrame)
 		{
 			while (GetDuration() > GetMaxDuration())
 			{
@@ -116,7 +118,7 @@ TArray<FGameplayMediaEncoderSample> FWmfRingBuffer::GetCopy()
 	TArray<FGameplayMediaEncoderSample> Copy;
 	Copy.Reset(Samples.Num());
 
-	for (const auto& Sample: Samples)
+	for (const auto& Sample : Samples)
 	{
 		// cloning is required because during saving a copy of ring buffer we modify samples timestamps.
 		// using samples references shared between ring buffer and its copy being saved would cause ring
