@@ -1546,6 +1546,18 @@ public:
 	static TSharedPtr<FRSA::FKey, ESPMode::ThreadSafe> GetPakSigningKey();
 
 	/**
+	* Load a pak signature file. Validates the contents by comparing a SHA hash of the chunk table against and encrypted version that
+	* is stored within the file. Returns nullptr if the data is missing or fails the signature check. This function also calls
+	* the generic pak signature failure delegates if anything is wrong.
+	*/
+	static TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe> GetPakSignatureFile(const TCHAR* InFilename);
+
+	/**
+	 * Remove the intenrally cached pointer to the signature file for the specified pak
+	 */
+	static void RemoveCachedPakSignaturesFile(const TCHAR* InFilename);
+
+	/**
 	 * Constructor.
 	 * 
 	 * @param InLowerLevel Wrapper platform file.
@@ -2354,6 +2366,10 @@ public:
 	static void TrackPak(const TCHAR* Filename, const FPakEntry* PakEntry);
 	static TMap<FString, int32>& GetPakMap() { return GPakSizeMap; }
 #endif
+
+	// Internal cache of pak signature files
+	static TMap<FName, TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe>> PakSignatureFileCache;
+	static FCriticalSection PakSignatureFileCacheLock;
 };
 
 /**
