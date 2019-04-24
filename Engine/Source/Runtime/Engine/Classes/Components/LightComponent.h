@@ -94,6 +94,16 @@ class ENGINE_API ULightComponent : public ULightComponentBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, AdvancedDisplay, meta=(UIMin = "0", UIMax = "1"))
 	float ShadowBias;
 
+	/**
+	 * Controls how accurate self shadowing of whole scene shadows from this light are. This works in addition to shadow bias, by increasing the 
+	 * amount of bias depending on the slope of a surface.
+	 * At 0, shadows will start at the their caster surface, but there will be many self shadowing artifacts.
+	 * larger values, shadows will start further from their caster, and there won't be self shadowing artifacts but object might appear to fly.
+	 * around 0.5 seems to be a good tradeoff. This also affects the soft transition of shadows
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1"))
+	float ShadowSlopeBias;
+
 	/** Amount to sharpen shadow filtering */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, AdvancedDisplay, meta=(UIMin = "0.0", UIMax = "1.0", DisplayName = "Shadow Filter Sharpen"))
 	float ShadowSharpen;
@@ -275,6 +285,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Light")
 	void SetShadowBias(float NewValue);
+	
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Light")
+	void SetShadowSlopeBias(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Light")
 	void SetSpecularScale(float NewValue);

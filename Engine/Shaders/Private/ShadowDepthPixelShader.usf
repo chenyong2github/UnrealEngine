@@ -83,11 +83,9 @@ void Main(
 #endif
 
 #if PERSPECTIVE_CORRECT_DEPTH
-	float DepthBias = PassStruct.ShadowParams.x;
-	float InvMaxSubjectDepth = PassStruct.ShadowParams.y;
-
+	const float InvMaxSubjectDepth = PassStruct.ShadowParams.w;
 	Inputs.ShadowDepth *= InvMaxSubjectDepth;
-	Inputs.ShadowDepth += DepthBias;
+	Inputs.ShadowDepth += Inputs.DepthBias;
 
 	OutDepth = saturate(Inputs.ShadowDepth);
 #endif

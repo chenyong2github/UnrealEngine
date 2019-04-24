@@ -15,7 +15,8 @@ float4x4 WorldToShadowMatrix;
 float4 ShadowmapMinMax;
 // .x:1/SplitNearFadeRegion, .y:1/SplitFarFadeRegion .zw:DistanceFadeMAD
 float4 ShadowInjectParams;
-float2 DepthBiasParameters;
+// .x:DepthBias, .y:SlopeDepthBias, .z:MaxSlopeDepthBias, .w:Projection parameters
+float4 DepthBiasParameters;
 
 /** Whether to compute static shadowing. */
 uint bStaticallyShadowed;
@@ -94,7 +95,10 @@ float ComputeVolumeShadowing(float3 WorldPositionForLighting, bool bPointLight, 
 
 		if (bUseCubemapShadowing)
 		{
-			DynamicShadowFactor = CubemapHardwarePCF(WorldPositionForLighting, DeferredLightUniforms.Position, DeferredLightUniforms.InvRadius, 0.03f * 512 * InvShadowmapResolution);
+			const float DepthBias = 0.03f * 512 * InvShadowmapResolution;
+			const float SlopeDepthBias = 0;
+			const float MaxSlopeDepthBias = 0;
+			DynamicShadowFactor = CubemapHardwarePCF(WorldPositionForLighting, DeferredLightUniforms.Position, DeferredLightUniforms.InvRadius, DepthBias, SlopeDepthBias, MaxSlopeDepthBias);
 		}
 		else
 		{

@@ -1236,6 +1236,7 @@ public:
 
 	// Accessors.
 	float GetUserShadowBias() const { return ShadowBias; }
+	float GetUserShadowSlopeBias() const { return ShadowSlopeBias; }
 
 	/** 
 	 * Note: The Rendering thread must not dereference UObjects!  
@@ -1361,6 +1362,9 @@ protected:
 
 	/** User setting from light component, 0:no bias, 0.5:reasonable, larger object might appear to float */
 	float ShadowBias;
+
+	/** User setting from light component, 0:no bias, 0.5:reasonable, larger object might appear to float */
+	float ShadowSlopeBias;
 
 	/** Sharpen shadow filtering */
 	float ShadowSharpen;

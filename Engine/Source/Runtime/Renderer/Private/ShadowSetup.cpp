@@ -519,6 +519,7 @@ FProjectedShadowInfo::FProjectedShadowInfo()
 	, NumDynamicSubjectMeshElements(0)
 	, NumSubjectMeshCommandBuildRequestElements(0)
 	, ShaderDepthBias(0.0f)
+	, ShaderSlopeDepthBias(0.0f)
 {
 }
 
@@ -2625,6 +2626,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 						const FMatrix FaceProjection = FPerspectiveMatrix(PI / 4.0f, 1, 1, 1, LightProxy.GetRadius());
 						const FVector LightPosition = LightProxy.GetPosition();
 
+						ProjectedShadowInfo->OnePassShadowViewMatrices.Empty(6);
 						ProjectedShadowInfo->OnePassShadowViewProjectionMatrices.Empty(6);
 						ProjectedShadowInfo->OnePassShadowFrustums.Empty(6);
 						ProjectedShadowInfo->OnePassShadowFrustums.AddZeroed(6);
@@ -2635,7 +2637,9 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 						for (int32 FaceIndex = 0; FaceIndex < 6; FaceIndex++)
 						{
 							// Create a view projection matrix for each cube face
-							const FMatrix ShadowViewProjectionMatrix = FLookAtMatrix(LightPosition, LightPosition + CubeDirections[FaceIndex], UpVectors[FaceIndex]) * ScaleMatrix * FaceProjection;
+							const FMatrix WorldToLightMatrix = FLookAtMatrix(LightPosition, LightPosition + CubeDirections[FaceIndex], UpVectors[FaceIndex]) * ScaleMatrix;
+							ProjectedShadowInfo->OnePassShadowViewMatrices.Add(WorldToLightMatrix);
+							const FMatrix ShadowViewProjectionMatrix = WorldToLightMatrix * FaceProjection;
 							ProjectedShadowInfo->OnePassShadowViewProjectionMatrices.Add(ShadowViewProjectionMatrix);
 							// Create a convex volume out of the frustum so it can be used for object culling
 							GetViewFrustumBounds(ProjectedShadowInfo->OnePassShadowFrustums[FaceIndex], ShadowViewProjectionMatrix, false);

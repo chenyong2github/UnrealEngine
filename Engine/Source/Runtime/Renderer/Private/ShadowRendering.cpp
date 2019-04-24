@@ -20,13 +20,25 @@ static TAutoConsoleVariable<float> CVarCSMShadowDepthBias(
 	TEXT("Constant depth bias used by CSM"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarCSMShadowSlopeScaleDepthBias(
+	TEXT("r.Shadow.CSMSlopeScaleDepthBias"),
+	5.0f,
+	TEXT("Slope scale depth bias used by CSM"),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<float> CVarPerObjectDirectionalShadowDepthBias(
 	TEXT("r.Shadow.PerObjectDirectionalDepthBias"),
 	20.0f,
 	TEXT("Constant depth bias used by per-object shadows from directional lights\n")
-	TEXT("Lower values give better self-shadowing, but increase self-shadowing artifacts"),
+	TEXT("Lower values give better shadow contact, but increase self-shadowing artifacts"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarPerObjectDirectionalShadowSlopeScaleDepthBias(
+	TEXT("r.Shadow.PerObjectDirectionalSlopeDepthBias"),
+	5.0f,
+	TEXT("Slope scale depth bias used by per-object shadows from directional lights\n")
+	TEXT("Lower values give better shadow contact, but increase self-shadowing artifacts"),
+	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarCSMSplitPenumbraScale(
 	TEXT("r.Shadow.CSMSplitPenumbraScale"),
@@ -58,10 +70,22 @@ static TAutoConsoleVariable<float> CVarPointLightShadowDepthBias(
 	TEXT("Depth bias that is applied in the depth pass for shadows from point lights. (0.03 avoids peter paning but has some shadow acne)"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarPointLightShadowSlopeScaleDepthBias(
+	TEXT("r.Shadow.PointLightSlopeScaleDepthBias"),
+	5.0f,
+	TEXT("Slope scale depth bias that is applied in the depth pass for shadows from point lights"),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<float> CVarSpotLightShadowDepthBias(
 	TEXT("r.Shadow.SpotLightDepthBias"),
 	5.0f,
 	TEXT("Depth bias that is applied in the depth pass for per object projected shadows from spot lights"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarSpotLightShadowSlopeScaleDepthBias(
+	TEXT("r.Shadow.SpotLightSlopeDepthBias"),
+	5.0f,
+	TEXT("Slope scale depth bias that is applied in the depth pass for per object projected shadows from spot lights"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarEnableModulatedSelfShadow(
@@ -90,6 +114,13 @@ static TAutoConsoleVariable<int32> CVarMaxSoftKernelSize(
 	TEXT("r.Shadow.MaxSoftKernelSize"),
 	40,
 	TEXT("Mazimum size of the softening kernels in pixels."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarShadowMaxSlopeScaleDepthBias(
+	TEXT("r.Shadow.ShadowMaxSlopeScaleDepthBias"),
+	2.0f,
+	TEXT("Max Slope depth bias used for shadows for all lights\n")
+	TEXT("Higher values give better self-shadowing, but increase self-shadowing artifacts"),
 	ECVF_RenderThreadSafe);
 
 DEFINE_GPU_STAT(ShadowProjection);
@@ -1131,12 +1162,16 @@ FMatrix FProjectedShadowInfo::GetWorldToShadowMatrix(FVector4& ShadowmapMinMax, 
 void FProjectedShadowInfo::UpdateShaderDepthBias()
 {
 	float DepthBias = 0;
+	float SlopeScaleDepthBias = 1;
 
 	if (IsWholeScenePointLightShadow())
 	{
 		DepthBias = CVarPointLightShadowDepthBias.GetValueOnRenderThread() * 512.0f / FMath::Max(ResolutionX, ResolutionY);
 		// * 2.0f to be compatible with the system we had before ShadowBias
 		DepthBias *= 2.0f * LightSceneInfo->Proxy->GetUserShadowBias();
+
+		SlopeScaleDepthBias = CVarPointLightShadowSlopeScaleDepthBias.GetValueOnRenderThread();
+		SlopeScaleDepthBias *= LightSceneInfo->Proxy->GetUserShadowSlopeBias();
 	}
 	else if (IsWholeSceneDirectionalShadow())
 	{
@@ -1146,14 +1181,17 @@ void FProjectedShadowInfo::UpdateShaderDepthBias()
 		DepthBias = CVarCSMShadowDepthBias.GetValueOnRenderThread() / (MaxSubjectZ - MinSubjectZ);
 
 		float WorldSpaceTexelScale = ShadowBounds.W / ResolutionX;
-		
 		DepthBias *= WorldSpaceTexelScale;
 		DepthBias *= LightSceneInfo->Proxy->GetUserShadowBias();
+
+		SlopeScaleDepthBias = CVarCSMShadowSlopeScaleDepthBias.GetValueOnRenderThread();
+		SlopeScaleDepthBias *= LightSceneInfo->Proxy->GetUserShadowSlopeBias();
 	}
 	else if (bPreShadow)
 	{
 		// Preshadows don't need a depth bias since there is no self shadowing
 		DepthBias = 0;
+		SlopeScaleDepthBias = 0;
 	}
 	else
 	{
@@ -1169,6 +1207,9 @@ void FProjectedShadowInfo::UpdateShaderDepthBias()
 		
 			DepthBias *= WorldSpaceTexelScale;
 			DepthBias *= 0.5f;	// avg GetUserShadowBias, in that case we don't want this adjustable
+
+			SlopeScaleDepthBias = CVarPerObjectDirectionalShadowSlopeScaleDepthBias.GetValueOnRenderThread();
+			SlopeScaleDepthBias *= LightSceneInfo->Proxy->GetUserShadowSlopeBias();
 		}
 		else
 		{
@@ -1177,6 +1218,9 @@ void FProjectedShadowInfo::UpdateShaderDepthBias()
 			DepthBias = LightTypeDepthBias * 512.0f / ((MaxSubjectZ - MinSubjectZ) * FMath::Max(ResolutionX, ResolutionY));
 			// * 2.0f to be compatible with the system we had before ShadowBias
 			DepthBias *= 2.0f * LightSceneInfo->Proxy->GetUserShadowBias();
+
+			SlopeScaleDepthBias = CVarSpotLightShadowSlopeScaleDepthBias.GetValueOnRenderThread();
+			SlopeScaleDepthBias *= LightSceneInfo->Proxy->GetUserShadowSlopeBias();
 		}
 
 		// Prevent a large depth bias due to low resolution from causing near plane clipping
@@ -1184,6 +1228,8 @@ void FProjectedShadowInfo::UpdateShaderDepthBias()
 	}
 
 	ShaderDepthBias = FMath::Max(DepthBias, 0.0f);
+	ShaderSlopeDepthBias = FMath::Max(DepthBias * SlopeScaleDepthBias, 0.0f);
+	ShaderMaxSlopeDepthBias = CVarShadowMaxSlopeScaleDepthBias.GetValueOnRenderThread();
 }
 
 float FProjectedShadowInfo::ComputeTransitionSize() const
@@ -1368,7 +1414,7 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 			// Set the light's scissor rectangle.
 			LightSceneInfo->Proxy->SetScissorRect(RHICmdList, View, View.ViewRect);
 
-		    Scene->UniformBuffers.UpdateViewUniformBuffer(View);
+			Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 
 			// Project the shadow depth buffers onto the scene.
 			for (int32 ShadowIndex = 0; ShadowIndex < NormalShadows.Num(); ShadowIndex++)

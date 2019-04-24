@@ -55,8 +55,8 @@ float4 LightPositionAndInvRadius;
 	#include "TransmissionThickness.ush"
 #else
 	float4x4 ScreenToShadowMatrix;
-	// .x:DepthBias, y: MaxSubjectZ - MinSubjectZ
-	float2 ProjectionDepthBiasParameters;
+	// .x:DepthBias, .y:SlopeDepthBias, .z:MaxSlopeDepthBias, .w: MaxSubjectZ - MinSubjectZ
+	float4 ProjectionDepthBiasParameters;
 #endif
 
 #if USE_FADE_PLANE
@@ -171,7 +171,7 @@ void Main(
 		Settings.SceneDepth = LightSpacePixelDepthForOpaque;
 		Settings.TransitionScale = SoftTransitionScale.z;
 		Settings.MaxKernelSize = PCSSParameters.y;
-		Settings.SvPosition = SVPos;
+		Settings.SvPosition = SVPos.xy;
 		Settings.PQMPContext = PQMPContext;
 		Settings.DebugViewportUV = ScreenUV;
 		
@@ -237,16 +237,16 @@ void Main(
 				Settings.SceneDepth = LightSpacePixelDepthForSSS + ProjectionDepthBiasParameters.x;
 				Settings.bSubsurface = true;
 				Settings.bTreatMaxDepthUnshadowed = false;
-				Settings.DensityMulConstant = Density * ProjectionDepthBiasParameters.y;
-				Settings.ProjectionDepthBiasParameters = ProjectionDepthBiasParameters;
+				Settings.DensityMulConstant = Density * ProjectionDepthBiasParameters.w;
+				Settings.ProjectionDepthBiasParameters = ProjectionDepthBiasParameters.xw;
 
-#if USE_TRANSMISSION
+			  #if USE_TRANSMISSION
 				if (GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
 				{
 					SSSTransmission = CalcTransmissionThickness(ScreenPosition.xyz, LightPositionAndInvRadius.xyz, GBufferData, Settings);
 				}
 				else
-#endif
+			  #endif
 				{
 					// ideally we use a larger filter kernel for SSSbut as Gather4 makes that harder
 					SSSTransmission = ManualPCF(ShadowPosition.xy, Settings);
@@ -302,8 +302,11 @@ void Main(
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 
-// .x:DepthBias, y: unused, zw: depth projection parameters
-float4 PointLightDepthBiasAndProjParameters;
+// .x:DepthBias, y: SlopeDepthBias, z: MaxSlopeDepthBias, 
+float3 PointLightDepthBias;
+
+// xy: depth projection parameters
+float2 PointLightProjParameters;
 
 /** Pixel shader for projecting a one pass point light shadow from a cube map. */
 void MainOnePassPointLightPS(
@@ -327,7 +330,7 @@ void MainOnePassPointLightPS(
 	float Shadow = TextureCubeSampleLevel(ShadowDepthCubeTexture, ShadowDepthTextureSampler, LightVector, 0);
 	#endif
 #else
- 	float Shadow = CubemapHardwarePCF(WorldPosition, LightPositionAndInvRadius.xyz, LightPositionAndInvRadius.w, PointLightDepthBiasAndProjParameters.x);
+ 	float Shadow = CubemapHardwarePCF(WorldPosition, LightPositionAndInvRadius.xyz, LightPositionAndInvRadius.w, PointLightDepthBias.x, PointLightDepthBias.y, PointLightDepthBias.z);
 
 	Shadow = saturate( (Shadow - 0.5) * ShadowSharpen + 0.5 );
 #endif
@@ -355,7 +358,7 @@ void MainOnePassPointLightPS(
 	bool IsSubsurfaceProfile = GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE;
 	if (IsSubsurfaceProfile)
 	{
-		Thickness = CalcTransmissionThickness(GBufferData, WorldPosition, LightVector, PointLightDepthBiasAndProjParameters.zw, LightPositionAndInvRadius.w, 0);
+		Thickness = CalcTransmissionThickness(GBufferData, WorldPosition, LightVector, PointLightProjParameters, LightPositionAndInvRadius.w, 0);
 	}
 	OutColor.a = IsSubsurfaceProfile ? EncodeLightAttenuation(Thickness) : OutColor.b;
 #endif // USE_TRANSMISSION
