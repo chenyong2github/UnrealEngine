@@ -3010,7 +3010,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 			// Compute the new sample index in the temporal sequence.
 			int32 TemporalSampleIndex = ViewState->TemporalAASampleIndex + 1;
-			if(TemporalSampleIndex >= TemporalAASamples)
+			if(TemporalSampleIndex >= TemporalAASamples || View.bCameraCut)
 			{
 				TemporalSampleIndex = 0;
 			}
@@ -3122,6 +3122,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				SampleY = r * FMath::Sin( Theta );
 			}
 
+			View.TemporalJitterIndex = TemporalSampleIndex;
 			View.TemporalJitterPixels.X = SampleX;
 			View.TemporalJitterPixels.Y = SampleY;
 

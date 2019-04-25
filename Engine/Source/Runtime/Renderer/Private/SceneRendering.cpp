@@ -863,6 +863,7 @@ void FViewInfo::Init()
 	// Disable HDR encoding for editor elements.
 	EditorSimpleElementCollector.BatchedElements.EnableMobileHDREncoding(false);
 
+	TemporalJitterIndex = 0;
 	TemporalJitterPixels = FVector2D::ZeroVector;
 
 	PreExposure = 1.0f;
@@ -1261,7 +1262,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	if(State)
 	{
 		ViewUniformShaderParameters.TemporalAAParams = FVector4(
-			ViewState->GetCurrentTemporalAASampleIndex(), 
+			TemporalJitterIndex, 
 			0,
 			TemporalJitterPixels.X,
 			TemporalJitterPixels.Y);
