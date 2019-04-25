@@ -1192,7 +1192,7 @@ bool UTexture2D::IsFullyStreamedIn()
 }
 
 
-UTexture2D* UTexture2D::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelFormat InFormat)
+UTexture2D* UTexture2D::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelFormat InFormat, const FName InName)
 {
 	LLM_SCOPE(ELLMTag::Textures);
 
@@ -1203,7 +1203,7 @@ UTexture2D* UTexture2D::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelForm
 	{
 		NewTexture = NewObject<UTexture2D>(
 			GetTransientPackage(),
-			NAME_None,
+			InName,
 			RF_Transient
 			);
 
