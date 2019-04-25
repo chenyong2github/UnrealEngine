@@ -157,7 +157,7 @@ void RectLightRGS()
 
 	RandomSequence RandSequence;
 	uint LinearIndex = CalcLinearIndex(PixelCoord);
-	RandomSequence_Initialize(RandSequence, LinearIndex, View.FrameNumber);
+	RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
 
 	// Get G-Buffer surface data
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;

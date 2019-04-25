@@ -158,7 +158,7 @@ void RayTracingReflectionsRGS()
 	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO: PixelCoord or DispatchThreadId
 	
 	RandomSequence RandSequence;
-	RandomSequence_Initialize(RandSequence, LinearIndex, View.FrameNumber);
+	RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
 
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;

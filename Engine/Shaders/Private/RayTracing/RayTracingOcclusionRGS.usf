@@ -129,7 +129,7 @@ void OcclusionRGS()
 	{
 	RandomSequence RandSequence;
 	uint LinearIndex = CalcLinearIndex(PixelCoord);
-	RandomSequence_Initialize(RandSequence, LinearIndex, View.FrameNumber);
+	RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
 
 	FLightShaderParameters LightParameters = GetRootLightShaderParameters();
 

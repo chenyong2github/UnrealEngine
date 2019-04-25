@@ -106,7 +106,7 @@ void GlobalIlluminationRGS()
 	for (uint SampleIndex = 0; SampleIndex < SamplesPerPixel; ++SampleIndex)
 	{
 		// Use Scrambled Halton sequence
-		uint FrameIndex = View.FrameNumber % 1024;
+		uint FrameIndex = View.StateFrameIndex % 1024;
 		RandomSequence_Initialize(RandSequence, LinearIndex, FrameIndex * SamplesPerPixel + SampleIndex);
 		RandSequence.Type = 2;
 

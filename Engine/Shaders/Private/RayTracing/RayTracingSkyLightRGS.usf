@@ -251,7 +251,7 @@ void SkyLightRGS()
 	float RayDistance = 0.0;
 	float HitCount = 0.0;
 	uint SamplesPerPixel = SkyLight.SamplesPerPixel;
-	uint FrameIndex = View.FrameNumber % SamplesPerPixel;
+	uint FrameIndex = View.StateFrameIndex % SamplesPerPixel;
 
 	// Mask out depth values that are infinitely far away
 	float DeviceZ = SceneTexturesStruct.SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
