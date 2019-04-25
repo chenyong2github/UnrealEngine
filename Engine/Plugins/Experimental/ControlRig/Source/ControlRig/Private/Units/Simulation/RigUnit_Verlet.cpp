@@ -7,19 +7,17 @@ void FRigUnit_VerletIntegrateVector::Execute(const FRigUnitContext& Context)
 {
 	if (Context.State == EControlRigState::Init)
 	{
-		Position = AccumulatedPosition = Target;
-		Velocity = Acceleration = AccumulatedVelocity = FVector::ZeroVector;
+		Point.Mass = 1.f;
+		Position = Point.Position = Target;
+		Velocity = Acceleration = Point.Velocity = FVector::ZeroVector;
 		return;
 	}
 
 	float U = FMath::Clamp<float>(Blend * Context.DeltaTime, 0.f, 1.f);
-	FVector V = (Target - AccumulatedPosition) * FMath::Max(Strength, 0.0001f);
-	V = FMath::Lerp<FVector>(AccumulatedVelocity, V, U) * FMath::Clamp<float>(1.f - Damp, 0.f, 1.f);
-	Acceleration = AccumulatedVelocity - V;
-
-	AccumulatedVelocity = V;
-	AccumulatedPosition = AccumulatedPosition + AccumulatedVelocity * Context.DeltaTime;
-
-	Position = AccumulatedPosition;
-	Velocity = AccumulatedVelocity;
+	FVector Force = (Target - Point.Position) * FMath::Max(Strength, 0.0001f);
+	FVector PreviousVelocity = Point.Velocity;
+	Point = FControlRigSimulationLibrary::IntegrateVerlet(Point, Force, Blend, Damp, Context.DeltaTime);
+	Acceleration = Point.Velocity - PreviousVelocity;
+	Position = Point.Position;
+	Velocity = Point.Velocity;
 }
