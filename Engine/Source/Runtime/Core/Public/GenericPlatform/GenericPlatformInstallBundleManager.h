@@ -23,7 +23,7 @@ enum class EInstallBundleModuleInitResult : int
 	Count
 };
 
-inline const TCHAR* GetInstallBundleModuleInitResultString(EInstallBundleModuleInitResult Result)
+inline const TCHAR* LexToString(EInstallBundleModuleInitResult Result)
 {
 	using UnderType = __underlying_type(EInstallBundleModuleInitResult);
 	static const TCHAR* Strings[] =
@@ -54,7 +54,7 @@ enum class EInstallBundleResult : int
 	Count,
 };
 
-inline const TCHAR* GetInstallBundleResultString(EInstallBundleResult Result)
+inline const TCHAR* LexToString(EInstallBundleResult Result)
 {
 	using UnderType = __underlying_type(EInstallBundleResult);
 	static const TCHAR* Strings[] =
@@ -173,9 +173,25 @@ struct FInstallBundlePauseInfo
 enum class EInstallBundleContentState : int
 {
 	InitializationError,
+	NotInstalled,
 	NeedsUpdate,
 	UpToDate,
+	Count,
 };
+inline const TCHAR* LexToString(EInstallBundleContentState State)
+{
+	using UnderType = __underlying_type(EInstallBundleContentState);
+	static const TCHAR* Strings[] =
+	{
+		TEXT("InitializationError"),
+		TEXT("NotInstalled"),
+		TEXT("NeedsUpdate"),
+		TEXT("UpToDate"),
+	};
+	static_assert(static_cast<UnderType>(EInstallBundleContentState::Count) == ARRAY_COUNT(Strings), "");
+
+	return Strings[static_cast<UnderType>(State)];
+}
 
 struct FInstallBundleContentState
 {
