@@ -248,6 +248,10 @@ void FWindowsVideoRecordingSystem::FinalizeCallbackOnGameThread(bool bSaved, boo
 		NextRecording();
 		RecordState = EVideoRecordingState::Recording;
 	}
+	else
+	{
+		Recorder->Stop();
+	}
 
 	if (bBroadcast)
 	{
