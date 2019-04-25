@@ -120,10 +120,8 @@ public:
 	inline bool GetHasResolveAttachments() const { return bHasResolveAttachments != 0; }
 	inline uint32 GetNumAttachmentDescriptions() const { return NumAttachmentDescriptions; }
 	inline uint32 GetNumSamples() const { return NumSamples; }
-	inline uint32 GetNumUsedClearValues() const
-	{
-		return NumUsedClearValues;
-	}
+	inline uint32 GetNumUsedClearValues() const { return NumUsedClearValues; }
+	inline bool GetIsMultiView() const { return bIsMultiView != 0; }
 
 	inline const VkAttachmentReference* GetColorAttachmentReferences() const { return NumColorAttachments > 0 ? ColorReferences : nullptr; }
 	inline const VkAttachmentReference* GetResolveAttachmentReferences() const { return bHasResolveAttachments ? ResolveReferences : nullptr; }
@@ -147,6 +145,7 @@ protected:
 	uint8 NumSamples;
 	uint8 NumUsedClearValues;
 	ESubpassHint SubpassHint = ESubpassHint::None;
+	uint8 bIsMultiView;
 
 	// Hash for a compatible RenderPass
 	uint32 RenderPassCompatibleHash = 0;
@@ -173,6 +172,7 @@ protected:
 		Extent.Extent3D.width = 0;
 		Extent.Extent3D.height = 0;
 		Extent.Extent3D.depth = 0;
+		bIsMultiView = 0;
 	}
 
 	bool bCalculatedHash = false;

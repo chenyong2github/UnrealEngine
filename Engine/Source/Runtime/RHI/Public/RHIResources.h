@@ -742,7 +742,7 @@ public:
 		return FIntPoint(SizeX, SizeY);
 	}
 
-	virtual FIntVector GetSizeXYZ() const final override
+	virtual FIntVector GetSizeXYZ() const override
 	{
 		return FIntVector(SizeX, SizeY, 1);
 	}
@@ -753,39 +753,31 @@ private:
 	uint32 SizeY;
 };
 
-class RHI_API FRHITexture2DArray : public FRHITexture
+class RHI_API FRHITexture2DArray : public FRHITexture2D
 {
 public:
 	
 	/** Initialization constructor. */
 	FRHITexture2DArray(uint32 InSizeX,uint32 InSizeY,uint32 InSizeZ,uint32 InNumMips,EPixelFormat InFormat,uint32 InFlags, const FClearValueBinding& InClearValue)
-	: FRHITexture(InNumMips,1,InFormat,InFlags,NULL, InClearValue)
-	, SizeX(InSizeX)
-	, SizeY(InSizeY)
+	: FRHITexture2D(InSizeX, InSizeY, InNumMips,1,InFormat,InFlags, InClearValue)
 	, SizeZ(InSizeZ)
 	{}
 	
 	// Dynamic cast methods.
 	virtual FRHITexture2DArray* GetTexture2DArray() { return this; }
-	
-	/** @return The width of the textures in the array. */
-	uint32 GetSizeX() const { return SizeX; }
-	
-	/** @return The height of the texture in the array. */
-	uint32 GetSizeY() const { return SizeY; }
+
+	virtual FRHITexture2D* GetTexture2D() { return NULL; }
 
 	/** @return The number of textures in the array. */
 	uint32 GetSizeZ() const { return SizeZ; }
 
 	virtual FIntVector GetSizeXYZ() const final override
 	{
-		return FIntVector(SizeX, SizeY, SizeZ);
+		return FIntVector(GetSizeX(), GetSizeY(), SizeZ);
 	}
 
 private:
 
-	uint32 SizeX;
-	uint32 SizeY;
 	uint32 SizeZ;
 };
 
@@ -1811,6 +1803,7 @@ public:
 			DepthStencilState != rhs.DepthStencilState ||
 			ImmutableSamplerState != rhs.ImmutableSamplerState ||
 			bDepthBounds != rhs.bDepthBounds ||
+			bMultiView != rhs.bMultiView ||
 			PrimitiveType != rhs.PrimitiveType) 
 		{
 			return false;
@@ -1861,6 +1854,7 @@ public:
 		COMPARE_FIELD(RasterizerState)
 		COMPARE_FIELD(DepthStencilState)
 		COMPARE_FIELD(bDepthBounds)
+		COMPARE_FIELD(bMultiView)
 		COMPARE_FIELD(PrimitiveType)
 		COMPARE_FIELD_END;
 
@@ -1885,6 +1879,7 @@ public:
 		COMPARE_FIELD(RasterizerState)
 		COMPARE_FIELD(DepthStencilState)
 		COMPARE_FIELD(bDepthBounds)
+		COMPARE_FIELD(bMultiView)
 		COMPARE_FIELD(PrimitiveType)
 		COMPARE_FIELD_END;
 
@@ -1907,7 +1902,8 @@ public:
 	// as it is sometimes hashed and compared as raw bytes. Explicit padding is therefore required between
 	// all data members and at the end of the structure.
 	bool							bDepthBounds = false;
-	uint8							Padding[3] = {};
+	bool							bMultiView = false;
+	uint8							Padding[2] = {};
 
 	EPrimitiveType					PrimitiveType;
 };
@@ -2395,6 +2391,9 @@ struct FRHIRenderPassInfo
 
 	// Some RHIs need to know if this render pass is going to be reading and writing to the same texture in the case of generating mip maps for partial resource transitions
 	bool bGeneratingMips = false;
+
+	// If this render pass should be multiview
+	bool bMultiviewPass = false;
 
 	// Hint for some RHI's that renderpass will have specific sub-passes 
 	ESubpassHint SubpassHint = ESubpassHint::None;

@@ -705,9 +705,11 @@ void FVulkanCommandListContext::RHICopyToResolveTarget(FTextureRHIParamRef Sourc
 	};
 
 	FRHITexture2D* SourceTexture2D = SourceTextureRHI->GetTexture2D();
+	FRHITexture2DArray* SourceTexture2DArray = SourceTextureRHI->GetTexture2DArray();
 	FRHITexture3D* SourceTexture3D = SourceTextureRHI->GetTexture3D();
 	FRHITextureCube* SourceTextureCube = SourceTextureRHI->GetTextureCube();
 	FRHITexture2D* DestTexture2D = DestTextureRHI->GetTexture2D();
+	FRHITexture2DArray* DestTexture2DArray = DestTextureRHI->GetTexture2DArray();
 	FRHITexture3D* DestTexture3D = DestTextureRHI->GetTexture3D();
 	FRHITextureCube* DestTextureCube = DestTextureRHI->GetTextureCube();
 	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
@@ -748,6 +750,15 @@ void FVulkanCommandListContext::RHICopyToResolveTarget(FTextureRHIParamRef Sourc
 			CopyImage(TransitionAndLayoutManager, CmdBuffer, VulkanSourceTexture->Surface, VulkanDestTexture->Surface, 1, 1, InResolveParams);
 		}
 	}
+	else if (SourceTexture2DArray && DestTexture2DArray)
+	{
+		FVulkanTexture2DArray* VulkanSourceTexture = (FVulkanTexture2DArray*)SourceTexture2DArray;
+		FVulkanTexture2DArray* VulkanDestTexture = (FVulkanTexture2DArray*)DestTexture2DArray;
+		if (VulkanSourceTexture->Surface.Image != VulkanDestTexture->Surface.Image)
+		{
+			CopyImage(TransitionAndLayoutManager, CmdBuffer, VulkanSourceTexture->Surface, VulkanDestTexture->Surface, VulkanDestTexture->GetSizeZ(), VulkanSourceTexture->GetSizeZ(), InResolveParams);
+		}
+	} 
 	else 
 	{
 		checkf(false, TEXT("Using unsupported Resolve combination"));
@@ -1787,6 +1798,7 @@ struct FRenderPassCompatibleHashableStruct
 	}
 
 	uint8						NumAttachments;
+	uint8						bIsMultiview;
 	uint8						NumSamples;
 	uint8						SubpassHint;
 	// +1 for DepthStencil
@@ -1820,6 +1832,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 	, bHasResolveAttachments(false)
 	, NumSamples(0)
 	, NumUsedClearValues(0)
+	, bIsMultiView(0)
 {
 	FMemory::Memzero(ColorReferences);
 	FMemory::Memzero(DepthStencilReference);
@@ -1978,7 +1991,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 			bSetExtent = true;
 			Extent.Extent3D.width = Texture->Surface.Width;
 			Extent.Extent3D.height = Texture->Surface.Height;
-			Extent.Extent3D.depth = 1;
+			Extent.Extent3D.depth = Texture->Surface.NumArrayLevels;
 		}
 	}
 
@@ -1986,6 +1999,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 	CompatibleHashInfo.SubpassHint = 0;
 
 	CompatibleHashInfo.NumSamples = NumSamples;
+	CompatibleHashInfo.bIsMultiview = bIsMultiView;
 
 	RenderPassCompatibleHash = FCrc::MemCrc32(&CompatibleHashInfo, sizeof(CompatibleHashInfo));
 	RenderPassFullHash = FCrc::MemCrc32(&FullHashInfo, sizeof(FullHashInfo), RenderPassCompatibleHash);
@@ -2001,6 +2015,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 	, bHasResolveAttachments(false)
 	, NumSamples(0)
 	, NumUsedClearValues(0)
+	, bIsMultiView(RPInfo.bMultiviewPass)
 {
 	FMemory::Memzero(ColorReferences);
 	FMemory::Memzero(DepthStencilReference);
@@ -2014,6 +2029,8 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 
 	bool bSetExtent = false;
 	bool bFoundClearOp = false;
+	bool bMultiviewRenderTargets = false;
+
 	int32 NumColorRenderTargets = RPInfo.GetNumColorRenderTargets();
 	for (int32 Index = 0; Index < NumColorRenderTargets; ++Index)
 	{
@@ -2037,6 +2054,9 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 
 		ensure(!NumSamples || NumSamples == ColorEntry.RenderTarget->GetNumSamples());
 		NumSamples = ColorEntry.RenderTarget->GetNumSamples();
+
+		ensure( !bMultiviewRenderTargets || Texture->Surface.NumArrayLevels > 1 );
+		bMultiviewRenderTargets = Texture->Surface.NumArrayLevels > 1;
 
 		VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];
 		CurrDesc.samples = static_cast<VkSampleCountFlagBits>(NumSamples);
@@ -2130,6 +2150,9 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 
 		bHasDepthStencil = true;
 
+		ensure(!bMultiviewRenderTargets || Texture->Surface.NumArrayLevels > 1);
+		bMultiviewRenderTargets = Texture->Surface.NumArrayLevels > 1;
+
 		if (bSetExtent)
 		{
 			// Depth can be greater or equal to color
@@ -2141,7 +2164,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 			bSetExtent = true;
 			Extent.Extent3D.width = Texture->Surface.Width;
 			Extent.Extent3D.height = Texture->Surface.Height;
-			Extent.Extent3D.depth = 1;
+			Extent.Extent3D.depth = Texture->Surface.NumArrayLevels;
 		}
 	}
 
@@ -2149,6 +2172,12 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 	CompatibleHashInfo.SubpassHint = (uint8)RPInfo.SubpassHint;
 
 	CompatibleHashInfo.NumSamples = NumSamples;
+	CompatibleHashInfo.bIsMultiview = bIsMultiView;
+
+	if (bIsMultiView && !bMultiviewRenderTargets)
+	{
+		UE_LOG(LogVulkan, Error, TEXT("Non multiview textures on a multiview layout!"));
+	}
 
 	RenderPassCompatibleHash = FCrc::MemCrc32(&CompatibleHashInfo, sizeof(CompatibleHashInfo));
 	RenderPassFullHash = FCrc::MemCrc32(&FullHashInfo, sizeof(FullHashInfo), RenderPassCompatibleHash);
@@ -2163,6 +2192,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(const FGraphicsPipelineStat
 	, bHasResolveAttachments(false)
 	, NumSamples(0)
 	, NumUsedClearValues(0)
+	, bIsMultiView(0)
 {
 	FMemory::Memzero(ColorReferences);
 	FMemory::Memzero(DepthStencilReference);
@@ -2176,6 +2206,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(const FGraphicsPipelineStat
 
 	bool bSetExtent = false;
 	bool bFoundClearOp = false;
+	bIsMultiView = Initializer.bMultiView;
 	NumSamples = Initializer.NumSamples;
 	for (uint32 Index = 0; Index < Initializer.RenderTargetsEnabled; ++Index)
 	{
@@ -2278,6 +2309,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(const FGraphicsPipelineStat
 	CompatibleHashInfo.SubpassHint = (uint8)Initializer.SubpassHint;
 
 	CompatibleHashInfo.NumSamples = NumSamples;
+	CompatibleHashInfo.bIsMultiview = bIsMultiView;
 
 	RenderPassCompatibleHash = FCrc::MemCrc32(&CompatibleHashInfo, sizeof(CompatibleHashInfo));
 	RenderPassFullHash = FCrc::MemCrc32(&FullHashInfo, sizeof(FullHashInfo), RenderPassCompatibleHash);

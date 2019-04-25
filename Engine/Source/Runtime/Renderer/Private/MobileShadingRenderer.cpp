@@ -407,6 +407,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	SceneColorRenderPassInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
 	SceneColorRenderPassInfo.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
 	SceneColorRenderPassInfo.bOcclusionQueries = SceneColorRenderPassInfo.NumOcclusionQueries != 0;
+	SceneColorRenderPassInfo.bMultiviewPass = View.bIsMobileMultiViewEnabled;
 	RHICmdList.BeginRenderPass(SceneColorRenderPassInfo, TEXT("SceneColorRendering"));
 
 	if (GIsEditor && !View.bIsSceneCapture)

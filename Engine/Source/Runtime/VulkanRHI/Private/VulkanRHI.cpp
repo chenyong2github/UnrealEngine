@@ -1450,6 +1450,34 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 	CreateInfo.pSubpasses = SubpassDescriptions;
 	CreateInfo.dependencyCount = NumDependencies;
 	CreateInfo.pDependencies = SubpassDependencies;
+
+	/*
+	Bit mask that specifies which view rendering is broadcast to
+	0011 = Broadcast to first and second view (layer)
+	*/
+	const uint32_t ViewMask = 0b00000011;
+
+	/*
+	Bit mask that specifices correlation between views
+	An implementation may use this for optimizations (concurrent render)
+	*/
+	const uint32_t CorrelationMask = 0b00000011;
+
+	VkRenderPassMultiviewCreateInfo MultiviewInfo;
+	if (RTLayout.GetIsMultiView())
+	{
+		FMemory::Memzero(MultiviewInfo);
+		MultiviewInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_CREATE_INFO;
+		MultiviewInfo.pNext = nullptr;
+		MultiviewInfo.subpassCount = 1;
+		MultiviewInfo.pViewMasks = &ViewMask;
+		MultiviewInfo.dependencyCount = 0;
+		MultiviewInfo.pViewOffsets = nullptr;
+		MultiviewInfo.correlationMaskCount = 1;
+		MultiviewInfo.pCorrelationMasks = &CorrelationMask;
+
+		CreateInfo.pNext = &MultiviewInfo;
+	}
 	
 	VkRenderPass RenderPassHandle;
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateRenderPass(InDevice.GetInstanceHandle(), &CreateInfo, VULKAN_CPU_ALLOCATOR, &RenderPassHandle));

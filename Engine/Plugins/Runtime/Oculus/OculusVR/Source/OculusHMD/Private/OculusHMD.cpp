@@ -1274,8 +1274,7 @@ namespace OculusHMD
 
 			if (TextureSetProxy.IsValid())
 			{
-				OutTargetableTexture = TextureSetProxy->GetTexture2D();
-				OutShaderResourceTexture = TextureSetProxy->GetTexture2D();
+				OutTargetableTexture = OutShaderResourceTexture = TextureSetProxy->GetTexture2DArray() ? TextureSetProxy->GetTexture2DArray() : TextureSetProxy->GetTexture2D();
 				bNeedReAllocateViewportRenderTarget = false;
 				return true;
 			}

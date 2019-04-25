@@ -1380,8 +1380,8 @@ struct FRHICommandCopyToResolveTarget final : public FRHICommand<FRHICommandCopy
 	{
 		ensure(SourceTexture);
 		ensure(DestTexture);
-		ensure(SourceTexture->GetTexture2D() || SourceTexture->GetTexture3D() || SourceTexture->GetTextureCube());
-		ensure(DestTexture->GetTexture2D() || DestTexture->GetTexture3D() || DestTexture->GetTextureCube());
+		ensure(SourceTexture->GetTexture2D() || SourceTexture->GetTexture3D() || SourceTexture->GetTextureCube() || SourceTexture->GetTexture2DArray());
+		ensure(DestTexture->GetTexture2D() || DestTexture->GetTexture3D() || DestTexture->GetTextureCube() || DestTexture->GetTexture2DArray());
 	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
@@ -2400,6 +2400,8 @@ public:
 			{
 				GraphicsPSOInit.RenderTargetFormats[i] = PSOContext.CachedRenderTargets[i].Texture->GetFormat();
 				GraphicsPSOInit.RenderTargetFlags[i] = PSOContext.CachedRenderTargets[i].Texture->GetFlags();
+				const FRHITexture2DArray* TextureArray = PSOContext.CachedRenderTargets[i].Texture->GetTexture2DArray();
+				GraphicsPSOInit.bMultiView = TextureArray && TextureArray->GetSizeZ() > 1;
 			}
 			else
 			{
@@ -2416,6 +2418,8 @@ public:
 		{
 			GraphicsPSOInit.DepthStencilTargetFormat = PSOContext.CachedDepthStencilTarget.Texture->GetFormat();
 			GraphicsPSOInit.DepthStencilTargetFlag = PSOContext.CachedDepthStencilTarget.Texture->GetFlags();
+			const FRHITexture2DArray* TextureArray = PSOContext.CachedDepthStencilTarget.Texture->GetTexture2DArray();
+			GraphicsPSOInit.bMultiView = TextureArray && TextureArray->GetSizeZ() > 1;
 		}
 		else
 		{
