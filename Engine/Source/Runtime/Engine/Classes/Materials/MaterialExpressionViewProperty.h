@@ -25,6 +25,12 @@ enum EMaterialExposedViewProperty
 	MEVP_WorldSpaceCameraPosition UMETA(DisplayName = "Camera Position (Absolute World Space)"),
 	/** Horizontal and vertical position of the viewport in pixels within the buffer. */
 	MEVP_ViewportOffset UMETA(DisplayName = "Viewport Offset"),
+	/** Number of temporal AA sample used across multiple to converge to anti aliased output. */
+	MEVP_TemporalSampleCount UMETA(DisplayName = "Temporal Sample Count"),
+	/** Index of the Temporal AA jitter for this frame. */
+	MEVP_TemporalSampleIndex UMETA(DisplayName = "Temporal Sample Index"),
+	/** Offset of the temporal sample for this frame in pixel size. */
+	MEVP_TemporalSampleOffset UMETA(DisplayName = "Temporal Sample Offset"),
 
 	MEVP_MAX,
 };

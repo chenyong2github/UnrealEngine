@@ -884,10 +884,13 @@ public:
 	float TranslucencyVolumeVoxelSize[TVC_MAX];
 	FVector TranslucencyLightingVolumeSize[TVC_MAX];
 
-	/** Index of the temporal jitter in the sequence. */
+	/** Number of samples in the temporal AA sequqnce */
+	int32 TemporalJitterSequenceLength;
+
+	/** Index of the temporal AA jitter in the sequence. */
 	int32 TemporalJitterIndex;
 
-	/** Temporal jitter at the pixel scale. */
+	/** Temporal AA jitter at the pixel scale. */
 	FVector2D TemporalJitterPixels;
 
 	/** Whether view state may be updated with this view. */

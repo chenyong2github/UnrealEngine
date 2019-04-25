@@ -3122,6 +3122,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				SampleY = r * FMath::Sin( Theta );
 			}
 
+			View.TemporalJitterSequenceLength = TemporalAASamples;
 			View.TemporalJitterIndex = TemporalSampleIndex;
 			View.TemporalJitterPixels.X = SampleX;
 			View.TemporalJitterPixels.Y = SampleY;
