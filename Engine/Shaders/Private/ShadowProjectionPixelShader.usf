@@ -59,6 +59,8 @@ float4 LightPositionAndInvRadius;
 	float4 ProjectionDepthBiasParameters;
 #endif
 
+	float4 LightPositionOrDirection;
+
 #if USE_FADE_PLANE
 	float FadePlaneOffset;
 	float InvFadePlaneLength;
@@ -179,12 +181,18 @@ void Main(
 	}
 	#else // !USE_PCSS
 	{
+		// Attenuate Soft transition based on the angle with the light and the shading normal
+		FGBufferData GBufferData = GetGBufferData(ScreenUV);
+		const bool bIsDirectional = LightPositionOrDirection.w == 0;
+		const float3 LightDirection = bIsDirectional ? -LightPositionOrDirection.xyz : normalize(LightPositionOrDirection.xyz - WorldPosition);
+		const float NoL = saturate(dot(GBufferData.WorldNormal, LightDirection));
+		
 		FPCFSamplerSettings Settings;
 		
 		Settings.ShadowDepthTexture = ShadowDepthTexture;
 		Settings.ShadowDepthTextureSampler = ShadowDepthTextureSampler;
 		Settings.ShadowBufferSize = ShadowBufferSize;
-		Settings.TransitionScale = SoftTransitionScale.z;
+		Settings.TransitionScale = SoftTransitionScale.z * lerp(0.1, 1.0, NoL);
 		Settings.SceneDepth = LightSpacePixelDepthForOpaque;
 		Settings.bSubsurface = false;
 		Settings.bTreatMaxDepthUnshadowed = false;

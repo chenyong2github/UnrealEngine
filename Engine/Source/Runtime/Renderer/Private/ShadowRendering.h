@@ -770,6 +770,7 @@ public:
 		InvFadePlaneLength.Bind(ParameterMap,TEXT("InvFadePlaneLength"));
 		ShadowTileOffsetAndSizeParam.Bind(ParameterMap, TEXT("ShadowTileOffsetAndSize"));
 		ShadowReceiverParams.Bind(ParameterMap, TEXT("ShadowReceiverParams"));
+		LightPositionOrDirection.Bind(ParameterMap, TEXT("LightPositionOrDirection"));
 	}
 
 	void Set(FRHICommandList& RHICmdList, FShader* Shader, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo)
@@ -857,6 +858,14 @@ public:
 		{
 			SetShaderValue(RHICmdList, ShaderRHI, ShadowReceiverParams, ShadowInfo->GetShaderShadowReceiverBias());
 		}
+
+		if (LightPositionOrDirection.IsBound())
+		{
+			const FVector LightDirection = ShadowInfo->GetLightSceneInfo().Proxy->GetDirection();
+			const FVector LightPosition = ShadowInfo->GetLightSceneInfo().Proxy->GetPosition();
+			const bool bIsDirectional = ShadowInfo->GetLightSceneInfo().Proxy->GetLightType() == LightType_Directional;
+			SetShaderValue(RHICmdList, ShaderRHI, LightPositionOrDirection, bIsDirectional ? FVector4(LightDirection,0) : FVector4(LightPosition,1));
+		}
 	}
 
 	/** Serializer. */
@@ -873,6 +882,7 @@ public:
 		Ar << P.InvFadePlaneLength;
 		Ar << P.ShadowTileOffsetAndSizeParam;
 		Ar << P.ShadowReceiverParams;
+		Ar << P.LightPositionOrDirection;
 		return Ar;
 	}
 
@@ -889,6 +899,7 @@ private:
 	FShaderParameter InvFadePlaneLength;
 	FShaderParameter ShadowTileOffsetAndSizeParam;
 	FShaderParameter ShadowReceiverParams;
+	FShaderParameter LightPositionOrDirection;
 };
 
 /**
@@ -1157,6 +1168,7 @@ public:
 		ShadowDepthCubeComparisonSampler.Bind(ParameterMap,TEXT("ShadowDepthCubeTextureSampler"));
 		ShadowViewProjectionMatrices.Bind(ParameterMap, TEXT("ShadowViewProjectionMatrices"));
 		InvShadowmapResolution.Bind(ParameterMap, TEXT("InvShadowmapResolution"));
+		LightPositionOrDirection.Bind(ParameterMap, TEXT("LightPositionOrDirection"));
 	}
 
 	template<typename ShaderRHIParamRef>
@@ -1184,6 +1196,12 @@ public:
 			ShadowDepthTextureValue
 		);
 
+		if (LightPositionOrDirection.IsBound())
+		{
+			const FVector LightPosition = ShadowInfo->GetLightSceneInfo().Proxy->GetPosition();
+			SetShaderValue(RHICmdList, ShaderRHI, LightPositionOrDirection, FVector4(LightPosition, 1));
+		}
+		
 		if (ShadowDepthCubeComparisonSampler.IsBound())
 		{
 			RHICmdList.SetShaderSampler(
@@ -1231,6 +1249,7 @@ public:
 		Ar << P.ShadowDepthCubeComparisonSampler;
 		Ar << P.ShadowViewProjectionMatrices;
 		Ar << P.InvShadowmapResolution;
+		Ar << P.LightPositionOrDirection;
 		return Ar;
 	}
 
@@ -1240,6 +1259,7 @@ private:
 	FShaderResourceParameter ShadowDepthCubeComparisonSampler;
 	FShaderParameter ShadowViewProjectionMatrices;
 	FShaderParameter InvShadowmapResolution;
+	FShaderParameter LightPositionOrDirection;
 };
 
 /**
