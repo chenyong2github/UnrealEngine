@@ -623,6 +623,7 @@ public:
 		const FMeshBatch& MeshBatch, 
 		int32 BatchElementIndex,
 		int32 DrawPrimitiveId,
+		int32 ScenePrimitiveId,
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode,
 		FMeshDrawCommandSortKey SortKey,
@@ -649,10 +650,18 @@ public:
 
 	// Note: no ctor as TChunkedArray::CopyToLinearArray requires POD types
 
-	FORCEINLINE_DEBUGGABLE void Setup(const FMeshDrawCommand* InMeshDrawCommand, int32 InDrawPrimitiveIndex, int32 InStateBucketId, ERasterizerFillMode InMeshFillMode, ERasterizerCullMode InMeshCullMode, FMeshDrawCommandSortKey InSortKey)
+	FORCEINLINE_DEBUGGABLE void Setup(
+		const FMeshDrawCommand* InMeshDrawCommand,
+		int32 InDrawPrimitiveId,
+		int32 InScenePrimitiveId,
+		int32 InStateBucketId,
+		ERasterizerFillMode InMeshFillMode,
+		ERasterizerCullMode InMeshCullMode,
+		FMeshDrawCommandSortKey InSortKey)
 	{
 		MeshDrawCommand = InMeshDrawCommand;
-		DrawPrimitiveId = InDrawPrimitiveIndex;
+		DrawPrimitiveId = InDrawPrimitiveId;
+		ScenePrimitiveId = InScenePrimitiveId;
 		PrimitiveIdBufferOffset = -1;
 		StateBucketId = InStateBucketId;
 		MeshFillMode = InMeshFillMode;
@@ -669,6 +678,9 @@ public:
 	// Draw PrimitiveId this draw command is associated with - used by the shader to fetch primitive data from the PrimitiveSceneData SRV.
 	// If it's < Scene->Primitives.Num() then it's a valid Scene PrimitiveIndex and can be used to backtrack to the FPrimitiveSceneInfo.
 	int32 DrawPrimitiveId;
+
+	// Scene PrimitiveId that generated this draw command, or -1 if no FPrimitiveSceneInfo. Can be used to backtrack to the FPrimitiveSceneInfo.
+	int32 ScenePrimitiveId;
 
 	// Offset into the buffer of PrimitiveIds built for this pass, in int32's.
 	int32 PrimitiveIdBufferOffset;
@@ -717,6 +729,7 @@ public:
 		const FMeshBatch& MeshBatch, 
 		int32 BatchElementIndex,
 		int32 DrawPrimitiveId,
+		int32 ScenePrimitiveId,
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode,
 		FMeshDrawCommandSortKey SortKey,
@@ -732,7 +745,7 @@ public:
 		FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
 		//@todo MeshCommandPipeline - assign usable state ID for dynamic path draws
 		// Currently dynamic path draws will not get dynamic instancing, but they will be roughly sorted by state
-		NewVisibleMeshDrawCommand.Setup(&MeshDrawCommand, DrawPrimitiveId, -1, MeshFillMode, MeshCullMode, SortKey);
+		NewVisibleMeshDrawCommand.Setup(&MeshDrawCommand, DrawPrimitiveId, ScenePrimitiveId, -1, MeshFillMode, MeshCullMode, SortKey);
 		DrawList.Add(NewVisibleMeshDrawCommand);
 	}
 
@@ -807,6 +820,7 @@ public:
 		const FMeshBatch& MeshBatch, 
 		int32 BatchElementIndex,
 		int32 DrawPrimitiveId,
+		int32 ScenePrimitiveId,
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode,
 		FMeshDrawCommandSortKey SortKey,
@@ -1051,7 +1065,11 @@ public:
 		const ShaderElementDataType& ShaderElementData);
 
 private:
-	RENDERER_API int32 GetDrawCommandPrimitiveId(const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo, const FMeshBatchElement& BatchElement) const;
+	RENDERER_API void GetDrawCommandPrimitiveId(
+		const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo,
+		const FMeshBatchElement& BatchElement,
+		int32& DrawPrimitiveId,
+		int32& ScenePrimitiveId) const;
 };
 
 typedef FMeshPassProcessor* (*PassProcessorCreateFunction)(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext);
