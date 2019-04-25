@@ -9,6 +9,7 @@ namespace UnrealBuildTool.Rules
             PrivateIncludePaths.Add("ControlRig/Private");
             PrivateIncludePaths.Add("ControlRig/Private/Sequencer");
             PrivateIncludePaths.Add("ControlRig/Private/Units");
+            PrivateIncludePaths.Add("ControlRig/ThirdParty/AHEasing");
 
             PrivateDependencyModuleNames.AddRange(
                 new string[]
@@ -46,6 +47,10 @@ namespace UnrealBuildTool.Rules
                 PrivateIncludePathModuleNames.Add("ControlRigEditor");
                 DynamicallyLoadedModuleNames.Add("ControlRigEditor");
             }
+
+            // for AHEasing build
+            PublicDefinitions.Add("M_PI=3.1415926535897932f");
+            PublicDefinitions.Add("M_PI_2=1.57079632679f");
         }
     }
 }

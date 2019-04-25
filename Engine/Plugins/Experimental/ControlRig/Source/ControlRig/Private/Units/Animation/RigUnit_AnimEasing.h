@@ -7,6 +7,23 @@
 #include "RigUnit_AnimEasing.generated.h"
 
 /**
+ * A constant value of an easing type
+ */
+USTRUCT(meta = (DisplayName = "EaseType", Keywords = "Constant"))
+struct FRigUnit_AnimEasingType : public FRigUnit_AnimBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_AnimEasingType()
+	{
+		Type = EControlRigAnimEasingType::CubicEaseInOut;
+	}
+
+	UPROPERTY(meta = (Input, Output))
+	EControlRigAnimEasingType Type;
+};
+
+/**
  * Returns the eased version of the input value
  */
 USTRUCT(meta=(DisplayName="Ease", Keywords="Easing,Profile,Smooth,Cubic"))
@@ -17,7 +34,7 @@ struct FRigUnit_AnimEasing : public FRigUnit_AnimBase
 	FRigUnit_AnimEasing()
 	{
 		Value = Result = 0.f;
-		Type = EControlRigAnimEasingType::CubicInOut;
+		Type = EControlRigAnimEasingType::CubicEaseInOut;
 		SourceMinimum = TargetMinimum = 0.f;
 		SourceMaximum = TargetMaximum = 1.f;
 	}

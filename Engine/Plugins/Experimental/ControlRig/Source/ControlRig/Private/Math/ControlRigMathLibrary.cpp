@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Math/ControlRigMathLibrary.h"
+#include "AHEasing/easing.h"
 
 FQuat FControlRigMathLibrary::QuatFromEuler(const FVector& XYZAnglesInDegrees, EControlRigRotationOrder RotationOrder)
 {
@@ -217,55 +218,154 @@ float FControlRigMathLibrary::EaseFloat(float Value, EControlRigAnimEasingType T
 		{
 			break;
 		}
-		case EControlRigAnimEasingType::QuadraticIn:
+		case EControlRigAnimEasingType::QuadraticEaseIn:
 		{
-			Value = Value * Value;
+			Value = QuadraticEaseIn(Value);
 			break;
 		}
-		case EControlRigAnimEasingType::QuadraticOut:
+		case EControlRigAnimEasingType::QuadraticEaseOut:
 		{
-			Value = -(Value * (Value - 2.f));
+			Value = QuadraticEaseOut(Value);
 			break;
 		}
-		case EControlRigAnimEasingType::QuadraticInOut:
+		case EControlRigAnimEasingType::QuadraticEaseInOut:
 		{
-			if (Value < 0.5f)
-			{
-				Value = 2.f * Value * Value;
-			}
-			else
-			{
-				Value = (-2.f * Value * Value) + (4.f * Value) - 1.f;
-			}
+			Value = QuadraticEaseInOut(Value);
 			break;
 		}
-		case EControlRigAnimEasingType::CubicIn:
+		case EControlRigAnimEasingType::CubicEaseIn:
 		{
-			Value = Value * Value * Value;
+			Value = CubicEaseIn(Value);
 			break;
 		}
-		case EControlRigAnimEasingType::CubicOut:
+		case EControlRigAnimEasingType::CubicEaseOut:
 		{
-			Value = Value - 1.f;
-			Value = Value * Value * Value + 1.f;
+			Value = CubicEaseOut(Value);
 			break;
 		}
-		case EControlRigAnimEasingType::CubicInOut:
+		case EControlRigAnimEasingType::CubicEaseInOut:
 		{
-			if (Value < 0.5f)
-			{
-				Value = 4.f * Value * Value * Value;
-			}
-			else
-			{
-				Value = 2.f * Value - 2.f;
-				Value = 0.5f * Value * Value * Value + 1.f;
-			}
+			Value = CubicEaseInOut(Value);
 			break;
 		}
-		case EControlRigAnimEasingType::Sinusoidal:
+		case EControlRigAnimEasingType::QuarticEaseIn:
 		{
-			Value = (FMath::Sin(Value * PI - HALF_PI) + 1.f) * 0.5f;
+			Value = QuarticEaseIn(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::QuarticEaseOut:
+		{
+			Value = QuarticEaseOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::QuarticEaseInOut:
+		{
+			Value = QuarticEaseInOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::QuinticEaseIn:
+		{
+			Value = QuinticEaseIn(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::QuinticEaseOut:
+		{
+			Value = QuinticEaseOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::QuinticEaseInOut:
+		{
+			Value = QuinticEaseInOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::SineEaseIn:
+		{
+			Value = SineEaseIn(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::SineEaseOut:
+		{
+			Value = SineEaseOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::SineEaseInOut:
+		{
+			Value = SineEaseInOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::CircularEaseIn:
+		{
+			Value = CircularEaseIn(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::CircularEaseOut:
+		{
+			Value = CircularEaseOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::CircularEaseInOut:
+		{
+			Value = CircularEaseInOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::ExponentialEaseIn:
+		{
+			Value = ExponentialEaseIn(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::ExponentialEaseOut:
+		{
+			Value = ExponentialEaseOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::ExponentialEaseInOut:
+		{
+			Value = ExponentialEaseInOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::ElasticEaseIn:
+		{
+			Value = ElasticEaseIn(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::ElasticEaseOut:
+		{
+			Value = ElasticEaseOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::ElasticEaseInOut:
+		{
+			Value = ElasticEaseInOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::BackEaseIn:
+		{
+			Value = BackEaseIn(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::BackEaseOut:
+		{
+			Value = BackEaseOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::BackEaseInOut:
+		{
+			Value = BackEaseInOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::BounceEaseIn:
+		{
+			Value = BounceEaseIn(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::BounceEaseOut:
+		{
+			Value = BounceEaseOut(Value);
+			break;
+		}
+		case EControlRigAnimEasingType::BounceEaseInOut:
+		{
+			Value = BounceEaseInOut(Value);
 			break;
 		}
 	}
