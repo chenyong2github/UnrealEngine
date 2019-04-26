@@ -77,3 +77,21 @@ template ENGINE_API FArchive& operator<<(FArchive&, TPerPlatformProperty<FPerPla
 template ENGINE_API void operator<<(FStructuredArchive::FSlot Slot, TPerPlatformProperty<FPerPlatformInt, int32, NAME_IntProperty>&);
 template ENGINE_API void operator<<(FStructuredArchive::FSlot Slot, TPerPlatformProperty<FPerPlatformFloat, float, NAME_FloatProperty>&);
 template ENGINE_API void operator<<(FStructuredArchive::FSlot Slot, TPerPlatformProperty<FPerPlatformBool, bool, NAME_BoolProperty>&);
+
+FString FPerPlatformInt::ToString() const
+{
+	FString Result = FString::FromInt(Default);
+
+#if WITH_EDITORONLY_DATA
+	TArray<FName> SortedPlatforms;
+	PerPlatform.GetKeys(/*out*/ SortedPlatforms);
+	SortedPlatforms.Sort();
+
+	for (FName Platform : SortedPlatforms)
+	{
+		Result = FString::Printf(TEXT("%s, %s=%d"), *Result, *Platform.ToString(), PerPlatform.FindChecked(Platform));
+	}
+#endif
+
+	return Result;
+}
