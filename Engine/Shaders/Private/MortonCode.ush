@@ -1,0 +1,40 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	MortonCode.ush: Morton code lookup functions
+=============================================================================*/
+
+// Encodes two 16-bit integers into one 32-bit morton code
+uint MortonEncode(uint2 Pixel)
+{
+	Pixel.x &= 0x0000ffff;
+	Pixel.x = (Pixel.x ^ (Pixel.x << 8)) & 0x00ff00ff;
+	Pixel.x = (Pixel.x ^ (Pixel.x << 4)) & 0x0f0f0f0f;
+	Pixel.x = (Pixel.x ^ (Pixel.x << 2)) & 0x33333333;
+	Pixel.x = (Pixel.x ^ (Pixel.x << 1)) & 0x55555555;
+
+	Pixel.y &= 0x0000ffff;
+	Pixel.y = (Pixel.y ^ (Pixel.y << 8)) & 0x00ff00ff;
+	Pixel.y = (Pixel.y ^ (Pixel.y << 4)) & 0x0f0f0f0f;
+	Pixel.y = (Pixel.y ^ (Pixel.y << 2)) & 0x33333333;
+	Pixel.y = (Pixel.y ^ (Pixel.y << 1)) & 0x55555555;
+	return Pixel.x | (Pixel.y << 1);
+}
+
+// Decodes one 32-bit morton code into two 16-bit integers
+uint2 MortonDecode(uint Morton)
+{
+	uint2 Pixel = uint2(Morton, Morton >> 1);
+	Pixel.x &= 0x55555555;
+	Pixel.x = (Pixel.x ^ (Pixel.x >> 1)) & 0x33333333;
+	Pixel.x = (Pixel.x ^ (Pixel.x >> 2)) & 0x0f0f0f0f;
+	Pixel.x = (Pixel.x ^ (Pixel.x >> 4)) & 0x00ff00ff;
+	Pixel.x = (Pixel.x ^ (Pixel.x >> 8)) & 0x0000ffff;
+
+	Pixel.y &= 0x55555555;
+	Pixel.y = (Pixel.y ^ (Pixel.y >> 1)) & 0x33333333;
+	Pixel.y = (Pixel.y ^ (Pixel.y >> 2)) & 0x0f0f0f0f;
+	Pixel.y = (Pixel.y ^ (Pixel.y >> 4)) & 0x00ff00ff;
+	Pixel.y = (Pixel.y ^ (Pixel.y >> 8)) & 0x0000ffff;
+	return Pixel;
+}
