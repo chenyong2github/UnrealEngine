@@ -1085,6 +1085,8 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 	{
 		RayTracingDynamicGeometryCollection = new FRayTracingDynamicGeometryCollection();
 	}
+
+	BeginInitResource(&HaltonPrimesResource);
 #endif
 
 	World->UpdateParameterCollectionInstances(false, false);
@@ -1134,6 +1136,8 @@ FScene::~FScene()
 		delete RayTracingDynamicGeometryCollection;
 		RayTracingDynamicGeometryCollection = nullptr;
 	}
+
+	BeginReleaseResource(&HaltonPrimesResource);
 #endif
 }
 

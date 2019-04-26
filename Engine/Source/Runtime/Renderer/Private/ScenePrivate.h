@@ -2630,6 +2630,7 @@ public:
 #if RHI_RAYTRACING
 	class FRayTracingDynamicGeometryCollection* RayTracingDynamicGeometryCollection;
 	FHaltonSequence HaltonSequence;
+	FHaltonPrimesResource HaltonPrimesResource;
 #endif
 
 	/** Initialization constructor. */
