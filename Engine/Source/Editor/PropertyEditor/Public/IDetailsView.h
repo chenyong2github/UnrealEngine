@@ -131,6 +131,7 @@ public:
 		, bForceHiddenPropertyVisibility(false)
 		, bShowKeyablePropertiesOption(true)
 		, bShowAnimatedPropertiesOption(true)
+		, bShowCustomFilterOption(false)
 		, ColumnWidth(.65f)
 	{
 	}
