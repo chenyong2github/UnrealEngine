@@ -97,7 +97,7 @@ void TestBasicRayTracing(bool bValidateResults)
 	FRayTracingGeometryRHIRef Geometry = RHICreateRayTracingGeometry(GeometryInitializer);
 
 	FRayTracingGeometryInstance Instances[] = {
-		FRayTracingGeometryInstance { Geometry, FMatrix::Identity }
+		FRayTracingGeometryInstance { Geometry, FMatrix::Identity, 0, 0xFF }
 	};
 
 	FRayTracingSceneInitializer Initializer;
