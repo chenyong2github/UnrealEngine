@@ -9,6 +9,8 @@
 #include "CollisionQueryParams.h"
 #include "Engine/World.h"
 
+#include "SceneManagement.h"
+
 // localization namespace
 #define LOCTEXT_NAMESPACE "UMeasureDistanceSampleTool"
 
