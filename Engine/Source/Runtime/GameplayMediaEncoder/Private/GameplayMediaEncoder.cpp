@@ -124,10 +124,16 @@ bool FGameplayMediaEncoder::RegisterListener(IGameplayMediaEncoderListener* List
 void FGameplayMediaEncoder::UnregisterListener(IGameplayMediaEncoderListener* Listener)
 {
 	check(IsInGameThread());
-	FScopeLock Lock(&ListenersCS);
+
+	ListenersCS.Lock();
 
 	Listeners.Remove(Listener);
-	if (Listeners.Num() == 0)
+
+	bool bAnyListenersLeft = Listeners.Num() > 0;
+
+	ListenersCS.Unlock();
+
+	if (bAnyListenersLeft == false)
 	{
 		UE_LOG(GameplayMediaEncoder, Log, TEXT("Unregistered the last listener"));
 		Stop();
