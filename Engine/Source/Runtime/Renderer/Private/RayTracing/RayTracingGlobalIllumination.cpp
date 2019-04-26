@@ -19,6 +19,7 @@
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "Raytracing/RaytracingOptions.h"
+#include "BlueNoise.h"
 
 static int32 GRayTracingGlobalIllumination = -1;
 static FAutoConsoleVariableRef CVarRayTracingGlobalIllumination(
@@ -235,6 +236,9 @@ class FGlobalIlluminationRGS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWRayDistanceUAV)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_REF(FHaltonIteration, HaltonIteration)
+		SHADER_PARAMETER_STRUCT_REF(FHaltonPrimes, HaltonPrimes)
+		SHADER_PARAMETER_STRUCT_REF(FBlueNoise, BlueNoise)
 		SHADER_PARAMETER_STRUCT_REF(FPathTracingLightData, LightParameters)
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLight)
 
@@ -377,6 +381,22 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 	SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, SceneTextures);
 	// Ray generation
 	{
+		static uint32 Iteration = 0;
+		uint32 IterationCount = RayTracingGISamplesPerPixel;
+		uint32 SequenceCount = 1;
+		uint32 DimensionCount = 24;
+		FHaltonSequenceIteration HaltonSequenceIteration(Scene->HaltonSequence, IterationCount, SequenceCount, DimensionCount, Iteration);
+
+		FHaltonIteration HaltonIteration;
+		InitializeHaltonSequenceIteration(HaltonSequenceIteration, HaltonIteration);
+		Iteration = (Iteration + 1) % 1024;
+
+		FHaltonPrimes HaltonPrimes;
+		InitializeHaltonPrimes(Scene->HaltonPrimesResource, HaltonPrimes);
+
+		FBlueNoise BlueNoise;
+		InitializeBlueNoise(BlueNoise);
+
 		FPathTracingLightData LightParameters;
 		SetupLightParameters(Scene->Lights, View, &LightParameters);
 
@@ -406,6 +426,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->SceneTexturesStruct = CreateUniformBufferImmediate(SceneTextures, EUniformBufferUsage::UniformBuffer_SingleDraw);
+		PassParameters->HaltonIteration = CreateUniformBufferImmediate(HaltonIteration, EUniformBufferUsage::UniformBuffer_SingleDraw);
+		PassParameters->HaltonPrimes = CreateUniformBufferImmediate(HaltonPrimes, EUniformBufferUsage::UniformBuffer_SingleDraw);
+		PassParameters->BlueNoise = CreateUniformBufferImmediate(BlueNoise, EUniformBufferUsage::UniformBuffer_SingleDraw);
 		PassParameters->LightParameters = CreateUniformBufferImmediate(LightParameters, EUniformBufferUsage::UniformBuffer_SingleDraw);
 		PassParameters->SkyLight = CreateUniformBufferImmediate(SkyLightParameters, EUniformBufferUsage::UniformBuffer_SingleDraw);
 		TRefCountPtr<IPooledRenderTarget> SubsurfaceProfileRT((IPooledRenderTarget*) GetSubsufaceProfileTexture_RT(RHICmdList));
