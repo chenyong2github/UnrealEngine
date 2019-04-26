@@ -106,6 +106,8 @@
 #include "EditorModeRegistry.h"
 #include "PhysicsManipulationMode.h"
 #include "CookerSettings.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/SBoxPanel.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogPlayLevel, Log, All);
