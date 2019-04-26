@@ -2094,7 +2094,7 @@ public:
 			&& CallableHash == rhs.CallableHash;
 	}
 
-	static friend uint32 GetTypeHash(const FRayTracingPipelineStateInitializer& Initializer)
+	friend uint32 GetTypeHash(const FRayTracingPipelineStateInitializer& Initializer)
 	{
 		return GetTypeHash(Initializer.MaxPayloadSizeInBytes) ^
 			GetTypeHash(Initializer.bAllowHitGroupIndexing) ^
