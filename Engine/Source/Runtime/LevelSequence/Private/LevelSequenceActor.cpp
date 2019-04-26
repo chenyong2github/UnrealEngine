@@ -116,7 +116,11 @@ void ALevelSequenceActor::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
-	SetReplicates(bReplicatePlayback);
+	if (HasAuthority())
+	{
+		SetReplicates(bReplicatePlayback);
+	}
+	
 	InitializePlayer();
 }
 
