@@ -7,9 +7,10 @@
 #include "SocialDebugTools.generated.h"
 
 class IOnlineSubsystem;
-class IOnlinePartyJoinInfo;
 class FOnlineAccountCredentials;
-class FOnlinePartyData;
+typedef TSharedPtr<const class IOnlinePartyJoinInfo> IOnlinePartyJoinInfoConstPtr;
+typedef TSharedPtr<class FOnlinePartyData> FOnlinePartyDataPtr;
+typedef TSharedPtr<const class FOnlinePartyData> FOnlinePartyDataConstPtr;
 
 UCLASS(Within = SocialManager, Config = Game)
 class PARTY_API USocialDebugTools : public UObject, public FExec
@@ -61,12 +62,12 @@ public:
 		void Init();
 		void Shutdown();
 		inline IOnlineSubsystem* GetOSS() { return OnlineSub; }
-		inline TSharedPtr<FOnlinePartyData> GetPartyMemberData() { return PartyMemberData; }
+		inline FOnlinePartyDataConstPtr GetPartyMemberData() { return PartyMemberData; }
 
 		FString Name;
 		IOnlineSubsystem* OnlineSub;
 		USocialDebugTools& Owner;
-		TSharedPtr<FOnlinePartyData> PartyMemberData;
+		FOnlinePartyDataPtr PartyMemberData;
 
 		// delegates
 		FDelegateHandle LoginCompleteDelegateHandle;
@@ -91,7 +92,7 @@ private:
 
 	TMap<FString, FInstanceContext> Contexts;
 
-	TSharedPtr<IOnlinePartyJoinInfo> GetDefaultPartyJoinInfo() const;
+	IOnlinePartyJoinInfoConstPtr GetDefaultPartyJoinInfo() const;
 	IOnlineSubsystem* GetDefaultOSS() const;
 	void PrintExecUsage() const;
 	virtual void PrintExecCommands() const;
