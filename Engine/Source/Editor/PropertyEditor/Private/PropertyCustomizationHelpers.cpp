@@ -838,7 +838,7 @@ public:
 					.FillWidth(1.0f)
 					[
 						SNew( SObjectPropertyEntryBox )
-						.ObjectPath(MaterialItem.Material->GetPathName())
+						.ObjectPath(this, &FMaterialItemView::OnGetObjectPath)
 						.AllowedClass(UMaterialInterface::StaticClass())
 						.OnObjectChanged(this, &FMaterialItemView::OnSetObject)
 						.ThumbnailPool(ThumbnailPool)
@@ -927,6 +927,11 @@ private:
 			// Replace the material
 			OnMaterialChanged.ExecuteIfBound( NewMaterial, PrevMaterial, MaterialItem.SlotIndex, bReplaceAll );
 		}
+	}
+
+	FString OnGetObjectPath() const
+	{
+		return MaterialItem.Material->GetPathName();
 	}
 
 	void OnSetObject( const FAssetData& AssetData )
