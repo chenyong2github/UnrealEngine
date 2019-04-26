@@ -38,6 +38,11 @@ namespace UnrealBuildTool
 		public bool bCanBuildDebugGame;
 
 		/// <summary>
+		/// Whether this module can be used for generating shared PCHs
+		/// </summary>
+		public bool bCanUseForSharedPCH;
+
+		/// <summary>
 		/// Whether to treat this module as a game module for UHT ordering
 		/// </summary>
 		public bool bClassifyAsGameModuleForUHT;
@@ -54,6 +59,7 @@ namespace UnrealBuildTool
 		{
 			this.Scope = Scope;
 			this.DefaultOutputBaseDir = DefaultOutputBaseDir;
+			this.bCanUseForSharedPCH = true;
 		}
 
 		/// <summary>
@@ -67,6 +73,7 @@ namespace UnrealBuildTool
 			this.Plugin = Other.Plugin;
 			this.bCanHotReload = Other.bCanHotReload;
 			this.bCanBuildDebugGame = Other.bCanBuildDebugGame;
+			this.bCanUseForSharedPCH = Other.bCanUseForSharedPCH;
 			this.bClassifyAsGameModuleForUHT = Other.bClassifyAsGameModuleForUHT;
 			this.DefaultUHTModuleType = Other.DefaultUHTModuleType;
 		}

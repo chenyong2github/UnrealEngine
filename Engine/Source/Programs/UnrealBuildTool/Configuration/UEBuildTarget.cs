@@ -2107,7 +2107,7 @@ namespace UnrealBuildTool
 			}
 
 			// Shared PCHs are only supported for engine modules at the moment. Check there are no game modules in the list.
-			List<UEBuildModuleCPP> NonEngineSharedPCHs = SharedPCHModules.Where(x => !x.RulesFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory)).ToList();
+			List<UEBuildModuleCPP> NonEngineSharedPCHs = SharedPCHModules.Where(x => !x.Rules.Context.bCanUseForSharedPCH).ToList();
 			if(NonEngineSharedPCHs.Count > 0)
 			{
 				throw new BuildException("Shared PCHs are only supported for engine modules (found {0}).", String.Join(", ", NonEngineSharedPCHs.Select(x => x.Name)));

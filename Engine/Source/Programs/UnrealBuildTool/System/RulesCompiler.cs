@@ -501,6 +501,7 @@ namespace UnrealBuildTool
 				DefaultModuleContext.bCanBuildDebugGame = true;
 				DefaultModuleContext.bCanHotReload = true;
 				DefaultModuleContext.bClassifyAsGameModuleForUHT = true;
+				DefaultModuleContext.bCanUseForSharedPCH = false;
 				
 				Dictionary<FileReference, ModuleRulesContext> ModuleFiles = new Dictionary<FileReference, ModuleRulesContext>();
 				AddModuleRulesWithContext(ProjectSourceDirectory, DefaultModuleContext, ModuleFiles);
