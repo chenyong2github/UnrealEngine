@@ -15,7 +15,7 @@ bool USingleClickToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) 
 
 UInteractiveTool* USingleClickToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
-	USingleClickTool* NewTool = NewObject<USingleClickTool>();
+	USingleClickTool* NewTool = NewObject<USingleClickTool>(SceneState.ToolManager);
 	return NewTool;
 }
 

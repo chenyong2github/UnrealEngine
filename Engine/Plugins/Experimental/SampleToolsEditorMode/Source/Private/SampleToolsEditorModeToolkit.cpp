@@ -74,6 +74,14 @@ void FSampleToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToo
 					.IsEnabled_Lambda([this]() { return this->CanStartTool(TEXT("CreateActorSampleTool")); })
 				]
 
+			+ SVerticalBox::Slot()
+				.HAlign(HAlign_Center)
+				.AutoHeight()
+				[
+					SNew(SButton).Text(LOCTEXT("MeasureDistanceSampleToolLabel", "Measure Distance"))
+					.OnClicked_Lambda([this]() { return this->StartTool(TEXT("MeasureDistanceSampleTool")); })
+					.IsEnabled_Lambda([this]() { return this->CanStartTool(TEXT("MeasureDistanceSampleTool")); })
+				]
 
 			+ SVerticalBox::Slot()
 				.HAlign(HAlign_Center)
@@ -83,7 +91,6 @@ void FSampleToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToo
 					.OnClicked_Lambda([this]() { return this->StartTool(TEXT("DrawCurveOnMeshSampleTool")); })
 					.IsEnabled_Lambda([this]() { return this->CanStartTool(TEXT("DrawCurveOnMeshSampleTool")); })
 				]
-
 
 			+ SVerticalBox::Slot()
 				.HAlign(HAlign_Center)

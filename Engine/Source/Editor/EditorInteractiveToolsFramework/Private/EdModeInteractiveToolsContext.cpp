@@ -361,6 +361,9 @@ bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* In
 	{
 		FInputDeviceState InputState = CurrentInputState;
 		InputState.InputDevice = EInputDevices::Mouse;
+		InputState.SetKeyStates(
+			InViewportClient->IsShiftPressed(), InViewportClient->IsAltPressed(),
+			InViewportClient->IsCtrlPressed(), InViewportClient->IsCmdPressed());
 		InputState.Mouse.Delta2D = CurrentInputState.Mouse.Position2D - OldPosition;
 		InputRouter->PostInputEvent(InputState);
 		return true;

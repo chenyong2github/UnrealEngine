@@ -54,6 +54,52 @@ public:
 
 
 /**
+ * Functions required to apply standard "Click-Drag" state machines to a target object.
+ * See UClickDragBehavior for an example of this kind of state machine.
+ */
+class IClickDragBehaviorTarget : public IModifierToggleBehaviorTarget
+{
+public:
+	virtual ~IClickDragBehaviorTarget() {}
+
+	/**
+	 * Test if target can begin click-drag interaction at this point
+	 * @param PressPos device position/ray at click point
+	 * @return true if target wants to begin sequence
+	 */
+	virtual bool CanBeginClickDragSequence(const FInputDeviceRay& PressPos) = 0;
+
+
+	/**
+	 * Notify Target that click press ocurred
+	 * @param PressPos device position/ray at click point
+	 */
+	virtual void OnClickPress(const FInputDeviceRay& PressPos) = 0;
+
+	/**
+	 * Notify Target that input position has changed
+	 * @param DragPos device position/ray at click point
+	 */
+	virtual void OnClickDrag(const FInputDeviceRay& DragPos) = 0;
+
+	/**
+	 * Notify Target that click release occurred
+	 * @param ReleasePos device position/ray at click point
+	 */
+	virtual void OnClickRelease(const FInputDeviceRay& ReleasePos) = 0;
+
+	/**
+	 * Notify Target that click-drag sequence has been explicitly terminated (eg by escape key)
+	 */
+	virtual void OnTerminateDragSequence() = 0;
+};
+
+
+
+
+
+
+/**
  * Target interface used by InputBehaviors that want to implement a multi-click sequence
  * (eg such as drawing a polygon with multiple clicks)
  */

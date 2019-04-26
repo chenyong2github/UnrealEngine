@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "DrawCurveOnMeshSampleTool.h"
+#include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "SceneManagement.h"   // FPrimitiveDrawInterface
 
@@ -12,9 +13,9 @@
  */
 
 
-UMeshSurfacePointTool* UDrawCurveOnMeshSampleToolBuilder::CreateNewTool(const FToolBuilderState & SceneState) const
+UMeshSurfacePointTool* UDrawCurveOnMeshSampleToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	UDrawCurveOnMeshSampleTool* NewTool = NewObject<UDrawCurveOnMeshSampleTool>();
+	UDrawCurveOnMeshSampleTool* NewTool = NewObject<UDrawCurveOnMeshSampleTool>(SceneState.ToolManager);
 	return NewTool;
 }
 

@@ -16,6 +16,7 @@
 #include "BaseTools/MeshSurfacePointTool.h"
 #include "SampleTools/CreateActorSampleTool.h"
 #include "SampleTools/DrawCurveOnMeshSampleTool.h"
+#include "SampleTools/MeasureDistanceSampleTool.h"
 
 // step 2: register a ToolBuilder in FSampleToolsEditorMode::Enter()
 // step 3: add a button in FSampleToolsEditorModeToolkit::Init()
@@ -184,9 +185,11 @@ void FSampleToolsEditorMode::Enter()
 	auto DrawCurveOnMeshSampleToolBuilder = NewObject<UDrawCurveOnMeshSampleToolBuilder>();
 	ToolsContext->ToolManager->RegisterToolType(TEXT("DrawCurveOnMeshSampleTool"), DrawCurveOnMeshSampleToolBuilder);
 
+	auto MeasureDistanceSampleToolBuilder = NewObject<UMeasureDistanceSampleToolBuilder>();
+	ToolsContext->ToolManager->RegisterToolType(TEXT("MeasureDistanceSampleTool"), MeasureDistanceSampleToolBuilder);
+
 	auto SurfacePointToolBuilder = NewObject<UMeshSurfacePointToolBuilder>();
 	ToolsContext->ToolManager->RegisterToolType(TEXT("SurfacePointTool"), SurfacePointToolBuilder);
-
 
 	// active tool type is not relevant here, we just set to default
 	ToolsContext->ToolManager->SelectActiveToolType(EToolSide::Left, TEXT("SurfacePointTool"));

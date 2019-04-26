@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "CreateActorSampleTool.h"
+#include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "CollisionQueryParams.h"
 #include "Engine/World.h"
@@ -20,7 +21,7 @@ bool UCreateActorSampleToolBuilder::CanBuildTool(const FToolBuilderState & Scene
 
 UInteractiveTool* UCreateActorSampleToolBuilder::BuildTool(const FToolBuilderState & SceneState) const
 {
-	UCreateActorSampleTool* NewTool = NewObject<UCreateActorSampleTool>();
+	UCreateActorSampleTool* NewTool = NewObject<UCreateActorSampleTool>(SceneState.ToolManager);
 	NewTool->SetWorld(SceneState.World);
 	NewTool->SetAssetAPI(AssetAPI);
 	return NewTool;
@@ -33,10 +34,15 @@ UInteractiveTool* UCreateActorSampleToolBuilder::BuildTool(const FToolBuilderSta
  */
 
 
-UCreateActorSampleTool::UCreateActorSampleTool()
+UCreateActorSampleToolProperties::UCreateActorSampleToolProperties()
 {
 	PlaceOnObjects = true;
 	GroundHeight = 0.0f;
+}
+
+
+UCreateActorSampleTool::UCreateActorSampleTool()
+{
 }
 
 
@@ -55,8 +61,8 @@ void UCreateActorSampleTool::Setup()
 {
 	USingleClickTool::Setup();
 
-	// provide self as property object
-	ToolPropertyObjects.Add(this);
+	Properties = NewObject<UCreateActorSampleToolProperties>(this);
+	AddToolPropertySource(Properties);
 }
 
 
@@ -73,14 +79,14 @@ void UCreateActorSampleTool::OnClicked(const FInputDeviceRay& ClickPos)
 	FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
 	FHitResult Result;
 	bool bHitWorld = TargetWorld->LineTraceSingleByObjectType(Result, RayStart, RayEnd, QueryParams);
-	if (PlaceOnObjects && bHitWorld)
+	if (Properties->PlaceOnObjects && bHitWorld)
 	{
 		NewActorPos = Result.ImpactPoint;
 	}
 	else
 	{
 		// hit the ground plane
-		FPlane GroundPlane(FVector(0,0,GroundHeight) , FVector(0, 0, 1));
+		FPlane GroundPlane(FVector(0,0,Properties->GroundHeight) , FVector(0, 0, 1));
 		NewActorPos = FMath::RayPlaneIntersection(ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction, GroundPlane);
 	}
 

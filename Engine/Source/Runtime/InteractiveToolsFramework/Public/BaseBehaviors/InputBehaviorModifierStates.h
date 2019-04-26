@@ -42,6 +42,15 @@ public:
 
 
 	/**
+	 * @return true if any modifiers have been registered
+	 */
+	bool HasModifiers() const
+	{
+		return (ModifierIDs.Num() > 0);
+	}
+
+
+	/**
 	 * Look up the current state of each registered modifier and pass to the target
 	 * @param Input the current input device state
 	 * @param ModifiersTarget the target that is interested in the modifier values

@@ -44,6 +44,7 @@ const UInputBehaviorSet* UInteractiveTool::GetInputBehaviors() const
 
 void UInteractiveTool::AddToolPropertySource(UObject* PropertyObject)
 {
+	check(ToolPropertyObjects.Contains(PropertyObject) == false);
 	ToolPropertyObjects.Add(PropertyObject);
 }
 

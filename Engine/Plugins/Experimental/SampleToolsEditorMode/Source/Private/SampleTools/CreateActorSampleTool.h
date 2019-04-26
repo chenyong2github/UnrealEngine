@@ -32,6 +32,29 @@ public:
 
 
 /**
+ * Settings UObject for UCreateActorSampleTool. This UClass inherits from UInteractiveToolPropertySet,
+ * which provides an OnModified delegate that the Tool will listen to for changes in property values.
+ */
+UCLASS(Transient)
+class SAMPLETOOLSEDITORMODE_API UCreateActorSampleToolProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	UCreateActorSampleToolProperties();
+
+	/** Place actors on existing objects */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Place On Objects"))
+	bool PlaceOnObjects;
+
+	/** Height of ground plane */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Ground Height", UIMin = "-1000.0", UIMax = "1000.0", ClampMin = "-1000000", ClampMax = "1000000.0"))
+	float GroundHeight;
+};
+
+
+
+
+/**
  * UCreateActorSampleTool is an example Tool that drops an empty Actor at each position the user 
  * clicks left mouse button. The Actors are placed at the first ray intersection in the scene,
  * or on a ground plane if no scene objects are hit. All the action is in the ::OnClicked handler.
@@ -53,13 +76,8 @@ public:
 
 
 protected:
-	/** Place actors on existing objects */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Place On Objects"))
-	bool PlaceOnObjects;
-
-	/** Height of ground plane */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Ground Height", UIMin = "-1000.0", UIMax = "1000.0", ClampMin = "-1000000", ClampMax = "1000000.0"))
-	float GroundHeight;
+	UPROPERTY()
+	UCreateActorSampleToolProperties* Properties;
 
 
 protected:
