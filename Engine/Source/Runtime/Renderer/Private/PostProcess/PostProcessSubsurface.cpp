@@ -465,8 +465,13 @@ void ComputeSubsurfaceForView(
 	 */
 	const FScreenPassTextureViewport SubsurfaceViewport = FScreenPassTextureViewport::CreateDownscaled(SceneViewport, ScaleFactor);
 
-	FRDGTextureDesc SubsurfaceTextureDescriptor = SceneTexture->Desc;
-	SubsurfaceTextureDescriptor.Extent = SubsurfaceViewport.Extent;
+	const FRDGTextureDesc SubsurfaceTextureDescriptor = FRDGTextureDesc::Create2DDesc(
+		SubsurfaceViewport.Extent,
+		PF_FloatRGBA,
+		FClearValueBinding(),
+		TexCreate_None,
+		TexCreate_RenderTargetable | TexCreate_ShaderResource,
+		false);
 	
 	const FSubsurfaceParameters SubsurfaceCommonParameters = GetSubsurfaceCommonParameters(GraphBuilder.RHICmdList, View);
 	const FScreenPassTextureViewportParameters SubsurfaceViewportParameters = GetScreenPassTextureViewportParameters(SubsurfaceViewport);
