@@ -9,6 +9,7 @@ UNiagaraEditorSettings::UNiagaraEditorSettings(const FObjectInitializer& ObjectI
 	bAutoPlay = true;
 	bResetSimulationOnChange = true;
 	bResimulateOnChangeWhilePaused = true;
+	bResetDependentSystemsWhenEditingEmitters = false;
 }
 
 bool UNiagaraEditorSettings::GetAutoCompile() const
@@ -63,6 +64,20 @@ void UNiagaraEditorSettings::SetResimulateOnChangeWhilePaused(bool bInResimulate
 	if (bResimulateOnChangeWhilePaused != bInResimulateOnChangeWhilePaused)
 	{
 		bResimulateOnChangeWhilePaused = bInResimulateOnChangeWhilePaused;
+		SaveConfig();
+	}
+}
+
+bool UNiagaraEditorSettings::GetResetDependentSystemsWhenEditingEmitters() const
+{
+	return bResetDependentSystemsWhenEditingEmitters;
+}
+
+void UNiagaraEditorSettings::SetResetDependentSystemsWhenEditingEmitters(bool bInResetDependentSystemsWhenEditingEmitters)
+{
+	if (bResetDependentSystemsWhenEditingEmitters != bInResetDependentSystemsWhenEditingEmitters)
+	{
+		bResetDependentSystemsWhenEditingEmitters = bInResetDependentSystemsWhenEditingEmitters;
 		SaveConfig();
 	}
 }
