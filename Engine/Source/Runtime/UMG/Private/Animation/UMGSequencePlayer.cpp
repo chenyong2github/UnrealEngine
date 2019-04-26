@@ -113,7 +113,8 @@ void UUMGSequencePlayer::Tick(float DeltaTime)
 
 			bIsEvaluating = true;
 
-			const FMovieSceneContext Context(FMovieSceneEvaluationRange(AbsolutePlaybackStart + TimeCursorPosition, AbsolutePlaybackStart + LastTimePosition, AnimationResolution), PlayerStatus);
+			FMovieSceneContext Context(FMovieSceneEvaluationRange(AbsolutePlaybackStart + TimeCursorPosition, AbsolutePlaybackStart + LastTimePosition, AnimationResolution), PlayerStatus);
+			Context.SetHasJumped(bCrossedLowerBound || bCrossedUpperBound || bCrossedEndTime);
 			RootTemplateInstance.Evaluate(Context, *this);
 
 			bIsEvaluating = false;
