@@ -1,0 +1,38 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+Halton.ush: Halton sampling interface and utilities
+=============================================================================*/
+
+#pragma once
+
+uint HaltonPrime(uint Dimension)
+{
+	return HaltonPrimes.Primes[Dimension % HaltonPrimes.Dimensions];
+}
+
+// https://en.wikipedia.org/wiki/Halton_sequence
+// Procedural definition for the Halton sequence, given a base and index
+float HaltonProcedural(uint Index, uint Base)
+{
+	float r = 0.0;
+	float f = 1.0;
+
+	float BaseInv = 1.0 / Base;
+	while (Index > 0)
+	{
+		f *= BaseInv;
+		r += f * (Index % Base);
+		Index /= Base;
+	}
+
+	return r;
+}
+
+float HaltonSequence(uint SequenceIndex, int IterationIndex, int DimensionIndex)
+{
+	int SequenceOffset = SequenceIndex * HaltonIteration.IterationCount * HaltonIteration.Dimensions;
+	int IterationOffset = IterationIndex * HaltonIteration.Dimensions;
+	float RandSample = HaltonIteration.SequenceIteration[SequenceOffset + IterationOffset + DimensionIndex];
+	return RandSample;
+}
