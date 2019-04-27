@@ -885,10 +885,10 @@ TSharedPtr<const IOnlinePartyJoinInfo> USocialUser::GetPartyJoinInfo(const FOnli
 			if (!JoinInfo.IsValid())
 			{
 				// No advertised party info, check to see if this user has sent an invite
-				TArray<TSharedRef<IOnlinePartyJoinInfo>> AllPendingInvites;
+				TArray<IOnlinePartyJoinInfoConstRef> AllPendingInvites;
 				if (PartyInterface->GetPendingInvites(*LocalUserId, AllPendingInvites))
 				{
-					for (const TSharedRef<IOnlinePartyJoinInfo>& InvitationJoinInfo : AllPendingInvites)
+					for (const IOnlinePartyJoinInfoConstRef& InvitationJoinInfo : AllPendingInvites)
 					{
 						if (*InvitationJoinInfo->GetSourceUserId() == *UserId)
 						{
@@ -914,10 +914,10 @@ bool USocialUser::HasSentPartyInvite(const FOnlinePartyTypeId& PartyTypeId) cons
 		const FUniqueNetIdRepl UserId = GetUserId(ESocialSubsystem::Primary);
 		if (ensure(LocalUserId.IsValid()) && UserId.IsValid())
 		{
-			TArray<TSharedRef<IOnlinePartyJoinInfo>> AllPendingInvites;
+			TArray<IOnlinePartyJoinInfoConstRef> AllPendingInvites;
 			if (PartyInterface->GetPendingInvites(*LocalUserId, AllPendingInvites))
 			{
-				for (const TSharedRef<IOnlinePartyJoinInfo>& InvitationJoinInfo : AllPendingInvites)
+				for (const IOnlinePartyJoinInfoConstRef& InvitationJoinInfo : AllPendingInvites)
 				{
 					if (*InvitationJoinInfo->GetSourceUserId() == *UserId && InvitationJoinInfo->GetPartyTypeId() == PartyTypeId)
 					{

@@ -12,7 +12,7 @@ class UPartyMember;
 class IOnlinePartySystem;
 class FOnlinePartyData;
 
-enum class EJoinPartyCompletionResult;
+enum class EJoinPartyCompletionResult : int8;
 
 UENUM()
 enum class EPartyType : uint8

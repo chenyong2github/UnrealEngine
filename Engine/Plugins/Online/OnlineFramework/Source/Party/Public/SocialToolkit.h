@@ -17,7 +17,7 @@ class USocialChatManager;
 
 class FOnlinePartyId;
 
-enum class EMemberExitedReason;
+enum class EMemberExitedReason : uint8;
 
 namespace EOnlinePresenceState { enum Type : uint8; }
 
