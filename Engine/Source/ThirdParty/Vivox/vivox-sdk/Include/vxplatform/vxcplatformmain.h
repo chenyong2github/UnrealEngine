@@ -1,6 +1,6 @@
 /* Copyright (c) 2013-2018 by Mercer Road Corp
  *
- * Permission to use, copy, modify or distribute this software in binary or source form 
+ * Permission to use, copy, modify or distribute this software in binary or source form
  * for any purpose is allowed only under explicit prior consent in writing from Mercer Road Corp
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND MERCER ROAD CORP DISCLAIMS
@@ -48,8 +48,8 @@
 #define strcasecmp stricmp
 #else
 #include <iostream>
-#if !defined (SN_TARGET_PS3) && !defined(__ANDROID__)  && !defined(__ORBIS__)
-//#include <ext/stdio_filebuf.h>
+#if !defined(SN_TARGET_PS3) && !defined(__ANDROID__)  && !defined(__ORBIS__)
+// #include <ext/stdio_filebuf.h>
 #endif
 #endif
 
@@ -85,13 +85,13 @@ static int if_up_with(int index)
     ret = cellNetCtlInit();
     if (ret < 0) {
         printf("cellNetCtlInit() failed(%x)\n", ret);
-        return (-1);
+        return -1;
     }
     for (;;) {
         ret = cellNetCtlGetState(&state);
         if (ret < 0) {
             printf("cellNetCtlGetState() failed(%x)\n", ret);
-            return (-1);
+            return -1;
         }
         if (state == CELL_NET_CTL_STATE_IPObtained) {
             break;
@@ -100,13 +100,14 @@ static int if_up_with(int index)
         timeout_count--;
         if (index && timeout_count < 0) {
             printf("if_up_with(%d) timeout\n", index);
-            return (0);
+            return 0;
         }
     }
-    return (0);
+    return 0;
 }
 
-static int init_cell() {
+static int init_cell()
+{
     int res = cellSysmoduleLoadModule(CELL_SYSMODULE_NET);
     assert(res >= 0);
     res = cellSysmoduleLoadModule(CELL_SYSMODULE_RTC);
@@ -127,18 +128,18 @@ static int init_cell() {
     assert(res >= 0);
     res = cellSysmoduleLoadModule(CELL_SYSMODULE_AVCONF_EXT);
     assert(res >= 0);
-    res = sys_net_initialize_network(); 
+    res = sys_net_initialize_network();
     assert(res >= 0);
 
     res = if_up_with(1);
     assert(res >= 0);
     res = isMounted(SYS_APP_HOME);
-    assert(res >=0);
+    assert(res >= 0);
 
-    sys_spu_initialize( 6, 0 );
+    sys_spu_initialize(6, 0);
     return res;
 }
 
-SYS_PROCESS_PARAM (1001, 1024 * 512);
+SYS_PROCESS_PARAM(1001, 1024 * 512);
 
-#endif //SN_TARGET_PS3
+#endif // SN_TARGET_PS3
