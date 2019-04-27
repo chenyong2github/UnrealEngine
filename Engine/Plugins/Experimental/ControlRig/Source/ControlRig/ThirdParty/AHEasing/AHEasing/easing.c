@@ -10,8 +10,17 @@
 //  http://sam.zoy.org/wtfpl/COPYING for more details.
 //
 
+#if PLATFORM_WINDOWS
+	#pragma warning(push)
+	#pragma warning(disable: 4668)
+#endif
+
 #include <math.h>
 #include "easing.h"
+
+#if PLATFORM_WINDOWS
+	#pragma warning(pop)
+#endif
 
 #ifdef M_PI
 #undef M_PI
