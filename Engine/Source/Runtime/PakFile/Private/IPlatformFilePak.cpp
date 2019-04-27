@@ -4382,10 +4382,10 @@ void FPakFile::Initialize(FArchive* Reader)
 			{
 				ensure(Check());
 			}
-
-			// LoadIndex should crash in case of an error, so just assume everything is ok if we got here.
-			bIsValid = true;
 		}
+
+		// LoadIndex should crash in case of an error, so just assume everything is ok if we got here.
+		bIsValid = true;
 	}
 }
 
@@ -5570,53 +5570,52 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 		FPakFile* Pak = new FPakFile(LowerLevel, InPakFilename, bSigned);
 		if (Pak->IsValid())
 		{
-			if (InPath != NULL)
+			if (GetRegisteredEncryptionKeys().HasKey(Pak->GetInfo().EncryptionKeyGuid))
 			{
-				Pak->SetMountPoint(InPath);
-			}
-			FString PakFilename = InPakFilename;
-			if (PakFilename.EndsWith(TEXT("_P.pak")))
-			{
-				// Prioritize based on the chunk version number
-				// Default to version 1 for single patch system
-				uint32 ChunkVersionNumber = 1;
-				FString StrippedPakFilename = PakFilename.LeftChop(6);
-				int32 VersionEndIndex = PakFilename.Find("_", ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-				if (VersionEndIndex != INDEX_NONE && VersionEndIndex > 0)
+				if (InPath != NULL)
 				{
-					int32 VersionStartIndex = PakFilename.Find("_", ESearchCase::CaseSensitive, ESearchDir::FromEnd, VersionEndIndex - 1);
-					if (VersionStartIndex != INDEX_NONE)
+					Pak->SetMountPoint(InPath);
+				}
+				FString PakFilename = InPakFilename;
+				if (PakFilename.EndsWith(TEXT("_P.pak")))
+				{
+					// Prioritize based on the chunk version number
+					// Default to version 1 for single patch system
+					uint32 ChunkVersionNumber = 1;
+					FString StrippedPakFilename = PakFilename.LeftChop(6);
+					int32 VersionEndIndex = PakFilename.Find("_", ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+					if (VersionEndIndex != INDEX_NONE && VersionEndIndex > 0)
 					{
-						VersionStartIndex++;
-						FString VersionString = PakFilename.Mid(VersionStartIndex, VersionEndIndex - VersionStartIndex);
-						if (VersionString.IsNumeric())
+						int32 VersionStartIndex = PakFilename.Find("_", ESearchCase::CaseSensitive, ESearchDir::FromEnd, VersionEndIndex - 1);
+						if (VersionStartIndex != INDEX_NONE)
 						{
-							int32 ChunkVersionSigned = FCString::Atoi(*VersionString);
-							if (ChunkVersionSigned >= 1)
+							VersionStartIndex++;
+							FString VersionString = PakFilename.Mid(VersionStartIndex, VersionEndIndex - VersionStartIndex);
+							if (VersionString.IsNumeric())
 							{
-								// Increment by one so that the first patch file still gets more priority than the base pak file
-								ChunkVersionNumber = (uint32)ChunkVersionSigned + 1;
+								int32 ChunkVersionSigned = FCString::Atoi(*VersionString);
+								if (ChunkVersionSigned >= 1)
+								{
+									// Increment by one so that the first patch file still gets more priority than the base pak file
+									ChunkVersionNumber = (uint32)ChunkVersionSigned + 1;
+								}
 							}
 						}
 					}
+					PakOrder += 100 * ChunkVersionNumber;
 				}
-				PakOrder += 100 * ChunkVersionNumber;
+				{
+					// Add new pak file
+					FScopeLock ScopedLock(&PakListCritical);
+					FPakListEntry Entry;
+					Entry.ReadOrder = PakOrder;
+					Entry.PakFile = Pak;
+					PakFiles.Add(Entry);
+					PakFiles.StableSort();
+				}
+				bSuccess = true;
 			}
-			{
-				// Add new pak file
-				FScopeLock ScopedLock(&PakListCritical);
-				FPakListEntry Entry;
-				Entry.ReadOrder = PakOrder;
-				Entry.PakFile = Pak;
-				PakFiles.Add(Entry);
-				PakFiles.StableSort();
-			}
-			bSuccess = true;
-		}
-		else
-		{
-			bool bPassedSignatureChecks = !bSigned || Pak->PassedSignatureChecks();
-			if (bPassedSignatureChecks && Pak->GetInfo().EncryptionKeyGuid.IsValid())
+			else
 			{
 				UE_LOG(LogPakFile, Display, TEXT("Deferring mount of pak \"%s\" until encryption key '%s' becomes available"), InPakFilename, *Pak->GetInfo().EncryptionKeyGuid.ToString());
 
@@ -5632,15 +5631,15 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 				PakHandle.Reset();
 				return false;
 			}
-			else
-			{
-				UE_LOG(LogPakFile, Warning, TEXT("Failed to mount pak \"%s\", pak is invalid."), InPakFilename);
-			}
+		}
+		else
+		{
+			UE_LOG(LogPakFile, Warning, TEXT("Failed to mount pak \"%s\", pak is invalid."), InPakFilename);
 		}
 	}
 	else
 	{
-		UE_LOG(LogPakFile, Warning, TEXT("Pak \"%s\" does not exist!"), InPakFilename);
+		UE_LOG(LogPakFile, Warning, TEXT("Failed to open pak \"%s\""), InPakFilename);
 	}
 	return bSuccess;
 }
