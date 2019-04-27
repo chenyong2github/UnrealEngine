@@ -4627,6 +4627,8 @@ float AActor::GetLifeSpan() const
 
 void AActor::PostInitializeComponents()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_Actor_PostInitComponents);
+
 	if( !IsPendingKill() )
 	{
 		bActorInitialized = true;
