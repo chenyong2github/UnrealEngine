@@ -414,13 +414,13 @@ void FORCENOINLINE FDebug::CheckVerifyFailedImpl(
 	va_list Args;
 	va_start(Args, Format);
 	FDebug::LogAssertFailedMessageImplV(Expr, File, Line, Format, Args);
-	va_end(Args);
 
 	if (!FPlatformMisc::IsDebuggerPresent())
 	{
 		FPlatformMisc::PromptForRemoteDebugging(false);
-		FDebug::AssertFailed(Expr, File, Line);
+		FDebug::AssertFailed(Expr, File, Line, Format, Args);
 	}
+	va_end(Args);
 }
 
 #endif // DO_CHECK || DO_GUARD_SLOW
