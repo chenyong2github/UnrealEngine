@@ -201,6 +201,8 @@ private:	// Handlers
 	void HandlePartyMemberExited(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& MemberId, const EMemberExitedReason Reason);
 	void HandleGameDestroyed(const FName SessionName, bool bWasSuccessful);
 
+	void HandleExistingPartyInvites(ESocialSubsystem SubsystemType);
+
 private:
 	static USocialToolkit* GetToolkitForPlayerInternal(ULocalPlayer* LocalPlayer);
 	static TMap<TWeakObjectPtr<ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> AllToolkitsByOwningPlayer;
