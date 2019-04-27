@@ -13,6 +13,15 @@
 #include <math.h>
 #include "easing.h"
 
+#ifdef M_PI
+#undef M_PI
+#endif
+#ifdef M_PI_2
+#undef M_PI_2
+#endif
+#define M_PI 3.1415926535897932f
+#define M_PI_2 1.57079632679f
+
 // Modeled after the line y = x
 AHFloat LinearInterpolation(AHFloat p)
 {
