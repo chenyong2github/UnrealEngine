@@ -4087,19 +4087,24 @@ void FSlateApplication::CancelDragDrop()
 		return;
 	}
 
+	FPointerEvent EmptyPointerEvent;
+
 	for( auto LastWidgetIterator = WidgetsUnderCursorLastEvent.CreateConstIterator(); LastWidgetIterator; ++LastWidgetIterator)
 	{
 		
 		FWidgetPath WidgetsToDragLeave = LastWidgetIterator.Value().ToWidgetPath(FWeakWidgetPath::EInterruptedPathHandling::Truncate);
 		if(WidgetsToDragLeave.IsValid())
 		{
-			const FDragDropEvent DragDropEvent(FPointerEvent(), DragDropContent);
+			const FDragDropEvent DragDropEvent(EmptyPointerEvent, DragDropContent);
 			for(int32 WidgetIndex = WidgetsToDragLeave.Widgets.Num() - 1; WidgetIndex >= 0; --WidgetIndex)
 			{
 				WidgetsToDragLeave.Widgets[WidgetIndex].Widget->OnDragLeave(DragDropEvent);
 			}
 		}
 	}
+
+	// cancel dragdrop operation correctly firing off callbacks
+	DragDropContent->OnDrop(false, EmptyPointerEvent);
 
 	WidgetsUnderCursorLastEvent.Empty();
 	ResetDragDropState();
