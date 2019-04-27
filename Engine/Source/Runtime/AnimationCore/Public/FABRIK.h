@@ -24,7 +24,7 @@ public:
 	float Length;
 
 	/** Bone Index in SkeletalMesh */
-	FCompactPoseBoneIndex BoneIndex;
+	int32 BoneIndex;
 
 	/** Transform Index that this control will output */
 	int32 TransformIndex;
@@ -45,21 +45,30 @@ public:
 	{
 	}
 
-	FABRIKChainLink(const FVector& InPosition, const float& InLength, const FCompactPoseBoneIndex& InBoneIndex, const int32& InTransformIndex)
+	FABRIKChainLink(const FVector& InPosition, const float InLength, const FCompactPoseBoneIndex& InBoneIndex, const int32& InTransformIndex)
 		: Position(InPosition)
 		, Length(InLength)
-		, BoneIndex(InBoneIndex)
+		, BoneIndex(InBoneIndex.GetInt())
 		, TransformIndex(InTransformIndex)
 		, DefaultDirToParent(FVector(-1.f, 0.f, 0.f))
 	{
 	}
 
-	FABRIKChainLink(const FVector& InPosition, const float& InLength, const FCompactPoseBoneIndex& InBoneIndex, const int32& InTransformIndex, const FVector& InDefaultDirToParent)
+	FABRIKChainLink(const FVector& InPosition, const float InLength, const FCompactPoseBoneIndex& InBoneIndex, const int32& InTransformIndex, const FVector& InDefaultDirToParent)
+		: Position(InPosition)
+		, Length(InLength)
+		, BoneIndex(InBoneIndex.GetInt())
+		, TransformIndex(InTransformIndex)
+		, DefaultDirToParent(InDefaultDirToParent)
+	{
+	}
+
+	FABRIKChainLink(const FVector& InPosition, const float InLength, const int32 InBoneIndex, const int32 InTransformIndex)
 		: Position(InPosition)
 		, Length(InLength)
 		, BoneIndex(InBoneIndex)
 		, TransformIndex(InTransformIndex)
-		, DefaultDirToParent(InDefaultDirToParent)
+		, DefaultDirToParent(FVector(-1.f, 0.f, 0.f))
 	{
 	}
 
@@ -79,7 +88,7 @@ namespace AnimationCore
 	* @param	Precision			Precision
 	* @param	MaxIteration		Number of Max Iteration
 	*
-	* @return  true if modified. False if not. 
+	* @return  true if modified. False if not.
 	*/
 	ANIMATIONCORE_API bool SolveFabrik(TArray<FABRIKChainLink>& InOutChain, const FVector& TargetPosition, float MaximumReach, float Precision, int32 MaxIteration);
 };
