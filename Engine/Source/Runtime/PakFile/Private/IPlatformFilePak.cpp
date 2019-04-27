@@ -158,15 +158,6 @@ TPakChunkHash ComputePakChunkHash(const void* InData, int64 InDataSizeInBytes)
 #endif
 }
 
-FString ChunkHashToString(const TPakChunkHash& InHash)
-{
-#if PAKHASH_USE_CRC
-	return FString::Printf(TEXT("%08X"), InHash);
-#else
-	return LexToString(InHash);
-#endif
-}
-
 #ifndef EXCLUDE_NONPAK_UE_EXTENSIONS
 #define EXCLUDE_NONPAK_UE_EXTENSIONS 1	// Use .Build.cs file to disable this if the game relies on accessing loose files
 #endif
