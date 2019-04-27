@@ -5,6 +5,7 @@
 
 void FRigUnit_SpringIK::Execute(const FRigUnitContext& Context)
 {
+	/*
 	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
 	if (Hierarchy == nullptr)
 	{
@@ -161,4 +162,5 @@ void FRigUnit_SpringIK::Execute(const FRigUnitContext& Context)
 	}
 
 	Hierarchy->SetGlobalTransform(BoneIndex, Transform, bPropagateToChildren);
+	*/
 }
