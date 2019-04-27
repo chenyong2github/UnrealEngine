@@ -791,6 +791,8 @@ public:
 	virtual void PostEditImport() override;
 	//~ End UObject Interface
 
+	LANDSCAPE_API void InitializeProxyLayersWeightmapUsage();
+
 	LANDSCAPE_API static TArray<FName> GetLayersFromMaterial(UMaterialInterface* Material);
 	LANDSCAPE_API TArray<FName> GetLayersFromMaterial() const;
 	LANDSCAPE_API static ULandscapeLayerInfoObject* CreateLayerInfo(const TCHAR* LayerName, ULevel* Level);
