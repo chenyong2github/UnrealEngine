@@ -20,9 +20,6 @@ void FRigUnit_GetRelativeBoneTransform::Execute(const FRigUnitContext& Context)
 			{
 				CachedBoneIndex = Hierarchy->GetIndex(Bone);
 				CachedSpaceIndex = Hierarchy->GetIndex(Space);
-
-				// todo: error reporting
-				break;
 			}
 			case EControlRigState::Update:
 			{
