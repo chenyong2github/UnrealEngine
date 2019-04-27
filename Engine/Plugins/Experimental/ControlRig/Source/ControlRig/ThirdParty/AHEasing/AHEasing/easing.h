@@ -13,16 +13,8 @@
 #ifndef AH_EASING_H
 #define AH_EASING_H
 
-#if defined(__LP64__) && !defined(AH_EASING_USE_DBL_PRECIS)
-#define AH_EASING_USE_DBL_PRECIS
-#endif
-
 #define AH_FLOAT_TYPE float
 typedef AH_FLOAT_TYPE AHFloat;
-
-#if defined __cplusplus
-extern "C" {
-#endif
 
 typedef AHFloat (*AHEasingFunction)(AHFloat);
 
@@ -78,9 +70,5 @@ AHFloat BackEaseInOut(AHFloat p);
 AHFloat BounceEaseIn(AHFloat p);
 AHFloat BounceEaseOut(AHFloat p);
 AHFloat BounceEaseInOut(AHFloat p);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
