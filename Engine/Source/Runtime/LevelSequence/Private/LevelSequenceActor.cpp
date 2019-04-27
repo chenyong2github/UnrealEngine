@@ -233,7 +233,7 @@ void ALevelSequenceActor::OnSequenceLoaded(const FName& PackageName, UPackage* P
 	if (Result == EAsyncLoadingResult::Succeeded)
 	{
 		ULevelSequence* LevelSequenceAsset = GetSequence();
-		if (SequencePlayer->GetSequence() != LevelSequenceAsset)
+		if (SequencePlayer && SequencePlayer->GetSequence() != LevelSequenceAsset)
 		{
 			SequencePlayer->Initialize(LevelSequenceAsset, GetLevel(), PlaybackSettings);
 		}
