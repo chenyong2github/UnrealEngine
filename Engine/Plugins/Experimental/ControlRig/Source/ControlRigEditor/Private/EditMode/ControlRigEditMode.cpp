@@ -410,7 +410,10 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 				{
 					case FControlRigDrawInterface::EDrawType_Point:
 					{
-						PDI->DrawPoint(Instruction.Positions[0], Instruction.Color, Instruction.Thickness, SDPG_Foreground);
+						for (const FVector& Point : Instruction.Positions)
+						{
+							PDI->DrawPoint(Point, Instruction.Color, Instruction.Thickness, SDPG_Foreground);
+						}
 						break;
 					}
 					case FControlRigDrawInterface::EDrawType_Lines:

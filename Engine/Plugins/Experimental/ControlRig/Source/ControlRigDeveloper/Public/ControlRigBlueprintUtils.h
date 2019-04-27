@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
+#include "EdGraph/EdGraphPin.h"
 
 class UStruct;
 class UBlueprint;
-struct FEdGraphPinType;
 class UControlRigGraphNode;
 class UEdGraph;
 class UEdGraphPin;
@@ -55,7 +55,7 @@ static FName AddPropertyMember(UBlueprint* InBlueprint, const FEdGraphPinType& I
  * @param	InLocation			Optional location to create the node at
  * @return the new graph node
  */
-static UControlRigGraphNode* InstantiateGraphNodeForProperty(UEdGraph* InGraph, const FName& InPropertyName, const FVector2D& InLocation = FVector2D::ZeroVector);
+static UControlRigGraphNode* InstantiateGraphNodeForProperty(UEdGraph* InGraph, const FName& InPropertyName, const FVector2D& InLocation = FVector2D::ZeroVector, const FEdGraphPinType& InPinType = FEdGraphPinType());
 
 /**
  * Check whether we can instantiate a node in the specified graph for the specified property

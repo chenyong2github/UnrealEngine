@@ -13,8 +13,10 @@ struct FRigUnit_RandomFloat : public FRigUnit_MathBase
 	FRigUnit_RandomFloat()
 	{
 		Seed = LastSeed = 217;
-		Minimum = Result = 0.f;
+		Minimum = Result = LastResult = 0.f;
 		Maximum = 1.f;
+		Duration = 0.f;
+		TimeLeft = 0.f;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -28,11 +30,21 @@ struct FRigUnit_RandomFloat : public FRigUnit_MathBase
 	UPROPERTY(meta = (Input))
 	float Maximum;
 
+	/** The duration at which the number won't change. Use 0 for a different number every time. */
+	UPROPERTY(meta = (Input))
+	float Duration;
+
 	UPROPERTY(meta = (Output))
 	float Result;
 
-	UPROPERTY(meta = (Output))
+	UPROPERTY()
+	float LastResult;
+
+	UPROPERTY()
 	int32 LastSeed;
+
+	UPROPERTY()
+	float TimeLeft;
 };
 
 USTRUCT(meta = (DisplayName = "Random (Vector)", Category = "Math|Random", PrototypeName = "Random"))
@@ -45,7 +57,9 @@ struct FRigUnit_RandomVector: public FRigUnit_MathBase
 		Seed = LastSeed = 217;
 		Minimum = 0.f;
 		Maximum = 1.f;
-		Result = FVector::ZeroVector;
+		Duration = 0.f;
+		TimeLeft = 0.f;
+		Result = LastResult = FVector::ZeroVector;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -59,9 +73,19 @@ struct FRigUnit_RandomVector: public FRigUnit_MathBase
 	UPROPERTY(meta = (Input))
 	float Maximum;
 
+	/** The duration at which the number won't change. Use 0 for a different number every time. */
+	UPROPERTY(meta = (Input))
+	float Duration;
+
 	UPROPERTY(meta = (Output))
 	FVector Result;
 
-	UPROPERTY(meta = (Output))
+	UPROPERTY()
+	FVector LastResult;
+
+	UPROPERTY()
 	int32 LastSeed;
+
+	UPROPERTY()
+	float TimeLeft;
 };

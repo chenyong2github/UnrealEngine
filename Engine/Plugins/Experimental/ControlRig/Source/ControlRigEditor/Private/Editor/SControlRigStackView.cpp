@@ -251,16 +251,15 @@ void SControlRigStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selecti
 			return;
 		}
 
-		UControlRig* ControlRigCDO = CastChecked<UControlRig>(GeneratedClass->ClassDefaultObject);
 		TArray<FString> SelectedNodes;
 		for (TSharedPtr<FRigStackEntry>& Entry : SelectedItems)
 		{
-			if (Entry->OpIndex >= ControlRigCDO->Operators.Num())
+			if (Entry->OpIndex >= GeneratedClass->Operators.Num())
 			{
 				return;
 			}
 
-			FControlRigOperator& Operator = ControlRigCDO->Operators[Entry->OpIndex];
+			FControlRigOperator& Operator = GeneratedClass->Operators[Entry->OpIndex];
 			if (Operator.OpCode == EControlRigOpCode::Exec)
 			{
 				FString PropertyPath = Operator.CachedPropertyPath1.ToString();

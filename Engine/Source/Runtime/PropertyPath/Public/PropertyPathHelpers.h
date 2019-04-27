@@ -69,111 +69,111 @@ private:
 
 /** Base class for cached property paths */
 USTRUCT()
-struct FCachedPropertyPath
+struct PROPERTYPATH_API FCachedPropertyPath
 {
 	GENERATED_BODY()
 
 	/** UStruct boilerplate constructor - do not use */
-	PROPERTYPATH_API FCachedPropertyPath();
+	FCachedPropertyPath();
 
 	/** */
-	PROPERTYPATH_API FCachedPropertyPath(const FString& Path);
+	FCachedPropertyPath(const FString& Path);
 
 	/** */
 	UE_DEPRECATED(4.23, "FCachedPropertyPath(const FString& Path)")
-	PROPERTYPATH_API FCachedPropertyPath(const TArray<FString>& PropertyChain);
+	FCachedPropertyPath(const TArray<FString>& PropertyChain);
 
 	/** Check whether this property path is non-empty */
 	bool IsValid() const { return Segments.Num() > 0; }
 
 	/** Make a new property path from a string */
-	PROPERTYPATH_API void MakeFromString(const FString& InPropertyPath);
+	void MakeFromString(const FString& InPropertyPath);
 
 	/** Make a copy which is unresolved */
-	static PROPERTYPATH_API FCachedPropertyPath MakeUnresolvedCopy(const FCachedPropertyPath& ToCopy);
+	static FCachedPropertyPath MakeUnresolvedCopy(const FCachedPropertyPath& ToCopy);
 
 	/** Make a new property path from a leaf property and an outer class */
-	PROPERTYPATH_API void MakeFromPropertyAndOuterClass(UProperty* InProperty, UClass* InClass);
+	void MakeFromPropertyAndOuterClass(UProperty* InProperty, UClass* InClass);
 
 	/** @return Get the number of segments in this path */
-	PROPERTYPATH_API int32 GetNumSegments() const;
+	int32 GetNumSegments() const;
 
 	/** 
 	 * Get the path segment at the specified index
 	 * @param	InSegmentIndex	The index of the segment
 	 * @return the segment at the specified index 
 	 */
-	PROPERTYPATH_API const FPropertyPathSegment& GetSegment(int32 InSegmentIndex) const;
+	const FPropertyPathSegment& GetSegment(int32 InSegmentIndex) const;
 
 	/** 
 	 * Get the path segment at the end of the path
 	 * @return the segment at the specified index 
 	 */
-	PROPERTYPATH_API const FPropertyPathSegment& GetLastSegment() const;
+	const FPropertyPathSegment& GetLastSegment() const;
 
 	/** 
 	 * Resolve this property path against the specified object.
 	 * @return true if the path could be resolved
 	 */
-	PROPERTYPATH_API bool Resolve(UObject* InContainer) const;
+	bool Resolve(UObject* InContainer) const;
 
 	/** Set whether this path resolves over object or dynamic array boundaries, making it unsafe for general direct cached access */
-	PROPERTYPATH_API void SetCanSafelyUsedCachedAddress(bool bInCanSafelyUsedCachedAddress) const;
+	void SetCanSafelyUsedCachedAddress(bool bInCanSafelyUsedCachedAddress) const;
 
 	/** Cache a resolved address for faster subsequent access */
-	PROPERTYPATH_API void ResolveLeaf(void* InAddress) const;
+	void ResolveLeaf(void* InAddress) const;
 
 	/** Cache a resolved function for faster subsequent access */
-	PROPERTYPATH_API void ResolveLeaf(UFunction* InFunction) const;
+	void ResolveLeaf(UFunction* InFunction) const;
 
 	/** 
 	 * Check whether a path is resolved. This means that it has a cached address, but may
 	 * resolve over an object boundary or a dynamic array.
 	 * @return true if the path is resolved
 	 */
-	PROPERTYPATH_API bool IsResolved() const;
+	bool IsResolved() const;
 
 	/** 
 	 * Check whether a path is fully resolved. This means that it has a cached address and
 	 * does not resolve over an object boundary or a dynamic array.
 	 * @return true if the path is fully resolved
 	 */
-	PROPERTYPATH_API bool IsFullyResolved() const;
+	bool IsFullyResolved() const;
 
 	/** Get the cached address for this property path, if any */
-	PROPERTYPATH_API void* GetCachedAddress() const;
+	void* GetCachedAddress() const;
 
 	/** Get the cached function for this property path, if any */
-	PROPERTYPATH_API UFunction* GetCachedFunction() const;
+	UFunction* GetCachedFunction() const;
 
 	/** Convert this property path to a FPropertyChangedEvent. Note that the path must be resolved. */
-	PROPERTYPATH_API FPropertyChangedEvent ToPropertyChangedEvent(EPropertyChangeType::Type InChangeType) const;
+	FPropertyChangedEvent ToPropertyChangedEvent(EPropertyChangeType::Type InChangeType) const;
 
 	/** Convert this property path to a FEditPropertyChain. Note that the path must be resolved. */
-	PROPERTYPATH_API void ToEditPropertyChain(FEditPropertyChain& OutPropertyChain) const;
+	void ToEditPropertyChain(FEditPropertyChain& OutPropertyChain) const;
 
 	/** Make a string representation of this property path */
-	PROPERTYPATH_API FString ToString() const;
+	FString ToString() const;
 
 	/** Compares this property path to a string */
-	PROPERTYPATH_API bool operator==(const FString& Other) const;
+	bool operator==(const FString& Other) const;
 
 	/** Compares this property path to a string */
-	PROPERTYPATH_API bool Equals(const FString& Other) const;
+	bool Equals(const FString& Other) const;
 
 #if DO_CHECK
 	/** Get the cached container for this property path, for checking purposes */
-	PROPERTYPATH_API void* GetCachedContainer() const;
+	void* GetCachedContainer() const;
 
 	/** Set the cached container for this property path, for checking purposes */
-	PROPERTYPATH_API void SetCachedContainer(void* InContainer) const;
+	void SetCachedContainer(void* InContainer) const;
 #endif
 
 	/** Trims this property path at the end */
-	PROPERTYPATH_API void RemoveFromEnd(int32 InNumSegments = 1);
+	void RemoveFromEnd(int32 InNumSegments = 1);
 
 	/** Trims this property path at the start */
-	PROPERTYPATH_API void RemoveFromStart(int32 InNumSegments = 1);
+	void RemoveFromStart(int32 InNumSegments = 1);
 
 private:
 	/** Path segments for this path */
