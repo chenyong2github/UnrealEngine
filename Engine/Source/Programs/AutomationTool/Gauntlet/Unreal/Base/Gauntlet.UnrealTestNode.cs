@@ -360,10 +360,9 @@ namespace Gauntlet
 						}
 
 						// add controllers
-						if (TestRole.Controllers.Count > 0)
-						{
-							SessionRole.CommandLine += string.Format(" -gauntlet=\"{0}\"", string.Join(",", TestRole.Controllers));
-						}
+						SessionRole.CommandLine += TestRole.Controllers.Count > 0 ?
+							string.Format(" -gauntlet=\"{0}\"", string.Join(",", TestRole.Controllers)) 
+							: " -gauntlet";
 
 						if (PassThroughArgs.Count() > 0)
 						{
