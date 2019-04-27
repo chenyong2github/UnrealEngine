@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Units/Simulation/RigUnit_SimBase.h"
+#include "Math/ControlRigSimulationLibrary.h"
 #include "RigUnit_Verlet.generated.h"
 
 /**
@@ -15,10 +16,11 @@ struct FRigUnit_VerletIntegrateVector : public FRigUnit_SimBase
 	
 	FRigUnit_VerletIntegrateVector()
 	{
-		Target = Position = Velocity = Acceleration = AccumulatedPosition = AccumulatedVelocity = FVector::ZeroVector;
+		Target = Position = Velocity = Acceleration = FVector::ZeroVector;
 		Strength = 64.f;
 		Damp = 0.01;
 		Blend = 5.f;
+		Point = FControlRigSimulationPoint();
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -48,9 +50,6 @@ struct FRigUnit_VerletIntegrateVector : public FRigUnit_SimBase
 	FVector Acceleration;
 
 	UPROPERTY()
-	FVector AccumulatedPosition;
-
-	UPROPERTY()
-	FVector AccumulatedVelocity;
+	FControlRigSimulationPoint Point;
 };
 

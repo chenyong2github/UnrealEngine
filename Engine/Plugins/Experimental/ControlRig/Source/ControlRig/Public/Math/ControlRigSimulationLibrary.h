@@ -6,7 +6,7 @@
 #include "ControlRigSimulationLibrary.generated.h"
 
 USTRUCT()
-struct CONTROLRIG_API FControlRigSimulationPoint
+struct FControlRigSimulationPoint
 {
 	GENERATED_BODY()
 
@@ -33,23 +33,23 @@ struct CONTROLRIG_API FControlRigSimulationPoint
 	 */
 	UPROPERTY()
 	FVector Velocity;
-}
+};
 
 UENUM()
-enum class CONTROLRIG_API EControlRigSimulationConstraintType : uint8
+enum class EControlRigSimulationConstraintType : uint8
 {
 	Distance,
 	Plane
 };
 
 USTRUCT()
-struct CONTROLRIG_API FControlRigSimulationConstraint
+struct FControlRigSimulationConstraint
 {
 	GENERATED_BODY()
 
 	FControlRigSimulationConstraint()
 	{
-		Type = EControlRigSimulationConstraintType::Pinned;
+		Type = EControlRigSimulationConstraintType::Distance;
 		PointA = PointB = INDEX_NONE;
 		DataA = DataB = FVector::ZeroVector;
 	}
@@ -87,23 +87,16 @@ struct CONTROLRIG_API FControlRigSimulationConstraint
 };
 
 USTRUCT()
-struct CONTROLRIG_API FControlRigSimulationSpring
+struct FControlRigSimulationSpring
 {
 	GENERATED_BODY()
 
 	FControlRigSimulationSpring()
 	{
-		Type = FControlRigSimulationSpring::Pinned;
 		PointA = PointB = INDEX_NONE;
 		Coefficient = 32.f;
 		Equilibrium = 100.f;
 	}
-
-	/**
-	 * The type of the constraint
-	 */
-	UPROPERTY()
-	EControlRigSimulationConstraintType Type;
 
 	/**
 	 * The first point affected by this constraint
@@ -132,7 +125,7 @@ struct CONTROLRIG_API FControlRigSimulationSpring
 };
 
 USTRUCT()
-struct CONTROLRIG_API FControlRigSimulationContainer
+struct FControlRigSimulationContainer
 {
 	GENERATED_BODY()
 
@@ -157,11 +150,21 @@ struct CONTROLRIG_API FControlRigSimulationContainer
 	 */
 	UPROPERTY()
 	TArray<FControlRigSimulationConstraint> Constraints;
+
+private:
+
+	UPROPERTY()
+	TArray<FControlRigSimulationPoint> PreviousStep;
+
+	friend class FControlRigSimulationLibrary;
 };
 
 class CONTROLRIG_API FControlRigSimulationLibrary
 {
 public:
 	static FControlRigSimulationPoint IntegrateVerlet(const FControlRigSimulationPoint& InPoint, const FVector& InForce, float InBlend, float InDamping, float InDeltaTime);
-	static FControlRigSimulationPoint IntegrateExplicitEuler(const FControlRigSimulationPoint& InPoint, const FVector& InForce, float InDamping, float InDeltaTime);
+	static FControlRigSimulationPoint IntegrateSemiExplicitEuler(const FControlRigSimulationPoint& InPoint, const FVector& InForce, float InDamping, float InDeltaTime);
+
+	static void IntegrateVerlet(FControlRigSimulationContainer& InOutSimulation, float InBlend, float InDamping, float InDeltaTime);
+	static void IntegrateSemiExplicitEuler(FControlRigSimulationContainer& InOutSimulation, float InDamping, float InDeltaTime);
 };
