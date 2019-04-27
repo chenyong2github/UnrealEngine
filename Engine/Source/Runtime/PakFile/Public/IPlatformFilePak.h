@@ -34,7 +34,14 @@ typedef FSHAHash TPakChunkHash;
 #endif
 
 PAKFILE_API TPakChunkHash ComputePakChunkHash(const void* InData, int64 InDataSizeInBytes);
-PAKFILE_API FString ChunkHashToString(const TPakChunkHash& InHash);
+FORCEINLINE FString ChunkHashToString(const TPakChunkHash& InHash)
+{
+#if PAKHASH_USE_CRC
+	return FString::Printf(TEXT("%08X"), InHash);
+#else
+	return LexToString(InHash);
+#endif
+}
 
 struct FPakChunkSignatureCheckFailedData
 {
