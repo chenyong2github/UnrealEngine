@@ -1636,7 +1636,9 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 		UE_LOG(LogReplicationGraph, Display, TEXT("UReplicationGraph::ReplicateSingleActor: %s. NetConnection: %s"), *Actor->GetName(), *NetConnection->Describe());
 	}
 
-	if (!ensureMsgf(IsActorValidForReplication(Actor), TEXT("Actor not valid for replication! Actor = %s, Channel = %s"), *Actor->GetFullName(), *DescribeSafe(ActorInfo.Channel)))
+	if (!ensureMsgf(IsActorValidForReplication(Actor), TEXT("Actor not valid for replication (BeingDestroyed:%d) (PendingKill:%d) (Unreachable:%d)! Actor = %s, Channel = %s"),
+					Actor->IsActorBeingDestroyed(), Actor->IsPendingKill(), Actor->IsUnreachable(),
+					*Actor->GetFullName(), *DescribeSafe(ActorInfo.Channel)))
 	{
 		return 0;
 	}
