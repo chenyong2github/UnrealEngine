@@ -80,6 +80,15 @@ enum class EPythonCommandExecutionMode : uint8
 	EvaluateStatement,
 };
 
+/** Controls the scope used when executing Python files. */
+enum class EPythonFileExecutionScope : uint8
+{
+	/** Execute the Python file with its own unique locals and globals dict to isolate any changes it makes to the environment (like imports). */
+	Private,
+	/** Execute the Python file with the shared locals and globals dict as used by the console, so that executing it behaves as if you'd ran the file contents directly in the console. */
+	Public,
+};
+
 /** Log output entry captured from Python. */
 struct FPythonLogOutputEntry
 {
@@ -98,6 +107,9 @@ struct FPythonCommandEx
 
 	/** Controls the mode used to execute the command. */
 	EPythonCommandExecutionMode ExecutionMode = EPythonCommandExecutionMode::ExecuteFile;
+
+	/** Controls the scope used when executing Python files. */
+	EPythonFileExecutionScope FileExecutionScope = EPythonFileExecutionScope::Private;
 
 	/** The command to run. This may be literal Python code, or a file (with optional arguments) to run. */
 	FString Command;
