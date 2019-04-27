@@ -16,7 +16,7 @@ void FRigUnit_MathQuaternionFromAxisAndAngle::Execute(const FRigUnitContext& Con
 
 void FRigUnit_MathQuaternionFromEuler::Execute(const FRigUnitContext& Context)
 {
-	Result = FQuat::MakeFromEuler(Euler);
+	Result = FControlRigMathLibrary::QuatFromEuler(Euler, RotationOrder);
 }
 
 void FRigUnit_MathQuaternionFromRotator::Execute(const FRigUnitContext& Context)
@@ -49,7 +49,7 @@ void FRigUnit_MathQuaternionToAxisAndAngle::Execute(const FRigUnitContext& Conte
 
 void FRigUnit_MathQuaternionToEuler::Execute(const FRigUnitContext& Context)
 {
-	Result = Value.Euler();
+	Result = FControlRigMathLibrary::EulerFromQuat(Value, RotationOrder);
 }
 
 void FRigUnit_MathQuaternionToRotator::Execute(const FRigUnitContext& Context)

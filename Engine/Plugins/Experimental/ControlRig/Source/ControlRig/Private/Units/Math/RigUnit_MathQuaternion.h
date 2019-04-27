@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Units/Math/RigUnit_MathBase.h"
+#include "Math/ControlRigMathLibrary.h"
 #include "RigUnit_MathQuaternion.generated.h"
 
 USTRUCT(meta=(Abstract, Category="Math|Quaternion", MenuDescSuffix="(Quaternion)"))
@@ -86,13 +87,17 @@ struct FRigUnit_MathQuaternionFromEuler : public FRigUnit_MathQuaternionBase
 	FRigUnit_MathQuaternionFromEuler()
 	{
 		Euler = FVector::ZeroVector;
+		RotationOrder = EControlRigRotationOrder::ZYX;
 		Result = FQuat::Identity;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
 
-	UPROPERTY(meta=(Input))
+	UPROPERTY(meta = (Input))
 	FVector Euler;
+
+	UPROPERTY(meta = (Input))
+	EControlRigRotationOrder RotationOrder;
 
 	UPROPERTY(meta=(Output))
 	FQuat Result;
@@ -185,6 +190,7 @@ struct FRigUnit_MathQuaternionToEuler : public FRigUnit_MathQuaternionBase
 	FRigUnit_MathQuaternionToEuler()
 	{
 		Value = FQuat::Identity;
+		RotationOrder = EControlRigRotationOrder::ZYX;
 		Result = FVector::ZeroVector;
 	}
 
@@ -192,6 +198,9 @@ struct FRigUnit_MathQuaternionToEuler : public FRigUnit_MathQuaternionBase
 
 	UPROPERTY(meta=(Input))
 	FQuat Value;
+
+	UPROPERTY(meta = (Input))
+	EControlRigRotationOrder RotationOrder;
 
 	UPROPERTY(meta=(Output))
 	FVector Result;
@@ -467,4 +476,18 @@ struct FRigUnit_MathQuaternionSwingTwist : public FRigUnit_MathQuaternionBase
 
 	UPROPERTY(meta = (Output))
 	FQuat Twist;
+};
+
+USTRUCT(meta = (DisplayName = "Rotation Order", Category = "Math|Rotation"))
+struct FRigUnit_MathQuaternionRotationOrder : public FRigUnit_MathBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathQuaternionRotationOrder()
+	{
+		RotationOrder = EControlRigRotationOrder::ZYX;
+	}
+
+	UPROPERTY(meta = (Input, Output))
+	EControlRigRotationOrder RotationOrder;
 };
