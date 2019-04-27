@@ -759,6 +759,42 @@ void ContentBrowserUtils::DisplayConfirmationPopup(const FText& Message, const F
 	Popup->OpenPopup(ParentContent);
 }
 
+bool ContentBrowserUtils::RenameFolder(const FString& DestPath, const FString& SourcePath)
+{
+	if (DestPath == SourcePath)
+	{
+		return false;
+	}
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	// move any assets in our folder
+	TArray<FAssetData> AssetsInFolder;
+	AssetRegistryModule.Get().GetAssetsByPath(*SourcePath, AssetsInFolder, true);
+	TArray<UObject*> ObjectsInFolder;
+	GetObjectsInAssetData(AssetsInFolder, ObjectsInFolder);
+	MoveAssets(ObjectsInFolder, DestPath, SourcePath);
+
+	// Now check to see if the original folder is empty, if so we can delete it
+	TArray<FAssetData> AssetsInOriginalFolder;
+	AssetRegistryModule.Get().GetAssetsByPath(*SourcePath, AssetsInOriginalFolder, true);
+	if (AssetsInOriginalFolder.Num() == 0)
+	{
+		TArray<FString> FoldersToDelete;
+		FoldersToDelete.Add(SourcePath);
+		DeleteFolders(FoldersToDelete);
+	}
+
+	// set color of folder to new path
+	const TSharedPtr<FLinearColor> FolderColor = LoadColor(SourcePath);
+	if (FolderColor.IsValid())
+	{
+		SaveColor(SourcePath, nullptr);
+		SaveColor(DestPath, FolderColor);
+	}
+
+	return true;
+}
+
 bool ContentBrowserUtils::CopyFolders(const TArray<FString>& InSourcePathNames, const FString& DestPath)
 {
 	TMap<FString, TArray<UObject*> > SourcePathToLoadedAssets;
@@ -798,15 +834,10 @@ bool ContentBrowserUtils::CopyFolders(const TArray<FString>& InSourcePathNames, 
 			ObjectTools::DuplicateObjects( PathIt.Value(), SourcePath, Destination, /*bOpenDialog=*/false );
 		}
 
-		// Attempt to copy the folder color to the new path location
-		if (FPaths::FileExists(GEditorPerProjectIni))
+		const TSharedPtr<FLinearColor> FolderColor = LoadColor(SourcePath);
+		if (FolderColor.IsValid())
 		{
-			FString ColorStr;
-			if (GConfig->GetString(TEXT("PathColor"), *SourcePath, ColorStr, GEditorPerProjectIni))
-			{
-				// Add the new path
-				GConfig->SetString(TEXT("PathColor"), *Destination, *ColorStr, GEditorPerProjectIni);
-			}
+			SaveColor(Destination, FolderColor);
 		}
 	}
 
@@ -861,7 +892,7 @@ bool ContentBrowserUtils::MoveFolders(const TArray<FString>& InSourcePathNames, 
 		if ( PathIt.Value().Num() > 0 )
 		{
 			// Move assets and supply a source path to indicate it is relative
-			ContentBrowserUtils::MoveAssets( PathIt.Value(), Destination, PathIt.Key() );
+			MoveAssets( PathIt.Value(), Destination, PathIt.Key() );
 		}
 
 		// Attempt to remove the old path
@@ -870,18 +901,11 @@ bool ContentBrowserUtils::MoveFolders(const TArray<FString>& InSourcePathNames, 
 			AssetRegistryModule.Get().RemovePath(SourcePath);
 		}
 
-		// Attempt to move the folder color to the new path location
-		if (FPaths::FileExists(GEditorPerProjectIni))
+		const TSharedPtr<FLinearColor> FolderColor = LoadColor(SourcePath);
+		if (FolderColor.IsValid())
 		{
-			FString ColorStr;
-			if (GConfig->GetString(TEXT("PathColor"), *SourcePath, ColorStr, GEditorPerProjectIni))
-			{
-				// Remove the old path
-				GConfig->RemoveKey(TEXT("PathColor"), *SourcePath, GEditorPerProjectIni);
-
-				// Add the new path
-				GConfig->SetString(TEXT("PathColor"), *Destination, *ColorStr, GEditorPerProjectIni);
-			}
+			SaveColor(SourcePath, nullptr);
+			SaveColor(Destination, FolderColor);
 		}
 	}
 
