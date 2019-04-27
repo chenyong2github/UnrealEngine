@@ -20,13 +20,36 @@ UENUM()
 enum class EControlRigAnimEasingType : uint8
 {
 	Linear,
-	QuadraticIn,
-	QuadraticOut,
-	QuadraticInOut,
-	CubicIn,
-	CubicOut,
-	CubicInOut,
-	Sinusoidal
+	QuadraticEaseIn,
+	QuadraticEaseOut,
+	QuadraticEaseInOut,
+	CubicEaseIn,
+	CubicEaseOut,
+	CubicEaseInOut,
+	QuarticEaseIn,
+	QuarticEaseOut,
+	QuarticEaseInOut,
+	QuinticEaseIn,
+	QuinticEaseOut,
+	QuinticEaseInOut,
+	SineEaseIn,
+	SineEaseOut,
+	SineEaseInOut,
+	CircularEaseIn,
+	CircularEaseOut,
+	CircularEaseInOut,
+	ExponentialEaseIn,
+	ExponentialEaseOut,
+	ExponentialEaseInOut,
+	ElasticEaseIn,
+	ElasticEaseOut,
+	ElasticEaseInOut,
+	BackEaseIn,
+	BackEaseOut,
+	BackEaseInOut,
+	BounceEaseIn,
+	BounceEaseOut,
+	BounceEaseInOut
 };
 
 class CONTROLRIG_API FControlRigMathLibrary
