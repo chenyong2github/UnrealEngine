@@ -810,7 +810,7 @@ namespace Gauntlet
 
 				if (IsDesktop)
 				{
-					string ClientTempDir = Path.Combine(LocalTempDir, "PCTemp");
+					string ClientTempDir = Path.Combine(LocalTempDir, "DeviceCache", Def.Platform.ToString());
 					int DeviceCount = AvailableDevices.Union(ReservedDevices).Where(D => D.Platform == Def.Platform).Count();
 
 					NewDevice = Factory.CreateDevice(Def.Name, ClientTempDir);
