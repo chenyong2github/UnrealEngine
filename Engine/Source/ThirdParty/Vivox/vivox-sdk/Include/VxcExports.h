@@ -1,7 +1,7 @@
 #pragma once
 /* Copyright (c) 2013-2018 by Mercer Road Corp
  *
- * Permission to use, copy, modify or distribute this software in binary or source form 
+ * Permission to use, copy, modify or distribute this software in binary or source form
  * for any purpose is allowed only under explicit prior consent in writing from Mercer Road Corp
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND MERCER ROAD CORP DISCLAIMS

@@ -1,6 +1,6 @@
 /* Copyright (c) 2012-2018 by Vivox Inc.
 *
-* Permission to use, copy, modify or distribute this software in binary or source form 
+* Permission to use, copy, modify or distribute this software in binary or source form
 * for any purpose is allowed only under explicit prior consent in writing from Vivox Inc.
 *
 * THE SOFTWARE IS PROVIDED "AS IS" AND VIVOX DISCLAIMS
@@ -23,9 +23,9 @@
 extern "C" {
 #endif
 
-VIVOXSDK_DLLEXPORT int vx_jni_set_java_vm(JavaVM * jvm);
+VIVOXSDK_DLLEXPORT int vx_jni_set_java_vm(JavaVM *jvm);
 VIVOXSDK_DLLEXPORT JavaVM *vx_jni_get_java_vm(void);
-VIVOXSDK_DLLEXPORT jclass  vx_jni_get_class(JNIEnv* env, const char* class_name);
+VIVOXSDK_DLLEXPORT jclass  vx_jni_get_class(JNIEnv *env, const char *class_name);
 
 #ifdef __cplusplus
 }
