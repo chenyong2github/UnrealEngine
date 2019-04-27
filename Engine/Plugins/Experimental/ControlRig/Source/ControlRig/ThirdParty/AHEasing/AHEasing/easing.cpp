@@ -10,17 +10,8 @@
 //  http://sam.zoy.org/wtfpl/COPYING for more details.
 //
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
-	#pragma warning(push)
-	#pragma warning(disable: 4668)
-#endif
-
-#include <math.h>
 #include "easing.h"
-
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
-	#pragma warning(pop)
-#endif
+#include <math.h>
 
 #ifdef M_PI
 #undef M_PI
