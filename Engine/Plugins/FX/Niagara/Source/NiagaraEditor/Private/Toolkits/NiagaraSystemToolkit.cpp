@@ -393,7 +393,7 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 
 	// Before copying the emitter prepare the rapid iteration parameters so that the post compile prepare doesn't
 	// cause the change ids to become out of sync.
-	FString EmitterName = "Emitter";
+	FString EmitterName = Emitter->GetUniqueEmitterName();
 	TArray<UNiagaraScript*> Scripts;
 	TMap<UNiagaraScript*, UNiagaraScript*> ScriptDependencyMap;
 	TMap<UNiagaraScript*, FString> ScriptToEmitterNameMap;
@@ -426,12 +426,7 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 
 	ResetLoaders(GetTransientPackage()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
 	GetTransientPackage()->LinkerCustomVersion.Empty();
-
-	UNiagaraEmitter* EditableEmitter = (UNiagaraEmitter*)StaticDuplicateObject(Emitter, GetTransientPackage(), NAME_None, ~RF_Standalone, UNiagaraEmitter::StaticClass());
 	
-	// We set this to the copy's change id here instead of the original emitter's change id because the copy's change id may have been
-	// updated from the original as part of post load and we use this id to detect if the editable emitter has been changed.
-	LastSyncedEmitterChangeId = EditableEmitter->GetChangeId();
 	bEmitterThumbnailUpdated = false;
 
 	FNiagaraSystemViewModelOptions SystemOptions;
@@ -440,7 +435,10 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 
 	SystemViewModel = MakeShareable(new FNiagaraSystemViewModel(*System, SystemOptions));
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
-	SystemViewModel->AddEmitter(*EditableEmitter);
+	SystemViewModel->AddEmitter(*Emitter);
+	// We set this to the copy's change id here instead of the original emitter's change id because the copy's change id may have been
+	// updated from the original as part of post load and we use this id to detect if the editable emitter has been changed.
+	LastSyncedEmitterChangeId = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel()->GetEmitter()->GetChangeId();
 	SystemViewModel->GetSystemScriptViewModel()->RebuildEmitterNodes();
 	SystemToolkitMode = ESystemToolkitMode::Emitter;
 
@@ -901,6 +899,17 @@ void FNiagaraSystemToolkit::SetupCommands()
 		}),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([]() { return GetDefault<UNiagaraEditorSettings>()->GetResimulateOnChangeWhilePaused(); }));
+
+	GetToolkitCommands()->MapAction(
+		FNiagaraEditorCommands::Get().ToggleResetDependentSystems,
+		FExecuteAction::CreateLambda([]()
+	{
+		UNiagaraEditorSettings* Settings = GetMutableDefault<UNiagaraEditorSettings>();
+		Settings->SetResetDependentSystemsWhenEditingEmitters(!Settings->GetResetDependentSystemsWhenEditingEmitters());
+	}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([]() { return GetDefault<UNiagaraEditorSettings>()->GetResetDependentSystemsWhenEditingEmitters(); }),
+		FIsActionButtonVisible::CreateLambda([this]() { return SystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::EmitterAsset; }));
 }
 
 void FNiagaraSystemToolkit::OnSaveThumbnailImage()
@@ -929,7 +938,7 @@ void FNiagaraSystemToolkit::OnThumbnailCaptured(UTexture2D* Thumbnail)
 
 void FNiagaraSystemToolkit::ResetSimulation()
 {
-	SystemViewModel->ResetSystem();
+	SystemViewModel->ResetSystem(FNiagaraSystemViewModel::ETimeResetMode::AllowResetTime, FNiagaraSystemViewModel::EMultiResetMode::AllowResetAllInstances, FNiagaraSystemViewModel::EReinitMode::ResetSystem);
 }
 
 void FNiagaraSystemToolkit::OnVMSystemCompiled()
@@ -947,6 +956,7 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleAutoPlay);
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleResetSimulationOnChange);
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleResimulateOnChangeWhilePaused);
+			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleResetDependentSystems);
 			return MenuBuilder.MakeWidget();
 		}
 
@@ -1239,6 +1249,10 @@ void FNiagaraSystemToolkit::UpdateOriginalEmitter()
 		// overwrite the original script in place by constructing a new one with the same name
 		Emitter = (UNiagaraEmitter*)StaticDuplicateObject(EditableEmitter, Emitter->GetOuter(),
 			Emitter->GetFName(), RF_AllFlags, Emitter->GetClass());
+
+		// Restore RF_Standalone and RF_Public on the original emitter, as it had been removed from the preview emitter so that it could be GC'd.
+		Emitter->SetFlags(RF_Standalone | RF_Public);
+
 		Emitter->PostEditChange();
 
 		TArray<UNiagaraScript*> EmitterScripts;
@@ -1265,9 +1279,6 @@ void FNiagaraSystemToolkit::UpdateOriginalEmitter()
 		LastSyncedEmitterChangeId = EditableEmitter->GetChangeId();
 		bEmitterThumbnailUpdated = false;
 
-		// Restore RF_Standalone on the original emitter, as it had been removed from the preview emitter so that it could be GC'd.
-		Emitter->SetFlags(RF_Standalone);
-
 		TArray<UNiagaraEmitter*> AffectedEmitters;
 		AffectedEmitters.Add(Emitter);
 		UpdateExistingEmitters();
@@ -1288,7 +1299,9 @@ void FNiagaraSystemToolkit::UpdateExistingEmitters()
 	for (TObjectIterator<UNiagaraSystem> SystemIterator; SystemIterator; ++SystemIterator)
 	{
 		UNiagaraSystem* LoadedSystem = *SystemIterator;
-		if (LoadedSystem->IsPendingKill() == false && 
+
+		if (LoadedSystem != System &&
+			LoadedSystem->IsPendingKill() == false && 
 			LoadedSystem->HasAnyFlags(RF_ClassDefaultObject) == false &&
 			LoadedSystem->ReferencesSourceEmitter(*Emitter))
 		{
