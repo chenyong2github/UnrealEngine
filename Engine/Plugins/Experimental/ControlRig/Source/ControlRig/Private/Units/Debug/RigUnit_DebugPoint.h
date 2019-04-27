@@ -62,7 +62,7 @@ struct FRigUnit_DebugPoint : public FRigUnit_DebugBase
 };
 
 USTRUCT(meta=(DisplayName="Draw Point", Keywords="Draw Vector"))
-struct FRigUnit_DebugPointMutable : public FRigUnit_DebugBase
+struct FRigUnit_DebugPointMutable : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 

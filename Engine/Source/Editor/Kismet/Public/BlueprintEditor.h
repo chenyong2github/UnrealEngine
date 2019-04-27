@@ -449,7 +449,7 @@ public:
 	FReply OnAddNewVariable_OnClick() { OnAddNewVariable(); return FReply::Handled(); }
 
 	/** Checks if adding a local variable is allowed in the focused graph */
-	bool CanAddNewLocalVariable() const;
+	virtual bool CanAddNewLocalVariable() const;
 
 	/** Adds a new local variable to the focused function graph */
 	void OnAddNewLocalVariable();

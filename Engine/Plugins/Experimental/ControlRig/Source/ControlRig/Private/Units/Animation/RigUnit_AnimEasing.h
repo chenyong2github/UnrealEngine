@@ -3,20 +3,8 @@
 #pragma once
 
 #include "Units/Animation/RigUnit_AnimBase.h"
+#include "Math/ControlRigMathLibrary.h"
 #include "RigUnit_AnimEasing.generated.h"
-
-UENUM()
-enum class EControlRigAnimEasingType : uint8
-{
-	Linear,
-	QuadraticIn,
-	QuadraticOut,
-	QuadraticInOut,
-	CubicIn,
-	CubicOut,
-	CubicInOut,
-	Sinusoidal
-};
 
 /**
  * Returns the eased version of the input value
