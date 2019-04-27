@@ -61,7 +61,7 @@ void UPartyMember::BeginDestroy()
 	}
 }
 
-void UPartyMember::InitializePartyMember(const TSharedRef<FOnlinePartyMember>& InOssMember, const FSimpleDelegate& OnInitComplete)
+void UPartyMember::InitializePartyMember(const FOnlinePartyMemberConstRef& InOssMember, const FSimpleDelegate& OnInitComplete)
 {
 	checkf(MemberDataReplicator.IsValid(), TEXT("Child classes of UPartyMember MUST call MemberRepData.EstablishRepDataInstance with a valid FPartyMemberRepData struct instance in their constructor."));
 	MemberDataReplicator->SetOwningMember(*this);
@@ -69,7 +69,7 @@ void UPartyMember::InitializePartyMember(const TSharedRef<FOnlinePartyMember>& I
 	if (ensure(!OssPartyMember.IsValid()))
 	{
 		OssPartyMember = InOssMember;
-		OssPartyMember->OnMemberConnectionStatusChangedDelegates.AddUObject(this, &ThisClass::HandleMemberConnectionStatusChanged);
+		OssPartyMember->OnMemberConnectionStatusChanged().AddUObject(this, &ThisClass::HandleMemberConnectionStatusChanged);
 		USocialToolkit* OwnerToolkit = GetParty().GetSocialManager().GetFirstLocalUserToolkit();
 		check(OwnerToolkit);
 
@@ -183,12 +183,12 @@ bool UPartyMember::IsLocalPlayer() const
 	return GetPrimaryNetId() == GetParty().GetOwningLocalUserId();
 }
 
-void UPartyMember::NotifyMemberDataReceived(const TSharedRef<FOnlinePartyData>& MemberData)
+void UPartyMember::NotifyMemberDataReceived(const FOnlinePartyData& MemberData)
 {
 	UE_LOG(LogParty, VeryVerbose, TEXT("Received updated rep data for member [%s]"), *ToDebugString());
 
 	check(MemberDataReplicator.IsValid());
-	MemberDataReplicator.ProcessReceivedData(*MemberData/*, bHasReceivedInitialData*/);
+	MemberDataReplicator.ProcessReceivedData(MemberData/*, bHasReceivedInitialData*/);
 
 	if (!bHasReceivedInitialData)
 	{

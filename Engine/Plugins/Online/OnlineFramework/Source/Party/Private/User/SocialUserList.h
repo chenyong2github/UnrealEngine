@@ -5,7 +5,7 @@
 #include "User/ISocialUserList.h"
 #include "UObject/GCObject.h"
 
-enum class EMemberExitedReason;
+enum class EMemberExitedReason : uint8;
 
 class FSocialUserList : public ISocialUserList, public FGCObject, public TSharedFromThis<FSocialUserList>
 {
