@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Units/Highlevel/RigUnit_HighlevelBase.h"
-#include "Math/ControlRigMathLibrary.h"
 #include "RigUnit_AimBone.generated.h"
 
 USTRUCT()
