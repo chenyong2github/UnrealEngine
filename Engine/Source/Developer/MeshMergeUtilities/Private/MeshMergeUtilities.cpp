@@ -1044,10 +1044,13 @@ float FMeshMergeUtilities::FlattenEmissivescale(TArray<struct FFlattenMaterial>&
 			{
 				for (FColor& Sample : Material.GetPropertySamples(EFlattenMaterialProperties::Emissive))
 				{
-					Sample.R = Sample.R * Multiplier;
-					Sample.G = Sample.G * Multiplier;
-					Sample.B = Sample.B * Multiplier;
-					Sample.A = Sample.A * Multiplier;
+					if (Sample != FColor::Magenta)
+					{
+						Sample.R = Sample.R * Multiplier;
+						Sample.G = Sample.G * Multiplier;
+						Sample.B = Sample.B * Multiplier;
+						Sample.A = Sample.A * Multiplier;
+					}
 				}
 			}
 		}
