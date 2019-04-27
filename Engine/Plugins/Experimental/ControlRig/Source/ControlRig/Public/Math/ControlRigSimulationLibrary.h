@@ -13,7 +13,8 @@ struct FControlRigSimulationPoint
 	FControlRigSimulationPoint()
 	{
 		Mass = 1.f;
-		Position = Velocity = FVector::ZeroVector;
+		LinearDamping = 0.01f;
+		Position = LinearVelocity = FVector::ZeroVector;
 	}
 
 	/**
@@ -21,6 +22,12 @@ struct FControlRigSimulationPoint
 	 */
 	UPROPERTY()
 	float Mass;
+
+	/**
+	 * The linear damping of the point
+	 */
+	UPROPERTY()
+	float LinearDamping;
 
 	/**
 	 * The position of the point
@@ -32,25 +39,27 @@ struct FControlRigSimulationPoint
 	 * The velocity of the point per second
 	 */
 	UPROPERTY()
-	FVector Velocity;
+	FVector LinearVelocity;
 };
 
 UENUM()
 enum class EControlRigSimulationConstraintType : uint8
 {
 	Distance,
+	DistanceFromA,
+	DistanceFromB,
 	Plane
 };
 
 USTRUCT()
-struct FControlRigSimulationConstraint
+struct FControlRigSimulationPointConstraint
 {
 	GENERATED_BODY()
 
-	FControlRigSimulationConstraint()
+	FControlRigSimulationPointConstraint()
 	{
 		Type = EControlRigSimulationConstraintType::Distance;
-		PointA = PointB = INDEX_NONE;
+		SubjectA = SubjectB = INDEX_NONE;
 		DataA = DataB = FVector::ZeroVector;
 	}
 
@@ -64,14 +73,14 @@ struct FControlRigSimulationConstraint
 	 * The first point affected by this constraint
 	 */
 	UPROPERTY()
-	int32 PointA;
+	int32 SubjectA;
 
 	/**
 	 * The (optional) second point affected by this constraint
 	 * This is currently only used for the distance constraint
 	 */
 	UPROPERTY()
-	int32 PointB;
+	int32 SubjectB;
 
 	/**
 	 * The first data member for the constraint.
@@ -87,29 +96,41 @@ struct FControlRigSimulationConstraint
 };
 
 USTRUCT()
-struct FControlRigSimulationSpring
+struct FControlRigSimulationLinearSpring
 {
 	GENERATED_BODY()
 
-	FControlRigSimulationSpring()
+	FControlRigSimulationLinearSpring()
 	{
-		PointA = PointB = INDEX_NONE;
+		SubjectA = SubjectB = INDEX_NONE;
+		AnchorA = AnchorB = FVector::ZeroVector;
 		Coefficient = 32.f;
 		Equilibrium = 100.f;
 	}
 
 	/**
-	 * The first point affected by this constraint
+	 * The first point affected by this spring
 	 */
 	UPROPERTY()
-	int32 PointA;
+	int32 SubjectA;
 
 	/**
-	 * The (optional) second point affected by this constraint
-	 * This is currently only used for the distance constraint
+	 * The second point affected by this spring
 	 */
 	UPROPERTY()
-	int32 PointB;
+	int32 SubjectB;
+
+	/**
+	 * The anchor in the space of the first subject
+	 */
+	UPROPERTY()
+	FVector AnchorA;
+
+	/**
+	 * The anchor in the space of the second subject
+	 */
+	UPROPERTY()
+	FVector AnchorB;
 
 	/**
 	 * The power of this spring
@@ -124,12 +145,56 @@ struct FControlRigSimulationSpring
 	float Equilibrium;
 };
 
-USTRUCT()
+USTRUCT(meta = (Abstract))
 struct FControlRigSimulationContainer
 {
 	GENERATED_BODY()
 
 	FControlRigSimulationContainer()
+	{
+		TimeStep = 1.f / 60.f;
+		AccumulatedTime = 0.f;
+		TimeLeftForStep = 0.f;
+	}
+	virtual ~FControlRigSimulationContainer() {}
+
+	/**
+	 * The time step used by this container
+	 */
+	UPROPERTY()
+	float TimeStep;
+
+	/**
+	 * The time step used by this container
+	 */
+	UPROPERTY()
+	float AccumulatedTime;
+
+	/**
+	 * The time left until the next step
+	 */
+	UPROPERTY()
+	float TimeLeftForStep;
+
+	virtual void Reset();
+	virtual void ResetTime();
+	virtual void StepVerlet(float InDeltaTime, float InBlend);
+	virtual void StepSemiExplicitEuler(float InDeltaTime);
+
+protected:
+	virtual void CachePreviousStep() {};
+	virtual void IntegrateVerlet(float InBlend) {};
+	virtual void IntegrateSemiExplicitEuler() {};
+
+	friend class FControlRigSimulationLibrary;
+};
+
+USTRUCT()
+struct FControlRigSimulationPointContainer : public FControlRigSimulationContainer
+{
+	GENERATED_BODY()
+
+	FControlRigSimulationPointContainer()
 	{
 	}
 
@@ -143,18 +208,31 @@ struct FControlRigSimulationContainer
 	 * The springs within the simulation
 	 */
 	UPROPERTY()
-	TArray<FControlRigSimulationSpring> Springs;
+	TArray<FControlRigSimulationLinearSpring> Springs;
 
 	/**
 	 * The constraints within the simulation
 	 */
 	UPROPERTY()
-	TArray<FControlRigSimulationConstraint> Constraints;
+	TArray<FControlRigSimulationPointConstraint> Constraints;
 
-private:
+	FControlRigSimulationPoint GetPointInterpolated(int32 InIndex) const;
+
+	virtual void Reset() override;
+	virtual void ResetTime() override;
+
+protected:
 
 	UPROPERTY()
 	TArray<FControlRigSimulationPoint> PreviousStep;
+
+	virtual void CachePreviousStep() override;
+	virtual void IntegrateVerlet(float InBlend) override;
+	virtual void IntegrateSemiExplicitEuler() override;
+	void IntegrateSprings();
+	void IntegrateVelocityVerlet(float InBlend);
+	void IntegrateVelocitySemiExplicitEuler();
+	void ApplyConstraints();
 
 	friend class FControlRigSimulationLibrary;
 };
@@ -162,9 +240,13 @@ private:
 class CONTROLRIG_API FControlRigSimulationLibrary
 {
 public:
-	static FControlRigSimulationPoint IntegrateVerlet(const FControlRigSimulationPoint& InPoint, const FVector& InForce, float InBlend, float InDamping, float InDeltaTime);
-	static FControlRigSimulationPoint IntegrateSemiExplicitEuler(const FControlRigSimulationPoint& InPoint, const FVector& InForce, float InDamping, float InDeltaTime);
+	static FControlRigSimulationPoint IntegrateVerlet(const FControlRigSimulationPoint& InPoint, const FVector& InForce, float InBlend, float InDeltaTime);
+	static FControlRigSimulationPoint IntegrateSemiExplicitEuler(const FControlRigSimulationPoint& InPoint, const FVector& InForce, float InDeltaTime);
 
-	static void IntegrateVerlet(FControlRigSimulationContainer& InOutSimulation, float InBlend, float InDamping, float InDeltaTime);
-	static void IntegrateSemiExplicitEuler(FControlRigSimulationContainer& InOutSimulation, float InDamping, float InDeltaTime);
+	static void IntegrateVerlet(FControlRigSimulationPointContainer& InOutSimulation, float InBlend, float InDeltaTime);
+	static void IntegrateSemiExplicitEuler(FControlRigSimulationPointContainer& InOutSimulation, float InDeltaTime);
+
+	static void ComputeWeightsFromMass(float MassA, float MassB, float& OutWeightA, float& OutWeightB);
+	static void ComputeLinearSpring(const FControlRigSimulationPoint& InPointA, const FControlRigSimulationPoint& InPointB, const FControlRigSimulationLinearSpring& InSpring, FVector& ForceA, FVector& ForceB);
+	static void ApplyPointConstraint(const FControlRigSimulationPointConstraint& InConstraint, FControlRigSimulationPoint& OutPointA, FControlRigSimulationPoint& OutPointB);
 };
