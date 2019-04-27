@@ -96,6 +96,34 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnPinnedCurvesChanged);
 
 public:
+	/** Defines different multi-system reset modes for this system view model */
+	enum class EMultiResetMode
+	{
+		/** Reset this instance. Then, if reset dependent systems is enabled in the editor through NiagaraEditorCommands, find all components that share this system and reset those components' system instances. */
+		AllowResetAllInstances,
+		/** Reset just this instance. */
+		ResetThisInstance,
+	};
+
+	/** Defines different time reset modes for this system view model */
+	enum class ETimeResetMode
+	{
+		/** If the current sequencer state and user settings allow, reset this system's time. */
+		AllowResetTime,
+		/** Keep this system's current time. */
+		KeepCurrentTime,
+	};
+
+	/** Defines different initialization modes when resetting for this system view model */
+	enum class EReinitMode
+	{
+		/** Reinitialize this system (pull in all changes) */
+		ReinitializeSystem,
+		/** Reset this system (do not pull in changes) */
+		ResetSystem,
+	};
+
+public:
 	/** Creates a new view model with the supplied System and System instance. */
 	FNiagaraSystemViewModel(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions);
 
@@ -120,7 +148,7 @@ public:
 	FNiagaraCurveOwner& GetCurveOwner();
 
 	/** Get access to the underlying system*/
-	UNiagaraSystem& GetSystem() { return System; }
+	UNiagaraSystem& GetSystem() const { return System; }
 
 	/** Gets whether or not emitters can be added from the timeline. */
 	bool GetCanModifyEmittersFromTimeline() const;
@@ -170,14 +198,21 @@ public:
 	virtual bool IsTickable() const override { return true; }
 	virtual TStatId GetStatId() const override;
 
-	/** Resets the System instance to initial conditions. */
+	/** Resets the System instance to initial conditions. Tries to resets system simulation time. Does not reset all systems that share its emitters.
+	 * Does not reinitialize the system to pull in changes. Calls into overloaded ResetSystem(). */
 	void ResetSystem();
 
-	/** Resets the system instance on the next frame. */
+	/** Resets the System instance to initial conditions on the next tick. Tries to resets system simulation time. Does not reset all systems that share its emitters.
+	 * Does not reinitialize the system to pull in changes. Calls into overloaded ResetSystem(). */
 	void RequestResetSystem();
 
-	/** Reinitializes the System instance to initial conditions - rebuilds all data sets and resets data interfaces. */
-	void ReInitializeSystemInstances();
+	/** Resets the system instance to initial conditions. Optionally resets system simulation time. Optionally resets all systems that share its emitters. 
+	 * Optionally reinitializes the system to pull in changes.
+	 * @param TimeResetMode Defines whether the system being reset should try to reset its time to 0 or keep its current time.
+	 * @param MultiResetMode Defines whether the system being reset should try to reset all other systems with which it shares emitters along with resetting itself.
+	 * @param ReinitMode Defines whether the system should reinitialize and pull in changes or reset and keep its current state.
+	 */
+	void ResetSystem(ETimeResetMode TimeResetMode, EMultiResetMode MultiResetMode, EReinitMode ReinitMode);
 
 	/** Compiles the spawn and update scripts. */
 	void CompileSystem(bool bForce);
@@ -255,9 +290,6 @@ public:
 	const TArray<FNiagaraStackModuleData>& GetStackModuleDataForEmitter(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
 
 private:
-	/** Reset the current simulation for the system */
-	void ResetSystemInternal(bool bCanResetTime);
-
 	/** Sets up the preview component and System instance. */
 	void SetupPreviewComponentAndInstance();
 
@@ -473,7 +505,7 @@ private:
 	/** A handle to the on parameter changed delegate for the user parameter store. */
 	FDelegateHandle UserParameterStoreChangedHandle;
 
-	/** A flag indicating that a reset has been request on the next frame */
+	/** A flag indicating that a reset has been request on the next tick */
 	bool bResetRequestPending;
 
 	/** The system toolkit commands. */
