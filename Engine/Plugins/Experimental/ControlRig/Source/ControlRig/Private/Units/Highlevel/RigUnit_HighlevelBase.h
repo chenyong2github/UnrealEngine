@@ -5,6 +5,13 @@
 #include "Units/RigUnit.h"
 #include "RigUnit_HighlevelBase.generated.h"
 
+UENUM()
+enum class EControlRigVectorKind : uint8
+{
+	Direction,
+	Location
+};
+
 USTRUCT(meta=(Abstract, Category="Debug", NodeColor = "0.4 0.05 0.4"))
 struct FRigUnit_HighlevelBase : public FRigUnit
 {
