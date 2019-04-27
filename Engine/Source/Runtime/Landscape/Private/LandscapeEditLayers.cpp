@@ -1583,7 +1583,7 @@ void ALandscape::CopyOldDataToDefaultLayer()
 	});
 }
 
-void ALandscape::InitializeLayersWeightmapUsage()
+void ALandscape::InitializeLandscapeLayersWeightmapUsage()
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
@@ -1594,15 +1594,24 @@ void ALandscape::InitializeLayersWeightmapUsage()
 
 	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 	{
-		for (const FLandscapeLayer& Layer : LandscapeLayers)
+		Proxy->InitializeProxyLayersWeightmapUsage();
+	});
+}
+
+void ALandscapeProxy::InitializeProxyLayersWeightmapUsage()
+{
+	if (ALandscape* Landscape = GetLandscapeActor())
+	{
+		for (const FLandscapeLayer& Layer : Landscape->LandscapeLayers)
 		{
-			for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
+			for (ULandscapeComponent* Component : LandscapeComponents)
 			{
 				// Compute per layer data
 				FLandscapeLayerComponentData* LayerData = Component->GetLayerData(Layer.Guid);
 
 				if (LayerData != nullptr && LayerData->IsInitialized())
 				{
+					LayerData->WeightmapData.TextureUsages.Reset();
 					LayerData->WeightmapData.TextureUsages.AddDefaulted(LayerData->WeightmapData.Textures.Num());
 
 					// regenerate the weightmap usage
@@ -1610,11 +1619,11 @@ void ALandscape::InitializeLayersWeightmapUsage()
 					{
 						FWeightmapLayerAllocationInfo& Allocation = LayerData->WeightmapData.LayerAllocations[LayerIdx];
 						UTexture2D* WeightmapTexture = LayerData->WeightmapData.Textures[Allocation.WeightmapTextureIndex];
-						ULandscapeWeightmapUsage** TempUsage = Proxy->WeightmapUsageMap.Find(WeightmapTexture);
+						ULandscapeWeightmapUsage** TempUsage = WeightmapUsageMap.Find(WeightmapTexture);
 
 						if (TempUsage == nullptr)
 						{
-							TempUsage = &Proxy->WeightmapUsageMap.Add(WeightmapTexture, Proxy->CreateWeightmapUsage());
+							TempUsage = &WeightmapUsageMap.Add(WeightmapTexture, CreateWeightmapUsage());
 							(*TempUsage)->LayerGuid = Layer.Guid;
 						}
 
@@ -1628,7 +1637,7 @@ void ALandscape::InitializeLayersWeightmapUsage()
 				}
 			}
 		}
-	});
+	}
 }
 
 void ALandscape::CopyLayersTexture(UTexture* InSourceTexture, UTexture* InDestTexture, FTextureResource* InDestCPUResource, const FIntPoint& InFirstComponentSectionBase, uint8 InSourceCurrentMip, uint8 InDestCurrentMip, uint32 InSourceArrayIndex, uint32 InDestArrayIndex) const
@@ -2794,7 +2803,7 @@ void ALandscape::PrepareComponentDataToExtractMaterialLayersCS(const FLandscapeL
 
 			if (ComponentLayerData != nullptr)
 			{
-				if (ComponentLayerData->WeightmapData.Textures.IsValidIndex(InCurrentWeightmapToProcessIndex))
+				if (ComponentLayerData->WeightmapData.Textures.IsValidIndex(InCurrentWeightmapToProcessIndex) && ComponentLayerData->WeightmapData.TextureUsages.IsValidIndex(InCurrentWeightmapToProcessIndex))
 				{
 					UTexture2D* LayerWeightmap = ComponentLayerData->WeightmapData.Textures[InCurrentWeightmapToProcessIndex];
 					check(LayerWeightmap != nullptr);
@@ -3943,7 +3952,7 @@ void ALandscape::InitializeLayers()
 	if (HasLayersContent)
 	{
 		CreateLayersRenderingResource(ComponentCounts);
-		InitializeLayersWeightmapUsage();
+		InitializeLandscapeLayersWeightmapUsage();
 	}
 	else
 	{
