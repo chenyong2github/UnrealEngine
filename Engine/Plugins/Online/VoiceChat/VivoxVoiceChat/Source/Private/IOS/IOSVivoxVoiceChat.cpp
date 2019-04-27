@@ -131,7 +131,8 @@ void FIOSVivoxVoiceChat::HandleApplicationWillEnterBackground()
 {
 	UE_LOG(LogVivoxVoiceChat, Log, TEXT("OnApplicationWillEnterBackgroundDelegate"));
 
-	if (IsConnected() && bDisconnectInBackground)
+	const bool bIsBackgroundAudioEnabled = [[IOSAppDelegate GetDelegate] IsFeatureActive:EAudioFeature::BackgroundAudio];
+	if (IsConnected() && bDisconnectInBackground && !bIsBackgroundAudioEnabled)
 	{
 		if (BGTask != UIBackgroundTaskInvalid)
 		{
