@@ -40,7 +40,6 @@ public class UMGEditor : ModuleRules
 				"CoreUObject",
 				"ApplicationCore",
 				"InputCore",
-				"Slate",
 				"Engine",
 				"AssetTools",
 				"UnrealEd", // for FAssetEditorManager
@@ -49,6 +48,7 @@ public class UMGEditor : ModuleRules
 				"BlueprintGraph",
 				"GraphEditor",
 				"Kismet",  // for FWorkflowCentricApplication
+				"PropertyPath",
 				"PropertyEditor",
 				"UMG",
 				"EditorStyle",
