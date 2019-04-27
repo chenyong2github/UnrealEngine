@@ -53,7 +53,12 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathQuaternionFromEuler)
 {
 	Unit.Euler = FVector(30.f, 20.f, 10.f);
 	InitAndExecute();
-	AddErrorIfFalse(FRigUnit_MathQuatTest_Utils::IsNearlyEqual(Unit.Result, FVector(30.f, 20.f, 10.f)), TEXT("unexpected result"));
+	FVector Euler = FControlRigMathLibrary::EulerFromQuat(Unit.Result, Unit.RotationOrder);
+	AddErrorIfFalse(FRigUnit_MathQuatTest_Utils::IsNearlyEqual(Euler, FVector(30.f, 20.f, 10.f)), TEXT("unexpected result"));
+	Unit.RotationOrder = EControlRigRotationOrder::YZX;
+	InitAndExecute();
+	Euler = FControlRigMathLibrary::EulerFromQuat(Unit.Result, Unit.RotationOrder);
+	AddErrorIfFalse(FRigUnit_MathQuatTest_Utils::IsNearlyEqual(Euler, FVector(30.f, 20.f, 10.f)), TEXT("unexpected result"));
 	return true;
 }
 
@@ -85,7 +90,11 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathQuaternionToAxisAndAngle)
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathQuaternionToEuler)
 {
-	Unit.Value = FQuat::MakeFromEuler(FVector(10.f, 20.f, 30.f));
+	Unit.Value = FControlRigMathLibrary::QuatFromEuler(FVector(10.f, 20.f, 30.f), Unit.RotationOrder);
+	InitAndExecute();
+	AddErrorIfFalse(FRigUnit_MathQuatTest_Utils::IsNearlyEqual(Unit.Result, FVector(10.f, 20.f, 30.f)), TEXT("unexpected result"));
+	Unit.RotationOrder = EControlRigRotationOrder::YZX;
+	Unit.Value = FControlRigMathLibrary::QuatFromEuler(FVector(10.f, 20.f, 30.f), Unit.RotationOrder);
 	InitAndExecute();
 	AddErrorIfFalse(FRigUnit_MathQuatTest_Utils::IsNearlyEqual(Unit.Result, FVector(10.f, 20.f, 30.f)), TEXT("unexpected result"));
 	return true;
