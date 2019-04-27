@@ -40,7 +40,7 @@ struct FRigUnit_TwoBoneIKSimple_DebugSettings
  * Aligns the rotation of a primary and secondary axis of a bone to a world target.
  * Note: This node operates in world space!
  */
-USTRUCT(meta=(DisplayName="Basic IK", Keywords="TwoBone,IK"))
+USTRUCT(meta=(DisplayName="Basic IK", Category="Hierarchy", Keywords="TwoBone,IK"))
 struct FRigUnit_TwoBoneIKSimple : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
