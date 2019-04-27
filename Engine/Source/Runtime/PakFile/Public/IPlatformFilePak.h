@@ -2389,7 +2389,7 @@ struct FPakSignatureFile
 
 	enum class EVersion
 	{
-		Legacy,
+		Invalid,
 		First,
 
 		Last,
@@ -2423,20 +2423,14 @@ struct FPakSignatureFile
 	 */
 	void Serialize(FArchive& Ar)
 	{
-		int64 StartPos = Ar.Tell();
 		uint32 FileMagic = Magic;
 		Ar << FileMagic;
 
 		if (Ar.IsLoading() && FileMagic != Magic)
 		{
-			// Old format with no versioning! Go back to where we were and mark our version as legacy
-			Ar.Seek(StartPos);
-			Version = EVersion::Legacy;
-			TEncryptionInt LegacyEncryptedCRC;
-			Ar << LegacyEncryptedCRC;
-			Ar << ChunkHashes;
-			// Note that we don't do any actual signature checking here because this is old data that won't have been
-			// encrypted with the new larger keys.
+			Version = EVersion::Invalid;
+			EncryptedHash.Empty();
+			ChunkHashes.Empty();
 			return;
 		}
 
@@ -2459,17 +2453,27 @@ struct FPakSignatureFile
 	 */
 	bool DecryptSignatureAndValidate(FRSA::TKeyPtr InKey, const FString& InFilename)
 	{
-		FRSA::Decrypt(FRSA::EKeyType::Public, EncryptedHash, DecryptedHash.Hash, ARRAY_COUNT(FSHAHash::Hash), InKey);
-
-		FSHAHash CurrentHash = ComputeCurrentMasterHash();
-		if (DecryptedHash != CurrentHash)
+		if (Version == EVersion::Invalid)
 		{
+			UE_LOG(LogPakFile, Warning, TEXT("Pak signature file for '%s' was invalid"), *InFilename);
+		}
+		else if (FRSA::Decrypt(FRSA::EKeyType::Public, EncryptedHash, DecryptedHash.Hash, ARRAY_COUNT(FSHAHash::Hash), InKey))
+		{
+			FSHAHash CurrentHash = ComputeCurrentMasterHash();
+			if (DecryptedHash == CurrentHash)
+			{
+				return true;
+			}
+
 			UE_LOG(LogPakFile, Warning, TEXT("Pak signature table validation failed for '%s'! Expected %s, Received %s"), *InFilename, *DecryptedHash.ToString(), *CurrentHash.ToString());
-			FPakPlatformFile::GetPakMasterSignatureTableCheckFailureHandler().Broadcast(InFilename);
-			return false;
+		}
+		else
+		{
+			UE_LOG(LogPakFile, Warning, TEXT("Pak signature table validation failed for '%s'! Failed to decrypt signature"), *InFilename);
 		}
 
-		return true;
+		FPakPlatformFile::GetPakMasterSignatureTableCheckFailureHandler().Broadcast(InFilename);
+		return false;
 	}
 
 	/**
