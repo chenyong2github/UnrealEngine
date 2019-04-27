@@ -898,4 +898,71 @@ FText FNiagaraEditorUtilities::FormatScriptAssetDescription(FText Description, F
 		: FText::Format(LOCTEXT("ScriptAssetDescriptionFormat", "Description: {1}\nPath: {0}"), FText::FromName(Path), Description);
 }
 
+void FNiagaraEditorUtilities::ResetSystemsThatReferenceSystemViewModel(const FNiagaraSystemViewModel& ReferencedSystemViewModel)
+{
+	checkf(&ReferencedSystemViewModel, TEXT("ResetSystemsThatReferenceSystemViewModel() called on destroyed SystemViewModel."));
+	TArray<TSharedPtr<FNiagaraSystemViewModel>> ComponentSystemViewModels;
+	TArray<UNiagaraComponent*> ReferencingComponents = GetComponentsThatReferenceSystemViewModel(ReferencedSystemViewModel);
+	for (auto Component : ReferencingComponents)
+	{
+		ComponentSystemViewModels.Reset();
+		FNiagaraSystemViewModel::GetAllViewModelsForObject(Component->GetAsset(), ComponentSystemViewModels);
+		if (ComponentSystemViewModels.Num() > 0)
+		{
+			//The component has a viewmodel, call ResetSystem() on the viewmodel 
+			for (auto SystemViewModel : ComponentSystemViewModels)
+			{
+				if (SystemViewModel.IsValid() && SystemViewModel.Get() != &ReferencedSystemViewModel)
+				{
+					SystemViewModel->ResetSystem(FNiagaraSystemViewModel::ETimeResetMode::AllowResetTime, FNiagaraSystemViewModel::EMultiResetMode::ResetThisInstance, FNiagaraSystemViewModel::EReinitMode::ResetSystem);
+				}
+			}
+		}
+		else
+		{
+			//The component does not have a viewmodel, call ResetSystem() on the component
+			Component->ResetSystem();
+		}
+	}
+}
+
+TArray<UNiagaraComponent*> FNiagaraEditorUtilities::GetComponentsThatReferenceSystem(const UNiagaraSystem& ReferencedSystem)
+{
+	check(&ReferencedSystem);
+	TArray<UNiagaraComponent*> ReferencingComponents;
+	for (TObjectIterator<UNiagaraComponent> ComponentIt; ComponentIt; ++ComponentIt)
+	{
+		UNiagaraComponent* Component = *ComponentIt;
+		if (Component && Component->GetAsset())
+		{
+			if (Component->GetAsset() == &ReferencedSystem)
+			{
+				ReferencingComponents.Add(Component);
+			}
+		}
+	}
+	return ReferencingComponents;
+}
+
+TArray<UNiagaraComponent*> FNiagaraEditorUtilities::GetComponentsThatReferenceSystemViewModel(const FNiagaraSystemViewModel& ReferencedSystemViewModel)
+{
+	check(&ReferencedSystemViewModel);
+	TArray<UNiagaraComponent*> ReferencingComponents;
+	for (TObjectIterator<UNiagaraComponent> ComponentIt; ComponentIt; ++ComponentIt)
+	{
+		UNiagaraComponent* Component = *ComponentIt;
+		if (Component && Component->GetAsset())
+		{
+			for (auto EmitterHandle : ReferencedSystemViewModel.GetSystem().GetEmitterHandles())
+			{
+				if (Component->GetAsset()->UsesEmitter(EmitterHandle.GetSource()))
+				{
+					ReferencingComponents.Add(Component);
+				}
+			}
+		}
+	}
+	return ReferencingComponents;
+}
+
 #undef LOCTEXT_NAMESPACE
