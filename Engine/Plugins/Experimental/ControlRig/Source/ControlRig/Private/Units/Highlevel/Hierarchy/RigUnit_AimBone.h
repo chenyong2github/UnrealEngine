@@ -85,7 +85,7 @@ struct FRigUnit_AimBone_DebugSettings
  * Aligns the rotation of a primary and secondary axis of a bone to a world target.
  * Note: This node operates in world space!
  */
-USTRUCT(meta=(DisplayName="Aim", Keywords="Lookat"))
+USTRUCT(meta=(DisplayName="Aim", Category="Hierarchy", Keywords="Lookat"))
 struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
