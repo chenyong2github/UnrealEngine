@@ -3974,6 +3974,8 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 			{
 				// TODO - only need to refresh the old and new landscape info
 				ULandscapeInfo::RecreateLandscapeInfo(GetWorld(), false);
+				FixupWeightmaps();
+				InitializeProxyLayersWeightmapUsage();
 			}
 		}
 		else
