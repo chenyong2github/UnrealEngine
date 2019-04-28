@@ -49,7 +49,7 @@ struct FAimTarget
 	FVector AlignVector;
 };
 
-USTRUCT(meta=(DisplayName="Aim Constraint", Category="Transforms"))
+USTRUCT(meta=(DisplayName="Aim Constraint", Category="Transforms", Deprecated = "4.23.0"))
 struct FRigUnit_AimConstraint : public FRigUnitMutable
 {
 	GENERATED_BODY()

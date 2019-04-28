@@ -17,7 +17,7 @@ class USocialChatManager;
 
 class FOnlinePartyId;
 
-enum class EMemberExitedReason;
+enum class EMemberExitedReason : uint8;
 
 namespace EOnlinePresenceState { enum Type : uint8; }
 
@@ -200,6 +200,8 @@ private:	// Handlers
 
 	void HandlePartyMemberExited(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& MemberId, const EMemberExitedReason Reason);
 	void HandleGameDestroyed(const FName SessionName, bool bWasSuccessful);
+
+	void HandleExistingPartyInvites(ESocialSubsystem SubsystemType);
 
 private:
 	static USocialToolkit* GetToolkitForPlayerInternal(ULocalPlayer* LocalPlayer);

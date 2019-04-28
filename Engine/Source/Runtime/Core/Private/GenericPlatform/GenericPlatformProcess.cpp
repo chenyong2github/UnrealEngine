@@ -53,6 +53,12 @@ uint32 FGenericPlatformProcess::GetCurrentProcessId()
 	return 0;
 }
 
+uint32 FGenericPlatformProcess::GetCurrentCoreNumber()
+{
+	return 0;
+}
+
+
 void FGenericPlatformProcess::SetThreadAffinityMask( uint64 AffinityMask )
 {
 	// Not implemented cross-platform. Each platform may or may not choose to implement this.
@@ -356,7 +362,7 @@ bool FPThreadEvent::Wait(uint32 WaitTime, const bool bIgnoreThreadIdleStats /*= 
 	WaitForStats();
 
 	SCOPE_CYCLE_COUNTER(STAT_EventWait);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(EventWait, IsInGameThread());
+	CSV_SCOPED_WAIT_CONDITIONAL(WaitTime > 0 && IsInGameThread());
 	FThreadIdleStats::FScopeIdle Scope(bIgnoreThreadIdleStats);
 
 	check(bInitialized);

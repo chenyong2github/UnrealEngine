@@ -655,6 +655,10 @@ public:
 				.DisplayName(LOCTEXT("RunDedicatedServerLabel", "Run Dedicated Server"))
 				.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FLevelEditorPlaySettingsCustomization::HandlePlayNetDedicatedPropertyIsEnabled)));
 
+			NetworkCategory.AddProperty("ServerMapNameOverride")
+				.DisplayName(LOCTEXT("ServerMapNameOverrideLabel", "Server Map Name Override"))
+				.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FLevelEditorPlaySettingsCustomization::HandleServerMapNameOverrideVisibility)));
+
 			// client window size
 			TSharedRef<IPropertyHandle> WindowHeightHandle = LayoutBuilder.GetProperty("ClientWindowHeight");
 			TSharedRef<IPropertyHandle> WindowWidthHandle = LayoutBuilder.GetProperty("ClientWindowWidth");
@@ -891,6 +895,12 @@ private:
 	EVisibility HandlePlayNetModeVisibility( ) const
 	{
 		return GetDefault<ULevelEditorPlaySettings>()->GetPlayNetModeVisibility();
+	}
+
+	// Callback for getting the visibility of the StandaloneServerMapName property.
+	EVisibility HandleServerMapNameOverrideVisibility() const
+	{
+		return GetDefault<ULevelEditorPlaySettings>()->GetServerMapNameOverrideVisibility();
 	}
 
 	// Callback for getting the visibility of the AdditionalLaunchOptions property.

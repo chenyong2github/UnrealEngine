@@ -7073,6 +7073,11 @@ bool FBlueprintEditor::CanAddNewLocalVariable() const
 
 void FBlueprintEditor::OnAddNewLocalVariable()
 {
+	if (!CanAddNewLocalVariable())
+	{
+		return;
+	}
+
 	// Find the top level graph to place the local variables into
 	UEdGraph* TargetGraph = FBlueprintEditorUtils::GetTopLevelGraph(FocusedGraphEdPtr.Pin()->GetCurrentGraph());
 	check(TargetGraph->GetSchema()->GetGraphType(TargetGraph) == GT_Function);
@@ -7942,17 +7947,6 @@ FReply FBlueprintEditor::OnSpawnGraphNodeByShortcut(FInputChord InChord, const F
 	}
 
 	return FReply::Handled();
-}
-
-void FBlueprintEditor::ToolkitBroughtToFront()
-{
-	UBlueprint* CurrentBlueprint = GetBlueprintObj();
-	if( CurrentBlueprint != NULL )
-	{
-		UObject* DebugInstance = CurrentBlueprint->GetObjectBeingDebugged();
-		CurrentBlueprint->SetObjectBeingDebugged( NULL );
-		CurrentBlueprint->SetObjectBeingDebugged( DebugInstance );
-	}
 }
 
 void FBlueprintEditor::OnNodeSpawnedByKeymap()

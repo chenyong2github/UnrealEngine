@@ -1549,6 +1549,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		variables.put("memory", Integer.toString(totalMemory));
 
 		//variables.put("Profile", "Android");
+		variables.put("OverrideProfile", "true");
 		variables.put("hardware", hardware);
 		variables.put("ro.hardware", roHardware);
 		variables.put("processor", processor);
@@ -2051,6 +2052,15 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			}
 			catch (Exception e)
 			{
+			}
+		}
+
+		// clear Profile if OverrideProfile was not left set as well
+		if (variables.containsKey("Profile"))
+		{
+			if (!variables.containsKey("OverrideProfile"))
+			{
+				variables.remove("Profile");
 			}
 		}
 

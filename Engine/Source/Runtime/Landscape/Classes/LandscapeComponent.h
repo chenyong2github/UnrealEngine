@@ -252,6 +252,53 @@ struct FLandscapeComponentMaterialOverride
 	UMaterialInterface* Material;
 };
 
+USTRUCT(NotBlueprintable)
+struct FWeightmapData
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	TArray<UTexture2D*> Textures;
+	
+	UPROPERTY()
+	TArray<FWeightmapLayerAllocationInfo> LayerAllocations;
+
+	UPROPERTY(Transient)
+	TArray<ULandscapeWeightmapUsage*> TextureUsages;
+};
+
+USTRUCT(NotBlueprintable)
+struct FHeightmapData
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	UTexture2D* Texture;
+};
+
+USTRUCT(NotBlueprintable)
+struct FLandscapeLayerComponentData
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	FHeightmapData HeightmapData;
+
+	UPROPERTY()
+	FWeightmapData WeightmapData;
+
+	bool IsInitialized() const { return HeightmapData.Texture != nullptr || WeightmapData.Textures.Num() > 0;  }
+};
+
+USTRUCT(NotBlueprintable)
+struct FLandscapeLayersGlobalComponentData
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	FIntPoint TopLeftSectionBase;
+};
+
 UCLASS(hidecategories=(Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility), showcategories=("Rendering|Material"), MinimalAPI, Within=LandscapeProxy)
 class ULandscapeComponent : public UPrimitiveComponent
 {
@@ -335,13 +382,13 @@ private:
 	UPROPERTY()
 	FGuid LightingGuid;
 
-	/** Current data we're working on (only used in Layering mode) This data will get set by tools as needed */
-	UTexture2D* CurrentEditingHeightmapTexture;
-	TArray<FWeightmapLayerAllocationInfo>* CurrentEditingWeightmapLayerAllocations;
-	TArray<UTexture2D*>* CurrentEditingWeightmapTextures;
-	TArray<ULandscapeWeightmapUsage*>* CurrentEditingWeightmapTexturesUsage;
-	FGuid CurrentLayerGuid;
+	UPROPERTY()
+	TMap<FGuid, FLandscapeLayerComponentData> LayersData;
 
+	UPROPERTY()
+	FLandscapeLayersGlobalComponentData GlobalLayersData;
+
+	// Final layer data
 	UPROPERTY(Transient)
 	TArray<ULandscapeWeightmapUsage*> WeightmapTexturesUsage;
 #endif // WITH_EDITORONLY_DATA
@@ -475,7 +522,6 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	virtual void BeginDestroy() override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 #if WITH_EDITOR
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
@@ -507,25 +553,36 @@ public:
 	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 	virtual bool IsPrecomputedLightingValid() const override;
 
-	LANDSCAPE_API UTexture2D* GetHeightmap(bool InReturnCurrentEditingHeightmap = false) const;
-	LANDSCAPE_API TArray<UTexture2D*>& GetWeightmapTextures(bool InReturnCurrentEditingWeightmap = false);
-	LANDSCAPE_API const TArray<UTexture2D*>& GetWeightmapTextures(bool InReturnCurrentEditingWeightmap = false) const;
+	LANDSCAPE_API UTexture2D* GetHeightmap(bool InReturnEditingHeightmap = false) const;
+	LANDSCAPE_API TArray<UTexture2D*>& GetWeightmapTextures(bool InReturnEditingWeightmap = false);
+	LANDSCAPE_API const TArray<UTexture2D*>& GetWeightmapTextures(bool InReturnEditingWeightmap = false) const;
 
-	LANDSCAPE_API TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(bool InReturnCurrentEditingWeightmap = false);
-	LANDSCAPE_API const TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(bool InReturnCurrentEditingWeightmap = false) const;
+	LANDSCAPE_API TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(bool InReturnEditingWeightmap = false);
+	LANDSCAPE_API const TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(bool InReturnEditingWeightmap = false) const;
 
 #if WITH_EDITOR
 	LANDSCAPE_API void SetHeightmap(UTexture2D* NewHeightmap);
 
-	LANDSCAPE_API void SetWeightmapTextures(const TArray<UTexture2D*>& InNewWeightmapTextures, bool InApplyToCurrentEditingWeightmap = false);
-	LANDSCAPE_API const FGuid& GetCurrentLayerGuid() const;
+	LANDSCAPE_API void SetWeightmapTextures(const TArray<UTexture2D*>& InNewWeightmapTextures, bool InApplyToEditingWeightmap = false);
 
 	LANDSCAPE_API void SetWeightmapLayerAllocations(const TArray<FWeightmapLayerAllocationInfo>& InNewWeightmapLayerAllocations);
-	LANDSCAPE_API void SetWeightmapTexturesUsage(const TArray<ULandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, bool InApplyToCurrentEditingWeightmap = false);
-	LANDSCAPE_API TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap = false);
-	LANDSCAPE_API const TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap = false) const;
+	LANDSCAPE_API void SetWeightmapTexturesUsage(const TArray<ULandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, bool InApplyToEditingWeightmap = false);
+	LANDSCAPE_API TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnEditingWeightmap = false);
+	LANDSCAPE_API const TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnEditingWeightmap = false) const;
 
-	LANDSCAPE_API void SetEditingLayer(const struct FLandscapeLayer* InLayer, struct FLandscapeLayerData* InLayerData);
+	LANDSCAPE_API const FLandscapeLayersGlobalComponentData& GetGlobalLayersData() const;
+	LANDSCAPE_API FLandscapeLayersGlobalComponentData& GetGlobalLayersData();
+
+	LANDSCAPE_API const FLandscapeLayerComponentData* GetLayerData(const FGuid& InLayerGuid) const;
+	LANDSCAPE_API FLandscapeLayerComponentData* GetLayerData(const FGuid& InLayerGuid);
+	LANDSCAPE_API void AddLayerData(const FGuid& InLayerGuid, const FLandscapeLayerComponentData& InData);
+	LANDSCAPE_API void AddDefaultLayerData(const FGuid& InLayerGuid, const TArray<ULandscapeComponent*>& InComponentsUsingHeightmap, TMap<UTexture2D*, UTexture2D*>& InOutCreatedHeightmapTextures);
+	LANDSCAPE_API void RemoveLayerData(const FGuid& InLayerGuid);
+	LANDSCAPE_API void ForEachLayer(TFunctionRef<void(const FGuid&, struct FLandscapeLayerComponentData&)> Fn);
+
+	FLandscapeLayerComponentData* GetEditingLayer();
+	const FLandscapeLayerComponentData* GetEditingLayer() const;
+	FGuid GetEditingLayerGUID() const;
 #endif 
 
 #if WITH_EDITOR
@@ -751,7 +808,7 @@ public:
 	/**
 	 * Create weightmaps for this component for the layers specified in the WeightmapLayerAllocations array
 	 */
-	void ReallocateWeightmaps(FLandscapeEditDataInterface* DataInterface= nullptr, bool InCanUseCurrentEditingWeightmap = true, bool InSaveToTransactionBuffer = true, bool InInitPlatformDataAsync = false, TArray<UTexture2D*>* OutNewCreatedTextures = nullptr);
+	LANDSCAPE_API void ReallocateWeightmaps(FLandscapeEditDataInterface* DataInterface = nullptr, bool InCanUseEditingWeightmap = true, bool InSaveToTransactionBuffer = true, bool InInitPlatformDataAsync = false, bool InForceReallocate = false, ALandscapeProxy* InTargetProxy = nullptr, TArray<UTexture2D*>* OutNewCreatedTextures = nullptr);
 
 	/** Returns the actor's LandscapeMaterial, or the Component's OverrideLandscapeMaterial if set */
 	LANDSCAPE_API UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const;
@@ -806,9 +863,11 @@ public:
 protected:
 
 #if WITH_EDITOR
-	void SetEditingHeightmap(UTexture2D* InNewHeightmap);
-	void SetEditingWeightmaps(TArray<UTexture2D*>* InNewWeightmapTextures, TArray<FWeightmapLayerAllocationInfo>* InNewWeightmapLayerAllocations, TArray<ULandscapeWeightmapUsage*>* InNewWeightmapTexturesUsage);
-	void SetEditingLayerGuid(const FGuid& InLayerGuid);
+	void RecreateCollisionComponent(bool bUseSimpleCollision);
+	void UpdateCollisionHeightBuffer(int32 InComponentX1, int32 InComponentY1, int32 InComponentX2, int32 InComponentY2, int32 InCollisionMipLevel, int32 InHeightmapSizeU, int32 InHeightmapSizeV,
+		const FColor* const InHeightmapTextureMipData, uint16* CollisionHeightData, uint16* GrassHeightData,
+		const FColor* const InXYOffsetTextureMipData, uint16* CollisionXYOffsetData);
+	void UpdateDominantLayerBuffer(int32 InComponentX1, int32 InComponentY1, int32 InComponentX2, int32 InComponentY2, int32 InCollisionMipLevel, int32 InWeightmapSizeU, int32 InDataLayerIdx, const TArray<uint8*>& InCollisionDataPtrs, uint8* DominantLayerData);
 #endif
 
 	/** Whether the component type supports static lighting. */
@@ -817,4 +876,3 @@ protected:
 		return true;
 	}
 };
-

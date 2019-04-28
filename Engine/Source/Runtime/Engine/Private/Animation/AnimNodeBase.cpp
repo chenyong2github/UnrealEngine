@@ -266,7 +266,10 @@ void FPoseLinkBase::CacheBones(const FAnimationCacheBonesContext& Context)
 
 void FPoseLinkBase::Update(const FAnimationUpdateContext& Context)
 {
+#if ENABLE_VERBOSE_ANIM_PERF_TRACKING
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPoseLinkBase_Update);
+#endif // ENABLE_VERBOSE_ANIM_PERF_TRACKING
+
 #if DO_CHECK
 	checkf( !bProcessed, TEXT( "Update already in progress, circular link for AnimInstance [%s] Blueprint [%s]" ), \
 		*Context.AnimInstanceProxy->GetAnimInstanceName(), *GetFullNameSafe(IAnimClassInterface::GetActualAnimClass(Context.AnimInstanceProxy->GetAnimClassInterface())));

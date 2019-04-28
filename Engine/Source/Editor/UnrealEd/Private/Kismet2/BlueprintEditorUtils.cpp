@@ -1004,6 +1004,15 @@ struct FRegenerationHelper
 		{
 			Struct->StaticLink(true);
 			ensure(Struct->IsA<UFunction>() || (OldPropertiesSize == Struct->GetPropertiesSize()) || !Struct->HasAnyFlags(RF_LoadCompleted));
+			
+			// UStruct::Link is going to attempt to set the StructFlags, but it has no knowledge of UserDefinedStruct::DefaultStructInstance.
+			// We don't want to set CPF_ZeroConstructor if UserDefinedStruct::DefaultStructInstance has non zero data, so this call
+			// gives UUserDefinedStruct a chance to enforce its invariants. The cooked/EDL path relies on setting struct flags in 
+			// serialize, after link has been called.
+			if(UUserDefinedStruct* AsUDS = Cast<UUserDefinedStruct>(Struct))
+			{
+				AsUDS->UpdateStructFlags();
+			}
 		}
 	}
 
@@ -7657,7 +7666,7 @@ TSharedRef<SWidget> FBlueprintEditorUtils::ConstructBlueprintParentClassPicker( 
 		bIsAnimBlueprint |= Blueprint->IsA(UAnimBlueprint::StaticClass());
 		bIsLevelScriptActor |= Blueprint->ParentClass->IsChildOf( ALevelScriptActor::StaticClass() );
 		bIsComponentBlueprint |= Blueprint->ParentClass->IsChildOf( UActorComponent::StaticClass() );
-		bIsEditorOnlyBlueprint |= IsEditorOnlyObject(Blueprint);
+		bIsEditorOnlyBlueprint |= IsEditorUtilityBlueprint(Blueprint);
 		bIsWidgetBlueprint = Blueprint->IsA(UBaseWidgetBlueprint::StaticClass());
 		if(Blueprint->GeneratedClass)
 		{

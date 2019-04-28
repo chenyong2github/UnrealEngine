@@ -382,6 +382,17 @@ public:
 		}
 	}
 
+	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FMeshMaterialShader::ModifyCompilationEnvironment(Platform, Material, OutEnvironment);
+
+		if (GetMaxSupportedFeatureLevel(Platform) <= ERHIFeatureLevel::ES3_1)
+		{
+			// do not allow to sample scene textures on mobile during accumulation path
+			OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1);
+		}
+	}
+	
 	FDistortionMeshPS()
 	{
 	}

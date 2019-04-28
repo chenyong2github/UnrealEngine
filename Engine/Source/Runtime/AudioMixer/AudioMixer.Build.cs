@@ -7,8 +7,9 @@ namespace UnrealBuildTool.Rules
 		public AudioMixer(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PrivateIncludePathModuleNames.Add("TargetPlatform");
+            PublicIncludePathModuleNames.Add("TargetPlatform");
 
-			PrivateIncludePaths.AddRange(
+            PrivateIncludePaths.AddRange(
 				new string[]
 				{
 					"Runtime/AudioMixer/Private",
@@ -28,7 +29,8 @@ namespace UnrealBuildTool.Rules
 				{
 					"CoreUObject",
 					"Engine",
-				}
+                    "NonRealtimeAudioRenderer"
+                }
 			);
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target,

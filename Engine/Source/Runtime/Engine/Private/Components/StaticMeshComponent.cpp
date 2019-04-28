@@ -846,7 +846,7 @@ void UStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCon
 	if (IsStreamingRenderAsset(GetStaticMesh()))
 	{
 		const float TexelFactor = ForcedLodModel > 0 ? -(GetStaticMesh()->RenderData->LODResources.Num() - ForcedLodModel + 1) : Bounds.SphereRadius * 2.f;
-		new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(GetStaticMesh(), Bounds, TexelFactor, PackedRelativeBox_Identity);
+		new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(GetStaticMesh(), Bounds, TexelFactor, PackedRelativeBox_Identity, true);
 	}
 }
 
@@ -1781,6 +1781,18 @@ bool UStaticMeshComponent::SetStaticMesh(UStaticMesh* NewMesh)
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	StaticMesh = NewMesh;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	if (StaticMesh != nullptr && StaticMesh->RenderData != nullptr && FApp::CanEverRender() && !StaticMesh->HasAnyFlags(RF_ClassDefaultObject))
+	{
+		checkf(StaticMesh->RenderData->IsInitialized(), TEXT("Uninitialized Renderdata for Mesh: %s, Mesh NeedsLoad: %i, Mesh NeedsPostLoad: %i, Mesh Loaded: %i, Mesh NeedInit: %i, Mesh IsDefault: %i")
+			, *StaticMesh->GetFName().ToString()
+			, StaticMesh->HasAnyFlags(RF_NeedLoad)
+			, StaticMesh->HasAnyFlags(RF_NeedPostLoad)
+			, StaticMesh->HasAnyFlags(RF_LoadCompleted)
+			, StaticMesh->HasAnyFlags(RF_NeedInitialization)
+			, StaticMesh->HasAnyFlags(RF_ClassDefaultObject)
+		);
+	}
 
 	// Need to send this to render thread at some point
 	MarkRenderStateDirty();

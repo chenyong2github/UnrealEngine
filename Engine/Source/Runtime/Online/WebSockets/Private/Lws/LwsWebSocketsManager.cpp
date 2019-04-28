@@ -97,6 +97,12 @@ void FLwsWebSocketsManager::InitWebSockets(TArrayView<const FString> Protocols)
 	ContextInfo.uid = -1;
 	ContextInfo.gid = -1;
 	ContextInfo.options |= LWS_SERVER_OPTION_PEER_CERT_NOT_REQUIRED | LWS_SERVER_OPTION_DISABLE_OS_CA_CERTS | LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
+	ContextInfo.max_http_header_data = 0;
+
+	int32 MaxHttpHeaderData = 1024 * 32;
+	GConfig->GetInt(TEXT("WebSockets.LibWebSockets"), TEXT("MaxHttpHeaderData"), MaxHttpHeaderData, GEngineIni);
+	ContextInfo.max_http_header_data2 = MaxHttpHeaderData;
+	ContextInfo.pt_serv_buf_size = MaxHttpHeaderData;
 	
 	// HTTP proxy
 	const FString& ProxyAddress = FHttpModule::Get().GetProxyAddress();

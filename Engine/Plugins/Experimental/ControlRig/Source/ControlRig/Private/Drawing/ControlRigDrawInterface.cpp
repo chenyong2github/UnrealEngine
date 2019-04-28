@@ -28,6 +28,16 @@ void FControlRigDrawInterface::DrawLine(const FTransform& WorldOffset, const FVe
 	DrawInstructions.Add(Instruction);
 }
 
+void FControlRigDrawInterface::DrawLines(const FTransform& WorldOffset, const TArray<FVector>& Positions, const FLinearColor& Color, float Thickness)
+{
+	FDrawIntruction Instruction(EDrawType_Lines, Color, Thickness);
+	for (const FVector& Point : Positions)
+	{
+		Instruction.Positions.Add(WorldOffset.TransformPosition(Point));
+	}
+	DrawInstructions.Add(Instruction);
+}
+
 void FControlRigDrawInterface::DrawLineStrip(const FTransform& WorldOffset, const TArray<FVector>& Positions, const FLinearColor& Color, float Thickness)
 {
 	FDrawIntruction Instruction(EDrawType_LineStrip, Color, Thickness);
@@ -189,4 +199,31 @@ void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, cons
 			break;
 		}
 	}
+}
+
+void FControlRigDrawInterface::DrawPointSimulation(const FTransform& WorldOffset, const FControlRigSimulationPointContainer& Simulation, const FLinearColor& Color, float Thickness)
+{
+	FDrawIntruction PointsInstruction(EDrawType_Point, Color, Thickness * 16.f);
+	FDrawIntruction SpringsInstruction(EDrawType_Lines, Color * FLinearColor(0.55f, 0.55f, 0.55f, 1.f), Thickness);
+
+	PointsInstruction.Positions.Reserve(Simulation.Points.Num());
+	for (int32 PointIndex = 0; PointIndex < Simulation.Points.Num(); PointIndex++)
+	{
+		FControlRigSimulationPoint Point = Simulation.GetPointInterpolated(PointIndex);
+		PointsInstruction.Positions.Add(WorldOffset.TransformPosition(Point.Position));
+	}
+
+	SpringsInstruction.Positions.Reserve(Simulation.Springs.Num() * 2);
+	for (const FControlRigSimulationLinearSpring& Spring : Simulation.Springs)
+	{
+		if (Spring.SubjectA == INDEX_NONE || Spring.SubjectB == INDEX_NONE)
+		{
+			continue;
+		}
+		SpringsInstruction.Positions.Add(PointsInstruction.Positions[Spring.SubjectA]);
+		SpringsInstruction.Positions.Add(PointsInstruction.Positions[Spring.SubjectB]);
+	}
+
+	DrawInstructions.Add(PointsInstruction);
+	DrawInstructions.Add(SpringsInstruction);
 }

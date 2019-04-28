@@ -110,7 +110,9 @@ void FFoliageEditUtility::ReplaceFoliageTypeObject(UWorld* InWorld, UFoliageType
 				}
 				else
 				{
-					IFA->FoliageInfos.Add(NewType, MoveTemp(OldInfo))->ReallocateClusters(IFA, NewType);
+					// Make sure if type changes we have proper implementation
+					TUniqueObj<FFoliageInfo>& NewFoliageInfo = IFA->FoliageInfos.Add(NewType, MoveTemp(OldInfo));
+					NewFoliageInfo->ReallocateClusters(IFA, NewType);
 				}
 			}
 		}

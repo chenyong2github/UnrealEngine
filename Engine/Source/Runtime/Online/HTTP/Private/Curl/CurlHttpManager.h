@@ -54,6 +54,9 @@ public:
 	CurlRequestOptions;
 
 	//~ Begin HttpManager Interface
+	virtual void OnBeforeFork() override;
+	virtual void OnAfterFork() override;
+
 public:
 	virtual bool SupportsDynamicProxy() const override;
 protected:

@@ -76,12 +76,6 @@ void UAnimGraphNode_SubInstance::ValidateAnimNodeDuringCompilation(USkeleton* Fo
 
 	UObject* OriginalNode = MessageLog.FindSourceObject(this);
 
-	// Check we have a class set
-	if(!*Node.InstanceClass)
-	{
-		MessageLog.Error(TEXT("Sub instance node @@ has no valid instance class to spawn."), this);
-	}
-
 	if(HasInstanceLoop())
 	{
 		MessageLog.Error(TEXT("Detected loop in sub instance chain starting at @@ inside class @@"), this, AnimBP->GetAnimBlueprintGeneratedClass());
@@ -171,54 +165,6 @@ void UAnimGraphNode_SubInstance::ReallocatePinsDuringReconstruction(TArray<UEdGr
 			}
 		}
 	}
-
-	// Grab the list of properties we can expose
-	TArray<UProperty*> ExposablePropeties;
-	GetExposableProperties(ExposablePropeties);
-
-	// We'll track the names we encounter by removing from this list, if anything remains the properties
-	// have been removed from the target class and we should remove them too
-	TArray<FName> BeginExposableNames = KnownExposableProperties;
-
-	for(UProperty* Property : ExposablePropeties)
-	{
-		FName PropertyName = Property->GetFName();
-		BeginExposableNames.Remove(PropertyName);
-
-		if(!KnownExposableProperties.Contains(PropertyName))
-		{
-			// New property added to the target class
-			KnownExposableProperties.Add(PropertyName);
-		}
-
-		if(ExposedPropertyNames.Contains(PropertyName) && FBlueprintEditorUtils::PropertyStillExists(Property))
-		{
-			FEdGraphPinType PinType;
-
-			verify(Schema->ConvertPropertyToPinType(Property, PinType));
-
-			UEdGraphPin* NewPin = CreatePin(EEdGraphPinDirection::EGPD_Input, PinType, Property->GetFName());
-			NewPin->PinFriendlyName = Property->GetDisplayNameText();
-
-			// Need to grab the default value for the property from the target generated class CDO
-			FString CDODefaultValueString;
-			uint8* ContainerPtr = reinterpret_cast<uint8*>(TargetClass->GetDefaultObject());
-
-			if(FBlueprintEditorUtils::PropertyValueToString(Property, ContainerPtr, CDODefaultValueString))
-			{
-				// If we successfully pulled a value, set it to the pin
-				Schema->TrySetDefaultValue(*NewPin, CDODefaultValueString);
-			}
-
-			CustomizePinData(NewPin, PropertyName, INDEX_NONE);
-		}
-	}
-
-	// Remove any properties that no longer exist on the target class
-	for(FName& RemovedPropertyName : BeginExposableNames)
-	{
-		KnownExposableProperties.Remove(RemovedPropertyName);
-	}
 }
 
 void UAnimGraphNode_SubInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -241,26 +187,6 @@ void UAnimGraphNode_SubInstance::PostEditChangeProperty(FPropertyChangedEvent& P
 	{
 		ReconstructNode();
 	}
-}
-
-void UAnimGraphNode_SubInstance::GetInstancePinProperty(const UClass* InOwnerInstanceClass, UEdGraphPin* InInputPin, UProperty*& OutProperty)
-{
-	// The actual name of the instance property
-	FString FullName = GetPinTargetVariableName(InInputPin);
-
-	if(UProperty* Property = FindField<UProperty>(InOwnerInstanceClass, *FullName))
-	{
-		OutProperty = Property;
-	}
-	else
-	{
-		OutProperty = nullptr;
-	}
-}
-
-FString UAnimGraphNode_SubInstance::GetPinTargetVariableName(const UEdGraphPin* InPin) const
-{
-	return TEXT("__SUBINSTANCE_") + InPin->PinName.ToString() + TEXT("_") + NodeGuid.ToString();
 }
 
 void UAnimGraphNode_SubInstance::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
@@ -311,8 +237,8 @@ void UAnimGraphNode_SubInstance::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 				+SHorizontalBox::Slot()
 				[
 					SNew(SCheckBox)
-					.IsChecked_UObject(this, &UAnimGraphNode_SubInstance::IsPropertyExposed, PropertyName)
-					.OnCheckStateChanged_UObject(this, &UAnimGraphNode_SubInstance::OnPropertyExposeCheckboxChanged, PropertyName)
+					.IsChecked_UObject(this, &UAnimGraphNode_CustomProperty::IsPropertyExposed, PropertyName)
+					.OnCheckStateChanged_UObject(this, &UAnimGraphNode_CustomProperty::OnPropertyExposeCheckboxChanged, PropertyName)
 				]
 			];
 		}
@@ -321,7 +247,7 @@ void UAnimGraphNode_SubInstance::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 	TSharedRef<IPropertyHandle> ClassHandle = DetailBuilder.GetProperty(TEXT("Node.InstanceClass"), GetClass());
 	if(ClassHandle->IsValidHandle())
 	{
-		ClassHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateUObject(this, &UAnimGraphNode_SubInstance::OnInstanceClassChanged, &DetailBuilder));
+		ClassHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateUObject(this, &UAnimGraphNode_CustomProperty::OnInstanceClassChanged, &DetailBuilder));
 	}
 
 	ClassHandle->MarkHiddenByCustomization();
@@ -343,46 +269,6 @@ void UAnimGraphNode_SubInstance::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 				.OnShouldFilterAsset(FOnShouldFilterAsset::CreateUObject(this, &UAnimGraphNode_SubInstance::OnShouldFilterInstanceBlueprint))
 				.OnObjectChanged(FOnSetObject::CreateUObject(this, &UAnimGraphNode_SubInstance::OnSetInstanceBlueprint, ClassHandle))
 		];
-}
-
-FText UAnimGraphNode_SubInstance::GetPropertyTypeText(UProperty* Property)
-{
-	FText PropertyTypeText;
-
-	if(UStructProperty* StructProperty = Cast<UStructProperty>(Property))
-	{
-		PropertyTypeText = StructProperty->Struct->GetDisplayNameText();
-	}
-	else if(UObjectProperty* ObjectProperty = Cast<UObjectProperty>(Property))
-	{
-		PropertyTypeText = ObjectProperty->PropertyClass->GetDisplayNameText();
-	}
-	else if(UClass* PropClass = Property->GetClass())
-	{
-		PropertyTypeText = PropClass->GetDisplayNameText();
-	}
-	else
-	{
-		PropertyTypeText = LOCTEXT("PropertyTypeUnknown", "Unknown");
-	}
-	
-	return PropertyTypeText;
-}
-
-void UAnimGraphNode_SubInstance::RebuildExposedProperties(UClass* InNewClass)
-{
-	ExposedPropertyNames.Empty();
-	KnownExposableProperties.Empty();
-	if(InNewClass)
-	{
-		TArray<UProperty*> ExposableProperties;
-		GetExposableProperties(ExposableProperties);
-
-		for(UProperty* Property : ExposableProperties)
-		{
-			KnownExposableProperties.Add(Property->GetFName());
-		}
-	}
 }
 
 bool UAnimGraphNode_SubInstance::HasInstanceLoop()
@@ -445,14 +331,6 @@ void UAnimGraphNode_SubInstance::OnPropertyExposeCheckboxChanged(ECheckBoxState 
 	ReconstructNode();
 }
 
-void UAnimGraphNode_SubInstance::OnInstanceClassChanged(IDetailLayoutBuilder* DetailBuilder)
-{
-	if(DetailBuilder)
-	{
-		DetailBuilder->ForceRefreshDetails();
-	}
-}
-
 FString UAnimGraphNode_SubInstance::GetCurrentInstanceBlueprintPath() const
 {
 	UClass* InstanceClass = *Node.InstanceClass;
@@ -497,54 +375,4 @@ void UAnimGraphNode_SubInstance::OnSetInstanceBlueprint(const FAssetData& AssetD
 		InstanceClassPropHandle->SetValue(Blueprint->GetAnimBlueprintGeneratedClass());
 	}
 }
-
-UObject* UAnimGraphNode_SubInstance::GetJumpTargetForDoubleClick() const
-{
-	UClass* InstanceClass = *Node.InstanceClass;
-	
-	if(InstanceClass)
-	{
-		return InstanceClass->ClassGeneratedBy;
-	}
-
-	return nullptr;
-}
-
-bool UAnimGraphNode_SubInstance::HasExternalDependencies(TArray<class UStruct*>* OptionalOutput /*= NULL*/) const
-{
-	UClass* InstanceClassToUse = *Node.InstanceClass;
-
-	// Add our instance class... If that changes we need a recompile
-	if(InstanceClassToUse && OptionalOutput)
-	{
-		OptionalOutput->AddUnique(InstanceClassToUse);
-	}
-
-	bool bSuperResult = Super::HasExternalDependencies(OptionalOutput);
-	return InstanceClassToUse || bSuperResult;
-}
-
-void UAnimGraphNode_SubInstance::GetExposableProperties(TArray<UProperty*>& OutExposableProperties) const
-{
-	OutExposableProperties.Empty();
-
-	UClass* TargetClass = *Node.InstanceClass;
-
-	if(TargetClass)
-	{
-		const UEdGraphSchema_K2* Schema = CastChecked<UEdGraphSchema_K2>(GetSchema());
-
-		for(TFieldIterator<UProperty> It(TargetClass, EFieldIteratorFlags::IncludeSuper); It; ++It)
-		{
-			UProperty* CurProperty = *It;
-			FEdGraphPinType PinType;
-
-			if(CurProperty->HasAllPropertyFlags(CPF_Edit | CPF_BlueprintVisible) && CurProperty->HasAllFlags(RF_Public) && Schema->ConvertPropertyToPinType(CurProperty, PinType))
-			{
-				OutExposableProperties.Add(CurProperty);
-			}
-		}
-	}
-}
-
 #undef LOCTEXT_NAMESPACE

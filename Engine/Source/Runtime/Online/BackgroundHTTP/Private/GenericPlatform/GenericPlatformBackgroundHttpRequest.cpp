@@ -83,6 +83,7 @@ void FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpWrappe
 			//Reset this value as we are restarting our progress
 			LastProgressUpdateBytes = 0;
 
+			HttpRequest->SetVerb(TEXT("GET"));
 			HttpRequest->SetURL(RequestURL);
 			HttpRequest->ProcessRequest();
 		}

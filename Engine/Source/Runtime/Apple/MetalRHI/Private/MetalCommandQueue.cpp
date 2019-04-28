@@ -17,6 +17,7 @@
 #include "command_buffer.hpp"
 
 #pragma mark - Private C++ Statics -
+NSUInteger FMetalCommandQueue::PermittedOptions = 0;
 uint64 FMetalCommandQueue::Features = 0;
 extern mtlpp::VertexFormat GMetalFColorVertexFormat;
 bool GMetalCommandBufferDebuggingEnabled = 0;
@@ -502,7 +503,7 @@ mtlpp::Device& FMetalCommandQueue::GetDevice(void)
 	return Device;
 }
 
-mtlpp::ResourceOptions FMetalCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions Options) const
+mtlpp::ResourceOptions FMetalCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions Options)
 {
 	NSUInteger NewOptions = (Options & PermittedOptions);
 #if PLATFORM_IOS // Swizzle Managed to Shared for iOS - we can do this as they are equivalent, unlike Shared -> Managed on Mac.

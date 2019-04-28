@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
-#include "ControlRigBlueprintCompiler.h"
 #include "UObject/WeakObjectPtr.h"
 #include "IControlRigEditorModule.h"
 #include "IControlRigModule.h"
@@ -90,9 +89,6 @@ private:
 	/** Whether the track is visible in the sequencer node tree */
 	bool IsTrackVisible(const UMovieSceneTrack* InTrack);
 
-	/** Compiler customization for animation controllers */
-	FControlRigBlueprintCompiler ControlRigBlueprintCompiler;
-
 	/** Handle for our sequencer track editor */
 	FDelegateHandle ControlRigTrackCreateEditorHandle;
 
@@ -147,9 +143,6 @@ private:
 	FDelegateHandle RefreshAllNodesDelegateHandle;
 	FDelegateHandle ReconstructAllNodesDelegateHandle;
 	FDelegateHandle RenameVariableReferencesDelegateHandle;
-
-	/** Delegate handler for BP Compiler Getter */
-	static TSharedPtr<FKismetCompilerContext> GetControlRigCompiler(UBlueprint* BP, FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompileOptions);
 
 	/** Rig Unit Editor Classes Handler */
 	static TMap<FName, TSubclassOf<URigUnitEditor_Base>> RigUnitEditorClasses;

@@ -404,6 +404,9 @@ namespace Audio
 		/** Whether or not this platform has hardware decompression. */
 		virtual bool SupportsHardwareDecompression() const { return false; }
 
+		/** Whether this is an interface for a non-realtime renderer. If true, synch events will behave differently to avoid deadlocks. */
+		virtual bool IsNonRealtime() const { return false; }
+
 		/** Creates a Compressed audio info class suitable for decompressing this SoundWave. */
 		virtual ICompressedAudioInfo* CreateCompressedAudioInfo(USoundWave* SoundWave) = 0;
 

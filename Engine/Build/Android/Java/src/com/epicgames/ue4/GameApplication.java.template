@@ -11,7 +11,6 @@ import com.epicgames.ue4.network.NetworkChangedManager;
 
 public class GameApplication extends Application implements LifecycleObserver {
 	private static final Logger Log = new Logger("UE4-" + GameApplication.class.getSimpleName());
-	public static final String MESSAGING_CONFIG = "messaging";
 
 	private static boolean isForeground = false;
 

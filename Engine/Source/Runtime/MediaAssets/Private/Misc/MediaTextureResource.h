@@ -151,6 +151,11 @@ protected:
 
 private:
 
+	/**
+	* Cycle our cached samples
+	*/
+	void CycleCachedSamples();
+
 	/** Whether the texture has been cleared. */
 	bool Cleared;
 
@@ -179,5 +184,5 @@ private:
 	TWeakPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> PlayerFacadePtr;
 
 	/** cached media sample to postpone releasing it until the next sample rendering as it can get overwritten due to asynchronous rendering */
-	TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> CachedSample;
+	TArray<TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>> CachedSamples;
 };

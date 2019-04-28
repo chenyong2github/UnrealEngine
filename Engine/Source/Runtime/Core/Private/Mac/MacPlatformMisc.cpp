@@ -20,6 +20,7 @@
 #include "HAL/PlatformOutputDevices.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/FileManager.h"
+#include "HAL/ThreadManager.h"
 #include "Misc/OutputDeviceError.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/FeedbackContext.h"
@@ -71,6 +72,10 @@ static FAutoConsoleVariableRef CVarMacExplicitRendererID(
 	TEXT("Forces the Mac RHI to use the specified rendering device which is a 0-based index into the list of GPUs provided by FMacPlatformMisc::GetGPUDescriptors or -1 to disable & use the default device. (Default: -1, off)"),
 	ECVF_RenderThreadSafe|ECVF_ReadOnly
 	);
+static TAutoConsoleVariable<int32> CVarMacPlatformDumpAllThreadsOnHang(
+	TEXT("Mac.DumpAllThreadsOnHang"),
+	1,
+	TEXT("If > 0, then when reporting a hang generate a backtrace for all threads."));
 
 /*------------------------------------------------------------------------------
  FMacApplicationInfo - class to contain all state for crash reporting that is unsafe to acquire in a signal.
@@ -417,6 +422,16 @@ void FMacPlatformMisc::PlatformPreInit()
 	
 	// No SIGPIPE crashes please - they are a pain to debug!
 	signal(SIGPIPE, SIG_IGN);
+
+	// Disable ApplePlatformThreadStackWalk when the debugger is attached
+	if (FPlatformMisc::IsDebuggerPresent() && !GAlwaysReportCrash)
+	{
+		IConsoleVariable* CVarApplePlatformThreadStackWalkEnable = IConsoleManager::Get().FindConsoleVariable(TEXT("ApplePlatformThreadStackWalk.Enable"));
+		if (CVarApplePlatformThreadStackWalkEnable)
+		{
+			CVarApplePlatformThreadStackWalkEnable->Set(0);
+		}
+	}
 
 	// Increase the maximum number of simultaneously open files
 	uint32 MaxFilesPerProc = OPEN_MAX;
@@ -1870,7 +1885,8 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 		bSendUnattendedBugReports = false;
 	}
 
-	if (GMacAppInfo.bIsUnattended && !bSendUnattendedBugReports)
+	const bool bUnattended = GMacAppInfo.bIsUnattended || IsRunningDedicatedServer();
+	if (bUnattended && !bSendUnattendedBugReports)
 	{
 		bCanRunCrashReportClient = false;
 	}
@@ -1954,7 +1970,8 @@ void FMacCrashContext::GenerateEnsureInfoAndLaunchReporter() const
 		bSendUnattendedBugReports = false;
 	}
 
-	if(GMacAppInfo.bIsUnattended && !bSendUnattendedBugReports)
+	const bool bUnattended = GMacAppInfo.bIsUnattended || !IsInteractiveEnsureMode() || IsRunningDedicatedServer();
+	if (bUnattended && !bSendUnattendedBugReports)
 	{
 		bCanRunCrashReportClient = false;
 	}
@@ -1987,6 +2004,65 @@ void FMacCrashContext::GenerateEnsureInfoAndLaunchReporter() const
 		FString ReportClient = FPaths::ConvertRelativePathToFull(FPlatformProcess::GenerateApplicationPath(TEXT("CrashReportClient"), EBuildConfigurations::Development));
 		FPlatformProcess::ExecProcess(*ReportClient, *Arguments, nullptr, nullptr, nullptr);
 	}
+}
+
+void FMacCrashContext::AddThreadContext(
+	uint32 ThreadIdEnteredOn,
+	uint32 ThreadId,
+	const FString& ThreadName,
+	const TArray<FCrashStackFrame>& PortableCallStack)
+{
+	AllThreadContexts += TEXT("<Thread>");
+	{
+		AllThreadContexts += TEXT("<CallStack>");
+
+		int32 MaxModuleNameLen = 0;
+		for (const FCrashStackFrame& StFrame : PortableCallStack)
+		{
+			MaxModuleNameLen = FMath::Max(MaxModuleNameLen, StFrame.ModuleName.Len());
+		}
+
+		FString CallstackStr;
+		for (const FCrashStackFrame& StFrame : PortableCallStack)
+		{
+			CallstackStr += FString::Printf(TEXT("%-*s 0x%016x + %-8x"), MaxModuleNameLen + 1, *StFrame.ModuleName, StFrame.BaseAddress, StFrame.Offset);
+			CallstackStr += LINE_TERMINATOR;
+		}
+		AppendEscapedXMLString(AllThreadContexts, *CallstackStr);
+		AllThreadContexts += TEXT("</CallStack>") LINE_TERMINATOR;
+	}
+
+	AllThreadContexts += FString::Printf(TEXT("<IsCrashed>%s</IsCrashed>") LINE_TERMINATOR, (ThreadId == ThreadIdEnteredOn) ? TEXT("true") : TEXT("false"));
+	// TODO: do we need thread register states?
+	AllThreadContexts += TEXT("<Registers></Registers>") LINE_TERMINATOR;
+	AllThreadContexts += FString::Printf(TEXT("<ThreadID>%d</ThreadID>") LINE_TERMINATOR, ThreadId);
+	AllThreadContexts += FString::Printf(TEXT("<ThreadName>%s</ThreadName>") LINE_TERMINATOR, *ThreadName);
+	AllThreadContexts += TEXT("</Thread>");
+	AllThreadContexts += LINE_TERMINATOR;
+}
+
+void FMacCrashContext::CaptureAllThreadContext(uint32 ThreadIdEnteredOn)
+{
+	TArray<typename FThreadManager::FThreadStackBackTrace> StackTraces;
+	FThreadManager::Get().GetAllThreadStackBackTraces(StackTraces);
+
+	for (int32 Idx = 0; Idx < StackTraces.Num(); ++Idx)
+	{
+		const FThreadManager::FThreadStackBackTrace& ThreadStTrace = StackTraces[Idx];
+		const uint32 ThreadId     = ThreadStTrace.ThreadId;
+		const FString& ThreadName = ThreadStTrace.ThreadName;
+
+		TArray<FCrashStackFrame> PortableStack;
+		GetPortableCallStack(ThreadStTrace.ProgramCounters.GetData(), ThreadStTrace.ProgramCounters.Num(), PortableStack);
+
+		AddThreadContext(ThreadIdEnteredOn, ThreadId, ThreadName, PortableStack);
+	}
+}
+
+bool FMacCrashContext::GetPlatformAllThreadContextsString(FString& OutStr) const
+{
+	OutStr = AllThreadContexts;
+	return !OutStr.IsEmpty();
 }
 
 void ReportAssert(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
@@ -2044,6 +2120,12 @@ void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumS
 
 		FMacCrashContext EnsureContext(ECrashContextType::Hang, ErrorMessage);
 		EnsureContext.SetPortableCallStack(StackFrames, NumStackFrames);
+
+		if (CVarMacPlatformDumpAllThreadsOnHang.AsVariable()->GetInt())
+		{
+			EnsureContext.CaptureAllThreadContext(HungThreadId);
+		}
+
 		EnsureContext.GenerateEnsureInfoAndLaunchReporter();
 
 		bReentranceGuard = false;

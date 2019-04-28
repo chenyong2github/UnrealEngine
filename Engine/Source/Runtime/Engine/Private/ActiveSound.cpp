@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #include "ActiveSound.h"
+
 #include "EngineDefines.h"
 #include "Misc/App.h"
 #include "AudioThread.h"
@@ -47,6 +47,7 @@ FActiveSound::FActiveSound()
 	, bFinished(false)
 	, bIsPaused(false)
 	, bShouldStopDueToMaxConcurrency(false)
+	, bHasVirtualized(false)
 	, bRadioFilterSelected(false)
 	, bApplyRadioFilter(false)
 	, bHandleSubtitles(true)
@@ -165,16 +166,12 @@ void FActiveSound::AddReferencedObjects( FReferenceCollector& Collector)
 
 void FActiveSound::SetWorld(UWorld* InWorld)
 {
-	check(IsInGameThread());
-
 	World = InWorld;
 	WorldID = (InWorld ? InWorld->GetUniqueID() : 0);
 }
 
 void FActiveSound::SetSound(USoundBase* InSound)
 {
-	check(IsInGameThread());
-
 	Sound = InSound;
 	bApplyInteriorVolumes = (SoundClassOverride && SoundClassOverride->Properties.bApplyAmbientVolumes)
 							|| (Sound && Sound->ShouldApplyInteriorVolumes());
@@ -182,16 +179,35 @@ void FActiveSound::SetSound(USoundBase* InSound)
 
 void FActiveSound::SetSoundClass(USoundClass* SoundClass)
 {
-	check(IsInGameThread());
-
 	SoundClassOverride = SoundClass;
 	bApplyInteriorVolumes = (SoundClassOverride && SoundClassOverride->Properties.bApplyAmbientVolumes)
 							|| (Sound && Sound->ShouldApplyInteriorVolumes());
 }
 
+void FActiveSound::ClearAudioComponent()
+{
+	AudioComponentID = 0;
+	AudioComponentUserID = NAME_None;
+	AudioComponentName = NAME_None;
+
+	OwnerID = 0;
+	OwnerName = NAME_None;
+}
+
+void FActiveSound::SetAudioComponent(const FActiveSound& ActiveSound)
+{
+	AudioComponentID = ActiveSound.AudioComponentID;
+	AudioComponentUserID = ActiveSound.AudioComponentUserID;
+	AudioComponentName = ActiveSound.AudioComponentName;
+
+	OwnerID = ActiveSound.OwnerID;
+	OwnerName = ActiveSound.OwnerName;
+}
+
 void FActiveSound::SetAudioComponent(UAudioComponent* Component)
 {
 	check(IsInGameThread());
+	check(Component);
 
 	AActor* Owner = Component->GetOwner();
 
@@ -381,7 +397,7 @@ void FActiveSound::GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurre
 	}
 }
 
-void FActiveSound::UpdateWaveInstances( TArray<FWaveInstance*> &InWaveInstances, const float DeltaTime )
+void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, const float DeltaTime)
 {
 	check(AudioDevice);
 
@@ -413,39 +429,6 @@ void FActiveSound::UpdateWaveInstances( TArray<FWaveInstance*> &InWaveInstances,
 
 	// Cache the closest listener ptr 
 	ClosestListenerPtr = &Listeners[ClosestListenerIndex];
-
-	bool bPerformDistanceCheckOptimization = true;
-
-	// If we have an attenuation node, we can't know until we evaluate the sound cue if it's audio output going to be audible via a distance check
-	if (Sound->HasAttenuationNode() || 
-		(AudioDevice->VirtualSoundsEnabled() && (Sound->IsAllowedVirtual() || (bHandleSubtitles && bHasExternalSubtitles))) ||
-		!bHasAttenuationSettings ||
-		(bHasAttenuationSettings && (!AttenuationSettings.bAttenuate || AttenuationSettings.FocusDistanceScale != 1.0f || AttenuationSettings.NonFocusDistanceScale != 1.0f)))
-	{
-		bPerformDistanceCheckOptimization = false;
-	}
-	else
-	{
-		// Check the global focus settings... if it's doing a distance scale, we can't optimize due to distance
-		const FGlobalFocusSettings& FocusSettings = AudioDevice->GetGlobalFocusSettings();
-		if (FocusSettings.FocusDistanceScale != 1.0f || FocusSettings.NonFocusDistanceScale != 1.0f)
-		{
-			bPerformDistanceCheckOptimization = false;
-		}
-	}
-
-	// Early out if the sound is further away than we could possibly hear it, but only do this for non-virtualizable sounds.
-	if (bPerformDistanceCheckOptimization)
-	{
-		// The apparent max distance factors the actual max distance of the sound scaled with the distance scale due to focus effects
-		float ApparentMaxDistance = MaxDistance * FocusDistanceScale;
-
-		// Check if we're out of range of being audible, and early return if there's no chance of making sounds
-		if (!Sound->IsVirtualizeWhenSilent() && !AudioDevice->LocationIsAudible(Transform.GetLocation(), ApparentMaxDistance))
-		{
-			return;
-		}
-	}
 
 	FSoundParseParameters ParseParams;
 	ParseParams.Transform = Transform;
@@ -540,7 +523,7 @@ void FActiveSound::UpdateWaveInstances( TArray<FWaveInstance*> &InWaveInstances,
 
 	if (bFinished)
 	{
-		AudioDevice->StopActiveSound(this);
+		AudioDevice->AddSoundToStop(this);
 	}
 	else if (ThisSoundsWaveInstances.Num() > 0)
 	{

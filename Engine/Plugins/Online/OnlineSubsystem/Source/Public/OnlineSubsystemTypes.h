@@ -1244,6 +1244,8 @@ namespace EInviteStatus
 		PendingOutbound,
 		/** Player has been blocked */
 		Blocked,
+		/** Suggested friend */
+		Suggested
 	};
 
 	/** 
@@ -1272,6 +1274,10 @@ namespace EInviteStatus
 			case Blocked:
 			{
 				return TEXT("Blocked");
+			}
+			case Suggested:
+			{
+				return TEXT("Suggested");
 			}
 		}
 		return TEXT("");

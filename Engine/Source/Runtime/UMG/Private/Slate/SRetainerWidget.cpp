@@ -88,6 +88,12 @@ SRetainerWidget::SRetainerWidget()
 
 SRetainerWidget::~SRetainerWidget()
 {
+	for ( int32 i = 0; i < NodePool.Num(); i++ )
+	{
+		delete NodePool[i];
+	}
+	NodePool.Empty();
+	
 	if( FSlateApplication::IsInitialized() )
 	{
 #if !UE_BUILD_SHIPPING

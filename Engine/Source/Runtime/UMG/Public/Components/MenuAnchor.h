@@ -42,6 +42,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Menu Anchor")
 	TEnumAsByte<EMenuPlacement> Placement;
 
+	/** Should the menu anchor attempt to fit the menu inside the window. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Menu Anchor", meta=(ScriptName="ShouldFitInWindow"))
+	bool bFitInWindow;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = "Menu Anchor")
 	bool ShouldDeferPaintingAfterWindowContent;
 
@@ -56,7 +60,12 @@ public:
 
 public:
 	//TODO UMG Add Set MenuClass
-	//TODO UMG Add Set Placement
+
+	UFUNCTION(BlueprintCallable, Category = "Menu Anchor")
+	void SetPlacement(TEnumAsByte<EMenuPlacement> InPlacement);
+
+	UFUNCTION(BlueprintCallable, Category = "Menu Anchor")
+	void FitInWindow(bool bFit);
 
 public:
 

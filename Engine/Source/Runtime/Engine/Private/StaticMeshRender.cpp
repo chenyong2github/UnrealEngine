@@ -114,6 +114,7 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	, bCastShadow(InComponent->CastShadow)
 	, bReverseCulling(InComponent->bReverseCulling)
 	, MaterialRelevance(InComponent->GetMaterialRelevance(GetScene().GetFeatureLevel()))
+	, CustomPrimitiveData(InComponent->CustomPrimitiveData)
 #if WITH_EDITORONLY_DATA
 	, StreamingDistanceMultiplier(FMath::Max(0.0f, InComponent->StreamingDistanceMultiplier))
 	, StreamingTransformScale(InComponent->GetTextureStreamingTransformScale())
@@ -135,7 +136,14 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 #endif
 {
 	check(RenderData);
-	checkf(RenderData->IsInitialized(), TEXT("Uninitialized Renderdata for Mesh: %s"), *InComponent->GetStaticMesh()->GetFName().ToString());
+	checkf(RenderData->IsInitialized(), TEXT("Uninitialized Renderdata for Mesh: %s, Mesh NeedsLoad: %i, Mesh NeedsPostLoad: %i, Mesh Loaded: %i, Mesh NeedInit: %i, Mesh IsDefault: %i")
+		, *StaticMesh->GetFName().ToString()
+		, StaticMesh->HasAnyFlags(RF_NeedLoad)
+		, StaticMesh->HasAnyFlags(RF_NeedPostLoad)
+		, StaticMesh->HasAnyFlags(RF_LoadCompleted)
+		, StaticMesh->HasAnyFlags(RF_NeedInitialization)
+		, StaticMesh->HasAnyFlags(RF_ClassDefaultObject)
+	);
 
 	const auto FeatureLevel = GetScene().GetFeatureLevel();
 
@@ -660,7 +668,7 @@ void FStaticMeshSceneProxy::SetIndexSource(int32 LODIndex, int32 SectionIndex, F
 	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
 	if (bWireframe)
 	{
-		if( LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized()
+		if(LODModel.AdditionalIndexBuffers && LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized()
 			&& !(RHISupportsTessellation(GetScene().GetShaderPlatform()) && OutMeshElement.VertexFactory->GetType()->SupportsTessellationShaders())
 			)
 		{

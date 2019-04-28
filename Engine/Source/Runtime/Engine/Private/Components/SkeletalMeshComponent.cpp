@@ -594,6 +594,8 @@ void USkeletalMeshComponent::OnUnregister()
 
 void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_SkelMeshComp_InitAnim);
+
 	// a lot of places just call InitAnim without checking Mesh, so 
 	// I'm moving the check here
 	if ( SkeletalMesh != nullptr && IsRegistered() )
@@ -2740,6 +2742,11 @@ void USkeletalMeshComponent::HideBone( int32 BoneIndex, EPhysBodyOp PhysBodyOpti
 		return;
 	}
 
+	if (MasterPoseComponent.IsValid())
+	{
+		return;
+	}
+
 	if (BoneSpaceTransforms.IsValidIndex(BoneIndex))
 	{
 		BoneSpaceTransforms[BoneIndex].SetScale3D(FVector::ZeroVector);
@@ -2756,7 +2763,7 @@ void USkeletalMeshComponent::HideBone( int32 BoneIndex, EPhysBodyOp PhysBodyOpti
 	}
 	else
 	{
-		UE_LOG(LogSkeletalMesh, Warning, TEXT("HideBone: Invalid Body Index has entered. This component doesn't contain buffer for the given body."));
+		UE_LOG(LogSkeletalMesh, Warning, TEXT("HideBone[%s]: Invalid Body Index (%d) has entered. This component doesn't contain buffer for the given body."), *GetNameSafe(SkeletalMesh), BoneIndex);
 	}
 }
 
@@ -2765,6 +2772,11 @@ void USkeletalMeshComponent::UnHideBone( int32 BoneIndex )
 	Super::UnHideBone(BoneIndex);
 
 	if (!SkeletalMesh)
+	{
+		return;
+	}
+
+	if (MasterPoseComponent.IsValid())
 	{
 		return;
 	}
@@ -2782,7 +2794,7 @@ void USkeletalMeshComponent::UnHideBone( int32 BoneIndex )
 	}
 	else
 	{
-		UE_LOG(LogSkeletalMesh, Warning, TEXT("UnHideBone: Invalid Body Index has entered. This component doesn't contain buffer for the given body."));
+		UE_LOG(LogSkeletalMesh, Warning, TEXT("UnHideBone[%s]: Invalid Body Index (%d) has entered. This component doesn't contain buffer for the given body."), *GetNameSafe(SkeletalMesh), BoneIndex);
 	}
 }
 

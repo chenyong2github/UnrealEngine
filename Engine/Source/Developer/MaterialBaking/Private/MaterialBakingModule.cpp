@@ -407,13 +407,13 @@ void FMaterialBakingModule::ReadTextureOutput(FTextureRenderTargetResource* Rend
 
 					const FFloat16Color MagentaFloat16 = FFloat16Color(FLinearColor(1.0f, 0.0f, 1.0f));
 					FColor& Pixel8 = OutputColor[PixelX + YOffset];
-					/*if (Pixel16 == MagentaFloat16)
+					if (Pixel16 == MagentaFloat16)
 					{
 						Pixel8.R = 255;
 						Pixel8.G = 0;
 						Pixel8.B = 255;
 					}
-					else*/
+					else
 					{
 						Pixel8.R = (uint8)FMath::RoundToInt(Pixel16.R.GetFloat() * Scale);
 						Pixel8.G = (uint8)FMath::RoundToInt(Pixel16.G.GetFloat() * Scale);

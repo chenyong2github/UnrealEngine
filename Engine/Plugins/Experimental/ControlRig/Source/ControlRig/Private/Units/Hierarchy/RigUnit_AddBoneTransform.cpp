@@ -26,7 +26,14 @@ void FRigUnit_AddBoneTransform::Execute(const FRigUnitContext& Context)
 				if (CachedBoneIndex != INDEX_NONE)
 				{
 					FTransform PreviousTransform = Hierarchy->GetGlobalTransform(CachedBoneIndex);
-					Hierarchy->SetGlobalTransform(CachedBoneIndex, Transform * PreviousTransform, bPropagateToChildren);
+					if (bPostMultiply)
+					{
+						Hierarchy->SetGlobalTransform(CachedBoneIndex, PreviousTransform * Transform, bPropagateToChildren);
+					}
+					else
+					{
+						Hierarchy->SetGlobalTransform(CachedBoneIndex, Transform * PreviousTransform, bPropagateToChildren);
+					}
 				}
 			}
 			default:

@@ -624,14 +624,6 @@ FNiagaraEmitterHandle UNiagaraSystem::AddEmitterHandle(UNiagaraEmitter& SourceEm
 	return EmitterHandle;
 }
 
-FNiagaraEmitterHandle UNiagaraSystem::AddEmitterHandleWithoutCopying(UNiagaraEmitter& Emitter)
-{
-	FNiagaraEmitterHandle EmitterHandle(Emitter);
-	EmitterHandles.Add(EmitterHandle);
-	RefreshSystemParametersFromEmitter(EmitterHandle);
-	return EmitterHandle;
-}
-
 FNiagaraEmitterHandle UNiagaraSystem::DuplicateEmitterHandle(const FNiagaraEmitterHandle& EmitterHandleToDuplicate, FName EmitterName)
 {
 	FNiagaraEmitterHandle EmitterHandle(EmitterHandleToDuplicate, EmitterName, *this);

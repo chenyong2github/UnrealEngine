@@ -90,11 +90,6 @@ public:
 		original asset. */
 	FNiagaraEmitterHandle AddEmitterHandle(UNiagaraEmitter& SourceEmitter, FName EmitterName);
 
-	/** Adds a new emitter handle to this System.  The new handle will not copy the emitter and any changes made to it's
-		Instance value will modify the original asset.  This should only be used in the emitter toolkit for simulation
-		purposes. */
-	FNiagaraEmitterHandle AddEmitterHandleWithoutCopying(UNiagaraEmitter& Emitter);
-
 	/** Duplicates an existing emitter handle and adds it to the System.  The new handle will reference the same source asset,
 		but will have a copy of the duplicated Instance value. */
 	FNiagaraEmitterHandle DuplicateEmitterHandle(const FNiagaraEmitterHandle& EmitterHandleToDuplicate, FName EmitterName);

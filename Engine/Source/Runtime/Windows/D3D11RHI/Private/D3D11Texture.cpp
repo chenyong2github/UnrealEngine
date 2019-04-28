@@ -1910,6 +1910,7 @@ void FD3D11DynamicRHI::UpdateTexture2D_RenderThread(
 		RunOnRHIThread([this, Texture, MipIndex, UpdateRegion, SourcePitch, SourceDataCopy]()
 		{
 			RHIUpdateTexture2D(Texture, MipIndex, UpdateRegion, SourcePitch, SourceDataCopy);
+			FMemory::Free(SourceDataCopy);
 		});
 	}
 }

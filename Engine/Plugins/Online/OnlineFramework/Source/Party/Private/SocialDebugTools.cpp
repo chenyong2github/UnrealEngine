@@ -229,7 +229,7 @@ void USocialDebugTools::JoinParty(const FString& Instance, const FString& Friend
 							{
 								if (bWasSuccessful)
 								{
-									TSharedPtr<IOnlinePartyJoinInfo> JoinInfo = OnlineParty->GetAdvertisedParty(UserId, FoundUserId, IOnlinePartySystem::GetPrimaryPartyTypeId());
+									IOnlinePartyJoinInfoConstPtr JoinInfo = OnlineParty->GetAdvertisedParty(UserId, FoundUserId, IOnlinePartySystem::GetPrimaryPartyTypeId());
 									if (JoinInfo.IsValid())
 									{
 										OnlineParty->JoinParty(UserId, *JoinInfo, FOnJoinPartyComplete::CreateLambda([this, Instance, OnlineParty, OnComplete](const FUniqueNetId& UserIdTmp, const FOnlinePartyId& PartyId, const EJoinPartyCompletionResult Result, const int32 NotApprovedReason)
@@ -237,7 +237,7 @@ void USocialDebugTools::JoinParty(const FString& Instance, const FString& Friend
 											bool bSuccess = Result == EJoinPartyCompletionResult::Succeeded;
 											if (bSuccess)
 											{
-												TSharedPtr<FOnlinePartyData> PartyMemberData = GetContext(Instance).GetPartyMemberData();
+												FOnlinePartyDataConstPtr PartyMemberData = GetContext(Instance).GetPartyMemberData();
 												if (PartyMemberData.IsValid())
 												{
 													OnlineParty->UpdatePartyMemberData(UserIdTmp, PartyId, *PartyMemberData);
@@ -259,7 +259,7 @@ void USocialDebugTools::JoinParty(const FString& Instance, const FString& Friend
 					}					
 					else
 					{	
-						TSharedPtr<IOnlinePartyJoinInfo> JoinInfo = GetDefaultPartyJoinInfo();
+						IOnlinePartyJoinInfoConstPtr JoinInfo = GetDefaultPartyJoinInfo();
 						if (JoinInfo.IsValid())
 						{
 							OnlineParty->JoinParty(*LocalUserId, *JoinInfo, FOnJoinPartyComplete::CreateLambda([this, Instance, OnlineParty, OnComplete](const FUniqueNetId& UserId, const FOnlinePartyId& PartyId, const EJoinPartyCompletionResult Result, const int32 NotApprovedReason)
@@ -267,7 +267,7 @@ void USocialDebugTools::JoinParty(const FString& Instance, const FString& Friend
 								bool bSuccess = Result == EJoinPartyCompletionResult::Succeeded;
 								if (bSuccess)
 								{
-									TSharedPtr<FOnlinePartyData> PartyMemberData = GetContext(Instance).GetPartyMemberData();
+									FOnlinePartyDataConstPtr PartyMemberData = GetContext(Instance).GetPartyMemberData();
 									if (PartyMemberData.IsValid())
 									{
 										OnlineParty->UpdatePartyMemberData(UserId, PartyId, *PartyMemberData);
@@ -460,9 +460,9 @@ USocialManager& USocialDebugTools::GetSocialManager() const
 	return *OuterSocialManager;
 }
 
-TSharedPtr<IOnlinePartyJoinInfo> USocialDebugTools::GetDefaultPartyJoinInfo() const
+IOnlinePartyJoinInfoConstPtr USocialDebugTools::GetDefaultPartyJoinInfo() const
 {
-	TSharedPtr<IOnlinePartyJoinInfo> Result;
+	IOnlinePartyJoinInfoConstPtr Result;
 	IOnlineSubsystem* OnlineSub = GetDefaultOSS();
 	if (OnlineSub)
 	{
@@ -718,9 +718,9 @@ void USocialDebugTools::HandlePartyInviteReceived(const FUniqueNetId& LocalUserI
 			IOnlinePartyPtr OnlineParty = Context->GetOSS()->GetPartyInterface();
 			if (OnlineParty.IsValid())
 			{
-				TArray<TSharedRef<IOnlinePartyJoinInfo>> PartyInvites;
+				TArray<TSharedRef<const IOnlinePartyJoinInfo>> PartyInvites;
 				OnlineParty->GetPendingInvites(LocalUserId, PartyInvites);
-				for (const TSharedRef<IOnlinePartyJoinInfo>& Invite : PartyInvites)
+				for (const TSharedRef<const IOnlinePartyJoinInfo>& Invite : PartyInvites)
 				{
 					if (*Invite->GetPartyId() == PartyId)
 					{						
@@ -730,7 +730,7 @@ void USocialDebugTools::HandlePartyInviteReceived(const FUniqueNetId& LocalUserI
 							bool bSuccess = Result == EJoinPartyCompletionResult::Succeeded;
 							if (bSuccess)
 							{
-								TSharedPtr<FOnlinePartyData> PartyMemberData = GetContext(Instance).GetPartyMemberData();
+								FOnlinePartyDataConstPtr PartyMemberData = GetContext(Instance).GetPartyMemberData();
 								if (PartyMemberData.IsValid())
 								{
 									OnlineParty->UpdatePartyMemberData(UserId, PartyIdTmp, *PartyMemberData);

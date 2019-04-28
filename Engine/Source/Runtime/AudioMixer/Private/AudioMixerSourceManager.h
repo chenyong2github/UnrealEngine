@@ -243,7 +243,7 @@ namespace Audio
 		bool IsBus(const int32 SourceId) const;
 		void PumpCommandQueue();
 		void UpdatePendingReleaseData(bool bForceWait = false);
-		void FlushCommandQueue();
+		void FlushCommandQueue(bool bPumpCommandQueue = false);
 	private:
 
 		void ReleaseSource(const int32 SourceId);
@@ -547,6 +547,9 @@ namespace Audio
 		int32 NumOutputFrames;
 		int32 NumOutputSamples;
 		int32 NumSourceWorkers;
+
+		// Commands queued up to execute
+		FThreadSafeCounter NumCommands;
 
 		uint8 bInitialized : 1;
 		uint8 bUsingSpatializationPlugin : 1;

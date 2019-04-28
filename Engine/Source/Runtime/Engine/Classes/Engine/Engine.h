@@ -2050,6 +2050,13 @@ public:
 	 */
 	void UpdateTimeAndHandleMaxTickRate();
 
+	/**
+	 * Allows games to correct the negative delta
+	 *
+	 * @return new delta
+	 */
+	virtual double CorrectNegativeTimeDelta(double DeltaRealTime);
+
 	/** Causes the current CustomTimeStep to be shut down and then reinitialized. */
 	void ReinitializeCustomTimeStep();
 

@@ -86,6 +86,9 @@ TSharedRef< FSlateStyleSet > FUMGStyle::Create()
 
 	Style->Set("ClassIcon.UserWidget", new IMAGE_BRUSH(TEXT("UserWidget"), Icon16x16));
 
+	Style->Set("ClassIcon.DetailsView", new IMAGE_BRUSH(TEXT("icon_umg_DetailView_16x"), Icon16x16));
+	Style->Set("ClassIcon.SinglePropertyView", new IMAGE_BRUSH(TEXT("icon_umg_SinglePropertyView_16x"), Icon16x16));
+
 	Style->Set("Animations.TabIcon", new IMAGE_BRUSH(TEXT("Animations_16x"), Icon16x16));
 	Style->Set("Designer.TabIcon", new IMAGE_BRUSH(TEXT("Designer_16x"), Icon16x16));
 	Style->Set("Palette.TabIcon", new IMAGE_BRUSH(TEXT("Palette_16x"), Icon16x16));

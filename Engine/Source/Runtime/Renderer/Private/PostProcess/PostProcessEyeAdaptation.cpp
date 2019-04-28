@@ -46,6 +46,14 @@ TAutoConsoleVariable<float> CVarEyeAdaptationFocus(
 	TEXT(">0: Center focus, 1 is a good number (default)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+TAutoConsoleVariable<int32> CVarEyeAdaptationBasicCompute(
+	TEXT("r.EyeAdaptation.Basic.Compute"),
+	1,
+	TEXT("Use Pixel or Compute Shader to compute the basic eye adaptation. \n")
+	TEXT("= 0 : Pixel Shader\n")
+	TEXT("> 0 : Compute Shader (default) \n"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 /**
  *   Shared functionality used in computing the eye-adaptation parameters
  *   Compute the parameters used for eye-adaptation.  These will default to values
@@ -625,19 +633,13 @@ FPooledRenderTargetDesc FRCPassPostProcessBasicEyeAdaptationSetUp::ComputeOutput
 
 
 
-/** Encapsulates the post process computation of the exposure scale  pixel shader. */
-class FPostProcessLogLuminance2ExposureScalePS : public FGlobalShader
+class FPostProcessLogLuminance2ExposureScaleBase: public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPostProcessLogLuminance2ExposureScalePS, Global);
-
-
-
 public:
-	/** Default constructor. */
-	FPostProcessLogLuminance2ExposureScalePS() {}
 
-	/** Initialization constructor. */
-	FPostProcessLogLuminance2ExposureScalePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	FPostProcessLogLuminance2ExposureScaleBase() {}
+
+	FPostProcessLogLuminance2ExposureScaleBase(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
 		PostprocessParameter.Bind(Initializer.ParameterMap);
@@ -646,19 +648,54 @@ public:
 		EyeAdaptationSrcRect.Bind(Initializer.ParameterMap, TEXT("EyeAdaptionSrcRect"));
 	}
 
-public:
-
 	/** Static Shader boilerplate */
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, BasicEyeAdaptationMinFeatureLevel);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetRenderTargetOutputFormat(0, PF_A32B32G32R32F);
 		OutEnvironment.SetDefine(TEXT("EYE_ADAPTATION_PARAMS_SIZE"), (uint32)EYE_ADAPTATION_PARAMS_SIZE);
+	}
+
+	// FShader interface.
+	virtual bool Serialize(FArchive& Ar) override
+	{
+		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
+		Ar << PostprocessParameter << EyeAdaptationTexture
+			<< EyeAdaptationParams << EyeAdaptationSrcRect;
+		return bShaderHasOutdatedParameters;
+	}
+
+protected:
+	FPostProcessPassParameters	PostprocessParameter;
+	FShaderResourceParameter	EyeAdaptationTexture;
+	FShaderParameter			EyeAdaptationParams;
+	FShaderParameter			EyeAdaptationSrcRect;
+};
+
+
+
+/** Encapsulates the post process computation of the exposure scale pixel shader. */
+class FPostProcessLogLuminance2ExposureScalePS : public FPostProcessLogLuminance2ExposureScaleBase
+{
+	DECLARE_SHADER_TYPE(FPostProcessLogLuminance2ExposureScalePS, Global);
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, BasicEyeAdaptationMinFeatureLevel);
+	}
+
+
+	/** Default constructor. */
+	FPostProcessLogLuminance2ExposureScalePS()
+		: FPostProcessLogLuminance2ExposureScaleBase()
+	{}
+
+	/** Initialization constructor. */
+	FPostProcessLogLuminance2ExposureScalePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FPostProcessLogLuminance2ExposureScaleBase(Initializer)
+	{
 	}
 
 
@@ -697,24 +734,91 @@ public:
 		// Set the src extent for the shader
 		SetShaderValue(Context.RHICmdList, ShaderRHI, EyeAdaptationSrcRect, SrcRect);
 	}
+};
+IMPLEMENT_SHADER_TYPE(, FPostProcessLogLuminance2ExposureScalePS, TEXT("/Engine/Private/PostProcessEyeAdaptation.usf"), TEXT("MainLogLuminance2ExposureScalePS"), SF_Pixel);
+
+
+class FPostProcessLogLuminance2ExposureScaleCS : public FPostProcessLogLuminance2ExposureScaleBase
+{
+	DECLARE_SHADER_TYPE(FPostProcessLogLuminance2ExposureScaleCS, Global);
+
+
+public:
+
+	/** Default constructor. */
+	FPostProcessLogLuminance2ExposureScaleCS()
+		: FPostProcessLogLuminance2ExposureScaleBase()
+	{}
+
+	/** Initialization constructor. */
+	FPostProcessLogLuminance2ExposureScaleCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FPostProcessLogLuminance2ExposureScaleBase(Initializer)
+	{
+		OutComputeTex.Bind(Initializer.ParameterMap, TEXT("OutputComputeTex"));
+	}
+
+	/** Static Shader boilerplate */
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
 
 	// FShader interface.
 	virtual bool Serialize(FArchive& Ar) override
 	{
 		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << EyeAdaptationTexture 
-			<< EyeAdaptationParams << EyeAdaptationSrcRect;
+		Ar << PostprocessParameter << EyeAdaptationTexture
+			<< EyeAdaptationParams << EyeAdaptationSrcRect << OutComputeTex;
 		return bShaderHasOutdatedParameters;
 	}
 
-private:
-	FPostProcessPassParameters PostprocessParameter;
-	FShaderResourceParameter EyeAdaptationTexture;
-	FShaderParameter EyeAdaptationParams;
-	FShaderParameter EyeAdaptationSrcRect;
-};
 
-IMPLEMENT_SHADER_TYPE(, FPostProcessLogLuminance2ExposureScalePS, TEXT("/Engine/Private/PostProcessEyeAdaptation.usf"), TEXT("MainLogLuminance2ExposureScalePS"), SF_Pixel);
+	void UnsetParameters(const FRenderingCompositePassContext& Context)
+	{
+		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		OutComputeTex.UnsetUAV(Context.RHICmdList, ShaderRHI);
+	}
+
+	void SetParameters(const FRenderingCompositePassContext& Context, const FIntRect& SrcRect, IPooledRenderTarget* LastEyeAdaptation, FUnorderedAccessViewRHIParamRef DestUAV)
+	{
+		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
+		PostprocessParameter.SetCS(ShaderRHI, Context, Context.RHICmdList, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+
+		// Associate the eye adaptation buffer from the previous frame with a texture to be read in this frame. 
+		if (Context.View.HasValidEyeAdaptation())
+		{
+			SetTextureParameter(Context.RHICmdList, ShaderRHI, EyeAdaptationTexture, LastEyeAdaptation->GetRenderTargetItem().TargetableTexture);
+		}
+		else // some views don't have a state, thumbnail rendering?
+		{
+			SetTextureParameter(Context.RHICmdList, ShaderRHI, EyeAdaptationTexture, GWhiteTexture->TextureRHI);
+		}
+
+		// Pack the eye adaptation parameters for the shader
+		{
+			FVector4 Temp[EYE_ADAPTATION_PARAMS_SIZE];
+			// static computation function
+			ComputeEyeAdaptationValues(BasicEyeAdaptationMinFeatureLevel, Context.View, Temp);
+			// Log-based computation of the exposure scale has a built in scaling.
+			//Temp[1].X *= 0.16;  
+			//Encode the eye-focus slope
+			// Get the focus value for the eye-focus weighting
+			Temp[2].W = GetBasicAutoExposureFocus();
+			SetShaderValueArray(Context.RHICmdList, ShaderRHI, EyeAdaptationParams, Temp, EYE_ADAPTATION_PARAMS_SIZE);
+		}
+
+		// Set the src extent for the shader
+		SetShaderValue(Context.RHICmdList, ShaderRHI, EyeAdaptationSrcRect, SrcRect);
+		OutComputeTex.SetTexture(Context.RHICmdList, ShaderRHI, nullptr, DestUAV);
+	}
+	private:
+
+	FRWShaderParameter			OutComputeTex;
+};
+IMPLEMENT_SHADER_TYPE(, FPostProcessLogLuminance2ExposureScaleCS, TEXT("/Engine/Private/PostProcessEyeAdaptation.usf"), TEXT("MainLogLuminance2ExposureScaleCS"), SF_Compute);
+
 
 void FRCPassPostProcessBasicEyeAdaptation::Process(FRenderingCompositePassContext& Context)
 {
@@ -750,44 +854,64 @@ void FRCPassPostProcessBasicEyeAdaptation::Process(FRenderingCompositePassContex
 
 	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Load_Store);
 	TransitionRenderPassTargets(Context.RHICmdList, RPInfo);
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("BasicEyeAdaptation"));
+		
+	bool IsCompute = (CVarEyeAdaptationBasicCompute.GetValueOnRenderThread()>0) && (Context.View.GetFeatureLevel() >= ERHIFeatureLevel::SM5);
+	if (IsCompute)
 	{
-		Context.SetViewportAndCallRHI(0, 0, 0.0f, DestSize.X, DestSize.Y, 1.0f);
+		WaitForInputPassComputeFences(Context.RHICmdList);
 
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+		// #todo-renderpasses remove once everything is renderpasses
+		UnbindRenderTargets(Context.RHICmdList);
+		TShaderMapRef<FPostProcessLogLuminance2ExposureScaleCS> ComputeShader(Context.GetShaderMap());
+		Context.RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
 
-		TShaderMapRef<FPostProcessVS> VertexShader(Context.GetShaderMap());
-		TShaderMapRef<FPostProcessLogLuminance2ExposureScalePS> PixelShader(Context.GetShaderMap());
-
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-		SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-		// Set the parameters used by the pixel shader.
-
-		PixelShader->SetPS(Context, SrcRect, EyeAdaptationLastFrameRT);
-
-		// Draw a quad mapping scene color to the view's render target
-		DrawRectangle(
-			Context.RHICmdList,
-			0, 0,
-			DestSize.X, DestSize.Y,
-			0, 0,
-			DestSize.X, DestSize.Y,
-			DestSize,
-			DestSize,
-			*VertexShader,
-			EDRF_UseTriangleOptimization);
+		Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV);
+		ComputeShader->SetParameters(Context, SrcRect, EyeAdaptationLastFrameRT, DestRenderTarget.UAV);
+		DispatchComputeShader(Context.RHICmdList, *ComputeShader, 1, 1, 1);
+		ComputeShader->UnsetParameters(Context);
+		Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, DestRenderTarget.UAV);
 	}
-	Context.RHICmdList.EndRenderPass();
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
+	else
+	{
+		Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("BasicEyeAdaptation"));
+		{
+			Context.SetViewportAndCallRHI(0, 0, 0.0f, DestSize.X, DestSize.Y, 1.0f);
+
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+			TShaderMapRef<FPostProcessVS> VertexShader(Context.GetShaderMap());
+			TShaderMapRef<FPostProcessLogLuminance2ExposureScalePS> PixelShader(Context.GetShaderMap());
+
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+			SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
+
+			// Set the parameters used by the pixel shader.
+
+			PixelShader->SetPS(Context, SrcRect, EyeAdaptationLastFrameRT);
+
+			// Draw a quad mapping scene color to the view's render target
+			DrawRectangle(
+				Context.RHICmdList,
+				0, 0,
+				DestSize.X, DestSize.Y,
+				0, 0,
+				DestSize.X, DestSize.Y,
+				DestSize,
+				DestSize,
+				*VertexShader,
+				EDRF_UseTriangleOptimization);
+		}
+		Context.RHICmdList.EndRenderPass();
+		Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
+	}
 
 	// Inform MultiGPU systems that we've finished with this texture for this frame
 	Context.RHICmdList.EndUpdateMultiFrameResource(DestRenderTarget.ShaderResourceTexture);
@@ -804,6 +928,11 @@ FPooledRenderTargetDesc FRCPassPostProcessBasicEyeAdaptation::ComputeOutputDesc(
 
 	Ret.DebugName = TEXT("EyeAdaptationBasic");
 	Ret.Flags |= GFastVRamConfig.EyeAdaptation;
+
+	if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
+	{
+		Ret.Flags |= TexCreate_UAV;
+	}
 	return Ret;
 }
 

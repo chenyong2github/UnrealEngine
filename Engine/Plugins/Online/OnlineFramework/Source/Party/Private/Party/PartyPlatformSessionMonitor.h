@@ -14,7 +14,7 @@ class FPartyPlatformSessionMonitor;
 
 struct FPartyRepData;
 struct FPartyConfiguration;
-enum class EMemberExitedReason;
+enum class EMemberExitedReason : uint8;
 
 class FPartyPlatformSessionManager : public TSharedFromThis<FPartyPlatformSessionManager>
 {

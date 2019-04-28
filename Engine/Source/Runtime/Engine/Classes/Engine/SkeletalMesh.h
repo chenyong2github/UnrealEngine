@@ -954,13 +954,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Animation")
 	USkeletalMeshSocket* GetSocketByIndex(int32 Index) const;
 
-#if !WITH_EDITOR
-private:
-	/** Called internally to rebuild an invalid socket map */
+	/** Called to rebuild an out-of-date or invalid socket map */
 	void RebuildSocketMap();
-
-public:
-#endif
 
 	// @todo document
 	FMatrix GetRefPoseMatrix( int32 BoneIndex ) const;

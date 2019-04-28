@@ -49,6 +49,7 @@ public:
 	virtual void StartTask() = 0;
 	virtual bool Tick() = 0;
 	virtual FName GetName() const = 0;
+	virtual bool ShouldPausePlayback() const { return true; }
 
 	TWeakObjectPtr<UDemoNetDriver> Driver;
 };
@@ -622,6 +623,8 @@ public:
 	virtual void ProcessLocalClientPackets() override {}
 
 	virtual void InitDestroyedStartupActors() override;
+
+	virtual void SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider) override;
 
 protected:
 	virtual UChannel* InternalCreateChannelByName(const FName& ChName) override;

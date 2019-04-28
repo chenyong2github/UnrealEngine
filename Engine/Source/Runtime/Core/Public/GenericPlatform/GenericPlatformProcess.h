@@ -173,7 +173,14 @@ struct CORE_API FGenericPlatformProcess
 	 * @return the ProcessId of this process.
 	 */
 	static uint32 GetCurrentProcessId();
-	
+
+	/**
+	 * Retrieves the current hardware CPU core
+	 *
+	 * @return the current hardware core.
+	 */
+	static uint32 GetCurrentCoreNumber();
+
 	/**	 
 	 * Change the thread processor affinity
 	 *

@@ -916,7 +916,7 @@ bool ULandscapeComponent::AreTexturesStreamedForGrassMapRender() const
 void ULandscapeComponent::RenderGrassMap()
 {
 	UMaterialInterface* Material = GetLandscapeMaterial();
-	if (CanRenderGrassMap())
+	if (ensure(CanRenderGrassMap()))
 	{
 		TArray<ULandscapeGrassType*> GrassTypes;
 
@@ -2448,6 +2448,7 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, bool bForceSyn
 												LOD.OverrideMapBuildData = MakeUnique<FMeshMapBuildData>();
 												LOD.OverrideMapBuildData->LightMap = GrassLightMap;
 												LOD.OverrideMapBuildData->ShadowMap = GrassShadowMap;
+												LOD.OverrideMapBuildData->ResourceCluster = MeshMapBuildData->ResourceCluster;
 											}
 										}
 
