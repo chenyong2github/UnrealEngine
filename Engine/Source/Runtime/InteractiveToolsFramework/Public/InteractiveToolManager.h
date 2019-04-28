@@ -19,8 +19,9 @@ enum class EToolSide
 {
 	/** Left-hand Tool, also used for Mouse */
 	Left = 1,
+	Mouse = 1,
 	/** Right-hand Tool*/
-	Right = 2
+	Right = 2,
 };
 
 
@@ -95,7 +96,14 @@ public:
 	 * @param Side which Side to check
 	 * @return true if there is an active Tool on that side
 	 */
-	virtual bool HasActiveTool(EToolSide Side);
+	virtual bool HasActiveTool(EToolSide Side) const;
+
+
+	/**
+	 * @return true if there are any active tools
+	 */
+	virtual bool HasAnyActiveTool() const;
+
 
 	/**
 	 * Get pointer to active Tool on a given side

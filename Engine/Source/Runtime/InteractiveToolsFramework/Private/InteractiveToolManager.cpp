@@ -153,10 +153,16 @@ void UInteractiveToolManager::DeactivateTool(EToolSide Side, EToolShutdownType S
 }
 
 
-bool UInteractiveToolManager::HasActiveTool(EToolSide Side)
+bool UInteractiveToolManager::HasActiveTool(EToolSide Side) const
 {
 	return (Side == EToolSide::Left) ? (ActiveLeftTool != nullptr) : (ActiveRightTool != nullptr);
 }
+
+bool UInteractiveToolManager::HasAnyActiveTool() const
+{
+	return ActiveLeftTool != nullptr || ActiveRightTool != nullptr;
+}
+
 
 UInteractiveTool* UInteractiveToolManager::GetActiveTool(EToolSide Side)
 {

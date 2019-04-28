@@ -223,6 +223,41 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 
 	bool bHandled = false;
 
+
+	// escape key cancels current tool
+	// @todo also cancels current selection, and only works if viewport is focused :(
+	if (Key == EKeys::Escape && Event == IE_Released && ToolManager->HasAnyActiveTool() )
+	{
+		if (ToolManager->HasActiveTool(EToolSide::Mouse))
+		{
+			ToolManager->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Cancel);
+		}
+		return true;
+	}
+
+	// enter key accepts current tool, or ends tool if it does not have accept state
+	if (Key == EKeys::Enter && Event == IE_Released && ToolManager->HasAnyActiveTool())
+	{
+		if (ToolManager->HasActiveTool(EToolSide::Mouse)) 
+		{
+			if (ToolManager->GetActiveTool(EToolSide::Mouse)->HasAccept())
+			{
+				if (ToolManager->CanAcceptActiveTool(EToolSide::Mouse))
+				{
+					ToolManager->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Accept);
+					return true;
+				}
+			}
+			else
+			{
+				ToolManager->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Completed);
+				return true;
+			}
+		}
+	}
+
+
+
 	if (Event == IE_Pressed || Event == IE_Released)
 	{
 		bool bIsLeftMouse = (Key == EKeys::LeftMouseButton);
