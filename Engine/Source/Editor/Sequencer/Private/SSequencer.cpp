@@ -1798,6 +1798,9 @@ void SSequencer::OnOutlinerSearchChanged( const FText& Filter )
 		const FString FilterString = Filter.ToString();
 
 		Sequencer->GetNodeTree()->FilterNodes( FilterString );
+
+		Sequencer->GetNodeTree()->Update();
+
 		TreeView->Refresh();
 
 		if ( FilterString.StartsWith( TEXT( "label:" ) ) )

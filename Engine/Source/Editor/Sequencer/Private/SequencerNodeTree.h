@@ -164,7 +164,7 @@ private:
 	/** Mapping of object binding guids to their node (for fast lookup) */
 	TMap< FGuid, TSharedPtr<FSequencerObjectBindingNode> > ObjectBindingMap;
 	/** Set of all filtered nodes */
-	TSet< TSharedRef<const FSequencerDisplayNode> > FilteredNodes;
+	TSet< TSharedRef<FSequencerDisplayNode> > FilteredNodes;
 	/** Cardinal hovered node */
 	TSharedPtr<FSequencerDisplayNode> HoveredNode;
 	/** Active filter string if any */

@@ -577,9 +577,16 @@ bool FSequencerNodeTree::GetDefaultExpansionState( const FSequencerDisplayNode& 
 }
 
 
-bool FSequencerNodeTree::IsNodeFiltered( const TSharedRef<const FSequencerDisplayNode> Node ) const
+bool FSequencerNodeTree::IsNodeFiltered(const TSharedRef<const FSequencerDisplayNode> Node) const
 {
-	return FilteredNodes.Contains( Node );
+	for (auto It = FilteredNodes.CreateConstIterator(); It; ++It)
+	{
+		if ((*It) == Node)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 void FSequencerNodeTree::SetHoveredNode(const TSharedPtr<FSequencerDisplayNode>& InHoveredNode)
@@ -595,7 +602,7 @@ const TSharedPtr<FSequencerDisplayNode>& FSequencerNodeTree::GetHoveredNode() co
 	return HoveredNode;
 }
 
-static void AddChildNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<const FSequencerDisplayNode>>& OutFilteredNodes)
+static void AddChildNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes)
 {
 	OutFilteredNodes.Add(StartNode);
 
@@ -608,24 +615,39 @@ static void AddChildNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, TS
 /*
  * Add node as filtered and include any parent folders
  */
-static void AddFilteredNode(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<const FSequencerDisplayNode>>& OutFilteredNodes)
+static void AddFilteredNode(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes)
 {
+	if (!StartNode->IsExpanded())
+	{
+		StartNode->SetExpansionState(true);
+	}
+
 	AddChildNodes(StartNode, OutFilteredNodes);
 
 	// Gather parent folders up the chain
 	TSharedPtr<FSequencerDisplayNode> ParentNode = StartNode->GetParent();
 	while (ParentNode.IsValid() && ParentNode.Get()->GetType() == ESequencerNode::Folder)
 	{
+		if (!ParentNode.Get()->IsExpanded())
+		{
+			ParentNode.Get()->SetExpansionState(true);
+		}
+
 		OutFilteredNodes.Add(ParentNode.ToSharedRef());
 		ParentNode = ParentNode->GetParent();
 	}
 }
 
-static void AddParentNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<const FSequencerDisplayNode>>& OutFilteredNodes)
+static void AddParentNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes)
 {
 	TSharedPtr<FSequencerDisplayNode> ParentNode = StartNode->GetParent();
 	if (ParentNode.IsValid())
 	{
+		if (!ParentNode.Get()->IsExpanded())
+		{
+			ParentNode.Get()->SetExpansionState(true);
+		}
+
 		OutFilteredNodes.Add(ParentNode.ToSharedRef());
 		AddParentNodes(ParentNode.ToSharedRef(), OutFilteredNodes);
 	}
@@ -639,7 +661,7 @@ static void AddParentNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, T
  * @param OutFilteredNodes	The list of all filtered nodes
  * @return Whether the text filter was passed
  */
-static bool FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSequencerDisplayNode>& StartNode, const TArray<FString>& FilterStrings, TSet<TSharedRef<const FSequencerDisplayNode>>& OutFilteredNodes )
+static bool FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSequencerDisplayNode>& StartNode, const TArray<FString>& FilterStrings, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes )
 {
 	// check labels - only one of the labels needs to match
 	bool bMatchedLabel = false;
