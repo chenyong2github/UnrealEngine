@@ -78,7 +78,7 @@ public:
 #endif
 
 	/** Initialization constructor. */
-	explicit FAtmosphericFogSceneInfo(UAtmosphericFogComponent* InComponent, const FScene* InScene);
+	explicit FAtmosphericFogSceneInfo(const UAtmosphericFogComponent* InComponent);
 	~FAtmosphericFogSceneInfo();
 
 	/** Prepare the sun light data as a function of current atmospheric fog state. */
@@ -102,8 +102,6 @@ private:
 
 private:
 	const FLinearColor TransmittanceAtZenith;
-
-	FLinearColor GetTransmittance(const FVector& SunDirection) const;
 };
 
 bool ShouldRenderAtmosphere(const FSceneViewFamily& Family);

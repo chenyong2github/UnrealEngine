@@ -87,6 +87,11 @@ struct FAtmospherePrecomputeParameters
 			|| (InscatterMuSNum != Other.InscatterMuSNum)
 			|| (InscatterNuNum != Other.InscatterNuNum);
 	}
+
+	float GetRHeight() const
+	{
+		return DensityHeight * DensityHeight * DensityHeight * 64.f; // This formula is used for legacy conversion reason. In itself it does not make any sense.
+	}
 };
 
 /**
@@ -276,6 +281,74 @@ public:
 
 	void ApplyComponentInstanceData(struct FAtmospherePrecomputeInstanceData* ComponentInstanceData);
 	const FAtmospherePrecomputeParameters& GetPrecomputeParameters() const { return PrecomputeParams;  }
+
+	/** 
+	 * This needs to be in this header to be accessible to Lightmass.
+	 * @return colored transmittance given the atmosphere component current state and for SunDirection. 
+	 */
+	static FLinearColor GetTransmittance(const FVector& SunDirection, float AtmosphericFogHeightScaleRayleigh)
+	{
+		// Code from HLSL here as lambda function. It will simulate atmosphere transmittance according to the current sky hardcoded parameterization.
+		// This will change in the future when the sky parameterization and workflow/ui will be updated.
+
+		const float RadiusGround = 6360;
+		const float RadiusAtmosphere = 6420;
+		const int TransmittanceIntegralSamples = 10;
+		const float RadiusLimit = RadiusAtmosphere;
+		const FVector BetaRayleighScattering(5.8e-3f, 1.35e-2f, 3.31e-2f);
+		const FVector BetaMieScattering = FVector(4e-3f, 4e-3f, 4e-3f);
+		const float HeightScaleMie = 1.2f;
+		const float BetaRatio = 0.9f;
+		const FVector BetaMieExtinction = BetaMieScattering / BetaRatio;
+
+		auto Limit = [&](float Radius, float Mu)
+		{
+			float Dout = -Radius * Mu + FMath::Sqrt(Radius * Radius * (Mu * Mu - 1.0) + RadiusLimit * RadiusLimit);
+			float Delta2 = Radius * Radius * (Mu * Mu - 1.0) + RadiusGround * RadiusGround;
+			if (Delta2 >= 0.0)
+			{
+				float Din = -Radius * Mu - FMath::Sqrt(Delta2);
+				if (Din >= 0.0)
+				{
+					Dout = FMath::Min(Dout, Din);
+				}
+			}
+			return Dout;
+		};
+
+		auto OpticalDepth = [&](float H, float Radius, float Mu)
+		{
+			float Result = 0.0;
+			float Dx = Limit(Radius, Mu) / float(TransmittanceIntegralSamples);
+			float Xi = 0.0;
+			float Yi = FMath::Exp(-(Radius - RadiusGround) / H);
+			for (int I = 1; I <= TransmittanceIntegralSamples; ++I)
+			{
+				float Xj = float(I) * Dx;
+				float Yj = FMath::Exp(-(FMath::Sqrt(Radius * Radius + Xj * Xj + 2.0 * Xj * Radius * Mu) - RadiusGround) / H);
+				Result += (Yi + Yj) / 2.0 * Dx;
+				Xi = Xj;
+				Yi = Yj;
+			}
+			return Mu < -FMath::Sqrt(1.0 - (RadiusGround / Radius) * (RadiusGround / Radius)) ? 1e9 : Result;
+		};
+
+		// GetTransmittanceRMuS linear version, assuming we are always close to the ground
+		const float Radius = RadiusGround;
+		float Mu = SunDirection.Z;
+		FVector OpticalDepthRGB = BetaRayleighScattering * OpticalDepth(AtmosphericFogHeightScaleRayleigh, Radius, Mu) + BetaMieExtinction * OpticalDepth(HeightScaleMie, Radius, Mu);
+		OpticalDepthRGB.ComponentMax(FVector(ForceInitToZero));
+
+		return FLinearColor(FMath::Exp(-OpticalDepthRGB.X), FMath::Exp(-OpticalDepthRGB.Y), FMath::Exp(-OpticalDepthRGB.Z));
+	}
+	/**
+	 * This needs to be in this header to be accessible to Lightmass.
+	 * @return colored transmittance given the atmosphere component current state and for SunDirection.
+	 */
+	FLinearColor GetTransmittance(const FVector& SunDirection) const
+	{
+		return GetTransmittance(SunDirection, GetPrecomputeParameters().GetRHeight());
+	}
 
 private:
 #if WITH_EDITORONLY_DATA

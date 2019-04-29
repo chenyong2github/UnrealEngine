@@ -304,19 +304,12 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 
 	StaticShadowDepthMap = &LightComponent->StaticShadowDepthMap;
 
-	// Brightness in Lumens
-	float LightBrightness = InLightComponent->ComputeLightBrightness();
-
 	if(LightComponent->IESTexture)
 	{
 		IESTexture = LightComponent->IESTexture;
 	}
-
-	Color = FLinearColor(InLightComponent->LightColor) * LightBrightness;
-	if( InLightComponent->bUseTemperature )
-	{
-		Color *= FLinearColor::MakeFromColorTemperature(InLightComponent->Temperature);
-	}
+	 
+	Color = LightComponent->GetColoredLightBrightness();
 
 	if(LightComponent->LightFunctionMaterial &&
 		LightComponent->LightFunctionMaterial->GetMaterial()->MaterialDomain == MD_LightFunction )
@@ -1229,6 +1222,19 @@ void ULightComponent::InitializeStaticShadowDepthMap()
 
 		BeginInitResource(&StaticShadowDepthMap);
 	}
+}
+
+FLinearColor ULightComponent::GetColoredLightBrightness() const
+{
+	// Brightness in Lumens
+	float LightBrightness = ComputeLightBrightness();
+	FLinearColor Energy = FLinearColor(LightColor) * LightBrightness;
+	if (bUseTemperature)
+	{
+		Energy *= FLinearColor::MakeFromColorTemperature(Temperature);
+	}
+
+	return Energy;
 }
 
 UMaterialInterface* ULightComponent::GetMaterial(int32 ElementIndex) const

@@ -423,6 +423,8 @@ public:
 
 	void InitializeStaticShadowDepthMap();
 
+	FLinearColor GetColoredLightBrightness() const;
+
 	/** 
 	 * Called when property is modified by InterpPropertyTracks
 	 *
