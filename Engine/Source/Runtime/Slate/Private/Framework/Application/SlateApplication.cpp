@@ -1543,7 +1543,7 @@ void FSlateApplication::PrivateDrawWindows( TSharedPtr<SWindow> DrawOnlyThisWind
 			for( TArray< TSharedRef<SWindow> >::TConstIterator CurrentWindowIt( SlateWindows ); CurrentWindowIt; ++CurrentWindowIt )
 			{
 				const TSharedRef<SWindow>& CurrentWindow = *CurrentWindowIt;
-				if ( CurrentWindow->IsTopmostWindow() )
+				if ( CurrentWindow->GetType() == EWindowType::ToolTip )
 				{
 					DrawWindowAndChildren(CurrentWindow, DrawWindowArgs);
 				}
