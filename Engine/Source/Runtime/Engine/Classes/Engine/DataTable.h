@@ -335,7 +335,7 @@ public:
 	ENGINE_API TArray<FString> CreateTableFromJSONString(const FString& InString);
 
 	/** Get array of UProperties that corresponds to columns in the table */
-	TArray<UProperty*> GetTablePropertyArray(const TArray<const TCHAR*>& Cells, UStruct* RowStruct, TArray<FString>& OutProblems, bool bIncludeNameColumn = false);
+	TArray<UProperty*> GetTablePropertyArray(const TArray<const TCHAR*>& Cells, UStruct* RowStruct, TArray<FString>& OutProblems, int32 KeyColumn = 0);
 	
 	/** 
 	 *	Create table from another Data Table

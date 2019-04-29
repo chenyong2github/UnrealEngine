@@ -449,7 +449,7 @@ bool FDataTableImporterJSON::ReadRow(const TSharedRef<FJsonObject>& InParsedTabl
 	// Check its not 'none'
 	if (RowName.IsNone())
 	{
-		ImportProblems.Add(FString::Printf(TEXT("Row '%d' missing a name."), InRowIdx));
+		ImportProblems.Add(FString::Printf(TEXT("Row '%d' missing key field '%s'."), InRowIdx, *RowKey));
 		return false;
 	}
 

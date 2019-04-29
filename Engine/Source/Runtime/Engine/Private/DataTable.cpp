@@ -93,7 +93,7 @@ void UDataTable::LoadStructData(FArchive& Ar)
 	UScriptStruct* LoadUsingStruct = RowStruct;
 	if (!LoadUsingStruct)
 	{
-		if (!HasAnyFlags(RF_ClassDefaultObject))
+		if (!HasAnyFlags(RF_ClassDefaultObject) && GetOutermost() != GetTransientPackage())
 		{
 			UE_LOG(LogDataTable, Error, TEXT("Missing RowStruct while loading DataTable '%s'!"), *GetPathName());
 		}
@@ -129,7 +129,7 @@ void UDataTable::SaveStructData(FArchive& Ar)
 	UScriptStruct* SaveUsingStruct = RowStruct;
 	if (!SaveUsingStruct)
 	{
-		if (!HasAnyFlags(RF_ClassDefaultObject))
+		if (!HasAnyFlags(RF_ClassDefaultObject) && GetOutermost() != GetTransientPackage())
 		{
 			UE_LOG(LogDataTable, Error, TEXT("Missing RowStruct while saving DataTable '%s'!"), *GetPathName());
 		}
@@ -318,7 +318,7 @@ UScriptStruct& UDataTable::GetEmptyUsingStruct() const
 	UScriptStruct* EmptyUsingStruct = RowStruct;
 	if (!EmptyUsingStruct)
 	{
-		if (!HasAnyFlags(RF_ClassDefaultObject))
+		if (!HasAnyFlags(RF_ClassDefaultObject) && GetOutermost() != GetTransientPackage())
 		{
 			UE_LOG(LogDataTable, Error, TEXT("Missing RowStruct while emptying DataTable '%s'!"), *GetPathName());
 		}
@@ -589,7 +589,7 @@ bool UDataTable::WriteTableAsJSONObject(const TSharedRef< TJsonWriter<TCHAR, TPr
 }
 #endif
 
-TArray<UProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>& Cells, UStruct* InRowStruct, TArray<FString>& OutProblems, bool bIncludeNameColumn)
+TArray<UProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>& Cells, UStruct* InRowStruct, TArray<FString>& OutProblems, int32 KeyColumn)
 {
 	TArray<UProperty*> ColumnProps;
 
@@ -602,8 +602,13 @@ TArray<UProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>&
 		ColumnProps.AddZeroed( Cells.Num() );
 
 		// Skip first column depending on option
-		for (int32 ColIdx = bIncludeNameColumn ? 0 : 1; ColIdx < Cells.Num(); ++ColIdx)
+		for (int32 ColIdx = 0; ColIdx < Cells.Num(); ++ColIdx)
 		{
+			if (ColIdx == KeyColumn)
+			{
+				continue;
+			}
+
 			const TCHAR* ColumnValue = Cells[ColIdx];
 
 			FName PropName = DataTableUtils::MakeValidName(ColumnValue);
