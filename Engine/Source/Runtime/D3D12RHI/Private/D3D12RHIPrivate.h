@@ -461,6 +461,8 @@ public:
 		return RHICreateRenderQuery(QueryType);
 	}
 
+	virtual void RHICopySubTextureRegion(FTexture2DRHIParamRef SourceTexture, FTexture2DRHIParamRef DestinationTexture, FBox2D SourceBox, FBox2D DestinationBox) final override;
+
 	void RHICalibrateTimers() override;
 
 #if D3D12_RHI_RAYTRACING
