@@ -606,23 +606,28 @@ public:
 	virtual EStreamingOperationResult GetDemoPath(FString& DemoPath) const = 0;
 
 	virtual void SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider>& InProvider) {}
+
+	virtual void Exec(const TCHAR* Cmd, FOutputDevice& Ar) {}
 };
 
 /** Replay streamer factory */
 class INetworkReplayStreamingFactory : public IModuleInterface
 {
 public:
-	virtual TSharedPtr< INetworkReplayStreamer > CreateReplayStreamer() = 0;
+	virtual TSharedPtr<INetworkReplayStreamer> CreateReplayStreamer() = 0;
 	virtual void Flush() {}
 };
 
 /** Replay streaming factory manager */
-class FNetworkReplayStreaming : public IModuleInterface
+class FNetworkReplayStreaming : public IModuleInterface, public FSelfRegisteringExec
 {
 public:
+	FNetworkReplayStreaming() {}
+	virtual ~FNetworkReplayStreaming() {}
+
 	static inline FNetworkReplayStreaming& Get()
 	{
-		return FModuleManager::LoadModuleChecked< FNetworkReplayStreaming >( "NetworkReplayStreaming" );
+		return FModuleManager::LoadModuleChecked<FNetworkReplayStreaming>("NetworkReplayStreaming");
 	}
 
 	NETWORKREPLAYSTREAMING_API void Flush();
@@ -644,6 +649,9 @@ public:
 	// Gets the configured value for whether or not we should use FDateTime::Now as the automatic replay postfix.
 	// If false, it's up to the streamer to determine a proper postfix.
 	static NETWORKREPLAYSTREAMING_API bool UseDateTimeAsAutomaticReplayPostfix();
+
+	// FSelfRegisteringExec interface
+	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 private:
 	TSet<FName> LoadedFactories;
