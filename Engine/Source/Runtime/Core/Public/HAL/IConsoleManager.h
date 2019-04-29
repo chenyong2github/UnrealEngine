@@ -48,6 +48,9 @@ template <class T> class TConsoleVariableData;
  */
 enum EConsoleVariableFlags
 {
+	/* Mask for flags. Use this instead of ~ECVF_SetByMask */
+	ECVF_FlagMask = 0x0000ffff,
+
 	/**
 	 * Default, no flags are set, the value is set by the constructor 
 	 */
@@ -88,9 +91,17 @@ enum EConsoleVariableFlags
 
 	// ------------------------------------------------
 
+	/* Set flags */
+	ECVF_SetFlagMask =				0x00ff0000,
+
+	// Use to set a cvar without calling all cvar sinks. Much faster, but potentially unsafe. Use only if you know the particular cvar/setting does not require a sink call
+	ECVF_Set_NoSinkCall_Unsafe =	0x00010000,
+
+	// ------------------------------------------------
+
 	/* to get some history of where the last value was set by ( useful for track down why a cvar is in a specific state */
 	ECVF_SetByMask =				0xff000000,
-	
+
 	// the ECVF_SetBy are sorted in override order (weak to strong), the value is not serialized, it only affects it's override behavior when calling Set()
 
 	// lowest priority (default after console variable creation)
