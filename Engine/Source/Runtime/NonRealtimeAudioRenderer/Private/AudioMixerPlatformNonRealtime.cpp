@@ -116,6 +116,11 @@ namespace Audio
 			return false;
 		}
 
+#if WITH_XMA2
+		//Initialize our XMA2 decoder context
+		FXMAAudioInfo::Initialize();
+#endif //#if WITH_XMA2
+
 		// Load ogg and vorbis dlls if they haven't been loaded yet
 		LoadVorbisLibraries();
 
@@ -132,6 +137,10 @@ namespace Audio
 		{
 			return false;
 		}
+
+#if WITH_XMA2
+		FXMAAudioInfo::Shutdown();
+#endif
 
 		bIsInitialized = false;
 
