@@ -377,7 +377,7 @@ protected:
 
 /** Removes dormant (on connection) actors from its rep lists */
 UCLASS()
-class REPLICATIONGRAPH_API UReplicationGraphNode_ConnectionDormanyNode : public UReplicationGraphNode_ActorList
+class REPLICATIONGRAPH_API UReplicationGraphNode_ConnectionDormancyNode : public UReplicationGraphNode_ActorList
 {
 	GENERATED_BODY()
 public:
@@ -422,13 +422,13 @@ public:
 
 	void ConditionalGatherDormantDynamicActors(FActorRepListRefView& RepList, const FConnectionGatherActorListParameters& Params, FActorRepListRefView* RemovedList, bool bEnforceReplistUniqueness=false);
 
-	UReplicationGraphNode_ConnectionDormanyNode* GetExistingConnectionNode(const FConnectionGatherActorListParameters& Params);
+	UReplicationGraphNode_ConnectionDormancyNode* GetExistingConnectionNode(const FConnectionGatherActorListParameters& Params);
 
-	UReplicationGraphNode_ConnectionDormanyNode* GetConnectionNode(const FConnectionGatherActorListParameters& Params);
+	UReplicationGraphNode_ConnectionDormancyNode* GetConnectionNode(const FConnectionGatherActorListParameters& Params);
 
 private:
 
-	TMap<UNetReplicationGraphConnection*, UReplicationGraphNode_ConnectionDormanyNode*> ConnectionNodes;
+	TMap<UNetReplicationGraphConnection*, UReplicationGraphNode_ConnectionDormancyNode*> ConnectionNodes;
 };
 
 UCLASS()
