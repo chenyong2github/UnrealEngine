@@ -112,14 +112,11 @@ bool FJoinPartyResult::WasSuccessful() const
 void FOnlinePartyRepDataBase::LogSetPropertyFailure(const TCHAR* OwningStructTypeName, const TCHAR* PropertyName) const
 {
 	const USocialParty* OwningParty = GetOwnerParty();
-	if (ensure(OwningParty))
-	{
-		UE_LOG(LogParty, Warning, TEXT("Failed to modify RepData property [%s::%s] in party [%s] - local member [%s] does not have authority."),
-			OwningStructTypeName,
-			PropertyName,
-			*OwningParty->ToDebugString(),
-			*OwningParty->GetOwningLocalMember().ToDebugString(false));
-	}
+	UE_LOG(LogParty, Warning, TEXT("Failed to modify RepData property [%s::%s] in party [%s] - local member [%s] does not have authority."),
+		OwningStructTypeName,
+		PropertyName,
+		OwningParty ? *OwningParty->ToDebugString() : TEXT("unknown"),
+		OwningParty ? *OwningParty->GetOwningLocalMember().ToDebugString(false) : TEXT("unknown"));
 }
 
 void FOnlinePartyRepDataBase::LogPropertyChanged(const TCHAR* OwningStructTypeName, const TCHAR* PropertyName, bool bFromReplication) const
@@ -131,5 +128,5 @@ void FOnlinePartyRepDataBase::LogPropertyChanged(const TCHAR* OwningStructTypeNa
 		OwningStructTypeName,
 		PropertyName,
 		bFromReplication ? TEXT("remotely") : TEXT("locally"),
-		ensure(OwningParty) ? *OwningParty->ToDebugString() : TEXT("unknown"));
+		OwningParty ? *OwningParty->ToDebugString() : TEXT("unknown"));
 }
