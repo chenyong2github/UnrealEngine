@@ -124,7 +124,7 @@ bool FAudioVirtualLoop::IsEnabled()
 
 bool FAudioVirtualLoop::IsInAudibleRange(const FActiveSound& InActiveSound, const FAudioDevice* InAudioDevice)
 {
-	if (!InActiveSound.bAllowSpatialization || (InAudioDevice->VirtualSoundsEnabled() && InActiveSound.IsVirtualizeWhenSilent()))
+	if (!InActiveSound.bAllowSpatialization)
 	{
 		return true;
 	}
@@ -135,6 +135,11 @@ bool FAudioVirtualLoop::IsInAudibleRange(const FActiveSound& InActiveSound, cons
 		AudioDevice = InActiveSound.AudioDevice;
 	}
 	check(AudioDevice);
+
+	if (AudioDevice->VirtualSoundsEnabled() && InActiveSound.IsVirtualizeWhenSilent())
+	{
+		return true;
+	}
 
 	float DistanceScale = 1.0f;
 	if (InActiveSound.bHasAttenuationSettings)
