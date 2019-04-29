@@ -560,14 +560,14 @@ void STakeRecorderCockpit::CacheMetaData()
 			FString DefaultSlate = GetDefault<UTakeRecorderProjectSettings>()->Settings.DefaultSlate;
 			if (TransientTakeMetaData->GetSlate() != DefaultSlate)
 			{
-				TransientTakeMetaData->SetSlate(DefaultSlate);
+				TransientTakeMetaData->SetSlate(DefaultSlate, false);
 			}
 
 			// Compute the correct starting take number
 			int32 NextTakeNumber = UTakesCoreBlueprintLibrary::ComputeNextTakeNumber(TransientTakeMetaData->GetSlate());
 			if (TransientTakeMetaData->GetTakeNumber() != NextTakeNumber)
 			{
-				TransientTakeMetaData->SetTakeNumber(NextTakeNumber);
+				TransientTakeMetaData->SetTakeNumber(NextTakeNumber, false);
 			}
 		}
 
