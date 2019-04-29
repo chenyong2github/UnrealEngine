@@ -1027,7 +1027,7 @@ void FLightmassExporter::WriteLights( int32 Channel )
 	// If found, we keep the pointer to apply atmosphere transmittance to it in the light loop.
 	const UDirectionalLightComponent* SunLight = nullptr;
 	FLinearColor SunLightAtmosphereTransmittance(FLinearColor::White);
-	if (AtmosphericFogComponent)
+	if (AtmosphericFogComponent && AtmosphericFogComponent->bAtmosphereAffectsSunIlluminance)
 	{
 		float SunLightEnergy = 0.0f;
 		for (int32 LightIndex = 0; LightIndex < DirectionalLights.Num(); ++LightIndex)

@@ -56,6 +56,7 @@ public:
 	FVector DefaultSunDirection;
 	uint32 RenderFlag;
 	uint32 InscatterAltitudeSampleNum;
+	bool bAtmosphereAffectsSunIlluminance;
 	class FAtmosphereTextureResource* TransmittanceResource;
 	class FAtmosphereTextureResource* IrradianceResource;
 	class FAtmosphereTextureResource* InscatterResource;

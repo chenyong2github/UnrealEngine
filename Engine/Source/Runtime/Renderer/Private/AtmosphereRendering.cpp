@@ -1826,16 +1826,17 @@ void FAtmosphericFogSceneInfo::PrecomputeTextures(FRHICommandListImmediate& RHIC
 void FAtmosphericFogSceneInfo::PrepareSunLightProxy(FLightSceneInfo& SunLight) const
 {
 	// See explanation in https://media.contentapi.ea.com/content/dam/eacom/frostbite/files/s2016-pbs-frostbite-sky-clouds-new.pdf page 26
-	FLinearColor TransmittanceTowardSun = UAtmosphericFogComponent::GetTransmittance(-SunLight.Proxy->GetDirection(), RHeight);
+	FLinearColor TransmittanceTowardSun = bAtmosphereAffectsSunIlluminance ? UAtmosphericFogComponent::GetTransmittance(-SunLight.Proxy->GetDirection(), RHeight) : FLinearColor(FLinearColor::White);
+	FLinearColor TransmittanceAtZenithFinal = bAtmosphereAffectsSunIlluminance ? TransmittanceAtZenith : FLinearColor(FLinearColor::White);
 
 	FLinearColor SunZenithIlluminance = SunLight.Proxy->GetColor();
-	FLinearColor SunOuterSpaceIlluminance = SunZenithIlluminance / TransmittanceAtZenith;
+	FLinearColor SunOuterSpaceIlluminance = SunZenithIlluminance / TransmittanceAtZenithFinal;
 
 	// SunDiscScale is only considered as a visual tweak so we do not make it influence the sun disk outerspace luminance.
 	const float SunSolidAngle = 2.0f * PI * (1.0f - FMath::Cos(SunLight.Proxy->GetSunLightHalfApexAngleRadian())); // Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle 
 	FLinearColor SunDiskOuterSpaceLuminance = SunOuterSpaceIlluminance / SunSolidAngle; // approximation  
 
-	SunLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun / TransmittanceAtZenith, SunDiskOuterSpaceLuminance);
+	SunLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun / TransmittanceAtZenithFinal, SunDiskOuterSpaceLuminance);
 }
 
 /** Initialization constructor. */
@@ -1854,6 +1855,7 @@ FAtmosphericFogSceneInfo::FAtmosphericFogSceneInfo(const UAtmosphericFogComponen
 	, SunDiscScale(InComponent->SunDiscScale)
 	, RenderFlag(EAtmosphereRenderFlag::E_EnableAll)
 	, InscatterAltitudeSampleNum(InComponent->PrecomputeParams.InscatterAltitudeSampleNum)
+	, bAtmosphereAffectsSunIlluminance(InComponent->bAtmosphereAffectsSunIlluminance)
 
 #if WITH_EDITORONLY_DATA
 	, bNeedRecompute(false)

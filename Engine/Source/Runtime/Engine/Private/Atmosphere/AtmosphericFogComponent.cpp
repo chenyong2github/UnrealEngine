@@ -106,6 +106,8 @@ UAtmosphericFogComponent::UAtmosphericFogComponent(const FObjectInitializer& Obj
 
 	bDisableSunDisk = false;
 	bDisableGroundScattering = false;
+
+	bAtmosphereAffectsSunIlluminance = false;
 }
 
 bool UAtmosphericFogComponent::IsPostLoadThreadSafe() const

@@ -141,23 +141,27 @@ class UAtmosphericFogComponent : public USceneComponent
 	float StartDistance;
 
 	/** Sun half apex angle in degree, see https://en.wikipedia.org/wiki/Solid_angle */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = Atmosphere)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category=Sun)
 	float SunDiscScale;
 
 	/** Default atmospheric sun light disc luminance. Used when there is no atmospheric sun light selected in the level. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Lighting)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Sun)
 	float DefaultBrightness;
 
 	/** Default atmospheric sun light disc color. Used when there is no sunlight placed in the level. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Lighting)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Sun)
 	FColor DefaultLightColor;
 
 	/** Disable sun disk rendering. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Lighting, meta=(ScriptName="DisableSunDiskValue"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Sun, meta=(ScriptName="DisableSunDiskValue"))
 	uint32 bDisableSunDisk : 1;
 
+	/** Set to true if the atmosphere should affect the selected sun light illuminance. The light will be tinted based on its zenith angle and atmosphere properties as if all surfaces were at the ground level 0 meter. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Sun)
+	uint32 bAtmosphereAffectsSunIlluminance : 1;
+
 	/** Disable color scattering from ground. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Lighting, meta=(ScriptName="DisableGroundScatteringValue"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Ground, meta=(ScriptName="DisableGroundScatteringValue"))
 	uint32 bDisableGroundScattering : 1;
 
 	/** Set brightness of the light */
@@ -288,7 +292,8 @@ public:
 	 */
 	static FLinearColor GetTransmittance(const FVector& SunDirection, float AtmosphericFogHeightScaleRayleigh)
 	{
-		// Code from HLSL here as lambda function. It will simulate atmosphere transmittance according to the current sky hardcoded parameterization.
+		// The following code is from atmosphere HLSL shaders and has been converted to lambda functions. 
+		// It simulates atmosphere transmittance according to the current sky hardcoded parameterization.
 		// This will change in the future when the sky parameterization and workflow/ui will be updated.
 
 		const float RadiusGround = 6360;
