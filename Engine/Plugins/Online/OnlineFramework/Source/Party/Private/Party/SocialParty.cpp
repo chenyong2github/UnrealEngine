@@ -774,19 +774,18 @@ void USocialParty::HandlePartyMemberPromoted(const FUniqueNetId& LocalUserId, co
 	{
 		UE_LOG(LogParty, VeryVerbose, TEXT("Party member [%s] in party [%s] promoted"), *NewLeaderId.ToDebugString(), *PartyId.ToDebugString());
 
-		if (CurrentLeaderId.IsValid() && NewLeaderId != *CurrentLeaderId)
-		{
-			if (UPartyMember* PreviousLeader = GetPartyMember(CurrentLeaderId))
-			{
-				PreviousLeader->NotifyMemberDemoted();
-				if (PreviousLeader->IsLocalPlayer())
-				{
-					OnLocalPlayerIsLeaderChanged(false);
-				}
-			}
-		}
+		UPartyMember* PreviousLeader = GetPartyMember(CurrentLeaderId);
 
 		CurrentLeaderId = NewLeaderId.AsShared();
+
+		if (PreviousLeader)
+		{
+			PreviousLeader->NotifyMemberDemoted();
+			if (PreviousLeader->IsLocalPlayer())
+			{
+				OnLocalPlayerIsLeaderChanged(false);
+			}
+		}
 
 		UPartyMember* NewLeader = GetPartyMember(CurrentLeaderId);
 		if (ensure(NewLeader))
