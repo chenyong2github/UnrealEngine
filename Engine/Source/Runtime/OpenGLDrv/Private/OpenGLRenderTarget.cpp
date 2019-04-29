@@ -899,7 +899,8 @@ void FOpenGLDynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI, FIntR
 	VERIFY_GL_SCOPE();
 
 	// Verify requirements, but don't crash
-	if (!ensure(FOpenGL::SupportsFloatReadSurface()) || !ensure(TextureRHI) || !ensure(TextureRHI->GetFormat() == PF_A32B32G32R32F))
+	// Ignore texture format here, GL will convert it for us in glReadPixels
+	if (!ensure(FOpenGL::SupportsFloatReadSurface()) || !ensure(TextureRHI))
 	{
 		return;
 	}

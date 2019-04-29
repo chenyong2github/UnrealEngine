@@ -2554,6 +2554,41 @@ void FOpenGLDynamicRHI::RHIUpdateTextureReference(FTextureReferenceRHIParamRef T
 	}
 }
 
+void FOpenGLDynamicRHI::RHICopySubTextureRegion(FTexture2DRHIParamRef SourceTextureRHI, FTexture2DRHIParamRef DestinationTextureRHI, FBox2D SourceBox, FBox2D DestinationBox)
+{
+	VERIFY_GL_SCOPE();
+	FOpenGLTexture2D* SourceTexture = ResourceCast(SourceTextureRHI);
+	FOpenGLTexture2D* DestinationTexture = ResourceCast(DestinationTextureRHI);
+
+	check(SourceTexture->Target == DestinationTexture->Target);
+
+	// Use a texture stage that's not likely to be used for draws, to avoid waiting
+	FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
+	CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, DestinationTexture->Target, DestinationTexture->Resource, 0, DestinationTexture->GetNumMips());
+	CachedBindPixelUnpackBuffer(ContextState, 0);
+
+	// Convert sub texture regions to GL types
+	GLint XOffset = DestinationBox.Min.X;
+	GLint YOffset = DestinationBox.Min.Y;
+	GLint X = SourceBox.Min.X;
+	GLint Y = SourceBox.Min.Y;
+	GLsizei Width = DestinationBox.Max.X - DestinationBox.Min.X;
+	GLsizei Height = DestinationBox.Max.Y - DestinationBox.Min.Y;
+
+	// Bind source texture to an FBO to read from
+	FOpenGLTextureBase* RenderTarget[] = { SourceTexture };
+	uint32 MipLevel = 0;
+	GLuint SourceFBO = GetOpenGLFramebuffer(1, RenderTarget, NULL, &MipLevel, NULL);
+	check(SourceFBO != 0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, SourceFBO);
+
+	FOpenGL::ReadBuffer(GL_COLOR_ATTACHMENT0);
+	FOpenGL::CopyTexSubImage2D(DestinationTexture->Target, 0, XOffset, YOffset, X, Y, Width, Height);
+
+	ContextState.Framebuffer = (GLuint)-1;
+}
+
 FTexture2DRHIRef FOpenGLDynamicRHI::RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, const FClearValueBinding& ClearValueBinding, GLuint Resource, uint32 TexCreateFlags)
 {
 	FOpenGLTexture2D* Texture2D = new FOpenGLTexture2D(
