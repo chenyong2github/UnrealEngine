@@ -2,7 +2,6 @@
 
 #include "AudioDevice.h"
 
-#include "AudioVirtualLoop.h"
 #include "PhysicsEngine/BodyInstance.h"
 #include "Sound/SoundEffectPreset.h"
 #include "Sound/SoundEffectSubmix.h"
@@ -135,6 +134,8 @@ FAutoConsoleVariableRef CVarSoundDistanceOptimizationLength(
 	SoundDistanceOptimizationLengthCVar,
 	TEXT("The maximum duration a sound must be in order to be a candidate to be culled due to one-shot distance optimization.\n"),
 	ECVF_Default);
+
+using FVirtualLoopPair = TPair<FActiveSound*, FAudioVirtualLoop>;
 
 /*-----------------------------------------------------------------------------
 	FAudioDevice implementation.
@@ -629,7 +630,7 @@ void FAudioDevice::AddReferencedObjects(FReferenceCollector& Collector)
 		ActiveSound->AddReferencedObjects(Collector);
 	}
 
-	for (TPair<FActiveSound*, FAudioVirtualLoop*>& Pair : VirtualLoops)
+	for (FVirtualLoopPair& Pair : VirtualLoops)
 	{
 		Pair.Key->AddReferencedObjects(Collector);
 	}
@@ -2064,13 +2065,15 @@ void FAudioDevice::StopQuietSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& Wa
 			{
 				AddSoundToStop(ActiveSound);
 				const bool bDoRangeCheck = false;
-				if (FAudioVirtualLoop* VirtualLoop = FAudioVirtualLoop::Virtualize(*this, *ActiveSound, bDoRangeCheck))
+				FAudioVirtualLoop VirtualLoop;
+				if (FAudioVirtualLoop::Virtualize(*ActiveSound, bDoRangeCheck, VirtualLoop))
 				{
-					VirtualLoop->CalculateUpdateInterval(true);
-
 					// Clear must be called after AddSoundToStop to ensure AudioComponent is properly removed from AudioComponentIDToActiveSoundMap
 					ActiveSound->ClearAudioComponent();
-					AddVirtualLoop(*VirtualLoop);
+
+					const bool bIsAtMaxConcurrency = true;
+					VirtualLoop.CalculateUpdateInterval(bIsAtMaxConcurrency);
+					AddVirtualLoop(VirtualLoop);
 				}
 				ActiveSoundsCopy.RemoveAtSwap(i, 1, false);
 			}
@@ -2596,19 +2599,26 @@ void FAudioDevice::UpdateSoundClassProperties(float DeltaTime)
 
 void FAudioDevice::VirtualizeInactiveLoops()
 {
+	// Check if virtual loop system is enabled and don't push to virtual if disabled.
+	if (!FAudioVirtualLoop::IsEnabled())
+	{
+		return;
+	}
+
 	const bool bDoRangeCheck = true;
 	for (FActiveSound* ActiveSound : ActiveSounds)
 	{
 		// If already pending stop, don't attempt to virtualize
 		if (!IsPendingStop(ActiveSound))
 		{
-			if (FAudioVirtualLoop* VirtualLoop = FAudioVirtualLoop::Virtualize(*this, *ActiveSound, bDoRangeCheck))
+			FAudioVirtualLoop VirtualLoop;
+			if (FAudioVirtualLoop::Virtualize(*ActiveSound, bDoRangeCheck, VirtualLoop))
 			{
 				AddSoundToStop(ActiveSound);
 
 				// Clear must be called after AddSoundToStop to ensure AudioComponent is properly removed from AudioComponentIDToActiveSoundMap
 				ActiveSound->ClearAudioComponent();
-				AddVirtualLoop(*VirtualLoop);
+				AddVirtualLoop(VirtualLoop);
 			}
 		}
 	}
@@ -3902,6 +3912,7 @@ void FAudioDevice::Update(bool bGameTicking)
 		INC_DWORD_STAT_BY(STAT_AudioSources, Channels - FreeSources.Num());
 		INC_DWORD_STAT_BY(STAT_WavesDroppedDueToPriority, FMath::Max(ActiveWaveInstances.Num() - Channels, 0));
 		INC_DWORD_STAT_BY(STAT_ActiveSounds, ActiveSounds.Num());
+		INC_DWORD_STAT_BY(STAT_AudioVirtualLoops, VirtualLoops.Num());
 	}
 
 	// now let the platform perform anything it needs to handle
@@ -4083,7 +4094,7 @@ void FAudioDevice::StopAllSounds(bool bShouldStopUISounds)
 		}
 	}
 
-	for (TPair<FActiveSound*, FAudioVirtualLoop*>& Pair : VirtualLoops)
+	for (FVirtualLoopPair& Pair : VirtualLoops)
 	{
 		AddSoundToStop(Pair.Key);
 	}
@@ -4189,10 +4200,10 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 	if (!VirtualLoopToRetrigger)
 	{
 		const bool bDoRangeCheck = true;
-		VirtualLoopToRetrigger = FAudioVirtualLoop::Virtualize(*this, NewActiveSound, bDoRangeCheck);
-		if (VirtualLoopToRetrigger)
+		FAudioVirtualLoop VirtualLoop;
+		if (FAudioVirtualLoop::Virtualize(NewActiveSound, *this, bDoRangeCheck, VirtualLoop))
 		{
-			AddVirtualLoop(*VirtualLoopToRetrigger);
+			AddVirtualLoop(VirtualLoop);
 			return;
 		}
 	}
@@ -4213,14 +4224,17 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		if (!VirtualLoopToRetrigger)
 		{
 			const bool bDoRangeCheck = false;
-			VirtualLoopToRetrigger = FAudioVirtualLoop::Virtualize(*this, NewActiveSound, bDoRangeCheck);
-			if (VirtualLoopToRetrigger)
+			FAudioVirtualLoop VirtualLoop;
+			if (FAudioVirtualLoop::Virtualize(NewActiveSound, *this, bDoRangeCheck, VirtualLoop))
 			{
-				AddVirtualLoop(*VirtualLoopToRetrigger);
+				AddVirtualLoop(VirtualLoop);
 			}
 		}
 		return;
 	}
+
+	check(ActiveSound->Sound);
+	check(ActiveSound->Sound == NewActiveSound.Sound);
 
 	if (GIsEditor)
 	{
@@ -4231,7 +4245,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		}
 	}
 
-	++NewActiveSound.Sound->CurrentPlayCount;
+	++ActiveSound->Sound->CurrentPlayCount;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	UE_LOG(LogAudio, VeryVerbose, TEXT("New ActiveSound %s Comp: %s Loc: %s"), *NewActiveSound.Sound->GetName(), *NewActiveSound.GetAudioComponentName(), *NewActiveSound.Transform.GetTranslation().ToString());
@@ -4247,23 +4261,20 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 	ActiveSound->bIsPlayingAudio = true;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	if (ActiveSound->Sound)
+	if (!ensureMsgf(ActiveSound->Sound->GetFName() != NAME_None, TEXT("AddNewActiveSound with DESTROYED sound %s. AudioComponent=%s. IsPendingKill=%d. BeginDestroy=%d"),
+		*ActiveSound->Sound->GetPathName(),
+		*ActiveSound->GetAudioComponentName(),
+		(int32)ActiveSound->Sound->IsPendingKill(),
+		(int32)ActiveSound->Sound->HasAnyFlags(RF_BeginDestroyed)))
 	{
-		if (!ensureMsgf(ActiveSound->Sound->GetFName() != NAME_None, TEXT("AddNewActiveSound with DESTROYED sound %s. AudioComponent=%s. IsPendingKill=%d. BeginDestroy=%d"),
-			*ActiveSound->Sound->GetPathName(),
-			*ActiveSound->GetAudioComponentName(),
-			(int32)ActiveSound->Sound->IsPendingKill(),
-			(int32)ActiveSound->Sound->HasAnyFlags(RF_BeginDestroyed)))
-		{
-			static FName InvalidSoundName(TEXT("DESTROYED_Sound"));
-			ActiveSound->DebugOriginalSoundName = InvalidSoundName;
-		}
-		else
-		{
-			ActiveSound->DebugOriginalSoundName = ActiveSound->Sound->GetFName();
-		}
+		static FName InvalidSoundName(TEXT("DESTROYED_Sound"));
+		ActiveSound->DebugOriginalSoundName = InvalidSoundName;
 	}
-#endif
+	else
+	{
+		ActiveSound->DebugOriginalSoundName = ActiveSound->Sound->GetFName();
+	}
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 	// Loop has been successfully created, so add to stop before adding 'live' ActiveSound.
 	// Mark to not report playback complete on destruction as responsibility therein has been
@@ -4290,9 +4301,11 @@ void FAudioDevice::RetriggerVirtualLoop(FAudioVirtualLoop& VirtualLoopToRetrigge
 	AddNewActiveSoundInternal(VirtualLoopToRetrigger.GetActiveSound(), &VirtualLoopToRetrigger);
 }
 
-void FAudioDevice::AddVirtualLoop(FAudioVirtualLoop& VirtualLoop)
+void FAudioDevice::AddVirtualLoop(const FAudioVirtualLoop& InVirtualLoop)
 {
-	FActiveSound& ActiveSound = VirtualLoop.GetActiveSound();
+	FAudioVirtualLoop* VirtualLoop = new FAudioVirtualLoop(InVirtualLoop);
+
+	FActiveSound& ActiveSound = VirtualLoop->GetActiveSound();
 	check(!VirtualLoops.Contains(&ActiveSound));
 
 	const int64 ComponentID = ActiveSound.GetAudioComponentID();
@@ -4309,25 +4322,38 @@ void FAudioDevice::AddVirtualLoop(FAudioVirtualLoop& VirtualLoop)
 		AudioComponentIDToActiveSoundMap.Add(ComponentID, &ActiveSound);
 	}
 
-	VirtualLoops.Add(&ActiveSound, &VirtualLoop);
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (ActiveSound.Sound)
+	{
+		const FVector Location = ActiveSound.Transform.GetLocation();
+		UE_LOG(LogAudio, Verbose, TEXT("Adding virtual looping sound '%s' at location %s."), *ActiveSound.Sound->GetName(), *Location.ToCompactString());
+	}
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+	VirtualLoops.Add(&ActiveSound, InVirtualLoop);
 }
 
-bool FAudioDevice::RemoveVirtualLoop(FActiveSound& ActiveSound)
+bool FAudioDevice::RemoveVirtualLoop(FActiveSound& InActiveSound)
 {
 	check(IsInAudioThread());
 
-	if (FAudioVirtualLoop* VirtualLoop = VirtualLoops.FindRef(&ActiveSound))
+	if (FAudioVirtualLoop* VirtualLoop = VirtualLoops.Find(&InActiveSound))
 	{
-		const uint64 ComponentID = ActiveSound.GetAudioComponentID();
+		const uint64 ComponentID = InActiveSound.GetAudioComponentID();
 		if (ComponentID > 0)
 		{
 			UAudioComponent::PlaybackCompleted(ComponentID, false);
 		}
 
-		check(VirtualLoop);
-		delete VirtualLoop;
-		VirtualLoops.Remove(&ActiveSound);
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		if (InActiveSound.Sound)
+		{
+			const FVector Location = InActiveSound.Transform.GetLocation();
+			UE_LOG(LogAudio, Verbose, TEXT("Removing virtual looping sound '%s' at location %s."), *InActiveSound.Sound->GetName(), *Location.ToCompactString());
+		}
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
+		VirtualLoops.Remove(&InActiveSound);
 		return true;
 	}
 
@@ -4395,32 +4421,34 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 		// and continue
 		if (RemoveVirtualLoop(*ActiveSound))
 		{
-			continue;
-		}
-
-		ActiveSound->Stop(bForceDelete);
-
-		USoundBase* Sound = ActiveSound->GetSound();
-
-		// If the active sound is a one shot, decrement the one shot counter
-		if (Sound && !Sound->IsLooping())
-		{
-			OneShotCount--;
-		}
-
-		const bool bIsStopping = ActiveSound->IsStopping();
-
-		// If we can delete the active sound now, then delete it
-		if (bForceDelete || (ActiveSound->CanDelete() && !bIsStopping))
-		{
-			ActiveSound->bAsyncOcclusionPending = false;
-
 			delete ActiveSound;
 		}
 		else
 		{
-			// There was an async operation pending or we are stopping (not stopped) so we need to defer deleting this sound
-			PendingSoundsToDelete.AddUnique(ActiveSound);
+			ActiveSound->Stop(bForceDelete);
+
+			USoundBase* Sound = ActiveSound->GetSound();
+
+			// If the active sound is a one shot, decrement the one shot counter
+			if (Sound && !Sound->IsLooping())
+			{
+				OneShotCount--;
+			}
+
+			const bool bIsStopping = ActiveSound->IsStopping();
+
+			// If we can delete the active sound now, then delete it
+			if (bForceDelete || (ActiveSound->CanDelete() && !bIsStopping))
+			{
+				ActiveSound->bAsyncOcclusionPending = false;
+
+				delete ActiveSound;
+			}
+			else
+			{
+				// There was an async operation pending or we are stopping (not stopped) so we need to defer deleting this sound
+				PendingSoundsToDelete.AddUnique(ActiveSound);
+			}
 		}
 	}
 	PendingSoundsToStop.Reset();
@@ -5232,7 +5260,7 @@ void FAudioDevice::Flush(UWorld* WorldToFlush, bool bClearActivatedReverb)
 		}
 	}
 
-	for (TPair<FActiveSound*, FAudioVirtualLoop*>& Pair : VirtualLoops)
+	for (FVirtualLoopPair& Pair : VirtualLoops)
 	{
 		AddSoundToStop(Pair.Key);
 	}
@@ -5770,23 +5798,57 @@ void FAudioDevice::UpdateProximityRetriggerComponents()
 
 void FAudioDevice::UpdateVirtualLoops()
 {
-	static TArray<FAudioVirtualLoop*> VirtualLoopsToRetrigger;
-	for (TPair<FActiveSound*, FAudioVirtualLoop*>& Pair : VirtualLoops)
+	if (FAudioVirtualLoop::IsEnabled())
 	{
-		FAudioVirtualLoop* VirtualLoop = Pair.Value;
-		check(VirtualLoop);
+		TArray<FAudioVirtualLoop> VirtualLoopsToRetrigger;
 
-		if (VirtualLoop->Update())
+		for (FVirtualLoopPair& Pair : VirtualLoops)
 		{
-			VirtualLoopsToRetrigger.Add(VirtualLoop);
+			FAudioVirtualLoop& VirtualLoop = Pair.Value;
+
+			const float DeltaTime = GetDeviceDeltaTime();
+
+			FActiveSound& ActiveSound = Pair.Value.GetActiveSound();
+			// Keep playback time up-to-date as it may be used to evaluate concurrency
+			ActiveSound.PlaybackTime += DeltaTime * ActiveSound.MinCurrentPitch;
+
+			// If the loop is ready to realize, add to array to be re-triggered outside of the loop
+			// to avoid map manipulation while iterating.
+			if (VirtualLoop.CanRealize(DeltaTime))
+			{
+				VirtualLoopsToRetrigger.Add(Pair.Value);
+			}
+		}
+
+		for (FAudioVirtualLoop& RetriggerLoop : VirtualLoopsToRetrigger)
+		{
+			RetriggerVirtualLoop(RetriggerLoop);
+		}
+
+		VirtualLoopsToRetrigger.Reset();
+	}
+
+	// if !FAudioVirtualLoop::IsEnabled(), attempt to realize/re-trigger
+	// sounds and remove virtual loops.
+	else
+	{
+		// Copies any straggling virtual loops to active sounds and mark them for stop
+		for (FVirtualLoopPair& Pair : VirtualLoops)
+		{
+			FActiveSound* ActiveSound = Pair.Key;
+
+			const uint64 ComponentID = ActiveSound->GetAudioComponentID();
+			if (ComponentID > 0)
+			{
+				AudioComponentIDToActiveSoundMap.Remove(ComponentID);
+			}
+
+			AddNewActiveSound(*ActiveSound);
+
+			ActiveSound->ClearAudioComponent();
+			AddSoundToStop(ActiveSound);
 		}
 	}
-
-	for (FAudioVirtualLoop* RetriggerLoop : VirtualLoopsToRetrigger)
-	{
-		RetriggerVirtualLoop(*RetriggerLoop);
-	}
-	VirtualLoopsToRetrigger.Reset();
 }
 
 #if WITH_EDITOR

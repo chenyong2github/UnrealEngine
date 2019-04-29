@@ -7,7 +7,6 @@
 #include "Sound/SoundAttenuation.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Audio.h"
-#include "AudioDevice.h"
 #include "AudioDynamicParameter.h"
 #include "Sound/SoundConcurrency.h"
 #include "Components/AudioComponent.h"
@@ -23,6 +22,7 @@ struct FSoundSubmixSendInfo;
 struct FSoundSourceBusSendInfo;
 class USoundWave;
 struct FListener;
+struct FAttenuationListenerData;
 
 /**
  *	Struct used for gathering the final parameters to apply to a wave instance
