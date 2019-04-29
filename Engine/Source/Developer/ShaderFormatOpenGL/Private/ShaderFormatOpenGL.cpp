@@ -24,8 +24,8 @@ class FShaderFormatGLSL : public IShaderFormat
 	enum
 	{
 		/** Version for shader format, this becomes part of the DDC key. */
-		UE_SHADER_GLSL_VER = 80,
-		UE_SHADER_GLSL_ANDROID_VER = 80,
+		UE_SHADER_GLSL_VER = 81,
+		UE_SHADER_GLSL_ANDROID_VER = 81,
 	};
 
 	void CheckFormat(FName Format) const
