@@ -283,7 +283,7 @@ void SInlineEditableTextBlock::OnTextBoxCommitted(const FText& InText, ETextComm
 					return;
 				}
 			}
-			else if(InCommitType == ETextCommit::OnUserMovedFocus)
+			else if(InCommitType == ETextCommit::OnUserMovedFocus || InCommitType == ETextCommit::Default)
 			{
 				FText OutErrorMessage;
 				if(!OnVerifyTextChanged.Execute(InText, OutErrorMessage))
