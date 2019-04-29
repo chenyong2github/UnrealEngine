@@ -521,7 +521,11 @@ void USocialParty::OnLocalPlayerIsLeaderChanged(bool bIsLeader)
 		TArray<FName> AllMemberPlatformSubsystems;
 		for (UPartyMember* Member : GetPartyMembers())
 		{
-			AllMemberPlatformSubsystems.AddUnique(Member->GetPlatformOssName());
+			FName PlatformOssName = Member->GetPlatformOssName();
+			if (!PlatformOssName.IsNone())
+			{
+				AllMemberPlatformSubsystems.AddUnique(PlatformOssName);
+			}
 		}
 		for (FName PlatformOssName : AllMemberPlatformSubsystems)
 		{
