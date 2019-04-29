@@ -881,7 +881,7 @@ class ENGINE_API UEdGraphSchema : public UObject
 	virtual void ReconstructNode(UEdGraphNode& TargetNode, bool bIsBatchRequest=false) const;
 
 	/**
-	 * Attempts to construct a substitute node that is unique within its graph
+	 * Attempts to construct a substitute node that is unique within its graph. If this call returns non-null node, it is expected for the caller to destroy the node that was passed in.
 	 *
 	 * @param	Node			The node to replace
 	 * @param	Graph			The destination graph
