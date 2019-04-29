@@ -1030,6 +1030,21 @@ void FVulkanDynamicRHI::RHIAliasTextureResources(FTextureRHIParamRef DestTexture
 	}
 }
 
+void FVulkanDynamicRHI::RHICopySubTextureRegion(FTexture2DRHIParamRef SourceTexture, FTexture2DRHIParamRef DestinationTexture, FBox2D SourceBox, FBox2D DestinationBox)
+{
+	FRHICopyTextureInfo CopyInfo;
+
+	CopyInfo.Size.X = (int32)(SourceBox.Max.X - SourceBox.Min.X);
+	CopyInfo.Size.Y = (int32)(SourceBox.Max.Y - SourceBox.Min.Y);
+
+	CopyInfo.SourcePosition.X = (int32)(SourceBox.Min.X);
+	CopyInfo.SourcePosition.Y = (int32)(SourceBox.Min.Y);
+	CopyInfo.DestPosition.X = (int32)(DestinationBox.Min.X);
+	CopyInfo.DestPosition.Y = (int32)(DestinationBox.Min.Y);
+
+	RHIGetDefaultContext()->RHICopyTexture(SourceTexture, DestinationTexture, CopyInfo);
+}
+
 
 FVulkanBuffer::FVulkanBuffer(FVulkanDevice& InDevice, uint32 InSize, VkFlags InUsage, VkMemoryPropertyFlags InMemPropertyFlags, bool bInAllowMultiLock, const char* File, int32 Line) :
 	Device(InDevice),

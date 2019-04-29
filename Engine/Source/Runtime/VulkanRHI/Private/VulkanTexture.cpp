@@ -2242,18 +2242,32 @@ void FVulkanCommandListContext::RHICopyTexture(FTextureRHIParamRef SourceTexture
 
 	VkImageCopy Region;
 	FMemory::Memzero(Region);
-	ensure(SrcSurface.Width == DstSurface.Width && SrcSurface.Height == DstSurface.Height);
-	Region.extent.width = FMath::Max(1u, SrcSurface.Width>> CopyInfo.SourceMipIndex);
-	Region.extent.height = FMath::Max(1u, SrcSurface.Height >> CopyInfo.SourceMipIndex);
+	if (CopyInfo.Size.X == 0 || CopyInfo.Size.Y == 0)
+	{
+		// Copy whole texture when zero vector is specified for region size
+		ensure(SrcSurface.Width == DstSurface.Width && SrcSurface.Height == DstSurface.Height);
+		Region.extent.width = FMath::Max(1u, SrcSurface.Width >> CopyInfo.SourceMipIndex);
+		Region.extent.height = FMath::Max(1u, SrcSurface.Height >> CopyInfo.SourceMipIndex);
+	}
+	else
+	{
+		ensure(CopyInfo.Size.X > 0 && (uint32)CopyInfo.Size.X <= DstSurface.Width && CopyInfo.Size.Y > 0 && (uint32)CopyInfo.Size.Y <= DstSurface.Height);
+		Region.extent.width = CopyInfo.Size.X;
+		Region.extent.height = CopyInfo.Size.Y;
+	}
 	Region.extent.depth = 1;
 	Region.srcSubresource.aspectMask = SrcSurface.GetFullAspectMask();
 	Region.srcSubresource.baseArrayLayer = CopyInfo.SourceSliceIndex;
 	Region.srcSubresource.layerCount = CopyInfo.NumSlices;
 	Region.srcSubresource.mipLevel = CopyInfo.SourceMipIndex;
+	Region.srcOffset.x = CopyInfo.SourcePosition.X;
+	Region.srcOffset.y = CopyInfo.SourcePosition.Y;
 	Region.dstSubresource.aspectMask = DstSurface.GetFullAspectMask();
 	Region.dstSubresource.baseArrayLayer = CopyInfo.DestSliceIndex;
 	Region.dstSubresource.layerCount = CopyInfo.NumSlices;
 	Region.dstSubresource.mipLevel = CopyInfo.DestMipIndex;
+	Region.dstOffset.x = CopyInfo.DestPosition.X;
+	Region.dstOffset.y = CopyInfo.DestPosition.Y;
 
 	for (uint32 Index = 0; Index < CopyInfo.NumMips; ++Index)
 	{
