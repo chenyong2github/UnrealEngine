@@ -787,6 +787,7 @@ uint32 FStaticMeshSceneProxy::SetMeshElementGeometrySource(
 	if (bRequiresAdjacencyInformation)
 	{
 		check( LODModel.bHasAdjacencyInfo );
+		check(LODModel.AdditionalIndexBuffers);
 		OutMeshBatchElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->AdjacencyIndexBuffer;
 		OutMeshBatch.Type = PT_12_ControlPointPatchList;
 		OutMeshBatchElement.FirstIndex *= 4;
