@@ -538,21 +538,6 @@ public:
 					}
 				}
 
-				// Changing Heightmap format for selected components
-				for (const auto& HeightmapUpdateComponentPair : HeightmapUpdateComponents)
-				{
-					ALandscape::SplitHeightmap(HeightmapUpdateComponentPair.Key, HeightmapUpdateComponentPair.Value);
-				}
-
-				// Delete if it is no referenced textures...
-				for (UTexture2D* Texture : OldHeightmapTextures)
-				{
-					Texture->SetFlags(RF_Transactional);
-					Texture->Modify();
-					Texture->MarkPackageDirty();
-					Texture->ClearFlags(RF_Standalone);
-				}
-
 				ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetCurrentLevelLandscapeProxy(false);
 				if (!LandscapeProxy)
 				{
@@ -573,6 +558,21 @@ public:
 					}
 				}
 
+				// Changing Heightmap format for selected components
+				for (const auto& HeightmapUpdateComponentPair : HeightmapUpdateComponents)
+				{
+					ALandscape::SplitHeightmap(HeightmapUpdateComponentPair.Key, HeightmapUpdateComponentPair.Value ? LandscapeProxy : nullptr);
+				}
+
+				// Delete if it is no referenced textures...
+				for (UTexture2D* Texture : OldHeightmapTextures)
+				{
+					Texture->SetFlags(RF_Transactional);
+					Texture->Modify();
+					Texture->MarkPackageDirty();
+					Texture->ClearFlags(RF_Standalone);
+				}
+
 				for (ALandscapeProxy* Proxy : SelectProxies)
 				{
 					Proxy->Modify();
@@ -587,7 +587,7 @@ public:
 					if (Component->XYOffsetmapTexture)
 					{
 						Component->XYOffsetmapTexture->Modify();
-						Component->XYOffsetmapTexture->Rename(nullptr, LandscapeProxy->GetOutermost());
+						Component->XYOffsetmapTexture->Rename(nullptr, LandscapeProxy);
 					}
 				}
 
@@ -596,138 +596,20 @@ public:
 					FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
 					for (ULandscapeComponent* Component : TargetSelectedComponents)
 					{
-						TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations();
-
-						int32 TotalNeededChannels = ComponentWeightmapLayerAllocations.Num();
-						int32 CurrentLayer = 0;
-						TArray<UTexture2D*> NewWeightmapTextures;
-
-						// Code from ULandscapeComponent::ReallocateWeightmaps
-						// Move to other channels left
-						while (TotalNeededChannels > 0)
+						Component->ReallocateWeightmaps(&LandscapeEdit, false, true, false, true, LandscapeProxy);
+						Component->ForEachLayer([&](const FGuid& LayerGuid, FLandscapeLayerComponentData& LayerData)
 						{
-							// UE_LOG(LogLandscape, Log, TEXT("Still need %d channels"), TotalNeededChannels);
-
-							UTexture2D* CurrentWeightmapTexture = nullptr;
-							ULandscapeWeightmapUsage* CurrentWeightmapUsage = nullptr;
-
-							if (TotalNeededChannels < ULandscapeWeightmapUsage::NumChannels)
-							{
-								// UE_LOG(LogLandscape, Log, TEXT("Looking for nearest"));
-
-								// see if we can find a suitable existing weightmap texture with sufficient channels
-								int32 BestDistanceSquared = MAX_int32;
-								for (auto& WeightmapUsagePair : LandscapeProxy->WeightmapUsageMap)
-								{
-									ULandscapeWeightmapUsage* TryWeightmapUsage = WeightmapUsagePair.Value;
-									if (TryWeightmapUsage->FreeChannelCount() >= TotalNeededChannels) // TODO: handle layers
-									{
-										// See if this candidate is closer than any others we've found
-										for (int32 ChanIdx = 0; ChanIdx < ULandscapeWeightmapUsage::NumChannels; ChanIdx++)
-										{
-											if (TryWeightmapUsage->ChannelUsage[ChanIdx] != nullptr)
-											{
-												int32 TryDistanceSquared = (TryWeightmapUsage->ChannelUsage[ChanIdx]->GetSectionBase() - Component->GetSectionBase()).SizeSquared();
-												if (TryDistanceSquared < BestDistanceSquared)
-												{
-													CurrentWeightmapTexture = WeightmapUsagePair.Key;
-													CurrentWeightmapUsage = TryWeightmapUsage;
-													BestDistanceSquared = TryDistanceSquared;
-												}
-											}
-										}
-									}
-								}
-							}
-
-							bool NeedsUpdateResource = false;
-							// No suitable weightmap texture
-							if (CurrentWeightmapTexture == nullptr)
-							{
-								Component->MarkPackageDirty();
-
-								// Weightmap is sized the same as the component
-								int32 WeightmapSize = (Component->SubsectionSizeQuads + 1) * Component->NumSubsections;
-
-								// We need a new weightmap texture
-								CurrentWeightmapTexture = LandscapeProxy->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8);
-								// Alloc dummy mips
-								Component->CreateEmptyTextureMips(CurrentWeightmapTexture);
-								CurrentWeightmapTexture->PostEditChange();
-
-								// Store it in the usage map
-								CurrentWeightmapUsage = LandscapeProxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, LandscapeProxy->CreateWeightmapUsage());
-
-								// UE_LOG(LogLandscape, Log, TEXT("Making a new texture %s"), *CurrentWeightmapTexture->GetName());
-							}
-
-							NewWeightmapTextures.Add(CurrentWeightmapTexture);
-
-							for (int32 ChanIdx = 0; ChanIdx < ULandscapeWeightmapUsage::NumChannels && TotalNeededChannels > 0; ChanIdx++)
-							{
-								// UE_LOG(LogLandscape, Log, TEXT("Finding allocation for layer %d"), CurrentLayer);
-
-								if (CurrentWeightmapUsage->ChannelUsage[ChanIdx] == nullptr)
-								{
-									// Use this allocation
-									FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[CurrentLayer];
-
-									if (AllocInfo.WeightmapTextureIndex == 255)
-									{
-										// New layer - zero out the data for this texture channel
-										LandscapeEdit.ZeroTextureChannel(CurrentWeightmapTexture, ChanIdx);
-									}
-									else
-									{
-										TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
-										UTexture2D* OldWeightmapTexture = ComponentWeightmapTextures[AllocInfo.WeightmapTextureIndex];
-
-										// Copy the data
-										LandscapeEdit.CopyTextureChannel(CurrentWeightmapTexture, ChanIdx, OldWeightmapTexture, AllocInfo.WeightmapTextureChannel);
-										LandscapeEdit.ZeroTextureChannel(OldWeightmapTexture, AllocInfo.WeightmapTextureChannel);
-
-										// Remove the old allocation
-										ULandscapeWeightmapUsage** OldWeightmapUsage = Component->GetLandscapeProxy()->WeightmapUsageMap.Find(OldWeightmapTexture);
-
-										if (OldWeightmapUsage != nullptr)
-										{
-											(*OldWeightmapUsage)->Modify();
-											(*OldWeightmapUsage)->ChannelUsage[AllocInfo.WeightmapTextureChannel] = nullptr;
-										}
-									}
-
-									// Assign the new allocation
-									CurrentWeightmapUsage->Modify();
-									CurrentWeightmapUsage->ChannelUsage[ChanIdx] = Component;
-									AllocInfo.WeightmapTextureIndex = NewWeightmapTextures.Num() - 1;
-									AllocInfo.WeightmapTextureChannel = ChanIdx;
-									CurrentLayer++;
-									TotalNeededChannels--;
-								}
-							}
-						}
-
-						// Replace the weightmap textures
-						Component->SetWeightmapTextures(NewWeightmapTextures);
-
-						// Update the mipmaps for the textures we edited
-						for (UTexture2D* WeightmapTexture : NewWeightmapTextures)
-						{
-							FLandscapeTextureDataInfo* WeightmapDataInfo = LandscapeEdit.GetTextureDataInfo(WeightmapTexture);
-
-							int32 NumMips = WeightmapTexture->Source.GetNumMips();
-							TArray<FColor*> WeightmapTextureMipData;
-							WeightmapTextureMipData.AddUninitialized(NumMips);
-							for (int32 MipIdx = 0; MipIdx < NumMips; MipIdx++)
-							{
-								WeightmapTextureMipData[MipIdx] = (FColor*)WeightmapDataInfo->GetMipData(MipIdx);
-							}
-
-							ULandscapeComponent::UpdateWeightmapMips(Component->NumSubsections, Component->SubsectionSizeQuads, WeightmapTexture, WeightmapTextureMipData, 0, 0, MAX_int32, MAX_int32, WeightmapDataInfo);
-						}
+							FScopedSetLandscapeEditingLayer Scope(Landscape, LayerGuid);
+							Component->ReallocateWeightmaps(&LandscapeEdit, true, true, false, true, LandscapeProxy);
+						});
+						Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
 					}
+
 					// Need to Repacking all the Weight map (to make it packed well...)
-					Landscape->RemoveInvalidWeightmaps();
+					for (ALandscapeProxy* Proxy : SelectProxies)
+					{
+						Proxy->RemoveInvalidWeightmaps();
+					}
 				}
 
 				// Move the components to the Proxy actor
@@ -809,6 +691,7 @@ public:
 		: FLandscapeToolBase<FLandscapeToolStrokeMoveToLevel>(InEdMode)
 	{
 	}
+	virtual bool ShouldUpdateEditingLayer() const override { return false; }
 
 	virtual const TCHAR* GetToolName() override { return TEXT("MoveToLevel"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_MoveToLevel", "Move to Streaming Level"); };
