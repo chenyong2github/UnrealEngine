@@ -721,6 +721,8 @@ void UTakeRecorder::Stop()
 
 	if (bDidEverStartRecording)
 	{
+		UTakeRecorderBlueprintLibrary::OnTakeRecorderStopped();
+
 		FTakeRecorderSourcesSettings TakeRecorderSourcesSettings;
 		TakeRecorderSourcesSettings.bSaveRecordedAssets = Parameters.User.bSaveRecordedAssets || GEditor == nullptr;
 		TakeRecorderSourcesSettings.bRemoveRedundantTracks = Parameters.User.bRemoveRedundantTracks;

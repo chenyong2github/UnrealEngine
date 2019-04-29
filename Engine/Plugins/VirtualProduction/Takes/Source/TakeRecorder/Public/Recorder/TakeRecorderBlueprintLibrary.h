@@ -82,6 +82,7 @@ public:
 
 	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderPanelChanged);
 	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderStarted);
+	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderStopped);
 	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnTakeRecorderFinished, ULevelSequence*, SequenceAsset);
 	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderCancelled);
 	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnTakeRecorderMarkedFrameAdded, const FMovieSceneMarkedFrame&, MarkedFrame);
@@ -93,6 +94,10 @@ public:
 	/** Called when take recording starts. */
 	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
 	static void SetOnTakeRecorderStarted(FOnTakeRecorderStarted OnTakeRecorderStarted);
+
+	/** Called when take recording is stopped. */
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
+	static void SetOnTakeRecorderStopped(FOnTakeRecorderStopped OnTakeRecorderStopped);
 
 	/** Called when take recording finishes. */
 	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
@@ -107,6 +112,7 @@ public:
 	static void SetOnTakeRecorderMarkedFrameAdded(FOnTakeRecorderMarkedFrameAdded OnTakeRecorderMarkedFrameAdded);
 
 	static void OnTakeRecorderStarted();
+	static void OnTakeRecorderStopped();
 	static void OnTakeRecorderFinished(ULevelSequence* InSequenceAsset);
 	static void OnTakeRecorderCancelled();
 	static void OnTakeRecorderMarkedFrameAdded(const FMovieSceneMarkedFrame& InMarkedFrame);
