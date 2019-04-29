@@ -22,6 +22,9 @@ namespace UnrealBuildTool
 		private TimingData FileTimingData;
 		private ConcurrentDictionary<string, int> DecompressedFileSizes = new ConcurrentDictionary<string, int>();
 		private ConcurrentDictionary<string, byte[]> CompressedFiles = new ConcurrentDictionary<string, byte[]>();
+		private ConcurrentBag<TimingData> AggregateIncludes = new ConcurrentBag<TimingData>();
+		private ConcurrentBag<TimingData> AggregateClasses = new ConcurrentBag<TimingData>();
+		private ConcurrentBag<TimingData> AggregateFunctions = new ConcurrentBag<TimingData>();
 		private object AddFileLock = new object();
 
 		public override int Execute(CommandLineArguments Arguments)
@@ -37,6 +40,11 @@ namespace UnrealBuildTool
 			string AggregateName = Arguments.GetString("-Name=");
 			TimingData AggregateData = new TimingData() { Name = AggregateName, Type = TimingDataType.Aggregate };
 			AggregateData.AddChild(FileTimingData);
+
+			// Group the includes, classes, and functions by name and sum them up then add to the aggregate.
+			GroupTimingDataOnName(AggregateData, "Include Timings", AggregateIncludes);//, 100);
+			GroupTimingDataOnName(AggregateData, "Class Timings", AggregateClasses);//, 100);
+			GroupTimingDataOnName(AggregateData, "Function Timings", AggregateFunctions);//, 100);
 
 			// Write out aggregate summary.
 			string OutputFile = Path.Combine(ManifestFile.Directory.FullName, String.Format("{0}.timing.bin", AggregateName));
@@ -67,6 +75,20 @@ namespace UnrealBuildTool
 			return 0;
 		}
 
+		private void GroupTimingDataOnName(TimingData AggregateData, string TimingName, IEnumerable<TimingData> UngroupedData, int NumberToKeep = int.MaxValue)
+		{
+			string GroupName = String.Format("Top {0} {1}", NumberToKeep, TimingName);
+			TimingData GroupedTimingData = new TimingData() { Name = GroupName, Type = TimingDataType.Summary };
+			IEnumerable<IGrouping<string, TimingData>> Groups = UngroupedData.GroupBy(i => i.Name).OrderByDescending(g => g.Sum(d => d.ExclusiveDuration)).ToList();
+			foreach (IGrouping<string, TimingData> Group in Groups.Take(NumberToKeep))
+			{
+				TimingData GroupedData = new TimingData() { Name = Group.Key, ExclusiveDuration = Group.Sum(d => d.ExclusiveDuration) };
+				GroupedTimingData.Children.Add(Group.Key, GroupedData);
+			}
+
+			AggregateData.AddChild(GroupedTimingData);
+		}
+
 		private void ParseTimingDataFile(string ParsedFileName)
 		{
 			// Convert input file back into summary objects.
@@ -95,7 +117,16 @@ namespace UnrealBuildTool
 				TimingData SummarizedIncludes = new TimingData() { Parent = SummarizedTimingData, Type = TimingDataType.Summary };
 				Task QueueIncludesTask = Task.Run(() =>
 				{
-					SummarizeTimingData(ParsedTimingData.Children["IncludeTimings"].Children.Values, SummarizedIncludes, "Includes", 10);
+					IEnumerable<TimingData> Includes = ParsedTimingData.Children["IncludeTimings"].Children.Values;
+					SummarizeTimingData(Includes, SummarizedIncludes, "Includes", 10);
+
+					// Flatten the includes for aggregation.
+					Dictionary<string, TimingData> FlattenedIncludes = new Dictionary<string, TimingData>();
+					FlattenIncludes(FlattenedIncludes, Includes);
+					foreach (TimingData Include in Includes)
+					{
+						AggregateIncludes.Add(Include);
+					}
 				});
 
 				TimingData SummarizedClasses = new TimingData() { Parent = SummarizedTimingData, Type = TimingDataType.Summary };
@@ -104,6 +135,10 @@ namespace UnrealBuildTool
 					// Collapse templates into single entries.
 					IEnumerable<TimingData> CollapsedClasses = GroupChildren(ParsedTimingData.Children["ClassTimings"].Children.Values, TimingDataType.Class);
 					SummarizeTimingData(CollapsedClasses, SummarizedClasses, "Classes", 10);
+					foreach (TimingData Class in CollapsedClasses)
+					{
+						AggregateClasses.Add(new TimingData() { Name = Class.Name, Type = TimingDataType.Class, ExclusiveDuration = Class.InclusiveDuration });
+					}
 				});
 
 				TimingData SummarizedFunctions = new TimingData() { Parent = SummarizedTimingData, Type = TimingDataType.Summary };
@@ -112,6 +147,10 @@ namespace UnrealBuildTool
 					// Collapse templates into single entries.
 					IEnumerable<TimingData> CollapsedFunctions = GroupChildren(ParsedTimingData.Children["FunctionTimings"].Children.Values, TimingDataType.Function);
 					SummarizeTimingData(CollapsedFunctions, SummarizedFunctions, "Functions", 10);
+					foreach (TimingData Function in CollapsedFunctions)
+					{
+						AggregateFunctions.Add(new TimingData() { Name = Function.Name, Type = TimingDataType.Function, ExclusiveDuration = Function.InclusiveDuration });
+					}
 				});
 
 				while (!CompressDataTask.IsCompleted || !QueueIncludesTask.IsCompleted || !QueueClassesTask.IsCompleted || !QueueFunctionsTask.IsCompleted)
@@ -127,6 +166,24 @@ namespace UnrealBuildTool
 				{
 					FileTimingData.AddChild(SummarizedTimingData);
 				}
+			}
+		}
+
+		private void FlattenIncludes(Dictionary<string, TimingData> Includes, IEnumerable<TimingData> IncludeData)
+		{
+			foreach (TimingData Include in IncludeData)
+			{
+				TimingData AggregatedInclude;
+				if (Includes.TryGetValue(Include.Name, out AggregatedInclude))
+				{
+					AggregatedInclude.ExclusiveDuration += Include.ExclusiveDuration;
+				}
+				else
+				{
+					Includes.Add(Include.Name, new TimingData() { Name = Include.Name, Type = TimingDataType.Include, ExclusiveDuration = Include.ExclusiveDuration });
+				}
+
+				FlattenIncludes(Includes, Include.Children.Values);
 			}
 		}
 
