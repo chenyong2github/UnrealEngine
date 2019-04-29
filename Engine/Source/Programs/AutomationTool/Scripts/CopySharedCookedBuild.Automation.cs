@@ -87,13 +87,8 @@ class CopySharedCookedBuild : BuildCommand
 			}
 		}
 
-		
+		new SharedCookedBuild(ProjectFile, TargetPlatforms.Select(x => x.ToString()), BuildType).CopySharedCookedBuilds();
 
-
-		foreach (var PlatformType in TargetPlatforms)
-		{
-			SharedCookedBuild.CopySharedCookedBuild(ProjectFile.FullName, PlatformType, BuildType, true);
-		}
 
 		
 		/*

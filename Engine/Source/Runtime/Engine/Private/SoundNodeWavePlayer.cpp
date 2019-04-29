@@ -133,7 +133,9 @@ void USoundNodeWavePlayer::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT 
 			UpdatedParams.bLooping = true;
 			SoundWave->Parse(AudioDevice, NodeWaveInstanceHash, ActiveSound, UpdatedParams, WaveInstances);
 		}
-		else
+		// Don't play non-looping sounds again if this sound has been revived to
+		// avoid re-triggering one shots played adjacent with looping wave instances in cue
+		else if (!ActiveSound.bHasVirtualized || ParseParams.bEnableRetrigger)
 		{
 			SoundWave->Parse(AudioDevice, NodeWaveInstanceHash, ActiveSound, ParseParams, WaveInstances);
 		}

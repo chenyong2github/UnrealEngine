@@ -44,8 +44,14 @@
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_BoneName.h"
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_GetBoneTransform.h"
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_SetBoneTransform.h"
+#include "ControlRig/Private/Units/Hierarchy/RigUnit_GetBoneTransform.h"
+#include "ControlRig/Private/Units/Hierarchy/RigUnit_SetBoneTransform.h"
+#include "ControlRig/Private/Units/Hierarchy/RigUnit_SetBoneRotation.h"
+#include "ControlRig/Private/Units/Hierarchy/RigUnit_SetBoneTranslation.h"
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_GetRelativeBoneTransform.h"
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_SetRelativeBoneTransform.h"
+#include "ControlRig/Private/Units/Hierarchy/RigUnit_GetInitialBoneTransform.h"
+#include "ControlRig/Private/Units/Hierarchy/RigUnit_AddBoneTransform.h"
 #include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "ControlRigObjectVersion.h"
@@ -1069,20 +1075,20 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 			MenuBuilder.BeginSection("RigHierarchyDroppedOn", BoneNameText);
 
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("CreateGetBoneTransformLocal", "Get Local"),
-				LOCTEXT("CreateGetBoneTransformLocalTooltip", "Getter for bone in local space\n"),
+				LOCTEXT("CreateGetBoneTransform", "Get Transform"),
+				LOCTEXT("CreateGetBoneTransformTooltip", "Getter for bone transform\n"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, 0, BoneNames, EBoneGetterSetterMode::LocalSpace, Graph, NodePosition),
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, EBoneGetterSetterType_Transform, true, BoneNames, Graph, NodePosition),
 					FCanExecuteAction()
 				)
 			);
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("CreateSetBoneTransformLocal", "Set Local"),
-				LOCTEXT("CreateSetBoneTransformLocalTooltip", "Setter for bone in local space\n"),
+				LOCTEXT("CreateSetBoneTransform", "Set Transform"),
+				LOCTEXT("CreateSetBoneTransformTooltip", "Setter for bone transform\n"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, 1, BoneNames, EBoneGetterSetterMode::LocalSpace, Graph, NodePosition),
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, EBoneGetterSetterType_Transform, false, BoneNames, Graph, NodePosition),
 					FCanExecuteAction()
 				)
 			);
@@ -1090,20 +1096,41 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 			MenuBuilder.AddMenuSeparator();
 
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("CreateGetBoneTransformGlobal", "Get Global"),
-				LOCTEXT("CreateGetBoneTransformGlobalTooltip", "Getter for bone in global space\n"),
+				LOCTEXT("CreateSetBoneRotation", "Set Rotation"),
+				LOCTEXT("CreateSetBoneRotationTooltip", "Setter for bone Rotation\n"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, 2, BoneNames, EBoneGetterSetterMode::GlobalSpace, Graph, NodePosition),
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, EBoneGetterSetterType_Rotation, false, BoneNames, Graph, NodePosition),
 					FCanExecuteAction()
 				)
 			);
+
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("CreateSetBoneTransformGlobal", "Set Global"),
-				LOCTEXT("CreateSetBoneTransformGlobalTooltip", "Setter for bone in global space\n"),
+				LOCTEXT("CreateSetBoneTranslation", "Set Translation"),
+				LOCTEXT("CreateSetBoneTranslationTooltip", "Setter for bone translation\n"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, 3, BoneNames, EBoneGetterSetterMode::GlobalSpace, Graph, NodePosition),
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, EBoneGetterSetterType_Translation, false, BoneNames, Graph, NodePosition),
+					FCanExecuteAction()
+				)
+			);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("CreateSetBoneOffset", "Set Offset"),
+				LOCTEXT("CreateSetBoneOffsetTooltip", "Setter for bone offset\n"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, EBoneGetterSetterType_Offset, false, BoneNames, Graph, NodePosition),
+					FCanExecuteAction()
+				)
+			);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("CreateGetInitialBoneTransform", "Get Initial Bone Transform"),
+				LOCTEXT("CreateGetInitialBoneTransformTooltip", "Getter for initial bone transform\n"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, EBoneGetterSetterType_Initial, true, BoneNames, Graph, NodePosition),
 					FCanExecuteAction()
 				)
 			);
@@ -1111,20 +1138,20 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 			MenuBuilder.AddMenuSeparator();
 
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("CreateGetBoneTransformRelative", "Get Relative"),
-				LOCTEXT("CreateGetBoneTransformRelativeTooltip", "Getter for bone in another bone's space\n"),
+				LOCTEXT("CreateGetBoneRelativeTransform", "Get Relative Transform"),
+				LOCTEXT("CreateGetBoneRelativeTransformTooltip", "Getter for bone relative transform\n"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, 4, BoneNames, EBoneGetterSetterMode::GlobalSpace, Graph, NodePosition),
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, EBoneGetterSetterType_Relative, true, BoneNames, Graph, NodePosition),
 					FCanExecuteAction()
 				)
 			);
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("CreateSetBoneTransformRelative", "Set Relative"),
-				LOCTEXT("CreateSetBoneTransformRelativeTooltip", "Setter for bone in another bone's space\n"),
+				LOCTEXT("CreateSetBoneRelativeTransform", "Set Relative Transform"),
+				LOCTEXT("CreateSetBoneRelativeTransformTooltip", "Setter for bone relative transform\n"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, 5, BoneNames, EBoneGetterSetterMode::GlobalSpace, Graph, NodePosition),
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, EBoneGetterSetterType_Relative, false, BoneNames, Graph, NodePosition),
 					FCanExecuteAction()
 				)
 			);
@@ -1132,14 +1159,15 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 			MenuBuilder.AddMenuSeparator();
 
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("CreateGetBoneName", "Bone Name"),
-				LOCTEXT("CreateGetBoneNameTooltip", "Create name unit for each bone\n"),
+				LOCTEXT("CreateGetBoneName", "Get Bone Name"),
+				LOCTEXT("CreateGetBoneNameTooltip", "Getter for bone name\n"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, 6, BoneNames, EBoneGetterSetterMode::LocalSpace, Graph, NodePosition),
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeBoneGetterSetter, EBoneGetterSetterType_Name, true, BoneNames, Graph, NodePosition),
 					FCanExecuteAction()
 				)
 			);
+
 
 			TSharedRef<SWidget> GraphEditorPanel = FocusedGraphEdPtr.Pin().ToSharedRef();
 			
@@ -1157,42 +1185,73 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 	}
 }
 
-void FControlRigEditor::HandleMakeBoneGetterSetter(int32 UnitType, TArray<FName> BoneNames, EBoneGetterSetterMode Space, UEdGraph* Graph, FVector2D NodePosition)
+void FControlRigEditor::HandleMakeBoneGetterSetter(EBoneGetterSetterType Type, bool bIsGetter, TArray<FName> BoneNames, UEdGraph* Graph, FVector2D NodePosition)
 {
 	UStruct* StructTemplate = nullptr;
 
-	switch (UnitType)
+	if (bIsGetter)
 	{
-		case 0:
-		case 2:
+		switch (Type)
 		{
-			StructTemplate = FRigUnit_GetBoneTransform::StaticStruct();
-			break;
+			case EBoneGetterSetterType_Transform:
+			{
+				StructTemplate = FRigUnit_GetBoneTransform::StaticStruct();
+				break;
+			}
+			case EBoneGetterSetterType_Initial:
+			{
+				StructTemplate = FRigUnit_GetInitialBoneTransform::StaticStruct();
+				break;
+			}
+			case EBoneGetterSetterType_Relative:
+			{
+				StructTemplate = FRigUnit_GetRelativeBoneTransform::StaticStruct();
+				break;
+			}
+			case EBoneGetterSetterType_Name:
+			{
+				StructTemplate = FRigUnit_BoneName::StaticStruct();
+				break;
+			}
+			default:
+			{
+				break;
+			}
 		}
-		case 1:
-		case 3:
+	}
+	else
+	{
+		switch (Type)
 		{
-			StructTemplate = FRigUnit_SetBoneTransform::StaticStruct();
-			break;
-		}
-		case 4:
-		{
-			StructTemplate = FRigUnit_GetRelativeBoneTransform::StaticStruct();
-			break;
-		}
-		case 5:
-		{
-			StructTemplate = FRigUnit_SetRelativeBoneTransform::StaticStruct();
-			break;
-		}
-		case 6:
-		{
-			StructTemplate = FRigUnit_BoneName::StaticStruct();
-			break;
-		}
-		default:
-		{
-			break;
+			case EBoneGetterSetterType_Transform:
+			{
+				StructTemplate = FRigUnit_SetBoneTransform::StaticStruct();
+				break;
+			}
+			case EBoneGetterSetterType_Relative:
+			{
+				StructTemplate = FRigUnit_SetRelativeBoneTransform::StaticStruct();
+				break;
+			}
+			case EBoneGetterSetterType_Rotation:
+			{
+				StructTemplate = FRigUnit_SetBoneRotation::StaticStruct();
+				break;
+			}
+			case EBoneGetterSetterType_Translation:
+			{
+				StructTemplate = FRigUnit_SetBoneTranslation::StaticStruct();
+				break;
+			}
+			case EBoneGetterSetterType_Offset:
+			{
+				StructTemplate = FRigUnit_AddBoneTransform::StaticStruct();
+				break;
+			}
+			default:
+			{
+				break;
+			}
 		}
 	}
 
@@ -1211,47 +1270,11 @@ void FControlRigEditor::HandleMakeBoneGetterSetter(int32 UnitType, TArray<FName>
 	TSet<const UEdGraphNode*> NewNodes;
 	for (const FName& BoneName : BoneNames)
 	{
-		FString BonePropertyNameSuffix;
-		FString SpacePropertyNameSuffix;
+		const TCHAR* BoneNameSuffix = TEXT(".Bone");
 		FVector2D NodePositionIncrement(0.f, 120.f);
-
-		switch (UnitType)
+		if(!bIsGetter)
 		{
-			case 0: // Get Local
-			case 2: // Get Global
-			{
-				BonePropertyNameSuffix = TEXT(".Bone");
-				SpacePropertyNameSuffix = TEXT(".Space");
-				break;
-			}
-			case 1: // Set Local
-			case 3: // Set Global
-			{
-				BonePropertyNameSuffix = TEXT(".Bone");
-				NodePositionIncrement = FVector2D(380.f, 0.f);
-				SpacePropertyNameSuffix = TEXT(".Space");
-				break;
-			}
-			case 4: // Get Relative
-			{
-				BonePropertyNameSuffix = TEXT(".Bone");
-				break;
-			}
-			case 5: // Get Relative
-			{
-				BonePropertyNameSuffix = TEXT(".Bone");
-				NodePositionIncrement = FVector2D(380.f, 0.f);
-				break;
-			}
-			case 6: // BoneName
-			{
-				BonePropertyNameSuffix = TEXT(".Bone");
-				break;
-			}
-			default:
-			{
-				break;
-			}
+			NodePositionIncrement = FVector2D(380.f, 0.f);
 		}
 
 		UControlRigGraphNode* Node = Cast<UControlRigGraphNode>(Spawner->Invoke(Graph, Bindings, NodePosition));
@@ -1261,13 +1284,9 @@ void FControlRigEditor::HandleMakeBoneGetterSetter(int32 UnitType, TArray<FName>
 
 			for (UEdGraphPin* Pin : Node->Pins)
 			{
-				if (!BonePropertyNameSuffix.IsEmpty() && Pin->GetName().EndsWith(BonePropertyNameSuffix))
+				if (Pin->GetName().EndsWith(BoneNameSuffix))
 				{
 					Pin->DefaultValue = BoneName.ToString();
-				}
-				if (!SpacePropertyNameSuffix.IsEmpty() && Pin->GetName().EndsWith(SpacePropertyNameSuffix))
-				{
-					Pin->DefaultValue = Space == EBoneGetterSetterMode::GlobalSpace ? TEXT("GlobalSpace") : TEXT("LocalSpace");
 				}
 			}
 		}

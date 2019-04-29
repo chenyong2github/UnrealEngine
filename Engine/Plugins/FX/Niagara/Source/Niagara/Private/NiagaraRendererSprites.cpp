@@ -135,7 +135,7 @@ void NiagaraRendererSprites::ConditionalInitPrimitiveUniformBuffer(const FNiagar
 			0,
 			INDEX_NONE,
 			INDEX_NONE,
-			false
+			SceneProxy->AlwaysHasVelocity()
 		);
 		WorldSpacePrimitiveUniformBuffer.SetContents(PrimitiveUniformShaderParameters);
 		WorldSpacePrimitiveUniformBuffer.InitResource();

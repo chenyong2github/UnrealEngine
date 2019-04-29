@@ -63,6 +63,11 @@ bool FExternalTextureRegistry::GetExternalTexture(const FMaterialRenderProxy* Ma
 #endif
 	FScopeLock Lock(&CriticalSection);
 
+	if ((MaterialRenderProxy != nullptr) && MaterialRenderProxy->IsMarkedForGarbageCollection())
+	{
+		UE_LOG(LogMaterial, Fatal, TEXT("FMaterialRenderProxy was already marked for garbage collection"));
+	}
+
 	// register material proxy if already initialized
 	if ((MaterialRenderProxy != nullptr) && MaterialRenderProxy->IsInitialized())
 	{

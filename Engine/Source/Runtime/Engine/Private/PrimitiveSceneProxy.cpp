@@ -291,7 +291,7 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				LpvBiasMultiplier,
 				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0,
 				SingleCaptureIndex, 
-				bOutputVelocity,
+				bOutputVelocity || AlwaysHasVelocity(),
 				GetCustomPrimitiveData());
 
 		if (UniformBuffer.GetReference())

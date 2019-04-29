@@ -170,7 +170,7 @@ void NiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneView
 				0,
 				INDEX_NONE,
 				INDEX_NONE,
-				false
+				SceneProxy->AlwaysHasVelocity()
 				);
 			WorldSpacePrimitiveUniformBuffer.SetContents(PrimitiveUniformShaderParameters);
 			WorldSpacePrimitiveUniformBuffer.InitResource();

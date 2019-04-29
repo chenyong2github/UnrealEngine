@@ -35,6 +35,7 @@ namespace UnrealBuildTool.Rules
                     {
                         "UnrealEd",
 						"Kismet",
+                        "AnimGraph",
                         "BlueprintGraph",
                         "PropertyEditor",
                     }

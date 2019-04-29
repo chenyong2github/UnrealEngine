@@ -8,7 +8,6 @@
 FAnimNode_SubInstance::FAnimNode_SubInstance()
 	: InstanceClass(nullptr)
 	, Tag(NAME_None)
-	, InstanceToRun(nullptr)
 {
 
 }
@@ -30,29 +29,12 @@ void FAnimNode_SubInstance::Update_AnyThread(const FAnimationUpdateContext& Cont
 	InPose.Update(Context);
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
+	UAnimInstance* InstanceToRun = GetTargetInstance<UAnimInstance>();
 	if(InstanceToRun)
 	{
 		FAnimInstanceProxy& Proxy = InstanceToRun->GetProxyOnAnyThread<FAnimInstanceProxy>();
 
-		// First copy properties
-		check(InstanceProperties.Num() == SubInstanceProperties.Num());
-		for(int32 PropIdx = 0; PropIdx < InstanceProperties.Num(); ++PropIdx)
-		{
-			UProperty* CallerProperty = InstanceProperties[PropIdx];
-			UProperty* SubProperty = SubInstanceProperties[PropIdx];
-
-			check(CallerProperty && SubProperty);
-
-#if WITH_EDITOR
-			if (ensure(CallerProperty->SameType(SubProperty)))
-#endif
-			{
-				uint8* SrcPtr = CallerProperty->ContainerPtrToValuePtr<uint8>(Context.AnimInstanceProxy->GetAnimInstanceObject());
-				uint8* DestPtr = SubProperty->ContainerPtrToValuePtr<uint8>(InstanceToRun);
-
-				CallerProperty->CopyCompleteValue(DestPtr, SrcPtr);
-			}
-		}
+		PropagateInputProperties(Context.AnimInstanceProxy->GetAnimInstanceObject());
 
 		// Only update if we've not had a single-threaded update already
 		if(InstanceToRun->bNeedsUpdate)
@@ -64,6 +46,7 @@ void FAnimNode_SubInstance::Update_AnyThread(const FAnimationUpdateContext& Cont
 
 void FAnimNode_SubInstance::Evaluate_AnyThread(FPoseContext& Output)
 {
+	UAnimInstance* InstanceToRun = GetTargetInstance<UAnimInstance>();
 	if(InstanceToRun)
 	{
 		InPose.Evaluate(Output);
@@ -96,6 +79,7 @@ void FAnimNode_SubInstance::GatherDebugData(FNodeDebugData& DebugData)
 
 	DebugData.AddDebugItem(DebugLine);
 
+	UAnimInstance* InstanceToRun = GetTargetInstance<UAnimInstance>();
 	// Gather data from the sub instance
 	if(InstanceToRun)
 	{
@@ -109,11 +93,12 @@ void FAnimNode_SubInstance::GatherDebugData(FNodeDebugData& DebugData)
 
 void FAnimNode_SubInstance::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
+	UAnimInstance* InstanceToRun = GetTargetInstance<UAnimInstance>();
+
 	if(*InstanceClass)
 	{
 		USkeletalMeshComponent* MeshComp = InAnimInstance->GetSkelMeshComponent();
 		check(MeshComp);
-
 		// Full reinit, kill old instances
 		if(InstanceToRun)
 		{
@@ -132,34 +117,9 @@ void FAnimNode_SubInstance::OnInitializeAnimInstance(const FAnimInstanceProxy* I
 
 		MeshComp->SubInstances.Add(InstanceToRun);
 
-		// Build property lists
-		InstanceProperties.Reset(SourcePropertyNames.Num());
-		SubInstanceProperties.Reset(SourcePropertyNames.Num());
+		SetTargetInstance(InstanceToRun);
 
-		check(SourcePropertyNames.Num() == DestPropertyNames.Num());
-
-		for(int32 Idx = 0; Idx < SourcePropertyNames.Num(); ++Idx)
-		{
-			FName& SourceName = SourcePropertyNames[Idx];
-			FName& DestName = DestPropertyNames[Idx];
-
-			UClass* SourceClass = InAnimInstance->GetClass();
-
-			UProperty* SourceProperty = FindField<UProperty>(SourceClass, SourceName);
-			UProperty* DestProperty = FindField<UProperty>(*InstanceClass, DestName);
-
-			if (SourceProperty && DestProperty
-#if WITH_EDITOR
-				// This type check can fail when anim blueprints are in an error state:
-				&& SourceProperty->SameType(DestProperty)
-#endif
-				)
-			{
-				InstanceProperties.Add(SourceProperty);
-				SubInstanceProperties.Add(DestProperty);
-			}
-		}
-		
+		InitializeProperties(InAnimInstance);
 	}
 	else if(InstanceToRun)
 	{
@@ -170,7 +130,11 @@ void FAnimNode_SubInstance::OnInitializeAnimInstance(const FAnimInstanceProxy* I
 
 void FAnimNode_SubInstance::TeardownInstance()
 {
-	InstanceToRun->UninitializeAnimation();
-	InstanceToRun = nullptr;
+	UAnimInstance* InstanceToRun = GetTargetInstance<UAnimInstance>();
+	if (InstanceToRun)
+	{
+		InstanceToRun->UninitializeAnimation();
+		InstanceToRun = nullptr;
+	}
 }
 

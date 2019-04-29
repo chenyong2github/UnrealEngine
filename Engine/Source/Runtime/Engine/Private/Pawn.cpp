@@ -100,6 +100,8 @@ void APawn::PreInitializeComponents()
 
 void APawn::PostInitializeComponents()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_Pawn_PostInitComponents);
+
 	Super::PostInitializeComponents();
 	
 	if (!IsPendingKill())

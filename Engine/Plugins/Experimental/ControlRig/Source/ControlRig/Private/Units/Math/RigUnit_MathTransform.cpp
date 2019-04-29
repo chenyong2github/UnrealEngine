@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Units/Math/RigUnit_MathTransform.h"
+#include "Math/ControlRigMathLibrary.h"
 #include "Units/RigUnitContext.h"
 
 void FRigUnit_MathTransformFromEulerTransform::Execute(const FRigUnitContext& Context)
@@ -30,9 +31,7 @@ void FRigUnit_MathTransformInverse::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_MathTransformLerp::Execute(const FRigUnitContext& Context)
 {
-	Result.SetLocation(FMath::Lerp<FVector>(A.GetLocation(), B.GetLocation(), T));
-	Result.SetRotation(FQuat::Slerp(A.GetRotation(), B.GetRotation(), T));
-	Result.SetScale3D(FMath::Lerp<FVector>(A.GetScale3D(), B.GetScale3D(), T));
+	Result = FControlRigMathLibrary::LerpTransform(A, B, T);
 }
 
 void FRigUnit_MathTransformSelectBool::Execute(const FRigUnitContext& Context)

@@ -72,6 +72,9 @@ public:
 	{
 		return FString(TEXT("Engine/Animation/ControlRig"));
 	}
+
+	// BlueprintEditor interface
+	virtual bool CanAddNewLocalVariable() const override { return false; }
 	
 	// IToolkitHost Interface
 	virtual void OnToolkitHostingStarted(const TSharedRef<class IToolkit>& Toolkit) override;
@@ -181,7 +184,18 @@ private:
 	void ToggleExecuteGraph();
 	bool IsExecuteGraphOn() const;
 
-	 void HandleMakeBoneGetterSetter(int32 UnitType, TArray<FName> BoneNames, EBoneGetterSetterMode Space, UEdGraph* Graph, FVector2D NodePosition);
+	enum EBoneGetterSetterType
+	{
+		EBoneGetterSetterType_Transform,
+		EBoneGetterSetterType_Rotation,
+		EBoneGetterSetterType_Translation,
+		EBoneGetterSetterType_Initial,
+		EBoneGetterSetterType_Relative,
+		EBoneGetterSetterType_Offset,
+		EBoneGetterSetterType_Name
+	};
+
+	 void HandleMakeBoneGetterSetter(EBoneGetterSetterType Type, bool bIsGetter, TArray<FName> BoneNames, UEdGraph* Graph, FVector2D NodePosition);
 
 protected:
 

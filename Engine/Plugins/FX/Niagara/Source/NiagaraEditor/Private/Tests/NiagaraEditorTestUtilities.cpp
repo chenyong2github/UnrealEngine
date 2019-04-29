@@ -36,7 +36,7 @@ UNiagaraSystem* FNiagaraEditorTestUtilities::CreateTestSystemForEmitter(UNiagara
 {
 	UNiagaraSystem* System = NewObject<UNiagaraSystem>((UObject*)GetTransientPackage(), NAME_None, RF_Transient);
 	UNiagaraSystemFactoryNew::InitializeSystem(System, false);
-	System->AddEmitterHandleWithoutCopying(*Emitter);
+	System->AddEmitterHandle(*Emitter, Emitter->GetFName());
 	return System;
 }
 

@@ -1044,13 +1044,13 @@ struct ENGINE_API FCollisionResponseContainer
 	FCollisionResponseContainer(ECollisionResponse DefaultResponse);
 
 	/** Set the response of a particular channel in the structure. */
-	void SetResponse(ECollisionChannel Channel, ECollisionResponse NewResponse);
+	bool SetResponse(ECollisionChannel Channel, ECollisionResponse NewResponse);
 
 	/** Set all channels to the specified response */
-	void SetAllChannels(ECollisionResponse NewResponse);
+	bool SetAllChannels(ECollisionResponse NewResponse);
 
 	/** Replace the channels matching the old response with the new response */
-	void ReplaceChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse);
+	bool ReplaceChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse);
 
 	/** Returns the response set on the specified channel */
 	FORCEINLINE_DEBUGGABLE ECollisionResponse GetResponse(ECollisionChannel Channel) const { return (ECollisionResponse)EnumArray[Channel]; }
@@ -1064,6 +1064,15 @@ struct ENGINE_API FCollisionResponseContainer
 
 	/** Returns the game-wide default collision response */
 	static const struct FCollisionResponseContainer& GetDefaultResponseContainer() { return DefaultResponseContainer; }
+
+	bool operator==(const FCollisionResponseContainer& Other) const
+	{
+		return FMemory::Memcmp(EnumArray, Other.EnumArray, sizeof(Other.EnumArray)) == 0;
+	}
+	bool operator!=(const FCollisionResponseContainer& Other) const
+	{
+		return FMemory::Memcmp(EnumArray, Other.EnumArray, sizeof(Other.EnumArray)) != 0;
+	}
 
 private:
 

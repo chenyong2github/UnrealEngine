@@ -1213,7 +1213,6 @@ bool SPathView::VerifyFolderNameChanged(const FString& InName, FText& OutErrorMe
 
 void SPathView::FolderNameChanged( const TSharedPtr< FTreeItem >& TreeItem, const FString& OldPath, const FVector2D& MessageLocation, const ETextCommit::Type CommitType )
 {
-	TArray<FMovedContentFolder> MovedFolders;
 	// Verify the name of the folder
 	FText Reason;
 	if ( ContentBrowserUtils::IsValidFolderName(TreeItem->FolderName, Reason) )
@@ -1281,25 +1280,10 @@ void SPathView::FolderNameChanged( const TSharedPtr< FTreeItem >& TreeItem, cons
 				EmptyFolderVisibilityManager->SetAlwaysShowPath(TreeItem->FolderPath);
 
 				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-				if (AssetRegistryModule.Get().AddPath(TreeItem->FolderPath) && TreeItem->FolderPath != OldPath)
+				if (AssetRegistryModule.Get().AddPath(TreeItem->FolderPath) && ContentBrowserUtils::RenameFolder(TreeItem->FolderPath, OldPath))
 				{
+					TArray<FMovedContentFolder> MovedFolders;
 					MovedFolders.Add(FMovedContentFolder(OldPath, TreeItem->FolderPath));
-					// move any assets in our folder
-					TArray<FAssetData> AssetsInFolder;
-					AssetRegistryModule.Get().GetAssetsByPath(*OldPath, AssetsInFolder, true);
-					TArray<UObject*> ObjectsInFolder;
-					ContentBrowserUtils::GetObjectsInAssetData(AssetsInFolder, ObjectsInFolder);
-					ContentBrowserUtils::MoveAssets(ObjectsInFolder, TreeItem->FolderPath, OldPath);
-
-					// Now check to see if the original folder is empty, if so we can delete it
-					TArray<FAssetData> AssetsInOriginalFolder;
-					AssetRegistryModule.Get().GetAssetsByPath(*OldPath, AssetsInOriginalFolder, true);
-					if (AssetsInOriginalFolder.Num() == 0)
-					{
-						TArray<FString> FoldersToDelete;
-						FoldersToDelete.Add(OldPath);
-						ContentBrowserUtils::DeleteFolders(FoldersToDelete);
-					}
 					OnFolderPathChanged.ExecuteIfBound(MovedFolders);
 				}
 			}

@@ -531,6 +531,10 @@ public:
 			RHICopyToResolveTarget(RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget, RenderPassInfo.DepthStencilRenderTarget.ResolveTarget, RenderPassInfo.ResolveParameters);
 		}
 	}
+	
+	virtual void RHINextSubpass()
+	{
+	}
 
 	virtual void RHIBeginComputePass(const TCHAR* InName)
 	{

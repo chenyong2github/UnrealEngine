@@ -909,6 +909,16 @@ static FAutoConsoleVariableRef CVarForwardShading(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 	); 
 
+static TAutoConsoleVariable<int32> CVarDistanceFields(
+	TEXT("r.DistanceFields"),
+	1,
+	TEXT("Enables distance fields rendering.\n") \
+	TEXT(" 0: Disabled.\n") \
+	TEXT(" 1: Enabled."),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+	); 
+
+
 RENDERCORE_API uint32 GForwardShadingPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GForwardShadingPlatformMask) * 8, "GForwardShadingPlatformMask must be large enough to support all shader platforms");
 
@@ -920,6 +930,9 @@ static_assert(SP_NumPlatforms <= sizeof(GBasePassVelocityPlatformMask) * 8, "GBa
 
 RENDERCORE_API uint32 GSelectiveBasePassOutputsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GSelectiveBasePassOutputsPlatformMask) * 8, "GSelectiveBasePassOutputsPlatformMask must be large enough to support all shader platforms");
+
+RENDERCORE_API uint32 GDistanceFieldsPlatformMask = 0;
+static_assert(SP_NumPlatforms <= sizeof(GDistanceFieldsPlatformMask) * 8, "GDistanceFieldsPlatformMask must be large enough to support all shader platforms");
 
 RENDERCORE_API void RenderUtilsInit()
 {
@@ -944,6 +957,12 @@ RENDERCORE_API void RenderUtilsInit()
 	if (SelectiveBasePassOutputsCVar && SelectiveBasePassOutputsCVar->GetInt())
 	{
 		GSelectiveBasePassOutputsPlatformMask = ~0u;
+	}
+
+	static IConsoleVariable* DistanceFieldsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DistanceFields")); 
+	if (DistanceFieldsCVar && DistanceFieldsCVar->GetInt())
+	{
+		GDistanceFieldsPlatformMask = ~0u;
 	}
 
 #if WITH_EDITOR
@@ -993,6 +1012,15 @@ RENDERCORE_API void RenderUtilsInit()
 				else
 				{
 					GSelectiveBasePassOutputsPlatformMask &= ~Mask;
+				}
+
+				if (TargetPlatform->UsesDistanceFields())
+				{
+					GDistanceFieldsPlatformMask |= Mask;
+				}
+				else
+				{
+					GDistanceFieldsPlatformMask &= ~Mask;
 				}
 			}
 		}

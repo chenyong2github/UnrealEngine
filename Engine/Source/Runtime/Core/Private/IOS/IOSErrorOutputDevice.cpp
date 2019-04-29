@@ -7,6 +7,7 @@
 #include "IOS/IOSErrorOutputDevice.h"
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformAtomics.h"
+#include "Misc/OutputDeviceHelper.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "CoreGlobals.h"
 
@@ -17,10 +18,8 @@ FIOSErrorOutputDevice::FIOSErrorOutputDevice()
 
 void FIOSErrorOutputDevice::Serialize( const TCHAR* Msg, ELogVerbosity::Type Verbosity, const class FName& Category )
 {
-	// @todo iosmerge: this was a big mess copied from Mac that we don't want at all. can we use default like other consoles?
-	if( GIsGuarded )
+	FPlatformMisc::LowLevelOutputDebugString(*FOutputDeviceHelper::FormatLogLine(Verbosity, Category, Msg, GPrintLogTimes));	if( GIsGuarded )
 	{
-//		FOutputDevice::Serialize(Msg, Verbosity, Category);
 		UE_DEBUG_BREAK();
 	}
 	else

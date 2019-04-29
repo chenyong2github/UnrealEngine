@@ -55,7 +55,7 @@ FName FControlRigBlueprintUtils::AddPropertyMember(UBlueprint* InBlueprint, cons
 	return NAME_None;
 }
 
-UControlRigGraphNode* FControlRigBlueprintUtils::InstantiateGraphNodeForProperty(UEdGraph* InGraph, const FName& InPropertyName, const FVector2D& InLocation)
+UControlRigGraphNode* FControlRigBlueprintUtils::InstantiateGraphNodeForProperty(UEdGraph* InGraph, const FName& InPropertyName, const FVector2D& InLocation, const FEdGraphPinType& InPinType)
 {
 	check(InGraph);
 
@@ -63,6 +63,7 @@ UControlRigGraphNode* FControlRigBlueprintUtils::InstantiateGraphNodeForProperty
 
 	UControlRigGraphNode* NewNode = NewObject<UControlRigGraphNode>(InGraph);
 	NewNode->SetPropertyName(InPropertyName);
+	NewNode->PinType = InPinType;
 
 	InGraph->AddNode(NewNode, true);
 

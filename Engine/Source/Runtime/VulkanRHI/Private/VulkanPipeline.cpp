@@ -1172,7 +1172,7 @@ void FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FGfxPipelineEn
 	PipelineInfo.pViewportState = &VPInfo;
 
 	PipelineInfo.renderPass = GfxEntry->RenderPass->GetHandle();
-	PipelineInfo.subpass = 0;
+	PipelineInfo.subpass = GfxEntry->SubpassIndex;
 
 	VkPipelineInputAssemblyStateCreateInfo InputAssembly;
 	ZeroVulkanStruct(InputAssembly, VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO);
@@ -1527,10 +1527,17 @@ FVulkanPipelineStateCacheManager::FGfxPipelineEntry* FVulkanPipelineStateCacheMa
 	FVulkanShader* Shaders[ShaderStage::NumStages];
 	GetVulkanShaders(PSOInitializer.BoundShaderState, Shaders);
 
-	OutGfxEntry->RenderPass = Device->GetImmediateContext().PrepareRenderPassForPSOCreation(PSOInitializer, OutGfxEntry->Layout->GetDescriptorSetsLayout().RemappingInfo.InputAttachmentData);
-
 	FVulkanVertexInputStateInfo VertexInputState;
 	OutGfxEntry->Layout = GetOrGenerateGfxLayout(PSOInitializer, Shaders, VertexInputState);
+	OutGfxEntry->RenderPass = Device->GetImmediateContext().PrepareRenderPassForPSOCreation(PSOInitializer);
+	
+	// check that any depth fetch is actually using depth read sub-pass
+	if (OutGfxEntry->Layout->UsesInputAttachment(FVulkanShaderHeader::EAttachmentType::Depth))
+	{
+		check(PSOInitializer.SubpassHint == ESubpassHint::DepthReadSubpass);
+		check(PSOInitializer.SubpassIndex == 1);
+	}
+	OutGfxEntry->SubpassIndex = PSOInitializer.SubpassIndex;
 
 	const bool bHasTessellation = (PSOInitializer.BoundShaderState.DomainShaderRHI != nullptr);
 

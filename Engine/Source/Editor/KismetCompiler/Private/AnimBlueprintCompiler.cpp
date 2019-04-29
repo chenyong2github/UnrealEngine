@@ -43,6 +43,7 @@
 #include "AnimGraphNode_TransitionResult.h"
 #include "K2Node_AnimGetter.h"
 #include "AnimGraphNode_StateMachine.h"
+#include "Animation/AnimNode_CustomProperty.h"
 #include "Animation/AnimNode_SubInstance.h"
 #include "AnimGraphNode_SubInstance.h"
 #include "AnimGraphNode_Slot.h"
@@ -185,11 +186,11 @@ void FAnimBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 	{	
 		for (UEdGraph* It : Blueprint->UbergraphPages)
 		{
-			TArray<UAnimGraphNode_SubInstance*> SubInstanceNodes;
-			It->GetNodesOfClass(SubInstanceNodes);
-			for( UAnimGraphNode_SubInstance* SubInstance : SubInstanceNodes )
+			TArray<UAnimGraphNode_CustomProperty*> CustomPropertyNodes;
+			It->GetNodesOfClass(CustomPropertyNodes);
+			for(UAnimGraphNode_CustomProperty* CustomPropNode : CustomPropertyNodes )
 			{
-				ProcessSubInstance(SubInstance, false);
+				ProcessCustomPropertyNode(CustomPropNode);
 			}
 		}
 		
@@ -205,11 +206,11 @@ void FAnimBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 
 				for(UEdGraph* CurrGraph : AllGraphs)
 				{
-					TArray<UAnimGraphNode_SubInstance*> SubInstanceNodes;
-					CurrGraph->GetNodesOfClass(SubInstanceNodes);
-					for(UAnimGraphNode_SubInstance* SubInstance : SubInstanceNodes)
+					TArray<UAnimGraphNode_CustomProperty*> CustomPropertyNodes;
+					CurrGraph->GetNodesOfClass(CustomPropertyNodes);
+					for(UAnimGraphNode_CustomProperty* CustomPropNode : CustomPropertyNodes)
 					{
-						ProcessSubInstance(SubInstance, false);
+						ProcessCustomPropertyNode(CustomPropNode);
 					}
 				}
 			}
@@ -526,6 +527,12 @@ void FAnimBlueprintCompilerContext::ProcessAnimationNode(UAnimGraphNode_Base* Vi
 		ProcessSubInstance(SubInstanceNode, true);
 	}
 
+	// should we do this earlier? @Tom should we split this to create anim instance vars vs linking to sub anim instance node?
+	if (UAnimGraphNode_CustomProperty* CustomPropNode = Cast<UAnimGraphNode_CustomProperty>(VisualAnimNode))
+	{
+		ProcessCustomPropertyNode(CustomPropNode);
+	}
+
 	// Record pose pins for later patchup and gather pins that have an associated evaluation handler
 	TMap<FName, FEvaluationHandlerRecord> StructEvalHandlers;
 
@@ -703,6 +710,41 @@ void FAnimBlueprintCompilerContext::ProcessUseCachedPose(UAnimGraphNode_UseCache
 	}
 }
 
+void FAnimBlueprintCompilerContext::ProcessCustomPropertyNode(UAnimGraphNode_CustomProperty* CustomPropNode)
+{
+	if (!CustomPropNode)
+	{
+		return;
+	}
+
+	for (UEdGraphPin* Pin : CustomPropNode->Pins)
+	{
+		if (!Pin->bOrphanedPin && CustomPropNode->IsValidPropertyPin(Pin->PinName))
+		{
+			// Add prefix to avoid collisions
+			FString PrefixedName = CustomPropNode->GetPinTargetVariableName(Pin);
+
+			// Create a property on the new class to hold the pin data
+			UProperty* NewProperty = FKismetCompilerUtilities::CreatePropertyOnScope(NewAnimBlueprintClass, FName(*PrefixedName), Pin->PinType, NewAnimBlueprintClass, CPF_None, GetSchema(), MessageLog);
+			if (NewProperty)
+			{
+				FKismetCompilerUtilities::LinkAddedProperty(NewAnimBlueprintClass, NewProperty);
+
+				// Add mappings to the node
+				if (!bGenerateSubInstanceVariables)
+				{
+					UClass* InstClass = CustomPropNode->GetTargetClass();
+
+					if (UProperty* FoundProperty = FindField<UProperty>(InstClass, Pin->PinName))
+					{
+						CustomPropNode->AddSourceTargetProperties(NewProperty->GetFName(), FoundProperty->GetFName());
+					}
+				}
+			}
+		}
+	}
+}
+
 void FAnimBlueprintCompilerContext::ProcessSubInstance(UAnimGraphNode_SubInstance* SubInstance, bool bCheckForCycles)
 {
 	if(!SubInstance)
@@ -710,38 +752,6 @@ void FAnimBlueprintCompilerContext::ProcessSubInstance(UAnimGraphNode_SubInstanc
 		return;
 	}
 
-	for(UEdGraphPin* Pin : SubInstance->Pins)
-	{
-		if (Pin->bOrphanedPin || Pin->PinName == TEXT("InPose") || Pin->PinName == TEXT("Pose"))
-		{
-			continue;
-		}
-
-		// Add prefix to avoid collisions
-		FString PrefixedName = SubInstance->GetPinTargetVariableName(Pin);
-
-		// Create a property on the new class to hold the pin data
-		UProperty* NewProperty = FKismetCompilerUtilities::CreatePropertyOnScope(NewAnimBlueprintClass, FName(*PrefixedName), Pin->PinType, NewAnimBlueprintClass, CPF_None, GetSchema(), MessageLog);
-		if(NewProperty)
-		{
-			FKismetCompilerUtilities::LinkAddedProperty(NewAnimBlueprintClass, NewProperty);
-
-			// Add mappings to the node
-			if(!bGenerateSubInstanceVariables)
-			{
-				FAnimNode_SubInstance& RuntimeNode = SubInstance->Node;
-				
-				if(UProperty* FoundProperty = FindField<UProperty>(*RuntimeNode.InstanceClass, Pin->PinName))
-				{
-					RuntimeNode.SourcePropertyNames.Add(NewProperty->GetFName());
-			
-					// Find the property on the internal instance
-					RuntimeNode.DestPropertyNames.Add(FoundProperty->GetFName());
-				}
-			}
-		}
-	}
-	
 	if(bCheckForCycles)
 	{
 		// Check for duplicated slot and state machine names to warn the user about how these 

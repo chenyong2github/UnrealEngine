@@ -26,6 +26,16 @@ bool GIsMetalInitialized = false;
 
 FMetalBufferFormat GMetalBufferFormats[PF_MAX];
 
+static TAutoConsoleVariable<int32> CVarUseRHIThread(
+													TEXT("r.Metal.IOSRHIThread"),
+													0,
+													TEXT("Controls RHIThread usage for IOS:\n")
+													TEXT("\t0: No RHIThread.\n")
+													TEXT("\t1: Use RHIThread.\n")
+													TEXT("Default is 0."),
+													ECVF_Default | ECVF_RenderThreadSafe
+													);
+
 static void ValidateTargetedRHIFeatureLevelExists(EShaderPlatform Platform)
 {
 	bool bSupportsShaderPlatform = false;
@@ -144,9 +154,10 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 
     bool bProjectSupportsMRTs = false;
     GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportsMetalMRT"), bProjectSupportsMRTs, GEngineIni);
-	
+
 	bool const bRequestedMetalMRT = ((RequestedFeatureLevel >= ERHIFeatureLevel::SM4) || (!bRequestedFeatureLevel && FParse::Param(FCommandLine::Get(),TEXT("metalmrt"))));
-	
+	bSupportsRHIThread = FParse::Param(FCommandLine::Get(),TEXT("rhithread"));
+
     // only allow GBuffers, etc on A8s (A7s are just not going to cut it)
     if (bProjectSupportsMRTs && bCanUseWideMRTs && bRequestedMetalMRT)
     {
@@ -158,8 +169,6 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
         GMaxRHIShaderPlatform = SP_METAL_MRT;
 #endif
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
-		
-		bSupportsRHIThread = FParse::Param(FCommandLine::Get(),TEXT("rhithread"));
     }
     else
 	{
@@ -399,6 +408,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	}
 	else
 	{
+		GRHISupportsRHIThread = bSupportsRHIThread || (CVarUseRHIThread.GetValueOnAnyThread() > 0);
 		GRHISupportsParallelRHIExecute = false;
 		GSupportsEfficientAsyncCompute = false;
 		GSupportsParallelOcclusionQueries = false;

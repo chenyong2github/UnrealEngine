@@ -124,4 +124,7 @@ private:
 
 	/** Controls rebuilding the list of spawnable widgets */
 	bool bRebuildRequested;
+
+	/** Are blutility widget supported. */
+	bool bAllowEditorWidget;
 };

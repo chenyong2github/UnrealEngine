@@ -253,6 +253,7 @@ public:
 
 	virtual void RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName) final override;
 	virtual void RHIEndRenderPass() final override;
+	virtual void RHINextSubpass() final override;
 
 	inline FVulkanCommandBufferManager* GetCommandBufferManager()
 	{
@@ -434,7 +435,7 @@ public:
 		return TransitionAndLayoutManager;
 	}
 
-	FVulkanRenderPass* PrepareRenderPassForPSOCreation(const FGraphicsPipelineStateInitializer& Initializer, const TArray<FInputAttachmentData>& InputAttachmentData);
+	FVulkanRenderPass* PrepareRenderPassForPSOCreation(const FGraphicsPipelineStateInitializer& Initializer);
 	FVulkanRenderPass* PrepareRenderPassForPSOCreation(const FVulkanRenderTargetLayout& Initializer);
 
 private:

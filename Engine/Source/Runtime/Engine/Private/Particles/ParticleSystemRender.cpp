@@ -7284,7 +7284,7 @@ void FParticleSystemSceneProxy::UpdateWorldSpacePrimitiveUniformBuffer() const
 			0,
 			INDEX_NONE,
 			INDEX_NONE,
-			false
+			AlwaysHasVelocity()
 			);
 		WorldSpacePrimitiveUniformBuffer.SetContents(PrimitiveUniformShaderParameters);
 		WorldSpacePrimitiveUniformBuffer.InitResource();

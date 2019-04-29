@@ -3,19 +3,24 @@
 #pragma once
 
 #include "Units/Animation/RigUnit_AnimBase.h"
+#include "Math/ControlRigMathLibrary.h"
 #include "RigUnit_AnimEasing.generated.h"
 
-UENUM()
-enum class EControlRigAnimEasingType : uint8
+/**
+ * A constant value of an easing type
+ */
+USTRUCT(meta = (DisplayName = "EaseType", Keywords = "Constant"))
+struct FRigUnit_AnimEasingType : public FRigUnit_AnimBase
 {
-	Linear,
-	QuadraticIn,
-	QuadraticOut,
-	QuadraticInOut,
-	CubicIn,
-	CubicOut,
-	CubicInOut,
-	Sinusoidal
+	GENERATED_BODY()
+
+	FRigUnit_AnimEasingType()
+	{
+		Type = EControlRigAnimEasingType::CubicEaseInOut;
+	}
+
+	UPROPERTY(meta = (Input, Output))
+	EControlRigAnimEasingType Type;
 };
 
 /**
@@ -29,7 +34,7 @@ struct FRigUnit_AnimEasing : public FRigUnit_AnimBase
 	FRigUnit_AnimEasing()
 	{
 		Value = Result = 0.f;
-		Type = EControlRigAnimEasingType::CubicInOut;
+		Type = EControlRigAnimEasingType::CubicEaseInOut;
 		SourceMinimum = TargetMinimum = 0.f;
 		SourceMaximum = TargetMaximum = 1.f;
 	}

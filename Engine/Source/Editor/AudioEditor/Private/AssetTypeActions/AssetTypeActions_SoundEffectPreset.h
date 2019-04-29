@@ -18,7 +18,7 @@ class FAssetTypeActions_SoundEffectSubmixPreset : public FAssetTypeActions_Base
 {
 public:
 	// IAssetTypeActions Implementation
-	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_SoundSubmixPreset", "Submix Effect preset"); }
+	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_SoundSubmixPreset", "Submix Effect Preset"); }
 	virtual FColor GetTypeColor() const override { return FColor(99, 63, 56); }
 	virtual UClass* GetSupportedClass() const override { return USoundEffectSubmixPreset::StaticClass(); }
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
@@ -44,8 +44,6 @@ public:
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
 };
 
-
-
 class FAssetTypeActions_SoundEffectPreset : public FAssetTypeActions_Base
 {
 public:
@@ -59,6 +57,5 @@ public:
 	//~ End FAssetTypeActions_Base
 
 private:
-
 	USoundEffectPreset* EffectPreset;
 };

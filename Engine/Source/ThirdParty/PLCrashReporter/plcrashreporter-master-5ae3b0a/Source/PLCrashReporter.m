@@ -215,7 +215,7 @@ static bool signal_handler_callback (int signal, siginfo_t *info, pl_ucontext_t 
     plcrash_async_thread_state_t thread_state;
     plcrash_log_signal_info_t signal_info;
     plcrash_log_bsd_signal_info_t bsd_signal_info;
-    bool non_fatal_signal = false;
+    bool fatal_signal = true;
     
     /* Remove all signal handlers -- if the crash reporting code fails, the default terminate
      * action will occur.
@@ -227,28 +227,29 @@ static bool signal_handler_callback (int signal, siginfo_t *info, pl_ucontext_t 
      * could result in incorrect runtime behavior; we should revisit resetting the
      * signal handlers once we address double-fault handling.
      */
-    for (int i = 0; i < fatal_monitored_signals_count; i++) {
-
-        if (info->si_signo == fatal_monitored_signals[i]) {
-             non_fatal_signal = false;
-        }
-
-        struct sigaction sa;
-        
-        memset(&sa, 0, sizeof(sa));
-        sa.sa_handler = SIG_DFL;
-        sigemptyset(&sa.sa_mask);
-        
-        sigaction(fatal_monitored_signals[i], &sa, NULL);
-    }
 
     for (int i = 0; i < non_fatal_monitored_signals_count; i++) {
 
         if (info->si_signo == non_fatal_monitored_signals[i]) {
-            non_fatal_signal = true;
+            fatal_signal = false;
         }
 
         // For non_fatal signals we assume it may be called again and need to handle that vs using SIG_DFL
+    }
+
+    // If we are fatal set all signals to DFL
+    if (fatal_signal) {
+
+        for (int i = 0; i < fatal_monitored_signals_count; i++) {
+
+            struct sigaction sa;
+
+            memset(&sa, 0, sizeof(sa));
+            sa.sa_handler = SIG_DFL;
+            sigemptyset(&sa.sa_mask);
+
+            sigaction(fatal_monitored_signals[i], &sa, NULL);
+        }
     }
 
     /* Extract the thread state */
@@ -273,7 +274,9 @@ static bool signal_handler_callback (int signal, siginfo_t *info, pl_ucontext_t 
     if (crashCallbacks.handleSignal != NULL)
         crashCallbacks.handleSignal(info, uap, crashCallbacks.context);
 
-    return non_fatal_signal;
+    // When we hit a non fatal signal we return true for handling the signal
+    // Otherwise we will continue to re-raise the siganl
+    return !fatal_signal;
 }
 /* EG END */
 

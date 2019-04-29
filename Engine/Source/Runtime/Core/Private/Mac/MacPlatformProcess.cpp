@@ -16,6 +16,7 @@
 #include <mach/thread_act.h>
 #include <mach/thread_policy.h>
 #include <libproc.h>
+#include <cpuid.h>
 #include "Apple/PostAppleSystemHeaders.h"
 
 void* FMacPlatformProcess::GetDllHandle( const TCHAR* Filename )
@@ -656,6 +657,13 @@ void FMacPlatformProcess::TerminateProc( FProcHandle& ProcessHandle, bool KillTr
 uint32 FMacPlatformProcess::GetCurrentProcessId()
 {
 	return getpid();
+}
+
+uint32 FMacPlatformProcess::GetCurrentCoreNumber()
+{
+	int CPUInfo[4];
+	__cpuid(1, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
+	return (CPUInfo[1] >> 24) & 0xff;
 }
 
 bool FMacPlatformProcess::GetProcReturnCode( FProcHandle& ProcessHandle, int32* ReturnCode )
