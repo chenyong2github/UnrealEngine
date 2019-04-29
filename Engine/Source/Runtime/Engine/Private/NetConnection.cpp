@@ -3467,6 +3467,38 @@ void UNetConnection::SetPendingCloseDueToSocketSendFailure()
 	bConnectionPendingCloseDueToSocketSendFailure = true;
 }
 
+void UNetConnection::ConsumeQueuedActorDelinquencyAnalytics(FNetQueuedActorDelinquencyAnalytics& Out)
+{
+	if (UPackageMapClient* PackageMapClient = Cast<UPackageMapClient>(PackageMap))
+	{
+		return PackageMapClient->ConsumeQueuedActorDelinquencyAnalytics(Out);
+	}
+	else
+	{
+		Out.Reset();
+	}
+}
+
+const FNetQueuedActorDelinquencyAnalytics& UNetConnection::GetQueuedActorDelinquencyAnalytics() const
+{
+	static FNetQueuedActorDelinquencyAnalytics Empty;
+
+	if (UPackageMapClient const * const PackageMapClient = Cast<UPackageMapClient>(PackageMap))
+	{
+		return PackageMapClient->GetQueuedActorDelinquencyAnalytics();
+	}
+	
+	return Empty;
+}
+
+void UNetConnection::ResetQueuedActorDelinquencyAnalytics()
+{
+	if (UPackageMapClient* PackageMapClient = Cast<UPackageMapClient>(PackageMap))
+	{
+		PackageMapClient->ResetQueuedActorDelinquencyAnalytics();
+	}
+}
+
 /*-----------------------------------------------------------------------------
 	USimulatedClientNetConnection.
 -----------------------------------------------------------------------------*/

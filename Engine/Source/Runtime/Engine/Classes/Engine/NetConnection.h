@@ -24,6 +24,7 @@
 #include "Analytics/EngineNetAnalytics.h"
 #include "PacketTraits.h"
 #include "Net/Util/ResizableCircularQueue.h"
+#include "Net/DelinquencyAnalytics.h"
 
 #include "NetConnection.generated.h"
 
@@ -1106,6 +1107,19 @@ public:
 	/** Called when an actor channel is open and knows its NetGUID. */
 	ENGINE_API virtual void NotifyActorNetGUID(UActorChannel* Channel) {}
 
+	/**
+	 * Returns the current delinquency analytics and resets them.
+	 * This would be similar to calls to Get and Reset separately, except that the caller
+	 * will assume ownership of data in this case.
+	 */
+	ENGINE_API void ConsumeQueuedActorDelinquencyAnalytics(FNetQueuedActorDelinquencyAnalytics& Out);
+
+	/** Returns the current delinquency analytics. */
+	ENGINE_API const FNetQueuedActorDelinquencyAnalytics& GetQueuedActorDelinquencyAnalytics() const;
+
+	/** Resets the current delinquency analytics. */
+	ENGINE_API void ResetQueuedActorDelinquencyAnalytics();
+
 protected:
 
 	ENGINE_API void SetPendingCloseDueToSocketSendFailure();
@@ -1216,8 +1230,6 @@ private:
 	/** Whether or not PacketOrderCache is presently being flushed */
 	bool bFlushingPacketOrderCache;
 };
-
-
 
 /** Help structs for temporarily setting network settings */
 struct FNetConnectionSettings
