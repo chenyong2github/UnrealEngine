@@ -360,7 +360,7 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::InitResources(FSkelMesh
 				Initializer.VertexBufferByteOffset = 0;
 				Initializer.TotalPrimitiveCount = TrianglesCount;
 				Initializer.VertexBufferElementType = VET_Float3;
-				Initializer.PrimitiveType = PT_TriangleList;
+				Initializer.GeometryType = RTGT_Triangles;
 				Initializer.bFastBuild = true;
 
 				TArray<FRayTracingGeometrySegment> GeometrySections;

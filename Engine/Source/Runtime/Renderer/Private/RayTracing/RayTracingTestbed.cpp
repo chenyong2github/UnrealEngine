@@ -91,7 +91,7 @@ void TestBasicRayTracing(bool bValidateResults)
 	GeometryInitializer.VertexBufferStride = sizeof(FVector);
 	GeometryInitializer.VertexBufferElementType = VET_Float3;
 	GeometryInitializer.BaseVertexIndex = 0;
-	GeometryInitializer.PrimitiveType = PT_TriangleList;
+	GeometryInitializer.GeometryType = RTGT_Triangles;
 	GeometryInitializer.TotalPrimitiveCount = 1;
 	GeometryInitializer.bFastBuild = false;
 	FRayTracingGeometryRHIRef Geometry = RHICreateRayTracingGeometry(GeometryInitializer);
@@ -102,7 +102,6 @@ void TestBasicRayTracing(bool bValidateResults)
 
 	FRayTracingSceneInitializer Initializer;
 	Initializer.Instances = Instances;
-	Initializer.bIsDynamic = false;
 	Initializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
 	FRayTracingSceneRHIParamRef Scene = RHICreateRayTracingScene(Initializer);
 

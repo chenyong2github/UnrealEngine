@@ -363,7 +363,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 				Initializer.VertexBufferByteOffset = 0;
 				Initializer.TotalPrimitiveCount = TrianglesCount;
 				Initializer.VertexBufferElementType = VET_Float3;
-				Initializer.PrimitiveType = PT_TriangleList;
+				Initializer.GeometryType = RTGT_Triangles;
 				Initializer.bFastBuild = true;
 				Initializer.bAllowUpdate = true;
 

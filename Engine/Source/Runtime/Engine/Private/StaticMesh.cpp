@@ -1092,7 +1092,7 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 				Initializer.VertexBufferByteOffset = 0;
 				Initializer.TotalPrimitiveCount = 0; // This is calculated below based on static mesh section data
 				Initializer.VertexBufferElementType = VET_Float3;
-				Initializer.PrimitiveType = PT_TriangleList;
+				Initializer.GeometryType = RTGT_Triangles;
 				Initializer.bFastBuild = false;
 				
 				TArray<FRayTracingGeometrySegment> GeometrySections;

@@ -81,13 +81,28 @@ struct FRayTracingGeometryInstance
 	FRayTracingGeometryRHIParamRef GeometryRHI = nullptr;
 	FMatrix Transform = FMatrix(EForceInit::ForceInitToZero);
 	uint32 UserData = 0;
-	uint8 Mask = 0;
+	uint8 Mask = 0xFF;
 
 	// No any-hit shaders will be invoked for this geometry instance (only closest hit)
 	bool bForceOpaque = false;
 
 	// Disabling this will allow ray hits to be registered for front and back faces
 	bool bDoubleSided = false;
+};
+
+enum ERayTracingGeometryType
+{
+	// Indexed or non-indexed triangle list with fixed function ray intersection.
+	// Vertex buffer must contain vertex positions as VET_Float3.
+	// Vertex stride must be at least 12 bytes, but may be larger to support custom per-vertex data.
+	// Index buffer may be provided for indexed triangle lists. Implicit triangle list is assumed otherwise.
+	RTGT_Triangles,
+
+	// Custom primitive type that requires an intersection shader.
+	// Vertex buffer for procedural geometry must contain one AABB per primitive as {float3 MinXYZ, float3 MaxXYZ}.
+	// Vertex stride must be at least 24 bytes, but may be larger to support custom per-primitive data.
+	// Index buffers can't be used with procedural geometry.
+	RTGT_Procedural,
 };
 
 struct FRayTracingGeometrySegment
@@ -112,7 +127,7 @@ struct FRayTracingGeometryInitializer
 	uint32 VertexBufferStride = 0;
 	EVertexElementType VertexBufferElementType = VET_Float3;
 	uint32 BaseVertexIndex = 0;
-	EPrimitiveType PrimitiveType = PT_TriangleList;
+	ERayTracingGeometryType GeometryType = RTGT_Triangles;
 	uint32 TotalPrimitiveCount = 0;
 	TArrayView<FRayTracingGeometrySegment> Segments;
 	bool bFastBuild = false;
@@ -122,7 +137,6 @@ struct FRayTracingGeometryInitializer
 struct FRayTracingSceneInitializer
 {
 	TArrayView<FRayTracingGeometryInstance> Instances;
-	bool bIsDynamic = false;
 
 	// This value controls how many elements will be allocated in the shader binding table per geometry segment.
 	// Changing this value allows different hit shaders to be used for different effects.

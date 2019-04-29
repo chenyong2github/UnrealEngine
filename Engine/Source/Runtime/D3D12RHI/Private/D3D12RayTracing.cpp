@@ -485,6 +485,7 @@ public:
 			if (CollectionType == ECollectionType::HitGroup)
 			{
 				HitGroupDesc.HitGroupExport = *PrimaryExportName;
+				HitGroupDesc.Type = Shader->IntersectionEntryPoint.IsEmpty() ? D3D12_HIT_GROUP_TYPE_TRIANGLES : D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE;
 
 				{
 					FString& ExportName = Entry.ExportNames.Add_GetRef(GenerateShaderName(TEXT("CHS"), ShaderHash));
@@ -510,6 +511,7 @@ public:
 
 					LocalRootSignatureAssociations.Add(0);
 				}
+
 				if (!Shader->IntersectionEntryPoint.IsEmpty())
 				{
 					FString& ExportName = Entry.ExportNames.Add_GetRef(GenerateShaderName(TEXT("IS"), ShaderHash));
@@ -1636,18 +1638,25 @@ FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FR
 	checkf(Initializer.VertexBufferStride, TEXT("Position vertex buffer is required for ray tracing geometry"));
 	checkf(Initializer.VertexBufferStride % 4 == 0, TEXT("Position vertex buffer stride must be aligned to 4 bytes for ByteAddressBuffer loads to work"));
 
-	// #dxr_todo UE-72160: VET_Half4 (DXGI_FORMAT_R16G16B16A16_FLOAT) is also supported by DXR. Should we support it?
-	check(Initializer.VertexBufferElementType == VET_Float3 || Initializer.VertexBufferElementType == VET_Float2 || Initializer.VertexBufferElementType == VET_Half2);
+	if (Initializer.GeometryType == RTGT_Triangles)
+	{
+		// #dxr_todo UE-72160: VET_Half4 (DXGI_FORMAT_R16G16B16A16_FLOAT) is also supported by DXR. Should we support it?
+		check(Initializer.VertexBufferElementType == VET_Float3 || Initializer.VertexBufferElementType == VET_Float2 || Initializer.VertexBufferElementType == VET_Half2);
+
+		// #dxr_todo UE-72160: temporary constraints on vertex and index buffer formats (this will be relaxed when more flexible vertex/index fetching is implemented)
+		checkf(Initializer.VertexBufferElementType == VET_Float3, TEXT("Only float3 vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support other vertex buffer formats
+		checkf(Initializer.VertexBufferStride == 12, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support interleaved vertex buffers
+	}
+
+	if (Initializer.GeometryType == RTGT_Procedural)
+	{
+		checkf(Initializer.VertexBufferStride >= (2 * sizeof(FVector)), TEXT("Procedural geometry vertex buffer must contain at least 2xFloat3 that defines 3D bounding boxes of primitives."));
+	}
+
 	if (Initializer.IndexBuffer)
 	{
 		checkf(Initializer.IndexBuffer->GetStride() == 2 || Initializer.IndexBuffer->GetStride() == 4, TEXT("Index buffer must be 16 or 32 bit."));
 	}
-
-	checkf(Initializer.PrimitiveType == EPrimitiveType::PT_TriangleList, TEXT("Only TriangleList primitive type is currently supported."));
-
-	// #dxr_todo UE-72160: temporary constraints on vertex and index buffer formats (this will be relaxed when more flexible vertex/index fetching is implemented)
-	checkf(Initializer.VertexBufferElementType == VET_Float3, TEXT("Only float3 vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support other vertex buffer formats
-	checkf(Initializer.VertexBufferStride == 12, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support interleaved vertex buffers
 
 	checkf(GNumExplicitGPUsForRendering == 1, TEXT("Ray tracing is not implemented for mGPU")); // #dxr_todo UE-72157: implement mGPU support
 	FD3D12RayTracingGeometry* Result = GetAdapter().CreateLinkedObject<FD3D12RayTracingGeometry>(FRHIGPUMask::All(), [&](FD3D12Device* Device)
@@ -1661,6 +1670,18 @@ FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FR
 		Mesh->VertexStrideInBytes = Initializer.VertexBufferStride;
 		Mesh->BaseVertexIndex = Initializer.BaseVertexIndex;
 		Mesh->TotalPrimitiveCount = Initializer.TotalPrimitiveCount;
+
+		switch (Initializer.GeometryType)
+		{
+		case RTGT_Triangles:
+			Mesh->GeometryType = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+			break;
+		case RTGT_Procedural:
+			Mesh->GeometryType = D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
+			break;
+		default:
+			checkf(false, TEXT("Unexpected ray tracing geometry type"));
+		}
 
 		if (Initializer.bFastBuild)
 		{
@@ -1831,9 +1852,9 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 	for (const FRayTracingGeometrySegment& Segment : Segments)
 	{
 		D3D12_RAYTRACING_GEOMETRY_DESC Desc = {};
-		Desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 
 		Desc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+		Desc.Type = GeometryType;
 
 		if (!Segment.bAllowAnyHitShader)
 		{
@@ -1847,48 +1868,61 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 			Desc.Flags |= D3D12_RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION;
 		}
 
-		switch (VertexElemType)
+		if (GeometryType == D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES)
 		{
-		case VET_Float3:
-			Desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-			break;
-		case VET_Float2:
-			Desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32_FLOAT;
-			break;
-		case VET_Half2:
-			Desc.Triangles.VertexFormat = DXGI_FORMAT_R16G16_FLOAT;
-			break;
-		default:
-			checkNoEntry();
-			break;
+			switch (VertexElemType)
+			{
+			case VET_Float3:
+				Desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+				break;
+			case VET_Float2:
+				Desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32_FLOAT;
+				break;
+			case VET_Half2:
+				Desc.Triangles.VertexFormat = DXGI_FORMAT_R16G16_FLOAT;
+				break;
+			default:
+				checkNoEntry();
+				break;
+			}
+
+			Desc.Triangles.Transform3x4 = D3D12_GPU_VIRTUAL_ADDRESS(0);
+
+			if (IndexBuffer)
+			{
+				Desc.Triangles.IndexFormat = IndexStride == 4 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
+				Desc.Triangles.IndexCount = Segment.NumPrimitives * IndicesPerPrimitive;
+				Desc.Triangles.IndexBuffer = IndexBuffer->ResourceLocation.GetGPUVirtualAddress() + IndexStride * Segment.FirstPrimitive * IndicesPerPrimitive;
+
+				Desc.Triangles.VertexCount = PositionVertexBuffer->ResourceLocation.GetSize() / VertexStrideInBytes;
+
+				IndexBuffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
+			}
+			else
+			{
+				// Non-indexed geometry
+				Desc.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
+				Desc.Triangles.IndexCount = 0;
+				Desc.Triangles.IndexBuffer = D3D12_GPU_VIRTUAL_ADDRESS(0);
+
+				checkf(Segments.Num() == 1, TEXT("Non-indexed geometry with multiple segments is not implemented."));
+
+				Desc.Triangles.VertexCount = FMath::Min<uint32>(PositionVertexBuffer->ResourceLocation.GetSize() / VertexStrideInBytes, TotalPrimitiveCount * 3);
+			}
+
+			Desc.Triangles.VertexBuffer.StartAddress = PositionVertexBuffer->ResourceLocation.GetGPUVirtualAddress() + VertexOffsetInBytes;
+			Desc.Triangles.VertexBuffer.StrideInBytes = VertexStrideInBytes;
 		}
-
-		Desc.Triangles.Transform3x4 = D3D12_GPU_VIRTUAL_ADDRESS(0);
-
-		if (IndexBuffer)
+		else if (GeometryType == D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS)
 		{
-			Desc.Triangles.IndexFormat = IndexStride == 4 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
-			Desc.Triangles.IndexCount = Segment.NumPrimitives * IndicesPerPrimitive;
-			Desc.Triangles.IndexBuffer = IndexBuffer->ResourceLocation.GetGPUVirtualAddress() + IndexStride * Segment.FirstPrimitive * IndicesPerPrimitive;
-
-			Desc.Triangles.VertexCount = PositionVertexBuffer->ResourceLocation.GetSize() / VertexStrideInBytes;
-
-			IndexBuffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
+			Desc.AABBs.AABBCount = Segment.NumPrimitives;
+			Desc.AABBs.AABBs.StartAddress = PositionVertexBuffer->ResourceLocation.GetGPUVirtualAddress() + VertexOffsetInBytes;
+			Desc.AABBs.AABBs.StrideInBytes = VertexStrideInBytes;
 		}
 		else
 		{
-			// Non-indexed geometry
-			Desc.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
-			Desc.Triangles.IndexCount = 0;
-			Desc.Triangles.IndexBuffer = D3D12_GPU_VIRTUAL_ADDRESS(0);
-
-			checkf(Segments.Num() == 1, TEXT("Non-indexed geometry with multiple segments is not implemented."));
-
-			Desc.Triangles.VertexCount = FMath::Min<uint32>(PositionVertexBuffer->ResourceLocation.GetSize() / VertexStrideInBytes, TotalPrimitiveCount * 3);
+			checkf(false, TEXT("Unexpected ray tracing geometry type"));
 		}
-
-		Desc.Triangles.VertexBuffer.StartAddress = PositionVertexBuffer->ResourceLocation.GetGPUVirtualAddress() + VertexOffsetInBytes;
-		Desc.Triangles.VertexBuffer.StrideInBytes = VertexStrideInBytes;
 
 		PositionVertexBuffer->ResourceLocation.GetResource()->UpdateResidency(CommandContext.CommandListHandle);
 
@@ -2075,8 +2109,9 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 		for (const FRayTracingGeometryInstance& Instance : Instances)
 		{
 			FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(Instance.GeometryRHI);
-			// #patrick todo: temporarily removing check in favor of on-demand BLAS build to diagnose an ordering issue.
-			check(!Geometry->bIsAccelerationStructureDirty); // #dxr_todo: we could probably build BLAS here, if needed (though it may be best to have an explicit build API and just require things to be built at this point)
+
+			checkf(!Geometry->bIsAccelerationStructureDirty, 
+				TEXT("Acceleration structures for all geometries must be built before building the top level acceleration structure for the scene."));
 
 			D3D12_RAYTRACING_INSTANCE_DESC InstanceDesc = {};
 
@@ -2252,8 +2287,12 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 				SystemParameters.IndexBuffer = IndexBufferAddress;
 				SystemParameters.VertexBuffer = VertexBufferAddress;
 
-				// #dxr_todo UE-72160: support various vertex buffer layouts (fetch/decode based on vertex stride and format)
-				checkf(Geometry->VertexElemType == VET_Float3, TEXT("Only VET_Float3 is currently implemented and tested. Other formats will be supported in the future."));
+				if (Geometry->GeometryType == D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES)
+				{
+					// #dxr_todo UE-72160: support various vertex buffer layouts (fetch/decode based on vertex stride and format)
+					checkf(Geometry->VertexElemType == VET_Float3, TEXT("Only VET_Float3 is currently implemented and tested. Other formats will be supported in the future."));
+				}
+
 				SystemParameters.RootConstants.SetVertexAndIndexStride(Geometry->VertexStrideInBytes, IndexStride);
 				SystemParameters.RootConstants.IndexBufferOffsetInBytes = IndexStride * Segment.FirstPrimitive * IndicesPerPrimitive;
 

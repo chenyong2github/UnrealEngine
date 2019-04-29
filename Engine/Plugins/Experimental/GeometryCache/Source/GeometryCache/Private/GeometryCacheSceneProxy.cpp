@@ -161,7 +161,7 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 							Initializer.VertexBufferByteOffset = 0;
 							Initializer.TotalPrimitiveCount = Section->IndexBuffer.NumIndices / 3;
 							Initializer.VertexBufferElementType = VET_Float3;
-							Initializer.PrimitiveType = PT_TriangleList;
+							Initializer.GeometryType = RTGT_Triangles;
 							Initializer.bFastBuild = false;
 
 							Section->RayTracingGeometry.SetInitializer(Initializer);

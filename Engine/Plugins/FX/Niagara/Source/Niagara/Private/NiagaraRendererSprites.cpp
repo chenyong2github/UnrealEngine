@@ -105,7 +105,7 @@ void NiagaraRendererSprites::CreateRenderThreadResources()
 		Initializer.VertexBufferByteOffset = 0;
 		Initializer.TotalPrimitiveCount = 0;
 		Initializer.VertexBufferElementType = VET_Float3;
-		Initializer.PrimitiveType = PT_TriangleList;
+		Initializer.GeometryType = RTGT_Triangles;
 		Initializer.bFastBuild = true;
 		Initializer.bAllowUpdate = false;
 		RayTracingGeometry.SetInitializer(Initializer);

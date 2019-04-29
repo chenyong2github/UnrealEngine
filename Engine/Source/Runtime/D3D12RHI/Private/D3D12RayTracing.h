@@ -29,6 +29,8 @@ public:
 	uint32 BaseVertexIndex = 0;
 	uint32 TotalPrimitiveCount = 0; // Combined number of primitives in all mesh segments
 
+	D3D12_RAYTRACING_GEOMETRY_TYPE GeometryType = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+
 	TArray<FRayTracingGeometrySegment> Segments; // Defines addressable parts of the mesh that can be used for material assignment (one segment = one SBT record)
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS BuildFlags;
 
