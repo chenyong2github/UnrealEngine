@@ -124,7 +124,7 @@ bool FAudioVirtualLoop::IsEnabled()
 
 bool FAudioVirtualLoop::IsInAudibleRange(const FActiveSound& InActiveSound, const FAudioDevice* InAudioDevice)
 {
-	if (!InActiveSound.bAllowSpatialization)
+	if (!InActiveSound.bAllowSpatialization || (InAudioDevice->VirtualSoundsEnabled() && InActiveSound.IsVirtualizeWhenSilent()))
 	{
 		return true;
 	}
