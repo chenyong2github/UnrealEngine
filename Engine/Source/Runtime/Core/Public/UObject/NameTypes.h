@@ -340,7 +340,7 @@ struct FMinimalName
 
 	FORCEINLINE bool IsNone() const
 	{
-		return Index && Number == NAME_NO_NUMBER_INTERNAL;
+		return !Index && Number == NAME_NO_NUMBER_INTERNAL;
 	}
 
 	/** Index into the Names array (used to find String portion of the string/number pair) */
