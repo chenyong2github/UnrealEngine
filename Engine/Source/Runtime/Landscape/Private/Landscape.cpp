@@ -59,6 +59,7 @@ Landscape.cpp: Terrain rendering
 #endif
 #include "LandscapeVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "LandscapeDataAccess.h"
 
 /** Landscape stats */
 
@@ -1490,6 +1491,93 @@ void ULandscapeComponent::AddLayerData(const FGuid& InLayerGuid, const FLandscap
 	Modify();
 	FLandscapeLayerComponentData& Data = LayersData.FindOrAdd(InLayerGuid);
 	Data = InData;
+}
+
+void ULandscapeComponent::AddDefaultLayerData(const FGuid& InLayerGuid, const TArray<ULandscapeComponent*>& InComponentsUsingHeightmap, TMap<UTexture2D*, UTexture2D*>& InOutCreatedHeightmapTextures)
+{
+	Modify();
+
+	UTexture2D* ComponentHeightmap = GetHeightmap();
+
+	// Compute Global layers data
+	GlobalLayersData.TopLeftSectionBase = FIntPoint(INT_MAX, INT_MAX);
+
+	for (ULandscapeComponent* ComponentUsingHeightmap : InComponentsUsingHeightmap)
+	{
+		GlobalLayersData.TopLeftSectionBase.X = FMath::Min(GlobalLayersData.TopLeftSectionBase.X, ComponentUsingHeightmap->GetSectionBase().X);
+		GlobalLayersData.TopLeftSectionBase.Y = FMath::Min(GlobalLayersData.TopLeftSectionBase.Y, ComponentUsingHeightmap->GetSectionBase().Y);
+	}
+
+	// Compute per layer data
+	FLandscapeLayerComponentData* LayerData = GetLayerData(InLayerGuid);
+
+	if (LayerData == nullptr || !LayerData->IsInitialized())
+	{
+		FLandscapeLayerComponentData NewData;
+
+		// Setup Heightmap data
+		UTexture2D** LayerHeightmap = InOutCreatedHeightmapTextures.Find(ComponentHeightmap);
+
+		if (LayerHeightmap == nullptr)
+		{
+			UTexture2D* NewLayerHeightmap = GetLandscapeProxy()->CreateLandscapeTexture(ComponentHeightmap->Source.GetSizeX(), ComponentHeightmap->Source.GetSizeY(), TEXTUREGROUP_Terrain_Heightmap, ComponentHeightmap->Source.GetFormat());
+			LayerHeightmap = &InOutCreatedHeightmapTextures.Add(ComponentHeightmap, NewLayerHeightmap);
+
+			ULandscapeComponent::CreateEmptyTextureMips(NewLayerHeightmap, true);
+
+			// Init Mip0 to be at 32768 which is equal to "0"
+			FColor* Mip0Data = (FColor*)NewLayerHeightmap->Source.LockMip(0);
+
+			for (ULandscapeComponent* ComponentUsingHeightmap : InComponentsUsingHeightmap)
+			{
+				int32 HeightmapComponentOffsetX = FMath::RoundToInt((float)NewLayerHeightmap->Source.GetSizeX() * ComponentUsingHeightmap->HeightmapScaleBias.Z);
+				int32 HeightmapComponentOffsetY = FMath::RoundToInt((float)NewLayerHeightmap->Source.GetSizeY() * ComponentUsingHeightmap->HeightmapScaleBias.W);
+
+				for (int32 SubsectionY = 0; SubsectionY < NumSubsections; SubsectionY++)
+				{
+					for (int32 SubsectionX = 0; SubsectionX < NumSubsections; SubsectionX++)
+					{
+						for (int32 SubY = 0; SubY <= SubsectionSizeQuads; SubY++)
+						{
+							for (int32 SubX = 0; SubX <= SubsectionSizeQuads; SubX++)
+							{
+								// X/Y of the vertex we're looking at in component's coordinates.
+								const int32 CompX = SubsectionSizeQuads * SubsectionX + SubX;
+								const int32 CompY = SubsectionSizeQuads * SubsectionY + SubY;
+
+								// X/Y of the vertex we're looking indexed into the texture data
+								const int32 TexX = (SubsectionSizeQuads + 1) * SubsectionX + SubX;
+								const int32 TexY = (SubsectionSizeQuads + 1) * SubsectionY + SubY;
+
+								const int32 HeightTexDataIdx = (HeightmapComponentOffsetX + TexX) + (HeightmapComponentOffsetY + TexY) * NewLayerHeightmap->Source.GetSizeX();
+
+								// copy height and normal data
+								const uint16 HeightValue = LandscapeDataAccess::GetTexHeight(0.f);
+
+								Mip0Data[HeightTexDataIdx].R = HeightValue >> 8;
+								Mip0Data[HeightTexDataIdx].G = HeightValue & 255;
+
+								// Normal with get calculated later
+								Mip0Data[HeightTexDataIdx].B = 0.0f;
+								Mip0Data[HeightTexDataIdx].A = 0.0f;
+							}
+						}
+					}
+				}
+			}
+
+			NewLayerHeightmap->Source.UnlockMip(0);
+
+			NewLayerHeightmap->BeginCachePlatformData();
+			NewLayerHeightmap->ClearAllCachedCookedPlatformData();
+		}
+
+		NewData.HeightmapData.Texture = *LayerHeightmap;
+
+		// Nothing to do for Weightmap by default
+
+		AddLayerData(InLayerGuid, MoveTemp(NewData));
+	}
 }
 
 void ULandscapeComponent::RemoveLayerData(const FGuid& InLayerGuid)
