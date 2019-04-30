@@ -55,7 +55,7 @@ struct KISMET_API FDiffPanel
 	void GeneratePanel(UEdGraph* Graph, UEdGraph* GraphToDiff);
 
 	/* Generate the 'MyBlueprint' widget, which is private to this module */
-	TSharedRef<SWidget> GenerateMyBlueprintPanel();
+	TSharedRef<class SWidget> GenerateMyBlueprintWidget();
 
 	/* Called when user hits keyboard shortcut to copy nodes*/
 	void CopySelectedNodes();
@@ -139,10 +139,6 @@ protected:
 	bool HasNextDiff() const;
 	bool HasPrevDiff() const;
 
-	/** Spawns the tabs that contain the Graph views and blueprints views respectively: */
-	TSharedRef<SDockTab> CreateGraphDiffViews( const FSpawnTabArgs& Args );
-	TSharedRef<SDockTab> CreateMyBlueprintsViews( const FSpawnTabArgs& Args );
-
 	typedef TSharedPtr<struct FListItemGraphToDiff>	FGraphToDiff;
 	typedef SListView<FGraphToDiff >	SListViewType;
 
@@ -184,7 +180,7 @@ protected:
 
 	/** Event handler that updates the graph view when user selects a new graph */
 	void HandleGraphChanged( const FString& GraphPath );
-
+	
 	/** Function used to generate the list of differences and the widgets needed to calculate that list */
 	void GenerateDifferencesList();
 
@@ -198,7 +194,7 @@ protected:
 	{
 		FDiffControl()
 		: Widget()
-		, DiffControl(NULL)
+		, DiffControl(nullptr)
 		{
 		}
 
@@ -206,6 +202,7 @@ protected:
 		TSharedPtr< class IDiffControl > DiffControl;
 	};
 
+	FDiffControl GenerateMyBlueprintPanel();
 	FDiffControl GenerateGraphPanel();
 	FDiffControl GenerateDefaultsPanel();
 	FDiffControl GenerateClassSettingsPanel();
@@ -243,11 +240,8 @@ protected:
 	/** Tree view that displays the differences, cached for the buttons that iterate the differences: */
 	TSharedPtr< STreeView< TSharedPtr< FBlueprintDifferenceTreeEntry > > > DifferencesTreeView;
 
-	/** Stored references to widgets used to display various parts of a blueprint: */
-	FDiffControl GraphPanel;
-	FDiffControl DefaultsPanel;
-	FDiffControl ClassSettingsPanel;
-	FDiffControl ComponentsPanel;
+	/** Stored references to widgets used to display various parts of a blueprint, from the mode name */
+	TMap<FName, FDiffControl> ModePanels;
 
 	/** A pointer to the window holding this */
 	TWeakPtr<SWindow> WeakParentWindow;

@@ -8,16 +8,15 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Docking/TabManager.h"
 #include "EditorStyleSet.h"
 #include "Animation/AnimBlueprint.h"
 #include "K2Node_MathExpression.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "BlueprintEditorModes.h"
 #include "DetailsDiff.h"
 #include "EdGraphUtilities.h"
 #include "GraphDiffControl.h"
-#include "Widgets/Docking/SDockTab.h"
 #include "SMyBlueprint.h"
 #include "SCSDiff.h"
 #include "WorkflowOrientedApp/SModeWidget.h"
@@ -35,20 +34,100 @@ public:
 	virtual ~IDiffControl() {}
 };
 
+DECLARE_DELEGATE(FOnDiffControlChanged);
+
 FText RightRevision = LOCTEXT("OlderRevisionIdentifier", "Right Revision");
 
 typedef TMap< FName, const UProperty* > FNamePropertyMap;
 
-const FName DiffMyBluerpintTabId = FName(TEXT("DiffMyBluerpintTab"));
-const FName DiffGraphTabId = FName(TEXT("DiffGraphTab"));
+const FName MyBlueprintMode = FName(TEXT("MyBlueprintMode"));
+const FName DefaultsMode = FName(TEXT("DefaultsMode"));
 const FName ClassSettingsMode = FName(TEXT("ClassSettingsMode"));
+const FName ComponentsMode = FName(TEXT("ComponentsMode"));
+const FName GraphMode = FName(TEXT("GraphMode"));
 
-DECLARE_DELEGATE(FOnSCSDiffControlChanged);
+/** Shows all differences for the blueprint structure itself that aren't picked up elsewhere */
+class FMyBlueprintDiffControl : public TSharedFromThis<FMyBlueprintDiffControl>, public IDiffControl
+{
+public:
+	FMyBlueprintDiffControl(
+		const UBlueprint* InOldBlueprint
+		, const UBlueprint* InNewBlueprint
+		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
+		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
+		, FOnDiffControlChanged SelectionCallback
+	);
 
-// Each difference in the tree will either be a tree node that is added in one Blueprint 
-// or a tree node and an FName of a property that has been added or edited in one Blueprint
-class FSCSDiffControl	: public TSharedFromThis< FSCSDiffControl >
-						, public IDiffControl
+	virtual ~FMyBlueprintDiffControl() {}
+};
+
+FMyBlueprintDiffControl::FMyBlueprintDiffControl(
+	const UBlueprint* InOldBlueprint
+	, const UBlueprint* InNewBlueprint
+	, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
+	, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
+	, FOnDiffControlChanged SelectionCallback
+)
+{
+	TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
+
+	/*const auto FocusSCSDifferenceEntry = [](FSCSDiffEntry Entry, FOnDiffControlChanged InSelectionCallback, FMyBlueprintDiffControl* Owner)
+	{
+		InSelectionCallback.ExecuteIfBound();
+		if (Entry.TreeIdentifier.Name != NAME_None)
+		{
+			Owner->OldSCS.HighlightProperty(Entry.TreeIdentifier.Name, FPropertyPath());
+			Owner->NewSCS.HighlightProperty(Entry.TreeIdentifier.Name, FPropertyPath());
+		}
+	};
+
+	const auto CreateSCSDifferenceWidget = [](FSCSDiffEntry Entry, FText ObjectName) -> TSharedRef<SWidget>
+	{
+		return SNew(STextBlock)
+			.Text(DiffViewUtils::SCSDiffMessage(Entry, ObjectName))
+			.ColorAndOpacity(DiffViewUtils::Differs());
+	};
+
+	for (auto Difference : DifferingProperties.Entries)
+	{
+		auto Entry = TSharedPtr<FBlueprintDifferenceTreeEntry>(
+			new FBlueprintDifferenceTreeEntry(
+				FOnDiffEntryFocused::CreateStatic(FocusSCSDifferenceEntry, Difference, SelectionCallback, this)
+				, FGenerateDiffEntryWidget::CreateStatic(CreateSCSDifferenceWidget, Difference, RightRevision)
+				, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >()
+			)
+			);
+		Children.Push(Entry);
+		OutRealDifferences.Push(Entry);
+	}*/
+
+	const bool bHasDiffferences = Children.Num() != 0;
+	if (!bHasDiffferences)
+	{
+		// make one child informing the user that there are no differences:
+		Children.Push(FBlueprintDifferenceTreeEntry::NoDifferencesEntry());
+	}
+
+	const auto ForwardSelection = [](FOnDiffControlChanged InSelectionCallback)
+	{
+		// This allows the owning control to focus the correct tab (or do whatever else it likes):
+		InSelectionCallback.ExecuteIfBound();
+	};
+
+	OutTreeEntries.Push(FBlueprintDifferenceTreeEntry::CreateCategoryEntry(
+		NSLOCTEXT("FBlueprintDifferenceTreeEntry", "MyBlueprintLabel", "My Blueprint"),
+		NSLOCTEXT("FBlueprintDifferenceTreeEntry", "MyBlueprintTooltip", "The list of changes made to blueprint structure in the My Blueprint panel"),
+		FOnDiffEntryFocused::CreateStatic(ForwardSelection, SelectionCallback),
+		Children,
+		bHasDiffferences
+	));
+}
+
+/** 
+ * Each difference in the tree will either be a tree node that is added in one Blueprint 
+ * or a tree node and an FName of a property that has been added or edited in one Blueprint
+ */
+class FSCSDiffControl : public TSharedFromThis<FSCSDiffControl>, public IDiffControl
 {
 public:
 	FSCSDiffControl(
@@ -56,7 +135,7 @@ public:
 					, const UBlueprint* InNewBlueprint
 					, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
 					, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
-					, FOnSCSDiffControlChanged SelectionCallback
+					, FOnDiffControlChanged SelectionCallback
 					);
 
 
@@ -76,7 +155,7 @@ FSCSDiffControl::FSCSDiffControl(
 		, const UBlueprint* InNewBlueprint
 		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
 		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
-		, FOnSCSDiffControlChanged SelectionCallback
+		, FOnDiffControlChanged SelectionCallback
 	)
 	: DifferingProperties()
 	, OldSCS( InOldBlueprint )
@@ -86,7 +165,7 @@ FSCSDiffControl::FSCSDiffControl(
 	TArray< FSCSResolvedIdentifier > NewHierarchy = NewSCS.GetDisplayedHierarchy();
 	DiffUtils::CompareUnrelatedSCS(InOldBlueprint, OldHierarchy, InNewBlueprint, NewHierarchy, DifferingProperties);
 
-	const auto FocusSCSDifferenceEntry = [](FSCSDiffEntry Entry, FOnSCSDiffControlChanged InSelectionCallback, FSCSDiffControl* Owner)
+	const auto FocusSCSDifferenceEntry = [](FSCSDiffEntry Entry, FOnDiffControlChanged InSelectionCallback, FSCSDiffControl* Owner)
 	{
 		InSelectionCallback.ExecuteIfBound();
 		if (Entry.TreeIdentifier.Name != NAME_None)
@@ -124,13 +203,15 @@ FSCSDiffControl::FSCSDiffControl(
 		Children.Push(FBlueprintDifferenceTreeEntry::NoDifferencesEntry());
 	}
 
-	const auto ForwardSelection = [](FOnSCSDiffControlChanged InSelectionCallback)
+	const auto ForwardSelection = [](FOnDiffControlChanged InSelectionCallback)
 	{
 		// This allows the owning control to focus the correct tab (or do whatever else it likes):
 		InSelectionCallback.ExecuteIfBound();
 	};
 
-	OutTreeEntries.Push(FBlueprintDifferenceTreeEntry::CreateComponentsCategoryEntry(
+	OutTreeEntries.Push(FBlueprintDifferenceTreeEntry::CreateCategoryEntry(
+		NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSLabel", "Components"),
+		NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSTooltip", "The list of changes made in the Components panel"),
 		FOnDiffEntryFocused::CreateStatic(ForwardSelection, SelectionCallback),
 		Children,
 		bHasDiffferences
@@ -138,8 +219,6 @@ FSCSDiffControl::FSCSDiffControl(
 }
 
 /** Generic wrapper around a details view, this does not actually fill out OutTreeEntries */
-DECLARE_DELEGATE(FOnDetailsDiffControlChanged);
-
 class FDetailsDiffControl : public IDiffControl
 {
 public:
@@ -147,7 +226,7 @@ public:
 					, const UObject* InNewObject
 					, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
 					, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
-					, FOnDetailsDiffControlChanged SelectionCallback );
+					, FOnDiffControlChanged SelectionCallback );
 
 	TSharedRef<SWidget> OldDetailsWidget() { return OldDetails.DetailsWidget(); }
 	TSharedRef<SWidget> NewDetailsWidget() { return NewDetails.DetailsWidget(); }
@@ -168,7 +247,7 @@ FDetailsDiffControl::FDetailsDiffControl(
 		, const UObject* InNewObject
 		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
 		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
-		, FOnDetailsDiffControlChanged SelectionCallback )
+		, FOnDiffControlChanged SelectionCallback )
 	: OldDetails(InOldObject, FDetailsDiff::FOnDisplayedPropertiesChanged() )
 	, NewDetails(InNewObject, FDetailsDiff::FOnDisplayedPropertiesChanged() )
 {
@@ -267,7 +346,7 @@ FDetailsDiffControl::FDetailsDiffControl(
 			.ColorAndOpacity(DiffViewUtils::Differs());
 	};
 
-	const auto FocusDetailsDifferenceEntry = [](FPropertySoftPath Identifier, FDetailsDiffControl* Control, FOnDetailsDiffControlChanged InSelectionCallback)
+	const auto FocusDetailsDifferenceEntry = [](FPropertySoftPath Identifier, FDetailsDiffControl* Control, FOnDiffControlChanged InSelectionCallback)
 	{
 		// This allows the owning control to focus the correct tab (or do whatever else it likes):
 		InSelectionCallback.ExecuteIfBound();
@@ -302,7 +381,7 @@ public:
 		, const UObject* InNewObject
 		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
 		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
-		, FOnDetailsDiffControlChanged SelectionCallback)
+		, FOnDiffControlChanged SelectionCallback)
 		: FDetailsDiffControl(InOldObject, InNewObject, OutTreeEntries, OutRealDifferences, SelectionCallback)
 	{
 		// Parent constructor fills out Children
@@ -313,16 +392,18 @@ public:
 			Children.Push(FBlueprintDifferenceTreeEntry::NoDifferencesEntry());
 		}
 
-		const auto ForwardSelection = [](FOnDetailsDiffControlChanged InSelectionCallback)
+		const auto ForwardSelection = [](FOnDiffControlChanged InSelectionCallback)
 		{
 			// This allows the owning control to focus the correct tab (or do whatever else it likes):
 			InSelectionCallback.ExecuteIfBound();
 		};
 
-		OutTreeEntries.Push(FBlueprintDifferenceTreeEntry::CreateDefaultsCategoryEntry(
-			FOnDiffEntryFocused::CreateStatic(ForwardSelection, SelectionCallback)
-			, Children
-			, bHasDiffferences
+		OutTreeEntries.Push(FBlueprintDifferenceTreeEntry::CreateCategoryEntry(
+			NSLOCTEXT("FBlueprintDifferenceTreeEntry", "DefaultsLabel", "Defaults"),
+			NSLOCTEXT("FBlueprintDifferenceTreeEntry", "DefaultsTooltip", "The list of changes made in the Defaults panel"),
+			FOnDiffEntryFocused::CreateStatic(ForwardSelection, SelectionCallback),
+			Children,
+			bHasDiffferences
 		));
 	}
 };
@@ -335,7 +416,7 @@ public:
 		, const UObject* InNewObject
 		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
 		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
-		, FOnDetailsDiffControlChanged SelectionCallback)
+		, FOnDiffControlChanged SelectionCallback)
 		: FDetailsDiffControl(InOldObject, InNewObject, OutTreeEntries, OutRealDifferences, SelectionCallback)
 	{
 		// Check for parent class and interfaces here
@@ -350,7 +431,7 @@ public:
 				.ToolTipText(DiffText);
 		};
 
-		const auto FocusSettings = [](FOnDetailsDiffControlChanged InSelectionCallback)
+		const auto FocusSettings = [](FOnDiffControlChanged InSelectionCallback)
 		{
 			InSelectionCallback.ExecuteIfBound();
 		};
@@ -426,16 +507,18 @@ public:
 			Children.Push(FBlueprintDifferenceTreeEntry::NoDifferencesEntry());
 		}
 
-		const auto ForwardSelection = [](FOnDetailsDiffControlChanged InSelectionCallback)
+		const auto ForwardSelection = [](FOnDiffControlChanged InSelectionCallback)
 		{
 			// This allows the owning control to focus the correct tab (or do whatever else it likes):
 			InSelectionCallback.ExecuteIfBound();
 		};
 
-		OutTreeEntries.Push(FBlueprintDifferenceTreeEntry::CreateClassSettingsCategoryEntry(
-			FOnDiffEntryFocused::CreateStatic(ForwardSelection, SelectionCallback)
-			, Children
-			, bHasDiffferences
+		OutTreeEntries.Push(FBlueprintDifferenceTreeEntry::CreateCategoryEntry(
+			NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SettingsLabel", "Class Settings"),
+			NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SettingsTooltip", "The list of changes made in the Class Settings panel"),
+			FOnDiffEntryFocused::CreateStatic(ForwardSelection, SelectionCallback),
+			Children,
+			bHasDiffferences
 		));
 	}
 };
@@ -796,30 +879,44 @@ bool DiffWidgetUtils::HasPrevDifference(SListView< TSharedPtr< struct FDiffSingl
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SBlueprintDiff::Construct( const FArguments& InArgs)
 {
-	const TSharedRef<SDockTab> MajorTab = SNew(SDockTab)
-		.TabRole(ETabRole::MajorTab);
-	TabManager = FGlobalTabmanager::Get()->NewTabManager(MajorTab);
-
-	TabManager->RegisterTabSpawner(DiffGraphTabId,
-		FOnSpawnTab::CreateRaw(this, &SBlueprintDiff::CreateGraphDiffViews ))
-		.SetDisplayName(NSLOCTEXT("SBlueprintDiff", "GraphsTabTitle", "Graphs"))
-		.SetTooltipText(NSLOCTEXT("SBlueprintDiff", "GraphsTooltipText", "Differences in the various graphs present in the blueprint"));
-
-	TabManager->RegisterTabSpawner(DiffMyBluerpintTabId,
-		FOnSpawnTab::CreateRaw(this, &SBlueprintDiff::CreateMyBlueprintsViews))
-		.SetDisplayName(NSLOCTEXT("SBlueprintDiff", "MyBlueprintTabTitle", "My Blueprint"))
-		.SetTooltipText(NSLOCTEXT("SBlueprintDiff", "MyBlueprintTooltipText", "Differences in the 'My Blueprints' attributes of the blueprint"));
-
 	check(InArgs._BlueprintOld && InArgs._BlueprintNew);
 	PanelOld.Blueprint = InArgs._BlueprintOld;
 	PanelNew.Blueprint = InArgs._BlueprintNew;
 	PanelOld.RevisionInfo = InArgs._OldRevision;
 	PanelNew.RevisionInfo = InArgs._NewRevision;
 
+	// Create a skeleton if we don't have one, this is true for revision history diffs
+	if (!PanelOld.Blueprint->SkeletonGeneratedClass)
+	{
+		FKismetEditorUtilities::GenerateBlueprintSkeleton(const_cast<UBlueprint*>(PanelOld.Blueprint));
+	}
+	
+	if (!PanelNew.Blueprint->SkeletonGeneratedClass)
+	{
+		FKismetEditorUtilities::GenerateBlueprintSkeleton(const_cast<UBlueprint*>(PanelNew.Blueprint));
+	}
+
 	// sometimes we want to clearly identify the assets being diffed (when it's
 	// not the same asset in each panel)
 	PanelOld.bShowAssetName = InArgs._ShowAssetNames;
 	PanelNew.bShowAssetName = InArgs._ShowAssetNames;
+
+	// SMyBlueprint needs to be created *before* the KismetInspector or the diffs are generated, because the KismetInspector's customizations
+	// need a reference to the SMyBlueprint widget that is controlling them...
+	const auto CreateInspector = [](TSharedPtr<SMyBlueprint> InMyBlueprint) {
+		return SNew(SKismetInspector)
+			.HideNameArea(true)
+			.ViewIdentifier(FName("BlueprintInspector"))
+			.MyBlueprintWidget(InMyBlueprint)
+			.IsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateStatic([] { return false; }));
+	};
+
+	PanelOld.GenerateMyBlueprintWidget();
+	PanelOld.DetailsView = CreateInspector(PanelOld.MyBlueprint);
+	PanelOld.MyBlueprint->SetInspector(PanelOld.DetailsView);
+	PanelNew.GenerateMyBlueprintWidget();
+	PanelNew.DetailsView = CreateInspector(PanelNew.MyBlueprint);
+	PanelNew.MyBlueprint->SetInspector(PanelNew.DetailsView);
 
 	bLockViews = true;
 
@@ -860,26 +957,44 @@ void SBlueprintDiff::Construct( const FArguments& InArgs)
 		, TAttribute<FSlateIcon>(this, &SBlueprintDiff::GetLockViewImage)
 	);
 
-	GraphPanel = GenerateGraphPanel();
-
 	GenerateDifferencesList();
 
 	const auto TextBlock = [](FText Text) -> TSharedRef<SWidget>
 	{
-		return SNew(STextBlock)
+		return SNew(SBox)
+		.Padding(FMargin(4.0f,10.0f))
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		[
+			SNew(STextBlock)
 			.Visibility(EVisibility::HitTestInvisible)
-			.TextStyle(FEditorStyle::Get(), "GraphPreview.CornerText")
-			.Text(Text);
+			.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
+			.Text(Text)
+		];
 	};
 
-	TSharedRef<SWidget> Overlay = SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
+	TSharedRef<SWidget> Overlay = 
+		SNew(SSplitter)
+		+ SSplitter::Slot()
+		.Value(.2f)
 		[
-			TextBlock(DiffViewUtils::GetPanelLabel(PanelOld.Blueprint, PanelOld.RevisionInfo, FText()))
+			SNew(SBox)
 		]
-	+ SHorizontalBox::Slot()
+		+ SSplitter::Slot()
+		.Value(.8f)
 		[
-			TextBlock(DiffViewUtils::GetPanelLabel(PanelNew.Blueprint, PanelNew.RevisionInfo, FText()))
+			SNew(SSplitter)
+			.PhysicalSplitterHandleSize(10.0f)
+			+ SSplitter::Slot()
+			.Value(.5f)
+			[
+				TextBlock(DiffViewUtils::GetPanelLabel(PanelOld.Blueprint, PanelOld.RevisionInfo, FText()))
+			]
+			+ SSplitter::Slot()
+			.Value(.5f)
+			[
+				TextBlock(DiffViewUtils::GetPanelLabel(PanelNew.Blueprint, PanelNew.RevisionInfo, FText()))
+			]
 		];
 
 	this->ChildSlot
@@ -887,55 +1002,54 @@ void SBlueprintDiff::Construct( const FArguments& InArgs)
 			SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush( "Docking.Tab", ".ContentAreaBrush" ))
 			[
-				SNew(SVerticalBox)
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.0f, 2.0f, 0.0f, 2.0f)
+				SNew(SOverlay)
+				+ SOverlay::Slot()
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.Padding(4.f)
-					.AutoWidth()
+					SNew(SVerticalBox)
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(0.0f, 2.0f, 0.0f, 2.0f)
 					[
-						ToolbarBuilder.MakeWidget()
-					]
-					+ SHorizontalBox::Slot()
-					[
-						SNew(SSpacer)
-					]
-				]
-				+ SVerticalBox::Slot()
-				[
-					SNew(SSplitter)
-					+ SSplitter::Slot()
-					.Value(.2f)
-					[
-						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.Padding(4.f)
+						.AutoWidth()
 						[
-							DifferencesTreeView.ToSharedRef()
+							ToolbarBuilder.MakeWidget()
+						]
+						+ SHorizontalBox::Slot()
+						[
+							SNew(SSpacer)
 						]
 					]
-					+ SSplitter::Slot()
-					.Value(.8f)
+					+ SVerticalBox::Slot()
 					[
-						SNew(SOverlay)
-						+ SOverlay::Slot()
+						SNew(SSplitter)
+						+ SSplitter::Slot()
+						.Value(.2f)
+						[
+							SNew(SBorder)
+							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							[
+								DifferencesTreeView.ToSharedRef()
+							]
+						]
+						+ SSplitter::Slot()
+						.Value(.8f)
 						[
 							SAssignNew(ModeContents, SBox)
 						]
-						+ SOverlay::Slot()
-						.VAlign(VAlign_Bottom)
-						[
-							Overlay
-						]
 					]
 				]
+				+ SOverlay::Slot()
+				.VAlign(VAlign_Top)
+				[
+					Overlay
+				]
 			]
-			
 		];
 
-	SetCurrentMode( FBlueprintEditorApplicationModes::StandardBlueprintEditorMode );
+	SetCurrentMode(MyBlueprintMode);
 
 	// Bind to blueprint changed events as they may be real in memory blueprints that will be modified
 	const_cast<UBlueprint*>(PanelNew.Blueprint)->OnChanged().AddSP(this, &SBlueprintDiff::OnBlueprintChanged);
@@ -1078,46 +1192,6 @@ bool SBlueprintDiff::HasNextDiff() const
 bool SBlueprintDiff::HasPrevDiff() const
 {
 	return DiffTreeView::HasPrevDifference(DifferencesTreeView.ToSharedRef(), RealDifferences);
-}
-
-TSharedRef<SDockTab> SBlueprintDiff::CreateGraphDiffViews(const FSpawnTabArgs& Args)
-{
-	return SNew(SDockTab)
-	[
-		SNew(SSplitter) 
-		+ SSplitter::Slot()
-		[
-			SAssignNew(PanelOld.GraphEditorBorder, SBox)
-			.VAlign(VAlign_Fill)
-			[
-				DefaultEmptyPanel()
-			]
-		]
-		+ SSplitter::Slot()
-		[
-			SAssignNew(PanelNew.GraphEditorBorder, SBox)
-			.VAlign(VAlign_Fill)
-			[
-				DefaultEmptyPanel()
-			]
-		]
-	];
-}
-
-TSharedRef<SDockTab> SBlueprintDiff::CreateMyBlueprintsViews(const FSpawnTabArgs& Args)
-{
-	return SNew(SDockTab)
-	[
-		SNew(SSplitter)
-		+ SSplitter::Slot()
-		[
-			PanelOld.GenerateMyBlueprintPanel()
-		]
-		+ SSplitter::Slot()
-		[
-			PanelNew.GenerateMyBlueprintPanel()
-		]
-	];
 }
 
 FListItemGraphToDiff* SBlueprintDiff::FindGraphToDiffEntry(const FString& GraphPath)
@@ -1266,7 +1340,7 @@ void FDiffPanel::GeneratePanel(UEdGraph* Graph, UEdGraph* GraphToDiff )
 	GraphEditorBorder->SetContent(Widget.ToSharedRef());
 }
 
-TSharedRef<SWidget> FDiffPanel::GenerateMyBlueprintPanel()
+TSharedRef<class SWidget> FDiffPanel::GenerateMyBlueprintWidget()
 {
 	return SAssignNew(MyBlueprint, SMyBlueprint, TWeakPtr<FBlueprintEditor>(), Blueprint);
 }
@@ -1352,7 +1426,7 @@ FDiffPanel& SBlueprintDiff::GetDiffPanelForNode(UEdGraphNode& Node)
 
 void SBlueprintDiff::HandleGraphChanged( const FString& GraphPath )
 {
-	SetCurrentMode(FBlueprintEditorApplicationModes::StandardBlueprintEditorMode);
+	SetCurrentMode(GraphMode);
 	
 	TArray<UEdGraph*> GraphsOld, GraphsNew;
 	PanelOld.Blueprint->GetAllGraphs(GraphsOld);
@@ -1435,13 +1509,14 @@ void SBlueprintDiff::GenerateDifferencesList()
 		bHasComponents = false;
 	}
 
-	// Unfortunately we can't perform the diff until the UI is generated, the primary reason for this is that
-	// details customizations determine what is actually editable:
-	DefaultsPanel = GenerateDefaultsPanel();
-	ClassSettingsPanel = GenerateClassSettingsPanel();
+	// Now that we have done the diffs, create the panel widgets
+	ModePanels.Add(MyBlueprintMode, GenerateMyBlueprintPanel());
+	ModePanels.Add(GraphMode, GenerateGraphPanel());
+	ModePanels.Add(DefaultsMode, GenerateDefaultsPanel());
+	ModePanels.Add(ClassSettingsMode, GenerateClassSettingsPanel());
 	if (bHasComponents)
 	{
-		ComponentsPanel = GenerateComponentsPanel();
+		ModePanels.Add(ComponentsMode, GenerateComponentsPanel());
 	}
 
 	for (const auto& Graph : Graphs)
@@ -1479,72 +1554,108 @@ void SBlueprintDiff::GenerateDifferencesList()
 	DifferencesTreeView = DiffTreeView::CreateTreeView(&MasterDifferencesList);
 }
 
-SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateGraphPanel()
+
+SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateMyBlueprintPanel()
 {
-	const TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout("BlueprintDiff_Layout_v1")
-	->AddArea
-	(
-		FTabManager::NewPrimaryArea()
-		->Split
-		(
-			FTabManager::NewStack()
-			->AddTab(DiffMyBluerpintTabId, ETabState::OpenedTab)
-			->AddTab(DiffGraphTabId, ETabState::OpenedTab)
-		)
-	);
-
-	// SMyBlueprint needs to be created *before* the KismetInspector, because the KismetInspector's customizations
-	// need a reference to the SMyBlueprint widget that is controlling them...
-	TSharedRef<SWidget> TabControl = TabManager->RestoreFrom(DefaultLayout, TSharedPtr<SWindow>()).ToSharedRef();
-
-	const auto CreateInspector = [](TSharedPtr<SMyBlueprint> InMyBlueprint) {
-		return SNew( SKismetInspector)
-			.HideNameArea(true)
-			.ViewIdentifier(FName("BlueprintInspector"))
-			.MyBlueprintWidget(InMyBlueprint)
-			.IsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateStatic([] { return false; }));
-	};
+	auto NewDiffControl = TSharedPtr<FMyBlueprintDiffControl>(new FMyBlueprintDiffControl(PanelOld.Blueprint, PanelNew.Blueprint, MasterDifferencesList, RealDifferences, FOnDiffControlChanged::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, MyBlueprintMode)));
 
 	SBlueprintDiff::FDiffControl Ret;
 
-	PanelOld.DetailsView = CreateInspector(PanelOld.MyBlueprint);
-	PanelOld.MyBlueprint->SetInspector(PanelOld.DetailsView);
-	PanelNew.DetailsView = CreateInspector(PanelNew.MyBlueprint);
-	PanelNew.MyBlueprint->SetInspector(PanelNew.DetailsView);
-
-	Ret.Widget = SNew(SBorder)
-	.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-	.Content()
+	Ret.DiffControl = NewDiffControl;
+	Ret.Widget = SNew(SVerticalBox)
+	+ SVerticalBox::Slot()
+	.FillHeight(1.f)
 	[
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.FillHeight(1.f)
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.f)
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.f)
+			//diff window
+			SNew(SSplitter)
+			.Orientation(Orient_Vertical)
+			+SSplitter::Slot()
+			.Value(.8f)
 			[
-				//diff window
 				SNew(SSplitter)
-				.Orientation(Orient_Vertical)
-				+SSplitter::Slot()
-				.Value(.8f)
+				.PhysicalSplitterHandleSize(10.0f)
+				+ SSplitter::Slot()
 				[
-					// graph and my blueprint views:
-					TabControl
+					PanelOld.MyBlueprint.ToSharedRef()
 				]
 				+ SSplitter::Slot()
-				.Value(.2f)
 				[
-					SNew( SSplitter )
-					+SSplitter::Slot()
+					PanelNew.MyBlueprint.ToSharedRef()
+				]
+			]
+			+ SSplitter::Slot()
+			.Value(.2f)
+			[
+				SNew(SSplitter)
+				.PhysicalSplitterHandleSize(10.0f)
+				+SSplitter::Slot()
+				[
+					PanelOld.DetailsView.ToSharedRef()
+				]
+				+ SSplitter::Slot()
+				[
+					PanelNew.DetailsView.ToSharedRef()
+				]
+			]
+		]
+	];
+
+	return Ret;
+}
+
+SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateGraphPanel()
+{
+	SBlueprintDiff::FDiffControl Ret;
+
+	Ret.Widget = SNew(SVerticalBox)
+	+ SVerticalBox::Slot()
+	.FillHeight(1.f)
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.f)
+		[
+			//diff window
+			SNew(SSplitter)
+			.Orientation(Orient_Vertical)
+			+SSplitter::Slot()
+			.Value(.8f)
+			[
+				SNew(SSplitter)
+				.PhysicalSplitterHandleSize(10.0f)
+				+ SSplitter::Slot()
+				[
+					SAssignNew(PanelOld.GraphEditorBorder, SBox)
+					.VAlign(VAlign_Fill)
 					[
-						PanelOld.DetailsView.ToSharedRef()
+						DefaultEmptyPanel()
 					]
-					+ SSplitter::Slot()
+				]
+				+ SSplitter::Slot()
+				[
+					SAssignNew(PanelNew.GraphEditorBorder, SBox)
+					.VAlign(VAlign_Fill)
 					[
-						PanelNew.DetailsView.ToSharedRef()
+						DefaultEmptyPanel()
 					]
+				]
+			]
+			+ SSplitter::Slot()
+			.Value(.2f)
+			[
+				SNew(SSplitter)
+				.PhysicalSplitterHandleSize(10.0f)
+				+SSplitter::Slot()
+				[
+					PanelOld.DetailsView.ToSharedRef()
+				]
+				+ SSplitter::Slot()
+				[
+					PanelNew.DetailsView.ToSharedRef()
 				]
 			]
 		]
@@ -1558,29 +1669,22 @@ SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateDefaultsPanel()
 	const UObject* A = DiffUtils::GetCDO(PanelOld.Blueprint);
 	const UObject* B = DiffUtils::GetCDO(PanelNew.Blueprint);
 
-	auto NewDiffControl = TSharedPtr<FCDODiffControl>(new FCDODiffControl(A, B, MasterDifferencesList, RealDifferences, FOnDetailsDiffControlChanged::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, FBlueprintEditorApplicationModes::BlueprintDefaultsMode)));
+	auto NewDiffControl = TSharedPtr<FCDODiffControl>(new FCDODiffControl(A, B, MasterDifferencesList, RealDifferences, FOnDiffControlChanged::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, DefaultsMode)));
 
 	SBlueprintDiff::FDiffControl Ret;
 	//Splitter for left and right blueprint. Current convention is for the local (probably newer?) blueprint to be on the right:
 	Ret.DiffControl = NewDiffControl;
 	Ret.Widget = SNew(SSplitter)
+		.PhysicalSplitterHandleSize(10.0f)
 		+ SSplitter::Slot()
 		.Value(0.5f)
 		[
-			SNew(SBorder)
-			.VAlign(VAlign_Fill)
-			[
-				NewDiffControl->OldDetailsWidget()
-			]
+			NewDiffControl->OldDetailsWidget()
 		]
-	+ SSplitter::Slot()
+		+ SSplitter::Slot()
 		.Value(0.5f)
 		[
-			SNew(SBorder)
-			.VAlign(VAlign_Fill)
-			[
-				NewDiffControl->NewDetailsWidget()
-			]
+			NewDiffControl->NewDetailsWidget()
 		];
 
 	return Ret;
@@ -1591,29 +1695,22 @@ SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateClassSettingsPanel()
 	const UObject* A = PanelOld.Blueprint;
 	const UObject* B = PanelNew.Blueprint;
 
-	auto NewDiffControl = TSharedPtr<FClassDefaultsDiffControl>(new FClassDefaultsDiffControl(A, B, MasterDifferencesList, RealDifferences, FOnDetailsDiffControlChanged::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, ClassSettingsMode)));
+	auto NewDiffControl = TSharedPtr<FClassDefaultsDiffControl>(new FClassDefaultsDiffControl(A, B, MasterDifferencesList, RealDifferences, FOnDiffControlChanged::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, ClassSettingsMode)));
 
 	SBlueprintDiff::FDiffControl Ret;
 	//Splitter for left and right blueprint. Current convention is for the local (probably newer?) blueprint to be on the right:
 	Ret.DiffControl = NewDiffControl;
 	Ret.Widget = SNew(SSplitter)
+		.PhysicalSplitterHandleSize(10.0f)
 		+ SSplitter::Slot()
 		.Value(0.5f)
 		[
-			SNew(SBorder)
-			.VAlign(VAlign_Fill)
-			[
-				NewDiffControl->OldDetailsWidget()
-			]
+			NewDiffControl->OldDetailsWidget()
 		]
-	+ SSplitter::Slot()
+		+ SSplitter::Slot()
 		.Value(0.5f)
 		[
-			SNew(SBorder)
-			.VAlign(VAlign_Fill)
-			[
-				NewDiffControl->NewDetailsWidget()
-			]
+			NewDiffControl->NewDetailsWidget()
 		];
 
 	return Ret;
@@ -1624,26 +1721,19 @@ SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateComponentsPanel()
 	SBlueprintDiff::FDiffControl Ret;
 
 	//Splitter for left and right blueprint. Current convention is for the local (probably newer?) blueprint to be on the right:
-	auto NewDiffControl = TSharedPtr<FSCSDiffControl>(new FSCSDiffControl(PanelOld.Blueprint, PanelNew.Blueprint, MasterDifferencesList, RealDifferences, FOnSCSDiffControlChanged::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, FBlueprintEditorApplicationModes::BlueprintComponentsMode) ) );
+	auto NewDiffControl = TSharedPtr<FSCSDiffControl>(new FSCSDiffControl(PanelOld.Blueprint, PanelNew.Blueprint, MasterDifferencesList, RealDifferences, FOnDiffControlChanged::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, ComponentsMode) ) );
 	Ret.DiffControl = NewDiffControl;
 	Ret.Widget = SNew(SSplitter)
+		.PhysicalSplitterHandleSize(10.0f)
 		+ SSplitter::Slot()
 		.Value(0.5f)
 		[
-			SNew(SBorder)
-			.VAlign(VAlign_Fill)
-			[
-				NewDiffControl->OldTreeWidget()
-			]
+			NewDiffControl->OldTreeWidget()
 		]
 		+ SSplitter::Slot()
 		.Value(0.5f)
 		[
-			SNew(SBorder)
-			.VAlign(VAlign_Fill)
-			[
-				NewDiffControl->NewTreeWidget()
-			]
+			NewDiffControl->NewTreeWidget()
 		];
 
 	return Ret;
@@ -1658,26 +1748,16 @@ void SBlueprintDiff::SetCurrentMode(FName NewMode)
 
 	CurrentMode = NewMode;
 
-	DiffControl = TSharedPtr< IDiffControl >();
-	if( NewMode == FBlueprintEditorApplicationModes::StandardBlueprintEditorMode)
+	FDiffControl* FoundControl = ModePanels.Find(NewMode);
+
+	if (FoundControl)
 	{
-		DiffControl = GraphPanel.DiffControl;
-		ModeContents->SetContent( GraphPanel.Widget.ToSharedRef() );
-	}
-	else if( NewMode == FBlueprintEditorApplicationModes::BlueprintDefaultsMode )
-	{
-		DiffControl = DefaultsPanel.DiffControl;
-		ModeContents->SetContent( DefaultsPanel.Widget.ToSharedRef() );
-	}
-	else if (NewMode == ClassSettingsMode)
-	{
-		DiffControl = ClassSettingsPanel.DiffControl;
-		ModeContents->SetContent(ClassSettingsPanel.Widget.ToSharedRef());
-	}
-	else if (NewMode == FBlueprintEditorApplicationModes::BlueprintComponentsMode)
-	{
-		DiffControl = ComponentsPanel.DiffControl;
-		ModeContents->SetContent( ComponentsPanel.Widget.ToSharedRef() );
+		// Reset inspector view
+		PanelOld.DetailsView->ShowDetailsForObjects(TArray<UObject*>());
+		PanelNew.DetailsView->ShowDetailsForObjects(TArray<UObject*>());
+
+		DiffControl = FoundControl->DiffControl;
+		ModeContents->SetContent(FoundControl->Widget.ToSharedRef());
 	}
 	else
 	{

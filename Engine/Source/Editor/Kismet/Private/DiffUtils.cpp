@@ -779,36 +779,35 @@ TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::WidgetB
 		, Children
 		));
 }
-
-TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateDefaultsCategoryEntry(FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasDifferences)
+TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateCategoryEntry(const FText& LabelText, const FText& ToolTipText, FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasDifferences)
 {
-	const auto CreateDefaultsRootEntry = [](FLinearColor Color) -> TSharedRef<SWidget>
+	const auto CreateDefaultsRootEntry = [](FText LabelText, FText ToolTipText, FLinearColor Color) -> TSharedRef<SWidget>
 	{
 		return SNew(STextBlock)
-			.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "DefaultsTooltip", "The list of changes made in the Defaults panel"))
+			.ToolTipText(ToolTipText)
 			.ColorAndOpacity(Color)
-			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "DefaultsLabel", "Defaults"));
+			.Text(LabelText);
 	};
 
 	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
 		FocusCallback
-		, FGenerateDiffEntryWidget::CreateStatic(CreateDefaultsRootEntry, DiffViewUtils::LookupColor(bHasDifferences) )
+		, FGenerateDiffEntryWidget::CreateStatic(CreateDefaultsRootEntry, LabelText, ToolTipText, DiffViewUtils::LookupColor(bHasDifferences))
 		, Children
 	));
 }
 
-TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateDefaultsCategoryEntryForMerge(FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasRemoteDifferences, bool bHasLocalDifferences, bool bHasConflicts)
+TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateCategoryEntryForMerge(const FText& LabelText, const FText& ToolTipText, FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasRemoteDifferences, bool bHasLocalDifferences, bool bHasConflicts)
 {
-	const auto CreateDefaultsRootEntry = [](bool bInHasRemoteDifferences, bool bInHasLocalDifferences, bool bInHasConflicts) -> TSharedRef<SWidget>
+	const auto CreateDefaultsRootEntry = [](FText LabelText, FText ToolTipText, bool bInHasRemoteDifferences, bool bInHasLocalDifferences, bool bInHasConflicts) -> TSharedRef<SWidget>
 	{
 		const FLinearColor BaseColor = DiffViewUtils::LookupColor(bInHasRemoteDifferences || bInHasLocalDifferences, bInHasConflicts);
 		return SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			[
 				SNew(STextBlock)
-				.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "DefaultsTooltip", "The list of changes made in the Defaults panel"))
+				.ToolTipText(ToolTipText)
 				.ColorAndOpacity(BaseColor)
-				.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "DefaultsLabel", "Defaults"))
+				.Text(LabelText)
 			]
 			+ DiffViewUtils::Box(true, DiffViewUtils::LookupColor(bInHasRemoteDifferences, bInHasConflicts))
 			+ DiffViewUtils::Box(true, BaseColor)
@@ -817,91 +816,7 @@ TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateD
 
 	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
 		FocusCallback
-		, FGenerateDiffEntryWidget::CreateStatic(CreateDefaultsRootEntry, bHasRemoteDifferences, bHasLocalDifferences, bHasConflicts)
-		, Children
-		));
-}
-
-TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateComponentsCategoryEntry(FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasDifferences)
-{
-	const auto CreateComponentsRootEntry = [](FLinearColor Color) -> TSharedRef<SWidget>
-	{
-		return SNew(STextBlock)
-			.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSTooltip", "The list of changes made in the Components panel"))
-			.ColorAndOpacity(Color)
-			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSLabel", "Components"));
-	};
-
-	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-		FocusCallback
-		, FGenerateDiffEntryWidget::CreateStatic(CreateComponentsRootEntry, DiffViewUtils::LookupColor(bHasDifferences))
-		, Children
-		));
-}
-
-TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateComponentsCategoryEntryForMerge(FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasRemoteDifferences, bool bHasLocalDifferences, bool bHasConflicts)
-{
-	const auto CreateComponentsRootEntry = [](bool bInHasRemoteDifferences, bool bInHasLocalDifferences, bool bInHasConflicts) -> TSharedRef<SWidget>
-	{
-		const FLinearColor BaseColor = DiffViewUtils::LookupColor(bInHasRemoteDifferences || bInHasLocalDifferences, bInHasConflicts);
-		return  SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			[
-				SNew(STextBlock)
-				.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSTooltip", "The list of changes made in the Components panel"))
-				.ColorAndOpacity(BaseColor)
-				.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSLabel", "Components"))
-			]
-			+ DiffViewUtils::Box(true, DiffViewUtils::LookupColor(bInHasRemoteDifferences, bInHasConflicts))
-			+ DiffViewUtils::Box(true, BaseColor)
-			+ DiffViewUtils::Box(true, DiffViewUtils::LookupColor(bInHasLocalDifferences, bInHasConflicts));
-	};
-
-	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-		FocusCallback
-		, FGenerateDiffEntryWidget::CreateStatic(CreateComponentsRootEntry, bHasRemoteDifferences, bHasLocalDifferences, bHasConflicts)
-		, Children
-	));
-}
-
-TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateClassSettingsCategoryEntry(FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasDifferences)
-{
-	const auto CreateSettingsRootEntry = [](FLinearColor Color) -> TSharedRef<SWidget>
-	{
-		return SNew(STextBlock)
-			.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SettingsTooltip", "The list of changes made to class settings"))
-			.ColorAndOpacity(Color)
-			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SettingsLabel", "Class Settings"));
-	};
-
-	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-		FocusCallback
-		, FGenerateDiffEntryWidget::CreateStatic(CreateSettingsRootEntry, DiffViewUtils::LookupColor(bHasDifferences))
-		, Children
-	));
-}
-
-TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateClassSettingsCategoryEntryForMerge(FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasRemoteDifferences, bool bHasLocalDifferences, bool bHasConflicts)
-{
-	const auto CreateSettingsRootEntry = [](bool bInHasRemoteDifferences, bool bInHasLocalDifferences, bool bInHasConflicts) -> TSharedRef<SWidget>
-	{
-		const FLinearColor BaseColor = DiffViewUtils::LookupColor(bInHasRemoteDifferences || bInHasLocalDifferences, bInHasConflicts);
-		return  SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			[
-				SNew(STextBlock)
-				.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SettingsTooltip", "The list of changes made to class settings"))
-			.ColorAndOpacity(BaseColor)
-			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SettingsLabel", "Class Settings"))
-			]
-		+ DiffViewUtils::Box(true, DiffViewUtils::LookupColor(bInHasRemoteDifferences, bInHasConflicts))
-			+ DiffViewUtils::Box(true, BaseColor)
-			+ DiffViewUtils::Box(true, DiffViewUtils::LookupColor(bInHasLocalDifferences, bInHasConflicts));
-	};
-
-	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-		FocusCallback
-		, FGenerateDiffEntryWidget::CreateStatic(CreateSettingsRootEntry, bHasRemoteDifferences, bHasLocalDifferences, bHasConflicts)
+		, FGenerateDiffEntryWidget::CreateStatic(CreateDefaultsRootEntry, LabelText, ToolTipText, bHasRemoteDifferences, bHasLocalDifferences, bHasConflicts)
 		, Children
 	));
 }
@@ -1109,19 +1024,37 @@ FText DiffViewUtils::GetPanelLabel(const UBlueprint* Blueprint, const FRevisionI
 				, FText::FromString(Revision.Date.ToString(TEXT("%m/%d/%Y"))));		
 		}
 
-		return FText::Format( NSLOCTEXT("DiffViewUtils", "RevisionLabel", "{0}\n{1}\n{2}")
-			, Label
-			, FText::FromString( Blueprint->GetName() )
-			, RevisionData );
+		if (Label.IsEmpty())
+		{
+			return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabelTwoLines", "{0}\n{1}")
+				, FText::FromString(Blueprint->GetName())
+				, RevisionData);
+		}
+		else
+		{
+			return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabel", "{0}\n{1}\n{2}")
+				, Label
+				, FText::FromString(Blueprint->GetName())
+				, RevisionData);
+		}
 	}
 	else
 	{
 		if( Blueprint )
 		{
-			return FText::Format( NSLOCTEXT("DiffViewUtils", "RevisionLabel", "{0}\n{1}\n{2}")
-				, Label
-				, FText::FromString( Blueprint->GetName() )
-				, NSLOCTEXT("DiffViewUtils", "LocalRevisionLabel", "Local Revision" ));
+			if (Label.IsEmpty())
+			{
+				return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabelTwoLines", "{0}\n{1}")
+					, FText::FromString(Blueprint->GetName())
+					, NSLOCTEXT("DiffViewUtils", "LocalRevisionLabel", "Local Revision"));
+			}
+			else
+			{
+				return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabel", "{0}\n{1}\n{2}")
+					, Label
+					, FText::FromString(Blueprint->GetName())
+					, NSLOCTEXT("DiffViewUtils", "LocalRevisionLabel", "Local Revision"));
+			}
 		}
 
 		return NSLOCTEXT("DiffViewUtils", "NoBlueprint", "None" );

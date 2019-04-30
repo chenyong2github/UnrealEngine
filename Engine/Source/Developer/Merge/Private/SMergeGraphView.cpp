@@ -584,7 +584,7 @@ TSharedRef<SDockTab> SMergeGraphView::CreateMyBlueprintsViews(const FSpawnTabArg
 	{
 		PanelContainer->AddSlot()
 		[
-			Panel.GenerateMyBlueprintPanel()
+			Panel.GenerateMyBlueprintWidget()
 		];
 	}
 

@@ -14,6 +14,7 @@ FDetailsDiff::FDetailsDiff(const UObject* InObject, FOnDisplayedPropertiesChange
 {
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bShowDifferingPropertiesOption = true;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 
 	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	DetailsView = EditModule.CreateDetailView(DetailsViewArgs);
