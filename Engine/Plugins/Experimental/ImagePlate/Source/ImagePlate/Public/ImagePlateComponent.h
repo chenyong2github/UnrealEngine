@@ -122,11 +122,6 @@ public:
 	 */
 	AActor* FindViewTarget() const;
 
-	/**
-	 * Calculate projection matrices from a specified view target
-	 */
-	static void GetProjectionMatricesFromViewTarget(AActor* InViewTarget, FMatrix& OutViewProjectionMatrix, FMatrix& OutInvViewProjectionMatrix);
-
 protected:
 
 	void UpdateMaterialParametersForMedia();
