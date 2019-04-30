@@ -4447,7 +4447,6 @@ void SAssetView::AssetRenameCommit(const TSharedPtr<FAssetViewItem>& Item, const
 	}
 	else if( ItemType == EAssetItemType::Folder )
 	{
-		TArray<FMovedContentFolder> MovedFolders;
 		const TSharedPtr<FAssetViewFolder>& ItemAsFolder = StaticCastSharedPtr<FAssetViewFolder>(Item);
 		if(ItemAsFolder->bNewFolder)
 		{
@@ -4510,27 +4509,12 @@ void SAssetView::AssetRenameCommit(const TSharedPtr<FAssetViewItem>& Item, const
 				}
 			}
 
-			if(bSuccess)
+			if(bSuccess && ContentBrowserUtils::RenameFolder(NewPath, ItemAsFolder->FolderPath))
 			{
+				TArray<FMovedContentFolder> MovedFolders;
 				MovedFolders.Add(FMovedContentFolder(ItemAsFolder->FolderPath, NewPath));
-				// move any assets in our folder
-				TArray<FAssetData> AssetsInFolder;
-				AssetRegistryModule.Get().GetAssetsByPath(*ItemAsFolder->FolderPath, AssetsInFolder, true);
-				TArray<UObject*> ObjectsInFolder;
-				ContentBrowserUtils::GetObjectsInAssetData(AssetsInFolder, ObjectsInFolder);
-				ContentBrowserUtils::MoveAssets(ObjectsInFolder, NewPath, ItemAsFolder->FolderPath);
-
-				// Now check to see if the original folder is empty, if so we can delete it
-				TArray<FAssetData> AssetsInOriginalFolder;
-				AssetRegistryModule.Get().GetAssetsByPath(*ItemAsFolder->FolderPath, AssetsInOriginalFolder, true);
-				if(AssetsInOriginalFolder.Num() == 0)
-				{
-					TArray<FString> FoldersToDelete;
-					FoldersToDelete.Add(ItemAsFolder->FolderPath);
-					ContentBrowserUtils::DeleteFolders(FoldersToDelete);
-				}
+				OnFolderPathChanged.ExecuteIfBound(MovedFolders);
 			}
-			OnFolderPathChanged.ExecuteIfBound(MovedFolders);
 			RequestQuickFrontendListRefresh();
 		}		
 	}

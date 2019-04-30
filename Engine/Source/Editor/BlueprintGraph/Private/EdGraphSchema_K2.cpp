@@ -6260,6 +6260,9 @@ UEdGraphNode* UEdGraphSchema_K2::CreateSubstituteNode(UEdGraphNode* Node, const 
 			CustomEventNode->NodePosX = EventNode->NodePosX;
 			CustomEventNode->NodePosY = EventNode->NodePosY;
 
+			// Reuse the same GUID as the replaced node
+			CustomEventNode->NodeGuid = EventNode->NodeGuid;
+
 			// Build a function name that is appropriate for the event we're replacing
 			FString FunctionName;
 			const UK2Node_ActorBoundEvent* ActorBoundEventNode = Cast<const UK2Node_ActorBoundEvent>(EventNode);

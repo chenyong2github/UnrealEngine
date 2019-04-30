@@ -1213,9 +1213,15 @@ void UEditorEngine::StartQueuedPlayMapRequest()
 		FIntPoint WinPosition((int32)PreferredWorkArea.Right, (int32)PreferredWorkArea.Top);
 
 		// We'll need to spawn a server if we're playing outside the editor or the editor wants to run as a client
-		if (bPlayOnLocalPcSession || PlayNetMode == PIE_Client)
+		if (bPlayOnLocalPcSession || PlayNetMode == PIE_Client || PlayNetMode == PIE_StandaloneWithServer)
 		{			
-			PlayStandaloneLocalPc(TEXT(""), &WinPosition, NumClients, true);
+			FString MapNameOverride;
+			if (PlayInSettings->IsServerMapNameOverrideActive())
+			{
+				PlayInSettings->GetServerMapNameOverride(MapNameOverride);
+			}
+
+			PlayStandaloneLocalPc(*MapNameOverride, &WinPosition, NumClients, true);
 			
 			const bool CanPlayNetDedicated = [&PlayInSettings]{ bool PlayNetDedicated(false); return (PlayInSettings->GetPlayNetDedicated(PlayNetDedicated) && PlayNetDedicated); }();
 			if (!CanPlayNetDedicated)
@@ -1235,15 +1241,16 @@ void UEditorEngine::StartQueuedPlayMapRequest()
 		}
 
 		// Build the connection String
-		FString ConnectionAddr(TEXT("127.0.0.1"));
+		FString ConnectionAddr;
 
 		// Ignore the user's settings if the autoconnect option is inaccessible due to settings conflicts.
-		const bool WillAutoConnectToServer = [&PlayInSettings] { bool AutoConnectToServer(false); 
+		const bool WillAutoConnectToServer = [&PlayInSettings, PlayNetMode] { bool AutoConnectToServer(false);
 			return (PlayInSettings->GetAutoConnectToServerVisibility() == EVisibility::Visible) ? 
-				(PlayInSettings->GetAutoConnectToServer(AutoConnectToServer) && AutoConnectToServer) : true; }();
+				(PlayInSettings->GetAutoConnectToServer(AutoConnectToServer) && AutoConnectToServer) : (PlayNetMode != PIE_StandaloneWithServer); }();
 
 		if (WillAutoConnectToServer)
 		{
+			ConnectionAddr += TEXT("127.0.0.1");
 			uint16 ServerPort = 0;
 			if (PlayInSettings->GetServerPort(ServerPort))
 			{
@@ -1535,7 +1542,7 @@ public:
 			{
 				GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileFailed_Cue.CompileFailed_Cue"));
 			}
-			else
+			else if (CompletionState == SNotificationItem::CS_Success)
 			{
 				GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileSuccess_Cue.CompileSuccess_Cue"));
 			}
@@ -1543,7 +1550,10 @@ public:
 			TSharedPtr<SNotificationItem> NotificationItem = NotificationItemPtr.Pin();
 			NotificationItem->SetText(Text);
 			NotificationItem->SetCompletionState(CompletionState);
-			NotificationItem->ExpireAndFadeout();
+			if (CompletionState == SNotificationItem::CS_Success || CompletionState == SNotificationItem::CS_Fail)
+			{
+				NotificationItem->ExpireAndFadeout();
+			}
 		}
 	}
 
@@ -2658,7 +2668,7 @@ bool UEditorEngine::CreatePIEWorldFromLogin(FWorldContext& PieWorldContext, EPla
 	GetMultipleInstancePositions(DataStruct.SettingsIndex, DataStruct.NextX, DataStruct.NextY);
 	
 	const bool CanPlayNetDedicated = [&PlayInSettings]{ bool PlayNetDedicated(false); return (PlayInSettings->GetPlayNetDedicated(PlayNetDedicated) && PlayNetDedicated); }();
-	const bool ActAsClient = PlayNetMode == EPlayNetMode::PIE_Client || PlayNetMode == EPlayNetMode::PIE_Standalone;
+	const bool ActAsClient = PlayNetMode == EPlayNetMode::PIE_Client || PlayNetMode == EPlayNetMode::PIE_StandaloneWithServer || PlayNetMode == EPlayNetMode::PIE_Standalone;
 	UGameInstance* const GameInstance = CreatePIEGameInstance(PieWorldContext.PIEInstance, false, DataStruct.bAnyBlueprintErrors, DataStruct.bStartInSpectatorMode, ActAsClient ? false : CanPlayNetDedicated, false, DataStruct.PIEStartTime);
 	
 	// Restore window settings

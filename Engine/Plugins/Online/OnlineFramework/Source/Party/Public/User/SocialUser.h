@@ -55,6 +55,9 @@ public:
 
 	virtual void GetRichPresenceText(FText& OutRichPresence) const;
 
+	bool IsRecentPlayer() const;
+	bool IsRecentPlayer(ESocialSubsystem SubsystemType) const;
+	
 	bool IsBlocked() const;
 	bool IsBlocked(ESocialSubsystem SubsystemType) const;
 
@@ -67,11 +70,11 @@ public:
 	bool HasAnyInteractionsAvailable() const;
 	TArray<FSocialInteractionHandle> GetAllAvailableInteractions() const;
 
-	bool CanSendFriendInvite(ESocialSubsystem SubsystemType) const;
-	bool SendFriendInvite(ESocialSubsystem SubsystemType);
-	bool AcceptFriendInvite(ESocialSubsystem SocialSubsystem) const;
-	bool RejectFriendInvite(ESocialSubsystem SocialSubsystem) const;
-	bool EndFriendship(ESocialSubsystem SocialSubsystem) const;
+	virtual bool CanSendFriendInvite(ESocialSubsystem SubsystemType) const;
+	virtual bool SendFriendInvite(ESocialSubsystem SubsystemType);
+	virtual bool AcceptFriendInvite(ESocialSubsystem SocialSubsystem) const;
+	virtual bool RejectFriendInvite(ESocialSubsystem SocialSubsystem) const;
+	virtual bool EndFriendship(ESocialSubsystem SocialSubsystem) const;
 
 	bool ShowPlatformProfile();
 
@@ -86,8 +89,8 @@ public:
 	bool CanInviteToParty(const FOnlinePartyTypeId& PartyTypeId) const;
 	bool InviteToParty(const FOnlinePartyTypeId& PartyTypeId) const;
 
-	bool BlockUser(ESocialSubsystem Subsystem);
-	bool UnblockUser(ESocialSubsystem Subsystem);
+	virtual bool BlockUser(ESocialSubsystem Subsystem) const;
+	virtual bool UnblockUser(ESocialSubsystem Subsystem) const;
 
 	UPartyMember* GetPartyMember(const FOnlinePartyTypeId& PartyTypeId) const;
 
@@ -132,6 +135,8 @@ PARTY_SCOPE:
 
 protected:
 	virtual void OnPresenceChangedInternal(ESocialSubsystem SubsystemType);
+	virtual void OnPartyInviteAcceptedInternal(const FOnlinePartyTypeId& PartyTypeId) const;
+	virtual void OnPartyInviteRejectedInternal(const FOnlinePartyTypeId& PartyTypeId) const;
 	virtual void SetSubsystemId(ESocialSubsystem SubsystemType, const FUniqueNetIdRepl& SubsystemId);
 	int32 NumPendingQueries = 0;
 

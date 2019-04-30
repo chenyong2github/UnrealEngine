@@ -28,6 +28,11 @@ bool FTargetPlatformBase::UsesSelectiveBasePassOutputs() const
 	return CVar ? (CVar->GetInt() != 0) : false;
 }
 
+bool FTargetPlatformBase::UsesDistanceFields() const
+{
+	return true;
+}
+
 TSharedPtr<IDeviceManagerCustomPlatformWidgetCreator> FTargetPlatformBase::GetCustomWidgetCreator() const
 {
 	static TSharedPtr<FDeviceBrowserDefaultPlatformWidgetCreator> DefaultWidgetCreator = MakeShared<FDeviceBrowserDefaultPlatformWidgetCreator>();

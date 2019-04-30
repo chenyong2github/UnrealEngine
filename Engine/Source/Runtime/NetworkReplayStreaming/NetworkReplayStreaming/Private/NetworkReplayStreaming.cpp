@@ -100,3 +100,24 @@ void FNetworkReplayStreaming::Flush()
 		}
 	}
 }
+
+bool FNetworkReplayStreaming::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	// expected usage is "replaystreamer <streamer factory name> <streamer specific args>"
+	if (FParse::Command(&Cmd, TEXT("REPLAYSTREAMER")))
+	{
+		FString FactoryName = FParse::Token(Cmd, false);
+		if (!FactoryName.IsEmpty())
+		{
+			TSharedPtr<INetworkReplayStreamer> Streamer = GetFactory(*FactoryName).CreateReplayStreamer();
+			if (Streamer.IsValid())
+			{
+				Streamer->Exec(Cmd, Ar);
+			}
+		}
+
+		return true;
+	}
+
+	return false;
+}

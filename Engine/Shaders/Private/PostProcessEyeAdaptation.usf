@@ -48,6 +48,36 @@ float ComputeWeightedTextureAverageAlpha(Texture2D InBuffer, in uint4 ROI, in fl
 	return Average;
 }
 
+float2 ComputeWeightedTextureAverageAlphaSubRegion(Texture2D InBuffer, in uint4 SubROI, in uint4 MainROI, in float Slope)
+{
+	// The inverse of the Region of Interest size.
+	const float InvXMax = 1.f / float(MainROI.z - MainROI.x);
+	const float InvYMax = 1.f / float(MainROI.w - MainROI.y);
+
+	// use product of linear weight in x and y.  
+
+	float Value = 0.0f;
+	float WeightTotal = 0.0000000001f;	
+
+	for (uint i = SubROI.x; i < SubROI.z; ++i)
+	{
+		float IWeight = AdaptationWeight( i * InvXMax, Slope);  
+		for (uint j = SubROI.y; j < SubROI.w; ++j)
+		{
+			float JWeight = AdaptationWeight( j * InvYMax, Slope);
+			float Weight = max(IWeight * JWeight, 0.05f);
+			
+			WeightTotal += Weight;
+
+			//accumulate values from alpha channel
+			float Sample = InBuffer.Load(int3(i, j, 0)).w;
+			Value += Weight * Sample;
+		}
+	}
+
+	return  float2(Value, WeightTotal);
+}
+
 
 // @param FrameTime in seconds
 // @return smoothed exposure
@@ -148,13 +178,28 @@ void MainReductionPS(
 	OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, InUV);
 }
 
+#if COMPUTESHADER
 
-void MainLogLuminance2ExposureScalePS(
-	in float4 UVAndScreenPos : TEXCOORD0,
+#define TGSIZE 16
+groupshared float2 SubRectValueWeight[TGSIZE*TGSIZE];
+RWTexture2D<float4> RWOutputComputeTex;
+
+[numthreads(TGSIZE, TGSIZE, 1)]
+void MainLogLuminance2ExposureScaleCS(uint GIndex : SV_GroupIndex, 
+	uint2 GTId : SV_GroupThreadID
+	)
+{
+	float4 OutColor=0;
+
+#else
+
+void MainLogLuminance2ExposureScalePS( 
+	in float4 UVAndScreenPos : TEXCOORD0, 
 	out float4 OutColor : SV_Target0
 	)
 {
-	float2 UV = UVAndScreenPos.xy;
+
+#endif
 
 #if USE_PREEXPOSURE
 	const float OneOverPreExposure = View.OneOverPreExposure;
@@ -169,8 +214,49 @@ void MainLogLuminance2ExposureScalePS(
 	//              >1 focuses more in the center of the screen.
 	float WeightSlope = EyeAdaptationParams[2].w;
 	
-	// Compute scaled Log Luminance Average 
+	// Compute scaled Log Luminance Average
+#if COMPUTESHADER
+	// There are TGSIZE*TGSIZE threads. Each thread will calculate the luminance for its own subregions from a TGSIZE*TGSIZE screen grid
+	uint4 SubRect = uint4(	((EyeAdaptionSrcRect.z-EyeAdaptionSrcRect.x) * GTId.x)		/ TGSIZE,
+							((EyeAdaptionSrcRect.w-EyeAdaptionSrcRect.y) * GTId.y)		/ TGSIZE, 
+							((EyeAdaptionSrcRect.z-EyeAdaptionSrcRect.x) * (GTId.x+1))	/ TGSIZE  ,
+							((EyeAdaptionSrcRect.w-EyeAdaptionSrcRect.y) * (GTId.y+1))	/ TGSIZE  );
+
+	float2 LogLumAveWithWeight = ComputeWeightedTextureAverageAlphaSubRegion(PostprocessInput0, SubRect,  EyeAdaptionSrcRect, WeightSlope);
+
+	// Store in LDS
+	SubRectValueWeight[GIndex] = LogLumAveWithWeight;
+	GroupMemoryBarrierWithGroupSync();
+
+	// Merge the ValueWeight from all threads
+	SubRectValueWeight[GIndex] =  SubRectValueWeight[GIndex] + SubRectValueWeight[GIndex ^ 1];
+	GroupMemoryBarrierWithGroupSync();
+
+	SubRectValueWeight[GIndex] =  SubRectValueWeight[GIndex] + SubRectValueWeight[GIndex ^ 2];
+	GroupMemoryBarrierWithGroupSync();
+
+	SubRectValueWeight[GIndex] =  SubRectValueWeight[GIndex] + SubRectValueWeight[GIndex ^ 4];
+	GroupMemoryBarrierWithGroupSync();
+
+	SubRectValueWeight[GIndex] =  SubRectValueWeight[GIndex] + SubRectValueWeight[GIndex ^ 8];
+	GroupMemoryBarrierWithGroupSync();
+
+	SubRectValueWeight[GIndex] =  SubRectValueWeight[GIndex] + SubRectValueWeight[GIndex ^ 16];
+	GroupMemoryBarrierWithGroupSync();
+
+	SubRectValueWeight[GIndex] =  SubRectValueWeight[GIndex] + SubRectValueWeight[GIndex ^ 32];
+	GroupMemoryBarrierWithGroupSync();
+
+	SubRectValueWeight[GIndex] =  SubRectValueWeight[GIndex] + SubRectValueWeight[GIndex ^ 64];
+	GroupMemoryBarrierWithGroupSync();
+
+	SubRectValueWeight[GIndex] =  SubRectValueWeight[GIndex] + SubRectValueWeight[GIndex ^ 128];
+	GroupMemoryBarrierWithGroupSync();
+
+	float LogLumAve = SubRectValueWeight[0].x /  SubRectValueWeight[0].y;
+#else
 	float LogLumAve = ComputeWeightedTextureAverageAlpha(PostprocessInput0,  EyeAdaptionSrcRect, WeightSlope);
+#endif
 
 	// Correct for [0,1] scaling
 	LogLumAve = (LogLumAve - EyeAdaptationParams[2].y) / EyeAdaptationParams[2].x;
@@ -202,4 +288,11 @@ void MainLogLuminance2ExposureScalePS(
 	OutColor.y = ExposureOffsetMultipler * TargetExposureScale;
 	OutColor.z = AverageSceneLuminance;
 	OutColor.w = 0;
+		
+#if COMPUTESHADER
+	if(GIndex==0)
+	{
+		RWOutputComputeTex[uint2(0,0)] = OutColor;
+	}
+#endif
 }

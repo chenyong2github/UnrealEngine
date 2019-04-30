@@ -5450,6 +5450,38 @@ bool UNetDriver::ShouldClientDestroyActor(AActor* Actor) const
 	return (Actor && !Actor->IsA(ALevelScriptActor::StaticClass()));
 }
 
+void UNetDriver::ConsumeAsyncLoadDelinquencyAnalytics(FNetAsyncLoadDelinquencyAnalytics& Out)
+{
+	if (FNetGUIDCache* LocalGuidCache = GuidCache.Get())
+	{
+		LocalGuidCache->ConsumeAsyncLoadDelinquencyAnalytics(Out);
+	}
+	else
+	{
+		Out.Reset();
+	}
+}
+
+const FNetAsyncLoadDelinquencyAnalytics& UNetDriver::GetAsyncLoadDelinquencyAnalytics() const
+{
+	static const FNetAsyncLoadDelinquencyAnalytics Empty(0);
+
+	if (FNetGUIDCache const * const LocalGuidCache = GuidCache.Get())
+	{
+		return LocalGuidCache->GetAsyncLoadDelinquencyAnalytics();
+	}
+
+	return Empty;
+}
+
+void UNetDriver::ResetAsyncLoadDelinquencyAnalytics()
+{
+	if (FNetGUIDCache* LocalGuidCache = GuidCache.Get())
+	{
+		LocalGuidCache->ResetAsyncLoadDelinquencyAnalytics();
+	}
+}
+
 FAutoConsoleCommandWithWorld	DumpRelevantActorsCommand(
 	TEXT("net.DumpRelevantActors"), 
 	TEXT( "Dumps information on relevant actors during next network update" ), 

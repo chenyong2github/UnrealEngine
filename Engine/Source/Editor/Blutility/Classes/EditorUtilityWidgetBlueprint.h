@@ -38,6 +38,8 @@ public:
 	// UBlueprint interface
 	virtual void GetReparentingRules(TSet< const UClass* >& AllowedChildrenOfClasses, TSet< const UClass* >& DisallowedChildrenOfClasses) const override;
 
+	virtual bool AllowEditorWidget() const override { return true; }
+
 	UEditorUtilityWidget* GetCreatedWidget() const
 	{
 		return CreatedUMGWidget;

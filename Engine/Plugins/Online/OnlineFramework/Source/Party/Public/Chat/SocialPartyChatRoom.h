@@ -6,7 +6,7 @@
 #include "SocialPartyChatRoom.generated.h"
 
 class USocialChatManager;
-enum class EMemberExitedReason;
+enum class EMemberExitedReason : uint8;
 
 /** A multi-user chat room channel. Used for all chat situations outside of private user-to-user direct messages. */
 UCLASS()

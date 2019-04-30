@@ -423,6 +423,16 @@ void FMacPlatformMisc::PlatformPreInit()
 	// No SIGPIPE crashes please - they are a pain to debug!
 	signal(SIGPIPE, SIG_IGN);
 
+	// Disable ApplePlatformThreadStackWalk when the debugger is attached
+	if (FPlatformMisc::IsDebuggerPresent() && !GAlwaysReportCrash)
+	{
+		IConsoleVariable* CVarApplePlatformThreadStackWalkEnable = IConsoleManager::Get().FindConsoleVariable(TEXT("ApplePlatformThreadStackWalk.Enable"));
+		if (CVarApplePlatformThreadStackWalkEnable)
+		{
+			CVarApplePlatformThreadStackWalkEnable->Set(0);
+		}
+	}
+
 	// Increase the maximum number of simultaneously open files
 	uint32 MaxFilesPerProc = OPEN_MAX;
 	size_t UInt32Size = sizeof(uint32);
@@ -1875,7 +1885,8 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 		bSendUnattendedBugReports = false;
 	}
 
-	if (GMacAppInfo.bIsUnattended && !bSendUnattendedBugReports)
+	const bool bUnattended = GMacAppInfo.bIsUnattended || IsRunningDedicatedServer();
+	if (bUnattended && !bSendUnattendedBugReports)
 	{
 		bCanRunCrashReportClient = false;
 	}
@@ -1959,7 +1970,8 @@ void FMacCrashContext::GenerateEnsureInfoAndLaunchReporter() const
 		bSendUnattendedBugReports = false;
 	}
 
-	if(GMacAppInfo.bIsUnattended && !bSendUnattendedBugReports)
+	const bool bUnattended = GMacAppInfo.bIsUnattended || !IsInteractiveEnsureMode() || IsRunningDedicatedServer();
+	if (bUnattended && !bSendUnattendedBugReports)
 	{
 		bCanRunCrashReportClient = false;
 	}

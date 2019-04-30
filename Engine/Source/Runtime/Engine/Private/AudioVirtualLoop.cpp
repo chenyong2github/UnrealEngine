@@ -3,64 +3,83 @@
 
 #include "ActiveSound.h"
 #include "AudioDevice.h"
+#include "DrawDebugHelpers.h"
 #include "Sound/SoundBase.h"
 
-	static int32 bVirtualLoopsEnabledCVar = 1;
-	FAutoConsoleVariableRef CVarVirtualLoopsEnabled(
-		TEXT("au.VirtualLoopsEnabled"),
-		bVirtualLoopsEnabledCVar,
-		TEXT("Enables or disables whether virtualizing is supported for audio loops.\n"),
-		ECVF_Default);
 
-	static float VirtualLoopsPerfDistanceCVar = 15000.0f;
-	FAutoConsoleVariableRef CVarVirtualLoopsPerfDistance(
-		TEXT("au.VirtualLoopsPerfDistance"),
-		VirtualLoopsPerfDistanceCVar,
-		TEXT("Sets virtual loop distance to scale update rate between min and max beyond max audible distance of sound.\n"),
-		ECVF_Default);
+static int32 bVirtualLoopsEnabledCVar = 1;
+FAutoConsoleVariableRef CVarVirtualLoopsEnabled(
+	TEXT("au.VirtualLoops.Enabled"),
+	bVirtualLoopsEnabledCVar,
+	TEXT("Enables or disables whether virtualizing is supported for audio loops.\n"),
+	ECVF_Default);
 
-	static float VirtualUpdateRateMinCVar = 0.1f;
-	FAutoConsoleVariableRef CVarVirtualLoopsUpdateRateMin(
-		TEXT("au.VirtualLoopsUpdateRateMin"),
-		VirtualUpdateRateMinCVar,
-		TEXT("Sets minimum rate to check if sound becomes audible again at sound's max audible distance.\n"),
-		ECVF_Default);
+static float VirtualLoopsPerfDistanceCVar = 15000.0f;
+FAutoConsoleVariableRef CVarVirtualLoopsPerfDistance(
+	TEXT("au.VirtualLoops.PerfDistance"),
+	VirtualLoopsPerfDistanceCVar,
+	TEXT("Sets virtual loop distance to scale update rate between min and max beyond max audible distance of sound.\n"),
+	ECVF_Default);
 
-	static float VirtualUpdateRateMaxCVar = 3.0f;
-	FAutoConsoleVariableRef CVarVirtualLoopsUpdateRateMax(
-		TEXT("au.VirtualLoopsUpdateRateMax"),
-		VirtualUpdateRateMinCVar,
-		TEXT("Sets maximum rate to check if sound becomes audible again (at beyond sound's max audible distance + perf scaling distance).\n"),
-		ECVF_Default);
+static float VirtualLoopsUpdateRateMinCVar = 0.1f;
+FAutoConsoleVariableRef CVarVirtualLoopsUpdateRateMin(
+	TEXT("au.VirtualLoops.UpdateRate.Min"),
+	VirtualLoopsUpdateRateMinCVar,
+	TEXT("Sets minimum rate to check if sound becomes audible again at sound's max audible distance.\n"),
+	ECVF_Default);
 
-FAudioVirtualLoop::FAudioVirtualLoop(FAudioDevice& InAudioDevice, const FActiveSound& NewActiveSound)
+static float VirtualLoopsUpdateRateMaxCVar = 3.0f;
+FAutoConsoleVariableRef CVarVirtualLoopsUpdateRateMax(
+	TEXT("au.VirtualLoops.UpdateRate.Max"),
+	VirtualLoopsUpdateRateMaxCVar,
+	TEXT("Sets maximum rate to check if sound becomes audible again (at beyond sound's max audible distance + perf scaling distance).\n"),
+	ECVF_Default);
+
+FAudioVirtualLoop::FAudioVirtualLoop()
 	: TimeSinceLastUpdate(0.0f)
 	, UpdateInterval(0.0f)
-	, AudioDevice(&InAudioDevice)
 	, ActiveSound(nullptr)
 {
-	SetActiveSound(NewActiveSound);
 }
 
-FAudioVirtualLoop::~FAudioVirtualLoop()
+bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, bool bDoRangeCheck, FAudioVirtualLoop& OutVirtualLoop)
 {
-	check(ActiveSound);
-	delete(ActiveSound);
+	FAudioDevice* AudioDevice = InActiveSound.AudioDevice;
+	check(AudioDevice);
+
+	return Virtualize(InActiveSound, *AudioDevice, bDoRangeCheck, OutVirtualLoop);
 }
 
-FAudioVirtualLoop* FAudioVirtualLoop::Virtualize(FAudioDevice& InAudioDevice, const FActiveSound& InActiveSound, bool bDoRangeCheck)
+bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevice& AudioDevice, bool bDoRangeCheck, FAudioVirtualLoop& OutVirtualLoop)
 {
 	if (!bVirtualLoopsEnabledCVar || InActiveSound.bIsPreviewSound || !InActiveSound.IsLooping())
 	{
-		return nullptr;
+		return false;
 	}
 
-	if (bDoRangeCheck && IsInAudibleRange(InAudioDevice, InActiveSound))
+	if (InActiveSound.bFadingOut || InActiveSound.bIsStopping)
 	{
-		return nullptr;
+		return false;
 	}
 
-	return new FAudioVirtualLoop(InAudioDevice, InActiveSound);
+	if (bDoRangeCheck && IsInAudibleRange(InActiveSound, &AudioDevice))
+	{
+		return false;
+	}
+
+	FActiveSound* ActiveSound = new FActiveSound(InActiveSound);
+
+	ActiveSound->bAsyncOcclusionPending = false;
+	ActiveSound->AudioDevice = &AudioDevice;
+	ActiveSound->bIsPlayingAudio = false;
+	ActiveSound->ConcurrencyGroupIDs.Reset();
+	ActiveSound->ConcurrencyGroupVolumeScales.Reset();
+	ActiveSound->VolumeConcurrency = 1.0f;
+	ActiveSound->WaveInstances.Reset();
+	ActiveSound->bHasVirtualized = true;
+
+	OutVirtualLoop.ActiveSound = ActiveSound;
+	return true;
 }
 
 void FAudioVirtualLoop::CalculateUpdateInterval(bool bIsAtMaxConcurrency)
@@ -71,14 +90,18 @@ void FAudioVirtualLoop::CalculateUpdateInterval(bool bIsAtMaxConcurrency)
 	// virtualizing.
 	if (bIsAtMaxConcurrency)
 	{
-		UpdateInterval = VirtualUpdateRateMaxCVar;
+		UpdateInterval = VirtualLoopsUpdateRateMaxCVar;
 	}
 	else
 	{
+		check(ActiveSound);
+		FAudioDevice* AudioDevice = ActiveSound->AudioDevice;
+		check(AudioDevice);
+
 		const float DistanceToListener = AudioDevice->GetDistanceToNearestListener(ActiveSound->Transform.GetLocation());
 		const float DistanceRatio = (DistanceToListener - ActiveSound->MaxDistance) / FMath::Max(VirtualLoopsPerfDistanceCVar, 1.0f);
 		const float DistanceRatioClamped = FMath::Clamp(DistanceRatio, 0.0f, 1.0f);
-		UpdateInterval = FMath::Lerp(VirtualUpdateRateMinCVar, VirtualUpdateRateMaxCVar, DistanceRatioClamped);
+		UpdateInterval = FMath::Lerp(VirtualLoopsUpdateRateMinCVar, VirtualLoopsUpdateRateMaxCVar, DistanceRatioClamped);
 	}
 }
 
@@ -88,11 +111,32 @@ FActiveSound& FAudioVirtualLoop::GetActiveSound()
 	return *ActiveSound;
 }
 
-bool FAudioVirtualLoop::IsInAudibleRange(const FAudioDevice& InAudioDevice, const FActiveSound& InActiveSound)
+const FActiveSound& FAudioVirtualLoop::GetActiveSound() const
 {
-	const FSoundAttenuationSettings* AttenuationSettingsToApply = InActiveSound.bHasAttenuationSettings ? &InActiveSound.AttenuationSettings : nullptr;
+	check(ActiveSound);
+	return *ActiveSound;
+}
 
+bool FAudioVirtualLoop::IsEnabled()
+{
+	return bVirtualLoopsEnabledCVar != 0;
+}
+
+bool FAudioVirtualLoop::IsInAudibleRange(const FActiveSound& InActiveSound, const FAudioDevice* InAudioDevice)
+{
 	if (!InActiveSound.bAllowSpatialization)
+	{
+		return true;
+	}
+
+	const FAudioDevice* AudioDevice = InAudioDevice;
+	if (!AudioDevice)
+	{
+		AudioDevice = InActiveSound.AudioDevice;
+	}
+	check(AudioDevice);
+
+	if (AudioDevice->VirtualSoundsEnabled() && InActiveSound.IsVirtualizeWhenSilent())
 	{
 		return true;
 	}
@@ -101,89 +145,22 @@ bool FAudioVirtualLoop::IsInAudibleRange(const FAudioDevice& InAudioDevice, cons
 	if (InActiveSound.bHasAttenuationSettings)
 	{
 		// If we are not using distance-based attenuation, this sound will be audible regardless of distance.
+		const FSoundAttenuationSettings* AttenuationSettingsToApply = InActiveSound.bHasAttenuationSettings ? &InActiveSound.AttenuationSettings : nullptr;
 		if (!AttenuationSettingsToApply->bAttenuate)
 		{
 			return true;
 		}
 
-		DistanceScale = AttenuationSettingsToApply->GetFocusDistanceScale(InAudioDevice.GetGlobalFocusSettings(), InActiveSound.FocusDistanceScale);
+		DistanceScale = AttenuationSettingsToApply->GetFocusDistanceScale(AudioDevice->GetGlobalFocusSettings(), InActiveSound.FocusDistanceScale);
 	}
 
 	DistanceScale = FMath::Max(DistanceScale, 0.0001f);
 	const FVector Location = InActiveSound.Transform.GetLocation();
-	return InAudioDevice.LocationIsAudible(Location, InActiveSound.MaxDistance / DistanceScale);
+	return AudioDevice->LocationIsAudible(Location, InActiveSound.MaxDistance / DistanceScale);
 }
 
-void FAudioVirtualLoop::SetActiveSound(const FActiveSound& InActiveSound)
+bool FAudioVirtualLoop::CanRealize(float DeltaTime)
 {
-	check(!ActiveSound);
-
-	ActiveSound = new FActiveSound();
-
-	ActiveSound->bIsUISound = InActiveSound.bIsUISound;
-
-	ActiveSound->SetAudioComponent(InActiveSound);
-	ActiveSound->SetAudioDevice(AudioDevice);
-
-	if (GIsEditor)
-	{
-		ActiveSound->SetWorld(InActiveSound.GetWorld());
-	}
-
-	ActiveSound->SetSound(InActiveSound.GetSound());
-	ActiveSound->SetSoundClass(InActiveSound.GetSoundClass());
-
-	ActiveSound->ConcurrencySet = InActiveSound.ConcurrencySet;
-	ActiveSound->VolumeMultiplier = InActiveSound.VolumeMultiplier;
-	ActiveSound->Priority = InActiveSound.Priority;
-	ActiveSound->PitchMultiplier = InActiveSound.PitchMultiplier;
-	ActiveSound->bEnableLowPassFilter = InActiveSound.bEnableLowPassFilter;
-	ActiveSound->LowPassFilterFrequency = InActiveSound.LowPassFilterFrequency;
-	ActiveSound->RequestedStartTime = InActiveSound.RequestedStartTime;
-	ActiveSound->SubtitlePriority = InActiveSound.SubtitlePriority;
-	ActiveSound->bShouldRemainActiveIfDropped = InActiveSound.bShouldRemainActiveIfDropped;
-	ActiveSound->bHandleSubtitles = InActiveSound.bHandleSubtitles;
-	ActiveSound->bIgnoreForFlushing = InActiveSound.bIgnoreForFlushing;
-	ActiveSound->bIsUISound = InActiveSound.bIsUISound;
-	ActiveSound->bIsMusic = InActiveSound.bIsMusic;
-	ActiveSound->bAlwaysPlay = InActiveSound.bAlwaysPlay;
-	ActiveSound->bReverb = InActiveSound.bReverb;
-	ActiveSound->bCenterChannelOnly = InActiveSound.bCenterChannelOnly;
-	ActiveSound->bIsPreviewSound = InActiveSound.bIsPreviewSound;
-	ActiveSound->bLocationDefined = InActiveSound.bLocationDefined;
-	ActiveSound->bIsPaused = InActiveSound.bIsPaused;
-	ActiveSound->Transform = InActiveSound.Transform;
-	ActiveSound->bAllowSpatialization = InActiveSound.bAllowSpatialization;
-	ActiveSound->bHasAttenuationSettings = InActiveSound.bHasAttenuationSettings;
-	ActiveSound->AttenuationSettings = InActiveSound.AttenuationSettings;
-	ActiveSound->FocusPriorityScale = InActiveSound.FocusPriorityScale;
-	ActiveSound->FocusDistanceScale = InActiveSound.FocusDistanceScale;
-	ActiveSound->EnvelopeFollowerAttackTime = InActiveSound.EnvelopeFollowerAttackTime;
-	ActiveSound->EnvelopeFollowerReleaseTime = InActiveSound.EnvelopeFollowerReleaseTime;
-
-	ActiveSound->bUpdatePlayPercentage = InActiveSound.bUpdatePlayPercentage;
-	ActiveSound->bUpdateSingleEnvelopeValue = InActiveSound.bUpdateSingleEnvelopeValue;
-	ActiveSound->bUpdateMultiEnvelopeValue = InActiveSound.bUpdateMultiEnvelopeValue;
-
-	ActiveSound->bUpdatePlaybackTime = InActiveSound.bUpdatePlaybackTime;
-
-	ActiveSound->MaxDistance = InActiveSound.MaxDistance;
-	ActiveSound->InstanceParameters = InActiveSound.InstanceParameters;
-	ActiveSound->TargetAdjustVolumeMultiplier = InActiveSound.TargetAdjustVolumeMultiplier;
-	ActiveSound->CurrentAdjustVolumeMultiplier = InActiveSound.CurrentAdjustVolumeMultiplier;
-	ActiveSound->TargetAdjustVolumeStopTime = InActiveSound.TargetAdjustVolumeStopTime;
-}
-
-bool FAudioVirtualLoop::Update()
-{
-	check(AudioDevice);
-	check(ActiveSound);
-
-	const float DeltaTime = AudioDevice->GetDeviceDeltaTime();
-
-	// Keep playback time up-to-date as it may be used to evaluate concurrency
-	ActiveSound->PlaybackTime += DeltaTime * ActiveSound->MinCurrentPitch;
-
 	if (UpdateInterval > 0.0f)
 	{
 		TimeSinceLastUpdate += DeltaTime;
@@ -194,12 +171,45 @@ bool FAudioVirtualLoop::Update()
 		TimeSinceLastUpdate = 0.0f;
 	}
 
+	DrawDebugInfo();
+
 	// If not audible, update when will be checked again and return false
-	if (!IsInAudibleRange(*AudioDevice, *ActiveSound))
+	if (!IsInAudibleRange(*ActiveSound))
 	{
 		CalculateUpdateInterval();
 		return false;
 	}
 
 	return true;
+}
+
+void FAudioVirtualLoop::DrawDebugInfo() const
+{
+#if ENABLE_DRAW_DEBUG
+	// Draw 3d Debug information about this source, if enabled
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
+
+	if (DeviceManager && DeviceManager->IsVisualizeDebug3dEnabled())
+	{
+		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.DrawVirtualLoopDebugInfo"), STAT_AudioDrawVirtualLoopDebugInfo, STATGROUP_TaskGraphTasks);
+
+		USoundBase* Sound = ActiveSound->GetSound();
+		check(Sound);
+
+		const FTransform Transform = ActiveSound->Transform;
+		const TWeakObjectPtr<UWorld> World = ActiveSound->GetWeakWorld();
+		const FString Name = Sound->GetName();
+		const float DrawInterval = UpdateInterval;
+		FAudioThread::RunCommandOnGameThread([World, Transform, Name, DrawInterval]()
+		{
+			if (World.IsValid())
+			{
+				FVector Location = Transform.GetLocation();
+				FRotator Rotation = Transform.GetRotation().Rotator();
+				DrawDebugCrosshairs(World.Get(), Location, Rotation, 20.0f, FColor::Blue, false, DrawInterval, SDPG_Foreground);
+				DrawDebugString(World.Get(), Location + FVector(0, 0, 32), *Name, nullptr, FColor::Blue, DrawInterval, false);
+			}
+		}, GET_STATID(STAT_AudioDrawVirtualLoopDebugInfo));
+	}
+#endif // ENABLE_DRAW_DEBUG
 }

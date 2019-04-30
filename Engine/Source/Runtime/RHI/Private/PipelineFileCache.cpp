@@ -56,12 +56,14 @@ enum class EPipelineCacheFileFormatVersions : uint32
 	PSOBindCount = 14,
 	EOFMarker = 15,
 	EngineFlags = 16,
+	Subpass = 17,
 };
 
 const uint64 FPipelineCacheFileFormatMagic = 0x5049504543414348; // PIPECACH
 const uint64 FPipelineCacheTOCFileFormatMagic = 0x544F435354415254; // TOCSTART
 const uint64 FPipelineCacheEOFFileFormatMagic = 0x454F462D4D41524B; // EOF-MARK
-const uint32 FPipelineCacheFileFormatCurrentVersion = (uint32)EPipelineCacheFileFormatVersions::EngineFlags;
+const uint32 FPipelineCacheFileFormatCurrentVersion = (uint32)EPipelineCacheFileFormatVersions::Subpass;
+const int32  FPipelineCacheGraphicsDescPartsNum = 63; // parser will expect this number of parts in a description string
 
 /**
   * PipelineFileCache API access
@@ -356,6 +358,11 @@ FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateToString() const
 		);
 	}
 
+	Result += FString::Printf(TEXT("%d,%d,")
+		, uint32(SubpassHint)
+		, uint32(SubpassIndex)
+	);
+	
 	FVertexElement NullVE;
 	FMemory::Memzero(NullVE);
 	Result += FString::Printf(TEXT("%d,")
@@ -378,14 +385,19 @@ FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateToString() const
 	}
 	return Result.Left(Result.Len() - 1); // remove trailing comma
 }
-void FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateFromString(const FString& Src)
+
+bool FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateFromString(const FString& Src)
 {
 	TArray<FString> Parts;
 	Src.TrimStartAndEnd().ParseIntoArray(Parts, TEXT(","));
 	int32 PartIndex = 0;
 
-
-
+	// check if we have expected number of parts
+	if (Parts.Num() != FPipelineCacheGraphicsDescPartsNum)
+	{
+		// instead of crashing let caller handle this case
+		return false;
+	}
 
 	check(Parts.Num() - PartIndex >= 3); //not a very robust parser
 	BlendState.FromString(Parts[PartIndex++]);
@@ -417,6 +429,17 @@ void FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateFromString(const FStr
 		LexFromString(Store, *Parts[PartIndex++]);
 	}
 
+	// parse sub-pass information
+	{
+		uint32 LocalSubpassHint = 0;
+		uint32 LocalSubpassIndex = 0;
+		check(Parts.Num() - PartIndex >= 2);
+		LexFromString(LocalSubpassHint, *Parts[PartIndex++]);
+		LexFromString(LocalSubpassIndex, *Parts[PartIndex++]);
+		SubpassHint = LocalSubpassHint;
+		SubpassIndex = LocalSubpassIndex;
+	}
+	
 	check(Parts.Num() - PartIndex >= 1); //not a very robust parser
 	int32 VertDescNum = 0;
 	LexFromString(VertDescNum, *Parts[PartIndex++]);
@@ -459,6 +482,8 @@ void FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateFromString(const FStr
 		  }
 		  return false;
 	  });
+
+	return true;
 }
 
 FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateHeaderLine()
@@ -482,7 +507,7 @@ FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateHeaderLine()
 		, TEXT("StencilStore")
 		, TEXT("PrimitiveType")
 	);
-
+	
 	Result += FString::Printf(TEXT("%s,")
 		, TEXT("RenderTargetsActive")
 	);
@@ -496,6 +521,11 @@ FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateHeaderLine()
 		);
 	}
 
+	Result += FString::Printf(TEXT("%s,%s,")
+		, TEXT("SubpassHint")
+		, TEXT("SubpassIndex")
+	);
+	
 	Result += FString::Printf(TEXT("%s,")
 		, TEXT("VertexDescriptorNum")
 	);
@@ -513,7 +543,7 @@ FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::ToString() const
 	return FString::Printf(TEXT("%s,%s"), *ShadersToString(), *StateToString());
 }
 
-void FPipelineCacheFileFormatPSO::GraphicsDescriptor::FromString(const FString& Src)
+bool FPipelineCacheFileFormatPSO::GraphicsDescriptor::FromString(const FString& Src)
 {
 	static const int32 NumShaderParts = 5;
 	TArray<FString> Parts;
@@ -523,7 +553,7 @@ void FPipelineCacheFileFormatPSO::GraphicsDescriptor::FromString(const FString& 
 	StateParts.RemoveAt(0, NumShaderParts);
 	Parts.RemoveAt(NumShaderParts, Parts.Num() - 5);
 	ShadersFromString(FString::Join(Parts, TEXT(",")));
-	StateFromString(FString::Join(StateParts, TEXT(",")));
+	return StateFromString(FString::Join(StateParts, TEXT(",")));
 }
 
 FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::HeaderLine()
@@ -600,7 +630,7 @@ void FPipelineCacheFileFormatPSO::CommonFromString(const FString& Src)
 				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.StencilLoad, sizeof(Key.GraphicsDesc.StencilLoad), KeyHash);
 				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.DepthStore, sizeof(Key.GraphicsDesc.DepthStore), KeyHash);
 				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.StencilStore, sizeof(Key.GraphicsDesc.StencilStore), KeyHash);
-				
+
 				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.BlendState.bUseIndependentRenderTargetBlendStates, sizeof(Key.GraphicsDesc.BlendState.bUseIndependentRenderTargetBlendStates), KeyHash);
 				for( uint32 i = 0; i < MaxSimultaneousRenderTargets; i++ )
 				{
@@ -615,7 +645,10 @@ void FPipelineCacheFileFormatPSO::CommonFromString(const FString& Src)
 
 				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.RenderTargetFormats, sizeof(Key.GraphicsDesc.RenderTargetFormats), KeyHash);
 				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.RenderTargetFlags, sizeof(Key.GraphicsDesc.RenderTargetFlags), KeyHash);
-
+				
+				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.SubpassHint, sizeof(Key.GraphicsDesc.SubpassHint), KeyHash);
+				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.SubpassIndex, sizeof(Key.GraphicsDesc.SubpassIndex), KeyHash);
+				
 				for(auto const& Element : Key.GraphicsDesc.VertexDescriptor)
 				{
 					KeyHash = FCrc::MemCrc32(&Element, sizeof(FVertexElement), KeyHash);
@@ -768,6 +801,10 @@ void FPipelineCacheFileFormatPSO::CommonFromString(const FString& Src)
 			Ar << Info.GraphicsDesc.StencilLoad;
 			Ar << Info.GraphicsDesc.DepthStore;
 			Ar << Info.GraphicsDesc.StencilStore;
+
+			Ar << Info.GraphicsDesc.SubpassHint;
+			Ar << Info.GraphicsDesc.SubpassIndex;
+
 			break;
 		}
 		default:
@@ -922,6 +959,9 @@ FPipelineCacheFileFormatPSO::FPipelineCacheFileFormatPSO()
 	PSO.GraphicsDesc.StencilStore = Init.StencilTargetStoreAction;
 	
 	PSO.GraphicsDesc.PrimitiveType = Init.PrimitiveType;
+
+	PSO.GraphicsDesc.SubpassHint = (uint8)Init.SubpassHint;
+	PSO.GraphicsDesc.SubpassIndex = Init.SubpassIndex;
 	
 	return bOK;
 }
@@ -965,6 +1005,7 @@ bool FPipelineCacheFileFormatPSO::operator==(const FPipelineCacheFileFormatPSO& 
 					GraphicsDesc.MSAASamples == Other.GraphicsDesc.MSAASamples && GraphicsDesc.DepthStencilFormat == Other.GraphicsDesc.DepthStencilFormat &&
 					GraphicsDesc.DepthStencilFlags == Other.GraphicsDesc.DepthStencilFlags && GraphicsDesc.DepthLoad == Other.GraphicsDesc.DepthLoad &&
 					GraphicsDesc.DepthStore == Other.GraphicsDesc.DepthStore && GraphicsDesc.StencilLoad == Other.GraphicsDesc.StencilLoad && GraphicsDesc.StencilStore == Other.GraphicsDesc.StencilStore &&
+					GraphicsDesc.SubpassHint == Other.GraphicsDesc.SubpassHint && GraphicsDesc.SubpassIndex == Other.GraphicsDesc.SubpassIndex &&
 					FMemory::Memcmp(&GraphicsDesc.BlendState, &Other.GraphicsDesc.BlendState, sizeof(FBlendStateInitializerRHI)) == 0 &&
 					FMemory::Memcmp(&GraphicsDesc.RasterizerState, &Other.GraphicsDesc.RasterizerState, sizeof(FPipelineFileCacheRasterizerState)) == 0 &&
 					FMemory::Memcmp(&GraphicsDesc.DepthStencilState, &Other.GraphicsDesc.DepthStencilState, sizeof(FDepthStencilStateInitializerRHI)) == 0 &&

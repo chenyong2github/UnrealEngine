@@ -66,6 +66,8 @@ FAudioDeviceManager::FAudioDeviceManager()
 	, bUsingAudioMixer(false)
 	, bPlayAllDeviceAudio(false)
 	, bVisualize3dDebug(false)
+	, bOnlyToggleAudioMixerOnce(false)
+	, bToggledAudioMixer(false)
 {
 	// Check for a command line debug sound argument.
 	FString DebugSound;
@@ -285,6 +287,9 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 		bUsingAudioMixer = false;
 	}
 
+	// Check for config bool that restricts audio mixer toggle to only once. This will allow us to patch audio mixer on or off after initial login.
+	GConfig->GetBool(TEXT("Audio"), TEXT("OnlyToggleAudioMixerOnce"), bOnlyToggleAudioMixerOnce, GEngineIni);
+
 	// Get the audio mixer and non-audio mixer device module names
 	GConfig->GetString(TEXT("Audio"), TEXT("AudioDeviceModuleName"), AudioDeviceModuleName, GEngineIni);
 	GConfig->GetString(TEXT("Audio"), TEXT("AudioMixerModuleName"), AudioMixerModuleName, GEngineIni);
@@ -371,69 +376,93 @@ bool FAudioDeviceManager::CreateAudioDevice(bool bCreateNewDevice, FCreateAudioD
 		}
 	}
 
-	if (NumActiveAudioDevices < AUDIO_DEVICE_DEFAULT_ALLOWED_DEVICE_COUNT || (bCreateNewDevice && NumActiveAudioDevices < AUDIO_DEVICE_MAX_DEVICE_COUNT))
+	bool bRequiresInit = true;
+
+	// For the first PIE window, we'll just use the main audio device
+	if (NumActiveAudioDevices == 1)
 	{
-		// Create the new audio device and make sure it succeeded
-		OutResults.AudioDevice = AudioDeviceModule->CreateAudioDevice();
-		if (OutResults.AudioDevice == nullptr)
-		{
-			return false;
-		}
-
-		// Now generation a new audio device handle for the device and store the
-		// ptr to the new device in the array of audio devices.
-
-		uint32 AudioDeviceIndex(INDEX_NONE);
-
-		// First check to see if we should start recycling audio device indices, if not
-		// then we add a new entry to the Generation array and generate a new index
-		if (FreeIndicesSize > AUDIO_DEVICE_MINIMUM_FREE_AUDIO_DEVICE_INDICES)
-		{
-			FreeIndices.Dequeue(AudioDeviceIndex);
-			--FreeIndicesSize;
-			check(int32(AudioDeviceIndex) < Devices.Num());
-			check(Devices[AudioDeviceIndex] == nullptr);
-			Devices[AudioDeviceIndex] = OutResults.AudioDevice;
-		}
-		else
-		{
-			// Add a zeroth generation entry in the Generation array, get a brand new
-			// index and append the created device to the end of the Devices array
-
-			Generations.Add(0);
-			AudioDeviceIndex = Generations.Num() - 1;
-			check(AudioDeviceIndex < (1 << AUDIO_DEVICE_HANDLE_INDEX_BITS));
-			Devices.Add(OutResults.AudioDevice);
-		}
-
-		OutResults.bNewDevice = true;
-		OutResults.Handle = CreateHandle(AudioDeviceIndex, Generations[AudioDeviceIndex]);
-
-		// Store the handle on the audio device itself
-		OutResults.AudioDevice->DeviceHandle = OutResults.Handle;
-	}
-	else
-	{
-		++NumWorldsUsingMainAudioDevice;
 		FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice();
 		if (MainAudioDevice)
 		{
+			++NumWorldsUsingMainAudioDevice;
 			OutResults.Handle = MainAudioDevice->DeviceHandle;
 			OutResults.AudioDevice = MainAudioDevice;
+			bRequiresInit = false;
+		}
+		else
+		{
+			return false;
+		}
+	}
+	else
+	{
+		if (NumActiveAudioDevices < AUDIO_DEVICE_DEFAULT_ALLOWED_DEVICE_COUNT || (bCreateNewDevice && NumActiveAudioDevices < AUDIO_DEVICE_MAX_DEVICE_COUNT))
+		{
+			// Create the new audio device and make sure it succeeded
+			OutResults.AudioDevice = AudioDeviceModule->CreateAudioDevice();
+			if (OutResults.AudioDevice == nullptr)
+			{
+				return false;
+			}
+
+			// Now generation a new audio device handle for the device and store the
+			// ptr to the new device in the array of audio devices.
+
+			uint32 AudioDeviceIndex(INDEX_NONE);
+
+			// First check to see if we should start recycling audio device indices, if not
+			// then we add a new entry to the Generation array and generate a new index
+			if (FreeIndicesSize > AUDIO_DEVICE_MINIMUM_FREE_AUDIO_DEVICE_INDICES)
+			{
+				FreeIndices.Dequeue(AudioDeviceIndex);
+				--FreeIndicesSize;
+				check(int32(AudioDeviceIndex) < Devices.Num());
+				check(Devices[AudioDeviceIndex] == nullptr);
+				Devices[AudioDeviceIndex] = OutResults.AudioDevice;
+			}
+			else
+			{
+				// Add a zeroth generation entry in the Generation array, get a brand new
+				// index and append the created device to the end of the Devices array
+
+				Generations.Add(0);
+				AudioDeviceIndex = Generations.Num() - 1;
+				check(AudioDeviceIndex < (1 << AUDIO_DEVICE_HANDLE_INDEX_BITS));
+				Devices.Add(OutResults.AudioDevice);
+			}
+
+			OutResults.bNewDevice = true;
+			OutResults.Handle = CreateHandle(AudioDeviceIndex, Generations[AudioDeviceIndex]);
+
+			// Store the handle on the audio device itself
+			OutResults.AudioDevice->DeviceHandle = OutResults.Handle;
+		}
+		else
+		{
+			++NumWorldsUsingMainAudioDevice;
+			FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice();
+			if (MainAudioDevice)
+			{
+				OutResults.Handle = MainAudioDevice->DeviceHandle;
+				OutResults.AudioDevice = MainAudioDevice;
+			}
 		}
 	}
 
 	++NumActiveAudioDevices;
 
-	const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
-	if (OutResults.AudioDevice->Init(AudioSettings->GetHighestMaxChannels())) //-V595
+	if (bRequiresInit)
 	{
-		OutResults.AudioDevice->SetMaxChannels(AudioSettings->GetQualityLevelSettings(GEngine->GetGameUserSettings()->GetAudioQualityLevel()).MaxChannels); //-V595
-	}
-	else
-	{
-		ShutdownAudioDevice(OutResults.Handle);
-		OutResults = FCreateAudioDeviceResults();
+		const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
+		if (OutResults.AudioDevice->Init(AudioSettings->GetHighestMaxChannels())) //-V595
+		{
+			OutResults.AudioDevice->SetMaxChannels(AudioSettings->GetQualityLevelSettings(GEngine->GetGameUserSettings()->GetAudioQualityLevel()).MaxChannels); //-V595
+		}
+		else
+		{
+			ShutdownAudioDevice(OutResults.Handle);
+			OutResults = FCreateAudioDeviceResults();
+		}
 	}
 
 	// We need to call fade in, in case we're reusing audio devices
@@ -571,16 +600,22 @@ void FAudioDeviceManager::UpdateActiveAudioDevices(bool bGameTicking)
 		SyncFence.Wait();
 	}
 
-	if (bUsingAudioMixer && !GCvarIsUsingAudioMixer)
+	if (!bOnlyToggleAudioMixerOnce || (bOnlyToggleAudioMixerOnce && !bToggledAudioMixer))
 	{
-		ToggleAudioMixer();
-		bUsingAudioMixer = false;
+		if (bUsingAudioMixer && !GCvarIsUsingAudioMixer)
+		{
+			ToggleAudioMixer();
+			bToggledAudioMixer = true;
+			bUsingAudioMixer = false;
+		}
+		else if (!bUsingAudioMixer && GCvarIsUsingAudioMixer)
+		{
+			ToggleAudioMixer();
+			bToggledAudioMixer = true;
+			bUsingAudioMixer = true;
+		}
 	}
-	else if (!bUsingAudioMixer && GCvarIsUsingAudioMixer)
-	{
-		ToggleAudioMixer();
-		bUsingAudioMixer = true;
-	}
+
 
 	for (FAudioDevice* AudioDevice : Devices)
 	{

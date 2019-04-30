@@ -77,6 +77,12 @@ public:
 	/** Sets whether or not to rerun the simulation to the current time when making modifications while paused. */
 	void SetResimulateOnChangeWhilePaused(bool bInResimulateOnChangeWhilePaused);
 
+	/** Gets whether or not to reset all components that include the system that is currently being reset */
+	bool GetResetDependentSystemsWhenEditingEmitters() const;
+
+	/** Sets whether or not to reset all components that include the system that is currently being reset */
+	void SetResetDependentSystemsWhenEditingEmitters(bool bInResetDependentSystemsWhenEditingEmitters);
+
 	FNiagaraNewAssetDialogConfig GetNewAssetDailogConfig(FName InDialogConfigKey) const;
 
 	void SetNewAssetDialogConfig(FName InDialogConfigKey, const FNiagaraNewAssetDialogConfig& InNewAssetDialogConfig);
@@ -113,6 +119,10 @@ private:
 	/** Whether or not to rerun the simulation to the current time when making modifications while paused. */
 	UPROPERTY(config, EditAnywhere, Category = SimulationOptions)
 	bool bResimulateOnChangeWhilePaused;
+
+	/** Whether or not to reset all components that include the system currently being reset. */
+	UPROPERTY(config, EditAnywhere, Category = SimulationOptions)
+		bool bResetDependentSystemsWhenEditingEmitters;
 
 	UPROPERTY(config)
 	TMap<FName, FNiagaraNewAssetDialogConfig> NewAssetDialogConfigMap;

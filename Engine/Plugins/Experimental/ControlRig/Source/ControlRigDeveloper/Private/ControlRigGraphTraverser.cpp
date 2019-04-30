@@ -10,7 +10,7 @@ FControlRigGraphTraverser::FControlRigGraphTraverser(UControlRigBlueprint* InBlu
 {
 }
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 bool FControlRigGraphTraverser::IsWiredToExecution(const FName& UnitName)
 {
 	for (UEdGraphNode* Node : Graph->Nodes)
@@ -54,15 +54,22 @@ bool FControlRigGraphTraverser::IsWiredToExecution(UControlRigGraphNode* Node)
 	// walk upwards (to the left) to find a proper begin execution node
 	if (Node->GetUnitScriptStruct()->IsChildOf(FRigUnitMutable::StaticStruct()))
 	{
-		const TArray<TSharedRef<FControlRigField>> ExecutionInfos = Node->GetExecutionVariableInfo();
-		for (const TSharedRef<FControlRigField>& ExecutionInfo : ExecutionInfos)
+		for (const UEdGraphPin* Pin : Node->Pins)
 		{
-			if (ExecutionInfo->InputPin == nullptr)
+			if (Pin->Direction != EEdGraphPinDirection::EGPD_Input)
+			{
+				continue;
+			}
+			if (Pin->PinType.PinCategory != UEdGraphSchema_K2::PC_Struct)
+			{
+				continue;
+			}
+			if (Pin->PinType.PinSubCategoryObject != FControlRigExecuteContext::StaticStruct())
 			{
 				continue;
 			}
 
-			for (UEdGraphPin* LinkedPin : ExecutionInfo->InputPin->LinkedTo)
+			for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
 			{
 				UControlRigGraphNode* LinkedNode = Cast<UControlRigGraphNode>(LinkedPin->GetOwningNode());
 				if (LinkedNode)

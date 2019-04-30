@@ -251,12 +251,8 @@ public:
 		bDirtyVertexStreams = true;
 	}
 
-	inline void Bind(VkCommandBuffer CmdBuffer, FVulkanFramebuffer* Framebuffer)
+	inline void Bind(VkCommandBuffer CmdBuffer)
 	{
-		if (CurrentPipeline->bHasInputAttachments)
-		{
-			UpdateInputAttachments(Framebuffer);
-		}
 		CurrentPipeline->Bind(CmdBuffer);
 	}
 

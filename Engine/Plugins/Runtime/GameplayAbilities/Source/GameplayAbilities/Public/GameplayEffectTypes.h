@@ -1196,9 +1196,15 @@ struct GAMEPLAYABILITIES_API FGameplayTagCountContainer
 	{
 		if (CountDelta != 0)
 		{
+			bool bUpdatedAny = false;
 			for (auto TagIt = Container.CreateConstIterator(); TagIt; ++TagIt)
 			{
-				UpdateTagMap_Internal(*TagIt, CountDelta);
+				bUpdatedAny |= UpdateTagMap_Internal(*TagIt, CountDelta, true);
+			}
+
+			if (bUpdatedAny && CountDelta < 0)
+			{
+				ExplicitTags.FillParentTags();
 			}
 		}
 	}
@@ -1206,16 +1212,17 @@ struct GAMEPLAYABILITIES_API FGameplayTagCountContainer
 	/**
 	 * Update the specified tag by the specified delta, potentially causing an additional or removal from the explicit tag list
 	 * 
-	 * @param Tag			Tag to update
-	 * @param CountDelta	Delta of the tag count to apply
+	 * @param Tag						Tag to update
+	 * @param CountDelta				Delta of the tag count to apply
+	 * @param bDeferParentTagsOnRemove	Skip calling FillParentTags for performance (must be handled by calling code)
 	 * 
 	 * @return True if tag was *either* added or removed. (E.g., we had the tag and now dont. or didnt have the tag and now we do. We didn't just change the count (1 count -> 2 count would return false).
 	 */
-	FORCEINLINE bool UpdateTagCount(const FGameplayTag& Tag, int32 CountDelta)
+	FORCEINLINE bool UpdateTagCount(const FGameplayTag& Tag, int32 CountDelta, bool bDeferParentTagsOnRemove=false)
 	{
 		if (CountDelta != 0)
 		{
-			return UpdateTagMap_Internal(Tag, CountDelta);
+			return UpdateTagMap_Internal(Tag, CountDelta, bDeferParentTagsOnRemove);
 		}
 
 		return false;
@@ -1296,6 +1303,12 @@ struct GAMEPLAYABILITIES_API FGameplayTagCountContainer
 
 	void Reset();
 
+	/** Fills in ParentTags from GameplayTags */
+	void FillParentTags()
+	{
+		ExplicitTags.FillParentTags();
+	}
+
 private:
 
 	struct FDelegateInfo
@@ -1320,7 +1333,7 @@ private:
 	FGameplayTagContainer ExplicitTags;
 
 	/** Internal helper function to adjust the explicit tag list & corresponding maps/delegates/etc. as necessary */
-	bool UpdateTagMap_Internal(const FGameplayTag& Tag, int32 CountDelta);
+	bool UpdateTagMap_Internal(const FGameplayTag& Tag, int32 CountDelta, bool bDeferParentTagsOnRemove=false);
 };
 
 

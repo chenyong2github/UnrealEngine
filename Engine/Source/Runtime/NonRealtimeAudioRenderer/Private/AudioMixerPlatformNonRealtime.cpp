@@ -116,6 +116,11 @@ namespace Audio
 			return false;
 		}
 
+#if WITH_XMA2
+		//Initialize our XMA2 decoder context
+		FXMAAudioInfo::Initialize();
+#endif //#if WITH_XMA2
+
 		// Load ogg and vorbis dlls if they haven't been loaded yet
 		LoadVorbisLibraries();
 
@@ -132,6 +137,10 @@ namespace Audio
 		{
 			return false;
 		}
+
+#if WITH_XMA2
+		FXMAAudioInfo::Shutdown();
+#endif
 
 		bIsInitialized = false;
 
@@ -322,13 +331,17 @@ namespace Audio
 
 	bool FMixerPlatformNonRealtime::HasCompressedAudioInfoClass(USoundWave* InSoundWave)
 	{
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 		return true;
+#else
+		return false;
+#endif // PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	}
 
 	ICompressedAudioInfo* FMixerPlatformNonRealtime::CreateCompressedAudioInfo(USoundWave* InSoundWave)
 	{
 		// TODO: Currently this is a copy paste of the XAudio2 platform interface. Ultimately, this function needs to propogate to the current platform's correct CrateCompressedAudioInfo call.
-#if PLATFORM_WINDOWS || WITH_XMA2
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 		check(InSoundWave);
 
 #if WITH_XMA2 && USE_XMA2_FOR_STREAMING

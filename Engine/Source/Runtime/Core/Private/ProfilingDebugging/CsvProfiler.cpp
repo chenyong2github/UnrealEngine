@@ -152,6 +152,135 @@ bool IsContinuousWriteEnabled(bool bGameThread)
 	return CVarValue > 0;
 }
 
+#if CSV_PROFILER_ALLOW_DEBUG_FEATURES
+class FCsvABTest
+{
+public:
+	FCsvABTest() 
+		: ConsoleVariable(nullptr)
+		, StatFrameOffset(0)
+		, SwitchDuration(7)
+		, PreviousValue(FLT_MAX)
+		, bPrevCapturing(false)
+		, bFastCVarSet(false)
+	{}
+
+	void InitFromCommandline()
+	{
+		FString ABTestString;
+		if (FParse::Value(FCommandLine::Get(), TEXT("csvABTest="), ABTestString))
+		{
+			int32 FindIndex;
+			if (ABTestString.FindChar(TEXT('='), FindIndex))
+			{
+				CVarName = ABTestString.Mid(0, FindIndex);
+				FString ValueStr = ABTestString.Mid(FindIndex+1);
+				while (true)
+				{
+					int32 CommaIndex;
+					if (ValueStr.FindChar(TEXT(','), CommaIndex))
+					{
+						FString Val = ValueStr.Mid(0, CommaIndex);
+						CVarValues.Add(FCString::Atof(*Val));
+						ValueStr = ValueStr.Mid(CommaIndex + 1);
+					}
+					else
+					{
+						CVarValues.Add(FCString::Atof(*ValueStr));
+						break;
+					}
+				} 
+			}
+			else
+			{
+				CVarName = ABTestString;
+				CVarValues.Add(0.0f);
+				CVarValues.Add(1.0f);
+			}
+			ConsoleVariable = IConsoleManager::Get().FindConsoleVariable(*CVarName);
+			if (ConsoleVariable)
+			{
+				CVarStatFName = *CVarName;
+				FParse::Value(FCommandLine::Get(), TEXT("csvABTestStatFrameOffset="), StatFrameOffset);
+				FParse::Value(FCommandLine::Get(), TEXT("csvABTestSwitchDuration="), SwitchDuration);
+				bFastCVarSet = FParse::Param(FCommandLine::Get(), TEXT("csvABTestFastCVarSet"));				
+
+				UE_LOG(LogCsvProfiler, Log, TEXT("Initialized CSV Profiler A/B test with CVar: '%s' with values:"), *CVarName);
+				for (int32 i = 0; i < CVarValues.Num(); i++)
+				{
+					UE_LOG(LogCsvProfiler, Log, TEXT("  [%d] : %.2f"), i, CVarValues[i]);
+				}
+				UE_LOG(LogCsvProfiler, Log, TEXT("Stat Offset: %d frames"), StatFrameOffset);
+				UE_LOG(LogCsvProfiler, Log, TEXT("Switch Duration : %d frames"), SwitchDuration);
+				UE_LOG(LogCsvProfiler, Log, TEXT("Fast cvar set: %s"), bFastCVarSet ? TEXT("Enabled") : TEXT("Disabled"));
+			}
+			else
+			{
+				UE_LOG(LogCsvProfiler, Log, TEXT("CSV Profiler A/B test initialization failed. Can't find CVar %s"), *CVarName);
+			}
+		}
+	}
+
+	void BeginFrameUpdate(int32 FrameNumber, bool bCapturing)
+	{
+		if (ConsoleVariable == nullptr)
+		{
+			return;
+		}
+		if (bCapturing)
+		{
+			if (bPrevCapturing == false)
+			{
+				UE_LOG(LogCsvProfiler, Log, TEXT("CSV Profiler A/B test - %s original value: %s"), *CVarName, *OriginalCVarValue);
+				OriginalCVarValue = ConsoleVariable->GetString();
+			}
+			int32 ValueIndex = (FrameNumber / SwitchDuration) % CVarValues.Num();
+			int32 StatValueIndex = ((FrameNumber - StatFrameOffset) / SwitchDuration) % CVarValues.Num();
+
+			{
+				float Value = CVarValues[ValueIndex];
+				if (Value != PreviousValue)
+				{
+					EConsoleVariableFlags CVarFlags = ECVF_SetByCode;
+					if (bFastCVarSet)
+					{ 
+						CVarFlags = EConsoleVariableFlags( CVarFlags | ECVF_Set_NoSinkCall_Unsafe );
+					} 
+					ConsoleVariable->Set(*FString::Printf(TEXT("%f"), Value), CVarFlags);
+					PreviousValue = Value;
+				}
+			}
+
+			FCsvProfiler::RecordCustomStat(CVarStatFName, CSV_CATEGORY_INDEX_GLOBAL, CVarValues[StatValueIndex], ECsvCustomStatOp::Set);
+		}
+		else
+		{
+			if (bPrevCapturing == true)
+			{
+				// Restore cvar to old value
+				// TODO: Set Setby flag to the original value
+				ConsoleVariable->Set(*OriginalCVarValue);
+				UE_LOG(LogCsvProfiler, Log, TEXT("CSV Profiler A/B test - setting %s=%s"), *CVarName, *OriginalCVarValue);
+			}
+		}
+		bPrevCapturing = bCapturing;
+	}
+
+private:
+	FString CVarName;
+	TArray<float> CVarValues;
+	FName CVarStatFName;
+	IConsoleVariable* ConsoleVariable;
+	int32 StatFrameOffset;
+	int32 SwitchDuration;
+	float PreviousValue;
+	bool bPrevCapturing;
+	bool bFastCVarSet;
+	FString OriginalCVarValue;
+};
+static FCsvABTest GCsvABTest;
+
+#endif // CSV_PROFILER_ALLOW_DEBUG_FEATURES
 
 class FCsvCategoryData
 {
@@ -2247,6 +2376,8 @@ FCsvProfiler::~FCsvProfiler()
 void FCsvProfiler::BeginFrame()
 {
 	LLM_SCOPE(ELLMTag::CsvProfiler);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfiler_BeginFrame);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CsvProfiler);
 
 	check(IsInGameThread());
 
@@ -2355,6 +2486,8 @@ void FCsvProfiler::BeginFrame()
 	{
 		CSVTest();
 	}
+
+	GCsvABTest.BeginFrameUpdate(CaptureFrameNumber, GCsvProfilerIsCapturing);
 #endif // CSV_PROFILER_ALLOW_DEBUG_FEATURES
 }
 
@@ -2363,6 +2496,7 @@ void FCsvProfiler::EndFrame()
 	LLM_SCOPE(ELLMTag::CsvProfiler);
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfiler_EndFrame);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CsvProfiler);
 
 	check(IsInGameThread());
 	if (GCsvProfilerIsCapturing)
@@ -2882,7 +3016,7 @@ void FCsvProfiler::Init()
 			break;
 		}
 	}
-
+	GCsvABTest.InitFromCommandline();
 #endif // CSV_PROFILER_ALLOW_DEBUG_FEATURES
 
 	// Always disable the CSV profiling thread if the platform does not support threading.

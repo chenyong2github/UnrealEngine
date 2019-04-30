@@ -88,5 +88,8 @@ public:
 
 	/** Helper function to recursively reset the pin defaults */
 	virtual void ResetPinDefaultsRecursive(UEdGraphPin* InPin) const;
+
+	/** Returns all of the applicable pin types for variables within a control rig */
+	virtual void GetVariablePinTypes(TArray<FEdGraphPinType>& PinTypes) const;
 };
 

@@ -93,6 +93,7 @@ void SMenuAnchor::Construct( const FArguments& InArgs )
 	OnGetMenuContent                       = InArgs._OnGetMenuContent;
 	OnMenuOpenChanged                      = InArgs._OnMenuOpenChanged;
 	Placement                              = InArgs._Placement;
+	bFitInWindow						   = InArgs._FitInWindow;
 	Method                                 = InArgs._Method;
 	bShouldDeferPaintingAfterWindowContent = InArgs._ShouldDeferPaintingAfterWindowContent;
 	bUseApplicationMenuStack               = InArgs._UseApplicationMenuStack;
@@ -153,11 +154,21 @@ void SMenuAnchor::Tick( const FGeometry& AllottedGeometry, const double InCurren
 		// geometry to use. Tick() is always in DesktopSpace, so cache the solution here and just use
 		// it in OnArrangeChildren().
 		const FPopupPlacement LocalPlacement(AllottedGeometry, Children[1].GetWidget()->GetDesiredSize(), Placement.Get());
-		const FSlateRect WindowRectLocalSpace = TransformRect(Inverse(AllottedGeometry.GetAccumulatedLayoutTransform()), PopupWindow->GetClientRectInScreen());
-		const FVector2D FittedPlacement = ComputePopupFitInRect(
-			LocalPlacement.AnchorLocalSpace,
-			FSlateRect(LocalPlacement.LocalPopupOffset, LocalPlacement.LocalPopupOffset + LocalPlacement.LocalPopupSize),
-			LocalPlacement.Orientation, WindowRectLocalSpace);
+
+		FVector2D FittedPlacement;
+
+		if (bFitInWindow)
+		{
+			const FSlateRect WindowRectLocalSpace = TransformRect(Inverse(AllottedGeometry.GetAccumulatedLayoutTransform()), PopupWindow->GetClientRectInScreen());
+			FittedPlacement = ComputePopupFitInRect(
+				LocalPlacement.AnchorLocalSpace,
+				FSlateRect(LocalPlacement.LocalPopupOffset, LocalPlacement.LocalPopupOffset + LocalPlacement.LocalPopupSize),
+				LocalPlacement.Orientation, WindowRectLocalSpace);
+		}
+		else
+		{
+			FittedPlacement = LocalPlacement.LocalPopupOffset;
+		}
 
 		LocalPopupPosition = FittedPlacement;
 		ScreenPopupPosition = AllottedGeometry.GetAccumulatedLayoutTransform().TransformPoint(LocalPopupPosition);
@@ -568,6 +579,24 @@ FVector2D SMenuAnchor::GetMenuPosition() const
 	return Pos;
 }
 
+void SMenuAnchor::SetMenuPlacement(TAttribute<EMenuPlacement> InMenuPlacement)
+{
+	if (!Placement.IsSet() || !Placement.IdenticalTo(InMenuPlacement))
+	{
+		Placement = InMenuPlacement;
+		Invalidate(EInvalidateWidget::Layout);
+	}
+}
+
+void SMenuAnchor::SetFitInWindow(bool bFit)
+{
+	if (bFitInWindow != bFit)
+	{
+		bFitInWindow = bFit;
+		Invalidate(EInvalidateWidget::Layout);
+	}
+}
+
 bool SMenuAnchor::HasOpenSubMenus() const
 {
 	bool Result = false;
@@ -575,6 +604,7 @@ bool SMenuAnchor::HasOpenSubMenus() const
 	{
 		Result = FSlateApplication::Get().HasOpenSubMenus(PopupMenuPtr.Pin());
 	}
+
 	return Result;
 }
 

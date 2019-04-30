@@ -195,7 +195,8 @@ void SPaletteView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepri
 
 	BlueprintEditor = InBlueprintEditor;
 
-	UBlueprint* BP = InBlueprintEditor->GetBlueprintObj();
+	UWidgetBlueprint* WBP = InBlueprintEditor->GetWidgetBlueprintObj();
+	bAllowEditorWidget = WBP ? WBP->AllowEditorWidget() : false;
 
 	WidgetFilter = MakeShareable(new WidgetViewModelTextFilter(
 		WidgetViewModelTextFilter::FItemToStringArray::CreateSP(this, &SPaletteView::TransformWidgetViewModelToString)));
@@ -474,6 +475,14 @@ void SPaletteView::BuildClassWidgetList()
 		if ( bIsSameClass )
 		{
 			continue;
+		}
+
+		if (!bAllowEditorWidget)
+		{
+			if (WidgetClass->GetOutermost()->IsEditorOnly())
+			{
+				continue;
+			}
 		}
 
 		if (WidgetClass->IsChildOf(UUserWidget::StaticClass()))

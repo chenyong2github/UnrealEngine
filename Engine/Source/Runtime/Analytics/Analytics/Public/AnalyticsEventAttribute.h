@@ -142,15 +142,15 @@ public: // json fragment
 
 public: // string (catch-all)
 	/**
-	 * Helper constructor to make an attribute from a name/value pair by forwarding through LexToString and AnalyticsConversion::ToString.
+	 * Helper constructor to make an attribute from a name/value pair by forwarding through LexToString and AnalyticsConversionToString.
 	 * 
 	 * @param InName Name of the attribute. Will be converted to a string via forwarding to LexToString
-	 * @param InValue Value of the attribute. Will be converted to a string via forwarding to AnalyticsConversion::ToString (same as Lex but with basic support for arrays and maps)
+	 * @param InValue Value of the attribute. Will be converted to a string via forwarding to AnalyticsConversionToString (same as Lex but with basic support for arrays and maps)
 	 */
 	template <typename NameType, typename ValueType>
 	FAnalyticsEventAttribute(NameType&& InName, ValueType&& InValue)
 		: AttrName(LexToString(Forward<NameType>(InName)))
-		, AttrValueString(AnalyticsConversion::ToString(Forward<ValueType>(InValue)))
+		, AttrValueString(AnalyticsConversionToString(Forward<ValueType>(InValue)))
 		, AttrValueNumber(0)
 		, AttrValueBool(false)
 		, AttrType(AttrTypeEnum::String)

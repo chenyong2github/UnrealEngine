@@ -791,6 +791,8 @@ public:
 	virtual void PostEditImport() override;
 	//~ End UObject Interface
 
+	LANDSCAPE_API void InitializeProxyLayersWeightmapUsage();
+
 	LANDSCAPE_API static TArray<FName> GetLayersFromMaterial(UMaterialInterface* Material);
 	LANDSCAPE_API TArray<FName> GetLayersFromMaterial() const;
 	LANDSCAPE_API static ULandscapeLayerInfoObject* CreateLayerInfo(const TCHAR* LayerName, ULevel* Level);
@@ -816,8 +818,9 @@ public:
 
 	// Copy properties from parent Landscape actor
 	LANDSCAPE_API void GetSharedProperties(ALandscapeProxy* Landscape);
-	// Assign only mismatched properties and mark proxy package dirty
-	LANDSCAPE_API void ConditionalAssignCommonProperties(ALandscape* Landscape);
+
+	// Assign only mismatching data and mark proxy package dirty
+	LANDSCAPE_API void FixupSharedData(ALandscape* Landscape);
 	
 	/** Get the LandcapeActor-to-world transform with respect to landscape section offset*/
 	LANDSCAPE_API FTransform LandscapeActorToWorld() const;
@@ -875,8 +878,8 @@ public:
 	/** @return Current size of bounding rectangle in quads space */
 	LANDSCAPE_API FIntRect GetBoundingRect() const;
 
-	/** Creates a Texture2D for use by this landscape proxy or one of it's components. If OptionalOverrideOuter is not specified, the level is used. */
-	LANDSCAPE_API UTexture2D* CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, UObject* OptionalOverrideOuter = nullptr, bool bCompress = false) const;
+	/** Creates a Texture2D for use by this landscape proxy or one of it's components. */
+	LANDSCAPE_API UTexture2D* CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, bool bCompress = false) const;
 
 	/** Creates a LandscapeWeightMapUsage object outered to this proxy. */
 	LANDSCAPE_API ULandscapeWeightmapUsage* CreateWeightmapUsage();
@@ -938,6 +941,26 @@ public:
 
 	DECLARE_EVENT(ALandscape, FLandscapeMaterialChangedDelegate);
 	FLandscapeMaterialChangedDelegate& OnMaterialChangedDelegate() { return LandscapeMaterialChangedDelegate; }
+
+protected:
+	friend class ALandscape;
+
+	/** Add Layer if it doesn't exist yet.
+	* @return True if layer was added.
+	*/
+	LANDSCAPE_API bool AddLayer(const FGuid& InLayerGuid);
+
+	/** Delete Layer.
+	*/
+	LANDSCAPE_API void DeleteLayer(const FGuid& InLayerGuid);
+
+	/** Remove Layers not found in InExistingLayers
+	* @return True if some layers were removed.
+	*/
+	LANDSCAPE_API bool RemoveObsoleteLayers(const TSet<FGuid>& InExistingLayers);
+
+	/** Initialize Layer with empty content if it hasn't been initialized yet. */
+	LANDSCAPE_API void InitializeLayerWithEmptyContent(const FGuid& InLayerGuid);
 
 protected:
 	FLandscapeMaterialChangedDelegate LandscapeMaterialChangedDelegate;

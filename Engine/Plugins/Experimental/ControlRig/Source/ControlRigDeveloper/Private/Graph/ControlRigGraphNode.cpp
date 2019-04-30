@@ -700,15 +700,27 @@ void UControlRigGraphNode::GetInputOutputFields(TArray<TSharedRef<FControlRigFie
 		UScriptStruct* ScriptStruct = GetUnitScriptStruct();
 		if(ScriptStruct == nullptr)
 		{
+			FString PropertyPath = PropertyName.ToString();
 			if(UProperty* Property = MyControlRigClass->FindPropertyByName(PropertyName))
 			{
 				// We don't care here whether we are dealing with input/output fields as we want a pin to be created for both
-				FString PropertyPath = PropertyName.ToString();
 				TSharedPtr<FControlRigField> ControlRigField = CreateControlRigField(Property, PropertyPath);
 				if(ControlRigField.IsValid())
 				{
+					ControlRigField->DisplayNameText = LOCTEXT("Value", "Value");
 					OutFields.Add(ControlRigField.ToSharedRef());
 					GetFields_Recursive(ControlRigField.ToSharedRef(), PropertyPath);
+				}
+			}
+			else // we might be on a variable template node
+			{
+				if (PinType.PinCategory != NAME_None)
+				{
+					TSharedPtr<FControlRigField> TemplateField = MakeShareable(new FControlRigField(PinType, PropertyPath, LOCTEXT("Value", "Value"), -1));
+					if (TemplateField.IsValid())
+					{
+						OutFields.Add(TemplateField.ToSharedRef());
+					}
 				}
 			}
 		}
@@ -1131,6 +1143,11 @@ void UControlRigGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
 
 	for(UEdGraphPin* Pin : Pins)
 	{
+		if (Pin->ParentPin != nullptr)
+		{
+			continue;
+		}
+
 		FControlRigPinConnectionResponse ConnectResponse = Schema->CanCreateConnection_Extended(FromPin, Pin);
 		if(ConnectResponse.Response.Response != ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
 		{

@@ -24,10 +24,6 @@ public:
 	/** Creates a new invalid emitter handle. */
 	FNiagaraEmitterHandle();
 
-	/** Create a new emitter handle from an emitter, but does NOT make a copy, any changes made to the "Instance" will modify
-		the original asset.  This version should only be used in the emitter toolkit. */
-	FNiagaraEmitterHandle(UNiagaraEmitter& Emitter);
-
 #if WITH_EDITORONLY_DATA
 	/** Creates a new emitter handle from an emitter and an owning System. */
 	FNiagaraEmitterHandle(UNiagaraEmitter& InSourceEmitter, FName InName, UNiagaraSystem& InOuterSystem);

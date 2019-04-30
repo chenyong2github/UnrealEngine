@@ -15,7 +15,8 @@ struct FRigUnit_AddBoneTransform : public FRigUnitMutable
 	GENERATED_BODY()
 
 	FRigUnit_AddBoneTransform()
-		: bPropagateToChildren(false)
+		: bPostMultiply(false)
+		, bPropagateToChildren(false)
 		, CachedBoneIndex(INDEX_NONE)
 	{}
 
@@ -33,6 +34,14 @@ struct FRigUnit_AddBoneTransform : public FRigUnitMutable
 	 */
 	UPROPERTY(meta = (Input))
 	FTransform Transform;
+
+	/**
+	 * If set to true the transform will be post multiplied, otherwise pre multiplied.
+	 * Post multiplying means that the transform is understood as a parent space change,
+	 * while pre multiplying means that the transform is understood as a child space change.
+	 */
+	UPROPERTY(meta = (Input))
+	bool bPostMultiply;
 
 	/**
 	 * If set to true all of the global transforms of the children 

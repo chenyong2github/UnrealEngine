@@ -345,3 +345,65 @@ struct FRigUnit_AccumulateTransformLerp : public FRigUnit_SimBase
 	UPROPERTY()
 	FTransform AccumulatedValue;
 };
+
+/**
+ * Accumulates the min and max values over time
+ */
+USTRUCT(meta=(DisplayName="Accumulate Range (Float)", PrototypeName="AccumulateRange", Keywords="Range"))
+struct FRigUnit_AccumulateFloatRange : public FRigUnit_SimBase
+{
+	GENERATED_BODY()
+	
+	FRigUnit_AccumulateFloatRange()
+	{
+		Value = Minimum = Maximum = AccumulatedMinimum = AccumulatedMaximum = 0.f;
+	}
+
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	float Value;
+
+	UPROPERTY(meta= (Output))
+	float Minimum;
+
+	UPROPERTY(meta= (Output))
+	float Maximum;
+
+	UPROPERTY()
+	float AccumulatedMinimum;
+
+	UPROPERTY()
+	float AccumulatedMaximum;
+};
+
+/**
+ * Accumulates the min and max values over time
+ */
+USTRUCT(meta = (DisplayName="Accumulate Range (Vector)", PrototypeName="AccumulateRange", Keywords="Range"))
+struct FRigUnit_AccumulateVectorRange : public FRigUnit_SimBase
+{
+	GENERATED_BODY()
+
+		FRigUnit_AccumulateVectorRange()
+	{
+		Value = Minimum = Maximum = AccumulatedMinimum = AccumulatedMaximum = FVector::ZeroVector;
+	}
+
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FVector Value;
+
+	UPROPERTY(meta= (Output))
+	FVector Minimum;
+
+	UPROPERTY(meta= (Output))
+	FVector Maximum;
+
+	UPROPERTY()
+	FVector AccumulatedMinimum;
+
+	UPROPERTY()
+	FVector AccumulatedMaximum;
+};

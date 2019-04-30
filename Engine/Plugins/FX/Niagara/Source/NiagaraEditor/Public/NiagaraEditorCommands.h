@@ -45,6 +45,7 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleAutoPlay;
 	TSharedPtr<FUICommandInfo> ToggleResetSimulationOnChange;
 	TSharedPtr<FUICommandInfo> ToggleResimulateOnChangeWhilePaused;
+	TSharedPtr<FUICommandInfo> ToggleResetDependentSystems;
 
 	TSharedPtr<FUICommandInfo> CollapseStackToHeaders;
 };
