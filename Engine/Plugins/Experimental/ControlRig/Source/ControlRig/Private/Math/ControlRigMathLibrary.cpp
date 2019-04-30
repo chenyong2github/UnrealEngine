@@ -2,6 +2,7 @@
 
 #include "Math/ControlRigMathLibrary.h"
 #include "AHEasing/easing.h"
+#include "TwoBoneIK.h"
 
 FQuat FControlRigMathLibrary::QuatFromEuler(const FVector& XYZAnglesInDegrees, EControlRigRotationOrder RotationOrder)
 {
@@ -371,4 +372,65 @@ float FControlRigMathLibrary::EaseFloat(float Value, EControlRigAnimEasingType T
 	}
 
 	return Value;
+}
+
+FTransform FControlRigMathLibrary::LerpTransform(const FTransform& A, const FTransform& B, float T)
+{
+	FTransform Result = FTransform::Identity;
+	Result.SetLocation(FMath::Lerp<FVector>(A.GetLocation(), B.GetLocation(), T));
+	Result.SetRotation(FQuat::Slerp(A.GetRotation(), B.GetRotation(), T));
+	Result.SetScale3D(FMath::Lerp<FVector>(A.GetScale3D(), B.GetScale3D(), T));
+	return Result;
+}
+
+void FControlRigMathLibrary::SolveBasicTwoBoneIK(FTransform& BoneA, FTransform& BoneB, FTransform& Effector, const FVector& PoleVector, const FVector& PrimaryAxis, const FVector& SecondaryAxis, float BoneALength, float BoneBLength, bool bEnableStretch, float StretchStartRatio, float StretchMaxRatio)
+{
+	FVector RootPos = BoneA.GetLocation();
+	FVector ElbowPos = BoneB.GetLocation();
+	FVector EffectorPos = Effector.GetLocation();
+
+	AnimationCore::SolveTwoBoneIK(RootPos, ElbowPos, EffectorPos, PoleVector, EffectorPos, ElbowPos, EffectorPos, BoneALength, BoneBLength, bEnableStretch, StretchStartRatio, StretchMaxRatio);
+
+	BoneB.SetLocation(ElbowPos);
+	Effector.SetLocation(EffectorPos);
+
+	FVector Axis = BoneA.TransformVectorNoScale(PrimaryAxis);
+	FVector Target1 = BoneB.GetLocation() - BoneA.GetLocation();
+	if (!Target1.IsNearlyZero() && !Axis.IsNearlyZero())
+	{
+		Target1 = Target1.GetSafeNormal();
+		FQuat Rotation1 = FQuat::FindBetweenNormals(Axis, Target1);
+		BoneA.SetRotation((Rotation1 * BoneA.GetRotation()).GetNormalized());
+
+		Axis = BoneA.TransformVectorNoScale(SecondaryAxis);
+		FVector Target2 = PoleVector - BoneA.GetLocation();
+		if (!Target2.IsNearlyZero() && !Axis.IsNearlyZero())
+		{
+			Target2 = Target2 - FVector::DotProduct(Target2, Target1) * Target1;
+			Target2 = Target2.GetSafeNormal();
+
+			FQuat Rotation2 = FQuat::FindBetweenNormals(Axis, Target2);
+			BoneA.SetRotation((Rotation2 * BoneA.GetRotation()).GetNormalized());
+		}
+	}
+
+	Axis = BoneB.TransformVectorNoScale(PrimaryAxis);
+	Target1 = Effector.GetLocation() - BoneB.GetLocation();
+	if (!Target1.IsNearlyZero() && !Axis.IsNearlyZero())
+	{
+		Target1 = Target1.GetSafeNormal();
+		FQuat Rotation1 = FQuat::FindBetweenNormals(Axis, Target1);
+		BoneB.SetRotation((Rotation1 * BoneB.GetRotation()).GetNormalized());
+
+		Axis = BoneB.TransformVectorNoScale(SecondaryAxis);
+		FVector Target2 = PoleVector - BoneB.GetLocation();
+		if (!Target2.IsNearlyZero() && !Axis.IsNearlyZero())
+		{
+			Target2 = Target2 - FVector::DotProduct(Target2, Target1) * Target1;
+			Target2 = Target2.GetSafeNormal();
+
+			FQuat Rotation2 = FQuat::FindBetweenNormals(Axis, Target2);
+			BoneB.SetRotation((Rotation2 * BoneB.GetRotation()).GetNormalized());
+		}
+	}
 }
