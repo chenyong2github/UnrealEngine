@@ -1541,7 +1541,10 @@ UHierarchicalInstancedStaticMeshComponent* FFoliageInfo::GetComponent() const
 
 void FFoliageInfo::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
-	Implementation->AddReferencedObjects(InThis, Collector);
+	if (Implementation.IsValid())
+	{
+		Implementation->AddReferencedObjects(InThis, Collector);
+	}
 }
 
 void FFoliageInfo::CreateImplementation(EFoliageImplType InType)
