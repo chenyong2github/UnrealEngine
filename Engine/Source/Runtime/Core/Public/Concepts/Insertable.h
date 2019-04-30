@@ -7,9 +7,10 @@
 /**
  * Describes a type with a GetTypeHash overload.
  */
+template <typename DestType>
 struct CInsertable {
-	template <typename DestType, typename T>
-	auto Requires(DestType& Dest, T& Val) -> decltype(
+	template <typename T>
+	auto Requires(DestType Dest, T& Val) -> decltype(
 		Dest << Val
 	);
 };

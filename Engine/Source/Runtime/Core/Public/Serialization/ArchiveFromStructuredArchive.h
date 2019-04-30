@@ -9,6 +9,8 @@
 #include "UObject/NameTypes.h"
 #include "Containers/Map.h"
 #include "Containers/BitArray.h"
+#include "Concepts/Insertable.h"
+#include "Templates/Models.h"
 
 class CORE_API FArchiveFromStructuredArchive : public FArchiveProxy
 {
@@ -66,3 +68,23 @@ private:
 
 	FStructuredArchive::FSlot RootSlot;
 };
+
+/**
+ * Adapter operator which allows a type to stream to an FStructuredArchive::FSlot when it already supports streaming to an FArchive.
+ *
+ * @param  Slot  The slot to read from or write to.
+ * @param  Obj   The object to read or write.
+ */
+template <typename T>
+typename TEnableIf<
+	TModels<CInsertable<FArchive&>, T>::Value &&
+	!TModels<CInsertable<FStructuredArchive::FSlot>, T>::Value
+>::Type operator<<(FStructuredArchive::FSlot Slot, T& Obj)
+{
+#if WITH_TEXT_ARCHIVE_SUPPORT
+	FArchiveFromStructuredArchive Ar(Slot);
+#else
+	FArchive& Ar = Slot.GetUnderlyingArchive();
+#endif
+	Ar << Obj;
+}
