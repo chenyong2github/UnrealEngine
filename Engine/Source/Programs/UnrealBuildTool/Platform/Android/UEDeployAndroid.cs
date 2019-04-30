@@ -951,7 +951,7 @@ namespace UnrealBuildTool
 				bool bOBBExists = File.Exists(ObbSource);
 				AnyOBBExists |= bOBBExists;
 
-				obbData.Append("new XAPKFile(\ntrue, // true signifies a main file\n");
+				obbData.Append("new XAPKFile(\n" + (ObbSource.Contains(".patch.") ? "false, // false signifies a patch file\n" : "true, // true signifies a main file\n"));
 				obbData.AppendFormat("\"{0}\", // the version of the APK that the file was uploaded against\n", GetOBBVersionNumber(StoreVersion));
 				obbData.AppendFormat("{0}L // the length of the file in bytes\n", bOBBExists ? new FileInfo(ObbSource).Length : 0);
 				obbData.AppendFormat("){0}\n", first ? "," : "");
@@ -3352,9 +3352,15 @@ namespace UnrealBuildTool
 
 			// Generate the OBB and Shim files here
 			string ObbFileLocation = ProjectDirectory + "/Saved/StagedBuilds/Android" + CookFlavor + ".obb";
+			string PatchFileLocation = ProjectDirectory + "/Saved/StagedBuilds/Android" + CookFlavor + ".patch.obb";
+			List<string> RequiredOBBFiles = new List<String> { ObbFileLocation };
+			if (File.Exists(PatchFileLocation))
+			{
+				RequiredOBBFiles.Add(PatchFileLocation);
+			}
 
 			// Generate the OBBData.java file if out of date (can skip rewriting it if packaging inside Apk in some cases)
-			WriteJavaOBBDataFile(UE4OBBDataFileName, PackageName, new List<string> { ObbFileLocation }, CookFlavor, bPackageDataInsideApk);
+			WriteJavaOBBDataFile(UE4OBBDataFileName, PackageName, RequiredOBBFiles, CookFlavor, bPackageDataInsideApk);
 
 			// Make sure any existing proguard file in project is NOT used (back it up)
 			string ProjectBuildProguardFile = Path.Combine(GameBuildFilesPath, "proguard-project.txt");
