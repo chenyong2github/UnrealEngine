@@ -318,7 +318,70 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 		CheckGenerateLandscapePlatformData(true, Ar.CookingTarget());
 	}
 
-	if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject) && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DeferredRendering))
+	// Avoid the archiver in the PIE duplicate writer case because we want to share landscape textures & materials
+	if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
+	{
+		if (Ar.IsLoading())
+		{
+			Super::Serialize(Ar);
+		}
+
+		TArray<UObject**> TexturesAndMaterials;
+		TexturesAndMaterials.Add((UObject**)&HeightmapTexture);
+		TexturesAndMaterials.Add((UObject**)&XYOffsetmapTexture);
+		for (UTexture2D* WeightmapTexture : WeightmapTextures)
+		{
+			TexturesAndMaterials.Add((UObject**)&WeightmapTexture);
+		}
+		for (UTexture2D* MobileWeightmapTexture : MobileWeightmapTextures)
+		{
+			TexturesAndMaterials.Add((UObject**)&MobileWeightmapTexture);
+		}
+		for (auto& ItPair : LayersData)
+		{
+			FLandscapeLayerComponentData& LayerComponentData = ItPair.Value;
+			TexturesAndMaterials.Add((UObject**)&LayerComponentData.HeightmapData.Texture);
+			for (UTexture2D* WeightmapTexture : LayerComponentData.WeightmapData.Textures)
+			{
+				TexturesAndMaterials.Add((UObject**)&WeightmapTexture);
+			}
+		}
+		for (UMaterialInstance* MaterialInstance : MaterialInstances)
+		{
+			TexturesAndMaterials.Add((UObject**)&MaterialInstance);
+		}
+		for (UMaterialInterface* MobileMaterialInterface : MobileMaterialInterfaces)
+		{
+			TexturesAndMaterials.Add((UObject**)(&MobileMaterialInterface));
+		}
+		for (UMaterialInstance* MobileCombinationMaterialInstance : MobileCombinationMaterialInstances)
+		{
+			TexturesAndMaterials.Add((UObject**)&MobileCombinationMaterialInstance);
+		}
+
+		if (Ar.IsSaving())
+		{
+			TArray<UObject*> BackupTexturesAndMaterials;
+			BackupTexturesAndMaterials.AddZeroed(TexturesAndMaterials.Num());
+			for (int i = 0; i < TexturesAndMaterials.Num(); ++i)
+			{
+				Exchange(*TexturesAndMaterials[i], BackupTexturesAndMaterials[i]);
+			}
+
+			Super::Serialize(Ar);
+
+			for (int i = 0; i < TexturesAndMaterials.Num(); ++i)
+			{
+				Exchange(*TexturesAndMaterials[i], BackupTexturesAndMaterials[i]);
+			}
+		}
+		// Manually serialize pointers
+		for (UObject** Object : TexturesAndMaterials)
+		{
+			Ar.Serialize(Object, sizeof(UObject*));
+		}
+	}
+	else if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject) && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DeferredRendering))
 	{
 		// These properties are only used for SM4+ so we back them up and clear them before serializing them.
 		UTexture2D* BackupHeightmapTexture = nullptr;
@@ -709,7 +772,7 @@ void ULandscapeComponent::PostLoad()
 #if WITH_EDITOR
 	auto ReparentObject = [this](UObject* Object)
 	{
-		if (Object && !Object->HasAllFlags(RF_Public | RF_Standalone) && (Object->GetOuter() != GetOuter()))
+		if (Object && !Object->HasAllFlags(RF_Public | RF_Standalone) && (Object->GetOuter() != GetOuter()) && (Object->GetOutermost() == GetOutermost()))
 		{
 			Object->Rename(nullptr, GetOuter(), REN_ForceNoResetLoaders);
 			return true;
@@ -717,11 +780,35 @@ void ULandscapeComponent::PostLoad()
 		return false;
 	};
 
+	ReparentObject(HeightmapTexture);
+	ReparentObject(XYOffsetmapTexture);
+
+	for (UTexture2D* WeightmapTexture : WeightmapTextures)
+	{
+		ReparentObject(WeightmapTexture);
+	}
+
+	for (UTexture2D* MobileWeightmapTexture : MobileWeightmapTextures)
+	{
+		ReparentObject(MobileWeightmapTexture);
+	}
+
+	for (const auto& ItPair : LayersData)
+	{
+		const FLandscapeLayerComponentData& LayerComponentData = ItPair.Value;
+		ReparentObject(LayerComponentData.HeightmapData.Texture);
+		for (UTexture2D* WeightmapTexture : LayerComponentData.WeightmapData.Textures)
+		{
+			ReparentObject(WeightmapTexture);
+		}
+	}
+
 	for (UMaterialInstance* MaterialInstance : MaterialInstances)
 	{
-		while (ReparentObject(MaterialInstance))
+		ULandscapeMaterialInstanceConstant* CurrentMIC = Cast<ULandscapeMaterialInstanceConstant>(MaterialInstance);
+		while (ReparentObject(CurrentMIC))
 		{
-			MaterialInstance = Cast<UMaterialInstance>(MaterialInstance->Parent);
+			CurrentMIC = Cast<ULandscapeMaterialInstanceConstant>(MaterialInstance->Parent);
 		}
 	}
 
@@ -739,19 +826,6 @@ void ULandscapeComponent::PostLoad()
 		{
 			MobileCombinationMaterialInstance = Cast<UMaterialInstance>(MobileCombinationMaterialInstance->Parent);
 		}
-	}
-
-	ReparentObject(HeightmapTexture);
-	ReparentObject(XYOffsetmapTexture);
-
-	for (UTexture2D* WeightmapTexture : WeightmapTextures)
-	{
-		ReparentObject(WeightmapTexture);
-	}
-
-	for (UTexture2D* MobileWeightmapTexture : MobileWeightmapTextures)
-	{
-		ReparentObject(MobileWeightmapTexture);
 	}
 #endif
 
