@@ -11,14 +11,18 @@ class FWmfRingBuffer
 {
 public:
 	FTimespan GetMaxDuration() const
-	{ return MaxDuration; }
+	{
+		return MaxDuration;
+	}
 
 	void SetMaxDuration(FTimespan InMaxDuration)
-	{ MaxDuration = InMaxDuration; }
+	{
+		MaxDuration = InMaxDuration;
+	}
 
 	FTimespan GetDuration() const;
 
-	void Push(const FGameplayMediaEncoderSample& Sample);
+	void Push(FGameplayMediaEncoderSample&& Sample);
 
 	void PauseCleanup(bool bPause);
 
