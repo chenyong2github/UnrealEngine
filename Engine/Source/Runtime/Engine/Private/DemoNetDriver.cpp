@@ -1116,6 +1116,8 @@ bool UDemoNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool 
 
 void UDemoNetDriver::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 {
+	LLM_SCOPE(ELLMTag::Networking);
+
 	Super::OnLevelAddedToWorld(InLevel, InWorld);
 
 	if (InLevel && !InLevel->bClientOnlyVisible && GetWorld() == InWorld && HasLevelStreamingFixes() && IsPlaying())
@@ -1358,6 +1360,7 @@ double GTickFlushDemoDriverTimeSeconds = 0.0;
 
 void UDemoNetDriver::TickFlushInternal(float DeltaSeconds)
 {
+	LLM_SCOPE(ELLMTag::Networking);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(DemoRecording);
 
 	GTickFlushDemoDriverTimeSeconds = 0.0;
@@ -3736,6 +3739,7 @@ static FCsvDemoSettings GetCsvDemoSettings()
 
 void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 {
+	LLM_SCOPE(ELLMTag::Networking);
 	SCOPED_NAMED_EVENT(UDemoNetDriver_TickDemoPlayback, FColor::Purple);
 	if (World && World->IsInSeamlessTravel())
 	{

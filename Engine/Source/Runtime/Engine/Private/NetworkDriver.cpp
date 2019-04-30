@@ -11,6 +11,7 @@
 #include "Stats/Stats.h"
 #include "Misc/MemStack.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
@@ -392,6 +393,7 @@ void UNetDriver::AssertValid()
 
 void UNetDriver::AddNetworkActor(AActor* Actor)
 {
+	LLM_SCOPE(ELLMTag::Networking);
 	GetNetworkObjectList().FindOrAdd(Actor, this);
 	if (ReplicationDriver)
 	{

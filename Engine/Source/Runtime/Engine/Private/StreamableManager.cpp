@@ -903,6 +903,8 @@ UObject* FStreamableManager::SynchronousLoad(FSoftObjectPath const& Target)
 
 TSharedPtr<FStreamableHandle> FStreamableManager::RequestAsyncLoad(const TArray<FSoftObjectPath>& TargetsToStream, FStreamableDelegate DelegateToCall, TAsyncLoadPriority Priority, bool bManageActiveHandle, bool bStartStalled, const FString& DebugName)
 {
+	LLM_SCOPE(ELLMTag::StreamingManager);
+
 	// Schedule a new callback, this will get called when all related async loads are completed
 	TSharedRef<FStreamableHandle> NewRequest = MakeShareable(new FStreamableHandle());
 	NewRequest->CompleteDelegate = DelegateToCall;

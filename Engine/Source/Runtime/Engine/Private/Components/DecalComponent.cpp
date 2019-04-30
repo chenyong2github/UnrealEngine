@@ -9,6 +9,7 @@
 #include "TimerManager.h"
 #include "SceneManagement.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "HAL/LowLevelMemTracker.h"
 
 static TAutoConsoleVariable<float> CVarDecalFadeDurationScale(
 	TEXT("r.Decal.FadeDurationScale"),
@@ -263,6 +264,7 @@ void UDecalComponent::GetUsedMaterials( TArray<UMaterialInterface*>& OutMaterial
 
 FDeferredDecalProxy* UDecalComponent::CreateSceneProxy()
 {
+	LLM_SCOPE(ELLMTag::SceneRender);
 	return new FDeferredDecalProxy(this);
 }
 
