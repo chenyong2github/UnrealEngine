@@ -1057,10 +1057,6 @@ public:
 	template<typename TMaterialType>
 	static void ShowFbxMaterialConflictWindow(const TArray<TMaterialType>& InSourceMaterials, const TArray<TMaterialType>& InResultMaterials, TArray<int32>& RemapMaterials, TArray<bool>& FuzzyRemapMaterials, EFBXReimportDialogReturnOption& OutReturnOption, bool bIsPreviewConflict = false);
 
-
-	/** helper function **/
-	UNREALED_API static void DumpFBXNode(FbxNode* Node);
-
 	/**
 	 * Apply asset import settings for transform to an FBX node
 	 *
