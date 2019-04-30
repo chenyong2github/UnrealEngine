@@ -253,7 +253,6 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, ALandscapeProxy* Targ
 			}
 		});
 
-		Comp->GetGlobalLayersData().TopLeftSectionBase  = Comp->GetSectionBase();
 		Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
 	}
 #endif
