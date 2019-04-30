@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Units/Highlevel/RigUnit_HighlevelBase.h"
-#include "Math/ControlRigSimulationLibrary.h"
+#include "Math/Simulation/CRSimPointContainer.h"
 #include "RigUnit_SpringIK.generated.h"
 
 USTRUCT()
@@ -182,5 +182,5 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 	TArray<FTransform> Transforms;
 
 	UPROPERTY()
-	FControlRigSimulationPointContainer Simulation;
+	FCRSimPointContainer Simulation;
 };
