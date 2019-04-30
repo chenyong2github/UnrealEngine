@@ -19,7 +19,7 @@
 /**
  * This function sets two test callbacks into vx_sdk_config_t structure.
  */
-extern void vx_test_set_udp_frame_callbacks( vx_sdk_config_t* config );
+extern void vx_test_set_udp_frame_callbacks(vx_sdk_config_t *config);
 
 #include <stdlib.h>
 
@@ -32,54 +32,62 @@ extern void vx_test_set_udp_frame_callbacks( vx_sdk_config_t* config );
  * Server must have the same header/trailer length settings as the client.
  */
 static void test_on_before_udp_frame_transmitted(
-  void*  /* callback_handle */,  // the handle passed in the vx_sdk_config_t structure 
-  vx_udp_frame_type    /* frame_type */,
-  void*  /* payload_data */,     // the data to be transmitted to the network 
-  int    /* payload_data_len */, // the len of that data 
-  void** header_out,       // callback set - pointer to header data (NULL if no header) 
-  int*   header_len_out,   // callback set - length of the header data (0 if no header) 
-  void** trailer_out,      // callback set - pointer to trailer data (NULL if no trailer) 
-  int*   trailer_len_out   // callback set - length of the trailer data (0 if no trailer) 
-) {
-	static int hdrSize = -1;
-	static int trlSize = 0;
+        void *  /* callback_handle */, // the handle passed in the vx_sdk_config_t structure
+        vx_udp_frame_type    /* frame_type */,
+        void *  /* payload_data */, // the data to be transmitted to the network
+        int    /* payload_data_len */, // the len of that data
+        void **header_out, // callback set - pointer to header data (NULL if no header)
+        int *header_len_out, // callback set - length of the header data (0 if no header)
+        void **trailer_out, // callback set - pointer to trailer data (NULL if no trailer)
+        int *trailer_len_out // callback set - length of the trailer data (0 if no trailer)
+        )
+{
+    static int hdrSize = -1;
+    static int trlSize = 0;
 
-  /**
-   * Check the VX_TEST_UDP_HEADER and VX_TEST_UDP_TRAILER variabels only one time.
-   */
-  if (hdrSize < 0) {
+    /**
+     * Check the VX_TEST_UDP_HEADER and VX_TEST_UDP_TRAILER variabels only one time.
+     */
+    if (hdrSize < 0) {
+        hdrSize = 0;
 
-    hdrSize = 0;
+        char *pVX_TEST_UDP_HEADER = getenv("VX_TEST_UDP_HEADER");
+        if (pVX_TEST_UDP_HEADER) {
+            hdrSize = atoi(pVX_TEST_UDP_HEADER);
+        }
 
-    char *pVX_TEST_UDP_HEADER = getenv("VX_TEST_UDP_HEADER");
-    if (pVX_TEST_UDP_HEADER)
-      hdrSize = atoi(pVX_TEST_UDP_HEADER);
+        char *pVX_TEST_UDP_TRAILER = getenv("VX_TEST_UDP_TRAILER");
+        if (pVX_TEST_UDP_TRAILER) {
+            trlSize = atoi(pVX_TEST_UDP_TRAILER);
+        }
+    }
 
-    char *pVX_TEST_UDP_TRAILER = getenv("VX_TEST_UDP_TRAILER");
-    if (pVX_TEST_UDP_TRAILER)
-      trlSize = atoi(pVX_TEST_UDP_TRAILER);
+    if (0 == hdrSize && 0 == trlSize) {
+        return;
+    }
 
-  }
+    char *hdr = new char[hdrSize];
+    char *trl = new char[trlSize];
+    char *tmp = NULL;
 
-  if (0 == hdrSize && 0 == trlSize)
-    return;
+    /**
+     * Fill the header with increasing integer values, trailer with decreasing values.
+     * So, you can use Wireshark to see how packets are looks like with the header and trailer.
+     */
+    tmp = hdr;
+    for (int i = 0; i < hdrSize; i++, tmp++) {
+        *tmp = i % 256;
+    }
+    tmp = trl;
+    for (int i = 0; i < trlSize; i++, tmp++) {
+        *tmp = 255 - (i % 256);
+    }
 
-  char* hdr = new char[hdrSize];
-  char* trl = new char[trlSize];
-  char* tmp = NULL;
+    *header_out = hdr;
+    *trailer_out = trl;
 
-  /**
-   * Fill the header with increasing integer values, trailer with decreasing values.
-   * So, you can use Wireshark to see how packets are looks like with the header and trailer.
-   */
-  tmp = hdr; for (int i = 0; i < hdrSize; i++, tmp++) { *tmp = i % 256; }
-  tmp = trl; for (int i = 0; i < trlSize; i++, tmp++) { *tmp = 255 - (i % 256); }
-
-  *header_out = hdr;
-  *trailer_out = trl;
-
-  *header_len_out = hdrSize;
-  *trailer_len_out = trlSize;
+    *header_len_out = hdrSize;
+    *trailer_len_out = trlSize;
 }
 
 /**
@@ -87,30 +95,37 @@ static void test_on_before_udp_frame_transmitted(
  * Just clean up an allocated memory here.
  */
 static void test_on_after_udp_frame_transmitted(
-  void* /* callback_handle */,  // the handle passed in the vx_sdk_config_t structure 
-  vx_udp_frame_type   /* frame_type */,
-  void* /* payload_data */,     // the data to be transmitted to the network 
-  int   /* payload_data_len */, // the len of that data 
-  void* header,           // the header data passed in pf_on_before_udp_frame_transmitted 
-  int   /* header_len */,       // length of the header data 
-  void* trailer,          // the trailer data passed in pf_on_before_udp_frame_transmitted 
-  int   /* trailer_len */,      // length of the trailer data 
-  int   /* sent_bytes */        // the total number of bytes transmitted - < 0 indicates error 
-) {
-  if (NULL != header) delete [] (char*)header;
-  if (NULL != trailer) delete [] (char*)trailer;
+        void * /* callback_handle */, // the handle passed in the vx_sdk_config_t structure
+        vx_udp_frame_type   /* frame_type */,
+        void * /* payload_data */, // the data to be transmitted to the network
+        int   /* payload_data_len */, // the len of that data
+        void *header,     // the header data passed in pf_on_before_udp_frame_transmitted
+        int   /* header_len */, // length of the header data
+        void *trailer,    // the trailer data passed in pf_on_before_udp_frame_transmitted
+        int   /* trailer_len */, // length of the trailer data
+        int   /* sent_bytes */  // the total number of bytes transmitted - < 0 indicates error
+        )
+{
+    if (NULL != header) {
+        delete[] (char *)header;
+    }
+    if (NULL != trailer) {
+        delete[] (char *)trailer;
+    }
 }
 
 /**
  * This function sets up the vx_sdk_config_t structure with test callbacks.
  */
-void vx_test_set_udp_frame_callbacks(vx_sdk_config_t* config) {
-  if (NULL == config)
-    return;
+void vx_test_set_udp_frame_callbacks(vx_sdk_config_t *config)
+{
+    if (NULL == config) {
+        return;
+    }
 
-  config->pf_on_before_udp_frame_transmitted = test_on_before_udp_frame_transmitted;
-  config->pf_on_after_udp_frame_transmitted = test_on_after_udp_frame_transmitted;
+    config->pf_on_before_udp_frame_transmitted = test_on_before_udp_frame_transmitted;
+    config->pf_on_after_udp_frame_transmitted = test_on_after_udp_frame_transmitted;
 }
-//-----------------------------------------------------------------------------------------        
+// -----------------------------------------------------------------------------------------
 #define VX_HAS_UDP_CALLBACKS
 #endif
