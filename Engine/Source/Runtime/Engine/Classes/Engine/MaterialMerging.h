@@ -66,6 +66,9 @@ struct FMaterialProxySettings
 	UPROPERTY(Category = Material, BlueprintReadWrite, AdvancedDisplay, EditAnywhere, meta=(DisplayAfter="AmbientOcclusionTextureSize"))
 	TEnumAsByte<EBlendMode> BlendMode;
 
+	UPROPERTY(Category = Material, BlueprintReadWrite, EditAnywhere, meta = (DisplayAfter = "BlendMode"))
+	uint8 bAllowTwoSidedMaterial : 1;
+
 	// Whether to generate normal map
 	UPROPERTY(Category = Material, BlueprintReadWrite, EditAnywhere)
 	uint8 bNormalMap:1;
@@ -143,6 +146,7 @@ struct FMaterialProxySettings
 		, TextureSizingType(TextureSizingType_UseSingleTextureSize)
 		, MaterialMergeType(EMaterialMergeType::MaterialMergeType_Default)
 		, BlendMode(BLEND_Opaque)
+		, bAllowTwoSidedMaterial(true)
 		, bNormalMap(true)
 		, bMetallicMap(false)
 		, bRoughnessMap(false)
