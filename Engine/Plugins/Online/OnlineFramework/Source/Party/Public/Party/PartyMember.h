@@ -10,8 +10,8 @@
 class USocialUser;
 class FOnlinePartyMember;
 class FOnlinePartyData;
-enum class EMemberExitedReason;
-enum class EMemberConnectionStatus;
+enum class EMemberExitedReason : uint8;
+enum class EMemberConnectionStatus : uint8;
 
 /** Base struct used to replicate data about the state of a single party member to all members. */
 USTRUCT()
@@ -99,10 +99,10 @@ public:
 	FString ToDebugString(bool bIncludePartyId = true) const;
 
 PARTY_SCOPE:
-	void InitializePartyMember(const TSharedRef<FOnlinePartyMember>& OssMember, const FSimpleDelegate& OnInitComplete);
+	void InitializePartyMember(const FOnlinePartyMemberConstRef& OssMember, const FSimpleDelegate& OnInitComplete);
 
 	FPartyMemberRepData& GetMutableRepData() { return *MemberDataReplicator; }
-	void NotifyMemberDataReceived(const TSharedRef<FOnlinePartyData>& MemberData);
+	void NotifyMemberDataReceived(const FOnlinePartyData& MemberData);
 	void NotifyMemberPromoted();
 	void NotifyMemberDemoted();
 	void NotifyRemovedFromParty(EMemberExitedReason ExitReason);
@@ -125,7 +125,7 @@ private:
 	void HandleSocialUserInitialized(USocialUser& InitializedUser);
 	void HandleMemberConnectionStatusChanged(const FUniqueNetId& ChangedUserId, const EMemberConnectionStatus NewMemberConnectionStatus, const EMemberConnectionStatus PreviousMemberConnectionStatus);
 
-	TSharedPtr<FOnlinePartyMember> OssPartyMember;
+	FOnlinePartyMemberConstPtr OssPartyMember;
 
 	UPROPERTY()
 	USocialUser* SocialUser = nullptr;

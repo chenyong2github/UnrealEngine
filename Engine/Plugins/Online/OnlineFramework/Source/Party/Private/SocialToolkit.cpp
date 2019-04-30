@@ -976,9 +976,9 @@ void USocialToolkit::HandleExistingPartyInvites(ESocialSubsystem SubsystemType)
 			FUniqueNetIdRepl LocalUserId = GetLocalUserNetId(SubsystemType);
 			if (PartyInterface.IsValid() && LocalUserId.IsValid())
 			{
-				TArray<TSharedRef<IOnlinePartyJoinInfo>> PendingInvites;
+				TArray<IOnlinePartyJoinInfoConstRef> PendingInvites;
 				PartyInterface->GetPendingInvites(*LocalUserId, PendingInvites);
-				for (const TSharedRef<IOnlinePartyJoinInfo>& PendingInvite : PendingInvites)
+				for (const IOnlinePartyJoinInfoConstRef& PendingInvite : PendingInvites)
 				{
 					HandlePartyInviteReceived(*LocalUserId, *PendingInvite->GetPartyId(), *PendingInvite->GetSourceUserId());
 				}
