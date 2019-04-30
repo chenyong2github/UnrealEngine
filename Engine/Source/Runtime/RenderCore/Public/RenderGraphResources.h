@@ -2,16 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHI.h"
-#include "RendererInterface.h"
+#include "RenderGraphDefinitions.h"
 
-
-/** Whether render graph debugging is compiled. */
-#define RENDER_GRAPH_DEBUGGING (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
-
-struct FRenderGraphPass;
-
+class FRDGPass;
 class FRDGBuilder;
 
 class FRDGResource;
@@ -75,7 +68,7 @@ public:
 	/** Verify that the RHI resource can be accessed at a pass execution. */
 	inline void VerifyRHIAccess() const
 	{
-		#if RENDER_GRAPH_DEBUGGING
+		#if RDG_ENABLE_DEBUG
 		{
 			checkf(bAllowAccessToRHIResource,
 				TEXT("Accessing the RHI resource of %s at this time is not allowed. If you hit this check in pass, ")
@@ -107,7 +100,7 @@ private:
 	/** Boolean to track at runtime whether a ressource is actually used by the lambda of a pass or not, to detect unnecessary resource dependencies on passes. */
 	bool bIsActuallyUsedByPass = false;
 
-#if RENDER_GRAPH_DEBUGGING
+#if RDG_ENABLE_DEBUG
 	/** Boolean to track at wiring time if a resource has ever been produced by a pass, to error out early if accessing a resource that has not been produced. */
 	bool bHasEverBeenProduced = false;
 
@@ -115,7 +108,7 @@ private:
 	bool bAllowAccessToRHIResource = false;
 
 	/** Pointer towards the pass that is the first to produce it, for even more convenient error message. */
-	const FRenderGraphPass* DebugFirstProducer = nullptr;
+	const FRDGPass* DebugFirstProducer = nullptr;
 
 	/** Count the number of times it has been used by a pass. */
 	int32 DebugPassAccessCount = 0;

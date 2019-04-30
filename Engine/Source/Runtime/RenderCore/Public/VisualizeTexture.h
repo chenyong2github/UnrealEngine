@@ -11,6 +11,7 @@
 #include "RenderResource.h"
 #include "RenderGraph.h"
 
+#define SUPPORTS_VISUALIZE_TEXTURE (WITH_ENGINE && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 
 class RENDERCORE_API FVisualizeTexture : public FRenderResource
 {

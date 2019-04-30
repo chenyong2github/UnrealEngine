@@ -7,36 +7,44 @@
 #include "VisualizeTexture.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
-#if RENDER_GRAPH_DEBUGGING
+namespace
+{
+#if RDG_ENABLE_DEBUG
+	int32 GRenderGraphImmediateMode = 0;
+	FAutoConsoleVariableRef CVarImmediateMode(
+		TEXT("r.RDG.ImmediateMode"),
+		GRenderGraphImmediateMode,
+		TEXT("Executes passes as they get created. Useful to have a callstack of the wiring code when crashing in the pass' lambda."),
+		ECVF_RenderThreadSafe);
 
-static int32 GRenderGraphImmediateMode = 0;
-static FAutoConsoleVariableRef CVarImmediateMode(
-	TEXT("r.RDG.ImmediateMode"),
-	GRenderGraphImmediateMode,
-	TEXT("Executes passes as they get created. Useful to have a callstack of the wiring code when crashing in the pass' lambda."),
-	ECVF_RenderThreadSafe);
-
-static int32 GRenderGraphEmitWarnings = 0;
-static FAutoConsoleVariableRef CVarEmitWarnings(
-	TEXT("r.RDG.EmitWarnings"),
-	GRenderGraphEmitWarnings,
-	TEXT("Allow to output warnings for inefficiencies found during wiring and execution of the passes.\n")
-	TEXT(" 0: disabled;\n")
-	TEXT(" 1: emit warning once (default);\n")
-	TEXT(" 2: emit warning everytime issue is detected."),
-	ECVF_RenderThreadSafe);
+	int32 GRenderGraphEmitWarnings = 0;
+	FAutoConsoleVariableRef CVarEmitWarnings(
+		TEXT("r.RDG.EmitWarnings"),
+		GRenderGraphEmitWarnings,
+		TEXT("Allow to output warnings for inefficiencies found during wiring and execution of the passes.\n")
+		TEXT(" 0: disabled;\n")
+		TEXT(" 1: emit warning once (default);\n")
+		TEXT(" 2: emit warning everytime issue is detected."),
+		ECVF_RenderThreadSafe);
 
 #else
-
-static const int32 GRenderGraphImmediateMode = 0;
-static const int32 GRenderGraphEmitWarnings = 0;
-
+	const int32 GRenderGraphImmediateMode = 0;
+	const int32 GRenderGraphEmitWarnings = 0;
 #endif
+}
 
+bool GetEmitRDGEvents()
+{
+#if RDG_EVENTS != RDG_EVENTS_NONE
+	return GetEmitDrawEvents() || GRenderGraphEmitWarnings;
+#else
+	return false;
+#endif
+}
 
 void InitRenderGraph()
 {
-#if RENDER_GRAPH_DEBUGGING && WITH_ENGINE
+#if RDG_ENABLE_DEBUG_WITH_ENGINE
 	if (FParse::Param(FCommandLine::Get(), TEXT("rdgimmediate")))
 	{
 		GRenderGraphImmediateMode = 1;
@@ -104,50 +112,12 @@ static bool IsBoundAsReadable(const FRDGTexture* Texture, FShaderParameterStruct
 	return false;
 }
 
-
-#if RENDER_GRAPH_DRAW_EVENTS == 2
-
-FRDGEventName::FRDGEventName(const TCHAR* EventFormat, ...)
-{
-	if (GetEmitDrawEvents() || GRenderGraphEmitWarnings)
-	{
-		va_list ptr;
-		va_start(ptr, EventFormat);
-		TCHAR TempStr[256];
-		// Build the string in the temp buffer
-		FCString::GetVarArgs(TempStr, ARRAY_COUNT(TempStr), EventFormat, ptr);
-		va_end(ptr);
-
-		EventNameStorage = TempStr;
-		EventName = *EventNameStorage;
-	}
-	else
-	{
-		EventName = TEXT("!!!Unavailable RDG event name: try r.RDG.EmitWarnings=1 or -rdgdebug!!!");
-	}
-}
-
-#endif
-
-
 void FRDGBuilder::Execute()
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FRDGBuilder_Execute);
-	#if RENDER_GRAPH_DEBUGGING
-	{
-		/** The usage need RDG_EVENT_SCOPE() needs to happen in inner scope of the one containing FRDGBuilder because of
-		 *  FStackRDGEventScopeRef's destructor modifying this FRDGBuilder instance.
-		 * 
-		 *
-		 *  FRDGBuilder GraphBuilder(RHICmdList);
-		 *  {
-		 *  	RDG_EVENT_SCOPE(GraphBuilder, "MyEventScope");
-		 *  	// ...
-		 *  }
-		 *  GraphBuilder.Execute();
-		 */
-		checkf(CurrentScope == nullptr, TEXT("Render graph needs to have all scopes ended to execute."));
 
+	#if RDG_ENABLE_DEBUG
+	{
 		checkf(!bHasExecuted, TEXT("Render graph execution should only happen once to ensure consistency with immediate mode."));
 
 		/** FRDGBuilder::AllocParameters() allocates shader parameter structure for the life time until pass execution.
@@ -162,45 +132,68 @@ void FRDGBuilder::Execute()
 	}
 	#endif
 
+	EventScopeStack.BeginExecute();
+
 	if (!GRenderGraphImmediateMode)
 	{
 		WalkGraphDependencies();
 
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGBuilder_Execute);
-		for (const FRenderGraphPass* Pass : Passes)
+		for (const FRDGPass* Pass : Passes)
 		{
 			ExecutePass(Pass);
 		}
 	}
 
-	// Pops remaining scopes
-	if (RENDER_GRAPH_DRAW_EVENTS)
-	{
-		if (GetEmitDrawEvents())
-		{
-			for (int32 i = 0; i < kMaxScopeCount; i++)
-			{
-				if (!ScopesStack[i])
-					break;
-				RHICmdList.PopEvent();
-			}
-		}
-	}
+	EventScopeStack.EndExecute();
 
 	ProcessDeferredInternalResourceQueries();
 
 	DestructPasses();
 
-	#if RENDER_GRAPH_DEBUGGING
+	#if RDG_ENABLE_DEBUG
 	{
 		bHasExecuted = true;
 	}
 	#endif
 }
 
-void FRDGBuilder::DebugPass(const FRenderGraphPass* Pass)
+void FRDGBuilder::AddPassInternal(FRDGPass* Pass)
 {
-#if RENDER_GRAPH_DEBUGGING
+#if RDG_ENABLE_DEBUG
+	{
+		const void* ParameterStructData = Pass->GetParameters().Contents;
+
+		checkf(!bHasExecuted, TEXT("Render graph pass %s needs to be added before the builder execution."), Pass->GetName());
+
+		/** A pass parameter structure requires a correct life time until the pass execution, and therefor needs to be
+			* allocated with FRDGBuilder::AllocParameters().
+			*
+			* Moreover, because the destructor of this parameter structure will be done after the pass execution, a it can
+			* only be used by a single AddPass().
+			*/
+		checkf(
+			AllocatedUnusedPassParameters.Contains(ParameterStructData),
+			TEXT("The pass parameter structure has not been allocated for correct life time FRDGBuilder::AllocParameters() or has already ")
+			TEXT("been used by another previous FRDGBuilder::AddPass()."));
+
+		AllocatedUnusedPassParameters.Remove(ParameterStructData);
+	}
+#endif
+
+	Pass->ParentScope = EventScopeStack.GetCurrentScope();
+	Passes.Emplace(Pass);
+
+#if RDG_ENABLE_DEBUG || SUPPORTS_VISUALIZE_TEXTURE
+	{
+		DebugPass(Pass);
+	}
+#endif
+}
+
+void FRDGBuilder::DebugPass(const FRDGPass* Pass)
+{
+#if RDG_ENABLE_DEBUG
 	// Verify all the settings of the pass make sense.
 	ValidatePass(Pass);
 
@@ -211,7 +204,7 @@ void FRDGBuilder::DebugPass(const FRenderGraphPass* Pass)
 	}
 #endif
 
-#if WITH_ENGINE && SUPPORTS_VISUALIZE_TEXTURE
+#if SUPPORTS_VISUALIZE_TEXTURE
 	// If visualizing a texture, look for any output of the pass. This must be done after the
 	// GRenderGraphImmediateMode's ExecutePass() because this will actually create a capturing
 	// pass if needed that would have to be executed right away as well.
@@ -222,9 +215,9 @@ void FRDGBuilder::DebugPass(const FRenderGraphPass* Pass)
 #endif
 }
 
-void FRDGBuilder::ValidatePass(const FRenderGraphPass* Pass) const
+void FRDGBuilder::ValidatePass(const FRDGPass* Pass) const
 {
-#if RENDER_GRAPH_DEBUGGING
+#if RDG_ENABLE_DEBUG
 	FRenderTargetBindingSlots* RESTRICT RenderTargets = nullptr;
 	FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
 
@@ -340,7 +333,7 @@ void FRDGBuilder::ValidatePass(const FRenderGraphPass* Pass) const
 	{
 		checkf(bRequiresRenderTargetSlots, TEXT("Render pass %s does not need render target binging slots"), Pass->GetName());
 
-		const bool bGeneratingMips = (Pass->GetFlags() & ERenderGraphPassFlags::GenerateMips) == ERenderGraphPassFlags::GenerateMips;
+		const bool bGeneratingMips = (Pass->GetFlags() & ERDGPassFlags::GenerateMips) == ERDGPassFlags::GenerateMips;
 		bool bFoundRTBound = false;
 
 		int32 NumRenderTargets = 0;
@@ -394,10 +387,10 @@ void FRDGBuilder::ValidatePass(const FRenderGraphPass* Pass) const
 	{
 		checkf(!bRequiresRenderTargetSlots, TEXT("Render pass %s requires render target binging slots"), Pass->GetName());
 	}
-#endif // RENDER_GRAPH_DEBUGGING
+#endif // RDG_ENABLE_DEBUG
 }
 
-void FRDGBuilder::CaptureAnyInterestingPassOutput(const FRenderGraphPass* Pass)
+void FRDGBuilder::CaptureAnyInterestingPassOutput(const FRDGPass* Pass)
 {
 #if SUPPORTS_VISUALIZE_TEXTURE
 	FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
@@ -451,7 +444,7 @@ void FRDGBuilder::CaptureAnyInterestingPassOutput(const FRenderGraphPass* Pass)
 
 void FRDGBuilder::WalkGraphDependencies()
 {
-	for (const FRenderGraphPass* Pass : Passes)
+	for (const FRDGPass* Pass : Passes)
 	{
 		FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
 
@@ -537,7 +530,7 @@ void FRDGBuilder::WalkGraphDependencies()
 				break;
 			}
 		}
-	} // for (const FRenderGraphPass* Pass : Passes)
+	} 
 
 	// Add additional dependencies from deferred queries.
 	for (const auto& Query : DeferredInternalTextureQueries)
@@ -616,7 +609,7 @@ void FRDGBuilder::AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV, bool bCompute
 	}
 	
 	// The underlying buffer have already been allocated by a prior pass through AllocateRHIBufferUAVIfNeeded().
-	#if RENDER_GRAPH_DEBUGGING
+	#if RDG_ENABLE_DEBUG
 	{
 		check(SRV->Desc.Buffer->bHasEverBeenProduced);
 	}	
@@ -773,77 +766,7 @@ void FRDGBuilder::TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, FRDGResourc
 	}
 }
 
-void FRDGBuilder::PushDrawEventStack(const FRenderGraphPass* Pass)
-{
-	// Push the scope event.
-	{
-		// Find out how many scope events needs to be poped.
-		TStaticArray<const FRDGEventScope*, kMaxScopeCount> TraversedScopes;
-		int32 CommonScopeId = -1;
-		int32 TraversedScopeCount = 0;
-		const FRDGEventScope* PassParentScope = Pass->ParentScope;
-		while (PassParentScope)
-		{
-			TraversedScopes[TraversedScopeCount] = PassParentScope;
-
-			for (int32 i = 0; i < ScopesStack.Num(); i++)
-			{
-				if (ScopesStack[i] == PassParentScope)
-				{
-					CommonScopeId = i;
-					break;
-				}
-			}
-
-			if (CommonScopeId != -1)
-			{
-				break;
-			}
-
-			TraversedScopeCount++;
-			PassParentScope = PassParentScope->ParentScope;
-		}
-
-		// Pop no longer used scopes
-		for (int32 i = CommonScopeId + 1; i < kMaxScopeCount; i++)
-		{
-			if (!ScopesStack[i])
-				break;
-
-			RHICmdList.PopEvent();
-			ScopesStack[i] = nullptr;
-		}
-
-		// Push new scopes
-		const FColor ScopeColor(0);
-		for (int32 i = TraversedScopeCount - 1; i >= 0; i--)
-		{
-			RHICmdList.PushEvent(TraversedScopes[i]->Name.GetTCHAR(), ScopeColor);
-			CommonScopeId++;
-			ScopesStack[CommonScopeId] = TraversedScopes[i];
-		}
-	}
-
-	// Push the pass's event with some color.
-	{
-		FColor Color(0, 0, 0);
-
-		if (Pass->IsCompute())
-		{
-			// Green for compute.
-			Color = FColor(128, 255, 128);
-		}
-		else
-		{
-			// Ref for rasterizer.
-			Color = FColor(255, 128, 128);
-		}
-
-		RHICmdList.PushEvent(Pass->GetName(), Color);
-	}
-}
-
-void FRDGBuilder::ExecutePass( const FRenderGraphPass* Pass )
+void FRDGBuilder::ExecutePass(const FRDGPass* Pass)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGBuilder_ExecutePass);
 
@@ -852,20 +775,14 @@ void FRDGBuilder::ExecutePass( const FRenderGraphPass* Pass )
 
 	AllocateAndTransitionPassResources(Pass, &RPInfo, &bHasRenderTargets);
 	
-	if (RENDER_GRAPH_DEBUGGING)
+	if (RDG_ENABLE_DEBUG)
 	{
 		UpdateAccessGuardForPassResources(Pass, /** bAllowAccess */ true);
 	}
 
-	if (RENDER_GRAPH_DRAW_EVENTS)
-	{
-		if (GetEmitDrawEvents())
-		{
-			PushDrawEventStack(Pass);
-		}
-	}
+	EventScopeStack.BeginExecutePass(Pass);
 
-	if( !Pass->IsCompute())
+	if (!Pass->IsCompute())
 	{
 		check(bHasRenderTargets);
 		RHICmdList.BeginRenderPass( RPInfo, Pass->GetName() );
@@ -885,15 +802,9 @@ void FRDGBuilder::ExecutePass( const FRenderGraphPass* Pass )
 		RHICmdList.EndRenderPass();
 	}
 
-	if (RENDER_GRAPH_DRAW_EVENTS)
-	{
-		if (GetEmitDrawEvents())
-		{
-			RHICmdList.PopEvent();
-		}
-	}
+	EventScopeStack.EndExecutePass();
 
-	if (RENDER_GRAPH_DEBUGGING)
+	if (RDG_ENABLE_DEBUG)
 	{
 		UpdateAccessGuardForPassResources(Pass, /** bAllowAccess */ false);
 		WarnForUselessPassDependencies(Pass);
@@ -906,12 +817,12 @@ void FRDGBuilder::ExecutePass( const FRenderGraphPass* Pass )
 	}
 }
 
-void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasRenderTargets)
+void FRDGBuilder::AllocateAndTransitionPassResources(const FRDGPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasRenderTargets)
 {
 	bool bIsCompute = Pass->IsCompute();
 	FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
 
-	const bool bGeneratingMips = (Pass->GetFlags() & ERenderGraphPassFlags::GenerateMips) == ERenderGraphPassFlags::GenerateMips;
+	const bool bGeneratingMips = (Pass->GetFlags() & ERDGPassFlags::GenerateMips) == ERDGPassFlags::GenerateMips;
 	for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
 	{
 		EUniformBufferBaseType Type = ParameterStruct.Layout->Resources[ResourceIndex].MemberType;
@@ -925,7 +836,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 			if (Texture)
 			{
 				// The underlying texture have already been allocated by a prior pass.
-				#if RENDER_GRAPH_DEBUGGING
+				#if RDG_ENABLE_DEBUG
 				{
 					check(Texture->bHasEverBeenProduced);
 				}	
@@ -934,7 +845,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 				check(Texture->CachedRHI.Resource);
 				TransitionTexture(Texture, EResourceTransitionAccess::EReadable, bIsCompute);
 
-				#if RENDER_GRAPH_DEBUGGING
+				#if RDG_ENABLE_DEBUG
 				{
 					Texture->DebugPassAccessCount++;
 				}
@@ -949,7 +860,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 			{
 				// The underlying texture have already been allocated by a prior pass.
 				check(SRV->Desc.Texture);
-				#if RENDER_GRAPH_DEBUGGING
+				#if RDG_ENABLE_DEBUG
 				{
 					check(SRV->Desc.Texture->bHasEverBeenProduced);
 				}	
@@ -964,7 +875,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 
 				TransitionTexture(SRV->Desc.Texture, EResourceTransitionAccess::EReadable, bIsCompute);
 
-				#if RENDER_GRAPH_DEBUGGING
+				#if RDG_ENABLE_DEBUG
 				{
 					SRV->Desc.Texture->DebugPassAccessCount++;
 				}
@@ -980,7 +891,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 				AllocateRHITextureUAVIfNeeded(UAV, bIsCompute);
 				TransitionUAV(UAV->CachedRHI.UAV, UAV->Desc.Texture, UAV->Desc.Texture->Flags, EResourceTransitionAccess::EWritable, bIsCompute);
 
-				#if RENDER_GRAPH_DEBUGGING
+				#if RDG_ENABLE_DEBUG
 				{
 					UAV->Desc.Texture->DebugPassAccessCount++;
 				}
@@ -994,7 +905,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 			if (Buffer)
 			{
 				// The underlying buffer have already been allocated by a prior pass through AllocateRHIBufferUAVIfNeeded().
-				#if RENDER_GRAPH_DEBUGGING
+				#if RDG_ENABLE_DEBUG
 				{
 					check(Buffer->bHasEverBeenProduced);
 				}
@@ -1006,7 +917,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 				FUnorderedAccessViewRHIParamRef UAV = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
 				TransitionUAV(UAV, Buffer, Buffer->Flags, EResourceTransitionAccess::EReadable, bIsCompute);
 
-				#if RENDER_GRAPH_DEBUGGING
+				#if RDG_ENABLE_DEBUG
 				{
 					Buffer->DebugPassAccessCount++;
 				}
@@ -1021,7 +932,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 			{
 				// The underlying buffer have already been allocated by a prior pass through AllocateRHIBufferUAVIfNeeded().
 				check(SRV->Desc.Buffer);
-				#if RENDER_GRAPH_DEBUGGING
+				#if RDG_ENABLE_DEBUG
 				{
 					check(SRV->Desc.Buffer->bHasEverBeenProduced);
 				}
@@ -1035,7 +946,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 				FUnorderedAccessViewRHIParamRef UAV = SRV->Desc.Buffer->PooledBuffer->UAVs.CreateIterator().Value();
 				TransitionUAV(UAV, SRV->Desc.Buffer, SRV->Desc.Buffer->Flags, EResourceTransitionAccess::EReadable, bIsCompute);
 
-				#if RENDER_GRAPH_DEBUGGING
+				#if RDG_ENABLE_DEBUG
 				{
 					SRV->Desc.Buffer->DebugPassAccessCount++;
 				}
@@ -1051,7 +962,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 				AllocateRHIBufferUAVIfNeeded(UAV, bIsCompute);
 				TransitionUAV(UAV->CachedRHI.UAV, UAV->Desc.Buffer, UAV->Desc.Buffer->Flags, EResourceTransitionAccess::EWritable, bIsCompute);
 
-				#if RENDER_GRAPH_DEBUGGING
+				#if RDG_ENABLE_DEBUG
 				{
 					UAV->Desc.Buffer->DebugPassAccessCount++;
 				}
@@ -1092,7 +1003,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 					NumSamples |= OutRPInfo->ColorRenderTargets[i].RenderTarget->GetNumSamples();
 					NumRenderTargets++;
 					
-					#if RENDER_GRAPH_DEBUGGING
+					#if RDG_ENABLE_DEBUG
 					{
 						RenderTarget.GetTexture()->DebugPassAccessCount++;
 					}
@@ -1121,7 +1032,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 				NumSamples |= OutRPInfo->DepthStencilRenderTarget.DepthStencilTarget->GetNumSamples();
 				NumDepthStencilTargets++;
 					
-				#if RENDER_GRAPH_DEBUGGING
+				#if RDG_ENABLE_DEBUG
 				{
 					DepthStencil.GetTexture()->DebugPassAccessCount++;
 				}
@@ -1142,9 +1053,9 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 }
 
 // static
-void FRDGBuilder::UpdateAccessGuardForPassResources(const FRenderGraphPass* Pass, bool bAllowAccess)
+void FRDGBuilder::UpdateAccessGuardForPassResources(const FRDGPass* Pass, bool bAllowAccess)
 {
-#if RENDER_GRAPH_DEBUGGING
+#if RDG_ENABLE_DEBUG
 	FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
 
 	for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
@@ -1182,7 +1093,7 @@ void FRDGBuilder::UpdateAccessGuardForPassResources(const FRenderGraphPass* Pass
 }
 
 // static 
-void FRDGBuilder::WarnForUselessPassDependencies(const FRenderGraphPass* Pass)
+void FRDGBuilder::WarnForUselessPassDependencies(const FRDGPass* Pass)
 {
 	if (!GRenderGraphEmitWarnings)
 	{
@@ -1284,7 +1195,7 @@ void FRDGBuilder::ReleaseRHIBufferIfPossible(FRDGBuffer* Buffer)
 	}
 }
 
-void FRDGBuilder::ReleaseUnecessaryResources(const FRenderGraphPass* Pass)
+void FRDGBuilder::ReleaseUnecessaryResources(const FRDGPass* Pass)
 {
 	FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
 
@@ -1392,7 +1303,7 @@ void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 
 		*Query.OutTexturePtr = AllocatedTextures.FindChecked(Query.Texture);
 		
-		#if RENDER_GRAPH_DEBUGGING
+		#if RDG_ENABLE_DEBUG
 		{
 			// Increment the number of times the texture has been accessed to avoid warning on produced but never used resources that were produced
 			// only to be extracted for the graph.
@@ -1411,7 +1322,7 @@ void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 	{
 		*Query.OutBufferPtr = AllocatedBuffers.FindChecked(Query.Buffer);
 
-#if RENDER_GRAPH_DEBUGGING
+#if RDG_ENABLE_DEBUG
 		{
 			// Increment the number of times the buffer has been accessed to avoid warning on produced but never used resources that were produced
 			// only to be extracted for the graph.
@@ -1429,18 +1340,7 @@ void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 
 void FRDGBuilder::DestructPasses()
 {
-	#if RENDER_GRAPH_DRAW_EVENTS == 2
-	{
-		// Event scopes are allocated on FMemStack, so need to call their destructor because have a FString within them.
-		for (FRDGEventScope* EventScope : EventScopes)
-		{
-			EventScope->~FRDGEventScope();
-		}
-		EventScopes.Empty();
-	}
-	#endif
-
-	#if RENDER_GRAPH_DEBUGGING
+	#if RDG_ENABLE_DEBUG
 	{
 		// Make sure all resource references have been released to ensure no leaks happen,
 		// and emit warning if produced resource has not been used.
@@ -1462,9 +1362,9 @@ void FRDGBuilder::DestructPasses()
 	#endif
 
 	// Passes are allocated on FMemStack, so need to call destructor manually.
-	for (FRenderGraphPass* Pass : Passes)
+	for (int32 Index = Passes.Num() - 1; Index >= 0; --Index)
 	{
-		Pass->~FRenderGraphPass();
+		Passes[Index]->~FRDGPass();
 	}
 
 	Passes.Empty();
@@ -1474,17 +1374,19 @@ void FRDGBuilder::DestructPasses()
 	AllocatedBuffers.Empty();
 }
 
+void FRDGBuilder::BeginEventScope(FRDGEventName&& ScopeName)
+{
+	EventScopeStack.BeginEventScope(MoveTemp(ScopeName));
+}
+
+void FRDGBuilder::EndEventScope()
+{
+	EventScopeStack.EndEventScope();
+}
+
 FRDGBuilder::~FRDGBuilder()
 {
-	// Owned objects must be destroyed in reverse allocation order to ensure that children are destroyed before parents.
-	while(OwnedObjects.Num())
-	{
-		FOwnedObjectPtr& Obj = OwnedObjects.Last();
-		Obj.Deleter(Obj.Ptr);
-		OwnedObjects.Pop(false);
-	}
-
-	#if RENDER_GRAPH_DEBUGGING
+	#if RDG_ENABLE_DEBUG
 	{
 		checkf(bHasExecuted, TEXT("Render graph execution is required to ensure consistency with immediate mode."));
 	}

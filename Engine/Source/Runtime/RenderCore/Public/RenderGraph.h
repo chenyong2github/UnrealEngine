@@ -56,6 +56,7 @@
  * or FPixelShaderUtils.
  */
 
+#include "RenderGraphDefinitions.h"
 #include "RenderGraphResources.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
