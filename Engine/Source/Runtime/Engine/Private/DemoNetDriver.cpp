@@ -1668,7 +1668,7 @@ bool UDemoNetDriver::DemoReplicateActor(AActor* Actor, UNetConnection* Connectio
 			Channel = (UActorChannel*)Connection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally);
 			if (Channel != nullptr)
 			{
-				Channel->SetChannelActor(Actor);
+				Channel->SetChannelActor(Actor, ESetChannelActorFlags::None);
 			}
 		}
 
