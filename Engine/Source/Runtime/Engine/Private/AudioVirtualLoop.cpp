@@ -72,8 +72,7 @@ bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevi
 	ActiveSound->bAsyncOcclusionPending = false;
 	ActiveSound->AudioDevice = &AudioDevice;
 	ActiveSound->bIsPlayingAudio = false;
-	ActiveSound->ConcurrencyGroupIDs.Reset();
-	ActiveSound->ConcurrencyGroupVolumeScales.Reset();
+	ActiveSound->ConcurrencyGroupData.Reset();
 	ActiveSound->VolumeConcurrency = 1.0f;
 	ActiveSound->WaveInstances.Reset();
 	ActiveSound->bHasVirtualized = true;
@@ -200,14 +199,16 @@ void FAudioVirtualLoop::DrawDebugInfo() const
 		const TWeakObjectPtr<UWorld> World = ActiveSound->GetWeakWorld();
 		const FString Name = Sound->GetName();
 		const float DrawInterval = UpdateInterval;
-		FAudioThread::RunCommandOnGameThread([World, Transform, Name, DrawInterval]()
+		const float Volume = ActiveSound->GetVolume();
+		FAudioThread::RunCommandOnGameThread([World, Transform, Name, DrawInterval, Volume]()
 		{
 			if (World.IsValid())
 			{
+				const FString Description = FString::Printf(TEXT("%s (%.3f)"), *Name, Volume);
 				FVector Location = Transform.GetLocation();
 				FRotator Rotation = Transform.GetRotation().Rotator();
 				DrawDebugCrosshairs(World.Get(), Location, Rotation, 20.0f, FColor::Blue, false, DrawInterval, SDPG_Foreground);
-				DrawDebugString(World.Get(), Location + FVector(0, 0, 32), *Name, nullptr, FColor::Blue, DrawInterval, false);
+				DrawDebugString(World.Get(), Location + FVector(0, 0, 32), *Description, nullptr, FColor::Blue, DrawInterval, false);
 			}
 		}, GET_STATID(STAT_AudioDrawVirtualLoopDebugInfo));
 	}
