@@ -1,57 +1,123 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_FABRIK.h"
 #include "Units/RigUnitContext.h"
 
 void FRigUnit_FABRIK::Execute(const FRigUnitContext& Context)
 {
-	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
+	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
+	if (Hierarchy == nullptr)
+	{
+		return;
+	}
 
 	if (Context.State == EControlRigState::Init)
 	{
-		const FRigHierarchy* Hierarchy = HierarchyRef.Get();
-		if (Hierarchy)
-		{
-			FullLimbLength = 0.f;
+		BoneIndices.Reset();
 
-			// verify the chain
-			const int32 RootIndex = Hierarchy->GetIndex(StartJoint);
-			if (RootIndex != INDEX_NONE)
+		// verify the chain
+		const int32 RootIndex = Hierarchy->GetIndex(StartBone);
+		if (RootIndex != INDEX_NONE)
+		{
+			int32 CurrentIndex = EffectorIndex = Hierarchy->GetIndex(EffectorBone);
+			while (CurrentIndex != INDEX_NONE)
 			{
-				int32 CurrentIndex = Hierarchy->GetIndex(EndJoint);
-				while (CurrentIndex != INDEX_NONE)
+				// ensure the chain
+				int32 ParentIndex = Hierarchy->GetParentIndex(CurrentIndex);
+				if (ParentIndex != INDEX_NONE)
 				{
-					// ensure the chain
-					int32 ParentIndex = Hierarchy->GetParentIndex(CurrentIndex);
-					if (ParentIndex != INDEX_NONE)
-					{
-						// set length for upper/lower length
-						FTransform ParentTransform = Hierarchy->GetGlobalTransform(ParentIndex);
-						FTransform CurrentTransform = Hierarchy->GetGlobalTransform(CurrentIndex);
-						FVector Length = ParentTransform.GetLocation() - CurrentTransform.GetLocation();
-						FullLimbLength += Length.Size();
-					}
-
-					if (ParentIndex == RootIndex)
-					{
-						break;
-					}
-
-					CurrentIndex = ParentIndex;
+					BoneIndices.Add(CurrentIndex);
 				}
+
+				if (ParentIndex == RootIndex)
+				{
+					BoneIndices.Add(RootIndex);
+					break;
+				}
+
+				CurrentIndex = ParentIndex;
 			}
-		}
-		else
-		{
-			UnitLogHelpers::PrintMissingHierarchy(RigUnitName);
+
+			Chain.Reserve(BoneIndices.Num());
 		}
 	}
 	else  if (Context.State == EControlRigState::Update)
 	{
-		if (FullLimbLength > 0.f)
+		if (BoneIndices.Num() > 0)
 		{
-			UnitLogHelpers::PrintUnimplemented(RigUnitName);
+			// Gather chain links. These are non zero length bones.
+			Chain.Reset();
+			
+			TArray<FTransform> Transforms;
+			Transforms.AddDefaulted(BoneIndices.Num());
+
+			float MaximumReach = 0.f;
+			int32 const NumChainLinks = BoneIndices.Num();
+			const int32 RootIndex = BoneIndices.Last();
+			Chain.Add(FABRIKChainLink(Hierarchy->GetGlobalTransform(RootIndex).GetLocation(), 0.f, RootIndex, 0));
+			Transforms[0] = Hierarchy->GetGlobalTransform(RootIndex);
+
+			// start from child to up
+			for (int32 ChainIndex = BoneIndices.Num() - 2; ChainIndex >= 0 ; --ChainIndex)
+			{
+				const FTransform& BoneTransform = Hierarchy->GetGlobalTransform(BoneIndices[ChainIndex]);
+				const FTransform& ParentTransform = Hierarchy->GetGlobalTransform(BoneIndices[ChainIndex + 1]);
+
+				// Calculate the combined length of this segment of skeleton
+				float const BoneLength = FVector::Dist(BoneTransform.GetLocation(), ParentTransform.GetLocation());
+
+				const int32 TransformIndex = Chain.Num();
+				Chain.Add(FABRIKChainLink(BoneTransform.GetLocation(), BoneLength, BoneIndices[ChainIndex], TransformIndex));
+				MaximumReach += BoneLength;
+
+				Transforms[TransformIndex] = BoneTransform;
+			}
+
+
+			bool bBoneLocationUpdated = AnimationCore::SolveFabrik(Chain, EffectorTransform.GetLocation(), MaximumReach, Precision, MaxIterations);
+			// If we moved some bones, update bone transforms.
+			if (bBoneLocationUpdated)
+			{
+				// FABRIK algorithm - re-orientation of bone local axes after translation calculation
+				for (int32 LinkIndex = 0; LinkIndex < NumChainLinks - 1; LinkIndex++)
+				{
+					const FABRIKChainLink& CurrentLink = Chain[LinkIndex];
+					const FABRIKChainLink& ChildLink = Chain[LinkIndex + 1];
+
+					// Calculate pre-translation vector between this bone and child
+					FVector const OldDir = (Hierarchy->GetGlobalTransform(ChildLink.BoneIndex).GetLocation() - Hierarchy->GetGlobalTransform(CurrentLink.BoneIndex).GetLocation()).GetUnsafeNormal();
+
+					// Get vector from the post-translation bone to it's child
+					FVector const NewDir = (ChildLink.Position - CurrentLink.Position).GetUnsafeNormal();
+
+					// Calculate axis of rotation from pre-translation vector to post-translation vector
+					FVector const RotationAxis = FVector::CrossProduct(OldDir, NewDir).GetSafeNormal();
+					float const RotationAngle = FMath::Acos(FVector::DotProduct(OldDir, NewDir));
+					FQuat const DeltaRotation = FQuat(RotationAxis, RotationAngle);
+					// We're going to multiply it, in order to not have to re-normalize the final quaternion, it has to be a unit quaternion.
+					checkSlow(DeltaRotation.IsNormalized());
+
+					// Calculate absolute rotation and set it
+					FTransform& CurrentBoneTransform = Transforms[CurrentLink.TransformIndex];
+					CurrentBoneTransform.SetRotation(DeltaRotation * CurrentBoneTransform.GetRotation());
+					CurrentBoneTransform.NormalizeRotation();
+					CurrentBoneTransform.SetTranslation(CurrentLink.Position);
+				}
+
+				// fill up the last data transform
+				const FABRIKChainLink & CurrentLink = Chain[NumChainLinks - 1];
+				FTransform& CurrentBoneTransform = Transforms[CurrentLink.TransformIndex];
+				CurrentBoneTransform.SetTranslation(CurrentLink.Position);
+				CurrentBoneTransform.SetRotation(Hierarchy->GetGlobalTransform(CurrentLink.BoneIndex).GetRotation());
+
+				for (int32 LinkIndex = 0; LinkIndex < NumChainLinks; LinkIndex++)
+				{
+					FABRIKChainLink const & LocalLink = Chain[LinkIndex];
+					Hierarchy->SetGlobalTransform(LocalLink.BoneIndex, Transforms[LocalLink.TransformIndex]);
+				}
+
+				Hierarchy->SetGlobalTransform(EffectorIndex, EffectorTransform);
+			}
 		}
 	}
 }
-

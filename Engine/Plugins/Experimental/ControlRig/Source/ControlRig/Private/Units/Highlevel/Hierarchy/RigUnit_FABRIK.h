@@ -2,48 +2,61 @@
 
 #pragma once
 
-#include "Units/RigUnit.h"
-#include "Hierarchy.h"
-#include "ControlRigDefines.h"
+#include "Units/Highlevel/RigUnit_HighlevelBase.h"
 #include "FABRIK.h"
 #include "RigUnit_FABRIK.generated.h"
 
-/** 
- * Spec define: TBD
+/**
+ * The FABRIK solver can solve N-Bone chains using 
+ * the Forward and Backward Reaching Inverse Kinematics algorithm.
+ * For now this node supports single effector chains only.
  */
-
-// make it abstract since it's not working yet
-USTRUCT(meta=(DisplayName="FABRIK", Category="Transforms", Abstract))
-struct CONTROLRIG_API FRigUnit_FABRIK : public FRigUnitMutable
+USTRUCT(meta=(DisplayName="Basic FABRIK", Category="Hierarchy", Keywords="N-Bone,IK"))
+struct FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	FRigUnit_FABRIK()
-		: Precision(1.f)
-		, MaxIterations(10)
-		, FullLimbLength(0.f)
-	{}
+	{
+		EffectorIndex = INDEX_NONE;
+		Precision = 1.f;
+		MaxIterations = 10;
+		EffectorTransform = FTransform::Identity;
+	}
 
-	UPROPERTY(EditAnywhere, Category = "FABRIK", meta = (Input))
-	FName StartJoint;
+	/**
+	 * The first bone in the chain to solve
+	 */
+	UPROPERTY(meta = (Input, Constant, BoneName))
+	FName StartBone;
 
-	UPROPERTY(EditAnywhere, Category = "FABRIK", meta = (Input))
-	FName EndJoint;
+	/**
+	 * The last bone in the chain to solve - the effector
+	 */
+	UPROPERTY(meta = (Input, Constant, BoneName))
+	FName EffectorBone;
 
-	/** Tolerance for final tip location delta from EffectorLocation*/
-	UPROPERTY(EditAnywhere, Category = Solver)
+	/**
+	 * The transform of the effector in global space
+	 */
+	UPROPERTY(meta = (Input))
+	FTransform EffectorTransform;
+
+	/**
+	 * The precision to use for the fabrik solver
+	 */
+	UPROPERTY(meta = (Input, Constant))
 	float Precision;
 
-	/** Maximum number of iterations allowed, to control performance. */
-	UPROPERTY(EditAnywhere, Category = Solver)
+	/**
+	 * The maximum number of iterations. Values between 4 and 16 are common.
+	 */
+	UPROPERTY(meta = (Input))
 	int32 MaxIterations;
 
-private:
-	TArray<FABRIKChainLink> ChainLink;
-
-	// by default, it is full skeleton length
-	// we can support stretch option
-	float FullLimbLength;
+	TArray<FABRIKChainLink> Chain;
+	TArray<int32> BoneIndices;
+	int32 EffectorIndex;
 };
