@@ -6,14 +6,14 @@
 #include "UObject/ObjectMacros.h"
 #include "Templates/SubclassOf.h"
 #include "Animation/AnimCurveTypes.h"
-#include "Animation/AnimNodeBase.h"
+#include "Animation/AnimNode_CustomProperty.h"
 #include "Animation/AnimInstance.h"
 #include "AnimNode_SubInstance.generated.h"
 
 struct FAnimInstanceProxy;
 
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_SubInstance : public FAnimNode_Base
+struct ENGINE_API FAnimNode_SubInstance : public FAnimNode_CustomProperty
 {
 	GENERATED_BODY()
 
@@ -36,26 +36,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	FName Tag;
 
-	/** List of source properties to use, 1-1 with Dest names below, built by the compiler */
-	UPROPERTY()
-	TArray<FName> SourcePropertyNames;
-
-	/** List of destination properties to use, 1-1 with Source names above, built by the compiler */
-	UPROPERTY()
-	TArray<FName> DestPropertyNames;
-
-	/** This is the actual instance allocated at runtime that will run */
-	UPROPERTY(Transient)
-	UAnimInstance* InstanceToRun;
-
-	/** List of properties on the calling instance to push from */
-	UPROPERTY(Transient)
-	TArray<UProperty*> InstanceProperties;
-
-	/** List of properties on the sub instance to push to, built from name list when initialised */
-	UPROPERTY(Transient)
-	TArray<UProperty*> SubInstanceProperties;
-
 	// Temporary storage for the output of the subinstance, will be copied into output pose.
 	FBlendedHeapCurve BlendedCurve;
 
@@ -72,4 +52,10 @@ protected:
 
 	// Shutdown the currently running instance
 	void TeardownInstance();
+
+	// Get Target Class
+	virtual UClass* GetTargetClass() const override 
+	{
+		return *InstanceClass;
+	}
 };

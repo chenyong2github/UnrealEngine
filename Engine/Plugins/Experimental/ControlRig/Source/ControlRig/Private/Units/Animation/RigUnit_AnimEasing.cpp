@@ -11,66 +11,7 @@ void FRigUnit_AnimEasing::Execute(const FRigUnitContext& Context)
 	}
 
 	Result = FMath::Clamp<float>((Value - SourceMinimum) / (SourceMaximum - SourceMinimum), 0.f, 1.f);
-
-	switch(Type)
-	{
-		case EControlRigAnimEasingType::Linear:
-		{
-			break;
-		}
-		case EControlRigAnimEasingType::QuadraticIn:
-		{
-			Result = Result * Result;
-			break;
-		}
-		case EControlRigAnimEasingType::QuadraticOut:
-		{
-			Result = -(Result * (Result - 2.f));
-			break;
-		}
-		case EControlRigAnimEasingType::QuadraticInOut:
-		{
-			if (Result < 0.5f)
-			{
-				Result = 2.f * Result * Result;
-			}
-			else
-			{
-				Result = (-2.f * Result * Result) + (4.f * Result) - 1.f;
-			}
-			break;
-		}
-		case EControlRigAnimEasingType::CubicIn:
-		{
-			Result = Result * Result * Result;
-			break;
-		}
-		case EControlRigAnimEasingType::CubicOut:
-		{
-			Result = Result - 1.f;
-			Result = Result * Result * Result + 1.f;
-			break;
-		}
-		case EControlRigAnimEasingType::CubicInOut:
-		{
-			if (Result < 0.5f)
-			{
-				Result = 4.f * Result * Result * Result;
-			}
-			else
-			{
-				Result = 2.f * Result - 2.f;
-				Result = 0.5f * Result * Result * Result + 1.f;
-			}
-			break;
-		}
-		case EControlRigAnimEasingType::Sinusoidal:
-		{
-			Result = (FMath::Sin(Result * PI - HALF_PI) + 1.f) * 0.5f;
-			break;
-		}
-	}
-
+	Result = FControlRigMathLibrary::EaseFloat(Result, Type);
 	Result = FMath::Lerp<float>(TargetMinimum, TargetMaximum, Result);
 }
 
