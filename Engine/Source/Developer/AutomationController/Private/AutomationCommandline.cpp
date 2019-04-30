@@ -455,13 +455,17 @@ public:
 				{
 					if (!GIsCriticalError)
 					{
-						UE_LOG(LogAutomationCommandLine, Display, TEXT("Setting GIsCriticalError due to test failures (will cause non-zero exit code)."));
-						GIsCriticalError = AutomationController->ReportsHaveErrors();
+						if (AutomationController->ReportsHaveErrors())
+						{
+							UE_LOG(LogAutomationCommandLine, Display, TEXT("Setting GIsCriticalError due to test failures (will cause non-zero exit code)."));
+							GIsCriticalError = AutomationController->ReportsHaveErrors();
+						}
 					}
 
-					UE_LOG(LogAutomationCommandLine, Display, TEXT("Forcing shutdown."));
+					UE_LOG(LogAutomationCommandLine, Log, TEXT("Forcing shutdown."));
+					// some tools parse this.
+					UE_LOG(LogAutomationCommandLine, Display, TEXT("**** TEST COMPLETE. EXIT CODE: %d ****"), GIsCriticalError ? -1 : 0);
 					FPlatformMisc::RequestExit(true);
-
 					// We have finished the testing, and results are available
 					AutomationTestState = EAutomationTestState::Complete;
 				}

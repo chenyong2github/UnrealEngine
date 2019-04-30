@@ -724,22 +724,23 @@ FString FAutomationExecutionEntry::ToString() const
 {
 	FString ComplexString;
 
+	ComplexString = Event.Message;
+	
 	if ( !Filename.IsEmpty() && LineNumber > 0 )
 	{
+		ComplexString += TEXT(" [");
 		ComplexString += Filename;
 		ComplexString += TEXT("(");
 		ComplexString += FString::FromInt(LineNumber);
-		ComplexString += TEXT("): ");
+		ComplexString += TEXT(")]");
 	}
 
 	if ( !Event.Context.IsEmpty() )
 	{
-		ComplexString += TEXT("[");
+		ComplexString += TEXT(" [");
 		ComplexString += Event.Context;
 		ComplexString += TEXT("] ");
 	}
-
-	ComplexString += Event.Message;
 
 	return ComplexString;
 }
