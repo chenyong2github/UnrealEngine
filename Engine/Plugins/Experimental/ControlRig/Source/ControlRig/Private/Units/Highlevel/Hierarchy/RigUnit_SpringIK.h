@@ -48,18 +48,17 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 
 	FRigUnit_SpringIK()
 	{
-		Bone = NAME_None;
-		Primary = FRigUnit_SpringIK_Target();
-		Secondary = FRigUnit_SpringIK_Target();
+		DebugSettings = FRigUnit_SpringIK_DebugSettings();
+		/*
 		Primary.Axis = FVector(1.f, 0.f, 0.f);
 		Secondary.Axis = FVector(0.f, 0.f, 1.f);
 		bPropagateToChildren = false;
-		DebugSettings = FRigUnit_SpringIK_DebugSettings();
 		BoneIndex = INDEX_NONE;
 		PrimaryCachedSpaceName = NAME_None;
 		PrimaryCachedSpaceIndex = INDEX_NONE;
 		SecondaryCachedSpaceName = NAME_None;
 		SecondaryCachedSpaceIndex = INDEX_NONE;
+		*/
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -70,42 +69,7 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(meta = (Input, Constant, BoneName))
 	TArray<FName> Bones;
 
-	/**
-	 * The primary target for the aim 
-	 */
-	UPROPERTY(meta = (Input))
-	FRigUnit_SpringIK_Target Primary;
-
-	/**
-	 * The secondary target for the aim - also referred to as PoleVector / UpVector
-	 */
-	UPROPERTY(meta = (Input))
-	FRigUnit_SpringIK_Target Secondary;
-
-	/**
-	 * If set to true all of the global transforms of the children
-	 * of this bone will be recalculated based on their local transforms.
-	 * Note: This is computationally more expensive than turning it off.
-	 */
-	UPROPERTY(meta = (Input))
-	bool bPropagateToChildren;
-
 	/** The debug setting for the node */
 	UPROPERTY(meta = (Input))
 	FRigUnit_SpringIK_DebugSettings DebugSettings;
-
-	UPROPERTY()
-	int32 BoneIndex;
-
-	UPROPERTY()
-	FName PrimaryCachedSpaceName;
-
-	UPROPERTY()
-	int32 PrimaryCachedSpaceIndex;
-
-	UPROPERTY()
-	FName SecondaryCachedSpaceName;
-
-	UPROPERTY()
-	int32 SecondaryCachedSpaceIndex;
 };
