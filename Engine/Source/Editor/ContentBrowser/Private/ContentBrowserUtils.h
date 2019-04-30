@@ -111,6 +111,9 @@ namespace ContentBrowserUtils
 	/** Displays a modeless message asking yes or no type question */
 	void DisplayConfirmationPopup(const FText& Message, const FText& YesString, const FText& NoString, const TSharedRef<SWidget>& ParentContent, const FOnClicked& OnYesClicked, const FOnClicked& OnNoClicked = FOnClicked());
 
+	/** Moves all assets from the source path to the destination path, preserving path structure, deletes source path afterwards if possible */
+	bool RenameFolder(const FString& DestPath, const FString& SourcePath);
+
 	/** Copies all assets in all source paths to the destination path, preserving path structure */
 	bool CopyFolders(const TArray<FString>& InSourcePathNames, const FString& DestPath);
 
