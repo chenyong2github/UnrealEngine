@@ -17,6 +17,11 @@ public:
 	void Remove(const FString& InWidgetTemplateName);
 
 	TArray<FString> GetFavorites() const { return Favorites; }
+	
+	DECLARE_MULTICAST_DELEGATE(FOnFavoritesUpdated)
+
+	/** Fires after the list of favorites is updated */
+	FOnFavoritesUpdated OnFavoritesUpdated;
 
 private:
 	UPROPERTY(config)

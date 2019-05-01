@@ -113,7 +113,6 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE(FOnUpdating)
 	DECLARE_MULTICAST_DELEGATE(FOnUpdated)
-	DECLARE_MULTICAST_DELEGATE(FOnFavoritesUpdated)
 
 public:
 	FPaletteViewModel(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
@@ -126,7 +125,7 @@ public:
 	void Update();
 
 	/** Returns true if the view model needs to be updated */
-	bool NeedUpdate() const { return bRebuildRequested || bRebuildFavorites; }
+	bool NeedUpdate() const { return bRebuildRequested; }
 	   
 	/** Add the widget template to the list of favorites */
 	void AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel);
@@ -135,7 +134,6 @@ public:
 	void RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel);
 
 	typedef TArray< TSharedPtr<FWidgetViewModel> > ViewModelsArray;
-	ViewModelsArray& GetFavoritesViewModels() { return WidgetFavoritesViewModels; }
 	ViewModelsArray& GetWidgetViewModels() { return WidgetViewModels; }
 
 	void SetSearchText(const FText& inSearchText) { SearchText = inSearchText; }
@@ -147,16 +145,12 @@ public:
 	/** Fires after the view model is updated */
 	FOnUpdated OnUpdated;
 
-	/** Fires after the list of favorites is updated */
-	FOnFavoritesUpdated OnFavoritesUpdated;
-
 private:
 	FPaletteViewModel() {};
 
 	UWidgetBlueprint* GetBlueprint() const;
 
 	void BuildWidgetList();
-	void BuildWidgetFavoriteList();
 	void BuildClassWidgetList();
 
 	static bool FilterAssetData(FAssetData &BPAssetData);
@@ -169,12 +163,15 @@ private:
 	/** Requests a rebuild of the widget list if a widget blueprint was compiled */
 	void OnBlueprintReinstanced();
 
+	/** Called when the favorite list is changed */
+	void OnFavoritesUpdated();
+
 	/** Requests a rebuild of the widget list */
 	void HandleOnHotReload(bool bWasTriggeredAutomatically);
 
 	/** Requests a rebuild of the widget list if a widget blueprint was deleted */
 	void HandleOnAssetsDeleted(const TArray<UClass*>& DeletedAssetClasses);
-
+	
 	TWeakPtr<class FWidgetBlueprintEditor> BlueprintEditor;
 
 	typedef TArray<TSharedPtr<FWidgetTemplate>> WidgetTemplateArray;
@@ -182,15 +179,9 @@ private:
 
 	/** The source root view models for the tree. */
 	ViewModelsArray WidgetViewModels;
-
-	/** The source root view models for the favorites. */
-	ViewModelsArray WidgetFavoritesViewModels;
 	   
 	/** Controls rebuilding the list of spawnable widgets */
 	bool bRebuildRequested;
-
-	/** Set to true when the Palette favorites list needs to be updated*/
-	bool bRebuildFavorites;
 
 	FText SearchText;
 };

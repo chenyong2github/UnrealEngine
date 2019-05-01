@@ -14,6 +14,7 @@ void UWidgetPaletteFavorites::Add(const FString& InWidgetTemplateName)
 
 	SaveConfig();
 
+	OnFavoritesUpdated.Broadcast();
 }
 
 void UWidgetPaletteFavorites::Remove(const FString& InWidgetTemplateName)
@@ -21,4 +22,6 @@ void UWidgetPaletteFavorites::Remove(const FString& InWidgetTemplateName)
 	Favorites.Remove(InWidgetTemplateName);
 
 	SaveConfig();
+
+	OnFavoritesUpdated.Broadcast();
 }
