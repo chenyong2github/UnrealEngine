@@ -413,13 +413,6 @@ public:
 	}
 	const FRHIUniformBufferLayout& GetLayout() const { return *Layout; }
 
-	/** Same layout but different address */
-	void UpdateLayoutReference(const FRHIUniformBufferLayout* NewRef)
-	{
-		check(*Layout == *NewRef);
-		Layout = NewRef;
-	}
-
 #if VALIDATE_UNIFORM_BUFFER_LIFETIME
 	mutable int32 NumMeshCommandReferencesForDebugging = 0;
 #endif
