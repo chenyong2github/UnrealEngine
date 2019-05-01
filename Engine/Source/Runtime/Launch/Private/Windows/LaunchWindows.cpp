@@ -115,6 +115,8 @@ void SetupWindowsEnvironment( void )
 LONG WINAPI UnhandledException(EXCEPTION_POINTERS *ExceptionInfo)
 {
 	ReportCrash(ExceptionInfo);
+	GIsCriticalError = true;
+	FPlatformMisc::RequestExit(true);
 	return EXCEPTION_CONTINUE_SEARCH;
 }
 
