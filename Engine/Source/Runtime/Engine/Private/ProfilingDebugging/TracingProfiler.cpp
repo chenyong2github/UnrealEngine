@@ -10,8 +10,8 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/Paths.h"
-#include "RHI.h"
 #include "RenderingThread.h"
+#include "RHI.h"
 
 static TAutoConsoleVariable<int32> GTracingProfileBufferSize(
 	TEXT("TracingProfiler.BufferSize"),
