@@ -200,9 +200,24 @@ public class VideoDecoder
 		return -1;
 	}
 
-	public void reset()
+	public void resetCodec()
 	{
-		release();
+		synchronized(this)
+		{
+			if (null != mVideoCodec)
+			{
+				try 
+				{
+					// Get an instance of MediaCodec and give it its Mime type
+					mVideoCodec.stop();
+					mVideoCodec.release();
+				}
+				catch(Exception e)
+				{
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 
 	public void release()
@@ -217,11 +232,8 @@ public class VideoDecoder
 			while (WaitOnBitmapRender) ;
 			releaseOESTextureRenderer();
 		}
-		if (null != mVideoCodec)
-		{
-			mVideoCodec.stop();
-			mVideoCodec.release();
-		}
+
+		resetCodec();
 	}
 
 	private ByteBuffer getSPSPPSHeader()
@@ -305,28 +317,12 @@ public class VideoDecoder
 		SPS = inSPS;
 		PPS = inPPS;
 
-		release();
-
 		if(mVideoCodec == null)
 		{
-			if(SwizzlePixels || VulkanRenderer || !SupportsImageExternal)
-			{
-				//initBitmapRenderer();
-			}
-
 			return true;
 		}
 
-		try 
-		{
-			// Get an instance of MediaCodec and give it its Mime type
-			mVideoCodec.stop();
-			mVideoCodec.release();
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-		}
+		resetCodec();
 
 		return CreateCodec();
 	}
@@ -370,7 +366,7 @@ public class VideoDecoder
 			if (!CreateBitmapRenderer())
 			{
 				GameActivity.Log.warn("initBitmapRenderer failed to alloc mBitmapRenderer ");
-				reset();
+				release();
 			  }
 		}
 	}
@@ -1294,7 +1290,7 @@ public class VideoDecoder
 			if (!CreateOESTextureRenderer(externalTextureId))
 			{
 				GameActivity.Log.warn("updateVideoFrame failed to alloc mOESTextureRenderer ");
-				reset();
+				release();
 				return null;
 			}
 		}

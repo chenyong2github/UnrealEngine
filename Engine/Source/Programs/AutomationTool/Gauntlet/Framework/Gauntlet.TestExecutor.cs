@@ -588,21 +588,6 @@ namespace Gauntlet
 
 			MB.UnorderedList(TestResults);
 
-			string Summary = string.Format("Completed test pass {0} of {1}.", CurrentPass, NumPasses);
-
-			if (FailedCount > 0)
-			{
-				Log.Error("{0}", Summary);
-			}
-			else if (WarningCount > 0)
-			{
-				Log.Warning("{0}", Summary);
-			}
-			else
-			{
-				Log.Info("{0}", Summary);
-			}
-
 			// write the markdown out with each line indented
 			MB.ToString().Split('\n').ToList().ForEach(L => Log.Info("  " + L));
 
@@ -638,12 +623,14 @@ namespace Gauntlet
 			{
 				TestInfo.CancellationReason = string.Format("Terminating Test {0} due to maximum duration of {1} seconds. ", TestInfo.TestNode, TestInfo.TestNode.MaxDuration);
 				TestInfo.FinalResult = TestResult.TimedOut;
+				Log.Info("{0}", TestInfo.CancellationReason);
 			}
 
 			if (IsCancelled)
 			{
 				TestInfo.CancellationReason = string.Format("Cancelling Test {0} on request", TestInfo.TestNode);
 				TestInfo.FinalResult = TestResult.Cancelled;
+				Log.Info("{0}", TestInfo.CancellationReason);
 			}
 
 			// if the test is not running. or we've determined a result for it..

@@ -370,7 +370,6 @@ public:
 	
 #if WITH_EDITOR
 	/** Override Pre/PostEditUndo functions to handle editor transform */
-	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
 #endif
 	

@@ -990,11 +990,10 @@ static void UpdateCoreCsvStats_BeginFrame()
 	if (FCsvProfiler::Get()->IsCapturing())
 	{
 		const uint32 ProcessId = (uint32)GetCurrentProcessId();
-		float ProcessUsageFraction = 0.f, OtherUsageFraction = 0.f, IdleUsageFraction = 0.f;
-		FWindowsPlatformProcess::GetPerFrameProcessorUsage(ProcessId, ProcessUsageFraction, OtherUsageFraction, IdleUsageFraction);
+		float ProcessUsageFraction = 0.f, IdleUsageFraction = 0.f;
+		FWindowsPlatformProcess::GetPerFrameProcessorUsage(ProcessId, ProcessUsageFraction, IdleUsageFraction);
 
 		CSV_CUSTOM_STAT_GLOBAL(CPUUsage_Process, ProcessUsageFraction, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT_GLOBAL(CPUUsage_Other, OtherUsageFraction, ECsvCustomStatOp::Set);
 		CSV_CUSTOM_STAT_GLOBAL(CPUUsage_Idle, IdleUsageFraction, ECsvCustomStatOp::Set);
 	}
 #endif
@@ -1005,7 +1004,10 @@ static void UpdateCoreCsvStats_EndFrame()
 	CSV_CUSTOM_STAT_GLOBAL(RenderThreadTime, FPlatformTime::ToMilliseconds(GRenderThreadTime), ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT_GLOBAL(GameThreadTime, FPlatformTime::ToMilliseconds(GGameThreadTime), ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT_GLOBAL(GPUTime, FPlatformTime::ToMilliseconds(GGPUFrameTime), ECsvCustomStatOp::Set);
-	CSV_CUSTOM_STAT_GLOBAL(RHIThreadTime, FPlatformTime::ToMilliseconds(GRHIThreadTime), ECsvCustomStatOp::Set);
+	if (IsRunningRHIInSeparateThread())
+	{
+		CSV_CUSTOM_STAT_GLOBAL(RHIThreadTime, FPlatformTime::ToMilliseconds(GRHIThreadTime), ECsvCustomStatOp::Set);
+	}
 	if (GInputLatencyTime > 0)
 	{
 		CSV_CUSTOM_STAT_GLOBAL(InputLatencyTime, FPlatformTime::ToMilliseconds(GInputLatencyTime), ECsvCustomStatOp::Set);

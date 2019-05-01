@@ -307,12 +307,8 @@ void FNiagaraSystemViewModel::AddEmitter(UNiagaraEmitter& Emitter)
 	if (EditMode == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
 		System.Modify();
-		EmitterHandle = System.AddEmitterHandle(Emitter, FNiagaraUtilities::GetUniqueName(Emitter.GetFName(), EmitterHandleNames));
 	}
-	else
-	{
-		EmitterHandle = System.AddEmitterHandleWithoutCopying(Emitter);
-	}
+	EmitterHandle = System.AddEmitterHandle(Emitter, FNiagaraUtilities::GetUniqueName(Emitter.GetFName(), EmitterHandleNames));
 
 	check(SystemScriptViewModel.IsValid());
 	SystemScriptViewModel->RebuildEmitterNodes();
@@ -547,7 +543,7 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 
 			if (bResetRequestPending)
 			{
-				ResetSystem();
+				ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
 			}
 		}
 	}
@@ -647,7 +643,7 @@ void FNiagaraSystemViewModel::SetupPreviewComponentAndInstance()
 
 void FNiagaraSystemViewModel::RefreshAll()
 {
-	ReInitializeSystemInstances();
+	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
 	RefreshEmitterHandleViewModels();
 	RefreshSequencerTracks();
 	ResetCurveData();
@@ -672,7 +668,7 @@ void FNiagaraSystemViewModel::NotifyDataObjectChanged(UObject* ChangedObject)
 		}
 	}
 
-	ReInitializeSystemInstances();
+	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
 }
 
 void FNiagaraSystemViewModel::IsolateEmitters(TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> EmitterHandlesToIsolate)
@@ -924,12 +920,12 @@ void FNiagaraSystemViewModel::SetupSequencer()
 
 void FNiagaraSystemViewModel::ResetSystem()
 {
-	ResetSystemInternal(true);
+	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ResetSystem);
 }
 
-void FNiagaraSystemViewModel::ResetSystemInternal(bool bCanResetTime)
+void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiResetMode MultiResetMode, EReinitMode ReinitMode)
 {
-	bool bResetAge = bCanResetTime && (Sequencer->GetPlaybackStatus() == EMovieScenePlayerStatus::Playing || EditorSettings->GetResimulateOnChangeWhilePaused() == false);
+	bool bResetAge = TimeResetMode == ETimeResetMode::AllowResetTime && (Sequencer->GetPlaybackStatus() == EMovieScenePlayerStatus::Playing || EditorSettings->GetResimulateOnChangeWhilePaused() == false);
 	if (bResetAge)
 	{
 		TGuardValue<bool> Guard(bSettingSequencerTimeDirectly, true);
@@ -944,11 +940,11 @@ void FNiagaraSystemViewModel::ResetSystemInternal(bool bCanResetTime)
 			Sequencer->SetGlobalTime(0);
 		}
 	}
-	
-	for (TObjectIterator<UNiagaraComponent> ComponentIt; ComponentIt; ++ComponentIt)
+
+	TArray<UNiagaraComponent*> ReferencingComponents = FNiagaraEditorUtilities::GetComponentsThatReferenceSystem(System);
+	for (auto Component : ReferencingComponents)
 	{
-		UNiagaraComponent* Component = *ComponentIt;
-		if (Component->GetAsset() == &System)
+		if (ReinitMode == EReinitMode::ResetSystem)
 		{
 			Component->ResetSystem();
 			if (bResetAge && Component->GetAgeUpdateMode() == ENiagaraAgeUpdateMode::DesiredAge)
@@ -956,6 +952,16 @@ void FNiagaraSystemViewModel::ResetSystemInternal(bool bCanResetTime)
 				Component->SetDesiredAge(0);
 			}
 		}
+
+		else if (ReinitMode == EReinitMode::ReinitializeSystem)
+		{
+			Component->ReinitializeSystem();
+		}
+	}
+
+	if (EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset && MultiResetMode == EMultiResetMode::AllowResetAllInstances && EditorSettings->GetResetDependentSystemsWhenEditingEmitters())
+	{
+		FNiagaraEditorUtilities::ResetSystemsThatReferenceSystemViewModel(*this);
 	}
 
 	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
@@ -969,34 +975,11 @@ void FNiagaraSystemViewModel::RequestResetSystem()
 
 void FNiagaraSystemViewModel::KillSystemInstances()
 {
-	for (TObjectIterator<UNiagaraComponent> ComponentIt; ComponentIt; ++ComponentIt)
+	TArray<UNiagaraComponent*> ReferencingComponents = FNiagaraEditorUtilities::GetComponentsThatReferenceSystem(System);
+	for (auto Component : ReferencingComponents)
 	{
-		UNiagaraComponent* Component = *ComponentIt;
-		if (Component->GetAsset() == &System)
-		{
-			Component->DestroyInstance();
-		}
+		Component->DestroyInstance();
 	}
-}
-
-void FNiagaraSystemViewModel::ReInitializeSystemInstances()
-{
-	if (Sequencer.IsValid() && Sequencer->GetPlaybackStatus() == EMovieScenePlayerStatus::Playing)
-	{
-		Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Stopped);
-		Sequencer->SetGlobalTime(0);
-		Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Playing);
-	}
-
-	for (TObjectIterator<UNiagaraComponent> ComponentIt; ComponentIt; ++ComponentIt)
-	{
-		UNiagaraComponent* Component = *ComponentIt;
-		if (Component->GetAsset() == &System)
-		{
-			Component->ReinitializeSystem();
-		}
-	}
-	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 }
 
 struct FNiagaraSystemCurveData
@@ -1183,7 +1166,7 @@ void FNiagaraSystemViewModel::EmitterHandlePropertyChanged(TSharedRef<FNiagaraEm
 		}
 		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 	}
-	ReInitializeSystemInstances();
+	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
 }
 
 void FNiagaraSystemViewModel::EmitterHandleNameChanged(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel)
@@ -1193,7 +1176,7 @@ void FNiagaraSystemViewModel::EmitterHandleNameChanged(TSharedRef<FNiagaraEmitte
 
 void FNiagaraSystemViewModel::EmitterPropertyChanged(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel)
 {
-	ReInitializeSystemInstances();
+	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
 }
 
 void FNiagaraSystemViewModel::ScriptCompiled()
@@ -1240,6 +1223,8 @@ void FNiagaraSystemViewModel::UpdateSimulationFromParameterChange()
 {
 	if (EditorSettings->GetResetSimulationOnChange())
 	{
+		/* Calling RequestResetSystem here avoids reentrancy into ResetSystem() when we edit the system parameter store on 
+		** UNiagaraComponent::Activate() as we always call PrepareRapidIterationParameters().  */
 		RequestResetSystem();
 	}
 	else
@@ -1456,8 +1441,14 @@ void FNiagaraSystemViewModel::SequencerTimeChanged()
 			if (bResetSystemInstance)
 			{
 				// We don't want to reset the current time if we're scrubbing.
-				bool bCanResetTime = CurrentStatus == EMovieScenePlayerStatus::Playing;
-				ResetSystemInternal(bCanResetTime);
+				if (CurrentStatus == EMovieScenePlayerStatus::Playing)
+				{
+					ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ResetSystem);
+				}
+				else
+				{
+					ResetSystem(ETimeResetMode::KeepCurrentTime, EMultiResetMode::ResetThisInstance, EReinitMode::ResetSystem);
+				}
 			}
 		}
 	}

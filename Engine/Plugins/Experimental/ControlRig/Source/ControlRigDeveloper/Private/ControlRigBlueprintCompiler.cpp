@@ -200,7 +200,7 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 			TArray<FControlRigDAG::FNode> UnitOrder, UnitCycle;
 			if (!SortGraph.TopologicalSort(UnitOrder, UnitCycle))
 			{
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 				TSet<FName> UnitNamesInCycle;
 				for (const FControlRigDAG::FNode& NodeInCycle : UnitCycle)
 				{
@@ -238,7 +238,7 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 				return;
 			}
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 			// clear the errors on the graph
 			for (UEdGraph* UbergraphPage : Blueprint->UbergraphPages)
 			{

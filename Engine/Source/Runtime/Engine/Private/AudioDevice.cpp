@@ -2073,6 +2073,10 @@ void FAudioDevice::StopQuietSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& Wa
 
 					const bool bIsAtMaxConcurrency = true;
 					VirtualLoop.CalculateUpdateInterval(bIsAtMaxConcurrency);
+					if (USoundBase* Sound = ActiveSound->GetSound())
+					{
+						UE_LOG(LogAudio, Verbose, TEXT("Playing ActiveSound %s Virtualizing: Invalidated by 'StopQuiestest' Concurrency Rule."), *Sound->GetName());
+					}
 					AddVirtualLoop(VirtualLoop);
 				}
 				ActiveSoundsCopy.RemoveAtSwap(i, 1, false);
@@ -2618,6 +2622,10 @@ void FAudioDevice::VirtualizeInactiveLoops()
 
 				// Clear must be called after AddSoundToStop to ensure AudioComponent is properly removed from AudioComponentIDToActiveSoundMap
 				ActiveSound->ClearAudioComponent();
+				if (USoundBase* Sound = ActiveSound->GetSound())
+				{
+					UE_LOG(LogAudio, Verbose, TEXT("Playing ActiveSound %s Virtualizing: Out of audible range."), *Sound->GetName());
+				}
 				AddVirtualLoop(VirtualLoop);
 			}
 		}
@@ -3994,7 +4002,7 @@ void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 				FAudioStats::FStatWaveInstanceInfo WaveInstanceInfo;
 				FSoundSource* Source = WaveInstanceSourceMap.FindRef(WaveInstance);
 				WaveInstanceInfo.Description = Source ? Source->Describe((RequestedAudioStats & ERequestedAudioStats::LongSoundNames) != 0) : FString(TEXT("No source"));
-				WaveInstanceInfo.ActualVolume = WaveInstance->GetVolumeWithDistanceAttenuation();
+				WaveInstanceInfo.ActualVolume = WaveInstance->GetVolumeWithDistanceAttenuation() * WaveInstance->GetDynamicVolume();
 				WaveInstanceInfo.InstanceIndex = InstanceIndex;
 				WaveInstanceInfo.WaveInstanceName = *WaveInstance->GetName();
 				StatSoundInfos[*SoundInfoIndex].WaveInstanceInfos.Add(MoveTemp(WaveInstanceInfo));
@@ -4203,6 +4211,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		FAudioVirtualLoop VirtualLoop;
 		if (FAudioVirtualLoop::Virtualize(NewActiveSound, *this, bDoRangeCheck, VirtualLoop))
 		{
+			UE_LOG(LogAudio, Verbose, TEXT("New ActiveSound %s Virtualizing: Failed to pass initial audible range check"), *Sound->GetName());
 			AddVirtualLoop(VirtualLoop);
 			return;
 		}
@@ -4227,6 +4236,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 			FAudioVirtualLoop VirtualLoop;
 			if (FAudioVirtualLoop::Virtualize(NewActiveSound, *this, bDoRangeCheck, VirtualLoop))
 			{
+				UE_LOG(LogAudio, Verbose, TEXT("New ActiveSound %s Virtualizing: Failed to pass concurrency"), *Sound->GetName());
 				AddVirtualLoop(VirtualLoop);
 			}
 		}
@@ -5805,10 +5815,23 @@ void FAudioDevice::UpdateVirtualLoops()
 		for (FVirtualLoopPair& Pair : VirtualLoops)
 		{
 			FAudioVirtualLoop& VirtualLoop = Pair.Value;
+			FActiveSound& ActiveSound = VirtualLoop.GetActiveSound();
+
+			// Don't update if stopping.
+			if (ActiveSound.bIsStopping)
+			{
+				continue;
+			}
+
+			// If signaled to fade out and virtualized, add to pending stop list.
+			if (ActiveSound.bFadingOut)
+			{
+				AddSoundToStop(&ActiveSound);
+				continue;
+			}
 
 			const float DeltaTime = GetDeviceDeltaTime();
 
-			FActiveSound& ActiveSound = Pair.Value.GetActiveSound();
 			// Keep playback time up-to-date as it may be used to evaluate concurrency
 			ActiveSound.PlaybackTime += DeltaTime * ActiveSound.MinCurrentPitch;
 
@@ -5816,7 +5839,7 @@ void FAudioDevice::UpdateVirtualLoops()
 			// to avoid map manipulation while iterating.
 			if (VirtualLoop.CanRealize(DeltaTime))
 			{
-				VirtualLoopsToRetrigger.Add(Pair.Value);
+				VirtualLoopsToRetrigger.Add(VirtualLoop);
 			}
 		}
 

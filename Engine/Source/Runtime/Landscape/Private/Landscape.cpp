@@ -59,6 +59,7 @@ Landscape.cpp: Terrain rendering
 #endif
 #include "LandscapeVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "LandscapeDataAccess.h"
 
 /** Landscape stats */
 
@@ -317,7 +318,70 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 		CheckGenerateLandscapePlatformData(true, Ar.CookingTarget());
 	}
 
-	if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject) && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DeferredRendering))
+	// Avoid the archiver in the PIE duplicate writer case because we want to share landscape textures & materials
+	if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
+	{
+		if (Ar.IsLoading())
+		{
+			Super::Serialize(Ar);
+		}
+
+		TArray<UObject**> TexturesAndMaterials;
+		TexturesAndMaterials.Add((UObject**)&HeightmapTexture);
+		TexturesAndMaterials.Add((UObject**)&XYOffsetmapTexture);
+		for (UTexture2D* WeightmapTexture : WeightmapTextures)
+		{
+			TexturesAndMaterials.Add((UObject**)&WeightmapTexture);
+		}
+		for (UTexture2D* MobileWeightmapTexture : MobileWeightmapTextures)
+		{
+			TexturesAndMaterials.Add((UObject**)&MobileWeightmapTexture);
+		}
+		for (auto& ItPair : LayersData)
+		{
+			FLandscapeLayerComponentData& LayerComponentData = ItPair.Value;
+			TexturesAndMaterials.Add((UObject**)&LayerComponentData.HeightmapData.Texture);
+			for (UTexture2D* WeightmapTexture : LayerComponentData.WeightmapData.Textures)
+			{
+				TexturesAndMaterials.Add((UObject**)&WeightmapTexture);
+			}
+		}
+		for (UMaterialInstance* MaterialInstance : MaterialInstances)
+		{
+			TexturesAndMaterials.Add((UObject**)&MaterialInstance);
+		}
+		for (UMaterialInterface* MobileMaterialInterface : MobileMaterialInterfaces)
+		{
+			TexturesAndMaterials.Add((UObject**)(&MobileMaterialInterface));
+		}
+		for (UMaterialInstance* MobileCombinationMaterialInstance : MobileCombinationMaterialInstances)
+		{
+			TexturesAndMaterials.Add((UObject**)&MobileCombinationMaterialInstance);
+		}
+
+		if (Ar.IsSaving())
+		{
+			TArray<UObject*> BackupTexturesAndMaterials;
+			BackupTexturesAndMaterials.AddZeroed(TexturesAndMaterials.Num());
+			for (int i = 0; i < TexturesAndMaterials.Num(); ++i)
+			{
+				Exchange(*TexturesAndMaterials[i], BackupTexturesAndMaterials[i]);
+			}
+
+			Super::Serialize(Ar);
+
+			for (int i = 0; i < TexturesAndMaterials.Num(); ++i)
+			{
+				Exchange(*TexturesAndMaterials[i], BackupTexturesAndMaterials[i]);
+			}
+		}
+		// Manually serialize pointers
+		for (UObject** Object : TexturesAndMaterials)
+		{
+			Ar.Serialize(Object, sizeof(UObject*));
+		}
+	}
+	else if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject) && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DeferredRendering))
 	{
 		// These properties are only used for SM4+ so we back them up and clear them before serializing them.
 		UTexture2D* BackupHeightmapTexture = nullptr;
@@ -708,7 +772,7 @@ void ULandscapeComponent::PostLoad()
 #if WITH_EDITOR
 	auto ReparentObject = [this](UObject* Object)
 	{
-		if(Object && !Object->HasAllFlags(RF_Public | RF_Standalone) && (Object->GetOuter() != GetOuter()))
+		if (Object && !Object->HasAllFlags(RF_Public | RF_Standalone) && (Object->GetOuter() != GetOuter()) && (Object->GetOutermost() == GetOutermost()))
 		{
 			Object->Rename(nullptr, GetOuter(), REN_ForceNoResetLoaders);
 			return true;
@@ -716,41 +780,52 @@ void ULandscapeComponent::PostLoad()
 		return false;
 	};
 
-	for(UMaterialInstance* MaterialInstance: MaterialInstances)
+	ReparentObject(HeightmapTexture);
+	ReparentObject(XYOffsetmapTexture);
+
+	for (UTexture2D* WeightmapTexture : WeightmapTextures)
 	{
-		while(ReparentObject(MaterialInstance))
+		ReparentObject(WeightmapTexture);
+	}
+
+	for (UTexture2D* MobileWeightmapTexture : MobileWeightmapTextures)
+	{
+		ReparentObject(MobileWeightmapTexture);
+	}
+
+	for (const auto& ItPair : LayersData)
+	{
+		const FLandscapeLayerComponentData& LayerComponentData = ItPair.Value;
+		ReparentObject(LayerComponentData.HeightmapData.Texture);
+		for (UTexture2D* WeightmapTexture : LayerComponentData.WeightmapData.Textures)
 		{
-			MaterialInstance = Cast<UMaterialInstance>(MaterialInstance->Parent);
+			ReparentObject(WeightmapTexture);
 		}
 	}
 
-	for(UMaterialInterface* MobileMaterialInterface: MobileMaterialInterfaces)
+	for (UMaterialInstance* MaterialInstance : MaterialInstances)
 	{
-		while(ReparentObject(MobileMaterialInterface))
+		ULandscapeMaterialInstanceConstant* CurrentMIC = Cast<ULandscapeMaterialInstanceConstant>(MaterialInstance);
+		while (ReparentObject(CurrentMIC))
+		{
+			CurrentMIC = Cast<ULandscapeMaterialInstanceConstant>(MaterialInstance->Parent);
+		}
+	}
+
+	for (UMaterialInterface* MobileMaterialInterface : MobileMaterialInterfaces)
+	{
+		while (ReparentObject(MobileMaterialInterface))
 		{
 			MobileMaterialInterface = Cast<UMaterialInstance>(MobileMaterialInterface) ? Cast<UMaterialInstance>(((UMaterialInstance*)MobileMaterialInterface)->Parent) : nullptr;
 		}
 	}
 
-	for(UMaterialInstance* MobileCombinationMaterialInstance: MobileCombinationMaterialInstances)
+	for (UMaterialInstance* MobileCombinationMaterialInstance : MobileCombinationMaterialInstances)
 	{
-		while(ReparentObject(MobileCombinationMaterialInstance))
+		while (ReparentObject(MobileCombinationMaterialInstance))
 		{
 			MobileCombinationMaterialInstance = Cast<UMaterialInstance>(MobileCombinationMaterialInstance->Parent);
 		}
-	}
-
-	ReparentObject(HeightmapTexture);
-	ReparentObject(XYOffsetmapTexture);
-
-	for(UTexture2D* WeightmapTexture: WeightmapTextures)
-	{
-		ReparentObject(WeightmapTexture);
-	}
-
-	for(UTexture2D* MobileWeightmapTexture: MobileWeightmapTextures)
-	{
-		ReparentObject(MobileWeightmapTexture);
 	}
 #endif
 
@@ -1457,16 +1532,6 @@ FGuid ULandscapeComponent::GetEditingLayerGUID() const
 	return Landscape != nullptr ? Landscape->GetEditingLayer() : FGuid();
 }
 
-const FLandscapeLayersGlobalComponentData& ULandscapeComponent::GetGlobalLayersData() const
-{
-	return GlobalLayersData;
-}
-
-FLandscapeLayersGlobalComponentData& ULandscapeComponent::GetGlobalLayersData() 
-{
-	return GlobalLayersData;
-}
-
 const FLandscapeLayerComponentData* ULandscapeComponent::GetLayerData(const FGuid& InLayerGuid) const 
 {
 	return LayersData.Find(InLayerGuid);
@@ -1490,6 +1555,84 @@ void ULandscapeComponent::AddLayerData(const FGuid& InLayerGuid, const FLandscap
 	Modify();
 	FLandscapeLayerComponentData& Data = LayersData.FindOrAdd(InLayerGuid);
 	Data = InData;
+}
+
+void ULandscapeComponent::AddDefaultLayerData(const FGuid& InLayerGuid, const TArray<ULandscapeComponent*>& InComponentsUsingHeightmap, TMap<UTexture2D*, UTexture2D*>& InOutCreatedHeightmapTextures)
+{
+	Modify();
+
+	UTexture2D* ComponentHeightmap = GetHeightmap();
+		
+	// Compute per layer data
+	FLandscapeLayerComponentData* LayerData = GetLayerData(InLayerGuid);
+
+	if (LayerData == nullptr || !LayerData->IsInitialized())
+	{
+		FLandscapeLayerComponentData NewData;
+
+		// Setup Heightmap data
+		UTexture2D** LayerHeightmap = InOutCreatedHeightmapTextures.Find(ComponentHeightmap);
+
+		if (LayerHeightmap == nullptr)
+		{
+			UTexture2D* NewLayerHeightmap = GetLandscapeProxy()->CreateLandscapeTexture(ComponentHeightmap->Source.GetSizeX(), ComponentHeightmap->Source.GetSizeY(), TEXTUREGROUP_Terrain_Heightmap, ComponentHeightmap->Source.GetFormat());
+			LayerHeightmap = &InOutCreatedHeightmapTextures.Add(ComponentHeightmap, NewLayerHeightmap);
+
+			ULandscapeComponent::CreateEmptyTextureMips(NewLayerHeightmap, true);
+
+			// Init Mip0 to be at 32768 which is equal to "0"
+			FColor* Mip0Data = (FColor*)NewLayerHeightmap->Source.LockMip(0);
+
+			for (ULandscapeComponent* ComponentUsingHeightmap : InComponentsUsingHeightmap)
+			{
+				int32 HeightmapComponentOffsetX = FMath::RoundToInt((float)NewLayerHeightmap->Source.GetSizeX() * ComponentUsingHeightmap->HeightmapScaleBias.Z);
+				int32 HeightmapComponentOffsetY = FMath::RoundToInt((float)NewLayerHeightmap->Source.GetSizeY() * ComponentUsingHeightmap->HeightmapScaleBias.W);
+
+				for (int32 SubsectionY = 0; SubsectionY < NumSubsections; SubsectionY++)
+				{
+					for (int32 SubsectionX = 0; SubsectionX < NumSubsections; SubsectionX++)
+					{
+						for (int32 SubY = 0; SubY <= SubsectionSizeQuads; SubY++)
+						{
+							for (int32 SubX = 0; SubX <= SubsectionSizeQuads; SubX++)
+							{
+								// X/Y of the vertex we're looking at in component's coordinates.
+								const int32 CompX = SubsectionSizeQuads * SubsectionX + SubX;
+								const int32 CompY = SubsectionSizeQuads * SubsectionY + SubY;
+
+								// X/Y of the vertex we're looking indexed into the texture data
+								const int32 TexX = (SubsectionSizeQuads + 1) * SubsectionX + SubX;
+								const int32 TexY = (SubsectionSizeQuads + 1) * SubsectionY + SubY;
+
+								const int32 HeightTexDataIdx = (HeightmapComponentOffsetX + TexX) + (HeightmapComponentOffsetY + TexY) * NewLayerHeightmap->Source.GetSizeX();
+
+								// copy height and normal data
+								const uint16 HeightValue = LandscapeDataAccess::GetTexHeight(0.f);
+
+								Mip0Data[HeightTexDataIdx].R = HeightValue >> 8;
+								Mip0Data[HeightTexDataIdx].G = HeightValue & 255;
+
+								// Normal with get calculated later
+								Mip0Data[HeightTexDataIdx].B = 0.0f;
+								Mip0Data[HeightTexDataIdx].A = 0.0f;
+							}
+						}
+					}
+				}
+			}
+
+			NewLayerHeightmap->Source.UnlockMip(0);
+
+			NewLayerHeightmap->BeginCachePlatformData();
+			NewLayerHeightmap->ClearAllCachedCookedPlatformData();
+		}
+
+		NewData.HeightmapData.Texture = *LayerHeightmap;
+
+		// Nothing to do for Weightmap by default
+
+		AddLayerData(InLayerGuid, MoveTemp(NewData));
+	}
 }
 
 void ULandscapeComponent::RemoveLayerData(const FGuid& InLayerGuid)
@@ -2584,6 +2727,12 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 		Proxies.Add(StreamingProxy);
 		StreamingProxy->LandscapeActor = LandscapeActor;
 		StreamingProxy->FixupSharedData(LandscapeActor.Get());
+	}
+
+	if (LandscapeActor)
+	{
+		// Force update rendering resources
+		LandscapeActor->RequestLayersInitialization();
 	}
 
 	UpdateLayerInfoMap(Proxy);

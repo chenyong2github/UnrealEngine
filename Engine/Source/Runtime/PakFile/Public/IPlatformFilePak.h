@@ -34,7 +34,14 @@ typedef FSHAHash TPakChunkHash;
 #endif
 
 PAKFILE_API TPakChunkHash ComputePakChunkHash(const void* InData, int64 InDataSizeInBytes);
-PAKFILE_API FString ChunkHashToString(const TPakChunkHash& InHash);
+FORCEINLINE FString ChunkHashToString(const TPakChunkHash& InHash)
+{
+#if PAKHASH_USE_CRC
+	return FString::Printf(TEXT("%08X"), InHash);
+#else
+	return LexToString(InHash);
+#endif
+}
 
 struct FPakChunkSignatureCheckFailedData
 {
@@ -1546,6 +1553,18 @@ public:
 	static TSharedPtr<FRSA::FKey, ESPMode::ThreadSafe> GetPakSigningKey();
 
 	/**
+	* Load a pak signature file. Validates the contents by comparing a SHA hash of the chunk table against and encrypted version that
+	* is stored within the file. Returns nullptr if the data is missing or fails the signature check. This function also calls
+	* the generic pak signature failure delegates if anything is wrong.
+	*/
+	static TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe> GetPakSignatureFile(const TCHAR* InFilename);
+
+	/**
+	 * Remove the intenrally cached pointer to the signature file for the specified pak
+	 */
+	static void RemoveCachedPakSignaturesFile(const TCHAR* InFilename);
+
+	/**
 	 * Constructor.
 	 * 
 	 * @param InLowerLevel Wrapper platform file.
@@ -2354,6 +2373,10 @@ public:
 	static void TrackPak(const TCHAR* Filename, const FPakEntry* PakEntry);
 	static TMap<FString, int32>& GetPakMap() { return GPakSizeMap; }
 #endif
+
+	// Internal cache of pak signature files
+	static TMap<FName, TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe>> PakSignatureFileCache;
+	static FCriticalSection PakSignatureFileCacheLock;
 };
 
 /**
@@ -2366,7 +2389,7 @@ struct FPakSignatureFile
 
 	enum class EVersion
 	{
-		Legacy,
+		Invalid,
 		First,
 
 		Last,
@@ -2400,20 +2423,14 @@ struct FPakSignatureFile
 	 */
 	void Serialize(FArchive& Ar)
 	{
-		int64 StartPos = Ar.Tell();
 		uint32 FileMagic = Magic;
 		Ar << FileMagic;
 
 		if (Ar.IsLoading() && FileMagic != Magic)
 		{
-			// Old format with no versioning! Go back to where we were and mark our version as legacy
-			Ar.Seek(StartPos);
-			Version = EVersion::Legacy;
-			TEncryptionInt LegacyEncryptedCRC;
-			Ar << LegacyEncryptedCRC;
-			Ar << ChunkHashes;
-			// Note that we don't do any actual signature checking here because this is old data that won't have been
-			// encrypted with the new larger keys.
+			Version = EVersion::Invalid;
+			EncryptedHash.Empty();
+			ChunkHashes.Empty();
 			return;
 		}
 
@@ -2436,17 +2453,27 @@ struct FPakSignatureFile
 	 */
 	bool DecryptSignatureAndValidate(FRSA::TKeyPtr InKey, const FString& InFilename)
 	{
-		FRSA::Decrypt(FRSA::EKeyType::Public, EncryptedHash, DecryptedHash.Hash, ARRAY_COUNT(FSHAHash::Hash), InKey);
-
-		FSHAHash CurrentHash = ComputeCurrentMasterHash();
-		if (DecryptedHash != CurrentHash)
+		if (Version == EVersion::Invalid)
 		{
+			UE_LOG(LogPakFile, Warning, TEXT("Pak signature file for '%s' was invalid"), *InFilename);
+		}
+		else if (FRSA::Decrypt(FRSA::EKeyType::Public, EncryptedHash, DecryptedHash.Hash, ARRAY_COUNT(FSHAHash::Hash), InKey))
+		{
+			FSHAHash CurrentHash = ComputeCurrentMasterHash();
+			if (DecryptedHash == CurrentHash)
+			{
+				return true;
+			}
+
 			UE_LOG(LogPakFile, Warning, TEXT("Pak signature table validation failed for '%s'! Expected %s, Received %s"), *InFilename, *DecryptedHash.ToString(), *CurrentHash.ToString());
-			FPakPlatformFile::GetPakMasterSignatureTableCheckFailureHandler().Broadcast(InFilename);
-			return false;
+		}
+		else
+		{
+			UE_LOG(LogPakFile, Warning, TEXT("Pak signature table validation failed for '%s'! Failed to decrypt signature"), *InFilename);
 		}
 
-		return true;
+		FPakPlatformFile::GetPakMasterSignatureTableCheckFailureHandler().Broadcast(InFilename);
+		return false;
 	}
 
 	/**

@@ -12,7 +12,7 @@ class UPartyMember;
 class IOnlinePartySystem;
 class FOnlinePartyData;
 
-enum class EJoinPartyCompletionResult;
+enum class EJoinPartyCompletionResult : int8;
 
 UENUM()
 enum class EPartyType : uint8
@@ -263,15 +263,15 @@ struct FPartyPrivacySettings
 public:
 	/** The type of party in terms of advertised joinability restrictions */
 	UPROPERTY()
-	EPartyType PartyType = EPartyType::FriendsOnly;
+	EPartyType PartyType = EPartyType::Private;
 
 	/** Who is allowed to send invitataions to the party? */
 	UPROPERTY()
-	EPartyInviteRestriction PartyInviteRestriction = EPartyInviteRestriction::AnyMember;
+	EPartyInviteRestriction PartyInviteRestriction = EPartyInviteRestriction::NoInvites;
 
 	/** True to restrict the party exclusively to friends of the party leader */
 	UPROPERTY()
-	bool bOnlyLeaderFriendsCanJoin = false;
+	bool bOnlyLeaderFriendsCanJoin = true;
 
 	bool PARTY_API operator==(const FPartyPrivacySettings& Other) const;
 	bool PARTY_API operator!=(const FPartyPrivacySettings& Other) const { return !operator==(Other); }

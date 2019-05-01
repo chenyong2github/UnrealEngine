@@ -88,11 +88,12 @@ SRetainerWidget::SRetainerWidget()
 
 SRetainerWidget::~SRetainerWidget()
 {
-	for (int32 i = 0; i < NodePool.Num(); i++)
+	for ( int32 i = 0; i < NodePool.Num(); i++ )
 	{
 		delete NodePool[i];
 	}
-
+	NodePool.Empty();
+	
 	if( FSlateApplication::IsInitialized() )
 	{
 		FSlateApplicationBase::Get().OnGlobalInvalidate().RemoveAll( this );

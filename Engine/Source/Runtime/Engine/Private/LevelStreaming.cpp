@@ -1600,14 +1600,10 @@ ALevelScriptActor* ULevelStreaming::GetLevelScriptActor()
 }
 
 #if WITH_EDITOR
-void ULevelStreaming::PreEditUndo()
-{
-	FLevelUtils::RemoveEditorTransform(this, false);
-}
-
 void ULevelStreaming::PostEditUndo()
 {
-	FLevelUtils::ApplyEditorTransform(this, false);
+	Super::PostEditUndo();
+
 	if (UWorld* World = GetWorld())
 	{
 		World->UpdateStreamingLevelShouldBeConsidered(this);

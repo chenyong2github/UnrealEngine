@@ -189,7 +189,7 @@ void UControlRig::Initialize(bool bInitRigUnits)
 	InstantiateOperatorsFromGeneratedClass();
 	ResolvePropertyPaths();
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	// initialize rig unit cached names
 	UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
 	if (GeneratedClass)
@@ -205,7 +205,7 @@ void UControlRig::Initialize(bool bInitRigUnits)
 #endif // DEBUG only
 		}
 	}
-#endif // WITH_EDITOR
+#endif // WITH_EDITORONLY_DATA
 
 	// should refresh mapping 
 	Hierarchy.BaseHierarchy.Initialize();
@@ -404,7 +404,7 @@ void UControlRig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>
 	// we also supply input/output properties
 }
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 FName UControlRig::GetRigClassNameFromRigUnit(const FRigUnit* InRigUnit) const
 {
 	if (InRigUnit)
@@ -454,8 +454,17 @@ void UControlRig::PostReinstanceCallback(const UControlRig* Old)
 {
 	ObjectBinding = Old->ObjectBinding;
 	Initialize();
+
+	// propagate values from the CDO to the instance
+	UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
+	for (UStructProperty* UnitProperty : GeneratedClass->RigUnitProperties)
+	{
+		FRigUnit* Source = UnitProperty->ContainerPtrToValuePtr<FRigUnit>(GeneratedClass->ClassDefaultObject);
+		FRigUnit* Dest = UnitProperty->ContainerPtrToValuePtr<FRigUnit>(this);
+		UnitProperty->CopyCompleteValue(Dest, Source);
+	}
 }
-#endif // WITH_EDITOR
+#endif // WITH_EDITORONLY_DATA
 
 void UControlRig::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {

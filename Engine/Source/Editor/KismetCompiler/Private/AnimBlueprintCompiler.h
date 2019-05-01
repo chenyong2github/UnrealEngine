@@ -12,6 +12,7 @@ class UAnimationGraphSchema;
 class UAnimGraphNode_SaveCachedPose;
 class UAnimGraphNode_StateMachineBase;
 class UAnimGraphNode_StateResult;
+class UAnimGraphNode_CustomProperty;
 class UAnimGraphNode_SubInstance;
 class UAnimGraphNode_UseCachedPose;
 class UAnimStateTransitionNode;
@@ -304,6 +305,9 @@ private:
 
 	// Compiles one use cached pose instance
 	void ProcessUseCachedPose(UAnimGraphNode_UseCachedPose* UseCachedPose);
+
+	// Compiles one custom property node
+	void ProcessCustomPropertyNode(UAnimGraphNode_CustomProperty* CustomPropNode);
 
 	// Compiles one sub instance node
 	void ProcessSubInstance(UAnimGraphNode_SubInstance* SubInstance, bool bCheckForCycles);

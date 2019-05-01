@@ -155,7 +155,7 @@ FReply SInputKeySelector::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent
 	{
 		if (SelectedKey.IsSet() && SelectedKey.Get().Key.IsValid() && (bAllowGamepadKeys && InKeyEvent.GetKey() == EKeys::Gamepad_FaceButton_Left))
 		{
-			SelectedKey = FInputChord();
+			SetSelectedKey(FInputChord());
 			return FReply::Handled();
 		}
 		else if (Button.IsValid())
@@ -218,7 +218,7 @@ FReply SInputKeySelector::OnMouseButtonDown(const FGeometry& MyGeometry, const F
 {
 	if (!bIsSelectingKey && SelectedKey.IsSet() && SelectedKey.Get().Key.IsValid() && MouseEvent.IsMouseButtonDown(EKeys::RightMouseButton))
 	{
-		SelectedKey = FInputChord();
+		SetSelectedKey(FInputChord());
 		return FReply::Handled();
 	}
 	return SCompoundWidget::OnMouseButtonDown(MyGeometry, MouseEvent);

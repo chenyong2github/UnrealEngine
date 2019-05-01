@@ -30,56 +30,10 @@
 #include "ImagePlateFrustumComponent.h"
 #include "ImagePlateComponent.h"
 #include "StaticMeshResources.h"
+#include "Kismet/GameplayStatics.h"
 
 namespace
 {
-	FMatrix CalculateProjectionMatrix(const FMinimalViewInfo& MinimalView)
-	{
-		FMatrix ProjectionMatrix;
-
-		if (MinimalView.ProjectionMode == ECameraProjectionMode::Orthographic)
-		{
-			const float YScale = 1.0f / MinimalView.AspectRatio;
-
-			const float HalfOrthoWidth = MinimalView.OrthoWidth / 2.0f;
-			const float ScaledOrthoHeight = MinimalView.OrthoWidth / 2.0f * YScale;
-
-			const float NearPlane = MinimalView.OrthoNearClipPlane;
-			const float FarPlane = MinimalView.OrthoFarClipPlane;
-
-			const float ZScale = 1.0f / (FarPlane - NearPlane);
-			const float ZOffset = -NearPlane;
-
-			ProjectionMatrix = FReversedZOrthoMatrix(
-				HalfOrthoWidth,
-				ScaledOrthoHeight,
-				ZScale,
-				ZOffset
-				);
-		}
-		else
-		{
-			// Avoid divide by zero in the projection matrix calculation by clamping FOV
-			ProjectionMatrix = FReversedZPerspectiveMatrix(
-				FMath::Max(0.001f, MinimalView.FOV) * (float)PI / 360.0f,
-				MinimalView.AspectRatio,
-				1.0f,
-				GNearClippingPlane );
-		}
-
-		if (!MinimalView.OffCenterProjectionOffset.IsZero())
-		{
-			const float Left = -1.0f + MinimalView.OffCenterProjectionOffset.X;
-			const float Right = Left + 2.0f;
-			const float Bottom = -1.0f + MinimalView.OffCenterProjectionOffset.Y;
-			const float Top = Bottom + 2.0f;
-			ProjectionMatrix.M[2][0] = (Left + Right) / (Left - Right);
-			ProjectionMatrix.M[2][1] = (Bottom + Top) / (Bottom - Top);
-		}
-
-		return ProjectionMatrix;
-	}
-
 	class FImagePlateIndexBuffer : public FIndexBuffer
 	{
 	public:
@@ -372,11 +326,14 @@ void UImagePlateComponent::UpdateTransformScale()
 	AActor* ViewTarget = FindViewTarget();
 	if (ViewTarget && Plate.bFillScreen)
 	{
-		GetProjectionMatricesFromViewTarget(ViewTarget, ViewProjectionMatrix, InvViewProjectionMatrix);
+		FMatrix ViewMatrix;
+		FMatrix ProjectionMatrix;
+		UGameplayStatics::CalculateViewProjectionMatricesFromViewTarget(ViewTarget, ViewMatrix, ProjectionMatrix, ViewProjectionMatrix);
+		InvViewProjectionMatrix = ViewProjectionMatrix.Inverse();
 
 		const FMatrix LocalToWorld = GetComponentTransform().ToMatrixNoScale();
 		const FMatrix WorldToLocal = LocalToWorld.Inverse();
-		const FMatrix ScreenToLocalSpace = InvViewProjectionMatrix * WorldToLocal;
+		const FMatrix ScreenToLocalSpace = ViewProjectionMatrix.Inverse() * WorldToLocal;
 
 
 		// Just use the current view projection matrix
@@ -452,54 +409,6 @@ void UImagePlateComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* N
 void UImagePlateComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
 {
 	OutMaterials.AddUnique(Plate.DynamicMaterial ? Plate.DynamicMaterial : Plate.Material);
-}
-
-void UImagePlateComponent::GetProjectionMatricesFromViewTarget(AActor* InViewTarget, FMatrix& OutViewProjectionMatrix, FMatrix& OutInvViewProjectionMatrix)
-{
-	check(InViewTarget);
-
-	FMinimalViewInfo MinimalViewInfo;
-	
-	ASceneCapture2D* SceneCapture = Cast<ASceneCapture2D>(InViewTarget);
-	USceneCaptureComponent2D* SceneCaptureComponent = SceneCapture ? SceneCapture->GetCaptureComponent2D() : nullptr;
-	if (SceneCaptureComponent)
-	{
-		MinimalViewInfo.Location = SceneCaptureComponent->GetComponentLocation();
-		MinimalViewInfo.Rotation = SceneCaptureComponent->GetComponentRotation();
-
-		MinimalViewInfo.FOV = SceneCaptureComponent->FOVAngle;
-		MinimalViewInfo.AspectRatio = SceneCaptureComponent->TextureTarget ? float(SceneCaptureComponent->TextureTarget->SizeX) / SceneCaptureComponent->TextureTarget->SizeY : 1.f;
-		MinimalViewInfo.bConstrainAspectRatio = false;
-		MinimalViewInfo.ProjectionMode = SceneCaptureComponent->ProjectionType;
-		MinimalViewInfo.OrthoWidth = SceneCaptureComponent->OrthoWidth;
-	}
-	else
-	{
-		InViewTarget->CalcCamera(0.f, MinimalViewInfo);
-	}
-
-	FMatrix ViewRotationMatrix = FInverseRotationMatrix(MinimalViewInfo.Rotation) * FMatrix(
-		FPlane(0, 0, 1, 0),
-		FPlane(1, 0, 0, 0),
-		FPlane(0, 1, 0, 0),
-		FPlane(0, 0, 0, 1));
-
-	FMatrix ProjectionMatrix;
-	if (SceneCaptureComponent && SceneCaptureComponent->bUseCustomProjectionMatrix)
-	{
-		ProjectionMatrix = AdjustProjectionMatrixForRHI(SceneCaptureComponent->CustomProjectionMatrix);
-	}
-	else
-	{
-		ProjectionMatrix = AdjustProjectionMatrixForRHI(CalculateProjectionMatrix(MinimalViewInfo));
-	}
-
-	FMatrix ViewMatrix = FTranslationMatrix(-MinimalViewInfo.Location) * ViewRotationMatrix;
-	FMatrix InvProjectionMatrix = ProjectionMatrix.Inverse();
-	FMatrix InvViewMatrix = ViewRotationMatrix.GetTransposed() * FTranslationMatrix(MinimalViewInfo.Location);
-
-	OutViewProjectionMatrix = ViewMatrix * ProjectionMatrix;
-	OutInvViewProjectionMatrix = InvProjectionMatrix * InvViewMatrix;
 }
 
 FBoxSphereBounds UImagePlateComponent::CalcBounds(const FTransform& LocalToWorld) const

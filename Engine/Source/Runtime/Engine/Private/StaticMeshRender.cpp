@@ -668,7 +668,7 @@ void FStaticMeshSceneProxy::SetIndexSource(int32 LODIndex, int32 SectionIndex, F
 	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
 	if (bWireframe)
 	{
-		if( LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized()
+		if(LODModel.AdditionalIndexBuffers && LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized()
 			&& !(RHISupportsTessellation(GetScene().GetShaderPlatform()) && OutMeshElement.VertexFactory->GetType()->SupportsTessellationShaders())
 			)
 		{
@@ -724,6 +724,7 @@ void FStaticMeshSceneProxy::SetIndexSource(int32 LODIndex, int32 SectionIndex, F
 	if ( bRequiresAdjacencyInformation )
 	{
 		check( LODModel.bHasAdjacencyInfo );
+		check(LODModel.AdditionalIndexBuffers);
 		OutElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->AdjacencyIndexBuffer;
 		OutMeshElement.Type = PT_12_ControlPointPatchList;
 		OutElement.FirstIndex *= 4;

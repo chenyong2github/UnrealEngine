@@ -46,16 +46,7 @@ UControlRigVariableNodeSpawner* UControlRigVariableNodeSpawner::CreateFromPinTyp
 	MenuSignature.MenuName = InMenuDesc;
 	MenuSignature.Tooltip  = InTooltip;
 	MenuSignature.Category = InCategory;
-
-	// add at least one character, so that PrimeDefaultUiSpec() doesn't 
-	// attempt to query the template node
-	//
-	// @TODO: maybe UPROPERTY() fields should have keyword metadata like functions
-	if (MenuSignature.Keywords.IsEmpty())
-	{
-		// want to set it to something so we won't end up back in this condition
-		MenuSignature.Keywords = FText::FromString(TEXT(" "));
-	}
+	MenuSignature.Keywords = FText::FromString(TEXT("Variable"));
 	MenuSignature.Icon = UK2Node_Variable::GetVarIconFromPinType(NodeSpawner->GetVarType(), MenuSignature.IconTint);
 
 	return NodeSpawner;
@@ -103,7 +94,7 @@ UEdGraphNode* UControlRigVariableNodeSpawner::Invoke(UEdGraph* ParentGraph, FBin
 
 	if(MemberName != NAME_None)
 	{
-		NewNode = FControlRigBlueprintUtils::InstantiateGraphNodeForProperty(ParentGraph, MemberName, Location);
+		NewNode = FControlRigBlueprintUtils::InstantiateGraphNodeForProperty(ParentGraph, MemberName, Location, EdGraphPinType);
 	}
 
 	return NewNode;

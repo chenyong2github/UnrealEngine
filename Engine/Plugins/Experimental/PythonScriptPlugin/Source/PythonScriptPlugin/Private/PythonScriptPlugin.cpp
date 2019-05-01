@@ -743,8 +743,11 @@ void FPythonScriptPlugin::Tick(const float InDeltaTime)
 			const FString PotentialFilePath = PySysPath / TEXT("init_unreal.py");
 			if (FPaths::FileExists(PotentialFilePath))
 			{
-				// Quote the path in case it contains spaces so that the token parsing will work as expected
-				ExecPythonCommand(*FString::Printf(TEXT("\"%s\""), *PotentialFilePath));
+				// Execute these files in the "public" scope, as if their contents had been run directly in the console
+				// This allows them to be used to set-up an editor environment for the console
+				FPythonCommandEx InitUnrealPythonCommand;
+				InitUnrealPythonCommand.FileExecutionScope = EPythonFileExecutionScope::Public;
+				RunFile(*PotentialFilePath, *InitUnrealPythonCommand.Command, InitUnrealPythonCommand);
 			}
 		}
 		for (const FString& StartupScript : GetDefault<UPythonScriptPluginSettings>()->StartupScripts)
@@ -960,8 +963,13 @@ bool FPythonScriptPlugin::RunFile(const TCHAR* InFile, const TCHAR* InArgs, FPyt
 		FPyScopedGIL GIL;
 		TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, GIsRunningUnattendedScript || EnumHasAnyFlags(InOutPythonCommand.Flags, EPythonCommandFlags::Unattended));
 
-		FPyObjectPtr PyFileGlobalDict = FPyObjectPtr::StealReference(PyDict_Copy(PyDefaultGlobalDict));
-		FPyObjectPtr PyFileLocalDict = PyFileGlobalDict;
+		FPyObjectPtr PyFileGlobalDict = PyConsoleGlobalDict;
+		FPyObjectPtr PyFileLocalDict = PyConsoleLocalDict;
+		if (InOutPythonCommand.FileExecutionScope == EPythonFileExecutionScope::Private)
+		{
+			PyFileGlobalDict = FPyObjectPtr::StealReference(PyDict_Copy(PyDefaultGlobalDict));
+			PyFileLocalDict = PyFileGlobalDict;
+		}
 		{
 			FPyObjectPtr PyResolvedFilePath;
 			if (PyConversion::Pythonize(ResolvedFilePath, PyResolvedFilePath.Get(), PyConversion::ESetErrorState::No))
@@ -979,6 +987,8 @@ bool FPythonScriptPlugin::RunFile(const TCHAR* InFile, const TCHAR* InArgs, FPyt
 			PyResult = FPyObjectPtr::StealReference(EvalString(*FileStr, *ResolvedFilePath, Py_file_input, PyFileGlobalDict, PyFileLocalDict)); // We can't just use PyRun_File here as Python isn't always built against the same version of the CRT as UE4, so we get a crash at the CRT layer
 			PyCore::GetPythonLogCapture().Remove(LogCaptureHandle);
 		}
+
+		PyDict_DelItemString(PyFileGlobalDict, "__file__");
 
 		if (PyResult)
 		{

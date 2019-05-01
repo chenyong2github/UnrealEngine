@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Hierarchy.h"
+#include "Math/ControlRigSimulationLibrary.h"
 #include "ControlRigDrawInterface.generated.h"
 
 UENUM()
@@ -30,6 +31,7 @@ public:
 	void DrawPoint(const FTransform& WorldOffset, const FVector& Position, float Size, const FLinearColor& Color);
 	void DrawPoints(const FTransform& WorldOffset, const TArray<FVector>& Points, float Size, const FLinearColor& Color);
 	void DrawLine(const FTransform& WorldOffset, const FVector& LineStart, const FVector& LineEnd, const FLinearColor& Color, float Thickness = 0.f);
+	void DrawLines(const FTransform& WorldOffset, const TArray<FVector>& Positions, const FLinearColor& Color, float Thickness = 0.f);
 	void DrawLineStrip(const FTransform& WorldOffset, const TArray<FVector>& Positions, const FLinearColor& Color, float Thickness = 0.f);
 	void DrawBox(const FTransform& WorldOffset, const FTransform& Transform, const FLinearColor& Color, float Thickness = 0.f);
 	void DrawAxes(const FTransform& WorldOffset, const FTransform& Transform, float Size, float Thickness = 0.f);
@@ -37,6 +39,7 @@ public:
 	void DrawArc(const FTransform& WorldOffset, const FTransform& Transform, float Radius, float MinimumAngle, float MaximumAngle, const FLinearColor& Color, float Thickness, int32 Detail);
 	void DrawBezier(const FTransform& WorldOffset, const FVector& A, const FVector& B, const FVector& C, const FVector& D, float MinimumU, float MaximumU, const FLinearColor& Color, float Thickness, int32 Detail);
 	void DrawHierarchy(const FTransform& WorldOffset, const FRigHierarchy& Hierarchy, EControlRigDrawHierarchyMode::Type Mode, float Scale, const FLinearColor& Color, float Thickness);
+	void DrawPointSimulation(const FTransform& WorldOffset, const FControlRigSimulationPointContainer& Simulation, const FLinearColor& Color, float Thickness);
 
 private:
 

@@ -951,7 +951,7 @@ namespace UnrealBuildTool
 				bool bOBBExists = File.Exists(ObbSource);
 				AnyOBBExists |= bOBBExists;
 
-				obbData.Append("new XAPKFile(\ntrue, // true signifies a main file\n");
+				obbData.Append("new XAPKFile(\n" + (ObbSource.Contains(".patch.") ? "false, // false signifies a patch file\n" : "true, // true signifies a main file\n"));
 				obbData.AppendFormat("\"{0}\", // the version of the APK that the file was uploaded against\n", GetOBBVersionNumber(StoreVersion));
 				obbData.AppendFormat("{0}L // the length of the file in bytes\n", bOBBExists ? new FileInfo(ObbSource).Length : 0);
 				obbData.AppendFormat("){0}\n", first ? "," : "");
@@ -2398,7 +2398,10 @@ namespace UnrealBuildTool
 				}
 			}
 			Text.AppendLine("\t             android:hardwareAccelerated=\"true\"");
-			Text.AppendLine("\t				android:name=\"com.epicgames.ue4.GameApplication\"");
+			if (bGradleEnabled)
+			{
+				Text.AppendLine("\t				android:name=\"com.epicgames.ue4.GameApplication\"");
+			}
 			Text.AppendLine("\t             android:hasCode=\"true\">");
 			if (bShowLaunchImage)
 			{
@@ -3349,9 +3352,15 @@ namespace UnrealBuildTool
 
 			// Generate the OBB and Shim files here
 			string ObbFileLocation = ProjectDirectory + "/Saved/StagedBuilds/Android" + CookFlavor + ".obb";
+			string PatchFileLocation = ProjectDirectory + "/Saved/StagedBuilds/Android" + CookFlavor + ".patch.obb";
+			List<string> RequiredOBBFiles = new List<String> { ObbFileLocation };
+			if (File.Exists(PatchFileLocation))
+			{
+				RequiredOBBFiles.Add(PatchFileLocation);
+			}
 
 			// Generate the OBBData.java file if out of date (can skip rewriting it if packaging inside Apk in some cases)
-			WriteJavaOBBDataFile(UE4OBBDataFileName, PackageName, new List<string> { ObbFileLocation }, CookFlavor, bPackageDataInsideApk);
+			WriteJavaOBBDataFile(UE4OBBDataFileName, PackageName, RequiredOBBFiles, CookFlavor, bPackageDataInsideApk);
 
 			// Make sure any existing proguard file in project is NOT used (back it up)
 			string ProjectBuildProguardFile = Path.Combine(GameBuildFilesPath, "proguard-project.txt");
@@ -3720,7 +3729,7 @@ namespace UnrealBuildTool
 
 				// update GameActivity.java and GameApplication.java if out of date
 				UpdateGameActivity(Arch, NDKArch, EngineDirectory, UE4BuildPath);
-				UpdateGameApplication(Arch, NDKArch, EngineDirectory, UE4BuildPath);
+				UpdateGameApplication(Arch, NDKArch, EngineDirectory, UE4BuildPath, bGradleEnabled);
 
 				// we don't actually need the SO for the bSkipGradleBuild case
 				string FinalSOName = null;
@@ -4351,11 +4360,18 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private void UpdateGameApplication(string UE4Arch, string NDKArch, string EngineDir, string UE4BuildPath)
+		private void UpdateGameApplication(string UE4Arch, string NDKArch, string EngineDir, string UE4BuildPath, bool bGradleEnabled)
 		{
 			string SourceFilename = Path.Combine(EngineDir, "Build", "Android", "Java", "src", "com", "epicgames", "ue4", "GameApplication.java.template");
 			string DestFilename = Path.Combine(UE4BuildPath, "src", "com", "epicgames", "ue4", "GameApplication.java");
 
+			if (!bGradleEnabled)
+			{
+				// do not use GameApplication for Ant
+				SafeDeleteFile(DestFilename);
+				return;
+			}
+			
 			Dictionary<string, string> Replacements = new Dictionary<string, string>{
 				{ "//$${gameApplicationImportAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameApplicationImportAdditions", "")},
 				{ "//$${gameApplicationOnCreateAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameApplicationOnCreateAdditions", "")},

@@ -43,14 +43,14 @@ struct FPackageNameCache
 
 	const FName*	GetCachedPackageFilenameToPackageFName(const FName& StandardPackageFilename) const;
 
-	void			ClearPackageFilenameCache() const;
+	void			ClearPackageFilenameCache(IAssetRegistry* InAssetRegistry) const;
 	bool			ClearPackageFilenameCacheForPackage(const UPackage* Package) const;
 
 private:
 	bool DoesPackageExist(const FName& PackageName, FString* OutFilename) const;
 	const FCachedPackageFilename& Cache(const FName& PackageName) const;
 
-	IAssetRegistry* AssetRegistry;
+	mutable IAssetRegistry* AssetRegistry;
 
 	mutable TMap<FName, FCachedPackageFilename> PackageFilenameCache; // filename cache (only process the string operations once)
 	mutable TMap<FName, FName>					PackageFilenameToPackageFNameCache;
@@ -167,9 +167,10 @@ const FName* FPackageNameCache::GetCachedPackageFilenameToPackageFName(const FNa
 	return PackageFilenameToPackageFNameCache.Find(StandardPackageFilename);
 }
 
-void FPackageNameCache::ClearPackageFilenameCache() const
+void FPackageNameCache::ClearPackageFilenameCache(IAssetRegistry* InAssetRegistry) const
 {
 	check(IsInGameThread());
 	PackageFilenameCache.Empty();
 	PackageFilenameToPackageFNameCache.Empty();
+	AssetRegistry = InAssetRegistry;
 }

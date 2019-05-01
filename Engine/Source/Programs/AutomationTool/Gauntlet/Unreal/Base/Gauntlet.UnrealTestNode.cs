@@ -360,10 +360,9 @@ namespace Gauntlet
 						}
 
 						// add controllers
-						if (TestRole.Controllers.Count > 0)
-						{
-							SessionRole.CommandLine += string.Format(" -gauntlet=\"{0}\"", string.Join(",", TestRole.Controllers));
-						}
+						SessionRole.CommandLine += TestRole.Controllers.Count > 0 ?
+							string.Format(" -gauntlet=\"{0}\"", string.Join(",", TestRole.Controllers)) 
+							: " -gauntlet";
 
 						if (PassThroughArgs.Count() > 0)
 						{
@@ -428,6 +427,8 @@ namespace Gauntlet
 			}
 
 			TestFolder = TestFolder.Replace(" ", "_");
+			TestFolder = TestFolder.Replace(":", "_");
+			TestFolder = TestFolder.Replace("|", "_");
 			TestFolder = TestFolder.Replace(",", "");
 
 			ArtifactPath = Path.Combine(Context.Options.LogDir, TestFolder);
@@ -721,13 +722,25 @@ namespace Gauntlet
 			}
 			else
 			{
+				bool WasGauntletTest = InArtifacts.SessionRole.CommandLine.ToLower().Contains("-gauntlet");
 				// ok, process appears to have exited for no good reason so try to divine a result...
-				if (LogSummary.HasTestExitCode == false
-					&& InArtifacts.SessionRole.CommandLine.ToLower().Contains("-gauntlet"))
+				if (WasGauntletTest)
 				{
-					Log.Verbose("Role {0} had 0 exit code but used Gauntlet and no TestExitCode was found. Assuming failure", InArtifacts.SessionRole.RoleType);
-					ExitCode = -1;
-					ExitReason = "No test result from Gauntlet controller";
+					if (LogSummary.HasTestExitCode == false)
+					{
+						Log.Verbose("Role {0} had 0 exit code but used Gauntlet and no TestExitCode was found. Assuming failure", InArtifacts.SessionRole.RoleType);
+						ExitCode = -1;
+						ExitReason = "No test result from Gauntlet controller";
+					}
+				}
+				else
+				{
+					// if all else fails, fall back to the exit code from the process. Not great.
+					ExitCode = InArtifacts.AppInstance.ExitCode;
+					if (ExitCode == 0)
+					{
+						ExitReason = "app exited with code 0";
+					}
 				}
 			}
 
@@ -824,11 +837,11 @@ namespace Gauntlet
 
 			if (ExitCode != 0)
 			{
-				MB.H4(string.Format("Result: Abnormal Exit: {0}", ExitReason));
+				MB.H4(string.Format("Result: Abnormal Exit: Reason={0}, Code={1}", ExitReason, ExitCode));
 			}
 			else
 			{
-				MB.H4(string.Format("Result: {0}", ExitReason));
+				MB.H4(string.Format("Result: Reason={0}, Code=0", ExitReason));
 			}
 
 			int FatalErrors = LogSummary.FatalError != null ? 1 : 0;
@@ -989,7 +1002,7 @@ namespace Gauntlet
 
 		/// <summary>
 		/// THe base implementation considers  considers Classes can override this to implement more custom detection of success/failure than our
-		/// log parsing
+		/// log parsing. Not guaranteed to be called if a test is marked complete
 		/// </summary>
 		/// <returns></returns>in
 		protected virtual TestResult GetUnrealTestResult()
@@ -1093,7 +1106,7 @@ namespace Gauntlet
 						}
 					}
 
-					MB.Paragraph("See below for callstack and logs");
+					MB.Paragraph("See below for logs and any callstacks");
 				}
 			}
 			MB.Paragraph(string.Format("Context: {0}", Context.ToString()));

@@ -12,7 +12,7 @@
 class FSoundEffectSource;
 class FSoundEffectBase;
 
-/** This is here to make sure users don't mix up source and submix effects in the editor. Asset sorting, drag-n-drop, etc. */
+/** Preset of a source effect that can be shared between chains. */
 UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
 class ENGINE_API USoundEffectSourcePreset : public USoundEffectPreset
 {
@@ -31,7 +31,7 @@ struct ENGINE_API FSourceEffectChainEntry
 	uint32 bBypass : 1;
 };
 
-
+/** Chain of source effect presets that can be shared between referencing sounds. */
 UCLASS(BlueprintType)
 class ENGINE_API USoundEffectSourcePresetChain : public UObject
 {
