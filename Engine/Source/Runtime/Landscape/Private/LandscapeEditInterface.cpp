@@ -452,6 +452,14 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 					}
 				}
 			}
+			else
+			{
+				if (ALandscape* Landscape = Component->GetLandscapeActor())
+				{
+					Component->SetLayerContentDirty(true);
+					Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::Heightmap_Editing);
+				}
+			}
 
 			// Update GUID for Platform Data
 			FPlatformMisc::CreateGuid(Component->StateId);
