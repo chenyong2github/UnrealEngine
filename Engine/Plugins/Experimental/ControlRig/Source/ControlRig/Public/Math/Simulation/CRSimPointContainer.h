@@ -5,7 +5,9 @@
 #include "CoreMinimal.h"
 #include "CRSimPoint.h"
 #include "CRSimLinearSpring.h"
+#include "CRSimPointForce.h"
 #include "CRSimPointConstraint.h"
+#include "CRSimSoftCollision.h"
 #include "CRSimContainer.h"
 #include "CRSimPointContainer.generated.h"
 
@@ -31,6 +33,18 @@ struct FCRSimPointContainer : public FCRSimContainer
 	TArray<FCRSimLinearSpring> Springs;
 
 	/**
+	 * The forces to apply to the points
+	 */
+	UPROPERTY()
+	TArray<FCRSimPointForce> Forces;
+
+	/**
+     * The collision volumes for the simulation
+     */
+	UPROPERTY()
+	TArray<FCRSimSoftCollision> CollisionVolumes;
+
+	/**
 	 * The constraints within the simulation
 	 */
 	UPROPERTY()
@@ -50,6 +64,7 @@ protected:
 	virtual void IntegrateVerlet(float InBlend) override;
 	virtual void IntegrateSemiExplicitEuler() override;
 	void IntegrateSprings();
+	void IntegrateForcesAndVolumes();
 	void IntegrateVelocityVerlet(float InBlend);
 	void IntegrateVelocitySemiExplicitEuler();
 	void ApplyConstraints();
