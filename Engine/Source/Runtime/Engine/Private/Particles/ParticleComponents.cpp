@@ -382,6 +382,8 @@ void UParticleLODLevel::PostLoad()
 
 void UParticleLODLevel::UpdateModuleLists()
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	SpawningModules.Empty();
 	SpawnModules.Empty();
 	UpdateModules.Empty();
@@ -6973,6 +6975,8 @@ int32 UParticleSystemComponent::GetLODLevel()
  */
 void UParticleSystemComponent::SetFloatParameter(FName Name, float Param)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	if(Name == NAME_None)
 	{
 		return;
@@ -7000,6 +7004,8 @@ void UParticleSystemComponent::SetFloatParameter(FName Name, float Param)
 
 void UParticleSystemComponent::SetFloatRandParameter(FName ParameterName,float Param,float ParamLow)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	if (ParameterName == NAME_None)
 	{
 		return;
@@ -7029,6 +7035,8 @@ void UParticleSystemComponent::SetFloatRandParameter(FName ParameterName,float P
 
 void UParticleSystemComponent::SetVectorParameter(FName Name, FVector Param)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	if (Name == NAME_None)
 	{
 		return;
@@ -7056,6 +7064,8 @@ void UParticleSystemComponent::SetVectorParameter(FName Name, FVector Param)
 
 void UParticleSystemComponent::SetVectorRandParameter(FName ParameterName,const FVector& Param,const FVector& ParamLow)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	if (ParameterName == NAME_None)
 	{
 		return;
@@ -7085,6 +7095,8 @@ void UParticleSystemComponent::SetVectorRandParameter(FName ParameterName,const 
 
 void UParticleSystemComponent::SetColorParameter(FName Name, FLinearColor Param)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	if(Name == NAME_None)
 	{
 		return;
@@ -7114,6 +7126,8 @@ void UParticleSystemComponent::SetColorParameter(FName Name, FLinearColor Param)
 
 void UParticleSystemComponent::SetActorParameter(FName Name, AActor* Param)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	if(Name == NAME_None)
 	{
 		return;
@@ -7141,6 +7155,8 @@ void UParticleSystemComponent::SetActorParameter(FName Name, AActor* Param)
 
 void UParticleSystemComponent::SetMaterialParameter(FName Name, UMaterialInterface* Param)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	if(Name == NAME_None)
 	{
 		return;

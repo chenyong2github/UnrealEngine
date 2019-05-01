@@ -440,6 +440,7 @@ public:
 protected: 
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
+	virtual void CreateRenderState_Concurrent() override;
 	virtual void OnCreatePhysicsState() override;
 	virtual void OnDestroyPhysicsState() override;
 public:
@@ -680,6 +681,8 @@ public:
 private:
 	FOnStaticMeshChanged OnStaticMeshChangedEvent;
 #endif
+
+	friend class FStaticMeshComponentRecreateRenderStateContext;
 };
 
 /** Vertex data stored per-LOD */
