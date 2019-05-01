@@ -95,14 +95,6 @@ const USocialParty* FPartyRepData::GetOwnerParty() const
 // USocialParty
 //////////////////////////////////////////////////////////////////////////
 
-static int32 EnableAutomaticPartyRejoin = 1;
-static FAutoConsoleVariableRef CVarEnableAutomaticPartyRejoin(
-	TEXT("Party.EnableAutomaticPartyRejoin"),
-	EnableAutomaticPartyRejoin,
-	TEXT("Enable automatic rejoining of parties\n")
-	TEXT("1 Enables. 0 disables."),
-	ECVF_Default);
-
 static int32 AllowPartyJoinsDuringLoad = 1;
 static FAutoConsoleVariableRef CVar_AllowPartyJoinsDuringLoad(
 	TEXT("Party.AllowJoinsDuringLoad"),
@@ -226,7 +218,7 @@ FPartyJoinApproval USocialParty::EvaluateJoinRequest(const FUniqueNetId& PlayerI
 
 bool USocialParty::ShouldCacheForRejoinOnDisconnect() const
 {
-	return EnableAutomaticPartyRejoin != 0 && GetNumPartyMembers() > 1;
+	return bEnableAutomaticPartyRejoin && GetNumPartyMembers() > 1;
 }
 
 bool USocialParty::IsCurrentlyLeaving() const
