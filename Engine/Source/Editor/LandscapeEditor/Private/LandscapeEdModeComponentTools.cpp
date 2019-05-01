@@ -833,13 +833,13 @@ public:
 			{
 				if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 				{
-					// Since we do not share heightmap when adding new component, we will provided the required array, but they will only be used for 1 component
-					TMap<UTexture2D*, UTexture2D*> CreatedHeightmapTextures;
 					TArray<ULandscapeComponent*> ComponentsUsingHeightmap;
 					ComponentsUsingHeightmap.Add(NewComponent);
 
 					for (const FLandscapeLayer& Layer : Landscape->LandscapeLayers)
 					{
+						// Since we do not share heightmap when adding new component, we will provided the required array, but they will only be used for 1 component
+						TMap<UTexture2D*, UTexture2D*> CreatedHeightmapTextures;
 						NewComponent->AddDefaultLayerData(Layer.Guid, ComponentsUsingHeightmap, CreatedHeightmapTextures);
 					}
 				}
