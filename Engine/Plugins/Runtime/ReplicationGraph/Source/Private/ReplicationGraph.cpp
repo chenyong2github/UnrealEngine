@@ -1699,7 +1699,7 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 					
 		// This will unfortunately cause a callback to this  UNetReplicationGraphConnection and will relook up the ActorInfoMap and set the channel that we already have set.
 		// This is currently unavoidable because channels are created from different code paths (some outside of this loop)
-		ActorInfo.Channel->SetChannelActor( Actor );
+		ActorInfo.Channel->SetChannelActor(Actor, ESetChannelActorFlags::None);
 	}
 
 	if (UNLIKELY(bWantsToGoDormant))
@@ -1992,7 +1992,7 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 					{
 						// We are within range, we will open a channel now for this actor and call the RPC on it
 						ConnectionActorInfo.Channel = (UActorChannel *)NetConnection->CreateChannelByName( NAME_Actor, EChannelCreateFlags::OpenedLocally );
-						ConnectionActorInfo.Channel->SetChannelActor(Actor);
+						ConnectionActorInfo.Channel->SetChannelActor(Actor, ESetChannelActorFlags::None);
 
 						// Update timeout frame name. We would run into problems if we open the channel, queue a bunch, and then it timeouts before RepGraph replicates properties.
 						UpdateActorChannelCloseFrameNum(Actor, ConnectionActorInfo, GlobalInfo, ReplicationGraphFrame+1 /** Plus one to error on safe side. RepFrame num will be incremented in the next tick */, NetConnection );
@@ -2075,7 +2075,7 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 			}
 
 			Ch = (UActorChannel *)Connection->CreateChannelByName( NAME_Actor, EChannelCreateFlags::OpenedLocally );
-			Ch->SetChannelActor(Actor);
+			Ch->SetChannelActor(Actor, ESetChannelActorFlags::None);
 		}
 
 		NetDriver->ProcessRemoteFunctionForChannel(Ch, ClassCache, FieldCache, TargetObj, Connection, Function, Parameters, OutParms, Stack, true);
