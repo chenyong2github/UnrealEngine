@@ -1145,6 +1145,10 @@ namespace VulkanRHI
 
 	void FResourceHeapManager::Deinit()
 	{
+		{
+			ProcessPendingUBFreesNoLock(true);
+			check(UBAllocations.PendingFree.Num() == 0);
+		}
 		DestroyResourceAllocations();
 
 		for (int32 Index = 0; Index < ResourceTypeHeaps.Num(); ++Index)
@@ -1281,7 +1285,7 @@ namespace VulkanRHI
 			if ((BufferAllocation->BufferUsageFlags & BufferUsageFlags) == BufferUsageFlags &&
 				(BufferAllocation->MemoryPropertyFlags & MemoryPropertyFlags) == MemoryPropertyFlags)
 			{
-				FBufferSuballocation* Suballocation = (FBufferSuballocation*)BufferAllocation->TryAllocateNoLocking(Size, Alignment, File, Line);
+				FBufferSuballocation* Suballocation = (FBufferSuballocation*)BufferAllocation->TryAllocate(Size, Alignment, File, Line);
 				if (Suballocation)
 				{
 					return Suballocation;
@@ -1295,7 +1299,7 @@ namespace VulkanRHI
 			if ((BufferAllocation->BufferUsageFlags & BufferUsageFlags) == BufferUsageFlags &&
 				(BufferAllocation->MemoryPropertyFlags & MemoryPropertyFlags) == MemoryPropertyFlags)
 			{
-				FBufferSuballocation* Suballocation = (FBufferSuballocation*)BufferAllocation->TryAllocateNoLocking(Size, Alignment, File, Line);
+				FBufferSuballocation* Suballocation = (FBufferSuballocation*)BufferAllocation->TryAllocate(Size, Alignment, File, Line);
 				if (Suballocation)
 				{
 					FreeBufferAllocations[PoolSize].RemoveAtSwap(Index, 1, false);
@@ -1340,7 +1344,7 @@ namespace VulkanRHI
 			MemoryPropertyFlags, MemReqs.alignment, Buffer, BufferId, BufferUsageFlags, PoolSize);
 		UsedBufferAllocations[PoolSize].Add(BufferAllocation);
 
-		return (FBufferSuballocation*)BufferAllocation->TryAllocateNoLocking(Size, Alignment, File, Line);
+		return (FBufferSuballocation*)BufferAllocation->TryAllocate(Size, Alignment, File, Line);
 	}
 
 	void FResourceHeapManager::ReleaseBuffer(FBufferAllocation* BufferAllocation)
@@ -1481,6 +1485,11 @@ namespace VulkanRHI
 	}
 
 
+	void FBufferSuballocation::Flush()
+	{
+		Owner->Flush(AlignedOffset, AllocationSize);
+	}
+
 	FCriticalSection FSubresourceAllocator::CS;
 
 	bool FSubresourceAllocator::JoinFreeBlocks()
@@ -1501,8 +1510,9 @@ namespace VulkanRHI
 		return false;
 	}
 	
-	FResourceSuballocation* FSubresourceAllocator::TryAllocateNoLocking(uint32 InSize, uint32 InAlignment, const char* File, uint32 Line)
+	FResourceSuballocation* FSubresourceAllocator::TryAllocate(uint32 InSize, uint32 InAlignment, const char* File, uint32 Line)
 	{
+		FScopeLock ScopeLock(&CS);
 		InAlignment = FMath::Max(InAlignment, Alignment);
 		for (int32 Index = 0; Index < FreeList.Num(); ++Index)
 		{
@@ -1547,6 +1557,12 @@ namespace VulkanRHI
 		return nullptr;
 	}
 
+	void FSubresourceAllocator::Flush(VkDeviceSize Offset, VkDeviceSize AllocationSize)
+	{
+		MemoryAllocation->FlushMappedMemory(Offset, AllocationSize);
+	}
+
+
 	void FBufferAllocation::Release(FBufferSuballocation* Suballocation)
 	{
 		{
@@ -1558,12 +1574,15 @@ namespace VulkanRHI
 			FRange NewFree;
 			NewFree.Offset = Suballocation->AllocationOffset;
 			NewFree.Size = Suballocation->AllocationSize;
+			check(NewFree.Offset <= GetMaxSize());
+			check(NewFree.Offset + NewFree.Size <= GetMaxSize());
 
 			FreeList.Add(NewFree);
+
+			UsedSize -= Suballocation->AllocationSize;
+			check(UsedSize >= 0);
 		}
 
-		UsedSize -= Suballocation->AllocationSize;
-		check(UsedSize >= 0);
 
 		if (JoinFreeBlocks())
 		{

@@ -1231,15 +1231,34 @@ public:
 	void UpdateConstantData(const void* Contents, int32 ContentsSize);
 };
 
-class FVulkanRealUniformBuffer : public FVulkanUniformBuffer, public FVulkanResourceMultiBuffer
+class FVulkanRealUniformBuffer : public FVulkanUniformBuffer
 {
 public:
+	FVulkanDevice* Device;
 	FVulkanRealUniformBuffer(FVulkanDevice& Device, const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation);
+	virtual ~FVulkanRealUniformBuffer();
 
-	void Update(const void* Contents, int32 ContentsSize);
+	VulkanRHI::FBufferAllocation* GetBufferAllocation() const
+	{
+		checkSlow(UBAllocation);
+		return UBAllocation->GetBufferAllocation();
+	}
 
-private:
-	TArray<TRefCountPtr<FRHIResource>> ResourceTable;
+	inline uint32 GetOffset() const
+	{
+		return UBAllocation->GetOffset();
+	}
+
+	// Returns previous allocation
+	inline VulkanRHI::FBufferSuballocation* UpdateUBAllocation(VulkanRHI::FBufferSuballocation* NewAlloc)
+	{
+		checkSlow(UBAllocation);
+		VulkanRHI::FBufferSuballocation* PrevBufferSuballoc = UBAllocation;
+		UBAllocation = NewAlloc;
+
+		return PrevBufferSuballoc;
+	}
+	VulkanRHI::FBufferSuballocation* UBAllocation = nullptr;
 };
 
 class FVulkanStructuredBuffer : public FRHIStructuredBuffer, public FVulkanResourceMultiBuffer

@@ -33,6 +33,7 @@ extern EDelayAcquireImageType GVulkanDelayAcquireImage;
 
 namespace VulkanRHI
 {
+	uint32 GetMaxSize(class FBufferAllocation* S);
 	class FFenceManager;
 
 	extern int32 GVulkanUseBufferBinning;
@@ -531,6 +532,10 @@ namespace VulkanRHI
 			, Owner(InOwner)
 			, Handle(InHandle)
 		{
+			uint32 S = GetMaxSize(InOwner);
+			check(InAlignedOffset <= S);
+			check(InAllocationOffset + InAllocationSize <= S);
+			check(InAlignedOffset + InRequestedSize <= S);
 		}
 
 		virtual ~FBufferSuballocation();
@@ -547,6 +552,8 @@ namespace VulkanRHI
 
 		// Returns the pointer to the mapped data for this SubAllocation, not the full buffer!
 		void* GetMappedPointer();
+
+		void Flush();
 
 	protected:
 		friend class FBufferAllocation;
@@ -581,13 +588,7 @@ namespace VulkanRHI
 		virtual FResourceSuballocation* CreateSubAllocation(uint32 Size, uint32 AlignedOffset, uint32 AllocatedSize, uint32 AllocatedOffset) = 0;
 		virtual void Destroy(FVulkanDevice* Device) = 0;
 
-		FResourceSuballocation* TryAllocateNoLocking(uint32 InSize, uint32 InAlignment, const char* File, uint32 Line);
-
-		inline FResourceSuballocation* TryAllocateLocking(uint32 InSize, uint32 InAlignment, const char* File, uint32 Line)
-		{
-			FScopeLock ScopeLock(&CS);
-			return TryAllocateNoLocking(InSize, InAlignment, File, Line);
-		}
+		FResourceSuballocation* TryAllocate(uint32 InSize, uint32 InAlignment, const char* File, uint32 Line);
 
 		inline uint32 GetAlignment() const
 		{
@@ -599,6 +600,8 @@ namespace VulkanRHI
 			return MemoryAllocation->GetMappedPointer();
 		}
 
+		void Flush(VkDeviceSize Offset, VkDeviceSize AllocationSize);
+		uint32 GetMaxSize(){ return MaxSize; }
 	protected:
 		FResourceHeapManager* Owner;
 		uint32 MemoryTypeIndex;
@@ -744,6 +747,10 @@ namespace VulkanRHI
 
 		friend class FResourceHeapManager;
 	};
+	inline uint32 GetMaxSize(FBufferAllocation* S)
+	{
+		return S->GetMaxSize();
+	}
 
 	// Manages heaps and their interactions
 	class FResourceHeapManager : public FDeviceChild
@@ -839,6 +846,9 @@ namespace VulkanRHI
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 		void DumpMemory();
 #endif
+		
+		FBufferSuballocation* AllocUniformBuffer(uint32 Size, const void* Contents);
+		void ReleaseUniformBuffer(FBufferSuballocation* UBAlloc);
 
 		void* Hotfix;
 
@@ -917,6 +927,21 @@ namespace VulkanRHI
 
 		void ReleaseFreedResources(bool bImmediately);
 		void DestroyResourceAllocations();
+		struct FUBPendingFree
+		{
+			FBufferSuballocation* Allocation = nullptr;
+			uint64 Frame = 0;
+		};
+
+		struct
+		{
+			FCriticalSection CS;
+			TArray<FUBPendingFree> PendingFree;
+			uint32 Peak = 0;
+		} UBAllocations;
+
+		void ProcessPendingUBFreesNoLock(bool bForce);
+		void ProcessPendingUBFrees(bool bForce);
 	};
 
 	class FStagingBuffer : public FRefCount
