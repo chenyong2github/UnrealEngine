@@ -602,6 +602,12 @@ void UStaticMeshComponent::OnUnregister()
 	Super::OnUnregister();
 }
 
+void UStaticMeshComponent::CreateRenderState_Concurrent()
+{
+	LLM_SCOPE(ELLMTag::StaticMesh);
+	Super::CreateRenderState_Concurrent();
+}
+
 void UStaticMeshComponent::OnCreatePhysicsState()
 {
 	Super::OnCreatePhysicsState();
