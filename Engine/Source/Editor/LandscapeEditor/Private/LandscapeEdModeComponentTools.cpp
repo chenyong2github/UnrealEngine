@@ -826,7 +826,7 @@ public:
 			{
 				check(Landscape != nullptr); // Landscape actor is required if layer system is enabled
 
-				Landscape->CreateLayersRenderingResource(Landscape->ComputeComponentCounts());
+				Landscape->RequestLayersInitialization();
 			}
 
 			for (ULandscapeComponent* NewComponent : NewComponents)

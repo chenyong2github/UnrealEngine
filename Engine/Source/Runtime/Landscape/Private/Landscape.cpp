@@ -1532,16 +1532,6 @@ FGuid ULandscapeComponent::GetEditingLayerGUID() const
 	return Landscape != nullptr ? Landscape->GetEditingLayer() : FGuid();
 }
 
-const FLandscapeLayersGlobalComponentData& ULandscapeComponent::GetGlobalLayersData() const
-{
-	return GlobalLayersData;
-}
-
-FLandscapeLayersGlobalComponentData& ULandscapeComponent::GetGlobalLayersData() 
-{
-	return GlobalLayersData;
-}
-
 const FLandscapeLayerComponentData* ULandscapeComponent::GetLayerData(const FGuid& InLayerGuid) const 
 {
 	return LayersData.Find(InLayerGuid);
@@ -1572,16 +1562,7 @@ void ULandscapeComponent::AddDefaultLayerData(const FGuid& InLayerGuid, const TA
 	Modify();
 
 	UTexture2D* ComponentHeightmap = GetHeightmap();
-
-	// Compute Global layers data
-	GlobalLayersData.TopLeftSectionBase = FIntPoint(INT_MAX, INT_MAX);
-
-	for (ULandscapeComponent* ComponentUsingHeightmap : InComponentsUsingHeightmap)
-	{
-		GlobalLayersData.TopLeftSectionBase.X = FMath::Min(GlobalLayersData.TopLeftSectionBase.X, ComponentUsingHeightmap->GetSectionBase().X);
-		GlobalLayersData.TopLeftSectionBase.Y = FMath::Min(GlobalLayersData.TopLeftSectionBase.Y, ComponentUsingHeightmap->GetSectionBase().Y);
-	}
-
+		
 	// Compute per layer data
 	FLandscapeLayerComponentData* LayerData = GetLayerData(InLayerGuid);
 
@@ -2761,6 +2742,12 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 		Proxies.Add(StreamingProxy);
 		StreamingProxy->LandscapeActor = LandscapeActor;
 		StreamingProxy->FixupSharedData(LandscapeActor.Get());
+	}
+
+	if (LandscapeActor)
+	{
+		// Force update rendering resources
+		LandscapeActor->RequestLayersInitialization();
 	}
 
 	UpdateLayerInfoMap(Proxy);
