@@ -59,4 +59,7 @@ struct TTypeCompatibleBytes :
 		sizeof(ElementType),
 		alignof(ElementType)
 		>
-{};
+{
+	ElementType*		GetTypedPtr()		{ return (ElementType*)this;  }
+	const ElementType*	GetTypedPtr() const	{ return (const ElementType*)this; }
+};
