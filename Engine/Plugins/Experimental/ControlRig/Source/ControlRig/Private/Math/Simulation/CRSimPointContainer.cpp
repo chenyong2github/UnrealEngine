@@ -32,6 +32,7 @@ FCRSimPoint FCRSimPointContainer::GetPointInterpolated(int32 InIndex) const
 	const FCRSimPoint& PrevPoint = PreviousStep[InIndex];
 	FCRSimPoint Point = Points[InIndex];
 	Point.Position = FMath::Lerp<FVector>(PrevPoint.Position, Point.Position, T);
+	Point.Size = FMath::Lerp<float>(PrevPoint.Size, Point.Size, T);
 	Point.LinearVelocity = FMath::Lerp<FVector>(PrevPoint.LinearVelocity, Point.LinearVelocity, T);
 	return Point;
 }
@@ -48,6 +49,7 @@ void FCRSimPointContainer::CachePreviousStep()
 void FCRSimPointContainer::IntegrateVerlet(float InBlend)
 {
 	IntegrateSprings();
+	IntegrateForcesAndVolumes();
 	IntegrateVelocityVerlet(InBlend);
 	ApplyConstraints();
 }
@@ -55,6 +57,7 @@ void FCRSimPointContainer::IntegrateVerlet(float InBlend)
 void FCRSimPointContainer::IntegrateSemiExplicitEuler()
 {
 	IntegrateSprings();
+	IntegrateForcesAndVolumes();
 	IntegrateVelocitySemiExplicitEuler();
 	ApplyConstraints();
 }
@@ -79,6 +82,21 @@ void FCRSimPointContainer::IntegrateSprings()
 		FCRSimPoint& PointB = Points[Spring.SubjectB];
 		PointA.LinearVelocity += ForceA;
 		PointB.LinearVelocity += ForceB;
+	}
+}
+
+void FCRSimPointContainer::IntegrateForcesAndVolumes()
+{
+	for (int32 PointIndex = 0; PointIndex < Points.Num(); PointIndex++)
+	{
+		for (int32 ForceIndex = 0; ForceIndex < Forces.Num(); ForceIndex++)
+		{
+			Points[PointIndex].LinearVelocity += Forces[ForceIndex].Calculate(PreviousStep[PointIndex], TimeStep);
+		}
+		for (int32 VolumeIndex = 0; VolumeIndex < CollisionVolumes.Num(); VolumeIndex++)
+		{
+			Points[PointIndex].LinearVelocity += CollisionVolumes[VolumeIndex].CalculateForPoint(PreviousStep[PointIndex], TimeStep);
+		}
 	}
 }
 

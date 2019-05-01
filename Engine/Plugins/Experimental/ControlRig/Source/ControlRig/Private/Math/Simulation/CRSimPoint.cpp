@@ -7,7 +7,7 @@ FCRSimPoint FCRSimPoint::IntegrateVerlet(const FVector& InForce, float InBlend, 
 	FCRSimPoint Point = *this;
 	if(Point.Mass > SMALL_NUMBER)
 	{
-		Point.LinearVelocity = FMath::Lerp<FVector>(Point.LinearVelocity, InForce, FMath::Clamp<float>(InBlend * InDeltaTime, 0.f, 1.f)) * FMath::Clamp<float>(1.f - LinearDamping, 0.f, 1.f);
+		Point.LinearVelocity = FMath::Lerp<FVector>(Point.LinearVelocity, InForce / Point.Mass, FMath::Clamp<float>(InBlend * InDeltaTime, 0.f, 1.f)) * FMath::Clamp<float>(1.f - LinearDamping, 0.f, 1.f);
 		Point.Position = Point.Position + Point.LinearVelocity * InDeltaTime;
 	}
 	return Point;
@@ -18,7 +18,7 @@ FCRSimPoint FCRSimPoint::IntegrateSemiExplicitEuler(const FVector& InForce, floa
 	FCRSimPoint Point = *this;
 	if(Point.Mass > SMALL_NUMBER)
 	{
-		Point.LinearVelocity += InForce * InDeltaTime;
+		Point.LinearVelocity += InForce * InDeltaTime / Point.Mass;
 		Point.LinearVelocity -= LinearVelocity * LinearDamping;
 		Point.Position += Point.LinearVelocity * InDeltaTime;
 	}

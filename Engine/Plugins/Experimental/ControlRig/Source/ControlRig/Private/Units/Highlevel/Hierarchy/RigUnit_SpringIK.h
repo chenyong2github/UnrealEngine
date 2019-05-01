@@ -67,6 +67,7 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 		SecondaryAxis = FVector(0.f, 1.f, 0.f);
 		bLiveSimulation = false;
 		Iterations = 10;
+		bLimitLocalPosition = true;
 		bPropagateToChildren = false;
 		DebugSettings = FRigUnit_SpringIK_DebugSettings();
 		PoleVectorIndex = INDEX_NONE;
@@ -159,6 +160,13 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 	 */
 	UPROPERTY(meta = (Input, Constant))
 	int32 Iterations;
+
+	/**
+	 * If set to true bones are placed within the original distance of
+	 * the previous local transform. This can be used to avoid stretch.
+	 */
+	UPROPERTY(meta = (Input))
+	bool bLimitLocalPosition;
 
 	/**
 	 * If set to true all of the global transforms of the children
