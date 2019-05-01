@@ -4346,6 +4346,9 @@ public:
 protected:
 	virtual FMulticastScriptDelegate::FInvocationList& GetInvocationList(const void* PropertyValue) const;
 	// End of UMulticastDelegateProperty interface
+
+private:
+	virtual void SerializeItemInternal(FArchive& Ar, void* Value, void const* Defaults) const;
 };
 
 /** Describes a single node in a custom property list. */

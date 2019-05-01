@@ -11,6 +11,8 @@
 #include "UObject/LazyObjectPtr.h"
 #include "UObject/WeakObjectPtr.h"
 
+#if WITH_TEXT_ARCHIVE_SUPPORT
+
 class COREUOBJECT_API FArchiveUObjectFromStructuredArchive : public FArchiveFromStructuredArchive
 {
 public:
@@ -43,3 +45,18 @@ private:
 
 	virtual void SerializeInternal(FStructuredArchive::FRecord Record) override;
 };
+
+#else
+
+class COREUOBJECT_API FArchiveUObjectFromStructuredArchive : public FArchiveFromStructuredArchive
+{
+public:
+
+	FArchiveUObjectFromStructuredArchive(FStructuredArchive::FSlot InSlot)
+		: FArchiveFromStructuredArchive(InSlot)
+	{
+
+	}
+};
+
+#endif

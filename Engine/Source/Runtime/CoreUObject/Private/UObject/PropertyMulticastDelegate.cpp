@@ -470,7 +470,11 @@ FMulticastScriptDelegate::FInvocationList& UMulticastSparseDelegateProperty::Get
 void UMulticastSparseDelegateProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
 {
 	FArchiveUObjectFromStructuredArchive Ar(Slot);
+	SerializeItemInternal(Ar, Value, Defaults);
+}
 
+void UMulticastSparseDelegateProperty::SerializeItemInternal(FArchive& Ar, void* Value, void const* Defaults) const
+{
 	FSparseDelegate& SparseDelegate = *(FSparseDelegate*)Value;
 
 	if (Ar.IsLoading())

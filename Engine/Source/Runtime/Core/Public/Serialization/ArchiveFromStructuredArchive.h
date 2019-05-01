@@ -12,6 +12,8 @@
 #include "Concepts/Insertable.h"
 #include "Templates/Models.h"
 
+#if WITH_TEXT_ARCHIVE_SUPPORT
+
 class CORE_API FArchiveFromStructuredArchive : public FArchiveProxy
 {
 public:
@@ -68,6 +70,27 @@ private:
 
 	FStructuredArchive::FSlot RootSlot;
 };
+
+#else
+
+class CORE_API FArchiveFromStructuredArchive
+{
+public:
+
+	FArchiveFromStructuredArchive(FStructuredArchive::FSlot InSlot)
+		: Ar(InSlot.GetUnderlyingArchive())
+	{
+
+	}
+
+	operator FArchive& () { return Ar; }
+
+private:
+
+	FArchive& Ar;
+};
+
+#endif
 
 /**
  * Adapter operator which allows a type to stream to an FStructuredArchive::FSlot when it already supports streaming to an FArchive.

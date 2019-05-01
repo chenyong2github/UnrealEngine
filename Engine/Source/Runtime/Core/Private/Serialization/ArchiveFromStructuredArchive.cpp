@@ -3,6 +3,8 @@
 #include "Serialization/ArchiveFromStructuredArchive.h"
 #include "Internationalization/Text.h"
 
+#if WITH_TEXT_ARCHIVE_SUPPORT
+
 FArchiveFromStructuredArchive::FArchiveFromStructuredArchive(FStructuredArchive::FSlot Slot)
 	: FArchiveProxy(Slot.GetUnderlyingArchive())
 	, bPendingSerialize(true)
@@ -290,3 +292,5 @@ void FArchiveFromStructuredArchive::OpenArchive()
 		}
 	}
 }
+
+#endif
