@@ -3860,6 +3860,8 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 	// Clamp time
 	DemoCurrentTime = FMath::Clamp(DemoCurrentTime, 0.0f, DemoTotalTime + 0.01f);
 
+	ReplayStreamer->UpdatePlaybackTime(GetDemoCurrentTimeInMS());
+
 	bool bProcessAvailableData = (PlaybackPackets.Num() > 0) || ReplayStreamer->IsDataAvailable();
 	
 	if (CVarFastForwardLevelsPausePlayback.GetValueOnAnyThread() == 0)
