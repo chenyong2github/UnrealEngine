@@ -328,8 +328,8 @@ void UImagePlateComponent::UpdateTransformScale()
 	{
 		FMatrix ViewMatrix;
 		FMatrix ProjectionMatrix;
-		FMatrix ViewProjectionMatrix;
 		UGameplayStatics::CalculateViewProjectionMatricesFromViewTarget(ViewTarget, ViewMatrix, ProjectionMatrix, ViewProjectionMatrix);
+		InvViewProjectionMatrix = ViewProjectionMatrix.Inverse();
 
 		const FMatrix LocalToWorld = GetComponentTransform().ToMatrixNoScale();
 		const FMatrix WorldToLocal = LocalToWorld.Inverse();
