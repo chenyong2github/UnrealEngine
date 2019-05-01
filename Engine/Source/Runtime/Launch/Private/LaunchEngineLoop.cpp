@@ -54,8 +54,6 @@
 #include "Misc/NetworkVersion.h"
 #include "Templates/UniquePtr.h"
 
-#include "GenericPlatform/GenericPlatformInstallBundleManager.h"
-
 #if !(IS_PROGRAM || WITH_EDITOR)
 #include "IPlatformFilePak.h"
 #endif
@@ -220,6 +218,11 @@ class FFeedbackContext;
 #if WITH_ENGINE
 	CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 #endif
+
+#ifndef WITH_CONFIG_PATCHING
+#define WITH_CONFIG_PATCHING 0
+#endif
+
 
 int32 GUseDisregardForGCOnDedicatedServers = 1;
 static FAutoConsoleVariableRef CVarUseDisregardForGCOnDedicatedServers(
@@ -1595,6 +1598,14 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		}
 	}
 
+	constexpr bool bWithConfigPatching = (WITH_CONFIG_PATCHING != 0);
+	if (bWithConfigPatching)
+	{
+		UE_LOG(LogInit, Verbose, TEXT("Begin recording CVar changes for config patching."));
+
+		RecordApplyCVarSettingsFromIni();
+	}
+
 #if WITH_ENGINE
 	extern ENGINE_API void InitializeRenderingCVarsCaching();
 	InitializeRenderingCVarsCaching();
@@ -2218,6 +2229,16 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 				}
 			}
 
+			if (bWithConfigPatching)
+			{
+				IPlatformInstallBundleManager* BundleManager = FPlatformMisc::GetPlatformInstallBundleManager();
+				if (BundleManager != nullptr && !BundleManager->IsNullInterface())
+				{
+					IPlatformInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FEngineLoop::OnStartupContentMounted);
+				}
+				// If not using the bundle manager, config will be reloaded after ESP, see below
+			}
+
 			if (GetMoviePlayer()->HasEarlyStartupMovie())
 			{
 				SCOPED_BOOT_TIMING("EarlyStartupMovie");
@@ -2339,6 +2360,15 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 				TArray<FString> PakFolders;
 				PakFolders.Add(InstalledGameContentDir);
 				FCoreDelegates::OnMountAllPakFiles.Execute(PakFolders);
+			}
+
+			//Reapply CVars after our EarlyLoadScreen
+			if(bWithConfigPatching)
+			{
+				SCOPED_BOOT_TIMING("ReapplyCVarsFromIniAfterEarlyStartupScreen");
+
+				ReapplyRecordedCVarSettingsFromIni();
+				DeleteRecordedCVarSettingsFromIni();
 			}
 
 			//Handle opening shader library after our EarlyLoadScreen
@@ -3435,6 +3465,8 @@ void FEngineLoop::Exit()
 	GIsRunning	= 0;
 	GLogConsole	= nullptr;
 
+	IPlatformInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+
 	// shutdown visual logger and flush all data
 #if ENABLE_VISUAL_LOG
 	FVisualLogger::Get().Shutdown();
@@ -3590,6 +3622,16 @@ void FEngineLoop::ProcessLocalPlayerSlateOperations() const
 	}
 }
 
+void FEngineLoop::OnStartupContentMounted(FInstallBundleResultInfo Result)
+{
+	if (Result.bIsStartup && Result.Result == EInstallBundleResult::OK)
+	{
+		ReapplyRecordedCVarSettingsFromIni();
+		DeleteRecordedCVarSettingsFromIni();
+
+		IPlatformInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+	}
+}
 
 bool FEngineLoop::ShouldUseIdleMode() const
 {
