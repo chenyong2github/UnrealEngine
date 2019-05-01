@@ -2492,6 +2492,40 @@ void ALandscape::RegenerateLayersHeightmaps()
 			return;
 		}
 
+		// Use to compute TopLeft Component per Heightmap
+		struct FHeightmapTopLeft
+		{
+			FHeightmapTopLeft(UTexture2D* InTexture, FIntPoint InTopLeftSectionBase) : Texture(InTexture), TopLeftSectionBase(InTopLeftSectionBase) {}
+
+			FHeightmapTopLeft(FHeightmapTopLeft&&) = default;
+			FHeightmapTopLeft& operator=(FHeightmapTopLeft&&) = default;
+
+			UTexture2D* Texture;
+			FIntPoint TopLeftSectionBase;
+		};
+
+		// Calculate Top Left Lambda
+		auto GetProxyUniqueHeightmaps = [&](ALandscapeProxy* InProxy, TArray<FHeightmapTopLeft>& OutHeightmaps, const FGuid& InLayerGuid = FGuid())
+		{
+			FScopedSetLandscapeEditingLayer Scope(this, InLayerGuid);
+			for (ULandscapeComponent* Component : InProxy->LandscapeComponents)
+			{
+				UTexture2D* ComponentHeightmap = Component->GetHeightmap(true);
+		
+				int32 Index = OutHeightmaps.IndexOfByPredicate([=](const FHeightmapTopLeft& LayerHeightmap) { return LayerHeightmap.Texture == ComponentHeightmap; });
+
+				if (Index == INDEX_NONE)
+				{
+					OutHeightmaps.Add(FHeightmapTopLeft(ComponentHeightmap, Component->GetSectionBase()));
+				}
+				else
+				{
+					OutHeightmaps[Index].TopLeftSectionBase.X = FMath::Min(OutHeightmaps[Index].TopLeftSectionBase.X, Component->GetSectionBase().X);
+					OutHeightmaps[Index].TopLeftSectionBase.Y = FMath::Min(OutHeightmaps[Index].TopLeftSectionBase.Y, Component->GetSectionBase().Y);
+				}
+			}
+		};
+
 		FLandscapeLayersHeightmapShaderParameters ShaderParams;
 
 		bool FirstLayer = true;
@@ -2526,23 +2560,13 @@ void ALandscape::RegenerateLayersHeightmaps()
 
 			Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 			{
-				TArray<UTexture2D*> ProcessedTextures;
+                TArray<FHeightmapTopLeft> LayerHeightmaps;
+				GetProxyUniqueHeightmaps(Proxy, LayerHeightmaps, Layer.Guid);
 
-				for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
+				for (const FHeightmapTopLeft& LayerHeightmap : LayerHeightmaps)
 				{
-					FLandscapeLayerComponentData* ComponentLayerData = Component->GetLayerData(Layer.Guid);
-					FLandscapeLayersGlobalComponentData& GlobalLayersData = Component->GetGlobalLayersData();
-					UTexture2D* LayerHeightmap = ComponentLayerData->HeightmapData.Texture;			
-
-					if (!ProcessedTextures.Contains(LayerHeightmap))
-					{
-						ProcessedTextures.Add(LayerHeightmap);
-
-						FIntPoint TextureTopLeftSectionBase = GlobalLayersData.TopLeftSectionBase - MinExtend;
-
-						CopyLayersTexture(LayerHeightmap, LandscapeScratchRT1, nullptr, TextureTopLeftSectionBase);
-						PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Height: %s Component %s += -> CombinedAtlas %s"), *Layer.Name.ToString(), *LayerHeightmap->GetName(), *LandscapeScratchRT1->GetName()) : TEXT(""), LandscapeScratchRT1);
-					}
+					CopyLayersTexture(LayerHeightmap.Texture, LandscapeScratchRT1, nullptr, LayerHeightmap.TopLeftSectionBase-MinExtend);
+					PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Height: %s Component %s += -> CombinedAtlas %s"), *Layer.Name.ToString(), *LayerHeightmap.Texture->GetName(), *LandscapeScratchRT1->GetName()) : TEXT(""), LandscapeScratchRT1);
 				}
 			});
 
@@ -2622,34 +2646,27 @@ void ALandscape::RegenerateLayersHeightmaps()
 		// Copy back all Mips to original heightmap data
 		Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 		{
-			TArray<UTexture2D*> ProcessedTextures;
+			TArray<FHeightmapTopLeft> Heightmaps;
+			GetProxyUniqueHeightmaps(Proxy, Heightmaps);
 
-			for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
+			for (const FHeightmapTopLeft& Heightmap : Heightmaps)
 			{
-				UTexture2D* ComponentHeightmap = Component->GetHeightmap();
+				int32 CurrentMip = 0;
 
-				if (!ProcessedTextures.Contains(ComponentHeightmap))
+				FLandscapeLayersTexture2DCPUReadBackResource** CPUReadback = Proxy->HeightmapsCPUReadBack.Find(Heightmap.Texture);
+				check(CPUReadback != nullptr);
+
+				FIntPoint TextureTopLeftSectionBase = Heightmap.TopLeftSectionBase - MinExtend;
+
+				CopyLayersTexture(CombinedHeightmapAtlasRT, Heightmap.Texture, *CPUReadback, TextureTopLeftSectionBase, CurrentMip, CurrentMip);
+				++CurrentMip;
+
+				for (int32 MipRTIndex = EHeightmapRTType::HeightmapRT_Mip1; MipRTIndex < EHeightmapRTType::HeightmapRT_Count; ++MipRTIndex)
 				{
-					int32 CurrentMip = 0;
-
-					FLandscapeLayersTexture2DCPUReadBackResource** CPUReadback = Proxy->HeightmapsCPUReadBack.Find(ComponentHeightmap);
-					check(CPUReadback != nullptr);
-
-					ProcessedTextures.Add(ComponentHeightmap);
-					FLandscapeLayersGlobalComponentData& GlobalLayersData = Component->GetGlobalLayersData();
-
-					FIntPoint TextureTopLeftSectionBase = GlobalLayersData.TopLeftSectionBase - MinExtend;
-
-					CopyLayersTexture(CombinedHeightmapAtlasRT, ComponentHeightmap, *CPUReadback, TextureTopLeftSectionBase, CurrentMip, CurrentMip);
-					++CurrentMip;
-
-					for (int32 MipRTIndex = EHeightmapRTType::HeightmapRT_Mip1; MipRTIndex < EHeightmapRTType::HeightmapRT_Count; ++MipRTIndex)
+					if (HeightmapRTList[MipRTIndex] != nullptr)
 					{
-						if (HeightmapRTList[MipRTIndex] != nullptr)
-						{
-							CopyLayersTexture(HeightmapRTList[MipRTIndex], ComponentHeightmap, *CPUReadback, TextureTopLeftSectionBase, CurrentMip, CurrentMip);
-							++CurrentMip;
-						}
+						CopyLayersTexture(HeightmapRTList[MipRTIndex], Heightmap.Texture, *CPUReadback, TextureTopLeftSectionBase, CurrentMip, CurrentMip);
+						++CurrentMip;
 					}
 				}
 			}
@@ -3957,9 +3974,11 @@ void ALandscape::InitializeLayers()
 	else
 	{
 		// Special case to load the existing content to the default layer
-		CreateDefaultLayer(ComponentCounts);
+		CreateDefaultLayer();
+		CreateLayersRenderingResource(ComponentCounts);
 		CopyOldDataToDefaultLayer();
 	}
+	bLandscapeLayersAreInitialized = true;
 }
 
 void ALandscape::TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
@@ -3982,7 +4001,6 @@ void ALandscape::TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunc
 			{
 				PreviousExperimentalLandscapeLayers = GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem;
 				InitializeLayers();
-				bLandscapeLayersAreInitialized = true;
 			}
 
 			// If doing editing while shader are compiling or at load of a map, it's possible we will need another update pass after shader are completed to see the correct result
@@ -4212,7 +4230,7 @@ bool ALandscapeProxy::AddLayer(const FGuid& InLayerGuid)
 	{
 		InitializeLayerWithEmptyContent(InLayerGuid);
 	}
-
+	HasLayersContent = true;
 	return bModified;
 }
 
@@ -4264,9 +4282,7 @@ void ALandscapeProxy::InitializeLayerWithEmptyContent(const FGuid& InLayerGuid)
 		TArray<ULandscapeComponent*>& ComponentList = ComponentsPerHeightmaps.FindOrAdd(ComponentHeightmapTexture);
 		ComponentList.Add(Component);
 	}
-
-	const FIntPoint InitTopLeftSectionBase(INT_MAX, INT_MAX);
-
+		
 	// Init layers with valid "empty" data
 	TMap<UTexture2D*, UTexture2D*> CreatedHeightmapTextures; // < Final layer texture, New created texture for layer
 
@@ -4517,7 +4533,7 @@ void ALandscape::ClearLayer(const FGuid& InLayerGuid, bool bInUpdateCollision)
 	}
 
 	Modify();
-	FScopedSetLandscapeEditingLayer Scope(this, Layer ? Layer->Guid : FGuid(), [=] { RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true); });
+	FScopedSetLandscapeEditingLayer Scope(this, Layer->Guid, [=] { RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true); });
 
 	TArray<uint16> NewHeightData;
 	NewHeightData.AddZeroed(FMath::Square(ComponentSizeQuads + 1));
@@ -4679,20 +4695,20 @@ void ALandscape::UpdateLandscapeSplines(const FGuid& InTargetLayer, bool bUpdate
 
 FScopedSetLandscapeEditingLayer::FScopedSetLandscapeEditingLayer(ALandscape* InLandscape, const FGuid& InLayerGUID, TFunction<void()> InCompletionCallback)
 	: Landscape(InLandscape)
-	, LayerGUID(InLayerGUID)
 	, CompletionCallback(MoveTemp(InCompletionCallback))
 {
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && Landscape.IsValid() && LayerGUID.IsValid())
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && Landscape.IsValid())
 	{
-		Landscape->SetEditingLayer(LayerGUID);
+		PreviousLayerGUID = Landscape->GetEditingLayer();
+		Landscape->SetEditingLayer(InLayerGUID);
 	}
 }
 
 FScopedSetLandscapeEditingLayer::~FScopedSetLandscapeEditingLayer()
 {
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && Landscape.IsValid() && LayerGUID.IsValid())
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && Landscape.IsValid())
 	{
-		Landscape->SetEditingLayer();
+		Landscape->SetEditingLayer(PreviousLayerGUID);
 		if (CompletionCallback)
 		{
 			CompletionCallback();
@@ -4713,7 +4729,7 @@ bool ALandscape::IsEditingLayerReservedForSplines() const
 void ALandscape::SetEditingLayer(const FGuid& InLayerGuid)
 {
 	ensure(GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem);
-
+	
 	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
 	if (!LandscapeInfo)
 	{
@@ -4751,7 +4767,7 @@ TMap<UTexture2D*, TArray<ULandscapeComponent*>> ALandscape::GenerateComponentsPe
 	return ComponentsPerHeightmaps;
 }
 
-void ALandscape::CreateDefaultLayer(const FIntPoint& InComponentCounts)
+void ALandscape::CreateDefaultLayer()
 {
 	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
 	if (!LandscapeInfo || !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
@@ -4762,7 +4778,9 @@ void ALandscape::CreateDefaultLayer(const FIntPoint& InComponentCounts)
 	check(LandscapeLayers.Num() == 0); // We can only call this function if we have no layers
 
 	CreateLayer(FName(TEXT("Layer")));
-	CreateLayersRenderingResource(InComponentCounts);
+	HasLayersContent = true;
+	// Force update rendering resources
+	RequestLayersInitialization();
 }
 
 
@@ -4784,6 +4802,29 @@ void ALandscape::CreateLayer(FName InName)
 	{
 		Proxy->AddLayer(NewLayer.Guid);
 	});
+}
+
+void ALandscape::AddLayersToProxy(ALandscapeProxy* InProxy)
+{
+	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+	if (!LandscapeInfo || !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		return;
+	}
+
+	Modify();
+
+	check(InProxy != this);
+	check(InProxy != nullptr);
+
+	ForEachLayer([&](FLandscapeLayer& Layer)
+	{
+		InProxy->AddLayer(Layer.Guid);
+	});
+	InProxy->HasLayersContent = true;
+
+	// Force update rendering resources
+	RequestLayersInitialization();
 }
 
 bool ALandscape::ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex)

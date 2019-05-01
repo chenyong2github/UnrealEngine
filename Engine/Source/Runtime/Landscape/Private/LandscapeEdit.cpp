@@ -2775,10 +2775,16 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 	{
 		ALandscape* LandscapeActor = GetLandscapeActor();
 		check(LandscapeActor != nullptr);
-
-		// Create the default layer
-		LandscapeActor->CreateDefaultLayer(FIntPoint(NumComponentsX, NumComponentsY));
-		HasLayersContent = true;
+		// Only create Layers on main Landscape
+		if (LandscapeActor == this)
+		{
+			// Create the default layer
+			LandscapeActor->CreateDefaultLayer();
+		} 
+		else
+		{
+			LandscapeActor->AddLayersToProxy(this);
+		}
 	}
 
 	if (GetLevel()->bIsVisible)
