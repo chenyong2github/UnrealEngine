@@ -75,19 +75,21 @@ enum EWeightmapRTType : uint8
 // Internal Update Flags that shouldn't be used alone
 enum EInternalLandscapeLayersContentUpdateFlag : uint32
 {
-	Internal_Heightmap_Render = 0x00000001u,
-	Internal_Heightmap_BoundsAndCollision = 0x00000002u,
-	Internal_Heightmap_ResolveToTexture = 0x00000004u,
-	Internal_Heightmap_ClientUpdate = 0x000000008u,
+	Internal_Heightmap_Render = 1 << 0, 
+	Internal_Heightmap_BoundsAndCollision = 1 << 1,
+	Internal_Heightmap_BoundsAndCollisionPartial = 1 << 2,
+	Internal_Heightmap_ResolveToTexture = 1 << 3,
+	Internal_Heightmap_ClientUpdate = 1 << 4,
 
-	Internal_Weightmap_Render = 0x00000100u,
-	Internal_Weightmap_Collision = 0x00000200u,
-	Internal_Weightmap_ResolveToTexture = 0x00000400u,
+	Internal_Weightmap_Render = 1 << 8,
+	Internal_Weightmap_Collision = 1 << 9,
+	Internal_Weightmap_ResolveToTexture = 1 << 10,
 };
 
 enum ELandscapeLayersContentUpdateFlag : uint32
 {
 	Heightmap_Render = Internal_Heightmap_Render,
+	Heightmap_Editing = Internal_Heightmap_Render | Internal_Heightmap_ResolveToTexture | Internal_Heightmap_BoundsAndCollisionPartial,
 	Weightmap_Render = Internal_Weightmap_Render,
 
 	// Combinations
@@ -248,7 +250,7 @@ public:
 
 	// Layers stuff
 #if WITH_EDITOR
-	LANDSCAPE_API void RequestLayersInitialization() { bLandscapeLayersAreInitialized = false; }
+	LANDSCAPE_API void RequestLayersInitialization() { bLandscapeLayersAreInitialized = false; RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All); }
 	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag InDataFlags, bool InUpdateAllMaterials = false);
 	LANDSCAPE_API bool ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex);
 	LANDSCAPE_API void CreateLayer(FName InName = NAME_None);
@@ -392,7 +394,7 @@ private:
 	class FLandscapeTexture2DResource* WeightmapScratchExtractLayerTextureResource;	
 	
 	// Used in packing the material layer data contained into CombinedLayersWeightmapAllMaterialLayersResource to be set again for each component weightmap (size of the landscape)
-	class FLandscapeTexture2DResource* WeightmapScratchPackLayerTextureResource;	
+	class FLandscapeTexture2DResource* WeightmapScratchPackLayerTextureResource;
 #endif
 
 protected:

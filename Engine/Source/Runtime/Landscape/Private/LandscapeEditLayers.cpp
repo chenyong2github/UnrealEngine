@@ -1267,6 +1267,9 @@ void ALandscape::CreateLayersRenderingResource(const FIntPoint& InComponentCount
 		}
 	});
 
+	// Flush because TickLayers can access CPU Readbacks in the same frame (see ResolveLayersTexture)
+	FlushRenderingCommands();
+
 	const int32 TotalVertexCountX = (SubsectionSizeQuads * NumSubsections) * InComponentCounts.X + 1;
 	const int32 TotalVertexCountY = (SubsectionSizeQuads * NumSubsections) * InComponentCounts.Y + 1;
 
@@ -2678,19 +2681,20 @@ void ALandscape::RegenerateLayersHeightmaps()
 		ResolveLayersHeightmapTexture();
 	}
 
-	bool bUpdateBoundsAndCollsion = (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_BoundsAndCollision) != 0;
+	bool bUpdateBoundsAndCollsionFull = (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_BoundsAndCollision) != 0;
+	bool bUpdateBoundsAndCollsionPartial = ((LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_BoundsAndCollisionPartial) != 0) && !bUpdateBoundsAndCollsionFull; // Partial only if not full update
+	bool bUpdateBoundsAndCollsion = bUpdateBoundsAndCollsionFull || bUpdateBoundsAndCollsionPartial;
 	bool bUpdateClients = (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_ClientUpdate) != 0;
 	int32 PostponeUpdateClientFlag = 0;
 	if (bUpdateBoundsAndCollsion || bUpdateClients)
 	{
 		for (ULandscapeComponent* Component : AllLandscapeComponents)
 		{
-			if (bUpdateBoundsAndCollsion)
+			if (bUpdateBoundsAndCollsion && (!bUpdateBoundsAndCollsionPartial || Component->IsLayerContentDirty()))
 			{
 				Component->UpdateCachedBounds();
 				Component->UpdateComponentToWorld();
-
-				Component->UpdateCollisionData();
+				Component->UpdateCollisionData(bUpdateBoundsAndCollsionPartial);
 			}
 
 			if (bUpdateClients)
@@ -2711,9 +2715,14 @@ void ALandscape::RegenerateLayersHeightmaps()
 					}
 				}
 			}
+			Component->SetLayerContentDirty(false);
 		}
+
+		// Ideally, we should only update necessary components and only when inside AddComponnet Tool.
+		Info->UpdateAllAddCollisions();
 	}
 
+	LayersContentUpdateFlags &= ~EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_BoundsAndCollisionPartial;
 	LayersContentUpdateFlags &= ~ELandscapeLayersContentUpdateFlag::Heightmap_All;
 	LayersContentUpdateFlags |= PostponeUpdateClientFlag; // if non-zero postpone client update (transacting)
 
