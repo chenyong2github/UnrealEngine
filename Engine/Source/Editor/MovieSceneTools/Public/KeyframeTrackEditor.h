@@ -558,7 +558,8 @@ private:
 	{
 		FOptionalMovieSceneBlendType BlendType = Section->GetBlendType();
 		// Sections are only eligible for autokey if they are not blendable (or absolute, relative), and overlap the current time
-		return ( !BlendType.IsValid() || BlendType.Get() == EMovieSceneBlendType::Absolute || BlendType.Get() == EMovieSceneBlendType::Additive) && Section->GetRange().Contains(Time);
+		return ( !BlendType.IsValid() || BlendType.Get() == EMovieSceneBlendType::Absolute || BlendType.Get() == EMovieSceneBlendType::Additive ||
+			BlendType.Get() == EMovieSceneBlendType::Relative) && Section->GetRange().Contains(Time);
 	}
 };
 
