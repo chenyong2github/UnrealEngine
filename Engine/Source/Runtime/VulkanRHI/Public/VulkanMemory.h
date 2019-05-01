@@ -33,7 +33,7 @@ extern EDelayAcquireImageType GVulkanDelayAcquireImage;
 
 namespace VulkanRHI
 {
-	uint32 GetMaxSize(class FBufferAllocation* S);
+	static uint32 GetMaxSize(class FBufferAllocation* Allocation);
 	class FFenceManager;
 
 	extern int32 GVulkanUseBufferBinning;
@@ -532,10 +532,10 @@ namespace VulkanRHI
 			, Owner(InOwner)
 			, Handle(InHandle)
 		{
-			uint32 S = GetMaxSize(InOwner);
-			check(InAlignedOffset <= S);
-			check(InAllocationOffset + InAllocationSize <= S);
-			check(InAlignedOffset + InRequestedSize <= S);
+			uint32 Size = GetMaxSize(InOwner);
+			check(InAlignedOffset <= Size);
+			check(InAllocationOffset + InAllocationSize <= Size);
+			check(InAlignedOffset + InRequestedSize <= Size);
 		}
 
 		virtual ~FBufferSuballocation();
@@ -747,9 +747,9 @@ namespace VulkanRHI
 
 		friend class FResourceHeapManager;
 	};
-	inline uint32 GetMaxSize(FBufferAllocation* S)
+	static inline uint32 GetMaxSize(FBufferAllocation* Allocation)
 	{
-		return S->GetMaxSize();
+		return Allocation->GetMaxSize();
 	}
 
 	// Manages heaps and their interactions
