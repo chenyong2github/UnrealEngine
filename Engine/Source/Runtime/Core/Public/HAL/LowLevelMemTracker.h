@@ -233,22 +233,12 @@ enum class ELLMTag : LLM_TAG_TYPE
 	//------------------------------
 	// Platform tags
 	PlatformTagStart = 100,
-	PlatformTagEnd = 149,
-
-	//------------------------------
-	// Project tags
-	ProjectTagStart = 150,
-	ProjectTagEnd = 255,
+	PlatformTagEnd = 0xff,
 
 	// anything above this value is treated as an FName for a stat section
 };
-static_assert( ELLMTag::GenericTagCount <= ELLMTag::PlatformTagStart, "too many LLM tags defined"); 
 
 static const uint32 LLM_TAG_COUNT = 256;
-static const uint32 LLM_CUSTOM_TAG_START = (int32)ELLMTag::PlatformTagStart;
-static const uint32 LLM_CUSTOM_TAG_END = (int32)ELLMTag::ProjectTagEnd;
-static const uint32 LLM_CUSTOM_TAG_COUNT = LLM_CUSTOM_TAG_END + 1 - LLM_CUSTOM_TAG_START;
-
 
 /**
  * Passed in to OnLowLevelAlloc to specify the type of allocation. Used to track FMalloc total
@@ -332,8 +322,8 @@ extern FName LLMGetTagStat(ELLMTag Tag);
 /**
  * LLM tag dumping, to help with identifying mis-tagged items. Probably don't want to check in with these in use!
  */
-#define LLM_DUMP_TAG()  FLowLevelMemTracker::Get().DumpTag(ELLMTracker::Default,__FILE__,__LINE__)
-#define LLM_DUMP_PLATFORM_TAG()  FLowLevelMemTracker::Get().DumpTag(ELLMTracker::Platform,__FILE__,__LINE__)
+#define LLM_DUMP_TAG()  FLowLevelMemTracker::Get().DumpTag(ELLMTracker::Default,__FILE__,__LINE__);
+#define LLM_DUMP_PLATFORM_TAG()  FLowLevelMemTracker::Get().DumpTag(ELLMTracker::Platform,__FILE__,__LINE__);
 
 
 typedef void*(*LLMAllocFunction)(size_t);
@@ -392,20 +382,12 @@ private:
 	int32 Alignment;
 };
 
-struct FLLMCustomTag
+struct FLLMPlatformTag
 {
 	int32 Tag;
 	const TCHAR* Name;
 	FName StatName;
 	FName SummaryStatName;
-};
-
-struct FLLMTagInfo
-{
-	const TCHAR* Name;
-	FName StatName;				// shows in the LLMFULL stat group
-	FName SummaryStatName;		// shows in the LLM summary stat group
-	int32 ParentTag = -1;
 };
 
 /*
@@ -462,7 +444,6 @@ public:
     int64 GetActiveTag(ELLMTracker Tracker);
 
 	void RegisterPlatformTag(int32 Tag, const TCHAR* Name, FName StatName, FName SummaryStatName, int32 ParentTag = -1);
-	void RegisterProjectTag(int32 Tag, const TCHAR* Name, FName StatName, FName SummaryStatName, int32 ParentTag = -1);
     
 	// look up the tag associated with the given name
 	bool FindTagByName( const TCHAR* Name, uint64& OutTag ) const;
@@ -477,7 +458,7 @@ public:
 	void SetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, int64 Amount, bool bAddToTotal );
 
 	// Dump the current tag for the given tracker to the output
-	int64 DumpTag( ELLMTracker Tracker, const char* FileName, int LineNumber );
+	void DumpTag( ELLMTracker Tracker, const char* FileName, int LineNumber );
 
 private:
 	FLowLevelMemTracker();
@@ -487,8 +468,6 @@ private:
 	void InitialiseTrackers();
 
 	class FLLMTracker* GetTracker(ELLMTracker Tracker);
-
-	void RegisterCustomTagInternal(int32 Tag, const TCHAR* Name, FName StatName, FName SummaryStatName, int32 ParentTag = -1);
 
 	friend class FLLMScope;
 	friend class FLLMPauseScope;
@@ -508,7 +487,7 @@ private:
 
 	bool bInitialisedTrackers;
 
-	FLLMCustomTag CustomTags[LLM_CUSTOM_TAG_COUNT];
+	FLLMPlatformTag PlatformTags[(int32)ELLMTag::PlatformTagEnd + 1 - (int32)ELLMTag::PlatformTagStart];
 
 	FLLMTracker* Trackers[(int32)ELLMTracker::Max];
 
