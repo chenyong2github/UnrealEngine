@@ -23,6 +23,7 @@ enum class ELLMTagMetal : LLM_TAG_TYPE
 	Buffers = (LLM_TAG_TYPE)ELLMTag::PlatformTagStart,
 	Textures,
 	Heaps,
+	RenderTargets,
 	
 	Count
 };
