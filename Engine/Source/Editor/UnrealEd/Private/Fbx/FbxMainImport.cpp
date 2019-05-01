@@ -684,7 +684,7 @@ bool FFbxImporter::GetSceneInfo(FString Filename, FbxSceneInfo& SceneInfo, bool 
 		}
 		GWarn->UpdateProgress( 90, 100 );
 	case IMPORTED:
-	
+	case FIXEDANDCONVERTED:
 	default:
 		break;
 	}
@@ -1609,8 +1609,10 @@ bool FFbxImporter::ImportFromFile(const FString& Filename, const FString& Type, 
 			ConvertLodPrefixToLodGroup();
 
 			MeshNamesCache.Empty();
+			CurPhase = FIXEDANDCONVERTED;
+			break;
 		}
-		
+	case FIXEDANDCONVERTED:
 	default:
 		break;
 	}

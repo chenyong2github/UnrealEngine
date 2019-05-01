@@ -1247,7 +1247,8 @@ protected:
 	{
 		NOTSTARTED,
 		FILEOPENED,
-		IMPORTED
+		IMPORTED,
+		FIXEDANDCONVERTED,
 	};
 	
 	static TSharedPtr<FFbxImporter> StaticInstance;
