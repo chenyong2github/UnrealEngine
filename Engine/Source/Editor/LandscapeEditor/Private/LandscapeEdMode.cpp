@@ -475,7 +475,7 @@ void FEdModeLandscape::Enter()
 	}
 	else
 	{
-		GEditor->SelectNone(false, true);
+		GEditor->SelectNone(true, true);
 	}
 
 	for (TActorIterator<ALandscapeGizmoActiveActor> It(GetWorld()); It; ++It)
