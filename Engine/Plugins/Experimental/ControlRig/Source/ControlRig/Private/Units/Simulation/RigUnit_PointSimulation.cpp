@@ -216,7 +216,7 @@ void FRigUnit_PointSimulation::Execute(const FRigUnitContext& Context)
 					FVector SecondaryAimPosition = Positions[BoneTarget.SecondaryAimPoint];
 					FVector Target = SecondaryAimPosition - Transform.GetLocation();
 					Target = Target - FVector::DotProduct(Target, PrimaryAxis) * PrimaryAxis;
-					FVector SecondaryAxis = Transform.TransformVectorNoScale(SecondaryAxis);
+					FVector SecondaryAxis = Transform.TransformVectorNoScale(SecondaryAimAxis);
 
 					if (!Target.IsNearlyZero() && !SecondaryAxis.IsNearlyZero())
 					{
