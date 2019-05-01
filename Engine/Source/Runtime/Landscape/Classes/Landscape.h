@@ -248,11 +248,13 @@ public:
 
 	// Layers stuff
 #if WITH_EDITOR
+	LANDSCAPE_API void RequestLayersInitialization() { bLandscapeLayersAreInitialized = false; }
 	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag InDataFlags, bool InUpdateAllMaterials = false);
 	LANDSCAPE_API bool ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex);
 	LANDSCAPE_API void CreateLayer(FName InName = NAME_None);
-	LANDSCAPE_API void CreateDefaultLayer(const FIntPoint& InComponentCounts);
+	LANDSCAPE_API void CreateDefaultLayer();
 	LANDSCAPE_API void CopyOldDataToDefaultLayer();
+	LANDSCAPE_API void AddLayersToProxy(ALandscapeProxy* InProxy);
 	LANDSCAPE_API TMap<UTexture2D*, TArray<ULandscapeComponent*>> GenerateComponentsPerHeightmaps() const;
 	LANDSCAPE_API FIntPoint ComputeComponentCounts() const;
 	LANDSCAPE_API bool IsLayerNameUnique(const FName& InName) const;
@@ -287,10 +289,10 @@ public:
 	LANDSCAPE_API TArray<int8>& GetBrushesOrderForLayer(int32 InLayerIndex, int32 InTargetType);
 	LANDSCAPE_API class ALandscapeBlueprintCustomBrush* GetBrushForLayer(int32 InLayerIndex, int32 InTargetType, int8 BrushIndex) const;
 	LANDSCAPE_API TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForLayer(int32 InLayerIndex, int32 InTargetType) const;
-	LANDSCAPE_API void CreateLayersRenderingResource(const FIntPoint& InComponentCounts);
-
+	
 private:
 	void TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
+	void CreateLayersRenderingResource(const FIntPoint& InComponentCounts);
 	void RegenerateLayersContent();
 	void RegenerateLayersHeightmaps();
 	void RegenerateLayersWeightmaps();
@@ -367,11 +369,10 @@ public:
 	UPROPERTY(Transient)
 	bool PreviousExperimentalLandscapeLayers;
 
+private:
 	UPROPERTY(Transient)
 	bool bLandscapeLayersAreInitialized;
-
-private:
-
+	
 	UPROPERTY(Transient)
 	bool WasCompilingShaders;
 
@@ -409,7 +410,7 @@ public:
 
 private:
 	TWeakObjectPtr<ALandscape> Landscape;
-	const FGuid& LayerGUID;
+	FGuid PreviousLayerGUID;
 	TFunction<void()> CompletionCallback;
 };
 #endif
