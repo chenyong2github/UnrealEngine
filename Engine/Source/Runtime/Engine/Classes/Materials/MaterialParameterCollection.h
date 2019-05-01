@@ -13,6 +13,7 @@
 #include "Templates/ScopedPointer.h"
 #include "UniformBuffer.h"
 #include "Templates/UniquePtr.h"
+#include "RenderCommandFence.h"
 #include "MaterialParameterCollection.generated.h"
 
 struct FPropertyChangedEvent;
