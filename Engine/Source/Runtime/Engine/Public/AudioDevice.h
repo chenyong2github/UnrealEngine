@@ -1841,9 +1841,6 @@ private:
 	/** A count of the number of one-shot active sounds. */
 	uint32 OneShotCount;
 
-	/** Threshold priority for allowing oneshot active sounds through the max oneshot active sound limit. */
-	float OneShotPriorityCullThreshold;
-
 	// Global min and max pitch scale, derived from audio settings
 	float GlobalMinPitch;
 	float GlobalMaxPitch;
