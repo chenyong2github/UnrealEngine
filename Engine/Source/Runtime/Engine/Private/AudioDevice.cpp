@@ -4444,7 +4444,7 @@ void FAudioDevice::AddSoundToStop(FActiveSound* SoundToStop)
 
 		if (!VirtualLoops.Contains(SoundToStop))
 		{
-			ConcurrencyManager.RemoveActiveSound(SoundToStop);
+			ConcurrencyManager.RemoveActiveSound(*SoundToStop);
 		}
 	}
 }
@@ -5786,6 +5786,12 @@ void FAudioDevice::UpdateVirtualLoops()
 			if (VirtualLoop.CanRealize(DeltaTime))
 			{
 				VirtualLoopsToRetrigger.Add(VirtualLoop);
+			}
+
+			// If signaled to fade out and virtualized, and to pending stop list.
+			if (ActiveSound.bFadingOut)
+			{
+				AddSoundToStop(&ActiveSound);
 			}
 		}
 
