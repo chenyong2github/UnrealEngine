@@ -464,7 +464,7 @@ public:
 
 					UE_LOG(LogAutomationCommandLine, Log, TEXT("Forcing shutdown."));
 					// some tools parse this.
-					UE_LOG(LogAutomationCommandLine, Display, TEXT("**** TEST COMPLETE. EXIT CODE: %d ****"), GIsCriticalError ? -1 : 0);
+					//UE_LOG(LogAutomationCommandLine, Display, TEXT("**** TEST COMPLETE. EXIT CODE: %d ****"), GIsCriticalError ? -1 : 0);
 					FPlatformMisc::RequestExit(true);
 					// We have finished the testing, and results are available
 					AutomationTestState = EAutomationTestState::Complete;
