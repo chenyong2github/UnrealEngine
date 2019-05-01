@@ -11,8 +11,6 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.iid.FirebaseInstanceIdService;
 
-import static com.epicgames.ue4.GameApplication.MESSAGING_CONFIG;
-
 public class EpicFirebaseInstanceIDService extends FirebaseInstanceIdService {
 	private static final Logger Log = new Logger("UE4-" + EpicFirebaseInstanceIDService.class.getSimpleName());
 	private static final String PREFS_FILE_FIREBASE = "com.epicgames.firebase";
@@ -38,10 +36,10 @@ public class EpicFirebaseInstanceIDService extends FirebaseInstanceIdService {
 	
 	private static FirebaseInstanceId getFirebaseInstanceId() {
 		try {
-			FirebaseApp app = FirebaseApp.getInstance(MESSAGING_CONFIG);
+			FirebaseApp app = FirebaseApp.getInstance();
 			return FirebaseInstanceId.getInstance(app);
 		} catch (Exception e) {
-			Log.error("FirebaseApp with name " + MESSAGING_CONFIG + " doesn't exist");
+			Log.error("FirebaseApp doesn't exist");
 			return null;
 		}
 	}
@@ -79,6 +77,15 @@ public class EpicFirebaseInstanceIDService extends FirebaseInstanceIdService {
 		editor.apply();
 	}
 
+	public static void unregisterFirebaseToken(@NonNull Context context) {
+		setFirebaseTokenRegistered(context, false);
+		SharedPreferences sharedPreferences = context.getSharedPreferences(PREFS_FILE_FIREBASE, Context.MODE_PRIVATE);
+		SharedPreferences.Editor editor = sharedPreferences.edit();
+		editor.remove(KEY_FIREBASE_TOKEN);
+		editor.apply();
+		Log.debug("Firebase token cleared");
+	}
+
 	private static String getFirebaseTokenFromCache(@NonNull Context context) {
 		SharedPreferences sharedPreferences = context.getSharedPreferences(PREFS_FILE_FIREBASE, Context.MODE_PRIVATE);
 		return sharedPreferences.getString(KEY_FIREBASE_TOKEN, null);
@@ -98,4 +105,5 @@ public class EpicFirebaseInstanceIDService extends FirebaseInstanceIdService {
 		}
 		return token;
 	}
+
 }
