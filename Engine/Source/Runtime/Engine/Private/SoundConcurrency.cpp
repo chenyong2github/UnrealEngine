@@ -16,7 +16,7 @@ namespace
 	void SetSoundDataTarget(const FActiveSound& ActiveSound, FConcurrencySoundData& SoundData, float InTargetVolume, float InLerpTime)
 	{
 #if UE_BUILD_SHIPPING
-		SoundData.SetTarget(InTargetValue, InLerpTime);
+		SoundData.SetTarget(InTargetVolume, InLerpTime);
 #else
 		const float LastTargetVolume = SoundData.GetTargetVolume();
 
