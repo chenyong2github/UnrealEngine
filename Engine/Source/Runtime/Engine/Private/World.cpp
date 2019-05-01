@@ -806,6 +806,11 @@ void UWorld::BeginDestroy()
 			LevelCollection.RemoveLevel(CollectionLevel);
 		}
 	}
+
+	if (Scene)
+	{
+		Scene->UpdateParameterCollections(TArray<FMaterialParameterCollectionInstanceResource*>());
+	}
 }
 
 void UWorld::FinishDestroy()
