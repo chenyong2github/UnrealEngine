@@ -140,7 +140,9 @@ FAutoConsoleCommand CmdPrintNumLandscapeShadows(
 
 ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
 , bLayerContentDirty(false)
+#endif
 , GrassData(MakeShareable(new FLandscapeComponentGrassData()))
 , ChangeTag(0)
 {
