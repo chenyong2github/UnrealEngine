@@ -59,9 +59,9 @@ public:
 		};
 	};
 
-	static ENGINE_API FTracingProfiler* Get();
+	static RENDERCORE_API FTracingProfiler* Get();
 
-	ENGINE_API void Init();
+	RENDERCORE_API void Init();
 
 	uint32 AddCPUEvent(const char* Name,
 		uint64 TimestampBeginCycles,
@@ -109,12 +109,12 @@ public:
 		return EventId;
 	}
 
-	ENGINE_API int32 GetCaptureFrameNumber();
+	RENDERCORE_API int32 GetCaptureFrameNumber();
 
-	ENGINE_API void BeginCapture(int InNumFramesToCapture = -1);
-	ENGINE_API void EndCapture();
+	RENDERCORE_API void BeginCapture(int InNumFramesToCapture = -1);
+	RENDERCORE_API void EndCapture();
 
-	ENGINE_API bool IsCapturing() const;
+	RENDERCORE_API bool IsCapturing() const;
 
 private:
 
