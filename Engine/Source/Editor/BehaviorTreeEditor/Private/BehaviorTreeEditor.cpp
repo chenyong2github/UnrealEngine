@@ -96,19 +96,24 @@ FBehaviorTreeEditor::~FBehaviorTreeEditor()
 	Debugger.Reset();
 }
 
+void FBehaviorTreeEditor::RefreshBlackboardViewsAssociatedObject()
+{
+	if (BlackboardView.IsValid())
+	{
+		BlackboardView->SetObject(GetBlackboardData());
+	}
+
+	if (BlackboardEditor.IsValid())
+	{
+		BlackboardEditor->SetObject(GetBlackboardData());
+	}
+}
+
 void FBehaviorTreeEditor::PostUndo(bool bSuccess)
 {
 	if (bSuccess)
 	{
-		if(BlackboardView.IsValid())
-		{
-			BlackboardView->SetObject(GetBlackboardData());
-		}
-
-		if(BlackboardEditor.IsValid())
-		{
-			BlackboardEditor->SetObject(GetBlackboardData());
-		}
+		RefreshBlackboardViewsAssociatedObject();
 	}
 
 	FAIGraphEditor::PostUndo(bSuccess);
@@ -118,15 +123,7 @@ void FBehaviorTreeEditor::PostRedo(bool bSuccess)
 {
 	if (bSuccess)
 	{
-		if (BlackboardView.IsValid())
-		{
-			BlackboardView->SetObject(GetBlackboardData());
-		}
-
-		if (BlackboardEditor.IsValid())
-		{
-			BlackboardEditor->SetObject(GetBlackboardData());
-		}
+		RefreshBlackboardViewsAssociatedObject();
 	}
 
 	FAIGraphEditor::PostRedo(bSuccess);
@@ -141,14 +138,7 @@ void FBehaviorTreeEditor::NotifyPostChange( const FPropertyChangedEvent& Propert
 			BlackboardData = BehaviorTree->BlackboardAsset;
 		}
 
-		if(BlackboardView.IsValid())
-		{
-			BlackboardView->SetObject(GetBlackboardData());
-		}
-		if(BlackboardEditor.IsValid())
-		{
-			BlackboardEditor->SetObject(GetBlackboardData());
-		}
+		RefreshBlackboardViewsAssociatedObject();
 	}
 }
 
@@ -316,6 +306,7 @@ void FBehaviorTreeEditor::RestoreBehaviorTree()
 	if(bNewGraph)
 	{
 		MyGraph->UpdateAsset(UBehaviorTreeGraph::ClearDebuggerFlags | UBehaviorTreeGraph::KeepRebuildCounter);
+		RefreshBlackboardViewsAssociatedObject();
 	}
 	else
 	{
@@ -384,14 +375,7 @@ float FBehaviorTreeEditor::HandleGetDebugTimeStamp(bool bUseCurrentState) const
 
 void FBehaviorTreeEditor::HandleDebuggedBlackboardChanged(UBlackboardData* InBlackboardData)
 {
-	if(BlackboardView.IsValid())
-	{
-		BlackboardView->SetObject(InBlackboardData);
-	}
-	if(BlackboardEditor.IsValid())
-	{
-		BlackboardEditor->SetObject(InBlackboardData);
-	}
+	RefreshBlackboardViewsAssociatedObject();
 }
 
 bool FBehaviorTreeEditor::HandleGetDisplayCurrentState() const

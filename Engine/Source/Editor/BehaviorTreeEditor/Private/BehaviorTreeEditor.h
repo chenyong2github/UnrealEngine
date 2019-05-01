@@ -283,6 +283,9 @@ private:
 	/** Refresh the debugger's display */
 	void RefreshDebugger();
 
+	/** Push new associated Blackboard data to Blackboard views */
+	void RefreshBlackboardViewsAssociatedObject();
+
 	TSharedPtr<FDocumentTracker> DocumentManager;
 	TWeakPtr<FDocumentTabFactory> GraphEditorTabFactoryPtr;
 
