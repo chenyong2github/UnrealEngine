@@ -1697,6 +1697,7 @@ FMetalTexture FMetalResourceHeap::CreateTexture(mtlpp::TextureDescriptor Desc, F
 	}
 	else if (Desc.GetUsage() & mtlpp::TextureUsage::RenderTarget)
 	{
+		LLM_PLATFORM_SCOPE_METAL(ELLMTagMetal::RenderTargets);
 		return TargetPool.CreateTexture(Queue->GetDevice(), Desc);
 	}
 	else
