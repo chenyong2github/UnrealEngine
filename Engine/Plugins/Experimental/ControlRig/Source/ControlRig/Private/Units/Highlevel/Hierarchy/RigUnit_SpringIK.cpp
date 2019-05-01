@@ -247,6 +247,27 @@ void FRigUnit_SpringIK::Execute(const FRigUnitContext& Context)
 				LastPrimaryTarget = Target1;
 			}
 		}
+
+		if(bLimitLocalPosition && PointIndex < BoneIndices.Num() - 1)
+		{
+			int32 ParentIndex = Hierarchy->GetParentIndex(BoneIndices[PointIndex]);
+			if (ParentIndex != INDEX_NONE)
+			{
+				FTransform InitialTransform = Hierarchy->GetInitialTransform(BoneIndices[PointIndex]);
+				FTransform ParentInitialTransform = Hierarchy->GetInitialTransform(ParentIndex);
+				FTransform ParentTransform = Hierarchy->GetGlobalTransform(ParentIndex);
+				float ExpectedDistance = (InitialTransform.GetLocation() - ParentInitialTransform.GetLocation()).Size();
+				if (ExpectedDistance > SMALL_NUMBER)
+				{
+					FVector Direction = Transform.GetLocation() - ParentTransform.GetLocation();
+					if (!Direction.IsNearlyZero())
+					{
+						Transform.SetLocation(ParentTransform.GetLocation() + Direction.GetSafeNormal() * ExpectedDistance);
+					}
+				}
+			}
+		}
+
 		Hierarchy->SetGlobalTransform(BoneIndices[PointIndex], Transform, bPropagateToChildren);
 	}
 
