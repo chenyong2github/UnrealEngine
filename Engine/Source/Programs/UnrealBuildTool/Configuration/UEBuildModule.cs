@@ -252,7 +252,7 @@ namespace UnrealBuildTool
 				foreach(string InputString in InEnumerableStrings)
 				{
 					DirectoryReference Dir = new DirectoryReference(ExpandPathVariables(InputString, null, null));
-					if(DirectoryReference.Exists(Dir))
+					if(DirectoryLookupCache.DirectoryExists(Dir))
 					{
 						Directories.Add(Dir);
 					}
