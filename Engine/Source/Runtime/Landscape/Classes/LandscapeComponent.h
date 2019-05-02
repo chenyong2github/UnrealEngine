@@ -379,6 +379,8 @@ private:
 	// Final layer data
 	UPROPERTY(Transient)
 	TArray<ULandscapeWeightmapUsage*> WeightmapTexturesUsage;
+
+	bool bLayerContentDirty;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Heightmap texture reference */
@@ -766,7 +768,7 @@ public:
 	 * @param XYOffsetTextureMipData: xy-offset map data
 	 * @returns True if CollisionComponent was created in this update.
 	 */
-	bool UpdateCollisionHeightData(const FColor* HeightmapTextureMipData, const FColor* SimpleCollisionHeightmapTextureData, int32 ComponentX1=0, int32 ComponentY1=0, int32 ComponentX2=MAX_int32, int32 ComponentY2=MAX_int32, bool bUpdateBounds=false, const FColor* XYOffsetTextureMipData=nullptr);
+	void UpdateCollisionHeightData(const FColor* HeightmapTextureMipData, const FColor* SimpleCollisionHeightmapTextureData, int32 ComponentX1=0, int32 ComponentY1=0, int32 ComponentX2=MAX_int32, int32 ComponentY2=MAX_int32, bool bUpdateBounds=false, const FColor* XYOffsetTextureMipData=nullptr, bool bOnlyUpdateEditingHeightfield=true);
 
 	/**
 	 * Deletes Collision Component
@@ -774,8 +776,8 @@ public:
 	void DestroyCollisionData();
 
 	/** Updates collision component height data for the entire component, locking and unlocking heightmap textures
-	 * @param: bRebuild: If true, recreates the collision component */
-	void UpdateCollisionData();
+	 * @param: bOnlyUpdateEditingHeightfield: If true, only updates the editing collision heightfield */
+	void UpdateCollisionData(bool bOnlyUpdateEditingHeightfield = false);
 
 	/**
 	 * Update collision component dominant layer data
@@ -838,6 +840,9 @@ public:
 	
 	/** Updates the values of component-level properties exposed by the Landscape Actor */
 	LANDSCAPE_API void UpdatedSharedPropertiesFromActor();
+
+	LANDSCAPE_API bool IsLayerContentDirty() const { return bLayerContentDirty; }
+	LANDSCAPE_API void SetLayerContentDirty(bool InValue) { bLayerContentDirty = InValue; }
 #endif
 
 	friend class FLandscapeComponentSceneProxy;
