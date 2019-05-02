@@ -65,6 +65,7 @@
 #include "Particles/Lifetime/ParticleModuleLifetimeBase.h"
 #include "Particles/Lifetime/ParticleModuleLifetime.h"
 #include "Particles/Light/ParticleModuleLight.h"
+#include "Particles/Location/ParticleModuleLocationBoneSocket.h"
 #include "Particles/Material/ParticleModuleMeshMaterial.h"
 #include "Particles/Modules/Location/ParticleModulePivotOffset.h"
 #include "Particles/Orbit/ParticleModuleOrbit.h"
@@ -1817,6 +1818,15 @@ void UParticleEmitter::CacheEmitterModuleInfo()
 			SubUVAnimation = ModuleSubUVAnimation && ModuleSubUVAnimation->SubUVTexture && ModuleSubUVAnimation->IsBoundingGeometryValid()
 				? ModuleSubUVAnimation
 				: NULL;
+		}
+		// Perform validation / fixup on some modules that can cause crashes if LODs / Modules are out of sync
+		// This should only be applied on uncooked builds to avoid wasting cycles
+		else if ( !FPlatformProperties::RequiresCookedData() )
+		{
+			if (ParticleModule->IsA(UParticleModuleLocationBoneSocket::StaticClass()))
+			{
+				UParticleModuleLocationBoneSocket::ValidateLODLevels(this, ModuleIdx);
+			}
 		}
 
 		// Set bMeshRotationActive if module says so
