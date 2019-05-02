@@ -413,6 +413,15 @@ static const char* OutputTopologyStrings[5] = {
 	"ccw",
 };
 
+static const char* GLSLIntCastTypes[5] =
+{
+	"!invalid!",
+	"int",
+	"ivec2",
+	"ivec3",
+	"ivec4",
+};
+
 static_assert((sizeof(GLSLExpressionTable) / sizeof(GLSLExpressionTable[0])) == ir_opcode_count, "GLSLExpressionTableSizeMismatch");
 
 // Holds information required for knowing if samplerstates should be shared
@@ -1253,7 +1262,7 @@ class FGenerateVulkanVisitor : public ir_visitor
 			}
 			else if (var->type->is_image())
 			{
-				if (!strncmp(var->type->name, "RWStructuredBuffer<", 19) || !strncmp(var->type->name, "StructuredBuffer<", 17))
+				if (var->type->HlslName && (!strncmp(var->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(var->type->HlslName, "StructuredBuffer<", 17)))
 				{
 					ralloc_asprintf_append(
 						buffer,
@@ -1371,7 +1380,7 @@ class FGenerateVulkanVisitor : public ir_visitor
 				}
 			}
 
-			if (var->type->is_image() && (!strncmp(var->type->name, "RWStructuredBuffer<", 19) || !strncmp(var->type->name, "StructuredBuffer<", 17)))
+			if (var->type->is_image() && (var->type->HlslName && (!strncmp(var->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(var->type->HlslName, "StructuredBuffer<", 17))))
 			{
 				AddTypeToUsedStructs(var->type->inner_type);
 				// DO NOT change _BUFFER (or update when reading the spir-v reflection)
@@ -1884,14 +1893,10 @@ class FGenerateVulkanVisitor : public ir_visitor
 		{
 			"xxxx", "xyxx", "xyzx", "xyzw"
 		};
-		const char* int_cast[] =
-		{
-			"int", "ivec2", "ivec3", "ivec4"
-		};
 		const int dst_elements = deref->type->vector_elements;
 		const int src_elements = (src) ? src->type->vector_elements : 1;
 
-		bool bIsStructured = deref->type->is_record() || (!strncmp(deref->image->type->name, "RWStructuredBuffer<", 19) || !strncmp(deref->image->type->name, "StructuredBuffer<", 17));
+		bool bIsStructured = deref->type->is_record() || (deref->image->type->HlslName && (!strncmp(deref->image->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(deref->image->type->HlslName, "StructuredBuffer<", 17)));
 
 		//!strncmp(var->type->name, "RWStructuredBuffer<")
 		check(bIsStructured || (1 <= dst_elements && dst_elements <= 4));
@@ -1924,17 +1929,17 @@ class FGenerateVulkanVisitor : public ir_visitor
 				{
 					ralloc_asprintf_append(buffer, "imageLoad( ");
 					deref->image->accept(this);
-					ralloc_asprintf_append(buffer, ", ");
+					ralloc_asprintf_append(buffer, ", %s(", GLSLIntCastTypes[deref->image_index->type->vector_elements]);
 					deref->image_index->accept(this);
-					ralloc_asprintf_append(buffer, ").%s", swizzle[dst_elements - 1]);
+					ralloc_asprintf_append(buffer, ")).%s", swizzle[dst_elements - 1]);
 				}
 				else
 				{
 					ralloc_asprintf_append(buffer, "imageStore( ");
 					deref->image->accept(this);
-					ralloc_asprintf_append(buffer, ", ");
+					ralloc_asprintf_append(buffer, ", %s(", GLSLIntCastTypes[deref->image_index->type->vector_elements]);
 					deref->image_index->accept(this);
-					ralloc_asprintf_append(buffer, ", ");
+					ralloc_asprintf_append(buffer, "), ");
 					if (src->as_constant() && src_elements == 1)
 					{
 						// Add cast if missing and avoid swizzle
@@ -2566,9 +2571,9 @@ class FGenerateVulkanVisitor : public ir_visitor
 			ralloc_asprintf_append(buffer, " = %s(",
 				imageAtomicFunctions[ir->operation]);
 			image->image->accept(this);
-			ralloc_asprintf_append(buffer, ", ");
+			ralloc_asprintf_append(buffer, ", %s(", GLSLIntCastTypes[image->image_index->type->vector_elements]);
 			image->image_index->accept(this);
-			ralloc_asprintf_append(buffer, ", ");
+			ralloc_asprintf_append(buffer, "), ");
 			ir->operands[0]->accept(this);
 			if (ir->operands[1])
 			{

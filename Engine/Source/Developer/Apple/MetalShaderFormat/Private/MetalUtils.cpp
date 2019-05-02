@@ -1243,8 +1243,8 @@ void FMetalCodeBackend::MovePackedUniformsToMain(exec_list* ir, _mesa_glsl_parse
 		{
 			bool bIsBuffer = false;
             bool bIsVec3 = (Var->type->inner_type && Var->type->inner_type->is_vector() && Var->type->inner_type->components() == 3);
-			bool bIsStructuredBuffer = Var->type->sampler_buffer && Var->type->inner_type && (Var->type->inner_type->is_record() || !strncmp(Var->type->name, "RWStructuredBuffer<", 19) || !strncmp(Var->type->name, "StructuredBuffer<", 17));
-			bool bIsByteAddressBuffer = Var->type->sampler_buffer && (!strncmp(Var->type->name, "RWByteAddressBuffer", 19) || !strncmp(Var->type->name, "ByteAddressBuffer", 17));
+			bool bIsStructuredBuffer = Var->type->sampler_buffer && Var->type->inner_type && (Var->type->inner_type->is_record() || (Var->type->HlslName && (!strncmp(Var->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(Var->type->HlslName, "StructuredBuffer<", 17))));
+			bool bIsByteAddressBuffer = Var->type->sampler_buffer && (Var->type->HlslName && (!strncmp(Var->type->HlslName, "RWByteAddressBuffer", 19) || !strncmp(Var->type->HlslName, "ByteAddressBuffer", 17)));
 			bool bIsInvariant = Var->invariant;
 			switch(TypedMode)
 			{
@@ -1273,7 +1273,7 @@ void FMetalCodeBackend::MovePackedUniformsToMain(exec_list* ir, _mesa_glsl_parse
 			{
 				if (bIsBuffer)
 				{
-                    bool bReallyIsStructuredBuffer = Var->type->sampler_buffer && Var->type->inner_type && Var->type->inner_type->is_record() && (!strncmp(Var->type->name, "RWStructuredBuffer<", 19) || !strncmp(Var->type->name, "StructuredBuffer<", 17));
+                    bool bReallyIsStructuredBuffer = Var->type->sampler_buffer && Var->type->inner_type && Var->type->inner_type->is_record() && (Var->type->HlslName && (!strncmp(Var->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(Var->type->HlslName, "StructuredBuffer<", 17)));
                     if (bReallyIsStructuredBuffer)
 					{
 						((glsl_type*)Var->type->inner_type)->HlslName = "__PACKED__";

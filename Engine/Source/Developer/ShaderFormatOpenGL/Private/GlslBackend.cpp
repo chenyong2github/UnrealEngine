@@ -345,6 +345,15 @@ static const char* OutputTopologyStrings[5] = {
 	"ccw",
 };
 
+static const char* GLSLIntCastTypes[5] =
+{
+	"!invalid!",
+	"int",
+	"ivec2",
+	"ivec3",
+	"ivec4",
+};
+
 static const char* ES31FrameBufferFetchStorageQualifier = "FRAME_BUFFERFETCH_STORAGE_QUALIFIER ";
 static_assert((sizeof(GLSLExpressionTable) / sizeof(GLSLExpressionTable[0])) == ir_opcode_count, "GLSLExpressionTableSizeMismatch");
 
@@ -1076,7 +1085,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 			}
 			else if (var->type->is_image())
 			{
-				if (!strncmp(var->type->name, "RWStructuredBuffer<", 19) || !strncmp(var->type->name, "StructuredBuffer<", 17))
+				if (var->type->HlslName && (!strncmp(var->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(var->type->HlslName, "StructuredBuffer<", 17)))
 				{
 					ralloc_asprintf_append(
 						buffer,
@@ -1180,7 +1189,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 				print_type_pre(var->type);
 			}
 
-			if (var->type->is_image() && (!strncmp(var->type->name, "RWStructuredBuffer<", 19) || !strncmp(var->type->name, "StructuredBuffer<", 17)))
+			if (var->type->is_image() && (var->type->HlslName && (!strncmp(var->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(var->type->HlslName, "StructuredBuffer<", 17))))
 			{
 				AddTypeToUsedStructs(var->type->inner_type);
 				ralloc_asprintf_append(buffer, " %s_VAR { %s %s[]; }", unique_name(var), var->type->inner_type->name, unique_name(var));
@@ -1652,7 +1661,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 		const int dst_elements = deref->type->vector_elements;
 		const int src_elements = (src) ? src->type->vector_elements : 1;
 		
-		bool bIsStructured = deref->type->is_record() || (!strncmp(deref->image->type->name, "RWStructuredBuffer<", 19) || !strncmp(deref->image->type->name, "StructuredBuffer<", 17));
+		bool bIsStructured = deref->type->is_record() || (deref->image->type->HlslName && (!strncmp(deref->image->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(deref->image->type->HlslName, "StructuredBuffer<", 17)));
 
 		//!strncmp(var->type->name, "RWStructuredBuffer<")
 		check(bIsStructured || (1 <= dst_elements && dst_elements <= 4));
@@ -1678,17 +1687,17 @@ class ir_gen_glsl_visitor : public ir_visitor
 				{
 					ralloc_asprintf_append(buffer, "imageLoad( ");
 					deref->image->accept(this);
-					ralloc_asprintf_append(buffer, ", ");
+					ralloc_asprintf_append(buffer, ", %s(", GLSLIntCastTypes[deref->image_index->type->vector_elements]);
 					deref->image_index->accept(this);
-					ralloc_asprintf_append(buffer, ").%s", swizzle[dst_elements-1]);
+					ralloc_asprintf_append(buffer, ")).%s", swizzle[dst_elements-1]);
 				}
 				else
 				{
 					ralloc_asprintf_append(buffer, "imageStore( ");
 					deref->image->accept(this);
-					ralloc_asprintf_append(buffer, ", ");
+					ralloc_asprintf_append(buffer, ", %s(", GLSLIntCastTypes[deref->image_index->type->vector_elements]);
 					deref->image_index->accept(this);
-					ralloc_asprintf_append(buffer, ", ");
+					ralloc_asprintf_append(buffer, "), ");
 
 					if (/*src->as_constant() && */src_elements == 1)
 					{
@@ -2244,9 +2253,9 @@ class ir_gen_glsl_visitor : public ir_visitor
 			ralloc_asprintf_append(buffer, " = %s(",
 				imageAtomicFunctions[ir->operation]);
 			image->image->accept(this);
-			ralloc_asprintf_append(buffer, ", ");
+			ralloc_asprintf_append(buffer, ", %s(", GLSLIntCastTypes[image->image_index->type->vector_elements]);
 			image->image_index->accept(this);
-			ralloc_asprintf_append(buffer, ", ");
+			ralloc_asprintf_append(buffer, "), ");
 			ir->operands[0]->accept(this);
 			if (ir->operands[1])
 			{

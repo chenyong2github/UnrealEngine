@@ -920,8 +920,8 @@ protected:
 				if (var->type->sampler_buffer)
 				{
 					// Atomic RWBuffer -> buffer
-					bool bIsStructuredBuffer = (var->type->inner_type->is_record() || !strncmp(var->type->name, "RWStructuredBuffer<", 19) || !strncmp(var->type->name, "StructuredBuffer<", 17));
-					bool bIsByteAddressBuffer = (!strncmp(var->type->name, "RWByteAddressBuffer", 19) || !strncmp(var->type->name, "ByteAddressBuffer", 17));
+					bool bIsStructuredBuffer = (var->type->inner_type->is_record() || (var->type->HlslName && (!strncmp(var->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(var->type->HlslName, "StructuredBuffer<", 17))));
+					bool bIsByteAddressBuffer = (var->type->HlslName && (!strncmp(var->type->HlslName, "RWByteAddressBuffer", 19) || !strncmp(var->type->HlslName, "ByteAddressBuffer", 17)));
                     bool bIsInvariantType = var->invariant;
 					bool bIsAtomic = Buffers.AtomicVariables.find(var) != Buffers.AtomicVariables.end();
                     if (bIsStructuredBuffer || bIsByteAddressBuffer || bIsInvariantType || bIsAtomic)
@@ -1036,8 +1036,8 @@ protected:
 							int BufferIndex = Buffers.GetIndex(var);
 							check(BufferIndex >= 0);
 							
-							bool bIsStructuredBuffer = (var->type->inner_type->is_record() || !strncmp(var->type->name, "RWStructuredBuffer<", 19) || !strncmp(var->type->name, "StructuredBuffer<", 17));
-							bool bIsByteAddressBuffer = (!strncmp(var->type->name, "RWByteAddressBuffer", 19) || !strncmp(var->type->name, "ByteAddressBuffer", 17));
+							bool bIsStructuredBuffer = (var->type->inner_type->is_record() || (var->type->HlslName && (!strncmp(var->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(var->type->HlslName, "StructuredBuffer<", 17))));
+							bool bIsByteAddressBuffer = (var->type->HlslName && (!strncmp(var->type->HlslName, "RWByteAddressBuffer", 19) || !strncmp(var->type->HlslName, "ByteAddressBuffer", 17)));
                             bool bIsInvariantType = var->invariant;
 							bool bIsAtomic = Buffers.AtomicVariables.find(var) != Buffers.AtomicVariables.end();
 							if (bIsStructuredBuffer || bIsByteAddressBuffer || bIsInvariantType || bIsAtomic)
@@ -1364,8 +1364,8 @@ protected:
                 ir_variable *const inst = (ir_variable *) iter.get();
 				if ((inst->type->is_image() || inst->type->sampler_buffer) && inst->used)
 				{
-					bool bIsStructuredBuffer = (inst->type->inner_type->is_record() || !strncmp(inst->type->name, "RWStructuredBuffer<", 19) || !strncmp(inst->type->name, "StructuredBuffer<", 17));
-					bool bIsByteAddressBuffer = (!strncmp(inst->type->name, "RWByteAddressBuffer", 19) || !strncmp(inst->type->name, "ByteAddressBuffer", 17));
+					bool bIsStructuredBuffer = (inst->type->inner_type->is_record() || (inst->type->HlslName && (!strncmp(inst->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(inst->type->HlslName, "StructuredBuffer<", 17))));
+					bool bIsByteAddressBuffer = (inst->type->HlslName && (!strncmp(inst->type->HlslName, "RWByteAddressBuffer", 19) || !strncmp(inst->type->HlslName, "ByteAddressBuffer", 17)));
                 	if (Buffers.AtomicVariables.find(inst) != Buffers.AtomicVariables.end() || bIsStructuredBuffer || bIsByteAddressBuffer || inst->invariant || ((inst->type->components() == 3) || (Backend.TypedMode == EMetalTypeBufferMode2DSRV || Backend.TypedMode == EMetalTypeBufferModeTBSRV) && inst->type->is_image()) || inst->type->inner_type->components() == 3 || Backend.Version <= 2)
 					{
 						bInsertSideTable |= true;
@@ -2175,8 +2175,8 @@ protected:
 				
 				ralloc_asprintf_append(buffer, "(");
 				
-				bool bIsStructuredBuffer = (Texture->type->inner_type->is_record() || !strncmp(Texture->type->name, "RWStructuredBuffer<", 19) || !strncmp(Texture->type->name, "StructuredBuffer<", 17));
-				bool bIsByteAddressBuffer = (!strncmp(Texture->type->name, "RWByteAddressBuffer", 19) || !strncmp(Texture->type->name, "ByteAddressBuffer", 17));
+				bool bIsStructuredBuffer = (Texture->type->inner_type->is_record() || (Texture->type->HlslName && (!strncmp(Texture->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(Texture->type->HlslName, "StructuredBuffer<", 17))));
+				bool bIsByteAddressBuffer = (Texture->type->HlslName && (!strncmp(Texture->type->HlslName, "RWByteAddressBuffer", 19) || !strncmp(Texture->type->HlslName, "ByteAddressBuffer", 17)));
 				bool bIsInvariantType = Texture->invariant;
 				bool bIsAtomic = Buffers.AtomicVariables.find(Texture) != Buffers.AtomicVariables.end();
 				if (!bIsStructuredBuffer && !bIsByteAddressBuffer && !bIsInvariantType && !bIsAtomic)
@@ -2674,8 +2674,8 @@ protected:
 				{
 					ralloc_asprintf_append(buffer, "(");
 					
-					bool bIsStructuredBuffer = (Texture->type->inner_type->is_record() || !strncmp(Texture->type->name, "RWStructuredBuffer<", 19) || !strncmp(Texture->type->name, "StructuredBuffer<", 17));
-					bool bIsByteAddressBuffer = (!strncmp(Texture->type->name, "RWByteAddressBuffer", 19) || !strncmp(Texture->type->name, "ByteAddressBuffer", 17));
+					bool bIsStructuredBuffer = (Texture->type->inner_type->is_record() || (Texture->type->HlslName && (!strncmp(Texture->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(Texture->type->HlslName, "StructuredBuffer<", 17))));
+					bool bIsByteAddressBuffer = (Texture->type->HlslName && (!strncmp(Texture->type->HlslName, "RWByteAddressBuffer", 19) || !strncmp(Texture->type->HlslName, "ByteAddressBuffer", 17)));
                     bool bIsInvariantType = Texture->invariant;
                     bool bIsAtomic = Buffers.AtomicVariables.find(Texture) != Buffers.AtomicVariables.end();
 					if (!bIsStructuredBuffer && !bIsByteAddressBuffer && !bIsInvariantType && !bIsAtomic)
@@ -2846,8 +2846,8 @@ protected:
 				}
 				else
 				{
-					bool bIsStructuredBuffer = (Texture->type->inner_type->is_record() || !strncmp(Texture->type->name, "RWStructuredBuffer<", 19) || !strncmp(Texture->type->name, "StructuredBuffer<", 17));
-					bool bIsByteAddressBuffer = (!strncmp(Texture->type->name, "RWByteAddressBuffer", 19) || !strncmp(Texture->type->name, "ByteAddressBuffer", 17));
+					bool bIsStructuredBuffer = (Texture->type->inner_type->is_record() || (Texture->type->HlslName && (!strncmp(Texture->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(Texture->type->HlslName, "StructuredBuffer<", 17))));
+					bool bIsByteAddressBuffer = (Texture->type->HlslName && (!strncmp(Texture->type->HlslName, "RWByteAddressBuffer", 19) || !strncmp(Texture->type->HlslName, "ByteAddressBuffer", 17)));
                     bool bIsInvariantType = Texture->invariant;
                     bool bIsAtomic = Buffers.AtomicVariables.find(Texture) != Buffers.AtomicVariables.end();
 					if (!bIsStructuredBuffer && !bIsByteAddressBuffer && !bIsInvariantType && !bIsAtomic)

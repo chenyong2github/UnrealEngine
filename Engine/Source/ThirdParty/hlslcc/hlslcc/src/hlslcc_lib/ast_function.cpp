@@ -2600,8 +2600,8 @@ ir_rvalue* gen_image_op(
 		}
 	}
 
-	bool const bIsByteBuffer = !strcmp(image->type->name, "ByteAddressBuffer");
-	bool const bIsRWByteBuffer = !strcmp(image->type->name, "RWByteAddressBuffer");
+	bool const bIsByteBuffer = !strcmp(image->type->HlslName, "ByteAddressBuffer");
+	bool const bIsRWByteBuffer = !strcmp(image->type->HlslName, "RWByteAddressBuffer");
 	
 	if (strcmp(method, "GetDimensions") == 0)
 	{
