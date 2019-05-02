@@ -118,7 +118,7 @@ private:
 	/** Utility function that processes Slate operations. */
 	void ProcessLocalPlayerSlateOperations() const;
 
-	void OnStartupContentMounted(FInstallBundleResultInfo Result);
+	void OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads);
 
 protected:
 
