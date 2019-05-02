@@ -98,7 +98,9 @@ void ULandscapeComponent::Init(int32 InBaseX, int32 InBaseY, int32 InComponentSi
 
 void ULandscapeComponent::UpdateCachedBounds()
 {
-	FLandscapeComponentDataInterface CDI(this);
+	const int32 MipLevel = 0;
+	const bool bWorkOnEditingLayer = false; // We never want to compute bounds based on anything else that final landscape layer's height data
+	FLandscapeComponentDataInterface CDI(this, MipLevel, bWorkOnEditingLayer);
 
 	// Update local-space bounding box
 	CachedLocalBox.Init();
@@ -788,7 +790,7 @@ public:
 	int32 SizeVertsSquare = 0;
 };
 
-bool ULandscapeComponent::UpdateCollisionHeightData(const FColor* const HeightmapTextureMipData, const FColor* const SimpleCollisionHeightmapTextureData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, bool bUpdateBounds/*=false*/, const FColor* XYOffsetTextureMipData/*=nullptr*/)
+void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const HeightmapTextureMipData, const FColor* const SimpleCollisionHeightmapTextureData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, bool bUpdateBounds/*=false*/, const FColor* XYOffsetTextureMipData/*=nullptr*/, bool bOnlyUpdateEditingHeightfield/*=true*/)
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
@@ -830,7 +832,7 @@ bool ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 		if (ComponentX2 < ComponentX1 || ComponentY2 < ComponentY1)
 		{
 			// nothing to do
-			return false;
+			return;
 		}
 
 		if (bUpdateBounds)
@@ -944,7 +946,11 @@ bool ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 		CollisionComp->RegisterComponent();
 	}
 
-	return CreatedNew;
+	// Only recreate collision if not in partial update and not newly created component
+	if (!CreatedNew && !bOnlyUpdateEditingHeightfield)
+	{
+		CollisionComp->RecreateCollision();
+	}
 }
 
 void ULandscapeComponent::DestroyCollisionData()
@@ -957,7 +963,7 @@ void ULandscapeComponent::DestroyCollisionData()
 	}
 }
 
-void ULandscapeComponent::UpdateCollisionData()
+void ULandscapeComponent::UpdateCollisionData(bool bOnlyUpdateEditingHeightfield /*= false*/)
 {
 	TArray<uint8> CollisionMipData;
 	TArray<uint8> SimpleCollisionMipData;
@@ -973,21 +979,11 @@ void ULandscapeComponent::UpdateCollisionData()
 		XYOffsetmapTexture->Source.GetMipData(XYOffsetMipData, CollisionMipLevel);
 	}
 
-	bool bCreatedNewComponent = UpdateCollisionHeightData(
+	UpdateCollisionHeightData(
 		(FColor*)CollisionMipData.GetData(),
 		SimpleCollisionMipLevel > CollisionMipLevel ? (FColor*)SimpleCollisionMipData.GetData() : nullptr,
 		0, 0, MAX_int32, MAX_int32, true,
-		XYOffsetmapTexture ? (FColor*)XYOffsetMipData.GetData() : nullptr);
-
-    // If the Collision Component hasn't changed we need to reflect its data to the underlying physics implementation
-	if (!bCreatedNewComponent)
-	{
-		ULandscapeHeightfieldCollisionComponent* CollisionComp = CollisionComponent.Get();
-		if (CollisionComp)
-		{
-			CollisionComp->RecreateCollision();
-		}
-	}
+		XYOffsetmapTexture ? (FColor*)XYOffsetMipData.GetData() : nullptr, bOnlyUpdateEditingHeightfield);
 }
 
 void ULandscapeComponent::RecreateCollisionComponent(bool bUseSimpleCollision)
