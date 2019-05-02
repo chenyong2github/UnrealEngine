@@ -4059,8 +4059,8 @@ void ReapplyRecordedCVarSettingsFromIni()
 	for (const FIniToReload& IniToReload : InisToReloadList)
 	{
 		FString TempGlobalName = IniToReload.IniGlobalName;
-		GConfig->LoadGlobalIniFile(TempGlobalName, *IniToReload.IniBaseName, NULL, true);
-		if (TempGlobalName.Compare( IniToReload.IniGlobalName,  ESearchCase::IgnoreCase) != 0 )
+		ensure(GConfig->LoadGlobalIniFile(TempGlobalName, *IniToReload.IniBaseName, nullptr, true));
+		if (TempGlobalName.Compare(IniToReload.IniGlobalName, ESearchCase::IgnoreCase) != 0)
 		{
 			UE_LOG(LogConfig, Warning, TEXT("Tried to reload ini %s final name was %s"), *IniToReload.IniGlobalName, *TempGlobalName );
 		}
