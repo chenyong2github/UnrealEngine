@@ -3141,15 +3141,6 @@ void GlobalBeginCompileShader(
 		}
 	}
 
-	if (IsVulkanPlatform((EShaderPlatform)Target.Platform))
-	{
-		static const auto* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vulkan.EnableTessellation"));
-		if (CVar && CVar->GetInt() != 0)
-		{
-			Input.Environment.SetDefine(TEXT("VULKAN_ENABLE_TESSELLATION"), 1);
-		}
-	}
-	
 	if (IsMetalPlatform((EShaderPlatform)Target.Platform))
 	{
 		{
