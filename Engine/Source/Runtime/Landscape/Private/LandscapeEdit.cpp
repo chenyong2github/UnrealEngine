@@ -573,15 +573,20 @@ void ULandscapeComponent::PostEditUndo()
 		UpdateEditToolRenderData();
 	}
 
-	TSet<ULandscapeComponent*> Components;
-	Components.Add(this);
-	GetLandscapeProxy()->FlushGrassComponents(&Components);
-
-	ALandscape* LandscapeActor = GetLandscapeActor();
-	// Might be a ALandscapeStreamingProxy
-	if (LandscapeActor)
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		LandscapeActor->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+		ALandscape* LandscapeActor = GetLandscapeActor();
+		// Might be a ALandscapeStreamingProxy
+		if (LandscapeActor)
+		{
+			LandscapeActor->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+		}
+	}
+	else
+	{
+		TSet<ULandscapeComponent*> Components;
+		Components.Add(this);
+		GetLandscapeProxy()->FlushGrassComponents(&Components);
 	}
 }
 
@@ -790,7 +795,7 @@ public:
 	int32 SizeVertsSquare = 0;
 };
 
-void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const HeightmapTextureMipData, const FColor* const SimpleCollisionHeightmapTextureData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, bool bUpdateBounds/*=false*/, const FColor* XYOffsetTextureMipData/*=nullptr*/, bool bOnlyUpdateEditingHeightfield/*=true*/)
+void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const HeightmapTextureMipData, const FColor* const SimpleCollisionHeightmapTextureData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, bool bUpdateBounds/*=false*/, const FColor* XYOffsetTextureMipData/*=nullptr*/)
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
@@ -945,12 +950,6 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 	{
 		CollisionComp->RegisterComponent();
 	}
-
-	// Only recreate collision if not in partial update and not newly created component
-	if (!CreatedNew && !bOnlyUpdateEditingHeightfield)
-	{
-		CollisionComp->RecreateCollision();
-	}
 }
 
 void ULandscapeComponent::DestroyCollisionData()
@@ -963,7 +962,7 @@ void ULandscapeComponent::DestroyCollisionData()
 	}
 }
 
-void ULandscapeComponent::UpdateCollisionData(bool bOnlyUpdateEditingHeightfield /*= false*/)
+void ULandscapeComponent::UpdateCollisionData()
 {
 	TArray<uint8> CollisionMipData;
 	TArray<uint8> SimpleCollisionMipData;
@@ -983,7 +982,7 @@ void ULandscapeComponent::UpdateCollisionData(bool bOnlyUpdateEditingHeightfield
 		(FColor*)CollisionMipData.GetData(),
 		SimpleCollisionMipLevel > CollisionMipLevel ? (FColor*)SimpleCollisionMipData.GetData() : nullptr,
 		0, 0, MAX_int32, MAX_int32, true,
-		XYOffsetmapTexture ? (FColor*)XYOffsetMipData.GetData() : nullptr, bOnlyUpdateEditingHeightfield);
+		XYOffsetmapTexture ? (FColor*)XYOffsetMipData.GetData() : nullptr);
 }
 
 void ULandscapeComponent::RecreateCollisionComponent(bool bUseSimpleCollision)
@@ -1358,24 +1357,19 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 
 void ULandscapeComponent::UpdateCollisionLayerData()
 {
-	TArray<UTexture2D*>& ComponentWeightmapsTexture = GetWeightmapTextures(true);
+	TArray<UTexture2D*>& ComponentWeightmapsTexture = GetWeightmapTextures();
 
 	// Generate the dominant layer data
 	TArray<FColor*> WeightmapTextureMipData;
-	TArray<TArray<uint8>> CachedWeightmapTextureMipData;
-
 	WeightmapTextureMipData.Empty(ComponentWeightmapsTexture.Num());
-	CachedWeightmapTextureMipData.Empty(ComponentWeightmapsTexture.Num());
 	for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapsTexture.Num(); ++WeightmapIdx)
 	{
 		TArray<uint8> MipData;
 		ComponentWeightmapsTexture[WeightmapIdx]->Source.GetMipData(MipData, CollisionMipLevel);
 		WeightmapTextureMipData.Add((FColor*)MipData.GetData());
-		CachedWeightmapTextureMipData.Add(MoveTemp(MipData));
 	}
 
 	TArray<FColor*> SimpleCollisionWeightmapMipData;
-	TArray<TArray<uint8>> SimpleCollisionCachedWeightmapTextureMipData;
 	if (SimpleCollisionMipLevel > CollisionMipLevel)
 	{
 		for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapsTexture.Num(); ++WeightmapIdx)
@@ -1383,7 +1377,6 @@ void ULandscapeComponent::UpdateCollisionLayerData()
 			TArray<uint8> MipData;
 			ComponentWeightmapsTexture[WeightmapIdx]->Source.GetMipData(MipData, SimpleCollisionMipLevel);
 			SimpleCollisionWeightmapMipData.Add((FColor*)MipData.GetData());
-			SimpleCollisionCachedWeightmapTextureMipData.Add(MoveTemp(MipData));
 		}
 	}
 
@@ -3952,10 +3945,20 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	}
 	if (bRemovedAnyLayers)
 	{
-		// Flush dynamic data (e.g. grass)
-		TSet<ULandscapeComponent*> Components;
-		Components.Append(LandscapeComponents);
-		ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		{
+			if(ALandscape* LandscapeActor = GetLandscapeActor())
+			{
+				LandscapeActor->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+			}
+		}
+		else
+		{
+			// Flush dynamic data (e.g. grass)
+			TSet<ULandscapeComponent*> Components;
+			Components.Append(LandscapeComponents);
+			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+		}
 	}
 
 	// Must do this *after* correcting the scale or reattaching the landscape components will crash!
