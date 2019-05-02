@@ -1598,10 +1598,17 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		}
 	}
 
+	const bool bDumpEarlyConfigReads = FParse::Param(FCommandLine::Get(), TEXT("DumpEarlyConfigReads"));
+
 	constexpr bool bWithConfigPatching = (WITH_CONFIG_PATCHING != 0);
 	if (bWithConfigPatching)
 	{
 		UE_LOG(LogInit, Verbose, TEXT("Begin recording CVar changes for config patching."));
+
+		if (bDumpEarlyConfigReads)
+		{
+			RecordConfigReadsFromIni();
+		}
 
 		RecordApplyCVarSettingsFromIni();
 	}
@@ -2234,7 +2241,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 				IPlatformInstallBundleManager* BundleManager = FPlatformMisc::GetPlatformInstallBundleManager();
 				if (BundleManager != nullptr && !BundleManager->IsNullInterface())
 				{
-					IPlatformInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FEngineLoop::OnStartupContentMounted);
+					IPlatformInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FEngineLoop::OnStartupContentMounted, bDumpEarlyConfigReads);
 				}
 				// If not using the bundle manager, config will be reloaded after ESP, see below
 			}
@@ -2366,6 +2373,12 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			if(bWithConfigPatching)
 			{
 				SCOPED_BOOT_TIMING("ReapplyCVarsFromIniAfterEarlyStartupScreen");
+
+				if (bDumpEarlyConfigReads)
+				{
+					DumpRecordedConfigReadsFromIni();
+					DeleteRecordConfigReadsFromIni();
+				}
 
 				ReapplyRecordedCVarSettingsFromIni();
 				DeleteRecordedCVarSettingsFromIni();
@@ -3622,10 +3635,16 @@ void FEngineLoop::ProcessLocalPlayerSlateOperations() const
 	}
 }
 
-void FEngineLoop::OnStartupContentMounted(FInstallBundleResultInfo Result)
+void FEngineLoop::OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads)
 {
 	if (Result.bIsStartup && Result.Result == EInstallBundleResult::OK)
 	{
+		if (bDumpEarlyConfigReads)
+		{
+			DumpRecordedConfigReadsFromIni();
+			DeleteRecordConfigReadsFromIni();
+		}
+
 		ReapplyRecordedCVarSettingsFromIni();
 		DeleteRecordedCVarSettingsFromIni();
 
