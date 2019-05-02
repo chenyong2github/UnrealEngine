@@ -210,6 +210,30 @@ namespace Gauntlet
 			return Info;
 		}
 
+		/// <summary>
+		/// Return all entries for the specified channel. E.g. "OrionGame" will
+		/// return all entries starting with LogOrionGame
+		/// </summary>
+		/// <param name="Channel"></param>
+		/// <returns></returns>
+		public IEnumerable<string> GetLogChannels(IEnumerable<string> Channels, bool ExactMatch = true)
+		{
+			// expand Chan1, Chan2 into Log(?:Chan1|Chan2) for a non-capturing group
+			string Match = string.Format("Log(?:{0})", string.Join("|", Channels));
+
+			string Pattern;
+
+			if (ExactMatch)
+			{
+				Pattern = string.Format(@"({0}:\s{{0,1}}.+)", Match);
+			}
+			else
+			{
+				Pattern = string.Format(@"({0}.*:\s{{0,1}}.+)", Match);
+			}
+
+			return Regex.Matches(Content, Pattern).Cast<Match>().Select(M => M.Groups[1].ToString()).ToArray();
+		}
 
 		/// <summary>
 		/// Return all entries for the specified channel. E.g. "OrionGame" will
@@ -219,18 +243,7 @@ namespace Gauntlet
 		/// <returns></returns>
 		public IEnumerable<string> GetLogChannel(string Channel, bool ExactMatch=true)
 		{
-			string Pattern;
-
-			if (ExactMatch)
-			{
-				Pattern = string.Format(@"(Log{0}:\s{{0,1}}.+)", Channel);
-			}
-			else
-			{
-				Pattern = string.Format(@"(Log{0}.*:\s{{0,1}}.+)", Channel);
-			}
-
-			return Regex.Matches(Content, Pattern).Cast<Match>().Select(M => M.Groups[1].ToString()).ToArray();
+			return GetLogChannels(new string[] { Channel }, ExactMatch);
 		}
 
 		/// <summary>

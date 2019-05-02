@@ -68,6 +68,24 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Return list of warnings. Empty by default
+		/// </summary>
+		/// <returns></returns>
+		public virtual IEnumerable<string> GetWarnings()
+		{
+			return new string[0];
+		}
+
+		/// <summary>
+		/// Return list of errors. Empty by default
+		/// </summary>
+		/// <returns></returns>
+		public virtual IEnumerable<string> GetErrors()
+		{
+			return new string[0];
+		}
+
+		/// <summary>
 		/// Mark the test as started
 		/// </summary>
 		/// <returns></returns>
