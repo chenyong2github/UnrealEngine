@@ -86,7 +86,7 @@ public:
 	FPrimitiveComponentId PrimitiveId;
 
 	/** The occlusion query which contains the primitive's pending occlusion results. */
-	FRenderQueryRHIRef PendingOcclusionQuery[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
+	FRHIPooledRenderQuery PendingOcclusionQuery[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
 	uint32 PendingOcclusionQueryFrames[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames]; 
 
 	uint32 LastTestFrameNumber;
@@ -141,7 +141,7 @@ private:
 		{
 			const uint32 ThisFrameNumber = PendingOcclusionQueryFrames[Index];
 			const int32 LaggedFrames = FrameNumber - ThisFrameNumber;
-			if (PendingOcclusionQuery[Index].IsValid() && LaggedFrames <= LagTolerance && ThisFrameNumber < OldestFrame)
+			if (PendingOcclusionQuery[Index].GetQuery() && LaggedFrames <= LagTolerance && ThisFrameNumber < OldestFrame)
 			{
 				OldestFrame = ThisFrameNumber;
 				OldestQueryIndex = Index;
@@ -202,9 +202,9 @@ public:
 			{
 				uint32 TestFrame = FrameNumber - (DeltaFrame - 1);
 				const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(TestFrame, NumBufferedFrames);
-				if (PendingOcclusionQuery[QueryIndex].GetReference() && PendingOcclusionQueryFrames[QueryIndex] != TestFrame)
+				if (PendingOcclusionQuery[QueryIndex].GetQuery() && PendingOcclusionQueryFrames[QueryIndex] != TestFrame)
 				{
-					Pool.ReleaseQuery(PendingOcclusionQuery[QueryIndex]);
+					PendingOcclusionQuery[QueryIndex].ReleaseQuery();
 				}
 			}
 		}
@@ -213,42 +213,39 @@ public:
 	FORCEINLINE void ReleaseQuery(TOcclusionQueryPool& Pool, uint32 FrameNumber, int32 NumBufferedFrames)
 	{
 		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(FrameNumber, NumBufferedFrames);
-		if (PendingOcclusionQuery[QueryIndex].IsValid())
-		{
-			Pool.ReleaseQuery(PendingOcclusionQuery[QueryIndex]);
-		}
+		PendingOcclusionQuery[QueryIndex].ReleaseQuery();
 	}
 
-	FORCEINLINE FRenderQueryRHIParamRef GetQueryForEviction(uint32 FrameNumber, int32 NumBufferedFrames) const
+	FORCEINLINE FRHIRenderQuery* GetQueryForEviction(uint32 FrameNumber, int32 NumBufferedFrames) const
 	{
 		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(FrameNumber, NumBufferedFrames);
-		if (PendingOcclusionQuery[QueryIndex].IsValid())
+		if (PendingOcclusionQuery[QueryIndex].GetQuery())
 		{
-			return PendingOcclusionQuery[QueryIndex].GetReference();
+			return PendingOcclusionQuery[QueryIndex].GetQuery();
 		}
 		return nullptr;
 	}
 
 
-	FORCEINLINE FRenderQueryRHIParamRef GetQueryForReading(uint32 FrameNumber, int32 NumBufferedFrames, int32 LagTolerance, bool& bOutGrouped) const
+	FORCEINLINE FRHIRenderQuery* GetQueryForReading(uint32 FrameNumber, int32 NumBufferedFrames, int32 LagTolerance, bool& bOutGrouped) const
 	{
 		const int32 OldestQueryIndex = bNeedsScanOnRead ? ScanOldestNonStaleQueryIndex(FrameNumber, NumBufferedFrames, LagTolerance)
 														: FOcclusionQueryHelpers::GetQueryLookupIndex(FrameNumber, NumBufferedFrames);
 		const int32 LaggedFrames = FrameNumber - PendingOcclusionQueryFrames[OldestQueryIndex];
-		if (OldestQueryIndex == -1 || !PendingOcclusionQuery[OldestQueryIndex].IsValid() || LaggedFrames > LagTolerance)
+		if (OldestQueryIndex == -1 || !PendingOcclusionQuery[OldestQueryIndex].GetQuery() || LaggedFrames > LagTolerance)
 		{
 			bOutGrouped = false;
 			return nullptr;
 		}
 		bOutGrouped = bGroupedQuery[OldestQueryIndex];
-		return PendingOcclusionQuery[OldestQueryIndex];
+		return PendingOcclusionQuery[OldestQueryIndex].GetQuery();
 	}
 
-	FORCEINLINE void SetCurrentQuery(uint32 FrameNumber, FRenderQueryRHIParamRef NewQuery, int32 NumBufferedFrames, bool bGrouped, bool bNeedsScan)
+	FORCEINLINE void SetCurrentQuery(uint32 FrameNumber, FRHIPooledRenderQuery&& NewQuery, int32 NumBufferedFrames, bool bGrouped, bool bNeedsScan)
 	{
 		// Get the current occlusion query
 		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryIssueIndex(FrameNumber, NumBufferedFrames);
-		PendingOcclusionQuery[QueryIndex] = NewQuery;
+		PendingOcclusionQuery[QueryIndex] = MoveTemp(NewQuery);
 		PendingOcclusionQueryFrames[QueryIndex] = FrameNumber;
 		bGroupedQuery[QueryIndex] = bGrouped;
 
@@ -312,7 +309,7 @@ struct FPrimitiveOcclusionHistoryKeyFuncs : BaseKeyFuncs<FPrimitiveOcclusionHist
 
 class FIndividualOcclusionHistory
 {
-	FRenderQueryRHIRef PendingOcclusionQuery[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
+	FRHIPooledRenderQuery PendingOcclusionQuery[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
 	uint32 PendingOcclusionQueryFrames[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames]; // not intialized...this is ok
 
 public:
@@ -326,9 +323,9 @@ public:
 			{
 				uint32 TestFrame = FrameNumber - (DeltaFrame - 1);
 				const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(TestFrame, NumBufferedFrames);
-				if (PendingOcclusionQuery[QueryIndex].GetReference() && PendingOcclusionQueryFrames[QueryIndex] != TestFrame)
+				if (PendingOcclusionQuery[QueryIndex].GetQuery() && PendingOcclusionQueryFrames[QueryIndex] != TestFrame)
 				{
-					Pool.ReleaseQuery(PendingOcclusionQuery[QueryIndex]);
+					PendingOcclusionQuery[QueryIndex].ReleaseQuery();
 				}
 			}
 		}
@@ -337,28 +334,28 @@ public:
 	FORCEINLINE void ReleaseQuery(TOcclusionQueryPool& Pool, uint32 FrameNumber, int32 NumBufferedFrames)
 	{
 		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(FrameNumber, NumBufferedFrames);
-		if (PendingOcclusionQuery[QueryIndex].GetReference())
+		if (PendingOcclusionQuery[QueryIndex].GetQuery())
 		{
-			Pool.ReleaseQuery(PendingOcclusionQuery[QueryIndex]);
+			PendingOcclusionQuery[QueryIndex].ReleaseQuery();
 		}
 	}
 
-	FORCEINLINE FRenderQueryRHIParamRef GetPastQuery(uint32 FrameNumber, int32 NumBufferedFrames)
+	FORCEINLINE FRHIRenderQuery* GetPastQuery(uint32 FrameNumber, int32 NumBufferedFrames)
 	{
 		// Get the oldest occlusion query
 		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(FrameNumber, NumBufferedFrames);
-		if (PendingOcclusionQuery[QueryIndex].GetReference() && PendingOcclusionQueryFrames[QueryIndex] == FrameNumber - uint32(NumBufferedFrames))
+		if (PendingOcclusionQuery[QueryIndex].GetQuery() && PendingOcclusionQueryFrames[QueryIndex] == FrameNumber - uint32(NumBufferedFrames))
 		{
-			return PendingOcclusionQuery[QueryIndex].GetReference();
+			return PendingOcclusionQuery[QueryIndex].GetQuery();
 		}
 		return nullptr;
 	}
 
-	FORCEINLINE void SetCurrentQuery(uint32 FrameNumber, FRenderQueryRHIParamRef NewQuery, int32 NumBufferedFrames)
+	FORCEINLINE void SetCurrentQuery(uint32 FrameNumber, FRHIPooledRenderQuery&& NewQuery, int32 NumBufferedFrames)
 	{
 		// Get the current occlusion query
 		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryIssueIndex(FrameNumber, NumBufferedFrames);
-		PendingOcclusionQuery[QueryIndex] = NewQuery;
+		PendingOcclusionQuery[QueryIndex] = MoveTemp(NewQuery);
 		PendingOcclusionQueryFrames[QueryIndex] = FrameNumber;
 	}
 };
@@ -528,10 +525,15 @@ Buffers multiple frames to avoid waiting on the GPU so times are a little lagged
 */
 class FLatentGPUTimer
 {
-	static const int32 NumBufferedFrames = FOcclusionQueryHelpers::MaxBufferedOcclusionFrames + 1;
+	FRenderQueryPoolRHIRef TimerQueryPool;
 public:
+	static const int32 NumBufferedFrames = FOcclusionQueryHelpers::MaxBufferedOcclusionFrames + 1;
 
-	FLatentGPUTimer(int32 InAvgSamples = 30);
+	FLatentGPUTimer(FRenderQueryPoolRHIRef InTimerQueryPool, int32 InAvgSamples = 30);
+	~FLatentGPUTimer()
+	{
+		Release();
+	}
 
 	void Release();
 
@@ -558,8 +560,9 @@ private:
 	int32 SampleIndex;
 
 	int32 QueryIndex;
-	FRenderQueryRHIRef StartQueries[NumBufferedFrames];
-	FRenderQueryRHIRef EndQueries[NumBufferedFrames];
+	bool QueriesInFlight[NumBufferedFrames];
+	FRHIPooledRenderQuery StartQueries[NumBufferedFrames];
+	FRHIPooledRenderQuery EndQueries[NumBufferedFrames];
 	FGraphEventRef QuerySubmittedFences[NumBufferedFrames];
 };
 
@@ -635,7 +638,7 @@ struct FHLODSceneNodeVisibilityState
  * This class is associated with a particular camera across multiple frames by the game thread.
  * The game thread calls FRendererModule::AllocateViewState to create an instance of this private implementation.
  */
-class FSceneViewState : public FSceneViewStateInterface, public FDeferredCleanupInterface, public FRenderResource
+class FSceneViewState : public FSceneViewStateInterface, public FRenderResource
 {
 public:
 
@@ -677,11 +680,11 @@ public:
 	};
 
 	uint32 UniqueID;
-	typedef TMap<FSceneViewState::FProjectedShadowKey, FRenderQueryRHIRef> ShadowKeyOcclusionQueryMap;
+	typedef TMap<FSceneViewState::FProjectedShadowKey, FRHIPooledRenderQuery> ShadowKeyOcclusionQueryMap;
 	TArray<ShadowKeyOcclusionQueryMap, TInlineAllocator<FOcclusionQueryHelpers::MaxBufferedOcclusionFrames> > ShadowOcclusionQueryMaps;
 
 	/** The view's occlusion query pool. */
-	FRenderQueryPool OcclusionQueryPool;
+	FRenderQueryPoolRHIRef OcclusionQueryPool;
 
 	FHZBOcclusionTester HZBOcclusionTests;
 
@@ -950,6 +953,7 @@ public:
 	FRWBufferStructured PrimitiveShaderDataBuffer;
 
 	/** Timestamp queries around separate translucency, used for auto-downsampling. */
+	FRenderQueryPoolRHIRef TimerQueryPool;
 	FLatentGPUTimer TranslucencyTimer;
 	FLatentGPUTimer SeparateTranslucencyTimer;
 
@@ -1214,69 +1218,7 @@ public:
 
 	virtual void ReleaseDynamicRHI() override
 	{
-		for (int i = 0; i < ShadowOcclusionQueryMaps.Num(); ++i)
-		{
-			ShadowOcclusionQueryMaps[i].Reset();
-		}
-		PrimitiveOcclusionHistorySet.Empty();
-		PrimitiveFadingStates.Empty();
-		OcclusionQueryPool.Release();
 		HZBOcclusionTests.ReleaseDynamicRHI();
-		EyeAdaptationRTManager.SafeRelease();
-		CombinedLUTRenderTarget.SafeRelease();
-		PrevFrameViewInfo.SafeRelease();
-		LightShaftOcclusionHistory.SafeRelease();
-		LightShaftBloomHistoryRTs.Empty();
-		DistanceFieldAOHistoryRT.SafeRelease();
-		DistanceFieldIrradianceHistoryRT.SafeRelease();
-		MobileAaBloomSunVignette0.SafeRelease();
-		MobileAaBloomSunVignette1.SafeRelease();
-		MobileAaColor0.SafeRelease();
-		MobileAaColor1.SafeRelease();
-		BloomFFTKernel.SafeRelease();
-		SelectionOutlineCacheKey.SafeRelease();
-		SelectionOutlineCacheValue.SafeRelease();
-
-		{
-			// Sets the mipbias that is normally <= 0 to invalid large number.
-			MaterialTextureCachedMipBias = BIG_NUMBER;
-			MaterialTextureBilinearWrapedSamplerCache.SafeRelease();
-			MaterialTextureBilinearClampedSamplerCache.SafeRelease();
-		}
-
-		for (int32 CascadeIndex = 0; CascadeIndex < ARRAY_COUNT(GlobalDistanceFieldClipmapState); CascadeIndex++)
-		{
-			for (int32 CacheType = 0; CacheType < ARRAY_COUNT(GlobalDistanceFieldClipmapState[CascadeIndex].Cache); CacheType++)
-			{
-				GlobalDistanceFieldClipmapState[CascadeIndex].Cache[CacheType].VolumeTexture.SafeRelease();
-			}
-		}
-
-		IndirectShadowCapsuleShapesVertexBuffer.SafeRelease();
-		IndirectShadowCapsuleShapesSRV.SafeRelease();
-		IndirectShadowMeshDistanceFieldCasterIndicesVertexBuffer.SafeRelease();
-		IndirectShadowMeshDistanceFieldCasterIndicesSRV.SafeRelease();
-		IndirectShadowLightDirectionVertexBuffer.SafeRelease();
-		IndirectShadowLightDirectionSRV.SafeRelease();
-		CapsuleTileIntersectionCountsBuffer.Release();
-		TranslucencyTimer.Release();
-		SeparateTranslucencyTimer.Release();
-		if (!!ForwardLightingResources)
-		{
-			ForwardLightingResources->Release();
-			ForwardLightingResources = nullptr;
-		}
-		ForwardLightingCullingResources.Release();
-		LightScatteringHistory.SafeRelease();
-		PrimitiveShaderDataBuffer.Release();
-#if RHI_RAYTRACING
-		PathTracingIrradianceRT.SafeRelease();
-		PathTracingSampleCountRT.SafeRelease();
-		VarianceMipTreeDimensions = FIntVector(0);
-		TotalRayCount = 0;
-		PathTracingRect = FIntRect(0, 0, 0, 0);
-		IESLightProfileResources.Release();
-#endif 
 	}
 
 	// FSceneViewStateInterface

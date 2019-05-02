@@ -1703,6 +1703,9 @@ void UEngine::PreExit()
 	SetCustomTimeStep(nullptr);
 
 	ShutdownHMD();
+
+	DynamicResolutionState.Reset();
+	NextDynamicResolutionState.Reset();
 }
 
 void UEngine::ShutdownHMD()

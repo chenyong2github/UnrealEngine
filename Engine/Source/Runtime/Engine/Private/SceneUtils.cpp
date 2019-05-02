@@ -185,7 +185,7 @@ public:
 	static const uint64 InvalidQueryResult = 0xFFFFFFFFFFFFFFFFull;
 
 public:
-	FRealtimeGPUProfilerEvent(const FName& InName, const FName& InStatName, FRenderQueryPool* RenderQueryPool)
+	FRealtimeGPUProfilerEvent(const FName& InName, const FName& InStatName, FRHIRenderQueryPool* RenderQueryPool, uint32& QueryCount)
 		: StartResultMicroseconds(InvalidQueryResult)
 		, EndResultMicroseconds(InvalidQueryResult)
 		, FrameNumber(-1)
@@ -199,19 +199,20 @@ public:
 		Name = InName;
 
 		const int MaxGPUQueries = CVarGPUStatsMaxQueriesPerFrame.GetValueOnRenderThread();
-		if ( MaxGPUQueries == -1 || RenderQueryPool->GetAllocatedQueryCount() < MaxGPUQueries )
+		if ( MaxGPUQueries == -1 || QueryCount < uint32(MaxGPUQueries) )
 		{
 			StartQuery = RenderQueryPool->AllocateQuery();
 			EndQuery = RenderQueryPool->AllocateQuery();
+			QueryCount += 2;
 		}
 	}
 
 	bool HasQueriesAllocated() const 
 	{ 
-		return IsValidRef(StartQuery); 
+		return StartQuery.GetQuery() != nullptr;
 	}
 
-	void ReleaseQueries(FRenderQueryPool* RenderQueryPool, FRHICommandListImmediate* RHICmdListPtr)
+	void ReleaseQueries(FRHIRenderQueryPool* RenderQueryPool, FRHICommandListImmediate* RHICmdListPtr, uint32& QueryCount)
 	{
 		if ( HasQueriesAllocated() )
 		{
@@ -221,16 +222,17 @@ public:
 				uint64 Temp;
 				if (bBeginQueryInFlight)
 				{
-					RHICmdListPtr->GetRenderQueryResult(StartQuery, Temp, false);
+					RHICmdListPtr->GetRenderQueryResult(StartQuery.GetQuery(), Temp, false);
 				}
 
 				if (bEndQueryInFlight)
 				{
-					RHICmdListPtr->GetRenderQueryResult(EndQuery, Temp, false);
+					RHICmdListPtr->GetRenderQueryResult(EndQuery.GetQuery(), Temp, false);
 				}
 			}
-			RenderQueryPool->ReleaseQuery(StartQuery);
-			RenderQueryPool->ReleaseQuery(EndQuery);
+			StartQuery.ReleaseQuery();
+			EndQuery.ReleaseQuery();
+			QueryCount -= 2;
 		}
 	}
 
@@ -240,9 +242,9 @@ public:
 		check(!bInsideQuery);
 		bInsideQuery = true;
 
-		if (IsValidRef(StartQuery))
+		if (StartQuery.GetQuery() != nullptr)
 		{
-			RHICmdList.EndRenderQuery(StartQuery);
+			RHICmdList.EndRenderQuery(StartQuery.GetQuery());
 			bBeginQueryInFlight = true;
 		}
 		StartResultMicroseconds = InvalidQueryResult;
@@ -258,7 +260,7 @@ public:
 
 		if ( HasQueriesAllocated() )
 		{
-			RHICmdList.EndRenderQuery(EndQuery);
+			RHICmdList.EndRenderQuery(EndQuery.GetQuery());
 			bEndQueryInFlight = true;
 		}
 	}
@@ -272,7 +274,7 @@ public:
 		{
 			if (StartResultMicroseconds == InvalidQueryResult)
 			{
-				if (!RHICmdList.GetRenderQueryResult(StartQuery, StartResultMicroseconds, false))
+				if (!RHICmdList.GetRenderQueryResult(StartQuery.GetQuery(), StartResultMicroseconds, false))
 				{
 					StartResultMicroseconds = InvalidQueryResult;
 				}
@@ -280,7 +282,7 @@ public:
 			}
 			if (EndResultMicroseconds == InvalidQueryResult)
 			{
-				if (!RHICmdList.GetRenderQueryResult(EndQuery, EndResultMicroseconds, false))
+				if (!RHICmdList.GetRenderQueryResult(EndQuery.GetQuery(), EndResultMicroseconds, false))
 				{
 					EndResultMicroseconds = InvalidQueryResult;
 				}
@@ -338,8 +340,8 @@ public:
 	}
 
 private:
-	FRenderQueryRHIRef StartQuery;
-	FRenderQueryRHIRef EndQuery;
+	FRHIPooledRenderQuery StartQuery;
+	FRHIPooledRenderQuery EndQuery;
 #if STATS
 	FName StatName;
 #endif
@@ -359,9 +361,11 @@ Container for a single frame's GPU stats
 -----------------------------------------------------------------------------*/
 class FRealtimeGPUProfilerFrame
 {
+	uint32& QueryCount;
 public:
-	FRealtimeGPUProfilerFrame(FRenderQueryPool* InRenderQueryPool)
-		: FrameNumber(-1)
+	FRealtimeGPUProfilerFrame(FRenderQueryPoolRHIRef InRenderQueryPool, uint32& InQueryCount)
+		: QueryCount(InQueryCount)
+		, FrameNumber(-1)
 		, RenderQueryPool(InRenderQueryPool)
 	{}
 
@@ -373,7 +377,7 @@ public:
 	void PushEvent(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName)
 	{
 		// TODO: this should really use a pool / free list
-		FRealtimeGPUProfilerEvent* Event = new FRealtimeGPUProfilerEvent(Name, StatName, RenderQueryPool);
+		FRealtimeGPUProfilerEvent* Event = new FRealtimeGPUProfilerEvent(Name, StatName, RenderQueryPool, QueryCount);
 		const int32 EventIndex = GpuProfilerEvents.Num();
 
 		GpuProfilerEvents.Add(Event);
@@ -408,7 +412,7 @@ public:
 		{
 			if (GpuProfilerEvents[Index])
 			{
-				GpuProfilerEvents[Index]->ReleaseQueries(RenderQueryPool, RHICommandListPtr);
+				GpuProfilerEvents[Index]->ReleaseQueries(RenderQueryPool, RHICommandListPtr, QueryCount);
 				delete GpuProfilerEvents[Index];
 			}
 		}
@@ -575,7 +579,7 @@ private:
 	TArray<FGPUEventTimeAggregate> EventAggregates;
 
 	uint32 FrameNumber;
-	FRenderQueryPool* RenderQueryPool;
+	FRenderQueryPoolRHIRef RenderQueryPool;
 };
 
 /*-----------------------------------------------------------------------------
@@ -599,10 +603,11 @@ FRealtimeGPUProfiler::FRealtimeGPUProfiler()
 	, bStatGatheringPaused(false)
 	, bInBeginEndBlock(false)
 {
-	RenderQueryPool = new FRenderQueryPool(RQT_AbsoluteTime);
+	const int MaxGPUQueries = CVarGPUStatsMaxQueriesPerFrame.GetValueOnRenderThread();
+	RenderQueryPool = RHICreateRenderQueryPool(RQT_AbsoluteTime, (MaxGPUQueries > 0) ? MaxGPUQueries * 2 : 10240);
 	for (int Index = 0; Index < NumGPUProfilerBufferedFrames; Index++)
 	{
-		Frames.Add(new FRealtimeGPUProfilerFrame(RenderQueryPool));
+		Frames.Add(new FRealtimeGPUProfilerFrame(RenderQueryPool, QueryCount));
 	}
 }
 
@@ -613,8 +618,7 @@ void FRealtimeGPUProfiler::Release()
 		delete Frames[Index];
 	}
 	Frames.Empty();
-	delete RenderQueryPool;
-	RenderQueryPool = nullptr;
+	RenderQueryPool.SafeRelease();
 }
 
 void FRealtimeGPUProfiler::BeginFrame(FRHICommandListImmediate& RHICmdList)
@@ -740,48 +744,3 @@ void FScopedGPUStatEvent::End()
 	}
 }
 #endif // HAS_GPU_STATS
-
-/*-----------------------------------------------------------------------------
-FRenderQueryPool
------------------------------------------------------------------------------*/
-FRenderQueryPool::~FRenderQueryPool()
-{
-	Release();
-}
-
-void FRenderQueryPool::Release()
-{
-	Queries.Empty();
-	NumQueriesAllocated = 0;
-}
-
-FRenderQueryRHIRef FRenderQueryPool::AllocateQuery()
-{
-	// Are we out of available render queries?
-	NumQueriesAllocated++;
-	if (Queries.Num() == 0)
-	{
-		// Create a new render query.
-		return RHICreateRenderQuery(QueryType);
-	}
-
-	return Queries.Pop(/*bAllowShrinking=*/ false);
-}
-
-void FRenderQueryPool::ReleaseQuery(FRenderQueryRHIRef &Query)
-{
-	if (IsValidRef(Query))
-	{
-		NumQueriesAllocated--;
-#if RENDER_QUERY_POOLING_ENABLED
-		// Is no one else keeping a refcount to the query?
-		if (Query.GetRefCount() == 1)
-		{
-			// Return it to the pool.
-			Queries.Add(Query);
-		}
-#endif
-		// De-ref without deleting.
-		Query = NULL;
-	}
-}

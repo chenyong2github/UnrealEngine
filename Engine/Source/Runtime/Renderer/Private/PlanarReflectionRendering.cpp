@@ -334,7 +334,7 @@ static void UpdatePlanarReflectionContents_RenderThread(
 				const int32 NumBufferedFrames = FOcclusionQueryHelpers::GetNumBufferedFrames(SceneRenderer->FeatureLevel) + 1;
 				// +1 to frame counter because we are operating before the main view's InitViews, which is where OcclusionFrameCounter is incremented
 				uint32 OcclusionFrameCounter = ViewState->OcclusionFrameCounter + 1;
-				FRenderQueryRHIParamRef PastQuery = OcclusionHistory.GetPastQuery(OcclusionFrameCounter, NumBufferedFrames);
+				FRHIRenderQuery* PastQuery = OcclusionHistory.GetPastQuery(OcclusionFrameCounter, NumBufferedFrames);
 
 				if (PastQuery)
 				{

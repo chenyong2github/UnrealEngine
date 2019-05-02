@@ -943,6 +943,67 @@ private:
 
 class FRHIRenderQuery : public FRHIResource {};
 
+class FRHIRenderQueryPool;
+class RHI_API FRHIPooledRenderQuery
+{
+	TRefCountPtr<FRHIRenderQuery> Query;
+	FRHIRenderQueryPool* QueryPool = nullptr;
+
+public:
+	FRHIPooledRenderQuery() = default;
+	FRHIPooledRenderQuery(FRHIRenderQueryPool* InQueryPool, TRefCountPtr<FRHIRenderQuery>&& InQuery);
+	~FRHIPooledRenderQuery();
+
+	FRHIPooledRenderQuery(const FRHIPooledRenderQuery&) = delete;
+	FRHIPooledRenderQuery& operator=(const FRHIPooledRenderQuery&) = delete;
+	FRHIPooledRenderQuery(FRHIPooledRenderQuery&&) = default;
+	FRHIPooledRenderQuery& operator=(FRHIPooledRenderQuery&&) = default;
+
+	FRHIRenderQuery* GetQuery() const
+	{
+		return Query;
+	}
+
+	TRefCountPtr<FRHIRenderQuery> GetQueryRef() const
+	{
+		return Query;
+	}
+
+	void ReleaseQuery();
+};
+
+class RHI_API FRHIRenderQueryPool : public FRHIResource
+{
+public:
+	virtual ~FRHIRenderQueryPool() {};
+	virtual FRHIPooledRenderQuery AllocateQuery() = 0;
+
+private:
+	friend class FRHIPooledRenderQuery;
+	virtual void ReleaseQuery(TRefCountPtr<FRHIRenderQuery>&& Query) = 0;
+};
+
+inline FRHIPooledRenderQuery::FRHIPooledRenderQuery(FRHIRenderQueryPool* InQueryPool, TRefCountPtr<FRHIRenderQuery>&& InQuery) 
+	: Query(MoveTemp(InQuery))
+	, QueryPool(InQueryPool)
+{
+}
+
+inline void FRHIPooledRenderQuery::ReleaseQuery()
+{
+	if (QueryPool && Query.IsValid())
+	{
+		QueryPool->ReleaseQuery(MoveTemp(Query));
+		QueryPool = nullptr;
+	}
+	check(!Query.IsValid());
+}
+
+inline FRHIPooledRenderQuery::~FRHIPooledRenderQuery()
+{
+	ReleaseQuery();
+}
+
 class FRHIComputeFence : public FRHIResource
 {
 public:
@@ -1115,6 +1176,9 @@ typedef TRefCountPtr<FRHITextureReference> FTextureReferenceRHIRef;
 
 typedef FRHIRenderQuery*              FRenderQueryRHIParamRef;
 typedef TRefCountPtr<FRHIRenderQuery> FRenderQueryRHIRef;
+
+typedef FRHIRenderQueryPool*              FRenderQueryPoolRHIParamRef;
+typedef TRefCountPtr<FRHIRenderQueryPool> FRenderQueryPoolRHIRef;
 
 typedef FRHIGPUFence*				FGPUFenceRHIParamRef;
 typedef TRefCountPtr<FRHIGPUFence>	FGPUFenceRHIRef;

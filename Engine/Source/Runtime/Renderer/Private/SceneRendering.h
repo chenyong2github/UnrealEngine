@@ -249,7 +249,7 @@ public:
 	 * Batches a primitive's occlusion query for rendering.
 	 * @param Bounds - The primitive's bounds.
 	 */
-	FRenderQueryRHIParamRef BatchPrimitive(const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
+	FRHIPooledRenderQuery BatchPrimitive(const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
 	inline int32 GetNumBatchOcclusionQueries() const
 	{
 		return BatchOcclusionQueries.Num();
@@ -259,7 +259,7 @@ private:
 
 	struct FOcclusionBatch
 	{
-		FRenderQueryRHIRef Query;
+		TRefCountPtr<FRHIRenderQuery> Query;
 		FGlobalDynamicVertexBuffer::FAllocation VertexAllocation;
 	};
 
@@ -276,7 +276,7 @@ private:
 	uint32 NumBatchedPrimitives;
 
 	/** The pool to allocate occlusion queries from. */
-	class FRenderQueryPool* OcclusionQueryPool;
+	TRefCountPtr<FRHIRenderQueryPool> OcclusionQueryPool;
 };
 
 class FHZBOcclusionTester : public FRenderResource
@@ -676,24 +676,6 @@ struct FPreviousViewInfo
 
 	// History for shadow denoising.
 	TMap<const ULightComponent*, FScreenSpaceFilteringHistory> ShadowHistories;
-
-
-	void SafeRelease()
-	{
-		DepthBuffer.SafeRelease();
-		GBufferA.SafeRelease();
-		GBufferB.SafeRelease();
-		GBufferC.SafeRelease();
-		TemporalAAHistory.SafeRelease();
-		DOFSetupHistory.SafeRelease();
-		SSRHistory.SafeRelease();
-		CustomSSRInput.SafeRelease();
-		ReflectionsHistory.SafeRelease();
-		AmbientOcclusionHistory.SafeRelease();
-		GlobalIlluminationHistory.SafeRelease();
-		SkyLightHistory.SafeRelease();
-		ShadowHistories.Reset();
-	}
 };
 
 class FViewCommands

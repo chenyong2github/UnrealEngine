@@ -150,6 +150,29 @@ struct FRayTracingSceneInitializer
 	uint32 NumCallableShaderSlots = 0;
 };
 
+class FDynamicRHI;
+
+class RHI_API FDefaultRHIRenderQueryPool final : public FRHIRenderQueryPool
+{
+public:
+	FDefaultRHIRenderQueryPool(ERenderQueryType InQueryType, FDynamicRHI* InDynamicRHI, uint32 InNumQueries);
+
+	~FDefaultRHIRenderQueryPool() override 
+	{
+		checkf(AllocatedQueries == Queries.Num(), TEXT("Querypool deleted before all Queries have been released"));
+	}
+
+private:
+	virtual FRHIPooledRenderQuery AllocateQuery() override;
+	virtual void ReleaseQuery(TRefCountPtr<FRHIRenderQuery>&& Query) override;
+
+	FDynamicRHI* DynamicRHI = nullptr;
+	ERenderQueryType QueryType;
+	uint32 NumQueries = 0;
+	uint32 AllocatedQueries = 0;
+	TArray<TRefCountPtr<FRHIRenderQuery>> Queries;
+};
+
 /** The interface which is implemented by the dynamically bound RHI. */
 class RHI_API FDynamicRHI
 {
@@ -271,6 +294,16 @@ public:
 	virtual FRHIShaderLibraryRef RHICreateShaderLibrary(EShaderPlatform Platform, FString const& FilePath, FString const& Name)
 	{
 		return nullptr;
+	}
+	/**
+	* Creates a pool for querys like timers or occlusion queries.
+	* @param QueryType The ype of the queries provided by this pool like RQT_Occlusion or RQT_AbsoluteTime.
+	* @return the Querypool.
+	*/
+	// FlushType: Must be Thread-Safe.
+	virtual FRenderQueryPoolRHIRef RHICreateRenderQueryPool(ERenderQueryType QueryType, uint32 NumQueries = UINT32_MAX)
+	{
+		return new FDefaultRHIRenderQueryPool(QueryType, this, NumQueries);
 	}
 
 	/**
@@ -1375,6 +1408,8 @@ FORCEINLINE class IRHICommandContextContainer* RHIGetCommandContextContainer(int
 {
 	return GDynamicRHI->RHIGetCommandContextContainer(Index, Num, GPUMask);
 }
+
+RHI_API FRenderQueryPoolRHIRef RHICreateRenderQueryPool(ERenderQueryType QueryType, uint32 NumQueries = UINT32_MAX);
 
 #if RHI_RAYTRACING
 

@@ -125,7 +125,10 @@ struct FSpeedTreeWindComputation
 
 /** Default constructor. */
 FSceneViewState::FSceneViewState()
-	: OcclusionQueryPool(RQT_Occlusion)
+	: OcclusionQueryPool(RHICreateRenderQueryPool(RQT_Occlusion))
+	, TimerQueryPool(RHICreateRenderQueryPool(RQT_AbsoluteTime, FLatentGPUTimer::NumBufferedFrames * 2 * 2 * 2))
+	, TranslucencyTimer(TimerQueryPool)
+	, SeparateTranslucencyTimer(TimerQueryPool)
 {
 	UniqueID = FSceneViewState_UniqueID.Increment();
 	OcclusionFrameCounter = 0;
@@ -240,6 +243,7 @@ void DestroyRWBuffer(FRWBuffer* RWBuffer)
 FSceneViewState::~FSceneViewState()
 {
 	CachedVisibilityChunk = NULL;
+	ShadowOcclusionQueryMaps.Reset();
 
 	for (int32 CascadeIndex = 0; CascadeIndex < ARRAY_COUNT(TranslucencyLightingCacheAllocations); CascadeIndex++)
 	{
@@ -3605,11 +3609,12 @@ FSceneViewStateInterface* FRendererModule::AllocateViewState()
 
 //////////////////////////////////////////////////////////////////////////
 
-FLatentGPUTimer::FLatentGPUTimer(int32 InAvgSamples)
-	: AvgSamples(InAvgSamples)
-	, TotalTime(0.0f)
-	, SampleIndex(0)
-	, QueryIndex(0)
+FLatentGPUTimer::FLatentGPUTimer(FRenderQueryPoolRHIRef InTimerQueryPool, int32 InAvgSamples)
+: TimerQueryPool(InTimerQueryPool)
+, AvgSamples(InAvgSamples)
+, TotalTime(0.0f)
+, SampleIndex(0)
+, QueryIndex(0)
 {
 	TimeSamples.AddZeroed(AvgSamples);
 }
@@ -3623,7 +3628,7 @@ bool FLatentGPUTimer::Tick(FRHICommandListImmediate& RHICmdList)
 
 	QueryIndex = (QueryIndex + 1) % NumBufferedFrames;
 
-	if (StartQueries[QueryIndex] && EndQueries[QueryIndex])
+	if (StartQueries[QueryIndex].GetQuery() && EndQueries[QueryIndex].GetQuery())
 	{
 		if (IsRunningRHIInSeparateThread())
 		{
@@ -3644,8 +3649,8 @@ bool FLatentGPUTimer::Tick(FRHICommandListImmediate& RHICmdList)
 			// Block on the GPU until we have the timestamp query results, if necessary
 			// Stat disabled since we buffer 2 frames minimum, it won't actually block
 			//SCOPE_CYCLE_COUNTER(STAT_TranslucencyTimestampQuery_Wait);
-			bStartSuccess = RHICmdList.GetRenderQueryResult(StartQueries[QueryIndex], StartMicroseconds, true);
-			bEndSuccess = RHICmdList.GetRenderQueryResult(EndQueries[QueryIndex], EndMicroseconds, true);
+			bStartSuccess = RHICmdList.GetRenderQueryResult(StartQueries[QueryIndex].GetQuery(), StartMicroseconds, true);
+			bEndSuccess = RHICmdList.GetRenderQueryResult(EndQueries[QueryIndex].GetQuery(), EndMicroseconds, true);
 		}
 
 		TotalTime -= TimeSamples[SampleIndex];
@@ -3672,12 +3677,12 @@ void FLatentGPUTimer::Begin(FRHICommandListImmediate& RHICmdList)
 		return;
 	}
 	
-	if (!StartQueries[QueryIndex])
+	if (!StartQueries[QueryIndex].GetQuery())
 	{		
-		StartQueries[QueryIndex] = RHICmdList.CreateRenderQuery(RQT_AbsoluteTime);
+		StartQueries[QueryIndex] = TimerQueryPool->AllocateQuery();
 	}
 
-	RHICmdList.EndRenderQuery(StartQueries[QueryIndex]);
+	RHICmdList.EndRenderQuery(StartQueries[QueryIndex].GetQuery());
 }
 
 void FLatentGPUTimer::End(FRHICommandListImmediate& RHICmdList)
@@ -3687,12 +3692,12 @@ void FLatentGPUTimer::End(FRHICommandListImmediate& RHICmdList)
 		return;
 	}
 	
-	if (!EndQueries[QueryIndex])
+	if (!EndQueries[QueryIndex].GetQuery())
 	{
-		EndQueries[QueryIndex] = RHICmdList.CreateRenderQuery(RQT_AbsoluteTime);
+		EndQueries[QueryIndex] = TimerQueryPool->AllocateQuery();
 	}
 
-	RHICmdList.EndRenderQuery(EndQueries[QueryIndex]);
+	RHICmdList.EndRenderQuery(EndQueries[QueryIndex].GetQuery());
 	// Hint to the RHI to submit commands up to this point to the GPU if possible.  Can help avoid CPU stalls next frame waiting
 	// for these query results on some platforms.
 	RHICmdList.SubmitCommandsHint();
@@ -3714,8 +3719,8 @@ void FLatentGPUTimer::Release()
 {
 	for (int32 i = 0; i < NumBufferedFrames; ++i)
 	{
-		StartQueries[i].SafeRelease();
-		EndQueries[i].SafeRelease();
+		StartQueries[i].ReleaseQuery();
+		EndQueries[i].ReleaseQuery();
 	}
 }
 

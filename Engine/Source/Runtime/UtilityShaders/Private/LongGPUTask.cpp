@@ -60,10 +60,12 @@ void MeasureLongGPUTaskExecutionTime(FRHICommandListImmediate& RHICmdList)
 {
 	const int32 NumIterationsForMeasurement = 5;
 
-	FRenderQueryRHIRef TimeQueryStart = RHICmdList.CreateRenderQuery(RQT_AbsoluteTime);
-	FRenderQueryRHIRef TimeQueryEnd = RHICmdList.CreateRenderQuery(RQT_AbsoluteTime);
+	FRenderQueryPoolRHIRef TimerQueryPool = RHICreateRenderQueryPool(RQT_AbsoluteTime, 2);
 
-	if (TimeQueryStart == nullptr || TimeQueryEnd == nullptr)
+	FRHIPooledRenderQuery TimeQueryStart = TimerQueryPool->AllocateQuery();
+	FRHIPooledRenderQuery TimeQueryEnd = TimerQueryPool->AllocateQuery();
+
+	if (!GSupportsTimestampRenderQueries)
 	{
 		// Not all platforms/drivers support RQT_AbsoluteTime queries
 		// Use fixed number of iterations on those platforms
@@ -74,17 +76,17 @@ void MeasureLongGPUTaskExecutionTime(FRHICommandListImmediate& RHICmdList)
 	uint64 StartTime = 0;
 	uint64 EndTime = 0;
 
-	RHICmdList.EndRenderQuery(TimeQueryStart);
+	RHICmdList.EndRenderQuery(TimeQueryStart.GetQuery());
 
 	IssueScalableLongGPUTask(RHICmdList, NumIterationsForMeasurement);
 
-	RHICmdList.EndRenderQuery(TimeQueryEnd);
+	RHICmdList.EndRenderQuery(TimeQueryEnd.GetQuery());
 
 	// Required by DX12 to resolve the query
 	RHICmdList.SubmitCommandsHint();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 
-	if (RHICmdList.GetRenderQueryResult(TimeQueryStart, StartTime, true) && RHICmdList.GetRenderQueryResult(TimeQueryEnd, EndTime, true))
+	if (RHICmdList.GetRenderQueryResult(TimeQueryStart.GetQuery(), StartTime, true) && RHICmdList.GetRenderQueryResult(TimeQueryEnd.GetQuery(), EndTime, true))
 	{
 		NumMeasuredIterationsToAchieve500ms = FMath::Clamp(FMath::FloorToInt(500.0f / ((EndTime - StartTime) / 1000.0f / NumIterationsForMeasurement)), 1, 200);
 	}
