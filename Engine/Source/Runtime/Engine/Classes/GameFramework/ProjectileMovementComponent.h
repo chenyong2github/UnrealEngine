@@ -395,6 +395,8 @@ protected:
 	/** Computes result of a bounce and returns the new velocity. */
 	virtual FVector ComputeBounceResult(const FHitResult& Hit, float TimeSlice, const FVector& MoveDelta);
 
+public:
+
 	/** Don't allow velocity magnitude to exceed MaxSpeed, if MaxSpeed is non-zero. */
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ProjectileMovement")
 	FVector LimitVelocity(FVector NewVelocity) const;
@@ -407,6 +409,8 @@ protected:
 
 	/** Allow the projectile to track towards its homing target. */
 	virtual FVector ComputeHomingAcceleration(const FVector& InVelocity, float DeltaTime) const;
+
+protected:
 
 	virtual void TickInterpolation(float DeltaTime);
 	
