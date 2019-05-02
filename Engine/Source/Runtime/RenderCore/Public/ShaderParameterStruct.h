@@ -83,7 +83,13 @@ inline void SetShaderUAVs(TRHICmdList& RHICmdList, const TShaderClass* Shader, T
 {
 	checkf(
 		Shader->Bindings.UAVs.Num() == 0 && Shader->Bindings.GraphUAVs.Num() == 0,
-		TEXT("TShaderRHI Can't have compute shader to be set. UAVs are not supported on vertex, tessellation, geometry and pixel shaders."));
+		TEXT("TShaderRHI Can't have compute shader to be set. UAVs are not supported on vertex, tessellation and geometry shaders."));
+}
+
+template<typename TRHICmdList, typename TShaderClass>
+inline void SetShaderUAVs(TRHICmdList& RHICmdList, const TShaderClass* Shader, FPixelShaderRHIParamRef ShadeRHI, const typename TShaderClass::FParameters& Parameters)
+{
+	// Pixelshader UAVs are bound together with rendertargets using BeginRenderPass
 }
 
 template<typename TRHICmdList, typename TShaderClass>

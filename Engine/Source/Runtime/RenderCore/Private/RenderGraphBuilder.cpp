@@ -222,7 +222,7 @@ void FRDGBuilder::ValidatePass(const FRDGPass* Pass) const
 	FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
 
 	bool bIsCompute = Pass->IsCompute();
-	bool bCanUseUAVs = bIsCompute;
+	bool bCanUseUAVs = true;	// Graphics passes can now also use UAVs in pixelshaders.
 	bool bRequiresRenderTargetSlots = !bIsCompute;
 
 	for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
@@ -822,6 +822,9 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRDGPass* Pass, struc
 	bool bIsCompute = Pass->IsCompute();
 	FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
 
+	OutRPInfo->NumUAVs = 0;
+	OutRPInfo->UAVIndex = 0;
+
 	const bool bGeneratingMips = (Pass->GetFlags() & ERDGPassFlags::GenerateMips) == ERDGPassFlags::GenerateMips;
 	for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
 	{
@@ -890,6 +893,11 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRDGPass* Pass, struc
 			{
 				AllocateRHITextureUAVIfNeeded(UAV, bIsCompute);
 				TransitionUAV(UAV->CachedRHI.UAV, UAV->Desc.Texture, UAV->Desc.Texture->Flags, EResourceTransitionAccess::EWritable, bIsCompute);
+
+				if (!bIsCompute)
+				{
+					OutRPInfo->UAVs[OutRPInfo->NumUAVs++] = UAV->CachedRHI.UAV;	// Bind UAVs in declaration order
+				}
 
 				#if RDG_ENABLE_DEBUG
 				{
@@ -962,6 +970,11 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRDGPass* Pass, struc
 				AllocateRHIBufferUAVIfNeeded(UAV, bIsCompute);
 				TransitionUAV(UAV->CachedRHI.UAV, UAV->Desc.Buffer, UAV->Desc.Buffer->Flags, EResourceTransitionAccess::EWritable, bIsCompute);
 
+				if (!bIsCompute)
+				{
+					OutRPInfo->UAVs[OutRPInfo->NumUAVs++] = UAV->CachedRHI.UAV;	// Bind UAVs in declaration order
+				}
+				
 				#if RDG_ENABLE_DEBUG
 				{
 					UAV->Desc.Buffer->DebugPassAccessCount++;
@@ -1014,6 +1027,8 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRDGPass* Pass, struc
 					break;
 				}
 			}
+
+			OutRPInfo->UAVIndex = NumRenderTargets;
 
 			const FDepthStencilBinding& DepthStencil = RenderTargets->DepthStencil;
 			if (DepthStencil.GetTexture())
