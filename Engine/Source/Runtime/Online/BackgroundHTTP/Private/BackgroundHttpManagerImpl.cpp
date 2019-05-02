@@ -226,7 +226,10 @@ void FBackgroundHttpManagerImpl::ActivatePendingRequests()
 			if (NumRequestsWeCanProcess > 0)
 			{
 				TArray<FBackgroundHttpRequestPtr> RemainingRequests;
-				RemainingRequests.Reserve(PendingStartRequests.Num() - NumRequestsWeCanProcess);
+				if (PendingStartRequests.Num() > NumRequestsWeCanProcess)
+				{
+					RemainingRequests.Reserve(PendingStartRequests.Num() - NumRequestsWeCanProcess);
+				}
 
 				for (int RequestIndex = 0; RequestIndex < PendingStartRequests.Num(); ++RequestIndex)
 				{
@@ -241,7 +244,7 @@ void FBackgroundHttpManagerImpl::ActivatePendingRequests()
 					}
 				}
 
-				PendingStartRequests = RemainingRequests;
+				PendingStartRequests = MoveTemp(RemainingRequests);
 			}
 		}
 	}
