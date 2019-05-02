@@ -6,8 +6,6 @@
 
 UAutomationTestSettings::UAutomationTestSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bTreatLogErrorsAsTestErrors(true)
-	, bTreatLogWarningsAsTestErrors(false)
 {
 	DefaultScreenshotResolution = FIntPoint(1920, 1080);
 }
