@@ -103,8 +103,9 @@ struct FRigUnit_PointSimulation_BoneTarget
 
 /**
  * Performs point based simulation
+ * Note: Disabled for now.
  */
-USTRUCT(meta=(DisplayName="Point Simulation", Keywords="Simulate,Verlet,Springs"))
+USTRUCT(meta=(Abstract, DisplayName="Point Simulation", Keywords="Simulate,Verlet,Springs"))
 struct FRigUnit_PointSimulation : public FRigUnit_SimBaseMutable
 {
 	GENERATED_BODY()
