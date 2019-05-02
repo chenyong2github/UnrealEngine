@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "FunctionalTestBase.h"
-#include "Tests/AutomationTestSettings.h"
+#include "AutomationControllerSettings.h"
 
 
 FFunctionalTestBase::FFunctionalTestBase(const FString& InName, const bool bInComplexTask)
@@ -17,7 +17,7 @@ FFunctionalTestBase::FFunctionalTestBase(const FString& InName, const bool bInCo
 void FFunctionalTestBase::SetLogErrorAndWarningHandlingToDefault()
 {
 	// Set to project defaults
-	UAutomationTestSettings* Settings = UAutomationTestSettings::StaticClass()->GetDefaultObject<UAutomationTestSettings>();
+	UAutomationControllerSettings* Settings = UAutomationControllerSettings::StaticClass()->GetDefaultObject<UAutomationControllerSettings>();
 	bTreatLogErrorsAsErrors = Settings->bTreatLogErrorsAsTestErrors;
 	bTreatLogWarningsAsErrors = Settings->bTreatLogWarningsAsTestErrors;
 }
