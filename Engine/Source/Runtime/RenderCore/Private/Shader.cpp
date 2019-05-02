@@ -2157,6 +2157,11 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 	}
 
+	if (!AllowPixelDepthOffset(Platform))
+	{
+		KeyString += TEXT("_NoPDO");
+	}
+	
 	if (IsD3DPlatform(Platform, false))
 	{
 		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.RemoveUnusedInterpolators"));
