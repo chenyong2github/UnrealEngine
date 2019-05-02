@@ -93,7 +93,6 @@ class RENDERCORE_API FRDGEventScopeStack final
 {
 public:
 	FRDGEventScopeStack(FRHICommandListImmediate& RHICmdList);
-	~FRDGEventScopeStack();
 
 	//////////////////////////////////////////////////////////////////////////
 	//! Called during graph setup phase.
@@ -134,9 +133,6 @@ private:
 
 	/** Stacks of scopes pushed to the RHI command list during execution. */
 	TStaticArray<const FRDGEventScope*, kScopeStackDepthMax> ScopeStack;
-
-	/** Used to validate Begin / End symmetry and that setup and execute are mutually exclusive. */
-	bool bIsExecuting = false;
 };
 
 /** RAII class for begin / end of an event scope through the graph builder. */

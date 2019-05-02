@@ -63,15 +63,8 @@ FRDGEventScopeStack::FRDGEventScopeStack(FRHICommandListImmediate& InRHICmdList)
 	, ScopeStack(MakeUniformStaticArray<const FRDGEventScope*, kScopeStackDepthMax>(nullptr))
 {}
 
-FRDGEventScopeStack::~FRDGEventScopeStack()
-{
-	check(!bIsExecuting);
-}
-
 void FRDGEventScopeStack::BeginEventScope(FRDGEventName&& EventName)
 {
-	checkf(!bIsExecuting, TEXT("Can't begin an event scope while executing."));
-
 	if (RDG_EVENTS)
 	{
 		auto Scope = new(MemStack) FRDGEventScope(CurrentScope, Forward<FRDGEventName>(EventName));
@@ -82,8 +75,6 @@ void FRDGEventScopeStack::BeginEventScope(FRDGEventName&& EventName)
 
 void FRDGEventScopeStack::EndEventScope()
 {
-	checkf(!bIsExecuting, TEXT("Can't end an event scope while executing."));
-
 	if (RDG_EVENTS)
 	{
 		checkf(CurrentScope != nullptr, TEXT("Current scope is null."));
@@ -105,14 +96,10 @@ void FRDGEventScopeStack::BeginExecute()
 	 *  GraphBuilder.Execute();
 	 */
 	checkf(CurrentScope == nullptr, TEXT("Render graph needs to have all scopes ended to execute."));
-	check(!bIsExecuting);
-	bIsExecuting = true;
 }
 
 void FRDGEventScopeStack::BeginExecutePass(const FRDGPass* Pass)
 {
-	check(bIsExecuting);
-
 	if (!GetEmitRDGEvents())
 	{
 		return;
@@ -190,8 +177,6 @@ void FRDGEventScopeStack::BeginExecutePass(const FRDGPass* Pass)
 
 void FRDGEventScopeStack::EndExecutePass()
 {
-	check(bIsExecuting);
-
 	if (GetEmitRDGEvents())
 	{
 		RHICmdList.PopEvent();
@@ -200,9 +185,6 @@ void FRDGEventScopeStack::EndExecutePass()
 
 void FRDGEventScopeStack::EndExecute()
 {
-	check(bIsExecuting);
-	bIsExecuting = false;
-
 	// Pops remaining scopes
 	if (GetEmitRDGEvents())
 	{
