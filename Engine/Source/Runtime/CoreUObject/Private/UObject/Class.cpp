@@ -6,6 +6,7 @@
 
 #include "UObject/Class.h"
 #include "HAL/ThreadSafeBool.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/ScopeLock.h"
 #include "Serialization/MemoryWriter.h"
 #include "Misc/ConfigCacheIni.h"
@@ -4327,6 +4328,7 @@ void UClass::ClearFunctionMapsCaches()
 
 UFunction* UClass::FindFunctionByName(FName InName, EIncludeSuperFlag::Type IncludeSuper) const
 {
+	LLM_SCOPE(ELLMTag::UObject);
 	UFunction* Result = FuncMap.FindRef(InName);
 	if (Result == nullptr && IncludeSuper == EIncludeSuperFlag::IncludeSuper)
 	{

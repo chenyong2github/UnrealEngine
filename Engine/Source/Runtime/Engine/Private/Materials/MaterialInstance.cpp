@@ -1544,6 +1544,7 @@ EMaterialShadingModel UMaterialInstanceDynamic::GetShadingModel() const
 
 void UMaterialInstance::CopyMaterialInstanceParameters(UMaterialInterface* Source)
 {
+	LLM_SCOPE(ELLMTag::MaterialInstance);
 	SCOPE_CYCLE_COUNTER(STAT_MaterialInstance_CopyMatInstParams);
 
 	if ((Source != nullptr) && (Source != this))
@@ -3375,6 +3376,8 @@ bool UMaterialInstance::SetVectorParameterByIndexInternal(int32 ParameterIndex, 
 
 void UMaterialInstance::SetVectorParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, FLinearColor Value)
 {
+	LLM_SCOPE(ELLMTag::MaterialInstance);
+
 	FVectorParameterValue* ParameterValue = GameThread_FindParameterByName(VectorParameterValues, ParameterInfo);
 
 	if(!ParameterValue)
@@ -3418,6 +3421,8 @@ bool UMaterialInstance::SetScalarParameterByIndexInternal(int32 ParameterIndex, 
 
 void UMaterialInstance::SetScalarParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, float Value)
 {
+	LLM_SCOPE(ELLMTag::MaterialInstance);
+
 	FScalarParameterValue* ParameterValue = GameThread_FindParameterByName(ScalarParameterValues, ParameterInfo);
 
 	if(!ParameterValue)
@@ -3476,6 +3481,8 @@ void UMaterialInstance::SetScalarParameterAtlasInternal(const FMaterialParameter
 
 void UMaterialInstance::SetTextureParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, UTexture* Value)
 {
+	LLM_SCOPE(ELLMTag::MaterialInstance);
+
 	FTextureParameterValue* ParameterValue = GameThread_FindParameterByName(TextureParameterValues, ParameterInfo);
 
 	if(!ParameterValue)
@@ -3504,6 +3511,8 @@ void UMaterialInstance::SetTextureParameterValueInternal(const FMaterialParamete
 
 void UMaterialInstance::SetFontParameterValueInternal(const FMaterialParameterInfo& ParameterInfo,class UFont* FontValue,int32 FontPage)
 {
+	LLM_SCOPE(ELLMTag::MaterialInstance);
+
 	FFontParameterValue* ParameterValue = GameThread_FindParameterByName(FontParameterValues, ParameterInfo);
 
 	if(!ParameterValue)
@@ -4264,6 +4273,7 @@ void UMaterialInstance::SaveShaderStableKeysInner(const class ITargetPlatform* T
 
 void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface* Source)
 {
+	LLM_SCOPE(ELLMTag::MaterialInstance);
 	SCOPE_CYCLE_COUNTER(STAT_MaterialInstance_CopyUniformParamsInternal)
 
 	if ((Source == nullptr) || (Source == this))
