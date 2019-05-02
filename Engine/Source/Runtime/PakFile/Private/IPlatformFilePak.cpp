@@ -5930,6 +5930,11 @@ IFileHandle* FPakPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)
 #endif
 
 		Result = CreatePakFileHandle(Filename, PakFile, &FileEntry);
+
+		if (Result)
+		{
+			FCoreDelegates::OnFileOpenedForReadFromPakFile.Broadcast(*PakFile->GetFilename(), Filename);
+		}
 	}
 	else
 	{
