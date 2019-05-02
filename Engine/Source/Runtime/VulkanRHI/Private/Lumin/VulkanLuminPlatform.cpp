@@ -153,3 +153,8 @@ void FVulkanLuminPlatform::EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateI
 	SamplerConversion.samplerYcbcrConversion = VK_TRUE;
 	DeviceInfo.pNext = &SamplerConversion;
 }
+
+bool FVulkanLuminPlatform::RequiresMobileRenderer()
+{
+	return !FLuminPlatformMisc::ShouldUseDesktopVulkan();
+}
