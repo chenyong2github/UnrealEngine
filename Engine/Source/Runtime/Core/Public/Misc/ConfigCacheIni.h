@@ -955,3 +955,7 @@ CORE_API void ReapplyRecordedCVarSettingsFromIni();
  * Helper function to clean up ini history
  */
 CORE_API void DeleteRecordedCVarSettingsFromIni();
+
+CORE_API void RecordConfigReadsFromIni();
+CORE_API void DumpRecordedConfigReadsFromIni();
+CORE_API void DeleteRecordConfigReadsFromIni();
