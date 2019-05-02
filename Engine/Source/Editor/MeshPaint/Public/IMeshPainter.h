@@ -112,6 +112,9 @@ protected:
 	FLinearColor WidgetLineColor;
 	FLinearColor VertexPointColor;
 	FLinearColor HoverVertexPointColor;
+
+	TSharedPtr<FUICommandList> UICommandList;
+
 protected:
 	/** Begins and keeps track of an Editor transaction with the given Description */
 	void BeginTransaction(const FText Description);
@@ -119,4 +122,15 @@ protected:
 	void EndTransaction();
 	/** Painting transaction instance which is currently active */
 	FScopedTransaction* PaintTransaction;
+
+private:
+
+	/** Change the brush radius by a percentage, multiplied by the given value. */
+	void ChangeBrushRadius(float Multiplier);
+
+	/** Change the brush radius by one increment, multiplied by the given value */
+	void ChangeBrushStrength(float Multiplier);
+
+	/** Change the brush radius by one increment, multiplied by the given value */
+	void ChangeBrushFalloff(float Multiplier);
 };
