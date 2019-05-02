@@ -103,11 +103,6 @@ void FStaticLightingSystem::CalculateApproximateDirectLighting(
 	TGatheredLightSample<SHOrder>& OutToggleableDirectLighting,
 	float& OutToggleableDirectionalLightShadowing) const
 {
-	if (bDebugThisSample)
-	{
-		int asdf = 0;
-	}
-
 	check(VertexOffsets.Num() > 0);
 
 	for (int32 LightIndex = 0; LightIndex < Lights.Num(); LightIndex++)
@@ -191,11 +186,6 @@ void FStaticLightingSystem::CalculateApproximateDirectLighting(
 			{
 				// Shadow casting disabled on this light
 				Transmission = FLinearColor::White;
-			}
-
-			if (bDebugThisSample)
-			{
-				int asdf = 0;
 			}
 
 			{

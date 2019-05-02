@@ -82,11 +82,6 @@ void FStaticLightingSystem::CalculateVolumeSampleIncidentRadiance(
 	bool bDebugThisSample
 	) const
 {
-	if (bDebugThisSample)
-	{
-		int32 asdf = 0;
-	}
-
 	const double StartTime = FPlatformTime::Seconds();
 
 	const FVector4 Position = LightingSample.GetPosition();
@@ -408,13 +403,6 @@ FLinearColor FStaticLightingSystem::FinalGatherSample(
 	FLinearColor Lighting = FLinearColor::Black;
 	OutStationarySkyLighting = FLinearColor::Black;
 
-#if ALLOW_LIGHTMAP_SAMPLE_DEBUGGING
-	if (bDebugThisTexel)
-	{
-		int32 asdf = 0;
-	}
-#endif
-
 	bool bPositiveSample = false;
 
 	OutUnoccludedSkyVector = RayIntersection.bIntersects ? FVector(0) : FVector(WorldPathDirection);
@@ -692,11 +680,6 @@ public:
 		// This is necessary for the neighbor comparisons to work right
 		for (int32 RefinementDepth = 0; RefinementDepth < NumAdaptiveRefinementLevels; RefinementDepth++)
 		{
-			if (bDebugThisTexel)
-			{
-				int32 asdf = 0;
-			}
-
 			FLinearColor TotalLighting = FLinearColor::Black;
 
 			// Recalculate total lighting based on the refined results
@@ -958,11 +941,6 @@ public:
 
 			// Swap input and output for the next step
 			Swap(CurrentNodesToRefine, NextNodesToRefine);
-
-			if (bDebugThisTexel)
-			{
-				int32 asdf = 0;
-			}
 
 			FVector4 WorldPathDirections[4];
 			FVector4 TangentPathDirections[4];

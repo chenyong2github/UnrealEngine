@@ -664,11 +664,6 @@ void FStaticLightingSystem::ProcessTextureMapping(FStaticLightingTextureMapping*
 		// Release corner information as it is no longer needed
 		TexelToCornersMap.Empty();
 
-		if (bDebugThisMapping)
-		{
-			int32 asdf = 0;
-		}
-
 		// Calculate direct lighting using the direct photon map.
 		// This is only useful for debugging what the final gather rays see.
 		if (bCalculateDirectLightingFromPhotons)
@@ -3176,11 +3171,6 @@ void FStaticLightingSystem::CalculateIndirectLightingTextureMapping(
 		
 		if (IrradianceCachingSettings.bAllowIrradianceCaching)
 		{
-			if (bDebugThisMapping)
-			{
-				int32 asdf = 0;
-			}
-
 			const int32 InterpolationTaskSize = IrradianceCachingSettings.InterpolateTaskSize;
 			int32 NumIILTasksSubmitted = 0;
 
@@ -3223,11 +3213,6 @@ void FStaticLightingSystem::CalculateIndirectLightingTextureMapping(
 				}
 			} 
 			while (TextureMapping->NumOutstandingInterpolationTasks > 0);
-
-			if (bDebugThisMapping)
-			{
-				int32 asdf = 0;
-			}
 
 			TArray<FInterpolateIndirectTaskDescription*> CompletedTasks;
 			TextureMapping->CompletedInterpolationTasks.PopAll(CompletedTasks);

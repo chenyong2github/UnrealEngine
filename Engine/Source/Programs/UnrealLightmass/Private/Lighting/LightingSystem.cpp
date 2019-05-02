@@ -59,11 +59,6 @@ static void ConvertToLightSampleHelper(const FGatheredLightSample& InGatheredLig
 
 FLightSample FGatheredLightMapSample::ConvertToLightSample(bool bDebugThisSample) const
 {
-	if (bDebugThisSample)
-	{
-		int32 asdf = 0;
-	}
-
 	FLightSample NewSample;
 	NewSample.bIsMapped = bIsMapped;
 
