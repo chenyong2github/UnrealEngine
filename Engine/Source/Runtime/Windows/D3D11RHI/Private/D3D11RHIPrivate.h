@@ -28,7 +28,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogD3D11RHI, Log, All);
 #include "D3D11Viewport.h"
 #include "D3D11ConstantBuffer.h"
 #include "D3D11StateCache.h"
-#include "ValidationRHICommon.h"
+#include "RHIValidationCommon.h"
 
 #ifndef WITH_DX_PERF
 #define WITH_DX_PERF	1

@@ -6,7 +6,7 @@
 
 #pragma once 
 
-#include "ValidationRHICommon.h"
+#include "RHIValidationCommon.h"
 
 #if ENABLE_RHI_VALIDATION
 class FValidationComputeContext;
