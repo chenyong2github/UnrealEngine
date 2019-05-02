@@ -956,6 +956,17 @@ CORE_API void ReapplyRecordedCVarSettingsFromIni();
  */
 CORE_API void DeleteRecordedCVarSettingsFromIni();
 
+/**
+ * Helper function to start recording config reads
+ */
 CORE_API void RecordConfigReadsFromIni();
+
+/**
+ * Helper function to dump config reads to csv after RecordConfigReadsFromIni was called
+ */
 CORE_API void DumpRecordedConfigReadsFromIni();
+
+/**
+ * Helper function to clean up config read history
+ */
 CORE_API void DeleteRecordConfigReadsFromIni();
