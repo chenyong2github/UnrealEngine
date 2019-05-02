@@ -7,6 +7,10 @@ void FRigUnit_BoneHarmonics::Execute(const FRigUnitContext& Context)
 {
 	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
 	FRigHierarchy* Hierarchy = HierarchyRef.Get();
+	if (Hierarchy == nullptr)
+	{
+		return;
+	}
 
 	if (Context.State == EControlRigState::Init ||
 		BoneIndices.Num() != Bones.Num())
