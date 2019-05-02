@@ -55,7 +55,7 @@ void GenerateCosineNormalRay(
 [shader("raygeneration")]
 void GlobalIlluminationRGS()
 {
-	uint2 DispatchThreadId = DispatchRaysIndex().xy;
+	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin;
 	RWGlobalIlluminationUAV[DispatchThreadId] = 0.0;
 	RWRayDistanceUAV[DispatchThreadId] = float2(-1.0, 0.0);
 

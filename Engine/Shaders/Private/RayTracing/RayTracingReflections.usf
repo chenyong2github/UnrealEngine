@@ -153,6 +153,8 @@ void RayTracingReflectionsRGS()
 	uint2 DispatchThreadId = DispatchRaysIndex().xy;
 #endif
 
+	DispatchThreadId += View.ViewRectMin;
+
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor); // GBuffer pixel coordinates (full resolution)
 
 	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO: PixelCoord or DispatchThreadId

@@ -191,17 +191,11 @@ bool IsReflectionCaptureAvailable()
 }
 
 #if RHI_RAYTRACING
-bool ShouldRenderRayTracingReflections(const TArray<FViewInfo>& Views)
+bool ShouldRenderRayTracingReflections(const FViewInfo& View)
 {
-	bool bAnyViewWithRaytracingReflections = false;
-	for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
-	{
-		const FViewInfo& View = Views[ViewIndex];
-		//#dxr_todo: UE-72557 multiview case
-		bAnyViewWithRaytracingReflections = bAnyViewWithRaytracingReflections || (View.FinalPostProcessSettings.ReflectionsType == EReflectionsType::RayTracing);
-	}
+	bool bThisViewHasRaytracingReflections = View.FinalPostProcessSettings.ReflectionsType == EReflectionsType::RayTracing;
 
-	const bool bReflectionsCvarEnabled = GRayTracingReflections < 0 ? bAnyViewWithRaytracingReflections : GRayTracingReflections;	
+	const bool bReflectionsCvarEnabled = GRayTracingReflections < 0 ? bThisViewHasRaytracingReflections : GRayTracingReflections;
 	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
 	const bool bReflectionPassEnabled = (ForceAllRayTracingEffects > 0 || (bReflectionsCvarEnabled && ForceAllRayTracingEffects < 0));
 
@@ -735,8 +729,6 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 		return;	
 	}
 
-	const bool bRayTracedReflections = ShouldRenderRayTracingReflections(Views);
-
 	// The specular sky light contribution is also needed by RT Reflections as a fallback.
 	const bool bSkyLight = Scene->SkyLight
 		&& Scene->SkyLight->ProcessedTexture
@@ -770,6 +762,8 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 	for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
 	{
 		FViewInfo& View = Views[ViewIndex];
+
+		const bool bRayTracedReflections = ShouldRenderRayTracingReflections(View);
 
 		const bool bScreenSpaceReflections = !bRayTracedReflections && ShouldRenderScreenSpaceReflections(Views[ViewIndex]);
 

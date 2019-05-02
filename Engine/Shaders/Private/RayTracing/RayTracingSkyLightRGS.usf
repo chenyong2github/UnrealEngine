@@ -225,7 +225,7 @@ bool GenerateLambertOcclusionRay(
 [shader("raygeneration")]
 void SkyLightRGS()
 {
-	uint2 PixelCoord = DispatchRaysIndex().xy;
+	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
 
 	RandomSequence RandSequence;
 	uint LinearIndex = CalcLinearIndex(PixelCoord);

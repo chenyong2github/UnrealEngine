@@ -178,30 +178,19 @@ void SetupLightParameters(
 	}
 }
 
-bool ShouldRenderRayTracingGlobalIllumination(const TArray<FViewInfo>& Views)
+bool ShouldRenderRayTracingGlobalIllumination(const FViewInfo& View)
 {
 	if (GetForceRayTracingEffectsCVarValue() >= 0)
 	{
 		return GetForceRayTracingEffectsCVarValue() > 0;
 	}
-
-	if (GRayTracingGlobalIllumination >= 0)
+	else if (GRayTracingGlobalIllumination >= 0)
 	{
 		return (GRayTracingGlobalIllumination > 0);
 	}
-	else
+	else 
 	{
-		for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
-		{
-			const FViewInfo& View = Views[ViewIndex];
-			//#dxr_todo: UE-72557 multiview case
-			if (View.FinalPostProcessSettings.RayTracingGI > 0)
-			{
-				return true;
-			}
-		}
-
-		return false;
+		return View.FinalPostProcessSettings.RayTracingGI > 0;
 	}
 }
 
@@ -328,13 +317,32 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingGlobalIllumination(const FV
 }
 
 void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
-	FRHICommandListImmediate& RHICmdList,
-	FViewInfo& View,
-	TRefCountPtr<IPooledRenderTarget>& GlobalIlluminationRT,
-	TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT
+	FRHICommandListImmediate& RHICmdList, 
+	TRefCountPtr<IPooledRenderTarget>& GlobalIlluminationRT
 )
 {
 	SCOPED_GPU_STAT(RHICmdList, RayTracingGlobalIllumination);
+
+	bool bAnyViewWithRTGI = false;
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		FViewInfo& View = Views[ViewIndex];
+		bAnyViewWithRTGI = bAnyViewWithRTGI | ShouldRenderRayTracingGlobalIllumination(View);
+	}
+
+	if (!bAnyViewWithRTGI)
+	{
+		return;
+	}
+
+	IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig RayTracingConfig;
+	RayTracingConfig.ResolutionFraction = 1.0;
+	if (GRayTracingGlobalIlluminationDenoiser != 0)
+	{
+		RayTracingConfig.ResolutionFraction = FMath::Clamp(GRayTracingGlobalIlluminationScreenPercentage / 100.0, 0.25, 1.0);
+	}
+
+	int32 UpscaleFactor = int32(1.0 / RayTracingConfig.ResolutionFraction);
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 	{
@@ -346,18 +354,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 
 	FRDGBuilder GraphBuilder(RHICmdList);
 
-	IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig RayTracingConfig;
-	RayTracingConfig.ResolutionFraction = 1.0;
-	if (GRayTracingGlobalIlluminationDenoiser != 0)
-	{
-		RayTracingConfig.ResolutionFraction = FMath::Clamp(GRayTracingGlobalIlluminationScreenPercentage / 100.0, 0.25, 1.0);
-	}
-
-	int32 RayTracingGISamplesPerPixel = GRayTracingGlobalIlluminationSamplesPerPixel > -1 ? GRayTracingGlobalIlluminationSamplesPerPixel : View.FinalPostProcessSettings.RayTracingGISamplesPerPixel;
-	RayTracingConfig.RayCountPerPixel = RayTracingGISamplesPerPixel;
-	int32 UpscaleFactor = int32(1.0 / RayTracingConfig.ResolutionFraction);
-
-	// Render targets
 	FRDGTextureRef GlobalIlluminationTexture;
 	{
 		FRDGTextureDesc Desc = SceneContext.GetSceneColor()->GetDesc();
@@ -366,6 +362,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
 		GlobalIlluminationTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingGlobalIllumination"));
 	}
+	FRDGTextureUAV* GlobalIlluminationUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(GlobalIlluminationTexture));
 
 	FRDGTextureRef RayDistanceTexture;
 	{
@@ -375,8 +372,55 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
 		RayDistanceTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingGlobalIlluminationRayDistance"));
 	}
-	FRDGTextureRef ResultTexture;
-	
+	FRDGTextureUAV* RayDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayDistanceTexture));
+
+	TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT = SceneContext.ScreenSpaceAO;
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		FViewInfo& View = Views[ViewIndex];
+		if (ShouldRenderRayTracingGlobalIllumination(View))
+		{
+			RenderRayTracingGlobalIllumination(
+				RHICmdList, 
+				GraphBuilder, 
+				View, 
+				RayTracingConfig, 
+				UpscaleFactor, 
+				GlobalIlluminationRT, 
+				AmbientOcclusionRT, 
+				GlobalIlluminationUAV, 
+				RayDistanceUAV, 
+				GlobalIlluminationTexture, 
+				RayDistanceTexture
+			);
+		}
+	}
+
+	GraphBuilder.Execute();
+	SceneContext.bScreenSpaceAOIsValid = true;
+	GVisualizeTexture.SetCheckPoint(RHICmdList, GlobalIlluminationRT);
+}
+
+void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
+	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
+	FViewInfo& View,
+	IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig& RayTracingConfig,
+	int32 UpscaleFactor,
+	TRefCountPtr<IPooledRenderTarget>& GlobalIlluminationRT,
+	TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT,
+	FRDGTextureUAV* GlobalIlluminationUAV,
+	FRDGTextureUAV* RayDistanceUAV,
+	const FRDGTextureRef GlobalIlluminationTexture,
+	const FRDGTextureRef RayDistanceTexture
+)
+{	
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+
+	int32 RayTracingGISamplesPerPixel = GRayTracingGlobalIlluminationSamplesPerPixel > -1 ? GRayTracingGlobalIlluminationSamplesPerPixel : View.FinalPostProcessSettings.RayTracingGISamplesPerPixel;
+	RayTracingConfig.RayCountPerPixel = RayTracingGISamplesPerPixel;
+
 	FSceneTexturesUniformParameters SceneTextures;
 	SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, SceneTextures);
 	// Ray generation
@@ -438,8 +482,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		}
 		PassParameters->SSProfilesTexture = GraphBuilder.RegisterExternalTexture(SubsurfaceProfileRT);
 		PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		PassParameters->RWGlobalIlluminationUAV = GraphBuilder.CreateUAV(GlobalIlluminationTexture);
-		PassParameters->RWRayDistanceUAV = GraphBuilder.CreateUAV(RayDistanceTexture);
+		PassParameters->RWGlobalIlluminationUAV = GlobalIlluminationUAV;
+		PassParameters->RWRayDistanceUAV = RayDistanceUAV;
 
 		FGlobalIlluminationRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FGlobalIlluminationRGS::FUseAttenuationTermDim>(true);
@@ -462,6 +506,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 	}
 
 	// Denoising
+
+	FRDGTextureRef ResultTexture; //#dxr_todo review
+
 	if (GRayTracingGlobalIlluminationDenoiser != 0)
 	{
 		FSceneViewFamilyBlackboard SceneBlackboard;
@@ -546,10 +593,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 			}
 		);
 	}
-
-	GraphBuilder.Execute();
-	SceneContext.bScreenSpaceAOIsValid = true;
-	GVisualizeTexture.SetCheckPoint(RHICmdList, GlobalIlluminationRT);
 }
 
 void FDeferredShadingSceneRenderer::CompositeGlobalIllumination(
@@ -558,7 +601,6 @@ void FDeferredShadingSceneRenderer::CompositeGlobalIllumination(
 	TRefCountPtr<IPooledRenderTarget>& GlobalIlluminationRT
 )
 {
-
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
 	FSceneTexturesUniformParameters SceneTextures;

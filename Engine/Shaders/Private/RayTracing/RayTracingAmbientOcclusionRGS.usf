@@ -39,7 +39,7 @@ void GenerateCosineNormalRay(
 [shader("raygeneration")]
 void AmbientOcclusionRGS()
 {
-	uint2 PixelCoord = DispatchRaysIndex().xy;
+	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
 
 	RandomSequence RandSequence;
 	uint LinearIndex = CalcLinearIndex(PixelCoord);

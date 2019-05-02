@@ -755,11 +755,15 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	TRefCountPtr<IPooledRenderTarget>& HitDistanceRT
 )
 {
-	check(Scene->SkyLight);
-	check(Scene->SkyLight->ProcessedTexture);
-
 	SCOPED_DRAW_EVENT(RHICmdList, RayTracingSkyLight);
 	SCOPED_GPU_STAT(RHICmdList, RayTracingSkyLight);
+
+	if (!ShouldRenderRayTracingSkyLight(Scene->SkyLight))
+	{
+		return;
+	}
+
+	check(Scene->SkyLight->ProcessedTexture);
 
 	if (Scene->SkyLight->ShouldRebuildCdf())
 	{

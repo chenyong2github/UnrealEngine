@@ -28,7 +28,7 @@ RaytracingAccelerationStructure TLAS;
 [shader("raygeneration")]
 void PathTracingMainRG()
 {
-	uint2 LaunchIndex = DispatchRaysIndex().xy;
+	uint2 LaunchIndex = DispatchRaysIndex().xy + View.ViewRectMin;
 	
 	bool IsUnidirectionalEnabled = true;
 	bool IsNextEventEstimationEnabled = true;

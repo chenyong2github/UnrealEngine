@@ -102,7 +102,7 @@ bool ShouldRenderScreenSpaceAmbientOcclusion(const FViewInfo& View)
 			&& !IsSimpleForwardShadingEnabled(View.GetShaderPlatform());
 	}
 #if RHI_RAYTRACING
-	bEnabled &= !ShouldRenderRayTracingAmbientOcclusion();
+	bEnabled &= !ShouldRenderRayTracingAmbientOcclusion(View);
 #endif
 	return bEnabled;
 }
@@ -323,7 +323,7 @@ void FCompositionLighting::ProcessAfterBasePass(FRHICommandListImmediate& RHICmd
 		{
 			FRenderingCompositeOutputRef AmbientOcclusion;
 #if RHI_RAYTRACING
-			if (ShouldRenderRayTracingAmbientOcclusion() && SceneContext.bScreenSpaceAOIsValid)
+			if (ShouldRenderRayTracingAmbientOcclusion(View) && SceneContext.bScreenSpaceAOIsValid)
 			{
 				AmbientOcclusion = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(SceneContext.ScreenSpaceAO));
 			}

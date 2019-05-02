@@ -105,18 +105,12 @@ static FAutoConsoleVariableRef CVarRayTracingTranslucencyRefraction(
 DECLARE_GPU_STAT_NAMED(RayTracingTranslucency, TEXT("Ray Tracing Translucency"));
 
 #if RHI_RAYTRACING
-bool ShouldRenderRayTracingTranslucency(const TArray<FViewInfo>& Views)
+bool ShouldRenderRayTracingTranslucency(const FViewInfo& View)
 {
-	bool bAnyViewWithRaytracingTranslucency = false;
-	for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
-	{
-		const FViewInfo& View = Views[ViewIndex];
-		//#dxr_todo: UE-72557 multiview case
-		bAnyViewWithRaytracingTranslucency = bAnyViewWithRaytracingTranslucency || (View.FinalPostProcessSettings.TranslucencyType == ETranslucencyType::RayTracing);
-	}
+	bool bViewWithRaytracingTranslucency = View.FinalPostProcessSettings.TranslucencyType == ETranslucencyType::RayTracing;
 
 	const int32 GRayTracingTranslucency = CVarRayTracingTranslucency.GetValueOnRenderThread();
-	const bool bTranslucencyCvarEnabled = GRayTracingTranslucency < 0 ? bAnyViewWithRaytracingTranslucency : GRayTracingTranslucency;
+	const bool bTranslucencyCvarEnabled = GRayTracingTranslucency < 0 ? bViewWithRaytracingTranslucency : GRayTracingTranslucency;
 	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
 	const bool bRayTracingTranslucencyEnabled = (ForceAllRayTracingEffects > 0 || (bTranslucencyCvarEnabled && ForceAllRayTracingEffects < 0));
 

@@ -936,9 +936,10 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 			TArray<TRefCountPtr<IPooledRenderTarget>> PreprocessedShadowMaskTextures;
 
 			const int32 MaxDenoisingBatchSize = FMath::Clamp(CVarMaxShadowDenoisingBatchSize.GetValueOnRenderThread(), 1, IScreenSpaceDenoiser::kMaxBatchSize);
-			const bool bDoShadowDenoisingBatching = DenoiserMode != 0 && MaxDenoisingBatchSize > 1;
+			//#dxr_todo: add multiview support to batching denoising 
+			const bool bDoShadowDenoisingBatching = DenoiserMode != 0 && MaxDenoisingBatchSize > 1 && Views.Num() == 1;
 
-			// Optimisations: batches all shadow ray tracing denoising. Definitely could be smarter to avoid high VGPR pressure if this entire
+			// Optimizations: batches all shadow ray tracing denoising. Definitely could be smarter to avoid high VGPR pressure if this entire
 			// function was converted to render graph, and want least intrusive change as possible. So right not it trades render target memory pressure
 			// for denoising perf.
 			if (RHI_RAYTRACING && bDoShadowDenoisingBatching)
@@ -951,155 +952,186 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 				FSceneViewFamilyBlackboard SceneBlackboard;
 				SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
 
-				FViewInfo& View = Views[0];
+				// Ray trace the shadow.
+				FRDGTextureRef ShadowMask;
 
-				// Allocate PreprocessedShadowMaskTextures once so QueueTextureExtraction can deferred write.
 				{
-					if (!View.bViewStateIsReadOnly)
+					FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+						SceneBlackboard.SceneDepthBuffer->Desc.Extent,
+						PF_FloatRGBA,
+						FClearValueBinding::Black,
+						TexCreate_None,
+						TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
+						/* bInForceSeparateTargetAndShaderResource = */ false);
+					ShadowMask = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusion"));
+				}
+
+				FRDGTextureRef RayHitDistance;
+				{
+					FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+						SceneBlackboard.SceneDepthBuffer->Desc.Extent,
+						PF_R16F,
+						FClearValueBinding::Black,
+						TexCreate_None,
+						TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
+						/* bInForceSeparateTargetAndShaderResource = */ false);
+					RayHitDistance = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusionDistance"));
+				}
+
+				FRDGTextureUAV* ShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ShadowMask));
+				FRDGTextureUAV* RayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayHitDistance));
+
+
+				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+				{
+					FViewInfo& View = Views[ViewIndex];
+
+					// Allocate PreprocessedShadowMaskTextures once so QueueTextureExtraction can deferred write.
 					{
-						View.ViewState->PrevFrameViewInfo.ShadowHistories.Empty();
-						View.ViewState->PrevFrameViewInfo.ShadowHistories.Reserve(SortedLights.Num());
+						if (!View.bViewStateIsReadOnly)
+						{
+							View.ViewState->PrevFrameViewInfo.ShadowHistories.Empty();
+							View.ViewState->PrevFrameViewInfo.ShadowHistories.Reserve(SortedLights.Num());
+						}
+						PreprocessedShadowMaskTextures.Reserve(SortedLights.Num());
+						for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
+						{
+							const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
+							const FLightSceneInfo& LightSceneInfo = *SortedLightInfo.LightSceneInfo;
+
+							PreprocessedShadowMaskTextures.Add(TRefCountPtr<IPooledRenderTarget>());
+
+							if (!View.bViewStateIsReadOnly)
+							{
+								View.ViewState->PrevFrameViewInfo.ShadowHistories.Emplace(LightSceneInfo.Proxy->GetLightComponent());
+							}
+						}
 					}
-					PreprocessedShadowMaskTextures.Reserve(SortedLights.Num());
+
+					TMap<const FLightSceneInfo*, FRDGTextureRef> ShadowMaskTextures;
+
+					// Lambda to share the code quicking of the shadow denoiser.
+					auto QuickOffDenoisingBatch = [&](){
+						int32 InputParameterCount = 0;
+						for (int32 i = 0; i < IScreenSpaceDenoiser::kMaxBatchSize; i++)
+						{
+							InputParameterCount += DenoisingQueue[i].LightSceneInfo != nullptr ? 1 : 0;
+						}
+
+						check(InputParameterCount >= 1);
+
+						TStaticArray<IScreenSpaceDenoiser::FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize> Outputs;
+
+						RDG_EVENT_SCOPE(GraphBuilder, "%s%s(Shadow BatchSize=%d) %dx%d",
+							DenoiserToUse != DefaultDenoiser ? TEXT("ThirdParty ") : TEXT(""),
+							DenoiserToUse->GetDebugName(),
+							InputParameterCount,
+							View.ViewRect.Width(), View.ViewRect.Height());
+
+						DenoiserToUse->DenoiseShadows(
+							GraphBuilder,
+							View,
+							&View.PrevViewInfo,
+							SceneBlackboard,
+							DenoisingQueue,
+							InputParameterCount,
+							Outputs);
+
+						for (int32 i = 0; i < InputParameterCount; i++)
+						{
+							const FLightSceneInfo* LightSceneInfo = DenoisingQueue[i].LightSceneInfo;
+
+							int32 LightIndex = LightIndices[i];
+							TRefCountPtr<IPooledRenderTarget>* RefDestination = &PreprocessedShadowMaskTextures[LightIndex - AttenuationLightStart];
+							check(*RefDestination == nullptr);
+
+							GraphBuilder.QueueTextureExtraction(Outputs[i].DiffusePenumbra, RefDestination);
+							DenoisingQueue[i].LightSceneInfo = nullptr;
+						}
+					}; // QuickOffDenoisingBatch
+
+					// Ray trace shadows of light that needs, and quick off denoising batch.
 					for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
 					{
 						const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
 						const FLightSceneInfo& LightSceneInfo = *SortedLightInfo.LightSceneInfo;
 
-						PreprocessedShadowMaskTextures.Add(TRefCountPtr<IPooledRenderTarget>());
+						// Denoiser do not support texture rect light important sampling.
+						const bool bDrawShadows = SortedLightInfo.SortKey.Fields.bShadowed && !ShouldRenderRayTracingStochasticRectLight(LightSceneInfo);
 
-						if (!View.bViewStateIsReadOnly)
+						if (!bDrawShadows)
+							continue;
+
+						INC_DWORD_STAT(STAT_NumShadowedLights);
+
+						const FLightOcclusionType OcclusionType = GetLightOcclusionType(*LightSceneInfo.Proxy);
+						if (OcclusionType != FLightOcclusionType::Raytraced)
+							continue;
+
+						if (!LightRequiresDenosier(LightSceneInfo))
+							continue;
+
+						IScreenSpaceDenoiser::FShadowRayTracingConfig RayTracingConfig;
+						RayTracingConfig.RayCountPerPixel = LightSceneInfo.Proxy->GetSamplesPerPixel();
+
+						IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements = DenoiserToUse->GetShadowRequirements(
+							View, LightSceneInfo, RayTracingConfig);
+
+						// Not worth batching and increase memory pressure if the denoiser do not support this ray tracing config.
+						// TODO: add suport for batch with multiple SPP.
+						if (DenoiserRequirements != IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndClosestOccluder)
 						{
-							View.ViewState->PrevFrameViewInfo.ShadowHistories.Emplace(LightSceneInfo.Proxy->GetLightComponent());
+							continue;
 						}
-					}
-				}
 
-				TMap<const FLightSceneInfo*, FRDGTextureRef> ShadowMaskTextures;
 
-				// Lambda to share the code quicking of the shadow denoiser.
-				auto QuickOffDenoisingBatch = [&](){
-					int32 InputParameterCount = 0;
-					for (int32 i = 0; i < IScreenSpaceDenoiser::kMaxBatchSize; i++)
-					{
-						InputParameterCount += DenoisingQueue[i].LightSceneInfo != nullptr ? 1 : 0;
-					}
-
-					check(InputParameterCount >= 1);
-
-					TStaticArray<IScreenSpaceDenoiser::FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize> Outputs;
-
-					RDG_EVENT_SCOPE(GraphBuilder, "%s%s(Shadow BatchSize=%d) %dx%d",
-						DenoiserToUse != DefaultDenoiser ? TEXT("ThirdParty ") : TEXT(""),
-						DenoiserToUse->GetDebugName(),
-						InputParameterCount,
-						View.ViewRect.Width(), View.ViewRect.Height());
-
-					DenoiserToUse->DenoiseShadows(
-						GraphBuilder,
-						View,
-						&View.PrevViewInfo,
-						SceneBlackboard,
-						DenoisingQueue,
-						InputParameterCount,
-						Outputs);
-
-					for (int32 i = 0; i < InputParameterCount; i++)
-					{
-						const FLightSceneInfo* LightSceneInfo = DenoisingQueue[i].LightSceneInfo;
-
-						int32 LightIndex = LightIndices[i];
-						TRefCountPtr<IPooledRenderTarget>* RefDestination = &PreprocessedShadowMaskTextures[LightIndex - AttenuationLightStart];
-						check(*RefDestination == nullptr);
-
-						GraphBuilder.QueueTextureExtraction(Outputs[i].DiffusePenumbra, RefDestination);
-						DenoisingQueue[i].LightSceneInfo = nullptr;
-					}
-				}; // QuickOffDenoisingBatch
-
-				// Ray trace shadows of light that needs, and quick off denoising batch.
-				for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
-				{
-					const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
-					const FLightSceneInfo& LightSceneInfo = *SortedLightInfo.LightSceneInfo;
-
-					// Denoiser do not support texture rect light important sampling.
-					const bool bDrawShadows = SortedLightInfo.SortKey.Fields.bShadowed && !ShouldRenderRayTracingStochasticRectLight(LightSceneInfo);
-
-					if (!bDrawShadows)
-						continue;
-
-					INC_DWORD_STAT(STAT_NumShadowedLights);
-
-					const FLightOcclusionType OcclusionType = GetLightOcclusionType(*LightSceneInfo.Proxy);
-					if (OcclusionType != FLightOcclusionType::Raytraced)
-						continue;
-
-					if (!LightRequiresDenosier(LightSceneInfo))
-						continue;
-
-					IScreenSpaceDenoiser::FShadowRayTracingConfig RayTracingConfig;
-					RayTracingConfig.RayCountPerPixel = LightSceneInfo.Proxy->GetSamplesPerPixel();
-
-					IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements = DenoiserToUse->GetShadowRequirements(
-						View, LightSceneInfo, RayTracingConfig);
-
-					// Not worth batching and increase memory pressure if the denoiser do not support this ray tracing config.
-					// TODO: add suport for batch with multiple SPP.
-					if (DenoiserRequirements != IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndClosestOccluder)
-					{
-						continue;
-					}
-
-					// Ray trace the shadow.
-					FRDGTextureRef ShadowMask;
-					FRDGTextureRef RayHitDistance;
-					{
-						FString LightNameWithLevel;
-						GetLightNameForDrawEvent(LightSceneInfo.Proxy, LightNameWithLevel);
-						RDG_EVENT_SCOPE(GraphBuilder, "%s", *LightNameWithLevel);
-
-						RenderRayTracingShadows(
-							GraphBuilder,
-							SceneBlackboard,
-							View,
-							LightSceneInfo,
-							RayTracingConfig,
-							DenoiserRequirements,
-							&ShadowMask,
-							&RayHitDistance);
-					}
-
-					// Queue the ray tracing output for shadow denoising.
-					for (int32 i = 0; i < IScreenSpaceDenoiser::kMaxBatchSize; i++)
-					{
-						if (DenoisingQueue[i].LightSceneInfo == nullptr)
 						{
-							DenoisingQueue[i].LightSceneInfo = &LightSceneInfo;
-							DenoisingQueue[i].RayTracingConfig = RayTracingConfig;
-							DenoisingQueue[i].InputTextures.Penumbra = ShadowMask;
-							DenoisingQueue[i].InputTextures.ClosestOccluder = RayHitDistance;
-							LightIndices[i] = LightIndex;
+							FString LightNameWithLevel;
+							GetLightNameForDrawEvent(LightSceneInfo.Proxy, LightNameWithLevel);
+							RDG_EVENT_SCOPE(GraphBuilder, "%s", *LightNameWithLevel);
 
-							// If queue for this light type is full, quick of the batch.
-							if ((i + 1) == MaxDenoisingBatchSize)
+							RenderRayTracingShadows(
+								GraphBuilder,
+								SceneBlackboard,
+								View,
+								LightSceneInfo,
+								RayTracingConfig,
+								DenoiserRequirements,
+								ShadowMaskUAV,
+								RayHitDistanceUAV);
+						}
+
+						// Queue the ray tracing output for shadow denoising.
+						for (int32 i = 0; i < IScreenSpaceDenoiser::kMaxBatchSize; i++)
+						{
+							if (DenoisingQueue[i].LightSceneInfo == nullptr)
 							{
-								QuickOffDenoisingBatch();
+								DenoisingQueue[i].LightSceneInfo = &LightSceneInfo;
+								DenoisingQueue[i].RayTracingConfig = RayTracingConfig;
+								DenoisingQueue[i].InputTextures.Penumbra = ShadowMask;
+								DenoisingQueue[i].InputTextures.ClosestOccluder = RayHitDistance;
+								LightIndices[i] = LightIndex;
+
+								// If queue for this light type is full, quick of the batch.
+								if ((i + 1) == MaxDenoisingBatchSize)
+								{
+									QuickOffDenoisingBatch();
+								}
+								break;
 							}
-							break;
+							else
+							{
+								check((i - 1) < IScreenSpaceDenoiser::kMaxBatchSize);
+							}
 						}
-						else
-						{
-							check((i - 1) < IScreenSpaceDenoiser::kMaxBatchSize);
-						}
+
+					} // for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
+
+					// Ensures all denoising queues are processed.
+					if (DenoisingQueue[0].LightSceneInfo)
+					{
+						QuickOffDenoisingBatch();
 					}
-
-				} // for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
-
-				// Ensures all denoising queues are processed.
-				if (DenoisingQueue[0].LightSceneInfo)
-				{
-					QuickOffDenoisingBatch();
 				}
 
 				GraphBuilder.Execute();
@@ -1146,66 +1178,93 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 					}
 					else if (OcclusionType == FLightOcclusionType::Raytraced)
 					{
-						FViewInfo& View = Views[0];
-
-						IScreenSpaceDenoiser::FShadowRayTracingConfig RayTracingConfig;
-						RayTracingConfig.RayCountPerPixel = LightSceneInfo.Proxy->GetSamplesPerPixel();
-
-						IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements = IScreenSpaceDenoiser::EShadowRequirements::Bailout;
-						if (DenoiserMode != 0 && LightRequiresDenosier(LightSceneInfo))
-						{
-							DenoiserRequirements = DenoiserToUse->GetShadowRequirements(View, LightSceneInfo, RayTracingConfig);
-						}
-
 						FRDGBuilder GraphBuilder(RHICmdList);
-
+						
 						FSceneViewFamilyBlackboard SceneBlackboard;
 						SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
 
 						FRDGTextureRef ShadowMask;
-						FRDGTextureRef RayHitDistance;
-						RenderRayTracingShadows(
-							GraphBuilder,
-							SceneBlackboard,
-							View,
-							LightSceneInfo,
-							RayTracingConfig,
-							DenoiserRequirements,
-							&ShadowMask,
-							&RayHitDistance);
-
-						if (DenoiserRequirements != IScreenSpaceDenoiser::EShadowRequirements::Bailout)
 						{
-							TStaticArray<IScreenSpaceDenoiser::FShadowParameters, IScreenSpaceDenoiser::kMaxBatchSize> InputParameters;
-							TStaticArray<IScreenSpaceDenoiser::FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize> Outputs;
-
-							InputParameters[0].InputTextures.Penumbra = ShadowMask;
-							InputParameters[0].InputTextures.ClosestOccluder = RayHitDistance;
-							InputParameters[0].LightSceneInfo = &LightSceneInfo;
-							InputParameters[0].RayTracingConfig = RayTracingConfig;
-
-							int32 InputParameterCount = 1;
-
-							RDG_EVENT_SCOPE(GraphBuilder, "%s%s(Shadow BatchSize=%d) %dx%d",
-								DenoiserToUse != DefaultDenoiser ? TEXT("ThirdParty ") : TEXT(""),
-								DenoiserToUse->GetDebugName(),
-								InputParameterCount,
-								View.ViewRect.Width(), View.ViewRect.Height());
-
-							DenoiserToUse->DenoiseShadows(
-								GraphBuilder,
-								View,
-								&View.PrevViewInfo,
-								SceneBlackboard,
-								InputParameters,
-								InputParameterCount,
-								Outputs);
-
-							GraphBuilder.QueueTextureExtraction(Outputs[0].DiffusePenumbra, &ScreenShadowMaskTexture);
+							FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+								SceneBlackboard.SceneDepthBuffer->Desc.Extent,
+								PF_FloatRGBA,
+								FClearValueBinding::Black,
+								TexCreate_None,
+								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
+								/* bInForceSeparateTargetAndShaderResource = */ false);
+							ShadowMask = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusion"));
 						}
-						else
+
+						FRDGTextureRef RayHitDistance;
 						{
-							GraphBuilder.QueueTextureExtraction(ShadowMask, &ScreenShadowMaskTexture);
+							FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+								SceneBlackboard.SceneDepthBuffer->Desc.Extent,
+								PF_R16F,
+								FClearValueBinding::Black,
+								TexCreate_None,
+								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
+								/* bInForceSeparateTargetAndShaderResource = */ false);
+							RayHitDistance = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusionDistance"));
+						}
+
+						FRDGTextureUAV* ShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ShadowMask));
+						FRDGTextureUAV* RayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayHitDistance));
+
+						for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+						{
+							FViewInfo& View = Views[ViewIndex];
+
+							IScreenSpaceDenoiser::FShadowRayTracingConfig RayTracingConfig;
+							RayTracingConfig.RayCountPerPixel = LightSceneInfo.Proxy->GetSamplesPerPixel();
+							IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements = IScreenSpaceDenoiser::EShadowRequirements::Bailout;
+							if (DenoiserMode != 0 && LightRequiresDenosier(LightSceneInfo))
+							{
+								DenoiserRequirements = DenoiserToUse->GetShadowRequirements(View, LightSceneInfo, RayTracingConfig);
+							}
+
+							RenderRayTracingShadows(
+								GraphBuilder,
+								SceneBlackboard,
+								View,
+								LightSceneInfo,
+								RayTracingConfig,
+								DenoiserRequirements,
+								ShadowMaskUAV,
+								RayHitDistanceUAV);
+
+							if (DenoiserRequirements != IScreenSpaceDenoiser::EShadowRequirements::Bailout)
+							{
+								TStaticArray<IScreenSpaceDenoiser::FShadowParameters, IScreenSpaceDenoiser::kMaxBatchSize> InputParameters;
+								TStaticArray<IScreenSpaceDenoiser::FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize> Outputs;
+
+								InputParameters[0].InputTextures.Penumbra = ShadowMask;
+								InputParameters[0].InputTextures.ClosestOccluder = RayHitDistance;
+								InputParameters[0].LightSceneInfo = &LightSceneInfo;
+								InputParameters[0].RayTracingConfig = RayTracingConfig;
+
+								int32 InputParameterCount = 1;
+
+								RDG_EVENT_SCOPE(GraphBuilder, "%s%s(Shadow BatchSize=%d) %dx%d",
+									DenoiserToUse != DefaultDenoiser ? TEXT("ThirdParty ") : TEXT(""),
+									DenoiserToUse->GetDebugName(),
+									InputParameterCount,
+									View.ViewRect.Width(), View.ViewRect.Height());
+
+								DenoiserToUse->DenoiseShadows(
+									GraphBuilder,
+									View,
+									&View.PrevViewInfo,
+									SceneBlackboard,
+									InputParameters,
+									InputParameterCount,
+									Outputs);
+
+								GraphBuilder.QueueTextureExtraction(Outputs[0].DiffusePenumbra, &ScreenShadowMaskTexture);
+							}
+							else
+							{
+								GraphBuilder.QueueTextureExtraction(ShadowMask, &ScreenShadowMaskTexture);
+							}
 						}
 
 						GraphBuilder.Execute();

@@ -18,10 +18,10 @@ class FLightSceneInfo;
 extern int32 GetForceRayTracingEffectsCVarValue();
 
 extern bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProxy);
-extern bool ShouldRenderRayTracingAmbientOcclusion();
-extern bool ShouldRenderRayTracingReflections(const TArray<FViewInfo>& Views);
-extern bool ShouldRenderRayTracingGlobalIllumination(const TArray<FViewInfo>& Views);
-extern bool ShouldRenderRayTracingTranslucency(const TArray<FViewInfo>& Views);
+extern bool ShouldRenderRayTracingAmbientOcclusion(const FViewInfo& View);
+extern bool ShouldRenderRayTracingReflections(const FViewInfo& View);
+extern bool ShouldRenderRayTracingGlobalIllumination(const FViewInfo& View);
+extern bool ShouldRenderRayTracingTranslucency(const FViewInfo& View);
 extern bool ShouldRenderRayTracingShadows(const FLightSceneProxy& LightProxy);
 extern bool ShouldRenderRayTracingShadows(const FLightSceneInfoCompact& LightInfo);
 extern bool ShouldRenderRayTracingStochasticRectLight(const FLightSceneInfo& LightInfo);
@@ -41,22 +41,22 @@ FORCEINLINE bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLi
 	return false;
 }
 
-FORCEINLINE bool ShouldRenderRayTracingAmbientOcclusion()
+FORCEINLINE bool ShouldRenderRayTracingAmbientOcclusion(const FViewInfo& View)
 {
 	return false;
 }
 
-FORCEINLINE bool ShouldRenderRayTracingReflections(const TArray<FViewInfo>& Views)
+FORCEINLINE bool ShouldRenderRayTracingReflections(const FViewInfo& View)
 {
 	return false;
 }
 
-FORCEINLINE bool ShouldRenderRayTracingGlobalIllumination(const TArray<FViewInfo>& Views)
+FORCEINLINE bool ShouldRenderRayTracingGlobalIllumination(const FViewInfo& View)
 {
 	return false;
 }
 
-FORCEINLINE bool ShouldRenderRayTracingTranslucency(const TArray<FViewInfo>& Views)
+FORCEINLINE bool ShouldRenderRayTracingTranslucency(const FViewInfo& View)
 {
 	return false;
 }
