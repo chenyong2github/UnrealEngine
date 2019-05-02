@@ -1832,12 +1832,12 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 
 	if (RepGraphConditionalActorBreakpoint(Actor, nullptr))
 	{
-		UE_LOG(LogReplicationGraph, Display, TEXT("UReplicationGraph::ProcessRemoteFunction: %s. Function: %s."), *Actor->GetName(), *GetNameSafe(Function));
+		UE_LOG(LogReplicationGraph, Display, TEXT("UReplicationGraph::ProcessRemoteFunction: %s. Function: %s."), *GetNameSafe(Actor), *GetNameSafe(Function));
 	}
 
 	if (IsActorValidForReplication(Actor) == false || Actor->IsActorBeingDestroyed())
 	{
-		UE_LOG(LogReplicationGraph, Display, TEXT("Destroted or not ready!"));
+		UE_LOG(LogReplicationGraph, Display, TEXT("UReplicationGraph::ProcessRemoteFunction: Actor %s destroyed or not ready! Function: %s."), *GetNameSafe(Actor), *GetNameSafe(Function));
 		return true;
 	}
 
