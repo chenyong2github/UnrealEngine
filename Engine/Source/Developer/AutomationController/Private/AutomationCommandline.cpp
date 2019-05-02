@@ -14,7 +14,7 @@
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "AssetRegistryModule.h"
-#include "Tests/AutomationTestSettings.h"
+#include "AutomationControllerSettings.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationCommandLine, Log, All);
 
@@ -133,7 +133,7 @@ public:
 		TArray<FAutomatedTestFilter> Filters;
 
 		// get our settings CDO where things are stored
-		UAutomationTestSettings* Settings = UAutomationTestSettings::StaticClass()->GetDefaultObject<UAutomationTestSettings>();
+		UAutomationControllerSettings* Settings = UAutomationControllerSettings::StaticClass()->GetDefaultObject<UAutomationControllerSettings>();
 
 		// iterate through the arguments to build a filter list by doing the following -
 		// 1) If argument is a filter (filter:system) then make sure we only filter-in tests that start with that filter
