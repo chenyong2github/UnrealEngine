@@ -220,7 +220,7 @@ void FWindowsVideoRecordingSystem::FinalizeRecording(const bool bSaveRecording, 
 				FSimpleDelegateGraphTask::FDelegate::CreateRaw(this, &FWindowsVideoRecordingSystem::FinalizeCallbackOnGameThread,
 					bRes, Parameters.bAutoContinue && !bStopAutoContinue, Path, true),
 				TStatId(), nullptr, ENamedThreads::GameThread);
-		});
+		}, Parameters.RecordingLengthSeconds);
 
 		if (!bRet)
 		{
