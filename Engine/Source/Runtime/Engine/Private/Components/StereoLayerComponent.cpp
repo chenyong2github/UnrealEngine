@@ -175,6 +175,17 @@ void UStereoLayerComponent::SetTexture(UTexture* InTexture)
 	bIsDirty = true;
 }
 
+void UStereoLayerComponent::SetLeftTexture(UTexture* InTexture)
+{
+	if (LeftTexture == InTexture)
+	{
+		return;
+	}
+
+	LeftTexture = InTexture;
+	bIsDirty = true;
+}
+
 void UStereoLayerComponent::SetQuadSize(FVector2D InQuadSize)
 {
 	if (QuadSize == InQuadSize)
