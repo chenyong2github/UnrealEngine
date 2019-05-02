@@ -1198,7 +1198,7 @@ public:
 
 		if (LightPositionOrDirection.IsBound())
 		{
-			const FVector LightPosition = ShadowInfo->GetLightSceneInfo().Proxy->GetPosition();
+			const FVector LightPosition = ShadowInfo ? ShadowInfo->GetLightSceneInfo().Proxy->GetPosition() : FVector::ZeroVector;
 			SetShaderValue(RHICmdList, ShaderRHI, LightPositionOrDirection, FVector4(LightPosition, 1));
 		}
 		
