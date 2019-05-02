@@ -79,11 +79,12 @@ enum EInternalLandscapeLayersContentUpdateFlag : uint32
 	Internal_Heightmap_BoundsAndCollision = 1 << 1,
 	Internal_Heightmap_BoundsAndCollisionPartial = 1 << 2,
 	Internal_Heightmap_ResolveToTexture = 1 << 3,
-	Internal_Heightmap_ClientUpdate = 1 << 4,
-
+	
 	Internal_Weightmap_Render = 1 << 8,
 	Internal_Weightmap_Collision = 1 << 9,
 	Internal_Weightmap_ResolveToTexture = 1 << 10,
+
+	Internal_ClientUpdate = 1 << 14
 };
 
 enum ELandscapeLayersContentUpdateFlag : uint32
@@ -93,8 +94,8 @@ enum ELandscapeLayersContentUpdateFlag : uint32
 	Weightmap_Render = Internal_Weightmap_Render,
 
 	// Combinations
-	Heightmap_All = Internal_Heightmap_Render | Internal_Heightmap_BoundsAndCollision | Internal_Heightmap_ResolveToTexture | Internal_Heightmap_ClientUpdate,
-	Weightmap_All = Internal_Weightmap_Render | Internal_Weightmap_Collision | Internal_Weightmap_ResolveToTexture,
+	Heightmap_All = Internal_Heightmap_Render | Internal_Heightmap_BoundsAndCollision | Internal_Heightmap_ResolveToTexture | Internal_ClientUpdate,
+	Weightmap_All = Internal_Weightmap_Render | Internal_Weightmap_Collision | Internal_Weightmap_ResolveToTexture | Internal_ClientUpdate,
 
 	All = Heightmap_All | Weightmap_All,
 	All_Render = Heightmap_Render | Weightmap_Render,
@@ -296,8 +297,9 @@ private:
 	void TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
 	void CreateLayersRenderingResource(const FIntPoint& InComponentCounts);
 	void RegenerateLayersContent();
-	void RegenerateLayersHeightmaps();
-	void RegenerateLayersWeightmaps();
+	void RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool& bRecreateCollision);
+	void RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool& bRecreateCollision);
+	bool UpdateClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool bCollisionRecreated);
 	void ResolveLayersHeightmapTexture();
 	void ResolveLayersWeightmapTexture();
 	void ResolveLayersTexture(class FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOutputTexture);
