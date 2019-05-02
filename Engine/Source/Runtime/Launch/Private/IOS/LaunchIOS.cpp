@@ -26,6 +26,7 @@
 #include "TcpConsoleListener.h"
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "Misc/EmbeddedCommunication.h"
 
 FEngineLoop GEngineLoop;
 FGameLaunchDaemonMessageHandler GCommandSystem;
@@ -227,6 +228,10 @@ static void MainThreadInit()
 
 	// embedded apps are embedded inside a UE4 view, so it's already made
 #if BUILD_EMBEDDED_APP
+	// tell the embedded app that the .ini files are ready to be used, ie the View can be made if it was waiting to create the view
+	FEmbeddedCallParamsHelper Helper;
+	Helper.Command = TEXT("inisareready");
+	FEmbeddedDelegates::GetEmbeddedToNativeParamsDelegateForSubsystem(TEXT("native")).Broadcast(Helper);
 	// checkf(AppDelegate.IOSView != nil, TEXT("For embedded apps, the UE4EmbeddedView must have been created and set into the AppDelegate as IOSView"));
 #else
 	AppDelegate.IOSView = [[FIOSView alloc] initWithFrame:FullResolutionRect];
