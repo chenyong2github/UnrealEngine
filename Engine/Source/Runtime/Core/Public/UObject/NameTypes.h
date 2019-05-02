@@ -760,8 +760,6 @@ public:
 	static FNameEntry const* GetEntry(FNameEntryId Id);
 
 	//@}
-
-	static uint8** GetBlocksForDebugVisualizer();
 	
 	/** Run autotest on FNames. */
 	static void AutoTest();
@@ -913,3 +911,15 @@ inline void FNameEntry::Encode(WIDECHAR*, uint32) {}
 inline void FNameEntry::Decode(ANSICHAR*, uint32) {}
 inline void FNameEntry::Decode(WIDECHAR*, uint32) {}
 #endif
+
+struct FNameDebugVisualizer
+{
+	CORE_API static uint8** GetBlocks();
+private:
+	static constexpr uint32 EntryStride = alignof(FNameEntry);
+	static constexpr uint32 OffsetBits = 16;
+	static constexpr uint32 BlockBits = 13;
+	static constexpr uint32 OffsetMask = (1 << OffsetBits) - 1;
+	static constexpr uint32 UnusedMask = UINT32_MAX << BlockBits << OffsetBits;
+	static constexpr uint32 MaxLength = NAME_SIZE;
+};

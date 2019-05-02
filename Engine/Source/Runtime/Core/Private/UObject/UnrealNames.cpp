@@ -1185,11 +1185,6 @@ TArray<const FNameEntry*> FName::DebugDump()
 	return GetNamePool().DebugDump();
 }
 
-uint8** FName::GetBlocksForDebugVisualizer()
-{
-	return ((FNamePool*)(NamePoolData))->GetBlocksForDebugVisualizer();
-}
-
 FNameEntry const* FName::GetEntry(EName Ename)
 {
 	FNamePool& Pool = GetNamePool();
@@ -2239,3 +2234,12 @@ void CallNameCreationHook()
 }
 
 #endif
+
+uint8** FNameDebugVisualizer::GetBlocks()
+{
+	static_assert(EntryStride == FNameEntryAllocator::Stride,	"Natvis constants out of sync with actual constants");
+	static_assert(BlockBits == FNameMaxBlockBits,				"Natvis constants out of sync with actual constants");
+	static_assert(OffsetBits == FNameBlockOffsetBits,			"Natvis constants out of sync with actual constants");
+
+	return ((FNamePool*)(NamePoolData))->GetBlocksForDebugVisualizer();
+}
