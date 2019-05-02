@@ -58,6 +58,14 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Full name of this file
+		/// </summary>
+		public string FullName
+		{
+			get { return Location.FullName; }
+		}
+
+		/// <summary>
 		/// Accessor for the absolute path to the file
 		/// </summary>
 		public string AbsolutePath
