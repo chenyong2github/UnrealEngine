@@ -10,7 +10,7 @@
 #include "VulkanContext.h"
 #include "VulkanMemory.h"
 #include "Misc/OutputDeviceRedirector.h"
-#include "ValidationContext.h"
+#include "RHIValidationContext.h"
 
 FVulkanDynamicRHI*	GVulkanRHI = nullptr;
 

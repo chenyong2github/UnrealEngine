@@ -18,7 +18,7 @@
 #include "VulkanLLM.h"
 #include "Misc/EngineVersion.h"
 #include "GlobalShader.h"
-#include "ValidationRHI.h"
+#include "RHIValidation.h"
 
 
 extern RHI_API bool GUseTexture3DBulkDataRHI;

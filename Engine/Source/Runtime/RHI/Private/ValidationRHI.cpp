@@ -1,14 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	ValidationRHI.cpp: Public Valdation RHI definitions.
+	RHIValidation.cpp: Public RHI Validation layer definitions.
 =============================================================================*/
 
-#include "ValidationRHI.h"
+#include "RHIValidation.h"
 
 #if ENABLE_RHI_VALIDATION
 #include "RHI.h"
-#include "ValidationContext.h"
+#include "RHIValidationContext.h"
 
 FValidationRHI* GValidationRHI = nullptr;
 

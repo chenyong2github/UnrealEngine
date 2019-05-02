@@ -19,7 +19,7 @@
 #include "GenericPlatform/GenericPlatformDriver.h"			// FGPUDriverInfo
 
 #include "dxgi1_3.h"
-#include "ValidationRHI.h"
+#include "RHIValidation.h"
 
 #if NV_AFTERMATH
 bool GDX11NVAfterMathEnabled = false;
