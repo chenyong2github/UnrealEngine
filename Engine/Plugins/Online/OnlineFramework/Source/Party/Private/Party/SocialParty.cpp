@@ -959,10 +959,10 @@ void USocialParty::HandlePartySystemStateChange(EPartySystemState NewState)
 		SetIsRequestingShutdown(true);
 
 		//set timer to turn this off in a minute?
-		UWorld* World = GetWorld();
 		FTimerHandle DummyHandle;
-		TWeakObjectPtr<USocialParty> WeakThis(this);
-		World->GetTimerManager().SetTimer(DummyHandle, FTimerDelegate::CreateLambda([WeakThis, this]() { if (WeakThis.IsValid()) { SetIsRequestingShutdown(false); } }), 60.0f, false);
+		GetWorld()->GetTimerManager().SetTimer(DummyHandle, FTimerDelegate::CreateWeakLambda(this, [this]() {
+			SetIsRequestingShutdown(false);
+		}), 60.0f, false);
 	}
 }
 
