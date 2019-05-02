@@ -1463,10 +1463,14 @@ void ULandscapeMeshCollisionComponent::Serialize(FArchive& Ar)
 void ULandscapeHeightfieldCollisionComponent::PostEditImport()
 {
 	Super::PostEditImport();
-	// Reinitialize physics after paste
-	if (CollisionSizeQuads > 0)
+
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		RecreateCollision();
+		// Reinitialize physics after paste
+		if (CollisionSizeQuads > 0)
+		{
+			RecreateCollision();
+		}
 	}
 }
 
