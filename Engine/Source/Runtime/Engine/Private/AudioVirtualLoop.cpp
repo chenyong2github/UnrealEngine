@@ -35,6 +35,14 @@ FAutoConsoleVariableRef CVarVirtualLoopsUpdateRateMax(
 	TEXT("Sets maximum rate to check if sound becomes audible again (at beyond sound's max audible distance + perf scaling distance).\n"),
 	ECVF_Default);
 
+static int32 VirtualLoopsVisualizeEnabledCVar = 1;
+FAutoConsoleVariableRef CVarAudioVisualizeVirtualLoopsEnabled(
+	TEXT("au.3dVisualize.VirtualLoops"),
+	VirtualLoopsVisualizeEnabledCVar,
+	TEXT("Whether or not virtualized loops are visible when 3d visualize is enabled. \n")
+	TEXT("0: Not Enabled, 1: Enabled"),
+	ECVF_Default);
+
 FAudioVirtualLoop::FAudioVirtualLoop()
 	: TimeSinceLastUpdate(0.0f)
 	, UpdateInterval(0.0f)
@@ -170,7 +178,10 @@ bool FAudioVirtualLoop::CanRealize(float DeltaTime)
 		TimeSinceLastUpdate = 0.0f;
 	}
 
-	DrawDebugInfo();
+	if (VirtualLoopsVisualizeEnabledCVar)
+	{
+		DrawDebugInfo();
+	}
 
 	// If not audible, update when will be checked again and return false
 	if (!IsInAudibleRange(*ActiveSound))
@@ -199,12 +210,11 @@ void FAudioVirtualLoop::DrawDebugInfo() const
 		const TWeakObjectPtr<UWorld> World = ActiveSound->GetWeakWorld();
 		const FString Name = Sound->GetName();
 		const float DrawInterval = UpdateInterval;
-		const float Volume = ActiveSound->GetVolume();
-		FAudioThread::RunCommandOnGameThread([World, Transform, Name, DrawInterval, Volume]()
+		FAudioThread::RunCommandOnGameThread([World, Transform, Name, DrawInterval]()
 		{
 			if (World.IsValid())
 			{
-				const FString Description = FString::Printf(TEXT("%s (%.3f)"), *Name, Volume);
+				const FString Description = FString::Printf(TEXT("%s [V]"), *Name);
 				FVector Location = Transform.GetLocation();
 				FRotator Rotation = Transform.GetRotation().Rotator();
 				DrawDebugCrosshairs(World.Get(), Location, Rotation, 20.0f, FColor::Blue, false, DrawInterval, SDPG_Foreground);
