@@ -1,0 +1,376 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+// Port of geometry3Sharp Arrangement2d
+
+#pragma once
+
+#include "BoxTypes.h"
+#include "Curve/DynamicGraph2.h"
+#include "Intersection/IntrSegment2Segment2.h"
+#include "Polygon2.h"
+#include "Spatial/PointHashGrid2.h"
+#include "Util/GridIndexing2.h"
+
+#include "CoreMinimal.h"
+
+/**
+ * Arrangement2d constructs a planar arrangement of a set of 2D line segments.
+ * When a segment is inserted, existing edges are split, and the inserted
+ * segment becomes multiple graph edges. So, the resulting FDynamicGraph2d should
+ * not have any edges that intersect.
+ * 
+ * Calculations are performed in double-precision, so there is no guarantee
+ * of correctness. 
+ * 
+ * 
+ * [TODO] multi-level segment has to accelerate find_intersecting_edges()
+ * [TODO] maybe smarter handling
+ * 
+ */
+struct FArrangement2d
+{
+	// graph of arrangement
+	FDynamicGraph2d Graph;
+
+	// PointHash for vertices of graph
+	TPointHashGrid2d<int> PointHash;
+
+	// points within this tolerance are merged
+	double VertexSnapTol = 0.00001;
+
+	FArrangement2d(const FAxisAlignedBox2d& BoundsHint)
+		: PointHash(BoundsHint.MaxDim() / 64, -1)
+	{
+	}
+
+	/**
+	 * Attempts to triangulates the arrangement with a constrained delaunay triangulation
+	 * NOTE: Not robust; generates invalid triangulations and fails to insert edges sometimes, even if the arrangement has no self-intersections
+	 * But should always do *something* that at least covers the point set, if the point set is not degenerate
+	 * TODO: Make a robust triangulation algo
+	 * 
+	 * Triangles: Output triangles (as indices into Graph vertices)
+	 * SkippedEdges: Output indices of edges that the algorithm failed to insert
+	 * return: false if triangulation algo knows it failed (NOTE: triangulation may still be invalid when function returns true, as function is not robust)
+	 */
+	bool AttemptTriangulate(TArray<FIntVector>& Triangles, TArray<int32>& SkippedEdges);
+
+	/**
+	 * Check if current Graph has self-intersections; not optimized, only for debugging
+	 */
+	bool HasSelfIntersections()
+	{
+		for (const FDynamicGraph::FEdge& e : Graph.Edges())
+		{
+			TArray<FIntersection> Hits;
+			int HitCount = find_intersecting_edges(Graph.GetVertex(e.A), Graph.GetVertex(e.B), Hits, 0.0);
+			for (const FIntersection& Intersect : Hits)
+			{
+				FDynamicGraph::FEdge o = Graph.GetEdge(Intersect.EID);
+				if (o.A != e.A && o.A != e.B && o.B != e.A && o.B != e.B)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+
+	/**
+	 * insert segment [A,B] into the arrangement
+	 */
+	void Insert(const FVector2d& A, const FVector2d& B, int GID = -1)
+	{
+		insert_segment(A, B, GID, VertexSnapTol);
+	}
+
+	/**
+	 * insert segment into the arrangement
+	 */
+	void Insert(const FSegment2d& Segment, int GID = -1)
+	{
+		insert_segment(Segment.StartPoint(), Segment.EndPoint(), GID, VertexSnapTol);
+	}
+
+	///**
+	// * sequentially insert segments of polyline
+	// */
+	//void Insert(PolyLine2d pline, int GID = -1)
+	//{
+	//	int N = pline.VertexCount - 1;
+	//	for (int i = 0; i < N; ++i) {
+	//		FVector2d A = pline[i];
+	//		FVector2d B = pline[i + 1];
+	//		insert_segment(A, B, GID);
+	//	}
+	//}
+
+	///**
+	// * sequentially insert segments of polygon
+	// */
+	void Insert(const FPolygon2d& Poly, int GID = -1)
+	{
+		int N = Poly.VertexCount();
+		for (int i = 0; i < N; ++i)
+		{
+			insert_segment(Poly[i], Poly[(i + 1) % N], GID, VertexSnapTol);
+		}
+	}
+
+	/*
+	*  Graph improvement
+	*/
+
+	/**
+	 * connect open boundary vertices within DistThresh, by inserting new segments
+	 */
+	void ConnectOpenBoundaries(double DistThresh)
+	{
+		int max_vid = Graph.MaxVertexID();
+		for (int VID = 0; VID < max_vid; ++VID)
+		{
+			if (Graph.IsBoundaryVertex(VID) == false)
+			{
+				continue;
+			}
+
+			FVector2d v = Graph.GetVertex(VID);
+			int snap_with = find_nearest_boundary_vertex(v, DistThresh, VID);
+			if (snap_with != -1)
+			{
+				FVector2d v2 = Graph.GetVertex(snap_with);
+				Insert(v, v2);
+			}
+		}
+	}
+
+protected:
+	struct FSegmentPoint
+	{
+		double T;
+		int VID;
+	};
+
+	/**
+	 * insert edge [A,B] into the arrangement, splitting existing edges as necessary
+	 */
+	bool insert_segment(const FVector2d& A, const FVector2d& B, int GID = -1, double Tol = 0)
+	{
+		// handle degenerate edges
+		int a_idx = find_existing_vertex(A);
+		int b_idx = find_existing_vertex(B);
+		if (a_idx == b_idx && a_idx >= 0)
+		{
+			return false;
+		}
+
+		// ok find all intersections
+		TArray<FIntersection> Hits;
+		find_intersecting_edges(A, B, Hits, Tol);
+		int N = Hits.Num();
+
+		// we are going to construct a list of <T,vertex_id> values along segment AB
+		TArray<FSegmentPoint> points;
+		FSegment2d segAB = FSegment2d(A, B);
+
+		// insert intersections into existing segments
+		for (int i = 0; i < N; ++i)
+		{
+			FIntersection Intr = Hits[i];
+			int EID = Intr.EID;
+			double t0 = Intr.Intr.Parameter0, t1 = Intr.Intr.Parameter1;
+
+			// insert first point at t0
+			int new_eid = -1;
+			if (Intr.Intr.Type == EIntersectionType::Point || Intr.Intr.Type == EIntersectionType::Segment)
+			{
+				FIndex2i new_info = split_segment_at_t(EID, t0, VertexSnapTol);
+				new_eid = new_info.B;
+				FVector2d v = Graph.GetVertex(new_info.A);
+				points.Add(FSegmentPoint{segAB.Project(v), new_info.A});
+			}
+
+			// if intersection was on-segment, then we have a second point at t1
+			if (Intr.Intr.Type == EIntersectionType::Segment)
+			{
+				if (new_eid == -1)
+				{
+					// did not actually split edge for t0, so we can still use EID
+					FIndex2i new_info = split_segment_at_t(EID, t1, VertexSnapTol);
+					FVector2d v = Graph.GetVertex(new_info.A);
+					points.Add(FSegmentPoint{segAB.Project(v), new_info.A});
+				}
+				else
+				{
+					// find t1 was in EID, rebuild in new_eid
+					FSegment2d new_seg = Graph.GetEdgeSegment(new_eid);
+					FVector2d p1 = Intr.Intr.GetSegment1().PointAt(t1);
+					double new_t1 = new_seg.Project(p1);
+					check(new_t1 <= FMath::Abs(new_seg.Extent));
+
+					FIndex2i new_info = split_segment_at_t(new_eid, new_t1, VertexSnapTol);
+					FVector2d v = Graph.GetVertex(new_info.A);
+					points.Add(FSegmentPoint{segAB.Project(v), new_info.A});
+				}
+			}
+		}
+
+		// find or create start and end points
+		if (a_idx == -1)
+		{
+			a_idx = find_existing_vertex(A);
+		}
+		if (a_idx == -1)
+		{
+			a_idx = Graph.AppendVertex(A);
+			PointHash.InsertPointUnsafe(a_idx, A);
+		}
+		if (b_idx == -1)
+		{
+			b_idx = find_existing_vertex(B);
+		}
+		if (b_idx == -1)
+		{
+			b_idx = Graph.AppendVertex(B);
+			PointHash.InsertPointUnsafe(b_idx, B);
+		}
+
+		// add start/end to points list. These may be duplicates but we will sort that out after
+		points.Add(FSegmentPoint{-segAB.Extent, a_idx});
+		points.Add(FSegmentPoint{segAB.Extent, b_idx});
+		// sort by T
+		points.Sort([](const FSegmentPoint& pa, const FSegmentPoint& pb) { return pa.T < pb.T; });
+
+		// connect sequential points, as long as they aren't the same point,
+		// and the segment doesn't already exist
+		for (int k = 0; k < points.Num() - 1; ++k)
+		{
+			int v0 = points[k].VID;
+			int v1 = points[k + 1].VID;
+			if (v0 == v1)
+			{
+				continue;
+			}
+
+			// sanity check
+			ensureMsgf(FMath::Abs(points[k].T - points[k + 1].T) >= std::numeric_limits<float>::epsilon(), TEXT("insert_segment: different points have same T??"));
+
+			if (Graph.FindEdge(v0, v1) == FDynamicGraph2d::InvalidID)
+			{
+				Graph.AppendEdge(v0, v1, GID);
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * insert new point into segment EID at parameter value T
+	 * If T is within Tol of endpoint of segment, we use that instead.
+	 */
+	FIndex2i split_segment_at_t(int EID, double T, double Tol)
+	{
+		FVector2d V1, V2;
+		FIndex2i ev = Graph.GetEdgeV(EID);
+		FSegment2d seg = FSegment2d(Graph.GetVertex(ev.A), Graph.GetVertex(ev.B));
+
+		int use_vid = -1;
+		int new_eid = -1;
+		if (T < -(seg.Extent - Tol))
+		{
+			use_vid = ev.A;
+		}
+		else if (T > (seg.Extent - Tol))
+		{
+			use_vid = ev.B;
+		}
+		else
+		{
+			FDynamicGraph2d::FEdgeSplitInfo splitInfo;
+			EMeshResult result = Graph.SplitEdge(EID, splitInfo);
+			ensureMsgf(result == EMeshResult::Ok, TEXT("insert_into_segment: edge split failed?"));
+			use_vid = splitInfo.VNew;
+			new_eid = splitInfo.ENewBN;
+			FVector2d Pt = seg.PointAt(T);
+			Graph.SetVertex(use_vid, Pt);
+			PointHash.InsertPointUnsafe(splitInfo.VNew, Pt);
+		}
+		return FIndex2i(use_vid, new_eid);
+	}
+
+	/**
+	 * find existing vertex at point, if it exists
+	 */
+	int find_existing_vertex(FVector2d Pt)
+	{
+		return find_nearest_vertex(Pt, VertexSnapTol);
+	}
+	/**
+	 * find closest vertex, within SearchRadius
+	 */
+	int find_nearest_vertex(FVector2d Pt, double SearchRadius, int IgnoreVID = -1)
+	{
+		auto FuncDist = [&](int B) { return Pt.DistanceSquared(Graph.GetVertex(B)); };
+		auto FuncIgnore = [&](int VID) { return VID == IgnoreVID; };
+		TPair<int, double> found = (IgnoreVID == -1) ? PointHash.FindNearestInRadius(Pt, SearchRadius, FuncDist)
+													 : PointHash.FindNearestInRadius(Pt, SearchRadius, FuncDist, FuncIgnore);
+		if (found.Key == PointHash.InvalidValue())
+		{
+			return -1;
+		}
+		return found.Key;
+	}
+
+	/**
+	 * find nearest boundary vertex, within SearchRadius
+	 */
+	int find_nearest_boundary_vertex(FVector2d Pt, double SearchRadius, int IgnoreVID = -1)
+	{
+		auto FuncDist = [&](int B) { return Pt.DistanceSquared(Graph.GetVertex(B)); };
+		auto FuncIgnore = [&](int VID) { return Graph.IsBoundaryVertex(VID) == false || VID == IgnoreVID; };
+		TPair<int, double> found =
+			PointHash.FindNearestInRadius(Pt, SearchRadius, FuncDist, FuncIgnore);
+		if (found.Key == PointHash.InvalidValue())
+		{
+			return -1;
+		}
+		return found.Key;
+	}
+
+	struct FIntersection
+	{
+		int EID;
+		int SideX;
+		int SideY;
+		FIntrSegment2Segment2d Intr;
+	};
+
+	/**
+	 * find set of edges in graph that intersect with edge [A,B]
+	 */
+	bool find_intersecting_edges(FVector2d A, FVector2d B, TArray<FIntersection>& Hits, double Tol = 0)
+	{
+		int num_hits = 0;
+		FVector2d x = FVector2d::Zero(), y = FVector2d::Zero();
+		for (int EID : Graph.EdgeIndices())
+		{
+			Graph.GetEdgeV(EID, x, y);
+			int SideX = FSegment2d::WhichSide(A, B, x, Tol);
+			int SideY = FSegment2d::WhichSide(A, B, y, Tol);
+			if (SideX == SideY && SideX != 0)
+			{
+				continue; // both pts on same side
+			}
+
+			FIntrSegment2Segment2d Intr(FSegment2d(x, y), FSegment2d(A, B));
+			Intr.SetIntervalThreshold(Tol);
+			if (Intr.Find())
+			{
+				Hits.Add(FIntersection{EID, SideX, SideY, Intr});
+				num_hits++;
+			}
+		}
+		return (num_hits > 0);
+	}
+};

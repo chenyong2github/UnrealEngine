@@ -1,0 +1,348 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "DynamicMesh3.h"
+#include "FSOAPositions.h"
+#include "FSparseMatrixD.h"
+
+#include "MatrixSolver.h"
+
+
+
+
+
+#include "ProfilingDebugging/ScopedTimers.h"
+#include "Async/ParallelFor.h"
+
+
+
+/**
+* Least Squares constrained poisson solver.
+*
+* Where L is a Laplacian type matrix
+*       {lambda_i, cvec_i} are k weights (lambda) and positional constraints.
+*
+* Solves in the lease squares sense the equation
+*         L p_vec = d_vec
+*         lambda_i * (p_vec)_i  = lambda_i (c_vec)_i  for some constraints.
+*
+* this amounts to
+*         ( Transpose(L) * L   + (0  0      )  ) p_vec = source_vec + ( 0              )
+*    	  (                      (0 lambda^2)  )                      ( lambda^2 c_vec )
+*
+* where source_vec = Transpose(L)*L p_vec 
+*
+* C.F. http://sites.fas.harvard.edu/~cs277/papers/deformation_survey.pdf  section V, subsection C
+*
+* @todo consider reworking to hold TUniquePtr<> to the various objects.
+*/
+
+class FConstrainedSolver
+{
+public:
+
+	typedef typename FSparseMatrixD::Scalar     ScalarType;
+	typedef typename FSOAPositions::VectorType  VectorType;
+
+
+
+	struct FConstraintPosition
+	{
+		FConstraintPosition(const FVector3d& P, bool b) : Position(P), bPostFix(b) {}
+
+		FVector3d Position;
+		bool     bPostFix;
+	};
+
+
+	FConstrainedSolver(TUniquePtr<FSparseMatrixD>& SymmatrixMatrixOperator, const EMatrixSolverType MatrixSolverType)
+		: ConstraintPositions(SymmatrixMatrixOperator->cols())
+	{
+		SymmetricMatrixPtr.Reset(SymmatrixMatrixOperator.Release());
+
+		bMatrixSolverDirty = true;
+		MatrixSolver = ContructMatrixSolver(MatrixSolverType);
+	}
+
+
+	// Updates the diagonal weights matrix.
+	void SetConstraintWeights(const TMap<int32, double>& WeightMap)
+	{
+		typedef FSparseMatrixD::Scalar    ScalarT;
+		typedef Eigen::Triplet<ScalarT>   MatrixTripletT;
+
+		ClearWeights();
+
+		std::vector<MatrixTripletT> MatrixTripelList;
+		MatrixTripelList.reserve(WeightMap.Num());
+
+		for (const auto& WeightPair : WeightMap)
+		{
+			const int32 i = WeightPair.Key; // row id
+			double Weight = WeightPair.Value;
+
+			checkSlow(i < SymmetricMatrixPtr->cols());
+
+			// the soft constrained system uses the square of the weight.
+			Weight *= Weight;
+
+			//const int32 i = ToIndex[VertId];
+			MatrixTripelList.push_back(MatrixTripletT(i, i, Weight));
+
+		}
+
+		// Construct matrix with weights on the diagonal for the constrained verts ( and zero everywhere else)
+		WeightsSqrdMatrix.setFromTriplets(MatrixTripelList.begin(), MatrixTripelList.end());
+		WeightsSqrdMatrix.makeCompressed();
+
+		// The solver matrix will have to be updated and re-factored
+		UpdateSolverWithContraints();
+	}
+
+	// Updates the positional source term
+	void SetContraintPositions(const TMap<int32, FConstraintPosition>& PositionMap)
+	{
+		ClearConstraintPositions();
+
+		for (const auto& PositionPair : PositionMap)
+		{
+			const int32 i = PositionPair.Key; // row id
+			const FVector3d& Pos = PositionPair.Value.Position;
+
+			checkSlow(i < SymmetricMatrixPtr->cols());
+
+
+			// constrained source vector
+			ConstraintPositions.XVector[i] = Pos.X;
+			ConstraintPositions.YVector[i] = Pos.Y;
+			ConstraintPositions.ZVector[i] = Pos.Z;
+
+		}
+	}
+
+	ScalarType GetWeightSqrd(int32 VtxIndex) const
+	{
+		return WeightsSqrdMatrix.coeff(VtxIndex, VtxIndex);
+	}
+
+	/**
+	* Access to the underlying solver
+	*/
+	IMatrixSolverBase* GetMatrixSolverBase() { return MatrixSolver.Get(); }
+	
+	const IMatrixSolverBase* GetMatrixSolverBase() const { return MatrixSolver.Get(); }
+
+	/**
+	* Access to the underlying solver in iterative form - will return null if the solver is not iterative.
+	*/
+	IIterativeMatrixSolverBase* GetMatrixSolverIterativeBase()
+	{
+		IIterativeMatrixSolverBase* IterativeBasePtr = NULL;
+		if (MatrixSolver->bIsIterative())
+		{
+			IterativeBasePtr = (IIterativeMatrixSolverBase*)MatrixSolver.Get();
+		}
+		return IterativeBasePtr;
+	}
+	const IIterativeMatrixSolverBase* GetMatrixSolverIterativeBase() const 
+	{
+		const IIterativeMatrixSolverBase* IterativeBasePtr = NULL;
+		if (MatrixSolver->bIsIterative())
+		{
+			IterativeBasePtr = (const IIterativeMatrixSolverBase*)MatrixSolver.Get();
+		}
+		return IterativeBasePtr;
+	}
+
+	/**
+	* @param SourceVector   - Required that each component vector has size equal to the the number of columns in the laplacian
+	* @param SolutionVector - the resulting solution to the least squares problem
+	*/
+	bool Solve(const FSOAPositions& SourceVector, FSOAPositions& SolutionVector) const
+	{
+		checkSlow(bMatrixSolverDirty == false);
+		FScopedDurationTimeLogger Timmer(TEXT("Post-setup solve time"));
+
+		FSparseMatrixD& SymmetricMatrix = *SymmetricMatrixPtr;
+		// Set up the source vector
+		FSOAPositions RHSVector(SymmetricMatrix.cols());
+		for (int32 Dir = 0; Dir < 3; ++Dir) 
+		{
+			RHSVector.Array(Dir) = SourceVector.Array(Dir) + WeightsSqrdMatrix * ConstraintPositions.Array(Dir);
+		}
+		
+		MatrixSolver->Solve(RHSVector, SolutionVector);
+
+		bool bSuccess = MatrixSolver->bSucceeded();
+
+		return bSuccess;
+	}
+
+
+	/**
+	* Special case when the source vector is identically zero.
+	* NB: this is used for region smoothing.
+	*/
+	bool Solve(FSOAPositions& SolutionVector) const
+	{
+		checkSlow(bMatrixSolverDirty == false);
+		
+		FScopedDurationTimeLogger Timmer(TEXT("Post-setup solve time"));
+
+		FSparseMatrixD& SymmetricMatrix = *SymmetricMatrixPtr;
+		FSOAPositions RHSVector(SymmetricMatrix.cols());
+		for (int32 Dir = 0; Dir < 3; ++Dir)
+		{
+			RHSVector.Array(Dir) = WeightsSqrdMatrix * ConstraintPositions.Array(Dir);
+		}
+	
+		MatrixSolver->Solve(RHSVector, SolutionVector);
+
+		bool bSuccess = MatrixSolver->bSucceeded();
+		return bSuccess;
+	}
+
+	/*
+	* For use with iterative solvers.
+	*
+	* Reverts to Solve(SolutionVector); 
+	* if the matrix solver type is direct.
+	*/
+	bool SolveWithGuess(const FSOAPositions& Guess, FSOAPositions& SolutionVector) const
+	{
+		checkSlow(bMatrixSolverDirty == false);
+
+		if (MatrixSolver->bIsIterative())
+		{
+			const IIterativeMatrixSolverBase* IterativeSolver = (IIterativeMatrixSolverBase*)MatrixSolver.Get();
+
+			FScopedDurationTimeLogger Timmer(TEXT("Post-setup solve time"));
+
+			FSparseMatrixD& SymmetricMatrix = *SymmetricMatrixPtr;
+			FSOAPositions RHSVector(SymmetricMatrix.cols());
+			for (int32 Dir = 0; Dir < 3; ++Dir)
+			{
+				RHSVector.Array(Dir) = WeightsSqrdMatrix * ConstraintPositions.Array(Dir);
+			}
+			
+			IterativeSolver->SolveWithGuess(Guess, RHSVector, SolutionVector);
+
+			bool bSuccess = IterativeSolver->bSucceeded();
+			return bSuccess;
+		}
+		else
+		{
+			return Solve(SolutionVector);
+		}
+	}
+
+	/**
+	* For use with iterative solvers.
+	*
+	* Reverts to Solve(SourceVector, SolutionVector);
+	* if the matrix solver type is direct
+	*/
+	bool SolveWithGuess(const FSOAPositions& Guess, const FSOAPositions& SourceVector, FSOAPositions& SolutionVector) const
+	{
+		checkSlow(bMatrixSolverDirty == false);
+
+		if (MatrixSolver->bIsIterative())
+		{
+			const IIterativeMatrixSolverBase* IterativeSolver = (IIterativeMatrixSolverBase*)MatrixSolver.Get();
+
+			FScopedDurationTimeLogger Timmer(TEXT("Post-setup solve time"));
+
+			FSparseMatrixD& SymmetricMatrix = *SymmetricMatrixPtr;
+			// Set up the source vector
+			FSOAPositions RHSVector(SymmetricMatrix.cols());
+			for (int32 Dir = 0; Dir < 3; ++Dir)
+			{
+				RHSVector.Array(Dir) = SourceVector.Array(Dir) + WeightsSqrdMatrix * ConstraintPositions.Array(Dir);
+			}
+		
+			IterativeSolver->SolveWithGuess(Guess, RHSVector, SolutionVector);
+
+			bool bSuccess = IterativeSolver->bSucceeded();
+
+			return bSuccess;
+		}
+		else
+		{
+			return Solve(SourceVector, SolutionVector);
+		}
+	}
+
+
+	const FSparseMatrixD& Biharmonic() const { return *SymmetricMatrixPtr; }
+
+
+protected:
+
+	// Zero the diagonal matrix that holds constraints
+	void ClearConstraints()
+	{
+		ClearConstraintPositions();
+		ClearWeights();
+	}
+
+	void ClearConstraintPositions()
+	{
+		const FSparseMatrixD& SymmetricMatrix = *SymmetricMatrixPtr;
+		const int32 NumColumns = SymmetricMatrix.cols();
+
+		ConstraintPositions.SetZero(NumColumns);
+
+	}
+	void ClearWeights()
+	{
+		WeightsSqrdMatrix.setZero();
+
+		WeightsSqrdMatrix.resize(SymmetricMatrixPtr->rows(), SymmetricMatrixPtr->cols());
+
+		// The constraints are part of the matrix
+		bMatrixSolverDirty = true;
+	}
+
+	// Note: If constraints haven't been set, or if constraints have been cleared, this must be called prior to solve.
+	void UpdateSolverWithContraints()
+	{
+		FScopedDurationTimeLogger Timmer(TEXT("Matrix setup time"));
+
+		// The constrained verts are part of the matrix
+
+		FSparseMatrixD& SymmetricMatrix = *SymmetricMatrixPtr;
+		
+
+		LHSMatrix =  SymmetricMatrix + WeightsSqrdMatrix;
+		
+		LHSMatrix.makeCompressed();
+		// This matrix by construction is symmetric
+		const bool bIsSymmetric = true;
+
+
+		MatrixSolver->Reset();
+
+		MatrixSolver->SetUp(LHSMatrix, bIsSymmetric);
+
+		bMatrixSolverDirty = false;
+	}
+
+private:
+
+
+	// Positional Constraint Arrays	
+	FSOAPositions                  ConstraintPositions;
+
+	TUniquePtr<FSparseMatrixD>     SymmetricMatrixPtr; // Transpose(Laplacian) * Laplacain
+	FSparseMatrixD                 WeightsSqrdMatrix; // Weights Squared Diagonal Matrix.
+
+	FSparseMatrixD                 LHSMatrix;
+
+	bool                           bMatrixSolverDirty;
+	TUniquePtr<IMatrixSolverBase>  MatrixSolver;
+
+
+};
+
