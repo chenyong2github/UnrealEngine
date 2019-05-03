@@ -3884,11 +3884,13 @@ void FAudioDevice::Update(bool bGameTicking)
 
 
 		const int32 Channels = GetMaxChannels();
-		INC_DWORD_STAT_BY(STAT_WaveInstances, ActiveWaveInstances.Num());
-		INC_DWORD_STAT_BY(STAT_AudioSources, Channels - FreeSources.Num());
-		INC_DWORD_STAT_BY(STAT_WavesDroppedDueToPriority, FMath::Max(ActiveWaveInstances.Num() - Channels, 0));
-		INC_DWORD_STAT_BY(STAT_ActiveSounds, ActiveSounds.Num());
-		INC_DWORD_STAT_BY(STAT_AudioVirtualLoops, VirtualLoops.Num());
+		SET_DWORD_STAT(STAT_WaveInstances, ActiveWaveInstances.Num());
+		SET_DWORD_STAT(STAT_AudioSources, Sources.Num() - FreeSources.Num());
+		SET_DWORD_STAT(STAT_WavesDroppedDueToPriority, FMath::Max(ActiveWaveInstances.Num() - Sources.Num(), 0));
+		SET_DWORD_STAT(STAT_ActiveSounds, ActiveSounds.Num());
+		SET_DWORD_STAT(STAT_AudioVirtualLoops, VirtualLoops.Num());
+		SET_DWORD_STAT(STAT_AudioMaxChannels, Channels);
+		SET_DWORD_STAT(STAT_AudioMaxStoppingSources, NumStoppingVoices);
 	}
 
 	// now let the platform perform anything it needs to handle
