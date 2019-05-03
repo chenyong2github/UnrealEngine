@@ -4184,6 +4184,7 @@ FConfigHistoryHelper* ConfigHistoryHelper = nullptr;
 
 void RecordApplyCVarSettingsFromIni()
 {
+	check(IniHistoryHelper == nullptr);
 	IniHistoryHelper = new FCVarIniHistoryHelper();
 }
 
@@ -4227,6 +4228,7 @@ void DeleteRecordedCVarSettingsFromIni()
 void RecordConfigReadsFromIni()
 {
 #if !UE_BUILD_SHIPPING
+	check(ConfigHistoryHelper == nullptr);
 	ConfigHistoryHelper = new FConfigHistoryHelper();
 #endif
 }
@@ -4239,7 +4241,7 @@ void DumpRecordedConfigReadsFromIni()
 #endif
 }
 
-void DeleteRecordConfigReadsFromIni()
+void DeleteRecordedConfigReadsFromIni()
 {
 #if !UE_BUILD_SHIPPING
 	check(ConfigHistoryHelper);
