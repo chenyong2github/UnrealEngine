@@ -70,6 +70,11 @@ struct FTrackRecorderSettings
 				TArray<FString> ComponentNames;
 				PropertyTrackSetting.ComponentPath.ParseIntoArray(ComponentNames, TEXT("."));
 
+				if (ComponentNames.Num() == 0)
+				{
+					return true;
+				}
+
 				for (const FString& ComponentName : ComponentNames)
 				{
 					if (FindObjectFast<UObject>(InObjectToRecord, *ComponentName) != nullptr)
