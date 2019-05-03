@@ -58,6 +58,7 @@
 
 #include "RenderGraphDefinitions.h"
 #include "RenderGraphResources.h"
+#include "RenderGraphPass.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "ShaderParameterStruct.h"

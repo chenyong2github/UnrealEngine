@@ -5,143 +5,18 @@
 #include "RenderGraphDefinitions.h"
 #include "RenderGraphEvent.h"
 #include "RenderGraphResources.h"
+#include "RenderGraphPass.h"
 #include "ShaderParameterMacros.h"
 
-/** Flags to annotate passes. */
-enum class ERDGPassFlags
-{
-	None = 0,
-
-	/** Pass uses compute only */
-	Compute = 1 << 0,
-
-	//#todo-rco: Remove this when we can do split/per mip layout transitions.
-	/** Hint to some RHIs this pass will be generating mips to optimize transitions. */
-	GenerateMips = 1 << 1,
-};
-
-ENUM_CLASS_FLAGS(ERDGPassFlags)
-
-// TODO(RDG): Bulk rename across codebase.
-using ERenderGraphPassFlags = ERDGPassFlags;
-
-// TODO(RDG): remove from global scope?
-struct RENDERCORE_API FShaderParameterStructRef
-{
-	const void*						Contents;
-	const FRHIUniformBufferLayout*	Layout;
-
-	template<typename MemberType>
-	MemberType* GetMemberPtrAtOffset(uint16 Offset) const
-	{
-		return reinterpret_cast<MemberType*>(((uint8*)Contents) + Offset);
-	}
-};
-
-/** 
- * Base class of a render graph pass
- */
-class RENDERCORE_API FRDGPass
-{
-public:
-	FRDGPass(
-		FRDGEventName&& InName,
-		FShaderParameterStructRef InParameterStruct,
-		ERDGPassFlags InPassFlags)
-		: Name(static_cast<FRDGEventName&&>(InName))
-		, ParameterStruct(InParameterStruct)
-		, PassFlags(InPassFlags)
-	{
-		if (IsCompute())
-		{
-			ensureMsgf(ParameterStruct.Layout->NumRenderTargets() == 0, TEXT("Pass %s was declared as ERDGPassFlags::Compute yet has RenderTargets in its ResourceTable"), GetName());
-		}
-	}
-
-	virtual ~FRDGPass() {}
-
-	virtual void Execute(FRHICommandListImmediate& RHICmdList) const = 0;
-
-	const TCHAR* GetName() const
-	{
-		return Name.GetTCHAR();
-	}
-
-	ERDGPassFlags GetFlags() const
-	{
-		return PassFlags;
-	}
-
-	bool IsCompute() const
-	{
-		return (PassFlags & ERDGPassFlags::Compute) == ERDGPassFlags::Compute;
-	}
-	
-	FShaderParameterStructRef GetParameters() const
-	{
-		return ParameterStruct;
-	}
-
-	const FRDGEventScope* GetParentScope() const
-	{
-		return ParentScope;
-	}
-
-protected:
-	const FRDGEventName Name;
-	const FRDGEventScope* ParentScope = nullptr;
-	const FShaderParameterStructRef ParameterStruct;
-	const ERDGPassFlags PassFlags;
-
-	friend class FRDGBuilder;
-};
-
-/** 
- * Render graph pass with lambda execute function
- */
-template <typename ParameterStructType, typename ExecuteLambdaType>
-struct TRDGLambdaPass final : public FRDGPass
-{
-	TRDGLambdaPass(
-		FRDGEventName&& InName,
-		FShaderParameterStructRef InParameterStruct,
-		ERDGPassFlags InPassFlags,
-		ExecuteLambdaType&& InExecuteLambda)
-		: FRDGPass(static_cast<FRDGEventName&&>(InName), InParameterStruct, InPassFlags)
-		, ExecuteLambda(static_cast<ExecuteLambdaType&&>(InExecuteLambda))
-	{ }
-
-	~TRDGLambdaPass()
-	{
-		// Manually call the destructor of the pass parameter, to make sure RHI references are released since the pass parameters are allocated on FMemStack.
-		// TODO(RDG): this may lead to RHI resource leaks if a struct allocated in FMemStack does not actually get used through FRDGBuilder::AddPass().
-		ParameterStructType* Struct = reinterpret_cast<ParameterStructType*>(const_cast<void*>(FRDGPass::ParameterStruct.Contents));
-		Struct->~ParameterStructType();
-	}
-
-	virtual void Execute(FRHICommandListImmediate& RHICmdList) const override
-	{
-		ExecuteLambda(RHICmdList);
-	}
-
-	ExecuteLambdaType ExecuteLambda;
-};
-
-/** 
- * Builds the per-frame render graph.
- * Resources must be created from the builder before they can be bound to Pass ResourceTables.
- * These resources are descriptors only until the graph is executed, where RHI resources are allocated as needed.
+/** Builds the per-frame render graph.
+ *  Resources must be created from the builder before they can be bound to Pass ResourceTables.
+ *  These resources are descriptors only until the graph is executed, where RHI resources are allocated as needed.
  */
 class RENDERCORE_API FRDGBuilder
 {
 public:
 	/** A RHI cmd list is required, if using the immediate mode. */
-	FRDGBuilder(FRHICommandListImmediate& InRHICmdList)
-		: RHICmdList(InRHICmdList)
-		, MemStack(FMemStack::Get())
-		, EventScopeStack(RHICmdList)
-	{}
-
+	FRDGBuilder(FRHICommandListImmediate& InRHICmdList);
 	~FRDGBuilder();
 
 	/** Register a external texture to be tracked by the render graph. */
@@ -153,39 +28,44 @@ public:
 			checkf(DebugName, TEXT("Externally allocated texture requires a debug name when registering them to render graph."));
 		}
 		#endif
+
 		FRDGTexture* OutTexture = AllocateForRHILifeTime<FRDGTexture>(DebugName, ExternalPooledTexture->GetDesc(), ERDGResourceFlags::None);
 		OutTexture->PooledRenderTarget = ExternalPooledTexture;
 		OutTexture->CachedRHI.Texture = ExternalPooledTexture->GetRenderTargetItem().ShaderResourceTexture;
 		AllocatedTextures.Add(OutTexture, ExternalPooledTexture);
+
 		#if RDG_ENABLE_DEBUG
 		{
-			OutTexture->bHasEverBeenProduced = true;
-			Resources.Add(OutTexture);
+			OutTexture->MarkAsExternal();
+			TrackedResources.Add(OutTexture);
 		}
 		#endif
+
 		return OutTexture;
 	}
 
 	/** Register a external buffer to be tracked by the render graph. */
 	FORCEINLINE_DEBUGGABLE FRDGBufferRef RegisterExternalBuffer(const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer, const TCHAR* Name = TEXT("External"))
 	{
-#if RDG_ENABLE_DEBUG
+		#if RDG_ENABLE_DEBUG
 		{
 			ensureMsgf(ExternalPooledBuffer.IsValid(), TEXT("Attempted to register NULL external buffer: %s"), Name);
 		}
-#endif
+		#endif
+
 		FRDGBuffer* OutBuffer = AllocateForRHILifeTime<FRDGBuffer>(Name, ExternalPooledBuffer->Desc, ERDGResourceFlags::None);
 		OutBuffer->PooledBuffer = ExternalPooledBuffer;
 		AllocatedBuffers.Add(OutBuffer, ExternalPooledBuffer);
-#if RDG_ENABLE_DEBUG
+
+		#if RDG_ENABLE_DEBUG
 		{
-			OutBuffer->bHasEverBeenProduced = true;
-			Resources.Add(OutBuffer);
+			OutBuffer->MarkAsExternal();
+			TrackedResources.Add(OutBuffer);
 		}
-#endif
+		#endif
+
 		return OutBuffer;
 	}
-
 
 	/** Create graph tracked resource from a descriptor with a debug name.
 	 *
@@ -200,10 +80,15 @@ public:
 			checkf(Desc.Format != PF_Unknown, TEXT("Illegal to create texture %s with an invalid pixel format."), DebugName);
 		}
 		#endif
+
 		FRDGTexture* Texture = AllocateForRHILifeTime<FRDGTexture>(DebugName, Desc, Flags);
+
 		#if RDG_ENABLE_DEBUG
-			Resources.Add(Texture);
+		{
+			TrackedResources.Add(Texture);
+		}
 		#endif
+
 		return Texture;
 	}
 
@@ -219,46 +104,57 @@ public:
 			checkf(DebugName, TEXT("Creating a render graph buffer requires a valid debug name."));
 		}
 		#endif
-		FRDGBuffer* Buffer = AllocateForRHILifeTime<FRDGBuffer>(DebugName, Desc, Flags);
+
+		FRDGBufferRef Buffer = AllocateForRHILifeTime<FRDGBuffer>(DebugName, Desc, Flags);
+
 		#if RDG_ENABLE_DEBUG
-			Resources.Add(Buffer);
+		{
+			TrackedResources.Add(Buffer);
+		}
 		#endif
+
 		return Buffer;
 	}
 
 	/** Create graph tracked SRV for a texture from a descriptor. */
 	FORCEINLINE_DEBUGGABLE FRDGTextureSRVRef CreateSRV(const FRDGTextureSRVDesc& Desc)
 	{
-		check(Desc.Texture);
+		FRDGTextureRef Texture = Desc.Texture;
+
 		#if RDG_ENABLE_DEBUG
 		{
+			if (!Texture)
+			{
+				ensureMsgf(false, TEXT("RenderGraph texture SRV created with a null texture."));
+				return nullptr;
+			}
+
 			ensureMsgf(!bHasExecuted, TEXT("Render graph SRV %s needs to be created before the builder execution."), Desc.Texture->Name);
 			ensureMsgf(Desc.Texture->Desc.TargetableFlags & TexCreate_ShaderResource, TEXT("Attempted to create SRV from texture %s which was not created with TexCreate_ShaderResource"), Desc.Texture->Name);
 		}
 		#endif
-		
-		FRDGTextureSRV* SRV = AllocateForRHILifeTime<FRDGTextureSRV>(Desc.Texture->Name, Desc);
-		#if RDG_ENABLE_DEBUG
-			Resources.Add(SRV);
-		#endif
-		return SRV;
+
+		return AllocateForRHILifeTime<FRDGTextureSRV>(Desc.Texture->Name, Desc);
 	}
 
 	/** Create graph tracked SRV for a buffer from a descriptor. */
 	FORCEINLINE_DEBUGGABLE FRDGBufferSRVRef CreateSRV(const FRDGBufferSRVDesc& Desc)
 	{
-		check(Desc.Buffer);
+		FRDGBufferRef Buffer = Desc.Buffer;
+
 		#if RDG_ENABLE_DEBUG
 		{
+			if (!Buffer)
+			{
+				ensureMsgf(false, TEXT("RenderGraph buffer SRV created with a null buffer."));
+				return nullptr;
+			}
+
 			ensureMsgf(!bHasExecuted, TEXT("Render graph SRV %s needs to be created before the builder execution."), Desc.Buffer->Name);
 		}
 		#endif
-		
-		FRDGBufferSRV* SRV = AllocateForRHILifeTime<FRDGBufferSRV>(Desc.Buffer->Name, Desc);
-		#if RDG_ENABLE_DEBUG
-			Resources.Add(SRV);
-		#endif
-		return SRV;
+
+		return AllocateForRHILifeTime<FRDGBufferSRV>(Buffer->Name, Desc);
 	}
 
 	FORCEINLINE_DEBUGGABLE FRDGBufferSRVRef CreateSRV(FRDGBufferRef Buffer, EPixelFormat Format)
@@ -269,46 +165,52 @@ public:
 	/** Create graph tracked UAV for a texture from a descriptor. */
 	FORCEINLINE_DEBUGGABLE FRDGTextureUAVRef CreateUAV(const FRDGTextureUAVDesc& Desc)
 	{
-		check(Desc.Texture);
+		FRDGTextureRef Texture = Desc.Texture;
+		
 		#if RDG_ENABLE_DEBUG
 		{
-			ensureMsgf(!bHasExecuted, TEXT("Render graph UAV %s needs to be created before the builder execution."), Desc.Texture->Name);
-			ensureMsgf(Desc.Texture->Desc.TargetableFlags & TexCreate_UAV, TEXT("Attempted to create UAV from texture %s which was not created with TexCreate_UAV"), Desc.Texture->Name);
+			if (!Texture)
+			{
+				checkf(false, TEXT("RenderGraph texture UAV created with a null texture."));
+				return nullptr;
+			}
+
+			ensureMsgf(!bHasExecuted, TEXT("Render graph UAV %s needs to be created before the builder execution."), Texture->Name);
+			ensureMsgf(Texture->Desc.TargetableFlags & TexCreate_UAV, TEXT("Attempted to create UAV from texture %s which was not created with TexCreate_UAV"), Texture->Name);
 		}
 		#endif
 		
-		FRDGTextureUAV* UAV = AllocateForRHILifeTime<FRDGTextureUAV>(Desc.Texture->Name, Desc);
-		#if RDG_ENABLE_DEBUG
-			Resources.Add(UAV);
-		#endif
-		return UAV;
+		return AllocateForRHILifeTime<FRDGTextureUAV>(Texture->Name, Desc);
 	}
 
 	FORCEINLINE_DEBUGGABLE FRDGTextureUAVRef CreateUAV(FRDGTextureRef Texture)
 	{
-		return CreateUAV( FRDGTextureUAVDesc(Texture) );
+		return CreateUAV(FRDGTextureUAVDesc(Texture));
 	}
 
 	/** Create graph tracked UAV for a buffer from a descriptor. */
 	FORCEINLINE_DEBUGGABLE FRDGBufferUAVRef CreateUAV(const FRDGBufferUAVDesc& Desc)
 	{
-		check(Desc.Buffer);
+		FRDGBufferRef Buffer = Desc.Buffer;
+
 		#if RDG_ENABLE_DEBUG
 		{
-			ensureMsgf(!bHasExecuted, TEXT("Render graph UAV %s needs to be created before the builder execution."), Desc.Buffer->Name);
+			if (!Buffer)
+			{
+				checkf(false, TEXT("RenderGraph buffer UAV created with a null buffer."));
+				return nullptr;
+			}
+
+			ensureMsgf(!bHasExecuted, TEXT("Render graph UAV %s needs to be created before the builder execution."), Buffer->Name);
 		}
 		#endif
 		
-		FRDGBufferUAV* UAV = AllocateForRHILifeTime<FRDGBufferUAV>(Desc.Buffer->Name, Desc);
-		#if RDG_ENABLE_DEBUG
-			Resources.Add(UAV);
-		#endif
-		return UAV;
+		return AllocateForRHILifeTime<FRDGBufferUAV>(Buffer->Name, Desc);
 	}
 
 	FORCEINLINE_DEBUGGABLE FRDGBufferUAVRef CreateUAV(FRDGBufferRef Buffer, EPixelFormat Format)
 	{
-		return CreateUAV( FRDGBufferUAVDesc(Buffer, Format) );
+		return CreateUAV(FRDGBufferUAVDesc(Buffer, Format));
 	}
 
 	/** Allocates parameter struct specifically to survive through the life time of the render graph. */
@@ -343,10 +245,10 @@ public:
 		ExecuteLambdaType&& ExecuteLambda)
 	{
 		auto NewPass = new(MemStack) TRDGLambdaPass<ParameterStructType, ExecuteLambdaType>(
-			static_cast<FRDGEventName&&>(Name),
-			{ ParameterStruct, &ParameterStructType::FTypeInfo::GetStructMetadata()->GetLayout() },
+			MoveTemp(Name),
+			FRDGPassParameterStruct(ParameterStruct),
 			Flags,
-			static_cast<ExecuteLambdaType&&>(ExecuteLambda) );
+			MoveTemp(ExecuteLambda));
 
 		AddPassInternal(NewPass);
 	}
@@ -378,7 +280,7 @@ public:
 				TEXT("Accessing render graph internal texture %s with QueueTextureExtraction() needs to happen before the builder's execution."),
 				Texture->Name);
 
-			checkf(Texture->bHasEverBeenProduced,
+			checkf(Texture->HasBeenProduced(),
 				TEXT("Unable to queue the extraction of the texture %s because it has not been produced by any pass."),
 				Texture->Name);
 		}
@@ -399,17 +301,17 @@ public:
 	{
 		check(Buffer);
 		check(OutBufferPtr);
-#if RDG_ENABLE_DEBUG
+		#if RDG_ENABLE_DEBUG
 		{
 			checkf(!bHasExecuted,
 				TEXT("Accessing render graph internal buffer %s with QueueBufferExtraction() needs to happen before the builder's execution."),
 				Buffer->Name);
 
-			checkf(Buffer->bHasEverBeenProduced,
+			checkf(Buffer->HasBeenProduced(),
 				TEXT("Unable to queue the extraction of the buffer %s because it has not been produced by any pass."),
 				Buffer->Name);
 		}
-#endif
+		#endif
 		FDeferredInternalBufferQuery Query;
 		Query.Buffer = Buffer;
 		Query.OutBufferPtr = OutBufferPtr;
@@ -428,7 +330,7 @@ public:
 			
 			// Increment the number of time the texture has been accessed to avoid warning on produced but never used resources that were produced
 			// only to be extracted for the graph.
-			Texture->DebugPassAccessCount += 1;
+			Texture->PassAccessCount += 1;
 		}
 		#endif
 	}
@@ -473,20 +375,19 @@ private:
 
 	FRDGEventScopeStack EventScopeStack;
 
-	#if RDG_ENABLE_DEBUG
-		/** Whether the Execute() has already been called. */
-		bool bHasExecuted = false;
+#if RDG_ENABLE_DEBUG
+	/** Whether the Execute() has already been called. */
+	bool bHasExecuted = false;
 
-		/** Lists of all created resources */
-		TArray<const FRDGResource*, SceneRenderingAllocator> Resources;
+	/** All recently allocated pass parameter structure, but not used by a AddPass() yet. */
+	TSet<const void*> AllocatedUnusedPassParameters;
 
-		// All recently allocated pass parameter structure, but not used by a AddPass() yet.
-		TSet<const void*> AllocatedUnusedPassParameters;
-	#endif
+	/** List of tracked resources for validation prior to shutdown. */
+	TArray<FRDGTrackedResourceRef, SceneRenderingAllocator> TrackedResources;
+#endif
 
-	void DebugPass(const FRDGPass* Pass);
 	void ValidatePass(const FRDGPass* Pass) const;
-	void CaptureAnyInterestingPassOutput(const FRDGPass* Pass);
+	void VisualizePassOutputs(const FRDGPass* Pass);
 
 	void WalkGraphDependencies();
 	
@@ -518,17 +419,17 @@ private:
 	void EndEventScope();
 
 	void TransitionTexture(FRDGTexture* Texture, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute) const;
-	void TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, FRDGResource* UnderlyingResource, ERDGResourceFlags ResourceFlags, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const;
+	void TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, FRDGTrackedResource* UnderlyingResource, ERDGResourceFlags ResourceFlags, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const;
 
-	void PushDrawEventStack(const FRDGPass* Pass);
 	void ExecutePass(const FRDGPass* Pass);
-	void AllocateAndTransitionPassResources(const FRDGPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasRenderTargets);
-	static void UpdateAccessGuardForPassResources(const FRDGPass* Pass, bool bAllowAccess);
-	static void WarnForUselessPassDependencies(const FRDGPass* Pass);
+	void PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasRenderTargets);
 
-	void ReleaseRHITextureIfPossible(FRDGTexture* Texture);
-	void ReleaseRHIBufferIfPossible(FRDGBuffer* Buffer);
-	void ReleaseUnecessaryResources(const FRDGPass* Pass);
+	void UpdateAccessGuardForPassResources(const FRDGPass* Pass, bool bAllowAccess);
+	void UnmarkUsedResources(const FRDGPass* Pass);
+
+	void ReleaseRHITextureIfUnreferenced(FRDGTexture* Texture);
+	void ReleaseRHIBufferIfUnreferenced(FRDGBuffer* Buffer);
+	void ReleaseUnreferencedResources(const FRDGPass* Pass);
 
 	void ProcessDeferredInternalResourceQueries();
 	void DestructPasses();

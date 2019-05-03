@@ -6,24 +6,22 @@
 
 class FRDGPass;
 class FRDGBuilder;
-
+class FRDGEventName;
 class FRDGResource;
+class FRDGTrackedResource;
 class FRDGTexture;
 class FRDGTextureSRV;
 class FRDGTextureUAV;
-
 class FRDGBuffer;
 class FRDGBufferSRV;
 class FRDGBufferUAV;
 
-class FRDGEventName;
-
 struct FPooledRDGBuffer;
 struct FRayTracingShaderBindingsWriter;
 
-
 /** Defines the RDG resource references for user code not forgetting the const every time. */
 using FRDGResourceRef = FRDGResource*;
+using FRDGTrackedResourceRef = FRDGTrackedResource*;
 using FRDGTextureRef = FRDGTexture*;
 using FRDGTextureSRVRef = FRDGTextureSRV*;
 using FRDGTextureUAVRef = FRDGTextureUAV*;
@@ -31,16 +29,16 @@ using FRDGBufferRef = FRDGBuffer*;
 using FRDGBufferSRVRef = FRDGBufferSRV*;
 using FRDGBufferUAVRef = FRDGBufferUAV*;
 
-
 /** Render graph specific flags for resources. */
 enum class ERDGResourceFlags : uint8
 {
-	None = 0x00,
+	None = 0,
 
 	// Tag the resource to survive through frame, that is important for multi GPU alternate frame rendering.
-	MultiFrame = 0x01,
+	MultiFrame = 1 << 1,
 };
 
+ENUM_CLASS_FLAGS(ERDGResourceFlags);
 
 /** Generic graph resource. */
 class RENDERCORE_API FRDGResource
@@ -55,22 +53,12 @@ protected:
 		FUnorderedAccessViewRHIParamRef UAV;
 	} CachedRHI;
 
-public:
-	// Name of the resource for debugging purpose.
-	const TCHAR* const Name = nullptr;
-
-	FRDGResource(const TCHAR* InDebugName)
-		: Name(InDebugName)
-	{
-		CachedRHI.Resource = nullptr;
-	}
-	
 	/** Verify that the RHI resource can be accessed at a pass execution. */
-	inline void VerifyRHIAccess() const
+	void ValidateRHIAccess() const
 	{
 		#if RDG_ENABLE_DEBUG
 		{
-			checkf(bAllowAccessToRHIResource,
+			checkf(bAllowRHIAccess,
 				TEXT("Accessing the RHI resource of %s at this time is not allowed. If you hit this check in pass, ")
 				TEXT("that is due to this resource not being referenced in the parameters of your pass."),
 				Name);
@@ -78,40 +66,37 @@ public:
 		#endif
 	}
 
-	/** Marks this resource as actually used by a resource. This is to track what dependencies on pass was actually unecessary. */
-	inline void MarkResourceAsUsed()
+	FRDGResource(const TCHAR* InName)
+		: Name(InName)
 	{
-		VerifyRHIAccess();
-		bIsActuallyUsedByPass = true;
+		CachedRHI.Resource = nullptr;
 	}
 
-	FRDGResource() = delete;
+public:
 	FRDGResource(const FRDGResource&) = delete;
-	void operator = (const FRDGResource&) = delete;
+
+	/** Marks this resource as actually used by a resource. This is to track what dependencies on pass was actually unnecessary. */
+	void MarkResourceAsUsed()
+	{
+		ValidateRHIAccess();
+
+		#if RDG_ENABLE_DEBUG
+		{
+			bIsActuallyUsedByPass = true;
+		}
+		#endif
+	}
+
+	// Name of the resource for debugging purpose.
+	const TCHAR* const Name = nullptr;
 
 private:
-	/** Number of references in passes and deferred queries. */
-	int32 ReferenceCount = 0;
-
-	// Used for tracking resource state during execution
-	bool bWritable = false;
-	bool bCompute = false;
-
-	/** Boolean to track at runtime whether a ressource is actually used by the lambda of a pass or not, to detect unnecessary resource dependencies on passes. */
+#if RDG_ENABLE_DEBUG
+	/** Boolean to track at runtime whether a resource is actually used by the lambda of a pass or not, to detect unnecessary resource dependencies on passes. */
 	bool bIsActuallyUsedByPass = false;
 
-#if RDG_ENABLE_DEBUG
-	/** Boolean to track at wiring time if a resource has ever been produced by a pass, to error out early if accessing a resource that has not been produced. */
-	bool bHasEverBeenProduced = false;
-
 	/** Boolean to track at pass execution whether the underlying RHI resource is allowed to be accessed. */
-	bool bAllowAccessToRHIResource = false;
-
-	/** Pointer towards the pass that is the first to produce it, for even more convenient error message. */
-	const FRDGPass* DebugFirstProducer = nullptr;
-
-	/** Count the number of times it has been used by a pass. */
-	int32 DebugPassAccessCount = 0;
+	bool bAllowRHIAccess = false;
 #endif
 
 	friend class FRDGBuilder;
@@ -134,48 +119,105 @@ private:
 	friend void AddPass_ClearUAV(FRDGBuilder&, FRDGEventName&&, FRDGBufferUAVRef, uint32);
 };
 
+/** A render graph resource with an allocation lifetime tracked by the graph. */
+class RENDERCORE_API FRDGTrackedResource
+	: public FRDGResource
+{
+protected:
+	FRDGTrackedResource(const TCHAR* InName, const ERDGResourceFlags InFlags)
+		: FRDGResource(InName)
+		, Flags(InFlags)
+	{}
+
+	/** Flags specific to this resource for render graph. */
+	const ERDGResourceFlags Flags;
+
+private:
+	/** Number of references in passes and deferred queries. */
+	int32 ReferenceCount = 0;
+
+#if RDG_ENABLE_DEBUG
+	void MarkAsProducedBy(const FRDGPass* Pass)
+	{
+		if (!bHasBeenProduced)
+		{
+			bHasBeenProduced = true;
+			FirstProducer = Pass;
+		}
+	}
+
+	void MarkAsExternal()
+	{
+		bHasBeenProduced = true;
+	}
+
+	bool HasBeenProduced() const
+	{
+		return bHasBeenProduced;
+	}
+
+	/** Pointer towards the pass that is the first to produce it, for even more convenient error message. */
+	const FRDGPass* FirstProducer = nullptr;
+
+	/** Count the number of times it has been used by a pass. */
+	int32 PassAccessCount = 0;
+
+	/** Boolean to track at wiring time if a resource has ever been produced by a pass, to error out early if accessing a resource that has not been produced. */
+	bool bHasBeenProduced = false;
+#endif
+
+	/** Used for tracking resource state during execution. */
+	bool bWritable = false;
+	bool bCompute = false;
+
+	friend class FRDGBuilder;
+};
+
 /** Descriptor of a graph tracked texture. */
 using FRDGTextureDesc = FPooledRenderTargetDesc;
 
 /** Render graph tracked Texture. */
-class RENDERCORE_API FRDGTexture : public FRDGResource
+class RENDERCORE_API FRDGTexture final
+	: public FRDGTrackedResource
 {
 public:
 	/** Descriptor of the graph tracked texture. */
 	const FRDGTextureDesc Desc;
 
-	/** Returns the allocated pooled render target. Must only be called within a pass's lambda. */
-	inline IPooledRenderTarget* GetPooledRenderTarget() const
+	//////////////////////////////////////////////////////////////////////////
+	//! The following methods may only be called during pass execution.
+
+	/** Returns the allocated pooled render target. */
+	IPooledRenderTarget* GetPooledRenderTarget() const
 	{
-		VerifyRHIAccess();
+		ValidateRHIAccess();
 		check(PooledRenderTarget);
 		return PooledRenderTarget;
 	}
 
-
-	/** Returns the allocated RHI texture. Must only be called within a pass's lambda. */
-	inline FTextureRHIParamRef GetRHITexture() const
+	/** Returns the allocated RHI texture. */
+	FTextureRHIParamRef GetRHITexture() const
 	{
-		VerifyRHIAccess();
+		ValidateRHIAccess();
 		check(CachedRHI.Texture);
 		return CachedRHI.Texture;
 	}
 
+	//////////////////////////////////////////////////////////////////////////
+
 private:
-	/** This is not a TRefCountPtr<> because FRDGTexture is allocated on the FMemStack
-	 * FGraphBuilder::AllocatedTextures is actually keeping the reference.
-	 */
-	mutable IPooledRenderTarget* PooledRenderTarget = nullptr;
-
-	// Flags specific to this resource for render graph.
-	const ERDGResourceFlags Flags;
-
-
-	FRDGTexture(const TCHAR* DebugName, const FPooledRenderTargetDesc& InDesc, ERDGResourceFlags InFlags)
-		: FRDGResource(DebugName)
+	FRDGTexture(
+		const TCHAR* InName,
+		const FPooledRenderTargetDesc& InDesc,
+		ERDGResourceFlags InFlags)
+		: FRDGTrackedResource(InName, InFlags)
 		, Desc(InDesc)
-		, Flags(InFlags)
 	{}
+
+	/** This is not a TRefCountPtr<> because FRDGTexture is allocated on the FMemStack
+	 *  FGraphBuilder::AllocatedTextures is actually keeping the reference.
+	 */
+	IPooledRenderTarget* PooledRenderTarget = nullptr;
 
 	friend class FRDGBuilder;
 
@@ -189,32 +231,35 @@ private:
 };
 
 /** Descriptor for render graph tracked SRV. */
-class RENDERCORE_API FRDGTextureSRVDesc
+class RENDERCORE_API FRDGTextureSRVDesc final
 {
 public:
-	FRDGTextureRef Texture;
-	uint8 MipLevel = 0;
+	FRDGTextureSRVDesc() = default;
 
-	FRDGTextureSRVDesc() {}
-
-	FRDGTextureSRVDesc(FRDGTextureRef InTexture, uint8 InMipLevel) :
-		Texture(InTexture),
-		MipLevel(InMipLevel)
+	FRDGTextureSRVDesc(FRDGTextureRef InTexture, uint8 InMipLevel)
+		: Texture(InTexture)
+		, MipLevel(InMipLevel)
 	{}
+
+	FRDGTextureRef Texture = nullptr;
+	uint8 MipLevel = 0;
 };
 
 /** Render graph tracked SRV. */
-class RENDERCORE_API FRDGTextureSRV : public FRDGResource
+class RENDERCORE_API FRDGTextureSRV final
+	: public FRDGResource
 {
 public:
 	/** Descriptor of the graph tracked SRV. */
 	const FRDGTextureSRVDesc Desc;
 
 private:
-	FRDGTextureSRV(const TCHAR* DebugName, const FRDGTextureSRVDesc& InDesc)
-		: FRDGResource(DebugName)
+	FRDGTextureSRV(
+		const TCHAR* InName,
+		const FRDGTextureSRVDesc& InDesc)
+		: FRDGResource(InName)
 		, Desc(InDesc)
-	{ }
+	{}
 
 	friend class FRDGBuilder;
 };
@@ -223,33 +268,37 @@ private:
 class RENDERCORE_API FRDGTextureUAVDesc
 {
 public:
-	FRDGTextureRef Texture;
-	uint8 MipLevel = 0;
+	FRDGTextureUAVDesc() = default;
 
-	FRDGTextureUAVDesc() {}
-
-	FRDGTextureUAVDesc(FRDGTextureRef InTexture, uint8 InMipLevel = 0) :
-		Texture(InTexture),
-		MipLevel(InMipLevel)
+	FRDGTextureUAVDesc(
+		FRDGTextureRef InTexture,
+		uint8 InMipLevel = 0)
+		: Texture(InTexture)
+		, MipLevel(InMipLevel)
 	{}
+
+	FRDGTextureRef Texture = nullptr;
+	uint8 MipLevel = 0;
 };
 
 /** Render graph tracked UAV. */
-class RENDERCORE_API FRDGTextureUAV : public FRDGResource
+class RENDERCORE_API FRDGTextureUAV final
+	: public FRDGResource
 {
 public:
 	/** Descriptor of the graph tracked UAV. */
 	const FRDGTextureUAVDesc Desc;
 
 private:
-	FRDGTextureUAV(const TCHAR* DebugName, const FRDGTextureUAVDesc& InDesc)
-		: FRDGResource(DebugName)
+	FRDGTextureUAV(
+		const TCHAR* InName,
+		const FRDGTextureUAVDesc& InDesc)
+		: FRDGResource(InName)
 		, Desc(InDesc)
-	{ }
+	{}
 
 	friend class FRDGBuilder;
 };
-
 
 /** Descriptor for render graph tracked Buffer. */
 struct RENDERCORE_API FRDGBufferDesc
@@ -263,24 +312,59 @@ struct RENDERCORE_API FRDGBufferDesc
 		StructuredBuffer,
 	};
 
-	/** Stride in bytes for index and structured buffers. */
-	uint32 BytesPerElement = 1;
+	/** Create the descriptor for an indirect RHI call.
+	 *
+	 * Note, IndirectParameterStruct should be one of the:
+	 *		struct FRHIDispatchIndirectParameters
+	 *		struct FRHIDrawIndirectParameters
+	 *		struct FRHIDrawIndexedIndirectParameters
+	 */
+	template<typename IndirectParameterStruct>
+	static FRDGBufferDesc CreateIndirectDesc(uint32 NumElements = 1)
+	{
+		FRDGBufferDesc Desc;
+		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
+		Desc.Usage = EBufferUsageFlags(BUF_Static | BUF_DrawIndirect | BUF_UnorderedAccess | BUF_ShaderResource);
+		Desc.BytesPerElement = sizeof(IndirectParameterStruct);
+		Desc.NumElements = NumElements;
+		return Desc;
+	}
 
-	/** Number of elements. */
-	uint32 NumElements = 1;
+	static FRDGBufferDesc CreateIndirectDesc(uint32 NumElements = 1)
+	{
+		FRDGBufferDesc Desc;
+		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
+		Desc.Usage = EBufferUsageFlags(BUF_Static | BUF_DrawIndirect | BUF_UnorderedAccess | BUF_ShaderResource);
+		Desc.BytesPerElement = 4;
+		Desc.NumElements = NumElements;
+		return Desc;
+	}
 
-	/** Bitfields describing the uses of that buffer. */
-	EBufferUsageFlags Usage = BUF_None;
+	static FRDGBufferDesc CreateStructuredDesc(uint32 BytesPerElement, uint32 NumElements)
+	{
+		FRDGBufferDesc Desc;
+		Desc.UnderlyingType = EUnderlyingType::StructuredBuffer;
+		Desc.Usage = EBufferUsageFlags(BUF_Static | BUF_UnorderedAccess | BUF_ShaderResource);
+		Desc.BytesPerElement = BytesPerElement;
+		Desc.NumElements = NumElements;
+		return Desc;
+	}
 
-	/** The underlying RHI type to use. A bit of a work around because RHI still have 3 different objects. */
-	EUnderlyingType UnderlyingType = EUnderlyingType::VertexBuffer;
+	static FRDGBufferDesc CreateBufferDesc(uint32 BytesPerElement, uint32 NumElements)
+	{
+		FRDGBufferDesc Desc;
+		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
+		Desc.Usage = EBufferUsageFlags(BUF_Static | BUF_UnorderedAccess | BUF_ShaderResource);
+		Desc.BytesPerElement = BytesPerElement;
+		Desc.NumElements = NumElements;
+		return Desc;
+	}
 
 	/** Returns the total number of bytes allocated for a such buffer. */
 	uint32 GetTotalNumBytes() const
 	{
 		return BytesPerElement * NumElements;
 	}
-
 
 	bool operator == (const FRDGBufferDesc& Other) const
 	{
@@ -296,58 +380,32 @@ struct RENDERCORE_API FRDGBufferDesc
 		return !(*this == Other);
 	}
 
-	/** Create the descriptor for an indirect RHI call.
-	 *
-	 * Note, IndirectParameterStruct should be one of the:
-	 *		struct FRHIDispatchIndirectParameters
-	 *		struct FRHIDrawIndirectParameters
-	 *		struct FRHIDrawIndexedIndirectParameters
-	 */
-	template<typename IndirectParameterStruct>
-	static inline FRDGBufferDesc CreateIndirectDesc(uint32 NumElements = 1)
-	{
-		FRDGBufferDesc Desc;
-		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
-		Desc.Usage = EBufferUsageFlags(BUF_Static | BUF_DrawIndirect | BUF_UnorderedAccess | BUF_ShaderResource);
-		Desc.BytesPerElement = sizeof(IndirectParameterStruct);
-		Desc.NumElements = NumElements;
-		return Desc;
-	}
+	/** Stride in bytes for index and structured buffers. */
+	uint32 BytesPerElement = 1;
 
-	static inline FRDGBufferDesc CreateIndirectDesc(uint32 NumElements = 1)
-	{
-		FRDGBufferDesc Desc;
-		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
-		Desc.Usage = EBufferUsageFlags(BUF_Static | BUF_DrawIndirect | BUF_UnorderedAccess | BUF_ShaderResource);
-		Desc.BytesPerElement = 4;
-		Desc.NumElements = NumElements;
-		return Desc;
-	}
+	/** Number of elements. */
+	uint32 NumElements = 1;
 
-	static inline FRDGBufferDesc CreateStructuredDesc(uint32 BytesPerElement, uint32 NumElements)
-	{
-		FRDGBufferDesc Desc;
-		Desc.UnderlyingType = EUnderlyingType::StructuredBuffer;
-		Desc.Usage = EBufferUsageFlags(BUF_Static | BUF_UnorderedAccess | BUF_ShaderResource);
-		Desc.BytesPerElement = BytesPerElement;
-		Desc.NumElements = NumElements;
-		return Desc;
-	}
+	/** Bitfields describing the uses of that buffer. */
+	EBufferUsageFlags Usage = BUF_None;
 
-	static inline FRDGBufferDesc CreateBufferDesc(uint32 BytesPerElement, uint32 NumElements)
-	{
-		FRDGBufferDesc Desc;
-		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
-		Desc.Usage = EBufferUsageFlags(BUF_Static | BUF_UnorderedAccess | BUF_ShaderResource);
-		Desc.BytesPerElement = BytesPerElement;
-		Desc.NumElements = NumElements;
-		return Desc;
-	}
+	/** The underlying RHI type to use. A bit of a work around because RHI still have 3 different objects. */
+	EUnderlyingType UnderlyingType = EUnderlyingType::VertexBuffer;
 };
-
 
 struct RENDERCORE_API FRDGBufferSRVDesc
 {
+	FRDGBufferSRVDesc() = default;
+
+	FRDGBufferSRVDesc(FRDGBufferRef InBuffer);
+
+	FRDGBufferSRVDesc(FRDGBufferRef InBuffer, EPixelFormat InFormat)
+		: Buffer(InBuffer)
+		, Format(InFormat)
+	{
+		BytesPerElement = GPixelFormats[Format].BlockBytes;
+	}
+
 	FRDGBufferRef Buffer = nullptr;
 
 	/** Number of bytes per element (used for vertex buffer). */
@@ -355,19 +413,19 @@ struct RENDERCORE_API FRDGBufferSRVDesc
 
 	/** Encoding format for the element (used for vertex buffer). */
 	EPixelFormat Format = PF_Unknown;
-
-	FRDGBufferSRVDesc() {}
-	FRDGBufferSRVDesc(FRDGBufferRef InBuffer);
-	FRDGBufferSRVDesc(FRDGBufferRef InBuffer, EPixelFormat InFormat)
-		: Buffer(InBuffer)
-		, Format(InFormat)
-	{
-		BytesPerElement = GPixelFormats[ Format ].BlockBytes;
-	}
 };
 
 struct RENDERCORE_API FRDGBufferUAVDesc
 {
+	FRDGBufferUAVDesc() = default;
+
+	FRDGBufferUAVDesc(FRDGBufferRef InBuffer);
+
+	FRDGBufferUAVDesc(FRDGBufferRef InBuffer, EPixelFormat InFormat)
+		: Buffer(InBuffer)
+		, Format(InFormat)
+	{}
+
 	FRDGBufferRef Buffer = nullptr;
 
 	/** Number of bytes per element (used for vertex buffer). */
@@ -376,15 +434,7 @@ struct RENDERCORE_API FRDGBufferUAVDesc
 	/** Whether the uav supports atomic counter or append buffer operations (used for structured buffers) */
 	bool bSupportsAtomicCounter = false;
 	bool bSupportsAppendBuffer = false;
-
-	FRDGBufferUAVDesc() {}
-	FRDGBufferUAVDesc(FRDGBufferRef InBuffer);
-	FRDGBufferUAVDesc(FRDGBufferRef InBuffer, EPixelFormat InFormat)
-		: Buffer(InBuffer)
-		, Format(InFormat)
-	{}
 };
-
 
 /** Defines how the map's pairs are hashed. */
 template<typename KeyType, typename ValueType>
@@ -473,80 +523,84 @@ private:
 	uint32 RefCount = 0;
 };
 
-
 /** Render graph tracked buffers. */
-class RENDERCORE_API FRDGBuffer : public FRDGResource
+class RENDERCORE_API FRDGBuffer final
+	: public FRDGTrackedResource
 {
 public:
-	/** Descriptor of the graph */
+	/** Descriptor of the graph. */
 	const FRDGBufferDesc Desc;
+
+	//////////////////////////////////////////////////////////////////////////
+	//! The following methods may only be called during pass execution.
 
 	/** Returns the buffer to use for indirect RHI calls. */
 	FVertexBufferRHIParamRef GetIndirectRHICallBuffer() const
 	{
-		VerifyRHIAccess();
+		ValidateRHIAccess();
 		check(PooledBuffer);
 		checkf(Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("Indirect buffers needs to be underlying vertex buffer."));
 		check(PooledBuffer->VertexBuffer.IsValid());
 		return PooledBuffer->VertexBuffer;
 	}
 
+	//////////////////////////////////////////////////////////////////////////
+
 private:
-	/** This is not a TRefCountPtr<> because FRDGBuffer is allocated on the FMemStack
-	 * FGraphBuilder::AllocatedBuffers is actually keeping the reference.
-	 */
-	mutable FPooledRDGBuffer* PooledBuffer = nullptr;
-	
-	// Flags specific to this resource for render graph.
-	const ERDGResourceFlags Flags;
-
-
-	FRDGBuffer(const TCHAR* DebugName, const FRDGBufferDesc& InDesc, ERDGResourceFlags InFlags)
-		: FRDGResource(DebugName)
+	FRDGBuffer(
+		const TCHAR* InName,
+		const FRDGBufferDesc& InDesc,
+		ERDGResourceFlags InFlags)
+		: FRDGTrackedResource(InName, InFlags)
 		, Desc(InDesc)
-		, Flags(InFlags)
-	{ }
+	{}
 
+	/** This is not a TRefCountPtr<> because FRDGBuffer is allocated on the FMemStack
+	 *  FGraphBuilder::AllocatedBuffers is actually keeping the reference.
+	 */
+	FPooledRDGBuffer* PooledBuffer = nullptr;
+	
 	friend class FRDGBuilder;
 };
 
 /** Render graph tracked SRV. */
-class RENDERCORE_API FRDGBufferSRV : public FRDGResource
+class RENDERCORE_API FRDGBufferSRV final
+	: public FRDGResource
 {
 public:
 	/** Descriptor of the graph tracked SRV. */
 	const FRDGBufferSRVDesc Desc;
 
 private:
-	FRDGBufferSRV(const TCHAR* DebugName, const FRDGBufferSRVDesc& InDesc)
-		: FRDGResource(DebugName)
+	FRDGBufferSRV(const TCHAR* InName, const FRDGBufferSRVDesc& InDesc)
+		: FRDGResource(InName)
 		, Desc(InDesc)
-	{ }
+	{}
 
 	friend class FRDGBuilder;
 };
 
 /** Render graph tracked UAV. */
-class RENDERCORE_API FRDGBufferUAV : public FRDGResource
+class RENDERCORE_API FRDGBufferUAV final
+	: public FRDGResource
 {
 public:
 	/** Descriptor of the graph tracked UAV. */
 	const FRDGBufferUAVDesc Desc;
 
 private:
-	FRDGBufferUAV(const TCHAR* DebugName, const FRDGBufferUAVDesc& InDesc)
-		: FRDGResource(DebugName)
+	FRDGBufferUAV(const TCHAR* InName, const FRDGBufferUAVDesc& InDesc)
+		: FRDGResource(InName)
 		, Desc(InDesc)
-	{ }
+	{}
 
 	friend class FRDGBuilder;
 };
 
-
 inline FRDGBufferSRVDesc::FRDGBufferSRVDesc(FRDGBufferRef InBuffer)
 	: Buffer(InBuffer)
 {
-	if( Buffer->Desc.Usage & BUF_DrawIndirect )
+	if (Buffer->Desc.Usage & BUF_DrawIndirect)
 	{
 		BytesPerElement = 4;
 		Format = PF_R32_UINT;
@@ -560,7 +614,7 @@ inline FRDGBufferSRVDesc::FRDGBufferSRVDesc(FRDGBufferRef InBuffer)
 inline FRDGBufferUAVDesc::FRDGBufferUAVDesc(FRDGBufferRef InBuffer)
 	: Buffer(InBuffer)
 {
-	if( Buffer->Desc.Usage & BUF_DrawIndirect )
+	if (Buffer->Desc.Usage & BUF_DrawIndirect)
 	{
 		Format = PF_R32_UINT;
 	}

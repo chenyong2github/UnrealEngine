@@ -9,34 +9,39 @@
 
 namespace
 {
-#if RDG_ENABLE_DEBUG
-	int32 GRenderGraphImmediateMode = 0;
-	FAutoConsoleVariableRef CVarImmediateMode(
-		TEXT("r.RDG.ImmediateMode"),
-		GRenderGraphImmediateMode,
-		TEXT("Executes passes as they get created. Useful to have a callstack of the wiring code when crashing in the pass' lambda."),
-		ECVF_RenderThreadSafe);
+const int32 kRDGEmitWarningsOnce = 1;
 
-	int32 GRenderGraphEmitWarnings = 0;
-	FAutoConsoleVariableRef CVarEmitWarnings(
-		TEXT("r.RDG.EmitWarnings"),
-		GRenderGraphEmitWarnings,
-		TEXT("Allow to output warnings for inefficiencies found during wiring and execution of the passes.\n")
-		TEXT(" 0: disabled;\n")
-		TEXT(" 1: emit warning once (default);\n")
-		TEXT(" 2: emit warning everytime issue is detected."),
-		ECVF_RenderThreadSafe);
+#if RDG_ENABLE_DEBUG
+
+int32 GRDGImmediateMode = 0;
+FAutoConsoleVariableRef CVarImmediateMode(
+	TEXT("r.RDG.ImmediateMode"),
+	GRDGImmediateMode,
+	TEXT("Executes passes as they get created. Useful to have a callstack of the wiring code when crashing in the pass' lambda."),
+	ECVF_RenderThreadSafe);
+
+int32 GRDGEmitWarnings = 0;
+FAutoConsoleVariableRef CVarEmitWarnings(
+	TEXT("r.RDG.EmitWarnings"),
+	GRDGEmitWarnings,
+	TEXT("Allow to output warnings for inefficiencies found during wiring and execution of the passes.\n")
+	TEXT(" 0: disabled;\n")
+	TEXT(" 1: emit warning once (default);\n")
+	TEXT(" 2: emit warning everytime issue is detected."),
+	ECVF_RenderThreadSafe);
 
 #else
-	const int32 GRenderGraphImmediateMode = 0;
-	const int32 GRenderGraphEmitWarnings = 0;
+
+const int32 GRDGImmediateMode = 0;
+const int32 GRDGEmitWarnings = 0;
+
 #endif
-}
+} //! namespace
 
 bool GetEmitRDGEvents()
 {
 #if RDG_EVENTS != RDG_EVENTS_NONE
-	return GetEmitDrawEvents() || GRenderGraphEmitWarnings;
+	return GetEmitDrawEvents() || GRDGEmitWarnings;
 #else
 	return false;
 #endif
@@ -47,69 +52,55 @@ void InitRenderGraph()
 #if RDG_ENABLE_DEBUG_WITH_ENGINE
 	if (FParse::Param(FCommandLine::Get(), TEXT("rdgimmediate")))
 	{
-		GRenderGraphImmediateMode = 1;
+		GRDGImmediateMode = 1;
 	}
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("rdgdebug")))
 	{
-		GRenderGraphEmitWarnings = 1;
+		GRDGEmitWarnings = 1;
 	}
 #endif
 }
 
-static void EmitRenderGraphWarning(const FString& WarningMessage)
+void EmitRDGWarning(const FString& WarningMessage)
 {
-	check(GRenderGraphEmitWarnings);
+	if (!GRDGEmitWarnings)
+	{
+		return;
+	}
 
 	static TSet<FString> GAlreadyEmittedWarnings;
 
-	if (GRenderGraphEmitWarnings == 2)
+	if (GRDGEmitWarnings == kRDGEmitWarningsOnce)
 	{
-		UE_LOG(LogRendererCore, Warning, TEXT("%s"), *WarningMessage);
+		if (!GAlreadyEmittedWarnings.Contains(WarningMessage))
+		{
+			GAlreadyEmittedWarnings.Add(WarningMessage);
+			UE_LOG(LogRendererCore, Warning, TEXT("%s"), *WarningMessage);
+		}
 	}
-	else if (!GAlreadyEmittedWarnings.Contains(WarningMessage))
+	else
 	{
-		GAlreadyEmittedWarnings.Add(WarningMessage);
 		UE_LOG(LogRendererCore, Warning, TEXT("%s"), *WarningMessage);
 	}
 }
 
-#define EmitRenderGraphWarningf(WarningMessageFormat, ...) \
-	EmitRenderGraphWarning(FString::Printf(WarningMessageFormat, ##__VA_ARGS__));
+#define EmitRDGWarningf(WarningMessageFormat, ...) \
+	EmitRDGWarning(FString::Printf(WarningMessageFormat, ##__VA_ARGS__));
 
-static bool IsBoundAsReadable(const FRDGTexture* Texture, FShaderParameterStructRef ParameterStruct)
+FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList)
+	: RHICmdList(InRHICmdList)
+	, MemStack(FMemStack::Get())
+	, EventScopeStack(RHICmdList)
+{}
+
+FRDGBuilder::~FRDGBuilder()
 {
-	for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
+	#if RDG_ENABLE_DEBUG
 	{
-		EUniformBufferBaseType Type = ParameterStruct.Layout->Resources[ResourceIndex].MemberType;
-		uint16 Offset = ParameterStruct.Layout->Resources[ResourceIndex].MemberOffset;
-
-		switch (Type)
-		{
-		case UBMT_RDG_TEXTURE:
-		{
-			const FRDGTexture* InputTexture = *ParameterStruct.GetMemberPtrAtOffset<const FRDGTexture*>(Offset);
-			if (Texture == InputTexture)
-			{
-				return true;
-			}
-		}
-		break;
-		case UBMT_RDG_TEXTURE_SRV:
-		{
-			const FRDGTextureSRV* InputSRV = *ParameterStruct.GetMemberPtrAtOffset<const FRDGTextureSRV*>(Offset);
-			if (InputSRV && Texture == InputSRV->Desc.Texture)
-			{
-				return true;
-			}
-		}
-		break;
-		default:
-			break;
-		}
+		checkf(bHasExecuted, TEXT("Render graph execution is required to ensure consistency with immediate mode."));
 	}
-
-	return false;
+	#endif
 }
 
 void FRDGBuilder::Execute()
@@ -134,7 +125,7 @@ void FRDGBuilder::Execute()
 
 	EventScopeStack.BeginExecute();
 
-	if (!GRenderGraphImmediateMode)
+	if (!GRDGImmediateMode)
 	{
 		WalkGraphDependencies();
 
@@ -160,18 +151,17 @@ void FRDGBuilder::Execute()
 
 void FRDGBuilder::AddPassInternal(FRDGPass* Pass)
 {
-#if RDG_ENABLE_DEBUG
+	#if RDG_ENABLE_DEBUG
 	{
-		const void* ParameterStructData = Pass->GetParameters().Contents;
-
 		checkf(!bHasExecuted, TEXT("Render graph pass %s needs to be added before the builder execution."), Pass->GetName());
 
-		/** A pass parameter structure requires a correct life time until the pass execution, and therefor needs to be
-			* allocated with FRDGBuilder::AllocParameters().
-			*
-			* Moreover, because the destructor of this parameter structure will be done after the pass execution, a it can
-			* only be used by a single AddPass().
-			*/
+		const void* ParameterStructData = Pass->GetParameters().GetContents();
+
+		/** The lifetime of each pass parameter structure must extend until deferred pass execution; therefore, it needs to be
+		 *  allocated with FRDGBuilder::AllocParameters(). Also, all references held by the parameter structure are released
+		 *  immediately after pass execution, so a pass parameter struct instance must be 1-to-1 with a pass instance (i.e. one
+		 *  per AddPass() call).
+		 */
 		checkf(
 			AllocatedUnusedPassParameters.Contains(ParameterStructData),
 			TEXT("The pass parameter structure has not been allocated for correct life time FRDGBuilder::AllocParameters() or has already ")
@@ -179,148 +169,115 @@ void FRDGBuilder::AddPassInternal(FRDGPass* Pass)
 
 		AllocatedUnusedPassParameters.Remove(ParameterStructData);
 	}
-#endif
+	#endif
 
 	Pass->ParentScope = EventScopeStack.GetCurrentScope();
 	Passes.Emplace(Pass);
 
-#if RDG_ENABLE_DEBUG || SUPPORTS_VISUALIZE_TEXTURE
-	{
-		DebugPass(Pass);
-	}
-#endif
-}
-
-void FRDGBuilder::DebugPass(const FRDGPass* Pass)
-{
-#if RDG_ENABLE_DEBUG
-	// Verify all the settings of the pass make sense.
 	ValidatePass(Pass);
 
-	// Executes the pass immediatly as they get added mode, to have callstack of wiring code when crashing within the pass.
-	if (GRenderGraphImmediateMode)
+	if (GRDGImmediateMode)
 	{
 		ExecutePass(Pass);
 	}
-#endif
 
-#if SUPPORTS_VISUALIZE_TEXTURE
-	// If visualizing a texture, look for any output of the pass. This must be done after the
-	// GRenderGraphImmediateMode's ExecutePass() because this will actually create a capturing
-	// pass if needed that would have to be executed right away as well.
-	if (GVisualizeTexture.bEnabled)
-	{
-		CaptureAnyInterestingPassOutput(Pass);
-	}
-#endif
+	VisualizePassOutputs(Pass);
 }
 
 void FRDGBuilder::ValidatePass(const FRDGPass* Pass) const
 {
 #if RDG_ENABLE_DEBUG
-	FRenderTargetBindingSlots* RESTRICT RenderTargets = nullptr;
-	FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
+	const FRenderTargetBindingSlots* RenderTargetBindingSlots = nullptr;
 
-	bool bIsCompute = Pass->IsCompute();
-	bool bCanUseUAVs = true;	// Graphics passes can now also use UAVs in pixelshaders.
-	bool bRequiresRenderTargetSlots = !bIsCompute;
+	const TCHAR* PassName = Pass->GetName();
+	const bool bIsCompute = Pass->IsCompute();
+	const bool bRenderTargetSlotsRequired = !bIsCompute;
 
-	for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
+	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
+
+	const uint32 ParameterCount = ParameterStruct.GetParameterCount();
+
+	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
 	{
-		EUniformBufferBaseType Type = ParameterStruct.Layout->Resources[ResourceIndex].MemberType;
-		uint16 Offset = ParameterStruct.Layout->Resources[ResourceIndex].MemberOffset;
+		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
 
-		switch (Type)
+		switch (Parameter.GetType())
 		{
 		case UBMT_RDG_TEXTURE:
 		{
-			FRDGTexture* RESTRICT Texture = *ParameterStruct.GetMemberPtrAtOffset<FRDGTexture*>(Offset);
-			checkf(!Texture || Texture->bHasEverBeenProduced,
-				TEXT("Pass %s has a dependency over the texture %s that has never been produced."),
-				Pass->GetName(), Texture->Name);
+			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
+			{
+				checkf(Texture->HasBeenProduced(),
+					TEXT("Pass %s has a dependency over the texture %s that has never been produced."),
+					PassName, Texture->Name);
+			}
 		}
 		break;
 		case UBMT_RDG_TEXTURE_SRV:
 		{
-			FRDGTextureSRV* RESTRICT SRV = *ParameterStruct.GetMemberPtrAtOffset<FRDGTextureSRV*>(Offset);
-			if (SRV)
+			if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
 			{
-				checkf(SRV->Desc.Texture->bHasEverBeenProduced,
+				FRDGTextureRef Texture = SRV->Desc.Texture;
+
+				checkf(Texture->HasBeenProduced(),
 					TEXT("Pass %s has a dependency over the texture %s that has never been produced."),
-					Pass->GetName(), SRV->Desc.Texture->Name);
+					PassName, Texture->Name);
 			}
 		}
 		break;
 		case UBMT_RDG_TEXTURE_UAV:
 		{
-			FRDGTextureUAV* RESTRICT UAV = *ParameterStruct.GetMemberPtrAtOffset<FRDGTextureUAV*>(Offset);
-			if (UAV)
+			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
 			{
-				if (!UAV->Desc.Texture->bHasEverBeenProduced)
-				{
-					UAV->Desc.Texture->bHasEverBeenProduced = true;
-					UAV->Desc.Texture->DebugFirstProducer = Pass;
-				}
+				FRDGTextureRef Texture = UAV->Desc.Texture;
 
-				if (!bCanUseUAVs && GRenderGraphEmitWarnings)
-				{
-					EmitRenderGraphWarningf(
-						TEXT("UAV can only been bound to compute shaders, therefore UAV %s is certainly useless for pass %s."),
-						UAV->Name, Pass->GetName());
-				}
+				Texture->MarkAsProducedBy(Pass);
 			}
 		}
 		break;
 		case UBMT_RDG_BUFFER:
 		{
-			FRDGBuffer* RESTRICT Buffer = *ParameterStruct.GetMemberPtrAtOffset<FRDGBuffer*>(Offset);
-			checkf(!Buffer || Buffer->bHasEverBeenProduced,
-				TEXT("Pass %s has a dependency over the buffer %s that has never been produced."),
-				Pass->GetName(), Buffer->Name);
+			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
+			{
+				checkf(Buffer->HasBeenProduced(),
+					TEXT("Pass %s has a dependency over the buffer %s that has never been produced."),
+					PassName, Buffer->Name);
+			}
 		}
 		break;
 		case UBMT_RDG_BUFFER_SRV:
 		{
-			FRDGBufferSRV* RESTRICT SRV = *ParameterStruct.GetMemberPtrAtOffset<FRDGBufferSRV*>(Offset);
-			if (SRV)
+			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
 			{
-				checkf(SRV->Desc.Buffer->bHasEverBeenProduced,
+				FRDGBufferRef Buffer = SRV->Desc.Buffer;
+
+				checkf(Buffer->HasBeenProduced(),
 					TEXT("Pass %s has a dependency over the buffer %s that has never been produced."),
-					Pass->GetName(), SRV->Desc.Buffer->Name);
+					PassName, SRV->Desc.Buffer->Name);
 			}
 		}
 		break;
 		case UBMT_RDG_BUFFER_UAV:
 		{
-			FRDGBufferUAV* RESTRICT UAV = *ParameterStruct.GetMemberPtrAtOffset<FRDGBufferUAV*>(Offset);
-			if (UAV)
+			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
 			{
-				if (!UAV->Desc.Buffer->bHasEverBeenProduced)
-				{
-					UAV->Desc.Buffer->bHasEverBeenProduced = true;
-					UAV->Desc.Buffer->DebugFirstProducer = Pass;
-				}
+				FRDGBufferRef Buffer = UAV->Desc.Buffer;
 
-				if (!bCanUseUAVs && GRenderGraphEmitWarnings)
-				{
-					EmitRenderGraphWarningf(
-						TEXT("UAV can only been bound to compute shaders, therefore UAV %s is certainly useless for pass %s."),
-						UAV->Name, Pass->GetName());
-				}
+				Buffer->MarkAsProducedBy(Pass);
 			}
 		}
 		break;
 		case UBMT_RENDER_TARGET_BINDING_SLOTS:
 		{
-			if (!RenderTargets)
+			if (!RenderTargetBindingSlots)
 			{
-				RenderTargets = ParameterStruct.GetMemberPtrAtOffset<FRenderTargetBindingSlots>(Offset);
+				RenderTargetBindingSlots = &Parameter.GetAsRenderTargetBindingSlots();
 			}
-			else if (GRenderGraphEmitWarnings)
+			else if (GRDGEmitWarnings)
 			{
-				EmitRenderGraphWarningf(
+				EmitRDGWarningf(
 					TEXT("Pass %s have duplicated render target binding slots."),
-					Pass->GetName());
+					PassName);
 			}
 		}
 		break;
@@ -329,108 +286,189 @@ void FRDGBuilder::ValidatePass(const FRDGPass* Pass) const
 		}
 	}
 
-	if (RenderTargets)
+	/** Validate that raster passes have render target binding slots and compute passes don't. */
+	if (RenderTargetBindingSlots)
 	{
-		checkf(bRequiresRenderTargetSlots, TEXT("Render pass %s does not need render target binging slots"), Pass->GetName());
-
-		const bool bGeneratingMips = (Pass->GetFlags() & ERDGPassFlags::GenerateMips) == ERDGPassFlags::GenerateMips;
-		bool bFoundRTBound = false;
-
-		int32 NumRenderTargets = 0;
-		for (int32 i = 0; i < RenderTargets->Output.Num(); i++)
-		{
-			const FRenderTargetBinding& RenderTarget = RenderTargets->Output[i];
-			FRDGTexture* Texture = RenderTarget.GetTexture();
-
-			if (!Texture)
-			{
-				NumRenderTargets = i;
-				break;
-			}
-
-			if (!Texture->bHasEverBeenProduced)
-			{
-				checkf(RenderTarget.GetLoadAction() != ERenderTargetLoadAction::ELoad,
-					TEXT("Can't load a render target %s that has never been produced."),
-					Texture->Name);
-
-				// TODO(RDG): should only be done when there is a store action.
-				Texture->bHasEverBeenProduced = true;
-				Texture->DebugFirstProducer = Pass;
-			}
-
-			bFoundRTBound = bFoundRTBound || IsBoundAsReadable(Texture, ParameterStruct);
-		}
-		for (int32 i = NumRenderTargets; i < RenderTargets->Output.Num(); i++)
-		{
-			const FRenderTargetBinding& RenderTarget = RenderTargets->Output[i];
-			checkf(RenderTarget.GetTexture() == nullptr, TEXT("Render targets must be packed. No empty spaces in the array."));
-		}
-		ensureMsgf(!bGeneratingMips || bFoundRTBound, TEXT("GenerateMips enabled but no RT found as source!"));
-
-		FRDGTexture* Texture = RenderTargets->DepthStencil.GetTexture();
-		if (Texture && !Texture->bHasEverBeenProduced)
-		{
-			checkf(RenderTargets->DepthStencil.GetDepthLoadAction() != ERenderTargetLoadAction::ELoad,
-				TEXT("Can't load depth from render target %s that has never been produced."),
-				Texture->Name);
-
-			checkf(RenderTargets->DepthStencil.GetStencilLoadAction() != ERenderTargetLoadAction::ELoad,
-				TEXT("Can't load stencil from render target %s that has never been produced."),
-				Texture->Name);
-
-			Texture->bHasEverBeenProduced = true;
-			Texture->DebugFirstProducer = Pass;
-		}
+		checkf(!bIsCompute, TEXT("Pass '%s' has render target binding slots but is flagged as 'Compute'."), PassName);
 	}
 	else
 	{
-		checkf(!bRequiresRenderTargetSlots, TEXT("Render pass %s requires render target binging slots"), Pass->GetName());
+		checkf(bIsCompute, TEXT("Pass '%s' is missing render target binding slots. Add the 'Compute' flag if render targets are not required."), PassName);
+	}
+
+	/** Validate render target / depth stencil binding usage. */
+	if (RenderTargetBindingSlots)
+	{
+		const auto& RenderTargets = RenderTargetBindingSlots->Output;
+
+		const uint32 RenderTargetCount = RenderTargets.Num();
+
+		{
+			/** Tracks the number of contiguous, non-null textures in the render target output array. */
+			uint32 ValidRenderTargetCount = 0;
+
+			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; ++RenderTargetIndex)
+			{
+				const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+
+				if (FRDGTextureRef Texture = RenderTarget.GetTexture())
+				{
+					/** Validate that load action is correct. */
+					const bool bIsLoadAction = RenderTarget.GetLoadAction() == ERenderTargetLoadAction::ELoad;
+					const bool bIsLoadActionInvalid = bIsLoadAction && !Texture->HasBeenProduced();
+					checkf(
+						!bIsLoadActionInvalid,
+						TEXT("Can't load a render target '%s' that has never been produced."),
+						Texture->Name);
+
+					/** Mark the pass as a producer for render targets with a store action. */
+					const bool bIsStoreAction = RenderTarget.GetStoreAction() != ERenderTargetStoreAction::ENoAction;
+					if (bIsStoreAction)
+					{
+						Texture->MarkAsProducedBy(Pass);
+					}
+				}
+				else
+				{
+					/** Found end of contiguous interval of valid render targets. */
+					ValidRenderTargetCount = RenderTargetIndex;
+					break;
+				}
+			}
+
+			/** Validate that no holes exist in the render target output array. Render targets must be bound contiguously. */
+			for (uint32 RenderTargetIndex = ValidRenderTargetCount; RenderTargetIndex < RenderTargetCount; ++RenderTargetIndex)
+			{
+				const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+				checkf(RenderTarget.GetTexture() == nullptr, TEXT("Render targets must be packed. No empty spaces in the array."));
+			}
+		}
+
+		const auto IsMipLevelBoundForRead = [ParameterStruct, ParameterCount](FRDGTextureRef Texture, uint32 MipLevel)
+		{
+			for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+			{
+				FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
+
+				switch (Parameter.GetType())
+				{
+				case UBMT_RDG_TEXTURE:
+				{
+					if (Parameter.GetAsTexture() == Texture)
+					{
+						/** Full texture view bound. */
+						return true;
+					}
+					break;
+				}
+				case UBMT_RDG_TEXTURE_SRV:
+				{
+					if (const FRDGTextureSRVRef InputSRV = Parameter.GetAsTextureSRV())
+					{
+						const FRDGTextureSRVDesc& InputSRVDesc = InputSRV->Desc;
+
+						if (InputSRVDesc.Texture == Texture)
+						{
+							return InputSRVDesc.MipLevel == MipLevel;
+						}
+					}
+					break;
+				}
+				default:
+					break;
+				}
+			}
+
+			return false;
+		};
+
+		/** Validate that texture mips are not bound as a render target and SRV at the same time. */
+		for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; ++RenderTargetIndex)
+		{
+			const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+
+			if (FRDGTextureRef Texture = RenderTarget.GetTexture())
+			{
+				if (IsMipLevelBoundForRead(Texture, RenderTarget.GetMipIndex()))
+				{
+					checkf(false, TEXT("Texture '%s', Mip '%d' is bound as a render target and SRV at the same time."), Texture->Name, RenderTarget.GetMipIndex());
+				}
+			}
+			else
+			{
+				break;
+			}
+		}
 	}
 #endif // RDG_ENABLE_DEBUG
 }
 
-void FRDGBuilder::CaptureAnyInterestingPassOutput(const FRDGPass* Pass)
+void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 {
 #if SUPPORTS_VISUALIZE_TEXTURE
-	FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
-	for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
+	if (!!GVisualizeTexture.bEnabled)
 	{
-		EUniformBufferBaseType Type = ParameterStruct.Layout->Resources[ResourceIndex].MemberType;
-		uint16 Offset = ParameterStruct.Layout->Resources[ResourceIndex].MemberOffset;
+		return;
+	}
 
-		switch (Type)
+	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
+
+	const uint32 ParameterCount = ParameterStruct.GetParameterCount();
+
+	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+	{
+		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
+
+		switch (Parameter.GetType())
 		{
 		case UBMT_RDG_TEXTURE_UAV:
 		{
-			FRDGTextureUAV* RESTRICT UAV = *ParameterStruct.GetMemberPtrAtOffset<FRDGTextureUAV*>(Offset);
-			if (UAV && GVisualizeTexture.ShouldCapture(UAV->Desc.Texture->Name))
+			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
 			{
-				GVisualizeTexture.CreateContentCapturePass(*this, UAV->Desc.Texture);
+				if (FRDGTextureRef Texture = UAV->Desc.Texture)
+				{
+					if (GVisualizeTexture.ShouldCapture(Texture->Name))
+					{
+						GVisualizeTexture.CreateContentCapturePass(*this, Texture);
+					}
+				}
 			}
 		}
 		break;
 		case UBMT_RENDER_TARGET_BINDING_SLOTS:
 		{
-			FRenderTargetBindingSlots* RESTRICT RenderTargets = ParameterStruct.GetMemberPtrAtOffset<FRenderTargetBindingSlots>(Offset);
-			if (RenderTargets->DepthStencil.GetTexture() && 
-				(RenderTargets->DepthStencil.GetDepthStoreAction() != ERenderTargetStoreAction::ENoAction || RenderTargets->DepthStencil.GetStencilStoreAction() != ERenderTargetStoreAction::ENoAction) &&
-				GVisualizeTexture.ShouldCapture(RenderTargets->DepthStencil.GetTexture()->Name))
+			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
+			const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
+			const auto& RenderTargets = RenderTargetBindingSlots.Output;
+
+			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
 			{
-				GVisualizeTexture.CreateContentCapturePass(*this, RenderTargets->DepthStencil.GetTexture());
+				const bool bHasStoreAction = DepthStencil.GetDepthStoreAction() != ERenderTargetStoreAction::ENoAction || DepthStencil.GetStencilStoreAction() != ERenderTargetStoreAction::ENoAction;
+
+				if (bHasStoreAction && GVisualizeTexture.ShouldCapture(Texture->Name))
+				{
+					GVisualizeTexture.CreateContentCapturePass(*this, Texture);
+				}
 			}
-			for (int32 i = 0; i < RenderTargets->Output.Num(); i++)
+
+			const uint32 RenderTargetCount = RenderTargets.Num();
+
+			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; ++RenderTargetIndex)
 			{
-				const FRenderTargetBinding& RenderTarget = RenderTargets->Output[i];
-				if (!RenderTarget.GetTexture())
+				const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+
+				if (FRDGTextureRef Texture = RenderTarget.GetTexture())
+				{
+					const bool bHasStoreAction = RenderTarget.GetStoreAction() != ERenderTargetStoreAction::ENoAction;
+
+					if (bHasStoreAction && GVisualizeTexture.ShouldCapture(Texture->Name))
+					{
+						GVisualizeTexture.CreateContentCapturePass(*this, Texture);
+					}
+				}
+				else
 				{
 					break;
-				}
-
-				if (RenderTarget.GetStoreAction() != ERenderTargetStoreAction::ENoAction &&
-					GVisualizeTexture.ShouldCapture(RenderTarget.GetTexture()->Name))
-				{
-					GVisualizeTexture.CreateContentCapturePass(*this, RenderTarget.GetTexture());
 				}
 			}
 		}
@@ -439,28 +477,27 @@ void FRDGBuilder::CaptureAnyInterestingPassOutput(const FRDGPass* Pass)
 			break;
 		}
 	}
-#endif // SUPPORTS_VISUALIZE_TEXTURE
+#endif
 }
 
 void FRDGBuilder::WalkGraphDependencies()
 {
 	for (const FRDGPass* Pass : Passes)
 	{
-		FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
+		FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
 
-		/** Increments all the FRDGResource::ReferenceCount. */
-		for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
+		const uint32 ParameterCount = ParameterStruct.GetParameterCount();
+
+		for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
 		{
-			EUniformBufferBaseType Type = ParameterStruct.Layout->Resources[ResourceIndex].MemberType;
-			uint16 Offset = ParameterStruct.Layout->Resources[ResourceIndex].MemberOffset;
+			FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
 
-			switch (Type)
+			switch (Parameter.GetType())
 			{
 			case UBMT_RDG_TEXTURE:
 			case UBMT_RDG_BUFFER:
 			{
-				FRDGResource* RESTRICT Resource = *ParameterStruct.GetMemberPtrAtOffset<FRDGResource*>(Offset);
-				if (Resource)
+				if (FRDGTrackedResourceRef Resource = Parameter.GetAsTrackedResource())
 				{
 					Resource->ReferenceCount++;
 				}
@@ -468,8 +505,7 @@ void FRDGBuilder::WalkGraphDependencies()
 			break;
 			case UBMT_RDG_TEXTURE_SRV:
 			{
-				FRDGTextureSRV* RESTRICT SRV = *ParameterStruct.GetMemberPtrAtOffset<FRDGTextureSRV*>(Offset);
-				if (SRV)
+				if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
 				{
 					SRV->Desc.Texture->ReferenceCount++;
 				}
@@ -477,8 +513,7 @@ void FRDGBuilder::WalkGraphDependencies()
 			break;
 			case UBMT_RDG_TEXTURE_UAV:
 			{
-				FRDGTextureUAV* RESTRICT UAV = *ParameterStruct.GetMemberPtrAtOffset<FRDGTextureUAV*>(Offset);
-				if (UAV)
+				if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
 				{
 					UAV->Desc.Texture->ReferenceCount++;
 				}
@@ -486,8 +521,7 @@ void FRDGBuilder::WalkGraphDependencies()
 			break;
 			case UBMT_RDG_BUFFER_SRV:
 			{
-				FRDGBufferSRV* RESTRICT SRV = *ParameterStruct.GetMemberPtrAtOffset<FRDGBufferSRV*>(Offset);
-				if (SRV)
+				if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
 				{
 					SRV->Desc.Buffer->ReferenceCount++;
 				}
@@ -495,8 +529,7 @@ void FRDGBuilder::WalkGraphDependencies()
 			break;
 			case UBMT_RDG_BUFFER_UAV:
 			{
-				FRDGBufferUAV* RESTRICT UAV = *ParameterStruct.GetMemberPtrAtOffset<FRDGBufferUAV*>(Offset);
-				if (UAV)
+				if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
 				{
 					UAV->Desc.Buffer->ReferenceCount++;
 				}
@@ -504,14 +537,18 @@ void FRDGBuilder::WalkGraphDependencies()
 			break;
 			case UBMT_RENDER_TARGET_BINDING_SLOTS:
 			{
-				FRenderTargetBindingSlots* RESTRICT RenderTargets = ParameterStruct.GetMemberPtrAtOffset<FRenderTargetBindingSlots>(Offset);
+				const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
+				const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
+				const auto& RenderTargets = RenderTargetBindingSlots.Output;
+				const uint32 RenderTargetCount = RenderTargets.Num();
 
-				for (int32 i = 0; i < RenderTargets->Output.Num(); i++)
+				for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; ++RenderTargetIndex)
 				{
-					const FRenderTargetBinding& RenderTarget = RenderTargets->Output[i];
-					if (RenderTarget.GetTexture())
+					const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+
+					if (FRDGTextureRef Texture = RenderTarget.GetTexture())
 					{
-						RenderTarget.GetTexture()->ReferenceCount++;
+						Texture->ReferenceCount++;
 					}
 					else
 					{
@@ -519,10 +556,9 @@ void FRDGBuilder::WalkGraphDependencies()
 					}
 				}
 
-				const FDepthStencilBinding& DepthStencil = RenderTargets->DepthStencil;
-				if (DepthStencil.GetTexture())
+				if (FRDGTextureRef Texture = DepthStencil.GetTexture())
 				{
-					DepthStencil.GetTexture()->ReferenceCount++;
+					Texture->ReferenceCount++;
 				}
 			}
 			break;
@@ -574,7 +610,7 @@ void FRDGBuilder::AllocateRHITextureIfNeeded(FRDGTexture* Texture, bool bCompute
 		return;
 	}
 
-	check(Texture->ReferenceCount > 0 || GRenderGraphImmediateMode);
+	check(Texture->ReferenceCount > 0 || GRDGImmediateMode);
 
 	// TODO(RDG): should avoid bDoWritableBarrier = true
 	TRefCountPtr<IPooledRenderTarget>& PooledRenderTarget = AllocatedTextures.FindOrAdd(Texture);
@@ -607,30 +643,33 @@ void FRDGBuilder::AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV, bool bCompute
 	{
 		return;
 	}
-	
+
+	FRDGBufferRef Buffer = SRV->Desc.Buffer;
+
 	// The underlying buffer have already been allocated by a prior pass through AllocateRHIBufferUAVIfNeeded().
 	#if RDG_ENABLE_DEBUG
 	{
-		check(SRV->Desc.Buffer->bHasEverBeenProduced);
-	}	
+		check(Buffer->HasBeenProduced());
+	}
 	#endif
-	check(SRV->Desc.Buffer->PooledBuffer);
 
-	if (SRV->Desc.Buffer->PooledBuffer->SRVs.Contains(SRV->Desc))
+	check(Buffer->PooledBuffer);
+
+	if (Buffer->PooledBuffer->SRVs.Contains(SRV->Desc))
 	{
-		SRV->CachedRHI.SRV = SRV->Desc.Buffer->PooledBuffer->SRVs[SRV->Desc];
+		SRV->CachedRHI.SRV = Buffer->PooledBuffer->SRVs[SRV->Desc];
 		return;
 	}
 
 	FShaderResourceViewRHIRef RHIShaderResourceView;
 
-	if (SRV->Desc.Buffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
+	if (Buffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
 	{
-		RHIShaderResourceView = RHICreateShaderResourceView(SRV->Desc.Buffer->PooledBuffer->VertexBuffer, SRV->Desc.BytesPerElement, SRV->Desc.Format);
+		RHIShaderResourceView = RHICreateShaderResourceView(Buffer->PooledBuffer->VertexBuffer, SRV->Desc.BytesPerElement, SRV->Desc.Format);
 	}
-	else if (SRV->Desc.Buffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
+	else if (Buffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
 	{
-		RHIShaderResourceView = RHICreateShaderResourceView(SRV->Desc.Buffer->PooledBuffer->StructuredBuffer);
+		RHIShaderResourceView = RHICreateShaderResourceView(Buffer->PooledBuffer->StructuredBuffer);
 	}
 	else
 	{
@@ -638,7 +677,7 @@ void FRDGBuilder::AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV, bool bCompute
 	}
 
 	SRV->CachedRHI.SRV = RHIShaderResourceView;
-	SRV->Desc.Buffer->PooledBuffer->SRVs.Add(SRV->Desc, RHIShaderResourceView);
+	Buffer->PooledBuffer->SRVs.Add(SRV->Desc, RHIShaderResourceView);
 }
 
 void FRDGBuilder::AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV, bool bComputePass)
@@ -655,7 +694,7 @@ void FRDGBuilder::AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV, bool bCompute
 	// Allocate a buffer resource.
 	if (!Buffer->PooledBuffer)
 	{
-		check(Buffer->ReferenceCount > 0 || GRenderGraphImmediateMode);
+		check(Buffer->ReferenceCount > 0 || GRDGImmediateMode);
 
 		TRefCountPtr<FPooledRDGBuffer>& AllocatedBuffer = AllocatedBuffers.FindOrAdd(Buffer);
 		GRenderGraphResourcePool.FindFreeBuffer(RHICmdList, Buffer->Desc, AllocatedBuffer, Buffer->Name);
@@ -669,7 +708,7 @@ void FRDGBuilder::AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV, bool bCompute
 		return;
 	}
 
-	// Hack to make sure only one UAVs is arround.
+	// Hack to make sure only one UAVs is around.
 	Buffer->PooledBuffer->UAVs.Empty();
 
 	FUnorderedAccessViewRHIRef RHIUnorderedAccessView;
@@ -712,11 +751,11 @@ void FRDGBuilder::TransitionTexture(FRDGTexture* Texture, EResourceTransitionAcc
 {
 	const bool bRequiredWritable = TransitionAccess != EResourceTransitionAccess::EReadable;
 
-	if( Texture->bWritable != bRequiredWritable || Texture->bCompute != bRequiredCompute )
+	if (Texture->bWritable != bRequiredWritable || Texture->bCompute != bRequiredCompute)
 	{
 		FTextureRHIParamRef RHITexture = Texture->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
 
-		bool bIsMultiFrameResource = uint32(Texture->Flags) & uint32(ERDGResourceFlags::MultiFrame);
+		const bool bIsMultiFrameResource = (Texture->Flags & ERDGResourceFlags::MultiFrame) == ERDGResourceFlags::MultiFrame;
 		if (bIsMultiFrameResource && bRequiredWritable && !Texture->bWritable)
 		{
 			RHICmdList.BeginUpdateMultiFrameResource(RHITexture);
@@ -734,20 +773,20 @@ void FRDGBuilder::TransitionTexture(FRDGTexture* Texture, EResourceTransitionAcc
 	}
 }
 
-void FRDGBuilder::TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, FRDGResource* UnderlyingResource, ERDGResourceFlags ResourceFlags, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const
+void FRDGBuilder::TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, FRDGTrackedResource* UnderlyingResource, ERDGResourceFlags ResourceFlags, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const
 {
 	const bool bRequiredWritable = TransitionAccess != EResourceTransitionAccess::EReadable;
 
 	if (bRequiredWritable && UnderlyingResource->bWritable)
 	{
 		// Force a RW barrier between UAV write.
-		// TODO(RDG): allow to have no barriere in the API when multiple pass write concurrently to same resource.
+		// TODO(RDG): allow to have no barrier in the API when multiple pass write concurrently to same resource.
 		EResourceTransitionPipeline TransitionPipeline = CalcTransitionPipeline(UnderlyingResource->bCompute, bRequiredCompute);
 		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, TransitionPipeline, UAV);
 	}
 	else if(UnderlyingResource->bWritable != bRequiredWritable || UnderlyingResource->bCompute != bRequiredCompute )
 	{
-		bool bIsMultiFrameResource = uint32(ResourceFlags) & uint32(ERDGResourceFlags::MultiFrame);
+		const bool bIsMultiFrameResource = (ResourceFlags & ERDGResourceFlags::MultiFrame) == ERDGResourceFlags::MultiFrame;
 		if (bIsMultiFrameResource && bRequiredWritable && !UnderlyingResource->bWritable)
 		{
 			RHICmdList.BeginUpdateMultiFrameResource(UAV);
@@ -773,11 +812,11 @@ void FRDGBuilder::ExecutePass(const FRDGPass* Pass)
 	FRHIRenderPassInfo RPInfo;
 	bool bHasRenderTargets = false;
 
-	AllocateAndTransitionPassResources(Pass, &RPInfo, &bHasRenderTargets);
+	PrepareResourcesForExecute(Pass, &RPInfo, &bHasRenderTargets);
 	
-	if (RDG_ENABLE_DEBUG)
 	{
-		UpdateAccessGuardForPassResources(Pass, /** bAllowAccess */ true);
+		const bool bAllowAccess = true;
+		UpdateAccessGuardForPassResources(Pass, bAllowAccess);
 	}
 
 	EventScopeStack.BeginExecutePass(Pass);
@@ -792,107 +831,94 @@ void FRDGBuilder::ExecutePass(const FRDGPass* Pass)
 		UnbindRenderTargets(RHICmdList);
 	}
 	
-	// The name of the pass just for debuging convenience when crashing in the Execute().
-	const TCHAR* PassName = Pass->GetName();
-
 	Pass->Execute(RHICmdList);
 
-	if( bHasRenderTargets )
+	if (bHasRenderTargets)
 	{
 		RHICmdList.EndRenderPass();
 	}
 
 	EventScopeStack.EndExecutePass();
 
-	if (RDG_ENABLE_DEBUG)
 	{
-		UpdateAccessGuardForPassResources(Pass, /** bAllowAccess */ false);
-		WarnForUselessPassDependencies(Pass);
+		const bool bAllowAccess = false;
+		UpdateAccessGuardForPassResources(Pass, bAllowAccess);
 	}
 
+	UnmarkUsedResources(Pass);
+
 	// Can't release resources with immediate mode, because don't know if whether they are gonna be used.
-	if (!GRenderGraphImmediateMode)
+	if (!GRDGImmediateMode)
 	{
-		ReleaseUnecessaryResources(Pass);
+		ReleaseUnreferencedResources(Pass);
 	}
 }
 
-void FRDGBuilder::AllocateAndTransitionPassResources(const FRDGPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasRenderTargets)
+void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasRenderTargets)
 {
-	bool bIsCompute = Pass->IsCompute();
-	FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
-
 	OutRPInfo->NumUAVs = 0;
 	OutRPInfo->UAVIndex = 0;
 
+	const bool bIsCompute = Pass->IsCompute();
 	const bool bGeneratingMips = (Pass->GetFlags() & ERDGPassFlags::GenerateMips) == ERDGPassFlags::GenerateMips;
-	for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
-	{
-		EUniformBufferBaseType Type = ParameterStruct.Layout->Resources[ResourceIndex].MemberType;
-		uint16 Offset = ParameterStruct.Layout->Resources[ResourceIndex].MemberOffset;
 
-		switch (Type)
+	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
+
+	const uint32 ParameterCount = ParameterStruct.GetParameterCount();
+
+	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+	{
+		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
+
+		switch (Parameter.GetType())
 		{
 		case UBMT_RDG_TEXTURE:
 		{
-			FRDGTexture* RESTRICT Texture = *ParameterStruct.GetMemberPtrAtOffset<FRDGTexture*>(Offset);
-			if (Texture)
+			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
 			{
 				// The underlying texture have already been allocated by a prior pass.
 				#if RDG_ENABLE_DEBUG
 				{
-					check(Texture->bHasEverBeenProduced);
-				}	
+					check(Texture->HasBeenProduced());
+					Texture->PassAccessCount++;
+				}
 				#endif
+
 				check(Texture->PooledRenderTarget);
 				check(Texture->CachedRHI.Resource);
 				TransitionTexture(Texture, EResourceTransitionAccess::EReadable, bIsCompute);
-
-				#if RDG_ENABLE_DEBUG
-				{
-					Texture->DebugPassAccessCount++;
-				}
-				#endif
 			}
 		}
 		break;
 		case UBMT_RDG_TEXTURE_SRV:
 		{
-			FRDGTextureSRV* RESTRICT SRV = *ParameterStruct.GetMemberPtrAtOffset<FRDGTextureSRV*>(Offset);
-			if (SRV)
+			if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
 			{
+				FRDGTextureRef Texture = SRV->Desc.Texture;
+
 				// The underlying texture have already been allocated by a prior pass.
-				check(SRV->Desc.Texture);
 				#if RDG_ENABLE_DEBUG
 				{
-					check(SRV->Desc.Texture->bHasEverBeenProduced);
-				}	
+					check(Texture->HasBeenProduced());
+					Texture->PassAccessCount++;
+				}
 				#endif
-				check(SRV->Desc.Texture->PooledRenderTarget);
 
 				// Might be the first time using this render graph SRV, so need to setup the cached rhi resource.
 				if (!SRV->CachedRHI.SRV)
 				{
-					SRV->CachedRHI.SRV = SRV->Desc.Texture->PooledRenderTarget->GetRenderTargetItem().MipSRVs[SRV->Desc.MipLevel];
+					SRV->CachedRHI.SRV = Texture->PooledRenderTarget->GetRenderTargetItem().MipSRVs[SRV->Desc.MipLevel];
 				}
 
-				TransitionTexture(SRV->Desc.Texture, EResourceTransitionAccess::EReadable, bIsCompute);
-
-				#if RDG_ENABLE_DEBUG
-				{
-					SRV->Desc.Texture->DebugPassAccessCount++;
-				}
-				#endif
+				TransitionTexture(Texture, EResourceTransitionAccess::EReadable, bIsCompute);
 			}
 		}
 		break;
 		case UBMT_RDG_TEXTURE_UAV:
 		{
-			FRDGTextureUAV* RESTRICT UAV = *ParameterStruct.GetMemberPtrAtOffset<FRDGTextureUAV*>(Offset);
-			if (UAV)
+			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
 			{
-				AllocateRHITextureUAVIfNeeded(UAV, bIsCompute);
-				TransitionUAV(UAV->CachedRHI.UAV, UAV->Desc.Texture, UAV->Desc.Texture->Flags, EResourceTransitionAccess::EWritable, bIsCompute);
+				FRDGTextureRef Texture = UAV->Desc.Texture;
 
 				if (!bIsCompute)
 				{
@@ -901,74 +927,64 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRDGPass* Pass, struc
 
 				#if RDG_ENABLE_DEBUG
 				{
-					UAV->Desc.Texture->DebugPassAccessCount++;
+					Texture->PassAccessCount++;
 				}
 				#endif
+
+				AllocateRHITextureUAVIfNeeded(UAV, bIsCompute);
+				TransitionUAV(UAV->CachedRHI.UAV, Texture, Texture->Flags, EResourceTransitionAccess::EWritable, bIsCompute);
 			}
 		}
 		break;
 		case UBMT_RDG_BUFFER:
 		{
-			FRDGBuffer* RESTRICT Buffer = *ParameterStruct.GetMemberPtrAtOffset<FRDGBuffer*>(Offset);
-			if (Buffer)
+			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
 			{
 				// The underlying buffer have already been allocated by a prior pass through AllocateRHIBufferUAVIfNeeded().
 				#if RDG_ENABLE_DEBUG
 				{
-					check(Buffer->bHasEverBeenProduced);
+					check(Buffer->HasBeenProduced());
+					Buffer->PassAccessCount++;
 				}
 				#endif
-				check(Buffer->PooledBuffer);
 
-				// TODO(RDG): supper hacky, find the UAV and transition it. Hopefully there is one...
+				// TODO(RDG): super hacky, find the UAV and transition it. Hopefully there is one...
+				check(Buffer->PooledBuffer);
 				check(Buffer->PooledBuffer->UAVs.Num() == 1);
 				FUnorderedAccessViewRHIParamRef UAV = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
 				TransitionUAV(UAV, Buffer, Buffer->Flags, EResourceTransitionAccess::EReadable, bIsCompute);
-
-				#if RDG_ENABLE_DEBUG
-				{
-					Buffer->DebugPassAccessCount++;
-				}
-				#endif
 			}
 		}
 		break;
 		case UBMT_RDG_BUFFER_SRV:
 		{
-			FRDGBufferSRV* RESTRICT SRV = *ParameterStruct.GetMemberPtrAtOffset<FRDGBufferSRV*>(Offset);
-			if (SRV)
+			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
 			{
+				FRDGBufferRef Buffer = SRV->Desc.Buffer;
+
 				// The underlying buffer have already been allocated by a prior pass through AllocateRHIBufferUAVIfNeeded().
-				check(SRV->Desc.Buffer);
 				#if RDG_ENABLE_DEBUG
 				{
-					check(SRV->Desc.Buffer->bHasEverBeenProduced);
+					check(Buffer->HasBeenProduced());
+					Buffer->PassAccessCount++;
 				}
 				#endif
-				check(SRV->Desc.Buffer->PooledBuffer);
-				
+
+				// TODO(RDG): super hacky, find the UAV and transition it. Hopefully there is one...
+				check(Buffer->PooledBuffer);
+				check(Buffer->PooledBuffer->UAVs.Num() == 1);
+				FUnorderedAccessViewRHIParamRef UAV = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
+
 				AllocateRHIBufferSRVIfNeeded(SRV, bIsCompute);
-
-				// TODO(RDG): supper hacky, find the UAV and transition it. Hopefully there is one...
-				check(SRV->Desc.Buffer->PooledBuffer->UAVs.Num() == 1);
-				FUnorderedAccessViewRHIParamRef UAV = SRV->Desc.Buffer->PooledBuffer->UAVs.CreateIterator().Value();
-				TransitionUAV(UAV, SRV->Desc.Buffer, SRV->Desc.Buffer->Flags, EResourceTransitionAccess::EReadable, bIsCompute);
-
-				#if RDG_ENABLE_DEBUG
-				{
-					SRV->Desc.Buffer->DebugPassAccessCount++;
-				}
-				#endif
+				TransitionUAV(UAV, Buffer, Buffer->Flags, EResourceTransitionAccess::EReadable, bIsCompute);
 			}
 		}
 		break;
 		case UBMT_RDG_BUFFER_UAV:
 		{
-			FRDGBufferUAV* RESTRICT UAV = *ParameterStruct.GetMemberPtrAtOffset<FRDGBufferUAV*>(Offset);
-			if (UAV)
+			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
 			{
-				AllocateRHIBufferUAVIfNeeded(UAV, bIsCompute);
-				TransitionUAV(UAV->CachedRHI.UAV, UAV->Desc.Buffer, UAV->Desc.Buffer->Flags, EResourceTransitionAccess::EWritable, bIsCompute);
+				FRDGBufferRef Buffer = UAV->Desc.Buffer;
 
 				if (!bIsCompute)
 				{
@@ -977,9 +993,12 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRDGPass* Pass, struc
 				
 				#if RDG_ENABLE_DEBUG
 				{
-					UAV->Desc.Buffer->DebugPassAccessCount++;
+					Buffer->PassAccessCount++;
 				}
 				#endif
+
+				AllocateRHIBufferUAVIfNeeded(UAV, bIsCompute);
+				TransitionUAV(UAV->CachedRHI.UAV, Buffer, Buffer->Flags, EResourceTransitionAccess::EWritable, bIsCompute);
 			}
 		}
 		break;
@@ -987,38 +1006,44 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRDGPass* Pass, struc
 		{
 			check(!bIsCompute);
 
-			FRenderTargetBindingSlots* RESTRICT RenderTargets = ParameterStruct.GetMemberPtrAtOffset<FRenderTargetBindingSlots>(Offset);
+			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
+			const auto& RenderTargets = RenderTargetBindingSlots.Output;
+			const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
+			const uint32 RenderTargetCount = RenderTargets.Num();
 
-			uint32 NumRenderTargets = 0;
-			uint32 NumDepthStencilTargets = 0;
-			uint32 NumSamples = 0;
+			uint32 ValidRenderTargetCount = 0;
+			uint32 ValidDepthStencilCount = 0;
+			uint32 SampleCount = 0;
 
-			for (int32 i = 0; i < RenderTargets->Output.Num(); i++)
+			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; RenderTargetIndex++)
 			{
-				const FRenderTargetBinding& RenderTarget = RenderTargets->Output[i];
-				if (RenderTarget.GetTexture())
+				const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+
+				if (FRDGTextureRef Texture = RenderTarget.GetTexture())
 				{
-					AllocateRHITextureIfNeeded(RenderTarget.GetTexture(), false);
+					AllocateRHITextureIfNeeded(Texture, bIsCompute);
+
+					auto& OutRenderTarget = OutRPInfo->ColorRenderTargets[RenderTargetIndex];
 
 					// TODO(RDG): should force TargetableTexture == ShaderResourceTexture with MSAA, and instead have an explicit MSAA resolve pass.
-					OutRPInfo->ColorRenderTargets[i].RenderTarget = RenderTarget.GetTexture()->PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
-					OutRPInfo->ColorRenderTargets[i].ResolveTarget = nullptr;
-					OutRPInfo->ColorRenderTargets[i].ArraySlice = -1;
-					OutRPInfo->ColorRenderTargets[i].MipIndex = RenderTarget.GetMipIndex();
-					OutRPInfo->ColorRenderTargets[i].Action = MakeRenderTargetActions(RenderTarget.GetLoadAction(), RenderTarget.GetStoreAction());
+					OutRenderTarget.RenderTarget = Texture->PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
+					OutRenderTarget.ResolveTarget = nullptr;
+					OutRenderTarget.ArraySlice = -1;
+					OutRenderTarget.MipIndex = RenderTarget.GetMipIndex();
+					OutRenderTarget.Action = MakeRenderTargetActions(RenderTarget.GetLoadAction(), RenderTarget.GetStoreAction());
 
 					if (!bGeneratingMips)
 					{
 						// Implicit assurance the RHI will do the correct transitions
-						TransitionTexture(RenderTarget.GetTexture(), EResourceTransitionAccess::EWritable, false);
+						TransitionTexture(Texture, EResourceTransitionAccess::EWritable, bIsCompute);
 					}
 
-					NumSamples |= OutRPInfo->ColorRenderTargets[i].RenderTarget->GetNumSamples();
-					NumRenderTargets++;
-					
+					SampleCount |= OutRenderTarget.RenderTarget->GetNumSamples();
+					ValidRenderTargetCount++;
+
 					#if RDG_ENABLE_DEBUG
 					{
-						RenderTarget.GetTexture()->DebugPassAccessCount++;
+						Texture->PassAccessCount++;
 					}
 					#endif
 				}
@@ -1028,35 +1053,37 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRDGPass* Pass, struc
 				}
 			}
 
-			OutRPInfo->UAVIndex = NumRenderTargets;
+			OutRPInfo->UAVIndex = ValidRenderTargetCount;
 
-			const FDepthStencilBinding& DepthStencil = RenderTargets->DepthStencil;
-			if (DepthStencil.GetTexture())
+			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
+
 			{
-				AllocateRHITextureIfNeeded(DepthStencil.GetTexture(), false);
+				AllocateRHITextureIfNeeded(Texture, false);
 
-				OutRPInfo->DepthStencilRenderTarget.DepthStencilTarget = DepthStencil.GetTexture()->PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
-				OutRPInfo->DepthStencilRenderTarget.ResolveTarget = nullptr;
-				OutRPInfo->DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(
+				auto& OutDepthStencil = OutRPInfo->DepthStencilRenderTarget;
+
+				OutDepthStencil.DepthStencilTarget = Texture->PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
+				OutDepthStencil.ResolveTarget = nullptr;
+				OutDepthStencil.Action = MakeDepthStencilTargetActions(
 					MakeRenderTargetActions(DepthStencil.GetDepthLoadAction(), DepthStencil.GetDepthStoreAction()),
 					MakeRenderTargetActions(DepthStencil.GetStencilLoadAction(), DepthStencil.GetStencilStoreAction()));
-				OutRPInfo->DepthStencilRenderTarget.ExclusiveDepthStencil = DepthStencil.GetDepthStencilAccess();
+				OutDepthStencil.ExclusiveDepthStencil = DepthStencil.GetDepthStencilAccess();
 
-				TransitionTexture(DepthStencil.GetTexture(), EResourceTransitionAccess::EWritable, false);
+				TransitionTexture(Texture, EResourceTransitionAccess::EWritable, bIsCompute);
 
-				NumSamples |= OutRPInfo->DepthStencilRenderTarget.DepthStencilTarget->GetNumSamples();
-				NumDepthStencilTargets++;
-					
+				SampleCount |= OutDepthStencil.DepthStencilTarget->GetNumSamples();
+				ValidDepthStencilCount++;
+
 				#if RDG_ENABLE_DEBUG
 				{
-					DepthStencil.GetTexture()->DebugPassAccessCount++;
+					Texture->PassAccessCount++;
 				}
 				#endif
 			}
 
-			OutRPInfo->bIsMSAA = NumSamples > 1;
+			OutRPInfo->bIsMSAA = SampleCount > 1;
 
-			*bOutHasRenderTargets = NumRenderTargets + NumDepthStencilTargets > 0;
+			*bOutHasRenderTargets = ValidRenderTargetCount + ValidDepthStencilCount > 0;
 		}
 		break;
 		default:
@@ -1067,124 +1094,122 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRDGPass* Pass, struc
 	OutRPInfo->bGeneratingMips = bGeneratingMips;
 }
 
-// static
 void FRDGBuilder::UpdateAccessGuardForPassResources(const FRDGPass* Pass, bool bAllowAccess)
 {
 #if RDG_ENABLE_DEBUG
-	FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
+	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
 
-	for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
+	const uint32 ParameterCount = ParameterStruct.GetParameterCount();
+
+	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
 	{
-		EUniformBufferBaseType Type = ParameterStruct.Layout->Resources[ResourceIndex].MemberType;
-		uint16 Offset = ParameterStruct.Layout->Resources[ResourceIndex].MemberOffset;
+		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
 
-		if (IsRDGResourceReferenceShaderParameterType(Type))
+		if (Parameter.IsResource())
 		{
-			FRDGResource* RESTRICT Resource = *ParameterStruct.GetMemberPtrAtOffset<FRDGResource*>(Offset);
-			if (Resource)
-				Resource->bAllowAccessToRHIResource = bAllowAccess;
-		}
-		else if (Type == UBMT_RENDER_TARGET_BINDING_SLOTS)
-		{
-			FRenderTargetBindingSlots* RESTRICT RenderTargets = ParameterStruct.GetMemberPtrAtOffset<FRenderTargetBindingSlots>(Offset);
-
-			for (int32 i = 0; i < RenderTargets->Output.Num(); i++)
+			if (FRDGResourceRef Resource = Parameter.GetAsResource())
 			{
-				FRDGTexture* Texture = RenderTargets->Output[i].GetTexture();
-				if (Texture)
-					Texture->bAllowAccessToRHIResource = bAllowAccess;
+				Resource->bAllowRHIAccess = bAllowAccess;
+			}
+		}
+		else if (Parameter.GetType() == UBMT_RENDER_TARGET_BINDING_SLOTS)
+		{
+			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
+			const auto& RenderTargets = RenderTargetBindingSlots.Output;
+			const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
+			const uint32 RenderTargetCount = RenderTargets.Num();
+
+			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; RenderTargetIndex++)
+			{
+				const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+
+				if (FRDGTextureRef Texture = RenderTarget.GetTexture())
+				{
+					Texture->bAllowRHIAccess = bAllowAccess;
+				}
 				else
+				{
 					break;
+				}
 			}
 			
-			const FDepthStencilBinding& DepthStencil = RenderTargets->DepthStencil;
-			if (DepthStencil.GetTexture())
+			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
 			{
-				DepthStencil.GetTexture()->bAllowAccessToRHIResource = bAllowAccess;
+				Texture->bAllowRHIAccess = bAllowAccess;
 			}
 		}
 	}
 #endif
 }
 
-// static 
-void FRDGBuilder::WarnForUselessPassDependencies(const FRDGPass* Pass)
+void FRDGBuilder::UnmarkUsedResources(const FRDGPass* Pass)
 {
-	if (!GRenderGraphEmitWarnings)
+#if RDG_ENABLE_DEBUG
+	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
+
+	const uint32 ParameterCount = ParameterStruct.GetParameterCount();
+
+	if (GRDGEmitWarnings)
 	{
-		return;
-	}
+		uint32 TrackedResourceCount = 0;
+		uint32 UsedResourceCount = 0;
 
-	FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
-
-	int32 TrackedResourceCount = 0;
-	int32 UsedResourceCount = 0;
-
-	// First pass to count resources.
-	for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
-	{
-		EUniformBufferBaseType Type = ParameterStruct.Layout->Resources[ResourceIndex].MemberType;
-		uint16 Offset = ParameterStruct.Layout->Resources[ResourceIndex].MemberOffset;
-
-		if (!IsRDGResourceReferenceShaderParameterType(Type))
-			continue;
-
-		const FRDGResource* Resource = *ParameterStruct.GetMemberPtrAtOffset<const FRDGResource*>(Offset);
-
-		if (!Resource)
-			continue;
-
-		TrackedResourceCount++;
-		UsedResourceCount += Resource->bIsActuallyUsedByPass ? 1 : 0;
-	}
-
-	if (TrackedResourceCount != UsedResourceCount)
-	{
-		FString WarningMessage = FString::Printf(
-			TEXT("%i of the %i resources of the pass %s where not actually used."),
-			TrackedResourceCount - UsedResourceCount, TrackedResourceCount, Pass->GetName());
-
-		for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
+		for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
 		{
-			EUniformBufferBaseType Type = ParameterStruct.Layout->Resources[ResourceIndex].MemberType;
-			uint16 Offset = ParameterStruct.Layout->Resources[ResourceIndex].MemberOffset;
+			FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
 
-			if (!IsRDGResourceReferenceShaderParameterType(Type))
-				continue;
-
-			const FRDGResource* Resource = *ParameterStruct.GetMemberPtrAtOffset<const FRDGResource*>(Offset);
-
-			if (!Resource)
-				continue;
-
-			if (!Resource->bIsActuallyUsedByPass)
+			if (Parameter.IsResource())
 			{
-				WarningMessage += FString::Printf(TEXT("\n    %s"), Resource->Name);
+				if (FRDGResourceRef Resource = Parameter.GetAsResource())
+				{
+					TrackedResourceCount++;
+					UsedResourceCount += Resource->bIsActuallyUsedByPass ? 1 : 0;
+				}
 			}
 		}
 
-		EmitRenderGraphWarning(WarningMessage);
+		if (TrackedResourceCount != UsedResourceCount)
+		{
+			FString WarningMessage = FString::Printf(
+				TEXT("'%d' of the '%d' resources of the pass '%s' where not actually used."),
+				TrackedResourceCount - UsedResourceCount, TrackedResourceCount, Pass->GetName());
+
+			for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+			{
+				FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
+
+				if (Parameter.IsResource())
+				{
+					if (const FRDGResourceRef Resource = Parameter.GetAsResource())
+					{
+						if (!Resource->bIsActuallyUsedByPass)
+						{
+							WarningMessage += FString::Printf(TEXT("\n    %s"), Resource->Name);
+						}
+					}
+				}
+			}
+
+			EmitRDGWarning(WarningMessage);
+		}
 	}
 
-	// Last pass to clean the bIsActuallyUsedByPass flags.
-	for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
+	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
 	{
-		EUniformBufferBaseType Type = ParameterStruct.Layout->Resources[ResourceIndex].MemberType;
-		uint16 Offset = ParameterStruct.Layout->Resources[ResourceIndex].MemberOffset;
+		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
 
-		if (!IsRDGResourceReferenceShaderParameterType(Type))
-			continue;
-
-		FRDGResource* Resource = *ParameterStruct.GetMemberPtrAtOffset<FRDGResource*>(Offset);
-
-		if (!Resource)
-			continue;
-
-		Resource->bIsActuallyUsedByPass = false;
+		if (Parameter.IsResource())
+		{
+			if (const FRDGResourceRef Resource = Parameter.GetAsResource())
+			{
+				Resource->bIsActuallyUsedByPass = false;
+			}
+		}
 	}
+#endif
 }
 
-void FRDGBuilder::ReleaseRHITextureIfPossible(FRDGTexture* Texture)
+void FRDGBuilder::ReleaseRHITextureIfUnreferenced(FRDGTexture* Texture)
 {
 	check(Texture->ReferenceCount > 0);
 	Texture->ReferenceCount--;
@@ -1197,7 +1222,7 @@ void FRDGBuilder::ReleaseRHITextureIfPossible(FRDGTexture* Texture)
 	}
 }
 
-void FRDGBuilder::ReleaseRHIBufferIfPossible(FRDGBuffer* Buffer)
+void FRDGBuilder::ReleaseRHIBufferIfUnreferenced(FRDGBuffer* Buffer)
 {
 	check(Buffer->ReferenceCount > 0);
 	Buffer->ReferenceCount--;
@@ -1210,92 +1235,90 @@ void FRDGBuilder::ReleaseRHIBufferIfPossible(FRDGBuffer* Buffer)
 	}
 }
 
-void FRDGBuilder::ReleaseUnecessaryResources(const FRDGPass* Pass)
+void FRDGBuilder::ReleaseUnreferencedResources(const FRDGPass* Pass)
 {
-	FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
+	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
 
-	/** Increments all the FRDGResource::ReferenceCount. */
-	// TODO(RDG): Investigate the cost of branch miss-prediction.
-	for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
+	const uint32 ParameterCount = ParameterStruct.GetParameterCount();
+
+	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
 	{
-		EUniformBufferBaseType Type = ParameterStruct.Layout->Resources[ResourceIndex].MemberType;
-		uint16 Offset = ParameterStruct.Layout->Resources[ResourceIndex].MemberOffset;
+		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
 
-		switch (Type)
+		switch (Parameter.GetType())
 		{
 		case UBMT_RDG_TEXTURE:
 		{
-			FRDGTexture* RESTRICT Texture = *ParameterStruct.GetMemberPtrAtOffset<FRDGTexture*>(Offset);
-			if (Texture)
+			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
 			{
-				ReleaseRHITextureIfPossible(Texture);
+				ReleaseRHITextureIfUnreferenced(Texture);
 			}
 		}
 		break;
 		case UBMT_RDG_TEXTURE_SRV:
 		{
-			FRDGTextureSRV* RESTRICT SRV = *ParameterStruct.GetMemberPtrAtOffset<FRDGTextureSRV*>(Offset);
-			if (SRV)
+			if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
 			{
-				ReleaseRHITextureIfPossible(SRV->Desc.Texture);
+				ReleaseRHITextureIfUnreferenced(SRV->Desc.Texture);
 			}
 		}
 		break;
 		case UBMT_RDG_TEXTURE_UAV:
 		{
-			FRDGTextureUAV* RESTRICT UAV = *ParameterStruct.GetMemberPtrAtOffset<FRDGTextureUAV*>(Offset);
-			if (UAV)
+			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
 			{
-				ReleaseRHITextureIfPossible(UAV->Desc.Texture);
+				ReleaseRHITextureIfUnreferenced(UAV->Desc.Texture);
 			}
 		}
 		break;
 		case UBMT_RDG_BUFFER:
 		{
-			FRDGBuffer* RESTRICT Buffer = *ParameterStruct.GetMemberPtrAtOffset<FRDGBuffer*>(Offset);
-			if (Buffer)
+			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
 			{
-				ReleaseRHIBufferIfPossible(Buffer);
+				ReleaseRHIBufferIfUnreferenced(Buffer);
 			}
 		}
 		break;
 		case UBMT_RDG_BUFFER_SRV:
 		{
-			FRDGBufferSRV* RESTRICT SRV = *ParameterStruct.GetMemberPtrAtOffset<FRDGBufferSRV*>(Offset);
-			if (SRV)
+			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
 			{
-				ReleaseRHIBufferIfPossible(SRV->Desc.Buffer);
+				ReleaseRHIBufferIfUnreferenced(SRV->Desc.Buffer);
 			}
 		}
 		break;
 		case UBMT_RDG_BUFFER_UAV:
 		{
-			FRDGBufferUAV* RESTRICT UAV = *ParameterStruct.GetMemberPtrAtOffset<FRDGBufferUAV*>(Offset);
-			if (UAV)
+			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
 			{
-				ReleaseRHIBufferIfPossible(UAV->Desc.Buffer);
+				ReleaseRHIBufferIfUnreferenced(UAV->Desc.Buffer);
 			}
 		}
 		break;
 		case UBMT_RENDER_TARGET_BINDING_SLOTS:
 		{
-			FRenderTargetBindingSlots* RESTRICT RenderTargets = ParameterStruct.GetMemberPtrAtOffset<FRenderTargetBindingSlots>(Offset);
+			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
+			const auto& RenderTargets = RenderTargetBindingSlots.Output;
+			const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
+			const uint32 RenderTargetCount = RenderTargets.Num();
 
-			for (int32 i = 0; i < RenderTargets->Output.Num(); i++)
+			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; RenderTargetIndex++)
 			{
-				const FRenderTargetBinding& RenderTarget = RenderTargets->Output[i];
-				if (RenderTarget.GetTexture())
+				const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+
+				if (FRDGTextureRef Texture = RenderTarget.GetTexture())
 				{
-					ReleaseRHITextureIfPossible(RenderTarget.GetTexture());
+					ReleaseRHITextureIfUnreferenced(Texture);
 				}
 				else
 				{
 					break;
 				}
 			}
-			if (RenderTargets->DepthStencil.GetTexture())
+
+			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
 			{
-				ReleaseRHITextureIfPossible(RenderTargets->DepthStencil.GetTexture());
+				ReleaseRHITextureIfUnreferenced(Texture);
 			}
 		}
 		break;
@@ -1322,14 +1345,14 @@ void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 		{
 			// Increment the number of times the texture has been accessed to avoid warning on produced but never used resources that were produced
 			// only to be extracted for the graph.
-			Query.Texture->DebugPassAccessCount += 1;
+			Query.Texture->PassAccessCount += 1;
 		}
 		#endif
 
 		// No need to manually release in immediate mode, since it is done directly when emptying AllocatedTextures in DestructPasses().
-		if (!GRenderGraphImmediateMode)
+		if (!GRDGImmediateMode)
 		{
-			ReleaseRHITextureIfPossible(Query.Texture);
+			ReleaseRHITextureIfUnreferenced(Query.Texture);
 		}
 	}
 
@@ -1337,18 +1360,18 @@ void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 	{
 		*Query.OutBufferPtr = AllocatedBuffers.FindChecked(Query.Buffer);
 
-#if RDG_ENABLE_DEBUG
+		#if RDG_ENABLE_DEBUG
 		{
 			// Increment the number of times the buffer has been accessed to avoid warning on produced but never used resources that were produced
 			// only to be extracted for the graph.
-			Query.Buffer->DebugPassAccessCount += 1;
+			Query.Buffer->PassAccessCount += 1;
 		}
-#endif
+		#endif
 
 		// No need to manually release in immediate mode, since it is done directly when emptying AllocatedBuffer in DestructPasses().
-		if (!GRenderGraphImmediateMode)
+		if (!GRDGImmediateMode)
 		{
-			ReleaseRHIBufferIfPossible(Query.Buffer);
+			ReleaseRHIBufferIfUnreferenced(Query.Buffer);
 		}
 	}
 }
@@ -1357,32 +1380,34 @@ void FRDGBuilder::DestructPasses()
 {
 	#if RDG_ENABLE_DEBUG
 	{
-		// Make sure all resource references have been released to ensure no leaks happen,
-		// and emit warning if produced resource has not been used.
-		for (const FRDGResource* Resource : Resources)
+		const bool bEmitWarnings = GRDGEmitWarnings;
+
+		for (const FRDGTrackedResourceRef Resource : TrackedResources)
 		{
 			check(Resource->ReferenceCount == 0);
 
-			if (GRenderGraphEmitWarnings && Resource->DebugPassAccessCount == 1 && Resource->DebugFirstProducer)
-			{
-				check(Resource->bHasEverBeenProduced);
+			const bool bProducedButNeverUsed = Resource->PassAccessCount == 1 && Resource->FirstProducer;
 
-				EmitRenderGraphWarningf(
+			if (bEmitWarnings && bProducedButNeverUsed)
+			{
+				check(Resource->HasBeenProduced());
+
+				EmitRDGWarningf(
 					TEXT("Resources %s has been produced by the pass %s, but never used by another pass."),
-					Resource->Name, Resource->DebugFirstProducer->GetName());
+					Resource->Name, Resource->FirstProducer->GetName());
 			}
 		}
-		Resources.Empty();
+
+		TrackedResources.Empty();
 	}
 	#endif
 
-	// Passes are allocated on FMemStack, so need to call destructor manually.
-	for (int32 Index = Passes.Num() - 1; Index >= 0; --Index)
+	for (int32 PassIndex = Passes.Num() - 1; PassIndex >= 0; --PassIndex)
 	{
-		Passes[Index]->~FRDGPass();
+		Passes[PassIndex]->~FRDGPass();
 	}
-
 	Passes.Empty();
+
 	DeferredInternalTextureQueries.Empty();
 	DeferredInternalBufferQueries.Empty();
 	AllocatedTextures.Empty();
@@ -1397,13 +1422,4 @@ void FRDGBuilder::BeginEventScope(FRDGEventName&& ScopeName)
 void FRDGBuilder::EndEventScope()
 {
 	EventScopeStack.EndEventScope();
-}
-
-FRDGBuilder::~FRDGBuilder()
-{
-	#if RDG_ENABLE_DEBUG
-	{
-		checkf(bHasExecuted, TEXT("Render graph execution is required to ensure consistency with immediate mode."));
-	}
-	#endif
 }
