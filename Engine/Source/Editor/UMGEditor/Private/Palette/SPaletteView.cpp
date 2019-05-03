@@ -303,7 +303,7 @@ void SPaletteView::OnViewModelUpdated()
 	{
 		for (TSharedPtr<FWidgetViewModel>& ViewModel : PaletteViewModel->GetWidgetViewModels())
 		{
-			if (ViewModel->GetName().EqualTo(ExpandedItem->GetName()))
+			if (ViewModel->GetName().EqualTo(ExpandedItem->GetName()) || ViewModel->ShouldForceExpansion())
 			{
 				WidgetTemplatesView->SetItemExpansion(ViewModel, true);
 			}

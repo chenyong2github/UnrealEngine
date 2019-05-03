@@ -104,6 +104,9 @@ FPaletteViewModel::FPaletteViewModel(TSharedPtr<FWidgetBlueprintEditor> InBluepr
 	: bRebuildRequested(true)
 {
 	BlueprintEditor = InBlueprintEditor;
+
+	FavoriteHeader = MakeShareable(new FWidgetHeaderViewModel());
+	FavoriteHeader->GroupName = LOCTEXT("Favorites", "Favorites");
 }
 
 void FPaletteViewModel::RegisterToEvents()
@@ -176,9 +179,9 @@ void FPaletteViewModel::BuildWidgetList()
 	// Generate a list of templates
 	BuildClassWidgetList();
 
-	// Build the Favorite section
-	TSharedPtr<FWidgetHeaderViewModel> FavoriteHeader = MakeShareable(new FWidgetHeaderViewModel());
-	FavoriteHeader->GroupName = LOCTEXT("Favorites", "Favorites");
+	// Clear the Favorite section
+	bool bHasFavorites = FavoriteHeader->Children.Num() != 0;
+	FavoriteHeader->Children.Reset();
 	
 	// Copy of the list of favorites to be able to do some cleanup in the real list
 	UWidgetPaletteFavorites* FavoritesPalette = GetDefault<UWidgetDesignerSettings>()->Favorites;
@@ -234,6 +237,8 @@ void FPaletteViewModel::BuildWidgetList()
 	// Add the Favorite section at the top
 	if (FavoriteHeader->Children.Num() != 0)
 	{
+		// We force expansion of the favorite header when we add favorites for the first time.
+		FavoriteHeader->SetForceExpansion(!bHasFavorites);
 		FavoriteHeader->Children.Sort([](TSharedPtr<FWidgetViewModel> L, TSharedPtr<FWidgetViewModel> R) { return R->GetName().CompareTo(L->GetName()) > 0; });
 		WidgetViewModels.Insert(FavoriteHeader, 0);
 	}

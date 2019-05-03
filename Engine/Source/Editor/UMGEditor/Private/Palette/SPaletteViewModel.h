@@ -40,6 +40,8 @@ public:
 	virtual void SetFavorite()
 	{
 	}
+
+	virtual bool ShouldForceExpansion() const { return false; }
 };
 
 class FWidgetTemplateViewModel : public FWidgetViewModel
@@ -103,8 +105,16 @@ public:
 
 	virtual void GetChildren(TArray< TSharedPtr<FWidgetViewModel> >& OutChildren) override;
 
+	virtual bool ShouldForceExpansion() const { return bForceExpansion; }
+
+	void SetForceExpansion(bool bInForceExpansion) { bForceExpansion = bInForceExpansion; }
+
 	FText GroupName;
 	TArray< TSharedPtr<FWidgetViewModel> > Children;
+
+private:
+
+	bool bForceExpansion = false;
 };
 
 class FPaletteViewModel: public TSharedFromThis<FPaletteViewModel>
@@ -184,5 +194,7 @@ private:
 	bool bRebuildRequested;
 
 	FText SearchText;
+
+	TSharedPtr<FWidgetHeaderViewModel> FavoriteHeader;
 };
 
