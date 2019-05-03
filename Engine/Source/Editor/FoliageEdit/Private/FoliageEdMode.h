@@ -462,8 +462,14 @@ public:
 	/** Find and select instances that don't have valid base or 'off-ground' */
 	void SelectInvalidInstances(const UFoliageType* Settings);
 
-	/** Adjusts the radius of the foliage brush by the specified amount */
-	void AdjustBrushRadius(float Adjustment);
+	/** Adjusts the radius of the foliage brush, using the given multiplier to adjust speed */
+	void AdjustBrushRadius(float Multiplier);
+
+	/** Adjusts the painting density of the foliage brush, using the given multiplier to adjust speed */
+	void AdjustPaintDensity(float Multiplier);
+
+	/** Adjusts the unpainting (erasing) density of the foliage brush, using the given multiplier to adjust speed */
+	void AdjustUnpaintDensity(float Multiplier);
 
 	/** Add desired instances. Uses foliage settings to determine location/scale/rotation and whether instances should be ignored */
 	static void AddInstances(UWorld* InWorld, const TArray<FDesiredFoliageInstance>& DesiredInstances, const FFoliagePaintingGeometryFilter& OverrideGeometryFilter, bool InRebuildFoliageTree = true);

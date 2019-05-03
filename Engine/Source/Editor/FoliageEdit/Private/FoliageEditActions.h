@@ -31,6 +31,12 @@ public:
 	TSharedPtr< FUICommandInfo > IncreaseBrushSize;
 	TSharedPtr< FUICommandInfo > DecreaseBrushSize;
 
+	TSharedPtr< FUICommandInfo > IncreasePaintDensity;
+	TSharedPtr< FUICommandInfo > DecreasePaintDensity;
+
+	TSharedPtr< FUICommandInfo > IncreaseUnpaintDensity;
+	TSharedPtr< FUICommandInfo > DecreaseUnpaintDensity;
+
 	/** Commands for the tools toolbar. */
 	TSharedPtr< FUICommandInfo > SetPaint;
 	TSharedPtr< FUICommandInfo > SetReapplySettings;
