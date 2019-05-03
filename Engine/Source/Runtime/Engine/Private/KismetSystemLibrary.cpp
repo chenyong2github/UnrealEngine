@@ -429,7 +429,7 @@ FTimerHandle UKismetSystemLibrary::K2_SetTimerDelegate(FTimerDynamicDelegate Del
 
 			FTimerManager& TimerManager = World->GetTimerManager();
 			Handle = TimerManager.K2_FindDynamicTimerHandle(Delegate);
-			TimerManager.SetTimer(Handle, Delegate, Time, bLooping, InitialStartDelay);
+			TimerManager.SetTimer(Handle, Delegate, Time, bLooping, (Time + InitialStartDelay));
 		}
 	}
 	else
