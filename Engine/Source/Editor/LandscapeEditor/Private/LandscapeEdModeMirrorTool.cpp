@@ -647,6 +647,8 @@ public:
 		TSet<ULandscapeComponent*> Components;
 		if (LandscapeEdit.GetComponentsInRegion(DestMinX, DestMinY, DestMaxX, DestMaxY, &Components) && Components.Num() > 0)
 		{
+			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+
 			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
 				for (ULandscapeComponent* Component : Components)
@@ -659,9 +661,6 @@ public:
 						FNavigationSystem::UpdateComponentData(*CollisionComponent);
 					}
 				}
-
-				// Flush dynamic foliage (grass)
-				ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 			}
 
 			EdMode->UpdateLayerUsageInformation();

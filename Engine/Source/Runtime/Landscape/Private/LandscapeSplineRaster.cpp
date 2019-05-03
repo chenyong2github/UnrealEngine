@@ -624,8 +624,10 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 	}
 
 	LandscapeEdit.Flush();
-
-	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		
+	ALandscapeProxy::InvalidateGeneratedComponentData(ModifiedComponents);
+	
+	if(!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
 		ALandscape* Landscape = Proxy->GetLandscapeActor();
 		for (ULandscapeComponent* Component : ModifiedComponents)
@@ -638,9 +640,6 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 				FNavigationSystem::UpdateComponentData(*CollisionComponent);
 			}
 		}
-		
-		// Invalidate landscape grass of modified landscape components
-		ALandscapeProxy::InvalidateGeneratedComponentData(ModifiedComponents);
 	}
 
 	return true;
