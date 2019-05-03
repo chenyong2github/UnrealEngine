@@ -104,6 +104,11 @@ public:
 
 private:
 
+	/**
+	* Validates that all Graphs in the blueprint are loaded.
+	*/
+	bool IsReadyToGetFunctionEntry();
+
 	/** Serialized soft pointer to the blueprint that contains the function graph endpoint for this event. Stored as a soft path so that renames of the blueprint don't break this event binding. */
 	UPROPERTY()
 	TSoftObjectPtr<UBlueprint> SoftBlueprintPath;
