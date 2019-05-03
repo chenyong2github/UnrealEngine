@@ -124,11 +124,22 @@ namespace Gauntlet
 		/// <param name="InContent"></param>
 		/// <param name="InPattern"></param>
 		/// <returns></returns>
-		protected string[] GetAllMatchingLines(string InContent, string InPattern)
+		protected IEnumerable<Match> GetAllMatches(string InContent, string InPattern)
 		{
 			Regex regex = new Regex(InPattern);
 
-			return regex.Matches(InContent).Cast<Match>().Select(M => M.Value).ToArray();
+			return regex.Matches(InContent).Cast<Match>();
+		}
+
+		/// <summary>
+		/// Returns all lines from the specified content match the specified regex
+		/// </summary>
+		/// <param name="InContent"></param>
+		/// <param name="InPattern"></param>
+		/// <returns></returns>
+		protected string[] GetAllMatchingLines(string InContent, string InPattern)
+		{
+			return GetAllMatches(InContent, InPattern).Select(M => M.Value).ToArray();
 		}
 
 		/// <summary>
@@ -139,6 +150,16 @@ namespace Gauntlet
 		public string[] GetAllMatchingLines(string InPattern)
 		{
 			return GetAllMatchingLines(Content, InPattern);
+		}
+
+		/// <summary>
+		/// Returns all Matches that match the specified regex
+		/// </summary>
+		/// <param name="InPattern"></param>
+		/// <returns></returns>
+		public IEnumerable<Match> GetAllMatches(string InPattern)
+		{
+			return GetAllMatches(Content, InPattern);
 		}
 
 		/// <summary>
@@ -189,6 +210,30 @@ namespace Gauntlet
 			return Info;
 		}
 
+		/// <summary>
+		/// Return all entries for the specified channel. E.g. "OrionGame" will
+		/// return all entries starting with LogOrionGame
+		/// </summary>
+		/// <param name="Channel"></param>
+		/// <returns></returns>
+		public IEnumerable<string> GetLogChannels(IEnumerable<string> Channels, bool ExactMatch = true)
+		{
+			// expand Chan1, Chan2 into Log(?:Chan1|Chan2) for a non-capturing group
+			string Match = string.Format("Log(?:{0})", string.Join("|", Channels));
+
+			string Pattern;
+
+			if (ExactMatch)
+			{
+				Pattern = string.Format(@"({0}:\s{{0,1}}.+)", Match);
+			}
+			else
+			{
+				Pattern = string.Format(@"({0}.*:\s{{0,1}}.+)", Match);
+			}
+
+			return Regex.Matches(Content, Pattern).Cast<Match>().Select(M => M.Groups[1].ToString()).ToArray();
+		}
 
 		/// <summary>
 		/// Return all entries for the specified channel. E.g. "OrionGame" will
@@ -196,11 +241,9 @@ namespace Gauntlet
 		/// </summary>
 		/// <param name="Channel"></param>
 		/// <returns></returns>
-		public IEnumerable<string> GetLogChannel(string Channel)
+		public IEnumerable<string> GetLogChannel(string Channel, bool ExactMatch=true)
 		{
-			string Pattern = string.Format(@"(Log{0}:\s{{0,1}}.+)", Channel);
-
-			return Regex.Matches(Content, Pattern).Cast<Match>().Select(M => M.Groups[1].ToString()).ToArray();
+			return GetLogChannels(new string[] { Channel }, ExactMatch);
 		}
 
 		/// <summary>

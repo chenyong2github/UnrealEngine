@@ -267,6 +267,8 @@ namespace Audio
 
 	void FMixerDevice::TeardownHardware()
 	{
+		AUDIO_MIXER_CHECK_GAME_THREAD(this);
+
 		// Make sure all submixes are registered but not initialized
 		for (TObjectIterator<USoundSubmix> It; It; ++It)
 		{

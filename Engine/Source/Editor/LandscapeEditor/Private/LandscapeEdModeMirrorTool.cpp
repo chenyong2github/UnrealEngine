@@ -647,19 +647,21 @@ public:
 		TSet<ULandscapeComponent*> Components;
 		if (LandscapeEdit.GetComponentsInRegion(DestMinX, DestMinY, DestMaxX, DestMaxY, &Components) && Components.Num() > 0)
 		{
-			for (ULandscapeComponent* Component : Components)
+			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+
+			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
-				// Recreate collision for modified components and update the navmesh
-				ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
-				if (CollisionComponent)
+				for (ULandscapeComponent* Component : Components)
 				{
-					CollisionComponent->RecreateCollision();
-					FNavigationSystem::UpdateComponentData(*CollisionComponent);
+					// Recreate collision for modified components and update the navmesh
+					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+					if (CollisionComponent)
+					{
+						CollisionComponent->RecreateCollision();
+						FNavigationSystem::UpdateComponentData(*CollisionComponent);
+					}
 				}
 			}
-
-			// Flush dynamic foliage (grass)
-			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 
 			EdMode->UpdateLayerUsageInformation();
 		}

@@ -203,7 +203,6 @@ FAudioDevice::FAudioDevice()
 #endif
 	, ConcurrencyManager(this)
 	, OneShotCount(0)
-	, OneShotPriorityCullThreshold(-1.0f)
 	, GlobalMinPitch(0.4f)
 	, GlobalMaxPitch(2.0f)
 {
@@ -563,8 +562,6 @@ void FAudioDevice::Teardown()
 	}
 
 	PluginListeners.Reset();
-
-	ProximityRetriggerComponents.Reset();
 }
 
 void FAudioDevice::Suspend(bool bGameTicking)
@@ -640,24 +637,6 @@ void FAudioDevice::AddReferencedObjects(FReferenceCollector& Collector)
 
 	// Loop through the cached plugin settings objects and add to the collector
 	Collector.AddReferencedObjects(PluginSettingsObjects);
-}
-
-void FAudioDevice::RegisterProximityRetriggeringAudioComponent(UAudioComponent& Component)
-{
-	check(IsInGameThread());
-	ProximityRetriggerComponents.AddUnique(&Component);
-}
-
-const TArray<FAudioComponentPtr>& FAudioDevice::GetProximityRetriggerComponents() const
-{
-	check(IsInGameThread());
-	return ProximityRetriggerComponents;
-}
-
-void FAudioDevice::UnregisterProximityRetriggeringAudioComponent(UAudioComponent& Component)
-{
-	check(IsInGameThread());
-	ProximityRetriggerComponents.RemoveSwap(&Component);
 }
 
 void FAudioDevice::ResetInterpolation()
@@ -3700,12 +3679,6 @@ void FAudioDevice::Update(bool bGameTicking)
 {
 	LLM_SCOPE(ELLMTag::AudioMisc);
 
-	// Must be separate from subsequent call as editor is considered game thread
-	if (IsInGameThread())
-	{
-		UpdateProximityRetriggerComponents();
-	}
-
 	if (!IsInAudioThread())
 	{
 		check(IsInGameThread());
@@ -3901,11 +3874,6 @@ void FAudioDevice::Update(bool bGameTicking)
 
 			// Sort by priority (lowest priority first).
 			ActiveWaveInstances.Sort(FCompareFWaveInstanceByPriority());
-			OneShotPriorityCullThreshold = ActiveWaveInstances[MaxWaveInstances]->Priority;
-		}
-		else
-		{
-			OneShotPriorityCullThreshold = -1.0f;
 		}
 
 		// If not paused, update the playback time of the active sounds after we've processed passive mix modifiers
@@ -3916,11 +3884,13 @@ void FAudioDevice::Update(bool bGameTicking)
 
 
 		const int32 Channels = GetMaxChannels();
-		INC_DWORD_STAT_BY(STAT_WaveInstances, ActiveWaveInstances.Num());
-		INC_DWORD_STAT_BY(STAT_AudioSources, Channels - FreeSources.Num());
-		INC_DWORD_STAT_BY(STAT_WavesDroppedDueToPriority, FMath::Max(ActiveWaveInstances.Num() - Channels, 0));
-		INC_DWORD_STAT_BY(STAT_ActiveSounds, ActiveSounds.Num());
-		INC_DWORD_STAT_BY(STAT_AudioVirtualLoops, VirtualLoops.Num());
+		SET_DWORD_STAT(STAT_WaveInstances, ActiveWaveInstances.Num());
+		SET_DWORD_STAT(STAT_AudioSources, Sources.Num() - FreeSources.Num());
+		SET_DWORD_STAT(STAT_WavesDroppedDueToPriority, FMath::Max(ActiveWaveInstances.Num() - Sources.Num(), 0));
+		SET_DWORD_STAT(STAT_ActiveSounds, ActiveSounds.Num());
+		SET_DWORD_STAT(STAT_AudioVirtualLoops, VirtualLoops.Num());
+		SET_DWORD_STAT(STAT_AudioMaxChannels, Channels);
+		SET_DWORD_STAT(STAT_AudioMaxStoppingSources, NumStoppingVoices);
 	}
 
 	// now let the platform perform anything it needs to handle
@@ -4187,15 +4157,10 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 	}
 #endif
 
-	// Cull one-shot active sounds if we've reached our max limit of one shot active sounds before we attempt to evaluate concurrency
-	USoundBase* Sound = NewActiveSound.GetSound();
+	const USoundBase* Sound = NewActiveSound.GetSound();
 	check(Sound);
-	if (!Sound->IsLooping() && Sound->Priority < OneShotPriorityCullThreshold)
-	{
-		return;
-	}
 
-	USoundWave* SoundWave = Cast<USoundWave>(Sound);
+	const USoundWave* SoundWave = Cast<USoundWave>(Sound);
 	if (SoundWave && SoundWave->bProcedural && SoundWave->IsGeneratingAudio())
 	{
 		FString SoundWaveName;
@@ -4244,7 +4209,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 	}
 
 	check(ActiveSound->Sound);
-	check(ActiveSound->Sound == NewActiveSound.Sound);
+	check(ActiveSound->Sound == Sound);
 
 	if (GIsEditor)
 	{
@@ -4258,7 +4223,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 	++ActiveSound->Sound->CurrentPlayCount;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	UE_LOG(LogAudio, VeryVerbose, TEXT("New ActiveSound %s Comp: %s Loc: %s"), *NewActiveSound.Sound->GetName(), *NewActiveSound.GetAudioComponentName(), *NewActiveSound.Transform.GetTranslation().ToString());
+	UE_LOG(LogAudio, VeryVerbose, TEXT("New ActiveSound %s Comp: %s Loc: %s"), *Sound->GetName(), *NewActiveSound.GetAudioComponentName(), *NewActiveSound.Transform.GetTranslation().ToString());
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 	// Cull one-shot active sounds if we've reached our max limit of one shot active sounds before we attempt to evaluate concurrency
@@ -4481,7 +4446,7 @@ void FAudioDevice::AddSoundToStop(FActiveSound* SoundToStop)
 
 		if (!VirtualLoops.Contains(SoundToStop))
 		{
-			ConcurrencyManager.RemoveActiveSound(SoundToStop);
+			ConcurrencyManager.RemoveActiveSound(*SoundToStop);
 		}
 	}
 }
@@ -5789,23 +5754,6 @@ float FAudioDevice::GetGameDeltaTime() const
 	return FMath::Min(DeltaTime, 0.5f);
 }
 
-void FAudioDevice::UpdateProximityRetriggerComponents()
-{
-	for (int32 i = ProximityRetriggerComponents.Num() - 1; i >= 0; --i)
-	{
-		FAudioComponentPtr& ComponentPtr = ProximityRetriggerComponents[i];
-		if (ComponentPtr.IsStale())
-		{
-			UE_LOG(LogAudio, Warning, TEXT("AudioComponent destroyed but not removed from retrigger proximity."));
-			ProximityRetriggerComponents.RemoveAtSwap(i, 1, false);
-		}
-		else if (ComponentPtr.IsValid())
-		{
-			ComponentPtr->OnUpdateProximityRetrigger(GetDeviceDeltaTime());
-		}
-	}
-}
-
 void FAudioDevice::UpdateVirtualLoops()
 {
 	if (FAudioVirtualLoop::IsEnabled())
@@ -5840,6 +5788,12 @@ void FAudioDevice::UpdateVirtualLoops()
 			if (VirtualLoop.CanRealize(DeltaTime))
 			{
 				VirtualLoopsToRetrigger.Add(VirtualLoop);
+			}
+
+			// If signaled to fade out and virtualized, and to pending stop list.
+			if (ActiveSound.bFadingOut)
+			{
+				AddSoundToStop(&ActiveSound);
 			}
 		}
 

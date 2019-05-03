@@ -154,65 +154,6 @@ public:
 	}
 };
 
-/*
- *	Describes a filter for a test group.
- */
-USTRUCT()
-struct FAutomatedTestFilter
-{
-	GENERATED_USTRUCT_BODY()
-
-public:
-
-	FAutomatedTestFilter(FString InContains, bool InMatchFromStart = false) 
-		: Contains(InContains), MatchFromStart(InMatchFromStart)
-	{
-	}
-
-	FAutomatedTestFilter() : FAutomatedTestFilter(TEXT("")) {}
-
-	/** String that the test must contain */
-	UPROPERTY(Config)
-	FString Contains;
-
-	/** If true start matching from the start of the string, else anywhere */
-	UPROPERTY(Config)
-	bool MatchFromStart;
-};
-
-/*
- *	Describes a group of tests. Each group has a name and a set of filters that determine group membership
- */
-USTRUCT()
-struct FAutomatedTestGroup
-{
-	GENERATED_USTRUCT_BODY()
-
-public:
-
-	UPROPERTY(Config)
-	FString Name;
-	
-	UPROPERTY(Config)
-	TArray<FAutomatedTestFilter> Filters;
-};
-
-
-/*
- *	Setttings for automated tests in a project
- */
-UCLASS(Config = Engine)
-class UAutomatedTestSettings : public UObject
-{
-	GENERATED_BODY()
-
-public:
-
-	/** List of user-defined test groups */
-	UPROPERTY(Config)
-	TArray<FAutomatedTestGroup> Groups;
-};
-
 
 /**
  * Implements the AutomationController module.
@@ -508,6 +449,8 @@ private:
 	/** Handles FAutomationWorkerWorkerOffline messages. */
 	void HandleWorkerOfflineMessage( const FAutomationWorkerWorkerOffline& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context );
 
+	/** Writes out this automation result to the log */
+	void ReportAutomationResult(const TSharedPtr<IAutomationReport> InReport, int32 ClusterIndex, int32 PassIndex);
 private:
 
 	/** Session this controller is currently communicating with */

@@ -597,6 +597,12 @@ void UReplicationGraph::FlushNetDormancy(AActor* Actor, bool bWasDormInitial)
 		return;
 	}
 
+	if (IsActorValidForReplication(Actor) == false)
+	{
+		UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("UReplicationGraph::FlushNetDormancy called on %s. Ignored since actor is destroyed or about to be"), *Actor->GetPathName());
+		return;
+	}
+
 	FGlobalActorReplicationInfo& GlobalInfo = GlobalActorReplicationInfoMap.Get(Actor);
 	const bool bNewWantsToBeDormant = (Actor->NetDormancy > DORM_Awake);
 
@@ -698,6 +704,12 @@ void UReplicationGraph::NotifyActorDormancyChange(AActor* Actor, ENetDormancy Ol
 	if (!GlobalInfo)
 	{
 		UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("UReplicationGraph::NotifyActorDormancyChange %s. Ignoring change since actor is not registered yet."), *Actor->GetPathName());
+		return;
+	}
+
+	if (IsActorValidForReplication(Actor) == false)
+	{
+		UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("UReplicationGraph::NotifyActorDormancyChange %s. Ignoring change since actor is destroyed or about to be."), *Actor->GetPathName());
 		return;
 	}
 
@@ -1699,7 +1711,7 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 					
 		// This will unfortunately cause a callback to this  UNetReplicationGraphConnection and will relook up the ActorInfoMap and set the channel that we already have set.
 		// This is currently unavoidable because channels are created from different code paths (some outside of this loop)
-		ActorInfo.Channel->SetChannelActor( Actor );
+		ActorInfo.Channel->SetChannelActor(Actor, ESetChannelActorFlags::None);
 	}
 
 	if (UNLIKELY(bWantsToGoDormant))
@@ -1832,12 +1844,12 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 
 	if (RepGraphConditionalActorBreakpoint(Actor, nullptr))
 	{
-		UE_LOG(LogReplicationGraph, Display, TEXT("UReplicationGraph::ProcessRemoteFunction: %s. Function: %s."), *Actor->GetName(), *GetNameSafe(Function));
+		UE_LOG(LogReplicationGraph, Display, TEXT("UReplicationGraph::ProcessRemoteFunction: %s. Function: %s."), *GetNameSafe(Actor), *GetNameSafe(Function));
 	}
 
 	if (IsActorValidForReplication(Actor) == false || Actor->IsActorBeingDestroyed())
 	{
-		UE_LOG(LogReplicationGraph, Display, TEXT("Destroted or not ready!"));
+		UE_LOG(LogReplicationGraph, Display, TEXT("UReplicationGraph::ProcessRemoteFunction: Actor %s destroyed or not ready! Function: %s."), *GetNameSafe(Actor), *GetNameSafe(Function));
 		return true;
 	}
 
@@ -1992,7 +2004,7 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 					{
 						// We are within range, we will open a channel now for this actor and call the RPC on it
 						ConnectionActorInfo.Channel = (UActorChannel *)NetConnection->CreateChannelByName( NAME_Actor, EChannelCreateFlags::OpenedLocally );
-						ConnectionActorInfo.Channel->SetChannelActor(Actor);
+						ConnectionActorInfo.Channel->SetChannelActor(Actor, ESetChannelActorFlags::None);
 
 						// Update timeout frame name. We would run into problems if we open the channel, queue a bunch, and then it timeouts before RepGraph replicates properties.
 						UpdateActorChannelCloseFrameNum(Actor, ConnectionActorInfo, GlobalInfo, ReplicationGraphFrame+1 /** Plus one to error on safe side. RepFrame num will be incremented in the next tick */, NetConnection );
@@ -2054,13 +2066,14 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 		UActorChannel* Ch = Connection->FindActorChannelRef(Actor);
 		if (Ch == nullptr)
 		{
-			if ( Actor->IsPendingKillPending() || !NetDriver->IsLevelInitializedForActor(Actor, Connection) )
+			if (Actor->IsPendingKillPending() || !NetDriver->IsLevelInitializedForActor(Actor, Connection))
 			{
 				// We can't open a channel for this actor here
 				return true;
 			}
 
-			if (UNetReplicationGraphConnection* ConnectionManager = Cast<UNetReplicationGraphConnection>(Connection->GetReplicationConnectionDriver()))
+			UNetReplicationGraphConnection* ConnectionManager = Cast<UNetReplicationGraphConnection>(Connection->GetReplicationConnectionDriver());
+			if (ConnectionManager)
 			{
 				if (FConnectionReplicationActorInfo const * const ConnectionActorInfo = ConnectionManager->ActorInfoMap.Find(Actor))
 				{
@@ -2075,7 +2088,14 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 			}
 
 			Ch = (UActorChannel *)Connection->CreateChannelByName( NAME_Actor, EChannelCreateFlags::OpenedLocally );
-			Ch->SetChannelActor(Actor);
+			Ch->SetChannelActor(Actor, ESetChannelActorFlags::None);
+			
+			if (ConnectionManager)
+			{
+				FConnectionReplicationActorInfo& ConnectionActorInfo = ConnectionManager->ActorInfoMap.FindOrAdd(Actor);
+				FGlobalActorReplicationInfo& GlobalInfo = GlobalActorReplicationInfoMap.Get(Actor);
+				UpdateActorChannelCloseFrameNum(Actor, ConnectionActorInfo, GlobalInfo, ReplicationGraphFrame+1 /** Plus one to error on safe side. RepFrame num will be incremented in the next tick */, Connection );
+			}
 		}
 
 		NetDriver->ProcessRemoteFunctionForChannel(Ch, ClassCache, FieldCache, TargetObj, Connection, Function, Parameters, OutParms, Stack, true);

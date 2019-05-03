@@ -856,9 +856,6 @@ public:
 		return CurrentTest;
 	}
 
-	bool GetTreatWarningsAsErrors() const;
-	void SetTreatWarningsAsErrors(TOptional<bool> bTreatWarningsAsErrors);
-
 	void NotifyScreenshotComparisonComplete(const FAutomationScreenshotCompareResults& CompareResults);
 	void NotifyTestDataRetrieved(bool bWasNew, const FString& JsonData);
 	void NotifyPerformanceDataRetrieved(bool bSuccess, const FString& ErrorMessage);
@@ -1003,7 +1000,6 @@ public:
 	 */
 	FAutomationTestBase( const FString& InName, const bool bInComplexTask )
 		: bComplexTask( bInComplexTask )
-		, bSuppressLogs( false )
 		, TestName( InName )
 	{
 		// Register the newly created automation test into the automation testing framework
@@ -1173,14 +1169,28 @@ public:
 	}
 
 	/**
-	 * Used to suppress / unsuppress logs.
+	 * If true logs will not be included in test events
 	 *
-	 * @param bNewValue - True if you want to suppress logs.  False to unsuppress.
+	 * @return true to suppress logs
 	 */
-	void SetSuppressLogs(bool bNewValue)
+	virtual bool SuppressLogs()
 	{
-		bSuppressLogs = bNewValue;
+		return false;
 	}
+
+	/**
+	 * If true (and SuppressLogs=false) then LogErrors will be treated as test errors
+	 *
+	 * @return true to make errors errors
+	 */
+	virtual bool TreatLogErrorsAsErrors() { return true; }
+
+	/**
+	 * If true (and SuppressLogs=false) then LogWarnings will be treated as test errors
+	 *
+	 * @return true to make warnings errors
+	 */
+	virtual bool TreatLogWarningsAsErrors() { return false; }
 
 	/**
 	 * Enqueues a new latent command.

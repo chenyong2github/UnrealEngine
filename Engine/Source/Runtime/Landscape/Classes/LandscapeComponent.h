@@ -290,15 +290,6 @@ struct FLandscapeLayerComponentData
 	bool IsInitialized() const { return HeightmapData.Texture != nullptr || WeightmapData.Textures.Num() > 0;  }
 };
 
-USTRUCT(NotBlueprintable)
-struct FLandscapeLayersGlobalComponentData
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY()
-	FIntPoint TopLeftSectionBase;
-};
-
 UCLASS(hidecategories=(Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility), showcategories=("Rendering|Material"), MinimalAPI, Within=LandscapeProxy)
 class ULandscapeComponent : public UPrimitiveComponent
 {
@@ -384,13 +375,12 @@ private:
 
 	UPROPERTY()
 	TMap<FGuid, FLandscapeLayerComponentData> LayersData;
-
-	UPROPERTY()
-	FLandscapeLayersGlobalComponentData GlobalLayersData;
-
+		
 	// Final layer data
 	UPROPERTY(Transient)
 	TArray<ULandscapeWeightmapUsage*> WeightmapTexturesUsage;
+
+	bool bLayerContentDirty;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Heightmap texture reference */
@@ -569,9 +559,6 @@ public:
 	LANDSCAPE_API void SetWeightmapTexturesUsage(const TArray<ULandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, bool InApplyToEditingWeightmap = false);
 	LANDSCAPE_API TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnEditingWeightmap = false);
 	LANDSCAPE_API const TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnEditingWeightmap = false) const;
-
-	LANDSCAPE_API const FLandscapeLayersGlobalComponentData& GetGlobalLayersData() const;
-	LANDSCAPE_API FLandscapeLayersGlobalComponentData& GetGlobalLayersData();
 
 	LANDSCAPE_API const FLandscapeLayerComponentData* GetLayerData(const FGuid& InLayerGuid) const;
 	LANDSCAPE_API FLandscapeLayerComponentData* GetLayerData(const FGuid& InLayerGuid);
@@ -781,7 +768,7 @@ public:
 	 * @param XYOffsetTextureMipData: xy-offset map data
 	 * @returns True if CollisionComponent was created in this update.
 	 */
-	bool UpdateCollisionHeightData(const FColor* HeightmapTextureMipData, const FColor* SimpleCollisionHeightmapTextureData, int32 ComponentX1=0, int32 ComponentY1=0, int32 ComponentX2=MAX_int32, int32 ComponentY2=MAX_int32, bool bUpdateBounds=false, const FColor* XYOffsetTextureMipData=nullptr);
+	void UpdateCollisionHeightData(const FColor* HeightmapTextureMipData, const FColor* SimpleCollisionHeightmapTextureData, int32 ComponentX1=0, int32 ComponentY1=0, int32 ComponentX2=MAX_int32, int32 ComponentY2=MAX_int32, bool bUpdateBounds=false, const FColor* XYOffsetTextureMipData=nullptr);
 
 	/**
 	 * Deletes Collision Component
@@ -789,7 +776,7 @@ public:
 	void DestroyCollisionData();
 
 	/** Updates collision component height data for the entire component, locking and unlocking heightmap textures
-	 * @param: bRebuild: If true, recreates the collision component */
+	 */
 	void UpdateCollisionData();
 
 	/**
@@ -853,6 +840,9 @@ public:
 	
 	/** Updates the values of component-level properties exposed by the Landscape Actor */
 	LANDSCAPE_API void UpdatedSharedPropertiesFromActor();
+
+	LANDSCAPE_API bool IsLayerContentDirty() const { return bLayerContentDirty; }
+	LANDSCAPE_API void SetLayerContentDirty(bool InValue) { bLayerContentDirty = InValue; }
 #endif
 
 	friend class FLandscapeComponentSceneProxy;

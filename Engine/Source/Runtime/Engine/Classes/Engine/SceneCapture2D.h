@@ -26,9 +26,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void OnInterpToggle(bool bEnable);
 
+	ENGINE_API virtual void CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutMinimalViewInfo) override;
+
 	/** Returns CaptureComponent2D subobject **/
 	ENGINE_API class USceneCaptureComponent2D* GetCaptureComponent2D() const { return CaptureComponent2D; }
 };
-
-
-

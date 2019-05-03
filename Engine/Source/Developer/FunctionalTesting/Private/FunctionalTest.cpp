@@ -24,6 +24,7 @@
 #include "Engine/DebugCameraController.h"
 #include "TraceQueryTestResults.h"
 #include "Misc/RuntimeErrors.h"
+#include "FunctionalTestBase.h"
 
 namespace
 {
@@ -83,10 +84,12 @@ namespace
 	}
 }
 
+
 AFunctionalTest::AFunctionalTest( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 	, bIsEnabled(true)
-	, bWarningsAsErrors(false)
+	, LogErrorHandling(EFunctionalTestLogHandling::ProjectDefault)
+	, LogWarningHandling(EFunctionalTestLogHandling::ProjectDefault)
 	, Result(EFunctionalTestResult::Invalid)
 	, PreparationTimeLimit(15.0f)
 	, TimeLimit(60.0f)
@@ -192,7 +195,25 @@ bool AFunctionalTest::RunTest(const TArray<FString>& Params)
 {
 	ensure(GetWorld()->HasBegunPlay());
 
-	FAutomationTestFramework::Get().SetTreatWarningsAsErrors(bWarningsAsErrors);
+	FFunctionalTestBase* FunctionalTest = static_cast<FFunctionalTestBase*>(FAutomationTestFramework::Get().GetCurrentTest());
+	check(FunctionalTest);
+
+	// Set handling of warnings/errors based on this test. Tests can either specify an explicit option or choose to go with the
+	// project defaults.
+	TOptional<bool> bLogErrorsAreErrors, bLogWarningsAreErrors;
+
+	if (LogErrorHandling != EFunctionalTestLogHandling::ProjectDefault)
+	{
+		bLogErrorsAreErrors = LogErrorHandling == EFunctionalTestLogHandling::OutputIsError ? true : false;
+	}
+
+	if (LogWarningHandling != EFunctionalTestLogHandling::ProjectDefault)
+	{
+		bLogWarningsAreErrors = LogWarningHandling == EFunctionalTestLogHandling::OutputIsError ? true : false;
+	}
+
+	FunctionalTest->SetLogErrorAndWarningHandling(bLogErrorsAreErrors, bLogWarningsAreErrors);
+	FunctionalTest->SetFunctionalTestRunning(true);
 
 	FailureMessage = TEXT("");
 	
@@ -301,12 +322,19 @@ bool AFunctionalTest::IsReady_Implementation()
 void AFunctionalTest::FinishTest(EFunctionalTestResult TestResult, const FString& Message)
 {
 	const static UEnum* FTestResultTypeEnum = StaticEnum<EFunctionalTestResult>();
+
+	FFunctionalTestBase* FunctionalTest = static_cast<FFunctionalTestBase*>(FAutomationTestFramework::Get().GetCurrentTest());
+	check(FunctionalTest);
+
+	FunctionalTest->SetFunctionalTestRunning(false);
 	
 	if (bIsRunning == false)
 	{
 		// ignore
 		return;
 	}
+
+
 
 	//Force GC at the end of every test.
 	GEngine->ForceGarbageCollection();
@@ -369,8 +397,6 @@ void AFunctionalTest::FinishTest(EFunctionalTestResult TestResult, const FString
 	//}
 
 	TestFinishedObserver.ExecuteIfBound(this);
-
-	FAutomationTestFramework::Get().SetTreatWarningsAsErrors(TOptional<bool>());
 }
 
 void AFunctionalTest::EndPlay(const EEndPlayReason::Type EndPlayReason)

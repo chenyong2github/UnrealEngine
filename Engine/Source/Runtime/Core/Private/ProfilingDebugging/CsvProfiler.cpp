@@ -156,127 +156,198 @@ bool IsContinuousWriteEnabled(bool bGameThread)
 class FCsvABTest
 {
 public:
-	FCsvABTest() 
-		: ConsoleVariable(nullptr)
-		, StatFrameOffset(0)
+	FCsvABTest()
+		: StatFrameOffset(0)
 		, SwitchDuration(7)
-		, PreviousValue(FLT_MAX)
 		, bPrevCapturing(false)
 		, bFastCVarSet(false)
 	{}
 
+	void AddCVarABData(const FString& CVarName, int32 Count)
+	{
+		Count = CVarValues.Num() - Count;
+		IConsoleVariable* ConsoleVariable = IConsoleManager::Get().FindConsoleVariable(*CVarName);
+
+		if (Count > 0 && ConsoleVariable != nullptr)
+		{
+			CVarABDataArray.Add({ CVarName, *CVarName, ConsoleVariable, ConsoleVariable->GetString(), Count, FLT_MAX });
+		}
+		else if (ConsoleVariable == nullptr)
+		{
+			UE_LOG(LogCsvProfiler, Log, TEXT("Skipping CVar %s - Not found"), *CVarName);
+		}
+		else if (Count == 0)
+		{
+			UE_LOG(LogCsvProfiler, Log, TEXT("Skipping CVar %s - No value specified"), *CVarName);
+		}
+	}
+
+	void IterateABTestArguments(const FString& ABTestString)
+	{
+		int32 FindIndex;
+		if (!ABTestString.FindChar(TEXT('='), FindIndex))
+		{
+			return;
+		}
+
+		int32 Count = CVarValues.Num();
+
+		FString CVarName = ABTestString.Mid(0, FindIndex);
+		FString ValueStr = ABTestString.Mid(FindIndex + 1);
+		while (true)
+		{
+			int32 CommaIndex;
+			bool bComma = ValueStr.FindChar(TEXT(','), CommaIndex);
+			int32 SemiColonIndex;
+			bool bSemiColon = ValueStr.FindChar(TEXT(';'), SemiColonIndex);
+
+			if (bComma)
+			{
+				if (!bSemiColon || (bSemiColon && CommaIndex<SemiColonIndex))
+				{
+					FString Val = ValueStr.Mid(0, CommaIndex);
+					CVarValues.Add(FCString::Atof(*Val));
+					ValueStr = ValueStr.Mid(CommaIndex + 1);
+					continue;
+				}
+			}
+
+			if (bSemiColon)
+			{
+				if (SemiColonIndex==0)
+				{
+					AddCVarABData(CVarName, Count);
+					IterateABTestArguments(ValueStr.Mid(SemiColonIndex + 1));
+					break;
+				}
+				else
+				{
+					FString Val = ValueStr.Mid(0, SemiColonIndex);
+					CVarValues.Add(FCString::Atof(*Val));
+					ValueStr = ValueStr.Mid(SemiColonIndex);
+					continue;
+				}
+			}
+
+			CVarValues.Add(FCString::Atof(*ValueStr));
+			AddCVarABData(CVarName, Count);
+			break;
+		}
+
+	}
+
 	void InitFromCommandline()
 	{
 		FString ABTestString;
-		if (FParse::Value(FCommandLine::Get(), TEXT("csvABTest="), ABTestString))
+		if (FParse::Value(FCommandLine::Get(), TEXT("csvABTest="), ABTestString, false))
 		{
-			int32 FindIndex;
-			if (ABTestString.FindChar(TEXT('='), FindIndex))
+			IterateABTestArguments(ABTestString);
+
+			if (CVarABDataArray.Num() > 0)
 			{
-				CVarName = ABTestString.Mid(0, FindIndex);
-				FString ValueStr = ABTestString.Mid(FindIndex+1);
-				while (true)
+				UE_LOG(LogCsvProfiler, Log, TEXT("Initialized CSV Profiler A/B test")); 
+				
+				int32 CVarValuesIndex = 0;
+				for (int32 Index = 0; Index < CVarABDataArray.Num(); ++Index)
 				{
-					int32 CommaIndex;
-					if (ValueStr.FindChar(TEXT(','), CommaIndex))
+					const FCVarABData& CVarABData = CVarABDataArray[Index];
+
+					UE_LOG(LogCsvProfiler, Log, TEXT("  CVar %s [Original value: %s] AB Test with values:"), *CVarABData.CVarName, *CVarABData.OriginalValue);
+					for (int32 i = 0; i < CVarABData.Count; ++i)
 					{
-						FString Val = ValueStr.Mid(0, CommaIndex);
-						CVarValues.Add(FCString::Atof(*Val));
-						ValueStr = ValueStr.Mid(CommaIndex + 1);
+						UE_LOG(LogCsvProfiler, Log, TEXT("    [%d] : %.2f"), i, CVarValues[CVarValuesIndex + i]);
 					}
-					else
-					{
-						CVarValues.Add(FCString::Atof(*ValueStr));
-						break;
-					}
-				} 
-			}
-			else
-			{
-				CVarName = ABTestString;
-				CVarValues.Add(0.0f);
-				CVarValues.Add(1.0f);
-			}
-			ConsoleVariable = IConsoleManager::Get().FindConsoleVariable(*CVarName);
-			if (ConsoleVariable)
-			{
-				CVarStatFName = *CVarName;
+
+					CVarValuesIndex += CVarABData.Count;
+				}
+
 				FParse::Value(FCommandLine::Get(), TEXT("csvABTestStatFrameOffset="), StatFrameOffset);
 				FParse::Value(FCommandLine::Get(), TEXT("csvABTestSwitchDuration="), SwitchDuration);
-				bFastCVarSet = FParse::Param(FCommandLine::Get(), TEXT("csvABTestFastCVarSet"));				
-
-				UE_LOG(LogCsvProfiler, Log, TEXT("Initialized CSV Profiler A/B test with CVar: '%s' with values:"), *CVarName);
-				for (int32 i = 0; i < CVarValues.Num(); i++)
-				{
-					UE_LOG(LogCsvProfiler, Log, TEXT("  [%d] : %.2f"), i, CVarValues[i]);
-				}
+				bFastCVarSet = FParse::Param(FCommandLine::Get(), TEXT("csvABTestFastCVarSet"));
 				UE_LOG(LogCsvProfiler, Log, TEXT("Stat Offset: %d frames"), StatFrameOffset);
 				UE_LOG(LogCsvProfiler, Log, TEXT("Switch Duration : %d frames"), SwitchDuration);
 				UE_LOG(LogCsvProfiler, Log, TEXT("Fast cvar set: %s"), bFastCVarSet ? TEXT("Enabled") : TEXT("Disabled"));
+
 			}
 			else
 			{
-				UE_LOG(LogCsvProfiler, Log, TEXT("CSV Profiler A/B test initialization failed. Can't find CVar %s"), *CVarName);
+				UE_LOG(LogCsvProfiler, Log, TEXT("CSV Profiler A/B has not initialized"));
 			}
 		}
 	}
 
 	void BeginFrameUpdate(int32 FrameNumber, bool bCapturing)
 	{
-		if (ConsoleVariable == nullptr)
+		if (CVarABDataArray.Num() == 0)
 		{
 			return;
 		}
+		
 		if (bCapturing)
 		{
-			if (bPrevCapturing == false)
+			int32 CVarValuesIndex = 0;
+			for (int32 Index = 0; Index < CVarABDataArray.Num(); ++Index)
 			{
-				UE_LOG(LogCsvProfiler, Log, TEXT("CSV Profiler A/B test - %s original value: %s"), *CVarName, *OriginalCVarValue);
-				OriginalCVarValue = ConsoleVariable->GetString();
-			}
-			int32 ValueIndex = (FrameNumber / SwitchDuration) % CVarValues.Num();
-			int32 StatValueIndex = ((FrameNumber - StatFrameOffset) / SwitchDuration) % CVarValues.Num();
+				FCVarABData& CVarABData = CVarABDataArray[Index];
 
-			{
-				float Value = CVarValues[ValueIndex];
-				if (Value != PreviousValue)
+				int32 ValueIndex = (FrameNumber / SwitchDuration) % CVarABData.Count;
+				int32 StatValueIndex = ((FrameNumber - StatFrameOffset) / SwitchDuration) % CVarABData.Count;
+				
+				ValueIndex += CVarValuesIndex;
+				StatValueIndex += CVarValuesIndex;
+				CVarValuesIndex += CVarABData.Count;
+
 				{
-					EConsoleVariableFlags CVarFlags = ECVF_SetByCode;
-					if (bFastCVarSet)
-					{ 
-						CVarFlags = EConsoleVariableFlags( CVarFlags | ECVF_Set_NoSinkCall_Unsafe );
-					} 
-					ConsoleVariable->Set(*FString::Printf(TEXT("%f"), Value), CVarFlags);
-					PreviousValue = Value;
+					float Value = CVarValues[ValueIndex];
+					if (Value != CVarABData.PreviousValue)
+					{
+						EConsoleVariableFlags CVarFlags = ECVF_SetByCode;
+						if (bFastCVarSet)
+						{
+							CVarFlags = EConsoleVariableFlags(CVarFlags | ECVF_Set_NoSinkCall_Unsafe);
+						}
+						CVarABData.ConsoleVariable->Set(*FString::Printf(TEXT("%f"), Value), CVarFlags);
+
+						CVarABData.PreviousValue = Value;
+					}
 				}
+
+				FCsvProfiler::RecordCustomStat(CVarABData.CVarStatFName, CSV_CATEGORY_INDEX_GLOBAL, CVarValues[StatValueIndex], ECsvCustomStatOp::Set);
+			}
+		}
+		else if (bPrevCapturing == true)
+		{
+			// Restore cvar to old value
+			// TODO: Set Setby flag to the original value
+			for (int32 Index = 0; Index < CVarABDataArray.Num(); ++Index)
+			{
+				CVarABDataArray[Index].ConsoleVariable->Set(*CVarABDataArray[Index].OriginalValue);
+
+				UE_LOG(LogCsvProfiler, Log, TEXT("CSV Profiler A/B test - setting %s=%s"), *CVarABDataArray[Index].CVarName, *CVarABDataArray[Index].OriginalValue);
 			}
 
-			FCsvProfiler::RecordCustomStat(CVarStatFName, CSV_CATEGORY_INDEX_GLOBAL, CVarValues[StatValueIndex], ECsvCustomStatOp::Set);
-		}
-		else
-		{
-			if (bPrevCapturing == true)
-			{
-				// Restore cvar to old value
-				// TODO: Set Setby flag to the original value
-				ConsoleVariable->Set(*OriginalCVarValue);
-				UE_LOG(LogCsvProfiler, Log, TEXT("CSV Profiler A/B test - setting %s=%s"), *CVarName, *OriginalCVarValue);
-			}
 		}
 		bPrevCapturing = bCapturing;
 	}
 
 private:
-	FString CVarName;
+	struct FCVarABData
+	{
+		FString CVarName;
+		FName CVarStatFName;
+		IConsoleVariable* ConsoleVariable;
+		FString OriginalValue;
+		int32 Count;
+		float PreviousValue;
+	};
+	
+	TArray<FCVarABData> CVarABDataArray;
 	TArray<float> CVarValues;
-	FName CVarStatFName;
-	IConsoleVariable* ConsoleVariable;
+
 	int32 StatFrameOffset;
 	int32 SwitchDuration;
-	float PreviousValue;
 	bool bPrevCapturing;
 	bool bFastCVarSet;
-	FString OriginalCVarValue;
 };
 static FCsvABTest GCsvABTest;
 
@@ -2830,6 +2901,7 @@ void FCsvProfiler::BeginWait()
 #if RECORD_TIMESTAMPS
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CSV_CATEGORY_INDEX(Exclusive)])
 	{
+		LLM_SCOPE(ELLMTag::CsvProfiler);
 		const char* WaitStatName = FCsvProfilerThreadData::Get().GetWaitStatName();
 		if (WaitStatName != GIgnoreWaitStatName)
 		{
@@ -2844,6 +2916,7 @@ void FCsvProfiler::EndWait()
 #if RECORD_TIMESTAMPS
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CSV_CATEGORY_INDEX(Exclusive)])
 	{
+		LLM_SCOPE(ELLMTag::CsvProfiler);
 		const char* WaitStatName = FCsvProfilerThreadData::Get().GetWaitStatName();
 		if (WaitStatName != GIgnoreWaitStatName)
 		{

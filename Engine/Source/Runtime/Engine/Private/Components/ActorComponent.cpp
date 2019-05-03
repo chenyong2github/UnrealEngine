@@ -29,6 +29,7 @@
 #include "Engine/SimpleConstructionScript.h"
 #include "ComponentUtils.h"
 #include "Engine/Engine.h"
+#include "HAL/LowLevelMemTracker.h"
 
 #if WITH_EDITOR
 #include "Kismet2/ComponentEditorUtils.h"
@@ -1241,6 +1242,7 @@ void UActorComponent::OnDestroyPhysicsState()
 
 void UActorComponent::CreatePhysicsState()
 {
+	LLM_SCOPE(ELLMTag::PhysX);
 	SCOPE_CYCLE_COUNTER(STAT_ComponentCreatePhysicsState);
 
 	if (!bPhysicsStateCreated && WorldPrivate->GetPhysicsScene() && ShouldCreatePhysicsState())
@@ -1286,6 +1288,7 @@ void UActorComponent::ExecuteRegisterEvents()
 	if(FApp::CanEverRender() && !bRenderStateCreated && WorldPrivate->Scene && ShouldCreateRenderState())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ComponentCreateRenderState);
+		LLM_SCOPE(ELLMTag::SceneRender);
 		CreateRenderState_Concurrent();
 		checkf(bRenderStateCreated, TEXT("Failed to route CreateRenderState_Concurrent (%s)"), *GetFullName());
 	}
@@ -1391,6 +1394,8 @@ void UActorComponent::RemoveTickPrerequisiteComponent(UActorComponent* Prerequis
 
 void UActorComponent::DoDeferredRenderUpdates_Concurrent()
 {
+	LLM_SCOPE(ELLMTag::SceneRender);
+
 	checkf(!IsUnreachable(), TEXT("%s"), *GetFullName());
 	checkf(!IsTemplate(), TEXT("%s"), *GetFullName());
 	checkf(!IsPendingKill(), TEXT("%s"), *GetFullName());
