@@ -2058,9 +2058,10 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 
 	const FShaderParametersMetadata& UniformBufferStruct = UniformExpressionSet.GetUniformBufferStruct();
 	FMemMark Mark(FMemStack::Get());
-	void* TempBuffer = FMemStack::Get().PushBytes(UniformBufferStruct.GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
+	uint8* TempBuffer = FMemStack::Get().PushBytes(UniformBufferStruct.GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
 
-	UniformExpressionSet.FillUniformBuffer(Context, TempBuffer);
+	check(TempBuffer != nullptr);
+	UniformExpressionSet.FillUniformBuffer(Context, TempBuffer, UniformBufferStruct.GetSize());
 
 	if (CommandListIfLocalMode)
 	{
