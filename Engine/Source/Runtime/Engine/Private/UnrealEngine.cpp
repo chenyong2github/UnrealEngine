@@ -1704,8 +1704,10 @@ void UEngine::PreExit()
 
 	ShutdownHMD();
 
+#if WITH_DYNAMIC_RESOLUTION
 	DynamicResolutionState.Reset();
 	NextDynamicResolutionState.Reset();
+#endif
 }
 
 void UEngine::ShutdownHMD()
