@@ -77,8 +77,9 @@ half3 ColorLookupTable( half3 LinearColor )
 	float3 LUTEncodedColor;
 	// Encode as ST-2084 (Dolby PQ) values
 	#if (DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES1000nitST2084 || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES2000nitST2084 || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES1000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES2000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_LinearEXR)
-		LUTEncodedColor = LinearToST2084( LinearColor );
-
+		// ST2084 expects to receive linear values 0-10000 in nits.
+		// So the linear value must be multiplied by a scale factor to convert to nits.
+		LUTEncodedColor = LinearToST2084(LinearColor * LinearToNitsScale);
 	#else
 		LUTEncodedColor = LinToLog( LinearColor + LogToLin( 0 ) );
 

@@ -254,8 +254,13 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	float3 LUTEncodedColor = Neutral.rgb;
 	float3 LinearColor;
 	// Decode texture values as ST-2084 (Dolby PQ)
-	if( GetOutputDevice() >= 3 )
-		LinearColor = ST2084ToLinear( LUTEncodedColor );
+	if (GetOutputDevice() >= 3)
+	{
+		// Since ST2084 returns linear values in nits, divide by a scale factor to convert
+		// the reference nit result to be 1.0 in linear.
+		// (for efficiency multiply by precomputed inverse)
+		LinearColor = ST2084ToLinear(LUTEncodedColor) * LinearToNitsScaleInverse;
+	}
 	// Decode log values
 	else
 		LinearColor = LogToLin( LUTEncodedColor ) - LogToLin( 0 );
