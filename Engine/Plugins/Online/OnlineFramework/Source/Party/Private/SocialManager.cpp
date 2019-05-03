@@ -991,7 +991,10 @@ void USocialManager::HandlePersistentPartyStateChanged(EPartyState NewState, EPa
 		
 		if (PreviousState == EPartyState::Active)
 		{
-			PersistentParty->LeaveParty();
+			if (bLeavePartyOnDisconnect)
+			{
+				PersistentParty->LeaveParty();
+			}
 		}
 
 		// If we have other members in our party, then we will try to rejoin this when we come back online
