@@ -80,6 +80,11 @@ namespace UnrealBuildTool
 		public static readonly DirectoryReference EngineSourceThirdPartyDirectory = DirectoryReference.Combine(EngineSourceDirectory, "ThirdParty");
 
 		/// <summary>
+		/// The full name of the Engine directory
+		/// </summary>
+		public static readonly DirectoryReference PlatformExtensionsDirectory = DirectoryReference.Combine(RootDirectory, "Platforms");
+
+		/// <summary>
 		/// The full name of the Enterprise directory
 		/// </summary>
 		public static readonly DirectoryReference EnterpriseDirectory = DirectoryReference.Combine(RootDirectory, "Enterprise");
@@ -462,7 +467,7 @@ namespace UnrealBuildTool
 
 				// Print out all the performance info
 				Timeline.Print(TimeSpan.FromMilliseconds(20.0), LogEventType.Log);
-			
+
 				// Make sure we flush the logs however we exit
 				Trace.Close();
 

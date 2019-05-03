@@ -175,7 +175,7 @@ namespace Gauntlet
 
 	public class Win64DeviceFactory : IDeviceFactory
 	{
-		public bool CanSupportPlatform(UnrealTargetPlatform Platform)
+		public bool CanSupportPlatform(UnrealTargetPlatform? Platform)
 		{
 			return Platform == UnrealTargetPlatform.Win64;
 		}
@@ -188,7 +188,7 @@ namespace Gauntlet
 
 	public class Wind32DeviceFactory : IDeviceFactory
 	{
-		public bool CanSupportPlatform(UnrealTargetPlatform Platform)
+		public bool CanSupportPlatform(UnrealTargetPlatform? Platform)
 		{
 			return Platform == UnrealTargetPlatform.Win32;
 		}
@@ -512,7 +512,7 @@ namespace Gauntlet
 			return string.Compare(Path.GetPathRoot(InPath), Path.GetPathRoot(this.TempDir), StringComparison.OrdinalIgnoreCase) == 0;
 		}
 
-		public UnrealTargetPlatform Platform { get { return IsWin64 ? UnrealTargetPlatform.Win64 : UnrealTargetPlatform.Win32; } }
+		public UnrealTargetPlatform? Platform { get { return IsWin64 ? UnrealTargetPlatform.Win64 : UnrealTargetPlatform.Win32; } }
 
 		public string TempDir { get; private set; }
 		public bool IsAvailable { get { return true; } }

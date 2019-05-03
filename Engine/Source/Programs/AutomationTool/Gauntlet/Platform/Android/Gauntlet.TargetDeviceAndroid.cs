@@ -281,7 +281,7 @@ namespace Gauntlet
 
 	public class DefaultAndroidDevices : IDefaultDeviceSource
 	{
-		public bool CanSupportPlatform(UnrealTargetPlatform Platform)
+		public bool CanSupportPlatform(UnrealTargetPlatform? Platform)
 		{
 			return Platform == UnrealTargetPlatform.Android;
 		}
@@ -294,7 +294,7 @@ namespace Gauntlet
 
 	public class AndroidDeviceFactory : IDeviceFactory
 	{
-		public bool CanSupportPlatform(UnrealTargetPlatform Platform)
+		public bool CanSupportPlatform(UnrealTargetPlatform? Platform)
 		{
 			return Platform == UnrealTargetPlatform.Android;
 		}
@@ -330,7 +330,7 @@ namespace Gauntlet
 		/// <summary>
 		/// Platform type.
 		/// </summary>
-		public UnrealTargetPlatform Platform { get { return UnrealTargetPlatform.Android; } }
+		public UnrealTargetPlatform? Platform { get { return UnrealTargetPlatform.Android; } }
 
 		/// <summary>
 		/// Options for executing commands

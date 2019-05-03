@@ -168,33 +168,36 @@ namespace UnrealBuildTool
 		private void AddDefaultIncludePaths()
 		{
 			// Add the module's parent directory to the public include paths, so other modules may include headers from it explicitly.
-			PublicIncludePaths.Add(ModuleDirectory.ParentDirectory);
-
-			// Add the base directory to the legacy include paths.
-			LegacyPublicIncludePaths.Add(ModuleDirectory);
-
-			// Add the 'classes' directory, if it exists
-			DirectoryReference ClassesDirectory = DirectoryReference.Combine(ModuleDirectory, "Classes");
-			if (DirectoryLookupCache.DirectoryExists(ClassesDirectory))
+			foreach (DirectoryReference ModuleDir in ModuleDirectories)
 			{
-				PublicIncludePaths.Add(ClassesDirectory);
-			}
+				PublicIncludePaths.Add(ModuleDir.ParentDirectory);
 
-			// Add all the public directories
-			DirectoryReference PublicDirectory = DirectoryReference.Combine(ModuleDirectory, "Public");
-			if (DirectoryLookupCache.DirectoryExists(PublicDirectory))
-			{
-				PublicIncludePaths.Add(PublicDirectory);
+				// Add the base directory to the legacy include paths.
+				LegacyPublicIncludePaths.Add(ModuleDir);
 
-				ReadOnlyHashSet<string> ExcludeNames = UEBuildPlatform.GetBuildPlatform(Rules.Target.Platform).GetExcludedFolderNames();
-				EnumerateLegacyIncludePaths(DirectoryItem.GetItemByDirectoryReference(PublicDirectory), ExcludeNames, LegacyPublicIncludePaths);
-			}
+				// Add the 'classes' directory, if it exists
+				DirectoryReference ClassesDirectory = DirectoryReference.Combine(ModuleDir, "Classes");
+				if (DirectoryLookupCache.DirectoryExists(ClassesDirectory))
+				{
+					PublicIncludePaths.Add(ClassesDirectory);
+				}
 
-			// Add the base private directory for this module
-			DirectoryReference PrivateDirectory = DirectoryReference.Combine(ModuleDirectory, "Private");
-			if(DirectoryLookupCache.DirectoryExists(PrivateDirectory))
-			{
-				PrivateIncludePaths.Add(PrivateDirectory);
+				// Add all the public directories
+				DirectoryReference PublicDirectory = DirectoryReference.Combine(ModuleDir, "Public");
+				if (DirectoryLookupCache.DirectoryExists(PublicDirectory))
+				{
+					PublicIncludePaths.Add(PublicDirectory);
+
+					ReadOnlyHashSet<string> ExcludeNames = UEBuildPlatform.GetBuildPlatform(Rules.Target.Platform).GetExcludedFolderNames();
+					EnumerateLegacyIncludePaths(DirectoryItem.GetItemByDirectoryReference(PublicDirectory), ExcludeNames, LegacyPublicIncludePaths);
+				}
+
+				// Add the base private directory for this module
+				DirectoryReference PrivateDirectory = DirectoryReference.Combine(ModuleDir, "Private");
+				if (DirectoryLookupCache.DirectoryExists(PrivateDirectory))
+				{
+					PrivateIncludePaths.Add(PrivateDirectory);
+				}
 			}
 		}
 
@@ -249,7 +252,7 @@ namespace UnrealBuildTool
 		// UEBuildModule interface.
 		public override List<FileItem> Compile(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment BinaryCompileEnvironment, ISourceFileWorkingSet WorkingSet, TargetMakefile Makefile)
 		{
-			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatformForCPPTargetPlatform(BinaryCompileEnvironment.Platform);
+			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(BinaryCompileEnvironment.Platform);
 
 			List<FileItem> LinkInputFiles = new List<FileItem>();
 
@@ -1207,10 +1210,13 @@ namespace UnrealBuildTool
 			ReadOnlyHashSet<string> ExcludedNames = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
 
 			InputFileCollection InputFiles = new InputFileCollection();
-			DirectoryItem ModuleDirectoryItem = DirectoryItem.GetItemByDirectoryReference(ModuleDirectory);
 
 			SourceDirectories = new HashSet<DirectoryReference>();
-			FindInputFilesFromDirectoryRecursive(ModuleDirectoryItem, ExcludedNames, SourceDirectories, Makefile.DirectoryToSourceFiles, InputFiles);
+			foreach (DirectoryReference Dir in ModuleDirectories)
+			{
+				DirectoryItem ModuleDirectoryItem = DirectoryItem.GetItemByDirectoryReference(Dir);
+				FindInputFilesFromDirectoryRecursive(ModuleDirectoryItem, ExcludedNames, SourceDirectories, Makefile.DirectoryToSourceFiles, InputFiles);
+			}
 
 			return InputFiles;
 		}

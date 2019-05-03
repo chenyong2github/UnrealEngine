@@ -45,7 +45,7 @@ namespace UnrealBuildTool
 	class TVOSPlatform : IOSPlatform
     {
 		public TVOSPlatform(IOSPlatformSDK InSDK)
-			: base(InSDK, UnrealTargetPlatform.TVOS, CppPlatform.TVOS)
+			: base(InSDK, UnrealTargetPlatform.TVOS)
 		{
 		}
 
@@ -116,15 +116,18 @@ namespace UnrealBuildTool
 		{
 			base.SetUpEnvironment(Target, CompileEnvironment, LinkEnvironment);
 			CompileEnvironment.Definitions.Add("PLATFORM_TVOS=1");
+
+			// TVOS uses only IOS header files, so use it's platform headers
+			CompileEnvironment.Definitions.Add("OVERRIDE_PLATFORM_HEADER_NAME=IOS");
+
 		}
 
 		/// <summary>
 		/// Creates a toolchain instance for the given platform.
 		/// </summary>
-		/// <param name="CppPlatform">The platform to create a toolchain for</param>
 		/// <param name="Target">The target being built</param>
 		/// <returns>New toolchain instance.</returns>
-		public override UEToolChain CreateToolChain(CppPlatform CppPlatform, ReadOnlyTargetRules Target)
+		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
 			TVOSProjectSettings ProjectSettings = ((TVOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.TVOS)).ReadProjectSettings(Target.ProjectFile);
 			return new TVOSToolChain(Target, ProjectSettings);

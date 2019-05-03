@@ -10,7 +10,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Android/AndroidProperties.h"
+#include "Android/AndroidPlatformProperties.h"
 
 
 /**
@@ -33,3 +33,7 @@ struct FLuminPlatformProperties : public FAndroidPlatformProperties
 		return false;
 	}
 };
+
+#ifdef PROPERTY_HEADER_SHOULD_DEFINE_TYPE
+typedef FLuminPlatformProperties FPlatformProperties;
+#endif

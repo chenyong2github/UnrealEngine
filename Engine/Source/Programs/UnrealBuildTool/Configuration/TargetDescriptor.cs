@@ -219,17 +219,12 @@ namespace UnrealBuildTool
 
 					// Try to parse them as platforms
 					UnrealTargetPlatform ParsedPlatform;
-					if(Enum.TryParse(InlineArguments[0], true, out ParsedPlatform) && ParsedPlatform != UnrealTargetPlatform.Unknown)
+					if(UnrealTargetPlatform.TryParse(InlineArguments[0], out ParsedPlatform))
 					{
 						Platforms.Add(ParsedPlatform);
 						for(int InlineArgumentIdx = 1; InlineArgumentIdx < InlineArguments.Length; InlineArgumentIdx++)
 						{
-							string InlineArgument = InlineArguments[InlineArgumentIdx];
-							if(!Enum.TryParse(InlineArgument, true, out ParsedPlatform) || ParsedPlatform == UnrealTargetPlatform.Unknown)
-							{
-								throw new BuildException("Invalid platform '{0}'", InlineArgument);
-							}
-							Platforms.Add(ParsedPlatform);
+							Platforms.Add(UnrealTargetPlatform.Parse(InlineArguments[InlineArgumentIdx]));
 						}
 						continue;
 					}

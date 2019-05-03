@@ -108,3 +108,7 @@ struct FAndroidPlatformProperties
 		return true;
 	}
 };
+
+#ifdef PROPERTY_HEADER_SHOULD_DEFINE_TYPE
+typedef FAndroidPlatformProperties FPlatformProperties;
+#endif

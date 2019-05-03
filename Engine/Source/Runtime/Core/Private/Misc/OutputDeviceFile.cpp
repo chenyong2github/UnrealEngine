@@ -51,7 +51,7 @@ static UTF8BOMType UTF8BOM = { 0xEF, 0xBB, 0xBF };
 		// Unix and PS4 use FPlatformMallocCrash during a crash, which means this function is not allowed to perform any allocations
 		// or else it will deadlock when flushing logs during crash handling. Ideally scoped named events would be disabled while crashing.
 		// GIsCriticalError is not always true when crashing (i.e. the case of a GPF) so there is no way to know to skip this behavior only when crashing
-#if !(PLATFORM_UNIX || PLATFORM_PS4)
+#if PLATFORM_ALLOW_ALLOCATIONS_IN_FASYNCWRITER_SERIALIZEBUFFERTOARCHIVE
 		SCOPED_NAMED_EVENT(FAsyncWriter_SerializeBufferToArchive, FColor::Cyan);
 #endif
 		while (SerializeRequestCounter.GetValue() > 0)

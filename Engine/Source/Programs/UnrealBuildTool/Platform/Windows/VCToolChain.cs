@@ -24,8 +24,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected VCEnvironment EnvVars;
 
-		public VCToolChain(CppPlatform Platform, ReadOnlyTargetRules Target)
-			: base(Platform)
+		public VCToolChain(ReadOnlyTargetRules Target)
 		{
 			this.Target = Target;
 			this.EnvVars = Target.WindowsPlatform.Environment;
@@ -177,7 +176,7 @@ namespace UnrealBuildTool
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
 			{
 				// Tell the Clang compiler whether we want to generate 32-bit code or 64-bit code
-				if (CompileEnvironment.Platform == CppPlatform.Win64)
+				if (CompileEnvironment.Platform == UnrealTargetPlatform.Win64)
 				{
 					Arguments.Add("--target=x86_64-pc-windows-msvc");
 				}
@@ -283,8 +282,8 @@ namespace UnrealBuildTool
 					Arguments.Add("/Ob2");
 				}
 
-				if ((CompileEnvironment.Platform == CppPlatform.Win32) ||
-					(CompileEnvironment.Platform == CppPlatform.Win64))
+				if ((CompileEnvironment.Platform == UnrealTargetPlatform.Win32) ||
+					(CompileEnvironment.Platform == UnrealTargetPlatform.Win64))
 				{
 					Arguments.Add("/RTCs");
 				}
@@ -312,8 +311,8 @@ namespace UnrealBuildTool
 
 					// Only omit frame pointers on the PC (which is implied by /Ox) if wanted.
 					if (CompileEnvironment.bOmitFramePointers == false
-					&& ((CompileEnvironment.Platform == CppPlatform.Win32) ||
-						(CompileEnvironment.Platform == CppPlatform.Win64)))
+					&& ((CompileEnvironment.Platform == UnrealTargetPlatform.Win32) ||
+						(CompileEnvironment.Platform == UnrealTargetPlatform.Win64)))
 					{
 						Arguments.Add("/Oy-");
 					}
@@ -335,8 +334,8 @@ namespace UnrealBuildTool
 			//
 			//	PC
 			//
-			if ((CompileEnvironment.Platform == CppPlatform.Win32) ||
-				(CompileEnvironment.Platform == CppPlatform.Win64))
+			if ((CompileEnvironment.Platform == UnrealTargetPlatform.Win32) ||
+				(CompileEnvironment.Platform == UnrealTargetPlatform.Win64))
 			{
 				if (CompileEnvironment.bUseAVX)
 				{
@@ -345,7 +344,7 @@ namespace UnrealBuildTool
 				}
 				// SSE options are not allowed when using the 64 bit toolchain
 				// (enables SSE2 automatically)
-				else if (CompileEnvironment.Platform != CppPlatform.Win64)
+				else if (CompileEnvironment.Platform != UnrealTargetPlatform.Win64)
 				{
 					// Allow the compiler to generate SSE2 instructions.
 					Arguments.Add("/arch:SSE2");
@@ -369,7 +368,7 @@ namespace UnrealBuildTool
 					CompileEnvironment.Definitions.Add("_HAS_EXCEPTIONS=0");
 				}
 			}
-			else if (CompileEnvironment.Platform == CppPlatform.HTML5)
+			else if (CompileEnvironment.Platform == UnrealTargetPlatform.HTML5)
 			{
 				Arguments.Add("/EHsc");
 			}
@@ -457,7 +456,7 @@ namespace UnrealBuildTool
 				Arguments.Add("/Zo");
 			}
 
-			if (CompileEnvironment.Platform == CppPlatform.Win64)
+			if (CompileEnvironment.Platform == UnrealTargetPlatform.Win64)
 			{
 				// Pack struct members on 8-byte boundaries.
 				Arguments.Add("/Zp8");
@@ -695,11 +694,11 @@ namespace UnrealBuildTool
 			//
 			//	PC
 			//
-			if ((LinkEnvironment.Platform == CppPlatform.Win32) ||
-				(LinkEnvironment.Platform == CppPlatform.Win64))
+			if ((LinkEnvironment.Platform == UnrealTargetPlatform.Win32) ||
+				(LinkEnvironment.Platform == UnrealTargetPlatform.Win64))
 			{
 				// Set machine type/ architecture to be 64 bit.
-				if (LinkEnvironment.Platform == CppPlatform.Win64)
+				if (LinkEnvironment.Platform == UnrealTargetPlatform.Win64)
 				{
 					Arguments.Add("/MACHINE:x64");
 				}
@@ -730,7 +729,7 @@ namespace UnrealBuildTool
 				Arguments.Add("/FIXED:No");
 
 				// Option is only relevant with 32 bit toolchain.
-				if ((LinkEnvironment.Platform == CppPlatform.Win32) && Target.WindowsPlatform.bBuildLargeAddressAwareBinary)
+				if ((LinkEnvironment.Platform == UnrealTargetPlatform.Win32) && Target.WindowsPlatform.bBuildLargeAddressAwareBinary)
 				{
 					// Disables the 2GB address space limit on 64-bit Windows and 32-bit Windows with /3GB specified in boot.ini
 					Arguments.Add("/LARGEADDRESSAWARE");
@@ -751,7 +750,7 @@ namespace UnrealBuildTool
 
 				// E&C can't use /SAFESEH.  Also, /SAFESEH isn't compatible with 64-bit linking
 				if (!LinkEnvironment.bSupportEditAndContinue &&
-					LinkEnvironment.Platform != CppPlatform.Win64)
+					LinkEnvironment.Platform != UnrealTargetPlatform.Win64)
 				{
 					// Generates a table of Safe Exception Handlers.  Documentation isn't clear whether they actually mean
 					// Structured Exception Handlers.
@@ -842,10 +841,10 @@ namespace UnrealBuildTool
 			//
 			//	PC
 			//
-			if (LinkEnvironment.Platform == CppPlatform.Win32 || LinkEnvironment.Platform == CppPlatform.Win64)
+			if (LinkEnvironment.Platform == UnrealTargetPlatform.Win32 || LinkEnvironment.Platform == UnrealTargetPlatform.Win64)
 			{
 				// Set machine type/ architecture to be 64 bit.
-				if (LinkEnvironment.Platform == CppPlatform.Win64)
+				if (LinkEnvironment.Platform == UnrealTargetPlatform.Win64)
 				{
 					Arguments.Add("/MACHINE:x64");
 				}
@@ -1245,7 +1244,7 @@ namespace UnrealBuildTool
 
 				// If we're compiling for 64-bit Windows, also add the _WIN64 definition to the resource
 				// compiler so that we can switch on that in the .rc file using #ifdef.
-				if (CompileEnvironment.Platform == CppPlatform.Win64)
+				if (CompileEnvironment.Platform == UnrealTargetPlatform.Win64)
 				{
 					AddDefinition(Arguments, "_WIN64");
 				}
@@ -1569,7 +1568,7 @@ namespace UnrealBuildTool
 			// Add any forced references to functions
 			foreach(string IncludeFunction in LinkEnvironment.IncludeFunctions)
 			{
-				if(CppPlatform == CppPlatform.Win32)
+				if(LinkEnvironment.Platform == UnrealTargetPlatform.Win32)
 				{
 					Arguments.Add(String.Format("/INCLUDE:_{0}", IncludeFunction)); // Assume decorated cdecl name
 				}
@@ -1665,9 +1664,9 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the default include paths for the given platform.
 		/// </summary>
-		public static string GetVCIncludePaths(CppPlatform Platform, WindowsCompiler Compiler, string CompilerVersion)
+		public static string GetVCIncludePaths(UnrealTargetPlatform Platform, WindowsCompiler Compiler, string CompilerVersion)
 		{
-			Debug.Assert(Platform == CppPlatform.Win32 || Platform == CppPlatform.Win64);
+			Debug.Assert(Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.Win64);
 
 			// Make sure we've got the environment variables set up for this target
 			VCEnvironment EnvVars = VCEnvironment.Create(Compiler, Platform, CompilerVersion, null);

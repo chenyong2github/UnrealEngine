@@ -95,3 +95,7 @@ struct FIOSPlatformProperties
 		return true;
 	}
 };
+
+#ifdef PROPERTY_HEADER_SHOULD_DEFINE_TYPE
+typedef FIOSPlatformProperties FPlatformProperties;
+#endif

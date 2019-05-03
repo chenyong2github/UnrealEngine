@@ -228,7 +228,7 @@ namespace Gauntlet
 			List<string> PlatformArgStrings = Params.ParseValues("Platform=");
 
 			// check for convenience flags of -Win64(params) (TODO - need to think about this..)
-			/*foreach (UnrealTargetPlatform Plat in Enum.GetValues(typeof(UnrealTargetPlatform)))
+			/*foreach (UnrealTargetPlatform Plat in UnrealTargetPlatform.GetValidPlatforms())
 			{
 				IEnumerable<string> RawPlatformArgs = InParams.Where(P => P.ToLower().StartsWith(Plat.ToString().ToLower()));
 

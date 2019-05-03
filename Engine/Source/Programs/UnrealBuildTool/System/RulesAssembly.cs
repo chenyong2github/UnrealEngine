@@ -348,13 +348,13 @@ namespace UnrealBuildTool
 			// Currently, we expect the user's rules object type name to be the same as the module name
 			string ModuleTypeName = ModuleName;
 
-			// Make sure the module file is known to us
+			// Make sure the base module file is known to us
 			FileReference ModuleFileName;
-			if (!ModuleNameToModuleFile.TryGetValue(ModuleName, out ModuleFileName))
+			if (!ModuleNameToModuleFile.TryGetValue(ModuleTypeName, out ModuleFileName))
 			{
 				if (Parent == null)
 				{
-					throw new BuildException("Could not find definition for module '{0}' (referenced via {1})", ModuleName, ReferenceChain);
+					throw new BuildException("Could not find definition for module '{0}', (referenced via {1})", ModuleTypeName, ReferenceChain);
 				}
 				else
 				{
@@ -362,8 +362,33 @@ namespace UnrealBuildTool
 				}
 			}
 
-			// The build module must define a type named 'Rules' that derives from our 'ModuleRules' type.  
-			Type RulesObjectType = GetModuleRulesTypeInternal(ModuleName);
+			// get the standard Rules object class from the assembly
+			Type BaseRulesObjectType = GetModuleRulesTypeInternal(ModuleTypeName);
+
+			// look around for platform/group modules that we will use instead of the basic module
+			Type PlatformRulesObjectType = GetModuleRulesTypeInternal(ModuleTypeName + "_" + Target.Platform.ToString());
+			if (PlatformRulesObjectType == null)
+			{
+				foreach (UnrealPlatformGroup Group in UEBuildPlatform.GetPlatformGroups(Target.Platform))
+				{
+					// look to see if the group has an override
+					Type GroupRulesObjectType = GetModuleRulesTypeInternal(ModuleName + "_" + Group.ToString());
+
+					// we expect only one platform group to be found in the extensions
+					if (GroupRulesObjectType != null && PlatformRulesObjectType != null)
+					{
+						throw new BuildException("Found multiple platform group overrides ({0} and {1}) for module {2} without a platform specific override. Create a platform override with the class hierarchy as needed.", 
+							GroupRulesObjectType.Name, PlatformRulesObjectType.Name, ModuleName);
+					}
+
+					PlatformRulesObjectType = GroupRulesObjectType;
+				}
+			}
+
+	
+
+			// Figure out the best rules object to use
+			Type RulesObjectType = PlatformRulesObjectType != null ? PlatformRulesObjectType : BaseRulesObjectType;
 			if (RulesObjectType == null)
 			{
 				throw new BuildException("Expecting to find a type to be declared in a module rules named '{0}' in {1}.  This type must derive from the 'ModuleRules' type defined by Unreal Build Tool.", ModuleTypeName, CompiledAssembly.FullName);
@@ -374,6 +399,8 @@ namespace UnrealBuildTool
 			{
 				// Create an uninitialized ModuleRules object and set some defaults.
 				ModuleRules RulesObject = (ModuleRules)FormatterServices.GetUninitializedObject(RulesObjectType);
+				// even if we created a platform-extension version of the module rules, we are pretending to be
+				// the base type, so that no one else needs to manage this
 				RulesObject.Name = ModuleName;
 				RulesObject.File = ModuleFileName;
 				RulesObject.Directory = ModuleFileName.Directory;
@@ -383,6 +410,23 @@ namespace UnrealBuildTool
 				RulesObject.bUseBackwardsCompatibleDefaults = bUseBackwardsCompatibleDefaults && Target.bUseBackwardsCompatibleDefaults;
 				RulesObject.bPrecompile = (RulesObject.bTreatAsEngineModule || ModuleName.Equals("UE4Game", StringComparison.OrdinalIgnoreCase)) && Target.bPrecompile;
 				RulesObject.bUsePrecompiled = bReadOnly;
+
+				// go up the type hierarchy (if there is a hierarchy), looking for any extra directories for the module
+				if (RulesObjectType != BaseRulesObjectType && RulesObjectType != typeof(ModuleRules))
+				{
+					Type SubType = RulesObjectType;
+
+					RulesObject.DirectoriesForModuleSubClasses = new Dictionary<Type, DirectoryReference>();
+					while (SubType != BaseRulesObjectType)
+					{
+						FileReference SubTypeFileName;
+						if (TryGetFileNameFromType(SubType, out SubTypeFileName))
+						{
+							RulesObject.DirectoriesForModuleSubClasses.Add(SubType, SubTypeFileName.Directory);
+						}
+						SubType = SubType.BaseType;
+					}
+				}
 
 				// Call the constructor
 				ConstructorInfo Constructor = RulesObjectType.GetConstructor(new Type[] { typeof(ReadOnlyTargetRules) });

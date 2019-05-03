@@ -38,7 +38,6 @@ namespace UnrealBuildTool
 		}
 
 		public HTML5ToolChain(FileReference InProjectFile)
-			: base(CppPlatform.HTML5)
 		{
 			if (!HTML5SDKInfo.IsSDKInstalled())
 			{

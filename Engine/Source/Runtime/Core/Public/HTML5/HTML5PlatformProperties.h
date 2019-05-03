@@ -75,3 +75,7 @@ struct FHTML5PlatformProperties
 	}
 
 };
+
+#ifdef PROPERTY_HEADER_SHOULD_DEFINE_TYPE
+typedef FHTML5PlatformProperties FPlatformProperties;
+#endif

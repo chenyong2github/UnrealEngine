@@ -1424,6 +1424,10 @@ namespace AutomationTool
 			{
 				return CustomTask.ResolveDirectory(ValueText);
 			}
+			else if (ValueType == typeof(UnrealTargetPlatform))
+			{
+				return UnrealTargetPlatform.Parse(ValueText);
+			}
 			else
 			{
 				return Convert.ChangeType(ValueText, ValueType);

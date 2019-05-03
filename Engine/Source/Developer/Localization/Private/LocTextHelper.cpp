@@ -35,7 +35,7 @@ const TArray<FString>& FLocTextPlatformSplitUtils::GetPlatformsToSplit(const ELo
 			static TArray<FString> AllPlatformNames = []()
 			{
 				TArray<FString> TmpArray;
-				for (const PlatformInfo::FPlatformInfo& Info : PlatformInfo::EnumeratePlatformInfoArray(false))
+				for (const PlatformInfo::FPlatformInfo& Info : PlatformInfo::GetPlatformInfoArray(false))
 				{
 					if (!Info.IniPlatformName.IsEmpty())
 					{

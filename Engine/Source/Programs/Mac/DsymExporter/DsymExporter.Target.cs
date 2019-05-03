@@ -3,7 +3,7 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
-[SupportedPlatforms(UnrealTargetPlatform.Mac)]
+[SupportedPlatforms("Mac")]
 public class DsymExporterTarget : TargetRules
 {
 	public DsymExporterTarget( TargetInfo Target ) : base(Target)

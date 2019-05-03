@@ -26,13 +26,13 @@ namespace Gauntlet
 		public BlacklistEntry()
 		{
 			TestName = "None";
-			Platforms = new UnrealTargetPlatform [] { UnrealTargetPlatform.Unknown };
+			Platforms = new UnrealTargetPlatform [] { };
 			BranchName = "None";
 		}
 
 		public override string ToString()
 		{
-			return string.Format("{0} Platforms={1} Branch={2}", TestName, string.Join(",",Platforms), BranchName);
+			return string.Format("{0} Platforms={1} Branch={2}", TestName, string.Join(",",Platforms.ToList()), BranchName);
 		}
 	}
 
@@ -116,7 +116,7 @@ namespace Gauntlet
 			Entries = Entries.Where(E => E.BranchName == "*" || string.Equals(E.BranchName, NormalizedBranchName, StringComparison.OrdinalIgnoreCase));
 
 			// Filter by branch
-			Entries = Entries.Where(E => E.Platforms.Contains(UnrealTargetPlatform.Unknown) || E.Platforms.Contains(InPlatform));
+			Entries = Entries.Where(E => E.Platforms.Length == 0 || E.Platforms.Contains(InPlatform));
 
 			return Entries.Count() > 0;
 		}

@@ -3,7 +3,7 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
-[SupportedPlatforms(UnrealTargetPlatform.Win64, UnrealTargetPlatform.Mac)]
+[SupportedPlatforms("Win64", "Mac")]
 public class MinidumpDiagnosticsTarget : TargetRules
 {
 	public MinidumpDiagnosticsTarget( TargetInfo Target ) : base(Target)

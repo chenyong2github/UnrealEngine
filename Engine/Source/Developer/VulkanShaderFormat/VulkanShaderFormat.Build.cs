@@ -17,6 +17,7 @@ public class VulkanShaderFormat : ModuleRules
 				"RenderCore",
 				"ShaderCompilerCommon",
 				"ShaderPreprocessor",
+				"RHI", // @todo platplug: This would not be needed if we could move FDataDriveShaderPlatformInfo (and ERHIFeatureLevel) into RenderCore or maybe its own module?
 			}
 			);
 

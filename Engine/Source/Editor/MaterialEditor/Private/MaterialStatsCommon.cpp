@@ -6,6 +6,7 @@
 #include "LocalVertexFactory.h"
 #include "GPUSkinVertexFactory.h"
 #include "MaterialEditorSettings.h"
+#include "RHIShaderFormatDefinitions.inl"
 
 /***********************************************************************************************************************/
 /*begin FMaterialResourceStats functions*/
@@ -119,101 +120,72 @@ FString FMaterialStatsUtils::ShaderPlatformTypeName(const EShaderPlatform Platfo
 	{
 		case SP_PCD3D_SM5:
 			return FString("PCD3D_SM5");
-		break;
 		case SP_OPENGL_SM4:
 			return FString("OPENGL_SM4");
-		break;
 		case SP_PS4:
 			return FString("OPENGL_SM4");
-		break;
 		case SP_OPENGL_PCES2:
 			return FString("OPENGL_PCES2");
-		break;
 		case SP_XBOXONE_D3D12:
 			return FString("XBOXONE_D3D12");
-		break;
 		case SP_PCD3D_SM4:
 			return FString("PCD3D_SM4");
-		break;
 		case SP_OPENGL_SM5:
 			return FString("OPENGL_SM5");
-		break;
 		case SP_PCD3D_ES2:
 			return FString("PCD3D_ES2");
-		break;
 		case SP_OPENGL_ES2_ANDROID:
 			return FString("OPENGL_ES2_ANDROID");
-		break;
 		case SP_OPENGL_ES2_WEBGL:
 			return FString("OPENGL_ES2_WEBGL");
-		break;
 		case SP_OPENGL_ES2_IOS:
 			return FString("OPENGL_ES2_IOS");
-		break;
 		case SP_METAL:
 			return FString("METAL");
-		break;
 		case SP_METAL_MRT:
 			return FString("METAL_MRT");
-		break;
 		case SP_METAL_TVOS:
 			return FString("METAL_TVOS");
-		break;
 		case SP_METAL_MRT_TVOS:
 			return FString("METAL_MRT_TVOS");
-		break;
 		case SP_OPENGL_ES31_EXT:
 			return FString("OPENGL_ES31_EXT");
-		break;
 		case SP_PCD3D_ES3_1:
 			return FString("PCD3D_ES3_1");
-		break;
 		case SP_OPENGL_PCES3_1:
 			return FString("OPENGL_PCES3_1");
-		break;
 		case SP_METAL_SM5:
 			return FString("METAL_SM5");
-		break;
 		case SP_VULKAN_PCES3_1:
 			return FString("VULKAN_PCES3_1");
-		break;
 		case SP_METAL_SM5_NOTESS:
 			return FString("METAL_SM5_NOTESS");
-		break;
 		case SP_VULKAN_SM4:
 			return FString("VULKAN_SM4");
-		break;
 		case SP_VULKAN_SM5:
 			return FString("VULKAN_SM5");
-		break;
 		case SP_VULKAN_ES3_1_ANDROID:
 			return FString("VULKAN_ES3_1_ANDROID");
-		break;
 		case SP_METAL_MACES3_1:
 			return FString("METAL_MACES3_1");
-		break;
 		case SP_METAL_MACES2:
 			return FString("METAL_MACES2");
-		break;
 		case SP_OPENGL_ES3_1_ANDROID:
 			return FString("OPENGL_ES3_1_ANDROID");
-		break;
 		case SP_SWITCH:
 			return FString("SWITCH");
-		break;
 		case SP_SWITCH_FORWARD:
 			return FString("SWITCH_FORWARD");
-		break;
 		case SP_METAL_MRT_MAC:
 			return FString("METAL_MRT_MAC");
-		break;
-
 		default:
-			return FString("!Unknown platform!");
-		break;
+			FString FormatName = ShaderPlatformToShaderFormatName(PlatformID).ToString();
+			if (FormatName.StartsWith(TEXT("SF_")))
+			{
+				FormatName = FormatName.Mid(3);
+			}
+			return FormatName;
 	}
-
-	return FString("!Unknown platform!");
 }
 
 FString FMaterialStatsUtils::GetPlatformOfflineCompilerPath(const EShaderPlatform ShaderPlatform)
@@ -263,7 +235,6 @@ bool FMaterialStatsUtils::PlatformNeedsOfflineCompiler(const EShaderPlatform Sha
 		case SP_VULKAN_ES3_1_ANDROID:
 		case SP_OPENGL_ES3_1_ANDROID:
 			return true;
-		break;
 
 
 		case SP_PCD3D_SM5:
@@ -283,11 +254,9 @@ bool FMaterialStatsUtils::PlatformNeedsOfflineCompiler(const EShaderPlatform Sha
 		case SP_SWITCH_FORWARD:
 		case SP_METAL_MRT_MAC:
 			return false;
-		break;
 
 		default:
-			return false;
-		break;	
+			return FDataDrivenShaderPlatformInfo::GetInfo(ShaderPlatform).bNeedsOfflineCompiler;
 	}
 
 	return false;

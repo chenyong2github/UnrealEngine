@@ -152,6 +152,19 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// look for platform extension source code
+			if (DirectoryReference.Exists(UnrealBuildTool.PlatformExtensionsDirectory))
+			{
+				foreach (DirectoryReference PlatformFolder in DirectoryReference.EnumerateDirectories(UnrealBuildTool.PlatformExtensionsDirectory))
+				{
+					DirectoryReference PlatformSourceFolder = DirectoryReference.Combine(PlatformFolder, "Engine", "Source");
+					if (DirectoryReference.Exists(PlatformSourceFolder))
+					{
+						Folders.Add(PlatformSourceFolder);
+					}
+				}
+			}
+
 			// Iterate over all the folders to check
 			List<FileReference> SourceFiles = new List<FileReference>();
 			HashSet<FileReference> UniqueSourceFiles = new HashSet<FileReference>();
@@ -362,9 +375,26 @@ namespace UnrealBuildTool
 		{
 			if (EngineRulesAssembly == null)
 			{
-				IReadOnlyList<PluginInfo> IncludedPlugins = Plugins.ReadEnginePlugins(UnrealBuildTool.EngineDirectory);
+				List<PluginInfo> IncludedPlugins = Plugins.ReadEnginePlugins(UnrealBuildTool.EngineDirectory).ToList();
+
+				// look in the platform extensions engine directories for plugins
+				List<DirectoryReference> RootDirectories = new List<DirectoryReference>() { UnrealBuildTool.EngineDirectory };
+				if (DirectoryReference.Exists(UnrealBuildTool.PlatformExtensionsDirectory))
+				{
+					foreach (DirectoryReference PlatformFolder in DirectoryReference.EnumerateDirectories(UnrealBuildTool.PlatformExtensionsDirectory))
+					{
+						DirectoryReference PlatformEngineFolder = DirectoryReference.Combine(PlatformFolder, "Engine");
+						if (DirectoryReference.Exists(PlatformEngineFolder))
+						{
+							RootDirectories.Add(PlatformEngineFolder);
+							IncludedPlugins.AddRange(Plugins.ReadEnginePlugins(PlatformEngineFolder));
+						}
+					}
+				}
+
 				RulesScope EngineScope = new RulesScope("Engine", null);
-				EngineRulesAssembly = CreateEngineOrEnterpriseRulesAssembly(EngineScope, UnrealBuildTool.EngineDirectory, ProjectFileGenerator.EngineProjectFileNameBase, IncludedPlugins, UnrealBuildTool.IsEngineInstalled() || bUsePrecompiled, bSkipCompile, null);
+
+				EngineRulesAssembly = CreateEngineOrEnterpriseRulesAssembly(EngineScope, RootDirectories, ProjectFileGenerator.EngineProjectFileNameBase, IncludedPlugins, UnrealBuildTool.IsEngineInstalled() || bUsePrecompiled, bSkipCompile, null);
 			}
 			return EngineRulesAssembly;
 		}
@@ -383,8 +413,11 @@ namespace UnrealBuildTool
 				if (DirectoryReference.Exists(UnrealBuildTool.EnterpriseDirectory))
 				{
 					RulesScope EnterpriseScope = new RulesScope("Enterprise", EngineAssembly.Scope);
+
+					List<DirectoryReference> RootDirectories = new List<DirectoryReference>() { UnrealBuildTool.EnterpriseDirectory };
+
 					IReadOnlyList<PluginInfo> IncludedPlugins = Plugins.ReadEnterprisePlugins(UnrealBuildTool.EnterpriseDirectory);
-					EnterpriseRulesAssembly = CreateEngineOrEnterpriseRulesAssembly(EnterpriseScope, UnrealBuildTool.EnterpriseDirectory, ProjectFileGenerator.EnterpriseProjectFileNameBase, IncludedPlugins, UnrealBuildTool.IsEnterpriseInstalled() || bUsePrecompiled, bSkipCompile, EngineAssembly);
+					EnterpriseRulesAssembly = CreateEngineOrEnterpriseRulesAssembly(EnterpriseScope, RootDirectories, ProjectFileGenerator.EnterpriseProjectFileNameBase, IncludedPlugins, UnrealBuildTool.IsEnterpriseInstalled() || bUsePrecompiled, bSkipCompile, EngineAssembly);
 				}
 				else
 				{
@@ -401,63 +434,73 @@ namespace UnrealBuildTool
 		/// Creates a rules assembly
 		/// </summary>
 		/// <param name="Scope">Scope for items created from this assembly</param>
-		/// <param name="RootDirectory">The root directory to create rules for</param>
+		/// <param name="RootDirectories">The root directories to create rules for</param>
 		/// <param name="AssemblyPrefix">A prefix for the assembly file name</param>
 		/// <param name="Plugins">List of plugins to include in this assembly</param>
 		/// <param name="bReadOnly">Whether the assembly should be marked as installed</param>
 		/// <param name="bSkipCompile">Whether to skip compilation for this assembly</param>
 		/// <param name="Parent">The parent rules assembly</param>
 		/// <returns>New rules assembly</returns>
-		private static RulesAssembly CreateEngineOrEnterpriseRulesAssembly(RulesScope Scope, DirectoryReference RootDirectory, string AssemblyPrefix, IReadOnlyList<PluginInfo> Plugins, bool bReadOnly, bool bSkipCompile, RulesAssembly Parent)
+		private static RulesAssembly CreateEngineOrEnterpriseRulesAssembly(RulesScope Scope, List<DirectoryReference> RootDirectories, string AssemblyPrefix, IReadOnlyList<PluginInfo> Plugins, bool bReadOnly, bool bSkipCompile, RulesAssembly Parent)
 		{
-			DirectoryReference SourceDirectory = DirectoryReference.Combine(RootDirectory, "Source");
-			DirectoryReference ProgramsDirectory = DirectoryReference.Combine(SourceDirectory, "Programs");
+			// Scope hierarchy
+			RulesScope PluginsScope = new RulesScope(Scope.Name + " Plugins", Scope);
+			RulesScope ProgramsScope = new RulesScope(Scope.Name + " Programs", PluginsScope);
 
 			// Find the shared modules, excluding the programs directory. These are used to create an assembly with the bContainsEngineModules flag set to true.
 			Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext = new Dictionary<FileReference, ModuleRulesContext>();
-			using(Timeline.ScopeEvent("Finding engine modules"))
-			{
-				ModuleRulesContext DefaultModuleContext = new ModuleRulesContext(Scope, RootDirectory);
-				AddEngineModuleRulesWithContext(SourceDirectory, "Runtime", DefaultModuleContext, UHTModuleType.EngineRuntime, ModuleFileToContext);
-				AddEngineModuleRulesWithContext(SourceDirectory, "Developer", DefaultModuleContext, UHTModuleType.EngineDeveloper, ModuleFileToContext);
-				AddEngineModuleRulesWithContext(SourceDirectory, "Editor", DefaultModuleContext, UHTModuleType.EngineEditor, ModuleFileToContext);
-				AddEngineModuleRulesWithContext(SourceDirectory, "ThirdParty", DefaultModuleContext, UHTModuleType.EngineThirdParty, ModuleFileToContext);
-			}
+			ModuleRulesContext DefaultModuleContext = new ModuleRulesContext(Scope, RootDirectories[0]);
 
-			// Add all the plugin modules too
-			RulesScope PluginsScope = new RulesScope(Scope.Name + " Plugins", Scope);
-			using(Timeline.ScopeEvent("Finding plugin modules"))
+			foreach (DirectoryReference RootDirectory in RootDirectories)
 			{
-				ModuleRulesContext PluginsModuleContext = new ModuleRulesContext(PluginsScope, RootDirectory);
+				using (Timeline.ScopeEvent("Finding engine modules"))
+				{
+					DirectoryReference SourceDirectory = DirectoryReference.Combine(RootDirectory, "Source");
+
+					AddEngineModuleRulesWithContext(SourceDirectory, "Runtime", DefaultModuleContext, UHTModuleType.EngineRuntime, ModuleFileToContext);
+					AddEngineModuleRulesWithContext(SourceDirectory, "Developer", DefaultModuleContext, UHTModuleType.EngineDeveloper, ModuleFileToContext);
+					AddEngineModuleRulesWithContext(SourceDirectory, "Editor", DefaultModuleContext, UHTModuleType.EngineEditor, ModuleFileToContext);
+					AddEngineModuleRulesWithContext(SourceDirectory, "ThirdParty", DefaultModuleContext, UHTModuleType.EngineThirdParty, ModuleFileToContext);
+				}
+
+			}
+			// Add all the plugin modules too (don't need to loop over RootDirectories since the plugins come in already found
+			using (Timeline.ScopeEvent("Finding plugin modules"))
+			{
+				ModuleRulesContext PluginsModuleContext = new ModuleRulesContext(PluginsScope, RootDirectories[0]);
 				FindModuleRulesForPlugins(Plugins, PluginsModuleContext, ModuleFileToContext);
 			}
 
 			// Create the assembly
-			FileReference EngineAssemblyFileName = FileReference.Combine(RootDirectory, "Intermediate", "Build", "BuildRules", AssemblyPrefix + "Rules" + FrameworkAssemblyExtension);
-			RulesAssembly EngineAssembly = new RulesAssembly(Scope, RootDirectory, Plugins, ModuleFileToContext, new List<FileReference>(), EngineAssemblyFileName, bContainsEngineModules: true, bUseBackwardsCompatibleDefaults: false, bReadOnly: bReadOnly, bSkipCompile: bSkipCompile, Parent: Parent);
+			FileReference EngineAssemblyFileName = FileReference.Combine(RootDirectories[0], "Intermediate", "Build", "BuildRules", AssemblyPrefix + "Rules" + FrameworkAssemblyExtension);
+			RulesAssembly EngineAssembly = new RulesAssembly(Scope, RootDirectories[0], Plugins, ModuleFileToContext, new List<FileReference>(), EngineAssemblyFileName, bContainsEngineModules: true, bUseBackwardsCompatibleDefaults: false, bReadOnly: bReadOnly, bSkipCompile: bSkipCompile, Parent: Parent);
 
-			// Create a new scope for programs
-			RulesScope ProgramsScope = new RulesScope(Scope.Name + " Programs", PluginsScope);
-
-			// Also create a scope for them, and update the UHT module type
-			ModuleRulesContext ProgramsModuleContext = new ModuleRulesContext(ProgramsScope, RootDirectory);
-			ProgramsModuleContext.DefaultUHTModuleType = UHTModuleType.Program;
-
-			// Find all the rules files
+			List<FileReference> ProgramTargetFiles = new List<FileReference>();
 			Dictionary<FileReference, ModuleRulesContext> ProgramModuleFiles = new Dictionary<FileReference, ModuleRulesContext>();
-			using(Timeline.ScopeEvent("Finding program modules"))
+			foreach (DirectoryReference RootDirectory in RootDirectories)
 			{
-				AddModuleRulesWithContext(ProgramsDirectory, ProgramsModuleContext, ProgramModuleFiles);
-			}
-			List<FileReference> ProgramTargetFiles;
-			using(Timeline.ScopeEvent("Finding program targets"))
-			{
-				ProgramTargetFiles = new List<FileReference>(FindAllRulesFiles(SourceDirectory, RulesFileType.Target));
+				DirectoryReference SourceDirectory = DirectoryReference.Combine(RootDirectory, "Source");
+				DirectoryReference ProgramsDirectory = DirectoryReference.Combine(SourceDirectory, "Programs");
+
+				// Also create a scope for them, and update the UHT module type
+				ModuleRulesContext ProgramsModuleContext = new ModuleRulesContext(ProgramsScope, RootDirectory);
+				ProgramsModuleContext.DefaultUHTModuleType = UHTModuleType.Program;
+
+				using (Timeline.ScopeEvent("Finding program modules"))
+				{
+					// Find all the rules files
+					AddModuleRulesWithContext(ProgramsDirectory, ProgramsModuleContext, ProgramModuleFiles);
+				}
+
+				using (Timeline.ScopeEvent("Finding program targets"))
+				{
+					ProgramTargetFiles.AddRange(FindAllRulesFiles(SourceDirectory, RulesFileType.Target));
+				}
 			}
 
 			// Create a path to the assembly that we'll either load or compile
-			FileReference ProgramAssemblyFileName = FileReference.Combine(RootDirectory, "Intermediate", "Build", "BuildRules", AssemblyPrefix + "ProgramRules" + FrameworkAssemblyExtension);
-			RulesAssembly ProgramAssembly = new RulesAssembly(ProgramsScope, RootDirectory, new List<PluginInfo>().AsReadOnly(), ProgramModuleFiles, ProgramTargetFiles, ProgramAssemblyFileName, bContainsEngineModules: false, bUseBackwardsCompatibleDefaults: false, bReadOnly: bReadOnly, bSkipCompile: bSkipCompile, Parent: EngineAssembly);
+			FileReference ProgramAssemblyFileName = FileReference.Combine(RootDirectories[0], "Intermediate", "Build", "BuildRules", AssemblyPrefix + "ProgramRules" + FrameworkAssemblyExtension);
+			RulesAssembly ProgramAssembly = new RulesAssembly(ProgramsScope, RootDirectories[0], new List<PluginInfo>().AsReadOnly(), ProgramModuleFiles, ProgramTargetFiles, ProgramAssemblyFileName, bContainsEngineModules: false, bUseBackwardsCompatibleDefaults: false, bReadOnly: bReadOnly, bSkipCompile: bSkipCompile, Parent: EngineAssembly);
 
 			// Return the combined assembly
 			return ProgramAssembly;

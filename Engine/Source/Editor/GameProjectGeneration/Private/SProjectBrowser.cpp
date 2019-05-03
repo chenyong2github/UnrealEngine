@@ -865,7 +865,7 @@ FReply SProjectBrowser::FindProjects()
 
 				// Work out which platforms this project is targeting
 				TArray<FName> TargetPlatforms;
-				for(const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::EnumeratePlatformInfoArray())
+				for(const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 				{
 					if(PlatformInfo.IsVanilla() && PlatformInfo.PlatformType == PlatformInfo::EPlatformType::Game && ProjectStatus.IsTargetPlatformSupported(PlatformInfo.PlatformInfoName))
 					{

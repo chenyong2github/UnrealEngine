@@ -7536,8 +7536,9 @@ void FSlateEditorStyle::FStyle::SetupAutomationStyles()
 		Set( "Launcher.Platform.AllPlatforms.Large", new IMAGE_BRUSH( "Launcher/All_Platforms_128x", Icon64x64) );
 		Set( "Launcher.Platform.AllPlatforms.XLarge", new IMAGE_BRUSH( "Launcher/All_Platforms_128x", Icon128x128) );
 
-		for(const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::EnumeratePlatformInfoArray())
+		for(const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 		{
+			// @todo platplug: Add in .Small icons
 			Set( PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal), new IMAGE_BRUSH( *PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::Normal), Icon24x24 ) );
 			Set( PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Large),  new IMAGE_BRUSH( *PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::Large),  Icon64x64 ) );
 			Set( PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::XLarge), new IMAGE_BRUSH( *PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::XLarge), Icon128x128 ) );

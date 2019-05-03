@@ -410,7 +410,7 @@ namespace UnrealBuildTool
 
 					if (HostPlatform == UnrealTargetPlatform.Win64)
 					{
-						RawIncludes.AddRange(VCToolChain.GetVCIncludePaths(CppPlatform.Win64, WindowsPlatform.GetDefaultCompiler(null), null).Trim(';').Split(';'));
+						RawIncludes.AddRange(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, WindowsPlatform.GetDefaultCompiler(null), null).Trim(';').Split(';'));
 					}
 					else
 					{
@@ -436,7 +436,7 @@ namespace UnrealBuildTool
 							
 						}
 					}
-					
+
 					foreach (string Definition in Project.IntelliSensePreprocessorDefinitions)
 					{
 						string Processed = Definition.Replace("\"", "\\\"");
@@ -1000,22 +1000,13 @@ namespace UnrealBuildTool
 							{
 								OutFile.AddField("stopAtEntry", false);
 								OutFile.AddField("externalConsole", true);
+
+								OutFile.AddField("type", "cppvsdbg");
+								OutFile.AddField("visualizerFile", MakeUnquotedPathString(FileReference.Combine(UE4ProjectRoot, "Engine", "Extras", "VisualStudioDebugging", "UE4.natvis"), EPathType.Absolute));
 							}
-
-							switch (HostPlatform)
+							else
 							{
-								case UnrealTargetPlatform.Win64:
-									{
-										OutFile.AddField("type", "cppvsdbg");
-										OutFile.AddField("visualizerFile", MakeUnquotedPathString(FileReference.Combine(UE4ProjectRoot, "Engine", "Extras", "VisualStudioDebugging", "UE4.natvis"), EPathType.Absolute));
-										break;
-									}
-
-								default:
-									{
-										OutFile.AddField("type", "lldb");
-										break;
-									}
+								OutFile.AddField("type", "lldb");
 							}
 						}
 						OutFile.EndObject();

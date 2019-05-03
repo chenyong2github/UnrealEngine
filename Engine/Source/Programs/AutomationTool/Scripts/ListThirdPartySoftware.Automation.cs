@@ -88,7 +88,7 @@ class ListThirdPartySoftware : BuildCommand
 			}
 
 			// Get the platforms to exclude
-			List<UnrealTargetPlatform> SupportedPlatforms = new List<UnrealTargetPlatform> { (UnrealTargetPlatform)Enum.Parse(typeof(UnrealTargetPlatform), Object.GetStringField("Platform")) };
+			List<UnrealTargetPlatform> SupportedPlatforms = new List<UnrealTargetPlatform> { UnrealTargetPlatform.Parse(Object.GetStringField("Platform")) };
 			string[] ExcludePlatformNames = Utils.MakeListOfUnsupportedPlatforms(SupportedPlatforms).ToArray();
 
 			// Find all the TPS files under the engine directory which match

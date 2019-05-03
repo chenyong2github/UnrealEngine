@@ -193,6 +193,9 @@ void RHIInit(bool bHasEditorToken)
 {
 	if(!GDynamicRHI)
 	{
+		// read in any data driven shader platform info structures we can find
+		FDataDrivenShaderPlatformInfo::Initialize();
+
 		GRHICommandList.LatchBypass(); // read commandline for bypass flag
 
 		if (!FApp::CanEverRender())

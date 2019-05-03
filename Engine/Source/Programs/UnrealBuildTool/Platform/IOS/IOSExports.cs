@@ -126,11 +126,9 @@ namespace UnrealBuildTool
 		/// <param name="ProjectFile"></param>
 		/// <param name="Executable"></param>
 		/// <param name="StageDirectory"></param>
-		/// <param name="PlatformType"></param>
-		public static void GenerateAssetCatalog(FileReference ProjectFile, FileReference Executable, DirectoryReference StageDirectory, UnrealTargetPlatform PlatformType)
+		/// <param name="Platform"></param>
+		public static void GenerateAssetCatalog(FileReference ProjectFile, FileReference Executable, DirectoryReference StageDirectory, UnrealTargetPlatform Platform)
 		{
-			CppPlatform Platform = PlatformType == UnrealTargetPlatform.IOS ? CppPlatform.IOS : CppPlatform.TVOS;
-
 			// Determine whether the user has modified icons that require a remote Mac to build.
 			bool bUserImagesExist = false;
 			DirectoryReference ResourcesDir = IOSToolChain.GenerateAssetCatalog(ProjectFile, Platform, ref bUserImagesExist);
@@ -142,7 +140,7 @@ namespace UnrealBuildTool
 			}
 
             // Also don't attempt to use a remote Mac if packaging for TVOS on PC.
-            if (Platform == CppPlatform.TVOS && BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac)
+            if (Platform == UnrealTargetPlatform.TVOS && BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac)
             {
                 return;
             }

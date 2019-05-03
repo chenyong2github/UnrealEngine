@@ -12,14 +12,8 @@ namespace UnrealBuildTool
 {
 	abstract class UEToolChain
 	{
-		/// <summary>
-		/// The C++ platform that this toolchain supports
-		/// </summary>
-		public readonly CppPlatform CppPlatform;
-
-		public UEToolChain(CppPlatform InCppPlatform)
+		public UEToolChain()
 		{
-			CppPlatform = InCppPlatform;
 		}
 
 		public virtual string GetVersionInfo()

@@ -54,6 +54,10 @@ static FName NAME_VULKAN_SM5(TEXT("SF_VULKAN_SM5"));
 static FName NAME_VULKAN_SM5_LUMIN(TEXT("SF_VULKAN_SM5_LUMIN"));
 static FName NAME_VULKAN_SM5_LUMIN_NOUB(TEXT("SF_VULKAN_SM5_LUMIN_NOUB"));
 
+#ifdef DDPI_EXTRA_SHADERFORMATS
+	DDPI_EXTRA_SHADERFORMATS
+#endif
+
 
 static FName ShaderPlatformToShaderFormatName(EShaderPlatform Platform)
 {
@@ -151,6 +155,10 @@ static FName ShaderPlatformToShaderFormatName(EShaderPlatform Platform)
 		return (CVar && CVar->GetValueOnAnyThread() == 0) ? NAME_VULKAN_SM5_LUMIN_NOUB : NAME_VULKAN_SM5_LUMIN;
 	}
 
+#ifdef DDPI_EXTRA_SHADERPLATFORM_TO_SHADERFORMAT
+	DDPI_EXTRA_SHADERPLATFORM_TO_SHADERFORMAT
+#endif
+
 	default:
 		checkf(0, TEXT("Unknown EShaderPlatform %d!"), (int32)Platform);
 		return NAME_PCD3D_SM5;
@@ -204,6 +212,10 @@ static EShaderPlatform ShaderFormatNameToShaderPlatform(FName ShaderFormat)
 	if (ShaderFormat == NAME_VULKAN_SM5)				return SP_VULKAN_SM5;
 	if (ShaderFormat == NAME_VULKAN_SM5_LUMIN)			return SP_VULKAN_SM5_LUMIN;
 	if (ShaderFormat == NAME_VULKAN_SM5_LUMIN_NOUB)		return SP_VULKAN_SM5_LUMIN;
+
+#ifdef DDPI_EXTRA_SHADERFORMAT_TO_SHADERPLATFORM
+	DDPI_EXTRA_SHADERFORMAT_TO_SHADERPLATFORM
+#endif
 
 	return SP_NumPlatforms;
 }

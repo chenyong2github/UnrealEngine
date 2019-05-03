@@ -60,9 +60,9 @@ namespace UnrealBuildTool
 									// check if the machine name on the line matches the current machine name, if not, we don't apply this junk
 									if (InnerTokens.Length == 2)
 									{
-										UnrealTargetPlatform ParsedPlatform = UEBuildPlatform.ConvertStringToPlatform(InnerTokens[1]);
+										UnrealTargetPlatform ParsedPlatform;
 										// if the platform is valid, then we want to keep the files, which means that we don't want to apply the junk line
-										if (ParsedPlatform != UnrealTargetPlatform.Unknown)
+										if (UnrealTargetPlatform.TryParse(InnerTokens[1], out ParsedPlatform))
 										{
 											if (UEBuildPlatform.GetBuildPlatform(ParsedPlatform, bInAllowFailure: true) != null)
 											{

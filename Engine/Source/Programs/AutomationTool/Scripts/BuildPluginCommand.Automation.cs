@@ -297,11 +297,11 @@ class BuildPlugin : BuildCommand
 				foreach (string TargetPlatformName in TargetPlatformFilter.Split(new char[]{ '+' }, StringSplitOptions.RemoveEmptyEntries))
 				{
 					UnrealTargetPlatform TargetPlatform;
-					if(!Enum.TryParse(TargetPlatformName, out TargetPlatform))
+					if (!UnrealTargetPlatform.TryParse(TargetPlatformName, out TargetPlatform))
 					{
 						throw new AutomationException("Unknown target platform '{0}' specified on command line");
 					}
-					else if(TargetPlatforms.Contains(TargetPlatform))
+					if(TargetPlatforms.Contains(TargetPlatform))
 					{
 						NewTargetPlatforms.Add(TargetPlatform);
 					}

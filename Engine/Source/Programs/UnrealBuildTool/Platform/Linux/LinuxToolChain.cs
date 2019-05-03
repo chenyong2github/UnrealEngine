@@ -69,7 +69,7 @@ namespace UnrealBuildTool
 		LinuxToolChainOptions Options;
 
 		public LinuxToolChain(string InArchitecture, LinuxPlatformSDK InSDK, bool InPreservePSYM = false, LinuxToolChainOptions InOptions = LinuxToolChainOptions.None)
-			: this(CppPlatform.Linux, InArchitecture, InSDK, InPreservePSYM, InOptions)
+			: this(UnrealTargetPlatform.Linux, InArchitecture, InSDK, InPreservePSYM, InOptions)
 		{
 			MultiArchRoot = PlatformSDK.GetSDKLocation();
 			BaseLinuxPath = PlatformSDK.GetBaseLinuxPathForArchitecture(InArchitecture);
@@ -189,8 +189,8 @@ namespace UnrealBuildTool
 			bUseLld = (CompilerVersionMajor >= 5);
 		}
 
-		public LinuxToolChain(CppPlatform InCppPlatform, string InArchitecture, LinuxPlatformSDK InSDK, bool InPreservePSYM = false, LinuxToolChainOptions InOptions = LinuxToolChainOptions.None)
-			: base(InCppPlatform)
+		public LinuxToolChain(UnrealTargetPlatform InPlatform, string InArchitecture, LinuxPlatformSDK InSDK, bool InPreservePSYM = false, LinuxToolChainOptions InOptions = LinuxToolChainOptions.None)
+			: base()
 		{
 			Architecture = InArchitecture;
 			PlatformSDK = InSDK;
@@ -1173,7 +1173,7 @@ namespace UnrealBuildTool
 			string Arguments = GetCLArguments_Global(CompileEnvironment);
 			string PCHArguments = "";
 
-			var BuildPlatform = UEBuildPlatform.GetBuildPlatformForCPPTargetPlatform(CompileEnvironment.Platform);
+			var BuildPlatform = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform);
 
 			if (!bHasPrintedBuildDetails)
 			{

@@ -673,38 +673,33 @@ static FName NAME_PLATFORM_MAC(TEXT("Mac"));
 static FName NAME_PLATFORM_SWITCH(TEXT("Switch"));
 static FName NAME_PLATFORM_TVOS(TEXT("TVOS"));
 
+// @todo platplug: This is still here, only being used now by UMaterialShaderQualitySettings::GetOrCreatePlatformSettings
+// since I have moved the other uses to FindTargetPlatformWithSupport
+// But I'd like to delete it anyway!
 FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 {
 	switch(Platform)
 	{
 	case SP_PCD3D_SM4:
-	case SP_PCD3D_SM5:
-		return NAME_PLATFORM_WINDOWS;
-	case SP_PS4:
-		return NAME_PLATFORM_PS4;
-	case SP_XBOXONE_D3D12:
-		return NAME_PLATFORM_XBOXONE;
+	case SP_PCD3D_SM5: return NAME_PLATFORM_WINDOWS;
+	case SP_PS4: return NAME_PLATFORM_PS4;
+	case SP_XBOXONE_D3D12: return NAME_PLATFORM_XBOXONE;
 	case SP_OPENGL_ES3_1_ANDROID:
-	case SP_VULKAN_ES3_1_ANDROID:
-		return NAME_PLATFORM_ANDROID;
+	case SP_VULKAN_ES3_1_ANDROID: return NAME_PLATFORM_ANDROID;
 	case SP_METAL:
 	case SP_METAL_MRT:
         return NAME_PLATFORM_IOS;
 	case SP_METAL_TVOS:
-	case SP_METAL_MRT_TVOS:
-		return NAME_PLATFORM_TVOS;
+	case SP_METAL_MRT_TVOS: return NAME_PLATFORM_TVOS;
 	case SP_METAL_SM5:
 	case SP_METAL_SM5_NOTESS:
 	case SP_METAL_MACES3_1:
 	case SP_METAL_MACES2:
-	case SP_METAL_MRT_MAC:
-		return NAME_PLATFORM_MAC;
+	case SP_METAL_MRT_MAC: return NAME_PLATFORM_MAC;
 	case SP_SWITCH:
-	case SP_SWITCH_FORWARD:
-		return NAME_PLATFORM_SWITCH;
+	case SP_SWITCH_FORWARD: return NAME_PLATFORM_SWITCH;
 
-	default:
-		return FName();
+	default: return FName();
 	}
 }
 
@@ -812,7 +807,8 @@ RHI_API bool RHISupportsPixelShaderUAVs(const EShaderPlatform Platform)
 
 RHI_API bool RHISupportsIndexBufferUAVs(const EShaderPlatform Platform)
 {
-	return Platform == SP_PCD3D_SM5 || IsVulkanPlatform(Platform) || IsMetalSM5Platform(Platform) || Platform == SP_XBOXONE_D3D12 || Platform == SP_PS4;
+	return Platform == SP_PCD3D_SM5 || IsVulkanPlatform(Platform) || IsMetalSM5Platform(Platform) || Platform == SP_XBOXONE_D3D12 || Platform == SP_PS4 
+		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsIndexBufferUAVs;
 }
 
 
@@ -1024,4 +1020,155 @@ static FRHIPanicEvent RHIPanicEvent;
 FRHIPanicEvent& RHIGetPanicDelegate()
 {
 	return RHIPanicEvent;
+}
+
+
+
+
+
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
+
+FString LexToString(EShaderPlatform Platform)
+{
+	switch (Platform)
+	{
+	case SP_PCD3D_SM5: return TEXT("PCD3D_SM5");
+	case SP_PCD3D_SM4: return TEXT("PCD3D_SM4");
+	case SP_PCD3D_ES3_1: return TEXT("PCD3D_ES3_1");
+	case SP_PCD3D_ES2: return TEXT("PCD3D_ES2");
+	case SP_OPENGL_SM4: return TEXT("OPENGL_SM4");
+	case SP_OPENGL_SM5: return TEXT("OPENGL_SM5");
+	case SP_OPENGL_PCES2: return TEXT("OPENGL_PCES2");
+	case SP_OPENGL_PCES3_1: return TEXT("OPENGL_PCES3_1");
+	case SP_OPENGL_ES2_ANDROID: return TEXT("OPENGL_ES2_ANDROID");
+	case SP_OPENGL_ES2_WEBGL: return TEXT("OPENGL_ES2_WEBGL");
+	case SP_OPENGL_ES2_IOS: return TEXT("OPENGL_ES2_IOS");
+	case SP_OPENGL_ES31_EXT: return TEXT("OPENGL_ES31_EXT");
+	case SP_OPENGL_ES3_1_ANDROID: return TEXT("OPENGL_ES3_1_ANDROID");
+	case SP_PS4: return TEXT("PS4");
+	case SP_XBOXONE_D3D12: return TEXT("XBOXONE_D3D12");
+	case SP_SWITCH: return TEXT("SWITCH");
+	case SP_SWITCH_FORWARD: return TEXT("SWITCH_FORWARD");
+	case SP_METAL: return TEXT("METAL");
+	case SP_METAL_MRT: return TEXT("METAL_MRT");
+	case SP_METAL_TVOS: return TEXT("METAL_TVOS");
+	case SP_METAL_MRT_TVOS: return TEXT("METAL_MRT_TVOS");
+	case SP_METAL_MRT_MAC: return TEXT("METAL_MRT_MAC");
+	case SP_METAL_SM5: return TEXT("METAL_SM5");
+	case SP_METAL_SM5_NOTESS: return TEXT("METAL_SM5_NOTESS");
+	case SP_METAL_MACES3_1: return TEXT("METAL_MACES3_1");
+	case SP_METAL_MACES2: return TEXT("METAL_MACES2");
+	case SP_VULKAN_ES3_1_ANDROID: return TEXT("VULKAN_ES3_1_ANDROID");
+	case SP_VULKAN_ES3_1_LUMIN: return TEXT("VULKAN_ES3_1_LUMIN");
+	case SP_VULKAN_PCES3_1: return TEXT("VULKAN_PCES3_1");
+	case SP_VULKAN_SM4:	return TEXT("VULKAN_SM4");
+	case SP_VULKAN_SM5: return TEXT("VULKAN_SM5");
+	case SP_VULKAN_SM5_LUMIN: return TEXT("VULKAN_SM5_LUMIN");
+
+#ifdef DDPI_EXTRA_SHADERPLATFORM_LEXTOSTRING
+		DDPI_EXTRA_SHADERPLATFORM_LEXTOSTRING
+#endif
+
+	default:
+		checkf(0, TEXT("Unknown EShaderPlatform %d!"), (int32)Platform);
+		return TEXT("");
+	}
+}
+
+void LexFromString(EShaderPlatform& Value, const TCHAR* String)
+{
+	Value = EShaderPlatform::SP_NumPlatforms;
+
+	for (uint8 i = 0; i < (uint8)EShaderPlatform::SP_NumPlatforms; ++i)
+	{
+		if (LexToString((EShaderPlatform)i).Equals(String))
+		{
+			Value = (EShaderPlatform)i;
+			return;
+		}
+	}
+}
+
+
+FName LANGUAGE_D3D("D3D");
+FName LANGUAGE_Metal("Metal");
+FName LANGUAGE_OpenGL("OpenGL");
+FName LANGUAGE_Vulkan("Vulkan");
+FName LANGUAGE_Sony("Sony");
+FName LANGUAGE_Nintendo("Nintendo");
+
+RHI_API FDataDrivenShaderPlatformInfo FDataDrivenShaderPlatformInfo::Infos[SP_NumPlatforms];
+
+// Gets a string from a section, or empty string if it didn't exist
+FString GetSectionString(const FConfigSection& Section, FName Key)
+{
+	return Section.FindRef(Key).GetValue();
+}
+
+// Gets a bool from a section, or false if it didn't exist
+bool GetSectionBool(const FConfigSection& Section, FName Key)
+{
+	return FCString::ToBool(*GetSectionString(Section, Key));
+}
+
+inline void ParseDataDrivenShaderInfo(const FConfigSection& Section, FDataDrivenShaderPlatformInfo& Info)
+{
+	Info.Language = *GetSectionString(Section, "Language");
+	GetFeatureLevelFromName(*GetSectionString(Section, "MaxFeatureLevel"), Info.MaxFeatureLevel);
+
+	Info.bIsMobile = GetSectionBool(Section, "bIsMobile");
+	Info.bIsMetalMRT = GetSectionBool(Section, "bIsMetalMRT");
+	Info.bIsPC = GetSectionBool(Section, "bIsPC");
+	Info.bIsConsole = GetSectionBool(Section, "bIsConsole");
+	Info.bIsAndroidOpenGLES = GetSectionBool(Section, "bIsAndroidOpenGLES");
+	Info.bSupportsDrawIndirect = GetSectionBool(Section, "bSupportsDrawIndirect");
+	Info.bSupportsMobileMultiView = GetSectionBool(Section, "bSupportsMobileMultiView");
+	Info.bSupportsVolumeTextureCompression = GetSectionBool(Section, "bSupportsVolumeTextureCompression");
+	Info.bSupportsDistanceFields = GetSectionBool(Section, "bSupportsDistanceFields");
+	Info.bSupportsDiaphragmDOF = GetSectionBool(Section, "bSupportsDiaphragmDOF");
+	Info.bSupportsRGBColorBuffer = GetSectionBool(Section, "bSupportsRGBColorBuffer");
+	Info.bSupportsByteBufferComputeShaders = GetSectionBool(Section, "bSupportsByteBufferComputeShaders");
+	Info.bSupportsCapsuleShadows = GetSectionBool(Section, "bSupportsCapsuleShadows");
+	Info.bSupportsVolumetricFog = GetSectionBool(Section, "bSupportsVolumetricFog");
+	Info.bSupportsIndexBufferUAVs = GetSectionBool(Section, "bSupportsIndexBufferUAVs");
+	Info.bSupportsInstancedStereo = GetSectionBool(Section, "bSupportsInstancedStereo");
+	Info.bSupportsMultiView = GetSectionBool(Section, "bSupportsMultiView");
+	Info.bSupportsMSAA = GetSectionBool(Section, "bSupportsMSAA");
+	Info.bSupports4ComponentUAVReadWrite = GetSectionBool(Section, "bSupports4ComponentUAVReadWrite");
+	Info.bTargetsTiledGPU = GetSectionBool(Section, "bTargetsTiledGPU");
+	Info.bNeedsOfflineCompiler = GetSectionBool(Section, "bNeedsOfflineCompiler");
+}
+
+void FDataDrivenShaderPlatformInfo::Initialize()
+{
+	// look for the standard DataDriven ini files
+	int32 NumDDInfoFiles = FDataDrivenPlatformInfoRegistry::GetNumDataDrivenIniFiles();
+	for (int32 Index = 0; Index < NumDDInfoFiles; Index++)
+	{
+		FConfigFile IniFile;
+		FString PlatformName;
+
+		FDataDrivenPlatformInfoRegistry::LoadDataDrivenIniFile(Index, IniFile, PlatformName);
+
+		// now walk over the file, looking for ShaderPlatformInfo sections
+		for (auto Section : IniFile)
+		{
+			if (Section.Key.StartsWith(TEXT("ShaderPlatform ")))
+			{
+				const FString& SectionName = Section.Key;
+
+				EShaderPlatform ShaderPlatform;
+				// get enum value for the string name
+				LexFromString(ShaderPlatform, *SectionName.Mid(15));
+				if (ShaderPlatform == EShaderPlatform::SP_NumPlatforms)
+				{
+					UE_LOG(LogRHI, Warning, TEXT("Found an unknown shader platform %s in a DataDriven ini file"), *SectionName.Mid(15));
+					continue;
+				}
+				
+				// at this point, we can start pulling information out
+				ParseDataDrivenShaderInfo(Section.Value, Infos[ShaderPlatform]);	
+			}
+		}
+	}
 }

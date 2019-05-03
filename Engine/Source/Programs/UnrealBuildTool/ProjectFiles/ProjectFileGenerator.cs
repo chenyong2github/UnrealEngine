@@ -361,7 +361,7 @@ namespace UnrealBuildTool
 		/// If generating project files for a single project, the path to its .uproject file.
 		/// </summary>
 		public readonly FileReference OnlyGameProject;
-	
+
 		/// <summary>
 		/// File extension for project files we'll be generating (e.g. ".vcxproj")
 		/// </summary>
@@ -1046,17 +1046,8 @@ namespace UnrealBuildTool
 							}
 
 							// Is the string a valid platform? If so, add it to the list
-							UnrealTargetPlatform SpecifiedPlatform = UnrealTargetPlatform.Unknown;
-							foreach (UnrealTargetPlatform PlatformParam in Enum.GetValues(typeof(UnrealTargetPlatform)))
-							{
-								if (PlatformString.Equals(PlatformParam.ToString(), StringComparison.InvariantCultureIgnoreCase))
-								{
-									SpecifiedPlatform = PlatformParam;
-									break;
-								}
-							}
-
-							if (SpecifiedPlatform != UnrealTargetPlatform.Unknown)
+							UnrealTargetPlatform SpecifiedPlatform;
+							if (UnrealTargetPlatform.TryParse(PlatformString, out SpecifiedPlatform))
 							{
 								if (ProjectPlatforms.Contains(SpecifiedPlatform) == false)
 								{
@@ -1789,8 +1780,7 @@ namespace UnrealBuildTool
 		{
 			StringBuilder SupportedPlatformsString = new StringBuilder();
 
-			System.Array PlatformEnums = Enum.GetValues(typeof(UnrealTargetPlatform));
-			foreach (UnrealTargetPlatform Platform in PlatformEnums)
+			foreach (UnrealTargetPlatform Platform in UnrealTargetPlatform.GetValidPlatforms())
 			{
 				// project is in the explicit platform list or we include them all, we add the valid desktop platforms as they are required
 				bool bInProjectPlatformsList = (ProjectPlatforms.Count > 0) ? (IsValidDesktopPlatform(Platform) || ProjectPlatforms.Contains(Platform)) : true;
@@ -1841,17 +1831,20 @@ namespace UnrealBuildTool
 		/// <returns>true if valid, false if not</returns>
 		static public bool IsValidDesktopPlatform(UnrealTargetPlatform InPlatform)
 		{
-			switch (BuildHostPlatform.Current.Platform)
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
 			{
-				case UnrealTargetPlatform.Linux:
-					return InPlatform == UnrealTargetPlatform.Linux;
-				case UnrealTargetPlatform.Mac:
-					return InPlatform == UnrealTargetPlatform.Mac;
-				case UnrealTargetPlatform.Win64:
-					return ((InPlatform == UnrealTargetPlatform.Win32) || (InPlatform == UnrealTargetPlatform.Win64));
-				default:
-					throw new BuildException("Invalid RuntimePlatform:" + BuildHostPlatform.Current.Platform);
+				return InPlatform == UnrealTargetPlatform.Linux;
 			}
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+			{
+				return InPlatform == UnrealTargetPlatform.Mac;
+			}
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
+			{
+				return InPlatform == UnrealTargetPlatform.Win32 || InPlatform == UnrealTargetPlatform.Win32;
+			}
+
+			throw new BuildException("Invalid RuntimePlatform:" + BuildHostPlatform.Current.Platform);
 		}
 
 		/// <summary>
@@ -1895,7 +1888,9 @@ namespace UnrealBuildTool
 				// We'll keep track of whether this is an "engine" or "external" module.  This is determined below while loading module rules.
 				bool IsThirdPartyModule = CurModuleFile.ContainsName("ThirdParty", UnrealBuildTool.RootDirectory);
 
-				if( CurModuleFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory) && !bIncludeEngineSource )
+				// check for engine, or platform extension engine folders
+				if( !bIncludeEngineSource && (CurModuleFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory) ||
+					CurModuleFile.ContainsName("Engine", UnrealBuildTool.PlatformExtensionsDirectory)) )
 				{
 					// We were asked to exclude engine modules from the generated projects
 					WantProjectFileForModule = false;
@@ -1993,7 +1988,9 @@ namespace UnrealBuildTool
 				ProjectFileNameBase = PossibleProgramTargetName;
 				BaseFolder = CurModuleFile.Directory;
 			}
-			else if( CurModuleFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory) )
+			// check for engine, or platform extension engine folders
+			else if( CurModuleFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory) ||
+				CurModuleFile.ContainsName("Engine", UnrealBuildTool.PlatformExtensionsDirectory) )
 			{
 				ProjectFileNameBase = EngineProjectFileNameBase;
 				BaseFolder = UnrealBuildTool.EngineDirectory;
@@ -2650,11 +2647,7 @@ namespace UnrealBuildTool
 			if (bNeedsAllPlatformAndConfigurations)
 			{
 				// Add all platforms
-				Array AllPlatforms = Enum.GetValues(typeof(UnrealTargetPlatform));
-				foreach (UnrealTargetPlatform CurPlatfrom in AllPlatforms)
-				{
-					ProjectTarget.ExtraSupportedPlatforms.Add(CurPlatfrom);
-				}
+				ProjectTarget.ExtraSupportedPlatforms.AddRange(UnrealTargetPlatform.GetValidPlatforms());
 
 				// Add all configurations
 				Array AllConfigurations = Enum.GetValues(typeof(UnrealTargetConfiguration));
@@ -2676,11 +2669,7 @@ namespace UnrealBuildTool
 				else
 				{
 					// Otherwise, add all platforms
-					Array AllPlatforms = Enum.GetValues(typeof(UnrealTargetPlatform));
-					foreach (UnrealTargetPlatform CurPlatfrom in AllPlatforms)
-					{
-						ProjectTarget.ExtraSupportedPlatforms.Add(CurPlatfrom);
-					}
+					ProjectTarget.ExtraSupportedPlatforms.AddRange(UnrealTargetPlatform.GetValidPlatforms());
 				}
 
 				if (InSupportedConfigurations != null)

@@ -31,7 +31,8 @@ inline bool DoesPlatformSupportDistanceFieldAO(EShaderPlatform Platform)
 	return Platform == SP_PCD3D_SM5 || Platform == SP_PS4 || Platform == SP_XBOXONE_D3D12
 		|| IsMetalSM5Platform(Platform)
 		|| IsVulkanSM5Platform(Platform)
-		|| Platform == SP_SWITCH || Platform == SP_SWITCH_FORWARD;
+		|| Platform == SP_SWITCH || Platform == SP_SWITCH_FORWARD
+		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsDistanceFields;
 }
 
 extern FIntPoint GetBufferSizeForAO();

@@ -150,3 +150,7 @@ struct FLinuxPlatformProperties
 		return !IsServerOnly();
 	}
 };
+
+#ifdef PROPERTY_HEADER_SHOULD_DEFINE_TYPE
+typedef FLinuxPlatformProperties<WITH_EDITORONLY_DATA, UE_SERVER, !WITH_SERVER_CODE> FPlatformProperties;
+#endif

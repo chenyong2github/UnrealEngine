@@ -6,6 +6,8 @@
 
 IMPLEMENT_MODULE(FAndroidDeviceProfileSelectorModule, AndroidDeviceProfileSelector);
 
+DEFINE_LOG_CATEGORY_STATIC(LogAndroidDPSelector, Log, All)
+
 void FAndroidDeviceProfileSelectorModule::StartupModule()
 {
 }
@@ -40,23 +42,23 @@ const FString FAndroidDeviceProfileSelectorModule::GetDeviceProfileName(const TM
 	FString Hardware = DeviceParameters.FindChecked("Hardware");
 	FString Chipset = DeviceParameters.FindChecked("Chipset");
 
-	UE_LOG(LogAndroid, Log, TEXT("Checking %d rules from DeviceProfile ini file."), FAndroidDeviceProfileSelector::GetNumProfiles() );
-	UE_LOG(LogAndroid, Log, TEXT("  Default profile: %s"), *ProfileName);
-	UE_LOG(LogAndroid, Log, TEXT("  GpuFamily: %s"), *GPUFamily);
-	UE_LOG(LogAndroid, Log, TEXT("  GlVersion: %s"), *GLVersion);
-	UE_LOG(LogAndroid, Log, TEXT("  VulkanAvailable: %s"), *VulkanAvailable);
-	UE_LOG(LogAndroid, Log, TEXT("  VulkanVersion: %s"), *VulkanVersion);
-	UE_LOG(LogAndroid, Log, TEXT("  AndroidVersion: %s"), *AndroidVersion);
-	UE_LOG(LogAndroid, Log, TEXT("  DeviceMake: %s"), *DeviceMake);
-	UE_LOG(LogAndroid, Log, TEXT("  DeviceModel: %s"), *DeviceModel);
-	UE_LOG(LogAndroid, Log, TEXT("  DeviceBuildNumber: %s"), *DeviceBuildNumber);
-	UE_LOG(LogAndroid, Log, TEXT("  UsingHoudini: %s"), *UsingHoudini);
-	UE_LOG(LogAndroid, Log, TEXT("  Hardware: %s"), *Hardware);
-	UE_LOG(LogAndroid, Log, TEXT("  Chipset: %s"), *Chipset);
+	UE_LOG(LogAndroidDPSelector, Log, TEXT("Checking %d rules from DeviceProfile ini file."), FAndroidDeviceProfileSelector::GetNumProfiles() );
+	UE_LOG(LogAndroidDPSelector, Log, TEXT("  Default profile: %s"), *ProfileName);
+	UE_LOG(LogAndroidDPSelector, Log, TEXT("  GpuFamily: %s"), *GPUFamily);
+	UE_LOG(LogAndroidDPSelector, Log, TEXT("  GlVersion: %s"), *GLVersion);
+	UE_LOG(LogAndroidDPSelector, Log, TEXT("  VulkanAvailable: %s"), *VulkanAvailable);
+	UE_LOG(LogAndroidDPSelector, Log, TEXT("  VulkanVersion: %s"), *VulkanVersion);
+	UE_LOG(LogAndroidDPSelector, Log, TEXT("  AndroidVersion: %s"), *AndroidVersion);
+	UE_LOG(LogAndroidDPSelector, Log, TEXT("  DeviceMake: %s"), *DeviceMake);
+	UE_LOG(LogAndroidDPSelector, Log, TEXT("  DeviceModel: %s"), *DeviceModel);
+	UE_LOG(LogAndroidDPSelector, Log, TEXT("  DeviceBuildNumber: %s"), *DeviceBuildNumber);
+	UE_LOG(LogAndroidDPSelector, Log, TEXT("  UsingHoudini: %s"), *UsingHoudini);
+	UE_LOG(LogAndroidDPSelector, Log, TEXT("  Hardware: %s"), *Hardware);
+	UE_LOG(LogAndroidDPSelector, Log, TEXT("  Chipset: %s"), *Chipset);
 
 	ProfileName = FAndroidDeviceProfileSelector::FindMatchingProfile(GPUFamily, GLVersion, AndroidVersion, DeviceMake, DeviceModel, DeviceBuildNumber, VulkanAvailable, VulkanVersion, UsingHoudini, Hardware, Chipset, ProfileName);
 
-	UE_LOG(LogAndroid, Log, TEXT("Selected Device Profile: [%s]"), *ProfileName);
+	UE_LOG(LogAndroidDPSelector, Log, TEXT("Selected Device Profile: [%s]"), *ProfileName);
 
 	return ProfileName;
 }

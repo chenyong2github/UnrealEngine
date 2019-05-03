@@ -111,7 +111,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// TargetRules is a data structure that contains the rules for defining a target (application/executable)
 	/// </summary>
-	public abstract class TargetRules
+	public abstract partial class TargetRules
 	{
 		/// <summary>
 		/// Static class wrapping constants aliasing the global TargetType enum.
@@ -1249,10 +1249,7 @@ namespace UnrealBuildTool
 			}
 
 			// Allow the build platform to set defaults for this target
-			if(Platform != UnrealTargetPlatform.Unknown)
-			{
-				UEBuildPlatform.GetBuildPlatform(Platform).ResetTarget(this);
-			}
+			UEBuildPlatform.GetBuildPlatform(Platform).ResetTarget(this);
 
 			// If we've got a changelist set, set that we're making a formal build
 			bFormalBuild = (Version.Changelist != 0 && Version.IsPromotedBuild);

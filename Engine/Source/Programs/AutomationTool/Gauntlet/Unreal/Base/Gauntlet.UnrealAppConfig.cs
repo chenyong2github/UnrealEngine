@@ -30,7 +30,7 @@ namespace Gauntlet
 		/// <summary>
 		/// Platform this role runs on
 		/// </summary>
-		public UnrealTargetPlatform Platform { get; set; }
+		public UnrealTargetPlatform? Platform { get; set; }
 
 		/// <summary>
 		/// Configuration for this role

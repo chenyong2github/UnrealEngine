@@ -108,7 +108,7 @@ namespace UnrealBuildTool
 		static InstalledPlatformInfo()
 		{
 			List<string> InstalledPlatforms;
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, (DirectoryReference)null, UnrealTargetPlatform.Unknown);
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, (DirectoryReference)null, BuildHostPlatform.Current.Platform);
 
 			bool bHasInstalledPlatformInfo;
 			if(Ini.TryGetValue("InstalledPlatforms", "HasInstalledPlatformInfo", out bHasInstalledPlatformInfo) && bHasInstalledPlatformInfo)
@@ -154,16 +154,14 @@ namespace UnrealBuildTool
 				bCanCreateEntry = false;
 			}
 
-			string	PlatformName;
-			UnrealTargetPlatform Platform = UnrealTargetPlatform.Unknown;
+			string PlatformName;
 			if (ParseSubValue(PlatformConfiguration, "PlatformName=", out PlatformName))
 			{
-				Enum.TryParse(PlatformName, out Platform);
-			}
-			if (Platform == UnrealTargetPlatform.Unknown)
-			{
-				Log.TraceWarning("Unable to read platform from {0}", PlatformConfiguration);
-				bCanCreateEntry = false;
+				if (!UnrealTargetPlatform.IsValidName(PlatformName))
+				{
+					Log.TraceWarning("Unable to read platform from {0}", PlatformConfiguration);
+					bCanCreateEntry = false;
+				}
 			}
 
 			string PlatformTypeName;
@@ -212,7 +210,7 @@ namespace UnrealBuildTool
 
 			if (bCanCreateEntry)
 			{
-				InstalledPlatformConfigurations.Add(new InstalledPlatformConfiguration(Configuration, Platform, PlatformType, Architecture, RequiredFile, ProjectType, bCanBeDisplayed));
+				InstalledPlatformConfigurations.Add(new InstalledPlatformConfiguration(Configuration, UnrealTargetPlatform.Parse(PlatformName), PlatformType, Architecture, RequiredFile, ProjectType, bCanBeDisplayed));
 			}
 		}
 
@@ -347,10 +345,7 @@ namespace UnrealBuildTool
 		private static void WriteConfigFileEntry(InstalledPlatformConfiguration Config, ref List<String> OutEntries)
 		{
 			string ConfigDescription = "+InstalledPlatformConfigurations=(";
-			if (Config.Platform != UnrealTargetPlatform.Unknown)
-			{
-				ConfigDescription += string.Format("PlatformName=\"{0}\", ", Config.Platform.ToString());
-			}
+			ConfigDescription += string.Format("PlatformName=\"{0}\", ", Config.Platform.ToString());
 			if (Config.Configuration != UnrealTargetConfiguration.Unknown)
 			{
 				ConfigDescription += string.Format("Configuration=\"{0}\", ", Config.Configuration.ToString());

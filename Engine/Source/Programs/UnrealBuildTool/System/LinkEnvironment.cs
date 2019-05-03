@@ -16,7 +16,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The platform to be compiled/linked for.
 		/// </summary>
-		public readonly CppPlatform Platform;
+		public readonly UnrealTargetPlatform Platform;
 
 		/// <summary>
 		/// The configuration to be compiled/linked for.
@@ -293,7 +293,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Default constructor.
 		/// </summary>
-		public LinkEnvironment(CppPlatform Platform, CppConfiguration Configuration, string Architecture)
+		public LinkEnvironment(UnrealTargetPlatform Platform, CppConfiguration Configuration, string Architecture)
 		{
 			this.Platform = Platform;
 			this.Configuration = Configuration;

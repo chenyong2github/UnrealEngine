@@ -31,7 +31,7 @@ namespace AutomationTool
 			IEnumerable<UnrealTargetPlatform> ContentOnlyPlatforms = Enumerable.Empty<UnrealTargetPlatform>();
 			if (!String.IsNullOrWhiteSpace(ContentOnlyPlatformsString))
 			{
-				ContentOnlyPlatforms = ContentOnlyPlatformsString.Split(';').Where(x => !String.IsNullOrWhiteSpace(x)).Select(x => (UnrealTargetPlatform)Enum.Parse(typeof(UnrealTargetPlatform), x));
+				ContentOnlyPlatforms = ContentOnlyPlatformsString.Split(';').Where(x => !String.IsNullOrWhiteSpace(x)).Select(x => UnrealTargetPlatform.Parse(x));
 			}
 			string AnalyticsTypeOverride = ParseParamValue("AnalyticsTypeOverride");
 
@@ -73,7 +73,7 @@ namespace AutomationTool
 			// Add the editor platform, otherwise we'll never be able to run UAT
 			InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(UnrealTargetConfiguration.Development, HostPlatform.Current.HostEditorPlatform, TargetRules.TargetType.Editor, "", "", EProjectType.Unknown, false));
 
-			foreach (UnrealTargetPlatform CodeTargetPlatform in Enum.GetValues(typeof(UnrealTargetPlatform)))
+			foreach (UnrealTargetPlatform CodeTargetPlatform in UnrealTargetPlatform.GetValidPlatforms())
 			{
 				if (PlatformExports.IsPlatformAvailable(CodeTargetPlatform))
 				{

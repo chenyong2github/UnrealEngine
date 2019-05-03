@@ -28,12 +28,11 @@ void FNullDynamicRHI::Init()
     GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4] = SP_NumPlatforms;
     GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_METAL_SM5;
 #else
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_OPENGL_PCES2;
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_NumPlatforms;
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4] = SP_OPENGL_SM4;
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_OPENGL_SM5;
+	GShaderPlatformForFeatureLevel[GetMaxSupportedFeatureLevel(GMaxRHIShaderPlatform)] = GMaxRHIShaderPlatform;
 #endif
 	
+	GRHIVendorId = 1;
+
 	check(!GIsRHIInitialized);
 
 	// do not do this at least on dedicated server; clients with -NullRHI may need additional consideration

@@ -17,23 +17,26 @@ public class AlembicLib : ModuleRules
             string LibDir = ModuleDirectory + "/AlembicDeploy/";
             string Platform;
             bool bAllowDynamicLibs = true;
-            switch (Target.Platform)
-            {
-                case UnrealTargetPlatform.Win64:
-                    Platform = "x64";
-                    LibDir += "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
-                    break;
-                case UnrealTargetPlatform.Mac:
-                    Platform = "Mac";
-                    bAllowDynamicLibs = false;
-                    break;
-                case UnrealTargetPlatform.Linux:
-                    Platform = "Linux";
-                    bAllowDynamicLibs = false;
-                    break;
-                default:
-                    return;
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				Platform = "x64";
+				LibDir += "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
+			}
+			else if (Target.Platform == UnrealTargetPlatform.Mac)
+			{
+				Platform = "Mac";
+				bAllowDynamicLibs = false;
+			}
+			else if (Target.Platform == UnrealTargetPlatform.Linux)
+			{ 
+				Platform = "Linux";
+				bAllowDynamicLibs = false;
             }
+			else
+			{
+				// unsupported
+				return;
+			}
             LibDir = LibDir + "/" + Platform + "/lib/";
             PublicLibraryPaths.Add(LibDir);
 

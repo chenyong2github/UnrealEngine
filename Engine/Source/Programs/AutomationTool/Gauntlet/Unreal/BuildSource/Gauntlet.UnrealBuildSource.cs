@@ -317,9 +317,15 @@ namespace Gauntlet
 			return BuildList.Where(B => ShouldMakeBuildAvailable(B)).ToList();
 		}
 
-		IEnumerable<IBuild> GetMatchingBuilds(UnrealTargetRole InRole, UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, BuildFlags InFlags)
+		IEnumerable<IBuild> GetMatchingBuilds(UnrealTargetRole InRole, UnrealTargetPlatform? InPlatform, UnrealTargetConfiguration InConfiguration, BuildFlags InFlags)
 		{
 			if (DiscoveredBuilds == null)
+			{
+				return new IBuild[0];
+			}
+
+			// can't build without a platform
+			if (InPlatform == null)
 			{
 				return new IBuild[0];
 			}
@@ -378,11 +384,14 @@ namespace Gauntlet
 			}
 
 			// Query our build list
-			var MatchingBuilds = GetMatchingBuilds(Role.RoleType, Role.Platform, Role.Configuration, Role.RequiredBuildFlags);
-		
-			if (MatchingBuilds.Count() > 0)
+			if (Role.Platform != null)
 			{
-				return true;
+				var MatchingBuilds = GetMatchingBuilds(Role.RoleType, Role.Platform.Value, Role.Configuration, Role.RequiredBuildFlags);
+
+				if (MatchingBuilds.Count() > 0)
+				{
+					return true;
+				}
 			}
 
 			Reasons.Add(string.Format("No build at {0} that matches {1}", string.Join(",", BuildPaths), Role.ToString()));

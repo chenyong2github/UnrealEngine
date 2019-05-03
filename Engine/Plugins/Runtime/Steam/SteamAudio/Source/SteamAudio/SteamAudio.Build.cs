@@ -52,24 +52,23 @@ namespace UnrealBuildTool.Rules
 			}
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "libPhonon");
-			switch (Target.Platform)
+
+			if (Target.Platform == UnrealTargetPlatform.Win32)
 			{
-				case UnrealTargetPlatform.Win32:
-					PrivateDependencyModuleNames.Add("XAudio2");
-					AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11Audio");
-					break;
-				case UnrealTargetPlatform.Win64:
-					PrivateDependencyModuleNames.Add("XAudio2");
-					AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11Audio");
-					PublicDelayLoadDLLs.Add("GPUUtilities.dll");
-					PublicDelayLoadDLLs.Add("tanrt64.dll");
-					break;
-				case UnrealTargetPlatform.Android:
-					string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
-					AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "SteamAudio_APL.xml"));
-					break;
-				default:
-					break;
+				PrivateDependencyModuleNames.Add("XAudio2");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11Audio");
+			}
+			else if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				PrivateDependencyModuleNames.Add("XAudio2");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11Audio");
+				PublicDelayLoadDLLs.Add("GPUUtilities.dll");
+				PublicDelayLoadDLLs.Add("tanrt64.dll");
+			}
+			else if (Target.Platform == UnrealTargetPlatform.Android)
+			{
+				string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
+				AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "SteamAudio_APL.xml"));
 			}
 		}
 	}

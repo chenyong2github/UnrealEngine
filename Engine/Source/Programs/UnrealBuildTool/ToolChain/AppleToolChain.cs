@@ -134,8 +134,7 @@ namespace UnrealBuildTool
 	{
 		protected FileReference ProjectFile;
 
-		public AppleToolChain(CppPlatform InCppPlatform, FileReference InProjectFile)
-			: base(InCppPlatform)
+		public AppleToolChain(FileReference InProjectFile)
 		{
 			ProjectFile = InProjectFile;
 		}

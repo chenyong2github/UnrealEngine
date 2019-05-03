@@ -4,9 +4,7 @@
 
 #include "CoreTypes.h"
 
-#if PLATFORM_WINDOWS
-#include "Windows/WindowsPlatformTime.h"
-#elif PLATFORM_PS4
+#if PLATFORM_PS4
 #include "PS4/PS4Time.h"
 #elif PLATFORM_XBOXONE
 #include "XboxOne/XboxOneTime.h"
@@ -16,12 +14,8 @@
 #include "Apple/ApplePlatformTime.h"
 #elif PLATFORM_ANDROID
 #include "Android/AndroidTime.h"
-#elif PLATFORM_HTML5
-#include "HTML5/HTML5PlatformTime.h"
 #elif PLATFORM_UNIX
 #include "Unix/UnixPlatformTime.h"
-#elif PLATFORM_SWITCH
-#include "Switch/SwitchPlatformTime.h"
 #else
-#error Unknown platform
+#include COMPILED_PLATFORM_HEADER(PlatformTime.h)
 #endif

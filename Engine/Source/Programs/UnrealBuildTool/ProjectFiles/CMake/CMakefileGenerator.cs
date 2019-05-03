@@ -284,39 +284,33 @@ namespace UnrealBuildTool
 
 			string HostArchitecture;
 			string SetCompiler = "";
-			switch (BuildHostPlatform.Current.Platform)
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
-				case UnrealTargetPlatform.Win64:
-				{
-					HostArchitecture = "Win64";
-					BuildCommand = "call \"" + UE4RootPath + "/Engine/Build/BatchFiles/Build.bat\"";
-					break;
-				}
-				case UnrealTargetPlatform.Mac:
-				{
-					HostArchitecture = "Mac";
-					BuildCommand = "cd \"" + UE4RootPath + "\" && bash \"" + UE4RootPath + "/Engine/Build/BatchFiles/" + HostArchitecture + "/Build.sh\"";
-					bIncludeIOSTargets = true;
-					bIncludeTVOSTargets = true;
-					break;
-				}
-				case UnrealTargetPlatform.Linux:
-				{
-					HostArchitecture = "Linux";
-					BuildCommand = "cd \"" + UE4RootPath + "\" && bash \"" + UE4RootPath + "/Engine/Build/BatchFiles/" + HostArchitecture + "/Build.sh\"";
+				HostArchitecture = "Win64";
+				BuildCommand = "call \"" + UE4RootPath + "/Engine/Build/BatchFiles/Build.bat\"";
+			}
+			else if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+			{
+				HostArchitecture = "Mac";
+				BuildCommand = "cd \"" + UE4RootPath + "\" && bash \"" + UE4RootPath + "/Engine/Build/BatchFiles/" + HostArchitecture + "/Build.sh\"";
+				bIncludeIOSTargets = true;
+				bIncludeTVOSTargets = true;
+			}
+			else if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
+			{
+				HostArchitecture = "Linux";
+				BuildCommand = "cd \"" + UE4RootPath + "\" && bash \"" + UE4RootPath + "/Engine/Build/BatchFiles/" + HostArchitecture + "/Build.sh\"";
 
-					string CompilerPath = LinuxCommon.WhichClang();
-					if (CompilerPath == null)
-					{
-						CompilerPath = LinuxCommon.WhichGcc();
-					}
-					SetCompiler = "set(CMAKE_CXX_COMPILER " + CompilerPath + ")\n\n";
-					break;
-				}
-				default:
+				string CompilerPath = LinuxCommon.WhichClang();
+				if (CompilerPath == null)
 				{
-					throw new BuildException("ERROR: CMakefileGenerator does not support this platform");
+					CompilerPath = LinuxCommon.WhichGcc();
 				}
+				SetCompiler = "set(CMAKE_CXX_COMPILER " + CompilerPath + ")\n\n";
+			}
+			else
+			{
+				throw new BuildException("ERROR: CMakefileGenerator does not support this platform");
 			}
 
 			if (IsProjectBuild)
@@ -643,24 +637,21 @@ namespace UnrealBuildTool
 
 		private static bool IsPathExcludedOnPlatform(string SourceFileRelativeToRoot, UnrealTargetPlatform targetPlatform)
 		{
-			switch (targetPlatform)
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
 			{
-				case UnrealTargetPlatform.Linux:
-				{
-					return IsPathExcludedOnLinux(SourceFileRelativeToRoot);
-				}
-				case UnrealTargetPlatform.Mac:
-				{
-					return IsPathExcludedOnMac(SourceFileRelativeToRoot);
-				}
-				case UnrealTargetPlatform.Win64:
-				{
-					return IsPathExcludedOnWindows(SourceFileRelativeToRoot);
-				}
-				default:
-				{
-					return false;
-				}
+				return IsPathExcludedOnLinux(SourceFileRelativeToRoot);
+			}
+			else if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+			{
+				return IsPathExcludedOnMac(SourceFileRelativeToRoot);
+			}
+			else if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
+			{
+				return IsPathExcludedOnWindows(SourceFileRelativeToRoot);
+			}
+			else
+			{
+				return false;
 			}
 		}
 
