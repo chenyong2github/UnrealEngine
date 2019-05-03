@@ -759,4 +759,3 @@ private:
 
 #endif
 
-#include "Serialization/ArchiveAdapters.h"
