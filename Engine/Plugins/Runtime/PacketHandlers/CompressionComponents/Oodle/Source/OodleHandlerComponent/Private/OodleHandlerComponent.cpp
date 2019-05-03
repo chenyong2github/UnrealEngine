@@ -89,6 +89,17 @@ static TArray<OodleHandlerComponent*> OodleComponentList;
 #endif
 
 
+
+/**
+ * CVars
+ */
+
+TAutoConsoleVariable<int32> CVarOodleMinSizeForCompression(
+	TEXT("net.OodleMinSizeForCompression"), 0,
+	TEXT("The minimum size an outgoing packet must be, for it to be considered for compression (does not count overhead of handler components which process packets after Oodle)."));
+
+
+
 // @todo #JohnB: Remove after Oodle update, and after checking with Luigi
 static rrbool STDCALL UEOodleDisplayAssert(const char* File, const int Line, const char* Function, const char* Message)
 {
@@ -977,9 +988,7 @@ void OodleHandlerComponent::Incoming(FBitReader& Packet)
 				uint32 PacketSize = Packet.GetBytesLeft();
 
 				AnalyticsVars->InNotCompressedNum++;
-				AnalyticsVars->InCompressedWithOverheadLengthTotal += PacketSize;
-				AnalyticsVars->InCompressedLengthTotal += PacketSize;
-				AnalyticsVars->InDecompressedLengthTotal += PacketSize;
+				AnalyticsVars->InNotCompressedLengthTotal += PacketSize;
 			}
 
 #if !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
@@ -1019,18 +1028,33 @@ void OodleHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Trait
 		static uint8 UncompressedData[MAX_OODLE_BUFFER];
 		static uint8 CompressedData[MAX_OODLE_BUFFER];
 
+		FOodleAnalyticsVars* AnalyticsVars = (bOodleAnalytics && NetAnalyticsData.IsValid()) ? NetAnalyticsData->GetLocalData() : nullptr;
 		const bool bIsServer = (Handler->Mode == Handler::Mode::Server);
 		FOodleDictionary* CurDict = (bIsServer ? ServerDictionary.Get() : ClientDictionary.Get());
+		uint32 MinSizeForCompression = CVarOodleMinSizeForCompression.GetValueOnAnyThread();
+		uint32 UncompressedBytes = Packet.GetNumBytes();
+		bool bSkipCompressionClientDisabled = false;
+		bool bSkipCompressionTooSmall = false;
+		bool bSkipCompression = false;
 
-
-		bool bSkipCompression =
 #if !UE_BUILD_SHIPPING
-			// Allow a lack of dictionary in capture mode, or when compression is disabled
-			(CurDict == nullptr && bCaptureMode) || bOodleCompressionDisabled ||
+		// Allow a lack of dictionary in capture mode, or when compression is disabled
+		bSkipCompression = (CurDict == nullptr && bCaptureMode) || bOodleCompressionDisabled;
 #endif
-			// Skip compression when we are waiting on the remote side to enable compression
-			(!bInitializedDictionaries && (bIsServer ? ServerEnableMode : ClientEnableMode) == EOodleEnableMode::WhenCompressedPacketReceived)
-			;
+
+		// Skip compression when we are waiting on the remote side to enable compression
+		if (!bSkipCompression && (!bInitializedDictionaries && (bIsServer ? ServerEnableMode : ClientEnableMode) == EOodleEnableMode::WhenCompressedPacketReceived))
+		{
+			bSkipCompression = true;
+			bSkipCompressionClientDisabled = true;
+		}
+
+		// Skip compression when the packet is below the minimum size
+		if (!bSkipCompression && (MinSizeForCompression > 0 && UncompressedBytes < MinSizeForCompression))
+		{
+			bSkipCompression = true;
+			bSkipCompressionTooSmall = true;
+		}
 
 		if (CurDict != nullptr && !bSkipCompression)
 		{
@@ -1039,7 +1063,6 @@ void OodleHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Trait
 #endif
 			uint32 MaxAdjustedLengthBits = MaxOutgoingBits - OodleReservedPacketBits;
 			uint32 UncompressedBits = Packet.GetNumBits();
-			uint32 UncompressedBytes = Packet.GetNumBytes();
 
 			bool bWithinBitBounds = UncompressedBits > 0 && ensure(UncompressedBits <= MaxAdjustedLengthBits) &&
 									ensure(OodleLZ_GetCompressedBufferSizeNeeded(UncompressedBytes) <= MAX_OODLE_BUFFER);
@@ -1078,14 +1101,6 @@ void OodleHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Trait
 
 					Traits.bIsCompressed = !!bCompressedPacket;
 
-
-					FOodleAnalyticsVars* AnalyticsVars = (bOodleAnalytics && NetAnalyticsData.IsValid()) ? NetAnalyticsData->GetLocalData() : nullptr;
-
-					if (AnalyticsVars != nullptr)
-					{
-						AnalyticsVars->OutBeforeCompressedLengthTotal += UncompressedBytes;
-					}
-
 					if (bCompressedPacket)
 					{
 						// @todo #JohnB: Compress directly into a (deliberately oversized) FBitWriter buffer, which you can shrink after
@@ -1104,14 +1119,14 @@ void OodleHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Trait
 							AnalyticsVars->OutCompressedNum++;
 							AnalyticsVars->OutCompressedWithOverheadLengthTotal += ((Packet.GetNumBits() - 1) + 7) >> 3;
 							AnalyticsVars->OutCompressedLengthTotal += CompressedBytes;
+							AnalyticsVars->OutBeforeCompressedLengthTotal += UncompressedBytes;
 						}
 					}
 					else
 					{
 						if (AnalyticsVars != nullptr)
 						{
-							AnalyticsVars->OutCompressedLengthTotal += UncompressedBytes;
-							AnalyticsVars->OutCompressedWithOverheadLengthTotal += UncompressedBytes;
+							AnalyticsVars->OutNotCompressedFailedLengthTotal += UncompressedBytes;
 						}
 
 						// @todo #JohnB: Try to eliminate this appBitscpy, by reserving the bCompressedPacket bit and other data,
@@ -1185,6 +1200,13 @@ void OodleHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Trait
 		}
 		else if (bSkipCompression)
 		{
+			if (AnalyticsVars != nullptr)
+			{
+				AnalyticsVars->OutNotCompressedSkippedLengthTotal += UncompressedBytes;
+				AnalyticsVars->OutNotCompressedClientDisabledNum += (uint8)bSkipCompressionClientDisabled;
+				AnalyticsVars->OutNotCompressedTooSmallNum += (uint8)bSkipCompressionTooSmall;
+			}
+
 			uint8 bCompresedPacket = false;
 			uint32 UncompressedBits = Packet.GetNumBits();
 
