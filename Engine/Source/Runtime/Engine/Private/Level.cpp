@@ -58,6 +58,7 @@ Level.cpp: Level-related functions
 #include "Engine/StaticMeshActor.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Algo/Copy.h"
+#include "HAL/LowLevelMemTracker.h"
 
 DEFINE_LOG_CATEGORY(LogLevel);
 
@@ -469,6 +470,7 @@ void ULevel::SortActorList()
 		// No need to sort an empty list
 		return;
 	}
+	LLM_REALLOC_SCOPE(Actors.GetData());
 
 	TArray<AActor*> NewActors;
 	TArray<AActor*> NewNetActors;
