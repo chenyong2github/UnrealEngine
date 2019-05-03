@@ -370,6 +370,7 @@ FDefaultRHIRenderQueryPool::FDefaultRHIRenderQueryPool(ERenderQueryType InQueryT
 
 FRHIPooledRenderQuery FDefaultRHIRenderQueryPool::AllocateQuery()
 {
+	check(IsInRenderingThread());
 	if (Queries.Num() > 0)
 	{
 		return FRHIPooledRenderQuery(this, Queries.Pop());
@@ -383,6 +384,7 @@ FRHIPooledRenderQuery FDefaultRHIRenderQueryPool::AllocateQuery()
 
 void FDefaultRHIRenderQueryPool::ReleaseQuery(TRefCountPtr<FRHIRenderQuery>&& Query)
 {
+	check(IsInRenderingThread());
 	//Hard to validate because of Resource resurrection, better to remove GetQueryRef entirely
 	//checkf(Query.IsValid() && Query.GetRefCount() <= 2, TEXT("Query has been released but reference still held: use FRHIPooledRenderQuery::GetQueryRef() with extreme caution"));
 	Queries.Push(MoveTemp(Query));

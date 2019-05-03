@@ -202,7 +202,9 @@ public:
 		if ( MaxGPUQueries == -1 || QueryCount < uint32(MaxGPUQueries) )
 		{
 			StartQuery = RenderQueryPool->AllocateQuery();
+			check(StartQuery.GetQuery() != nullptr);
 			EndQuery = RenderQueryPool->AllocateQuery();
+			check(EndQuery.GetQuery() != nullptr);
 			QueryCount += 2;
 		}
 	}
@@ -222,12 +224,12 @@ public:
 				uint64 Temp;
 				if (bBeginQueryInFlight)
 				{
-					RHICmdListPtr->GetRenderQueryResult(StartQuery.GetQuery(), Temp, false);
+					RHICmdListPtr->GetRenderQueryResult(StartQuery.GetQuery(), Temp, true);
 				}
 
 				if (bEndQueryInFlight)
 				{
-					RHICmdListPtr->GetRenderQueryResult(EndQuery.GetQuery(), Temp, false);
+					RHICmdListPtr->GetRenderQueryResult(EndQuery.GetQuery(), Temp, true);
 				}
 			}
 			StartQuery.ReleaseQuery();
@@ -428,6 +430,7 @@ public:
 
 		// Gather any remaining results and check all the results are ready
 		bool bAllQueriesAllocated = true;
+		bool bAnyEventFailed = false;
 		for (int Index = 0; Index < GpuProfilerEvents.Num(); Index++)
 		{
 			FRealtimeGPUProfilerEvent* Event = GpuProfilerEvents[Index];
@@ -438,13 +441,20 @@ public:
 			}
 			if (!Event->HasValidResult())
 			{
+				UE_LOG(LogSceneUtils, Warning, TEXT("Query '%s' not ready."), *Event->GetName().ToString());
 				// The frame isn't ready yet. Don't update stats - we'll try again next frame. 
-				return false;
+				bAnyEventFailed = true;
+				continue;
 			}
 			if (!Event->HasQueriesAllocated())
 			{
 				bAllQueriesAllocated = false;
 			}
+		}
+
+		if (bAnyEventFailed)
+		{
+			return false;
 		}
 
 		if (!bAllQueriesAllocated)
@@ -604,7 +614,7 @@ FRealtimeGPUProfiler::FRealtimeGPUProfiler()
 	, bInBeginEndBlock(false)
 {
 	const int MaxGPUQueries = CVarGPUStatsMaxQueriesPerFrame.GetValueOnRenderThread();
-	RenderQueryPool = RHICreateRenderQueryPool(RQT_AbsoluteTime, (MaxGPUQueries > 0) ? MaxGPUQueries * 2 : 10240);
+	RenderQueryPool = RHICreateRenderQueryPool(RQT_AbsoluteTime, (MaxGPUQueries > 0) ? MaxGPUQueries * 2 : UINT32_MAX);
 	for (int Index = 0; Index < NumGPUProfilerBufferedFrames; Index++)
 	{
 		Frames.Add(new FRealtimeGPUProfilerFrame(RenderQueryPool, QueryCount));

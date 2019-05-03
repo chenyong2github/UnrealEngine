@@ -649,16 +649,22 @@ private:
 
 		InFlightFrameQueries()
 			: QueryPool(RHICreateRenderQueryPool(RQT_AbsoluteTime, 4))
-			, BeginFrameQuery(QueryPool->AllocateQuery())
-			, BeginDynamicResolutionQuery(QueryPool->AllocateQuery())
-			, EndDynamicResolutionQuery(QueryPool->AllocateQuery())
-			, EndFrameQuery(QueryPool->AllocateQuery())
 			, HeuristicHistoryEntry(FDynamicResolutionHeuristicProxy::kInvalidEntryId) 
 			, BeginFrameQuerySubmitted(false)
 			, BeginDynamicResolutionQuerySubmitted(false)
 			, EndDynamicResolutionQuerySubmitted(false)
 			, EndFrameQuerySubmitted(false)
-		{ }
+		{ 
+			InFlightFrameQueries* self = this;
+			ENQUEUE_RENDER_COMMAND(InFlightFrameQueries)(
+			[self](FRHICommandListImmediate& RHICmdList)
+			{
+				self->BeginFrameQuery = self->QueryPool->AllocateQuery();
+				self->BeginDynamicResolutionQuery = self->QueryPool->AllocateQuery();
+				self->EndDynamicResolutionQuery = self->QueryPool->AllocateQuery();
+				self->EndFrameQuery = self->QueryPool->AllocateQuery();
+			});
+		}
 	};
 
 	// List of frame queries in flight.

@@ -159,6 +159,7 @@ public:
 
 	~FDefaultRHIRenderQueryPool() override 
 	{
+		check(IsInRenderingThread());
 		checkf(AllocatedQueries == Queries.Num(), TEXT("Querypool deleted before all Queries have been released"));
 	}
 
