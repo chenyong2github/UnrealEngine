@@ -610,12 +610,16 @@ enum class EPartyInvitationRemovedReason : uint8
 {
 	/** Unknown or undefined reason */
 	Unknown,
+	/** User accepted the invitation */
+	Accepted,
+	/** User declined the invitation */
+	Declined,
+	/** ClearInvitations was called, the invitation should no longer be displayed */
+	Cleared,
 	/** Expired */
 	Expired,
 	/** Became invalid (for example, party was destroyed) */
 	Invalidated,
-	/** User declined the invitation */
-	Declined,
 };
 
 /** Recipient information for SendInvitation */
@@ -1926,6 +1930,8 @@ ONLINESUBSYSTEM_API EPartyState EPartyStateFromString(const TCHAR* Value);
 
 /** @return the stringified version of the enum passed in */
 ONLINESUBSYSTEM_API const TCHAR* ToString(const EMemberExitedReason Value);
+/** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const EPartyInvitationRemovedReason Value);
 /** @return the stringified version of the enum passed in */
 ONLINESUBSYSTEM_API const TCHAR* ToString(const ECreatePartyCompletionResult Value);
 /** @return the stringified version of the enum passed in */
