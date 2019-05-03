@@ -15,6 +15,9 @@ namespace UnrealBuildTool.Rules
 					"AudioEditor",
                     "TimeSynth",
 					"AudioMixer",
+                    "EditorStyle",
+                    "Slate",
+                    "SlateCore",
 				}
 			);
 
