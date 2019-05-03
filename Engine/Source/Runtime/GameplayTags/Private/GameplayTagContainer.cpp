@@ -867,43 +867,41 @@ void FGameplayTagContainer::Reset(int32 Slack)
 	ParentTags.Reset(Slack);
 }
 
-bool FGameplayTagContainer::Serialize(FStructuredArchive::FSlot Slot)
+bool FGameplayTagContainer::Serialize(FArchive& Ar)
 {
-	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
-
-	const bool bOldTagVer = UnderlyingArchive.UE4Ver() < VER_UE4_GAMEPLAY_TAG_CONTAINER_TAG_TYPE_CHANGE;
+	const bool bOldTagVer = Ar.UE4Ver() < VER_UE4_GAMEPLAY_TAG_CONTAINER_TAG_TYPE_CHANGE;
 	
 	if (bOldTagVer)
 	{
 		TArray<FName> Tags_DEPRECATED;
-		Slot << Tags_DEPRECATED;
+		Ar << Tags_DEPRECATED;
 		// Too old to deal with
 		UE_LOG(LogGameplayTags, Error, TEXT("Failed to load old GameplayTag container, too old to migrate correctly"));
 	}
 	else
 	{
-		Slot << GameplayTags;
+		Ar << GameplayTags;
 	}
 	
 	// Only do redirects for real loads, not for duplicates or recompiles
-	if (UnderlyingArchive.IsLoading() )
+	if (Ar.IsLoading() )
 	{
-		if (UnderlyingArchive.IsPersistent() && !(UnderlyingArchive.GetPortFlags() & PPF_Duplicate) && !(UnderlyingArchive.GetPortFlags() & PPF_DuplicateForPIE))
+		if (Ar.IsPersistent() && !(Ar.GetPortFlags() & PPF_Duplicate) && !(Ar.GetPortFlags() & PPF_DuplicateForPIE))
 		{
 			// Rename any tags that may have changed by the ini file.  Redirects can happen regardless of version.
 			// Regardless of version, want loading to have a chance to handle redirects
-			UGameplayTagsManager::Get().GameplayTagContainerLoaded(*this, UnderlyingArchive.GetSerializedProperty());
+			UGameplayTagsManager::Get().GameplayTagContainerLoaded(*this, Ar.GetSerializedProperty());
 		}
 
 		FillParentTags();
 	}
 
-	if (UnderlyingArchive.IsSaving())
+	if (Ar.IsSaving())
 	{
 		// This marks the saved name for later searching
 		for (const FGameplayTag& Tag : GameplayTags)
 		{
-			UnderlyingArchive.MarkSearchableName(FGameplayTag::StaticStruct(), Tag.TagName);
+			Ar.MarkSearchableName(FGameplayTag::StaticStruct(), Tag.TagName);
 		}
 	}
 
