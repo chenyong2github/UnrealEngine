@@ -136,24 +136,6 @@ void UNiagaraStackModuleItem::Initialize(FRequiredEntryData InRequiredEntryData,
 		AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackModuleItem::FilterOutputCollection));
 		AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackModuleItem::FilterLinkedInputCollection));
 	}
-
-	// Update bCanMoveAndDelete
-	if (GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::EmitterAsset)
-	{
-		// When editing emitters all modules can be moved and deleted.
-		bCanMoveAndDelete = true;
-	}
-	else
-	{
-		// When editing systems only non-base modules can be moved and deleted.
-		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-
-		const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*GetEmitterViewModel()->GetEmitter(), GetSystemViewModel()->GetSystem());
-
-		bool bIsMergeable = MergeManager->IsMergeableScriptUsage(OutputNode->GetUsage());
-		bool bHasBaseModule = bIsMergeable && BaseEmitter != nullptr && MergeManager->HasBaseModule(*BaseEmitter, OutputNode->GetUsage(), OutputNode->GetUsageId(), FunctionCallNode->NodeGuid);
-		bCanMoveAndDelete = bHasBaseModule == false;
-	}
 }
 
 FText UNiagaraStackModuleItem::GetDisplayName() const
@@ -189,6 +171,7 @@ INiagaraStackItemGroupAddUtilities* UNiagaraStackModuleItem::GetGroupAddUtilitie
 void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
 	bCanRefresh = false;
+	bCanMoveAndDeleteCache.Reset();
 
 	if (FunctionCallNode != nullptr && FunctionCallNode->ScriptIsValid())
 	{
@@ -703,7 +686,26 @@ void UNiagaraStackModuleItem::RefreshIsEnabled()
 
 bool UNiagaraStackModuleItem::CanMoveAndDelete() const
 {
-	return bCanMoveAndDelete;
+	if (bCanMoveAndDeleteCache.IsSet() == false)
+	{
+		if (HasBaseEmitter() == false)
+		{
+			// If there is no base emitter all modules can be moved and deleted.
+			bCanMoveAndDeleteCache = true;
+		}
+		else
+		{
+			// When editing systems only non-base modules can be moved and deleted.
+			TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
+
+			const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*GetEmitterViewModel()->GetEmitter(), GetSystemViewModel()->GetSystem());
+
+			bool bIsMergeable = MergeManager->IsMergeableScriptUsage(OutputNode->GetUsage());
+			bool bHasBaseModule = bIsMergeable && BaseEmitter != nullptr && MergeManager->HasBaseModule(*BaseEmitter, OutputNode->GetUsage(), OutputNode->GetUsageId(), FunctionCallNode->NodeGuid);
+			bCanMoveAndDeleteCache = bHasBaseModule == false;
+		}
+	}
+	return bCanMoveAndDeleteCache.GetValue();
 }
 
 bool UNiagaraStackModuleItem::CanRefresh() const

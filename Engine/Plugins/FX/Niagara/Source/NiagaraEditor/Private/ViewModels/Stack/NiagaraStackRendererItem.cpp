@@ -39,17 +39,6 @@ void UNiagaraStackRendererItem::Initialize(FRequiredEntryData InRequiredEntryDat
 	Super::Initialize(InRequiredEntryData, RendererStackEditorDataKey);
 	RendererProperties = InRendererProperties;
 	RendererProperties->OnChanged().AddUObject(this, &UNiagaraStackRendererItem::RendererChanged);
-
-	if (GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::EmitterAsset)
-	{
-		bHasBaseRenderer = false;
-	}
-	else
-	{
-		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-		const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*GetEmitterViewModel()->GetEmitter(), GetSystemViewModel()->GetSystem());
-		bHasBaseRenderer = BaseEmitter != nullptr && MergeManager->HasBaseRenderer(*BaseEmitter, RendererProperties->GetMergeId());
-	}
 }
 
 void UNiagaraStackRendererItem::FinalizeInternal()
@@ -157,7 +146,7 @@ FText UNiagaraStackRendererItem::GetDisplayName() const
 
 bool UNiagaraStackRendererItem::CanDelete() const
 {
-	return bHasBaseRenderer == false;
+	return HasBaseRenderer() == false;
 }
 
 void UNiagaraStackRendererItem::Delete()
@@ -172,22 +161,32 @@ void UNiagaraStackRendererItem::Delete()
 	ModifiedGroupItemsDelegate.ExecuteIfBound();
 }
 
-bool UNiagaraStackRendererItem::CanHaveBase() const
+bool UNiagaraStackRendererItem::HasBaseRenderer() const
 {
-	return GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
+	if (HasBaseEmitter())
+	{
+		if (bHasBaseRendererCache.IsSet() == false)
+		{
+			TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
+			const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*GetEmitterViewModel()->GetEmitter(), GetSystemViewModel()->GetSystem());
+			bHasBaseRendererCache = BaseEmitter != nullptr && MergeManager->HasBaseRenderer(*BaseEmitter, RendererProperties->GetMergeId());
+		}
+		return bHasBaseRendererCache.GetValue();
+	}
+	return false;
 }
 
 bool UNiagaraStackRendererItem::CanResetToBase() const
 {
-	if (CanHaveBase())
+	if (HasBaseRenderer())
 	{
-		if (bCanResetToBase.IsSet() == false)
+		if (bCanResetToBaseCache.IsSet() == false)
 		{
 			TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
 			const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*GetEmitterViewModel()->GetEmitter(), GetSystemViewModel()->GetSystem());
-			bCanResetToBase = BaseEmitter != nullptr && MergeManager->IsRendererDifferentFromBase(*GetEmitterViewModel()->GetEmitter(), *BaseEmitter, RendererProperties->GetMergeId());
+			bCanResetToBaseCache = BaseEmitter != nullptr && MergeManager->IsRendererDifferentFromBase(*GetEmitterViewModel()->GetEmitter(), *BaseEmitter, RendererProperties->GetMergeId());
 		}
-		return bCanResetToBase.GetValue();
+		return bCanResetToBaseCache.GetValue();
 	}
 	return false;
 }
@@ -226,7 +225,8 @@ void UNiagaraStackRendererItem::RefreshChildrenInternal(const TArray<UNiagaraSta
 
 	NewChildren.Add(RendererObject);
 	MissingAttributes = GetMissingVariables(RendererProperties.Get(), GetEmitterViewModel()->GetEmitter());
-	bCanResetToBase.Reset();
+	bHasBaseRendererCache.Reset();
+	bCanResetToBaseCache.Reset();
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 	
 	RefreshIssues(NewIssues);
@@ -283,7 +283,7 @@ void UNiagaraStackRendererItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 
 void UNiagaraStackRendererItem::RendererChanged()
 {
-	bCanResetToBase.Reset();
+	bCanResetToBaseCache.Reset();
 }
 
 #undef LOCTEXT_NAMESPACE

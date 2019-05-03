@@ -589,8 +589,8 @@ void UNiagaraStackFunctionInput::RefreshValues()
 		}
 	}
 
-	bCanReset.Reset();
-	bCanResetToBase.Reset();
+	bCanResetCache.Reset();
+	bCanResetToBaseCache.Reset();
 	ValueChangedDelegate.Broadcast();
 }
 
@@ -1036,7 +1036,7 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 
 bool UNiagaraStackFunctionInput::CanReset() const
 {
-	if (bCanReset.IsSet() == false)
+	if (bCanResetCache.IsSet() == false)
 	{
 		bool bNewCanReset;
 		if (InputValues.Mode == EValueMode::Data)
@@ -1088,9 +1088,9 @@ bool UNiagaraStackFunctionInput::CanReset() const
 				}
 			}
 		}
-		bCanReset = bNewCanReset;
+		bCanResetCache = bNewCanReset;
 	}
-	return bCanReset.GetValue();
+	return bCanResetCache.GetValue();
 }
 
 FNiagaraVariable UNiagaraStackFunctionInput::GetDefaultVariableForRapidIterationParameter() const
@@ -1229,16 +1229,11 @@ void UNiagaraStackFunctionInput::Reset()
 	RefreshChildren();
 }
 
-bool UNiagaraStackFunctionInput::EmitterHasBase() const
-{
-	return GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
-}
-
 bool UNiagaraStackFunctionInput::CanResetToBase() const
 {
-	if (EmitterHasBase())
+	if (HasBaseEmitter())
 	{
-		if (bCanResetToBase.IsSet() == false)
+		if (bCanResetToBaseCache.IsSet() == false)
 		{
 			bool bIsModuleInput = OwningFunctionCallNode == OwningModuleNode;
 			if (bIsModuleInput)
@@ -1250,7 +1245,7 @@ bool UNiagaraStackFunctionInput::CanResetToBase() const
 				{
 					const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*GetEmitterViewModel()->GetEmitter(), GetSystemViewModel()->GetSystem());
 
-					bCanResetToBase = BaseEmitter != nullptr && MergeManager->IsModuleInputDifferentFromBase(
+					bCanResetToBaseCache = BaseEmitter != nullptr && MergeManager->IsModuleInputDifferentFromBase(
 						*GetEmitterViewModel()->GetEmitter(),
 						*BaseEmitter,
 						OutputNode->GetUsage(),
@@ -1260,15 +1255,15 @@ bool UNiagaraStackFunctionInput::CanResetToBase() const
 				}
 				else
 				{
-					bCanResetToBase = false;
+					bCanResetToBaseCache = false;
 				}
 			}
 			else
 			{
-				bCanResetToBase = false;
+				bCanResetToBaseCache = false;
 			}
 		}
-		return bCanResetToBase.GetValue();
+		return bCanResetToBaseCache.GetValue();
 	}
 	return false;
 }
@@ -1571,8 +1566,8 @@ void UNiagaraStackFunctionInput::OnGraphChanged(const struct FEdGraphEditAction&
 
 void UNiagaraStackFunctionInput::OnRapidIterationParametersChanged()
 {
-	bCanReset.Reset();
-	bCanResetToBase.Reset();
+	bCanResetCache.Reset();
+	bCanResetToBaseCache.Reset();
 	if (ensureMsgf(OwningModuleNode.IsValid() && OwningFunctionCallNode.IsValid(), TEXT("Stack entry with invalid module or function call not cleaned up.")))
 	{
 		if (bUpdatingLocalValueDirectly == false && IsRapidIterationCandidate() && (OverridePinCache.IsSet() == false || OverridePinCache.GetValue() == nullptr))
@@ -1584,8 +1579,8 @@ void UNiagaraStackFunctionInput::OnRapidIterationParametersChanged()
 
 void UNiagaraStackFunctionInput::OnScriptSourceChanged()
 {
-	bCanReset.Reset();
-	bCanResetToBase.Reset();
+	bCanResetCache.Reset();
+	bCanResetToBaseCache.Reset();
 }
 
 UNiagaraNodeParameterMapSet* UNiagaraStackFunctionInput::GetOverrideNode() const
