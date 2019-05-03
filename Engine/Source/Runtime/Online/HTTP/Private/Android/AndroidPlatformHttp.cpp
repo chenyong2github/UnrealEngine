@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Android/AndroidHttp.h"
+#include "Android/AndroidPlatformHttp.h"
 #include "Curl/CurlHttp.h"
 #include "Curl/CurlHttpManager.h"
 

@@ -4,7 +4,7 @@
 	AndroidSurvey.cpp: HardwareSurvey implementation
 =============================================================================*/
 
-#include "Android/AndroidSurvey.h"
+#include "Android/AndroidPlatformSurvey.h"
 #include "Android/AndroidWindow.h"
 
 bool FAndroidPlatformSurvey::GetSurveyResults(FHardwareSurveyResults& OutResults, bool bWait)

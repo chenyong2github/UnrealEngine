@@ -7,7 +7,7 @@
 #include "IInputDeviceModule.h"
 #include "HAL/OutputDevices.h"
 #include "Misc/AssertionMacros.h"
-#include "Android/AndroidMisc.h"
+#include "Android/AndroidPlatformMisc.h"
 #include "Misc/CoreDelegates.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAndroidApplication, Log, All);

@@ -4,16 +4,4 @@
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 
-#if PLATFORM_PS4
-#include "PS4/PS4Math.h"
-#elif PLATFORM_XBOXONE
-#include "XboxOne/XboxOneMath.h"
-#elif PLATFORM_MAC
-#include "Mac/MacPlatformMath.h"
-#elif PLATFORM_ANDROID
-#include "Android/AndroidMath.h"
-#elif PLATFORM_UNIX
-#include "Unix/UnixPlatformMath.h"
-#else
 #include COMPILED_PLATFORM_HEADER(PlatformMath.h)
-#endif

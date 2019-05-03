@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Android/AndroidMemory.h"
+#include "Android/AndroidPlatformMemory.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/MallocBinned.h"
 #include "HAL/MallocBinned2.h"

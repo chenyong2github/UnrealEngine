@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Android/AndroidApplicationMisc.h"
+#include "Android/AndroidPlatformApplicationMisc.h"
 
 #include "Android/AndroidApplication.h"
 #include "Android/AndroidFeedbackContext.h"

@@ -4,7 +4,7 @@
 	AndroidString.cpp: Android implementations of string functions
 =============================================================================*/
 
-#include "Android/AndroidString.h"
+#include "Android/AndroidPlatformString.h"
 
 #if !PLATFORM_TCHAR_IS_CHAR16
 

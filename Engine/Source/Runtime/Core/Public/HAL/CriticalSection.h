@@ -4,8 +4,4 @@
 
 #include "CoreTypes.h"
 
-#if PLATFORM_UNIX
-	#include "Unix/UnixCriticalSection.h"
-#else
-	#include COMPILED_PLATFORM_HEADER(CriticalSection.h)
-#endif
+#include COMPILED_PLATFORM_HEADER(CriticalSection.h)

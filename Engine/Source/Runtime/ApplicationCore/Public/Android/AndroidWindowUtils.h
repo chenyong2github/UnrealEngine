@@ -6,7 +6,7 @@
 #include "RHI.h"
 
 #if PLATFORM_ANDROID
-#include "Android/AndroidMisc.h"
+#include "Android/AndroidPlatformMisc.h"
 
 #if USE_ANDROID_JNI
 extern bool AndroidThunkCpp_IsGearVRApplication();

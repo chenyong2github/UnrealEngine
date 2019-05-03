@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Android/AndroidMisc.h"
+#include "Android/AndroidPlatformMisc.h"
 
 class FAndroidStats
 {

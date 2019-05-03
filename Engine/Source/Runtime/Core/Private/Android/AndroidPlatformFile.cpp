@@ -4,7 +4,7 @@
 	AndroidFile.cpp: Android platform implementations of File functions
 =============================================================================*/
 
-#include "Android/AndroidFile.h"
+#include "Android/AndroidPlatformFile.h"
 
 #if USE_ANDROID_FILE
 #include "Misc/App.h"

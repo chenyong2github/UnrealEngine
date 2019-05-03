@@ -2,7 +2,7 @@
 // Copyright 2016 Magic Leap, Inc. All Rights Reserved.
 
 #include "Lumin/LuminPlatformFile.h"
-#include "Android/AndroidMisc.h"
+#include "Android/AndroidPlatformMisc.h"
 #include "Lumin/LuminLifecycle.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/Parse.h"

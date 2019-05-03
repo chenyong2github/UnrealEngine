@@ -4,10 +4,10 @@
 	AndroidProcess.cpp: Android implementations of Process functions
 =============================================================================*/
 
-#include "Android/AndroidProcess.h"
+#include "Android/AndroidPlatformProcess.h"
 #include "Android/AndroidPlatformRunnableThread.h"
 #if !PLATFORM_LUMIN
-#include "Android/AndroidAffinity.h"
+#include "Android/AndroidPlatformAffinity.h"
 #endif
 #include "Async/TaskGraphInterfaces.h"
 

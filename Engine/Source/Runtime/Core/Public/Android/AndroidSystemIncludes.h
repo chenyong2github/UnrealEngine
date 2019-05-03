@@ -14,7 +14,7 @@
 #include <unistd.h>
 
 // Set up compiler pragmas, etc
-#include "Android/AndroidCompilerSetup.h"
+#include "Android/AndroidPlatformCompilerSetup.h"
 
 //@todo android: verify malloc alignment or change?
 #define _aligned_malloc(Size,Align) malloc(Size)

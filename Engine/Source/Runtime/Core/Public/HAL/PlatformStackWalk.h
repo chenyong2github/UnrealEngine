@@ -3,10 +3,4 @@
 
 #include "CoreTypes.h"
 
-#if PLATFORM_PS4
-#include "PS4/PS4StackWalk.h"
-#elif PLATFORM_XBOXONE
-#include "XboxOne/XboxOneStackWalk.h"
-#else
 #include COMPILED_PLATFORM_HEADER(PlatformStackWalk.h)
-#endif

@@ -4,17 +4,8 @@
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
 
-#ifdef PLATFORM_HEADER_MISC
-#include PLATFORM_HEADER_MISC
-#elif PLATFORM_PS4
-#include "PS4/PS4Misc.h"
-#elif PLATFORM_XBOXONE
-#include "XboxOne/XboxOneMisc.h"
-#elif PLATFORM_ANDROID
-#include "Android/AndroidMisc.h"
-#else
 #include COMPILED_PLATFORM_HEADER(PlatformMisc.h)
-#endif
+
 
 #ifndef UE_DEBUG_BREAK
 #error UE_DEBUG_BREAK is not defined for this platform

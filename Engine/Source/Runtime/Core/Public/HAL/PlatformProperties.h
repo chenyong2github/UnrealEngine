@@ -8,14 +8,6 @@
 // the Properties.h files are included in all other places, so just use #ifdef not #if in this special case
 #define PROPERTY_HEADER_SHOULD_DEFINE_TYPE
 
-#if PLATFORM_PS4
-#include "PS4/PS4Properties.h"
-#elif PLATFORM_XBOXONE
-#include "XboxOne/XboxOneProperties.h"
-#elif PLATFORM_ANDROID
-#include "Android/AndroidProperties.h"
-#else
 #include COMPILED_PLATFORM_HEADER(PlatformProperties.h)
-#endif
 
 #undef PROPERTY_HEADER_SHOULD_DEFINE_TYPE

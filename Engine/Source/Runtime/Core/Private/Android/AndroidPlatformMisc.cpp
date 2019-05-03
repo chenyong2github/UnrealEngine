@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Android/AndroidMisc.h"
+#include "Android/AndroidPlatformMisc.h"
 #include "Android/AndroidJavaEnv.h"
 #include "HAL/PlatformStackWalk.h"
 #include "Misc/FileHelper.h"

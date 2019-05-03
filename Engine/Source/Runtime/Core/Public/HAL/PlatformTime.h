@@ -4,18 +4,4 @@
 
 #include "CoreTypes.h"
 
-#if PLATFORM_PS4
-#include "PS4/PS4Time.h"
-#elif PLATFORM_XBOXONE
-#include "XboxOne/XboxOneTime.h"
-#elif PLATFORM_MAC
-#include "Apple/ApplePlatformTime.h"
-#elif PLATFORM_IOS
-#include "Apple/ApplePlatformTime.h"
-#elif PLATFORM_ANDROID
-#include "Android/AndroidTime.h"
-#elif PLATFORM_UNIX
-#include "Unix/UnixPlatformTime.h"
-#else
 #include COMPILED_PLATFORM_HEADER(PlatformTime.h)
-#endif

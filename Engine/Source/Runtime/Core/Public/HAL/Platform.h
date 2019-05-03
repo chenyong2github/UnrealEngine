@@ -902,15 +902,8 @@ namespace TypeTests
 }
 
 // Platform specific compiler setup.
-#if PLATFORM_PS4
-	#include "PS4/PS4CompilerSetup.h"
-#elif PLATFORM_XBOXONE
-	#include "XboxOne/XboxOneCompilerSetup.h"
-#elif PLATFORM_ANDROID
-	#include "Android/AndroidCompilerSetup.h"
-#else
 #include COMPILED_PLATFORM_HEADER(PlatformCompilerSetup.h)
-#endif
+
 
 // If we don't have a platform-specific define for the TEXT macro, define it now.
 #if !defined(TEXT) && !UE_BUILD_DOCS
