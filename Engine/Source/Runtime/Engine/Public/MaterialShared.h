@@ -370,7 +370,7 @@ public:
 	void CreateBufferStruct();
 	ENGINE_API const FShaderParametersMetadata& GetUniformBufferStruct() const;
 
-	ENGINE_API void FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, void* TempBuffer) const;
+	ENGINE_API void FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, uint8* TempBuffer, int TempBufferSize) const;
 
 	inline bool HasExternalTextureExpressions() const
 	{
