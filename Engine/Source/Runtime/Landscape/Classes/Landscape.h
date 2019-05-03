@@ -383,9 +383,6 @@ private:
 	UPROPERTY(Transient)
 	uint32 LayersContentUpdateFlags;
 
-	UPROPERTY(Transient)
-	bool LayersUpdateAllMaterials;
-
 	// Represent all the resolved paint layer, from all layers blended together (size of the landscape x material layer count)
 	class FLandscapeTexture2DArrayResource* CombinedLayersWeightmapAllMaterialLayersResource;
 	
