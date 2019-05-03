@@ -11,6 +11,7 @@
 #include "UObject/GCObject.h"
 
 #include "NiagaraScript.h"
+#include "NiagaraEditorCommon.h"
 
 class IDetailsView;
 class SGraphEditor;
@@ -20,10 +21,6 @@ class UNiagaraScriptSource;
 class FNiagaraScriptViewModel;
 class FNiagaraObjectSelection;
 struct FEdGraphEditAction;
-class FTokenizedMessage; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
-class IMessageToken; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
-class UNiagaraGraph; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
-//struct FNiagaraCompileEvent; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
 
 /** Viewer/editor for a DataTable */
 class FNiagaraScriptToolkit : public FAssetEditorToolkit, public FGCObject
@@ -119,6 +116,11 @@ private:
 
 	void OnEditedScriptGraphChanged(const FEdGraphEditAction& InAction);
 
+	/** Navigates to element in graph (node, pin, etc.) 
+	* @Param ElementToFocus Defines the graph element to navigate to and select.
+	*/
+	void FocusGraphElement(const INiagaraScriptGraphFocusInfo* ElementToFocus);
+
 private:
 
 	/** The Script being edited */
@@ -147,11 +149,5 @@ private:
 	bool bEditedScriptHasPendingChanges;
 	bool bChangesDiscarded;
 
-	/**  //@todo(ng) Everything below this line should be moved to an owning class such as FNiagaraMessageManager as we don't want to duplicate this code for both the Script and System toolkits
-	* --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-	*/
-	
-	TSharedRef<FTokenizedMessage> BuildMessageForCompileEvent(FNiagaraCompileEvent& InCompileEvent);
-	TOptional<UNiagaraGraph*> RecursiveBuildMessageTokensFromContextStackAndGetOriginatingGraph(TArray<FGuid>& InContextStackNodeGuids, UNiagaraGraph* InGraphToSearch, TArray<TSharedRef<IMessageToken>>& OutMessageTokensToAdd);
-
+	TSharedPtr<class SNiagaraScriptGraph> NiagaraScriptGraphWidget;
 };
