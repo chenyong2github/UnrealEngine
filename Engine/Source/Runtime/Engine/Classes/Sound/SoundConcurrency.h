@@ -71,20 +71,49 @@ struct ENGINE_API FSoundConcurrencySettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Concurrency)
 	TEnumAsByte<EMaxConcurrentResolutionRule::Type> ResolutionRule;
 
+private:
 	/**
-	 * The amount of attenuation to apply to older voice instances in this concurrency group. This reduces volume of older voices in a concurrency group as new voices play.
+	 * Ducking factor to apply per older voice instance (generation), which compounds as new voices play
+	 * and (optionally) revives them as they stop according to the provided attack/release times.
 	 *
 	 * AppliedVolumeScale = Math.Pow(DuckingScale, VoiceGeneration)
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Concurrency, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	UPROPERTY(EditAnywhere, Category = "Volume Scaling", meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float VolumeScale;
+
+public:
+	/**
+	 * Time taken to apply duck using volume scalar.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Volume Scaling", meta = (DisplayName = "Attack Time", UIMin = "0.0", ClampMin = "0.0", UIMax = "10.0", ClampMax = "1000000.0"))
+	float VolumeScaleAttackTime;
+
+	/**
+	 * Whether or not volume scaling can release (i.e. "recover") volume ducking behavior when concurrency group sounds stop.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Volume Scaling", meta = (DisplayName = "Can Release"))
+	uint32 bVolumeScaleCanRelease:1;
+
+	/**
+	 * Time taken to remove duck using volume scalar.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Volume Scaling", meta = (DisplayName = "Release Time", EditCondition = "bVolumeScaleCanRelease", UIMin = "0.0", ClampMin = "0.0", UIMax = "10.0", ClampMax="1000000.0"))
+	float VolumeScaleReleaseTime;
 
 	FSoundConcurrencySettings()
 		: MaxCount(16)
-		, bLimitToOwner(false)
+		, bLimitToOwner(0)
 		, ResolutionRule(EMaxConcurrentResolutionRule::StopFarthestThenOldest)
 		, VolumeScale(1.0f)
+		, VolumeScaleAttackTime(0.01f)
+		, bVolumeScaleCanRelease(0)
+		, VolumeScaleReleaseTime(0.0f)
 	{}
+
+	/**
+	 * Retrieves the volume scale
+	 */
+	float GetVolumeScale() const;
 };
 
 UCLASS(BlueprintType, hidecategories=Object, editinlinenew, MinimalAPI)
@@ -123,6 +152,36 @@ struct FConcurrencyHandle
 };
 
 
+/** Sound instance data pertaining to concurrency tracking */
+struct FConcurrencySoundData
+{
+	int32 Generation;
+	float LerpTime;
+
+private:
+	float Elapsed;
+	float DbTargetVolume;
+	float DbStartVolume;
+
+public:
+	FConcurrencySoundData()
+		: Generation(0)
+		, LerpTime(0.0f)
+		, Elapsed(0.0f)
+		, DbTargetVolume(0.0f)
+		, DbStartVolume(0.0f)
+	{
+	}
+
+	void Update(float InElapsed);
+
+	float GetVolume(bool bInDecibels = false) const;
+	float GetTargetVolume(bool bInDecibles = false) const;
+
+	void SetTarget(float InTargetVolume, float InLerpTime);
+};
+
+
 /** Class which tracks array of active sound pointers for concurrency management */
 class FConcurrencyGroup
 {
@@ -132,7 +191,6 @@ class FConcurrencyGroup
 	FConcurrencyGroupID GroupID;
 	FConcurrencyObjectID ObjectID;
 	FSoundConcurrencySettings Settings;
-	int32 Generation;
 
 public:
 	/** Constructor for the max concurrency active sound entry. */
@@ -146,10 +204,10 @@ public:
 	/** Returns the id of the concurrency group */
 	FConcurrencyGroupID GetGroupID() const { return GroupID; }
 
-	/** Returns the current generation */
-	const int32 GetGeneration() const { return Generation; }
+	/** Returns the current generation (effectively, the number of concurrency sound instances active) */
+	const int32 GetNextGeneration() const { return ActiveSounds.Num(); }
 
-	/** Returns the current generation */
+	/** Returns the settings associated with the group */
 	const FSoundConcurrencySettings& GetSettings() const { return Settings; }
 
 	/** Returns the parent object ID */
@@ -162,10 +220,10 @@ public:
 	bool IsFull() const { return Settings.MaxCount <= ActiveSounds.Num(); }
 
 	/** Adds an active sound to the active sound array. */
-	void AddActiveSound(struct FActiveSound* ActiveSound);
+	void AddActiveSound(FActiveSound& ActiveSound);
 
 	/** Removes an active sound from the active sound array. */
-	void RemoveActiveSound(FActiveSound* ActiveSound);
+	void RemoveActiveSound(FActiveSound& ActiveSound);
 
 	/** Sorts the active sound array by volume */
 	void StopQuietSoundsDueToMaxConcurrency();
@@ -216,7 +274,7 @@ public:
 	FActiveSound* CreateNewActiveSound(const FActiveSound& NewActiveSound, bool bIsRetriggering);
 
 	/** Removes the active sound from concurrency tracking when active sound is stopped. */
-	void RemoveActiveSound(FActiveSound* ActiveSound);
+	void RemoveActiveSound(FActiveSound& ActiveSound);
 
 	/** Stops any active sounds due to max concurrency quietest sound resolution rule */
 	void UpdateQuietSoundsToStop();

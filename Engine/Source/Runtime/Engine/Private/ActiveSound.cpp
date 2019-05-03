@@ -36,7 +36,6 @@ FActiveSound::FActiveSound()
 	, AudioComponentID(0)
 	, OwnerID(0)
 	, AudioDevice(nullptr)
-	, ConcurrencyGeneration(0)
 	, SoundClassOverride(nullptr)
 	, SoundSubmixOverride(nullptr)
 	, bHasCheckedOcclusion(false)
@@ -440,14 +439,17 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	// final value that is correct
 	UpdateAdjustVolumeMultiplier(DeltaTime);
 
+	// Update concurrency volume scalars. Must be done prior to getting collective volume and applying below
+	// in parse params.
+	UpdateConcurrencyVolumeScalars(DeltaTime);
+
 	// If the sound is a preview sound, then ignore the transient master volume and application volume
 	if (!bIsPreviewSound)
 	{
 		ParseParams.VolumeApp = AudioDevice->GetMasterVolume();
 	}
 
-	const float TotalConcurrencyVolumeScale = GetTotalConcurrencyVolumeScale();
-	ParseParams.VolumeMultiplier = VolumeMultiplier * Sound->GetVolumeMultiplier() * CurrentAdjustVolumeMultiplier * TotalConcurrencyVolumeScale;
+	ParseParams.VolumeMultiplier = GetVolume();
 
 	ParseParams.Priority = Priority;
 	ParseParams.Pitch *= PitchMultiplier * Sound->GetPitchMultiplier();
@@ -1046,16 +1048,30 @@ bool FActiveSound::GetFloatParameter( const FName InName, float& OutFloat ) cons
 	return false;
 }
 
+float FActiveSound::GetVolume() const
+{
+	const float Volume = VolumeMultiplier * CurrentAdjustVolumeMultiplier * GetTotalConcurrencyVolumeScale();
+	return Sound ? Volume * Sound->GetVolumeMultiplier() : Volume;
+}
+
 float FActiveSound::GetTotalConcurrencyVolumeScale() const
 {
 	float OutVolume = 1.0f;
 
-	for (const TPair<FConcurrencyGroupID, float>& ConcurrencyGroupVolumePair : ConcurrencyGroupVolumeScales)
+	for (const TPair<FConcurrencyGroupID, FConcurrencySoundData>& ConcurrencyPair : ConcurrencyGroupData)
 	{
-		OutVolume *= ConcurrencyGroupVolumePair.Value;
+		OutVolume *= ConcurrencyPair.Value.GetVolume();
 	}
 
 	return OutVolume;
+}
+
+void FActiveSound::UpdateConcurrencyVolumeScalars(const float DeltaTime)
+{
+	for (TPair<FConcurrencyGroupID, FConcurrencySoundData>& ConcurrencyPair : ConcurrencyGroupData)
+	{
+		ConcurrencyPair.Value.Update(DeltaTime);
+	}
 }
 
 void FActiveSound::SetFloatParameter( const FName InName, const float InFloat )

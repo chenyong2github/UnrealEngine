@@ -271,10 +271,7 @@ public:
 	FAudioDevice* AudioDevice;
 
 	/** The concurrent groups that this sound is actively playing in. */
-	TArray<FConcurrencyGroupID> ConcurrencyGroupIDs;
-
-	/** The generation of this sound in the concurrency group. */
-	int32 ConcurrencyGeneration;
+	TMap<FConcurrencyGroupID, FConcurrencySoundData> ConcurrencyGroupData;
 
 	/** Optional USoundConcurrency to override for the sound. */
 	TSet<USoundConcurrency*> ConcurrencySet;
@@ -420,9 +417,6 @@ public:
 	/** The interpolated parameter for the volume attenuation due to occlusion. */
 	FDynamicParameter CurrentOcclusionVolumeAttenuation;
 
-	/** Volume scale factors to apply to a sound based on the concurrency count of the active sound when it started. Will reduce volume of new sounds if many sounds are playing in concurrency group. */
-	TMap<FConcurrencyGroupID, float> ConcurrencyGroupVolumeScales;
-
 	float SubtitlePriority;
 
 	/** The product of the component priority and the USoundBase priority */
@@ -544,6 +538,9 @@ public:
 
 	void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const;
 
+	/** Gets volume product all gain stages pertaining to active sound */
+	float GetVolume() const;
+
 	/**
 	 * Friend archive function used for serialization.
 	 */
@@ -621,6 +618,9 @@ private:
 	/** Sets the target volume multiplier to achieve over the specified time period */
 	void UpdateAdjustVolumeMultiplier(const float DeltaTime);
 
+	/** Updates ramping concurrency volume scalars */
+	void UpdateConcurrencyVolumeScalars(const float DeltaTime);
+
 	/** if OcclusionCheckInterval > 0.0, checks if the sound has become (un)occluded during playback
 	 * and calls eventOcclusionChanged() if so
 	 * primarily used for gameplay-relevant ambient sounds
@@ -628,7 +628,7 @@ private:
 	 * @param ListenerLocation location of the closest listener to the sound
 	 */
 	void CheckOcclusion(const FVector ListenerLocation, const FVector SoundLocation, const FSoundAttenuationSettings* AttenuationSettingsPtr);
-	 
+
 	/** Apply the interior settings to the ambient sound as appropriate */
 	void HandleInteriorVolumes( const FListener& Listener, struct FSoundParseParameters& ParseParams );
 
