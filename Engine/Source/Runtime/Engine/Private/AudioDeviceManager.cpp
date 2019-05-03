@@ -44,6 +44,15 @@ FAutoConsoleVariableRef CVarIsUsingAudioMixer(
 	ECVF_Default);
 
 
+static int32 CVarIsVisualizeEnabled = 0;
+FAutoConsoleVariableRef CVarAudioVisualizeEnabled(
+	TEXT("au.3dVisualize.Enabled"),
+	CVarIsVisualizeEnabled,
+	TEXT("Whether or not audio visualization is enabled. \n")
+	TEXT("0: Not Enabled, 1: Enabled"),
+	ECVF_Default);
+
+
 FAudioDeviceManager::FCreateAudioDeviceResults::FCreateAudioDeviceResults()
 	: Handle(INDEX_NONE)
 	, bNewDevice(false)
@@ -913,6 +922,11 @@ void FAudioDeviceManager::TogglePlayAllDeviceAudio()
 	}
 
 	bPlayAllDeviceAudio = !bPlayAllDeviceAudio;
+}
+
+bool FAudioDeviceManager::IsVisualizeDebug3dEnabled() const
+{
+	return bVisualize3dDebug || CVarIsVisualizeEnabled;
 }
 
 void FAudioDeviceManager::ToggleVisualize3dDebug()
