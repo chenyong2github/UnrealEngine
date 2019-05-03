@@ -130,6 +130,12 @@ private:
 	void ShowReferenceTree();
 	void ViewSizeMap();
 	void ViewAssetAudit();
+	void ZoomToFit();
+	bool CanZoomToFit() const;
+
+	/** Handlers for searching */
+	void HandleOnSearchTextChanged(const FText& SearchText);
+	void HandleOnSearchTextCommitted(const FText& SearchText, ETextCommit::Type CommitType);
 
 	void ReCenterGraphOnNodes(const TSet<UObject*>& Nodes);
 
