@@ -229,9 +229,9 @@ public:
 	/** Set zoom in/out position (mouse position or current time). */
 	void SetZoomPosition(ESequencerZoomPosition InZoomPosition);
 
-	/** Gets whether or not auto-scroll is enabled. */
+	/** Gets whether or not auto-scroll is enabled when playing. */
 	bool GetAutoScrollEnabled() const;
-	/** Sets whether or not auto-scroll is enabled. */
+	/** Sets whether or not auto-scroll is enabled when playing. */
 	void SetAutoScrollEnabled(bool bInAutoScrollEnabled);
 	
 	/** Gets whether or not to link the curve editor time range. */
@@ -436,7 +436,7 @@ protected:
 	UPROPERTY( config, EditAnywhere, Category=Timeline )
 	TEnumAsByte<ESequencerZoomPosition> ZoomPosition;
 
-	/** Enable or disable auto scroll in the timeline. */
+	/** Enable or disable auto scroll in the timeline when playing. */
 	UPROPERTY( config, EditAnywhere, Category=Timeline )
 	bool bAutoScrollEnabled;
 

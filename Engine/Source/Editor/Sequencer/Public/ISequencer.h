@@ -323,9 +323,8 @@ public:
 	 *
 	 * @param Time The local time to set.
 	 * @param SnapTimeMode The type of time snapping allowed.
-	 * @param ForceScroll Whether to ignore autoscroll setting and always scroll view to new location
 	 */
-	virtual void SetLocalTime(FFrameTime Time, ESnapTimeMode SnapTimeMode = ESnapTimeMode::STM_None, bool bForceScroll = false) = 0;
+	virtual void SetLocalTime(FFrameTime Time, ESnapTimeMode SnapTimeMode = ESnapTimeMode::STM_None) = 0;
 
 	/** Set the current local time directly, with no other snapping, scrolling or manipulation */
 	virtual void SetLocalTimeDirectly(FFrameTime NewTime) = 0;

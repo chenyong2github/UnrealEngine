@@ -2390,12 +2390,12 @@ FQualifiedFrameTime FSequencer::GetGlobalTime() const
 	return FQualifiedFrameTime(RootTime, PlayPosition.GetOutputRate());
 }
 
-void FSequencer::SetLocalTime( FFrameTime NewTime, ESnapTimeMode SnapTimeMode, bool bForceScroll )
+void FSequencer::SetLocalTime( FFrameTime NewTime, ESnapTimeMode SnapTimeMode)
 {
 	FFrameRate LocalResolution = GetFocusedTickResolution();
 
 	// Ensure the time is in the current view
-	if (IsAutoScrollEnabled() || bForceScroll)
+	if (IsAutoScrollEnabled() || GetPlaybackStatus() != EMovieScenePlayerStatus::Playing)
 	{
 		ScrollIntoView(NewTime / LocalResolution);
 	}
@@ -3686,7 +3686,7 @@ FReply FSequencer::OnStepForward()
 	FQualifiedFrameTime CurrentTime = GetLocalTime();
 
 	FFrameTime NewPosition = FFrameRate::TransformTime(CurrentTime.ConvertTo(DisplayRate).FloorToFrame() + 1, DisplayRate, CurrentTime.Rate);
-	SetLocalTime(NewPosition, ESnapTimeMode::STM_Interval, true);
+	SetLocalTime(NewPosition, ESnapTimeMode::STM_Interval);
 	return FReply::Handled();
 }
 
@@ -3700,7 +3700,7 @@ FReply FSequencer::OnStepBackward()
 
 	FFrameTime NewPosition = FFrameRate::TransformTime(CurrentTime.ConvertTo(DisplayRate).FloorToFrame() - 1, DisplayRate, CurrentTime.Rate);
 
-	SetLocalTime(NewPosition, ESnapTimeMode::STM_Interval, true);
+	SetLocalTime(NewPosition, ESnapTimeMode::STM_Interval);
 	return FReply::Handled();
 }
 
@@ -3708,7 +3708,7 @@ FReply FSequencer::OnStepBackward()
 FReply FSequencer::OnJumpToStart()
 {
 	SetPlaybackStatus(EMovieScenePlayerStatus::Stepping);
-	SetLocalTime(MovieScene::DiscreteInclusiveLower(GetPlaybackRange()), ESnapTimeMode::STM_None, true);
+	SetLocalTime(MovieScene::DiscreteInclusiveLower(GetPlaybackRange()), ESnapTimeMode::STM_None);
 	return FReply::Handled();
 }
 
@@ -3726,7 +3726,7 @@ FReply FSequencer::OnJumpToEnd()
 	FFrameTime OneFrame = bInsetDisplayFrame ? FFrameRate::TransformTime(FFrameTime(1), DisplayRate, LocalResolution) : FFrameTime(1);
 	FFrameTime NewTime = MovieScene::DiscreteExclusiveUpper(GetPlaybackRange()) - OneFrame;
 
-	SetLocalTime(NewTime, ESnapTimeMode::STM_None, true);
+	SetLocalTime(NewTime, ESnapTimeMode::STM_None);
 	return FReply::Handled();
 }
 
@@ -8278,7 +8278,7 @@ void FSequencer::StepToNextShot()
 	PopToSequenceInstance(ActiveTemplateIDs[ActiveTemplateIDs.Num()-2]);
 	FocusSequenceInstance(*NextShot);
 
-	SetLocalTime(FFrameTime(0), ESnapTimeMode::STM_None, true);
+	SetLocalTime(FFrameTime(0), ESnapTimeMode::STM_None);
 }
 
 
@@ -8310,7 +8310,7 @@ void FSequencer::StepToPreviousShot()
 	PopToSequenceInstance(ActiveTemplateIDs[ActiveTemplateIDs.Num()-2]);
 	FocusSequenceInstance(*PreviousShot);
 
-	SetLocalTime(0, ESnapTimeMode::STM_None, true);
+	SetLocalTime(0, ESnapTimeMode::STM_None);
 }
 
 

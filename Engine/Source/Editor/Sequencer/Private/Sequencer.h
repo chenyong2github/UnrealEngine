@@ -691,7 +691,7 @@ public:
 	virtual bool GetAutoSetTrackDefaults() const override;
 	virtual FQualifiedFrameTime GetLocalTime() const override;
 	virtual FQualifiedFrameTime GetGlobalTime() const override;
-	virtual void SetLocalTime(FFrameTime Time, ESnapTimeMode SnapTimeMode = ESnapTimeMode::STM_None, bool bForceScroll = false) override;
+	virtual void SetLocalTime(FFrameTime Time, ESnapTimeMode SnapTimeMode = ESnapTimeMode::STM_None) override;
 	virtual void SetLocalTimeDirectly(FFrameTime NewTime) override;
 	virtual void SetGlobalTime(FFrameTime Time) override;
 	virtual void ForceEvaluate() override;
