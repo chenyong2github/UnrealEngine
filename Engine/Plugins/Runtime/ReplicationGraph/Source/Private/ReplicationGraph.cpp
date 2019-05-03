@@ -597,6 +597,12 @@ void UReplicationGraph::FlushNetDormancy(AActor* Actor, bool bWasDormInitial)
 		return;
 	}
 
+	if (IsActorValidForReplication(Actor) == false)
+	{
+		UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("UReplicationGraph::FlushNetDormancy called on %s. Ignored since actor is destroyed or about to be"), *Actor->GetPathName());
+		return;
+	}
+
 	FGlobalActorReplicationInfo& GlobalInfo = GlobalActorReplicationInfoMap.Get(Actor);
 	const bool bNewWantsToBeDormant = (Actor->NetDormancy > DORM_Awake);
 
@@ -698,6 +704,12 @@ void UReplicationGraph::NotifyActorDormancyChange(AActor* Actor, ENetDormancy Ol
 	if (!GlobalInfo)
 	{
 		UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("UReplicationGraph::NotifyActorDormancyChange %s. Ignoring change since actor is not registered yet."), *Actor->GetPathName());
+		return;
+	}
+
+	if (IsActorValidForReplication(Actor) == false)
+	{
+		UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("UReplicationGraph::NotifyActorDormancyChange %s. Ignoring change since actor is destroyed or about to be."), *Actor->GetPathName());
 		return;
 	}
 
