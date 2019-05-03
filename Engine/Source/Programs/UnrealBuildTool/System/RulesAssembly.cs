@@ -504,27 +504,9 @@ namespace UnrealBuildTool
 			}
 
 			// Set the default value for whether to use the shared build environment
-			if(Rules.BuildEnvironment == TargetBuildEnvironment.Default)
+			if(Rules.BuildEnvironment == TargetBuildEnvironment.Unique && UnrealBuildTool.IsEngineInstalled())
 			{
-				if(Rules.Type == TargetType.Program && TargetInfo.ProjectFile != null && TargetNameToTargetFile[Rules.Name].IsUnderDirectory(TargetInfo.ProjectFile.Directory))
-				{
-					Rules.BuildEnvironment = TargetBuildEnvironment.Unique;
-				}
-				else if(UnrealBuildTool.IsEngineInstalled() || Rules.LinkType != TargetLinkType.Monolithic)
-				{
-					Rules.BuildEnvironment = TargetBuildEnvironment.Shared;
-				}
-				else
-				{
-					Rules.BuildEnvironment = TargetBuildEnvironment.Unique;
-				}
-			}
-			else
-			{
-				if(Rules.BuildEnvironment == TargetBuildEnvironment.Unique && UnrealBuildTool.IsEngineInstalled())
-				{
-					throw new BuildException("Targets with a unique build environment cannot be built an installed engine.");
-				}
+				throw new BuildException("Targets with a unique build environment cannot be built an installed engine.");
 			}
 
 			// Automatically include CoreUObject

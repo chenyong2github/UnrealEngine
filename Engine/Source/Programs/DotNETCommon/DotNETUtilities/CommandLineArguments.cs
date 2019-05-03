@@ -903,7 +903,12 @@ namespace Tools.DotNETCommon
 		/// <returns>True if the text could be parsed, false otherwise</returns>
 		private static bool TryParseValue(Type FieldType, string Text, out object Value)
 		{
-			if(FieldType.IsEnum)
+			if(FieldType.IsGenericType && FieldType.GetGenericTypeDefinition() == typeof(Nullable<>))
+			{
+				// Try to parse the inner type instead
+				return TryParseValue(FieldType.GetGenericArguments()[0], Text, out Value);
+			}
+			else if (FieldType.IsEnum)
 			{
 				// Special handling for enums; parse the value ignoring case.
 				try

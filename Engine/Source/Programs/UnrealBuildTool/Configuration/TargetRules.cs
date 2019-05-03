@@ -77,11 +77,6 @@ namespace UnrealBuildTool
 	public enum TargetBuildEnvironment
 	{
 		/// <summary>
-		/// Use the default build environment for this target type (and whether the engine is installed)
-		/// </summary>
-		Default,
-
-		/// <summary>
 		/// Engine binaries and intermediates are output to the engine folder. Target-specific modifications to the engine build environment will be ignored.
 		/// </summary>
 		Shared,
@@ -1118,11 +1113,41 @@ namespace UnrealBuildTool
 		public List<FileReference> DependencyListFileNames = new List<FileReference>();
 
 		/// <summary>
-		/// Specifies the build environment for this target. See TargetBuildEnvironment for more information on the available options.
+		/// Backing storage for the BuildEnvironment property
 		/// </summary>
 		[CommandLine("-SharedBuildEnvironment", Value = "Shared")]
 		[CommandLine("-UniqueBuildEnvironment", Value = "Unique")]
-		public TargetBuildEnvironment BuildEnvironment = TargetBuildEnvironment.Default;
+		private TargetBuildEnvironment? BuildEnvironmentOverride;
+
+		/// <summary>
+		/// Specifies the build environment for this target. See TargetBuildEnvironment for more information on the available options.
+		/// </summary>
+		public TargetBuildEnvironment BuildEnvironment
+		{
+			get
+			{
+				if(BuildEnvironmentOverride.HasValue)
+				{
+					return BuildEnvironmentOverride.Value;
+				}
+				if (Type == TargetType.Program && ProjectFile != null && File.IsUnderDirectory(ProjectFile.Directory))
+				{
+					return TargetBuildEnvironment.Unique;
+				}
+				else if (UnrealBuildTool.IsEngineInstalled() || LinkType != TargetLinkType.Monolithic)
+				{
+					return TargetBuildEnvironment.Shared;
+				}
+				else
+				{
+					return TargetBuildEnvironment.Unique;
+				}
+			}
+			set 
+			{ 
+				BuildEnvironmentOverride = value; 
+			}
+		}
 
 		/// <summary>
 		/// Whether to ignore violations to the shared build environment (eg. editor targets modifying definitions)
