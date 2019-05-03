@@ -2,8 +2,10 @@
 
 #include "TimeSynthClip.h"
 #include "TimeSynthComponent.h"
+#include "Sound/SoundWave.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+
 
 UClass* FAssetTypeActions_TimeSynthClip::GetSupportedClass() const
 {
@@ -24,5 +26,15 @@ UObject* UTimeSynthClipFactory::FactoryCreateNew(UClass* Class, UObject* InParen
 {
 	UTimeSynthClip* NewTimeSynthClip = NewObject<UTimeSynthClip>(InParent, InName, Flags);
 
+	for (TWeakObjectPtr<USoundWave>& SoundWave : SoundWaves)
+	{
+		if (SoundWave.IsValid())
+		{
+			FTimeSynthClipSound Sound;
+			Sound.SoundWave = SoundWave.Get();
+			NewTimeSynthClip->Sounds.Add(Sound);
+		}
+	}
+	
 	return NewTimeSynthClip;
 }
