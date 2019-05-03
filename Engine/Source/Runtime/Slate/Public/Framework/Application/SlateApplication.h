@@ -2103,9 +2103,6 @@ private:
 	/** .ini controlled option to allow or disallow software cursor rendering */
 	bool bSoftwareCursorAvailable;
 
-	/** .ini controlled option to filter out gamepad input when the engine window isn't active */
-	bool bRequireFocusForGamepadInput;
-
 	/** The OS or actions taken by the user may require we refresh the current state of the cursor. */
 	bool bQueryCursorRequested;
 

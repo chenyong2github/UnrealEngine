@@ -464,6 +464,13 @@ FAutoConsoleVariableRef CVarAllowCursorQueries(
 	TEXT("")
 );
 
+int32 bRequireFocusForGamepadInput = 0;
+FAutoConsoleVariableRef CVarRequireFocusForGamepadInput(
+	TEXT("Slate.RequireFocusForGamepadInput"),
+	bRequireFocusForGamepadInput,
+	TEXT("")
+);
+
 //////////////////////////////////////////////////////////////////////////
 bool FSlateApplication::MouseCaptorHelper::HasCapture() const
 {
@@ -1039,7 +1046,6 @@ FSlateApplication::FSlateApplication()
 	{
 		GConfig->GetBool(TEXT("MobileSlateUI"), TEXT("bTouchFallbackToMouse"), bTouchFallbackToMouse, GEngineIni);
 		GConfig->GetBool(TEXT("CursorControl"), TEXT("bAllowSoftwareCursor"), bSoftwareCursorAvailable, GEngineIni);
-		GConfig->GetBool(TEXT("GamepadControl"), TEXT("bRequireFocusForGamepadInput"), bRequireFocusForGamepadInput, GEngineIni);
 	}
 
 	bRenderOffScreen = FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"));
