@@ -7268,7 +7268,7 @@ static void DumpVisibleActors(UWorld* InWorld)
 	for (FActorIterator ActorIterator(InWorld); ActorIterator; ++ActorIterator)
 	{
 		AActor* Actor = *ActorIterator;
-		if (Actor && Actor->GetLastRenderTime() > (InWorld->GetTimeSeconds() - 0.05f))
+		if (Actor && Actor->WasRecentlyRendered(0.05f))
 		{
 			UE_LOG(LogWorld, Log, TEXT("Visible Actor : %s"), *Actor->GetFullName());
 		}
