@@ -763,6 +763,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 		TArray<FRayTracingShaderRHIParamRef> RayGenShaders;
 		PrepareRayTracingReflections(View, RayGenShaders);
 		PrepareRayTracingShadows(View, RayGenShaders);
+		PrepareRayTracingSkyLight(View, RayGenShaders);
 		PrepareRayTracingRectLight(View, RayGenShaders);
 		PrepareRayTracingGlobalIllumination(View, RayGenShaders);
 		PrepareRayTracingTranslucency(View, RayGenShaders);
