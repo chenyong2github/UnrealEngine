@@ -1550,7 +1550,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					RenderRayTracingGlobalIllumination(RHICmdList, Views[ViewIndex], GlobalIlluminationRT, SceneContext.ScreenSpaceAO);
 				}
 			}
-			else if (ShouldRenderRayTracingAmbientOcclusion())
+			if (ShouldRenderRayTracingAmbientOcclusion())
 			{
 				checkSlow(RHICmdList.IsOutsideRenderPass());
 				checkSlow(RHICmdList.IsOutsideRenderPass());
