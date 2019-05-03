@@ -2446,9 +2446,10 @@ bool ALandscape::PrepareLayersHeightmapTextureResources() const
 	return IsReady;
 }
 
-void ALandscape::RegenerateLayersHeightmaps()
+void ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool& bOutRecreateCollision)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersRegenerateHeightmaps);
+	bOutRecreateCollision = false;
 
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
@@ -2456,13 +2457,6 @@ void ALandscape::RegenerateLayersHeightmaps()
 	{
 		return;
 	}
-
-	TArray<ULandscapeComponent*> AllLandscapeComponents;
-
-	Info->ForAllLandscapeProxies([&AllLandscapeComponents](ALandscapeProxy* Proxy)
-	{
-		AllLandscapeComponents.Append(Proxy->LandscapeComponents);
-	});
 
 	// Handle missing Heightmap CPUReadback (Undo of a delete landscape component can trigger that case)
 	if (LayersContentUpdateFlags & ELandscapeLayersContentUpdateFlag::Heightmap_All)
@@ -2483,7 +2477,7 @@ void ALandscape::RegenerateLayersHeightmaps()
 		});
 	}
 
-	if ((LayersContentUpdateFlags & ELandscapeLayersContentUpdateFlag::Heightmap_Render) != 0)
+	if (LayersContentUpdateFlags & ELandscapeLayersContentUpdateFlag::Heightmap_Render)
 	{
 		check(HeightmapRTList.Num() > 0);
 
@@ -2575,11 +2569,11 @@ void ALandscape::RegenerateLayersHeightmaps()
 
 			// NOTE: From this point on, we always work in non atlas, we'll convert back at the end to atlas only
 			DrawHeightmapComponentsToRenderTarget(OutputDebugName ? FString::Printf(TEXT("LS Height: %s += -> NonAtlas %s"), *Layer.Name.ToString(), *LandscapeScratchRT1->GetName(), *LandscapeScratchRT2->GetName()) : TEXT(""),
-												  AllLandscapeComponents, MinExtend, LandscapeScratchRT1, nullptr, LandscapeScratchRT2, ERTDrawingType::RTAtlasToNonAtlas, true, ShaderParams);
+												  InLandscapeComponents, MinExtend, LandscapeScratchRT1, nullptr, LandscapeScratchRT2, ERTDrawingType::RTAtlasToNonAtlas, true, ShaderParams);
 
 			// Combine Current layer with current result
 			DrawHeightmapComponentsToRenderTarget(OutputDebugName ? FString::Printf(TEXT("LS Height: %s += -> CombinedNonAtlas %s"), *Layer.Name.ToString(), *LandscapeScratchRT2->GetName(), *CombinedHeightmapNonAtlasRT->GetName()) : TEXT(""),
-												AllLandscapeComponents, MinExtend, LandscapeScratchRT2, FirstLayer ? nullptr : LandscapeScratchRT3, CombinedHeightmapNonAtlasRT, ERTDrawingType::RTNonAtlas, FirstLayer, ShaderParams);
+												InLandscapeComponents, MinExtend, LandscapeScratchRT2, FirstLayer ? nullptr : LandscapeScratchRT3, CombinedHeightmapNonAtlasRT, ERTDrawingType::RTNonAtlas, FirstLayer, ShaderParams);
 
 			ShaderParams.ApplyLayerModifiers = false;
 
@@ -2637,14 +2631,14 @@ void ALandscape::RegenerateLayersHeightmaps()
 		ShaderParams.GridSize = GetRootComponent()->RelativeScale3D;
 
 		DrawHeightmapComponentsToRenderTarget(OutputDebugName ? FString::Printf(TEXT("LS Height: %s = -> CombinedNonAtlasNormals : %s"), *CombinedHeightmapNonAtlasRT->GetName(), *LandscapeScratchRT1->GetName()) : TEXT(""),
-											  AllLandscapeComponents, MinExtend, CombinedHeightmapNonAtlasRT, nullptr, LandscapeScratchRT1, ERTDrawingType::RTNonAtlas, true, ShaderParams);
+											  InLandscapeComponents, MinExtend, CombinedHeightmapNonAtlasRT, nullptr, LandscapeScratchRT1, ERTDrawingType::RTNonAtlas, true, ShaderParams);
 
 		ShaderParams.GenerateNormals = false;
 
 		DrawHeightmapComponentsToRenderTarget(OutputDebugName ? FString::Printf(TEXT("LS Height: %s = -> CombinedAtlasFinal : %s"), *LandscapeScratchRT1->GetName(), *CombinedHeightmapAtlasRT->GetName()) : TEXT(""),
-											  AllLandscapeComponents, MinExtend, LandscapeScratchRT1, nullptr, CombinedHeightmapAtlasRT, ERTDrawingType::RTNonAtlasToAtlas, true, ShaderParams);
+											  InLandscapeComponents, MinExtend, LandscapeScratchRT1, nullptr, CombinedHeightmapAtlasRT, ERTDrawingType::RTNonAtlasToAtlas, true, ShaderParams);
 
-		DrawHeightmapComponentsToRenderTargetMips(AllLandscapeComponents, MinExtend, CombinedHeightmapAtlasRT, true, ShaderParams);
+		DrawHeightmapComponentsToRenderTargetMips(InLandscapeComponents, MinExtend, CombinedHeightmapAtlasRT, true, ShaderParams);
 
 		// Copy back all Mips to original heightmap data
 		Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
@@ -2676,7 +2670,7 @@ void ALandscape::RegenerateLayersHeightmaps()
 		});
 	}
 
-	if ((LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_ResolveToTexture) != 0)
+	if (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_ResolveToTexture)
 	{
 		ResolveLayersHeightmapTexture();
 	}
@@ -2684,53 +2678,62 @@ void ALandscape::RegenerateLayersHeightmaps()
 	bool bUpdateBoundsAndCollsionFull = (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_BoundsAndCollision) != 0;
 	bool bUpdateBoundsAndCollsionPartial = ((LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_BoundsAndCollisionPartial) != 0) && !bUpdateBoundsAndCollsionFull; // Partial only if not full update
 	bool bUpdateBoundsAndCollsion = bUpdateBoundsAndCollsionFull || bUpdateBoundsAndCollsionPartial;
-	bool bUpdateClients = (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_ClientUpdate) != 0;
-	int32 PostponeUpdateClientFlag = 0;
-	if (bUpdateBoundsAndCollsion || bUpdateClients)
+
+	if (bUpdateBoundsAndCollsion)
 	{
-		for (ULandscapeComponent* Component : AllLandscapeComponents)
+		for (ULandscapeComponent* Component : InLandscapeComponents)
 		{
 			if (bUpdateBoundsAndCollsion && (!bUpdateBoundsAndCollsionPartial || Component->IsLayerContentDirty()))
 			{
 				Component->UpdateCachedBounds();
 				Component->UpdateComponentToWorld();
-				Component->UpdateCollisionData(bUpdateBoundsAndCollsionPartial);
+				Component->UpdateCollisionData();
 			}
 
-			if (bUpdateClients)
-			{
-				// Post-pone client update to next tick while in transaction
-				if (GUndo)
-				{
-					PostponeUpdateClientFlag |= EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_ClientUpdate;
-				}
-				else
-				{
-					// Recreate collision for modified components to update the physical materials
-					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
-					if (CollisionComponent)
-					{
-						FNavigationSystem::UpdateComponentData(*CollisionComponent);
-						CollisionComponent->SnapFoliageInstances();
-					}
-				}
-			}
 			Component->SetLayerContentDirty(false);
 		}
 
 		// Ideally, we should only update necessary components and only when inside AddComponnet Tool.
 		Info->UpdateAllAddCollisions();
+	
+		bOutRecreateCollision = !bUpdateBoundsAndCollsionPartial;
 	}
-
+		
 	LayersContentUpdateFlags &= ~EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_BoundsAndCollisionPartial;
 	LayersContentUpdateFlags &= ~ELandscapeLayersContentUpdateFlag::Heightmap_All;
-	LayersContentUpdateFlags |= PostponeUpdateClientFlag; // if non-zero postpone client update (transacting)
-
+		
 	// If doing rendering debug, keep doing the render only
 	if (CVarOutputLayersDebugDrawCallName.GetValueOnAnyThread() == 1)
 	{
 		LayersContentUpdateFlags |= ELandscapeLayersContentUpdateFlag::Heightmap_Render;
 	}
+}
+
+bool ALandscape::UpdateClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool bInCollisionRecreated)
+{
+	// Post-pone client update to next tick while in transaction
+	if (GUndo)
+	{
+		return false;
+	}
+	else
+	{
+		for (ULandscapeComponent* Component : InLandscapeComponents)
+		{
+			// Recreate collision for modified components to update the physical materials
+			ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+			if (CollisionComponent)
+			{
+				FNavigationSystem::UpdateComponentData(*CollisionComponent);
+				CollisionComponent->SnapFoliageInstances();
+			}
+		}
+
+		ALandscapeProxy::InvalidateGeneratedComponentData(InLandscapeComponents);
+	}
+	
+	// Re update clients if collision wasn't recreated
+	return bInCollisionRecreated;
 }
 
 void ALandscape::ResolveLayersHeightmapTexture()
@@ -3370,30 +3373,25 @@ bool ALandscape::PrepareLayersWeightmapTextureResources() const
 	return IsReady;
 }
 
-void ALandscape::RegenerateLayersWeightmaps()
+void ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool& bOutRecreateCollision)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersRegenerateWeightmaps);
-
+	bOutRecreateCollision = false;
+    
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
 	if (LayersContentUpdateFlags == 0 || Info == nullptr || Info->Layers.Num() == 0 || !PrepareLayersWeightmapTextureResources())
 	{
 		return;
 	}
-
-	TArray<ULandscapeComponent*> AllLandscapeComponents;
-
-	Info->ForAllLandscapeProxies([&AllLandscapeComponents](ALandscapeProxy* Proxy)
-	{
-		AllLandscapeComponents.Append(Proxy->LandscapeComponents);
-	});
-
+	
+		
 	TArray<ULandscapeComponent*> ComponentThatNeedMaterialRebuild;
 	TArray<ULandscapeLayerInfoObject*> BrushRequiredAllocations;
 	int32 LayerCount = Info->Layers.Num() + 1; // due to visibility being stored at 0
 	bool ClearFlagsAfterUpdate = true;
 
-	if ((LayersContentUpdateFlags & ELandscapeLayersContentUpdateFlag::Weightmap_Render) != 0)
+	if (LayersContentUpdateFlags & ELandscapeLayersContentUpdateFlag::Weightmap_Render)
 	{
 		FIntPoint MinExtend;
 		FIntPoint MaxExtend;
@@ -3522,7 +3520,7 @@ void ALandscape::RegenerateLayersWeightmaps()
 					PSShaderParams.LayerAlpha = LayerInfoObj == ALandscapeProxy::VisibilityLayer ? 1.0f : Layer.WeightmapAlpha; // visibility can't be affected by weight
 
 					DrawWeightmapComponentsToRenderTarget(OutputDebugName ? FString::Printf(TEXT("LS Weight: %s Paint: %s += -> %s"), *Layer.Name.ToString(), *LayerInfoObj->LayerName.ToString(), *LandscapeScratchRT1->GetName(), *LandscapeScratchRT2->GetName()) : TEXT(""),
-														  AllLandscapeComponents, MinExtend, LandscapeScratchRT1, nullptr, LandscapeScratchRT2, true, PSShaderParams, 0);
+														  InLandscapeComponents, MinExtend, LandscapeScratchRT1, nullptr, LandscapeScratchRT2, true, PSShaderParams, 0);
 
 					PSShaderParams.ApplyLayerModifiers = false;
 
@@ -3546,7 +3544,7 @@ void ALandscape::RegenerateLayersWeightmaps()
 					}
 
 					DrawWeightmapComponentsToRenderTarget(OutputDebugName ? FString::Printf(TEXT("LS Weight: %s PaintLayer: %s, %s += -> Combined %s"), *Layer.Name.ToString(), *LayerInfoObj->LayerName.ToString(), *LandscapeScratchRT2->GetName(), *LandscapeScratchRT3->GetName()) : TEXT(""),
-														  AllLandscapeComponents, MinExtend, LandscapeScratchRT2, FirstLayer ? nullptr : LandscapeScratchRT1, LandscapeScratchRT3, true, PSShaderParams, 0);
+														  InLandscapeComponents, MinExtend, LandscapeScratchRT2, FirstLayer ? nullptr : LandscapeScratchRT1, LandscapeScratchRT3, true, PSShaderParams, 0);
 
 					PSShaderParams.OutputAsSubstractive = false;
 
@@ -3639,7 +3637,7 @@ void ALandscape::RegenerateLayersWeightmaps()
 			while (HasFoundWeightmapToProcess)
 			{
 				TArray<FLandscapeLayerWeightmapPackMaterialLayersComponentData> PackLayersComponentsData;
-				PrepareComponentDataToPackMaterialLayersCS(CurrentWeightmapToProcessIndex, MinExtend, OutputDebugName, AllLandscapeComponents, ProcessedWeightmaps, ProcessedCPUReadbackTextures, PackLayersComponentsData);
+				PrepareComponentDataToPackMaterialLayersCS(CurrentWeightmapToProcessIndex, MinExtend, OutputDebugName, InLandscapeComponents, ProcessedWeightmaps, ProcessedCPUReadbackTextures, PackLayersComponentsData);
 				HasFoundWeightmapToProcess = PackLayersComponentsData.Num() > 0;
 
 				// Perform the compute shader
@@ -3729,23 +3727,25 @@ void ALandscape::RegenerateLayersWeightmaps()
 			}
 		}
 
-		UpdateLayersMaterialInstances(LayersUpdateAllMaterials ? AllLandscapeComponents : ComponentThatNeedMaterialRebuild);
+		UpdateLayersMaterialInstances(LayersUpdateAllMaterials ? InLandscapeComponents : ComponentThatNeedMaterialRebuild);
 		LayersUpdateAllMaterials = false;
 	}
 
-	if ((LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Weightmap_ResolveToTexture))
+	if (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Weightmap_ResolveToTexture)
 	{
 		ResolveLayersWeightmapTexture();
 	}
 
-	if ((LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Weightmap_Collision) != 0)
+	if (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Weightmap_Collision)
 	{
-		for (ULandscapeComponent* Component : AllLandscapeComponents)
+		for (ULandscapeComponent* Component : InLandscapeComponents)
 		{
 			Component->UpdateCollisionLayerData();
 		}
-	}
 
+		bOutRecreateCollision = true;
+	}
+		
 	if (ClearFlagsAfterUpdate)
 	{
 		LayersContentUpdateFlags &= ~ELandscapeLayersContentUpdateFlag::Weightmap_All;
@@ -3965,8 +3965,42 @@ void ALandscape::RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag In
 
 void ALandscape::RegenerateLayersContent()
 {
-	RegenerateLayersHeightmaps();
-	RegenerateLayersWeightmaps();
+	if (GetLandscapeInfo() == nullptr || LayersContentUpdateFlags == 0)
+	{
+		return;
+	}
+	
+	TArray<ULandscapeComponent*> AllLandscapeComponents;
+	GetLandscapeInfo()->ForAllLandscapeProxies([&AllLandscapeComponents](ALandscapeProxy* Proxy)
+	{
+		AllLandscapeComponents.Append(Proxy->LandscapeComponents);
+	});
+
+	bool bUpdateClients = (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_ClientUpdate);
+
+	bool bHeightmapRecreateCollision = false;
+	RegenerateLayersHeightmaps(AllLandscapeComponents, bHeightmapRecreateCollision);
+	bool bWeightmapRecreateCollision = false;
+	RegenerateLayersWeightmaps(AllLandscapeComponents, bWeightmapRecreateCollision);
+	
+	if (bHeightmapRecreateCollision || bWeightmapRecreateCollision)
+	{
+		for (ULandscapeComponent* LandscapeComponent : AllLandscapeComponents)
+		{
+			if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->CollisionComponent.Get())
+			{
+				CollisionComp->RecreateCollision();
+			}
+		}
+	}
+
+	if (bUpdateClients)
+	{
+		if (!UpdateClients(AllLandscapeComponents, bHeightmapRecreateCollision | bWeightmapRecreateCollision))
+		{
+			LayersContentUpdateFlags |= EInternalLandscapeLayersContentUpdateFlag::Internal_ClientUpdate;
+		}
+	}
 }
 
 void ALandscape::InitializeLayers()
@@ -4413,14 +4447,6 @@ void ALandscape::SetLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bIn
 	Modify();
 	LayerAlpha = InAlpha;
 	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
-
-	LandscapeInfo->ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
-	{
-		if (Proxy)
-		{
-			Proxy->InvalidateGeneratedComponentData();
-		}
-	});
 }
 
 void ALandscape::SetLayerVisibility(int32 InLayerIndex, bool bInVisible)
@@ -4435,14 +4461,6 @@ void ALandscape::SetLayerVisibility(int32 InLayerIndex, bool bInVisible)
 	Modify();
 	Layer->bVisible = bInVisible;
 	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
-
-	LandscapeInfo->ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
-	{
-		if (Proxy)
-		{
-			Proxy->InvalidateGeneratedComponentData();
-		}
-	});
 }
 
 void ALandscape::SetLayerLocked(int32 InLayerIndex, bool bLocked)

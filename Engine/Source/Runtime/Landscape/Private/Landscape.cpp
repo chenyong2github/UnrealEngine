@@ -3504,6 +3504,11 @@ void ALandscapeProxy::InvalidateGeneratedComponentData()
 	InvalidateGeneratedComponentDataImpl(LandscapeComponents);
 }
 
+void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeComponent*>& Components)
+{
+	InvalidateGeneratedComponentDataImpl(Components);
+}
+
 void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components)
 {
 	InvalidateGeneratedComponentDataImpl(Components);
