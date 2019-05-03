@@ -25,7 +25,7 @@ namespace Audio
 		// Set the base-class NumChannels to wave's NumChannels
 		NumChannels = InWave->NumChannels;
 
-		if (InWave->DecompressionType == EDecompressionType::DTYPE_Native || InWave->DecompressionType == EDecompressionType::DTYPE_Preview)
+		if (InBufferType != EBufferType::PCMRealTime && (InWave->DecompressionType == EDecompressionType::DTYPE_Native || InWave->DecompressionType == EDecompressionType::DTYPE_Preview))
 		{
 			check(!InWave->RawPCMData || InWave->RawPCMDataSize);
 			Data = InWave->RawPCMData;
