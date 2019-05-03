@@ -1039,6 +1039,7 @@ FSlateApplication::FSlateApplication()
 	{
 		GConfig->GetBool(TEXT("MobileSlateUI"), TEXT("bTouchFallbackToMouse"), bTouchFallbackToMouse, GEngineIni);
 		GConfig->GetBool(TEXT("CursorControl"), TEXT("bAllowSoftwareCursor"), bSoftwareCursorAvailable, GEngineIni);
+		GConfig->GetBool(TEXT("GamepadControl"), TEXT("bRequireFocusForGamepadInput"), bRequireFocusForGamepadInput, GEngineIni);
 	}
 
 	bRenderOffScreen = FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"));
@@ -1605,7 +1606,7 @@ void FSlateApplication::PrivateDrawWindows( TSharedPtr<SWindow> DrawOnlyThisWind
 
 void FSlateApplication::PollGameDeviceState()
 {
-	if( ActiveModalWindows.Num() == 0 && !GIntraFrameDebuggingGameThread )
+	if( ActiveModalWindows.Num() == 0 && !GIntraFrameDebuggingGameThread && (!bRequireFocusForGamepadInput || IsActive()))
 	{
 		// Don't poll when a modal window open or intra frame debugging is happening
 		PlatformApplication->PollGameDeviceState( GetDeltaTime() );
