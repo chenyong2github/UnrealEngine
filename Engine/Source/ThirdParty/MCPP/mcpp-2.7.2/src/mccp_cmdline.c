@@ -135,17 +135,16 @@ pre-process input filename with MCPP library
 @param InputFilename Input source filename (any source with C/C++ pre-processor directives)
 @param OutputFilename Optional output filename. If NULL, result will be printed to the standard output
 */
-static int PreProcessSourceFile(const char* InputFilename, const char* OutputFilename)
+static int PreProcessSourceFile(const char* InputFilename, const char* OutputFilename, const char** Options, int NumOptions)
 {
     // call main function of MCPP library
-    const char* Options = "";
     char* OutputContent = NULL;
     char* OutputErrors = NULL;
     file_loader FileLoader;
     FileLoader.get_file_contents = ReadFileContentCallback;
     FileLoader.user_data = NULL;
 
-    int Result = mcpp_run(Options, InputFilename, &OutputContent, &OutputErrors, FileLoader);
+    int Result = mcpp_run(Options, NumOptions, InputFilename, &OutputContent, &OutputErrors, FileLoader);
 
     if (Result == 0)
     {
@@ -208,7 +207,7 @@ static int RunCmdLine(int ArgCount, char* ArgValues[])
             {
                 // pre-process input source file
                 const char* InputFilename = Val;
-                int Result = PreProcessSourceFile(InputFilename, OutputFilename);
+                int Result = PreProcessSourceFile(InputFilename, OutputFilename, NULL, 0);
                 if (Result != 0)
                 {
                     return Result;

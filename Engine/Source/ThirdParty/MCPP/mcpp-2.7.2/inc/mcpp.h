@@ -29,7 +29,8 @@ extern void mcpp_setmalloc(void*(*xm_malloc)(size_t),
 
 /** External interface for preprocessing a file with MCPP. */
 extern int mcpp_run(
-	const char* options,
+	const char** options,
+	int num_options,
 	const char* filename,
 	char** outfile,
 	char** outerrors,
