@@ -3,8 +3,6 @@
 #pragma once
 
 #include "Concepts/Insertable.h"
-#include "Serialization/ArchiveFromStructuredArchive.h"
-#include "Serialization/StructuredArchiveFromArchive.h"
 #include "Templates/Models.h"
 
 /**
