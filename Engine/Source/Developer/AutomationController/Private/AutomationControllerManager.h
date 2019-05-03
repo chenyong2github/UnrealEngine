@@ -155,7 +155,6 @@ public:
 };
 
 
-
 /**
  * Implements the AutomationController module.
  */
