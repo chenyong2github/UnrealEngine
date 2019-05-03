@@ -2,7 +2,11 @@
 
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "ViewModels/Stack/NiagaraStackErrorItem.h"
+#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
 #include "NiagaraStackEditorData.h"
+#include "NiagaraScriptMergeManager.h"
 #include "Misc/SecureHash.h"
 
 const FName UNiagaraStackEntry::FExecutionCategoryNames::System = TEXT("System");
@@ -382,6 +386,17 @@ void UNiagaraStackEntry::SetIsSearchResult(bool bInIsSearchResult)
 	bIsSearchResult = bInIsSearchResult;
 }
 
+bool UNiagaraStackEntry::HasBaseEmitter() const
+{
+	if (bHasBaseEmitterCache.IsSet() == false)
+	{
+		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
+		const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*GetEmitterViewModel()->GetEmitter(), GetSystemViewModel()->GetSystem());
+		bHasBaseEmitterCache = BaseEmitter != nullptr;
+	}
+	return bHasBaseEmitterCache.GetValue();
+}
+
 TOptional<UNiagaraStackEntry::FDropResult> UNiagaraStackEntry::CanDropInternal(const TArray<UNiagaraStackEntry*>& DraggedEntries)
 {
 	return TOptional<FDropResult>();
@@ -433,6 +448,8 @@ void UNiagaraStackEntry::RefreshChildren()
 		ErrorChild->OnRequestFullRefreshDeferred().RemoveAll(this);
 		ErrorChild->OnIssueModified().RemoveAll(this);
 	}
+
+	bHasBaseEmitterCache.Reset();
 
 	TArray<UNiagaraStackEntry*> NewChildren;
 	TArray<FStackIssue> NewStackIssues;

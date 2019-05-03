@@ -136,6 +136,17 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 			FMenuBuilder MenuBuilder(true, nullptr);
 			MenuBuilder.BeginSection("EmitterInlineMenuActions", LOCTEXT("EmitterActions", "Emitter Actions"));
 			{
+				FUIAction Action(FExecuteAction::CreateSP(this, &SNiagaraStack::SetEmitterEnabled, !StackViewModel->GetEmitterHandleViewModel()->GetIsEnabled()),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateSP(this, &SNiagaraStack::CheckEmitterEnabledStatus, true));
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("IsEnabled", "Is Enabled"),
+					LOCTEXT("ToggleEmitterEnabledToolTip", "Toggle emitter enabled/disabled state"),
+					FSlateIcon(),
+					Action,
+					NAME_None,
+					EUserInterfaceActionType::Check);
+
 				if (!GetEmitterNameIsReadOnly()) // Only allow renaming local copies of Emitters in Systems
 				{
 					MenuBuilder.AddMenuEntry(
@@ -146,21 +157,18 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 				}
 
 				MenuBuilder.AddMenuEntry(
+					LOCTEXT("RemoveSourceEmitter", "Remove Source Emitter"),
+					LOCTEXT("RemoveSourceEmitterToolTip", "Removes source information from this emitter, preventing inheritance of any further changes."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateUObject(StackViewModel, &UNiagaraStackViewModel::RemoveEmitterSource),
+						FCanExecuteAction::CreateUObject(StackViewModel, &UNiagaraStackViewModel::HasEmitterSource)));
+
+				MenuBuilder.AddMenuEntry(
 					LOCTEXT("ShowEmitterInContentBrowser", "Show in Content Browser"),
 					LOCTEXT("ShowEmitterInContentBrowserToolTip", "Show the emitter in this stack in the Content Browser"),
 					FSlateIcon(),
 					FUIAction(FExecuteAction::CreateSP(this, &SNiagaraStack::ShowEmitterInContentBrowser))); 
-				
-				FUIAction Action(FExecuteAction::CreateSP(this, &SNiagaraStack::SetEmitterEnabled, !StackViewModel->GetEmitterHandleViewModel()->GetIsEnabled()),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateSP(this, &SNiagaraStack::CheckEmitterEnabledStatus, true));
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("IsEnabled", "Is Enabled"),
-					LOCTEXT("ToggleEmitterEnabledToolTip", "Toggle emitter enabled/disabled state"),
-					FSlateIcon(),
-					Action,
-					NAME_None, 
-					EUserInterfaceActionType::Check);
 
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("CollapseStack", "Collapse All"),
@@ -564,10 +572,7 @@ bool SNiagaraStack::CanOpenSourceEmitter() const
 	if (StackViewModel && StackViewModel->GetEmitterHandleViewModel().IsValid() && StackViewModel->GetEmitterHandleViewModel()->GetEmitterHandle()
 		&& StackViewModel->GetEmitterHandleViewModel()->GetEmitterHandle()->GetSource())
 	{
-		if (StackViewModel->GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
-		{
-			return true;
-		}
+		return true;
 	}
 
 	return false;
