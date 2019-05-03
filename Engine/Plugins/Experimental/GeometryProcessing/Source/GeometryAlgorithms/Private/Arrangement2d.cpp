@@ -3,9 +3,9 @@
 // Port of geometry3Sharp Arrangement2d
 
 #include "Arrangement2d.h"
-#include "GTEngine/Mathematics/GteConstrainedDelaunay2.h"
-#include "GTEngine/Mathematics/GteBSNumber.h"
-#include "GTEngine/Mathematics/GteUIntegerFP32.h"
+#include "ThirdParty/GTEngine/Mathematics/GteConstrainedDelaunay2.h"
+#include "ThirdParty/GTEngine/Mathematics/GteBSNumber.h"
+#include "ThirdParty/GTEngine/Mathematics/GteUIntegerFP32.h"
 #include <vector>
 
 bool FArrangement2d::AttemptTriangulate(TArray<FIntVector> &Triangles, TArray<int32> &SkippedEdges)
