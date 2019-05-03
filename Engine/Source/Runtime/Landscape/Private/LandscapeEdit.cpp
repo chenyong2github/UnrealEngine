@@ -572,9 +572,13 @@ void ULandscapeComponent::PostEditUndo()
 		EditToolRenderData.UpdateSelectionMaterial(EditToolRenderData.SelectedType, this);
 		UpdateEditToolRenderData();
 	}
-
+		
 	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
+		TArray<ULandscapeComponent*> SingleComponent;
+		SingleComponent.Add(this);
+		GetLandscapeProxy()->InvalidateGeneratedComponentData(SingleComponent);
+		
 		ALandscape* LandscapeActor = GetLandscapeActor();
 		// Might be a ALandscapeStreamingProxy
 		if (LandscapeActor)
@@ -3945,6 +3949,8 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	}
 	if (bRemovedAnyLayers)
 	{
+		ALandscapeProxy::InvalidateGeneratedComponentData(LandscapeComponents);
+
 		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
 			if(ALandscape* LandscapeActor = GetLandscapeActor())
@@ -3952,13 +3958,7 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 				LandscapeActor->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
 			}
 		}
-		else
-		{
-			// Flush dynamic data (e.g. grass)
-			TSet<ULandscapeComponent*> Components;
-			Components.Append(LandscapeComponents);
-			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
-		}
+		
 	}
 
 	// Must do this *after* correcting the scale or reattaching the landscape components will crash!
