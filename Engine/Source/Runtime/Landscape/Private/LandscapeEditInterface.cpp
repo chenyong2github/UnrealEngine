@@ -1794,19 +1794,16 @@ void FLandscapeEditDataInterface::DeleteLayer(ULandscapeLayerInfoObject* LayerIn
 		Component->DeleteLayer(LayerInfo, *this);
 	}
 
-	// Flush dynamic data (e.g. grass)
+	TSet<ULandscapeComponent*> Components;
+	Algo::Transform(LandscapeInfo->XYtoComponentMap, Components, &TPair<FIntPoint, ULandscapeComponent*>::Value);
+	ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+
 	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
 		if (LandscapeInfo->LandscapeActor)
 		{
 			LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
 		}
-	}
-	else
-	{
-		TSet<ULandscapeComponent*> Components;
-		Algo::Transform(LandscapeInfo->XYtoComponentMap, Components, &TPair<FIntPoint, ULandscapeComponent*>::Value);
-		ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 	}
 }
 
@@ -2038,22 +2035,16 @@ void FLandscapeEditDataInterface::FillLayer(ULandscapeLayerInfoObject* LayerInfo
 		}
 	}
 
+	TSet<ULandscapeComponent*> Components;
+	Algo::Transform(LandscapeInfo->XYtoComponentMap, Components, &TPair<FIntPoint, ULandscapeComponent*>::Value);
+	ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+
 	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
 		if (LandscapeInfo->LandscapeActor)
 		{
 			LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
 		}
-	}
-	else
-	{
-		// Flush dynamic data (e.g. grass)
-		TSet<ULandscapeComponent*> Components;
-		for (auto& XYComponentPair : LandscapeInfo->XYtoComponentMap)
-		{
-			Components.Add(XYComponentPair.Value);
-		}
-		ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 	}
 }
 
