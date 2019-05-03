@@ -695,11 +695,11 @@ struct FXYOffsetmapAccessor
 						
 			// Notify foliage to move any attached instances
 			bool bUpdateFoliage = false;
+			
+			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+
 			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
-				// Flush dynamic foliage (grass)
-				ALandscapeProxy::InvalidateGeneratedComponentData(Components);
-
 				for (ULandscapeComponent* Component : Components)
 				{
 					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
@@ -876,10 +876,10 @@ struct FFullWeightmapAccessor
 		TSet<ULandscapeComponent*> Components;
 		if (LandscapeEdit.GetComponentsInRegion(X1, Y1, X2, Y2, &Components))
 		{
+			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+
 			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
-				// Flush dynamic foliage (grass)
-				ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 				ModifiedComponents.Append(Components);
 			}
 			LandscapeEdit.SetAlphaData(DirtyLayerInfos, X1, Y1, X2, Y2, Data, 0, PaintingRestriction);
