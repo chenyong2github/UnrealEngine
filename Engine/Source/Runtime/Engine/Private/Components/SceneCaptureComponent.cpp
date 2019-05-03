@@ -592,10 +592,9 @@ void USceneCaptureComponent2D::UpdateDrawFrustum()
 			DrawFrustum->FrustumAngle = -OrthoWidth;
 		}
 
-		DrawFrustum->FrustumStartDist = GNearClippingPlane;
+		DrawFrustum->FrustumStartDist = (bOverride_CustomNearClippingPlane) ? CustomNearClippingPlane : GNearClippingPlane;
 		// 1000 is the default frustum distance, ideally this would be infinite but that might cause rendering issues
-		DrawFrustum->FrustumEndDist = (MaxViewDistanceOverride > DrawFrustum->FrustumStartDist)
-			? MaxViewDistanceOverride : 1000.0f;
+		DrawFrustum->FrustumEndDist = (MaxViewDistanceOverride > DrawFrustum->FrustumStartDist) ? MaxViewDistanceOverride : 1000.0f;
 		DrawFrustum->MarkRenderStateDirty();
 	}
 }
