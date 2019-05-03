@@ -20,6 +20,7 @@ class USoundSubmix;
 class USoundSourceBus;
 struct FSoundSubmixSendInfo;
 struct FSoundSourceBusSendInfo;
+struct FWaveInstance;
 class USoundWave;
 struct FListener;
 struct FAttenuationListenerData;
@@ -223,6 +224,7 @@ private:
 	
 	FName AudioComponentName;
 	FName OwnerName;
+
 
 public:
 
@@ -470,7 +472,7 @@ public:
 	int32 EnvelopeFollowerAttackTime;
 	int32 EnvelopeFollowerReleaseTime;
 
-	TMap<UPTRINT, struct FWaveInstance*> WaveInstances;
+	TMap<UPTRINT, FWaveInstance*> WaveInstances;
 
 	TMap<UPTRINT,uint32> SoundNodeOffsetMap;
 	TArray<uint8> SoundNodeData;
@@ -479,6 +481,7 @@ public:
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	FName DebugOriginalSoundName;
+	FColor DebugColor;
 #endif
 
 	// Updates the wave instances to be played.
@@ -493,6 +496,11 @@ public:
 	 * Check whether to apply the radio filter
 	 */
 	void ApplyRadioFilter(const struct FSoundParseParameters& ParseParams);
+
+	/**
+	 * Draws debug info for builds supporting debug drawing
+	 */
+	void DrawDebugInfo(const TArray<FWaveInstance*>* WaveInstances);
 
 	/** Gets total concurrency gain stage based on all concurrency memberships of sound */
 	float GetTotalConcurrencyVolumeScale() const;
