@@ -756,6 +756,9 @@ void UNiagaraComponent::OnUnregister()
 	{
 		SystemInstance->Deactivate(true);
 		SystemInstance = nullptr;
+#if WITH_EDITORONLY_DATA
+		OnSystemInstanceChangedDelegate.Broadcast();
+#endif
 	}
 }
 
