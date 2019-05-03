@@ -581,12 +581,6 @@ namespace VulkanRHIBridge
 }
 
 
-#include "ShaderParameterUtils.h"
-#include "RHIStaticStates.h"
-#include "OneColorShader.h"
-#include "VulkanRHI.h"
-#include "StaticBoundShaderState.h"
-
 namespace VulkanRHI
 {
 	VkBuffer CreateBuffer(FVulkanDevice* InDevice, VkDeviceSize Size, VkBufferUsageFlags BufferUsageFlags, VkMemoryRequirements& OutMemoryRequirements)

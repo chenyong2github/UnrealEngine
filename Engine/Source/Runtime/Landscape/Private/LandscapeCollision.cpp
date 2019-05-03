@@ -1246,11 +1246,11 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 			continue;
 		}
 			
-		for (auto& MeshPair : IFA->FoliageMeshes)
+		for (auto& Pair : IFA->FoliageInfos)
 		{
 			// Find the per-mesh info matching the mesh.
-			UFoliageType* Settings = MeshPair.Key;
-			FFoliageMeshInfo& MeshInfo = *MeshPair.Value;
+			UFoliageType* Settings = Pair.Key;
+			FFoliageInfo& MeshInfo = *Pair.Value;
 			
 			const auto* InstanceSet = MeshInfo.ComponentHash.Find(BaseId);
 			if (InstanceSet)
@@ -1260,7 +1260,7 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 
 				bool bFirst = true;
 				TArray<int32> InstancesToRemove;
-				TSet<UHierarchicalInstancedStaticMeshComponent*> AffectedFoliageComponets;
+				TSet<UHierarchicalInstancedStaticMeshComponent*> AffectedFoliageComponents;
 
 				for (int32 InstanceIndex : *InstanceSet)
 				{
@@ -1319,13 +1319,9 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 
 									// Todo: add do validation with other parameters such as max/min height etc.
 
-									check(MeshInfo.Component);
-									MeshInfo.Component->Modify();
-									MeshInfo.Component->UpdateInstanceTransform(InstanceIndex, Instance.GetInstanceWorldTransform(), true, false);
+									MeshInfo.SetInstanceWorldTransform(InstanceIndex, Instance.GetInstanceWorldTransform(), false);
 									// Re-add the new instance location to the hash
 									MeshInfo.InstanceHash->InsertInstance(Instance.Location, InstanceIndex);
-
-									MeshInfo.Component->MarkRenderStateDirty();
 								}
 								break;
 							}
@@ -1337,14 +1333,18 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 							InstancesToRemove.Add(InstanceIndex);
 						}
 
-						AffectedFoliageComponets.Add(MeshInfo.Component);
+						if (MeshInfo.GetComponent() != nullptr)
+						{
+							AffectedFoliageComponents.Add(MeshInfo.GetComponent());
+						}
+						
 					}
 				}
 
 				// Remove any unused instances
 				MeshInfo.RemoveInstances(IFA, InstancesToRemove, true);
 
-				for (UHierarchicalInstancedStaticMeshComponent* FoliageComp : AffectedFoliageComponets)
+				for (UHierarchicalInstancedStaticMeshComponent* FoliageComp : AffectedFoliageComponents)
 				{
 					FoliageComp->InvalidateLightingCache();
 				}
@@ -1463,10 +1463,14 @@ void ULandscapeMeshCollisionComponent::Serialize(FArchive& Ar)
 void ULandscapeHeightfieldCollisionComponent::PostEditImport()
 {
 	Super::PostEditImport();
-	// Reinitialize physics after paste
-	if (CollisionSizeQuads > 0)
+
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		RecreateCollision();
+		// Reinitialize physics after paste
+		if (CollisionSizeQuads > 0)
+		{
+			RecreateCollision();
+		}
 	}
 }
 

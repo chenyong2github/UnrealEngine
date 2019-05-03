@@ -15,6 +15,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Added execution pins and removed hierarchy ref pins
 		RemovalOfHierarchyRefPins,
 
+		// Refactored operators to store FCachedPropertyPath instead of string
+		OperatorsStoringPropertyPaths,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -16,7 +16,7 @@ void FRigUnit_MathQuaternionFromAxisAndAngle::Execute(const FRigUnitContext& Con
 
 void FRigUnit_MathQuaternionFromEuler::Execute(const FRigUnitContext& Context)
 {
-	Result = FQuat::MakeFromEuler(Euler);
+	Result = FControlRigMathLibrary::QuatFromEuler(Euler, RotationOrder);
 }
 
 void FRigUnit_MathQuaternionFromRotator::Execute(const FRigUnitContext& Context)
@@ -39,7 +39,7 @@ void FRigUnit_MathQuaternionFromTwoVectors::Execute(const FRigUnitContext& Conte
 		Result = FQuat::Identity;
 		return;
 	}
-	Result = FQuat::FindBetweenVectors(A, B);
+	Result = FQuat::FindBetweenVectors(A, B).GetNormalized();
 }
 
 void FRigUnit_MathQuaternionToAxisAndAngle::Execute(const FRigUnitContext& Context)
@@ -49,7 +49,7 @@ void FRigUnit_MathQuaternionToAxisAndAngle::Execute(const FRigUnitContext& Conte
 
 void FRigUnit_MathQuaternionToEuler::Execute(const FRigUnitContext& Context)
 {
-	Result = Value.Euler();
+	Result = FControlRigMathLibrary::EulerFromQuat(Value, RotationOrder);
 }
 
 void FRigUnit_MathQuaternionToRotator::Execute(const FRigUnitContext& Context)
@@ -123,4 +123,17 @@ void FRigUnit_MathQuaternionGetAxis::Execute(const FRigUnitContext& Context)
 			break;
 		}
 	}
+}
+
+
+void FRigUnit_MathQuaternionSwingTwist::Execute(const FRigUnitContext& Context)
+{
+	if (TwistAxis.IsNearlyZero())
+	{
+		Swing = Twist = FQuat::Identity;
+		return;
+	}
+
+	FVector NormalizedAxis = TwistAxis.GetSafeNormal();
+	Input.ToSwingTwist(NormalizedAxis, Swing, Twist);
 }

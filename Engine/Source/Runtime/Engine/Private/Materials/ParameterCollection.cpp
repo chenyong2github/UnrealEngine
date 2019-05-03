@@ -70,12 +70,27 @@ void UMaterialParameterCollection::BeginDestroy()
 				GDefaultMaterialParameterCollectionInstances.Remove(Id);			
 			}
 		);
+	}
 
+	ReleaseFence.BeginFence();
+	Super::BeginDestroy();
+}
+
+bool UMaterialParameterCollection::IsReadyForFinishDestroy()
+{
+	bool bIsReady = Super::IsReadyForFinishDestroy();
+	return bIsReady && ReleaseFence.IsFenceComplete();
+}
+
+void UMaterialParameterCollection::FinishDestroy()
+{
+	if (DefaultResource)
+	{
 		DefaultResource->GameThread_Destroy();
 		DefaultResource = nullptr;
 	}
 
-	Super::BeginDestroy();
+	Super::FinishDestroy();
 }
 
 #if WITH_EDITOR

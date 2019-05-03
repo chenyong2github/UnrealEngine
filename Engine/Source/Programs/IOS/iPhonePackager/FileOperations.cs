@@ -600,14 +600,16 @@ namespace iPhonePackager
 			/// </summary>
 			public static string FindRootPathInIPA(ZipFile Zip)
 			{
-				string Info = "/Info.plist";
+				// we want only the root Info.plist, not a plist inside an framework or extension
+				string Info = ".app/Info.plist";
 
 				var FileList = Zip.EntryFileNames;
 				foreach (string TestFilename in FileList)
 				{
 					if (TestFilename.EndsWith(Info))
 					{
-						return TestFilename.Substring(0, TestFilename.Length - Info.Length + 1);
+						// the - 5 removes the .app portion and leaves the slash
+						return TestFilename.Substring(0, TestFilename.Length - (Info.Length - 5));
 					}
 				}
 

@@ -5,6 +5,7 @@
 #include "Async/Async.h"
 #include "Logging/LogMacros.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/EmbeddedCommunication.h"
 #include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -1131,6 +1132,8 @@ void FVivoxVoiceChat::InvokeOnUIThread(void (Func)(void* Arg0), void* Arg0)
 			(*Func)(Arg0);
 		}
 	});
+
+	FEmbeddedCommunication::WakeGameThread();
 }
 
 void FVivoxVoiceChat::onLogStatementEmitted(LogLevel Level, long long NativeMillisecondsSinceEpoch, long ThreadId, const char* LogMessage)
@@ -1209,6 +1212,8 @@ void FVivoxVoiceChat::onLoginCompleted(const VivoxClientApi::AccountName& Accoun
 	LoginSession.State = FLoginSession::EState::LoggedIn;
 
 	TriggerCompletionDelegate(OnVoiceChatLoginCompleteDelegate, PlayerName, ResultSuccess);
+
+	OnVoiceChatLoggedInDelegate.Broadcast(PlayerName);
 }
 
 void FVivoxVoiceChat::onInvalidLoginCredentials(const VivoxClientApi::AccountName& AccountName)
@@ -1243,6 +1248,8 @@ void FVivoxVoiceChat::onLogoutCompleted(const VivoxClientApi::AccountName& Accou
 
 	FString PlayerName = GetPlayerNameFromAccountName(AccountName);
 	TriggerCompletionDelegate(OnVoiceChatLogoutCompleteDelegate, PlayerName, ResultSuccess);
+
+	OnVoiceChatLoggedOutDelegate.Broadcast(PlayerName);
 }
 
 void FVivoxVoiceChat::onLogoutFailed(const VivoxClientApi::AccountName& AccountName, const VivoxClientApi::VCSStatus& Status)
@@ -1262,6 +1269,8 @@ void FVivoxVoiceChat::onChannelJoined(const VivoxClientApi::AccountName& Account
 	FChannelSession& ChannelSession = GetChannelSession(ChannelUri);
 	ChannelSession.State = FChannelSession::EState::Connected;
 	TriggerCompletionDelegate(ChannelSession.JoinDelegate, ChannelSession.ChannelName, ResultSuccess);
+
+	OnVoiceChatChannelJoinedDelegate.Broadcast(ChannelSession.ChannelName);
 }
 
 void FVivoxVoiceChat::onInvalidChannelCredentials(const VivoxClientApi::AccountName& AccountName, const VivoxClientApi::Uri& ChannelUri)
@@ -1303,18 +1312,19 @@ void FVivoxVoiceChat::onChannelExited(const VivoxClientApi::AccountName& Account
 	const bool bWasDisconnecting = ChannelSession.State == FChannelSession::EState::Disconnecting;
 	ChannelSession.State = FChannelSession::EState::Disconnected;
 
-	if (bWasConnected)
-	{
-		OnVoiceChatChannelExitedDelegate.Broadcast(ChannelSession.ChannelName, ResultFromVivoxStatus(ReasonCode));
-	}
-	else if (bWasConnecting)
+	if (bWasConnecting)
 	{
 		// timeouts while connecting call onChannelExited instead of OnChannelJoinFailed
 		TriggerCompletionDelegate(ChannelSession.JoinDelegate, ChannelSession.ChannelName, ResultFromVivoxStatus(ReasonCode));
 	}
-	else if (bWasDisconnecting)
+	else
 	{
-		TriggerCompletionDelegate(ChannelSession.LeaveDelegate, ChannelSession.ChannelName, ResultFromVivoxStatus(ReasonCode));
+		if (bWasDisconnecting)
+		{
+			TriggerCompletionDelegate(ChannelSession.LeaveDelegate, ChannelSession.ChannelName, ResultFromVivoxStatus(ReasonCode));
+		}
+
+		OnVoiceChatChannelExitedDelegate.Broadcast(ChannelSession.ChannelName, ResultFromVivoxStatus(ReasonCode));
 	}
 
 	RemoveChannelSession(ChannelSession.ChannelName);

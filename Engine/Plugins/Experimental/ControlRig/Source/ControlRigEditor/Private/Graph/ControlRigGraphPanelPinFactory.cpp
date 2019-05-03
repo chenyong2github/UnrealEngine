@@ -4,10 +4,12 @@
 #include "Graph/ControlRigGraphSchema.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "Graph/SGraphPinBoneName.h"
+#include "Graph/SGraphPinCurveFloat.h"
 #include "KismetPins/SGraphPinExec.h"
 #include "ControlRig.h"
 #include "NodeFactory.h"
 #include "EdGraphSchema_K2.h"
+#include "Curves/CurveFloat.h"
 
 TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* InPin) const
 {
@@ -19,13 +21,21 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 			// use a bone name widget in case we are looking at a name with appropriate metadata
 			if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Name)
 			{
-				UScriptStruct* ScriptStruct = RigNode->GetUnitScriptStruct();
-				if (ScriptStruct)
+				UStruct* Struct = nullptr;
+				if (InPin->ParentPin != nullptr)
+				{
+					Struct = Cast<UStruct>(InPin->ParentPin->PinType.PinSubCategoryObject);
+				}
+				if (Struct == nullptr)
+				{
+					Struct = RigNode->GetUnitScriptStruct();
+				}
+				if (Struct)
 				{
 					FString NodeName, PropertyName;
-					if (InPin->GetName().Split(TEXT("."), &NodeName, &PropertyName))
+					if (InPin->GetName().Split(TEXT("."), &NodeName, &PropertyName, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
 					{
-						UProperty* Property = ScriptStruct->FindPropertyByName(*PropertyName);
+						UProperty* Property = Struct->FindPropertyByName(*PropertyName);
 						if (Property)
 						{
 							if (Property->HasMetaData(UControlRig::BoneNameMetaName))
@@ -42,6 +52,10 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 				if (InPin->PinType.PinSubCategoryObject == FControlRigExecuteContext::StaticStruct())
 				{
 					return SNew(SGraphPinExec, InPin);
+				}
+				else if (InPin->PinType.PinSubCategoryObject == FRuntimeFloatCurve::StaticStruct())
+				{
+					return SNew(SGraphPinCurveFloat, InPin);
 				}
 			}
 		}

@@ -44,6 +44,7 @@
 #include "Runtime/Launch/Resources/Windows/Resource.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
+THIRD_PARTY_INCLUDES_START
 	#include <time.h>
 	#include <mmsystem.h>
 	#include <rpcsal.h>
@@ -53,6 +54,7 @@
 	#include <shellapi.h>
 	#include <IPHlpApi.h>
 	#include <VersionHelpers.h>
+THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
 
 #include "Modules/ModuleManager.h"
@@ -2693,4 +2695,14 @@ IPlatformChunkInstall* FWindowsPlatformMisc::GetPlatformChunkInstall()
 	}
 
 	return ChunkInstall;
+}
+
+void FWindowsPlatformMisc::PumpMessagesOutsideMainLoop()
+{
+	TGuardValue<bool> PumpMessageGuard(GPumpingMessagesOutsideOfMainLoop, true);
+	// Process pending windows messages, which is necessary to the rendering thread in some cases where D3D
+	// sends window messages (from IDXGISwapChain::Present) to the main thread owned viewport window.
+	MSG Msg;
+	PeekMessage(&Msg, NULL, 0, 0, PM_NOREMOVE | PM_QS_SENDMESSAGE);
+	return;
 }

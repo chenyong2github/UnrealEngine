@@ -76,11 +76,17 @@ class ENGINE_API ADebugCameraController
 	 */
 	virtual void ToggleFreezeRendering();
 
+	/** Method called prior to processing input */
+	virtual void PreProcessInput(const float DeltaTime, const bool bGamePaused);
+
 	/**
 	 * Updates the rotation of player, based on ControlRotation after RotationInput has been applied.
 	 * This may then be modified by the PlayerCamera, and is passed to Pawn->FaceRotation().
 	 */
 	virtual void UpdateRotation(float DeltaTime) override;
+
+	/** Pre process input when orbiting */
+	void PreProcessInputForOrbit(const float DeltaTime, const bool bGamePaused);
 
 	/** Updates the rotation and location of player when orbiting */
 	void UpdateRotationForOrbit(float DeltaTime);

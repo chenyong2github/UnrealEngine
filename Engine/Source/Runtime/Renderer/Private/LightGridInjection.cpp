@@ -424,6 +424,7 @@ void FDeferredShadingSceneRenderer::ComputeLightGrid(FRHICommandListImmediate& R
 	}
 
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ComputeLightGrid);
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_ComputeLightGrid);
 		SCOPED_DRAW_EVENT(RHICmdList, ComputeLightGrid);
 

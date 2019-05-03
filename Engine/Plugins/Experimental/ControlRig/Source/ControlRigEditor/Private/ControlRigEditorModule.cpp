@@ -97,8 +97,6 @@ void FControlRigEditorModule::StartupModule()
 	// Register to fixup newly created BPs
 	FKismetEditorUtilities::RegisterOnBlueprintCreatedCallback(this, UControlRig::StaticClass(), FKismetEditorUtilities::FOnBlueprintCreated::CreateRaw(this, &FControlRigEditorModule::HandleNewBlueprintCreated));
 
-	FKismetCompilerContext::RegisterCompilerForBP(UControlRigBlueprint::StaticClass(), &FControlRigEditorModule::GetControlRigCompiler);
-
 	// Register details customizations for animation controller nodes
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	ClassesToUnregisterOnShutdown.Reset();
@@ -114,10 +112,6 @@ void FControlRigEditorModule::StartupModule()
 
 	// same as ClassesToUnregisterOnShutdown but for properties, there is none right now
 	PropertiesToUnregisterOnShutdown.Reset();
-
-	// Register blueprint compiler
-	IKismetCompilerInterface& KismetCompilerModule = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>("KismetCompiler");
-	KismetCompilerModule.GetCompilers().Add(&ControlRigBlueprintCompiler);
 
 	// Register asset tools
 	auto RegisterAssetTypeAction = [this](const TSharedRef<IAssetTypeActions>& InAssetTypeAction)
@@ -381,12 +375,6 @@ void FControlRigEditorModule::ShutdownModule()
 		{
 			PropertyEditorModule->UnregisterCustomPropertyTypeLayout(PropertiesToUnregisterOnShutdown[Index]);
 		}
-	}
-
-	IKismetCompilerInterface* KismetCompilerModule = FModuleManager::GetModulePtr<IKismetCompilerInterface>("KismetCompiler");
-	if (KismetCompilerModule)
-	{
-		KismetCompilerModule->GetCompilers().Remove(&ControlRigBlueprintCompiler);
 	}
 
 	CommandBindings = nullptr;
@@ -711,11 +699,6 @@ TSharedRef<IControlRigEditor> FControlRigEditorModule::CreateControlRigEditor(co
 	return NewControlRigEditor;
 }
 
-TSharedPtr<FKismetCompilerContext> FControlRigEditorModule::GetControlRigCompiler(UBlueprint* BP, FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompileOptions)
-{
-	return TSharedPtr<FKismetCompilerContext>(new FControlRigBlueprintCompilerContext(BP, InMessageLog, InCompileOptions));
-}
-
 void FControlRigEditorModule::RegisterRigUnitEditorClass(FName RigUnitClassName, TSubclassOf<URigUnitEditor_Base> InClass)
 {
 	TSubclassOf<URigUnitEditor_Base>& Class = RigUnitEditorClasses.FindOrAdd(RigUnitClassName);
@@ -764,41 +747,44 @@ void FControlRigEditorModule::GetTypeActions(const UControlRigBlueprint* CRB, FB
 	});
 
 	// Add 'new properties'
-	TArray<TSharedPtr<UEdGraphSchema_K2::FPinTypeTreeInfo>> PinTypes;
-	GetDefault<UEdGraphSchema_K2>()->GetVariableTypeTree(PinTypes, ETypeTreeFilter::None);
+	TArray<FEdGraphPinType> PinTypes;
+	GetDefault<UControlRigGraphSchema>()->GetVariablePinTypes(PinTypes);
 
 	struct Local
 	{
-		static void AddVariableActions_Recursive(UClass* InActionKey, FBlueprintActionDatabaseRegistrar& InActionRegistrar, const TSharedPtr<UEdGraphSchema_K2::FPinTypeTreeInfo>& InPinTypeTreeItem, const FString& InCurrentCategory)
+		static void AddVariableActions_Recursive(UClass* InActionKey, FBlueprintActionDatabaseRegistrar& InActionRegistrar, const FEdGraphPinType& PinType, const FString& InCategory)
 		{
 			static const FString CategoryDelimiter(TEXT("|"));
 
-			if (InPinTypeTreeItem->Children.Num() == 0)
+			FText NodeCategory = FText::FromString(InCategory);
+			FText MenuDesc;
+			FText ToolTip;
+			if(PinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
 			{
-				FText NodeCategory = FText::FromString(InCurrentCategory);
-				FText MenuDesc = InPinTypeTreeItem->GetDescription();
-				FText ToolTip = InPinTypeTreeItem->GetToolTip();
+				if (UScriptStruct* Struct = Cast<UScriptStruct>(PinType.PinSubCategoryObject.Get()))
+				{
+					MenuDesc = FText::FromString(Struct->GetName());
+					ToolTip = MenuDesc;
+				}
 
-				UBlueprintNodeSpawner* NodeSpawner = UControlRigVariableNodeSpawner::CreateFromPinType(InPinTypeTreeItem->GetPinType(false), MenuDesc, NodeCategory, ToolTip);
-				check(NodeSpawner != nullptr);
-				InActionRegistrar.AddBlueprintAction(InActionKey, NodeSpawner);
 			}
 			else
 			{
-				FString CurrentCategory = InCurrentCategory + CategoryDelimiter + InPinTypeTreeItem->FriendlyName.ToString();
-
-				for (const TSharedPtr<UEdGraphSchema_K2::FPinTypeTreeInfo>& ChildTreeItem : InPinTypeTreeItem->Children)
-				{
-					AddVariableActions_Recursive(InActionKey, InActionRegistrar, ChildTreeItem, CurrentCategory);
-				}
+				MenuDesc = UEdGraphSchema_K2::GetCategoryText(PinType.PinCategory, true);
+				ToolTip = UEdGraphSchema_K2::GetCategoryText(PinType.PinCategory, false);
 			}
+
+
+			UBlueprintNodeSpawner* NodeSpawner = UControlRigVariableNodeSpawner::CreateFromPinType(PinType, MenuDesc, NodeCategory, ToolTip);
+			check(NodeSpawner != nullptr);
+			InActionRegistrar.AddBlueprintAction(InActionKey, NodeSpawner);
 		}
 	};
 
 	FString CurrentCategory = LOCTEXT("NewVariable", "New Variable").ToString();
-	for (const TSharedPtr<UEdGraphSchema_K2::FPinTypeTreeInfo>& PinTypeTreeItem : PinTypes)
+	for (const FEdGraphPinType& PinType: PinTypes)
 	{
-		Local::AddVariableActions_Recursive(ActionKey, ActionRegistrar, PinTypeTreeItem, CurrentCategory);
+		Local::AddVariableActions_Recursive(ActionKey, ActionRegistrar, PinType, CurrentCategory);
 	}
 }
 

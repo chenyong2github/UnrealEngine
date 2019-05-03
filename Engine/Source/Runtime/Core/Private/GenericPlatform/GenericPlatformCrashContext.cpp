@@ -77,8 +77,6 @@ namespace NCachedCrashContextProperties
 	static TOptional<bool> bIsVanilla;
 	static FString GameName;
 	static FString ExecutableName;
-	static FString PlatformName;
-	static FString PlatformNameIni;
 	static FString DeploymentName;
 	static FString BaseDir;
 	static FString RootDir;
@@ -117,8 +115,6 @@ void FGenericCrashContext::Initialize()
 
 	NCachedCrashContextProperties::GameName = FString::Printf( TEXT("UE4-%s"), FApp::GetProjectName() );
 	NCachedCrashContextProperties::ExecutableName = FPlatformProcess::ExecutableName();
-	NCachedCrashContextProperties::PlatformName = FPlatformProperties::PlatformName();
-	NCachedCrashContextProperties::PlatformNameIni = FPlatformProperties::IniPlatformName();
 	NCachedCrashContextProperties::BaseDir = FPlatformProcess::BaseDir();
 	NCachedCrashContextProperties::RootDir = FPlatformMisc::RootDir();
 	NCachedCrashContextProperties::EpicAccountId = FPlatformMisc::GetEpicAccountId();
@@ -171,7 +167,8 @@ void FGenericCrashContext::Initialize()
 	}
 
 	const FGuid Guid = FGuid::NewGuid();
-	NCachedCrashContextProperties::CrashGUIDRoot = FString::Printf(TEXT("%s%s-%s"), *CrashGUIDRootPrefix, *NCachedCrashContextProperties::PlatformNameIni, *Guid.ToString(EGuidFormats::Digits));
+	const FString IniPlatformName(FPlatformProperties::IniPlatformName());
+	NCachedCrashContextProperties::CrashGUIDRoot = FString::Printf(TEXT("%s%s-%s"), *CrashGUIDRootPrefix, *IniPlatformName, *Guid.ToString(EGuidFormats::Digits));
 
 	// Initialize delegate for updating SecondsSinceStart, because FPlatformTime::Seconds() is not POSIX safe.
 	const float PollingInterval = 1.0f;
@@ -298,7 +295,22 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 	AddCrashProperty( TEXT( "SecondsSinceStart" ), NCachedCrashContextProperties::SecondsSinceStart );
 
 	// Add common crash properties.
-	AddCrashProperty( TEXT( "GameName" ), *NCachedCrashContextProperties::GameName );
+	if (NCachedCrashContextProperties::GameName.Len() > 0)
+	{
+		AddCrashProperty(TEXT("GameName"), *NCachedCrashContextProperties::GameName);
+	}
+	else
+	{
+		const TCHAR* ProjectName = FApp::GetProjectName();
+		if (ProjectName != nullptr && ProjectName[0] != 0)
+		{
+			AddCrashProperty(TEXT("GameName"), *FString::Printf(TEXT("UE4-%s"), ProjectName));
+		}
+		else
+		{
+			AddCrashProperty(TEXT("GameName"), TEXT(""));
+		}
+	}
 	AddCrashProperty( TEXT( "ExecutableName" ), *NCachedCrashContextProperties::ExecutableName );
 	AddCrashProperty( TEXT( "BuildConfiguration" ), EBuildConfigurations::ToString( FApp::GetBuildConfiguration() ) );
 	AddCrashProperty( TEXT( "GameSessionID" ), *NCachedCrashContextProperties::GameSessionID );
@@ -311,8 +323,8 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 
 	AddCrashProperty( TEXT( "Symbols" ), Symbols);
 
-	AddCrashProperty( TEXT( "PlatformName" ), *NCachedCrashContextProperties::PlatformName );
-	AddCrashProperty( TEXT( "PlatformNameIni" ), *NCachedCrashContextProperties::PlatformNameIni );
+	AddCrashProperty( TEXT( "PlatformName" ), FPlatformProperties::PlatformName() );
+	AddCrashProperty( TEXT( "PlatformNameIni" ), FPlatformProperties::IniPlatformName());
 	AddCrashProperty( TEXT( "EngineMode" ), FPlatformMisc::GetEngineMode() );
 	AddCrashProperty( TEXT( "EngineModeEx" ), EngineModeExString());
 
@@ -773,6 +785,11 @@ FORCENOINLINE void FGenericCrashContext::CapturePortableCallStack(int32 NumStack
 
 void FGenericCrashContext::SetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames)
 {
+	GetPortableCallStack(StackFrames, NumStackFrames, CallStack);
+}
+
+void FGenericCrashContext::GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack)
+{
 	// Get all the modules in the current process
 	uint32 NumModules = (uint32)FPlatformStackWalk::GetProcessModuleCount();
 
@@ -783,7 +800,7 @@ void FGenericCrashContext::SetPortableCallStack(const uint64* StackFrames, int32
 	Modules.SetNum(NumModules);
 
 	// Update the callstack with offsets from each module
-	CallStack.Reset(NumStackFrames);
+	OutCallStack.Reset(NumStackFrames);
 	for(int32 Idx = 0; Idx < NumStackFrames; Idx++)
 	{
 		const uint64 StackFrame = StackFrames[Idx];
@@ -802,11 +819,11 @@ void FGenericCrashContext::SetPortableCallStack(const uint64* StackFrames, int32
 		// Add the callstack item
 		if(FoundModule == nullptr)
 		{
-			CallStack.Add(FCrashStackFrame(TEXT("Unknown"), 0, StackFrame));
+			OutCallStack.Add(FCrashStackFrame(TEXT("Unknown"), 0, StackFrame));
 		}
 		else
 		{
-			CallStack.Add(FCrashStackFrame(FPaths::GetBaseFilename(FoundModule->ImageName), FoundModule->BaseOfImage, StackFrame - FoundModule->BaseOfImage));
+			OutCallStack.Add(FCrashStackFrame(FPaths::GetBaseFilename(FoundModule->ImageName), FoundModule->BaseOfImage, StackFrame - FoundModule->BaseOfImage));
 		}
 	}
 }

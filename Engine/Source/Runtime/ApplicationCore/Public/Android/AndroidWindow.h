@@ -56,6 +56,9 @@ public:
 	 */
 	static void* WaitForHardwareWindow();
 
+	static bool IsPortraitOrientation();
+	static FVector4 GetSafezone(bool bPortrait);
+
 protected:
 	/** @return true if the native window is currently in fullscreen mode, false otherwise */
 	virtual EWindowMode::Type GetWindowMode() const override { return EWindowMode::Fullscreen; }

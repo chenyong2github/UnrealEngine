@@ -139,10 +139,13 @@ struct RHI_API FPipelineCacheFileFormatPSO
 		ERenderTargetStoreAction StencilStore;
 		
 		EPrimitiveType PrimitiveType;
-
+		
+		uint8 SubpassHint;	
+		uint8 SubpassIndex;
+		
 		FString ToString() const;
 		static FString HeaderLine();
-		void FromString(const FString& Src);
+		bool FromString(const FString& Src);
 
 		FString ShadersToString() const;
 		static FString ShaderHeaderLine();
@@ -150,7 +153,7 @@ struct RHI_API FPipelineCacheFileFormatPSO
 
 		FString StateToString() const;
 		static FString StateHeaderLine();
-		void StateFromString(const FString& Src);
+		bool StateFromString(const FString& Src);
 	};
 	enum class DescriptorType : uint32
 	{

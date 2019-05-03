@@ -162,6 +162,7 @@ FActorSpawnParameters::FActorSpawnParameters()
 , bAllowDuringConstructionScript(false)
 #if WITH_EDITOR
 , bTemporaryEditorActor(false)
+, bHideFromSceneOutliner(false)
 #endif
 , ObjectFlags(RF_Transactional)
 {
@@ -804,6 +805,11 @@ void UWorld::BeginDestroy()
 		{
 			LevelCollection.RemoveLevel(CollectionLevel);
 		}
+	}
+
+	if (Scene)
+	{
+		Scene->UpdateParameterCollections(TArray<FMaterialParameterCollectionInstanceResource*>());
 	}
 }
 
@@ -1995,17 +2001,7 @@ void UWorld::TransferBlueprintDebugReferences(UWorld* NewWorld)
 			}
 		}
 	}
-	// Ensure the level script actor debug references are transferred to the new world.
-	if (NewWorld)
-	{
-		if (ALevelScriptActor* LevelScript = NewWorld->GetLevelScriptActor())
-		{
-			if (UBlueprint* LevelScriptBlueprint = Cast<UBlueprint>(LevelScript->GetClass()->ClassGeneratedBy))
-			{
-				LevelScriptBlueprint->SetObjectBeingDebugged(LevelScript);
-			}
-		}
-	}
+
 	// Empty the map, anything useful got moved over the map in the new world
 	BlueprintObjectsBeingDebugged.Empty();
 #endif	//#if WITH_EDITOR
@@ -3076,6 +3072,7 @@ void UWorld::UpdateLevelStreaming()
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateLevelStreamingTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UpdateLevelStreaming);
+	LLM_SCOPE(ELLMTag::LoadMapMisc);
 
 	// do nothing if level streaming is frozen
 	if (bIsLevelStreamingFrozen)

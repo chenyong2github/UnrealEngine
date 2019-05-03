@@ -5,6 +5,8 @@
 #include "User/ISocialUserList.h"
 #include "UObject/GCObject.h"
 
+enum class EMemberExitedReason : uint8;
+
 class FSocialUserList : public ISocialUserList, public FGCObject, public TSharedFromThis<FSocialUserList>
 {
 public:
@@ -42,6 +44,9 @@ private:
 	void HandleRecentPlayerRemoved(USocialUser& RemovedUser, ESocialSubsystem SubsystemType);
 	
 	void HandleUserPresenceChanged(ESocialSubsystem SubsystemType, USocialUser* User);
+	void HandleUserGameSpecificStatusChanged(USocialUser* User);
+
+	void MarkUserAsDirty(USocialUser& User);
 
 	void TryAddUser(USocialUser& User);
 	void TryAddUserFast(USocialUser& User);
@@ -54,6 +59,10 @@ private:
 
 	bool HandleAutoUpdateList(float);
 	void UpdateListInternal();
+
+	void HandlePartyJoined(USocialParty& Party);
+	void HandlePartyMemberCreated(UPartyMember& Member);
+	void HandlePartyMemberLeft(EMemberExitedReason Reason, UPartyMember* Member);
 
 private:
 	FSocialUserList(USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& Config);

@@ -34,6 +34,14 @@ typedef FSHAHash TPakChunkHash;
 #endif
 
 PAKFILE_API TPakChunkHash ComputePakChunkHash(const void* InData, int64 InDataSizeInBytes);
+FORCEINLINE FString ChunkHashToString(const TPakChunkHash& InHash)
+{
+#if PAKHASH_USE_CRC
+	return FString::Printf(TEXT("%08X"), InHash);
+#else
+	return LexToString(InHash);
+#endif
+}
 
 struct FPakChunkSignatureCheckFailedData
 {
@@ -516,13 +524,13 @@ class PAKFILE_API FPakFile : FNoncopyable
 	/** Pak Index organized as a map of directories for faster Directory iteration. Completely valid only when bFilenamesRemoved == false, although portions may still be valid after a call to UnloadPakEntryFilenames() while utilizing DirectoryRootsToKeep. */
 	TMap<FString, FPakDirectory> Index;
 	/** The hash to use when generating a filename hash (CRC) to avoid collisions within the hashed filename space. */
-	uint32 FilenameStartHash;
+	uint64 FilenameStartHash;
 	/** An array of 256 + 1 size that represents the starting index of the most significant byte of a hash group within the FilenameHashes array. */
 	uint32* FilenameHashesIndex;
 	/** An array of NumEntries size mapping 1:1 with FilenameHashes and describing the index of the FPakEntry. */
 	int32* FilenameHashesIndices;
 	/** A tightly packed array of filename hashes (CRC) of NumEntries size. */
-	uint32* FilenameHashes;
+	uint64* FilenameHashes;
 	/** A tightly packed array, NumEntries in size, of offsets to the pak entry data within the MiniPakEntries buffer */
 	uint32* MiniPakEntriesOffsets;
 	/** Memory buffer representing the minimal file entry headers, NumEntries in size */
@@ -548,8 +556,8 @@ class PAKFILE_API FPakFile : FNoncopyable
 
 	static inline int32 CDECL CompareFilenameHashes(const void* Left, const void* Right)
 	{
-		const uint32* LeftHash = (const uint32*)Left;
-		const uint32* RightHash = (const uint32*)Right;
+		const uint64* LeftHash = (const uint64*)Left;
+		const uint64* RightHash = (const uint64*)Right;
 		if (*LeftHash < *RightHash)
 		{
 			return -1;
@@ -606,6 +614,13 @@ public:
 	{
 		return bIsValid;
 	}
+
+	/**
+	 * Checks if the pak has valid chunk signature checking data, and that the data passed the initial signing check
+	 *
+	 * @return true if this pak file has passed the initial signature checking phase
+	 */
+	bool PassedSignatureChecks() const;
 
 	/**
 	 * Gets pak filename.
@@ -937,7 +952,7 @@ public:
 	 * @param CrossPakCollisionChecker A map of hash->fileentry records encountered during filename unloading on other pak files. Used to detect collisions with entries in other pak files.
 	 * @param DirectoryRootsToKeep An array of strings in wildcard format that specify whole directory structures of filenames to keep in memory for directory iteration to work.
 	 */
-	bool UnloadPakEntryFilenames(TMap<uint32, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep = nullptr);
+	bool UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep = nullptr);
 
 	/**
 	 * Lower memory usage by bit-encoding the pak file entry information.
@@ -1536,6 +1551,18 @@ public:
 	* Helper function for accessing pak the signing public key
 	*/
 	static TSharedPtr<FRSA::FKey, ESPMode::ThreadSafe> GetPakSigningKey();
+
+	/**
+	* Load a pak signature file. Validates the contents by comparing a SHA hash of the chunk table against and encrypted version that
+	* is stored within the file. Returns nullptr if the data is missing or fails the signature check. This function also calls
+	* the generic pak signature failure delegates if anything is wrong.
+	*/
+	static TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe> GetPakSignatureFile(const TCHAR* InFilename);
+
+	/**
+	 * Remove the intenrally cached pointer to the signature file for the specified pak
+	 */
+	static void RemoveCachedPakSignaturesFile(const TCHAR* InFilename);
 
 	/**
 	 * Constructor.
@@ -2346,6 +2373,10 @@ public:
 	static void TrackPak(const TCHAR* Filename, const FPakEntry* PakEntry);
 	static TMap<FString, int32>& GetPakMap() { return GPakSizeMap; }
 #endif
+
+	// Internal cache of pak signature files
+	static TMap<FName, TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe>> PakSignatureFileCache;
+	static FCriticalSection PakSignatureFileCacheLock;
 };
 
 /**
@@ -2358,7 +2389,7 @@ struct FPakSignatureFile
 
 	enum class EVersion
 	{
-		Legacy,
+		Invalid,
 		First,
 
 		Last,
@@ -2392,20 +2423,14 @@ struct FPakSignatureFile
 	 */
 	void Serialize(FArchive& Ar)
 	{
-		int64 StartPos = Ar.Tell();
 		uint32 FileMagic = Magic;
 		Ar << FileMagic;
 
 		if (Ar.IsLoading() && FileMagic != Magic)
 		{
-			// Old format with no versioning! Go back to where we were and mark our version as legacy
-			Ar.Seek(StartPos);
-			Version = EVersion::Legacy;
-			TEncryptionInt LegacyEncryptedCRC;
-			Ar << LegacyEncryptedCRC;
-			Ar << ChunkHashes;
-			// Note that we don't do any actual signature checking here because this is old data that won't have been
-			// encrypted with the new larger keys.
+			Version = EVersion::Invalid;
+			EncryptedHash.Empty();
+			ChunkHashes.Empty();
 			return;
 		}
 
@@ -2428,16 +2453,27 @@ struct FPakSignatureFile
 	 */
 	bool DecryptSignatureAndValidate(FRSA::TKeyPtr InKey, const FString& InFilename)
 	{
-		FRSA::Decrypt(FRSA::EKeyType::Public, EncryptedHash, DecryptedHash.Hash, ARRAY_COUNT(FSHAHash::Hash), InKey);
-
-		FSHAHash CurrentHash = ComputeCurrentMasterHash();
-		if (DecryptedHash != CurrentHash)
+		if (Version == EVersion::Invalid)
 		{
-			FPakPlatformFile::GetPakMasterSignatureTableCheckFailureHandler().Broadcast(InFilename);
-			return false;
+			UE_LOG(LogPakFile, Warning, TEXT("Pak signature file for '%s' was invalid"), *InFilename);
+		}
+		else if (FRSA::Decrypt(FRSA::EKeyType::Public, EncryptedHash, DecryptedHash.Hash, ARRAY_COUNT(FSHAHash::Hash), InKey))
+		{
+			FSHAHash CurrentHash = ComputeCurrentMasterHash();
+			if (DecryptedHash == CurrentHash)
+			{
+				return true;
+			}
+
+			UE_LOG(LogPakFile, Warning, TEXT("Pak signature table validation failed for '%s'! Expected %s, Received %s"), *InFilename, *DecryptedHash.ToString(), *CurrentHash.ToString());
+		}
+		else
+		{
+			UE_LOG(LogPakFile, Warning, TEXT("Pak signature table validation failed for '%s'! Failed to decrypt signature"), *InFilename);
 		}
 
-		return true;
+		FPakPlatformFile::GetPakMasterSignatureTableCheckFailureHandler().Broadcast(InFilename);
+		return false;
 	}
 
 	/**

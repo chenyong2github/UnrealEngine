@@ -11,6 +11,7 @@
 #include "Stats/Stats.h"
 #include "Misc/MemStack.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
@@ -392,6 +393,7 @@ void UNetDriver::AssertValid()
 
 void UNetDriver::AddNetworkActor(AActor* Actor)
 {
+	LLM_SCOPE(ELLMTag::Networking);
 	GetNetworkObjectList().FindOrAdd(Actor, this);
 	if (ReplicationDriver)
 	{
@@ -1835,7 +1837,7 @@ void UNetDriver::InternalProcessRemoteFunction
 		}
 		if (IsServer)
 		{
-			Ch->SetChannelActor(Actor);
+			Ch->SetChannelActor(Actor, ESetChannelActorFlags::None);
 		}	
 	}
 
@@ -4007,7 +4009,7 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 						Channel = (UActorChannel*)Connection->CreateChannelByName( NAME_Actor, EChannelCreateFlags::OpenedLocally );
 						if ( Channel )
 						{
-							Channel->SetChannelActor( Actor );
+							Channel->SetChannelActor(Actor, ESetChannelActorFlags::None);
 						}
 					}
 					// if we couldn't replicate it for a reason that should be temporary, and this Actor is updated very infrequently, make sure we update it again soon
@@ -5448,6 +5450,38 @@ bool UNetDriver::ShouldCallRemoteFunction(UObject* Object, UFunction* Function, 
 bool UNetDriver::ShouldClientDestroyActor(AActor* Actor) const
 {
 	return (Actor && !Actor->IsA(ALevelScriptActor::StaticClass()));
+}
+
+void UNetDriver::ConsumeAsyncLoadDelinquencyAnalytics(FNetAsyncLoadDelinquencyAnalytics& Out)
+{
+	if (FNetGUIDCache* LocalGuidCache = GuidCache.Get())
+	{
+		LocalGuidCache->ConsumeAsyncLoadDelinquencyAnalytics(Out);
+	}
+	else
+	{
+		Out.Reset();
+	}
+}
+
+const FNetAsyncLoadDelinquencyAnalytics& UNetDriver::GetAsyncLoadDelinquencyAnalytics() const
+{
+	static const FNetAsyncLoadDelinquencyAnalytics Empty(0);
+
+	if (FNetGUIDCache const * const LocalGuidCache = GuidCache.Get())
+	{
+		return LocalGuidCache->GetAsyncLoadDelinquencyAnalytics();
+	}
+
+	return Empty;
+}
+
+void UNetDriver::ResetAsyncLoadDelinquencyAnalytics()
+{
+	if (FNetGUIDCache* LocalGuidCache = GuidCache.Get())
+	{
+		LocalGuidCache->ResetAsyncLoadDelinquencyAnalytics();
+	}
 }
 
 FAutoConsoleCommandWithWorld	DumpRelevantActorsCommand(

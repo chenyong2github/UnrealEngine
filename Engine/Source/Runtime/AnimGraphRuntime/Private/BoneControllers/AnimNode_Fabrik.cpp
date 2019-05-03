@@ -148,7 +148,7 @@ void FAnimNode_Fabrik::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseCont
 			FABRIKChainLink const & ChildLink = Chain[LinkIndex + 1];
 
 			// Calculate pre-translation vector between this bone and child
-			FVector const OldDir = (GetCurrentLocation(Output.Pose, ChildLink.BoneIndex) - GetCurrentLocation(Output.Pose, CurrentLink.BoneIndex)).GetUnsafeNormal();
+			FVector const OldDir = (GetCurrentLocation(Output.Pose, FCompactPoseBoneIndex(ChildLink.BoneIndex)) - GetCurrentLocation(Output.Pose, FCompactPoseBoneIndex(CurrentLink.BoneIndex))).GetUnsafeNormal();
 
 			// Get vector from the post-translation bone to it's child
 			FVector const NewDir = (ChildLink.Position - CurrentLink.Position).GetUnsafeNormal();

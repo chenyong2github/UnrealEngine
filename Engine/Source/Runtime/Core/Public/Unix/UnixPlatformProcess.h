@@ -270,6 +270,7 @@ struct CORE_API FUnixPlatformProcess : public FGenericPlatformProcess
 	static void TerminateProc( FProcHandle & ProcessHandle, bool KillTree = false );
 	static EWaitAndForkResult WaitAndFork();
 	static uint32 GetCurrentProcessId();
+	static uint32 GetCurrentCoreNumber();
 	static bool GetProcReturnCode( FProcHandle & ProcHandle, int32* ReturnCode );
 	static bool Daemonize();
 	static bool IsApplicationRunning( uint32 ProcessId );

@@ -2388,9 +2388,7 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 
 				const int LinkIdx = OutGeometry.OffMeshSegments.Add(Link);
 				ensureMsgf((LinkPoly->flags & ForbiddenFlags) == 0, TEXT("Not implemented"));
-				(LinkPoly->flags & ForbiddenFlags) != 0
-					? OutGeometry.OffMeshSegmentAreas[Link.AreaID].Add(LinkIdx)
-					: OutGeometry.OffMeshSegmentAreas[Link.AreaID].Add(LinkIdx);
+				OutGeometry.OffMeshSegmentAreas[Link.AreaID].Add(LinkIdx);
 			}
 		}
 	}

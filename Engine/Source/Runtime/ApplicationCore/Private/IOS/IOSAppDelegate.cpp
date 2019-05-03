@@ -336,7 +336,7 @@ static IOSAppDelegate* CachedDelegate = nil;
     
     self.bHasStarted = false;
     
-    if(bForceExit)
+    if(bForceExit || FApp::IsUnattended())
     {
         _Exit(0);
         //exit(0);  // As far as I can tell we run into a lot of trouble trying to run static destructors, so this is a no go :(
@@ -1386,6 +1386,8 @@ FCriticalSection RenderSuspend;
 	 If your application supports background execution, this method is called
 	 instead of applicationWillTerminate: when the user quits.
 	 */
+
+#if BUILD_EMBEDDED_APP
 	FIOSAsyncTask* AsyncTask = [[FIOSAsyncTask alloc] init];
 	AsyncTask.GameThreadCallback = ^ bool(void)
 	{
@@ -1396,6 +1398,9 @@ FCriticalSection RenderSuspend;
 		return true;
 	};
 	[AsyncTask FinishedTask];
+#else
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Broadcast();
+#endif //BUILD_EBMEDDED_APP
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)application

@@ -313,7 +313,7 @@ void FDynamicPrimitiveUniformBuffer::Set(
 {
 	check(IsInRenderingThread());
 	UniformBuffer.SetContents(
-		GetPrimitiveUniformShaderParameters(LocalToWorld, PreviousLocalToWorld, WorldBounds.Origin, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, false, false, false, bHasPrecomputedVolumetricLightmap, bUseEditorDepthTest, GetDefaultLightingChannelMask(), 1.0f, INDEX_NONE, INDEX_NONE, bOutputVelocity));
+		GetPrimitiveUniformShaderParameters(LocalToWorld, PreviousLocalToWorld, WorldBounds.Origin, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, false, false, false, bHasPrecomputedVolumetricLightmap, bUseEditorDepthTest, GetDefaultLightingChannelMask(), 1.0f, INDEX_NONE, INDEX_NONE, bOutputVelocity, nullptr));
 	UniformBuffer.InitResource();
 }
 
@@ -733,8 +733,17 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	PreIntegratedBRDF = GWhiteTexture->TextureRHI;
 	PreIntegratedBRDFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	PrimitiveSceneData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
-	LightmapSceneData = GIdentityPrimitiveBuffer.LightmapSceneDataBufferSRV;
+	if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
+	{
+		PrimitiveSceneData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
+		LightmapSceneData = GIdentityPrimitiveBuffer.LightmapSceneDataBufferSRV;
+	}
+	else
+	{
+		// these are not used on < SM5, set it to something to pass UB validation
+		PrimitiveSceneData = GNullColorVertexBuffer.VertexBufferSRV;
+		LightmapSceneData = GNullColorVertexBuffer.VertexBufferSRV;
+	}
 }
 
 FInstancedViewUniformShaderParameters::FInstancedViewUniformShaderParameters()

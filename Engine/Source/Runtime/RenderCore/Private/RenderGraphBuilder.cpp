@@ -5,7 +5,7 @@
 #include "RenderTargetPool.h"
 #include "RenderGraphResourcePool.h"
 #include "VisualizeTexture.h"
-
+#include "ProfilingDebugging/CsvProfiler.h"
 
 #if RENDER_GRAPH_DEBUGGING
 
@@ -122,6 +122,7 @@ FRDGEventName::FRDGEventName(const TCHAR* EventFormat, ...)
 
 void FRDGBuilder::Execute()
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FRDGBuilder_Execute);
 	#if RENDER_GRAPH_DEBUGGING
 	{
 		/** The usage need RDG_EVENT_SCOPE() needs to happen in inner scope of the one containing FRDGBuilder because of
@@ -707,9 +708,16 @@ void FRDGBuilder::TransitionTexture( const FRDGTexture* Texture, EResourceTransi
 
 void FRDGBuilder::TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, const FRDGResource* UnderlyingResource, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const
 {
-	const bool bRequiredWritable = true;
+	const bool bRequiredWritable = TransitionAccess != EResourceTransitionAccess::EReadable;
 
-	if(UnderlyingResource->bWritable != bRequiredWritable || UnderlyingResource->bCompute != bRequiredCompute )
+	if (bRequiredWritable && UnderlyingResource->bWritable)
+	{
+		// Force a RW barrier between UAV write.
+		// TODO(RDG): allow to have no barriere in the API when multiple pass write concurrently to same resource.
+		EResourceTransitionPipeline TransitionPipeline = CalcTransitionPipeline(UnderlyingResource->bCompute, bRequiredCompute);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, TransitionPipeline, UAV);
+	}
+	else if(UnderlyingResource->bWritable != bRequiredWritable || UnderlyingResource->bCompute != bRequiredCompute )
 	{
 		EResourceTransitionPipeline TransitionPipeline = CalcTransitionPipeline(UnderlyingResource->bCompute, bRequiredCompute );
 		RHICmdList.TransitionResource( TransitionAccess, TransitionPipeline, UAV);

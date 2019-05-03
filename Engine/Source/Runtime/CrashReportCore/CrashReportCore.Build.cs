@@ -15,22 +15,29 @@ public class CrashReportCore : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-                "CrashDebugHelper",
                 "XmlParser",
                 "Analytics",
                 "AnalyticsET",
-                 "HTTP",
+				"HTTP",
                 "Json",
            }
         );
 
-        if (Target.Type == TargetType.Game || Target.Type == TargetType.Client)
+        if (Target.Type == TargetType.Game || Target.Type == TargetType.Client || Target.Type == TargetType.Program)
         {
-            IsRedistributableOverride = true;
-        }
+			PrecompileForTargets = PrecompileTargetsType.None;
+			PublicDependencyModuleNames.Add("CrashDebugHelper");
+			PublicDefinitions.Add("WITH_CRASHREPORTER=1");
+
+			// add source control if we are targeting a program
+			if (Target.Type == TargetType.Program)
+			{
+				PublicDependencyModuleNames.Add("SourceControl");
+			}
+       	}
         else
         {
-            PrecompileForTargets = PrecompileTargetsType.None;
+			PublicDefinitions.Add("WITH_CRASHREPORTER=0");
             PublicDependencyModuleNames.Add("SourceControl");
         }
     }

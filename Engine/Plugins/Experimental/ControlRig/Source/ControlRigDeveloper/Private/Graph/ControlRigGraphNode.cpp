@@ -19,6 +19,7 @@
 #include "StructReference.h"
 #include "UObject/PropertyPortFlags.h"
 #include "ControlRigBlueprintUtils.h"
+#include "Curves/CurveFloat.h"
 
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
@@ -34,6 +35,9 @@ UControlRigGraphNode::UControlRigGraphNode()
 , CachedNodeColorFromMetadata(FLinearColor(0.f, 0.f, 0.f, 0.f))
 {
 	UpdateNodeColorFromMetadata();
+
+	bHasCompilerMessage = false;
+	ErrorType = (int32)EMessageSeverity::Info + 1;
 }
 
 FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
@@ -383,8 +387,6 @@ static bool IsStructReference(const TSharedPtr<FControlRigField>& InputInfo)
 
 void UControlRigGraphNode::CreateExecutionPins(bool bAlwaysCreatePins)
 {
-	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-
 	const TArray<TSharedRef<FControlRigField>>& LocalExecutionInfos = GetExecutionVariableInfo();
 
 	for (const TSharedRef<FControlRigField>& ExecutionInfo : LocalExecutionInfos)
@@ -408,8 +410,6 @@ void UControlRigGraphNode::CreateExecutionPins(bool bAlwaysCreatePins)
 
 void UControlRigGraphNode::CreateInputPins_Recursive(const TSharedPtr<FControlRigField>& InputInfo, bool bAlwaysCreatePins)
 {
-	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-
 	for (const TSharedPtr<FControlRigField>& ChildInfo : InputInfo->Children)
 	{
 		if (bAlwaysCreatePins || ChildInfo->InputPin == nullptr)
@@ -431,8 +431,6 @@ void UControlRigGraphNode::CreateInputPins_Recursive(const TSharedPtr<FControlRi
 
 void UControlRigGraphNode::CreateInputPins(bool bAlwaysCreatePins)
 {
-	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-
 	const TArray<TSharedRef<FControlRigField>>& LocalInputInfos = GetInputVariableInfo();
 
 	for (const TSharedRef<FControlRigField>& InputInfo : LocalInputInfos)
@@ -451,8 +449,6 @@ void UControlRigGraphNode::CreateInputPins(bool bAlwaysCreatePins)
 
 void UControlRigGraphNode::CreateInputOutputPins_Recursive(const TSharedPtr<FControlRigField>& InputOutputInfo, bool bAlwaysCreatePins)
 {
-	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-
 	for (const TSharedPtr<FControlRigField>& ChildInfo : InputOutputInfo->Children)
 	{
 		if (bAlwaysCreatePins || ChildInfo->InputPin == nullptr)
@@ -483,8 +479,6 @@ void UControlRigGraphNode::CreateInputOutputPins_Recursive(const TSharedPtr<FCon
 
 void UControlRigGraphNode::CreateInputOutputPins(bool bAlwaysCreatePins)
 {
-	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-
 	const TArray<TSharedRef<FControlRigField>>& LocalInputOutputInfos = GetInputOutputVariableInfo();
 
 	for (const TSharedRef<FControlRigField>& InputOutputInfo : LocalInputOutputInfos)
@@ -655,7 +649,15 @@ static bool CanExpandPinsForField(UField* InField)
 {
 	if(UStructProperty* StructProperty = Cast<UStructProperty>(InField))
 	{
-		if(StructProperty->Struct == TBaseStructure<FQuat>::Get())
+		if (StructProperty->Struct == TBaseStructure<FQuat>::Get())
+		{
+			return false;
+		}
+		if (StructProperty->Struct == FControlRigExecuteContext::StaticStruct())
+		{
+			return false;
+		}
+		if (StructProperty->Struct == FRuntimeFloatCurve::StaticStruct())
 		{
 			return false;
 		}
@@ -698,15 +700,27 @@ void UControlRigGraphNode::GetInputOutputFields(TArray<TSharedRef<FControlRigFie
 		UScriptStruct* ScriptStruct = GetUnitScriptStruct();
 		if(ScriptStruct == nullptr)
 		{
+			FString PropertyPath = PropertyName.ToString();
 			if(UProperty* Property = MyControlRigClass->FindPropertyByName(PropertyName))
 			{
 				// We don't care here whether we are dealing with input/output fields as we want a pin to be created for both
-				FString PropertyPath = PropertyName.ToString();
 				TSharedPtr<FControlRigField> ControlRigField = CreateControlRigField(Property, PropertyPath);
 				if(ControlRigField.IsValid())
 				{
+					ControlRigField->DisplayNameText = LOCTEXT("Value", "Value");
 					OutFields.Add(ControlRigField.ToSharedRef());
 					GetFields_Recursive(ControlRigField.ToSharedRef(), PropertyPath);
+				}
+			}
+			else // we might be on a variable template node
+			{
+				if (PinType.PinCategory != NAME_None)
+				{
+					TSharedPtr<FControlRigField> TemplateField = MakeShareable(new FControlRigField(PinType, PropertyPath, LOCTEXT("Value", "Value"), -1));
+					if (TemplateField.IsValid())
+					{
+						OutFields.Add(TemplateField.ToSharedRef());
+					}
 				}
 			}
 		}
@@ -1129,6 +1143,11 @@ void UControlRigGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
 
 	for(UEdGraphPin* Pin : Pins)
 	{
+		if (Pin->ParentPin != nullptr)
+		{
+			continue;
+		}
+
 		FControlRigPinConnectionResponse ConnectResponse = Schema->CanCreateConnection_Extended(FromPin, Pin);
 		if(ConnectResponse.Response.Response != ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
 		{

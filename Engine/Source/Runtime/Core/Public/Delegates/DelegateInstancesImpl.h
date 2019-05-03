@@ -81,6 +81,11 @@ public:
 		return UserObjectPtr.Get();
 	}
 
+	virtual uint64 GetBoundProgramCounterForTimerManager() const override final
+	{
+		return 0;
+	}
+
 	// Deprecated
 	virtual bool HasSameObject( const void* InUserObject ) const override final
 	{
@@ -237,6 +242,15 @@ public:
 	virtual const void* GetObjectForTimerManager() const override final
 	{
 		return UserObject.Pin().Get();
+	}
+
+	virtual uint64 GetBoundProgramCounterForTimerManager() const override final
+	{
+#if PLATFORM_64BITS
+		return *((uint64*)&MethodPtr);
+#else
+		return *((uint32*)&MethodPtr);
+#endif
 	}
 
 	// Deprecated
@@ -420,6 +434,15 @@ public:
 		return UserObject;
 	}
 
+	virtual uint64 GetBoundProgramCounterForTimerManager() const override final
+	{
+#if PLATFORM_64BITS
+		return *((uint64*)&MethodPtr);
+#else
+		return *((uint32*)&MethodPtr);
+#endif
+	}
+
 	// Deprecated
 	virtual bool HasSameObject( const void* InUserObject ) const override final
 	{
@@ -571,6 +594,15 @@ public:
 	virtual const void* GetObjectForTimerManager() const override final
 	{
 		return UserObject.Get();
+	}
+
+	virtual uint64 GetBoundProgramCounterForTimerManager() const override final
+	{
+#if PLATFORM_64BITS
+		return *((uint64*)&MethodPtr);
+#else
+		return *((uint32*)&MethodPtr);
+#endif
 	}
 
 	// Deprecated
@@ -730,6 +762,15 @@ public:
 		return nullptr;
 	}
 
+	virtual uint64 GetBoundProgramCounterForTimerManager() const override final
+	{
+#if PLATFORM_64BITS
+		return *((uint64*)&StaticFuncPtr);
+#else
+		return *((uint32*)&StaticFuncPtr);
+#endif
+	}
+
 	// Deprecated
 	virtual bool HasSameObject( const void* UserObject ) const override final
 	{
@@ -866,6 +907,11 @@ public:
 	virtual const void* GetObjectForTimerManager() const override final
 	{
 		return nullptr;
+	}
+
+	virtual uint64 GetBoundProgramCounterForTimerManager() const override final
+	{
+		return 0;
 	}
 
 	// Deprecated
@@ -1011,6 +1057,11 @@ public:
 	virtual const void* GetObjectForTimerManager() const override final
 	{
 		return ContextObject.Get();
+	}
+
+	virtual uint64 GetBoundProgramCounterForTimerManager() const override final
+	{
+		return 0;
 	}
 
 	// Deprecated

@@ -458,6 +458,8 @@ void USkinnedMeshComponent::Serialize(FArchive& Ar)
 
 void USkinnedMeshComponent::OnRegister()
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
+
 	// The reason this happens before register
 	// is so that any transform update (or children transform update)
 	// won't result in any issues of accessing SpaceBases
@@ -1417,6 +1419,8 @@ FSkeletalMeshRenderData* USkinnedMeshComponent::GetSkeletalMeshRenderData() cons
 
 bool USkinnedMeshComponent::AllocateTransformData()
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
+
 	// Allocate transforms if not present.
 	if ( SkeletalMesh != NULL && MasterPoseComponent == NULL )
 	{
@@ -2441,7 +2445,7 @@ void USkinnedMeshComponent::SetRefPoseOverride(const TArray<FTransform>& NewRefP
 
 	if (NumRealBones != NewRefPoseTransforms.Num())
 	{
-		UE_LOG(LogSkeletalMesh, Warning, TEXT("SetRefPoseOverride (%s) : Expected %d transforms, got %d."), NumRealBones, NewRefPoseTransforms.Num());
+		UE_LOG(LogSkeletalMesh, Warning, TEXT("SetRefPoseOverride (%s) : Expected %d transforms, got %d."), *SkeletalMesh->GetName(), NumRealBones, NewRefPoseTransforms.Num());
 		return;
 	}
 

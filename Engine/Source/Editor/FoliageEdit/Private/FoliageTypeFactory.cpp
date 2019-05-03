@@ -3,8 +3,11 @@
 #include "FoliageTypeFactory.h"
 #include "AssetTypeCategories.h"
 #include "FoliageType_InstancedStaticMesh.h"
+#include "FoliageType_Actor.h"
 
-UFoliageTypeFactory::UFoliageTypeFactory(const FObjectInitializer& ObjectInitializer)
+#define LOCTEXT_NAMESPACE "FoliageTypeFactory"
+
+UFoliageType_InstancedStaticMeshFactory::UFoliageType_InstancedStaticMeshFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bCreateNew = true;
@@ -12,14 +15,32 @@ UFoliageTypeFactory::UFoliageTypeFactory(const FObjectInitializer& ObjectInitial
 	SupportedClass = UFoliageType_InstancedStaticMesh::StaticClass();
 }
 
-UObject* UFoliageTypeFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+UObject* UFoliageType_InstancedStaticMeshFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	auto NewFoliageType = NewObject<UFoliageType_InstancedStaticMesh>(InParent, Class, Name, Flags | RF_Transactional);
-
-	return NewFoliageType;
+	return NewObject<UFoliageType_InstancedStaticMesh>(InParent, Class, Name, Flags | RF_Transactional);
 }
 
-uint32 UFoliageTypeFactory::GetMenuCategories() const
+FText UFoliageType_InstancedStaticMeshFactory::GetToolTip() const
 {
-	return EAssetTypeCategories::Misc;
+	return LOCTEXT("FoliageTypeStaticMeshToolTip", "Static Mesh Foliage is a foliage type that will use mesh instancing and is optimal for non-interactive foliage.");
 }
+
+UFoliageType_ActorFactory::UFoliageType_ActorFactory(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	bCreateNew = true;
+	bEditAfterNew = true;
+	SupportedClass = UFoliageType_Actor::StaticClass();
+}
+
+UObject* UFoliageType_ActorFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+{
+	return NewObject<UFoliageType_Actor>(InParent, Class, Name, Flags | RF_Transactional);
+}
+
+FText UFoliageType_ActorFactory::GetToolTip() const
+{
+	return LOCTEXT("FoliageTypeActorToolTip", "Actor Foliage is a foliage type that will place blueprint/native actor instances. The cost of painting this foliage is the same as adding actors in a scene.");
+}
+
+#undef LOCTEXT_NAMESPACE

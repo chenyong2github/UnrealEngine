@@ -105,7 +105,7 @@ class FChunkCacheWorker : public FRunnable
 	};
 
 	/** Reference hashes */
-	FPakSignatureFile Signatures;
+	TSharedPtr<const FPakSignatureFile, ESPMode::ThreadSafe> Signatures;
 	/** Hash of the sig file data. Used to check that nothing was corrupted when a signature check fails */
 	TPakChunkHash OriginalSignatureFileHash;
 	/** Thread to run the worker FRunnable on */
@@ -200,6 +200,13 @@ public:
 	 * Releases the requested chunk buffer
 	 */
 	void ReleaseChunk(FChunkRequest& Chunk);
+
+
+	/**
+	* Indicates that this chunk worker is valid. If the signature file couldn't be loaded or if it failed
+	* the master table check, this will be false
+	*/
+	bool IsValid() const;
 
 	friend class FSignedArchiveReader;
 };

@@ -6339,7 +6339,8 @@ void FSlateEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			TEXT("Plane"),
 			TEXT("CineCameraActor"),
 			TEXT("CameraRig_Crane"),
-			TEXT("CameraRig_Rail")
+			TEXT("CameraRig_Rail"),
+			TEXT("FoliageType_Actor")
 		};
 
 		for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(AssetTypes); ++TypeIndex)

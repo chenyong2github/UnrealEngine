@@ -10,6 +10,7 @@ public:
 	{
 		TSet<FName> PackageNames;
 		bool bStageTimeOnly = false;
+		bool bIgnoreSoftReferences = false;
 	};
 
 	typedef TMap<FName, FGroup> TGroupMap;
@@ -22,6 +23,11 @@ public:
 	void SetGroupAsStageTimeOnly(FName InGroupName, bool bInStageTimeOnly)
 	{
 		PackageGroups.FindOrAdd(InGroupName).bStageTimeOnly = bInStageTimeOnly;
+	}
+
+	void SetShouldIgnoreSoftReferences(FName InGroupName, bool bInIgnoreSoftReferences)
+	{
+		PackageGroups.FindOrAdd(InGroupName).bIgnoreSoftReferences = bInIgnoreSoftReferences;
 	}
 
 	void AddReleasedKey(FGuid InKey)

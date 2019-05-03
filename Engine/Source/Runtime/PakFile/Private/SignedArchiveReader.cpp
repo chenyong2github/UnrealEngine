@@ -36,24 +36,17 @@ FChunkCacheWorker::FChunkCacheWorker(FArchive* InReader, const TCHAR* Filename)
 	, QueuedRequestsEvent(nullptr)
 	, ChunkRequestAvailable(nullptr)
 {
-	FString SigFileFilename = FPaths::ChangeExtension(Filename, TEXT("sig"));
-	FArchive* SigFileReader = IFileManager::Get().CreateFileReader(*SigFileFilename);
+	Signatures = FPakPlatformFile::GetPakSignatureFile(Filename);
 
-	if (SigFileReader == nullptr)
+	if (Signatures.IsValid())
 	{
-		UE_LOG(LogPakFile, Fatal, TEXT("Couldn't find pak signature file '%s'"), *SigFileFilename);
-	}
-
-	Signatures.Serialize(*SigFileReader);
-	delete SigFileReader;
-	Signatures.DecryptSignatureAndValidate(Filename);
-
-	const bool bEnableMultithreading = FPlatformProcess::SupportsMultithreading();
-	if (bEnableMultithreading)
-	{
-		QueuedRequestsEvent = FPlatformProcess::GetSynchEventFromPool();
-		ChunkRequestAvailable = FPlatformProcess::GetSynchEventFromPool();
-		Thread = FRunnableThread::Create(this, TEXT("FChunkCacheWorker"), 0, TPri_BelowNormal);
+		const bool bEnableMultithreading = FPlatformProcess::SupportsMultithreading();
+		if (bEnableMultithreading)
+		{
+			QueuedRequestsEvent = FPlatformProcess::GetSynchEventFromPool();
+			ChunkRequestAvailable = FPlatformProcess::GetSynchEventFromPool();
+			Thread = FRunnableThread::Create(this, TEXT("FChunkCacheWorker"), 0, TPri_BelowNormal);
+		}
 	}
 }
 
@@ -229,30 +222,37 @@ bool FChunkCacheWorker::CheckSignature(const FChunkRequest& ChunkInfo)
 {
 	SCOPE_SECONDS_ACCUMULATOR(STAT_FChunkCacheWorker_CheckSignature);
 
-	TPakChunkHash ChunkHash;
+	bool bChunkHashesMatch = false;
+	check(Signatures.IsValid());
 
+	// If our signature data wasn't validated properly on startup, we shouldn't be in here. Mark all chunk checks as failed.
+	if (ensure(IsValid()))
 	{
-		SCOPE_SECONDS_ACCUMULATOR(STAT_FChunkCacheWorker_Serialize);
-		Reader->Seek(ChunkInfo.Offset);
-		Reader->Serialize(ChunkInfo.Buffer->Data, ChunkInfo.Size);
-	}
-	{
-		SCOPE_SECONDS_ACCUMULATOR(STAT_FChunkCacheWorker_HashBuffer);
-		ChunkHash = ComputePakChunkHash(ChunkInfo.Buffer->Data, ChunkInfo.Size);
-	}
+		TPakChunkHash ChunkHash;
 
-	bool bChunkHashesMatch = (ChunkHash == Signatures.ChunkHashes[ChunkInfo.Index]);
-	if (!bChunkHashesMatch)
-	{
-		UE_LOG(LogPakFile, Warning, TEXT("Pak chunk signing mismatch on chunk [%i/%i]! Expected 0x%8X, Received 0x%8X"), ChunkInfo.Index, Signatures.ChunkHashes.Num(), *LexToString(Signatures.ChunkHashes[ChunkInfo.Index]), *LexToString(ChunkHash));
-
-		if (Signatures.DecryptedHash != Signatures.ComputeCurrentMasterHash())
 		{
-			UE_LOG(LogPakFile, Warning, TEXT("Master signature table has changed since initialization!"));
+			SCOPE_SECONDS_ACCUMULATOR(STAT_FChunkCacheWorker_Serialize);
+			Reader->Seek(ChunkInfo.Offset);
+			Reader->Serialize(ChunkInfo.Buffer->Data, ChunkInfo.Size);
+		}
+		{
+			SCOPE_SECONDS_ACCUMULATOR(STAT_FChunkCacheWorker_HashBuffer);
+			ChunkHash = ComputePakChunkHash(ChunkInfo.Buffer->Data, ChunkInfo.Size);
 		}
 
-		const FPakChunkSignatureCheckFailedData Data(Reader->GetArchiveName(), Signatures.ChunkHashes[ChunkInfo.Index], ChunkHash, ChunkInfo.Index);
-		FPakPlatformFile::GetPakChunkSignatureCheckFailedHandler().Broadcast(Data);
+		bChunkHashesMatch = IsValid() && (ChunkHash == Signatures->ChunkHashes[ChunkInfo.Index]);
+		if (!bChunkHashesMatch)
+		{
+			UE_LOG(LogPakFile, Warning, TEXT("Pak chunk signing mismatch on chunk [%i/%i]! Expected %s, Received %s"), ChunkInfo.Index, Signatures->ChunkHashes.Num() - 1, *ChunkHashToString(Signatures->ChunkHashes[ChunkInfo.Index]), *ChunkHashToString(ChunkHash));
+
+			if (Signatures->DecryptedHash != Signatures->ComputeCurrentMasterHash())
+			{
+				UE_LOG(LogPakFile, Warning, TEXT("Master signature table has changed since initialization!"));
+			}
+
+			const FPakChunkSignatureCheckFailedData Data(Reader->GetArchiveName(), Signatures->ChunkHashes[ChunkInfo.Index], ChunkHash, ChunkInfo.Index);
+			FPakPlatformFile::GetPakChunkSignatureCheckFailedHandler().Broadcast(Data);
+		}
 	}
 	
 	return bChunkHashesMatch;
@@ -299,6 +299,11 @@ void FChunkCacheWorker::FlushRemainingChunkCompletionEvents()
 	{
 		ChunkRequestAvailable->Reset();
 	}
+}
+
+bool FChunkCacheWorker::IsValid() const
+{
+	return Signatures.IsValid() && (Signatures->ChunkHashes.Num() > 0);
 }
 
 void FChunkCacheWorker::ReleaseChunk(FChunkRequest& Chunk)

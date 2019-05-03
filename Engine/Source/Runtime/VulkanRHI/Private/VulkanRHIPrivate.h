@@ -35,7 +35,12 @@
 	#endif
 #endif
 
-#include "VulkanRHI.h"
+#include "VulkanGlobals.h"
+#include "VulkanState.h"
+#include "VulkanResources.h"
+#include "VulkanUtil.h"
+#include "VulkanViewport.h"
+#include "VulkanDynamicRHI.h"
 #include "VulkanGlobalUniformBuffer.h"
 #include "RHI.h"
 #include "VulkanDevice.h"
@@ -93,7 +98,7 @@ inline EShaderFrequency VkStageBitToUEFrequency(VkShaderStageFlagBits FlagBits)
 class FVulkanRenderTargetLayout
 {
 public:
-	FVulkanRenderTargetLayout(const FGraphicsPipelineStateInitializer& Initializer, const TArray<FInputAttachmentData>& InputAttachmentData);
+	FVulkanRenderTargetLayout(const FGraphicsPipelineStateInitializer& Initializer);
 	FVulkanRenderTargetLayout(FVulkanDevice& InDevice, const FRHISetRenderTargetsInfo& RTInfo);
 	FVulkanRenderTargetLayout(FVulkanDevice& InDevice, const FRHIRenderPassInfo& RPInfo);
 
@@ -124,7 +129,7 @@ public:
 	inline const VkAttachmentReference* GetResolveAttachmentReferences() const { return bHasResolveAttachments ? ResolveReferences : nullptr; }
 	inline const VkAttachmentReference* GetDepthStencilAttachmentReference() const { return bHasDepthStencil ? &DepthStencilReference : nullptr; }
 
-	uint16 SetupSubpasses(VkSubpassDescription* OutDescs, uint32 MaxDescs, VkSubpassDependency* OutDeps, uint32 MaxDeps, uint32& OutNumDependencies) const;
+	inline const ESubpassHint GetSubpassHint() const { return SubpassHint; }
 
 protected:
 	VkAttachmentReference ColorReferences[MaxSimultaneousRenderTargets];
@@ -141,7 +146,7 @@ protected:
 	uint8 bHasResolveAttachments;
 	uint8 NumSamples;
 	uint8 NumUsedClearValues;
-	uint8 Pad0 = 0;
+	ESubpassHint SubpassHint = ESubpassHint::None;
 
 	// Hash for a compatible RenderPass
 	uint32 RenderPassCompatibleHash = 0;

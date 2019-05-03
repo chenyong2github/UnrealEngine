@@ -19,13 +19,18 @@ bool FTargetPlatformBase::UsesDBuffer() const
 bool FTargetPlatformBase::UsesBasePassVelocity() const
 {
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BasePassOutputsVelocity"));
-	return CVar ? (CVar->GetInt()) : false;
+	return CVar ? (CVar->GetInt() != 0) : false;
 }
 
 bool FTargetPlatformBase::UsesSelectiveBasePassOutputs() const
 {
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SelectiveBasePassOutputs"));
-	return CVar ? (CVar->GetInt()) : false;
+	return CVar ? (CVar->GetInt() != 0) : false;
+}
+
+bool FTargetPlatformBase::UsesDistanceFields() const
+{
+	return true;
 }
 
 TSharedPtr<IDeviceManagerCustomPlatformWidgetCreator> FTargetPlatformBase::GetCustomWidgetCreator() const

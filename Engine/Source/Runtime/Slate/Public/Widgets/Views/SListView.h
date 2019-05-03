@@ -1403,7 +1403,7 @@ protected:
 					// Center the list view on the item in question.
 					NewScrollOffset -= (NumLiveWidgets / 2);
 					//we also don't want the widget being chopped off if it is at the end of the list
-					const double MoveBackBy = FMath::Clamp<double>(IndexOfItem - MaxDisplayedIndex, 0, FLT_MAX);
+					const double MoveBackBy = FMath::Clamp<double>(IndexOfItem - (NewScrollOffset + NumLiveWidgets), 0, FLT_MAX);
 					//Move to the correct center spot
 					NewScrollOffset += MoveBackBy;
 

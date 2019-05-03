@@ -32,6 +32,7 @@ DEFINE_LOG_CATEGORY(LogAudioDebug);
 DEFINE_STAT(STAT_AudioMemorySize);
 DEFINE_STAT(STAT_ActiveSounds);
 DEFINE_STAT(STAT_AudioSources);
+DEFINE_STAT(STAT_AudioVirtualLoops);
 DEFINE_STAT(STAT_WaveInstances);
 DEFINE_STAT(STAT_WavesDroppedDueToPriority);
 DEFINE_STAT(STAT_AudibleWavesDroppedDueToPriority);
@@ -428,8 +429,8 @@ void FSoundSource::DrawDebugInfo()
 			const bool bSpatialized = Buffer->NumChannels == 2 && WaveInstance->GetUseSpatialization();
 			const FVector LeftChannelSourceLoc = LeftChannelSourceLocation;
 			const FVector RightChannelSourceLoc = RightChannelSourceLocation;
-
-			FAudioThread::RunCommandOnGameThread([AudioComponentID, Sound, bSpatialized, Location, LeftChannelSourceLoc, RightChannelSourceLoc]()
+			const float Volume = WaveInstance->GetActualVolume();
+			FAudioThread::RunCommandOnGameThread([AudioComponentID, Sound, bSpatialized, Location, LeftChannelSourceLoc, RightChannelSourceLoc, Volume]()
 			{
 				UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID);
 				if (AudioComponent)
@@ -447,7 +448,8 @@ void FSoundSource::DrawDebugInfo()
 						}
 
 						const FString Name = Sound->GetName();
-						DrawDebugString(SoundWorld, AudioComponent->GetComponentLocation() + FVector(0, 0, 32), *Name, nullptr, FColor::White, 0.033, false);
+						const FString Description = FString::Printf(TEXT("%s (%.3f)"), *Name, Volume);
+						DrawDebugString(SoundWorld, AudioComponent->GetComponentLocation() + FVector(0, 0, 32), *Description, nullptr, FColor::White, 0.033, false);
 					}
 				}
 			}, GET_STATID(STAT_AudioDrawSourceDebugInfo));
@@ -819,6 +821,7 @@ FWaveInstance::FWaveInstance( FActiveSound* InActiveSound )
 	, StereoSpread(0.0f)
 	, AttenuationDistance(0.0f)
 	, ListenerToSoundDistance(0.0f)
+	, ListenerToSoundDistanceForPanning(0.0f)
 	, AbsoluteAzimuth(0.0f)
 	, PlaybackTime(0.0f)
 	, ReverbSendMethod(EReverbSendMethod::Linear)

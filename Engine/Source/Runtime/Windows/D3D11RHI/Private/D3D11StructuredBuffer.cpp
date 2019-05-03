@@ -161,7 +161,7 @@ void* FD3D11DynamicRHI::RHILockStructuredBuffer(FStructuredBufferRHIParamRef Str
 	}
 
 	// Add the lock to the lock map.
-	GetThreadLocalLockTracker().Add(LockedKey,LockedData);
+	AddLockedData(LockedKey, LockedData);
 
 	// Return the offset pointer
 	return (void*)((uint8*)LockedData.GetData() + Offset);
@@ -177,10 +177,8 @@ void FD3D11DynamicRHI::RHIUnlockStructuredBuffer(FStructuredBufferRHIParamRef St
 	const bool bIsDynamic = (Desc.Usage == D3D11_USAGE_DYNAMIC);
 
 	// Find the outstanding lock for this VB.
-	FD3D11LockTracker& OutstandingLocks = GetThreadLocalLockTracker();
-	FD3D11LockedKey LockedKey(StructuredBuffer->Resource);
-	FD3D11LockedData* LockedData = OutstandingLocks.Find(LockedKey);
-	checkf(LockedData, TEXT("Structured buffer is either not locked or locked on a different thread"));
+	FD3D11LockedData LockedData;
+	verifyf(RemoveLockedData(FD3D11LockedKey(StructuredBuffer->Resource), LockedData), TEXT("Structured buffer is not locked"));
 
 	if(bIsDynamic)
 	{
@@ -190,23 +188,19 @@ void FD3D11DynamicRHI::RHIUnlockStructuredBuffer(FStructuredBufferRHIParamRef St
 	else
 	{
 		// If the static VB lock involved a staging resource, it was locked for reading.
-		if(LockedData->StagingResource)
+		if(LockedData.StagingResource)
 		{
 			// Unmap the staging buffer's memory.
-			ID3D11Buffer* StagingBuffer = (ID3D11Buffer*)LockedData->StagingResource.GetReference();
+			ID3D11Buffer* StagingBuffer = (ID3D11Buffer*)LockedData.StagingResource.GetReference();
 			Direct3DDeviceIMContext->Unmap(StagingBuffer,0);
 		}
 		else 
 		{
 			// Copy the contents of the temporary memory buffer allocated for writing into the VB.
-			Direct3DDeviceIMContext->UpdateSubresource(StructuredBuffer->Resource,LockedKey.Subresource,NULL,LockedData->GetData(),LockedData->Pitch,0);
+			Direct3DDeviceIMContext->UpdateSubresource(StructuredBuffer->Resource,0,NULL,LockedData.GetData(),LockedData.Pitch,0);
 
 			// Free the temporary memory buffer.
-			LockedData->FreeData();
+			LockedData.FreeData();
 		}
 	}
-
-	// Remove the FD3D11LockedData from the lock map.
-	// If the lock involved a staging resource, this releases it.
-	OutstandingLocks.Remove(LockedKey);
 }

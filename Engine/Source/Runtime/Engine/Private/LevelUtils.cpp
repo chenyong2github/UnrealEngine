@@ -333,6 +333,19 @@ void FLevelUtils::SetEditorTransform(ULevelStreaming* StreamingLevel, const FTra
 	const FScopedTransaction LevelOffsetTransaction( LOCTEXT( "ChangeEditorLevelTransform", "Edit Level Transform" ) );
 	StreamingLevel->Modify();
 
+	// Ensure that all Actors are in the transaction so that their location is restored and any construction script behaviors 
+	// based on being at a different location are correctly applied on undo/redo
+	if (ULevel* LoadedLevel = StreamingLevel->GetLoadedLevel())
+	{
+		for (AActor* Actor : LoadedLevel->Actors)
+		{
+			if (Actor)
+			{
+				Actor->Modify();
+			}
+		}
+	}
+
 	// Apply new transform
 	RemoveEditorTransform(StreamingLevel, false );
 	StreamingLevel->LevelTransform = Transform;

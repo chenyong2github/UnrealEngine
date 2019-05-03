@@ -12,7 +12,7 @@ class UPartyMember;
 class IOnlinePartySystem;
 class FOnlinePartyData;
 
-enum class EJoinPartyCompletionResult;
+enum class EJoinPartyCompletionResult : int8;
 
 UENUM()
 enum class EPartyType : uint8
@@ -263,15 +263,15 @@ struct FPartyPrivacySettings
 public:
 	/** The type of party in terms of advertised joinability restrictions */
 	UPROPERTY()
-	EPartyType PartyType = EPartyType::FriendsOnly;
+	EPartyType PartyType = EPartyType::Private;
 
 	/** Who is allowed to send invitataions to the party? */
 	UPROPERTY()
-	EPartyInviteRestriction PartyInviteRestriction = EPartyInviteRestriction::AnyMember;
+	EPartyInviteRestriction PartyInviteRestriction = EPartyInviteRestriction::NoInvites;
 
 	/** True to restrict the party exclusively to friends of the party leader */
 	UPROPERTY()
-	bool bOnlyLeaderFriendsCanJoin = false;
+	bool bOnlyLeaderFriendsCanJoin = true;
 
 	bool operator==(const FPartyPrivacySettings& Other) const;
 	bool operator!=(const FPartyPrivacySettings& Other) const { return !operator==(Other); }
@@ -408,7 +408,8 @@ protected:
 	virtual bool CanEditData() const { return false; }
 	virtual const USocialParty* GetOwnerParty() const { return nullptr; }
 
-	void LogPropertyChanged(const TCHAR* OwningStructTypeName, const TCHAR* ProperyName, bool bFromReplication) const;
+	void LogSetPropertyFailure(const TCHAR* OwningStructTypeName, const TCHAR* PropertyName) const;
+	void LogPropertyChanged(const TCHAR* OwningStructTypeName, const TCHAR* PropertyName, bool bFromReplication) const;
 
 	friend class FPartyDataReplicatorHelper;
 	template <typename> friend class TPartyDataReplicator;
@@ -459,21 +460,28 @@ EXPOSE_REP_DATA_PROPERTY_NO_SETTER(Owner, PropertyType, Property);	\
 SetterPrivacy:	\
 	void Set##Property(Property##ArgType New##Property)	\
 	{	\
-		if (CanEditData() && Property != New##Property)	\
+		if (CanEditData())	\
 		{	\
-			LogPropertyChanged(TEXT(#Owner), TEXT(#Property), false);	\
-			if (On##Property##ChangedDif().IsBound())	\
+			if (Property != New##Property)	\
 			{	\
-				PropertyType OldValue = Property;	\
-				Property = New##Property;	\
-				On##Property##ChangedDif().Broadcast(Property, OldValue);	\
+				LogPropertyChanged(TEXT(#Owner), TEXT(#Property), false);	\
+				if (On##Property##ChangedDif().IsBound())	\
+				{	\
+					PropertyType OldValue = Property;	\
+					Property = New##Property;	\
+					On##Property##ChangedDif().Broadcast(Property, OldValue);	\
+				}	\
+				else	\
+				{	\
+					Property = New##Property;	\
+				}	\
+				On##Property##Changed().Broadcast(Property);	\
+				OnDataChanged.ExecuteIfBound();	\
 			}	\
-			else	\
-			{	\
-				Property = New##Property;	\
-			}	\
-			On##Property##Changed().Broadcast(Property);	\
-			OnDataChanged.ExecuteIfBound();	\
+		}	\
+		else	\
+		{	\
+			LogSetPropertyFailure(TEXT(#Owner), TEXT(#Property));	\
 		}	\
 	}	\
 private: //

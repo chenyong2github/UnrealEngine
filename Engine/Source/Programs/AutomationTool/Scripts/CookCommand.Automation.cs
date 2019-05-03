@@ -161,8 +161,8 @@ public partial class Project : CommandUtils
                 }
 				if ( Params.HasIterateSharedCookedBuild)
 				{
-					SharedCookedBuild.CopySharedCookedBuild(Params);
-					CommandletParams += " -iteratesharedcookedbuild";					
+					new SharedCookedBuild(Params).CopySharedCookedBuilds();
+					CommandletParams += " -iteratesharedcookedbuild";
 				}
 
 				if (Params.CookMapsOnly)

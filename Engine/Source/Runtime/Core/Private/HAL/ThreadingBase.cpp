@@ -214,7 +214,7 @@ const FString& FThreadManager::GetThreadName(uint32 ThreadId)
 	return NoThreadName;
 }
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_MAC
 static void GetAllThreadStackBackTraces_ProcessSingle(
 	uint32 CurThreadId,
 	uint32 ThreadId,

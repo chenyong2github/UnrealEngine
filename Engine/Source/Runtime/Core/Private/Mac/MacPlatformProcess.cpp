@@ -16,6 +16,7 @@
 #include <mach/thread_act.h>
 #include <mach/thread_policy.h>
 #include <libproc.h>
+#include <cpuid.h>
 #include "Apple/PostAppleSystemHeaders.h"
 
 void* FMacPlatformProcess::GetDllHandle( const TCHAR* Filename )
@@ -658,6 +659,13 @@ uint32 FMacPlatformProcess::GetCurrentProcessId()
 	return getpid();
 }
 
+uint32 FMacPlatformProcess::GetCurrentCoreNumber()
+{
+	int CPUInfo[4];
+	__cpuid(1, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
+	return (CPUInfo[1] >> 24) & 0xff;
+}
+
 bool FMacPlatformProcess::GetProcReturnCode( FProcHandle& ProcessHandle, int32* ReturnCode )
 {
 	SCOPED_AUTORELEASE_POOL;
@@ -732,31 +740,50 @@ const TCHAR* FMacPlatformProcess::BaseDir()
 	if (!Result[0])
 	{
 		SCOPED_AUTORELEASE_POOL;
-		NSFileManager* FileManager = [NSFileManager defaultManager];
-		NSString *BasePath = [[NSBundle mainBundle] bundlePath];
-		// If it has .app extension, it's a bundle, otherwise BasePath is a full path to Binaries/Mac (in case of command line tools)
-		if ([[BasePath pathExtension] isEqual: @"app"])
+		
+		FString CommandLine = [[[NSProcessInfo processInfo] arguments] componentsJoinedByString:@" "];
+	
+		FString BaseArg;
+		FParse::Value(*CommandLine, TEXT("-basedir="), BaseArg);
+
+		if (BaseArg.Len())
 		{
-			NSString* BundledBinariesPath = NULL;
-			if (!FApp::IsProjectNameEmpty())
-			{
-				BundledBinariesPath = [BasePath stringByAppendingPathComponent : [NSString stringWithFormat : @"Contents/UE4/%s/Binaries/Mac", TCHAR_TO_UTF8(FApp::GetProjectName())]];
-			}
-			if (!BundledBinariesPath || ![FileManager fileExistsAtPath:BundledBinariesPath])
-			{
-				BundledBinariesPath = [BasePath stringByAppendingPathComponent: @"Contents/UE4/Engine/Binaries/Mac"];
-			}
-			if ([FileManager fileExistsAtPath: BundledBinariesPath])
-			{
-				BasePath = BundledBinariesPath;
-			}
-			else
-			{
-				BasePath = [BasePath stringByDeletingLastPathComponent];
-			}
+			BaseArg = BaseArg.Replace(TEXT("\\"), TEXT("/"));
+			BaseArg += TEXT('/');
+			FCString::Strcpy(Result, *BaseArg);
+			
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("BaseDir set to %s"), Result);
 		}
-		FCString::Strcpy(Result, MAC_MAX_PATH, *FString(BasePath));
-		FCString::Strcat(Result, TEXT("/"));
+		else
+		{
+			NSFileManager* FileManager = [NSFileManager defaultManager];
+			NSString *BasePath = [[NSBundle mainBundle] bundlePath];
+			// If it has .app extension, it's a bundle, otherwise BasePath is a full path to Binaries/Mac (in case of command line tools)
+			if ([[BasePath pathExtension] isEqual: @"app"])
+			{
+				NSString* BundledBinariesPath = NULL;
+				if (!FApp::IsProjectNameEmpty())
+				{
+					BundledBinariesPath = [BasePath stringByAppendingPathComponent : [NSString stringWithFormat : @"Contents/UE4/%s/Binaries/Mac", TCHAR_TO_UTF8(FApp::GetProjectName())]];
+				}
+				if (!BundledBinariesPath || ![FileManager fileExistsAtPath:BundledBinariesPath])
+				{
+					BundledBinariesPath = [BasePath stringByAppendingPathComponent: @"Contents/UE4/Engine/Binaries/Mac"];
+				}
+				if ([FileManager fileExistsAtPath: BundledBinariesPath])
+				{
+					BasePath = BundledBinariesPath;
+				}
+				else
+				{
+					BasePath = [BasePath stringByDeletingLastPathComponent];
+				}
+			}
+		
+			FCString::Strcpy(Result, MAC_MAX_PATH, *FString(BasePath));
+			FCString::Strcat(Result, TEXT("/"));
+			
+		}
 	}
 	return Result;
 }

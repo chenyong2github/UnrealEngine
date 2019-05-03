@@ -138,6 +138,81 @@ FString FPartyInvitationRecipient::ToDebugString() const
 	return FString::Printf(TEXT("Id=[%s], PlatformData=[%s]"), *Id->ToDebugString(), *PlatformData);
 }
 
+bool IOnlinePartySystem::GetPartyMembers(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, TArray<TSharedRef<FOnlinePartyMember>>& OutPartyMembersArray) const
+{
+	TArray<FOnlinePartyMemberConstRef> ConstMembers;
+	const bool bResult = GetPartyMembers(LocalUserId, PartyId, ConstMembers);
+	OutPartyMembersArray.Empty(ConstMembers.Num());
+	if (bResult)
+	{
+		for (const FOnlinePartyMemberConstRef& ConstMember : ConstMembers)
+		{
+			OutPartyMembersArray.Emplace(ConstCastSharedRef<FOnlinePartyMember>(ConstMember));
+		}
+	}
+	return bResult;
+}
+
+bool IOnlinePartySystem::GetPendingInvites(const FUniqueNetId& LocalUserId, TArray<TSharedRef<IOnlinePartyJoinInfo>>& OutPendingInvitesArray) const
+{
+	TArray<IOnlinePartyJoinInfoConstRef> ConstJoinInfos;
+	const bool bResult = GetPendingInvites(LocalUserId, ConstJoinInfos);
+	OutPendingInvitesArray.Empty(ConstJoinInfos.Num());
+	if (bResult)
+	{
+		for (const IOnlinePartyJoinInfoConstRef& ConstJoinInfo : ConstJoinInfos)
+		{
+			OutPendingInvitesArray.Emplace(ConstCastSharedRef<IOnlinePartyJoinInfo>(ConstJoinInfo));
+		}
+	}
+	return bResult;
+}
+
+bool IOnlinePartySystem::GetPendingJoinRequests(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, TArray<TSharedRef<IOnlinePartyPendingJoinRequestInfo>>& OutPendingJoinRequestArray) const
+{
+	TArray<IOnlinePartyPendingJoinRequestInfoConstRef> ConstJoinRequests;
+	const bool bResult = GetPendingJoinRequests(LocalUserId, PartyId, ConstJoinRequests);
+	OutPendingJoinRequestArray.Empty(ConstJoinRequests.Num());
+	if (bResult)
+	{
+		for (const IOnlinePartyPendingJoinRequestInfoConstRef& ConstJoinRequest : ConstJoinRequests)
+		{
+			OutPendingJoinRequestArray.Emplace(ConstCastSharedRef<IOnlinePartyPendingJoinRequestInfo>(ConstJoinRequest));
+		}
+	}
+	return bResult;
+}
+
+FDelegateHandle IOnlinePartySystem::AddOnPartyConfigChangedDelegate_Handle(const FOnPartyConfigChangedDelegate& Delegate)
+{
+	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FPartyConfiguration& PartyConfig)
+	{
+		TSharedRef<FPartyConfiguration> PartyConfigurationRef((const_cast<FPartyConfiguration&>(PartyConfig)).AsShared());
+		Delegate.ExecuteIfBound(LocalUserId, PartyId, PartyConfigurationRef);
+	};
+	return OnPartyConfigChangedDelegates.Add(FOnPartyConfigChangedConstDelegate::CreateLambda(DeprecationHelperLambda));
+}
+
+FDelegateHandle IOnlinePartySystem::AddOnPartyDataReceivedDelegate_Handle(const FOnPartyDataReceivedDelegate& Delegate)
+{
+	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FOnlinePartyData& PartyData)
+	{
+		TSharedRef<FOnlinePartyData> PartyDataRef((const_cast<FOnlinePartyData&>(PartyData)).AsShared());
+		Delegate.ExecuteIfBound(LocalUserId, PartyId, PartyDataRef);
+	};
+	return OnPartyDataReceivedDelegates.Add(FOnPartyDataReceivedConstDelegate::CreateLambda(DeprecationHelperLambda));
+}
+
+FDelegateHandle IOnlinePartySystem::AddOnPartyMemberDataReceivedDelegate_Handle(const FOnPartyMemberDataReceivedDelegate& Delegate)
+{
+	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& MemberId, const FOnlinePartyData& PartyData)
+	{
+		TSharedRef<FOnlinePartyData> PartyDataRef((const_cast<FOnlinePartyData&>(PartyData)).AsShared());
+		Delegate.ExecuteIfBound(LocalUserId, PartyId, MemberId, PartyDataRef);
+	};
+	return OnPartyMemberDataReceivedDelegates.Add(FOnPartyMemberDataReceivedConstDelegate::CreateLambda(DeprecationHelperLambda));
+}
+
 bool FPartyConfiguration::operator==(const FPartyConfiguration& Other) const
 {
 	return JoinRequestAction == Other.JoinRequestAction &&
@@ -241,6 +316,38 @@ const TCHAR* ToString(const EMemberExitedReason Value)
 	case EMemberExitedReason::Kicked:
 	{
 		return TEXT("Kicked");
+	}
+	}
+	return TEXT("Unknown"); // Same as EMemberExitedReason::Unknown, which is ok because it is only used when we do not have enough information
+}
+
+const TCHAR* ToString(const EPartyInvitationRemovedReason Value)
+{
+	switch (Value)
+	{
+	case EPartyInvitationRemovedReason::Unknown:
+	{
+		return TEXT("Unknown");
+	}
+	case EPartyInvitationRemovedReason::Accepted:
+	{
+		return TEXT("Accepted");
+	}
+	case EPartyInvitationRemovedReason::Declined:
+	{
+		return TEXT("Declined");
+	}
+	case EPartyInvitationRemovedReason::Cleared:
+	{
+		return TEXT("Cleared");
+	}
+	case EPartyInvitationRemovedReason::Expired:
+	{
+		return TEXT("Expired");
+	}
+	case EPartyInvitationRemovedReason::Invalidated:
+	{
+		return TEXT("Invalidated");
 	}
 	}
 	return TEXT("Unknown"); // Same as EMemberExitedReason::Unknown, which is ok because it is only used when we do not have enough information

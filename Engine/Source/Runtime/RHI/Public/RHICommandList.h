@@ -580,6 +580,10 @@ protected:
 		uint32 CachedNumSimultanousRenderTargets = 0;
 		TStaticArray<FRHIRenderTargetView, MaxSimultaneousRenderTargets> CachedRenderTargets;
 		FRHIDepthRenderTargetView CachedDepthStencilTarget;
+		
+		ESubpassHint SubpassHint = ESubpassHint::None;
+		uint8 SubpassIndex = 0;
+
 	} PSOContext;
 
 	void CacheActiveRenderTargets(
@@ -605,6 +609,17 @@ protected:
 		CacheActiveRenderTargets(RTInfo.NumColorRenderTargets, RTInfo.ColorRenderTarget, &RTInfo.DepthStencilRenderTarget);
 	}
 
+	void IncrementSubpass()
+	{
+		PSOContext.SubpassIndex++;
+	}
+	
+	void ResetSubpass(ESubpassHint SubpassHint)
+	{
+		PSOContext.SubpassHint = SubpassHint;
+		PSOContext.SubpassIndex = 0;
+	}
+	
 public:
 	void CopyRenderThreadContexts(const FRHICommandListBase& ParentCommandList)
 	{
@@ -1027,6 +1042,15 @@ struct FRHICommandBeginRenderPass final : public FRHICommand<FRHICommandBeginRen
 struct FRHICommandEndRenderPass final : public FRHICommand<FRHICommandEndRenderPass>
 {
 	FRHICommandEndRenderPass()
+	{
+	}
+
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
+struct FRHICommandNextSubpass final : public FRHICommand<FRHICommandNextSubpass>
+{
+	FRHICommandNextSubpass()
 	{
 	}
 
@@ -2408,6 +2432,9 @@ public:
 		{
 			GraphicsPSOInit.NumSamples = PSOContext.CachedDepthStencilTarget.Texture->GetNumSamples();
 		}
+
+		GraphicsPSOInit.SubpassHint = PSOContext.SubpassHint;
+		GraphicsPSOInit.SubpassIndex = PSOContext.SubpassIndex;
 	}
 
 	UE_DEPRECATED(4.22, "SetRenderTargets API is deprecated; please use RHIBegin/EndRenderPass instead.")
@@ -2919,6 +2946,7 @@ public:
 		Data.bInsideRenderPass = true;
 
 		CacheActiveRenderTargets(InInfo);
+		ResetSubpass(InInfo.SubpassHint);
 		Data.bInsideRenderPass = true;
 	}
 
@@ -2935,6 +2963,21 @@ public:
 			ALLOC_COMMAND(FRHICommandEndRenderPass)();
 		}
 		Data.bInsideRenderPass = false;
+		ResetSubpass(ESubpassHint::None);
+	}
+
+	FORCEINLINE_DEBUGGABLE void NextSubpass()
+	{
+		check(IsInsideRenderPass());
+		if (Bypass())
+		{
+			GetContext().RHINextSubpass();
+		}
+		else
+		{
+			ALLOC_COMMAND(FRHICommandNextSubpass)();
+		}
+		IncrementSubpass();
 	}
 
 	FORCEINLINE_DEBUGGABLE void BeginComputePass(const TCHAR* Name)
@@ -5033,7 +5076,14 @@ private:
 		{
 			Flush();
 		}
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 6385) // Access is alawys in-bound due to the Flush above
+#endif
 		return UpdateInfos[NumBatched++];
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 	}
 };
 

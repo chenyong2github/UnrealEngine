@@ -281,6 +281,19 @@ void FVulkanLayout::Compile(FVulkanDescriptorSetLayoutMap& DSetLayoutMap)
 	VERIFYVULKANRESULT(VulkanRHI::vkCreatePipelineLayout(Device->GetInstanceHandle(), &PipelineLayoutCreateInfo, VULKAN_CPU_ALLOCATOR, &PipelineLayout));
 }
 
+bool FVulkanGfxLayout::UsesInputAttachment(FVulkanShaderHeader::EAttachmentType AttachmentType) const
+{
+	const TArray<FInputAttachmentData>& InputAttachmentData = GfxPipelineDescriptorInfo.GetInputAttachmentData();
+	for (const FInputAttachmentData& Input : InputAttachmentData)
+	{
+		if (Input.Type == AttachmentType)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
 
 uint32 FVulkanDescriptorSetWriter::SetupDescriptorWrites(
 	const TArray<VkDescriptorType>& Types, FVulkanHashableDescriptorInfo* InHashableDescriptorInfos,

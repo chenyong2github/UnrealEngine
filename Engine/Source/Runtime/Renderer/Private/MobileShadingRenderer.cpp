@@ -187,6 +187,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	SCOPED_DRAW_EVENT(RHICmdList, InitViews);
 
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsTime);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(InitViews_Scene);
 
 	FILCUpdatePrimTaskData ILCTaskData;
 	FViewVisibleCommandsPerView ViewCommandsPerView;
@@ -251,17 +252,6 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	OnStartRender(RHICmdList);
 }
 
-static bool AllowDepthFetchFeatures(EShaderPlatform ShaderPlatform, bool bMSAA)
-{
-	if (bMSAA && IsVulkanPlatform(ShaderPlatform))
-	{
-		// TODO: add vulkan sub-passes
-		return false;
-	}
-	
-	return true;
-}
-
 /** 
 * Renders the view family. 
 */
@@ -271,6 +261,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	PrepareViewRectsForRendering();
 
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderOther);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMobileSceneRenderer_Render);
 	//FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
@@ -357,7 +348,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bStereoRenderingAndHMD = View.Family->EngineShowFlags.StereoRendering && View.Family->EngineShowFlags.HMDDistortion;
 	const bool bRenderToSceneColor = bStereoRenderingAndHMD || bRequiresUpscale || FSceneRenderer::ShouldCompositeEditorPrimitives(View) || View.bIsSceneCapture || View.bIsReflectionCapture;
 
-	// Whether we need to render translucency in separate render pass
+	// Whether we need to render translucency in a separate render pass
 	// On mobile it's better to render as much as possible in a single pass
 	const bool bRequiresTranslucencyPass = RequiresTranslucencyPass(RHICmdList, View);
 	// Whether we need to store depth for post-processing
@@ -367,8 +358,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(View);
 	bool bKeepDepthContent = bRenderToSceneColor && 
 		(bForceDepthResolve || bSeparateTranslucencyActive || (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth)));
-	// workaround for corrupted depth on vulkan PC, always store depth
-	bKeepDepthContent|= (IsPCPlatform(ShaderPlatform) && IsVulkanPlatform(ShaderPlatform));
 
 	//
 	FTextureRHIParamRef SceneColor = nullptr;
@@ -389,12 +378,12 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SceneColor = SceneContext.GetSceneColorSurface();
 		bMobileMSAA = SceneColor->GetNumSamples() > 1;
 		SceneColorResolve = bMobileMSAA ? SceneContext.GetSceneColorTexture() : nullptr;
-		ColorTargetAction = SceneColorResolve ? ERenderTargetActions::Clear_Resolve : ERenderTargetActions::Clear_Store;
+		ColorTargetAction = bMobileMSAA ? ERenderTargetActions::Clear_Resolve : ERenderTargetActions::Clear_Store;
 		SceneDepth = SceneContext.GetSceneDepthSurface();
 				
 		if (bRequiresTranslucencyPass)
 		{	
-			// store targets after opaque so trancluceny render pass can be restarted
+			// store targets after opaque so translucency render pass can be restarted
 			ColorTargetAction = ERenderTargetActions::Clear_Store;
 			DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil;
 		}
@@ -415,6 +404,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		nullptr, // we never resolve scene depth on mobile
 		FExclusiveDepthStencil::DepthWrite_StencilWrite
 	);
+	SceneColorRenderPassInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
 	SceneColorRenderPassInfo.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
 	SceneColorRenderPassInfo.bOcclusionQueries = SceneColorRenderPassInfo.NumOcclusionQueries != 0;
 	RHICmdList.BeginRenderPass(SceneColorRenderPassInfo, TEXT("SceneColorRendering"));
@@ -435,6 +425,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ViewExtensionPostRenderBasePass);
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMobileSceneRenderer_ViewExtensionPostRenderBasePass);
 		for (int32 ViewExt = 0; ViewExt < ViewFamily.ViewExtensions.Num(); ++ViewExt)
 		{
@@ -445,17 +436,23 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
+	// scene depth is read only and can be fetched
+	RHICmdList.NextSubpass();
+		
 	// Split if we need to render translucency in a separate render pass
 	if (bRequiresTranslucencyPass)
 	{
 		RHICmdList.EndRenderPass();
 	}
-	
+	   
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Translucency));
 
-	// Restart trancluceny render pass if needed
+		
+	// Restart translucency render pass if needed
 	if (bRequiresTranslucencyPass)
 	{
+		check(RHICmdList.IsOutsideRenderPass());
+
 		// Make a copy of the scene depth if the current hardware doesn't support reading and writing to the same depth buffer
 		ConditionalResolveSceneDepth(RHICmdList, View);
 
@@ -485,16 +482,18 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		TranslucentRenderPassInfo.bOcclusionQueries = false;
 		RHICmdList.BeginRenderPass(TranslucentRenderPassInfo, TEXT("SceneColorTranslucencyRendering"));
 	}
-		
-	if (!View.bIsPlanarReflection && AllowDepthFetchFeatures(ShaderPlatform, bMobileMSAA))
+			
+	if (!View.bIsPlanarReflection)
 	{
 		if (ViewFamily.EngineShowFlags.Decals)
 		{
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDecals);
 			RenderDecals(RHICmdList);
 		}
 
 		if (ViewFamily.EngineShowFlags.DynamicShadows)
 		{
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderShadowProjections);
 			RenderModulatedShadowProjections(RHICmdList);
 		}
 	}
@@ -502,6 +501,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Draw translucency.
 	if (ViewFamily.EngineShowFlags.Translucency)
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderTranslucency);
 		SCOPE_CYCLE_COUNTER(STAT_TranslucencyDrawTime);
 		RenderTranslucency(RHICmdList, ViewList, !bGammaSpace || bRenderToSceneColor);
 		FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
@@ -669,7 +669,13 @@ bool FMobileSceneRenderer::RequiresTranslucencyPass(FRHICommandListImmediate& RH
 	{
 		return false;
 	}
-
+	
+	// Vulkan uses subpasses for depth fetch
+	if (IsVulkanPlatform(ShaderPlatform))
+	{
+		return false;
+	}
+	
 	// Some Androids support frame_buffer_fetch
 	if (IsAndroidOpenGLESPlatform(ShaderPlatform) && (GSupportsShaderFramebufferFetch || GSupportsShaderDepthStencilFetch))
 	{
@@ -691,17 +697,11 @@ bool FMobileSceneRenderer::RequiresTranslucencyPass(FRHICommandListImmediate& RH
 	// MSAA depth can't be sampled or resolved, unless we are on PC (no vulkan)
 	static const auto CVarMobileMSAA = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
 	const bool bMobileMSAA = (CVarMobileMSAA ? CVarMobileMSAA->GetValueOnAnyThread() > 1 : false);
-	if (!AllowDepthFetchFeatures(ShaderPlatform, bMobileMSAA))
-	{
-		return false;
-	}
 	if (bMobileMSAA && !IsSimulatedPlatform(ShaderPlatform))
 	{
 		return false;
 	}
 
-	// TODO: Add vulkan sub-passes
-		
 	return true;
 }
 

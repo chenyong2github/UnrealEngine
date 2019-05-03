@@ -23,7 +23,7 @@ enum class EInstallBundleModuleInitResult : int
 	Count
 };
 
-inline const TCHAR* GetInstallBundleModuleInitResultString(EInstallBundleModuleInitResult Result)
+inline const TCHAR* LexToString(EInstallBundleModuleInitResult Result)
 {
 	using UnderType = __underlying_type(EInstallBundleModuleInitResult);
 	static const TCHAR* Strings[] =
@@ -54,7 +54,7 @@ enum class EInstallBundleResult : int
 	Count,
 };
 
-inline const TCHAR* GetInstallBundleResultString(EInstallBundleResult Result)
+inline const TCHAR* LexToString(EInstallBundleResult Result)
 {
 	using UnderType = __underlying_type(EInstallBundleResult);
 	static const TCHAR* Strings[] =
@@ -107,43 +107,78 @@ ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
 
 enum class EInstallBundleStatus : int
 {
-	NotRequested,
-	RequestedQueued,
+	QueuedForDownload,
 	Downloading,
+	QueuedForInstall,
 	Installing,
+	QueuedForFinish,
 	Finishing,
 	Installed,
+	Count,
 };
 
-struct FInstallBundleProgress
+inline const TCHAR* LexToString(EInstallBundleStatus Status)
+{
+	using UnderType = __underlying_type(EInstallBundleStatus);
+	static const TCHAR* Strings[] =
+	{
+		TEXT("QueuedForDownload"),
+		TEXT("Downloading"),
+		TEXT("QueuedForInstall"),
+		TEXT("Installing"),
+		TEXT("QueuedForFinish"),
+		TEXT("Finishing"),
+		TEXT("Installed"),
+	};
+
+	static_assert(static_cast<UnderType>(EInstallBundleStatus::Count) == ARRAY_COUNT(Strings), "");
+
+	return Strings[static_cast<UnderType>(Status)];
+}
+
+struct FInstallBundleDownloadProgress
 {
 	// Num bytes received
-	uint64 ProgressBytes = 0;
-	// Num bytes written to storage (<= ProgressBytes)
-	uint64 ProgressBytesWritten = 0;
+	uint64 BytesDownloaded = 0;
+	// Num bytes written to storage (<= BytesDownloaded)
+	uint64 BytesDownloadedAndWritten = 0;
 	// Num bytes needed
-	uint64 ProgressTotalBytes = 0;
-	float ProgressPercent = 0;
+	uint64 TotalBytesToDownload = 0;
+	// Num bytes that failed to download
+	uint64 TotalBytesFailedToDownload = 0;
+	float PercentComplete = 0;
 };
 
 struct FInstallBundleStatus
 {
 	FName BundleName;
 
-	EInstallBundleStatus Status = EInstallBundleStatus::NotRequested;
+	EInstallBundleStatus Status = EInstallBundleStatus::QueuedForDownload;
 
 	EInstallBundlePauseFlags PauseFlags = EInstallBundlePauseFlags::None;
 
 	FText StatusText;
 
-	// Progress is only present if Status is Downloading or Installing
-	TOptional<FInstallBundleProgress> Progress;
+	// Download progress of EInstallBundleStatus::Downloading
+	// Will be set if Status >= EInstallBundleStatus::Downloading
+	TOptional<FInstallBundleDownloadProgress> BackgroundDownloadProgress;
+
+	// Download progress of EInstallBundleStatus::Install
+	// Will be set if Status >= EInstallBundleStatus::Install
+	// We may download during install if background downloads are turned off or fail
+	// We may also do small downloads during install as a normal part of installation
+	TOptional<FInstallBundleDownloadProgress> InstallDownloadProgress;
+
+	float Install_Percent = 0;
+
+	float Finishing_Percent = 0;
 };
 
 struct FInstallBundleResultInfo
 {
 	FName BundleName;
 	EInstallBundleResult Result = EInstallBundleResult::OK;
+	bool bIsStartup = false;
 
 	// Currently, these just forward BPT Error info
 	FText OptionalErrorText;
@@ -159,9 +194,25 @@ struct FInstallBundlePauseInfo
 enum class EInstallBundleContentState : int
 {
 	InitializationError,
+	NotInstalled,
 	NeedsUpdate,
 	UpToDate,
+	Count,
 };
+inline const TCHAR* LexToString(EInstallBundleContentState State)
+{
+	using UnderType = __underlying_type(EInstallBundleContentState);
+	static const TCHAR* Strings[] =
+	{
+		TEXT("InitializationError"),
+		TEXT("NotInstalled"),
+		TEXT("NeedsUpdate"),
+		TEXT("UpToDate"),
+	};
+	static_assert(static_cast<UnderType>(EInstallBundleContentState::Count) == ARRAY_COUNT(Strings), "");
+
+	return Strings[static_cast<UnderType>(State)];
+}
 
 struct FInstallBundleContentState
 {

@@ -8,6 +8,7 @@
 #include "NiagaraTypes.h"
 #include "INiagaraCompiler.h"
 #include "AssetTypeCategories.h"
+#include "Logging/TokenizedMessage.h" //@todo(ng) remove this include after moving FNiagaraAssetPathToken to message manager
 
 class IAssetTools;
 class IAssetTypeActions;
@@ -136,4 +137,32 @@ private:
 	IConsoleCommand* DumpRapidIterationParametersForAsset;
 };
 
+//@todo(ng) move to message manager class
+//Extension of FAssetNameToken to allow opening the asset editor when clicking on the linked asset name.
+class FNiagaraAssetNameToken : public IMessageToken
+{
+public:
+	/** Factory method, tokens can only be constructed as shared refs */
+	static TSharedRef<FNiagaraAssetNameToken> Create(const FString& InAssetName, const FText& InMessage = FText());
 
+	/** Begin IMessageToken interface */
+	virtual EMessageToken::Type GetType() const override
+	{
+		return EMessageToken::AssetName;
+	}
+	/** End IMessageToken interface */
+
+private:
+	/** Private constructor */
+	FNiagaraAssetNameToken(const FString& InAssetName, const FText& InMessage);
+
+	/**
+	 * Find and open an asset in editor
+	 * @param	Token		The token that was clicked
+	 * @param	InAssetPath		The asset to find
+	 */
+	static void FindAndOpenAsset(const TSharedRef<IMessageToken>& Token, FString InAssetPath);
+
+	/** The asset name we will find */
+	FString AssetName;
+};

@@ -2,6 +2,7 @@
 
 #include "Units/Math/RigUnit_MathVector.h"
 #include "Units/RigUnitContext.h"
+#include "Math/ControlRigMathLibrary.h"
 
 void FRigUnit_MathVectorFromFloat::Execute(const FRigUnitContext& Context)
 {
@@ -39,10 +40,35 @@ void FRigUnit_MathVectorDiv::Execute(const FRigUnitContext& Context)
 		{
 			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("B.Z is nearly 0.f"));
 		}
-		Result = FVector(0.f, 0.f, 0.f);
+		Result = FVector::ZeroVector;
 		return;
 	}
 	Result = A / B;
+}
+
+void FRigUnit_MathVectorMod::Execute(const FRigUnitContext& Context)
+{
+	if(FMath::IsNearlyZero(B.X) || FMath::IsNearlyZero(B.Y) || FMath::IsNearlyZero(B.Z) || B.X < 0.f || B.Y < 0.f || B.Z < 0.f)
+	{
+		if (FMath::IsNearlyZero(B.X) || B.X < 0.f)
+		{
+			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("B.X needs to be greater than 0"));
+		}
+		if (FMath::IsNearlyZero(B.Y) || B.Y < 0.f)
+		{
+			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("B.Y needs to be greater than 0"));
+		}
+		if (FMath::IsNearlyZero(B.Z) || B.Z < 0.f)
+		{
+			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("B.Z needs to be greater than 0"));
+		}
+		Result = FVector::ZeroVector;
+		return;
+	}
+
+	Result.X = FMath::Fmod(A.X, B.X);
+	Result.Y = FMath::Fmod(A.Y, B.Y);
+	Result.Z = FMath::Fmod(A.Z, B.Z);
 }
 
 void FRigUnit_MathVectorMin::Execute(const FRigUnitContext& Context)
@@ -213,7 +239,7 @@ void FRigUnit_MathVectorUnit::Execute(const FRigUnitContext& Context)
 	if (Value.IsNearlyZero())
 	{
 		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Value is nearly zero"));
-		Result = FVector(0.f, 0.f, 0.f);
+		Result = FVector::ZeroVector;
 		return;
 	}
 	Result = Value.GetUnsafeNormal();
@@ -224,7 +250,7 @@ void FRigUnit_MathVectorMirror::Execute(const FRigUnitContext& Context)
 	if (Normal.IsNearlyZero())
 	{
 		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Normal is nearly zero"));
-		Result = FVector(0.f, 0.f, 0.f);
+		Result = FVector::ZeroVector;
 		return;
 	}
 	Result = Value.MirrorByVector(Normal.GetSafeNormal());
@@ -286,11 +312,5 @@ void FRigUnit_MathVectorOrthogonal::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_MathVectorBezierFourPoint::Execute(const FRigUnitContext& Context)
 {
-	const FVector AB = FMath::Lerp<FVector>(A, B, T);
-	const FVector BC = FMath::Lerp<FVector>(B, C, T);
-	const FVector CD = FMath::Lerp<FVector>(C, D, T);
-	const FVector ABBC = FMath::Lerp<FVector>(AB, BC, T);
-	const FVector BCCD = FMath::Lerp<FVector>(BC, CD, T);
-	Result = FMath::Lerp<FVector>(ABBC, BCCD, T);
-	Tangent = (BCCD - ABBC).GetSafeNormal();
+	FControlRigMathLibrary::FourPointBezier(Bezier, T, Result, Tangent);
 }

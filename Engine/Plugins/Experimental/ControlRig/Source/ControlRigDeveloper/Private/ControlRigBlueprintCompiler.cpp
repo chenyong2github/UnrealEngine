@@ -114,7 +114,7 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 	if (ControlRigBlueprint)
 	{
 		// create sorted graph
-		TArray<FControlRigOperator>& Operators = ControlRigBlueprint->Operators;
+		TArray<FControlRigOperator>& Operators = ControlRigBlueprint->GetControlRigBlueprintGeneratedClass()->Operators;
 		const TArray<FControlRigBlueprintPropertyLink>& PropertyLinks = ControlRigBlueprint->PropertyLinks;
 
 		TArray<FName> UnitNames;
@@ -144,9 +144,9 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 		if (Operators.Num() > 1) // 1 is the "done" operator
 		{
 			bIsFromVersionBeforeBeginExecution = true;
-			for (const FControlRigOperator& Operator : ControlRigBlueprint->Operators)
+			for (const FControlRigOperator& Operator : Operators)
 			{
-				FName UnitName = *Operator.PropertyPath1;
+				FName UnitName = *Operator.CachedPropertyPath1.ToString();
 				UStructProperty* StructProperty = Cast<UStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(UnitName));
 				if (StructProperty)
 				{
@@ -181,7 +181,7 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 						IsMutableUnit = true;
 					}
 				}
-				SortGraph.AddNode(IsMutableUnit);
+				SortGraph.AddNode(IsMutableUnit, UnitNames[UnitIndex]);
 			}
 
 			// add all of the links
@@ -197,14 +197,14 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 			// enable this for creating a new test case
 			//SortGraph.DumpDag();
 
-			TArray<int32> UnitOrder, UnitCycle;
+			TArray<FControlRigDAG::FNode> UnitOrder, UnitCycle;
 			if (!SortGraph.TopologicalSort(UnitOrder, UnitCycle))
 			{
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 				TSet<FName> UnitNamesInCycle;
-				for (int32 IndexInCycle : UnitCycle)
+				for (const FControlRigDAG::FNode& NodeInCycle : UnitCycle)
 				{
-					UnitNamesInCycle.Add(UnitNames[IndexInCycle]);
+					UnitNamesInCycle.Add(NodeInCycle.Name);
 				}
 
 				for (UEdGraph* UbergraphPage : Blueprint->UbergraphPages)
@@ -238,7 +238,7 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 				return;
 			}
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 			// clear the errors on the graph
 			for (UEdGraph* UbergraphPage : Blueprint->UbergraphPages)
 			{
@@ -258,26 +258,26 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 			}
 
 			int32 SortedPropertyLinkIndex = 1;
-			for (const int32 UnitIndex : UnitOrder)
+			for (const FControlRigDAG::FNode Node : UnitOrder)
 			{
-				UE_LOG(LogControlRigCompiler, Log, TEXT("%d. %s"), SortedPropertyLinkIndex++, *UnitNames[UnitIndex].ToString());
-				for (FControlRigDAG::FPinMap::TConstIterator Iter = SortGraph.NodeOutputs[UnitIndex].CreateConstIterator(); Iter; ++Iter)
+				UE_LOG(LogControlRigCompiler, Log, TEXT("%d. %s"), SortedPropertyLinkIndex++, *Node.Name.ToString());
+				for (const FControlRigDAG::FPin& Pin : Node.Outputs)
 				{
-					int32 Index = Iter.Value().Link;
+					const int32 Index = Pin.Link;
 					UE_LOG(LogControlRigCompiler, Log, TEXT("%d. %s -> %s"), SortedPropertyLinkIndex++, *PropertyLinks[Index].GetSourcePropertyPath(), *PropertyLinks[Index].GetDestPropertyPath());
 				}
 			}
 #endif
 
-			for (const int32 UnitIndex : UnitOrder)
+			for (const FControlRigDAG::FNode Node : UnitOrder)
 			{
 				// copy all properties not originating from a unit
-				for (FControlRigDAG::FPinMap::TConstIterator Iter = SortGraph.NodeOutputs[UnitIndex].CreateConstIterator(); Iter; ++Iter)
+				for (const FControlRigDAG::FPin& Pin : Node.Outputs)
 				{
-					int32 PropertyLinkIndex = Iter.Value().Link;
+					const int32 PropertyLinkIndex = Pin.Link;
 					const FControlRigBlueprintPropertyLink& Link = PropertyLinks[PropertyLinkIndex];
 					FString SourceUnitName = Link.GetSourceUnitName();
-					UStructProperty* StructProperty = Cast<UStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(UnitNames[UnitIndex]));
+					UStructProperty* StructProperty = Cast<UStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(Node.Name));
 					if (StructProperty)
 					{
 						if (StructProperty->Struct->IsChildOf(FRigUnit::StaticStruct()))
@@ -289,19 +289,19 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 					Operators.Add(FControlRigOperator(EControlRigOpCode::Copy, Link.GetSourcePropertyPath(), Link.GetDestPropertyPath()));
 				}
 
-				UStructProperty* StructProperty = Cast<UStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(UnitNames[UnitIndex]));
+				UStructProperty* StructProperty = Cast<UStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(Node.Name));
 				if (StructProperty)
 				{
 					if (StructProperty->Struct->IsChildOf(FRigUnit::StaticStruct()))
 					{
-						Operators.Add(FControlRigOperator(EControlRigOpCode::Exec, UnitNames[UnitIndex].ToString(), TEXT("")));
+						Operators.Add(FControlRigOperator(EControlRigOpCode::Exec, Node.Name.ToString(), FCachedPropertyPath()));
 					}
 				}
 
 				// copy all properties to outputs
-				for (FControlRigDAG::FPinMap::TConstIterator Iter = SortGraph.NodeOutputs[UnitIndex].CreateConstIterator(); Iter; ++Iter)
+				for (const FControlRigDAG::FPin& Pin : Node.Outputs)
 				{
-					int32 PropertyLinkIndex = Iter.Value().Link;
+					const int32 PropertyLinkIndex = Pin.Link;
 					const FControlRigBlueprintPropertyLink& Link = PropertyLinks[PropertyLinkIndex];
 					Operators.Add(FControlRigOperator(EControlRigOpCode::Copy, Link.GetSourcePropertyPath(), Link.GetDestPropertyPath()));
 				}
@@ -415,7 +415,6 @@ void FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObjec
 	if (ControlRigBlueprint)
 	{
 		UControlRig* ControlRig = CastChecked<UControlRig>(DefaultObject);
-		ControlRig->Operators = ControlRigBlueprint->Operators;
 		ControlRig->Hierarchy.BaseHierarchy = ControlRigBlueprint->Hierarchy;
 		// copy available rig units info, so that control rig can do things with it
 		ControlRig->AllowSourceAccessProperties = ControlRigBlueprint->AllowSourceAccessProperties;

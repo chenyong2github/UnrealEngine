@@ -6,6 +6,7 @@
 #include "Layout/Visibility.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Input/SComboBox.h"
 #include "BlueprintEditor.h"
 
 class KISMET_API SBlueprintEditorSelectedDebugObjectWidget : public SCompoundWidget
@@ -61,6 +62,16 @@ private:
 	const FString& GetDebugAllWorldsString() const;
 
 	TSharedRef<SWidget> OnGetActiveDetailSlotContent(bool bChangedToHighDetail);
+
+	/** Helper method to construct a debug object label string */
+	FString MakeDebugObjectLabel(UObject* TestObject, bool bAddContextIfSelectedInEditor) const;
+
+	/** Called to create a widget for each debug object item */
+	TSharedRef<SWidget> CreateDebugObjectItemWidget(TSharedPtr<FString> InItem);
+
+	/** Returns the combo button label to use for the currently-selected debug object item */
+	FText GetSelectedDebugObjectTextLabel() const;
+
 private:
 	/** Pointer back to the blueprint editor tool that owns us */
 	TWeakPtr<FBlueprintEditor> BlueprintEditor;
@@ -73,8 +84,8 @@ private:
 	TArray< TWeakObjectPtr<UWorld> > DebugWorlds;
 	TArray< TSharedPtr<FString> > DebugWorldNames;
 
-	/** Widget containing the names of all possible debug actors */
-	TSharedPtr<STextComboBox> DebugObjectsComboBox;
+	/** Widget containing the names of all possible debug actors. This is a "generic" SComboBox rather than an STextComboBox so that we can customize the label on the combo button widget. */
+	TSharedPtr<SComboBox<TSharedPtr<FString>>> DebugObjectsComboBox;
 
 	TSharedPtr<STextComboBox> DebugWorldsComboBox;
 

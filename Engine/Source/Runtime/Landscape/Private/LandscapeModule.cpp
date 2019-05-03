@@ -112,25 +112,7 @@ void GetLandscapeTexturesAndMaterials(ULevel* Level, TArray<UObject*>& OutTextur
 		if (LandscapeComponent)
 		{
 			LandscapeComponent->GetGeneratedTexturesAndMaterialInstances(OutTexturesAndMaterials);
-		}
-
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(ObjInLevel);
-
-			if (Landscape != nullptr)
-			{
-				for (auto& ItLayerDataPair : Landscape->LandscapeLayersData)
-				{
-					for (auto& ItHeightmapPair : ItLayerDataPair.Value.Heightmaps)
-					{
-						OutTexturesAndMaterials.AddUnique(ItHeightmapPair.Value);
-					}
-
-					// TODO: add support for weightmap
-				}
-			}
-		}
+		}		
 	}
 }
 
@@ -151,6 +133,7 @@ void WorldRenameEventFunction(UWorld* World, const TCHAR* InName, UObject* NewOu
 	UPackage* PersistentLevelPackage = World->PersistentLevel->GetOutermost();
 	for (auto* OldTexOrMat : LandscapeTexturesAndMaterials)
 	{
+		// Now that landscape textures and materials are properly parented, this should not be necessary anymore
 		if (OldTexOrMat && OldTexOrMat->GetOuter() == PersistentLevelPackage)
 		{
 			// The names for these objects are not important, just generate a new name to avoid collisions
@@ -191,32 +174,6 @@ void WorldDuplicateEventFunction(UWorld* World, bool bDuplicateForPIE, TMap<UObj
 	{
 		AddPerWorldLandscapeData(World);
 	}
-
-#if WITH_EDITOR
-	if (!bDuplicateForPIE)
-	{
-		UPackage* WorldPackage = World->GetOutermost();
-
-		// Also duplicate all textures and materials used by landscape components
-		TArray<UObject*> LandscapeTexturesAndMaterials;
-		GetLandscapeTexturesAndMaterials(World->PersistentLevel, LandscapeTexturesAndMaterials);
-		for (auto* OldTexOrMat : LandscapeTexturesAndMaterials)
-		{
-			if (OldTexOrMat && OldTexOrMat->GetOuter() != WorldPackage)
-			{
-				// The names for these objects are not important, just generate a new name to avoid collisions
-				UObject* NewTextureOrMaterial = StaticDuplicateObject(OldTexOrMat, WorldPackage);
-				ReplacementMap.Add(OldTexOrMat, NewTextureOrMaterial);
-
-				// Materials hold references to the textures being moved, so they will need references fixed up as well
-				if (OldTexOrMat->IsA(UMaterialInterface::StaticClass()))
-				{
-					ObjectsToFixReferences.Add(NewTextureOrMaterial);
-				}
-			}
-		}
-	}
-#endif // WITH_EDITOR
 }
 
 void FLandscapeModule::StartupModule()

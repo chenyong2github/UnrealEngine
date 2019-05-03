@@ -110,6 +110,8 @@ ACharacter::ACharacter(const FObjectInitializer& ObjectInitializer)
 
 void ACharacter::PostInitializeComponents()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_Character_PostInitComponents);
+
 	Super::PostInitializeComponents();
 
 	if (!IsPendingKill())

@@ -7,7 +7,13 @@
 #pragma once
 
 // Dependencies
-#include "VulkanRHI.h"
+#include "VulkanGlobals.h"
+#include "VulkanConfiguration.h"
+#include "VulkanState.h"
+#include "VulkanResources.h"
+#include "VulkanUtil.h"
+#include "VulkanViewport.h"
+#include "VulkanDynamicRHI.h"
 #include "VulkanPipeline.h"
 #include "VulkanGlobalUniformBuffer.h"
 #include "VulkanPipelineState.h"
@@ -245,12 +251,8 @@ public:
 		bDirtyVertexStreams = true;
 	}
 
-	inline void Bind(VkCommandBuffer CmdBuffer, FVulkanFramebuffer* Framebuffer)
+	inline void Bind(VkCommandBuffer CmdBuffer)
 	{
-		if (CurrentPipeline->bHasInputAttachments)
-		{
-			UpdateInputAttachments(Framebuffer);
-		}
 		CurrentPipeline->Bind(CmdBuffer);
 	}
 

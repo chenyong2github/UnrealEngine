@@ -5,7 +5,7 @@
 
 FString FRigUnit_GetRelativeBoneTransform::GetUnitLabel() const
 {
-	return FString::Printf(TEXT("Get %s Relative"), *Bone.ToString());
+	return FString::Printf(TEXT("Get Relative Transform %s"), *Bone.ToString());
 }
 
 void FRigUnit_GetRelativeBoneTransform::Execute(const FRigUnitContext& Context)
@@ -20,9 +20,6 @@ void FRigUnit_GetRelativeBoneTransform::Execute(const FRigUnitContext& Context)
 			{
 				CachedBoneIndex = Hierarchy->GetIndex(Bone);
 				CachedSpaceIndex = Hierarchy->GetIndex(Space);
-
-				// todo: error reporting
-				break;
 			}
 			case EControlRigState::Update:
 			{

@@ -143,6 +143,8 @@ struct ENGINE_API FPerPlatformInt
 	:	Default(InDefaultValue)
 	{
 	}
+
+	FString ToString() const;
 };
 extern template ENGINE_API FArchive& operator<<(FArchive&, TPerPlatformProperty<FPerPlatformInt, int32, NAME_IntProperty>&);
 extern template ENGINE_API void operator<<(FStructuredArchive::FSlot Slot, TPerPlatformProperty<FPerPlatformInt, int32, NAME_IntProperty>&);

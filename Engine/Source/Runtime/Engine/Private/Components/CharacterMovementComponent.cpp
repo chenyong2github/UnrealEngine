@@ -3293,7 +3293,7 @@ void UCharacterMovementComponent::RequestDirectMove(const FVector& MoveVelocity,
 		return;
 	}
 
-	if (IsFalling())
+	if (ShouldPerformAirControlForPathFollowing())
 	{
 		const FVector FallVelocity = MoveVelocity.GetClampedToMaxSize(GetMaxSpeed());
 		PerformAirControlForPathFollowing(FallVelocity, FallVelocity.Z);
@@ -3308,6 +3308,11 @@ void UCharacterMovementComponent::RequestDirectMove(const FVector& MoveVelocity,
 	{
 		RequestedVelocity.Z = 0.0f;
 	}
+}
+
+bool UCharacterMovementComponent::ShouldPerformAirControlForPathFollowing() const
+{
+	return IsFalling();
 }
 
 void UCharacterMovementComponent::RequestPathMove(const FVector& MoveInput)

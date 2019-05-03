@@ -7,9 +7,10 @@
 #include "SocialDebugTools.generated.h"
 
 class IOnlineSubsystem;
-class IOnlinePartyJoinInfo;
 class FOnlineAccountCredentials;
-class FOnlinePartyData;
+typedef TSharedPtr<const class IOnlinePartyJoinInfo> IOnlinePartyJoinInfoConstPtr;
+typedef TSharedPtr<class FOnlinePartyData> FOnlinePartyDataPtr;
+typedef TSharedPtr<const class FOnlinePartyData> FOnlinePartyDataConstPtr;
 
 UCLASS(Within = SocialManager, Config = Game)
 class PARTY_API USocialDebugTools : public UObject, public FExec
@@ -41,6 +42,9 @@ public:
 	DECLARE_DELEGATE_OneParam(FLeavePartyComplete, bool);
 	virtual void LeaveParty(const FString& Instance, const FLeavePartyComplete& OnComplete);
 
+	DECLARE_DELEGATE_OneParam(FCleanupPartiesComplete, bool);
+	virtual void CleanupParties(const FString& Instance, const FCleanupPartiesComplete& OnComplete);
+
 	DECLARE_DELEGATE_OneParam(FSetPartyMemberDataComplete, bool);
 	virtual void SetPartyMemberData(const FString& Instance, const UStruct* StructType, const void* StructData, const FSetPartyMemberDataComplete& OnComplete);
 	virtual void SetPartyMemberDataJson(const FString& Instance, const FString& JsonStr, const FSetPartyMemberDataComplete& OnComplete);
@@ -58,12 +62,12 @@ public:
 		void Init();
 		void Shutdown();
 		inline IOnlineSubsystem* GetOSS() { return OnlineSub; }
-		inline TSharedPtr<FOnlinePartyData> GetPartyMemberData() { return PartyMemberData; }
+		inline FOnlinePartyDataConstPtr GetPartyMemberData() { return PartyMemberData; }
 
 		FString Name;
 		IOnlineSubsystem* OnlineSub;
 		USocialDebugTools& Owner;
-		TSharedPtr<FOnlinePartyData> PartyMemberData;
+		FOnlinePartyDataPtr PartyMemberData;
 
 		// delegates
 		FDelegateHandle LoginCompleteDelegateHandle;
@@ -71,6 +75,7 @@ public:
 		FDelegateHandle PresenceReceivedDelegateHandle;
 		FDelegateHandle FriendInviteReceivedDelegateHandle;
 		FDelegateHandle PartyInviteReceivedDelegateHandle;
+		FDelegateHandle PartyJoinRequestReceivedDelegateHandle;
 	};
 
 	FInstanceContext& GetContext(const FString& Instance);
@@ -87,7 +92,7 @@ private:
 
 	TMap<FString, FInstanceContext> Contexts;
 
-	TSharedPtr<IOnlinePartyJoinInfo> GetDefaultPartyJoinInfo() const;
+	IOnlinePartyJoinInfoConstPtr GetDefaultPartyJoinInfo() const;
 	IOnlineSubsystem* GetDefaultOSS() const;
 	void PrintExecUsage() const;
 	virtual void PrintExecCommands() const;
@@ -95,4 +100,5 @@ private:
 	// OSS callback handlers
 	void HandleFriendInviteReceived(const FUniqueNetId& LocalUserId, const FUniqueNetId& FriendId);
 	void HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId);
+	void HandlePartyJoinRequestReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId, const FString& Platform, const FOnlinePartyData& PartyData);
 };

@@ -61,6 +61,9 @@ CSV_DEFINE_STAT_GLOBAL(FrameTime);
 
 DEFINE_LOG_CATEGORY_STATIC(LogCsvProfiler, Log, All);
 
+const char * GDefaultWaitStatName = "EventWait";
+const char * GIgnoreWaitStatName =  "[IGNORE]";
+
 TAutoConsoleVariable<int32> CVarCsvBlockOnCaptureEnd(
 	TEXT("csv.BlockOnCaptureEnd"), 
 	0,
@@ -149,6 +152,206 @@ bool IsContinuousWriteEnabled(bool bGameThread)
 	return CVarValue > 0;
 }
 
+#if CSV_PROFILER_ALLOW_DEBUG_FEATURES
+class FCsvABTest
+{
+public:
+	FCsvABTest()
+		: StatFrameOffset(0)
+		, SwitchDuration(7)
+		, bPrevCapturing(false)
+		, bFastCVarSet(false)
+	{}
+
+	void AddCVarABData(const FString& CVarName, int32 Count)
+	{
+		Count = CVarValues.Num() - Count;
+		IConsoleVariable* ConsoleVariable = IConsoleManager::Get().FindConsoleVariable(*CVarName);
+
+		if (Count > 0 && ConsoleVariable != nullptr)
+		{
+			CVarABDataArray.Add({ CVarName, *CVarName, ConsoleVariable, ConsoleVariable->GetString(), Count, FLT_MAX });
+		}
+		else if (ConsoleVariable == nullptr)
+		{
+			UE_LOG(LogCsvProfiler, Log, TEXT("Skipping CVar %s - Not found"), *CVarName);
+		}
+		else if (Count == 0)
+		{
+			UE_LOG(LogCsvProfiler, Log, TEXT("Skipping CVar %s - No value specified"), *CVarName);
+		}
+	}
+
+	void IterateABTestArguments(const FString& ABTestString)
+	{
+		int32 FindIndex;
+		if (!ABTestString.FindChar(TEXT('='), FindIndex))
+		{
+			return;
+		}
+
+		int32 Count = CVarValues.Num();
+
+		FString CVarName = ABTestString.Mid(0, FindIndex);
+		FString ValueStr = ABTestString.Mid(FindIndex + 1);
+		while (true)
+		{
+			int32 CommaIndex;
+			bool bComma = ValueStr.FindChar(TEXT(','), CommaIndex);
+			int32 SemiColonIndex;
+			bool bSemiColon = ValueStr.FindChar(TEXT(';'), SemiColonIndex);
+
+			if (bComma)
+			{
+				if (!bSemiColon || (bSemiColon && CommaIndex<SemiColonIndex))
+				{
+					FString Val = ValueStr.Mid(0, CommaIndex);
+					CVarValues.Add(FCString::Atof(*Val));
+					ValueStr = ValueStr.Mid(CommaIndex + 1);
+					continue;
+				}
+			}
+
+			if (bSemiColon)
+			{
+				if (SemiColonIndex==0)
+				{
+					AddCVarABData(CVarName, Count);
+					IterateABTestArguments(ValueStr.Mid(SemiColonIndex + 1));
+					break;
+				}
+				else
+				{
+					FString Val = ValueStr.Mid(0, SemiColonIndex);
+					CVarValues.Add(FCString::Atof(*Val));
+					ValueStr = ValueStr.Mid(SemiColonIndex);
+					continue;
+				}
+			}
+
+			CVarValues.Add(FCString::Atof(*ValueStr));
+			AddCVarABData(CVarName, Count);
+			break;
+		}
+
+	}
+
+	void InitFromCommandline()
+	{
+		FString ABTestString;
+		if (FParse::Value(FCommandLine::Get(), TEXT("csvABTest="), ABTestString, false))
+		{
+			IterateABTestArguments(ABTestString);
+
+			if (CVarABDataArray.Num() > 0)
+			{
+				UE_LOG(LogCsvProfiler, Log, TEXT("Initialized CSV Profiler A/B test")); 
+				
+				int32 CVarValuesIndex = 0;
+				for (int32 Index = 0; Index < CVarABDataArray.Num(); ++Index)
+				{
+					const FCVarABData& CVarABData = CVarABDataArray[Index];
+
+					UE_LOG(LogCsvProfiler, Log, TEXT("  CVar %s [Original value: %s] AB Test with values:"), *CVarABData.CVarName, *CVarABData.OriginalValue);
+					for (int32 i = 0; i < CVarABData.Count; ++i)
+					{
+						UE_LOG(LogCsvProfiler, Log, TEXT("    [%d] : %.2f"), i, CVarValues[CVarValuesIndex + i]);
+					}
+
+					CVarValuesIndex += CVarABData.Count;
+				}
+
+				FParse::Value(FCommandLine::Get(), TEXT("csvABTestStatFrameOffset="), StatFrameOffset);
+				FParse::Value(FCommandLine::Get(), TEXT("csvABTestSwitchDuration="), SwitchDuration);
+				bFastCVarSet = FParse::Param(FCommandLine::Get(), TEXT("csvABTestFastCVarSet"));
+				UE_LOG(LogCsvProfiler, Log, TEXT("Stat Offset: %d frames"), StatFrameOffset);
+				UE_LOG(LogCsvProfiler, Log, TEXT("Switch Duration : %d frames"), SwitchDuration);
+				UE_LOG(LogCsvProfiler, Log, TEXT("Fast cvar set: %s"), bFastCVarSet ? TEXT("Enabled") : TEXT("Disabled"));
+
+			}
+			else
+			{
+				UE_LOG(LogCsvProfiler, Log, TEXT("CSV Profiler A/B has not initialized"));
+			}
+		}
+	}
+
+	void BeginFrameUpdate(int32 FrameNumber, bool bCapturing)
+	{
+		if (CVarABDataArray.Num() == 0)
+		{
+			return;
+		}
+		
+		if (bCapturing)
+		{
+			int32 CVarValuesIndex = 0;
+			for (int32 Index = 0; Index < CVarABDataArray.Num(); ++Index)
+			{
+				FCVarABData& CVarABData = CVarABDataArray[Index];
+
+				int32 ValueIndex = (FrameNumber / SwitchDuration) % CVarABData.Count;
+				int32 StatValueIndex = ((FrameNumber - StatFrameOffset) / SwitchDuration) % CVarABData.Count;
+				
+				ValueIndex += CVarValuesIndex;
+				StatValueIndex += CVarValuesIndex;
+				CVarValuesIndex += CVarABData.Count;
+
+				{
+					float Value = CVarValues[ValueIndex];
+					if (Value != CVarABData.PreviousValue)
+					{
+						EConsoleVariableFlags CVarFlags = ECVF_SetByCode;
+						if (bFastCVarSet)
+						{
+							CVarFlags = EConsoleVariableFlags(CVarFlags | ECVF_Set_NoSinkCall_Unsafe);
+						}
+						CVarABData.ConsoleVariable->Set(*FString::Printf(TEXT("%f"), Value), CVarFlags);
+
+						CVarABData.PreviousValue = Value;
+					}
+				}
+
+				FCsvProfiler::RecordCustomStat(CVarABData.CVarStatFName, CSV_CATEGORY_INDEX_GLOBAL, CVarValues[StatValueIndex], ECsvCustomStatOp::Set);
+			}
+		}
+		else if (bPrevCapturing == true)
+		{
+			// Restore cvar to old value
+			// TODO: Set Setby flag to the original value
+			for (int32 Index = 0; Index < CVarABDataArray.Num(); ++Index)
+			{
+				CVarABDataArray[Index].ConsoleVariable->Set(*CVarABDataArray[Index].OriginalValue);
+
+				UE_LOG(LogCsvProfiler, Log, TEXT("CSV Profiler A/B test - setting %s=%s"), *CVarABDataArray[Index].CVarName, *CVarABDataArray[Index].OriginalValue);
+			}
+
+		}
+		bPrevCapturing = bCapturing;
+	}
+
+private:
+	struct FCVarABData
+	{
+		FString CVarName;
+		FName CVarStatFName;
+		IConsoleVariable* ConsoleVariable;
+		FString OriginalValue;
+		int32 Count;
+		float PreviousValue;
+	};
+	
+	TArray<FCVarABData> CVarABDataArray;
+	TArray<float> CVarValues;
+
+	int32 StatFrameOffset;
+	int32 SwitchDuration;
+	bool bPrevCapturing;
+	bool bFastCVarSet;
+};
+static FCsvABTest GCsvABTest;
+
+#endif // CSV_PROFILER_ALLOW_DEBUG_FEATURES
 
 class FCsvCategoryData
 {
@@ -1086,7 +1289,7 @@ private:
 						// Compress the data in Buffer into the GZipBuffer array
 						CompressedSize = GZipBuffer.Num();
 						if (FCompression::CompressMemory(
-							NAME_Zlib,
+							NAME_Gzip,
 							GZipBuffer.GetData(), CompressedSize,
 							Buffer.GetData(), BytesInBuffer,
 							ECompressionFlags::COMPRESS_BiasSpeed))
@@ -1636,6 +1839,21 @@ public:
 			((uint64)Events.GetAllocatedSize());
 	}
 
+	CSV_PROFILER_INLINE const char * GetWaitStatName() const
+	{
+		return WaitStatNameStack.Num() == 0 ? GDefaultWaitStatName : WaitStatNameStack.Last();
+	}
+
+	CSV_PROFILER_INLINE void PushWaitStatName(const char * WaitStatName)
+	{
+		WaitStatNameStack.Push(WaitStatName);
+	}
+	CSV_PROFILER_INLINE const char* PopWaitStatName()
+	{
+		check(WaitStatNameStack.Num() > 0);
+		return WaitStatNameStack.Pop();
+	}
+
 	// Raw stat data (written from the thread)
 	TSingleProducerSingleConsumerList<FCsvTimingMarker, 256> TimingMarkers;
 	TSingleProducerSingleConsumerList<FCsvCustomStat, 256> CustomStats;
@@ -1645,6 +1863,7 @@ public:
 	const FString ThreadName;
 
 	class FCsvProfilerThreadDataProcessor* DataProcessor;
+	TArray<const char*> WaitStatNameStack;
 };
 
 uint32 FCsvProfilerThreadData::TlsSlot = 0;
@@ -2228,6 +2447,8 @@ FCsvProfiler::~FCsvProfiler()
 void FCsvProfiler::BeginFrame()
 {
 	LLM_SCOPE(ELLMTag::CsvProfiler);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfiler_BeginFrame);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CsvProfiler);
 
 	check(IsInGameThread());
 
@@ -2336,6 +2557,8 @@ void FCsvProfiler::BeginFrame()
 	{
 		CSVTest();
 	}
+
+	GCsvABTest.BeginFrameUpdate(CaptureFrameNumber, GCsvProfilerIsCapturing);
 #endif // CSV_PROFILER_ALLOW_DEBUG_FEATURES
 }
 
@@ -2344,6 +2567,7 @@ void FCsvProfiler::EndFrame()
 	LLM_SCOPE(ELLMTag::CsvProfiler);
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfiler_EndFrame);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CsvProfiler);
 
 	check(IsInGameThread());
 	if (GCsvProfilerIsCapturing)
@@ -2650,6 +2874,59 @@ void FCsvProfiler::EndExclusiveStat(const char * StatName)
 #endif
 }
 
+
+void FCsvProfiler::BeginSetWaitStat(const char * StatName)
+{
+#if RECORD_TIMESTAMPS
+	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CSV_CATEGORY_INDEX(Exclusive)])
+	{
+		LLM_SCOPE(ELLMTag::CsvProfiler);
+		FCsvProfilerThreadData::Get().PushWaitStatName(StatName == nullptr ? GIgnoreWaitStatName : StatName);
+	}
+#endif
+}
+
+void FCsvProfiler::EndSetWaitStat()
+{
+#if RECORD_TIMESTAMPS
+	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CSV_CATEGORY_INDEX(Exclusive)])
+	{
+		FCsvProfilerThreadData::Get().PopWaitStatName();
+	}
+#endif
+}
+
+void FCsvProfiler::BeginWait()
+{
+#if RECORD_TIMESTAMPS
+	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CSV_CATEGORY_INDEX(Exclusive)])
+	{
+		LLM_SCOPE(ELLMTag::CsvProfiler);
+		const char* WaitStatName = FCsvProfilerThreadData::Get().GetWaitStatName();
+		if (WaitStatName != GIgnoreWaitStatName)
+		{
+			FCsvProfilerThreadData::Get().AddTimestampExclusiveBegin(WaitStatName);
+		}
+	}
+#endif
+}
+
+void FCsvProfiler::EndWait()
+{
+#if RECORD_TIMESTAMPS
+	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CSV_CATEGORY_INDEX(Exclusive)])
+	{
+		LLM_SCOPE(ELLMTag::CsvProfiler);
+		const char* WaitStatName = FCsvProfilerThreadData::Get().GetWaitStatName();
+		if (WaitStatName != GIgnoreWaitStatName)
+		{
+			FCsvProfilerThreadData::Get().AddTimestampExclusiveEnd(FCsvProfilerThreadData::Get().GetWaitStatName());
+		}
+	}
+#endif
+}
+
+
 void FCsvProfiler::RecordEventfInternal(int32 CategoryIndex, const TCHAR* Fmt, ...)
 {
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
@@ -2812,7 +3089,7 @@ void FCsvProfiler::Init()
 			break;
 		}
 	}
-
+	GCsvABTest.InitFromCommandline();
 #endif // CSV_PROFILER_ALLOW_DEBUG_FEATURES
 
 	// Always disable the CSV profiling thread if the platform does not support threading.

@@ -186,6 +186,7 @@ import com.epicgames.ue4.DownloadShim;
 import android.view.inputmethod.InputMethodManager;
 
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.view.ViewTreeObserver;
 
 import java.lang.reflect.Method;
@@ -229,7 +230,10 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	private Sensor gyroscope;
 	static boolean first_acceleration_sample = true;
 	static final float SampleDecayRate = 0.85f;
-	
+
+	private Rect safezone = new Rect(0, 0, 0, 0);
+	private RectF safezoneF = new RectF(0.0f, 0.0f, 0.0f, 0.0f);
+
 	private final float[] rotationMatrix = new float[9];
 	private final float[] orientationAngles = new float[3];
 
@@ -1549,6 +1553,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		variables.put("memory", Integer.toString(totalMemory));
 
 		//variables.put("Profile", "Android");
+		variables.put("OverrideProfile", "true");
 		variables.put("hardware", hardware);
 		variables.put("ro.hardware", roHardware);
 		variables.put("processor", processor);
@@ -2054,6 +2059,15 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			}
 		}
 
+		// clear Profile if OverrideProfile was not left set as well
+		if (variables.containsKey("Profile"))
+		{
+			if (!variables.containsKey("OverrideProfile"))
+			{
+				variables.remove("Profile");
+			}
+		}
+
 		// notify AndroidProcess of the core masks and affinity enable state
 		boolean bUseAffinity = variables.get("useAffinity").equals("true");
 		int littleCoreMask = Integer.decode(variables.get("littleCoreMask"));
@@ -2087,6 +2101,11 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	protected View GetMainView()
 	{
 		return mainView;
+	}
+
+	protected Rect GetSafezone()
+	{
+		return safezone;
 	}
 
 	protected FrameLayout GetContainerFrameLayout()
@@ -2798,6 +2817,49 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
         mainDecorView = getWindow().getDecorView();
 		mainDecorViewRect = new Rect();
+		
+		// check for display cutouts to set safe zone
+		View mainRootView = mainDecorView.findViewById(android.R.id.content).getRootView();
+		mainRootView.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+            @Override
+       	    public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
+				if (Build.VERSION.SDK_INT >= 28)
+				{
+					DisplayCutout cutout = insets.getDisplayCutout();
+					if (cutout != null)
+					{
+						Rect fullViewRect = new Rect();
+						mainDecorView.getDrawingRect( mainDecorViewRect );
+
+						android.view.Display display = getWindowManager().getDefaultDisplay();
+						android.graphics.Point displaySize = new android.graphics.Point();
+						display.getRealSize(displaySize);
+
+						// store safezone independent of resolution
+						float invX = 1.0f / (displaySize.x != 0.0f ? displaySize.x : 1.0f);
+						float invY = 1.0f / (displaySize.y != 0.0f ? displaySize.y : 1.0f);
+						safezoneF.left = (safezone.left = cutout.getSafeInsetLeft()) * invX;
+						safezoneF.top = (safezone.top = cutout.getSafeInsetTop()) * invY;
+						safezoneF.right = (safezone.right = cutout.getSafeInsetRight()) * invX;
+						safezoneF.bottom = (safezone.bottom = cutout.getSafeInsetBottom()) *invY;
+						nativeSetSafezoneInfo(displaySize.y > displaySize.x, safezoneF.left, safezoneF.top, safezoneF.right, safezoneF.bottom);
+
+						//Log.debug("FullViewRect: " + fullViewRect.toString());	
+						//Log.debug("DisplayCutout: " + cutout.toString());
+						//Log.debug("SafeTop: " + cutout.getSafeInsetTop());
+						//Log.debug("SafeBottom: " + cutout.getSafeInsetBottom());
+						//Log.debug("SafeLeft: " + cutout.getSafeInsetLeft());
+						//Log.debug("SafeRight: " + cutout.getSafeInsetRight());
+						//List<Rect>bounds = cutout.getBoundingRects();
+						//for (Rect r : bounds)
+						//{
+						//	Log.debug("Rect: " + r.toString());
+						//}
+					}
+				}
+				return insets;
+			}
+        });
 
 		createVirtualKeyboardInput();
 		
@@ -5792,6 +5854,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public native void nativeSetAndroidVersionInformation( String AndroidVersion, String PhoneMake, String PhoneModel, String PhoneBuildNumber, String OSLanguage );
 
 	public native void nativeSetSurfaceViewInfo(int width, int height);
+	public native void nativeSetSafezoneInfo(boolean bIsPortrait, float left, float top, float right, float bottom);
 
 	public native void nativeConsoleCommand(String commandString);
 	public native void nativeVirtualKeyboardChanged(String contents);

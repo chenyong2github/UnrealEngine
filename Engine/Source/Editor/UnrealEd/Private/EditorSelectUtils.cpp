@@ -561,15 +561,6 @@ void UUnrealEdEngine::SelectActor(AActor* Actor, bool bInSelected, bool bNotify,
 	// Select the actor and update its internals.
 	if( !bSelectionHandled )
 	{
-		if(bInSelected)
-		{
-			// If trying to select an Actor spawned by a ChildACtorComponent, instead select Actor that spawned us
-			if (UChildActorComponent* ParentComponent = Actor->GetParentComponent())
-			{
-				Actor = ParentComponent->GetOwner();
-			}
-		}
-
 		if (UActorGroupingUtils::IsGroupingActive())
 		{
 			// if this actor is a group, do a group select/deselect

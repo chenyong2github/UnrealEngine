@@ -681,7 +681,7 @@ public:
 			}
 
 			bUsesEmissiveColor = IsMaterialPropertyUsed(MP_EmissiveColor, Chunk[MP_EmissiveColor], FLinearColor(0, 0, 0, 0), 3);
-			bUsesPixelDepthOffset = IsMaterialPropertyUsed(MP_PixelDepthOffset, Chunk[MP_PixelDepthOffset], FLinearColor(0, 0, 0, 0), 1)
+			bUsesPixelDepthOffset = (AllowPixelDepthOffset(Platform) && IsMaterialPropertyUsed(MP_PixelDepthOffset, Chunk[MP_PixelDepthOffset], FLinearColor(0, 0, 0, 0), 1))
 				|| (Domain == MD_DeferredDecal && Material->GetDecalBlendMode() == DBM_Volumetric_DistanceFunction);
 
 			bUsesWorldPositionOffset = IsMaterialPropertyUsed(MP_WorldPositionOffset, Chunk[MP_WorldPositionOffset], FLinearColor(0, 0, 0, 0), 3);
@@ -3540,7 +3540,9 @@ protected:
 		switch( SamplerType )
 		{
 			case SAMPLERTYPE_External:
-				// fall through since should be treated same as SAMPLERTYPE_Color
+				SampleCode = FString::Printf(TEXT("ProcessMaterialExternalTextureLookup(%s)"), *SampleCode);
+				break;
+
 			case SAMPLERTYPE_Color:
 				SampleCode = FString::Printf( TEXT("ProcessMaterialColorTextureLookup(%s)"), *SampleCode );
 				break;
@@ -5468,6 +5470,15 @@ protected:
 
 		return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionAtmosphericLightColor(Parameters)"));
 
+	}
+
+	virtual int32 CustomPrimitiveData(int32 OutputIndex) override
+	{
+		const int32 CustomDataIndex = OutputIndex / FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s;
+		const int32 ElementIndex = OutputIndex % 4; // Index x, y, z or w
+
+		FString HlslName = FString::Printf(TEXT("CustomPrimitiveData[%d][%d]"), CustomDataIndex, ElementIndex);
+		return GetPrimitiveProperty(MCT_Float, TEXT("CustomPrimitiveData"), *HlslName);
 	}
 
 	virtual int32 CustomExpression( class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs ) override

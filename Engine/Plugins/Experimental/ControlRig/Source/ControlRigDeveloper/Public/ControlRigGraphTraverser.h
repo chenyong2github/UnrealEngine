@@ -18,7 +18,7 @@ public:
 
 	FControlRigGraphTraverser(UControlRigBlueprint* InBlueprint, UControlRigGraph* InGraph);
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	// Returns true if a given unit is part of a valid execution graph
 	bool IsWiredToExecution(const FName& UnitName);
 #endif
@@ -33,7 +33,7 @@ private:
 
 	UControlRigBlueprint* Blueprint;
 	UControlRigGraph* Graph;
-	TMap<UControlRigGraphNode*, bool> VisitedNodes;
+	TMap<FName, bool> VisitedNodes;
 
 	friend class FControlRigBlueprintCompilerContext;
 };

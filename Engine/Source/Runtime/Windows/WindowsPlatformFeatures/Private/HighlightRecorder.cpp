@@ -124,7 +124,7 @@ FTimespan FHighlightRecorder::GetRecordingTime() const
 	return FTimespan::FromSeconds(FPlatformTime::Seconds()) - RecordingStartTime - TotalPausedDuration;
 }
 
-void FHighlightRecorder::OnMediaSample(const FGameplayMediaEncoderSample& Sample)
+void FHighlightRecorder::OnMediaSample(const FGameplayMediaEncoderSample& InSample)
 {
 	// We might be paused, so don't do anything
 	if (State != EState::Recording)
@@ -133,9 +133,9 @@ void FHighlightRecorder::OnMediaSample(const FGameplayMediaEncoderSample& Sample
 	}
 
 	// Only start pushing video frames once we receive a key frame
-	if (NumPushedFrames == 0 && Sample.GetType() == EMediaType::Video)
+	if (NumPushedFrames == 0 && InSample.GetType() == EMediaType::Video)
 	{
-		if (!Sample.IsVideoKeyFrame())
+		if (!InSample.IsVideoKeyFrame())
 		{
 			return;
 		}
@@ -143,7 +143,14 @@ void FHighlightRecorder::OnMediaSample(const FGameplayMediaEncoderSample& Sample
 		++NumPushedFrames;
 	}
 
-	RingBuffer.Push(Sample);
+	FGameplayMediaEncoderSample SampleCopy = InSample.Clone();
+
+	if (TotalPausedDuration != 0)
+	{
+		SampleCopy.SetTime(SampleCopy.GetTime() - TotalPausedDuration);
+	}
+
+	RingBuffer.Push(MoveTemp(SampleCopy));
 }
 
 bool FHighlightRecorder::SaveHighlight(const TCHAR* Filename, FDoneCallback InDoneCallback, double MaxDurationSecs)

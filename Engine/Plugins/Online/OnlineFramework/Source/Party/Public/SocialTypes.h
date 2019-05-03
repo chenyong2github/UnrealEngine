@@ -47,6 +47,7 @@ inline const TCHAR* LexToString(ESocialSubsystem InSubsystem)
 UENUM()
 enum class ESocialRelationship : uint8
 {
+	Any,
 	FriendInviteReceived,
 	FriendInviteSent,
 	PartyInvite,
@@ -56,6 +57,31 @@ enum class ESocialRelationship : uint8
 	RecentPlayer,
 	// Follower, (?)
 };
+
+inline const TCHAR* LexToString(ESocialRelationship Relationship)
+{
+	switch (Relationship)
+	{
+	case ESocialRelationship::Any:
+		return TEXT("Any");
+	case ESocialRelationship::FriendInviteReceived:
+		return TEXT("FriendInviteReceived");
+	case ESocialRelationship::FriendInviteSent:
+		return TEXT("FriendInviteSent");
+	case ESocialRelationship::PartyInvite:
+		return TEXT("PartyInvite");
+	case ESocialRelationship::Friend:
+		return TEXT("Friend");
+	case ESocialRelationship::BlockedPlayer:
+		return TEXT("BlockedPlayer");
+	case ESocialRelationship::SuggestedFriend:
+		return TEXT("SuggestedFriend");
+	case ESocialRelationship::RecentPlayer:
+		return TEXT("RecentPlayer");
+	}
+
+	return TEXT("Unknown");
+}
 
 UENUM()
 enum class ECrossplayPreference : uint8

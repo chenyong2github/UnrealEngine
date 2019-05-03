@@ -70,7 +70,7 @@ void FWindowsVideoRecordingSystem::NextRecording()
 	}
 	else
 	{
-		CurrentFilename = Path + BaseFilename;
+		CurrentFilename = Path + BaseFilename + TEXT(".mp4");
 	}
 }
 
@@ -247,6 +247,10 @@ void FWindowsVideoRecordingSystem::FinalizeCallbackOnGameThread(bool bSaved, boo
 	{
 		NextRecording();
 		RecordState = EVideoRecordingState::Recording;
+	}
+	else
+	{
+		Recorder->Stop();
 	}
 
 	if (bBroadcast)

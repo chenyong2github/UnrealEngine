@@ -466,6 +466,9 @@ public:
 #if WITH_EDITOR
 	/** Determines whether the begin play cycle will run on the spawned actor when in the editor. */
 	uint16 bTemporaryEditorActor:1;
+
+	/* Determines wether or not the actor should be hidden from the Scene Outliner */
+	uint16 bHideFromSceneOutliner : 1;
 #endif
 	
 	/* Flags used to describe the spawned actor/object instance. */

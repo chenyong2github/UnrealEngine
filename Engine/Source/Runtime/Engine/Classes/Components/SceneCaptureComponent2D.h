@@ -111,6 +111,8 @@ class ENGINE_API USceneCaptureComponent2D : public USceneCaptureComponent
 
 	//~ End UObject Interface
 
+	virtual void GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView);
+
 	/** Adds an Blendable (implements IBlendableInterface) to the array of Blendables (if it doesn't exist) and update the weight */
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void AddOrUpdateBlendable(TScriptInterface<IBlendableInterface> InBlendableObject, float InWeight = 1.0f) { PostProcessSettings.AddBlendable(InBlendableObject, InWeight); }

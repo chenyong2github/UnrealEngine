@@ -127,6 +127,8 @@ class CONTROLRIGDEVELOPER_API UControlRigGraphNode : public UEdGraphNode
 	friend class FControlRigGraphTraverser;
 	friend class FControlRigGraphPanelPinFactory;
 	friend class FControlRigEditor;
+	friend struct FControlRigBlueprintUtils;
+	friend class SGraphPinCurveFloat;
 
 private:
 	/** The property we represent. For template nodes this represents the struct/property type name. */

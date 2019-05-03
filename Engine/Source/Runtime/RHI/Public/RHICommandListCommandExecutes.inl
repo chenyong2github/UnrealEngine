@@ -265,6 +265,12 @@ void FRHICommandEndRenderPass::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHIEndRenderPass)();
 }
 
+void FRHICommandNextSubpass::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(NextSubpass);
+	INTERNAL_DECORATOR(RHINextSubpass)();
+}
+
 void FRHICommandBeginComputePass::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BeginComputePass);

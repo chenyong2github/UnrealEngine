@@ -146,12 +146,25 @@ namespace Gauntlet
 					return ActivityLogCached;
 				}
 
+				if (Install.AndroidDevice != null && Install.AndroidDevice.Disposed)
+				{
+					return String.IsNullOrEmpty(ActivityLogCached) ? String.Empty : ActivityLogCached;
+				}
+
 				ActivityLogTime = DateTime.UtcNow;
 
 				string GetLogCommand = string.Format("shell cat {0}/Logs/{1}.log", Install.AndroidDevice.DeviceArtifactPath, Install.Name);
 				IProcessResult LogQuery = Install.AndroidDevice.RunAdbDeviceCommand(GetLogCommand, true);
-				ActivityLogCached = LogQuery.Output;
 
+				if (LogQuery.ExitCode != 0)
+				{
+					Log.VeryVerbose("Unable to query activity stdout on device {0}", Install.AndroidDevice.Name);					
+				}
+				else
+				{
+					ActivityLogCached = LogQuery.Output;
+				}
+					
 				// the activity has exited, mark final log sentinel 
 				if (ActivityExited)
 				{
@@ -217,13 +230,24 @@ namespace Gauntlet
 			{
 				Log.Warning("Failed to retrieve artifacts. {0}", PullCmd.Output);
 			}
+			else
+			{
+				// update final cached stdout property
+				string LogFilename = string.Format("{0}/Logs/{1}.log", LocalSaved, Install.Name);
+				if (File.Exists(LogFilename))
+				{
+					ActivityLogCached = File.ReadAllText(LogFilename);
+					ActivityLogTime = DateTime.MinValue;
+				}
+
+			}
 
 			// pull the logcat over from device.
 			IProcessResult LogcatResult = Install.AndroidDevice.RunAdbDeviceCommand("logcat -d");
 
 			string LogcatFilename = "Logcat.log";
 			// Save logcat dump to local artifact path.
-			System.IO.File.WriteAllText(Path.Combine(LocalSaved, LogcatFilename), LogcatResult.Output);
+			File.WriteAllText(Path.Combine(LocalSaved, LogcatFilename), LogcatResult.Output);
 
 			Install.AndroidDevice.PostRunCleanup();
 		}
@@ -511,6 +535,16 @@ namespace Gauntlet
 			// TODO: uncomment the following line if the finalizer is overridden above.
 			// GC.SuppressFinalize(this);
 		}
+
+		public bool Disposed
+		{
+			get
+			{
+				return disposedValue;
+			}
+			
+		}
+
 		#endregion
 
 		/// <summary>
@@ -1225,7 +1259,7 @@ namespace Gauntlet
 					bUsingCustomKeys = true;
 
 					Log.Info("Running adb kill-server to refresh credentials");
-					TargetDeviceAndroid.RunAdbGlobalCommand("kill-server");
+					TargetDeviceAndroid.RunAdbGlobalCommand("kill-server", bPauseErrorParsing: true);
 
 					Thread.Sleep(5000);
 				}
@@ -1247,7 +1281,7 @@ namespace Gauntlet
 					Reset();
 
 					Log.Info("Running adb kill-server to refresh credentials");
-					TargetDeviceAndroid.RunAdbGlobalCommand("kill-server");
+					TargetDeviceAndroid.RunAdbGlobalCommand("kill-server", bPauseErrorParsing: true);
 					Thread.Sleep(2500);
 				}
 

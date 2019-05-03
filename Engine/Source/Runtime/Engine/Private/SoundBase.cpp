@@ -75,7 +75,16 @@ const FSoundAttenuationSettings* USoundBase::GetAttenuationSettingsToApply() con
 
 float USoundBase::GetMaxDistance() const
 {
-	return (AttenuationSettings ? AttenuationSettings->Attenuation.GetMaxDimension() : WORLD_MAX);
+	if (AttenuationSettings)
+	{
+		FSoundAttenuationSettings& Settings = AttenuationSettings->Attenuation;
+		if (Settings.bAttenuate)
+		{
+			return Settings.GetMaxDimension();
+		}
+	}
+
+	return WORLD_MAX;
 }
 
 float USoundBase::GetDuration()
@@ -187,7 +196,6 @@ void USoundBase::PostLoad()
 		ConcurrencyOverrides.bLimitToOwner = false;
 		ConcurrencyOverrides.MaxCount = FMath::Max(MaxConcurrentPlayCount_DEPRECATED, 1);
 		ConcurrencyOverrides.ResolutionRule = MaxConcurrentResolutionRule_DEPRECATED;
-		ConcurrencyOverrides.VolumeScale = 1.0f;
 	}
 #endif
 }

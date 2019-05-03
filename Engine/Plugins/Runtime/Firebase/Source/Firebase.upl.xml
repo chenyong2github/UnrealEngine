@@ -79,6 +79,7 @@ apply plugin: 'com.google.gms.google-services'
 			<true>
 				<!-- Will need to revisit this if/when other plug-ins need to modify google-services.json -->
 				<copyFile src="$S(BuildDir)/google-services.json" dst="$S(BuildDir)/gradle/app/google-services.json" force="false"/>
+				<copyFile src="$S(BuildDir)/google-services-$S(Configuration).json" dst="$S(BuildDir)/gradle/app/google-services.json" force="false"/>
 			</true>
 		</if>
 	</gradleCopies>

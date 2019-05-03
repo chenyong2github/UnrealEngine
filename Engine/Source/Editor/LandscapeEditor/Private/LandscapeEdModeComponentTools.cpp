@@ -538,21 +538,6 @@ public:
 					}
 				}
 
-				// Changing Heightmap format for selected components
-				for (const auto& HeightmapUpdateComponentPair : HeightmapUpdateComponents)
-				{
-					ALandscape::SplitHeightmap(HeightmapUpdateComponentPair.Key, HeightmapUpdateComponentPair.Value);
-				}
-
-				// Delete if it is no referenced textures...
-				for (UTexture2D* Texture : OldHeightmapTextures)
-				{
-					Texture->SetFlags(RF_Transactional);
-					Texture->Modify();
-					Texture->MarkPackageDirty();
-					Texture->ClearFlags(RF_Standalone);
-				}
-
 				ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetCurrentLevelLandscapeProxy(false);
 				if (!LandscapeProxy)
 				{
@@ -573,6 +558,21 @@ public:
 					}
 				}
 
+				// Changing Heightmap format for selected components
+				for (const auto& HeightmapUpdateComponentPair : HeightmapUpdateComponents)
+				{
+					ALandscape::SplitHeightmap(HeightmapUpdateComponentPair.Key, HeightmapUpdateComponentPair.Value ? LandscapeProxy : nullptr);
+				}
+
+				// Delete if it is no referenced textures...
+				for (UTexture2D* Texture : OldHeightmapTextures)
+				{
+					Texture->SetFlags(RF_Transactional);
+					Texture->Modify();
+					Texture->MarkPackageDirty();
+					Texture->ClearFlags(RF_Standalone);
+				}
+
 				for (ALandscapeProxy* Proxy : SelectProxies)
 				{
 					Proxy->Modify();
@@ -587,7 +587,7 @@ public:
 					if (Component->XYOffsetmapTexture)
 					{
 						Component->XYOffsetmapTexture->Modify();
-						Component->XYOffsetmapTexture->Rename(nullptr, LandscapeProxy->GetOutermost());
+						Component->XYOffsetmapTexture->Rename(nullptr, LandscapeProxy);
 					}
 				}
 
@@ -596,138 +596,20 @@ public:
 					FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
 					for (ULandscapeComponent* Component : TargetSelectedComponents)
 					{
-						TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations();
-
-						int32 TotalNeededChannels = ComponentWeightmapLayerAllocations.Num();
-						int32 CurrentLayer = 0;
-						TArray<UTexture2D*> NewWeightmapTextures;
-
-						// Code from ULandscapeComponent::ReallocateWeightmaps
-						// Move to other channels left
-						while (TotalNeededChannels > 0)
+						Component->ReallocateWeightmaps(&LandscapeEdit, false, true, false, true, LandscapeProxy);
+						Component->ForEachLayer([&](const FGuid& LayerGuid, FLandscapeLayerComponentData& LayerData)
 						{
-							// UE_LOG(LogLandscape, Log, TEXT("Still need %d channels"), TotalNeededChannels);
-
-							UTexture2D* CurrentWeightmapTexture = nullptr;
-							ULandscapeWeightmapUsage* CurrentWeightmapUsage = nullptr;
-
-							if (TotalNeededChannels < 4)
-							{
-								// UE_LOG(LogLandscape, Log, TEXT("Looking for nearest"));
-
-								// see if we can find a suitable existing weightmap texture with sufficient channels
-								int32 BestDistanceSquared = MAX_int32;
-								for (auto& WeightmapUsagePair : LandscapeProxy->WeightmapUsageMap)
-								{
-									ULandscapeWeightmapUsage* TryWeightmapUsage = WeightmapUsagePair.Value;
-									if (TryWeightmapUsage->FreeChannelCount() >= TotalNeededChannels) // TODO: handle layers
-									{
-										// See if this candidate is closer than any others we've found
-										for (int32 ChanIdx = 0; ChanIdx < 4; ChanIdx++)
-										{
-											if (TryWeightmapUsage->ChannelUsage[ChanIdx] != nullptr)
-											{
-												int32 TryDistanceSquared = (TryWeightmapUsage->ChannelUsage[ChanIdx]->GetSectionBase() - Component->GetSectionBase()).SizeSquared();
-												if (TryDistanceSquared < BestDistanceSquared)
-												{
-													CurrentWeightmapTexture = WeightmapUsagePair.Key;
-													CurrentWeightmapUsage = TryWeightmapUsage;
-													BestDistanceSquared = TryDistanceSquared;
-												}
-											}
-										}
-									}
-								}
-							}
-
-							bool NeedsUpdateResource = false;
-							// No suitable weightmap texture
-							if (CurrentWeightmapTexture == nullptr)
-							{
-								Component->MarkPackageDirty();
-
-								// Weightmap is sized the same as the component
-								int32 WeightmapSize = (Component->SubsectionSizeQuads + 1) * Component->NumSubsections;
-
-								// We need a new weightmap texture
-								CurrentWeightmapTexture = LandscapeProxy->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8);
-								// Alloc dummy mips
-								Component->CreateEmptyTextureMips(CurrentWeightmapTexture);
-								CurrentWeightmapTexture->PostEditChange();
-
-								// Store it in the usage map
-								CurrentWeightmapUsage = LandscapeProxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, LandscapeProxy->CreateWeightmapUsage());
-
-								// UE_LOG(LogLandscape, Log, TEXT("Making a new texture %s"), *CurrentWeightmapTexture->GetName());
-							}
-
-							NewWeightmapTextures.Add(CurrentWeightmapTexture);
-
-							for (int32 ChanIdx = 0; ChanIdx < 4 && TotalNeededChannels > 0; ChanIdx++)
-							{
-								// UE_LOG(LogLandscape, Log, TEXT("Finding allocation for layer %d"), CurrentLayer);
-
-								if (CurrentWeightmapUsage->ChannelUsage[ChanIdx] == nullptr)
-								{
-									// Use this allocation
-									FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[CurrentLayer];
-
-									if (AllocInfo.WeightmapTextureIndex == 255)
-									{
-										// New layer - zero out the data for this texture channel
-										LandscapeEdit.ZeroTextureChannel(CurrentWeightmapTexture, ChanIdx);
-									}
-									else
-									{
-										TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
-										UTexture2D* OldWeightmapTexture = ComponentWeightmapTextures[AllocInfo.WeightmapTextureIndex];
-
-										// Copy the data
-										LandscapeEdit.CopyTextureChannel(CurrentWeightmapTexture, ChanIdx, OldWeightmapTexture, AllocInfo.WeightmapTextureChannel);
-										LandscapeEdit.ZeroTextureChannel(OldWeightmapTexture, AllocInfo.WeightmapTextureChannel);
-
-										// Remove the old allocation
-										ULandscapeWeightmapUsage** OldWeightmapUsage = Component->GetLandscapeProxy()->WeightmapUsageMap.Find(OldWeightmapTexture);
-
-										if (OldWeightmapUsage != nullptr)
-										{
-											(*OldWeightmapUsage)->Modify();
-											(*OldWeightmapUsage)->ChannelUsage[AllocInfo.WeightmapTextureChannel] = nullptr;
-										}
-									}
-
-									// Assign the new allocation
-									CurrentWeightmapUsage->Modify();
-									CurrentWeightmapUsage->ChannelUsage[ChanIdx] = Component;
-									AllocInfo.WeightmapTextureIndex = NewWeightmapTextures.Num() - 1;
-									AllocInfo.WeightmapTextureChannel = ChanIdx;
-									CurrentLayer++;
-									TotalNeededChannels--;
-								}
-							}
-						}
-
-						// Replace the weightmap textures
-						Component->SetWeightmapTextures(NewWeightmapTextures);
-
-						// Update the mipmaps for the textures we edited
-						for (UTexture2D* WeightmapTexture : NewWeightmapTextures)
-						{
-							FLandscapeTextureDataInfo* WeightmapDataInfo = LandscapeEdit.GetTextureDataInfo(WeightmapTexture);
-
-							int32 NumMips = WeightmapTexture->Source.GetNumMips();
-							TArray<FColor*> WeightmapTextureMipData;
-							WeightmapTextureMipData.AddUninitialized(NumMips);
-							for (int32 MipIdx = 0; MipIdx < NumMips; MipIdx++)
-							{
-								WeightmapTextureMipData[MipIdx] = (FColor*)WeightmapDataInfo->GetMipData(MipIdx);
-							}
-
-							ULandscapeComponent::UpdateWeightmapMips(Component->NumSubsections, Component->SubsectionSizeQuads, WeightmapTexture, WeightmapTextureMipData, 0, 0, MAX_int32, MAX_int32, WeightmapDataInfo);
-						}
+							FScopedSetLandscapeEditingLayer Scope(Landscape, LayerGuid);
+							Component->ReallocateWeightmaps(&LandscapeEdit, true, true, false, true, LandscapeProxy);
+						});
+						Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
 					}
+
 					// Need to Repacking all the Weight map (to make it packed well...)
-					Landscape->RemoveInvalidWeightmaps();
+					for (ALandscapeProxy* Proxy : SelectProxies)
+					{
+						Proxy->RemoveInvalidWeightmaps();
+					}
 				}
 
 				// Move the components to the Proxy actor
@@ -809,6 +691,7 @@ public:
 		: FLandscapeToolBase<FLandscapeToolStrokeMoveToLevel>(InEdMode)
 	{
 	}
+	virtual bool ShouldUpdateEditingLayer() const override { return false; }
 
 	virtual const TCHAR* GetToolName() override { return TEXT("MoveToLevel"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_MoveToLevel", "Move to Streaming Level"); };
@@ -839,8 +722,8 @@ public:
 
 	virtual void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
 	{
-		ALandscapeProxy* Landscape = LandscapeInfo ? LandscapeInfo->GetCurrentLevelLandscapeProxy(true) : nullptr;
-		if (Landscape && EdMode->LandscapeRenderAddCollision)
+		ALandscapeProxy* LandscapeProxy = LandscapeInfo ? LandscapeInfo->GetCurrentLevelLandscapeProxy(true) : nullptr;
+		if (LandscapeProxy && EdMode->LandscapeRenderAddCollision)
 		{
 			check(Brush->GetBrushType() == ELandscapeBrushType::Component);
 
@@ -857,7 +740,7 @@ public:
 
 			// Find component range for this block of data, non shared vertices
 			int32 ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2;
-			ALandscape::CalcComponentIndicesNoOverlap(X1, Y1, X2, Y2, Landscape->ComponentSizeQuads, ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2);
+			ALandscape::CalcComponentIndicesNoOverlap(X1, Y1, X2, Y2, LandscapeProxy->ComponentSizeQuads, ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2);
 
 			// expand the area by one vertex in each direction to ensure normals are calculated correctly
 			X1 -= 1;
@@ -873,7 +756,7 @@ public:
 			bool bHasXYOffset = XYOffsetCache.GetCachedData(X1, Y1, X2, Y2, XYOffsetData);
 
 			TArray<ULandscapeComponent*> NewComponents;
-			Landscape->Modify();
+			LandscapeProxy->Modify();
 			LandscapeInfo->Modify();
 			for (int32 ComponentIndexY = ComponentIndexY1; ComponentIndexY <= ComponentIndexY2; ComponentIndexY++)
 			{
@@ -883,22 +766,22 @@ public:
 					if (!LandscapeComponent)
 					{
 						// Add New component...
-						FIntPoint ComponentBase = FIntPoint(ComponentIndexX, ComponentIndexY)*Landscape->ComponentSizeQuads;
-						LandscapeComponent = NewObject<ULandscapeComponent>(Landscape, NAME_None, RF_Transactional);
-						Landscape->LandscapeComponents.Add(LandscapeComponent);
+						FIntPoint ComponentBase = FIntPoint(ComponentIndexX, ComponentIndexY)*LandscapeProxy->ComponentSizeQuads;
+						LandscapeComponent = NewObject<ULandscapeComponent>(LandscapeProxy, NAME_None, RF_Transactional);
+						LandscapeProxy->LandscapeComponents.Add(LandscapeComponent);
 						NewComponents.Add(LandscapeComponent);
 						LandscapeComponent->Init(
 							ComponentBase.X, ComponentBase.Y,
-							Landscape->ComponentSizeQuads,
-							Landscape->NumSubsections,
-							Landscape->SubsectionSizeQuads
+							LandscapeProxy->ComponentSizeQuads,
+							LandscapeProxy->NumSubsections,
+							LandscapeProxy->SubsectionSizeQuads
 							);
-						LandscapeComponent->AttachToComponent(Landscape->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+						LandscapeComponent->AttachToComponent(LandscapeProxy->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 
 						// Assign shared properties
 						LandscapeComponent->UpdatedSharedPropertiesFromActor();
 
-						int32 ComponentVerts = (Landscape->SubsectionSizeQuads + 1) * Landscape->NumSubsections;
+						int32 ComponentVerts = (LandscapeProxy->SubsectionSizeQuads + 1) * LandscapeProxy->NumSubsections;
 						// Update Weightmap Scale Bias
 						LandscapeComponent->WeightmapScaleBias = FVector4(1.0f / (float)ComponentVerts, 1.0f / (float)ComponentVerts, 0.5f / (float)ComponentVerts, 0.5f / (float)ComponentVerts);
 						LandscapeComponent->WeightmapSubsectionOffset = (float)(LandscapeComponent->SubsectionSizeQuads + 1) / (float)ComponentVerts;
@@ -937,85 +820,116 @@ public:
 			HeightCache.SetCachedData(X1, Y1, X2, Y2, Data);
 			HeightCache.Flush();
 
+			ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
+
+			if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			{
+				check(Landscape != nullptr); // Landscape actor is required if layer system is enabled
+
+				Landscape->RequestLayersInitialization();
+			}
+
 			for (ULandscapeComponent* NewComponent : NewComponents)
 			{
+				if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+				{
+					TArray<ULandscapeComponent*> ComponentsUsingHeightmap;
+					ComponentsUsingHeightmap.Add(NewComponent);
+
+					for (const FLandscapeLayer& Layer : Landscape->LandscapeLayers)
+					{
+						// Since we do not share heightmap when adding new component, we will provided the required array, but they will only be used for 1 component
+						TMap<UTexture2D*, UTexture2D*> CreatedHeightmapTextures;
+						NewComponent->AddDefaultLayerData(Layer.Guid, ComponentsUsingHeightmap, CreatedHeightmapTextures);
+					}
+				}
+
 				// Update Collision
 				NewComponent->UpdateCachedBounds();
 				NewComponent->UpdateBounds();
 				NewComponent->MarkRenderStateDirty();
-				ULandscapeHeightfieldCollisionComponent* CollisionComp = NewComponent->CollisionComponent.Get();
-				if (CollisionComp && !bHasXYOffset)
+
+				if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 				{
-					CollisionComp->MarkRenderStateDirty();
-					CollisionComp->RecreateCollision();
+					ULandscapeHeightfieldCollisionComponent* CollisionComp = NewComponent->CollisionComponent.Get();
+					if (CollisionComp && !bHasXYOffset)
+					{
+						CollisionComp->MarkRenderStateDirty();
+						CollisionComp->RecreateCollision();
+					}
 				}
 
 				TMap<ULandscapeLayerInfoObject*, int32> NeighbourLayerInfoObjectCount;
 
-				// Cover 9 tiles around us to determine which object should we use by default
-				for (int32 ComponentIndexX = ComponentIndexX1 - 1; ComponentIndexX <= ComponentIndexX2 + 1; ++ComponentIndexX)
 				{
-					for (int32 ComponentIndexY = ComponentIndexY1 - 1; ComponentIndexY <= ComponentIndexY2 + 1; ++ComponentIndexY)
+					FScopedSetLandscapeEditingLayer Scope(Landscape, Landscape->GetLayer(0)->Guid, [=] { });
+
+					// Cover 9 tiles around us to determine which object should we use by default
+					for (int32 ComponentIndexX = ComponentIndexX1 - 1; ComponentIndexX <= ComponentIndexX2 + 1; ++ComponentIndexX)
 					{
-						ULandscapeComponent* NeighbourComponent = LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX, ComponentIndexY));
-
-						if (NeighbourComponent != nullptr && NeighbourComponent != NewComponent)
+						for (int32 ComponentIndexY = ComponentIndexY1 - 1; ComponentIndexY <= ComponentIndexY2 + 1; ++ComponentIndexY)
 						{
-							ULandscapeInfo* NeighbourLandscapeInfo = NeighbourComponent->GetLandscapeInfo();
+							ULandscapeComponent* NeighbourComponent = LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX, ComponentIndexY));
 
-							for (int32 i = 0; i < NeighbourLandscapeInfo->Layers.Num(); ++i)
+							if (NeighbourComponent != nullptr && NeighbourComponent != NewComponent)
 							{
-								ULandscapeLayerInfoObject* NeighbourLayerInfo = NeighbourLandscapeInfo->Layers[i].LayerInfoObj;
+								ULandscapeInfo* NeighbourLandscapeInfo = NeighbourComponent->GetLandscapeInfo();
 
-								if (NeighbourLayerInfo != nullptr)
+								for (int32 i = 0; i < NeighbourLandscapeInfo->Layers.Num(); ++i)
 								{
-									TArray<uint8> WeightmapTextureData;
+									ULandscapeLayerInfoObject* NeighbourLayerInfo = NeighbourLandscapeInfo->Layers[i].LayerInfoObj;
 
-									FLandscapeComponentDataInterface DataInterface(NeighbourComponent);
-									DataInterface.GetWeightmapTextureData(NeighbourLayerInfo, WeightmapTextureData);
-
-									if (WeightmapTextureData.Num() > 0)
+									if (NeighbourLayerInfo != nullptr)
 									{
-										int32* Count = NeighbourLayerInfoObjectCount.Find(NeighbourLayerInfo);
+										TArray<uint8> WeightmapTextureData;
 
-										if (Count == nullptr)
-										{
-											Count = &NeighbourLayerInfoObjectCount.Add(NeighbourLayerInfo, 1);
-										}
+										FLandscapeComponentDataInterface DataInterface(NeighbourComponent);
+										DataInterface.GetWeightmapTextureData(NeighbourLayerInfo, WeightmapTextureData, true);
 
-										for (uint8 Value : WeightmapTextureData)
+										if (WeightmapTextureData.Num() > 0)
 										{
-											(*Count) += Value;
+											int32* Count = NeighbourLayerInfoObjectCount.Find(NeighbourLayerInfo);
+
+											if (Count == nullptr)
+											{
+												Count = &NeighbourLayerInfoObjectCount.Add(NeighbourLayerInfo, 1);
+											}
+
+											for (uint8 Value : WeightmapTextureData)
+											{
+												(*Count) += Value;
+											}
 										}
 									}
 								}
-							}							
+							}
 						}
-					}					
-				}
-
-				int32 BestLayerInfoObjectCount = 0;
-				ULandscapeLayerInfoObject* BestLayerInfoObject = nullptr;
-
-				for (auto& LayerInfoObjectCount : NeighbourLayerInfoObjectCount)
-				{
-					if (LayerInfoObjectCount.Value > BestLayerInfoObjectCount)
-					{
-						BestLayerInfoObjectCount = LayerInfoObjectCount.Value;
-						BestLayerInfoObject = LayerInfoObjectCount.Key;
 					}
-				}
-				
-				if (BestLayerInfoObject != nullptr)
-				{
-					FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
-					NewComponent->FillLayer(BestLayerInfoObject, LandscapeEdit);
-				}
+
+					int32 BestLayerInfoObjectCount = 0;
+					ULandscapeLayerInfoObject* BestLayerInfoObject = nullptr;
+
+					for (auto& LayerInfoObjectCount : NeighbourLayerInfoObjectCount)
+					{
+						if (LayerInfoObjectCount.Value > BestLayerInfoObjectCount)
+						{
+							BestLayerInfoObjectCount = LayerInfoObjectCount.Value;
+							BestLayerInfoObject = LayerInfoObjectCount.Key;
+						}
+					}
+
+					if (BestLayerInfoObject != nullptr)
+					{
+						FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
+						NewComponent->FillLayer(BestLayerInfoObject, LandscapeEdit);
+					}
+				}				
 			}
 
 			EdMode->LandscapeRenderAddCollision = nullptr;
 
 			// Add/update "add collision" around the newly added components
+			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
 				// Top row
 				int32 ComponentIndexY = ComponentIndexY1 - 1;
@@ -1140,6 +1054,8 @@ public:
 		: FLandscapeToolBase<FLandscapeToolStrokeDeleteComponent>(InEdMode)
 	{
 	}
+
+	virtual bool ShouldUpdateEditingLayer() const override { return false; }
 
 	virtual const TCHAR* GetToolName() override { return TEXT("DeleteComponent"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_DeleteComponent", "Delete Landscape Components"); };
@@ -1812,9 +1728,9 @@ public:
 	virtual ELandscapeLayersContentUpdateFlag GetBeginToolContentUpdateFlag() const override { return ELandscapeLayersContentUpdateFlag::All_Render; }
 
 	virtual ELandscapeLayersContentUpdateFlag GetTickToolContentUpdateFlag() const override { return ELandscapeLayersContentUpdateFlag::All_Render; }
-
+	
 	virtual ELandscapeLayersContentUpdateFlag GetEndToolContentUpdateFlag() const override { return ELandscapeLayersContentUpdateFlag::All; }
-
+		
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
 	{
 		this->EdMode->GizmoBrush->Tick(ViewportClient, 0.1f);

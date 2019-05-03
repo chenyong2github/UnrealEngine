@@ -8,6 +8,7 @@
 #include "DragAndDrop//GraphNodeDragDropOp.h"
 #include "ControlRigDefines.h"
 #include "ControlRigLog.h"
+#include "Drawing/ControlRigDrawInterface.h"
 
 class UControlRigBlueprint;
 class IPersonaToolkit;
@@ -71,6 +72,9 @@ public:
 	{
 		return FString(TEXT("Engine/Animation/ControlRig"));
 	}
+
+	// BlueprintEditor interface
+	virtual bool CanAddNewLocalVariable() const override { return false; }
 	
 	// IToolkitHost Interface
 	virtual void OnToolkitHostingStarted(const TSharedRef<class IToolkit>& Toolkit) override;
@@ -180,7 +184,18 @@ private:
 	void ToggleExecuteGraph();
 	bool IsExecuteGraphOn() const;
 
-	 void HandleMakeBoneGetterSetter(int32 UnitType, TArray<FName> BoneNames, EBoneGetterSetterMode Space, UEdGraph* Graph, FVector2D NodePosition);
+	enum EBoneGetterSetterType
+	{
+		EBoneGetterSetterType_Transform,
+		EBoneGetterSetterType_Rotation,
+		EBoneGetterSetterType_Translation,
+		EBoneGetterSetterType_Initial,
+		EBoneGetterSetterType_Relative,
+		EBoneGetterSetterType_Offset,
+		EBoneGetterSetterType_Name
+	};
+
+	 void HandleMakeBoneGetterSetter(EBoneGetterSetterType Type, bool bIsGetter, TArray<FName> BoneNames, UEdGraph* Graph, FVector2D NodePosition);
 
 protected:
 
@@ -226,6 +241,12 @@ protected:
 	FControlRigLog ControlRigLog;
 	/** Once the log is collected update the graph */
 	void UpdateGraphCompilerErrors();
+
+	/** The draw interface to use for the control rig */
+	FControlRigDrawInterface DrawInterface;
+
+	/** This can be used to enable dumping of a unit test */
+	void DumpUnitTestCode();
 
 	friend class FControlRigEditorMode;
 	friend class SControlRigStackView;

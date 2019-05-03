@@ -981,7 +981,8 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFr
 void UWorld::SendAllEndOfFrameUpdates()
 {
 	SCOPE_CYCLE_COUNTER(STAT_PostTickComponentUpdate);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostTickComponentMisc);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(EndOfFrameUpdates);
+	CSV_SCOPED_SET_WAIT_STAT(EndOfFrameUpdates);
 
 	if (!HasEndOfFrameUpdates())
 	{
@@ -1388,6 +1389,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 	SCOPE_TIME_GUARD(TEXT("UWorld::Tick"));
 	SCOPED_NAMED_EVENT(UWorld_Tick, FColor::Orange);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(WorldTickMisc);
+	CSV_SCOPED_SET_WAIT_STAT(WorldTickMisc);
 
 	if (GIntraFrameDebuggingGameThread)
 	{
@@ -1441,6 +1443,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NetWorldTickTime);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(NetworkIncoming);
+		CSV_SCOPED_SET_WAIT_STAT(NetworkTick);
 		SCOPE_TIME_GUARD(TEXT("UWorld::Tick - NetTick"));
 		LLM_SCOPE(ELLMTag::Networking);
 		// Update the net code and fetch all incoming packets.
@@ -1490,6 +1493,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 	// give the async loading code more time if we're performing a high priority load or are in seamless travel
 	if (Info->bHighPriorityLoading || Info->bHighPriorityLoadingLocal || IsInSeamlessTravel())
 	{
+		CSV_SCOPED_SET_WAIT_STAT(AsyncLoading);
 		// Force it to use the entire time slice, even if blocked on I/O
 		ProcessAsyncLoading(true, true, GPriorityAsyncLoadingExtraTime / 1000.0f);
 	}
@@ -1565,6 +1569,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 			{
 				SCOPE_TIME_GUARD_MS(TEXT("UWorld::Tick - TG_PrePhysics"), 10);
 				SCOPE_CYCLE_COUNTER(STAT_TG_PrePhysics);
+				CSV_SCOPED_SET_WAIT_STAT(PrePhysics);
 				RunTickGroup(TG_PrePhysics);
 			}
 			bInTick = false;
@@ -1573,22 +1578,26 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 			{
 				SCOPE_CYCLE_COUNTER(STAT_TG_StartPhysics);
 				SCOPE_TIME_GUARD_MS(TEXT("UWorld::Tick - TG_StartPhysics"), 10);
-				RunTickGroup(TG_StartPhysics); 
+				CSV_SCOPED_SET_WAIT_STAT(StartPhysics);
+				RunTickGroup(TG_StartPhysics);
 			}
 			{
 				SCOPE_CYCLE_COUNTER(STAT_TG_DuringPhysics);
 				SCOPE_TIME_GUARD_MS(TEXT("UWorld::Tick - TG_DuringPhysics"), 10);
+				CSV_SCOPED_SET_WAIT_STAT(DuringPhysics);
 				RunTickGroup(TG_DuringPhysics, false); // No wait here, we should run until idle though. We don't care if all of the async ticks are done before we start running post-phys stuff
 			}
 			TickGroup = TG_EndPhysics; // set this here so the current tick group is correct during collision notifies, though I am not sure it matters. 'cause of the false up there^^^
 			{
 				SCOPE_CYCLE_COUNTER(STAT_TG_EndPhysics);
 				SCOPE_TIME_GUARD_MS(TEXT("UWorld::Tick - TG_EndPhysics"), 10);
+				CSV_SCOPED_SET_WAIT_STAT(EndPhysics);
 				RunTickGroup(TG_EndPhysics);
 			}
 			{
 				SCOPE_CYCLE_COUNTER(STAT_TG_PostPhysics);
 				SCOPE_TIME_GUARD_MS(TEXT("UWorld::Tick - TG_PostPhysics"), 10);
+				CSV_SCOPED_SET_WAIT_STAT(PostPhysics);
 				RunTickGroup(TG_PostPhysics);
 			}
 	
@@ -1683,7 +1692,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 				RunTickGroup(TG_LastDemotable);
 			}
 
-			FTickTaskManagerInterface::Get().EndFrame(); 
+			FTickTaskManagerInterface::Get().EndFrame();
 		}
 	}
 

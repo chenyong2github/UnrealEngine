@@ -413,13 +413,6 @@ public:
 	}
 	const FRHIUniformBufferLayout& GetLayout() const { return *Layout; }
 
-	/** Same layout but different address */
-	void UpdateLayoutReference(const FRHIUniformBufferLayout* NewRef)
-	{
-		check(*Layout == *NewRef);
-		Layout = NewRef;
-	}
-
 #if VALIDATE_UNIFORM_BUFFER_LIFETIME
 	mutable int32 NumMeshCommandReferencesForDebugging = 0;
 #endif
@@ -1912,6 +1905,16 @@ public:
 	EPrimitiveType					PrimitiveType;
 };
 
+// Hints for some RHIs that support subpasses
+enum class ESubpassHint : uint8
+{
+	// Regular rendering
+	None,
+
+	// Render pass has depth reading subpass
+	DepthReadSubpass,
+};
+
 class FGraphicsPipelineStateInitializer final : public FGraphicsMinimalPipelineStateInitializer
 {
 public:
@@ -1930,6 +1933,8 @@ public:
 		, StencilTargetLoadAction(ERenderTargetLoadAction::ENoAction)
 		, StencilTargetStoreAction(ERenderTargetStoreAction::ENoAction)
 		, NumSamples(0)
+		, SubpassHint(ESubpassHint::None)
+		, SubpassIndex(0)
 		, Flags(0)
 	{
 		static_assert(sizeof(EPixelFormat) != sizeof(uint8), "Change TRenderTargetFormats's uint8 to EPixelFormat");
@@ -1948,6 +1953,8 @@ public:
 		, StencilTargetLoadAction(ERenderTargetLoadAction::ENoAction)
 		, StencilTargetStoreAction(ERenderTargetStoreAction::ENoAction)
 		, NumSamples(0)
+		, SubpassHint(ESubpassHint::None)
+		, SubpassIndex(0)
 		, Flags(0)
 	{
 	}
@@ -1970,6 +1977,8 @@ public:
 		ERenderTargetStoreAction			InStencilTargetStoreAction,
 		FExclusiveDepthStencil				InDepthStencilAccess,
 		uint32								InNumSamples,
+		ESubpassHint						InSubpassHint,
+		uint8								InSubpassIndex,
 		uint16								InFlags
 		)
 		: FGraphicsMinimalPipelineStateInitializer(InBoundShaderState, InBlendState, InRasterizerState, InDepthStencilState, InImmutableSamplerState, InPrimitiveType)
@@ -1984,6 +1993,8 @@ public:
 		, StencilTargetStoreAction(InStencilTargetStoreAction)
 		, DepthStencilAccess(InDepthStencilAccess)
 		, NumSamples(InNumSamples)
+		, SubpassHint(InSubpassHint)
+		, SubpassIndex(InSubpassIndex)
 		, Flags(InFlags)
 	{
 	}
@@ -2010,7 +2021,9 @@ public:
 			StencilTargetLoadAction != rhs.StencilTargetLoadAction ||
 			StencilTargetStoreAction != rhs.StencilTargetStoreAction || 
 			DepthStencilAccess != rhs.DepthStencilAccess ||
-			NumSamples != rhs.NumSamples)
+			NumSamples != rhs.NumSamples ||
+			SubpassHint != rhs.SubpassHint ||
+			SubpassIndex != rhs.SubpassIndex)
 		{
 			return false;
 		}
@@ -2057,6 +2070,8 @@ public:
 	ERenderTargetStoreAction		StencilTargetStoreAction;
 	FExclusiveDepthStencil			DepthStencilAccess;
 	uint16							NumSamples;
+	ESubpassHint					SubpassHint;
+	uint8							SubpassIndex;
 	
 	// Note: these flags do NOT affect compilation of this PSO.
 	// The resulting object is invariant with respect to whatever is set here, they are
@@ -2373,6 +2388,9 @@ struct FRHIRenderPassInfo
 
 	// Some RHIs need to know if this render pass is going to be reading and writing to the same texture in the case of generating mip maps for partial resource transitions
 	bool bGeneratingMips = false;
+
+	// Hint for some RHI's that renderpass will have specific sub-passes 
+	ESubpassHint SubpassHint = ESubpassHint::None;
 
 	// TODO: Remove once FORT-162640 is solved
 	bool bTooManyUAVs = false;
