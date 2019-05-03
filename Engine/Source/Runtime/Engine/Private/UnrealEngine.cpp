@@ -16144,7 +16144,7 @@ int32 UEngine::RenderStatAI(UWorld* World, FViewport* Viewport, FCanvas* Canvas,
 		if (Controller && !Cast<APlayerController>(Controller))
 		{
 			++NumAI;
-			if (Controller->GetPawn() != NULL && World->GetTimeSeconds() - Controller->GetPawn()->GetLastRenderTime() < 0.08f)
+			if (Controller->GetPawn() && Controller->GetPawn()->WasRecentlyRendered(0.08f))
 			{
 				++NumAIRendered;
 			}
