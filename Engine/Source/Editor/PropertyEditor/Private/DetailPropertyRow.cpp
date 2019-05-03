@@ -261,6 +261,11 @@ void FDetailPropertyRow::OnGenerateChildren( FDetailNodeList& OutChildren )
 			const bool bIgnoreAdvancedDropdown = true;
 			MyCategory->GetGeneratedChildren(OutChildren, bIgnoreVisibility, bIgnoreAdvancedDropdown);
 		}
+		else
+		{
+			// Fall back to the default if we can't find the category implementation
+			GenerateChildrenForPropertyNode(PropertyNode, OutChildren);
+		}
 	}
 	else if (PropertyNode->AsCategoryNode() || PropertyNode->GetProperty() || ExternalObjectLayout.IsValid())
 	{
