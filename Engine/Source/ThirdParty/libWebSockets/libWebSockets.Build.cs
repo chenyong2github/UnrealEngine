@@ -22,7 +22,7 @@ public class libWebSockets : ModuleRules
 			PublicAdditionalLibraries.Add("websockets_static.lib");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS ||
-			Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.Switch)
+			Target.Platform == UnrealTargetPlatform.PS4 || Target.Platform == UnrealTargetPlatform.Switch)
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(WebsocketPath, "lib", Target.Platform.ToString(), ConfigurationSubdir, "libwebsockets.a"));
 		}
