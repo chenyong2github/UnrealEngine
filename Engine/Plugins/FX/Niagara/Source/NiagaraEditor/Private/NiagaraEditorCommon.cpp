@@ -1278,3 +1278,8 @@ void UActorFactoryNiagara::PostCreateBlueprint(UObject* Asset, AActor* CDO)
 
 
 #undef LOCTEXT_NAMESPACE
+
+INiagaraScriptGraphFocusInfo::~INiagaraScriptGraphFocusInfo()
+{
+	//Stand-in definition for abstract INiagaraScriptGraphFocusInfo's pure virtual dtor
+}

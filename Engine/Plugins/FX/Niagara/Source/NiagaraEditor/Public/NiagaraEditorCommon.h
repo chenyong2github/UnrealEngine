@@ -51,3 +51,60 @@ public:
 	bool CreateHlslForAddedInputs(int32 InputCount, FString& HlslResult) const;
 };
 
+/** Interface for struct representing information about where to focus in a Niagara Script Graph after opening the editor for it. */
+struct INiagaraScriptGraphFocusInfo
+{
+public:
+	enum class ENiagaraScriptGraphFocusInfoType : uint8
+	{
+		None = 0,
+		Node,
+		Pin
+	};
+
+	INiagaraScriptGraphFocusInfo(const uint32& InScriptUniqueAssetID, const ENiagaraScriptGraphFocusInfoType InFocusType)
+		: ScriptUniqueAssetID(InScriptUniqueAssetID)
+		, FocusType(InFocusType)
+	{
+	};
+
+	const uint32& GetScriptUniqueAssetID() const { return ScriptUniqueAssetID; };
+
+	const ENiagaraScriptGraphFocusInfoType& GetFocusType() const { return FocusType; };
+
+	virtual ~INiagaraScriptGraphFocusInfo() = 0;
+	
+private:
+	const uint32 ScriptUniqueAssetID;
+	const ENiagaraScriptGraphFocusInfoType FocusType;
+};
+
+struct FNiagaraScriptGraphNodeToFocusInfo : public INiagaraScriptGraphFocusInfo
+{
+public:
+	FNiagaraScriptGraphNodeToFocusInfo(const uint32& InScriptUniqueAssetID, const FGuid& InNodeGuidToFocus)
+		: INiagaraScriptGraphFocusInfo(InScriptUniqueAssetID, ENiagaraScriptGraphFocusInfoType::Node)
+		, NodeGuidToFocus(InNodeGuidToFocus)
+	{
+	};
+
+	const FGuid& GetNodeGuidToFocus() const { return NodeGuidToFocus; };
+
+private:
+	const FGuid NodeGuidToFocus;
+};
+
+struct FNiagaraScriptGraphPinToFocusInfo : public INiagaraScriptGraphFocusInfo
+{
+public:
+	FNiagaraScriptGraphPinToFocusInfo(const uint32& InScriptUniqueAssetID, const FGuid& InPinGuidToFocus)
+		: INiagaraScriptGraphFocusInfo(InScriptUniqueAssetID, ENiagaraScriptGraphFocusInfoType::Pin)
+		, PinGuidToFocus(InPinGuidToFocus)
+	{
+	};
+
+	const FGuid& GetPinGuidToFocus() const { return PinGuidToFocus; };
+
+private:
+	const FGuid PinGuidToFocus;
+};
