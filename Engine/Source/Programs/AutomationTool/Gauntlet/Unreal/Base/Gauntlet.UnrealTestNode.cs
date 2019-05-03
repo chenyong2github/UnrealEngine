@@ -58,7 +58,9 @@ namespace Gauntlet
 				return new string[0];
 			}
 
-			return GetArtifactsWithFailures().Where(A => A.LogSummary.FatalError != null).Select(A => A.LogSummary.FatalError.Message);
+			var FailedArtifacts = GetArtifactsWithFailures();
+
+			return FailedArtifacts.Where(A => A.LogSummary.FatalError != null).Select(A => A.LogSummary.FatalError.Message);
 		}
 
 		// Begin UnrealTestNode properties and members
