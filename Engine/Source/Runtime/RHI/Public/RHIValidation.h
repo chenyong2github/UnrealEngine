@@ -1618,6 +1618,7 @@ public:
 
 	virtual void RHICopySubTextureRegion(FRHITexture2D* SourceTexture, FRHITexture2D* DestinationTexture, FBox2D SourceBox, FBox2D DestinationBox) override final
 	{
+		ValidateCopySubTextureRegion(SourceTexture, DestinationTexture, SourceBox, DestinationBox);
 		RHI->RHICopySubTextureRegion(SourceTexture, DestinationTexture, SourceBox, DestinationBox);
 	}
 
@@ -1686,6 +1687,7 @@ private:
 	FString						RHIName;
 
 	void ValidatePipeline(const FGraphicsPipelineStateInitializer& Initializer);
+	void ValidateCopySubTextureRegion(FRHITexture2D* SourceTexture, FRHITexture2D* DestinationTexture, FBox2D SourceBox, FBox2D DestinationBox);
 };
 
 extern RHI_API FValidationRHI* GValidationRHI;
