@@ -246,6 +246,12 @@ TArray<ESocialSubsystem> USocialUser::GetRelationshipSubsystems(ESocialRelations
 					RelationshipSubsystems.Add(SubsystemInfoPair.Key);
 				}
 				break;
+			case ESocialRelationship::SuggestedFriend:
+				if (SubsystemInfoPair.Value.GetFriendInviteStatus() == EInviteStatus::Suggested)
+				{
+					RelationshipSubsystems.Add(SubsystemInfoPair.Key);
+				}
+				break;
 			case ESocialRelationship::Friend:
 				if (SubsystemInfoPair.Value.IsFriend())
 				{
