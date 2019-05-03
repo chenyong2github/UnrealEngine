@@ -250,6 +250,8 @@ public:
 
 	void SetIsSearchResult(bool bInIsSearchResult);
 
+	bool HasBaseEmitter() const;
+
 protected:
 	virtual void BeginDestroy() override;
 
@@ -329,4 +331,6 @@ private:
 	bool bIsFinalized;
 
 	bool bIsSearchResult;
+
+	mutable TOptional<bool> bHasBaseEmitterCache;
 };

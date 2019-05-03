@@ -144,9 +144,6 @@ public:
 	/** Determine if this field is editable */
 	bool IsEditable() const;
 
-	/** Whether or not this input has a base value.  This is true for emitter instances in systems. */
-	bool EmitterHasBase() const;
-
 	/** Whether or not this input can be reset to a base value. */
 	bool CanResetToBase() const;
 
@@ -408,10 +405,10 @@ private:
 	mutable TOptional<UEdGraphPin*> OverridePinCache;
 
 	/** Whether or not this input can be reset to its default value. */
-	mutable TOptional<bool> bCanReset;
+	mutable TOptional<bool> bCanResetCache;
 
 	/** Whether or not this input can be reset to a base value defined by a parent emitter. */
-	mutable TOptional<bool> bCanResetToBase;
+	mutable TOptional<bool> bCanResetToBaseCache;
 
 	/** A flag to prevent handling graph changes when it's being updated directly by this object. */
 	bool bUpdatingGraphDirectly;

@@ -240,4 +240,10 @@ INiagaraModule::FMergeEmitterResults FNiagaraEmitterHandle::MergeSourceChanges()
 	return MergeResults;
 }
 
+void FNiagaraEmitterHandle::RemoveSource()
+{
+	Source = nullptr;
+	LastMergedSource = nullptr;
+}
+
 #endif

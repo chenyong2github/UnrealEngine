@@ -436,6 +436,10 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 	SystemViewModel = MakeShareable(new FNiagaraSystemViewModel(*System, SystemOptions));
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
 	SystemViewModel->AddEmitter(*Emitter);
+
+	// Always remove the source information from the emitter handle when editing an emitter asset because inheritance is not valid in this case.
+	System->GetEmitterHandle(0).RemoveSource();
+
 	// We set this to the copy's change id here instead of the original emitter's change id because the copy's change id may have been
 	// updated from the original as part of post load and we use this id to detect if the editable emitter has been changed.
 	LastSyncedEmitterChangeId = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel()->GetEmitter()->GetChangeId();
