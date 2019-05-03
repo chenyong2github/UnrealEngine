@@ -33,6 +33,50 @@ struct FNiagaraDataInterfaceParametersCS;
 
 #define MAX_CONCURRENT_EVENT_DATASETS 4
 
+/** Defines the compile event types for translation/compilation.*/
+UENUM()
+enum class FNiagaraCompileEventSeverity : uint8
+{
+	Log = 0,
+	Warning = 1,
+	Error = 2
+};
+
+/** Records necessary information to give UI cues for errors/logs/warnings during compile.*/
+USTRUCT()
+struct FNiagaraCompileEvent
+{
+	GENERATED_USTRUCT_BODY()
+public:
+	FNiagaraCompileEvent()
+	{
+		Severity = FNiagaraCompileEventSeverity::Log;
+		Message = FString();
+		NodeGuid = FGuid();
+		PinGuid = FGuid();
+		StackGuids.Empty();
+	}
+
+	FNiagaraCompileEvent(FNiagaraCompileEventSeverity InSeverity, const FString& InMessage, FGuid InNodeGuid = FGuid(), FGuid InPinGuid = FGuid(), const TArray<FGuid>& InCallstackGuids = TArray<FGuid>())
+		: Severity(InSeverity), Message(InMessage), NodeGuid(InNodeGuid), PinGuid(InPinGuid), StackGuids(InCallstackGuids) {}
+
+	/** Whether or not this is an error, warning, or info*/
+	UPROPERTY()
+	FNiagaraCompileEventSeverity Severity;
+	/* The message itself*/
+	UPROPERTY()
+	FString Message;
+	/** The node guid that generated the compile event*/
+	UPROPERTY()
+	FGuid NodeGuid;
+	/** The pin persistent id that generated the compile event*/
+	UPROPERTY()
+	FGuid PinGuid;
+	/** The compile stack frame of node id's*/
+	UPROPERTY()
+	TArray<FGuid> StackGuids;
+};
+
 /**
 * Data coming from that translator that describes parameters needed for each data interface.
 */
