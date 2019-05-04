@@ -62,6 +62,10 @@
 #include "Misc/ScopeExit.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 
+#if USE_SERVER_PERF_COUNTERS
+#include "PerfCountersModule.h"
+#endif
+
 int32 CVar_RepGraph_Pause = 0;
 static FAutoConsoleVariableRef CVarRepGraphPause(TEXT("Net.RepGraph.Pause"), CVar_RepGraph_Pause, TEXT("Pauses actor replication in the Replication Graph."), ECVF_Default );
 
@@ -800,6 +804,8 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 	++NetDriver->ReplicationFrame;	// This counter is used by RepLayout to utilize CL/serialization sharing. We must increment it ourselves, but other places can increment it too, in order to invalidate the shared state.
 	const uint32 FrameNum = ReplicationGraphFrame; // This counter is used internally and drives all frame based replication logic.
 
+	bWasConnectionSaturated = false;
+
 	ON_SCOPE_EXIT
 	{
 		// We increment this after our replication has happened. If we increment at the beginning of this function, then we rep with FrameNum X, then start the next game frame with the same FrameNum X. If at the top of that frame,
@@ -866,6 +872,12 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 		}
 
 		NumChildrenConnectionsProcessed += NetConnection->Children.Num();
+
+		ON_SCOPE_EXIT
+		{
+			NetConnection->TrackReplicationForAnalytics(bWasConnectionSaturated);
+			bWasConnectionSaturated = false;
+		};
 
 		FBitWriter& ConnectionSendBuffer = NetConnection->SendBuffer; // unused
 		ConnectionManager->QueuedBitsForActorDiscovery = 0;
@@ -1298,7 +1310,7 @@ void UReplicationGraph::ReplicateActorListsForConnections_Default(UNetReplicatio
 				// We've exceeded the budget for this category of replication list.
 				RG_QUICK_SCOPE_CYCLE_COUNTER(NET_ReplicateActors_PartialStarvedActorList);
 				HandleStarvedActorList(PrioritizedReplicationList, ActorIdx + 1, ConnectionActorInfoMap, FrameNum);
-				GNumSaturatedConnections++;
+				NotifyConnectionSaturated(*ConnectionManager);
 				break;
 			}
 		}
@@ -1495,7 +1507,7 @@ void UReplicationGraph::ReplicateActorListsForConnections_FastShared(UNetReplica
 #endif
 			if (TotalBitsWritten > MaxBits)
 			{
-				GNumSaturatedConnections++;
+				NotifyConnectionSaturated(*ConnectionManager);
 				return;
 			}
 		}
@@ -2152,6 +2164,12 @@ void UReplicationGraph::SetActorDiscoveryBudget(int32 ActorDiscoveryBudgetInKByt
 
 	ActorDiscoveryMaxBitsPerFrame = (ActorDiscoveryBudgetInKBytesPerSec * 1000 * 8) / MaxNetworkFPS;
 	UE_LOG(LogReplicationGraph, Display, TEXT("SetActorDiscoveryBudget set to %d kBps (%d bits per network tick)."), ActorDiscoveryBudgetInKBytesPerSec, ActorDiscoveryMaxBitsPerFrame);
+}
+
+void UReplicationGraph::NotifyConnectionSaturated(UNetReplicationGraphConnection& Connection)
+{
+	bWasConnectionSaturated = true;
+	++GNumSaturatedConnections;
 }
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
@@ -3222,7 +3240,7 @@ void UReplicationGraphNode_DynamicSpatialFrequency::GatherActorListsForConnectio
 			// Bandwidth Cap
 			if (BitsWritten > MaxBits && CVar_RepGraph_DynamicSpatialFrequency_UncapBandwidth == 0)
 			{
-				GNumSaturatedConnections++;
+				RepGraph->NotifyConnectionSaturated(Params.ConnectionManager);
 				break;
 			}
 		}

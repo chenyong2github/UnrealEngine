@@ -3796,7 +3796,6 @@ int32 UNetDriver::ServerReplicateActors_PrioritizeActors( UNetConnection* Connec
 	// Get list of visible/relevant actors.
 
 	NetTag++;
-	Connection->TickCount++;
 
 	// Set up to skip all sent temporary actors
 	for ( int32 j = 0; j < Connection->SentTemporaries.Num(); j++ )
@@ -4390,6 +4389,9 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 		}
 		else if (Connection->ViewTarget)
 		{		
+
+			const int32 LocalNumSaturated = GNumSaturatedConnections;
+
 			// Make a list of viewers this connection should consider (this connection and children of this connection)
 			TArray<FNetViewer>& ConnectionViewers = WorldSettings->ReplicationViewers;
 
@@ -4462,6 +4464,9 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 			RelevantActorMark.Pop();
 
 			ConnectionViewers.Reset();
+
+			const bool bWasSaturated = GNumSaturatedConnections > LocalNumSaturated;
+			Connection->TrackReplicationForAnalytics(bWasSaturated);
 		}
 	}
 
