@@ -77,8 +77,8 @@ void FIQuery<Real, Ray3<Real>, Cone3<Real>>::DoQuery(
         // The line containing the ray intersects the cone; the t-interval
         // is [t0,t1].  The ray intersects the cone as long as [t0,t1]
         // overlaps the ray t-interval [0,+infinity).
-        std::array<Real, 2> rayInterval = {
-            (Real)0, std::numeric_limits<Real>::max() };
+        std::array<Real, 2> rayInterval = {{
+            (Real)0, std::numeric_limits<Real>::max() }};
         FIIntervalInterval<Real> iiQuery;
         auto iiResult = iiQuery(result.parameter, rayInterval);
         if (iiResult.intersect)

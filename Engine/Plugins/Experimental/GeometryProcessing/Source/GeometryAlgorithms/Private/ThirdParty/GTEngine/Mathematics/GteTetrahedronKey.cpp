@@ -59,10 +59,10 @@ namespace gte
 
     template<> std::array<int, 3> const TetrahedronKey<true>::oppositeFace[4] =
     {
-        { 1, 2, 3 },
-        { 0, 3, 2 },
-        { 0, 1, 3 },
-        { 0, 2, 1 }
+		{{ 1, 2, 3 }},
+		{{ 0, 3, 2 }},
+		{{ 0, 1, 3 }},
+		{{ 0, 2, 1 }}
     };
 
     template<>
@@ -118,10 +118,10 @@ namespace gte
 
     template<> std::array<int, 3> const TetrahedronKey<false>::oppositeFace[4] =
     {
-        { 1, 2, 3 },
-        { 0, 3, 2 },
-        { 0, 1, 3 },
-        { 0, 2, 1 }
+		{{ 1, 2, 3 }},
+		{{ 0, 3, 2 }},
+		{{ 0, 1, 3 }},
+		{{ 0, 2, 1 }}
     };
 
     template<>

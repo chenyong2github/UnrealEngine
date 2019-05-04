@@ -61,8 +61,8 @@ DCPQuery<Real, AlignedBox<N, Real>, AlignedBox<N, Real>>::operator()(
         }
         else
         {
-            std::array<Real, 2> intr0 = { box0.min[i], box0.max[i] };
-            std::array<Real, 2> intr1 = { box1.min[i], box1.max[i] };
+            std::array<Real, 2> intr0 = {{ box0.min[i], box0.max[i] }};
+            std::array<Real, 2> intr1 = {{ box1.min[i], box1.max[i] }};
             FIQuery<Real, std::array<Real, 2>, std::array<Real, 2>> query;
             auto iiResult = query(intr0, intr1);
             for (int j = 0; j < 2; ++j)

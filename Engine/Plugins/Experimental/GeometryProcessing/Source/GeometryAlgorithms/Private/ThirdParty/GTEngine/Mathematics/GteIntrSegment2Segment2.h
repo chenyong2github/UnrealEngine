@@ -102,8 +102,8 @@ TIQuery<Real, Segment2<Real>, Segment2<Real>>::operator()(
         Real t = Dot(seg0Direction, diff);
 
         // Get the parameter intervals of the segments relative to segment0.
-        std::array<Real, 2> interval0 = { -seg0Extent, seg0Extent };
-        std::array<Real, 2> interval1 = { t - seg1Extent, t + seg1Extent };
+        std::array<Real, 2> interval0 = {{ -seg0Extent, seg0Extent }};
+        std::array<Real, 2> interval1 = {{ t - seg1Extent, t + seg1Extent }};
 
         // Compute the intersection of the intervals.
         FIQuery<Real, std::array<Real, 2>, std::array<Real, 2>> iiQuery;
@@ -160,8 +160,8 @@ FIQuery<Real, Segment2<Real>, Segment2<Real>>::operator()(
         Real t = Dot(seg0Direction, diff);
 
         // Get the parameter intervals of the segments relative to segment0.
-        std::array<Real, 2> interval0 = { -seg0Extent, seg0Extent };
-        std::array<Real, 2> interval1 = { t - seg1Extent, t + seg1Extent };
+        std::array<Real, 2> interval0 = {{ -seg0Extent, seg0Extent }};
+        std::array<Real, 2> interval1 = {{ t - seg1Extent, t + seg1Extent }};
 
         // Compute the intersection of the intervals.
         FIQuery<Real, std::array<Real, 2>, std::array<Real, 2>> iiQuery;

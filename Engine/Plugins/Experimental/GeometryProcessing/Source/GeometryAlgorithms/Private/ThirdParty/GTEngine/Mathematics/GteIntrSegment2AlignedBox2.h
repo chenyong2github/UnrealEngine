@@ -162,7 +162,7 @@ void FIQuery<Real, Segment2<Real>, AlignedBox2<Real>>::DoQuery(
         // The line containing the segment intersects the box; the t-interval
         // is [t0,t1].  The segment intersects the box as long as [t0,t1]
         // overlaps the segment t-interval [-segExtent,+segExtent].
-        std::array<Real, 2> segInterval = { -segExtent, segExtent };
+        std::array<Real, 2> segInterval = {{ -segExtent, segExtent }};
         FIQuery<Real, std::array<Real, 2>, std::array<Real, 2>> iiQuery;
         auto iiResult = iiQuery(result.parameter, segInterval);
         result.intersect = iiResult.intersect;

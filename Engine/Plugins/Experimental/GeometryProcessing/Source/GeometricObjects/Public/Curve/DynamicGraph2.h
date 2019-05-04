@@ -75,7 +75,7 @@ public:
 	int AppendVertex(FVector2d V)
 	{
 		int vid = append_vertex_internal();
-		vertices.InsertAt({V.X, V.Y}, vid);
+		vertices.InsertAt({{V.X, V.Y}}, vid);
 		return vid;
 	}
 

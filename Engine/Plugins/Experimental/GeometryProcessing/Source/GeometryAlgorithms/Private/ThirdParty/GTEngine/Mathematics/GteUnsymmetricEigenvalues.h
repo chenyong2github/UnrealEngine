@@ -386,7 +386,7 @@ bool UnsymmetricEigenvalues<Real>::GetBlock(std::array<int, 2>& block)
     {
         if (mSubdiagonalFlag[i] == 1)
         {
-            block = { i, -1 };
+            block = {{ i, -1 }};
             while (i < mSizeM1 && mSubdiagonalFlag[i] == 1)
             {
                 block[1] = i++;

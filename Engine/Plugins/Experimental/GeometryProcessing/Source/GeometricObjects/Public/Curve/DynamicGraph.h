@@ -186,7 +186,7 @@ protected:
 private:
 	void allocate_edges_list(int VID)
 	{
-		if (VID < vertex_edges.Size())
+		if (VID < (int)vertex_edges.Size())
 		{
 			vertex_edges.Clear(VID);
 		}

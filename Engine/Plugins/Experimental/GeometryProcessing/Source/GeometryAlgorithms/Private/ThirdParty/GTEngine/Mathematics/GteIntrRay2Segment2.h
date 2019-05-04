@@ -167,7 +167,7 @@ FIQuery<Real, Ray2<Real>, Segment2<Real>>::operator()(
         };
 
         // Compute the location of the segment endpoints relative to the ray.
-        std::array<Real, 2> interval1 = { t - segExtent, t + segExtent };
+        std::array<Real, 2> interval1 = {{ t - segExtent, t + segExtent }};
 
         // Compute the intersection of [0,+infinity) and [tmin,tmax].
         FIQuery<Real, std::array<Real, 2>, std::array<Real, 2>> iiQuery;

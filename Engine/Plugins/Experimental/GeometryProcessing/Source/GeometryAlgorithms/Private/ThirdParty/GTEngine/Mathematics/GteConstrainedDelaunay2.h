@@ -290,7 +290,7 @@ bool ConstrainedDelaunay2<InputType, ComputeType>::ProcessCoincident(int tri,
     if (v1 != vOther)
     {
         // Decompose the edge and process the right-most subedge.
-        return Insert({ vOther, v1 }, tri, outEdge);
+        return Insert({{ vOther, v1 }}, tri, outEdge);
     }
     else
     {
@@ -323,12 +323,12 @@ bool ConstrainedDelaunay2<InputType, ComputeType>::ProcessInterior(int tri,
 
     polygon.push_back(tri);
 
-    lBoundary.push_back({ v0, -1 });
+    lBoundary.push_back({{ v0, -1 }});
     binfo = GetAdjBoundary(tri, vPrev, vPrev);
     GTE_CDT_REQUIRE(binfo[0] != -2);
     lBoundary.push_back(binfo);
 
-    rBoundary.push_back({ v0, -1 });
+    rBoundary.push_back({{ v0, -1 }});
     binfo = GetAdjBoundary(tri, vNext, v0);
     GTE_CDT_REQUIRE(binfo[0] != -2);
     rBoundary.push_back(binfo);
@@ -365,7 +365,7 @@ bool ConstrainedDelaunay2<InputType, ComputeType>::ProcessInterior(int tri,
             if (vOpposite != v1)
             {
                 outEdge.push_back(v0);
-                return Insert({ vOpposite, v1 }, tri, outEdge);
+                return Insert({{ vOpposite, v1 }}, tri, outEdge);
             }
             else
             {
@@ -634,7 +634,7 @@ template <typename InputType, typename ComputeType>
 std::array<int, 2> ConstrainedDelaunay2<InputType, ComputeType>::
 GetAdjInterior(int tri, int v0, int v1) const
 {
-    std::array<int, 2> error = { -2, -2 };
+    std::array<int, 2> error = {{ -2, -2 }};
     int vIndex = GetIndexOfVertex(tri, v0);
     GTE_CDT_REQUIRE_RET(vIndex >= 0, error);
     int adj = this->mAdjacencies[3 * tri + vIndex];
@@ -645,13 +645,13 @@ GetAdjInterior(int tri, int v0, int v1) const
             int v2 = this->mIndices[3 * adj + v2Index];
             if (v2 != v0 && v2 != v1)
             {
-                return{ adj, v2 };
+                return {{ adj, v2 }};
             }
         }
     }
     else
     {
-        return{ -1, -1 };
+        return {{ -1, -1 }};
     }
 
     GTE_CDT_FAILURE_RET(error);
@@ -661,11 +661,11 @@ template <typename InputType, typename ComputeType>
 std::array<int, 2> ConstrainedDelaunay2<InputType, ComputeType>::
 GetAdjBoundary(int tri, int needBndVertex, int needAdjVIndex) const
 {
-    std::array<int, 2> error = { -2, -2 };
+    std::array<int, 2> error = {{ -2, -2 }};
     int vIndex = GetIndexOfVertex(tri, needAdjVIndex);
     GTE_CDT_REQUIRE_RET(vIndex >= 0, error);
     int adj = this->mAdjacencies[3 * tri + vIndex];
-    return{ needBndVertex, adj };
+    return {{ needBndVertex, adj }};
 }
 
 template <typename InputType, typename ComputeType>

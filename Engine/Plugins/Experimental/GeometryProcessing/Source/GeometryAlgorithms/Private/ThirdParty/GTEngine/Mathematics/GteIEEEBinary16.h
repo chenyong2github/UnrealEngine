@@ -110,8 +110,13 @@ namespace std
 
     inline gte::IEEEBinary16 acosh(gte::IEEEBinary16 x)
     {
+#if defined(__ANDROID__)
+		checkf(false, TEXT("not supported on Android"));
+		return (gte::IEEEBinary16)0.0f;
+#else
         return (gte::IEEEBinary16)std::acosh((float)x);
-    }
+#endif
+	}
 
     inline gte::IEEEBinary16 asin(gte::IEEEBinary16 x)
     {
@@ -120,7 +125,12 @@ namespace std
 
     inline gte::IEEEBinary16 asinh(gte::IEEEBinary16 x)
     {
-        return (gte::IEEEBinary16)std::asin((float)x);
+#if defined(__ANDROID__)
+		checkf(false, TEXT("not supported on Android"));
+		return (gte::IEEEBinary16)0.0f;
+#else
+		return (gte::IEEEBinary16)std::asinh((float)x);
+#endif
     }
 
     inline gte::IEEEBinary16 atan(gte::IEEEBinary16 x)
@@ -130,8 +140,13 @@ namespace std
 
     inline gte::IEEEBinary16 atanh(gte::IEEEBinary16 x)
     {
+#if defined(__ANDROID__)
+		checkf(false, TEXT("not supported on Android"));
+		return (gte::IEEEBinary16)0.0f;
+#else
         return (gte::IEEEBinary16)std::atanh((float)x);
-    }
+#endif
+	}
 
     inline gte::IEEEBinary16 atan2(gte::IEEEBinary16 y, gte::IEEEBinary16 x)
     {
@@ -160,8 +175,13 @@ namespace std
 
     inline gte::IEEEBinary16 exp2(gte::IEEEBinary16 x)
     {
+#if defined(__ANDROID__)
+		checkf(false, TEXT("not supported on Android"));
+		return (gte::IEEEBinary16)0.0f;
+#else
         return (gte::IEEEBinary16)std::exp2((float)x);
-    }
+#endif
+	}
 
     inline gte::IEEEBinary16 floor(gte::IEEEBinary16 x)
     {
@@ -190,7 +210,12 @@ namespace std
 
     inline gte::IEEEBinary16 log2(gte::IEEEBinary16 x)
     {
-        return (gte::IEEEBinary16)std::log2((float)x);
+#if defined(__ANDROID__)
+		checkf(false, TEXT("not supported on Android"));
+		return (gte::IEEEBinary16)0.0f;
+#else
+		return (gte::IEEEBinary16)std::log2((float)x);
+#endif
     }
 
     inline gte::IEEEBinary16 log10(gte::IEEEBinary16 x)

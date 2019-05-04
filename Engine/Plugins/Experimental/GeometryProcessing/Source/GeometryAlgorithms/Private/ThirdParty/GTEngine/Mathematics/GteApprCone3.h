@@ -302,7 +302,7 @@ namespace gte
                                 error += Fi * Fi;
                             }
                             error *= invNumPoints;
-                            std::array<Real, 3> item = { s, t, error };
+                            std::array<Real, 3> item = {{ s, t, error }};
                             info.push_back(item);
                         }
                     }
@@ -310,7 +310,7 @@ namespace gte
             }
 
             Real minError = std::numeric_limits<Real>::max();
-            std::array<Real, 3> minItem = { (Real)0, (Real)0, minError };
+            std::array<Real, 3> minItem = {{ (Real)0, (Real)0, minError }};
             for (auto const& item : info)
             {
                 if (item[2] < minError)

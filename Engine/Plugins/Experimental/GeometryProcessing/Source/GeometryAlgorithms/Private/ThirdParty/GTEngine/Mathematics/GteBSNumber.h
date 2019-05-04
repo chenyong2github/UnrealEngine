@@ -680,8 +680,10 @@ namespace gte
                 {
                     LogError("Input is a " +
                         std::string(t & IEEE::NAN_QUIET_MASK ?
-                            "quiet" : "signaling") + " NaN with payload " +
-                        std::to_string(t & IEEE::NAN_PAYLOAD_MASK) + ".");
+                            "quiet" : "signaling") + " NaN with payload [redacted]" 
+						// disabling this because std::to_string is not available on some platforms and mscver ifdef causes a weird error
+						//+ std::to_string(t & IEEE::NAN_PAYLOAD_MASK) + "."
+					);
 
                     // Return 0 for a graceful exit.
                     mSign = 0;
@@ -863,8 +865,13 @@ namespace std
     template <typename UIntegerType>
     inline gte::BSNumber<UIntegerType> acosh(gte::BSNumber<UIntegerType> const& x)
     {
-        return (gte::BSNumber<UIntegerType>)std::acosh((double)x);
-    }
+#if defined(__ANDROID__)
+		checkf(false, TEXT("not supported on Android"));
+		return (gte::BSNumber<UIntegerType>)0;
+#else
+		return (gte::BSNumber<UIntegerType>)std::acosh((double)x);
+#endif
+	}
 
     template <typename UIntegerType>
     inline gte::BSNumber<UIntegerType> asin(gte::BSNumber<UIntegerType> const& x)
@@ -875,8 +882,13 @@ namespace std
     template <typename UIntegerType>
     inline gte::BSNumber<UIntegerType> asinh(gte::BSNumber<UIntegerType> const& x)
     {
+#if defined(__ANDROID__)
+		checkf(false, TEXT("not supported on Android"));
+		return (gte::BSNumber<UIntegerType>)0;
+#else
         return (gte::BSNumber<UIntegerType>)std::asinh((double)x);
-    }
+#endif
+	}
 
     template <typename UIntegerType>
     inline gte::BSNumber<UIntegerType> atan(gte::BSNumber<UIntegerType> const& x)
@@ -887,8 +899,13 @@ namespace std
     template <typename UIntegerType>
     inline gte::BSNumber<UIntegerType> atanh(gte::BSNumber<UIntegerType> const& x)
     {
+#if defined(__ANDROID__)
+		checkf(false, TEXT("not supported on Android"));
+		return (gte::BSNumber<UIntegerType>)0;
+#else
         return (gte::BSNumber<UIntegerType>)std::atanh((double)x);
-    }
+#endif
+	}
 
     template <typename UIntegerType>
     inline gte::BSNumber<UIntegerType> atan2(gte::BSNumber<UIntegerType> const& y, gte::BSNumber<UIntegerType> const& x)
@@ -923,8 +940,13 @@ namespace std
     template <typename UIntegerType>
     inline gte::BSNumber<UIntegerType> exp2(gte::BSNumber<UIntegerType> const& x)
     {
+#if defined(__ANDROID__)
+		checkf(false, TEXT("not supported on Android"));
+		return (gte::BSNumber<UIntegerType>)0;
+#else
         return (gte::BSNumber<UIntegerType>)std::exp2((double)x);
-    }
+#endif
+	}
 
     template <typename UIntegerType>
     inline gte::BSNumber<UIntegerType> floor(gte::BSNumber<UIntegerType> const& x)
@@ -959,8 +981,13 @@ namespace std
     template <typename UIntegerType>
     inline gte::BSNumber<UIntegerType> log2(gte::BSNumber<UIntegerType> const& x)
     {
+#if defined(__ANDROID__)
+		checkf(false, TEXT("not supported on Android"));
+		return (gte::BSNumber<UIntegerType>)0;
+#else
         return (gte::BSNumber<UIntegerType>)std::log2((double)x);
-    }
+#endif
+	}
 
     template <typename UIntegerType>
     inline gte::BSNumber<UIntegerType> log10(gte::BSNumber<UIntegerType> const& x)

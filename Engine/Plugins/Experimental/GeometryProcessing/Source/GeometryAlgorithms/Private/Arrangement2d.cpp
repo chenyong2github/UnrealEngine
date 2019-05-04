@@ -48,7 +48,7 @@ bool FArrangement2d::AttemptTriangulate(TArray<FIntVector> &Triangles, TArray<in
 	for (int EdgeIdx : Graph.EdgeIndices())
 	{
 		FDynamicGraph::FEdge Edge = Graph.GetEdge(EdgeIdx);
-		if (!Delaunay.Insert({ InputIndices[Edge.A], InputIndices[Edge.B] }, OutEdges))
+		if (!Delaunay.Insert({{ InputIndices[Edge.A], InputIndices[Edge.B] }}, OutEdges))
 		{
 			// Note the failed edge; we will try to proceed anyway, just without this edge
 			ensureMsgf(false, TEXT("CDT edge insertion failed -- possibly bad data?"));

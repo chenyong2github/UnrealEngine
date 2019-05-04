@@ -1082,7 +1082,7 @@ template <typename InputType, typename ComputeType>
 std::array<int, 4> MinimumVolumeBox3<InputType, ComputeType>::SortAngles(
     std::array<std::pair<ComputeType, int>, 4> const& A, int numA) const
 {
-    std::array<int, 4> sort = { 0, 1, 2, 3 };
+    std::array<int, 4> sort = {{ 0, 1, 2, 3 }};
     if (numA > 1)
     {
         if (numA == 2)

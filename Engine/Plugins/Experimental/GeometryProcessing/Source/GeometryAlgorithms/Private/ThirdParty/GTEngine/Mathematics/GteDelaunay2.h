@@ -225,7 +225,7 @@ Delaunay2<InputType, ComputeType>::Delaunay2()
     // INVESTIGATE.  If the initialization of mIndex is placed in the
     // constructor initializer list, MSVS 2012 generates an internal
     // compiler error.
-    mIndex = { { { 0, 1 }, { 1, 2 }, { 2, 0 } } };
+	mIndex = { { { {0, 1} }, { {1, 2} }, { {2, 0} } } };
 }
 
 template <typename InputType, typename ComputeType>

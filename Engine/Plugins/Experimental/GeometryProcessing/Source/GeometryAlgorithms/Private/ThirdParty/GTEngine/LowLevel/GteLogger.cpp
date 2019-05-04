@@ -16,7 +16,9 @@ Logger::Logger(char const* file, char const* function, int line,
     mMessage =
         "File: " + std::string(file) + "\n" +
         "Func: " + std::string(function) + "\n" +
+#ifdef _MSC_VER		// std::to_string not available on some platforms
         "Line: " + std::to_string(line) + "\n" +
+#endif
         message + "\n\n";
 }
 

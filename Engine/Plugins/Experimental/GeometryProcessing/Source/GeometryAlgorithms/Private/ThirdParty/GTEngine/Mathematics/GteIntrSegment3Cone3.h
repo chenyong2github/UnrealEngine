@@ -78,7 +78,7 @@ void FIQuery<Real, Segment3<Real>, Cone3<Real>>::DoQuery(
         // t-interval is [t0,t1].  The segment intersects the cone as
         // long as [t0,t1] overlaps the segment t-interval
         // [-segExtent,+segExtent].
-        std::array<Real, 2> segInterval = { -segExtent, segExtent };
+        std::array<Real, 2> segInterval = {{ -segExtent, segExtent }};
         FIIntervalInterval<Real> iiQuery;
         auto iiResult = iiQuery(result.parameter, segInterval);
         if (iiResult.intersect)

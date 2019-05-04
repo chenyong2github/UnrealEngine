@@ -71,7 +71,7 @@ namespace gte
             mFaces[5] = { { 4, 5, 7, 6 }, {  4,  5,  6,  7 } };
 
             // Clear the edges.
-            std::array<size_t, 2> ezero = { 0, 0 };
+            std::array<size_t, 2> ezero = {{ 0, 0 }};
             mCandidateEdges.fill(ezero);
             for (size_t r = 0; r < MAX_VERTICES; ++r)
             {

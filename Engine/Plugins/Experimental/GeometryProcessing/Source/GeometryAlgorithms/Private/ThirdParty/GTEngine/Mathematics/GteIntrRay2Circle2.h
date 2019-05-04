@@ -88,7 +88,7 @@ void FIQuery<Real, Ray2<Real>, Circle2<Real>>::DoQuery(
         // The line containing the ray intersects the disk; the t-interval is
         // [t0,t1].  The ray intersects the disk as long as [t0,t1] overlaps
         // the ray t-interval [0,+infinity).
-        std::array<Real, 2> rayInterval = { (Real)0, std::numeric_limits<Real>::max() };
+        std::array<Real, 2> rayInterval = {{ (Real)0, std::numeric_limits<Real>::max() }};
         FIQuery<Real, std::array<Real, 2>, std::array<Real, 2>> iiQuery;
         auto iiResult = iiQuery(result.parameter, rayInterval);
         result.intersect = iiResult.intersect;
