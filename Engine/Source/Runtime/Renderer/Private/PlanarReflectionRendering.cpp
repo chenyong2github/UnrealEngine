@@ -417,7 +417,7 @@ static void UpdatePlanarReflectionContents_RenderThread(
 	FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(RHICmdList, SceneRenderer);
 }
 
-extern void BuildProjectionMatrix(FIntPoint RenderTargetSize, ECameraProjectionMode::Type ProjectionType, float FOV, float OrthoWidth, FMatrix& ProjectionMatrix);
+extern void BuildProjectionMatrix(FIntPoint RenderTargetSize, ECameraProjectionMode::Type ProjectionType, float FOV, float OrthoWidth, float InNearClippingPlane, FMatrix& ProjectionMatrix);
 
 extern void SetupViewVamilyForSceneCapture(
 	FSceneViewFamily& ViewFamily,
@@ -514,7 +514,7 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 			const float HalfFOV = FMath::Atan(1.0f / View.ViewMatrices.GetProjectionMatrix().M[0][0]);
 
 			FMatrix ProjectionMatrix;
-			BuildProjectionMatrix(View.UnscaledViewRect.Size(), ECameraProjectionMode::Perspective, HalfFOV + FMath::DegreesToRadians(CaptureComponent->ExtraFOV), 1.0f, ProjectionMatrix);
+			BuildProjectionMatrix(View.UnscaledViewRect.Size(), ECameraProjectionMode::Perspective, HalfFOV + FMath::DegreesToRadians(CaptureComponent->ExtraFOV), 1.0f, GNearClippingPlane, ProjectionMatrix);
 
 			NewView.ViewLocation = ViewLocation;
 			NewView.ViewRotationMatrix = ViewRotationMatrix;
