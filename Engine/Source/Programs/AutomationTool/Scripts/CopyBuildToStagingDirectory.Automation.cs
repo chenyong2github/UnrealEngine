@@ -165,7 +165,7 @@ public partial class Project : CommandUtils
 		return CmdLine.ToString();
 	}
 
-	static FileReference GetUnrealPakLocation()
+	public static FileReference GetUnrealPakLocation()
 	{
 		if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64)
 		{
