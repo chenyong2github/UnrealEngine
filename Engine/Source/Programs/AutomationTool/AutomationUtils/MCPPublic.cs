@@ -130,6 +130,11 @@ namespace EpicGames.MCP.Automation
 		/// AndroidCN Platform.
 		/// </summary>
 		AndroidCN,
+
+		/// <summary>
+		/// PS4 platform
+		/// </summary>
+		PS4,
 	}
 
     /// <summary>
