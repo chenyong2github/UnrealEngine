@@ -2950,6 +2950,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		clipboardManager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
 
 //$${gameActivityOnCreateAdditions}$$
+//$${gameActivityOnCreateFinalAdditions}$$
 		
 		Log.debug("==============> GameActive.onCreate complete!");
 	}
