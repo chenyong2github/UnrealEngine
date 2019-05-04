@@ -2959,6 +2959,8 @@ void UNetConnection::Tick()
 	// Update queued byte count.
 	// this should be at the end so that the cap is applied *after* sending (and adjusting QueuedBytes for) any remaining data for this tick
 
+	SaturationAnalytics.TrackFrame(!IsNetReady(false));
+
 	// Clamp DeltaTime for bandwidth limiting so that if there is a hitch, we don't try to send
 	// a large burst on the next frame, which can cause another hitch if a lot of additional replication occurs.
 	const float DesiredTickRate = GEngine->GetMaxTickRate(0.0f, false);
@@ -3490,6 +3492,28 @@ void UNetConnection::ResetQueuedActorDelinquencyAnalytics()
 	{
 		PackageMapClient->ResetQueuedActorDelinquencyAnalytics();
 	}
+}
+
+void UNetConnection::ConsumeSaturationAnalytics(FNetConnectionSaturationAnalytics& Out)
+{
+	Out = MoveTemp(SaturationAnalytics);
+	SaturationAnalytics.Reset();
+}
+
+const FNetConnectionSaturationAnalytics& UNetConnection::GetSaturationAnalytics() const
+{
+	return SaturationAnalytics;
+}
+
+void UNetConnection::ResetSaturationAnalytics()
+{
+	SaturationAnalytics.Reset();
+}
+
+void UNetConnection::TrackReplicationForAnalytics(const bool bWasSaturated)
+{
+	++TickCount;
+	SaturationAnalytics.TrackReplication(bWasSaturated);
 }
 
 /*-----------------------------------------------------------------------------
