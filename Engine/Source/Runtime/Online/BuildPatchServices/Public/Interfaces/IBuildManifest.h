@@ -170,6 +170,22 @@ public:
 	virtual TArray<FString> GetBuildFileList(const TSet<FString>& Tags) const = 0;
 
 	/**
+	 * Returns the size of a particular file in the build
+	 * @param Filename		The file.
+	 * @return		File size.
+	 */
+	virtual int64 GetFileSize(const FString& Filename) const = 0;
+
+	/**
+	 * Returns the total size of all files in the array
+	 * @param Filenames		The array of files.
+	 * @return		Total size of files in array.
+	 */
+	virtual int64 GetFileSize(const TArray<FString>& Filenames) const = 0;
+	virtual int64 GetFileSize(const TSet  <FString>& Filenames) const = 0;
+
+
+	/**
 	 * Get the list of install tags in this manifest
 	 * @param Tags			OUT		Receives the tags referenced.
 	 */
