@@ -909,6 +909,13 @@ namespace UnrealBuildTool
 					if (bAppendPlatformToVersionDisplayName)
 					{
 						VersionDisplayName = string.Format("{0}-Android", VersionDisplayName);
+
+						// add optional value from environment variable if defined
+						string OptionalAppendDisplayName = Environment.GetEnvironmentVariable("UEAndroidDisplayNameExtra");
+						if (OptionalAppendDisplayName != null)
+						{
+							VersionDisplayName = VersionDisplayName + OptionalAppendDisplayName;
+						}
 					}
 				}
 
@@ -4304,6 +4311,7 @@ namespace UnrealBuildTool
 				{ "//$${gameActivityClassAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityClassAdditions", "")},
 				{ "//$${gameActivityReadMetadataAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityReadMetadataAdditions", "")},
 				{ "//$${gameActivityOnCreateAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityOnCreateAdditions", "")},
+				{ "//$${gameActivityOnCreateFinalAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityOnCreateFinalAdditions", "")},
 				{ "//$${gameActivityOnDestroyAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityOnDestroyAdditions", "")},
 				{ "//$${gameActivityOnStartAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityOnStartAdditions", "")},
 				{ "//$${gameActivityOnStopAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityOnStopAdditions", "")},
