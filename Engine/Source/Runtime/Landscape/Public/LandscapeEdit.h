@@ -319,6 +319,7 @@ struct FHeightmapAccessor
 			for (ULandscapeComponent* Component : Components)
 			{
 				Component->InvalidateLightingCache();
+				Component->RequestHeightmapUpdate();
 			}
 						
 			// Notify foliage to move any attached instances
@@ -478,6 +479,11 @@ struct FAlphamapAccessor
 		if (LandscapeEdit.GetComponentsInRegion(X1, Y1, X2, Y2, &Components))
 		{
 			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+			for (ULandscapeComponent* LandscapeComponent : Components)
+			{
+				// Flag both modes depending on client calling SetData
+				LandscapeComponent->RequestWeightmapUpdate();
+			}
 			
 			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{

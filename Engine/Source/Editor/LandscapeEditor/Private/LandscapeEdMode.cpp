@@ -253,7 +253,7 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, ALandscapeProxy* Targ
 			}
 		});
 
-		Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+		Landscape->RequestLayersContentUpdateForceAll();
 	}
 #endif
 
@@ -504,13 +504,9 @@ void FEdModeLandscape::Enter()
 		ALandscapeProxy* LandscapeProxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
 		LandscapeProxy->OnMaterialChangedDelegate().AddRaw(this, &FEdModeLandscape::OnLandscapeMaterialChangedDelegate);
 
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if(ALandscape* Landscape = GetLandscape())
 		{
-			ALandscape* Landscape = GetLandscape();
-			if (Landscape)
-			{
-				Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All_Render);
-			}
+			Landscape->RequestLayersContentUpdateForceAll();
 		}
 	}
 
@@ -3334,7 +3330,7 @@ void FEdModeLandscape::ReimportData(const FLandscapeTargetListInfo& TargetInfo)
 	const FString& SourceFilePath = TargetInfo.ReimportFilePath();
 	if (SourceFilePath.Len())
 	{
-		FScopedSetLandscapeEditingLayer Scope(GetLandscape(), GetCurrentLayerGuid(), [&] { RequestLayersContentUpdate(); });
+		FScopedSetLandscapeEditingLayer Scope(GetLandscape(), GetCurrentLayerGuid(), [&] { RequestLayersContentUpdateForceAll(); });
 		ImportData(TargetInfo, SourceFilePath);
 	}
 	else
@@ -3441,7 +3437,7 @@ void FEdModeLandscape::ImportData(const FLandscapeTargetListInfo& TargetInfo, co
 
 			{
 				ALandscape* Landscape = GetLandscape();
-				FScopedSetLandscapeEditingLayer Scope(Landscape, GetCurrentLayerGuid(), [&] { check(Landscape); Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::Heightmap_All); });
+				FScopedSetLandscapeEditingLayer Scope(Landscape, GetCurrentLayerGuid(), [&] { check(Landscape); Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Heightmap_All); });
 
 				TArray<uint16> Data;
 				if (ImportResolution != LandscapeResolution)
@@ -3557,7 +3553,7 @@ void FEdModeLandscape::ImportData(const FLandscapeTargetListInfo& TargetInfo, co
 
 			{
 				ALandscape* Landscape = GetLandscape();
-				FScopedSetLandscapeEditingLayer Scope(Landscape, GetCurrentLayerGuid(), [&] { check(Landscape); Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::Weightmap_All); });
+				FScopedSetLandscapeEditingLayer Scope(Landscape, GetCurrentLayerGuid(), [&] { check(Landscape); Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Weightmap_All); });
 
 				TArray<uint8> Data;
 				if (ImportResolution != LandscapeResolution)
@@ -4225,12 +4221,19 @@ void FEdModeLandscape::SetLayerLocked(int32 InLayerIndex, bool bInLocked)
 	}
 }
 
-void FEdModeLandscape::RequestLayersContentUpdate(bool InUpdateAllMaterials)
+void FEdModeLandscape::RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode, bool bInForceUpdateAllComponents)
 {
-	ALandscape* Landscape = GetLandscape();
-	if (Landscape)
+	if (ALandscape* Landscape = GetLandscape())
 	{
-		Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All_Render, InUpdateAllMaterials);
+		Landscape->RequestLayersContentUpdate(InUpdateMode, bInForceUpdateAllComponents);
+	}
+}
+
+void FEdModeLandscape::RequestLayersContentUpdateForceAll()
+{
+	if (ALandscape* Landscape = GetLandscape())
+	{
+		Landscape->RequestLayersContentUpdateForceAll();
 	}
 }
 
