@@ -7,7 +7,7 @@
 #include "NiagaraCommon.h"
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
-#include "Components/PrimitiveComponent.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "NiagaraSystemInstance.h"
 
@@ -31,7 +31,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNiagaraSystemFinished, class UNia
 * @see UNiagaraSystem
 */
 UCLASS(ClassGroup = (Rendering, Common), hidecategories = Object, hidecategories = Physics, hidecategories = Collision, showcategories = Trigger, editinlinenew, meta = (BlueprintSpawnableComponent, DisplayName = "Niagara Particle System"))
-class NIAGARA_API UNiagaraComponent : public UPrimitiveComponent
+class NIAGARA_API UNiagaraComponent : public UFXSystemComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -39,6 +39,15 @@ class NIAGARA_API UNiagaraComponent : public UPrimitiveComponent
 	DECLARE_MULTICAST_DELEGATE(FOnSystemInstanceChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnSynchronizedWithAssetParameters);
 #endif
+
+public:
+
+	/********* UFXSystemComponent *********/
+	void SetFloatParameter(FName ParameterName, float Param) override;
+	void SetVectorParameter(FName ParameterName, FVector Param) override;
+	void SetColorParameter(FName ParameterName, FLinearColor Param) override;
+	void SetActorParameter(FName ParameterName, class AActor* Param) override;
+	/********* UFXSystemComponent *********/
 
 private:
 	UPROPERTY(EditAnywhere, Category="Niagara", meta = (DisplayName = "Niagara System Asset"))
