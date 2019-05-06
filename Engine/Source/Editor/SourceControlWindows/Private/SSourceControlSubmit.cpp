@@ -69,6 +69,12 @@ TSharedRef<SWidget> SSourceControlSubmitListRow::GenerateWidgetForColumn(const F
 	return SNullWidget::NullWidget;
 }
 
+FText SSourceControlSubmitWidget::SavedChangeListDescription;
+
+SSourceControlSubmitWidget::~SSourceControlSubmitWidget()
+{
+	SavedChangeListDescription = ChangeListDescriptionTextCtrl->GetText();
+}
 
 void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 {
@@ -133,6 +139,7 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 				[
 					SAssignNew( ChangeListDescriptionTextCtrl, SMultiLineEditableTextBox )
 					.SelectAllTextWhenFocused( true )
+					.Text(SavedChangeListDescription)
 					.AutoWrapText( true )
 				]
 			]
@@ -414,6 +421,8 @@ FReply SSourceControlSubmitWidget::OKClicked()
 {
 	DialogResult = ESubmitResults::SUBMIT_ACCEPTED;
 	ParentFrame.Pin()->RequestDestroyWindow();
+
+	ChangeListDescriptionTextCtrl->ClearContent(); // Don't save description on Submit
 
 	return FReply::Handled();
 }
