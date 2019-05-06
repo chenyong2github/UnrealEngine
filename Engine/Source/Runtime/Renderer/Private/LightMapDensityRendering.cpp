@@ -240,7 +240,7 @@ void FLightmapDensityMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 		const FMaterial* Material = &MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, MaterialRenderProxy);
 		const bool bMaterialMasked = Material->IsMasked();
 		const bool bTranslucentBlendMode = IsTranslucentBlendMode(Material->GetBlendMode());
-		const bool bIsLitMaterial = Material->GetShadingModel() != MSM_Unlit;
+		const bool bIsLitMaterial = Material->GetShadingModels().IsLit();
 		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material);
 		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material);
 		const FLightMapInteraction LightMapInteraction = (MeshBatch.LCI && bIsLitMaterial) ? MeshBatch.LCI->GetLightMapInteraction(FeatureLevel) : FLightMapInteraction();
