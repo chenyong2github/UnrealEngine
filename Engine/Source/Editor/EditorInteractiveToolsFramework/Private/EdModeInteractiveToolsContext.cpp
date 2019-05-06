@@ -7,6 +7,7 @@
 #include "Engine/Selection.h"
 #include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
+#include "Materials/Material.h"
 
 #include "EditorToolAssetAPI.h"
 #include "EditorComponentSourceFactory.h"
