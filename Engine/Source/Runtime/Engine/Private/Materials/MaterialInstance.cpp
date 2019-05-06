@@ -2435,8 +2435,13 @@ void UMaterialInstance::UpdateOverridableBaseProperties()
 
 	if (BasePropertyOverrides.bOverride_ShadingModel)
 	{
-		// Can only override using one of the actual shading models
-		if (BasePropertyOverrides.ShadingModel != MSM_FromMaterialExpression)
+		if (BasePropertyOverrides.ShadingModel == MSM_FromMaterialExpression)
+		{
+			// Can't override using MSM_FromMaterialExpression, simply fall back to parent
+			ShadingModels = Parent->GetShadingModels();
+			bIsShadingModelFromMaterialExpression = Parent->IsShadingModelFromMaterialExpression();
+		}
+		else
 		{
 			// It's only possible to override using a single shading model
 			ShadingModels = FMaterialShadingModelField(BasePropertyOverrides.ShadingModel);
