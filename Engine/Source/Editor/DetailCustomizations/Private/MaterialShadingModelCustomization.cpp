@@ -10,6 +10,7 @@
 #include "DetailWidgetRow.h"
 #include "IDetailPropertyRow.h"
 #include "PropertyCustomizationHelpers.h"
+#include "MaterialEditor/MaterialEditorInstanceConstant.h"
 
 TSharedRef<IPropertyTypeCustomization> FMaterialShadingModelCustomization::MakeInstance() 
 {
@@ -27,8 +28,8 @@ void FMaterialShadingModelCustomization::CustomizeHeader(TSharedRef<IPropertyHan
 		TArray<UObject*> OuterObjects;
 		PropertyHandle->GetOuterObjects(OuterObjects);
 		
-		// Don't hide MSM_FromMaterialExpression on a UMaterial
-		if (OuterObjects[0]->IsA<UMaterial>())
+		// Don't hide MSM_FromMaterialExpression on a UMaterial or on UMaterialEditorInstanceConstant
+		if (OuterObjects[0]->IsA<UMaterial>() || OuterObjects[0]->IsA<UMaterialEditorInstanceConstant>())
 		{
 			bShouldHideFromMaterialExpression = false;
 		}
