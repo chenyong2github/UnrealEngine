@@ -6,7 +6,7 @@ using namespace Audio;
 // The presets for the late refelections reverb were based on a strange sample rate. This 
 // function helps translate delay values in the paper to delay values for this reverb.
 // https://ccrma.stanford.edu/~dattorro/EffectDesignPart1.pdf
-static int32 GetDelaySamples(float InSampleRate, float InPresetValue) {
+static int32 FeedbackDelayNetworkGetDelaySamples(float InSampleRate, float InPresetValue) {
 	
 	return (int32)((float)InSampleRate / 29761.f * InPresetValue);
 }
@@ -14,20 +14,20 @@ static int32 GetDelaySamples(float InSampleRate, float InPresetValue) {
 FFDNDelaySettings FFDNDelaySettings::DefaultLeftDelays(float InSampleRate)
 {
 	FFDNDelaySettings Settings;
-	Settings.APF0DelayNumSamples = GetDelaySamples(InSampleRate, 5 * 142);
-	Settings.APF1DelayNumSamples = GetDelaySamples(InSampleRate, 5 * 107);
-	Settings.APF2DelayNumSamples = GetDelaySamples(InSampleRate, 5 * 379);
-	Settings.APF3DelayNumSamples = GetDelaySamples(InSampleRate, 5 * 277);
+	Settings.APF0DelayNumSamples = FeedbackDelayNetworkGetDelaySamples(InSampleRate, 5 * 142);
+	Settings.APF1DelayNumSamples = FeedbackDelayNetworkGetDelaySamples(InSampleRate, 5 * 107);
+	Settings.APF2DelayNumSamples = FeedbackDelayNetworkGetDelaySamples(InSampleRate, 5 * 379);
+	Settings.APF3DelayNumSamples = FeedbackDelayNetworkGetDelaySamples(InSampleRate, 5 * 277);
 	return Settings;
 }
 
 FFDNDelaySettings FFDNDelaySettings::DefaultRightDelays(float InSampleRate)
 {
 	FFDNDelaySettings Settings;
-	Settings.APF0DelayNumSamples = GetDelaySamples(InSampleRate, 5 * 279);
-	Settings.APF1DelayNumSamples = GetDelaySamples(InSampleRate, 5 * 137);
-	Settings.APF2DelayNumSamples = GetDelaySamples(InSampleRate, 5 * 213);
-	Settings.APF3DelayNumSamples = GetDelaySamples(InSampleRate, 5 * 327);
+	Settings.APF0DelayNumSamples = FeedbackDelayNetworkGetDelaySamples(InSampleRate, 5 * 279);
+	Settings.APF1DelayNumSamples = FeedbackDelayNetworkGetDelaySamples(InSampleRate, 5 * 137);
+	Settings.APF2DelayNumSamples = FeedbackDelayNetworkGetDelaySamples(InSampleRate, 5 * 213);
+	Settings.APF3DelayNumSamples = FeedbackDelayNetworkGetDelaySamples(InSampleRate, 5 * 327);
 	return Settings;
 }
 
