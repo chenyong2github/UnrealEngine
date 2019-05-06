@@ -11,6 +11,7 @@
 #include "IDetailPropertyRow.h"
 #include "PropertyCustomizationHelpers.h"
 #include "MaterialEditor/MaterialEditorInstanceConstant.h"
+#include "Materials/Material.h"
 
 TSharedRef<IPropertyTypeCustomization> FMaterialShadingModelCustomization::MakeInstance() 
 {
