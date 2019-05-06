@@ -33,17 +33,34 @@ namespace Gauntlet
 		public override TestPriority Priority { get { return GetPriority(); } }
 
 		/// <summary>
-		/// Returns true if the test has warnings. At this time we only consider Ensures() to be warnings by default
+		/// Returns Warnings found during tests. By default only ensures are considered
 		/// </summary>
-		public override bool HasWarnings { get {
-				if (SessionArtifacts == null)
-				{
-					return false;
-				}
-
-				bool HaveEnsures = SessionArtifacts.Any(A => A.LogSummary.Ensures.Count() > 0);
-				return HaveEnsures;
+		public override IEnumerable<string> GetWarnings()
+		{
+			if (SessionArtifacts == null)
+			{
+				return new string[0];
 			}
+
+			return SessionArtifacts.SelectMany(A =>
+			{
+				return A.LogSummary.Ensures.Select(E => E.Message);
+			}); 
+		}
+
+		/// <summary>
+		/// Returns Errors found during tests. By default only fatal errors are considered
+		/// </summary>
+		public override IEnumerable<string> GetErrors()
+		{
+			if (SessionArtifacts == null)
+			{
+				return new string[0];
+			}
+
+			var FailedArtifacts = GetArtifactsWithFailures();
+
+			return FailedArtifacts.Where(A => A.LogSummary.FatalError != null).Select(A => A.LogSummary.FatalError.Message);
 		}
 
 		// Begin UnrealTestNode properties and members
@@ -427,6 +444,8 @@ namespace Gauntlet
 			}
 
 			TestFolder = TestFolder.Replace(" ", "_");
+			TestFolder = TestFolder.Replace(":", "_");
+			TestFolder = TestFolder.Replace("|", "_");
 			TestFolder = TestFolder.Replace(",", "");
 
 			ArtifactPath = Path.Combine(Context.Options.LogDir, TestFolder);
@@ -720,13 +739,25 @@ namespace Gauntlet
 			}
 			else
 			{
+				bool WasGauntletTest = InArtifacts.SessionRole.CommandLine.ToLower().Contains("-gauntlet");
 				// ok, process appears to have exited for no good reason so try to divine a result...
-				if (LogSummary.HasTestExitCode == false
-					&& InArtifacts.SessionRole.CommandLine.ToLower().Contains("-gauntlet"))
+				if (WasGauntletTest)
 				{
-					Log.Verbose("Role {0} had 0 exit code but used Gauntlet and no TestExitCode was found. Assuming failure", InArtifacts.SessionRole.RoleType);
-					ExitCode = -1;
-					ExitReason = "No test result from Gauntlet controller";
+					if (LogSummary.HasTestExitCode == false)
+					{
+						Log.Verbose("Role {0} had 0 exit code but used Gauntlet and no TestExitCode was found. Assuming failure", InArtifacts.SessionRole.RoleType);
+						ExitCode = -1;
+						ExitReason = "No test result from Gauntlet controller";
+					}
+				}
+				else
+				{
+					// if all else fails, fall back to the exit code from the process. Not great.
+					ExitCode = InArtifacts.AppInstance.ExitCode;
+					if (ExitCode == 0)
+					{
+						ExitReason = "app exited with code 0";
+					}
 				}
 			}
 
@@ -823,11 +854,11 @@ namespace Gauntlet
 
 			if (ExitCode != 0)
 			{
-				MB.H4(string.Format("Result: Abnormal Exit: {0}", ExitReason));
+				MB.H4(string.Format("Result: Abnormal Exit: Reason={0}, Code={1}", ExitReason, ExitCode));
 			}
 			else
 			{
-				MB.H4(string.Format("Result: {0}", ExitReason));
+				MB.H4(string.Format("Result: Reason={0}, Code=0", ExitReason));
 			}
 
 			int FatalErrors = LogSummary.FatalError != null ? 1 : 0;
@@ -988,7 +1019,7 @@ namespace Gauntlet
 
 		/// <summary>
 		/// THe base implementation considers  considers Classes can override this to implement more custom detection of success/failure than our
-		/// log parsing
+		/// log parsing. Not guaranteed to be called if a test is marked complete
 		/// </summary>
 		/// <returns></returns>in
 		protected virtual TestResult GetUnrealTestResult()
@@ -1016,52 +1047,28 @@ namespace Gauntlet
 		}
 
 		/// <summary>
-		/// Returns a summary of this test
+		/// Return the header for the test summary. The header is the first block of text and will be
+		/// followed by the summary of each individual role in the test
 		/// </summary>
 		/// <returns></returns>
-		public override string GetTestSummary()
+		protected virtual string GetTestSummaryHeader()
 		{
-
 			int AbnormalExits = 0;
 			int FatalErrors = 0;
 			int Ensures = 0;
 			int Errors = 0;
 			int Warnings = 0;
 
-			// Handle case where there aren't any session artifacts, for example with device starvation
-			if (SessionArtifacts == null)
-			{
-				return "NoSummary";
-			}
-
-			StringBuilder SB = new StringBuilder();
-
-			// Get any artifacts with failures
-			var FailureArtifacts = GetArtifactsWithFailures();
-
-			// Any with warnings (ensures)
-			var WarningArtifacts = SessionArtifacts.Where(A => A.LogSummary.Ensures.Count() > 0);
-
-			// combine artifacts into order as Failures, Warnings, Other
-			var AllArtifacts = FailureArtifacts.Union(WarningArtifacts);
-			AllArtifacts = AllArtifacts.Union(SessionArtifacts);
-
 			// create a quicck summary of total failures, ensures, errors, etc
-			foreach ( var Artifact in AllArtifacts)
+			foreach (var Artifact in SessionArtifacts)
 			{
-				string Summary = "NoSummary";
+				string Summary;
 				int ExitCode = GetRoleSummary(Artifact, out Summary);
 
 				if (ExitCode != 0 && Artifact.AppInstance.WasKilled == false)
 				{
 					AbnormalExits++;
 				}
-
-				if (SB.Length > 0)
-				{
-					SB.AppendLine();
-				}
-				SB.Append(Summary);
 
 				FatalErrors += Artifact.LogSummary.FatalError != null ? 1 : 0;
 				Ensures += Artifact.LogSummary.Ensures.Count();
@@ -1072,6 +1079,8 @@ namespace Gauntlet
 			MarkdownBuilder MB = new MarkdownBuilder();
 
 			string WarningStatement = HasWarnings ? " With Warnings" : "";
+
+			var FailureArtifacts = GetArtifactsWithFailures();
 
 			// Create a summary
 			MB.H2(string.Format("{0} {1}{2}", Name, GetTestResult(), WarningStatement));
@@ -1092,21 +1101,63 @@ namespace Gauntlet
 						}
 					}
 
-					MB.Paragraph("See below for callstack and logs");
+					MB.Paragraph("See below for logs and any callstacks");
 				}
 			}
 			MB.Paragraph(string.Format("Context: {0}", Context.ToString()));
 			MB.Paragraph(string.Format("FatalErrors: {0}, Ensures: {1}, Errors: {2}, Warnings: {3}", FatalErrors, Ensures, Errors, Warnings));
 			MB.Paragraph(string.Format("ResultHash: {0}", GetTestResultHash()));
 			//MB.Paragraph(string.Format("Artifacts: {0}", CachedArtifactPath));
-			MB.Append("--------");
-			MB.Append(SB.ToString());
 
-			//SB.Clear();
-			//SB.AppendLine("begin: stack for UAT");
-			//SB.Append(MB.ToString());
-			//SB.Append("end: stack for UAT");
 			return MB.ToString();
+		}
+
+		/// <summary>
+		/// Returns a summary of this test
+		/// </summary>
+		/// <returns></returns>
+		public override string GetTestSummary()
+		{
+			// Handle case where there aren't any session artifacts, for example with device starvation
+			if (SessionArtifacts == null)
+			{
+				return "NoSummary";
+			}
+
+			MarkdownBuilder ReportBuilder = new MarkdownBuilder();
+
+			// add header
+			ReportBuilder.Append(GetTestSummaryHeader());
+			ReportBuilder.Append("--------");
+
+			StringBuilder SB = new StringBuilder();
+
+			// Get any artifacts with failures
+			var FailureArtifacts = GetArtifactsWithFailures();
+
+			// Any with warnings (ensures)
+			var WarningArtifacts = SessionArtifacts.Where(A => A.LogSummary.Ensures.Count() > 0);
+
+			// combine artifacts into order as Failures, Warnings, Other
+			var AllArtifacts = FailureArtifacts.Union(WarningArtifacts);
+			AllArtifacts = AllArtifacts.Union(SessionArtifacts);
+
+			// Add a summary of each 
+			foreach ( var Artifact in AllArtifacts)
+			{
+				string Summary = "NoSummary";
+				int ExitCode = GetRoleSummary(Artifact, out Summary);
+
+				if (SB.Length > 0)
+				{
+					SB.AppendLine();
+				}
+				SB.Append(Summary);
+			}
+
+			ReportBuilder.Append(SB.ToString());
+
+			return ReportBuilder.ToString();
 		}
 	}
 }

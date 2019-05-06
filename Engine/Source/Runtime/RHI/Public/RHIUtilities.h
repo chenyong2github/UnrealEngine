@@ -1035,7 +1035,7 @@ struct FRHILockTracker
 				return Result;
 			}
 		}
-		check(!"Mismatched RHI buffer locks.");
+		UE_LOG(LogRHI, Fatal, TEXT("Mismatched RHI buffer locks."));
 		return FLockParams(nullptr, nullptr, 0, 0, RLM_WriteOnly, false, false);
 	}
 	

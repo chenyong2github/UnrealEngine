@@ -1254,12 +1254,18 @@ public:
 	virtual bool HasValidData() const;
 
 	/**
-	 * Update Velocity and Acceleration to air control in the desired Direction for character using path following.
+	 * If ShouldPerformAirControlForPathFollowing() returns true, it will update Velocity and Acceleration to air control in the desired Direction for character using path following.
 	 * @param Direction is the desired direction of movement
 	 * @param ZDiff is the height difference between the destination and the Pawn's current position
 	 * @see RequestDirectMove()
 	*/
 	virtual void PerformAirControlForPathFollowing(FVector Direction, float ZDiff);
+
+	/**
+	 * Whether Character should perform air control via PerformAirControlForPathFollowing when falling and following a path at the same time
+	 * Default implementation always returns true during MOVE_Falling.
+	 */
+	virtual bool ShouldPerformAirControlForPathFollowing() const;
 
 	/** Transition from walking to falling */
 	virtual void StartFalling(int32 Iterations, float remainingTime, float timeTick, const FVector& Delta, const FVector& subLoc);

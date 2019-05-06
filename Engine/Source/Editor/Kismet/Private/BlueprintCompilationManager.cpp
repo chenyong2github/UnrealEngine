@@ -3,6 +3,7 @@
 #include "BlueprintCompilationManager.h"
 
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "BlueprintCompilerExtension.h"
 #include "BlueprintEditorSettings.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "Kismet2/CompilerResultsLog.h"
@@ -80,6 +81,7 @@
 
 struct FReinstancingJob;
 struct FSkeletonFixupData;
+struct FCompilerData;
 
 struct FBlueprintCompilationManagerImpl : public FGCObject
 {
@@ -90,9 +92,12 @@ struct FBlueprintCompilationManagerImpl : public FGCObject
 	virtual void AddReferencedObjects(FReferenceCollector& Collector);
 	virtual FString GetReferencerName() const override;
 
+	void RegisterCompilerExtension(TSubclassOf<UBlueprint> BlueprintType, UBlueprintCompilerExtension* Extension);
+
 	void QueueForCompilation(const FBPCompileRequest& CompileJob);
 	void CompileSynchronouslyImpl(const FBPCompileRequest& Request);
 	void FlushCompilationQueueImpl(bool bSuppressBroadcastCompiled, TArray<UBlueprint*>* BlueprintsCompiled, TArray<UBlueprint*>* BlueprintsCompiledOrSkeletonCompiled, FUObjectSerializeContext* InLoadContext);
+	void ProcessExtensions(const TArray<FCompilerData>& InCurrentlyCompilingBPs);
 	void FlushReinstancingQueueImpl();
 	bool HasBlueprintsToCompile() const;
 	bool IsGeneratedClassLayoutReady() const;
@@ -113,6 +118,11 @@ struct FBlueprintCompilationManagerImpl : public FGCObject
 	private:
 		virtual FArchive& operator<<( UObject*& Obj ) override;
 	};
+
+	// Extension data, could be organized in many ways, but this provides an easy way
+	// to extend blueprint compilation after the graph has been pruned and functions
+	// have been generated (but before code is generated):
+	TMap<UClass*, TArray<UBlueprintCompilerExtension*> > CompilerExtensions;
 
 	// Queued requests to be processed in the next FlushCompilationQueueImpl call:
 	TArray<FBPCompileRequest> QueuedRequests;
@@ -149,6 +159,12 @@ FBlueprintCompilationManagerImpl::~FBlueprintCompilationManagerImpl()
 
 void FBlueprintCompilationManagerImpl::AddReferencedObjects(FReferenceCollector& Collector)
 {
+	for(TPair<UClass*, TArray<UBlueprintCompilerExtension*>>& Extensions : CompilerExtensions)
+	{
+		Collector.AddReferencedObject(Extensions.Key);
+		Collector.AddReferencedObjects(Extensions.Value);
+	}
+
 	for( FBPCompileRequest& Job : QueuedRequests )
 	{
 		Collector.AddReferencedObject(Job.BPToCompile);
@@ -161,6 +177,11 @@ void FBlueprintCompilationManagerImpl::AddReferencedObjects(FReferenceCollector&
 FString FBlueprintCompilationManagerImpl::GetReferencerName() const
 {
 	return TEXT("FBlueprintCompilationManagerImpl");
+}
+
+void FBlueprintCompilationManagerImpl::RegisterCompilerExtension(TSubclassOf<UBlueprint> BlueprintType, UBlueprintCompilerExtension* Extension)
+{
+	CompilerExtensions.FindOrAdd(BlueprintType).Emplace(Extension);
 }
 
 void FBlueprintCompilationManagerImpl::QueueForCompilation(const FBPCompileRequest& CompileJob)
@@ -1016,6 +1037,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 		}
 		bGeneratedClassLayoutReady = true;
 	
+		ProcessExtensions(CurrentlyCompilingBPs);
+
 		// STAGE XIII: Compile functions
 		UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
 		
@@ -1290,6 +1313,57 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 	//GTimeCompiling = 0.0;
 	//GTimeReinstancing = 0.0;
 	ensure(QueuedRequests.Num() == 0);
+}
+
+void FBlueprintCompilationManagerImpl::ProcessExtensions(const TArray<FCompilerData>& InCurrentlyCompilingBPs)
+{
+	if(CompilerExtensions.Num() == 0)
+	{
+		return;
+	}
+
+	for (const FCompilerData& CompilerData : InCurrentlyCompilingBPs)
+	{
+		UBlueprint* BP = CompilerData.BP;
+		FBlueprintCompiledData CompiledData; // populate only if we find an extension:
+
+		if(CompilerData.ShouldCompileClassLayout())
+		{
+			// give extension a chance to raise errors, or save off data:
+			UClass* Iter = BP->GetClass();
+			while(Iter != UBlueprint::StaticClass()->GetSuperClass())
+			{
+				TArray<UBlueprintCompilerExtension*>* Extensions = CompilerExtensions.Find(Iter);
+				if(Extensions)
+				{
+					// extension found, store off data from compiler that we want to expose to extensions:
+					if(CompiledData.IntermediateGraphs.Num() == 0)
+					{
+						if(CompilerData.Compiler->ConsolidatedEventGraph)
+						{
+							CompiledData.IntermediateGraphs.Emplace(CompilerData.Compiler->ConsolidatedEventGraph);
+						}
+								
+						for(const FKismetFunctionContext& Fn : CompilerData.Compiler->FunctionList)
+						{
+							if(Fn.SourceGraph == CompilerData.Compiler->ConsolidatedEventGraph)
+							{
+								continue;
+							}
+
+							CompiledData.IntermediateGraphs.Emplace(Fn.SourceGraph);
+						}
+					}
+
+					for(UBlueprintCompilerExtension* Extension : *Extensions)
+					{
+						Extension->BlueprintCompiled(*CompilerData.Compiler, CompiledData);
+					}
+				}
+				Iter = Iter->GetSuperClass();
+			}
+		}
+	}
 }
 
 void FBlueprintCompilationManagerImpl::FlushReinstancingQueueImpl()
@@ -2241,9 +2315,9 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 				}
 			}
 
-			if (bInCallInEditor)
+			if(bInCallInEditor)
 			{
-				NewFunction->SetMetaData(FBlueprintMetadata::MD_CallInEditor, TEXT("true"));
+				NewFunction->SetMetaData(FBlueprintMetadata::MD_CallInEditor, TEXT( "true" ));
 			}
 
 			NewFunction->Bind();
@@ -2647,6 +2721,12 @@ bool FBlueprintCompilationManager::GetDefaultValue(const UClass* ForClass, const
 void FBlueprintCompilationManager::ReparentHierarchies(const TMap<UClass*, UClass*>& OldClassToNewClass)
 {
 	FBlueprintCompilationManagerImpl::ReparentHierarchies(OldClassToNewClass);
+}
+
+void FBlueprintCompilationManager::RegisterCompilerExtension(TSubclassOf<UBlueprint> BlueprintType, UBlueprintCompilerExtension* Extension)
+{
+	Initialize();
+	BPCMImpl->RegisterCompilerExtension(BlueprintType, Extension);
 }
 
 #undef LOCTEXT_NAMESPACE

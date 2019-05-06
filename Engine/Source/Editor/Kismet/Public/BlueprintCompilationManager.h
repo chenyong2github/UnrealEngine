@@ -7,6 +7,7 @@
 #include "Kismet2/KismetEditorUtilities.h"
 
 class UBlueprint;
+class UBlueprintCompilerExtension;
 class FCompilerResultsLog;
 
 struct FBPCompileRequest
@@ -81,6 +82,14 @@ struct KISMET_API FBlueprintCompilationManager
 	 * reinstancing could be avoided when layouts match.
 	 */
 	static void ReparentHierarchies(const TMap<UClass*, UClass*>& OldClassToNewClass);
+
+	/** 
+	 * Registers a blueprint compiler extension - anytime a blueprint of the provided type is compiled
+	 * the extension will be activated. Note that because editor initialization may require blueprint
+	 * compilation there may be blueprints compiled before the extension is registed unless special
+	 * care has been taken.
+	 */
+	static void RegisterCompilerExtension(TSubclassOf<UBlueprint> BlueprintType, UBlueprintCompilerExtension* Extension);
 private:
 	FBlueprintCompilationManager();
 };

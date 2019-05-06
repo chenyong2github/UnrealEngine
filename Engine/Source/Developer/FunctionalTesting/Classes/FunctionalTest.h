@@ -72,7 +72,6 @@ struct FUNCTIONALTESTING_API FPerfStatsRecord
 	bool IsWithinRenderThreadBudget()const;
 };
 
-
 UENUM(BlueprintType)
 enum class EComparisonMethod : uint8
 {
@@ -202,6 +201,18 @@ enum class EFunctionalTestResult : uint8
 	Succeeded
 };
 
+UENUM(BlueprintType)
+enum class EFunctionalTestLogHandling : uint8
+{
+	/**
+	 * How do log categories affect rest results. ProjectDefault can be set in DefaultEngine.ini
+	 * but individual tests can override that
+	 */
+	ProjectDefault,
+	OutputIsError,
+	OutputIgnored
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFunctionalTestEventSignature);
 DECLARE_DELEGATE_OneParam(FFunctionalTestDoneSignature, class AFunctionalTest*);
 
@@ -226,11 +237,16 @@ protected:
 	uint32 bIsEnabled:1;
 
 	/**
-	 * If this is enabled, any warning logged while this functional test is running is treated as
-	 * an error.
+	 * Determines how LogErrors are handled during this test.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Functional Testing", meta=(ScriptName="WarningsAsErrorsValue"))
-	uint32 bWarningsAsErrors:1;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Functional Testing", meta = (ScriptName = "LogErrorHandling"))
+	EFunctionalTestLogHandling LogErrorHandling;
+
+	/**
+	 * Determines how LogWarnings are handled during this test.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Functional Testing", meta = (ScriptName = "LogWarningHandling"))
+	EFunctionalTestLogHandling LogWarningHandling;
 
 	/**
 	 * The author is the group or person responsible for the test.  Generally you should use a group name

@@ -38,7 +38,7 @@ public:
 		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraFloatDataStride"));
 		SortedIndices.Bind(ParameterMap, TEXT("SortedIndices"));
 		SortedIndicesOffset.Bind(ParameterMap, TEXT("SortedIndicesOffset"));
-		SegmentDistances.Bind(ParameterMap, TEXT("SegmentDistances"));
+		TangentsAndDistances.Bind(ParameterMap, TEXT("TangentsAndDistances"));
 		MultiRibbonIndices.Bind(ParameterMap, TEXT("MultiRibbonIndices"));
 		PackedPerRibbonDataByIndex.Bind(ParameterMap, TEXT("PackedPerRibbonDataByIndex"));
 
@@ -56,7 +56,7 @@ public:
 		Ar << FloatDataStride;
 		Ar << SortedIndices;
 		Ar << SortedIndicesOffset;
-		Ar << SegmentDistances;
+		Ar << TangentsAndDistances;
 		Ar << MultiRibbonIndices;
 		Ar << PackedPerRibbonDataByIndex;
 	}
@@ -79,7 +79,7 @@ public:
 		ShaderBindings.Add(FloatDataStride, RibbonVF->GetFloatDataStride());
 
 		ShaderBindings.Add(SortedIndices, RibbonVF->GetSortedIndicesSRV());
-		ShaderBindings.Add(SegmentDistances, RibbonVF->GetSegmentDistancesSRV());
+		ShaderBindings.Add(TangentsAndDistances, RibbonVF->GetTangentAndDistancesSRV());
 		ShaderBindings.Add(MultiRibbonIndices, RibbonVF->GetMultiRibbonIndicesSRV());
 		ShaderBindings.Add(PackedPerRibbonDataByIndex, RibbonVF->GetPackedPerRibbonDataByIndexSRV());
 		ShaderBindings.Add(SortedIndicesOffset, RibbonVF->GetSortedIndicesOffset());
@@ -91,7 +91,7 @@ private:
 	FShaderParameter FloatDataStride;
 
 	FShaderResourceParameter SortedIndices;
-	FShaderResourceParameter SegmentDistances;
+	FShaderResourceParameter TangentsAndDistances;
 	FShaderResourceParameter MultiRibbonIndices;
 	FShaderResourceParameter PackedPerRibbonDataByIndex;
 	FShaderParameter SortedIndicesOffset;

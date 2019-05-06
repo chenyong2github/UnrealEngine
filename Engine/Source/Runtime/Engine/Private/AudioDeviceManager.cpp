@@ -44,6 +44,15 @@ FAutoConsoleVariableRef CVarIsUsingAudioMixer(
 	ECVF_Default);
 
 
+static int32 CVarIsVisualizeEnabled = 0;
+FAutoConsoleVariableRef CVarAudioVisualizeEnabled(
+	TEXT("au.3dVisualize.Enabled"),
+	CVarIsVisualizeEnabled,
+	TEXT("Whether or not audio visualization is enabled. \n")
+	TEXT("0: Not Enabled, 1: Enabled"),
+	ECVF_Default);
+
+
 FAudioDeviceManager::FCreateAudioDeviceResults::FCreateAudioDeviceResults()
 	: Handle(INDEX_NONE)
 	, bNewDevice(false)
@@ -168,8 +177,6 @@ void FAudioDeviceManager::ToggleAudioMixer()
 						}
 					}
 
-					TArray<FAudioComponentPtr> RetriggerComponents = AudioDevice->GetProximityRetriggerComponents();
-
 					// Tear it down and delete the old audio device. This does a bunch of cleanup.
 					AudioDevice->Teardown();
 					delete AudioDevice;
@@ -184,12 +191,6 @@ void FAudioDeviceManager::ToggleAudioMixer()
 					if (AudioDevice->Init(AudioSettings->GetHighestMaxChannels()))
 					{
 						AudioDevice->SetMaxChannels(QualityLevelMaxChannels);
-					}
-
-					// Re-register the new audio device's re-trigger components
-					for (FAudioComponentPtr Component : RetriggerComponents)
-					{
-						AudioDevice->RegisterProximityRetriggeringAudioComponent(*Component);
 					}
 
 					// Transfer the sound mix modifiers to the new audio engine
@@ -921,6 +922,11 @@ void FAudioDeviceManager::TogglePlayAllDeviceAudio()
 	}
 
 	bPlayAllDeviceAudio = !bPlayAllDeviceAudio;
+}
+
+bool FAudioDeviceManager::IsVisualizeDebug3dEnabled() const
+{
+	return bVisualize3dDebug || CVarIsVisualizeEnabled;
 }
 
 void FAudioDeviceManager::ToggleVisualize3dDebug()

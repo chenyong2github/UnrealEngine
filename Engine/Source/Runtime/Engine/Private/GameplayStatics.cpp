@@ -42,6 +42,8 @@
 #include "Misc/EngineVersion.h"
 #include "ContentStreaming.h"
 #include "Async/Async.h"
+#include "Engine/SceneCapture2D.h"
+#include "Components/SceneCaptureComponent2D.h"
 
 #define LOCTEXT_NAMESPACE "GameplayStatics"
 
@@ -838,10 +840,10 @@ void UGameplayStatics::GetAllActorsOfClass(const UObject* WorldContextObject, TS
 	if (ActorClass)
 	{
 		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		for(TActorIterator<AActor> It(World, ActorClass); It; ++It)
 		{
-			for (TActorIterator<AActor> It(World, ActorClass); It; ++It)
-			{
-				AActor* Actor = *It;
+			AActor* Actor = *It;
 				OutActors.Add(Actor);
 			}
 		}
@@ -857,17 +859,17 @@ void UGameplayStatics::GetAllActorsWithInterface(const UObject* WorldContextObje
 	if (Interface)
 	{
 		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		for(FActorIterator It(World); It; ++It)
 		{
-			for (FActorIterator It(World); It; ++It)
-			{
-				AActor* Actor = *It;
+			AActor* Actor = *It;
 				if (Actor->GetClass()->ImplementsInterface(Interface))
-				{
-					OutActors.Add(Actor);
-				}
+			{
+				OutActors.Add(Actor);
 			}
 		}
 	}
+}
 }
 
 void UGameplayStatics::GetAllActorsWithTag(const UObject* WorldContextObject, FName Tag, TArray<AActor*>& OutActors)
@@ -879,17 +881,17 @@ void UGameplayStatics::GetAllActorsWithTag(const UObject* WorldContextObject, FN
 	if (!Tag.IsNone())
 	{
 		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		for (FActorIterator It(World); It; ++It)
 		{
-			for (FActorIterator It(World); It; ++It)
-			{
-				AActor* Actor = *It;
+			AActor* Actor = *It;
 				if (Actor->ActorHasTag(Tag))
-				{
-					OutActors.Add(Actor);
-				}
+			{
+				OutActors.Add(Actor);
 			}
 		}
 	}
+}
 }
 
 void UGameplayStatics::PlayWorldCameraShake(const UObject* WorldContextObject, TSubclassOf<class UCameraShake> Shake, FVector Epicenter, float InnerRadius, float OuterRadius, float Falloff, bool bOrientShakeTowardsEpicenter)
@@ -1876,8 +1878,8 @@ bool UGameplayStatics::SaveDataToSlot(const TArray<uint8>& InSaveData, const FSt
 }
 
 void UGameplayStatics::AsyncSaveGameToSlot(USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex, FAsyncSaveGameToSlotDelegate SavedDelegate)
-{
-	TArray<uint8> ObjectBytes;
+	{
+		TArray<uint8> ObjectBytes;
 	SaveGameToMemory(SaveGameObject, ObjectBytes);
 
 	AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [SlotName, UserIndex, SavedDelegate, ObjectBytes]()
@@ -1925,12 +1927,12 @@ bool UGameplayStatics::DeleteGameInSlot(const FString& SlotName, const int32 Use
 }
 
 USaveGame* UGameplayStatics::LoadGameFromMemory(const TArray<uint8>& InSaveData)
-{
-	if (InSaveData.Num() == 0)
 	{
+	if (InSaveData.Num() == 0)
+		{
 		// Empty buffer, return instead of causing a bad serialize that could crash
-		return nullptr;
-	}
+	return nullptr;
+}
 
 	USaveGame* OutSaveGameObject = nullptr;
 
@@ -2640,6 +2642,55 @@ bool UGameplayStatics::ProjectWorldToScreen(APlayerController const* Player, con
 	return false;
 }
 
+void UGameplayStatics::CalculateViewProjectionMatricesFromViewTarget(AActor* InViewTarget, FMatrix& OutViewMatrix, FMatrix& OutProjectionMatrix, FMatrix& OutViewProjectionMatrix)
+{
+	if (InViewTarget)
+	{
+		FMinimalViewInfo MinimalViewInfo;
+		InViewTarget->CalcCamera(0.f, MinimalViewInfo);
+
+		// This is kinda weird odd one-off, can this be integrated into the MinimalViewInfo?
+		TOptional<FMatrix> CustomProjectionMatrix;
+		if (ASceneCapture2D* SceneCapture2D = Cast<ASceneCapture2D>(InViewTarget))
+		{
+			if (USceneCaptureComponent2D* SceneCaptureComponent2D = SceneCapture2D->GetCaptureComponent2D())
+			{
+				if (SceneCaptureComponent2D && SceneCaptureComponent2D->bUseCustomProjectionMatrix)
+				{
+					CustomProjectionMatrix = SceneCaptureComponent2D->CustomProjectionMatrix;
+				}
+			}
+		}
+
+		CalculateViewProjectionMatricesFromMinimalView(MinimalViewInfo, CustomProjectionMatrix, OutViewMatrix, OutProjectionMatrix, OutViewProjectionMatrix);
+	}
+}
+
+void UGameplayStatics::CalculateViewProjectionMatricesFromMinimalView(const FMinimalViewInfo& MinimalViewInfo, const TOptional<FMatrix>& CustomProjectionMatrix, FMatrix& OutViewMatrix, FMatrix& OutProjectionMatrix, FMatrix& OutViewProjectionMatrix)
+{
+	if (CustomProjectionMatrix.IsSet())
+	{
+		OutProjectionMatrix = AdjustProjectionMatrixForRHI(CustomProjectionMatrix.GetValue());
+	}
+	else
+	{
+		OutProjectionMatrix = AdjustProjectionMatrixForRHI(MinimalViewInfo.CalculateProjectionMatrix());
+	}
+
+	FMatrix ViewRotationMatrix = FInverseRotationMatrix(MinimalViewInfo.Rotation) * FMatrix(
+		FPlane(0, 0, 1, 0),
+		FPlane(1, 0, 0, 0),
+		FPlane(0, 1, 0, 0),
+		FPlane(0, 0, 0, 1));
+
+	OutViewMatrix = FTranslationMatrix(-MinimalViewInfo.Location) * ViewRotationMatrix;
+	//OutInvProjectionMatrix = OutProjectionMatrix.Inverse();
+	//OutInvViewMatrix = ViewRotationMatrix.GetTransposed() * FTranslationMatrix(MinimalViewInfo.Location);
+
+	OutViewProjectionMatrix = OutViewMatrix * OutProjectionMatrix;
+	//OutInvViewProjectionMatrix = OutInvProjectionMatrix * OutInvViewMatrix;
+}
+
 bool UGameplayStatics::GrabOption( FString& Options, FString& Result )
 {
 	FString QuestionMark(TEXT("?"));
@@ -2729,5 +2780,10 @@ bool UGameplayStatics::HasLaunchOption(const FString& OptionToCheck)
 {
 	return FParse::Param(FCommandLine::Get(), *OptionToCheck);
 }
+
+/**
+ * Calculate projection matrices from a specified view target
+ */
+static void GetProjectionMatricesFromViewTarget(AActor* InViewTarget, FMatrix& OutViewProjectionMatrix, FMatrix& OutInvViewProjectionMatrix);
 
 #undef LOCTEXT_NAMESPACE

@@ -539,7 +539,8 @@ public:
 		else if (GotoResult.IsSet())
 		{
 			// if this task is not pausing the rest of the replay stream, make sure there is data available for the current time or we could miss packets
-			const uint32 AvailableDataEndTime = (CVarFastForwardLevelsPausePlayback.GetValueOnAnyThread() != 0) ? GotoTime : Driver->DemoCurrentTime * 1000;
+			const float LastProcessedPacketTime = FPendingTaskHelper::GetLastProcessedPacketTime(Driver.Get());
+			const uint32 AvailableDataEndTime = (CVarFastForwardLevelsPausePlayback.GetValueOnAnyThread() != 0) ? GotoTime : LastProcessedPacketTime * 1000;
 
 			if (!GotoResult->WasSuccessful())
 			{
@@ -1115,6 +1116,8 @@ bool UDemoNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool 
 
 void UDemoNetDriver::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 {
+	LLM_SCOPE(ELLMTag::Networking);
+
 	Super::OnLevelAddedToWorld(InLevel, InWorld);
 
 	if (InLevel && !InLevel->bClientOnlyVisible && GetWorld() == InWorld && HasLevelStreamingFixes() && IsPlaying())
@@ -1357,6 +1360,7 @@ double GTickFlushDemoDriverTimeSeconds = 0.0;
 
 void UDemoNetDriver::TickFlushInternal(float DeltaSeconds)
 {
+	LLM_SCOPE(ELLMTag::Networking);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(DemoRecording);
 
 	GTickFlushDemoDriverTimeSeconds = 0.0;
@@ -1667,7 +1671,7 @@ bool UDemoNetDriver::DemoReplicateActor(AActor* Actor, UNetConnection* Connectio
 			Channel = (UActorChannel*)Connection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally);
 			if (Channel != nullptr)
 			{
-				Channel->SetChannelActor(Actor);
+				Channel->SetChannelActor(Actor, ESetChannelActorFlags::None);
 			}
 		}
 
@@ -3735,6 +3739,7 @@ static FCsvDemoSettings GetCsvDemoSettings()
 
 void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 {
+	LLM_SCOPE(ELLMTag::Networking);
 	SCOPED_NAMED_EVENT(UDemoNetDriver_TickDemoPlayback, FColor::Purple);
 	if (World && World->IsInSeamlessTravel())
 	{
@@ -3854,6 +3859,8 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 
 	// Clamp time
 	DemoCurrentTime = FMath::Clamp(DemoCurrentTime, 0.0f, DemoTotalTime + 0.01f);
+
+	ReplayStreamer->UpdatePlaybackTime(GetDemoCurrentTimeInMS());
 
 	bool bProcessAvailableData = (PlaybackPackets.Num() > 0) || ReplayStreamer->IsDataAvailable();
 	

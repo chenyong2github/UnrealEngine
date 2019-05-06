@@ -211,9 +211,8 @@ private:
 	/** The total number of frames we are currently waiting on */
 	FThreadSafeCounter OutstandingFrameCount;
 
-	/** Pending frame payloads to be passed with frames captured from slate  */
-	FCriticalSection PendingFramePayloadsMutex;
-	TArray<FFramePayloadPtr> PendingFramePayloads;
+	/** Only to be accessed from the render thread - array of frame payloads to be captured from the rendered slate window sorted first to last. */
+	TArray<FFramePayloadPtr> RenderThread_PendingFramePayloads;
 
 	int32 FrameGrabLatency;
 
@@ -223,8 +222,6 @@ private:
 		Inactive, Active, PendingShutdown
 	};
 	EFrameGrabberState State;
-
-	bool bIsFirstCaptureFrame;
 
 	/** The desired target size to resolve frames to */
 	FIntPoint TargetSize;

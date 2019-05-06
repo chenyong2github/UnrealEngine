@@ -75,24 +75,27 @@ enum EWeightmapRTType : uint8
 // Internal Update Flags that shouldn't be used alone
 enum EInternalLandscapeLayersContentUpdateFlag : uint32
 {
-	Internal_Heightmap_Render = 0x00000001u,
-	Internal_Heightmap_BoundsAndCollision = 0x00000002u,
-	Internal_Heightmap_ResolveToTexture = 0x00000004u,
-	Internal_Heightmap_ClientUpdate = 0x000000008u,
+	Internal_Heightmap_Render = 1 << 0, 
+	Internal_Heightmap_BoundsAndCollision = 1 << 1,
+	Internal_Heightmap_BoundsAndCollisionPartial = 1 << 2,
+	Internal_Heightmap_ResolveToTexture = 1 << 3,
+	
+	Internal_Weightmap_Render = 1 << 8,
+	Internal_Weightmap_Collision = 1 << 9,
+	Internal_Weightmap_ResolveToTexture = 1 << 10,
 
-	Internal_Weightmap_Render = 0x00000100u,
-	Internal_Weightmap_Collision = 0x00000200u,
-	Internal_Weightmap_ResolveToTexture = 0x00000400u,
+	Internal_ClientUpdate = 1 << 14
 };
 
 enum ELandscapeLayersContentUpdateFlag : uint32
 {
 	Heightmap_Render = Internal_Heightmap_Render,
+	Heightmap_Editing = Internal_Heightmap_Render | Internal_Heightmap_ResolveToTexture | Internal_Heightmap_BoundsAndCollisionPartial,
 	Weightmap_Render = Internal_Weightmap_Render,
 
 	// Combinations
-	Heightmap_All = Internal_Heightmap_Render | Internal_Heightmap_BoundsAndCollision | Internal_Heightmap_ResolveToTexture | Internal_Heightmap_ClientUpdate,
-	Weightmap_All = Internal_Weightmap_Render | Internal_Weightmap_Collision | Internal_Weightmap_ResolveToTexture,
+	Heightmap_All = Internal_Heightmap_Render | Internal_Heightmap_BoundsAndCollision | Internal_Heightmap_ResolveToTexture | Internal_ClientUpdate,
+	Weightmap_All = Internal_Weightmap_Render | Internal_Weightmap_Collision | Internal_Weightmap_ResolveToTexture | Internal_ClientUpdate,
 
 	All = Heightmap_All | Weightmap_All,
 	All_Render = Heightmap_Render | Weightmap_Render,
@@ -248,11 +251,13 @@ public:
 
 	// Layers stuff
 #if WITH_EDITOR
+	LANDSCAPE_API void RequestLayersInitialization() { bLandscapeLayersAreInitialized = false; RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All); }
 	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag InDataFlags, bool InUpdateAllMaterials = false);
 	LANDSCAPE_API bool ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex);
 	LANDSCAPE_API void CreateLayer(FName InName = NAME_None);
-	LANDSCAPE_API void CreateDefaultLayer(const FIntPoint& InComponentCounts);
+	LANDSCAPE_API void CreateDefaultLayer();
 	LANDSCAPE_API void CopyOldDataToDefaultLayer();
+	LANDSCAPE_API void AddLayersToProxy(ALandscapeProxy* InProxy);
 	LANDSCAPE_API TMap<UTexture2D*, TArray<ULandscapeComponent*>> GenerateComponentsPerHeightmaps() const;
 	LANDSCAPE_API FIntPoint ComputeComponentCounts() const;
 	LANDSCAPE_API bool IsLayerNameUnique(const FName& InName) const;
@@ -287,13 +292,14 @@ public:
 	LANDSCAPE_API TArray<int8>& GetBrushesOrderForLayer(int32 InLayerIndex, int32 InTargetType);
 	LANDSCAPE_API class ALandscapeBlueprintCustomBrush* GetBrushForLayer(int32 InLayerIndex, int32 InTargetType, int8 BrushIndex) const;
 	LANDSCAPE_API TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForLayer(int32 InLayerIndex, int32 InTargetType) const;
-	LANDSCAPE_API void CreateLayersRenderingResource(const FIntPoint& InComponentCounts);
-
+	
 private:
 	void TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
+	void CreateLayersRenderingResource(const FIntPoint& InComponentCounts);
 	void RegenerateLayersContent();
-	void RegenerateLayersHeightmaps();
-	void RegenerateLayersWeightmaps();
+	void RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool& bRecreateCollision);
+	void RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool& bRecreateCollision);
+	bool UpdateClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool bCollisionRecreated);
 	void ResolveLayersHeightmapTexture();
 	void ResolveLayersWeightmapTexture();
 	void ResolveLayersTexture(class FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOutputTexture);
@@ -367,11 +373,10 @@ public:
 	UPROPERTY(Transient)
 	bool PreviousExperimentalLandscapeLayers;
 
+private:
 	UPROPERTY(Transient)
 	bool bLandscapeLayersAreInitialized;
-
-private:
-
+	
 	UPROPERTY(Transient)
 	bool WasCompilingShaders;
 
@@ -391,7 +396,7 @@ private:
 	class FLandscapeTexture2DResource* WeightmapScratchExtractLayerTextureResource;	
 	
 	// Used in packing the material layer data contained into CombinedLayersWeightmapAllMaterialLayersResource to be set again for each component weightmap (size of the landscape)
-	class FLandscapeTexture2DResource* WeightmapScratchPackLayerTextureResource;	
+	class FLandscapeTexture2DResource* WeightmapScratchPackLayerTextureResource;
 #endif
 
 protected:
@@ -409,7 +414,7 @@ public:
 
 private:
 	TWeakObjectPtr<ALandscape> Landscape;
-	const FGuid& LayerGUID;
+	FGuid PreviousLayerGUID;
 	TFunction<void()> CompletionCallback;
 };
 #endif

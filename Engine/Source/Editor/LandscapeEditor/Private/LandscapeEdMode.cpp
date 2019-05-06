@@ -253,7 +253,6 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, ALandscapeProxy* Targ
 			}
 		});
 
-		Comp->GetGlobalLayersData().TopLeftSectionBase  = Comp->GetSectionBase();
 		Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
 	}
 #endif
@@ -476,7 +475,7 @@ void FEdModeLandscape::Enter()
 	}
 	else
 	{
-		GEditor->SelectNone(false, true);
+		GEditor->SelectNone(true, true);
 	}
 
 	for (TActorIterator<ALandscapeGizmoActiveActor> It(GetWorld()); It; ++It)

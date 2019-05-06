@@ -11,3 +11,8 @@ struct FRigUnit_SimBase : public FRigUnit
 	GENERATED_BODY()
 };
 
+USTRUCT(meta=(Abstract, Category = "Simulation", NodeColor = "0.25 0.05 0.05"))
+struct FRigUnit_SimBaseMutable : public FRigUnitMutable
+{
+	GENERATED_BODY()
+};

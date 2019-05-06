@@ -485,6 +485,8 @@ public:
 	virtual bool IsCheckpointTypeSupported(EReplayCheckpointType CheckpointType) const = 0;
 
 	virtual void UpdateTotalDemoTime(uint32 TimeInMS) = 0;
+	virtual void UpdatePlaybackTime(uint32 TimeInMS) = 0;
+
 	virtual uint32 GetTotalDemoTime() const = 0;
 	virtual bool IsDataAvailable() const = 0;
 	virtual void SetHighPriorityTimeRange(const uint32 StartTimeInMS, const uint32 EndTimeInMS) = 0;

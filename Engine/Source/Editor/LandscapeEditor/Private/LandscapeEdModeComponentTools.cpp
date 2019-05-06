@@ -826,20 +826,20 @@ public:
 			{
 				check(Landscape != nullptr); // Landscape actor is required if layer system is enabled
 
-				Landscape->CreateLayersRenderingResource(Landscape->ComputeComponentCounts());
+				Landscape->RequestLayersInitialization();
 			}
 
 			for (ULandscapeComponent* NewComponent : NewComponents)
 			{
 				if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 				{
-					// Since we do not share heightmap when adding new component, we will provided the required array, but they will only be used for 1 component
-					TMap<UTexture2D*, UTexture2D*> CreatedHeightmapTextures;
 					TArray<ULandscapeComponent*> ComponentsUsingHeightmap;
 					ComponentsUsingHeightmap.Add(NewComponent);
 
 					for (const FLandscapeLayer& Layer : Landscape->LandscapeLayers)
 					{
+						// Since we do not share heightmap when adding new component, we will provided the required array, but they will only be used for 1 component
+						TMap<UTexture2D*, UTexture2D*> CreatedHeightmapTextures;
 						NewComponent->AddDefaultLayerData(Layer.Guid, ComponentsUsingHeightmap, CreatedHeightmapTextures);
 					}
 				}
@@ -929,6 +929,7 @@ public:
 			EdMode->LandscapeRenderAddCollision = nullptr;
 
 			// Add/update "add collision" around the newly added components
+			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
 				// Top row
 				int32 ComponentIndexY = ComponentIndexY1 - 1;
@@ -1727,9 +1728,9 @@ public:
 	virtual ELandscapeLayersContentUpdateFlag GetBeginToolContentUpdateFlag() const override { return ELandscapeLayersContentUpdateFlag::All_Render; }
 
 	virtual ELandscapeLayersContentUpdateFlag GetTickToolContentUpdateFlag() const override { return ELandscapeLayersContentUpdateFlag::All_Render; }
-
+	
 	virtual ELandscapeLayersContentUpdateFlag GetEndToolContentUpdateFlag() const override { return ELandscapeLayersContentUpdateFlag::All; }
-
+		
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
 	{
 		this->EdMode->GizmoBrush->Tick(ViewportClient, 0.1f);

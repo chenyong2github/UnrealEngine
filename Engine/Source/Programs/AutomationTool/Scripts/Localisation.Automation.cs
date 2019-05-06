@@ -506,6 +506,109 @@ class Localize : BuildCommand
 	}
 }
 
+[Help("OnlyLoc", "Optional.  Only submit generated loc files, do not submit any other generated file.")]
+[Help("NoRobomerge", "Optional.  Do not include the markup in the CL description to allow robomerging to other branches.")]
+public class ExportMcpTemplates : BuildCommand
+{
+	public static string GetGameBackendFolder(FileReference ProjectFile)
+	{
+		return Path.Combine(ProjectFile.Directory.FullName, "Content", "Backend");
+	}
+
+	public static void RunExportTemplates(FileReference ProjectFile, bool bCheckoutAndSubmit, bool bOnlyLoc, bool bbNoRobomerge, string CommandletOverride)
+	{
+		string EditorExe = "UE4Editor.exe";
+		EditorExe = HostPlatform.Current.GetUE4ExePath(EditorExe);
+
+		string GameBackendFolder = GetGameBackendFolder(ProjectFile);
+		if (!DirectoryExists_NoExceptions(GameBackendFolder))
+		{
+			throw new AutomationException("Error: RunExportTemplates failure. GameBackendFolder not found. {0}", GameBackendFolder);
+		}
+
+		string FolderToGenerateIn = GameBackendFolder;
+
+		string Parameters = "-GenerateLoc";
+
+		int WorkingCL = -1;
+		if (bCheckoutAndSubmit)
+		{
+			if (!CommandUtils.P4Enabled)
+			{
+				throw new AutomationException("Error: RunExportTemplates failure. bCheckoutAndSubmit used without access to P4");
+			}
+
+			// Check whether all templates in folder are latest.  If not skip exporting.
+			List<string> FilesPreviewSynced;
+			CommandUtils.P4.PreviewSync(out FilesPreviewSynced, FolderToGenerateIn + "/...");
+			if (FilesPreviewSynced.Count() > 0)
+			{
+				CommandUtils.LogInformation("Some files in folder {0} are not latest, which means that these files might have already been updated by an earlier exporting job.  Skip this one.", FolderToGenerateIn);
+				return;
+			}
+
+			String CLDescription = String.Format("RunExportTemplates Updated mcp templates using CL {0}", P4Env.Changelist);
+			if (bOnlyLoc)
+			{
+				CLDescription += " [OnlyLoc]";
+			}
+			if (!bbNoRobomerge)
+			{
+				CLDescription += "\r\n#robomerge[ALL] #DisregardExcludedAuthors";
+			}
+
+			WorkingCL = CommandUtils.P4.CreateChange(CommandUtils.P4Env.Client, CLDescription);
+			CommandUtils.P4.Edit(WorkingCL, FolderToGenerateIn + "/...");
+		}
+
+		string Commandlet = string.IsNullOrWhiteSpace(CommandletOverride) ? "ExportTemplatesCommandlet" : CommandletOverride;
+		CommandUtils.RunCommandlet(ProjectFile, EditorExe, Commandlet, Parameters);
+
+		if (WorkingCL > 0)
+		{
+			CommandUtils.P4.RevertUnchanged(WorkingCL);
+
+			if (bOnlyLoc)
+			{
+				// Revert all folders and files except GeneratedLoc.json
+				foreach (string DirPath in Directory.GetDirectories(FolderToGenerateIn))
+				{
+					DirectoryInfo Dir = new DirectoryInfo(DirPath);
+					CommandUtils.P4.Revert(WorkingCL, FolderToGenerateIn + "/" + Dir.Name + "/...");
+				}
+
+				foreach (string FilePath in Directory.GetFiles(FolderToGenerateIn))
+				{
+					FileInfo File = new FileInfo(FilePath);
+					if (File.Name != "GeneratedLoc.json")
+					{
+						CommandUtils.P4.Revert(WorkingCL, FolderToGenerateIn + "/" + File.Name);
+					}
+				}
+			}
+
+			// If the CL is empty after the RevertUnchanged, the submit call will just delete the CL and return cleanly
+			int SubmittedCL;
+			CommandUtils.P4.Submit(WorkingCL, out SubmittedCL, false, true);
+		}
+	}
+
+	public override void ExecuteBuild()
+	{
+		string ProjectName = ParseParamValue("ProjectName", null);
+		if (string.IsNullOrWhiteSpace(ProjectName))
+		{
+			throw new AutomationException("Error: ExportMcpTemplates failure. No ProjectName defined!");
+		}
+
+		FileReference ProjectFile = new FileReference(CombinePaths(CmdEnv.LocalRoot, ProjectName, String.Format("{0}.uproject", ProjectName)));
+		bool bOnlyLoc = ParseParam("OnlyLoc");
+		bool bNoRobomerge = ParseParam("NoRobomerge");
+		string CommandletOverride = ParseParamValue("Commandlet", null);
+		RunExportTemplates(ProjectFile, true, bOnlyLoc, bNoRobomerge, CommandletOverride);
+	}
+}
+
 // Legacy alias
 class Localise : Localize
 {

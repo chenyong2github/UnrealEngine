@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Units/Highlevel/RigUnit_HighlevelBase.h"
-#include "Math/ControlRigSimulationLibrary.h"
+#include "Math/Simulation/CRSimPointContainer.h"
 #include "RigUnit_SpringIK.generated.h"
 
 USTRUCT()
@@ -67,6 +67,7 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 		SecondaryAxis = FVector(0.f, 1.f, 0.f);
 		bLiveSimulation = false;
 		Iterations = 10;
+		bLimitLocalPosition = true;
 		bPropagateToChildren = false;
 		DebugSettings = FRigUnit_SpringIK_DebugSettings();
 		PoleVectorIndex = INDEX_NONE;
@@ -161,6 +162,13 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 	int32 Iterations;
 
 	/**
+	 * If set to true bones are placed within the original distance of
+	 * the previous local transform. This can be used to avoid stretch.
+	 */
+	UPROPERTY(meta = (Input))
+	bool bLimitLocalPosition;
+
+	/**
 	 * If set to true all of the global transforms of the children
 	 * of this bone will be recalculated based on their local transforms.
 	 * Note: This is computationally more expensive than turning it off.
@@ -182,5 +190,5 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 	TArray<FTransform> Transforms;
 
 	UPROPERTY()
-	FControlRigSimulationPointContainer Simulation;
+	FCRSimPointContainer Simulation;
 };

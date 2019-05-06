@@ -312,5 +312,5 @@ void FRigUnit_MathVectorOrthogonal::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_MathVectorBezierFourPoint::Execute(const FRigUnitContext& Context)
 {
-	FControlRigMathLibrary::FourPointBezier(A, B, C, D, T, Result, Tangent);
+	FControlRigMathLibrary::FourPointBezier(Bezier, T, Result, Tangent);
 }

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Hierarchy.h"
-#include "Math/ControlRigSimulationLibrary.h"
+#include "Math/Simulation/CRSimPointContainer.h"
 #include "ControlRigDrawInterface.generated.h"
 
 UENUM()
@@ -37,9 +37,9 @@ public:
 	void DrawAxes(const FTransform& WorldOffset, const FTransform& Transform, float Size, float Thickness = 0.f);
 	void DrawRectangle(const FTransform& WorldOffset, const FTransform& Transform, float Size, const FLinearColor& Color, float Thickness);
 	void DrawArc(const FTransform& WorldOffset, const FTransform& Transform, float Radius, float MinimumAngle, float MaximumAngle, const FLinearColor& Color, float Thickness, int32 Detail);
-	void DrawBezier(const FTransform& WorldOffset, const FVector& A, const FVector& B, const FVector& C, const FVector& D, float MinimumU, float MaximumU, const FLinearColor& Color, float Thickness, int32 Detail);
+	void DrawBezier(const FTransform& WorldOffset, const FCRFourPointBezier& InBezier, float MinimumU, float MaximumU, const FLinearColor& Color, float Thickness, int32 Detail);
 	void DrawHierarchy(const FTransform& WorldOffset, const FRigHierarchy& Hierarchy, EControlRigDrawHierarchyMode::Type Mode, float Scale, const FLinearColor& Color, float Thickness);
-	void DrawPointSimulation(const FTransform& WorldOffset, const FControlRigSimulationPointContainer& Simulation, const FLinearColor& Color, float Thickness);
+	void DrawPointSimulation(const FTransform& WorldOffset, const FCRSimPointContainer& Simulation, const FLinearColor& Color, float Thickness, float PrimitiveSize = 0.f, bool bDrawPointsAsSphere = false);
 
 private:
 
