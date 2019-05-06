@@ -324,11 +324,44 @@ struct FParticleEventKismetData : public FParticleEventData
 {
 };
 
+UCLASS(Abstract)
+class ENGINE_API UFXSystemComponent : public UPrimitiveComponent
+{
+	GENERATED_UCLASS_BODY()
+public:
+
+	/** Change a named float parameter */
+	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
+	virtual void SetFloatParameter(FName ParameterName, float Param) {}
+
+	/** 
+	 *	Set a named vector instance parameter on this ParticleSystemComponent. 
+	 *	Updates the parameter if it already exists, or creates a new entry if not. 
+	 */
+	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
+	virtual void SetVectorParameter(FName ParameterName, FVector Param) {}
+
+	/** 
+	 *	Set a named color instance parameter on this ParticleSystemComponent. 
+	 *	Updates the parameter if it already exists, or creates a new entry if not. 
+	 */
+	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
+	virtual void SetColorParameter(FName ParameterName, FLinearColor Param) {}
+
+	/** 
+	 *	Set a named actor instance parameter on this ParticleSystemComponent. 
+	 *	Updates the parameter if it already exists, or creates a new entry if not. 
+	 */
+	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
+	virtual void SetActorParameter(FName ParameterName, class AActor* Param) {}
+};
+
+
 /** 
  * A particle emitter.
  */
 UCLASS(ClassGroup=(Rendering, Common), hidecategories=Object, hidecategories=Physics, hidecategories=Collision, showcategories=Trigger, editinlinenew, meta=(BlueprintSpawnableComponent))
-class ENGINE_API UParticleSystemComponent : public UPrimitiveComponent
+class ENGINE_API UParticleSystemComponent : public UFXSystemComponent
 {
 	friend class FParticleSystemWorldManager;
 
@@ -967,29 +1000,25 @@ public:
 	virtual void SetEmitterEnable(FName EmitterName, bool bNewEnableState);
 
 	/** Change a named float parameter */
-	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	void SetFloatParameter(FName ParameterName, float Param);
+	void SetFloatParameter(FName ParameterName, float Param) override;
 
 	/** 
 	 *	Set a named vector instance parameter on this ParticleSystemComponent. 
 	 *	Updates the parameter if it already exists, or creates a new entry if not. 
 	 */
-	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	void SetVectorParameter(FName ParameterName, FVector Param);
+	void SetVectorParameter(FName ParameterName, FVector Param) override;
 
 	/** 
 	 *	Set a named color instance parameter on this ParticleSystemComponent. 
 	 *	Updates the parameter if it already exists, or creates a new entry if not. 
 	 */
-	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	void SetColorParameter(FName ParameterName, FLinearColor Param);
+	void SetColorParameter(FName ParameterName, FLinearColor Param) override;
 
 	/** 
 	 *	Set a named actor instance parameter on this ParticleSystemComponent. 
 	 *	Updates the parameter if it already exists, or creates a new entry if not. 
 	 */
-	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	void SetActorParameter(FName ParameterName, class AActor* Param);
+	void SetActorParameter(FName ParameterName, class AActor* Param) override;
 
 	/** 
 	 *	Set a named material instance parameter on this ParticleSystemComponent. 

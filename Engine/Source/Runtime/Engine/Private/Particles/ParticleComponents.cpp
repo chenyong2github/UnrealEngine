@@ -2049,6 +2049,15 @@ void UParticleSpriteEmitter::SetToSensibleDefaults()
 }
 
 /*-----------------------------------------------------------------------------
+	UFXSystemAsset implementation.
+-----------------------------------------------------------------------------*/
+
+UFXSystemAsset::UFXSystemAsset(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+/*-----------------------------------------------------------------------------
 	UParticleSystem implementation.
 -----------------------------------------------------------------------------*/
 
@@ -3308,6 +3317,10 @@ bool UParticleSystem::HasGPUEmitter() const
 	}
 	return false;
 }
+
+UFXSystemComponent::UFXSystemComponent(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{}
 
 FOnSystemPreActivationChange UParticleSystemComponent::OnSystemPreActivationChange;
 
