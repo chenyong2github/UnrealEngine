@@ -7,7 +7,7 @@ using namespace Audio;
 // The presets for the late refelections reverb were based on a strange sample rate. This 
 // function helps translate delay values in the paper to delay values for this reverb.
 // https://ccrma.stanford.edu/~dattorro/EffectDesignPart1.pdf
-static int32 GetDelaySamples(float InSampleRate, float InPresetValue) {
+static int32 LateReflectionsGetDelaySamples(float InSampleRate, float InPresetValue) {
 	
 	return (int32)((float)InSampleRate / 29761.f * InPresetValue);
 }
@@ -60,21 +60,21 @@ FLateReflectionsPlateDelays FLateReflectionsPlateDelays::DefaultLeftDelays(float
 {
 	FLateReflectionsPlateDelays Delays;
 
-	Delays.NumSamplesModulatedBase = GetDelaySamples(InSampleRate, 908);
-	Delays.NumSamplesModulatedDelta = GetDelaySamples(InSampleRate, 16);
+	Delays.NumSamplesModulatedBase = LateReflectionsGetDelaySamples(InSampleRate, 908);
+	Delays.NumSamplesModulatedDelta = LateReflectionsGetDelaySamples(InSampleRate, 16);
 	// Left Delay 1 should add up to 4217 and have tap outs at 353 (R0), 1190 (L4), and 3627 (R1)
-	Delays.NumSamplesDelayA = GetDelaySamples(InSampleRate, 353);
-	Delays.NumSamplesDelayB = GetDelaySamples(InSampleRate, 837);
-	Delays.NumSamplesDelayC = GetDelaySamples(InSampleRate, 2437);
-	Delays.NumSamplesDelayD = GetDelaySamples(InSampleRate, 590);
-	Delays.NumSamplesAPF = GetDelaySamples(InSampleRate, 2656);
+	Delays.NumSamplesDelayA = LateReflectionsGetDelaySamples(InSampleRate, 353);
+	Delays.NumSamplesDelayB = LateReflectionsGetDelaySamples(InSampleRate, 837);
+	Delays.NumSamplesDelayC = LateReflectionsGetDelaySamples(InSampleRate, 2437);
+	Delays.NumSamplesDelayD = LateReflectionsGetDelaySamples(InSampleRate, 590);
+	Delays.NumSamplesAPF = LateReflectionsGetDelaySamples(InSampleRate, 2656);
 	// APF Delay should have tapouts at 187 (L5) and 1228 (R2)
-	Delays.NumSamplesDelayE = GetDelaySamples(InSampleRate, 187);
-	Delays.NumSamplesDelayF = GetDelaySamples(InSampleRate, 1041);
+	Delays.NumSamplesDelayE = LateReflectionsGetDelaySamples(InSampleRate, 187);
+	Delays.NumSamplesDelayF = LateReflectionsGetDelaySamples(InSampleRate, 1041);
 	// Left Delay 2 should add up to 3136 and have tap outs at 1066 (L6) and 2673 (R3)
-	Delays.NumSamplesDelayG = GetDelaySamples(InSampleRate, 1066);
-	Delays.NumSamplesDelayH = GetDelaySamples(InSampleRate, 1607);
-	Delays.NumSamplesDelayI = GetDelaySamples(InSampleRate, 463);
+	Delays.NumSamplesDelayG = LateReflectionsGetDelaySamples(InSampleRate, 1066);
+	Delays.NumSamplesDelayH = LateReflectionsGetDelaySamples(InSampleRate, 1607);
+	Delays.NumSamplesDelayI = LateReflectionsGetDelaySamples(InSampleRate, 463);
 
 	return Delays;
 }
@@ -83,21 +83,21 @@ FLateReflectionsPlateDelays FLateReflectionsPlateDelays::DefaultRightDelays(floa
 {
 	FLateReflectionsPlateDelays Delays;
 
-	Delays.NumSamplesModulatedBase = GetDelaySamples(InSampleRate, 672);
-	Delays.NumSamplesModulatedDelta = GetDelaySamples(InSampleRate, 16);
+	Delays.NumSamplesModulatedBase = LateReflectionsGetDelaySamples(InSampleRate, 672);
+	Delays.NumSamplesModulatedDelta = LateReflectionsGetDelaySamples(InSampleRate, 16);
 	// Right Delay 1 should add up to 4453 and have tap outs at 266 (L0), 2111 (R4), 2974 (L1)
-	Delays.NumSamplesDelayA = GetDelaySamples(InSampleRate, 266);
-	Delays.NumSamplesDelayB = GetDelaySamples(InSampleRate, 1845);
-	Delays.NumSamplesDelayC = GetDelaySamples(InSampleRate, 863);
-	Delays.NumSamplesDelayD = GetDelaySamples(InSampleRate, 1479);
-	Delays.NumSamplesAPF = GetDelaySamples(InSampleRate, 1800);
+	Delays.NumSamplesDelayA = LateReflectionsGetDelaySamples(InSampleRate, 266);
+	Delays.NumSamplesDelayB = LateReflectionsGetDelaySamples(InSampleRate, 1845);
+	Delays.NumSamplesDelayC = LateReflectionsGetDelaySamples(InSampleRate, 863);
+	Delays.NumSamplesDelayD = LateReflectionsGetDelaySamples(InSampleRate, 1479);
+	Delays.NumSamplesAPF = LateReflectionsGetDelaySamples(InSampleRate, 1800);
 	// APF Delay should have tapouts at 335 (R5) and 1913 (L2)
-	Delays.NumSamplesDelayE = GetDelaySamples(InSampleRate, 335);
-	Delays.NumSamplesDelayF = GetDelaySamples(InSampleRate, 1578);
+	Delays.NumSamplesDelayE = LateReflectionsGetDelaySamples(InSampleRate, 335);
+	Delays.NumSamplesDelayF = LateReflectionsGetDelaySamples(InSampleRate, 1578);
 	// Right Delay 2 should add up to 3720 and have tap outs at 121 (R6) and 1996 (L3)
-	Delays.NumSamplesDelayG = GetDelaySamples(InSampleRate, 121);
-	Delays.NumSamplesDelayH = GetDelaySamples(InSampleRate, 1875);
-	Delays.NumSamplesDelayI = GetDelaySamples(InSampleRate, 1724);
+	Delays.NumSamplesDelayG = LateReflectionsGetDelaySamples(InSampleRate, 121);
+	Delays.NumSamplesDelayH = LateReflectionsGetDelaySamples(InSampleRate, 1875);
+	Delays.NumSamplesDelayI = LateReflectionsGetDelaySamples(InSampleRate, 1724);
 
 	return Delays;
 }
@@ -294,10 +294,10 @@ FLateReflectionsFast::FLateReflectionsFast(float InSampleRate, int32 InMaxNumInt
 	InputLPF = MakeUnique<FBufferOnePoleLPF>(1.0f - Settings.Bandwidth);
 
 	// make the signal decorrelators
-	APF1 = MakeUnique<FLongDelayAPF>(Settings.Diffusion, GetDelaySamples(SampleRate, 142), NumInternalBufferSamples);
-	APF2 = MakeUnique<FLongDelayAPF>(Settings.Diffusion, GetDelaySamples(SampleRate, 107), NumInternalBufferSamples);
-	APF3 = MakeUnique<FLongDelayAPF>(Settings.Diffusion - 0.125f, GetDelaySamples(SampleRate, 379), NumInternalBufferSamples);
-	APF4 = MakeUnique<FLongDelayAPF>(Settings.Diffusion - 0.125f, GetDelaySamples(SampleRate, 277), NumInternalBufferSamples);
+	APF1 = MakeUnique<FLongDelayAPF>(Settings.Diffusion, LateReflectionsGetDelaySamples(SampleRate, 142), NumInternalBufferSamples);
+	APF2 = MakeUnique<FLongDelayAPF>(Settings.Diffusion, LateReflectionsGetDelaySamples(SampleRate, 107), NumInternalBufferSamples);
+	APF3 = MakeUnique<FLongDelayAPF>(Settings.Diffusion - 0.125f, LateReflectionsGetDelaySamples(SampleRate, 379), NumInternalBufferSamples);
+	APF4 = MakeUnique<FLongDelayAPF>(Settings.Diffusion - 0.125f, LateReflectionsGetDelaySamples(SampleRate, 277), NumInternalBufferSamples);
 
 	// Set modulation rate to 1 Hz. 
 	ModulationPhaseIncrement = 2.0 * PI / SampleRate;
