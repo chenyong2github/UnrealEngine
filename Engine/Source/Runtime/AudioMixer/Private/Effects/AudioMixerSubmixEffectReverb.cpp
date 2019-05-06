@@ -7,24 +7,24 @@
 #include "AudioMixer.h"
 
 static int32 DisableSubmixReverbCVar = 0;
-FAutoConsoleVariableRef CVarDisableSubmixReverb(
+static FAutoConsoleVariableRef CVarDisableSubmixReverb(
 	TEXT("au.DisableReverbSubmix"),
 	DisableSubmixReverbCVar,
 	TEXT("Disables the reverb submix.\n")
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
 
-static int32 EnableReverbStereoFlipForQuadCvar = 0;
-FAutoConsoleVariableRef CVarReverbStereoFlipForQuad(
+static int32 EnableReverbStereoFlipForQuadCVar = 0;
+static FAutoConsoleVariableRef CVarReverbStereoFlipForQuad(
 	TEXT("au.EnableReverbStereoFlipForQuad"),
-	EnableReverbStereoFlipForQuadCvar,
+	EnableReverbStereoFlipForQuadCVar,
 	TEXT("Enables doing a stereo flip for quad reverb when in surround.\n")
 	TEXT("0: Not Enabled, 1: Enabled"),
 	ECVF_Default);
 
 
 static int32 DisableQuadReverbCVar = 0;
-FAutoConsoleVariableRef CVarDisableQuadReverbCVar(
+static FAutoConsoleVariableRef CVarDisableQuadReverbCVar(
 	TEXT("au.DisableQuadReverb"),
 	DisableQuadReverbCVar,
 	TEXT("Disables quad reverb in surround.\n")
@@ -133,7 +133,7 @@ void FSubmixEffectReverb::OnProcessAudio(const FSoundEffectSubmixInputData& InDa
 				PlateReverb.ProcessAudioFrame(&AudioData[InSampleIndex], InData.NumChannels, &OutAudioData[OutSampleIndex], InData.NumChannels);
 			}
 		}
-		else if (EnableReverbStereoFlipForQuadCvar == 1)
+		else if (EnableReverbStereoFlipForQuadCVar == 1)
 		{
 			for (int32 InSampleIndex = 0, OutSampleIndex = 0; InSampleIndex < InData.AudioBuffer->Num(); InSampleIndex += InData.NumChannels, OutSampleIndex += OutData.NumChannels)
 			{
