@@ -386,10 +386,9 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 	};
 	static FDelegatesInitializer DelegatesInitializer;
 	
-	// @hack, trying to load AIModule's CrowdManager
-	UClass* Class = StaticLoadClass(UCrowdManagerBase::StaticClass(), nullptr, TEXT("/Script/AIModule.CrowdManager"));
-	CrowdManagerClass = Class ? Class : UCrowdManagerBase::StaticClass();
-	
+	// Set to the ai module's crowd manager, this module may not exist at spawn time but then it will just fail to load
+	CrowdManagerClass = FSoftObjectPath(TEXT("/Script/AIModule.CrowdManager"));
+
 	// active tiles
 	NextInvokersUpdateTime = 0.f;
 	ActiveTilesUpdateInterval = 1.f;
