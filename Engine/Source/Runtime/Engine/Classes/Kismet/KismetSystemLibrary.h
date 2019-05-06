@@ -461,14 +461,15 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 
 	/**
 	 * Set a timer to execute delegate. Setting an existing timer will reset that timer with updated parameters.
-	 * @param Event				Event. Can be a K2 function or a Custom Event.
-	 * @param Time				How long to wait before executing the delegate, in seconds. Setting a timer to <= 0 seconds will clear it if it is set.
-	 * @param bLooping			True to keep executing the delegate every Time seconds, false to execute delegate only once.
-	 * @param InitialStartDelay Initial delay passed to the timer manager to allow some variance in when the timer starts.
-	 * @return					The timer handle to pass to other timer functions to manipulate this timer.
+	 * @param Event						Event. Can be a K2 function or a Custom Event.
+	 * @param Time						How long to wait before executing the delegate, in seconds. Setting a timer to <= 0 seconds will clear it if it is set.
+	 * @param bLooping					True to keep executing the delegate every Time seconds, false to execute delegate only once.
+	 * @param InitialStartDelay			Initial delay passed to the timer manager, in seconds.
+	 * @param InitialStartDelayVariance	Use this to add some variance to when the timer starts in lieu of doing a random range on the InitialStartDelay input, in seconds. 
+	 * @return							The timer handle to pass to other timer functions to manipulate this timer.
 	 */
-	UFUNCTION(BlueprintCallable, meta=(DisplayName = "Set Timer by Event", ScriptName = "SetTimerDelegate", AdvancedDisplay="InitialStartDelay"), Category="Utilities|Time")
-	static FTimerHandle K2_SetTimerDelegate(UPARAM(DisplayName="Event") FTimerDynamicDelegate Delegate, float Time, bool bLooping, float InitialStartDelay = 0.f);
+	UFUNCTION(BlueprintCallable, meta=(DisplayName = "Set Timer by Event", ScriptName = "SetTimerDelegate", AdvancedDisplay="InitialStartDelay, InitialStartDelayVariance"), Category="Utilities|Time")
+	static FTimerHandle K2_SetTimerDelegate(UPARAM(DisplayName="Event") FTimerDynamicDelegate Delegate, float Time, bool bLooping, float InitialStartDelay = 0.f, float InitialStartDelayVariance = 0.f);
 
 	/**
 	 * Clears a set timer.
@@ -621,15 +622,16 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 
 	/**
 	 * Set a timer to execute delegate. Setting an existing timer will reset that timer with updated parameters.
-	 * @param Object			Object that implements the delegate function. Defaults to self (this blueprint)
-	 * @param FunctionName		Delegate function name. Can be a K2 function or a Custom Event.
-	 * @param Time				How long to wait before executing the delegate, in seconds. Setting a timer to <= 0 seconds will clear it if it is set.
-	 * @param bLooping			true to keep executing the delegate every Time seconds, false to execute delegate only once.
-	 * @param InitialStartDelay Initial delay passed to the timer manager to allow some variance in when the timer starts.
-	 * @return					The timer handle to pass to other timer functions to manipulate this timer.
+	 * @param Object					Object that implements the delegate function. Defaults to self (this blueprint)
+	 * @param FunctionName				Delegate function name. Can be a K2 function or a Custom Event.
+	 * @param Time						How long to wait before executing the delegate, in seconds. Setting a timer to <= 0 seconds will clear it if it is set.
+	 * @param bLooping					true to keep executing the delegate every Time seconds, false to execute delegate only once.
+	 * @param InitialStartDelay			Initial delay passed to the timer manager to allow some variance in when the timer starts, in seconds.
+	 * @param InitialStartDelayVariance	Use this to add some variance to when the timer starts in lieu of doing a random range on the InitialStartDelay input, in seconds.
+	 * @return							The timer handle to pass to other timer functions to manipulate this timer.
 	 */
-	UFUNCTION(BlueprintCallable, meta=(DisplayName = "Set Timer by Function Name", ScriptName = "SetTimer", DefaultToSelf = "Object", AdvancedDisplay="InitialStartDelay"), Category="Utilities|Time")
-	static FTimerHandle K2_SetTimer(UObject* Object, FString FunctionName, float Time, bool bLooping, float InitialStartDelay = 0.f);
+	UFUNCTION(BlueprintCallable, meta=(DisplayName = "Set Timer by Function Name", ScriptName = "SetTimer", DefaultToSelf = "Object", AdvancedDisplay="InitialStartDelay, InitialStartDelayVariance"), Category="Utilities|Time")
+	static FTimerHandle K2_SetTimer(UObject* Object, FString FunctionName, float Time, bool bLooping, float InitialStartDelay = 0.f, float InitialStartDelayVariance = 0.f);
 
 	/**
 	 * Clears a set timer.
