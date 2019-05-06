@@ -406,11 +406,6 @@ void FRDGBuilder::ValidatePass(const FRDGPass* Pass) const
 void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 {
 #if SUPPORTS_VISUALIZE_TEXTURE
-	if (!!GVisualizeTexture.bEnabled)
-	{
-		return;
-	}
-
 	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
 
 	const uint32 ParameterCount = ParameterStruct.GetParameterCount();
