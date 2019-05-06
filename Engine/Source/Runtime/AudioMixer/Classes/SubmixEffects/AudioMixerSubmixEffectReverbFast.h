@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "DSP/Reverb.h"
 #include "Sound/SoundEffectSubmix.h"
+#include "DSP/ReverbFast.h"
 #include "AudioEffect.h"
-#include "AudioMixerSubmixEffectReverb.generated.h"
+#include "AudioMixerSubmixEffectReverbFast.generated.h"
 
 USTRUCT(BlueprintType)
-struct AUDIOMIXER_API FSubmixEffectReverbSettings
+struct AUDIOMIXER_API FSubmixEffectReverbFastSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -64,7 +64,7 @@ struct AUDIOMIXER_API FSubmixEffectReverbSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Reverb)
 	float DryLevel;
 
-	FSubmixEffectReverbSettings()
+	FSubmixEffectReverbFastSettings()
 	: Density(0.85f)
 	, Diffusion(0.85f)
 	, Gain(0.0f)
@@ -82,10 +82,10 @@ struct AUDIOMIXER_API FSubmixEffectReverbSettings
 	}
 };
 
-class AUDIOMIXER_API FSubmixEffectReverb : public FSoundEffectSubmix
+class AUDIOMIXER_API FSubmixEffectReverbFast : public FSoundEffectSubmix
 {
 public:
-	FSubmixEffectReverb();
+	FSubmixEffectReverbFast();
 
 	// Called on an audio effect at initialization on main thread before audio processing begins.
 	virtual void Init(const FSoundEffectSubmixInitData& InSampleRate) override;
@@ -96,9 +96,6 @@ public:
 	// We want to receive downmixed submix audio to stereo input for the reverb effect
 	virtual uint32 GetDesiredInputChannelCountOverride() const override { return 2; }
 
-	// Returns the drylevel of the effect
-	virtual float GetDryLevel() const override { return DryLevel; }
-
 	// Process the input block of audio. Called on audio thread.
 	virtual void OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData) override;
 
@@ -108,35 +105,31 @@ public:
 private:
 	void UpdateParameters();
 
-	// The reverb effect
-	Audio::FPlateReverb PlateReverb;
+	// The fast reverb effect
+	TUniquePtr<Audio::FPlateReverbFast> PlateReverb;
 
 	// The reverb effect params
-	Audio::TParams<Audio::FPlateReverbSettings> Params;
+	Audio::TParams<Audio::FPlateReverbFastSettings> Params;
 
 	// Curve which maps old reverb times to new decay value
 	FRichCurve DecayCurve;
 
-	// Cache the dry level
-	float DryLevel;
-
-	bool bIsEnabled;
 };
 
 UCLASS()
-class AUDIOMIXER_API USubmixEffectReverbPreset : public USoundEffectSubmixPreset
+class AUDIOMIXER_API USubmixEffectReverbFastPreset : public USoundEffectSubmixPreset
 {
 	GENERATED_BODY()
 
 public:
-	EFFECT_PRESET_METHODS(SubmixEffectReverb)
+	EFFECT_PRESET_METHODS(SubmixEffectReverbFast)
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void SetSettings(const FSubmixEffectReverbSettings& InSettings);
+	void SetSettings(const FSubmixEffectReverbFastSettings& InSettings);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
 	void SetSettingsWithReverbEffect(const UReverbEffect* InReverbEffect, const float WetLevel, const float DryLevel = 0.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixEffectPreset)
-	FSubmixEffectReverbSettings Settings;
+	FSubmixEffectReverbFastSettings Settings;
 };

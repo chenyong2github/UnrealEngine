@@ -69,6 +69,7 @@ void UAudioSettings::AddDefaultSettings()
 	QualityLevels.Add(DefaultSettings);
 	bAllowVirtualizedSounds = true;
 	DefaultReverbSendLevel = 0.0f;
+	bEnableLegacyReverb = false;
 	VoiPSampleRate = EVoiceSampleRate::Low16000Hz;
 	VoipBufferingDelay = 0.2f;
 	MaxWaveInstances = 100;
