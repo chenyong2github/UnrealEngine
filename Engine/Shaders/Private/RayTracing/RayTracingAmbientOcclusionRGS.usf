@@ -86,7 +86,7 @@ void AmbientOcclusionRGS()
 		RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 #endif
 
-		FDefaultPayload Payload = (FDefaultPayload)0;
+		FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
 
 		TraceRay(
 			TLAS,

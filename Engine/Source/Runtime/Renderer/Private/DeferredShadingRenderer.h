@@ -490,7 +490,7 @@ private:
 	void VisualizeRectLightMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FRWBuffer& RectLightMipTree, const FIntVector& RectLightMipTreeDimensions);
 	
 	void RenderRayTracingAmbientOcclusion(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT);
-	void RenderRayTracingAmbientOcclusion(FRHICommandListImmediate& RHICmdList, FRDGBuilder& GraphBuilder, FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
+	void RenderRayTracingAmbientOcclusion(FRHICommandListImmediate& RHICmdList, FRDGBuilder& GraphBuilder, FViewInfo& View, FRDGTextureRef AmbientOcclusionTexture, FRDGTextureRef RayDistanceTexture, TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionMaskRT);
 	void CompositeRayTracingAmbientOcclusion(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT);
 	
 	void RenderRayTracingGlobalIllumination(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& GlobalIlluminationRT);
