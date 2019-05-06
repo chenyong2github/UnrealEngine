@@ -948,7 +948,7 @@ bool UPrimitiveComponent::CanEditChange(const UProperty* InProperty) const
 
 				if (Material)
 				{
-					if (Material->GetShadingModel() != MSM_Unlit)
+					if (Material->GetShadingModels().IsLit())
 					{
 						bHasAnyLitMaterials = true;
 					}
