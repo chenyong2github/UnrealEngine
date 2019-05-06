@@ -173,7 +173,28 @@ UAISenseConfig_Sight::UAISenseConfig_Sight(const FObjectInitializer& ObjectIniti
 TSubclassOf<UAISense> UAISenseConfig_Sight::GetSenseImplementation() const 
 { 
 	return *Implementation; 
+}	
+
+#if WITH_EDITOR
+void UAISenseConfig_Sight::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	static const FName NAME_AutoSuccessRangeFromLastSeenLocation = GET_MEMBER_NAME_CHECKED(UAISenseConfig_Sight, AutoSuccessRangeFromLastSeenLocation);
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.Property)
+	{
+		const FName PropName = PropertyChangedEvent.Property->GetFName();
+		if (PropName == NAME_AutoSuccessRangeFromLastSeenLocation)
+		{
+			if (AutoSuccessRangeFromLastSeenLocation < 0)
+			{
+				AutoSuccessRangeFromLastSeenLocation = FAISystem::InvalidRange;
+			}
+		}
+	}
 }
+#endif // WITH_EDITOR
 
 #if WITH_GAMEPLAY_DEBUGGER
 void UAISenseConfig_Sight::DescribeSelfToGameplayDebugger(const UAIPerceptionComponent* PerceptionComponent, FGameplayDebuggerCategory* DebuggerCategory) const
