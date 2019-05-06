@@ -130,6 +130,8 @@ bool UInteractiveToolManager::ActivateTool(EToolSide Side)
 
 	PostInvalidation();
 
+	OnToolStarted.Broadcast(this, ActiveLeftTool);
+
 	return true;
 }
 
@@ -146,9 +148,12 @@ void UInteractiveToolManager::DeactivateTool(EToolSide Side, EToolShutdownType S
 
 		InputRouter->DeregisterSource(ActiveLeftTool);
 
+		UInteractiveTool* DoneTool = ActiveLeftTool;
 		ActiveLeftTool = nullptr;
 
 		PostInvalidation();
+
+		OnToolEnded.Broadcast(this, DoneTool);
 	}
 }
 
@@ -254,4 +259,7 @@ void UInteractiveToolManager::EmitObjectChange(UObject* TargetObject, TUniquePtr
 	TransactionsAPI->AppendChange(TargetObject, MoveTemp(Change), Description );
 }
 
-
+bool UInteractiveToolManager::RequestSelectionChange(const FSelectedOjectsChangeList& SelectionChange)
+{
+	return TransactionsAPI->RequestSelectionChange(SelectionChange);
+}

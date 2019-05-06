@@ -167,6 +167,13 @@ public:
 	virtual void EmitObjectChange(UObject* TargetObject, TUniquePtr<FChange> Change, const FText& Description );
 
 
+	/**
+	 * Forward an FChange object to the Context
+	 */
+	virtual bool RequestSelectionChange(const FSelectedOjectsChangeList& SelectionChange);
+
+
+
 	//
 	// State control  (@todo: have the Context call these? not safe for anyone to call)
 	//
@@ -178,6 +185,15 @@ public:
 	virtual void Render(IToolsContextRenderAPI* RenderAPI);
 
 
+	//
+	// access to APIs, etc
+	//
+	
+	/** @return current IToolsContextQueriesAPI */
+	virtual IToolsContextQueriesAPI* GetContextQueriesAPI() { return QueriesAPI; }
+
+
+
 public:
 	/** Currently-active Left Tool, or null if no Tool is active */
 	UPROPERTY()
@@ -186,6 +202,16 @@ public:
 	/** Currently-active Right Tool, or null if no Tool is active */
 	UPROPERTY()
 	UInteractiveTool* ActiveRightTool;
+
+
+
+
+public:
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FToolManagerToolStartedSignature, UInteractiveToolManager*, UInteractiveTool*);
+	FToolManagerToolStartedSignature OnToolStarted;
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FToolManagerToolEndedSignature, UInteractiveToolManager*, UInteractiveTool*);
+	FToolManagerToolEndedSignature OnToolEnded;
 
 
 protected:

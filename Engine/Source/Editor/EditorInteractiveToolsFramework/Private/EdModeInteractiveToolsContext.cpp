@@ -39,6 +39,16 @@ public:
 		StateOut.SourceBuilder = ToolsContext->GetComponentSourceFactory();
 	}
 
+	virtual UMaterialInterface* GetStandardMaterial(EStandardToolContextMaterials MaterialType) const
+	{
+		if (MaterialType == EStandardToolContextMaterials::VertexColorMaterial)
+		{
+			return ToolsContext->StandardVertexColorMaterial;
+		}
+		check(false);
+		return nullptr;
+	}
+
 };
 
 
@@ -86,6 +96,33 @@ public:
 		// end transaction
 	}
 
+
+	virtual bool RequestSelectionChange(const FSelectedOjectsChangeList& SelectionChange) override
+	{
+		checkf(SelectionChange.Components.Num() == 0, TEXT("FEdModeToolsContextTransactionImpl::RequestSelectionChange - Component selection not supported yet"));
+
+		if (SelectionChange.ModificationType == ESelectedObjectsModificationType::Clear)
+		{
+			GEditor->SelectNone(true, true, false);
+			return true;
+		}
+
+		if (SelectionChange.ModificationType == ESelectedObjectsModificationType::Replace )
+		{
+			GEditor->SelectNone(false, true, false);
+		}
+
+		bool bAdd = (SelectionChange.ModificationType != ESelectedObjectsModificationType::Remove);
+		int NumActors = SelectionChange.Actors.Num();
+		for (int k = 0; k < NumActors; ++k)
+		{
+			GEditor->SelectActor(SelectionChange.Actors[k], bAdd, false, true, false);
+		}
+
+		GEditor->NoteSelectionChange(true);
+		return true;
+	}
+
 };
 
 
@@ -103,9 +140,9 @@ UEdModeInteractiveToolsContext::UEdModeInteractiveToolsContext()
 
 
 
-void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* queriesAPI, IToolsContextTransactionsAPI* transactionsAPI)
+void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* QueriesAPIIn, IToolsContextTransactionsAPI* TransactionsAPIIn)
 {
-	UInteractiveToolsContext::Initialize(queriesAPI, transactionsAPI);
+	UInteractiveToolsContext::Initialize(QueriesAPIIn, TransactionsAPIIn);
 
 	bInvalidationPending = false;
 }
@@ -127,17 +164,21 @@ void UEdModeInteractiveToolsContext::InitializeContextFromEdMode(FEdMode* Editor
 	this->AssetAPI = new FEditorToolAssetAPI();
 	this->SourceFactory = new FEditorComponentSourceFactory();
 
-	UInteractiveToolsContext::Initialize(QueriesAPI, TransactionAPI);
+	Initialize(QueriesAPI, TransactionAPI);
 
 	// enable auto invalidation in Editor, because invalidating for all hover and capture events is unpleasant
 	this->InputRouter->bAutoInvalidateOnHover = true;
 	this->InputRouter->bAutoInvalidateOnCapture = true;
+
+
+	// set up standard materials
+	StandardVertexColorMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Game/Materials/VertexColor"));
 }
 
 
 void UEdModeInteractiveToolsContext::ShutdownContext()
 {
-	UInteractiveToolsContext::Shutdown();
+	Shutdown();
 
 	if (QueriesAPI != nullptr)
 	{
@@ -225,14 +266,16 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 
 
 	// escape key cancels current tool
-	// @todo also cancels current selection, and only works if viewport is focused :(
-	if (Key == EKeys::Escape && Event == IE_Released && ToolManager->HasAnyActiveTool() )
+	if (Key == EKeys::Escape && Event == IE_Released )
 	{
-		if (ToolManager->HasActiveTool(EToolSide::Mouse))
+		if (ToolManager->HasAnyActiveTool())
 		{
-			ToolManager->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Cancel);
+			if (ToolManager->HasActiveTool(EToolSide::Mouse))
+			{
+				ToolManager->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Cancel);
+			}
+			return true;
 		}
-		return true;
 	}
 
 	// enter key accepts current tool, or ends tool if it does not have accept state

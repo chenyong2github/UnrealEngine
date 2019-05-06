@@ -42,6 +42,14 @@ struct INTERACTIVETOOLSFRAMEWORK_API FToolBuilderState
 };
 
 
+/** Types of standard materials that Tools may request from Context */
+UENUM()
+enum class EStandardToolContextMaterials
+{
+	/** White material that displays vertex colors set on mesh */
+	VertexColorMaterial = 1
+};
+
 
 
 /**
@@ -58,6 +66,14 @@ public:
 	 * @param StateOut this structure is populated with available state information
 	 */
 	virtual void GetCurrentSelectionState(FToolBuilderState& StateOut) const = 0;
+
+
+	/**
+	 * Many tools need standard types of materials that the user should provide (eg a vertex-color material, etc)
+	 * @param MaterialType the type of material being requested
+	 * @return Instance of material to use for this purpose
+	 */
+	virtual UMaterialInterface* GetStandardMaterial(EStandardToolContextMaterials MaterialType) const = 0;
 };
 
 
@@ -75,6 +91,28 @@ enum class EToolMessageLevel
 	UserNotification = 2,
 	/** Error message should be shown in a modal notification window */
 	UserError = 3
+};
+
+/** Type of change we want to apply to a selection */
+UENUM()
+enum class ESelectedObjectsModificationType
+{
+	Replace = 0,
+	Add = 1,
+	Remove = 2,
+	Clear = 3
+};
+
+
+/** Represents a change to a set of selected Actors and Components */
+struct FSelectedOjectsChangeList
+{
+	/** How should this list be interpreted in the context of a larger selection set */
+	ESelectedObjectsModificationType ModificationType;
+	/** List of Actors */
+	TArray<AActor*> Actors;
+	/** List of Componets */
+	TArray<UActorComponent*> Components;
 };
 
 
@@ -124,6 +162,16 @@ public:
 	 * @param Description text description of the transaction that could be shown to user
 	 */
 	virtual void AppendChange(UObject* TargetObject, TUniquePtr<FChange> Change, const FText& Description) = 0;
+
+
+
+	/**
+	 * Request a modification to the current selected objects
+	 * @param SelectionChange desired modification to current selection
+	 * @return true if the selection change could be applied
+	 */
+	virtual bool RequestSelectionChange(const FSelectedOjectsChangeList& SelectionChange) = 0;
+
 };
 
 

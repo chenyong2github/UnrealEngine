@@ -56,6 +56,10 @@ protected:
 	virtual void Shutdown() override;
 
 
+public:
+	UPROPERTY()
+	UMaterialInterface* StandardVertexColorMaterial;
+
 protected:
 	FEdMode* EditorMode;
 
