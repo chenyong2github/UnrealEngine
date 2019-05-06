@@ -15318,7 +15318,7 @@ int32 UMaterialExpressionCustomPrimitiveData::Compile(class FMaterialCompiler* C
 		return CompilerError(Compiler, TEXT("Expression not available in the deferred decal material domain."));
 	}
 
-	return Compiler->CustomPrimitiveData(OutputIndex);
+	return Compiler->CustomPrimitiveData(CustomIndices[OutputIndex].PrimitiveDataIndex);
 }
 
 void UMaterialExpressionCustomPrimitiveData::GetCaption(TArray<FString>& OutCaptions) const
@@ -15329,21 +15329,23 @@ void UMaterialExpressionCustomPrimitiveData::GetCaption(TArray<FString>& OutCapt
 void UMaterialExpressionCustomPrimitiveData::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 #if WITH_EDITORONLY_DATA
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterialExpressionCustomPrimitiveData, CustomDescs))
+	
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FPrimitiveDataIndex, CustomDesc) ||
+		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterialExpressionCustomPrimitiveData, CustomIndices))
 	{
 		// If more than the supported number of custom floats have been added, remove the overflow
-		if (CustomDescs.Num() > FCustomPrimitiveData::NumCustomPrimitiveDataFloats)
+		if (CustomIndices.Num() > FCustomPrimitiveData::NumCustomPrimitiveDataFloats)
 		{
-			CustomDescs.SetNum(FCustomPrimitiveData::NumCustomPrimitiveDataFloats);
+			CustomIndices.SetNum(FCustomPrimitiveData::NumCustomPrimitiveDataFloats);
 		}
 
 		// Match the number of pins to the number of descriptions
-		Outputs.SetNumZeroed(CustomDescs.Num());
+		Outputs.SetNumZeroed(CustomIndices.Num());
 
 		// Update the names of the pins
 		for (int i = 0; i < Outputs.Num(); i++)
 		{
-			Outputs[i].OutputName = *CustomDescs[i];
+			Outputs[i].OutputName = *(CustomIndices[i].CustomDesc);
 		}
 
 		// Reconstruct the node to get the new names applied to the pins
@@ -15351,12 +15353,22 @@ void UMaterialExpressionCustomPrimitiveData::PostEditChangeProperty(FPropertyCha
 
 		// No need to update preview if we only change output descriptions
 		bNeedToUpdatePreview = false;
+
+		// Done here (skip calling base class)
+		return;
 	}
-	else
-#endif
+	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FPrimitiveDataIndex, PrimitiveDataIndex))
 	{
-		Super::PostEditChangeProperty(PropertyChangedEvent);
+		// Clamp indices
+		for (int i = 0; i < CustomIndices.Num(); i++)
+		{
+			const int32 PrimDataIndex = CustomIndices[i].PrimitiveDataIndex;
+			CustomIndices[i].PrimitiveDataIndex = FMath::Clamp(PrimDataIndex, 0, FCustomPrimitiveData::NumCustomPrimitiveDataFloats-1);
+		}
 	}
+#endif
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif // WITH_EDITOR
 
