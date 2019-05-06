@@ -313,9 +313,10 @@ class UMaterialInstance : public UMaterialInterface
 	uint8 TwoSided : 1;
 	uint8 DitheredLODTransition : 1;
 	uint8 bCastDynamicShadowAsMasked : 1;
+	uint8 bIsShadingModelFromMaterialExpression : 1;
 
 	TEnumAsByte<EBlendMode> BlendMode;
-	TEnumAsByte<EMaterialShadingModel> ShadingModel;
+	FMaterialShadingModelField ShadingModels;
 
 	FORCEINLINE bool GetReentrantFlag() const
 	{
@@ -459,10 +460,11 @@ public:
 
 	ENGINE_API virtual float GetOpacityMaskClipValue() const override;
 	ENGINE_API virtual EBlendMode GetBlendMode() const override;
-	ENGINE_API virtual EMaterialShadingModel GetShadingModel() const override;
+	ENGINE_API virtual FMaterialShadingModelField GetShadingModels() const override;
+	ENGINE_API virtual bool IsShadingModelFromMaterialExpression() const override;
 	ENGINE_API virtual bool IsTwoSided() const override;
 	ENGINE_API virtual bool IsDitheredLODTransition() const override;
-	ENGINE_API virtual bool IsMasked() const override;;
+	ENGINE_API virtual bool IsMasked() const override;
 	
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const override;
 

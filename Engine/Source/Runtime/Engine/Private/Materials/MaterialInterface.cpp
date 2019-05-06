@@ -122,14 +122,13 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 		const EBlendMode BlendMode = (EBlendMode)GetBlendMode();
 		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 
-		EMaterialShadingModel ShadingModel = GetShadingModel();
 		EMaterialDomain Domain = (EMaterialDomain)MaterialResource->GetMaterialDomain();
 		bool bDecal = (Domain == MD_DeferredDecal);
 
 		// Determine the material's view relevance.
 		FMaterialRelevance MaterialRelevance;
 
-		MaterialRelevance.ShadingModelMask = 1 << ShadingModel;
+		MaterialRelevance.ShadingModelMask = GetShadingModels().GetShadingModelField();
 
 		if(bDecal)
 		{
@@ -423,9 +422,14 @@ bool UMaterialInterface::GetCastDynamicShadowAsMasked() const
 	return false;
 }
 
-EMaterialShadingModel UMaterialInterface::GetShadingModel() const
+FMaterialShadingModelField UMaterialInterface::GetShadingModels() const
 {
 	return MSM_DefaultLit;
+}
+
+bool UMaterialInterface::IsShadingModelFromMaterialExpression() const
+{
+	return false;
 }
 
 USubsurfaceProfile* UMaterialInterface::GetSubsurfaceProfile_Internal() const
@@ -473,10 +477,10 @@ void UMaterialInterface::UpdateMaterialRenderProxy(FMaterialRenderProxy& Proxy)
 	// no 0 pointer
 	check(&Proxy);
 
-	EMaterialShadingModel MaterialShadingModel = GetShadingModel();
+	FMaterialShadingModelField MaterialShadingModels = GetShadingModels();
 
 	// for better performance we only update SubsurfaceProfileRT if the feature is used
-	if (UseSubsurfaceProfile(MaterialShadingModel))
+	if (UseSubsurfaceProfile(MaterialShadingModels))
 	{
 		FSubsurfaceProfileStruct Settings;
 
