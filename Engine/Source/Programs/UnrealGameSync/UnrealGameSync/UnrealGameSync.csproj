@@ -182,6 +182,12 @@
     <Compile Include="Forms\IssueFixedWindow.Designer.cs">
       <DependentUpon>IssueFixedWindow.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\IssueBrowserWindow.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\IssueBrowserWindow.Designer.cs">
+      <DependentUpon>IssueBrowserWindow.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\IssueSettingsWindow.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -403,6 +409,9 @@
     <EmbeddedResource Include="Forms\IssueFixedWindow.resx">
       <DependentUpon>IssueFixedWindow.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Forms\IssueBrowserWindow.resx">
+      <DependentUpon>IssueBrowserWindow.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Forms\IssueSettingsWindow.resx">
       <DependentUpon>IssueSettingsWindow.cs</DependentUpon>
     </EmbeddedResource>
@@ -515,7 +524,7 @@
       <ItemGroup>
         <Compile Include="NotForLicensees\DeploymentSettingsInternal.cs" />
       </ItemGroup>
-	</When>
+    </When>
   </Choose>
   <ItemGroup>
     <EmbeddedResource Include="Resources\Icons.png" />

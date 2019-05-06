@@ -255,6 +255,7 @@ namespace UnrealGameSync
 
 			InitializeComponent();
 
+			this.Text = String.Format("Issue {0}", Issue.Id);
 			this.StatusElementResources = new StatusElementResources(BuildListView.Font);
 			base.Disposed += IssueDetailsWindow_Disposed;
 
@@ -903,19 +904,19 @@ namespace UnrealGameSync
 				{
 					if(BuildData.Outcome == IssueBuildOutcome.Success)
 					{
-						DrawIcon(e.Graphics, e.Bounds, WorkspaceControl.GoodBuildIcon);
+						BuildListView.DrawIcon(e.Graphics, e.Bounds, WorkspaceControl.GoodBuildIcon);
 					}
 					else if(BuildData.Outcome == IssueBuildOutcome.Warning)
 					{
-						DrawIcon(e.Graphics, e.Bounds, WorkspaceControl.MixedBuildIcon);
+						BuildListView.DrawIcon(e.Graphics, e.Bounds, WorkspaceControl.MixedBuildIcon);
 					}
 					else if(BuildData.Outcome == IssueBuildOutcome.Error)
 					{
-						DrawIcon(e.Graphics, e.Bounds, WorkspaceControl.BadBuildIcon);
+						BuildListView.DrawIcon(e.Graphics, e.Bounds, WorkspaceControl.BadBuildIcon);
 					}
 					else
 					{
-						DrawIcon(e.Graphics, e.Bounds, WorkspaceControl.DefaultBuildIcon);
+						BuildListView.DrawIcon(e.Graphics, e.Bounds, WorkspaceControl.DefaultBuildIcon);
 					}
 				}
 				else if(e.ColumnIndex == ChangeHeader.Index)
@@ -966,17 +967,6 @@ namespace UnrealGameSync
 				}
 				TextRenderer.DrawText(e.Graphics, e.SubItem.Text, CurrentFont, e.Bounds, TextColor, Flags);
 			}
-		}
-
-		private void DrawIcon(Graphics Graphics, Rectangle Bounds, Rectangle Icon)
-		{
-			float DpiScaleX = Graphics.DpiX / 96.0f;
-			float DpiScaleY = Graphics.DpiY / 96.0f;
-
-			float IconX = Bounds.Left + (Bounds.Width - 16 * DpiScaleX) / 2;
-			float IconY = Bounds.Top + (Bounds.Height - 16 * DpiScaleY) / 2;
-
-			Graphics.DrawImage(Properties.Resources.Icons, IconX, IconY, Icon, GraphicsUnit.Pixel);
 		}
 
 		private void BuildListView_FontChanged(object sender, EventArgs e)

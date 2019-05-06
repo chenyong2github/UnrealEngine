@@ -2986,19 +2986,21 @@ namespace UnrealGameSync
 
 		private void ShowBuildHealthMenu(Rectangle Bounds)
 		{
-			while(BuildHealthContextMenu.Items[0] != BuildHealthContextMenu_Separator)
+			int MinSeparatorIdx = BuildHealthContextMenu.Items.IndexOf(BuildHealthContextMenu_MinSeparator);
+
+			while(BuildHealthContextMenu.Items[MinSeparatorIdx + 1] != BuildHealthContextMenu_MaxSeparator)
 			{
-				BuildHealthContextMenu.Items.RemoveAt(0);
+				BuildHealthContextMenu.Items.RemoveAt(MinSeparatorIdx + 1);
 			}
 
 			List<IssueData> Issues = IssueMonitor.GetIssues();
 			if(Issues.Count == 0)
 			{
-				BuildHealthContextMenu_Separator.Visible = false;
+				BuildHealthContextMenu_MaxSeparator.Visible = false;
 			}
 			else
 			{
-				BuildHealthContextMenu_Separator.Visible = true;
+				BuildHealthContextMenu_MaxSeparator.Visible = true;
 				for(int Idx = 0; Idx < Issues.Count; Idx++)
 				{
 					IssueData Issue = Issues[Idx];
@@ -3030,7 +3032,7 @@ namespace UnrealGameSync
 						Item.Font = new Font(Item.Font, FontStyle.Bold);
 					}
 					Item.Click += (s, e) => { BuildHealthContextMenu_Issue_Click(Issue); };
-					BuildHealthContextMenu.Items.Insert(Idx, Item);
+					BuildHealthContextMenu.Items.Insert(MinSeparatorIdx + Idx + 1, Item);
 				}
 			}
 
@@ -3083,6 +3085,11 @@ namespace UnrealGameSync
 		public void ShowIssueDetails(IssueData Issue)
 		{
 			IssueDetailsWindow.ShowModal(this, IssueMonitor, Workspace.Perforce.ServerAndPort, Workspace.Perforce.UserName, Issue, Log, StreamName);
+		}
+
+		private void BuildHealthContextMenu_Browse_Click(object sender, EventArgs e)
+		{
+			IssueBrowserWindow.ShowModal(this, IssueMonitor, Workspace.Perforce.ServerAndPort, Workspace.Perforce.UserName, Log, StreamName);
 		}
 
 		private void BuildHealthContextMenu_Settings_Click(object sender, EventArgs e)

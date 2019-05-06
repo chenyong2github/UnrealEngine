@@ -362,6 +362,39 @@ namespace UnrealGameSync
 
 			base.OnMouseMove(e);
 		}
+		public void DrawText(Graphics Graphics, Rectangle Bounds, HorizontalAlignment TextAlign, Color TextColor, string Text)
+		{
+			TextFormatFlags Flags = TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix;
+			if (TextAlign == HorizontalAlignment.Left)
+			{
+				Flags |= TextFormatFlags.Left;
+			}
+			else if (TextAlign == HorizontalAlignment.Center)
+			{
+				Flags |= TextFormatFlags.HorizontalCenter;
+			}
+			else
+			{
+				Flags |= TextFormatFlags.Right;
+			}
+			TextRenderer.DrawText(Graphics, Text, Font, Bounds, TextColor, Flags);
+		}
+
+		public void DrawIcon(Graphics Graphics, Rectangle Bounds, Rectangle Icon)
+		{
+			float DpiScaleX = Graphics.DpiX / 96.0f;
+			float DpiScaleY = Graphics.DpiY / 96.0f;
+
+			float IconX = Bounds.Left + (Bounds.Width - 16 * DpiScaleX) / 2;
+			float IconY = Bounds.Top + (Bounds.Height - 16 * DpiScaleY) / 2;
+
+			Graphics.DrawImage(Properties.Resources.Icons, IconX, IconY, Icon, GraphicsUnit.Pixel);
+		}
+
+		public void DrawNormalSubItem(DrawListViewSubItemEventArgs e)
+		{
+			DrawText(e.Graphics, e.SubItem.Bounds, Columns[e.ColumnIndex].TextAlign, SystemColors.WindowText, e.SubItem.Text);
+		}
 
 		public void DrawCustomSubItem(Graphics Graphics, ListViewItem.ListViewSubItem SubItem)
 		{
