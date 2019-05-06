@@ -504,20 +504,19 @@ FText FSpriteDetailsCustomization::GetRenderingHeaderContentText(TWeakObjectPtr<
 		FText MaterialType;
 		if (UMaterialInterface* Material = SpriteBeingEdited->GetDefaultMaterial())
 		{
-			switch (Material->GetShadingModel())
+			FMaterialShadingModelField ShadingModels = Material->GetShadingModels();
+			if (ShadingModels.IsUnlit())
 			{
-			case MSM_Unlit:
 				MaterialType = LOCTEXT("Unlit", "Unlit");
-				break;
-			case MSM_DefaultLit:
-				MaterialType = LOCTEXT("Lit", "Lit");
-				break;
-			default:
-				MaterialType = LOCTEXT("Exotic", "Exotic");
-				break;
 			}
-			//@TODO: This isn't exported, and it would include the MSM_ prefix as well...
-			// MaterialType = FText::AsCultureInvariant(UMaterial::GetMaterialShadingModelString(Material->GetShadingModel()));
+			else if (ShadingModels.HasOnlyShadingModel(MSM_DefaultLit))
+			{
+				MaterialType = LOCTEXT("Lit", "Lit");
+			}
+			else
+			{
+				MaterialType = LOCTEXT("Exotic", "Exotic");
+			}
 		}
 
 		static const FText Opaque = LOCTEXT("OpaqueMaterial", "Opaque");

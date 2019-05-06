@@ -32,6 +32,9 @@ void UMaterialGraph::RebuildGraph()
 
 	if (!MaterialFunction)
 	{
+		// This needs to be done before building the new material inputs to guarantee that the shading model field is up to date
+		Material->RebuildShadingModelField();
+
 		// Initialize the material input list.
 		MaterialInputs.Add( FMaterialInputInfo( GetBaseColorPinName(), MP_BaseColor, LOCTEXT( "BaseColorToolTip", "Defines the overall color of the Material. Each channel is automatically clamped between 0 and 1" ) ) );
 		MaterialInputs.Add( FMaterialInputInfo( GetMetallicPinName(), MP_Metallic, LOCTEXT( "MetallicToolTip", "Controls how \"metal-like\" your surface looks like") ) );
@@ -56,7 +59,8 @@ void UMaterialGraph::RebuildGraph()
 			MaterialInputs.Add( FMaterialInputInfo( FText::FromString(FString::Printf(TEXT("Customized UV%u"), UVIndex)), (EMaterialProperty)(MP_CustomizedUVs0 + UVIndex), FText::FromString(FString::Printf( TEXT( "CustomizedUV%uToolTip" ), UVIndex ) ) ) );
 		}
 
-		MaterialInputs.Add(FMaterialInputInfo(LOCTEXT("PixelDepthOffset", "Pixel Depth Offset"), MP_PixelDepthOffset, LOCTEXT( "PixelDepthOffsetToolTip", "Pixel Depth Offset" ) ));
+		MaterialInputs.Add(FMaterialInputInfo(LOCTEXT("PixelDepthOffset", "Pixel Depth Offset"), MP_PixelDepthOffset, LOCTEXT("PixelDepthOffsetToolTip", "Pixel Depth Offset")));
+		MaterialInputs.Add(FMaterialInputInfo(LOCTEXT("ShadingModel", "Shading Model"), MP_ShadingModel, LOCTEXT("ShadingModelToolTip", "Selects which shading model should be used per pixel")));
 
 		//^^^ New material properties go above here. ^^^^
 		MaterialInputs.Add(FMaterialInputInfo(LOCTEXT("MaterialAttributes", "Material Attributes"), MP_MaterialAttributes, LOCTEXT( "MaterialAttributesToolTip", "Material Attributes" ) ));
@@ -485,6 +489,42 @@ int32 UMaterialGraph::GetValidOutputIndex(FExpressionInput* Input) const
 	return OutputIndex;
 }
 
+/** Builds a pin name based on the custom list of <EMaterialShadingModel, FString> pairs and the default pin name */
+static FString GetPinNameFromShadingModelField(FMaterialShadingModelField InShadingModels, const TArray<TKeyValuePair<EMaterialShadingModel, FString>>& InCustomShadingModelPinNames, const FString& InDefaultPinName)
+{
+	FString OutPinName;
+	for (const TKeyValuePair<EMaterialShadingModel, FString>& CustomShadingModelPinName : InCustomShadingModelPinNames)
+	{
+		if (InShadingModels.HasShadingModel(CustomShadingModelPinName.Key))
+		{
+			// Add delimiter
+			if (!OutPinName.IsEmpty())
+			{
+				OutPinName.Append(" or ");
+			}
+
+			// Append the name and remove the shading model from the temp field
+			OutPinName.Append(CustomShadingModelPinName.Value);
+			InShadingModels.RemoveShadingModel(CustomShadingModelPinName.Key);
+		}
+	}
+
+	// There are other shading models present, these don't have their own specific name for this pin, so use a default one
+	if (InShadingModels.CountShadingModels() != 0)
+	{
+		// Add delimiter
+		if (!OutPinName.IsEmpty())
+		{
+			OutPinName.Append(" or ");
+		}
+
+		OutPinName.Append(InDefaultPinName);
+	}
+
+	ensure(!OutPinName.IsEmpty());
+	return OutPinName;
+}
+
 FText UMaterialGraph::GetEmissivePinName() const
 {
 	return Material->IsUIMaterial() ? LOCTEXT("UIOutputColor", "Final Color") : LOCTEXT("EmissiveColor", "Emissive Color");
@@ -502,12 +542,14 @@ FText UMaterialGraph::GetOpacityPinName() const
 
 FText UMaterialGraph::GetMetallicPinName() const
 {
-	return Material->GetShadingModel() == MSM_Hair ? LOCTEXT("Scatter", "Scatter") : LOCTEXT("Metallic", "Metallic");
+	TArray<TKeyValuePair<EMaterialShadingModel, FString>> CustomPinNames({{MSM_Hair, "Scatter"}});
+	return FText::FromString(GetPinNameFromShadingModelField(Material->GetShadingModels(), CustomPinNames, "Metallic"));
 }
 
 FText UMaterialGraph::GetNormalPinName() const
 {
-	return Material->GetShadingModel() == MSM_Hair ? LOCTEXT("Tangent", "Tangent") : LOCTEXT("Normal", "Normal");
+	TArray<TKeyValuePair<EMaterialShadingModel, FString>> CustomPinNames({{MSM_Hair, "Tangent"}});
+	return FText::FromString(GetPinNameFromShadingModelField(Material->GetShadingModels(), CustomPinNames, "Normal"));
 }
 
 FText UMaterialGraph::GetWorldPositionOffsetPinName() const
@@ -517,47 +559,32 @@ FText UMaterialGraph::GetWorldPositionOffsetPinName() const
 
 FText UMaterialGraph::GetSubsurfacePinName() const
 {
-	switch (Material->GetShadingModel())
-	{
-	case MSM_Cloth:
-		return LOCTEXT("FuzzColor", "Fuzz Color");
-	default:
-		return LOCTEXT("SubsurfaceColor", "Subsurface Color");
-	}
+	TArray<TKeyValuePair<EMaterialShadingModel, FString>> CustomPinNames({{MSM_Cloth, "Fuzz Color"}});
+	return FText::FromString(GetPinNameFromShadingModelField(Material->GetShadingModels(), CustomPinNames, "Subsurface Color"));
 }
 
 FText UMaterialGraph::GetCustomDataPinName( uint32 Index ) const
-{
+{ 
 	if( Index == 0 )
 	{
-		switch( Material->GetShadingModel() )
-		{
-		case MSM_ClearCoat:
-			return LOCTEXT("ClearCoat", "Clear Coat");
-		case MSM_Hair:
-			return LOCTEXT("Backlit", "Backlit");
-		case MSM_Cloth:
-			return LOCTEXT("Cloth", "Cloth");
-		case MSM_Eye:
-			return LOCTEXT("IrisMask", "Iris Mask");
-		default:
-			return LOCTEXT("CustomData0", "Custom Data 0");
-		}
+		TArray<TKeyValuePair<EMaterialShadingModel, FString>> CustomPinNames(
+			{{MSM_ClearCoat, "Clear Coat"},
+			{MSM_Hair, "Backlit"},
+			{MSM_Cloth, "Cloth"},
+			{MSM_Eye, "Iris Mask"}});
+
+		return FText::FromString(GetPinNameFromShadingModelField(Material->GetShadingModels(), CustomPinNames, "Custom Data 0"));
 	}
 	else if( Index == 1 )
 	{
-		switch( Material->GetShadingModel() )
-		{
-		case MSM_ClearCoat:
-			return LOCTEXT("ClearCoatRoughness", "Clear Coat Roughness");
-		case MSM_Eye:
-			return LOCTEXT("IrisDistance", "Iris Distance");
-		default:
-			return LOCTEXT("CustomData1", "Custom Data 1");
-		}
+		TArray<TKeyValuePair<EMaterialShadingModel, FString>> CustomPinNames(
+			{{MSM_ClearCoat, "Clear Coat Roughness"},
+			{MSM_Eye, "Iris Distance"}});
+
+		return FText::FromString(GetPinNameFromShadingModelField(Material->GetShadingModels(), CustomPinNames, "Custom Data 1"));
 	}
 
-	return LOCTEXT("CustomData", "Custom Data");	
+	return LOCTEXT("CustomData", "Custom Data");
 }
 
 #undef LOCTEXT_NAMESPACE

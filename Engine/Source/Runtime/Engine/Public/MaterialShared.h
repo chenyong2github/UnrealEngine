@@ -70,16 +70,16 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMaterial,Log,Verbose);
 extern void GetMaterialQualityLevelName(EMaterialQualityLevel::Type InMaterialQualityLevel, FString& OutName);
 extern FName GetMaterialQualityLevelFName(EMaterialQualityLevel::Type InMaterialQualityLevel);
 
-inline bool IsSubsurfaceShadingModel(EMaterialShadingModel ShadingModel)
+inline bool IsSubsurfaceShadingModel(FMaterialShadingModelField ShadingModel)
 {
-	return ShadingModel == MSM_Subsurface || ShadingModel == MSM_PreintegratedSkin ||
-		ShadingModel == MSM_SubsurfaceProfile || ShadingModel == MSM_TwoSidedFoliage ||
-		ShadingModel == MSM_Cloth || ShadingModel == MSM_Eye;
+	return ShadingModel.HasShadingModel(MSM_Subsurface) || ShadingModel.HasShadingModel(MSM_PreintegratedSkin) ||
+		ShadingModel.HasShadingModel(MSM_SubsurfaceProfile) || ShadingModel.HasShadingModel(MSM_TwoSidedFoliage) ||
+		ShadingModel.HasShadingModel(MSM_Cloth) || ShadingModel.HasShadingModel(MSM_Eye);
 }
 
-inline bool UseSubsurfaceProfile(EMaterialShadingModel ShadingModel)
+inline bool UseSubsurfaceProfile(FMaterialShadingModelField ShadingModel)
 {
-	return ShadingModel == MSM_SubsurfaceProfile || ShadingModel == MSM_Eye;
+	return ShadingModel.HasShadingModel(MSM_SubsurfaceProfile) || ShadingModel.HasShadingModel(MSM_Eye);
 }
 
 inline uint32 GetUseSubsurfaceProfileShadingModelMask()
@@ -118,6 +118,7 @@ enum EMaterialValueType
 	MCT_MaterialAttributes	= 512,
 	MCT_TextureExternal = 1024,
 	MCT_Texture		= 16|32|64|1024,
+	MCT_ShadingModel = 2048,
 };
 
 /**
@@ -485,6 +486,7 @@ public:
 
 	/** true if the material uses the Velocity SceneTexture lookup */
 	bool bUsesVelocitySceneTexture;
+
 	/** true if the material uses distance cull fade */
 	bool bUsesDistanceCullFade;
 };
@@ -1302,7 +1304,7 @@ public:
 	virtual bool AllowNegativeEmissiveColor() const { return false; }
 	virtual enum EBlendMode GetBlendMode() const = 0;
 	ENGINE_API virtual enum ERefractionMode GetRefractionMode() const;
-	virtual enum EMaterialShadingModel GetShadingModel() const = 0;
+	virtual FMaterialShadingModelField GetShadingModels() const = 0;
 	virtual enum ETranslucencyLightingMode GetTranslucencyLightingMode() const { return TLM_VolumetricNonDirectional; };
 	virtual float GetOpacityMaskClipValue() const = 0;
 	virtual bool GetCastDynamicShadowAsMasked() const = 0;
@@ -1324,6 +1326,7 @@ public:
 	virtual FString GetFriendlyName() const = 0;
 	virtual bool HasVertexPositionOffsetConnected() const { return false; }
 	virtual bool HasPixelDepthOffsetConnected() const { return false; }
+	virtual bool HasShadingModelFromMaterialExpressionConnected() const { return false; }
 	virtual bool HasMaterialAttributesConnected() const { return false; }
 	virtual uint32 GetDecalBlendMode() const { return 0; }
 	virtual uint32 GetMaterialDecalResponse() const { return 0; }
@@ -1377,7 +1380,7 @@ public:
 	/** Returns whether this material should be considered for casting dynamic shadows. */
 	inline bool ShouldCastDynamicShadows() const
 	{
-		return GetShadingModel() != MSM_Unlit &&
+		return GetShadingModels().IsLit() &&
 			(GetBlendMode() == BLEND_Opaque ||
 			 GetBlendMode() == BLEND_Masked ||
 			(GetBlendMode() == BLEND_Translucent && GetCastDynamicShadowAsMasked()));
@@ -1990,7 +1993,7 @@ public:
 	ENGINE_API virtual uint32 GetMaterialDecalResponse() const override;
 	ENGINE_API virtual bool HasNormalConnected() const override;
 	ENGINE_API virtual bool HasEmissiveColorConnected() const override;
-	ENGINE_API virtual enum EMaterialShadingModel GetShadingModel() const override;
+	ENGINE_API virtual FMaterialShadingModelField GetShadingModels() const override;
 	ENGINE_API virtual enum ETranslucencyLightingMode GetTranslucencyLightingMode() const override;
 	ENGINE_API virtual float GetOpacityMaskClipValue() const override;
 	ENGINE_API virtual bool GetCastDynamicShadowAsMasked() const override;
@@ -2058,6 +2061,7 @@ protected:
 	ENGINE_API virtual void GatherExpressionsForCustomInterpolators(TArray<class UMaterialExpression*>& OutExpressions) const override;
 	ENGINE_API virtual bool HasVertexPositionOffsetConnected() const override;
 	ENGINE_API virtual bool HasPixelDepthOffsetConnected() const override;
+	ENGINE_API virtual bool HasShadingModelFromMaterialExpressionConnected() const override;
 	ENGINE_API virtual bool HasMaterialAttributesConnected() const override;
 	/** Useful for debugging. */
 	ENGINE_API virtual FString GetBaseMaterialPathName() const override;
