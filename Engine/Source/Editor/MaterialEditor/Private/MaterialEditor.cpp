@@ -207,6 +207,11 @@ int32 FMatExpressionPreview::CompilePropertyAndSetMaterialProperty(EMaterialProp
 		const int32 TextureCoordinateIndex = Property - MP_CustomizedUVs0;
 		Ret = Compiler->TextureCoordinate(TextureCoordinateIndex, false, false);
 	}
+	else if (Property == MP_ShadingModel)
+	{
+		FMaterialShadingModelField ShadingModels = Compiler->GetMaterialShadingModels();
+		Ret = Compiler->ShadingModel(ShadingModels.GetFirstShadingModel());
+	}
 	else
 	{
 		Ret = Compiler->Constant(1.0f);
@@ -2908,6 +2913,7 @@ UClass* FMaterialEditor::GetOnPromoteToParameterClass(UEdGraphPin* TargetPin)
 			case MP_AmbientOcclusion:
 			case MP_Refraction:
 			case MP_PixelDepthOffset:
+			case MP_ShadingModel:
 			case MP_OpacityMask: return UMaterialExpressionScalarParameter::StaticClass();
 
 			case MP_WorldPositionOffset:
@@ -4103,7 +4109,7 @@ void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyCha
 			}
 		}
 		else if( NameOfPropertyThatChanged == GET_MEMBER_NAME_CHECKED(UMaterial, MaterialDomain) ||
-				 NameOfPropertyThatChanged == GET_MEMBER_NAME_CHECKED(UMaterial, ShadingModel) )
+				 NameOfPropertyThatChanged == GET_MEMBER_NAME_CHECKED(UMaterial, ShadingModel))
 		{
 			Material->MaterialGraph->RebuildGraph();
 			TArray<TWeakObjectPtr<UObject>> SelectedObjects = MaterialDetailsView->GetSelectedObjects();

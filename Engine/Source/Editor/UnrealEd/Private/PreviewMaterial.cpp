@@ -1524,7 +1524,14 @@ void UMaterialEditorInstanceConstant::CopyBasePropertiesFromParent()
 	}
 	if (!BasePropertyOverrides.bOverride_ShadingModel)
 	{
-		BasePropertyOverrides.ShadingModel = SourceInstance->GetShadingModel();
+		if (SourceInstance->IsShadingModelFromMaterialExpression())
+		{
+			BasePropertyOverrides.ShadingModel = MSM_FromMaterialExpression;
+		}
+		else
+		{
+			BasePropertyOverrides.ShadingModel = SourceInstance->GetShadingModels().GetFirstShadingModel(); 
+		}
 	}
 	if (!BasePropertyOverrides.bOverride_TwoSided)
 	{

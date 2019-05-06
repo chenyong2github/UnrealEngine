@@ -495,7 +495,7 @@ public:
 			|| bTranslucent
 			// Some lightmap policies (eg Simple Forward) always require skylight support
 			|| LightMapPolicyType::RequiresSkylight()
-			|| ((bProjectSupportsStationarySkylight || IsForwardShadingEnabled(Platform)) && (Material->GetShadingModel() != MSM_Unlit));
+			|| ((bProjectSupportsStationarySkylight || IsForwardShadingEnabled(Platform)) && Material->GetShadingModels().IsLit());
 		return bCacheShaders
 			&& (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4))
 			&& TBasePassPixelShaderBaseType<LightMapPolicyType>::ShouldCompilePermutation(Platform, Material, VertexFactoryType);
@@ -640,7 +640,7 @@ private:
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT MaterialResource,
 		EBlendMode BlendMode,
-		EMaterialShadingModel ShadingModel,
+		FMaterialShadingModelField ShadingModels,
 		const LightMapPolicyType& RESTRICT LightMapPolicy,
 		const typename LightMapPolicyType::ElementDataType& RESTRICT LightMapElementData,
 		ERasterizerFillMode MeshFillMode,

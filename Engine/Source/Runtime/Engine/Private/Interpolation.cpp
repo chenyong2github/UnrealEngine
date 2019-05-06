@@ -1155,7 +1155,7 @@ void AMatineeActor::StepInterp( float DeltaTime, bool bPreview )
 			for (int32 ActorIndex = 0; ActorIndex < Info.Actors.Num() && bSkipUpdate; ++ActorIndex)
 			{
 				AActor* Actor = Info.Actors[ ActorIndex ];
-				if (Actor != NULL && Actor->GetLastRenderTime() > Actor->GetWorld()->TimeSeconds - 1.f)
+				if (Actor && Actor->WasRecentlyRendered(1.f))
 				{
 					bSkipUpdate = false;
 				}

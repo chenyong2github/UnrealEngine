@@ -889,6 +889,8 @@ public:
 
 	void UpdateActorChannelCloseFrameNum(AActor* Actor, FConnectionReplicationActorInfo& ConnectionData, const FGlobalActorReplicationInfo& GlobalData, const uint32 FrameNum, UNetConnection* NetConnection) const;
 
+	void NotifyConnectionSaturated(class UNetReplicationGraphConnection& Connection);
+
 protected:
 
 	virtual void InitializeForWorld(UWorld* World);
@@ -955,6 +957,9 @@ protected:
 	TArray<UNetConnection*> ConnectionsNeedingsPostTickDispatchFlush;
 
 private:
+
+	/** Whether or not a connection was saturated during an update. */
+	bool bWasConnectionSaturated = false;
 
 	/** Internal frame counter for replication. This is only updated by us. The one of UNetDriver can be updated by RPC calls and is only used to invalidate shared property CLs/serialiation data. */
 	uint32 ReplicationGraphFrame = 0;
