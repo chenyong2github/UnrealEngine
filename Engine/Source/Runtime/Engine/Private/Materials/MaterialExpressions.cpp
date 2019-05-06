@@ -1678,36 +1678,13 @@ int32 UMaterialExpressionTextureSample::Compile(class FMaterialCompiler* Compile
 		TOptional<FName> EffectiveParameterName;
 		if (InputExpression)
 		{
-			const EMaterialValueType TexInputType = Compiler->GetParameterType(TextureCodeIndex);
-			if (!(TexInputType & MCT_Texture))
+			if (!Compiler->GetTextureForExpression(TextureCodeIndex, TextureReferenceIndex, EffectiveSamplerType, EffectiveParameterName))
 			{
 				return CompilerError(Compiler, TEXT("Tex input requires a texture value"));
 			}
-
-			// If 'InputExpression' is connected, we use need to find the texture object that was passed in
-			// In this case, the texture/sampler assigned on this expression node are not used
-			FMaterialUniformExpression* TextureUniformBase = Compiler->GetParameterUniformExpression(TextureCodeIndex);
-			checkf(TextureUniformBase, TEXT("TexInputType is %d, but missing FMaterialUniformExpression"), TexInputType);
-
-			if (FMaterialUniformExpressionTexture* TextureUniform = TextureUniformBase->GetTextureUniformExpression())
+			if (TextureReferenceIndex != INDEX_NONE)
 			{
-				EffectiveSamplerType = TextureUniform->GetSamplerType();
-				TextureReferenceIndex = TextureUniform->GetTextureIndex();
 				EffectiveTexture = Compiler->GetReferencedTexture(TextureReferenceIndex);
-				if (FMaterialUniformExpressionTextureParameter* TextureParameterUniform = TextureUniform->GetTextureParameterUniformExpression())
-				{
-					EffectiveParameterName = TextureParameterUniform->GetParameterName();
-				}
-			}
-			else if (FMaterialUniformExpressionExternalTexture* ExternalTextureUniform = TextureUniformBase->GetExternalTextureUniformExpression())
-			{
-				TextureReferenceIndex = ExternalTextureUniform->GetSourceTextureIndex();
-				EffectiveTexture = Compiler->GetReferencedTexture(TextureReferenceIndex);
-				EffectiveSamplerType = SAMPLERTYPE_External;
-				if (FMaterialUniformExpressionExternalTextureParameter* ExternalTextureParameterUniform = ExternalTextureUniform->GetExternalTextureParameterUniformExpression())
-				{
-					EffectiveParameterName = ExternalTextureParameterUniform->GetParameterName();
-				}
 			}
 		}
 

@@ -1866,6 +1866,43 @@ protected:
 		return Chunk.UniformExpression;
 	}
 
+	virtual bool GetTextureForExpression(int32 Index, int32& OutTextureIndex, EMaterialSamplerType& OutSamplerType, TOptional<FName>& OutParameterName) const override
+	{
+		check(Index >= 0 && Index < CurrentScopeChunks->Num());
+		const FShaderCodeChunk& Chunk = (*CurrentScopeChunks)[Index];
+		const EMaterialValueType TexInputType = Chunk.Type;
+		if (!(TexInputType & MCT_Texture))
+		{
+			return false;
+		}
+
+		// If 'InputExpression' is connected, we use need to find the texture object that was passed in
+		// In this case, the texture/sampler assigned on this expression node are not used
+		FMaterialUniformExpression* TextureUniformBase = Chunk.UniformExpression;
+		checkf(TextureUniformBase, TEXT("TexInputType is %d, but missing FMaterialUniformExpression"), TexInputType);
+
+		if (FMaterialUniformExpressionTexture* TextureUniform = TextureUniformBase->GetTextureUniformExpression())
+		{
+			OutSamplerType = TextureUniform->GetSamplerType();
+			OutTextureIndex = TextureUniform->GetTextureIndex();
+			if (FMaterialUniformExpressionTextureParameter* TextureParameterUniform = TextureUniform->GetTextureParameterUniformExpression())
+			{
+				OutParameterName = TextureParameterUniform->GetParameterName();
+			}
+		}
+		else if (FMaterialUniformExpressionExternalTexture* ExternalTextureUniform = TextureUniformBase->GetExternalTextureUniformExpression())
+		{
+			OutTextureIndex = ExternalTextureUniform->GetSourceTextureIndex();
+			OutSamplerType = SAMPLERTYPE_External;
+			if (FMaterialUniformExpressionExternalTextureParameter* ExternalTextureParameterUniform = ExternalTextureUniform->GetExternalTextureParameterUniformExpression())
+			{
+				OutParameterName = ExternalTextureParameterUniform->GetParameterName();
+			}
+		}
+
+		return true;
+	}
+
 	// GetArithmeticResultType
 	EMaterialValueType GetArithmeticResultType(EMaterialValueType TypeA,EMaterialValueType TypeB)
 	{
