@@ -1074,7 +1074,7 @@ ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 {
 #if WITH_EDITORONLY_DATA
 	bLockLocation = false;
-	PreviousExperimentalLandscapeLayers = false;
+	bInitializedWithFlagExperimentalLandscapeLayers = false;
 	WasCompilingShaders = false;
 	LayerContentUpdateModes = 0;
 	bLayerForceUpdateAllComponents = false;

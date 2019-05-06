@@ -3924,7 +3924,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 				ALandscape* OldLandscapeActor = Cast<ALandscape>(OldLandscapeProxy);
 				ALandscape* NewLandscapeActor = Cast<ALandscape>(Landscape);
 
-				NewLandscapeActor->PreviousExperimentalLandscapeLayers = OldLandscapeActor->PreviousExperimentalLandscapeLayers;
+				NewLandscapeActor->bInitializedWithFlagExperimentalLandscapeLayers = OldLandscapeActor->bInitializedWithFlagExperimentalLandscapeLayers;
 
 				// Moves specific config including brushes to new landscape actor
 				for (const FLandscapeLayer& Layer : OldLandscapeActor->LandscapeLayers)
