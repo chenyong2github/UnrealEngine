@@ -1,3 +1,5 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #include "DSP/AlignedBlockBuffer.h"
 #include "CoreMinimal.h"
 #include "AudioMixer.h"
