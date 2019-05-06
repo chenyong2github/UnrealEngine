@@ -362,7 +362,7 @@ FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::HandleAcceptDrop(FDra
 					BrushOrderStack.Insert(MovingBrushIndex, DestinationLayerIndex);
 
 					LandscapeEdMode->RefreshDetailPanel();
-					LandscapeEdMode->RequestLayersContentUpdate();
+					LandscapeEdMode->RequestLayersContentUpdateForceAll();
 
 					return FReply::Handled();
 				}

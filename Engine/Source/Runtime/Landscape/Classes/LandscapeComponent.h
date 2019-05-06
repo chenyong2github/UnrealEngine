@@ -290,6 +290,33 @@ struct FLandscapeLayerComponentData
 	bool IsInitialized() const { return HeightmapData.Texture != nullptr || WeightmapData.Textures.Num() > 0;  }
 };
 
+#if WITH_EDITOR
+enum ELandscapeComponentUpdateFlag : uint32
+{
+	// Will call UpdateCollisionHeightData, UpdateCacheBounds, UpdateComponentToWorld on Component
+	Update_Heightmap_Collision = 1 << 0,
+	// Will call UdateCollisionLayerData on Component
+	Update_Weightmap_Collision = 1 << 1,
+	// Will call RecreateCollision on Component
+	RecreateCollision = 1 << 2,
+	// Will update Component clients: Navigation data, Foliage, Grass, etc.
+	ClientUpdate = 1 << 3
+};
+
+enum ELandscapeLayerUpdateMode : uint32
+{ 
+	Heightmap_All = 1 << 0,
+	Heightmap_Editing = 1 << 1,
+	Weightmap_All = 1 << 2,
+	Weightmap_Editing = 1 << 3,
+	All = Weightmap_All | Heightmap_All,
+	All_Editing = Weightmap_Editing | Heightmap_Editing,
+	// In cases where we couldn't update the clients right away this flag will be set in RegenerateLayersContent
+	DeferredClientUpdate = 1 << 4,
+};
+
+#endif
+
 UCLASS(hidecategories=(Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility), showcategories=("Rendering|Material"), MinimalAPI, Within=LandscapeProxy)
 class ULandscapeComponent : public UPrimitiveComponent
 {
@@ -380,7 +407,8 @@ private:
 	UPROPERTY(Transient)
 	TArray<ULandscapeWeightmapUsage*> WeightmapTexturesUsage;
 
-	bool bLayerContentDirty;
+	UPROPERTY(Transient)
+	uint32 LayerUpdateFlagPerMode;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Heightmap texture reference */
@@ -841,8 +869,11 @@ public:
 	/** Updates the values of component-level properties exposed by the Landscape Actor */
 	LANDSCAPE_API void UpdatedSharedPropertiesFromActor();
 
-	LANDSCAPE_API bool IsLayerContentDirty() const { return bLayerContentDirty; }
-	LANDSCAPE_API void SetLayerContentDirty(bool InValue) { bLayerContentDirty = InValue; }
+	LANDSCAPE_API bool IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag InFlag, uint32 InModeMask, bool bForce) const;
+	LANDSCAPE_API void ClearUpdateFlagsForModes(uint32 InModeMask);
+	LANDSCAPE_API void RequestWeightmapUpdate(bool bUpdateAll = false);
+	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false);
+	LANDSCAPE_API void RequestDeferredClientUpdate();
 #endif
 
 	friend class FLandscapeComponentSceneProxy;
