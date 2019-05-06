@@ -271,8 +271,10 @@ public:
 	
 private:
 	void TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
-	void CreateLayersRenderingResource(const FIntPoint& InComponentCounts);
+	void CreateLayersRenderingResource();
+	void ReleaseLayersRenderingResource();
 	void RegenerateLayersContent();
+	void MonitorShaderCompilation();
 	void RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents);
 	void RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents);
 	void ResolveLayersHeightmapTexture();
@@ -346,7 +348,7 @@ public:
 	TArray<UTextureRenderTarget2D*> WeightmapRTList;
 
 	UPROPERTY(Transient)
-	bool PreviousExperimentalLandscapeLayers;
+	bool bInitializedWithFlagExperimentalLandscapeLayers;
 
 private:
 	UPROPERTY(Transient)
