@@ -1,6 +1,8 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "DSP/ReverbFast.h"
 #include "DSP/BufferVectorOperations.h"
+#include "Audio.h"
 
 namespace Audio {
 	FPlateReverbFastSettings::FPlateReverbFastSettings()
