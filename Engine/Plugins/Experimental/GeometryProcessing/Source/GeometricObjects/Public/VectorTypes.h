@@ -57,6 +57,13 @@ struct FVector3
 		Z = (T)Vec.Z;
 	}
 
+
+	inline operator FColor() const
+	{
+		return FColor((float)X, (float)Y, (float)Z);
+	}
+
+
 	static FVector3<T> Zero()
 	{
 		return FVector3<T>((T)0, (T)0, (T)0);
