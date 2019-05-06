@@ -7,6 +7,35 @@
 
 namespace Audio
 {
+	/* Sets a values to zero if value is denormal. Denormal numbers significantly slow down floating point operations. */
+	void BufferUnderflowClampFast(AlignedFloatBuffer& InOutBuffer)
+	{
+		BufferUnderflowClampFast(InOutBuffer.GetData(), InOutBuffer.Num());
+	}
+	
+	/* Sets a values to zero if value is denormal. Denormal numbers significantly slow down floating point operations. */
+	void BufferUnderflowClampFast(float* RESTRICT InOutBuffer, const int32 InNum)
+	{
+		checkf(InNum >= 4, TEXT("Buffer must have atleast 4 elements."));
+		checkf(0 == (InNum % 4), TEXT("Buffer length be a multiple of 4."));
+		checkf(IsAligned<float*>(InOutBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+
+		const VectorRegister VFMIN = MakeVectorRegister(FLT_MIN, FLT_MIN, FLT_MIN, FLT_MIN);
+		const VectorRegister VNFMIN = MakeVectorRegister(-FLT_MIN, -FLT_MIN, -FLT_MIN, -FLT_MIN);
+
+		for (int32 i = 0; i < InNum; i += 4)
+		{
+			VectorRegister VInOut = VectorLoadAligned(&InOutBuffer[i]);
+
+			// Create mask of denormal numbers.
+			VectorRegister Mask = VectorBitwiseAnd(VectorCompareGT(VInOut, VNFMIN), VectorCompareLT(VInOut, VFMIN));
+
+			// Choose between zero or original number based upon mask.
+			VInOut = VectorSelect(Mask, GlobalVectorConstants::FloatZero, VInOut);
+			VectorStoreAligned(VInOut, &InOutBuffer[i]);
+		}
+	}
+
 	void BufferMultiplyByConstant(const AlignedFloatBuffer& InFloatBuffer, float InValue, AlignedFloatBuffer& OutFloatBuffer)
 	{
 		check(InFloatBuffer.Num() >= 4);
@@ -23,35 +52,41 @@ namespace Audio
 		const float* InBufferPtr = InFloatBuffer.GetData();
 		float* OutBufferPtr = OutFloatBuffer.GetData();
 
+		BufferMultiplyByConstant(InBufferPtr, InValue, OutBufferPtr, NumSamples);
+	}
+
+	void BufferMultiplyByConstant(const float* RESTRICT InFloatBuffer, float InValue, float* RESTRICT OutFloatBuffer, const int32 InNumSamples)
+	{
+		check(InNumSamples >= 4);
 #if !AUDIO_USE_SIMD
-		for (int32 i = 0; i < NumSamples; ++i)
+		for (int32 i = 0; i < InNumSamples; ++i)
 		{
-			OutBufferPtr[i] = InValue * InBufferPtr[i];
+			OutFloatBuffer[i] = InValue * InFloatBuffer[i];
 		}
 #else
 
 		// Can only SIMD on multiple of 4 buffers, we'll do normal multiples on last bit
-		const int32 NumSamplesRemaining = NumSamples % 4;
-		const int32 NumSamplesToSimd = NumSamples - NumSamplesRemaining;
+		const int32 NumSamplesRemaining = InNumSamples % 4;
+		const int32 NumSamplesToSimd = InNumSamples - NumSamplesRemaining;
 
 		// Load the single value we want to multiply all values by into a vector register
 		const VectorRegister MultiplyValue = VectorLoadFloat1(&InValue);
 		for (int32 i = 0; i < NumSamplesToSimd; i += 4)
 		{
 			// Load the next 4 samples of the input buffer into a register
-			VectorRegister InputBufferRegister = VectorLoadAligned(&InBufferPtr[i]);
+			VectorRegister InputBufferRegister = VectorLoadAligned(&InFloatBuffer[i]);
 
 			// Perform the multiply
 			VectorRegister Temp = VectorMultiply(InputBufferRegister, MultiplyValue);
 
 			// Store results into the output buffer
-			VectorStoreAligned(Temp, &OutBufferPtr[i]);
+			VectorStoreAligned(Temp, &OutFloatBuffer[i]);
 		}
 
 		// Perform remaining non-simd values left over
 		for (int32 i = 0; i < NumSamplesRemaining; ++i)
 		{
-			OutBufferPtr[NumSamplesToSimd + i] = InValue * InBufferPtr[NumSamplesToSimd + i];
+			OutFloatBuffer[NumSamplesToSimd + i] = InValue * InFloatBuffer[NumSamplesToSimd + i];
 		}
 #endif
 	}
@@ -70,6 +105,77 @@ namespace Audio
 			VectorRegister Output = VectorLoadAligned(&InBuffer[i]);
 			Output = VectorMultiply(Output, Gain);
 			VectorStoreAligned(Output, &InBuffer[i]);
+		}
+	}
+
+	/* Performs an element-wise weighted sum OutputBuffer = (InBuffer1 x InGain1) + (InBuffer2 x InGain2) */
+	void BufferWeightedSumFast(const AlignedFloatBuffer& InBuffer1, float InGain1, const AlignedFloatBuffer& InBuffer2, float InGain2, AlignedFloatBuffer& OutBuffer)
+	{
+		checkf(InBuffer1.Num() == InBuffer2.Num(), TEXT("Buffers must be equal length"));
+		OutBuffer.Reset();
+		OutBuffer.AddUninitialized(InBuffer1.Num());
+
+		BufferWeightedSumFast(InBuffer1.GetData(), InGain1, InBuffer2.GetData(), InGain2, OutBuffer.GetData(), InBuffer1.Num());
+	}
+
+	/* Performs an element-wise weighted sum OutputBuffer = (InBuffer1 x InGain1) + InBuffer2 */
+	void BufferWeightedSumFast(const AlignedFloatBuffer& InBuffer1, float InGain1, const AlignedFloatBuffer& InBuffer2, AlignedFloatBuffer& OutBuffer)
+	{
+		checkf(InBuffer1.Num() == InBuffer2.Num(), TEXT("Buffers must be equal length"));
+		OutBuffer.Reset();
+		OutBuffer.AddUninitialized(InBuffer1.Num());
+
+		BufferWeightedSumFast(InBuffer1.GetData(), InGain1, InBuffer2.GetData(), OutBuffer.GetData(), InBuffer1.Num());
+	}
+
+	/* Performs an element-wise weighted sum OutputBuffer = (InBuffer1 x InGain1) + (InBuffer2 x InGain2) */
+	void BufferWeightedSumFast(const float* RESTRICT InBuffer1, float InGain1, const float* RESTRICT InBuffer2, float InGain2, float* RESTRICT OutBuffer, int32 InNum)
+	{
+		checkf(InNum >= 4, TEXT("Buffer must have atleast 4 elements."));
+		checkf(0 == (InNum % 4), TEXT("Buffer length be a multiple of 4."));
+		checkf(IsAligned<const float*>(InBuffer1, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<const float*>(InBuffer2, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<float*>(OutBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+
+		VectorRegister Gain1Vector = VectorLoadFloat1(&InGain1);
+		VectorRegister Gain2Vector = VectorLoadFloat1(&InGain2);
+
+		for (int32 i = 0; i < InNum; i += 4)
+		{
+			// InBuffer1 x InGain1
+			VectorRegister Input1  = VectorLoadAligned(&InBuffer1[i]);
+			VectorRegister Weighted1 = VectorMultiply(Input1, Gain1Vector);
+
+			// InBuffer2 x InGain2
+			VectorRegister Input2  = VectorLoadAligned(&InBuffer2[i]);
+			VectorRegister Weighted2 = VectorMultiply(Input2, Gain2Vector);
+
+			VectorRegister Output = VectorAdd(Weighted1, Weighted2);
+			VectorStoreAligned(Output, &OutBuffer[i]);
+		}
+	}
+
+	/* Performs an element-wise weighted sum OutputBuffer = (InBuffer1 x InGain1) + InBuffer2 */
+	void BufferWeightedSumFast(const float* RESTRICT InBuffer1, float InGain1, const float* RESTRICT InBuffer2, float* RESTRICT OutBuffer, int32 InNum)
+	{
+		checkf(InNum >= 4, TEXT("Buffer must have atleast 4 elements."));
+		checkf(0 == (InNum % 4), TEXT("Buffer length be a multiple of 4."));
+		checkf(IsAligned<const float*>(InBuffer1, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<const float*>(InBuffer2, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<float*>(OutBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+
+		VectorRegister Gain1Vector = VectorLoadFloat1(&InGain1);
+
+		for (int32 i = 0; i < InNum; i += 4)
+		{
+			// InBuffer1 x InGain1
+			VectorRegister Input1  = VectorLoadAligned(&InBuffer1[i]);
+			VectorRegister Weighted1 = VectorMultiply(Input1, Gain1Vector);
+
+			VectorRegister Input2  = VectorLoadAligned(&InBuffer2[i]);
+
+			VectorRegister Output = VectorAdd(Weighted1, Input2);
+			VectorStoreAligned(Output, &OutBuffer[i]);
 		}
 	}
 
@@ -180,6 +286,12 @@ namespace Audio
 #endif
 	}
 
+	void MixInBufferFast(const AlignedFloatBuffer& InFloatBuffer, AlignedFloatBuffer& BufferToSumTo)
+	{
+		checkf(InFloatBuffer.Num() == BufferToSumTo.Num(), TEXT("Buffers must be equal size"));
+		MixInBufferFast(InFloatBuffer.GetData(), BufferToSumTo.GetData(), InFloatBuffer.Num());
+	}
+
 	void MixInBufferFast(const float* RESTRICT InFloatBuffer, float* RESTRICT BufferToSumTo, int32 NumSamples)
 	{
 		checkf(IsAligned<const float*>(InFloatBuffer, 4), TEXT("Memory must be aligned to use vector operations."));
@@ -202,9 +314,94 @@ namespace Audio
 #endif
 	}
 
+	/* Subtracts two buffers together element-wise. */
+	void BufferSubtractFast(const AlignedFloatBuffer& InMinuend, const AlignedFloatBuffer& InSubtrahend, AlignedFloatBuffer& OutputBuffer)
+	{
+		const int32 InNum = InMinuend.Num();
+		OutputBuffer.Reset(InNum);
+		OutputBuffer.AddUninitialized(InNum);
+
+		checkf(InMinuend.Num() == InSubtrahend.Num(), TEXT("Input buffers must be equal length"));
+
+		BufferSubtractFast(InMinuend.GetData(), InSubtrahend.GetData(), OutputBuffer.GetData(), OutputBuffer.Num());
+	}
+
+	/* Subtracts two buffers together element-wise. */
+	void BufferSubtractFast(const float* RESTRICT InMinuend, const float* RESTRICT InSubtrahend, float* RESTRICT OutBuffer, int32 InNum)
+	{
+		checkf(InNum >= 4, TEXT("Buffer must have atleast 4 elements."));
+		checkf(0 == (InNum % 4), TEXT("Buffer length be a multiple of 4."));
+		checkf(IsAligned<const float*>(InMinuend, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<const float*>(InSubtrahend, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<float*>(OutBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+
+		for (int32 i = 0; i < InNum; i += 4)
+		{
+			VectorRegister Input1 = VectorLoadAligned(&InMinuend[i]);
+			VectorRegister Input2 = VectorLoadAligned(&InSubtrahend[i]);
+			VectorRegister Output = VectorSubtract(Input1, Input2);
+			VectorStoreAligned(Output, &OutBuffer[i]);
+		}
+	}
+
+	/* Performs element-wise in-place subtraction placing the result in the subtrahend. InOutSubtrahend = InMinuend - InOutSubtrahend */
+	void BufferSubtractInPlace1Fast(const AlignedFloatBuffer& InMinuend, AlignedFloatBuffer& InOutSubtrahend)
+	{
+		checkf(InMinuend.Num() == InOutSubtrahend.Num(), TEXT("Input buffers must be equal length"));
+		BufferSubtractInPlace1Fast(InMinuend.GetData(), InOutSubtrahend.GetData(), InMinuend.Num());
+	}
+
+	/* Performs element-wise in-place subtraction placing the result in the subtrahend. InOutSubtrahend = InMinuend - InOutSubtrahend */
+	void BufferSubtractInPlace1Fast(const float* RESTRICT InMinuend, float* RESTRICT InOutSubtrahend, int32 InNum)
+	{
+		checkf(InNum >= 4, TEXT("Buffer must have atleast 4 elements."));
+		checkf(0 == (InNum % 4), TEXT("Buffer length be a multiple of 4."));
+		checkf(IsAligned<const float*>(InMinuend, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<const float*>(InOutSubtrahend, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+		
+		for (int32 i = 0; i < InNum; i += 4)
+		{
+			VectorRegister Input1 = VectorLoadAligned(&InMinuend[i]);
+			VectorRegister Input2 = VectorLoadAligned(&InOutSubtrahend[i]);
+
+			VectorRegister Output = VectorSubtract(Input1, Input2);
+			VectorStoreAligned(Output, &InOutSubtrahend[i]);
+		}
+	}
+	
+	/* Performs element-wise in-place subtraction placing the result in the minuend. InOutMinuend = InOutMinuend - InSubtrahend */
+	void BufferSubtractInPlace2Fast(AlignedFloatBuffer& InOutMinuend, const AlignedFloatBuffer& InSubtrahend)
+	{
+		checkf(InOutMinuend.Num() == InSubtrahend.Num(), TEXT("Input buffers must be equal length"));
+		BufferSubtractInPlace2Fast(InOutMinuend.GetData(), InSubtrahend.GetData(), InOutMinuend.Num());
+	}
+
+	/* Performs element-wise in-place subtraction placing the result in the minuend. InOutMinuend = InOutMinuend - InSubtrahend */
+	void BufferSubtractInPlace2Fast(float* RESTRICT InOutMinuend, const float* RESTRICT InSubtrahend, int32 InNum)
+	{
+		checkf(InNum >= 4, TEXT("Buffer must have atleast 4 elements."));
+		checkf(0 == (InNum % 4), TEXT("Buffer length be a multiple of 4."));
+		checkf(IsAligned<const float*>(InOutMinuend, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<const float*>(InSubtrahend, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+
+		for (int32 i = 0; i < InNum; i += 4)
+		{
+			VectorRegister Input1 = VectorLoadAligned(&InOutMinuend[i]);
+			VectorRegister Input2 = VectorLoadAligned(&InSubtrahend[i]);
+
+			VectorRegister Output = VectorSubtract(Input1, Input2);
+			VectorStoreAligned(Output, &InOutMinuend[i]);
+		}
+	}
+
 	void SumBuffers(const AlignedFloatBuffer& InFloatBuffer1, const AlignedFloatBuffer& InFloatBuffer2, AlignedFloatBuffer& OutputBuffer)
 	{
-		SumBuffers(InFloatBuffer1.GetData(), InFloatBuffer2.GetData(), OutputBuffer.GetData(), OutputBuffer.Num());
+		checkf(InFloatBuffer1.Num() == InFloatBuffer2.Num(), TEXT("Input buffers must be equal length"));
+		const int32 InNum = InFloatBuffer1.Num();
+		OutputBuffer.Reset(InNum);
+		OutputBuffer.AddUninitialized(InNum);
+
+		SumBuffers(InFloatBuffer1.GetData(), InFloatBuffer2.GetData(), OutputBuffer.GetData(), InNum);
 	}
 
 	void SumBuffers(const float* RESTRICT InFloatBuffer1, const float* RESTRICT InFloatBuffer2, float* RESTRICT OutputBuffer, int32 NumSamples)
@@ -487,6 +684,42 @@ namespace Audio
 			VectorStoreAligned(Result, &DestinationBuffer[i*2]);
 
 			GainVector = VectorAdd(GainVector, GainDeltasVector);
+		}
+	}
+
+	void MixMonoTo2ChannelsFast(const AlignedFloatBuffer& MonoBuffer, AlignedFloatBuffer& DestinationBuffer)
+	{
+		MixMonoTo2ChannelsFast(MonoBuffer.GetData(), DestinationBuffer.GetData(), MonoBuffer.Num());
+	}
+
+	/**
+	* See CHANNEL MIXING OPERATIONS above for more info.
+	* 2 frames per iteration:
+	* +------------+---------+---------+---------+---------+
+	* | VectorName | Index 0 | Index 1 | Index 2 | Index 3 |
+	* +------------+---------+---------+---------+---------+
+	* | Input      | i0      | i0      | i1      | i1      |
+	* |            | =       | =       | =       | =       |
+	* | Output     | o0      | o1      | o2      | o3      |
+	* +------------+---------+---------+---------+---------+
+	*/
+	void MixMonoTo2ChannelsFast(const float* RESTRICT MonoBuffer, float* RESTRICT DestinationBuffer, int32 InNumFrames)
+	{
+		checkf(InNumFrames >= 4, TEXT("Buffer must have atleast 4 elements."));
+		checkf(0 == (InNumFrames % 4), TEXT("Buffer length be a multiple of 4."));
+		checkf(IsAligned<const float*>(MonoBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<float*>(DestinationBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+
+		int32 OutPos = 0;
+		for (int32 i = 0; i < InNumFrames; i += 4)
+		{
+			VectorRegister Input = VectorLoadAligned(&MonoBuffer[i]);
+			VectorRegister Output = VectorSwizzle(Input, 0, 0, 1, 1);
+			VectorStoreAligned(Output, &DestinationBuffer[OutPos]);
+			OutPos += 4;
+			Output = VectorSwizzle(Input, 2, 2, 3, 3);
+			VectorStoreAligned(Output, &DestinationBuffer[OutPos]);
+			OutPos += 4;
 		}
 	}
 
@@ -1430,6 +1663,144 @@ namespace Audio
 					StartGains[GainMatrixIndex] += GainDeltas[GainMatrixIndex];
 				}
 			}
+		}
+	}
+
+
+	/** Interleaves samples from two input buffers */
+	void BufferInterleave2ChannelFast(const AlignedFloatBuffer& InBuffer1, const AlignedFloatBuffer& InBuffer2, AlignedFloatBuffer& OutBuffer)
+	{
+		checkf(InBuffer1.Num() == InBuffer2.Num(), TEXT("InBuffer1 Num not equal to InBuffer2 Num"));
+
+		const int32 InNum = InBuffer1.Num();
+
+		OutBuffer.Reset(2 * InNum);
+		OutBuffer.AddUninitialized(2 * InNum);
+		
+		BufferInterleave2ChannelFast(InBuffer1.GetData(), InBuffer2.GetData(), OutBuffer.GetData(), InNum);
+	}
+
+	/** Interleaves samples from two input buffers */
+	void BufferInterleave2ChannelFast(const float* RESTRICT InBuffer1, const float* RESTRICT InBuffer2, float* RESTRICT OutBuffer, const int32 InNum)
+	{
+		checkf(InNum >= 4, TEXT("Buffer must have atleast 4 elements."));
+		checkf(0 == (InNum % 4), TEXT("Buffer length be a multiple of 4."));
+		checkf(IsAligned<const float*>(InBuffer1, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<const float*>(InBuffer2, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<float*>(OutBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+
+		const int32 OutNum = 2 * InNum;
+
+		int32 OutPos = 0;
+		for (int32 i = 0; i < InNum; i += 4)
+		{
+			// Vector1[L0, L1, L2, L3]
+			VectorRegister Vector1 = VectorLoadAligned(&InBuffer1[i]);
+			// Vector2[R0, R1, R2, R3]
+			VectorRegister Vector2 = VectorLoadAligned(&InBuffer2[i]);
+
+			// HalfInterleaved[L0, L1, R0, R1]
+			VectorRegister HalfInterleaved = VectorShuffle(Vector1, Vector2, 0, 1, 0, 1);
+			// Interleaved[L0, R0, L1, R1]
+			VectorRegister Interleaved = VectorSwizzle(HalfInterleaved, 0, 2, 1, 3);
+			VectorStoreAligned(Interleaved, &OutBuffer[OutPos]);
+			OutPos += 4;
+
+			// HalfInterleaved[L2, L3, R2, R3]
+			HalfInterleaved = VectorShuffle(Vector1, Vector2, 2, 3, 2, 3);
+			// Interleaved[L2, R2, L3, R3]
+			Interleaved = VectorSwizzle(HalfInterleaved, 0, 2, 1, 3);
+			VectorStoreAligned(Interleaved, &OutBuffer[OutPos]);
+			OutPos += 4;
+		}
+	}
+
+	/** Deinterleaves samples from a 2 channel input buffer */
+	void BufferDeinterleave2ChannelFast(const AlignedFloatBuffer& InBuffer, AlignedFloatBuffer& OutBuffer1, AlignedFloatBuffer& OutBuffer2)
+	{
+		const int32 InNum = InBuffer.Num();
+		const int32 InNumFrames = InNum / 2;
+		const int32 OutNum = InNumFrames;
+
+		OutBuffer1.Reset(OutNum);
+		OutBuffer2.Reset(OutNum);
+		OutBuffer1.AddUninitialized(OutNum);
+		OutBuffer2.AddUninitialized(OutNum);
+		
+		BufferDeinterleave2ChannelFast(InBuffer.GetData(), OutBuffer1.GetData(), OutBuffer2.GetData(), InNumFrames);
+	}
+
+	/** Deinterleaves samples from a 2 channel input buffer */
+	void BufferDeinterleave2ChannelFast(const float* RESTRICT InBuffer, float* RESTRICT OutBuffer1, float* RESTRICT OutBuffer2, const int32 InNumFrames)
+	{
+		checkf(InNumFrames >= 4, TEXT("Buffer must have atleast 4 elements."));
+		checkf(0 == (InNumFrames % 4), TEXT("Buffer length be a multiple of 4."));
+		checkf(IsAligned<const float*>(InBuffer, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<const float*>(OutBuffer1, 4), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<float*>(OutBuffer2, 4), TEXT("Memory must be aligned to use vector operations."));
+
+		int32 InNum = InNumFrames * 2;
+		int32 OutPos = 0;
+		for (int32 InPos = 0; InPos < InNum; InPos += 8)
+		{
+			// load 4 frames (2 frames per vector)
+			VectorRegister InVector1 = VectorLoadAligned(&InBuffer[InPos]);
+			VectorRegister InVector2 = VectorLoadAligned(&InBuffer[InPos + 4]);
+
+			// Write channel 0
+			VectorRegister OutVector = VectorShuffle(InVector1, InVector2, 0, 2, 0, 2);
+			VectorStoreAligned(OutVector, &OutBuffer1[OutPos]);
+
+			// Write channel 1
+			OutVector = VectorShuffle(InVector1, InVector2, 1, 3, 1, 3);
+			VectorStoreAligned(OutVector, &OutBuffer2[OutPos]);
+
+			OutPos += 4;
+		}
+	}
+
+	/** Sums 2 channel interleaved input samples. OutSamples[n] = InSamples[2n] + InSamples[2n + 1] */
+	void BufferSum2ChannelToMonoFast(const AlignedFloatBuffer& InSamples, AlignedFloatBuffer& OutSamples)
+	{
+		const int32 InNum = InSamples.Num();
+		const int32 Frames = InNum / 2;
+
+		OutSamples.Reset(Frames);
+		OutSamples.AddUninitialized(Frames);
+		
+		BufferSum2ChannelToMonoFast(InSamples.GetData(), OutSamples.GetData(), Frames);
+	}
+
+	/** Sums 2 channel interleaved input samples. OutSamples[n] = InSamples[2n] + InSamples[2n + 1] */
+	void BufferSum2ChannelToMonoFast(const float* RESTRICT InSamples, float* RESTRICT OutSamples, const int32 InNumFrames)
+	{
+		checkf(InNumFrames >= 4, TEXT("Buffer must have atleast 4 elements."));
+		checkf(0 == (InNumFrames % 4), TEXT("Buffer length be a multiple of 4."));
+		checkf(IsAligned<const float*>(InSamples, AUDIO_SIMD_FLOAT_ALIGNMENT), TEXT("Memory must be aligned to use vector operations."));
+		checkf(IsAligned<float*>(OutSamples, 4), TEXT("Memory must be aligned to use vector operations."));
+
+		const int32 InNum = InNumFrames * 2;
+		int32 OutPos = 0;
+		for (int32 i = 0; i < InNum; i += 8)
+		{
+			// Load 4 frames (2 frames per vector)
+			// Buffer1[L0, R0, L1, R1]
+			VectorRegister Buffer1 = VectorLoadAligned(&InSamples[i]);
+			// Buffer2[L2, R2, L3, R3]
+			VectorRegister Buffer2 = VectorLoadAligned(&InSamples[i + 4]);
+
+			// Shuffle samples into order
+			// Channel0[L0, L1, L2, L3]
+			VectorRegister Channel0 = VectorShuffle(Buffer1, Buffer2, 0, 2, 0, 2);
+			// Channel1[R0, R1, R2, R3]
+			VectorRegister Channel1 = VectorShuffle(Buffer1, Buffer2, 1, 3, 1, 3);
+
+			// Sum left and right.
+			// Out[L0 + R0, L1 + R1, L2 + R2, L3 + R3]
+			VectorRegister Out = VectorAdd(Channel0, Channel1);
+
+			VectorStoreAligned(Out, &OutSamples[OutPos]);
+			OutPos += 4;
 		}
 	}
 }
