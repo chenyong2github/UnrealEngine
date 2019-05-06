@@ -251,7 +251,17 @@ public:
 			static TConsoleVariableData<int32>* CVarOutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
 			static TConsoleVariableData<float>* CVarOutputGamma = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.TonemapperGamma"));
 
-			int32 OutputDeviceValue = CVarOutputDevice->GetValueOnRenderThread();
+			int32 OutputDeviceValue;
+
+			if (ViewFamily.SceneCaptureSource == SCS_FinalColorHDR)
+			{
+				OutputDeviceValue = 8; //LinearNoToneCurve from FTonemapperOutputDevice
+			}
+			else
+			{
+				OutputDeviceValue = CVarOutputDevice->GetValueOnRenderThread();
+			}
+
 			float Gamma = CVarOutputGamma->GetValueOnRenderThread();
 
 			if (PLATFORM_APPLE && Gamma == 0.0f)
@@ -886,7 +896,7 @@ void FRCPassPostProcessCombineLUTs::Process(FRenderingCompositePassContext& Cont
 	// and the result is reused by eSSP_RIGHT_EYE.   Eye-adaptation for stereo works in a similar way.
 	// Fundamentally, this relies on the fact that the view is recycled when doing stereo rendering and the LEFT eye is done first.
 	const FSceneRenderTargetItem* DestRenderTarget = !bAllocateOutput ?
-		Context.View.GetTonemappingLUTRenderTarget(Context.RHICmdList, GLUTSize, bUseVolumeTextureLUT, bIsComputePass) :
+		Context.View.GetTonemappingLUTRenderTarget(Context.RHICmdList, GLUTSize, bUseVolumeTextureLUT, bIsComputePass, ViewFamily.SceneCaptureSource == SCS_FinalColorHDR) :
 		&PassOutputs[0].RequestSurface(Context);
 	
 	check(DestRenderTarget);
@@ -1005,21 +1015,7 @@ FPooledRenderTargetDesc FRCPassPostProcessCombineLUTs::ComputeOutputDesc(EPassOu
 	}
 	else
 	{
-		EPixelFormat LUTPixelFormat = PF_A2B10G10R10;
-		if (!GPixelFormats[LUTPixelFormat].Supported)
-		{
-			LUTPixelFormat = PF_R8G8B8A8;
-		}
-		
-		Ret = FPooledRenderTargetDesc::Create2DDesc(FIntPoint(GLUTSize * GLUTSize, GLUTSize), LUTPixelFormat, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false);
-		
-		if(RuntimeVolumeTextureLUTSupported(ShaderPlatform))
-		{
-			Ret.Extent = FIntPoint(GLUTSize, GLUTSize);
-			Ret.Depth = GLUTSize;
-		}
-		Ret.Flags |= GFastVRamConfig.CombineLUTs;
-		Ret.DebugName = TEXT("CombineLUTs");
+		Ret =FSceneViewState::CreateLUTRenderTarget(GLUTSize, RuntimeVolumeTextureLUTSupported(ShaderPlatform), false, bNeedFloatOutput);
 	}
 	Ret.ClearValue = FClearValueBinding::Transparent;
 

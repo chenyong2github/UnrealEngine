@@ -1167,9 +1167,36 @@ public:
 		bValidTonemappingLUT = bValid;
 	}
 
+	static FPooledRenderTargetDesc CreateLUTRenderTarget(const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput)
+	{
+		// Create the texture needed for the tonemapping LUT in one place
+		EPixelFormat LUTPixelFormat = PF_A2B10G10R10;
+		if (!GPixelFormats[LUTPixelFormat].Supported)
+		{
+			LUTPixelFormat = PF_R8G8B8A8;
+		}
+		if (bNeedFloatOutput)
+		{
+			LUTPixelFormat = PF_FloatRGBA;
+		}
+
+		FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(FIntPoint(LUTSize * LUTSize, LUTSize), LUTPixelFormat, FClearValueBinding::Transparent, TexCreate_None, TexCreate_ShaderResource, false);
+		Desc.TargetableFlags |= bNeedUAV ? TexCreate_UAV : TexCreate_RenderTargetable;
+
+		if (bUseVolumeLUT)
+		{
+			Desc.Extent = FIntPoint(LUTSize, LUTSize);
+			Desc.Depth = LUTSize;
+		}
+
+		Desc.DebugName = TEXT("CombineLUTs");
+		Desc.Flags |= GFastVRamConfig.CombineLUTs;
+
+		return Desc;
+	}
 
 	// Returns a reference to the render target used for the LUT.  Allocated on the first request.
-	FSceneRenderTargetItem& GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV)
+	FSceneRenderTargetItem& GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput)
 	{
 		if (CombinedLUTRenderTarget.IsValid() == false || 
 			CombinedLUTRenderTarget->GetDesc().Extent.Y != LUTSize ||
@@ -1177,22 +1204,7 @@ public:
 			!!(CombinedLUTRenderTarget->GetDesc().TargetableFlags & TexCreate_UAV) != bNeedUAV)
 		{
 			// Create the texture needed for the tonemapping LUT
-			EPixelFormat LUTPixelFormat = PF_A2B10G10R10;
-			if (!GPixelFormats[LUTPixelFormat].Supported)
-			{
-				LUTPixelFormat = PF_R8G8B8A8;
-			}
-
-			FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(FIntPoint(LUTSize * LUTSize, LUTSize), LUTPixelFormat, FClearValueBinding::Transparent, TexCreate_None, TexCreate_ShaderResource, false);
-			Desc.TargetableFlags |= bNeedUAV ? TexCreate_UAV : TexCreate_RenderTargetable;
-
-			if (bUseVolumeLUT)
-			{
-				Desc.Extent = FIntPoint(LUTSize, LUTSize);
-				Desc.Depth = LUTSize;
-			}
-
-			Desc.DebugName = TEXT("CombineLUTs");
+			FPooledRenderTargetDesc Desc = CreateLUTRenderTarget(LUTSize, bUseVolumeLUT, bNeedUAV, bNeedFloatOutput);
 
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, CombinedLUTRenderTarget, Desc.DebugName);
 		}

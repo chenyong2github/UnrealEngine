@@ -299,7 +299,7 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 
 	ColorAP1 = ColorCorrectAll( ColorAP1 );
 
-	// Store for Legacy tonemap later
+	// Store for Legacy tonemap later and for Linear HDR output without tone curve
 	float3 GradedColor = mul( AP1_2_sRGB, ColorAP1 );
 
 	const float3x3 BlueCorrect =
@@ -439,6 +439,11 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	{
 			float3 OutputGamutColor = mul( AP1_2_Output, mul( sRGB_2_AP1, GradedColor ) );
 			OutDeviceColor = LinearToST2084( OutputGamutColor );
+	}
+	// Linear HDR, including all color correction, but no tone curve
+	else if( GetOutputDevice() == 8 ) 
+	{
+			OutDeviceColor = GradedColor;
 	}
 
 	// OutputDevice == 2

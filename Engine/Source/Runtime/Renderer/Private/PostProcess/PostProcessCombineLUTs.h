@@ -21,9 +21,10 @@ bool RuntimeVolumeTextureLUTSupported(EShaderPlatform Platform);
 class FRCPassPostProcessCombineLUTs : public TRenderingCompositePassBase<0, 1>
 {
 public:
-	FRCPassPostProcessCombineLUTs(EShaderPlatform InShaderPlatform, bool bInAllocateOutput, bool InIsComputePass)
+	FRCPassPostProcessCombineLUTs(EShaderPlatform InShaderPlatform, bool bInAllocateOutput, bool InIsComputePass, bool bInNeedFloatOutput)
 	: ShaderPlatform(InShaderPlatform)
 	, bAllocateOutput(bInAllocateOutput)
+	, bNeedFloatOutput(bInNeedFloatOutput)
 	{
 		bIsComputePass = InIsComputePass;
 		bPreferAsyncCompute = false;
@@ -49,6 +50,7 @@ private:
 
 	EShaderPlatform ShaderPlatform;
 	bool bAllocateOutput;
+	bool bNeedFloatOutput;
 };
 
 

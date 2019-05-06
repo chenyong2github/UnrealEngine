@@ -355,7 +355,8 @@ enum ESceneCaptureSource
 	SCS_SceneDepth UMETA(DisplayName="SceneDepth in R"),
 	SCS_DeviceDepth UMETA(DisplayName = "DeviceDepth in RGB"),
 	SCS_Normal UMETA(DisplayName="Normal in RGB (Deferred Renderer only)"),
-	SCS_BaseColor UMETA(DisplayName="BaseColor in RGB (Deferred Renderer only)")
+	SCS_BaseColor UMETA(DisplayName = "BaseColor in RGB (Deferred Renderer only)"),
+	SCS_FinalColorHDR UMETA(DisplayName = "Final Color (HDR) in Linear sRGB gamut")
 };
 
 /** Specifies how scene captures are composited into render buffers */

@@ -60,6 +60,7 @@ enum class FTonemapperOutputDevice
 	ACES1000nitScRGB,
 	ACES2000nitScRGB,
 	LinearEXR,
+	LinearNoToneCurve,
 
 	MAX
 };
@@ -75,7 +76,8 @@ static TAutoConsoleVariable<int32> CVarDisplayOutputDevice(
 	TEXT("4: ACES 2000 nit ST-2084 (Dolby PQ) (HDR)\n")
 	TEXT("5: ACES 1000 nit ScRGB (HDR)\n")
 	TEXT("6: ACES 2000 nit ScRGB (HDR)\n")
-	TEXT("7: Linear EXR (HDR)\n"),
+	TEXT("7: Linear EXR (HDR)\n")
+	TEXT("8: Linear final color, no tone curve (HDR)\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 	
 static TAutoConsoleVariable<int32> CVarHDROutputEnabled(
@@ -994,7 +996,14 @@ void FRCPassPostProcessTonemap::Process(FRenderingCompositePassContext& Context)
 			DesktopPermutationVector.Set<TonemapperPermutation::FTonemapperColorFringeDim>(View.FinalPostProcessSettings.SceneFringeIntensity > 0.01f);
 		}
 
-		DesktopPermutationVector.Set<TonemapperPermutation::FTonemapperOutputDeviceDim>(GetOutputDeviceValue());
+		if (ViewFamily.SceneCaptureSource == SCS_FinalColorHDR)
+		{
+			DesktopPermutationVector.Set<TonemapperPermutation::FTonemapperOutputDeviceDim>(FTonemapperOutputDevice::LinearNoToneCurve);
+		}
+		else
+		{
+			DesktopPermutationVector.Set<TonemapperPermutation::FTonemapperOutputDeviceDim>(GetOutputDeviceValue());
+		}
 
 		DesktopPermutationVector = TonemapperPermutation::RemapPermutation(DesktopPermutationVector);
 	}
@@ -1169,6 +1178,10 @@ FPooledRenderTargetDesc FRCPassPostProcessTonemap::ComputeOutputDesc(EPassOutput
 	if (CVarDisplayOutputDevice.GetValueOnRenderThread() == 7)
 	{
 		Ret.Format = PF_A32B32G32R32F;
+	}
+	if (CVarDisplayOutputDevice.GetValueOnRenderThread() == 8)
+	{
+		Ret.Format = PF_FloatRGBA;
 	}
 
 
