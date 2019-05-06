@@ -2446,20 +2446,22 @@ bool ALandscape::PrepareLayersHeightmapTextureResources() const
 	return IsReady;
 }
 
-void ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool& bOutRecreateCollision)
+void ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersRegenerateHeightmaps);
-	bOutRecreateCollision = false;
-
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
-	if (LayersContentUpdateFlags == 0 || Info == nullptr || !PrepareLayersHeightmapTextureResources())
+	const int32 AllHeightmapUpdateModes = (ELandscapeLayerUpdateMode::Heightmap_All |  ELandscapeLayerUpdateMode::Heightmap_Editing);
+	const int32 HeightmapUpdateModes = LayerContentUpdateModes & AllHeightmapUpdateModes;
+	const bool bForceRender = CVarOutputLayersDebugDrawCallName.GetValueOnAnyThread() == 1;
+
+	if ((HeightmapUpdateModes == 0 && !bForceRender) || Info == nullptr || !PrepareLayersHeightmapTextureResources())
 	{
 		return;
 	}
-
+	   
 	// Handle missing Heightmap CPUReadback (Undo of a delete landscape component can trigger that case)
-	if (LayersContentUpdateFlags & ELandscapeLayersContentUpdateFlag::Heightmap_All)
+	if (HeightmapUpdateModes)
 	{
 		Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 		{
@@ -2477,7 +2479,7 @@ void ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& 
 		});
 	}
 
-	if (LayersContentUpdateFlags & ELandscapeLayersContentUpdateFlag::Heightmap_Render)
+	if (HeightmapUpdateModes || bForceRender)
 	{
 		check(HeightmapRTList.Num() > 0);
 
@@ -2670,70 +2672,23 @@ void ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& 
 		});
 	}
 
-	if (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_ResolveToTexture)
+	if (HeightmapUpdateModes)
 	{
 		ResolveLayersHeightmapTexture();
-	}
 
-	bool bUpdateBoundsAndCollsionFull = (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_BoundsAndCollision) != 0;
-	bool bUpdateBoundsAndCollsionPartial = ((LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_BoundsAndCollisionPartial) != 0) && !bUpdateBoundsAndCollsionFull; // Partial only if not full update
-	bool bUpdateBoundsAndCollsion = bUpdateBoundsAndCollsionFull || bUpdateBoundsAndCollsionPartial;
-
-	if (bUpdateBoundsAndCollsion)
-	{
+		// Partial Component Update
 		for (ULandscapeComponent* Component : InLandscapeComponents)
 		{
-			if (bUpdateBoundsAndCollsion && (!bUpdateBoundsAndCollsionPartial || Component->IsLayerContentDirty()))
+			if(Component->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Update_Heightmap_Collision, HeightmapUpdateModes, bLayerForceUpdateAllComponents))
 			{
 				Component->UpdateCachedBounds();
 				Component->UpdateComponentToWorld();
 				Component->UpdateCollisionData();
 			}
-
-			Component->SetLayerContentDirty(false);
 		}
 
-		// Ideally, we should only update necessary components and only when inside AddComponnet Tool.
 		Info->UpdateAllAddCollisions();
-	
-		bOutRecreateCollision = !bUpdateBoundsAndCollsionPartial;
 	}
-		
-	LayersContentUpdateFlags &= ~EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_BoundsAndCollisionPartial;
-	LayersContentUpdateFlags &= ~ELandscapeLayersContentUpdateFlag::Heightmap_All;
-		
-	// If doing rendering debug, keep doing the render only
-	if (CVarOutputLayersDebugDrawCallName.GetValueOnAnyThread() == 1)
-	{
-		LayersContentUpdateFlags |= ELandscapeLayersContentUpdateFlag::Heightmap_Render;
-	}
-			}
-
-bool ALandscape::UpdateClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool bInCollisionRecreated)
-			{
-				// Post-pone client update to next tick while in transaction
-				if (GUndo)
-				{
-		return false;
-				}
-				else
-				{
-		for (ULandscapeComponent* Component : InLandscapeComponents)
-		{
-					// Recreate collision for modified components to update the physical materials
-					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
-					if (CollisionComponent)
-					{
-						FNavigationSystem::UpdateComponentData(*CollisionComponent);
-						CollisionComponent->SnapFoliageInstances();
-					}
-				}
-
-		ALandscapeProxy::InvalidateGeneratedComponentData(InLandscapeComponents);
-	}
-
-	// Re update clients if collision wasn't recreated
-	return bInCollisionRecreated;
 }
 
 void ALandscape::ResolveLayersHeightmapTexture()
@@ -3332,25 +3287,26 @@ bool ALandscape::PrepareLayersWeightmapTextureResources() const
 	return IsReady;
 }
 
-void ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool& bOutRecreateCollision)
+void ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersRegenerateWeightmaps);
-	bOutRecreateCollision = false;
-
+	const int32 AllWeightmapUpdateModes = (ELandscapeLayerUpdateMode::Weightmap_All | ELandscapeLayerUpdateMode::Weightmap_Editing);
+	const int32 WeightmapUpdateModes = LayerContentUpdateModes & AllWeightmapUpdateModes;
+	const bool bForceRender = CVarOutputLayersDebugDrawCallName.GetValueOnAnyThread() == 1;
+	
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
-	if (LayersContentUpdateFlags == 0 || Info == nullptr || Info->Layers.Num() == 0 || !PrepareLayersWeightmapTextureResources())
+	if ((WeightmapUpdateModes == 0 && !bForceRender) || Info == nullptr || Info->Layers.Num() == 0 || !PrepareLayersWeightmapTextureResources())
 	{
 		return;
 	}
-
-
+			
 	TArray<ULandscapeComponent*> ComponentThatNeedMaterialRebuild;
 	TArray<ULandscapeLayerInfoObject*> BrushRequiredAllocations;
 	int32 LayerCount = Info->Layers.Num() + 1; // due to visibility being stored at 0
 	bool ClearFlagsAfterUpdate = true;
 
-	if (LayersContentUpdateFlags & ELandscapeLayersContentUpdateFlag::Weightmap_Render)
+	if (WeightmapUpdateModes || bForceRender)
 	{
 		FIntPoint MinExtend;
 		FIntPoint MaxExtend;
@@ -3696,30 +3652,17 @@ void ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& 
 		UpdateLayersMaterialInstances(ComponentThatNeedMaterialRebuild);
 	}
 
-	if (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Weightmap_ResolveToTexture)
+	if (WeightmapUpdateModes)
 	{
 		ResolveLayersWeightmapTexture();
-	}
-
-	if (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Weightmap_Collision)
-	{
+	
 		for (ULandscapeComponent* Component : InLandscapeComponents)
 		{
-			Component->UpdateCollisionLayerData();
+			if (Component->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Update_Weightmap_Collision, WeightmapUpdateModes, bLayerForceUpdateAllComponents))
+			{
+				Component->UpdateCollisionLayerData();
+			}
 		}
-
-		bOutRecreateCollision = true;
-	}
-
-	if (ClearFlagsAfterUpdate)
-	{
-		LayersContentUpdateFlags &= ~ELandscapeLayersContentUpdateFlag::Weightmap_All;
-	}
-
-	// If doing rendering debug, keep doing the render only
-	if (CVarOutputLayersDebugDrawCallName.GetValueOnAnyThread() == 1)
-	{
-		LayersContentUpdateFlags |= ELandscapeLayersContentUpdateFlag::Weightmap_Render;
 	}
 }
 
@@ -3922,14 +3865,134 @@ void ALandscape::ResolveLayersWeightmapTexture()
 	});
 }
 
-void ALandscape::RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag InDataFlags, bool InUpdateAllMaterials)
+
+
+void ALandscape::RequestLayersInitialization()
 {
-	LayersContentUpdateFlags |= InDataFlags;
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		return;
+	}
+
+	bLandscapeLayersAreInitialized = false; 
+	RequestLayersContentUpdateForceAll();
+}
+
+void ALandscape::RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode, bool bInForceUpdateAllComponents)
+{
+	LayerContentUpdateModes |= InUpdateMode;
+	bLayerForceUpdateAllComponents |= bInForceUpdateAllComponents;
+}
+
+void ALandscape::RequestLayersContentUpdateForceAll()
+{
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		return;
+	}
+
+	if (ULandscapeInfo* LandscapeInfo = GetLandscapeInfo())
+	{
+		LandscapeInfo->ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
+		{
+			if (Proxy)
+			{
+				Proxy->InvalidateGeneratedComponentData();
+			}
+		});
+	}
+	
+	const bool bLocalForceUpdateAllComponents = true;
+	RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All, bLocalForceUpdateAllComponents);
+}
+
+bool ULandscapeComponent::IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag InFlag, uint32 InModeMask, bool bForce) const
+{
+	uint32 UpdateMode = bForce? InModeMask : (LayerUpdateFlagPerMode & InModeMask);
+	
+	if (UpdateMode & ELandscapeLayerUpdateMode::Heightmap_All)
+	{
+		const uint32 HeightmapAllFlags = ELandscapeComponentUpdateFlag::Update_Heightmap_Collision | ELandscapeComponentUpdateFlag::RecreateCollision | ELandscapeComponentUpdateFlag::ClientUpdate;
+		if (HeightmapAllFlags & InFlag)
+		{
+			return true;
+		}
+	}
+		
+	if (UpdateMode & ELandscapeLayerUpdateMode::Heightmap_Editing)
+	{
+		const uint32 HeightmapEditingFlags = ELandscapeComponentUpdateFlag::Update_Heightmap_Collision;
+		if (HeightmapEditingFlags & InFlag)
+		{
+			return true;
+		}
+	}
+		
+	if (UpdateMode & ELandscapeLayerUpdateMode::Weightmap_All)
+	{
+		const uint32 WeightmapAllFlags = ELandscapeComponentUpdateFlag::Update_Weightmap_Collision | ELandscapeComponentUpdateFlag::RecreateCollision | ELandscapeComponentUpdateFlag::ClientUpdate;
+		if (WeightmapAllFlags & InFlag)
+		{
+			return true;
+		}
+	}
+
+	if (UpdateMode & ELandscapeLayerUpdateMode::Weightmap_Editing)
+	{
+		const uint32 WeightmapEditingFlags = ELandscapeComponentUpdateFlag::Update_Weightmap_Collision;
+		if (WeightmapEditingFlags & InFlag)
+		{
+			return true;
+		}
+	}
+
+	if (UpdateMode & ELandscapeLayerUpdateMode::DeferredClientUpdate)
+	{
+		const uint32 DeferredClientUpdateFlags = ELandscapeComponentUpdateFlag::ClientUpdate;
+		if (DeferredClientUpdateFlags & InFlag)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void ULandscapeComponent::ClearUpdateFlagsForModes(uint32 InModeMask)
+{
+	LayerUpdateFlagPerMode &= ~InModeMask;
+}
+
+void ULandscapeComponent::RequestDeferredClientUpdate()
+{
+	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::DeferredClientUpdate;
+}
+
+void ULandscapeComponent::RequestHeightmapUpdate(bool bUpdateAll)
+{
+	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Heightmap_Editing;
+	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Heightmap_All;
+	GetLandscapeActor()->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Heightmap_Editing);
+	if (bUpdateAll)
+	{
+		GetLandscapeActor()->RequestLayersContentUpdate(Heightmap_All);
+	}
+}
+
+void ULandscapeComponent::RequestWeightmapUpdate(bool bUpdateAll)
+{
+	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Weightmap_Editing;
+	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Weightmap_All;
+	GetLandscapeActor()->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Weightmap_Editing);
+	if (bUpdateAll)
+	{
+		GetLandscapeActor()->RequestLayersContentUpdate(Weightmap_All);
+	}
 }
 
 void ALandscape::RegenerateLayersContent()
 {
-	if (GetLandscapeInfo() == nullptr || LayersContentUpdateFlags == 0)
+	if (GetLandscapeInfo() == nullptr || LayerContentUpdateModes == 0)
 	{
 		return;
 	}
@@ -3940,31 +4003,51 @@ void ALandscape::RegenerateLayersContent()
 		AllLandscapeComponents.Append(Proxy->LandscapeComponents);
 	});
 
-	bool bUpdateClients = (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_ClientUpdate);
+	RegenerateLayersHeightmaps(AllLandscapeComponents);
+	RegenerateLayersWeightmaps(AllLandscapeComponents);
 
-	bool bHeightmapRecreateCollision = false;
-	RegenerateLayersHeightmaps(AllLandscapeComponents, bHeightmapRecreateCollision);
-	bool bWeightmapRecreateCollision = false;
-	RegenerateLayersWeightmaps(AllLandscapeComponents, bWeightmapRecreateCollision);
-	
-	if (bHeightmapRecreateCollision || bWeightmapRecreateCollision)
+	bool bDeferClientUpdate = false;
+
+	for (ULandscapeComponent* LandscapeComponent : AllLandscapeComponents)
 	{
-		for (ULandscapeComponent* LandscapeComponent : AllLandscapeComponents)
+		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::RecreateCollision, LayerContentUpdateModes, bLayerForceUpdateAllComponents))
 		{
 			if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->CollisionComponent.Get())
 			{
 				CollisionComp->RecreateCollision();
+				
 			}
 		}
-	}
-
-	if (bUpdateClients)
-	{
-		if (!UpdateClients(AllLandscapeComponents, bHeightmapRecreateCollision | bWeightmapRecreateCollision))
+		
+		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::ClientUpdate, LayerContentUpdateModes, bLayerForceUpdateAllComponents))
 		{
-			LayersContentUpdateFlags |= EInternalLandscapeLayersContentUpdateFlag::Internal_ClientUpdate;
+			if (!GUndo)
+			{
+				if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->CollisionComponent.Get())
+				{
+					FNavigationSystem::UpdateComponentData(*CollisionComp);
+					CollisionComp->SnapFoliageInstances();
+				}
+			}
+			else
+			{
+				bDeferClientUpdate = true;
+			}
+		}
+		LandscapeComponent->ClearUpdateFlagsForModes(LayerContentUpdateModes);
+		if (bDeferClientUpdate)
+		{
+			LandscapeComponent->RequestDeferredClientUpdate();
 		}
 	}
+	
+	LayerContentUpdateModes = 0;
+	if (bDeferClientUpdate)
+	{
+		LayerContentUpdateModes |= ELandscapeLayerUpdateMode::DeferredClientUpdate;
+	}
+
+	bLayerForceUpdateAllComponents = false;
 }
 
 void ALandscape::InitializeLayers()
@@ -4020,7 +4103,7 @@ void ALandscape::TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunc
 			else if (WasCompilingShaders)
 			{
 				WasCompilingShaders = false;
-				RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All);
+				RequestLayersContentUpdateForceAll();
 			}
 
 			RegenerateLayersContent();
@@ -4363,7 +4446,7 @@ bool ALandscape::IsUpToDate() const
 #if WITH_EDITORONLY_DATA
 	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		return LayersContentUpdateFlags == 0;
+		return LayerContentUpdateModes == 0;
 	}
 #endif
 
@@ -4410,7 +4493,7 @@ void ALandscape::SetLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bIn
 
 	Modify();
 	LayerAlpha = InAlpha;
-	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+	RequestLayersContentUpdateForceAll();
 }
 
 void ALandscape::SetLayerVisibility(int32 InLayerIndex, bool bInVisible)
@@ -4424,7 +4507,7 @@ void ALandscape::SetLayerVisibility(int32 InLayerIndex, bool bInVisible)
 
 	Modify();
 	Layer->bVisible = bInVisible;
-	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+	RequestLayersContentUpdateForceAll();
 }
 
 void ALandscape::SetLayerLocked(int32 InLayerIndex, bool bLocked)
@@ -4500,7 +4583,7 @@ void ALandscape::DeleteLayer(int32 InLayerIndex)
 	LandscapeLayers.RemoveAt(InLayerIndex);
 
 	// Request Update
-	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+	RequestLayersContentUpdateForceAll();
 }
 
 void ALandscape::ClearLayer(int32 InLayerIndex, bool bInUpdateCollision)
@@ -4524,7 +4607,7 @@ void ALandscape::ClearLayer(const FGuid& InLayerGuid, bool bInUpdateCollision)
 	}
 
 	Modify();
-	FScopedSetLandscapeEditingLayer Scope(this, Layer->Guid, [=] { RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true); });
+	FScopedSetLandscapeEditingLayer Scope(this, Layer->Guid, [=] { RequestLayersContentUpdateForceAll(); });
 
 	TArray<uint16> NewHeightData;
 	NewHeightData.AddZeroed(FMath::Square(ComponentSizeQuads + 1));
@@ -4599,7 +4682,7 @@ void ALandscape::ShowOnlySelectedLayer(int32 InLayerIndex)
 		{
 			Layer.bVisible = (&Layer == VisibleLayer);
 		}
-		RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+		RequestLayersContentUpdateForceAll();
 	}
 }
 
@@ -4611,7 +4694,7 @@ void ALandscape::ShowAllLayers()
 		{
 			Layer.bVisible = true;
 		}
-		RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+		RequestLayersContentUpdateForceAll();
 	}
 }
 
@@ -4670,8 +4753,8 @@ void ALandscape::UpdateLandscapeSplines(const FGuid& InTargetLayer, bool bUpdate
 	const FLandscapeLayer* TargetLayer = GetLayer(TargetLayerGuid);
 	if (LandscapeInfo && TargetLayer)
 	{
-		FScopedSetLandscapeEditingLayer Scope(this, TargetLayerGuid, [=] { this->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true); });
-		// Temporarily disable material instance updates since it will be done once at the end (requested by RequestLayersContentUpdate)
+		FScopedSetLandscapeEditingLayer Scope(this, TargetLayerGuid, [=] { this->RequestLayersContentUpdateForceAll(); });
+		// Temporarily disable material instance updates since it will be done once at the end (requested by RequestLayersContentUpdateForceAll)
 		GDisableUpdateLandscapeMaterialInstances = true;
 		if (LandscapeSplinesTargetLayerGuid.IsValid())
 		{
@@ -4887,7 +4970,8 @@ void ALandscape::SetLayerSubstractiveBlendStatus(int32 InLayerIndex, bool InStat
 		*AllocationBlend = InStatus;
 	}
 
-	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+	const bool bLocalForceUpdateAllComponents = true;
+	RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Weightmap_All, bLocalForceUpdateAllComponents);
 }
 
 void ALandscape::AddBrushToLayer(int32 InLayerIndex, int32 InTargetType, ALandscapeBlueprintCustomBrush* InBrush)
@@ -4912,7 +4996,7 @@ void ALandscape::AddBrushToLayer(int32 InLayerIndex, int32 InTargetType, ALandsc
 
 	InBrush->SetOwningLandscape(this);
 
-	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All_Render);
+	RequestLayersContentUpdateForceAll();
 }
 
 void ALandscape::RemoveBrushFromLayer(int32 InLayerIndex, int32 InTargetType, ALandscapeBlueprintCustomBrush* InBrush)
@@ -4977,7 +5061,7 @@ void ALandscape::RemoveBrushFromLayer(int32 InLayerIndex, int32 InTargetType, AL
 		InBrush->SetOwningLandscape(nullptr);
 	}
 
-	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All_Render);
+	RequestLayersContentUpdateForceAll();
 }
 
 bool ALandscape::AreAllBrushesCommitedToLayer(int32 InLayerIndex, int32 InTargetType)

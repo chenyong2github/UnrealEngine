@@ -579,12 +579,9 @@ void ULandscapeComponent::PostEditUndo()
 		SingleComponent.Add(this);
 		GetLandscapeProxy()->InvalidateGeneratedComponentData(SingleComponent);
 		
-		ALandscape* LandscapeActor = GetLandscapeActor();
-		// Might be a ALandscapeStreamingProxy
-		if (LandscapeActor)
-		{
-			LandscapeActor->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
-		}
+		const bool bUpdateAll = true;
+		RequestHeightmapUpdate(bUpdateAll);
+		RequestWeightmapUpdate(bUpdateAll);
 	}
 	else
 	{
@@ -3508,7 +3505,7 @@ void ALandscape::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+	RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All);
 }
 
 bool ALandscape::ShouldImport(FString* ActorPropString, bool IsMovingLevel)
@@ -3955,7 +3952,7 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		{
 			if(ALandscape* LandscapeActor = GetLandscapeActor())
 			{
-				LandscapeActor->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+				LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All);
 			}
 		}
 		

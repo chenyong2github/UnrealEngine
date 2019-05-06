@@ -465,7 +465,10 @@ bool ULandscapeInfo::ApplySplines(bool bOnlySelected)
 	ALandscape* Landscape = LandscapeActor.Get();
 	const FLandscapeLayer* Layer = Landscape ? Landscape->GetLandscapeSplinesReservedLayer() : nullptr;
 	FGuid SplinesTargetLayerGuid = Layer ? Layer->Guid : FGuid();
-	FScopedSetLandscapeEditingLayer Scope(Landscape, SplinesTargetLayerGuid, [=] { Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All); });
+	FScopedSetLandscapeEditingLayer Scope(Landscape, SplinesTargetLayerGuid, [=] 
+	{ 
+		Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All);
+	});
 
 	ForAllLandscapeProxies([&bResult, bOnlySelected, this](ALandscapeProxy* Proxy)
 	{
@@ -626,11 +629,15 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 	LandscapeEdit.Flush();
 		
 	ALandscapeProxy::InvalidateGeneratedComponentData(ModifiedComponents);
-	
-	if(!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		
+	for (ULandscapeComponent* Component : ModifiedComponents)
 	{
-		ALandscape* Landscape = Proxy->GetLandscapeActor();
-		for (ULandscapeComponent* Component : ModifiedComponents)
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		{
+			Component->RequestHeightmapUpdate();
+			Component->RequestWeightmapUpdate();
+		}
+		else
 		{
 			// Recreate collision for modified components and update the navmesh
 			ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
@@ -641,6 +648,7 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 			}
 		}
 	}
+	
 
 	return true;
 }
