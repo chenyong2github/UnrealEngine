@@ -1,4 +1,6 @@
-﻿using System.ComponentModel;
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+using System.ComponentModel;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;

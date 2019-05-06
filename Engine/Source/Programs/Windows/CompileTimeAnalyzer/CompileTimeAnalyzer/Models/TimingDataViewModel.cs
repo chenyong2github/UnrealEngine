@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.IO.Compression;

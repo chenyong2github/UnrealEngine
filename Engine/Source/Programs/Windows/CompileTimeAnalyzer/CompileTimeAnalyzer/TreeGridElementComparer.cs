@@ -1,11 +1,13 @@
-﻿using System;
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
+using System.Reflection;
 
 namespace Timing_Data_Investigator
 {
-    public class PropertyComparer<TClassType> : IComparer<TClassType>
+	public class PropertyComparer<TClassType> : IComparer<TClassType>
     {
         private string sCompareProperty;
         private bool bSortDescending;
@@ -18,7 +20,7 @@ namespace Timing_Data_Investigator
 
         public int Compare(TClassType x, TClassType y)
         {
-            var ComparePropertyInfo = typeof(TClassType).GetProperties().FirstOrDefault(p => p.Name == sCompareProperty);
+			PropertyInfo ComparePropertyInfo = typeof(TClassType).GetProperties().FirstOrDefault(p => p.Name == sCompareProperty);
             if (ComparePropertyInfo == null)
             {
                 throw new InvalidOperationException($"Class '{nameof(TClassType)}' does not contain a property named '{sCompareProperty}'!");
@@ -29,8 +31,8 @@ namespace Timing_Data_Investigator
                 throw new InvalidOperationException($"Property type '{ComparePropertyInfo.PropertyType.Name}' is not an IComparable!");
             }
 
-            var xPropValue = ComparePropertyInfo.GetValue(x) as IComparable;
-            var yPropValue = ComparePropertyInfo.GetValue(y) as IComparable;
+			IComparable xPropValue = ComparePropertyInfo.GetValue(x) as IComparable;
+			IComparable yPropValue = ComparePropertyInfo.GetValue(y) as IComparable;
             if (bSortDescending)
             {
                 return yPropValue.CompareTo(xPropValue);

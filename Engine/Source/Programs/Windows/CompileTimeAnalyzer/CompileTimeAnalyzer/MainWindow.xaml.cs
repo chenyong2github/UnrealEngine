@@ -1,7 +1,8 @@
-﻿using Microsoft.Win32;
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+using Microsoft.Win32;
 using System;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using Timing_Data_Investigator.Commands;
