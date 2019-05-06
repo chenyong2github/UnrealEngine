@@ -8,26 +8,27 @@
 #include "DSP/ReverbFast.h"
 
 
-static int32 DisableSubmixReverbCVar = 0;
+static int32 DisableSubmixReverbCVarFast = 0;
 static FAutoConsoleVariableRef CVarDisableSubmixReverb(
 	TEXT("au.DisableReverbSubmix"),
-	DisableSubmixReverbCVar,
+	DisableSubmixReverbCVarFast,
 	TEXT("Disables the reverb submix.\n")
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
 
-static int32 EnableReverbStereoFlipForQuadCVar = 0;
+
+static int32 EnableReverbStereoFlipForQuadCVarFast = 0;
 static FAutoConsoleVariableRef CVarReverbStereoFlipForQuad(
 	TEXT("au.EnableReverbStereoFlipForQuad"),
-	EnableReverbStereoFlipForQuadCVar,
+	EnableReverbStereoFlipForQuadCVarFast,
 	TEXT("Enables doing a stereo flip for quad reverb when in surround.\n")
 	TEXT("0: Not Enabled, 1: Enabled"),
 	ECVF_Default);
 
-static int32 DisableQuadReverbCVar = 0;
-static FAutoConsoleVariableRef CVarDisableQuadReverbCVar(
+static int32 DisableQuadReverbCVarFast = 0;
+static FAutoConsoleVariableRef CVarDisableQuadReverbCVarFast(
 	TEXT("au.DisableQuadReverb"),
-	DisableQuadReverbCVar,
+	DisableQuadReverbCVarFast,
 	TEXT("Disables quad reverb in surround.\n")
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
@@ -117,7 +118,7 @@ void FSubmixEffectReverbFast::OnProcessAudio(const FSoundEffectSubmixInputData& 
 	LLM_SCOPE(ELLMTag::AudioMixer);
 
 	check(InData.NumChannels == 2);
- 	if (OutData.NumChannels < 2 || DisableSubmixReverbCVar == 1) 
+ 	if (OutData.NumChannels < 2 || DisableSubmixReverbCVarFast == 1) 
 	{
 		// Not supported
 		return;
@@ -180,12 +181,12 @@ void FSubmixEffectReverbFast::UpdateParameters()
 
 	// Check cVars for quad mapping
 	Audio::FPlateReverbFastSettings::EQuadBehavior TargetQuadBehavior;
-	if (DisableQuadReverbCVar)
+	if (DisableQuadReverbCVarFast)
 	{
 		// Disable quad mapping.
  		TargetQuadBehavior = Audio::FPlateReverbFastSettings::EQuadBehavior::StereoOnly;
 	}
-	else if (!DisableQuadReverbCVar && EnableReverbStereoFlipForQuadCVar)
+	else if (!DisableQuadReverbCVarFast && EnableReverbStereoFlipForQuadCVarFast)
 	{
 		// Enable quad flipped mapping
 		TargetQuadBehavior = Audio::FPlateReverbFastSettings::EQuadBehavior::QuadFlipped;
