@@ -11,17 +11,28 @@ class FD3D12RayTracingShaderTable;
 
 typedef FD3D12VertexBuffer FD3D12MemBuffer; // Generic GPU memory buffer
 
-class FD3D12RayTracingGeometry : public FRHIRayTracingGeometry, public FD3D12DeviceChild, public FD3D12LinkedAdapterObject<FD3D12RayTracingGeometry>
+class FD3D12RayTracingGeometry : public FRHIRayTracingGeometry
 {
 public:
 
-	FD3D12RayTracingGeometry(FD3D12Device* Device);
+	FD3D12RayTracingGeometry();
 	~FD3D12RayTracingGeometry();
 
 	void TransitionBuffers(FD3D12CommandContext& CommandContext);
 	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext, bool bIsUpdate);
 
-	bool bIsAccelerationStructureDirty = false;
+	bool bIsAccelerationStructureDirty[MAX_NUM_GPUS] = {};
+	void SetDirty(FRHIGPUMask GPUMask, bool bState)
+	{
+		for (uint32 GPUIndex : GPUMask)
+		{
+			bIsAccelerationStructureDirty[GPUIndex] = bState;
+		}
+	}
+	bool IsDirty(uint32 GPUIndex) const
+	{
+		return bIsAccelerationStructureDirty[GPUIndex];
+	}
 
 	uint32 IndexStride = 0; // 0 for non-indexed / implicit triangle list, 2 for uint16, 4 for uint32
 	uint32 VertexOffsetInBytes = 0;
@@ -36,32 +47,30 @@ public:
 
 	EVertexElementType VertexElemType;
 
-	TRefCountPtr<FD3D12IndexBuffer>  IndexBuffer;
-	TRefCountPtr<FD3D12VertexBuffer> PositionVertexBuffer;
+	FIndexBufferRHIRef  RHIIndexBuffer;
+	FVertexBufferRHIRef RHIVertexBuffer;
 
-	TRefCountPtr<FD3D12MemBuffer> AccelerationStructureBuffer;
-	TRefCountPtr<FD3D12MemBuffer> ScratchBuffer;
+	TRefCountPtr<FD3D12MemBuffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
+	TRefCountPtr<FD3D12MemBuffer> ScratchBuffers[MAX_NUM_GPUS];
 
 };
 
-class FD3D12RayTracingScene : public FRHIRayTracingScene, public FD3D12DeviceChild, public FD3D12LinkedAdapterObject<FD3D12RayTracingScene>
+class FD3D12RayTracingScene : public FRHIRayTracingScene
 {
 public:
 
-	FD3D12RayTracingScene(FD3D12Device* Device);
+	FD3D12RayTracingScene(FD3D12Adapter& Adapter);
 	~FD3D12RayTracingScene();
 
 	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS BuildFlags);
 
-	// #dxr_todo UE-72157: only GPU resources should be managed as LinkedAdapterObjects
-	TRefCountPtr<FD3D12MemBuffer> AccelerationStructureBuffer;
-	TRefCountPtr<FD3D12ShaderResourceView> AccelerationStructureView;
-	bool bAccelerationStructureViewInitialized = false;
+	TRefCountPtr<FD3D12MemBuffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
+	bool bAccelerationStructureViewInitialized[MAX_NUM_GPUS] = {};
 
 	TArray<FRayTracingGeometryInstance> Instances;
 
 	// Scene keeps track of child acceleration structures to manage their residency
-	TArray<TRefCountPtr<FD3D12MemBuffer>> BottomLevelAccelerationStructureBuffers;
+	TArray<TRefCountPtr<FD3D12MemBuffer>> BottomLevelAccelerationStructureBuffers[MAX_NUM_GPUS];
 	void UpdateResidency(FD3D12CommandContext& CommandContext);
 
 	uint32 ShaderSlotsPerGeometrySegment = 1;
@@ -76,10 +85,10 @@ public:
 	uint32 NumCallableShaderSlots = 0;
 
 	// #dxr_todo UE-68230: shader tables should be explicitly registered and unregistered with the scene
-	FD3D12RayTracingShaderTable* FindOrCreateShaderTable(const FD3D12RayTracingPipelineState* Pipeline);
-	FD3D12RayTracingShaderTable* FindExistingShaderTable(const FD3D12RayTracingPipelineState* Pipeline) const;
+	FD3D12RayTracingShaderTable* FindOrCreateShaderTable(const FD3D12RayTracingPipelineState* Pipeline, FD3D12Device* Device);
+	FD3D12RayTracingShaderTable* FindExistingShaderTable(const FD3D12RayTracingPipelineState* Pipeline, FD3D12Device* Device) const;
 
-	TMap<const FD3D12RayTracingPipelineState*, FD3D12RayTracingShaderTable*> ShaderTables;
+	TMap<const FD3D12RayTracingPipelineState*, FD3D12RayTracingShaderTable*> ShaderTables[MAX_NUM_GPUS];
 };
 
 #endif // D3D12_RHI_RAYTRACING

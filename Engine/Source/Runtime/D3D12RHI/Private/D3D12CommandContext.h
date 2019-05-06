@@ -741,6 +741,81 @@ public:
 		ContextRedirect(RHIEndRenderPass());
 	}
 
+
+#if RHI_RAYTRACING
+	virtual void RHICopyBufferRegion(FVertexBufferRHIParamRef DestBuffer, uint64 DstOffset, FVertexBufferRHIParamRef SourceBuffer, uint64 SrcOffset, uint64 NumBytes) final override
+	{
+		ContextRedirect(RHICopyBufferRegion(DestBuffer, DstOffset, SourceBuffer, SrcOffset, NumBytes));
+	}
+
+	virtual void RHICopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> Params) final override
+	{
+		ContextRedirect(RHICopyBufferRegions(Params));
+	}
+#endif
+	virtual void RHIBuildAccelerationStructure(FRayTracingGeometryRHIParamRef Geometry) final override
+	{
+		ContextRedirect(RHIBuildAccelerationStructure(Geometry));
+	}
+
+	virtual void RHIUpdateAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params) final override
+	{
+		ContextRedirect(RHIUpdateAccelerationStructures(Params));
+	}
+
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params) final override
+	{
+		ContextRedirect(RHIBuildAccelerationStructures(Params));
+	}
+
+	virtual void RHIBuildAccelerationStructure(FRayTracingSceneRHIParamRef Scene) final override
+	{
+		ContextRedirect(RHIBuildAccelerationStructure(Scene));
+	}
+
+	virtual void RHIRayTraceOcclusion(FRayTracingSceneRHIParamRef Scene,
+		FShaderResourceViewRHIParamRef Rays,
+		FUnorderedAccessViewRHIParamRef Output,
+		uint32 NumRays) final override
+	{
+		ContextRedirect(RHIRayTraceOcclusion(Scene, Rays, Output, NumRays));
+	}
+
+	virtual void RHIRayTraceIntersection(FRayTracingSceneRHIParamRef Scene,
+		FShaderResourceViewRHIParamRef Rays,
+		FUnorderedAccessViewRHIParamRef Output,
+		uint32 NumRays) final override
+	{
+		ContextRedirect(RHIRayTraceIntersection(Scene, Rays, Output, NumRays));
+	}
+
+	virtual void RHIRayTraceDispatch(FRayTracingPipelineStateRHIParamRef RayTracingPipelineState, FRayTracingShaderRHIParamRef RayGenShader,
+		FRayTracingSceneRHIParamRef Scene,
+		const FRayTracingShaderBindings& GlobalResourceBindings,
+		uint32 Width, uint32 Height) final override
+	{
+		ContextRedirect(RHIRayTraceDispatch(RayTracingPipelineState, RayGenShader, Scene, GlobalResourceBindings, Width, Height));
+	}
+
+	virtual void RHISetRayTracingHitGroup(
+		FRayTracingSceneRHIParamRef Scene, uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot,
+		FRayTracingPipelineStateRHIParamRef Pipeline, uint32 HitGroupIndex,
+		uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
+		uint32 UserData) final override
+	{
+		ContextRedirect(RHISetRayTracingHitGroup(Scene, InstanceIndex, SegmentIndex, ShaderSlot, Pipeline, HitGroupIndex, NumUniformBuffers, UniformBuffers, UserData));
+	}
+
+	virtual void RHISetRayTracingCallableShader(
+		FRayTracingSceneRHIParamRef Scene, uint32 ShaderSlotInScene,
+		FRayTracingPipelineStateRHIParamRef Pipeline, uint32 ShaderIndexInPipeline,
+		uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
+		uint32 UserData) final override
+	{
+		ContextRedirect(RHISetRayTracingCallableShader(Scene, ShaderSlotInScene, Pipeline, ShaderIndexInPipeline, NumUniformBuffers, UniformBuffers, UserData));
+	}
+
+
 	FORCEINLINE void SetPhysicalContext(FD3D12CommandContext* Context)
 	{
 		check(Context);
