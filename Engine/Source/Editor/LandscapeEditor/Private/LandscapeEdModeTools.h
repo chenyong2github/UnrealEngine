@@ -1131,21 +1131,21 @@ public:
 
 	virtual bool ShouldUpdateEditingLayer() const { return GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem; }
 
-	virtual ELandscapeLayersContentUpdateFlag GetBeginToolContentUpdateFlag() const
+	virtual ELandscapeLayerUpdateMode GetBeginToolContentUpdateFlag() const
 	{
 		bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap; 
-		return bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_Render : ELandscapeLayersContentUpdateFlag::Weightmap_Render;
+		return bUpdateHeightmap ? ELandscapeLayerUpdateMode::Heightmap_Editing : ELandscapeLayerUpdateMode::Weightmap_Editing;
 	}
 
-	virtual ELandscapeLayersContentUpdateFlag GetTickToolContentUpdateFlag() const
+	virtual ELandscapeLayerUpdateMode GetTickToolContentUpdateFlag() const
 	{
 		return GetBeginToolContentUpdateFlag();
 	}
 
-	virtual ELandscapeLayersContentUpdateFlag GetEndToolContentUpdateFlag() const
+	virtual ELandscapeLayerUpdateMode GetEndToolContentUpdateFlag() const
 	{
 		bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
-		return bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_All : ELandscapeLayersContentUpdateFlag::Weightmap_All;
+		return bUpdateHeightmap ? ELandscapeLayerUpdateMode::Heightmap_All : ELandscapeLayerUpdateMode::Weightmap_All;
 	}
 
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
