@@ -71,7 +71,7 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 			GetDependentShaderAndVFTypes(GMaxRHIShaderPlatform, ShaderTypes, ShaderPipelineTypes, VFTypes);
 
 			// Overwrite the shader map Id's dependencies with ones that came from the FMaterial actually being compiled (this)
-			// This is necessary as we change FMaterial attributes like GetShadingModel(), which factor into the ShouldCache functions that determine dependent shader types
+			// This is necessary as we change FMaterial attributes like GetShadingModels(), which factor into the ShouldCache functions that determine dependent shader types
 			ResourceId.SetShaderDependencies(ShaderTypes, ShaderPipelineTypes, VFTypes, GMaxRHIShaderPlatform);
 		}
 
@@ -163,9 +163,9 @@ enum EBlendMode FDebugViewModeMaterialProxy::GetBlendMode() const
 	return MaterialInterface ? MaterialInterface->GetBlendMode() : BLEND_Opaque;
 }
 
-enum EMaterialShadingModel FDebugViewModeMaterialProxy::GetShadingModel() const
+FMaterialShadingModelField FDebugViewModeMaterialProxy::GetShadingModels() const
 { 
-	return Material ? Material->GetShadingModel() : MSM_Unlit;
+	return Material ? Material->GetShadingModels() : MSM_Unlit;
 }
 
 float FDebugViewModeMaterialProxy::GetOpacityMaskClipValue() const

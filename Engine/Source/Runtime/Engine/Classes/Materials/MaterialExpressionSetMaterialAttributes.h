@@ -39,9 +39,9 @@ class UMaterialExpressionSetMaterialAttributes : public UMaterialExpression
 	virtual const TArray<FExpressionInput*> GetInputs()override;
 	virtual FExpressionInput* GetInput(int32 InputIndex)override;
 	virtual FName GetInputName(int32 InputIndex) const override;
+	virtual uint32 GetInputType(int32 InputIndex) override;
 	virtual bool IsInputConnectionRequired(int32 InputIndex) const override {return true;}
 	virtual bool IsResultMaterialAttributes(int32 OutputIndex) override {return true;}
-	virtual uint32 GetInputType(int32 InputIndex) override {return InputIndex == 0 ? MCT_MaterialAttributes : MCT_Float3;}
 #endif
 	//~ End UMaterialExpression Interface
 };

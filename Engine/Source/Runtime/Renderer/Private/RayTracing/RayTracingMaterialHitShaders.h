@@ -34,7 +34,7 @@ private:
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT MaterialResource,
-		EMaterialShadingModel ShadingModel,
+		FMaterialShadingModelField ShadingModels,
 		const FUniformLightMapPolicy& RESTRICT LightMapPolicy,
 		const typename FUniformLightMapPolicy::ElementDataType& RESTRICT LightMapElementData);
 

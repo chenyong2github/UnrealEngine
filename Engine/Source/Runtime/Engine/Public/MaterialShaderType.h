@@ -30,6 +30,12 @@ class FVertexFactoryType;
 /** Converts an EMaterialShadingModel to a string description. */
 extern ENGINE_API FString GetShadingModelString(EMaterialShadingModel ShadingModel);
 
+/** Converts an FMaterialShadingModelField to a string description, base on the passed in function. */
+extern ENGINE_API FString GetShadingModelFieldString(FMaterialShadingModelField ShadingModels, FString(*ShadingModelToString)(EMaterialShadingModel), const FString& Delimiter = " ");
+
+/** Converts an FMaterialShadingModelField to a string description, base on a default function. */
+extern ENGINE_API FString GetShadingModelFieldString(FMaterialShadingModelField ShadingModels);
+
 /** Converts an EBlendMode to a string description. */
 extern ENGINE_API FString GetBlendModeString(EBlendMode BlendMode);
 
