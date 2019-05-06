@@ -135,6 +135,10 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = "Audio", AdvancedDisplay)
 	float DefaultReverbSendLevel;
 
+	/** Enables legacy version of reverb. The legacy reverb runs more slowly, but by most other measures is functionally equivalent. It has a slight perceptual difference. */
+	UPROPERTY(config, EditAnywhere, Category = "Audio", AdvancedDisplay)
+	uint32 bEnableLegacyReverb: 1;
+
 	/** How many streaming sounds can be played at the same time (if more are played they will be sorted by priority) */
 	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(ClampMin=0))
 	int32 MaximumConcurrentStreams;
