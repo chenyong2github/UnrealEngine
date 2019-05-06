@@ -141,7 +141,7 @@ FAutoConsoleCommand CmdPrintNumLandscapeShadows(
 ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
-, bLayerContentDirty(false)
+, LayerUpdateFlagPerMode(0)
 #endif
 , GrassData(MakeShareable(new FLandscapeComponentGrassData()))
 , ChangeTag(0)
@@ -1076,7 +1076,8 @@ ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 	bLockLocation = false;
 	PreviousExperimentalLandscapeLayers = false;
 	WasCompilingShaders = false;
-	LayersContentUpdateFlags = 0;
+	LayerContentUpdateModes = 0;
+	bLayerForceUpdateAllComponents = false;
 	CombinedLayersWeightmapAllMaterialLayersResource = nullptr;
 	CurrentLayersWeightmapAllMaterialLayersResource = nullptr;
 	WeightmapScratchExtractLayerTextureResource = nullptr;
