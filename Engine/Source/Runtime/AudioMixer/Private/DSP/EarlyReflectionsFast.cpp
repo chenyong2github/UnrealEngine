@@ -2,14 +2,6 @@
 
 using namespace Audio;
 
-// The presets for the late refelections reverb were based on a strange sample rate. This 
-// function helps translate delay values in the paper to delay values for this reverb.
-// https://ccrma.stanford.edu/~dattorro/EffectDesignPart1.pdf
-static int32 GetDelaySamples(float InSampleRate, float InPresetValue) {
-	
-	return (int32)((float)InSampleRate / 29761.f * InPresetValue);
-}
-
 FEarlyReflectionsFastSettings::FEarlyReflectionsFastSettings()
 	: Gain(1.0f)
 	, PreDelayMsec(0.0f)
