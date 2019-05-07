@@ -602,7 +602,7 @@ public:
 							FScopedSetLandscapeEditingLayer Scope(Landscape, LayerGuid);
 							Component->ReallocateWeightmaps(&LandscapeEdit, true, true, false, true, LandscapeProxy);
 						});
-						Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+						Landscape->RequestLayersContentUpdateForceAll();
 					}
 
 					// Need to Repacking all the Weight map (to make it packed well...)
@@ -1725,11 +1725,11 @@ public:
 		return ELandscapeToolTargetTypeMask::FromType(ToolTarget::TargetType);
 	}
 
-	virtual ELandscapeLayersContentUpdateFlag GetBeginToolContentUpdateFlag() const override { return ELandscapeLayersContentUpdateFlag::All_Render; }
+	virtual ELandscapeLayerUpdateMode GetBeginToolContentUpdateFlag() const override { return ELandscapeLayerUpdateMode::All_Editing; }
 
-	virtual ELandscapeLayersContentUpdateFlag GetTickToolContentUpdateFlag() const override { return ELandscapeLayersContentUpdateFlag::All_Render; }
+	virtual ELandscapeLayerUpdateMode GetTickToolContentUpdateFlag() const override { return GetBeginToolContentUpdateFlag(); }
 	
-	virtual ELandscapeLayersContentUpdateFlag GetEndToolContentUpdateFlag() const override { return ELandscapeLayersContentUpdateFlag::All; }
+	virtual ELandscapeLayerUpdateMode GetEndToolContentUpdateFlag() const override { return ELandscapeLayerUpdateMode::All; }
 		
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
 	{

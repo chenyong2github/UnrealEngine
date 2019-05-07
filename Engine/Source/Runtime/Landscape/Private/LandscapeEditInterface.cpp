@@ -396,34 +396,35 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 					TexDataInfo->AddMipUpdateRegion(0, TexX1, TexY1, TexX2, TexY2);
 				}
 			}
-
-			// See if we need to adjust the bounds. Note we never shrink the bounding box at this point
-			bool bUpdateBoxSphereBounds = false;
-
-			if (InUpdateBounds)
-			{
-				float MinLocalZ = LandscapeDataAccess::GetLocalHeight(MinHeight);
-				float MaxLocalZ = LandscapeDataAccess::GetLocalHeight(MaxHeight);
-
-				if (MinLocalZ < Component->CachedLocalBox.Min.Z)
-				{
-					Component->CachedLocalBox.Min.Z = MinLocalZ;
-					bUpdateBoxSphereBounds = true;
-				}
-				if (MaxLocalZ > Component->CachedLocalBox.Max.Z)
-				{
-					Component->CachedLocalBox.Max.Z = MaxLocalZ;
-					bUpdateBoxSphereBounds = true;
-				}
-
-				if (bUpdateBoxSphereBounds)
-				{
-					Component->UpdateComponentToWorld();
-				}
-			}
-
+												
+			Component->RequestHeightmapUpdate();
 			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
+				// See if we need to adjust the bounds. Note we never shrink the bounding box at this point
+				bool bUpdateBoxSphereBounds = false;
+
+				if (InUpdateBounds)
+				{
+					float MinLocalZ = LandscapeDataAccess::GetLocalHeight(MinHeight);
+					float MaxLocalZ = LandscapeDataAccess::GetLocalHeight(MaxHeight);
+
+					if (MinLocalZ < Component->CachedLocalBox.Min.Z)
+					{
+						Component->CachedLocalBox.Min.Z = MinLocalZ;
+						bUpdateBoxSphereBounds = true;
+					}
+					if (MaxLocalZ > Component->CachedLocalBox.Max.Z)
+					{
+						Component->CachedLocalBox.Max.Z = MaxLocalZ;
+						bUpdateBoxSphereBounds = true;
+					}
+
+					if (bUpdateBoxSphereBounds)
+					{
+						Component->UpdateComponentToWorld();
+					}
+				}
+
 				// Update mipmaps
 
 				// Work out how many mips should be calculated directly from one component's data.
@@ -452,15 +453,7 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 					}
 				}
 			}
-			else
-			{
-				if (ALandscape* Landscape = Component->GetLandscapeActor())
-				{
-					Component->SetLayerContentDirty(true);
-					Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::Heightmap_Editing);
-				}
-			}
-
+			
 			// Update GUID for Platform Data
 			FPlatformMisc::CreateGuid(Component->StateId);
 		}
@@ -1751,7 +1744,7 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 	Component->UpdateMaterialInstances();
 	Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
 	Component->UpdateEditToolRenderData();
-
+	Component->RequestWeightmapUpdate();
 	
 	// Update dominant layer info stored in collision component
 	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
@@ -1798,12 +1791,9 @@ void FLandscapeEditDataInterface::DeleteLayer(ULandscapeLayerInfoObject* LayerIn
 	Algo::Transform(LandscapeInfo->XYtoComponentMap, Components, &TPair<FIntPoint, ULandscapeComponent*>::Value);
 	ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (LandscapeInfo->LandscapeActor)
 	{
-		if (LandscapeInfo->LandscapeActor)
-		{
-			LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
-		}
+		LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All, true);
 	}
 }
 
@@ -1956,13 +1946,10 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 	Component->UpdateEditToolRenderData();
 
 	Component->InvalidateLightingCache();
+	Component->RequestWeightmapUpdate();
 
 	// Update dominant layer info stored in collision component
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-	{
-		GetLandscapeActor()->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All);
-	}
-	else
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
 		TArray<FColor*> CollisionWeightmapMipData;
 		for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
@@ -2038,13 +2025,9 @@ void FLandscapeEditDataInterface::FillLayer(ULandscapeLayerInfoObject* LayerInfo
 	TSet<ULandscapeComponent*> Components;
 	Algo::Transform(LandscapeInfo->XYtoComponentMap, Components, &TPair<FIntPoint, ULandscapeComponent*>::Value);
 	ALandscapeProxy::InvalidateGeneratedComponentData(Components);
-
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (LandscapeInfo->LandscapeActor)
 	{
-		if (LandscapeInfo->LandscapeActor)
-		{
-			LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
-		}
+		LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All, true);
 	}
 }
 
@@ -2236,6 +2219,35 @@ void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo,
 		EditToolRenderData.UpdateDebugColorMaterial(this);
 		UpdateEditToolRenderData();
 	}
+
+	RequestWeightmapUpdate();
+
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		// Update dominant layer info stored in collision component
+		TArray<FColor*> CollisionWeightmapMipData;
+		for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
+		{
+			CollisionWeightmapMipData.Add((FColor*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(CollisionMipLevel));
+		}
+		TArray<FColor*> SimpleCollisionWeightmapMipData;
+		if (SimpleCollisionMipLevel > CollisionMipLevel)
+		{
+			for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
+			{
+				SimpleCollisionWeightmapMipData.Add((FColor*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(SimpleCollisionMipLevel));
+			}
+		}
+		UpdateCollisionLayerData(
+			CollisionWeightmapMipData.GetData(),
+			SimpleCollisionMipLevel > CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr);
+
+
+		if(ULandscapeHeightfieldCollisionComponent* CollisionComp = CollisionComponent.Get())
+		{
+			CollisionComp->RecreateCollision();
+		}
+	}
 }
 
 void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo, ULandscapeLayerInfoObject* ToLayerInfo)
@@ -2248,36 +2260,6 @@ void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLa
 		{
 			ULandscapeComponent* Component = It.Value();
 			Component->ReplaceLayer(FromLayerInfo, ToLayerInfo, *this);
-
-			if(!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-			{
-				TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(true);
-
-				// Update dominant layer info stored in collision component
-				TArray<FColor*> CollisionWeightmapMipData;
-				for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
-				{
-					CollisionWeightmapMipData.Add((FColor*)GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(Component->CollisionMipLevel));
-				}
-				TArray<FColor*> SimpleCollisionWeightmapMipData;
-				if (Component->SimpleCollisionMipLevel > Component->CollisionMipLevel)
-				{
-					for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
-					{
-						SimpleCollisionWeightmapMipData.Add((FColor*)GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(Component->SimpleCollisionMipLevel));
-					}
-				}
-				Component->UpdateCollisionLayerData(
-					CollisionWeightmapMipData.GetData(),
-					Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr);
-
-
-				ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
-				if (CollisionComponent)
-				{
-					CollisionComponent->RecreateCollision();
-				}
-			}
 		}
 	};
 
@@ -2297,7 +2279,7 @@ void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLa
 				FScopedSetLandscapeEditingLayer Scope(LandscapeInfo->LandscapeActor.Get(), CurrentLayer.Guid);
 				DoReplace();
 			});
-			LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+			LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Weightmap_All, true);
 		}
 	}
 	else
