@@ -50,6 +50,11 @@ public class libOpus : ModuleRules
             string OpusPath = LibraryPath + "/IOS/libOpus.a";
             PublicAdditionalLibraries.Add(OpusPath);
         }
+	else if (Target.Platform == UnrealTargetPlatform.TVOS)
+        {
+            string OpusPath = LibraryPath + "/TVOS/libOpus.a";
+            PublicAdditionalLibraries.Add(OpusPath);
+        }
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
             if (Target.LinkType == TargetLinkType.Monolithic)
