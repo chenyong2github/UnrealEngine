@@ -3965,12 +3965,21 @@ bool UWorld::IsNavigationRebuilt() const
 	return GetNavigationSystem() == NULL || GetNavigationSystem()->IsNavigationBuilt(GetWorldSettings());
 }
 
-void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld)
+void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld, bool bResetCleanedUpFlag)
 {
 	UE_LOG(LogWorld, Log, TEXT("UWorld::CleanupWorld for %s, bSessionEnded=%s, bCleanupResources=%s"), *GetName(), bSessionEnded ? TEXT("true") : TEXT("false"), bCleanupResources ? TEXT("true") : TEXT("false"));
 
+	TArray<UWorld*> WorldsToResetCleanedUpFlag;
+
 	check(IsVisibilityRequestPending() == false);
+	
+	check(!bCleanedUpWorld);
 	bCleanedUpWorld = true;
+
+	if (bResetCleanedUpFlag)
+	{
+		WorldsToResetCleanedUpFlag.Add(this);
+	}
 
 	// Wait on current physics scenes if they are processing
 	if(FPhysScene* CurrPhysicsScene = GetPhysicsScene())
@@ -4065,7 +4074,12 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 		UWorld* World = CastChecked<UWorld>(GetLevel(LevelIndex)->GetOuter());
 		if (!World->bCleanedUpWorld)
 		{
-			World->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld);
+			World->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld, false);
+
+			if (bResetCleanedUpFlag)
+			{
+				WorldsToResetCleanedUpFlag.Add(World);
+			}
 		}
 	}
 
@@ -4076,7 +4090,12 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 			UWorld* World = CastChecked<UWorld>(Level->GetOuter());
 			if (!World->bCleanedUpWorld)
 			{
-				World->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld);
+				World->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld, false);
+
+				if (bResetCleanedUpFlag)
+				{
+					WorldsToResetCleanedUpFlag.Add(World);
+				}
 			}
 		}
 	}
@@ -4095,7 +4114,12 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 			UWorld* const LevelWorld = CastChecked<UWorld>(Level->GetOuter());
 			if (!LevelWorld->bCleanedUpWorld)
 			{
-				LevelWorld->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld);
+				LevelWorld->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld, false);
+
+				if (bResetCleanedUpFlag)
+				{
+					WorldsToResetCleanedUpFlag.Add(LevelWorld);
+				}
 			}
 		}
 	}
@@ -4103,6 +4127,12 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 	PSCPool.Cleanup();
 
 	FWorldDelegates::OnPostWorldCleanup.Broadcast(this, bSessionEnded, bCleanupResources);
+
+	for (UWorld* WorldToResetCleanedUpFlag: WorldsToResetCleanedUpFlag)
+	{
+		check(WorldToResetCleanedUpFlag->bCleanedUpWorld);
+		WorldToResetCleanedUpFlag->bCleanedUpWorld = false;
+	}
 }
 
 UGameViewportClient* UWorld::GetGameViewport() const
