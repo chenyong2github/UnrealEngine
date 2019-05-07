@@ -54,7 +54,7 @@ namespace MetadataTool
 		/// Constructor
 		/// </summary>
 		public CommandHandler_BuildHealth()
-			: base("TickBuildHealth")
+			: base("BuildHealth")
 		{
 		}
 
