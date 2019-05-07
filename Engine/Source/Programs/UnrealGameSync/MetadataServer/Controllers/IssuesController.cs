@@ -16,9 +16,9 @@ namespace MetadataServer.Controllers
 	public class IssuesController : ApiController
 	{
 		[HttpGet]
-		public List<IssueData> Get()
+		public List<IssueData> Get(bool IncludeResolved = false, int MaxResults = -1)
 		{
-			return SqlConnector.GetIssues();
+			return SqlConnector.GetIssues(IncludeResolved, MaxResults);
 		}
 
 		[HttpGet]
