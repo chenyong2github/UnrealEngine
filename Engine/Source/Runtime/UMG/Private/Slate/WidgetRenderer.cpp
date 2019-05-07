@@ -88,18 +88,40 @@ UTextureRenderTarget2D* FWidgetRenderer::CreateTargetFor(FVector2D DrawSize, Tex
 
 void FWidgetRenderer::DrawWidget(FRenderTarget* RenderTarget, const TSharedRef<SWidget>& Widget, FVector2D DrawSize, float DeltaTime, bool bDeferRenderTargetUpdate)
 {
+	DrawWidget(RenderTarget, Widget, 1.f, DrawSize, DeltaTime, bDeferRenderTargetUpdate);
+}
+
+void FWidgetRenderer::DrawWidget(UTextureRenderTarget2D* RenderTarget, const TSharedRef<SWidget>& Widget, FVector2D DrawSize, float DeltaTime, bool bDeferRenderTargetUpdate)
+{
+	DrawWidget(RenderTarget->GameThread_GetRenderTargetResource(), Widget, DrawSize, DeltaTime, bDeferRenderTargetUpdate);
+}
+
+void FWidgetRenderer::DrawWidget(
+	FRenderTarget* RenderTarget,
+	const TSharedRef<SWidget>& Widget,
+	float Scale,
+	FVector2D DrawSize,
+	float DeltaTime,
+	bool bDeferRenderTargetUpdate)
+{
 	TSharedRef<SVirtualWindow> Window = SNew(SVirtualWindow).Size(DrawSize);
 	TSharedRef<FHittestGrid> HitTestGrid = MakeShareable(new FHittestGrid());
 
 	Window->SetContent(Widget);
 	Window->Resize(DrawSize);
 
-	DrawWindow(RenderTarget, HitTestGrid, Window, 1, DrawSize, DeltaTime, bDeferRenderTargetUpdate);
+	DrawWindow(RenderTarget, HitTestGrid, Window, Scale, DrawSize, DeltaTime, bDeferRenderTargetUpdate);
 }
 
-void FWidgetRenderer::DrawWidget(UTextureRenderTarget2D* RenderTarget, const TSharedRef<SWidget>& Widget, FVector2D DrawSize, float DeltaTime, bool bDeferRenderTargetUpdate)
+void FWidgetRenderer::DrawWidget(
+	UTextureRenderTarget2D* RenderTarget,
+	const TSharedRef<SWidget>& Widget,
+	float Scale,
+	FVector2D DrawSize,
+	float DeltaTime,
+	bool bDeferRenderTargetUpdate)
 {
-	DrawWidget(RenderTarget->GameThread_GetRenderTargetResource(), Widget, DrawSize, DeltaTime, bDeferRenderTargetUpdate);
+	DrawWidget(RenderTarget->GameThread_GetRenderTargetResource(), Widget, Scale, DrawSize, DeltaTime, bDeferRenderTargetUpdate);
 }
 
 void FWidgetRenderer::DrawWindow(
