@@ -103,7 +103,7 @@ public class Engine : ModuleRules
 			}
 		);
 
-		if((Target.Platform != UnrealTargetPlatform.TVOS && Target.Platform != UnrealTargetPlatform.HTML5))
+		if(Target.Platform != UnrealTargetPlatform.HTML5)
 		{
 			// Cross platform Audio Codecs:
 			AddEngineThirdPartyPrivateStaticDependencies(Target,

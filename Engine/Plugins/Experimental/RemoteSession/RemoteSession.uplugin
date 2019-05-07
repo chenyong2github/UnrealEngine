@@ -21,7 +21,8 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"BlacklistPlatforms": [
-				"HTML5"
+				"HTML5",
+				"TVOS"
 			]
 		}
 	],
