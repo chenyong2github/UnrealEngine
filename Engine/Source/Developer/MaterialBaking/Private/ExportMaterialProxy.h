@@ -26,13 +26,11 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 	// gets value stored by SetMaterialProperty()
 	virtual EShaderFrequency GetCurrentShaderFrequency() const override
 	{
-		// not used by Lightmass
 		return SF_Pixel;
 	}
 
 	virtual FMaterialShadingModelField GetMaterialShadingModels() const override
 	{
-		// not used by Lightmass
 		return MSM_MAX;
 	}
 
@@ -383,6 +381,8 @@ public:
 						Compiler->Constant(0.5f)); // [-0.5,0.5] + 0.5
 				}
 				break;
+			case MP_ShadingModel:
+				return MaterialInterface->CompileProperty(&ProxyCompiler, MP_ShadingModel);
 			default:
 				return Compiler->Constant(1.0f);
 			}
@@ -398,6 +398,11 @@ public:
 		{
 			// Pass through customized UVs
 			return MaterialInterface->CompileProperty(Compiler, Property);
+		}
+		else if (Property == MP_ShadingModel)
+		{
+			return MaterialInterface->CompileProperty(Compiler, MP_ShadingModel);
+
 		}
 		else
 		{
