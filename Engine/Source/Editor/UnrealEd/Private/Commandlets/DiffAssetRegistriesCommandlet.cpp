@@ -248,7 +248,7 @@ int32 UDiffAssetRegistriesCommandlet::Main(const FString& FullCommandLine)
 		FString NewPlatformDir = NewPath.Left(NewPath.Find(AssetRegistrySubPath));
 		FString PlatformPath = FPaths::GetCleanFilename(NewPlatformDir);
 
-		for (const FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray(false))
+		for (const FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 		{
 			if (PlatformPath == PlatformInfo.TargetPlatformName.ToString())
 			{

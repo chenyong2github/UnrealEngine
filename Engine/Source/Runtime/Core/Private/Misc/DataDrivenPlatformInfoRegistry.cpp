@@ -38,7 +38,7 @@ bool FDataDrivenPlatformInfoRegistry::LoadDataDrivenIniFile(int32 Index, FConfig
 
 	FConfigCacheIni::LoadExternalIniFile(IniFile, *FPaths::GetBaseFilename(IniFilenames[Index]), nullptr, *FPaths::GetPath(IniFilenames[Index]), false);
 
-	// plugin paths are different (platform/engine/config, not engine/config/platform)
+	// platform extension paths are different (platform/engine/config, not engine/config/platform)
 	if (IniFilenames[Index].StartsWith(FPaths::PlatformExtensionsDir()))
 	{
 		PlatformName = FPaths::GetCleanFilename(FPaths::GetPath(FPaths::GetPath(FPaths::GetPath(IniFilenames[Index]))));

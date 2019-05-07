@@ -264,24 +264,22 @@ namespace PlatformInfo
 	 * Get an array of all the platforms we know about
 	 * @return The pointer to the start of the platform array
 	 */
-	DESKTOPPLATFORM_API const TArray<FPlatformInfo>& GetPlatformInfoArray(bool bAccessiblePlatformsOnly = true);
+	DESKTOPPLATFORM_API const TArray<FPlatformInfo>& GetPlatformInfoArray();
 
 	/**
 	 * Build a hierarchy mapping vanilla platforms to their flavors
 	 * @param InFilter - Flags to control which kinds of flavors you want to include
-	 * @param bAccessiblePlatformsOnly	If true, only the accessible platforms(installed, or could be installed) will be returned
 	 * @return An array of vanilla platforms, potentially containing flavors
 	 */
-	DESKTOPPLATFORM_API TArray<FVanillaPlatformEntry> BuildPlatformHierarchy(const EPlatformFilter InFilter, bool bAccessiblePlatformsOnly = true);
+	DESKTOPPLATFORM_API TArray<FVanillaPlatformEntry> BuildPlatformHierarchy(const EPlatformFilter InFilter);
 
 	/**
 	* Build a hierarchy mapping for specified vanilla platform to it flavors
 	* @param InPlatformName - Platform name to build hierarchy for, could be vanilla or flavor name
 	* @param InFilter - Flags to control which kinds of flavors you want to include
-	* @param bAccessiblePlatformsOnly	If true, only the accessible platforms(installed, or could be installed) will be returned
 	* @return Vanilla platform potentially containing flavors
 	*/
-	DESKTOPPLATFORM_API FVanillaPlatformEntry BuildPlatformHierarchy(const FName& InPlatformName, const EPlatformFilter InFilter, bool bAccessiblePlatformsOnly = true);
+	DESKTOPPLATFORM_API FVanillaPlatformEntry BuildPlatformHierarchy(const FName& InPlatformName, const EPlatformFilter InFilter);
 
 	/**
 	 * Get an array of all the platforms we know about
