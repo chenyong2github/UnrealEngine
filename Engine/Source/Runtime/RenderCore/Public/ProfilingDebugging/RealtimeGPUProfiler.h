@@ -215,6 +215,8 @@ class FScopedGPUStatEvent;
  #define GPU_STATS_ENDFRAME(RHICmdList) 
 #endif
 
+bool AreGPUStatsEnabled();
+
 #if HAS_GPU_STATS
 
 class FRealtimeGPUProfilerEvent;

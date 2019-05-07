@@ -567,7 +567,7 @@ void FRealtimeGPUProfiler::BeginFrame(FRHICommandListImmediate& RHICmdList)
 	bInBeginEndBlock = true;
 }
 
-inline bool AreGPUStatsEnabled()
+bool AreGPUStatsEnabled()
 {
 	if (GSupportsTimestampRenderQueries == false || !CVarGPUStatsEnabled.GetValueOnRenderThread())
 	{
