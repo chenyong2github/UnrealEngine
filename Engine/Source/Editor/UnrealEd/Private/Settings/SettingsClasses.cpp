@@ -348,8 +348,8 @@ ULevelEditorMiscSettings::ULevelEditorMiscSettings( const FObjectInitializer& Ob
 	bPromptWhenAddingToLevelBeforeCheckout = true;
 	bPromptWhenAddingToLevelOutsideBounds = true;
 	PercentageThresholdForPrompt = 20.0f;
+	bCreateNewAudioDeviceForPlayInEditor = true;
 }
-
 
 void ULevelEditorMiscSettings::PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent )
 {
