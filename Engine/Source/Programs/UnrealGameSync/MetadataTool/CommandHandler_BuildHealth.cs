@@ -157,6 +157,7 @@ namespace MetadataTool
 				// Post any issue updates
 				foreach(TrackedIssue Issue in State.Issues)
 				{
+					string Summary = Issue.GetSummary();
 					if(Issue.Id == -1)
 					{
 						Log.TraceInformation("Adding issue: {0}", Issue.Fingerprint);
@@ -168,7 +169,7 @@ namespace MetadataTool
 
 						CommandTypes.AddIssue IssueBody = new CommandTypes.AddIssue();
 						IssueBody.Project = "Fortnite";
-						IssueBody.Summary = Issue.GetSummary();
+						IssueBody.Summary = Summary;
 
 						using(HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}", ServerUrl, Issue.Id), "POST", IssueBody))
 						{
@@ -180,7 +181,36 @@ namespace MetadataTool
 							Issue.Id = ParseHttpResponse<CommandTypes.AddIssueResponse>(Response).Id;
 						}
 
+						Issue.PostedSummary = Summary;
 						SerializeJson(StateFile, State);
+					}
+					else if(Issue.PostedSummary == null || !String.Equals(Issue.PostedSummary, Summary, StringComparison.Ordinal))
+					{
+						Log.TraceInformation("Updating issue {0}", Issue.Id);
+
+						CommandTypes.UpdateIssue IssueBody = new CommandTypes.UpdateIssue();
+						IssueBody.Summary = Summary;
+
+						using (HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}", ServerUrl, Issue.Id), "PUT", IssueBody))
+						{
+							int ResponseCode = (int)Response.StatusCode;
+							if (!(ResponseCode >= 200 && ResponseCode <= 299))
+							{
+								throw new Exception("Unable to add issue");
+							}
+						}
+
+						Issue.PostedSummary = Summary;
+						SerializeJson(StateFile, State);
+					}
+				}
+
+				// Update the summary for any issues that are still open
+				foreach (TrackedIssue Issue in State.Issues)
+				{
+					if (Issue.Id == -1)
+					{
+						Log.TraceInformation("Adding issue: {0}", Issue.Fingerprint);
 					}
 				}
 
@@ -360,13 +390,24 @@ namespace MetadataTool
 				{
 					// Check that this issue is present in the current stream, and that this build is not either side of a successful build
 					TrackedIssueHistory History;
-					if (Issue.Streams.TryGetValue(InputJob.Stream, out History) && History.CanAddFailedBuild(InputJob.Change) && Issue.Fingerprint.CanMerge(Fingerprint))
+					if (!Issue.Streams.TryGetValue(InputJob.Stream, out History))
 					{
-						Issue.Fingerprint.Merge(Fingerprint);
-						History.AddFailedBuild(CreateBuildForJobStep(InputJob, InputJobStep));
-						Fingerprints.RemoveAt(Idx--);
-						break;
+						continue;
 					}
+					if(!History.CanAddFailedBuild(InputJob.Change))
+					{
+						continue;
+					}
+					if(!Issue.Fingerprint.CanMerge(Fingerprint))
+					{
+						continue;
+					}
+
+					// Merge the issue
+					Issue.Fingerprint.Merge(Fingerprint);
+					History.AddFailedBuild(CreateBuildForJobStep(InputJob, InputJobStep));
+					Fingerprints.RemoveAt(Idx--);
+					break;
 				}
 			}
 
@@ -397,19 +438,31 @@ namespace MetadataTool
 					Changes = FindChanges(Perforce, InputJob.Stream, LastChange, InputJob.Change);
 					if (Changes.Count > 0)
 					{
+						SortedSet<int> SourceChanges = new SortedSet<int>(Changes.SelectMany(x => x.SourceChanges));
 						for (int Idx = 0; Idx < Fingerprints.Count; Idx++)
 						{
 							TrackedIssueFingerprint Fingerprint = Fingerprints[Idx];
 							foreach (TrackedIssue Issue in State.Issues)
 							{
 								// Check if this issue does not already contain this stream, but contains one of the causing changes
-								if (!Issue.Streams.ContainsKey(InputJob.Stream) && Changes.SelectMany(x => x.SourceChanges).Any(x => Issue.SourceChanges.Contains(x)) && Issue.Fingerprint.CanMerge(Fingerprint))
+								if (Issue.Streams.ContainsKey(InputJob.Stream))
 								{
-									Issue.Fingerprint.Merge(Fingerprint);
-									AddFailureToIssue(Issue, InputJob, InputJobStep, State);
-									Fingerprints.RemoveAt(Idx--);
-									break;
+									continue;
 								}
+								if(!SourceChanges.Any(x => Issue.SourceChanges.Contains(x)))
+								{
+									continue;
+								}
+								if(!Issue.Fingerprint.CanMerge(Fingerprint))
+								{
+									continue;
+								}
+
+								// Merge the issue
+								Issue.Fingerprint.Merge(Fingerprint);
+								AddFailureToIssue(Issue, InputJob, InputJobStep, State);
+								Fingerprints.RemoveAt(Idx--);
+								break;
 							}
 						}
 					}
@@ -640,6 +693,7 @@ namespace MetadataTool
 				ChangeInfo Change = new ChangeInfo();
 				Change.Record = ChangeRecord;
 				Change.SourceChanges.Add(ChangeRecord.Number);
+				Changes.Add(Change);
 
 				Match SourceMatch = Regex.Match(ChangeRecord.Description, "^#ROBOMERGE-SOURCE: (.*)$", RegexOptions.Multiline);
 				if(SourceMatch.Success)

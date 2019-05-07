@@ -21,6 +21,12 @@ namespace MetadataTool
 		public long Id = -1;
 
 		/// <summary>
+		/// The last posted issue summary. Will be updated if it changes.
+		/// </summary>
+		[DataMember]
+		public string PostedSummary;
+
+		/// <summary>
 		/// Type common to all diagnostics within this issue.
 		/// </summary>
 		[DataMember(IsRequired = true)]
