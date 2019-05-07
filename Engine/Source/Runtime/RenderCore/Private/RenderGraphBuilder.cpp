@@ -92,6 +92,7 @@ FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList)
 	: RHICmdList(InRHICmdList)
 	, MemStack(FMemStack::Get())
 	, EventScopeStack(RHICmdList)
+	, StatScopeStack(RHICmdList)
 {}
 
 FRDGBuilder::~FRDGBuilder()
@@ -124,6 +125,7 @@ void FRDGBuilder::Execute()
 	#endif
 
 	EventScopeStack.BeginExecute();
+	StatScopeStack.BeginExecute();
 
 	if (!GRDGImmediateMode)
 	{
@@ -137,6 +139,7 @@ void FRDGBuilder::Execute()
 	}
 
 	EventScopeStack.EndExecute();
+	StatScopeStack.EndExecute();
 
 	ProcessDeferredInternalResourceQueries();
 
@@ -171,7 +174,8 @@ void FRDGBuilder::AddPassInternal(FRDGPass* Pass)
 	}
 	#endif
 
-	Pass->ParentScope = EventScopeStack.GetCurrentScope();
+	Pass->EventScope = EventScopeStack.GetCurrentScope();
+	Pass->StatScope = StatScopeStack.GetCurrentScope();
 	Passes.Emplace(Pass);
 
 	ValidatePass(Pass);
@@ -820,6 +824,7 @@ void FRDGBuilder::ExecutePass(const FRDGPass* Pass)
 	}
 
 	EventScopeStack.BeginExecutePass(Pass);
+	StatScopeStack.BeginExecutePass(Pass);
 
 	if (!Pass->IsCompute())
 	{
@@ -1416,10 +1421,20 @@ void FRDGBuilder::DestructPasses()
 
 void FRDGBuilder::BeginEventScope(FRDGEventName&& ScopeName)
 {
-	EventScopeStack.BeginEventScope(MoveTemp(ScopeName));
+	EventScopeStack.BeginScope(Forward<FRDGEventName&&>(ScopeName));
 }
 
 void FRDGBuilder::EndEventScope()
 {
-	EventScopeStack.EndEventScope();
+	EventScopeStack.EndScope();
+}
+
+void FRDGBuilder::BeginStatScope(const FName& Name, const FName& StatName)
+{
+	StatScopeStack.BeginScope(Name, StatName);
+}
+
+void FRDGBuilder::EndStatScope()
+{
+	StatScopeStack.EndScope();
 }

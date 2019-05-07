@@ -335,9 +335,17 @@ public:
 		#endif
 	}
 
-	/** 
-	 * Executes the queued passes, managing setting of render targets (RHI RenderPasses), resource transitions and queued texture extraction.
-	 */
+	/** Begins / ends a named event scope. These scopes are visible in most external GPU profilers.
+	 *  Prefer to use RDG_EVENT_SCOPE instead of calling this manually. */
+	void BeginEventScope(FRDGEventName&& ScopeName);
+	void EndEventScope();
+
+	/** Begins / ends a stat scope. Stat scopes are visible via 'stat GPU'. Must be accompanied by a
+	 *  respective EndStatScope call. Prefer to use RDG_GPU_STAT_SCOPE instead of calling this manually. */
+	void BeginStatScope(const FName& Name, const FName& StatName);
+	void EndStatScope();
+
+	/** Executes the queued passes, managing setting of render targets (RHI RenderPasses), resource transitions and queued texture extraction. */
 	void Execute();
 
 	/** The RHI command list used for the render graph. */
@@ -374,6 +382,7 @@ private:
 	TArray<FDeferredInternalBufferQuery, SceneRenderingAllocator> DeferredInternalBufferQueries;
 
 	FRDGEventScopeStack EventScopeStack;
+	FRDGStatScopeStack StatScopeStack;
 
 #if RDG_ENABLE_DEBUG
 	/** Whether the Execute() has already been called. */
@@ -415,9 +424,6 @@ private:
 	void AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV, bool bComputePass);
 	void AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV, bool bComputePass);
 
-	void BeginEventScope(FRDGEventName&& ScopeName);
-	void EndEventScope();
-
 	void TransitionTexture(FRDGTexture* Texture, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute) const;
 	void TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, FRDGTrackedResource* UnderlyingResource, ERDGResourceFlags ResourceFlags, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const;
 
@@ -433,8 +439,6 @@ private:
 
 	void ProcessDeferredInternalResourceQueries();
 	void DestructPasses();
-
-	friend class FRDGEventScopeGuard;
 
 	/** To allow greater flexibility in the user code, the RHI can dereferenced RDG resource when creating uniform buffer. */
 	// TODO(RDG): Make this a little more explicit in RHI code.

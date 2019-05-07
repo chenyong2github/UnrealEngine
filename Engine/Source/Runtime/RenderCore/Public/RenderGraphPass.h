@@ -208,9 +208,14 @@ public:
 		return ParameterStruct;
 	}
 
-	const FRDGEventScope* GetParentScope() const
+	const FRDGEventScope* GetEventScope() const
 	{
-		return ParentScope;
+		return EventScope;
+	}
+
+	const FRDGStatScope* GetStatScope() const
+	{
+		return StatScope;
 	}
 
 private:
@@ -224,7 +229,8 @@ private:
 	void Execute(FRHICommandListImmediate& RHICmdList) const;
 
 	const FRDGEventName Name;
-	const FRDGEventScope* ParentScope = nullptr;
+	const FRDGEventScope* EventScope = nullptr;
+	const FRDGStatScope* StatScope = nullptr;
 	FRDGPassParameterStruct ParameterStruct;
 	const ERDGPassFlags PassFlags;
 

@@ -5,21 +5,6 @@
 
 extern bool GetEmitRDGEvents();
 
-class FRDGEventScope
-{
-public:
-	FRDGEventScope(const FRDGEventScope* InParentScope, FRDGEventName&& InName)
-		: ParentScope(InParentScope)
-		, Name(InName)
-	{}
-
-	// Pointer towards this one is contained in.
-	const FRDGEventScope* const ParentScope;
-
-	// Name of the event.
-	const FRDGEventName Name;
-};
-
 #if RDG_EVENTS == RDG_EVENTS_STRING_COPY
 
 FRDGEventName::FRDGEventName(const TCHAR* EventFormat, ...)
@@ -55,107 +40,56 @@ FRDGEventScopeGuard::~FRDGEventScopeGuard()
 	GraphBuilder.EndEventScope();
 }
 
+static void OnPushEvent(FRHICommandListImmediate& RHICmdList, const FRDGEventScope* Scope)
+{
+	RHICmdList.PushEvent(Scope->Name.GetTCHAR(), FColor(0, 0, 0));
+}
+
+static void OnPopEvent(FRHICommandListImmediate& RHICmdList)
+{
+	RHICmdList.PopEvent();
+}
+
+bool FRDGEventScopeStack::IsEnabled()
+{
+	return RDG_EVENTS && GetEmitRDGEvents();
+}
+
 FRDGEventScopeStack::FRDGEventScopeStack(FRHICommandListImmediate& InRHICmdList)
-	: RHICmdList(InRHICmdList)
-	, MemStack(FMemStack::Get())
-	, ScopeStack(MakeUniformStaticArray<const FRDGEventScope*, kScopeStackDepthMax>(nullptr))
+	: ScopeStack(InRHICmdList, &OnPushEvent, &OnPopEvent)
 {}
 
-void FRDGEventScopeStack::BeginEventScope(FRDGEventName&& EventName)
+void FRDGEventScopeStack::BeginScope(FRDGEventName&& EventName)
 {
-	if (RDG_EVENTS)
+	if (IsEnabled())
 	{
-		auto Scope = new(MemStack) FRDGEventScope(CurrentScope, Forward<FRDGEventName>(EventName));
-		EventScopes.Add(Scope);
-		CurrentScope = Scope;
+		ScopeStack.BeginScope(Forward<FRDGEventName&&>(EventName));
 	}
 }
 
-void FRDGEventScopeStack::EndEventScope()
+void FRDGEventScopeStack::EndScope()
 {
-	if (RDG_EVENTS)
+	if (IsEnabled())
 	{
-		checkf(CurrentScope != nullptr, TEXT("Current scope is null."));
-		CurrentScope = CurrentScope->ParentScope;
+		ScopeStack.EndScope();
 	}
 }
 
 void FRDGEventScopeStack::BeginExecute()
 {
-	/** The usage need RDG_EVENT_SCOPE() needs to happen in inner scope of the one containing FRDGBuilder because of
-	 *  FStackRDGEventScopeRef's destructor modifying this FRDGBuilder instance.
-	 *
-	 *
-	 *  FRDGBuilder GraphBuilder(RHICmdList);
-	 *  {
-	 *  	RDG_EVENT_SCOPE(GraphBuilder, "MyEventScope");
-	 *  	// ...
-	 *  }
-	 *  GraphBuilder.Execute();
-	 */
-	checkf(CurrentScope == nullptr, TEXT("Render graph needs to have all scopes ended to execute."));
+	if (IsEnabled())
+	{
+		ScopeStack.BeginExecute();
+	}
 }
 
 void FRDGEventScopeStack::BeginExecutePass(const FRDGPass* Pass)
 {
-	if (!GetEmitRDGEvents())
+	if (IsEnabled())
 	{
-		return;
-	}
+		ScopeStack.BeginExecutePass(Pass->GetEventScope());
 
-	// Push the scope event.
-	{
-		// Find out how many scope events needs to be popped.
-		TStaticArray<const FRDGEventScope*, kScopeStackDepthMax> TraversedScopes;
-		int32 CommonScopeId = -1;
-		int32 TraversedScopeCount = 0;
-
-		const FRDGEventScope* PassParentScope = Pass->GetParentScope();
-
-		while (PassParentScope)
-		{
-			TraversedScopes[TraversedScopeCount] = PassParentScope;
-
-			for (int32 i = 0; i < ScopeStack.Num(); i++)
-			{
-				if (ScopeStack[i] == PassParentScope)
-				{
-					CommonScopeId = i;
-					break;
-				}
-			}
-
-			if (CommonScopeId != -1)
-			{
-				break;
-			}
-
-			TraversedScopeCount++;
-			PassParentScope = PassParentScope->ParentScope;
-		}
-
-		// Pop no longer used scopes
-		for (int32 i = CommonScopeId + 1; i < kScopeStackDepthMax; i++)
-		{
-			if (!ScopeStack[i])
-				break;
-
-			RHICmdList.PopEvent();
-			ScopeStack[i] = nullptr;
-		}
-
-		// Push new scopes
-		const FColor ScopeColor(0);
-		for (int32 i = TraversedScopeCount - 1; i >= 0; i--)
-		{
-			RHICmdList.PushEvent(TraversedScopes[i]->Name.GetTCHAR(), ScopeColor);
-			CommonScopeId++;
-			ScopeStack[CommonScopeId] = TraversedScopes[i];
-		}
-	}
-
-	// Push the pass's event with some color.
-	{
+		// Push the pass event with some color.
 		FColor Color(0, 0, 0);
 
 		if (Pass->IsCompute())
@@ -165,44 +99,102 @@ void FRDGEventScopeStack::BeginExecutePass(const FRDGPass* Pass)
 		}
 		else
 		{
-			// Ref for rasterizer.
+			// Red for rasterizer.
 			Color = FColor(255, 128, 128);
 		}
 
-		RHICmdList.PushEvent(Pass->GetName(), Color);
+		ScopeStack.RHICmdList.PushEvent(Pass->GetName(), Color);
 	}
 }
 
 void FRDGEventScopeStack::EndExecutePass()
 {
-	if (GetEmitRDGEvents())
+	if (IsEnabled())
 	{
-		RHICmdList.PopEvent();
+		ScopeStack.RHICmdList.PopEvent();
 	}
 }
 
 void FRDGEventScopeStack::EndExecute()
 {
-	// Pops remaining scopes
-	if (GetEmitRDGEvents())
+	if (IsEnabled())
 	{
-		for (uint32 ScopeIndex = 0; ScopeIndex < kScopeStackDepthMax; ++ScopeIndex)
-		{
-			if (!ScopeStack[ScopeIndex])
-			{
-				break;
-			}
-
-			RHICmdList.PopEvent();
-		}
+		ScopeStack.EndExecute();
 	}
+}
 
-#if RDG_EVENTS
-	// Event scopes are allocated on FMemStack, so need to call their destructor because have a FString within them.
-	for (int32 Index = EventScopes.Num() - 1; Index >= 0; --Index)
-	{
-		EventScopes[Index]->~FRDGEventScope();
-	}
-	EventScopes.Empty();
+FRDGStatScopeGuard::FRDGStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName)
+	: GraphBuilder(InGraphBuilder)
+{
+	GraphBuilder.BeginStatScope(Name, StatName);
+}
+
+FRDGStatScopeGuard::~FRDGStatScopeGuard()
+{
+	GraphBuilder.EndStatScope();
+}
+
+extern bool AreGPUStatsEnabled();
+
+static void OnPushStat(FRHICommandListImmediate& RHICmdList, const FRDGStatScope* Scope)
+{
+#if HAS_GPU_STATS
+	FRealtimeGPUProfiler::Get()->PushEvent(RHICmdList, Scope->Name, Scope->StatName);
 #endif
+}
+
+static void OnPopStat(FRHICommandListImmediate& RHICmdList)
+{
+#if HAS_GPU_STATS
+	FRealtimeGPUProfiler::Get()->PopEvent(RHICmdList);
+#endif
+}
+
+bool FRDGStatScopeStack::IsEnabled()
+{
+	return HAS_GPU_STATS && AreGPUStatsEnabled();
+}
+
+FRDGStatScopeStack::FRDGStatScopeStack(FRHICommandListImmediate& InRHICmdList)
+	: ScopeStack(InRHICmdList, &OnPushStat, &OnPopStat)
+{}
+
+void FRDGStatScopeStack::BeginScope(const FName& Name, const FName& StatName)
+{
+	if (IsEnabled())
+	{
+		ScopeStack.BeginScope(Name, StatName);
+	}
+}
+
+void FRDGStatScopeStack::EndScope()
+{
+	if (IsEnabled())
+	{
+		ScopeStack.EndScope();
+	}
+}
+
+void FRDGStatScopeStack::BeginExecute()
+{
+	if (IsEnabled())
+	{
+		ScopeStack.BeginExecute();
+	}
+}
+
+void FRDGStatScopeStack::BeginExecutePass(const FRDGPass* Pass)
+{
+	if (IsEnabled())
+	{
+		ScopeStack.BeginExecutePass(Pass->GetStatScope());
+	}
+}
+
+void FRDGStatScopeStack::EndExecute()
+{
+	if (IsEnabled())
+	{
+		ScopeStack.EndExecute();
+	}
 }
