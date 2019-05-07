@@ -183,6 +183,10 @@ template <typename InputType, typename ComputeType>
 bool ConstrainedDelaunay2<InputType, ComputeType>::Insert(
     std::array<int, 2> const& edge, int v0Triangle, std::vector<int>& outEdge)
 {
+	// TODO: this check helps avoid cases where the algorithm gets stuck in endless recursion walking the mesh (resulting in a stack overflow) ... overflow could still happen for a large mesh, so more work to prevent such an endless loop would be valuable!
+	// TODO: (and/or: rewrite the insert function to not be recursive!)
+	GTE_CDT_REQUIRE(outEdge.size() <= this->mComputeVertices.size());
+
     // Create the neighborhood of triangles that share the vertex v0.  On
     // entry we already know one such triangle (v0Triangle).
     int v0 = edge[0], v1 = edge[1];
@@ -563,7 +567,7 @@ ComputeType ConstrainedDelaunay2<InputType, ComputeType>::ComputePSD(int v0,
         else
         {
             dot = DotPerp(V2mV0, V1mV0);
-            psd = sqrlen10 * dot * dot;
+            psd = dot * dot;
         }
     }
 
@@ -576,6 +580,10 @@ int ConstrainedDelaunay2<InputType, ComputeType>::GetLinkTriangle(int v) const
     // Remap in case an edge vertex was specified that is a duplicate.
     v = this->mDuplicates[v];
 
+	// TODO: this algorithm does not work for point location in a CDT; it's only guaranteed for a (non-C)DT.
+	//  See https://hal.inria.fr/inria-00072509/document for a report on different approaches to walking a triangulation,
+	//  including an example of where this approach (visibility walk) fails.
+	//  For now, I've added a brute-force fallback below.  It would be better to choose a correct algorithm to put here though!
     int tri = 0;
     for (int i = 0; i < this->mNumTriangles; ++i)
     {
@@ -606,6 +614,22 @@ int ConstrainedDelaunay2<InputType, ComputeType>::GetLinkTriangle(int v) const
             }
         }
     }
+
+	// fallback to brute force search
+	// TODO: rm this after fixing the above point location to something that works for all triangulations
+	for (tri = 0; tri < this->mNumTriangles; ++tri)
+	{
+		// Test whether v is a vertex of the triangle.
+		std::array<int, 3> indices;
+		GTE_CDT_REQUIRE(this->GetIndices(tri, indices));
+		for (int j = 0; j < 3; ++j)
+		{
+			if (v == indices[j])
+			{
+				return tri;
+			}
+		}
+	}
 
     // The vertex must be in the triangulation.
     GTE_CDT_FAILURE_RET(-1);

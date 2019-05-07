@@ -51,9 +51,10 @@ struct FArrangement2d
 	 * 
 	 * Triangles: Output triangles (as indices into Graph vertices)
 	 * SkippedEdges: Output indices of edges that the algorithm failed to insert
+	 * BoundaryEdgeGroupID: ID of edges corresponding to a boundary; if we have a closed loop of these boundary edges on output triangulation, will discard triangles outside this
 	 * return: false if triangulation algo knows it failed (NOTE: triangulation may still be invalid when function returns true, as function is not robust)
 	 */
-	bool AttemptTriangulate(TArray<FIntVector>& Triangles, TArray<int32>& SkippedEdges);
+	bool GEOMETRYALGORITHMS_API AttemptTriangulate(TArray<FIntVector>& Triangles, TArray<int32>& SkippedEdges, int32 BoundaryEdgeGroupID);
 
 	/**
 	 * Check if current Graph has self-intersections; not optimized, only for debugging
@@ -155,7 +156,7 @@ protected:
 	/**
 	 * insert edge [A,B] into the arrangement, splitting existing edges as necessary
 	 */
-	bool insert_segment(const FVector2d& A, const FVector2d& B, int GID = -1, double Tol = 0)
+	bool insert_segment(FVector2d A, FVector2d B, int GID = -1, double Tol = 0)
 	{
 		// handle degenerate edges
 		int a_idx = find_existing_vertex(A);
@@ -163,6 +164,15 @@ protected:
 		if (a_idx == b_idx && a_idx >= 0)
 		{
 			return false;
+		}
+		// snap input vertices
+		if (a_idx >= 0)
+		{
+			A = Graph.GetVertex(a_idx);
+		}
+		if (b_idx >= 0)
+		{
+			B = Graph.GetVertex(b_idx);
 		}
 
 		// ok find all intersections

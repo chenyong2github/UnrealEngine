@@ -75,6 +75,14 @@ namespace VectorUtil
 		RealType Dot = edge1.Dot(edge2);
 		return (RealType)(0.5 * sqrt(edge1.SquaredLength() * edge2.SquaredLength() - Dot * Dot));
 	}
+	template <typename RealType>
+	inline RealType Area(const FVector2<RealType>& V0, const FVector2<RealType>& V1, const FVector2<RealType>& V2)
+	{
+		FVector2<RealType> edge1(V1 - V0);
+		FVector2<RealType> edge2(V2 - V0);
+		RealType Dot = edge1.Dot(edge2);
+		return (RealType)(0.5 * sqrt(edge1.SquaredLength() * edge2.SquaredLength() - Dot * Dot));
+	}
 
 	template <typename RealType>
 	inline bool IsObtuse(const FVector3<RealType>& V1, const FVector3<RealType>& V2, const FVector3<RealType>& V3)
