@@ -358,10 +358,18 @@ namespace MetadataServer.Connectors
 			{
 				Connection.Open();
 
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Issues] (Project, Summary, CreatedAt, FixChange) VALUES (@Project, @Summary, DATETIME('now'), 0)", Connection))
+				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Issues] (Project, Summary, OwnerId, CreatedAt, FixChange) VALUES (@Project, @Summary, @OwnerId, DATETIME('now'), 0)", Connection))
 				{
 					Command.Parameters.AddWithValue("@Project", Issue.Project);
 					Command.Parameters.AddWithValue("@Summary", Issue.Summary);
+					if (Issue.Owner != null)
+					{
+						Command.Parameters.AddWithValue("OwnerId", FindOrAddUserId(Issue.Owner, Connection));
+					}
+					else
+					{
+						Command.Parameters.AddWithValue("OwnerId", null);
+					}
 					Command.ExecuteNonQuery();
 
 					IssueId = Connection.LastInsertRowId;

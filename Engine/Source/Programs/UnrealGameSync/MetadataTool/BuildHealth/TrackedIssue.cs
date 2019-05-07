@@ -105,7 +105,7 @@ namespace MetadataTool
 			}
 			Result.AppendFormat("[{0}] ", String.Join("/", StreamNames));
 
-			if (Fingerprint.Category == TrackedIssueFingerprintCategory.Code)
+			if (Fingerprint.Category == TrackedIssueFingerprintCategory.Compile)
 			{
 				SortedSet<string> ShortFileNames = GetSourceFileNames();
 				if (ShortFileNames.Count == 0)
@@ -115,18 +115,6 @@ namespace MetadataTool
 				else
 				{
 					Result.AppendFormat("Compile errors in {0}", String.Join(", ", ShortFileNames));
-				}
-			}
-			else if (Fingerprint.Category == TrackedIssueFingerprintCategory.Content)
-			{
-				SortedSet<string> ShortFileNames = GetAssetNames();
-				if (ShortFileNames.Count == 0)
-				{
-					Result.Append("Content errors");
-				}
-				else
-				{
-					Result.AppendFormat("Content errors in {0}", String.Join(", ", ShortFileNames));
 				}
 			}
 			else

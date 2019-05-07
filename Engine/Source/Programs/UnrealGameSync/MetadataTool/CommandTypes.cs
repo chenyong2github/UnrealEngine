@@ -31,6 +31,7 @@ namespace MetadataTool
 		{
 			public string Project;
 			public string Summary;
+			public string Owner;
 		}
 
 		public class UpdateBuild

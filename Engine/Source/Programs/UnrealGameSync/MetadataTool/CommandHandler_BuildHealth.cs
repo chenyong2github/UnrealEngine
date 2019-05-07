@@ -171,6 +171,11 @@ namespace MetadataTool
 						IssueBody.Project = "Fortnite";
 						IssueBody.Summary = Summary;
 
+						if(Issue.PendingWatchers.Count == 1)
+						{
+							IssueBody.Owner = Issue.PendingWatchers.First();
+						}
+
 						using(HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}", ServerUrl, Issue.Id), "POST", IssueBody))
 						{
 							int ResponseCode = (int)Response.StatusCode;
@@ -277,7 +282,7 @@ namespace MetadataTool
 				// Update watchers on any open builds
 				foreach(TrackedIssue Issue in State.Issues)
 				{
-					while(Issue.PendingWatchers.Count > 0)
+					while (Issue.PendingWatchers.Count > 0)
 					{
 						CommandTypes.Watcher Watcher = new CommandTypes.Watcher();
 						Watcher.UserName = Issue.PendingWatchers.First();
@@ -299,8 +304,7 @@ namespace MetadataTool
 				}
 			}
 
-			// TODO: ASSIGN TO APPROPRIATE CAUSERS
-			// TODO: CONFIRM ISSUES ARE CLOSED
+			// TODO: VERIFY ISSUES ARE CLOSED
 		}
 
 		HttpWebResponse SendHttpRequest(string Url, string Method, object BodyObject)
@@ -374,7 +378,10 @@ namespace MetadataTool
 		{
 			// Create all the fingerprints for failures in this step
 			List<TrackedIssueFingerprint> Fingerprints = new List<TrackedIssueFingerprint>();
-			CreateFingerprints(InputJob, InputJobStep, Fingerprints);
+			if(InputJobStep.Diagnostics != null)
+			{
+				CreateFingerprints(InputJob, InputJobStep, Fingerprints);
+			}
 
 			// Early out if there are no remaining fingerprints to add
 			if (Fingerprints.Count == 0)
@@ -485,7 +492,7 @@ namespace MetadataTool
 					Issue = new TrackedIssue(Fingerprint, InputJob.Change);
 					if(Changes != null)
 					{
-						List<ChangeInfo> Causers = FilterCausers(Perforce, Changes);
+						List<ChangeInfo> Causers = FilterCausers(Perforce, Fingerprint, Changes);
 						foreach(ChangeInfo Causer in Causers)
 						{
 							Issue.SourceChanges.UnionWith(Causer.SourceChanges);
@@ -503,16 +510,34 @@ namespace MetadataTool
 		/// Filters the list of causers for a possible issue
 		/// </summary>
 		/// <param name="Perforce">The Perforce connection</param>
+		/// <param name="Fingerprint">The issue fingerprint</param>
 		/// <param name="Changes">List of changes</param>
-		/// <param name="Causers">Receives a possible list of causers</param>
-		List<ChangeInfo> FilterCausers(PerforceConnection Perforce, List<ChangeInfo> Changes)
+		/// <returns>Receives a possible list of causers</returns>
+		List<ChangeInfo> FilterCausers(PerforceConnection Perforce, TrackedIssueFingerprint Fingerprint, List<ChangeInfo> Changes)
 		{
+			HashSet<string> ShortFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			foreach(string FileName in Fingerprint.FileNames)
+			{
+				int Idx = FileName.LastIndexOf('/');
+				if(Idx != -1)
+				{
+					ShortFileNames.Add(FileName.Substring(Idx + 1));
+				}
+			}
+
 			List<ChangeInfo> LikelyCausers = new List<ChangeInfo>();
 			List<ChangeInfo> PossibleCausers = new List<ChangeInfo>();
 			foreach(ChangeInfo Change in Changes)
 			{
 				DescribeRecord Description = Perforce.Describe(Change.Record.Number).Data;
-				PossibleCausers.Add(Change);
+				if(IsLikelyCauser(Description, ShortFileNames))
+				{
+					LikelyCausers.Add(Change);
+				}
+				else
+				{
+					PossibleCausers.Add(Change);
+				}
 			}
 
 			if(LikelyCausers.Count > 0)
@@ -523,6 +548,29 @@ namespace MetadataTool
 			{
 				return PossibleCausers;
 			}
+		}
+
+		/// <summary>
+		/// Determines if this change is a likely causer for an issue
+		/// </summary>
+		/// <param name="DescribeRecord">The change describe record</param>
+		/// <param name="Fingerprint">Fingerprint for the issue</param>
+		/// <returns>True if the change is a likely culprit</returns>
+		bool IsLikelyCauser(DescribeRecord DescribeRecord, HashSet<string> ShortFileNames)
+		{
+			foreach(DescribeFileRecord File in DescribeRecord.Files)
+			{
+				int Idx = File.DepotFile.LastIndexOf('/');
+				if(Idx != -1)
+				{
+					string FileName = File.DepotFile.Substring(Idx + 1);
+					if(ShortFileNames.Contains(FileName))
+					{
+						return true;
+					}
+				}
+			}
+			return false;
 		}
 
 		/// <summary>
@@ -568,73 +616,28 @@ namespace MetadataTool
 		/// <param name="Fingerprints">List which receives the created fingerprints</param>
 		void CreateFingerprints(InputJob Job, InputJobStep JobStep, List<TrackedIssueFingerprint> Fingerprints)
 		{
-			if(JobStep.Diagnostics != null)
+			foreach(InputDiagnostic Diagnostic in JobStep.Diagnostics)
 			{
-				foreach(InputDiagnostic Diagnostic in JobStep.Diagnostics)
+				// Find any files in compiler output format
+				HashSet<string> SourceFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+				foreach (Match FileMatch in Regex.Matches(Diagnostic.Message, @"^\s*(?:In file included from\s*)?((?:[A-Za-z]:)?[^\s(:]+)[\(:]\d", RegexOptions.Multiline))
 				{
-					// List of files that are of unknown type
-					HashSet<string> FileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-					// Find any files in compiler output format
-					HashSet<string> SourceFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-					foreach (Match FileMatch in Regex.Matches(Diagnostic.Message, @"^\s*(?:In file included from\s*)?((?:[A-Za-z]:)?[^\s(:]+)[\(:]\d", RegexOptions.Multiline))
+					if (FileMatch.Success)
 					{
-						if (FileMatch.Success)
+						string FileName = GetNormalizedFileName(FileMatch.Groups[1].Value, JobStep.BaseDirectory);
+						if(SourceFileExtensions.Any(x => FileName.EndsWith(x, StringComparison.OrdinalIgnoreCase)))
 						{
-							string FileName = GetNormalizedFileName(FileMatch.Groups[1].Value, JobStep.BaseDirectory);
-							if(SourceFileExtensions.Any(x => FileName.EndsWith(x, StringComparison.OrdinalIgnoreCase)))
-							{
-								SourceFileNames.Add(FileName);
-							}
-							else
-							{
-								FileNames.Add(FileName);
-							}
+							SourceFileNames.Add(FileName);
 						}
 					}
+				}
 
-					// Find any content files
-					HashSet<string> ContentFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-					foreach (Match FileMatch in Regex.Matches(Diagnostic.Message, @"(?<=\W)(/(?:Game|Engine)/[^ :,]+[A-Za-z])(?=\W)"))
-					{
-						if (FileMatch.Success)
-						{
-							string FileName = FileMatch.Groups[1].Value;
-							ContentFileNames.Add(FileName);
-						}
-					}
-
-					// If we found any source files, create a diagnostic category for them
-					if (SourceFileNames.Count > 0)
-					{
-						TrackedIssueFingerprint Fingerprint = new TrackedIssueFingerprint(TrackedIssueFingerprintCategory.Code, Job.Change);
-						Fingerprint.FileNames.UnionWith(SourceFileNames);
-						Fingerprints.Add(Fingerprint);
-					}
-
-					// If we found any content files, create a diagnostic category for them
-					if (ContentFileNames.Count > 0)
-					{
-						TrackedIssueFingerprint Fingerprint = new TrackedIssueFingerprint(TrackedIssueFingerprintCategory.Content, Job.Change);
-						Fingerprint.FileNames.UnionWith(ContentFileNames);
-						Fingerprints.Add(Fingerprint);
-					}
-
-					// If there are any other files, create an unknown issue for it
-					if (FileNames.Count > 0)
-					{
-						TrackedIssueFingerprint Fingerprint = new TrackedIssueFingerprint(TrackedIssueFingerprintCategory.Unknown, Job.Change);
-						Fingerprint.FileNames.UnionWith(FileNames);
-						Fingerprints.Add(Fingerprint);
-					}
-
-					// If we didn't find any files, add a distinct issue
-					if(SourceFileNames.Count == 0 && ContentFileNames.Count == 0 && FileNames.Count == 0)
-					{
-						TrackedIssueFingerprint Fingerprint = new TrackedIssueFingerprint(TrackedIssueFingerprintCategory.Unknown, Job.Change);
-						Fingerprint.Messages.Add(Diagnostic.Message);
-						Fingerprints.Add(Fingerprint);
-					}
+				// If we found any source files, create a diagnostic category for them
+				if (SourceFileNames.Count > 0)
+				{
+					TrackedIssueFingerprint Fingerprint = new TrackedIssueFingerprint(TrackedIssueFingerprintCategory.Compile, Job.Change);
+					Fingerprint.FileNames.UnionWith(SourceFileNames);
+					Fingerprints.Add(Fingerprint);
 				}
 			}
 		}
