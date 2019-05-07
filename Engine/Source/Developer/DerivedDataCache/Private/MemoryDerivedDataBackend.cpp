@@ -30,12 +30,6 @@ bool FMemoryDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 	{
 		return false;
 	}
-	// to avoid constant error reporting in async put due to restricted cache size, 
-	// we report true if the max size has been exceeded
-	if (bMaxSizeExceeded)
-	{
-		return true;
-	}
 
 	bool Result = CacheItems.Contains(FString(CacheKey));
 	if (Result)
