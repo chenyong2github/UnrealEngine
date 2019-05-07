@@ -66,7 +66,6 @@ bool ShouldRenderRayTracingAmbientOcclusion(const FViewInfo& View)
 }
 
 DECLARE_GPU_STAT_NAMED(RayTracingAmbientOcclusion, TEXT("Ray Tracing Ambient Occlusion"));
-DECLARE_GPU_STAT_NAMED(AmbientOcclusionDenoiser, TEXT("Ambient Occlusion Denoiser"));
 
 class FRayTracingAmbientOcclusionRGS : public FGlobalShader
 {
@@ -235,8 +234,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 	int32 DenoiserMode = CVarUseAODenoiser.GetValueOnRenderThread();
 	if (DenoiserMode != 0)
 	{
-		SCOPED_GPU_STAT(RHICmdList, AmbientOcclusionDenoiser);
-
 		FSceneViewFamilyBlackboard SceneBlackboard;
 		SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
 

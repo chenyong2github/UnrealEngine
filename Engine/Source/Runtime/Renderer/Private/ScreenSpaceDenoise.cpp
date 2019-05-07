@@ -115,6 +115,11 @@ static_assert(IScreenSpaceDenoiser::kMaxBatchSize <= kMaxBufferProcessingCount, 
 
 const IScreenSpaceDenoiser* GScreenSpaceDenoiser = nullptr;
 
+DECLARE_GPU_STAT(ReflectionsDenoiser)
+DECLARE_GPU_STAT(ShadowsDenoiser)
+DECLARE_GPU_STAT(AmbientOcclusionDenoiser)
+DECLARE_GPU_STAT(DiffuseIndirectDenoiser)
+
 namespace
 {
 
@@ -1231,7 +1236,6 @@ static void DenoiseSignalAtConstantPixelDensity(
 	}
 } // DenoiseSignalAtConstantPixelDensity()
 
-
 /** The implementation of the default denoiser of the renderer. */
 class FDefaultScreenSpaceDenoiser : public IScreenSpaceDenoiser
 {
@@ -1263,6 +1267,8 @@ public:
 		const int32 InputParameterCount,
 		TStaticArray<FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize>& Outputs) const override
 	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowsDenoiser);
+
 		FSSDSignalTextures InputSignal;
 
 		FSSDConstantPixelDensitySettings Settings;
@@ -1331,6 +1337,8 @@ public:
 		const FReflectionsInputs& ReflectionInputs,
 		const FReflectionsRayTracingConfig RayTracingConfig) const override
 	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, ReflectionsDenoiser);
+
 		FSSDSignalTextures InputSignal;
 		InputSignal.Textures[0] = ReflectionInputs.Color;
 		InputSignal.Textures[1] = ReflectionInputs.RayHitDistance;
@@ -1369,6 +1377,8 @@ public:
 		const FAmbientOcclusionInputs& ReflectionInputs,
 		const FAmbientOcclusionRayTracingConfig RayTracingConfig) const override
 	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, AmbientOcclusionDenoiser);
+
 		FSSDSignalTextures InputSignal;
 		InputSignal.Textures[0] = ReflectionInputs.Mask;
 		InputSignal.Textures[1] = ReflectionInputs.RayHitDistance;
@@ -1407,6 +1417,8 @@ public:
 		const FGlobalIlluminationInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const override
 	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, DiffuseIndirectDenoiser);
+
 		FSSDSignalTextures InputSignal;
 		InputSignal.Textures[0] = Inputs.Color;
 		InputSignal.Textures[1] = Inputs.RayHitDistance;
@@ -1445,6 +1457,8 @@ public:
 		const FGlobalIlluminationInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const override
 	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, DiffuseIndirectDenoiser);
+
 		FSSDSignalTextures InputSignal;
 		InputSignal.Textures[0] = Inputs.Color;
 		InputSignal.Textures[1] = Inputs.RayHitDistance;
