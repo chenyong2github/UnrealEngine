@@ -66,7 +66,10 @@ public:
 	struct FReflectionsRayTracingConfig
 	{
 		// Resolution fraction the ray tracing is being traced at.
-		float ResolutionFraction;
+		float ResolutionFraction = 1.0f;
+		
+		// Number of rays per pixels.
+		int32 RayCountPerPixel = 1;
 	};
 	
 	/** The configuration of the reflection ray tracing. */

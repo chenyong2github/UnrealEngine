@@ -360,7 +360,7 @@ float ComputeInfinityBluringRadius(FSSFSampleSceneInfos SceneMetadata)
 	#if 1
 	{
 		// Measure the angle that only truncate 10% of D_GGX's tale.
-		const float E = (1.0 - 0.1);
+		const float E = (1.0 - GGX_IMPORTANT_SAMPLE_BIAS);
 	
 		float a2 = Pow4(SceneMetadata.Roughness);
 	

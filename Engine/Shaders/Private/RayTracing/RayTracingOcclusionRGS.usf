@@ -5,6 +5,7 @@
 #include "../DeferredShadingCommon.ush"
 #include "../LightShaderParameters.ush"
 #include "../SceneViewFamilyBlackboard.ush"
+#include "../ScreenSpaceDenoise/SSDPublic.ush"
 #include "RayTracingCommon.ush"
 #include "RayTracingDirectionalLight.ush"
 #include "RayTracingRectLight.ush"
@@ -120,7 +121,7 @@ void OcclusionRGS()
 	
 	float Visibility = 0.0;
 	float SumRayDistance = 0.0;
-	float ClosestRayDistance = -2.0;
+	float ClosestRayDistance = DENOISER_INVALID_HIT_DISTANCE;
 	float HitCount = 0.0;
 	float RayCount = 0.0;
 	uint LocalSamplesPerPixel = SamplesPerPixel;
@@ -241,13 +242,13 @@ void OcclusionRGS()
 			Visibility += Payload.HitT < 0 ? 1.0 : 0.0;
 			if (Payload.HitT >= 0.0)
 			{
-				ClosestRayDistance = ClosestRayDistance == -2 || Payload.HitT < ClosestRayDistance ? Payload.HitT : ClosestRayDistance;
+				ClosestRayDistance = ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE || Payload.HitT < ClosestRayDistance ? Payload.HitT : ClosestRayDistance;
 				SumRayDistance += Payload.HitT;
 				HitCount += 1.0;
 			}
 			else
 			{
-				ClosestRayDistance = ClosestRayDistance == -2 ? -1 : ClosestRayDistance;
+				ClosestRayDistance = ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE ? DENOISER_MISS_HIT_DISTANCE : ClosestRayDistance;
 			}
 		}
 	}

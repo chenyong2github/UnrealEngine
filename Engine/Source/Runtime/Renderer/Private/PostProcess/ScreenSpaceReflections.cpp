@@ -72,12 +72,10 @@ bool ShouldRenderScreenSpaceReflections(const FViewInfo& View)
 	return true;
 }
 
-bool IsSSRTemporalPassRequired(const FViewInfo& View, bool bCheckSSREnabled)
+bool IsSSRTemporalPassRequired(const FViewInfo& View)
 {
-	if (bCheckSSREnabled && !ShouldRenderScreenSpaceReflections(View))
-	{
-		return false;
-	}
+	check(ShouldRenderScreenSpaceReflections(View));
+
 	if (!View.State)
 	{
 		return false;
@@ -88,7 +86,7 @@ bool IsSSRTemporalPassRequired(const FViewInfo& View, bool bCheckSSREnabled)
 namespace
 {
 
-float ComputeRoughnessMaskScale(const FViewInfo& View, uint32 SSRQuality)
+float ComputeRoughnessMaskScale(const FViewInfo& View, ESSRQuality SSRQuality)
 {
 	float MaxRoughness = FMath::Clamp(View.FinalPostProcessSettings.ScreenSpaceReflectionMaxRoughness, 0.01f, 1.0f);
 
@@ -97,10 +95,10 @@ float ComputeRoughnessMaskScale(const FViewInfo& View, uint32 SSRQuality)
 	// f(MaxRoughness/2) = 1
 
 	float RoughnessMaskScale = -2.0f / MaxRoughness;
-	return RoughnessMaskScale * (SSRQuality < 3 ? 2.0f : 1.0f);
+	return RoughnessMaskScale * (int32(SSRQuality) < 3 ? 2.0f : 1.0f);
 }
 
-FLinearColor ComputeSSRParams(const FViewInfo& View, uint32 SSRQuality, bool bEnableDiscard)
+FLinearColor ComputeSSRParams(const FViewInfo& View, ESSRQuality SSRQuality, bool bEnableDiscard)
 {
 	float RoughnessMaskScale = ComputeRoughnessMaskScale(View, SSRQuality);
 
@@ -138,12 +136,18 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSRCommonParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 
+
+class FSSRQualityDim : SHADER_PERMUTATION_ENUM_CLASS("SSR_QUALITY", ESSRQuality);
+class FSSRPrevFrameColorDim : SHADER_PERMUTATION_BOOL("PREV_FRAME_COLOR");
+class FSSROutputForDenoiser : SHADER_PERMUTATION_BOOL("SSR_OUTPUT_FOR_DENOISER");
+
+
 class FScreenSpaceReflectionsStencilPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FScreenSpaceReflectionsStencilPS);
 	SHADER_USE_PARAMETER_STRUCT(FScreenSpaceReflectionsStencilPS, FGlobalShader);
 
-	using FPermutationDomain = FShaderPermutationNone;
+	using FPermutationDomain = TShaderPermutationDomain<FSSROutputForDenoiser>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -163,25 +167,17 @@ class FScreenSpaceReflectionsStencilPS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-
-static constexpr int32 QualityCount = 5;
-
-class FSSRQualityDim : SHADER_PERMUTATION_INT("SSR_QUALITY", QualityCount);
-class FSSRPrevFrameColorDim : SHADER_PERMUTATION_BOOL("PREV_FRAME_COLOR");
-class FSSRPrevFrameColorDim2 : SHADER_PERMUTATION_BOOL("PREV_FRAME_COLOR");
-
-
 class FScreenSpaceReflectionsPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FScreenSpaceReflectionsPS);
 	SHADER_USE_PARAMETER_STRUCT(FScreenSpaceReflectionsPS, FGlobalShader);
 
-	using FPermutationDomain = TShaderPermutationDomain<FSSRQualityDim, FSSRPrevFrameColorDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FSSRQualityDim, FSSRPrevFrameColorDim, FSSROutputForDenoiser>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if ((PermutationVector.Get<FSSRQualityDim>() == 0) && PermutationVector.Get<FSSRPrevFrameColorDim>())
+		if ((PermutationVector.Get<FSSRQualityDim>() == ESSRQuality::VisualizeSSR) && PermutationVector.Get<FSSRPrevFrameColorDim>())
 		{
 			return false;
 		}
@@ -208,55 +204,92 @@ class FScreenSpaceReflectionsPS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FScreenSpaceReflectionsPS, "/Engine/Private/ScreenSpaceReflections.usf", "ScreenSpaceReflectionsPS", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FScreenSpaceReflectionsStencilPS, "/Engine/Private/ScreenSpaceReflections.usf", "ScreenSpaceReflectionsStencilPS", SF_Pixel);
 
-// @param Quality usually in 0..100 range, default is 50
-// @return see CVarSSRQuality, never 0
-static int32 ComputeSSRQuality(float Quality)
+void GetSSRShaderOptionsForQuality(ESSRQuality Quality, IScreenSpaceDenoiser::FReflectionsRayTracingConfig* OutRayTracingConfigs)
 {
-	int32 Ret;
-
-	if(Quality >= 60.0f)
+	if (Quality == ESSRQuality::VisualizeSSR)
 	{
-		Ret = (Quality >= 80.0f) ? 4 : 3;
+		OutRayTracingConfigs->RayCountPerPixel = 12;
+	}
+	else if (Quality == ESSRQuality::Epic)
+	{
+		OutRayTracingConfigs->RayCountPerPixel = 12;
+	}
+	else if (Quality == ESSRQuality::High)
+	{
+		OutRayTracingConfigs->RayCountPerPixel = 4;
+	}
+	else if (Quality == ESSRQuality::Medium)
+	{
+		OutRayTracingConfigs->RayCountPerPixel = 1;
+	}
+	else if (Quality == ESSRQuality::Low)
+	{
+		OutRayTracingConfigs->RayCountPerPixel = 1;
 	}
 	else
 	{
-		Ret = (Quality >= 40.0f) ? 2 : 1;
+		check(0);
 	}
-
-	int SSRQualityCVar = FMath::Clamp(CVarSSRQuality.GetValueOnRenderThread(), 0, QualityCount - 1);
-
-	return FMath::Min(Ret, SSRQualityCVar);
 }
 
 } // namespace
 
-FRDGTextureRef RenderScreenSpaceReflections(
+void GetSSRQualityForView(const FViewInfo& View, ESSRQuality* OutQuality, IScreenSpaceDenoiser::FReflectionsRayTracingConfig* OutRayTracingConfigs)
+{
+	check(ShouldRenderScreenSpaceReflections(View));
+	
+	int32 SSRQualityCVar = FMath::Clamp(CVarSSRQuality.GetValueOnRenderThread(), 0, int32(ESSRQuality::MAX) - 1);
+	
+	if (View.Family->EngineShowFlags.VisualizeSSR)
+	{
+		*OutQuality = ESSRQuality::VisualizeSSR;
+		return;
+	}
+	else if (View.FinalPostProcessSettings.ScreenSpaceReflectionQuality >= 80.0f && SSRQualityCVar >= 4)
+	{
+		*OutQuality = ESSRQuality::Epic;
+	}
+	else if (View.FinalPostProcessSettings.ScreenSpaceReflectionQuality >= 60.0f && SSRQualityCVar >= 3)
+	{
+		*OutQuality = ESSRQuality::High;
+	}
+	else if (View.FinalPostProcessSettings.ScreenSpaceReflectionQuality >= 40.0f && SSRQualityCVar >= 2)
+	{
+		*OutQuality = ESSRQuality::Medium;
+	}
+	else
+	{
+		*OutQuality = ESSRQuality::Low;
+	}
+
+	GetSSRShaderOptionsForQuality(*OutQuality, OutRayTracingConfigs);
+}
+
+void RenderScreenSpaceReflections(
 	FRDGBuilder& GraphBuilder,
 	const FSceneViewFamilyBlackboard& SceneTextures,
 	const FRDGTextureRef CurrentSceneColor,
-	const FViewInfo& View)
+	const FViewInfo& View,
+	ESSRQuality SSRQuality,
+	bool bDenoiser,
+	IScreenSpaceDenoiser::FReflectionsInputs* DenoiserInputs)
 {
-	RDG_EVENT_SCOPE(GraphBuilder, "ScreenSpaceReflections");
-	
 	FRDGTextureRef InputColor = CurrentSceneColor;
-	bool bSamplePrevFrame = false;
-	if (View.PrevViewInfo.CustomSSRInput.IsValid())
+	if (SSRQuality != ESSRQuality::VisualizeSSR)
 	{
-		InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.CustomSSRInput);
-		bSamplePrevFrame = true;
-	}
-	else if (View.PrevViewInfo.TemporalAAHistory.IsValid())
-	{
-		InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TemporalAAHistory.RT[0]);
-		bSamplePrevFrame = true;
+		if (View.PrevViewInfo.CustomSSRInput.IsValid())
+		{
+			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.CustomSSRInput);
+		}
+		else if (View.PrevViewInfo.TemporalAAHistory.IsValid())
+		{
+			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TemporalAAHistory.RT[0]);
+		}
 	}
 
-	const bool VisualizeSSR = View.Family->EngineShowFlags.VisualizeSSR;
-	const bool SSRStencilPrePass = CVarSSRStencil.GetValueOnRenderThread() != 0 && !VisualizeSSR;
-	const int32 SSRQuality = VisualizeSSR ? 0 : FMath::Clamp(ComputeSSRQuality(View.FinalPostProcessSettings.ScreenSpaceReflectionQuality), 1, 4);
+	const bool SSRStencilPrePass = CVarSSRStencil.GetValueOnRenderThread() != 0 && SSRQuality != ESSRQuality::VisualizeSSR;
 	
-	// Alloc SSR output.
-	FRDGTextureRef SSROutput;
+	// Alloc inputs for denoising.
 	{
 		FRDGTextureDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
 			FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY(),
@@ -267,8 +300,17 @@ FRDGTextureRef RenderScreenSpaceReflections(
 		Desc.AutoWritable = false;
 		Desc.Flags |= GFastVRamConfig.SSR;
 
-		SSROutput = GraphBuilder.CreateTexture(Desc, TEXT("ScreenSpaceReflections"));
+		DenoiserInputs->Color = GraphBuilder.CreateTexture(Desc, TEXT("ScreenSpaceReflections"));
+
+		if (bDenoiser)
+		{
+			Desc.Format = PF_R16F;
+			DenoiserInputs->RayHitDistance = GraphBuilder.CreateTexture(Desc, TEXT("ScreenSpaceReflectionsHitDistance"));
+		}
 	}
+
+	IScreenSpaceDenoiser::FReflectionsRayTracingConfig RayTracingConfigs;
+	GetSSRShaderOptionsForQuality(SSRQuality, &RayTracingConfigs);
 		
 	FSSRCommonParameters CommonParameters;
 	CommonParameters.SSRParams = ComputeSSRParams(View, SSRQuality, false);
@@ -277,7 +319,12 @@ FRDGTextureRef RenderScreenSpaceReflections(
 	SetupSceneTextureSamplers(&CommonParameters.SceneTextureSamplers);
 	
 	FRenderTargetBindingSlots RenderTargets;
-	RenderTargets[0] = FRenderTargetBinding(SSROutput, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
+	RenderTargets[0] = FRenderTargetBinding(DenoiserInputs->Color, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
+
+	if (bDenoiser)
+	{
+		RenderTargets[1] = FRenderTargetBinding(DenoiserInputs->RayHitDistance, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
+	}
 
 	// Do a pre pass that output 0, or set a stencil mask to run the more expensive pixel shader.
 	if (SSRStencilPrePass)
@@ -289,11 +336,14 @@ FRDGTextureRef RenderScreenSpaceReflections(
 			ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore,
 			FExclusiveDepthStencil::DepthRead_StencilWrite);
 
+		FScreenSpaceReflectionsStencilPS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FSSROutputForDenoiser>(bDenoiser);
+
 		FScreenSpaceReflectionsStencilPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceReflectionsStencilPS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
 		PassParameters->RenderTargets = RenderTargets;
 		
-		TShaderMapRef<FScreenSpaceReflectionsStencilPS> PixelShader(View.ShaderMap);
+		TShaderMapRef<FScreenSpaceReflectionsStencilPS> PixelShader(View.ShaderMap, PermutationVector);
 		ClearUnusedGraphResources(*PixelShader, PassParameters);
 		
 		GraphBuilder.AddPass(
@@ -321,8 +371,9 @@ FRDGTextureRef RenderScreenSpaceReflections(
 	// Adds SSR pass.
 	{
 		FScreenSpaceReflectionsPS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FSSRPrevFrameColorDim>(bSamplePrevFrame && SSRQuality != 0);
+		PermutationVector.Set<FSSRPrevFrameColorDim>(InputColor != CurrentSceneColor);
 		PermutationVector.Set<FSSRQualityDim>(SSRQuality);
+		PermutationVector.Set<FSSROutputForDenoiser>(bDenoiser);
 
 		FScreenSpaceReflectionsPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceReflectionsPS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
@@ -356,7 +407,7 @@ FRDGTextureRef RenderScreenSpaceReflections(
 				(ViewportExtent.X * 0.5f + ViewportOffset.X) * InvBufferSize.X,
 				(ViewportExtent.Y * 0.5f + ViewportOffset.Y) * InvBufferSize.Y);
 		}
-		PassParameters->PrevSceneColorPreExposureCorrection = bSamplePrevFrame ? View.PreExposure / View.PrevViewInfo.SceneColorPreExposure : 1.0f;
+		PassParameters->PrevSceneColorPreExposureCorrection = InputColor != CurrentSceneColor ? View.PreExposure / View.PrevViewInfo.SceneColorPreExposure : 1.0f;
 		
 		PassParameters->SceneColor = InputColor;
 		PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
@@ -370,8 +421,9 @@ FRDGTextureRef RenderScreenSpaceReflections(
 		ClearUnusedGraphResources(*PixelShader, PassParameters);
 		
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("SSR RayMarch(Quality=%d) %dx%d",
-				SSRQuality, View.ViewRect.Width(), View.ViewRect.Height()),
+			RDG_EVENT_NAME("SSR RayMarch(Quality=%d RayPerPixel=%d%s) %dx%d",
+				SSRQuality, RayTracingConfigs.RayCountPerPixel, bDenoiser ? TEXT(" DenoiserOutput") : TEXT(""),
+				View.ViewRect.Width(), View.ViewRect.Height()),
 			PassParameters,
 			ERenderGraphPassFlags::None,
 			[PassParameters, &View, PixelShader, SSRStencilPrePass](FRHICommandList& RHICmdList)
@@ -394,6 +446,4 @@ FRDGTextureRef RenderScreenSpaceReflections(
 			FPixelShaderUtils::DrawFullscreenTriangle(RHICmdList);
 		});
 	}
-
-	return SSROutput;
 }

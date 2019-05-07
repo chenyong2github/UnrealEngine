@@ -104,11 +104,17 @@
 		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
 		#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_HIT_DISTANCE_BASED
 
-		// Reconstruction has 1 ray per input pixel, therefore can use specular ratio estimator instead of Tokoyashi axes bilateral kernel.
-		#define CONFIG_SPECULAR_RATIO_ESTIMATOR 1
+		// Configure the bilateral therm.
+		#if DIM_MULTI_SPP
+			#define CONFIG_TOKOYASHI_LOBE_BILATERAL 1
+			#define CONFIG_TOKOYASHI_AXES_BILATERAL 1
+		#else
+			// Reconstruction has 1 ray per input pixel, therefore can use specular ratio estimator instead of Tokoyashi axes bilateral kernel.
+			#define CONFIG_SPECULAR_RATIO_ESTIMATOR 1
 
-		// Uses tokoyashi lobe bilateral rejection to avoid mixing up significantly different lobes that can cause leaking/strong biasing.
-		#define CONFIG_TOKOYASHI_LOBE_BILATERAL 1
+			// Uses tokoyashi lobe bilateral rejection to avoid mixing up significantly different lobes that can cause leaking/strong biasing.
+			#define CONFIG_TOKOYASHI_LOBE_BILATERAL 1
+		#endif
 
 		//#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_DISABLED
 
@@ -357,6 +363,12 @@ void MainCS(
 			/* MultiplexedSampleId = */ 0,
 			/* bNormalizeSample = */ CONFIG_NORMALIZE_INPUT != 0,
 			SceneBufferUV);
+		
+		#if CONFIG_NORMALIZE_INPUT
+			FSSDSignalArray NormalizedRefSamples = RefSamples;
+		#else
+			FSSDSignalArray NormalizedRefSamples = NormalizeToOneSample(RefSamples);
+		#endif
 	#endif
 
 	/** factor by witch should be spread out. */
@@ -383,7 +395,7 @@ void MainCS(
 		#if CONFIG_SIGNAL_BATCH_SIZE != 1
 			#error Unable to support more than one signal.
 		#endif
-		float RefBluringRadius = ComputeBluringRadiusOfNormalizedSample(RefSamples.Array[0], RefSceneMetadata) * View.ViewSizeAndInvSize.x * rcp(KernelSpreadFactor);
+		float RefBluringRadius = ComputeBluringRadiusOfNormalizedSample(NormalizedRefSamples.Array[0], RefSceneMetadata) * View.ViewSizeAndInvSize.x * rcp(KernelSpreadFactor);
 		RequestedSampleCount = PI * RefBluringRadius * RefBluringRadius;
 	}
 	#elif CONFIG_SAMPLE_COUNT_POLICY == SAMPLE_COUNT_POLICY_ACCUMULATION_BASED
@@ -566,7 +578,7 @@ void MainCS(
 			SignalInput_Textures_2,
 			SignalInput_Textures_3,
 			/* inout */ SignalAccumulators);
-		
+	
 		//if (DIM_STAGE == STAGE_REJECTION_PRE_CONVOLUTION)
 		//	DebugOutput[DispatchThreadId] = float4(
 		//		KernelConfig.bForceAllAccumulation ? 1 : 0,

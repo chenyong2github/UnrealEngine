@@ -10,6 +10,11 @@
 #include "MonteCarlo.ush"
 #include "ScreenSpaceRayCast.ush"
 #include "SceneViewFamilyBlackboard.ush"
+#include "ScreenSpaceDenoise/SSDPublic.ush"
+
+// Generate vector truncation warnings to errors.
+#pragma warning(error: 3206)
+
 
 // .r:Intensity in 0..1 range .g:RoughnessMaskMul, b:EnableDiscard for FPostProcessScreenSpaceReflectionsStencilPS, a:(bTemporalAAIsOn?TemporalAAIndex:StateFrameIndexMod8)*1551
 float4 SSRParams;
@@ -57,9 +62,15 @@ float GetRoughnessFade(in float Roughness)
 // This optimization use the stencil to test to prunes out the pixel
 // that dones't need to compute SSR, before pixel shader invocation are
 // packed into front lines.
-void ScreenSpaceReflectionsStencilPS(in float4 UVAndScreenPos : TEXCOORD0, out float4 OutColor : SV_Target0)
+void ScreenSpaceReflectionsStencilPS(
+	float4 SvPosition : SV_POSITION
+	, out float4 OutColor : SV_Target0
+#if SSR_OUTPUT_FOR_DENOISER
+	, out float4 OutClosestHitDistance : SV_Target1
+#endif
+)
 {
-	const float2 UV = UVAndScreenPos.xy;
+	float2 UV = SvPosition.xy * View.BufferSizeAndInvSize.zw;
 	
 	FGBufferData GBuffer = GetGBufferDataFromSceneBlackboard(UV);
 	
@@ -77,18 +88,28 @@ void ScreenSpaceReflectionsStencilPS(in float4 UVAndScreenPos : TEXCOORD0, out f
 	// we are not going to compute SSR for this pixel, so we clear the color
 	// since ScreenSpaceReflectionsPS() won't be executed in this pixel.
 	OutColor = 0;
+	#if SSR_OUTPUT_FOR_DENOISER
+		OutClosestHitDistance = DENOISER_INVALID_HIT_DISTANCE;
+	#endif
 }
 
-
 void ScreenSpaceReflectionsPS(
-	float4 SvPosition : SV_POSITION,
-	out float4 OutColor : SV_Target0)
+	float4 SvPosition : SV_POSITION
+	, out float4 OutColor : SV_Target0
+#if SSR_OUTPUT_FOR_DENOISER
+	, out float4 OutClosestHitDistance : SV_Target1
+#endif
+)
 {
 	float2 UV = SvPosition.xy * View.BufferSizeAndInvSize.zw;
 	float2 ScreenPos = ViewportUVToScreenPos((SvPosition.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw);
 	uint2 PixelPos = (uint2)SvPosition.xy;
 
 	OutColor = 0;
+	
+	#if SSR_OUTPUT_FOR_DENOISER
+		OutClosestHitDistance = -2.0;
+	#endif
 
 	FGBufferData GBuffer = GetGBufferDataFromSceneBlackboard(UV);
 	
@@ -112,18 +133,28 @@ void ScreenSpaceReflectionsPS(
 	float NoV = saturate( dot( N, V ) );
 	float G_SmithV = 2 * NoV / (NoV + sqrt(NoV * (NoV - NoV * a2) + a2));
 
+	float ClosestHitDistanceSqr = 1.#INF;
+
 #if SSR_QUALITY == 1
 	uint NumSteps = 8;
 	uint NumRays = 1;
+	bool bGlossy = false;
 #elif SSR_QUALITY == 2
 	uint NumSteps = 16;
 	uint NumRays = 1;
+	#if SSR_OUTPUT_FOR_DENOISER
+		bool bGlossy = true;
+	#else
+		bool bGlossy = false;
+	#endif
 #elif SSR_QUALITY == 3
 	uint NumSteps = 8;
 	uint NumRays = 4;
+	bool bGlossy = true;
 #else // SSR_QUALITY == 4
 	uint NumSteps = 12;
 	uint NumRays = 12;
+	bool bGlossy = true;
 #endif
 	
 	if( NumRays > 1 )
@@ -155,7 +186,6 @@ void ScreenSpaceReflectionsPS(
 			float2 E = Hammersley16( i, NumRays, Random );
 
 #if 1
-			// TODO EnvBRDF isn't a perfect match anymore.
 			float3 H = mul( ImportanceSampleVisibleGGX(E, a2, TangentV ).xyz, TangentBasis );
 			float3 L = 2 * dot( V, H ) * H - V;
 #elif 0
@@ -178,83 +208,106 @@ void ScreenSpaceReflectionsPS(
 			float NoH = saturate( dot(N, H) );
 			float VoH = saturate( dot(V, H) );
 		
-			if( NoL > 0 && VoH > 0 )
-			{
-				float D = D_GGX( a2, NoH );
-				float G_SmithL = 2 * NoL / (NoL + sqrt(NoL * (NoL - NoL * a2) + a2));
-				float Vis = Vis_Smith( a2, NoV,  NoL );
-				float3 F = F_Schlick( GBuffer.SpecularColor, VoH );
+			float D = D_GGX( a2, NoH );
+			float G_SmithL = 2 * NoL / (NoL + sqrt(NoL * (NoL - NoL * a2) + a2));
+			float Vis = Vis_Smith( a2, NoV,  NoL );
+			float3 F = F_Schlick( GBuffer.SpecularColor, VoH );
 				
-				float3 HitUVz;
-				float Level = 0;
+			float3 HitUVz;
+			float Level = 0;
 
-				bool bHit = RayCast(
-					HZB, HZBSampler,
-					PositionTranslatedWorld, L, Roughness, SceneDepth, 
-					NumSteps, StepOffset,
-					HZBUvFactorAndInvFactor,
-					HitUVz,
-					Level
-				);
+			bool bHit = RayCast(
+				HZB, HZBSampler,
+				PositionTranslatedWorld, L, Roughness, SceneDepth, 
+				NumSteps, StepOffset,
+				HZBUvFactorAndInvFactor,
+				HitUVz,
+				Level
+			);
 
 #if 0	// Backface check
-				if( bHit )
-				{
-					float3 SampleNormal = GetGBufferData( HitUVz.xy ).WorldNormal;
-					bHit = dot( SampleNormal, L ) < 0;
-				}
+			if( bHit )
+			{
+				float3 SampleNormal = GetGBufferData( HitUVz.xy ).WorldNormal;
+				bHit = dot( SampleNormal, L ) < 0;
+			}
 #endif
 
-				// if there was a hit
-				BRANCH if( bHit )
-				{
-					float2 SampleUV;
-					float Vignette;
-					ReprojectHit(PrevScreenPositionScaleBias, SceneVelocityBuffer, SceneVelocityBufferSampler, HitUVz, SampleUV, Vignette);
+			// if there was a hit
+			BRANCH if( bHit )
+			{
+				ClosestHitDistanceSqr = min(ClosestHitDistanceSqr, ComputeRayHitSqrDistance(PositionTranslatedWorld, HitUVz));
 
-					float4 SampleColor = SampleScreenColor( SceneColor, SceneColorSampler, SampleUV ) * Vignette;
+				float2 SampleUV;
+				float Vignette;
+				ReprojectHit(PrevScreenPositionScaleBias, SceneVelocityBuffer, SceneVelocityBufferSampler, HitUVz, SampleUV, Vignette);
 
-					SampleColor.rgb *= rcp( 1 + Luminance(SampleColor.rgb) );
+				float4 SampleColor = SampleScreenColor( SceneColor, SceneColorSampler, SampleUV ) * Vignette;
 
-					// Correct integration applies DGF below but for speed we apply EnvBRDF later when compositing
+				SampleColor.rgb *= rcp( 1 + Luminance(SampleColor.rgb) );
+
+				// Correct integration applies DGF below but for speed we apply EnvBRDF later when compositing
 #if 0
-					// CosineSampleHemisphere
-					// PDF = NoL / PI,
-					SampleColor.rgb *= F * (D * Vis * PI);
+				// CosineSampleHemisphere
+				// PDF = NoL / PI,
+				SampleColor.rgb *= F * (D * Vis * PI);
 #elif 0
-					// ImportanceSampleGGX
-					// PDF = D * NoH / (4 * VoH),
-					SampleColor.rgb *= F * ( NoL * Vis * (4 * VoH / NoH) );
+				// ImportanceSampleGGX
+				// PDF = D * NoH / (4 * VoH),
+				SampleColor.rgb *= F * ( NoL * Vis * (4 * VoH / NoH) );
 #elif 0
-					// ImportanceSampleVisibleGGX
-					// PDF = G_SmithV * VoH * D / NoV / (4 * VoH)
-					// PDF = G_SmithV * D / (4 * NoV);
-					SampleColor.rgb *= F * G_SmithL;
+				// ImportanceSampleVisibleGGX
+				// PDF = G_SmithV * VoH * D / NoV / (4 * VoH)
+				// PDF = G_SmithV * D / (4 * NoV);
+				SampleColor.rgb *= F * G_SmithL;
 #endif
 
-					OutColor += SampleColor;
-				}
-
-				Count++;
+				OutColor += SampleColor;
 			}
 		}
 
 		//OutColor /= NumRays;
-		OutColor /= max( Count, 0.0001 );
+		OutColor /= max( NumRays, 0.0001 );
 		OutColor.rgb *= rcp( 1 - Luminance(OutColor.rgb) );
+
+		if (ClosestHitDistanceSqr == 1.#INF)
+		{
+			ClosestHitDistanceSqr = DENOISER_MISS_HIT_DISTANCE;
+		}
 	}
 	else
 	{
 		float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
 		StepOffset -= 0.9;
 		
-		float3 R = reflect( -V, N );
+		float3 L;
+		if (bGlossy)
+		{
+			uint2 Random = Rand3DPCG16( int3( PixelPos, View.StateFrameIndexMod8 ) ).xy;
+			float2 E = float2(Random) * rcp(65536.0);
+			
+			float3x3 TangentBasis = GetTangentBasis( N );
+			float3 TangentV = mul( TangentBasis, V );
+			
+			#if SSR_OUTPUT_FOR_DENOISER
+			{
+				E.x *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
+			}
+			#endif
+
+			float3 H = mul( ImportanceSampleVisibleGGX(E, a2, TangentV ).xyz, TangentBasis );
+			L = 2 * dot( V, H ) * H - V;
+		}
+		else
+		{
+			L = reflect( -V, N );
+		}
+		
 		float3 HitUVz;
 		float Level = 0;
-
 		bool bHit = RayCast(
 			HZB, HZBSampler,
-			PositionTranslatedWorld, R, Roughness, SceneDepth,
+			PositionTranslatedWorld, L, Roughness, SceneDepth,
 			NumSteps, StepOffset,
 			HZBUvFactorAndInvFactor,
 			HitUVz,
@@ -263,11 +316,17 @@ void ScreenSpaceReflectionsPS(
 
 		BRANCH if( bHit )
 		{
+			ClosestHitDistanceSqr = ComputeRayHitSqrDistance(PositionTranslatedWorld, HitUVz);
+
 			float2 SampleUV;
 			float Vignette;
 			ReprojectHit(PrevScreenPositionScaleBias, SceneVelocityBuffer, SceneVelocityBufferSampler, HitUVz, SampleUV, Vignette);
 
 			OutColor = SampleScreenColor(SceneColor, SceneColorSampler, SampleUV) * Vignette;
+		}
+		else
+		{
+			ClosestHitDistanceSqr = DENOISER_MISS_HIT_DISTANCE;
 		}
 	}
 	
@@ -277,4 +336,11 @@ void ScreenSpaceReflectionsPS(
 #if USE_PREEXPOSURE
 	OutColor.rgb *= PrevSceneColorPreExposureCorrection;
 #endif
+	
+	// Output closest hit distance for denoiser.
+	#if SSR_OUTPUT_FOR_DENOISER
+	{
+		OutClosestHitDistance = ClosestHitDistanceSqr > 0 ? ClampToHalfFloatRange(sqrt(ClosestHitDistanceSqr)) : ClosestHitDistanceSqr;
+	}
+	#endif
 }

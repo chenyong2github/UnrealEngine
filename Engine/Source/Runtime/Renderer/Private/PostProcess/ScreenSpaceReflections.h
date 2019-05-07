@@ -7,16 +7,34 @@
 #pragma once
 
 #include "RenderGraph.h"
+#include "ScreenSpaceDenoise.h"
 
 class FViewInfo;
 class FSceneViewFamilyBlackboard;
 
-FRDGTextureRef RenderScreenSpaceReflections(
-	FRDGBuilder& GraphBuilder,
-	const FSceneViewFamilyBlackboard& SceneBlackboard,
-	const FRDGTextureRef CurrentSceneColor,
-	const FViewInfo& View);
+enum class ESSRQuality
+{
+	VisualizeSSR,
+
+	Low,
+	Medium,
+	High,
+	Epic,
+
+	MAX
+};
 
 bool ShouldRenderScreenSpaceReflections(const FViewInfo& View);
 
-bool IsSSRTemporalPassRequired(const FViewInfo& View, bool bCheckSSREnabled = true);
+void GetSSRQualityForView(const FViewInfo& View, ESSRQuality* OutQuality, IScreenSpaceDenoiser::FReflectionsRayTracingConfig* OutRayTracingConfigs);
+
+bool IsSSRTemporalPassRequired(const FViewInfo& View);
+
+void RenderScreenSpaceReflections(
+	FRDGBuilder& GraphBuilder,
+	const FSceneViewFamilyBlackboard& SceneBlackboard,
+	const FRDGTextureRef CurrentSceneColor,
+	const FViewInfo& View,
+	ESSRQuality SSRQuality,
+	bool bDenoiser,
+	IScreenSpaceDenoiser::FReflectionsInputs* DenoiserInputs);

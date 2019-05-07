@@ -139,6 +139,11 @@ static TAutoConsoleVariable<int32> CVarUseReflectionDenoiser(
 	TEXT(" 2: GScreenSpaceDenoiser which may be overriden by a third party plugin (default)."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarDenoiseSSR(
+	TEXT("r.SSR.ExperimentalDenoiser"), 0,
+	TEXT("Replace SSR's TAA pass with denoiser."),
+	ECVF_RenderThreadSafe);
+
 
 // to avoid having direct access from many places
 static int GetReflectionEnvironmentCVar()
@@ -768,39 +773,61 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 		const bool bScreenSpaceReflections = !bRayTracedReflections && ShouldRenderScreenSpaceReflections(Views[ViewIndex]);
 
 		TRefCountPtr<IPooledRenderTarget> ReflectionsColor = GSystemTextures.BlackDummy;
-		if (bRayTracedReflections)
+		if (bRayTracedReflections || bScreenSpaceReflections)
 		{
-#if RHI_RAYTRACING
-			SCOPED_DRAW_EVENT(RHICmdList, RayTracingReflections);
-			SCOPED_GPU_STAT(RHICmdList, RayTracingReflections);
-
 			FRDGBuilder GraphBuilder(RHICmdList); // TODO: convert the entire reflections to render graph.
 
 			FSceneViewFamilyBlackboard SceneBlackboard;
 			SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
 
-
-			IScreenSpaceDenoiser::FReflectionsRayTracingConfig RayTracingConfig;
-			RayTracingConfig.ResolutionFraction = FMath::Clamp(CVarReflectionScreenPercentage.GetValueOnRenderThread() / 100.0f, 0.25f, 1.0f);
-
-			int32 RayTracingReflectionsSPP = GRayTracingReflectionsSamplesPerPixel > -1 ? GRayTracingReflectionsSamplesPerPixel : View.FinalPostProcessSettings.RayTracingReflectionsSamplesPerPixel;
 			int32 DenoiserMode = CVarUseReflectionDenoiser.GetValueOnRenderThread();
-			const bool bDenoise = DenoiserMode != 0 && RayTracingReflectionsSPP == 1;
+			
+			bool bDenoise = false;
+			bool bTemporalFilter = false;
 
-			if (!bDenoise)
+			// Traces the reflections, either using screen space reflection, or ray tracing.
+			IScreenSpaceDenoiser::FReflectionsInputs DenoiserInputs;
+			IScreenSpaceDenoiser::FReflectionsRayTracingConfig RayTracingConfig;
+			if (bRayTracedReflections)
 			{
-				RayTracingConfig.ResolutionFraction = 1.0f;
+				RDG_EVENT_SCOPE(GraphBuilder, "RayTracingReflections");
+				RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingReflections);
+
+				RayTracingConfig.ResolutionFraction = FMath::Clamp(CVarReflectionScreenPercentage.GetValueOnRenderThread() / 100.0f, 0.25f, 1.0f);
+				RayTracingConfig.RayCountPerPixel = GRayTracingReflectionsSamplesPerPixel > -1 ? GRayTracingReflectionsSamplesPerPixel : View.FinalPostProcessSettings.RayTracingReflectionsSamplesPerPixel;
+
+				bDenoise = DenoiserMode != 0 && RayTracingConfig.RayCountPerPixel == 1;
+				
+				if (!bDenoise)
+				{
+					RayTracingConfig.ResolutionFraction = 1.0f;
+				}
+
+				RenderRayTracingReflections(
+					GraphBuilder,
+					View, &DenoiserInputs.Color, &DenoiserInputs.RayHitDistance, &DenoiserInputs.RayImaginaryDepth,
+					RayTracingConfig.RayCountPerPixel, GRayTracingReflectionsHeightFog, RayTracingConfig.ResolutionFraction);
+			}
+			else if (bScreenSpaceReflections)
+			{
+				bDenoise = DenoiserMode != 0 && CVarDenoiseSSR.GetValueOnRenderThread();
+				bTemporalFilter = !bDenoise && View.ViewState && IsSSRTemporalPassRequired(View);
+
+				FRDGTextureRef CurrentSceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
+
+				ESSRQuality SSRQuality;
+				GetSSRQualityForView(View, &SSRQuality, &RayTracingConfig);
+				
+				RDG_EVENT_SCOPE(GraphBuilder, "ScreenSpaceReflections(Quality=%d)", int32(SSRQuality));
+			
+				RenderScreenSpaceReflections(
+					GraphBuilder, SceneBlackboard, CurrentSceneColor, View, SSRQuality, bDenoise, &DenoiserInputs);
+			}
+			else
+			{
+				check(0);
 			}
 
-			// Ray trace the reflection.
-			IScreenSpaceDenoiser::FReflectionsInputs DenoiserInputs;
-			RenderRayTracingReflections(
-				GraphBuilder,
-				View, &DenoiserInputs.Color, &DenoiserInputs.RayHitDistance, &DenoiserInputs.RayImaginaryDepth,
-				RayTracingReflectionsSPP, GRayTracingReflectionsHeightFog, RayTracingConfig.ResolutionFraction);
-
-
-			// Denoise the reflections.
 			if (bDenoise)
 			{
 				const IScreenSpaceDenoiser* DefaultDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
@@ -822,52 +849,37 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 
 				GraphBuilder.QueueTextureExtraction(DenoiserOutputs.Color, &ReflectionsColor);
 			}
+			else if (bTemporalFilter)
+			{
+				check(View.ViewState);
+				FTAAPassParameters TAASettings(View);
+				TAASettings.Pass = ETAAPassConfig::ScreenSpaceReflections;
+				TAASettings.SceneColorInput = DenoiserInputs.Color;
+				
+				FTAAOutputs TAAOutputs = TAASettings.AddTemporalAAPass(
+					GraphBuilder,
+					SceneBlackboard, View,
+					View.PrevViewInfo.SSRHistory,
+					&View.ViewState->PrevFrameViewInfo.SSRHistory);
+				
+				GraphBuilder.QueueTextureExtraction(TAAOutputs.SceneColor, &ReflectionsColor);
+			}
 			else
 			{
-				// The performance of ray tracing does not allow to run without a denoiser in real time.
-				// Multiple rays per pixel is unsupported by the denoiser that will most likely more bound by to
-				// many rays than exporting the hit distance buffer. Therefore no permutation of the ray generation
-				// shader has been judged required to be supported.
-				GraphBuilder.RemoveUnusedTextureWarning(DenoiserInputs.RayHitDistance);
+				if (bRayTracedReflections && DenoiserInputs.RayHitDistance)
+				{
+					// The performance of ray tracing does not allow to run without a denoiser in real time.
+					// Multiple rays per pixel is unsupported by the denoiser that will most likely more bound by to
+					// many rays than exporting the hit distance buffer. Therefore no permutation of the ray generation
+					// shader has been judged required to be supported.
+					GraphBuilder.RemoveUnusedTextureWarning(DenoiserInputs.RayHitDistance);
+				}
 
 				GraphBuilder.QueueTextureExtraction(DenoiserInputs.Color, &ReflectionsColor);
 			}
 
 			GraphBuilder.Execute();
-#endif
-		}
-		else if (bScreenSpaceReflections)
-		{
-			FRDGBuilder GraphBuilder(RHICmdList); // TODO: convert the entire reflections to render graph.
-			
-			FSceneViewFamilyBlackboard SceneBlackboard;
-			SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
-
-			FRDGTextureRef CurrentSceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
-
-			FRDGTextureRef ScreenSpaceReflections = RenderScreenSpaceReflections(
-				GraphBuilder, SceneBlackboard, CurrentSceneColor, View);
-			
-			// Adds a temporal AA pass to clean up some of the noise.
-			const bool bTemporalFilter = IsSSRTemporalPassRequired(View, false);
-	
-			// TODO: denoise.
-			if (View.ViewState && bTemporalFilter)
-			{
-				FTAAPassParameters TAASettings(View);
-				TAASettings.Pass = ETAAPassConfig::ScreenSpaceReflections;
-				TAASettings.SceneColorInput = ScreenSpaceReflections;
-
-				ScreenSpaceReflections = TAASettings.AddTemporalAAPass(
-					GraphBuilder,
-					SceneBlackboard, View,
-					View.PrevViewInfo.SSRHistory,
-					&View.ViewState->PrevFrameViewInfo.SSRHistory).SceneColor;
-			}
-
-			GraphBuilder.QueueTextureExtraction(ScreenSpaceReflections, &ReflectionsColor);
-			GraphBuilder.Execute();
-		}
+		} // if (bRayTracedReflections || bScreenSpaceReflections)
 
 		bool bPlanarReflections = false;
 		if (!bRayTracedReflections)

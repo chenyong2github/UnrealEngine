@@ -196,7 +196,9 @@ static int32 SignalMaxBatchSize(ESignalProcessing SignalProcessing)
 /** Returns whether a signal can denoise multi sample per pixel. */
 static bool SignalSupportMultiSPP(ESignalProcessing SignalProcessing)
 {
-	return SignalProcessing == ESignalProcessing::MonochromaticPenumbra;
+	return (
+		SignalProcessing == ESignalProcessing::MonochromaticPenumbra ||
+		SignalProcessing == ESignalProcessing::Reflections);
 }
 
 
@@ -401,20 +403,25 @@ static_assert(ARRAY_COUNT(kHistoryConvolutionResourceNames) == int32(ESignalProc
 static_assert(ARRAY_COUNT(kDenoiserOutputResourceNames) == int32(ESignalProcessing::MAX) * kMaxBufferProcessingCount, "You forgot me!");
 
 
-/** Base class for a screen space denoising shader. */
-class FScreenSpaceDenoisingShader : public FGlobalShader
+/** Returns whether should compole pipeline for a given shader platform.*/
+bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlatform Platform)
 {
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	if (SignalProcessing == ESignalProcessing::Reflections)
 	{
-		return Parameters.Platform == SP_PCD3D_SM5;
+		// Ray traced reflection and SSR.
+		return Platform == SP_PCD3D_SM5 || Platform == SP_XBOXONE_D3D12;
 	}
-
-	FScreenSpaceDenoisingShader() {}
-	FScreenSpaceDenoisingShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{ }
-};
+	else if (
+		SignalProcessing == ESignalProcessing::MonochromaticPenumbra ||
+		SignalProcessing == ESignalProcessing::AmbientOcclusion ||
+		SignalProcessing == ESignalProcessing::GlobalIllumination)
+	{
+		// Only for ray tracing denoising.
+		return Platform == SP_PCD3D_SM5;
+	}
+	check(0);
+	return false;
+}
 
 
 /** Shader parameter structure used for all shaders. */
@@ -472,10 +479,10 @@ FSSDSignalUAVs CreateMultiplexedUAVs(FRDGBuilder& GraphBuilder, const FSSDSignal
 }
 
 
-class FSSDInjestCS : public FScreenSpaceDenoisingShader
+class FSSDInjestCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FSSDInjestCS);
-	SHADER_USE_PARAMETER_STRUCT(FSSDInjestCS, FScreenSpaceDenoisingShader);
+	SHADER_USE_PARAMETER_STRUCT(FSSDInjestCS, FGlobalShader);
 
 	using FPermutationDomain = TShaderPermutationDomain<FSignalProcessingDim, FSignalBatchSizeDim, FMultiSPPDim>;
 
@@ -502,7 +509,7 @@ class FSSDInjestCS : public FScreenSpaceDenoisingShader
 			return false;
 		}
 
-		return FScreenSpaceDenoisingShader::ShouldCompilePermutation(Parameters);
+		return ShouldCompileSignalPipeline(SignalProcessing, Parameters.Platform);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -514,10 +521,10 @@ class FSSDInjestCS : public FScreenSpaceDenoisingShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-class FSSDSpatialAccumulationCS : public FScreenSpaceDenoisingShader
+class FSSDSpatialAccumulationCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FSSDSpatialAccumulationCS);
-	SHADER_USE_PARAMETER_STRUCT(FSSDSpatialAccumulationCS, FScreenSpaceDenoisingShader);
+	SHADER_USE_PARAMETER_STRUCT(FSSDSpatialAccumulationCS, FGlobalShader);
 
 	static const uint32 kGroupSize = 8;
 	
@@ -605,7 +612,7 @@ class FSSDSpatialAccumulationCS : public FScreenSpaceDenoisingShader
 			return false;
 		}
 
-		return FScreenSpaceDenoisingShader::ShouldCompilePermutation(Parameters);
+		return ShouldCompileSignalPipeline(SignalProcessing, Parameters.Platform);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -623,10 +630,10 @@ class FSSDSpatialAccumulationCS : public FScreenSpaceDenoisingShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-class FSSDTemporalAccumulationCS : public FScreenSpaceDenoisingShader
+class FSSDTemporalAccumulationCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FSSDTemporalAccumulationCS);
-	SHADER_USE_PARAMETER_STRUCT(FSSDTemporalAccumulationCS, FScreenSpaceDenoisingShader);
+	SHADER_USE_PARAMETER_STRUCT(FSSDTemporalAccumulationCS, FGlobalShader);
 
 	using FPermutationDomain = TShaderPermutationDomain<FSignalProcessingDim, FSignalBatchSizeDim>;
 
@@ -647,7 +654,7 @@ class FSSDTemporalAccumulationCS : public FScreenSpaceDenoisingShader
 			return false;
 		}
 
-		return FScreenSpaceDenoisingShader::ShouldCompilePermutation(Parameters);
+		return ShouldCompileSignalPipeline(SignalProcessing, Parameters.Platform);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -1334,6 +1341,7 @@ public:
 		Settings.ReconstructionSamples = CVarReflectionReconstructionSampleCount.GetValueOnRenderThread();
 		Settings.bUseTemporalAccumulation = CVarReflectionTemporalAccumulation.GetValueOnRenderThread() != 0;
 		Settings.HistoryConvolutionSampleCount = CVarReflectionHistoryConvolutionSampleCount.GetValueOnRenderThread();
+		Settings.MaxInputSPP = RayTracingConfig.RayCountPerPixel;
 
 		TStaticArray<FScreenSpaceFilteringHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevHistories;
 		TStaticArray<FScreenSpaceFilteringHistory*, IScreenSpaceDenoiser::kMaxBatchSize> NewHistories;

@@ -1,0 +1,13 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+
+/** Bias used on GGX important sample when denoising, to remove part of the tale that create a lot more noise. */
+#define GGX_IMPORTANT_SAMPLE_BIAS 0.1
+
+/** Special value to be encoded in denoiser input when no ray has been shot. */
+#define DENOISER_INVALID_HIT_DISTANCE -2.0
+
+/** Special value to be encoded in denoiser input when no ray intersection has been found. */
+#define DENOISER_MISS_HIT_DISTANCE -1.0

@@ -38,6 +38,7 @@ float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush" 
 #include "../HeightFogCommon.ush"
 #include "../LightShaderParameters.ush"
+#include "../ScreenSpaceDenoise/SSDPublic.ush"
 #include "RayTracingHitGroupCommon.ush"
 #include "RayTracingDirectionalLight.ush"
 #include "RayTracingRectLight.ush"
@@ -185,7 +186,7 @@ void RayTracingReflectionsRGS()
 
 	float4 ReflectedColor = 0.0;
 	float ReflectedWeight = 0.0;
-	float HitDistance = -2.0;
+	float HitDistance = DENOISER_INVALID_HIT_DISTANCE;
 
 	float RoughnessFade = GetRoughnessFade(ScreenSpaceData.GBuffer.Roughness, ReflectionMaxRoughness);
 	float ClearCoatRoughnessFade = ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT ? GetRoughnessFade(ScreenSpaceData.GBuffer.CustomData.y, ReflectionMaxRoughness) : 0.0f;
@@ -350,7 +351,7 @@ void RayTracingReflectionsRGS()
 					if (BounceIndex == 0)
 					{
 						// Tell to the denoiser this sample reached outer bounds of the scene without any intersection.
-						HitDistance = -1;
+						HitDistance = DENOISER_MISS_HIT_DISTANCE;
 					}
 					TopLayerRadiance = 0;
 				}

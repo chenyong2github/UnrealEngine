@@ -225,6 +225,17 @@ void ReprojectHit(float4 PrevScreenPositionScaleBias, Texture2D Texture, Sampler
 	OutPrevUV = PrevUV;
 }
 
+float ComputeRayHitSqrDistance(float3 OriginTranslatedWorld, float3 HitUVz)
+{
+	// ALU get factored out with ReprojectHit.
+	float2 HitScreenPos = (HitUVz.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float HitSceneDepth = ConvertFromDeviceZ(HitUVz.z);
+
+	float3 HitTranslatedWorld = mul(float4(HitScreenPos * HitSceneDepth, HitSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+
+	return length2(OriginTranslatedWorld - HitTranslatedWorld);
+}
+
 float4 SampleScreenColor(Texture2D Texture, SamplerState Sampler, float2 UV)
 {
 	float4 OutColor;

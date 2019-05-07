@@ -10,6 +10,7 @@
 #include "../SceneViewFamilyBlackboard.ush"
 #include "../ColorSpace.ush"
 #include "../SphericalGaussian.ush"
+#include "SSDPublic.ush"
 #include "SSDDefinitions.ush"
 
 
