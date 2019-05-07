@@ -101,4 +101,7 @@ public:
 
 	// Blocks until hardware window is available
 	static void BlockUntilWindowIsAvailable() {}
+
+	// Does the platform allow a nullptr Pixelshader on the pipeline
+	static bool SupportsNullPixelShader() { return true; }
 };
