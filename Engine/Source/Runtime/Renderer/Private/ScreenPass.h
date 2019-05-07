@@ -34,8 +34,9 @@ public:
 };
 
 // Describes a viewport rect oriented within a texture.
-struct FScreenPassTextureViewport
+class FScreenPassTextureViewport
 {
+public:
 	// Creates a viewport that is downscaled by the requested scale factor.
 	static FScreenPassTextureViewport CreateDownscaled(const FScreenPassTextureViewport& Other, uint32 ScaleFactor);
 
