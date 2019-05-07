@@ -6,6 +6,10 @@
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
 #include "RayTracingCommon.ush"
 
+uint SamplesPerPixel;
+float MaxRayDistance;
+float Intensity;
+float MaxNormalBias;
 RaytracingAccelerationStructure TLAS;
 RWTexture2D<float> RWOcclusionMaskUAV;
 RWTexture2D<float> RWHitDistanceUAV;
@@ -33,7 +37,7 @@ void GenerateCosineNormalRay(
 	RayOrigin = WorldPosition;
 	RayDirection = Direction_World;
 	RayTMin = 0.0;
-	RayTMax = AmbientOcclusion.MaxRayDistance;
+	RayTMax = MaxRayDistance;
 }
 
 [shader("raygeneration")]
@@ -55,9 +59,8 @@ void AmbientOcclusionRGS()
 
 	float RayCount = 0.0;
 	float Visibility = 0.0;
-	float Intensity = AmbientOcclusion.Intensity;
 	float ClosestRayHitDistance = 1.#INF;
-	uint SamplesPerPixel = AmbientOcclusion.SamplesPerPixel;
+	uint SamplesPerPixelLocal = SamplesPerPixel;
 	
 	// Mask out depth values beyond far plane
 	float DeviceZ = SceneTexturesStruct.SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
@@ -69,14 +72,14 @@ void AmbientOcclusionRGS()
 	{
 		Visibility = 1.0;
 		RayCount = SamplesPerPixel;
-		SamplesPerPixel = 0.0;
+		SamplesPerPixelLocal = 0.0;
 	}
 
-	for (uint SampleIndex = 0; SampleIndex < SamplesPerPixel; ++SampleIndex)
+	for (uint SampleIndex = 0; SampleIndex < SamplesPerPixelLocal; ++SampleIndex)
 	{
 		RayDesc Ray;
 		GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSequence, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
-		ApplyPositionBias(Ray, WorldNormal, AmbientOcclusion.MaxNormalBias);
+		ApplyPositionBias(Ray, WorldNormal, MaxNormalBias);
 
 		if (dot(WorldNormal, Ray.Direction) <= 0.0) // TODO: does it needs to be handled by the denoiser?
 			continue;
@@ -111,7 +114,7 @@ void AmbientOcclusionRGS()
 	{
 		float2 RawOutput = 1;
 
-		if (SamplesPerPixel == 0)
+		if (SamplesPerPixelLocal == 0)
 		{
 			RawOutput.x = 1;
 			RawOutput.y = -2;

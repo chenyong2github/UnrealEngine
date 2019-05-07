@@ -65,16 +65,6 @@ bool ShouldRenderRayTracingAmbientOcclusion(const FViewInfo& View)
 	return IsRayTracingEnabled() && !ShouldRenderRayTracingGlobalIllumination(View) && bRTAOEnabled;
 }
 
-
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FAmbientOcclusionData, )
-SHADER_PARAMETER(int, SamplesPerPixel)
-SHADER_PARAMETER(float, MaxRayDistance)
-SHADER_PARAMETER(float, Intensity)
-SHADER_PARAMETER(float, MaxNormalBias)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FAmbientOcclusionData, "AmbientOcclusion");
-
 DECLARE_GPU_STAT_NAMED(RayTracingAmbientOcclusion, TEXT("Ray Tracing Ambient Occlusion"));
 DECLARE_GPU_STAT_NAMED(AmbientOcclusionDenoiser, TEXT("Ambient Occlusion Denoiser"));
 
@@ -94,13 +84,16 @@ class FRayTracingAmbientOcclusionRGS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(int, SamplesPerPixel)
+		SHADER_PARAMETER(float, MaxRayDistance)
+		SHADER_PARAMETER(float, Intensity)
+		SHADER_PARAMETER(float, MaxNormalBias)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWOcclusionMaskUAV)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWHitDistanceUAV)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
-		SHADER_PARAMETER_STRUCT_REF(FAmbientOcclusionData, AmbientOcclusionData)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -169,25 +162,20 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 )
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
-	// Add ambient occlusion parameters to uniform buffer
-	FAmbientOcclusionData AmbientOcclusionData;
-	AmbientOcclusionData.SamplesPerPixel = GRayTracingAmbientOcclusionSamplesPerPixel >= 0 ? GRayTracingAmbientOcclusionSamplesPerPixel : View.FinalPostProcessSettings.RayTracingAOSamplesPerPixel;
-	AmbientOcclusionData.MaxRayDistance = View.FinalPostProcessSettings.AmbientOcclusionRadius;
-	AmbientOcclusionData.Intensity = View.FinalPostProcessSettings.AmbientOcclusionIntensity;
-	AmbientOcclusionData.MaxNormalBias = GetRaytracingMaxNormalBias();
-
 	FSceneTexturesUniformParameters SceneTextures;
 	SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, SceneTextures);
 
 	// Build RTAO parameters
 	FRayTracingAmbientOcclusionRGS::FParameters *PassParameters = GraphBuilder.AllocParameters<FRayTracingAmbientOcclusionRGS::FParameters>();
+	PassParameters->SamplesPerPixel = GRayTracingAmbientOcclusionSamplesPerPixel >= 0 ? GRayTracingAmbientOcclusionSamplesPerPixel : View.FinalPostProcessSettings.RayTracingAOSamplesPerPixel;
+	PassParameters->MaxRayDistance = View.FinalPostProcessSettings.AmbientOcclusionRadius;
+	PassParameters->Intensity = View.FinalPostProcessSettings.AmbientOcclusionIntensity;
+	PassParameters->MaxNormalBias = GetRaytracingMaxNormalBias();
 	PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	PassParameters->RWOcclusionMaskUAV = GraphBuilder.CreateUAV(AmbientOcclusionTexture);
 	PassParameters->RWHitDistanceUAV = GraphBuilder.CreateUAV(RayDistanceTexture);
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->SceneTexturesStruct = CreateUniformBufferImmediate(SceneTextures, EUniformBufferUsage::UniformBuffer_SingleDraw);
-	PassParameters->AmbientOcclusionData = CreateUniformBufferImmediate(AmbientOcclusionData, EUniformBufferUsage::UniformBuffer_SingleDraw);
 
 	FRayTracingAmbientOcclusionRGS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FRayTracingAmbientOcclusionRGS::FEnableTwoSidedGeometryDim>(CVarRayTracingAmbientOcclusionEnableTwoSidedGeometry.GetValueOnRenderThread() != 0);
