@@ -96,8 +96,8 @@ public:
 
 	static bool RequiresWaitingForFrameCompletionEvent() { return false; }
 	
-	static void BlockUntilWindowIsAwailable();
-	
+	static void BlockUntilWindowIsAvailable();
+
 protected:
 	static void* VulkanLib;
 	static bool bAttemptedLoad;

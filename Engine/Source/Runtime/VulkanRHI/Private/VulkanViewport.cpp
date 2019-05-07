@@ -800,7 +800,7 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 	}
 
 	// Do not present until hardware window is available. On Android window could be destroyed while RHIT executes commands
-	FVulkanPlatform::BlockUntilWindowIsAwailable();
+	FVulkanPlatform::BlockUntilWindowIsAvailable();
 
 	//Flush all commands
 	//check(0);
