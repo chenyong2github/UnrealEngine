@@ -99,20 +99,6 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		VERIFYD3D12RESULT(D3D12GetDebugInterface(IID_PPV_ARGS(DebugController.GetInitReference())));
 		DebugController->EnableDebugLayer();
 
-		// TODO: MSFT: BEGIN TEMPORARY WORKAROUND for a debug layer issue with the Editor creating lots of viewports (swapchains).
-		// Without this you could see this error: D3D12 ERROR: ID3D12CommandQueue::ExecuteCommandLists: Up to 8 swapchains can be written to by a single command queue. Present must be called on one of the swapchains to enable a command queue to execute command lists that write to more.  [ STATE_SETTING ERROR #906: COMMAND_QUEUE_TOO_MANY_SWAPCHAIN_REFERENCES]
-		if (GIsEditor)
-		{
-			TRefCountPtr<ID3D12Debug1> DebugController1;
-			const HRESULT HrDebugController1 = D3D12GetDebugInterface(IID_PPV_ARGS(DebugController1.GetInitReference()));
-			if (DebugController1.GetReference())
-			{
-				DebugController1->SetEnableSynchronizedCommandQueueValidation(false);
-				UE_LOG(LogD3D12RHI, Warning, TEXT("Disabling the debug layer's Synchronized Command Queue Validation. This means many debug layer features won't do anything. This code should be removed as soon as possible with an update debug layer."));
-			}
-		}
-		// END TEMPORARY WORKAROUND
-
 		bool bD3d12gpuvalidation = false;
 		if (FParse::Param(FCommandLine::Get(), TEXT("d3d12gpuvalidation")))
 		{
