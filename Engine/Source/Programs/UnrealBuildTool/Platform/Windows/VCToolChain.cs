@@ -1145,6 +1145,7 @@ namespace UnrealBuildTool
 				}
 
 				// When compiling with SN-DBS, modules that contain a #import must be built locally
+				CompileAction.bCanExecuteRemotelyWithSNDBS = CompileAction.bCanExecuteRemotely;
 				if (CompileEnvironment.bBuildLocallyWithSNDBS == true)
 				{
 					CompileAction.bCanExecuteRemotelyWithSNDBS = false;
@@ -1156,45 +1157,51 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
+		private Action GenerateParseTimingInfoAction(FileItem SourceFile, Action CompileAction, CPPOutput Result)
+		{
+			FileItem TimingJsonFile = FileItem.GetItemByPath(Path.ChangeExtension(CompileAction.TimingFile.AbsolutePath, ".timing.bin"));
+			Result.DebugDataFiles.Add(TimingJsonFile);
+			Result.DebugDataFiles.Add(CompileAction.TimingFile);
+
+			string ParseTimingArguments = String.Format("-TimingFile=\"{0}\"", CompileAction.TimingFile);
+			if (Target.bParseTimingInfoForTracing)
+			{
+				ParseTimingArguments += " -Tracing";
+			}
+
+			Action ParseTimingInfoAction = Action.CreateRecursiveAction<ParseMsvcTimingInfoMode>(ActionType.ParseTimingInfo, ParseTimingArguments);
+			ParseTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+			ParseTimingInfoAction.StatusDescription = String.Format("Parsing Timing File '{0}'", CompileAction.TimingFile);
+			ParseTimingInfoAction.bCanExecuteRemotely = true;
+			ParseTimingInfoAction.bCanExecuteRemotelyWithSNDBS = true;
+			ParseTimingInfoAction.PrerequisiteItems.Add(SourceFile);
+			ParseTimingInfoAction.PrerequisiteItems.Add(CompileAction.TimingFile);
+			ParseTimingInfoAction.ProducedItems.Add(TimingJsonFile);
+			return ParseTimingInfoAction;
+		}
+
 		private void GenerateDependenciesFile(ReadOnlyTargetRules Target, DirectoryReference OutputDir, CPPOutput Result, FileItem SourceFile, List<Action> Actions, Action CompileAction)
 		{
-			List<string> commandArguments = new List<string>();
+			List<string> CommandArguments = new List<string>();
 			CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.txt", SourceFile.Location.GetFileName())));
 			CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
-			commandArguments.Add(Utils.MakePathSafeToUseWithCommandLine(CompileAction.DependencyListFile.Location));
+			CommandArguments.Add(String.Format("-dependencies={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.DependencyListFile.Location)));
 
 			if (Target.bPrintToolChainTimingInfo)
 			{
 				CompileAction.TimingFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.timing.txt", SourceFile.Location.GetFileName())));
 				CompileAction.ProducedItems.Add(CompileAction.TimingFile);
-				commandArguments.Add(Utils.MakePathSafeToUseWithCommandLine(CompileAction.TimingFile.Location));
-
-				FileItem TimingJsonFile = FileItem.GetItemByPath(Path.ChangeExtension(CompileAction.TimingFile.AbsolutePath, ".timing.bin"));
-				Result.DebugDataFiles.Add(TimingJsonFile);
-				Result.DebugDataFiles.Add(CompileAction.TimingFile);
-
-				string ParseTimingArguments = String.Format("-TimingFile=\"{0}\"", CompileAction.TimingFile);
-				if (Target.bParseTimingInfoForTracing)
-				{
-					ParseTimingArguments += " -Tracing";
-				}
-
-				Action ParseTimingInfoAction = Action.CreateRecursiveAction<ParseMsvcTimingInfoMode>(ActionType.ParseTimingInfo, ParseTimingArguments);
-				ParseTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
-				ParseTimingInfoAction.StatusDescription = String.Format("Parsing Timing File '{0}'", CompileAction.TimingFile);
-				ParseTimingInfoAction.bCanExecuteRemotely = true;
-				ParseTimingInfoAction.bCanExecuteRemotelyWithSNDBS = true;
-				ParseTimingInfoAction.PrerequisiteItems.Add(SourceFile);
-				ParseTimingInfoAction.PrerequisiteItems.Add(CompileAction.TimingFile);
-				ParseTimingInfoAction.ProducedItems.Add(TimingJsonFile);
+				Action ParseTimingInfoAction = GenerateParseTimingInfoAction(SourceFile, CompileAction, Result);
 				Actions.Add(ParseTimingInfoAction);
+				CommandArguments.Add(string.Format("-timing={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.TimingFile.Location)));
 			}
 
-			commandArguments.Add("--");
-			commandArguments.Add(Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath));
-			commandArguments.Add(CompileAction.CommandArguments);
-			commandArguments.Add("/showIncludes");
-			CompileAction.CommandArguments = string.Join(" ", commandArguments);
+			CommandArguments.Add(String.Format("-compiler={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath)));
+			CommandArguments.Add("--");
+			CommandArguments.Add(Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath));
+			CommandArguments.Add(CompileAction.CommandArguments);
+			CommandArguments.Add("/showIncludes");
+			CompileAction.CommandArguments = string.Join(" ", CommandArguments);
 			CompileAction.CommandPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");	
 		}
 
@@ -1217,6 +1224,7 @@ namespace UnrealBuildTool
 					AggregateTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 					AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
 					AggregateTimingInfoAction.bCanExecuteRemotely = false;
+					AggregateTimingInfoAction.bCanExecuteRemotelyWithSNDBS = false;
 					AggregateTimingInfoAction.PrerequisiteItems.AddRange(ParseTimingActions.SelectMany(a => a.PrerequisiteItems));
 					AggregateTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
 
