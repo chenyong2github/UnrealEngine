@@ -421,7 +421,7 @@ void FStreamingLevelCollectionModel::CreateNewLevel_Executed()
 	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
 	if (NewLevelDialogModule.CreateAndShowNewLevelDialog(MainFrameModule.GetParentWindow(), TemplateMapPackageName))
 	{
-		UPackage* TemplatePackage = LoadPackage(nullptr, *TemplateMapPackageName, LOAD_None);
+		UPackage* TemplatePackage = TemplateMapPackageName.Len() ? LoadPackage(nullptr, *TemplateMapPackageName, LOAD_None) : nullptr;
 		UWorld* TemplateWorld = TemplatePackage ? UWorld::FindWorldInPackage(TemplatePackage) : nullptr;
 
 		// Create the new level
