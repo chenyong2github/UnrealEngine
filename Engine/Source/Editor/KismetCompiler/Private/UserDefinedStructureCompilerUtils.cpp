@@ -290,9 +290,9 @@ struct FUserDefinedStructureCompilerInner
 			{
 				const UClass* ClassObject = Cast<UClass>(VarType.PinSubCategoryObject.Get());
 
-				if (ClassObject && ClassObject->IsChildOf(AActor::StaticClass()))
+				if (ClassObject && ClassObject->IsChildOf(AActor::StaticClass()) && (VarType.PinCategory == UEdGraphSchema_K2::PC_Object || VarType.PinCategory == UEdGraphSchema_K2::PC_Interface))
 				{
-					// prevent Actor variables from having default values (because Blueprint templates are library elements that can 
+					// prevent hard reference Actor variables from having default values (because Blueprint templates are library elements that can 
 					// bridge multiple levels and different levels might not have the actor that the default is referencing).
 					VarProperty->PropertyFlags |= CPF_DisableEditOnTemplate;
 				}
