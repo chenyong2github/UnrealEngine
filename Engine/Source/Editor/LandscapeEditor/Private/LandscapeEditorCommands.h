@@ -34,6 +34,7 @@ public:
 	TSharedPtr<FUICommandInfo> ResizeLandscape;
 
 	TSharedPtr<FUICommandInfo> SculptTool;
+	TSharedPtr<FUICommandInfo> EraseTool;
 	TSharedPtr<FUICommandInfo> PaintTool;
 	TSharedPtr<FUICommandInfo> SmoothTool;
 	TSharedPtr<FUICommandInfo> FlattenTool;
