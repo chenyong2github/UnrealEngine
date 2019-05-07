@@ -564,6 +564,8 @@ public:
 							Compiler->Constant(0.5f)); // [-0.5,0.5] + 0.5
 				}
 				break;
+			case MP_ShadingModel:
+				return MaterialInterface->CompileProperty(&ProxyCompiler, MP_ShadingModel);
 			default:
 				return Compiler->Constant(1.0f);
 			}
@@ -579,6 +581,10 @@ public:
 		{
 			// Pass through customized UVs
 			return MaterialInterface->CompileProperty(Compiler, Property);
+		}
+		else if (Property == MP_ShadingModel)
+		{
+			return MaterialInterface->CompileProperty(Compiler, MP_ShadingModel);
 		}
 		else
 		{
