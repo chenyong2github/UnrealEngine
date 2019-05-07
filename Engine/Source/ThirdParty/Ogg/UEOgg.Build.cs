@@ -98,6 +98,10 @@ public class UEOgg : ModuleRules
         {
             PublicAdditionalLibraries.Add(OggLibPath + "ios" + "/libogg.a");
         }
+        else if (Target.Platform == UnrealTargetPlatform.TVOS)
+        {
+            PublicAdditionalLibraries.Add(OggLibPath + "tvos" + "/libogg.a");
+        }
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
         {
             PublicAdditionalLibraries.Add(OggLibPath + "ORBIS_Release" + "/libogg-1.2.2_PS4_Static.a");
