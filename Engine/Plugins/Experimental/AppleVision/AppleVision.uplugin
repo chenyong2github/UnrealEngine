@@ -19,7 +19,11 @@
 		{
 			"Name" : "AppleVision",
 			"Type" : "Runtime",
-			"LoadingPhase" : "Default"
+			"LoadingPhase" : "Default",
+			"BlacklistPlatforms" :
+			[
+				"TVOS"
+			]
 		},
 		{
 			"Name" : "AppleVisionBlueprintSupport",
