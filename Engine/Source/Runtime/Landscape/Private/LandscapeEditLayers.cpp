@@ -3047,7 +3047,7 @@ void ALandscape::PrepareComponentDataToPackMaterialLayersCS(int32 InCurrentWeigh
 	}
 }
 
-void ALandscape::ReallocateLayersWeightmaps(const TArray<ULandscapeLayerInfoObject*>& InBrushRequiredAllocations, TArray<ULandscapeComponent*>& OutComponentThatNeedMaterialRebuild)
+void ALandscape::ReallocateLayersWeightmaps(const TArray<ULandscapeLayerInfoObject*>& InBrushRequiredAllocations)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersReallocateWeightmaps);
 
@@ -3064,29 +3064,7 @@ void ALandscape::ReallocateLayersWeightmaps(const TArray<ULandscapeLayerInfoObje
 	{
 		AllLandscapeComponents.Append(Proxy->LandscapeComponents);
 	});
-
-	auto HashComponentWeightmaps = [](ULandscapeComponent* Component) -> uint32
-	{
-		uint32 Hash = 0;
-		TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
-		TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTextureUsage = Component->GetWeightmapTexturesUsage();
-		for (int32 i = 0; i < ComponentWeightmapTextures.Num(); ++i)
-		{
-			Hash = PointerHash(ComponentWeightmapTextures[i], Hash);
-			for (int32 j = 0; j < ULandscapeWeightmapUsage::NumChannels; ++j)
-			{
-				Hash = PointerHash(ComponentWeightmapTextureUsage[i]->ChannelUsage[j], Hash);
-			}
-		}
-		return Hash;
-	};
-
-	TMap<ULandscapeComponent*, uint32> BeforeReallocComponentWeightmapsHashes;
-	for (ULandscapeComponent* Component : AllLandscapeComponents)
-	{
-		BeforeReallocComponentWeightmapsHashes.Add(Component, HashComponentWeightmaps(Component));
-	}
-
+		
 	// Clear allocation data
 	for (ULandscapeComponent* Component : AllLandscapeComponents)
 	{
@@ -3244,18 +3222,6 @@ void ALandscape::ReallocateLayersWeightmaps(const TArray<ULandscapeLayerInfoObje
 			}
 		}
 	});
-
-	// Determine which Component needs a material rebuild
-	for (ULandscapeComponent* Component : AllLandscapeComponents)
-	{
-		uint32* OldHash = BeforeReallocComponentWeightmapsHashes.Find(Component);
-		check(OldHash);
-		uint32 NewHash = HashComponentWeightmaps(Component);
-		if (*OldHash != NewHash)
-		{
-			OutComponentThatNeedMaterialRebuild.Add(Component);
-		}
-	}
 }
 
 void ALandscape::InitializeLayersWeightmapResources()
@@ -3600,7 +3566,7 @@ void ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& 
 		}
 
 		// TODO:  if editing a Brush affecting layers, since we don't have any bounds to brush, right now ReallocateLayersWeightmaps wont ask a rebuild of the component affected by Brushes, which mean ComponentThatNeedMaterialRebuild wont contains Brush affected component!
-		ReallocateLayersWeightmaps(BrushRequiredAllocations, ComponentThatNeedMaterialRebuild);
+		ReallocateLayersWeightmaps(BrushRequiredAllocations);
 
 		if (ComputeShaderGeneratedData)
 		{
@@ -3735,7 +3701,7 @@ void ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& 
 			}
 		}
 
-		UpdateLayersMaterialInstances(ComponentThatNeedMaterialRebuild);
+		UpdateLayersMaterialInstances();
 	}
 
 	if (WeightmapUpdateModes)
@@ -3752,17 +3718,43 @@ void ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& 
 	}
 }
 
-void ALandscape::UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*>& InComponentsToUpdate)
+uint32 ULandscapeComponent::ComputeWeightmapsHash()
 {
-	if (InComponentsToUpdate.Num() == 0)
+	uint32 Hash = 0;
+	TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures();
+	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTextureUsage = GetWeightmapTexturesUsage();
+	for (int32 i = 0; i < ComponentWeightmapTextures.Num(); ++i)
 	{
-		return;
+		Hash = PointerHash(ComponentWeightmapTextures[i], Hash);
+		for (int32 j = 0; j < ULandscapeWeightmapUsage::NumChannels; ++j)
+		{
+			Hash = PointerHash(ComponentWeightmapTextureUsage[i]->ChannelUsage[j], Hash);
+		}
 	}
+	return Hash;
+}
 
-	TArray<ULandscapeComponent*> ComponentsToUpdate;
-	ComponentsToUpdate.Append(InComponentsToUpdate);
-
+void ALandscape::UpdateLayersMaterialInstances()
+{
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersUpdateMaterialInstance);
+	TArray<ULandscapeComponent*> ComponentsToUpdate;
+
+	// Compute Weightmap usage changes
+	if (ULandscapeInfo* Info = GetLandscapeInfo())
+	{
+		Info->ForAllLandscapeProxies([&ComponentsToUpdate](ALandscapeProxy* Proxy)
+		{
+			for (ULandscapeComponent* LandscapeComponent : Proxy->LandscapeComponents)
+			{
+				uint32 NewHash = LandscapeComponent->ComputeWeightmapsHash();
+				if (LandscapeComponent->WeightmapsHash != NewHash)
+				{
+					ComponentsToUpdate.Add(LandscapeComponent);
+					LandscapeComponent->WeightmapsHash = NewHash;
+				}
+			}
+		});
+	}
 
 	// we're not having the material update context recreate render states because we will manually do it for only our components
 	TArray<FComponentRecreateRenderStateContext> RecreateRenderStateContexts;
