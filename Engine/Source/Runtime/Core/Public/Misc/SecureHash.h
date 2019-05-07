@@ -193,7 +193,7 @@ typedef union
 class CORE_API FSHAHash
 {
 public:
-	uint8 Hash[20];
+	alignas(uint32) uint8 Hash[20];
 
 	FSHAHash()
 	{
@@ -222,7 +222,10 @@ public:
 
 	friend CORE_API FArchive& operator<<( FArchive& Ar, FSHAHash& G );
 	
-	friend CORE_API uint32 GetTypeHash(FSHAHash const& InKey);
+	friend uint32 GetTypeHash(const FSHAHash& InKey)
+	{
+		return *reinterpret_cast<const uint32*>(InKey.Hash);
+	}
 
 	friend CORE_API FString LexToString(const FSHAHash&);
 	friend CORE_API void LexFromString(FSHAHash& Hash, const TCHAR*);

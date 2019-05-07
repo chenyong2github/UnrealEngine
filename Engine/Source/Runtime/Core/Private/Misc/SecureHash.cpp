@@ -605,11 +605,6 @@ FArchive& operator<<( FArchive& Ar, FSHAHash& G )
 	return Ar;
 }
 
-uint32 GetTypeHash(FSHAHash const& InKey)
-{
-	return FCrc::MemCrc32(InKey.Hash, sizeof(InKey.Hash));
-}
-
 FString LexToString(const FSHAHash& InHash)
 {
 	return InHash.ToString();
