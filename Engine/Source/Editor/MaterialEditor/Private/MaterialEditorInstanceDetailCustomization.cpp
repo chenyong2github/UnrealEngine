@@ -737,9 +737,9 @@ EVisibility FMaterialInstanceParameterDetails::ShouldShowMaterialRefractionSetti
 
 EVisibility FMaterialInstanceParameterDetails::ShouldShowSubsurfaceProfile() const
 {
-	EMaterialShadingModel Model = MaterialEditorInstance->SourceInstance->GetShadingModel();
+	FMaterialShadingModelField ShadingModels = MaterialEditorInstance->SourceInstance->GetShadingModels();
 
-	return UseSubsurfaceProfile(Model) ? EVisibility::Visible : EVisibility::Collapsed;
+	return UseSubsurfaceProfile(ShadingModels) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 
@@ -908,12 +908,33 @@ void FMaterialInstanceParameterDetails::CreateBasePropertyOverrideWidgets(IDetai
 		.OverrideResetToDefault(ResetBlendModePropertyOverride);
 
 	FIsResetToDefaultVisible IsShadingModelPropertyResetVisible = FIsResetToDefaultVisible::CreateLambda([this](TSharedPtr<IPropertyHandle> InHandle) {
-		return MaterialEditorInstance->Parent != nullptr ? MaterialEditorInstance->BasePropertyOverrides.ShadingModel != MaterialEditorInstance->Parent->GetShadingModel() : false;
+		if (MaterialEditorInstance->Parent != nullptr)
+		{	
+			if (MaterialEditorInstance->Parent->IsShadingModelFromMaterialExpression())
+			{
+				return MaterialEditorInstance->BasePropertyOverrides.ShadingModel != MSM_FromMaterialExpression;
+			}
+			else
+			{
+				return MaterialEditorInstance->BasePropertyOverrides.ShadingModel != MaterialEditorInstance->Parent->GetShadingModels().GetFirstShadingModel();
+			}
+		}
+		else
+		{
+			return false;
+		}
 	});
 	FResetToDefaultHandler ResetShadingModelPropertyHandler = FResetToDefaultHandler::CreateLambda([this](TSharedPtr<IPropertyHandle> InHandle) {
 		if (MaterialEditorInstance->Parent != nullptr)
 		{
-			MaterialEditorInstance->BasePropertyOverrides.ShadingModel = MaterialEditorInstance->Parent->GetShadingModel();
+			if (MaterialEditorInstance->Parent->IsShadingModelFromMaterialExpression())
+			{
+				MaterialEditorInstance->BasePropertyOverrides.ShadingModel = MSM_FromMaterialExpression;
+			}
+			else
+			{
+				MaterialEditorInstance->BasePropertyOverrides.ShadingModel = MaterialEditorInstance->Parent->GetShadingModels().GetFirstShadingModel();
+			}
 		}
 	});
 	FResetToDefaultOverride ResetShadingModelPropertyOverride = FResetToDefaultOverride::Create(IsShadingModelPropertyResetVisible, ResetShadingModelPropertyHandler);
