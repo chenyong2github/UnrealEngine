@@ -1183,6 +1183,7 @@ namespace UnrealBuildTool
 				ParseTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 				ParseTimingInfoAction.StatusDescription = String.Format("Parsing Timing File '{0}'", CompileAction.TimingFile);
 				ParseTimingInfoAction.bCanExecuteRemotely = true;
+				ParseTimingInfoAction.bCanExecuteRemotelyWithSNDBS = true;
 				ParseTimingInfoAction.PrerequisiteItems.Add(SourceFile);
 				ParseTimingInfoAction.PrerequisiteItems.Add(CompileAction.TimingFile);
 				ParseTimingInfoAction.ProducedItems.Add(TimingJsonFile);

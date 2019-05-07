@@ -1,17 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Diagnostics;
-using System.Xml;
-using System.Text.RegularExpressions;
+using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Threading;
 using System.ServiceProcess;
-using Tools.DotNETCommon;
 using System.Text;
+using Tools.DotNETCommon;
 
 namespace UnrealBuildTool
 {
@@ -182,6 +179,7 @@ namespace UnrealBuildTool
 			int NumScriptedActions = 0;
 			List<Action> LocalActions = new List<Action>();
 			ActionThread DummyActionThread = new ActionThread(null, 1, 1);
+			bool PrintDebugInfo = false;
 			foreach (Action Action in InActions)
 			{
 				ActionThread ActionProcess = null;
@@ -267,6 +265,7 @@ namespace UnrealBuildTool
 							Log.TraceInformation("[{0}/{1}] {2} {3}", JobNumber, InActions.Count, Action.CommandDescription, Action.StatusDescription);
 							JobNumber++;
 							NumScriptedActions++;
+							PrintDebugInfo |= Action.bPrintDebugInfo;
 						}
 					}
 				}
@@ -283,12 +282,15 @@ namespace UnrealBuildTool
                 string SCERoot = Environment.GetEnvironmentVariable("SCE_ROOT_DIR");
                 string SNDBSExecutable = Path.Combine(SCERoot, "Common/SN-DBS/bin/dbsbuild.exe");
 				DirectoryReference TemplatesDir = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Programs", "UnrealBuildTool", "SndbsTemplates");
-                ProcessStartInfo PSI = new ProcessStartInfo(SNDBSExecutable, String.Format("-q -p UE4 -s \"{0}\" -templates \"{1}\"", FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", "sndbs.bat").FullName, TemplatesDir.FullName));
+				FileReference IncludeRewriteRules = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "SNDBS", "include-rewrite-rules.ini");
+				string IncludeRewriteRulesArg = String.Format("--include-rewrite-rules \"{0}\"", IncludeRewriteRules.FullName);
+				string VerbosityLevel = PrintDebugInfo ? "-v" : "-q";
+                ProcessStartInfo PSI = new ProcessStartInfo(SNDBSExecutable, String.Format("{0} -p UE4 -s \"{1}\" -templates \"{2}\" {3}", VerbosityLevel, FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", "sndbs.bat").FullName, TemplatesDir.FullName, IncludeRewriteRulesArg));
 				PSI.RedirectStandardOutput = true;
 				PSI.RedirectStandardError = true;
 				PSI.UseShellExecute = false;
 				PSI.CreateNoWindow = true;
-				PSI.WorkingDirectory = Path.GetFullPath("."); ;
+				PSI.WorkingDirectory = Path.GetFullPath(".");
 				Process NewProcess = new Process();
 				NewProcess.StartInfo = PSI;
 				NewProcess.OutputDataReceived += new DataReceivedEventHandler(ActionDebugOutput);
@@ -356,6 +358,13 @@ namespace UnrealBuildTool
 			bool SNDBSResult = true;
 			if (Actions.Count > 0)
 			{
+				// Generate any needed templates. Can only generate one per executable, so just use the first Action for reference
+				IEnumerable<Action> CommandPaths = Actions.GroupBy(a => a.CommandPath).Select(g => g.FirstOrDefault()).ToList();
+				foreach (Action CommandPath in CommandPaths)
+				{
+					PrepareToolTemplate(CommandPath);
+				}
+
 				// Use WMI to figure out physical cores, excluding hyper threading.
 				int NumCores = Utils.GetPhysicalProcessorCount();
 				
@@ -449,6 +458,33 @@ namespace UnrealBuildTool
 					LogEventType.Console, "Cumulative thread seconds ({0} processors): {1:0.00}", System.Environment.ProcessorCount, TotalThreadSeconds);
 			}
 			return SNDBSResult;
+		}
+
+		private void PrepareToolTemplate(Action Action)
+		{
+			string TemplateFileName = String.Format("{0}.sn-dbs-tool.ini", Action.CommandPath.GetFileName());
+			FileReference TemplateInput = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "SNDBSTemplates", TemplateFileName);
+			
+			// If no base template exists, don't try to generate one.
+			if (!File.Exists(TemplateInput.FullName))
+			{
+				return;
+			}
+
+			FileReference TemplateOutput = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Programs", "UnrealBuildTool", "SNDBSTemplates", TemplateFileName);
+			if (!Directory.Exists(TemplateOutput.Directory.FullName))
+			{
+				Directory.CreateDirectory(TemplateOutput.Directory.FullName);
+			}
+
+			string TemplateText = File.ReadAllText(TemplateInput.FullName);
+			TemplateText = TemplateText.Replace("{COMMAND_PATH}", Action.CommandPath.Directory.FullName);
+			foreach (DictionaryEntry Variable in Environment.GetEnvironmentVariables(EnvironmentVariableTarget.Process))
+			{
+				string VariableName = String.Format("{{{0}}}", Variable.Key);
+				TemplateText = TemplateText.Replace(VariableName, Variable.Value.ToString());
+			}
+			File.WriteAllText(TemplateOutput.FullName, TemplateText);
 		}
 	}
 }
