@@ -85,6 +85,9 @@ void AmbientOcclusionRGS()
 			continue;
 		
 		uint RayFlags = 0;
+#if !ENABLE_MATERIALS
+		RayFlags |= RAY_FLAG_FORCE_OPAQUE;
+#endif
 #if !ENABLE_TWO_SIDED_GEOMETRY
 		RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 #endif

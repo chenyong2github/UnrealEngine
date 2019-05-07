@@ -99,6 +99,21 @@ class FRayTracingAmbientOcclusionRGS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FRayTracingAmbientOcclusionRGS, "/Engine/Private/RayTracing/RayTracingAmbientOcclusionRGS.usf", "AmbientOcclusionRGS", SF_RayGen);
 
+void FDeferredShadingSceneRenderer::PrepareRayTracingAmbientOcclusion(const FViewInfo& View, TArray<FRayTracingShaderRHIParamRef>& OutRayGenShaders)
+{
+	// Declare all RayGen shaders that require material closest hit shaders to be bound
+	FRayTracingAmbientOcclusionRGS::FPermutationDomain PermutationVector;
+	for (uint32 TwoSidedGeometryIndex = 0; TwoSidedGeometryIndex < 2; ++TwoSidedGeometryIndex)
+	{
+		for (uint32 EnableMaterialsIndex = 0; EnableMaterialsIndex < 2; ++EnableMaterialsIndex)
+		{
+			PermutationVector.Set<FRayTracingAmbientOcclusionRGS::FEnableTwoSidedGeometryDim>(TwoSidedGeometryIndex != 0);
+			PermutationVector.Set<FRayTracingAmbientOcclusionRGS::FEnableMaterialsDim>(EnableMaterialsIndex != 0);
+			TShaderMapRef<FRayTracingAmbientOcclusionRGS> RayGenerationShader(View.ShaderMap, PermutationVector);
+			OutRayGenShaders.Add(RayGenerationShader->GetRayTracingShader());
+		}
+	}
+}
 
 void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT)
 {
@@ -195,7 +210,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 
 		// TODO: Provide material support for opacity mask
 		FRHIRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
-		//if (CVarRayTracingAmbientOcclusionEnableMaterials.GetValueOnRenderThread() == 0)
+		if (CVarRayTracingAmbientOcclusionEnableMaterials.GetValueOnRenderThread() == 0)
 		{
 			// Declare default pipeline
 			FRayTracingPipelineStateInitializer Initializer;
