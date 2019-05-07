@@ -570,21 +570,25 @@ static void IdenticalHelper(const UProperty* AProperty, const UProperty* BProper
 			return;
 		}
 
-		// dig into the objects if they are in the same package as our initial object:
 		const UObjectProperty* BPropAsObject = CastChecked<UObjectProperty>(BProperty);
 
 		const UObject* A = *((const UObject* const*)AValue);
 		const UObject* B = *((const UObject* const*)BValue);
 
+		// dig into the objects if they are in the same package as our initial object:
 		if(BPropAsObject->HasAnyPropertyFlags(CPF_InstancedReference) && APropAsObject->HasAnyPropertyFlags(CPF_InstancedReference) && A && B && A->GetClass() == B->GetClass())
 		{
-			// dive into the object to find actual differences:
 			const UClass* AClass = A->GetClass(); // BClass and AClass are identical!
 
-			for (TFieldIterator<UProperty> PropertyIt(AClass); PropertyIt; ++PropertyIt)
+			// We only want to recurse if this is EditInlineNew and not a component
+			// Other instanced refs are likely to form a type-specific web so recursion doesn't make sense and won't be displayed in the details pane
+			if (AClass->HasAnyClassFlags(CLASS_EditInlineNew) && !AClass->IsChildOf(UActorComponent::StaticClass()))
 			{
-				const UProperty* ClassProp = *PropertyIt;
-				IdenticalHelper(ClassProp, ClassProp, ClassProp->ContainerPtrToValuePtr<void>(A, 0), ClassProp->ContainerPtrToValuePtr<void>(B, 0), FPropertySoftPath(RootPath, ClassProp), DifferingSubProperties);
+				for (TFieldIterator<UProperty> PropertyIt(AClass); PropertyIt; ++PropertyIt)
+				{
+					const UProperty* ClassProp = *PropertyIt;
+					IdenticalHelper(ClassProp, ClassProp, ClassProp->ContainerPtrToValuePtr<void>(A, 0), ClassProp->ContainerPtrToValuePtr<void>(B, 0), FPropertySoftPath(RootPath, ClassProp), DifferingSubProperties);
+				}
 			}
 		}
 		else
@@ -712,73 +716,24 @@ TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::NoDiffe
 	) );
 }
 
-TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::AnimBlueprintEntry()
+TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::UnknownDifferencesEntry()
 {
-	// For now, a widget and a short message explaining that differences in the AnimGraph are
-	// not detected by the diff tool:
+	// Warn about there being unknown differences
 	const auto GenerateWidget = []() -> TSharedRef<SWidget>
 	{
 		return SNew(STextBlock)
 			.ColorAndOpacity(FLinearColor(.7f, .7f, .7f))
 			.TextStyle(FEditorStyle::Get(), TEXT("BlueprintDif.ItalicText"))
-			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "AnimBlueprintsNotSupported", "Warning: Detecting differences in Animation Blueprint specific data is not yet supported..."));
-	};
-
-	TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
-	Children.Emplace( TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-		FOnDiffEntryFocused()
-		, FGenerateDiffEntryWidget::CreateStatic(GenerateWidget)
-		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >()
-		)) );
-
-	const auto CreateAnimGraphRootEntry = []() -> TSharedRef<SWidget>
-	{
-		return SNew(STextBlock)
-			.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "AnimGraphTooltip", "Detecting differences in Animation Blueprint specific data is not yet supported"))
-			.ColorAndOpacity(DiffViewUtils::LookupColor(true))
-			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "AnimGraphLabel", "Animation Blueprint"));
+			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "BlueprintTypeNotSupported", "Warning: Detecting differences in this Blueprint type specific data is not yet supported..."));
 	};
 
 	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
 		FOnDiffEntryFocused()
-		, FGenerateDiffEntryWidget::CreateStatic(CreateAnimGraphRootEntry)
-		, Children
-		));
-}
-
-TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::WidgetBlueprintEntry()
-{
-	// For now, a widget and a short message explaining that differences in the WidgetTree are
-	// not detected by the diff tool:
-	const auto GenerateWidget = []() -> TSharedRef<SWidget>
-	{
-		return SNew(STextBlock)
-			.ColorAndOpacity(FLinearColor(.7f, .7f, .7f))
-			.TextStyle(FEditorStyle::Get(), TEXT("BlueprintDif.ItalicText"))
-			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "WidgetTreeNotSupported", "Warning: Detecting differences in Widget Blueprint specific data is not yet supported..."));
-	};
-
-	TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
-	Children.Emplace(TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-		FOnDiffEntryFocused()
 		, FGenerateDiffEntryWidget::CreateStatic(GenerateWidget)
 		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >()
-		)));
-
-	const auto CreateWidgetTreeRootEntry = []() -> TSharedRef<SWidget>
-	{
-		return SNew(STextBlock)
-			.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "WidgetTreeTooltip", "Detecting differences in Widget Blueprint specific data is not yet supported"))
-			.ColorAndOpacity(DiffViewUtils::LookupColor(true))
-			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "WidgetTreeLabel", "Widget Blueprint"));
-	};
-
-	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-		FOnDiffEntryFocused()
-		, FGenerateDiffEntryWidget::CreateStatic(CreateWidgetTreeRootEntry)
-		, Children
-		));
+	));
 }
+
 TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateCategoryEntry(const FText& LabelText, const FText& ToolTipText, FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasDifferences)
 {
 	const auto CreateDefaultsRootEntry = [](FText LabelText, FText ToolTipText, FLinearColor Color) -> TSharedRef<SWidget>

@@ -9,6 +9,7 @@ class FSCSEditorTreeNode;
 class SKismetInspector;
 class SSCSEditor;
 
+/** Struct to support diffing the component tree for a blueprint */
 class KISMET_API FSCSDiff
 {
 public:
@@ -18,6 +19,8 @@ public:
 	TSharedRef< SWidget > TreeWidget();
 
 	TArray< FSCSResolvedIdentifier > GetDisplayedHierarchy() const;
+
+	const UBlueprint* GetBlueprint() const { return Blueprint; }
 
 protected:
 	void OnSCSEditorUpdateSelectionFromNodes(const TArray< TSharedPtr<class FSCSEditorTreeNode> >& SelectedNodes);

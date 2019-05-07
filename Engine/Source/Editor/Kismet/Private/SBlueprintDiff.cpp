@@ -32,96 +32,96 @@ class IDiffControl
 {
 public:
 	virtual ~IDiffControl() {}
-};
 
-DECLARE_DELEGATE(FOnDiffControlChanged);
+	/** Adds widgets to the tree of differences to show */
+	virtual void GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences) = 0;
+};
 
 FText RightRevision = LOCTEXT("OlderRevisionIdentifier", "Right Revision");
 
 typedef TMap< FName, const UProperty* > FNamePropertyMap;
 
+const FName BlueprintTypeMode = FName(TEXT("BlueprintTypeMode"));
 const FName MyBlueprintMode = FName(TEXT("MyBlueprintMode"));
 const FName DefaultsMode = FName(TEXT("DefaultsMode"));
 const FName ClassSettingsMode = FName(TEXT("ClassSettingsMode"));
 const FName ComponentsMode = FName(TEXT("ComponentsMode"));
 const FName GraphMode = FName(TEXT("GraphMode"));
 
+TSharedRef<SWidget>	FDiffResultItem::GenerateWidget() const
+{
+	FText ToolTip = Result.ToolTip;
+	FLinearColor Color = Result.DisplayColor;
+	FText Text = Result.DisplayString;
+	if (Text.IsEmpty())
+	{
+		Text = LOCTEXT("DIF_UnknownDiff", "Unknown Diff");
+		ToolTip = LOCTEXT("DIF_Confused", "There is an unspecified difference");
+	}
+	return SNew(STextBlock)
+		.ToolTipText(ToolTip)
+		.ColorAndOpacity(Color)
+		.Text(Text);
+}
+
 /** Shows all differences for the blueprint structure itself that aren't picked up elsewhere */
 class FMyBlueprintDiffControl : public TSharedFromThis<FMyBlueprintDiffControl>, public IDiffControl
 {
 public:
-	FMyBlueprintDiffControl(
-		const UBlueprint* InOldBlueprint
-		, const UBlueprint* InNewBlueprint
-		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
-		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
-		, FOnDiffControlChanged SelectionCallback
-	);
-
-	virtual ~FMyBlueprintDiffControl() {}
-};
-
-FMyBlueprintDiffControl::FMyBlueprintDiffControl(
-	const UBlueprint* InOldBlueprint
-	, const UBlueprint* InNewBlueprint
-	, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
-	, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
-	, FOnDiffControlChanged SelectionCallback
-)
-{
-	TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
-
-	/*const auto FocusSCSDifferenceEntry = [](FSCSDiffEntry Entry, FOnDiffControlChanged InSelectionCallback, FMyBlueprintDiffControl* Owner)
+	FMyBlueprintDiffControl(const UBlueprint* InOldBlueprint, const UBlueprint* InNewBlueprint, FOnDiffEntryFocused InSelectionCallback)
+		: SelectionCallback(InSelectionCallback)
 	{
-		InSelectionCallback.ExecuteIfBound();
-		if (Entry.TreeIdentifier.Name != NAME_None)
-		{
-			Owner->OldSCS.HighlightProperty(Entry.TreeIdentifier.Name, FPropertyPath());
-			Owner->NewSCS.HighlightProperty(Entry.TreeIdentifier.Name, FPropertyPath());
-		}
-	};
-
-	const auto CreateSCSDifferenceWidget = [](FSCSDiffEntry Entry, FText ObjectName) -> TSharedRef<SWidget>
-	{
-		return SNew(STextBlock)
-			.Text(DiffViewUtils::SCSDiffMessage(Entry, ObjectName))
-			.ColorAndOpacity(DiffViewUtils::Differs());
-	};
-
-	for (auto Difference : DifferingProperties.Entries)
-	{
-		auto Entry = TSharedPtr<FBlueprintDifferenceTreeEntry>(
-			new FBlueprintDifferenceTreeEntry(
-				FOnDiffEntryFocused::CreateStatic(FocusSCSDifferenceEntry, Difference, SelectionCallback, this)
-				, FGenerateDiffEntryWidget::CreateStatic(CreateSCSDifferenceWidget, Difference, RightRevision)
-				, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >()
-			)
-			);
-		Children.Push(Entry);
-		OutRealDifferences.Push(Entry);
-	}*/
-
-	const bool bHasDifferences = Children.Num() != 0;
-	if (!bHasDifferences)
-	{
-		// make one child informing the user that there are no differences:
-		Children.Push(FBlueprintDifferenceTreeEntry::NoDifferencesEntry());
 	}
 
-	const auto ForwardSelection = [](FOnDiffControlChanged InSelectionCallback)
+	virtual void GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences) override
 	{
-		// This allows the owning control to focus the correct tab (or do whatever else it likes):
-		InSelectionCallback.ExecuteIfBound();
-	};
+		TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
 
-	OutTreeEntries.Push(FBlueprintDifferenceTreeEntry::CreateCategoryEntry(
-		NSLOCTEXT("FBlueprintDifferenceTreeEntry", "MyBlueprintLabel", "My Blueprint"),
-		NSLOCTEXT("FBlueprintDifferenceTreeEntry", "MyBlueprintTooltip", "The list of changes made to blueprint structure in the My Blueprint panel"),
-		FOnDiffEntryFocused::CreateStatic(ForwardSelection, SelectionCallback),
-		Children,
-		bHasDifferences
-	));
-}
+		/*const auto FocusSCSDifferenceEntry = [](FSCSDiffEntry Entry, FOnDiffEntryFocused InSelectionCallback, FMyBlueprintDiffControl* Owner)
+		{
+			InSelectionCallback.ExecuteIfBound();
+			if (Entry.TreeIdentifier.Name != NAME_None)
+			{
+				Owner->OldSCS.HighlightProperty(Entry.TreeIdentifier.Name, FPropertyPath());
+				Owner->NewSCS.HighlightProperty(Entry.TreeIdentifier.Name, FPropertyPath());
+			}
+		};
+
+		const auto CreateSCSDifferenceWidget = [](FSCSDiffEntry Entry, FText ObjectName) -> TSharedRef<SWidget>
+		{
+			return SNew(STextBlock)
+				.Text(DiffViewUtils::SCSDiffMessage(Entry, ObjectName))
+				.ColorAndOpacity(DiffViewUtils::Differs());
+		};
+
+		for (auto Difference : DifferingProperties.Entries)
+		{
+			TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
+					FOnDiffEntryFocused::CreateStatic(FocusSCSDifferenceEntry, Difference, SelectionCallback, this),
+					FGenerateDiffEntryWidget::CreateStatic(CreateSCSDifferenceWidget, Difference, RightRevision));
+			Children.Push(Entry);
+			OutRealDifferences.Push(Entry);
+		}*/
+
+		const bool bHasDifferences = Children.Num() != 0;
+		if (!bHasDifferences)
+		{
+			// make one child informing the user that there are no differences:
+			Children.Push(FBlueprintDifferenceTreeEntry::NoDifferencesEntry());
+		}
+
+		OutTreeEntries.Push(FBlueprintDifferenceTreeEntry::CreateCategoryEntry(
+			NSLOCTEXT("FBlueprintDifferenceTreeEntry", "MyBlueprintLabel", "My Blueprint"),
+			NSLOCTEXT("FBlueprintDifferenceTreeEntry", "MyBlueprintTooltip", "The list of changes made to blueprint structure in the My Blueprint panel"),
+			SelectionCallback,
+			Children,
+			bHasDifferences
+		));
+	}
+
+private:
+	FOnDiffEntryFocused SelectionCallback;
+};
 
 /** 
  * Each difference in the tree will either be a tree node that is added in one Blueprint 
@@ -130,261 +130,46 @@ FMyBlueprintDiffControl::FMyBlueprintDiffControl(
 class FSCSDiffControl : public TSharedFromThis<FSCSDiffControl>, public IDiffControl
 {
 public:
-	FSCSDiffControl(
-					const UBlueprint* InOldBlueprint
-					, const UBlueprint* InNewBlueprint
-					, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
-					, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
-					, FOnDiffControlChanged SelectionCallback
-					);
-
-
-	TSharedRef<SWidget> OldTreeWidget() { return OldSCS.TreeWidget(); }
-	TSharedRef<SWidget> NewTreeWidget() { return NewSCS.TreeWidget(); }
-
-	virtual ~FSCSDiffControl() {}
-private:
-	FSCSDiffRoot DifferingProperties;
-
-	FSCSDiff OldSCS;
-	FSCSDiff NewSCS;
-};
-
-FSCSDiffControl::FSCSDiffControl(
-		const UBlueprint* InOldBlueprint
-		, const UBlueprint* InNewBlueprint
-		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
-		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
-		, FOnDiffControlChanged SelectionCallback
-	)
-	: DifferingProperties()
-	, OldSCS( InOldBlueprint )
-	, NewSCS( InNewBlueprint )
-{
-	TArray< FSCSResolvedIdentifier > OldHierarchy = OldSCS.GetDisplayedHierarchy();
-	TArray< FSCSResolvedIdentifier > NewHierarchy = NewSCS.GetDisplayedHierarchy();
-	DiffUtils::CompareUnrelatedSCS(InOldBlueprint, OldHierarchy, InNewBlueprint, NewHierarchy, DifferingProperties);
-
-	const auto FocusSCSDifferenceEntry = [](FSCSDiffEntry Entry, FOnDiffControlChanged InSelectionCallback, FSCSDiffControl* Owner)
+	FSCSDiffControl(const UBlueprint* InOldBlueprint, const UBlueprint* InNewBlueprint, FOnDiffEntryFocused InSelectionCallback)
+		: SelectionCallback(InSelectionCallback)
+		, OldSCS(InOldBlueprint)
+		, NewSCS(InNewBlueprint)
 	{
-		InSelectionCallback.ExecuteIfBound();
-		if (Entry.TreeIdentifier.Name != NAME_None)
-		{
-			Owner->OldSCS.HighlightProperty(Entry.TreeIdentifier.Name, FPropertyPath());
-			Owner->NewSCS.HighlightProperty(Entry.TreeIdentifier.Name, FPropertyPath());
-		}
-	};
-
-	const auto CreateSCSDifferenceWidget = [](FSCSDiffEntry Entry, FText ObjectName) -> TSharedRef<SWidget>
-	{
-		return SNew(STextBlock)
-			.Text(DiffViewUtils::SCSDiffMessage(Entry,ObjectName))
-			.ColorAndOpacity(DiffViewUtils::Differs());
-	};
-
-	TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
-	for( auto Difference : DifferingProperties.Entries )
-	{
-		auto Entry = TSharedPtr<FBlueprintDifferenceTreeEntry>(
-			new FBlueprintDifferenceTreeEntry(
-				FOnDiffEntryFocused::CreateStatic(FocusSCSDifferenceEntry, Difference, SelectionCallback, this)
-				, FGenerateDiffEntryWidget::CreateStatic(CreateSCSDifferenceWidget, Difference, RightRevision)
-				, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >()
-			)
-		);
-		Children.Push(Entry);
-		OutRealDifferences.Push(Entry);
 	}
 
-	const bool bHasDifferences = Children.Num() != 0;
-	if (!bHasDifferences)
+	virtual void GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences) override
 	{
-		// make one child informing the user that there are no differences:
-		Children.Push(FBlueprintDifferenceTreeEntry::NoDifferencesEntry());
-	}
+		TArray< FSCSResolvedIdentifier > OldHierarchy = OldSCS.GetDisplayedHierarchy();
+		TArray< FSCSResolvedIdentifier > NewHierarchy = NewSCS.GetDisplayedHierarchy();
+		DiffUtils::CompareUnrelatedSCS(OldSCS.GetBlueprint(), OldHierarchy, NewSCS.GetBlueprint(), NewHierarchy, DifferingProperties);
 
-	const auto ForwardSelection = [](FOnDiffControlChanged InSelectionCallback)
-	{
-		// This allows the owning control to focus the correct tab (or do whatever else it likes):
-		InSelectionCallback.ExecuteIfBound();
-	};
-
-	OutTreeEntries.Push(FBlueprintDifferenceTreeEntry::CreateCategoryEntry(
-		NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSLabel", "Components"),
-		NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSTooltip", "The list of changes made in the Components panel"),
-		FOnDiffEntryFocused::CreateStatic(ForwardSelection, SelectionCallback),
-		Children,
-		bHasDifferences
-	));
-}
-
-/** Generic wrapper around a details view, this does not actually fill out OutTreeEntries */
-class FDetailsDiffControl : public IDiffControl
-{
-public:
-	FDetailsDiffControl( const UObject* InOldObject
-					, const UObject* InNewObject
-					, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
-					, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
-					, FOnDiffControlChanged SelectionCallback );
-
-	TSharedRef<SWidget> OldDetailsWidget() { return OldDetails.DetailsWidget(); }
-	TSharedRef<SWidget> NewDetailsWidget() { return NewDetails.DetailsWidget(); }
-
-	virtual ~FDetailsDiffControl() {}
-
-protected:
-	void HighlightDifference(const FPropertySoftPath& PropertyName);
-
-	FDetailsDiff OldDetails;
-	FDetailsDiff NewDetails;
-
-	TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
-};
-
-FDetailsDiffControl::FDetailsDiffControl(
-		const UObject* InOldObject
-		, const UObject* InNewObject
-		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
-		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
-		, FOnDiffControlChanged SelectionCallback )
-	: OldDetails(InOldObject, FDetailsDiff::FOnDisplayedPropertiesChanged() )
-	, NewDetails(InNewObject, FDetailsDiff::FOnDisplayedPropertiesChanged() )
-{
-	TArray< FSingleObjectDiffEntry > DifferingProperties;
-	OldDetails.DiffAgainst(NewDetails, DifferingProperties);
-
-	// OrderedProperties will contain differences in the order they are displayed:
-	TArray< const FSingleObjectDiffEntry* > OrderedProperties;
-
-	// create differing properties list based on what is displayed by the old properties..
-	TArray<FPropertySoftPath> OldProperties = OldDetails.GetDisplayedProperties();
-	TArray<FPropertySoftPath> NewProperties = NewDetails.GetDisplayedProperties();
-
-	const auto FindAndPushDiff = [&OrderedProperties, &DifferingProperties](const FPropertySoftPath& PropertyIdentifier) -> bool
-	{
-		bool bDiffers = false;
-		for (const auto& Difference : DifferingProperties)
+		const auto FocusSCSDifferenceEntry = [](FSCSDiffEntry Entry, FOnDiffEntryFocused InSelectionCallback, FSCSDiffControl* Owner)
 		{
-			if (Difference.Identifier == PropertyIdentifier)
+			InSelectionCallback.ExecuteIfBound();
+			if (Entry.TreeIdentifier.Name != NAME_None)
 			{
-				bDiffers = true;
-				// if there are any nested differences associated with PropertyIdentifier, add those
-				// as well:
-				OrderedProperties.AddUnique(&Difference);
+				Owner->OldSCS.HighlightProperty(Entry.TreeIdentifier.Name, FPropertyPath());
+				Owner->NewSCS.HighlightProperty(Entry.TreeIdentifier.Name, FPropertyPath());
 			}
-			else if (Difference.Identifier.IsSubPropertyMatch(PropertyIdentifier))
-			{
-				bDiffers = true;
-				OrderedProperties.AddUnique(&Difference);
-			}
-		}
-		return bDiffers;
-	};
+		};
 
-	// zip the two sets of properties, zip iterators are not trivial to write in c++,
-	// so this procedural stuff will have to do:
-	int IterOld = 0;
-	int IterNew = 0;
-	while (IterOld < OldProperties.Num() || IterNew < NewProperties.Num())
-	{
-		const bool bOldIterValid = IterOld < OldProperties.Num();
-		const bool bNewIterValid = IterNew < NewProperties.Num();
-
-		// We've reached the end of the new list, but still have properties in the old list.
-		// Continue over the old list to catch any remaining diffs.
-		if (bOldIterValid && !bNewIterValid)
+		const auto CreateSCSDifferenceWidget = [](FSCSDiffEntry Entry, FText ObjectName) -> TSharedRef<SWidget>
 		{
-			FindAndPushDiff(OldProperties[IterOld]);
-			++IterOld;
-		}
-		// We've reached the end of the old list, but still have properties in the new list.
-		// Continue over the new list to catch any remaining diffs.
-		else if (!bOldIterValid && bNewIterValid)
+			return SNew(STextBlock)
+				.Text(DiffViewUtils::SCSDiffMessage(Entry, ObjectName))
+				.ColorAndOpacity(DiffViewUtils::Differs());
+		};
+
+		TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
+		for (auto Difference : DifferingProperties.Entries)
 		{
-			FindAndPushDiff(NewProperties[IterNew]);
-			++IterNew;
+			TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
+				FOnDiffEntryFocused::CreateStatic(FocusSCSDifferenceEntry, Difference, SelectionCallback, this),
+				FGenerateDiffEntryWidget::CreateStatic(CreateSCSDifferenceWidget, Difference, RightRevision));
+			Children.Push(Entry);
+			OutRealDifferences.Push(Entry);
 		}
-		else
-		{
-			// If both properties have the same path, check to ensure the property hasn't changed.
-			if (OldProperties[IterOld] == NewProperties[IterNew])
-			{
-				FindAndPushDiff(OldProperties[IterOld]);
-				++IterNew;
-				++IterOld;
-			}
-			else
-			{
-				// If the old property is different, add it to the list and increment the old iter.
-				// This indicates the property was removed.
-				if (FindAndPushDiff(OldProperties[IterOld]))
-				{
-					++IterOld;
-				}
-				// If the new property is different, add it to the list and increment the new iter.
-				// This indicates the property was added.
-				else if (FindAndPushDiff(NewProperties[IterNew]))
-				{
-					++IterNew;
-				}
-				// Neither property was different.
-				// This indicates the iterators were just out of step from a previous addition or removal.
-				else
-				{
-					++IterOld;
-					++IterNew;
-				}
-			}
-		}
-	}
 
-	const auto CreateDifferenceWidget = [](FSingleObjectDiffEntry DiffEntry, FText ObjectName) -> TSharedRef<SWidget>
-	{
-		return SNew(STextBlock)
-			.Text(DiffViewUtils::PropertyDiffMessage(DiffEntry, ObjectName))
-			.ColorAndOpacity(DiffViewUtils::Differs());
-	};
-
-	const auto FocusDetailsDifferenceEntry = [](FPropertySoftPath Identifier, FDetailsDiffControl* Control, FOnDiffControlChanged InSelectionCallback)
-	{
-		// This allows the owning control to focus the correct tab (or do whatever else it likes):
-		InSelectionCallback.ExecuteIfBound();
-		Control->HighlightDifference(Identifier);
-	};
-
-	for (auto Difference : OrderedProperties)
-	{
-		auto Entry = TSharedPtr<FBlueprintDifferenceTreeEntry>(
-			new FBlueprintDifferenceTreeEntry(
-			FOnDiffEntryFocused::CreateStatic(FocusDetailsDifferenceEntry, Difference->Identifier, this, SelectionCallback)
-			, FGenerateDiffEntryWidget::CreateStatic(CreateDifferenceWidget, *Difference, RightRevision)
-			, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >()
-			)
-		);
-		Children.Push(Entry);
-		OutRealDifferences.Push(Entry);
-	}
-}
-
-void FDetailsDiffControl::HighlightDifference(const FPropertySoftPath& PropertyName)
-{
-	OldDetails.HighlightProperty(PropertyName);
-	NewDetails.HighlightProperty(PropertyName);
-}
-
-/** Override for CDO special case */
-class FCDODiffControl : public TSharedFromThis<FCDODiffControl>, public FDetailsDiffControl
-{
-public:
-	FCDODiffControl(const UObject* InOldObject
-		, const UObject* InNewObject
-		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
-		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
-		, FOnDiffControlChanged SelectionCallback)
-		: FDetailsDiffControl(InOldObject, InNewObject, OutTreeEntries, OutRealDifferences, SelectionCallback)
-	{
-		// Parent constructor fills out Children
 		const bool bHasDifferences = Children.Num() != 0;
 		if (!bHasDifferences)
 		{
@@ -392,36 +177,122 @@ public:
 			Children.Push(FBlueprintDifferenceTreeEntry::NoDifferencesEntry());
 		}
 
-		const auto ForwardSelection = [](FOnDiffControlChanged InSelectionCallback)
+		OutTreeEntries.Push(FBlueprintDifferenceTreeEntry::CreateCategoryEntry(
+			NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSLabel", "Components"),
+			NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSTooltip", "The list of changes made in the Components panel"),
+			SelectionCallback,
+			Children,
+			bHasDifferences
+		));
+	}
+
+	TSharedRef<SWidget> OldTreeWidget() { return OldSCS.TreeWidget(); }
+	TSharedRef<SWidget> NewTreeWidget() { return NewSCS.TreeWidget(); }
+
+private:
+	FOnDiffEntryFocused SelectionCallback;
+	FSCSDiffRoot DifferingProperties;
+
+	FSCSDiff OldSCS;
+	FSCSDiff NewSCS;
+};
+
+/** Generic wrapper around a details view, this does not actually fill out OutTreeEntries */
+class FDetailsDiffControl : public TSharedFromThis<FDetailsDiffControl>, public IDiffControl
+{
+public:
+	FDetailsDiffControl(const UObject* InOldObject, const UObject* InNewObject, FOnDiffEntryFocused InSelectionCallback)
+		: SelectionCallback(InSelectionCallback)
+		, OldDetails(InOldObject, FDetailsDiff::FOnDisplayedPropertiesChanged())
+		, NewDetails(InNewObject, FDetailsDiff::FOnDisplayedPropertiesChanged())
+	{
+		OldDetails.DiffAgainst(NewDetails, DifferingProperties, true);
+	}
+
+	virtual void GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences) override
+	{
+		for (const FSingleObjectDiffEntry& Difference : DifferingProperties)
 		{
-			// This allows the owning control to focus the correct tab (or do whatever else it likes):
-			InSelectionCallback.ExecuteIfBound();
-		};
+			TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
+				FOnDiffEntryFocused::CreateSP(AsShared(), &FDetailsDiffControl::OnSelectDiffEntry, Difference.Identifier),
+				FGenerateDiffEntryWidget::CreateSP(AsShared(), &FDetailsDiffControl::CreateDifferenceWidget, Difference, RightRevision));
+			Children.Push(Entry);
+			OutRealDifferences.Push(Entry);
+		}
+	}
+
+	TSharedRef<SWidget> OldDetailsWidget() { return OldDetails.DetailsWidget(); }
+	TSharedRef<SWidget> NewDetailsWidget() { return NewDetails.DetailsWidget(); }
+
+protected:
+	virtual void OnSelectDiffEntry(FPropertySoftPath PropertyName)
+	{
+		SelectionCallback.ExecuteIfBound();
+		OldDetails.HighlightProperty(PropertyName);
+		NewDetails.HighlightProperty(PropertyName);
+	}
+
+	virtual TSharedRef<SWidget> CreateDifferenceWidget(FSingleObjectDiffEntry DiffEntry, FText ObjectName)
+	{
+		return SNew(STextBlock)
+			.Text(DiffViewUtils::PropertyDiffMessage(DiffEntry, ObjectName))
+			.ColorAndOpacity(DiffViewUtils::Differs());
+	}
+
+	FOnDiffEntryFocused SelectionCallback;
+	FDetailsDiff OldDetails;
+	FDetailsDiff NewDetails;
+
+	TArray<FSingleObjectDiffEntry> DifferingProperties;
+	TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
+};
+
+/** Override for CDO special case */
+class FCDODiffControl : public TSharedFromThis<FCDODiffControl>, public FDetailsDiffControl
+{
+public:
+	FCDODiffControl(const UObject* InOldObject, const UObject* InNewObject, FOnDiffEntryFocused InSelectionCallback)
+		: FDetailsDiffControl(InOldObject, InNewObject, InSelectionCallback)
+	{
+	}
+	
+	virtual void GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences) override
+	{
+		FDetailsDiffControl::GenerateTreeEntries(OutTreeEntries, OutRealDifferences);
+
+		const bool bHasDifferences = Children.Num() != 0;
+		if (!bHasDifferences)
+		{
+			// make one child informing the user that there are no differences:
+			Children.Push(FBlueprintDifferenceTreeEntry::NoDifferencesEntry());
+		}
 
 		OutTreeEntries.Push(FBlueprintDifferenceTreeEntry::CreateCategoryEntry(
 			NSLOCTEXT("FBlueprintDifferenceTreeEntry", "DefaultsLabel", "Defaults"),
 			NSLOCTEXT("FBlueprintDifferenceTreeEntry", "DefaultsTooltip", "The list of changes made in the Defaults panel"),
-			FOnDiffEntryFocused::CreateStatic(ForwardSelection, SelectionCallback),
+			SelectionCallback,
 			Children,
 			bHasDifferences
 		));
 	}
 };
 
-/** Override for class defaults */
-class FClassDefaultsDiffControl : public TSharedFromThis<FClassDefaultsDiffControl>, public FDetailsDiffControl
+/** Override for class class settings */
+class FClassSettingsDiffControl : public TSharedFromThis<FClassSettingsDiffControl>, public FDetailsDiffControl
 {
 public:
-	FClassDefaultsDiffControl(const UObject* InOldObject
-		, const UObject* InNewObject
-		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries
-		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences
-		, FOnDiffControlChanged SelectionCallback)
-		: FDetailsDiffControl(InOldObject, InNewObject, OutTreeEntries, OutRealDifferences, SelectionCallback)
+	FClassSettingsDiffControl(const UObject* InOldObject, const UObject* InNewObject, FOnDiffEntryFocused InSelectionCallback)
+		: FDetailsDiffControl(InOldObject, InNewObject, InSelectionCallback)
 	{
+	}
+
+	virtual void GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences) override
+	{
+		FDetailsDiffControl::GenerateTreeEntries(OutTreeEntries, OutRealDifferences);
+
 		// Check for parent class and interfaces here
-		const UBlueprint* OldBlueprint = Cast<UBlueprint>(InOldObject);
-		const UBlueprint* NewBlueprint = Cast<UBlueprint>(InNewObject);
+		const UBlueprint* OldBlueprint = Cast<UBlueprint>(OldDetails.GetDisplayedObject());
+		const UBlueprint* NewBlueprint = Cast<UBlueprint>(OldDetails.GetDisplayedObject());
 
 		const auto GenerateDiffWidget = [](FText DiffText) -> TSharedRef<SWidget>
 		{
@@ -431,22 +302,15 @@ public:
 				.ToolTipText(DiffText);
 		};
 
-		const auto FocusSettings = [](FOnDiffControlChanged InSelectionCallback)
-		{
-			InSelectionCallback.ExecuteIfBound();
-		};
-
 		if (OldBlueprint && NewBlueprint)
 		{
 			if (OldBlueprint->ParentClass != NewBlueprint->ParentClass)
 			{
 				FText DiffText = FText::Format(LOCTEXT("ParentChanged", "Parent Class changed from {0} to {1}"), FText::FromString(OldBlueprint->ParentClass->GetName()), FText::FromString(NewBlueprint->ParentClass->GetName()));
 
-				auto Entry = TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-					FOnDiffEntryFocused::CreateStatic(FocusSettings, SelectionCallback)
-					, FGenerateDiffEntryWidget::CreateStatic(GenerateDiffWidget, DiffText)
-					, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >()
-				));
+				TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
+					SelectionCallback,
+					FGenerateDiffEntryWidget::CreateStatic(GenerateDiffWidget, DiffText));
 
 				Children.Push(Entry);
 				OutRealDifferences.Push(Entry);
@@ -475,11 +339,9 @@ public:
 			{
 				FText DiffText = FText::Format(LOCTEXT("InterfacesChanged", "Interfaces changed from '{0}' to '{1}'"), FText::FromString(OldInterfaces), FText::FromString(NewInterfaces));
 
-				auto Entry = TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-					FOnDiffEntryFocused::CreateStatic(FocusSettings, SelectionCallback)
-					, FGenerateDiffEntryWidget::CreateStatic(GenerateDiffWidget, DiffText)
-					, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >()
-				));
+				TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
+					SelectionCallback,
+					FGenerateDiffEntryWidget::CreateStatic(GenerateDiffWidget, DiffText));
 
 				Children.Push(Entry);
 				OutRealDifferences.Push(Entry);
@@ -489,11 +351,9 @@ public:
 			{
 				FText DiffText = FText::Format(LOCTEXT("NativizationChanged", "Nativization changed from {0} to {1}"), FText::AsNumber(OldBlueprint->SupportsNativization()), FText::AsNumber(NewBlueprint->SupportsNativization()));
 
-				auto Entry = TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-					FOnDiffEntryFocused::CreateStatic(FocusSettings, SelectionCallback)
-					, FGenerateDiffEntryWidget::CreateStatic(GenerateDiffWidget, DiffText)
-					, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >()
-				));
+				TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
+					SelectionCallback,
+					FGenerateDiffEntryWidget::CreateStatic(GenerateDiffWidget, DiffText));
 
 				Children.Push(Entry);
 				OutRealDifferences.Push(Entry);
@@ -507,121 +367,293 @@ public:
 			Children.Push(FBlueprintDifferenceTreeEntry::NoDifferencesEntry());
 		}
 
-		const auto ForwardSelection = [](FOnDiffControlChanged InSelectionCallback)
-		{
-			// This allows the owning control to focus the correct tab (or do whatever else it likes):
-			InSelectionCallback.ExecuteIfBound();
-		};
-
 		OutTreeEntries.Push(FBlueprintDifferenceTreeEntry::CreateCategoryEntry(
 			NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SettingsLabel", "Class Settings"),
 			NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SettingsTooltip", "The list of changes made in the Class Settings panel"),
-			FOnDiffEntryFocused::CreateStatic(ForwardSelection, SelectionCallback),
+			SelectionCallback,
 			Children,
 			bHasDifferences
 		));
 	}
 };
 
-/*List item that entry for a graph*/
-struct KISMET_API FListItemGraphToDiff	: public TSharedFromThis<FListItemGraphToDiff>
+/** Diff control to handle finding type-specific differences */
+struct FBlueprintTypeDiffControl : public TSharedFromThis<FBlueprintTypeDiffControl>, public IDiffControl
 {
-	FListItemGraphToDiff(class SBlueprintDiff* Diff, class UEdGraph* GraphOld, class UEdGraph* GraphNew, const FRevisionInfo& RevisionOld, const FRevisionInfo& RevisionNew);
-	virtual ~FListItemGraphToDiff();
+	struct FSubObjectDiff
+	{
+		FDiffSingleResult SourceResult;
+		FDetailsDiff OldDetails;
+		FDetailsDiff NewDetails;
+		TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>> Diffs;
 
-	/*Generate Widget for list item*/
-	TSharedRef<SWidget> GenerateWidget();
+		FSubObjectDiff(const FDiffSingleResult& InSourceResult, const UObject* OldObject, const UObject* NewObject)
+			: SourceResult(InSourceResult)
+			, OldDetails(OldObject, FDetailsDiff::FOnDisplayedPropertiesChanged())
+			, NewDetails(NewObject, FDetailsDiff::FOnDisplayedPropertiesChanged())
+		{}
+	};
 
-	/*Get tooltip for list item */
-	FText   GetToolTip();
+	FBlueprintTypeDiffControl(const UBlueprint* InBlueprintOld, const UBlueprint* InBlueprintNew, FOnDiffEntryFocused InSelectionCallback)
+		: BlueprintOld(InBlueprintOld), BlueprintNew(InBlueprintNew), SelectionCallback(InSelectionCallback), bDiffSucceeded(false)
+	{
+		check(InBlueprintNew && InBlueprintOld);
+	}
 
-	/*Get old(left) graph*/
-	UEdGraph* GetGraphOld()const{ return GraphOld; }
+	/** Generate difference tree widgets */
+	virtual void GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences) override;
 
-	/*Get new(right) graph*/
-	UEdGraph* GetGraphNew()const{ return GraphNew; }
+	/** The old blueprint (left) */
+	const UBlueprint* BlueprintOld;
 
-	/** Source for list view */
-	TArray<TSharedPtr<struct FDiffResultItem>> DiffListSource;
+	/** The new blueprint(right) */
+	const UBlueprint* BlueprintNew;
+
+	/** Boxes that will display the details diffs */
+	TSharedPtr<SBox> OldDetailsBox;
+	TSharedPtr<SBox> NewDetailsBox;
+
 private:
-	/*Diff widget*/
-	class SBlueprintDiff* Diff;
-
-	/*The old graph(left)*/
-	class UEdGraph*	GraphOld;
-
-	/*The new graph(right)*/
-	class UEdGraph* GraphNew;
-
-	/*Description of Old and new graph*/
-	FRevisionInfo	RevisionOld, RevisionNew;
-
-	//////////////////////////////////////////////////////////////////////////
-	// Diff list
-	//////////////////////////////////////////////////////////////////////////
-
-	typedef TSharedPtr<struct FDiffResultItem>	FSharedDiffOnGraph;
-	typedef SListView<FSharedDiffOnGraph >		SListViewType;
-
-public:
-
-	/** Called when the Newer Graph is modified*/
-	void OnGraphChanged(const FEdGraphEditAction& Action);
-
-	/** Generate list of differences*/
-	TSharedRef<SWidget> GenerateDiffListWidget();
+	/** Generate Widget for top category */
+	TSharedRef<SWidget> GenerateCategoryWidget(bool bHasRealDiffs);
 
 	/** Build up the Diff Source Array*/
 	void BuildDiffSourceArray();
 
-	/** Called when user clicks on a new graph list item */
-	void OnSelectionChanged(FSharedDiffOnGraph Item, ESelectInfo::Type SelectionType);
+	/** Handle selecting a diff */
+	void OnSelectSubobjectDiff(FPropertySoftPath Identifier, TSharedPtr<FSubObjectDiff> SubObjectDiff);
+
+	/** List of objects with differences */
+	TArray<TSharedPtr<FSubObjectDiff>> SubObjectDiffs;
+
+	/** Source for list view */
+	TArray<TSharedPtr<FDiffResultItem>> DiffListSource;
+
+	/** Selection callback */
+	FOnDiffEntryFocused SelectionCallback;
+
+	/** Did diff generation succeed? */
+	bool bDiffSucceeded;
+};
+
+TSharedRef<SWidget> FBlueprintTypeDiffControl::GenerateCategoryWidget(bool bHasRealDiffs)
+{
+	FLinearColor Color = FLinearColor::White;
+
+	if (bHasRealDiffs)
+	{
+		Color = DiffViewUtils::Differs();
+	}
+
+	FText Label = BlueprintNew->GetClass()->GetDisplayNameText();
+
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		[
+			SNew(STextBlock)
+			.ColorAndOpacity(Color)
+		.Text(Label)
+		];
+}
+
+void FBlueprintTypeDiffControl::OnSelectSubobjectDiff(FPropertySoftPath Identifier, TSharedPtr<FSubObjectDiff> SubObjectDiff)
+{
+	// This allows the owning control to focus the correct tab (or do whatever else it likes):
+	SelectionCallback.ExecuteIfBound();
+
+	if (SubObjectDiff.IsValid())
+	{
+		SubObjectDiff->OldDetails.HighlightProperty(Identifier);
+		SubObjectDiff->NewDetails.HighlightProperty(Identifier);
+
+		OldDetailsBox->SetContent(SubObjectDiff->OldDetails.DetailsWidget());
+		NewDetailsBox->SetContent(SubObjectDiff->NewDetails.DetailsWidget());
+	}
+}
+
+void FBlueprintTypeDiffControl::BuildDiffSourceArray()
+{
+	TArray<FDiffSingleResult> BlueprintDiffResults;
+	FDiffResults BlueprintDiffs(&BlueprintDiffResults);
+	if (BlueprintNew->FindDiffs(BlueprintOld, BlueprintDiffs))
+	{
+		bDiffSucceeded = true;
+
+		// Add manual diffs
+		for (const FDiffSingleResult& CurrentDiff : BlueprintDiffResults)
+		{
+			if (CurrentDiff.Diff == EDiffType::OBJECT_REQUEST_DIFF)
+			{
+				// Turn into a subobject diff
+
+				// Invert order, we want old then new
+				TSharedPtr<FSubObjectDiff> SubObjectDiff = MakeShared<FSubObjectDiff>(CurrentDiff, CurrentDiff.Object2, CurrentDiff.Object1);
+
+				TArray<FSingleObjectDiffEntry> DifferingProperties;
+				SubObjectDiff->OldDetails.DiffAgainst(SubObjectDiff->NewDetails, DifferingProperties, true);
+
+				if (DifferingProperties.Num() > 0)
+				{
+					// Actual differences, so add to tree
+					SubObjectDiffs.Add(SubObjectDiff);
+
+					const auto CreateDifferenceWidget = [](FSingleObjectDiffEntry DiffEntry, FText ObjectName) -> TSharedRef<SWidget>
+					{
+						return SNew(STextBlock)
+							.Text(DiffViewUtils::PropertyDiffMessage(DiffEntry, ObjectName))
+							.ColorAndOpacity(DiffViewUtils::Differs());
+					};
+
+					for (const FSingleObjectDiffEntry& Difference : DifferingProperties)
+					{
+						TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
+							FOnDiffEntryFocused::CreateSP(AsShared(), &FBlueprintTypeDiffControl::OnSelectSubobjectDiff, Difference.Identifier, SubObjectDiff),
+							FGenerateDiffEntryWidget::CreateStatic(CreateDifferenceWidget, Difference, RightRevision));
+						SubObjectDiff->Diffs.Push(Entry);
+					}
+				}
+			}
+			else
+			{
+				DiffListSource.Add(MakeShared<FDiffResultItem>(CurrentDiff));
+			}
+		}
+
+		struct SortDiff
+		{
+			bool operator () (const TSharedPtr<FDiffResultItem>& A, const TSharedPtr<FDiffResultItem>& B) const
+			{
+				return A->Result.Diff < B->Result.Diff;
+			}
+		};
+
+		Sort(DiffListSource.GetData(), DiffListSource.Num(), SortDiff());
+	}
+}
+
+void FBlueprintTypeDiffControl::GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences)
+{
+	BuildDiffSourceArray();
+
+	TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
+	
+	bool bHasRealChange = false;
+
+	// First add manual diffs in main category
+	for (const TSharedPtr<FDiffResultItem>& Difference : DiffListSource)
+	{
+		TSharedPtr<FBlueprintDifferenceTreeEntry> ChildEntry = MakeShared<FBlueprintDifferenceTreeEntry>(
+			SelectionCallback,
+			FGenerateDiffEntryWidget::CreateSP(Difference.ToSharedRef(), &FDiffResultItem::GenerateWidget));
+		Children.Push(ChildEntry);
+		OutRealDifferences.Push(ChildEntry);
+
+		if (Difference->Result.IsRealDifference())
+		{
+			bHasRealChange = true;
+		}
+	}
+
+	if (Children.Num() == 0)
+	{
+		// Make one child informing the user that there are no differences, or that it is unknown
+		if (bDiffSucceeded)
+		{
+			Children.Push(FBlueprintDifferenceTreeEntry::NoDifferencesEntry());
+		}
+		else
+		{
+			Children.Push(FBlueprintDifferenceTreeEntry::UnknownDifferencesEntry());
+		}
+	}
+
+	TSharedPtr<FBlueprintDifferenceTreeEntry> CategoryEntry = MakeShared<FBlueprintDifferenceTreeEntry>(
+			SelectionCallback,
+			FGenerateDiffEntryWidget::CreateSP(AsShared(), &FBlueprintTypeDiffControl::GenerateCategoryWidget, bHasRealChange),
+			Children);
+	OutTreeEntries.Push(CategoryEntry);
+
+	// Now add subobject diffs, one category per object
+	for (const TSharedPtr<FSubObjectDiff> SubObjectDiff : SubObjectDiffs)
+	{
+		Children.Reset();
+
+		Children.Append(SubObjectDiff->Diffs);
+		OutRealDifferences.Append(SubObjectDiff->Diffs);
+
+		TSharedPtr<FBlueprintDifferenceTreeEntry> SubObjectEntry = FBlueprintDifferenceTreeEntry::CreateCategoryEntry(
+			SubObjectDiff->SourceResult.DisplayString,
+			SubObjectDiff->SourceResult.ToolTip,
+			FOnDiffEntryFocused::CreateSP(AsShared(), &FBlueprintTypeDiffControl::OnSelectSubobjectDiff, FPropertySoftPath(), SubObjectDiff),
+			Children,
+			true);
+
+		OutTreeEntries.Push(SubObjectEntry);
+	}
+}
+
+/** Category list item for a graph*/
+struct FGraphToDiff	: public TSharedFromThis<FGraphToDiff>, IDiffControl
+{
+	FGraphToDiff(SBlueprintDiff* DiffWidget, UEdGraph* GraphOld, UEdGraph* GraphNew, const FRevisionInfo& RevisionOld, const FRevisionInfo& RevisionNew);
+	virtual ~FGraphToDiff();
+
+	/** Add widgets to the differences tree */
+	virtual void GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences) override;
+
+	/** Get old(left) graph*/
+	UEdGraph* GetGraphOld() const { return GraphOld; }
+
+	/** Get new(right) graph*/
+	UEdGraph* GetGraphNew() const { return GraphNew; }
+
+	/** Source for list view */
+	TArray<TSharedPtr<FDiffResultItem>> DiffListSource;
 
 private:
-	/** Get Index of the current diff that is selected */
-	int32 GetCurrentDiffIndex() const;
+	/** Get tooltip for category */
+	FText GetToolTip();
 
-	/* Called when a new row is being generated */
-	TSharedRef<ITableRow> OnGenerateRow(FSharedDiffOnGraph ParamItem, const TSharedRef<STableViewBase>& OwnerTable);
+	/** Generate Widget for category list */
+	TSharedRef<SWidget> GenerateCategoryWidget();
 
-	/** ListView of differences */
-	TSharedPtr<SListViewType> DiffList;
+	/** Called when the Newer Graph is modified*/
+	void OnGraphChanged(const FEdGraphEditAction& Action);
+
+	/** Build up the Diff Source Array*/
+	void BuildDiffSourceArray();
+
+	/** Diff widget */
+	class SBlueprintDiff* DiffWidget;
+
+	/** The old graph(left)*/
+	UEdGraph* GraphOld;
+
+	/** The new graph(right)*/
+	UEdGraph* GraphNew;
+
+	/** Description of Old and new graph*/
+	FRevisionInfo	RevisionOld, RevisionNew;
 
 	/** Handle to the registered OnGraphChanged delegate. */
 	FDelegateHandle OnGraphChangedDelegateHandle;
 };
 
-TSharedRef<SWidget>	FDiffResultItem::GenerateWidget() const
-{
-	FText ToolTip = Result.ToolTip;
-	FLinearColor Color = Result.DisplayColor;
-	FText Text = Result.DisplayString;
-	if (Text.IsEmpty())
-	{
-		Text = LOCTEXT("DIF_UnknownDiff", "Unknown Diff");
-		ToolTip = LOCTEXT("DIF_Confused", "There is an unspecified difference");
-	}
-	return SNew(STextBlock)
-		.ToolTipText(ToolTip)
-		.ColorAndOpacity(Color)
-		.Text(Text);
-}
-
-FListItemGraphToDiff::FListItemGraphToDiff( class SBlueprintDiff* InDiff, class UEdGraph* InGraphOld, class UEdGraph* InGraphNew, const FRevisionInfo& InRevisionOld, const FRevisionInfo& InRevisionNew )
-	: Diff(InDiff), GraphOld(InGraphOld), GraphNew(InGraphNew), RevisionOld(InRevisionOld), RevisionNew(InRevisionNew)
+FGraphToDiff::FGraphToDiff(SBlueprintDiff* InDiffWidget, UEdGraph* InGraphOld, UEdGraph* InGraphNew, const FRevisionInfo& InRevisionOld, const FRevisionInfo& InRevisionNew)
+	: DiffWidget(InDiffWidget), GraphOld(InGraphOld), GraphNew(InGraphNew), RevisionOld(InRevisionOld), RevisionNew(InRevisionNew)
 {
 	check(InGraphOld || InGraphNew); //one of them needs to exist
 
 	//need to know when it is modified
 	if(InGraphNew)
 	{
-		OnGraphChangedDelegateHandle = InGraphNew->AddOnGraphChangedHandler( FOnGraphChanged::FDelegate::CreateRaw(this, &FListItemGraphToDiff::OnGraphChanged));
+		OnGraphChangedDelegateHandle = InGraphNew->AddOnGraphChangedHandler( FOnGraphChanged::FDelegate::CreateRaw(this, &FGraphToDiff::OnGraphChanged));
 	}
 
 	BuildDiffSourceArray();
 }
 
-FListItemGraphToDiff::~FListItemGraphToDiff()
+FGraphToDiff::~FGraphToDiff()
 {
 	if(GraphNew)
 	{
@@ -629,7 +661,7 @@ FListItemGraphToDiff::~FListItemGraphToDiff()
 	}
 }
 
-TSharedRef<SWidget> FListItemGraphToDiff::GenerateWidget() 
+TSharedRef<SWidget> FGraphToDiff::GenerateCategoryWidget()
 {
 	const UEdGraph* Graph = GraphOld ? GraphOld : GraphNew;
 	check(Graph);
@@ -662,81 +694,17 @@ TSharedRef<SWidget> FListItemGraphToDiff::GenerateWidget()
 		SNew(STextBlock)
 		.ColorAndOpacity(Color)
 		.Text(GraphName)
+		.ToolTipText(GetToolTip())
 	]
 	+ DiffViewUtils::Box( GraphOld != nullptr, Color )
 	+ DiffViewUtils::Box( GraphNew != nullptr, Color );
 }
 
-TSharedRef<SWidget> FListItemGraphToDiff::GenerateDiffListWidget()
+FText FGraphToDiff::GetToolTip()
 {
-	if(DiffListSource.Num() > 0)
+	if (GraphOld && GraphNew)
 	{
-		TSharedPtr<SListViewType> DiffListRef;
-		TSharedRef<SHorizontalBox> Result =	SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.FillWidth(1.f)
-			.MaxWidth(350.f)
-			[
-				SNew(SVerticalBox)
-				+SVerticalBox::Slot()
-				.Padding(0.f)
-				.AutoHeight()
-				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("PropertyWindow.CategoryBackground"))
-					.Padding(FMargin(2.0f))
-					.ForegroundColor(FEditorStyle::GetColor("PropertyWindow.CategoryForeground"))
-					.ToolTipText(LOCTEXT("BlueprintDifDifferencesToolTip", "List of differences found between revisions, click to select"))
-					.HAlign(HAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("RevisionDifferences", "Revision Differences"))
-					]
-				]
-				+SVerticalBox::Slot()
-				.Padding(1.f)
-				.FillHeight(1.f)
-				[
-					SAssignNew(DiffList, SListViewType)
-					.ItemHeight(24)
-					.ListItemsSource( &DiffListSource )
-					.OnGenerateRow( this, &FListItemGraphToDiff::OnGenerateRow )
-					.SelectionMode( ESelectionMode::Single )
-					.OnSelectionChanged(this, &FListItemGraphToDiff::OnSelectionChanged)
-				]
-			];
-		return Result;
-	}
-	else
-	{
-		return SNew(SBorder).Visibility(EVisibility::Hidden);
-	}
-		
-	
-}
-
-TSharedRef<ITableRow> FListItemGraphToDiff::OnGenerateRow( FSharedDiffOnGraph ParamItem, const TSharedRef<STableViewBase>& OwnerTable )
-{
-	return	SNew( STableRow< FSharedDiffOnGraph >, OwnerTable )
-		.Content()
-		[
-			ParamItem->GenerateWidget()
-		];
-}
-
-void FListItemGraphToDiff::OnSelectionChanged( FSharedDiffOnGraph Item, ESelectInfo::Type SelectionType )
-{
-	if(Item.IsValid())
-	{
-		Diff->OnDiffListSelectionChanged(Item);
-	}
-}
-
-FText FListItemGraphToDiff::GetToolTip() 
-{
-	if ( GraphOld && GraphNew )
-	{
-		if ( DiffListSource.Num() > 0 )
+		if (DiffListSource.Num() > 0)
 		{
 			return LOCTEXT("ContainsDifferences", "Revisions are different");
 		}
@@ -752,16 +720,41 @@ FText FListItemGraphToDiff::GetToolTip()
 		const FRevisionInfo& Revision = GraphNew ? RevisionOld : RevisionNew;
 		FText RevisionText = LOCTEXT("CurrentRevision", "Current Revision");
 
-		if ( !Revision.Revision.IsEmpty() )
+		if (!Revision.Revision.IsEmpty())
 		{
-			RevisionText = FText::Format( LOCTEXT("Revision Number", "Revision {0}") , FText::FromString( Revision.Revision ) );
+			RevisionText = FText::Format(LOCTEXT("Revision Number", "Revision {0}"), FText::FromString(Revision.Revision));
 		}
 
-		return FText::Format( LOCTEXT("MissingGraph", "Graph '{0}' missing from {1}"), FText::FromString( GoodGraph->GetName() ), RevisionText );
+		return FText::Format(LOCTEXT("MissingGraph", "Graph '{0}' missing from {1}"), FText::FromString(GoodGraph->GetName()), RevisionText);
 	}
 }
 
-void FListItemGraphToDiff::BuildDiffSourceArray()
+void FGraphToDiff::GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences)
+{
+	TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
+	for (const TSharedPtr<FDiffResultItem>& Difference : DiffListSource)
+	{
+		TSharedPtr<FBlueprintDifferenceTreeEntry> ChildEntry = MakeShared<FBlueprintDifferenceTreeEntry>(
+				FOnDiffEntryFocused::CreateRaw(DiffWidget, &SBlueprintDiff::OnDiffListSelectionChanged, Difference),
+				FGenerateDiffEntryWidget::CreateSP(Difference.ToSharedRef(), &FDiffResultItem::GenerateWidget));
+		Children.Push(ChildEntry);
+		OutRealDifferences.Push(ChildEntry);
+	}
+
+	if (Children.Num() == 0)
+	{
+		// make one child informing the user that there are no differences:
+		Children.Push(FBlueprintDifferenceTreeEntry::NoDifferencesEntry());
+	}
+
+	TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
+			FOnDiffEntryFocused::CreateRaw(DiffWidget, &SBlueprintDiff::OnGraphSelectionChanged, TSharedPtr<FGraphToDiff>(AsShared()), ESelectInfo::Direct),
+			FGenerateDiffEntryWidget::CreateSP(AsShared(), &FGraphToDiff::GenerateCategoryWidget),
+			Children);
+	OutTreeEntries.Push(Entry);
+}
+
+void FGraphToDiff::BuildDiffSourceArray()
 {
 	TArray<FDiffSingleResult> FoundDiffs;
 	FGraphDiffControl::DiffGraphs(GraphOld, GraphNew, FoundDiffs);
@@ -769,12 +762,12 @@ void FListItemGraphToDiff::BuildDiffSourceArray()
 	DiffListSource.Empty();
 	for (auto DiffIt(FoundDiffs.CreateIterator()); DiffIt; ++DiffIt)
 	{
-		DiffListSource.Add(FSharedDiffOnGraph(new FDiffResultItem(*DiffIt)));
+		DiffListSource.Add(MakeShared<FDiffResultItem>(*DiffIt));
 	}
 
 	struct SortDiff
 	{
-		bool operator () (const FSharedDiffOnGraph& A, const FSharedDiffOnGraph& B) const
+		bool operator () (const TSharedPtr<FDiffResultItem>& A, const TSharedPtr<FDiffResultItem>& B) const
 		{
 			return A->Result.Diff < B->Result.Diff;
 		}
@@ -783,29 +776,9 @@ void FListItemGraphToDiff::BuildDiffSourceArray()
 	Sort(DiffListSource.GetData(), DiffListSource.Num(), SortDiff());
 }
 
-int32 FListItemGraphToDiff::GetCurrentDiffIndex() const
+void FGraphToDiff::OnGraphChanged( const FEdGraphEditAction& Action )
 {
-	if ( DiffList.IsValid() )
-	{
-		auto Selected = DiffList->GetSelectedItems();
-		if(Selected.Num() == 1)
-		{	
-			int32 Index = 0;
-			for(auto It(DiffListSource.CreateConstIterator());It;++It,Index++)
-			{
-				if(*It == Selected[0])
-				{
-					return Index;
-				}
-			}
-		}
-	}
-	return -1;
-}
-
-void FListItemGraphToDiff::OnGraphChanged( const FEdGraphEditAction& Action )
-{
-	Diff->OnGraphChanged(this);
+	DiffWidget->OnGraphChanged(this);
 }
 
 FDiffPanel::FDiffPanel()
@@ -825,7 +798,7 @@ void FDiffPanel::InitializeDiffPanel()
 	MyBlueprint->SetInspector(DetailsView);
 }
 
-int32 GetCurrentIndex( SListView< TSharedPtr< struct FDiffSingleResult> > const& ListView, const TArray< TSharedPtr< FDiffSingleResult > >& ListViewSource )
+int32 GetCurrentIndex( SListView< TSharedPtr< FDiffSingleResult> > const& ListView, const TArray< TSharedPtr< FDiffSingleResult > >& ListViewSource )
 {
 	const auto& Selected = ListView.GetSelectedItems();
 	if (Selected.Num() == 1)
@@ -864,13 +837,13 @@ void DiffWidgetUtils::SelectPrevRow(SListView< TSharedPtr< FDiffSingleResult> >&
 	ListView.SetSelection(ListViewSource[CurrentIndex - 1]);
 }
 
-bool DiffWidgetUtils::HasNextDifference(SListView< TSharedPtr< struct FDiffSingleResult> >& ListView, const TArray< TSharedPtr< struct FDiffSingleResult > >& ListViewSource)
+bool DiffWidgetUtils::HasNextDifference(SListView< TSharedPtr< FDiffSingleResult> >& ListView, const TArray< TSharedPtr< FDiffSingleResult > >& ListViewSource)
 {
 	int32 CurrentIndex = GetCurrentIndex(ListView, ListViewSource);
 	return ListViewSource.IsValidIndex(CurrentIndex+1);
 }
 
-bool DiffWidgetUtils::HasPrevDifference(SListView< TSharedPtr< struct FDiffSingleResult> >& ListView, const TArray< TSharedPtr< struct FDiffSingleResult > >& ListViewSource)
+bool DiffWidgetUtils::HasPrevDifference(SListView< TSharedPtr< FDiffSingleResult> >& ListView, const TArray< TSharedPtr< FDiffSingleResult > >& ListViewSource)
 {
 	int32 CurrentIndex = GetCurrentIndex(ListView, ListViewSource);
 	return ListViewSource.IsValidIndex(CurrentIndex - 1);
@@ -1085,22 +1058,12 @@ void SBlueprintDiff::OnCloseAssetEditor(UObject* Asset, EAssetEditorCloseReason 
 	}
 }
 
-TSharedRef<ITableRow> SBlueprintDiff::OnGenerateRow( FGraphToDiff ParamItem, const TSharedRef<STableViewBase>& OwnerTable )
+void SBlueprintDiff::CreateGraphEntry( UEdGraph* GraphOld, UEdGraph* GraphNew )
 {
-	return	SNew( STableRow< FGraphToDiff >, OwnerTable )
-			.ToolTipText(ParamItem->GetToolTip())
-			.Content()
-			[
-				ParamItem->GenerateWidget()
-			];
+	Graphs.Add(MakeShared<FGraphToDiff>(this, GraphOld, GraphNew, PanelOld.RevisionInfo, PanelNew.RevisionInfo));
 }
 
-void SBlueprintDiff::CreateGraphEntry( class UEdGraph* GraphOld, class UEdGraph* GraphNew )
-{
-	Graphs.Add(FGraphToDiff(new FListItemGraphToDiff(this, GraphOld, GraphNew, PanelOld.RevisionInfo, PanelNew.RevisionInfo)));
-}
-
-void SBlueprintDiff::OnSelectionChanged( FGraphToDiff Item, ESelectInfo::Type SelectionType) 
+void SBlueprintDiff::OnGraphSelectionChanged(TSharedPtr<FGraphToDiff> Item, ESelectInfo::Type SelectionType)
 {
 	if(!Item.IsValid())
 	{
@@ -1111,7 +1074,7 @@ void SBlueprintDiff::OnSelectionChanged( FGraphToDiff Item, ESelectInfo::Type Se
 
 }
 
-void SBlueprintDiff::OnGraphChanged(FListItemGraphToDiff* Diff)
+void SBlueprintDiff::OnGraphChanged(FGraphToDiff* Diff)
 {
 	if(PanelNew.GraphEditor.IsValid() && PanelNew.GraphEditor.Pin()->GetCurrentGraph() == Diff->GetGraphNew())
 	{
@@ -1143,7 +1106,7 @@ TSharedRef<SWidget> SBlueprintDiff::DefaultEmptyPanel()
 		];
 }
 
-TSharedPtr<SWindow> SBlueprintDiff::CreateDiffWindow(FText WindowTitle, UBlueprint* OldBlueprint, UBlueprint* NewBlueprint, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision)
+TSharedPtr<SWindow> SBlueprintDiff::CreateDiffWindow(FText WindowTitle, UBlueprint* OldBlueprint, UBlueprint* NewBlueprint, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision)
 {
 	// sometimes we're comparing different revisions of one single asset (other 
 	// times we're comparing two completely separate assets altogether)
@@ -1195,7 +1158,7 @@ bool SBlueprintDiff::HasPrevDiff() const
 	return DiffTreeView::HasPrevDifference(DifferencesTreeView.ToSharedRef(), RealDifferences);
 }
 
-FListItemGraphToDiff* SBlueprintDiff::FindGraphToDiffEntry(const FString& GraphPath)
+FGraphToDiff* SBlueprintDiff::FindGraphToDiffEntry(const FString& GraphPath)
 {
 	for( const auto& Graph : Graphs )
 	{
@@ -1208,7 +1171,7 @@ FListItemGraphToDiff* SBlueprintDiff::FindGraphToDiffEntry(const FString& GraphP
 	return nullptr;
 }
 
-void SBlueprintDiff::FocusOnGraphRevisions( FListItemGraphToDiff* Diff )
+void SBlueprintDiff::FocusOnGraphRevisions( FGraphToDiff* Diff )
 {
 	UEdGraph* Graph = Diff->GetGraphOld() ? Diff->GetGraphOld() : Diff->GetGraphNew();
 
@@ -1221,8 +1184,8 @@ void SBlueprintDiff::FocusOnGraphRevisions( FListItemGraphToDiff* Diff )
 
 void SBlueprintDiff::OnDiffListSelectionChanged(TSharedPtr<FDiffResultItem> TheDiff )
 {
-	check( !TheDiff->Result.OwningGraphPath.IsEmpty() );
-	FocusOnGraphRevisions( FindGraphToDiffEntry( TheDiff->Result.OwningGraphPath) );
+	check( !TheDiff->Result.OwningObjectPath.IsEmpty() );
+	FocusOnGraphRevisions( FindGraphToDiffEntry( TheDiff->Result.OwningObjectPath) );
 	FDiffSingleResult Result = TheDiff->Result;
 
 	const auto SafeClearSelection = []( TWeakPtr<SGraphEditor> GraphEditor )
@@ -1316,7 +1279,7 @@ void FDiffPanel::GeneratePanel(UEdGraph* Graph, UEdGraph* GraphToDiff )
 
 		if ( !GraphEditorCommands.IsValid() )
 		{
-			GraphEditorCommands = TSharedPtr<FUICommandList>( new FUICommandList() );
+			GraphEditorCommands = MakeShared<FUICommandList>();
 
 			GraphEditorCommands->MapAction( FGenericCommands::Get().Copy,
 				FExecuteAction::CreateRaw( this, &FDiffPanel::CopySelectedNodes ),
@@ -1338,10 +1301,10 @@ void FDiffPanel::GeneratePanel(UEdGraph* Graph, UEdGraph* GraphToDiff )
 		Widget = Editor;
 	}
 
-	GraphEditorBorder->SetContent(Widget.ToSharedRef());
+	GraphEditorBox->SetContent(Widget.ToSharedRef());
 }
 
-TSharedRef<class SWidget> FDiffPanel::GenerateMyBlueprintWidget()
+TSharedRef<SWidget> FDiffPanel::GenerateMyBlueprintWidget()
 {
 	return SAssignNew(MyBlueprint, SMyBlueprint, TWeakPtr<FBlueprintEditor>(), Blueprint);
 }
@@ -1498,16 +1461,17 @@ void SBlueprintDiff::GenerateDifferencesList()
 		}
 	}
 
-	bool bHasComponents = true;
-	if (const UAnimBlueprint* AnimBP = Cast<UAnimBlueprint>(PanelOld.Blueprint))
+	bool bHasComponents = false;
+	UClass* BlueprintClass = PanelOld.Blueprint->GeneratedClass;
+	if (BlueprintClass->IsChildOf<AActor>())
 	{
-		MasterDifferencesList.Push(FBlueprintDifferenceTreeEntry::AnimBlueprintEntry());
-		bHasComponents = false;
+		bHasComponents = true;
 	}
-	else if (const UWidgetBlueprint* WidgetBP = Cast<UWidgetBlueprint>(PanelOld.Blueprint))
+
+	// If this isn't a normal blueprint type, add the type panel
+	if (PanelOld.Blueprint->GetClass() != UBlueprint::StaticClass())
 	{
-		MasterDifferencesList.Push(FBlueprintDifferenceTreeEntry::WidgetBlueprintEntry());
-		bHasComponents = false;
+		ModePanels.Add(BlueprintTypeMode, GenerateBlueprintTypePanel());
 	}
 
 	// Now that we have done the diffs, create the panel widgets
@@ -1520,45 +1484,50 @@ void SBlueprintDiff::GenerateDifferencesList()
 		ModePanels.Add(ComponentsMode, GenerateComponentsPanel());
 	}
 
-	for (const auto& Graph : Graphs)
+	for (const TSharedPtr<FGraphToDiff>& Graph : Graphs)
 	{
-		TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
-		for (const auto& Difference : Graph->DiffListSource)
-		{
-			auto ChildEntry = TSharedPtr<FBlueprintDifferenceTreeEntry>(
-				new FBlueprintDifferenceTreeEntry(
-				FOnDiffEntryFocused::CreateRaw(this, &SBlueprintDiff::OnDiffListSelectionChanged, Difference)
-				, FGenerateDiffEntryWidget::CreateSP(Difference.ToSharedRef(), &FDiffResultItem::GenerateWidget)
-				, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >()
-				)
-				);
-			Children.Push(ChildEntry);
-			RealDifferences.Push(ChildEntry);
-			(void)ChildEntry;
-		}
-
-		if (Children.Num() == 0)
-		{
-			// make one child informing the user that there are no differences:
-			Children.Push(FBlueprintDifferenceTreeEntry::NoDifferencesEntry());
-		}
-
-		auto Entry = TSharedPtr<FBlueprintDifferenceTreeEntry>(
-			new FBlueprintDifferenceTreeEntry(
-			FOnDiffEntryFocused::CreateRaw(this, &SBlueprintDiff::OnSelectionChanged, Graph, ESelectInfo::Direct)
-			, FGenerateDiffEntryWidget::CreateSP(Graph.ToSharedRef(), &FListItemGraphToDiff::GenerateWidget)
-			, Children)
-			);
-		MasterDifferencesList.Push(Entry);
+		Graph->GenerateTreeEntries(MasterDifferencesList, RealDifferences);
 	}
 
 	DifferencesTreeView = DiffTreeView::CreateTreeView(&MasterDifferencesList);
 }
 
+SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateBlueprintTypePanel()
+{
+	TSharedPtr<FBlueprintTypeDiffControl> NewDiffControl = MakeShared<FBlueprintTypeDiffControl>(PanelOld.Blueprint, PanelNew.Blueprint, FOnDiffEntryFocused::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, BlueprintTypeMode));
+	NewDiffControl->GenerateTreeEntries(MasterDifferencesList, RealDifferences);
+
+	SBlueprintDiff::FDiffControl Ret;
+	//Splitter for left and right blueprint. Current convention is for the local (probably newer?) blueprint to be on the right:
+	Ret.DiffControl = NewDiffControl;
+	Ret.Widget = SNew(SSplitter)
+		.PhysicalSplitterHandleSize(10.0f)
+		+ SSplitter::Slot()
+		.Value(0.5f)
+		[
+			SAssignNew(NewDiffControl->OldDetailsBox, SBox)
+			.VAlign(VAlign_Fill)
+			[
+				DefaultEmptyPanel()
+			]
+		]
+		+ SSplitter::Slot()
+		.Value(0.5f)
+		[
+			SAssignNew(NewDiffControl->NewDetailsBox, SBox)
+			.VAlign(VAlign_Fill)
+			[
+				DefaultEmptyPanel()
+			]
+		];
+
+	return Ret;
+}
 
 SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateMyBlueprintPanel()
 {
-	auto NewDiffControl = TSharedPtr<FMyBlueprintDiffControl>(new FMyBlueprintDiffControl(PanelOld.Blueprint, PanelNew.Blueprint, MasterDifferencesList, RealDifferences, FOnDiffControlChanged::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, MyBlueprintMode)));
+	TSharedPtr<FMyBlueprintDiffControl> NewDiffControl = MakeShared<FMyBlueprintDiffControl>(PanelOld.Blueprint, PanelNew.Blueprint, FOnDiffEntryFocused::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, MyBlueprintMode));
+	NewDiffControl->GenerateTreeEntries(MasterDifferencesList, RealDifferences);
 
 	SBlueprintDiff::FDiffControl Ret;
 
@@ -1630,7 +1599,7 @@ SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateGraphPanel()
 				.PhysicalSplitterHandleSize(10.0f)
 				+ SSplitter::Slot()
 				[
-					SAssignNew(PanelOld.GraphEditorBorder, SBox)
+					SAssignNew(PanelOld.GraphEditorBox, SBox)
 					.VAlign(VAlign_Fill)
 					[
 						DefaultEmptyPanel()
@@ -1638,7 +1607,7 @@ SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateGraphPanel()
 				]
 				+ SSplitter::Slot()
 				[
-					SAssignNew(PanelNew.GraphEditorBorder, SBox)
+					SAssignNew(PanelNew.GraphEditorBox, SBox)
 					.VAlign(VAlign_Fill)
 					[
 						DefaultEmptyPanel()
@@ -1670,10 +1639,10 @@ SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateDefaultsPanel()
 	const UObject* A = DiffUtils::GetCDO(PanelOld.Blueprint);
 	const UObject* B = DiffUtils::GetCDO(PanelNew.Blueprint);
 
-	auto NewDiffControl = TSharedPtr<FCDODiffControl>(new FCDODiffControl(A, B, MasterDifferencesList, RealDifferences, FOnDiffControlChanged::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, DefaultsMode)));
+	TSharedPtr<FCDODiffControl> NewDiffControl = MakeShared<FCDODiffControl>(A, B, FOnDiffEntryFocused::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, DefaultsMode));
+	NewDiffControl->GenerateTreeEntries(MasterDifferencesList, RealDifferences);
 
 	SBlueprintDiff::FDiffControl Ret;
-	//Splitter for left and right blueprint. Current convention is for the local (probably newer?) blueprint to be on the right:
 	Ret.DiffControl = NewDiffControl;
 	Ret.Widget = SNew(SSplitter)
 		.PhysicalSplitterHandleSize(10.0f)
@@ -1693,13 +1662,10 @@ SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateDefaultsPanel()
 
 SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateClassSettingsPanel()
 {
-	const UObject* A = PanelOld.Blueprint;
-	const UObject* B = PanelNew.Blueprint;
-
-	auto NewDiffControl = TSharedPtr<FClassDefaultsDiffControl>(new FClassDefaultsDiffControl(A, B, MasterDifferencesList, RealDifferences, FOnDiffControlChanged::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, ClassSettingsMode)));
+	TSharedPtr<FClassSettingsDiffControl> NewDiffControl = MakeShared<FClassSettingsDiffControl>(PanelOld.Blueprint, PanelNew.Blueprint, FOnDiffEntryFocused::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, ClassSettingsMode));
+	NewDiffControl->GenerateTreeEntries(MasterDifferencesList, RealDifferences);
 
 	SBlueprintDiff::FDiffControl Ret;
-	//Splitter for left and right blueprint. Current convention is for the local (probably newer?) blueprint to be on the right:
 	Ret.DiffControl = NewDiffControl;
 	Ret.Widget = SNew(SSplitter)
 		.PhysicalSplitterHandleSize(10.0f)
@@ -1719,10 +1685,10 @@ SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateClassSettingsPanel()
 
 SBlueprintDiff::FDiffControl SBlueprintDiff::GenerateComponentsPanel()
 {
-	SBlueprintDiff::FDiffControl Ret;
+	TSharedPtr<FSCSDiffControl> NewDiffControl = MakeShared<FSCSDiffControl>(PanelOld.Blueprint, PanelNew.Blueprint, FOnDiffEntryFocused::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, ComponentsMode));
+	NewDiffControl->GenerateTreeEntries(MasterDifferencesList, RealDifferences);
 
-	//Splitter for left and right blueprint. Current convention is for the local (probably newer?) blueprint to be on the right:
-	auto NewDiffControl = TSharedPtr<FSCSDiffControl>(new FSCSDiffControl(PanelOld.Blueprint, PanelNew.Blueprint, MasterDifferencesList, RealDifferences, FOnDiffControlChanged::CreateRaw(this, &SBlueprintDiff::SetCurrentMode, ComponentsMode) ) );
+	SBlueprintDiff::FDiffControl Ret;
 	Ret.DiffControl = NewDiffControl;
 	Ret.Widget = SNew(SSplitter)
 		.PhysicalSplitterHandleSize(10.0f)
@@ -1766,7 +1732,7 @@ void SBlueprintDiff::SetCurrentMode(FName NewMode)
 	}
 }
 
-bool SBlueprintDiff::IsGraphDiffNeeded(class UEdGraph* InGraph) const
+bool SBlueprintDiff::IsGraphDiffNeeded(UEdGraph* InGraph) const
 {
 	// Do not worry about graphs that are contained in MathExpression nodes, they are recreated each compile
 	return !InGraph->GetOuter()->IsA<UK2Node_MathExpression>();

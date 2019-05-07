@@ -25,6 +25,7 @@
 #if WITH_EDITOR
 #include "Interfaces/ITargetPlatform.h"
 #include "Modules/ModuleManager.h"
+#include "DiffResults.h"
 #endif
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "K2Node_CallFunction.h"
@@ -604,6 +605,122 @@ void UWidgetBlueprint::NotifyGraphRenamed(class UEdGraph* Graph, FName OldName, 
 			Widget->Navigation->TryToRenameBinding(OldName, NewName);
 		}
 	});
+}
+
+bool UWidgetBlueprint::FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults& Results) const
+{
+	const UWidgetBlueprint* OtherWidgetBP = Cast<UWidgetBlueprint>(OtherBlueprint);
+	if (!OtherWidgetBP)
+	{
+		return false;
+	}
+
+	// Look for all widget instances in both, add shared ones to ObjectsToDiff and add notes for add/remove
+	TMap<FString, UWidget*> WidgetMap;
+	TMap<FString, UWidget*> OtherWidgetMap;
+
+	WidgetTree->ForEachWidget([&](UWidget* Widget) 
+	{
+		FString WidgetPath = Widget->GetPathName(this);
+		WidgetMap.Add(WidgetPath, Widget);
+	});
+
+	OtherWidgetBP->WidgetTree->ForEachWidget([&](UWidget* Widget)
+	{
+		FString WidgetPath = Widget->GetPathName(OtherWidgetBP);
+		OtherWidgetMap.Add(WidgetPath, Widget);
+	});
+
+	for (TPair<FString, UWidget*> Pair : WidgetMap)
+	{
+		UWidget** FoundOtherWidget = OtherWidgetMap.Find(Pair.Key);
+		UWidget* Widget = Pair.Value;
+
+		if (FoundOtherWidget)
+		{
+			// Add to general object diff map
+			FDiffSingleResult Diff;
+			Diff.Diff = EDiffType::OBJECT_REQUEST_DIFF;
+			Diff.Object1 = Widget;
+			Diff.Object2 = *FoundOtherWidget;
+			Diff.OwningObjectPath = Pair.Key;
+
+			if (Results.CanStoreResults())
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("WidgetTitle"), Widget->GetLabelTextWithMetadata());
+				Args.Add(TEXT("WidgetPath"), FText::FromString(Pair.Key));
+				Diff.ToolTip = FText::Format(LOCTEXT("DIF_RequestWidgetTooltip", "Widget {WidgetTitle}\nPath: {WidgetPath}"), Args);
+				Diff.DisplayString = FText::Format(LOCTEXT("DIF_RequestWidgetLabel", "Widget {WidgetTitle}"), Args);
+				Diff.DisplayColor = FLinearColor(1.f, 0.4f, 0.4f);
+			}
+
+			Results.Add(Diff);
+
+			// TODO: Add some type specific diffing if needed
+		}
+		else
+		{
+			// This is newly added
+			FDiffSingleResult Diff;
+			Diff.Diff = EDiffType::OBJECT_ADDED;
+			Diff.Object1 = Widget;
+			Diff.OwningObjectPath = Pair.Key;
+
+			if (Results.CanStoreResults())
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("WidgetTitle"), Widget->GetLabelTextWithMetadata());
+				Args.Add(TEXT("WidgetPath"), FText::FromString(Pair.Key));
+				Diff.ToolTip = FText::Format(LOCTEXT("DIF_AddedWidgetTooltip", "Added Widget {WidgetTitle}\nPath: {WidgetPath}"), Args);
+				Diff.DisplayString = FText::Format(LOCTEXT("DIF_AddedWidgetLabel", "Added Widget {WidgetTitle}"), Args);
+				Diff.DisplayColor = FLinearColor(1.f, 0.4f, 0.4f);
+			}
+
+			Results.Add(Diff);
+		}
+	}
+
+	for (TPair<FString, UWidget*> Pair : OtherWidgetMap)
+	{
+		UWidget** FoundMyWidget = WidgetMap.Find(Pair.Key);
+		UWidget* OtherWidget = Pair.Value;
+
+		if (!FoundMyWidget)
+		{
+			// This is newly added
+			FDiffSingleResult Diff;
+			Diff.Diff = EDiffType::OBJECT_REMOVED;
+			Diff.Object1 = OtherWidget;
+			Diff.OwningObjectPath = Pair.Key;
+
+			if (Results.CanStoreResults())
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("WidgetTitle"), OtherWidget->GetLabelTextWithMetadata());
+				Args.Add(TEXT("WidgetPath"), FText::FromString(Pair.Key));
+				Diff.ToolTip = FText::Format(LOCTEXT("DIF_RemovedWidgetTooltip", "Removed Widget {WidgetTitle}\nPath:{WidgetPath}"), Args);
+				Diff.DisplayString = FText::Format(LOCTEXT("DIF_RemovedWidgetLabel", "Removed Widget {WidgetTitle}"), Args);
+				Diff.DisplayColor = FLinearColor(1.f, 0.4f, 0.4f);
+			}
+
+			Results.Add(Diff);
+		}
+	}
+
+	// Add info warning
+	if (Results.CanStoreResults())
+	{
+		FDiffSingleResult Diff;
+		Diff.Diff = EDiffType::INFO_MESSAGE;
+		Diff.DisplayColor = FLinearColor(.7f, .7f, .7f);
+		Diff.ToolTip = LOCTEXT("DIF_WidgetWarningMessage", "Warning: May be missing some widget-specific differences");
+		Diff.DisplayString = Diff.ToolTip;
+
+		Results.Add(Diff);
+	}
+
+	return true;
 }
 
 #endif

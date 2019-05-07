@@ -710,7 +710,7 @@ bool FGraphDiffControl::DiffGraphs(UEdGraph* const LhsGraph, UEdGraph* const Rhs
 	const FString GraphPath = LhsGraph ? GetGraphPath(LhsGraph) : GetGraphPath(RhsGraph);
 	for( FDiffSingleResult& Entry : DiffsOut )
 	{
-		Entry.OwningGraphPath = GraphPath;
+		Entry.OwningObjectPath = GraphPath;
 	}
 
 	return bFoundDifferences;

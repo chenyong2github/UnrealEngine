@@ -14,7 +14,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "ScopedTransaction.h"
 #include "FindInBlueprintManager.h"
-#include "Editor/GraphEditor/Public/DiffResults.h"
+#include "DiffResults.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "EdGraph"

@@ -214,7 +214,7 @@ static TArray< FMergeGraphEntry > GenerateDiffListItems(const FBlueprintRevPair&
 
 						FMergeGraphRowEntry NewEntry = {
 							Label
-							, Difference.OwningGraphPath
+							, Difference.OwningObjectPath
 							, ConflictingDifference ? (*ConflictingDifference)->Node2 : nullptr /*UEdGraphNode* LocalNode*/
 							, Difference.Node1 /*UEdGraphNode* BaseNode*/
 							, Difference.Node2 /*UEdGraphNode* RemoteNode*/
@@ -239,7 +239,7 @@ static TArray< FMergeGraphEntry > GenerateDiffListItems(const FBlueprintRevPair&
 						{
 							FMergeGraphRowEntry NewEntry = {
 								Difference.DisplayString
-								, Difference.OwningGraphPath
+								, Difference.OwningObjectPath
 								, Difference.Node2 /*UEdGraphNode* LocalNode*/
 								, Difference.Node1 /*UEdGraphNode* BaseNode*/
 								, nullptr
@@ -563,7 +563,7 @@ TSharedRef<SDockTab> SMergeGraphView::CreateGraphDiffViews(const FSpawnTabArgs& 
 	{
 		PanelContainer->AddSlot()
 		[
-			SAssignNew(Panel.GraphEditorBorder, SBox)
+			SAssignNew(Panel.GraphEditorBox, SBox)
 			.VAlign(VAlign_Fill)
 			[
 				SBlueprintDiff::DefaultEmptyPanel()
