@@ -370,4 +370,43 @@ namespace Gauntlet
 			return "";
 		}
 	}
+
+	/// <summary>
+	/// Automatically maps root drive to proper platform specific path
+	/// </summary>
+	public class EpicRoot
+	{
+		string PlatformPath;
+
+		public EpicRoot(string Path)
+		{
+			PlatformPath = Path;
+
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+			{
+				if (!Path.Contains("P:"))
+				{
+					PlatformPath = Regex.Replace(Path, @"\\\\epicgames.net\\root", "/Volumes/epicgames.net/root", RegexOptions.IgnoreCase);
+				}
+				else 
+				{
+					PlatformPath = Regex.Replace(Path, "P:", "/Volumes/epicgames.net/root", RegexOptions.IgnoreCase);					
+				}				
+				
+				PlatformPath = PlatformPath.Replace(@"\", "/");
+			}
+
+		}
+
+		public static implicit operator string(EpicRoot Path)
+		{
+			return Path.PlatformPath;
+		}
+		public static implicit operator EpicRoot(string Path)
+		{
+			return new EpicRoot(Path);
+		}
+
+	}
+
 }
