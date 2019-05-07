@@ -454,7 +454,7 @@ void FLinuxWindow::Restore()
 /** Native window should make itself visible */
 void FLinuxWindow::Show()
 {
-	if ( !bIsVisible )
+	if ( !bIsVisible && !bZeroSize )
 	{
 		bIsVisible = true;
 		SDL_ShowWindow( HWnd );
@@ -580,7 +580,19 @@ void FLinuxWindow::ReshapeWindow( int32 NewX, int32 NewY, int32 NewWidth, int32 
 	VirtualWidth  = NewWidth;
 	VirtualHeight = NewHeight;
 
-	if ( LinuxWindow )
+	if (bZeroSize && NewWidth != 0 && NewHeight != 0)
+	{
+		Show();
+		bZeroSize = false;
+	}
+	else if (NewWidth == 0 || NewHeight == 0)
+	{
+		Hide();
+		bZeroSize = true;
+	}
+
+	// Avoid broadcasting we have set a zero size as it will attempt to resize the backbuffer which on some RHI is invalid per the spec (ie. Vulkan)
+	if (LinuxWindow && !bZeroSize)
 	{
 		OwningApplication->GetMessageHandler()->OnSizeChanged(
 			LinuxWindow.ToSharedRef(),
