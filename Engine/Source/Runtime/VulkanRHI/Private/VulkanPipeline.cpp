@@ -1082,14 +1082,11 @@ FGfxEntryKey FVulkanPipelineStateCacheManager::FGfxPipelineEntry::CreateKey() co
 
 void FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FGfxPipelineEntry* GfxEntry, FVulkanShader* Shaders[ShaderStage::NumStages], FVulkanGfxPipeline* Pipeline)
 {
-	// It seems like android devices always require PS stage
-#if PLATFORM_ANDROID
-	if (Shaders[ShaderStage::Pixel] == nullptr)
+	if (Shaders[ShaderStage::Pixel] == nullptr && !FVulkanPlatform::SupportsNullPixelShader())
 	{
 		Shaders[ShaderStage::Pixel] = ResourceCast(TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel))->GetPixelShader());
 	}
-#endif 
-	
+
 	if (!GfxEntry->bLoaded)
 	{
 		GfxEntry->GetOrCreateShaderModules(Shaders);
