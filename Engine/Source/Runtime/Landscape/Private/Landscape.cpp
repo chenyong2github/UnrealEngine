@@ -142,6 +142,7 @@ ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitial
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 , LayerUpdateFlagPerMode(0)
+, WeightmapsHash(0)
 #endif
 , GrassData(MakeShareable(new FLandscapeComponentGrassData()))
 , ChangeTag(0)
