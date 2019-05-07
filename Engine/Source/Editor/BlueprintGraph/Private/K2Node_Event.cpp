@@ -16,6 +16,7 @@
 #include "KismetCompilerMisc.h"
 #include "KismetCompiler.h"
 #include "EventEntryHandler.h"
+#include "DiffResults.h"
 
 const FName UK2Node_Event::DelegateOutputName(TEXT("OutputDelegate"));
 
@@ -836,6 +837,27 @@ FString UK2Node_Event::GetFindReferenceSearchString() const
 	}
 
 	return FunctionName;
+}
+
+void UK2Node_Event::FindDiffs(UEdGraphNode* OtherNode, struct FDiffResults& Results)
+{
+	Super::FindDiffs(OtherNode, Results);
+	UK2Node_Event* OtherFunction = Cast<UK2Node_Event>(OtherNode);
+
+	if (OtherFunction)
+	{
+		if (FunctionFlags != OtherFunction->FunctionFlags)
+		{
+			FDiffSingleResult Diff;
+			Diff.Diff = EDiffType::NODE_PROPERTY;
+			Diff.Node1 = this;
+			Diff.Node2 = OtherNode;
+			Diff.DisplayString = LOCTEXT("DIF_EventFlags", "Event flags have changed");
+			Diff.DisplayColor = FLinearColor(0.25f, 0.71f, 0.85f);
+
+			Results.Add(Diff);
+		}
+	}
 }
 
 bool UK2Node_Event::AreEventNodesIdentical(const UK2Node_Event* InNodeA, const UK2Node_Event* InNodeB)

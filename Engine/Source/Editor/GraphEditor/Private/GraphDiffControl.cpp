@@ -473,6 +473,8 @@ static bool ArePinsDifferent(const TArray<UEdGraphPin*>& OldPins, TArray<UEdGrap
 		UEdGraphPin* OldPin = OldPins[i];
 		UEdGraphPin* NewPin = NewPins[i];
 
+		const UEdGraphSchema* Schema = OldPin->GetSchema();
+
 		if(IsPinTypeDifferent(OldPin->PinType, NewPin->PinType))
 		{
 			DiffR_PinTypeChanged(Results, NewPin, OldPin);
@@ -488,7 +490,7 @@ static bool ArePinsDifferent(const TArray<UEdGraphPin*>& OldPins, TArray<UEdGrap
 			KEEP_GOING_IF_RESULTS()
 		}
 
-		if(NewPin->LinkedTo.Num() == 0 && (NewPin->GetDefaultAsString() != OldPin->GetDefaultAsString()))
+		if(NewPin->LinkedTo.Num() == 0 && Schema && !Schema->DoesDefaultValueMatch(*OldPin, NewPin->GetDefaultAsString()))
 		{
 			DiffR_PinDefaultValueChanged(Results, NewPin, OldPin); //note: some issues with how floating point is stored as string format(0.0 vs 0.00) can cause false diffs
 			KEEP_GOING_IF_RESULTS()

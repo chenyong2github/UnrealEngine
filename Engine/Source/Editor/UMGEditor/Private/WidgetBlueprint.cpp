@@ -638,26 +638,43 @@ bool UWidgetBlueprint::FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults&
 
 		if (FoundOtherWidget)
 		{
-			// Add to general object diff map
-			FDiffSingleResult Diff;
-			Diff.Diff = EDiffType::OBJECT_REQUEST_DIFF;
-			Diff.Object1 = Widget;
-			Diff.Object2 = *FoundOtherWidget;
-			Diff.OwningObjectPath = Pair.Key;
-
 			if (Results.CanStoreResults())
 			{
+				// Add to general object diff map
+				FDiffSingleResult Diff;
+				Diff.Diff = EDiffType::OBJECT_REQUEST_DIFF;
+				Diff.Object1 = Widget;
+				Diff.Object2 = *FoundOtherWidget;
+				Diff.OwningObjectPath = Pair.Key;			
 				FFormatNamedArguments Args;
 				Args.Add(TEXT("WidgetTitle"), Widget->GetLabelTextWithMetadata());
 				Args.Add(TEXT("WidgetPath"), FText::FromString(Pair.Key));
 				Diff.ToolTip = FText::Format(LOCTEXT("DIF_RequestWidgetTooltip", "Widget {WidgetTitle}\nPath: {WidgetPath}"), Args);
 				Diff.DisplayString = FText::Format(LOCTEXT("DIF_RequestWidgetLabel", "Widget {WidgetTitle}"), Args);
 				Diff.DisplayColor = FLinearColor(1.f, 0.4f, 0.4f);
+
+				Results.Add(Diff);
+
+				UPanelSlot* Slot = Widget->Slot;
+				UPanelSlot* OtherSlot = (*FoundOtherWidget)->Slot;
+
+				if (Slot && OtherSlot)
+				{
+					FDiffSingleResult SlotDiff;
+					SlotDiff.Diff = EDiffType::OBJECT_REQUEST_DIFF;
+					SlotDiff.Object1 = Slot;
+					SlotDiff.Object2 = OtherSlot;
+					SlotDiff.OwningObjectPath = Pair.Key;
+					FFormatNamedArguments SlotArgs;
+					SlotArgs.Add(TEXT("WidgetTitle"), Widget->GetLabelTextWithMetadata());
+					SlotArgs.Add(TEXT("WidgetPath"), FText::FromString(Pair.Key));
+					SlotDiff.ToolTip = FText::Format(LOCTEXT("DIF_RequestSlotTooltip", "Slot for {WidgetTitle}\nPath: {WidgetPath}"), SlotArgs);
+					SlotDiff.DisplayString = FText::Format(LOCTEXT("DIF_RequestSlotLabel", "Slot for {WidgetTitle}"), SlotArgs);
+					SlotDiff.DisplayColor = FLinearColor(1.f, 0.4f, 0.4f);
+
+					Results.Add(SlotDiff);
+				}
 			}
-
-			Results.Add(Diff);
-
-			// TODO: Add some type specific diffing if needed
 		}
 		else
 		{
@@ -714,7 +731,7 @@ bool UWidgetBlueprint::FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults&
 		FDiffSingleResult Diff;
 		Diff.Diff = EDiffType::INFO_MESSAGE;
 		Diff.DisplayColor = FLinearColor(.7f, .7f, .7f);
-		Diff.ToolTip = LOCTEXT("DIF_WidgetWarningMessage", "Warning: May be missing some widget-specific differences");
+		Diff.ToolTip = LOCTEXT("DIF_WidgetWarningMessage", "Warning: This may be missing changes to Animations and Bindings");
 		Diff.DisplayString = Diff.ToolTip;
 
 		Results.Add(Diff);

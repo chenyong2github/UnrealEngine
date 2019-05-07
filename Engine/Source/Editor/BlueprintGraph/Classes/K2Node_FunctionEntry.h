@@ -43,6 +43,7 @@ class UK2Node_FunctionEntry : public UK2Node_FunctionTerminator
 	virtual bool IsDeprecated() const override;
 	virtual FString GetDeprecationMessage() const override;
 	virtual FText GetTooltipText() const override;
+	virtual void FindDiffs(UEdGraphNode* OtherNode, struct FDiffResults& Results) override;
 	//~ End UEdGraphNode Interface
 
 	//~ Begin UK2Node Interface

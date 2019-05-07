@@ -24,6 +24,7 @@
 #include "KismetCompilerMisc.h"
 #include "KismetCompiler.h"
 #include "Misc/OutputDeviceNull.h"
+#include "DiffResults.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_FunctionEntry"
 
@@ -489,6 +490,61 @@ FText UK2Node_FunctionEntry::GetTooltipText() const
 		return FText::FromString(UK2Node_CallFunction::GetDefaultTooltipForFunction(Function));
 	}
 	return Super::GetTooltipText();
+}
+
+void UK2Node_FunctionEntry::FindDiffs(UEdGraphNode* OtherNode, struct FDiffResults& Results)
+{
+	Super::FindDiffs(OtherNode, Results);
+	UK2Node_FunctionEntry* OtherFunction = Cast<UK2Node_FunctionEntry>(OtherNode);
+
+	if (OtherFunction)
+	{
+		if (ExtraFlags != OtherFunction->ExtraFlags)
+		{
+			FDiffSingleResult Diff;
+			Diff.Diff = EDiffType::NODE_PROPERTY;
+			Diff.Node1 = this;
+			Diff.Node2 = OtherNode;
+			Diff.DisplayString = LOCTEXT("DIF_FunctionFlags", "Function flags have changed");
+			Diff.DisplayColor = FLinearColor(0.25f, 0.71f, 0.85f);
+
+			Results.Add(Diff);
+		}
+
+		if (!FKismetUserDeclaredFunctionMetadata::StaticStruct()->CompareScriptStruct(&MetaData, &OtherFunction->MetaData, 0))
+		{
+			FDiffSingleResult Diff;
+			Diff.Diff = EDiffType::NODE_PROPERTY;
+			Diff.Node1 = this;
+			Diff.Node2 = OtherNode;
+			Diff.DisplayString = LOCTEXT("DIF_FunctionMetadata", "Function metadata has changed");
+			Diff.DisplayColor = FLinearColor(0.25f, 0.71f, 0.85f);
+
+			Results.Add(Diff);
+		}
+
+		bool bLocalVarsDiffer = (LocalVariables.Num() != OtherFunction->LocalVariables.Num());
+
+		for (int32 i = 0; i < LocalVariables.Num() && !bLocalVarsDiffer; i++)
+		{
+			if (!FBPVariableDescription::StaticStruct()->CompareScriptStruct(&LocalVariables[i], &OtherFunction->LocalVariables[i], 0))
+			{
+				bLocalVarsDiffer = true;
+			}
+		}
+
+		if (bLocalVarsDiffer)
+		{
+			FDiffSingleResult Diff;
+			Diff.Diff = EDiffType::NODE_PROPERTY;
+			Diff.Node1 = this;
+			Diff.Node2 = OtherNode;
+			Diff.DisplayString = LOCTEXT("DIF_FunctionLocalVariables", "Function local variables have changed");
+			Diff.DisplayColor = FLinearColor(0.25f, 0.71f, 0.85f);
+
+			Results.Add(Diff);
+		}
+	}
 }
 
 int32 UK2Node_FunctionEntry::GetFunctionFlags() const
