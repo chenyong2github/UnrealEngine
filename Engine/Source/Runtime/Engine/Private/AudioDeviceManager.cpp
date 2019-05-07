@@ -8,7 +8,6 @@
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/UObjectIterator.h"
-#include "Settings/LevelEditorMiscSettings.h"
 
 #if WITH_EDITOR
 #include "AudioEditorModule.h"
@@ -381,7 +380,7 @@ bool FAudioDeviceManager::CreateAudioDevice(bool bCreateNewDevice, FCreateAudioD
 	bool bRequiresInit = true;
 
 	// For the first PIE window, we'll just use the main audio device
-	if (NumActiveAudioDevices == 1 && !GetDefault<ULevelEditorMiscSettings>()->bCreateNewAudioDeviceForPlayInEditor)
+	if (NumActiveAudioDevices == 1)
 	{
 		FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice();
 		if (MainAudioDevice)
