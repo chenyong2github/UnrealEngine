@@ -216,8 +216,11 @@ FDesktopDomain RemapPermutation(FDesktopDomain PermutationVector)
 	// You most likely need Bloom anyway.
 	CommonPermutationVector.Set<FTonemapperBloomDim>(true);
 
-	// Grain quantization is pretty important anyway.
-	PermutationVector.Set<FTonemapperGrainQuantizationDim>(true);
+	// Disable grain quantization only for LinearNoToneCurve output device
+	if (PermutationVector.Get<FTonemapperOutputDeviceDim>() == FTonemapperOutputDevice::LinearNoToneCurve)
+		PermutationVector.Set<FTonemapperGrainQuantizationDim>(false);
+	else
+		PermutationVector.Set<FTonemapperGrainQuantizationDim>(true);
 
 	PermutationVector.Set<FCommonDomain>(CommonPermutationVector);
 	return PermutationVector;

@@ -510,8 +510,11 @@ float4 TonemapCommonPS(
 	
 		half LuminanceForPostProcessAA  = dot(OutDeviceColor, half3(0.299f, 0.587f, 0.114f));
 
-		#if USE_GRAIN_QUANTIZATION && DIM_OUTPUT_DEVICE != TONEMAPPER_OUTOUT_NoToneCurve
-			// Needs to go after tonemapping.
+		#if USE_GRAIN_QUANTIZATION
+			#if DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_NoToneCurve
+				#error LinearNoToneCurve device requires no Grain Quantization
+			#endif
+			// Needs to go after tonemapping. 
 			#if USE_LINEAR_FLOAT_RT
 				half GrainQuantization = 1.0/1024.0;
 			#else
