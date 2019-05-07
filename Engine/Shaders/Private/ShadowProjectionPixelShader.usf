@@ -55,11 +55,12 @@ float4 LightPositionAndInvRadius;
 	#include "TransmissionThickness.ush"
 #else
 	float4x4 ScreenToShadowMatrix;
-	// .x:DepthBias, .y:SlopeDepthBias, .z:MaxSlopeDepthBias, .w: MaxSubjectZ - MinSubjectZ
+	// .x:DepthBias, .y:SlopeDepthBias, .z:ReceiverBias, .w: MaxSubjectZ - MinSubjectZ
 	float4 ProjectionDepthBiasParameters;
 #endif
 
 	float4 LightPositionOrDirection;
+	float ShadowReceiverBias;
 
 #if USE_FADE_PLANE
 	float FadePlaneOffset;
@@ -181,7 +182,7 @@ void Main(
 	}
 	#else // !USE_PCSS
 	{
-		// Attenuate Soft transition based on the angle with the light and the shading normal
+		// Attenuate soft transition based on the angle with the light and the shading normal (acts as a receiver bias)
 		FGBufferData GBufferData = GetGBufferData(ScreenUV);
 		const bool bIsDirectional = LightPositionOrDirection.w == 0;
 		const float3 LightDirection = bIsDirectional ? -LightPositionOrDirection.xyz : normalize(LightPositionOrDirection.xyz - WorldPosition);
@@ -192,7 +193,7 @@ void Main(
 		Settings.ShadowDepthTexture = ShadowDepthTexture;
 		Settings.ShadowDepthTextureSampler = ShadowDepthTextureSampler;
 		Settings.ShadowBufferSize = ShadowBufferSize;
-		Settings.TransitionScale = SoftTransitionScale.z;// * lerp(0.1, 1.0, NoL); Temporally disabled until slope bias is activated at the same time, to reduce the number of screenshots to update.
+		Settings.TransitionScale = SoftTransitionScale.z * lerp(ProjectionDepthBiasParameters.z, 1.0, NoL);
 		Settings.SceneDepth = LightSpacePixelDepthForOpaque;
 		Settings.bSubsurface = false;
 		Settings.bTreatMaxDepthUnshadowed = false;
@@ -332,13 +333,25 @@ void MainOnePassPointLightPS(
 	float3 LightVector = LightPositionAndInvRadius.xyz - WorldPosition.xyz;
 #if OUTPUT_CUBE_SHADOW_DEPTH_NO_FILTERING
 	// Note: point light shadow depth is Z / W, not linear
-	#if OPENGL_PROFILE || COMPILER_VULKAN || COMPILER_SWITCH
+#if OPENGL_PROFILE || COMPILER_VULKAN || COMPILER_SWITCH
 	float Shadow = TextureCubeSampleLevel(ShadowDepthCubeTexture2, ShadowDepthTextureSampler, LightVector, 0);
-	#else
-	float Shadow = TextureCubeSampleLevel(ShadowDepthCubeTexture, ShadowDepthTextureSampler, LightVector, 0);
-	#endif
 #else
- 	float Shadow = CubemapHardwarePCF(WorldPosition, LightPositionAndInvRadius.xyz, LightPositionAndInvRadius.w, PointLightDepthBias.x, PointLightDepthBias.y, PointLightDepthBias.z);
+	float Shadow = TextureCubeSampleLevel(ShadowDepthCubeTexture, ShadowDepthTextureSampler, LightVector, 0);
+#endif
+#else
+	// Normal receiver bias: Increase depth based on the angle with the light and the shading normal. 
+	// Unlike spot/rect/direction light, point lights performs depth bias only at projection time. 
+	// This is why the slope bias drives the normal receiver bias here.
+	float SlopeBias = 0;
+	{
+		FGBufferData GBufferData = GetGBufferData(ScreenUV);
+		const bool bIsDirectional = LightPositionOrDirection.w == 0;
+		const float3 LightDirection = bIsDirectional ? -LightPositionOrDirection.xyz : normalize(LightPositionOrDirection.xyz - WorldPosition);
+		const float NoL = saturate(dot(GBufferData.WorldNormal, LightDirection));
+		SlopeBias = (1-NoL) * PointLightDepthBias.y;
+	}
+
+	float Shadow = CubemapHardwarePCF(WorldPosition, LightPositionAndInvRadius.xyz, LightPositionAndInvRadius.w, PointLightDepthBias.x, SlopeBias, PointLightDepthBias.z);
 
 	Shadow = saturate( (Shadow - 0.5) * ShadowSharpen + 0.5 );
 #endif

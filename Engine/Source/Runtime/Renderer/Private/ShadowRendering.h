@@ -371,7 +371,7 @@ public:
 	float GetShaderDepthBias() const { return ShaderDepthBias; }
 	float GetShaderSlopeDepthBias() const { return ShaderSlopeDepthBias; }
 	float GetShaderMaxSlopeDepthBias() const { return ShaderMaxSlopeDepthBias; }
-	FVector GetShaderShadowReceiverBias() const { return ShaderShadowReceiverDepthBias; }
+	float GetShaderReceiverDepthBias() const;
 
 	/**
 	 * Renders the shadow subject depth.
@@ -555,7 +555,6 @@ private:
 	float ShaderDepthBias;
 	float ShaderSlopeDepthBias;
 	float ShaderMaxSlopeDepthBias;
-	FVector ShaderShadowReceiverDepthBias;
 
 	void CopyCachedShadowMap(FRHICommandList& RHICmdList, const FMeshPassProcessorRenderState& DrawRenderState, FSceneRenderer* SceneRenderer, const FViewInfo& View);
 
@@ -769,7 +768,6 @@ public:
 		FadePlaneOffset.Bind(ParameterMap,TEXT("FadePlaneOffset"));
 		InvFadePlaneLength.Bind(ParameterMap,TEXT("InvFadePlaneLength"));
 		ShadowTileOffsetAndSizeParam.Bind(ParameterMap, TEXT("ShadowTileOffsetAndSize"));
-		ShadowReceiverParams.Bind(ParameterMap, TEXT("ShadowReceiverParams"));
 		LightPositionOrDirection.Bind(ParameterMap, TEXT("LightPositionOrDirection"));
 	}
 
@@ -845,7 +843,7 @@ public:
 				);
 		}
 
-		SetShaderValue(RHICmdList, ShaderRHI, ProjectionDepthBias, FVector4(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias(), ShadowInfo->MaxSubjectZ - ShadowInfo->MinSubjectZ));
+		SetShaderValue(RHICmdList, ShaderRHI, ProjectionDepthBias, FVector4(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderReceiverDepthBias(), ShadowInfo->MaxSubjectZ - ShadowInfo->MinSubjectZ));
 		SetShaderValue(RHICmdList, ShaderRHI, FadePlaneOffset, ShadowInfo->CascadeSettings.FadePlaneOffset);
 
 		if(InvFadePlaneLength.IsBound())
@@ -854,10 +852,6 @@ public:
 			SetShaderValue(RHICmdList, ShaderRHI, InvFadePlaneLength, 1.0f / ShadowInfo->CascadeSettings.FadePlaneLength);
 		}
 
-		if (ShadowReceiverParams.IsBound())
-		{
-			SetShaderValue(RHICmdList, ShaderRHI, ShadowReceiverParams, ShadowInfo->GetShaderShadowReceiverBias());
-		}
 
 		if (LightPositionOrDirection.IsBound())
 		{
@@ -881,7 +875,6 @@ public:
 		Ar << P.FadePlaneOffset;
 		Ar << P.InvFadePlaneLength;
 		Ar << P.ShadowTileOffsetAndSizeParam;
-		Ar << P.ShadowReceiverParams;
 		Ar << P.LightPositionOrDirection;
 		return Ar;
 	}
@@ -898,7 +891,6 @@ private:
 	FShaderParameter FadePlaneOffset;
 	FShaderParameter InvFadePlaneLength;
 	FShaderParameter ShadowTileOffsetAndSizeParam;
-	FShaderParameter ShadowReceiverParams;
 	FShaderParameter LightPositionOrDirection;
 };
 

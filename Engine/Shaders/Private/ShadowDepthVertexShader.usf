@@ -56,7 +56,7 @@ void SetShadowDepthOutputs(
 	#endif
 
 	const float MaxSlopeDepthBias = PassStruct.ShadowParams.z;
-	const float Slope = min(abs(NoL) > 0 ? sqrt(saturate(1 - NoL*NoL)) / NoL : MaxSlopeDepthBias, MaxSlopeDepthBias);
+	const float Slope = clamp(abs(NoL) > 0 ? sqrt(saturate(1 - NoL*NoL)) / NoL : MaxSlopeDepthBias, 0, MaxSlopeDepthBias);
 	
 	const float SlopeDepthBias = PassStruct.ShadowParams.y;
 	const float SlopeBias = SlopeDepthBias * Slope;

@@ -389,7 +389,7 @@ ULightComponent::ULightComponent(const FObjectInitializer& ObjectInitializer)
 	IndirectLightingIntensity = 1.0f;
 	ShadowResolutionScale = 1.0f;
 	ShadowBias = 0.5f;
-	ShadowSlopeBias = 0.0f;
+	ShadowSlopeBias = 0.5f;
 	ShadowSharpen = 0.0f;
 	ContactShadowLength = 0.0f;
 	ContactShadowLengthInWS = false;

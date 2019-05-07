@@ -14,28 +14,30 @@
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Directional light
 static TAutoConsoleVariable<float> CVarCSMShadowDepthBias(
 	TEXT("r.Shadow.CSMDepthBias"),
-	20.0f,
+	10.0f,
 	TEXT("Constant depth bias used by CSM"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarCSMShadowSlopeScaleDepthBias(
 	TEXT("r.Shadow.CSMSlopeScaleDepthBias"),
-	5.0f,
+	3.0f,
 	TEXT("Slope scale depth bias used by CSM"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarPerObjectDirectionalShadowDepthBias(
 	TEXT("r.Shadow.PerObjectDirectionalDepthBias"),
-	20.0f,
+	10.0f,
 	TEXT("Constant depth bias used by per-object shadows from directional lights\n")
 	TEXT("Lower values give better shadow contact, but increase self-shadowing artifacts"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarPerObjectDirectionalShadowSlopeScaleDepthBias(
 	TEXT("r.Shadow.PerObjectDirectionalSlopeDepthBias"),
-	5.0f,
+	3.0f,
 	TEXT("Slope scale depth bias used by per-object shadows from directional lights\n")
 	TEXT("Lower values give better shadow contact, but increase self-shadowing artifacts"),
 	ECVF_RenderThreadSafe);
@@ -52,42 +54,83 @@ static TAutoConsoleVariable<int32> CVarCSMDepthBoundsTest(
 	TEXT("Whether to use depth bounds tests rather than stencil tests for the CSM bounds"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<float> CVarSpotLightShadowTransitionScale(
-	TEXT("r.Shadow.SpotLightTransitionScale"),
-	60.0f,
-	TEXT("Transition scale for spotlights"),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<float> CVarShadowTransitionScale(
 	TEXT("r.Shadow.TransitionScale"),
 	60.0f,
 	TEXT("This controls the 'fade in' region between a caster and where his shadow shows up.  Larger values make a smaller region which will have more self shadowing artifacts"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarCSMShadowReceiverBias(
+	TEXT("r.Shadow.CSMReceiverBias"),
+	0.9f,
+	TEXT("Receiver bias used by CSM. Value between 0 and 1."),
+	ECVF_RenderThreadSafe);
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Point light
 static TAutoConsoleVariable<float> CVarPointLightShadowDepthBias(
 	TEXT("r.Shadow.PointLightDepthBias"),
-	0.05f,
+	0.02f,
 	TEXT("Depth bias that is applied in the depth pass for shadows from point lights. (0.03 avoids peter paning but has some shadow acne)"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarPointLightShadowSlopeScaleDepthBias(
 	TEXT("r.Shadow.PointLightSlopeScaleDepthBias"),
-	5.0f,
+	3.0f,
 	TEXT("Slope scale depth bias that is applied in the depth pass for shadows from point lights"),
 	ECVF_RenderThreadSafe);
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Rect light
+static TAutoConsoleVariable<float> CVarRectLightShadowDepthBias(
+	TEXT("r.Shadow.RectLightDepthBias"),
+	0.025f,
+	TEXT("Depth bias that is applied in the depth pass for shadows from rect lights. (0.03 avoids peter paning but has some shadow acne)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarRectLightShadowSlopeScaleDepthBias(
+	TEXT("r.Shadow.RectLightSlopeScaleDepthBias"),
+	2.5f,
+	TEXT("Slope scale depth bias that is applied in the depth pass for shadows from rect lights"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarRectLightShadowReceiverBias(
+	TEXT("r.Shadow.RectLightReceiverBias"),
+	0.3f,
+	TEXT("Receiver bias used by rect light. Value between 0 and 1."),
+	ECVF_RenderThreadSafe);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Spot light
 static TAutoConsoleVariable<float> CVarSpotLightShadowDepthBias(
 	TEXT("r.Shadow.SpotLightDepthBias"),
-	5.0f,
+	3.0f,
 	TEXT("Depth bias that is applied in the depth pass for per object projected shadows from spot lights"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarSpotLightShadowSlopeScaleDepthBias(
 	TEXT("r.Shadow.SpotLightSlopeDepthBias"),
-	5.0f,
+	3.0f,
 	TEXT("Slope scale depth bias that is applied in the depth pass for per object projected shadows from spot lights"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarSpotLightShadowTransitionScale(
+	TEXT("r.Shadow.SpotLightTransitionScale"),
+	60.0f,
+	TEXT("Transition scale for spotlights"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarSpotLightShadowReceiverBias(
+	TEXT("r.Shadow.SpotLightReceiverBias"),
+	0.5f,
+	TEXT("Receiver bias used by spotlights. Value between 0 and 1."),
+	ECVF_RenderThreadSafe);
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// General
 static TAutoConsoleVariable<int32> CVarEnableModulatedSelfShadow(
 	TEXT("r.Shadow.EnableModulatedSelfShadow"),
 	0,
@@ -118,7 +161,7 @@ static TAutoConsoleVariable<int32> CVarMaxSoftKernelSize(
 
 static TAutoConsoleVariable<float> CVarShadowMaxSlopeScaleDepthBias(
 	TEXT("r.Shadow.ShadowMaxSlopeScaleDepthBias"),
-	2.0f,
+	1.0f,
 	TEXT("Max Slope depth bias used for shadows for all lights\n")
 	TEXT("Higher values give better self-shadowing, but increase self-shadowing artifacts"),
 	ECVF_RenderThreadSafe);
@@ -1166,11 +1209,25 @@ void FProjectedShadowInfo::UpdateShaderDepthBias()
 
 	if (IsWholeScenePointLightShadow())
 	{
-		DepthBias = CVarPointLightShadowDepthBias.GetValueOnRenderThread() * 512.0f / FMath::Max(ResolutionX, ResolutionY);
+		const bool bIsRectLight = LightSceneInfo->Proxy->GetLightType() == LightType_Rect;
+		float DeptBiasConstant = 0;
+		float SlopeDepthBiasConstant = 0;
+		if (bIsRectLight)
+		{
+			DeptBiasConstant = CVarRectLightShadowDepthBias.GetValueOnRenderThread();
+			SlopeDepthBiasConstant = CVarRectLightShadowSlopeScaleDepthBias.GetValueOnRenderThread();
+		}
+		else
+		{
+			DeptBiasConstant = CVarPointLightShadowDepthBias.GetValueOnRenderThread();
+			SlopeDepthBiasConstant = CVarPointLightShadowSlopeScaleDepthBias.GetValueOnRenderThread();
+		}
+
+		DepthBias = DeptBiasConstant * 512.0f / FMath::Max(ResolutionX, ResolutionY);
 		// * 2.0f to be compatible with the system we had before ShadowBias
 		DepthBias *= 2.0f * LightSceneInfo->Proxy->GetUserShadowBias();
 
-		SlopeScaleDepthBias = CVarPointLightShadowSlopeScaleDepthBias.GetValueOnRenderThread();
+		SlopeScaleDepthBias = SlopeDepthBiasConstant;
 		SlopeScaleDepthBias *= LightSceneInfo->Proxy->GetUserShadowSlopeBias();
 	}
 	else if (IsWholeSceneDirectionalShadow())
@@ -1276,6 +1333,24 @@ float FProjectedShadowInfo::ComputeTransitionSize() const
 	return FMath::Max(TransitionSize, MinTransitionSize);
 }
 
+float FProjectedShadowInfo::GetShaderReceiverDepthBias() const
+{
+	float ShadowReceiverBias = 1;
+	{
+		switch (GetLightSceneInfo().Proxy->GetLightType())
+		{
+		case LightType_Directional	: ShadowReceiverBias = CVarCSMShadowReceiverBias.GetValueOnRenderThread(); break;
+		case LightType_Rect			: ShadowReceiverBias = CVarRectLightShadowReceiverBias.GetValueOnRenderThread(); break;
+		case LightType_Spot			: ShadowReceiverBias = CVarSpotLightShadowReceiverBias.GetValueOnRenderThread(); break;
+		case LightType_Point		: ShadowReceiverBias = GetShaderSlopeDepthBias(); break;
+		}
+	}
+
+	// Return the min lerp value for depth biasing
+	// 0 : max bias when NoL == 0
+	// 1 : no bias
+	return 1.0f - FMath::Clamp(ShadowReceiverBias, 0.0f, 1.0f);
+}
 /*-----------------------------------------------------------------------------
 FDeferredShadingSceneRenderer
 -----------------------------------------------------------------------------*/
