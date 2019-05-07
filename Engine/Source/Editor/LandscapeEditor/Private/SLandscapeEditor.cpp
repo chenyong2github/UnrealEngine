@@ -95,6 +95,7 @@ void FLandscapeToolKit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
 	MAP_TOOL("ResizeLandscape");
 
 	MAP_TOOL("Sculpt");
+	MAP_TOOL("Erase");
 	MAP_TOOL("Paint");
 	MAP_TOOL("Smooth");
 	MAP_TOOL("Flatten");
