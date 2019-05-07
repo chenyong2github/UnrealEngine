@@ -143,8 +143,8 @@ public:
 
 struct FAccelerationStructureUpdateParams
 {
-	FRayTracingGeometryRHIParamRef Geometry;
-	FVertexBufferRHIParamRef VertexBuffer;
+	FRayTracingGeometryRHIRef Geometry;
+	FVertexBufferRHIRef VertexBuffer;
 };
 
 struct FCopyBufferRegionParams
