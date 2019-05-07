@@ -426,7 +426,7 @@ void AActor::RerunConstructionScripts()
 				if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
 				{
 					TInlineComponentArray<USceneComponent*> InstancedChildren;
-					Algo::TransformIf(SceneComp->GetAttachChildren(), InstancedChildren, [](USceneComponent* SC) { return SC->CreationMethod == EComponentCreationMethod::Instance; }, [](USceneComponent* SC) { return SC; });
+					Algo::TransformIf(SceneComp->GetAttachChildren(), InstancedChildren, [](USceneComponent* SC) { return SC && SC->CreationMethod == EComponentCreationMethod::Instance; }, [](USceneComponent* SC) { return SC; });
 					for (USceneComponent* InstancedChild : InstancedChildren)
 					{
 						InstancedChild->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
