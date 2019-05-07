@@ -35,6 +35,9 @@
     <WarningLevel>4</WarningLevel>
     <NoWarn>CS0649</NoWarn>
   </PropertyGroup>
+  <PropertyGroup Condition="Exists('..\..\..\..\Build\NotForLicensees\EpicInternal.txt')">
+    <OutputPath>..\..\..\..\Build\NotForLicensees\BuildFarm\MetadataTool\</OutputPath>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
