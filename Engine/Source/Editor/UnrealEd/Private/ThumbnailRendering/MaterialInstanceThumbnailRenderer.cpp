@@ -4,9 +4,11 @@
 #include "Misc/App.h"
 #include "ShowFlags.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/Material.h"
 #include "SceneView.h"
 #include "ThumbnailHelpers.h"
 #include "Slate/WidgetRenderer.h"
+#include "Widgets/Images/SImage.h"
 #include "SlateMaterialBrush.h"
 
 UMaterialInstanceThumbnailRenderer::UMaterialInstanceThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
