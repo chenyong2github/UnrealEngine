@@ -494,6 +494,9 @@ public:
 	/** Represent the chosen material for each LOD */
 	UPROPERTY(DuplicateTransient)
 	TMap<UMaterialInterface*, int8> MaterialPerLOD;
+
+	/** Represents hash of last weightmap usage update */
+	uint32 WeightmapsHash;
 #endif
 
 	/** For ES2 */
@@ -874,6 +877,7 @@ public:
 	LANDSCAPE_API void RequestWeightmapUpdate(bool bUpdateAll = false);
 	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false);
 	LANDSCAPE_API void RequestDeferredClientUpdate();
+	LANDSCAPE_API uint32 ComputeWeightmapsHash();
 #endif
 
 	friend class FLandscapeComponentSceneProxy;
