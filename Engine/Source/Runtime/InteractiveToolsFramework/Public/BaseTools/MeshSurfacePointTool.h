@@ -66,7 +66,7 @@ public:
 	 *        only calls MeshSource->HitTest, so this source technically does not have to actually provide
 	 *        a valid MeshDescription
 	 */
-	virtual void SetSelection(TUniquePtr<IMeshDescriptionSource> MeshSource);
+	virtual void SetMeshSource(TUniquePtr<IMeshDescriptionSource> MeshSource);
 
 	/**
 	 * @return true if the target MeshSource is hit by the Ray

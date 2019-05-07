@@ -31,7 +31,7 @@ void UMeshSurfacePointToolBuilder::InitializeNewTool(UMeshSurfacePointTool* NewT
 {
 	UObject* MeshComponent = ToolBuilderUtil::FindFirstComponent(SceneState, ToolBuilderUtil::IsMeshDescriptionSourceComponent);
 	check(MeshComponent != nullptr);
-	NewTool->SetSelection(
+	NewTool->SetMeshSource(
 		SceneState.SourceBuilder->MakeMeshDescriptionSource(MeshComponent) );
 }
 
@@ -40,7 +40,7 @@ void UMeshSurfacePointToolBuilder::InitializeNewTool(UMeshSurfacePointTool* NewT
  * Tool
  */
 
-void UMeshSurfacePointTool::SetSelection(TUniquePtr<IMeshDescriptionSource> MeshSourceIn)
+void UMeshSurfacePointTool::SetMeshSource(TUniquePtr<IMeshDescriptionSource> MeshSourceIn)
 {
 	this->MeshSource = TUniquePtr<IMeshDescriptionSource>(MoveTemp(MeshSourceIn));
 }
