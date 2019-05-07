@@ -61,6 +61,22 @@ public:
 		float DeltaTime,
 		bool bDeferRenderTargetUpdate = false);
 
+	void DrawWidget(
+		FRenderTarget* RenderTarget,
+		const TSharedRef<SWidget>& Widget,
+		float Scale,
+		FVector2D DrawSize,
+		float DeltaTime,
+		bool bDeferRenderTargetUpdate = false);
+
+	void DrawWidget(
+		UTextureRenderTarget2D* RenderTarget,
+		const TSharedRef<SWidget>& Widget,
+		float Scale,
+		FVector2D DrawSize,
+		float DeltaTime,
+		bool bDeferRenderTargetUpdate = false);
+
 	void DrawWindow(
 		FRenderTarget* RenderTarget,
 		TSharedRef<FHittestGrid> HitTestGrid,
