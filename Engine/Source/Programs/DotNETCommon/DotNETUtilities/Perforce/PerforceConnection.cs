@@ -126,6 +126,30 @@ namespace Tools.DotNETCommon.Perforce
 		}
 
 		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="ServerAndPort">The server address and port</param>
+		/// <param name="UserName">The user name</param>
+		/// <param name="ClientName">The client name</param>
+		public PerforceConnection(string ServerAndPort, string UserName, string ClientName)
+		{
+			List<string> Options = new List<string>();
+			if(ServerAndPort != null)
+			{
+				Options.Add(String.Format("-p {0}", ServerAndPort));
+			}
+			if (UserName != null)
+			{
+				Options.Add(String.Format("-u {0}", UserName));
+			}
+			if (ClientName != null)
+			{
+				Options.Add(String.Format("-c {0}", ClientName));
+			}
+			this.GlobalOptions = String.Join(" ", Options);
+		}
+
+		/// <summary>
 		/// Execute a Perforce command and parse the output as marshalled Python objects. This is more robustly defined than the text-based tagged output
 		/// format, because it avoids ambiguity when returned fields can have newlines.
 		/// </summary>

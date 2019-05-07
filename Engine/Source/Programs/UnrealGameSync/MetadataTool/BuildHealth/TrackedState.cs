@@ -1,0 +1,80 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.Serialization;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace MetadataTool
+{
+	/// <summary>
+	/// The persistent state tracked by the program between runs.
+	/// </summary>
+	[DataContract]
+	class TrackedState
+	{
+		/// <summary>
+		/// All open issues.
+		/// </summary>
+		[DataMember]
+		public List<TrackedIssue> Issues = new List<TrackedIssue>();
+
+		/// <summary>
+		/// Map of stream name to list of builds within it. Only retains a few builds in order to determine the last succesful CL for a build.
+		/// </summary>
+		[DataMember]
+		public Dictionary<string, List<TrackedBuild>> Streams = new Dictionary<string, List<TrackedBuild>>();
+
+		/// <summary>
+		/// Finds the last build before the one given which executes the same steps. Used to determine the last succesful build before a failure.
+		/// </summary>
+		/// <param name="Stream">The stream to search for</param>
+		/// <param name="Change">The change to search for</param>
+		/// <param name="StepNames">The step names which the job step needs to have</param>
+		/// <returns>The last build known before the given changelist</returns>
+		public TrackedBuild FindBuildBefore(string Stream, int Change, IEnumerable<string> StepNames)
+		{
+			TrackedBuild Result = null;
+
+			List<TrackedBuild> Builds;
+			if(Streams.TryGetValue(Stream, out Builds))
+			{
+				for(int Idx = 0; Idx < Builds.Count && Builds[Idx].Change < Change; Idx++)
+				{
+					if(StepNames.All(x => Builds[Idx].StepNames.Contains(x)))
+					{
+						Result = Builds[Idx];
+					}
+				}
+			}
+
+			return Result;
+		}
+
+		/// <summary>
+		/// Finds the first build after the one given which executes the same steps. Used to determine the last succesful build before a failure.
+		/// </summary>
+		/// <param name="Stream">The stream to search for</param>
+		/// <param name="Change">The change to search for</param>
+		/// <param name="StepNames">The step names which the job step needs to have</param>
+		/// <returns>The last build known before the given changelist</returns>
+		public TrackedBuild FindBuildAfter(string Stream, int Change, IEnumerable<string> StepNames)
+		{
+			TrackedBuild Result = null;
+
+			List<TrackedBuild> Builds;
+			if (Streams.TryGetValue(Stream, out Builds))
+			{
+				for (int Idx = Builds.Count - 1; Idx >= 0 && Builds[Idx].Change > Change; Idx--)
+				{
+					if (StepNames.All(x => Builds[Idx].StepNames.Contains(x)))
+					{
+						Result = Builds[Idx];
+					}
+				}
+			}
+
+			return Result;
+		}
+	}
+}

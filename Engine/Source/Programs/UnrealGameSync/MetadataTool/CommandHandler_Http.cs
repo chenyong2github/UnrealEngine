@@ -20,7 +20,8 @@ namespace MetadataTool
 		public Type BodyType;
 		public string[] OptionalParams;
 
-		public CommandHandler_Http(string Verb, string Resource, Type BodyType = null, string[] OptionalParams = null)
+		public CommandHandler_Http(string Name, string Verb, string Resource, Type BodyType = null, string[] OptionalParams = null)
+			: base(Name)
 		{
 			this.Verb = Verb;
 			this.Resource = Resource;

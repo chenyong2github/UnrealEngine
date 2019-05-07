@@ -11,6 +11,13 @@ namespace MetadataTool
 {
 	abstract class CommandHandler
 	{
+		public readonly string Name;
+
+		public CommandHandler(string Name)
+		{
+			this.Name = Name;
+		}
+
 		public abstract void Exec(CommandLineArguments Arguments);
 		public abstract void Help();
 	}

@@ -13,28 +13,31 @@ using System.Web.Script.Serialization;
 
 namespace MetadataTool
 {
-	class Program
+	partial class Program
 	{
-		static Dictionary<string, CommandHandler> CommandMap = new Dictionary<string, CommandHandler>(StringComparer.OrdinalIgnoreCase)
+		static List<CommandHandler> Commands = new List<CommandHandler>
 		{
 			// Issues
-			[ "AddIssue" ] = new CommandHandler_Http("POST", "/api/issues", typeof(CommandTypes.AddIssue)),
-			[ "GetIssue" ] = new CommandHandler_Http("GET", "/api/issues/{id}"),
-			[ "GetIssues" ] = new CommandHandler_Http("GET", "/api/issues", OptionalParams: new string[] { "user" }),
-			[ "UpdateIssue" ] = new CommandHandler_Http("PUT", "/api/issues/{Id}", typeof(CommandTypes.UpdateIssue)),
+			new CommandHandler_Http("AddIssue", "POST", "/api/issues", typeof(CommandTypes.AddIssue)),
+			new CommandHandler_Http("GetIssue", "GET", "/api/issues/{id}"),
+			new CommandHandler_Http("GetIssues", "GET", "/api/issues", OptionalParams: new string[] { "includeresolved", "maxresults", "user" }),
+			new CommandHandler_Http("UpdateIssue", "PUT", "/api/issues/{Id}", typeof(CommandTypes.UpdateIssue)),
 
 			// Builds
-			[ "AddBuild" ] = new CommandHandler_Http("POST", "/api/issues/{Issue}/builds", typeof(CommandTypes.AddBuild)),
-			[ "GetBuilds" ] = new CommandHandler_Http("GET", "/api/issues/{Issue}/builds"),
+			new CommandHandler_Http("AddBuild", "POST", "/api/issues/{Issue}/builds", typeof(CommandTypes.AddBuild)),
+			new CommandHandler_Http("GetBuilds", "GET", "/api/issues/{Issue}/builds"),
 
 			// Individual builds
-			[ "GetBuild" ] = new CommandHandler_Http("GET", "/api/issuebuilds/{Build}"),
-			[ "UpdateBuild" ] = new CommandHandler_Http("PUT", "/api/issuebuilds/{Build}", typeof(CommandTypes.UpdateBuild)),
+			new CommandHandler_Http("GetBuild", "GET", "/api/issuebuilds/{Build}"),
+			new CommandHandler_Http("UpdateBuild", "PUT", "/api/issuebuilds/{Build}", typeof(CommandTypes.UpdateBuild)),
 
 			// Watchers
-			[ "GetWatchers" ] = new CommandHandler_Http("GET", "/api/issues/{Issue}/watchers"),
-			[ "AddWatcher" ] = new CommandHandler_Http("POST", "/api/issues/{Issue}/watchers", typeof(CommandTypes.Watcher)),
-			[ "RemoveWatcher" ] = new CommandHandler_Http("DELETE", "/api/issues/{Issue}/watchers", typeof(CommandTypes.Watcher))
+			new CommandHandler_Http("GetWatchers", "GET", "/api/issues/{Issue}/watchers"),
+			new CommandHandler_Http("AddWatcher", "POST", "/api/issues/{Issue}/watchers", typeof(CommandTypes.Watcher)),
+			new CommandHandler_Http("RemoveWatcher", "DELETE", "/api/issues/{Issue}/watchers", typeof(CommandTypes.Watcher)),
+
+			// Build Health
+			new CommandHandler_BuildHealth()
 		};
 
 		static int Main(string[] Args)
@@ -46,7 +49,7 @@ namespace MetadataTool
 			}
 			catch(Exception Ex)
 			{
-				Console.WriteLine("{0}", Ex.ToString());
+				Log.WriteException(Ex, null);
 				return 1;
 			}
 		}
@@ -73,8 +76,8 @@ namespace MetadataTool
 			}
 
 			// Register all the commands
-			CommandHandler Command;
-			if(!CommandMap.TryGetValue(CommandName, out Command))
+			CommandHandler Command = Commands.FirstOrDefault(x => String.Compare(x.Name, CommandName, StringComparison.OrdinalIgnoreCase) == 0);
+			if(Command == null)
 			{
 				Console.WriteLine("Unknown command '{0}'", CommandName);
 				return false;
@@ -110,10 +113,10 @@ namespace MetadataTool
 			Console.WriteLine("Global Options:");
 			Console.WriteLine("  -Server=<url>     Specifies the endpoint for the metadata server (as http://hostname:port)");
 			Console.WriteLine();
-			Console.WriteLine("Http commands:");
-			foreach(string CommandName in CommandMap.Keys)
+			Console.WriteLine("Valid commands:");
+			foreach(CommandHandler Command in Commands)
 			{
-				Console.WriteLine("  {0}", CommandName);
+				Console.WriteLine("  {0}", Command.Name);
 			}
 		}
 

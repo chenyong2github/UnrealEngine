@@ -15,13 +15,16 @@ namespace MetadataTool
 
 	static class CommandTypes
 	{
-#pragma warning disable CS0649
-
 		public enum Outcome
 		{
 			Success = 1,
 			Error = 2,
 			Warning = 3,
+		}
+
+		public class AddIssueResponse
+		{
+			public long Id;
 		}
 
 		public class AddIssue
@@ -59,7 +62,5 @@ namespace MetadataTool
 		{
 			public string UserName;
 		}
-
-#pragma warning restore CS0649
 	}
 }
