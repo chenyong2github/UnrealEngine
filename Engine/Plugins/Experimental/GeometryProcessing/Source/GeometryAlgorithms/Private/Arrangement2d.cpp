@@ -222,7 +222,7 @@ bool FArrangement2d::AttemptTriangulate(TArray<FIntVector> &Triangles, TArray<in
 		}
 
 		// copy uneaten triangles
-		for (size_t i = 0; i < TriNum; i++)
+		for (int i = 0; i < TriNum; i++)
 		{
 			if (!Eaten[i])
 			{
