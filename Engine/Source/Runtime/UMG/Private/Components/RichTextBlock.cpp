@@ -12,6 +12,7 @@
 #include "Framework/Text/IRichTextMarkupParser.h"
 #include "Framework/Text/IRichTextMarkupWriter.h"
 #include "RenderingThread.h"
+#include "Editor/WidgetCompilerLog.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -130,7 +131,7 @@ void URichTextBlock::RebuildStyleInstance()
 {
 	StyleInstance = MakeShareableDeferredCleanup(new FSlateStyleSet(TEXT("RichTextStyle")));
 
-	if (TextStyleSet && ensure(TextStyleSet->GetRowStruct()->IsChildOf(FRichTextStyleRow::StaticStruct())))
+	if (TextStyleSet && TextStyleSet->GetRowStruct()->IsChildOf(FRichTextStyleRow::StaticStruct()))
 	{
 		for (const auto& Entry : TextStyleSet->GetRowMap())
 		{
@@ -232,7 +233,20 @@ void URichTextBlock::OnCreationFromPalette()
 	//Decorators.Add(NewObject<URichTextBlockDecorator>(this, NAME_None, RF_Transactional));
 }
 
-#endif
+void URichTextBlock::ValidateCompiledDefaults(IWidgetCompilerLog& CompileLog) const
+{
+	Super::ValidateCompiledDefaults(CompileLog);
+
+	if (TextStyleSet && !TextStyleSet->GetRowStruct()->IsChildOf(FRichTextStyleRow::StaticStruct()))
+	{
+		CompileLog.Warning(FText::Format(
+			LOCTEXT("RichTextBlock_InvalidTextStyle", "{0} Text Style Set property expects a Data Table with a Rich Text Style Row structure (currently set to {1})."), 
+			FText::FromString(GetName()), 
+			FText::AsCultureInvariant(TextStyleSet->GetPathName())));
+	}
+}
+
+#endif //if WITH_EDITOR
 
 void URichTextBlock::SetDefaultTextStyle(const FTextBlockStyle& InDefaultTextStyle)
 {
