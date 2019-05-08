@@ -51,6 +51,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BuildHealth\ChangeInfo.cs" />
+    <Compile Include="BuildHealth\Matchers\CompilePatternMatcher.cs" />
+    <Compile Include="BuildHealth\PatternMatcher.cs" />
     <Compile Include="BuildHealth\TrackedIssueFingerprint.cs" />
     <Compile Include="CommandHandler.cs" />
     <Compile Include="CommandHandler_BuildHealth.cs" />

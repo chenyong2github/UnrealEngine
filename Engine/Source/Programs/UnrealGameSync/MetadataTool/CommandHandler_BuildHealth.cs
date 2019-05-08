@@ -16,39 +16,11 @@ namespace MetadataTool
 {
 	class CommandHandler_BuildHealth : CommandHandler
 	{
-		/// <summary>
-		/// List of extensions for source files
-		/// </summary>
-		static string[] SourceFileExtensions =
-		{
-			".cpp",
-			".h",
-			".cc",
-			".hh",
-			".m",
-			".mm",
-			".rc",
-			".inl",
-			".inc"
+		// Register all the pattern matchers
+		static readonly List<PatternMatcher> Matchers = new List<PatternMatcher>()
+		{ 
+			new CompilePatternMatcher()
 		};
-
-		/// <summary>
-		/// List of extensions for content
-		/// </summary>
-		static string[] ContentFileExtensions =
-		{
-			".umap",
-			".uasset"
-		};
-
-		/// <summary>
-		/// Stores information about a change and its merge history
-		/// </summary>
-		class ChangeInfo
-		{
-			public ChangesRecord Record;
-			public List<int> SourceChanges = new List<int>();
-		}
 
 		/// <summary>
 		/// Constructor
@@ -72,6 +44,13 @@ namespace MetadataTool
 			FileReference StateFile = Arguments.GetFileReference("-StateFile=");
 			string ServerUrl = Arguments.GetStringOrDefault("-Server=", null);
 			Arguments.CheckAllArgumentsUsed();
+
+			// Build a mapping from category to matching
+			Dictionary<string, PatternMatcher> CategoryNameToMatcher = new Dictionary<string, PatternMatcher>();
+			foreach (PatternMatcher Matcher in Matchers)
+			{
+				CategoryNameToMatcher[Matcher.Category] = Matcher;
+			}
 
 			// Parse the input file
 			Log.TraceInformation("Reading build results from {0}", InputFile);
@@ -157,7 +136,13 @@ namespace MetadataTool
 				// Post any issue updates
 				foreach(TrackedIssue Issue in State.Issues)
 				{
-					string Summary = Issue.GetSummary();
+					PatternMatcher Matcher;
+					if(!CategoryNameToMatcher.TryGetValue(Issue.Fingerprint.Category, out Matcher))
+					{
+						continue;
+					}
+
+					string Summary = Matcher.GetSummary(Issue);
 					if(Issue.Id == -1)
 					{
 						Log.TraceInformation("Adding issue: {0}", Issue.Fingerprint);
@@ -307,6 +292,13 @@ namespace MetadataTool
 			// TODO: VERIFY ISSUES ARE CLOSED
 		}
 
+		/// <summary>
+		/// Sends an arbitrary HTTP request
+		/// </summary>
+		/// <param name="Url">Endpoint to send to</param>
+		/// <param name="Method">The method to use for sending the request</param>
+		/// <param name="BodyObject">Object to be serialized as json in the body</param>
+		/// <returns>HTTP response</returns>
 		HttpWebResponse SendHttpRequest(string Url, string Method, object BodyObject)
 		{
 			// Create the request
@@ -327,6 +319,12 @@ namespace MetadataTool
 			return (HttpWebResponse)Request.GetResponse();
 		}
 
+		/// <summary>
+		/// Parses an HTTP response object as JSON
+		/// </summary>
+		/// <typeparam name="T">The type of object to parse</typeparam>
+		/// <param name="Response">The web response instance</param>
+		/// <returns>Response object</returns>
 		T ParseHttpResponse<T>(HttpWebResponse Response)
 		{
 			using (StreamReader ResponseReader = new StreamReader(Response.GetResponseStream(), Encoding.Default))
@@ -346,6 +344,27 @@ namespace MetadataTool
 			Log.TraceInformation("  -P4Port            Server and port for P4 commands");
 			Log.TraceInformation("  -P4User            Username to use for P4 commands");
 			Log.TraceInformation("  -Clean             Removes the existing state file and creates a new one");
+		}
+
+		/// <summary>
+		/// Finds the matcher for a particular category
+		/// </summary>
+		/// <param name="Category">The category to find</param>
+		/// <returns>Pattern matcher for this category</returns>
+		bool TryMergeFingerprint(TrackedIssueFingerprint Source, TrackedIssueFingerprint Target)
+		{
+			if(Source.Category != Target.Category)
+			{
+				return false;
+			}
+
+			PatternMatcher Matcher = Matchers.First(x => x.Category == Source.Category);
+			if(!Matcher.TryMerge(Source, Target))
+			{
+				return false;
+			}
+
+			return true;
 		}
 
 		/// <summary>
@@ -380,7 +399,11 @@ namespace MetadataTool
 			List<TrackedIssueFingerprint> Fingerprints = new List<TrackedIssueFingerprint>();
 			if(InputJobStep.Diagnostics != null)
 			{
-				CreateFingerprints(InputJob, InputJobStep, Fingerprints);
+				List<InputDiagnostic> Diagnostics = new List<InputDiagnostic>(InputJobStep.Diagnostics); 
+				foreach(PatternMatcher PatternMatcher in Matchers)
+				{
+					PatternMatcher.Match(InputJob, InputJobStep, Diagnostics, Fingerprints);
+				}
 			}
 
 			// Early out if there are no remaining fingerprints to add
@@ -405,13 +428,12 @@ namespace MetadataTool
 					{
 						continue;
 					}
-					if(!Issue.Fingerprint.CanMerge(Fingerprint))
+					if(!TryMergeFingerprint(Fingerprint, Issue.Fingerprint))
 					{
 						continue;
 					}
 
 					// Merge the issue
-					Issue.Fingerprint.Merge(Fingerprint);
 					History.AddFailedBuild(CreateBuildForJobStep(InputJob, InputJobStep));
 					Fingerprints.RemoveAt(Idx--);
 					break;
@@ -460,13 +482,12 @@ namespace MetadataTool
 								{
 									continue;
 								}
-								if(!Issue.Fingerprint.CanMerge(Fingerprint))
+								if (!TryMergeFingerprint(Fingerprint, Issue.Fingerprint))
 								{
 									continue;
 								}
 
 								// Merge the issue
-								Issue.Fingerprint.Merge(Fingerprint);
 								AddFailureToIssue(Issue, InputJob, InputJobStep, State);
 								Fingerprints.RemoveAt(Idx--);
 								break;
@@ -486,13 +507,14 @@ namespace MetadataTool
 			List<TrackedIssue> NewIssues = new List<TrackedIssue>();
 			foreach(TrackedIssueFingerprint Fingerprint in Fingerprints)
 			{
-				TrackedIssue Issue = NewIssues.FirstOrDefault(NewIssue => NewIssue.Fingerprint.TryMerge(Fingerprint));
+				TrackedIssue Issue = NewIssues.FirstOrDefault(NewIssue => TryMergeFingerprint(Fingerprint, NewIssue.Fingerprint));
 				if(Issue == null)
 				{
 					Issue = new TrackedIssue(Fingerprint, InputJob.Change);
 					if(Changes != null)
 					{
-						List<ChangeInfo> Causers = FilterCausers(Perforce, Fingerprint, Changes);
+						PatternMatcher Matcher = Matchers.First(x => x.Category == Fingerprint.Category);
+						List<ChangeInfo> Causers = Matcher.FindCausers(Perforce, Fingerprint, Changes);
 						foreach(ChangeInfo Causer in Causers)
 						{
 							Issue.SourceChanges.UnionWith(Causer.SourceChanges);
@@ -504,73 +526,6 @@ namespace MetadataTool
 				AddFailureToIssue(Issue, InputJob, InputJobStep, State);
 			}
 			State.Issues.AddRange(NewIssues);
-		}
-
-		/// <summary>
-		/// Filters the list of causers for a possible issue
-		/// </summary>
-		/// <param name="Perforce">The Perforce connection</param>
-		/// <param name="Fingerprint">The issue fingerprint</param>
-		/// <param name="Changes">List of changes</param>
-		/// <returns>Receives a possible list of causers</returns>
-		List<ChangeInfo> FilterCausers(PerforceConnection Perforce, TrackedIssueFingerprint Fingerprint, List<ChangeInfo> Changes)
-		{
-			HashSet<string> ShortFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-			foreach(string FileName in Fingerprint.FileNames)
-			{
-				int Idx = FileName.LastIndexOf('/');
-				if(Idx != -1)
-				{
-					ShortFileNames.Add(FileName.Substring(Idx + 1));
-				}
-			}
-
-			List<ChangeInfo> LikelyCausers = new List<ChangeInfo>();
-			List<ChangeInfo> PossibleCausers = new List<ChangeInfo>();
-			foreach(ChangeInfo Change in Changes)
-			{
-				DescribeRecord Description = Perforce.Describe(Change.Record.Number).Data;
-				if(IsLikelyCauser(Description, ShortFileNames))
-				{
-					LikelyCausers.Add(Change);
-				}
-				else
-				{
-					PossibleCausers.Add(Change);
-				}
-			}
-
-			if(LikelyCausers.Count > 0)
-			{
-				return LikelyCausers;
-			}
-			else
-			{
-				return PossibleCausers;
-			}
-		}
-
-		/// <summary>
-		/// Determines if this change is a likely causer for an issue
-		/// </summary>
-		/// <param name="DescribeRecord">The change describe record</param>
-		/// <param name="Fingerprint">Fingerprint for the issue</param>
-		/// <returns>True if the change is a likely culprit</returns>
-		bool IsLikelyCauser(DescribeRecord DescribeRecord, HashSet<string> ShortFileNames)
-		{
-			foreach(DescribeFileRecord File in DescribeRecord.Files)
-			{
-				int Idx = File.DepotFile.LastIndexOf('/');
-				if(Idx != -1)
-				{
-					string FileName = File.DepotFile.Substring(Idx + 1);
-					if(ShortFileNames.Contains(FileName))
-					{
-						return true;
-					}
-				}
-			}
-			return false;
 		}
 
 		/// <summary>
@@ -606,74 +561,6 @@ namespace MetadataTool
 				History = new TrackedIssueHistory(LastSuccessfulBuild, CreateBuildForJobStep(InputJob, InputJobStep));
 				Issue.Streams.Add(InputJob.Stream, History);
 			}
-		}
-
-		/// <summary>
-		/// Parse a list of fingerprints from the build output
-		/// </summary>
-		/// <param name="Job">The job to generate fingerprints for</param>
-		/// <param name="JobStep">The jobstep to create fingerprints for</param>
-		/// <param name="Fingerprints">List which receives the created fingerprints</param>
-		void CreateFingerprints(InputJob Job, InputJobStep JobStep, List<TrackedIssueFingerprint> Fingerprints)
-		{
-			foreach(InputDiagnostic Diagnostic in JobStep.Diagnostics)
-			{
-				// Find any files in compiler output format
-				HashSet<string> SourceFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-				foreach (Match FileMatch in Regex.Matches(Diagnostic.Message, @"^\s*(?:In file included from\s*)?((?:[A-Za-z]:)?[^\s(:]+)[\(:]\d", RegexOptions.Multiline))
-				{
-					if (FileMatch.Success)
-					{
-						string FileName = GetNormalizedFileName(FileMatch.Groups[1].Value, JobStep.BaseDirectory);
-						if(SourceFileExtensions.Any(x => FileName.EndsWith(x, StringComparison.OrdinalIgnoreCase)))
-						{
-							SourceFileNames.Add(FileName);
-						}
-					}
-				}
-
-				// If we found any source files, create a diagnostic category for them
-				if (SourceFileNames.Count > 0)
-				{
-					TrackedIssueFingerprint Fingerprint = new TrackedIssueFingerprint(TrackedIssueFingerprintCategory.Compile, Job.Change);
-					Fingerprint.FileNames.UnionWith(SourceFileNames);
-					Fingerprints.Add(Fingerprint);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Normalizes a filename to a path within the workspace
-		/// </summary>
-		/// <param name="FileName">Filename to normalize</param>
-		/// <param name="BaseDirectory">Base directory containing the workspace</param>
-		/// <returns>Normalized filename</returns>
-		protected string GetNormalizedFileName(string FileName, string BaseDirectory)
-		{
-			string NormalizedFileName = FileName.Replace('\\', '/');
-			if (!String.IsNullOrEmpty(BaseDirectory))
-			{
-				// Normalize the expected base directory for errors in this build, and attempt to strip it from the file name
-				string NormalizedBaseDirectory = BaseDirectory;
-				if (NormalizedBaseDirectory != null && NormalizedBaseDirectory.Length > 0)
-				{
-					NormalizedBaseDirectory = NormalizedBaseDirectory.Replace('\\', '/').TrimEnd('/') + "/";
-				}
-				if (NormalizedFileName.StartsWith(NormalizedBaseDirectory, StringComparison.OrdinalIgnoreCase))
-				{
-					NormalizedFileName = NormalizedFileName.Substring(NormalizedBaseDirectory.Length);
-				}
-			}
-			else
-			{
-				// Try to match anything under a 'Sync' folder.
-				Match FallbackRegex = Regex.Match(NormalizedFileName, "/Sync/(.*)");
-				if (FallbackRegex.Success)
-				{
-					NormalizedFileName = FallbackRegex.Groups[1].Value;
-				}
-			}
-			return NormalizedFileName;
 		}
 
 		/// <summary>

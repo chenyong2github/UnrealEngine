@@ -83,111 +83,10 @@ namespace MetadataTool
 		}
 
 		/// <summary>
-		/// Creates a summary for this issue
-		/// </summary>
-		/// <returns>Summary for this issue</returns>
-		public string GetSummary()
-		{
-			StringBuilder Result = new StringBuilder();
-
-			SortedSet<string> StreamNames = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-			foreach(string StreamName in Streams.Keys)
-			{
-				string TrimStreamName = StreamName.TrimEnd('/');
-
-				int Idx = TrimStreamName.LastIndexOf('/');
-				if(Idx != -1)
-				{
-					TrimStreamName = TrimStreamName.Substring(Idx + 1);
-				}
-
-				StreamNames.Add(TrimStreamName);
-			}
-			Result.AppendFormat("[{0}] ", String.Join("/", StreamNames));
-
-			if (Fingerprint.Category == TrackedIssueFingerprintCategory.Compile)
-			{
-				SortedSet<string> ShortFileNames = GetSourceFileNames();
-				if (ShortFileNames.Count == 0)
-				{
-					Result.Append("Compile errors");
-				}
-				else
-				{
-					Result.AppendFormat("Compile errors in {0}", String.Join(", ", ShortFileNames));
-				}
-			}
-			else
-			{
-				SortedSet<string> StepNames = GetStepNames();
-				Result.AppendFormat("Errors in {0}", String.Join(", ", StepNames));
-			}
-
-			const int MaxLength = 128;
-			if (Result.Length > MaxLength)
-			{
-				Result.Remove(MaxLength, Result.Length - MaxLength);
-				Result.Append("...");
-			}
-
-			return Result.ToString();
-
-			throw new NotImplementedException();
-		}
-
-		/// <summary>
-		/// Gets a set of unique source file names that relate to this issue
-		/// </summary>
-		/// <returns>Set of source file names</returns>
-		private SortedSet<string> GetSourceFileNames()
-		{
-			SortedSet<string> ShortFileNames = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-			foreach (string FileName in Fingerprint.FileNames)
-			{
-				int Idx = FileName.LastIndexOfAny(new char[] { '/', '\\' });
-				if (Idx != -1)
-				{
-					string ShortFileName = FileName.Substring(Idx + 1);
-					if (!ShortFileName.StartsWith("Module.", StringComparison.OrdinalIgnoreCase))
-					{
-						ShortFileNames.Add(ShortFileName);
-					}
-				}
-			}
-			return ShortFileNames;
-		}
-
-		/// <summary>
-		/// Gets a set of unique asset filenames that relate to this issue
-		/// </summary>
-		/// <returns>Set of asset names</returns>
-		private SortedSet<string> GetAssetNames()
-		{
-			SortedSet<string> ShortFileNames = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-			foreach (string FileName in Fingerprint.FileNames)
-			{
-				int Idx = FileName.LastIndexOfAny(new char[] { '/', '\\' });
-				if (Idx != -1)
-				{
-					string AssetName = FileName.Substring(Idx + 1);
-
-					int DotIdx = AssetName.LastIndexOf('.');
-					if (DotIdx != -1)
-					{
-						AssetName = AssetName.Substring(0, DotIdx);
-					}
-
-					ShortFileNames.Add(AssetName);
-				}
-			}
-			return ShortFileNames;
-		}
-
-		/// <summary>
 		/// Finds all the steps which are related to this issue
 		/// </summary>
 		/// <returns>Set of step names</returns>
-		private SortedSet<string> GetStepNames()
+		public SortedSet<string> GetStepNames()
 		{
 			return new SortedSet<string>(Streams.Values.SelectMany(x => x.FailedBuilds.SelectMany(y => y.StepNames)));
 		}
@@ -198,15 +97,17 @@ namespace MetadataTool
 		/// <returns>String representation of the issue</returns>
 		public override string ToString()
 		{
-			string Summary = GetSummary();
+			StringBuilder Result = new StringBuilder();
 			if(Id == -1)
 			{
-				return String.Format("[New] {0}", Summary);
+				Result.Append("[New] ");
 			}
 			else
 			{
-				return String.Format("[{0}] {1}", Id, Summary);
+				Result.AppendFormat("[{0}] ", Id);
 			}
+			Result.AppendFormat("Errors in {0}", String.Join(", ", GetStepNames()));
+			return Result.ToString();
 		}
 	}
 }
