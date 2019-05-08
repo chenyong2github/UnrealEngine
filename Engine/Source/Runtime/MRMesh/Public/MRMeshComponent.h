@@ -88,7 +88,13 @@ public:
 	virtual void SetMaterial(int32 ElementIndex, class UMaterialInterface* InMaterial) override;
 
 	/** Updates from HoloLens or iOS */
-	void UpdateTransformAndMesh(const FTransform& InTransform, TArray<FVector>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices);
+	void UpdateMesh(const FVector& InLocation, const FQuat& InRotation, const FVector& Scale, TArray<FVector>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices);
+
+	void SetEnableMeshOcclusion(bool bEnable) { bEnableOcclusion = bEnable; }
+	bool GetEnableMeshOcclusion() const { return bEnableOcclusion; }
+	void SetUseWireframe(bool bUseWireframe) { bUseWireframeForNoMaterial = bUseWireframe; }
+	bool GetUseWireframe() const { return bUseWireframeForNoMaterial; }
+
 
 protected:
 	virtual void OnActorEnableCollisionChanged() override;
@@ -102,6 +108,9 @@ public:
 	virtual void SetCollisionProfileName(FName InCollisionProfileName) override;
 
 	virtual void SetWalkableSlopeOverride(const FWalkableSlopeOverride& NewOverride) override;
+
+	void SetNeverCreateCollisionMesh(bool bNeverCreate) { bNeverCreateCollisionMesh = bNeverCreate; }
+	void SetEnableNavMesh(bool bEnable) { bUpdateNavMeshOnMeshUpdate = bEnable;  }
 
 private:
 	//~ UPrimitiveComponent
@@ -156,6 +165,11 @@ private:
 
 	UPROPERTY()
 	UMaterialInterface* WireframeMaterial;
+
+	/** Whether this mesh should write z-depth to occlude meshes or not */
+	bool bEnableOcclusion;
+	/** Whether this mesh should draw using the wireframe material when no material is set or not */
+	bool bUseWireframeForNoMaterial;
 
 	TArray<FBodyInstance*> BodyInstances;
 	TArray<IMRMesh::FBrickId> BodyIds;

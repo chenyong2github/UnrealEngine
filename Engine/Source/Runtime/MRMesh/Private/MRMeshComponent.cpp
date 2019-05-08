@@ -106,15 +106,12 @@ struct FMRMeshProxySection
 	IMRMesh::FBrickId BrickId;
 	/** Position buffer */
 	FMRMeshVertexBuffer<FVector> PositionBuffer;
-	// AR meshes from HoloLens and ARKit don't have these
-#if !(PLATFORM_HOLOLENS || PLATFORM_IOS)
 	/** Texture coordinates buffer */
 	FMRMeshVertexBuffer<FVector2D> UVBuffer;
 	/** Tangent space buffer */
 	FMRMeshVertexBuffer<FPackedNormal> TangentXZBuffer;
 	/** We don't need color */
 	FMRMeshVertexBuffer<FColor> ColorBuffer;
-#endif
 	/** Index buffer for this section */
 	FMRMeshIndexBuffer IndexBuffer;
 	/** Vertex factory for this section */
@@ -134,12 +131,9 @@ struct FMRMeshProxySection
 	void ReleaseResources()
 	{
 		PositionBuffer.ReleaseResource();
-		// AR meshes from HoloLens and ARKit don't have these
-#if !(PLATFORM_HOLOLENS || PLATFORM_IOS)
 		UVBuffer.ReleaseResource();
 		TangentXZBuffer.ReleaseResource();
 		ColorBuffer.ReleaseResource();
-#endif
 		IndexBuffer.ReleaseResource();
 		VertexFactory.ReleaseResource();
 	}
@@ -163,8 +157,6 @@ static void InitVertexFactory(FLocalVertexFactory* VertexFactory, const FMRMeshP
 			NewData.PositionComponent = FVertexStreamComponent(&MRMeshSection.PositionBuffer, 0, sizeof(FVector), VET_Float3, EVertexStreamUsage::Default);
 		}
 
-		// AR meshes from HoloLens and ARKit don't have these
-#if !(PLATFORM_HOLOLENS || PLATFORM_IOS)
 		if (MRMeshSection.UVBuffer.NumVerts != 0)
 		{
 			NewData.TextureCoordinatesSRV = MRMeshSection.UVBufferSRV;
@@ -184,7 +176,6 @@ static void InitVertexFactory(FLocalVertexFactory* VertexFactory, const FMRMeshP
 			NewData.ColorComponentsSRV = MRMeshSection.ColorBufferSRV;
 			NewData.ColorComponent = FVertexStreamComponent(&MRMeshSection.ColorBuffer, 0, sizeof(FColor), VET_Color, EVertexStreamUsage::ManualFetch);
 		}
-#endif
 
 		VertexFactory->SetData(NewData);
 		VertexFactory->InitResource();
@@ -202,10 +193,18 @@ public:
 	}
 
 	FMRMeshProxy(const UMRMeshComponent* InComponent)
-	: FPrimitiveSceneProxy(InComponent, InComponent->GetFName())
-	, MaterialToUse((InComponent->Material != nullptr) ? InComponent->Material : (InComponent->WireframeMaterial) ? InComponent->WireframeMaterial : UMaterial::GetDefaultMaterial(MD_Surface))
-	, FeatureLevel(GetScene().GetFeatureLevel())
+		: FPrimitiveSceneProxy(InComponent, InComponent->GetFName())
+		, MaterialToUse(nullptr)
+		, FeatureLevel(GetScene().GetFeatureLevel())
+		, bEnableOcclusion(InComponent->GetEnableMeshOcclusion())
+		, bUseWireframeForNoMaterial(InComponent->GetUseWireframe())
+		, bShouldRender(false)
 	{
+		if (InComponent->Material == nullptr && bUseWireframeForNoMaterial)
+		{
+			MaterialToUse = InComponent->WireframeMaterial;
+		}
+		bShouldRender = MaterialToUse != nullptr || bEnableOcclusion;
 	}
 
 	virtual ~FMRMeshProxy()
@@ -227,14 +226,11 @@ public:
 		FMRMeshProxySection* NewSection = new FMRMeshProxySection(Args.BrickId, FeatureLevel);
 		ProxySections.Add(NewSection);
 
-		// AR meshes from HoloLens and ARKit don't have these
-#if !(PLATFORM_HOLOLENS || PLATFORM_IOS)
 		// Vulkan requires that all the buffers be full.
 		const int32 NumVerts = Args.PositionData.Num();
 		check((NumVerts == Args.ColorData.Num()));
 		check((NumVerts == Args.UVData.Num()));
 		check((NumVerts * 2) == Args.TangentXZData.Num());
-#endif
 
 		// POSITION BUFFER
 		{
@@ -243,8 +239,6 @@ public:
 			NewSection->PositionBufferSRV = RHICreateShaderResourceView(NewSection->PositionBuffer.VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
 		}
 
-		// AR meshes from HoloLens and ARKit don't have these
-#if !(PLATFORM_HOLOLENS || PLATFORM_IOS)
 		// TEXTURE COORDS BUFFER
 		{
 			NewSection->UVBuffer.InitResource();
@@ -278,7 +272,6 @@ public:
 				NewSection->ColorBufferSRV = RHICreateShaderResourceView(NewSection->ColorBuffer.VertexBufferRHI, 4, PF_R8G8B8A8);
 			}
 		}
-#endif
 
 		// INDEX BUFFER
 		{
@@ -331,6 +324,11 @@ private:
 	{
 		static const FBoxSphereBounds InfiniteBounds(FSphere(FVector::ZeroVector, HALF_WORLD_MAX));
 
+		if (!bShouldRender)
+		{
+			return;
+		}
+
 		// Iterate over sections
 		for (const FMRMeshProxySection* Section : ProxySections)
 		{
@@ -349,7 +347,9 @@ private:
 						FMeshBatch& Mesh = Collector.AllocateMesh();
 						FMeshBatchElement& BatchElement = Mesh.Elements[0];
 						BatchElement.IndexBuffer = &Section->IndexBuffer;
-						Mesh.bWireframe = false;
+						Mesh.bWireframe = bUseWireframeForNoMaterial;
+						Mesh.bUseAsOccluder = bEnableOcclusion;
+						Mesh.bUseForDepthPass = bEnableOcclusion;
 						Mesh.VertexFactory = &Section->VertexFactory;
 						Mesh.MaterialRenderProxy = MaterialProxy;
 
@@ -378,7 +378,7 @@ private:
 		Result.bDrawRelevance = IsShown(View);
 		Result.bShadowRelevance = IsShadowCast(View);
 		Result.bDynamicRelevance = true;
-		Result.bRenderInMainPass = ShouldRenderInMainPass();
+		Result.bRenderInMainPass = bShouldRender && ShouldRenderInMainPass();
 		Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 		Result.bRenderCustomDepth = ShouldRenderCustomDepth();
 		Result.bSeparateTranslucencyRelevance = MaterialToUse->GetMaterial()->bEnableSeparateTranslucency;
@@ -399,11 +399,16 @@ private:
 	TArray<FMRMeshProxySection*> ProxySections;
 	UMaterialInterface* MaterialToUse;
 	ERHIFeatureLevel::Type FeatureLevel;
+	bool bEnableOcclusion;
+	bool bUseWireframeForNoMaterial;
+	bool bShouldRender;
 };
 
 
 UMRMeshComponent::UMRMeshComponent(const FObjectInitializer& ObjectInitializer)
-: Super(ObjectInitializer)
+	: Super(ObjectInitializer)
+	, bEnableOcclusion(false)
+	, bUseWireframeForNoMaterial(false)
 {
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> WireframeMaterialRef(TEXT("/Engine/EngineDebugMaterials/WireframeMaterial"));
 	WireframeMaterial = WireframeMaterialRef.Object;
@@ -867,9 +872,10 @@ struct FMeshArrayHolder :
 	}
 };
 
-void UMRMeshComponent::UpdateTransformAndMesh(const FTransform& InTransform, TArray<FVector>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices)
+void UMRMeshComponent::UpdateMesh(const FVector& InLocation, const FQuat& InRotation, const FVector& Scale, TArray<FVector>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices)
 {
-	SetComponentToWorld(InTransform);
+	SetRelativeLocationAndRotation(InLocation, InRotation);
+	SetRelativeScale3D(Scale);
 
 	// Create our struct that will hold the data until the render thread is done with it
 	TSharedPtr<FMeshArrayHolder, ESPMode::ThreadSafe> MeshHolder(new FMeshArrayHolder(Vertices, Indices));
