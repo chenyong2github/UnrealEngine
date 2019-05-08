@@ -121,6 +121,7 @@ public:
 	// UWidget interface
 	virtual const FText GetPaletteCategory() override;
 	virtual void OnCreationFromPalette() override;
+	virtual void ValidateCompiledDefaults(IWidgetCompilerLog& CompileLog) const override;
 	// End UWidget interface
 #endif
 
