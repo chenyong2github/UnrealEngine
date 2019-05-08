@@ -107,6 +107,11 @@ bool FIOSAudioDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	return FAudioDevice::Exec(InWorld, Cmd, Ar);
 }
 
+FAudioPlatformSettings FIOSAudioDevice::GetPlatformSettings() const
+{
+	return FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"));
+}
+
 bool FIOSAudioDevice::InitializeHardware()
 {
 	SIZE_T SampleSize = sizeof(AudioSampleType);
