@@ -165,10 +165,64 @@ namespace
 		NativeVal = Data.GetNative()--;
 		AtomicVal = Data.GetAtomic()--;
 		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
 		Data.Check();
 
 		NativeVal = Data.GetNative()++;
 		AtomicVal = Data.GetAtomic()++;
+		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
+		Data.Check();
+
+		NativeVal = Data.GetNative()--;
+		AtomicVal = Data.GetAtomic().DecrementExchange();
+		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
+		Data.Check();
+
+		NativeVal = Data.GetNative()++;
+		AtomicVal = Data.GetAtomic().IncrementExchange();
+		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
+		Data.Check();
+
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic().AddExchange(47);
+		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative() += 47;
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
+		Data.Check();
+
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic().AddExchange(-11);
+		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative() += -11;
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
+		Data.Check();
+
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic().SubExchange(2);
+		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative() -= 2;
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
+		Data.Check();
+
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic().SubExchange(-9);
+		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative() -= -9;
+		AtomicVal = Data.GetAtomic();
 		check(NativeVal == AtomicVal);
 		Data.Check();
 	}

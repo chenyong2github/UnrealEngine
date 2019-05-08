@@ -362,13 +362,57 @@ public:
 	/**
 	 * Performs Element -= Value, returning a copy of the new value of the element.
 	 *
-	 * @param  Value  The value to add to the element.
+	 * @param  Value  The value to subtract from the element.
 	 *
 	 * @return A copy of the new, decremented value.
 	 */
 	FORCEINLINE T operator-=(DiffType Value)
 	{
 		return UE4Atomic_Private::SubExchange(&this->Element, Value) - Value;
+	}
+
+	/**
+	 * Increments Element and returns a copy of the previous value of the element.
+	 *
+	 * @return A copy of the previous, unincremented value.
+	 */
+	FORCEINLINE T IncrementExchange()
+	{
+		return UE4Atomic_Private::IncrementExchange(&this->Element);
+	}
+
+	/**
+	 * Decrements Element and returns a copy of the previous value of the element.
+	 *
+	 * @return A copy of the previous, undecremented value.
+	 */
+	FORCEINLINE T DecrementExchange()
+	{
+		return UE4Atomic_Private::DecrementExchange(&this->Element);
+	}
+
+	/**
+	 * Adds Value to Element and returns a copy of the previous value of the element.
+	 *
+	 * @param  Value  The value to add to the element.
+	 *
+	 * @return A copy of the previous, unincremented value.
+	 */
+	FORCEINLINE T AddExchange(DiffType Value)
+	{
+		return UE4Atomic_Private::AddExchange(&this->Element, Value);
+	}
+
+	/**
+	 * Subtracts Value from Element and returns a copy of the previous value of the element.
+	 *
+	 * @param  Value  The value to subtract from the element.
+	 *
+	 * @return A copy of the previous, undecremented value.
+	 */
+	FORCEINLINE T SubExchange(DiffType Value)
+	{
+		return UE4Atomic_Private::SubExchange(&this->Element, Value);
 	}
 
 protected:
