@@ -479,8 +479,8 @@ private:
 		const FLightSceneInfo& LightSceneInfo,
 		const IScreenSpaceDenoiser::FShadowRayTracingConfig& RayTracingConfig,
 		IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements,
-		FRDGTextureUAV* OutShadowMaskUAV,
-		FRDGTextureUAV* OutRayHitDistanceUAV);
+		FRDGTextureRef* OutShadowMask,
+		FRDGTextureRef* OutRayHitDistance);
 
 	void RenderRayTracingStochasticRectLight(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo& RectLightSceneInfo, TRefCountPtr<IPooledRenderTarget>& RectLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
 	void CompositeRayTracingSkyLight(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& SkyLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);

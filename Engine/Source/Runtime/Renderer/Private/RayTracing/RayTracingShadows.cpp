@@ -116,14 +116,39 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	const FLightSceneInfo& LightSceneInfo,
 	const IScreenSpaceDenoiser::FShadowRayTracingConfig& RayTracingConfig,
 	IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements,
-	FRDGTextureUAV* OutShadowMaskUAV,
-	FRDGTextureUAV* OutRayHitDistanceUAV)
+	FRDGTextureRef* OutShadowMask,
+	FRDGTextureRef* OutRayHitDistance)
 #if RHI_RAYTRACING
 {
 	FLightSceneProxy* LightSceneProxy = LightSceneInfo.Proxy;
 	check(LightSceneProxy);
 
-	FIntRect ScissorRect = { View.ViewRect.Min, View.ViewRect.Min + View.ViewRect.Size() };
+	// Render targets
+	FRDGTextureRef ScreenShadowMaskTexture;
+	{
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+			SceneBlackboard.SceneDepthBuffer->Desc.Extent,
+			PF_FloatRGBA,
+			FClearValueBinding::Black,
+			TexCreate_None,
+			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
+			/* bInForceSeparateTargetAndShaderResource = */ false);
+		ScreenShadowMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusion"));
+	}
+
+	FRDGTextureRef RayDistanceTexture;
+	{
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+			SceneBlackboard.SceneDepthBuffer->Desc.Extent,
+			PF_R16F,
+			FClearValueBinding::Black,
+			TexCreate_None,
+			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
+			/* bInForceSeparateTargetAndShaderResource = */ false);
+		RayDistanceTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusionDistance"));
+	}
+
+	FIntRect ScissorRect = { {0,0}, View.ViewRect.Size() };
 
 	if (LightSceneProxy->GetScissorRect(ScissorRect, View, View.ViewRect))
 	{
@@ -131,12 +156,16 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		ScissorRect.Min = ScissorRect.Min - View.ViewRect.Min;
 		ScissorRect.Max = ScissorRect.Max - View.ViewRect.Min;
 	}
+	else
+	{
+		ScissorRect = { {0,0}, View.ViewRect.Size() };
+	}
 
 	// Ray generation pass for shadow occlusion.
 	{
 		FOcclusionRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOcclusionRGS::FParameters>();
-		PassParameters->RWOcclusionMaskUAV = OutShadowMaskUAV;
-		PassParameters->RWRayDistanceUAV = OutRayHitDistanceUAV;
+		PassParameters->RWOcclusionMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenShadowMaskTexture));
+		PassParameters->RWRayDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayDistanceTexture));
 		PassParameters->SamplesPerPixel = RayTracingConfig.RayCountPerPixel;
 		PassParameters->NormalBias = GetRaytracingMaxNormalBias();
 		PassParameters->LightingChannelMask = LightSceneProxy->GetLightingChannelMask();
@@ -210,6 +239,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 			}
 		});
 	}
+
+	*OutShadowMask = ScreenShadowMaskTexture;
+	*OutRayHitDistance = RayDistanceTexture;
 }
 #else // !RHI_RAYTRACING
 {

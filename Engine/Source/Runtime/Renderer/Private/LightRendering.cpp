@@ -936,10 +936,9 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 			TArray<TRefCountPtr<IPooledRenderTarget>> PreprocessedShadowMaskTextures;
 
 			const int32 MaxDenoisingBatchSize = FMath::Clamp(CVarMaxShadowDenoisingBatchSize.GetValueOnRenderThread(), 1, IScreenSpaceDenoiser::kMaxBatchSize);
-			//#dxr_todo: add multiview support to batching denoising 
-			const bool bDoShadowDenoisingBatching = DenoiserMode != 0 && MaxDenoisingBatchSize > 1 && Views.Num() == 1;
+			const bool bDoShadowDenoisingBatching = DenoiserMode != 0 && MaxDenoisingBatchSize > 1;
 
-			// Optimizations: batches all shadow ray tracing denoising. Definitely could be smarter to avoid high VGPR pressure if this entire
+			// Optimisations: batches all shadow ray tracing denoising. Definitely could be smarter to avoid high VGPR pressure if this entire
 			// function was converted to render graph, and want least intrusive change as possible. So right not it trades render target memory pressure
 			// for denoising perf.
 			if (RHI_RAYTRACING && bDoShadowDenoisingBatching)
@@ -952,39 +951,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 				FSceneViewFamilyBlackboard SceneBlackboard;
 				SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
 
-				// Ray trace the shadow.
-				FRDGTextureRef ShadowMask;
-
-				{
-					FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-						SceneBlackboard.SceneDepthBuffer->Desc.Extent,
-						PF_FloatRGBA,
-						FClearValueBinding::Black,
-						TexCreate_None,
-						TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-						/* bInForceSeparateTargetAndShaderResource = */ false);
-					ShadowMask = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusion"));
-				}
-
-				FRDGTextureRef RayHitDistance;
-				{
-					FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-						SceneBlackboard.SceneDepthBuffer->Desc.Extent,
-						PF_R16F,
-						FClearValueBinding::Black,
-						TexCreate_None,
-						TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-						/* bInForceSeparateTargetAndShaderResource = */ false);
-					RayHitDistance = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusionDistance"));
-				}
-
-				FRDGTextureUAV* ShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ShadowMask));
-				FRDGTextureUAV* RayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayHitDistance));
-
-
-				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-				{
-					FViewInfo& View = Views[ViewIndex];
+				FViewInfo& View = Views[0];
 
 					// Allocate PreprocessedShadowMaskTextures once so QueueTextureExtraction can deferred write.
 					{
@@ -1084,7 +1051,9 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 							continue;
 						}
 
-
+					// Ray trace the shadow.
+					FRDGTextureRef ShadowMask;
+					FRDGTextureRef RayHitDistance;
 						{
 							FString LightNameWithLevel;
 							GetLightNameForDrawEvent(LightSceneInfo.Proxy, LightNameWithLevel);
@@ -1097,8 +1066,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								LightSceneInfo,
 								RayTracingConfig,
 								DenoiserRequirements,
-								ShadowMaskUAV,
-								RayHitDistanceUAV);
+							&ShadowMask,
+							&RayHitDistance);
 						}
 
 						// Queue the ray tracing output for shadow denoising.
@@ -1132,7 +1101,6 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 					{
 						QuickOffDenoisingBatch();
 					}
-				}
 
 				GraphBuilder.Execute();
 			} // if (RHI_RAYTRACING)
@@ -1178,50 +1146,24 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 					}
 					else if (OcclusionType == FLightOcclusionType::Raytraced)
 					{
-						FRDGBuilder GraphBuilder(RHICmdList);
-						
-						FSceneViewFamilyBlackboard SceneBlackboard;
-						SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
-
-						FRDGTextureRef ShadowMask;
-						{
-							FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-								SceneBlackboard.SceneDepthBuffer->Desc.Extent,
-								PF_FloatRGBA,
-								FClearValueBinding::Black,
-								TexCreate_None,
-								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-								/* bInForceSeparateTargetAndShaderResource = */ false);
-							ShadowMask = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusion"));
-						}
-
-						FRDGTextureRef RayHitDistance;
-						{
-							FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-								SceneBlackboard.SceneDepthBuffer->Desc.Extent,
-								PF_R16F,
-								FClearValueBinding::Black,
-								TexCreate_None,
-								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-								/* bInForceSeparateTargetAndShaderResource = */ false);
-							RayHitDistance = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusionDistance"));
-						}
-
-						FRDGTextureUAV* ShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ShadowMask));
-						FRDGTextureUAV* RayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayHitDistance));
-
-						for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-						{
-							FViewInfo& View = Views[ViewIndex];
+						FViewInfo& View = Views[0];
 
 							IScreenSpaceDenoiser::FShadowRayTracingConfig RayTracingConfig;
 							RayTracingConfig.RayCountPerPixel = LightSceneInfo.Proxy->GetSamplesPerPixel();
+
 							IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements = IScreenSpaceDenoiser::EShadowRequirements::Bailout;
 							if (DenoiserMode != 0 && LightRequiresDenosier(LightSceneInfo))
 							{
 								DenoiserRequirements = DenoiserToUse->GetShadowRequirements(View, LightSceneInfo, RayTracingConfig);
 							}
 
+						FRDGBuilder GraphBuilder(RHICmdList);
+
+						FSceneViewFamilyBlackboard SceneBlackboard;
+						SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+
+						FRDGTextureRef ShadowMask;
+						FRDGTextureRef RayHitDistance;
 							RenderRayTracingShadows(
 								GraphBuilder,
 								SceneBlackboard,
@@ -1229,8 +1171,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								LightSceneInfo,
 								RayTracingConfig,
 								DenoiserRequirements,
-								ShadowMaskUAV,
-								RayHitDistanceUAV);
+							&ShadowMask,
+							&RayHitDistance);
 
 							if (DenoiserRequirements != IScreenSpaceDenoiser::EShadowRequirements::Bailout)
 							{
@@ -1265,7 +1207,6 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 							{
 								GraphBuilder.QueueTextureExtraction(ShadowMask, &ScreenShadowMaskTexture);
 							}
-						}
 
 						GraphBuilder.Execute();
 					}
