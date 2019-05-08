@@ -891,13 +891,19 @@ namespace UnrealBuildTool
 						{
 							DataDrivenPlatformInfo.ConfigDataDrivenPlatformInfo Info = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(PlatformName);
 							if (Info != null && Info.IniParentChain != null)
-							// the IniParentChain
-							foreach (string ParentPlatform in Info.IniParentChain)
 							{
-								yield return new FileReference(ExpansionPath.Replace("{PLATFORM}", ParentPlatform));
+								// the IniParentChain
+								foreach (string ParentPlatform in Info.IniParentChain)
+								{
+									yield return new FileReference(ExpansionPath.Replace("{PLATFORM}", ParentPlatform));
+								}
 							}
-							// always yield the active platform last
+							// always yield the active platform last 
 							yield return new FileReference(ExpansionPath.Replace("{PLATFORM}", PlatformName));
+						}
+						else
+						{
+							yield return new FileReference(ExpansionPath);
 						}
 					}
 				}

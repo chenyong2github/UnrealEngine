@@ -10,6 +10,13 @@
 #pragma once
 
 #include "CoreTypes.h"
+
+// since we include another platform's header, we have to undefine the special define, so that we don't double typedef
+#ifdef PROPERTY_HEADER_SHOULD_DEFINE_TYPE
+#define SAVED_PROPERTY_HEADER_SHOULD_DEFINE_TYPE
+#undef PROPERTY_HEADER_SHOULD_DEFINE_TYPE
+#endif
+
 #include "Android/AndroidPlatformProperties.h"
 
 
@@ -34,6 +41,6 @@ struct FLuminPlatformProperties : public FAndroidPlatformProperties
 	}
 };
 
-#ifdef PROPERTY_HEADER_SHOULD_DEFINE_TYPE
+#ifdef SAVED_PROPERTY_HEADER_SHOULD_DEFINE_TYPE
 typedef FLuminPlatformProperties FPlatformProperties;
 #endif

@@ -13,6 +13,7 @@ public class zlib : ModuleRules
 		Type = ModuleType.External;
 
 		CurrentZlibVersion = "v1.2.8";
+		OldZlibVersion = "zlib-1.2.5";
 
 		string zlibPath = Target.UEThirdPartySourceDirectory + "zlib/" + CurrentZlibVersion;
 		// TODO: recompile for consoles and mobile platforms
