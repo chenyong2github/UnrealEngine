@@ -237,7 +237,10 @@ protected:
 
 	/** Check if any background music or sound is playing through the audio device */
 	virtual bool IsExernalBackgroundSoundActive() override;
-	
+
+	/** Retrieves the platform settings */
+	virtual FAudioPlatformSettings GetPlatformSettings() const override;
+
 private:
 
 	// Used to support adpcm streaming
