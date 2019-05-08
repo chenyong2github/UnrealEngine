@@ -14,7 +14,7 @@ public class libWebSockets : ModuleRules
         string ConfigurationSubdir = bUseDebugBuild ? "Debug" : "Release";
 		if (Target.Platform == UnrealTargetPlatform.HTML5)
 		{
-
+			return;
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
 		{

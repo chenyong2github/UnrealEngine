@@ -2,4 +2,4 @@
 
 #pragma once
 
-#include "Android/AndroidPlatformCriticalSection.h"
+#include "Android/AndroidCriticalSection.h"
