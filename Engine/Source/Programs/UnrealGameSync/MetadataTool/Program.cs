@@ -47,9 +47,35 @@ namespace MetadataTool
 				bool bResult = InnerMain(new CommandLineArguments(Args));
 				return bResult? 0 : 1;
 			}
-			catch(Exception Ex)
+			catch (Exception Ex)
 			{
 				Log.WriteException(Ex, null);
+
+				WebException WebEx = Ex as WebException;
+				if(WebEx != null)
+				{
+					try
+					{
+						Dictionary<string, object> Response;
+						using (StreamReader ResponseReader = new StreamReader(WebEx.Response.GetResponseStream(), Encoding.Default))
+						{
+							string ResponseContent = ResponseReader.ReadToEnd();
+							Response = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(ResponseContent);
+						}
+
+						StringBuilder Message = new StringBuilder(WebEx.Message);
+						foreach(KeyValuePair<string, object> Pair in Response)
+						{
+							Message.AppendFormat("\n{0}:\n  {1}", Pair.Key, Pair.Value.ToString().Replace("\n", "\n  "));
+						}
+
+						Log.TraceError("{0}", Message.ToString());
+						return 1;
+					}
+					catch
+					{
+					}
+				}
 				return 1;
 			}
 		}

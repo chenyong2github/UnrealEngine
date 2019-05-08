@@ -35,6 +35,7 @@ namespace UnrealGameSync
 		public DateTime RetrievedAt;
 		public string Project;
 		public string Summary;
+		public string Details;
 		public string Owner;
 		public string NominatedBy;
 		public DateTime? AcknowledgedAt;

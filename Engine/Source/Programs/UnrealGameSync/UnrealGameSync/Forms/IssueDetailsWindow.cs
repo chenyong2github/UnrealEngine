@@ -339,7 +339,7 @@ namespace UnrealGameSync
 
 		void UpdateCurrentIssue()
 		{
-			DescriptionLabel.Text = Issue.Summary.ToString();
+			SummaryTextBox.Text = Issue.Summary.ToString();
 
 			StringBuilder Status = new StringBuilder();
 			if(IssueMonitor.HasPendingUpdate())
@@ -411,6 +411,8 @@ namespace UnrealGameSync
 				LastOwner = Issue.Owner;
 				BuildListView.Invalidate();
 			}
+
+			UpdateSummaryTextIfChanged(DetailsTextBox, Issue.Details.Replace("\n", "\r\n"));
 
 			ReopenBtn.Enabled = (Issue.FixChange != 0);
 		}

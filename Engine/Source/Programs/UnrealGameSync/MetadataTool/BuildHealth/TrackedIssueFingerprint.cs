@@ -29,6 +29,24 @@ namespace MetadataTool
 		public int InitialChange;
 
 		/// <summary>
+		/// Summary for this issue
+		/// </summary>
+		[DataMember(IsRequired = true)]
+		public string Summary;
+
+		/// <summary>
+		/// List of strings to display in the details panel for this job
+		/// </summary>
+		[DataMember(IsRequired = true)]
+		public List<string> Details = new List<string>();
+
+		/// <summary>
+		/// Url for this issue
+		/// </summary>
+		[DataMember(IsRequired = true)]
+		public string Url;
+
+		/// <summary>
 		/// List of files associated with this issue
 		/// </summary>
 		[DataMember]
@@ -44,10 +62,14 @@ namespace MetadataTool
 		/// Constructor
 		/// </summary>
 		/// <param name="Category">Category for this issue</param>
+		/// <param name="Summary">The summary text for this issue</param>
+		/// <param name="Url">The Url for this issue</param>
 		/// <param name="InitialChange">The initial change that this issue was seen on. Fingerprints in the same category at the same change can be merged as long as the type matches.</param>
-		public TrackedIssueFingerprint(string Category, int InitialChange)
+		public TrackedIssueFingerprint(string Category, string Summary, string Url, int InitialChange)
 		{
 			this.Category = Category;
+			this.Summary = Summary;
+			this.Url = Url;
 			this.InitialChange = InitialChange;
 		}
 
@@ -55,7 +77,7 @@ namespace MetadataTool
 		/// Finds all the unique filenames without their path components
 		/// </summary>
 		/// <returns>Set of sorted filenames</returns>
-		public SortedSet<string> GetFileNamesWithoutPath()
+		public static SortedSet<string> GetFileNamesWithoutPath(IEnumerable<string> FileNames)
 		{
 			SortedSet<string> FileNamesWithoutPath = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
 			foreach (string FileName in FileNames)
@@ -73,7 +95,7 @@ namespace MetadataTool
 		/// Gets a set of unique source file names that relate to this issue
 		/// </summary>
 		/// <returns>Set of source file names</returns>
-		public SortedSet<string> GetSourceFileNames()
+		public static SortedSet<string> GetSourceFileNames(IEnumerable<string> FileNames)
 		{
 			SortedSet<string> ShortFileNames = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
 			foreach (string FileName in FileNames)
@@ -95,7 +117,7 @@ namespace MetadataTool
 		/// Gets a set of unique asset filenames that relate to this issue
 		/// </summary>
 		/// <returns>Set of asset names</returns>
-		public SortedSet<string> GetAssetNames()
+		public static SortedSet<string> GetAssetNames(IEnumerable<string> FileNames)
 		{
 			SortedSet<string> ShortFileNames = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
 			foreach (string FileName in FileNames)
@@ -123,45 +145,7 @@ namespace MetadataTool
 		/// <returns>String representation of the issue</returns>
 		public override string ToString()
 		{
-			StringBuilder Result = new StringBuilder();
-			Result.AppendFormat("{0}", Category);
-
-			if(FileNames.Count > 0 || Messages.Count > 0)
-			{
-				string Separator = ": ";
-				foreach(string Item in Enumerable.Concat(FileNames, Messages))
-				{
-					Result.Append(Separator);
-
-					int StartIdx = 0;
-					while(StartIdx < Item.Length && Char.IsWhiteSpace(Item[StartIdx]))
-					{
-						StartIdx++;
-					}
-
-					int EndIdx = Item.IndexOfAny(new char[] { '\r', '\n' });
-					if(EndIdx == -1)
-					{
-						EndIdx = Item.Length;
-					}
-					while(EndIdx > StartIdx && Char.IsWhiteSpace(Item[EndIdx - 1]))
-					{
-						EndIdx--;
-					}
-
-					Result.Append(Item, StartIdx, EndIdx - StartIdx);
-					Separator = ", ";
-				}
-			}
-
-			const int MaxLength = 128;
-			if(Result.Length > MaxLength)
-			{
-				Result.Remove(MaxLength, Result.Length - MaxLength);
-				Result.Append("...");
-			}
-
-			return Result.ToString();
+			return Summary;
 		}
 	}
 

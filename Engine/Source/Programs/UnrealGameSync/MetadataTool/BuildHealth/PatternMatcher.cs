@@ -83,7 +83,7 @@ namespace MetadataTool
 		/// <returns>List of changes which are causers for the issue</returns>
 		public virtual List<ChangeInfo> FindCausers(PerforceConnection Perforce, TrackedIssueFingerprint Fingerprint, List<ChangeInfo> Changes)
 		{
-			SortedSet<string> FileNamesWithoutPath = Fingerprint.GetFileNamesWithoutPath();
+			SortedSet<string> FileNamesWithoutPath = TrackedIssueFingerprint.GetFileNamesWithoutPath(Fingerprint.FileNames);
 
 			List<ChangeInfo> Causers = new List<ChangeInfo>();
 			foreach (ChangeInfo Change in Changes)
@@ -127,13 +127,6 @@ namespace MetadataTool
 			}
 			return false;
 		}
-
-		/// <summary>
-		/// Gets the summary for an issue
-		/// </summary>
-		/// <param name="Issue">The issue to get a summary for</param>
-		/// <returns>Summary text for the given issue</returns>
-		public abstract string GetSummary(TrackedIssue Issue);
 
 		/// <summary>
 		/// Normalizes a filename to a path within the workspace

@@ -29,6 +29,12 @@ namespace MetadataTool
 		public string PostedSummary;
 
 		/// <summary>
+		/// The last posted issue details. Will be updated if it changes.
+		/// </summary>
+		[DataMember]
+		public string PostedDetails;
+
+		/// <summary>
 		/// Type common to all diagnostics within this issue.
 		/// </summary>
 		[DataMember(IsRequired = true)]

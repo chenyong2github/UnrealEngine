@@ -87,7 +87,7 @@ namespace MetadataTool
 				}
 
 				// Create a new tracked build for this input build. Even if we discard this, we can use it for searching the existing build list for the place to insert.
-				TrackedBuild NewBuild = new TrackedBuild(InputJob.Name, InputJob.Change, InputJob.Url);
+				TrackedBuild NewBuild = new TrackedBuild(InputJob.Name, InputJob.Change, InputJob.Url, InputJob.Url);
 
 				// Add this build to the tracked state data
 				int StreamBuildIndex = StreamBuilds.BinarySearch(NewBuild);
@@ -144,7 +144,6 @@ namespace MetadataTool
 						continue;
 					}
 
-					string Summary = Matcher.GetSummary(Issue);
 					if(Issue.Id == -1)
 					{
 						Log.TraceInformation("Adding issue: {0}", Issue.Fingerprint);
@@ -156,7 +155,8 @@ namespace MetadataTool
 
 						CommandTypes.AddIssue IssueBody = new CommandTypes.AddIssue();
 						IssueBody.Project = "Fortnite";
-						IssueBody.Summary = Summary;
+						IssueBody.Summary = Issue.Fingerprint.Summary;
+						IssueBody.Details = String.Join("\n", Issue.Fingerprint.Details);
 
 						if(Issue.PendingWatchers.Count == 1)
 						{
@@ -173,15 +173,16 @@ namespace MetadataTool
 							Issue.Id = ParseHttpResponse<CommandTypes.AddIssueResponse>(Response).Id;
 						}
 
-						Issue.PostedSummary = Summary;
+						Issue.PostedSummary = Issue.Fingerprint.Summary;
 						SerializeJson(StateFile, State);
 					}
-					else if(Issue.PostedSummary == null || !String.Equals(Issue.PostedSummary, Summary, StringComparison.Ordinal))
+					else if(Issue.PostedSummary == null || !String.Equals(Issue.PostedSummary, Issue.Fingerprint.Summary, StringComparison.Ordinal))
 					{
 						Log.TraceInformation("Updating issue {0}", Issue.Id);
 
 						CommandTypes.UpdateIssue IssueBody = new CommandTypes.UpdateIssue();
-						IssueBody.Summary = Summary;
+						IssueBody.Summary = Issue.Fingerprint.Summary;
+						IssueBody.Details = String.Join("\n", Issue.Fingerprint.Details);
 
 						using (HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}", ServerUrl, Issue.Id), "PUT", IssueBody))
 						{
@@ -192,7 +193,7 @@ namespace MetadataTool
 							}
 						}
 
-						Issue.PostedSummary = Summary;
+						Issue.PostedSummary = Issue.Fingerprint.Summary;
 						SerializeJson(StateFile, State);
 					}
 				}
@@ -216,7 +217,7 @@ namespace MetadataTool
 						{
 							if(!Build.bPostedToServer)
 							{
-								Log.TraceInformation("Adding {0} to issue {1}", Build.Url, Issue.Id);
+								Log.TraceInformation("Adding {0} to issue {1}", Build.UniqueId, Issue.Id);
 
 								CommandTypes.AddBuild AddBuild = new CommandTypes.AddBuild();
 								AddBuild.Change = Build.Change;
@@ -382,7 +383,7 @@ namespace MetadataTool
 			}
 			else
 			{
-				return new TrackedBuild(Build.Name, Build.Change, Build.Url);
+				return new TrackedBuild(Build.Name, Build.Change, Build.UniqueId, Build.Url);
 			}
 		}
 
@@ -436,7 +437,7 @@ namespace MetadataTool
 					}
 
 					// Merge the issue
-					History.AddFailedBuild(CreateBuildForJobStep(InputJob, InputJobStep));
+					History.AddFailedBuild(CreateBuildForJobStep(InputJob, InputJobStep, Fingerprint));
 					Fingerprints.RemoveAt(Idx--);
 					break;
 				}
@@ -490,7 +491,7 @@ namespace MetadataTool
 								}
 
 								// Merge the issue
-								AddFailureToIssue(Issue, InputJob, InputJobStep, State);
+								AddFailureToIssue(Issue, Fingerprint, InputJob, InputJobStep, State);
 								Fingerprints.RemoveAt(Idx--);
 								break;
 							}
@@ -525,7 +526,7 @@ namespace MetadataTool
 					}
 					NewIssues.Add(Issue);
 				}
-				AddFailureToIssue(Issue, InputJob, InputJobStep, State);
+				AddFailureToIssue(Issue, Fingerprint, InputJob, InputJobStep, State);
 			}
 			State.Issues.AddRange(NewIssues);
 		}
@@ -536,9 +537,9 @@ namespace MetadataTool
 		/// <param name="InputJob">The job to create a build for</param>
 		/// <param name="InputJobStep">The step to create a build for</param>
 		/// <returns>New build instance</returns>
-		TrackedBuild CreateBuildForJobStep(InputJob InputJob, InputJobStep InputJobStep)
+		TrackedBuild CreateBuildForJobStep(InputJob InputJob, InputJobStep InputJobStep, TrackedIssueFingerprint Fingerprint)
 		{
-			TrackedBuild FailedBuild = new TrackedBuild(InputJob.Name, InputJob.Change, InputJob.Url);
+			TrackedBuild FailedBuild = new TrackedBuild(InputJob.Name, InputJob.Change, InputJob.Url, Fingerprint.Url);
 			FailedBuild.StepNames.Add(InputJobStep.Name);
 			return FailedBuild;
 		}
@@ -547,20 +548,21 @@ namespace MetadataTool
 		/// Adds a new build history for a stream
 		/// </summary>
 		/// <param name="Issue">The issue to add a build to</param>
+		/// <param name="Fingerprint">Fingerprint of the new issue being added</param>
 		/// <param name="Stream">The new stream containing the issue</param>
 		/// <param name="Build">The first failing build</param>
 		/// <param name="State">Current persistent state. Used to find previous build history.</param>
-		void AddFailureToIssue(TrackedIssue Issue, InputJob InputJob, InputJobStep InputJobStep, TrackedState State)
+		void AddFailureToIssue(TrackedIssue Issue, TrackedIssueFingerprint Fingerprint, InputJob InputJob, InputJobStep InputJobStep, TrackedState State)
 		{
 			TrackedIssueHistory History;
 			if(Issue.Streams.TryGetValue(InputJob.Stream, out History))
 			{
-				History.AddFailedBuild(CreateBuildForJobStep(InputJob, InputJobStep));
+				History.AddFailedBuild(CreateBuildForJobStep(InputJob, InputJobStep, Fingerprint));
 			}
 			else
 			{
 				TrackedBuild LastSuccessfulBuild = DuplicateSentinelBuild(State.FindBuildBefore(InputJob.Stream, InputJob.Change, new HashSet<string>{ InputJobStep.Name }));
-				History = new TrackedIssueHistory(LastSuccessfulBuild, CreateBuildForJobStep(InputJob, InputJobStep));
+				History = new TrackedIssueHistory(LastSuccessfulBuild, CreateBuildForJobStep(InputJob, InputJobStep, Fingerprint));
 				Issue.Streams.Add(InputJob.Stream, History);
 			}
 		}

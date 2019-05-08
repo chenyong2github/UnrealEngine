@@ -30,7 +30,13 @@ namespace MetadataTool
 		public int Change;
 
 		/// <summary>
-		/// Url which uniquely identifies this job
+		/// Unique id to identify this job (typically the job url)
+		/// </summary>
+		[DataMember(IsRequired = true)]
+		public string UniqueId;
+
+		/// <summary>
+		/// Url of the first error within this job
 		/// </summary>
 		[DataMember(IsRequired = true)]
 		public string Url;
@@ -50,10 +56,11 @@ namespace MetadataTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public TrackedBuild(string Name, int Change, string Url)
+		public TrackedBuild(string Name, int Change, string UniqueId, string Url)
 		{
 			this.Name = Name;
 			this.Change = Change;
+			this.UniqueId = UniqueId;
 			this.Url = Url;
 		}
 
@@ -70,7 +77,7 @@ namespace MetadataTool
 				Delta = Name.CompareTo(Other.Name);
 				if(Delta == 0)
 				{
-					Delta = Url.CompareTo(Other.Url);
+					Delta = UniqueId.CompareTo(Other.UniqueId);
 				}
 			}
 			return Delta;

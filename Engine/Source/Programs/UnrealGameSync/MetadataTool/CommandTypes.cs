@@ -31,6 +31,7 @@ namespace MetadataTool
 		{
 			public string Project;
 			public string Summary;
+			public string Details;
 			public string Owner;
 		}
 
@@ -47,6 +48,7 @@ namespace MetadataTool
 			[Optional] public string NominatedBy;
 			[Optional] public bool? Resolved;
 			[Optional] public string Summary;
+			[Optional] public string Details;
 			[Optional] public string Url;
 		}
 

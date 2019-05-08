@@ -22,6 +22,9 @@ namespace MetadataTool
 
 		[DataMember(IsRequired = true)]
 		public string Message;
+
+		[DataMember(IsRequired = true)]
+		public string Url;
 	}
 
 	/// <summary>

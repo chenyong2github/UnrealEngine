@@ -351,6 +351,9 @@ namespace MetadataServer.Connectors
 			}
 		}
 
+		const int IssueSummaryMaxLength = 200;
+		const int IssueDetailsMaxLength = 1000;
+
 		public static long AddIssue(IssueData Issue)
 		{
 			long IssueId;
@@ -358,10 +361,11 @@ namespace MetadataServer.Connectors
 			{
 				Connection.Open();
 
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Issues] (Project, Summary, OwnerId, CreatedAt, FixChange) VALUES (@Project, @Summary, @OwnerId, DATETIME('now'), 0)", Connection))
+				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Issues] (Project, Summary, Details, OwnerId, CreatedAt, FixChange) VALUES (@Project, @Summary, @Details, @OwnerId, DATETIME('now'), 0)", Connection))
 				{
 					Command.Parameters.AddWithValue("@Project", Issue.Project);
-					Command.Parameters.AddWithValue("@Summary", Issue.Summary);
+					Command.Parameters.AddWithValue("@Summary", SanitizeText(Issue.Summary, IssueSummaryMaxLength));
+					Command.Parameters.AddWithValue("@Details", SanitizeText(Issue.Details, IssueDetailsMaxLength));
 					if (Issue.Owner != null)
 					{
 						Command.Parameters.AddWithValue("OwnerId", FindOrAddUserId(Issue.Owner, Connection));
@@ -416,7 +420,7 @@ namespace MetadataServer.Connectors
 
 				StringBuilder CommandBuilder = new StringBuilder();
 				CommandBuilder.Append("SELECT");
-				CommandBuilder.Append(" Issues.Id, Issues.CreatedAt, DATETIME('now'), Issues.Project, Issues.Summary, OwnerUsers.Name, NominatedByUsers.Name, Issues.AcknowledgedAt, Issues.FixChange, Issues.ResolvedAt");
+				CommandBuilder.Append(" Issues.Id, Issues.CreatedAt, DATETIME('now'), Issues.Project, Issues.Summary, Issues.Details, OwnerUsers.Name, NominatedByUsers.Name, Issues.AcknowledgedAt, Issues.FixChange, Issues.ResolvedAt");
 				if(UserName != null)
 				{
 					CommandBuilder.Append(", IssueWatchers.UserId");
@@ -462,14 +466,15 @@ namespace MetadataServer.Connectors
 							Issue.RetrievedAt = Reader.GetDateTime(2);
 							Issue.Project = Reader.GetString(3);
 							Issue.Summary = Reader.GetString(4);
-							Issue.Owner = Reader.IsDBNull(5)? null : Reader.GetString(5);
-							Issue.NominatedBy = Reader.IsDBNull(6)? null : Reader.GetString(6);
-							Issue.AcknowledgedAt = Reader.IsDBNull(7)? (DateTime?)null : Reader.GetDateTime(7);
-							Issue.FixChange = Reader.GetInt32(8);
-							Issue.ResolvedAt = Reader.IsDBNull(9)? (DateTime?)null : Reader.GetDateTime(9);
+							Issue.Details = Reader.GetString(5);
+							Issue.Owner = Reader.IsDBNull(6)? null : Reader.GetString(6);
+							Issue.NominatedBy = Reader.IsDBNull(7)? null : Reader.GetString(7);
+							Issue.AcknowledgedAt = Reader.IsDBNull(8)? (DateTime?)null : Reader.GetDateTime(8);
+							Issue.FixChange = Reader.GetInt32(9);
+							Issue.ResolvedAt = Reader.IsDBNull(10)? (DateTime?)null : Reader.GetDateTime(10);
 							if(UserName != null)
 							{
-								Issue.bNotify = !Reader.IsDBNull(10);
+								Issue.bNotify = !Reader.IsDBNull(11);
 							}
 							Issues.Add(Issue);
 						}
@@ -493,9 +498,15 @@ namespace MetadataServer.Connectors
 					{
 						Columns.Add("Summary");
 						Values.Add("@Summary");
-						Command.Parameters.AddWithValue("@Summary", Issue.Summary);
+						Command.Parameters.AddWithValue("@Summary", SanitizeText(Issue.Summary, IssueSummaryMaxLength));
 					}
-					if(Issue.Owner != null)
+					if(Issue.Details != null)
+					{
+						Columns.Add("Details");
+						Values.Add("@Details");
+						Command.Parameters.AddWithValue("@Details", SanitizeText(Issue.Details, IssueDetailsMaxLength));
+					}
+					if (Issue.Owner != null)
 					{
 						Columns.Add("OwnerId");
 						Values.Add("@OwnerId");
@@ -529,6 +540,15 @@ namespace MetadataServer.Connectors
 					Command.ExecuteNonQuery();
 				}
 			}
+		}
+
+		public static string SanitizeText(string Text, int Length)
+		{
+			if(Text.Length > Length)
+			{
+				Text = Text.Substring(0, Length - 3).TrimEnd() + "...";
+			}
+			return Text;
 		}
 
 		public static void AddWatcher(long IssueId, string UserName)

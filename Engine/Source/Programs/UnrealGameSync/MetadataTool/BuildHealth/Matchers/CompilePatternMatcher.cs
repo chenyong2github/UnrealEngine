@@ -45,7 +45,8 @@ namespace MetadataTool
 			// If we found any source files, create a diagnostic category for them
 			if (SourceFileNames.Count > 0)
 			{
-				TrackedIssueFingerprint Fingerprint = new TrackedIssueFingerprint(Category, Job.Change);
+				TrackedIssueFingerprint Fingerprint = new TrackedIssueFingerprint(Category, GetSummary(SourceFileNames), Diagnostic.Url, Job.Change);
+				Fingerprint.Details.Add(Diagnostic.Message);
 				Fingerprint.FileNames.UnionWith(SourceFileNames);
 				Fingerprints.Add(Fingerprint);
 				return true;
@@ -55,9 +56,19 @@ namespace MetadataTool
 			return false;
 		}
 
-		public override string GetSummary(TrackedIssue Issue)
+		public override bool TryMerge(TrackedIssueFingerprint Source, TrackedIssueFingerprint Target)
 		{
-			SortedSet<string> ShortFileNames = Issue.Fingerprint.GetSourceFileNames();
+			if(base.TryMerge(Source, Target))
+			{
+				Target.Summary = GetSummary(Target.FileNames);
+				return true;
+			}
+			return false;
+		}
+
+		string GetSummary(IEnumerable<string> SourceFileNames)
+		{
+			SortedSet<string> ShortFileNames = TrackedIssueFingerprint.GetSourceFileNames(SourceFileNames);
 			if (ShortFileNames.Count == 0)
 			{
 				return "Compile errors";

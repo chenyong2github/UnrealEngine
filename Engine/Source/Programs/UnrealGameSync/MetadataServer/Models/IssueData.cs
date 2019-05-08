@@ -35,6 +35,7 @@ namespace MetadataServer.Models
 		public DateTime RetrievedAt;
 		public string Project;
 		public string Summary;
+		public string Details;
 		public string Owner;
 		public string NominatedBy;
 		public DateTime? AcknowledgedAt;
@@ -46,6 +47,7 @@ namespace MetadataServer.Models
 	public class IssueUpdateData
 	{
 		public string Summary;
+		public string Details;
 		public string Owner;
 		public string NominatedBy;
 		public bool? Acknowledged;
