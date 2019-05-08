@@ -14,6 +14,8 @@ namespace UnrealBuildTool
 {
 	class SNDBS : ActionExecutor
 	{
+		private FileReference IncludeRewriteRulesFile = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "SNDBS", "include-rewrite-rules.ini");
+
 		/// <summary>
 		/// Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.
 		/// </summary>
@@ -282,8 +284,7 @@ namespace UnrealBuildTool
                 string SCERoot = Environment.GetEnvironmentVariable("SCE_ROOT_DIR");
                 string SNDBSExecutable = Path.Combine(SCERoot, "Common/SN-DBS/bin/dbsbuild.exe");
 				DirectoryReference TemplatesDir = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Programs", "UnrealBuildTool", "SndbsTemplates");
-				FileReference IncludeRewriteRules = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "SNDBS", "include-rewrite-rules.ini");
-				string IncludeRewriteRulesArg = String.Format("--include-rewrite-rules \"{0}\"", IncludeRewriteRules.FullName);
+				string IncludeRewriteRulesArg = String.Format("--include-rewrite-rules \"{0}\"", IncludeRewriteRulesFile.FullName);
 				string VerbosityLevel = PrintDebugInfo ? "-v" : "-q";
                 ProcessStartInfo PSI = new ProcessStartInfo(SNDBSExecutable, String.Format("{0} -p UE4 -s \"{1}\" -templates \"{2}\" {3}", VerbosityLevel, FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", "sndbs.bat").FullName, TemplatesDir.FullName, IncludeRewriteRulesArg));
 				PSI.RedirectStandardOutput = true;
@@ -364,6 +365,9 @@ namespace UnrealBuildTool
 				{
 					PrepareToolTemplate(CommandPath);
 				}
+
+				// Generate include-rewrite-rules.ini.
+				GenerateSNDBSIncludeRewriteRules();
 
 				// Use WMI to figure out physical cores, excluding hyper threading.
 				int NumCores = Utils.GetPhysicalProcessorCount();
@@ -457,6 +461,13 @@ namespace UnrealBuildTool
 				Log.WriteLineIf(bLogDetailedActionStats,
 					LogEventType.Console, "Cumulative thread seconds ({0} processors): {1:0.00}", System.Environment.ProcessorCount, TotalThreadSeconds);
 			}
+
+			// Delete the include-rewrite-rules.ini if it was generated.
+			if (File.Exists(IncludeRewriteRulesFile.FullName))
+			{
+				File.Delete(IncludeRewriteRulesFile.FullName);
+			}
+
 			return SNDBSResult;
 		}
 
@@ -485,6 +496,35 @@ namespace UnrealBuildTool
 				TemplateText = TemplateText.Replace(VariableName, Variable.Value.ToString());
 			}
 			File.WriteAllText(TemplateOutput.FullName, TemplateText);
+		}
+
+		private void GenerateSNDBSIncludeRewriteRules()
+		{
+			if (!Directory.Exists(IncludeRewriteRulesFile.Directory.FullName))
+			{
+				Directory.CreateDirectory(IncludeRewriteRulesFile.Directory.FullName);
+			}
+
+			List<string> IncludeRewriteRulesText = new List<string>();
+			IncludeRewriteRulesText.Add("[computed-include-rules]");
+			IncludeRewriteRulesText.Add(@"pattern1=^COMPILED_PLATFORM_HEADER\(\s*([^ ,]+)\)");
+
+			// Get all registered platforms. Most will just use the name as is, but some may have an override so
+			// add all distinct entries to the list.
+			IEnumerable<UnrealTargetPlatform> Platforms = UEBuildPlatform.GetRegisteredPlatforms();
+			List<string> PlatformNames = new List<string>();
+			foreach (UnrealTargetPlatform Platform in Platforms)
+			{
+				UEBuildPlatform PlatformData = UEBuildPlatform.GetBuildPlatform(Platform);
+				if (!PlatformNames.Contains(PlatformData.GetPlatformName()))
+				{
+					PlatformNames.Add(PlatformData.GetPlatformName());
+				}
+			}
+
+			IEnumerable<string> PlatformExpansions = PlatformNames.Select(p => String.Format("{0}/{0}$1", p));
+			IncludeRewriteRulesText.Add(String.Format("expansions1={0}", String.Join("|", PlatformExpansions)));
+			File.WriteAllText(IncludeRewriteRulesFile.FullName, String.Join(Environment.NewLine, IncludeRewriteRulesText));
 		}
 	}
 }

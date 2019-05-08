@@ -337,7 +337,6 @@ namespace UnrealBuildTool
 			return null;
 		}
 
-
 		/// <summary>
 		/// Determines whether a given platform is available
 		/// </summary>
@@ -452,6 +451,14 @@ namespace UnrealBuildTool
 
 			Log.TraceWarning("PATH variable delimiter unknown for platform " + BuildHostPlatform.Current.Platform.ToString() + " using ';'");
 			return ";";
+		}
+
+		/// <summary>
+		/// Gets the platform name that should be used.
+		/// </summary>
+		public virtual string GetPlatformName()
+		{
+			return Platform.ToString();
 		}
 
 		/// <summary>

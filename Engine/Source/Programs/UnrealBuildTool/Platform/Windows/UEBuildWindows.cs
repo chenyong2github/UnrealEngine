@@ -1479,6 +1479,14 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Gets the platform name that should be used.
+		/// </summary>
+		public override string GetPlatformName()
+		{
+			return "Windows";
+		}
+
+		/// <summary>
 		/// If this platform can be compiled with SN-DBS
 		/// </summary>
 		public override bool CanUseSNDBS()
@@ -1673,7 +1681,7 @@ namespace UnrealBuildTool
 			CompileEnvironment.Definitions.Add("PLATFORM_WINDOWS=1");
 			
 			// both Win32 and Win64 use Windows headers, so we enforce that here
-			CompileEnvironment.Definitions.Add("OVERRIDE_PLATFORM_HEADER_NAME=Windows");
+			CompileEnvironment.Definitions.Add(String.Format("OVERRIDE_PLATFORM_HEADER_NAME={0}", GetPlatformName()));
 
 			FileReference MorpheusShaderPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Shaders", "Private", "Platform", "PS4", "PostProcessHMDMorpheus.usf");
 			if (FileReference.Exists(MorpheusShaderPath))
