@@ -80,6 +80,8 @@ public:
 	TRefCountPtr<IPooledRenderTarget> GreenDummy;
 	// float4(0.5,0.5,0.5,1)
 	TRefCountPtr<IPooledRenderTarget> DefaultNormal8Bit;
+	// float4(0.5,0.5,0.5,0.5)
+	TRefCountPtr<IPooledRenderTarget> MidGreyDummy;
 
 	/** float4(0,0,0,0) volumetric texture. */
 	TRefCountPtr<IPooledRenderTarget> VolumetricBlackDummy;

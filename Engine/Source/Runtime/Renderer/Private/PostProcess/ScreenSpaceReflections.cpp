@@ -402,6 +402,13 @@ void RenderScreenSpaceReflections(
 		}
 		PassParameters->PrevSceneColorPreExposureCorrection = InputColor != CurrentSceneColor ? View.PreExposure / View.PrevViewInfo.SceneColorPreExposure : 1.0f;
 		
+		// Pipe down a mid grey texture when not using TAA's history to avoid wrongly reprojecting current scene color as if previous frame's TAA history.
+		if (InputColor == CurrentSceneColor)
+		{
+			// Technically should be 32767.0f / 65535.0f to perfectly null out DecodeVelocityFromTexture(), but 0.5f is good enough.
+			PassParameters->CommonParameters.SceneTextures.SceneVelocityBuffer = GraphBuilder.RegisterExternalTexture(GSystemTextures.MidGreyDummy);
+		}
+
 		PassParameters->SceneColor = InputColor;
 		PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		
