@@ -1,7 +1,15 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "RayTracingTestbed.h"
+#include "CoreMinimal.h"
 #include "RHI.h"
+#include "Misc/AutomationTest.h"
+
+#if WITH_DEV_AUTOMATION_TESTS
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRayTracingTestbed, "System.Renderer.RayTracing.BasicRayTracing", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+//IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRayTracingTestbed, "System.Renderer.RayTracing.BasicRayTracing", EAutomationTestFlags::EditorContext | EAutomationTestFlags::HighPriority | EAutomationTestFlags::EngineFilter)
+
+
 
 #if RHI_RAYTRACING
 
@@ -9,11 +17,14 @@
 #include "GlobalShader.h"
 #include "RayTracingDefinitions.h"
 
-void TestBasicRayTracing(bool bValidateResults)
+
+bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 {
+	check(IsInRenderingThread());
+
 	if (!GRHISupportsRayTracing)
 	{
-		return;
+		return false;
 	}
 
 	FVertexBufferRHIRef VertexBuffer;
@@ -113,6 +124,10 @@ void TestBasicRayTracing(bool bValidateResults)
 	RHICmdList.RayTraceOcclusion(Scene, RayBufferView, OcclusionResultBufferView, NumRays);
 	RHICmdList.RayTraceIntersection(Scene, RayBufferView, IntersectionResultBufferView, NumRays);
 
+	const bool bValidateResults = true;
+	bool bOcclusionTestOK = false;
+	bool bIntersectionTestOK = false;
+
 	if (bValidateResults)
 	{
 		GDynamicRHI->RHISubmitCommandsAndFlushGPU();
@@ -131,6 +146,8 @@ void TestBasicRayTracing(bool bValidateResults)
 			check(MappedResults[3] == 0); // expect miss
 
 			RHIUnlockVertexBuffer(OcclusionResultBuffer);
+
+			bOcclusionTestOK = (MappedResults[0] != 0) && (MappedResults[1] == 0) && (MappedResults[2] == 0) && (MappedResults[3] == 0);
 		}
 
 		// Read back and validate intersection trace results
@@ -151,10 +168,14 @@ void TestBasicRayTracing(bool bValidateResults)
 			check(MappedResults[3].PrimitiveIndex == ~0u); // expect miss
 
 			RHIUnlockVertexBuffer(IntersectionResultBuffer);
+
+			bIntersectionTestOK = (MappedResults[1].PrimitiveIndex == ~0u) && (MappedResults[2].PrimitiveIndex == ~0u) && (MappedResults[3].PrimitiveIndex == ~0u);
 		}
 	}
-}
 
+	return (bOcclusionTestOK && bIntersectionTestOK);
+}
+ 
 // Dummy shader to test shader compilation and reflection.
 class FTestRaygenShader : public FGlobalShader
 {
@@ -199,11 +220,31 @@ public:
 
 IMPLEMENT_SHADER_TYPE(, FTestRaygenShader, TEXT("/Engine/Private/RayTracing/RayTracingTest.usf"), TEXT("TestMainRGS"), SF_RayGen);
 
+
+bool FRayTracingTestbed::RunTest(const FString& Parameters)
+{
+	bool bTestPassed = false;
+
+	ENQUEUE_RENDER_COMMAND(FRayTracingTestbed)(
+		[&](FRHICommandListImmediate& RHICmdList)
+	{
+		bTestPassed = RunRayTracingTestbed_RenderThread(Parameters);
+	}
+	);  
+
+	FlushRenderingCommands();
+
+	return bTestPassed;
+}
+
 #else // RHI_RAYTRACING
 
-void TestBasicRayTracing(bool bValidateResults)
+bool FRayTracingTestbed::RunTest(const FString& Parameters)
 {
 	// Nothing to do when ray tracing is disabled
+	return true;
 }
 
 #endif // RHI_RAYTRACING
+
+#endif //WITH_DEV_AUTOMATION_TESTS
