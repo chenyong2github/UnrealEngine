@@ -98,11 +98,11 @@ namespace MetadataTool
 		{
 			if(SymbolNames.Count == 1)
 			{
-				return String.Format("Undefined symbol: {0}", SymbolNames.First());
+				return String.Format("Undefined symbol '{0}'", SymbolNames.First());
 			}
 			else
 			{
-				return String.Format("Undefined symbols: {0}", String.Join(", ", SymbolNames));
+				return String.Format("Undefined symbols - '{0}'", String.Join("', '", SymbolNames));
 			}
 		}
 	}
