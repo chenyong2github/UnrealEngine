@@ -16,4 +16,6 @@ class AUGMENTEDREALITY_API AAROriginActor :
 {
 	GENERATED_UCLASS_BODY()
 public:
+	/** Used by the AR system to get the origin actor for the current world */
+	static AAROriginActor* GetOriginActor();
 };
