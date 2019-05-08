@@ -65,7 +65,6 @@ void UAudioSettings::AddDefaultSettings()
 {
 	FAudioQualitySettings DefaultSettings;
 	DefaultSettings.DisplayName = LOCTEXT("DefaultSettingsName", "Default");
-	GConfig->GetInt(TEXT("Audio"), TEXT("MaxChannels"), DefaultSettings.MaxChannels, GEngineIni); // for backwards compatibility
 	QualityLevels.Add(DefaultSettings);
 	bAllowVirtualizedSounds = true;
 	DefaultReverbSendLevel = 0.0f;
