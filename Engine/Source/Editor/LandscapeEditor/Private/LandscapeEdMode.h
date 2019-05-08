@@ -583,6 +583,7 @@ private:
 
 	FDelegateHandle OnLevelActorDeletedDelegateHandle;
 	FDelegateHandle OnLevelActorAddedDelegateHandle;
+	FDelegateHandle OnLandscapeLayerSystemFlagChangedDelegateHandle;
 
 	/** Check if we are painting using the VREditor */
 	bool bIsPaintingInVR;
