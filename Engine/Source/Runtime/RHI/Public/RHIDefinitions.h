@@ -166,7 +166,7 @@ struct RHI_API FDataDrivenShaderPlatformInfo
 
 	FDataDrivenShaderPlatformInfo()
 	{
-		FMemory::Memzero(this, sizeof(this));
+		FMemory::Memzero(this, sizeof(*this));
 		MaxFeatureLevel = ERHIFeatureLevel::Num;
 	}
 
