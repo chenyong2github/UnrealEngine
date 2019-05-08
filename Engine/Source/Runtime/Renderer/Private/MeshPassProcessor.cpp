@@ -1096,6 +1096,7 @@ void FMeshPassProcessor::GetDrawCommandPrimitiveId(
 		if (BatchElement.PrimitiveIdMode == PrimID_FromPrimitiveSceneInfo)
 		{
 			ensureMsgf(BatchElement.PrimitiveUniformBufferResource == nullptr, TEXT("PrimitiveUniformBufferResource should not be setup when PrimitiveIdMode == PrimID_FromPrimitiveSceneInfo"));
+			check(PrimitiveSceneInfo);
 			DrawPrimitiveId = PrimitiveSceneInfo->GetIndex();
 		}
 		else if (BatchElement.PrimitiveIdMode == PrimID_DynamicPrimitiveShaderData)

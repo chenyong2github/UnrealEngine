@@ -327,7 +327,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		FViewInfo& View = Views[ViewIndex];
-		bAnyViewWithRTGI = bAnyViewWithRTGI | ShouldRenderRayTracingGlobalIllumination(View);
+		bAnyViewWithRTGI = bAnyViewWithRTGI || ShouldRenderRayTracingGlobalIllumination(View);
 	}
 
 	if (!bAnyViewWithRTGI)

@@ -123,7 +123,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(FRHICommand
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		FViewInfo& View = Views[ViewIndex];
-		bAnyViewWithRTAO = bAnyViewWithRTAO | ShouldRenderRayTracingAmbientOcclusion(View);
+		bAnyViewWithRTAO = bAnyViewWithRTAO || ShouldRenderRayTracingAmbientOcclusion(View);
 	}
 
 	if (!bAnyViewWithRTAO)
