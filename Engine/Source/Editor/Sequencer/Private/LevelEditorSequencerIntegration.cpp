@@ -161,7 +161,7 @@ void FLevelEditorSequencerIntegration::IterateAllSequencers(TFunctionRef<void(FS
 	}
 }
 
-void FLevelEditorSequencerIntegration::Initialize()
+void FLevelEditorSequencerIntegration::Initialize(const FLevelEditorSequencerIntegrationOptions& Options)
 {
 	AcquiredResources.Release();
 
@@ -217,7 +217,7 @@ void FLevelEditorSequencerIntegration::Initialize()
 	}
 
 	AddLevelViewportMenuExtender();
-	ActivateDetailHandler();
+	ActivateDetailHandler(Options);
 	ActivateSequencerEditorMode();
 	BindLevelEditorCommands();
 
@@ -253,7 +253,7 @@ void FLevelEditorSequencerIntegration::Initialize()
 		);
 	}
 
-	const bool bForceRefresh = true;
+	bool bForceRefresh = Options.bForceRefreshDetails;
 	UpdateDetails(bForceRefresh);
 }
 
@@ -750,7 +750,7 @@ void FLevelEditorSequencerIntegration::MakeBrowseToSelectedActorSubMenu(FMenuBui
 	}
 }
 
-void FLevelEditorSequencerIntegration::ActivateDetailHandler()
+void FLevelEditorSequencerIntegration::ActivateDetailHandler(const FLevelEditorSequencerIntegrationOptions& Options)
 {
 	FName DetailHandlerName("DetailHandler");
 
@@ -818,12 +818,17 @@ void FLevelEditorSequencerIntegration::ActivateDetailHandler()
 		};
 
 	AcquiredResources.Add(DetailHandlerName, DeactivateDetailKeyframeHandler);
-	AcquiredResources.Add(DetailHandlerRefreshName, RefreshDetailHandler);
+
+	if (Options.bForceRefreshDetails)
+	{
+		AcquiredResources.Add(DetailHandlerRefreshName, RefreshDetailHandler);
+	}
 }
 
 void FLevelEditorSequencerIntegration::OnPropertyEditorOpened()
 {
-	ActivateDetailHandler();
+	FLevelEditorSequencerIntegrationOptions Options;
+	ActivateDetailHandler(Options);
 }
 
 void FLevelEditorSequencerIntegration::BindLevelEditorCommands()
@@ -1109,7 +1114,7 @@ void FLevelEditorSequencerIntegration::AddSequencer(TSharedRef<ISequencer> InSeq
 {
 	if (!BoundSequencers.Num())
 	{
-		Initialize();
+		Initialize(Options);
 	}
 
 	KeyFrameHandler->Add(InSequencer);

@@ -26,11 +26,13 @@ struct FLevelEditorSequencerIntegrationOptions
 	FLevelEditorSequencerIntegrationOptions()
 		: bRequiresLevelEvents(true)
 		, bRequiresActorEvents(false)
+		, bForceRefreshDetails(true)
 		, bCanRecord(false)
 	{}
 
 	bool bRequiresLevelEvents : 1;
 	bool bRequiresActorEvents : 1;
+	bool bForceRefreshDetails : 1;
 	bool bCanRecord : 1;
 };
 
@@ -73,7 +75,7 @@ public:
 
 	static FLevelEditorSequencerIntegration& Get();
 
-	void Initialize();
+	void Initialize(const FLevelEditorSequencerIntegrationOptions& Options);
 
 	void AddSequencer(TSharedRef<ISequencer> InSequencer, const FLevelEditorSequencerIntegrationOptions& Options);
 
@@ -166,7 +168,7 @@ private:
 
 	void ActivateSequencerEditorMode();
 	void AddLevelViewportMenuExtender();
-	void ActivateDetailHandler();
+	void ActivateDetailHandler(const FLevelEditorSequencerIntegrationOptions& Options);
 	void AttachOutlinerColumn();
 	void DetachOutlinerColumn();
 	void ActivateRealtimeViewports();
