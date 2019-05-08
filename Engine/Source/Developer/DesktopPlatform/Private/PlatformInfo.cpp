@@ -18,6 +18,10 @@ namespace
 
 TArray<FPlatformInfo> AllPlatformInfoArray;
 
+// we don't need any of this without the editor, although we would ideally not even compile this outside of the editor
+// @todo platplug: Figure out why this is compiled on target devices
+#if WITH_EDITOR
+
 void BuildPlatformInfo(const FName& InPlatformInfoName, const FName& InTargetPlatformName, const FText& InDisplayName, const EPlatformType InPlatformType, const EPlatformFlags::Flags InPlatformFlags, const FPlatformIconPaths& InIconPaths, const FString& InUATCommandLine, const FString& InAutoSDKPath, EPlatformSDKStatus InStatus, const FString& InTutorial, bool InEnabled, FString InBinaryFolderName, FString InIniPlatformName, bool InUsesHostCompiler, bool InUATClosesAfterLaunch, bool InIsConfidential, const FName& InUBTTargetId, const FName& InPlatformGroupName)
 {
 	FPlatformInfo& PlatformInfo = AllPlatformInfoArray.Emplace_GetRef();
@@ -64,7 +68,10 @@ void BuildPlatformInfo(const FName& InPlatformInfoName, const FName& InTargetPla
 	// Generate the icon style names for FEditorStyle
 	PlatformInfo.IconPaths.NormalStyleName = *FString::Printf(TEXT("Launcher.Platform_%s"), *InPlatformInfoNameString);
 	PlatformInfo.IconPaths.LargeStyleName  = *FString::Printf(TEXT("Launcher.Platform_%s.Large"), *InPlatformInfoNameString);
-	PlatformInfo.IconPaths.XLargeStyleName = *FString::Printf(TEXT("Launcher.Platform_%s.XLarge"), *InPlatformInfoNameString);
+	if (PlatformInfo.IconPaths.XLargePath != TEXT(""))
+	{
+		PlatformInfo.IconPaths.XLargeStyleName = *FString::Printf(TEXT("Launcher.Platform_%s.XLarge"), *InPlatformInfoNameString);
+	}
 
 	// SDK data
 	PlatformInfo.SDKStatus = InStatus;
@@ -112,11 +119,6 @@ EPlatformFlags::Flags ConvertPlatformFlags(const FString& String)
 
 void ParseDataDrivenPlatformInfo(const TCHAR* Name, const FConfigSection& Section)
 {
-	checkf(WITH_EDITOR, TEXT("We don't expect to oarse DDPI on non-editor"));
-//	void BuildPlatformInfo(const FName& InPlatformInfoName, const FName& InTargetPlatformName, const FText& InDisplayName, const EPlatformType InPlatformType, const EPlatformFlags::Flags InPlatformFlags, 
-//		const FPlatformIconPaths& InIconPaths, const FString& InUATCommandLine, const FString& InAutoSDKPath, EPlatformSDKStatus InStatus, const FString& InTutorial, bool InEnabled, FString InBinaryFolderName, 
-//		FString InIniPlatformName, bool InUsesHostCompiler, bool InUATClosesAfterLaunch, bool InIsConfidential, const FName& InUBTTargetId, const FName& InPlatformGroupName)
-
 	// @todo platplug: use FNames instead of TCHAR* for keys, so we don't ahve to re-convert every time
 	FName TargetPlatformName = *GetSectionString(Section, TEXT("TargetPlatformName"));
 	FString DisplayName = GetSectionString(Section, TEXT("DisplayName"));
@@ -176,6 +178,7 @@ struct FPlatformInfoAutoInit
 	}
 
 } GPlatformInfoAutoInit;
+#endif
 
 } // anonymous namespace
 

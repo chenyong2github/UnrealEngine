@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 // Copyright 2017 Magic Leap, Inc. All Rights Reserved.
 
-#include "Lumin/LuminOutputDevices.h"
+#include "Lumin/LuminPlatformOutputDevices.h"
 #include "Lumin/LuminOutputDeviceDebug.h"
 #include "CoreGlobals.h"
 #include "Misc/Parse.h"

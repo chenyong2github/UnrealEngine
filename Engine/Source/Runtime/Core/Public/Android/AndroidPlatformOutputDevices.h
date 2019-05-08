@@ -12,6 +12,4 @@ struct CORE_API FAndroidOutputDevices : public FGenericPlatformOutputDevices
 {
 };
 
-#if !PLATFORM_LUMIN
 typedef FAndroidOutputDevices FPlatformOutputDevices;
-#endif
