@@ -416,3 +416,5 @@ struct GAMEPLAYABILITIES_API FScopedAggregatorOnDirtyBatch
 	static bool		GlobalFromNetworkUpdate;
 	static int32	NetUpdateID;
 };
+
+#define AGGREGATOR_BATCH_SCOPE() FScopedAggregatorOnDirtyBatch AggregatorOnDirtyBatcher;

@@ -4,6 +4,7 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemStats.h"
 
 void FAggregatorMod::UpdateQualifies(const FAggregatorEvaluateParameters& Parameters) const
 {
@@ -567,6 +568,7 @@ void FAggregator::BroadcastOnDirty()
 		return;
 	}
 
+	SCOPE_CYCLE_COUNTER(STAT_AggregatorBroadcastOnDirty);
 
 	// --------------------------------------------------
 	//	The code below attempts to avoid recursion issues: an aggregator is dirty and while it is broadcasting this out, someone dirties it again.
