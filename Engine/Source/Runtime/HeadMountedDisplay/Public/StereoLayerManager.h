@@ -85,6 +85,12 @@ protected:
 		}
 	}
 
+	void WithLayer(uint32 LayerId, TFunction<void(LayerType*)> Func)
+	{
+		FScopeLock LockLayers(&LayerCritSect);
+		Func(StereoLayers.Find(LayerId));
+	}
+
 public:
 
 	TStereoLayerManager()

@@ -330,43 +330,30 @@ void FSteamVRHMD::GetAllocatedTexture(uint32 LayerId, FTextureRHIRef &Texture, F
 {
 	Texture = LeftTexture = nullptr;
 	FSteamVRLayer* LayerFound = nullptr;
+	check(IsInRenderingThread()); // Not strictly necessary, as WithLayer uses a scope lock
 
-	if (IsInRenderingThread())
+	WithLayer(LayerId, [&](FSteamVRLayer* LayerFound)
 	{
-		ForEachLayer([&](uint32 /* unused */, FSteamVRLayer& Layer)
+		if (LayerFound && LayerFound->LayerDesc.Texture)
 		{
-			if (Layer.GetLayerId() == LayerId)
+			switch (LayerFound->LayerDesc.ShapeType)
 			{
-				LayerFound = &Layer;
+			case IStereoLayers::CubemapLayer:
+				Texture = LayerFound->LayerDesc.Texture->GetTextureCube();
+				LeftTexture = LayerFound->LayerDesc.LeftTexture ? LayerFound->LayerDesc.LeftTexture->GetTextureCube() : nullptr;
+				break;
+
+			case IStereoLayers::CylinderLayer:
+			case IStereoLayers::QuadLayer:
+				Texture = LayerFound->LayerDesc.Texture->GetTexture2D();
+				LeftTexture = LayerFound->LayerDesc.LeftTexture ? LayerFound->LayerDesc.LeftTexture->GetTexture2D() : nullptr;
+				break;
+
+			default:
+				break;
 			}
-		});
-	}
-	else
-	{
-		// Only supporting the use of this function on RenderingThread.
-		check(false);
-		return;
-	}
-
-	if (LayerFound && LayerFound->LayerDesc.Texture)
-	{
-		switch (LayerFound->LayerDesc.ShapeType)
-		{
-		case IStereoLayers::CubemapLayer:
-			Texture = LayerFound->LayerDesc.Texture->GetTextureCube();
-			LeftTexture = LayerFound->LayerDesc.LeftTexture ? LayerFound->LayerDesc.LeftTexture->GetTextureCube() : nullptr;
-			break;
-
-		case IStereoLayers::CylinderLayer:
-		case IStereoLayers::QuadLayer:
-			Texture = LayerFound->LayerDesc.Texture->GetTexture2D();
-			LeftTexture = LayerFound->LayerDesc.LeftTexture ? LayerFound->LayerDesc.LeftTexture->GetTexture2D() : nullptr;
-			break;
-
-		default:
-			break;
 		}
-	}
+	});
 }
 
 //=============================================================================
