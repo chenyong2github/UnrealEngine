@@ -465,12 +465,10 @@ private:
 	void RenderRayTracingReflections(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FRDGTextureRef* OutColorTexture,
-		FRDGTextureRef* OutRayHitDistanceTexture,
-		FRDGTextureRef* OutRayImaginaryDepthTexture,
 		int32 SamplePerPixel,
 		int32 HeightFog,
-		float ResolutionFraction);
+		float ResolutionFraction,
+		IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs);
 
 	void RenderRayTracingShadows(
 		FRDGBuilder& GraphBuilder,

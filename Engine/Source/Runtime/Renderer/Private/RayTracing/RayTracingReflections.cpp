@@ -213,12 +213,10 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingReflections(const FViewInfo
 void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FRDGTextureRef* OutColorTexture,
-	FRDGTextureRef* OutRayHitDistanceTexture,
-	FRDGTextureRef* OutRayImaginaryDepthTexture,
 	int32 SamplePerPixel,
 	int32 HeightFog,
-	float ResolutionFraction)
+	float ResolutionFraction,
+	IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs)
 #if RHI_RAYTRACING
 {
 	const uint32 SortTileSize = CVarRayTracingReflectionsSortTileSize.GetValueOnRenderThread();
@@ -238,11 +236,11 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 		Desc.Extent /= UpscaleFactor;
 		Desc.TargetableFlags |= TexCreate_UAV;
 
-		*OutColorTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingReflections"));
+		OutDenoiserInputs->Color = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingReflections"));
 		
 		Desc.Format = PF_R16F;
-		*OutRayHitDistanceTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingReflectionsHitDistance"));
-		*OutRayImaginaryDepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingReflectionsImaginaryDepth"));
+		OutDenoiserInputs->RayHitDistance = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingReflectionsHitDistance"));
+		OutDenoiserInputs->RayImaginaryDepth = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingReflectionsImaginaryDepth"));
 	}
 
 	// When deferred materials are used, we need to dispatch the reflection shader twice:
@@ -289,9 +287,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.SceneTexturesStruct = CreateSceneTextureUniformBuffer( SceneContext, FeatureLevel, ESceneTextureSetupMode::All, EUniformBufferUsage::UniformBuffer_SingleFrame);
 	CommonParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
 	CommonParameters.FogUniformParameters = CreateFogUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
-	CommonParameters.ColorOutput = GraphBuilder.CreateUAV(*OutColorTexture);
-	CommonParameters.RayHitDistanceOutput = GraphBuilder.CreateUAV(*OutRayHitDistanceTexture);
-	CommonParameters.RayImaginaryDepthOutput = GraphBuilder.CreateUAV(*OutRayImaginaryDepthTexture);
+	CommonParameters.ColorOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->Color);
+	CommonParameters.RayHitDistanceOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->RayHitDistance);
+	CommonParameters.RayImaginaryDepthOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->RayImaginaryDepth);
 	CommonParameters.SortTileSize = SortTileSize;
 	CommonParameters.ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 	CommonParameters.Forward = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
