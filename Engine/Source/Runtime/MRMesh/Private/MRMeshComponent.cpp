@@ -22,6 +22,7 @@
 #include "Engine/Engine.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Stats/Stats.h"
+#include "UObject/ConstructorHelpers.h"
 
 DECLARE_CYCLE_STAT(TEXT("MrMesh SetCollisionProfileName"), STAT_MrMesh_SetCollisionProfileName, STATGROUP_Physics);
 
@@ -81,6 +82,19 @@ public:
 		FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(int32));
 		RHIUnlockIndexBuffer(IndexBufferRHI);
 	}
+
+	void InitRHIWith(const TArray<uint16>& Indices)
+	{
+		NumIndices = Indices.Num();
+
+		FRHIResourceCreateInfo CreateInfo;
+		void* Buffer = nullptr;
+		IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint16), Indices.Num() * sizeof(uint16), BUF_Static, CreateInfo, Buffer);
+
+		// Write the indices to the index buffer.
+		FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint16));
+		RHIUnlockIndexBuffer(IndexBufferRHI);
+	}
 };
 
 
@@ -92,12 +106,15 @@ struct FMRMeshProxySection
 	IMRMesh::FBrickId BrickId;
 	/** Position buffer */
 	FMRMeshVertexBuffer<FVector> PositionBuffer;
+	// AR meshes from HoloLens and ARKit don't have these
+#if !(PLATFORM_HOLOLENS || PLATFORM_IOS)
 	/** Texture coordinates buffer */
 	FMRMeshVertexBuffer<FVector2D> UVBuffer;
 	/** Tangent space buffer */
 	FMRMeshVertexBuffer<FPackedNormal> TangentXZBuffer;
 	/** We don't need color */
 	FMRMeshVertexBuffer<FColor> ColorBuffer;
+#endif
 	/** Index buffer for this section */
 	FMRMeshIndexBuffer IndexBuffer;
 	/** Vertex factory for this section */
@@ -117,9 +134,12 @@ struct FMRMeshProxySection
 	void ReleaseResources()
 	{
 		PositionBuffer.ReleaseResource();
+		// AR meshes from HoloLens and ARKit don't have these
+#if !(PLATFORM_HOLOLENS || PLATFORM_IOS)
 		UVBuffer.ReleaseResource();
 		TangentXZBuffer.ReleaseResource();
 		ColorBuffer.ReleaseResource();
+#endif
 		IndexBuffer.ReleaseResource();
 		VertexFactory.ReleaseResource();
 	}
@@ -143,6 +163,8 @@ static void InitVertexFactory(FLocalVertexFactory* VertexFactory, const FMRMeshP
 			NewData.PositionComponent = FVertexStreamComponent(&MRMeshSection.PositionBuffer, 0, sizeof(FVector), VET_Float3, EVertexStreamUsage::Default);
 		}
 
+		// AR meshes from HoloLens and ARKit don't have these
+#if !(PLATFORM_HOLOLENS || PLATFORM_IOS)
 		if (MRMeshSection.UVBuffer.NumVerts != 0)
 		{
 			NewData.TextureCoordinatesSRV = MRMeshSection.UVBufferSRV;
@@ -162,6 +184,7 @@ static void InitVertexFactory(FLocalVertexFactory* VertexFactory, const FMRMeshP
 			NewData.ColorComponentsSRV = MRMeshSection.ColorBufferSRV;
 			NewData.ColorComponent = FVertexStreamComponent(&MRMeshSection.ColorBuffer, 0, sizeof(FColor), VET_Color, EVertexStreamUsage::ManualFetch);
 		}
+#endif
 
 		VertexFactory->SetData(NewData);
 		VertexFactory->InitResource();
@@ -180,7 +203,7 @@ public:
 
 	FMRMeshProxy(const UMRMeshComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent, InComponent->GetFName())
-	, MaterialToUse((InComponent->Material!=nullptr) ? InComponent->Material : UMaterial::GetDefaultMaterial(MD_Surface) )
+	, MaterialToUse((InComponent->Material != nullptr) ? InComponent->Material : (InComponent->WireframeMaterial) ? InComponent->WireframeMaterial : UMaterial::GetDefaultMaterial(MD_Surface))
 	, FeatureLevel(GetScene().GetFeatureLevel())
 	{
 	}
@@ -204,11 +227,14 @@ public:
 		FMRMeshProxySection* NewSection = new FMRMeshProxySection(Args.BrickId, FeatureLevel);
 		ProxySections.Add(NewSection);
 
+		// AR meshes from HoloLens and ARKit don't have these
+#if !(PLATFORM_HOLOLENS || PLATFORM_IOS)
 		// Vulkan requires that all the buffers be full.
 		const int32 NumVerts = Args.PositionData.Num();
 		check((NumVerts == Args.ColorData.Num()));
 		check((NumVerts == Args.UVData.Num()));
 		check((NumVerts * 2) == Args.TangentXZData.Num());
+#endif
 
 		// POSITION BUFFER
 		{
@@ -217,6 +243,8 @@ public:
 			NewSection->PositionBufferSRV = RHICreateShaderResourceView(NewSection->PositionBuffer.VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
 		}
 
+		// AR meshes from HoloLens and ARKit don't have these
+#if !(PLATFORM_HOLOLENS || PLATFORM_IOS)
 		// TEXTURE COORDS BUFFER
 		{
 			NewSection->UVBuffer.InitResource();
@@ -250,6 +278,7 @@ public:
 				NewSection->ColorBufferSRV = RHICreateShaderResourceView(NewSection->ColorBuffer.VertexBufferRHI, 4, PF_R8G8B8A8);
 			}
 		}
+#endif
 
 		// INDEX BUFFER
 		{
@@ -376,6 +405,8 @@ private:
 UMRMeshComponent::UMRMeshComponent(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> WireframeMaterialRef(TEXT("/Engine/EngineDebugMaterials/WireframeMaterial"));
+	WireframeMaterial = WireframeMaterialRef.Object;
 }
 
 void UMRMeshComponent::BeginPlay()
@@ -531,6 +562,10 @@ void UMRMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterial
 	if (Material != nullptr)
 	{
 		OutMaterials.Add(Material);
+	}
+	if (WireframeMaterial != nullptr)
+	{
+		OutMaterials.Add(WireframeMaterial);
 	}
 }
 
@@ -808,3 +843,48 @@ void UMRMeshComponent::Clear()
 	ClearAllBrickData();
 	UE_LOG(LogMrMesh, Log, TEXT("Clearing all brick data"));
 }
+
+struct FMeshArrayHolder :
+	public IMRMesh::FBrickDataReceipt
+{
+	TArray<FVector> Vertices;
+	TArray<MRMESH_INDEX_TYPE> Indices;
+	// Super wasteful of memory and perf, but the vertex factory requires these to be filled
+	// @todo Write a vertex factory that doesn't need all this overhead
+	TArray<FVector2D> BogusUVs;
+	TArray<FPackedNormal> BogusTangents;
+	TArray<FColor> BogusColors;
+
+	FMeshArrayHolder(TArray<FVector>& InVertices, TArray<MRMESH_INDEX_TYPE>& InIndices)
+		: Vertices(MoveTemp(InVertices))
+		, Indices(MoveTemp(InIndices))
+	{
+		int32 CurrentNumVertices = Vertices.Num();
+
+		BogusUVs.AddZeroed(CurrentNumVertices);
+		BogusColors.AddZeroed(CurrentNumVertices);
+		BogusTangents.AddZeroed(CurrentNumVertices * 2);
+	}
+};
+
+void UMRMeshComponent::UpdateTransformAndMesh(const FTransform& InTransform, TArray<FVector>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices)
+{
+	SetComponentToWorld(InTransform);
+
+	// Create our struct that will hold the data until the render thread is done with it
+	TSharedPtr<FMeshArrayHolder, ESPMode::ThreadSafe> MeshHolder(new FMeshArrayHolder(Vertices, Indices));
+	// NOTE: Vertices and Indices are empty due to MoveTemp()!!!
+
+	SendBrickData_Internal(IMRMesh::FSendBrickDataArgs
+		{
+			MeshHolder,
+			0,
+			MeshHolder->Vertices,
+			MeshHolder->BogusUVs,
+			MeshHolder->BogusTangents,
+			MeshHolder->BogusColors,
+			MeshHolder->Indices
+		}
+	);
+}
+

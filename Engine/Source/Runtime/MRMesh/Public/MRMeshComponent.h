@@ -17,6 +17,18 @@ struct FDynamicMeshVertex;
 DECLARE_STATS_GROUP(TEXT("MRMesh"), STATGROUP_MRMESH, STATCAT_Advanced);
 DEFINE_LOG_CATEGORY_STATIC(LogMrMesh, Warning, All);
 
+
+//@todo JoeG - remove
+#ifndef PLATFORM_HOLOLENS
+#define PLATFORM_HOLOLENS 0
+#endif
+
+#if (PLATFORM_HOLOLENS || PLATFORM_IOS)
+	#define MRMESH_INDEX_TYPE uint16
+#else
+	#define MRMESH_INDEX_TYPE uint32
+#endif
+
 class IMRMesh
 {
 public:
@@ -35,7 +47,7 @@ public:
 		const TArray<FVector2D>& UVData;
 		const TArray<FPackedNormal>& TangentXZData;
 		const TArray<FColor>& ColorData;
-		const TArray<uint32>& Indices;
+		const TArray<MRMESH_INDEX_TYPE>& Indices;
 	};
 
 	virtual void SetConnected(bool value) = 0;
@@ -74,6 +86,10 @@ public:
 
 	// UPrimitiveComponent.. public BP function needs to stay public to avoid nativization errors. (RR)
 	virtual void SetMaterial(int32 ElementIndex, class UMaterialInterface* InMaterial) override;
+
+	/** Updates from HoloLens or iOS */
+	void UpdateTransformAndMesh(const FTransform& InTransform, TArray<FVector>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices);
+
 protected:
 	virtual void OnActorEnableCollisionChanged() override;
 	virtual void UpdatePhysicsToRBChannels() override;
@@ -137,6 +153,9 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<UBodySetup*> BodySetups;
+
+	UPROPERTY()
+	UMaterialInterface* WireframeMaterial;
 
 	TArray<FBodyInstance*> BodyInstances;
 	TArray<IMRMesh::FBrickId> BodyIds;
