@@ -1,4 +1,6 @@
 @echo off
+setlocal
+
 rem ## Unreal Engine 4 AutomationTool setup script
 rem ## Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 rem ##
