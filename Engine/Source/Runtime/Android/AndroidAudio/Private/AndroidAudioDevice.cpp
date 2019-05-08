@@ -193,6 +193,11 @@ class ICompressedAudioInfo* FSLESAudioDevice::CreateCompressedAudioInfo(USoundWa
 	return nullptr;
 }
 
+FAudioPlatformSettings FSLESAudioDevice::GetPlatformSettings() const
+{
+	return FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"));
+}
+
 /** Check if any background music or sound is playing through the audio device */
 bool FSLESAudioDevice::IsExernalBackgroundSoundActive()
 {
