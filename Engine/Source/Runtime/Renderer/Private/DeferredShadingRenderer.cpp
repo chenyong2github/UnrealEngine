@@ -654,7 +654,9 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 						bool bAllSegmentsOpaque = true;
 						bool bAnySegmentsCastShadow = false;
 
-						const auto& CachedRayTracingMeshCommandIndices = SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[LODToRender.GetRayTracedLOD()];
+						// UE-74201: prevents assigning an LOD index that is outside of the current range
+						uint32 LODIndex = FMath::Min((int)LODToRender.GetRayTracedLOD(), SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.Num() - 1);
+						const auto& CachedRayTracingMeshCommandIndices = SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[LODIndex];
 						for (auto CommandIndex : CachedRayTracingMeshCommandIndices)
 						{
 							if (CommandIndex >= 0)

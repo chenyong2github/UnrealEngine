@@ -233,11 +233,11 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 			// Make sure the Proxy material have a valid ImportedMaterialSlotName
 			//The proxy material must be add only once and is always the first slot of the HLOD mesh
 			FStaticMaterial NewMaterial(ProxyMaterial);
-			if(MeshDescription->PolygonGroups().Num() > 0)
+			if (MeshDescription->PolygonGroups().Num() > 0)
 			{
 				NewMaterial.ImportedMaterialSlotName = PolygonGroupMaterialSlotName[MeshDescription->PolygonGroups().GetFirstValidID()];
 			}
-			StaticMesh->StaticMaterials.Add(NewMaterial);
+				StaticMesh->StaticMaterials.Add(NewMaterial);
 
 			StaticMesh->CommitMeshDescription(SourceModelIndex);
 		}
@@ -260,7 +260,6 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 		}
 		RemoveVertexColorAndCommitMeshDescription();
 
-		
 		for (UMaterialInterface* Material : ImposterMaterials)
 		{
 			//Set the ImportedMaterialSlotName in each imposter material

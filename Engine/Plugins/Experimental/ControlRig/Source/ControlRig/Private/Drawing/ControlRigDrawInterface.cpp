@@ -131,23 +131,24 @@ void FControlRigDrawInterface::DrawArc(const FTransform& WorldOffset, const FTra
 	DrawInstructions.Add(Instruction);
 }
 
-void FControlRigDrawInterface::DrawBezier(const FTransform& WorldOffset, const FVector& A, const FVector& B, const FVector& C, const FVector& D, float MinimumU, float MaximumU, const FLinearColor& Color, float Thickness, int32 Detail)
+void FControlRigDrawInterface::DrawBezier(const FTransform& WorldOffset, const FCRFourPointBezier& InBezier, float MinimumU, float MaximumU, const FLinearColor& Color, float Thickness, int32 Detail)
 {
 	int32 Count = FMath::Clamp<int32>(Detail, 4, 64);
 	FDrawIntruction Instruction(EDrawType_LineStrip, Color, Thickness);
 	Instruction.Positions.SetNumUninitialized(Count);
 
-	FVector P0 = WorldOffset.TransformPosition(A);
-	FVector P1 = WorldOffset.TransformPosition(B);
-	FVector P2 = WorldOffset.TransformPosition(C);
-	FVector P3 = WorldOffset.TransformPosition(D);
+	FCRFourPointBezier Bezier = InBezier;
+	Bezier.A = WorldOffset.TransformPosition(Bezier.A);
+	Bezier.B = WorldOffset.TransformPosition(Bezier.B);
+	Bezier.C = WorldOffset.TransformPosition(Bezier.C);
+	Bezier.D = WorldOffset.TransformPosition(Bezier.D);
 
 	float T = MinimumU;
 	float Step = (MaximumU - MinimumU) / float(Detail-1);
 	for(int32 Index=0;Index<Count;Index++)
 	{
 		FVector Tangent;
-		FControlRigMathLibrary::FourPointBezier(P0, P1, P2, P3, T, Instruction.Positions[Index], Tangent);
+		FControlRigMathLibrary::FourPointBezier(Bezier, T, Instruction.Positions[Index], Tangent);
 		T += Step;
 	}
 
@@ -201,29 +202,179 @@ void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, cons
 	}
 }
 
-void FControlRigDrawInterface::DrawPointSimulation(const FTransform& WorldOffset, const FControlRigSimulationPointContainer& Simulation, const FLinearColor& Color, float Thickness)
+void FControlRigDrawInterface::DrawPointSimulation(const FTransform& WorldOffset, const FCRSimPointContainer& Simulation, const FLinearColor& Color, float Thickness, float PrimitiveSize, bool bDrawPointsAsSphere)
 {
-	FDrawIntruction PointsInstruction(EDrawType_Point, Color, Thickness * 16.f);
+	FDrawIntruction PointsInstruction(EDrawType_Point, Color, Thickness * 6.f);
 	FDrawIntruction SpringsInstruction(EDrawType_Lines, Color * FLinearColor(0.55f, 0.55f, 0.55f, 1.f), Thickness);
+	FDrawIntruction VolumesMinInstruction(EDrawType_Lines, Color * FLinearColor(0.25f, 0.25f, 0.25f, 1.f), Thickness);
+	FDrawIntruction VolumesMaxInstruction(EDrawType_Lines, Color * FLinearColor(0.75f, 0.75f, 0.75f, 1.f) + FLinearColor(0.25f, 0.25f, 0.25f, 0.f), Thickness);
 
-	PointsInstruction.Positions.Reserve(Simulation.Points.Num());
-	for (int32 PointIndex = 0; PointIndex < Simulation.Points.Num(); PointIndex++)
+	if (bDrawPointsAsSphere)
 	{
-		FControlRigSimulationPoint Point = Simulation.GetPointInterpolated(PointIndex);
-		PointsInstruction.Positions.Add(WorldOffset.TransformPosition(Point.Position));
+		PointsInstruction.DrawType = EDrawType_Lines;
+		PointsInstruction.Thickness = Thickness * 2.f;
+
+		for (int32 PointIndex = 0; PointIndex < Simulation.Points.Num(); PointIndex++)
+		{
+			FCRSimPoint Point = Simulation.GetPointInterpolated(PointIndex);
+			FTransform Transform = FTransform(Point.Position) * WorldOffset;
+			static const int32 Subdivision = 8;
+			FVector MinV = Transform.TransformVector(FVector(Point.Size, 0.f, 0.f));
+			FQuat Q = FQuat(Transform.TransformVectorNoScale(FVector(0.f, 1.f, 0.f)), 2.f * PI / float(Subdivision));
+			for (int32 Iteration = 0; Iteration < Subdivision; Iteration++)
+			{
+				PointsInstruction.Positions.Add(Transform.GetLocation() + MinV);
+				MinV = Q.RotateVector(MinV);
+				PointsInstruction.Positions.Add(Transform.GetLocation() + MinV);
+			}
+			MinV = Transform.TransformVector(FVector(Point.Size, 0.f, 0.f));
+			Q = FQuat(Transform.TransformVectorNoScale(FVector(0.f, 0.f, 1.f)), 2.f * PI / float(Subdivision));
+			for (int32 Iteration = 0; Iteration < Subdivision; Iteration++)
+			{
+				PointsInstruction.Positions.Add(Transform.GetLocation() + MinV);
+				MinV = Q.RotateVector(MinV);
+				PointsInstruction.Positions.Add(Transform.GetLocation() + MinV);
+			}
+			MinV = Transform.TransformVector(FVector(0.f, Point.Size, 0.f));
+			Q = FQuat(Transform.TransformVectorNoScale(FVector(1.f, 0.f, 0.f)), 2.f * PI / float(Subdivision));
+			for (int32 Iteration = 0; Iteration < Subdivision; Iteration++)
+			{
+				PointsInstruction.Positions.Add(Transform.GetLocation() + MinV);
+				MinV = Q.RotateVector(MinV);
+				PointsInstruction.Positions.Add(Transform.GetLocation() + MinV);
+			}
+		}
+	}
+	else
+	{
+		PointsInstruction.Positions.Reserve(Simulation.Points.Num());
+		for (int32 PointIndex = 0; PointIndex < Simulation.Points.Num(); PointIndex++)
+		{
+			FCRSimPoint Point = Simulation.GetPointInterpolated(PointIndex);
+			PointsInstruction.Positions.Add(WorldOffset.TransformPosition(Point.Position));
+		}
 	}
 
 	SpringsInstruction.Positions.Reserve(Simulation.Springs.Num() * 2);
-	for (const FControlRigSimulationLinearSpring& Spring : Simulation.Springs)
+	for (const FCRSimLinearSpring& Spring : Simulation.Springs)
 	{
 		if (Spring.SubjectA == INDEX_NONE || Spring.SubjectB == INDEX_NONE)
 		{
 			continue;
 		}
-		SpringsInstruction.Positions.Add(PointsInstruction.Positions[Spring.SubjectA]);
-		SpringsInstruction.Positions.Add(PointsInstruction.Positions[Spring.SubjectB]);
+		if (Spring.Coefficient <= SMALL_NUMBER)
+		{
+			continue;
+		}
+		SpringsInstruction.Positions.Add(WorldOffset.TransformPosition(Simulation.GetPointInterpolated(Spring.SubjectA).Position));
+		SpringsInstruction.Positions.Add(WorldOffset.TransformPosition(Simulation.GetPointInterpolated(Spring.SubjectB).Position));
+	}
+
+	if (PrimitiveSize > SMALL_NUMBER)
+	{
+		for (const FCRSimSoftCollision& Volume : Simulation.CollisionVolumes)
+		{
+			FTransform Transform = Volume.Transform * WorldOffset;
+			switch (Volume.ShapeType)
+			{
+				case ECRSimSoftCollisionType::Plane:
+				{
+					VolumesMinInstruction.DrawType = EDrawType_LineStrip;
+					VolumesMinInstruction.Positions.Add(Transform.TransformPosition(FVector(PrimitiveSize, PrimitiveSize, Volume.MinimumDistance) * 0.5f));
+					VolumesMinInstruction.Positions.Add(Transform.TransformPosition(FVector(-PrimitiveSize, PrimitiveSize, Volume.MinimumDistance) * 0.5f));
+					VolumesMinInstruction.Positions.Add(Transform.TransformPosition(FVector(-PrimitiveSize, -PrimitiveSize, Volume.MinimumDistance) * 0.5f));
+					VolumesMinInstruction.Positions.Add(Transform.TransformPosition(FVector(PrimitiveSize, -PrimitiveSize, Volume.MinimumDistance) * 0.5f));
+					VolumesMinInstruction.Positions.Add(Transform.TransformPosition(FVector(PrimitiveSize, PrimitiveSize, Volume.MinimumDistance) * 0.5f));
+					VolumesMaxInstruction.DrawType = EDrawType_LineStrip;
+					VolumesMaxInstruction.Positions.Add(Transform.TransformPosition(FVector(PrimitiveSize, PrimitiveSize, Volume.MaximumDistance) * 0.5f));
+					VolumesMaxInstruction.Positions.Add(Transform.TransformPosition(FVector(-PrimitiveSize, PrimitiveSize, Volume.MaximumDistance) * 0.5f));
+					VolumesMaxInstruction.Positions.Add(Transform.TransformPosition(FVector(-PrimitiveSize, -PrimitiveSize, Volume.MaximumDistance) * 0.5f));
+					VolumesMaxInstruction.Positions.Add(Transform.TransformPosition(FVector(PrimitiveSize, -PrimitiveSize, Volume.MaximumDistance) * 0.5f));
+					VolumesMaxInstruction.Positions.Add(Transform.TransformPosition(FVector(PrimitiveSize, PrimitiveSize, Volume.MaximumDistance) * 0.5f));
+					break;
+				}
+				case ECRSimSoftCollisionType::Sphere:
+				{
+					static const int32 Subdivision = 8;
+					FVector MinV = Transform.TransformVector(FVector(Volume.MinimumDistance, 0.f, 0.f));
+					FVector MaxV = Transform.TransformVector(FVector(Volume.MaximumDistance, 0.f, 0.f));
+					FQuat Q = FQuat(Transform.TransformVectorNoScale(FVector(0.f, 1.f, 0.f)), 2.f * PI / float(Subdivision));
+					for (int32 Iteration = 0; Iteration < Subdivision; Iteration++)
+					{
+						VolumesMinInstruction.Positions.Add(Transform.GetLocation() + MinV);
+						MinV = Q.RotateVector(MinV);
+						VolumesMinInstruction.Positions.Add(Transform.GetLocation() + MinV);
+						VolumesMaxInstruction.Positions.Add(Transform.GetLocation() + MaxV);
+						MaxV = Q.RotateVector(MaxV);
+						VolumesMaxInstruction.Positions.Add(Transform.GetLocation() + MaxV);
+
+					}
+					MinV = Transform.TransformVector(FVector(Volume.MinimumDistance, 0.f, 0.f));
+					MaxV = Transform.TransformVector(FVector(Volume.MaximumDistance, 0.f, 0.f));
+					Q = FQuat(Transform.TransformVectorNoScale(FVector(0.f, 0.f, 1.f)), 2.f * PI / float(Subdivision));
+					for (int32 Iteration = 0; Iteration < Subdivision; Iteration++)
+					{
+						VolumesMinInstruction.Positions.Add(Transform.GetLocation() + MinV);
+						MinV = Q.RotateVector(MinV);
+						VolumesMinInstruction.Positions.Add(Transform.GetLocation() + MinV);
+						VolumesMaxInstruction.Positions.Add(Transform.GetLocation() + MaxV);
+						MaxV = Q.RotateVector(MaxV);
+						VolumesMaxInstruction.Positions.Add(Transform.GetLocation() + MaxV);
+
+					}
+					MinV = Transform.TransformVector(FVector(0.f, Volume.MinimumDistance, 0.f));
+					MaxV = Transform.TransformVector(FVector(0.f, Volume.MaximumDistance, 0.f));
+					Q = FQuat(Transform.TransformVectorNoScale(FVector(1.f, 0.f, 0.f)), 2.f * PI / float(Subdivision));
+					for (int32 Iteration = 0; Iteration < Subdivision; Iteration++)
+					{
+						VolumesMinInstruction.Positions.Add(Transform.GetLocation() + MinV);
+						MinV = Q.RotateVector(MinV);
+						VolumesMinInstruction.Positions.Add(Transform.GetLocation() + MinV);
+						VolumesMaxInstruction.Positions.Add(Transform.GetLocation() + MaxV);
+						MaxV = Q.RotateVector(MaxV);
+						VolumesMaxInstruction.Positions.Add(Transform.GetLocation() + MaxV);
+
+					}
+					break;
+				}
+				case ECRSimSoftCollisionType::Cone:
+				{
+					static const int32 Subdivision = 8;
+					FVector V = FVector(0.f, 0.f, PrimitiveSize);
+					FQuat Q = FQuat(FVector(1.f, 0.f, 0.f), FMath::DegreesToRadians(Volume.MinimumDistance));
+					FVector MinV = Q.RotateVector(V);
+					MinV = Transform.TransformVector(MinV);
+					Q = FQuat(FVector(1.f, 0.f, 0.f), FMath::DegreesToRadians(Volume.MaximumDistance));
+					FVector MaxV = Q.RotateVector(V);
+					MaxV = Transform.TransformVector(MaxV);
+					Q = FQuat(Transform.TransformVectorNoScale(FVector(0.f, 0.f, 1.f)), 2.f * PI / float(Subdivision));
+					for (int32 Iteration = 0; Iteration < Subdivision; Iteration++)
+					{
+						VolumesMinInstruction.Positions.Add(Transform.GetLocation());
+						VolumesMinInstruction.Positions.Add(Transform.GetLocation() + MinV);
+						VolumesMinInstruction.Positions.Add(Transform.GetLocation() + MinV);
+						MinV = Q.RotateVector(MinV);
+						VolumesMinInstruction.Positions.Add(Transform.GetLocation() + MinV);
+						VolumesMaxInstruction.Positions.Add(Transform.GetLocation());
+						VolumesMaxInstruction.Positions.Add(Transform.GetLocation() + MaxV);
+						VolumesMaxInstruction.Positions.Add(Transform.GetLocation() + MaxV);
+						MaxV = Q.RotateVector(MaxV);
+						VolumesMaxInstruction.Positions.Add(Transform.GetLocation() + MaxV);
+					}
+					break;
+				}
+			}
+		}
 	}
 
 	DrawInstructions.Add(PointsInstruction);
-	DrawInstructions.Add(SpringsInstruction);
+	if (SpringsInstruction.Positions.Num() > 0)
+	{
+		DrawInstructions.Add(SpringsInstruction);
+	}
+	if (VolumesMinInstruction.Positions.Num() > 0)
+	{
+		DrawInstructions.Add(VolumesMinInstruction);
+		DrawInstructions.Add(VolumesMaxInstruction);
+	}
 }

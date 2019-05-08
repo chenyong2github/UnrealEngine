@@ -2032,6 +2032,9 @@ bool FConfigCacheIni::GetString( const TCHAR* Section, const TCHAR* Key, FString
 		return false;
 	}
 	Value = ConfigValue->GetValue();
+
+	FCoreDelegates::OnConfigValueRead.Broadcast(*Filename, Section, Key);
+
 	return true;
 }
 
@@ -2056,7 +2059,14 @@ bool FConfigCacheIni::GetText( const TCHAR* Section, const TCHAR* Key, FText& Va
 	{
 		return false;
 	}
-	return FTextStringHelper::ReadFromBuffer( *ConfigValue->GetValue(), Value, Section ) != nullptr;
+	if (FTextStringHelper::ReadFromBuffer(*ConfigValue->GetValue(), Value, Section) == nullptr)
+	{
+		return false;
+	}
+
+	FCoreDelegates::OnConfigValueRead.Broadcast(*Filename, Section, Key);
+
+	return true;
 }
 
 bool FConfigCacheIni::GetSection( const TCHAR* Section, TArray<FString>& Result, const FString& Filename )
@@ -2078,6 +2088,9 @@ bool FConfigCacheIni::GetSection( const TCHAR* Section, TArray<FString>& Result,
 	{
 		Result.Add(FString::Printf(TEXT("%s=%s"), *It.Key().ToString(), *It.Value().GetValue()));
 	}
+
+	FCoreDelegates::OnConfigSectionRead.Broadcast(*Filename, Section);
+
 	return true;
 }
 
@@ -2098,6 +2111,12 @@ FConfigSection* FConfigCacheIni::GetSectionPrivate( const TCHAR* Section, bool F
 	{
 		File->Dirty = true;
 	}
+
+	if (Sec)
+	{
+		FCoreDelegates::OnConfigSectionRead.Broadcast(*Filename, Section);
+	}
+
 	return Sec;
 }
 
@@ -2109,6 +2128,11 @@ bool FConfigCacheIni::DoesSectionExist(const TCHAR* Section, const FString& File
 	FConfigFile* File = Find(Filename, false);
 
 	bReturnVal = (File != nullptr && File->Find(Section) != nullptr);
+
+	if (bReturnVal)
+	{
+		FCoreDelegates::OnConfigSectionNameRead.Broadcast(*Filename, Section);
+	}
 
 	return bReturnVal;
 }
@@ -2268,6 +2292,8 @@ bool FConfigCacheIni::GetSectionNames( const FString& Filename, TArray<FString>&
 		{
 			// insert each item at the beginning of the array because TIterators return results in reverse order from which they were added
 			out_SectionNames.Insert(It.Key(),0);
+
+			FCoreDelegates::OnConfigSectionNameRead.Broadcast(*Filename, *It.Key());
 		}
 		bResult = true;
 	}
@@ -2309,6 +2335,8 @@ bool FConfigCacheIni::GetPerObjectConfigSections( const FString& Filename, const
 					// found a PerObjectConfig section for the class specified - add it to the list
 					out_SectionNames.Insert(SectionName,0);
 					bResult = true;
+
+					FCoreDelegates::OnConfigSectionNameRead.Broadcast(*Filename, *SectionName);
 				}
 			}
 		}
@@ -2456,6 +2484,11 @@ int32 FConfigCacheIni::GetArray
 			CheckLongSectionNames( Section, File );
 		}
 #endif
+	}
+
+	if (out_Arr.Num())
+	{
+		FCoreDelegates::OnConfigValueRead.Broadcast(*Filename, Section, Key);
 	}
 
 	return out_Arr.Num();
@@ -3955,7 +3988,6 @@ private:
 public:
 	FCVarIniHistoryHelper() : bRecurseCheck( false )
 	{
-		
 		FCoreDelegates::OnApplyCVarFromIni.AddRaw(this, &FCVarIniHistoryHelper::OnApplyCVarFromIniCallback);
 	}
 
@@ -3963,8 +3995,6 @@ public:
 	{
 		FCoreDelegates::OnApplyCVarFromIni.RemoveAll(this);
 	}
-
-
 
 	void ReapplyIniHistory()
 	{
@@ -4029,14 +4059,132 @@ public:
 		bRecurseCheck=false;
 	}
 };
-
 FCVarIniHistoryHelper *IniHistoryHelper = nullptr;
 
+#if !UE_BUILD_SHIPPING
+class FConfigHistoryHelper
+{
+private:
+	enum class HistoryType
+	{
+		Value,
+		Section,
+		SectionName,
+		Count
+	};
+	friend const TCHAR* LexToString(HistoryType Type)
+	{
+		static const TCHAR* Strings[] = {
+			TEXT("Value"),
+			TEXT("Section"),
+			TEXT("SectionName")
+		};
+		using UnderType = __underlying_type(HistoryType);
+		static_assert(static_cast<UnderType>(HistoryType::Count) == ARRAY_COUNT(Strings), "");
+		return Strings[static_cast<UnderType>(Type)];
+	}
 
+	struct FConfigHistory
+	{
+		HistoryType Type = HistoryType::Value;
+
+		FString FileName;
+		FString SectionName;
+		FString Key;
+	};
+	friend uint32 GetTypeHash(const FConfigHistory& CH)
+	{
+		uint32 Hash = ::GetTypeHash(CH.Type);
+		Hash = HashCombine(Hash, ::GetTypeHash(CH.FileName));
+		Hash = HashCombine(Hash, ::GetTypeHash(CH.SectionName));
+		Hash = HashCombine(Hash, ::GetTypeHash(CH.Key));
+		return Hash;
+	}
+	friend bool operator==(const FConfigHistory& A, const FConfigHistory& B)
+	{
+		return
+			A.Type == B.Type &&
+			A.FileName == B.FileName &&
+			A.SectionName == B.SectionName &&
+			A.Key == B.Key;
+	}
+
+	TSet<FConfigHistory> History;
+
+	void OnConfigValueRead(const TCHAR* FileName, const TCHAR* SectionName, const TCHAR* Key)
+	{
+		History.Emplace(FConfigHistory{ HistoryType::Value, FileName, SectionName, Key });
+	}
+
+	void OnConfigSectionRead(const TCHAR* FileName, const TCHAR* SectionName)
+	{
+		History.Emplace(FConfigHistory{ HistoryType::Section, FileName, SectionName });
+	}
+
+	void OnConfigSectionNameRead(const TCHAR* FileName, const TCHAR* SectionName)
+	{
+		History.Emplace(FConfigHistory{ HistoryType::SectionName, FileName, SectionName });
+	}
+
+public:
+	FConfigHistoryHelper()
+	{
+		FCoreDelegates::OnConfigValueRead.AddRaw(this, &FConfigHistoryHelper::OnConfigValueRead);
+		FCoreDelegates::OnConfigSectionRead.AddRaw(this, &FConfigHistoryHelper::OnConfigSectionRead);
+		FCoreDelegates::OnConfigSectionNameRead.AddRaw(this, &FConfigHistoryHelper::OnConfigSectionNameRead);
+	}
+
+	~FConfigHistoryHelper()
+	{
+		FCoreDelegates::OnConfigValueRead.RemoveAll(this);
+		FCoreDelegates::OnConfigSectionRead.RemoveAll(this);
+		FCoreDelegates::OnConfigSectionNameRead.RemoveAll(this);
+	}
+
+	void DumpHistory()
+	{
+		const FString SavePath = FPaths::ProjectLogDir() / TEXT("ConfigHistory.csv");
+
+		FArchive* Writer = IFileManager::Get().CreateFileWriter(*SavePath, FILEWRITE_NoFail);
+
+		auto WriteLine = [Writer](FString&& Line)
+		{
+			UE_LOG(LogConfig, Display, TEXT("%s"), *Line);
+			FTCHARToUTF8 UTF8String(*(MoveTemp(Line) + LINE_TERMINATOR));
+			Writer->Serialize((UTF8CHAR*)UTF8String.Get(), UTF8String.Length());
+		};
+
+		UE_LOG(LogConfig, Display, TEXT("Dumping History of Config Reads to %s"), *SavePath);
+		UE_LOG(LogConfig, Display, TEXT("Begin History of Config Reads"));
+		UE_LOG(LogConfig, Display, TEXT("------------------------------------------------------"));
+		WriteLine(FString::Printf(TEXT("Type, File, Section, Key")));
+		for (const FConfigHistory& CH : History)
+		{
+			switch (CH.Type)
+			{
+			case HistoryType::Value:
+				WriteLine(FString::Printf(TEXT("%s, %s, %s, %s"), LexToString(CH.Type), *CH.FileName, *CH.SectionName, *CH.Key));
+				break;
+			case HistoryType::Section:
+			case HistoryType::SectionName:
+				WriteLine(FString::Printf(TEXT("%s, %s, %s, None"), LexToString(CH.Type), *CH.FileName, *CH.SectionName));
+				break;
+			}
+		}
+		UE_LOG(LogConfig, Display, TEXT("------------------------------------------------------"));
+		UE_LOG(LogConfig, Display, TEXT("End History of Config Reads"));
+
+		delete Writer;
+		Writer = nullptr;
+	}
+};
+FConfigHistoryHelper* ConfigHistoryHelper = nullptr;
+#endif // !UE_BUILD_SHIPPING
 
 
 void RecordApplyCVarSettingsFromIni()
 {
+	check(IniHistoryHelper == nullptr);
 	IniHistoryHelper = new FCVarIniHistoryHelper();
 }
 
@@ -4059,8 +4207,8 @@ void ReapplyRecordedCVarSettingsFromIni()
 	for (const FIniToReload& IniToReload : InisToReloadList)
 	{
 		FString TempGlobalName = IniToReload.IniGlobalName;
-		GConfig->LoadGlobalIniFile(TempGlobalName, *IniToReload.IniBaseName, NULL, true);
-		if (TempGlobalName.Compare( IniToReload.IniGlobalName,  ESearchCase::IgnoreCase) != 0 )
+		GConfig->LoadGlobalIniFile(TempGlobalName, *IniToReload.IniBaseName, nullptr, true);
+		if (TempGlobalName.Compare(IniToReload.IniGlobalName, ESearchCase::IgnoreCase) != 0)
 		{
 			UE_LOG(LogConfig, Warning, TEXT("Tried to reload ini %s final name was %s"), *IniToReload.IniGlobalName, *TempGlobalName );
 		}
@@ -4074,4 +4222,30 @@ void DeleteRecordedCVarSettingsFromIni()
 {
 	check(IniHistoryHelper != nullptr);
 	delete IniHistoryHelper;
+	IniHistoryHelper = nullptr;
+}
+
+void RecordConfigReadsFromIni()
+{
+#if !UE_BUILD_SHIPPING
+	check(ConfigHistoryHelper == nullptr);
+	ConfigHistoryHelper = new FConfigHistoryHelper();
+#endif
+}
+
+void DumpRecordedConfigReadsFromIni()
+{
+#if !UE_BUILD_SHIPPING
+	check(ConfigHistoryHelper);
+	ConfigHistoryHelper->DumpHistory();
+#endif
+}
+
+void DeleteRecordedConfigReadsFromIni()
+{
+#if !UE_BUILD_SHIPPING
+	check(ConfigHistoryHelper);
+	delete ConfigHistoryHelper;
+	ConfigHistoryHelper = nullptr;
+#endif
 }

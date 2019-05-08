@@ -811,7 +811,7 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 
 		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			Landscape->PreviousExperimentalLandscapeLayers = true;
+			Landscape->bInitializedWithFlagExperimentalLandscapeLayers = true;
 		}
 
 		Landscape->Import(FGuid::NewGuid(), 0, 0, SizeX-1, SizeY-1, LandscapeEdMode->UISettings->NewLandscape_SectionsPerComponent, LandscapeEdMode->UISettings->NewLandscape_QuadsPerSection, Data.GetData(),
@@ -911,9 +911,14 @@ bool FLandscapeEditorDetailCustomization_NewLandscape::GetImportButtonIsEnabled(
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode != nullptr)
 	{
+		bool bAllSourceFilePathsEmpty = true;
 		if (LandscapeEdMode->UISettings->ImportLandscape_HeightmapImportResult == ELandscapeImportResult::Error)
 		{
 			return false;
+		}
+		else if (!LandscapeEdMode->UISettings->ImportLandscape_HeightmapFilename.IsEmpty())
+		{
+			bAllSourceFilePathsEmpty = false;
 		}
 
 		for (int32 i = 0; i < LandscapeEdMode->UISettings->ImportLandscape_Layers.Num(); ++i)
@@ -922,9 +927,13 @@ bool FLandscapeEditorDetailCustomization_NewLandscape::GetImportButtonIsEnabled(
 			{
 				return false;
 			}
+			else if (!LandscapeEdMode->UISettings->ImportLandscape_Layers[i].SourceFilePath.IsEmpty())
+			{
+				bAllSourceFilePathsEmpty = false;
+			}
 		}
 
-		return true;
+		return !bAllSourceFilePathsEmpty;
 	}
 	return false;
 }

@@ -3122,7 +3122,7 @@ void UStaticMesh::BeginDestroy()
 
 bool UStaticMesh::IsReadyForFinishDestroy()
 {
-	return ReleaseResourcesFence.IsFenceComplete();
+	return ReleaseResourcesFence.IsFenceComplete() && !UpdateStreamingStatus();
 }
 
 int32 UStaticMesh::GetNumSectionsWithCollision() const

@@ -909,6 +909,13 @@ namespace UnrealBuildTool
 					if (bAppendPlatformToVersionDisplayName)
 					{
 						VersionDisplayName = string.Format("{0}-Android", VersionDisplayName);
+
+						// add optional value from environment variable if defined
+						string OptionalAppendDisplayName = Environment.GetEnvironmentVariable("UEAndroidDisplayNameExtra");
+						if (OptionalAppendDisplayName != null)
+						{
+							VersionDisplayName = VersionDisplayName + OptionalAppendDisplayName;
+						}
 					}
 				}
 
@@ -2148,16 +2155,10 @@ namespace UnrealBuildTool
 			int StoreVersion = GetStoreVersion();
 
 			string Arch = GetNDKArch(UE4Arch);
-			int NDKLevelInt = ToolChain.GetNdkApiLevelInt();
-
-			// 64-bit targets must be android-21 or higher
-			if (NDKLevelInt < 21)
-			{
-				if (UE4Arch == "-arm64" || UE4Arch == "-x64")
-				{
-					NDKLevelInt = 21;
-				}
-			}
+			int NDKLevelInt = 0;
+			int MinSDKVersion = 0;
+			int TargetSDKVersion = 0;
+			GetMinTargetSDKVersions(ToolChain, UE4Arch, UPL, Arch, out MinSDKVersion, out TargetSDKVersion, out NDKLevelInt);
 
 			// get project version from ini
 			ConfigHierarchy GameIni = GetConfigCacheIni(ConfigHierarchyType.Game);
@@ -2174,10 +2175,6 @@ namespace UnrealBuildTool
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bUseGetAccounts", out bUseGetAccounts);
 			string DepthBufferPreference;
 			Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "DepthBufferPreference", out DepthBufferPreference);
-			int MinSDKVersion;
-			Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "MinSDKVersion", out MinSDKVersion);
-			int TargetSDKVersion = MinSDKVersion;
-			Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "TargetSDKVersion", out TargetSDKVersion);
 			float MaxAspectRatioValue;
 			if (!Ini.TryGetValue("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "MaxAspectRatio", out MaxAspectRatioValue))
 			{
@@ -2240,27 +2237,6 @@ namespace UnrealBuildTool
 				default:
 					InstallLocation = "internalOnly";
 					break;
-			}
-
-			// fix up the MinSdkVersion
-			if (NDKLevelInt > 19)
-			{
-				if (MinSDKVersion < 21)
-				{
-					MinSDKVersion = 21;
-					Log.TraceInformation("Fixing minSdkVersion; NDK level above 19 requires minSdkVersion of 21 (arch={0})", UE4Arch.Substring(1));
-				}
-			}
-
-			if (bGradleEnabled && MinSDKVersion < MinimumSDKLevelForGradle)
-			{
-				MinSDKVersion = MinimumSDKLevelForGradle;
-				Log.TraceInformation("Fixing minSdkVersion; requires minSdkVersion of {0} with Gradle based on active plugins", MinimumSDKLevelForGradle);
-			}
-
-			if (TargetSDKVersion < MinSDKVersion)
-			{
-				TargetSDKVersion = MinSDKVersion;
 			}
 
 			// only apply density to configChanges if using android-24 or higher and minimum sdk is 17
@@ -2486,6 +2462,20 @@ namespace UnrealBuildTool
 				Text.AppendLine("\t\t<activity android:name=\".DownloaderActivity\" />");
 			}
 
+			// Figure out the required startup permissions if targetting devices supporting runtime permissions
+			String StartupPermissions = "";
+			if (TargetSDKVersion >= 23)
+			{
+				if (Configuration != "Shipping" || !bUseExternalFilesDir)
+				{
+					StartupPermissions = StartupPermissions + (StartupPermissions.Length > 0 ? "," : "") + "android.permission.WRITE_EXTERNAL_STORAGE";
+				}
+				if (bEnableGooglePlaySupport && bUseGetAccounts)
+				{
+					StartupPermissions = StartupPermissions + (StartupPermissions.Length > 0 ? "," : "") + "android.permission.GET_ACCOUNTS";
+				}
+			}
+
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.EngineVersion\" android:value=\"{0}\"/>", EngineVersion));
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.EngineBranch\" android:value=\"{0}\"/>", EngineBranch));
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.ProjectVersion\" android:value=\"{0}\"/>", ProjectVersion));
@@ -2503,6 +2493,7 @@ namespace UnrealBuildTool
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.bUseDisplayCutout\" android:value=\"{0}\"/>", bUseDisplayCutout ? "true" : "false"));
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.bAllowIMU\" android:value=\"{0}\"/>", bAllowIMU ? "true" : "false"));
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.bSupportsVulkan\" android:value=\"{0}\"/>", bSupportsVulkan ? "true" : "false"));
+			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.StartupPermissions\" android:value=\"{0}\"/>", StartupPermissions));
 			if (bUseNEONForArmV7)
 			{
 				Text.AppendLine("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.bUseNEONForArmV7\" android:value=\"{true}\"/>");
@@ -3037,26 +3028,34 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		private void GetMinTargetSDKVersions(AndroidToolChain ToolChain, string Arch, out int MinSDKVersion, out int TargetSDKVersion)
+		private void GetMinTargetSDKVersions(AndroidToolChain ToolChain, string Arch, UnrealPluginLanguage UPL, string NDKArch, out int MinSDKVersion, out int TargetSDKVersion, out int NDKLevelInt)
 		{
 			ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
 			Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "MinSDKVersion", out MinSDKVersion);
 			TargetSDKVersion = MinSDKVersion;
 			Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "TargetSDKVersion", out TargetSDKVersion);
 
+			// Check for targetSDKOverride from UPL
+			string TargetOverride = UPL.ProcessPluginNode(NDKArch, "targetSDKOverride", "");
+			if (!String.IsNullOrEmpty(TargetOverride))
+			{
+				int OverrideInt = 0;
+				if (int.TryParse(TargetOverride, out OverrideInt))
+				{
+					TargetSDKVersion = OverrideInt;
+				}
+			}
+
 			// Make sure minSdkVersion is at least 13 (need this for appcompat-v13 used by AndroidPermissions)
 			// this may be changed by active plugins (Google Play Services 11.0.4 needs 14 for example)
-			if (MinSDKVersion < MinimumSDKLevelForGradle)
+			if (bGradleEnabled && MinSDKVersion < MinimumSDKLevelForGradle)
 			{
 				MinSDKVersion = MinimumSDKLevelForGradle;
-			}
-			if (TargetSDKVersion < MinSDKVersion)
-			{
-				TargetSDKVersion = MinSDKVersion;
+				Log.TraceInformation("Fixing minSdkVersion; requires minSdkVersion of {0} with Gradle based on active plugins", MinimumSDKLevelForGradle);
 			}
 
 			// 64-bit targets must be android-21 or higher
-			int NDKLevelInt = ToolChain.GetNdkApiLevelInt();
+			NDKLevelInt = ToolChain.GetNdkApiLevelInt();
 			if (NDKLevelInt < 21)
 			{
 				if (Arch == "-arm64" || Arch == "-x64")
@@ -3074,8 +3073,13 @@ namespace UnrealBuildTool
 					Log.TraceInformation("Fixing minSdkVersion; NDK level above 19 requires minSdkVersion of 21 (arch={0})", Arch.Substring(1));
 				}
 			}
+
+			if (TargetSDKVersion < MinSDKVersion)
+			{
+				TargetSDKVersion = MinSDKVersion;
+			}
 		}
-		
+
 		private void CreateGradlePropertiesFiles(string Arch, int MinSDKVersion, int TargetSDKVersion, string CompileSDKVersion, string BuildToolsVersion, string PackageName,
 			string DestApkName, string NDKArch,	string UE4BuildFilesPath, string GameBuildFilesPath, string UE4BuildGradleAppPath, string UE4BuildPath, string UE4BuildGradlePath, bool bForDistribution)
 		{
@@ -3963,7 +3967,8 @@ namespace UnrealBuildTool
 					// get min and target SDK versions
 					int MinSDKVersion = 0;
 					int TargetSDKVersion = 0;
-					GetMinTargetSDKVersions(ToolChain, Arch, out MinSDKVersion, out TargetSDKVersion);
+					int NDKLevelInt = 0;
+					GetMinTargetSDKVersions(ToolChain, Arch, UPL, NDKArch, out MinSDKVersion, out TargetSDKVersion, out NDKLevelInt);
 					
 					// move JavaLibs into subprojects
 					string JavaLibsDir = Path.Combine(UE4BuildPath, "JavaLibs");
@@ -4306,6 +4311,7 @@ namespace UnrealBuildTool
 				{ "//$${gameActivityClassAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityClassAdditions", "")},
 				{ "//$${gameActivityReadMetadataAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityReadMetadataAdditions", "")},
 				{ "//$${gameActivityOnCreateAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityOnCreateAdditions", "")},
+				{ "//$${gameActivityOnCreateFinalAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityOnCreateFinalAdditions", "")},
 				{ "//$${gameActivityOnDestroyAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityOnDestroyAdditions", "")},
 				{ "//$${gameActivityOnStartAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityOnStartAdditions", "")},
 				{ "//$${gameActivityOnStopAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityOnStopAdditions", "")},

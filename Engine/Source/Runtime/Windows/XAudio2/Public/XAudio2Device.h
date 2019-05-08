@@ -200,6 +200,8 @@ protected:
 	 */
 	void* AllocatePermanentMemory( int32 Size, /*OUT*/ bool& AllocatedInPool );
 
+	/** Retrieves the platform settings */
+	virtual FAudioPlatformSettings GetPlatformSettings() const override;
 
 	/** 
      * Derives the output matrix to use based on the channel mask and the number of channels

@@ -225,7 +225,7 @@ struct FMeshBatch
 	FORCEINLINE bool CastsDeepShadow(/*ERHIFeatureLevel::Type InFeatureLevel*/) const
 	{
 		const FMaterial* Mat = MaterialRenderProxy->GetMaterial(ERHIFeatureLevel::SM5);
-		return Mat->GetShadingModel() == EMaterialShadingModel::MSM_Hair;
+		return Mat->GetShadingModels().HasOnlyShadingModel(EMaterialShadingModel::MSM_Hair);
 	}
 
 	FORCEINLINE bool IsMasked(ERHIFeatureLevel::Type InFeatureLevel) const

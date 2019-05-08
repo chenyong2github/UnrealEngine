@@ -313,9 +313,6 @@ namespace Audio
 		}
 		else if (!bIsBus)
 		{
-			// We should have already kicked off and finished a task. 
-			check(AsyncRealtimeAudioTask != nullptr);
-
 			ProcessRealTimeSource();
 		}
 	}

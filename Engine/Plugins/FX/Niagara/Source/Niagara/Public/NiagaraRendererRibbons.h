@@ -17,6 +17,7 @@ class FNiagaraDataSet;
 class NIAGARA_API NiagaraRendererRibbons : public NiagaraRenderer
 {
 public:
+
 	NiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureLevel, UNiagaraRendererProperties *Props);
 	~NiagaraRendererRibbons()
 	{
@@ -46,8 +47,6 @@ public:
 		ParamData.Add(Param);
 	}
 
-
-
 	virtual void SetDynamicData_RenderThread(FNiagaraDynamicDataBase* NewDynamicData) override;
 	int GetDynamicDataSize() override;
 	bool HasDynamicData() override;
@@ -64,7 +63,12 @@ public:
 		return Properties;
 	}
 
+protected:
+
+	static void GenerateIndexBuffer(uint16* OutIndices, const TArray<int32>& SegmentData, int32 MaxTessellation, bool bInvertOrder, bool bCullTwistedStrips);
+
 private:
+
 	class FNiagaraRibbonVertexFactory *VertexFactory;
 	UNiagaraRibbonRendererProperties *Properties;
 	mutable TUniformBuffer<FPrimitiveUniformShaderParameters> WorldSpacePrimitiveUniformBuffer;

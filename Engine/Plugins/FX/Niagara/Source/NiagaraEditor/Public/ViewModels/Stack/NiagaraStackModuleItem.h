@@ -82,7 +82,7 @@ private:
 private:
 	UNiagaraNodeOutput* OutputNode;
 	UNiagaraNodeFunctionCall* FunctionCallNode;
-	bool bCanMoveAndDelete;
+	mutable TOptional<bool> bCanMoveAndDeleteCache;
 	bool bIsEnabled;
 	bool bCanRefresh;
 

@@ -28,7 +28,7 @@ public:
 
 	void Delete();
 
-	bool CanHaveBase() const;
+	bool HasBaseRenderer() const;
 
 	bool CanResetToBase() const;
 
@@ -52,9 +52,9 @@ private:
 private:
 	TWeakObjectPtr<UNiagaraRendererProperties> RendererProperties;
 
-	bool bHasBaseRenderer;
+	mutable TOptional<bool> bHasBaseRendererCache;
 
-	mutable TOptional<bool> bCanResetToBase;
+	mutable TOptional<bool> bCanResetToBaseCache;
 
 	TArray<FNiagaraVariable> MissingAttributes;
 

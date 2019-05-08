@@ -18,6 +18,7 @@
 #include "ScenePrivate.h"
 #include "Containers/AllocatorFixedSizeFreeList.h"
 #include "MaterialShared.h"
+#include "HAL/LowLevelMemTracker.h"
 
 int32 GUnbuiltPreviewShadowsInGame = 1;
 FAutoConsoleVariableRef CVarUnbuiltPreviewShadowsInGame(
@@ -112,6 +113,8 @@ uint32 FLightPrimitiveInteraction::GetMemoryPoolSize()
 
 void FLightPrimitiveInteraction::Create(FLightSceneInfo* LightSceneInfo,FPrimitiveSceneInfo* PrimitiveSceneInfo)
 {
+	LLM_SCOPE(ELLMTag::SceneRender);
+
 	// Attach the light to the primitive's static meshes.
 	bool bDynamic = true;
 	bool bRelevant = false;

@@ -15,7 +15,7 @@
 #include "Channel.h"
 #include "DDoSDetection.h"
 #include "IPAddress.h"
-#include "Net/DelinquencyAnalytics.h"
+#include "Net/NetAnalyticsTypes.h"
 
 #include "NetDriver.generated.h"
 

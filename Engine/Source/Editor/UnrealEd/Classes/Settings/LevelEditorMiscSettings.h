@@ -48,6 +48,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Sound)
 	uint32 bAllowBackgroundAudio:1;
 
+	/** If checked, will create a new audio engine instance for the play-in-editor window. Otherwise, will re-use the audio device used in content browser. */
+	UPROPERTY(EditAnywhere, config, Category = Sound)
+	uint32 bCreateNewAudioDeviceForPlayInEditor: 1;
+
 	/** If true audio will be enabled in the editor. Does not affect PIE **/
 	UPROPERTY(config)
 	uint32 bEnableRealTimeAudio:1;

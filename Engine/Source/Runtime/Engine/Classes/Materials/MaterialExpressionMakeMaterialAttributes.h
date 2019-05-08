@@ -68,6 +68,9 @@ class UMaterialExpressionMakeMaterialAttributes : public UMaterialExpression
 	UPROPERTY()
 	FExpressionInput PixelDepthOffset;
 
+	UPROPERTY()
+	FExpressionInput ShadingModel;
+
 	//~ Begin UObject Interface
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 	//~ End UObject Interface

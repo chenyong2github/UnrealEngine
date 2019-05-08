@@ -358,6 +358,28 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	SavedAutoAttachRelativeScale3D = FVector(1.f, 1.f, 1.f);
 }
 
+/********* UFXSystemComponent *********/
+void UNiagaraComponent::SetFloatParameter(FName ParameterName, float Param)
+{
+	SetNiagaraVariableFloat(ParameterName.ToString(), Param);
+}
+
+void UNiagaraComponent::SetVectorParameter(FName ParameterName, FVector Param)
+{
+	SetNiagaraVariableVec3(ParameterName.ToString(), Param);
+}
+
+void UNiagaraComponent::SetColorParameter(FName ParameterName, FLinearColor Param)
+{
+	SetNiagaraVariableLinearColor(ParameterName.ToString(), Param);
+}
+
+void UNiagaraComponent::SetActorParameter(FName ParameterName, class AActor* Param)
+{
+	SetNiagaraVariableActor(ParameterName.ToString(), Param);
+}
+/********* UFXSystemComponent *********/
+
 
 void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
@@ -756,6 +778,9 @@ void UNiagaraComponent::OnUnregister()
 	{
 		SystemInstance->Deactivate(true);
 		SystemInstance = nullptr;
+#if WITH_EDITORONLY_DATA
+		OnSystemInstanceChangedDelegate.Broadcast();
+#endif
 	}
 }
 

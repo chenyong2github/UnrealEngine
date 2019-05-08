@@ -115,7 +115,7 @@ struct FLandscapeComponentDataInterface
 	friend struct FLandscapeDataInterface;
 
 	// tors
-	LANDSCAPE_API FLandscapeComponentDataInterface(ULandscapeComponent* InComponent, int32 InMipLevel = 0);
+	LANDSCAPE_API FLandscapeComponentDataInterface(ULandscapeComponent* InComponent, int32 InMipLevel = 0, bool InWorkOnEditingLayer = true);
 	LANDSCAPE_API ~FLandscapeComponentDataInterface();
 
 	// Accessors
@@ -323,6 +323,7 @@ struct FLandscapeComponentDataInterface
 private:
 	FLandscapeDataInterface DataInterface;
 	ULandscapeComponent* Component;
+	bool bWorkOnEditingLayer;
 
 public:
 	// offset of this component's data into heightmap texture

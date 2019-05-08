@@ -2,6 +2,7 @@
 
 #pragma once
 
+// SHADINGMODELID_* occupy the 4 low bits of an 8bit channel and SKIP_* occupy the 4 high bits
 #define SHADINGMODELID_UNLIT				0
 #define SHADINGMODELID_DEFAULT_LIT			1
 #define SHADINGMODELID_SUBSURFACE			2
@@ -13,9 +14,10 @@
 #define SHADINGMODELID_CLOTH				8
 #define SHADINGMODELID_EYE					9
 #define SHADINGMODELID_NUM					10
-#define SHADINGMODELID_MASK					0xF					
+#define SHADINGMODELID_MASK					0xF		// 4 bits reserved for ShadingModelID			
 
 // The flags are defined so that 0 value has no effect!
+// These occupy the 4 high bits in the same channel as the SHADINGMODELID_*
 #define SKIP_CUSTOMDATA_MASK			(1 << 4)	// TODO remove. Can be inferred from shading model.
 #define SKIP_PRECSHADOW_MASK			(1 << 5)
 #define ZERO_PRECSHADOW_MASK			(1 << 6)

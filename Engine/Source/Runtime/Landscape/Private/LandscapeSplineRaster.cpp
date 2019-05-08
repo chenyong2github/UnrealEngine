@@ -465,7 +465,10 @@ bool ULandscapeInfo::ApplySplines(bool bOnlySelected)
 	ALandscape* Landscape = LandscapeActor.Get();
 	const FLandscapeLayer* Layer = Landscape ? Landscape->GetLandscapeSplinesReservedLayer() : nullptr;
 	FGuid SplinesTargetLayerGuid = Layer ? Layer->Guid : FGuid();
-	FScopedSetLandscapeEditingLayer Scope(Landscape, SplinesTargetLayerGuid, [=] { Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All); });
+	FScopedSetLandscapeEditingLayer Scope(Landscape, SplinesTargetLayerGuid, [=] 
+	{ 
+		Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All);
+	});
 
 	ForAllLandscapeProxies([&bResult, bOnlySelected, this](ALandscapeProxy* Proxy)
 	{
@@ -624,12 +627,17 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 	}
 
 	LandscapeEdit.Flush();
-
-	ALandscape* Landscape = Proxy->GetLandscapeActor();
-	bool bSkipCollisionAndNavUpdate = Landscape && Landscape->IsEditingLayerReservedForSplines();
-	if (!bSkipCollisionAndNavUpdate)
+		
+	ALandscapeProxy::InvalidateGeneratedComponentData(ModifiedComponents);
+		
+	for (ULandscapeComponent* Component : ModifiedComponents)
 	{
-		for (ULandscapeComponent* Component : ModifiedComponents)
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		{
+			Component->RequestHeightmapUpdate();
+			Component->RequestWeightmapUpdate();
+		}
+		else
 		{
 			// Recreate collision for modified components and update the navmesh
 			ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
@@ -640,9 +648,7 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 			}
 		}
 	}
-
-	// Invalidate landscape grass of modified landscape components
-	ALandscapeProxy::InvalidateGeneratedComponentData(ModifiedComponents);
+	
 
 	return true;
 }
@@ -724,14 +730,17 @@ namespace LandscapeSplineRaster
 
 		LandscapeEdit.Flush();
 
-		for (ULandscapeComponent* Component : ModifiedComponents)
+		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			// Recreate collision for modified components and update the navmesh
-			ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
-			if (CollisionComponent)
+			for (ULandscapeComponent* Component : ModifiedComponents)
 			{
-				CollisionComponent->RecreateCollision();
-				FNavigationSystem::UpdateComponentData(*CollisionComponent);
+				// Recreate collision for modified components and update the navmesh
+				ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+				if (CollisionComponent)
+				{
+					CollisionComponent->RecreateCollision();
+					FNavigationSystem::UpdateComponentData(*CollisionComponent);
+				}
 			}
 		}
 	}

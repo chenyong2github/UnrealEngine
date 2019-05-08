@@ -230,6 +230,8 @@ private:
 
 	ULandscapeInfo* LandscapeInfo;
 
+	void FillLayer(ULandscapeLayerInfoObject* LayerInfo, bool bEmptyLayersOnly);
+
 	// Only for Missing Data interpolation... only internal usage
 	template<typename TData, typename TStoreData, typename FType>
 	FORCEINLINE void CalcMissingValues(const int32& X1, const int32& X2, const int32& Y1, const int32& Y2,
@@ -317,13 +319,13 @@ struct FHeightmapAccessor
 			for (ULandscapeComponent* Component : Components)
 			{
 				Component->InvalidateLightingCache();
+				Component->RequestHeightmapUpdate();
 			}
-
-			// Flush dynamic foliage (grass)
-			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
-
+						
 			// Notify foliage to move any attached instances
 			bool bUpdateFoliage = false;
+
+			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 
             // Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
 			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
@@ -441,18 +443,21 @@ struct FAlphamapAccessor
 
 	~FAlphamapAccessor()
 	{
-		// Recreate collision for modified components to update the physical materials
-		for (ULandscapeComponent* Component : ModifiedComponents)
+		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
-			if (CollisionComponent)
+			// Recreate collision for modified components to update the physical materials
+			for (ULandscapeComponent* Component : ModifiedComponents)
 			{
-				CollisionComponent->RecreateCollision();
-
-				// We need to trigger navigation mesh build, in case user have painted holes on a landscape
-				if (LayerInfo == ALandscapeProxy::VisibilityLayer)
+				ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+				if (CollisionComponent)
 				{
-					FNavigationSystem::UpdateComponentData(*CollisionComponent);
+					CollisionComponent->RecreateCollision();
+
+					// We need to trigger navigation mesh build, in case user have painted holes on a landscape
+					if (LayerInfo == ALandscapeProxy::VisibilityLayer)
+					{
+						FNavigationSystem::UpdateComponentData(*CollisionComponent);
+					}
 				}
 			}
 		}
@@ -473,12 +478,20 @@ struct FAlphamapAccessor
 		TSet<ULandscapeComponent*> Components;
 		if (LandscapeEdit.GetComponentsInRegion(X1, Y1, X2, Y2, &Components))
 		{
-			// Flush dynamic foliage (grass)
 			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+			for (ULandscapeComponent* LandscapeComponent : Components)
+			{
+				// Flag both modes depending on client calling SetData
+				LandscapeComponent->RequestWeightmapUpdate();
+			}
+			
+			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			{
+				ModifiedComponents.Append(Components);
+			}
 
 			LandscapeEdit.SetAlphaData(LayerInfo, X1, Y1, X2, Y2, Data, 0, PaintingRestriction, bBlendWeight, bUseTotalNormalize);
 			//LayerInfo->IsReferencedFromLoadedData = true;
-			ModifiedComponents.Append(Components);
 		}
 	}
 

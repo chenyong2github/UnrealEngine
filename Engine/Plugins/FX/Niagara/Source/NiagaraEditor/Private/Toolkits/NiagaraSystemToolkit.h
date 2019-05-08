@@ -27,11 +27,6 @@ class UNiagaraSequence;
 struct FAssetData;
 class FMenuBuilder;
 class ISequencer;
-class FTokenizedMessage; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
-class IMessageToken; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
-//struct FNiagaraCompileEvent; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
-class UNiagaraGraph; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
-//class UNiagaraScript; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
 
 /** Viewer/editor for a NiagaraSystem
 */
@@ -186,12 +181,4 @@ private:
 	static const FName PreviewSettingsTabId;
 	static const FName GeneratedCodeTabID;
 	static const FName MessageLogTabID;
-
-	/**  //@todo(ng) Everything below this line should be moved to an owning class such as FNiagaraMessageManager as we don't want to duplicate this code for both the Script and System toolkits
-* --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-*/
-
-	TSharedRef<FTokenizedMessage> BuildMessageForCompileEvent(FNiagaraCompileEvent& InCompileEvent, UNiagaraScript* InOriginatingScript);
-	TOptional<UNiagaraGraph*> RecursiveBuildMessageTokensFromContextStackAndGetOriginatingGraph(TArray<FGuid>& InContextStackNodeGuids, UNiagaraGraph* InGraphToSearch, TArray<TSharedRef<IMessageToken>>& OutMessageTokensToAdd);
-
 };

@@ -437,11 +437,6 @@ FVector FWorldTileModel::GetLevelCurrentPosition() const
 	return FVector::ZeroVector;
 }
 
-FVector2D FWorldTileModel::GetLandscapeComponentSize() const
-{
-	return LandscapeComponentSize;
-}
-
 void FWorldTileModel::SetLevelPosition(const FIntVector& InPosition)
 {
 	// Parent absolute position
@@ -522,9 +517,6 @@ void FWorldTileModel::Update()
 	if (!IsRootTile())
 	{
 		Landscape = NULL;
-		LandscapeComponentsXY.Empty();
-		LandscapeComponentSize = FVector2D(0.f, 0.f);
-		LandscapeComponentsRectXY = FIntRect(FIntPoint(MAX_int32, MAX_int32), FIntPoint(MIN_int32, MIN_int32));
 		
 		ULevel* Level = GetLevelObject();
 		// Receive tile info from world composition
@@ -691,6 +683,10 @@ void FWorldTileModel::OnLevelAddedToWorld(ULevel* InLevel)
 	FLevelModel::OnLevelAddedToWorld(InLevel);
 
 	EnsureLevelHasBoundsActor();
+
+	// Manually call Update to make sure WorldTileModel is properly initialized (don't rely on Level Bounds changes as it will not be called if bAutoUpdateBounds is set to false).
+	Update();
+
 	LoadedLevel.Get()->LevelBoundsActorUpdated().AddRaw(this, &FWorldTileModel::OnLevelBoundsActorUpdated);
 }
 

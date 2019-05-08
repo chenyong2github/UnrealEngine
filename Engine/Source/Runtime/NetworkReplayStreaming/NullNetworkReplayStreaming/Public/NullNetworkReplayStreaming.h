@@ -54,6 +54,7 @@ public:
 	virtual void GotoCheckpointIndex( const int32 CheckpointIndex, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType ) override;
 	virtual void GotoTimeInMS( const uint32 TimeInMS, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType ) override;
 	virtual void UpdateTotalDemoTime( uint32 TimeInMS ) override;
+	virtual void UpdatePlaybackTime(uint32 TimeInMS) override {}
 	virtual uint32 GetTotalDemoTime() const override { return ReplayInfo.LengthInMS; }
 	virtual bool IsDataAvailable() const override;
 	virtual void SetHighPriorityTimeRange( const uint32 StartTimeInMS, const uint32 EndTimeInMS ) override { }

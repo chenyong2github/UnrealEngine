@@ -242,7 +242,7 @@ void FRayTracingMeshProcessor::Process(
 	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 	const FMaterial& RESTRICT MaterialResource,
-	EMaterialShadingModel ShadingModel,
+	FMaterialShadingModelField ShadingModels,
 	const FUniformLightMapPolicy& RESTRICT LightMapPolicy,
 	const typename FUniformLightMapPolicy::ElementDataType& RESTRICT LightMapElementData)
 {
@@ -308,7 +308,7 @@ void FRayTracingMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
 
 		const EBlendMode BlendMode = Material.GetBlendMode();
-		const EMaterialShadingModel ShadingModel = Material.GetShadingModel();
+		const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
 		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 
 		// Only draw opaque materials.
@@ -316,7 +316,7 @@ void FRayTracingMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
 		{
 			// Check for a cached light-map.
-			const bool bIsLitMaterial = (ShadingModel != MSM_Unlit);
+			const bool bIsLitMaterial = ShadingModels.IsLit();
 			static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 			const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnRenderThread() != 0);
 
@@ -352,7 +352,7 @@ void FRayTracingMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 								PrimitiveSceneProxy,
 								MaterialRenderProxy,
 								Material,
-								ShadingModel,
+								ShadingModels,
 								FUniformLightMapPolicy(LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP),
 								MeshBatch.LCI);
 						}
@@ -364,7 +364,7 @@ void FRayTracingMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 								PrimitiveSceneProxy,
 								MaterialRenderProxy,
 								Material,
-								ShadingModel,
+								ShadingModels,
 								FUniformLightMapPolicy(LMP_HQ_LIGHTMAP),
 								MeshBatch.LCI);
 						}
@@ -377,7 +377,7 @@ void FRayTracingMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 							PrimitiveSceneProxy,
 							MaterialRenderProxy,
 							Material,
-							ShadingModel,
+							ShadingModels,
 							FUniformLightMapPolicy(LMP_LQ_LIGHTMAP),
 							MeshBatch.LCI);
 					}
@@ -389,7 +389,7 @@ void FRayTracingMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 							PrimitiveSceneProxy,
 							MaterialRenderProxy,
 							Material,
-							ShadingModel,
+							ShadingModels,
 							FUniformLightMapPolicy(LMP_NO_LIGHTMAP),
 							MeshBatch.LCI);
 					}
@@ -410,7 +410,7 @@ void FRayTracingMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 							PrimitiveSceneProxy,
 							MaterialRenderProxy,
 							Material,
-							ShadingModel,
+							ShadingModels,
 							FUniformLightMapPolicy(LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING),
 							MeshBatch.LCI);
 					}
@@ -422,7 +422,7 @@ void FRayTracingMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 							PrimitiveSceneProxy,
 							MaterialRenderProxy,
 							Material,
-							ShadingModel,
+							ShadingModels,
 							FUniformLightMapPolicy(LMP_NO_LIGHTMAP),
 							MeshBatch.LCI);
 					}

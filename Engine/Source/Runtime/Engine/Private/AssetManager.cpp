@@ -3562,6 +3562,12 @@ void UAssetManager::RefreshAssetData(UObject* ChangedObject)
 
 void UAssetManager::InitializeAssetBundlesFromMetadata(const UStruct* Struct, const void* StructValue, FAssetBundleData& AssetBundle, FName DebugName) const
 {
+	TSet<const void*> AllVisitedStructValues;
+	InitializeAssetBundlesFromMetadata_Recursive(Struct, StructValue, AssetBundle, DebugName, AllVisitedStructValues);
+}
+
+void UAssetManager::InitializeAssetBundlesFromMetadata_Recursive(const UStruct* Struct, const void* StructValue, FAssetBundleData& AssetBundle, FName DebugName, TSet<const void*>& AllVisitedStructValues) const
+{
 	static FName AssetBundlesName = TEXT("AssetBundles");
 	static FName IncludeAssetBundlesName = TEXT("IncludeAssetBundles");
 
@@ -3569,6 +3575,13 @@ void UAssetManager::InitializeAssetBundlesFromMetadata(const UStruct* Struct, co
 	{
 		return;
 	}
+
+	if (AllVisitedStructValues.Contains(StructValue))
+	{
+		return;
+	}
+
+	AllVisitedStructValues.Add(StructValue);
 
 	for (TPropertyValueIterator<const UProperty> It(Struct, StructValue); It; ++It)
 	{
@@ -3613,7 +3626,8 @@ void UAssetManager::InitializeAssetBundlesFromMetadata(const UStruct* Struct, co
 				UObject* const* ObjectPtr = reinterpret_cast<UObject* const*>(PropertyValue);
 				if (ObjectPtr && *ObjectPtr)
 				{
-					UAssetManager::Get().InitializeAssetBundlesFromMetadata(*ObjectPtr, AssetBundle);
+					const UObject* Object = *ObjectPtr;
+					InitializeAssetBundlesFromMetadata_Recursive(Object->GetClass(), Object, AssetBundle, Object->GetFName(), AllVisitedStructValues);
 				}
 			}
 		}

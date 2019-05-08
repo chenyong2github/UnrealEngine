@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Units/Simulation/RigUnit_SimBase.h"
-#include "Math/ControlRigSimulationLibrary.h"
+#include "Math/Simulation/CRSimPoint.h"
 #include "RigUnit_Verlet.generated.h"
 
 /**
@@ -20,7 +20,7 @@ struct FRigUnit_VerletIntegrateVector : public FRigUnit_SimBase
 		Strength = 64.f;
 		Damp = 0.01;
 		Blend = 5.f;
-		Point = FControlRigSimulationPoint();
+		Point = FCRSimPoint();
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -50,6 +50,6 @@ struct FRigUnit_VerletIntegrateVector : public FRigUnit_SimBase
 	FVector Acceleration;
 
 	UPROPERTY()
-	FControlRigSimulationPoint Point;
+	FCRSimPoint Point;
 };
 

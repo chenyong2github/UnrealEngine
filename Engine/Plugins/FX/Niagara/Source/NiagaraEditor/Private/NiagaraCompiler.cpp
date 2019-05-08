@@ -29,7 +29,7 @@
 #include "Misc/FileHelper.h"
 #include "ShaderCompiler.h"
 #include "NiagaraShader.h"
-#include "NiagaraScript.h" //@todo(ng) FNiagaraCompileEvent dependency (make sure this is used before submitting)
+#include "NiagaraScript.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
 
@@ -546,7 +546,7 @@ TSharedPtr<FNiagaraVMExecutableData> FNiagaraEditorModule::CompileScript(const F
 	TArray<FNiagaraCompileEvent> Messages;
 	if (TranslateResults.CompileEvents.Num() > 0)
 	{
-		Results.Data->LastCompileEvents.Append(TranslateResults.CompileEvents); //@todo(ng) get rid of Messages in the future
+		Results.Data->LastCompileEvents.Append(TranslateResults.CompileEvents); //@todo(message manager) clean up message send path
 		Messages.Append(TranslateResults.CompileEvents);
 	}
 	if (Results.CompileEvents.Num() > 0)
@@ -904,7 +904,7 @@ FHlslNiagaraCompiler::FHlslNiagaraCompiler()
 void FHlslNiagaraCompiler::Error(FText ErrorText)
 {
 	FString ErrorString = FString::Printf(TEXT("%s"), *ErrorText.ToString());
-	CompileResults.Data->LastCompileEvents.Add(FNiagaraCompileEvent(FNiagaraCompileEventSeverity::Error, ErrorString)); //@todo(ng) cut out the compileresults.compileevent member since we don't need to separately log into general output log
+	CompileResults.Data->LastCompileEvents.Add(FNiagaraCompileEvent(FNiagaraCompileEventSeverity::Error, ErrorString));
 	CompileResults.CompileEvents.Add(FNiagaraCompileEvent(FNiagaraCompileEventSeverity::Error, ErrorString));
 	CompileResults.NumErrors++;
 }

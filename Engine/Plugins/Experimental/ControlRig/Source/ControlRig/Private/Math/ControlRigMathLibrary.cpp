@@ -4,6 +4,16 @@
 #include "AHEasing/easing.h"
 #include "TwoBoneIK.h"
 
+float FControlRigMathLibrary::AngleBetween(const FVector& A, const FVector& B)
+{
+	if (A.IsNearlyZero() || B.IsNearlyZero())
+	{
+		return 0.f;
+	}
+
+	return FMath::Acos(FVector::DotProduct(A, B) / (A.Size() * B.Size()));
+}
+
 FQuat FControlRigMathLibrary::QuatFromEuler(const FVector& XYZAnglesInDegrees, EControlRigRotationOrder RotationOrder)
 {
 	float X = FMath::DegreesToRadians(XYZAnglesInDegrees.X);
@@ -198,6 +208,11 @@ FVector FControlRigMathLibrary::EulerFromQuat(const FQuat& Rotation, EControlRig
 	}
 
 	return Result * 180.f / PI;
+}
+
+void FControlRigMathLibrary::FourPointBezier(const FCRFourPointBezier& Bezier, float T, FVector& OutPosition, FVector& OutTangent)
+{
+	FourPointBezier(Bezier.A, Bezier.B, Bezier.C, Bezier.D, T, OutPosition, OutTangent);
 }
 
 void FControlRigMathLibrary::FourPointBezier(const FVector& A, const FVector& B, const FVector& C, const FVector& D, float T, FVector& OutPosition, FVector& OutTangent)

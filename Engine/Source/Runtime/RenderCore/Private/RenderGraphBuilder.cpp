@@ -790,6 +790,9 @@ void FRDGBuilder::TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, FRDGTracked
 	}
 	else if(UnderlyingResource->bWritable != bRequiredWritable || UnderlyingResource->bCompute != bRequiredCompute )
 	{
+	}
+	else if(UnderlyingResource->bWritable != bRequiredWritable || UnderlyingResource->bCompute != bRequiredCompute )
+	{
 		const bool bIsMultiFrameResource = (ResourceFlags & ERDGResourceFlags::MultiFrame) == ERDGResourceFlags::MultiFrame;
 		if (bIsMultiFrameResource && bRequiredWritable && !UnderlyingResource->bWritable)
 		{

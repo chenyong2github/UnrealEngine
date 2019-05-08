@@ -47,12 +47,12 @@ void FRigUnit_SpringIK::Execute(const FRigUnitContext& Context)
 
 		for (int32 PointIndex = 0; PointIndex < BoneIndices.Num() - 1; PointIndex++)
 		{
-			Simulation.Points.Add(FControlRigSimulationPoint());
+			Simulation.Points.Add(FCRSimPoint());
 
 			FTransform A = Hierarchy->GetInitialTransform(BoneIndices[PointIndex]);
 			FTransform B = Hierarchy->GetInitialTransform(BoneIndices[PointIndex + 1]);
 
-			FControlRigSimulationLinearSpring Spring;
+			FCRSimLinearSpring Spring;
 			Spring.SubjectA = PointIndex;
 			Spring.SubjectB = PointIndex + 1;
 			Spring.Equilibrium = (A.GetLocation() - B.GetLocation()).Size();
@@ -81,7 +81,7 @@ void FRigUnit_SpringIK::Execute(const FRigUnitContext& Context)
 				Simulation.Springs.Add(Spring);
 			}
 		}
-		Simulation.Points.Add(FControlRigSimulationPoint());
+		Simulation.Points.Add(FCRSimPoint());
 
 		Simulation.Points[0].Mass = 0.f;
 		Simulation.Points.Last().Mass = 0.f;
@@ -95,8 +95,8 @@ void FRigUnit_SpringIK::Execute(const FRigUnitContext& Context)
 
 			if (Simulation.Points[PointIndex].Mass > SMALL_NUMBER)
 			{
-				FControlRigSimulationPointConstraint Constraint;
-				Constraint.Type = EControlRigSimulationConstraintType::Plane;
+				FCRSimPointConstraint Constraint;
+				Constraint.Type = ECRSimConstraintType::Plane;
 				Constraint.SubjectA = Constraint.SubjectB = PointIndex;
 				Simulation.Constraints.Add(Constraint);
 			}
@@ -160,9 +160,9 @@ void FRigUnit_SpringIK::Execute(const FRigUnitContext& Context)
 	{
 		// apply the normal to all constraints
 		PlaneNormal = PlaneNormal.GetSafeNormal();
-		for (FControlRigSimulationPointConstraint& Constraint : Simulation.Constraints)
+		for (FCRSimPointConstraint& Constraint : Simulation.Constraints)
 		{
-			if (Constraint.Type == EControlRigSimulationConstraintType::Plane)
+			if (Constraint.Type == ECRSimConstraintType::Plane)
 			{
 				Constraint.DataA = PoleTarget;
 				Constraint.DataB = PlaneNormal;
@@ -247,6 +247,27 @@ void FRigUnit_SpringIK::Execute(const FRigUnitContext& Context)
 				LastPrimaryTarget = Target1;
 			}
 		}
+
+		if(bLimitLocalPosition && PointIndex < BoneIndices.Num() - 1)
+		{
+			int32 ParentIndex = Hierarchy->GetParentIndex(BoneIndices[PointIndex]);
+			if (ParentIndex != INDEX_NONE)
+			{
+				FTransform InitialTransform = Hierarchy->GetInitialTransform(BoneIndices[PointIndex]);
+				FTransform ParentInitialTransform = Hierarchy->GetInitialTransform(ParentIndex);
+				FTransform ParentTransform = Hierarchy->GetGlobalTransform(ParentIndex);
+				float ExpectedDistance = (InitialTransform.GetLocation() - ParentInitialTransform.GetLocation()).Size();
+				if (ExpectedDistance > SMALL_NUMBER)
+				{
+					FVector Direction = Transform.GetLocation() - ParentTransform.GetLocation();
+					if (!Direction.IsNearlyZero())
+					{
+						Transform.SetLocation(ParentTransform.GetLocation() + Direction.GetSafeNormal() * ExpectedDistance);
+					}
+				}
+			}
+		}
+
 		Hierarchy->SetGlobalTransform(BoneIndices[PointIndex], Transform, bPropagateToChildren);
 	}
 

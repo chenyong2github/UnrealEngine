@@ -44,8 +44,7 @@
 #include "Developer/MessageLog/Public/MessageLogModule.h"
 
 #include "AssetTypeActions/AssetTypeActions_NiagaraScript.h"
-#include "NiagaraNodeFunctionCall.h" //@todo(ng) move this to message manager
-#include "NiagaraNodeEmitter.h" //@todo(ng) move this to message manager 
+#include "NiagaraMessageManager.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptToolkit"
 
@@ -71,119 +70,9 @@ FNiagaraScriptToolkit::~FNiagaraScriptToolkit()
 {
 	EditedNiagaraScript->OnVMScriptCompiled().RemoveAll(this);
 	ScriptViewModel->GetGraphViewModel()->GetGraph()->RemoveOnGraphNeedsRecompileHandler(OnEditedScriptGraphChangedHandle);
-}
 
-//@todo(ng) move to message manager class
-TSharedRef<FTokenizedMessage> FNiagaraScriptToolkit::BuildMessageForCompileEvent(FNiagaraCompileEvent& InCompileEvent)
-{
-	TArray<FGuid>& ContextStackGuids = InCompileEvent.StackGuids;
-
-	UNiagaraScriptSourceBase* FunctionScriptSourceBase = EditedNiagaraScript->GetSource();
-	checkf(FunctionScriptSourceBase->IsA<UNiagaraScriptSource>(), TEXT("Script source for function call node is not assigned or is not of type UNiagaraScriptSource!"))
-		UNiagaraScriptSource* FunctionScriptSource = Cast<UNiagaraScriptSource>(FunctionScriptSourceBase);
-	checkf(FunctionScriptSource, TEXT("Script source base was somehow not a derived type!"));
-	UNiagaraGraph* ThisScriptGraph = FunctionScriptSource->NodeGraph;
-	checkf(ThisScriptGraph, TEXT("Function Script does not have a UNiagaraGraph!"));
-
-	TArray<TSharedRef<IMessageToken>> MessageTokens;
-	TOptional<UNiagaraGraph*> OriginatingGraph = RecursiveBuildMessageTokensFromContextStackAndGetOriginatingGraph(ContextStackGuids, ThisScriptGraph, MessageTokens);
-	if (OriginatingGraph.IsSet())
-	{
-		EMessageSeverity::Type MessageSeverity = EMessageSeverity::Info;
-		switch (InCompileEvent.Severity) {
-		case FNiagaraCompileEventSeverity::Error:
-			MessageSeverity = EMessageSeverity::Error;
-			break;
-		case FNiagaraCompileEventSeverity::Warning:
-			MessageSeverity = EMessageSeverity::Warning;
-			break;
-		case FNiagaraCompileEventSeverity::Log:
-			MessageSeverity = EMessageSeverity::Info;
-			break;
-		default:
-			verifyf(false, TEXT("Compile event severity type not handled!"));
-			MessageSeverity = EMessageSeverity::Info;
-			break;
-		}
-		TSharedRef<FTokenizedMessage> MessageToBuild = FTokenizedMessage::Create(MessageSeverity);
-
-		//Add message from compile event at start of message
-		MessageToBuild->AddToken(FTextToken::Create(FText::FromString(InCompileEvent.Message)));
-		//Now add the context stack of the scripts that were passed through to get to the originating graph
-		for (TSharedRef<IMessageToken> Token : MessageTokens)
-		{
-			MessageToBuild->AddToken(Token);
-		}
-		return MessageToBuild;
-	}
-	
-	// Failed to get originating graph!
-	verifyf(false, TEXT("Failed to find originating graph for compile event!"));
-	return FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("NiagaraCompileEventFailedToFindScript", "Could not find script(s) for compile event ! Please recompile script to get full compile info."));
-}
-
-//@todo(ng) move to message manager class
-TOptional<UNiagaraGraph*> FNiagaraScriptToolkit::RecursiveBuildMessageTokensFromContextStackAndGetOriginatingGraph(TArray<FGuid>& InContextStackNodeGuids, UNiagaraGraph* InGraphToSearch, TArray<TSharedRef<IMessageToken>>& OutMessageTokensToAdd)
-{
-	verifyf(InGraphToSearch, TEXT("Failed to get a node graph to search!"));
-
-	if (InGraphToSearch && InContextStackNodeGuids.Num() == 0)
-	{
-		//StackGuids arr has been cleared out which means we have walked the entire context and can now returnthe graph we are in.
-		return InGraphToSearch;
-	}
-
-	// Search in the current graph for a node with a GUID that matches a GUID in the list of Function Call and Emitter node GUIDs that define the context stack for a compile event
-	auto FindNodeInGraphWithContextStackGuid = [&InGraphToSearch, &InContextStackNodeGuids]()->TOptional<UEdGraphNode*> {
-		for (UEdGraphNode* GraphNode : InGraphToSearch->Nodes)
-		{
-			for (int i = 0; i < InContextStackNodeGuids.Num(); i++)
-			{
-				if (GraphNode->NodeGuid == InContextStackNodeGuids[i])
-				{
-					InContextStackNodeGuids.RemoveAt(i);
-					return GraphNode;
-				}
-			}
-		}
-		return TOptional<UEdGraphNode*>();
-	};
-
-	TOptional<UEdGraphNode*> ContextNode = FindNodeInGraphWithContextStackGuid();
-	if (ContextNode.IsSet())
-	{
-		// found a node in the current graph that has a GUID in the context list, now get the Niagara Script assigned to this node, add a message token and recursively call into the graph of that script.
-		UNiagaraNodeFunctionCall* FunctionCallNode = Cast<UNiagaraNodeFunctionCall>(ContextNode.GetValue());
-		if (FunctionCallNode)
-		{
-			UNiagaraScript* FunctionCallNodeAssignedScript = FunctionCallNode->FunctionScript;
-			checkf(FunctionCallNodeAssignedScript, TEXT("Script for function call node is not assigned!"));
-			UNiagaraScriptSourceBase* FunctionScriptSourceBase = FunctionCallNodeAssignedScript->GetSource();
-			checkf(FunctionScriptSourceBase->IsA<UNiagaraScriptSource>(), TEXT("Script source for function call node is not assigned or is not of type UNiagaraScriptSource!"));
-			UNiagaraScriptSource* FunctionScriptSource = Cast<UNiagaraScriptSource>(FunctionScriptSourceBase);
-			checkf(FunctionScriptSource, TEXT("Script source base was somehow not a derived type!"));
-			UNiagaraGraph* FunctionScriptGraph = FunctionScriptSource->NodeGraph;
-			checkf(FunctionScriptGraph, TEXT("Function Script does not have a UNiagaraGraph!"));
-
-			TSharedRef<FNiagaraAssetNameToken> VisitedGraphContextToken = FNiagaraAssetNameToken::Create(FunctionCallNodeAssignedScript->GetPathName(), FText::FromString(*FunctionCallNodeAssignedScript->GetName()));
-			OutMessageTokensToAdd.Add(VisitedGraphContextToken);
-			return RecursiveBuildMessageTokensFromContextStackAndGetOriginatingGraph(InContextStackNodeGuids, FunctionScriptGraph, OutMessageTokensToAdd);
-		}
-		UNiagaraNodeEmitter* EmitterNode = Cast<UNiagaraNodeEmitter>(ContextNode.GetValue());
-		if (EmitterNode)
-		{
-			UNiagaraScriptSource* EmitterScriptSource = EmitterNode->GetScriptSource();
-			UNiagaraGraph* EmitterScriptGraph = EmitterScriptSource->NodeGraph;
-			checkf(EmitterScriptGraph, TEXT("Emitter Script Source does not have a UNiagaraGraph!")); //@todo(ng) see about filtering the message log by emitter?
-
-			TSharedRef<FTextToken> SourceEmitterContextToken = FTextToken::Create(FText::FromString(EmitterNode->GetEmitterUniqueName()));
-			OutMessageTokensToAdd.Add(SourceEmitterContextToken);
-			return RecursiveBuildMessageTokensFromContextStackAndGetOriginatingGraph(InContextStackNodeGuids, EmitterScriptGraph, OutMessageTokensToAdd);
-		}
-		checkf(false, TEXT("Matching node is not a function call or emitter node!"));
-	}
-	verifyf(false, TEXT("Failed to walk the entire context stack, is this compile event out of date?"));
-	return TOptional<UNiagaraGraph*>();
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+	NiagaraEditorModule.GetOnScriptToolkitsShouldFocusGraphElement().RemoveAll(this);
 }
 
 void FNiagaraScriptToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -348,12 +237,14 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>( "NiagaraEditor" );
 	AddMenuExtender(NiagaraEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
+	NiagaraEditorModule.GetOnScriptToolkitsShouldFocusGraphElement().AddSP(this, &FNiagaraScriptToolkit::FocusGraphElement);
 
 	SetupCommands();
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
 	UpdateMessageLog();
 	UpdateModuleStats();
+
 	// @todo toolkit world centric editing
 	/*// Setup our tool's layout
 	if( IsWorldCentricAssetEditor() )
@@ -394,7 +285,7 @@ TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabNodeGraph( const FSpawnTabAr
 	return
 		SNew(SDockTab)
 		[
-			SNew(SNiagaraScriptGraph, ScriptViewModel->GetGraphViewModel())
+			SAssignNew(NiagaraScriptGraphWidget, SNiagaraScriptGraph, ScriptViewModel->GetGraphViewModel())
 			.GraphTitle(LOCTEXT("SpawnGraphTitle", "Script"))
 		];
 }
@@ -677,13 +568,12 @@ void FNiagaraScriptToolkit::AddReferencedObjects(FReferenceCollector& Collector)
 
 void FNiagaraScriptToolkit::UpdateMessageLog()
 {
-	TArray< TSharedRef<class FTokenizedMessage> > Messages;
-
+	TArray<TSharedPtr<INiagaraMessage>> NiagaraMessages;
 	uint32 ErrorCount = 0;
 	uint32 WarningCount = 0;
-	for (FNiagaraCompileEvent CompileEvent : EditedNiagaraScript->GetVMExecutableData().LastCompileEvents)
+	for (const FNiagaraCompileEvent CompileEvent : EditedNiagaraScript->GetVMExecutableData().LastCompileEvents)
 	{
-		Messages.Add(BuildMessageForCompileEvent(CompileEvent)); 
+		NiagaraMessages.Add(FNiagaraMessageManager::Get()->QueueMessageJob(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, TWeakObjectPtr<UNiagaraScript>(OriginalNiagaraScript), true)));
 		if (CompileEvent.Severity == FNiagaraCompileEventSeverity::Error)
 		{
 			ErrorCount++;
@@ -692,6 +582,12 @@ void FNiagaraScriptToolkit::UpdateMessageLog()
 		{
 			WarningCount++;
 		}
+	}
+
+	TArray<TSharedRef<FTokenizedMessage>> TokenizedMessages;
+	for (const TSharedPtr<INiagaraMessage> Message : NiagaraMessages)
+	{
+		TokenizedMessages.Add(Message->GenerateTokenizedMessage());
 	}
 
 	const auto GetCompileCompleteMessageText = [&ErrorCount, &WarningCount](ENiagaraScriptCompileStatus Status)->const FText {
@@ -716,10 +612,10 @@ void FNiagaraScriptToolkit::UpdateMessageLog()
 	};
 
 	const FText CompileCompleteMessageText = GetCompileCompleteMessageText(ScriptViewModel->GetLatestCompileStatus());
-	Messages.Add(FTokenizedMessage::Create(EMessageSeverity::Info, CompileCompleteMessageText));
+	TokenizedMessages.Add(FTokenizedMessage::Create(EMessageSeverity::Info, CompileCompleteMessageText));
 
 	NiagaraMessageLogListing->ClearMessages();
-	NiagaraMessageLogListing->AddMessages(Messages);
+ 	NiagaraMessageLogListing->AddMessages(TokenizedMessages);
 }
 
 void FNiagaraScriptToolkit::UpdateModuleStats()
@@ -913,6 +809,47 @@ bool FNiagaraScriptToolkit::OnRequestClose()
 void FNiagaraScriptToolkit::OnEditedScriptGraphChanged(const FEdGraphEditAction& InAction)
 {
 	bEditedScriptHasPendingChanges = true;
+}
+
+void FNiagaraScriptToolkit::FocusGraphElement(const INiagaraScriptGraphFocusInfo* FocusInfo)
+{
+	checkf(FocusInfo->GetFocusType() != INiagaraScriptGraphFocusInfo::ENiagaraScriptGraphFocusInfoType::None, TEXT("Failed to assign focus type to FocusInfo parameter!"));
+	
+	if (FocusInfo->GetScriptUniqueAssetID() != OriginalNiagaraScript->GetUniqueID())
+	{
+		return;
+	}
+
+	if (FocusInfo->GetFocusType() == INiagaraScriptGraphFocusInfo::ENiagaraScriptGraphFocusInfoType::Node)
+	{
+		const FNiagaraScriptGraphNodeToFocusInfo* NodeFocusInfo = static_cast<const FNiagaraScriptGraphNodeToFocusInfo*>(FocusInfo);
+		const FGuid& NodeGuidToMatch = NodeFocusInfo->GetNodeGuidToFocus();
+		UEdGraphNode* const* NodeToFocus = ScriptViewModel->GetGraphViewModel()->GetGraph()->Nodes.FindByPredicate([&NodeGuidToMatch](const UEdGraphNode* Node) {return Node->NodeGuid == NodeGuidToMatch; });
+		if (NodeToFocus != nullptr && *NodeToFocus != nullptr)
+		{
+			NiagaraScriptGraphWidget->GetGraphEditor()->JumpToNode(*NodeToFocus);
+			return;
+		}
+		ensureMsgf(false, TEXT("Failed to find Node with matching GUID when focusing graph element. Was the graph edited out from underneath us?"));
+		return;
+	}
+	else if (FocusInfo->GetFocusType() == INiagaraScriptGraphFocusInfo::ENiagaraScriptGraphFocusInfoType::Pin)
+	{
+		const FNiagaraScriptGraphPinToFocusInfo* PinFocusInfo = static_cast<const FNiagaraScriptGraphPinToFocusInfo*>(FocusInfo);
+		const FGuid& PinGuidToMatch = PinFocusInfo->GetPinGuidToFocus();
+		for (const UEdGraphNode* Node : ScriptViewModel->GetGraphViewModel()->GetGraph()->Nodes)
+		{
+			const UEdGraphPin* const* PinToFocus = Node->Pins.FindByPredicate([&PinGuidToMatch](const UEdGraphPin* Pin) {return Pin->PersistentGuid == PinGuidToMatch; });
+			if (PinToFocus != nullptr && *PinToFocus != nullptr)
+			{
+				NiagaraScriptGraphWidget->GetGraphEditor()->JumpToPin(*PinToFocus);
+				return;
+			}
+		}
+		ensureMsgf(false, TEXT("Failed to find Pin with matching GUID when focusing graph element. Was the graph edited out from underneath us?"));
+		return;
+	}
+	checkf(false, TEXT("Requested focus for a graph element without specifying a Node or Pin to focus!"));
 }
 
 #undef LOCTEXT_NAMESPACE

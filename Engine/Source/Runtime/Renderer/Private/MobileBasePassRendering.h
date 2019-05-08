@@ -345,7 +345,7 @@ namespace MobileBasePass
 		const FMeshBatch& MeshBatch, 
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy, 
 		const FLightSceneInfo* MobileDirectionalLight, 
-		EMaterialShadingModel ShadingModel, 
+		FMaterialShadingModelField ShadingModels, 
 		bool bPrimReceivesCSM, 
 		ERHIFeatureLevel::Type FeatureLevel);
 
@@ -395,7 +395,7 @@ public:
 		const bool bMobileDynamicPointLightsUseStaticBranch = (MobileDynamicPointLightsUseStaticBranchCVar->GetValueOnAnyThread() == 1);
 		const int32 MobileNumDynamicPointLights = MobileNumDynamicPointLightsCVar->GetValueOnAnyThread();
 		const int32 MobileSkyLightPermutationOptions = MobileSkyLightPermutationCVar->GetValueOnAnyThread();
-		const bool bIsUnlit = Material->GetShadingModel() == MSM_Unlit;
+		const bool bIsUnlit = Material->GetShadingModels().IsUnlit();
 
 		// Only compile skylight version for lit materials on ES2 (Metal) or higher
 		const bool bShouldCacheBySkylight = !bEnableSkyLight || !bIsUnlit;
@@ -481,7 +481,7 @@ private:
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT MaterialResource,
 		EBlendMode BlendMode,
-		EMaterialShadingModel ShadingModel,
+		FMaterialShadingModelField ShadingModels,
 		const ELightMapPolicyType LightMapPolicyType,
 		const FUniformLightMapPolicy::ElementDataType& RESTRICT LightMapElementData);
 			

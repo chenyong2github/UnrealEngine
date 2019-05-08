@@ -595,6 +595,7 @@ void USkeletalMeshComponent::OnUnregister()
 void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_SkelMeshComp_InitAnim);
+	LLM_SCOPE(ELLMTag::Animation);
 
 	// a lot of places just call InitAnim without checking Mesh, so 
 	// I'm moving the check here
@@ -2588,6 +2589,8 @@ void USkeletalMeshComponent::SetSkeletalMeshWithoutResettingAnimation(USkeletalM
 
 bool USkeletalMeshComponent::AllocateTransformData()
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
+
 	// Allocate transforms if not present.
 	if ( Super::AllocateTransformData() )
 	{

@@ -7,6 +7,7 @@
 #include "ClothingSimulationInterface.h"
 #include "ClothingSystemRuntimeModule.h"
 #include "Assets/ClothingAsset.h"
+#include "HAL/LowLevelMemTracker.h"
 
 static TAutoConsoleVariable<float> GClothMaxDeltaTimeTeleportMultiplier(
 	TEXT("p.Cloth.MaxDeltaTimeTeleportMultiplier"),
@@ -135,6 +136,8 @@ void FClothingSimulationBase::SkinPhysicsMesh(UClothingAsset* InAsset, const FCl
 
 void FClothingSimulationBase::FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext)
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
+
 	FClothingSimulationContextBase* BaseContext = static_cast<FClothingSimulationContextBase*>(InOutContext);
 	BaseContext->ComponentToWorld = InComponent->GetComponentTransform();
 	BaseContext->PredictedLod = InComponent->PredictedLODLevel;

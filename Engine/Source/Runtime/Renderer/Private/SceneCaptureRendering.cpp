@@ -448,7 +448,7 @@ static void UpdateSceneCaptureContent_RenderThread(
 		}
 }
 
-void BuildProjectionMatrix(FIntPoint RenderTargetSize, ECameraProjectionMode::Type ProjectionType, float FOV, float InOrthoWidth, FMatrix& ProjectionMatrix)
+void BuildProjectionMatrix(FIntPoint RenderTargetSize, ECameraProjectionMode::Type ProjectionType, float FOV, float InOrthoWidth, float InNearClippingPlane, FMatrix& ProjectionMatrix)
 {
 	float const XAxisMultiplier = 1.0f;
 	float const YAxisMultiplier = RenderTargetSize.X / (float)RenderTargetSize.Y;
@@ -481,8 +481,8 @@ void BuildProjectionMatrix(FIntPoint RenderTargetSize, ECameraProjectionMode::Ty
 				FOV,
 				XAxisMultiplier,
 				YAxisMultiplier,
-				GNearClippingPlane,
-				GNearClippingPlane
+				InNearClippingPlane,
+				InNearClippingPlane
 				);
 		}
 		else
@@ -492,8 +492,8 @@ void BuildProjectionMatrix(FIntPoint RenderTargetSize, ECameraProjectionMode::Ty
 				FOV,
 				XAxisMultiplier,
 				YAxisMultiplier,
-				GNearClippingPlane,
-				GNearClippingPlane
+				InNearClippingPlane,
+				InNearClippingPlane
 				);
 		}
 	}
@@ -707,7 +707,8 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 		}
 		else
 		{
-			BuildProjectionMatrix(CaptureSize, CaptureComponent->ProjectionType, FOV, CaptureComponent->OrthoWidth, ProjectionMatrix);
+			const float ClippingPlane = (CaptureComponent->bOverride_CustomNearClippingPlane) ? CaptureComponent->CustomNearClippingPlane : GNearClippingPlane;
+			BuildProjectionMatrix(CaptureSize, CaptureComponent->ProjectionType, FOV, CaptureComponent->OrthoWidth, ClippingPlane, ProjectionMatrix);
 		}
 
 		const bool bUseSceneColorTexture = CaptureComponent->CaptureSource != SCS_FinalColorLDR &&
@@ -872,7 +873,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 				const FMatrix ViewRotationMatrix = FLocal::CalcCubeFaceTransform(TargetFace);
 				FIntPoint CaptureSize(TextureTarget->GetSurfaceWidth(), TextureTarget->GetSurfaceHeight());
 				FMatrix ProjectionMatrix;
-				BuildProjectionMatrix(CaptureSize, ECameraProjectionMode::Perspective, FOV, 1.0f, ProjectionMatrix);
+				BuildProjectionMatrix(CaptureSize, ECameraProjectionMode::Perspective, FOV, 1.0f, GNearClippingPlane, ProjectionMatrix);
 				FPostProcessSettings PostProcessSettings;
 
 				float StereoIPD = 0.0f;

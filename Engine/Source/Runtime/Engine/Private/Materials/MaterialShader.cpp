@@ -76,6 +76,35 @@ FString GetShadingModelString(EMaterialShadingModel ShadingModel)
 	return ShadingModelName;
 }
 
+
+/** Converts an FMaterialShadingModelField to a string description containing all the shading models present, delimited by "|" */
+FString GetShadingModelFieldString(FMaterialShadingModelField ShadingModels, FString (*ShadingModelToString)(EMaterialShadingModel), const FString& Delimiter)
+{
+	FString ShadingModelsName;
+	uint32 TempShadingModels = (uint32)ShadingModels.GetShadingModelField();
+
+	while (TempShadingModels)
+	{
+		uint32 BitIndex = FMath::CountTrailingZeros(TempShadingModels); // Find index of first set bit
+		TempShadingModels &= ~(1 << BitIndex); // Flip first set bit to 0
+		ShadingModelsName += ShadingModelToString((EMaterialShadingModel)BitIndex); // Add the name of the shading model corresponding to that bit
+
+		// If there are more bits left, add a pipe limiter to the string 
+		if (TempShadingModels)
+		{
+			ShadingModelsName.Append(TEXT("|"));
+		}
+	}
+
+	return ShadingModelsName;
+}
+
+/** Converts an FMaterialShadingModelField to a string description containing all the shading models present, delimited by "|" */
+FString GetShadingModelFieldString(FMaterialShadingModelField ShadingModels)
+{
+	return GetShadingModelFieldString(ShadingModels, &GetShadingModelString, TEXT("|"));
+}
+
 /** Converts an EBlendMode to a string description. */
 FString GetBlendModeString(EBlendMode BlendMode)
 {
@@ -119,22 +148,17 @@ void UpdateMaterialShaderCompilingStats(const FMaterial* Material)
 		default: INC_DWORD_STAT_BY(STAT_ShaderCompiling_NumTransparentMaterialShaders,1); break;
 	}
 
-	switch(Material->GetShadingModel())
+	FMaterialShadingModelField ShadingModels = Material->GetShadingModels();
+	
+	if (ShadingModels.HasOnlyShadingModel(MSM_Unlit))
 	{
-		case MSM_Unlit:
-			INC_DWORD_STAT_BY(STAT_ShaderCompiling_NumUnlitMaterialShaders,1);
-			break;
-		case MSM_DefaultLit:
-		case MSM_Subsurface:
-		case MSM_PreintegratedSkin:
-		case MSM_ClearCoat:
-		case MSM_Cloth:
-		case MSM_SubsurfaceProfile:
-		case MSM_TwoSidedFoliage:
-			INC_DWORD_STAT_BY(STAT_ShaderCompiling_NumLitMaterialShaders,1);
-			break;
-		default: break;
-	};
+		INC_DWORD_STAT_BY(STAT_ShaderCompiling_NumUnlitMaterialShaders, 1);
+	}
+	else if (ShadingModels.HasAnyShadingModel({ MSM_DefaultLit, MSM_Subsurface, MSM_PreintegratedSkin, MSM_ClearCoat, MSM_Cloth, MSM_SubsurfaceProfile, MSM_TwoSidedFoliage }))
+	{
+		INC_DWORD_STAT_BY(STAT_ShaderCompiling_NumLitMaterialShaders, 1);
+	}
+
 
 	if (Material->IsSpecialEngineMaterial())
 	{

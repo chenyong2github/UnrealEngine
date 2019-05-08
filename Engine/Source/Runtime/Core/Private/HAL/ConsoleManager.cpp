@@ -1998,6 +1998,13 @@ static TAutoConsoleVariable<int32> CVarMobileAllowDitheredLODTransition(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarMobileAllowPixelDepthOffset(
+	TEXT("r.Mobile.AllowPixelDepthOffset"),
+	1,
+	TEXT("Whether to allow 'Pixel Depth Offset' in materials for ES3.1 feature level. Depth modification in pixel shaders may reduce GPU performance"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarSetClearSceneMethod(
 	TEXT("r.ClearSceneMethod"),
 	1,

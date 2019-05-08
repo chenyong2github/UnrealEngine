@@ -66,6 +66,11 @@ FAutoConsoleVariableRef CVarNetPartialBunchReliableThreshold(
 	GCVarNetPartialBunchReliableThreshold,
 	TEXT("If a bunch is broken up into this many partial bunches are more, we will send it reliable even if the original bunch was not reliable. Partial bunches are atonmic and must all make it over to be used"));
 
+int32 GSkipReplicatorForDestructionInfos = 1;
+FAutoConsoleVariableRef CVarNetSkipReplicatorForDestructionInfos(
+	TEXT("net.SkipReplicatorForDestructionInfos"),
+	GSkipReplicatorForDestructionInfos,
+	TEXT("If enabled, skip creation of object replicator in SetChannelActor when we know there is no content payload and we're going to immediately destroy the actor."));
 
 extern TAutoConsoleVariable<int32> CVarFilterGuidRemapping;
 
@@ -2042,10 +2047,10 @@ void UActorChannel::ReceivedNak( int32 NakPacketId )
 	}
 }
 
-void UActorChannel::SetChannelActor( AActor* InActor )
+void UActorChannel::SetChannelActor(AActor* InActor, ESetChannelActorFlags Flags)
 {
 	check(!Closing);
-	check(Actor==NULL);
+	check(Actor == nullptr);
 
 	// Sanity check that the actor is in the same level collection as the channel's driver.
 	const UWorld* const World = Connection->Driver ? Connection->Driver->GetWorld() : nullptr;
@@ -2070,22 +2075,22 @@ void UActorChannel::SetChannelActor( AActor* InActor )
 
 	UE_LOG(LogNetTraffic, VeryVerbose, TEXT("SetChannelActor: ChIndex: %i, Actor: %s, NetGUID: %s"), ChIndex, Actor ? *Actor->GetFullName() : TEXT("NULL"), *ActorNetGUID.ToString() );
 
-	if ( ChIndex >= 0 && Connection->PendingOutRec[ChIndex] > 0 )
+	if (ChIndex >= 0 && Connection->PendingOutRec[ChIndex] > 0)
 	{
 		// send empty reliable bunches to synchronize both sides
 		// UE_LOG(LogNetTraffic, Log, TEXT("%i Actor %s WILL BE sending %i vs first %i"), ChIndex, *Actor->GetName(), Connection->PendingOutRec[ChIndex],Connection->OutReliable[ChIndex]);
 		int32 RealOutReliable = Connection->OutReliable[ChIndex];
 		Connection->OutReliable[ChIndex] = Connection->PendingOutRec[ChIndex] - 1;
-		while ( Connection->PendingOutRec[ChIndex] <= RealOutReliable )
+		while (Connection->PendingOutRec[ChIndex] <= RealOutReliable)
 		{
 			// UE_LOG(LogNetTraffic, Log, TEXT("%i SYNCHRONIZING by sending %i"), ChIndex, Connection->PendingOutRec[ChIndex]);
 
-			FOutBunch Bunch( this, 0 );
+			FOutBunch Bunch(this, 0);
 
 			if (!Bunch.IsError())
 			{
 				Bunch.bReliable = true;
-				SendBunch( &Bunch, 0 );
+				SendBunch(&Bunch, 0);
 				Connection->PendingOutRec[ChIndex]++;
 			}
 			else
@@ -2103,12 +2108,15 @@ void UActorChannel::SetChannelActor( AActor* InActor )
 	if (Actor)
 	{
 		// Add to map.
-		Connection->AddActorChannel( Actor, this );
+		Connection->AddActorChannel(Actor, this);
 
-		check( !ReplicationMap.Contains( Actor ) );
+		check(!ReplicationMap.Contains(Actor));
 
 		// Create the actor replicator, and store a quick access pointer to it
-		ActorReplicator = FindOrCreateReplicator( Actor );
+		if (!EnumHasAnyFlags(Flags, ESetChannelActorFlags::SkipReplicatorCreation))
+		{
+			ActorReplicator = FindOrCreateReplicator(Actor);
+		}
 
 		// Remove from connection's dormancy lists
 		Connection->Driver->GetNetworkObjectList().MarkActive(Actor, Connection, Connection->Driver);
@@ -2471,7 +2479,7 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 					UE_LOG(LogNet, Verbose, TEXT("UActorChannel::ProcessBunch: SerializeNewActor received close bunch for destroyed actor. Actor: %s, Channel: %i"), *GetFullNameSafe(NewChannelActor), ChIndex);
 				}
 
-				SetChannelActor(nullptr);
+				SetChannelActor(nullptr, ESetChannelActorFlags::None);
 				return;
 			}
 
@@ -2490,8 +2498,14 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 			return;
 		}
 
-		UE_LOG(LogNetTraffic, Log, TEXT("      Channel Actor %s:"), *NewChannelActor->GetFullName() );
-		SetChannelActor( NewChannelActor );
+		ESetChannelActorFlags Flags = ESetChannelActorFlags::None;
+		if (GSkipReplicatorForDestructionInfos != 0 && Bunch.bClose && Bunch.AtEnd())
+		{
+			Flags |= ESetChannelActorFlags::SkipReplicatorCreation;
+		}
+
+		UE_LOG(LogNetTraffic, Log, TEXT("      Channel Actor %s:"), *NewChannelActor->GetFullName());
+		SetChannelActor(NewChannelActor, Flags);
 
 		NotifyActorChannelOpen(Actor, Bunch);
 
@@ -3803,6 +3817,11 @@ void UActorChannel::AddedToChannelPool()
 bool UActorChannel::ReplicateSubobject(UObject *Obj, FOutBunch &Bunch, const FReplicationFlags &RepFlags)
 {
 	SCOPE_CYCLE_UOBJECT(ActorChannelRepSubObj, Obj);
+
+	if (!Obj || Obj->IsPendingKill())
+	{
+		return false;
+	}
 
 	TWeakObjectPtr<UObject> WeakObj(Obj);
 

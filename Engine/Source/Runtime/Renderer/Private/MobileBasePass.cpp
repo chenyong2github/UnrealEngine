@@ -112,7 +112,7 @@ void MobileBasePass::GetShaders(
 	TMobileBasePassVSPolicyParamType<FUniformLightMapPolicy>*& VertexShader,
 	TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>*& PixelShader)
 {
-	bool bIsLit = (MaterialResource.GetShadingModel() != MSM_Unlit);
+	bool bIsLit = (MaterialResource.GetShadingModels().IsLit());
 	if (bIsLit && !UseSkylightPermutation(bEnableSkyLight, FReadOnlyCVARCache::Get().MobileSkyLightPermutation))	
 	{
 		bEnableSkyLight = !bEnableSkyLight;
@@ -206,7 +206,7 @@ const FLightSceneInfo* MobileBasePass::GetDirectionalLightInfo(const FScene* Sce
 int32 MobileBasePass::CalcNumMovablePointLights(const FMaterial& InMaterial, const FPrimitiveSceneProxy* InPrimitiveSceneProxy)
 {
 	const FReadOnlyCVARCache& ReadOnlyCVARCache = FReadOnlyCVARCache::Get();
-	const bool bIsUnlit = InMaterial.GetShadingModel() == MSM_Unlit;
+	const bool bIsUnlit = InMaterial.GetShadingModels().IsUnlit();
 	int32 OutNumMovablePointLights = (InPrimitiveSceneProxy && !bIsUnlit) ? FMath::Min<int32>(InPrimitiveSceneProxy->GetPrimitiveSceneInfo()->NumMobileMovablePointLights, ReadOnlyCVARCache.NumMobileMovablePointLights) : 0;
 	if (OutNumMovablePointLights > 0 && ReadOnlyCVARCache.bMobileMovablePointLightsUseStaticBranch)
 	{
@@ -234,7 +234,7 @@ ELightMapPolicyType MobileBasePass::SelectMeshLightmapPolicy(
 	const FMeshBatch& Mesh, 
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FLightSceneInfo* MobileDirectionalLight,
-	EMaterialShadingModel ShadingModel, 
+	FMaterialShadingModelField ShadingModels, 
 	bool bPrimReceivesCSM, 
 	ERHIFeatureLevel::Type FeatureLevel)
 {
@@ -242,7 +242,7 @@ ELightMapPolicyType MobileBasePass::SelectMeshLightmapPolicy(
 	ELightMapPolicyType SelectedLightmapPolicy = LMP_NO_LIGHTMAP;
 
 	// Check for a cached light-map.
-	const bool bIsLitMaterial = ShadingModel != MSM_Unlit;
+	const bool bIsLitMaterial = ShadingModels.IsLit();
 	if (bIsLitMaterial)
 	{
 		const FLightMapInteraction LightMapInteraction = (Mesh.LCI && bIsLitMaterial)
@@ -562,7 +562,7 @@ void FMobileBasePassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshB
 	const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
 	const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
 	const EBlendMode BlendMode = Material.GetBlendMode();
-	const EMaterialShadingModel ShadingModel = Material.GetShadingModel();
+	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
 	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 	
 	if (bTranslucentBasePass)
@@ -576,8 +576,8 @@ void FMobileBasePassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshB
 		{
 			check(bCanReceiveCSM == false);
 			const FLightSceneInfo* MobileDirectionalLight = MobileBasePass::GetDirectionalLightInfo(Scene, PrimitiveSceneProxy);
-			ELightMapPolicyType LightmapPolicyType = MobileBasePass::SelectMeshLightmapPolicy(Scene, MeshBatch, PrimitiveSceneProxy, MobileDirectionalLight, ShadingModel, bCanReceiveCSM, FeatureLevel);
-			Process(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, MaterialRenderProxy, Material, BlendMode, ShadingModel, LightmapPolicyType, MeshBatch.LCI);
+			ELightMapPolicyType LightmapPolicyType = MobileBasePass::SelectMeshLightmapPolicy(Scene, MeshBatch, PrimitiveSceneProxy, MobileDirectionalLight, ShadingModels, bCanReceiveCSM, FeatureLevel);
+			Process(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, MaterialRenderProxy, Material, BlendMode, ShadingModels, LightmapPolicyType, MeshBatch.LCI);
 		}
 	}
 	else
@@ -586,8 +586,8 @@ void FMobileBasePassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshB
 		if (!bIsTranslucent)
 		{
 			const FLightSceneInfo* MobileDirectionalLight = MobileBasePass::GetDirectionalLightInfo(Scene, PrimitiveSceneProxy);
-			ELightMapPolicyType LightmapPolicyType = MobileBasePass::SelectMeshLightmapPolicy(Scene, MeshBatch, PrimitiveSceneProxy, MobileDirectionalLight, ShadingModel, bCanReceiveCSM, FeatureLevel);
-			Process(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, MaterialRenderProxy, Material, BlendMode, ShadingModel, LightmapPolicyType, MeshBatch.LCI);
+			ELightMapPolicyType LightmapPolicyType = MobileBasePass::SelectMeshLightmapPolicy(Scene, MeshBatch, PrimitiveSceneProxy, MobileDirectionalLight, ShadingModels, bCanReceiveCSM, FeatureLevel);
+			Process(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, MaterialRenderProxy, Material, BlendMode, ShadingModels, LightmapPolicyType, MeshBatch.LCI);
 		}
 	}
 }
@@ -600,7 +600,7 @@ void FMobileBasePassMeshProcessor::Process(
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT MaterialResource,
 		EBlendMode BlendMode,
-		EMaterialShadingModel ShadingModel,
+		FMaterialShadingModelField ShadingModels,
 		const ELightMapPolicyType LightMapPolicyType,
 		const FUniformLightMapPolicy::ElementDataType& RESTRICT LightMapElementData)
 {
@@ -610,7 +610,7 @@ void FMobileBasePassMeshProcessor::Process(
 		FBaseDS,
 		TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>> BasePassShaders;
 	
-	bool bEnableSkyLight = ShadingModel != MSM_Unlit && Scene && Scene->ShouldRenderSkylightInBasePass(BlendMode);
+	bool bEnableSkyLight = ShadingModels.IsLit() && Scene && Scene->ShouldRenderSkylightInBasePass(BlendMode);
 	int32 NumMovablePointLights = MobileBasePass::CalcNumMovablePointLights(MaterialResource, PrimitiveSceneProxy);
 
 	MobileBasePass::GetShaders(

@@ -133,6 +133,7 @@
     <Compile Include="Unreal\Tasks\Gauntlet.Task.CleanDevices.cs" />
     <Compile Include="Unreal\Game\Tests\Gauntlet.UnrealTest.ErrorTest.cs" />
     <Compile Include="Unreal\Game\UE4Game.TestConfig.cs" />
+    <Compile Include="Unreal\Utils\Gauntlet.AutomationLogParser.cs" />
     <Compile Include="Unreal\Utils\Gauntlet.UnrealHelpers.cs" />
     <Compile Include="Unreal\Utils\Gauntlet.UnrealLogParser.cs" />
     <Compile Include="Unreal\BuildSource\Gauntlet.StagedBuildSource.cs" />

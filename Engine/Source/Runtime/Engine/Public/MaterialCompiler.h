@@ -71,7 +71,7 @@ public:
 
 	virtual EShaderPlatform GetShaderPlatform() = 0;
 
-	virtual EMaterialShadingModel GetMaterialShadingModel() const = 0;
+	virtual FMaterialShadingModelField GetMaterialShadingModels() const = 0;
 
 	virtual EMaterialValueType GetParameterType(int32 Index) const = 0;
 
@@ -296,6 +296,8 @@ public:
 	virtual int32 AtmosphericLightVector() = 0;
 	virtual int32 AtmosphericLightColor() = 0;
 	virtual int32 CustomPrimitiveData(int32 OutputIndex) = 0;
+	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) = 0;
+
 	// The compiler can run in a different state and this affects caching of sub expression, Expressions are different (e.g. View.PrevWorldViewOrigin) when using previous frame's values
 	// If possible we should re-factor this to avoid having to deal with compiler state
 	virtual bool IsCurrentlyCompilingForPreviousFrame() const { return false; }
@@ -317,7 +319,7 @@ public:
 
 	// Simple pass through all other material operations unmodified.
 
-	virtual EMaterialShadingModel GetMaterialShadingModel() const { return Compiler->GetMaterialShadingModel();  }
+	virtual FMaterialShadingModelField GetMaterialShadingModels() const { return Compiler->GetMaterialShadingModels(); }
 	virtual EMaterialValueType GetParameterType(int32 Index) const { return Compiler->GetParameterType(Index); }
 	virtual FMaterialUniformExpression* GetParameterUniformExpression(int32 Index) const { return Compiler->GetParameterUniformExpression(Index); }
 	virtual bool GetTextureForExpression(int32 Index, int32& OutTextureIndex, EMaterialSamplerType& OutSamplerType, TOptional<FName>& OutParameterName) const override { return Compiler->GetTextureForExpression(Index, OutTextureIndex, OutSamplerType, OutParameterName); }
@@ -556,6 +558,11 @@ public:
 	virtual int32 CustomPrimitiveData(int32 OutputIndex) override
 	{
 		return Compiler->CustomPrimitiveData(OutputIndex);
+	}
+
+	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) override
+	{
+		return Compiler->ShadingModel(InSelectedShadingModel);
 	}
 
 	virtual int32 TextureCoordinateOffset() override

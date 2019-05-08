@@ -14,6 +14,7 @@ void FTimeSynthEventListener::OnEvent(Audio::EEventQuantization EventQuantizatio
 
 UTimeSynthComponent::UTimeSynthComponent(const FObjectInitializer& ObjectInitializer) 
 	: Super(ObjectInitializer)
+	, MaxPoolSize(20)
 	, TimeSynthEventListener(this)
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -323,7 +324,7 @@ bool UTimeSynthComponent::Init(int32& InSampleRate)
 	SetQuantizationSettings(QuantizationSettings);
 
 	// Create a pool of playing clip runtime infos
-	CurrentPoolSize = 20;
+	CurrentPoolSize = MaxPoolSize;
 
 	PlayingClipsPool_AudioRenderThread.AddDefaulted(CurrentPoolSize);
 	FreePlayingClipIndices_AudioRenderThread.AddDefaulted(CurrentPoolSize);
@@ -877,6 +878,12 @@ void UTimeSynthComponent::SetVolumeGroupInternal(FVolumeGroupData& InData, float
 
 void UTimeSynthComponent::SetVolumeGroup(UTimeSynthVolumeGroup* InVolumeGroup, float VolumeDb, float FadeTimeSec)
 {
+	if (!InVolumeGroup)
+	{
+		UE_LOG(LogTimeSynth, Warning, TEXT("Failed to set volume group. Null UTimeSynthVolumeGroup object."));
+		return;
+	}
+
 	VolumeGroupUniqueId Id = InVolumeGroup->GetUniqueID();
 	FVolumeGroupData* VolumeGroup = VolumeGroupData.Find(Id);
 

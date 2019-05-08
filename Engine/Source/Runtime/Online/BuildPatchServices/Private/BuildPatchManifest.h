@@ -115,6 +115,9 @@ public:
 	virtual int64 GetBuildSize(const TSet<FString>& Tags) const override;
 	virtual TArray<FString> GetBuildFileList() const override;
 	virtual TArray<FString> GetBuildFileList(const TSet<FString>& Tags) const override;
+	virtual int64 GetFileSize(const FString& Filename) const override;
+	virtual int64 GetFileSize(const TArray<FString>& Filenames) const override;
+	virtual int64 GetFileSize(const TSet  <FString>& Filenames) const override;
 	virtual void GetFileTagList(TSet<FString>& Tags) const override;
 	virtual void GetRemovableFiles(const IBuildManifestRef& OldManifest, TArray< FString >& RemovableFiles) const override;
 	virtual void GetRemovableFiles(const TCHAR* InstallPath, TArray< FString >& RemovableFiles) const override;
@@ -203,23 +206,6 @@ public:
 	 */
 	virtual int64 GetDataSize(const TArray<FGuid>& DataGuids) const;
 	virtual int64 GetDataSize(const TSet  <FGuid>& DataGuids) const;
-
-	/**
-	 * Returns the size of a particular file in the build
-	 * VALID FOR ANY MANIFEST
-	 * @param Filename		The file.
-	 * @return		File size.
-	 */
-	virtual int64 GetFileSize(const FString& Filename) const;
-
-	/**
-	 * Returns the total size of all files in the array
-	 * VALID FOR ANY MANIFEST
-	 * @param Filenames		The array of files.
-	 * @return		Total size of files in array.
-	 */
-	virtual int64 GetFileSize(const TArray<FString>& Filenames) const;
-	virtual int64 GetFileSize(const TSet  <FString>& Filenames) const;
 
 	/**
 	 * Returns the number of files in this build.

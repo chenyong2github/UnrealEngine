@@ -504,7 +504,6 @@ FPropertyPathSegment::FPropertyPathSegment(int32 InCount, const TCHAR* InString)
 	ensure(PropertyName != nullptr);
 	FString PropertyNameString(PropertyNameLength, PropertyName);
 	Name = FName(*PropertyNameString, FNAME_Find);
-	ensure(Name != NAME_None);
 }
 
 FPropertyPathSegment FPropertyPathSegment::MakeUnresolvedCopy(const FPropertyPathSegment& ToCopy)

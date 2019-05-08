@@ -41,6 +41,8 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "Misc/EngineVersion.h"
 #include "ContentStreaming.h"
+#include "Engine/SceneCapture2D.h"
+#include "Components/SceneCaptureComponent2D.h"
 
 #define LOCTEXT_NAMESPACE "GameplayStatics"
 
@@ -2551,6 +2553,55 @@ bool UGameplayStatics::ProjectWorldToScreen(APlayerController const* Player, con
 	return false;
 }
 
+void UGameplayStatics::CalculateViewProjectionMatricesFromViewTarget(AActor* InViewTarget, FMatrix& OutViewMatrix, FMatrix& OutProjectionMatrix, FMatrix& OutViewProjectionMatrix)
+{
+	if (InViewTarget)
+	{
+		FMinimalViewInfo MinimalViewInfo;
+		InViewTarget->CalcCamera(0.f, MinimalViewInfo);
+
+		// This is kinda weird odd one-off, can this be integrated into the MinimalViewInfo?
+		TOptional<FMatrix> CustomProjectionMatrix;
+		if (ASceneCapture2D* SceneCapture2D = Cast<ASceneCapture2D>(InViewTarget))
+		{
+			if (USceneCaptureComponent2D* SceneCaptureComponent2D = SceneCapture2D->GetCaptureComponent2D())
+			{
+				if (SceneCaptureComponent2D && SceneCaptureComponent2D->bUseCustomProjectionMatrix)
+				{
+					CustomProjectionMatrix = SceneCaptureComponent2D->CustomProjectionMatrix;
+				}
+			}
+		}
+
+		CalculateViewProjectionMatricesFromMinimalView(MinimalViewInfo, CustomProjectionMatrix, OutViewMatrix, OutProjectionMatrix, OutViewProjectionMatrix);
+	}
+}
+
+void UGameplayStatics::CalculateViewProjectionMatricesFromMinimalView(const FMinimalViewInfo& MinimalViewInfo, const TOptional<FMatrix>& CustomProjectionMatrix, FMatrix& OutViewMatrix, FMatrix& OutProjectionMatrix, FMatrix& OutViewProjectionMatrix)
+{
+	if (CustomProjectionMatrix.IsSet())
+	{
+		OutProjectionMatrix = AdjustProjectionMatrixForRHI(CustomProjectionMatrix.GetValue());
+	}
+	else
+	{
+		OutProjectionMatrix = AdjustProjectionMatrixForRHI(MinimalViewInfo.CalculateProjectionMatrix());
+	}
+
+	FMatrix ViewRotationMatrix = FInverseRotationMatrix(MinimalViewInfo.Rotation) * FMatrix(
+		FPlane(0, 0, 1, 0),
+		FPlane(1, 0, 0, 0),
+		FPlane(0, 1, 0, 0),
+		FPlane(0, 0, 0, 1));
+
+	OutViewMatrix = FTranslationMatrix(-MinimalViewInfo.Location) * ViewRotationMatrix;
+	//OutInvProjectionMatrix = OutProjectionMatrix.Inverse();
+	//OutInvViewMatrix = ViewRotationMatrix.GetTransposed() * FTranslationMatrix(MinimalViewInfo.Location);
+
+	OutViewProjectionMatrix = OutViewMatrix * OutProjectionMatrix;
+	//OutInvViewProjectionMatrix = OutInvProjectionMatrix * OutInvViewMatrix;
+}
+
 bool UGameplayStatics::GrabOption( FString& Options, FString& Result )
 {
 	FString QuestionMark(TEXT("?"));
@@ -2640,5 +2691,10 @@ bool UGameplayStatics::HasLaunchOption(const FString& OptionToCheck)
 {
 	return FParse::Param(FCommandLine::Get(), *OptionToCheck);
 }
+
+/**
+ * Calculate projection matrices from a specified view target
+ */
+static void GetProjectionMatricesFromViewTarget(AActor* InViewTarget, FMatrix& OutViewProjectionMatrix, FMatrix& OutInvViewProjectionMatrix);
 
 #undef LOCTEXT_NAMESPACE

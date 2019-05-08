@@ -2159,6 +2159,11 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 	}
 
+	if (!AllowPixelDepthOffset(Platform))
+	{
+		KeyString += TEXT("_NoPDO");
+	}
+	
 	if (IsD3DPlatform(Platform, false))
 	{
 		{

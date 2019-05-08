@@ -206,7 +206,7 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		return SF_Pixel;
 	}
 
-	virtual EMaterialShadingModel GetMaterialShadingModel() const override
+	virtual FMaterialShadingModelField GetMaterialShadingModels() const override
 	{
 		// not used by Lightmass
 		return MSM_MAX;
@@ -428,7 +428,7 @@ public:
 			GetDependentShaderAndVFTypes(GMaxRHIShaderPlatform, ShaderTypes, ShaderPipelineTypes, VFTypes);
 
 			// Overwrite the shader map Id's dependencies with ones that came from the FMaterial actually being compiled (this)
-			// This is necessary as we change FMaterial attributes like GetShadingModel(), which factor into the ShouldCache functions that determine dependent shader types
+			// This is necessary as we change FMaterial attributes like GetShadingModels(), which factor into the ShouldCache functions that determine dependent shader types
 			ResourceId.SetShaderDependencies(ShaderTypes, ShaderPipelineTypes, VFTypes, GMaxRHIShaderPlatform);
 		}
 
@@ -529,7 +529,6 @@ public:
 			UMaterial* ProxyMaterial = MaterialInterface->GetMaterial();
 			check(ProxyMaterial);
 			EBlendMode BlendMode = MaterialInterface->GetBlendMode();
-			EMaterialShadingModel ShadingModel = MaterialInterface->GetShadingModel();
 			FExportMaterialCompiler ProxyCompiler(Compiler);
 			const uint32 ForceCast_Exact_Replicate = MFCF_ForceCast | MFCF_ExactMatch | MFCF_ReplicateValue;
 									
@@ -565,6 +564,8 @@ public:
 							Compiler->Constant(0.5f)); // [-0.5,0.5] + 0.5
 				}
 				break;
+			case MP_ShadingModel:
+				return MaterialInterface->CompileProperty(&ProxyCompiler, MP_ShadingModel);
 			default:
 				return Compiler->Constant(1.0f);
 			}
@@ -580,6 +581,10 @@ public:
 		{
 			// Pass through customized UVs
 			return MaterialInterface->CompileProperty(Compiler, Property);
+		}
+		else if (Property == MP_ShadingModel)
+		{
+			return MaterialInterface->CompileProperty(Compiler, MP_ShadingModel);
 		}
 		else
 		{
@@ -643,11 +648,11 @@ public:
 		}
 		return false;
 	}
-	virtual bool IsMasked() const override								{ return false; }
-	virtual enum EBlendMode GetBlendMode() const override				{ return BLEND_Opaque; }
-	virtual enum EMaterialShadingModel GetShadingModel() const override	{ return MSM_Unlit; }
-	virtual float GetOpacityMaskClipValue() const override				{ return 0.5f; }
-	virtual bool GetCastDynamicShadowAsMasked() const override					{ return false; }
+	virtual bool IsMasked() const override									{ return false; }
+	virtual enum EBlendMode GetBlendMode() const override					{ return BLEND_Opaque; }
+	virtual FMaterialShadingModelField GetShadingModels() const override	{ return MSM_Unlit; }
+	virtual float GetOpacityMaskClipValue() const override					{ return 0.5f; }
+	virtual bool GetCastDynamicShadowAsMasked() const override				{ return false; }
 	virtual FString GetFriendlyName() const override { return FString::Printf(TEXT("FExportMaterialRenderer %s"), MaterialInterface ? *MaterialInterface->GetName() : TEXT("NULL")); }
 	/**
 	* Should shaders compiled for this material be saved to disk?

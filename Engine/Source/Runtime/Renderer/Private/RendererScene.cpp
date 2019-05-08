@@ -53,6 +53,7 @@
 #include "GPUSkinCache.h"
 #include "DynamicShadowMapChannelBindingHelper.h"
 #include "GPUScene.h"
+#include "HAL/LowLevelMemTracker.h"
 #if RHI_RAYTRACING
 #include "RayTracingDynamicGeometryCollection.h"
 #endif
@@ -1733,6 +1734,8 @@ void FScene::AddLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 
 void FScene::AddLight(ULightComponent* Light)
 {
+	LLM_SCOPE(ELLMTag::SceneRender);
+
 	// Create the light's scene proxy.
 	FLightSceneProxy* Proxy = Light->CreateSceneProxy();
 	if(Proxy)

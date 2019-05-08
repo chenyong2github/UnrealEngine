@@ -29,7 +29,7 @@
 #include "/Engine/Private/LightmapCommon.ush"
 
 /** Computes sky diffuse lighting, including precomputed shadowing. */
-void GetSkyLighting(FMaterialPixelParameters MaterialParameters, float3 WorldNormal, float2 LightmapUV, float3 SkyOcclusionUV3D, out float3 OutDiffuseLighting, out float3 OutSubsurfaceLighting)
+void GetSkyLighting(FMaterialPixelParameters MaterialParameters, float3 WorldNormal, float2 LightmapUV, float3 SkyOcclusionUV3D, uint ShadingModel, out float3 OutDiffuseLighting, out float3 OutSubsurfaceLighting)
 {
 	OutDiffuseLighting = 0;
 	OutSubsurfaceLighting = 0;
@@ -94,8 +94,11 @@ void GetSkyLighting(FMaterialPixelParameters MaterialParameters, float3 WorldNor
 	OutDiffuseLighting += DiffuseLookup * (SkyVisibility * GeometryTerm);
 
 	#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
+	if (ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE)
+	{
 		float3 BackfaceDiffuseLookup = GetSkySHDiffuse(-WorldNormal) * ResolvedView.SkyLightColor.rgb;
 		OutSubsurfaceLighting += BackfaceDiffuseLookup * SkyVisibility;
+	}
 	#endif
 
 #endif
@@ -107,6 +110,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	FVertexFactoryInterpolantsVSToPS Interpolants,
 	float3 DiffuseDir,
 	float3 VolumetricLightmapBrickTextureUVs,
+	uint ShadingModel,
 	out float3 OutDiffuseLighting,
 	out float3 OutSubsurfaceLighting,
 	out float OutIndirectIrradiance)
@@ -124,8 +128,11 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 		OutDiffuseLighting = max(float3(0,0,0), DotSH3(IrradianceSH, DiffuseTransferSH)) / PI;
 
 		#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
+		if (ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE)
+		{
 			FThreeBandSHVector SubsurfaceTransferSH = CalcDiffuseTransferSH3(-DiffuseDir, 1);
 			OutSubsurfaceLighting += max(float3(0,0,0), DotSH3(IrradianceSH, SubsurfaceTransferSH)) / PI;
+		}
 		#endif
 
 	// High quality texture lightmaps
@@ -154,7 +161,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 
 	float3 SkyDiffuseLighting;
 	float3 SkySubsurfaceLighting;
-	GetSkyLighting(MaterialParameters, DiffuseDir, SkyOcclusionUV, VolumetricLightmapBrickTextureUVs, SkyDiffuseLighting, SkySubsurfaceLighting);
+	GetSkyLighting(MaterialParameters, DiffuseDir, SkyOcclusionUV, VolumetricLightmapBrickTextureUVs, ShadingModel, SkyDiffuseLighting, SkySubsurfaceLighting);
 
 	OutSubsurfaceLighting += SkySubsurfaceLighting;
 
@@ -297,7 +304,7 @@ void MaterialCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefau
 	}
 	#endif
 	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
-    Payload.ShadingModelID = GetShadingModelID();
+    Payload.ShadingModelID = GetMaterialShadingModel(PixelMaterialInputs);
 
  #if MATERIALBLENDING_ALPHACOMPOSITE
 	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE;
@@ -331,7 +338,7 @@ void MaterialCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefau
 #if PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
 	VolumetricLightmapBrickTextureUVs = ComputeVolumetricLightmapBrickTextureUVs(MaterialParameters.AbsoluteWorldPosition);
 #endif
-	GetPrecomputedIndirectLightingAndSkyLight(MaterialParameters, Interpolants, Payload.WorldNormal, VolumetricLightmapBrickTextureUVs, DiffuseIndirectLighting, SubsurfaceIndirectLighting, IndirectIrradiance);
+	GetPrecomputedIndirectLightingAndSkyLight(MaterialParameters, Interpolants, Payload.WorldNormal, VolumetricLightmapBrickTextureUVs, Payload.ShadingModelID, DiffuseIndirectLighting, SubsurfaceIndirectLighting, IndirectIrradiance);
 	
 	Payload.DiffuseColor = BaseColor - BaseColor * Metallic;
 	Payload.SpecularColor = ComputeF0(Specular, BaseColor, Metallic);

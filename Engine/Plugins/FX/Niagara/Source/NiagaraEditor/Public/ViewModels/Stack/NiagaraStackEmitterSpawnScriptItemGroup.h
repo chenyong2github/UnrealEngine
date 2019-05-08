@@ -34,7 +34,7 @@ private:
 	void EmitterPropertiesChanged();
 
 private:
-	mutable TOptional<bool> bCanResetToBase;
+	mutable TOptional<bool> bCanResetToBaseCache;
 
 	TWeakObjectPtr<UNiagaraEmitter> Emitter;
 

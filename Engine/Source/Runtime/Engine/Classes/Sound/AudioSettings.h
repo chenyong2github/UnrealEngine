@@ -31,7 +31,7 @@ struct ENGINE_API FAudioPlatformSettings
 		: SampleRate(48000)
 		, CallbackBufferFrameSize(1024)
 		, NumBuffers(2)
-		, MaxChannels(0)
+		, MaxChannels(32)
 		, NumSourceWorkers(0)
 	{
 	}
@@ -63,7 +63,7 @@ enum class EMonoChannelUpmixMethod : int8
 {
 	// The mono channel is split 0.5 left/right
 	Linear,
-	
+
 	// The mono channel is split 0.707 left/right
 	EqualPower,
 
@@ -118,7 +118,7 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	/** The SoundMix to use as base when no other system has speciicefied a Base SoundMix */
 	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="SoundMix"))
 	FSoftObjectPath DefaultBaseSoundMix;
-	
+
 	/** Sound class to be used for the VOIP audio component */
 	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="SoundClass", DisplayName = "VOIP Sound Class"))
 	FSoftObjectPath VoiPSoundClass;
@@ -134,6 +134,10 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	/** The amount of audio to send to reverb submixes if no reverb send is setup for the source through attenuation settings. Only used in audio mixer. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio", AdvancedDisplay)
 	float DefaultReverbSendLevel;
+
+	/** Enables legacy version of reverb. The legacy reverb runs more slowly, but by most other measures is functionally equivalent. It has a slight perceptual difference. */
+	UPROPERTY(config, EditAnywhere, Category = "Audio", AdvancedDisplay)
+	uint32 bEnableLegacyReverb: 1;
 
 	/** How many streaming sounds can be played at the same time (if more are played they will be sorted by priority) */
 	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(ClampMin=0))
@@ -166,9 +170,9 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = "Quality", AdvancedDisplay)
 	uint32 MaxWaveInstances;
 
-	/** 
+	/**
 	 * The max number of sources to reserve for "stopping" sounds. A "stopping" sound applies a fast fade in the DSP
-	 * render to prevent discontinuities when stopping sources.  
+	 * render to prevent discontinuities when stopping sources.
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Quality", AdvancedDisplay)
 	uint32 NumStoppingSources;
@@ -199,7 +203,7 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 
 	const FAudioQualitySettings& GetQualityLevelSettings(int32 QualityLevel) const;
 
-	// Sets whether audio mixer is enabled. Set once an audio mixer platform modu le is loaded.
+	// Sets whether audio mixer is enabled. Set once an audio mixer platform module is loaded.
 	void SetAudioMixerEnabled(const bool bInAudioMixerEnabled);
 
 	// Returns if the audio mixer is currently enabled

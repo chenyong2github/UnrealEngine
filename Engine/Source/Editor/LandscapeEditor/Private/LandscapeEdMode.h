@@ -523,7 +523,8 @@ public:
 	TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForCurrentLayer(int32 InTargetType);
 	
 	bool NeedToFillEmptyMaterialLayers() const;
-	void RequestLayersContentUpdate(bool InUpdateAllMaterials = false);
+	void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode, bool bInForceUpdateAllComponents = false);
+	void RequestLayersContentUpdateForceAll();
 
 	void OnLevelActorAdded(AActor* InActor);
 	void OnLevelActorRemoved(AActor* InActor);
@@ -582,6 +583,7 @@ private:
 
 	FDelegateHandle OnLevelActorDeletedDelegateHandle;
 	FDelegateHandle OnLevelActorAddedDelegateHandle;
+	FDelegateHandle OnLandscapeLayerSystemFlagChangedDelegateHandle;
 
 	/** Check if we are painting using the VREditor */
 	bool bIsPaintingInVR;

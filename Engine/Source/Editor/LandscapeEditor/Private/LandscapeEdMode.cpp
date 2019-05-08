@@ -253,8 +253,7 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, ALandscapeProxy* Targ
 			}
 		});
 
-		Comp->GetGlobalLayersData().TopLeftSectionBase  = Comp->GetSectionBase();
-		Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+		Landscape->RequestLayersContentUpdateForceAll();
 	}
 #endif
 
@@ -427,6 +426,7 @@ void FEdModeLandscape::InitializeToolModes()
 
 	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
+        ToolMode_Sculpt->ValidTools.Add(TEXT("Erase"));
 		ToolMode_Sculpt->ValidTools.Add(TEXT("BPCustom"));
 	}
 
@@ -466,6 +466,13 @@ void FEdModeLandscape::Enter()
 
 	OnLevelActorDeletedDelegateHandle = GEngine->OnLevelActorDeleted().AddSP(this, &FEdModeLandscape::OnLevelActorRemoved);
 	OnLevelActorAddedDelegateHandle = GEngine->OnLevelActorAdded().AddSP(this, &FEdModeLandscape::OnLevelActorAdded);
+	OnLandscapeLayerSystemFlagChangedDelegateHandle = GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().AddLambda([this](FName PropertyName)
+	{ 
+		if (PropertyName == TEXT("bLandscapeLayerSystem"))
+		{
+			RefreshDetailPanel();
+		}
+	});
 
 	ALandscapeProxy* SelectedLandscape = GEditor->GetSelectedActors()->GetTop<ALandscapeProxy>();
 	if (SelectedLandscape)
@@ -476,7 +483,7 @@ void FEdModeLandscape::Enter()
 	}
 	else
 	{
-		GEditor->SelectNone(false, true);
+		GEditor->SelectNone(true, true);
 	}
 
 	for (TActorIterator<ALandscapeGizmoActiveActor> It(GetWorld()); It; ++It)
@@ -505,13 +512,9 @@ void FEdModeLandscape::Enter()
 		ALandscapeProxy* LandscapeProxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
 		LandscapeProxy->OnMaterialChangedDelegate().AddRaw(this, &FEdModeLandscape::OnLandscapeMaterialChangedDelegate);
 
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if(ALandscape* Landscape = GetLandscape())
 		{
-			ALandscape* Landscape = GetLandscape();
-			if (Landscape)
-			{
-				Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All_Render);
-			}
+			Landscape->RequestLayersContentUpdateForceAll();
 		}
 	}
 
@@ -666,6 +669,7 @@ void FEdModeLandscape::Exit()
 
 	GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedDelegateHandle);
 	GEngine->OnLevelActorAdded().Remove(OnLevelActorAddedDelegateHandle);
+	GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().Remove(OnLandscapeLayerSystemFlagChangedDelegateHandle);
 	
 	FEditorSupportDelegates::WorldChange.Remove(OnWorldChangeDelegateHandle);
 	GetWorld()->OnLevelsChanged().Remove(OnLevelsChangedDelegateHandle);
@@ -3335,7 +3339,7 @@ void FEdModeLandscape::ReimportData(const FLandscapeTargetListInfo& TargetInfo)
 	const FString& SourceFilePath = TargetInfo.ReimportFilePath();
 	if (SourceFilePath.Len())
 	{
-		FScopedSetLandscapeEditingLayer Scope(GetLandscape(), GetCurrentLayerGuid(), [&] { RequestLayersContentUpdate(); });
+		FScopedSetLandscapeEditingLayer Scope(GetLandscape(), GetCurrentLayerGuid(), [&] { RequestLayersContentUpdateForceAll(); });
 		ImportData(TargetInfo, SourceFilePath);
 	}
 	else
@@ -3442,7 +3446,7 @@ void FEdModeLandscape::ImportData(const FLandscapeTargetListInfo& TargetInfo, co
 
 			{
 				ALandscape* Landscape = GetLandscape();
-				FScopedSetLandscapeEditingLayer Scope(Landscape, GetCurrentLayerGuid(), [&] { check(Landscape); Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::Heightmap_All); });
+				FScopedSetLandscapeEditingLayer Scope(Landscape, GetCurrentLayerGuid(), [&] { check(Landscape); Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Heightmap_All); });
 
 				TArray<uint16> Data;
 				if (ImportResolution != LandscapeResolution)
@@ -3558,7 +3562,7 @@ void FEdModeLandscape::ImportData(const FLandscapeTargetListInfo& TargetInfo, co
 
 			{
 				ALandscape* Landscape = GetLandscape();
-				FScopedSetLandscapeEditingLayer Scope(Landscape, GetCurrentLayerGuid(), [&] { check(Landscape); Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::Weightmap_All); });
+				FScopedSetLandscapeEditingLayer Scope(Landscape, GetCurrentLayerGuid(), [&] { check(Landscape); Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Weightmap_All); });
 
 				TArray<uint8> Data;
 				if (ImportResolution != LandscapeResolution)
@@ -3929,7 +3933,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 				ALandscape* OldLandscapeActor = Cast<ALandscape>(OldLandscapeProxy);
 				ALandscape* NewLandscapeActor = Cast<ALandscape>(Landscape);
 
-				NewLandscapeActor->PreviousExperimentalLandscapeLayers = OldLandscapeActor->PreviousExperimentalLandscapeLayers;
+				NewLandscapeActor->bInitializedWithFlagExperimentalLandscapeLayers = OldLandscapeActor->bInitializedWithFlagExperimentalLandscapeLayers;
 
 				// Moves specific config including brushes to new landscape actor
 				for (const FLandscapeLayer& Layer : OldLandscapeActor->LandscapeLayers)
@@ -4226,12 +4230,19 @@ void FEdModeLandscape::SetLayerLocked(int32 InLayerIndex, bool bInLocked)
 	}
 }
 
-void FEdModeLandscape::RequestLayersContentUpdate(bool InUpdateAllMaterials)
+void FEdModeLandscape::RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode, bool bInForceUpdateAllComponents)
 {
-	ALandscape* Landscape = GetLandscape();
-	if (Landscape)
+	if (ALandscape* Landscape = GetLandscape())
 	{
-		Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All_Render, InUpdateAllMaterials);
+		Landscape->RequestLayersContentUpdate(InUpdateMode, bInForceUpdateAllComponents);
+	}
+}
+
+void FEdModeLandscape::RequestLayersContentUpdateForceAll()
+{
+	if (ALandscape* Landscape = GetLandscape())
+	{
+		Landscape->RequestLayersContentUpdateForceAll();
 	}
 }
 

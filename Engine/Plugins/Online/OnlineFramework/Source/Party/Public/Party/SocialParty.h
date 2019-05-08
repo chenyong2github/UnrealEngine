@@ -337,6 +337,9 @@ private:
 	UPROPERTY()
 	TMap<FUniqueNetIdRepl, UPartyMember*> PartyMembersById;
 
+	UPROPERTY(config)
+	bool bEnableAutomaticPartyRejoin = true;
+
 	FPartyConfiguration CurrentConfig;
 
 	//@todo DanH Party: Rename/reorg this to more clearly call out that this is specific to lobby beacon stuff #suggested

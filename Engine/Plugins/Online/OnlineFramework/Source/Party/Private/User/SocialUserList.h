@@ -82,7 +82,6 @@ private:
 	FSocialUserListConfig ListConfig;
 
 	// give external access to disable list update for perf
-	int32 NumIgnoreUpdateRequests = 0;
 	bool bAllowAutoUpdate = true;
 	bool bNeedsSort = false;
 	float AutoUpdatePeriod = 5.f;

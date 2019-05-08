@@ -16,6 +16,14 @@ class FNetFieldExportGroup;
 class FOutBunch;
 class UNetConnection;
 
+enum class ESetChannelActorFlags : uint32
+{
+	None					= 0,
+	SkipReplicatorCreation	= (1 << 0),
+};
+
+ENUM_CLASS_FLAGS(ESetChannelActorFlags);
+
 /**
  * A channel for exchanging actor and its subobject's properties and RPCs.
  *
@@ -154,7 +162,9 @@ public:
 	 * It's expected that InActor is either null (releasing the channel's reference) or
 	 * a valid actor that is not PendingKill or PendingKillPending.
 	 */
-	void SetChannelActor( AActor* InActor );
+	UE_DEPRECATED(4.23, "SetChannelActor has an additional parameter.")
+	void SetChannelActor(AActor* InActor) { SetChannelActor(InActor, ESetChannelActorFlags::None); }
+	void SetChannelActor(AActor* InActor, ESetChannelActorFlags Flags);
 
 	virtual void NotifyActorChannelOpen(AActor* InActor, FInBunch& InBunch);
 

@@ -331,6 +331,8 @@ struct FLaunchOnTestSettings
 	FString DeviceID;
 };
 
+
+
 /**
  * Implements the Editor's user settings.
  */

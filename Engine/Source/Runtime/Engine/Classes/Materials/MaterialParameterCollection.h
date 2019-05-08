@@ -13,6 +13,7 @@
 #include "Templates/ScopedPointer.h"
 #include "UniformBuffer.h"
 #include "Templates/UniquePtr.h"
+#include "RenderCommandFence.h"
 #include "MaterialParameterCollection.generated.h"
 
 struct FPropertyChangedEvent;
@@ -126,7 +127,12 @@ class UMaterialParameterCollection : public UObject
 	}
 
 private:
-	
+	virtual ENGINE_API void FinishDestroy() override;
+	virtual ENGINE_API bool IsReadyForFinishDestroy() override;
+
+	/** Fence used to guarantee that the RT is finished using various resources in this UMaterial before cleanup. */
+	FRenderCommandFence ReleaseFence;
+
 	/** Default resource used when no instance is available. */
 	class FMaterialParameterCollectionInstanceResource* DefaultResource;
 

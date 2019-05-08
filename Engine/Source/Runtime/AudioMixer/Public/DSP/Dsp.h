@@ -59,6 +59,7 @@ namespace Audio
 	}
 
 	// Low precision, high performance approximation of sine using parabolic polynomial approx
+	// Valid on interval [-PI, PI]
 	static FORCEINLINE float FastSin(const float X)
 	{
 		return (4.0f * X) / PI * (1.0f - FMath::Abs(X) / PI);

@@ -188,16 +188,33 @@ void FDisplayMetrics::RebuildDisplayMetrics( FDisplayMetrics& OutDisplayMetrics 
 	float Inset_Right = -1.0f;
 	float Inset_Bottom = -1.0f;
 
-	if (FString* SafeZoneLandscape = FAndroidMisc::GetConfigRulesVariable(TEXT("SafeZone_Landscape")))
+	bool bIsPortrait = FAndroidWindow::IsPortraitOrientation();
+
+	// ConfigRules values override values from device
+	if (FString* SafeZoneVar = FAndroidMisc::GetConfigRulesVariable(bIsPortrait ? TEXT("SafeZone_Portrait") : TEXT("SafeZone_Landscape")))
 	{
 		TArray<FString> ZoneVector;
-		if (SafeZoneLandscape->ParseIntoArray(ZoneVector, TEXT(","), true) == 4)
+		int ZoneParseCount = SafeZoneVar->ParseIntoArray(ZoneVector, TEXT(","), true);
+		ensureMsgf(ZoneParseCount == 4, TEXT("SafeZone variable not properly formatted."));
+
+		if (ZoneParseCount == 4)
 		{
+			// these are already in pixels
 			Inset_Left = FCString::Atof(*ZoneVector[0]);
 			Inset_Top = FCString::Atof(*ZoneVector[1]);
 			Inset_Right = FCString::Atof(*ZoneVector[2]);
 			Inset_Bottom = FCString::Atof(*ZoneVector[3]);
 		}
+	}
+	else
+	{
+		FVector4 SafeZoneRect = FAndroidWindow::GetSafezone(bIsPortrait);
+
+		// These values will be negative if there is not a safe zone set by GameActivity and need scaling
+		Inset_Left = SafeZoneRect.X * OutDisplayMetrics.PrimaryDisplayWidth;
+		Inset_Top = SafeZoneRect.Y * OutDisplayMetrics.PrimaryDisplayHeight;
+		Inset_Right = SafeZoneRect.Z * OutDisplayMetrics.PrimaryDisplayWidth;
+		Inset_Bottom = SafeZoneRect.W * OutDisplayMetrics.PrimaryDisplayHeight;
 	}
 
 	OutDisplayMetrics.TitleSafePaddingSize.X = (Inset_Left >= 0.0f) ? Inset_Left : OutDisplayMetrics.TitleSafePaddingSize.X;

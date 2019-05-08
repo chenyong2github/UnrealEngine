@@ -15,16 +15,12 @@ void FRigUnit_DebugBezier::Execute(const FRigUnitContext& Context)
 		return;
 	}
 
-	FVector DrawA = A, DrawB = B, DrawC = C, DrawD = D;
+	FTransform Transform = WorldOffset;
 	if (Space != NAME_None && Context.HierarchyReference.Get() != nullptr)
 	{
-		FTransform Transform = Context.HierarchyReference.Get()->GetGlobalTransform(Space);
-		DrawA = Transform.TransformPosition(DrawA);
-		DrawB = Transform.TransformPosition(DrawB);
-		DrawC = Transform.TransformPosition(DrawC);
-		DrawD = Transform.TransformPosition(DrawD);
+		Transform = Transform * Context.HierarchyReference.Get()->GetGlobalTransform(Space);
 	}
 
 
-	Context.DrawInterface->DrawBezier(WorldOffset, DrawA, DrawB, DrawC, DrawD, MinimumU, MaximumU, Color, Thickness, Detail);
+	Context.DrawInterface->DrawBezier(Transform, Bezier, MinimumU, MaximumU, Color, Thickness, Detail);
 }

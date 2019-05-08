@@ -71,6 +71,8 @@ void FAndroidWindow::SetOSWindowHandle(void* InWindow)
 //This function is declared in the Java-defined class, GameActivity.java: "public native void nativeSetObbInfo(String PackageName, int Version, int PatchVersion);"
 static bool GAndroidIsPortrait = false;
 static int GAndroidDepthBufferPreference = 0;
+static FVector4 GAndroidPortraitSafezone = FVector4(-1.0f, -1.0f, -1.0f, -1.0f);
+static FVector4 GAndroidLandscapeSafezone = FVector4(-1.0f, -1.0f, -1.0f, -1.0f);
 #if USE_ANDROID_JNI
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetWindowInfo(JNIEnv* jenv, jobject thiz, jboolean bIsPortrait, jint DepthBufferPreference)
 {
@@ -86,7 +88,35 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetSurfaceViewInfo(JNI
 	GSurfaceViewHeight = height;
 	UE_LOG(LogAndroid, Log, TEXT("nativeSetSurfaceViewInfo width=%d and height=%d"), GSurfaceViewWidth, GSurfaceViewHeight);
 }
+
+JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetSafezoneInfo(JNIEnv* jenv, jobject thiz, jboolean bIsPortrait, jfloat left, jfloat top, jfloat right, jfloat bottom)
+{
+	if (bIsPortrait)
+	{
+		GAndroidPortraitSafezone.X = left;
+		GAndroidPortraitSafezone.Y = top;
+		GAndroidPortraitSafezone.Z = right;
+		GAndroidPortraitSafezone.W = bottom;
+	}
+	else
+	{
+		GAndroidLandscapeSafezone.X = left;
+		GAndroidLandscapeSafezone.Y = top;
+		GAndroidLandscapeSafezone.Z = right;
+		GAndroidLandscapeSafezone.W = bottom;
+	}
+}
 #endif
+
+bool FAndroidWindow::IsPortraitOrientation()
+{
+	return GAndroidIsPortrait;
+}
+
+FVector4 FAndroidWindow::GetSafezone(bool bPortrait)
+{
+	return bPortrait ? GAndroidPortraitSafezone : GAndroidLandscapeSafezone;
+}
 
 int32 FAndroidWindow::GetDepthBufferPreference()
 {

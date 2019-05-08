@@ -806,6 +806,11 @@ void UWorld::BeginDestroy()
 			LevelCollection.RemoveLevel(CollectionLevel);
 		}
 	}
+
+	if (Scene)
+	{
+		Scene->UpdateParameterCollections(TArray<FMaterialParameterCollectionInstanceResource*>());
+	}
 }
 
 void UWorld::FinishDestroy()
@@ -3067,6 +3072,7 @@ void UWorld::UpdateLevelStreaming()
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateLevelStreamingTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UpdateLevelStreaming);
+	LLM_SCOPE(ELLMTag::LoadMapMisc);
 
 	// do nothing if level streaming is frozen
 	if (bIsLevelStreamingFrozen)
@@ -7262,7 +7268,7 @@ static void DumpVisibleActors(UWorld* InWorld)
 	for (FActorIterator ActorIterator(InWorld); ActorIterator; ++ActorIterator)
 	{
 		AActor* Actor = *ActorIterator;
-		if (Actor && Actor->GetLastRenderTime() > (InWorld->GetTimeSeconds() - 0.05f))
+		if (Actor && Actor->WasRecentlyRendered(0.05f))
 		{
 			UE_LOG(LogWorld, Log, TEXT("Visible Actor : %s"), *Actor->GetFullName());
 		}

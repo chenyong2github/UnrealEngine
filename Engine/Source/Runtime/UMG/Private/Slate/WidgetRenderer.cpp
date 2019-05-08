@@ -86,7 +86,23 @@ UTextureRenderTarget2D* FWidgetRenderer::CreateTargetFor(FVector2D DrawSize, Tex
 	return nullptr;
 }
 
+void FWidgetRenderer::DrawWidget(FRenderTarget* RenderTarget, const TSharedRef<SWidget>& Widget, FVector2D DrawSize, float DeltaTime, bool bDeferRenderTargetUpdate)
+{
+	DrawWidget(RenderTarget, Widget, 1.f, DrawSize, DeltaTime, bDeferRenderTargetUpdate);
+}
+
 void FWidgetRenderer::DrawWidget(UTextureRenderTarget2D* RenderTarget, const TSharedRef<SWidget>& Widget, FVector2D DrawSize, float DeltaTime, bool bDeferRenderTargetUpdate)
+{
+	DrawWidget(RenderTarget->GameThread_GetRenderTargetResource(), Widget, DrawSize, DeltaTime, bDeferRenderTargetUpdate);
+}
+
+void FWidgetRenderer::DrawWidget(
+	FRenderTarget* RenderTarget,
+	const TSharedRef<SWidget>& Widget,
+	float Scale,
+	FVector2D DrawSize,
+	float DeltaTime,
+	bool bDeferRenderTargetUpdate)
 {
 	TSharedRef<SVirtualWindow> Window = SNew(SVirtualWindow).Size(DrawSize);
 	TSharedRef<FHittestGrid> HitTestGrid = MakeShareable(new FHittestGrid());
@@ -94,11 +110,22 @@ void FWidgetRenderer::DrawWidget(UTextureRenderTarget2D* RenderTarget, const TSh
 	Window->SetContent(Widget);
 	Window->Resize(DrawSize);
 
-	DrawWindow(RenderTarget, HitTestGrid, Window, 1, DrawSize, DeltaTime, bDeferRenderTargetUpdate);
+	DrawWindow(RenderTarget, HitTestGrid, Window, Scale, DrawSize, DeltaTime, bDeferRenderTargetUpdate);
+}
+
+void FWidgetRenderer::DrawWidget(
+	UTextureRenderTarget2D* RenderTarget,
+	const TSharedRef<SWidget>& Widget,
+	float Scale,
+	FVector2D DrawSize,
+	float DeltaTime,
+	bool bDeferRenderTargetUpdate)
+{
+	DrawWidget(RenderTarget->GameThread_GetRenderTargetResource(), Widget, Scale, DrawSize, DeltaTime, bDeferRenderTargetUpdate);
 }
 
 void FWidgetRenderer::DrawWindow(
-	UTextureRenderTarget2D* RenderTarget,
+	FRenderTarget* RenderTarget,
 	TSharedRef<FHittestGrid> HitTestGrid,
 	TSharedRef<SWindow> Window,
 	float Scale,
@@ -124,6 +151,18 @@ void FWidgetRenderer::DrawWindow(
 	UTextureRenderTarget2D* RenderTarget,
 	TSharedRef<FHittestGrid> HitTestGrid,
 	TSharedRef<SWindow> Window,
+	float Scale,
+	FVector2D DrawSize,
+	float DeltaTime,
+	bool bDeferRenderTargetUpdate)
+{
+	DrawWindow(RenderTarget->GameThread_GetRenderTargetResource(), HitTestGrid, Window, Scale, DrawSize, DeltaTime, bDeferRenderTargetUpdate);
+}
+
+void FWidgetRenderer::DrawWindow(
+	FRenderTarget* RenderTarget,
+	TSharedRef<FHittestGrid> HitTestGrid,
+	TSharedRef<SWindow> Window,
 	FGeometry WindowGeometry,
 	FSlateRect WindowClipRect,
 	float DeltaTime,
@@ -134,8 +173,20 @@ void FWidgetRenderer::DrawWindow(
 }
 
 void FWidgetRenderer::DrawWindow(
-	const FPaintArgs& PaintArgs,
 	UTextureRenderTarget2D* RenderTarget,
+	TSharedRef<FHittestGrid> HitTestGrid,
+	TSharedRef<SWindow> Window,
+	FGeometry WindowGeometry,
+	FSlateRect WindowClipRect,
+	float DeltaTime,
+	bool bDeferRenderTargetUpdate)
+{
+	DrawWindow(RenderTarget->GameThread_GetRenderTargetResource(), HitTestGrid, Window, WindowGeometry, WindowClipRect, DeltaTime, bDeferRenderTargetUpdate);
+}
+
+void FWidgetRenderer::DrawWindow(
+	const FPaintArgs& PaintArgs,
+	FRenderTarget* RenderTarget,
 	TSharedRef<SWindow> Window,
 	FGeometry WindowGeometry,
 	FSlateRect WindowClipRect,
@@ -189,7 +240,7 @@ void FWidgetRenderer::DrawWindow(
 			static_cast<float>(FApp::GetCurrentTime() - GStartTime),
 			static_cast<float>(FApp::GetDeltaTime()),
 			static_cast<float>(FPlatformTime::Seconds() - GStartTime),
-			RenderTarget->GameThread_GetRenderTargetResource(),
+			RenderTarget,
 			Renderer.Get(),
 			bClearTarget
 		};
@@ -197,4 +248,16 @@ void FWidgetRenderer::DrawWindow(
 		FSlateApplication::Get().GetRenderer()->AddWidgetRendererUpdate(Context, bDeferRenderTargetUpdate);
 	}
 #endif // !UE_SERVER
+}
+
+void FWidgetRenderer::DrawWindow(
+	const FPaintArgs& PaintArgs,
+	UTextureRenderTarget2D* RenderTarget,
+	TSharedRef<SWindow> Window,
+	FGeometry WindowGeometry,
+	FSlateRect WindowClipRect,
+	float DeltaTime,
+	bool bDeferRenderTargetUpdate)
+{
+	DrawWindow(PaintArgs, RenderTarget->GameThread_GetRenderTargetResource(), Window, WindowGeometry, WindowClipRect, DeltaTime, bDeferRenderTargetUpdate);
 }

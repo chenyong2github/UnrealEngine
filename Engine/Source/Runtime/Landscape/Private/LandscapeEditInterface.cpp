@@ -396,61 +396,64 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 					TexDataInfo->AddMipUpdateRegion(0, TexX1, TexY1, TexX2, TexY2);
 				}
 			}
-
-			// See if we need to adjust the bounds. Note we never shrink the bounding box at this point
-			bool bUpdateBoxSphereBounds = false;
-
-			if (InUpdateBounds)
+												
+			Component->RequestHeightmapUpdate();
+			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
-				float MinLocalZ = LandscapeDataAccess::GetLocalHeight(MinHeight);
-				float MaxLocalZ = LandscapeDataAccess::GetLocalHeight(MaxHeight);
+				// See if we need to adjust the bounds. Note we never shrink the bounding box at this point
+				bool bUpdateBoxSphereBounds = false;
 
-				if (MinLocalZ < Component->CachedLocalBox.Min.Z)
+				if (InUpdateBounds)
 				{
-					Component->CachedLocalBox.Min.Z = MinLocalZ;
-					bUpdateBoxSphereBounds = true;
-				}
-				if (MaxLocalZ > Component->CachedLocalBox.Max.Z)
-				{
-					Component->CachedLocalBox.Max.Z = MaxLocalZ;
-					bUpdateBoxSphereBounds = true;
+					float MinLocalZ = LandscapeDataAccess::GetLocalHeight(MinHeight);
+					float MaxLocalZ = LandscapeDataAccess::GetLocalHeight(MaxHeight);
+
+					if (MinLocalZ < Component->CachedLocalBox.Min.Z)
+					{
+						Component->CachedLocalBox.Min.Z = MinLocalZ;
+						bUpdateBoxSphereBounds = true;
+					}
+					if (MaxLocalZ > Component->CachedLocalBox.Max.Z)
+					{
+						Component->CachedLocalBox.Max.Z = MaxLocalZ;
+						bUpdateBoxSphereBounds = true;
+					}
+
+					if (bUpdateBoxSphereBounds)
+					{
+						Component->UpdateComponentToWorld();
+					}
 				}
 
-				if (bUpdateBoxSphereBounds)
+				// Update mipmaps
+
+				// Work out how many mips should be calculated directly from one component's data.
+				// The remaining mips are calculated on a per texture basis.
+				// eg if subsection is 7x7 quads, we need one 3 mips total: (8x8, 4x4, 2x2 verts)
+				if (InGenerateMips)
 				{
-					Component->UpdateComponentToWorld();
+					int32 BaseNumMips = FMath::CeilLogTwo(SubsectionSizeQuads + 1);
+					TArray<FColor*> MipData;
+					MipData.AddUninitialized(BaseNumMips);
+					MipData[0] = HeightmapTextureData;
+					for (int32 MipIdx = 1; MipIdx < BaseNumMips; MipIdx++)
+					{
+						MipData[MipIdx] = (FColor*)TexDataInfo->GetMipData(MipIdx);
+					}
+					Component->GenerateHeightmapMips(MipData, ComponentX1, ComponentY1, ComponentX2, ComponentY2, TexDataInfo);
+
+					if (InUpdateCollision)
+					{
+						// Update collision
+						Component->UpdateCollisionHeightData(
+							MipData[Component->CollisionMipLevel],
+							Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? MipData[Component->SimpleCollisionMipLevel] : nullptr,
+							ComponentX1, ComponentY1, ComponentX2, ComponentY2, bUpdateBoxSphereBounds,
+							XYOffsetMipData);
+					}
 				}
 			}
-
-			// Update mipmaps
-
-			// Work out how many mips should be calculated directly from one component's data.
-			// The remaining mips are calculated on a per texture basis.
-			// eg if subsection is 7x7 quads, we need one 3 mips total: (8x8, 4x4, 2x2 verts)
-			if (InGenerateMips)
-			{
-				int32 BaseNumMips = FMath::CeilLogTwo(SubsectionSizeQuads + 1);
-				TArray<FColor*> MipData;
-				MipData.AddUninitialized(BaseNumMips);
-				MipData[0] = HeightmapTextureData;
-				for (int32 MipIdx = 1; MipIdx < BaseNumMips; MipIdx++)
-				{
-					MipData[MipIdx] = (FColor*)TexDataInfo->GetMipData(MipIdx);
-				}
-				Component->GenerateHeightmapMips(MipData, ComponentX1, ComponentY1, ComponentX2, ComponentY2, TexDataInfo);
-
-				if (InUpdateCollision)
-				{
-					// Update collision
-					Component->UpdateCollisionHeightData(
-						MipData[Component->CollisionMipLevel],
-						Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? MipData[Component->SimpleCollisionMipLevel] : nullptr,
-						ComponentX1, ComponentY1, ComponentX2, ComponentY2, bUpdateBoxSphereBounds,
-						XYOffsetMipData);
-				}
-			}
-
-
+			
 			// Update GUID for Platform Data
 			FPlatformMisc::CreateGuid(Component->StateId);
 		}
@@ -1741,29 +1744,33 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 	Component->UpdateMaterialInstances();
 	Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
 	Component->UpdateEditToolRenderData();
-
+	Component->RequestWeightmapUpdate();
+	
 	// Update dominant layer info stored in collision component
-	TArray<FColor*> CollisionWeightmapMipData;
-	for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		CollisionWeightmapMipData.Add((FColor*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(Component->CollisionMipLevel));
-	}
-	TArray<FColor*> SimpleCollisionWeightmapMipData;
-	if (Component->SimpleCollisionMipLevel > Component->CollisionMipLevel)
-	{
+		TArray<FColor*> CollisionWeightmapMipData;
 		for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
 		{
-			SimpleCollisionWeightmapMipData.Add((FColor*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(Component->SimpleCollisionMipLevel));
+			CollisionWeightmapMipData.Add((FColor*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(Component->CollisionMipLevel));
 		}
-	}
-	Component->UpdateCollisionLayerData(
-		CollisionWeightmapMipData.GetData(),
-		Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr);
+		TArray<FColor*> SimpleCollisionWeightmapMipData;
+		if (Component->SimpleCollisionMipLevel > Component->CollisionMipLevel)
+		{
+			for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
+			{
+				SimpleCollisionWeightmapMipData.Add((FColor*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(Component->SimpleCollisionMipLevel));
+			}
+		}
+		Component->UpdateCollisionLayerData(
+			CollisionWeightmapMipData.GetData(),
+			Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr);
 
-	ULandscapeHeightfieldCollisionComponent* LocalCollisionComponent = Component->CollisionComponent.Get();
-	if (LocalCollisionComponent)
-	{
-		LocalCollisionComponent->RecreateCollision();
+		ULandscapeHeightfieldCollisionComponent* LocalCollisionComponent = Component->CollisionComponent.Get();
+		if (LocalCollisionComponent)
+		{
+			LocalCollisionComponent->RecreateCollision();
+		}
 	}
 }
 
@@ -1780,10 +1787,14 @@ void FLandscapeEditDataInterface::DeleteLayer(ULandscapeLayerInfoObject* LayerIn
 		Component->DeleteLayer(LayerInfo, *this);
 	}
 
-	// Flush dynamic data (e.g. grass)
 	TSet<ULandscapeComponent*> Components;
 	Algo::Transform(LandscapeInfo->XYtoComponentMap, Components, &TPair<FIntPoint, ULandscapeComponent*>::Value);
 	ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+
+	if (LandscapeInfo->LandscapeActor)
+	{
+		LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All, true);
+	}
 }
 
 void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLandscapeEditDataInterface& LandscapeEdit)
@@ -1830,11 +1841,6 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 		FillLayerIdx = ComponentWeightmapLayerAllocations.Num();
 		ComponentWeightmapLayerAllocations.Add(FWeightmapLayerAllocationInfo(LayerInfo));
 		Component->ReallocateWeightmaps(&LandscapeEdit);
-
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			GetLandscapeActor()->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::Weightmap_Render);
-		}
 	}
 
 	check(FillLayerIdx != INDEX_NONE);
@@ -1940,57 +1946,49 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 	Component->UpdateEditToolRenderData();
 
 	Component->InvalidateLightingCache();
+	Component->RequestWeightmapUpdate();
 
 	// Update dominant layer info stored in collision component
-	TArray<FColor*> CollisionWeightmapMipData;
-	for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		CollisionWeightmapMipData.Add((FColor*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(Component->CollisionMipLevel));
-	}
-	TArray<FColor*> SimpleCollisionWeightmapMipData;
-	if (Component->SimpleCollisionMipLevel > Component->CollisionMipLevel)
-	{
+		TArray<FColor*> CollisionWeightmapMipData;
 		for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
 		{
-			SimpleCollisionWeightmapMipData.Add((FColor*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(Component->SimpleCollisionMipLevel));
+			CollisionWeightmapMipData.Add((FColor*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(Component->CollisionMipLevel));
 		}
-	}
-	Component->UpdateCollisionLayerData(
-		CollisionWeightmapMipData.GetData(),
-		Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr);
+		TArray<FColor*> SimpleCollisionWeightmapMipData;
+		if (Component->SimpleCollisionMipLevel > Component->CollisionMipLevel)
+		{
+			for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
+			{
+				SimpleCollisionWeightmapMipData.Add((FColor*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(Component->SimpleCollisionMipLevel));
+			}
+		}
+		Component->UpdateCollisionLayerData(
+			CollisionWeightmapMipData.GetData(),
+			Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr);
 
-	ULandscapeHeightfieldCollisionComponent* LocalCollisionComponent = Component->CollisionComponent.Get();
-	if (LocalCollisionComponent)
-	{
-		LocalCollisionComponent->RecreateCollision();
+		ULandscapeHeightfieldCollisionComponent* LocalCollisionComponent = Component->CollisionComponent.Get();
+		if (LocalCollisionComponent)
+		{
+			LocalCollisionComponent->RecreateCollision();
+		}
 	}
 }
 
 void FLandscapeEditDataInterface::FillLayer(ULandscapeLayerInfoObject* LayerInfo)
 {
-	if (!LandscapeInfo)
-	{
-		return;
-	}
-
-	LayerInfo->IsReferencedFromLoadedData = true;
-
-	for (auto& XYComponentPair : LandscapeInfo->XYtoComponentMap)
-	{
-		ULandscapeComponent* Component = XYComponentPair.Value;
-		Component->FillLayer(LayerInfo, *this);
-	}	
-
-	// Flush dynamic data (e.g. grass)
-	TSet<ULandscapeComponent*> Components;
-	for (auto& XYComponentPair : LandscapeInfo->XYtoComponentMap)
-	{
-		Components.Add(XYComponentPair.Value);
-	}
-	ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+	const bool bEmptyLayersOnly = false;
+	FillLayer(LayerInfo, bEmptyLayersOnly);
 }
 
 void FLandscapeEditDataInterface::FillEmptyLayers(ULandscapeLayerInfoObject* LayerInfo)
+{
+	const bool bEmptyLayersOnly = true;
+	FillLayer(LayerInfo, bEmptyLayersOnly);
+}
+
+void FLandscapeEditDataInterface::FillLayer(ULandscapeLayerInfoObject* LayerInfo, bool bEmptyLayersOnly)
 {
 	if (!LandscapeInfo)
 	{
@@ -2006,12 +2004,15 @@ void FLandscapeEditDataInterface::FillEmptyLayers(ULandscapeLayerInfoObject* Lay
 
 		bool LayerNeedFilling = true;
 
-		for (const FWeightmapLayerAllocationInfo& Alloc : ComponentWeightmapLayerAllocations)
+		if (bEmptyLayersOnly)
 		{
-			if (Alloc.LayerInfo != nullptr)
+			for (const FWeightmapLayerAllocationInfo& Alloc : ComponentWeightmapLayerAllocations)
 			{
-				LayerNeedFilling = false;
-				break;
+				if (Alloc.LayerInfo != nullptr)
+				{
+					LayerNeedFilling = false;
+					break;
+				}
 			}
 		}
 
@@ -2021,13 +2022,13 @@ void FLandscapeEditDataInterface::FillEmptyLayers(ULandscapeLayerInfoObject* Lay
 		}
 	}
 
-	// Flush dynamic data (e.g. grass)
 	TSet<ULandscapeComponent*> Components;
-	for (auto& XYComponentPair : LandscapeInfo->XYtoComponentMap)
-	{
-		Components.Add(XYComponentPair.Value);
-	}
+	Algo::Transform(LandscapeInfo->XYtoComponentMap, Components, &TPair<FIntPoint, ULandscapeComponent*>::Value);
 	ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+	if (LandscapeInfo->LandscapeActor)
+	{
+		LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All, true);
+	}
 }
 
 void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo, ULandscapeLayerInfoObject* ToLayerInfo, FLandscapeEditDataInterface& LandscapeEdit)
@@ -2218,6 +2219,35 @@ void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo,
 		EditToolRenderData.UpdateDebugColorMaterial(this);
 		UpdateEditToolRenderData();
 	}
+
+	RequestWeightmapUpdate();
+
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		// Update dominant layer info stored in collision component
+		TArray<FColor*> CollisionWeightmapMipData;
+		for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
+		{
+			CollisionWeightmapMipData.Add((FColor*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(CollisionMipLevel));
+		}
+		TArray<FColor*> SimpleCollisionWeightmapMipData;
+		if (SimpleCollisionMipLevel > CollisionMipLevel)
+		{
+			for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
+			{
+				SimpleCollisionWeightmapMipData.Add((FColor*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(SimpleCollisionMipLevel));
+			}
+		}
+		UpdateCollisionLayerData(
+			CollisionWeightmapMipData.GetData(),
+			SimpleCollisionMipLevel > CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr);
+
+
+		if(ULandscapeHeightfieldCollisionComponent* CollisionComp = CollisionComponent.Get())
+		{
+			CollisionComp->RecreateCollision();
+		}
+	}
 }
 
 void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo, ULandscapeLayerInfoObject* ToLayerInfo)
@@ -2230,35 +2260,6 @@ void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLa
 		{
 			ULandscapeComponent* Component = It.Value();
 			Component->ReplaceLayer(FromLayerInfo, ToLayerInfo, *this);
-
-			TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(true);
-
-			// Update dominant layer info stored in collision component
-			TArray<FColor*> CollisionWeightmapMipData;
-			for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
-			{
-				CollisionWeightmapMipData.Add((FColor*)GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(Component->CollisionMipLevel));
-			}
-			TArray<FColor*> SimpleCollisionWeightmapMipData;
-			if (Component->SimpleCollisionMipLevel > Component->CollisionMipLevel)
-			{
-				for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
-				{
-					SimpleCollisionWeightmapMipData.Add((FColor*)GetTextureDataInfo(ComponentWeightmapTextures[WeightmapIdx])->GetMipData(Component->SimpleCollisionMipLevel));
-				}
-			}
-			Component->UpdateCollisionLayerData(
-				CollisionWeightmapMipData.GetData(),
-				Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr);
-
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-			{
-				ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
-				if (CollisionComponent)
-				{
-					CollisionComponent->RecreateCollision();
-				}
-			}
 		}
 	};
 
@@ -2278,7 +2279,7 @@ void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLa
 				FScopedSetLandscapeEditingLayer Scope(LandscapeInfo->LandscapeActor.Get(), CurrentLayer.Guid);
 				DoReplace();
 			});
-			LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+			LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Weightmap_All, true);
 		}
 	}
 	else
@@ -2782,6 +2783,60 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 					continue;
 				}
 
+				auto IsDataAllZeroForComponent = [&]() -> bool
+				{
+					// Find coordinates of box that lies inside component
+					const int32 ComponentX1 = FMath::Clamp<int32>(X1 - ComponentIndexX * ComponentSizeQuads, 0, ComponentSizeQuads);
+					const int32 ComponentY1 = FMath::Clamp<int32>(Y1 - ComponentIndexY * ComponentSizeQuads, 0, ComponentSizeQuads);
+					const int32 ComponentX2 = FMath::Clamp<int32>(X2 - ComponentIndexX * ComponentSizeQuads, 0, ComponentSizeQuads);
+					const int32 ComponentY2 = FMath::Clamp<int32>(Y2 - ComponentIndexY * ComponentSizeQuads, 0, ComponentSizeQuads);
+
+					// Find subsection range for this box
+					const int32 SubIndexX1 = FMath::Clamp<int32>((ComponentX1 - 1) / SubsectionSizeQuads, 0, ComponentNumSubsections - 1); // -1 because we need to pick up vertices shared between subsections
+					const int32 SubIndexY1 = FMath::Clamp<int32>((ComponentY1 - 1) / SubsectionSizeQuads, 0, ComponentNumSubsections - 1);
+					const int32 SubIndexX2 = FMath::Clamp<int32>(ComponentX2 / SubsectionSizeQuads, 0, ComponentNumSubsections - 1);
+					const int32 SubIndexY2 = FMath::Clamp<int32>(ComponentY2 / SubsectionSizeQuads, 0, ComponentNumSubsections - 1);
+
+					for (int32 SubIndexY = SubIndexY1; SubIndexY <= SubIndexY2; SubIndexY++)
+					{
+						for (int32 SubIndexX = SubIndexX1; SubIndexX <= SubIndexX2; SubIndexX++)
+						{
+							// Find coordinates of box that lies inside subsection
+							const int32 SubX1 = FMath::Clamp<int32>(ComponentX1 - SubsectionSizeQuads * SubIndexX, 0, SubsectionSizeQuads);
+							const int32 SubY1 = FMath::Clamp<int32>(ComponentY1 - SubsectionSizeQuads * SubIndexY, 0, SubsectionSizeQuads);
+							const int32 SubX2 = FMath::Clamp<int32>(ComponentX2 - SubsectionSizeQuads * SubIndexX, 0, SubsectionSizeQuads);
+							const int32 SubY2 = FMath::Clamp<int32>(ComponentY2 - SubsectionSizeQuads * SubIndexY, 0, SubsectionSizeQuads);
+
+							// Update texture data for the box that lies inside subsection
+							for (int32 SubY = SubY1; SubY <= SubY2; SubY++)
+							{
+								for (int32 SubX = SubX1; SubX <= SubX2; SubX++)
+								{
+									const int32 LandscapeX = SubIndexX * SubsectionSizeQuads + ComponentIndexX * ComponentSizeQuads + SubX;
+									const int32 LandscapeY = SubIndexY * SubsectionSizeQuads + ComponentIndexY * ComponentSizeQuads + SubY;
+									checkSlow(LandscapeX >= X1 && LandscapeX <= X2);
+									checkSlow(LandscapeY >= Y1 && LandscapeY <= Y2);
+
+									// Find the input data corresponding to this vertex
+									const int32 DataIndex = (LandscapeX - X1) + Stride * (LandscapeY - Y1);
+									uint8 NewWeight = Data[DataIndex];
+									if (NewWeight)
+									{
+										return false;
+									}
+								}
+							}
+						}
+					}
+					return true;
+				};
+
+				// Avoid reallocating and update material instances if we're about to write all zeros and we don't have an allocated channel for this LayerInfo
+				if (IsDataAllZeroForComponent())
+				{
+					continue;
+				}
+
 				UpdateLayerIdx = ComponentWeightmapLayerAllocations.Num();
 				new (ComponentWeightmapLayerAllocations) FWeightmapLayerAllocationInfo(LayerInfo);
 				Component->ReallocateWeightmaps(this);
@@ -3036,42 +3091,45 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 				}
 			}
 
-			// Update mipmaps
-			CollisionWeightmapMipData.Reset();
-			CollisionWeightmapMipData.AddUninitialized(ComponentWeightmapTextures.Num());
-			for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
+			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
-				UTexture2D* const WeightmapTexture = ComponentWeightmapTextures[WeightmapIdx];
-
-				const int32 NumMips = WeightmapTexture->Source.GetNumMips();
-				WeightmapTextureMipData.Reset();
-				WeightmapTextureMipData.AddUninitialized(NumMips);
-				for (int32 MipIdx = 0; MipIdx < NumMips; MipIdx++)
-				{
-					FColor* const MipData = (FColor*)TexDataInfos[WeightmapIdx]->GetMipData(MipIdx);
-					WeightmapTextureMipData[MipIdx] = MipData;
-				}
-				CollisionWeightmapMipData[WeightmapIdx] = WeightmapTextureMipData[Component->CollisionMipLevel];
-
-				ULandscapeComponent::UpdateWeightmapMips(ComponentNumSubsections, SubsectionSizeQuads, WeightmapTexture, WeightmapTextureMipData, ComponentX1, ComponentY1, ComponentX2, ComponentY2, TexDataInfos[WeightmapIdx]);
-				WeightmapTextureMipData.Reset();
-			}
-
-			if (Component->SimpleCollisionMipLevel > Component->CollisionMipLevel)
-			{
+				// Update mipmaps
+				CollisionWeightmapMipData.Reset();
+				CollisionWeightmapMipData.AddUninitialized(ComponentWeightmapTextures.Num());
 				for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
 				{
-					SimpleCollisionWeightmapMipData.Add((FColor*)TexDataInfos[WeightmapIdx]->GetMipData(Component->SimpleCollisionMipLevel));
-				}
-			}
+					UTexture2D* const WeightmapTexture = ComponentWeightmapTextures[WeightmapIdx];
 
-			// Update dominant layer info stored in collision component
-			Component->UpdateCollisionLayerData(
-				CollisionWeightmapMipData.GetData(),
-				Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr,
-				ComponentX1, ComponentY1, ComponentX2, ComponentY2);
-			CollisionWeightmapMipData.Reset();
-			SimpleCollisionWeightmapMipData.Reset();
+					const int32 NumMips = WeightmapTexture->Source.GetNumMips();
+					WeightmapTextureMipData.Reset();
+					WeightmapTextureMipData.AddUninitialized(NumMips);
+					for (int32 MipIdx = 0; MipIdx < NumMips; MipIdx++)
+					{
+						FColor* const MipData = (FColor*)TexDataInfos[WeightmapIdx]->GetMipData(MipIdx);
+						WeightmapTextureMipData[MipIdx] = MipData;
+					}
+					CollisionWeightmapMipData[WeightmapIdx] = WeightmapTextureMipData[Component->CollisionMipLevel];
+
+					ULandscapeComponent::UpdateWeightmapMips(ComponentNumSubsections, SubsectionSizeQuads, WeightmapTexture, WeightmapTextureMipData, ComponentX1, ComponentY1, ComponentX2, ComponentY2, TexDataInfos[WeightmapIdx]);
+					WeightmapTextureMipData.Reset();
+				}
+
+				if (Component->SimpleCollisionMipLevel > Component->CollisionMipLevel)
+				{
+					for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
+					{
+						SimpleCollisionWeightmapMipData.Add((FColor*)TexDataInfos[WeightmapIdx]->GetMipData(Component->SimpleCollisionMipLevel));
+					}
+				}
+
+				// Update dominant layer info stored in collision component
+				Component->UpdateCollisionLayerData(
+					CollisionWeightmapMipData.GetData(),
+					Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr,
+					ComponentX1, ComponentY1, ComponentX2, ComponentY2);
+				CollisionWeightmapMipData.Reset();
+				SimpleCollisionWeightmapMipData.Reset();
+			}
 
 			// Check if we need to remove weightmap allocations for layers that were completely painted away
 			bool bRemovedLayer = false;
@@ -3315,42 +3373,45 @@ void FLandscapeEditDataInterface::SetAlphaData(const TSet<ULandscapeLayerInfoObj
 				}
 			}
 
-			// Update mipmaps
-			CollisionWeightmapMipData.Reset();
-			CollisionWeightmapMipData.AddUninitialized(ComponentWeightmapTextures.Num());
-			for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
+			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
-				UTexture2D* const WeightmapTexture = ComponentWeightmapTextures[WeightmapIdx];
-
-				const int32 NumMips = WeightmapTexture->Source.GetNumMips();
-				WeightmapTextureMipData.Reset();
-				WeightmapTextureMipData.AddUninitialized(NumMips);
-				for (int32 MipIdx = 0; MipIdx < NumMips; MipIdx++)
-				{
-					FColor* const MipData = (FColor*)TexDataInfos[WeightmapIdx]->GetMipData(MipIdx);
-					WeightmapTextureMipData[MipIdx] = MipData;
-				}
-				CollisionWeightmapMipData[WeightmapIdx] = WeightmapTextureMipData[Component->CollisionMipLevel];
-
-				ULandscapeComponent::UpdateWeightmapMips(ComponentNumSubsections, SubsectionSizeQuads, WeightmapTexture, WeightmapTextureMipData, ComponentX1, ComponentY1, ComponentX2, ComponentY2, TexDataInfos[WeightmapIdx]);
-				WeightmapTextureMipData.Reset();
-			}
-
-			if (Component->SimpleCollisionMipLevel > Component->CollisionMipLevel)
-			{
+				// Update mipmaps
+				CollisionWeightmapMipData.Reset();
+				CollisionWeightmapMipData.AddUninitialized(ComponentWeightmapTextures.Num());
 				for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
 				{
-					SimpleCollisionWeightmapMipData.Add((FColor*)TexDataInfos[WeightmapIdx]->GetMipData(Component->SimpleCollisionMipLevel));
-				}
-			}
+					UTexture2D* const WeightmapTexture = ComponentWeightmapTextures[WeightmapIdx];
 
-			// Update dominant layer info stored in collision component
-			Component->UpdateCollisionLayerData(
-				CollisionWeightmapMipData.GetData(),
-				Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr,
-				ComponentX1, ComponentY1, ComponentX2, ComponentY2);
-			CollisionWeightmapMipData.Reset();
-			SimpleCollisionWeightmapMipData.Reset();
+					const int32 NumMips = WeightmapTexture->Source.GetNumMips();
+					WeightmapTextureMipData.Reset();
+					WeightmapTextureMipData.AddUninitialized(NumMips);
+					for (int32 MipIdx = 0; MipIdx < NumMips; MipIdx++)
+					{
+						FColor* const MipData = (FColor*)TexDataInfos[WeightmapIdx]->GetMipData(MipIdx);
+						WeightmapTextureMipData[MipIdx] = MipData;
+					}
+					CollisionWeightmapMipData[WeightmapIdx] = WeightmapTextureMipData[Component->CollisionMipLevel];
+
+					ULandscapeComponent::UpdateWeightmapMips(ComponentNumSubsections, SubsectionSizeQuads, WeightmapTexture, WeightmapTextureMipData, ComponentX1, ComponentY1, ComponentX2, ComponentY2, TexDataInfos[WeightmapIdx]);
+					WeightmapTextureMipData.Reset();
+				}
+
+				if (Component->SimpleCollisionMipLevel > Component->CollisionMipLevel)
+				{
+					for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
+					{
+						SimpleCollisionWeightmapMipData.Add((FColor*)TexDataInfos[WeightmapIdx]->GetMipData(Component->SimpleCollisionMipLevel));
+					}
+				}
+
+				// Update dominant layer info stored in collision component
+				Component->UpdateCollisionLayerData(
+					CollisionWeightmapMipData.GetData(),
+					Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr,
+					ComponentX1, ComponentY1, ComponentX2, ComponentY2);
+				CollisionWeightmapMipData.Reset();
+				SimpleCollisionWeightmapMipData.Reset();
+			}
 
 			// Check if we need to remove weightmap allocations for layers that were completely painted away
 			bool bRemovedLayer = false;

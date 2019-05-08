@@ -321,6 +321,38 @@ const TCHAR* ToString(const EMemberExitedReason Value)
 	return TEXT("Unknown"); // Same as EMemberExitedReason::Unknown, which is ok because it is only used when we do not have enough information
 }
 
+const TCHAR* ToString(const EPartyInvitationRemovedReason Value)
+{
+	switch (Value)
+	{
+	case EPartyInvitationRemovedReason::Unknown:
+	{
+		return TEXT("Unknown");
+	}
+	case EPartyInvitationRemovedReason::Accepted:
+	{
+		return TEXT("Accepted");
+	}
+	case EPartyInvitationRemovedReason::Declined:
+	{
+		return TEXT("Declined");
+	}
+	case EPartyInvitationRemovedReason::Cleared:
+	{
+		return TEXT("Cleared");
+	}
+	case EPartyInvitationRemovedReason::Expired:
+	{
+		return TEXT("Expired");
+	}
+	case EPartyInvitationRemovedReason::Invalidated:
+	{
+		return TEXT("Invalidated");
+	}
+	}
+	return TEXT("Unknown"); // Same as EMemberExitedReason::Unknown, which is ok because it is only used when we do not have enough information
+}
+
 const TCHAR* ToString(const ECreatePartyCompletionResult Value)
 {
 	switch (Value)

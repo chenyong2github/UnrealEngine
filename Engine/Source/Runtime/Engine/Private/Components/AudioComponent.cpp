@@ -21,28 +21,6 @@ FAutoConsoleVariableRef CVarBackedAnalysisTimeShift(
 	TEXT("Value: The time in seconds to shift the timeline."),
 	ECVF_Default);
 
-static int32 bRetriggerLoopOnProximityEnabledCVar = 0;
-FAutoConsoleVariableRef CVarRetriggerLoopOnProximityEnabled(
-	TEXT("au.RetriggerLoopOnProximity"),
-	bRetriggerLoopOnProximityEnabledCVar,
-	TEXT("Enables or disables whether retriggering is supported on AudioComponent loops.\n")
-	TEXT("Value: Whether or not retriggering is supported on AudioComponent level."),
-	ECVF_Default);
-
-static float RetriggerLoopOnProximityDistanceCVar = 15000.0f;
-FAutoConsoleVariableRef CVarRetriggerLoopOnProximityDistance(
-	TEXT("au.RetriggerLoopOnProximityDistance"),
-	RetriggerLoopOnProximityDistanceCVar,
-	TEXT("Sets retrigger loop proximity distance.\n")
-	TEXT("Value: The distance to scale update rate based on distance to listener."),
-	ECVF_Default);
-
-namespace
-{
-	float AudioComponentRetriggerUpdateRateMin = 0.1f;
-	float AudioComponentRetriggerUpdateRateMax = 3.0f;
-} // namespace <>
-
 
 /*-----------------------------------------------------------------------------
 UAudioComponent implementation.
@@ -71,11 +49,6 @@ UAudioComponent::UAudioComponent(const FObjectInitializer& ObjectInitializer)
 	bOverrideSubtitlePriority = false;
 	bIsPreviewSound = false;
 	bIsPaused = false;
-
-	bRetriggerLoopOnProximity = false;
-	RetriggerWhenInAudibleRange = ERetriggerWhenInAudibleRange::Disabled;
-	RetriggerTimeSinceLastUpdate = 0.0f;
-	RetriggerUpdateInterval = 0.1f;
 
 	Priority = 1.f;
 	SubtitlePriority = DEFAULT_SUBTITLE_PRIORITY;
@@ -119,14 +92,6 @@ void UAudioComponent::BeginDestroy()
 	{
 		UE_LOG(LogAudio, Verbose, TEXT("Audio Component is being destroyed prior to stopping looping sound '%s' directly."), *Sound->GetFullName());
 		Stop();
-	}
-
-	if (RetriggerWhenInAudibleRange == ERetriggerWhenInAudibleRange::Enabled)
-	{
-		if (FAudioDevice* AudioDevice = GetAudioDevice())
-		{
-			AudioDevice->UnregisterProximityRetriggeringAudioComponent(*this);
-		}
 	}
 
 	FScopeLock Lock(&AudioIDToComponentMapLock);
@@ -291,35 +256,6 @@ bool UAudioComponent::IsReadyForOwnerToAutoDestroy() const
 	return !IsPlaying();
 }
 
-void UAudioComponent::OnUpdateProximityRetrigger(float DeltaTime)
-{
-	if (RetriggerUpdateInterval > 0.0f)
-	{
-		RetriggerTimeSinceLastUpdate += DeltaTime;
-		if (RetriggerUpdateInterval > RetriggerTimeSinceLastUpdate)
-		{
-			return;
-		}
-		RetriggerTimeSinceLastUpdate = 0.0f;
-	}
-
-	if (RetriggerWhenInAudibleRange == ERetriggerWhenInAudibleRange::Enabled)
-	{
-		bool bIsInAudibleRange = GetRetriggerRate(&RetriggerUpdateInterval);
-		if (bIsActive)
-		{
-			if (!bIsInAudibleRange)
-			{
-				StopInternal();
-			}
-		}
-		else if (bIsInAudibleRange)
-		{
-			Play(); // Play refreshes RetriggerWhenInAudibleRange internally
-		}
-	}
-}
-
 void UAudioComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
 	Super::OnUpdateTransform(UpdateTransformFlags, Teleport);
@@ -391,31 +327,6 @@ bool UAudioComponent::IsInAudibleRange(float* OutMaxDistance) const
 	}
 
 	return AudioDevice->SoundIsAudible(Sound, GetWorld(), Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
-}
-
-bool UAudioComponent::GetRetriggerRate(float* OutRetriggerRate) const
-{
-	check(OutRetriggerRate);
-
-	FAudioDevice* AudioDevice = GetAudioDevice();
-	if (!AudioDevice)
-	{
-		*OutRetriggerRate = AudioComponentRetriggerUpdateRateMin;
-		return false;
-	}
-
-	float MaxDistance = 0.0f;
-	if (IsInAudibleRange(&MaxDistance))
-	{
-		*OutRetriggerRate = AudioComponentRetriggerUpdateRateMin;
-		return true;
-	}
-
-	const FVector Location = GetComponentTransform().GetLocation();
-	float DistanceToListener = AudioDevice->GetDistanceToNearestListener(Location);
-	const float DistanceRatio = (DistanceToListener - MaxDistance) / FMath::Max(RetriggerLoopOnProximityDistanceCVar, 1.0f);
-	*OutRetriggerRate = FMath::Lerp(AudioComponentRetriggerUpdateRateMin, AudioComponentRetriggerUpdateRateMax, FMath::Min(DistanceRatio, 1.0f));
-	return false;
 }
 
 void UAudioComponent::Play(float StartTime)
@@ -577,39 +488,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 
 			// Bump ActiveCount... this is used to determine if an audio component is still active after "finishing"
 			++ActiveCount;
-
 			AudioDevice->AddNewActiveSound(NewActiveSound);
-
-			if (World && World->bAllowAudioPlayback)
-			{
-				if (bRetriggerLoopOnProximity && bRetriggerLoopOnProximityEnabledCVar)
-				{
-					static FString RetriggerFailedStr = TEXT("Re-trigger loop in listener proximity failed: Sound ");
-					if (bAutoDestroy)
-					{
-						UE_LOG(LogAudio, Warning, TEXT("%s'%s' set to AutoDestroy."), *RetriggerFailedStr, Sound ? *Sound->GetName() : TEXT("N/A"));
-					}
-					else if (Sound && Sound->IsVirtualizeWhenSilent() && AudioDevice->VirtualSoundsEnabled())
-					{
-						UE_LOG(LogAudio, Warning, TEXT("%s'%s' set to 'PlayWhenSilent'."), *RetriggerFailedStr, Sound ? *Sound->GetName() : TEXT("N/A"));
-					}
-					else if (!NewActiveSound.bHasAttenuationSettings)
-					{
-						UE_LOG(LogAudio, Warning, TEXT("%s'%s' not using attenuation."), *RetriggerFailedStr, Sound ? *Sound->GetName() : TEXT("N/A"));
-					}
-					else if (!bIsPreviewSound)
-					{
-						const bool bLooping = NewActiveSound.IsLooping();
-						RetriggerWhenInAudibleRange = bLooping ? ERetriggerWhenInAudibleRange::Enabled : ERetriggerWhenInAudibleRange::Disabled;
-
-						if (bLooping)
-						{
-							AudioDevice->RegisterProximityRetriggeringAudioComponent(*this);
-						}
-					}
-				}
-			}
-
 			bIsActive = true;
 		}
 	}
@@ -653,12 +532,6 @@ void UAudioComponent::FadeOut( float FadeOutDuration, float FadeVolumeLevel )
 			{
 				DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.FadeOut"), STAT_AudioFadeOut, STATGROUP_AudioThreadCommands);
 
-				if (RetriggerWhenInAudibleRange == ERetriggerWhenInAudibleRange::Enabled && FadeVolumeLevel == 0.0f)
-				{
-					RetriggerWhenInAudibleRange = ERetriggerWhenInAudibleRange::DisableRequested;
-					AudioDevice->UnregisterProximityRetriggeringAudioComponent(*this);
-				}
-
 				const uint64 MyAudioComponentID = AudioComponentID;
 				FAudioThread::RunCommandOnAudioThread([AudioDevice, MyAudioComponentID, FadeOutDuration, FadeVolumeLevel]()
 				{
@@ -677,15 +550,6 @@ void UAudioComponent::FadeOut( float FadeOutDuration, float FadeVolumeLevel )
 			Stop();
 		}
 	}
-	// Calling FadeOut to 0.0f is effectively the same as calling stop if sound is out-of-bounds and is set to retrigger, so kill loop
-	else if (RetriggerWhenInAudibleRange == ERetriggerWhenInAudibleRange::Enabled && FadeVolumeLevel == 0.0f)
-	{
-		if (FAudioDevice* AudioDevice = GetAudioDevice())
-		{
-			RetriggerWhenInAudibleRange = ERetriggerWhenInAudibleRange::Disabled;
-			AudioDevice->UnregisterProximityRetriggeringAudioComponent(*this);
-		}
-	}
 }
 
 void UAudioComponent::AdjustVolume( float AdjustVolumeDuration, float AdjustVolumeLevel )
@@ -694,12 +558,6 @@ void UAudioComponent::AdjustVolume( float AdjustVolumeDuration, float AdjustVolu
 	{
 		if (FAudioDevice* AudioDevice = GetAudioDevice())
 		{
-			if (AdjustVolumeLevel > 0.0f && RetriggerWhenInAudibleRange == ERetriggerWhenInAudibleRange::DisableRequested)
-			{
-				RetriggerWhenInAudibleRange = ERetriggerWhenInAudibleRange::Enabled;
-				AudioDevice->RegisterProximityRetriggeringAudioComponent(*this);
-			}
-
 			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AdjustVolume"), STAT_AudioAdjustVolume, STATGROUP_AudioThreadCommands);
 
 			const uint64 MyAudioComponentID = AudioComponentID;
@@ -728,15 +586,6 @@ void UAudioComponent::AdjustVolume( float AdjustVolumeDuration, float AdjustVolu
 
 void UAudioComponent::Stop()
 {
-	if (FAudioDevice* AudioDevice = GetAudioDevice())
-	{
-		if (RetriggerWhenInAudibleRange == ERetriggerWhenInAudibleRange::Enabled)
-		{
-			RetriggerWhenInAudibleRange = ERetriggerWhenInAudibleRange::Disabled;
-			AudioDevice->UnregisterProximityRetriggeringAudioComponent(*this);
-		}
-	}
-
 	StopInternal();
 }
 
@@ -809,24 +658,6 @@ void UAudioComponent::PlaybackCompleted(bool bFailedToStart)
 	if (bIsActive)
 	{
 		bIsActive = false;
-	}
-
-	if (bFailedToStart)
-	{
-		RetriggerWhenInAudibleRange = ERetriggerWhenInAudibleRange::Disabled;
-		if (FAudioDevice* AudioDevice = GetAudioDevice())
-		{
-			AudioDevice->UnregisterProximityRetriggeringAudioComponent(*this);
-		}
-	}
-
-	if (RetriggerWhenInAudibleRange == ERetriggerWhenInAudibleRange::DisableRequested)
-	{
-		RetriggerWhenInAudibleRange = ERetriggerWhenInAudibleRange::Disabled;
-		if (FAudioDevice* AudioDevice = GetAudioDevice())
-		{
-			AudioDevice->UnregisterProximityRetriggeringAudioComponent(*this);
-		}
 	}
 
 	if (!bFailedToStart && GetWorld() != nullptr && (OnAudioFinished.IsBound() || OnAudioFinishedNative.IsBound()))

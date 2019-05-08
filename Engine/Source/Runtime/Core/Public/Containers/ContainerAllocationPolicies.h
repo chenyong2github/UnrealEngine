@@ -863,6 +863,21 @@ public:
 	typedef TInlineAllocator<InlineBitArrayDWORDs,typename SecondaryAllocator::BitArrayAllocator>	BitArrayAllocator;
 };
 
+/** An inline sparse array allocator that doesn't have any secondary storage. */
+template <uint32 NumInlineElements>
+class TFixedSparseArrayAllocator
+{
+private:
+
+	/** The size to allocate inline for the bit array. */
+	enum { InlineBitArrayDWORDs = (NumInlineElements + NumBitsPerDWORD - 1) / NumBitsPerDWORD};
+
+public:
+
+	typedef TFixedAllocator<NumInlineElements>    ElementAllocator;
+	typedef TFixedAllocator<InlineBitArrayDWORDs> BitArrayAllocator;
+};
+
 //
 // Set allocation definitions.
 //
@@ -913,7 +928,7 @@ private:
 
 	enum { NumInlineHashBuckets = (NumInlineElements + AverageNumberOfElementsPerHashBucket - 1) / AverageNumberOfElementsPerHashBucket };
 
-	static_assert(!(NumInlineHashBuckets & (NumInlineHashBuckets - 1)), "Number of inline buckets must be a power of two");
+	static_assert(NumInlineHashBuckets > 0 && !(NumInlineHashBuckets & (NumInlineHashBuckets - 1)), "Number of inline buckets must be a power of two");
 
 public:
 
@@ -936,6 +951,43 @@ public:
 
 	typedef TInlineSparseArrayAllocator<NumInlineElements,typename SecondaryAllocator::SparseArrayAllocator> SparseArrayAllocator;
 	typedef TInlineAllocator<NumInlineHashBuckets,typename SecondaryAllocator::HashAllocator>                HashAllocator;
+};
+
+/** An inline set allocator that doesn't have any secondary storage. */
+template<
+	uint32 NumInlineElements,
+	uint32 AverageNumberOfElementsPerHashBucket = DEFAULT_NUMBER_OF_ELEMENTS_PER_HASH_BUCKET,
+	uint32 MinNumberOfHashedElements            = DEFAULT_MIN_NUMBER_OF_HASHED_ELEMENTS
+	>
+class TFixedSetAllocator
+{
+private:
+
+	enum { NumInlineHashBuckets = (NumInlineElements + AverageNumberOfElementsPerHashBucket - 1) / AverageNumberOfElementsPerHashBucket };
+
+	static_assert(NumInlineHashBuckets > 0 && !(NumInlineHashBuckets & (NumInlineHashBuckets - 1)), "Number of inline buckets must be a power of two");
+
+public:
+
+	/** Computes the number of hash buckets to use for a given number of elements. */
+	static FORCEINLINE uint32 GetNumberOfHashBuckets(uint32 NumHashedElements)
+	{
+		const uint32 NumDesiredHashBuckets = FPlatformMath::RoundUpToPowerOfTwo(NumHashedElements / AverageNumberOfElementsPerHashBucket);
+		if (NumDesiredHashBuckets < NumInlineHashBuckets)
+		{
+			return NumInlineHashBuckets;
+		}
+
+		if (NumHashedElements < MinNumberOfHashedElements)
+		{
+			return NumInlineHashBuckets;
+		}
+
+		return NumDesiredHashBuckets;
+	}
+
+	typedef TFixedSparseArrayAllocator<NumInlineElements> SparseArrayAllocator;
+	typedef TFixedAllocator<NumInlineHashBuckets>         HashAllocator;
 };
 
 

@@ -27,7 +27,7 @@
 #include "Misc/NetworkVersion.h"
 #include "UObject/CoreNet.h"
 #include "Net/DataBunch.h"
-#include "Net/DelinquencyAnalytics.h"
+#include "Net/NetAnalyticsTypes.h"
 #include "PackageMapClient.generated.h"
 
 class UNetConnection;

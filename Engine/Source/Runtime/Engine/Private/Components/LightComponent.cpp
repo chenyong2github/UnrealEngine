@@ -778,7 +778,12 @@ void ULightComponent::SendRenderTransform_Concurrent()
 void ULightComponent::DestroyRenderState_Concurrent()
 {
 	Super::DestroyRenderState_Concurrent();
-	GetWorld()->Scene->RemoveLight(this);
+	UWorld* MyWorld = GetWorld();
+	check(MyWorld != nullptr);
+	if (ensure(MyWorld->Scene != nullptr))
+	{
+		MyWorld->Scene->RemoveLight(this);
+	}
 	bAddedToSceneVisible = false;
 }
 

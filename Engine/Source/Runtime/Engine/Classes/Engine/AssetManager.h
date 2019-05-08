@@ -697,6 +697,12 @@ protected:
 	FDelegateHandle ChunkInstallDelegateHandle;
 
 private:
+
+#if WITH_EDITOR
+	/** Recursive handler for InitializeAssetBundlesFromMetadata */
+	virtual void InitializeAssetBundlesFromMetadata_Recursive(const UStruct* Struct, const void* StructValue, FAssetBundleData& AssetBundle, FName DebugName, TSet<const void*>& AllVisitedStructValues) const;
+#endif
+
 	/** Per-type asset information, cannot be accessed by children as it is defined in CPP file */
 	TMap<FName, TSharedRef<FPrimaryAssetTypeData>> AssetTypeMap;
 

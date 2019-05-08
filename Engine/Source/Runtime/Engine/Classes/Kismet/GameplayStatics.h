@@ -1082,6 +1082,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Utilities")
 	static bool ProjectWorldToScreen(APlayerController const* Player, const FVector& WorldPosition, FVector2D& ScreenPosition, bool bPlayerViewportRelative = false);
 
+	/**
+	 * Calculate view-projection matrices from a specified view target
+	 */
+	static void CalculateViewProjectionMatricesFromViewTarget(AActor* InViewTarget, FMatrix& OutViewMatrix, FMatrix& OutProjectionMatrix, FMatrix& OutViewProjectionMatrix);
+
+	/**
+	 * Calculate view-projection matrices from a specified MinimalViewInfo and optional custom projection matrix
+	 */
+	static void CalculateViewProjectionMatricesFromMinimalView(const FMinimalViewInfo& MinimalViewInfo, const TOptional<FMatrix>& CustomProjectionMatrix, FMatrix& OutViewMatrix, FMatrix& OutProjectionMatrix, FMatrix& OutViewProjectionMatrix);
+
 	//~ Utility functions for interacting with Options strings
 
 	//~=========================================================================

@@ -523,7 +523,7 @@ namespace Gauntlet
 			}
 			else
 			{
-				if (TestInfo.TestNode.HasWarnings)
+				if (TestInfo.TestNode.GetWarnings().Any())
 				{
 					Log.Warning("{0} result={1}", TestInfo, TestInfo.FinalResult);
 				}
@@ -533,6 +533,11 @@ namespace Gauntlet
 				}
 			}
 			Summary.Split('\n').ToList().ForEach(L => Log.Info("  " + L));
+
+			TestInfo.TestNode.GetErrors().ToList().ForEach(E => Log.Error("{0}", E));
+
+			TestInfo.TestNode.GetWarnings().ToList().ForEach(E => Log.Warning("{0}", E));
+
 		}
 
 		/// <summary>
@@ -550,7 +555,7 @@ namespace Gauntlet
 
 			int TestCount = AllInfo.Count();
 			int FailedCount = AllInfo.Where(T => T.FinalResult != TestResult.Passed).Count();
-			int WarningCount = AllInfo.Where(T => T.TestNode.HasWarnings).Count();
+			int WarningCount = AllInfo.Where(T => T.TestNode.GetWarnings().Any()).Count();
 
 			var SortedInfo = AllInfo;
 
@@ -564,7 +569,7 @@ namespace Gauntlet
 						return 10;
 					}
 
-					if (T.TestNode.HasWarnings)
+					if (T.TestNode.GetWarnings().Any())
 					{
 						return 5;
 					}
@@ -582,26 +587,11 @@ namespace Gauntlet
 			List<string> TestResults = new List<string>();
 			foreach (TestExecutionInfo Info in SortedInfo)
 			{
-				string WarningString = Info.TestNode.HasWarnings ? " With Warnings" : "";
+				string WarningString = Info.TestNode.GetWarnings().Any() ? " With Warnings" : "";
 				TestResults.Add(string.Format("\t{0} result={1}{2}", Info, Info.FinalResult, WarningString));
 			}
 
 			MB.UnorderedList(TestResults);
-
-			string Summary = string.Format("Completed test pass {0} of {1}.", CurrentPass, NumPasses);
-
-			if (FailedCount > 0)
-			{
-				Log.Error("{0}", Summary);
-			}
-			else if (WarningCount > 0)
-			{
-				Log.Warning("{0}", Summary);
-			}
-			else
-			{
-				Log.Info("{0}", Summary);
-			}
 
 			// write the markdown out with each line indented
 			MB.ToString().Split('\n').ToList().ForEach(L => Log.Info("  " + L));
@@ -638,12 +628,14 @@ namespace Gauntlet
 			{
 				TestInfo.CancellationReason = string.Format("Terminating Test {0} due to maximum duration of {1} seconds. ", TestInfo.TestNode, TestInfo.TestNode.MaxDuration);
 				TestInfo.FinalResult = TestResult.TimedOut;
+				Log.Info("{0}", TestInfo.CancellationReason);
 			}
 
 			if (IsCancelled)
 			{
 				TestInfo.CancellationReason = string.Format("Cancelling Test {0} on request", TestInfo.TestNode);
 				TestInfo.FinalResult = TestResult.Cancelled;
+				Log.Info("{0}", TestInfo.CancellationReason);
 			}
 
 			// if the test is not running. or we've determined a result for it..

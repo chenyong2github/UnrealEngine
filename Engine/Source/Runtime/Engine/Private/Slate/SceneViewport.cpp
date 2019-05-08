@@ -791,6 +791,7 @@ FReply FSceneViewport::OnTouchEnded( const FGeometry& MyGeometry, const FPointer
 	}
 	else
 	{
+		UpdateCachedCursorPos(MyGeometry, TouchEvent);
 		CurCursorPos = CachedCursorPos;
 		CachedCursorPos = FIntPoint(-1, -1);
 	}

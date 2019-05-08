@@ -154,6 +154,8 @@ FStaticMeshStreamIn::~FStaticMeshStreamIn()
 template <bool bRenderThread>
 void FStaticMeshStreamIn::CreateBuffers_Internal(const FContext& Context)
 {
+	LLM_SCOPE(ELLMTag::StaticMesh);
+	
 	UStaticMesh* Mesh = Context.Mesh;
 	FStaticMeshRenderData* RenderData = Context.RenderData;
 	if (!IsCancelled() && Mesh && RenderData)

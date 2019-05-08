@@ -133,6 +133,7 @@ FText FLandscapeEditorDetails::GetLocalizedName(FString Name)
 		LOCTEXT("ToolSet_NewLandscape", "New Landscape");
 		LOCTEXT("ToolSet_ResizeLandscape", "Change Component Size");
 		LOCTEXT("ToolSet_Sculpt", "Sculpt");
+		LOCTEXT("ToolSet_Erase", "Erase");
 		LOCTEXT("ToolSet_Paint", "Paint");
 		LOCTEXT("ToolSet_Smooth", "Smooth");
 		LOCTEXT("ToolSet_Flatten", "Flatten");
@@ -291,6 +292,12 @@ TSharedRef<SWidget> FLandscapeEditorDetails::GetToolSelector()
 		{
 			MenuBuilder.BeginSection(NAME_None, LOCTEXT("SculptToolsTitle", "Sculpting Tools"));
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Sculpt"), NAME_None, LOCTEXT("Tool.Sculpt", "Sculpt"), LOCTEXT("Tool.Sculpt.Tooltip", "Sculpt height data.\nCtrl+Click to Raise, Ctrl+Shift+Click to lower"));
+			
+			if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			{
+				MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Erase"), NAME_None, LOCTEXT("Tool.Erase", "Erase"), LOCTEXT("Tool.Erase.Tooltip", "Erase height data."));
+			}
+			
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Smooth"), NAME_None, LOCTEXT("Tool.Smooth", "Smooth"), LOCTEXT("Tool.Smooth.Tooltip", "Smooths heightmaps or blend layers"));
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Flatten"), NAME_None, LOCTEXT("Tool.Flatten", "Flatten"), LOCTEXT("Tool.Flatten.Tooltip", "Flattens an area of heightmap or blend layer"));
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Ramp"), NAME_None, LOCTEXT("Tool.Ramp", "Ramp"), LOCTEXT("Tool.Ramp.Tooltip", "Creates a ramp between two points"));

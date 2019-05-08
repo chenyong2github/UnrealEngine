@@ -31,6 +31,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/SCS_Node.h"
+#include "Engine/TextureRenderTarget2D.h"
 
 #define LOCTEXT_NAMESPACE "SceneCaptureComponent"
 
@@ -95,6 +96,18 @@ ASceneCapture2D::ASceneCapture2D(const FObjectInitializer& ObjectInitializer)
 void ASceneCapture2D::OnInterpToggle(bool bEnable)
 {
 	CaptureComponent2D->SetVisibility(bEnable);
+}
+
+void ASceneCapture2D::CalcCamera(float DeltaTime, FMinimalViewInfo& OutMinimalViewInfo)
+{
+	if (USceneCaptureComponent2D* SceneCaptureComponent = GetCaptureComponent2D())
+	{
+		SceneCaptureComponent->GetCameraView(DeltaTime, OutMinimalViewInfo);
+	}
+	else
+	{
+		Super::CalcCamera(DeltaTime, OutMinimalViewInfo);
+	}
 }
 // -----------------------------------------------
 
@@ -501,6 +514,18 @@ void USceneCaptureComponent2D::TickComponent(float DeltaTime, enum ELevelTick Ti
 	}
 }
 
+void USceneCaptureComponent2D::GetCameraView(float DeltaTime, FMinimalViewInfo& OutMinimalViewInfo)
+{
+	OutMinimalViewInfo.Location = GetComponentLocation();
+	OutMinimalViewInfo.Rotation = GetComponentRotation();
+	
+	OutMinimalViewInfo.FOV = FOVAngle;
+	OutMinimalViewInfo.AspectRatio = TextureTarget ? (float(TextureTarget->SizeX) / TextureTarget->SizeY) : 1.f;
+	OutMinimalViewInfo.bConstrainAspectRatio = false;
+	OutMinimalViewInfo.ProjectionMode = ProjectionType;
+	OutMinimalViewInfo.OrthoWidth = OrthoWidth;
+}
+
 void USceneCaptureComponent2D::CaptureSceneDeferred()
 {
 	UWorld* World = GetWorld();
@@ -567,10 +592,9 @@ void USceneCaptureComponent2D::UpdateDrawFrustum()
 			DrawFrustum->FrustumAngle = -OrthoWidth;
 		}
 
-		DrawFrustum->FrustumStartDist = GNearClippingPlane;
+		DrawFrustum->FrustumStartDist = (bOverride_CustomNearClippingPlane) ? CustomNearClippingPlane : GNearClippingPlane;
 		// 1000 is the default frustum distance, ideally this would be infinite but that might cause rendering issues
-		DrawFrustum->FrustumEndDist = (MaxViewDistanceOverride > DrawFrustum->FrustumStartDist)
-			? MaxViewDistanceOverride : 1000.0f;
+		DrawFrustum->FrustumEndDist = (MaxViewDistanceOverride > DrawFrustum->FrustumStartDist) ? MaxViewDistanceOverride : 1000.0f;
 		DrawFrustum->MarkRenderStateDirty();
 	}
 }

@@ -17,26 +17,30 @@
 	"Modules" :
 	[
 		{
-			"Name" : "WmfMedia",
-			"Type" : "Runtime",
-			"LoadingPhase" : "PostConfigInit",
-			"WhitelistPlatforms" : [ "Win32", "Win64", "XboxOne" ]
+			"Name": "WmfMedia",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"WhitelistPlatforms": [ "Win32", "Win64", "XboxOne" ],
+			"BlacklistTargets": [ "Server" ]
 		},
 		{
-			"Name" : "WmfMediaEditor",
-			"Type" : "Editor",
-			"LoadingPhase" : "PostEngineInit"
+			"Name": "WmfMediaEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"BlacklistTargets": [ "Server" ]
 		},
 		{
-			"Name" : "WmfMediaFactory",
-			"Type" : "Editor",
-			"LoadingPhase" : "PostEngineInit"
+			"Name": "WmfMediaFactory",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"BlacklistTargets": [ "Server" ]
 		},
 		{
-			"Name" : "WmfMediaFactory",
-			"Type" : "RuntimeNoCommandlet",
-			"LoadingPhase" : "PostEngineInit",
-			"WhitelistPlatforms" : [ "Mac", "Linux", "Win32", "Win64" ]
+			"Name": "WmfMediaFactory",
+			"Type": "RuntimeNoCommandlet",
+			"LoadingPhase": "PostEngineInit",
+			"WhitelistPlatforms": [ "Mac", "Linux", "Win32", "Win64" ],
+			"BlacklistTargets": [ "Server" ]
 		}
 	]
 }

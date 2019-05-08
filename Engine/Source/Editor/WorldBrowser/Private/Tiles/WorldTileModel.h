@@ -147,9 +147,6 @@ public:
 	/** @return ULevel bounding box in shifted space*/
 	FBox GetLevelBounds() const override;
 	
-	/** @return Landscape component world size */
-	FVector2D GetLandscapeComponentSize() const;
-
 	/** Translate level center to new position */
 	void SetLevelPosition(const FIntVector& InPosition);
 
@@ -227,9 +224,4 @@ public:
 private:
 	/** Whether level has landscape components in it */
 	TWeakObjectPtr<ALandscapeProxy>			Landscape;
-	FVector									LandscapeComponentResolution;
-	TArray<FIntPoint>						LandscapeComponentsXY;
-	FIntRect								LandscapeComponentsRectXY;
-	FVector2D								LandscapeComponentSize;
-	FVector2D								LandscapePosition;	
 };

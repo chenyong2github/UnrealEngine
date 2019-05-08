@@ -11,6 +11,7 @@
 
 #if WITH_EDITOR
 #include "AudioEditorModule.h"
+#include "Settings/LevelEditorMiscSettings.h"
 #endif
 
 // Private consts for helping with index/generation determination in audio device manager
@@ -41,6 +42,15 @@ FAutoConsoleVariableRef CVarIsUsingAudioMixer(
 	GCvarIsUsingAudioMixer,
 	TEXT("Whether or not we're currently using the audio mixer. Change to dynamically toggle on/off. Note: sounds will stop. Looping sounds won't automatically resume. \n")
 	TEXT("0: Not Using Audio Mixer, 1: Using Audio Mixer"),
+	ECVF_Default);
+
+
+static int32 CVarIsVisualizeEnabled = 0;
+FAutoConsoleVariableRef CVarAudioVisualizeEnabled(
+	TEXT("au.3dVisualize.Enabled"),
+	CVarIsVisualizeEnabled,
+	TEXT("Whether or not audio visualization is enabled. \n")
+	TEXT("0: Not Enabled, 1: Enabled"),
 	ECVF_Default);
 
 
@@ -168,8 +178,6 @@ void FAudioDeviceManager::ToggleAudioMixer()
 						}
 					}
 
-					TArray<FAudioComponentPtr> RetriggerComponents = AudioDevice->GetProximityRetriggerComponents();
-
 					// Tear it down and delete the old audio device. This does a bunch of cleanup.
 					AudioDevice->Teardown();
 					delete AudioDevice;
@@ -184,12 +192,6 @@ void FAudioDeviceManager::ToggleAudioMixer()
 					if (AudioDevice->Init(AudioSettings->GetHighestMaxChannels()))
 					{
 						AudioDevice->SetMaxChannels(QualityLevelMaxChannels);
-					}
-
-					// Re-register the new audio device's re-trigger components
-					for (FAudioComponentPtr Component : RetriggerComponents)
-					{
-						AudioDevice->RegisterProximityRetriggeringAudioComponent(*Component);
 					}
 
 					// Transfer the sound mix modifiers to the new audio engine
@@ -379,7 +381,13 @@ bool FAudioDeviceManager::CreateAudioDevice(bool bCreateNewDevice, FCreateAudioD
 	bool bRequiresInit = true;
 
 	// For the first PIE window, we'll just use the main audio device
-	if (NumActiveAudioDevices == 1)
+	bool bCreateNewAudioDeviceForPlayInEditor = true;
+
+#if WITH_EDITOR
+	bCreateNewAudioDeviceForPlayInEditor = GetDefault<ULevelEditorMiscSettings>()->bCreateNewAudioDeviceForPlayInEditor;
+#endif
+
+	if (NumActiveAudioDevices == 1 && !bCreateNewAudioDeviceForPlayInEditor)
 	{
 		FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice();
 		if (MainAudioDevice)
@@ -921,6 +929,11 @@ void FAudioDeviceManager::TogglePlayAllDeviceAudio()
 	}
 
 	bPlayAllDeviceAudio = !bPlayAllDeviceAudio;
+}
+
+bool FAudioDeviceManager::IsVisualizeDebug3dEnabled() const
+{
+	return bVisualize3dDebug || CVarIsVisualizeEnabled;
 }
 
 void FAudioDeviceManager::ToggleVisualize3dDebug()

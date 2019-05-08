@@ -3,8 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Algo/BinarySearch.h"
-#include "Serialization/Archive.h"
 
 /**
  * Tracks an FName ID to a time value. Time will be context dependent, but usually
@@ -55,21 +53,9 @@ struct ENGINE_API FDelinquencyAnalytics
 {
 public:
 
-	explicit FDelinquencyAnalytics(const uint32 InNumberOfTopOffendersToTrack) :
-		TotalTime(0.f),
-		NumberOfTopOffendersToTrack(InNumberOfTopOffendersToTrack)
-	{
-		TopOffenders.Reserve(NumberOfTopOffendersToTrack);
-	}
+	explicit FDelinquencyAnalytics(const uint32 InNumberOfTopOffendersToTrack);
 
-	FDelinquencyAnalytics(FDelinquencyAnalytics&& Other):
-		TopOffenders(MoveTemp(Other.TopOffenders)),
-		AllDelinquents(MoveTemp(Other.AllDelinquents)),
-		TotalTime(Other.TotalTime),
-		NumberOfTopOffendersToTrack(Other.NumberOfTopOffendersToTrack)
-	{
-		TopOffenders.Reserve(NumberOfTopOffendersToTrack);
-	}
+	FDelinquencyAnalytics(FDelinquencyAnalytics&& Other);
 
 	FDelinquencyAnalytics(const FDelinquencyAnalytics&) = delete;
 	const FDelinquencyAnalytics& operator=(const FDelinquencyAnalytics&) = delete;
@@ -92,104 +78,7 @@ public:
 	 * By setting NumberOfTopOffendersToTrack to 0, users can manage their own lists of "TopOffenders", or
 	 * otherwise avoid the per add overhead of this tracking.
 	 */
-	void Add(FDelinquencyNameTimePair&& ToTrack)
-	{
-		struct FHelper
-		{
-			static bool Compare(const FDelinquencyNameTimePair& LHS, const FDelinquencyNameTimePair& RHS)
-			{
-				return LHS.TimeSeconds > RHS.TimeSeconds;
-			}
-		};
-
-		// Regardless of whether or not this item has been seen before, there was a new entry
-		// so we'll add that time to the total.
-		TotalTime += ToTrack.TimeSeconds;
-
-		// TODO: We might consider tracking the code below as totals instead of the max time for a single event.
-		// For example, an Actor could end up queueing bunches several times within a reporting window, and each
-		// of those events would add to the TotalTime, but below we will only have the time of the longest period
-		// where bunches were queued.
-
-		if (NumberOfTopOffendersToTrack == 0)
-		{
-			AllDelinquents.Emplace(MoveTemp(ToTrack));
-		}
-		else if (TopOffenders.Num() == 0)
-		{
-			TopOffenders.Add(ToTrack);
-			AllDelinquents.Emplace(MoveTemp(ToTrack));
-			return;
-		}
-		else
-		{
-			if (FDelinquencyNameTimePair* AlreadyTracked = AllDelinquents.Find(ToTrack))
-			{
-				// We found an entry, so check its time.
-				if (AlreadyTracked->TimeSeconds >= ToTrack.TimeSeconds)
-				{
-					// We already have tracked a worse offense for this entry, so there's nothing more
-					// we need to do.
-					return;
-				}
-				else if (TopOffenders.Num() > 0)
-				{
-					const float LeastOffensiveTime = TopOffenders.Last().TimeSeconds;
-					if (AlreadyTracked->TimeSeconds >= LeastOffensiveTime)
-					{
-						// Our previous offense would have been tracked in the TopOffenders list, so go ahead and remove it.
-						// We're sorted highest to lowest, but are using greater than to actually compare, so UpperBound should
-						// return the index above which of the entry just before us.
-						// However, it's possible that other entries have the same time, so we need to make sure we remove the
-						// correct one.
-						int32 MaybeOurEntry = Algo::UpperBound<>(TopOffenders, ToTrack, &FHelper::Compare);
-						while(true)
-						{
-							// Sanity check that we have actually found our entry.
-							// If we hit the end of the list, or we see an entry that should be less offensive, then
-							// we've missed our entry.
-							if (MaybeOurEntry == TopOffenders.Num() || TopOffenders[MaybeOurEntry].TimeSeconds < AlreadyTracked->TimeSeconds)
-							{
-								// It's possible that multiple entries have the same delinquency time.
-								// If our current entry matches the LeastOffensiveTime, it's possible that we were in the
-								// top offenders list at one point but were pushed out when more offensive entries were added.
-								// If our time doesn't match the least offensive time, we should definitely be in the list.
-								ensureMsgf(AlreadyTracked->TimeSeconds == LeastOffensiveTime, TEXT("FDelinquencyAnalytics::Add - Unable to find expected entry %s:%f, list may not be sorted!"), *AlreadyTracked->Name.ToString(), AlreadyTracked->TimeSeconds);
-								break;
-							}
-
-							// We found our entry, so we're done.
-							else if (TopOffenders[MaybeOurEntry].Name == AlreadyTracked->Name)
-							{
-								TopOffenders.RemoveAt(MaybeOurEntry, 1, false);
-								break;
-							}
-
-							++MaybeOurEntry;
-						}
-					}
-				}
-			}
-
-			AllDelinquents.Add(ToTrack);
-
-			const int32 LocalNumberOfTopOffendersToTrack = static_cast<int32>(NumberOfTopOffendersToTrack);
-			const int32 InsertAt = Algo::UpperBound<>(TopOffenders, ToTrack, &FHelper::Compare);
-
-			// Check to see if this time was ranked in our top offenders.
-			if (InsertAt < LocalNumberOfTopOffendersToTrack)
-			{
-				// If we're going to displace a previous top offender, remove the least offensive.
-				if (LocalNumberOfTopOffendersToTrack == TopOffenders.Num())
-				{
-					TopOffenders.RemoveAt(TopOffenders.Num() - 1, 1, false);
-				}
-
-				TopOffenders.InsertUninitialized(InsertAt, 1);
-				TopOffenders[InsertAt] = MoveTemp(ToTrack);
-			}
-		}
-	}
+	void Add(FDelinquencyNameTimePair&& ToTrack);
 
 	const TArray<FDelinquencyNameTimePair>& GetTopOffenders() const
 	{
@@ -211,18 +100,9 @@ public:
 		return NumberOfTopOffendersToTrack;
 	}
 
-	void Reset()
-	{
-		TopOffenders.Reset();
-		AllDelinquents.Reset();
-		TotalTime = 0;
-	}
+	void Reset();
 
-	void CountBytes(FArchive& Ar) const
-	{
-		TopOffenders.CountBytes(Ar);
-		AllDelinquents.CountBytes(Ar);
-	}
+	void CountBytes(class FArchive& Ar) const;
 
 private:
 
@@ -325,4 +205,81 @@ struct ENGINE_API FNetQueuedActorDelinquencyAnalytics
 
 	FDelinquencyAnalytics DelinquentQueuedActors;
 	uint32 MaxConcurrentQueuedActors;
+};
+
+/** Struct wrapping Per Net Connection saturation analytics. */
+struct ENGINE_API FNetConnectionSaturationAnalytics
+{
+	FNetConnectionSaturationAnalytics() :
+		NumberOfTrackedFrames(0),
+		NumberOfSaturatedFrames(0),
+		LongestRunOfSaturatedFrames(0),
+		NumberOfReplications(0),
+		NumberOfSaturatedReplications(0),
+		LongestRunOfSaturatedReplications(0),
+		CurrentRunOfSaturatedFrames(0),
+		CurrentRunOfSaturatedReplications(0)
+	{
+	}
+
+	/** The total number of frames that we have currently tracked. */
+	const uint32 GetNumberOfTrackedFrames() const
+	{
+		return NumberOfTrackedFrames;
+	}
+
+	/** The number of frames we have reported as saturated.*/
+	const uint32 GetNumberOfSaturatedFrames() const
+	{
+		return NumberOfSaturatedFrames;
+	}
+
+	/** The longest number of consecutive frames that we have been saturated. */
+	const uint32 GetLongestRunOfSaturatedFrames() const
+	{
+		return LongestRunOfSaturatedFrames;
+	}
+
+	/**
+	 * The number of times we have tried to replicate data on this connection
+	 * (UNetDriver::ServerReplicateActors / UReplicationGraph::ServerReplicateActors)
+	 */
+	const uint32 GetNumberOfReplications() const
+	{
+		return NumberOfReplications;
+	}
+
+	/** The number of times we have been pre-empted from replicating all data, due to saturation. */
+	const uint32 GetNumberOfSaturatedReplications() const
+	{
+		return NumberOfSaturatedReplications;
+	}
+
+	/** The longest number of consecutive replication attempts where we were pre-empted due to saturation. */
+	const uint32 GetLongestRunOfSaturatedReplications() const
+	{
+		return LongestRunOfSaturatedReplications;
+	}
+
+	/** Resets the state of tracking. */
+	void Reset();
+
+private:
+
+	friend class UNetConnection;
+
+	void TrackFrame(const bool bIsSaturated);
+
+	void TrackReplication(const bool bIsSaturated);
+
+	uint32 NumberOfTrackedFrames;
+	uint32 NumberOfSaturatedFrames;
+	uint32 LongestRunOfSaturatedFrames;
+
+	uint32 NumberOfReplications;
+	uint32 NumberOfSaturatedReplications;
+	uint32 LongestRunOfSaturatedReplications;
+
+	uint32 CurrentRunOfSaturatedFrames;
+	uint32 CurrentRunOfSaturatedReplications;
 };

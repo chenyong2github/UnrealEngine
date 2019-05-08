@@ -242,6 +242,10 @@ private:
 	 */
 	bool bCanCreatePartyObjects = false;
 
+	/** Should we leave a party when it enters the disconnected state? */
+	UPROPERTY(config)
+	bool bLeavePartyOnDisconnect = true;
+
 	TSharedPtr<FPartyPlatformSessionManager> PartySessionManager;
 
 	TMap<FOnlinePartyTypeId, USocialParty*> JoinedPartiesByTypeId;

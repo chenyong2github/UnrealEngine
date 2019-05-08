@@ -732,3 +732,8 @@ void* FXAudio2Device::AllocatePermanentMemory( int32 Size, bool& AllocatedInPool
 	
 	return( Allocation );
 }
+
+FAudioPlatformSettings FXAudio2Device::GetPlatformSettings() const
+{
+	return FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"));
+}

@@ -132,10 +132,14 @@ namespace Gauntlet
 		string GetTestSummary();
 
 		/// <summary>
-		/// Returns true if the test has encountered warnings. Test is expected to list any warnings it considers appropriate in the summary
+		/// Return a list of all warnings that should be reported. May be different than Summary contents
 		/// </summary>
-		bool HasWarnings { get;  }
+		IEnumerable<string> GetWarnings();
 
+		/// <summary>
+		/// Return a list of all errors that should be reported. May be different than Summary contents
+		/// </summary>
+		IEnumerable<string> GetErrors();
 
 		/// <summary>
 		/// Called to request any that any necessary cleanup be performed. After CleanupTest is called no further calls will be

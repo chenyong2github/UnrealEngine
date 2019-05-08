@@ -754,6 +754,7 @@ public:
 
 	/* Invalidate the precomputed grass and baked texture data for the specified components */
 	LANDSCAPE_API static void InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components);
+	LANDSCAPE_API static void InvalidateGeneratedComponentData(const TArray<ULandscapeComponent*>& Components);
 
 	/* Invalidate the precomputed grass and baked texture data on all components */
 	LANDSCAPE_API void InvalidateGeneratedComponentData();

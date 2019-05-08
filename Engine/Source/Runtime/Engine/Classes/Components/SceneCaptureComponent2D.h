@@ -20,6 +20,8 @@ UCLASS(hidecategories=(Collision, Object, Physics, SceneComponent), ClassGroup=R
 class ENGINE_API USceneCaptureComponent2D : public USceneCaptureComponent
 {
 	GENERATED_UCLASS_BODY()
+		
+public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Projection, meta=(DisplayName = "Projection Type"))
 	TEnumAsByte<ECameraProjectionMode::Type> ProjectionType;
@@ -49,6 +51,15 @@ class ENGINE_API USceneCaptureComponent2D : public USceneCaptureComponent
 	/** Range (0.0, 1.0) where 0 indicates no effect, 1 indicates full effect. */
 	UPROPERTY(interp, Category=PostProcessVolume, BlueprintReadWrite, meta=(UIMin = "0.0", UIMax = "1.0"))
 	float PostProcessBlendWeight;
+
+	UPROPERTY(EditAnywhere, Category = Projection, meta = (InlineEditConditionToggle))
+	uint32 bOverride_CustomNearClippingPlane : 1;
+
+	/** 
+	 * Set bOverride_CustomNearClippingPlane to true if you want to use a custom clipping plane instead of GNearClippingPlane.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Projection, meta = (editcondition = "bOverride_CustomNearClippingPlane"))
+	float CustomNearClippingPlane = 0;
 
 	/** Whether a custom projection matrix will be used during rendering. Use with caution. Does not currently affect culling */
 	UPROPERTY(BlueprintReadWrite, AdvancedDisplay, Category = Projection)
@@ -110,6 +121,8 @@ class ENGINE_API USceneCaptureComponent2D : public USceneCaptureComponent
 	virtual void Serialize(FArchive& Ar);
 
 	//~ End UObject Interface
+
+	virtual void GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView);
 
 	/** Adds an Blendable (implements IBlendableInterface) to the array of Blendables (if it doesn't exist) and update the weight */
 	UFUNCTION(BlueprintCallable, Category="Rendering")

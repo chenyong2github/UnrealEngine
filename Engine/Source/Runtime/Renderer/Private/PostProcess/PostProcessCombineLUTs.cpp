@@ -62,7 +62,7 @@ static TAutoConsoleVariable<int32> CVarMobileTonemapperFilm(
 bool PipelineVolumeTextureLUTMayBeSupportedAtRuntime(EShaderPlatform Platform)
 {
 	// This is used to know if the target shader platform does not support required volume texture features we need for sure (read, render to).
-	return (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) && (Platform != SP_METAL_MRT && Platform != SP_METAL_MRT_MAC) && (RHISupportsGeometryShaders(Platform) || RHISupportsVertexShaderLayer(Platform)));
+	return (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) && (Platform != SP_METAL_MRT && Platform != SP_METAL_MRT_MAC && Platform != SP_VULKAN_SM5_LUMIN) && (RHISupportsGeometryShaders(Platform) || RHISupportsVertexShaderLayer(Platform)));
 }
 bool RuntimeVolumeTextureLUTSupported(EShaderPlatform Platform)	// Only valid to be called during runtime
 {

@@ -1456,6 +1456,7 @@ struct FEditorShaderStableInfo
 				for (const FStableShaderKeyAndValue& Item : StableMap)
 				{
 					Item.ToString(LineBuffer);
+					LineBuffer += TCHAR('\n');
 					auto LineConverted = StringCast<ANSICHAR>(*LineBuffer, LineBuffer.Len());
 					IntermediateFormatAr->Serialize((ANSICHAR*)LineConverted.Get(), LineConverted.Length() * sizeof(ANSICHAR));
 				}
