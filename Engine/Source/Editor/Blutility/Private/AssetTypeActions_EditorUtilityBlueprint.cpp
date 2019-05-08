@@ -12,6 +12,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "IBlutilityModule.h"
+#include "EditorUtilitySubsystem.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -31,6 +32,25 @@ FColor FAssetTypeActions_EditorUtilityBlueprint::GetTypeColor() const
 UClass* FAssetTypeActions_EditorUtilityBlueprint::GetSupportedClass() const
 {
 	return UEditorUtilityBlueprint::StaticClass();
+}
+
+bool FAssetTypeActions_EditorUtilityBlueprint::HasActions(const TArray<UObject*>& InObjects) const
+{
+	return true;
+}
+
+void FAssetTypeActions_EditorUtilityBlueprint::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+{
+	auto Blueprints = GetTypedWeakObjectPtrs<UEditorUtilityBlueprint>(InObjects);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("EditorUtility_Run", "Run Editor Utility Blueprint"),
+		LOCTEXT("EditorUtility_RunTooltip", "Runs this Editor Utility Blueprint."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FAssetTypeActions_EditorUtilityBlueprint::ExecuteRun, Blueprints)
+		)
+	);
 }
 
 uint32 FAssetTypeActions_EditorUtilityBlueprint::GetCategories()
@@ -64,6 +84,15 @@ void FAssetTypeActions_EditorUtilityBlueprint::ExecuteNewDerivedBlueprint(TWeakO
 
 		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 		ContentBrowserModule.Get().CreateNewAsset(Name, PackagePath, UEditorUtilityBlueprint::StaticClass(), BlueprintFactory);
+	}
+}
+
+void FAssetTypeActions_EditorUtilityBlueprint::ExecuteRun(FWeakBlueprintPointerArray InObjects)
+{
+	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
+	for (auto ObjIt = InObjects.CreateIterator(); ObjIt; ++ObjIt)
+	{
+		EditorUtilitySubsystem->TryRun(ObjIt->Get());
 	}
 }
 
