@@ -21,4 +21,7 @@ class UEditorUtilityContext : public UObject
 public:
 	UPROPERTY(config)
 	TArray<FSoftObjectPath> LoadedUIs;
+
+	UPROPERTY(config)
+	TArray<FSoftObjectPath> StartupBlueprints;
 };
