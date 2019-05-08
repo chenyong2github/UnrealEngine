@@ -658,39 +658,29 @@ void FString::SerializeAsANSICharArray( FArchive& Ar, int32 MinCharacters ) cons
 	}
 }
 
-void FString::AppendInt( int32 InNum )
+void FString::AppendInt( int32 Num )
 {
-	int64 Num						= InNum; // This avoids having to deal with negating -MAX_int32-1
-	const TCHAR* NumberChar[11]		= { TEXT("0"), TEXT("1"), TEXT("2"), TEXT("3"), TEXT("4"), TEXT("5"), TEXT("6"), TEXT("7"), TEXT("8"), TEXT("9"), TEXT("-") };
-	bool bIsNumberNegative			= false;
+	const TCHAR* DigitToChar		= TEXT("9876543210123456789");
+	constexpr int32 ZeroDigitIndex	= 9;
+	bool bIsNumberNegative			= Num < 0;
 	const int32 TempBufferSize		= 16; // 16 is big enough
 	TCHAR TempNum[TempBufferSize];				
 	int32 TempAt					= TempBufferSize; // fill the temp string from the top down.
 
-	// Correctly handle negative numbers and convert to positive integer.
-	if( Num < 0 )
-	{
-		bIsNumberNegative = true;
-		Num = -Num;
-	}
-
-	TempNum[--TempAt] = 0; // NULL terminator
-
-	// Convert to string assuming base ten and a positive integer.
+	// Convert to string assuming base ten.
 	do 
 	{
-		TempNum[--TempAt] = *NumberChar[Num % 10];
+		TempNum[--TempAt] = DigitToChar[ZeroDigitIndex + (Num % 10)];
 		Num /= 10;
 	} while( Num );
 
-	// Append sign as we're going to reverse string afterwards.
 	if( bIsNumberNegative )
 	{
-		TempNum[--TempAt] = *NumberChar[10];
+		TempNum[--TempAt] = TEXT('-');
 	}
 
 	const TCHAR* CharPtr = TempNum + TempAt;
-	const int32 NumChars = TempBufferSize - TempAt - 1;
+	const int32 NumChars = TempBufferSize - TempAt;
 	Append(CharPtr, NumChars);
 }
 
