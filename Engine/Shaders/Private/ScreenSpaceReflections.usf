@@ -290,17 +290,16 @@ void ScreenSpaceReflectionsPS(
 		float3 L;
 		if (bGlossy)
 		{
-			uint2 Random = Rand3DPCG16( int3( PixelPos, View.StateFrameIndexMod8 ) ).xy;
-			float2 E = float2(Random) * rcp(65536.0);
-			
-			float3x3 TangentBasis = GetTangentBasis( N );
-			float3 TangentV = mul( TangentBasis, V );
+			float2 E = Rand1SPPDenoiserInput(PixelPos);
 			
 			#if SSR_OUTPUT_FOR_DENOISER
 			{
 				E.x *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
 			}
 			#endif
+			
+			float3x3 TangentBasis = GetTangentBasis( N );
+			float3 TangentV = mul( TangentBasis, V );
 
 			float3 H = mul( ImportanceSampleVisibleGGX(E, a2, TangentV ).xyz, TangentBasis );
 			L = 2 * dot( V, H ) * H - V;

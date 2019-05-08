@@ -443,12 +443,6 @@ float3 GenerateReflectedRayDirection(
 }
 
 // TODO: duplicated...
-float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
-{
-	return float2(SobolRand) * rcp(65536.0) + rcp(65536.0 * 2.0);
-}
-
-// TODO: duplicated...
 void GetInputRayDirectionPixel(
 	uint2 PixelCoord,
 	FSSFSampleSceneInfos SceneMetadata,
@@ -457,22 +451,17 @@ void GetInputRayDirectionPixel(
 {
 	float3 IncidentDirection = normalize(SceneMetadata.TranslatedWorldPosition - View.TranslatedWorldCameraOrigin);
 
-	float2 RandSample;
+	float2 E;
 	{
-		const uint TemporalBits = 10;
-		uint FrameIndexMod1024 = ReverseBitsN(GetPowerOfTwoModulatedFrameIndex(1 << TemporalBits), TemporalBits);
-
-		uint2 SobolBase = SobolPixel(PixelCoord);
-		uint2 SobolFrame = SobolIndex(SobolBase, FrameIndexMod1024, TemporalBits);
-
-		RandSample = SobolIndexToUniformUnitSquare(SobolFrame);
+		E = Rand1SPPDenoiserInput(PixelCoord);
+		E.x *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
 	}
 
 	GenerateReflectedRayDirection(
 		IncidentDirection,
 		SceneMetadata.WorldNormal,
 		SceneMetadata.Roughness,
-		RandSample,
+		E,
 		/* out = */ RayDirection,
 		/* out = */ PDF);
 }

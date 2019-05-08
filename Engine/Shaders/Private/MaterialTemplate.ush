@@ -6,6 +6,7 @@
 
 #include "/Engine/Private/SceneTexturesCommon.ush"
 #include "/Engine/Private/Random.ush"
+#include "/Engine/Private/SobolRandom.ush"
 #include "/Engine/Private/MonteCarlo.ush"
 #include "/Engine/Generated/UniformBuffers/Material.ush"
 #include "/Engine/Private/DepthOfFieldCommon.ush"

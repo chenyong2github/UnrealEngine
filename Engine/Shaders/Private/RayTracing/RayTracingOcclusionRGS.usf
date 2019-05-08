@@ -6,6 +6,7 @@
 #include "../LightShaderParameters.ush"
 #include "../SceneViewFamilyBlackboard.ush"
 #include "../ScreenSpaceDenoise/SSDPublic.ush"
+#include "../SobolRandom.ush"
 #include "RayTracingCommon.ush"
 #include "RayTracingDirectionalLight.ush"
 #include "RayTracingRectLight.ush"
@@ -27,11 +28,6 @@ uint LightingChannelMask;
 uint SamplesPerPixel;
 float NormalBias;
 int4 LightScissor;
-
-float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
-{
-	return float2(SobolRand) * rcp(65536.0) + rcp(65536.0 * 2.0);
-}
 
 bool GenerateOcclusionRay(
 	FLightShaderParameters LightParameters,

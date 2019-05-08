@@ -6,11 +6,6 @@
 
 #include "../Common.ush"
 
-float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
-{
-	return float2(SobolRand) * rcp(65536.0) + rcp(65536.0 * 2.0);
-}
-
 #define SUPPORT_CONTACT_SHADOWS		0
 #define USE_SOURCE_TEXTURE			1
 #define USE_SOURCE_TEXTURE_ARRAY	1
@@ -28,6 +23,7 @@ float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
 #include "../Montecarlo.ush"
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush" 
 #include "../HeightFogCommon.ush"
+#include "../SobolRandom.ush"
 #include "RayTracingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
 #include "RayTracingDirectionalLight.ush"

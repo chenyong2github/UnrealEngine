@@ -10,6 +10,8 @@
 #include "../SceneTexturesCommon.ush"
 #include "../Random.ush"
 #include "../MonteCarlo.ush"
+#include "../SobolRandom.ush"
+
 
 
 //------------------------------------------------------- DEBUG COMPILE TIME CONFIG

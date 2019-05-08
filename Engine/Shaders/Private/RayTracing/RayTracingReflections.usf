@@ -15,11 +15,6 @@
 
 #include "../Common.ush"
 
-float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
-{
-	return float2(SobolRand) * rcp(65536.0) + rcp(65536.0 * 2.0);
-}
-
 #define SUPPORT_CONTACT_SHADOWS		0
 #define USE_SOURCE_TEXTURE			1
 #define USE_SOURCE_TEXTURE_ARRAY	1
@@ -39,6 +34,7 @@ float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
 #include "../HeightFogCommon.ush"
 #include "../LightShaderParameters.ush"
 #include "../ScreenSpaceDenoise/SSDPublic.ush"
+#include "../SobolRandom.ush"
 #include "RayTracingHitGroupCommon.ush"
 #include "RayTracingDirectionalLight.ush"
 #include "RayTracingRectLight.ush"
@@ -105,16 +101,16 @@ float3 GenerateReflectionDirection(inout RandomSequence RandSequence, uint2 Disp
 	float3 outDirection;
 	do
 	{
-		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+		float2 E = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
 
 		// Sobol can only be used on the first sample of the first bounce
 		if (BounceIndex == 0 && SamplePerPixel == 1 && RetryCount == 0)
 		{
-			uint2 SobolFrame = ComputePixelUniqueSobolRandSample(DispatchThreadId);
-			RandSample = SobolIndexToUniformUnitSquare(SobolFrame);
+			E = Rand1SPPDenoiserInput(DispatchThreadId);
+			E.x *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
 		}
 
-		outDirection = GenerateReflectedRayDirection(IncidentDirection, WorldNormal, Roughness, RandSample);
+		outDirection = GenerateReflectedRayDirection(IncidentDirection, WorldNormal, Roughness, E);
 	} while (dot(WorldNormal, outDirection) < 0.0 && ++RetryCount < 16);
 
 	return outDirection;
