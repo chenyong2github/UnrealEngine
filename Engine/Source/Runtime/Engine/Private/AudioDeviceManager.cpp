@@ -11,6 +11,7 @@
 
 #if WITH_EDITOR
 #include "AudioEditorModule.h"
+#include "Settings/LevelEditorMiscSettings.h"
 #endif
 
 // Private consts for helping with index/generation determination in audio device manager
@@ -380,7 +381,13 @@ bool FAudioDeviceManager::CreateAudioDevice(bool bCreateNewDevice, FCreateAudioD
 	bool bRequiresInit = true;
 
 	// For the first PIE window, we'll just use the main audio device
-	if (NumActiveAudioDevices == 1)
+	bool bCreateNewAudioDeviceForPlayInEditor = true;
+
+#if WITH_EDITOR
+	bCreateNewAudioDeviceForPlayInEditor = GetDefault<ULevelEditorMiscSettings>()->bCreateNewAudioDeviceForPlayInEditor;
+#endif
+
+	if (NumActiveAudioDevices == 1 && !bCreateNewAudioDeviceForPlayInEditor)
 	{
 		FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice();
 		if (MainAudioDevice)
