@@ -21,7 +21,8 @@ namespace MetadataTool
 		// Register all the pattern matchers
 		static readonly List<PatternMatcher> Matchers = new List<PatternMatcher>()
 		{ 
-			new CompilePatternMatcher()
+			new CompilePatternMatcher(),
+			new UndefinedSymbolPatternMatcher()
 		};
 
 		/// <summary>
