@@ -3335,8 +3335,23 @@ void FLevelEditorViewportClient::MoveLockedActorToCamera()
 				}
 			}
 
-			ActiveActorLock->SetActorLocation(GCurrentLevelEditingViewportClient->GetViewLocation(), false);
-			ActiveActorLock->SetActorRotation(GCurrentLevelEditingViewportClient->GetViewRotation());
+			// If we're locked to a camera then we're reflecting the camera view and not the actor position. We need to reflect that delta when we reposition the piloted actor
+			if (bUseControllingActorViewInfo)
+			{
+				const USceneComponent* ViewComponent = Cast<USceneComponent>(FindViewComponentForActor(ActiveActorLock));
+				if (ViewComponent != nullptr)
+				{
+					const FTransform RelativeTransform = ViewComponent->GetComponentTransform().Inverse();
+					const FTransform DesiredTransform = FTransform(GCurrentLevelEditingViewportClient->GetViewRotation(), GCurrentLevelEditingViewportClient->GetViewLocation());
+
+					ActiveActorLock->SetActorTransform(ActiveActorLock->GetActorTransform() * RelativeTransform * DesiredTransform);
+				}
+			}
+			else
+			{
+				ActiveActorLock->SetActorLocation(GCurrentLevelEditingViewportClient->GetViewLocation(), false);
+				ActiveActorLock->SetActorRotation(GCurrentLevelEditingViewportClient->GetViewRotation());
+			}
 		}
 
 		if (ABrush* Brush = Cast<ABrush>(ActiveActorLock))
