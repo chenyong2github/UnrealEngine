@@ -15,7 +15,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// IOS-specific target settings
 	/// </summary>
-	public class IOSTargetRules
+	public partial class IOSTargetRules
 	{
 		/// <summary>
 		/// Whether to strip iOS symbols or not (implied by Shipping config)
@@ -75,7 +75,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Read-only wrapper for IOS-specific target settings
 	/// </summary>
-	public class ReadOnlyIOSTargetRules
+	public partial class ReadOnlyIOSTargetRules
 	{
 		/// <summary>
 		/// The private mutable settings object
