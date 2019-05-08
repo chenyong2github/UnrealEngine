@@ -1,9 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
+using System.Reflection;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
+using Timing_Data_Investigator.Models;
 
 namespace Timing_Data_Investigator.Controls
 {
@@ -19,7 +24,8 @@ namespace Timing_Data_Investigator.Controls
 
         private void Grid_Sorting(object sender, DataGridSortingEventArgs e)
         {
-			CollectionViewSource GridModel = DataContext as CollectionViewSource;
+			
+			
 			switch (e.Column.SortDirection)
 			{
 				case ListSortDirection.Ascending:
@@ -41,14 +47,34 @@ namespace Timing_Data_Investigator.Controls
 					}
 			}
 
-			GridModel?.SortDescriptions?.Clear();
-			if (e.Column.SortDirection != null)
-			{
-				GridModel.SortDescriptions.Add(new SortDescription(e.Column.SortMemberPath, e.Column.SortDirection.Value));
-			}
+			TreeGridFlatModel GridModel = (TreeGridFlatModel)DataContext;
+			PropertyInfo SortProperty = typeof(TimingDataViewModel).GetProperty(e.Column.SortMemberPath);
+			GridModel.Sort(SortProperty, e.Column.SortDirection);
 
             e.Handled = true;
         }
+
+		private void SortNodes(ObservableCollection<TreeGridElement> NewFlatModel, TreeGridElement Node, ListSortDirection SortDirection, PropertyInfo SortProperty)
+		{
+			NewFlatModel.Add(Node);
+			if (Node.IsExpanded && Node.HasChildren)
+			{
+				IOrderedEnumerable<TreeGridElement> SortedChildren;
+				if (SortDirection == ListSortDirection.Ascending)
+				{
+					SortedChildren = Node.Children.OrderBy(c => SortProperty.GetValue(c));
+				}
+				else
+				{
+					SortedChildren = Node.Children.OrderByDescending(c => SortProperty.GetValue(c));
+				}
+
+				foreach (TreeGridElement Child in SortedChildren)
+				{
+					SortNodes(NewFlatModel, Child, SortDirection, SortProperty);
+				}
+			}
+		}
 
         private void Grid_KeyDown(object sender, KeyEventArgs e)
         {

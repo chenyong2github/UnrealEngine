@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -25,11 +26,6 @@ namespace Timing_Data_Investigator.Controls
         private TreeGridModel GroupedClassesModel;
         private TreeGridModel FunctionsModel;
         private TreeGridModel GroupedFunctionsModel;
-
-		private CollectionViewSource FilesViewSource = new CollectionViewSource();
-		private CollectionViewSource IncludesViewSource = new CollectionViewSource();
-		private CollectionViewSource ClassesViewSource = new CollectionViewSource();
-		private CollectionViewSource FunctionsViewSource = new CollectionViewSource();
 
 		private Dictionary<TimingDataViewModel, TabState> TabStates = new Dictionary<TimingDataViewModel, TabState>();
 
@@ -55,10 +51,6 @@ namespace Timing_Data_Investigator.Controls
             InitializeComponent();
             DataContextChanged += TimingDataTab_DataContextChanged;
             FilesGrid.Grid.RowStyle = FindResource("FilesRowStyle") as Style;
-			FilesGrid.DataContext = FilesViewSource;
-			IncludesGrid.DataContext = IncludesViewSource;
-			ClassesGrid.DataContext = ClassesViewSource;
-			FunctionsGrid.DataContext = FunctionsViewSource;
 		}
 
         private void TimingDataTab_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -127,27 +119,27 @@ namespace Timing_Data_Investigator.Controls
 				RefreshTabState(ClassesTab, State);
 				RefreshTabState(FunctionsTab, State);
 
-				SortModel(null, FilesGrid.Grid);
-				SortModel(null, IncludesGrid.Grid);
-				SortModel(null, ClassesGrid.Grid);
-				SortModel(null, FunctionsGrid.Grid);
+				SortModel(FilesGrid.Grid);
+				SortModel(IncludesGrid.Grid);
+				SortModel(ClassesGrid.Grid);
+				SortModel(FunctionsGrid.Grid);
 			}
         }
 
 		private void UpdateUIForAggregate(TimingDataViewModel TimingData)
 		{
 			FilesModel = GenerateTreeGridModel(TimingData.Children[0].Children);
-			IncludesModel = null;
-			ClassesModel = null;
-			FunctionsModel = null;
+			IncludesModel = GenerateTreeGridModel(TimingData.Children[1].Children);
+			ClassesModel = GenerateTreeGridModel(TimingData.Children[2].Children);
+			FunctionsModel = GenerateTreeGridModel(TimingData.Children[3].Children);
 			FlattenedIncludesModel = null;
 			GroupedClassesModel = null;
 			GroupedFunctionsModel = null;
 
 			UpdateTabVisibility(FilesModel.FlatModel, FilesTab, FilesGrid);
-			UpdateTabVisibility(TimingData.Children[1].Children, IncludesTab, IncludesGrid);
-			UpdateTabVisibility(TimingData.Children[2].Children, ClassesTab, ClassesGrid);
-			UpdateTabVisibility(TimingData.Children[3].Children, FunctionsTab, FunctionsGrid);
+			UpdateTabVisibility(IncludesModel.FlatModel, IncludesTab, IncludesGrid);
+			UpdateTabVisibility(ClassesModel.FlatModel, ClassesTab, ClassesGrid);
+			UpdateTabVisibility(FunctionsModel.FlatModel, FunctionsTab, FunctionsGrid);
 		}
 
 		private void UpdateUIForSingleFile(TimingDataViewModel TimingData)
@@ -176,8 +168,13 @@ namespace Timing_Data_Investigator.Controls
 			State.SortColumns[Tab].SortDirection = State.SortDirections[Tab];
 		}
 
-        private void SortModel(TreeGridModel Model, DataGrid Grid)
+        private void SortModel(DataGrid Grid)
         {
+			if (Grid.DataContext == null)
+			{
+				return;
+			}
+
             // Find the column that has a sorting value set, if any.
             DataGridColumn SortedColumn = Grid.Columns.FirstOrDefault(c => c.SortDirection != null);
             if (SortedColumn == null)
@@ -186,19 +183,15 @@ namespace Timing_Data_Investigator.Controls
                 return;
             }
 
-			CollectionViewSource CollectionToSort = (CollectionViewSource)Grid.DataContext;
-			CollectionToSort?.SortDescriptions?.Clear();
-			if (SortedColumn.SortDirection != null)
-			{
-				CollectionToSort.SortDescriptions.Add(new SortDescription(SortedColumn.SortMemberPath, SortedColumn.SortDirection.Value));
-			}
+			TreeGridFlatModel Model = (TreeGridFlatModel)Grid.DataContext;
+			PropertyInfo SortProperty = typeof(TimingDataViewModel).GetProperty(SortedColumn.SortMemberPath);
+			Model.Sort(SortProperty, SortedColumn.SortDirection);
 		}
 
-        private void UpdateTabVisibility(ObservableCollection<TreeGridElement> TabModel, TabItem Tab, TimingDataGrid Grid)
+        private void UpdateTabVisibility(TreeGridFlatModel TabModel, TabItem Tab, TimingDataGrid Grid)
         {
             Tab.Visibility = TabModel == null ? Visibility.Collapsed : Visibility.Visible;
-			CollectionViewSource Source = (CollectionViewSource)Grid.Grid.DataContext;
-			Source.Source = TabModel;
+			Grid.DataContext = TabModel;
         }
 
 		private TreeGridModel GenerateTreeGridModel(IEnumerable<TreeGridElement> Children)
@@ -369,14 +362,13 @@ namespace Timing_Data_Investigator.Controls
 
         private void UpdateGridModel(CheckBox CheckBox, TimingDataGrid Grid, TreeGridModel UncheckedModel, TreeGridModel CheckedModel)
         {
-			CollectionViewSource Source = (CollectionViewSource)Grid.DataContext;
 			if (CheckBox.IsChecked == true)
             {
-				Source.Source = CheckedModel?.FlatModel;
+				Grid.DataContext = CheckedModel?.FlatModel;
             }
             else
             {
-				Source.Source = UncheckedModel?.FlatModel;
+				Grid.DataContext = UncheckedModel?.FlatModel;
             }
         }
 

@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -40,6 +41,79 @@ namespace Timing_Data_Investigator.Models
 		public string ShortName => !string.IsNullOrWhiteSpace(Name) ? Path.GetFileName(Name) : null;
 
 		public ICommand OpenCommand { get; set; }
+
+		public int SortedIndex { get; set; }
+
+		public void UpdateSortIndex(string SortMember, ListSortDirection SortDirection)
+		{
+			int Index = 0;
+			UpdateSortIndexInternal(SortMember, SortDirection, this, ref Index);
+		}
+
+		private static void UpdateSortIndexInternal(string SortMember, ListSortDirection SortDirection, TimingDataViewModel ViewModel, ref int Index)
+		{
+			IEnumerable<TimingDataViewModel> ChildrenViewModels = ViewModel.Children.Cast<TimingDataViewModel>();
+			IOrderedEnumerable<TimingDataViewModel> SortedChildren = null;
+			switch (SortMember)
+			{
+				case "Name":
+					{
+						if (SortDirection == ListSortDirection.Ascending)
+						{
+							SortedChildren = ChildrenViewModels.OrderBy(c => c.Name);
+						}
+						else
+						{
+							SortedChildren = ChildrenViewModels.OrderByDescending(c => c.Name);
+						}
+						break;
+					}
+
+				case "InclusiveDuration":
+					{
+						if (SortDirection == ListSortDirection.Ascending)
+						{
+							SortedChildren = ChildrenViewModels.OrderBy(c => c.InclusiveDuration);
+						}
+						else
+						{
+							SortedChildren = ChildrenViewModels.OrderByDescending(c => c.InclusiveDuration);
+						}
+						break;
+					}
+
+				case "ExclusiveDuration":
+					{
+						if (SortDirection == ListSortDirection.Ascending)
+						{
+							SortedChildren = ChildrenViewModels.OrderBy(c => c.ExclusiveDuration);
+						}
+						else
+						{
+							SortedChildren = ChildrenViewModels.OrderByDescending(c => c.ExclusiveDuration);
+						}
+						break;
+					}
+			}
+
+			foreach (TimingDataViewModel Child in SortedChildren)
+			{
+				if (SortDirection == ListSortDirection.Ascending)
+				{
+					Child.SortedIndex = Index++;
+				}
+
+				if (Child.HasChildren)
+				{
+					UpdateSortIndexInternal(SortMember, SortDirection, Child, ref Index);
+				}
+
+				if (SortDirection == ListSortDirection.Descending)
+				{
+					Child.SortedIndex = Index++;
+				}
+			}
+		}
 
 		public static TimingDataViewModel FromBinaryFile(FileReference BinaryFile)
 		{

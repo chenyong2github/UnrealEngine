@@ -253,16 +253,15 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 				//   handle by what our current state is.
 				const char StartTimingInfoText[] = "Include Headers:";
 				
+				if (!InTimingInfo && memcmp(Buffer + LineStart, StartTimingInfoText, 16) == 0)
+				{
+					InTimingInfo = true;	
+				}
+
 				if (InTimingInfo)
 				{
 					DWORD BytesWritten;
 					WriteFile(TimingFile, Buffer + LineStart, (DWORD)(LineEnd - LineStart), &BytesWritten, NULL);
-					LineStart = LineEnd;
-					continue;
-				}
-				else if (memcmp(Buffer + LineStart, StartTimingInfoText, 16) == 0)
-				{
-					InTimingInfo = true;
 					LineStart = LineEnd;
 					continue;
 				}

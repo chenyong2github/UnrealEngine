@@ -21,7 +21,7 @@ namespace Timing_Data_Investigator
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            var VisibilityOption = parameter == null ? VisibilityOptions.VisibleOnTrue : Enum.Parse(typeof(VisibilityOptions), parameter.ToString());
+			VisibilityOptions VisibilityOption = parameter == null ? VisibilityOptions.VisibleOnTrue : (VisibilityOptions)Enum.Parse(typeof(VisibilityOptions), parameter.ToString());
             switch (VisibilityOption)
             {
                 case VisibilityOptions.VisibleOnFalse:
