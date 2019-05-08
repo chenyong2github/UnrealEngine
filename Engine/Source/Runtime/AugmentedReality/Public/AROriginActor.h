@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "GameFramework/Info.h"
+#include "GameframeWork/Actor.h"
 
 #include "AROriginActor.generated.h"
 
@@ -12,7 +12,7 @@
  */
 UCLASS(BlueprintType)
 class AUGMENTEDREALITY_API AAROriginActor :
-	public AInfo
+	public AActor
 {
 	GENERATED_UCLASS_BODY()
 public:
