@@ -4,6 +4,7 @@
 #include "ARSystem.h"
 #include "ARDebugDrawHelpers.h"
 #include "DrawDebugHelpers.h"
+#include "MRMeshComponent.h"
 
 //
 //
@@ -113,6 +114,16 @@ void UARTrackedGeometry::SetDebugName( FName InDebugName )
 IARRef* UARTrackedGeometry::GetNativeResource()
 {
 	return NativeResource.Get();
+}
+
+UMRMeshComponent* UARTrackedGeometry::GetUnderlyingMesh()
+{
+	return UnderlyingMesh;
+}
+
+void UARTrackedGeometry::SetUnderlyingMesh(UMRMeshComponent* InMRMeshComponent)
+{
+	UnderlyingMesh = InMRMeshComponent;
 }
 
 //
