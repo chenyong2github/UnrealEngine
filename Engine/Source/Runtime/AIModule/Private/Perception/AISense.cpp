@@ -27,7 +27,9 @@ UAISense::UAISense(const FObjectInitializer& ObjectInitializer)
 	, TimeUntilNextUpdate(SuspendNextUpdate)
 	, SenseID(FAISenseID::InvalidID())
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	DefaultExpirationAge = FAIStimulus::NeverHappenedAge;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bNeedsForgettingNotification = false;
 
