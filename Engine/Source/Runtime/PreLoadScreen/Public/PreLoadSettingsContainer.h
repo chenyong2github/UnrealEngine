@@ -94,6 +94,7 @@ public:
 		: CurrentLoadGroup(NAME_None)
     {
 		bShouldLoadBrushes = true;
+		HasCreatedSystemFontFile = false;
     }
 
     virtual ~FPreLoadSettingsContainerBase();
@@ -117,7 +118,8 @@ public:
     //Maps the given font file to the given language and stores it under the FontIdentifier.
     //Identifier maps the entire CompositeFont, so if you want to add multiple fonts  for multiple languages, just store them all under the same identifer
     virtual void BuildCustomFont(const FString& FontIdentifier, const FString& Language, const FString& FilePath);
-	virtual void BuildSystemFont(const FString& FontIdentifer);
+	virtual bool BuildSystemFontFile();
+	virtual const FString GetSystemFontFilePath() const;
 
     //Helper functions that parse a .ini config entry and call the appropriate create function to 
     virtual void ParseBrushConfigEntry(const FString& BrushConfigEntry);
@@ -176,7 +178,7 @@ protected:
 
 	FName CurrentLoadGroup;
 
-	TSharedPtr<FCompositeFont> CachedSystemFont;
+	bool HasCreatedSystemFontFile;
 
 	//If our Font filepath is set to this, we use the system font instead of a custom font we load in
 	static FString UseSystemFontOverride;
