@@ -33,7 +33,7 @@ struct FInterval1
 
 	RealType Extent() const
 	{
-		return Max - Min;
+		return (Max - Min)*(RealType).5;
 	}
 	RealType Length() const
 	{
