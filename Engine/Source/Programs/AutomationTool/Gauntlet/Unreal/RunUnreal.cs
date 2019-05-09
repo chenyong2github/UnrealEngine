@@ -347,7 +347,15 @@ namespace Gauntlet
 					throw new AutomationException("Unable to convert perfspec '{0}' into an EPerfSpec", PerfSpec);
 				}
 
-				TestContext.Constraint = new UnrealTargetConstraint(UnrealPlatform, PerfSpec);
+				// parse hardware model
+				List<string> ModelArgs = CombinedParams.ParseValues("PerfModel", false);
+				string Model = ModelArgs.Count > 0 ? ModelArgs.Last() : string.Empty;
+
+				TestContext.Constraint = new UnrealTargetConstraint(UnrealPlatform, PerfSpec, Model);
+
+				// parse worker job id
+				List<string> WorkerJobIDArgs = CombinedParams.ParseValues("WorkerJobID", false);
+				TestContext.WorkerJobID = WorkerJobIDArgs.Count > 0 ? WorkerJobIDArgs.Last() : null;
 
 				TestContext.TestParams = CombinedParams;
 
