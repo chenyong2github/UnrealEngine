@@ -1152,6 +1152,8 @@ void UEditorEngine::FinishDestroy()
 			UE_LOG(LogEditor, Warning, TEXT("Warning: Play world is active"));
 		}
 
+		EditorSubsystemCollection.Deinitialize();
+
 		// Unregister events
 		FEditorDelegates::MapChange.RemoveAll(this);
 		FCoreDelegates::ModalErrorMessage.Unbind();

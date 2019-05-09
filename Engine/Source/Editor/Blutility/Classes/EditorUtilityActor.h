@@ -17,5 +17,7 @@ class BLUTILITY_API AEditorUtilityActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
-	
+	// Standard function to execute
+	UFUNCTION(BlueprintImplementableEvent)
+	void Run();
 };
