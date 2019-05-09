@@ -437,8 +437,6 @@ namespace Audio
 
 		SourceInfo.DistanceAttenuationSourceStart = -1.0f;
 		SourceInfo.DistanceAttenuationSourceDestination = -1.0f;
-		SourceInfo.LPFCutoffFrequencyParam.Init();
-		SourceInfo.HPFCutoffFrequencyParam.Init();
 
 		SourceInfo.LowPassFilter.Reset();
 		SourceInfo.HighPassFilter.Reset();
@@ -610,9 +608,7 @@ namespace Audio
 
 			// Initialize the number of per-source LPF filters based on input channels
 			SourceInfo.LowPassFilter.Init(MixerDevice->SampleRate, InitParams.NumInputChannels);
-
-			SourceInfo.HighPassFilter.Init(MixerDevice->SampleRate, InitParams.NumInputChannels, 0, nullptr);
-			SourceInfo.HighPassFilter.SetFilterType(EFilter::Type::HighPass);
+			SourceInfo.HighPassFilter.Init(MixerDevice->SampleRate, InitParams.NumInputChannels);
 
 			SourceInfo.SourceEnvelopeFollower = Audio::FEnvelopeFollower(MixerDevice->SampleRate / NumOutputFrames, (float)InitParams.EnvelopeFollowerAttackTime, (float)InitParams.EnvelopeFollowerReleaseTime, Audio::EPeakMode::Peak);
 
@@ -1057,7 +1053,7 @@ namespace Audio
 		{
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
-			SourceInfos[SourceId].LPFCutoffFrequencyParam.SetValue(InLPFFrequency, NumOutputFrames);
+			SourceInfos[SourceId].LowPassFilter.StartFrequencyInterpolation(InLPFFrequency, NumOutputFrames);
 		});
 	}
 
@@ -1071,7 +1067,7 @@ namespace Audio
 		{
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
-			SourceInfos[SourceId].HPFCutoffFrequencyParam.SetValue(InHPFFrequency, NumOutputFrames);
+			SourceInfos[SourceId].HighPassFilter.StartFrequencyInterpolation(InHPFFrequency, NumOutputFrames);
 		});
 	}
 
@@ -2009,57 +2005,20 @@ namespace Audio
 			{
 				float* PostDistanceAttenBufferPtr = SourceInfo.SourceBuffer.GetData();
 
-				// Process the filters after the source effects
-				for (int32 Frame = 0; Frame < NumOutputFrames; ++Frame)
+				// Process the filters after the source effects (Using optimized filters)
+				for (int32 SampleIndex = 0; SampleIndex < NumOutputFrames * SourceInfo.NumInputChannels; SampleIndex += SourceInfo.NumInputChannels)
 				{
-					const float LPFFreq = SourceInfo.LPFCutoffFrequencyParam.Update();
-					const float HPFFreq = SourceInfo.HPFCutoffFrequencyParam.Update();
+					SourceInfo.LowPassFilter.ProcessAudioFrame(&PreDistanceAttenBufferPtr[SampleIndex], &PostDistanceAttenBufferPtr[SampleIndex]);
 
-					SourceInfo.LowPassFilter.SetFrequency(LPFFreq);
-
-					SourceInfo.HighPassFilter.SetFrequency(HPFFreq);
-					SourceInfo.HighPassFilter.Update();
-
-					int32 SampleIndex = SourceInfo.NumInputChannels * Frame;
-
-					// Apply filters, if necessary.
-					if (LPFFreq < (MAX_FILTER_FREQUENCY - KINDA_SMALL_NUMBER))
+					if (!DisableHPFilteringCvar)
 					{
-						//If we stopped processing the low pass filter, we need to clear the filter's memory to prevent pops.
-						if (SourceInfo.bIsBypassingLPF)
-						{
-							SourceInfo.LowPassFilter.ClearMemory();
-							SourceInfo.bIsBypassingLPF = false;
-						}
-
-						SourceInfo.LowPassFilter.ProcessAudio(&PreDistanceAttenBufferPtr[SampleIndex], &PostDistanceAttenBufferPtr[SampleIndex]);
-					}
-					else
-					{
-						SourceInfo.bIsBypassingLPF = true;
-						FMemory::Memcpy(&PostDistanceAttenBufferPtr[SampleIndex], &PreDistanceAttenBufferPtr[SampleIndex], SourceInfo.NumInputChannels * sizeof(float));
-					}
-
-					if (!DisableHPFilteringCvar && HPFFreq > KINDA_SMALL_NUMBER)
-					{
-						//If we stopped processing the low pass filter, we need to clear the filter's memory to prevent pops.
-						if (SourceInfo.bIsBypassingHPF)
-						{
-							SourceInfo.HighPassFilter.Reset();
-							SourceInfo.bIsBypassingHPF = false;
-						}
-
 						SourceInfo.HighPassFilter.ProcessAudioFrame(&PostDistanceAttenBufferPtr[SampleIndex], &PostDistanceAttenBufferPtr[SampleIndex]);
-					}
-					else
-					{
-						SourceInfo.bIsBypassingHPF = true;
 					}
 				}
 
-				// Reset the volume and LPF param interpolations
-				SourceInfo.LPFCutoffFrequencyParam.Reset();
-				SourceInfo.HPFCutoffFrequencyParam.Reset();
+				// We manually reset interpolation to avoid branches in filter code
+				SourceInfo.LowPassFilter.StopFrequencyInterpolation();
+				SourceInfo.HighPassFilter.StopFrequencyInterpolation();
 
 				// Apply distance attenuation
 				ApplyDistanceAttenuation(SourceInfo, NumSamples);
