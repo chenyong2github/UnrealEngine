@@ -51,7 +51,7 @@ struct FSkelMeshRenderSection;
 struct FVertexBufferAndSRV;
 
 // Can the skin cache be used (ie shaders added, etc)
-extern ENGINE_API bool IsGPUSkinCacheAvailable();
+extern ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform);
 
 // Is it actually enabled?
 extern ENGINE_API int32 GEnableGPUSkinCache;
