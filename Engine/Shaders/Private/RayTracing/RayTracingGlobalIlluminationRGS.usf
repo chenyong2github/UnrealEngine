@@ -47,7 +47,7 @@ void GenerateCosineNormalRay(
 
 	RayOrigin = WorldPosition;
 	RayDirection = Direction_World;
-	RayTMin = 0.0;
+	RayTMin = 0.01;
 	RayTMax = max(MaxRayDistanceForGI, MaxRayDistanceForAO);
 	RayPdf = Direction_Tangent.w;
 }
@@ -284,7 +284,8 @@ void GlobalIlluminationRGS()
 				float4 RandSample;
 				RandSample.xyz = QuasiRandom_Sample3(QuasiRandom);
 				RandSample.w = QuasiRandom_Sample3(QuasiRandom).x;
-				SampleMaterial(Ray.Direction, Payload, RandSample, Direction, Throughput, MaterialPdf);
+				float PositionBiasSign;
+				SampleMaterial(Ray.Direction, Payload, RandSample, Direction, Throughput, MaterialPdf, PositionBiasSign);
 #else
 				float3 RandSample3 = QuasiRandom_Sample3(QuasiRandom);
 				float3 RayOrigin = Ray.Origin;
@@ -305,7 +306,6 @@ void GlobalIlluminationRGS()
 
 				// Update ray
 				Ray.Direction = Direction;
-				ApplyPositionBias(Ray, WorldNormal, MaxNormalBias);
 				RayThroughput *= Throughput;
 				RayPdf *= MaterialPdf;
 			}

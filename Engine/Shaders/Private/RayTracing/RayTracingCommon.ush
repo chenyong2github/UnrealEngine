@@ -298,13 +298,13 @@ float GetHitT(FMaterialClosestHitPayload HitInfo)
 bool IsHit(RayDesc Ray, FMaterialClosestHitPayload HitInfo)
 {
 	float t = HitInfo.HitT;
-	return t > Ray.TMin && t < Ray.TMax;
+	return t >= Ray.TMin && t <= Ray.TMax;
 }
 
 bool IsHit(RayDesc Ray, FPackedMaterialClosestHitPayload HitInfo)
 {
 	float t = HitInfo.HitT;
-	return t > Ray.TMin && t < Ray.TMax;
+	return t >= Ray.TMin && t <= Ray.TMax;
 }
 
 #endif // !COMPUTESHADER
