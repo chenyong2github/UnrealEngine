@@ -1185,11 +1185,9 @@ static VertexFactoryType* CreateVertexFactory(TArray<TUniquePtr<VertexFactoryTyp
 			typename VertexFactoryType::FDataType Data;
 			InitGPUSkinVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
 			VertexUpdateData.VertexFactory->SetData(Data);
+			VertexUpdateData.VertexFactory->InitResource();
 		}
 	);
-
-	// init rendering resource	
-	BeginInitResource(VertexFactory);
 
 	return VertexFactory;
 }
@@ -1216,11 +1214,9 @@ static void CreatePassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel
 		[NewPassthroughVertexFactory, SourceVertexFactory](FRHICommandList& RHICmdList)
 		{
 			SourceVertexFactory->CopyDataTypeForPassthroughFactory(NewPassthroughVertexFactory);
+			NewPassthroughVertexFactory->InitResource();
 		}
 	);
-
-	// init rendering resource	
-	BeginInitResource(NewPassthroughVertexFactory);
 }
 
 /**
@@ -1247,11 +1243,9 @@ static VertexFactoryType* CreateVertexFactoryMorph(TArray<TUniquePtr<VertexFacto
 			InitGPUSkinVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
 			InitMorphVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers);
 			VertexUpdateData.VertexFactory->SetData(Data);
+			VertexUpdateData.VertexFactory->InitResource();
 		}
 	);
-
-	// init rendering resource	
-	BeginInitResource(VertexFactory);
 
 	return VertexFactory;
 }
@@ -1282,11 +1276,9 @@ static void CreateVertexFactoryCloth(TArray<TUniquePtr<VertexFactoryTypeBase>>& 
 			InitGPUSkinVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
 			InitAPEXClothVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers);
 			VertexUpdateData.VertexFactory->SetData(Data);
+			VertexUpdateData.VertexFactory->InitResource();
 		}
 	);
-
-	// init rendering resource	
-	BeginInitResource(VertexFactory);
 }
 
 /**
