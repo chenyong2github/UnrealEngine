@@ -70,7 +70,7 @@ public:
 
 		/** There were errors when adding the new source files */
 		FailedToAddCode,
-		 
+
 		/** There were errors when hot-reloading the new module */
 		FailedToHotReload,
 	};
@@ -83,7 +83,7 @@ public:
 
 		/** There were errors while duplicating project files */
 		Failed,
-		 
+
 		/** User has canceled project duplication process */
 		UserCanceled
 	};
@@ -112,8 +112,8 @@ public:
 	/** Updates the given project file to an engine identifier. Returns true if the project was updated successfully or if no update was needed */
 	static bool UpdateGameProject(const FString& ProjectFile, const FString& EngineIdentifier, FText& OutFailReason);
 
-	/** 
-	 * Opens a dialog to add code files or blueprints to the current project. 
+	/**
+	 * Opens a dialog to add code files or blueprints to the current project.
 	 *
 	 * @param	Config			Configuration options for the dialog
 	 * @param	InDomain		The domain of the class we're creating (native or blueprint)
@@ -141,7 +141,7 @@ public:
 	/** @return The number of code files in the currently loaded project */
 	static int32 GetProjectCodeFileCount();
 
-	/** 
+	/**
 	* Retrieves file and size info about the project's source directory
 	* @param OutNumFiles Contains the number of files within the source directory
 	* @param OutDirectorySize Contains the combined size of all files in the directory
@@ -175,18 +175,18 @@ public:
 	 */
 	static void ResetCurrentProjectModulesCache();
 
-	/** 
-	 * Check to see if the given path is a valid place to put source code for this project (exists within the source root path) 
+	/**
+	 * Check to see if the given path is a valid place to put source code for this project (exists within the source root path)
 	 *
 	 * @param	InPath				The path to check
 	 * @param	ModuleInfo			Information about the module being validated
 	 * @param	OutFailReason		Optional parameter to fill with failure information
-	 * 
+	 *
 	 * @return	true if the path is valid, false otherwise
 	 */
 	static bool IsValidSourcePath(const FString& InPath, const FModuleContextInfo& ModuleInfo, FText* const OutFailReason = nullptr);
 
-	/** 
+	/**
 	 * Given the path provided, work out where generated .h and .cpp files would be placed
 	 *
 	 * @param	InPath				The path to use a base
@@ -194,19 +194,19 @@ public:
 	 * @param	OutHeaderPath		The path where the .h file should be placed
 	 * @param	OutSourcePath		The path where the .cpp file should be placed
 	 * @param	OutFailReason		Optional parameter to fill with failure information
-	 * 
+	 *
 	 * @return	false if the paths are invalid
 	 */
 	static bool CalculateSourcePaths(const FString& InPath, const FModuleContextInfo& ModuleInfo, FString& OutHeaderPath, FString& OutSourcePath, FText* const OutFailReason = nullptr);
 
-	/** 
+	/**
 	 * Given the path provided, work out where it's located within the Source folder
 	 *
 	 * @param	InPath				The path to use a base
 	 * @param	ModuleInfo			Information about the module being validated
 	 * @param	OutClassLocation	The location within the Source folder
 	 * @param	OutFailReason		Optional parameter to fill with failure information
-	 * 
+	 *
 	 * @return	false if the paths are invalid
 	 */
 	static bool GetClassLocation(const FString& InPath, const FModuleContextInfo& ModuleInfo, EClassLocation& OutClassLocation, FText* const OutFailReason = nullptr);
@@ -217,7 +217,7 @@ public:
 	/**
 	 * Update the list of supported target platforms based upon the parameters provided
 	 * This will take care of checking out and saving the updated .uproject file automatically
-	 * 
+	 *
 	 * @param	InPlatformName		Name of the platform to target (eg, WindowsNoEditor)
 	 * @param	bIsSupported		true if the platform should be supported by this project, false if it should not
 	 */
@@ -249,7 +249,7 @@ public:
 
 	/** Returns the contents of the specified template file */
 	static bool ReadTemplateFile(const FString& TemplateFileName, FString& OutFileContents, FText& OutFailReason);
-	
+
 	/** Writes an output file. OutputFilename includes a path */
 	static bool WriteOutputFile(const FString& OutputFilename, const FString& OutputFileContents, FText& OutFailReason);
 
@@ -263,7 +263,7 @@ public:
 	static FString MakeIncludeList(const TArray<FString>& InList);
 
 	/** Returns true if the currently loaded project requires a code build */
-	static bool ProjectRequiresBuild(const FName InPlatformInfoName);		
+	static bool ProjectRequiresBuild(const FName InPlatformInfoName);
 
 	/** Deletes the specified list of files that were created during file creation */
 	static void DeleteCreatedFiles(const FString& RootFolder, const TArray<FString>& CreatedFiles);
@@ -293,7 +293,7 @@ private:
 	/** Insert any required feature packs into the DefaultGame.ini file */
 	static bool InsertFeaturePacksIntoINIFile(const FProjectInformation& InProjectInfo, FText& OutFailReason);
 
-	/* 
+	/*
 	 * Insert the addition files from any feature packs specified in the temapalte defs file
 	 * @param InProjectInfo		Project infor to add content for
 	 * @param CreatedFiles		List of files we copied
@@ -324,8 +324,8 @@ private:
 	/** Creates ini files for a new project. On failure, OutFailReason will be populated. */
 	static bool GenerateConfigFiles(const FProjectInformation& InProjectInfo, TArray<FString>& OutCreatedFiles, FText& OutFailReason);
 
-	/* Creates new ini files for a specific project. This is used for turning on the AudioMixer by default on specific platforms in GenerateConfigFiles. */
-	static bool GeneratePlatformConfigFiles(const FProjectInformation& InProjectInfo, const FString& InPlatformName, FText& OutFailReason);
+	/* Creates new ini files for a specific project's platform configurations. */
+	static bool GeneratePlatformConfigFiles(const FProjectInformation& InProjectInfo, FText& OutFailReason);
 
 	/** Creates the basic source code for a new project. On failure, OutFailReason will be populated. */
 	static bool GenerateBasicSourceCode(const FString& NewProjectSourcePath, const FString& NewProjectName, const FString& NewProjectRoot, TArray<FString>& OutGeneratedStartupModuleNames, TArray<FString>& OutCreatedFiles, FText& OutFailReason);
@@ -518,7 +518,4 @@ private:
 
 	// Whether we should use AudioMixer for all platforms:
 	static bool bUseAudioMixerForAllPlatforms;
-	
-	// List of platforms we want to explicitly enable the new audio engine for when generating a new project.
-	static TArray<FString> AudioMixerEnabledPlatforms;
 };
