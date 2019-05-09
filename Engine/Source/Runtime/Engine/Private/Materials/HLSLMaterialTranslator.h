@@ -814,7 +814,7 @@ ResourcesString = TEXT("");
 				}
 			}
 
-			if (BlendMode == BLEND_AlphaHoldout && BlendMode != MSM_Unlit)
+			if (BlendMode == BLEND_AlphaHoldout && !MaterialShadingModels.IsUnlit())
 			{
 				Errorf(TEXT("Alpha Holdout blend mode must use unlit shading model."));
 			}
