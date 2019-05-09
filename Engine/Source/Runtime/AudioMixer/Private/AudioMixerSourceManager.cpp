@@ -290,7 +290,7 @@ namespace Audio
 			// If the command was triggered, then we want to do a swap of command buffers
 			if (CommandsProcessedEvent->Wait(0))
 			{
-				int32 CurrentGameIndex = AudioThreadCommandBufferIndex.GetValue();
+				int32 CurrentGameIndex = !RenderThreadCommandBufferIndex.GetValue();
 
 				// This flags the audio render thread to be able to pump the next batch of commands
 				// And will allow the audio thread to write to a new command slot
@@ -298,7 +298,6 @@ namespace Audio
 
 				// Make sure we've actually emptied the command queue from the render thread before writing to it
 				check(CommandBuffers[NextIndex].SourceCommandQueue.Num() == 0);
-				AudioThreadCommandBufferIndex.Set(NextIndex);
 				RenderThreadCommandBufferIndex.Set(CurrentGameIndex);
 
 				CommandsProcessedEvent->Reset();
@@ -307,7 +306,7 @@ namespace Audio
 		else
 		{
 			int32 CurrentRenderIndex = RenderThreadCommandBufferIndex.GetValue();
-			int32 CurrentGameIndex = AudioThreadCommandBufferIndex.GetValue();
+			int32 CurrentGameIndex = !RenderThreadCommandBufferIndex.GetValue();
 			check(CurrentGameIndex == 0 || CurrentGameIndex == 1);
 			check(CurrentRenderIndex == 0 || CurrentRenderIndex == 1);
 
@@ -320,7 +319,6 @@ namespace Audio
 
 				// Make sure we've actually emptied the command queue from the render thread before writing to it
 				check(CommandBuffers[NextIndex].SourceCommandQueue.Num() == 0);
-				AudioThreadCommandBufferIndex.Set(NextIndex);
 				bPumpQueue = true;
 			}
 		}
@@ -2412,8 +2410,10 @@ namespace Audio
 
 	void FMixerSourceManager::AudioMixerThreadCommand(TFunction<void()> InFunction)
 	{
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
 		// Add the function to the command queue
-		int32 AudioThreadCommandIndex = AudioThreadCommandBufferIndex.GetValue();
+		int32 AudioThreadCommandIndex = !RenderThreadCommandBufferIndex.GetValue();
 		CommandBuffers[AudioThreadCommandIndex].SourceCommandQueue.Add(MoveTemp(InFunction));
 		NumCommands.Increment();
 	}

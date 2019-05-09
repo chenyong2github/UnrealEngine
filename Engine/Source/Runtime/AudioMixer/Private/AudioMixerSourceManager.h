@@ -313,7 +313,6 @@ namespace Audio
 		};
 
 		FCommands CommandBuffers[2];
-		FThreadSafeCounter AudioThreadCommandBufferIndex;
 		FThreadSafeCounter RenderThreadCommandBufferIndex;
 
 		FEvent* CommandsProcessedEvent;
