@@ -27,7 +27,7 @@
 #include "KismetCompilerModule.h"
 #include "WidgetBlueprintCompiler.h"
 #include "UMGEditorModule.h"
-#include "EditorUtilityContext.h"
+#include "EditorUtilitySubsystem.h"
 #include "LevelEditor.h"
 #include "Editor.h"
 #include "UnrealEdMisc.h"
@@ -99,14 +99,11 @@ public:
 
 	void ReinitializeUIs()
 	{
-		if (!EditorUtilityContext)
-		{
-			EditorUtilityContext = NewObject<UEditorUtilityContext>();
-		}
+		UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 		TArray<FSoftObjectPath> CorrectPaths;
-		for (FSoftObjectPath& BlueprintPath : EditorUtilityContext->LoadedUIs)
+		for (const FSoftObjectPath& BlueprintPath : EditorUtilitySubsystem->LoadedUIs)
 		{
 			UObject* BlueprintObject = BlueprintPath.TryLoad();
 			if (BlueprintObject && !BlueprintObject->IsPendingKillOrUnreachable())
@@ -144,72 +141,29 @@ public:
 			}
 		}
 
-		EditorUtilityContext->LoadedUIs = CorrectPaths;
-
-		for (FSoftObjectPath& ObjectPath : EditorUtilityContext->StartupBlueprints)
-		{
-			UObject* Object = ObjectPath.TryLoad();
-			if (!Object || Object->IsPendingKillOrUnreachable())
-			{
-				UE_LOG(LogEditorUtilityBlueprint, Warning, TEXT("Could not load: %s"), *ObjectPath.ToString());
-				continue;
-			}
-
-			UClass* ObjectClass = Object->GetClass();
-			if (UBlueprint* Blueprint = Cast<UBlueprint>(Object))
-			{
-				ObjectClass = Blueprint->GeneratedClass;
-				if (!ObjectClass)
-				{
-					UE_LOG(LogEditorUtilityBlueprint, Warning, TEXT("Editor startup blueprint class could not be generated: %s"), *ObjectPath.ToString());
-					continue;
-				}
-			}
-
-			if (ObjectClass)
-			{
-				static const FName RunFunctionName("Run");
-				UFunction* RunFunction = ObjectClass->FindFunctionByName(RunFunctionName);
-				if (RunFunction)
-				{
-					UObject* TempObject = NewObject<UObject>(GetTransientPackage(), ObjectClass);
-					TempObject->AddToRoot();
-					Object->ProcessEvent(RunFunction, nullptr);
-					TempObject->RemoveFromRoot();
-				}
-				else
-				{
-					UE_LOG(LogEditorUtilityBlueprint, Warning, TEXT("Editor startup blueprint missing function named 'Run': %s"), *ObjectPath.ToString());
-					continue;
-				}
-			}
-		}
-
-		EditorUtilityContext->SaveConfig();
+		EditorUtilitySubsystem->LoadedUIs = CorrectPaths;
+		EditorUtilitySubsystem->SaveConfig();
 	}
 
 	void OnMapChanged(UWorld* InWorld, EMapChangeType MapChangeType)
 	{
-		if (EditorUtilityContext)
+		for (const FSoftObjectPath& LoadedUI : GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>()->LoadedUIs)
 		{
-			for (FSoftObjectPath LoadedUI : EditorUtilityContext->LoadedUIs)
+			UEditorUtilityWidgetBlueprint* LoadedEditorUtilityBlueprint = Cast<UEditorUtilityWidgetBlueprint>(LoadedUI.ResolveObject());
+			if (LoadedEditorUtilityBlueprint)
 			{
-				UEditorUtilityWidgetBlueprint* LoadedEditorUtilityBlueprint = Cast<UEditorUtilityWidgetBlueprint>(LoadedUI.ResolveObject());
-				if (LoadedEditorUtilityBlueprint)
+				UEditorUtilityWidget* CreatedWidget = LoadedEditorUtilityBlueprint->GetCreatedWidget();
+				if (CreatedWidget)
 				{
-					UEditorUtilityWidget* CreatedWidget = LoadedEditorUtilityBlueprint->GetCreatedWidget();
-					if (CreatedWidget)
+					if (MapChangeType == EMapChangeType::TearDownWorld)
 					{
-						if (MapChangeType == EMapChangeType::TearDownWorld)
-						{
-							CreatedWidget->Rename(*CreatedWidget->GetName(), GetTransientPackage());
-						}
-						else if (MapChangeType == EMapChangeType::LoadMap || MapChangeType == EMapChangeType::NewMap)
-						{
-							UWorld* World = GEditor->GetEditorWorldContext().World();
-							check(World);
-							CreatedWidget->Rename(*CreatedWidget->GetName(), World);
-						}
+						CreatedWidget->Rename(*CreatedWidget->GetName(), GetTransientPackage());
+					}
+					else if (MapChangeType == EMapChangeType::LoadMap || MapChangeType == EMapChangeType::NewMap)
+					{
+						UWorld* World = GEditor->GetEditorWorldContext().World();
+						check(World);
+						CreatedWidget->Rename(*CreatedWidget->GetName(), World);
 					}
 				}
 			}
@@ -281,21 +235,17 @@ public:
 
 	virtual void AddLoadedScriptUI(class UEditorUtilityWidgetBlueprint* InBlueprint) override
 	{
-		if (EditorUtilityContext)
-		{
-			EditorUtilityContext->LoadedUIs.AddUnique(InBlueprint);
-			EditorUtilityContext->SaveConfig();
-		}
+		UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
+		EditorUtilitySubsystem->LoadedUIs.AddUnique(InBlueprint);
+		EditorUtilitySubsystem->SaveConfig();
 	}
 
 
 	virtual void RemoveLoadedScriptUI(class UEditorUtilityWidgetBlueprint* InBlueprint) override
 	{
-		if (EditorUtilityContext)
-		{
-			EditorUtilityContext->LoadedUIs.Remove(InBlueprint);
-			EditorUtilityContext->SaveConfig();
-		}
+		UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
+		EditorUtilitySubsystem->LoadedUIs.Remove(InBlueprint);
+		EditorUtilitySubsystem->SaveConfig();	
 	}
 
 protected:
@@ -310,10 +260,6 @@ protected:
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
 	{
-		if (EditorUtilityContext)
-		{
-			Collector.AddReferencedObject(EditorUtilityContext);
-		}
 	}
 
 	void OnPrepareToCleanseEditorObject(UObject* InObject)
@@ -353,28 +299,25 @@ protected:
 
 	void HandleAssetRemoved(const FAssetData& InAssetData)
 	{
-		if (EditorUtilityContext)
+		bool bDeletingLoadedUI = false;
+		for (const FSoftObjectPath& LoadedUIPath : GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>()->LoadedUIs)
 		{
-			bool bDeletingLoadedUI = false;
-			for (FSoftObjectPath LoadedUIPath : EditorUtilityContext->LoadedUIs)
+			if (LoadedUIPath.GetAssetPathName() == InAssetData.ObjectPath)
 			{
-				if (LoadedUIPath.GetAssetPathName() == InAssetData.ObjectPath)
-				{
-					bDeletingLoadedUI = true;
-					break;
-				}
+				bDeletingLoadedUI = true;
+				break;
 			}
+		}
 
-			if (bDeletingLoadedUI)
+		if (bDeletingLoadedUI)
+		{
+			FName UIToCleanup = FName(*(InAssetData.ObjectPath.ToString() + LOCTEXT("ActiveTabSuffix", "_ActiveTab").ToString()));
+			FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+			TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+			TSharedPtr<SDockTab> CurrentTab = LevelEditorTabManager->FindExistingLiveTab(UIToCleanup);
+			if (CurrentTab.IsValid())
 			{
-				FName UIToCleanup = FName(*(InAssetData.ObjectPath.ToString() + LOCTEXT("ActiveTabSuffix", "_ActiveTab").ToString()));
-				FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-				TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-				TSharedPtr<SDockTab> CurrentTab = LevelEditorTabManager->FindExistingLiveTab(UIToCleanup);
-				if (CurrentTab.IsValid())
-				{
-					CurrentTab->RequestCloseTab();
-				}
+				CurrentTab->RequestCloseTab();
 			}
 		}
 	}
@@ -383,8 +326,6 @@ protected:
 	TSharedPtr<class FWorkspaceItem> ScriptedEditorWidgetsGroup;
 
 	EAssetTypeCategories::Type EditorUtilityAssetCategory;
-
-	UEditorUtilityContext* EditorUtilityContext;
 };
 
 
