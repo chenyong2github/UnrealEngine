@@ -42,6 +42,23 @@ struct INTERACTIVETOOLSFRAMEWORK_API FToolBuilderState
 };
 
 
+/**
+ * FViewCameraState is a bucket of state information that a Tool might
+ * need to implement interactions that depend on the current scene view.
+ */
+struct INTERACTIVETOOLSFRAMEWORK_API FViewCameraState
+{
+	/** Current camera/head position */
+	FVector Position;
+	/** Current camera/head orientation */
+	FQuat Orientation;
+	/** Is current view an orthographic view */
+	bool bIsOrthographic;
+	/** Is current view a VR view */
+	bool bIsVR;
+};
+
+
 /** Types of standard materials that Tools may request from Context */
 UENUM()
 enum class EStandardToolContextMaterials
@@ -66,6 +83,13 @@ public:
 	 * @param StateOut this structure is populated with available state information
 	 */
 	virtual void GetCurrentSelectionState(FToolBuilderState& StateOut) const = 0;
+
+
+	/**
+	 * Request information about current view state
+	 * @param StateOut this structure is populated with available state information
+	 */
+	virtual void GetCurrentViewState(FViewCameraState& StateOut) const = 0;
 
 
 	/**

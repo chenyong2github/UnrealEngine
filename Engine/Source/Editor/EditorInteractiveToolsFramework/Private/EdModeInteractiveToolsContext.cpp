@@ -4,6 +4,7 @@
 #include "EdModeInteractiveToolsContext.h"
 #include "EditorViewportClient.h"
 #include "EditorModeManager.h"
+#include "LevelEditorViewport.h"   // for GCurrentLevelEditingViewportClient
 #include "Engine/Selection.h"
 #include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
@@ -11,6 +12,7 @@
 
 #include "EditorToolAssetAPI.h"
 #include "EditorComponentSourceFactory.h"
+
 
 
 //#define ENABLE_DEBUG_PRINTING
@@ -23,11 +25,22 @@ class FEdModeToolsContextQueriesImpl : public IToolsContextQueriesAPI
 public:
 	UEdModeInteractiveToolsContext* ToolsContext;
 	FEdMode* EditorMode;
+	
+	FViewCameraState CachedViewState;
 
 	FEdModeToolsContextQueriesImpl(UEdModeInteractiveToolsContext* Context, FEdMode* EditorModeIn)
 	{
 		ToolsContext = Context;
 		EditorMode = EditorModeIn;
+	}
+
+	void CacheCurrentViewState(FEditorViewportClient* ViewportClient)
+	{
+		FViewportCameraTransform ViewTransform = ViewportClient->GetViewTransform();
+		CachedViewState.Position = ViewTransform.GetLocation();
+		CachedViewState.Orientation = ViewTransform.GetRotation().Quaternion();
+		CachedViewState.bIsOrthographic = ViewportClient->IsOrtho();
+		CachedViewState.bIsVR = false;
 	}
 
 	virtual void GetCurrentSelectionState(FToolBuilderState& StateOut) const override
@@ -38,6 +51,12 @@ public:
 		StateOut.SelectedActors = EditorMode->GetModeManager()->GetSelectedActors();
 		StateOut.SelectedComponents = EditorMode->GetModeManager()->GetSelectedComponents();
 		StateOut.SourceBuilder = ToolsContext->GetComponentSourceFactory();
+	}
+
+
+	virtual void GetCurrentViewState(FViewCameraState& StateOut) const override
+	{
+		StateOut = CachedViewState;
 	}
 
 	virtual UMaterialInterface* GetStandardMaterial(EStandardToolContextMaterials MaterialType) const
@@ -225,6 +244,14 @@ void UEdModeInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient,
 	{
 		ViewportClient->Invalidate();
 		bInvalidationPending = false;
+	}
+
+	// save this view
+	// Check against GCurrentLevelEditingViewportClient is temporary and should be removed in future.
+	// Current issue is that this ::Tick() is called *per viewport*, so once for each view in a 4-up view.
+	if (ViewportClient == GCurrentLevelEditingViewportClient)
+	{
+		((FEdModeToolsContextQueriesImpl*)this->QueriesAPI)->CacheCurrentViewState(ViewportClient);
 	}
 }
 
