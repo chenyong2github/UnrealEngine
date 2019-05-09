@@ -96,19 +96,26 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	if (bWithDebug)
 	{
 		TRefCountPtr<ID3D12Debug> DebugController;
-		VERIFYD3D12RESULT(D3D12GetDebugInterface(IID_PPV_ARGS(DebugController.GetInitReference())));
-		DebugController->EnableDebugLayer();
-
-		bool bD3d12gpuvalidation = false;
-		if (FParse::Param(FCommandLine::Get(), TEXT("d3d12gpuvalidation")))
+		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(DebugController.GetInitReference()))))
 		{
-			TRefCountPtr<ID3D12Debug1> DebugController1;
-			VERIFYD3D12RESULT(DebugController->QueryInterface(IID_PPV_ARGS(DebugController1.GetInitReference())));
-			DebugController1->SetEnableGPUBasedValidation(true);
-			bD3d12gpuvalidation = true;
-		}
+			DebugController->EnableDebugLayer();
 
-		UE_LOG(LogD3D12RHI, Log, TEXT("InitD3DDevice: -D3DDebug = %s -D3D12GPUValidation = %s"), bWithDebug ? TEXT("on") : TEXT("off"), bD3d12gpuvalidation ? TEXT("on") : TEXT("off") );
+			bool bD3d12gpuvalidation = false;
+			if (FParse::Param(FCommandLine::Get(), TEXT("d3d12gpuvalidation")))
+			{
+				TRefCountPtr<ID3D12Debug1> DebugController1;
+				VERIFYD3D12RESULT(DebugController->QueryInterface(IID_PPV_ARGS(DebugController1.GetInitReference())));
+				DebugController1->SetEnableGPUBasedValidation(true);
+				bD3d12gpuvalidation = true;
+			}
+
+			UE_LOG(LogD3D12RHI, Log, TEXT("InitD3DDevice: -D3DDebug = %s -D3D12GPUValidation = %s"), bWithDebug ? TEXT("on") : TEXT("off"), bD3d12gpuvalidation ? TEXT("on") : TEXT("off"));
+		}
+		else
+		{
+			bWithDebug = false;
+			UE_LOG(LogD3D12RHI, Fatal, TEXT("The debug interface requires the D3D12 SDK Layers. Please install the Graphic Tools for Windows. See: https://docs.microsoft.com/en-us/windows/uwp/gaming/use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features"));
+		}
 	}
 #endif // PLATFORM_WINDOWS
 
