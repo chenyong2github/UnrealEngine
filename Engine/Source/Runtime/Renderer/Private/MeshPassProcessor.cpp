@@ -818,7 +818,7 @@ bool FMeshDrawShaderBindings::MatchesForDynamicInstancing(const FMeshDrawShaderB
 
 		if (SingleShaderBindings.ParameterMapInfo.SRVs.Num() > 0 || SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers.Num() > 0 || SingleShaderBindings.ParameterMapInfo.TextureSamplers.Num() > 0)
 		{
-			// Not implemented
+			// Not implemented. Note: this must match with GetDynamicInstancingHash.
 			return false;
 		}
 
@@ -841,7 +841,42 @@ bool FMeshDrawShaderBindings::MatchesForDynamicInstancing(const FMeshDrawShaderB
 	}
 
 	return true;
-} 
+}
+
+uint32 FMeshDrawShaderBindings::GetDynamicInstancingHash() const
+{
+	uint32 Hash = FCrc::TypeCrc32(Size, 0);
+
+	for (const FMeshDrawShaderBindingsLayout& MeshDrawShaderBindingsLayout: ShaderLayouts)
+	{
+		Hash = HashCombine(MeshDrawShaderBindingsLayout.GetHash(), Hash);
+	}
+
+	const uint8* ShaderBindingDataPtr = GetData();
+	for (int32 ShaderBindingsIndex = 0; ShaderBindingsIndex < ShaderLayouts.Num(); ShaderBindingsIndex++)
+	{
+		FReadOnlyMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[ShaderBindingsIndex], ShaderBindingDataPtr);
+
+		if (SingleShaderBindings.ParameterMapInfo.SRVs.Num() > 0 || SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers.Num() > 0 || SingleShaderBindings.ParameterMapInfo.TextureSamplers.Num() > 0)
+		{
+			// Since this is not implemented, we must return a unique hash to minimize hash collisions.
+			// Note: this must match with MatchesForDynamicInstancing.
+			Hash = PointerHash(this, Hash);
+			return Hash;
+		}
+
+		const FUniformBufferRHIParamRef* UniformBufferBindings = SingleShaderBindings.GetUniformBufferStart();
+		for (int32 UniformBufferIndex = 0; UniformBufferIndex < SingleShaderBindings.ParameterMapInfo.UniformBuffers.Num(); UniformBufferIndex++)
+		{
+			FUniformBufferRHIParamRef UniformBuffer = UniformBufferBindings[UniformBufferIndex];
+			Hash = PointerHash(UniformBuffer, Hash);
+		}
+
+		ShaderBindingDataPtr += ShaderLayouts[ShaderBindingsIndex].GetDataSizeBytes();
+	}
+
+	return Hash;
+}
 
 void FMeshDrawCommand::SubmitDraw(
 	const FMeshDrawCommand& RESTRICT MeshDrawCommand, 
