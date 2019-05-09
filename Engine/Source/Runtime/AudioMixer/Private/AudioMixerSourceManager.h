@@ -9,7 +9,7 @@
 #include "AudioMixerBuffer.h"
 #include "AudioMixerSubmix.h"
 #include "AudioMixerBus.h"
-#include "DSP/OnePole.h"
+#include "DSP/InterpolatedOnePole.h"
 #include "DSP/Filter.h"
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/ParamInterpolator.h"
@@ -445,12 +445,10 @@ namespace Audio
 
 			float DistanceAttenuationSourceStart;
 			float DistanceAttenuationSourceDestination;
-			FParam LPFCutoffFrequencyParam;
-			FParam HPFCutoffFrequencyParam;
 
 			// One-Pole LPFs and HPFs per source
-			Audio::FOnePoleLPFBank LowPassFilter;
-			Audio::FOnePoleFilter HighPassFilter;
+			Audio::FInterpolatedLPF LowPassFilter;
+			Audio::FInterpolatedHPF HighPassFilter;
 
 			// Source effect instances
 			uint32 SourceEffectChainId;
