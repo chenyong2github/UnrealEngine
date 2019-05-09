@@ -75,3 +75,21 @@ void CopyData1CS(uint3 ThreadId : SV_DispatchThreadID)
 	DestBuffer[offset + 0].xyzw = SrcCopyBuffer.Load(offset + 0).xyzw;	
 }
 
+#if defined(COMPONENT_TYPE)
+
+Buffer<COMPONENT_TYPE> TSrcBuffer;
+RWTexture2D<COMPONENT_TYPE> TDestTexture;
+uint TSrcPitch;
+
+[numthreads(8,8,1)]
+void TUpdateTexture2DSubresourceCS( uint2 ThreadId : SV_DispatchThreadID )
+{
+	if( all( ThreadId.xy < DestPosSize.zw ) )
+	{
+		int2 TexturePixelOffset = ThreadId.xy + DestPosSize.xy;
+		int BufferOffset = (ThreadId.y * TSrcPitch) + ThreadId.x;
+		TDestTexture[TexturePixelOffset] = TSrcBuffer[BufferOffset];
+	}
+}
+
+#endif // COMPONENT_TYPE

@@ -313,6 +313,35 @@ void FStatsGridRow_NumTextureSamples::AddPlatform(TSharedPtr<FMaterialStats> Sta
 /*end FStatsGridRow_NumTextureSamples functions*/
 /*==============================================================================================================*/
 
+/*==============================================================================================================*/
+/* FStatsGridRow_NumVirtualTextureLookups functions*/
+
+void FStatsGridRow_NumVirtualTextureLookups::CreateRow(TSharedPtr<FMaterialStats> StatsManager)
+{
+	// static string in the descriptor column
+	TSharedPtr<FGridCell> HeaderCell = MakeShareable(new FGridCell_StaticString(TEXT("VT Lookups (Est.)"), TEXT("Virtual Texture Lookups (Est.)")));
+	HeaderCell->SetColor(FLinearColor::Gray);
+	HeaderCell->SetContentBold(true);
+	AddCell(FMaterialStatsGrid::DescriptorColumnName, HeaderCell);
+
+	AddCell(FMaterialStatsGrid::ShaderColumnName, MakeShareable(new FGridCell_Empty()));
+
+	FillPlatformCellsHelper(StatsManager);
+}
+
+void FStatsGridRow_NumVirtualTextureLookups::AddPlatform(TSharedPtr<FMaterialStats> StatsManager, const TSharedPtr<FShaderPlatformSettings> Platform, const EMaterialQualityLevel::Type QualityLevel)
+{
+	// cell that will enumerate the total number of texture samples in this material
+	const FString CellContent = FMaterialStatsUtils::MaterialQualityToShortString(QualityLevel);
+	TSharedPtr<FGridCell_ShaderValue> Cell = MakeShareable(new FGridCell_ShaderValue(StatsManager, EShaderInfoType::VirtualTextureLookupCount, ERepresentativeShader::Num, QualityLevel, Platform->GetPlatformShaderType()));
+
+	const FName ColumnName = FMaterialStatsGrid::MakePlatformColumnName(Platform, QualityLevel);
+	AddCell(ColumnName, Cell);
+}
+
+/*end FStatsGridRow_NumVirtualTextureLookups functions*/
+/*==============================================================================================================*/
+
 /***********************************************************************************************************************/
 /*FShaderStatsGrid functions*/
 
@@ -503,6 +532,7 @@ void FMaterialStatsGrid::BuildRowIds()
 
 		BuildKeyAndInsert(ERowType::Samplers);
 		BuildKeyAndInsert(ERowType::TextureSamples);
+		BuildKeyAndInsert(ERowType::VirtualTextureLookups);
 		BuildKeyAndInsert(ERowType::Interpolators);	
 	}
 }
@@ -549,6 +579,11 @@ void FMaterialStatsGrid::BuildStaticRows()
 		TSharedPtr<FStatsGridRow> Row = MakeShareable(new FStatsGridRow_NumTextureSamples());
 		Row->CreateRow(StatsManager);
 		StaticRows.Add(ERowType::TextureSamples, Row);
+	}
+	{
+		TSharedPtr<FStatsGridRow> Row = MakeShareable(new FStatsGridRow_NumVirtualTextureLookups());
+		Row->CreateRow(StatsManager);
+		StaticRows.Add(ERowType::VirtualTextureLookups, Row);
 	}
 	{
 		TSharedPtr<FStatsGridRow> Row = MakeShareable(new FStatsGridRow_Interpolators());
@@ -858,6 +893,10 @@ FString FGridCell_ShaderValue::InternalGetContent(bool bLongContent)
 
 		case EShaderInfoType::SamplersCount:
 			return bLongContent ? PlatformData.ShaderStatsInfo.SamplersCount.StrDescriptionLong : PlatformData.ShaderStatsInfo.SamplersCount.StrDescription;
+		break;
+
+		case EShaderInfoType::VirtualTextureLookupCount:
+			return bLongContent ? PlatformData.ShaderStatsInfo.VirtualTextureLookupCount.StrDescriptionLong : PlatformData.ShaderStatsInfo.VirtualTextureLookupCount.StrDescription;
 		break;
 	}
 

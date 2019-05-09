@@ -391,6 +391,22 @@ public:
 	virtual FString GetFriendlyName() const override { return TEXT("FTexture"); }
 };
 
+/** A textures resource that includes an SRV. */
+class FTextureWithSRV : public FTexture
+{
+public:
+	/** SRV that views the entire texture */
+	FShaderResourceViewRHIRef ShaderResourceViewRHI;
+
+	virtual ~FTextureWithSRV() {}
+
+	virtual void ReleaseRHI() override
+	{
+		ShaderResourceViewRHI.SafeRelease();
+		FTexture::ReleaseRHI();
+	}
+};
+
 /** A texture reference resource. */
 class RENDERCORE_API FTextureReference : public FRenderResource
 {

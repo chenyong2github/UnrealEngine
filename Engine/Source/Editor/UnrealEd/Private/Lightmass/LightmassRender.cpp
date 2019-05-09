@@ -24,6 +24,7 @@
 #include "Lightmass/LightmassLandscapeRender.h"
 #include "LandscapeMaterialInstanceConstant.h"
 #include "EngineModule.h"
+#include "EngineUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLightmassRender, Error, All);
 
@@ -266,7 +267,7 @@ public:
 		}
 	}
 
-	virtual const TArray<UTexture*>& GetReferencedTextures() const override
+	virtual const TArray<UObject*>& GetReferencedTextures() const override
 	{
 		return ReferencedTextures;
 	}
@@ -821,7 +822,7 @@ private:
 	/** The material interface for this proxy */
 	UMaterialInterface* MaterialInterface;
 	UMaterial* Material;
-	TArray<UTexture*> ReferencedTextures;
+	TArray<UObject*> ReferencedTextures;
 	/** The property to compile for rendering the sample */
 	EMaterialProperty PropertyToCompile;
 	/** Stores which exported attribute this proxy is compiling for. */
@@ -919,6 +920,7 @@ void FLightmassMaterialRenderer::BeginGenerateMaterialData(
  *	@return	bool					true if successful, false if not.
  */
 bool FLightmassMaterialRenderer::GenerateMaterialData(
+	FSceneInterface* InSceneInterface,
 	UMaterialInterface& InMaterial,
 	const FLightmassMaterialExportSettings& InExportSettings,
 	Lightmass::FMaterialData& OutMaterialData,
@@ -968,7 +970,7 @@ bool FLightmassMaterialRenderer::GenerateMaterialData(
 	// Diffuse
 	if (MaterialExportEntry.DiffuseMaterialProxy)
 	{
-		if (!GenerateMaterialPropertyData(InMaterial, InExportSettings, MaterialExportEntry.DiffuseMaterialProxy, MP_DiffuseColor, OutMaterialData.DiffuseSize, OutMaterialData.DiffuseSize, OutMaterialDiffuse))
+		if (!GenerateMaterialPropertyData(InSceneInterface, InMaterial, InExportSettings, MaterialExportEntry.DiffuseMaterialProxy, MP_DiffuseColor, OutMaterialData.DiffuseSize, OutMaterialData.DiffuseSize, OutMaterialDiffuse))
 		{
 			UE_LOG(LogLightmassRender, Warning, TEXT("Failed to generate diffuse material samples for %s: %s"),
 				*(InMaterial.GetLightingGuid().ToString()), *(InMaterial.GetPathName()));
@@ -980,7 +982,7 @@ bool FLightmassMaterialRenderer::GenerateMaterialData(
 	// Emissive
 	if (MaterialExportEntry.EmissiveMaterialProxy)
 	{
-		if (!GenerateMaterialPropertyData(InMaterial, InExportSettings, MaterialExportEntry.EmissiveMaterialProxy, MP_EmissiveColor, OutMaterialData.EmissiveSize, OutMaterialData.EmissiveSize, OutMaterialEmissive))
+		if (!GenerateMaterialPropertyData(InSceneInterface, InMaterial, InExportSettings, MaterialExportEntry.EmissiveMaterialProxy, MP_EmissiveColor, OutMaterialData.EmissiveSize, OutMaterialData.EmissiveSize, OutMaterialEmissive))
 		{
 			UE_LOG(LogLightmassRender, Warning, TEXT("Failed to generate emissive material samples for %s: %s"),
 				*(InMaterial.GetLightingGuid().ToString()), *(InMaterial.GetPathName()));
@@ -993,7 +995,7 @@ bool FLightmassMaterialRenderer::GenerateMaterialData(
 	// Landscape opacity is generated from the hole mask, not the material
 	if (MaterialExportEntry.OpacityMaterialProxy || bIsLandscapeMaterial)
 	{
-		if (!GenerateMaterialPropertyData(InMaterial, InExportSettings, MaterialExportEntry.OpacityMaterialProxy, MP_Opacity, OutMaterialData.TransmissionSize, OutMaterialData.TransmissionSize, OutMaterialTransmission))
+		if (!GenerateMaterialPropertyData(InSceneInterface, InMaterial, InExportSettings, MaterialExportEntry.OpacityMaterialProxy, MP_Opacity, OutMaterialData.TransmissionSize, OutMaterialData.TransmissionSize, OutMaterialTransmission))
 		{
 			UE_LOG(LogLightmassRender, Warning, TEXT("Failed to generate transmissive material samples for %s: %s"),
 				*(InMaterial.GetLightingGuid().ToString()), *(InMaterial.GetPathName()));
@@ -1005,7 +1007,7 @@ bool FLightmassMaterialRenderer::GenerateMaterialData(
 	// Normal
 	if (MaterialExportEntry.NormalMaterialProxy)
 	{
-		if (!GenerateMaterialPropertyData(InMaterial, InExportSettings, MaterialExportEntry.NormalMaterialProxy, MP_Normal, OutMaterialData.NormalSize, OutMaterialData.NormalSize, OutMaterialNormal))
+		if (!GenerateMaterialPropertyData(InSceneInterface, InMaterial, InExportSettings, MaterialExportEntry.NormalMaterialProxy, MP_Normal, OutMaterialData.NormalSize, OutMaterialData.NormalSize, OutMaterialNormal))
 		{
 			UE_LOG(LogLightmassRender, Warning, TEXT("Failed to generate normal material samples for %s: %s"),
 				*(InMaterial.GetLightingGuid().ToString()), *(InMaterial.GetPathName()));
@@ -1062,6 +1064,7 @@ void LightmassDebugExportMaterial(UMaterialInterface& InMaterial, EMaterialPrope
  *	@return	bool					true if successful, false if not.
  */
 bool FLightmassMaterialRenderer::GenerateMaterialPropertyData(
+	FSceneInterface* InSceneInterface,
 	UMaterialInterface& InMaterial,
 	const FLightmassMaterialExportSettings& InExportSettings,
 	FLightmassMaterialProxy* MaterialProxy,
@@ -1120,7 +1123,31 @@ bool FLightmassMaterialRenderer::GenerateMaterialPropertyData(
 					{
 						GetRendererModule().InitializeSystemTextures(RHICmdList);
 					});
-				
+
+				// prefetch VT textures so we have sensible content available
+				if (UseVirtualTexturing(GMaxRHIFeatureLevel))
+				{					
+					const FVector2D InScreenSpaceSize(InOutSizeX, InOutSizeY);
+
+					const FMaterialRenderProxy* InMaterialProxy = InMaterial.GetRenderProxy();
+					if (InMaterialProxy)
+					{
+						const ERHIFeatureLevel::Type InFeatureLevel = GMaxRHIFeatureLevel;
+						const FUniformExpressionCache& UniformExpressionCache = InMaterialProxy->UniformExpressionCache[InFeatureLevel];
+						for (IAllocatedVirtualTexture* AllocatedVT : UniformExpressionCache.AllocatedVTs)
+						{
+							GetRendererModule().RequestVirtualTextureTilesForRegion(AllocatedVT, InScreenSpaceSize, FIntRect(), -1);
+						}
+
+						ENQUEUE_RENDER_COMMAND(LoadTiles)(
+							[InFeatureLevel](FRHICommandListImmediate& RHICmdList)
+						{
+							GetRendererModule().LoadPendingVirtualTextureTiles(RHICmdList, InFeatureLevel);
+						});
+					}
+
+					FlushRenderingCommands();
+				}
 
 				if (bIsLandscapeMaterial)
 				{

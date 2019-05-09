@@ -1483,6 +1483,7 @@ void FLightmassExporter::ExportMaterial(UMaterialInterface* Material, const FLig
 		TArray<FFloat16Color> MaterialNormal;
 
 		if (MaterialRenderer.GenerateMaterialData(
+			World->Scene,
 			*Material,
 			ExportSettings,
 			MaterialData,

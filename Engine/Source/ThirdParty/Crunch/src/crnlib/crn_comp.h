@@ -35,8 +35,10 @@ class crn_comp : public itexture_comp {
   task_pool m_task_pool;
   const crn_comp_params* m_pParams;
 
-  image_u8 m_images[cCRNMaxFaces][cCRNMaxLevels];
-
+  //UE4_BEGIN
+  crnlib::vector<image_u8> m_images[cCRNMaxFaces];
+  //UE4_END
+  
   enum comp {
     cColor,
     cAlpha0,
@@ -78,7 +80,10 @@ class crn_comp : public itexture_comp {
   symbol_histogram m_selector_index_hist[2];
   static_huffman_data_model m_selector_index_dm[2];
 
-  crnlib::vector<uint8> m_packed_blocks[cCRNMaxLevels];
+  //UE4_BEGIN
+  crnlib::vector< crnlib::vector<uint8> > m_packed_blocks;
+  //UE4_END
+  
   crnlib::vector<uint8> m_packed_data_models;
   crnlib::vector<uint8> m_packed_color_endpoints;
   crnlib::vector<uint8> m_packed_color_selectors;

@@ -19,6 +19,7 @@ struct FShaderStatsInfo
 	FContent SamplersCount;
 	FContent InterpolatorsCount;
 	FContent TextureSampleCount;
+	FContent VirtualTextureLookupCount;
 	FString StrShaderErrors;
 
 	void Reset()
@@ -33,6 +34,9 @@ struct FShaderStatsInfo
 
 		TextureSampleCount.StrDescription = TEXT("Compiling...");
 		TextureSampleCount.StrDescriptionLong = TEXT("Compiling...");
+
+		VirtualTextureLookupCount.StrDescription = TEXT("Compiling...");
+		VirtualTextureLookupCount.StrDescriptionLong = TEXT("Compiling...");
 		
 		StrShaderErrors.Empty();
 	}
@@ -49,6 +53,9 @@ struct FShaderStatsInfo
 		
 		TextureSampleCount.StrDescription.Empty();
 		TextureSampleCount.StrDescriptionLong.Empty();
+
+		VirtualTextureLookupCount.StrDescription.Empty();
+		VirtualTextureLookupCount.StrDescriptionLong.Empty();
 
 		StrShaderErrors.Empty();
 	}

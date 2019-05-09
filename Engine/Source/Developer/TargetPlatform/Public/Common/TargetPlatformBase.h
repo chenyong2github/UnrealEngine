@@ -260,6 +260,9 @@ public:
 		case ETargetPlatformFeatures::MemoryMappedAnimation:
 			return TPlatformProperties::SupportsMemoryMappedAnimation();
 
+		case ETargetPlatformFeatures::VirtualTextureStreaming:
+			return TPlatformProperties::SupportsVirtualTextureStreaming();
+
 		case ETargetPlatformFeatures::SdkConnectDisconnect:
 		case ETargetPlatformFeatures::UserCredentials:
 			break;

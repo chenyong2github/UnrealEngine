@@ -32,6 +32,8 @@ public class AssetTools : ModuleRules
 				"Landscape",
                 "Foliage",
                 "Projects",
+				"RHI",
+				"MaterialEditor"
             }
 		);
 
@@ -76,7 +78,6 @@ public class AssetTools : ModuleRules
 				"GameProjectGeneration",
                 "ActorPickerMode",
 				"MainFrame",
-				"MaterialEditor",
 				"MessageLog",
 				"Persona",
 				"FontEditor",

@@ -1003,7 +1003,7 @@ void FBasePassMeshProcessor::AddMeshBatchForSimpleForwardShading(
 	if (bAllowStaticLighting && LightMapInteraction.GetType() == LMIT_Texture)
 	{
 		const FShadowMapInteraction ShadowMapInteraction = (MeshBatch.LCI && bIsLitMaterial)
-			? MeshBatch.LCI->GetShadowMapInteraction()
+			? MeshBatch.LCI->GetShadowMapInteraction(FeatureLevel)
 			: FShadowMapInteraction();
 
 		if (ShadowMapInteraction.GetType() == SMIT_Texture)
@@ -1313,7 +1313,7 @@ void FBasePassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 					if (bAllowHighQualityLightMaps)
 					{
 						const FShadowMapInteraction ShadowMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
-							? MeshBatch.LCI->GetShadowMapInteraction()
+							? MeshBatch.LCI->GetShadowMapInteraction(FeatureLevel)
 							: FShadowMapInteraction();
 
 						if (ShadowMapInteraction.GetType() == SMIT_Texture)

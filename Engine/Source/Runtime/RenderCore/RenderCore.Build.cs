@@ -22,5 +22,8 @@ public class RenderCore : ModuleRules
         PrivateDependencyModuleNames.AddRange(new string[] { "Core", "Projects", "RHI", "ApplicationCore" });
 
         PrivateIncludePathModuleNames.AddRange(new string[] { "DerivedDataCache" });
+		
+		// Added in Dev-VT, still needed?
+		PrivateIncludePathModuleNames.AddRange(new string[] { "TargetPlatform" });
     }
 }

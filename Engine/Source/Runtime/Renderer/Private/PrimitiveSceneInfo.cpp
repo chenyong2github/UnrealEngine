@@ -86,6 +86,7 @@ FPrimitiveFlagsCompact::FPrimitiveFlagsCompact(const FPrimitiveSceneProxy* Proxy
 	: bCastDynamicShadow(Proxy->CastsDynamicShadow())
 	, bStaticLighting(Proxy->HasStaticLighting())
 	, bCastStaticShadow(Proxy->CastsStaticShadow())
+	, bRenderToVirtualTexture(Proxy->WritesVirtualTexture())
 {}
 
 FPrimitiveSceneInfoCompact::FPrimitiveSceneInfoCompact(FPrimitiveSceneInfo* InPrimitiveSceneInfo) :

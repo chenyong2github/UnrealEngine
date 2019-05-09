@@ -1312,13 +1312,14 @@ class FVulkanShaderResourceView : public FRHIShaderResourceView, public VulkanRH
 public:
 	FVulkanShaderResourceView(FVulkanDevice* Device, FRHIResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat);
 
-	FVulkanShaderResourceView(FVulkanDevice* Device, FRHITexture* InSourceTexture, uint32 InMipLevel, int32 InNumMips, EPixelFormat InFormat)
+	FVulkanShaderResourceView(FVulkanDevice* Device, FRHITexture* InSourceTexture, const FRHITextureSRVCreateInfo& InCreateInfo)
 		: VulkanRHI::FDeviceChild(Device)
-		, BufferViewFormat(InFormat)
+		, BufferViewFormat((EPixelFormat)InCreateInfo.Format)
+		, SRGBOverride(InCreateInfo.SRGBOverride)
 		, SourceTexture(InSourceTexture)
 		, SourceStructuredBuffer(nullptr)
-		, MipLevel(InMipLevel)
-		, NumMips(InNumMips)
+		, MipLevel(InCreateInfo.MipLevel)
+		, NumMips(InCreateInfo.NumMipLevels)
 		, Size(0)
 		, SourceBuffer(nullptr)
 		, VolatileLockCounter(MAX_uint32)
@@ -1328,6 +1329,7 @@ public:
 	FVulkanShaderResourceView(FVulkanDevice* Device, FVulkanStructuredBuffer* InStructuredBuffer)
 		: VulkanRHI::FDeviceChild(Device)
 		, BufferViewFormat(PF_Unknown)
+		, SRGBOverride(SRGBO_Default)
 		, SourceTexture(nullptr)
 		, SourceStructuredBuffer(InStructuredBuffer)
 		, MipLevel(0)
@@ -1350,6 +1352,7 @@ public:
 	}
 
 	EPixelFormat BufferViewFormat;
+	ERHITextureSRVOverrideSRGBType SRGBOverride;
 
 	// The texture that this SRV come from
 	TRefCountPtr<FRHITexture> SourceTexture;

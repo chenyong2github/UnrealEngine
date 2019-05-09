@@ -1218,6 +1218,35 @@ struct FRHIResourceCreateInfo
 	const TCHAR* DebugName;
 };
 
+enum ERHITextureSRVOverrideSRGBType
+{
+	SRGBO_Default,
+	SRGBO_ForceDisable,
+	SRGBO_ForceEnable,
+};
+
+struct FRHITextureSRVCreateInfo
+{
+	explicit FRHITextureSRVCreateInfo(uint8 InMipLevel = 0u, uint8 InNumMipLevels = 1u, uint8 InFormat = PF_Unknown)
+		: Format(InFormat)
+		, SRGBOverride(SRGBO_Default)
+		, MipLevel(InMipLevel)
+		, NumMipLevels(InNumMipLevels)
+	{}
+
+	/** View the texture with a different format. Leave as PF_Unknown to use original format. Useful when sampling stencil */
+	uint8 Format;
+
+	/** Potentially override the texture's sRGB flag */
+	ERHITextureSRVOverrideSRGBType SRGBOverride;
+
+	/** Specify the mip level to use. Useful when rendering to one mip while sampling from another */
+	uint8 MipLevel;
+
+	/** Create a view to a single, or multiple mip levels */
+	uint8 NumMipLevels;
+};
+
 // Forward-declaration.
 struct FResolveParams;
 

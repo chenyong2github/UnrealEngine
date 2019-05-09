@@ -221,7 +221,7 @@ void FD3D11DynamicRHI::RHICopyToResolveTarget(FTextureRHIParamRef SourceTextureR
 {
 	if (!SourceTextureRHI || !DestTextureRHI)
 	{
-		// no need to do anything (sliently ignored)
+		// no need to do anything (silently ignored)
 		return;
 	}
 

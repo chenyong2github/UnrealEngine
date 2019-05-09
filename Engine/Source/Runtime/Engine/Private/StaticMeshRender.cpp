@@ -786,7 +786,7 @@ uint32 FStaticMeshSceneProxy::SetMeshElementGeometrySource(
 
 	if (bRequiresAdjacencyInformation)
 	{
-		check( LODModel.bHasAdjacencyInfo );
+		check(LODModel.bHasAdjacencyInfo);
 		check(LODModel.AdditionalIndexBuffers);
 		OutMeshBatchElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->AdjacencyIndexBuffer;
 		OutMeshBatch.Type = PT_12_ControlPointPatchList;
@@ -1048,6 +1048,41 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 
 							PDI->DrawMesh(MeshBatch, ScreenSize);
 						}
+					}
+				}
+			}
+		}
+
+		// Draw meshes for runtime virtual texture pass.
+		for (ERuntimeVirtualTextureMaterialType MaterialType : RuntimeVirtualTextureMaterialTypes)
+		{
+			// Use the minimal LOD which is usually (always?) what we would want.
+			//todo[vt]: Add user control for to allow use of a specific LOD in the virtual texture.
+			// Note that ComputeStaticMeshLOD() checks *all* mesh batches for LOD calculation (including these VT ones) and assumes that they are stored in LOD order.
+			// Adding another set of last LODs here should be OK but if we want to use a different LOD they would need adding in the mesh batches in the above loop to preserve LOD order.
+			const int32 LODIndex = NumLODs - 1;
+			const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
+
+			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+			{
+				const int32 NumBatches = GetNumMeshBatches();
+
+				PDI->ReserveMemoryForMeshes(NumBatches);
+
+				for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
+				{
+					FMeshBatch MeshBatch;
+
+					if (GetMeshElement(LODIndex, BatchIndex, SectionIndex, PrimitiveDPG, bIsMeshElementSelected, true, MeshBatch))
+					{
+						MeshBatch.bUseForDepthPass = 0;
+						MeshBatch.bUseForMaterial = 0;
+						MeshBatch.CastShadow = 0;
+						MeshBatch.bDitheredLODTransition = 0;
+						MeshBatch.bRenderToVirtualTexture = 1;
+						MeshBatch.RuntimeVirtualTextureMaterialType = (uint32)MaterialType;
+
+						PDI->DrawMesh(MeshBatch, FLT_MAX);
 					}
 				}
 			}

@@ -2290,6 +2290,7 @@ public:
 	TUniformBufferRef<FSceneTexturesUniformParameters> CustomDepthPassUniformBuffer;
 	TUniformBufferRef<FMobileSceneTextureUniformParameters> MobileCustomDepthPassUniformBuffer;
 	TUniformBufferRef<FViewUniformShaderParameters> CustomDepthViewUniformBuffer;
+	TUniformBufferRef<FViewUniformShaderParameters> VirtualTextureViewUniformBuffer;
 
 	TUniformBufferRef<FMobileBasePassUniformParameters> MobileOpaqueBasePassUniformBuffer;
 	TUniformBufferRef<FMobileBasePassUniformParameters> MobileTranslucentBasePassUniformBuffer;

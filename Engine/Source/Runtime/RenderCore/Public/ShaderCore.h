@@ -448,6 +448,8 @@ struct FShaderCompilerEnvironment : public FRefCountedObject
 	TMap<FString, FString> RemoteServerData;
 	TMap<FString, FString> ShaderFormatCVars;
 
+	const ITargetPlatform* TargetPlatform = nullptr;
+
 	/** Default constructor. */
 	FShaderCompilerEnvironment()
 	{

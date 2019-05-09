@@ -9,7 +9,7 @@ LightMapRendering.cpp: Light map rendering implementations.
 #include "PrecomputedVolumetricLightmap.h"
 
 #include "Runtime/Engine/Classes/VT/VirtualTexture.h"
-#include "Runtime/Engine/Classes/VT/VirtualTextureSpace.h"
+#include "Runtime/Renderer/Private/VT/VirtualTextureSpace.h"
 #include "VT/VirtualTextureSpace.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FIndirectLightingCacheUniformParameters, "IndirectLightingCache");

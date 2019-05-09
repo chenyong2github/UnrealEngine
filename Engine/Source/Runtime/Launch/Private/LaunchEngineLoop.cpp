@@ -1786,7 +1786,8 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		GLargeThreadPool = FQueuedThreadPool::Allocate();
 		int32 NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
 
-		verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, 128 * 1024));
+		// GLargeThreadPool needs extra stack size just like regular thread pool in editor mode, Crunch texture compression relies on this 
+		verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize * 1024));
 #endif
 	}
 
@@ -3264,7 +3265,7 @@ bool FEngineLoop::LoadStartupCoreModules()
 		FModuleManager::Get().LoadModule(TEXT("Blutility"));
 	}
 
-	//FModuleManager::Get().LoadModule(TEXT("VirtualTexturingEditor"));
+	FModuleManager::Get().LoadModule(TEXT("VirtualTexturingEditor"));
 #endif //(WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 
 #if WITH_ENGINE

@@ -126,6 +126,7 @@ class ULandscapeSplineControlPoint : public UObject
 	/**
 	 * Translucent objects with a lower sort priority draw behind objects with a higher priority.
 	 * Translucent objects with the same priority are rendered from back-to-front based on their bounds origin.
+	 * This setting is also used to sort objects being drawn into a runtime virtual texture.
 	 *
 	 * Ignored if the object is not translucent.  The default priority is zero.
 	 * Warning: This should never be set to a non-default value unless you know what you are doing, as it will prevent the renderer from sorting correctly.

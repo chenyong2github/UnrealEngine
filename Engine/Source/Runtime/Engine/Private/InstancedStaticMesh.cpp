@@ -605,8 +605,8 @@ FVertexFactoryShaderParameters* FInstancedStaticMeshVertexFactory::ConstructShad
 	return ShaderFrequency == SF_Vertex ? new FInstancedStaticMeshVertexFactoryShaderParameters() : NULL;
 }
 
-IMPLEMENT_VERTEX_FACTORY_TYPE(FInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true);
-IMPLEMENT_VERTEX_FACTORY_TYPE(FEmulatedInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,false);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FEmulatedInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,false);
 
 void FInstancedStaticMeshRenderData::InitStaticMeshVertexFactories(
 		TIndirectArray<FInstancedStaticMeshVertexFactory>* VertexFactories,
@@ -1470,6 +1470,9 @@ void UInstancedStaticMeshComponent::GetStaticLightingInfo(FStaticLightingPrimiti
 
 void UInstancedStaticMeshComponent::ApplyLightMapping(FStaticLightingTextureMapping_InstancedStaticMesh* InMapping, ULevel* LightingScenario)
 {
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
+	const bool bUseVirtualTextures = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(GMaxRHIFeatureLevel);
+
 	NumPendingLightmaps--;
 
 	if (NumPendingLightmaps == 0)
@@ -1511,11 +1514,18 @@ void UInstancedStaticMeshComponent::ApplyLightMapping(FStaticLightingTextureMapp
 		MeshBuildData.PerInstanceLightmapData.AddZeroed(AllQuantizedData.Num());
 
 		// Create a light-map for the primitive.
+		// When using VT, shadow map data is included with lightmap allocation
 		const ELightMapPaddingType PaddingType = GAllowLightmapPadding ? LMPT_NormalPadding : LMPT_NoPadding;
-		TRefCountPtr<FLightMap2D> NewLightMap = FLightMap2D::AllocateInstancedLightMap(Registry, this, MoveTemp(AllQuantizedData), Registry, LODData[0].MapBuildDataId, Bounds, PaddingType, LMF_Streamed);
+		TArray<TMap<ULightComponent*, TUniquePtr<FShadowMapData2D>>> EmptyShadowMapData;
+		TRefCountPtr<FLightMap2D> NewLightMap = FLightMap2D::AllocateInstancedLightMap(Registry, this,
+			MoveTemp(AllQuantizedData),
+			bUseVirtualTextures ? MoveTemp(AllShadowMapData) : MoveTemp(EmptyShadowMapData),
+			Registry, LODData[0].MapBuildDataId, Bounds, PaddingType, LMF_Streamed);
 
-		// Create a shadow-map for the primitive.
-		TRefCountPtr<FShadowMap2D> NewShadowMap = bNeedsShadowMap ? FShadowMap2D::AllocateInstancedShadowMap(Registry, this, MoveTemp(AllShadowMapData), Registry, LODData[0].MapBuildDataId, Bounds, PaddingType, SMF_Streamed) : nullptr;
+		// Create a shadow-map for the primitive, only needed when not using VT
+		TRefCountPtr<FShadowMap2D> NewShadowMap = (bNeedsShadowMap && !bUseVirtualTextures)
+			? FShadowMap2D::AllocateInstancedShadowMap(Registry, this, MoveTemp(AllShadowMapData), Registry, LODData[0].MapBuildDataId, Bounds, PaddingType, SMF_Streamed)
+			: nullptr;
 
 		MeshBuildData.LightMap = NewLightMap;
 		MeshBuildData.ShadowMap = NewShadowMap;

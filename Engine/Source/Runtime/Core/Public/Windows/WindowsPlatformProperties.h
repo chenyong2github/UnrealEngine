@@ -132,4 +132,10 @@ struct FWindowsPlatformProperties
 
 		return 1.0f;
 	}
+
+	static FORCEINLINE bool SupportsVirtualTextureStreaming()
+	{
+		return true;
+	}
+
 };

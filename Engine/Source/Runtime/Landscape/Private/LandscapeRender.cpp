@@ -37,6 +37,7 @@ LandscapeRender.cpp: New terrain rendering
 #include "LandscapeProxy.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "MeshMaterialShader.h"
+#include "VT/RuntimeVirtualTexture.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, "LandscapeParameters");
 
@@ -840,6 +841,18 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 
 	bSupportsHeightfieldRepresentation = true;
 
+	if (UseVirtualTexturing(FeatureLevel))
+	{
+		//todo[vt]: Should the virtual texture settings be in the component overrides?
+		for (URuntimeVirtualTexture* VirtualTexture : InComponent->GetLandscapeProxy()->RuntimeVirtualTextures)
+		{
+			if (VirtualTexture != nullptr && VirtualTexture->GetEnabled())
+			{
+				RuntimeVirtualTextures.Add(VirtualTexture);
+				RuntimeVirtualTextureMaterialTypes.Add(VirtualTexture->GetMaterialType());
+			}
+		}
+	}
 #if WITH_EDITOR
 	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = InComponent->GetWeightmapLayerAllocations();
 	
@@ -900,6 +913,15 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 			LandscapeXYOffsetVertexFactory->InitResource();
 			SharedBuffers->VertexFactory = LandscapeXYOffsetVertexFactory;
 		}
+
+		if (UseVirtualTexturing(FeatureLevel))
+		{
+			//todo[vt]: We will need a version of this to support XYOffsetmapTexture
+			FLandscapeFixedGridVertexFactory* LandscapeVertexFactory = new FLandscapeFixedGridVertexFactory(FeatureLevel);
+			LandscapeVertexFactory->Data.PositionComponent = FVertexStreamComponent(SharedBuffers->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_Float4);
+			LandscapeVertexFactory->InitResource();
+			SharedBuffers->FixedGridVertexFactory = LandscapeVertexFactory;
+		}
 	}
 
 	SharedBuffers->AddRef();
@@ -934,6 +956,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 
 	// Assign vertex factory
 	VertexFactory = SharedBuffers->VertexFactory;
+	FixedGridVertexFactory = SharedBuffers->FixedGridVertexFactory;
 
 	// Assign LandscapeUniformShaderParameters
 	LandscapeUniformShaderParameters.InitResource();
@@ -1539,6 +1562,55 @@ bool FLandscapeComponentSceneProxy::GetMeshElement(bool UseSeperateBatchForShado
 	return true;
 }
 
+/** Creates a mesh batch for virtual texture rendering. Will render a simple fixed grid with combined subsections. */
+bool FLandscapeComponentSceneProxy::GetMeshElementForVirtualTexture(int32 InLodIndex, ERuntimeVirtualTextureMaterialType MaterialType, UMaterialInterface* InMaterialInterface, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams>& OutStaticBatchParamArray) const
+{
+	if (InMaterialInterface == nullptr)
+	{
+		return false;
+	}
+
+	OutMeshBatch.VertexFactory = FixedGridVertexFactory;
+	OutMeshBatch.MaterialRenderProxy = InMaterialInterface->GetRenderProxy();
+	OutMeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
+	OutMeshBatch.CastShadow = false;
+	OutMeshBatch.bUseForDepthPass = false;
+	OutMeshBatch.bUseAsOccluder = false;
+	OutMeshBatch.bUseForMaterial = false;
+	OutMeshBatch.Type = PT_TriangleList;
+	OutMeshBatch.DepthPriorityGroup = SDPG_World;
+	OutMeshBatch.LODIndex = InLodIndex;
+	OutMeshBatch.bRequiresPerElementVisibility = false;
+	OutMeshBatch.bDitheredLODTransition = false;
+	OutMeshBatch.bRenderToVirtualTexture = true;
+	OutMeshBatch.RuntimeVirtualTextureMaterialType = (uint32)MaterialType;
+
+	OutMeshBatch.Elements.Empty(1);
+
+	FLandscapeBatchElementParams* BatchElementParams = new(OutStaticBatchParamArray) FLandscapeBatchElementParams;
+	BatchElementParams->SceneProxy = this;
+	BatchElementParams->LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
+	BatchElementParams->LocalToWorldNoScalingPtr = &LocalToWorldNoScaling;
+	BatchElementParams->CurrentLOD = InLodIndex;
+	BatchElementParams->SubX = -1;
+	BatchElementParams->SubY = -1;
+
+	int32 LodSubsectionSizeVerts = SubsectionSizeVerts >> InLodIndex;
+
+	FMeshBatchElement BatchElement;
+	BatchElement.UserData = BatchElementParams;
+	BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
+	BatchElement.IndexBuffer = SharedBuffers->IndexBuffers[InLodIndex];
+	BatchElement.NumPrimitives = FMath::Square((LodSubsectionSizeVerts - 1)) * FMath::Square(NumSubsections) * 2;
+	BatchElement.FirstIndex = 0;
+	BatchElement.MinVertexIndex = SharedBuffers->IndexRanges[InLodIndex].MinIndexFull;
+	BatchElement.MaxVertexIndex = SharedBuffers->IndexRanges[InLodIndex].MaxIndexFull;
+
+	OutMeshBatch.Elements.Add(BatchElement);
+
+	return true;
+}
+
 void FLandscapeComponentSceneProxy::ApplyWorldOffset(FVector InOffset)
 {
 	FPrimitiveSceneProxy::ApplyWorldOffset(InOffset);
@@ -1596,13 +1668,15 @@ void FLandscapeComponentSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInter
 		}
 	}		
 
-	StaticBatchParamArray.Empty((1 + LastLOD - FirstLOD) * NumBatchesPerLOD * BatchCount);
+	int32 TotalBatchCount = (1 + LastLOD - FirstLOD) * NumBatchesPerLOD * BatchCount;
+	TotalBatchCount += RuntimeVirtualTextureMaterialTypes.Num();
+
+	StaticBatchParamArray.Empty(TotalBatchCount);
+	PDI->ReserveMemoryForMeshes(TotalBatchCount);
+
 	MaterialIndexToStaticMeshBatchLOD.SetNumUninitialized(MaterialCount);
 
 	int32 CurrentLODIndex = 0;
-
-	PDI->ReserveMemoryForMeshes(MaterialCount);
-
 	for (int32 i = 0; i < MaterialCount; ++i)
 	{
 		if (AvailableMaterials[i] == nullptr)
@@ -1665,6 +1739,27 @@ void FLandscapeComponentSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInter
 			}
 		}
 	}
+
+	// Add fixed grid mesh batches for runtime virtual texture usage
+ 	for (ERuntimeVirtualTextureMaterialType MaterialType : RuntimeVirtualTextureMaterialTypes)
+ 	{
+ 		// Use lowest detail geometry Lod and highest detail material Lod
+ 		//todo[vt]:
+		// Add user control for to allow use of different Lods.
+		// Specifically we would want to use a higher geometry Lod in the case where the landscape interpolator outputs need to be at a high resolution for correct virtual texture rendering.
+		// This happens if we read world height in the landscape shading (although we could read height directly from the height texture instead of taking it from the vertex interpolator).
+		// Also it would happen if we are relying on modified vertex positions (either from position offsets in material, or from using the XYOffsetmapTexture).
+ 		const int32 LODIndex = LastLOD;
+ 		const int32 MaterialIndex = LODIndexToMaterialIndex[FirstLOD];
+ 
+ 		FMeshBatch RuntimeVirtualTextureMeshBatch;
+ 		if (GetMeshElementForVirtualTexture(LODIndex, MaterialType, AvailableMaterials[MaterialIndex], RuntimeVirtualTextureMeshBatch, StaticBatchParamArray))
+ 		{
+ 			PDI->DrawMesh(RuntimeVirtualTextureMeshBatch, FLT_MAX);
+ 		}
+ 	}
+
+	check(StaticBatchParamArray.Num() <= TotalBatchCount);
 }
 
 void FLandscapeComponentSceneProxy::CalculateLODFromScreenSize(const FSceneView& InView, float InMeshScreenSizeSquared, float InViewLODScale, int32 InSubSectionIndex, FViewCustomDataLOD& InOutLODData) const
@@ -1876,7 +1971,7 @@ void FLandscapeComponentSceneProxy::CalculateBatchElementLOD(const FSceneView& I
 	}
 }
 
-int32 FLandscapeComponentSceneProxy::ConvertBatchElementLODToBatchElementIndex(int8 BatchElementLOD, bool UseCombinedMeshBatch)
+int32 FLandscapeComponentSceneProxy::ConvertBatchElementLODToBatchElementIndex(int8 BatchElementLOD, bool UseCombinedMeshBatch) const
 {
 	int32 BatchElementIndex = BatchElementLOD;
 
@@ -3564,6 +3659,51 @@ protected:
 	TShaderUniformBufferParameter<FLandscapeUniformShaderParameters> LandscapeShaderParameters;
 };
 
+/** 
+  * Shader parameters for use with FLandscapeFixedGridVertexFactory
+  * Simple grid rendering (without dynamic lod blend) needs a simpler fixed setup.
+  */
+class FLandscapeFixedGridVertexFactoryVertexShaderParameters : public FLandscapeVertexFactoryVertexShaderParameters
+{
+public:
+	virtual void GetElementShaderBindings(
+		const class FSceneInterface* Scene,
+		const FSceneView* InView,
+		const class FMeshMaterialShader* Shader,
+		const EVertexInputStreamType InputStreamType,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory,
+		const FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams
+	) const override
+	{
+		SCOPE_CYCLE_COUNTER(STAT_LandscapeVFDrawTimeVS);
+
+		const FLandscapeBatchElementParams* BatchElementParams = (const FLandscapeBatchElementParams*)BatchElement.UserData;
+		check(BatchElementParams);
+		const FLandscapeComponentSceneProxy* SceneProxy = BatchElementParams->SceneProxy;
+		check(SceneProxy);
+
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(), *BatchElementParams->LandscapeUniformShaderParametersResource);
+
+		if (HeightmapTextureParameter.IsBound())
+		{
+			ShaderBindings.AddTexture(HeightmapTextureParameter, HeightmapTextureParameterSampler, TStaticSamplerState<SF_Point>::GetRHI(), SceneProxy->HeightmapTexture->Resource->TextureRHI);
+		}
+
+		if (LodValuesParameter.IsBound())
+		{
+			ShaderBindings.Add(LodValuesParameter, SceneProxy->GetShaderLODValues(BatchElementParams->CurrentLOD));
+		}
+
+		if (LodBiasParameter.IsBound())
+		{
+			ShaderBindings.Add(LodBiasParameter, FVector4(ForceInitToZero));
+		}
+	}
+};
+
 //
 // FLandscapeVertexFactoryPixelShaderParameters
 //
@@ -3694,6 +3834,34 @@ void FLandscapeXYOffsetVertexFactory::ModifyCompilationEnvironment(const FVertex
 
 IMPLEMENT_VERTEX_FACTORY_TYPE(FLandscapeXYOffsetVertexFactory, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false);
 
+//
+// FLandscapeFixedGridVertexFactory
+//
+
+void FLandscapeFixedGridVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+{
+	FLandscapeVertexFactory::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+	OutEnvironment.SetDefine(TEXT("FIXED_GRID"), TEXT("1"));
+}
+
+FVertexFactoryShaderParameters* FLandscapeFixedGridVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
+{
+	switch (ShaderFrequency)
+	{
+	case SF_Vertex:
+		return new FLandscapeFixedGridVertexFactoryVertexShaderParameters();
+		break;
+	case SF_Pixel:
+		return new FLandscapeVertexFactoryPixelShaderParameters();
+		break;
+	default:
+		return nullptr;
+	}
+}
+
+IMPLEMENT_VERTEX_FACTORY_TYPE(FLandscapeFixedGridVertexFactory, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false);
+
+
 /** ULandscapeMaterialInstanceConstant */
 ULandscapeMaterialInstanceConstant::ULandscapeMaterialInstanceConstant(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -3811,9 +3979,11 @@ public:
 				// Todo: only compile LandscapeXYOffsetVertexFactory if we are using it
 				static const FName LandscapeVertexFactory = FName(TEXT("FLandscapeVertexFactory"));
 				static const FName LandscapeXYOffsetVertexFactory = FName(TEXT("FLandscapeXYOffsetVertexFactory"));
+				static const FName LandscapeFixedGridVertexFactory = FName(TEXT("FLandscapeFixedGridVertexFactory"));
 				static const FName LandscapeVertexFactoryMobile = FName(TEXT("FLandscapeVertexFactoryMobile"));
 				if (VertexFactoryType->GetFName() == LandscapeVertexFactory ||
 					VertexFactoryType->GetFName() == LandscapeXYOffsetVertexFactory ||
+					VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactory ||
 					VertexFactoryType->GetFName() == LandscapeVertexFactoryMobile)
 				{
 					return FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);

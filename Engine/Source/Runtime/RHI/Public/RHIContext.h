@@ -196,6 +196,7 @@ public:
 	* @param SourceTexture - texture to resolve from, 0 is silenty ignored
 	* @param DestTexture - texture to resolve to, 0 is silenty ignored
 	* @param ResolveParams - optional resolve params
+	* @param Fence - optional fence, will be set once copy is completed by GPU
 	*/
 	virtual void RHICopyToResolveTarget(FTextureRHIParamRef SourceTexture, FTextureRHIParamRef DestTexture, const FResolveParams& ResolveParams) = 0;
 

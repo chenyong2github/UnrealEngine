@@ -120,6 +120,14 @@ static FAutoConsoleVariableRef CVarAllowCustomResolves(
    ECVF_RenderThreadSafe
    );
 
+int32 GVirtualTextureFeedbackFactor = 16;
+static FAutoConsoleVariableRef CVarVirtualTextureFeedbackFactor(
+	TEXT("r.vt.FeedbackFactor"),
+	GVirtualTextureFeedbackFactor,
+	TEXT("The size of the VT feedback buffer is calculated by dividing the render resolution by this factor"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly /*Read-only as shaders are compiled with this value*/
+);
+
 /** The global render targets used for scene rendering. */
 static TGlobalResource<FSceneRenderTargets> SceneRenderTargetsSingleton;
 
@@ -289,6 +297,7 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	SnapshotArray(TranslucencyLightingVolumeAmbient, SnapshotSource.TranslucencyLightingVolumeAmbient);
 	SnapshotArray(TranslucencyLightingVolumeDirectional, SnapshotSource.TranslucencyLightingVolumeDirectional);
 	SnapshotArray(OptionalShadowDepthColor, SnapshotSource.OptionalShadowDepthColor);
+	VirtualTextureFeedback.MakeSnapshot(SnapshotSource.VirtualTextureFeedback);
 }
 
 inline const TCHAR* GetSceneColorTargetName(EShadingPath ShadingPath)
@@ -811,6 +820,16 @@ void FSceneRenderTargets::SetQuadOverdrawUAV(FRHICommandList& RHICmdList, bool b
 	}
 }
 
+void FSceneRenderTargets::BindVirtualTextureFeedbackUAV(FRHIRenderPassInfo& RPInfo)
+{
+	// must match VT_FEEDBACK_REGISTER in VirtualTextureCommon.ush
+	static const int32 VT_FEEDBACK_REGISTER = 7;
+
+	check(RPInfo.GetNumColorRenderTargets() <= VT_FEEDBACK_REGISTER);
+	RPInfo.UAVIndex = VT_FEEDBACK_REGISTER;
+	RPInfo.UAVs[RPInfo.NumUAVs++] = VirtualTextureFeedback.FeedbackTextureGPU->GetRenderTargetItem().UAV;
+}
+
 void FSceneRenderTargets::BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERenderTargetLoadAction ColorLoadAction, ERenderTargetLoadAction DepthLoadAction, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers, bool bClearQuadOverdrawBuffers, const FLinearColor& ClearColor/*=(0,0,0,1)*/, bool bIsWireframe)
 {
 	check(RHICmdList.IsOutsideRenderPass());
@@ -860,13 +879,9 @@ void FSceneRenderTargets::BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERe
 	RPInfo.DepthStencilRenderTarget.DepthStencilTarget = GetSceneDepthSurface();
 	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = DepthStencilAccess;
 
-	static const auto CVarVirtualTextureLightmaps = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
-	if(CVarVirtualTextureLightmaps && CVarVirtualTextureLightmaps->GetValueOnRenderThread() && !bBindQuadOverdrawBuffers )
+	if(UseVirtualTexturing(CurrentFeatureLevel) && !bBindQuadOverdrawBuffers )
 	{
-		int32 FeedbackIndex = 7;
-		check(RPInfo.GetNumColorRenderTargets() <= FeedbackIndex);
-		RPInfo.UAVIndex = FeedbackIndex;
-		RPInfo.UAVs[RPInfo.NumUAVs++] = GVirtualTextureFeedback.FeedbackTextureGPU->GetRenderTargetItem().UAV;		
+		BindVirtualTextureFeedbackUAV(RPInfo);
 	}	
 
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("GBuffer"));
@@ -1529,8 +1544,27 @@ void FSceneRenderTargets::BeginRenderingTranslucency(FRHICommandList& RHICmdList
 {
 	check(RHICmdList.IsOutsideRenderPass());
 
-	// Use the scene color buffer.
-	BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite);
+	// Use the scene color buffer (similar logic to BeginRenderingSceneColor, except VT feedback UAV is also bound)
+	SCOPED_DRAW_EVENT(RHICmdList, BeginRenderingTranslucency);
+	AllocSceneColor(RHICmdList);
+
+	ERenderTargetLoadAction ColorLoadAction, DepthLoadAction, StencilLoadAction;
+	ERenderTargetStoreAction ColorStoreAction, DepthStoreAction, StencilStoreAction;
+	DecodeRenderTargetMode(ESimpleRenderTargetMode::EExistingColorAndDepth, ColorLoadAction, ColorStoreAction, DepthLoadAction, DepthStoreAction, StencilLoadAction, StencilStoreAction, FExclusiveDepthStencil::DepthRead_StencilWrite);
+
+	FRHIRenderPassInfo RPInfo(GetSceneColorSurface(), MakeRenderTargetActions(ColorLoadAction, ColorStoreAction));
+	RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(MakeRenderTargetActions(DepthLoadAction, DepthStoreAction), MakeRenderTargetActions(StencilLoadAction, StencilStoreAction));
+	RPInfo.DepthStencilRenderTarget.DepthStencilTarget = GetSceneDepthSurface();
+	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilWrite;
+
+	if (UseVirtualTexturing(CurrentFeatureLevel))
+	{
+		BindVirtualTextureFeedbackUAV(RPInfo);
+	}
+
+	TransitionRenderPassTargets(RHICmdList, RPInfo);
+
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("BeginRenderingTranslucency"));
 
 	if (bFirstTimeThisFrame)
 	{
@@ -1605,6 +1639,11 @@ void FSceneRenderTargets::BeginRenderingSeparateTranslucency(FRHICommandList& RH
 	{
 		// Clear the color target the first pass through and re-use after
 		RPInfo.ColorRenderTargets[0].Action = ERenderTargetActions::Clear_Store;
+	}
+	
+	if (UseVirtualTexturing(CurrentFeatureLevel))
+	{
+		BindVirtualTextureFeedbackUAV(RPInfo);
 	}
 
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("BeginRenderingSeparateTranslucency"));
@@ -2376,6 +2415,12 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandLi
 		VelocityRTDesc.Flags |= GFastVRamConfig.GBufferVelocity;
 		GRenderTargetPool.FindFreeElement(RHICmdList, VelocityRTDesc, SceneVelocity, TEXT("GBufferVelocity"));
 	}
+
+	if (UseVirtualTexturing(CurrentFeatureLevel))
+	{
+		FIntPoint FeedbackSize = FIntPoint::DivideAndRoundUp(BufferSize, GVirtualTextureFeedbackFactor);
+		VirtualTextureFeedback.CreateResourceGPU(RHICmdList, FeedbackSize);
+	}
 }
 
 EPixelFormat FSceneRenderTargets::GetDesiredMobileSceneColorFormat() const
@@ -2625,6 +2670,8 @@ void FSceneRenderTargets::ReleaseAllTargets()
 
 	EditorPrimitivesColor.SafeRelease();
 	EditorPrimitivesDepth.SafeRelease();
+
+	VirtualTextureFeedback.ReleaseResources();
 }
 
 void FSceneRenderTargets::ReleaseDynamicRHI()

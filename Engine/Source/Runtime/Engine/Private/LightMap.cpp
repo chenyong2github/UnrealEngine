@@ -5,10 +5,13 @@
 =============================================================================*/
 
 #include "LightMap.h"
+#include "ShadowMap.h"
+#include "Engine/ShadowMapTexture2D.h"
 #include "UnrealEngine.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "StaticLighting.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/LightComponent.h"
 #include "InstancedStaticMesh.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
@@ -17,7 +20,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "VT/VirtualTexture.h"
-#include "VT/VirtualTextureSpace.h"
+#include "EngineModule.h"
 #include "Misc/PackageName.h"
 
 #define VISUALIZE_PACKING 0
@@ -313,6 +316,9 @@ struct FLightMapAllocation
 	TArray<FLightMapCoefficients>	RawData;
 	float							Scale[NUM_STORED_LIGHTMAP_COEF][4];
 	float							Add[NUM_STORED_LIGHTMAP_COEF][4];
+
+	TMap<ULightComponent*, TArray<FQuantizedSignedDistanceFieldShadowSample> > ShadowMapData;
+
 	/** True if we can skip encoding this allocation because it's similar enough to an existing
 	    allocation at the same offset */
 	bool bSkipEncoding;
@@ -356,8 +362,9 @@ struct FLightMapPendingTexture : public FTextureLayout
 	ULightMapTexture2D*				Textures[NUM_STORED_LIGHTMAP_COEF];
 	ULightMapTexture2D*				SkyOcclusionTexture;
 	ULightMapTexture2D*				AOMaterialMaskTexture;
+	UShadowMapTexture2D*            ShadowMapTexture;
 
-	ULightMapVirtualTexture*		VirtualTexture;
+	ULightMapVirtualTexture2D*		VirtualTexture;
 
 
 	TArray<TUniquePtr<FLightMapAllocation>> Allocations;
@@ -374,6 +381,7 @@ struct FLightMapPendingTexture : public FTextureLayout
 	int32							NumOutstandingAsyncTasks;
 	bool							bUObjectsCreated;
 	int32							NumNonPower2Texels;
+	int32							NumVirtualTextureLayers;
 	uint64							NumLightmapMappedTexels;
 	uint64							NumLightmapUnmappedTexels;
 	volatile bool					bIsFinishedEncoding; // has the encoding thread finished encoding (not the AsyncCache)
@@ -384,6 +392,7 @@ struct FLightMapPendingTexture : public FTextureLayout
 		: FTextureLayout(4, 4, InSizeX, InSizeY, /* PowerOfTwo */ true, /* Force2To1Aspect */ true, /* AlignByFour */ true) // Min size is 4x4 in case of block compression.
 		, SkyOcclusionTexture(nullptr)
 		, AOMaterialMaskTexture(nullptr)
+		, ShadowMapTexture(nullptr)
 		, VirtualTexture(nullptr)
 		, OwningWorld(InWorld)
 		, Bounds(FBox(ForceInit))
@@ -392,6 +401,7 @@ struct FLightMapPendingTexture : public FTextureLayout
 		, NumOutstandingAsyncTasks(0)
 		, bUObjectsCreated(false)
 		, NumNonPower2Texels(0)
+		, NumVirtualTextureLayers(0)
 		, NumLightmapMappedTexels(0)
 		, NumLightmapUnmappedTexels(0)
 		, bIsFinishedEncoding(false)
@@ -465,11 +475,12 @@ private:
 	FName GetLightmapName(int32 TextureIndex, int32 CoefficientIndex);
 	FName GetSkyOcclusionTextureName(int32 TextureIndex);
 	FName GetAOMaterialMaskTextureName(int32 TextureIndex);
+	FName GetShadowTextureName(int32 TextureIndex);
 	FName GetVirtualTextureName(int32 TextureIndex);
-	ULightMapVirtualTextureSpace *GetVirtualTextureSpace(int32 LayerFlags);
 
 	bool NeedsSkyOcclusionTexture() const;
 	bool NeedsAOMaterialMaskTexture() const;
+	bool NeedsStaticShadowTexture() const;
 };
 
 /**
@@ -489,6 +500,11 @@ bool FLightMapPendingTexture::IsAsyncCacheComplete() const
 		return false;
 	}
 
+	if (ShadowMapTexture && !ShadowMapTexture->IsAsyncCacheComplete())
+	{
+		return false;
+	}
+
 	// Encode and compress the coefficient textures.
 	for (uint32 CoefficientIndex = 0; CoefficientIndex < NUM_STORED_LIGHTMAP_COEF; CoefficientIndex += 2)
 	{
@@ -503,7 +519,7 @@ bool FLightMapPendingTexture::IsAsyncCacheComplete() const
 		}
 	}
 
-	if (VirtualTexture && VirtualTexture->IsAsyncBuildComplete() == false)
+	if (VirtualTexture && VirtualTexture->IsAsyncCacheComplete() == false)
 	{
 		return false;
 	}
@@ -600,6 +616,10 @@ void FLightMapPendingTexture::PostEncode()
 		PostEncode(AOMaterialMaskTexture);
 	}
 
+	if (ShadowMapTexture != nullptr)
+	{
+		PostEncode(ShadowMapTexture);
+	}
 
 	// update all the global stats
 	GNumLightmapMappedTexels += NumLightmapMappedTexels;
@@ -638,10 +658,23 @@ void FLightMapPendingTexture::PostEncode()
 	}
 
 	// Rebuild the virtual texture layers
-	if (VirtualTexture != nullptr)
+	/*if (VirtualTexture != nullptr)
 	{
 		GWarn->StatusUpdate(0, 0, NSLOCTEXT("LightMap2D", "BeginEncodingVTLightMapsTask", "Encoding VT light-maps"));
+
+		if (NeedsStaticShadowTexture())
+		{
+			const uint32 Index = VirtualTexture->GetLayerForType(ELightMapVirtualTextureType::ShadowMask);
+
+			// Update VT shadow map format now, since it will change based on number of valid shadow channels
+			VirtualTexture->LayerSettings[Index].Format = ShadowMapTexture->Source.GetFormat();
+		}
+
 		VirtualTexture->BuildLightmapData(true);
+	}*/
+	if (VirtualTexture)
+	{
+		PostEncode(VirtualTexture);
 	}
 }
 
@@ -659,6 +692,11 @@ void FLightMapPendingTexture::FinishCachingTextures()
 		FinishCacheTexture(AOMaterialMaskTexture);
 	}
 
+	if (ShadowMapTexture)
+	{
+		FinishCacheTexture(ShadowMapTexture);
+	}
+
 	// Encode and compress the coefficient textures.
 	for (uint32 CoefficientIndex = 0; CoefficientIndex < NUM_STORED_LIGHTMAP_COEF; CoefficientIndex += 2)
 	{
@@ -669,10 +707,9 @@ void FLightMapPendingTexture::FinishCachingTextures()
 		}
 	}
 
-	if (VirtualTexture != nullptr)
+	if (VirtualTexture)
 	{
-		VirtualTexture->FinishAsyncRebuild();
-		VirtualTexture->UpdateResource();
+		FinishCacheTexture(VirtualTexture);
 	}
 }
 
@@ -1110,6 +1147,11 @@ void FLightMapPendingTexture::CreateUObjects()
 		AOMaterialMaskTexture = NewObject<ULightMapTexture2D>(Outer, GetAOMaterialMaskTextureName(GLightmapCounter));
 	}
 
+	if (NeedsStaticShadowTexture())
+	{
+		ShadowMapTexture = NewObject<UShadowMapTexture2D>(Outer, GetShadowTextureName(GLightmapCounter));
+	}
+
 	// Encode and compress the coefficient textures.
 	for (uint32 CoefficientIndex = 0; CoefficientIndex < NUM_STORED_LIGHTMAP_COEF; CoefficientIndex += 2)
 	{
@@ -1130,41 +1172,26 @@ void FLightMapPendingTexture::CreateUObjects()
 
 	// Only build VT lightmaps if they are enabled
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
-	if (CVar->GetValueOnAnyThread())
+	const bool bUseVirtualTextures = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(GMaxRHIFeatureLevel);
+	if (bUseVirtualTextures)
 	{
-		VirtualTexture = NewObject<ULightMapVirtualTexture>(Outer, GetVirtualTextureName(GLightmapCounter));
-		
-		int32 LayerFlags = LightMapVirtualTextureLayerFlags::HqLayers;
-		if (NeedsAOMaterialMaskTexture())
-		{
-			LayerFlags |= LightMapVirtualTextureLayerFlags::AOMaterialMaskLayer;
-		}
-		if (NeedsSkyOcclusionTexture())
-		{
-			LayerFlags |= LightMapVirtualTextureLayerFlags::SkyOcclusionLayer;
-		}
+		VirtualTexture = NewObject<ULightMapVirtualTexture2D>(Outer, GetVirtualTextureName(GLightmapCounter));
+		VirtualTexture->VirtualTextureStreaming = true;
 
-		VirtualTexture->Space = GetVirtualTextureSpace(LayerFlags);
-		VirtualTexture->LayerFlags = LayerFlags;
-		VirtualTexture->Layers.AddDefaulted(LightMapVirtualTextureLayerFlags::GetNumLayers(LayerFlags));
-		static_assert(NUM_STORED_LIGHTMAP_COEF == 4, "VT assumes there are four stored lightmap coefficients");
-		
-		// Only add the HQ layer for VT lightmapping
-		VirtualTexture->Layers[0] = Textures[0];
-		//Note: We don't look at layer one but this is future proofed as the packing of the two HQ coefficients in one texture
-		//should go away in the future...
-		VirtualTexture->Layers[1] = Textures[0];
-		
-		// Optional occlusion and AO layers
-		if (NeedsSkyOcclusionTexture())
-		{
-			int32 LayerIndex = LightMapVirtualTextureLayerFlags::GetLayerIndex(VirtualTexture->LayerFlags, LightMapVirtualTextureLayerFlags::SkyOcclusionLayer);
-			VirtualTexture->Layers[LayerIndex] = SkyOcclusionTexture;
-		}
+		NumVirtualTextureLayers = 0;
+		VirtualTexture->SetLayerForType(ELightMapVirtualTextureType::HqLayer0, NumVirtualTextureLayers++);
+		VirtualTexture->SetLayerForType(ELightMapVirtualTextureType::HqLayer1, NumVirtualTextureLayers++);
 		if (NeedsAOMaterialMaskTexture())
 		{
-			int32 LayerIndex = LightMapVirtualTextureLayerFlags::GetLayerIndex(VirtualTexture->LayerFlags, LightMapVirtualTextureLayerFlags::AOMaterialMaskLayer);
-			VirtualTexture->Layers[LayerIndex] = AOMaterialMaskTexture;
+			VirtualTexture->SetLayerForType(ELightMapVirtualTextureType::AOMaterialMask, NumVirtualTextureLayers++);
+		}
+		if (NeedsSkyOcclusionTexture())
+		{
+			VirtualTexture->SetLayerForType(ELightMapVirtualTextureType::SkyOcclusion, NumVirtualTextureLayers++);
+		}
+		if (NeedsStaticShadowTexture())
+		{
+			VirtualTexture->SetLayerForType(ELightMapVirtualTextureType::ShadowMask, NumVirtualTextureLayers++);
 		}
 	}
 	else
@@ -1214,7 +1241,28 @@ bool FLightMapPendingTexture::NeedsAOMaterialMaskTexture() const
 	return false;
 }
 
-void FLightMapPendingTexture::StartEncoding(ULevel* Unused, ITextureCompressorModule* UnusedCompressor)
+bool FLightMapPendingTexture::NeedsStaticShadowTexture() const
+{
+	if (bUObjectsCreated)
+	{
+		return ShadowMapTexture != nullptr;
+	}
+
+	bool bResult = false;
+	for (int32 AllocationIndex = 0; AllocationIndex < Allocations.Num(); AllocationIndex++)
+	{
+		auto& Allocation = Allocations[AllocationIndex];
+
+		if (Allocation->ShadowMapData.Num() > 0)
+		{
+			bResult = true;
+			break;
+		}
+	}
+	return bResult;
+}
+
+void FLightMapPendingTexture::StartEncoding(ULevel* LightingScenario, ITextureCompressorModule* UnusedCompressor)
 {
 	if (!bUObjectsCreated)
 	{
@@ -1399,6 +1447,52 @@ void FLightMapPendingTexture::StartEncoding(ULevel* Unused, ITextureCompressorMo
 
 	}
 
+	if (ShadowMapTexture != nullptr)
+	{
+		ShadowMapTexture->Filter = GUseBilinearLightmaps ? TF_Default : TF_Nearest;
+		// Signed distance field textures get stored in linear space, since they need more precision near .5.
+		ShadowMapTexture->SRGB = false;
+		ShadowMapTexture->LODGroup = TEXTUREGROUP_Shadowmap;
+
+		// TODO - Unify these?  Currently the values match
+		ShadowMapTexture->ShadowmapFlags = EShadowMapFlags(LightmapFlags);
+
+		// Create the uncompressed top mip-level.
+		TArray< TArray<FFourDistanceFieldSamples> > MipData;
+		const int32 NumChannelsUsed = FLightMap2D::EncodeShadowTexture(LightingScenario, *this, ShadowMapTexture, MipData);
+
+		ShadowMapTexture->Source.Init2DWithMipChain(GetSizeX(), GetSizeY(), NumChannelsUsed == 1 ? TSF_G8 : TSF_BGRA8);
+		ShadowMapTexture->MipGenSettings = TMGS_LeaveExistingMips;
+		ShadowMapTexture->CompressionNone = true;
+
+		// Copy the mip-map data into the UShadowMapTexture2D's mip-map array.
+		for (int32 MipIndex = 0; MipIndex < MipData.Num(); MipIndex++)
+		{
+			uint8* DestMipData = (uint8*)ShadowMapTexture->Source.LockMip(MipIndex);
+			uint32 MipSizeX = FMath::Max<uint32>(1, GetSizeX() >> MipIndex);
+			uint32 MipSizeY = FMath::Max<uint32>(1, GetSizeY() >> MipIndex);
+
+			for (uint32 Y = 0; Y < MipSizeY; Y++)
+			{
+				for (uint32 X = 0; X < MipSizeX; X++)
+				{
+					const FFourDistanceFieldSamples& SourceSample = MipData[MipIndex][Y * MipSizeX + X];
+
+					if (NumChannelsUsed == 1)
+					{
+						DestMipData[Y * MipSizeX + X] = SourceSample.Samples[0].Distance;
+					}
+					else
+					{
+						((FColor*)DestMipData)[Y * MipSizeX + X] = FColor(SourceSample.Samples[0].Distance, SourceSample.Samples[1].Distance, SourceSample.Samples[2].Distance, SourceSample.Samples[3].Distance);
+					}
+				}
+			}
+
+			ShadowMapTexture->Source.UnlockMip(MipIndex);
+		}
+	}
+
 	// Encode and compress the coefficient textures.
 	for(uint32 CoefficientIndex = 0; CoefficientIndex < NUM_STORED_LIGHTMAP_COEF; CoefficientIndex += 2)
 	{
@@ -1574,6 +1668,90 @@ void FLightMapPendingTexture::StartEncoding(ULevel* Unused, ITextureCompressorMo
 		}
 	}
 
+	if (VirtualTexture)
+	{
+		// Copy data from all the separate Lightmap textures into the proper layers of the VT source
+		const uint32 SkyOcclusionLayer = VirtualTexture->GetLayerForType(ELightMapVirtualTextureType::SkyOcclusion);
+		const uint32 AOMaterialMaskLayer = VirtualTexture->GetLayerForType(ELightMapVirtualTextureType::AOMaterialMask);
+		const uint32 ShadowMaskLayer = VirtualTexture->GetLayerForType(ELightMapVirtualTextureType::ShadowMask);
+
+		TArray<ETextureSourceFormat> LayerFormat;
+		LayerFormat.Init(TSF_Invalid, NumVirtualTextureLayers);
+		LayerFormat[0] = Textures[0]->Source.GetFormat();
+		LayerFormat[1] = Textures[0]->Source.GetFormat();
+		if (SkyOcclusionLayer != ~0u)
+		{
+			LayerFormat[SkyOcclusionLayer] = SkyOcclusionTexture->Source.GetFormat();
+		}
+		if (AOMaterialMaskLayer != ~0u)
+		{
+			LayerFormat[AOMaterialMaskLayer] = AOMaterialMaskTexture->Source.GetFormat();
+		}
+		if (ShadowMaskLayer != ~0u)
+		{
+			LayerFormat[ShadowMaskLayer] = ShadowMapTexture->Source.GetFormat();
+		}
+
+		VirtualTexture->Source.InitLayered2DWithMipChain(GetSizeX(), GetSizeY(), NumVirtualTextureLayers, LayerFormat.GetData());
+		VirtualTexture->MipGenSettings = TMGS_LeaveExistingMips;
+		VirtualTexture->SRGB = 0;
+		VirtualTexture->Filter = GUseBilinearLightmaps ? TF_Default : TF_Nearest;
+		VirtualTexture->LODGroup = TEXTUREGROUP_Lightmap;
+		VirtualTexture->CompressionNoAlpha = false;
+		VirtualTexture->CompressionNone = !GCompressLightmaps;
+
+		FTextureFormatSettings DefaultFormatSettings;
+		VirtualTexture->GetDefaultFormatSettings(DefaultFormatSettings);
+		VirtualTexture->LayerFormatSettings.Init(DefaultFormatSettings, NumVirtualTextureLayers);
+
+		for (int MipIndex = 0; MipIndex < VirtualTexture->Source.GetNumMips(); ++MipIndex)
+		{
+			TArray<uint8> SourceData;
+			Textures[0]->Source.GetMipData(SourceData, MipIndex);
+
+			// Copy top half of texture into layer0
+			uint8* Layer0Data = VirtualTexture->Source.LockMip(0, 0, MipIndex);
+			FMemory::Memcpy(Layer0Data, &SourceData[0], SourceData.Num() / 2);
+			VirtualTexture->Source.UnlockMip(0, 0, MipIndex);
+
+			// Bottom half of texture into layer1
+			uint8* Layer1Data = VirtualTexture->Source.LockMip(0, 1, MipIndex);
+			FMemory::Memcpy(Layer1Data, &SourceData[SourceData.Num() / 2], SourceData.Num() / 2);
+			VirtualTexture->Source.UnlockMip(0, 1, MipIndex);
+
+			if (SkyOcclusionLayer != ~0u)
+			{
+				FTextureFormatSettings& FormatSettings = VirtualTexture->LayerFormatSettings[SkyOcclusionLayer];
+				SkyOcclusionTexture->GetDefaultFormatSettings(FormatSettings);
+
+				SkyOcclusionTexture->Source.GetMipData(SourceData, MipIndex);
+				uint8* LayerData = VirtualTexture->Source.LockMip(0, SkyOcclusionLayer, MipIndex);
+				FMemory::Memcpy(LayerData, &SourceData[0], SourceData.Num());
+				VirtualTexture->Source.UnlockMip(0, SkyOcclusionLayer, MipIndex);
+			}
+			if (AOMaterialMaskLayer != ~0u)
+			{
+				FTextureFormatSettings& FormatSettings = VirtualTexture->LayerFormatSettings[AOMaterialMaskLayer];
+				AOMaterialMaskTexture->GetDefaultFormatSettings(FormatSettings);
+
+				AOMaterialMaskTexture->Source.GetMipData(SourceData, MipIndex);
+				uint8* LayerData = VirtualTexture->Source.LockMip(0, AOMaterialMaskLayer, MipIndex);
+				FMemory::Memcpy(LayerData, &SourceData[0], SourceData.Num());
+				VirtualTexture->Source.UnlockMip(0, AOMaterialMaskLayer, MipIndex);
+			}
+			if (ShadowMaskLayer != ~0u)
+			{
+				FTextureFormatSettings& FormatSettings = VirtualTexture->LayerFormatSettings[ShadowMaskLayer];
+				ShadowMapTexture->GetDefaultFormatSettings(FormatSettings);
+
+				ShadowMapTexture->Source.GetMipData(SourceData, MipIndex);
+				uint8* LayerData = VirtualTexture->Source.LockMip(0, ShadowMaskLayer, MipIndex);
+				FMemory::Memcpy(LayerData, &SourceData[0], SourceData.Num());
+				VirtualTexture->Source.UnlockMip(0, ShadowMaskLayer, MipIndex);
+			}
+		}
+	}
+
 	for (int32 AllocationIndex = 0; AllocationIndex < Allocations.Num(); AllocationIndex++)
 	{
 		auto& Allocation = Allocations[AllocationIndex];
@@ -1641,6 +1819,22 @@ FName FLightMapPendingTexture::GetAOMaterialMaskTextureName(int32 TextureIndex)
 	return FName(*PotentialName);
 }
 
+FName FLightMapPendingTexture::GetShadowTextureName(int32 TextureIndex)
+{
+	FString PotentialName = TEXT("");
+	UObject* ExistingObject = NULL;
+	int32 LightmapIndex = 0;
+	// Search for an unused name
+	do
+	{
+		PotentialName = FString(TEXT("StaticShadow")) + FString::FromInt(LightmapIndex) + TEXT("_") + FString::FromInt(TextureIndex);
+
+		ExistingObject = FindObject<UObject>(Outer, *PotentialName);
+		LightmapIndex++;
+	} while (ExistingObject != NULL);
+	return FName(*PotentialName);
+}
+
 FName FLightMapPendingTexture::GetVirtualTextureName(int32 TextureIndex)
 {
 	FString PotentialName = TEXT("");
@@ -1657,96 +1851,6 @@ FName FLightMapPendingTexture::GetVirtualTextureName(int32 TextureIndex)
 	return FName(*PotentialName);
 }
 
-namespace
-{
-	FString GetVirtualTextureSpaceName(int32 LayerFlags, bool Compressed)
-	{
-		return FString::Format(TEXT("LightmapVirtualTextureSpace_{0}_{1}"), TArray<FStringFormatArg>({ LayerFlags, (Compressed) ? TEXT("Compressed") : TEXT("Uncompressed") }));
-	}
-	void GenerateVTLightmapSpaces()
-	{
-		bool CompressedOptions[] = { true, false };
-		int32 LayerOptions[] = {
-			LightMapVirtualTextureLayerFlags::HqLayers,
-			LightMapVirtualTextureLayerFlags::HqLayers | LightMapVirtualTextureLayerFlags::AOMaterialMaskLayer,
-			LightMapVirtualTextureLayerFlags::HqLayers | LightMapVirtualTextureLayerFlags::AOMaterialMaskLayer | LightMapVirtualTextureLayerFlags::SkyOcclusionLayer,
-			LightMapVirtualTextureLayerFlags::HqLayers | LightMapVirtualTextureLayerFlags::SkyOcclusionLayer
-		};
-
-		for (int32 LayerFlags : LayerOptions)
-		{
-			for (bool Compressed : CompressedOptions)
-			{
-				FString BaseName = GetVirtualTextureSpaceName(LayerFlags, Compressed);
-				ULightMapVirtualTextureSpace *Space = FindObject<ULightMapVirtualTextureSpace>(ANY_PACKAGE, *BaseName);
-				if (Space == nullptr)
-				{
-					// Fixme how to properly handle this global object?!? Just created as an engine asset for now
-					const FString PackageName = FString::Format(TEXT("/Engine/VT/{0}"), TArray<FStringFormatArg>({ BaseName }));
-					UPackage *VTSpacePackage = CreatePackage(NULL, *PackageName);
-					EObjectFlags Flags = RF_Public | RF_Standalone;
-					Space = NewObject<ULightMapVirtualTextureSpace>(VTSpacePackage, *BaseName, Flags);
-					Space->Layers.Empty();
-					Space->Layers.AddDefaulted(LightMapVirtualTextureLayerFlags::GetNumLayers(LayerFlags));
-
-					for (int i = 0; i < 2; i++)
-					{
-						Space->Layers[i].bCompressed = GCompressLightmaps;
-						Space->Layers[i].bHasAlpha = true;
-						Space->Layers[i].CompressionSettings = TC_Default; // This will make it choose DXT5 on desktop-like platforms.
-						Space->Layers[i].Format = TSF_BGRA8;
-					}
-
-
-					int32 SkyLayer = LightMapVirtualTextureLayerFlags::GetLayerIndex(LayerFlags, LightMapVirtualTextureLayerFlags::SkyOcclusionLayer);
-					if (SkyLayer != INDEX_NONE)
-					{
-
-						Space->Layers[SkyLayer].bCompressed = GCompressLightmaps;
-						Space->Layers[SkyLayer].bHasAlpha = true;
-						Space->Layers[SkyLayer].CompressionSettings = TC_Default; // This will make it choose DXT5 on desktop-like platforms.
-						Space->Layers[SkyLayer].Format = TSF_BGRA8;
-					}
-
-					int32 AOLayer = LightMapVirtualTextureLayerFlags::GetLayerIndex(LayerFlags, LightMapVirtualTextureLayerFlags::AOMaterialMaskLayer);
-					if (AOLayer != INDEX_NONE)
-					{
-						Space->Layers[AOLayer].bCompressed = GCompressLightmaps;
-						Space->Layers[AOLayer].bHasAlpha = true;
-						Space->Layers[AOLayer].CompressionSettings = TC_Alpha; // This will make it choose BC4 on desktop-like platforms.
-						Space->Layers[AOLayer].Format = TSF_BGRA8;
-					}
-
-					Space->UpdateResource();
-
-					FString PackageFileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
-					UPackage::SavePackage(VTSpacePackage, Space, RF_Standalone, *PackageFileName, GLog, nullptr, false, true, SAVE_None);
-				}
-			}
-		}
-	}
-	static FAutoConsoleCommand GenerateVTLightmapSpacesCVAR(TEXT("VT.Lightmaps.GenerateSpaces"), TEXT("Generate all VT lightmap spaces inside the engine content folder"),
-		FConsoleCommandDelegate::CreateStatic(&GenerateVTLightmapSpaces));
-}
-
-ULightMapVirtualTextureSpace *FLightMapPendingTexture::GetVirtualTextureSpace(int32 LayerFlags)
-{
-	FString BaseName = GetVirtualTextureSpaceName(LayerFlags, GCompressLightmaps);
-	ULightMapVirtualTextureSpace *Space = FindObject<ULightMapVirtualTextureSpace>(ANY_PACKAGE, *BaseName);
-
-	if (Space == nullptr)
-	{
-		UE_LOG(LogLightMap, Fatal, TEXT("Missing VT lightmapping engine content this feature depends on: %s. Make sure your engine content is up to date."), *BaseName);
-	}
-
-	if (Space->GetRenderResource() == nullptr)
-	{
-		Space->UpdateResource();
-	}
-	return Space;
-}
-
-
 /** The light-maps which have not yet been encoded into textures. */
 static TArray<FLightMapAllocationGroup> PendingLightMaps;
 static uint32 PendingLightMapSize = 0;
@@ -1756,10 +1860,13 @@ static uint32 PendingLightMapSize = 0;
 /** If true, update the status when encoding light maps */
 bool FLightMap2D::bUpdateStatus = true;
 
-TRefCountPtr<FLightMap2D> FLightMap2D::AllocateLightMap(UObject* LightMapOuter, FQuantizedLightmapData*& SourceQuantizedData, const FBoxSphereBounds& Bounds, ELightMapPaddingType InPaddingType, ELightMapFlags InLightmapFlags)
+TRefCountPtr<FLightMap2D> FLightMap2D::AllocateLightMap(UObject* LightMapOuter,
+	FQuantizedLightmapData*& SourceQuantizedData,
+	const TMap<ULightComponent*, FShadowMapData2D*>& SourceShadowMapData,
+	const FBoxSphereBounds& Bounds, ELightMapPaddingType InPaddingType, ELightMapFlags InLightmapFlags)
 {
 	// If the light-map has no lights in it, return NULL.
-	if (!SourceQuantizedData)
+	if (!SourceQuantizedData && SourceShadowMapData.Num() == 0)
 	{
 		return NULL;
 	}
@@ -1775,11 +1882,70 @@ TRefCountPtr<FLightMap2D> FLightMap2D::AllocateLightMap(UObject* LightMapOuter, 
 	}
 
 	// Create a new light-map.
-	TRefCountPtr<FLightMap2D> LightMap = TRefCountPtr<FLightMap2D>(new FLightMap2D(SourceQuantizedData->LightGuids));
+	TRefCountPtr<FLightMap2D> LightMap = TRefCountPtr<FLightMap2D>(new FLightMap2D());
+	uint32 SizeX = 0u;
+	uint32 SizeY = 0u;
+	if (SourceQuantizedData)
+	{
+		LightMap->LightGuids = SourceQuantizedData->LightGuids;
+		SizeX = SourceQuantizedData->SizeX;
+		SizeY = SourceQuantizedData->SizeY;
+	}
+	for (const auto& It : SourceShadowMapData)
+	{
+		const FShadowMapData2D* ShadowMapData = It.Value;
+		LightMap->LightGuids.AddUnique(It.Key->LightGuid);
+		check(SizeX == 0u || SizeX == ShadowMapData->GetSizeX());
+		check(SizeY == 0u || SizeY == ShadowMapData->GetSizeY());
+		SizeX = ShadowMapData->GetSizeX();
+		SizeY = ShadowMapData->GetSizeY();
+	}
 
 	// Create allocation and add it to the group
 	{
-		TUniquePtr<FLightMapAllocation> Allocation = MakeUnique<FLightMapAllocation>(MoveTemp(*SourceQuantizedData));
+		TUniquePtr<FLightMapAllocation> Allocation = MakeUnique<FLightMapAllocation>();
+		Allocation->TotalSizeX = SizeX;
+		Allocation->TotalSizeY = SizeY;
+		Allocation->MappedRect.Max.X = SizeX;
+		Allocation->MappedRect.Max.Y = SizeY;
+		Allocation->PaddingType = GAllowLightmapPadding ? LMPT_NormalPadding : LMPT_NoPadding;
+		if (SourceQuantizedData)
+		{
+			FMemory::Memcpy(Allocation->Scale, SourceQuantizedData->Scale, sizeof(Allocation->Scale));
+			FMemory::Memcpy(Allocation->Add, SourceQuantizedData->Add, sizeof(Allocation->Add));
+			Allocation->RawData = MoveTemp(SourceQuantizedData->Data);
+			Allocation->bHasSkyShadowing = SourceQuantizedData->bHasSkyShadowing;
+
+			// SourceQuantizedData is no longer needed now that FLightMapAllocation has what it needs
+			delete SourceQuantizedData;
+			SourceQuantizedData = NULL;
+
+			// Track the size of pending light-maps.
+			PendingLightMapSize += ((Allocation->TotalSizeX + 3) & ~3) * ((Allocation->TotalSizeY + 3) & ~3);
+		}
+
+		for (const auto& It : SourceShadowMapData)
+		{
+			const FShadowMapData2D* RawData = It.Value;
+			TArray<FQuantizedSignedDistanceFieldShadowSample>& DistanceFieldShadowData = Allocation->ShadowMapData.Add(It.Key, TArray<FQuantizedSignedDistanceFieldShadowSample>());
+
+			switch (RawData->GetType())
+			{
+			case FShadowMapData2D::SHADOW_SIGNED_DISTANCE_FIELD_DATA:
+			case FShadowMapData2D::SHADOW_SIGNED_DISTANCE_FIELD_DATA_QUANTIZED:
+				// If the data is already quantized, this will just copy the data
+				RawData->Quantize(DistanceFieldShadowData);
+				break;
+			default:
+				check(0);
+			}
+
+			delete RawData;
+
+			// Track the size of pending light-maps.
+			PendingLightMapSize += Allocation->TotalSizeX * Allocation->TotalSizeY;
+		}
+
 		Allocation->PaddingType = InPaddingType;
 		Allocation->LightMap = LightMap;
 
@@ -1800,13 +1966,6 @@ TRefCountPtr<FLightMap2D> FLightMap2D::AllocateLightMap(UObject* LightMapOuter, 
 		}
 #endif
 
-		// SourceQuantizedData is no longer needed now that FLightMapAllocation has what it needs
-		delete SourceQuantizedData;
-		SourceQuantizedData = NULL;
-
-		// Track the size of pending light-maps.
-		PendingLightMapSize += ((Allocation->TotalSizeX + 3) & ~3) * ((Allocation->TotalSizeY + 3) & ~3);
-
 		AllocationGroup.Allocations.Add(MoveTemp(Allocation));
 	}
 
@@ -1818,18 +1977,47 @@ TRefCountPtr<FLightMap2D> FLightMap2D::AllocateLightMap(UObject* LightMapOuter, 
 #endif // WITH_EDITOR
 }
 
-TRefCountPtr<FLightMap2D> FLightMap2D::AllocateInstancedLightMap(UObject* LightMapOuter, UInstancedStaticMeshComponent* Component, TArray<TUniquePtr<FQuantizedLightmapData>> InstancedSourceQuantizedData,
+TRefCountPtr<FLightMap2D> FLightMap2D::AllocateInstancedLightMap(UObject* LightMapOuter, UInstancedStaticMeshComponent* Component,
+	TArray<TUniquePtr<FQuantizedLightmapData>> InstancedSourceQuantizedData,
+	TArray<TMap<ULightComponent*, TUniquePtr<FShadowMapData2D>>>&& InstancedShadowMapData,
 	UMapBuildDataRegistry* Registry, FGuid MapBuildDataId, const FBoxSphereBounds& Bounds, ELightMapPaddingType InPaddingType, ELightMapFlags InLightmapFlags)
 {
 #if WITH_EDITOR
 	check(InstancedSourceQuantizedData.Num() > 0);
+	check(InstancedShadowMapData.Num() == 0 || InstancedShadowMapData.Num() == InstancedSourceQuantizedData.Num());
 
 	// Verify all instance lightmaps are the same size
+	const uint32 SizeX = InstancedSourceQuantizedData[0]->SizeX;
+	const uint32 SizeY = InstancedSourceQuantizedData[0]->SizeY;
 	for (int32 InstanceIndex = 1; InstanceIndex < InstancedSourceQuantizedData.Num(); ++InstanceIndex)
 	{
 		auto& SourceQuantizedData = InstancedSourceQuantizedData[InstanceIndex];
-		check(SourceQuantizedData->SizeX == InstancedSourceQuantizedData[0]->SizeX);
-		check(SourceQuantizedData->SizeY == InstancedSourceQuantizedData[0]->SizeY);
+		check(SourceQuantizedData->SizeX == SizeX);
+		check(SourceQuantizedData->SizeY == SizeY);
+	}
+
+	TSet<ULightComponent*> AllLights;
+	for (int32 InstanceIndex = 0; InstanceIndex < InstancedShadowMapData.Num(); ++InstanceIndex)
+	{
+		for (const auto& It : InstancedShadowMapData[InstanceIndex])
+		{
+			const FShadowMapData2D* ShadowData = It.Value.Get();
+			check(ShadowData->GetSizeX() == SizeX);
+			check(ShadowData->GetSizeY() == SizeY);
+			AllLights.Add(It.Key);
+		}
+	}
+
+	// Unify all the shadow map data to contain the same lights in the same order
+	for (auto& ShadowMapData : InstancedShadowMapData)
+	{
+		for (ULightComponent* Light : AllLights)
+		{
+			if (!ShadowMapData.Contains(Light))
+			{
+				ShadowMapData.Add(Light, MakeUnique<FQuantizedShadowSignedDistanceFieldData2D>(SizeX, SizeY));
+			}
+		}
 	}
 
 	// Requantize source data to the same quantization
@@ -1961,6 +2149,20 @@ TRefCountPtr<FLightMap2D> FLightMap2D::AllocateInstancedLightMap(UObject* LightM
 		// Create a new light-map.
 		TRefCountPtr<FLightMap2D> LightMap = TRefCountPtr<FLightMap2D>(new FLightMap2D(SourceQuantizedData->LightGuids));
 
+		if (InstancedShadowMapData.Num() != 0)
+		{
+			// Include light guids from shadowmap lights, if present
+			for (auto& It : InstancedShadowMapData[InstanceIndex])
+			{
+				LightMap->LightGuids.AddUnique(It.Key->LightGuid);
+				if (BaseLightmap)
+				{
+					// Base lightmap contains guids for all lights used by group
+					BaseLightmap->LightGuids.AddUnique(It.Key->LightGuid);
+				}
+			}
+		}
+
 		if (InstanceIndex == 0)
 		{
 			BaseLightmap = LightMap;
@@ -1981,6 +2183,31 @@ TRefCountPtr<FLightMap2D> FLightMap2D::AllocateInstancedLightMap(UObject* LightM
 		Allocation->Registry = Registry;
 		Allocation->MapBuildDataId = MapBuildDataId;
 		Allocation->InstanceIndex = InstanceIndex;
+
+		if (InstancedShadowMapData.Num() != 0)
+		{
+			for (auto& It : InstancedShadowMapData[InstanceIndex])
+			{
+				TUniquePtr<FShadowMapData2D>& RawData = It.Value;
+				TArray<FQuantizedSignedDistanceFieldShadowSample>& DistanceFieldShadowData = Allocation->ShadowMapData.Add(It.Key, TArray<FQuantizedSignedDistanceFieldShadowSample>());
+
+				switch (RawData->GetType())
+				{
+				case FShadowMapData2D::SHADOW_SIGNED_DISTANCE_FIELD_DATA:
+				case FShadowMapData2D::SHADOW_SIGNED_DISTANCE_FIELD_DATA_QUANTIZED:
+					// If the data is already quantized, this will just copy the data
+					RawData->Quantize(DistanceFieldShadowData);
+					break;
+				default:
+					check(0);
+				}
+
+				RawData.Reset();
+
+				// Track the size of pending light-maps.
+				PendingLightMapSize += Allocation->TotalSizeX * Allocation->TotalSizeY;
+			}
+		}
 
 		// SourceQuantizedData is no longer needed now that FLightMapAllocation has what it needs
 		SourceQuantizedData.Reset();
@@ -2207,22 +2434,302 @@ void FLightMap2D::EncodeTextures( UWorld* InWorld, bool bLightingSuccessful, boo
 #endif //WITH_EDITOR
 }
 
+#if WITH_EDITOR
+int32 FLightMap2D::EncodeShadowTexture(ULevel* LightingScenario, struct FLightMapPendingTexture& PendingTexture, UShadowMapTexture2D* Texture, TArray< TArray<FFourDistanceFieldSamples>>& MipData)
+{
+	TArray<FFourDistanceFieldSamples>* TopMipData = new(MipData) TArray<FFourDistanceFieldSamples>();
+	TopMipData->Empty(PendingTexture.GetSizeX() * PendingTexture.GetSizeY());
+	TopMipData->AddZeroed(PendingTexture.GetSizeX() * PendingTexture.GetSizeY());
+	int32 TextureSizeX = PendingTexture.GetSizeX();
+	int32 TextureSizeY = PendingTexture.GetSizeY();
+	int32 MaxChannelsUsed = 0;
+
+	for (int32 AllocationIndex = 0; AllocationIndex < PendingTexture.Allocations.Num(); AllocationIndex++)
+	{
+		FLightMapAllocation& Allocation = *PendingTexture.Allocations[AllocationIndex];
+		bool bChannelUsed[4] = { 0 };
+		FVector4 InvUniformPenumbraSize(0, 0, 0, 0);
+
+		for (int32 ChannelIndex = 0; ChannelIndex < 4; ChannelIndex++)
+		{
+			for (const auto& ShadowMapPair : Allocation.ShadowMapData)
+			{
+				ULightComponent* CurrentLight = ShadowMapPair.Key;
+				ULevel* StorageLevel = LightingScenario ? LightingScenario : CurrentLight->GetOwner()->GetLevel();
+				UMapBuildDataRegistry* Registry = StorageLevel->MapBuildData;
+				const FLightComponentMapBuildData* LightBuildData = Registry->GetLightBuildData(CurrentLight->LightGuid);
+
+				// Should have been setup by ReassignStationaryLightChannels
+				check(LightBuildData);
+
+				if (LightBuildData->ShadowMapChannel == ChannelIndex)
+				{
+					MaxChannelsUsed = FMath::Max(MaxChannelsUsed, ChannelIndex + 1);
+					bChannelUsed[ChannelIndex] = true;
+					const TArray<FQuantizedSignedDistanceFieldShadowSample>& SourceSamples = ShadowMapPair.Value;
+
+					// Warning - storing one penumbra size for the whole shadowmap even though multiple lights can share a channel
+					InvUniformPenumbraSize[ChannelIndex] = 1.0f / ShadowMapPair.Key->GetUniformPenumbraSize();
+
+					// Copy the raw data for this light-map into the raw texture data array.
+					for (int32 Y = Allocation.MappedRect.Min.Y; Y < Allocation.MappedRect.Max.Y; ++Y)
+					{
+						for (int32 X = Allocation.MappedRect.Min.X; X < Allocation.MappedRect.Max.X; ++X)
+						{
+							int32 DestY = Y - Allocation.MappedRect.Min.Y + Allocation.OffsetY;
+							int32 DestX = X - Allocation.MappedRect.Min.X + Allocation.OffsetX;
+
+							FFourDistanceFieldSamples& DestSample = (*TopMipData)[DestY * TextureSizeX + DestX];
+							const FQuantizedSignedDistanceFieldShadowSample& SourceSample = SourceSamples[Y * Allocation.TotalSizeX + X];
+
+							if (SourceSample.Coverage > 0)
+							{
+								// Note: multiple lights can write to different parts of the destination due to channel assignment
+								DestSample.Samples[ChannelIndex] = SourceSample;
+							}
+							/*(if (SourceSample.Coverage > 0)
+							{
+								GNumShadowmapMappedTexels++;
+							}
+							else
+							{
+								GNumShadowmapUnmappedTexels++;
+							}*/
+						}
+					}
+				}
+			}
+		}
+
+		// Link the shadow-map to the texture.
+		Allocation.LightMap->ShadowMapTexture = Texture;
+
+		// Free the shadow-map's raw data.
+		for (auto& ShadowMapPair : Allocation.ShadowMapData)
+		{
+			ShadowMapPair.Value.Empty();
+		}
+
+		int32 PaddedSizeX = Allocation.TotalSizeX;
+		int32 PaddedSizeY = Allocation.TotalSizeY;
+		int32 BaseX = Allocation.OffsetX - Allocation.MappedRect.Min.X;
+		int32 BaseY = Allocation.OffsetY - Allocation.MappedRect.Min.Y;
+
+		if (GLightmassDebugOptions.bPadMappings && (Allocation.PaddingType == LMPT_NormalPadding))
+		{
+			if ((PaddedSizeX - 2 > 0) && ((PaddedSizeY - 2) > 0))
+			{
+				PaddedSizeX -= 2;
+				PaddedSizeY -= 2;
+				BaseX += 1;
+				BaseY += 1;
+			}
+		}
+
+		for (int32 ChannelIndex = 0; ChannelIndex < 4; ChannelIndex++)
+		{
+			Allocation.LightMap->bShadowChannelValid[ChannelIndex] = bChannelUsed[ChannelIndex];
+		}
+
+		Allocation.LightMap->InvUniformPenumbraSize = InvUniformPenumbraSize;
+	}
+
+	const uint32 NumMips = FMath::Max(FMath::CeilLogTwo(TextureSizeX), FMath::CeilLogTwo(TextureSizeY)) + 1;
+
+	for (uint32 MipIndex = 1; MipIndex < NumMips; MipIndex++)
+	{
+		const uint32 SourceMipSizeX = FMath::Max(1, TextureSizeX >> (MipIndex - 1));
+		const uint32 SourceMipSizeY = FMath::Max(1, TextureSizeY >> (MipIndex - 1));
+		const uint32 DestMipSizeX = FMath::Max(1, TextureSizeX >> MipIndex);
+		const uint32 DestMipSizeY = FMath::Max(1, TextureSizeY >> MipIndex);
+
+		// Downsample the previous mip-level, taking into account which texels are mapped.
+		TArray<FFourDistanceFieldSamples>* NextMipData = new(MipData) TArray<FFourDistanceFieldSamples>();
+		NextMipData->Empty(DestMipSizeX * DestMipSizeY);
+		NextMipData->AddZeroed(DestMipSizeX * DestMipSizeY);
+		const uint32 MipFactorX = SourceMipSizeX / DestMipSizeX;
+		const uint32 MipFactorY = SourceMipSizeY / DestMipSizeY;
+
+		for (uint32 Y = 0; Y < DestMipSizeY; Y++)
+		{
+			for (uint32 X = 0; X < DestMipSizeX; X++)
+			{
+				float AccumulatedFilterableComponents[4][FQuantizedSignedDistanceFieldShadowSample::NumFilterableComponents];
+
+				for (int32 ChannelIndex = 0; ChannelIndex < 4; ChannelIndex++)
+				{
+					for (int32 i = 0; i < FQuantizedSignedDistanceFieldShadowSample::NumFilterableComponents; i++)
+					{
+						AccumulatedFilterableComponents[ChannelIndex][i] = 0;
+					}
+				}
+				uint32 Coverage[4] = { 0 };
+
+				for (uint32 SourceY = Y * MipFactorY; SourceY < (Y + 1) * MipFactorY; SourceY++)
+				{
+					for (uint32 SourceX = X * MipFactorX; SourceX < (X + 1) * MipFactorX; SourceX++)
+					{
+						for (int32 ChannelIndex = 0; ChannelIndex < 4; ChannelIndex++)
+						{
+							const FFourDistanceFieldSamples& FourSourceSamples = MipData[MipIndex - 1][SourceY * SourceMipSizeX + SourceX];
+							const FQuantizedSignedDistanceFieldShadowSample& SourceSample = FourSourceSamples.Samples[ChannelIndex];
+
+							if (SourceSample.Coverage)
+							{
+								for (int32 i = 0; i < FQuantizedSignedDistanceFieldShadowSample::NumFilterableComponents; i++)
+								{
+									AccumulatedFilterableComponents[ChannelIndex][i] += SourceSample.GetFilterableComponent(i) * SourceSample.Coverage;
+								}
+
+								Coverage[ChannelIndex] += SourceSample.Coverage;
+							}
+						}
+					}
+				}
+
+				FFourDistanceFieldSamples& FourDestSamples = (*NextMipData)[Y * DestMipSizeX + X];
+
+				for (int32 ChannelIndex = 0; ChannelIndex < 4; ChannelIndex++)
+				{
+					FQuantizedSignedDistanceFieldShadowSample& DestSample = FourDestSamples.Samples[ChannelIndex];
+
+					if (Coverage[ChannelIndex])
+					{
+						for (int32 i = 0; i < FQuantizedSignedDistanceFieldShadowSample::NumFilterableComponents; i++)
+						{
+							DestSample.SetFilterableComponent(AccumulatedFilterableComponents[ChannelIndex][i] / (float)Coverage[ChannelIndex], i);
+						}
+
+						DestSample.Coverage = (uint8)(Coverage[ChannelIndex] / (MipFactorX * MipFactorY));
+					}
+					else
+					{
+						for (int32 i = 0; i < FQuantizedSignedDistanceFieldShadowSample::NumFilterableComponents; i++)
+						{
+							AccumulatedFilterableComponents[ChannelIndex][i] = 0;
+						}
+						DestSample.Coverage = 0;
+					}
+				}
+			}
+		}
+	}
+
+	const FIntPoint Neighbors[] =
+	{
+		// Check immediate neighbors first
+		FIntPoint(1,0),
+		FIntPoint(0,1),
+		FIntPoint(-1,0),
+		FIntPoint(0,-1),
+		// Check diagonal neighbors if no immediate neighbors are found
+		FIntPoint(1,1),
+		FIntPoint(-1,1),
+		FIntPoint(-1,-1),
+		FIntPoint(1,-1)
+	};
+
+	// Extrapolate texels which are mapped onto adjacent texels which are not mapped to avoid artifacts when using texture filtering.
+	for (int32 MipIndex = 0; MipIndex < MipData.Num(); MipIndex++)
+	{
+		uint32 MipSizeX = FMath::Max(1, TextureSizeX >> MipIndex);
+		uint32 MipSizeY = FMath::Max(1, TextureSizeY >> MipIndex);
+
+		for (uint32 DestY = 0; DestY < MipSizeY; DestY++)
+		{
+			for (uint32 DestX = 0; DestX < MipSizeX; DestX++)
+			{
+				FFourDistanceFieldSamples& FourDestSamples = MipData[MipIndex][DestY * MipSizeX + DestX];
+
+				for (int32 ChannelIndex = 0; ChannelIndex < 4; ChannelIndex++)
+				{
+					FQuantizedSignedDistanceFieldShadowSample& DestSample = FourDestSamples.Samples[ChannelIndex];
+
+					if (DestSample.Coverage == 0)
+					{
+						float ExtrapolatedFilterableComponents[FQuantizedSignedDistanceFieldShadowSample::NumFilterableComponents];
+
+						for (int32 i = 0; i < FQuantizedSignedDistanceFieldShadowSample::NumFilterableComponents; i++)
+						{
+							ExtrapolatedFilterableComponents[i] = 0;
+						}
+
+						for (int32 NeighborIndex = 0; NeighborIndex < ARRAY_COUNT(Neighbors); NeighborIndex++)
+						{
+							if (static_cast<int32>(DestY) + Neighbors[NeighborIndex].Y >= 0
+								&& DestY + Neighbors[NeighborIndex].Y < MipSizeY
+								&& static_cast<int32>(DestX) + Neighbors[NeighborIndex].X >= 0
+								&& DestX + Neighbors[NeighborIndex].X < MipSizeX)
+							{
+								const FFourDistanceFieldSamples& FourNeighborSamples = MipData[MipIndex][(DestY + Neighbors[NeighborIndex].Y) * MipSizeX + DestX + Neighbors[NeighborIndex].X];
+								const FQuantizedSignedDistanceFieldShadowSample& NeighborSample = FourNeighborSamples.Samples[ChannelIndex];
+
+								if (NeighborSample.Coverage > 0)
+								{
+									if (static_cast<int32>(DestY) + Neighbors[NeighborIndex].Y * 2 >= 0
+										&& DestY + Neighbors[NeighborIndex].Y * 2 < MipSizeY
+										&& static_cast<int32>(DestX) + Neighbors[NeighborIndex].X * 2 >= 0
+										&& DestX + Neighbors[NeighborIndex].X * 2 < MipSizeX)
+									{
+										// Lookup the second neighbor in the first neighbor's direction
+										//@todo - check the second neighbor's coverage?
+										const FFourDistanceFieldSamples& SecondFourNeighborSamples = MipData[MipIndex][(DestY + Neighbors[NeighborIndex].Y * 2) * MipSizeX + DestX + Neighbors[NeighborIndex].X * 2];
+										const FQuantizedSignedDistanceFieldShadowSample& SecondNeighborSample = FourNeighborSamples.Samples[ChannelIndex];
+
+										for (int32 i = 0; i < FQuantizedSignedDistanceFieldShadowSample::NumFilterableComponents; i++)
+										{
+											// Extrapolate while maintaining the first derivative, which is especially important for signed distance fields
+											ExtrapolatedFilterableComponents[i] = NeighborSample.GetFilterableComponent(i) * 2.0f - SecondNeighborSample.GetFilterableComponent(i);
+										}
+									}
+									else
+									{
+										// Couldn't find a second neighbor to use for extrapolating, just copy the neighbor's values
+										for (int32 i = 0; i < FQuantizedSignedDistanceFieldShadowSample::NumFilterableComponents; i++)
+										{
+											ExtrapolatedFilterableComponents[i] = NeighborSample.GetFilterableComponent(i);
+										}
+									}
+									break;
+								}
+							}
+						}
+						for (int32 i = 0; i < FQuantizedSignedDistanceFieldShadowSample::NumFilterableComponents; i++)
+						{
+							DestSample.SetFilterableComponent(ExtrapolatedFilterableComponents[i], i);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return MaxChannelsUsed;
+}
+#endif // WITH_EDITOR
+
 FLightMap2D::FLightMap2D()
 {
+	FMemory::Memzero(bShadowChannelValid);
+
 	Textures[0] = NULL;
 	Textures[1] = NULL;
 	SkyOcclusionTexture = NULL;
 	AOMaterialMaskTexture = NULL;
+	ShadowMapTexture = NULL;
 	VirtualTexture = NULL;
 }
 
 FLightMap2D::FLightMap2D(const TArray<FGuid>& InLightGuids)
 {
+	FMemory::Memzero(bShadowChannelValid);
+
 	LightGuids = InLightGuids;
 	Textures[0] = NULL;
 	Textures[1] = NULL;
 	SkyOcclusionTexture = NULL;
 	AOMaterialMaskTexture = NULL;
+	ShadowMapTexture = NULL;
 	VirtualTexture = NULL;
 }
 
@@ -2274,6 +2781,7 @@ void FLightMap2D::AddReferencedObjects( FReferenceCollector& Collector )
 	Collector.AddReferencedObject(Textures[1]);
 	Collector.AddReferencedObject(SkyOcclusionTexture);
 	Collector.AddReferencedObject(AOMaterialMaskTexture);
+	Collector.AddReferencedObject(ShadowMapTexture);
 	Collector.AddReferencedObject(VirtualTexture);
 }
 
@@ -2284,8 +2792,7 @@ void FLightMap2D::Serialize(FArchive& Ar)
 	FLightMap::Serialize(Ar);
 
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
-	bool bUsingVTLightmaps = CVar->GetValueOnAnyThread() != 0;
-
+	const bool bUsingVTLightmaps = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(GMaxRHIFeatureLevel, Ar.CookingTarget());
 
 	if( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_LOW_QUALITY_DIRECTIONAL_LIGHTMAPS )
 	{
@@ -2366,14 +2873,9 @@ void FLightMap2D::Serialize(FArchive& Ar)
 
 	if (Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::LightmapHasShadowmapData)
 	{
-		// In Dev-VT, when VT lightmaps are enabled, baked shadow data is combined with lightmap data, and serialized along with lightmap
-		// This is here as a placeholder
-		FVector4 InvUniformPenumbraSize(ForceInitToZero);
-		bool bShadowChannelValid = false;
-
-		for (int Channel = 0; Channel < 4; Channel++)
+		for (int Channel = 0; Channel < ARRAY_COUNT(bShadowChannelValid); Channel++)
 		{
-			Ar << bShadowChannelValid;
+			Ar << bShadowChannelValid[Channel];
 		}
 
 		Ar << InvUniformPenumbraSize;
@@ -2382,9 +2884,22 @@ void FLightMap2D::Serialize(FArchive& Ar)
 	if (Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::VirtualTexturedLightmaps)
 	{
 		// Don't save VT's if they are disabled for rendering
-		if (bUsingVTLightmaps)
+		if ( bUsingVTLightmaps )
 		{
-			Ar << VirtualTexture;
+			// TEMPORARY - Once this is merged into Dev-Rendering, this will be removed, and an updated FRenderingObjectVersion will cause new VT lightmaps to be serialized
+			// This is just in place so we can see VT lightmaps in world settings, without messing up normal UObject serialization
+			if (Ar.ArIsObjectReferenceCollector)
+			{
+				Ar << VirtualTexture;
+			}
+
+			// TODO - add serialize code for new ULightMapVirtualTexture2D
+			ULightMapVirtualTexture* Dummy = NULL;
+			Ar << Dummy;
+			if (Ar.IsLoading())
+			{
+				VirtualTexture = nullptr;
+			}
 		}
 		else
 		{
@@ -2445,7 +2960,8 @@ FLightMapInteraction FLightMap2D::GetInteraction(ERHIFeatureLevel::Type InFeatur
 	int32 LightmapIndex = bHighQuality ? 0 : 1;
 
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
-	if (CVar->GetValueOnRenderThread() == 0)
+	const bool bUseVirtualTextures = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(InFeatureLevel);
+	if (!bUseVirtualTextures)
 	{
 		bool bValidTextures = Textures[LightmapIndex] && Textures[LightmapIndex]->Resource;
 
@@ -2457,7 +2973,7 @@ FLightMapInteraction FLightMap2D::GetInteraction(ERHIFeatureLevel::Type InFeatur
 	}
 	else
 	{
-		bool bValidVirtualTexture = VirtualTexture && VirtualTexture->IsResourceValid();
+		bool bValidVirtualTexture = VirtualTexture && VirtualTexture->Resource;
 		if (bValidVirtualTexture)
 		{
 			return FLightMapInteraction::InitVirtualTexture(VirtualTexture, ScaleVectors, AddVectors, CoordinateScale, CoordinateBias, bHighQuality);
@@ -2465,6 +2981,21 @@ FLightMapInteraction FLightMap2D::GetInteraction(ERHIFeatureLevel::Type InFeatur
 	}
 
 	return FLightMapInteraction::None();
+}
+
+FShadowMapInteraction FLightMap2D::GetShadowInteraction(ERHIFeatureLevel::Type InFeatureLevel) const
+{
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
+	const bool bUseVirtualTextures = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(InFeatureLevel);
+	if (bUseVirtualTextures)
+	{
+		const bool bValidVirtualTexture = VirtualTexture && VirtualTexture->Resource;
+		if (bValidVirtualTexture)
+		{
+			return FShadowMapInteraction::InitVirtualTexture(VirtualTexture, CoordinateScale, CoordinateBias, bShadowChannelValid, InvUniformPenumbraSize);
+		}
+	}
+	return FShadowMapInteraction::None();
 }
 
 void FLegacyLightMap1D::Serialize(FArchive& Ar)
@@ -2645,6 +3176,14 @@ bool FQuantizedLightmapData::HasNonZeroData() const
 	return false;
 }
 
+FLightmapResourceCluster::~FLightmapResourceCluster()
+{
+	if (AllocatedVT)
+	{
+		GetRendererModule().DestroyVirtualTexture(AllocatedVT);
+	}
+}
+
 void FLightmapResourceCluster::UpdateUniformBuffer(ERHIFeatureLevel::Type InFeatureLevel)
 {
 	FLightmapResourceCluster* Cluster = this;
@@ -2652,19 +3191,74 @@ void FLightmapResourceCluster::UpdateUniformBuffer(ERHIFeatureLevel::Type InFeat
 	ENQUEUE_RENDER_COMMAND(SetFeatureLevel)(
 		[Cluster, InFeatureLevel](FRHICommandList& RHICmdList)
 	{
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
+		const bool bAllowHighQualityLightMaps = AllowHighQualityLightmaps(InFeatureLevel);
+		const bool bUseVirtualTextures = bAllowHighQualityLightMaps && (CVar->GetValueOnRenderThread() != 0) && UseVirtualTexturing(InFeatureLevel);
+	
 		Cluster->FeatureLevel = InFeatureLevel;
 
 		FLightmapResourceClusterShaderParameters Parameters;
-		GetLightmapClusterResourceParameters(InFeatureLevel, Cluster->Input, Parameters);
+		GetLightmapClusterResourceParameters(InFeatureLevel, Cluster->Input, bUseVirtualTextures ? Cluster->AcquireAllocatedVT() : nullptr, Parameters);
 
 		RHIUpdateUniformBuffer(Cluster->UniformBuffer, &Parameters);
 	});
 }
 
+IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
+{
+	check(IsInRenderingThread());
+
+	const ULightMapVirtualTexture2D* VirtualTexture = Input.LightMapVirtualTexture;
+	if (!AllocatedVT && VirtualTexture && VirtualTexture->Resource)
+	{
+		check(VirtualTexture->VirtualTextureStreaming);
+		const FVirtualTexture2DResource* Resource = (FVirtualTexture2DResource*)VirtualTexture->Resource;
+
+		FAllocatedVTDescription VTDesc;
+		VTDesc.Dimensions = 2;
+		VTDesc.TileSize = Resource->GetTileSize();
+		VTDesc.TileBorderSize = Resource->GetBorderSize();
+		VTDesc.NumLayers = 0u;
+
+		for (uint32 TypeIndex = 0u; TypeIndex < (uint32)ELightMapVirtualTextureType::Count; ++TypeIndex)
+		{
+			const uint32 LayerIndex = VirtualTexture->GetLayerForType((ELightMapVirtualTextureType)TypeIndex);
+			if (LayerIndex != ~0u)
+			{
+				VTDesc.NumLayers = TypeIndex + 1u;
+				VTDesc.ProducerHandle[TypeIndex] = Resource->GetProducerHandle(); // use the same producer for each layer
+				VTDesc.LocalLayerToProduce[TypeIndex] = LayerIndex;
+			}
+			else
+			{
+				VTDesc.ProducerHandle[TypeIndex] = FVirtualTextureProducerHandle();
+			}
+		}
+
+		check(VTDesc.NumLayers > 0u);
+		for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumLayers; ++LayerIndex)
+		{
+			if (VTDesc.ProducerHandle[LayerIndex].PackedValue == 0u)
+			{
+				// if there are any layer 'holes' in our allocated VT, point the empty layer to layer0
+				// this isn't strictly necessary, but without this VT feedback analysis will see an unmapped page each frame for the empty layer,
+				// and attempt to do some extra work before determining there's nothing else to do...this wastes CPU time
+				// By mapping to layer0, we ensure that every layer has a valid mapping, and the overhead of mapping the empty layer to layer0 is very small, since layer0 will already be resident
+				VTDesc.ProducerHandle[LayerIndex] = Resource->GetProducerHandle();
+				VTDesc.LocalLayerToProduce[LayerIndex] = 0u;
+			}
+		}
+
+		AllocatedVT = GetRendererModule().AllocateVirtualTexture(VTDesc);
+	}
+
+	return AllocatedVT;
+}
+
 void FLightmapResourceCluster::InitRHI()
 {
 	FLightmapResourceClusterShaderParameters Parameters;
-	GetLightmapClusterResourceParameters(GMaxRHIFeatureLevel, FLightmapClusterResourceInput(), Parameters);
+	GetLightmapClusterResourceParameters(GMaxRHIFeatureLevel, FLightmapClusterResourceInput(), nullptr, Parameters);
 
 	UniformBuffer = FLightmapResourceClusterShaderParameters::CreateUniformBuffer(Parameters, UniformBuffer_MultiFrame);
 }

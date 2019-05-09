@@ -943,7 +943,7 @@ private:
 	 * This is used to link uniform texture expressions which were stored in the DDC with the UTextures that they reference.
 	 */
 	UPROPERTY(transient)
-	TArray<UTexture*> ExpressionTextureReferences;
+	TArray<UObject*> ExpressionTextureReferences;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -1474,10 +1474,10 @@ private:
 	 * Caller is responsible for deleting OutCachedMaterialResources.
 	 * Note: This modifies material variables used for rendering and is assumed to be called within a FMaterialUpdateContext!
 	 */
-	void CacheResourceShadersForCooking(EShaderPlatform Platform, TArray<FMaterialResource*>& OutCachedMaterialResources);
+	void CacheResourceShadersForCooking(EShaderPlatform Platform, TArray<FMaterialResource*>& OutCachedMaterialResources, const ITargetPlatform* TargetPlatform = nullptr);
 
 	/** Caches shader maps for an array of material resources. */
-	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, bool bApplyCompletedShaderMapForRendering);
+	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, bool bApplyCompletedShaderMapForRendering, const ITargetPlatform* TargetPlatform = nullptr);
 
 	/**
 	 * If there is some texture reference used by a TextureProperty node in any expressions, this function
@@ -1665,7 +1665,7 @@ public:
 #endif
 
 	/** Appends textures referenced by expressions, including nested functions. */
-	ENGINE_API virtual void AppendReferencedTextures(TArray<UTexture*>& InOutTextures) const override;
+	ENGINE_API virtual void AppendReferencedTextures(TArray<UObject*>& InOutTextures) const override;
 
 protected:
 

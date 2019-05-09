@@ -6,6 +6,7 @@
 FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHIResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat)
 	: VulkanRHI::FDeviceChild(Device)
 	, BufferViewFormat(InFormat)
+	, SRGBOverride(SRGBO_Default)
 	, SourceTexture(nullptr)
 	, SourceStructuredBuffer(nullptr)
 	, MipLevel(0)
@@ -99,6 +100,8 @@ void FVulkanShaderResourceView::UpdateView()
 	}
 	else
 	{
+		ensure(SRGBOverride == SRGBO_Default); // TODO - handle other cases
+
 		if (TextureView.View == VK_NULL_HANDLE)
 		{
 			EPixelFormat Format = (BufferViewFormat == PF_Unknown) ? SourceTexture->GetFormat() : BufferViewFormat;
@@ -279,33 +282,9 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FVertex
 	return new FVulkanShaderResourceView(Device, VertexBufferRHI, VertexBuffer, VertexBuffer->GetSize(), (EPixelFormat)Format);
 }
 
-FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FTexture2DRHIParamRef Texture2DRHI, uint8 MipLevel)
+FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FTextureRHIParamRef Texture, const FRHITextureSRVCreateInfo& CreateInfo)
 {
-	FVulkanShaderResourceView* SRV = new FVulkanShaderResourceView(Device, Texture2DRHI, MipLevel, 1, ResourceCast(Texture2DRHI)->Surface.PixelFormat);
-	return SRV;
-}
-
-FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FTexture2DRHIParamRef Texture2DRHI, uint8 MipLevel, uint8 NumMipLevels, uint8 Format)
-{
-	FVulkanShaderResourceView* SRV = new FVulkanShaderResourceView(Device, Texture2DRHI, MipLevel, NumMipLevels, (EPixelFormat)Format);
-	return SRV;
-}
-
-FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FTexture3DRHIParamRef Texture3DRHI, uint8 MipLevel)
-{
-	FVulkanShaderResourceView* SRV = new FVulkanShaderResourceView(Device, Texture3DRHI, MipLevel, 1, ResourceCast(Texture3DRHI)->Surface.PixelFormat);
-	return SRV;
-}
-
-FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FTexture2DArrayRHIParamRef Texture2DArrayRHI, uint8 MipLevel)
-{
-	FVulkanShaderResourceView* SRV = new FVulkanShaderResourceView(Device, Texture2DArrayRHI, MipLevel, 1, ResourceCast(Texture2DArrayRHI)->Surface.PixelFormat);
-	return SRV;
-}
-
-FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FTextureCubeRHIParamRef TextureCubeRHI, uint8 MipLevel)
-{
-	FVulkanShaderResourceView* SRV = new FVulkanShaderResourceView(Device, TextureCubeRHI, MipLevel, 1, ResourceCast(TextureCubeRHI)->Surface.PixelFormat);
+	FVulkanShaderResourceView* SRV = new FVulkanShaderResourceView(Device, Texture, CreateInfo);
 	return SRV;
 }
 

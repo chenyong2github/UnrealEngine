@@ -3,6 +3,7 @@
 #include "Engine/PostProcessVolume.h"
 #include "Engine/CollisionProfile.h"
 #include "Components/BrushComponent.h"
+#include "EngineUtils.h"
 
 APostProcessVolume::APostProcessVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -55,6 +56,23 @@ void APostProcessVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 				Settings.WeightedBlendables.Array[i] = FWeightedBlendable();
 			}
 		}
+	}
+
+	
+	if (PropertyChangedEvent.Property)
+	{
+#define CHECK_VIRTUALTEXTURE_USAGE(property)	{	\
+													static const FName PropertyName = GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, property); \
+													if (PropertyChangedEvent.Property->GetFName() == PropertyName)	\
+													{	\
+														VirtualTextureUtils::CheckAndReportInvalidUsage(this, PropertyName, Settings.property);	\
+													}	\
+												}
+		
+		CHECK_VIRTUALTEXTURE_USAGE(BloomDirtMask);
+		CHECK_VIRTUALTEXTURE_USAGE(ColorGradingLUT);
+		CHECK_VIRTUALTEXTURE_USAGE(LensFlareBokehShape);
+#undef CHECK_VIRTUALTEXTURE_USAGE
 	}
 }
 

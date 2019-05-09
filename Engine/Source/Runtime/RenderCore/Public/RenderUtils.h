@@ -121,9 +121,11 @@ extern RENDERCORE_API SIZE_T CalculateImageBytes(uint32 SizeX,uint32 SizeY,uint3
 
 /** A global white texture. */
 extern RENDERCORE_API class FTexture* GWhiteTexture;
+extern RENDERCORE_API class FTextureWithSRV* GWhiteTextureWithSRV;
 
 /** A global black texture. */
 extern RENDERCORE_API class FTexture* GBlackTexture;
+extern RENDERCORE_API class FTextureWithSRV* GBlackTextureWithSRV;
 
 /** A global black array texture. */
 extern RENDERCORE_API class FTexture* GBlackArrayTexture;
@@ -514,3 +516,8 @@ RENDERCORE_API FIndexBufferRHIRef& GetUnitCubeIndexBuffer();
 * be halved in size several times.
 */
 RENDERCORE_API void QuantizeSceneBufferSize(const FIntPoint& InBufferSize, FIntPoint& OutBufferSize);
+
+/**
+*	Checks if virtual texturing enabled and supported
+*/
+RENDERCORE_API bool UseVirtualTexturing(ERHIFeatureLevel::Type InFeatureLevel, const class ITargetPlatform* TargetPlatform = nullptr);

@@ -2614,6 +2614,9 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision)
 			}
 			MeshComponent->TranslucencySortPriority = TranslucencySortPriority;
 
+			MeshComponent->RuntimeVirtualTextures = RuntimeVirtualTextures;
+			MeshComponent->VirtualTextureRenderPassType = VirtualTextureRenderPassType;
+
 			MeshComponent->SetCastShadow(bCastShadow);
 			MeshComponent->InvalidateLightingCache();
 

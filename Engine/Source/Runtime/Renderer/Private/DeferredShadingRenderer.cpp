@@ -28,7 +28,6 @@
 #include "ClearQuad.h"
 #include "RendererModule.h"
 #include "VT/VirtualTextureSystem.h"
-#include "VT/VirtualTextureFeedback.h"
 #include "GPUScene.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "RayTracingDynamicGeometryCollection.h"
@@ -863,6 +862,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SceneContext.Allocate(RHICmdList, this);
 	}
 
+	const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);
+	if (bUseVirtualTexturing)
+	{
+		// AllocateResources needs to be called before RHIBeginScene
+		FVirtualTextureSystem::Get().AllocateResources(RHICmdList, FeatureLevel);
+	}
+
 	const bool bIsWireframe = ViewFamily.EngineShowFlags.Wireframe;
 
 	// Use readonly depth in the base pass if we have a full depth prepass
@@ -883,13 +889,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Find the visible primitives.
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 	bool bDoInitViewAftersPrepass = InitViews(RHICmdList, BasePassDepthStencilAccess, ILCTaskData, UpdateViewCustomDataEvents);
-
-	static const auto CVarVirtualTextureLightmaps = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
-	if (CVarVirtualTextureLightmaps && CVarVirtualTextureLightmaps->GetValueOnRenderThread())
-	{
-		// TODO should probably be in InitViews
-		GetVirtualTextureSystem()->Update( RHICmdList, FeatureLevel );
-	}
 
 #if !UE_BUILD_SHIPPING
 	if (CVarStallInitViews.GetValueOnRenderThread() > 0.0f)
@@ -914,11 +913,17 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SCOPE_CYCLE_COUNTER(STAT_PostInitViews_FlushDel);
 		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 	}
+
 	IRendererModule& RendererModule = GetRendererModule();
 	FPreSceneRenderValues PreSceneRenderValues = RendererModule.PreSceneRenderExtension();
 	Views[0].bUsesGlobalDistanceField |= PreSceneRenderValues.bUsesGlobalDistanceField;
 
 	UpdateGPUScene(RHICmdList, *Scene);
+
+	if (bUseVirtualTexturing)
+	{
+		FVirtualTextureSystem::Get().Update(RHICmdList, FeatureLevel);
+	}
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -1094,14 +1099,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_AsyncUpdateViewCustomData_Wait);
 		FTaskGraphInterface::Get().WaitUntilTasksComplete(UpdateViewCustomDataEvents, ENamedThreads::GetRenderThread());
 	}
+
 	
-	if (CVarVirtualTextureLightmaps && CVarVirtualTextureLightmaps->GetValueOnRenderThread())
-	{
-		// Create VT feedback buffer
-		FIntPoint Size = SceneContext.GetBufferSizeXY();
-		Size = FIntPoint::DivideAndRoundUp( Size, 16 );
-		GVirtualTextureFeedback.CreateResourceGPU( RHICmdList, Size.X, Size.Y );
-	}
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
@@ -1437,12 +1436,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	check(!SceneContext.DBufferA);
 	check(!SceneContext.DBufferB);
 	check(!SceneContext.DBufferC);
-
-	if (CVarVirtualTextureLightmaps && CVarVirtualTextureLightmaps->GetValueOnRenderThread())
-	{
-		// No pass after this can make VT page requests
-		GVirtualTextureFeedback.TransferGPUToCPU( RHICmdList );
-	}
 
 	// #todo-renderpass Zfar clear was here. where should it really go?
 	
@@ -1838,6 +1831,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			TRefCountPtr<IPooledRenderTarget> SceneColorCopy;
 			ConditionalResolveSceneColorForTranslucentMaterials(RHICmdList, SceneColorCopy);
 
+			// Disable UAV cache flushing so we have optimal VT feedback performance.
+			RHICmdList.AutomaticCacheFlushAfterComputeShader(false);
+
 			if (ViewFamily.AllowTranslucencyAfterDOF())
 			{
 				RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_StandardTranslucency, SceneColorCopy);
@@ -1848,6 +1844,10 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			{
 				RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_AllTranslucency, SceneColorCopy);
 			}
+
+			RHICmdList.AutomaticCacheFlushAfterComputeShader(true);
+			RHICmdList.FlushComputeShaderCache();
+
 			ServiceLocalQueue();
 
 			static const auto DisableDistortionCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DisableDistortion"));
@@ -1865,6 +1865,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_AfterTranslucency));
 		}
+	}
+	
+	if (bUseVirtualTexturing)
+	{
+		// No pass after this can make VT page requests
+		SceneContext.VirtualTextureFeedback.TransferGPUToCPU(RHICmdList, Views[0].ViewRect);
 	}
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());

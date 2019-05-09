@@ -192,7 +192,7 @@ SIZE_T CalculateImageBytes(uint32 SizeX,uint32 SizeY,uint32 SizeZ,uint8 Format)
  * A solid-colored 1x1 texture.
  */
 template <int32 R, int32 G, int32 B, int32 A>
-class FColoredTexture : public FTexture
+class FColoredTexture : public FTextureWithSRV
 {
 public:
 	// FResource interface.
@@ -212,6 +212,9 @@ public:
 		// Create the sampler state RHI resource.
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Point,AM_Wrap,AM_Wrap,AM_Wrap);
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+
+		// Create a view of the texture
+		ShaderResourceViewRHI = RHICreateShaderResourceView(TextureRHI, 0u);
 	}
 
 	/** Returns the width of the texture in pixels. */
@@ -227,8 +230,10 @@ public:
 	}
 };
 
-FTexture* GWhiteTexture = new TGlobalResource<FColoredTexture<255,255,255,255> >;
-FTexture* GBlackTexture = new TGlobalResource<FColoredTexture<0,0,0,255> >;
+FTextureWithSRV* GWhiteTextureWithSRV = new TGlobalResource<FColoredTexture<255,255,255,255> >;
+FTextureWithSRV* GBlackTextureWithSRV = new TGlobalResource<FColoredTexture<0,0,0,255> >;
+FTexture* GWhiteTexture = GWhiteTextureWithSRV;
+FTexture* GBlackTexture = GBlackTextureWithSRV;
 
 /**
  * Bulk data interface for providing a single black color used to initialize a
@@ -1122,4 +1127,51 @@ RENDERCORE_API void QuantizeSceneBufferSize(const FIntPoint& InBufferSize, FIntP
 	const uint32 Mask = ~(DividableBy - 1);
 	OutBufferSize.X = (InBufferSize.X + DividableBy - 1) & Mask;
 	OutBufferSize.Y = (InBufferSize.Y + DividableBy - 1) & Mask;
+}
+
+RENDERCORE_API bool UseVirtualTexturing(ERHIFeatureLevel::Type InFeatureLevel, const ITargetPlatform* TargetPlatform)
+{
+#if !PLATFORM_SUPPORTS_VIRTUAL_TEXTURE_STREAMING
+	if (GIsEditor == false)
+	{
+		return false;
+	}
+	else
+#endif
+	{
+		// only at SM5 
+		if (InFeatureLevel < ERHIFeatureLevel::SM5)
+		{
+			return false;
+		}
+
+		// does the platform supports it.
+#if WITH_EDITOR
+		if (GIsEditor && TargetPlatform == nullptr)
+		{
+			ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
+			if (TPM)
+			{
+				TargetPlatform = TPM->GetRunningTargetPlatform();
+			}
+		}
+
+		if (TargetPlatform && TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming) == false)
+		{
+			return false;
+		}
+#endif
+
+		// does the project has it enabled ?
+		static const auto CVarVirtualTextureLightmaps = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
+		static const auto CVarVirtualTexture = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
+		check(CVarVirtualTextureLightmaps);
+		check(CVarVirtualTexture);
+		if (CVarVirtualTexture->GetValueOnAnyThread() == 0 && CVarVirtualTextureLightmaps->GetValueOnAnyThread() == 0)
+		{
+			return false;
+		}		
+
+		return true;
+	}
 }

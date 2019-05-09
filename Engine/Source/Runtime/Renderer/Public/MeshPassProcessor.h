@@ -30,6 +30,7 @@ namespace EMeshPass
 		CustomDepth,
 		MobileBasePassCSM,  /** Mobile base pass with CSM shading enabled */
 		MobileInverseOpacity,  /** Mobile specific scene capture, Non-cached */
+		VirtualTexture,
 
 #if WITH_EDITOR
 		HitProxy,

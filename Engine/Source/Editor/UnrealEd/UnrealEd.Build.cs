@@ -230,6 +230,7 @@ public class UnrealEd : ModuleRules
 				"ClothPainter",
 				"Media",
 				"TimeManagementEditor",
+				"VirtualTexturingEditor",
 			}
 		);
 

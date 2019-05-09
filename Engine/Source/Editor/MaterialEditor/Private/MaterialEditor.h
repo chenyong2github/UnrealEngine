@@ -88,7 +88,7 @@ public:
 	 */
 	virtual bool ShouldCache(EShaderPlatform Platform, const FShaderType* ShaderType, const FVertexFactoryType* VertexFactoryType) const override;
 
-	virtual const TArray<UTexture*>& GetReferencedTextures() const override
+	virtual const TArray<UObject*>& GetReferencedTextures() const override
 	{
 		return ReferencedTextures;
 	}
@@ -174,7 +174,7 @@ public:
 
 private:
 	TWeakObjectPtr<UMaterialExpression> Expression;
-	TArray<UTexture*> ReferencedTextures;
+	TArray<UObject*> ReferencedTextures;
 	FGuid Id;
 };
 

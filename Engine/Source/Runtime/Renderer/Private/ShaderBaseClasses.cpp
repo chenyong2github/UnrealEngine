@@ -83,6 +83,8 @@ FMaterialShader::FMaterialShader(const FMaterialShaderType::CompiledShaderInitia
 	}
 
 	SceneTextureParameters.Bind(Initializer);
+	
+	VTFeedbackBuffer.Bind(Initializer.ParameterMap, TEXT("VTFeedbackBuffer"));
 }
 
 FUniformBufferRHIParamRef FMaterialShader::GetParameterCollectionBuffer(const FGuid& Id, const FSceneInterface* SceneInterface) const
@@ -168,8 +170,8 @@ void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* 
 			TEXT("%s shader uniform expression set mismatch for material %s/%s.\n")
 			TEXT("Shader compilation info:                %s\n")
 			TEXT("Material render proxy compilation info: %s\n")
-			TEXT("Shader uniform expression set:   %u vectors, %u scalars, %u 2D textures, %u cube textures, %u 3D textures, shader map %p\n")
-			TEXT("Material uniform expression set: %u vectors, %u scalars, %u 2D textures, %u cube textures, %u 3D textures, shader map %p\n"),
+			TEXT("Shader uniform expression set:   %u vectors, %u scalars, %u 2D textures, %u cube textures, %u 3D textures, %u virtual textures, shader map %p\n")
+			TEXT("Material uniform expression set: %u vectors, %u scalars, %u 2D textures, %u cube textures, %u 3D textures, %u virtual textures, shader map %p\n"),
 			GetType()->GetName(),
 			*MaterialRenderProxy->GetFriendlyName(),
 			*Material.GetFriendlyName(),
@@ -180,12 +182,14 @@ void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* 
 			DebugUniformExpressionSet.Num2DTextureExpressions,
 			DebugUniformExpressionSet.NumCubeTextureExpressions,
 			DebugUniformExpressionSet.NumVolumeTextureExpressions,
+			DebugUniformExpressionSet.NumVirtualTextureExpressions,
 			UniformExpressionCache->CachedUniformExpressionShaderMap,
 			MaterialUniformExpressionSet.UniformVectorExpressions.Num(),
 			MaterialUniformExpressionSet.UniformScalarExpressions.Num(),
 			MaterialUniformExpressionSet.Uniform2DTextureExpressions.Num(),
 			MaterialUniformExpressionSet.UniformCubeTextureExpressions.Num(),
 			MaterialUniformExpressionSet.UniformVolumeTextureExpressions.Num(),
+			MaterialUniformExpressionSet.UniformVirtualTextureExpressions.Num(),
 			Material.GetRenderingThreadShaderMap()
 		);
 	}
@@ -494,10 +498,6 @@ bool FMaterialShader::Serialize(FArchive& Ar)
 	}
 	Ar << DebugDescription;
 	Ar << VTFeedbackBuffer;
-	Ar << PhysicalTexture;
-	Ar << PhysicalTextureSampler;
-	Ar << PageTable;
-	Ar << PageTableSampler;
 
 	return bShaderHasOutdatedParameters;
 }

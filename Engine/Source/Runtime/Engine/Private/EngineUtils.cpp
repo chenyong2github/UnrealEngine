@@ -15,9 +15,18 @@
 #include "Engine/Engine.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/Console.h"
+#include "Engine/Texture.h"
+#include "Logging/MessageLog.h"
+#include "Misc/UObjectToken.h"
+#include "Misc/MapErrors.h"
+#include "EngineModule.h"
 
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "Interfaces/ITargetPlatform.h"
+
+#include "TextureResource.h"
+#include "Engine/Texture2D.h"
+#include "VirtualTexturing.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEngineUtils, Log, All);
 
@@ -25,6 +34,8 @@ IMPLEMENT_HIT_PROXY(HActor,HHitProxy)
 IMPLEMENT_HIT_PROXY(HBSPBrushVert,HHitProxy);
 IMPLEMENT_HIT_PROXY(HStaticMeshVert,HHitProxy);
 IMPLEMENT_HIT_PROXY(HTranslucentActor,HActor)
+
+#define LOCTEXT_NAMESPACE "EngineUtils"
 
 
 #if !UE_BUILD_SHIPPING
@@ -565,3 +576,23 @@ FStripDataFlags::FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InGlobalF
 		Record << NAMED_FIELD(ClassStripFlags);
 	}
 }
+
+
+void VirtualTextureUtils::CheckAndReportInvalidUsage(const UObject* Owner, const FName& PropertyName, const UTexture* Texture)
+{
+	if (Texture && Texture->VirtualTextureStreaming)
+	{
+		FFormatNamedArguments Arguments;
+		Arguments.Add(TEXT("TextureName"), FText::FromName(Texture->GetFName()));
+		Arguments.Add(TEXT("ObjectName"), FText::FromName(Owner->GetFName()));
+		Arguments.Add(TEXT("PropertyName"), FText::FromName(PropertyName));
+		auto Log = FMessageLog("MapCheck");
+		Log.Warning()
+			->AddToken(FUObjectToken::Create(Owner))
+			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_InvalidVirtualTextureUsage", "{ObjectName} is using a virtual texture ('{TextureName}') on an unsupported property ('{PropertyName}')."), Arguments)))
+			->AddToken(FMapErrorToken::Create(FMapErrors::InvalidVirtualTextureUsage));
+		Log.Open();
+	}
+}
+
+#undef LOCTEXT_NAMESPACE

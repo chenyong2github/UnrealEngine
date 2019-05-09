@@ -327,7 +327,10 @@ bool FRenderTargetPool::FindFreeElement(FRHICommandList& RHICmdList, const FPool
 		{
 			// we can reuse the same, but the debug name might have changed
 			Current->Desc.DebugName = InDebugName;
-			RHIBindDebugLabelName(Current->GetRenderTargetItem().TargetableTexture, InDebugName);
+			if (Current->GetRenderTargetItem().TargetableTexture)
+			{
+				RHIBindDebugLabelName(Current->GetRenderTargetItem().TargetableTexture, InDebugName);
+			}
 			check(!Out->IsFree());
 			#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 				ClobberAllocatedRenderTarget(RHICmdList, Desc, Out);

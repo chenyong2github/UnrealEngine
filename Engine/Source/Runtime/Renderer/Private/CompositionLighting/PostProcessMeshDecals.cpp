@@ -360,7 +360,7 @@ void DrawDecalMeshCommands(FRenderingCompositePassContext& Context, EDecalRender
 	const bool bPerPixelDBufferMask = IsUsingPerPixelDBufferMask(View.GetShaderPlatform());
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	FDecalRenderTargetManager RenderTargetManager(Context.RHICmdList, Context.GetShaderPlatform(), CurrentDecalStage);
+	FDecalRenderTargetManager RenderTargetManager(Context.RHICmdList, Context.GetShaderPlatform(), Context.GetFeatureLevel(), CurrentDecalStage);
 	RenderTargetManager.SetRenderTargetMode(RenderTargetMode, true, bPerPixelDBufferMask);
 	Context.SetViewportAndCallRHI(Context.View.ViewRect);
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);

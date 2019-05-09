@@ -12,6 +12,7 @@
 #include "Engine/EngineTypes.h"
 #include "Templates/RefCounting.h"
 #include "Templates/ScopedPointer.h"
+#include "Templates/UniquePtr.h"
 #include "Misc/SecureHash.h"
 #include "RHI.h"
 #include "RenderResource.h"
@@ -24,23 +25,30 @@
 #include "Misc/Optional.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/ArchiveProxy.h"
+#include "VirtualTexturing.h"
 
+struct FExpressionInput;
 class FMaterial;
 class FMaterialCompiler;
 class FMaterialRenderProxy;
 class FMaterialShaderType;
 class FMaterialUniformExpression;
+struct FUniformExpressionCache;
+class FUniformExpressionSet;
 class FMeshMaterialShaderType;
 class FSceneView;
 class FShaderCommonCompileJob;
+class FVirtualTexture2DResource;
+class IAllocatedVirtualTexture;
 class UMaterial;
 class UMaterialExpression;
 class UMaterialExpressionMaterialFunctionCall;
 class UMaterialInstance;
 class UMaterialInterface;
+class URuntimeVirtualTexture;
 class USubsurfaceProfile;
 class UTexture;
-struct FExpressionInput;
+class UTexture2D;
 
 template <class ElementType> class TLinkedList;
 
@@ -109,16 +117,21 @@ enum EMaterialValueType
 	 * Any size float type by definition, but this is treated as a scalar which can auto convert (by replication) to any other size float vector.
 	 * Use this as the type for any scalar expressions.
 	 */
-	MCT_Float		= 8|4|2|1,
-	MCT_Texture2D	= 16,
-	MCT_TextureCube	= 32,
-	MCT_VolumeTexture = 64,
-	MCT_StaticBool	= 128,
-	MCT_Unknown		= 256,
-	MCT_MaterialAttributes	= 512,
-	MCT_TextureExternal = 1024,
-	MCT_Texture		= 16|32|64|1024,
-	MCT_ShadingModel = 2048,
+	MCT_Float		          = 8|4|2|1,
+	MCT_Texture2D	          = 1 << 4,
+	MCT_TextureCube	          = 1 << 5,
+	MCT_VolumeTexture         = 1 << 6,
+	MCT_StaticBool            = 1 << 7,
+	MCT_Unknown               = 1 << 8,
+	MCT_MaterialAttributes	  = 1 << 9,
+	MCT_TextureExternal       = 1 << 10,
+	MCT_TextureVirtual        = 1 << 11,
+	MCT_Texture               = MCT_Texture2D | MCT_TextureCube | MCT_VolumeTexture | MCT_TextureExternal | MCT_TextureVirtual,
+
+	/** Used internally when sampling from virtual textures */
+	MCT_VTPageTableResult     = 1 << 13,
+	
+	MCT_ShadingModel = 1 << 14,
 };
 
 /**
@@ -159,6 +172,8 @@ enum EMaterialDomain
 	MD_PostProcess UMETA(DisplayName = "Post Process"),
 	/** The material will be used for UMG or Slate UI */
 	MD_UI UMETA(DisplayName = "User Interface"),
+	/** The material will be used for runtime virtual texture */
+	MD_RuntimeVirtualTexture UMETA(DisplayName = "Virtual Texture"),
 
 	MD_MAX
 };
@@ -263,43 +278,57 @@ public:
 class FMaterialUniformExpressionTexture: public FMaterialUniformExpression
 {
 	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionTexture);
+
 public:
-
 	FMaterialUniformExpressionTexture();
+	FMaterialUniformExpressionTexture(int32 InTextureIndex, EMaterialSamplerType InSamplerType, ESamplerSourceMode InSamplerSource, bool InVirtualTexture);
+	FMaterialUniformExpressionTexture(int32 InTextureIndex, int32 InLayerIndex, EMaterialSamplerType InSamplerType);
 
-	FMaterialUniformExpressionTexture(int32 InTextureIndex, EMaterialSamplerType InSamplerType, ESamplerSourceMode InSamplerSource);
+	/** Sets an override texture. */
+	void SetTransientOverrideTextureValue(UTexture* InOverrideTexture);
 
-	// FMaterialUniformExpression interface.
+	//~ Begin FMaterialUniformExpression Interface.
 	virtual void Serialize(FArchive& Ar);
-	virtual void GetTextureValue(const FMaterialRenderContext& Context,const FMaterial& Material,const UTexture*& OutValue,ESamplerSourceMode& OutSamplerSource) const;
-	/** Accesses the texture used for rendering this uniform expression. */
-	virtual void GetGameThreadTextureValue(const class UMaterialInterface* MaterialInterface,const FMaterial& Material,UTexture*& OutValue,bool bAllowOverride=true) const;
 	virtual class FMaterialUniformExpressionTexture* GetTextureUniformExpression() { return this; }
 	virtual class FMaterialUniformExpressionTextureParameter* GetTextureParameterUniformExpression() { return nullptr; }
-	void SetTransientOverrideTextureValue( UTexture* InOverrideTexture );
-
-	virtual bool IsConstant() const
-	{
-		return false;
-	}
 	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const;
+	//~ End FMaterialUniformExpression Interface.
 
-	friend FArchive& operator<<(FArchive& Ar,class FMaterialUniformExpressionTexture*& Ref);
+	friend FArchive& operator<<(FArchive& Ar, class FMaterialUniformExpressionTexture*& Ref);
 
+	/** Gets texture index which is the index in the full set of referenced textures for this material. */
 	int32 GetTextureIndex() const { return TextureIndex; }
+	/** Gets the layer index in the virtual texture stack if this is fixed. If we don't have a fixed layer then we will allocate during compilation (and not store here). */
+	int32 GetLayerIndex() const { return LayerIndex; }
 
 #if WITH_EDITORONLY_DATA
+	/** Get the sampling/decoding logic to compile in the shader for this texture. */
 	EMaterialSamplerType GetSamplerType() const { return SamplerType; }
 #endif
+
+	/** Get the sampler state object to use (globally shared or from texture asset).  */
+	ESamplerSourceMode GetSamplerSource() const { return SamplerSource; }
+
+	/** Get the UTexture referenced by this expression (can be a nullptr). */
+	virtual void GetTextureValue(const FMaterialRenderContext& Context, const FMaterial& Material, const UTexture*& OutValue) const;
+	/** Get the URuntimeVirtualTexture referenced by this expression (can be a nullptr). */
+	virtual void GetTextureValue(const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const;
+	/** Get the UTexture referenced by this expression including any transient override logic. */
+	virtual void GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue, bool bAllowOverride = true) const;
 
 protected:
 	/** Index into FMaterial::GetReferencedTextures */
 	int32 TextureIndex;
+	/** Fixed layer in virtual texture stack if preallocated */
+	int32 LayerIndex;
 #if WITH_EDITORONLY_DATA
-	/** Sampler type of the expression that generated this */
+	/** Sampler logic for this expression */
 	EMaterialSamplerType SamplerType;
 #endif
+	/** Sampler state object source for this expression */
 	ESamplerSourceMode SamplerSource;
+	/** Virtual texture flag used only for unique serialization */
+	bool bVirtualTexture;
 	/** Texture that may be used in the editor for overriding the texture but never saved to disk, accessible only by the game thread! */
 	UTexture* TransientOverrideValue_GameThread;
 	/** Texture that may be used in the editor for overriding the texture but never saved to disk, accessible only by the rendering thread! */
@@ -356,6 +385,69 @@ public:
 	}
 };
 
+class FMaterialVirtualTextureStack
+{
+public:
+	FMaterialVirtualTextureStack();
+	/** Construct with a texture index when this references a preallocated VT stack (for example when we are using a URuntimeVirtualTexture). */
+	FMaterialVirtualTextureStack(int32 InPreallocatedStackTextureIndex);
+
+	/** Add space for a layer in the stack. Returns an index that can be used for SetLayer(). */
+	uint32 AddLayer();
+	/** Set an expression index at a layer in the stack. */
+	uint32 SetLayer(int32 LayerIndex, int32 UniformExpressionIndex);
+	/** Get the number of layers allocated in the stack. */
+	inline uint32 GetNumLayers() const { return NumLayers; }
+	/** Returns true if we have allocated the maximum number of layers for this stack. */
+	inline bool AreLayersFull() const { return NumLayers == VIRTUALTEXTURE_SPACE_MAXLAYERS; }
+	/** Find the layer in the stack that was set with this expression index. */
+	int32 FindLayer(int32 UniformExpressionIndex) const;
+
+	/** Returns true if this is a stack that with a preallocated layout of layers (for example when we are using a URuntimeVirtualTexture). */
+	inline bool IsPreallocatedStack() const { return PreallocatedStackTextureIndex != INDEX_NONE; }
+	/** Get the array of UTexture2D objects for the expressions that in the layers of this stack. Can return nullptr objects for layers that don't hold UTexture2D references. */
+	void GetTextureValues(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, UTexture2D const** OutValues) const;
+	/** Get the URuntimeVirtualTexture object if one was used to initialize this stack. */
+	void GetTextureValue(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const URuntimeVirtualTexture*& OutValue) const;
+
+	void Serialize(FArchive& Ar);
+
+	friend FArchive& operator<<(FArchive& Ar, FMaterialVirtualTextureStack& Stack)
+	{
+		Stack.Serialize(Ar);
+		return Ar;
+	}
+
+	friend bool operator==(const FMaterialVirtualTextureStack& Lhs, const FMaterialVirtualTextureStack& Rhs)
+	{
+		if (Lhs.PreallocatedStackTextureIndex != Rhs.PreallocatedStackTextureIndex || Lhs.NumLayers != Rhs.NumLayers)
+		{
+			return false;
+		}
+		for (uint32 i = 0u; i < Lhs.NumLayers; ++i)
+		{
+			if (Lhs.LayerUniformExpressionIndices[i] != Rhs.LayerUniformExpressionIndices[i])
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+private:
+	/** Number of layers that have been allocated in this stack. */
+	uint32 NumLayers;
+	/** Indices of the expressions that were set to layers in this stack. */
+	int32 LayerUniformExpressionIndices[VIRTUALTEXTURE_SPACE_MAXLAYERS];
+	/** Index of a texture reference if we create a stack from a single known texture that has it's own layer stack. */
+	int32 PreallocatedStackTextureIndex;
+};
+
+inline bool operator!=(const FMaterialVirtualTextureStack& Lhs, const FMaterialVirtualTextureStack& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
 /** Stores all uniform expressions for a material generated from a material translation. */
 class FUniformExpressionSet : public FRefCountedObject
 {
@@ -371,7 +463,7 @@ public:
 	void CreateBufferStruct();
 	ENGINE_API const FShaderParametersMetadata& GetUniformBufferStruct() const;
 
-	ENGINE_API void FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, uint8* TempBuffer, int TempBufferSize) const;
+	ENGINE_API void FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, const FUniformExpressionCache& UniformExpressionCache, uint8* TempBuffer, int TempBufferSize) const;
 
 	inline bool HasExternalTextureExpressions() const
 	{
@@ -385,19 +477,38 @@ public:
 			+ Uniform2DTextureExpressions.GetAllocatedSize()
 			+ UniformCubeTextureExpressions.GetAllocatedSize()
 			+ UniformVolumeTextureExpressions.GetAllocatedSize()
+			+ UniformVirtualTextureExpressions.GetAllocatedSize()
 			+ UniformExternalTextureExpressions.GetAllocatedSize()
+			+ VTStacks.GetAllocatedSize()
 			+ ParameterCollections.GetAllocatedSize()
 			+ (UniformBufferStruct ? (sizeof(FShaderParametersMetadata) + UniformBufferStruct->GetMembers().GetAllocatedSize()) : 0);
 	}
 
 protected:
+	union FVTPackedStackAndLayerIndex
+	{
+		inline FVTPackedStackAndLayerIndex(uint16 InStackIndex, uint16 InLayerIndex) : StackIndex(InStackIndex), LayerIndex(InLayerIndex) {}
+
+		uint32 PackedValue;
+		struct
+		{
+			uint16 StackIndex;
+			uint16 LayerIndex;
+		};
+	};
+
+	FVTPackedStackAndLayerIndex GetVTStackAndLayerIndex(int32 UniformExpressionIndex) const;
 	
 	TArray<TRefCountPtr<FMaterialUniformExpression> > UniformVectorExpressions;
 	TArray<TRefCountPtr<FMaterialUniformExpression> > UniformScalarExpressions;
 	TArray<TRefCountPtr<FMaterialUniformExpressionTexture> > Uniform2DTextureExpressions;
 	TArray<TRefCountPtr<FMaterialUniformExpressionTexture> > UniformCubeTextureExpressions;
 	TArray<TRefCountPtr<FMaterialUniformExpressionTexture> > UniformVolumeTextureExpressions;
+	TArray<TRefCountPtr<FMaterialUniformExpressionTexture> > UniformVirtualTextureExpressions;
 	TArray<TRefCountPtr<FMaterialUniformExpressionExternalTexture> > UniformExternalTextureExpressions;
+
+	/** Virtual texture stacks found during compilation */
+	TArray<FMaterialVirtualTextureStack> VTStacks;
 
 	/** Ids of parameter collections referenced by the material that was translated. */
 	TArray<FGuid> ParameterCollections;
@@ -410,6 +521,7 @@ protected:
 	friend class FMaterialShaderMap;
 	friend class FMaterialShader;
 	friend class FMaterialRenderProxy;
+	friend class FMaterialVirtualTextureStack;
 	friend class FDebugUniformExpressionSet;
 };
 
@@ -424,6 +536,7 @@ public:
 		NumUsedCustomInterpolatorScalars(0),
 		EstimatedNumTextureSamplesVS(0),
 		EstimatedNumTextureSamplesPS(0),
+		EstimatedNumVirtualTextureLookups(0),
 #endif
 		bRequiresSceneColorCopy(false),
 		bNeedsSceneTextures(false),
@@ -455,6 +568,9 @@ public:
 	/** Number of times SampleTexture is called, excludes custom nodes. */
 	uint16 EstimatedNumTextureSamplesVS;
 	uint16 EstimatedNumTextureSamplesPS;
+
+	/** Number of virtual texture lookups performed, excludes direct invocation in shaders (for example VT lightmaps) */
+	uint16 EstimatedNumVirtualTextureLookups;
 #endif // WITH_EDITOR
 
 	/** Indicates whether the material uses scene color. */
@@ -947,7 +1063,9 @@ public:
 	uint32 GetNumUsedUVScalars() const { return MaterialCompilationOutput.NumUsedUVScalars; }
 	uint32 GetNumUsedCustomInterpolatorScalars() const { return MaterialCompilationOutput.NumUsedCustomInterpolatorScalars; }
 	void GetEstimatedNumTextureSamples(uint32& VSSamples, uint32& PSSamples) const { VSSamples = MaterialCompilationOutput.EstimatedNumTextureSamplesVS; PSSamples = MaterialCompilationOutput.EstimatedNumTextureSamplesPS; }
+	uint32 GetEstimatedNumVirtualTextureLookups() const { return MaterialCompilationOutput.EstimatedNumVirtualTextureLookups; }
 #endif
+	uint32 GetNumVirtualTextureStacks() const { return MaterialCompilationOutput.UniformExpressionSet.VTStacks.Num(); }
 	bool UsesSceneTexture(uint32 TexId) const { return MaterialCompilationOutput.UsedSceneTextures & (1ull << TexId); }
 
 	bool IsValidForRendering(bool bFailOnInvalid = false) const
@@ -1215,13 +1333,13 @@ public:
 	 * Caches the material shaders for this material with no static parameters on the given platform.
 	 * This is used by material resources of UMaterials.
 	 */
-	ENGINE_API bool CacheShaders(EShaderPlatform Platform, bool bApplyCompletedShaderMapForRendering);
+	ENGINE_API bool CacheShaders(EShaderPlatform Platform, bool bApplyCompletedShaderMapForRendering, const ITargetPlatform* TargetPlatform = nullptr);
 
 	/**
 	 * Caches the material shaders for the given static parameter set and platform.
 	 * This is used by material resources of UMaterialInstances.
 	 */
-	ENGINE_API bool CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, bool bApplyCompletedShaderMapForRendering);
+	ENGINE_API bool CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, bool bApplyCompletedShaderMapForRendering, const ITargetPlatform* TargetPlatform = nullptr);
 
 	/**
 	 * Should the shader for this material with the given platform, shader type and vertex 
@@ -1340,6 +1458,8 @@ public:
 	virtual bool IsStencilTestEnabled() const { return false; }
 	virtual uint32 GetStencilRefValue() const { return 0; }
 	virtual uint32 GetStencilCompare() const { return 0; }
+	virtual bool HasRuntimeVirtualTextureOutput() const { return false; }
+	
 	/**
 	 * Should shaders compiled for this material be saved to disk?
 	 */
@@ -1396,6 +1516,7 @@ public:
 	ENGINE_API const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& GetUniform2DTextureExpressions() const;
 	ENGINE_API const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& GetUniformCubeTextureExpressions() const;
 	ENGINE_API const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& GetUniformVolumeTextureExpressions() const;
+	ENGINE_API const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& GetUniformVirtualTextureExpressions() const;
 	ENGINE_API const TArray<TRefCountPtr<FMaterialUniformExpression> >& GetUniformVectorParameterExpressions() const;
 	ENGINE_API const TArray<TRefCountPtr<FMaterialUniformExpression> >& GetUniformScalarParameterExpressions() const;
 
@@ -1472,7 +1593,7 @@ public:
 
 	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector);
 
-	virtual const TArray<UTexture*>& GetReferencedTextures() const = 0;
+	virtual const TArray<UObject*>& GetReferencedTextures() const = 0;
 
 	/**
 	 * Finds the shader matching the template type and the passed in vertex factory, asserts if not found.
@@ -1659,7 +1780,8 @@ private:
 		const FMaterialShaderMapId& ShaderMapId,
 		EShaderPlatform Platform, 
 		TRefCountPtr<class FMaterialShaderMap>& OutShaderMap, 
-		bool bApplyCompletedShaderMapForRendering);
+		bool bApplyCompletedShaderMapForRendering, 
+		const ITargetPlatform* TargetPlatform = nullptr);
 
 	/** Populates OutEnvironment with defines needed to compile shaders for this material. */
 	void SetupMaterialEnvironment(
@@ -1694,6 +1816,10 @@ struct FUniformExpressionCache
 	FUniformBufferRHIRef UniformBuffer;
 	/** Material uniform buffer. */
 	FLocalUniformBuffer LocalUniformBuffer;
+	/** Allocated virtual textures, one for each entry in FUniformExpressionSet::VTStacks */
+	TArray<IAllocatedVirtualTexture*> AllocatedVTs;
+	/** Allocated virtual textures that will need destroying during a call to ResetAllocatedVTs() */
+	TArray<IAllocatedVirtualTexture*> OwnedAllocatedVTs;
 	/** Ids of parameter collections needed for rendering. */
 	TArray<FGuid> ParameterCollections;
 	/** True if the cache is up to date. */
@@ -1708,10 +1834,9 @@ struct FUniformExpressionCache
 	{}
 
 	/** Destructor. */
-	~FUniformExpressionCache()
-	{
-		UniformBuffer.SafeRelease();
-	}
+	ENGINE_API ~FUniformExpressionCache();
+
+	void ResetAllocatedVTs();
 };
 
 class USubsurfaceProfile;
@@ -1935,7 +2060,9 @@ public:
 #if WITH_EDITOR
 	ENGINE_API void GetUserInterpolatorUsage(uint32& NumUsedUVScalars, uint32& NumUsedCustomInterpolatorScalars) const;
 	ENGINE_API void GetEstimatedNumTextureSamples(uint32& VSSamples, uint32& PSSamples) const;
+	ENGINE_API uint32 GetEstimatedNumVirtualTextureLookups() const;
 #endif
+	ENGINE_API uint32 GetNumVirtualTextureStacks() const;
 
 	ENGINE_API virtual FString GetMaterialUsageDescription() const override;
 
@@ -2024,6 +2151,7 @@ public:
 	ENGINE_API virtual float GetMaxDisplacement() const override;
 	ENGINE_API virtual bool ShouldApplyFogging() const override;
 	ENGINE_API virtual bool ComputeFogPerPixel() const override;
+	ENGINE_API virtual bool HasRuntimeVirtualTextureOutput() const override;
 	ENGINE_API virtual UMaterialInterface* GetMaterialInterface() const override;
 	/**
 	 * Should shaders compiled for this material be saved to disk?
@@ -2039,7 +2167,7 @@ public:
 
 	ENGINE_API virtual void LegacySerialize(FArchive& Ar) override;
 
-	ENGINE_API virtual const TArray<UTexture*>& GetReferencedTextures() const override;
+	ENGINE_API virtual const TArray<UObject*>& GetReferencedTextures() const override;
 
 	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 

@@ -17,11 +17,13 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#ifdef WIN32
+//UE4_BEGIN
+/*#ifdef WIN32
 #include <memory.h>
 #else
 #include <malloc.h>
-#endif
+#endif*/
+//UE4_END
 #include <stdarg.h>
 #include <new>  // needed for placement new, _msize, _expand
 
@@ -1917,60 +1919,18 @@ namespace crnd {
 const uint32 MAX_POSSIBLE_BLOCK_SIZE = 0x7FFF0000U;
 
 static void* crnd_default_realloc(void* p, size_t size, size_t* pActual_size, bool movable, void*) {
-  void* p_new;
-
-  if (!p) {
-    p_new = ::malloc(size);
-
-    if (pActual_size) {
-#ifdef WIN32
-      *pActual_size = p_new ? ::_msize(p_new) : 0;
-#else
-      *pActual_size = p_new ? malloc_usable_size(p_new) : 0;
-#endif
-    }
-  } else if (!size) {
-    ::free(p);
-    p_new = NULL;
-
-    if (pActual_size)
-      *pActual_size = 0;
-  } else {
-    void* p_final_block = p;
-#ifdef WIN32
-    p_new = ::_expand(p, size);
-#else
-    p_new = NULL;
-#endif
-
-    if (p_new)
-      p_final_block = p_new;
-    else if (movable) {
-      p_new = ::realloc(p, size);
-
-      if (p_new)
-        p_final_block = p_new;
-    }
-
-    if (pActual_size) {
-#ifdef WIN32
-      *pActual_size = ::_msize(p_final_block);
-#else
-      *pActual_size = ::malloc_usable_size(p_final_block);
-#endif
-    }
-  }
-
-  return p_new;
+	//UE4_BEGIN
+	// Require allocator to be overridden, avoids need to deal with differences between platform malloc here
+	crnd_debug_break();
+	return nullptr;
+	//UE4_END
 }
 
 static size_t crnd_default_msize(void* p, void* pUser_data) {
-  pUser_data;
-#ifdef WIN32
-  return p ? _msize(p) : 0;
-#else
-  return p ? malloc_usable_size(p) : 0;
-#endif
+	//UE4_BEGIN
+	crnd_debug_break();
+	return 0u;
+	//UE4_END
 }
 
 static crnd_realloc_func g_pRealloc = crnd_default_realloc;
@@ -2228,7 +2188,9 @@ bool crnd_validate_file(const void* pData, uint32 data_size, crn_file_info* pFil
       if ((i + 1) < pHeader->m_levels)
         next_ofs = pHeader->m_level_ofs[i + 1];
 
-      pFile_info->m_level_compressed_size[i] = next_ofs - pHeader->m_level_ofs[i];
+      //UE4_BEGIN
+      //pFile_info->m_level_compressed_size[i] = next_ofs - pHeader->m_level_ofs[i];
+	  //UE4_END
     }
 
     pFile_info->m_color_endpoint_palette_entries = pHeader->m_color_endpoints.m_num;
@@ -2320,38 +2282,6 @@ const void* crnd_get_level_data(const void* pData, uint32 data_size, uint32 leve
 
   return static_cast<const uint8*>(pData) + cur_level_ofs;
 }
-
-//UE4_BEGIN
-uint32 crnd_get_segmented_level_offset(const void* pData, uint32 data_size, uint32 level_index, uint32* pSize)
-{
-	if (pSize)
-		*pSize = 0;
-
-	if ((!pData) || (data_size < cCRNHeaderMinSize))
-		return 0;
-
-	const crn_header* pHeader = crnd_get_header(pData, data_size);
-	if (!pHeader)
-		return 0;
-
-	if (level_index >= pHeader->m_levels)
-		return 0;
-
-	const uint32 cur_level_ofs = pHeader->m_level_ofs[level_index];
-	const uint32 base_level_ofs = pHeader->m_level_ofs[0];
-
-	if (pSize)
-	{
-		uint32 next_level_ofs = data_size;
-		if ((level_index + 1) < (pHeader->m_levels))
-			next_level_ofs = pHeader->m_level_ofs[level_index + 1];
-
-		*pSize = next_level_ofs - cur_level_ofs;
-	}
-
-	return cur_level_ofs - base_level_ofs;
-}
-//UE4_END
 
 uint32 crnd_get_segmented_file_size(const void* pData, uint32 data_size) {
   if ((!pData) || (data_size < cCRNHeaderMinSize))
@@ -2998,7 +2928,7 @@ class crn_unpacker {
 
   bool unpack_level(
       void** pDst, uint32 dst_size_in_bytes, uint32 row_pitch_in_bytes,
-      uint32 level_index) {
+      uint32 level_index) const {
     uint32 cur_level_ofs = m_pHeader->m_level_ofs[level_index];
 
     uint32 next_level_ofs = m_data_size;
@@ -3013,7 +2943,7 @@ class crn_unpacker {
   bool unpack_level(
       const void* pSrc, uint32 src_size_in_bytes,
       void** pDst, uint32 dst_size_in_bytes, uint32 row_pitch_in_bytes,
-      uint32 level_index) {
+      uint32 level_index) const {
 
 #ifdef CRND_BUILD_DEBUG
     for (uint32 f = 0; f < m_pHeader->m_faces; f++)
@@ -3023,8 +2953,8 @@ class crn_unpacker {
 
 	//UE4_BEGIN
 	const bool uniformMips = (m_pHeader->m_flags & cCRNHeaderFlagUniformMips) != 0;
-	const uint width = uniformMips ? m_pHeader->m_width : math::maximum(1U, m_pHeader->m_width >> level_index);
-	const uint height = uniformMips ? m_pHeader->m_height : math::maximum(1U, m_pHeader->m_height >> level_index);
+	const uint width = uniformMips ? (uint)m_pHeader->m_width : math::maximum(1U, m_pHeader->m_width >> level_index);
+	const uint height = uniformMips ? (uint)m_pHeader->m_height : math::maximum(1U, m_pHeader->m_height >> level_index);
 	//UE4_END
     const uint32 blocks_x = (width + 3U) >> 2U;
     const uint32 blocks_y = (height + 3U) >> 2U;
@@ -3038,36 +2968,39 @@ class crn_unpacker {
     if (dst_size_in_bytes < row_pitch_in_bytes * blocks_y)
       return false;
 
-    if (!m_codec.start_decoding(static_cast<const crnd::uint8*>(pSrc), src_size_in_bytes))
+    //UE4_BEGIN
+	symbol_codec codec;
+    if (!codec.start_decoding(static_cast<const crnd::uint8*>(pSrc), src_size_in_bytes))
       return false;
+	//UE4_END
 
     bool status = false;
     switch (m_pHeader->m_format) {
       case cCRNFmtDXT1:
-        status = unpack_dxt1((uint8**)pDst, row_pitch_in_bytes, blocks_x, blocks_y);
+        status = unpack_dxt1(codec, (uint8**)pDst, row_pitch_in_bytes, blocks_x, blocks_y);
         break;
       case cCRNFmtDXT5:
       case cCRNFmtDXT5_CCxY:
       case cCRNFmtDXT5_xGBR:
       case cCRNFmtDXT5_AGBR:
       case cCRNFmtDXT5_xGxR:
-        status = unpack_dxt5((uint8**)pDst, row_pitch_in_bytes, blocks_x, blocks_y);
+        status = unpack_dxt5(codec, (uint8**)pDst, row_pitch_in_bytes, blocks_x, blocks_y);
         break;
       case cCRNFmtDXT5A:
-        status = unpack_dxt5a((uint8**)pDst, row_pitch_in_bytes, blocks_x, blocks_y);
+        status = unpack_dxt5a(codec, (uint8**)pDst, row_pitch_in_bytes, blocks_x, blocks_y);
         break;
       case cCRNFmtDXN_XY:
       case cCRNFmtDXN_YX:
-        status = unpack_dxn((uint8**)pDst, row_pitch_in_bytes, blocks_x, blocks_y);
+        status = unpack_dxn(codec, (uint8**)pDst, row_pitch_in_bytes, blocks_x, blocks_y);
         break;
       case cCRNFmtETC1:
-        status = unpack_etc1((uint8**)pDst, row_pitch_in_bytes, blocks_x, blocks_y);
+        status = unpack_etc1(codec, (uint8**)pDst, row_pitch_in_bytes, blocks_x, blocks_y);
         break;
       case cCRNFmtETC2:
-        status = unpack_etc1((uint8**)pDst, row_pitch_in_bytes, blocks_x, blocks_y);
+        status = unpack_etc1(codec, (uint8**)pDst, row_pitch_in_bytes, blocks_x, blocks_y);
         break;
       case cCRNFmtETC2A:
-        status = unpack_etc2a((uint8**)pDst, row_pitch_in_bytes, blocks_x, blocks_y);
+        status = unpack_etc2a(codec, (uint8**)pDst, row_pitch_in_bytes, blocks_x, blocks_y);
         break;
       default:
         return false;
@@ -3075,7 +3008,7 @@ class crn_unpacker {
     if (!status)
       return false;
 
-    m_codec.stop_decoding();
+	codec.stop_decoding();
     return true;
   }
 
@@ -3086,11 +3019,17 @@ class crn_unpacker {
   enum { cMagicValue = 0x1EF9CABD };
   uint32 m_magic;
 
+  //UE4_BEGIN
+  enum { cMaxResolutionInBlocks = cCRNMaxLevelResolution / 4 };
+  //UE4_END
+
   const uint8* m_pData;
   uint32 m_data_size;
   const crn_header* m_pHeader;
 
-  symbol_codec m_codec;
+  //UE4_BEGIN
+  //symbol_codec m_codec;
+  //UE4_END
 
   static_huffman_data_model m_reference_encoding_dm;
   static_huffman_data_model m_endpoint_delta_dm[2];
@@ -3108,33 +3047,36 @@ class crn_unpacker {
     uint16 alpha0_endpoint_index;
     uint16 alpha1_endpoint_index;
   };
-  crnd::vector<block_buffer_element> m_block_buffer;
+  //UE4_BEGIN
+  //crnd::vector<block_buffer_element> m_block_buffer;
+  //UE4_END
 
   bool init_tables() {
-    if (!m_codec.start_decoding(m_pData + m_pHeader->m_tables_ofs, m_pHeader->m_tables_size))
+    symbol_codec codec;
+    if (!codec.start_decoding(m_pData + m_pHeader->m_tables_ofs, m_pHeader->m_tables_size))
       return false;
 
-    if (!m_codec.decode_receive_static_data_model(m_reference_encoding_dm))
+    if (!codec.decode_receive_static_data_model(m_reference_encoding_dm))
       return false;
 
     if ((!m_pHeader->m_color_endpoints.m_num) && (!m_pHeader->m_alpha_endpoints.m_num))
       return false;
 
     if (m_pHeader->m_color_endpoints.m_num) {
-      if (!m_codec.decode_receive_static_data_model(m_endpoint_delta_dm[0]))
+      if (!codec.decode_receive_static_data_model(m_endpoint_delta_dm[0]))
         return false;
-      if (!m_codec.decode_receive_static_data_model(m_selector_delta_dm[0]))
+      if (!codec.decode_receive_static_data_model(m_selector_delta_dm[0]))
         return false;
     }
 
     if (m_pHeader->m_alpha_endpoints.m_num) {
-      if (!m_codec.decode_receive_static_data_model(m_endpoint_delta_dm[1]))
+      if (!codec.decode_receive_static_data_model(m_endpoint_delta_dm[1]))
         return false;
-      if (!m_codec.decode_receive_static_data_model(m_selector_delta_dm[1]))
+      if (!codec.decode_receive_static_data_model(m_selector_delta_dm[1]))
         return false;
     }
 
-    m_codec.stop_decoding();
+	codec.stop_decoding();
 
     return true;
   }
@@ -3164,12 +3106,13 @@ class crn_unpacker {
     if (!m_color_endpoints.resize(num_color_endpoints))
       return false;
 
-    if (!m_codec.start_decoding(m_pData + m_pHeader->m_color_endpoints.m_ofs, m_pHeader->m_color_endpoints.m_size))
+	symbol_codec codec;
+    if (!codec.start_decoding(m_pData + m_pHeader->m_color_endpoints.m_ofs, m_pHeader->m_color_endpoints.m_size))
       return false;
 
     static_huffman_data_model dm[2];
     for (uint32 i = 0; i < (has_etc_color_blocks ? 1 : 2); i++)
-      if (!m_codec.decode_receive_static_data_model(dm[i]))
+      if (!codec.decode_receive_static_data_model(dm[i]))
         return false;
 
     uint32 a = 0, b = 0, c = 0;
@@ -3180,33 +3123,34 @@ class crn_unpacker {
     for (uint32 i = 0; i < num_color_endpoints; i++) {
       if (has_etc_color_blocks) {
         for (b = 0; b < 32; b += 8)
-          a += m_codec.decode(dm[0]) << b;
+          a += codec.decode(dm[0]) << b;
         *pDst++ = a &= 0x1F1F1F1F;
       } else {
-        a = (a + m_codec.decode(dm[0])) & 31;
-        b = (b + m_codec.decode(dm[1])) & 63;
-        c = (c + m_codec.decode(dm[0])) & 31;
-        d = (d + m_codec.decode(dm[0])) & 31;
-        e = (e + m_codec.decode(dm[1])) & 63;
-        f = (f + m_codec.decode(dm[0])) & 31;
+        a = (a + codec.decode(dm[0])) & 31;
+        b = (b + codec.decode(dm[1])) & 63;
+        c = (c + codec.decode(dm[0])) & 31;
+        d = (d + codec.decode(dm[0])) & 31;
+        e = (e + codec.decode(dm[1])) & 63;
+        f = (f + codec.decode(dm[0])) & 31;
         *pDst++ = c | (b << 5U) | (a << 11U) | (f << 16U) | (e << 21U) | (d << 27U);
       }
     }
 
-    m_codec.stop_decoding();
+	codec.stop_decoding();
 
     return true;
   }
 
   bool decode_color_selectors() {
     const bool has_etc_color_blocks = m_pHeader->m_format == cCRNFmtETC1 || m_pHeader->m_format == cCRNFmtETC2 || m_pHeader->m_format == cCRNFmtETC2A;
-    m_codec.start_decoding(m_pData + m_pHeader->m_color_selectors.m_ofs, m_pHeader->m_color_selectors.m_size);
+	symbol_codec codec;
+	codec.start_decoding(m_pData + m_pHeader->m_color_selectors.m_ofs, m_pHeader->m_color_selectors.m_size);
     static_huffman_data_model dm;
-    m_codec.decode_receive_static_data_model(dm);
+	codec.decode_receive_static_data_model(dm);
     m_color_selectors.resize(m_pHeader->m_color_selectors.m_num << (has_etc_color_blocks ? 1 : 0));
     for (uint32 s = 0, i = 0; i < m_pHeader->m_color_selectors.m_num; i++) {
       for (uint32 j = 0; j < 32; j += 4)
-        s ^= m_codec.decode(dm) << j;
+        s ^= codec.decode(dm) << j;
       if (has_etc_color_blocks) {
         for (uint32 selector = (~s & 0xAAAAAAAA) | (~(s ^ s >> 1) & 0x55555555), t = 8, h = 0; h < 4; h++, t -= 15) {
           for (uint32 w = 0; w < 4; w++, t += 4) {
@@ -3220,18 +3164,19 @@ class crn_unpacker {
         m_color_selectors[i] = ((s ^ s << 1) & 0xAAAAAAAA) | (s >> 1 & 0x55555555);
       }
     }
-    m_codec.stop_decoding();
+	codec.stop_decoding();
     return true;
   }
 
   bool decode_alpha_endpoints() {
     const uint32 num_alpha_endpoints = m_pHeader->m_alpha_endpoints.m_num;
 
-    if (!m_codec.start_decoding(m_pData + m_pHeader->m_alpha_endpoints.m_ofs, m_pHeader->m_alpha_endpoints.m_size))
+	symbol_codec codec;
+    if (!codec.start_decoding(m_pData + m_pHeader->m_alpha_endpoints.m_ofs, m_pHeader->m_alpha_endpoints.m_size))
       return false;
 
     static_huffman_data_model dm;
-    if (!m_codec.decode_receive_static_data_model(dm))
+    if (!codec.decode_receive_static_data_model(dm))
       return false;
 
     if (!m_alpha_endpoints.resize(num_alpha_endpoints))
@@ -3241,20 +3186,21 @@ class crn_unpacker {
     uint32 a = 0, b = 0;
 
     for (uint32 i = 0; i < num_alpha_endpoints; i++) {
-      a = (a + m_codec.decode(dm)) & 255;
-      b = (b + m_codec.decode(dm)) & 255;
+      a = (a + codec.decode(dm)) & 255;
+      b = (b + codec.decode(dm)) & 255;
       *pDst++ = (uint16)(a | (b << 8));
     }
 
-    m_codec.stop_decoding();
+	codec.stop_decoding();
 
     return true;
   }
 
   bool decode_alpha_selectors() {
-    m_codec.start_decoding(m_pData + m_pHeader->m_alpha_selectors.m_ofs, m_pHeader->m_alpha_selectors.m_size);
+    symbol_codec codec;
+	codec.start_decoding(m_pData + m_pHeader->m_alpha_selectors.m_ofs, m_pHeader->m_alpha_selectors.m_size);
     static_huffman_data_model dm;
-    m_codec.decode_receive_static_data_model(dm);
+	codec.decode_receive_static_data_model(dm);
     m_alpha_selectors.resize(m_pHeader->m_alpha_selectors.m_num * 3);
     uint8 dxt5_from_linear[64];
     for (uint32 i = 0; i < 64; i++)
@@ -3262,27 +3208,28 @@ class crn_unpacker {
     for (uint32 s0_linear = 0, s1_linear = 0, i = 0; i < m_alpha_selectors.size();) {
       uint32 s0 = 0, s1 = 0;
       for (uint32 j = 0; j < 24; s0 |= dxt5_from_linear[s0_linear >> j & 0x3F] << j, j += 6)
-        s0_linear ^= m_codec.decode(dm) << j;
+        s0_linear ^= codec.decode(dm) << j;
       for (uint32 j = 0; j < 24; s1 |= dxt5_from_linear[s1_linear >> j & 0x3F] << j, j += 6)
-        s1_linear ^= m_codec.decode(dm) << j;
+        s1_linear ^= codec.decode(dm) << j;
       m_alpha_selectors[i++] = s0;
       m_alpha_selectors[i++] = s0 >> 16 | s1 << 8;
       m_alpha_selectors[i++] = s1 >> 8;
     }
-    m_codec.stop_decoding();
+	codec.stop_decoding();
     return true;
   }
 
   bool decode_alpha_selectors_etc() {
-    m_codec.start_decoding(m_pData + m_pHeader->m_alpha_selectors.m_ofs, m_pHeader->m_alpha_selectors.m_size);
+    symbol_codec codec;
+	codec.start_decoding(m_pData + m_pHeader->m_alpha_selectors.m_ofs, m_pHeader->m_alpha_selectors.m_size);
     static_huffman_data_model dm;
-    m_codec.decode_receive_static_data_model(dm);
+	codec.decode_receive_static_data_model(dm);
     m_alpha_selectors.resize(m_pHeader->m_alpha_selectors.m_num * 6);
     uint8 s_linear[8] = {};
     uint8* data = (uint8*)m_alpha_selectors.begin();
     for (uint i = 0; i < m_alpha_selectors.size(); i += 6, data += 12) {
       for (uint s_group = 0, p = 0; p < 16; p++) {
-        s_group = p & 1 ? s_group >> 3 : s_linear[p >> 1] ^= m_codec.decode(dm);
+        s_group = p & 1 ? s_group >> 3 : s_linear[p >> 1] ^= codec.decode(dm);
         uint8 s = s_group & 7;
         if (s <= 3)
           s = 3 - s;
@@ -3300,7 +3247,7 @@ class crn_unpacker {
           data[byte_offset + 5] |= s >> bit_offset;
       }
     }
-    m_codec.stop_decoding();
+	codec.stop_decoding();
     return true;
   }
   
@@ -3330,15 +3277,14 @@ class crn_unpacker {
     x = (x & msk) | (v & ~msk);
   }
 
-  bool unpack_dxt1(uint8** pDst, uint32 output_pitch_in_bytes, uint32 output_width, uint32 output_height) {
+  bool unpack_dxt1(symbol_codec& codec, uint8** pDst, uint32 output_pitch_in_bytes, uint32 output_width, uint32 output_height) const {
     const uint32 num_color_endpoints = m_color_endpoints.size();
     const uint32 width = output_width + 1 & ~1;
     const uint32 height = output_height + 1 & ~1;
     const int32 delta_pitch_in_dwords = (output_pitch_in_bytes >> 2) - (width << 1);
 
-    if (m_block_buffer.size() < width)
-      m_block_buffer.resize(width);
-
+	CRND_ASSERT(width <= cMaxResolutionInBlocks);
+	block_buffer_element block_buffer[cMaxResolutionInBlocks];
     uint32 color_endpoint_index = 0;
     uint8 reference_group = 0;
 
@@ -3349,8 +3295,8 @@ class crn_unpacker {
         for (uint32 x = 0; x < width; x++, pData += 2) {
           visible = visible && x < output_width;
           if (!(y & 1) && !(x & 1))
-            reference_group = m_codec.decode(m_reference_encoding_dm);
-          block_buffer_element &buffer = m_block_buffer[x];
+            reference_group = codec.decode(m_reference_encoding_dm);
+          block_buffer_element &buffer = block_buffer[x];
           uint8 endpoint_reference;
           if (y & 1) {
             endpoint_reference = buffer.endpoint_reference;
@@ -3361,7 +3307,7 @@ class crn_unpacker {
             reference_group >>= 2;
           }
           if (!endpoint_reference) {
-            color_endpoint_index += m_codec.decode(m_endpoint_delta_dm[0]);
+            color_endpoint_index += codec.decode(m_endpoint_delta_dm[0]);
             if (color_endpoint_index >= num_color_endpoints)
               color_endpoint_index -= num_color_endpoints;
             buffer.color_endpoint_index = color_endpoint_index;
@@ -3370,7 +3316,7 @@ class crn_unpacker {
           } else {
             color_endpoint_index = buffer.color_endpoint_index;
           }
-          uint32 color_selector_index = m_codec.decode(m_selector_delta_dm[0]);
+          uint32 color_selector_index = codec.decode(m_selector_delta_dm[0]);
           if (visible) {
             pData[0] = m_color_endpoints[color_endpoint_index];
             pData[1] = m_color_selectors[color_selector_index];
@@ -3381,16 +3327,15 @@ class crn_unpacker {
     return true;
   }
 
-  bool unpack_dxt5(uint8** pDst, uint32 row_pitch_in_bytes, uint32 output_width, uint32 output_height) {
+  bool unpack_dxt5(symbol_codec& codec, uint8** pDst, uint32 row_pitch_in_bytes, uint32 output_width, uint32 output_height) const {
     const uint32 num_color_endpoints = m_color_endpoints.size();
     const uint32 num_alpha_endpoints = m_alpha_endpoints.size();
     const uint32 width = output_width + 1 & ~1;
     const uint32 height = output_height + 1 & ~1;
     const int32 delta_pitch_in_dwords = (row_pitch_in_bytes >> 2) - (width << 2);
 
-    if (m_block_buffer.size() < width)
-      m_block_buffer.resize(width);
-
+	CRND_ASSERT(width <= cMaxResolutionInBlocks);
+	block_buffer_element block_buffer[cMaxResolutionInBlocks];
     uint32 color_endpoint_index = 0;
     uint32 alpha0_endpoint_index = 0;
     uint8 reference_group = 0;
@@ -3402,8 +3347,8 @@ class crn_unpacker {
         for (uint32 x = 0; x < width; x++, pData += 4) {
           visible = visible && x < output_width;
           if (!(y & 1) && !(x & 1))
-            reference_group = m_codec.decode(m_reference_encoding_dm);
-          block_buffer_element &buffer = m_block_buffer[x];
+            reference_group = codec.decode(m_reference_encoding_dm);
+          block_buffer_element &buffer = block_buffer[x];
           uint8 endpoint_reference;
           if (y & 1) {
             endpoint_reference = buffer.endpoint_reference;
@@ -3414,11 +3359,11 @@ class crn_unpacker {
             reference_group >>= 2;
           }
           if (!endpoint_reference) {
-            color_endpoint_index += m_codec.decode(m_endpoint_delta_dm[0]);
+            color_endpoint_index += codec.decode(m_endpoint_delta_dm[0]);
             if (color_endpoint_index >= num_color_endpoints)
               color_endpoint_index -= num_color_endpoints;
             buffer.color_endpoint_index = color_endpoint_index;
-            alpha0_endpoint_index += m_codec.decode(m_endpoint_delta_dm[1]);
+            alpha0_endpoint_index += codec.decode(m_endpoint_delta_dm[1]);
             if (alpha0_endpoint_index >= num_alpha_endpoints)
               alpha0_endpoint_index -= num_alpha_endpoints;
             buffer.alpha0_endpoint_index = alpha0_endpoint_index;
@@ -3429,8 +3374,8 @@ class crn_unpacker {
             color_endpoint_index = buffer.color_endpoint_index;
             alpha0_endpoint_index = buffer.alpha0_endpoint_index;
           }
-          uint32 color_selector_index = m_codec.decode(m_selector_delta_dm[0]);
-          uint32 alpha0_selector_index = m_codec.decode(m_selector_delta_dm[1]);
+          uint32 color_selector_index = codec.decode(m_selector_delta_dm[0]);
+          uint32 alpha0_selector_index = codec.decode(m_selector_delta_dm[1]);
           if (visible) {
             const uint16* pAlpha0_selectors = &m_alpha_selectors[alpha0_selector_index * 3];
             pData[0] = m_alpha_endpoints[alpha0_endpoint_index] | (pAlpha0_selectors[0] << 16);
@@ -3444,15 +3389,14 @@ class crn_unpacker {
     return true;
   }
 
-  bool unpack_dxn(uint8** pDst, uint32 row_pitch_in_bytes, uint32 output_width, uint32 output_height) {
+  bool unpack_dxn(symbol_codec& codec, uint8** pDst, uint32 row_pitch_in_bytes, uint32 output_width, uint32 output_height) const {
     const uint32 num_alpha_endpoints = m_alpha_endpoints.size();
     const uint32 width = output_width + 1 & ~1;
     const uint32 height = output_height + 1 & ~1;
     const int32 delta_pitch_in_dwords = (row_pitch_in_bytes >> 2) - (width << 2);
 
-    if (m_block_buffer.size() < width)
-      m_block_buffer.resize(width);
-
+	CRND_ASSERT(width <= cMaxResolutionInBlocks);
+	block_buffer_element block_buffer[cMaxResolutionInBlocks];
     uint32 alpha0_endpoint_index = 0;
     uint32 alpha1_endpoint_index = 0;
     uint8 reference_group = 0;
@@ -3464,8 +3408,8 @@ class crn_unpacker {
         for (uint32 x = 0; x < width; x++, pData += 4) {
           visible = visible && x < output_width;
           if (!(y & 1) && !(x & 1))
-            reference_group = m_codec.decode(m_reference_encoding_dm);
-          block_buffer_element &buffer = m_block_buffer[x];
+            reference_group = codec.decode(m_reference_encoding_dm);
+          block_buffer_element &buffer = block_buffer[x];
           uint8 endpoint_reference;
           if (y & 1) {
             endpoint_reference = buffer.endpoint_reference;
@@ -3476,11 +3420,11 @@ class crn_unpacker {
             reference_group >>= 2;
           }
           if (!endpoint_reference) {
-            alpha0_endpoint_index += m_codec.decode(m_endpoint_delta_dm[1]);
+            alpha0_endpoint_index += codec.decode(m_endpoint_delta_dm[1]);
             if (alpha0_endpoint_index >= num_alpha_endpoints)
               alpha0_endpoint_index -= num_alpha_endpoints;
             buffer.alpha0_endpoint_index = alpha0_endpoint_index;
-            alpha1_endpoint_index += m_codec.decode(m_endpoint_delta_dm[1]);
+            alpha1_endpoint_index += codec.decode(m_endpoint_delta_dm[1]);
             if (alpha1_endpoint_index >= num_alpha_endpoints)
               alpha1_endpoint_index -= num_alpha_endpoints;
             buffer.alpha1_endpoint_index = alpha1_endpoint_index;
@@ -3491,8 +3435,8 @@ class crn_unpacker {
             alpha0_endpoint_index = buffer.alpha0_endpoint_index;
             alpha1_endpoint_index = buffer.alpha1_endpoint_index;
           }
-          uint32 alpha0_selector_index = m_codec.decode(m_selector_delta_dm[1]);
-          uint32 alpha1_selector_index = m_codec.decode(m_selector_delta_dm[1]);
+          uint32 alpha0_selector_index = codec.decode(m_selector_delta_dm[1]);
+          uint32 alpha1_selector_index = codec.decode(m_selector_delta_dm[1]);
           if (visible) {
             const uint16* pAlpha0_selectors = &m_alpha_selectors[alpha0_selector_index * 3];
             const uint16* pAlpha1_selectors = &m_alpha_selectors[alpha1_selector_index * 3];
@@ -3507,15 +3451,14 @@ class crn_unpacker {
     return true;
   }
 
-  bool unpack_dxt5a(uint8** pDst, uint32 row_pitch_in_bytes, uint32 output_width, uint32 output_height) {
+  bool unpack_dxt5a(symbol_codec& codec, uint8** pDst, uint32 row_pitch_in_bytes, uint32 output_width, uint32 output_height) const {
     const uint32 num_alpha_endpoints = m_alpha_endpoints.size();
     const uint32 width = output_width + 1 & ~1;
     const uint32 height = output_height + 1 & ~1;
     const int32 delta_pitch_in_dwords = (row_pitch_in_bytes >> 2) - (width << 1);
 
-    if (m_block_buffer.size() < width)
-      m_block_buffer.resize(width);
-
+	CRND_ASSERT(width <= cMaxResolutionInBlocks);
+	block_buffer_element block_buffer[cMaxResolutionInBlocks];
     uint32 alpha0_endpoint_index = 0;
     uint8 reference_group = 0;
 
@@ -3526,8 +3469,8 @@ class crn_unpacker {
         for (uint32 x = 0; x < width; x++, pData += 2) {
           visible = visible && x < output_width;
           if (!(y & 1) && !(x & 1))
-            reference_group = m_codec.decode(m_reference_encoding_dm);
-          block_buffer_element &buffer = m_block_buffer[x];
+            reference_group = codec.decode(m_reference_encoding_dm);
+          block_buffer_element &buffer = block_buffer[x];
           uint8 endpoint_reference;
           if (y & 1) {
             endpoint_reference = buffer.endpoint_reference;
@@ -3538,7 +3481,7 @@ class crn_unpacker {
             reference_group >>= 2;
           }
           if (!endpoint_reference) {
-            alpha0_endpoint_index += m_codec.decode(m_endpoint_delta_dm[1]);
+            alpha0_endpoint_index += codec.decode(m_endpoint_delta_dm[1]);
             if (alpha0_endpoint_index >= num_alpha_endpoints)
               alpha0_endpoint_index -= num_alpha_endpoints;
             buffer.alpha0_endpoint_index = alpha0_endpoint_index;
@@ -3547,7 +3490,7 @@ class crn_unpacker {
           } else {
             alpha0_endpoint_index = buffer.alpha0_endpoint_index;
           }
-          uint32 alpha0_selector_index = m_codec.decode(m_selector_delta_dm[1]);
+          uint32 alpha0_selector_index = codec.decode(m_selector_delta_dm[1]);
           if (visible) {
             const uint16* pAlpha0_selectors = &m_alpha_selectors[alpha0_selector_index * 3];
             pData[0] = m_alpha_endpoints[alpha0_endpoint_index] | (pAlpha0_selectors[0] << 16);
@@ -3559,15 +3502,14 @@ class crn_unpacker {
     return true;
   }
 
-  bool unpack_etc1(uint8** pDst, uint32 output_pitch_in_bytes, uint32 output_width, uint32 output_height) {
+  bool unpack_etc1(symbol_codec& codec, uint8** pDst, uint32 output_pitch_in_bytes, uint32 output_width, uint32 output_height) const {
     const uint32 num_color_endpoints = m_color_endpoints.size();
     const uint32 width = output_width + 1 & ~1;
     const uint32 height = output_height + 1 & ~1;
     const int32 delta_pitch_in_dwords = (output_pitch_in_bytes >> 2) - (width << 1);
 
-    if (m_block_buffer.size() < width << 1)
-      m_block_buffer.resize(width << 1);
-
+	CRND_ASSERT(width <= cMaxResolutionInBlocks);
+	block_buffer_element block_buffer[cMaxResolutionInBlocks];
     uint32 color_endpoint_index = 0, diagonal_color_endpoint_index = 0;
     uint8 reference_group = 0;
 
@@ -3577,17 +3519,17 @@ class crn_unpacker {
         bool visible = y < output_height;
         for (uint32 x = 0; x < width; x++, pData += 2) {
           visible = visible && x < output_width;
-          block_buffer_element &buffer = m_block_buffer[x << 1];
+          block_buffer_element &buffer = block_buffer[x << 1];
           uint8 endpoint_reference, block_endpoint[4], e0[4], e1[4];
           if (y & 1) {
             endpoint_reference = buffer.endpoint_reference;
           } else {
-            reference_group = m_codec.decode(m_reference_encoding_dm);
+            reference_group = codec.decode(m_reference_encoding_dm);
             endpoint_reference = (reference_group & 3) | (reference_group >> 2 & 12);
             buffer.endpoint_reference = (reference_group >> 2 & 3) | (reference_group >> 4 & 12);
           }
           if (!(endpoint_reference & 3)) {
-            color_endpoint_index += m_codec.decode(m_endpoint_delta_dm[0]);
+            color_endpoint_index += codec.decode(m_endpoint_delta_dm[0]);
             if (color_endpoint_index >= num_color_endpoints)
               color_endpoint_index -= num_color_endpoints;
             buffer.color_endpoint_index = color_endpoint_index;
@@ -3600,14 +3542,14 @@ class crn_unpacker {
           }
           endpoint_reference >>= 2;
           *(uint32*)&e0 = m_color_endpoints[color_endpoint_index];
-          uint32 selector_index = m_codec.decode(m_selector_delta_dm[0]);
+          uint32 selector_index = codec.decode(m_selector_delta_dm[0]);
           if (endpoint_reference) {
-            color_endpoint_index += m_codec.decode(m_endpoint_delta_dm[0]);
+            color_endpoint_index += codec.decode(m_endpoint_delta_dm[0]);
             if (color_endpoint_index >= num_color_endpoints)
               color_endpoint_index -= num_color_endpoints;
           }
-          diagonal_color_endpoint_index = m_block_buffer[x << 1 | 1].color_endpoint_index;
-          m_block_buffer[x << 1 | 1].color_endpoint_index = color_endpoint_index;
+          diagonal_color_endpoint_index = block_buffer[x << 1 | 1].color_endpoint_index;
+          block_buffer[x << 1 | 1].color_endpoint_index = color_endpoint_index;
           *(uint32*)&e1 = m_color_endpoints[color_endpoint_index];
           if (visible) {
             uint32 flip = endpoint_reference >> 1 ^ 1, diff = 1;
@@ -3625,16 +3567,15 @@ class crn_unpacker {
     return true;
   }
 
-  bool unpack_etc2a(uint8** pDst, uint32 output_pitch_in_bytes, uint32 output_width, uint32 output_height) {
+  bool unpack_etc2a(symbol_codec& codec, uint8** pDst, uint32 output_pitch_in_bytes, uint32 output_width, uint32 output_height) const {
     const uint32 num_color_endpoints = m_color_endpoints.size();
     const uint32 num_alpha_endpoints = m_alpha_endpoints.size();
     const uint32 width = output_width + 1 & ~1;
     const uint32 height = output_height + 1 & ~1;
     const int32 delta_pitch_in_dwords = (output_pitch_in_bytes >> 2) - (width << 2);
 
-    if (m_block_buffer.size() < width << 1)
-      m_block_buffer.resize(width << 1);
-
+	CRND_ASSERT(width <= cMaxResolutionInBlocks);
+	block_buffer_element block_buffer[cMaxResolutionInBlocks];
     uint32 color_endpoint_index = 0, diagonal_color_endpoint_index = 0, alpha0_endpoint_index = 0, diagonal_alpha0_endpoint_index = 0;
     uint8 reference_group = 0;
 
@@ -3644,20 +3585,20 @@ class crn_unpacker {
         bool visible = y < output_height;
         for (uint32 x = 0; x < width; x++, pData += 4) {
           visible = visible && x < output_width;
-          block_buffer_element &buffer = m_block_buffer[x << 1];
+          block_buffer_element &buffer = block_buffer[x << 1];
           uint8 endpoint_reference, block_endpoint[4], e0[4], e1[4];
           if (y & 1) {
             endpoint_reference = buffer.endpoint_reference;
           } else {
-            reference_group = m_codec.decode(m_reference_encoding_dm);
+            reference_group = codec.decode(m_reference_encoding_dm);
             endpoint_reference = (reference_group & 3) | (reference_group >> 2 & 12);
             buffer.endpoint_reference = (reference_group >> 2 & 3) | (reference_group >> 4 & 12);
           }
           if (!(endpoint_reference & 3)) {
-            color_endpoint_index += m_codec.decode(m_endpoint_delta_dm[0]);
+            color_endpoint_index += codec.decode(m_endpoint_delta_dm[0]);
             if (color_endpoint_index >= num_color_endpoints)
               color_endpoint_index -= num_color_endpoints;
-            alpha0_endpoint_index += m_codec.decode(m_endpoint_delta_dm[1]);
+            alpha0_endpoint_index += codec.decode(m_endpoint_delta_dm[1]);
             if (alpha0_endpoint_index >= num_alpha_endpoints)
               alpha0_endpoint_index -= num_alpha_endpoints;
             buffer.color_endpoint_index = color_endpoint_index;
@@ -3674,18 +3615,18 @@ class crn_unpacker {
           }
           endpoint_reference >>= 2;
           *(uint32*)&e0 = m_color_endpoints[color_endpoint_index];
-          uint32 color_selector_index = m_codec.decode(m_selector_delta_dm[0]);
-          uint32 alpha0_selector_index = m_codec.decode(m_selector_delta_dm[1]);
+          uint32 color_selector_index = codec.decode(m_selector_delta_dm[0]);
+          uint32 alpha0_selector_index = codec.decode(m_selector_delta_dm[1]);
           if (endpoint_reference) {
-            color_endpoint_index += m_codec.decode(m_endpoint_delta_dm[0]);
+            color_endpoint_index += codec.decode(m_endpoint_delta_dm[0]);
             if (color_endpoint_index >= num_color_endpoints)
               color_endpoint_index -= num_color_endpoints;
           }
           *(uint32*)&e1 = m_color_endpoints[color_endpoint_index];
-          diagonal_color_endpoint_index = m_block_buffer[x << 1 | 1].color_endpoint_index;
-          diagonal_alpha0_endpoint_index = m_block_buffer[x << 1 | 1].alpha0_endpoint_index;
-          m_block_buffer[x << 1 | 1].color_endpoint_index = color_endpoint_index;
-          m_block_buffer[x << 1 | 1].alpha0_endpoint_index = alpha0_endpoint_index;
+          diagonal_color_endpoint_index = block_buffer[x << 1 | 1].color_endpoint_index;
+          diagonal_alpha0_endpoint_index = block_buffer[x << 1 | 1].alpha0_endpoint_index;
+          block_buffer[x << 1 | 1].color_endpoint_index = color_endpoint_index;
+          block_buffer[x << 1 | 1].alpha0_endpoint_index = alpha0_endpoint_index;
           if (visible) {
             uint32 flip = endpoint_reference >> 1 ^ 1, diff = 1;
             for (uint c = 0; diff && c < 3; c++)

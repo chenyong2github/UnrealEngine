@@ -64,9 +64,10 @@ struct FDecalRenderTargetManager
 	//
 	bool bGufferADirty;
 	bool bGufferBCDirty;
+	ERHIFeatureLevel::Type FeatureLevel;
 
 	// constructor
-	FDecalRenderTargetManager(FRHICommandList& InRHICmdList, EShaderPlatform ShaderPlatform, EDecalRenderStage CurrentStage);
+	FDecalRenderTargetManager(FRHICommandList& InRHICmdList, EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, EDecalRenderStage CurrentStage);
 
 	// destructor
 	~FDecalRenderTargetManager()

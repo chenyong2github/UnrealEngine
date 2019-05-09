@@ -13,6 +13,7 @@
 #include "PrimitiveSceneInfo.h"
 #include "Materials/Material.h"
 #include "SceneManagement.h"
+#include "VT/RuntimeVirtualTexture.h"
 
 static TAutoConsoleVariable<int32> CVarForceSingleSampleShadowingFromStationary(
 	TEXT("r.Shadow.ForceSingleSampleShadowingFromStationary"),
@@ -210,7 +211,19 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 #if WITH_EDITOR
 	const bool bGetDebugMaterials = true;
 	InComponent->GetUsedMaterials(UsedMaterialsForVerification, bGetDebugMaterials);
-#endif	
+#endif
+
+	if (UseVirtualTexturing(GetScene().GetFeatureLevel()))
+	{
+		for (URuntimeVirtualTexture* VirtualTexture : InComponent->RuntimeVirtualTextures)
+		{
+			if (VirtualTexture != nullptr && VirtualTexture->GetEnabled())
+			{
+				RuntimeVirtualTextures.Add(VirtualTexture);
+				RuntimeVirtualTextureMaterialTypes.Add(VirtualTexture->GetMaterialType());
+			}
+		}
+	}
 }
 
 #if WITH_EDITOR

@@ -656,12 +656,12 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 		}
 
 		FScene& Scene = *(FScene*)ViewFamily.Scene;
-		FDecalRenderTargetManager RenderTargetManager(RHICmdList, Context.GetShaderPlatform(), CurrentStage);
+		FDecalRenderTargetManager RenderTargetManager(RHICmdList, Context.GetShaderPlatform(), Context.GetFeatureLevel(), CurrentStage);
 
 		//don't early return. Resolves must be run for fast clears to work.
 		if (Scene.Decals.Num() || Context.View.MeshDecalBatches.Num() > 0)
 		{
-			check(bNeedsDBufferTargets || CurrentStage != DRS_BeforeBasePass);
+			check(bNeedsDBufferTargets || CurrentStage != DRS_BeforeBasePass)
 
 			// Build a list of decals that need to be rendered for this view
 			FTransientDecalRenderDataList SortedDecals;
@@ -682,6 +682,9 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 					check(RHICmdList.IsInsideRenderPass());
 					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 				}
+				
+				// Disable UAV cache flushing so we have optimal VT feedback performance.
+				RHICmdList.AutomaticCacheFlushAfterComputeShader(false);
 
 				// optimization to have less state changes
 				EDecalRasterizerState LastDecalRasterizerState = DRS_Undefined;
@@ -809,6 +812,9 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 				check(RHICmdList.IsInsideRenderPass());
 				// Finished rendering sorted decals, so end the renderpass.
 				RHICmdList.EndRenderPass();
+				
+				RHICmdList.AutomaticCacheFlushAfterComputeShader(true);
+				RHICmdList.FlushComputeShaderCache();
 			}
 
 			if (RHICmdList.IsInsideRenderPass())
@@ -939,10 +945,11 @@ void FDecalRenderTargetManager::ResolveTargets()
 }
 
 
-FDecalRenderTargetManager::FDecalRenderTargetManager(FRHICommandList& InRHICmdList, EShaderPlatform ShaderPlatform, EDecalRenderStage CurrentStage)
+FDecalRenderTargetManager::FDecalRenderTargetManager(FRHICommandList& InRHICmdList, EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, EDecalRenderStage CurrentStage)
 	: RHICmdList(InRHICmdList)
 	, bGufferADirty(false)
 	, bGufferBCDirty(false)
+	, FeatureLevel(InFeatureLevel)
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
@@ -1092,6 +1099,11 @@ void FDecalRenderTargetManager::SetRenderTargetMode(FDecalRenderingCommon::ERend
 	RPInfo.DepthStencilRenderTarget.DepthStencilTarget = DepthTarget;
 	RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(DepthTargetActions, ERenderTargetActions::Load_Store);
 	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = DepthStencilAccess;
+
+	if (UseVirtualTexturing(FeatureLevel))
+	{
+		SceneContext.BindVirtualTextureFeedbackUAV(RPInfo);
+	}
 
 	if (TargetsToTransitionWritable[CurrentRenderTargetMode])
 	{

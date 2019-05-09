@@ -29,7 +29,8 @@ void FGenericRHIGPUFence::WriteInternal()
 
 bool FGenericRHIGPUFence::Poll() const
 {
-	if (GFrameNumberRenderThread > InsertedFrameNumber)
+	const uint32 CurrentFrameNumber = GFrameNumberRenderThread;
+	if (CurrentFrameNumber > InsertedFrameNumber)
 	{
 		return true;
 	}

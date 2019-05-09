@@ -46,7 +46,7 @@ class UMaterialInterface;
 class UShadowMapTexture2D;
 class USkyLightComponent;
 struct FDynamicMeshVertex;
-class ULightMapVirtualTexture;
+class ULightMapVirtualTexture2D;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBufferVisualization, Log, All);
 
@@ -342,7 +342,7 @@ public:
 		bool bAllowHighQualityLightMaps);
 
 	static FLightMapInteraction InitVirtualTexture(
-		const ULightMapVirtualTexture* VirtualTexture,
+		const ULightMapVirtualTexture2D* VirtualTexture,
 		const FVector4* InCoefficientScales,
 		const FVector4* InCoefficientAdds,
 		const FVector2D& InCoordinateScale,
@@ -398,7 +398,7 @@ public:
 #endif
 	}
 
-	const ULightMapVirtualTexture* GetVirtualTexture() const
+	const ULightMapVirtualTexture2D* GetVirtualTexture() const
 	{
 		check(Type == LMIT_Texture);
 #if ALLOW_HQ_LIGHTMAPS
@@ -509,7 +509,7 @@ private:
 	const class ULightMapTexture2D* HighQualityTexture;
 	const ULightMapTexture2D* SkyOcclusionTexture;
 	const ULightMapTexture2D* AOMaterialMaskTexture;
-	const ULightMapVirtualTexture* VirtualTexture;
+	const ULightMapVirtualTexture2D* VirtualTexture;
 #endif
 
 #if ALLOW_LQ_LIGHTMAPS
@@ -571,9 +571,31 @@ public:
 		return Result;
 	}
 
+	static FShadowMapInteraction InitVirtualTexture(
+		class ULightMapVirtualTexture2D* InTexture,
+		const FVector2D& InCoordinateScale,
+		const FVector2D& InCoordinateBias,
+		const bool* InChannelValid,
+		const FVector4& InInvUniformPenumbraSize)
+	{
+		FShadowMapInteraction Result;
+		Result.Type = SMIT_Texture;
+		Result.VirtualTexture = InTexture;
+		Result.CoordinateScale = InCoordinateScale;
+		Result.CoordinateBias = InCoordinateBias;
+		Result.InvUniformPenumbraSize = InInvUniformPenumbraSize;
+		for (int Channel = 0; Channel < 4; Channel++)
+		{
+			Result.bChannelValid[Channel] = InChannelValid[Channel];
+		}
+
+		return Result;
+	}
+
 	/** Default constructor. */
 	FShadowMapInteraction() :
 		ShadowTexture(nullptr),
+		VirtualTexture(nullptr),
 		InvUniformPenumbraSize(FVector4(0, 0, 0, 0)),
 		Type(SMIT_None)
 	{
@@ -590,6 +612,12 @@ public:
 	{
 		checkSlow(Type == SMIT_Texture);
 		return ShadowTexture;
+	}
+
+	const ULightMapVirtualTexture2D* GetVirtualTexture() const
+	{
+		checkSlow(Type == SMIT_Texture);
+		return VirtualTexture;
 	}
 
 	const FVector2D& GetCoordinateScale() const
@@ -617,6 +645,7 @@ public:
 
 private:
 	UShadowMapTexture2D* ShadowTexture;
+	const ULightMapVirtualTexture2D* VirtualTexture;
 	FVector2D CoordinateScale;
 	FVector2D CoordinateBias;
 	bool bChannelValid[4];
@@ -627,21 +656,18 @@ private:
 class FLightMap;
 class FShadowMap;
 
-// When using virtual textures for the 2D lightmaps, use the 16bbp (1) or 32bbp (0) page table
-// 16bbp is limited to 64*64 pools
-#define LIGHTMAP_VT_16BIT 1
-
-
-
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLightmapResourceClusterShaderParameters,ENGINE_API)
-	SHADER_PARAMETER_TEXTURE(Texture2D, LightMapTexture) 
+	SHADER_PARAMETER_TEXTURE(Texture2D, LightMapTexture)
+	SHADER_PARAMETER_TEXTURE(Texture2D, LightMapTexture_1) // VT
 	SHADER_PARAMETER_TEXTURE(Texture2D, SkyOcclusionTexture) 
 	SHADER_PARAMETER_TEXTURE(Texture2D, AOMaterialMaskTexture) 
-	SHADER_PARAMETER_TEXTURE(Texture2D, StaticShadowTexture) 
+	SHADER_PARAMETER_TEXTURE(Texture2D, StaticShadowTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, LightMapSampler) 
 	SHADER_PARAMETER_SAMPLER(SamplerState, SkyOcclusionSampler) 
 	SHADER_PARAMETER_SAMPLER(SamplerState, AOMaterialMaskSampler) 
 	SHADER_PARAMETER_SAMPLER(SamplerState, StaticShadowTextureSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D<uint4>, LightmapVirtualTexturePageTable0) // VT
+	SHADER_PARAMETER_TEXTURE(Texture2D<uint4>, LightmapVirtualTexturePageTable1) // VT
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 class FLightmapClusterResourceInput
@@ -654,19 +680,24 @@ public:
 		LightMapTextures[1] = nullptr;
 		SkyOcclusionTexture = nullptr;
 		AOMaterialMaskTexture = nullptr;
+		LightMapVirtualTexture = nullptr;
 		ShadowMapTexture = nullptr;
 	}
 
 	const UTexture2D* LightMapTextures[2];
 	const UTexture2D* SkyOcclusionTexture;
 	const UTexture2D* AOMaterialMaskTexture;
+	const ULightMapVirtualTexture2D* LightMapVirtualTexture;
 	const UTexture2D* ShadowMapTexture;
 
 	friend uint32 GetTypeHash(const FLightmapClusterResourceInput& Cluster)
 	{
-		return PointerHash(Cluster.LightMapTextures[0], 
+		// TODO - LightMapVirtualTexture needed here? What about Sky/AO textures?  Or is it enough to just check LightMapTexture[n]?
+		return
+			PointerHash(Cluster.LightMapTextures[0],
 			PointerHash(Cluster.LightMapTextures[1],
-				PointerHash(Cluster.ShadowMapTexture)));
+			PointerHash(Cluster.LightMapVirtualTexture,
+			PointerHash(Cluster.ShadowMapTexture))));
 	}
 
 	bool operator==(const FLightmapClusterResourceInput& Rhs) const
@@ -675,6 +706,7 @@ public:
 			&& LightMapTextures[1] == Rhs.LightMapTextures[1]
 			&& SkyOcclusionTexture == Rhs.SkyOcclusionTexture
 			&& AOMaterialMaskTexture == Rhs.AOMaterialMaskTexture
+			&& LightMapVirtualTexture == Rhs.LightMapVirtualTexture
 			&& ShadowMapTexture == Rhs.ShadowMapTexture;
 	}
 };
@@ -682,6 +714,7 @@ public:
 ENGINE_API void GetLightmapClusterResourceParameters(
 	ERHIFeatureLevel::Type FeatureLevel, 
 	const FLightmapClusterResourceInput& Input,
+	IAllocatedVirtualTexture* AllocatedVT,
 	FLightmapResourceClusterShaderParameters& Parameters);
 
 class FDefaultLightmapResourceClusterUniformBuffer : public TUniformBuffer< FLightmapResourceClusterShaderParameters >
@@ -772,7 +805,7 @@ public:
 
 	ENGINE_API FLightMapInteraction GetLightMapInteraction(ERHIFeatureLevel::Type InFeatureLevel) const;
 
-	ENGINE_API FShadowMapInteraction GetShadowMapInteraction() const;
+	ENGINE_API FShadowMapInteraction GetShadowMapInteraction(ERHIFeatureLevel::Type InFeatureLevel) const;
 
 private:
 

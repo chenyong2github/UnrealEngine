@@ -162,10 +162,15 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 				switch ( SrcImage.GammaSpace )
 				{
 				case EGammaSpace::Linear:
-					for (int32 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+					ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels](int32 JobIndex)
 					{
-						DestColors[TexelIndex] = SrcColors[TexelIndex].ReinterpretAsLinear();
-					}
+						int32 StartIndex = JobIndex * TexelsPerJob;
+						int32 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
+						for (int32 TexelIndex = StartIndex; TexelIndex < EndIndex; ++TexelIndex)
+						{
+							DestColors[TexelIndex] = SrcColors[TexelIndex].ReinterpretAsLinear();
+						}
+					});
 					break;
 				case EGammaSpace::sRGB:
 					ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels](int32 JobIndex)
@@ -235,7 +240,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 }
 
 
-/* FImage structors
+/* FImage constructors
  *****************************************************************************/
 
 FImage::FImage(int32 InSizeX, int32 InSizeY, int32 InNumSlices, ERawImageFormat::Type InFormat, EGammaSpace InGammaSpace)

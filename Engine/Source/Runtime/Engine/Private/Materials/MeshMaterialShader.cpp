@@ -58,6 +58,7 @@ FShaderCompileJob* FMeshMaterialShaderType::BeginCompileShader(
 
 	NewJob->Input.SharedEnvironment = MaterialEnvironment;
 	FShaderCompilerEnvironment& ShaderEnvironment = NewJob->Input.Environment;
+	ShaderEnvironment.TargetPlatform = MaterialEnvironment->TargetPlatform;
 
 	// apply the vertex factory changes to the compile environment
 	check(VertexFactoryType);

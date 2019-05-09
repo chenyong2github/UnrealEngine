@@ -38,7 +38,7 @@ class UMaterialExpressionFontSample : public UMaterialExpression
 	 * This is used to link the compiled uniform expressions with their default texture values. 
 	 * Any UMaterialExpression whose compilation creates a texture uniform expression (eg Compiler->Texture, Compiler->TextureParameter) must implement this.
 	 */
-	virtual UTexture* GetReferencedTexture() override;
+	virtual UObject* GetReferencedTexture() const override;
 
 	virtual bool CanReferenceTexture() const override { return true; }
 	//~ End UMaterialExpression Interface

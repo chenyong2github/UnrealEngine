@@ -6,6 +6,8 @@
 #include "Templates/Atomic.h"
 #include "Misc/CompressionFlags.h"
 
+class IMemoryReadStream;
+
 // Define global current platform default to current platform.  
 // DEPRECATED, USE NAME_Zlib
 #define COMPRESS_Default			COMPRESS_ZLIB
@@ -64,6 +66,8 @@ struct FCompression
 	 * @return true if compression succeeds, false if it fails because CompressedBuffer was too small or other reasons
 	 */
 	CORE_API static bool UncompressMemory(FName FormatName, void* UncompressedBuffer, int32 UncompressedSize, const void* CompressedBuffer, int32 CompressedSize, ECompressionFlags Flags=COMPRESS_NoFlags, int32 CompressionData=0);
+
+	CORE_API static bool UncompressMemoryStream(FName FormatName, void* UncompressedBuffer, int32 UncompressedSize, IMemoryReadStream* Stream, int64 StreamOffset, int32 CompressedSize, ECompressionFlags Flags = COMPRESS_NoFlags, int32 CompressionData = 0);
 
 	/**
 	 * Checks to see if a format will be usable, so that a fallback can be used

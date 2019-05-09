@@ -673,53 +673,12 @@ public:
 	}
 
 	/**
-	* Creates a shader resource view for a 2d texture, viewing only a single
-	* mip level. Useful when rendering to one mip while sampling from another.
+	* Creates a shader resource view for a texture
 	*/
 	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture2D* Texture2DRHI, uint8 MipLevel) override final
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FTextureRHIParamRef TextureRHI, const FRHITextureSRVCreateInfo& CreateInfo) override final
 	{
-		return RHI->RHICreateShaderResourceView(Texture2DRHI, MipLevel);
-	}
-
-	/**FRHIResourceInfo
-	* Creates a shader resource view for a 2d texture, with a different
-	* format from the original.  Useful when sampling stencil.
-	*/
-	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture2D* Texture2DRHI, uint8 MipLevel, uint8 NumMipLevels, uint8 Format) override final
-	{
-		return RHI->RHICreateShaderResourceView(Texture2DRHI, MipLevel, NumMipLevels, Format);
-	}
-
-	/**
-	* Creates a shader resource view for a 3d texture, viewing only a single
-	* mip level.
-	*/
-	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture3D* Texture3DRHI, uint8 MipLevel) override final
-	{
-		return RHI->RHICreateShaderResourceView(Texture3DRHI, MipLevel);
-	}
-
-	/**
-	* Creates a shader resource view for a 2d texture array, viewing only a single
-	* mip level.
-	*/
-	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture2DArray* Texture2DArrayRHI, uint8 MipLevel) override final
-	{
-		return RHI->RHICreateShaderResourceView(Texture2DArrayRHI, MipLevel);
-	}
-
-	/**
-	* Creates a shader resource view for a cube texture, viewing only a single
-	* mip level.
-	*/
-	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITextureCube* TextureCubeRHI, uint8 MipLevel) override final
-	{
-		return RHI->RHICreateShaderResourceView(TextureCubeRHI, MipLevel);
+		return RHI->RHICreateShaderResourceView(TextureRHI, CreateInfo);
 	}
 
 	/**
@@ -1487,29 +1446,9 @@ public:
 		return RHI->RHICreateUnorderedAccessView_RenderThread(RHICmdList, IndexBuffer, Format);
 	}
 
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2DRHI, uint8 MipLevel) override final
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FTextureRHIParamRef Texture, const FRHITextureSRVCreateInfo& CreateInfo) override final
 	{
-		return RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Texture2DRHI, MipLevel);
-	}
-
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2DRHI, uint8 MipLevel, uint8 NumMipLevels, uint8 Format) override final
-	{
-		return RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Texture2DRHI, MipLevel, NumMipLevels, Format);
-	}
-
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture3D* Texture3DRHI, uint8 MipLevel) override final
-	{
-		return RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Texture3DRHI, MipLevel);
-	}
-
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2DArray* Texture2DArrayRHI, uint8 MipLevel) override final
-	{
-		return RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Texture2DArrayRHI, MipLevel);
-	}
-
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITextureCube* TextureCubeRHI, uint8 MipLevel) override final
-	{
-		return RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, TextureCubeRHI, MipLevel);
+		return RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Texture, CreateInfo);
 	}
 
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format) override final

@@ -14,6 +14,7 @@
 #include "Engine/Engine.h"
 #include "Engine/LightMapTexture2D.h"
 #include "Engine/ShadowMapTexture2D.h"
+#include "VT/VirtualTexture.h"
 #include "UnrealEngine.h"
 
 static TAutoConsoleVariable<float> CVarLODTemporalLag(
@@ -391,7 +392,7 @@ FLightMapInteraction FLightMapInteraction::Texture(
 }
 
 FLightMapInteraction FLightMapInteraction::InitVirtualTexture(
-	const ULightMapVirtualTexture* VirtualTexture,
+	const ULightMapVirtualTexture2D* VirtualTexture,
 	const FVector4* InCoefficientScales,
 	const FVector4* InCoefficientAdds,
 	const FVector2D& InCoordinateScale,
@@ -795,27 +796,109 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLightmapResourceClusterShaderParameter
 void GetLightmapClusterResourceParameters(
 	ERHIFeatureLevel::Type FeatureLevel, 
 	const FLightmapClusterResourceInput& Input,
+	IAllocatedVirtualTexture* AllocatedVT,
 	FLightmapResourceClusterShaderParameters& Parameters)
 {
 	const bool bAllowHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
-	const UTexture2D* LightMapTexture = Input.LightMapTextures[bAllowHighQualityLightMaps ? 0 : 1];
 
-	Parameters.LightMapTexture = LightMapTexture ? LightMapTexture->TextureReference.TextureReferenceRHI.GetReference() : GBlackTexture->TextureRHI;
-	Parameters.SkyOcclusionTexture = Input.SkyOcclusionTexture ? Input.SkyOcclusionTexture->TextureReference.TextureReferenceRHI.GetReference() : GWhiteTexture->TextureRHI;
-	Parameters.AOMaterialMaskTexture = Input.AOMaterialMaskTexture ? Input.AOMaterialMaskTexture->TextureReference.TextureReferenceRHI.GetReference() : GBlackTexture->TextureRHI;
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
+	const bool bUseVirtualTextures = bAllowHighQualityLightMaps && (CVar->GetValueOnRenderThread() != 0) && UseVirtualTexturing(FeatureLevel);
 
-	Parameters.LightMapSampler = (LightMapTexture && LightMapTexture->Resource) ? LightMapTexture->Resource->SamplerStateRHI : GBlackTexture->SamplerStateRHI;
-	Parameters.SkyOcclusionSampler = (Input.SkyOcclusionTexture && Input.SkyOcclusionTexture->Resource) ? Input.SkyOcclusionTexture->Resource->SamplerStateRHI : GWhiteTexture->SamplerStateRHI;
-	Parameters.AOMaterialMaskSampler = (Input.AOMaterialMaskTexture && Input.AOMaterialMaskTexture->Resource) ? Input.AOMaterialMaskTexture->Resource->SamplerStateRHI : GBlackTexture->SamplerStateRHI;
+	if (bUseVirtualTextures)
+	{
+		// this is sometimes called with NULL input to initialize default buffer
+		const ULightMapVirtualTexture2D* VirtualTexture = Input.LightMapVirtualTexture;
+		if (VirtualTexture && AllocatedVT)
+		{
+			// Bind VT here
+			Parameters.LightMapTexture = AllocatedVT->GetPhysicalTexture((uint32)ELightMapVirtualTextureType::HqLayer0);
+			Parameters.LightMapTexture_1 = AllocatedVT->GetPhysicalTexture((uint32)ELightMapVirtualTextureType::HqLayer1);
 
-	Parameters.StaticShadowTexture = Input.ShadowMapTexture ? Input.ShadowMapTexture->TextureReference.TextureReferenceRHI.GetReference() : GWhiteTexture->TextureRHI;
-	Parameters.StaticShadowTextureSampler = (Input.ShadowMapTexture && Input.ShadowMapTexture->Resource) ? Input.ShadowMapTexture->Resource->SamplerStateRHI : GWhiteTexture->SamplerStateRHI;
+			if (VirtualTexture->HasLayerForType(ELightMapVirtualTextureType::SkyOcclusion))
+			{
+				Parameters.SkyOcclusionTexture = AllocatedVT->GetPhysicalTexture((uint32)ELightMapVirtualTextureType::SkyOcclusion);
+			}
+			else
+			{
+				Parameters.SkyOcclusionTexture = GWhiteTexture->TextureRHI;
+			}
+
+			if (VirtualTexture->HasLayerForType(ELightMapVirtualTextureType::AOMaterialMask))
+			{
+				Parameters.AOMaterialMaskTexture = AllocatedVT->GetPhysicalTexture((uint32)ELightMapVirtualTextureType::AOMaterialMask);
+			}
+			else
+			{
+				Parameters.AOMaterialMaskTexture = GBlackTexture->TextureRHI;
+			}
+
+			if (VirtualTexture->HasLayerForType(ELightMapVirtualTextureType::ShadowMask))
+			{
+				Parameters.StaticShadowTexture = AllocatedVT->GetPhysicalTexture((uint32)ELightMapVirtualTextureType::ShadowMask);
+			}
+			else
+			{
+				Parameters.StaticShadowTexture = GWhiteTexture->TextureRHI;
+			}
+
+			FRHITexture* PageTable0 = AllocatedVT->GetPageTableTexture(0u);
+			Parameters.LightmapVirtualTexturePageTable0 = PageTable0;
+			if (AllocatedVT->GetNumPageTableTextures() > 1u)
+			{
+				check(AllocatedVT->GetNumPageTableTextures() == 2u);
+				Parameters.LightmapVirtualTexturePageTable1 = AllocatedVT->GetPageTableTexture(1u);
+			}
+			else
+			{
+				Parameters.LightmapVirtualTexturePageTable1 = PageTable0;
+			}
+
+			const uint32 MaxAniso = 4;
+			Parameters.LightMapSampler = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, MaxAniso>::GetRHI();
+			Parameters.SkyOcclusionSampler = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, MaxAniso>::GetRHI();
+			Parameters.AOMaterialMaskSampler = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, MaxAniso>::GetRHI();
+			Parameters.StaticShadowTextureSampler = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, MaxAniso>::GetRHI();
+		}
+		else
+		{
+			Parameters.LightMapTexture = GBlackTexture->TextureRHI;
+			Parameters.LightMapTexture_1 = GBlackTexture->TextureRHI;
+			Parameters.SkyOcclusionTexture = GWhiteTexture->TextureRHI;
+			Parameters.AOMaterialMaskTexture = GBlackTexture->TextureRHI;
+			Parameters.StaticShadowTexture = GWhiteTexture->TextureRHI;
+			Parameters.LightmapVirtualTexturePageTable0 = GBlackTexture->TextureRHI;
+			Parameters.LightmapVirtualTexturePageTable1 = GBlackTexture->TextureRHI;
+			Parameters.LightMapSampler = GBlackTexture->SamplerStateRHI;
+			Parameters.SkyOcclusionSampler = GWhiteTexture->SamplerStateRHI;
+			Parameters.AOMaterialMaskSampler = GBlackTexture->SamplerStateRHI;
+			Parameters.StaticShadowTextureSampler = GWhiteTexture->SamplerStateRHI;
+		}
+	}
+	else
+	{
+		const UTexture2D* LightMapTexture = Input.LightMapTextures[bAllowHighQualityLightMaps ? 0 : 1];
+
+		Parameters.LightMapTexture = LightMapTexture ? LightMapTexture->TextureReference.TextureReferenceRHI.GetReference() : GBlackTexture->TextureRHI;
+		Parameters.LightMapTexture_1 = GBlackTexture->TextureRHI;
+		Parameters.SkyOcclusionTexture = Input.SkyOcclusionTexture ? Input.SkyOcclusionTexture->TextureReference.TextureReferenceRHI.GetReference() : GWhiteTexture->TextureRHI;
+		Parameters.AOMaterialMaskTexture = Input.AOMaterialMaskTexture ? Input.AOMaterialMaskTexture->TextureReference.TextureReferenceRHI.GetReference() : GBlackTexture->TextureRHI;
+
+		Parameters.LightMapSampler = (LightMapTexture && LightMapTexture->Resource) ? LightMapTexture->Resource->SamplerStateRHI : GBlackTexture->SamplerStateRHI;
+		Parameters.SkyOcclusionSampler = (Input.SkyOcclusionTexture && Input.SkyOcclusionTexture->Resource) ? Input.SkyOcclusionTexture->Resource->SamplerStateRHI : GWhiteTexture->SamplerStateRHI;
+		Parameters.AOMaterialMaskSampler = (Input.AOMaterialMaskTexture && Input.AOMaterialMaskTexture->Resource) ? Input.AOMaterialMaskTexture->Resource->SamplerStateRHI : GBlackTexture->SamplerStateRHI;
+
+		Parameters.StaticShadowTexture = Input.ShadowMapTexture ? Input.ShadowMapTexture->TextureReference.TextureReferenceRHI.GetReference() : GWhiteTexture->TextureRHI;
+		Parameters.StaticShadowTextureSampler = (Input.ShadowMapTexture && Input.ShadowMapTexture->Resource) ? Input.ShadowMapTexture->Resource->SamplerStateRHI : GWhiteTexture->SamplerStateRHI;
+
+		Parameters.LightmapVirtualTexturePageTable0 = GBlackTexture->TextureRHI;
+		Parameters.LightmapVirtualTexturePageTable1 = GBlackTexture->TextureRHI;
+	}
 }
 
 void FDefaultLightmapResourceClusterUniformBuffer::InitDynamicRHI()
 {
 	FLightmapResourceClusterShaderParameters Parameters;
-	GetLightmapClusterResourceParameters(GMaxRHIFeatureLevel, FLightmapClusterResourceInput(), Parameters);
+	GetLightmapClusterResourceParameters(GMaxRHIFeatureLevel, FLightmapClusterResourceInput(), nullptr, Parameters);
 	SetContents(Parameters);
 	Super::InitDynamicRHI();
 }
@@ -833,14 +916,26 @@ FLightMapInteraction FLightCacheInterface::GetLightMapInteraction(ERHIFeatureLev
 	return LightMap ? LightMap->GetInteraction(InFeatureLevel) : FLightMapInteraction();
 }
 
-FShadowMapInteraction FLightCacheInterface::GetShadowMapInteraction() const
+FShadowMapInteraction FLightCacheInterface::GetShadowMapInteraction(ERHIFeatureLevel::Type InFeatureLevel) const
 {
 	if (bGlobalVolumeLightmap)
 	{
 		return FShadowMapInteraction::GlobalVolume();
 	}
 
-	return ShadowMap ? ShadowMap->GetInteraction() : FShadowMapInteraction();
+	FShadowMapInteraction Interaction;
+	if (LightMap)
+	{
+		// Lightmap gets the first chance to provide shadow interaction,
+		// this is used if VT lightmaps are enabled, and shadowmap is packed into the same VT stack as other lightmap textures
+		Interaction = LightMap->GetShadowInteraction(InFeatureLevel);
+	}
+	if (Interaction.GetType() == SMIT_None && ShadowMap)
+	{
+		Interaction = ShadowMap->GetInteraction();
+	}
+
+	return Interaction;
 }
 
 ELightInteractionType FLightCacheInterface::GetStaticInteraction(const FLightSceneProxy* LightSceneProxy, const TArray<FGuid>& IrrelevantLights) const

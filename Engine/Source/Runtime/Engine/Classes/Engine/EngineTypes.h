@@ -553,9 +553,24 @@ enum EMaterialSamplerType
 	SAMPLERTYPE_LinearGrayscale UMETA(DisplayName = "Linear Grayscale"),
 	SAMPLERTYPE_Data UMETA(DisplayName = "Data"),
 	SAMPLERTYPE_External UMETA(DisplayName = "External"),
+
+	SAMPLERTYPE_VirtualColor UMETA(DisplayName = "Virtual Color"),
+	SAMPLERTYPE_VirtualGrayscale UMETA(DisplayName = "Virtual Grayscale"),
+	SAMPLERTYPE_VirtualAlpha UMETA(DisplayName = "Virtual Alpha"),
+	SAMPLERTYPE_VirtualNormal UMETA(DisplayName = "Virtual Normal"),
+	SAMPLERTYPE_VirtualMasks UMETA(DisplayName = "Virtual Mask"),
+	/*No DistanceFiledFont Virtual*/
+	SAMPLERTYPE_VirtualLinearColor UMETA(DisplayName = "Virtual Linear Color"),
+	SAMPLERTYPE_VirtualLinearGrayscale UMETA(DisplayName = "Virtual Linear Grayscale"),
+	/*No External Virtual*/
+
 	SAMPLERTYPE_MAX,
 };
 
+inline bool IsVirtualSamplerType(EMaterialSamplerType Value)
+{
+	return ((int32)Value >= (int32)SAMPLERTYPE_VirtualColor && (int32)Value <= (int32)SAMPLERTYPE_VirtualLinearGrayscale);
+}
 UENUM()
 enum EMaterialStencilCompare
 {
@@ -569,6 +584,7 @@ enum EMaterialStencilCompare
 	MSC_Always			UMETA(DisplayName = "Always"),
 	MSC_Count			UMETA(Hidden),
 };
+
 /**	Lighting build quality enumeration */
 UENUM()
 enum ELightingBuildQuality

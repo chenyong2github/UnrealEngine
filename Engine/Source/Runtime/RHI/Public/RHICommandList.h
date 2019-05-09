@@ -3860,34 +3860,24 @@ public:
 		return RHIGetResourceInfo(Ref, OutInfo);
 	}
 	
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FTexture2DRHIParamRef Texture2DRHI, uint8 MipLevel)
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FTextureRHIParamRef Texture, const FRHITextureSRVCreateInfo& CreateInfo)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		return GDynamicRHI->RHICreateShaderResourceView_RenderThread(*this, Texture2DRHI, MipLevel);
-	}
-	
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FTexture2DRHIParamRef Texture2DRHI, uint8 MipLevel, uint8 NumMipLevels, uint8 Format)
-	{
-		LLM_SCOPE(ELLMTag::RHIMisc);
-		return GDynamicRHI->RHICreateShaderResourceView_RenderThread(*this, Texture2DRHI, MipLevel, NumMipLevels, Format);
-	}
-	
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FTexture3DRHIParamRef Texture3DRHI, uint8 MipLevel)
-	{
-		LLM_SCOPE(ELLMTag::RHIMisc);
-		return GDynamicRHI->RHICreateShaderResourceView_RenderThread(*this, Texture3DRHI, MipLevel);
+		return GDynamicRHI->RHICreateShaderResourceView_RenderThread(*this, Texture, CreateInfo);
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FTexture2DArrayRHIParamRef Texture2DArrayRHI, uint8 MipLevel)
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FTextureRHIParamRef Texture, uint8 MipLevel)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		return GDynamicRHI->RHICreateShaderResourceView_RenderThread(*this, Texture2DArrayRHI, MipLevel);
+		const FRHITextureSRVCreateInfo CreateInfo(MipLevel);
+		return GDynamicRHI->RHICreateShaderResourceView_RenderThread(*this, Texture, CreateInfo);
 	}
-
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FTextureCubeRHIParamRef TextureCubeRHI, uint8 MipLevel)
+	
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FTextureRHIParamRef Texture, uint8 MipLevel, uint8 NumMipLevels, uint8 Format)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		return GDynamicRHI->RHICreateShaderResourceView_RenderThread(*this, TextureCubeRHI, MipLevel);
+		const FRHITextureSRVCreateInfo CreateInfo(MipLevel, NumMipLevels, Format);
+		return GDynamicRHI->RHICreateShaderResourceView_RenderThread(*this, Texture, CreateInfo);
 	}
 
 	FORCEINLINE void GenerateMips(FTextureRHIParamRef Texture)
@@ -3951,6 +3941,14 @@ public:
 		checkf(UpdateRegion.DestY + UpdateRegion.Height <= Texture->GetSizeY(), TEXT("UpdateTexture2D out of bounds on Y. Texture: %s, %i, %i, %i"), *Texture->GetName().ToString(), UpdateRegion.DestY, UpdateRegion.Height, Texture->GetSizeY());
 		LLM_SCOPE(ELLMTag::Textures);
 		GDynamicRHI->UpdateTexture2D_RenderThread(*this, Texture, MipIndex, UpdateRegion, SourcePitch, SourceData);
+	}
+
+	FORCEINLINE void UpdateFromBufferTexture2D(FTexture2DRHIParamRef Texture, uint32 MipIndex, const struct FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, FStructuredBufferRHIParamRef Buffer, uint32 BufferOffset)
+	{
+		checkf(UpdateRegion.DestX + UpdateRegion.Width <= Texture->GetSizeX(), TEXT("UpdateFromBufferTexture2D out of bounds on X. Texture: %s, %i, %i, %i"), *Texture->GetName().ToString(), UpdateRegion.DestX, UpdateRegion.Width, Texture->GetSizeX());
+		checkf(UpdateRegion.DestY + UpdateRegion.Height <= Texture->GetSizeY(), TEXT("UpdateFromBufferTexture2D out of bounds on Y. Texture: %s, %i, %i, %i"), *Texture->GetName().ToString(), UpdateRegion.DestY, UpdateRegion.Height, Texture->GetSizeY());
+		LLM_SCOPE(ELLMTag::Textures);
+		GDynamicRHI->UpdateFromBufferTexture2D_RenderThread(*this, Texture, MipIndex, UpdateRegion, SourcePitch, Buffer, BufferOffset);
 	}
 
 	FORCEINLINE FUpdateTexture3DData BeginUpdateTexture3D(FTexture3DRHIParamRef Texture, uint32 MipIndex, const struct FUpdateTextureRegion3D& UpdateRegion)
@@ -4031,17 +4029,23 @@ public:
 		GDynamicRHI->RHIReadSurfaceData(Texture, Rect, OutData, InFlags);
 	}
 	
-	FORCEINLINE void MapStagingSurface(FTextureRHIParamRef Texture,void*& OutData,int32& OutWidth,int32& OutHeight)
+	FORCEINLINE void MapStagingSurface(FTextureRHIParamRef Texture,void*& OutData,int32& OutWidth,int32& OutHeight, bool bFlushRHIThread = true)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_MapStagingSurface_Flush);
-		ImmediateFlush(EImmediateFlushType::FlushRHIThread);  
+		if (bFlushRHIThread)
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_MapStagingSurface_Flush);
+			ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+		}
 		GDynamicRHI->RHIMapStagingSurface(Texture,OutData,OutWidth,OutHeight);
 	}
 	
-	FORCEINLINE void UnmapStagingSurface(FTextureRHIParamRef Texture)
+	FORCEINLINE void UnmapStagingSurface(FTextureRHIParamRef Texture, bool bFlushRHIThread = true)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnmapStagingSurface_Flush);
-		ImmediateFlush(EImmediateFlushType::FlushRHIThread);  
+		if (bFlushRHIThread)
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnmapStagingSurface_Flush);
+			ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+		}
 		GDynamicRHI->RHIUnmapStagingSurface(Texture);
 	}
 	
@@ -4708,29 +4712,19 @@ FORCEINLINE FTexture3DRHIRef RHICreateTexture3D(uint32 SizeX, uint32 SizeY, uint
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateTexture3D(SizeX, SizeY, SizeZ, Format, NumMips, Flags, CreateInfo);
 }
 
-FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FTexture2DRHIParamRef Texture2DRHI, uint8 MipLevel)
+FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FTextureRHIParamRef Texture, uint8 MipLevel)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Texture2DRHI, MipLevel);
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Texture, MipLevel);
 }
 
-FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FTexture2DRHIParamRef Texture2DRHI, uint8 MipLevel, uint8 NumMipLevels, uint8 Format)
+FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FTextureRHIParamRef Texture, uint8 MipLevel, uint8 NumMipLevels, uint8 Format)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Texture2DRHI, MipLevel, NumMipLevels, Format);
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Texture, MipLevel, NumMipLevels, Format);
 }
 
-FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FTexture3DRHIParamRef Texture3DRHI, uint8 MipLevel)
+FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FTextureRHIParamRef Texture, const FRHITextureSRVCreateInfo& CreateInfo)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Texture3DRHI, MipLevel);
-}
-
-FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FTexture2DArrayRHIParamRef Texture2DArrayRHI, uint8 MipLevel)
-{
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Texture2DArrayRHI, MipLevel);
-}
-
-FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FTextureCubeRHIParamRef TextureCubeRHI, uint8 MipLevel)
-{
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(TextureCubeRHI, MipLevel);
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Texture, CreateInfo);
 }
 
 FORCEINLINE FTexture2DRHIRef RHIAsyncReallocateTexture2D(FTexture2DRHIParamRef Texture2D, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus)

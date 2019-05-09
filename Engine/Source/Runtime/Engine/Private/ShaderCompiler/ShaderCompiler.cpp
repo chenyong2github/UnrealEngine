@@ -3369,6 +3369,11 @@ void GlobalBeginCompileShader(
 	}
 
 	Input.Environment.SetDefine(TEXT("PLATFORM_SUPPORTS_PER_PIXEL_DBUFFER_MASK"), IsUsingPerPixelDBufferMask(EShaderPlatform(Target.Platform)) ? 1 : 0);
+	
+	{
+		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.vt.FeedbackFactor"));
+		Input.Environment.SetDefine(TEXT("VIRTUAL_TEXTURE_FEEDBACK_FACTOR"), CVar ? CVar->GetInt() : 0);
+	}
 
 
 	if (IsMobilePlatform((EShaderPlatform)Target.Platform))
@@ -3380,7 +3385,7 @@ void GlobalBeginCompileShader(
 	// Allow the target shader format to modify the shader input before we add it as a job
 	const IShaderFormat* Format = GetTargetPlatformManagerRef().FindShaderFormat(Input.ShaderFormat);
 	Format->ModifyShaderCompilerInput(Input);
-
+	
 	NewJobs.Add(NewJob);
 }
 

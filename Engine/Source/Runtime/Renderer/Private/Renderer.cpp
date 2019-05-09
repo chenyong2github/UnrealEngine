@@ -32,6 +32,7 @@
 #include "EditorPrimitivesRendering.h"
 #include "VisualizeTexturePresent.h"
 #include "ScreenSpaceDenoise.h"
+#include "VT/VirtualTextureSystem.h"
 
 DEFINE_LOG_CATEGORY(LogRenderer);
 
@@ -47,10 +48,14 @@ IMPLEMENT_MODULE(FRendererModule, Renderer);
 void FRendererModule::StartupModule()
 {
 	GScreenSpaceDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
+
+	FVirtualTextureSystem::Initialize();
 }
 
 void FRendererModule::ShutdownModule()
 {
+	FVirtualTextureSystem::Shutdown();
+
 	// Free up the memory of the default denoiser. Responsibility of the plugin to free up theirs.
 	delete IScreenSpaceDenoiser::GetDefaultDenoiser();
 }

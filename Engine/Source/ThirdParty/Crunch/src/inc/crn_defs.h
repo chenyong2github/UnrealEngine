@@ -65,7 +65,9 @@ struct crn_file_info {
   uint32 m_total_palette_size;
   uint32 m_tables_size;
   uint32 m_levels;
-  uint32 m_level_compressed_size[cCRNMaxLevels];
+  //UE4_BEGIN
+  //uint32 m_level_compressed_size[cCRNMaxLevels];
+  //UE4_END
   uint32 m_color_endpoint_palette_entries;
   uint32 m_color_selector_palette_entries;
   uint32 m_alpha_endpoint_palette_entries;

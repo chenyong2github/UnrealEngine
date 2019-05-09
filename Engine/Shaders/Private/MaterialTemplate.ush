@@ -23,6 +23,10 @@
 #define NUM_CUSTOM_VERTEX_INTERPOLATORS %s
 #define NUM_TEX_COORD_INTERPOLATORS %s
 
+#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
+	#include "/Engine/Private/VirtualTextureCommon.ush"
+#endif
+
 #ifdef MIN_MATERIAL_TEXCOORDS 
 	#include "/Engine/Private/MinMaterialTexCoords.ush"
 #endif
@@ -275,6 +279,10 @@ struct FMaterialPixelParameters
 	// Which happens when FMaterialPixelParameters and FMaterialVertexParameters have the same number of floats with the HLSL compiler ver 9.29.952.3111
 	// Function overload resolution appears to identify types based on how many floats / ints / etc they contain
 	uint Dummy;
+#endif
+
+#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
+	FVirtualTextureFeedbackParams VirtualTextureFeedback;
 #endif
 };
 
@@ -2156,6 +2164,10 @@ void CalcMaterialParametersEx(
 	#endif
 #endif
 
+#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
+	InitializeVirtualTextureFeedback(Parameters.VirtualTextureFeedback, (uint2)SvPosition.xy, View.FrameNumber);
+#endif
+
 	// Now that we have all the pixel-related parameters setup, calculate the Material Input/Attributes and Normal
 	CalcPixelMaterialInputs(Parameters, PixelMaterialInputs);
 }
@@ -2239,15 +2251,28 @@ half3x3 AssembleTangentToWorld( half3 TangentToWorld0, half4 TangentToWorld2 )
 
 float ApplyPixelDepthOffsetToMaterialParameters(inout FMaterialPixelParameters MaterialParameters, FPixelMaterialInputs PixelMaterialInputs, out float OutDepth)
 {
-	// Can only push into the scene for conservative depth writes
-	float PixelDepthOffset = max(GetMaterialPixelDepthOffset(PixelMaterialInputs), 0);
+	float PixelDepthOffset = GetMaterialPixelDepthOffset(PixelMaterialInputs);
+
+	// SvPosition.z contains device depth value normally written to depth buffer
+	// ScreenPosition.z is 'SvPosition.z * SvPosition.w'
+	// So here we compute a new device depth value with the given pixel depth offset, but clamp the value against the regular SvPosition.z
+	// This clamp is important, even if PixelDepthOffset is 0.0f, the computed DeviceDepth may end up 'slightly' larger than SvPosition.z due to floating point whatever
+	// Since we are outputing depth with SV_DepthLessEqual, this ends up as undefined behavior
+	// In particular, this can cause problems on PS4....PS4 enables RE_Z when using depth output along with virtual texture UAV feedback buffer writes
+	// RE_Z causes the HW to perform depth test twice, once before executing pixel shader, and once after
+	// The PreZ pass will write depth buffer using depth offset, then the base pass will test against this value using both modified and unmodifed depth
+	// If the unmodified depth is ever slightly less than the modified depth, the initial depth test will fail, which results in z-fighting/flickering type artifacts
+	float DeviceDepth = min(MaterialParameters.ScreenPosition.z / (MaterialParameters.ScreenPosition.w + PixelDepthOffset), MaterialParameters.SvPosition.z);
+
+	// Once we've computed our (clamped) device depth, recompute PixelDepthOffset again to take the potential clamp into account
+	PixelDepthOffset = (MaterialParameters.ScreenPosition.z - DeviceDepth * MaterialParameters.ScreenPosition.w) / DeviceDepth;
 
 	// Update positions used for shading
 	MaterialParameters.ScreenPosition.w += PixelDepthOffset;
 	MaterialParameters.SvPosition.w = MaterialParameters.ScreenPosition.w;
 	MaterialParameters.AbsoluteWorldPosition += MaterialParameters.CameraVector * PixelDepthOffset;
 
-	OutDepth = MaterialParameters.ScreenPosition.z / MaterialParameters.ScreenPosition.w;
+	OutDepth = DeviceDepth;
 
 	return PixelDepthOffset;
 }

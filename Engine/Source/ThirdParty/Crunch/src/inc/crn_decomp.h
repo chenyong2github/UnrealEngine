@@ -2228,7 +2228,9 @@ bool crnd_validate_file(const void* pData, uint32 data_size, crn_file_info* pFil
       if ((i + 1) < pHeader->m_levels)
         next_ofs = pHeader->m_level_ofs[i + 1];
 
-      pFile_info->m_level_compressed_size[i] = next_ofs - pHeader->m_level_ofs[i];
+      //UE4_BEGIN
+      //pFile_info->m_level_compressed_size[i] = next_ofs - pHeader->m_level_ofs[i];
+	  //UE4_END
     }
 
     pFile_info->m_color_endpoint_palette_entries = pHeader->m_color_endpoints.m_num;

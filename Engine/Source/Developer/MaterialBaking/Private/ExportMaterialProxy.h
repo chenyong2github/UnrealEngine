@@ -294,7 +294,7 @@ public:
 		return bCorrectVertexFactory && bPCPlatform && bCorrectFrequency;
 	}
 
-	virtual const TArray<UTexture*>& GetReferencedTextures() const override
+	virtual const TArray<UObject*>& GetReferencedTextures() const override
 	{
 		return ReferencedTextures;
 	}
@@ -579,7 +579,7 @@ private:
 	/** The material interface for this proxy */
 	UMaterialInterface* MaterialInterface;
 	UMaterial* Material;
-	TArray<UTexture*> ReferencedTextures;
+	TArray<UObject*> ReferencedTextures;
 	/** The property to compile for rendering the sample */
 	EMaterialProperty PropertyToCompile;
 	FGuid Id;

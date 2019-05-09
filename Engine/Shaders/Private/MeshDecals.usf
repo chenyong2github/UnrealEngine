@@ -8,6 +8,10 @@
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
+#if NUM_VIRTUALTEXTURE_SAMPLES
+	RWTexture2D<uint> VTFeedbackBuffer : register(VT_FEEDBACK_REGISTER); //MUST match FDecalRenderTargetManager::VirtualTextureFeedbackIndex
+#endif
+
 // Additional guard to remove all struct usage if empty to avoid platform conflicts.
 // This define can be removed if additional data is added to the interpolants struct
 #define NEED_MESH_DECAL_INTERPOLATORS	USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
@@ -213,6 +217,16 @@ void FPixelShaderInOut_MainPS(
 	GBufferData.PerObjectGBufferData = 1;
 
 	DecalCommonOutput(In, Out, Color, Opacity, GBufferData);
+
+#if NUM_VIRTUALTEXTURE_SAMPLES
+	FinalizeVirtualTextureFeedback(
+		MaterialParameters.VirtualTextureFeedback,
+		MaterialParameters.SvPosition,
+		Opacity,
+		View.FrameNumber,
+		VTFeedbackBuffer
+	);
+#endif
 }
 
 

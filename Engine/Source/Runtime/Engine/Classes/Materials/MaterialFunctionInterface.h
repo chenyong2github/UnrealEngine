@@ -81,7 +81,7 @@ public:
 		PURE_VIRTUAL(UMaterialFunctionInterface::GetDependentFunctions,);
 
 	/** Appends textures referenced by the expressions in this function. */
-	ENGINE_API virtual void AppendReferencedTextures(TArray<UTexture*>& InOutTextures) const
+	ENGINE_API virtual void AppendReferencedTextures(TArray<UObject*>& InOutTextures) const
 		PURE_VIRTUAL(UMaterialFunctionInterface::AppendReferencedTextures,);
 
 #if WITH_EDITOR

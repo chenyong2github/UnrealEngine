@@ -67,7 +67,7 @@ public:
 
 	virtual void GetAllPossibleShaderFormats( TArray<FName>& OutFormats ) const override;
 
-	virtual void GetTextureFormats( const UTexture* InTexture, TArray<FName>& OutFormats ) const override;
+	virtual void GetTextureFormats( const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const override;
 	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override;
 
 	virtual void GetReflectionCaptureFormats(TArray<FName>& OutFormats) const override

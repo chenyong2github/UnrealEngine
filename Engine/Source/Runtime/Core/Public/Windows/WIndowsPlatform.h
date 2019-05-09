@@ -60,6 +60,7 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 #define PLATFORM_COMPILER_HAS_TCHAR_WMAIN					1
 #define PLATFORM_SUPPORTS_EARLY_MOVIE_PLAYBACK				(!WITH_EDITOR) // movies will start before engine is initalized
 #define PLATFORM_RHITHREAD_DEFAULT_BYPASS					0
+#define PLATFORM_SUPPORTS_VIRTUAL_TEXTURE_STREAMING			1
 #define PLATFORM_SUPPORTS_STACK_SYMBOLS						1
 
 // Q: Why is there a __nop() before __debugbreak()?

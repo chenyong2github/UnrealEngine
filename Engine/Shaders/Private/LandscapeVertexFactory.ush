@@ -598,10 +598,15 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	float2 xy = Intermediates.InputPosition.xy * LodValues.w;
 
+#if FIXED_GRID
+	float LODCalculated = floor(LodValues.x);
+	float LodValue = LODCalculated;
+	float MorphAlpha = 0;
+#else
 	float LODCalculated = CalcLOD(xy, Intermediates.InputPosition.zw);
-
 	float LodValue = floor(LODCalculated);
 	float MorphAlpha = LODCalculated - LodValue;
+#endif
 
 	// InputPositionLODAdjusted : Position for actual LOD in base LOD units
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4

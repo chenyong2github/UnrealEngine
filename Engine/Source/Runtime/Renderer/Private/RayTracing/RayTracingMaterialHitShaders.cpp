@@ -341,7 +341,7 @@ void FRayTracingMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 					if (bAllowHighQualityLightMaps)
 					{
 						const FShadowMapInteraction ShadowMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
-							? MeshBatch.LCI->GetShadowMapInteraction()
+							? MeshBatch.LCI->GetShadowMapInteraction(FeatureLevel)
 							: FShadowMapInteraction();
 
 						if (ShadowMapInteraction.GetType() == SMIT_Texture)

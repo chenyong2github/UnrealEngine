@@ -260,6 +260,11 @@ struct FGenericPlatformProperties
 	{
 		return 0;
 	}
+	
+	static FORCEINLINE bool SupportsVirtualTextureStreaming()
+	{
+		return false; // Currently VT is opt-in
+	}
 
 	/**
 	 * Gets whether user settings should override the resolution or not

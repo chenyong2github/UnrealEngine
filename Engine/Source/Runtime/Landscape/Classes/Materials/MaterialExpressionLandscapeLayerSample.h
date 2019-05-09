@@ -35,7 +35,7 @@ public:
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual bool MatchesSearchQuery(const TCHAR* SearchQuery) override;
 #endif
-	virtual UTexture* GetReferencedTexture() override;
+	virtual UObject* GetReferencedTexture() const override;
 	virtual bool CanReferenceTexture() const override { return true; }
 	//~ End UMaterialExpression Interface
 

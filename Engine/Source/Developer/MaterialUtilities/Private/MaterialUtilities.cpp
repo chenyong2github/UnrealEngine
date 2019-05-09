@@ -474,7 +474,7 @@ public:
 		return true;
 	}
 
-	virtual const TArray<UTexture*>& GetReferencedTextures() const override
+	virtual const TArray<UObject*>& GetReferencedTextures() const override
 	{
 		return ReferencedTextures;
 	}
@@ -757,7 +757,7 @@ private:
 	/** The material interface for this proxy */
 	UMaterialInterface* MaterialInterface;
 	UMaterial* Material;	
-	TArray<UTexture*> ReferencedTextures;
+	TArray<UObject*> ReferencedTextures;
 	/** The property to compile for rendering the sample */
 	EMaterialProperty PropertyToCompile;
 	FGuid Id;
@@ -2816,7 +2816,7 @@ void FMaterialUtilities::DetermineMaterialImportance(const TArray<UMaterialInter
 	int32 SummedSize = 0;
 	for (UMaterialInterface* Material : InMaterials)
 	{
-		TArray<UTexture*> UsedTextures;
+		TArray<UObject*> UsedTextures;
 		Material->AppendReferencedTextures(UsedTextures);
 		if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Material))
 		{
@@ -2829,7 +2829,7 @@ void FMaterialUtilities::DetermineMaterialImportance(const TArray<UMaterialInter
 			}
 		}
 		int32 MaxSize = 64 * 64;
-		for (UTexture* Texture : UsedTextures)
+		for (UObject* Texture : UsedTextures)
 		{
 			if (UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
 			{

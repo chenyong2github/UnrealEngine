@@ -468,6 +468,8 @@ UFoliageType::UFoliageType(const FObjectInitializer& ObjectInitializer)
 	bCastShadowAsTwoSided = false;
 	bReceivesDecals = false;
 
+	TranslucencySortPriority = 0;
+
 	bOverrideLightMapRes = false;
 	OverriddenLightMapRes = 8;
 	bUseAsOccluder = false;
@@ -1349,6 +1351,24 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 			Component->bCastStaticShadow = FoliageType->bCastStaticShadow;
 			bNeedsMarkRenderStateDirty = true;
 			bNeedsInvalidateLightingCache = true;
+		}
+		if (Component->RuntimeVirtualTextures != FoliageType->RuntimeVirtualTextures)
+		{
+			//todo[vt]: Trigger a virtual texture flush somewhere withing the update chain
+			Component->RuntimeVirtualTextures = FoliageType->RuntimeVirtualTextures;
+			bNeedsMarkRenderStateDirty = true;
+		}
+		if (Component->VirtualTextureRenderPassType != FoliageType->VirtualTextureRenderPassType)
+		{
+			//todo[vt]: Trigger a virtual texture flush somewhere withing the update chain
+			Component->VirtualTextureRenderPassType = FoliageType->VirtualTextureRenderPassType;
+			bNeedsMarkRenderStateDirty = true;
+		}
+		if (Component->TranslucencySortPriority != FoliageType->TranslucencySortPriority)
+		{
+			//todo[vt]: Trigger a virtual texture flush somewhere withing the update chain
+			Component->TranslucencySortPriority = FoliageType->TranslucencySortPriority;
+			bNeedsMarkRenderStateDirty = true;
 		}
 		if (Component->bAffectDynamicIndirectLighting != FoliageType->bAffectDynamicIndirectLighting)
 		{

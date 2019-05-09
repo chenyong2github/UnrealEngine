@@ -149,6 +149,8 @@ struct FPrimitiveFlagsCompact
 	uint32 bStaticLighting : 1;
 	/** True if the primitive casts static shadows. */
 	uint32 bCastStaticShadow : 1;
+	/** True if renders to virtual texture */
+	uint32 bRenderToVirtualTexture : 1;
 
 	FPrimitiveFlagsCompact(const FPrimitiveSceneProxy* Proxy);
 };

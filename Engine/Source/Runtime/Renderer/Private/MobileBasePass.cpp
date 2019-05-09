@@ -261,7 +261,7 @@ ELightMapPolicyType MobileBasePass::SelectMeshLightmapPolicy(
 		{
 			// Lightmap path
 			const FShadowMapInteraction ShadowMapInteraction = (Mesh.LCI && bIsLitMaterial)
-				? Mesh.LCI->GetShadowMapInteraction()
+				? Mesh.LCI->GetShadowMapInteraction(FeatureLevel)
 				: FShadowMapInteraction();
 
 			if (bUseMovableLight)

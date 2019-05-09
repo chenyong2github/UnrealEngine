@@ -76,6 +76,11 @@ FD3D12StructuredBuffer::~FD3D12StructuredBuffer()
 void FD3D12StructuredBuffer::Rename(FD3D12ResourceLocation& NewLocation)
 {
 	FD3D12ResourceLocation::TransferOwnership(ResourceLocation, NewLocation);
+
+	if (DynamicSRV != nullptr)
+	{
+		DynamicSRV->Rename(ResourceLocation);
+	}
 }
 
 void FD3D12StructuredBuffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
@@ -94,6 +99,11 @@ void FD3D12StructuredBuffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
 		for (FD3D12StructuredBuffer* NextBuffer = GetNextObject(); NextBuffer; NextBuffer = NextBuffer->GetNextObject())
 		{
 			FD3D12ResourceLocation::ReferenceNode(NextBuffer->GetParentDevice(), NextBuffer->ResourceLocation, ResourceLocation);
+
+			if (NextBuffer->DynamicSRV)
+			{
+				NextBuffer->DynamicSRV->Rename(NextBuffer->ResourceLocation);
+			}
 		}
 	}
 }

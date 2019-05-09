@@ -17,6 +17,7 @@
 
 class Error;
 class UMaterialParameterCollection;
+class URuntimeVirtualTexture;
 class UTexture;
 struct FMaterialParameterInfo;
 
@@ -25,6 +26,14 @@ enum EMaterialForceCastFlags
 	MFCF_ForceCast		= 1<<0,	// Used by caller functions as a helper
 	MFCF_ExactMatch		= 1<<2, // If flag set skips the cast on an exact match, else skips on a compatible match
 	MFCF_ReplicateValue	= 1<<3	// Replicates a Float1 value when up-casting, else appends zero
+};
+
+enum class EVirtualTextureUnpackType
+{
+	None,
+	NormalBC3,
+	NormalBC5,
+	HeightR8G8,
 };
 
 /** 
@@ -70,6 +79,8 @@ public:
 	virtual ERHIFeatureLevel::Type GetFeatureLevel() = 0;
 
 	virtual EShaderPlatform GetShaderPlatform() = 0;
+
+	virtual const ITargetPlatform* GetTargetPlatform() const = 0;
 
 	virtual FMaterialShadingModelField GetMaterialShadingModels() const = 0;
 
@@ -171,6 +182,11 @@ public:
 	virtual int32 Texture(UTexture* Texture,int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource=SSM_FromTextureAsset,ETextureMipValueMode MipValueMode=TMVM_None) = 0;
 	virtual int32 TextureParameter(FName ParameterName,UTexture* DefaultTexture,int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource=SSM_FromTextureAsset) = 0;
 
+	virtual int32 VirtualTexture(URuntimeVirtualTexture* InTexture, int32 LayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) = 0;
+	virtual int32 VirtualTextureParam(int32 TextureIndex, int32 ParamIndex) = 0;
+	virtual int32 VirtualTextureWorldToUV(int32 WorldPositionIndex, int32 P0, int32 P1, int32 P2) = 0;
+	virtual int32 VirtualTextureUnpack(int32 CodeIndex, EVirtualTextureUnpackType UnpackType) = 0;
+
 	virtual int32 ExternalTexture(const FGuid& ExternalTextureGuid) = 0;
 	virtual int32 ExternalTexture(UTexture* InTexture, int32& TextureReferenceIndex) = 0;
 	virtual int32 ExternalTextureParameter(FName ParameterName, UTexture* DefaultValue, int32& TextureReferenceIndex) = 0;
@@ -179,13 +195,18 @@ public:
 	virtual int32 ExternalTextureCoordinateOffset(int32 TextureReferenceIndex, TOptional<FName> ParameterName) = 0;
 	virtual int32 ExternalTextureCoordinateOffset(const FGuid& ExternalTextureGuid) = 0;
 
-	virtual int32 GetTextureReferenceIndex(UTexture* Texture) { return INDEX_NONE; }
-	virtual UTexture* GetReferencedTexture(int32 Index) { return nullptr; }
+	virtual UObject* GetReferencedTexture(int32 Index) { return nullptr; }
 
 	int32 Texture(UTexture* InTexture, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource=SSM_FromTextureAsset)
 	{
 		int32 TextureReferenceIndex = INDEX_NONE;
 		return Texture(InTexture, TextureReferenceIndex, SamplerType, SamplerSource);
+	}
+
+	int32 VirtualTexture(URuntimeVirtualTexture* InTexture, int32 LayerIndex, EMaterialSamplerType SamplerType)
+	{
+		int32 TextureReferenceIndex = INDEX_NONE;
+		return VirtualTexture(InTexture, LayerIndex, TextureReferenceIndex, SamplerType);
 	}
 
 	int32 ExternalTexture(UTexture* DefaultTexture)
@@ -346,6 +367,7 @@ public:
 	virtual EMaterialQualityLevel::Type GetQualityLevel() override { return Compiler->GetQualityLevel(); }
 	virtual ERHIFeatureLevel::Type GetFeatureLevel() override { return Compiler->GetFeatureLevel(); }
 	virtual EShaderPlatform GetShaderPlatform() override { return Compiler->GetShaderPlatform(); }
+	virtual const ITargetPlatform* GetTargetPlatform() const override { return Compiler->GetTargetPlatform(); }
 	virtual int32 ValidCast(int32 Code,EMaterialValueType DestType) override { return Compiler->ValidCast(Code, DestType); }
 	virtual int32 ForceCast(int32 Code,EMaterialValueType DestType,uint32 ForceCastFlags = 0) override
 	{ return Compiler->ForceCast(Code,DestType,ForceCastFlags); }
@@ -424,6 +446,11 @@ public:
 	virtual int32 Texture(UTexture* InTexture,int32& TextureReferenceIndex,EMaterialSamplerType SamplerType,ESamplerSourceMode SamplerSource=SSM_FromTextureAsset,ETextureMipValueMode MipValueMode=TMVM_None) override { return Compiler->Texture(InTexture,TextureReferenceIndex, SamplerType, SamplerSource,MipValueMode); }
 	virtual int32 TextureParameter(FName ParameterName,UTexture* DefaultValue,int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource=SSM_FromTextureAsset) override { return Compiler->TextureParameter(ParameterName,DefaultValue,TextureReferenceIndex, SamplerType, SamplerSource); }
 
+	virtual int32 VirtualTexture(URuntimeVirtualTexture* InTexture, int32 LayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) override { return Compiler->VirtualTexture(InTexture, LayerIndex, TextureReferenceIndex, SamplerType); }
+	virtual int32 VirtualTextureParam(int32 TextureIndex, int32 ParamIndex) override { return Compiler->VirtualTextureParam(TextureIndex, ParamIndex); }
+	virtual int32 VirtualTextureWorldToUV(int32 WorldPositionIndex, int32 P0, int32 P1, int32 P2) override { return Compiler->VirtualTextureWorldToUV(WorldPositionIndex, P0, P1, P2); }
+	virtual int32 VirtualTextureUnpack(int32 CodeIndex, EVirtualTextureUnpackType UnpackType) override { return Compiler->VirtualTextureUnpack(CodeIndex, UnpackType); }
+
 	virtual int32 ExternalTexture(const FGuid& ExternalTextureGuid) override { return Compiler->ExternalTexture(ExternalTextureGuid); }
 	virtual int32 ExternalTexture(UTexture* InTexture, int32& TextureReferenceIndex) override { return Compiler->ExternalTexture(InTexture, TextureReferenceIndex); }
 	virtual int32 ExternalTextureParameter(FName ParameterName, UTexture* DefaultValue, int32& TextureReferenceIndex) override { return Compiler->ExternalTextureParameter(ParameterName, DefaultValue, TextureReferenceIndex); }
@@ -432,8 +459,7 @@ public:
 	virtual int32 ExternalTextureCoordinateOffset(int32 TextureReferenceIndex, TOptional<FName> ParameterName) override { return Compiler->ExternalTextureCoordinateOffset(TextureReferenceIndex, ParameterName); }
 	virtual int32 ExternalTextureCoordinateOffset(const FGuid& ExternalTextureGuid) override { return Compiler->ExternalTextureCoordinateOffset(ExternalTextureGuid); }
 
-	virtual int32 GetTextureReferenceIndex(UTexture* Texture) override { return Compiler->GetTextureReferenceIndex(Texture); }
-	virtual UTexture* GetReferencedTexture(int32 Index) override { return Compiler->GetReferencedTexture(Index); }
+	virtual UObject* GetReferencedTexture(int32 Index) override { return Compiler->GetReferencedTexture(Index); }
 
 	virtual	int32 PixelDepth() override { return Compiler->PixelDepth();	}
 	virtual int32 SceneDepth(int32 Offset, int32 ViewportUV, bool bUseOffset) override { return Compiler->SceneDepth(Offset, ViewportUV, bUseOffset); }

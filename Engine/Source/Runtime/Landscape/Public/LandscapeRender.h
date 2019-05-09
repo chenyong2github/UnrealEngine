@@ -34,6 +34,7 @@ LandscapeRender.h: New terrain rendering
 #define LANDSCAPE_MAX_SUBSECTION_NUM 2
 
 class FLandscapeComponentSceneProxy;
+enum class ERuntimeVirtualTextureMaterialType;
 
 #if WITH_EDITOR
 namespace ELandscapeViewMode
@@ -234,6 +235,23 @@ public:
 	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
 };
 
+
+/** Vertex factory for fixed grid runtime virtual texture lod  */
+class FLandscapeFixedGridVertexFactory : public FLandscapeVertexFactory
+{
+	DECLARE_VERTEX_FACTORY_TYPE(FLandscapeFixedGridVertexFactory);
+
+public:
+	FLandscapeFixedGridVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
+		: FLandscapeVertexFactory(InFeatureLevel)
+	{
+	}
+
+	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
+	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
+};
+
+
 struct FLandscapeVertex
 {
 	float VertexX;
@@ -309,6 +327,7 @@ public:
 	int32 NumSubsections;
 
 	FLandscapeVertexFactory* VertexFactory;
+	FLandscapeVertexFactory* FixedGridVertexFactory;
 	FLandscapeVertexBuffer* VertexBuffer;
 	FIndexBuffer** IndexBuffers;
 	FLandscapeIndexRanges* IndexRanges;
@@ -592,6 +611,7 @@ protected:
 	uint32						SharedBuffersKey;
 	FLandscapeSharedBuffers*	SharedBuffers;
 	FLandscapeVertexFactory*	VertexFactory;
+	FLandscapeVertexFactory*	FixedGridVertexFactory;
 
 	/** All available materials for non mobile, including LOD Material, Tessellation generated materials*/
 	TArray<UMaterialInterface*> AvailableMaterials;
@@ -650,7 +670,7 @@ protected:
 	virtual const ULandscapeComponent* GetLandscapeComponent() const { return LandscapeComponent; }
 	FORCEINLINE void ComputeTessellationFalloffShaderValues(const FViewCustomDataLOD& InLODData, const FMatrix& InViewProjectionMatrix, float& OutC, float& OutK) const;
 	bool CanUseMeshBatchForShadowCascade(int8 InLODIndex, float InShadowMapTextureResolution, float InShadowMapCascadeSize) const;
-	FORCEINLINE int32 ConvertBatchElementLODToBatchElementIndex(int8 InBatchElementLOD, bool InUseCombinedMeshBatch);
+	FORCEINLINE int32 ConvertBatchElementLODToBatchElementIndex(int8 InBatchElementLOD, bool InUseCombinedMeshBatch) const;
 	float GetNeighborLOD(const FSceneView& InView, float InBatchElementCurrentLOD, int8 InNeighborIndex, int8 InSubSectionX, int8 InSubSectionY, int8 InCurrentSubSectionIndex) const;
 	void CalculateBatchElementLOD(const FSceneView& InView, float InMeshScreenSizeSquared, float InViewLODScale, FViewCustomDataLOD& InOutLODData, bool InForceCombined) const;
 	void CalculateLODFromScreenSize(const FSceneView& InView, float InMeshScreenSizeSquared, float InViewLODScale, int32 InSubSectionIndex, FViewCustomDataLOD& InOutLODData) const;
@@ -663,6 +683,7 @@ protected:
 	FORCEINLINE FVector4 GetShaderLODValues(int8 BatchElementCurrentLOD) const;
 
 	bool GetMeshElement(bool UseSeperateBatchForShadow, bool ShadowOnly, bool HasTessellation, int8 InLODIndex, UMaterialInterface* InMaterialInterface, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams>& OutStaticBatchParamArray) const;
+	bool GetMeshElementForVirtualTexture(int32 InLodIndex, ERuntimeVirtualTextureMaterialType MaterialType, UMaterialInterface* InMaterialInterface, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams>& OutStaticBatchParamArray) const;
 	void BuildDynamicMeshElement(const FViewCustomDataLOD* InPrimitiveCustomData, bool InToolMesh, bool InHasTessellation, bool InDisableTessellation, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams, SceneRenderingAllocator>& OutStaticBatchParamArray) const;
 
 	float GetComponentScreenSize(const class FSceneView* View, const FVector& Origin,  float MaxExtend, float ElementRadius) const;
@@ -697,6 +718,7 @@ public:
 	friend struct FLandscapeBatchElementParams;
 	friend class FLandscapeVertexFactoryMobileVertexShaderParameters;
 	friend class FLandscapeVertexFactoryMobilePixelShaderParameters;
+	friend class FLandscapeFixedGridVertexFactoryVertexShaderParameters;
 
 	// FLandscapeComponentSceneProxy interface.
 	uint64 GetStaticBatchElementVisibility(const FSceneView& InView, const FMeshBatch* InBatch, const void* InViewCustomData) const;

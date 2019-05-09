@@ -525,13 +525,13 @@ void UMaterialInterface::SortTextureStreamingData(bool bForceSort, bool bFinalSo
 	// In cook that was already done in the save.
 	if (!bTextureStreamingDataSorted || bForceSort)
 	{
-		TArray<UTexture*> UsedTextures;
+		TArray<UObject*> UsedTextures;
 		if (bFinalSort)
 		{
 			AppendReferencedTextures(UsedTextures);
 			for (int32 TextureIndex = 0; TextureIndex < UsedTextures.Num(); ++TextureIndex)
 			{
-				UTexture* UsedTexture = UsedTextures[TextureIndex];
+				UTexture* UsedTexture = Cast<UTexture>(UsedTextures[TextureIndex]);
 				// Sort some of the conditions that could make the texture unstreamable, to make the data leaner.
 				// Note that because we are cooking, UStreamableRenderAsset::bIsStreamable is not reliable here.
 				if (!UsedTexture || UsedTexture->NeverStream || UsedTexture->LODGroup == TEXTUREGROUP_UI || UsedTexture->MipGenSettings == TMGS_NoMipmaps)
