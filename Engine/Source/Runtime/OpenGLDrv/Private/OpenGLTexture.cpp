@@ -2589,6 +2589,71 @@ void FOpenGLDynamicRHI::RHICopySubTextureRegion(FTexture2DRHIParamRef SourceText
 	ContextState.Framebuffer = (GLuint)-1;
 }
 
+void FOpenGLDynamicRHI::RHICopyTexture(FTextureRHIParamRef SourceTextureRHI, FTextureRHIParamRef DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)
+{
+	VERIFY_GL_SCOPE();
+	FOpenGLTextureBase* SourceTexture = GetOpenGLTextureFromRHITexture(SourceTextureRHI);
+	FOpenGLTextureBase* DestTexture = GetOpenGLTextureFromRHITexture(DestTextureRHI);
+
+	check(SourceTexture->Target == DestTexture->Target);
+
+	// Use a texture stage that's not likely to be used for draws, to avoid waiting
+	FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
+	CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, DestTexture->Target, DestTexture->Resource, 0, DestTextureRHI->GetNumMips());
+	CachedBindPixelUnpackBuffer(ContextState, 0);
+
+	// Convert sub texture regions to GL types
+	GLint XOffset = CopyInfo.DestPosition.X;
+	GLint YOffset = CopyInfo.DestPosition.Y;
+	GLint ZOffset = CopyInfo.DestPosition.Z;
+	GLint X = CopyInfo.SourcePosition.X;
+	GLint Y = CopyInfo.SourcePosition.Y;
+	GLint Z = CopyInfo.SourcePosition.Z;
+	GLsizei Width = CopyInfo.Size.X;
+	GLsizei Height = CopyInfo.Size.Y;
+	GLsizei Depth = CopyInfo.Size.Z;
+
+	// Bind source texture to an FBO to read from
+	for (GLsizei Layer = 0; Layer < Depth; ++Layer)
+	{
+		FOpenGLTextureBase* RenderTargets[1] = { SourceTexture };
+		uint32 MipLevels[1] = { CopyInfo.SourceMipIndex };
+		uint32 ArrayIndices[1] = { CopyInfo.SourceSliceIndex + static_cast<uint32>(Layer) };
+
+		GLuint SourceFBO = GetOpenGLFramebuffer(1, RenderTargets, ArrayIndices, MipLevels, nullptr);
+		check(SourceFBO != 0);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, SourceFBO);
+
+		FOpenGL::ReadBuffer(GL_COLOR_ATTACHMENT0);
+
+		switch (DestTexture->Target)
+		{
+		case GL_TEXTURE_1D:
+			FOpenGL::CopyTexSubImage1D(DestTexture->Target, CopyInfo.DestMipIndex, XOffset, X, 0, Width);
+			break;
+		case GL_TEXTURE_1D_ARRAY:
+		case GL_TEXTURE_2D:
+		case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+		case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+		case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+		case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+		case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+		case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
+		case GL_TEXTURE_RECTANGLE:
+			FOpenGL::CopyTexSubImage2D(DestTexture->Target, CopyInfo.DestMipIndex, XOffset, YOffset, X, Y, Width, Height);
+			break;
+		case GL_TEXTURE_3D:
+		case GL_TEXTURE_2D_ARRAY:
+		case GL_TEXTURE_CUBE_MAP_ARRAY:
+			FOpenGL::CopyTexSubImage3D(DestTexture->Target, CopyInfo.DestMipIndex, XOffset, YOffset, ZOffset + Layer, X, Y, Width, Depth);
+			break;
+		}
+	}
+
+	ContextState.Framebuffer = (GLuint)-1;
+}
+
 FTexture2DRHIRef FOpenGLDynamicRHI::RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, const FClearValueBinding& ClearValueBinding, GLuint Resource, uint32 TexCreateFlags)
 {
 	FOpenGLTexture2D* Texture2D = new FOpenGLTexture2D(

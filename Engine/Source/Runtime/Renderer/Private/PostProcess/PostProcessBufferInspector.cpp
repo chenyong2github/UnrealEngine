@@ -94,9 +94,11 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 			// Pixel Depth
 			if (Scene->PixelInspectorData.RenderTargetBufferDepth[PixelInspectorRequest->BufferIndex] != nullptr)
 			{
-				FVector2D SourcePoint(FMath::FloorToInt(SourceViewportUV.X * View.ViewRect.Width()),
-									  FMath::FloorToInt(SourceViewportUV.Y * View.ViewRect.Height()));
-				FBox2D SourceBox(SourcePoint, SourcePoint + ExtendSize);
+				const FIntVector SourcePoint(
+					FMath::FloorToInt(SourceViewportUV.X * View.ViewRect.Width()),
+					FMath::FloorToInt(SourceViewportUV.Y * View.ViewRect.Height()),
+					0
+				);
 				
 				const FTexture2DRHIRef &DestinationBufferDepth = Scene->PixelInspectorData.RenderTargetBufferDepth[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
 				if (DestinationBufferDepth.IsValid())
@@ -104,8 +106,10 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 					FTexture2DRHIRef SourceBufferSceneDepth = SceneContext.GetSceneDepthTexture();
 					if (DestinationBufferDepth->GetFormat() == SourceBufferSceneDepth->GetFormat())
 					{
-						FBox2D DestinationBox(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f));
-						RHICmdList.CopySubTextureRegion(SourceBufferSceneDepth, DestinationBufferDepth, SourceBox, DestinationBox);
+						FRHICopyTextureInfo CopyInfo;
+						CopyInfo.SourcePosition = SourcePoint;
+						CopyInfo.Size = FIntVector(1);
+						RHICmdList.CopyTexture(SourceBufferSceneDepth, DestinationBufferDepth, CopyInfo);
 					}
 				}
 			}
@@ -115,9 +119,11 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 			const FTexture2DRHIRef &DestinationBufferFinalColor = Scene->PixelInspectorData.RenderTargetBufferFinalColor[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
 			if (DestinationBufferFinalColor.IsValid())
 			{
-				FVector2D SourcePoint(
+				const FIntVector SourcePoint(
 					FMath::FloorToInt(SourceViewportUV.X * Context.SceneColorViewRect.Width()),
-					FMath::FloorToInt(SourceViewportUV.Y * Context.SceneColorViewRect.Height()));
+					FMath::FloorToInt(SourceViewportUV.Y * Context.SceneColorViewRect.Height()),
+					0
+				);
 
 				const FRenderingCompositeOutputRef* OutputRef0 = GetInput(ePId_Input0);
 				if (OutputRef0)
@@ -128,11 +134,30 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 						FTexture2DRHIRef SourceBufferFinalColor = (FRHITexture2D*)(Input->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference());
 						if (DestinationBufferFinalColor->GetFormat() == SourceBufferFinalColor->GetFormat())
 						{
-							FVector2D ExtendSizeContextLeft(FMath::FloorToFloat((float)DestinationBufferFinalColor->GetSizeX()/2.0f), FMath::FloorToFloat((float)DestinationBufferFinalColor->GetSizeY()/2.0f));
-							FVector2D ExtendSizeContextRight(FMath::CeilToFloat((float)DestinationBufferFinalColor->GetSizeX() / 2.0f), FMath::CeilToFloat((float)DestinationBufferFinalColor->GetSizeY() / 2.0f));
-							FBox2D SourceBoxContext(SourcePoint- ExtendSizeContextLeft, SourcePoint+ ExtendSizeContextRight);
-							FBox2D DestinationBox(FVector2D(0.0f, 0.0f), FVector2D((float)DestinationBufferFinalColor->GetSizeX(), (float)DestinationBufferFinalColor->GetSizeY()));
-							RHICmdList.CopySubTextureRegion(SourceBufferFinalColor, DestinationBufferFinalColor, SourceBoxContext, DestinationBox);
+							FRHICopyTextureInfo CopyInfo;
+							CopyInfo.Size = DestinationBufferFinalColor->GetSizeXYZ();
+							CopyInfo.SourcePosition = SourcePoint - CopyInfo.Size/2;
+
+							const FIntVector OutlineCornerMin(
+								FMath::Min(CopyInfo.SourcePosition.X - Context.SceneColorViewRect.Min.X, 0),
+								FMath::Min(CopyInfo.SourcePosition.Y - Context.SceneColorViewRect.Min.Y, 0),
+								0
+							);
+							CopyInfo.SourcePosition -= OutlineCornerMin;
+							CopyInfo.DestPosition -= OutlineCornerMin;
+							CopyInfo.Size += OutlineCornerMin;
+
+							const FIntVector OutlineCornerMax(
+								FMath::Max(0, CopyInfo.SourcePosition.X + CopyInfo.Size.X - Context.SceneColorViewRect.Max.X),
+								FMath::Max(0, CopyInfo.SourcePosition.Y + CopyInfo.Size.Y - Context.SceneColorViewRect.Max.Y),
+								0
+							);
+							CopyInfo.Size -= OutlineCornerMax;
+
+							if (CopyInfo.Size.X > 0 && CopyInfo.Size.Y > 0)
+							{
+								RHICmdList.CopyTexture(SourceBufferFinalColor, DestinationBufferFinalColor, CopyInfo);
+							}
 						}
 					}
 				}
@@ -143,10 +168,11 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 			const FTexture2DRHIRef &DestinationBufferSceneColor = Scene->PixelInspectorData.RenderTargetBufferSceneColor[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
 			if (DestinationBufferSceneColor.IsValid())
 			{
-				FVector2D SourcePoint(
+				const FIntVector SourcePoint(
 					FMath::FloorToInt(SourceViewportUV.X * View.ViewRect.Width()),
-					FMath::FloorToInt(SourceViewportUV.Y * View.ViewRect.Height()));
-				FBox2D SourceBox(SourcePoint, SourcePoint + ExtendSize);
+					FMath::FloorToInt(SourceViewportUV.Y * View.ViewRect.Height()),
+					0
+				);
 
 				const FRenderingCompositeOutputRef* OutputRef0 = GetInput(ePId_Input2);
 				if (OutputRef0)
@@ -157,8 +183,10 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 						FTexture2DRHIRef SourceBufferSceneColor = (FRHITexture2D*)(Input->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference());
 						if (DestinationBufferSceneColor->GetFormat() == SourceBufferSceneColor->GetFormat())
 						{
-							FBox2D DestinationBox(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f));
-							RHICmdList.CopySubTextureRegion(SourceBufferSceneColor, DestinationBufferSceneColor, SourceBox, DestinationBox);
+							FRHICopyTextureInfo CopyInfo;
+							CopyInfo.SourcePosition = SourcePoint;
+							CopyInfo.Size = FIntVector(1, 1, 1);
+							RHICmdList.CopyTexture(SourceBufferSceneColor, DestinationBufferSceneColor, CopyInfo);
 						}
 					}
 				}
@@ -169,9 +197,11 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 			const FTexture2DRHIRef &DestinationBufferHDR = Scene->PixelInspectorData.RenderTargetBufferHDR[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
 			if (InputDescHDR != nullptr && DestinationBufferHDR.IsValid())
 			{
-				FVector2D SourcePoint(FMath::FloorToInt(SourceViewportUV.X * Context.SceneColorViewRect.Width()),
-									  FMath::FloorToInt(SourceViewportUV.Y * Context.SceneColorViewRect.Height()));
-				FBox2D SourceBox(SourcePoint, SourcePoint + ExtendSize);
+				const FIntVector SourcePoint(
+					FMath::FloorToInt(SourceViewportUV.X * Context.SceneColorViewRect.Width()),
+					FMath::FloorToInt(SourceViewportUV.Y * Context.SceneColorViewRect.Height()),
+					0
+				);
 
 				const FRenderingCompositeOutputRef* OutputRef1 = GetInput(ePId_Input1);
 				if (OutputRef1)
@@ -182,8 +212,10 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 						FTexture2DRHIRef SourceBufferHDR = (FRHITexture2D*)(Input->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference());
 						if (SourceBufferHDR.IsValid() && DestinationBufferHDR->GetFormat() == SourceBufferHDR->GetFormat())
 						{
-							FBox2D DestinationBox(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f));
-							RHICmdList.CopySubTextureRegion(SourceBufferHDR, DestinationBufferHDR, SourceBox, DestinationBox);
+							FRHICopyTextureInfo CopyInfo;
+							CopyInfo.SourcePosition = SourcePoint;
+							CopyInfo.Size = FIntVector(1, 1, 1);
+							RHICmdList.CopyTexture(SourceBufferHDR, DestinationBufferHDR, CopyInfo);
 						}
 					}
 				}
@@ -193,9 +225,11 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 			// GBuffer A
 			if (Scene->PixelInspectorData.RenderTargetBufferA[PixelInspectorRequest->BufferIndex] != nullptr)
 			{
-				FVector2D SourcePoint(FMath::FloorToInt(SourceViewportUV.X * View.ViewRect.Width()),
-									  FMath::FloorToInt(SourceViewportUV.Y * View.ViewRect.Height()));
-				FBox2D SourceBox(SourcePoint, SourcePoint + ExtendSize);
+				const FIntVector SourcePoint(
+					FMath::FloorToInt(SourceViewportUV.X * View.ViewRect.Width()),
+					FMath::FloorToInt(SourceViewportUV.Y * View.ViewRect.Height()),
+					0
+				);
 
 				const FTexture2DRHIRef &DestinationBufferA = Scene->PixelInspectorData.RenderTargetBufferA[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
 				if (DestinationBufferA.IsValid() && SceneContext.GBufferA.IsValid() && SceneContext.GBufferA->GetRenderTargetItem().ShaderResourceTexture.IsValid())
@@ -203,8 +237,10 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 					FTexture2DRHIRef SourceBufferA = (FRHITexture2D*)(SceneContext.GBufferA->GetRenderTargetItem().ShaderResourceTexture.GetReference());
 					if (SourceBufferA.IsValid() && DestinationBufferA->GetFormat() == SourceBufferA->GetFormat())
 					{
-						FBox2D DestinationBox(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f));
-						RHICmdList.CopySubTextureRegion(SourceBufferA, DestinationBufferA, SourceBox, DestinationBox);
+						FRHICopyTextureInfo CopyInfo;
+						CopyInfo.SourcePosition = SourcePoint;
+						CopyInfo.Size = FIntVector(1, 1, 1);
+						RHICmdList.CopyTexture(SourceBufferA, DestinationBufferA, CopyInfo);
 					}
 				}
 			}
@@ -214,17 +250,21 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 			const FTexture2DRHIRef &DestinationBufferBCDE = Scene->PixelInspectorData.RenderTargetBufferBCDE[PixelInspectorRequest->BufferIndex]->GetRenderTargetTexture();
 			if (DestinationBufferBCDE.IsValid())
 			{
-				FVector2D SourcePoint(FMath::FloorToInt(SourceViewportUV.X * View.ViewRect.Width()),
-									  FMath::FloorToInt(SourceViewportUV.Y * View.ViewRect.Height()));
-				FBox2D SourceBox(SourcePoint, SourcePoint + ExtendSize);
+				const FIntVector SourcePoint(
+					FMath::FloorToInt(SourceViewportUV.X * View.ViewRect.Width()),
+					FMath::FloorToInt(SourceViewportUV.Y * View.ViewRect.Height()),
+					0
+				);
 
 				if (SceneContext.GBufferB.IsValid() && SceneContext.GBufferB->GetRenderTargetItem().ShaderResourceTexture.IsValid())
 				{
 					FTexture2DRHIRef SourceBufferB = (FRHITexture2D*)(SceneContext.GBufferB->GetRenderTargetItem().ShaderResourceTexture.GetReference());
 					if (SourceBufferB.IsValid() && DestinationBufferBCDE->GetFormat() == SourceBufferB->GetFormat())
 					{
-						FBox2D DestinationBox(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f));
-						RHICmdList.CopySubTextureRegion(SourceBufferB, DestinationBufferBCDE, SourceBox, DestinationBox);
+						FRHICopyTextureInfo CopyInfo;
+						CopyInfo.SourcePosition = SourcePoint;
+						CopyInfo.Size = FIntVector(1, 1, 1);
+						RHICmdList.CopyTexture(SourceBufferB, DestinationBufferBCDE, CopyInfo);
 					}
 				}
 
@@ -233,8 +273,11 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 					FTexture2DRHIRef SourceBufferC = (FRHITexture2D*)(SceneContext.GBufferC->GetRenderTargetItem().ShaderResourceTexture.GetReference());
 					if (SourceBufferC.IsValid() && DestinationBufferBCDE->GetFormat() == SourceBufferC->GetFormat())
 					{
-						FBox2D DestinationBox(FVector2D(1.0f, 0.0f), FVector2D(2.0f, 1.0f));
-						RHICmdList.CopySubTextureRegion(SourceBufferC, DestinationBufferBCDE, SourceBox, DestinationBox);
+						FRHICopyTextureInfo CopyInfo;
+						CopyInfo.SourcePosition = SourcePoint;
+						CopyInfo.DestPosition = FIntVector(1, 0, 0);
+						CopyInfo.Size = FIntVector(1, 1, 1);
+						RHICmdList.CopyTexture(SourceBufferC, DestinationBufferBCDE, CopyInfo);
 					}
 				}
 
@@ -243,8 +286,11 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 					FTexture2DRHIRef SourceBufferD = (FRHITexture2D*)(SceneContext.GBufferD->GetRenderTargetItem().ShaderResourceTexture.GetReference());
 					if (SourceBufferD.IsValid() && DestinationBufferBCDE->GetFormat() == SourceBufferD->GetFormat())
 					{
-						FBox2D DestinationBox(FVector2D(2.0f, 0.0f), FVector2D(3.0f, 1.0f));
-						RHICmdList.CopySubTextureRegion(SourceBufferD, DestinationBufferBCDE, SourceBox, DestinationBox);
+						FRHICopyTextureInfo CopyInfo;
+						CopyInfo.SourcePosition = SourcePoint;
+						CopyInfo.DestPosition = FIntVector(2, 0, 0);
+						CopyInfo.Size = FIntVector(1, 1, 1);
+						RHICmdList.CopyTexture(SourceBufferD, DestinationBufferBCDE, CopyInfo);
 					}
 				}
 
@@ -253,8 +299,11 @@ void FRCPassPostProcessBufferInspector::Process(FRenderingCompositePassContext& 
 					FTexture2DRHIRef SourceBufferE = (FRHITexture2D*)(SceneContext.GBufferE->GetRenderTargetItem().ShaderResourceTexture.GetReference());
 					if (SourceBufferE.IsValid() && DestinationBufferBCDE->GetFormat() == SourceBufferE->GetFormat())
 					{
-						FBox2D DestinationBox(FVector2D(3.0f, 0.0f), FVector2D(4.0f, 1.0f));
-						RHICmdList.CopySubTextureRegion(SourceBufferE, DestinationBufferBCDE, SourceBox, DestinationBox);
+						FRHICopyTextureInfo CopyInfo;
+						CopyInfo.SourcePosition = SourcePoint;
+						CopyInfo.DestPosition = FIntVector(3, 0, 0);
+						CopyInfo.Size = FIntVector(1, 1, 1);
+						RHICmdList.CopyTexture(SourceBufferE, DestinationBufferBCDE, CopyInfo);
 					}
 				}
 			}

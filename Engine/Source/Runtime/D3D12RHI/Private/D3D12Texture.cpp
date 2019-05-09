@@ -2835,3 +2835,44 @@ void FD3D12DynamicRHI::RHICopySubTextureRegion(FTexture2DRHIParamRef SourceTextu
 	}
 }
 
+void FD3D12CommandContext::RHICopyTexture(FTextureRHIParamRef SourceTextureRHI, FTextureRHIParamRef DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)
+{
+	FD3D12TextureBase* SourceTexture = GetD3D12TextureFromRHITexture(SourceTextureRHI);
+	FD3D12TextureBase* DestTexture = GetD3D12TextureFromRHITexture(DestTextureRHI);
+
+	const CD3DX12_BOX SourceBoxD3D(
+		CopyInfo.SourcePosition.X,
+		CopyInfo.SourcePosition.Y,
+		CopyInfo.SourcePosition.Z,
+		CopyInfo.SourcePosition.X + CopyInfo.Size.X,
+		CopyInfo.SourcePosition.Y + CopyInfo.Size.Y,
+		CopyInfo.SourcePosition.Z + CopyInfo.Size.Z
+	);
+
+	CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(
+		SourceTexture->GetResource()->GetResource(),
+		CalcSubresource(CopyInfo.SourceMipIndex, CopyInfo.SourceSliceIndex, SourceTexture->GetResource()->GetMipLevels())
+	);
+	CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(
+		DestTexture->GetResource()->GetResource(),
+		CalcSubresource(CopyInfo.DestMipIndex, CopyInfo.DestSliceIndex, DestTexture->GetResource()->GetMipLevels())
+	);
+
+	FConditionalScopeResourceBarrier ConditionalScopeResourceBarrierSource(CommandListHandle, SourceTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, SourceCopyLocation.SubresourceIndex);
+	FConditionalScopeResourceBarrier ConditionalScopeResourceBarrierDest(CommandListHandle, DestTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, DestCopyLocation.SubresourceIndex);
+
+	numCopies++;
+	CommandListHandle.FlushResourceBarriers();
+	CommandListHandle->CopyTextureRegion(
+		&DestCopyLocation,
+		CopyInfo.DestPosition.X,
+		CopyInfo.DestPosition.Y,
+		CopyInfo.DestPosition.Z,
+		&SourceCopyLocation,
+		&SourceBoxD3D
+	);
+
+	CommandListHandle.UpdateResidency(SourceTexture->GetResource());
+	CommandListHandle.UpdateResidency(DestTexture->GetResource());
+}
+

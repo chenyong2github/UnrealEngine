@@ -89,18 +89,6 @@ void FValidationRHI::ValidatePipeline(const FGraphicsPipelineStateInitializer& P
 	}
 }
 
-void FValidationRHI::ValidateCopySubTextureRegion(FRHITexture2D* SourceTexture, FRHITexture2D* DestinationTexture, FBox2D SourceBox, FBox2D DestinationBox)
-{
-	const int32 SrcWidth = (int32)(SourceBox.Max.X - SourceBox.Min.X);
-	const int32 SrcHeight = (int32)(SourceBox.Max.Y - SourceBox.Min.Y);
-	const int32 DestWidth = (int32)(DestinationBox.Max.X - DestinationBox.Min.X);
-	const int32 DestHeight = (int32)(DestinationBox.Max.Y - DestinationBox.Min.Y);
-
-	check(SourceTexture != nullptr && DestinationTexture != nullptr);
-	//	check(SrcWidth > 0 && SrcHeight > 0);
-	check(DestWidth == SrcWidth && DestHeight == SrcHeight);
-}
-
 
 FValidationComputeContext::FValidationComputeContext(FValidationRHI* InRHI)
 	: RHIContext(nullptr)
