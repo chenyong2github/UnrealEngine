@@ -1112,7 +1112,59 @@ namespace Audio
 					ChannelInfo.bInUse = true;
 				}
 
+			}
 				InSubmixPtr->AddOrSetSourceVoice(MixerSources[SourceId], InSubmixSend.SendLevel);
+		});
+	}
+
+	void FMixerSourceManager::SetBusSendInfo(const int32 SourceId, EBusSendType InBusSendType, FMixerBusSend& InBusSend)
+	{
+		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
+		AUDIO_MIXER_CHECK(GameThreadInfo.bIsBusy[SourceId]);
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		AudioMixerThreadCommand([this, SourceId, InBusSendType, InBusSend]()
+		{
+			// Create mapping of source id to bus send level
+			FBusSend BusSend{ SourceId, InBusSend.SendLevel };
+			FSourceInfo& SourceInfo = SourceInfos[SourceId];
+
+			// Retrieve the bus we want to send audio to
+			FMixerBus* Bus = Buses.Find(InBusSend.BusId);
+
+			// If we already have a bus, we update the amount of audio we want to send to it
+			if (Bus)
+			{
+				Bus->AddBusSend(InBusSendType, BusSend);			
+			}
+			else
+			{
+				// If the bus is not registered, make a new entry on the send
+				FMixerBus NewBusData(this, SourceInfo.NumInputChannels, NumOutputFrames);
+
+				// Add a send to it. This will not have a bus instance id (i.e. won't output audio), but 
+				// we register the send anyway in the event that this bus does play, we'll know to send this
+				// source's audio to it.
+				NewBusData.AddBusSend(InBusSendType, BusSend);
+
+				Buses.Add(InBusSend.BusId, NewBusData);
+			}
+
+			// Check to see if we need to create new bus data. If we are not playing a bus with this id, then we
+			// need to create a slot for it such that when a bus does play, it'll start rendering audio from this source
+			bool bExisted = false;
+			for (uint32 BusId : SourceInfo.BusSends[(int32)InBusSendType])
+			{
+				if (BusId == InBusSend.BusId)
+				{
+					bExisted = true;
+					break;
+				}
+			}
+
+			if (!bExisted)
+			{
+				SourceInfo.BusSends[(int32)InBusSendType].Add(InBusSend.BusId);
 			}
 		});
 	}

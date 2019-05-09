@@ -56,6 +56,18 @@ namespace Audio
 
 	void FMixerBus::AddBusSend(EBusSendType BusSendType, const FBusSend& InBusSend)
 	{
+		// Make sure we don't have duplicates in the bus sends
+		for (FBusSend& BusSend : BusSends[(int32)BusSendType])
+		{
+			// If it's already added, just update the send level
+			if (BusSend.SourceId == InBusSend.SourceId)
+			{
+				BusSend.SendLevel = InBusSend.SendLevel;
+				return;
+			}
+		}
+
+		// It's a new source id so just add it
 		BusSends[(int32)BusSendType].Add(InBusSend);
 	}
 
