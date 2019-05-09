@@ -1730,6 +1730,7 @@ void UEngine::TickDeferredCommands()
 	const int32 DeferredCommandsCount = DeferredCommands.Num();
 	for( int32 DeferredCommandsIndex=0; DeferredCommandsIndex<DeferredCommandsCount; DeferredCommandsIndex++ )
 	{
+		CSV_EVENT_GLOBAL(TEXT("Cmd: %s"), *DeferredCommands[DeferredCommandsIndex]);
 		// Use LocalPlayer if available...
 		ULocalPlayer* LocalPlayer = GetDebugLocalPlayer();
 		if( LocalPlayer )
