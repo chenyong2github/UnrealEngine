@@ -967,4 +967,7 @@ protected:
 	FLandscapeMaterialChangedDelegate LandscapeMaterialChangedDelegate;
 
 #endif
+private:
+	/** Returns Grass Update interval */
+	int32 GetGrassUpdateInterval() const;
 };
