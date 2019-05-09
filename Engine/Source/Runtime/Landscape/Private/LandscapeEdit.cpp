@@ -2136,27 +2136,24 @@ ULandscapeLayerInfoObject* ALandscapeProxy::CreateLayerInfo(const TCHAR* LayerNa
 #define HEIGHTDATA(X,Y) (HeightData[ FMath::Clamp<int32>(Y,0,VertsY) * VertsX + FMath::Clamp<int32>(X,0,VertsX) ])
 ENGINE_API extern bool GDisableAutomaticTextureMaterialUpdateDependencies;
 
-LANDSCAPE_API void ALandscapeProxy::Import(
-	const FGuid Guid,
-	const int32 MinX, const int32 MinY, const int32 MaxX, const int32 MaxY,
-	const int32 InNumSubsections, const int32 InSubsectionSizeQuads,
-	const uint16* const HeightData, const TCHAR* const HeightmapFileName,
-	const TArray<FLandscapeImportLayerInfo>& ImportLayerInfos, const ELandscapeImportAlphamapType ImportLayerType)
+LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, int32 InMinY, int32 InMaxX, int32 InMaxY, int32 InNumSubsections, int32 InSubsectionSizeQuads, const TMap<FGuid, TArray<uint16>>& InImportHeightData, 
+										   const TCHAR* const InHeightmapFileName, const TMap<FGuid, TArray<FLandscapeImportLayerInfo>>& InImportMaterialLayerInfos, ELandscapeImportAlphamapType InImportMaterialLayerType, const TArray<FLandscapeLayer>* InImportLayers)
 {
+	check(InGuid.IsValid());
+	check(InImportHeightData.Num() == InImportMaterialLayerInfos.Num());
+	check(GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem || InImportLayers == nullptr);
+
 	GWarn->BeginSlowTask(LOCTEXT("BeingImportingLandscapeTask", "Importing Landscape"), true);
 
-	const int32 VertsX = MaxX - MinX + 1;
-	const int32 VertsY = MaxY - MinY + 1;
+	const int32 VertsX = InMaxX - InMinX + 1;
+	const int32 VertsY = InMaxY - InMinY + 1;
 
 	ComponentSizeQuads = InNumSubsections * InSubsectionSizeQuads;
 	NumSubsections = InNumSubsections;
 	SubsectionSizeQuads = InSubsectionSizeQuads;
-	LandscapeGuid = Guid;
+	LandscapeGuid = InGuid;
 
 	Modify();
-
-	// Create and initialize landscape info object
-	ULandscapeInfo* LandscapeInfo = CreateLandscapeInfo();
 
 	const int32 NumPatchesX = (VertsX - 1);
 	const int32 NumPatchesY = (VertsY - 1);
@@ -2172,19 +2169,14 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 	{
 		for (int32 X = 0; X < NumComponentsX; X++)
 		{
-			const int32 BaseX = MinX + X * ComponentSizeQuads;
-			const int32 BaseY = MinY + Y * ComponentSizeQuads;
+			const int32 BaseX = InMinX + X * ComponentSizeQuads;
+			const int32 BaseY = InMinY + Y * ComponentSizeQuads;
 
 			ULandscapeComponent* LandscapeComponent = NewObject<ULandscapeComponent>(this, NAME_None, RF_Transactional);
 			LandscapeComponent->SetRelativeLocation(FVector(BaseX, BaseY, 0));
 			LandscapeComponent->SetupAttachment(GetRootComponent(), NAME_None);
 			LandscapeComponents.Add(LandscapeComponent);
-			LandscapeComponent->Init(
-				BaseX, BaseY,
-				ComponentSizeQuads,
-				NumSubsections,
-				SubsectionSizeQuads
-				);
+			LandscapeComponent->Init(BaseX, BaseY, ComponentSizeQuads, NumSubsections, SubsectionSizeQuads);
 
 			// Assign shared properties
 			LandscapeComponent->UpdatedSharedPropertiesFromActor();
@@ -2249,6 +2241,11 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 
 	const FVector DrawScale3D = GetRootComponent()->RelativeScale3D;
 
+	// layer to import data (Final or 1st layer)
+	const FGuid FinalLayerGuid = FGuid();
+	const TArray<uint16>& HeightData = InImportHeightData.FindChecked(FinalLayerGuid);
+	const TArray<FLandscapeImportLayerInfo>& ImportLayerInfos = InImportMaterialLayerInfos.FindChecked(FinalLayerGuid);
+
 	// Calculate the normals for each of the two triangles per quad.
 	TArray<FVector> VertexNormals;
 	VertexNormals.AddZeroed(VertsX * VertsY);
@@ -2293,7 +2290,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 				{
 					for (int32 AlphaY = 0; AlphaY <= LandscapeComponent->ComponentSizeQuads; AlphaY++)
 					{
-						const uint8* const OldAlphaRowStart = &ImportLayerInfos[LayerIndex].LayerData[(AlphaY + LandscapeComponent->GetSectionBase().Y - MinY) * VertsX + (LandscapeComponent->GetSectionBase().X - MinX)];
+						const uint8* const OldAlphaRowStart = &ImportLayerInfos[LayerIndex].LayerData[(AlphaY + LandscapeComponent->GetSectionBase().Y - InMinY) * VertsX + (LandscapeComponent->GetSectionBase().X - InMinX)];
 						uint8* const NewAlphaRowStart = &NewAlphaInfo->AlphaValues[AlphaY * (LandscapeComponent->ComponentSizeQuads + 1)];
 						FMemory::Memcpy(NewAlphaRowStart, OldAlphaRowStart, LandscapeComponent->ComponentSizeQuads + 1);
 					}
@@ -2334,7 +2331,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 			// Discard the temporary alpha data
 			EditingAlphaLayerData.Empty();
 
-			if (ImportLayerType == ELandscapeImportAlphamapType::Layered)
+			if (InImportMaterialLayerType == ELandscapeImportAlphamapType::Layered)
 			{
 				// For each layer...
 				for (int32 WeightLayerIndex = WeightValues.Num() - 1; WeightLayerIndex >= 0; WeightLayerIndex--)
@@ -2593,8 +2590,8 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 							const int32 WeightTexDataIdx = (TexX)+(TexY)* (WeightmapSize);
 
 							// copy height and normal data
-							const uint16 HeightValue = HEIGHTDATA(CompX + LandscapeComponent->GetSectionBase().X - MinX, CompY + LandscapeComponent->GetSectionBase().Y - MinY);
-							const FVector Normal = VertexNormals[CompX + LandscapeComponent->GetSectionBase().X - MinX + VertsX * (CompY + LandscapeComponent->GetSectionBase().Y - MinY)].GetSafeNormal();
+							const uint16 HeightValue = HEIGHTDATA(CompX + LandscapeComponent->GetSectionBase().X - InMinX, CompY + LandscapeComponent->GetSectionBase().Y - InMinY);
+							const FVector Normal = VertexNormals[CompX + LandscapeComponent->GetSectionBase().X - InMinX + VertsX * (CompY + LandscapeComponent->GetSectionBase().Y - InMinY)].GetSafeNormal();
 
 							HeightmapInfo.HeightmapTextureMipData[0][HeightTexDataIdx].R = HeightValue >> 8;
 							HeightmapInfo.HeightmapTextureMipData[0][HeightTexDataIdx].G = HeightValue & 255;
@@ -2761,33 +2758,135 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 	// Must be after the FMaterialUpdateContext is destroyed
 	RecreateRenderStateContexts.Reset();
 
+	// Create and initialize landscape info object
+	ULandscapeInfo* LandscapeInfo = CreateLandscapeInfo();
+
 	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
+		// Components need to be registered to be able to import the layer content and we will remove them if they should have not been visible
+		bool ShouldComponentBeRegistered = GetLevel()->bIsVisible;
+		RegisterAllComponents();
+
 		ALandscape* LandscapeActor = GetLandscapeActor();
 		check(LandscapeActor != nullptr);
-		// Only create Layers on main Landscape
-		if (LandscapeActor == this)
+
+		// Create the default layer
+		if (LandscapeActor->GetLayerCount() == 0 && InImportLayers == nullptr)
 		{
-			// Create the default layer
 			LandscapeActor->CreateDefaultLayer();
-		} 
+		}
+
+		TSet<ULandscapeComponent*> ComponentsToProcess;
+
+		struct FLayerImportSettings
+		{
+			FGuid SourceLayerGuid;
+			FGuid DestinationLayerGuid;
+		};
+
+		TArray<FLayerImportSettings> LayerImportSettings;		
+
+		// Only create Layers on main Landscape
+		if (LandscapeActor == this && InImportLayers != nullptr)
+		{
+			for (const FLandscapeLayer& OldLayer : *InImportLayers)
+			{
+				FLandscapeLayer* NewLayer = LandscapeActor->DuplicateLayer(OldLayer);
+				check(NewLayer != nullptr);
+
+				FLayerImportSettings ImportSettings;
+				ImportSettings.SourceLayerGuid = OldLayer.Guid;
+				ImportSettings.DestinationLayerGuid = NewLayer->Guid;
+				LayerImportSettings.Add(ImportSettings);
+			}
+
+			LandscapeInfo->GetComponentsInRegion(InMinX, InMinY, InMaxX, InMaxY, ComponentsToProcess);
+		}
 		else
 		{
-			LandscapeActor->AddLayersToProxy(this);
+			// In the case of a streaming proxy, we will generate the layer data for each components that the proxy hold so no need of the grid min/max to calculate the components to update
+			if (LandscapeActor != this)
+			{
+				LandscapeActor->AddLayersToProxy(this);
+			}
+
+			// And we will fill all the landscape components with the provided final layer content put into the default layer (aka layer index 0)
+			const FLandscapeLayer* DefaultLayer = LandscapeActor->GetLayer(0);
+			check(DefaultLayer != nullptr);
+
+			FLayerImportSettings ImportSettings;
+			ImportSettings.SourceLayerGuid = FinalLayerGuid;
+			ImportSettings.DestinationLayerGuid = DefaultLayer->Guid;
+			LayerImportSettings.Add(ImportSettings);
+
+			ComponentsToProcess.Append(LandscapeComponents);
 		}
-	}
 
-	if (GetLevel()->bIsVisible)
+		TSet<UTexture2D*> LayersTextures;
+
+		for (const FLayerImportSettings& ImportSettings : LayerImportSettings)
+		{
+			FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo, false);
+			FScopedSetLandscapeEditingLayer Scope(LandscapeActor, ImportSettings.DestinationLayerGuid);
+
+			const TArray<uint16>* ImportHeightData = InImportHeightData.Find(ImportSettings.SourceLayerGuid);
+
+			if (ImportHeightData != nullptr)
+			{
+				LandscapeEdit.SetHeightData(InMinX, InMinY, InMaxX, InMaxY, (uint16*)ImportHeightData->GetData(), 0, false, nullptr);
+			}
+
+			const TArray<FLandscapeImportLayerInfo>* ImportWeightData = InImportMaterialLayerInfos.Find(ImportSettings.SourceLayerGuid);
+
+			if (ImportWeightData != nullptr)
+			{
+				for (const FLandscapeImportLayerInfo& MaterialLayerInfo : *ImportWeightData)
+				{
+					if (MaterialLayerInfo.LayerInfo != nullptr)
+					{
+						LandscapeEdit.SetAlphaData(MaterialLayerInfo.LayerInfo, InMinX, InMinY, InMaxX, InMaxY, MaterialLayerInfo.LayerData.GetData(), 0, ELandscapeLayerPaintingRestriction::None, true, false);
+					}
+				}
+			}
+
+			for (ULandscapeComponent* Component : ComponentsToProcess)
+			{
+				FLandscapeLayerComponentData* ComponentLayerData = Component->GetLayerData(ImportSettings.DestinationLayerGuid);
+				check(ComponentLayerData != nullptr);
+
+				LayersTextures.Add(ComponentLayerData->HeightmapData.Texture);
+				LayersTextures.Append(ComponentLayerData->WeightmapData.Textures);
+			}
+		}
+
+		// Retrigger a caching of the platform data as we wrote again in the textures
+		for (UTexture2D* Texture : LayersTextures)
+		{
+			Texture->ClearAllCachedCookedPlatformData();
+			Texture->BeginCachePlatformData();
+		}
+
+		LandscapeActor->RequestLayersContentUpdateForceAll();
+
+		if (!ShouldComponentBeRegistered)
+		{
+			UnregisterAllComponents();
+		}
+	}	
+	else
 	{
-		// Update our new components
-		ReregisterAllComponents();
+		if (GetLevel()->bIsVisible)
+		{
+			ReregisterAllComponents();
+		}
+
+		LandscapeInfo->RecreateCollisionComponents();
+		LandscapeInfo->UpdateAllAddCollisions();
 	}
 
-	ReimportHeightmapFilePath = HeightmapFileName;
+	ReimportHeightmapFilePath = InHeightmapFileName;
 
 	LandscapeInfo->UpdateLayerInfoMap();
-	LandscapeInfo->RecreateCollisionComponents();
-	LandscapeInfo->UpdateAllAddCollisions();
 
 	GWarn->EndSlowTask();
 }

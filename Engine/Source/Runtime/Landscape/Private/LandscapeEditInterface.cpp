@@ -30,7 +30,8 @@ extern const size_t ChannelOffsets[4] = {STRUCT_OFFSET(FColor,R), STRUCT_OFFSET(
 //
 // FLandscapeEditDataInterface
 //
-FLandscapeEditDataInterface::FLandscapeEditDataInterface(ULandscapeInfo* InLandscapeInfo)
+FLandscapeEditDataInterface::FLandscapeEditDataInterface(ULandscapeInfo* InLandscapeInfo, bool bInUploadTextureChangesToGPU)
+	: FLandscapeTextureDataInterface(bInUploadTextureChangesToGPU)
 {
 	if (InLandscapeInfo)
 	{
@@ -42,6 +43,10 @@ FLandscapeEditDataInterface::FLandscapeEditDataInterface(ULandscapeInfo* InLands
 	}
 }
 
+FLandscapeTextureDataInterface::FLandscapeTextureDataInterface(bool bInUploadTextureChangesToGPU)
+	: bUploadTextureChangesToGPU(bInUploadTextureChangesToGPU)
+{}
+
 FLandscapeTextureDataInterface::~FLandscapeTextureDataInterface()
 {
 	Flush();
@@ -51,12 +56,15 @@ void FLandscapeTextureDataInterface::Flush()
 {
 	bool bNeedToWaitForUpdate = false;
 
-	// Update all textures
-	for( TMap<UTexture2D*, FLandscapeTextureDataInfo*>::TIterator It(TextureDataMap); It;  ++It )
+	if (bUploadTextureChangesToGPU)
 	{
-		if( It.Value()->UpdateTextureData() )
+		// Update all textures
+		for (TMap<UTexture2D*, FLandscapeTextureDataInfo*>::TIterator It(TextureDataMap); It; ++It)
 		{
-			bNeedToWaitForUpdate = true;
+			if (It.Value()->UpdateTextureData())
+			{
+				bNeedToWaitForUpdate = true;
+			}
 		}
 	}
 
