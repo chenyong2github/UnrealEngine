@@ -89,7 +89,8 @@ public:
 		, _ScrollBarVisibility(EVisibility::Visible)
 		, _ScrollBarAlwaysVisible(false)
 		, _ScrollBarDragFocusCause(EFocusCause::Mouse)
-		, _ScrollBarThickness(FVector2D(5, 5))
+		, _ScrollBarThickness(FVector2D(9.0f, 9.0f))
+		, _ScrollBarPadding(2.0f)
 		, _AllowOverscroll(EAllowOverscroll::Yes)
 		, _NavigationDestination(EDescendantScrollDestination::IntoView)
 		, _NavigationScrollPadding(0.0f)
@@ -120,6 +121,8 @@ public:
 		SLATE_ARGUMENT( EFocusCause, ScrollBarDragFocusCause )
 
 		SLATE_ARGUMENT( FVector2D, ScrollBarThickness )
+
+		SLATE_ARGUMENT( FMargin, ScrollBarPadding )
 
 		SLATE_ARGUMENT(EAllowOverscroll, AllowOverscroll);
 
@@ -203,6 +206,8 @@ public:
 	void SetScrollBarTrackAlwaysVisible(bool InAlwaysVisible);
 
 	void SetScrollBarThickness(FVector2D InThickness);
+
+	void SetScrollBarPadding(const FMargin& InPadding);
 
 	void SetScrollBarRightClickDragAllowed(bool bIsAllowed);
 public:

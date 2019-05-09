@@ -75,6 +75,8 @@ struct CORE_API FEditorObjectVersion
 		ChangedWidgetComponentWindowVisibilityDefault,
 		// Avoid keying culture invariant display strings during serialization to avoid non-deterministic cooking issues
 		CultureInvariantTextSerializationKeyStability,
+		// Change to UScrollBar and UScrollBox thickness property (removed implicit padding of 2, so thickness value must be incremented by 4).
+		ScrollBarThicknessChange,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

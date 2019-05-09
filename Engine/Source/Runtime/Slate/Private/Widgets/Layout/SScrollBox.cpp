@@ -144,6 +144,7 @@ void SScrollBox::Construct( const FArguments& InArgs )
 		ScrollBar = ConstructScrollBar();
 		ScrollBar->SetDragFocusCause(InArgs._ScrollBarDragFocusCause);
 		ScrollBar->SetThickness(InArgs._ScrollBarThickness);
+		ScrollBar->SetPadding(InArgs._ScrollBarPadding);
 		ScrollBar->SetUserVisibility(InArgs._ScrollBarVisibility);
 		ScrollBar->SetScrollBarAlwaysVisible(InArgs._ScrollBarAlwaysVisible);
 
@@ -494,6 +495,11 @@ void SScrollBox::SetScrollBarTrackAlwaysVisible(bool InAlwaysVisible)
 void SScrollBox::SetScrollBarThickness(FVector2D InThickness)
 {
 	ScrollBar->SetThickness(InThickness);
+}
+
+void SScrollBox::SetScrollBarPadding(const FMargin& InPadding)
+{
+	ScrollBar->SetPadding(InPadding);
 }
 
 void SScrollBox::SetScrollBarRightClickDragAllowed(bool bIsAllowed)

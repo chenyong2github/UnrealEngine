@@ -16,7 +16,7 @@ void SConcertScrollBox::Construct(const FArguments& InArgs)
 	bPreventLock = false;
 
 	ScrollBar = SNew(SScrollBar)
-		.Thickness(FVector2D(8.0f, 8.0f));
+		.Thickness(FVector2D(12.0f, 12.0f));
 
 	ChildSlot
 		[

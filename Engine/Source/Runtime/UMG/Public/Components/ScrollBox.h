@@ -48,9 +48,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
 	EConsumeMouseWheel ConsumeMouseWheel;
 
-	/**  */
+	/** The thickness of the scrollbar thumb */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scroll")
 	FVector2D ScrollbarThickness;
+
+	/** The margin around the scrollbar */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
+	FMargin ScrollbarPadding;
 
 	/**  */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scroll")
@@ -91,6 +95,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
 	void SetScrollbarThickness(const FVector2D& NewScrollbarThickness);
+
+	UFUNCTION(BlueprintCallable, Category = "Scroll")
+	void SetScrollbarPadding(const FMargin& NewScrollbarPadding);
 
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
 	void SetAlwaysShowScrollbar(bool NewAlwaysShowScrollbar);
@@ -149,7 +156,10 @@ public:
 	//~ End UVisual Interface
 
 	//~ Begin UObject Interface
+#if WITH_EDITORONLY_DATA
+	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
+#endif // if WITH_EDITORONLY_DATA
 	//~ End UObject Interface
 
 #if WITH_EDITOR
