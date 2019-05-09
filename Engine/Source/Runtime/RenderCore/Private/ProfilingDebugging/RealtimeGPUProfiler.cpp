@@ -369,7 +369,9 @@ public:
 			}
 			if (!Event->HasValidResult())
 			{
+#if UE_BUILD_DEBUG
 				UE_LOG(LogRendererCore, Warning, TEXT("Query '%s' not ready."), *Event->GetName().ToString());
+#endif
 				// The frame isn't ready yet. Don't update stats - we'll try again next frame. 
 				bAnyEventFailed = true;
 				continue;
