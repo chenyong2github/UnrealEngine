@@ -594,7 +594,7 @@ void FRDGBuilder::WalkGraphDependencies()
 		{
 			Pair.Value = nullptr;
 			Pair.Key->PooledRenderTarget = nullptr;
-			Pair.Key->CachedRHI.Resource = nullptr;
+			Pair.Key->ResourceRHI = nullptr;
 		}
 	}
 
@@ -605,7 +605,7 @@ void FRDGBuilder::WalkGraphDependencies()
 		{
 			Pair.Value = nullptr;
 			Pair.Key->PooledBuffer = nullptr;
-			Pair.Key->CachedRHI.Resource = nullptr;
+			Pair.Key->ResourceRHI = nullptr;
 		}
 	}
 }
@@ -626,29 +626,29 @@ void FRDGBuilder::AllocateRHITextureIfNeeded(FRDGTexture* Texture, bool bCompute
 	GRenderTargetPool.FindFreeElement(RHICmdList, Texture->Desc, PooledRenderTarget, Texture->Name, /* bDoWritableBarrier = */ true);
 
 	Texture->PooledRenderTarget = PooledRenderTarget;
-	Texture->CachedRHI.Texture = PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
-	check(Texture->CachedRHI.Resource);
+	Texture->ResourceRHI = PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
+	check(Texture->ResourceRHI);
 }
 
 void FRDGBuilder::AllocateRHITextureUAVIfNeeded(FRDGTextureUAV* UAV, bool bComputePass)
 {
 	check(UAV);
 
-	if (UAV->CachedRHI.UAV)
+	if (UAV->ResourceRHI)
 	{
 		return;
 	}
 
 	AllocateRHITextureIfNeeded(UAV->Desc.Texture, bComputePass);
 
-	UAV->CachedRHI.UAV = UAV->Desc.Texture->PooledRenderTarget->GetRenderTargetItem().MipUAVs[UAV->Desc.MipLevel];
+	UAV->ResourceRHI = UAV->Desc.Texture->PooledRenderTarget->GetRenderTargetItem().MipUAVs[UAV->Desc.MipLevel];
 }
 
 void FRDGBuilder::AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV, bool bComputePass)
 {
 	check(SRV);
 
-	if (SRV->CachedRHI.SRV)
+	if (SRV->ResourceRHI)
 	{
 		return;
 	}
@@ -666,7 +666,7 @@ void FRDGBuilder::AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV, bool bCompute
 
 	if (Buffer->PooledBuffer->SRVs.Contains(SRV->Desc))
 	{
-		SRV->CachedRHI.SRV = Buffer->PooledBuffer->SRVs[SRV->Desc];
+		SRV->ResourceRHI = Buffer->PooledBuffer->SRVs[SRV->Desc];
 		return;
 	}
 
@@ -685,7 +685,7 @@ void FRDGBuilder::AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV, bool bCompute
 		check(0);
 	}
 
-	SRV->CachedRHI.SRV = RHIShaderResourceView;
+	SRV->ResourceRHI = RHIShaderResourceView;
 	Buffer->PooledBuffer->SRVs.Add(SRV->Desc, RHIShaderResourceView);
 }
 
@@ -693,7 +693,7 @@ void FRDGBuilder::AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV, bool bCompute
 {
 	check(UAV);
 
-	if (UAV->CachedRHI.UAV)
+	if (UAV->ResourceRHI)
 	{
 		return;
 	}
@@ -713,7 +713,7 @@ void FRDGBuilder::AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV, bool bCompute
 
 	if (Buffer->PooledBuffer->UAVs.Contains(UAV->Desc))
 	{
-		UAV->CachedRHI.UAV = Buffer->PooledBuffer->UAVs[UAV->Desc];
+		UAV->ResourceRHI = Buffer->PooledBuffer->UAVs[UAV->Desc];
 		return;
 	}
 
@@ -735,7 +735,7 @@ void FRDGBuilder::AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV, bool bCompute
 		check(0);
 	}
 
-	UAV->CachedRHI.UAV = RHIUnorderedAccessView;
+	UAV->ResourceRHI = RHIUnorderedAccessView;
 	Buffer->PooledBuffer->UAVs.Add(UAV->Desc, RHIUnorderedAccessView);
 }
 
@@ -818,16 +818,16 @@ void FRDGBuilder::ExecutePass(const FRDGPass* Pass)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGBuilder_ExecutePass);
 
-	FRHIRenderPassInfo RPInfo;
-	bool bHasRenderTargets = false;
-
-	PrepareResourcesForExecute(Pass, &RPInfo, &bHasRenderTargets);
-	
 	{
 		const bool bAllowAccess = true;
 		UpdateAccessGuardForPassResources(Pass, bAllowAccess);
 	}
 
+	FRHIRenderPassInfo RPInfo;
+	bool bHasRenderTargets = false;
+
+	PrepareResourcesForExecute(Pass, &RPInfo, &bHasRenderTargets);
+	
 	EventScopeStack.BeginExecutePass(Pass);
 	StatScopeStack.BeginExecutePass(Pass);
 
@@ -895,7 +895,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				#endif
 
 				check(Texture->PooledRenderTarget);
-				check(Texture->CachedRHI.Resource);
+				check(Texture->ResourceRHI);
 				TransitionTexture(Texture, EResourceTransitionAccess::EReadable, bIsCompute);
 			}
 		}
@@ -915,9 +915,9 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				#endif
 
 				// Might be the first time using this render graph SRV, so need to setup the cached rhi resource.
-				if (!SRV->CachedRHI.SRV)
+				if (!SRV->ResourceRHI)
 				{
-					SRV->CachedRHI.SRV = Texture->PooledRenderTarget->GetRenderTargetItem().MipSRVs[SRV->Desc.MipLevel];
+					SRV->ResourceRHI = Texture->PooledRenderTarget->GetRenderTargetItem().MipSRVs[SRV->Desc.MipLevel];
 				}
 
 				TransitionTexture(Texture, EResourceTransitionAccess::EReadable, bIsCompute);
@@ -929,10 +929,11 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
 			{
 				FRDGTextureRef Texture = UAV->Desc.Texture;
+				FUnorderedAccessViewRHIParamRef UAVRHI = UAV->GetRHI();
 
 				if (!bIsCompute)
 				{
-					OutRPInfo->UAVs[OutRPInfo->NumUAVs++] = UAV->CachedRHI.UAV;	// Bind UAVs in declaration order
+					OutRPInfo->UAVs[OutRPInfo->NumUAVs++] = UAVRHI;	// Bind UAVs in declaration order
 				}
 
 				#if RDG_ENABLE_DEBUG
@@ -942,7 +943,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				#endif
 
 				AllocateRHITextureUAVIfNeeded(UAV, bIsCompute);
-				TransitionUAV(UAV->CachedRHI.UAV, Texture, Texture->Flags, EResourceTransitionAccess::EWritable, bIsCompute);
+				TransitionUAV(UAVRHI, Texture, Texture->Flags, EResourceTransitionAccess::EWritable, bIsCompute);
 			}
 		}
 		break;
@@ -995,10 +996,11 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
 			{
 				FRDGBufferRef Buffer = UAV->Desc.Buffer;
+				FUnorderedAccessViewRHIParamRef UAVRHI = UAV->GetRHI();
 
 				if (!bIsCompute)
 				{
-					OutRPInfo->UAVs[OutRPInfo->NumUAVs++] = UAV->CachedRHI.UAV;	// Bind UAVs in declaration order
+					OutRPInfo->UAVs[OutRPInfo->NumUAVs++] = UAVRHI;	// Bind UAVs in declaration order
 				}
 				
 				#if RDG_ENABLE_DEBUG
@@ -1008,7 +1010,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				#endif
 
 				AllocateRHIBufferUAVIfNeeded(UAV, bIsCompute);
-				TransitionUAV(UAV->CachedRHI.UAV, Buffer, Buffer->Flags, EResourceTransitionAccess::EWritable, bIsCompute);
+				TransitionUAV(UAVRHI, Buffer, Buffer->Flags, EResourceTransitionAccess::EWritable, bIsCompute);
 			}
 		}
 		break;
@@ -1227,7 +1229,7 @@ void FRDGBuilder::ReleaseRHITextureIfUnreferenced(FRDGTexture* Texture)
 	if (Texture->ReferenceCount == 0)
 	{
 		Texture->PooledRenderTarget = nullptr;
-		Texture->CachedRHI.Resource = nullptr;
+		Texture->ResourceRHI = nullptr;
 		AllocatedTextures.FindChecked(Texture) = nullptr;
 	}
 }
@@ -1240,7 +1242,7 @@ void FRDGBuilder::ReleaseRHIBufferIfUnreferenced(FRDGBuffer* Buffer)
 	if (Buffer->ReferenceCount == 0)
 	{
 		Buffer->PooledBuffer = nullptr;
-		Buffer->CachedRHI.Resource = nullptr;
+		Buffer->ResourceRHI = nullptr;
 		AllocatedBuffers.FindChecked(Buffer) = nullptr;
 	}
 }

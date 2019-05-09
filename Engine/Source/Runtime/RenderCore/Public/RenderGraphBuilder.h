@@ -212,10 +212,6 @@ private:
 
 	void ProcessDeferredInternalResourceQueries();
 	void DestructPasses();
-
-	/** To allow greater flexibility in the user code, the RHI can dereferenced RDG resource when creating uniform buffer. */
-	// TODO(RDG): Make this a little more explicit in RHI code.
-	static_assert(STRUCT_OFFSET(FRDGResource, CachedRHI) == 0, "FRDGResource::CachedRHI requires to be at offset 0 so the RHI can dereferenced them.");
 };
 
 #include "RenderGraphBuilder.inl"

@@ -43,37 +43,14 @@ ENUM_CLASS_FLAGS(ERDGResourceFlags);
 /** Generic graph resource. */
 class RENDERCORE_API FRDGResource
 {
-protected:
-	/** Pointer on the RHI resource once allocated, that the RHI can dereferenced according to IsUniformBufferResourceIndirectionType(). */
-	union
-	{
-		FRHIResource* Resource;
-		FTextureRHIParamRef Texture;
-		FShaderResourceViewRHIParamRef SRV;
-		FUnorderedAccessViewRHIParamRef UAV;
-	} CachedRHI;
-
-	/** Verify that the RHI resource can be accessed at a pass execution. */
-	void ValidateRHIAccess() const
-	{
-		#if RDG_ENABLE_DEBUG
-		{
-			checkf(bAllowRHIAccess,
-				TEXT("Accessing the RHI resource of %s at this time is not allowed. If you hit this check in pass, ")
-				TEXT("that is due to this resource not being referenced in the parameters of your pass."),
-				Name);
-		}
-		#endif
-	}
-
-	FRDGResource(const TCHAR* InName)
-		: Name(InName)
-	{
-		CachedRHI.Resource = nullptr;
-	}
-
 public:
 	FRDGResource(const FRDGResource&) = delete;
+
+	// Name of the resource for debugging purpose.
+	const TCHAR* const Name = nullptr;
+
+	//////////////////////////////////////////////////////////////////////////
+	//! The following methods may only be called during pass execution.
 
 	/** Marks this resource as actually used by a resource. This is to track what dependencies on pass was actually unnecessary. */
 	void MarkResourceAsUsed()
@@ -87,10 +64,35 @@ public:
 		#endif
 	}
 
-	// Name of the resource for debugging purpose.
-	const TCHAR* const Name = nullptr;
+	FRHIResource* GetRHI() const
+	{
+		ValidateRHIAccess();
+		return ResourceRHI;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+
+protected:
+	FRDGResource(const TCHAR* InName)
+		: Name(InName)
+	{}
+
+	/** Verify that the RHI resource can be accessed at a pass execution. */
+	void ValidateRHIAccess() const
+	{
+#if RDG_ENABLE_DEBUG
+		{
+			checkf(bAllowRHIAccess,
+				TEXT("Accessing the RHI resource of %s at this time is not allowed. If you hit this check in pass, ")
+				TEXT("that is due to this resource not being referenced in the parameters of your pass."),
+				Name);
+		}
+#endif
+	}
 
 private:
+	FRHIResource* ResourceRHI = nullptr;
+
 #if RDG_ENABLE_DEBUG
 	/** Boolean to track at runtime whether a resource is actually used by the lambda of a pass or not, to detect unnecessary resource dependencies on passes. */
 	bool bIsActuallyUsedByPass = false;
@@ -100,37 +102,21 @@ private:
 #endif
 
 	friend class FRDGBuilder;
-	/** Friendship over parameter settings for bIsActuallyUsedByPass. It means only this parameter settings can be
-	 * used for render graph resource, to force the useless dependency tracking to just work.
-	 */
-	template<typename TRHICmdList, typename TShaderClass, typename TShaderRHI>
-	friend void SetShaderParameters(TRHICmdList&, const TShaderClass*, TShaderRHI*, const typename TShaderClass::FParameters&);
-
-	template<typename TRHICmdList, typename TShaderClass>
-	friend void SetShaderUAVs(TRHICmdList&, const TShaderClass*, FComputeShaderRHIParamRef, const typename TShaderClass::FParameters&);
-
-#if RHI_RAYTRACING
-	template<typename TShaderClass>
-	friend void SetShaderParameters(FRayTracingShaderBindingsWriter& RTBindingsWriter, const TShaderClass* Shader, const typename TShaderClass::FParameters& Parameters);
-#endif
-
-	template< typename T >
-	friend void AddPass_ClearUAV(FRDGBuilder&, FRDGEventName&&, FRDGTextureRef, FRDGTextureUAVRef, const T(&ClearValues)[4]);
-	friend void AddPass_ClearUAV(FRDGBuilder&, FRDGEventName&&, FRDGBufferUAVRef, uint32);
 };
 
 /** A render graph resource with an allocation lifetime tracked by the graph. */
 class RENDERCORE_API FRDGTrackedResource
 	: public FRDGResource
 {
+public:
+	/** Flags specific to this resource for render graph. */
+	const ERDGResourceFlags Flags;
+
 protected:
 	FRDGTrackedResource(const TCHAR* InName, const ERDGResourceFlags InFlags)
 		: FRDGResource(InName)
 		, Flags(InFlags)
 	{}
-
-	/** Flags specific to this resource for render graph. */
-	const ERDGResourceFlags Flags;
 
 private:
 	/** Number of references in passes and deferred queries. */
@@ -196,11 +182,9 @@ public:
 	}
 
 	/** Returns the allocated RHI texture. */
-	FTextureRHIParamRef GetRHITexture() const
+	FTextureRHIParamRef GetRHI() const
 	{
-		ValidateRHIAccess();
-		check(CachedRHI.Texture);
-		return CachedRHI.Texture;
+		return static_cast<FTextureRHIParamRef>(FRDGResource::GetRHI());
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -220,14 +204,40 @@ private:
 	IPooledRenderTarget* PooledRenderTarget = nullptr;
 
 	friend class FRDGBuilder;
+};
 
-	template<typename TRHICmdList, typename TShaderClass, typename TShaderRHI>
-	friend void SetShaderParameters(TRHICmdList&, const TShaderClass*, TShaderRHI*, const typename TShaderClass::FParameters&);
+/** Render graph tracked SRV. */
+class FRDGShaderResourceView
+	: public FRDGResource
+{
+public:
+	/** Returns the allocated RHI SRV. */
+	FShaderResourceViewRHIParamRef GetRHI() const
+	{
+		return static_cast<FShaderResourceViewRHIParamRef>(FRDGResource::GetRHI());
+	}
 
-#if RHI_RAYTRACING
-	template<typename TShaderClass>
-	friend void SetShaderParameters(struct FRayTracingShaderBindingsWriter& RTBindingsWriter, const TShaderClass* Shader, const typename TShaderClass::FParameters& Parameters);
-#endif
+protected:
+	FRDGShaderResourceView(const TCHAR* Name)
+		: FRDGResource(Name)
+	{}
+};
+
+/** Render graph tracked UAV. */
+class FRDGUnorderedAccessView
+	: public FRDGResource
+{
+public:
+	/** Returns the allocated RHI SRV. */
+	FUnorderedAccessViewRHIParamRef GetRHI() const
+	{
+		return static_cast<FUnorderedAccessViewRHIParamRef>(FRDGResource::GetRHI());
+	}
+
+protected:
+	FRDGUnorderedAccessView(const TCHAR* Name)
+		: FRDGResource(Name)
+	{}
 };
 
 /** Descriptor for render graph tracked SRV. */
@@ -247,7 +257,7 @@ public:
 
 /** Render graph tracked SRV. */
 class RENDERCORE_API FRDGTextureSRV final
-	: public FRDGResource
+	: public FRDGShaderResourceView
 {
 public:
 	/** Descriptor of the graph tracked SRV. */
@@ -257,7 +267,7 @@ private:
 	FRDGTextureSRV(
 		const TCHAR* InName,
 		const FRDGTextureSRVDesc& InDesc)
-		: FRDGResource(InName)
+		: FRDGShaderResourceView(InName)
 		, Desc(InDesc)
 	{}
 
@@ -281,9 +291,9 @@ public:
 	uint8 MipLevel = 0;
 };
 
-/** Render graph tracked UAV. */
+/** Render graph tracked texture UAV. */
 class RENDERCORE_API FRDGTextureUAV final
-	: public FRDGResource
+	: public FRDGUnorderedAccessView
 {
 public:
 	/** Descriptor of the graph tracked UAV. */
@@ -293,7 +303,7 @@ private:
 	FRDGTextureUAV(
 		const TCHAR* InName,
 		const FRDGTextureUAVDesc& InDesc)
-		: FRDGResource(InName)
+		: FRDGUnorderedAccessView(InName)
 		, Desc(InDesc)
 	{}
 
@@ -563,9 +573,9 @@ private:
 	friend class FRDGBuilder;
 };
 
-/** Render graph tracked SRV. */
+/** Render graph tracked buffer SRV. */
 class RENDERCORE_API FRDGBufferSRV final
-	: public FRDGResource
+	: public FRDGShaderResourceView
 {
 public:
 	/** Descriptor of the graph tracked SRV. */
@@ -573,16 +583,16 @@ public:
 
 private:
 	FRDGBufferSRV(const TCHAR* InName, const FRDGBufferSRVDesc& InDesc)
-		: FRDGResource(InName)
+		: FRDGShaderResourceView(InName)
 		, Desc(InDesc)
 	{}
 
 	friend class FRDGBuilder;
 };
 
-/** Render graph tracked UAV. */
+/** Render graph tracked buffer UAV. */
 class RENDERCORE_API FRDGBufferUAV final
-	: public FRDGResource
+	: public FRDGUnorderedAccessView
 {
 public:
 	/** Descriptor of the graph tracked UAV. */
@@ -590,7 +600,7 @@ public:
 
 private:
 	FRDGBufferUAV(const TCHAR* InName, const FRDGBufferUAVDesc& InDesc)
-		: FRDGResource(InName)
+		: FRDGUnorderedAccessView(InName)
 		, Desc(InDesc)
 	{}
 
