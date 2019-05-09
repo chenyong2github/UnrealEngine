@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Textures/SlateIcon.h"
 #include "Misc/IFilter.h"
 #include "MovieSceneSequence.h"
 
