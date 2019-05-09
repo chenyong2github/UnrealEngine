@@ -30,6 +30,7 @@
 
 #if WITH_ENGINE
 #include "AudioCompressionSettings.h"
+#include "Sound/SoundWave.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "FAndroidTargetPlatform"
@@ -206,7 +207,7 @@ FAndroidTargetPlatform::FAndroidTargetPlatform(bool bInIsClient )
 
 
 FAndroidTargetPlatform::~FAndroidTargetPlatform()
-{ 
+{
 	 FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 }
 
@@ -340,23 +341,23 @@ bool FAndroidTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) 
 		case ETargetPlatformFeatures::Packaging:
 		case ETargetPlatformFeatures::DeviceOutputLog:
 			return true;
-			
+
 		case ETargetPlatformFeatures::LowQualityLightmaps:
 		case ETargetPlatformFeatures::MobileRendering:
 			return SupportsES31() || SupportsES2() || SupportsVulkan();
-			
+
 		case ETargetPlatformFeatures::HighQualityLightmaps:
 		case ETargetPlatformFeatures::Tessellation:
 		case ETargetPlatformFeatures::DeferredRendering:
 			return SupportsAEP();
-			
+
 		case ETargetPlatformFeatures::SoftwareOcclusion:
 			return SupportsSoftwareOcclusion();
-			
+
 		default:
 			break;
 	}
-	
+
 	return TTargetPlatformBase<FAndroidPlatformProperties>::SupportsFeature(Feature);
 }
 
@@ -408,7 +409,7 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* InTexture, TArra
 	check(InTexture);
 
 	// The order we add texture formats to OutFormats is important. When multiple formats are cooked
-	// and supported by the device, the first supported format listed will be used. 
+	// and supported by the device, the first supported format listed will be used.
 	// eg, ETC1/uncompressed should always be last
 
 	bool bNoCompression = InTexture->CompressionNone				// Code wants the texture uncompressed.
@@ -529,23 +530,23 @@ void FAndroidTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) con
 	OutFormats.Add(AndroidTexFormat::NameG8);
 	OutFormats.Add(AndroidTexFormat::NameG8);
 
-	auto AddAllTextureFormatIfSupports = [=, &OutFormats](bool bIsNonPOT) 
+	auto AddAllTextureFormatIfSupports = [=, &OutFormats](bool bIsNonPOT)
 	{
-		AddTextureFormatIfSupports(AndroidTexFormat::NameAutoPVRTC, OutFormats, bIsNonPOT); 
+		AddTextureFormatIfSupports(AndroidTexFormat::NameAutoPVRTC, OutFormats, bIsNonPOT);
 		AddTextureFormatIfSupports(AndroidTexFormat::NamePVRTC2, OutFormats, bIsNonPOT);
 		AddTextureFormatIfSupports(AndroidTexFormat::NamePVRTC4, OutFormats, bIsNonPOT);
-	
+
 		AddTextureFormatIfSupports(AndroidTexFormat::NameAutoDXT, OutFormats, bIsNonPOT);
 		AddTextureFormatIfSupports(AndroidTexFormat::NameDXT1, OutFormats, bIsNonPOT);
 		AddTextureFormatIfSupports(AndroidTexFormat::NameDXT5, OutFormats, bIsNonPOT);
-	
-		AddTextureFormatIfSupports(AndroidTexFormat::NameATC_RGB, OutFormats, bIsNonPOT); 
+
+		AddTextureFormatIfSupports(AndroidTexFormat::NameATC_RGB, OutFormats, bIsNonPOT);
 		AddTextureFormatIfSupports(AndroidTexFormat::NameATC_RGBA_I, OutFormats, bIsNonPOT);
-	
-		AddTextureFormatIfSupports(AndroidTexFormat::NameAutoETC1, OutFormats, bIsNonPOT); 
+
+		AddTextureFormatIfSupports(AndroidTexFormat::NameAutoETC1, OutFormats, bIsNonPOT);
 		AddTextureFormatIfSupports(AndroidTexFormat::NameAutoETC1a, OutFormats, bIsNonPOT);
 		AddTextureFormatIfSupports(AndroidTexFormat::NameAutoETC2, OutFormats, bIsNonPOT);
-	
+
 		AddTextureFormatIfSupports(AndroidTexFormat::NameAutoATC, OutFormats, bIsNonPOT);
 	};
 
@@ -562,7 +563,7 @@ void FAndroidTargetPlatform::GetReflectionCaptureFormats( TArray<FName>& OutForm
 		// use Full HDR with AEP
 		OutFormats.Add(FName(TEXT("FullHDR")));
 	}
-	
+
 	// always emit encoded
 	OutFormats.Add(FName(TEXT("EncodedHDR")));
 }
@@ -576,39 +577,47 @@ const UTextureLODSettings& FAndroidTargetPlatform::GetTextureLODSettings() const
 
 FName FAndroidTargetPlatform::GetWaveFormat( const class USoundWave* Wave ) const
 {
-	static bool formatRead = false;
+	static const FName NAME_ADPCM(TEXT("ADPCM"));
+	static const FName NAME_OGG(TEXT("OGG"));
+
+	static bool bFormatRead = false;
 	static FName NAME_FORMAT;
-
-	if (!formatRead)
+	if (!bFormatRead)
 	{
-		formatRead = true;
+		bFormatRead = true;
 
-		FString audioSetting;
-		if (!GConfig->GetString(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("AndroidAudio"), audioSetting, GEngineIni))
+		FName AudioSetting;
 		{
-			audioSetting = TEXT("DEFAULT");
+			FString AudioSettingStr;
+			if (!GConfig->GetString(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("AndroidAudio"), AudioSettingStr, GEngineIni))
+			{
+				AudioSetting = *AudioSettingStr;
+			}
 		}
 
 #if WITH_OGGVORBIS
-		if (audioSetting == TEXT("OGG") || audioSetting == TEXT("Default"))
+		if (AudioSetting == NAME_OGG || AudioSetting == NAME_None)
 		{
-			static FName NAME_OGG(TEXT("OGG"));
 			NAME_FORMAT = NAME_OGG;
 		}
 #else
-		if (audioSetting == TEXT("OGG"))
+		if (AudioSetting == NAME_OGG)
 		{
 			UE_LOG(LogAudio, Error, TEXT("Attemped to select Ogg Vorbis encoding when the cooker is built without Ogg Vorbis support."));
 		}
 #endif
 		else
 		{
-	
 			// Otherwise return ADPCM as it'll either be option '2' or 'default' depending on WITH_OGGVORBIS config
-			static FName NAME_ADPCM(TEXT("ADPCM"));
 			NAME_FORMAT = NAME_ADPCM;
 		}
 	}
+
+	if (Wave->IsSeekableStreaming())
+	{
+		return NAME_ADPCM;
+	}
+
 	return NAME_FORMAT;
 }
 
@@ -618,7 +627,7 @@ void FAndroidTargetPlatform::GetAllWaveFormats(TArray<FName>& OutFormats) const
 	static FName NAME_OGG(TEXT("OGG"));
 	static FName NAME_ADPCM(TEXT("ADPCM"));
 
-	OutFormats.Add(NAME_OGG); 
+	OutFormats.Add(NAME_OGG);
 	OutFormats.Add(NAME_ADPCM);
 }
 
@@ -646,7 +655,7 @@ namespace
 			{
 				*FoundSampleRate = RetrievedSampleRate;
 			}
-			
+
 		}
 		else
 		{
@@ -804,7 +813,7 @@ bool FAndroidTargetPlatform::HandleTicker( float DeltaTime )
 		FScopeLock ScopeLock(DeviceDetection->GetDeviceMapLock());
 
 		auto DeviceIt = DeviceDetection->GetDeviceMap().CreateConstIterator();
-		
+
 		for (; DeviceIt; ++DeviceIt)
 		{
 			ConnectedDeviceIds.Add(DeviceIt.Key());

@@ -513,6 +513,8 @@ public:
 	/** Returns the volume due to application behavior for the wave instance. */
 	float GetVolumeApp() const { return VolumeApp; }
 
+	bool IsSeekable() const;
+
 	/** Checks whether wave is streaming and streaming is supported */
 	bool IsStreaming() const;
 
