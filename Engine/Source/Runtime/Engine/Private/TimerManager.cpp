@@ -954,6 +954,9 @@ TStatId FTimerManager::GetStatId() const
 
 void FTimerManager::SetGameInstance(UGameInstance* InGameInstance)
 {
+	// not currently threadsafe
+	check(IsInGameThread());
+
 	OwningGameInstance = InGameInstance;
 
 #if UE_ENABLE_TRACKING_TIMER_SOURCES
@@ -1001,14 +1004,6 @@ void FTimerManager::ListTimers() const
 	}
 
 	UE_LOG(LogEngine, Log, TEXT("------- %d Total Timers -------"), PendingTimerSet.Num() + PausedTimerSet.Num() + ValidActiveTimers.Num());
-}
-
-void FTimerManager::SetGameInstance(UGameInstance* InGameInstance)
-{
-	// not currently threadsafe
-	check(IsInGameThread());
-
-	OwningGameInstance = InGameInstance;
 }
 
 FTimerHandle FTimerManager::AddTimer(FTimerData&& TimerData)
