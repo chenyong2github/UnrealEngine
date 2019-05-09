@@ -1018,6 +1018,11 @@ void FBehaviorTreeDebugger::OnActiveNodeChanged(const TArray<uint16>& ActivePath
 
 	if (bShouldPause)
 	{
+		if (EditorOwner.IsValid())
+		{
+			EditorOwner.Pin()->FocusWindow(TreeAsset);
+		}
+
 		PausePlaySession();
 	}
 }
