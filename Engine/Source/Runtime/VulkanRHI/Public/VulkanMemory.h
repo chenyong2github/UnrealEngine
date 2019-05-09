@@ -985,6 +985,10 @@ namespace VulkanRHI
 			ResourceAllocation->InvalidateMappedMemory();
 		}
 
+#if VULKAN_MEMORY_TRACK_CALLSTACK
+		FString Callstack;
+#endif
+
 	protected:
 		TRefCountPtr<FOldResourceAllocation> ResourceAllocation;
 		VkBuffer Buffer;
