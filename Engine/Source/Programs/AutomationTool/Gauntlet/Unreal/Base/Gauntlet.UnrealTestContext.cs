@@ -364,6 +364,9 @@ namespace Gauntlet
 		// Begin ITestContext implementation
 		public UnrealBuildSource BuildInfo { get; private set; }
 
+		// Worker Job ID (generates unique node results and logs in parallel runs)
+		public string WorkerJobID;
+
 		/// <summary>
 		/// Global options for this test
 		/// </summary>
@@ -412,11 +415,17 @@ namespace Gauntlet
 		public string ToString(bool bWithServerType = false)
 		{
 			string Description = string.Format("{0}", RoleContext[UnrealTargetRole.Client]);
+
+			if (WorkerJobID != null)
+			{
+				Description += " " + WorkerJobID;
+			}
 				
 			if (bWithServerType)
 			{
 				Description += ", " +  RoleContext[UnrealTargetRole.Server].ToString();
 			}
+
 			return Description;
 		}
 	}
