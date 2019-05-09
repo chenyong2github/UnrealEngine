@@ -31,6 +31,7 @@ class SSequencerTransformBox;
 class SSequencerStretchBox;
 class SSequencerTreeView;
 class USequencerSettings;
+class FSequencerTrackFilter;
 struct FPaintPlaybackRangeArgs;
 struct FSectionHandle;
 
@@ -284,6 +285,9 @@ protected:
 
 private:
 	
+	/** Initalizes a list of all track filter objects */
+	void InitializeTrackFilters();
+
 	/** Handles key selection changes. */
 	void HandleKeySelectionChanged();
 
@@ -314,8 +318,12 @@ private:
 	/** Makes add button. */
 	TSharedRef<SWidget> MakeAddButton();
 
+	TSharedRef<SWidget> MakeFilterButton();
+
 	/** Makes the add menu for the toolbar. */
 	TSharedRef<SWidget> MakeAddMenu();
+
+	TSharedRef<SWidget> MakeFilterMenu();
 
 	/** Makes the general menu for the toolbar. */
 	TSharedRef<SWidget> MakeGeneralMenu();
@@ -354,6 +362,10 @@ public:
 	TSharedPtr<ITimeSlider> GetTopTimeSliderWidget() const;
 
 private:
+
+	void OnResetFilters();
+	void OnTrackFilterClicked(TSharedRef<FSequencerTrackFilter> TrackFilter);
+	bool IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const;
 
 	/**
 	* Called when the time snap interval changes.
@@ -580,4 +592,7 @@ private:
 	TArray<FString> AdditionalSelectionsToAdd;
 
 	TSharedPtr<SWidget> TickResolutionOverlay;
+
+	/** All possible track filter objects */
+	TArray< TSharedRef<FSequencerTrackFilter> > AllTrackFilters;
 };

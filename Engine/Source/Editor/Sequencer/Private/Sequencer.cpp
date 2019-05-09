@@ -554,7 +554,7 @@ void FSequencer::Tick(float InDeltaTime)
 		}
 	}
 
-	if (bNeedTreeRefresh)
+	if (bNeedTreeRefresh || NodeTree->NeedsFilterUpdate())
 	{
 		SelectionPreview.Empty();
 

@@ -13,6 +13,8 @@ class ISequencerTrackEditor;
 class UMovieSceneFolder;
 class UMovieSceneTrack;
 struct FMovieSceneBinding;
+class FSequencerTrackFilter;
+class FSequencerTrackFilterCollection;
 
 /**
  * Represents a tree of sequencer display nodes, used to populate the Sequencer UI with MovieScene data
@@ -23,9 +25,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnUpdated);
 
 public:
-	FSequencerNodeTree( class FSequencer& InSequencer )
-		: Sequencer( InSequencer )
-	{}
+	FSequencerNodeTree(class FSequencer& InSequencer);
+	
+	~FSequencerNodeTree();
 	
 	/**
 	 * Empties the entire tree
@@ -43,7 +45,7 @@ public:
 	const TArray< TSharedRef<FSequencerDisplayNode> >& GetRootNodes() const;
 
 	/** @return Whether or not there is an active filter */
-	bool HasActiveFilter() const { return !FilterString.IsEmpty(); }
+	bool HasActiveFilter() const;
 
 	/**
 	 * Returns whether or not a node is filtered
@@ -51,7 +53,17 @@ public:
 	 * @param Node	The node to check if it is filtered
 	 */
 	bool IsNodeFiltered( const TSharedRef<const FSequencerDisplayNode> Node ) const;
-	
+
+	/**
+	 * Schedules an update of all filters
+	 */
+	void RequestFilterUpdate() { bFilterUpdateRequested = true; }
+
+	/**
+	 * @return Whether there is a filter update scheduled
+	 */
+	bool NeedsFilterUpdate() const { return bFilterUpdateRequested; }
+
 	/**
 	 * Filters the nodes based on the passed in filter terms
 	 *
@@ -116,7 +128,19 @@ public:
 	/** Sorts all nodes and their descendants by category then alphabetically.*/
 	void SortAllNodesAndDescendants();
 
+	void AddFilter(TSharedRef<FSequencerTrackFilter> TrackFilter);
+	int32 RemoveFilter(TSharedRef<FSequencerTrackFilter> TrackFilter);
+	void RemoveAllFilters();
+	bool IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const;
+
 private:
+
+	/**
+	 * Update the list of filters nodes based on current filter settings, if an update is scheduled
+	 * This is called by Update();
+	 */
+	void UpdateFilters();
+
 	/**
 	 * Finds or adds a type editor for the track
 	 *
@@ -173,4 +197,9 @@ private:
 	FSequencer& Sequencer;
 	/** A multicast delegate which is called whenever the node tree has been updated. */
 	FOnUpdated OnUpdatedDelegate;
+
+	/** Active track filters */
+	TSharedPtr<FSequencerTrackFilterCollection> TrackFilters;
+
+	bool bFilterUpdateRequested;
 };

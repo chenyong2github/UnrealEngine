@@ -78,6 +78,8 @@
 #include "MovieSceneCopyableBinding.h"
 #include "MovieSceneCopyableTrack.h"
 #include "Fonts/FontMeasure.h"
+#include "SequencerTrackFilters.h"
+#include "SequencerTrackFilterExtension.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -99,6 +101,8 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	CachedViewRange = TRange<double>::Empty();
 
 	Settings = InSequencer->GetSequencerSettings();
+
+	InitializeTrackFilters();
 
 	ISequencerWidgetsModule& SequencerWidgets = FModuleManager::Get().LoadModuleChecked<ISequencerWidgetsModule>( "SequencerWidgets" );
 
@@ -370,12 +374,20 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 							[
 								MakeAddButton()
 							]
+							
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							.Padding(FMargin(0.f, 0.f, CommonPadding, 0.f))
+							[
+								MakeFilterButton()
+							]
 
 							+ SHorizontalBox::Slot()
 							.VAlign(VAlign_Center)
 							[
 								SAssignNew(SearchBox, SSearchBox)
-								.HintText(LOCTEXT("FilterNodesHint", "Filter"))
+								.HintText(LOCTEXT("SearchNodesHint", "Search Tracks"))
 								.OnTextChanged( this, &SSequencer::OnOutlinerSearchChanged )
 							]
 							+ SHorizontalBox::Slot()
@@ -694,6 +706,36 @@ TSharedRef<INumericTypeInterface<double>> SSequencer::GetNumericTypeInterface() 
 	return NumericTypeInterface.ToSharedRef();
 }
 
+void SSequencer::InitializeTrackFilters()
+{
+	// Add all built-in track filters here
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_AudioTracks>());
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_EventTracks>());
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_LevelVisibilityTracks>());
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_ParticleTracks>());
+
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_CameraObjects>());
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_LightObjects>());
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_SkeletalMeshObjects>());
+
+	// Add any global user-defined frontend filters
+	for (TObjectIterator<USequencerTrackFilterExtension> ExtensionIt(RF_NoFlags); ExtensionIt; ++ExtensionIt)
+	{
+		if (USequencerTrackFilterExtension* PotentialExtension = *ExtensionIt)
+		{
+			if (PotentialExtension->HasAnyFlags(RF_ClassDefaultObject) && !PotentialExtension->GetClass()->HasAnyClassFlags(CLASS_Deprecated | CLASS_Abstract))
+			{
+				// Grab the filters
+				TArray< TSharedRef<FSequencerTrackFilter> > ExtendedTrackFilters;
+				PotentialExtension->AddTrackFilterExtensions(ExtendedTrackFilters);
+				AllTrackFilters.Append(ExtendedTrackFilters);
+			}
+		}
+	}
+
+	// Sort by display name
+	AllTrackFilters.Sort([](const TSharedRef<FSequencerTrackFilter>& LHS, const TSharedRef<FSequencerTrackFilter>& RHS) { return LHS->GetDisplayName().ToString() < RHS->GetDisplayName().ToString(); });
+}
 
 /* SSequencer callbacks
  *****************************************************************************/
@@ -792,6 +834,40 @@ TSharedRef<SWidget> SSequencer::MakeAddButton()
 			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
 			.Text(FEditorFontGlyphs::Caret_Down)
 			.IsEnabled_Lambda([=]() { return !SequencerPtr.Pin()->IsReadOnly(); })
+		]
+	];
+}
+
+TSharedRef<SWidget> SSequencer::MakeFilterButton()
+{
+	return SNew(SComboButton)
+	.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+	.ForegroundColor(FLinearColor::White)
+	.ContentPadding(0)
+	.ToolTipText(LOCTEXT("AddTrackFilterToolTip", "Add a track filter."))
+	.OnGetMenuContent(this, &SSequencer::MakeFilterMenu)
+	.HasDownArrow(true)
+	.ContentPadding(FMargin(1, 0))
+	.ButtonContent()
+	[
+		SNew(SHorizontalBox)
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+			.Text(FEditorFontGlyphs::Filter)
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(2, 0, 0, 0)
+		[
+			SNew(STextBlock)
+			.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+			.Text(LOCTEXT("Filters", "Filters"))
 		]
 	];
 }
@@ -1043,6 +1119,74 @@ TSharedRef<SWidget> SSequencer::MakeAddMenu()
 	}
 
 	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SSequencer::MakeFilterMenu()
+{
+	FMenuBuilder MenuBuilder(true, nullptr, AddMenuExtender);
+
+	// let track editors & object bindings populate the menu
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+
+	MenuBuilder.BeginSection("SequencerTracksResetFilters");
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("FilterListResetFilters", "Reset Filters"),
+			LOCTEXT("FilterListResetToolTip", "Resets current filter selection"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnResetFilters))
+		);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("TrackFilters");
+	
+	for (TSharedRef<FSequencerTrackFilter> TrackFilter : AllTrackFilters)
+	{
+		if (TrackFilter->SupportsSequence(Sequencer->GetFocusedMovieSceneSequence()))
+		{
+			MenuBuilder.AddMenuEntry(
+				TrackFilter->GetDisplayName(),
+				TrackFilter->GetToolTipText(),
+				TrackFilter->GetIcon(),
+				FUIAction(
+				FExecuteAction::CreateSP(this, &SSequencer::OnTrackFilterClicked, TrackFilter),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SSequencer::IsTrackFilterActive, TrackFilter)),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
+	}
+
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+void SSequencer::OnResetFilters()
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	Sequencer->GetNodeTree()->RemoveAllFilters();
+}
+
+void SSequencer::OnTrackFilterClicked(TSharedRef<FSequencerTrackFilter> TrackFilter)
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	if (IsTrackFilterActive(TrackFilter))
+	{
+		Sequencer->GetNodeTree()->RemoveFilter(TrackFilter);
+	}
+	else
+	{
+		Sequencer->GetNodeTree()->AddFilter(TrackFilter);
+	}
+}
+
+bool SSequencer::IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	return Sequencer->GetNodeTree()->IsTrackFilterActive(TrackFilter);
 }
 
 TSharedRef<SWidget> SSequencer::MakeGeneralMenu()
@@ -1798,8 +1942,6 @@ void SSequencer::OnOutlinerSearchChanged( const FText& Filter )
 		const FString FilterString = Filter.ToString();
 
 		Sequencer->GetNodeTree()->FilterNodes( FilterString );
-
-		Sequencer->GetNodeTree()->Update();
 
 		TreeView->Refresh();
 
