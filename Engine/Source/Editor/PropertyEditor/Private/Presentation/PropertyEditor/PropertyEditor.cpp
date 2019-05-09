@@ -16,6 +16,7 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "IConfigEditorModule.h"
 #include "PropertyNode.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
@@ -274,12 +275,19 @@ void FPropertyEditor::MakeNewBlueprint()
 	UClassProperty* ClassProp = Cast<UClassProperty>(NodeProperty);
 	UClass* Class = (ClassProp ? ClassProp->MetaClass : FEditorClassUtils::GetClassFromString(NodeProperty->GetMetaData("MetaClass")));
 
+	UClass* RequiredInterface = FEditorClassUtils::GetClassFromString(NodeProperty->GetMetaData("MustImplement"));
+
 	if (Class)
 	{
 		UBlueprint* Blueprint = FKismetEditorUtilities::CreateBlueprintFromClass(LOCTEXT("CreateNewBlueprint", "Create New Blueprint"), Class, FString::Printf(TEXT("New%s"),*Class->GetName()));
 
 		if(Blueprint != NULL && Blueprint->GeneratedClass)
 		{
+			if (RequiredInterface != nullptr && FKismetEditorUtilities::CanBlueprintImplementInterface(Blueprint, RequiredInterface))
+			{
+				FBlueprintEditorUtils::ImplementNewInterface(Blueprint, RequiredInterface->GetFName());
+			}
+			
 			PropertyHandle->SetValueFromFormattedString(Blueprint->GeneratedClass->GetPathName());
 
 			FAssetEditorManager::Get().OpenEditorForAsset(Blueprint);
