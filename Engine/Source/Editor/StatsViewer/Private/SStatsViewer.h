@@ -134,6 +134,9 @@ private:
 	/** Flag to refresh the table next tick */
 	bool bNeedsRefresh;
 
+	/** Flag to refresh the table triggered by a filter change */
+	bool bNeedsRefreshForFilterChange;
+
 	/** Timer to prevent constant update of the searched items when typing */
 	float SearchTextUpdateTimer;
 
@@ -157,6 +160,9 @@ private:
 
 	/** The current set of objects we are viewing */
 	TArray< TWeakObjectPtr<UObject> > CurrentObjects;
+
+	/** The last generated set of objects that will be used when refresh triggered by a filter change */
+	TArray< TWeakObjectPtr<UObject> > LastGeneratedObjectList;
 
 	/** The 'total' custom column used for displaying totals for properties that support the feature */
 	TSharedRef<class FStatsCustomColumn> CustomColumn;
