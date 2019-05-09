@@ -12,8 +12,13 @@
 #include "Engine/EngineTypes.h"
 
 class UGameInstance;
+struct FTimerSourceList;
 
 DECLARE_DELEGATE(FTimerDelegate);
+
+#ifndef UE_ENABLE_TRACKING_TIMER_SOURCES
+#define UE_ENABLE_TRACKING_TIMER_SOURCES !UE_BUILD_SHIPPING
+#endif
 
 /** Simple interface to wrap a timer delegate that can be either native or dynamic. */
 struct FTimerUnifiedDelegate
@@ -450,5 +455,10 @@ private:
 
 	/** The game instance that created this timer manager. May be null if this timer manager wasn't created by a game instance. */
 	UGameInstance* OwningGameInstance;
+
+#if UE_ENABLE_TRACKING_TIMER_SOURCES
+	/** Debugging/tracking information used when TimerManager.BuildTimerSourceList is set */
+	TUniquePtr<FTimerSourceList> TimerSourceList;
+#endif
 };
 
