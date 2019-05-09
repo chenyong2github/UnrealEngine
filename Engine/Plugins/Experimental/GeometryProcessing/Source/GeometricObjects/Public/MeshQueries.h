@@ -5,6 +5,7 @@
 #include "Distance/DistPoint3Triangle3.h"
 #include "Intersection/IntrRay3Triangle3.h"
 #include "BoxTypes.h"
+#include "IndexTypes.h"
 
 template <class TriangleMeshType>
 class TMeshQueries
