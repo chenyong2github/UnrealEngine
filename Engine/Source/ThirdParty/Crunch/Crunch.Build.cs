@@ -23,11 +23,6 @@ public class Crunch : ModuleRules
                 PublicLibraryPaths.Add(LibPath);
                 PublicAdditionalLibraries.Add("crnlib.lib");
             }
-            else
-            {
-                string Err = "Crunch not setup yet for this platform";
-                System.Console.WriteLine(Err);
-            }
         }
     }
 }
