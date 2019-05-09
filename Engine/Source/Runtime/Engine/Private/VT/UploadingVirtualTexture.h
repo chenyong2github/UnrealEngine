@@ -20,7 +20,6 @@ public:
 	~FVirtualTextureCodec();
 	void Init(IMemoryReadStreamRef& HeaderData);
 
-	inline uint32 GetMemoryFootprint() const { return PayloadSize + sizeof(FVirtualTextureCodec); }
 	inline bool IsComplete() const { return !CompletedEvent || CompletedEvent->IsComplete(); }
 
 	void LinkGlobalHead();
@@ -33,10 +32,8 @@ public:
 	FGraphEventRef CompletedEvent;
 
 	class FUploadingVirtualTexture* Owner;
-	uint8* PayloadData = nullptr;
 	void* Contexts[VIRTUALTEXTURE_DATA_MAXLAYERS] = { nullptr };
 	uint32 ChunkIndex = 0u;
-	uint32 PayloadSize = 0u;
 	uint32 LastFrameUsed = 0u;
 };
 

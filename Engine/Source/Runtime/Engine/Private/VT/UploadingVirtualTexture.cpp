@@ -10,7 +10,6 @@
 
 DECLARE_MEMORY_STAT(TEXT("Total Disk Size"), STAT_TotalDiskSize, STATGROUP_VirtualTextureMemory);
 DECLARE_MEMORY_STAT(TEXT("Total Header Size"), STAT_TotalHeaderSize, STATGROUP_VirtualTextureMemory);
-DECLARE_MEMORY_STAT(TEXT("Total Codec Size"), STAT_TotalCodecSize, STATGROUP_VirtualTextureMemory);
 DECLARE_MEMORY_STAT(TEXT("Tile Header Size"), STAT_TileHeaderSize, STATGROUP_VirtualTextureMemory);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Num Tile Headers"), STAT_NumTileHeaders, STATGROUP_VirtualTextureMemory);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Num Codecs"), STAT_NumCodecs, STATGROUP_VirtualTextureMemory);
@@ -139,21 +138,31 @@ void FVirtualTextureCodec::RetireOldCodecs()
 
 void FVirtualTextureCodec::Init(IMemoryReadStreamRef& HeaderData)
 {
-	PayloadSize = HeaderData->GetSize();
-	PayloadData = (uint8*)FMemory::Malloc(PayloadSize);
-	HeaderData->CopyTo(PayloadData, 0, PayloadSize);
-	HeaderData.SafeRelease();
-
-	INC_MEMORY_STAT_BY(STAT_TotalCodecSize, GetMemoryFootprint());
-
 	const FVirtualTextureBuiltData* VTData = Owner->GetVTData();
 	const FVirtualTextureDataChunk& Chunk = VTData->Chunks[ChunkIndex];
 	const uint32 NumLayers = VTData->GetNumLayers();
+
+	TArray<uint8, TInlineAllocator<16u * 1024>> TempBuffer;
+
 	for (uint32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 	{
+		const uint32 CodecPayloadOffset = Chunk.CodecPayloadOffset[LayerIndex];
 		const uint32 NextOffset = (LayerIndex + 1u) < NumLayers ? Chunk.CodecPayloadOffset[LayerIndex + 1] : Chunk.CodecPayloadSize;
-		const void* CodecPayload = PayloadData + Chunk.CodecPayloadOffset[LayerIndex];
-		const uint32 CodecPayloadSize = NextOffset - Chunk.CodecPayloadOffset[LayerIndex];
+		const uint32 CodecPayloadSize = NextOffset - CodecPayloadOffset;
+		
+		const uint8* CodecPayload = nullptr;
+		if (CodecPayloadSize > 0u)
+		{
+			int64 PayloadReadSize = 0;
+			CodecPayload = (uint8*)HeaderData->Read(PayloadReadSize, CodecPayloadOffset, CodecPayloadSize);
+			if (PayloadReadSize < (int64)CodecPayloadSize)
+			{
+				// Generally this should not be needed, since payload is at start of file, should generally not cross a file cache page boundary
+				TempBuffer.SetNumUninitialized(CodecPayloadSize);
+				HeaderData->CopyTo(TempBuffer.GetData(), CodecPayloadOffset, CodecPayloadSize);
+				CodecPayload = TempBuffer.GetData();
+			}
+		}
 
 		switch (Chunk.CodecType[LayerIndex])
 		{
@@ -214,14 +223,7 @@ FVirtualTextureCodec::~FVirtualTextureCodec()
 
 		check(NumCodecs > 0u);
 		--NumCodecs;
-
-		DEC_MEMORY_STAT_BY(STAT_TotalCodecSize, GetMemoryFootprint());
 		DEC_DWORD_STAT(STAT_NumCodecs);
-		if (PayloadData)
-		{
-			FMemory::Free(PayloadData);
-			PayloadData = nullptr;
-		}
 	}
 }
 
