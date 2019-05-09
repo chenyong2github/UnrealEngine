@@ -324,11 +324,16 @@ void FRDGBuilder::ValidatePass(const FRDGPass* Pass) const
 						!bIsLoadActionInvalid,
 						TEXT("Can't load a render target '%s' that has never been produced."),
 						Texture->Name);
-
+					
+					const bool bOverwritesResourceEntirely = !bIsLoadAction && Texture->HasBeenProduced() && Texture->Desc.NumMips == 1;
+					ensureMsgf(!bOverwritesResourceEntirely,
+						TEXT("Clobbering render target %s result that has been produced previously by another pass. Should instead render to a new FRDGTexture to reduce memory pressure."),
+						Texture->Name);
+					
 					/** Mark the pass as a producer for render targets with a store action. */
-					const bool bIsStoreAction = RenderTarget.GetStoreAction() != ERenderTargetStoreAction::ENoAction;
-					if (bIsStoreAction)
 					{
+						const bool bIsStoreAction = RenderTarget.GetStoreAction() != ERenderTargetStoreAction::ENoAction;
+						check(bIsStoreAction); // already been validated in FRenderTargetBinding::Validate()
 						Texture->MarkAsProducedBy(Pass);
 					}
 				}

@@ -309,6 +309,23 @@ void FShaderParameterBindings::BindForRootShaderParameters(const FShader* Shader
 	}
 }
 
+bool FRenderTargetBinding::Validate() const
+{
+	if (Texture)
+	{
+		checkf(StoreAction != ERenderTargetStoreAction::ENoAction,
+			TEXT("You must specify a store action for non-null render target %s."),
+			Texture->Name);
+	}
+	else
+	{
+		checkf(LoadAction == ERenderTargetLoadAction::ENoAction && StoreAction == ERenderTargetStoreAction::ENoAction,
+			TEXT("Can't have a load or store action when no texture is bound."));
+	}
+	
+	return true;
+}
+
 bool FDepthStencilBinding::Validate() const
 {
 	if (Texture)

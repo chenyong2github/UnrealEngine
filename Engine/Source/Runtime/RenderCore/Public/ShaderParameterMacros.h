@@ -154,7 +154,9 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBinding
 		, LoadAction(InLoadAction)
 		, StoreAction(InStoreAction)
 		, MipIndex(InMipIndex)
-	{}
+	{
+		check(Validate());
+	}
 
 	FORCEINLINE FRDGTexture* GetTexture() const
 	{
@@ -181,6 +183,8 @@ private:
 	ERenderTargetLoadAction		LoadAction		= ERenderTargetLoadAction::ENoAction;
 	ERenderTargetStoreAction	StoreAction		= ERenderTargetStoreAction::ENoAction;
 	uint8						MipIndex		= 0;
+
+	RENDERCORE_API bool Validate() const;
 };
 
 
