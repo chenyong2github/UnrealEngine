@@ -1592,9 +1592,6 @@ public:
 	/** The number of sources to reserve for stopping sounds. */
 	int32 NumStoppingVoices;
 
-	/** The maximum number of wave instances allowed. */
-	int32 MaxWaveInstances;
-
 	/** The sample rate of all the audio devices */
 	int32 SampleRate;
 

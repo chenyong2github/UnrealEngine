@@ -166,10 +166,6 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = "Quality", AdvancedDisplay)
 	uint32 bAllowCenterChannel3DPanning : 1;
 
-	/** The max number of active sounds allowed. Used to cull numbers of active sounds, which reduces CPU cost of audio thread. */
-	UPROPERTY(config, EditAnywhere, Category = "Quality", AdvancedDisplay)
-	uint32 MaxWaveInstances;
-
 	/**
 	 * The max number of sources to reserve for "stopping" sounds. A "stopping" sound applies a fast fade in the DSP
 	 * render to prevent discontinuities when stopping sources.
