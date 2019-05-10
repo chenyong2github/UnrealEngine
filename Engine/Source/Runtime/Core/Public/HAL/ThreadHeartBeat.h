@@ -100,6 +100,8 @@ class CORE_API FThreadHeartBeat : public FRunnable
 	/** Id of the last thread that hung */
 	uint32 LastHungThreadId;
 
+	bool bHangsAreFatal;
+
 	/** Global suspended count */
 	FThreadSafeCounter GlobalSuspendCount;
 
