@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Input/Reply.h"
 
 /** UI customization for URuntimeVirtualTexture */
 class FRuntimeVirtualTextureDetailsCustomization : public IDetailCustomization

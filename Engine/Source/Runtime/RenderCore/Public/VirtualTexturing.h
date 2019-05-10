@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "RHIDefinitions.h"
 #include "Templates/RefCounting.h"
+#include "Stats/Stats.h"
 
 class FRHICommandListImmediate;
 class FRHIShaderResourceView;

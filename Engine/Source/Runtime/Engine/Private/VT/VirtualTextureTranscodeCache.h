@@ -9,6 +9,7 @@
 
 class FUploadingVirtualTexture;
 class FVirtualTextureCodec;
+struct FVirtualTextureBuiltData;
 
 struct FVTTranscodeParams
 {

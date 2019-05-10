@@ -9,6 +9,8 @@
 #include "SResetToDefaultMenu.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "VirtualTexturingEditorModule"
 
