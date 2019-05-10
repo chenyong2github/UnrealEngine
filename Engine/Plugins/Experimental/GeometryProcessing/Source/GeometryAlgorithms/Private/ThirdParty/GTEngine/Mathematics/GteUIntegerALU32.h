@@ -301,7 +301,15 @@ void UIntegerALU32<UInteger>::Sub(UInteger const& n0, UInteger const& n1)
         }
     }
 
-    self.SetNumBits(32 * block + GetLeadingBit(bits[block]) + 1);
+	// Added this condition to allow n0 == n1 and satisfy the static analyzer
+    if (block < 0)
+    {
+        self = 0;
+    }
+    else
+    {
+        self.SetNumBits(32 * block + GetLeadingBit(bits[block]) + 1);
+    }
 }
 
 template <typename UInteger>
