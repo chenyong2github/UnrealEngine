@@ -7,6 +7,7 @@
 #include "Misc/FilterCollection.h"
 #include "CollectionManagerTypes.h"
 #include "Styling/SlateIconFinder.h"
+#include "EditorStyleSet.h"
 #include "SequencerDisplayNode.h"
 #include "MovieSceneSequence.h"
 

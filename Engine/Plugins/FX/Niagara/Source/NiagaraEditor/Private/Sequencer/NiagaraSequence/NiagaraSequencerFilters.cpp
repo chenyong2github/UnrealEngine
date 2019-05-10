@@ -4,6 +4,7 @@
 #include "MovieScene/MovieSceneNiagaraTrack.h"
 #include "NiagaraActor.h"
 #include "NiagaraComponent.h"
+#include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSequencerTrackFilters"
 
