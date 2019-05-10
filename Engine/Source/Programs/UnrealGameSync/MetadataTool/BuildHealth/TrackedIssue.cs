@@ -47,10 +47,10 @@ namespace MetadataTool
 		public int InitialChange;
 
 		/// <summary>
-		/// All the streams that are exhibiting this issue
+		/// Map of stream name -> step name -> history for builds exhibiting this issue
 		/// </summary>
 		[DataMember(IsRequired = true)]
-		public Dictionary<string, TrackedIssueHistory> Streams = new Dictionary<string, TrackedIssueHistory>();
+		public Dictionary<string, Dictionary<string, TrackedIssueHistory>> Streams = new Dictionary<string, Dictionary<string, TrackedIssueHistory>>();
 
 		/// <summary>
 		/// Set of changes which may have caused this issue. Used to de-duplicate issues between streams.
@@ -87,7 +87,7 @@ namespace MetadataTool
 		/// <returns>True if the issue can be closed</returns>
 		public bool CanClose()
 		{
-			return Streams.Values.All(x => x.NextSuccessfulBuild != null);
+			return Streams.Values.All(x => x.Values.All(y => y.NextSuccessfulBuild != null));
 		}
 
 		/// <summary>
@@ -96,7 +96,7 @@ namespace MetadataTool
 		/// <returns>Set of step names</returns>
 		public SortedSet<string> GetStepNames()
 		{
-			return new SortedSet<string>(Streams.Values.SelectMany(x => x.FailedBuilds.SelectMany(y => y.StepNames)));
+			return new SortedSet<string>(Streams.Values.SelectMany(x => x.Keys));
 		}
 
 		/// <summary>

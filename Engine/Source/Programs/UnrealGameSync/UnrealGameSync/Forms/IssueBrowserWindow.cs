@@ -156,10 +156,11 @@ namespace UnrealGameSync
 
 		private void DetailsBtn_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem Item in IssueListView.Items)
+			foreach(ListViewItem Item in IssueListView.SelectedItems)
 			{
 				IssueData Issue = (IssueData)Item.Tag;
 				ShowIssue(Issue);
+				break;
 			}
 		}
 

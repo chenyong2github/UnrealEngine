@@ -612,20 +612,23 @@ namespace MetadataServer.Connectors
 			}
 		}
 
-		public static long AddBuild(long IssueId, string Stream, int Change, string Name, string Url, int Outcome)
+		public static long AddBuild(long IssueId, IssueBuildData Build)
 		{
 			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
 			{
 				Connection.Open();
 
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [IssueBuilds] (IssueId, Stream, Change, Name, Url, Outcome) VALUES (@IssueId, @Stream, @Change, @Name, @Url, @Outcome)", Connection))
+				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [IssueBuilds] (IssueId, Stream, Change, JobName, JobUrl, JobStepName, JobStepUrl, ErrorUrl, Outcome) VALUES (@IssueId, @Stream, @Change, @JobName, @JobUrl, @JobStepName, @JobStepUrl, @ErrorUrl, @Outcome)", Connection))
 				{
 					Command.Parameters.AddWithValue("@IssueId", IssueId);
-					Command.Parameters.AddWithValue("@Stream", Stream);
-					Command.Parameters.AddWithValue("@Change", Change);
-					Command.Parameters.AddWithValue("@Name", Name);
-					Command.Parameters.AddWithValue("@Url", Url);
-					Command.Parameters.AddWithValue("@Outcome", Outcome);
+					Command.Parameters.AddWithValue("@Stream", Build.Stream);
+					Command.Parameters.AddWithValue("@Change", Build.Change);
+					Command.Parameters.AddWithValue("@JobName", Build.JobName);
+					Command.Parameters.AddWithValue("@JobUrl", Build.JobUrl);
+					Command.Parameters.AddWithValue("@JobStepName", Build.JobStepName);
+					Command.Parameters.AddWithValue("@JobStepUrl", Build.JobStepUrl);
+					Command.Parameters.AddWithValue("@ErrorUrl", Build.ErrorUrl);
+					Command.Parameters.AddWithValue("@Outcome", Build.Outcome);
 					Command.ExecuteNonQuery();
 
 					return Connection.LastInsertRowId;
@@ -640,7 +643,7 @@ namespace MetadataServer.Connectors
 			{
 				Connection.Open();
 
-				using(SQLiteCommand Command = new SQLiteCommand("SELECT IssueBuilds.Id, IssueBuilds.Stream, IssueBuilds.Change, IssueBuilds.Name, IssueBuilds.Url, IssueBuilds.Outcome FROM [IssueBuilds] WHERE IssueBuilds.IssueId = @IssueId", Connection))
+				using(SQLiteCommand Command = new SQLiteCommand("SELECT IssueBuilds.Id, IssueBuilds.Stream, IssueBuilds.Change, IssueBuilds.JobName, IssueBuilds.JobUrl, IssueBuilds.JobStepName, IssueBuilds.JobStepUrl, IssueBuilds.ErrorUrl, IssueBuilds.Outcome FROM [IssueBuilds] WHERE IssueBuilds.IssueId = @IssueId", Connection))
 				{
 					Command.Parameters.AddWithValue("@IssueId", IssueId);
 					using(SQLiteDataReader Reader = Command.ExecuteReader())
@@ -650,10 +653,13 @@ namespace MetadataServer.Connectors
 							long Id = Reader.GetInt64(0);
 							string Stream = Reader.GetString(1);
 							int Change = Reader.GetInt32(2);
-							string Name = Reader.GetString(3);
-							string Url = Reader.GetString(4);
-							int Outcome = Reader.GetInt32(5);
-							Builds.Add(new IssueBuildData { Id = Id, Stream = Stream, Change = Change, Name = Name, Url = Url, Outcome = Outcome });
+							string JobName = Reader.GetString(3);
+							string JobUrl = Reader.GetString(4);
+							string JobStepName = Reader.GetString(5);
+							string JobStepUrl = Reader.GetString(6);
+							string ErrorUrl = Reader.IsDBNull(7)? null : Reader.GetString(7);
+							int Outcome = Reader.GetInt32(8);
+							Builds.Add(new IssueBuildData { Id = Id, Stream = Stream, Change = Change, JobName = JobName, JobUrl = JobUrl, JobStepName = JobStepName, JobStepUrl = JobStepUrl, ErrorUrl = ErrorUrl, Outcome = Outcome });
 						}
 					}
 				}
@@ -668,7 +674,7 @@ namespace MetadataServer.Connectors
 			{
 				Connection.Open();
 
-				using(SQLiteCommand Command = new SQLiteCommand("SELECT IssueBuilds.Id, IssueBuilds.Stream, IssueBuilds.Change, IssueBuilds.Name, IssueBuilds.Url, IssueBuilds.Outcome FROM [IssueBuilds] WHERE IssueBuilds.Id = @BuildId", Connection))
+				using(SQLiteCommand Command = new SQLiteCommand("SELECT IssueBuilds.Id, IssueBuilds.Stream, IssueBuilds.Change, IssueBuilds.JobName, IssueBuilds.JobUrl, IssueBuilds.JobStepName, IssueBuilds.JobStepUrl, IssueBuilds.ErrorUrl, IssueBuilds.Outcome FROM [IssueBuilds] WHERE IssueBuilds.Id = @BuildId", Connection))
 				{
 					Command.Parameters.AddWithValue("@BuildId", BuildId);
 					using(SQLiteDataReader Reader = Command.ExecuteReader())
@@ -678,11 +684,14 @@ namespace MetadataServer.Connectors
 							long Id = Reader.GetInt64(0);
 							string Stream = Reader.GetString(1);
 							int Change = Reader.GetInt32(2);
-							string Name = Reader.GetString(3);
-							string Url = Reader.GetString(4);
-							int Outcome = Reader.GetInt32(5);
+							string JobName = Reader.GetString(3);
+							string JobUrl = Reader.GetString(4);
+							string JobStepName = Reader.GetString(5);
+							string JobStepUrl = Reader.GetString(6);
+							string ErrorUrl = Reader.GetString(7);
+							int Outcome = Reader.GetInt32(8);
 
-							Build = new IssueBuildData { Id = Id, Stream = Stream, Change = Change, Name = Name, Url = Url, Outcome = Outcome };
+							Build = new IssueBuildData { Id = Id, Stream = Stream, Change = Change, JobName = JobName, JobUrl = JobUrl, JobStepName = JobStepName, JobStepUrl = JobStepUrl, ErrorUrl = ErrorUrl, Outcome = Outcome };
 						}
 					}
 				}

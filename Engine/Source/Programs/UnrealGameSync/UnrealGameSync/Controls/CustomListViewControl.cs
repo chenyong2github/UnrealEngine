@@ -304,7 +304,14 @@ namespace UnrealGameSync
 				ConditionalRedrawWidget(MouseDownWidget);
 			}
 
-			MouseDownWidget = FindWidget(e.Location);
+			if((e.Button & MouseButtons.Left) != 0)
+			{
+				MouseDownWidget = FindWidget(e.Location);
+			}
+			else
+			{
+				MouseDownWidget = null;
+			}
 
 			if(MouseDownWidget != null)
 			{

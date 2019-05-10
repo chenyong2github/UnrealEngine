@@ -54,11 +54,18 @@ namespace MetadataTool
 		public abstract bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<TrackedIssueFingerprint> Fingerprints);
 
 		/// <summary>
-		/// Attempts to merge another fingerprint into this one
+		/// Determines if one fingerprint can be merged with another one
 		/// </summary>
-		/// <param name="Other">The issue to merge into this one</param>
-		public virtual bool TryMerge(TrackedIssueFingerprint Source, TrackedIssueFingerprint Target)
+		/// <param name="Source">The source fingerprint</param>
+		/// <param name="Target">The fingerprint to merge into</param>
+		public virtual bool CanMerge(TrackedIssueFingerprint Source, TrackedIssueFingerprint Target)
 		{
+			// Make sure the categories match
+			if (Source.Category != Target.Category)
+			{
+				return false;
+			}
+
 			// Check that a filename or message matches
 			if (Source.InitialChange != Target.InitialChange)
 			{
@@ -67,11 +74,18 @@ namespace MetadataTool
 					return false;
 				}
 			}
+			return true;
+		}
 
-			// Allow merging
+		/// <summary>
+		/// Merge one fingerprint with another
+		/// </summary>
+		/// <param name="Source">The source fingerprint</param>
+		/// <param name="Target">The fingerprint to merge into</param>
+		public virtual void Merge(TrackedIssueFingerprint Source, TrackedIssueFingerprint Target)
+		{
 			Target.FileNames.UnionWith(Source.FileNames);
 			Target.Messages.UnionWith(Source.Messages);
-			return true;
 		}
 
 		/// <summary>
@@ -81,7 +95,7 @@ namespace MetadataTool
 		/// <param name="Fingerprint">Fingerprint for the issue</param>
 		/// <param name="Changes">List of changes since the issue first occurred.</param>
 		/// <returns>List of changes which are causers for the issue</returns>
-		public virtual List<ChangeInfo> FindCausers(PerforceConnection Perforce, TrackedIssueFingerprint Fingerprint, List<ChangeInfo> Changes)
+		public virtual List<ChangeInfo> FindCausers(PerforceConnection Perforce, TrackedIssueFingerprint Fingerprint, IReadOnlyList<ChangeInfo> Changes)
 		{
 			SortedSet<string> FileNamesWithoutPath = TrackedIssueFingerprint.GetFileNamesWithoutPath(Fingerprint.FileNames);
 
@@ -101,7 +115,7 @@ namespace MetadataTool
 			}
 			else
 			{
-				return Changes;
+				return new List<ChangeInfo>(Changes);
 			}
 		}
 

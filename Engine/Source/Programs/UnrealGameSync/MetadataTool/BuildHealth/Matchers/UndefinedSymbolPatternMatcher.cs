@@ -86,14 +86,11 @@ namespace MetadataTool
 			return false;
 		}
 
-		public override bool TryMerge(TrackedIssueFingerprint Source, TrackedIssueFingerprint Target)
+		public override void Merge(TrackedIssueFingerprint Source, TrackedIssueFingerprint Target)
 		{
-			if (base.TryMerge(Source, Target))
-			{
-				Target.Summary = GetSummary(Target.Messages);
-				return true;
-			}
-			return false;
+			base.Merge(Source, Target);
+
+			Target.Summary = GetSummary(Target.Messages);
 		}
 
 		string GetSummary(SortedSet<string> SymbolNames)

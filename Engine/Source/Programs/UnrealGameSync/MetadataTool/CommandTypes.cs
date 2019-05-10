@@ -54,10 +54,13 @@ namespace MetadataTool
 
 		public class AddBuild
 		{
-			public string Name;
-			public string Url;
 			public string Stream;
 			public int Change;
+			public string JobName;
+			public string JobUrl;
+			public string JobStepName;
+			public string JobStepUrl;
+			[Optional] public string ErrorUrl;
 			public Outcome Outcome;
 		}
 

@@ -58,7 +58,7 @@ namespace MetadataServer.Controllers
 		[HttpPost]
 		public void Post(long IssueId, [FromBody] IssueBuildData Data)
 		{
-			SqlConnector.AddBuild(IssueId, Data.Stream, Data.Change, Data.Name, Data.Url, Data.Outcome);
+			SqlConnector.AddBuild(IssueId, Data);
 		}
 	}
 

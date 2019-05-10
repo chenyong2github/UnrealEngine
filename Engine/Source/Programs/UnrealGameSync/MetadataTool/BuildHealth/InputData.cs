@@ -37,8 +37,14 @@ namespace MetadataTool
 		/// <summary>
 		/// Name of the build step. Multiple step results can be submitted for a single build, and can be used to augment a single issue with additional diagnostic information.
 		/// </summary>
-		[DataMember]
-		public string Name = "Default";
+		[DataMember(IsRequired = true)]
+		public string Name;
+
+		/// <summary>
+		/// Url of this job step
+		/// </summary>
+		[DataMember(IsRequired = true)]
+		public string Url;
 
 		/// <summary>
 		/// Base directory that the build was executed in. Optional. This is used to determine branch-relative file paths for diagnostics.
@@ -67,6 +73,12 @@ namespace MetadataTool
 		public string Name;
 
 		/// <summary>
+		/// Url for this job
+		/// </summary>
+		[DataMember(IsRequired = true)]
+		public string Url;
+
+		/// <summary>
 		/// Stream that was built
 		/// </summary>
 		[DataMember(IsRequired = true)]
@@ -77,12 +89,6 @@ namespace MetadataTool
 		/// </summary>
 		[DataMember(IsRequired = true)]
 		public int Change;
-
-		/// <summary>
-		/// Url for this job
-		/// </summary>
-		[DataMember(IsRequired = true)]
-		public string Url;
 
 		/// <summary>
 		/// Steps that are part of this job

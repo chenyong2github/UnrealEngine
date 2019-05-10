@@ -18,8 +18,11 @@ namespace MetadataServer.Models
 		public long Id;
 		public string Stream;
 		public int Change;
-		public string Name;
-		public string Url;
+		public string JobName;
+		public string JobUrl;
+		public string JobStepName;
+		public string JobStepUrl;
+		public string ErrorUrl;
 		public int Outcome;
 	}
 

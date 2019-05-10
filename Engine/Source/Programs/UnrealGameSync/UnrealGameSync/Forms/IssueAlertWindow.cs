@@ -219,7 +219,7 @@ namespace UnrealGameSync
 			IssueBuildData LastBuild = Issue.Builds.OrderByDescending(x => x.Change).FirstOrDefault();
 			if(LastBuild != null)
 			{
-				System.Diagnostics.Process.Start(LastBuild.Url);
+				System.Diagnostics.Process.Start(LastBuild.ErrorUrl);
 			}
 		}
 	}

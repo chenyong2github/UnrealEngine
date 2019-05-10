@@ -44,7 +44,7 @@ namespace MetadataTool
 		/// Url for this issue
 		/// </summary>
 		[DataMember(IsRequired = true)]
-		public string Url;
+		public string ErrorUrl;
 
 		/// <summary>
 		/// List of files associated with this issue
@@ -63,13 +63,13 @@ namespace MetadataTool
 		/// </summary>
 		/// <param name="Category">Category for this issue</param>
 		/// <param name="Summary">The summary text for this issue</param>
-		/// <param name="Url">The Url for this issue</param>
+		/// <param name="ErrorUrl">The Url for this issue</param>
 		/// <param name="InitialChange">The initial change that this issue was seen on. Fingerprints in the same category at the same change can be merged as long as the type matches.</param>
-		public TrackedIssueFingerprint(string Category, string Summary, string Url, int InitialChange)
+		public TrackedIssueFingerprint(string Category, string Summary, string ErrorUrl, int InitialChange)
 		{
 			this.Category = Category;
 			this.Summary = Summary;
-			this.Url = Url;
+			this.ErrorUrl = ErrorUrl;
 			this.InitialChange = InitialChange;
 		}
 

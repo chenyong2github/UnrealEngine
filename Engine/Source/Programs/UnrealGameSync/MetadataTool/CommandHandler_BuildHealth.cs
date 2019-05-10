@@ -25,6 +25,18 @@ namespace MetadataTool
 			new UndefinedSymbolPatternMatcher()
 		};
 
+		static readonly Dictionary<string, PatternMatcher> CategoryToMatcher = Matchers.ToDictionary(x => x.Category, x => x);
+
+		class CachedChangeInfo
+		{
+			public string Stream;
+			public int PrevChange;
+			public int NextChange;
+			public IReadOnlyList<ChangeInfo> Changes;
+		}
+
+		List<CachedChangeInfo> CachedChanges = new List<CachedChangeInfo>();
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -46,6 +58,7 @@ namespace MetadataTool
 			FileReference InputFile = Arguments.GetFileReference("-InputFile=");
 			FileReference StateFile = Arguments.GetFileReference("-StateFile=");
 			string ServerUrl = Arguments.GetStringOrDefault("-Server=", null);
+			bool bKeepHistory = Arguments.HasOption("-KeepHistory");
 			Arguments.CheckAllArgumentsUsed();
 
 			// Build a mapping from category to matching
@@ -79,27 +92,12 @@ namespace MetadataTool
 			List<InputJob> InputJobs = InputData.Jobs.OrderBy(x => x.Change).ThenBy(x => x.Stream).ToList();
 			foreach(InputJob InputJob in InputJobs)
 			{
-				// Get the list of tracked builds for this stream
-				List<TrackedBuild> StreamBuilds;
-				if (!State.Streams.TryGetValue(InputJob.Stream, out StreamBuilds))
+				// Add a new build for each job step
+				foreach(InputJobStep InputJobStep in InputJob.Steps)
 				{
-					StreamBuilds = new List<TrackedBuild>();
-					State.Streams.Add(InputJob.Stream, StreamBuilds);
+					TrackedBuild NewBuild = new TrackedBuild(InputJob.Change, InputJob.Name, InputJob.Url, InputJobStep.Name, InputJobStep.Url, null);
+					State.AddBuild(InputJob.Stream, NewBuild);
 				}
-
-				// Create a new tracked build for this input build. Even if we discard this, we can use it for searching the existing build list for the place to insert.
-				TrackedBuild NewBuild = new TrackedBuild(InputJob.Name, InputJob.Change, InputJob.Url, InputJob.Url);
-
-				// Add this build to the tracked state data
-				int StreamBuildIndex = StreamBuilds.BinarySearch(NewBuild);
-				if (StreamBuildIndex < 0)
-				{
-					StreamBuildIndex = ~StreamBuildIndex;
-					StreamBuilds.Insert(StreamBuildIndex, NewBuild);
-				}
-
-				// Get the build for this changelist
-				StreamBuilds[StreamBuildIndex].StepNames.UnionWith(InputJob.Steps.Select(x => x.Name));
 
 				// Add all the job steps
 				List<InputJobStep> InputJobSteps = InputJob.Steps.OrderBy(x => x.Name).ToList();
@@ -115,16 +113,50 @@ namespace MetadataTool
 				TrackedIssue Issue = State.Issues[Idx];
 				foreach(string Stream in Issue.Streams.Keys)
 				{
-					TrackedIssueHistory IssueHistory = Issue.Streams[Stream];
-					if(IssueHistory.FailedBuilds.Count > 0 && IssueHistory.NextSuccessfulBuild == null)
+					Dictionary<string, TrackedIssueHistory> StepNameToHistory = Issue.Streams[Stream];
+					foreach(string StepName in StepNameToHistory.Keys)
 					{
-						// Figure out all the step names that have to be 
-						HashSet<string> RequiredStepNames = new HashSet<string>(IssueHistory.FailedBuilds.SelectMany(x => x.StepNames));
-
-						// Find the successful build after this change
-						TrackedBuild LastFailedBuild = IssueHistory.FailedBuilds[IssueHistory.FailedBuilds.Count - 1];
-						IssueHistory.NextSuccessfulBuild = DuplicateSentinelBuild(State.FindBuildAfter(Stream, LastFailedBuild.Change, LastFailedBuild.StepNames));
+						TrackedIssueHistory IssueHistory = StepNameToHistory[StepName];
+						if(IssueHistory.FailedBuilds.Count > 0 && IssueHistory.NextSuccessfulBuild == null)
+						{
+							// Find the successful build after this change
+							TrackedBuild LastFailedBuild = IssueHistory.FailedBuilds[IssueHistory.FailedBuilds.Count - 1];
+							IssueHistory.NextSuccessfulBuild = State.FindBuildAfter(Stream, LastFailedBuild.Change, StepName);
+						}
 					}
+				}
+			}
+
+			// Find the change two days before the latest change being added
+			if(InputData.Jobs.Count > 0 && !bKeepHistory)
+			{
+				// Find all the unique change numbers for each stream
+				SortedSet<int> ChangeNumbers = new SortedSet<int>();
+				foreach (List<TrackedBuild> Builds in State.Streams.Values)
+				{
+					ChangeNumbers.UnionWith(Builds.Select(x => x.Change));
+				}
+
+				// Get the latest change record
+				int LatestChangeNumber = InputData.Jobs.Min(x => x.Change);
+				ChangeRecord LatestChangeRecord = Perforce.GetChange(GetChangeOptions.None, LatestChangeNumber).Data;
+
+				// Step forward through all the changelists until we get to one we don't want to delete
+				int DeleteChangeNumber = -1;
+				foreach(int ChangeNumber in ChangeNumbers)
+				{
+					ChangeRecord ChangeRecord = Perforce.GetChange(GetChangeOptions.None, ChangeNumber).Data;
+					if (ChangeRecord.Date > LatestChangeRecord.Date - TimeSpan.FromDays(2))
+					{
+						break;
+					}
+					DeleteChangeNumber = ChangeNumber;
+				}
+
+				// Remove any builds we no longer want to track
+				foreach (List<TrackedBuild> Builds in State.Streams.Values)
+				{
+					Builds.RemoveAll(x => x.Change <= DeleteChangeNumber);
 				}
 			}
 
@@ -211,33 +243,38 @@ namespace MetadataTool
 				// Add any new builds associated with issues
 				foreach (TrackedIssue Issue in State.Issues)
 				{
-					foreach(KeyValuePair<string, TrackedIssueHistory> StreamPair in Issue.Streams)
+					foreach(KeyValuePair<string, Dictionary<string, TrackedIssueHistory>> StreamPair in Issue.Streams)
 					{
-						TrackedIssueHistory StreamHistory = StreamPair.Value;
-						foreach(TrackedBuild Build in StreamHistory.Builds)
+						foreach(TrackedIssueHistory StreamHistory in StreamPair.Value.Values)
 						{
-							if(!Build.bPostedToServer)
+							foreach(TrackedBuild Build in StreamHistory.Builds)
 							{
-								Log.TraceInformation("Adding {0} to issue {1}", Build.UniqueId, Issue.Id);
-
-								CommandTypes.AddBuild AddBuild = new CommandTypes.AddBuild();
-								AddBuild.Change = Build.Change;
-								AddBuild.Stream = StreamPair.Key;
-								AddBuild.Name = Build.Name;
-								AddBuild.Outcome = (Build == StreamHistory.PrevSuccessfulBuild || Build == StreamHistory.NextSuccessfulBuild)? CommandTypes.Outcome.Success : CommandTypes.Outcome.Error;
-								AddBuild.Url = Build.Url;
-
-								using (HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}/builds", ServerUrl, Issue.Id), "POST", AddBuild))
+								if(!Build.bPostedToServer)
 								{
-									int ResponseCode = (int)Response.StatusCode;
-									if (!(ResponseCode >= 200 && ResponseCode <= 299))
-									{
-										throw new Exception("Unable to add build");
-									}
-								}
+									Log.TraceInformation("Adding {0} to issue {1}", Build.JobStepUrl, Issue.Id);
 
-								Build.bPostedToServer = true;
-								SerializeJson(StateFile, State);
+									CommandTypes.AddBuild AddBuild = new CommandTypes.AddBuild();
+									AddBuild.Stream = StreamPair.Key;
+									AddBuild.Change = Build.Change;
+									AddBuild.JobName = Build.JobName;
+									AddBuild.JobUrl = Build.JobUrl;
+									AddBuild.JobStepName = Build.JobStepName;
+									AddBuild.JobStepUrl = Build.JobStepUrl;
+									AddBuild.ErrorUrl = Build.ErrorUrl;
+									AddBuild.Outcome = (Build == StreamHistory.PrevSuccessfulBuild || Build == StreamHistory.NextSuccessfulBuild)? CommandTypes.Outcome.Success : CommandTypes.Outcome.Error;
+
+									using (HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}/builds", ServerUrl, Issue.Id), "POST", AddBuild))
+									{
+										int ResponseCode = (int)Response.StatusCode;
+										if (!(ResponseCode >= 200 && ResponseCode <= 299))
+										{
+											throw new Exception("Unable to add build");
+										}
+									}
+
+									Build.bPostedToServer = true;
+									SerializeJson(StateFile, State);
+								}
 							}
 						}
 					}
@@ -351,44 +388,6 @@ namespace MetadataTool
 		}
 
 		/// <summary>
-		/// Finds the matcher for a particular category
-		/// </summary>
-		/// <param name="Category">The category to find</param>
-		/// <returns>Pattern matcher for this category</returns>
-		bool TryMergeFingerprint(TrackedIssueFingerprint Source, TrackedIssueFingerprint Target)
-		{
-			if(Source.Category != Target.Category)
-			{
-				return false;
-			}
-
-			PatternMatcher Matcher = Matchers.First(x => x.Category == Source.Category);
-			if(!Matcher.TryMerge(Source, Target))
-			{
-				return false;
-			}
-
-			return true;
-		}
-
-		/// <summary>
-		/// Duplicates a build for use as a sentinel value
-		/// </summary>
-		/// <param name="Build">The build to duplicate</param>
-		/// <returns>The new build instance</returns>
-		static TrackedBuild DuplicateSentinelBuild(TrackedBuild Build)
-		{
-			if(Build == null)
-			{
-				return null;
-			}
-			else
-			{
-				return new TrackedBuild(Build.Name, Build.Change, Build.UniqueId, Build.Url);
-			}
-		}
-
-		/// <summary>
 		/// Adds diagnostics from a job step into the issue database
 		/// </summary>
 		/// <param name="Perforce">Perforce connection used to find possible causers</param>
@@ -410,48 +409,68 @@ namespace MetadataTool
 				}
 			}
 
-			// Early out if there are no remaining fingerprints to add
-			if (Fingerprints.Count == 0)
+			// Add all the fingerprints to issues
+			foreach(TrackedIssueFingerprint Fingerprint in Fingerprints)
 			{
-				return;
+				TrackedIssue Issue = FindOrAddIssueForFingerprint(Perforce, State, InputJob, InputJobStep, Fingerprint);
+				AddFailureToIssue(Issue, Fingerprint, InputJob, InputJobStep, State);
 			}
+		}
 
-			// Merge any fingerprints with open issues
-			for (int Idx = 0; Idx < Fingerprints.Count; Idx++)
+		/// <summary>
+		/// Finds or adds an issue for a particular fingerprint
+		/// </summary>
+		/// <param name="Perforce">Perforce connection used to find possible causers</param>
+		/// <param name="State">The current set of tracked issues</param>
+		/// <param name="Build">The new build</param>
+		/// <param name="PreviousChange">The last changelist that was built before this one</param>
+		/// <param name="InputJob">Job containing the step to add</param>
+		/// <param name="InputJobStep">The job step to add</param>
+		TrackedIssue FindOrAddIssueForFingerprint(PerforceConnection Perforce, TrackedState State, InputJob InputJob, InputJobStep InputJobStep, TrackedIssueFingerprint Fingerprint)
+		{
+			// Find the pattern matcher for this fingerprint
+			PatternMatcher Matcher = CategoryToMatcher[Fingerprint.Category];
+
+			// Check if it can be added to an existing open issue
+			foreach (TrackedIssue Issue in State.Issues)
 			{
-				TrackedIssueFingerprint Fingerprint = Fingerprints[Idx];
-				foreach (TrackedIssue Issue in State.Issues)
+				// Check this issue already exists in the current stream
+				Dictionary<string, TrackedIssueHistory> StepNameToHistory;
+				if(!Issue.Streams.TryGetValue(InputJob.Stream, out StepNameToHistory))
 				{
-					// Check that this issue is present in the current stream, and that this build is not either side of a successful build
-					TrackedIssueHistory History;
-					if (!Issue.Streams.TryGetValue(InputJob.Stream, out History))
-					{
-						continue;
-					}
+					continue;
+				}
+
+				// Check that this issue has not already been closed
+				TrackedIssueHistory History;
+				if (StepNameToHistory.TryGetValue(InputJobStep.Name, out History))
+				{
 					if(!History.CanAddFailedBuild(InputJob.Change))
 					{
 						continue;
 					}
-					if(!TryMergeFingerprint(Fingerprint, Issue.Fingerprint))
+				}
+				else
+				{
+					if(!StepNameToHistory.Values.Any(x => x.CanAddFailedBuild(InputJob.Change)))
 					{
 						continue;
 					}
-
-					// Merge the issue
-					History.AddFailedBuild(CreateBuildForJobStep(InputJob, InputJobStep, Fingerprint));
-					Fingerprints.RemoveAt(Idx--);
-					break;
 				}
-			}
 
-			// Early out if there are no remaining issues
-			if (Fingerprints.Count == 0)
-			{
-				return;
+				// Try to merge the fingerprint
+				if(!Matcher.CanMerge(Fingerprint, Issue.Fingerprint))
+				{
+					continue;
+				}
+
+				// Add the new build
+				Matcher.Merge(Fingerprint, Issue.Fingerprint);
+				return Issue;
 			}
 
 			// List of changes since the last successful build in this stream
-			List<ChangeInfo> Changes = null;
+			IReadOnlyList<ChangeInfo> Changes = null;
 
 			// Find the previous changelist that was built in this stream
 			List<TrackedBuild> StreamBuilds;
@@ -472,64 +491,43 @@ namespace MetadataTool
 					if (Changes.Count > 0)
 					{
 						SortedSet<int> SourceChanges = new SortedSet<int>(Changes.SelectMany(x => x.SourceChanges));
-						for (int Idx = 0; Idx < Fingerprints.Count; Idx++)
+						foreach (TrackedIssue Issue in State.Issues)
 						{
-							TrackedIssueFingerprint Fingerprint = Fingerprints[Idx];
-							foreach (TrackedIssue Issue in State.Issues)
+							// Check if this issue does not already contain this stream, but contains one of the causing changes
+							if (Issue.Streams.ContainsKey(InputJob.Stream))
 							{
-								// Check if this issue does not already contain this stream, but contains one of the causing changes
-								if (Issue.Streams.ContainsKey(InputJob.Stream))
-								{
-									continue;
-								}
-								if(!SourceChanges.Any(x => Issue.SourceChanges.Contains(x)))
-								{
-									continue;
-								}
-								if (!TryMergeFingerprint(Fingerprint, Issue.Fingerprint))
-								{
-									continue;
-								}
-
-								// Merge the issue
-								AddFailureToIssue(Issue, Fingerprint, InputJob, InputJobStep, State);
-								Fingerprints.RemoveAt(Idx--);
-								break;
+								continue;
 							}
+							if(!SourceChanges.Any(x => Issue.SourceChanges.Contains(x)))
+							{
+								continue;
+							}
+							if (!Matcher.CanMerge(Fingerprint, Issue.Fingerprint))
+							{
+								continue;
+							}
+
+							// Merge the issue
+							Matcher.Merge(Fingerprint, Issue.Fingerprint);
+							return Issue;
 						}
 					}
 				}
-			}
-
-			// Early out if there are no remaining issues
-			if (Fingerprints.Count == 0)
-			{
-				return;
 			}
 
 			// Create new issues for everything else in this stream
-			List<TrackedIssue> NewIssues = new List<TrackedIssue>();
-			foreach(TrackedIssueFingerprint Fingerprint in Fingerprints)
+			TrackedIssue NewIssue = new TrackedIssue(Fingerprint, InputJob.Change);
+			if (Changes != null)
 			{
-				TrackedIssue Issue = NewIssues.FirstOrDefault(NewIssue => TryMergeFingerprint(Fingerprint, NewIssue.Fingerprint));
-				if(Issue == null)
+				List<ChangeInfo> Causers = Matcher.FindCausers(Perforce, Fingerprint, Changes);
+				foreach(ChangeInfo Causer in Causers)
 				{
-					Issue = new TrackedIssue(Fingerprint, InputJob.Change);
-					if(Changes != null)
-					{
-						PatternMatcher Matcher = Matchers.First(x => x.Category == Fingerprint.Category);
-						List<ChangeInfo> Causers = Matcher.FindCausers(Perforce, Fingerprint, Changes);
-						foreach(ChangeInfo Causer in Causers)
-						{
-							Issue.SourceChanges.UnionWith(Causer.SourceChanges);
-							Issue.PendingWatchers.Add(Causer.Record.User);
-						}
-					}
-					NewIssues.Add(Issue);
+					NewIssue.SourceChanges.UnionWith(Causer.SourceChanges);
+					NewIssue.PendingWatchers.Add(Causer.Record.User);
 				}
-				AddFailureToIssue(Issue, Fingerprint, InputJob, InputJobStep, State);
 			}
-			State.Issues.AddRange(NewIssues);
+			State.Issues.Add(NewIssue);
+			return NewIssue;
 		}
 
 		/// <summary>
@@ -540,9 +538,7 @@ namespace MetadataTool
 		/// <returns>New build instance</returns>
 		TrackedBuild CreateBuildForJobStep(InputJob InputJob, InputJobStep InputJobStep, TrackedIssueFingerprint Fingerprint)
 		{
-			TrackedBuild FailedBuild = new TrackedBuild(InputJob.Name, InputJob.Change, InputJob.Url, Fingerprint.Url);
-			FailedBuild.StepNames.Add(InputJobStep.Name);
-			return FailedBuild;
+			return new TrackedBuild(InputJob.Change, InputJob.Name, InputJob.Url, InputJobStep.Name, InputJobStep.Url, Fingerprint.ErrorUrl);
 		}
 
 		/// <summary>
@@ -555,17 +551,24 @@ namespace MetadataTool
 		/// <param name="State">Current persistent state. Used to find previous build history.</param>
 		void AddFailureToIssue(TrackedIssue Issue, TrackedIssueFingerprint Fingerprint, InputJob InputJob, InputJobStep InputJobStep, TrackedState State)
 		{
+			// Find or add a step name to history mapping
+			Dictionary<string, TrackedIssueHistory> StepNameToHistory;
+			if(!Issue.Streams.TryGetValue(InputJob.Stream, out StepNameToHistory))
+			{
+				StepNameToHistory = new Dictionary<string, TrackedIssueHistory>();
+				Issue.Streams.Add(InputJob.Stream, StepNameToHistory);
+			}
+
+			// Find or add a history for this step
 			TrackedIssueHistory History;
-			if(Issue.Streams.TryGetValue(InputJob.Stream, out History))
+			if(!StepNameToHistory.TryGetValue(InputJobStep.Name, out History))
 			{
-				History.AddFailedBuild(CreateBuildForJobStep(InputJob, InputJobStep, Fingerprint));
+				History = new TrackedIssueHistory(State.FindBuildBefore(InputJob.Stream, InputJob.Change, InputJobStep.Name));
+				StepNameToHistory.Add(InputJobStep.Name, History);
 			}
-			else
-			{
-				TrackedBuild LastSuccessfulBuild = DuplicateSentinelBuild(State.FindBuildBefore(InputJob.Stream, InputJob.Change, new HashSet<string>{ InputJobStep.Name }));
-				History = new TrackedIssueHistory(LastSuccessfulBuild, CreateBuildForJobStep(InputJob, InputJobStep, Fingerprint));
-				Issue.Streams.Add(InputJob.Stream, History);
-			}
+
+			// Add the new build
+			History.AddFailedBuild(CreateBuildForJobStep(InputJob, InputJobStep, Fingerprint));
 		}
 
 		/// <summary>
@@ -576,35 +579,43 @@ namespace MetadataTool
 		/// <param name="PrevChange">The first change in the range to query</param>
 		/// <param name="NextChange">The last change in the range to query</param>
 		/// <returns>Set of changelist numbers</returns>
-		List<ChangeInfo> FindChanges(PerforceConnection Perforce, string Stream, int PrevChange, int NextChange)
+		IReadOnlyList<ChangeInfo> FindChanges(PerforceConnection Perforce, string Stream, int PrevChange, int NextChange)
 		{
-			// Query for all the changes since then
-			List<ChangesRecord> ChangeRecords = Perforce.Changes(ChangesOptions.LongOutput, null, -1, ChangeStatus.Submitted, null, String.Format("{0}/...@{1},{2}", Stream, PrevChange, NextChange)).Data.ToList();
-
-			// Figure out all the original changelists that these were merged from, and see if any of those matches with an existing issue
-			List<ChangeInfo> Changes = new List<ChangeInfo>();
-			foreach(ChangesRecord ChangeRecord in ChangeRecords)
+			CachedChangeInfo CachedInfo = CachedChanges.FirstOrDefault(x => x.Stream == Stream && x.PrevChange == PrevChange && x.NextChange == NextChange);
+			if(CachedInfo == null)
 			{
-				ChangeInfo Change = new ChangeInfo();
-				Change.Record = ChangeRecord;
-				Change.SourceChanges.Add(ChangeRecord.Number);
-				Changes.Add(Change);
+				// Query for all the changes since then
+				List<ChangesRecord> ChangeRecords = Perforce.Changes(ChangesOptions.LongOutput, null, -1, ChangeStatus.Submitted, null, String.Format("{0}/...@{1},{2}", Stream, PrevChange, NextChange)).Data.ToList();
 
-				Match SourceMatch = Regex.Match(ChangeRecord.Description, "^#ROBOMERGE-SOURCE: (.*)$", RegexOptions.Multiline);
-				if(SourceMatch.Success)
+				// Figure out all the original changelists that these were merged from, and see if any of those matches with an existing issue
+				List<ChangeInfo> Changes = new List<ChangeInfo>();
+				foreach (ChangesRecord ChangeRecord in ChangeRecords)
 				{
-					string SourceText = SourceMatch.Groups[1].Value;
-					foreach(Match ChangeMatch in Regex.Matches(SourceText, "CL\\s*(\\d+)"))
+					ChangeInfo Change = new ChangeInfo();
+					Change.Record = ChangeRecord;
+					Change.SourceChanges.Add(ChangeRecord.Number);
+					Changes.Add(Change);
+
+					Match SourceMatch = Regex.Match(ChangeRecord.Description, "^#ROBOMERGE-SOURCE: (.*)$", RegexOptions.Multiline);
+					if (SourceMatch.Success)
 					{
-						int SourceChange;
-						if(int.TryParse(ChangeMatch.Groups[1].Value, out SourceChange))
+						string SourceText = SourceMatch.Groups[1].Value;
+						foreach (Match ChangeMatch in Regex.Matches(SourceText, "CL\\s*(\\d+)"))
 						{
-							Change.SourceChanges.Add(SourceChange);
+							int SourceChange;
+							if (int.TryParse(ChangeMatch.Groups[1].Value, out SourceChange))
+							{
+								Change.SourceChanges.Add(SourceChange);
+							}
 						}
 					}
 				}
+
+				// Create the new cached info
+				CachedInfo = new CachedChangeInfo() { Stream = Stream, PrevChange = PrevChange, NextChange = NextChange, Changes = Changes };
+				CachedChanges.Add(CachedInfo);
 			}
-			return Changes;
+			return CachedInfo.Changes;
 		}
 
 		/// <summary>

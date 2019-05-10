@@ -36,10 +36,9 @@ namespace MetadataTool
 		/// <summary>
 		/// Constructs a new history for a particular stream
 		/// </summary>
-		public TrackedIssueHistory(TrackedBuild PrevSuccessfulBuild, TrackedBuild FailedBuild)
+		public TrackedIssueHistory(TrackedBuild PrevSuccessfulBuild)
 		{
-			this.PrevSuccessfulBuild = PrevSuccessfulBuild;
-			FailedBuilds.Add(FailedBuild);
+			this.PrevSuccessfulBuild  = PrevSuccessfulBuild;
 		}
 
 		/// <summary>
@@ -49,11 +48,7 @@ namespace MetadataTool
 		public void AddFailedBuild(TrackedBuild Build)
 		{
 			int Index = FailedBuilds.BinarySearch(Build);
-			if (Index >= 0)
-			{
-				FailedBuilds[Index].StepNames.UnionWith(Build.StepNames);
-			}
-			else
+			if (Index < 0)
 			{
 				FailedBuilds.Insert(~Index, Build);
 			}
@@ -96,7 +91,7 @@ namespace MetadataTool
 				{
 					yield return FailedBuild;
 				}
-				if (NextSuccessfulBuild != null)
+				if(NextSuccessfulBuild != null)
 				{
 					yield return NextSuccessfulBuild;
 				}

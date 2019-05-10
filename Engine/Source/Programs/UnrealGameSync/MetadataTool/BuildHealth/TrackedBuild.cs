@@ -14,15 +14,9 @@ namespace MetadataTool
 	/// Represents information about a build associated with a particular issue
 	/// </summary>
 	[DataContract]
-	[DebuggerDisplay("{Change}: {Name}")]
+	[DebuggerDisplay("{Change}: {JobName}")]
 	class TrackedBuild : IComparable<TrackedBuild>
 	{
-		/// <summary>
-		/// Name of this build
-		/// </summary>
-		[DataMember(IsRequired = true)]
-		public string Name;
-
 		/// <summary>
 		/// The changelist that this build was run at.
 		/// </summary>
@@ -30,22 +24,34 @@ namespace MetadataTool
 		public int Change;
 
 		/// <summary>
-		/// Unique id to identify this job (typically the job url)
+		/// Name of this job
 		/// </summary>
 		[DataMember(IsRequired = true)]
-		public string UniqueId;
+		public string JobName;
+
+		/// <summary>
+		/// Url for this job
+		/// </summary>
+		[DataMember(IsRequired = true)]
+		public string JobUrl;
+
+		/// <summary>
+		/// Name of this job step (typically null for sentinel builds)
+		/// </summary>
+		[DataMember(IsRequired = true)]
+		public string JobStepName;
+
+		/// <summary>
+		/// Url for this job step (typically null for sentinel builds)
+		/// </summary>
+		[DataMember(IsRequired = true)]
+		public string JobStepUrl;
 
 		/// <summary>
 		/// Url of the first error within this job
 		/// </summary>
-		[DataMember(IsRequired = true)]
-		public string Url;
-
-		/// <summary>
-		/// Set of step names that contributed to this build.
-		/// </summary>
-		[DataMember(IsRequired = true)]
-		public HashSet<string> StepNames = new HashSet<string>();
+		[DataMember]
+		public string ErrorUrl;
 
 		/// <summary>
 		/// Whether this build has been posted to the server or not
@@ -56,12 +62,14 @@ namespace MetadataTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public TrackedBuild(string Name, int Change, string UniqueId, string Url)
+		public TrackedBuild(int Change, string JobName, string JobUrl, string JobStepName, string JobStepUrl, string ErrorUrl)
 		{
-			this.Name = Name;
 			this.Change = Change;
-			this.UniqueId = UniqueId;
-			this.Url = Url;
+			this.JobName = JobName;
+			this.JobUrl = JobUrl;
+			this.JobStepName = JobStepName;
+			this.JobStepUrl = JobStepUrl;
+			this.ErrorUrl = ErrorUrl;
 		}
 
 		/// <summary>
@@ -74,10 +82,10 @@ namespace MetadataTool
 			int Delta = Change - Other.Change;
 			if (Delta == 0)
 			{
-				Delta = Name.CompareTo(Other.Name);
+				Delta = JobUrl.CompareTo(Other.JobUrl);
 				if(Delta == 0)
 				{
-					Delta = UniqueId.CompareTo(Other.UniqueId);
+					Delta = JobStepUrl.CompareTo(Other.JobStepUrl);
 				}
 			}
 			return Delta;

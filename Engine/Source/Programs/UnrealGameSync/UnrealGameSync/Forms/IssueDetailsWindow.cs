@@ -16,6 +16,15 @@ namespace UnrealGameSync
 {
 	partial class IssueDetailsWindow : Form
 	{
+		class BuildGroup
+		{
+			public string JobName;
+			public string JobUrl;
+			public int Change;
+			public IssueBuildOutcome Outcome;
+			public List<IssueBuildData> Builds;
+		}
+
 		class PerforceChangeRange
 		{
 			public bool bExpanded;
@@ -23,7 +32,7 @@ namespace UnrealGameSync
 			public int MaxChange;
 			public List<PerforceChangeSummary> Changes;
 			public string ErrorMessage;
-			public IssueBuildData Build;
+			public BuildGroup BuildGroup;
 		}
 
 		class PerforceChangeDetailsWithDescribeRecord : PerforceChangeDetails
@@ -78,6 +87,7 @@ namespace UnrealGameSync
 				if(WorkerThread != null)
 				{
 					bTerminate = true;
+					RefreshEvent.Set();
 					if(!WorkerThread.Join(100))
 					{
 						WorkerThread.Abort();
@@ -332,14 +342,15 @@ namespace UnrealGameSync
 		{
 			if(TextBox.Text != NewText)
 			{
-				TextBox.SelectionLength = 0;
 				TextBox.Text = NewText;
+				TextBox.SelectionLength = 0;
+				TextBox.SelectionStart = NewText.Length;
 			}
 		}
 
 		void UpdateCurrentIssue()
 		{
-			SummaryTextBox.Text = Issue.Summary.ToString();
+			UpdateSummaryTextIfChanged(SummaryTextBox, Issue.Summary.ToString());
 
 			StringBuilder Status = new StringBuilder();
 			if(IssueMonitor.HasPendingUpdate())
@@ -411,6 +422,9 @@ namespace UnrealGameSync
 				LastOwner = Issue.Owner;
 				BuildListView.Invalidate();
 			}
+
+			UpdateSummaryTextIfChanged(StepNamesTextBox, String.Join(", ", Issue.Builds.Select(x => x.JobStepName).Distinct().OrderBy(x => x)));
+			UpdateSummaryTextIfChanged(StreamNamesTextBox, String.Join(", ", Issue.Builds.Select(x => x.Stream).Distinct().OrderBy(x => x)));
 
 			UpdateSummaryTextIfChanged(DetailsTextBox, Issue.Details.Replace("\n", "\r\n"));
 
@@ -612,13 +626,15 @@ namespace UnrealGameSync
 				}
 				*/
 				ListViewItem BuildItem = new ListViewItem("");
-				BuildItem.Tag = Range.Build;
-				BuildItem.SubItems.Add(Range.Build.Change.ToString());
+				BuildItem.Tag = Range.BuildGroup;
+				BuildItem.SubItems.Add(Range.BuildGroup.Change.ToString());
 				BuildItem.SubItems.Add("");
 
 				StatusLineListViewWidget BuildWidget = new StatusLineListViewWidget(BuildItem, StatusElementResources);
 				BuildWidget.HorizontalAlignment = HorizontalAlignment.Left;
-				BuildWidget.Line.AddLink(Range.Build.Name, FontStyle.Underline, () => System.Diagnostics.Process.Start(Range.Build.Url));
+
+				string DefaultUrl = Range.BuildGroup.Builds.Select(x => x.ErrorUrl).FirstOrDefault(x => x != null) ?? Range.BuildGroup.JobUrl;
+				BuildWidget.Line.AddLink(Range.BuildGroup.JobName, FontStyle.Underline, () => System.Diagnostics.Process.Start(DefaultUrl));
 				BuildItem.SubItems.Add(new ListViewItem.ListViewSubItem(BuildItem, ""){ Tag = BuildWidget });
 				BuildItem.SubItems.Add(new ListViewItem.ListViewSubItem(BuildItem, ""){ Tag = BuildWidget });
 
@@ -644,7 +660,35 @@ namespace UnrealGameSync
 			BuildListView.EndUpdate();
 			BuildListView.Invalidate();
 		}
-		
+
+		BuildGroup SelectedBuildGroup;
+
+		void ShowJobContextMenu(Point Point, BuildGroup BuildGroup)
+		{
+			SelectedBuildGroup = BuildGroup;
+
+			bool bHasErrorUrl = BuildGroup.Builds.Any(x => x.ErrorUrl != null);
+			JobContextMenu_StepSeparatorMax.Visible = bHasErrorUrl;
+			JobContextMenu_ShowFirstError.Visible = bHasErrorUrl;
+
+			int MinIndex = JobContextMenu.Items.IndexOf(JobContextMenu_StepSeparatorMin) + 1;
+			while(JobContextMenu.Items[MinIndex] != JobContextMenu_StepSeparatorMax)
+			{
+				JobContextMenu.Items.RemoveAt(MinIndex);
+			}
+
+			JobContextMenu_ViewJob.Text = String.Format("View Job: {0}", BuildGroup.JobName);
+
+			foreach (IssueBuildData Build in BuildGroup.Builds.OrderBy(x => x.JobStepName))
+			{
+				ToolStripMenuItem MenuItem = new ToolStripMenuItem(String.Format("View Step: {0}", Build.JobStepName));
+				MenuItem.Click += (S, E) => System.Diagnostics.Process.Start(Build.JobStepUrl);
+				JobContextMenu.Items.Insert(MinIndex++, MenuItem);
+			}
+
+			JobContextMenu.Show(BuildListView, Point, ToolStripDropDownDirection.BelowRight);
+		}
+
 		void UpdateChangeTypeWidget(StatusLineListViewWidget TypeWidget, PerforceChangeDetails Details)
 		{
 			TypeWidget.Line.Clear();
@@ -682,15 +726,22 @@ namespace UnrealGameSync
 					SelectedStreamRanges = new List<PerforceChangeRange>();
 
 					int MaxChange = -1;
-					foreach(IssueBuildData Build in Issue.Builds.Where(x => x.Stream == SelectedStream).OrderByDescending(x => x.Change).ThenByDescending(x => x.Url))
+					foreach(IGrouping<string, IssueBuildData> Group in Issue.Builds.Where(x => x.Stream == SelectedStream).OrderByDescending(x => x.Change).ThenByDescending(x => x.JobUrl).GroupBy(x => x.JobUrl))
 					{
+						BuildGroup BuildGroup = new BuildGroup();
+						BuildGroup.JobName = Group.First().JobName;
+						BuildGroup.JobUrl = Group.Key;
+						BuildGroup.Change = Group.First().Change;
+						BuildGroup.Builds = Group.ToList();
+						BuildGroup.Outcome = Group.Any(x => x.Outcome == IssueBuildOutcome.Error)? IssueBuildOutcome.Error : Group.Any(x => x.Outcome == IssueBuildOutcome.Warning)? IssueBuildOutcome.Warning : IssueBuildOutcome.Success;
+
 						PerforceChangeRange Range = new PerforceChangeRange();
-						Range.MinChange = Build.Change + 1;
+						Range.MinChange = BuildGroup.Change + 1;
 						Range.MaxChange = MaxChange;
-						Range.Build = Build;
+						Range.BuildGroup = BuildGroup;
 						SelectedStreamRanges.Add(Range);
 
-						MaxChange = Build.Change;
+						MaxChange = BuildGroup.Change;
 					}
 
 					PerforceWorker = new PerforceWorkerThread(Perforce, String.Format("{0}/...", SelectedStream), OnRequestCompleteAsync, UpdateChangeMetadataAsync, Log);
@@ -699,7 +750,7 @@ namespace UnrealGameSync
 
 					for(int Idx = 0; Idx + 2 < SelectedStreamRanges.Count; Idx++)
 					{
-						if(SelectedStreamRanges[Idx].Build.Outcome != SelectedStreamRanges[Idx + 1].Build.Outcome)
+						if(SelectedStreamRanges[Idx].BuildGroup.Outcome != SelectedStreamRanges[Idx + 1].BuildGroup.Outcome)
 						{
 							FetchBuildChanges(SelectedStreamRanges[Idx + 1]);
 						}
@@ -830,20 +881,20 @@ namespace UnrealGameSync
 			{
 				BuildListView.DrawTrackedBackground(e.Graphics, e.Bounds);
 			}
-			else if(e.Item.Tag is IssueBuildData)
+			else if(e.Item.Tag is BuildGroup)
 			{
-				IssueBuildData BuildData = (IssueBuildData)e.Item.Tag;
+				BuildGroup BuildGroup = (BuildGroup)e.Item.Tag;
 
 				Color BackgroundColor;
-				if(BuildData.Outcome == IssueBuildOutcome.Error)
+				if(BuildGroup.Outcome == IssueBuildOutcome.Error)
 				{
 					BackgroundColor = Color.FromArgb(254, 248, 246);
 				}
-				else if(BuildData.Outcome == IssueBuildOutcome.Warning)
+				else if(BuildGroup.Outcome == IssueBuildOutcome.Warning)
 				{
 					BackgroundColor = Color.FromArgb(254, 254, 246);
 				}
-				else if(BuildData.Outcome == IssueBuildOutcome.Success)
+				else if(BuildGroup.Outcome == IssueBuildOutcome.Success)
 				{
 					BackgroundColor = Color.FromArgb(248, 254, 246);
 				}
@@ -949,7 +1000,7 @@ namespace UnrealGameSync
 				else if(e.ColumnIndex == AuthorHeader.Index)
 				{
 					Rectangle Bounds = new Rectangle(e.Bounds.X, e.Bounds.Y, e.Bounds.Width + e.Item.SubItems[e.ColumnIndex].Bounds.Width, e.Bounds.Height);
-					TextRenderer.DrawText(e.Graphics, BuildData.Name, Font, Bounds, TextColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+					TextRenderer.DrawText(e.Graphics, BuildData.JobName, Font, Bounds, TextColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 				}
 			}
 			else
@@ -1096,10 +1147,10 @@ namespace UnrealGameSync
 
 		private void DescriptionLabel_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
 		{
-			IssueBuildData LastBuild = Issue.Builds.Where(x => x.Stream == SelectedStream).OrderByDescending(x => x.Change).ThenByDescending(x => x.Url).FirstOrDefault();
+			IssueBuildData LastBuild = Issue.Builds.Where(x => x.Stream == SelectedStream).OrderByDescending(x => x.Change).ThenByDescending(x => x.ErrorUrl).FirstOrDefault();
 			if(LastBuild != null)
 			{
-				System.Diagnostics.Process.Start(LastBuild.Url);
+				System.Diagnostics.Process.Start(LastBuild.ErrorUrl);
 			}
 		}
 
@@ -1111,6 +1162,39 @@ namespace UnrealGameSync
 				Update.Id = Issue.Id;
 				Update.FixChange = 0;
 				IssueMonitor.PostUpdate(Update);
+			}
+		}
+
+		private void JobContextMenu_ShowError_Click(object sender, EventArgs e)
+		{
+			foreach(IssueBuildData Build in SelectedBuildGroup.Builds)
+			{
+				if(Build.ErrorUrl != null)
+				{
+					System.Diagnostics.Process.Start(Build.ErrorUrl);
+					break;
+				}
+			}
+		}
+
+		private void JobContextMenu_ViewJob_Click(object sender, EventArgs e)
+		{
+			System.Diagnostics.Process.Start(SelectedBuildGroup.JobUrl);
+		}
+
+		private void BuildListView_MouseUp(object sender, MouseEventArgs e)
+		{
+			if((e.Button & MouseButtons.Right) != 0)
+			{
+				ListViewHitTestInfo HitTest = BuildListView.HitTest(e.Location);
+				if(HitTest.Item != null)
+				{
+					BuildGroup Group = HitTest.Item.Tag as BuildGroup;
+					if(Group != null)
+					{
+						ShowJobContextMenu(e.Location, Group);
+					}
+				}
 			}
 		}
 	}
