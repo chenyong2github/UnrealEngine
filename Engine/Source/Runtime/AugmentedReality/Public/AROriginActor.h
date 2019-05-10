@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "GameframeWork/Actor.h"
+#include "GameFramework/Actor.h"
 
 #include "AROriginActor.generated.h"
 
