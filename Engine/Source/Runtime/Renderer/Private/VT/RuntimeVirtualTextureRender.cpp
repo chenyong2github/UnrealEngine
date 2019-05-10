@@ -675,20 +675,20 @@ namespace RuntimeVirtualTexture
 		// Copy to final destination
 		if (GraphSetup.OutputAlias0 != nullptr)
 		{
-			RHICmdList.CopySubTextureRegion(
-				GraphOutputTexture0->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(),
-				OutputTexture0->GetTexture2D(),
-				FBox2D(FVector2D(0, 0), FVector2D(GraphOutputSize0.X, GraphOutputSize0.Y)),
-				DestBox0);
+			FRHICopyTextureInfo Info;
+			Info.Size = GraphOutputSize0;
+			Info.DestPosition = FIntVector(DestBox0.Min.X, DestBox0.Min.Y, 0);
+
+			RHICmdList.CopyTexture(GraphOutputTexture0->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), OutputTexture0->GetTexture2D(), Info);
 		}
 
 		if (GraphSetup.OutputAlias1 != nullptr)
 		{
-			RHICmdList.CopySubTextureRegion(
-				GraphOutputTexture1->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(),
-				OutputTexture1->GetTexture2D(),
-				FBox2D(FVector2D(0, 0), FVector2D(GraphOutputSize1.X, GraphOutputSize1.Y)),
-				DestBox1);
+			FRHICopyTextureInfo Info;
+			Info.Size = GraphOutputSize1;
+			Info.DestPosition = FIntVector(DestBox1.Min.X, DestBox1.Min.Y, 0);
+
+			RHICmdList.CopyTexture(GraphOutputTexture1->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), OutputTexture1->GetTexture2D(), Info);
 		}
 	}
 }
