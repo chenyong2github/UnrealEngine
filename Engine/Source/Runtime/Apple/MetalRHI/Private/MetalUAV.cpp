@@ -220,6 +220,46 @@ FShaderResourceViewRHIRef FMetalDynamicRHI::RHICreateShaderResourceView_RenderTh
 	return GDynamicRHI->RHICreateShaderResourceView(StructuredBuffer);
 }
 
+FShaderResourceViewRHIRef FMetalDynamicRHI::RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FTextureRHIParamRef Texture2DRHI, const FRHITextureSRVCreateInfo& CreateInfo)
+{
+	FMetalSurface* Surface = (FMetalSurface*)Texture2DRHI->GetTextureBaseRHI();
+	FMetalTexture Tex = Surface->Texture;
+	if (!(Tex.GetUsage() & mtlpp::TextureUsage::PixelFormatView))
+	{
+		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
+		return GDynamicRHI->RHICreateShaderResourceView(Texture2DRHI, CreateInfo);
+	}
+	else
+	{
+		return GDynamicRHI->RHICreateShaderResourceView(Texture2DRHI, CreateInfo);
+	}
+}
+
+FShaderResourceViewRHIRef FMetalDynamicRHI::RHICreateShaderResourceView(FTextureRHIParamRef Texture2DRHI, const FRHITextureSRVCreateInfo& CreateInfo)
+{
+	@autoreleasepool {
+		FMetalShaderResourceView* SRV = new FMetalShaderResourceView;
+		SRV->SourceTexture = (FRHITexture*)Texture2DRHI;
+		
+		FMetalSurface* Surface = GetMetalSurfaceFromRHITexture(Texture2DRHI);
+		SRV->TextureView = Surface ? new FMetalSurface(*Surface, NSMakeRange(CreateInfo.MipLevel, CreateInfo.NumMipLevels), (EPixelFormat)CreateInfo.Format) : nullptr;
+		
+		SRV->SourceVertexBuffer = nullptr;
+		SRV->SourceIndexBuffer = nullptr;
+		SRV->SourceStructuredBuffer = nullptr;
+		
+		SRV->MipLevel = CreateInfo.MipLevel;
+		SRV->NumMips = CreateInfo.NumMipLevels;
+		SRV->Format = CreateInfo.Format;
+		
+		if (Surface)
+		{
+			Surface->SRVs.Add(SRV);
+		}
+		
+		return SRV;
+	}
+}
 
 FShaderResourceViewRHIRef FMetalDynamicRHI::RHICreateShaderResourceView(FStructuredBufferRHIParamRef StructuredBufferRHI)
 {
