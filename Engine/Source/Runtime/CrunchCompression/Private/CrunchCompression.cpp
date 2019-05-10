@@ -6,6 +6,7 @@
 #include "PixelFormat.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/IConsoleManager.h"
+#include "Stats/Stats.h"
 #include "Stats/Stats2.h"
 
 const bool GAdaptiveBlockSizes = true;
