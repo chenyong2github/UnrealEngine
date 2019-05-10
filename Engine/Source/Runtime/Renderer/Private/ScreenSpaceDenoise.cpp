@@ -711,17 +711,9 @@ struct FSSDConstantPixelDensitySettings
  * between shader reflection data and parameters provided by high-level code will cause a validation error.
  * For example, this happens when using non-optimized shaders (r.Shaders.Optimize=0).
  */
-static FSSDSignalTextures CopyAndBackfillSignalInput(const FSSDSignalTextures& SignalInput, int32 NumExpectedValidTextures = 1)
+static FSSDSignalTextures CopyAndBackfillSignalInput(const FSSDSignalTextures& SignalInput)
 {
-	checkf(NumExpectedValidTextures > 0, TEXT("FSSDSignalTextures must contain at least one valid texture"));
-	check(NumExpectedValidTextures <= kMaxBufferProcessingCount);
-
 	FSSDSignalTextures Result = SignalInput;
-
-	for (int32 i = 0; i < NumExpectedValidTextures; ++i)
-	{
-		checkf(Result.Textures[i], TEXT("Valid texture is required in slot %d of FSSDSignalTextures."), i);
-	}
 
 	for (int32 i = NumExpectedValidTextures; i < kMaxBufferProcessingCount; ++i)
 	{
