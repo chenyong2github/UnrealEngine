@@ -11,15 +11,6 @@
 
 DEFINE_LOG_CATEGORY(LogVirtualTexturingModule);
 
-// Is there a cleaner place to put this??
-static TAutoConsoleVariable<int32> CVarVirtualTexturedLightMaps(
-	TEXT("r.VirtualTexturedLightmaps"),
-	0,
-	TEXT("Controls wether to stream the lightmaps using virtual texturing.\n") \
-	TEXT(" 0: Disabled.\n") \
-	TEXT(" 1: Enabled."),
-	ECVF_ReadOnly);
-
 static FAutoConsoleCommand GVTFlushAndEvictFileCacheCommand(
 	TEXT("r.VT.FlushAndEvictFileCache"),
 	TEXT("Flush both the virtual texture physcial page cache and disk file cachje"),
