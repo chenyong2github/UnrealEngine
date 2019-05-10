@@ -9,14 +9,16 @@
 #include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
 #include "Materials/Material.h"
+#include "Engine/StaticMesh.h"
+#include "Components/StaticMeshComponent.h"
 
 #include "EditorToolAssetAPI.h"
 #include "EditorComponentSourceFactory.h"
 
-
+//#include "PhysicsEngine/BodySetup.h"
+//#include "Interfaces/Interface_CollisionDataProvider.h"
 
 //#define ENABLE_DEBUG_PRINTING
-
 
 
 
@@ -58,6 +60,155 @@ public:
 	{
 		StateOut = CachedViewState;
 	}
+
+
+	virtual bool ExecuteSceneSnapQuery(const FSceneSnapQueryRequest& Request, TArray<FSceneSnapQueryResult>& Results) const override
+	{
+		if (Request.RequestType != ESceneSnapQueryType::Position)
+		{
+			return false;		// not supported yet
+		}
+
+		int FoundResultCount = 0;
+
+		//
+		// Run a snap query by casting ray into the world.
+		// If a hit is found, we look up what triangle was hit, and then test its vertices and edges
+		// 
+
+		// cast ray into world
+		FVector RayStart = CachedViewState.Position;
+		FVector RayDirection = Request.Position - RayStart; RayDirection.Normalize();
+		FVector RayEnd = RayStart + 9999999 * RayDirection;
+		FCollisionObjectQueryParams ObjectQueryParams(FCollisionObjectQueryParams::AllObjects);
+		FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
+		QueryParams.bTraceComplex = true;
+		QueryParams.bReturnFaceIndex = true;
+		FHitResult HitResult;
+		bool bHitWorld = EditorMode->GetWorld()->LineTraceSingleByObjectType(HitResult, RayStart, RayEnd, ObjectQueryParams, QueryParams);
+		if (bHitWorld && HitResult.FaceIndex >= 0) 
+		{
+			float VisualAngle = OpeningAngleDeg(Request.Position, HitResult.ImpactPoint, RayStart);
+			//UE_LOG(LogTemp, Warning, TEXT("[HIT] visualangle %f faceindex %d"), VisualAngle, HitResult.FaceIndex);
+			if (VisualAngle < Request.VisualAngleThresholdDegrees)
+			{
+				UPrimitiveComponent* Component = HitResult.Component.Get();
+				if (Cast<UStaticMeshComponent>(Component) != nullptr)
+				{
+					// HitResult.FaceIndex is apparently an index into the TriMeshCollisionData, not sure how
+					// to directly access it. Calling GetPhysicsTriMeshData is expensive!
+					//UBodySetup* BodySetup = Cast<UStaticMeshComponent>(Component)->GetBodySetup();
+					//UObject* CDPObj = BodySetup->GetOuter();
+					//IInterface_CollisionDataProvider* CDP = Cast<IInterface_CollisionDataProvider>(CDPObj);
+					//FTriMeshCollisionData TriMesh;
+					//CDP->GetPhysicsTriMeshData(&TriMesh, true);
+					//FTriIndices Triangle = TriMesh.Indices[HitResult.FaceIndex];
+					//FVector Positions[3] = { TriMesh.Vertices[Triangle.v0], TriMesh.Vertices[Triangle.v1], TriMesh.Vertices[Triangle.v2] };
+
+					// physics collision data is created from StaticMesh RenderData
+					// so use HitResult.FaceIndex to extract triangle from the LOD0 mesh
+					// (note: this may be incorrect if there are multiple sections...in that case I think we have to 
+					//  first find section whose accumulated index range would contain .FaceIndexX)
+					UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
+					FStaticMeshLODResources& LOD = StaticMesh->RenderData->LODResources[0];
+					FIndexArrayView Indices = LOD.IndexBuffer.GetArrayView();
+					int TriIdx = 3 * HitResult.FaceIndex;
+					int Triangle[3] = { Indices[TriIdx], Indices[TriIdx + 1], Indices[TriIdx + 2] };
+					FVector Positions[3] = {
+						LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Triangle[0]),
+						LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Triangle[1]),
+						LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Triangle[2])
+					};
+					
+					// transform to world space
+					FTransform ComponentTransform = Component->GetComponentTransform();
+					Positions[0] = ComponentTransform.TransformPosition(Positions[0]);
+					Positions[1] = ComponentTransform.TransformPosition(Positions[1]);
+					Positions[2] = ComponentTransform.TransformPosition(Positions[2]);
+
+					FSceneSnapQueryResult SnapResult;
+					SnapResult.TriVertices[0] = Positions[0];
+					SnapResult.TriVertices[1] = Positions[1];
+					SnapResult.TriVertices[2] = Positions[2];
+
+					// try snapping to vertices
+					float SmallestAngle = Request.VisualAngleThresholdDegrees;
+					if ( (Request.TargetTypes & ESceneSnapQueryTargetType::MeshVertex) != ESceneSnapQueryTargetType::None)
+					{
+						for (int j = 0; j < 3; ++j)
+						{
+							VisualAngle = OpeningAngleDeg(Request.Position, Positions[j], RayStart);
+							if (VisualAngle < SmallestAngle)
+							{
+								SmallestAngle = VisualAngle;
+								SnapResult.Position = Positions[j];
+								SnapResult.TargetType = ESceneSnapQueryTargetType::MeshVertex;
+							}
+						}
+					}
+
+					// try snapping to nearest points on edges
+					if ( ((Request.TargetTypes & ESceneSnapQueryTargetType::MeshEdge) != ESceneSnapQueryTargetType::None) &&
+						 (SnapResult.TargetType != ESceneSnapQueryTargetType::MeshVertex) )
+					{
+						for (int j = 0; j < 3; ++j)
+						{
+							FVector EdgeNearestPt = NearestSegmentPt(Positions[j], Positions[(j+1)%3], Request.Position);
+							VisualAngle = OpeningAngleDeg(Request.Position, EdgeNearestPt, RayStart);
+							if (VisualAngle < SmallestAngle )
+							{
+								SmallestAngle = VisualAngle;
+								SnapResult.Position = EdgeNearestPt;
+								SnapResult.TargetType = ESceneSnapQueryTargetType::MeshEdge;
+							}
+						}
+					}
+
+					// if we found a valid snap, return it
+					if (SmallestAngle < Request.VisualAngleThresholdDegrees)
+					{
+						SnapResult.TargetActor = HitResult.Actor.Get();
+						SnapResult.TargetComponent = HitResult.Component.Get();
+						Results.Add(SnapResult);
+						FoundResultCount++;
+					}
+				}
+			}
+
+		}
+
+		return (FoundResultCount > 0);
+	}
+
+
+	//@ todo this are mirrored from GeometryProcessing, which is still experimental...replace w/ direct calls once GP component is standardized
+	static float OpeningAngleDeg(FVector A, FVector B, const FVector& P)
+	{
+		A -= P;
+		A.Normalize();
+		B -= P;
+		B.Normalize();
+		float Dot = FMath::Clamp(FVector::DotProduct(A,B), -1.0f, 1.0f);
+		return acos(Dot) * (180.0f / 3.141592653589f);
+	}
+	static FVector NearestSegmentPt(FVector A, FVector B, const FVector& P)
+	{
+		FVector Direction = (B - A); 
+		float Length = Direction.Size();
+		Direction /= Length;
+		float t = FVector::DotProduct( (P - A), Direction);
+		if (t >= Length)
+		{
+			return B;
+		}
+		if (t <= 0)
+		{
+			return A;
+		}
+		return A + t * Direction;
+	}
+
+
 
 	virtual UMaterialInterface* GetStandardMaterial(EStandardToolContextMaterials MaterialType) const
 	{

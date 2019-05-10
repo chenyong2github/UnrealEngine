@@ -59,6 +59,76 @@ struct INTERACTIVETOOLSFRAMEWORK_API FViewCameraState
 };
 
 
+
+/** Types of Snap Queries that a ToolsContext parent may support, that Tools may request */
+UENUM()
+enum class ESceneSnapQueryType
+{
+	/** snapping a position */
+	Position = 1		
+};
+
+/** Types of snap targets that a Tool may want to run snap queries against. */
+UENUM()
+enum class ESceneSnapQueryTargetType
+{
+	None = 0,
+	/** Consider any mesh vertex */
+	MeshVertex = 1,
+	/** Consider any mesh edge */
+	MeshEdge = 2,
+
+	All = MeshVertex | MeshEdge
+};
+ENUM_CLASS_FLAGS(ESceneSnapQueryTargetType);
+
+/**
+ * Configuration variables for a IToolsContextQueriesAPI snap query request.
+ */
+struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryRequest
+{
+	/** What type of snap query geometry is this */
+	ESceneSnapQueryType RequestType;
+	/** What does caller want to try to snap to */
+	ESceneSnapQueryTargetType TargetTypes;
+
+	/** Snap input position */
+	FVector Position;
+	/** Another position must deviate less than this number of degrees (in visual angle) to be considered an acceptable snap position */
+	float VisualAngleThresholdDegrees;
+
+	/** Snap input direction */
+	FVector Direction;
+	/** Another direction must deviate less than this number of degrees from Direction to be considered an acceptable snap direction */
+	float DirectionAngleThresholdDegrees;
+};
+
+
+/**
+ * Computed result of a IToolsContextQueriesAPI snap query request
+ */
+struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryResult
+{
+	/** Actor that owns snap target */
+	AActor* TargetActor = nullptr;
+	/** Component that owns snap target */
+	UActorComponent* TargetComponent = nullptr;
+	/** What kind of geometric element was snapped to */
+	ESceneSnapQueryTargetType TargetType = ESceneSnapQueryTargetType::None;
+
+	/** Snap position (may not be set depending on query types) */
+	FVector Position;
+	/** Snap normal (may not be set depending on query types) */
+	FVector Normal;
+	/** Snap direction (may not be set depending on query types) */
+	FVector Direction;
+
+	/** Vertices of triangle that contains result (for debugging, may not be set) */
+	FVector TriVertices[3];
+};
+
+
+
 /** Types of standard materials that Tools may request from Context */
 UENUM()
 enum class EStandardToolContextMaterials
@@ -90,6 +160,16 @@ public:
 	 * @param StateOut this structure is populated with available state information
 	 */
 	virtual void GetCurrentViewState(FViewCameraState& StateOut) const = 0;
+
+
+	/**
+	 * Try to find Snap Targets in the scene that satisfy the Snap Query.
+	 * @param Request snap query configuration
+	 * @param Results list of potential snap results
+	 * @return true if any valid snap target was found
+	 * @warning implementations are not required (and may not be able) to support snapping
+	 */
+	virtual bool ExecuteSceneSnapQuery(const FSceneSnapQueryRequest& Request, TArray<FSceneSnapQueryResult>& Results ) const = 0;
 
 
 	/**
