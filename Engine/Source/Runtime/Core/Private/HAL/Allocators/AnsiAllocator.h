@@ -76,15 +76,15 @@ public:
 				Data = nullptr;
 			}
 		}
-		int32 CalculateSlackReserve(int32 NumElements, int32 NumBytesPerElement) const
+		int32 CalculateSlackReserve(int32 NumElements, SIZE_T NumBytesPerElement) const
 		{
 			return DefaultCalculateSlackReserve(NumElements, NumBytesPerElement, false);
 		}
-		int32 CalculateSlackShrink(int32 NumElements, int32 NumAllocatedElements, int32 NumBytesPerElement) const
+		int32 CalculateSlackShrink(int32 NumElements, int32 NumAllocatedElements, SIZE_T NumBytesPerElement) const
 		{
 			return DefaultCalculateSlackShrink(NumElements, NumAllocatedElements, NumBytesPerElement, false);
 		}
-		int32 CalculateSlackGrow(int32 NumElements, int32 NumAllocatedElements, int32 NumBytesPerElement) const
+		int32 CalculateSlackGrow(int32 NumElements, int32 NumAllocatedElements, SIZE_T NumBytesPerElement) const
 		{
 			return DefaultCalculateSlackGrow(NumElements, NumAllocatedElements, NumBytesPerElement, false);
 		}
@@ -94,7 +94,7 @@ public:
 			return NumAllocatedElements * NumBytesPerElement;
 		}
 
-		bool HasAllocation()
+		bool HasAllocation() const
 		{
 			return !!Data;
 		}
