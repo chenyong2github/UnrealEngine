@@ -148,6 +148,9 @@ void GlobalIlluminationRGS()
 		{
 			// Cast ray
 			uint RayFlags = 0;
+#if !ENABLE_TWO_SIDED_GEOMETRY
+			RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+#endif
 			FRayCone RayCone = (FRayCone)0;
 			FMaterialClosestHitPayload Payload = TraceRayInternal(
 				TLAS,   // AccelerationStructure
@@ -226,6 +229,9 @@ void GlobalIlluminationRGS()
 
 					// Trace visibility ray
 					uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
+#if !ENABLE_TWO_SIDED_GEOMETRY
+					RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+#endif
 					FRayCone LightRayCone = (FRayCone)0;
 					FMaterialClosestHitPayload NeePayload = TraceRayInternal(
 						TLAS,   // AccelerationStructure
