@@ -55,6 +55,10 @@ void glGetObjectLabelEXT (GLenum type, GLuint object, GLsizei bufSize, GLsizei *
 #define GL_TEXTURE_1D			0x0DE0
 #endif
 
+#ifndef GL_TEXTURE_1D_ARRAY
+#define GL_TEXTURE_1D_ARRAY		0x8C18
+#endif
+
 #ifndef GL_TEXTURE_2D_ARRAY
 #define GL_TEXTURE_2D_ARRAY		0x8C1A
 #endif
