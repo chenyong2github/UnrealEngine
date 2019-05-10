@@ -223,7 +223,7 @@ public:
 	 * call from RenderThread only
 	 * @return true if the old element was still valid, false if a new one was assigned
 	 */
-	bool FindFreeElement(FRHICommandList& RHICmdList, const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const TCHAR* InDebugName, bool bDoWritableBarrier = true, ERenderTargetTransience TransienceHint = ERenderTargetTransience::Transient );
+	bool FindFreeElement(FRHICommandList& RHICmdList, const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const TCHAR* InDebugName, bool bDoWritableBarrier = true, ERenderTargetTransience TransienceHint = ERenderTargetTransience::Transient, bool bDeferTextureAllocation = false);
 
 	void CreateUntrackedElement(const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const FSceneRenderTargetItem& Item);
 
