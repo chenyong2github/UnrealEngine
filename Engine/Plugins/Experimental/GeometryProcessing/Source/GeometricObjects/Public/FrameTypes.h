@@ -204,23 +204,23 @@ struct FFrame3
 	/**
 	 * Project 3D point into plane and convert to UV coordinates in that plane
 	 * @param Pos 3D position
-	 * @param nPlaneNormalAxis which plane to project onto, identified by perpendicular normal. Default is 2, ie normal is Z, plane is (X,Y)
+	 * @param PlaneNormalAxis which plane to project onto, identified by perpendicular normal. Default is 2, ie normal is Z, plane is (X,Y)
 	 * @return 2D coordinates in UV plane, relative to origin
 	 */
-	FVector2<RealType> ToPlaneUV(const FVector3<RealType>& Pos, int nPlaneNormalAxis) const
+	FVector2<RealType> ToPlaneUV(const FVector3<RealType>& Pos, int PlaneNormalAxis) const
 	{
-		int nAxis0 = 0, nAxis1 = 1;
-		if (nPlaneNormalAxis == 0)
+		int Axis0 = 0, Axis1 = 1;
+		if (PlaneNormalAxis == 0)
 		{
-			nAxis0 = 2;
+			Axis0 = 2;
 		}
-		else if (nPlaneNormalAxis == 1)
+		else if (PlaneNormalAxis == 1)
 		{
-			nAxis1 = 2;
+			Axis1 = 2;
 		}
 		FVector3<RealType> LocalPos = Pos - Origin;
-		RealType U = LocalPos.Dot(GetAxis(nAxis0));
-		RealType V = LocalPos.Dot(GetAxis(nAxis1));
+		RealType U = LocalPos.Dot(GetAxis(Axis0));
+		RealType V = LocalPos.Dot(GetAxis(Axis1));
 		return FVector2<RealType>(U, V);
 	}
 
@@ -229,7 +229,7 @@ struct FFrame3
 	/**
 	 * Map a point from local UV plane coordinates to the corresponding 3D point in one of the planes of the frame
 	 * @param PosUV local UV plane coordinates
-	 * @param nPlaneNormalAxis which plane to map to, identified by perpendicular normal. Default is 2, ie normal is Z, plane is (X,Y)
+	 * @param PlaneNormalAxis which plane to map to, identified by perpendicular normal. Default is 2, ie normal is Z, plane is (X,Y)
 	 * @return 3D coordinates in frame's plane (including Origin translation)
 	 */
 	FVector3<RealType> FromPlaneUV(const FVector2<RealType>& PosUV, int PlaneNormalAxis) const
@@ -246,6 +246,21 @@ struct FFrame3
 		return Rotation*PlanePos + Origin;
 	}
 
+
+
+	/**
+	 * Project a point onto one of the planes of the frame
+	 * @param Pos 3D position
+	 * @param PlaneNormalAxis which plane to project onto, identified by perpendicular normal. Default is 2, ie normal is Z, plane is (X,Y)
+	 * @return 3D coordinate in the plane
+	 */
+	FVector3<RealType> ToPlane(const FVector3<RealType>& Pos, int PlaneNormalAxis) const
+	{
+		FVector3<RealType> Normal = GetAxis(PlaneNormalAxis);
+		FVector3<RealType> LocalVec = Pos - Origin;
+		RealType SignedDist = LocalVec.Dot(Normal);
+		return Pos - SignedDist * Normal;
+	}
 
 
 
