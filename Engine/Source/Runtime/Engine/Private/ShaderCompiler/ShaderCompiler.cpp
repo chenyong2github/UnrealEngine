@@ -29,7 +29,6 @@
 #include "Materials/Material.h"
 #include "EditorSupportDelegates.h"
 #include "GlobalShader.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/IShaderFormatModule.h"
 #include "RendererInterface.h"
@@ -1347,73 +1346,78 @@ void FShaderCompileThreadRunnable::CompileDirectlyThroughDll()
 				check(!CurrentJob.bFinalized);
 				CurrentJob.bFinalized = true;
 
-				static ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
-				auto* SingleJob = CurrentJob.GetSingleShaderJob();
-				if (SingleJob)
-				{
-					const FName Format = LegacyShaderPlatformToShaderFormat(EShaderPlatform(SingleJob->Input.Target.Platform));
-					const IShaderFormat* Compiler = TPM.FindShaderFormat(Format);
-
-					if (!Compiler)
-					{
-						UE_LOG(LogShaderCompilers, Fatal, TEXT("Can't compile shaders for format %s, couldn't load compiler dll"), *Format.ToString());
-					}
-					CA_ASSUME(Compiler != NULL);
-
-					if (IsValidRef(SingleJob->Input.SharedEnvironment))
-					{
-						// Merge the shared environment into the per-shader environment before calling into the compile function
-						// Normally this happens in the worker
-						SingleJob->Input.Environment.Merge(*SingleJob->Input.SharedEnvironment);
-					}
-
-					// Compile the shader directly through the platform dll (directly from the shader dir as the working directory)
-					Compiler->CompileShader(Format, SingleJob->Input, SingleJob->Output, FString(FPlatformProcess::ShaderDir()));
-
-					SingleJob->bSucceeded = SingleJob->Output.bSucceeded;
-
-					if (SingleJob->Output.bSucceeded)
-					{
-						// Generate a hash of the output and cache it
-						// The shader processing this output will use it to search for existing FShaderResources
-						SingleJob->Output.GenerateOutputHash();
-					}
-				}
-				else
-				{
-					auto* PipelineJob = CurrentJob.GetShaderPipelineJob();
-					check(PipelineJob);
-
-					EShaderPlatform Platform = (EShaderPlatform)PipelineJob->StageJobs[0]->GetSingleShaderJob()->Input.Target.Platform;
-					const FName Format = LegacyShaderPlatformToShaderFormat(Platform);
-					const IShaderFormat* Compiler = TPM.FindShaderFormat(Format);
-
-					if (!Compiler)
-					{
-						UE_LOG(LogShaderCompilers, Fatal, TEXT("Can't compile shaders for format %s, couldn't load compiler dll"), *Format.ToString());
-					}
-					CA_ASSUME(Compiler != NULL);
-
-					// Verify same platform on all stages
-					for (int32 Index = 1; Index < PipelineJob->StageJobs.Num(); ++Index)
-					{
-						auto* SingleStage = PipelineJob->StageJobs[Index]->GetSingleShaderJob();
-						if (!SingleStage)
-						{
-							UE_LOG(LogShaderCompilers, Fatal, TEXT("Can't nest Shader Pipelines inside Shader Pipeline '%s'!"), PipelineJob->ShaderPipeline->GetName());
-						}
-						if (Platform != SingleStage->Input.Target.Platform)
-						{
-							UE_LOG(LogShaderCompilers, Fatal, TEXT("Mismatched Target Platform %s while compiling Shader Pipeline '%s'."), *Format.GetPlainNameString(), PipelineJob->ShaderPipeline->GetName());
-						}
-					}
-
-					CompileShaderPipeline(Compiler, Format, PipelineJob, FString(FPlatformProcess::ShaderDir()));
-				}
+				FShaderCompileUtilities::ExecuteShaderCompileJob(CurrentJob);
 			}
 
 			CurrentWorkerInfo.bComplete = true;
 		}
+	}
+}
+
+void FShaderCompileUtilities::ExecuteShaderCompileJob(FShaderCommonCompileJob& Job)
+{
+	static ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
+	auto* SingleJob = Job.GetSingleShaderJob();
+	if (SingleJob)
+	{
+		const FName Format = LegacyShaderPlatformToShaderFormat(EShaderPlatform(SingleJob->Input.Target.Platform));
+		const IShaderFormat* Compiler = TPM.FindShaderFormat(Format);
+
+		if (!Compiler)
+		{
+			UE_LOG(LogShaderCompilers, Fatal, TEXT("Can't compile shaders for format %s, couldn't load compiler dll"), *Format.ToString());
+		}
+		CA_ASSUME(Compiler != NULL);
+
+		if (IsValidRef(SingleJob->Input.SharedEnvironment))
+		{
+			// Merge the shared environment into the per-shader environment before calling into the compile function
+			// Normally this happens in the worker
+			SingleJob->Input.Environment.Merge(*SingleJob->Input.SharedEnvironment);
+		}
+
+		// Compile the shader directly through the platform dll (directly from the shader dir as the working directory)
+		Compiler->CompileShader(Format, SingleJob->Input, SingleJob->Output, FString(FPlatformProcess::ShaderDir()));
+
+		SingleJob->bSucceeded = SingleJob->Output.bSucceeded;
+
+		if (SingleJob->Output.bSucceeded)
+		{
+			// Generate a hash of the output and cache it
+			// The shader processing this output will use it to search for existing FShaderResources
+			SingleJob->Output.GenerateOutputHash();
+		}
+	}
+	else
+	{
+		FShaderPipelineCompileJob* PipelineJob = Job.GetShaderPipelineJob();
+		check(PipelineJob);
+
+		EShaderPlatform Platform = (EShaderPlatform)PipelineJob->StageJobs[0]->GetSingleShaderJob()->Input.Target.Platform;
+		const FName Format = LegacyShaderPlatformToShaderFormat(Platform);
+		const IShaderFormat* Compiler = TPM.FindShaderFormat(Format);
+
+		if (!Compiler)
+		{
+			UE_LOG(LogShaderCompilers, Fatal, TEXT("Can't compile shaders for format %s, couldn't load compiler dll"), *Format.ToString());
+		}
+		CA_ASSUME(Compiler != NULL);
+
+		// Verify same platform on all stages
+		for (int32 Index = 1; Index < PipelineJob->StageJobs.Num(); ++Index)
+		{
+			auto* SingleStage = PipelineJob->StageJobs[Index]->GetSingleShaderJob();
+			if (!SingleStage)
+			{
+				UE_LOG(LogShaderCompilers, Fatal, TEXT("Can't nest Shader Pipelines inside Shader Pipeline '%s'!"), PipelineJob->ShaderPipeline->GetName());
+			}
+			if (Platform != SingleStage->Input.Target.Platform)
+			{
+				UE_LOG(LogShaderCompilers, Fatal, TEXT("Mismatched Target Platform %s while compiling Shader Pipeline '%s'."), *Format.GetPlainNameString(), PipelineJob->ShaderPipeline->GetName());
+			}
+		}
+
+		CompileShaderPipeline(Compiler, Format, PipelineJob, FString(FPlatformProcess::ShaderDir()));
 	}
 }
 
@@ -1475,7 +1479,6 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	SuppressedShaderPlatforms(0)
 {
 	WorkersBusyTime = 0;
-	bFallBackToDirectCompiles = false;
 
 	// Threads must use absolute paths on Windows in case the current directory is changed on another thread!
 	ShaderCompileWorkerName = FPaths::ConvertRelativePathToFull(ShaderCompileWorkerName);

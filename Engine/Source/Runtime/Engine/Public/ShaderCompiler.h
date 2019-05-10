@@ -225,6 +225,9 @@ namespace FShaderCompileUtilities
 {
 	bool DoWriteTasks(const TArray<FShaderCommonCompileJob*>& QueuedJobs, FArchive& TransferFile);
 	void DoReadTaskResults(const TArray<FShaderCommonCompileJob*>& QueuedJobs, FArchive& OutputFile);
+
+	/** Execute the specified (single or pipeline) shader compile job. */
+	void ExecuteShaderCompileJob(FShaderCommonCompileJob& Job);
 }
 
 #if PLATFORM_WINDOWS // XGE shader compilation is only supported on Windows.
@@ -445,8 +448,6 @@ private:
 	FString AbsoluteShaderDebugInfoDirectory;
 	/** Name of the shader worker application. */
 	FString ShaderCompileWorkerName;
-	/** Whether the SCW has crashed and we should fall back to calling the compiler dll's directly. */
-	bool bFallBackToDirectCompiles;
 
 	/** 
 	 * Tracks the total time that shader compile workers have been busy since startup.  
