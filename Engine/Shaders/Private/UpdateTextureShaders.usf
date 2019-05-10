@@ -92,4 +92,16 @@ void TUpdateTexture2DSubresourceCS( uint2 ThreadId : SV_DispatchThreadID )
 	}
 }
 
+Texture2D<COMPONENT_TYPE> TSrcTexture;
+uint2 SrcPos;
+
+[numthreads(8,8,1)]
+void TCopyTexture2DCS( uint3 ThreadId : SV_DispatchThreadID )
+{
+	if (all(ThreadId.xy < DestPosSize.zw))
+	{
+		TDestTexture[DestPosSize.xy + ThreadId.xy] = TSrcTexture.Load(int3(SrcPos + ThreadId.xy, 0));
+	}
+}
+
 #endif // COMPONENT_TYPE
