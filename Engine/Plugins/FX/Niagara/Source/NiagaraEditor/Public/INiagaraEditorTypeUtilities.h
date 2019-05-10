@@ -38,6 +38,8 @@ public:
 	virtual bool CanSetValueFromDisplayName() const = 0;
 
 	virtual bool SetValueFromDisplayName(const FText& TextValue, FNiagaraVariable& Variable) const = 0;
+
+	virtual FText GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const = 0;
 };
 
 class FNiagaraEditorTypeUtilities : public INiagaraEditorTypeUtilities, public TSharedFromThis<FNiagaraEditorTypeUtilities, ESPMode::ThreadSafe>
@@ -57,4 +59,5 @@ public:
 	virtual bool SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const override { return false; }
 	virtual bool CanSetValueFromDisplayName() const override { return false; }
 	virtual bool SetValueFromDisplayName(const FText& TextValue, FNiagaraVariable& Variable) const override { return false; }
+	virtual FText GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const override { return FText(); }
 };

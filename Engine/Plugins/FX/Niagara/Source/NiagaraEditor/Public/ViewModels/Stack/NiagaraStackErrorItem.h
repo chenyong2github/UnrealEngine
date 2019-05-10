@@ -20,6 +20,7 @@ public:
 	virtual FText GetDisplayName() const override;
 	virtual EStackRowStyle GetStackRowStyle() const override;
 	FOnIssueNotify& OnIssueModified();
+	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
 	
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues);
