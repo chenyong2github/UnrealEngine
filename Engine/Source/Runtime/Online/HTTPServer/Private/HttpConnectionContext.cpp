@@ -17,16 +17,6 @@ void FHttpConnectionContext::AddElapsedIdleTime(float DeltaTime)
 	ElapsedIdleTime += DeltaTime;
 }
 
-float FHttpConnectionContext::GetElapsedIdleTime() const
-{
-	return ElapsedIdleTime;
-}
-
-const FString& FHttpConnectionContext::GetErrorStr() const
-{
-	return ErrorBuilder;
-}
-
 void FHttpConnectionContext::AddError(const TCHAR* ErrorCode)
 {
 	ErrorBuilder.Append(ErrorCode);
