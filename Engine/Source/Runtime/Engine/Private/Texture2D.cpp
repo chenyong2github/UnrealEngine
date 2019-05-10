@@ -1072,7 +1072,7 @@ FTextureResource* UTexture2D::CreateResource()
 	{
 		UnlinkStreaming();
 		bIsStreamable = false;
-		FVirtualTexture2DResource* ResourceVT = new FVirtualTexture2DResource(GetFName(), this, PlatformData->VTData, GetCachedLODBias());
+		FVirtualTexture2DResource* ResourceVT = new FVirtualTexture2DResource(this, PlatformData->VTData, GetCachedLODBias());
 		return ResourceVT;
  	}
 
@@ -1822,12 +1822,12 @@ void FTexture2DResource::GetData( uint32 MipIndex, void* Dest, uint32 DestPitch 
 
 
 
-FVirtualTexture2DResource::FVirtualTexture2DResource(const FName& InName, const UTexture2D* InOwner, FVirtualTextureBuiltData* InVTData, int32 SetFirstMipToUse)
+FVirtualTexture2DResource::FVirtualTexture2DResource(const UTexture2D* InOwner, FVirtualTextureBuiltData* InVTData, int32 SetFirstMipToUse)
 	: AllocatedVT(nullptr)
 	, VTData(InVTData)
 	, TextureOwner(InOwner)
-	, OwnerName(InName)
 {
+	check(InOwner);
 	check(InVTData);
 	FirstMipToUse = FMath::Min((int32)VTData->GetNumMips() - 1, SetFirstMipToUse);
 	if (InOwner)
@@ -1871,7 +1871,7 @@ void FVirtualTexture2DResource::InitRHI()
 	check(MaxLevel >= 0);
 
 	FVTProducerDescription ProducerDesc;
-	ProducerDesc.Name = OwnerName;
+	ProducerDesc.Name = TextureOwner->GetFName();
 	ProducerDesc.Dimensions = 2;
 	ProducerDesc.TileSize = VTData->TileSize;
 	ProducerDesc.TileBorderSize = VTData->TileBorderSize;
@@ -1899,7 +1899,7 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 {
 	// Create a texture resource from the lowest resolution VT page data
 	// this will then be used during asset tumbnails/hitproxies/...
-	if (GIsEditor && TextureOwner)
+	if (GIsEditor)
 	{
 		struct FPageToProduce
 		{

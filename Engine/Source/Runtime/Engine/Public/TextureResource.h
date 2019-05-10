@@ -257,7 +257,7 @@ private:
 class FVirtualTexture2DResource : public FTextureResource
 {
 public:
-	FVirtualTexture2DResource(const FName& InName, const UTexture2D* InOwner, struct FVirtualTextureBuiltData* InVTData, int32 FirstMipToUse);
+	FVirtualTexture2DResource(const UTexture2D* InOwner, struct FVirtualTextureBuiltData* InVTData, int32 FirstMipToUse);
 	virtual ~FVirtualTexture2DResource();
 
 	virtual void InitRHI() override;
@@ -304,7 +304,6 @@ private:
 	class IAllocatedVirtualTexture* AllocatedVT;
 	struct FVirtualTextureBuiltData* VTData;
 	const UTexture2D* TextureOwner;
-	FName OwnerName;
 	FVirtualTextureProducerHandle ProducerHandle;
 	int32 FirstMipToUse;
 };
