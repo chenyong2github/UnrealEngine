@@ -132,6 +132,7 @@ private:
 	void ViewAssetAudit();
 	void ZoomToFit();
 	bool CanZoomToFit() const;
+	void OnFind();
 
 	/** Handlers for searching */
 	void HandleOnSearchTextChanged(const FText& SearchText);
@@ -159,6 +160,7 @@ private:
 	TSharedPtr<SGraphEditor> GraphEditorPtr;
 
 	TSharedPtr<FUICommandList> ReferenceViewerActions;
+	TSharedPtr<SSearchBox> SearchBox;
 
 	UEdGraph_ReferenceViewer* GraphObj;
 

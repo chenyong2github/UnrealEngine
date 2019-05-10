@@ -33,6 +33,7 @@
 #include "Widgets/Input/SComboBox.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "AssetManagerEditorModule.h"
+#include "Framework/Application/SlateApplication.h"
 
 #include "ObjectTools.h"
 
@@ -186,7 +187,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 					.Padding(2.f)
 					.AutoHeight()
 					[
-						SNew(SSearchBox)
+						SAssignNew(SearchBox, SSearchBox)
 						.HintText(LOCTEXT("Search", "Search..."))
 						.ToolTipText(LOCTEXT("SearchTooltip", "Type here to search (pressing Enter zooms to the results)"))
 						.OnTextChanged(this, &SReferenceViewer::HandleOnSearchTextChanged)
@@ -917,6 +918,10 @@ void SReferenceViewer::RegisterActions()
 		FCanExecuteAction::CreateSP(this, &SReferenceViewer::CanZoomToFit));
 
 	ReferenceViewerActions->MapAction(
+		FAssetManagerEditorCommands::Get().Find,
+		FExecuteAction::CreateSP(this, &SReferenceViewer::OnFind));
+
+	ReferenceViewerActions->MapAction(
 		FGlobalEditorCommonCommands::Get().FindInContentBrowser,
 		FExecuteAction::CreateSP(this, &SReferenceViewer::ShowSelectionInContentBrowser),
 		FCanExecuteAction::CreateSP(this, &SReferenceViewer::HasAtLeastOnePackageNodeSelected));
@@ -1461,6 +1466,11 @@ bool SReferenceViewer::CanZoomToFit() const
 	}
 
 	return false;
+}
+
+void SReferenceViewer::OnFind()
+{
+	FSlateApplication::Get().SetKeyboardFocus(SearchBox, EFocusCause::SetDirectly);
 }
 
 void SReferenceViewer::HandleOnSearchTextChanged(const FText& SearchText)

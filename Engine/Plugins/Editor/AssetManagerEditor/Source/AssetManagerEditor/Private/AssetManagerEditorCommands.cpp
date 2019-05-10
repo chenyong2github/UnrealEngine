@@ -30,6 +30,7 @@ void FAssetManagerEditorCommands::RegisterCommands()
 	UI_COMMAND(ShowReferencingObjects, "Show Referencing Objects List", "Shows a list of objects that reference the selected asset.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ShowReferenceTree, "Show Reference Tree", "Shows a reference tree for the selected asset.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(AuditReferencedObjects, "Audit References", "Opens the Asset Audit UI and displays information about all assets referenced by selected asset", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(Find, "Find", "Find objects in the reference viewer.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::F));
 
 	UI_COMMAND(MakeLocalCollectionWithReferencers, "Local", "Local. This collection is only visible to you and is not in source control.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(MakePrivateCollectionWithReferencers, "Private", "Private. This collection is only visible to you.", EUserInterfaceActionType::Button, FInputChord());

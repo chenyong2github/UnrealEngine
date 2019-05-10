@@ -52,6 +52,9 @@ public:
 	/** Zoom in to fit the selected objects in the window */
 	TSharedPtr<FUICommandInfo> ZoomToFit;
 	
+	/** Start finding objects */
+	TSharedPtr<FUICommandInfo> Find;
+
 	// Creates a new collection with the list of assets that this asset references, user selects which ECollectionShareType to use.
 	TSharedPtr<FUICommandInfo> MakeLocalCollectionWithReferencers;
 	TSharedPtr<FUICommandInfo> MakePrivateCollectionWithReferencers;
