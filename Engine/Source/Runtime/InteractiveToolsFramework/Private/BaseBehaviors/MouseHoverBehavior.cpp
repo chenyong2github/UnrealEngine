@@ -27,6 +27,8 @@ void UMouseHoverBehavior::UpdateHover(const FInputDeviceState& input)
 {
 	if (Target != nullptr)
 	{
+		Modifiers.UpdateModifiers(input, Target);
+
 		Target->OnUpdateHover( FInputDeviceRay(input.Mouse.WorldRay, input.Mouse.Position2D) );
 	}
 }

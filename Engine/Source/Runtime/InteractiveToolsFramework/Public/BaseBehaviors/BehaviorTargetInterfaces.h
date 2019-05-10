@@ -150,7 +150,7 @@ public:
  * device event data in a generic way, without requiring that all Tools
  * know about the concept of Hovering.
  */
-class IHoverBehaviorTarget
+class IHoverBehaviorTarget : public IModifierToggleBehaviorTarget
 {
 public:
 	virtual ~IHoverBehaviorTarget() {}

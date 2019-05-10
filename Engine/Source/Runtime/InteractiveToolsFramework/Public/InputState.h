@@ -45,14 +45,14 @@ struct FInputDeviceRay
 	FVector2D ScreenPosition;
 
 
-	FInputDeviceRay(const FRay & WorldRayIn)
+	FInputDeviceRay(const FRay& WorldRayIn)
 	{
 		WorldRay = WorldRayIn;
 		bHas2D = false;
 		ScreenPosition = FVector2D(0, 0);
 	}
 
-	FInputDeviceRay(const FRay & WorldRayIn, const FVector2D& ScreenPositionIn)
+	FInputDeviceRay(const FRay& WorldRayIn, const FVector2D& ScreenPositionIn)
 	{
 		WorldRay = WorldRayIn;
 		bHas2D = true;

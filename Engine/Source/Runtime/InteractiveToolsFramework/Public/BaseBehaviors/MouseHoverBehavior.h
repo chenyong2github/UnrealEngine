@@ -6,6 +6,7 @@
 #include "InputBehavior.h"
 #include "InteractiveTool.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
+#include "BaseBehaviors/InputBehaviorModifierStates.h"
 #include "MouseHoverBehavior.generated.h"
 
 
@@ -21,6 +22,11 @@ class INTERACTIVETOOLSFRAMEWORK_API UMouseHoverBehavior : public UInputBehavior
 
 public:
 	UMouseHoverBehavior();
+
+	/**
+	 * The modifier set for this behavior
+	 */
+	FInputBehaviorModifierStates Modifiers;
 
 	virtual void Initialize(IHoverBehaviorTarget* Target);
 
