@@ -211,6 +211,12 @@ namespace UnrealBuildTool
 		public bool bClangTimeTrace = false;
 
 		/// <summary>
+		/// Outputs compile timing information so that it can be analyzed.
+		/// </summary>
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		public bool bCompilerTrace = false;
+
+		/// <summary>
 		/// Bundle a working version of dbghelp.dll with the application, and use this to generate minidumps. This works around a bug with the Windows 10 Fall Creators Update (1709)
 		/// where rich PE headers larger than a certain size would result in corrupt minidumps.
 		/// </summary>
@@ -399,6 +405,11 @@ namespace UnrealBuildTool
 		public bool bClangTimeTrace
 		{
 			get { return Inner.bClangTimeTrace; }
+		}
+
+		public bool bCompilerTrace
+		{
+			get { return Inner.bCompilerTrace; }
 		}
 
 		public string GetVisualStudioCompilerVersionName()

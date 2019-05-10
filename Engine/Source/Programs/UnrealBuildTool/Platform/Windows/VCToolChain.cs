@@ -903,11 +903,15 @@ namespace UnrealBuildTool
 				AddSystemIncludePath(SharedArguments, IncludePath);
 			}
 
-			if (CompileEnvironment.bPrintTimingInfo)
+			if (CompileEnvironment.bPrintTimingInfo || Target.WindowsPlatform.bCompilerTrace)
 			{
 				if(Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED || Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2017)
 				{
-					SharedArguments.Add("/Bt+ /d2cgsummary");
+					if (CompileEnvironment.bPrintTimingInfo)
+					{
+						SharedArguments.Add("/Bt+ /d2cgsummary");
+					}
+
 					if(EnvVars.ToolChainVersion >= VersionNumber.Parse("14.14.26316"))
 					{
 						SharedArguments.Add("/d1reportTime");
@@ -1171,7 +1175,7 @@ namespace UnrealBuildTool
 
 			Action ParseTimingInfoAction = Action.CreateRecursiveAction<ParseMsvcTimingInfoMode>(ActionType.ParseTimingInfo, ParseTimingArguments);
 			ParseTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
-			ParseTimingInfoAction.StatusDescription = String.Format("Parsing Timing File '{0}'", CompileAction.TimingFile);
+			ParseTimingInfoAction.StatusDescription = Path.GetFileName(CompileAction.TimingFile.AbsolutePath);
 			ParseTimingInfoAction.bCanExecuteRemotely = true;
 			ParseTimingInfoAction.bCanExecuteRemotelyWithSNDBS = true;
 			ParseTimingInfoAction.PrerequisiteItems.Add(SourceFile);
@@ -1187,7 +1191,7 @@ namespace UnrealBuildTool
 			CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
 			CommandArguments.Add(String.Format("-dependencies={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.DependencyListFile.Location)));
 
-			if (Target.bPrintToolChainTimingInfo)
+			if (Target.bPrintToolChainTimingInfo || Target.WindowsPlatform.bCompilerTrace)
 			{
 				CompileAction.TimingFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.timing.txt", SourceFile.Location.GetFileName())));
 				CompileAction.ProducedItems.Add(CompileAction.TimingFile);
@@ -1207,7 +1211,7 @@ namespace UnrealBuildTool
 
 		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefile Makefile)
 		{
-			if (Target.bPrintToolChainTimingInfo)
+			if (Target.bPrintToolChainTimingInfo || Target.WindowsPlatform.bCompilerTrace)
 			{
 				List<Action> ParseTimingActions = Makefile.Actions.Where(x => x.ActionType == ActionType.ParseTimingInfo).ToList();
 				List<FileItem> TimingJsonFiles = ParseTimingActions.SelectMany(a => a.ProducedItems.Where(i => i.HasExtension(".timing.bin"))).ToList();
