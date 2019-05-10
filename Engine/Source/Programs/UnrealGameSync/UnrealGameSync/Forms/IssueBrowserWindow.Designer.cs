@@ -43,6 +43,7 @@ namespace UnrealGameSync
             this.StatusLabel = new System.Windows.Forms.Label();
             this.FetchMoreResultsLinkLabel = new System.Windows.Forms.LinkLabel();
             this.tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
+            this.OwnerHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.tableLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel1.SuspendLayout();
             this.tableLayoutPanel2.SuspendLayout();
@@ -58,6 +59,7 @@ namespace UnrealGameSync
             this.IdHeader,
             this.CreatedHeader,
             this.ResolvedHeader,
+            this.OwnerHeader,
             this.DescriptionHeader});
             this.IssueListView.FullRowSelect = true;
             this.IssueListView.HideSelection = false;
@@ -101,7 +103,7 @@ namespace UnrealGameSync
             // DescriptionHeader
             // 
             this.DescriptionHeader.Text = "Description";
-            this.DescriptionHeader.Width = 704;
+            this.DescriptionHeader.Width = 567;
             // 
             // OkBtn
             // 
@@ -199,6 +201,12 @@ namespace UnrealGameSync
             this.tableLayoutPanel2.Size = new System.Drawing.Size(1055, 482);
             this.tableLayoutPanel2.TabIndex = 6;
             // 
+            // OwnerHeader
+            // 
+            this.OwnerHeader.Text = "Owner";
+            this.OwnerHeader.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.OwnerHeader.Width = 135;
+            // 
             // IssueBrowserWindow
             // 
             this.AcceptButton = this.OkBtn;
@@ -240,5 +248,6 @@ namespace UnrealGameSync
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;
 		private System.Windows.Forms.LinkLabel FetchMoreResultsLinkLabel;
 		private System.Windows.Forms.ColumnHeader IconHeader;
+		private System.Windows.Forms.ColumnHeader OwnerHeader;
 	}
 }
