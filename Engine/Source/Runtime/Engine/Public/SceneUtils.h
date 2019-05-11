@@ -42,6 +42,40 @@ ENGINE_API EMobileHDRMode GetMobileHDRMode();
 
 ENGINE_API bool IsMobileColorsRGB();
 
+/**
+* A pool of render (e.g. occlusion/timer) queries which are allocated individually, and returned to the pool as a group.
+*/
+class ENGINE_API FRenderQueryPool
+{
+public:
+	FRenderQueryPool(ERenderQueryType InQueryType)
+		: QueryType(InQueryType)
+		, NumQueriesAllocated(0)
+	{ }
+
+	virtual ~FRenderQueryPool();
+
+	/** Releases all the render queries in the pool. */
+	void Release();
+
+	/** Allocates an render query from the pool. */
+	FRenderQueryRHIRef AllocateQuery();
+
+	/** De-reference an render query, returning it to the pool instead of deleting it when the refcount reaches 0. */
+	void ReleaseQuery(FRenderQueryRHIRef &Query);
+
+	/** Returns the number of currently allocated queries. This is not necessarily the same as the pool size */
+	int32 GetAllocatedQueryCount() const { return NumQueriesAllocated;  }
+
+private:
+	/** Container for available render queries. */
+	TArray<FRenderQueryRHIRef> Queries;
+
+	ERenderQueryType QueryType;
+
+	int32 NumQueriesAllocated;
+};
+
 // Callback for calling one action (typical use case: delay a clear until it's actually needed)
 class FDelayedRendererAction
 {

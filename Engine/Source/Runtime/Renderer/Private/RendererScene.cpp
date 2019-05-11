@@ -126,7 +126,7 @@ struct FSpeedTreeWindComputation
 
 /** Default constructor. */
 FSceneViewState::FSceneViewState()
-	: OcclusionQueryPool(RHICreateRenderQueryPool(RQT_Occlusion))
+	: OcclusionQueryPool(RQT_Occlusion)
 	, TimerQueryPool(RHICreateRenderQueryPool(RQT_AbsoluteTime, FLatentGPUTimer::NumBufferedFrames * 2 * 2 * 2))
 	, TranslucencyTimer(TimerQueryPool)
 	, SeparateTranslucencyTimer(TimerQueryPool)

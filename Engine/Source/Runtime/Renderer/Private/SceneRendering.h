@@ -249,7 +249,7 @@ public:
 	 * Batches a primitive's occlusion query for rendering.
 	 * @param Bounds - The primitive's bounds.
 	 */
-	FRHIPooledRenderQuery BatchPrimitive(const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
+	FRenderQueryRHIParamRef BatchPrimitive(const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
 	inline int32 GetNumBatchOcclusionQueries() const
 	{
 		return BatchOcclusionQueries.Num();
@@ -259,7 +259,7 @@ private:
 
 	struct FOcclusionBatch
 	{
-		TRefCountPtr<FRHIRenderQuery> Query;
+		FRenderQueryRHIRef Query;
 		FGlobalDynamicVertexBuffer::FAllocation VertexAllocation;
 	};
 
@@ -276,7 +276,7 @@ private:
 	uint32 NumBatchedPrimitives;
 
 	/** The pool to allocate occlusion queries from. */
-	TRefCountPtr<FRHIRenderQueryPool> OcclusionQueryPool;
+	class FRenderQueryPool* OcclusionQueryPool;
 };
 
 class FHZBOcclusionTester : public FRenderResource
