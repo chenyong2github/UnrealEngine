@@ -3,3 +3,5 @@
 #pragma once
 
 #include "Android/AndroidPlatform.h"
+
+PLATFORM_GLOBAL_LOG_CATEGORY_ALT LogLumin
