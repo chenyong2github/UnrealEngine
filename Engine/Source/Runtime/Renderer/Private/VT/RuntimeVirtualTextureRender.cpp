@@ -6,13 +6,13 @@
 #include "GPUScene.h"
 #include "MaterialShader.h"
 #include "MeshPassProcessor.h"
-#include "MeshPassProcessor.inl"
 #include "RenderGraphBuilder.h"
 #include "RenderUtils.h"
 #include "ScenePrivate.h"
 #include "SceneRenderTargets.h"
 #include "ShaderBaseClasses.h"
 #include "VT/RuntimeVirtualTexture.h"
+#include "MeshPassProcessor.inl"
 
 
 namespace RuntimeVirtualTexture

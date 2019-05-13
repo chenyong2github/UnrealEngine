@@ -3788,7 +3788,7 @@ protected:
 				);
 	}
 
-	static TCHAR* GetVTAddressMode(TextureAddress Address)
+	static const TCHAR* GetVTAddressMode(TextureAddress Address)
 	{
 		switch (Address)
 		{

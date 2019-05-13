@@ -1,5 +1,3 @@
-#pragma once
-
 #include "AssetVtConversion.h"
 #include "Engine/Texture2D.h"
 #include "Misc/PackageName.h"

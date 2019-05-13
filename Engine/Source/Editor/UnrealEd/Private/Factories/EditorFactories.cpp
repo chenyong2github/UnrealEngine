@@ -3118,7 +3118,7 @@ void FImportImage::Init2DWithMips(int32 InSizeX, int32 InSizeY, int32 InNumMips,
 {
 	SizeX = InSizeX;
 	SizeY = InSizeY;
-	NumMips = NumMips;
+	NumMips = InNumMips;
 	Format = InFormat;
 
 	int32 TotalSize = 0;
@@ -3165,7 +3165,7 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 	{
 		if (!IsImportResolutionValid(PngImageWrapper->GetWidth(), PngImageWrapper->GetHeight(), bAllowNonPowerOfTwo, Warn))
 		{
-			return nullptr;
+			return false;
 		}
 
 		// Select the texture's source format
@@ -3313,7 +3313,7 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 
 		if (!IsImportResolutionValid(Width, Height, bAllowNonPowerOfTwo, Warn))
 		{
-			return nullptr;
+			return false;
 		}
 
 		// Select the texture's source format
@@ -3330,7 +3330,7 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 		if (TextureFormat == TSF_Invalid)
 		{
 			Warn->Logf(ELogVerbosity::Error, TEXT("EXR file contains data in an unsupported format."));
-			return nullptr;
+			return false;
 		}
 
 		const TArray<uint8>* Raw = nullptr;
