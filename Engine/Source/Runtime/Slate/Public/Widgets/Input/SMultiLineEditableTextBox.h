@@ -260,6 +260,9 @@ public:
 	/** See attribute Style */
 	void SetStyle(const FEditableTextBoxStyle* InStyle);
 
+	/** See attribute TextStyle */
+	void SetTextStyle(const FTextBlockStyle* InTextStyle);	
+
 	/**
 	 * Sets the text string currently being edited 
 	 *

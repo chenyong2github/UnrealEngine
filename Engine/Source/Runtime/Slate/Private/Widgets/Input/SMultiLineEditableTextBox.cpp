@@ -198,6 +198,11 @@ void SMultiLineEditableTextBox::SetStyle(const FEditableTextBoxStyle* InStyle)
 	BorderImageReadOnly = &Style->BackgroundImageReadOnly;
 }
 
+void SMultiLineEditableTextBox::SetTextStyle(const FTextBlockStyle* InTextStyle)
+{
+	EditableText->SetTextStyle(InTextStyle);
+}
+
 FSlateColor SMultiLineEditableTextBox::DetermineForegroundColor() const
 {
 	check(Style);

@@ -123,6 +123,16 @@ void UMultiLineEditableText::SetIsReadOnly(bool bReadOnly)
 	}
 }
 
+void UMultiLineEditableText::SetWidgetStyle(const FTextBlockStyle& InWidgetStyle)
+{
+	WidgetStyle = InWidgetStyle;
+
+	if (MyMultiLineEditableText.IsValid())
+	{
+		MyMultiLineEditableText->SetTextStyle(&WidgetStyle);
+	}
+}
+
 void UMultiLineEditableText::HandleOnTextChanged(const FText& InText)
 {
 	OnTextChanged.Broadcast(InText);

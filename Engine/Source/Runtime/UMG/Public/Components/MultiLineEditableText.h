@@ -41,7 +41,7 @@ public:
 public:
 
 	/** The style */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style", meta=(ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetWidgetStyle, Category="Style", meta=(ShowOnlyInnerProperties))
 	FTextBlockStyle WidgetStyle;
 
 	/** Sets whether this text block can be modified interactively by the user */
@@ -100,6 +100,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetIsReadOnly (Multi-Line Editable Text"))
 	void SetIsReadOnly(bool bReadOnly);
+
+	UFUNCTION(BlueprintSetter)
+	void SetWidgetStyle(const FTextBlockStyle& InWidgetStyle);
 	
 	//~ Begin UWidget Interface
 	virtual void SynchronizeProperties() override;
