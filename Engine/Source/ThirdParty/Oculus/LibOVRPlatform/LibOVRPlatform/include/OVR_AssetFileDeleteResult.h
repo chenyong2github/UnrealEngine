@@ -9,7 +9,7 @@
 
 typedef struct ovrAssetFileDeleteResult *ovrAssetFileDeleteResultHandle;
 
-/// DEPRECATED. Alias to asset id.
+/// DEPRECATED. Use ovr_AssetFileDeleteResult_GetAssetId().
 OVRP_PUBLIC_FUNCTION(ovrID) ovr_AssetFileDeleteResult_GetAssetFileId(const ovrAssetFileDeleteResultHandle obj);
 
 /// ID of the asset file

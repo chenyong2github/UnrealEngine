@@ -58,7 +58,7 @@
 // Master version numbers
 #define AVATAR_PRODUCT_VERSION 1 // Product version doesn't participate in semantic versioning.
 #define AVATAR_MAJOR_VERSION   1 // If you change these values then you need to also make sure to change LibOVRPlatform.props in parallel.
-#define AVATAR_MINOR_VERSION   31
+#define AVATAR_MINOR_VERSION   36
 #define AVATAR_PATCH_VERSION   0
 #define AVATAR_BUILD_NUMBER    0
 #define AVATAR_DRIVER_VERSION  0

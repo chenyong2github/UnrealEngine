@@ -146,6 +146,9 @@ protected:
 	uint8 NumUsedClearValues;
 	ESubpassHint SubpassHint = ESubpassHint::None;
 	uint8 bIsMultiView;
+	uint8 Pad0 = 0;
+	uint8 Pad1 = 0;
+	uint8 Pad2 = 0;
 
 	// Hash for a compatible RenderPass
 	uint32 RenderPassCompatibleHash = 0;

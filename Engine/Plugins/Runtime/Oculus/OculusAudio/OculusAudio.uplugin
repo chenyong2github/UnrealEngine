@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.18.0",
+	"VersionName": "1.34.0",
 	"FriendlyName": "Oculus Audio",
 	"Description": "Oculus audio spatialization",
 	"Category": "Audio",
@@ -20,7 +20,7 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
-				"Win64",
+				"Win64"
 			]
 		},
 		{

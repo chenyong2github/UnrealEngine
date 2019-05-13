@@ -471,13 +471,6 @@ ovrp_TestBoundaryNode2(ovrpNode node, ovrpBoundaryType boundaryType, ovrpBoundar
 OVRP_EXPORT ovrpResult
 ovrp_TestBoundaryPoint2(ovrpVector3f point, ovrpBoundaryType boundaryType, ovrpBoundaryTestResult* boundaryTestResult);
 
-/// Configures the boundary system's look and feel with the provided configuration data. May be
-/// overridden by user settings.
-OVRP_EXPORT ovrpResult ovrp_SetBoundaryLookAndFeel2(ovrpBoundaryLookAndFeel lookAndFeel);
-
-/// Resets the boundary system's look and feel to the initial system settings.
-OVRP_EXPORT ovrpResult ovrp_ResetBoundaryLookAndFeel2();
-
 /// Gets the geometry data for the specified boundary type.
 OVRP_EXPORT ovrpResult ovrp_GetBoundaryGeometry3(ovrpBoundaryType boundaryType, ovrpVector3f* points, int* pointsCount);
 
@@ -578,6 +571,8 @@ OVRP_EXPORT ovrpResult ovrp_GetTimeInSeconds(double* timeInSeconds);
 /// Return a parameter for PTW to compress depth value
 /// Intuitively, it means the closest depth we can save in alpha.
 OVRP_EXPORT ovrpResult ovrp_GetPTWNear(float* ptwNear);
+
+OVRP_EXPORT ovrpResult ovrp_GetPredictedDisplayTime(int frameIndex, double *predictedDisplayTime);
 
 #ifdef __cplusplus
 }

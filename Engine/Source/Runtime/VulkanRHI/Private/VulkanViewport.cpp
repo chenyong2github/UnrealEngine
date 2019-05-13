@@ -364,11 +364,6 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 			ensure(0);
 		}
 
-		if (Texture->MSAASurface)
-		{
-			AttachmentTextureViews.Add(Texture->MSAAView);
-		}
-
 		AttachmentTextureViews.Add(RTView);
 		AttachmentViewsToDelete.Add(RTView.View);
 

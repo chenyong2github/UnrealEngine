@@ -156,9 +156,6 @@ OVRP_EXPORT ovrpBoundaryTestResult ovrp_TestBoundaryNode(ovrpNode node, ovrpBoun
 
 OVRP_EXPORT ovrpBoundaryTestResult ovrp_TestBoundaryPoint(ovrpVector3f point, ovrpBoundaryType boundaryType);
 
-OVRP_EXPORT ovrpBool ovrp_SetBoundaryLookAndFeel(ovrpBoundaryLookAndFeel lookAndFeel);
-OVRP_EXPORT ovrpBool ovrp_ResetBoundaryLookAndFeel();
-
 OVRP_EXPORT ovrpBool ovrp_GetBoundaryGeometry2(ovrpBoundaryType boundaryType, ovrpVector3f* points, int* pointsCount);
 
 OVRP_EXPORT ovrpVector3f ovrp_GetBoundaryDimensions(ovrpBoundaryType boundaryType);
@@ -357,6 +354,13 @@ OVRP_EXPORT ovrpResult ovrp_SetPTWEnable(ovrpBool enable);
 
 // Return current PTW status
 OVRP_EXPORT ovrpResult ovrp_GetPTWEnable(ovrpBool* enable);
+
+// Enable / Disable ASW
+OVRP_EXPORT ovrpResult ovrp_SetASWEnable(ovrpBool enable);
+
+// Return current PTW status
+OVRP_EXPORT ovrpResult ovrp_GetASWEnable(ovrpBool* enable);
+
 #ifdef __cplusplus
 }
 #endif

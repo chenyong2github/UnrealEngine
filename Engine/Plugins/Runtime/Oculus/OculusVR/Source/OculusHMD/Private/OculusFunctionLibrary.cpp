@@ -533,6 +533,19 @@ static ovrpBoundaryType ToOvrpBoundaryType(EBoundaryType Source)
 }
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 
+bool UOculusFunctionLibrary::IsGuardianConfigured()
+{
+#if OCULUS_HMD_SUPPORTED_PLATFORMS
+	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
+	if (OculusHMD != nullptr)
+	{
+		ovrpBool boundaryConfigured;
+		return OVRP_SUCCESS(ovrp_GetBoundaryConfigured2(&boundaryConfigured)) && boundaryConfigured;
+	}
+#endif
+	return false;
+}
+
 bool UOculusFunctionLibrary::IsGuardianDisplayed()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS

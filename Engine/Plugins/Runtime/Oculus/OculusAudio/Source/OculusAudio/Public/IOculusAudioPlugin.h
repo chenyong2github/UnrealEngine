@@ -7,9 +7,9 @@
 #include "OculusAudioDllManager.h"
 
 /************************************************************************/
-/* FOculusAudioPlugin                                                   */
+/* FOculusAudioPlugin												   */
 /* Module interface. Also handles loading and unloading the Oculus Audio*/
-/* DLL using FOculusAudioDllManager.                                    */
+/* DLL using FOculusAudioDllManager.									*/
 /************************************************************************/
 class FOculusAudioPlugin : public IModuleInterface
 {
@@ -19,14 +19,14 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface
 
-    void RegisterAudioDevice(FAudioDevice* AudioDeviceHandle);
-    void UnregisterAudioDevice(FAudioDevice* AudioDeviceHandle);
+	void RegisterAudioDevice(FAudioDevice* AudioDeviceHandle);
+	void UnregisterAudioDevice(FAudioDevice* AudioDeviceHandle);
 
-    FOculusSpatializationPluginFactory* GetSpatializationPluginFactory() { return &PluginFactory; }
-    FOculusReverbPluginFactory* GetReverbPluginFactory() { return &ReverbPluginFactory; }
+	FOculusSpatializationPluginFactory* GetSpatializationPluginFactory() { return &PluginFactory; }
+	FOculusReverbPluginFactory* GetReverbPluginFactory() { return &ReverbPluginFactory; }
 
 private:
-    TArray<FAudioDevice*> RegisteredAudioDevices;
-    FOculusSpatializationPluginFactory PluginFactory;
-    FOculusReverbPluginFactory ReverbPluginFactory;
+	TArray<FAudioDevice*> RegisteredAudioDevices;
+	FOculusSpatializationPluginFactory PluginFactory;
+	FOculusReverbPluginFactory ReverbPluginFactory;
 };

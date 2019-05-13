@@ -35,6 +35,13 @@ static TAutoConsoleVariable<int32> CVarTimeStampErrorRetryCount(
 #define ENABLE_VERIFY_EGL 0
 #define ENABLE_VERIFY_EGL_TRACE 0
 
+#if USE_ANDROID_EGL_NO_ERROR_CONTEXT
+#ifndef EGL_KHR_create_context_no_error
+#define EGL_KHR_create_context_no_error 1
+#define EGL_CONTEXT_OPENGL_NO_ERROR_KHR   0x31B3
+#endif // EGL_KHR_create_context_no_error
+#endif // USE_ANDROID_EGL_NO_ERROR_CONTEXT
+
 #if ENABLE_VERIFY_EGL
 
 #define VERIFY_EGL(msg) { VerifyEGLResult(eglGetError(),TEXT(#msg),TEXT(""),TEXT(__FILE__),__LINE__); }
@@ -241,6 +248,7 @@ validConfig (0)
 AndroidEGL::AndroidEGL()
 :	bSupportsKHRCreateContext(false)
 ,	bSupportsKHRSurfacelessContext(false)
+,	bSupportsKHRNoErrorContext(false)
 ,	ContextAttributes(nullptr)
 {
 	PImplData = new AndroidESPImpl();
@@ -474,6 +482,7 @@ void AndroidEGL::InitEGL(APIVariant API)
 
 	bSupportsKHRCreateContext = Extensions.Contains(TEXT("EGL_KHR_create_context"));
 	bSupportsKHRSurfacelessContext = Extensions.Contains(TEXT("EGL_KHR_surfaceless_context"));
+	bSupportsKHRNoErrorContext = Extensions.Contains(TEXT("EGL_KHR_create_context_no_error"));
 
 	if (API == AV_OpenGLES)
 	{
@@ -696,14 +705,14 @@ void AndroidEGL::InitSurface(bool bUseSmallSurface, bool bCreateWndSurface)
 	PImplData->SingleThreadedContext.eglSurface = PImplData->eglSurface;
 }
 
-// call out to JNI to see if the application was packaged for Gear VR
-extern bool AndroidThunkCpp_IsGearVRApplication();
+// call out to JNI to see if the application was packaged for Oculus Mobile
+extern bool AndroidThunkCpp_IsOculusMobileApplication();
 
 void AndroidEGL::ReInit()
 {
 	FPlatformMisc::LowLevelOutputDebugString(TEXT("AndroidEGL::ReInit()"));
 	SetCurrentContext(EGL_NO_CONTEXT, EGL_NO_SURFACE);
-	bool bCreateSurface = !AndroidThunkCpp_IsGearVRApplication();
+	bool bCreateSurface = !AndroidThunkCpp_IsOculusMobileApplication();
 	InitSurface(false, bCreateSurface);
 	SetCurrentSharedContext();
 }
@@ -726,11 +735,18 @@ void AndroidEGL::Init(APIVariant API, uint32 MajorVersion, uint32 MinorVersion, 
 
 		ContextAttributes = new int[MaxElements];
 		uint32 Element = 0;
-		
+
 		ContextAttributes[Element++] = EGL_CONTEXT_MAJOR_VERSION_KHR;
 		ContextAttributes[Element++] = MajorVersion;
 		ContextAttributes[Element++] = EGL_CONTEXT_MINOR_VERSION_KHR;
 		ContextAttributes[Element++] = MinorVersion;
+#if USE_ANDROID_EGL_NO_ERROR_CONTEXT
+		if (bSupportsKHRNoErrorContext && AndroidThunkCpp_IsOculusMobileApplication())
+		{
+			ContextAttributes[Element++] = EGL_CONTEXT_OPENGL_NO_ERROR_KHR;
+			ContextAttributes[Element++] = EGL_TRUE;
+		}
+#endif // USE_ANDROID_EGL_NO_ERROR_CONTEXT
 		if (API == AV_OpenGLCore)
 		{
 			ContextAttributes[Element++] = EGL_CONTEXT_OPENGL_PROFILE_MASK_KHR;

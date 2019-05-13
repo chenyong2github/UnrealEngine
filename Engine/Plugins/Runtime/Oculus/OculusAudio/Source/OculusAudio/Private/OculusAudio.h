@@ -10,9 +10,9 @@
 #include "OculusAudioSourceSettings.h"
 
 /************************************************************************/
-/* FOculusSpatializationPluginFactory                                   */
+/* FOculusSpatializationPluginFactory								   */
 /* Handles initialization of the required Oculus Audio Spatialization   */
-/* plugin.                                                              */
+/* plugin.															  */
 /************************************************************************/
 class FOculusSpatializationPluginFactory : public IAudioSpatializationFactory
 {
@@ -36,7 +36,7 @@ public:
 		}
 	}
 
-    virtual UClass* GetCustomSpatializationSettingsClass() const override { return UOculusAudioSourceSettings::StaticClass(); }
+	virtual UClass* GetCustomSpatializationSettingsClass() const override { return UOculusAudioSourceSettings::StaticClass(); }
 
 	virtual TAudioSpatializationPtr CreateNewSpatializationPlugin(FAudioDevice* OwningDevice) override;
 	//~ End IAudioSpatializationFactory
@@ -48,26 +48,26 @@ public:
 class FOculusReverbPluginFactory : public IAudioReverbFactory
 {
 public:
-    //~ Begin IAudioReverbFactory
-    virtual FString GetDisplayName() override
-    {
-        static FString DisplayName = FString(TEXT("Oculus Audio"));
-        return DisplayName;
-    }
+	//~ Begin IAudioReverbFactory
+	virtual FString GetDisplayName() override
+	{
+		static FString DisplayName = FString(TEXT("Oculus Audio"));
+		return DisplayName;
+	}
 
-    virtual bool SupportsPlatform(EAudioPlatform Platform) override
-    {
-        if (Platform == EAudioPlatform::Windows)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
+	virtual bool SupportsPlatform(EAudioPlatform Platform) override
+	{
+		if (Platform == EAudioPlatform::Windows)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
 
-    virtual TAudioReverbPtr CreateNewReverbPlugin(FAudioDevice* OwningDevice) override;
-    //~ End IAudioReverbFactory
+	virtual TAudioReverbPtr CreateNewReverbPlugin(FAudioDevice* OwningDevice) override;
+	//~ End IAudioReverbFactory
 };
 

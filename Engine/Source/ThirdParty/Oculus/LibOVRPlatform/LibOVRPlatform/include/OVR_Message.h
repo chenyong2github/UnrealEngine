@@ -15,6 +15,9 @@
 #include "OVR_AssetFileDownloadCancelResult.h"
 #include "OVR_AssetFileDownloadResult.h"
 #include "OVR_AssetFileDownloadUpdate.h"
+#include "OVR_CalApplicationFinalized.h"
+#include "OVR_CalApplicationProposed.h"
+#include "OVR_CalApplicationSuggestionArray.h"
 #include "OVR_CloudStorageConflictMetadata.h"
 #include "OVR_CloudStorageData.h"
 #include "OVR_CloudStorageMetadata.h"
@@ -23,6 +26,10 @@
 #include "OVR_Error.h"
 #include "OVR_HttpTransferUpdate.h"
 #include "OVR_InstalledApplicationArray.h"
+#include "OVR_LaunchBlockFlowResult.h"
+#include "OVR_LaunchFriendRequestFlowResult.h"
+#include "OVR_LaunchReportFlowResult.h"
+#include "OVR_LaunchUnblockFlowResult.h"
 #include "OVR_LeaderboardEntryArray.h"
 #include "OVR_LeaderboardUpdateStatus.h"
 #include "OVR_LinkedAccountArray.h"
@@ -76,6 +83,9 @@ OVRP_PUBLIC_FUNCTION(ovrAssetFileDeleteResultHandle)           ovr_Message_GetAs
 OVRP_PUBLIC_FUNCTION(ovrAssetFileDownloadCancelResultHandle)   ovr_Message_GetAssetFileDownloadCancelResult(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrAssetFileDownloadResultHandle)         ovr_Message_GetAssetFileDownloadResult(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrAssetFileDownloadUpdateHandle)         ovr_Message_GetAssetFileDownloadUpdate(const ovrMessageHandle obj);
+OVRP_PUBLIC_FUNCTION(ovrCalApplicationFinalizedHandle)         ovr_Message_GetCalApplicationFinalized(const ovrMessageHandle obj);
+OVRP_PUBLIC_FUNCTION(ovrCalApplicationProposedHandle)          ovr_Message_GetCalApplicationProposed(const ovrMessageHandle obj);
+OVRP_PUBLIC_FUNCTION(ovrCalApplicationSuggestionArrayHandle)   ovr_Message_GetCalApplicationSuggestionArray(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrCloudStorageConflictMetadataHandle)    ovr_Message_GetCloudStorageConflictMetadata(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrCloudStorageDataHandle)                ovr_Message_GetCloudStorageData(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrCloudStorageMetadataHandle)            ovr_Message_GetCloudStorageMetadata(const ovrMessageHandle obj);
@@ -84,6 +94,10 @@ OVRP_PUBLIC_FUNCTION(ovrCloudStorageUpdateResponseHandle)      ovr_Message_GetCl
 OVRP_PUBLIC_FUNCTION(ovrErrorHandle)                           ovr_Message_GetError(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrHttpTransferUpdateHandle)              ovr_Message_GetHttpTransferUpdate(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrInstalledApplicationArrayHandle)       ovr_Message_GetInstalledApplicationArray(const ovrMessageHandle obj);
+OVRP_PUBLIC_FUNCTION(ovrLaunchBlockFlowResultHandle)           ovr_Message_GetLaunchBlockFlowResult(const ovrMessageHandle obj);
+OVRP_PUBLIC_FUNCTION(ovrLaunchFriendRequestFlowResultHandle)   ovr_Message_GetLaunchFriendRequestFlowResult(const ovrMessageHandle obj);
+OVRP_PUBLIC_FUNCTION(ovrLaunchReportFlowResultHandle)          ovr_Message_GetLaunchReportFlowResult(const ovrMessageHandle obj);
+OVRP_PUBLIC_FUNCTION(ovrLaunchUnblockFlowResultHandle)         ovr_Message_GetLaunchUnblockFlowResult(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrLeaderboardEntryArrayHandle)           ovr_Message_GetLeaderboardEntryArray(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrLeaderboardUpdateStatusHandle)         ovr_Message_GetLeaderboardUpdateStatus(const ovrMessageHandle obj);
 OVRP_PUBLIC_FUNCTION(ovrLinkedAccountArrayHandle)              ovr_Message_GetLinkedAccountArray(const ovrMessageHandle obj);

@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
-	"Version": 1,
-	"VersionName": "1.24.0",
+	"Version": 2,
+	"VersionName": "1.32.0",
 	"FriendlyName": "Online Subsystem Oculus",
 	"Description": "Access to Oculus platform",
 	"Category": "Online Platform",

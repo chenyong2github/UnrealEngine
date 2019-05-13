@@ -9,7 +9,7 @@
 
 typedef struct ovrAssetFileDownloadCancelResult *ovrAssetFileDownloadCancelResultHandle;
 
-/// DEPRECATED. Alias to asset id.
+/// DEPRECATED. Use ovr_AssetFileDownloadCancelResult_GetAssetId().
 OVRP_PUBLIC_FUNCTION(ovrID) ovr_AssetFileDownloadCancelResult_GetAssetFileId(const ovrAssetFileDownloadCancelResultHandle obj);
 
 /// ID of the asset file

@@ -8,14 +8,16 @@
 #include "OVR_Plugin.h"
 #include "OVR_Plugin_Types.h"
 #include "DrawDebugHelpers.h"
-
-static const float OvrAvatarScaleToUE4 = 100.0f;
-
-extern float DebugLineScale;
-extern bool DrawDebug;
+#include "Components/SceneComponent.h"
 
 namespace OvrAvatarHelpers
 {
+	static float DebugLineScale = 100.f;
+	static bool DrawDebug = false;
+
+	static const float OvrAvatarScaleToUE4 = 100.0f;
+	static const float UE4ToOvrAvatarScale = 0.01f;
+
 	inline void DebugDrawCoords(const UWorld* world, FTransform& trans)
 	{
 		if (!DrawDebug)
@@ -24,7 +26,28 @@ namespace OvrAvatarHelpers
 		DrawDebugCoordinateSystem(world, trans.GetLocation(), FRotator(trans.GetRotation()), DebugLineScale);
 	}
 
-	inline void ConvertTransform(const ovrAvatarTransform& oTransform, FTransform& outTransform)
+	inline void FVectorToOvrAvatarVector3f(const FVector& inVec, ovrAvatarVector3f& outVec)
+	{
+		outVec.x = inVec.Y * UE4ToOvrAvatarScale;
+		outVec.y = inVec.Z * UE4ToOvrAvatarScale;
+		outVec.z = -inVec.X * UE4ToOvrAvatarScale;
+	}
+
+	inline void FQuatToOvrAvatarQuat3f(const FQuat& inQuat, ovrAvatarQuatf& outQuat)
+	{
+		outQuat.x = inQuat.Y;
+		outQuat.y = inQuat.Z;
+		outQuat.z = -inQuat.X;
+		outQuat.w = -inQuat.W;
+	}
+
+	inline void FTransfromToOvrAvatarTransform(const FTransform& inTrans, ovrAvatarTransform& outTransform)
+	{
+		FVectorToOvrAvatarVector3f(inTrans.GetLocation(), outTransform.position);
+		FQuatToOvrAvatarQuat3f(inTrans.GetRotation(), outTransform.orientation);
+	}
+
+	inline void OvrAvatarTransformToFTransfrom(const ovrAvatarTransform& oTransform, FTransform& outTransform)
 	{
 		outTransform.SetLocation(FVector(
 			float(-oTransform.position.z * OvrAvatarScaleToUE4),

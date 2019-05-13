@@ -23,21 +23,16 @@ namespace OculusHMD
 // FCustomPresent
 //-------------------------------------------------------------------------------------------------
 
-FCustomPresent::FCustomPresent(class FOculusHMD* InOculusHMD, ovrpRenderAPIType InRenderAPI, EPixelFormat InDefaultPixelFormat, bool bInSupportsSRGB, bool bInSupportsDepth)
+FCustomPresent::FCustomPresent(class FOculusHMD* InOculusHMD, ovrpRenderAPIType InRenderAPI, EPixelFormat InDefaultPixelFormat, bool bInSupportsSRGB)
 	: OculusHMD(InOculusHMD)
 	, RenderAPI(InRenderAPI)
 	, DefaultPixelFormat(InDefaultPixelFormat)
 	, bSupportsSRGB(bInSupportsSRGB)
-#if PLATFORM_ANDROID
-	, bSupportsDepth(false)
-#else
-	, bSupportsDepth(bInSupportsDepth)
-#endif
 {
 	CheckInGameThread();
 
 	DefaultOvrpTextureFormat = GetOvrpTextureFormat(GetDefaultPixelFormat());
-	DefaultDepthOvrpTextureFormat = bSupportsDepth ? ovrpTextureFormat_D32_S824_FP : ovrpTextureFormat_None;
+	DefaultDepthOvrpTextureFormat = ovrpTextureFormat_None;
 
 	// grab a pointer to the renderer module for displaying our mirror window
 	static const FName RendererModuleName("Renderer");

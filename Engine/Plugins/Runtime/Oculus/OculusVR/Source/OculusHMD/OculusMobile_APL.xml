@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--GearVR plugin additions-->
+<!--Oculus mobile plugin additions-->
 <root xmlns:android="http://schemas.android.com/apk/res/android">
 	<!-- init section is always evaluated once per architecture -->
 	<init>
-		<log text="GearVR init"/>
+		<log text="Oculus mobile init"/>
 		<setBool result="bSupported" value="false"/>
 		<isArch arch="armeabi-v7a">
 			<setBool result="bSupported" value="true"/>
@@ -15,9 +15,13 @@
 		<!-- remove Oculus Signature Files by default -->
 		<setBool result="bRemoveOSIG" value="true"/>
 
-		<!-- get packaging for GearVR from ini and reset it if architecture not supported -->
+		<!-- get packaging for Oculus Mobile from ini and reset it if architecture not supported -->
 		<setBoolFromProperty result="bPackageForGearVR" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="bPackageForGearVR" default="false"/>
-		<if condition="bPackageForGearVR">
+		<setBoolFromPropertyContains result="bPackageForOculusGoGearVR" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="PackageForOculusMobile" contains="GearGo"/>
+		<setBoolFromPropertyContains result="bPackageForOculusQuest" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="PackageForOculusMobile" contains="Quest"/>
+		<setBoolOr result="bPackageForOculusMobile" arg1="$B(bPackageForOculusGoGearVR)" arg2="$B(bPackageForOculusQuest)" />
+		<setBoolOr result="bPackageForOculusMobile" arg1="$B(bPackageForOculusMobile)" arg2="$B(bPackageForGearVR)" />
+		<if condition="bPackageForOculusMobile">
 			<true>
 				<if condition="bSupported">
 					<true>
@@ -26,7 +30,7 @@
 								<setBoolFromProperty result="bRemoveOSIG" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="bRemoveOSIG" default="false"/>
 								<if condition="bRemoveOSIG">
 									<true>
-										<log text="GearVR entitlement checks are enabled"/>
+										<log text="Oculus mobile entitlement checks are enabled"/>
 									</true>
 								</if>
 							</true>
@@ -37,8 +41,8 @@
 						</if>
 					</true>
 					<false>
-						<setBool result="bPackageForGearVR" value="false"/>
-						<log text="GearVR not supported for this architecture, disabled."/>
+						<setBool result="bPackageForOculusMobile" value="false"/> 
+						<log text="Oculus mobile not supported for this architecture, disabled."/>
 					</false>
 				</if>
 			</true>
@@ -50,24 +54,24 @@
 			</true>
 		</if>
 
-		<!-- package for GearVR and for distribution -->
-		<setBool result="bGearDistribution" value="false"/>
-		<if condition="bPackageForGearVR">
+		<!-- package for Oculus and for distribution -->
+		<setBool result="bOculusDistribution" value="false"/>
+		<if condition="bPackageForOculusMobile">
 			<true>
 				<isDistribution>
-					<setBool result="bGearDistribution" value="true"/>
-					<log text="Building with GearVR for distribution"/>
+					<setBool result="bOculusDistribution" value="true"/>
+					<log text="Building with Oculus mobile for distribution"/>
 				</isDistribution>
 			</true>
 		</if>
 
-		<!-- entitlements check if package GearVR for distribution and removing OSIGs -->
-		<setBoolAnd result="bEntitlementCheck" arg1="$B(bRemoveOSIG)" arg2="$B(bGearDistribution)"/>
+		<!-- entitlements check if package Oculus for distribution and removing OSIGs -->
+		<setBoolAnd result="bEntitlementCheck" arg1="$B(bRemoveOSIG)" arg2="$B(bOculusDistribution)"/>
 	</init>
 
 	<!-- optional updates applied to AndroidManifest.xml -->
 	<androidManifestUpdates>
-		<if condition="bGearDistribution">
+		<if condition="bOculusDistribution">
 			<true>
 				<!-- distribution builds can install internal or SD card -->
 				<addAttribute tag="manifest" name="android:installLocation" value="auto"/>
@@ -101,13 +105,21 @@
 				</loopElements>
 			</true>
 		</if>
-		<if condition="bPackageForGearVR">
+		<if condition="bPackageForOculusMobile">
 			<true>
 				<addElements tag="application">
 					<meta-data android:name="com.samsung.android.vr.application.mode" android:value="vr_only"/>
 				</addElements>
 				<addPermission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 				<addFeature android:name="android.hardware.usb.host"/>
+			</true>
+		</if>
+		<setBool result="bOculus3Dof" value="$B(bPackageForOculusGoGearVR)" />
+		<setBool result="bOculus6Dof" value="$B(bPackageForOculusQuest)" />
+		<setBoolNot result="bNotOculus3Dof" source="$B(bOculus3Dof)" />
+		<if condition="bOculus6Dof">
+			<true>
+				<addFeature android:name="android.hardware.vr.headtracking" android:version="1" android:required="$B(bNotOculus3Dof)" />
 			</true>
 		</if>
 	</androidManifestUpdates>
@@ -182,14 +194,14 @@
 	<!-- optional additions to the GameActivity class in GameActivity.java -->
 	<gameActivityClassAdditions>
 		<insert>
-	/** Whether this application was packaged for GearVR or not */
-	public boolean PackagedForGearVR = false;
+			/** Whether this application was packaged for Oculus Mobile or not */
+			public boolean PackagedForOculusMobile = false;
 
-	// check the manifest to determine if we are a GearVR application
-	public boolean AndroidThunkJava_IsGearVRApplication()
-	{
-		return PackagedForGearVR;
-	}
+			// check the manifest to determine if we are a Oculus Mobile application
+			public boolean AndroidThunkJava_IsOculusMobileApplication()
+			{
+			return PackagedForOculusMobile;
+			}
 		</insert>
 	</gameActivityClassAdditions>
 
@@ -198,27 +210,27 @@
 		<if condition="bSupported">
 			<true>
 				<insert>
-			if (bundle.containsKey("com.samsung.android.vr.application.mode"))
-			{
-				PackagedForGearVR = true;
-				String VRMode = bundle.getString("com.samsung.android.vr.application.mode");
-				Log.debug("Found GearVR mode = " + VRMode);
+					if (bundle.containsKey("com.samsung.android.vr.application.mode"))
+					{
+						PackagedForOculusMobile = true;
+						String VRMode = bundle.getString("com.samsung.android.vr.application.mode");
+						Log.debug("Found Oculus Mobile mode = " + VRMode);
 				</insert>
 				<if condition="bEntitlementCheck">
 					<true>
 						<!-- add entitlement check if osig files are removed -->
 						<insert>
-				com.oculus.svclib.OVREntitlementChecker.doAutomatedCheck(this);
+							com.oculus.svclib.OVREntitlementChecker.doAutomatedCheck(this);
 						</insert>
 					</true>
 				</if>
 				<insert>
-			}
-			else
-			{
-				PackagedForGearVR = false;
-				Log.debug("No GearVR mode detected.");
-			}
+					}
+					else
+					{
+						PackagedForOculusMobile = false;
+						Log.debug("No Oculus Mobile mode detected.");
+					}
 				</insert>
 			</true>
 		</if>
@@ -261,7 +273,7 @@
 
 	<!-- optional libraries to load in GameActivity.java before libUE4.so -->
 	<soLoadLibrary>
-		<!-- need this if plugin enabled and supported architecture, even if not packaged for GearVR -->
+		<!-- need this if plugin enabled and supported architecture, even if not packaged for Oculus mobile -->
 		<if condition="bSupported">
 			<true>
 				<loadLibrary name="vrapi" failmsg="vrapi library not loaded and required!" />

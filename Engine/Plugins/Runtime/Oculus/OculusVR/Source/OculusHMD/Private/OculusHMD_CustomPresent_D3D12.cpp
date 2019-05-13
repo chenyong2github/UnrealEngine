@@ -31,8 +31,20 @@ public:
 
 
 FD3D12CustomPresent::FD3D12CustomPresent(FOculusHMD* InOculusHMD) :
-	FCustomPresent(InOculusHMD, ovrpRenderAPI_D3D12, PF_B8G8R8A8, true, true)
+	FCustomPresent(InOculusHMD, ovrpRenderAPI_D3D12, PF_B8G8R8A8, true)
 {
+	switch (GPixelFormats[PF_DepthStencil].PlatformFormat)
+	{
+	case DXGI_FORMAT_R24G8_TYPELESS:
+		DefaultDepthOvrpTextureFormat = ovrpTextureFormat_D24_S8;
+		break;
+	case DXGI_FORMAT_R32G8X24_TYPELESS:
+		DefaultDepthOvrpTextureFormat = ovrpTextureFormat_D32_S824_FP;
+		break;
+	default:
+		UE_LOG(LogHMD, Error, TEXT("Unrecognized depth buffer format"));
+		break;
+	}
 }
 
 

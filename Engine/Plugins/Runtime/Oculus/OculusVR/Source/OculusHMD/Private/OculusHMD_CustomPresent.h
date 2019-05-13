@@ -35,7 +35,7 @@ namespace OculusHMD
 class FCustomPresent : public FXRRenderBridge
 {
 public:
-	FCustomPresent(class FOculusHMD* InOculusHMD, ovrpRenderAPIType InRenderAPI, EPixelFormat InDefaultPixelFormat, bool InSupportsSRGB, bool InSupportsDepth);
+	FCustomPresent(class FOculusHMD* InOculusHMD, ovrpRenderAPIType InRenderAPI, EPixelFormat InDefaultPixelFormat, bool InSupportsSRGB);
 
 	// FXRRenderBridge/FRHICustomPresent
 	virtual bool NeedsNativePresent() override;
@@ -78,7 +78,6 @@ protected:
 	ovrpRenderAPIType RenderAPI;
 	EPixelFormat DefaultPixelFormat;
 	bool bSupportsSRGB;
-	bool bSupportsDepth;
 	ovrpTextureFormat DefaultOvrpTextureFormat;
 	ovrpTextureFormat DefaultDepthOvrpTextureFormat;
 	IRendererModule* RendererModule;
