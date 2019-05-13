@@ -530,7 +530,7 @@ void FVTConversionWorker::DoConvert(bool backwards)
 				EngineTextureToCopyMap.Add(Tex, TextureToUpdate);
 				if (!TextureToUpdate)
 				{
-					UE_LOG(LogVirtualTextureConversion, Warning, TEXT("Failed to duplicate engine texture %s"), *TextureToUpdate->GetPathName());
+					UE_LOG(LogVirtualTextureConversion, Warning, TEXT("Failed to duplicate engine texture %s"), *Tex->GetPathName());
 				}
 			}
 
