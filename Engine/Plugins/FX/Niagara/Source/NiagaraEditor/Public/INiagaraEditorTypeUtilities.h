@@ -3,6 +3,7 @@
 #pragma once
 #include "Templates/SharedPointer.h"
 #include "Delegates/Delegate.h"
+#include "Internationalization/Text.h"
 
 class FStructOnScope;
 class SNiagaraParameterEditor;
