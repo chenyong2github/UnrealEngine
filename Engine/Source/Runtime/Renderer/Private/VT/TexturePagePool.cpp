@@ -5,7 +5,6 @@
 #include "VirtualTextureSpace.h"
 #include "VirtualTextureSystem.h"
 
-
 FTexturePagePool::FTexturePagePool()
 	: PageHash(16u * 1024)
 	, NumPages(0u)
@@ -16,8 +15,10 @@ FTexturePagePool::FTexturePagePool()
 FTexturePagePool::~FTexturePagePool()
 {}
 
+
 void FTexturePagePool::Initialize(uint32 InNumPages)
 {
+
 	NumPages = InNumPages;
 	Pages.AddZeroed(InNumPages);
 	PageHash.Resize(InNumPages);
@@ -42,6 +43,7 @@ void FTexturePagePool::Initialize(uint32 InNumPages)
 
 void FTexturePagePool::EvictAllPages(FVirtualTextureSystem* System)
 {
+
 	TArray<uint16> PagesToEvict;
 	while (FreeHeap.Num() > 0u)
 	{
@@ -59,6 +61,7 @@ void FTexturePagePool::EvictAllPages(FVirtualTextureSystem* System)
 
 void FTexturePagePool::UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint8 SpaceID)
 {
+
 	// walk through all of our current mapping entries, and unmap any that belong to the current space
 	for (int32 MappingIndex = NumPages + 1; MappingIndex < PageMapping.Num(); ++MappingIndex)
 	{
@@ -73,6 +76,7 @@ void FTexturePagePool::UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint
 
 void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, const FVirtualTextureProducerHandle& ProducerHandle)
 {
+
 	for (uint32 pAddress = 0u; pAddress < NumPages; ++pAddress)
 	{
 		const FPageEntry& PageEntry = Pages[pAddress];
@@ -86,6 +90,7 @@ void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, const FVirtualT
 
 void FTexturePagePool::GetAllLockedPages(FVirtualTextureSystem* System, TSet<FVirtualTextureLocalTile>& OutPages)
 {
+
 	OutPages.Reserve(OutPages.Num() + GetNumLockedPages());
 
 	for (uint32 i = 0; i < NumPages; ++i)
@@ -95,6 +100,11 @@ void FTexturePagePool::GetAllLockedPages(FVirtualTextureSystem* System, TSet<FVi
 			OutPages.Add(FVirtualTextureLocalTile(FVirtualTextureProducerHandle(Pages[i].PackedProducerHandle), Pages[i].Local_vAddress, Pages[i].Local_vLevel));
 		}
 	}
+}
+
+FVirtualTextureLocalTile FTexturePagePool::GetLocalTileFromPhysicalAddress(uint16 pAddress)
+{
+	return FVirtualTextureLocalTile(FVirtualTextureProducerHandle(Pages[pAddress].PackedProducerHandle), Pages[pAddress].Local_vAddress, Pages[pAddress].Local_vLevel);
 }
 
 bool FTexturePagePool::AnyFreeAvailable( uint32 Frame ) const

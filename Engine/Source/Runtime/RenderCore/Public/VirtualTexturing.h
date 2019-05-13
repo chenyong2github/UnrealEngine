@@ -93,6 +93,9 @@ inline bool operator!=(const FAllocatedVTDescription& Lhs, const FAllocatedVTDes
 struct FVTProducerDescription
 {
 	FName Name; /** Will be name of UTexture for streaming VTs, mostly here for debugging */
+	bool bPersistentHighestMip = true;
+	bool bContinuousUpdate = false;
+	bool bCreateRenderTarget = false;
 	uint32 TileSize = 0u;
 	uint32 TileBorderSize = 0u;
 	uint32 WidthInTiles = 0u;
@@ -164,6 +167,8 @@ struct FVTProduceTargetLayer
 {
 	/** The texture to write to */
 	FRHITexture* TextureRHI = nullptr;
+
+	TRefCountPtr<struct IPooledRenderTarget> PooledRenderTarget = nullptr;
 
 	/** Location within the texture to write */
 	FIntVector pPageLocation;

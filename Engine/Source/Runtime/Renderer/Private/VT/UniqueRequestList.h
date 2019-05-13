@@ -148,7 +148,7 @@ inline uint16 FUniqueRequestList::AddLoadRequest(const FVirtualTextureLocalTile&
 		}
 	}
 	
-	if (ensure(NumLoadRequests < LoadRequestCapacity))
+	if (NumLoadRequests < LoadRequestCapacity)
 	{
 		const uint32 Index = NumLoadRequests++;
 		LoadRequestHash.Add(Hash, Index);
@@ -179,7 +179,7 @@ inline uint16 FUniqueRequestList::LockLoadRequest(const FVirtualTextureLocalTile
 		}
 	}
 
-	if (ensure(NumLoadRequests < LoadRequestCapacity))
+	if (NumLoadRequests < LoadRequestCapacity)
 	{
 		const uint32 Index = NumLoadRequests++;
 		LoadRequestHash.Add(Hash, Index);

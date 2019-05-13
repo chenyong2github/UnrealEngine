@@ -51,6 +51,8 @@ public:
 	 * Get descriptions of the locked pages in this pool
 	 */
 	void GetAllLockedPages(FVirtualTextureSystem* System, TSet<union FVirtualTextureLocalTile>& OutPages);
+
+	FVirtualTextureLocalTile GetLocalTileFromPhysicalAddress(uint16 pAddress);
 	
 	/** Get the local vLevel of the page allocated at the given physical address */
 	inline uint8 GetLocalLevelForAddress(uint16 pAddress) const { check(Pages[pAddress].PackedValue != 0u); return Pages[pAddress].Local_vLevel; }

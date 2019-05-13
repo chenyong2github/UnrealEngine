@@ -15,6 +15,7 @@
 #include "HAL/IConsoleManager.h"
 #include "PostProcess/SceneRenderTargets.h"
 
+
 DECLARE_CYCLE_STAT(TEXT("Feedback Analysis"), STAT_FeedbackAnalysis, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("VirtualTextureSystem Update"), STAT_VirtualTextureSystem_Update, STATGROUP_VirtualTexturing);
 
@@ -34,6 +35,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Num page visible resident"), STAT_NumPageVisibl
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num page visible not resident"), STAT_NumPageVisibleNotResident, STATGROUP_VirtualTexturing);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num page prefetch"), STAT_NumPagePrefetch, STATGROUP_VirtualTexturing);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num page update"), STAT_NumPageUpdate, STATGROUP_VirtualTexturing);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Num continuous page update"), STAT_NumContinuousPageUpdate, STATGROUP_VirtualTexturing);
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num stacks requested"), STAT_NumStacksRequested, STATGROUP_VirtualTexturing);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num stacks produced"), STAT_NumStacksProduced, STATGROUP_VirtualTexturing);
@@ -329,6 +331,7 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 	uint32 DepthInTiles = 0u;
 	bool bSupport16BitPageTable = true;
 	FVirtualTextureProducer* ProducerForLayer[VIRTUALTEXTURE_SPACE_MAXLAYERS] = { nullptr };
+	bool bAnyLayerProducerWantsPersistentHighestMip = false;
 	for (uint32 LayerIndex = 0u; LayerIndex < Desc.NumLayers; ++LayerIndex)
 	{
 		FVirtualTextureProducer* Producer = Producers.FindProducer(Desc.ProducerHandle[LayerIndex]);
@@ -343,6 +346,7 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 			{
 				bSupport16BitPageTable = false;
 			}
+			bAnyLayerProducerWantsPersistentHighestMip |= Producer->GetDescription().bPersistentHighestMip;
 		}
 	}
 
@@ -360,7 +364,10 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 	FVirtualTextureSpace* Space = AcquireSpace(SpaceDesc, FMath::Max(WidthInTiles, HeightInTiles));
 
 	AllocatedVT = new FAllocatedVirtualTexture(Frame, Desc, Space, ProducerForLayer, WidthInTiles, HeightInTiles, DepthInTiles);
-	AllocatedVTsToMap.Add(AllocatedVT);
+	if (bAnyLayerProducerWantsPersistentHighestMip)
+	{
+		AllocatedVTsToMap.Add(AllocatedVT);
+	}
 	return AllocatedVT;
 }
 
@@ -1009,7 +1016,11 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 	uint32 NumResidentPages = 0u;
 	uint32 NumNonResidentPages = 0u;
 	uint32 NumPrefetchPages = 0u;
-	
+
+#if WITH_EDITOR
+	TSet<FVirtualTextureLocalTile> ContinuousUpdateTilesToProduceThreadLocal;
+#endif
+
 	for (uint32 i = Parameters.PageStartIndex; i < PageEndIndex; ++i)
 	{
 		const uint32 PageEncoded = UniquePageList->GetPage(i);
@@ -1053,6 +1064,17 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 
 					// Page is already resident, just need to update LRU free list
 					AddPageUpdate(PageUpdateBuffers, PageUpdateFlushCount, PhysicalSpaceIDAndAddress.PhysicalSpaceID, PhysicalSpaceIDAndAddress.pAddress);
+
+				#if WITH_EDITOR
+					{
+						if (GetPhysicalSpace(PhysicalSpaceIDAndAddress.PhysicalSpaceID)->GetDescription().bContinuousUpdate)
+						{
+							FTexturePagePool& RESTRICT PagePool = GetPhysicalSpace(PhysicalSpaceIDAndAddress.PhysicalSpaceID)->GetPagePool();
+
+							ContinuousUpdateTilesToProduceThreadLocal.Add(PagePool.GetLocalTileFromPhysicalAddress(PhysicalSpaceIDAndAddress.pAddress));
+						}
+					}
+				#endif
 
 					++PageUpdateBuffers[PhysicalSpaceIDAndAddress.PhysicalSpaceID].WorkingSetSize;
 					++NumResidentPages;
@@ -1183,7 +1205,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 					const uint32 Allocated_vAddress = vAddress & (0xffffffff << (Allocated_vLevel * vDimensions));
 
 					AddPageUpdate(PageUpdateBuffers, PageUpdateFlushCount, PhysicalSpace->GetID(), pAddress);
-	
+
 					uint32 NumMappedPages = 0u;
 					for (uint32 LoadLayerIndex = 0u; LoadLayerIndex < NumLayersToLoad; ++LoadLayerIndex)
 					{
@@ -1342,6 +1364,14 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 			{
 				PagePool.UpdateUsage(Frame, Buffer.PhysicalAddresses[i]);
 			}
+
+		#if WITH_EDITOR
+			if (PhysicalSpace->GetDescription().bContinuousUpdate)
+			{
+				FScopeLock Lock(&ContinuousUpdateTilesToProduceCS);
+				ContinuousUpdateTilesToProduce.Append(ContinuousUpdateTilesToProduceThreadLocal);
+			}
+		#endif
 		}
 		
 		INC_DWORD_STAT_BY(STAT_NumPageUpdate, Buffer.NumPageUpdates);
@@ -1353,9 +1383,9 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 	INC_DWORD_STAT_BY(STAT_NumPagePrefetch, NumPrefetchPages);
 }
 
-void FVirtualTextureSystem::SubmitPreMappedRequests(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
+void FVirtualTextureSystem::SubmitRequestsFromLocalTileList(const TSet<FVirtualTextureLocalTile>& LocalTileList, EVTProducePageFlags Flags, FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
 {
-	for (FVirtualTextureLocalTile const& Tile : MappedTilesToProduce)
+	for (const FVirtualTextureLocalTile& Tile : LocalTileList)
 	{
 		const FVirtualTextureProducerHandle ProducerHandle = Tile.GetProducerHandle();
 		const FVirtualTextureProducer& Producer = Producers.GetProducer(ProducerHandle);
@@ -1371,6 +1401,10 @@ void FVirtualTextureSystem::SubmitPreMappedRequests(FRHICommandListImmediate& RH
 			if (pAddress != ~0u)
 			{
 				ProduceTarget[LocalLayerIndex].TextureRHI = PhysicalSpace->GetPhysicalTexture();
+				if (PhysicalSpace->GetDescription().bCreateRenderTarget)
+				{
+					ProduceTarget[LocalLayerIndex].PooledRenderTarget = PhysicalSpace->GetPhysicalTexturePooledRenderTarget();
+				}
 				ProduceTarget[LocalLayerIndex].pPageLocation = PhysicalSpace->GetPhysicalLocation(pAddress);
 				LayerMask |= 1 << LocalLayerIndex;
 			}
@@ -1393,7 +1427,7 @@ void FVirtualTextureSystem::SubmitPreMappedRequests(FRHICommandListImmediate& RH
 
 		IVirtualTextureFinalizer* VTFinalizer = Producer.GetVirtualTexture()->ProducePageData(
 			RHICmdList, FeatureLevel,
-			EVTProducePageFlags::None,
+			Flags,
 			ProducerHandle, LayerMask, Tile.Local_vLevel, Tile.Local_vAddress,
 			RequestPageResult.Handle,
 			ProduceTarget);
@@ -1404,8 +1438,20 @@ void FVirtualTextureSystem::SubmitPreMappedRequests(FRHICommandListImmediate& RH
 			Finalizers.AddUnique(VTFinalizer);
 		}
 	}
+}
 
-	MappedTilesToProduce.Reset();
+void FVirtualTextureSystem::SubmitPreMappedRequests(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
+{
+	{
+		SubmitRequestsFromLocalTileList(MappedTilesToProduce, EVTProducePageFlags::None, RHICmdList, FeatureLevel);
+		MappedTilesToProduce.Reset();
+	}
+
+	{
+		INC_DWORD_STAT_BY(STAT_NumContinuousPageUpdate, ContinuousUpdateTilesToProduce.Num());
+		SubmitRequestsFromLocalTileList(ContinuousUpdateTilesToProduce, EVTProducePageFlags::None, RHICmdList, FeatureLevel);
+		ContinuousUpdateTilesToProduce.Reset();
+	}
 }
 
 void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FMemStack& MemStack, FUniqueRequestList* RequestList, bool bAsync)
@@ -1465,6 +1511,10 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 							check(pAddress != ~0u);
 
 							ProduceTarget[LocalLayerIndex].TextureRHI = PhysicalSpace->GetPhysicalTexture();
+							if (PhysicalSpace->GetDescription().bCreateRenderTarget)
+							{
+								ProduceTarget[LocalLayerIndex].PooledRenderTarget = PhysicalSpace->GetPhysicalTexturePooledRenderTarget();
+							}
 							ProduceTarget[LocalLayerIndex].pPageLocation = PhysicalSpace->GetPhysicalLocation(pAddress);
 							Allocate_pAddress[LocalLayerIndex] = pAddress;
 						}

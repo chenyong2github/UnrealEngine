@@ -62,7 +62,7 @@ void FVirtualTexturePhysicalSpace::InitRHI()
 		Description.Format,
 		FClearValueBinding::None,
 		TexCreate_None,
-		TexCreate_ShaderResource,
+		TexCreate_ShaderResource | (Description.bCreateRenderTarget ? (TexCreate_RenderTargetable | TexCreate_UAV) : 0),
 		false);
 
 	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTarget, TEXT("PhysicalTexture"));

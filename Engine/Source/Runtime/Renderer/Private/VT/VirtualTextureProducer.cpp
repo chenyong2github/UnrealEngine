@@ -6,15 +6,18 @@
 
 void FVirtualTextureProducer::Release(FVirtualTextureSystem* System, const FVirtualTextureProducerHandle& HandleToSelf)
 {
-	const uint32 RootWidthInTiles = FMath::Max(Description.WidthInTiles >> Description.MaxLevel, 1u);
-	const uint32 RootHeightInTiles = FMath::Max(Description.HeightInTiles >> Description.MaxLevel, 1u);
-	for (uint32 TileY = 0u; TileY < RootHeightInTiles; ++TileY)
+	if (Description.bPersistentHighestMip)
 	{
-		for (uint32 TileX = 0u; TileX < RootWidthInTiles; ++TileX)
+		const uint32 RootWidthInTiles = FMath::Max(Description.WidthInTiles >> Description.MaxLevel, 1u);
+		const uint32 RootHeightInTiles = FMath::Max(Description.HeightInTiles >> Description.MaxLevel, 1u);
+		for (uint32 TileY = 0u; TileY < RootHeightInTiles; ++TileY)
 		{
-			const uint32 Local_vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
-			const FVirtualTextureLocalTile TileToUnlock(HandleToSelf, Local_vAddress, Description.MaxLevel);
-			System->UnlockTile(TileToUnlock);
+			for (uint32 TileX = 0u; TileX < RootWidthInTiles; ++TileX)
+			{
+				const uint32 Local_vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
+				const FVirtualTextureLocalTile TileToUnlock(HandleToSelf, Local_vAddress, Description.MaxLevel);
+				System->UnlockTile(TileToUnlock);
+			}
 		}
 	}
 
@@ -54,20 +57,26 @@ FVirtualTextureProducerHandle FVirtualTextureProducerCollection::RegisterProduce
 		PhysicalSpaceDesc.Dimensions = InDesc.Dimensions;
 		PhysicalSpaceDesc.TileSize = InDesc.TileSize + InDesc.TileBorderSize * 2u;
 		PhysicalSpaceDesc.Format = InDesc.LayerFormat[LayerIndex];
+		PhysicalSpaceDesc.bContinuousUpdate = InDesc.bContinuousUpdate;
+		PhysicalSpaceDesc.bCreateRenderTarget = InDesc.bCreateRenderTarget;
 		Entry.Producer.PhysicalSpace[LayerIndex] = System->AcquirePhysicalSpace(PhysicalSpaceDesc);
 	}
 
 	const FVirtualTextureProducerHandle Handle(Index, Entry.Magic);
-	const uint32 MaxLevel = InDesc.MaxLevel;
-	const uint32 RootWidthInTiles = FMath::Max(InDesc.WidthInTiles >> MaxLevel, 1u);
-	const uint32 RootHeightInTiles = FMath::Max(InDesc.HeightInTiles >> MaxLevel, 1u);
-	for (uint32 TileY = 0u; TileY < RootHeightInTiles; ++TileY)
+
+	if (InDesc.bPersistentHighestMip)
 	{
-		for (uint32 TileX = 0u; TileX < RootWidthInTiles; ++TileX)
+		const uint32 MaxLevel = InDesc.MaxLevel;
+		const uint32 RootWidthInTiles = FMath::Max(InDesc.WidthInTiles >> MaxLevel, 1u);
+		const uint32 RootHeightInTiles = FMath::Max(InDesc.HeightInTiles >> MaxLevel, 1u);
+		for (uint32 TileY = 0u; TileY < RootHeightInTiles; ++TileY)
 		{
-			const uint32 Local_vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
-			const FVirtualTextureLocalTile TileToLock(Handle, Local_vAddress, MaxLevel);
-			System->LockTile(TileToLock);
+			for (uint32 TileX = 0u; TileX < RootWidthInTiles; ++TileX)
+			{
+				const uint32 Local_vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
+				const FVirtualTextureLocalTile TileToLock(Handle, Local_vAddress, MaxLevel);
+				System->LockTile(TileToLock);
+			}
 		}
 	}
 

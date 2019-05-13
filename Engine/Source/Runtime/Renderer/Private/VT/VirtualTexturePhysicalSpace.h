@@ -13,11 +13,13 @@ struct FVTPhysicalSpaceDescription
 	uint32 TileSize;
 	TEnumAsByte<EPixelFormat> Format;
 	uint8 Dimensions;
+	bool bContinuousUpdate;
+	bool bCreateRenderTarget;
 };
 
 inline bool operator==(const FVTPhysicalSpaceDescription& Lhs, const FVTPhysicalSpaceDescription& Rhs)
 {
-	return Lhs.TileSize == Rhs.TileSize && Lhs.Format == Rhs.Format && Lhs.Dimensions == Rhs.Dimensions;
+	return Lhs.TileSize == Rhs.TileSize && Lhs.Format == Rhs.Format && Lhs.Dimensions == Rhs.Dimensions && Lhs.bContinuousUpdate == Rhs.bContinuousUpdate && Lhs.bCreateRenderTarget == Rhs.bCreateRenderTarget;
 }
 inline bool operator!=(const FVTPhysicalSpaceDescription& Lhs, const FVTPhysicalSpaceDescription& Rhs)
 {
@@ -58,6 +60,13 @@ public:
 	{
 		check(PooledRenderTarget.IsValid());
 		return PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
+	}
+
+	TRefCountPtr<IPooledRenderTarget> GetPhysicalTexturePooledRenderTarget() const
+	{
+		check(PooledRenderTarget.IsValid());
+		check(Description.bCreateRenderTarget);
+		return PooledRenderTarget;
 	}
 
 	FRHIShaderResourceView* GetPhysicalTextureView(bool bSRGB) const

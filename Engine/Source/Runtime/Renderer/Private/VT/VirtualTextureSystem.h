@@ -68,6 +68,8 @@ private:
 	void DestroyPendingVirtualTextures();
 
 	void RequestTilesForRegionInternal(const IAllocatedVirtualTexture* AllocatedVT, const FIntRect& InTextureRegion, uint32 vLevel);
+	
+	void SubmitRequestsFromLocalTileList(const TSet<FVirtualTextureLocalTile>& LocalTileList, EVTProducePageFlags Flags, FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);
 
 	void SubmitPreMappedRequests(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);
 
@@ -106,6 +108,8 @@ private:
 	TArray<uint32> RequestedPackedTiles;
 
 	TArray<FVirtualTextureLocalTile> TilesToLock;
+	FCriticalSection ContinuousUpdateTilesToProduceCS;
+	TSet<FVirtualTextureLocalTile> ContinuousUpdateTilesToProduce;
 	TSet<FVirtualTextureLocalTile> MappedTilesToProduce;
 	TArray<FAllocatedVirtualTexture*> AllocatedVTsToMap;
 	TArray<IVirtualTextureFinalizer*> Finalizers;
