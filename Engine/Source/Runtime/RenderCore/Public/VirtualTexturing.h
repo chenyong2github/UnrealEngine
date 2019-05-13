@@ -168,7 +168,7 @@ struct FVTProduceTargetLayer
 	/** The texture to write to */
 	FRHITexture* TextureRHI = nullptr;
 
-	TRefCountPtr<struct IPooledRenderTarget> PooledRenderTarget = nullptr;
+	TRefCountPtr<struct IPooledRenderTarget> PooledRenderTarget;
 
 	/** Location within the texture to write */
 	FIntVector pPageLocation;
