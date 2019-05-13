@@ -1691,15 +1691,15 @@ void FLightMapPendingTexture::StartEncoding(ULevel* LightingScenario, ITextureCo
 		LayerFormat.Init(TSF_Invalid, NumVirtualTextureLayers);
 		LayerFormat[0] = Textures[0]->Source.GetFormat();
 		LayerFormat[1] = Textures[0]->Source.GetFormat();
-		if (SkyOcclusionLayer != ~0u)
+		if (SkyOcclusionLayer != ~0u && SkyOcclusionTexture)
 		{
 			LayerFormat[SkyOcclusionLayer] = SkyOcclusionTexture->Source.GetFormat();
 		}
-		if (AOMaterialMaskLayer != ~0u)
+		if (AOMaterialMaskLayer != ~0u && AOMaterialMaskTexture)
 		{
 			LayerFormat[AOMaterialMaskLayer] = AOMaterialMaskTexture->Source.GetFormat();
 		}
-		if (ShadowMaskLayer != ~0u)
+		if (ShadowMaskLayer != ~0u && ShadowMapTexture)
 		{
 			LayerFormat[ShadowMaskLayer] = ShadowMapTexture->Source.GetFormat();
 		}
