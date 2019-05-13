@@ -800,7 +800,7 @@ public:
 	virtual void RHICopyTexture(FTextureRHIParamRef SourceTexture, FTextureRHIParamRef DestTexture, const FRHICopyTextureInfo& CopyInfo) override final
 	{
 		ensureMsgf(!State.bInsideBeginRenderPass, TEXT("Copying inside a RenderPass is not efficient!"));
-		FValidationRHIUtils::ValidateCopyTexture(SourceTexture, DestTexture, CopyInfo.SourcePosition, CopyInfo.DestPosition, CopyInfo.Size);
+		FValidationRHIUtils::ValidateCopyTexture(SourceTexture, DestTexture, CopyInfo.Size, CopyInfo.SourcePosition, CopyInfo.DestPosition);
 		RHIContext->RHICopyTexture(SourceTexture, DestTexture, CopyInfo);
 	}
 
