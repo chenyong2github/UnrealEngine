@@ -162,10 +162,15 @@ class TimeLogger(object):
 
 def log_time(name):
   """Log out times for emcc stages"""
-  if DEBUG:
-    now = time.time()
-    logger.debug('emcc step "%s" took %.2f seconds', name, now - TimeLogger.last)
-    TimeLogger.update()
+# EPIC EDIT start -- nick.shin 2019-02-06 -- UE-69632
+#  if DEBUG:
+#    now = time.time()
+#    logger.debug('emcc step "%s" took %.2f seconds', name, now - TimeLogger.last)
+#    TimeLogger.update()
+  now = time.time()
+  logger.info('emcc step "%s" took %.2f seconds', name, now - TimeLogger.last)
+  TimeLogger.update()
+# EPIC EDIT end -- nick.shin 2019-02-06 -- UE-69632
 
 
 class EmccOptions(object):
@@ -1680,6 +1685,11 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     shared.Settings.EXPORTED_FUNCTIONS = dedup_list(shared.Settings.EXPORTED_FUNCTIONS)
 
     with ToolchainProfiler.profile_block('link'):
+# EPIC EDIT start -- nick.shin 2019-02-06 -- UE-69632
+      logger.info("NOTE: linking HTML5 project -- this takes at least 7 minutes (and up to 20 minutes on older machines) to complete.")
+      logger.info("      we are workig with the Emscripten makers to speed this up.")
+# EPIC EDIT end -- nick.shin 2019-02-06 -- UE-69632
+
       # final will be an array if linking is deferred, otherwise a normal string.
       if shared.Settings.WASM_BACKEND:
         DEFAULT_FINAL = in_temp(target_basename + '.wasm')
