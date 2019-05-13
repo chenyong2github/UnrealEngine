@@ -160,6 +160,7 @@ float GetSignalColorTransformationExposure()
 
 /** Returns the linear color space Luma with a 4 multiplier for ALU perf reasons. */
 float GetSignalLuma4(FSSDSignalSample Sample, const uint Basis)
+#if CONFIG_SIGNAL_COLOR
 {
 	// TODO: should force this to be scalar load.
 	float FrameExposureScale = GetSignalColorTransformationExposure();
@@ -192,9 +193,15 @@ float GetSignalLuma4(FSSDSignalSample Sample, const uint Basis)
 		return Luma4(Sample.SceneColor.rgb);
 	}
 }
+#else
+{
+	return 0;
+}
+#endif
 
 /** Conveniently transform one simple from a source basis to a destination basis. */
 FSSDSignalSample TransformSignal(FSSDSignalSample Sample, const uint SrcBasis, const uint DestBasis)
+#if CONFIG_SIGNAL_COLOR
 {
 	// If the source and destination bases are the same, early return to not pay ALU and floating point divergence.
 	if (SrcBasis == DestBasis)
@@ -304,6 +311,11 @@ FSSDSignalSample TransformSignal(FSSDSignalSample Sample, const uint SrcBasis, c
 
 	return Sample;
 }
+#else
+{
+	return Sample;
+}
+#endif
 
 #if 0 // will probably be handy at some point.
 float4 WeightedLerp( float4 ColorA, float WeightA, float4 ColorB, float WeightB, float Blend ) 

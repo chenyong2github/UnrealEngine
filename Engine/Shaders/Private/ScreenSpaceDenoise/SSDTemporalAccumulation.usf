@@ -33,6 +33,8 @@
 
 
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
+	#define CONFIG_SIGNAL_COLOR 0
+
 	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
 
@@ -61,6 +63,8 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
+	#define CONFIG_SIGNAL_COLOR 1
+
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
 	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
@@ -90,6 +94,8 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
+	#define CONFIG_SIGNAL_COLOR 0
+
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_AO_HISTORY
 	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_HISTORY
@@ -113,6 +119,8 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_GI_AND_AO
+	#define CONFIG_SIGNAL_COLOR 1
+
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_GI_AND_AO_RECONSTRUCTION
 	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_GI_AND_AO_HISTORY
@@ -460,7 +468,9 @@ void TemporallyAccumulate(
 					SafeRcp(CurrentFrameSample.SampleCount));
 
 				// Applies correction when pre exposure change happen.
-				HistorySamples.Array[BatchedSignalId].SceneColor.rgb *= HistoryPreExposureCorrection;
+				#if CONFIG_SIGNAL_COLOR
+					HistorySamples.Array[BatchedSignalId].SceneColor.rgb *= HistoryPreExposureCorrection;
+				#endif
 			} // for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 		} // if (!bIsPreviousFrameOffscreen)
 	}
@@ -672,6 +682,9 @@ void TemporallyAccumulate(
 					float RejectionFactor = 0.0;
 					#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS && (CONFIG_HISTORY_REJECTION_COLOR_SPACE & COLOR_SPACE_LCOCG)
 					{
+						#if !CONFIG_SIGNAL_COLOR
+							#error Need to compile signal color.
+						#endif
 						RejectionFactor = abs(
 							Luma_To_LumaLog(ClampedTransformedHistorySample.SceneColor.x) -
 							Luma_To_LumaLog(TransformedHistorySample.SceneColor.x));
@@ -737,6 +750,10 @@ void TemporallyAccumulate(
 	{
 		#if CONFIG_SIGNAL_BATCH_SIZE != 1
 			#error Unsupported.
+		#endif
+	
+		#if !CONFIG_SIGNAL_COLOR
+			#error Need to compile signal color.
 		#endif
 
 		const uint BatchedSignalId = 0;

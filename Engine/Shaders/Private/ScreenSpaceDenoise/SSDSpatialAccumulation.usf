@@ -40,6 +40,8 @@
 
 // Configures all the pass for each individual signals.
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
+	#define CONFIG_SIGNAL_COLOR 0
+
 	//#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
 	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 5
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
@@ -110,6 +112,8 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
+	#define CONFIG_SIGNAL_COLOR 1
+
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_REFLECTIONS_INPUT
@@ -179,6 +183,8 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
+	#define CONFIG_SIGNAL_COLOR 0
+
 	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
 	#define CONFIG_NORMAL_BASED_BILATERAL 1
 
@@ -216,6 +222,8 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_GI_AND_AO
+	#define CONFIG_SIGNAL_COLOR 1
+
 	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
 	#define CONFIG_NORMAL_BASED_BILATERAL 1
 
@@ -705,13 +713,18 @@ void MainCS(
 		for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
 		{
 			#if CONFIG_REJECT_HIGHEST_COLOR
-			if (Accumulator.Moment1[MultiplexId].SampleCount > 0)
 			{
-				const float MaxNeighborWeight = saturate(SignalAccumulators.Array[MultiplexId].Moment1.SampleCount * rcp(10) - 1);
+				#if !CONFIG_SIGNAL_COLOR
+					#error Need to compile signal color.
+				#endif
+				if (Accumulator.Moment1[MultiplexId].SampleCount > 0)
+				{
+					const float MaxNeighborWeight = saturate(SignalAccumulators.Array[MultiplexId].Moment1.SampleCount * rcp(10) - 1);
 
-				SignalAccumulators.Array[MultiplexId].Moment1.SceneColor.rgb =
-					(SignalAccumulators.Array[MultiplexId].Moment1.SceneColor.rgb - MaxNeighbor.SceneColor.rgb * MaxNeighborWeight) *
-					(SignalAccumulators.Array[MultiplexId].Moment1.SampleCount / (SignalAccumulators.Array[MultiplexId].Moment1.SampleCount - MaxNeighborWeight));
+					SignalAccumulators.Array[MultiplexId].Moment1.SceneColor.rgb =
+						(SignalAccumulators.Array[MultiplexId].Moment1.SceneColor.rgb - MaxNeighbor.SceneColor.rgb * MaxNeighborWeight) *
+						(SignalAccumulators.Array[MultiplexId].Moment1.SampleCount / (SignalAccumulators.Array[MultiplexId].Moment1.SampleCount - MaxNeighborWeight));
+				}
 			}
 			#endif
 
