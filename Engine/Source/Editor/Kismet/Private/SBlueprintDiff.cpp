@@ -1286,7 +1286,15 @@ void FDiffPanel::GeneratePanel(UEdGraph* Graph, UEdGraph* GraphToDiff )
 			{
 				Container->ShowDetailsForObjects(SelectionSet.Array());
 			};
+
+			const auto ContextMenuHandler = [](UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging)
+			{
+				MenuBuilder->AddMenuEntry(FGenericCommands::Get().Copy);
+				return FActionMenuContent(MenuBuilder->MakeWidget());
+			};
+
 			InEvents.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateStatic(SelectionChangedHandler, DetailsView);
+			InEvents.OnCreateNodeOrPinMenu = SGraphEditor::FOnCreateNodeOrPinMenu::CreateStatic(ContextMenuHandler);
 		}
 
 		if ( !GraphEditorCommands.IsValid() )
