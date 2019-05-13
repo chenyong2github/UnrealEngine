@@ -106,7 +106,9 @@ float PseudoRandomTex(float2 xy)
 
 float SwitchVerticalAxis;
 
-#define NEEDTOSWITCHVERTICLEAXIS (ES2_PROFILE && COMPILER_GLSL_ES2) || (ES3_1_PROFILE && COMPILER_GLSL_ES3_1)
+#ifndef NEEDTOSWITCHVERTICLEAXIS
+#define NEEDTOSWITCHVERTICLEAXIS 0
+#endif
 
 // can be optimized
 float2 ScreenPosToUV(float2 ScreenPos)
