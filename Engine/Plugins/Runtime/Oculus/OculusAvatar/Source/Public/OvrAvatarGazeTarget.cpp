@@ -1,6 +1,7 @@
 #include "OvrAvatarGazeTarget.h"
 #include "HAL/IConsoleManager.h"
 #include "OvrAvatarHelpers.h"
+#include "OvrAvatarManager.h"
 #include "GameFramework/Actor.h"
 
 static int32 GOvrAvatarGazeTargetDebugDraw = 0;

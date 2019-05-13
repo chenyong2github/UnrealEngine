@@ -2,6 +2,7 @@
 
 #include "OVR_Avatar.h"
 #include "Components/ActorComponent.h"
+#include "Runtime/Engine/Classes/Components/SceneComponent.h"
 #include "OvrAvatarGazeTarget.generated.h"
 
 UENUM(BlueprintType, Category = OculusAvatar)
