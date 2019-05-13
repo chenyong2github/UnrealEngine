@@ -47,6 +47,18 @@ namespace MetadataTool
 		public int InitialChange;
 
 		/// <summary>
+		/// Whether we've posted an update to the resolved flag to the server
+		/// </summary>
+		[DataMember]
+		public bool bPostedResolved;
+
+		/// <summary>
+		/// The time at which the issue was closed. Issues will be retained for 24 hours after they are closed, in case the same issue appears in another stream and to prevent the issue being added again. 
+		/// </summary>
+		[DataMember]
+		public DateTime? ResolvedAt;
+
+		/// <summary>
 		/// Map of stream name -> step name -> history for builds exhibiting this issue
 		/// </summary>
 		[DataMember(IsRequired = true)]
@@ -85,7 +97,7 @@ namespace MetadataTool
 		/// Determines whether the issue can be closed
 		/// </summary>
 		/// <returns>True if the issue can be closed</returns>
-		public bool CanClose()
+		public bool IsResolved()
 		{
 			return Streams.Values.All(x => x.Values.All(y => y.NextSuccessfulBuild != null));
 		}

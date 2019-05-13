@@ -163,6 +163,25 @@ namespace MetadataTool
 				}
 			}
 
+			// Mark any issues as resolved
+			foreach(TrackedIssue Issue in State.Issues)
+			{
+				if(Issue.IsResolved())
+				{
+					if(!Issue.ResolvedAt.HasValue)
+					{
+						Issue.ResolvedAt = DateTime.UtcNow;
+					}
+				}
+				else
+				{
+					if(Issue.ResolvedAt.HasValue)
+					{
+						Issue.ResolvedAt = null;
+					}
+				}
+			}
+
 			// Save the persistent data
 			Log.TraceInformation("Writing persistent data to {0}", StateFile);
 			DirectoryReference.CreateDirectory(StateFile.Directory);
@@ -287,12 +306,12 @@ namespace MetadataTool
 				for (int Idx = 0; Idx < State.Issues.Count; Idx++)
 				{
 					TrackedIssue Issue = State.Issues[Idx];
-					if (Issue.CanClose())
+					if (Issue.ResolvedAt.HasValue != Issue.bPostedResolved)
 					{
-						Log.TraceInformation("Marking issue {0} as resolved", Issue.Id);
+						Log.TraceInformation("Setting issue {0} resolved flag to {1}", Issue.Id, Issue.ResolvedAt.HasValue);
 
 						CommandTypes.UpdateIssue UpdateBody = new CommandTypes.UpdateIssue();
-						UpdateBody.Resolved = true;
+						UpdateBody.Resolved = Issue.ResolvedAt.HasValue;
 
 						using(HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}", ServerUrl, Issue.Id), "PUT", UpdateBody))
 						{
@@ -303,7 +322,7 @@ namespace MetadataTool
 							}
 						}
 
-						State.Issues.RemoveAt(Idx--);
+						Issue.bPostedResolved = Issue.ResolvedAt.HasValue;
 						WriteState(StateFile, State);
 					}
 				}
@@ -330,6 +349,19 @@ namespace MetadataTool
 
 						WriteState(StateFile, State);
 					}
+				}
+			}
+
+			// Remove any issues which have been resolved for 24 hours. We have to keep information about issues that have been fixed for some time; we may be updating the same job 
+			// multiple times while other steps are running, and we don't want to keep opening new issues for it. Also, it can take time for changes to propagate between streams.
+			DateTime RemoveIssueTime = DateTime.UtcNow - TimeSpan.FromHours(24.0);
+			for(int Idx = 0; Idx < State.Issues.Count; Idx++)
+			{
+				TrackedIssue Issue = State.Issues[Idx];
+				if(Issue.ResolvedAt.HasValue && Issue.ResolvedAt.Value < RemoveIssueTime)
+				{
+					State.Issues.RemoveAt(Idx--);
+					continue;
 				}
 			}
 
