@@ -1166,13 +1166,6 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 			{
 				const int32 LoopMin = CustomPropertyNode ? CustomPropertyNode->ArrayIndex : 0;
 				const int32 LoopMax = CustomPropertyNode ? LoopMin + 1 : Property->ArrayDim;
-
-				TOptional<FStructuredArchive::FStream> ArrayPropertyRoot;
-				if (UnderlyingArchive.IsTextFormat() && (LoopMax - LoopMin > 1))
-				{
-					ArrayPropertyRoot.Emplace(PropertiesRecord.EnterStream(FIELD_NAME(*Property->GetName())));
-				}
-
 				for( int32 Idx = LoopMin; Idx < LoopMax; Idx++ )
 				{
 					uint8* DataPtr      = Property->ContainerPtrToValuePtr           <uint8>(Data, Idx);
@@ -1196,8 +1189,7 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 							Tag.SetPropertyGuid(PropertyGuid);
 						}
 
-						FStructuredArchive::FSlot PropertySlot = ArrayPropertyRoot.IsSet() ? ArrayPropertyRoot->EnterElement() : PropertiesRecord.EnterField(FIELD_NAME(*Tag.Name.ToString()));
-						FStructuredArchive::FRecord PropertyRecord = PropertySlot.EnterRecord();
+						FStructuredArchive::FRecord PropertyRecord = PropertiesRecord.EnterRecord(FIELD_NAME(*Tag.Name.ToString()));
 
 						PropertyRecord << NAMED_FIELD(Tag);
 
