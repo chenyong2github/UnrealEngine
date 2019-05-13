@@ -37,6 +37,7 @@
 #include "Serialization/DuplicatedObject.h"
 #include "Serialization/DuplicatedDataReader.h"
 #include "Serialization/DuplicatedDataWriter.h"
+#include "Serialization/LoadTimeTracePrivate.h"
 #include "Misc/PackageName.h"
 #include "UObject/LinkerLoad.h"
 #include "Blueprint/BlueprintSupport.h"

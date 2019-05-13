@@ -41,6 +41,8 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "UObject/GCScopeLock.h"
+#include "ProfilingDebugging/MiscTrace.h"
+#include "Serialization/LoadTimeTracePrivate.h"
 
 #define FIND_MEMORY_STOMPS (1 && (PLATFORM_WINDOWS || PLATFORM_UNIX) && !WITH_EDITORONLY_DATA)
 
@@ -1788,7 +1790,11 @@ void FAsyncLoadingThread::QueueEvent_CreateLinker(FAsyncPackage* Package, int32 
 	check(Package);
 	Package->AddNode(EEventLoadNode::Package_LoadSummary);
 	FWeakAsyncPackagePtr WeakPtr(Package);
-	EventQueue.AddAsyncEvent(Package->GetPriority(), GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber, EventSystemPriority,
+
+	TAsyncLoadPriority UserPriority = Package->GetPriority();
+	int32 PackageSerialNumber = GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber;
+	TRACE_LOADTIME_QUEUE_EVENT(Package, LoadTimeProfilerPackageEventType_CreateLinker, UserPriority, PackageSerialNumber, EventSystemPriority);
+	EventQueue.AddAsyncEvent(UserPriority, PackageSerialNumber, EventSystemPriority,
 		TFunction<void(FAsyncLoadEventArgs& Args)>(
 			[WeakPtr, this](FAsyncLoadEventArgs& Args)
 			{
@@ -1796,6 +1802,7 @@ void FAsyncLoadingThread::QueueEvent_CreateLinker(FAsyncPackage* Package, int32 
 				check(Pkg);
 				if (Pkg)
 				{
+					TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_CreateLinker);
 					Pkg->SetTimeLimit(Args, TEXT("Create Linker"));
 					Pkg->Event_CreateLinker();
 					Args.OutLastObjectWorkWasPerformedOn = Pkg->GetLinkerRoot();
@@ -1850,7 +1857,10 @@ void FAsyncLoadingThread::QueueEvent_FinishLinker(FWeakAsyncPackagePtr WeakPtr, 
 	FAsyncPackage* Pkg = GetPackage(WeakPtr);
 	if (Pkg)
 	{
-		EventQueue.AddAsyncEvent(Pkg->GetPriority(), GRandomizeLoadOrder ? GetRandomSerialNumber() : Pkg->SerialNumber, EventSystemPriority,
+		TAsyncLoadPriority UserPriority = Pkg->GetPriority();
+		int32 PackageSerialNumber = GRandomizeLoadOrder ? GetRandomSerialNumber() : Pkg->SerialNumber;
+		TRACE_LOADTIME_QUEUE_EVENT(Pkg, LoadTimeProfilerPackageEventType_FinishLinker, UserPriority, PackageSerialNumber, EventSystemPriority)
+		EventQueue.AddAsyncEvent(UserPriority, PackageSerialNumber, EventSystemPriority,
 			TFunction<void(FAsyncLoadEventArgs& Args)>(
 				[WeakPtr, this](FAsyncLoadEventArgs& Args)
 		{
@@ -1858,6 +1868,7 @@ void FAsyncLoadingThread::QueueEvent_FinishLinker(FWeakAsyncPackagePtr WeakPtr, 
 			check(PkgInner);
 			if (PkgInner)
 			{
+				TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(PkgInner, LoadTimeProfilerPackageEventType_FinishLinker);
 				PkgInner->SetTimeLimit(Args, TEXT("Finish Linker"));
 				PkgInner->Event_FinishLinker();
 			}
@@ -1994,13 +2005,18 @@ void FAsyncLoadingThread::QueueEvent_StartImportPackages(FAsyncPackage* Package,
 {
 	check(Package);
 	FWeakAsyncPackagePtr WeakPtr(Package);
-	EventQueue.AddAsyncEvent(Package->GetPriority(), GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber, EventSystemPriority,
+
+	TAsyncLoadPriority UserPriority = Package->GetPriority();
+	int32 PackageSerialNumber = GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber;
+	TRACE_LOADTIME_QUEUE_EVENT(Package, LoadTimeProfilerPackageEventType_StartImportPackages, UserPriority, PackageSerialNumber, EventSystemPriority);
+	EventQueue.AddAsyncEvent(UserPriority, PackageSerialNumber, EventSystemPriority,
 		TFunction<void(FAsyncLoadEventArgs& Args)>(
 			[WeakPtr, this](FAsyncLoadEventArgs& Args)
 	{
 		FAsyncPackage* Pkg = GetPackage(WeakPtr);
 		if (Pkg)
 		{
+			TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_StartImportPackages);
 			Pkg->SetTimeLimit(Args, TEXT("Start Import Packages"));
 			Pkg->Event_StartImportPackages();
 		}
@@ -2161,6 +2177,7 @@ static const FName PrestreamPackageClassNameLoad = FName("PrestreamPackage");
 EAsyncPackageState::Type FAsyncPackage::LoadImports_Event()
 {
 	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_LoadImports);
+	SCOPED_LOADTIMER(LoadImports_Event);
 	LastObjectWorkWasPerformedOn = LinkerRoot;
 	LastTypeOfWorkPerformed = TEXT("loading imports event");
 
@@ -2332,13 +2349,17 @@ void FAsyncLoadingThread::QueueEvent_SetupImports(FAsyncPackage* Package, int32 
 	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState::SetupImports;
 	check(Package);
 	FWeakAsyncPackagePtr WeakPtr(Package);
-	EventQueue.AddAsyncEvent(Package->GetPriority(), GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber, EventSystemPriority,
+	TAsyncLoadPriority UserPriority = Package->GetPriority();
+	int32 PackageSerialNumber = GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber;
+	TRACE_LOADTIME_QUEUE_EVENT(Package, LoadTimeProfilerPackageEventType_SetupImports, UserPriority, PackageSerialNumber, EventSystemPriority);
+	EventQueue.AddAsyncEvent(UserPriority, PackageSerialNumber, EventSystemPriority,
 		TFunction<void(FAsyncLoadEventArgs& Args)>(
 			[WeakPtr, this](FAsyncLoadEventArgs& Args)
 	{
 		FAsyncPackage* Pkg = GetPackage(WeakPtr);
 		if (Pkg)
 		{
+			TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_SetupImports);
 			Pkg->SetTimeLimit(Args, TEXT("Setup Imports"));
 			Pkg->Event_SetupImports();
 		}
@@ -2691,13 +2712,17 @@ void FAsyncLoadingThread::QueueEvent_SetupExports(FAsyncPackage* Package, int32 
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState::SetupExports);
 	check(Package);
 	FWeakAsyncPackagePtr WeakPtr(Package);
-	EventQueue.AddAsyncEvent(Package->GetPriority(), GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber, EventSystemPriority,
+	TAsyncLoadPriority UserPriority = Package->GetPriority();
+	int32 PackageSerialNumber = GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber;
+	TRACE_LOADTIME_QUEUE_EVENT(Package, LoadTimeProfilerPackageEventType_SetupExports, UserPriority, PackageSerialNumber, EventSystemPriority);
+	EventQueue.AddAsyncEvent(UserPriority, PackageSerialNumber, EventSystemPriority,
 		TFunction<void(FAsyncLoadEventArgs& Args)>(
 			[WeakPtr, this](FAsyncLoadEventArgs& Args)
 	{
 		FAsyncPackage* Pkg = GetPackage(WeakPtr);
 		if (Pkg)
 		{
+			TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_SetupExports);
 			Pkg->SetTimeLimit(Args, TEXT("Setup Exports"));
 			Pkg->Event_SetupExports();
 		}
@@ -2725,6 +2750,9 @@ void FAsyncLoadingThread::QueueEvent_ProcessImportsAndExports(FAsyncPackage* Pac
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState::ProcessNewImportsAndExports);
 	check(Package);
 	FWeakAsyncPackagePtr WeakPtr(Package);
+	TAsyncLoadPriority UserPriority = Package->GetPriority();
+	int32 PackageSerialNumber = GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber;
+	TRACE_LOADTIME_QUEUE_EVENT(Package, LoadTimeProfilerPackageEventType_ProcessImportsAndExports, UserPriority, PackageSerialNumber, EventSystemPriority);
 	EventQueue.AddAsyncEvent(Package->GetPriority(), GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber, EventSystemPriority,
 		TFunction<void(FAsyncLoadEventArgs& Args)>(
 			[WeakPtr, this](FAsyncLoadEventArgs& Args)
@@ -2732,6 +2760,7 @@ void FAsyncLoadingThread::QueueEvent_ProcessImportsAndExports(FAsyncPackage* Pac
 		FAsyncPackage* Pkg = GetPackage(WeakPtr);
 		if (Pkg)
 		{
+			TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_ProcessImportsAndExports);
 			Pkg->SetTimeLimit(Args, TEXT("ProcessImportsAndExports"));
 			Pkg->Event_ProcessImportsAndExports();
 		}
@@ -2744,13 +2773,17 @@ void FAsyncLoadingThread::QueueEvent_ProcessPostloadWait(FAsyncPackage* Package,
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState::WaitingForPostLoad);
 	check(Package);
 	FWeakAsyncPackagePtr WeakPtr(Package);
-	EventQueue.AddAsyncEvent(Package->GetPriority(), GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber, EventSystemPriority,
+	TAsyncLoadPriority UserPriority = Package->GetPriority();
+	int32 PackageSerialNumber = GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber;
+	TRACE_LOADTIME_QUEUE_EVENT(Package, LoadTimeProfilerPackageEventType_PostLoadWait, UserPriority, PackageSerialNumber, EventSystemPriority);
+	EventQueue.AddAsyncEvent(UserPriority, PackageSerialNumber, EventSystemPriority,
 		TFunction<void(FAsyncLoadEventArgs& Args)>(
 			[WeakPtr, this](FAsyncLoadEventArgs& Args)
 	{
 		FAsyncPackage* Pkg = GetPackage(WeakPtr);
 		if (Pkg)
 		{
+			TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_PostLoadWait);
 			Pkg->SetTimeLimit(Args, TEXT("Process Process Postload Wait"));
 			Pkg->Event_ProcessPostloadWait();
 		}
@@ -2763,13 +2796,17 @@ void FAsyncLoadingThread::QueueEvent_ExportsDone(FAsyncPackage* Package, int32 E
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState::ProcessNewImportsAndExports);
 	check(Package);
 	FWeakAsyncPackagePtr WeakPtr(Package);
-	EventQueue.AddAsyncEvent(Package->GetPriority(), GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber, EventSystemPriority,
+	TAsyncLoadPriority UserPriority = Package->GetPriority();
+	int32 PackageSerialNumber = GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber;
+	TRACE_LOADTIME_QUEUE_EVENT(Package, LoadTimeProfilerPackageEventType_ExportsDone, UserPriority, PackageSerialNumber, EventSystemPriority);
+	EventQueue.AddAsyncEvent(UserPriority, PackageSerialNumber, EventSystemPriority,
 		TFunction<void(FAsyncLoadEventArgs& Args)>(
 			[WeakPtr, this](FAsyncLoadEventArgs& Args)
 	{
 		FAsyncPackage* Pkg = GetPackage(WeakPtr);
 		if (Pkg)
 		{
+			TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_ExportsDone);
 			Pkg->SetTimeLimit(Args, TEXT("Exports Done"));
 			Pkg->Event_ExportsDone();
 		}
@@ -2782,6 +2819,9 @@ void FAsyncLoadingThread::QueueEvent_StartPostLoad(FAsyncPackage* Package, int32
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState::ReadyForPostLoad);
 	check(Package);
 	FWeakAsyncPackagePtr WeakPtr(Package);
+	TAsyncLoadPriority UserPriority = Package->GetPriority();
+	int32 PackageSerialNumber = GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber;
+	TRACE_LOADTIME_QUEUE_EVENT(Package, LoadTimeProfilerPackageEventType_StartPostLoad, UserPriority, PackageSerialNumber, EventSystemPriority);
 	EventQueue.AddAsyncEvent(Package->GetPriority(), GRandomizeLoadOrder ? GetRandomSerialNumber() : Package->SerialNumber, EventSystemPriority,
 		TFunction<void(FAsyncLoadEventArgs& Args)>(
 			[WeakPtr, this](FAsyncLoadEventArgs& Args)
@@ -2789,6 +2829,7 @@ void FAsyncLoadingThread::QueueEvent_StartPostLoad(FAsyncPackage* Package, int32
 		FAsyncPackage* Pkg = GetPackage(WeakPtr);
 		if (Pkg)
 		{
+			TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(Pkg, LoadTimeProfilerPackageEventType_StartPostLoad);
 			Pkg->SetTimeLimit(Args, TEXT("Start Post Load"));
 			Pkg->Event_StartPostload();
 		}
@@ -3207,6 +3248,8 @@ void FAsyncPackage::EventDrivenCreateExport(int32 LocalExportIndex)
 	SCOPED_LOADTIMER(Package_CreateExports);
 	FObjectExport& Export = Linker->ExportMap[LocalExportIndex];
 
+	TRACE_LOADTIME_CREATE_EXPORT_SCOPE(Linker, &Export.Object, Export.SerialOffset, Export.SerialSize, Export.bIsAsset);
+
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetLinkerRoot(), ELLMTagSet::Assets);
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET((Export.DynamicType == FObjectExport::EDynamicType::DynamicType) ? UDynamicClass::StaticClass() : 
@@ -3589,6 +3632,8 @@ void FAsyncPackage::EventDrivenSerializeExport(int32 LocalExportIndex)
 
 		Object->ClearFlags(RF_NeedLoad);
 
+		TRACE_LOADTIME_OBJECT_SCOPE(Object, LoadTimeProfilerObjectEventType_Serialize);
+
 		FUObjectSerializeContext* LoadContext = GetSerializeContext();
 		UObject* PrevSerializedObject = LoadContext->SerializedObject;
 		LoadContext->SerializedObject = Object;
@@ -3651,6 +3696,7 @@ void FAsyncPackage::EventDrivenSerializeExport(int32 LocalExportIndex)
 
 void FAsyncPackage::StartPrecacheRequest()
 {
+	SCOPED_LOADTIMER(StartPrecacheRequests);
 	if (Linker->bDynamicClassLinker)
 	{
 //native blueprint 
@@ -3792,6 +3838,7 @@ int64 FAsyncPackage::PrecacheRequestReady(IAsyncReadRequest * Read)
 
 void FAsyncPackage::MakeNextPrecacheRequestCurrent()
 {
+	SCOPED_LOADTIMER(MakeNextPrecacheRequestCurrent);
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 
 	check(ReadyPrecacheRequests.Num());
@@ -3824,6 +3871,7 @@ void FAsyncPackage::MakeNextPrecacheRequestCurrent()
 
 void FAsyncPackage::FlushPrecacheBuffer()
 {
+	SCOPED_LOADTIMER(FlushPrecacheBuffer);
 	CurrentBlockOffset = -1;
 	CurrentBlockBytes = -1;
 	if (!Linker->bDynamicClassLinker)
@@ -3838,6 +3886,7 @@ int32 GCurrentExportIndex = -1;
 
 EAsyncPackageState::Type FAsyncPackage::ProcessImportsAndExports_Event()
 {
+	SCOPED_LOADTIMER(ProcessImportsAndExports_Event);
 	check(Linker);
 	bool bDidSomething = true;
 	int32 LoopIterations = 0;
@@ -4729,8 +4778,6 @@ bool FAsyncPackage::AreAllDependenciesFullyLoaded(TSet<UPackage*>& VisitedPackag
 
 EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, bool& bDidSomething, FFlushTree* FlushTree)
 {
-	SCOPED_LOADTIMER(TickAsyncLoading_ProcessLoadedPackages);
-
 	EAsyncPackageState::Type Result = EAsyncPackageState::Complete;
 
 	// This is for debugging purposes only. @todo remove
@@ -4766,11 +4813,11 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 	bDidSomething = LoadedPackagesToProcess.Num() > 0;
 	for (int32 PackageIndex = 0; PackageIndex < LoadedPackagesToProcess.Num() && !IsAsyncLoadingSuspended(); ++PackageIndex)
 	{
-		SCOPED_LOADTIMER(ProcessLoadedPackagesTime);
-
 		FAsyncPackage* Package = LoadedPackagesToProcess[PackageIndex];
 		if (Package->GetDependencyRefCount() == 0)
 		{
+			SCOPED_LOADTIMER(ProcessLoadedPackagesTime);
+
 			Result = Package->PostLoadDeferredObjects(TickStartTime, bUseTimeLimit, TimeLimit);
 			if (Result == EAsyncPackageState::Complete)
 			{
@@ -4824,7 +4871,6 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 				const bool bInternalCallbacks = false;
 				const EAsyncLoadingResult::Type LoadingResult = Package->HasLoadFailed() ? EAsyncLoadingResult::Failed : EAsyncLoadingResult::Succeeded;
 				Package->CallCompletionCallbacks(bInternalCallbacks, LoadingResult);
-
 #if WITH_EDITOR
 				// In the editor we need to find any assets and add them to list for later callback
 				Package->GetLoadedAssets(LoadedAssets);
@@ -5159,6 +5205,10 @@ void FAsyncLoadingThread::StartThread()
 		bThreadStarted = true;
 		FPlatformMisc::MemoryBarrier();
 		Thread = FRunnableThread::Create(this, TEXT("FAsyncLoadingThread"), 0, TPri_Normal);
+		if (Thread)
+		{
+			TRACE_SET_THREAD_GROUP(Thread->GetThreadID(), TraceThreadGroup_AsyncLoading);
+		}
 	}
 }
 
@@ -5172,6 +5222,8 @@ uint32 FAsyncLoadingThread::Run()
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 
 	AsyncLoadingThreadID = FPlatformTLS::GetCurrentThreadId();
+
+	TRACE_LOADTIME_START_ASYNC_LOADING();
 
 	if (!IsInGameThread())
 	{
@@ -5341,6 +5393,7 @@ void FAsyncLoadingThread::SuspendLoading()
 #endif
 	if (IsMultithreaded() && SuspendCount == 1)
 	{
+		TRACE_LOADTIME_SUSPEND_ASYNC_LOADING();
 		ThreadSuspendedEvent->Wait();
 	}
 }
@@ -5356,6 +5409,7 @@ void FAsyncLoadingThread::ResumeLoading()
 	if (IsMultithreaded() && SuspendCount == 0)
 	{
 		ThreadResumedEvent->Wait();
+		TRACE_LOADTIME_RESUME_ASYNC_LOADING();
 	}
 }
 
@@ -5495,11 +5549,13 @@ FAsyncPackage::FAsyncPackage(const FAsyncPackageDesc& InDesc)
 , FinishObjectsTime(0.0)
 #endif // PERF_TRACK_DETAILED_ASYNC_STATS
 {
+	TRACE_LOADTIME_NEW_ASYNC_PACKAGE(this, *InDesc.Name.ToString());
 	AddRequestID(InDesc.RequestID);
 }
 
 FAsyncPackage::~FAsyncPackage()
 {
+	TRACE_LOADTIME_DESTROY_ASYNC_PACKAGE(this);
 #if DO_CHECK
 	if (GEventDrivenLoaderEnabled)
 	{
@@ -5580,6 +5636,7 @@ void FAsyncPackage::AddRequestID(int32 Id)
 		}
 		RequestIDs.Add(Id);
 		AsyncLoadingThread.AddPendingRequest(Id);
+		TRACE_LOADTIME_ASYNC_PACKAGE_REQUEST_ASSOCIATION(this, Id);
 	}
 }
 
@@ -5730,6 +5787,7 @@ EAsyncPackageState::Type FAsyncPackage::TickAsyncPackage(bool InbUseTimeLimit, b
 
 	ReentryCount++;
 
+	TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(this, LoadTimeProfilerPackageEventType_Tick);
 	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_Tick);
 	SCOPED_LOADTIMER(Package_Tick);
 
@@ -6095,6 +6153,7 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 		check(Linker);
 		check(Linker->AsyncRoot == nullptr || Linker->AsyncRoot == this);
 		Linker->AsyncRoot = this;
+		TRACE_LOADTIME_ASYNC_PACKAGE_LINKER_ASSOCIATION(this, Linker);
 
 		UE_LOG(LogStreaming, Verbose, TEXT("FAsyncPackage::CreateLinker for %s finished."), *Desc.NameToLoad.ToString());
 	}
@@ -6663,7 +6722,10 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadObjects()
 				check(!GEventDrivenLoaderEnabled || !Object->HasAnyFlags(RF_NeedLoad));
 
 				ThreadContext.CurrentlyPostLoadedObjectByALT = Object;
-				Object->ConditionalPostLoad();
+				{
+					TRACE_LOADTIME_OBJECT_SCOPE(Object, LoadTimeProfilerObjectEventType_PostLoad);
+					Object->ConditionalPostLoad();
+				}
 				ThreadContext.CurrentlyPostLoadedObjectByALT = nullptr;
 
 				LastObjectWorkWasPerformedOn = Object;
@@ -6728,7 +6790,10 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 		FScopeCycleCounterUObject ConstructorScope(Object, GET_STATID(STAT_FAsyncPackage_PostLoadObjectsGameThread));
 
 		PackageScope.ThreadContext.CurrentlyPostLoadedObjectByALT = Object;
-		Object->ConditionalPostLoad();
+		{
+			TRACE_LOADTIME_OBJECT_SCOPE(Object, LoadTimeProfilerObjectEventType_PostLoad);
+			Object->ConditionalPostLoad();
+		}
 		PackageScope.ThreadContext.CurrentlyPostLoadedObjectByALT = nullptr;
 
 		if (ObjLoadedInPostLoad.Num())
@@ -7164,6 +7229,7 @@ int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid /*= nullptr*/,
 		// Generate new request ID and add it immediately to the global request list (it needs to be there before we exit
 		// this function, otherwise it would be added when the packages are being processed on the async thread).
 		RequestID = GPackageRequestID.Increment();
+		TRACE_LOADTIME_BEGIN_REQUEST(RequestID);
 		FAsyncLoadingThread::Get().AddPendingRequest(RequestID);
 
 		// Allocate delegate on Game Thread, it is not safe to copy delegates by value on other threads
@@ -7247,7 +7313,7 @@ void FlushAsyncLoading(int32 PackageID /* = INDEX_NONE */)
 
 	checkf(IsInGameThread(), TEXT("Unable to FlushAsyncLoading from any thread other than the game thread."));
 
-	if (IsAsyncLoading())
+ 	if (IsAsyncLoading())
 	{
 		FAsyncLoadingThread& AsyncThread = FAsyncLoadingThread::Get();
 		// Flushing async loading while loading is suspend will result in infinite stall
@@ -7259,6 +7325,8 @@ void FlushAsyncLoading(int32 PackageID /* = INDEX_NONE */)
 		{
 			return;
 		}
+
+		TRACE_LOADTIME_FLUSH_ASYNCLOADING_SCOPE(PackageID);
 
 		FCoreDelegates::OnAsyncLoadingFlush.Broadcast();
 

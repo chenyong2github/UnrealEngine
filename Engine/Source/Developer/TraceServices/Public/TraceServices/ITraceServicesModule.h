@@ -1,0 +1,25 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Trace/Store.h"
+#include "Modules/ModuleInterface.h"
+
+namespace Trace
+{
+
+class IAnalysisService;
+class ISessionService;
+
+}
+
+class ITraceServicesModule
+	: public IModuleInterface
+{
+public:
+	virtual TSharedPtr<Trace::ISessionService> GetSessionService() = 0;
+	virtual TSharedPtr<Trace::IAnalysisService> GetAnalysisService() = 0;
+
+	virtual ~ITraceServicesModule() { }
+};

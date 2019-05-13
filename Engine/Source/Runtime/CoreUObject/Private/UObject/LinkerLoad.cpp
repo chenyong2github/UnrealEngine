@@ -35,6 +35,7 @@
 #include "Serialization/Formatters/BinaryArchiveFormatter.h"
 #include "Serialization/Formatters/JsonArchiveInputFormatter.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
+#include "Serialization/LoadTimeTracePrivate.h"
 #include "HAL/FileManager.h"
 #include "UObject/CoreRedirects.h"
 
@@ -857,10 +858,12 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const TCHAR* InFilename, uint32 InL
 #endif
 
 	OwnerThread = FPlatformTLS::GetCurrentThreadId();
+	TRACE_LOADTIME_NEW_LINKER(this);
 }
 
 FLinkerLoad::~FLinkerLoad()
 {
+	TRACE_LOADTIME_DESTROY_LINKER(this);
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	FLinkerManager::Get().GetLiveLinkers().Remove(this);
 #endif
@@ -1030,6 +1033,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 					Loader = IFileManager::Get().CreateFileReader(*Filename);
 				}
 
+				TRACE_LOADTIME_LINKER_ARCHIVE_ASSOCIATION(this, Loader);
+
 				if (!Loader)
 				{
 					UE_LOG(LogLinker, Warning, TEXT("Error opening file '%s'."), *Filename);
@@ -1159,6 +1164,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 #endif
 		// Read summary from file.
 		StructuredArchiveRootRecord.GetValue() << NAMED_FIELD(Summary);
+
+		TRACE_LOADTIME_PACKAGE_SUMMARY(this, Summary.TotalHeaderSize, Summary.NameCount, Summary.ImportCount, Summary.ExportCount);
 
 		// Check tag.
 		if( Summary.Tag != PACKAGE_FILE_TAG )
@@ -1431,7 +1438,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeNameMap()
 
 	while (bFinishedPrecaching && NameMapIndex < Summary.NameCount && !IsTimeLimitExceeded(TEXT("serializing name map"), 100))
 	{
-		SCOPED_LOADTIMER(LinkerLoad_SerializeNameMap_ProcessingEntries);
+		//SCOPED_LOADTIMER(LinkerLoad_SerializeNameMap_ProcessingEntries);
 
 		FNameEntrySerialized NameEntry(ENAME_LinkerConstructor);
 
@@ -3430,7 +3437,6 @@ UObject* FLinkerLoad::Create( UClass* ObjectClass, FName ObjectName, UObject* Ou
 
 void FLinkerLoad::Preload( UObject* Object )
 {
-
 	//check(IsValidLowLevel());
 	check(Object);
 
@@ -3537,6 +3543,7 @@ void FLinkerLoad::Preload( UObject* Object )
 				Object->ClearFlags ( RF_NeedLoad );
 
 				{
+					TRACE_LOADTIME_OBJECT_SCOPE(Export.Object, LoadTimeProfilerObjectEventType_Serialize);
 					SCOPE_CYCLE_COUNTER(STAT_LinkerSerialize);
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 					// communicate with FLinkerPlaceholderBase, what object is currently serializing in
@@ -3868,6 +3875,8 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 	// Check whether we already loaded the object and if not whether the context flags allow loading it.
 	if( !Export.Object && !FilterExport(Export) ) // for some acceptable position, it was not "not for" 
 	{
+		TRACE_LOADTIME_CREATE_EXPORT_SCOPE(this, &Export.Object, Export.SerialOffset, Export.SerialSize, Export.bIsAsset);
+
 		FUObjectSerializeContext* CurrentLoadContext = GetSerializeContext();
 		check(!GEventDrivenLoaderEnabled || !bLockoutLegacyOperations || !EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME);
 		check(Export.ObjectName!=NAME_None || !(Export.ObjectFlags&RF_Public));

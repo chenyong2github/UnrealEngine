@@ -14,6 +14,8 @@ public class Core : ModuleRules
 
 		PrivateDependencyModuleNames.Add("BuildSettings");
 
+		PublicDependencyModuleNames.Add("Trace");
+
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				"Developer/DerivedDataCache/Public",
