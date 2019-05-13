@@ -436,7 +436,7 @@ void TemporallyAccumulate(
 				/* inout */ SignalAccumulators);
 		
 			// Exports the history sample from accumulator.
-			FIX_UNROLL(CONFIG_SIGNAL_BATCH_SIZE)
+			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 			for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 			{
 				HistorySamples.Array[BatchedSignalId] = SignalAccumulators.Array[BatchedSignalId].Moment1;
@@ -447,7 +447,7 @@ void TemporallyAccumulate(
 				}
 			}
 
-			FIX_UNROLL(CONFIG_SIGNAL_BATCH_SIZE)
+			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 			for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 			{
 				FSSDSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
@@ -555,7 +555,7 @@ void TemporallyAccumulate(
 		FSSDSignalAccumulatorArray SignalAccumulators = CreateSignalAccumulatorArray();		
 		if (bUseCurrentSampleForCenter)
 		{
-			FIX_UNROLL(MAX_SIGNAL_MULTIPLEXING)
+			UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
 			for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
 			{
 				const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, SignalMultiplexId);
@@ -601,7 +601,7 @@ void TemporallyAccumulate(
 		#endif
 
 		// Clamp history
-		FIX_UNROLL(CONFIG_SIGNAL_BATCH_SIZE)
+		UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 		for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 		{
 			FSSDSignalSample NeighborMin = SignalAccumulators.Array[BatchedSignalId].Min;

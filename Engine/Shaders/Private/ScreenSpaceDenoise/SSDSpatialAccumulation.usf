@@ -523,7 +523,7 @@ void MainCS(
 		KernelConfig.bForceKernelCenterAccumulation = true;
 		
 		{
-			FIX_UNROLL(MAX_SIGNAL_MULTIPLEXING)
+			UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
 			for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
 			{
 				KernelConfig.BufferColorSpace[MultiplexId] = CONFIG_INPUT_COLOR_SPACE;
@@ -543,7 +543,7 @@ void MainCS(
 		{
 			KernelConfig.bMaxWithRefBilateralDistance = true;
 
-			FIX_UNROLL(MAX_SIGNAL_MULTIPLEXING)
+			UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
 			for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
 			{
 				if (KernelConfig.BilateralDistanceComputation == SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS)
@@ -589,7 +589,7 @@ void MainCS(
 		// When not upscaling, manually force accumulate the sample of the kernel.
 		if (!KernelConfig.bSampleKernelCenter && !KernelConfig.bDescOrder)
 		{
-			FIX_UNROLL(MAX_SIGNAL_MULTIPLEXING)
+			UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
 			for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
 			{
 				const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, SignalMultiplexId);
@@ -701,7 +701,7 @@ void MainCS(
 
 	// Color processing of the signal to reduce highlight flickering.
 	{
-		FIX_UNROLL(CONFIG_SIGNAL_BATCH_SIZE)
+		UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 		for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
 		{
 			#if CONFIG_REJECT_HIGHEST_COLOR
@@ -735,7 +735,7 @@ void MainCS(
 		{
 			MultiplexCount = CONFIG_SIGNAL_BATCH_SIZE;
 			
-			FIX_UNROLL(CONFIG_SIGNAL_BATCH_SIZE)
+			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 			for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
 			{
 				OutputSamples.Array[MultiplexId] = SignalAccumulators.Array[MultiplexId].Moment1;
@@ -750,7 +750,7 @@ void MainCS(
 		{
 			MultiplexCount = 2 * CONFIG_SIGNAL_BATCH_SIZE;
 
-			FIX_UNROLL(CONFIG_SIGNAL_BATCH_SIZE)
+			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 			for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 			{
 				OutputSamples.Array[BatchedSignalId * 2 + 0] = SignalAccumulators.Array[BatchedSignalId * CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN + 0].Moment1;
@@ -761,7 +761,7 @@ void MainCS(
 		{
 			MultiplexCount = CONFIG_SIGNAL_BATCH_SIZE;
 			
-			FIX_UNROLL(CONFIG_SIGNAL_BATCH_SIZE)
+			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 			for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
 			{
 				OutputSamples.Array[MultiplexId] = SignalAccumulators.Array[MultiplexId].Previous;
@@ -786,7 +786,7 @@ void MainCS(
 	// Clamp the number of sample recorded.
 	if (DIM_STAGE == STAGE_POST_FILTERING)
 	{
-		FIX_UNROLL(CONFIG_SIGNAL_BATCH_SIZE)
+		UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 		for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
 		{
 			float CurrentSampleCount = OutputSamples.Array[MultiplexId].SampleCount;

@@ -14,9 +14,6 @@
 #include "SSDDefinitions.ush"
 
 
-#define FIX_UNROLL(N) [unroll(N)]
-
-
 //------------------------------------------------------- SHARED SHADER PARAMETERS
 
 float4x4  PrevScreenToTranslatedWorld;

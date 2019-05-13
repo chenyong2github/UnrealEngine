@@ -36,7 +36,7 @@ FSSDSignalAccumulatorArray CreateSignalAccumulatorArray()
 {
 	FSSDSignalAccumulatorArray Accumulators;
 	
-	FIX_UNROLL(MAX_SIGNAL_MULTIPLEXING)
+	UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
 	for (uint i = 0; i < MAX_SIGNAL_MULTIPLEXING; i++)
 	{
 		Accumulators.Array[i] = CreateSignalAccumulator();
@@ -156,7 +156,7 @@ FSSDKernelConfig CreateKernelConfig()
 	KernelConfig.bMaxWithRefBilateralDistance = false;
 	
 	{
-		FIX_UNROLL(MAX_SIGNAL_MULTIPLEXING)
+		UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
 		for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
 		{
 			KernelConfig.BufferColorSpace[MultiplexId] = STANDARD_BUFFER_COLOR_SPACE;
@@ -180,7 +180,7 @@ FSSDKernelConfig CreateKernelConfig()
 	KernelConfig.SampleTrackId = 0;
 
 	{	
-		FIX_UNROLL(MAX_SIGNAL_MULTIPLEXING)
+		UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
 		for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
 		{
 			KernelConfig.RefBilateralDistance[MultiplexId] = 0.0;
@@ -281,7 +281,7 @@ void AccumulateSampledMultiplexedSignals(
 	// When sampling the previous frame, need to be forgiving in the world based bilateral rejection because TAA jitter.
 	const float WorldBluringDistanceForgiveness = KernelConfig.bPreviousFrameMetadata ? 3 : 1.0;
 	
-	FIX_UNROLL(MAX_SIGNAL_MULTIPLEXING)
+	UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
 	for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
 	{
 		// Compute at compile time the id of the signal being processed.
@@ -421,7 +421,7 @@ void SampleAndAccumulateMultiplexedSignalsPair(
 	FSSDSignalArray MultiplexedSamples[2];
 	bool bIsOutsideFrustum[2];
 
-	FIX_UNROLL(2)
+	UNROLL_N(2)
 	for (uint PairFetchId = 0; PairFetchId < 2; PairFetchId++)
 	{
 		// Stores in SGPR whether this sample is outside the viewport, to avoid VGPR pressure to keep SampleBufferUV after texture fetches.
@@ -441,7 +441,7 @@ void SampleAndAccumulateMultiplexedSignalsPair(
 	// Take the min inverse frequency per signal if desired.
 	if (KernelConfig.bMinSamplePairInvFrequency)
 	{
-		FIX_UNROLL(MAX_SIGNAL_MULTIPLEXING)
+		UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
 		for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
 		{
 			float MinInvFrequency = min(
@@ -457,7 +457,7 @@ void SampleAndAccumulateMultiplexedSignalsPair(
 		}
 	}
 
-	FIX_UNROLL(2)
+	UNROLL_N(2)
 	for (uint PairAccumulateId = 0; PairAccumulateId < 2; PairAccumulateId++)
 	{
 		AccumulateSampledMultiplexedSignals(
@@ -477,7 +477,7 @@ void StartAccumulatingCluster(
 	inout FSSDSignalAccumulatorArray Accumulators,
 	FSSDSampleClusterInfo ClusterInfo)
 {
-	FIX_UNROLL(MAX_SIGNAL_MULTIPLEXING)
+	UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
 	for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
 	{
 		StartAccumulatingCluster(
@@ -489,7 +489,7 @@ void StartAccumulatingCluster(
 
 void DijestAccumulatedClusterSamples(inout FSSDSignalAccumulatorArray Accumulators, uint RingId, uint SampleCount)
 {
-	FIX_UNROLL(MAX_SIGNAL_MULTIPLEXING)
+	UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
 	for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
 	{
 		DijestAccumulatedClusterSamples(
@@ -546,7 +546,7 @@ void AccumulateBilinear(
 		KernelConfig.BufferSizeAndInvSize.zw,
 		MipLevelPow2, rcp(MipLevelPow2));
 	
-	FIX_UNROLL(4)
+	UNROLL_N(4)
 	for (uint i = 0; i < 4; i++)
 	{
 		float2 SampleOffset = BilinearSamplingOffsets2x2[i];
@@ -847,7 +847,7 @@ void ConvolveStackowiakKernel(
 		LOOP
 		for (uint BatchId = 0; BatchId < BatchCountCount; BatchId++)
 		{
-			FIX_UNROLL(2)
+			UNROLL_N(2)
 			for (uint SampleBatchId = 0; SampleBatchId < 2; SampleBatchId++)
 			{
 				const uint SampleId = (BatchCountCount - BatchId) * kSamplingBatchSize - 1 - SampleBatchId;

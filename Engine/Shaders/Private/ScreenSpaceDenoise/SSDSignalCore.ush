@@ -56,7 +56,7 @@ FSSDSignalSample CreateSignalSample()
 FSSDSignalArray CreateSignalArrayFromScalarValue(float Scalar)
 {
 	FSSDSignalArray OutSamples;
-	FIX_UNROLL(MAX_SIGNAL_MULTIPLEXING)
+	UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
 	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_MULTIPLEXING; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = CreateSignalSampleFromScalarValue(Scalar);
@@ -211,7 +211,7 @@ void DecodeMultiplexedSignals(
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INPUT_1SPP)
 	{
-		FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 		for (uint BatchSignalId = 0; BatchSignalId < MAX_SIGNAL_BATCH_SIZE; BatchSignalId++)
 		{
 			uint MultiplexId = BatchSignalId;
@@ -222,7 +222,7 @@ void DecodeMultiplexedSignals(
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INPUT_NSPP)
 	{
-		FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 		for (uint BatchSignalId = 0; BatchSignalId < MAX_SIGNAL_BATCH_SIZE; BatchSignalId++)
 		{
 			uint MultiplexId = BatchSignalId;
@@ -234,7 +234,7 @@ void DecodeMultiplexedSignals(
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_1SPP)
 	{
-		FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 		for (uint BatchSignalId = 0; BatchSignalId < MAX_SIGNAL_BATCH_SIZE; BatchSignalId++)
 		{
 			uint MultiplexId = BatchSignalId;
@@ -246,7 +246,7 @@ void DecodeMultiplexedSignals(
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_NSPP)
 	{
-		FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 		for (uint BatchSignalId = 0; BatchSignalId < MAX_SIGNAL_BATCH_SIZE; BatchSignalId++)
 		{
 			uint MultiplexId = BatchSignalId;
@@ -260,7 +260,7 @@ void DecodeMultiplexedSignals(
 	}
 	//else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION)
 	//{
-	//	FIX_UNROLL(MAX_SIGNAL_MULTIPLEXING)
+	//	UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
 	//	for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
 	//	{
 	//		float2 Channels = float2(RawSample[MultiplexId / 2][2 * (MultiplexId % 2)], RawSample[MultiplexId / 2][2 * (MultiplexId % 2) + 1]);
@@ -279,7 +279,7 @@ void DecodeMultiplexedSignals(
 	//}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY || SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION)
 	{
-		FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 		for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_BATCH_SIZE; MultiplexId++)
 		{
 			float3 Channels = RawSample[MultiplexId].xyz;
@@ -293,7 +293,7 @@ void DecodeMultiplexedSignals(
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_REJECTION)
 	{
-		FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 		for (uint BatchSignalId = 0; BatchSignalId < MAX_SIGNAL_BATCH_SIZE; BatchSignalId++)
 		{
 			uint MultiplexId = BatchSignalId * 2;
@@ -448,7 +448,7 @@ void EncodeMultiplexedSignals(
 	out uint OutBufferCount)
 {
 	// Init all raw samples.
-	FIX_UNROLL(MAX_MULTIPLEXED_TEXTURES)
+	UNROLL_N(MAX_MULTIPLEXED_TEXTURES)
 	for (uint i = 0; i < MAX_MULTIPLEXED_TEXTURES; i++)
 		OutRawSample[i] = 0;
 
