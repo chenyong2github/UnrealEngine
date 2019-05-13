@@ -29,6 +29,22 @@ using FRDGBufferRef = FRDGBuffer*;
 using FRDGBufferSRVRef = FRDGBufferSRV*;
 using FRDGBufferUAVRef = FRDGBufferUAV*;
 
+/** The hardware pipeline for pass scheduling. */
+enum class ERDGPassPipeline : uint8
+{
+	Graphics,
+	Compute,
+	MAX
+};
+
+/** Describes how a pass accesses a resource. */
+enum class ERDGPassAccess : uint8
+{
+	Read,
+	Write,
+	MAX
+};
+
 /** Render graph specific flags for resources. */
 enum class ERDGResourceFlags : uint8
 {
@@ -90,6 +106,11 @@ protected:
 #endif
 	}
 
+	FRHIResource* GetRHIUnchecked() const
+	{
+		return ResourceRHI;
+	}
+
 private:
 	FRHIResource* ResourceRHI = nullptr;
 
@@ -134,6 +155,7 @@ private:
 
 	void MarkAsExternal()
 	{
+		checkf(!FirstProducer, TEXT("Resource %s with producer pass marked as external."), Name);
 		bHasBeenProduced = true;
 	}
 
@@ -153,8 +175,8 @@ private:
 #endif
 
 	/** Used for tracking resource state during execution. */
-	bool bWritable = false;
-	bool bCompute = false;
+	ERDGPassAccess PassAccess = ERDGPassAccess::Read;
+	ERDGPassPipeline PassPipeline = ERDGPassPipeline::Graphics;
 
 	friend class FRDGBuilder;
 };
@@ -198,6 +220,12 @@ private:
 		, Desc(InDesc)
 	{}
 
+	/** Returns the allocated RHI texture without access checks. */
+	FTextureRHIParamRef GetRHIUnchecked() const
+	{
+		return static_cast<FTextureRHIParamRef>(FRDGResource::GetRHIUnchecked());
+	}
+
 	/** This is not a TRefCountPtr<> because FRDGTexture is allocated on the FMemStack
 	 *  FGraphBuilder::AllocatedTextures is actually keeping the reference.
 	 */
@@ -221,6 +249,12 @@ protected:
 	FRDGShaderResourceView(const TCHAR* Name)
 		: FRDGResource(Name)
 	{}
+
+	/** Returns the allocated RHI SRV without access checks. */
+	FShaderResourceViewRHIParamRef GetRHIUnchecked() const
+	{
+		return static_cast<FShaderResourceViewRHIParamRef>(FRDGResource::GetRHIUnchecked());
+	}
 };
 
 /** Render graph tracked UAV. */
@@ -228,7 +262,7 @@ class FRDGUnorderedAccessView
 	: public FRDGResource
 {
 public:
-	/** Returns the allocated RHI SRV. */
+	/** Returns the allocated RHI UAV. */
 	FUnorderedAccessViewRHIParamRef GetRHI() const
 	{
 		return static_cast<FUnorderedAccessViewRHIParamRef>(FRDGResource::GetRHI());
@@ -238,6 +272,12 @@ protected:
 	FRDGUnorderedAccessView(const TCHAR* Name)
 		: FRDGResource(Name)
 	{}
+
+	/** Returns the allocated RHI UAV without access checks. */
+	FUnorderedAccessViewRHIParamRef GetRHIUnchecked() const
+	{
+		return static_cast<FUnorderedAccessViewRHIParamRef>(FRDGResource::GetRHIUnchecked());
+	}
 };
 
 /** Descriptor for render graph tracked SRV. */

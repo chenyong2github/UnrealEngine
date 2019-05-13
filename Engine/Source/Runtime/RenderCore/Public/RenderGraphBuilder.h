@@ -172,14 +172,14 @@ private:
 	FRDGStatScopeStack StatScopeStack;
 
 #if RDG_ENABLE_DEBUG
-	/** Whether the Execute() has already been called. */
-	bool bHasExecuted = false;
-
 	/** All recently allocated pass parameter structure, but not used by a AddPass() yet. */
 	TSet<const void*> AllocatedUnusedPassParameters;
 
 	/** List of tracked resources for validation prior to shutdown. */
 	TArray<FRDGTrackedResourceRef, SceneRenderingAllocator> TrackedResources;
+
+	/** Whether the Execute() has already been called. */
+	bool bHasExecuted = false;
 #endif
 
 	void ValidatePass(const FRDGPass* Pass) const;
@@ -192,13 +192,21 @@ private:
 
 	void AddPassInternal(FRDGPass* Pass);
 
-	void AllocateRHITextureIfNeeded(FRDGTexture* Texture, bool bComputePass);
-	void AllocateRHITextureUAVIfNeeded(FRDGTextureUAV* UAV, bool bComputePass);
-	void AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV, bool bComputePass);
-	void AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV, bool bComputePass);
+	void AllocateRHITextureIfNeeded(FRDGTexture* Texture);
+	void AllocateRHITextureUAVIfNeeded(FRDGTextureUAV* UAV);
+	void AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV);
+	void AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV);
 
-	void TransitionTexture(FRDGTexture* Texture, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute) const;
-	void TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, FRDGTrackedResource* UnderlyingResource, ERDGResourceFlags ResourceFlags, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const;
+	void TransitionTexture(
+		FRDGTexture* Texture,
+		ERDGPassAccess PassAccess,
+		ERDGPassPipeline PassPipeline) const;
+
+	void TransitionUAV(
+		FUnorderedAccessViewRHIParamRef UAV,
+		FRDGTrackedResource* UnderlyingResource,
+		ERDGPassAccess PassAccess,
+		ERDGPassPipeline PassPipeline) const;
 
 	void ExecutePass(const FRDGPass* Pass);
 	void PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasRenderTargets);
