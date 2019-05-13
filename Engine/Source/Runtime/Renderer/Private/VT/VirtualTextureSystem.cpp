@@ -1368,7 +1368,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 		#if WITH_EDITOR
 			if (PhysicalSpace->GetDescription().bContinuousUpdate)
 			{
-				FScopeLock Lock(&ContinuousUpdateTilesToProduceCS);
+				FScopeLock ScopeLock(&ContinuousUpdateTilesToProduceCS);
 				ContinuousUpdateTilesToProduce.Append(ContinuousUpdateTilesToProduceThreadLocal);
 			}
 		#endif
