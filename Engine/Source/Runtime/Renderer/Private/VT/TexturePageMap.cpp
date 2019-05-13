@@ -291,8 +291,7 @@ void FTexturePageMap::ReleaseUnmappedPages()
 		FPageEntry& Entry = Pages[PageIndex];
 		const uint32 NextPageIndex = Entry.NextIndex;
 		Entry.Page.Packed = ~0u;
-		Entry.pAddress = ~0u;
-		Entry.PhysicalSpaceID = ~0u;
+		Entry.Packed = ~0u;
 		RemovePageFromList(PageIndex);
 		AddPageToList(PageListHead_Free, PageIndex);
 		PageIndex = NextPageIndex;

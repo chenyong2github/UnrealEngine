@@ -124,9 +124,16 @@ private:
 		FTexturePage Page;
 		uint32 NextIndex;
 		uint32 PrevIndex;
-		uint32 pAddress : 16;
-		uint32 PhysicalSpaceID : 12;
-		uint32 vLevel : 4;
+		union
+		{
+			uint32 Packed;
+			struct 
+			{
+				uint32 pAddress : 16;
+				uint32 PhysicalSpaceID : 12;
+				uint32 vLevel : 4;
+			};
+		};
 	};
 
 	void RemovePageFromList(uint32 Index)
