@@ -38,6 +38,11 @@ class UMaterialExpressionRuntimeVirtualTextureOutput : public UMaterialExpressio
 	FExpressionInput Opacity;
 
 public:
+	//~ Begin UObject Interface
+	// Only needed for (bad, slow) implementation of FMaterialResource::HasRuntimeVirtualTextureOutput()
+	virtual bool NeedsLoadForClient() const override { return true; }
+	//~ End UObject Interface
+
 #if WITH_EDITOR
 	//~ Begin UMaterialExpression Interface
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
