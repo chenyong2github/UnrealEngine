@@ -362,6 +362,25 @@ void DecodeMultiplexedSignals(
 		OutSamples.Array[0].MissCount = OutSamples.Array[0].SampleCount * RawSample[0].r;
 		OutSamples.Array[0].ClosestHitDistance = OutSamples.Array[0].SampleCount * RawSample[1].r;
 	}
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_AO_REJECTION)
+	{
+		if (bNormalizeSample)
+		{
+			OutSamples.Array[0].SampleCount = RawSample[0].g > 0 ? 1 : 0;
+			OutSamples.Array[0].MissCount = RawSample[0].g > 0 ? RawSample[0].r : 0;
+			
+			OutSamples.Array[1].SampleCount = RawSample[0].a > 0 ? 1 : 0;
+			OutSamples.Array[1].MissCount = RawSample[0].a > 0 ? RawSample[0].b : 0;
+		}
+		else
+		{
+			OutSamples.Array[0].SampleCount = RawSample[0].g;
+			OutSamples.Array[0].MissCount = RawSample[0].g * RawSample[0].r;
+			
+			OutSamples.Array[1].SampleCount = RawSample[0].a;
+			OutSamples.Array[1].MissCount = RawSample[0].a * RawSample[0].b;
+		}
+	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_AO_HISTORY)
 	{
 		if (bNormalizeSample)
@@ -564,6 +583,18 @@ void EncodeMultiplexedSignals(
 			OutRawSample[1].g = Sample[1].SceneColor.x * NormalizationFactor;
 			OutRawSample[1].b = Sample[2].SceneColor.x * NormalizationFactor;
 			OutBufferCount = 3;
+		}
+	}
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_AO_REJECTION)
+	{
+		// Outputs number of ray miss in red to be compatible as a SSAO output.
+		OutRawSample[0].r = Sample[0].SampleCount > 0 ? Sample[0].MissCount / Sample[0].SampleCount : 1.0;
+		OutRawSample[0].g = Sample[0].SampleCount;
+		
+		if (MultiplexCount == 2)
+		{
+			OutRawSample[0].b = Sample[1].SampleCount > 0 ? Sample[1].MissCount / Sample[1].SampleCount : 1.0;
+			OutRawSample[0].a = Sample[1].SampleCount;
 		}
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_AO_HISTORY)

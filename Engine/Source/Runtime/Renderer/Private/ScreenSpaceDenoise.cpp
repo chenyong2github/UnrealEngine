@@ -171,7 +171,8 @@ static bool SignalUsesRejectionPreConvolution(ESignalProcessing SignalProcessing
 {
 	return (
 		//SignalProcessing == ESignalProcessing::MonochromaticPenumbra ||
-		SignalProcessing == ESignalProcessing::Reflections);
+		SignalProcessing == ESignalProcessing::Reflections ||
+		SignalProcessing == ESignalProcessing::AmbientOcclusion);
 }
 
 /** Returns whether a signal processing uses a history rejection pre convolution pass. */
@@ -311,7 +312,7 @@ const TCHAR* const kRejectionPreConvolutionResourceNames[] = {
 	nullptr,
 
 	// AmbientOcclusion
-	nullptr,
+	TEXT("AORejectionPreConvolution0"),
 	nullptr,
 	nullptr,
 	nullptr,
@@ -1032,6 +1033,10 @@ static void DenoiseSignalAtConstantPixelDensity(
 					RejectionSignalProcessingDescs[1].Format = PF_G16R16F;
 					RejectionSignalProcessingDescs[2].Format = PF_FloatRGBA;
 					RejectionTextureCount = 3;
+				}
+				else if (Settings.SignalProcessing == ESignalProcessing::AmbientOcclusion)
+				{
+					RejectionSignalProcessingDescs[0].Format = PF_FloatRGBA;
 				}
 				else
 				{

@@ -107,10 +107,13 @@
 
 
 	/** Buffer layout given by the ray generation shader for ambient occlusion. */
-	#define SIGNAL_BUFFER_LAYOUT_AO_INPUT 5
+	#define SIGNAL_BUFFER_LAYOUT_AO_INPUT 0xA000
 
 	/** Internal buffer layout for ambient occlusion. */
-	#define SIGNAL_BUFFER_LAYOUT_AO_HISTORY 6
+	#define SIGNAL_BUFFER_LAYOUT_AO_REJECTION 0xA001
+
+	/** Internal buffer layout for ambient occlusion. */
+	#define SIGNAL_BUFFER_LAYOUT_AO_HISTORY 0xA002
 
 
 	/** Buffer layout given by the ray generation shader for global illumination. */
