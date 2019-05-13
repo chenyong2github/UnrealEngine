@@ -527,7 +527,7 @@ protected:
 	{
 		bNeedsToCallRefreshDesignerItems = false;
 		bool bRefresh = false;
-		if (EntryWidgetClass && NumDesignerPreviewEntries > 0)
+		if (EntryWidgetClass && NumDesignerPreviewEntries > 0 && EntryWidgetClass->ImplementsInterface(UUserListEntry::StaticClass()))
 		{
 			if (ListItems.Num() < NumDesignerPreviewEntries)
 			{
