@@ -1140,6 +1140,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/**
 	 * Indicates whether this archive is saving or loading game state
 	 *
+	 * @note This is intended for game-specific archives and is not true for any of the build in save methods
 	 * @return true if the archive is dealing with save games, false otherwise.
 	 */
 	bool IsSaveGame()

@@ -842,6 +842,8 @@ public:
 
 	/** 
 	 * Serialize our USaveGame object into a given array of bytes
+	 * @note This will write out all non-transient properties, the SaveGame property flag is not checked
+	 * 
 	 * @param SaveGameObject	Object that contains data about the save game that we want to write out
 	 * @param OutSaveData		Byte array that is written into
 	 * @return					Whether we successfully wrote data
@@ -871,6 +873,8 @@ public:
 
 	/** 
 	 * Save the contents of the SaveGameObject to a platform-specific save slot/file.
+	 * @note This will write out all non-transient properties, the SaveGame property flag is not checked
+	 *
 	 * @param SaveGameObject	Object that contains data about the save game that we want to write out
 	 * @param SlotName			Name of save game slot to save to.
 	 * @param UserIndex			For some platforms, master user index to identify the user doing the saving.
