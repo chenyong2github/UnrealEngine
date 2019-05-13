@@ -223,8 +223,8 @@ const TCHAR* const kInjestResourceNames[] = {
 	// Penumbra
 	TEXT("ShadowDenoiserInjest0"),
 	TEXT("ShadowDenoiserInjest1"),
-	TEXT("ShadowDenoiserInjest2"),
-	TEXT("ShadowDenoiserInjest3"),
+	nullptr,
+	nullptr,
 
 	// Reflections
 	nullptr,
@@ -255,20 +255,20 @@ const TCHAR* const kReconstructionResourceNames[] = {
 	// Reflections
 	TEXT("ReflectionsReconstruction0"),
 	TEXT("ReflectionsReconstruction1"),
-	TEXT("ReflectionsReconstruction2"),
-	TEXT("ReflectionsReconstruction3"),
+	nullptr,
+	nullptr,
 
 	// AmbientOcclusion
 	TEXT("AOReconstruction0"),
-	TEXT("AOReconstruction1"),
-	TEXT("AOReconstruction2"),
-	TEXT("AOReconstruction3"),
+	nullptr,
+	nullptr,
+	nullptr,
 
 	// GlobalIllumination
 	TEXT("GIReconstruction0"),
 	TEXT("GIReconstruction1"),
-	TEXT("GIReconstruction2"),
-	TEXT("GIReconstruction3"),
+	nullptr,
+	nullptr,
 };
 
 const TCHAR* const kPreConvolutionResourceNames[] = {
@@ -308,7 +308,7 @@ const TCHAR* const kRejectionPreConvolutionResourceNames[] = {
 	TEXT("ReflectionsRejectionPreConvolution0"),
 	TEXT("ReflectionsRejectionPreConvolution1"),
 	TEXT("ReflectionsRejectionPreConvolution2"),
-	TEXT("ReflectionsRejectionPreConvolution3"),
+	nullptr,
 
 	// AmbientOcclusion
 	nullptr,
@@ -333,20 +333,20 @@ const TCHAR* const kTemporalAccumulationResourceNames[] = {
 	// Reflections
 	TEXT("ReflectionsTemporalAccumulation0"),
 	TEXT("ReflectionsTemporalAccumulation1"),
-	TEXT("ReflectionsTemporalAccumulation2"),
-	TEXT("ReflectionsTemporalAccumulation3"),
+	nullptr,
+	nullptr,
 
 	// AmbientOcclusion
 	TEXT("AOTemporalAccumulation0"),
-	TEXT("AOTemporalAccumulation1"),
-	TEXT("AOTemporalAccumulation2"),
-	TEXT("AOTemporalAccumulation3"),
+	nullptr,
+	nullptr,
+	nullptr,
 
 	// GlobalIllumination
 	TEXT("GITemporalAccumulation0"),
 	TEXT("GITemporalAccumulation1"),
-	TEXT("GITemporalAccumulation2"),
-	TEXT("GITemporalAccumulation3"),
+	nullptr,
+	nullptr,
 };
 
 const TCHAR* const kHistoryConvolutionResourceNames[] = {
@@ -359,20 +359,20 @@ const TCHAR* const kHistoryConvolutionResourceNames[] = {
 	// Reflections
 	TEXT("ReflectionsHistoryConvolution0"),
 	TEXT("ReflectionsHistoryConvolution1"),
-	TEXT("ReflectionsHistoryConvolution2"),
-	TEXT("ReflectionsHistoryConvolution3"),
+	nullptr,
+	nullptr,
 
 	// AmbientOcclusion
 	TEXT("AOHistoryConvolution0"),
-	TEXT("AOHistoryConvolution1"),
-	TEXT("AOHistoryConvolution2"),
-	TEXT("AOHistoryConvolution3"),
+	nullptr,
+	nullptr,
+	nullptr,
 
 	// GlobalIllumination
 	TEXT("GIHistoryConvolution0"),
 	TEXT("GIHistoryConvolution1"),
-	TEXT("GIHistoryConvolution2"),
-	TEXT("GIHistoryConvolution3"),
+	nullptr,
+	nullptr,
 };
 
 const TCHAR* const kDenoiserOutputResourceNames[] = {
@@ -715,6 +715,7 @@ static FSSDSignalTextures CopyAndBackfillSignalInput(const FSSDSignalTextures& S
 {
 	FSSDSignalTextures Result = SignalInput;
 
+	#if 0
 	for (int32 i = 0; i < kMaxBufferProcessingCount; ++i)
 	{
 		if (!Result.Textures[i])
@@ -722,6 +723,7 @@ static FSSDSignalTextures CopyAndBackfillSignalInput(const FSSDSignalTextures& S
 			Result.Textures[i] = Result.Textures[i - 1];
 		}
 	}
+	#endif
 
 	return Result;
 }
@@ -852,6 +854,12 @@ static void DenoiseSignalAtConstantPixelDensity(
 		check(ReconstructionTextureCount > 0);
 	}
 
+	// Create a UAV use to output debugging information from the shader.
+	auto CreateDebugUAV = [&](const TCHAR* DebugTextureName)
+	{
+		return GraphBuilder.CreateUAV(GraphBuilder.CreateTexture(DebugDesc, DebugTextureName));
+	};
+
 	int32 HistoryTextureCount = HistoryTextureCountPerSignal * Settings.SignalBatchSize;
 
 	check(HistoryTextureCount <= kMaxBufferProcessingCount);
@@ -933,7 +941,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		PassParameters->SignalInput = CopyAndBackfillSignalInput(SignalHistory);
 		PassParameters->SignalOutput = CreateMultiplexedUAVs(GraphBuilder, NewSignalOutput);
 		
-		PassParameters->DebugOutput = GraphBuilder.CreateUAV(GraphBuilder.CreateTexture(DebugDesc, TEXT("SSDDebugReflectionReconstruction")));
+		PassParameters->DebugOutput = CreateDebugUAV(TEXT("DebugDenoiserReconstruction"));
 
 		FSSDSpatialAccumulationCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FSignalProcessingDim>(Settings.SignalProcessing);
@@ -971,8 +979,8 @@ static void DenoiseSignalAtConstantPixelDensity(
 		PassParameters->ConvolutionMetaData = ConvolutionMetaData;
 		PassParameters->SignalInput = CopyAndBackfillSignalInput(SignalHistory);
 		PassParameters->SignalOutput = CreateMultiplexedUAVs(GraphBuilder, NewSignalOutput);
-
-		PassParameters->DebugOutput = GraphBuilder.CreateUAV(GraphBuilder.CreateTexture(DebugDesc, TEXT("DebugDenoiserPreConvolution")));
+		
+		PassParameters->DebugOutput = CreateDebugUAV(TEXT("DebugDenoiserPreConvolution"));
 
 		FSSDSpatialAccumulationCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FSignalProcessingDim>(Settings.SignalProcessing);
@@ -1047,8 +1055,8 @@ static void DenoiseSignalAtConstantPixelDensity(
 			PermutationVector.Set<FSignalBatchSizeDim>(Settings.SignalBatchSize);
 			PermutationVector.Set<FSSDSpatialAccumulationCS::FStageDim>(FSSDSpatialAccumulationCS::EStage::RejectionPreConvolution);
 			PermutationVector.Set<FMultiSPPDim>(true);
-
-			PassParameters->DebugOutput = GraphBuilder.CreateUAV(GraphBuilder.CreateTexture(DebugDesc, TEXT("DebugRejectionPreConvolution")));
+			
+			PassParameters->DebugOutput = CreateDebugUAV(TEXT("DebugDenoiserRejectionPreConvolution"));
 
 			TShaderMapRef<FSSDSpatialAccumulationCS> ComputeShader(View.ShaderMap, PermutationVector);
 			FComputeShaderUtils::AddPass(
@@ -1111,8 +1119,8 @@ static void DenoiseSignalAtConstantPixelDensity(
 		} // for (uint32 BatchedSignalId = 0; BatchedSignalId < Settings.SignalBatchSize; BatchedSignalId++)
 
 		PassParameters->PrevHistory = CopyAndBackfillSignalInput(PassParameters->PrevHistory);
-
-		PassParameters->DebugOutput = GraphBuilder.CreateUAV(GraphBuilder.CreateTexture(DebugDesc, TEXT("SSDDebugReflectionTemporalAccumulation")));
+		
+		PassParameters->DebugOutput = CreateDebugUAV(TEXT("DebugDenoiserTemporalAccumulation"));
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -1147,7 +1155,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		PermutationVector.Set<FSSDSpatialAccumulationCS::FStageDim>(FSSDSpatialAccumulationCS::EStage::PostFiltering);
 		PermutationVector.Set<FMultiSPPDim>(true);
 		
-		PassParameters->DebugOutput = GraphBuilder.CreateUAV(GraphBuilder.CreateTexture(DebugDesc, TEXT("SSDDebugReflectionPostfilter")));
+		PassParameters->DebugOutput = CreateDebugUAV(TEXT("DebugDenoiserPostfilter"));
 
 		TShaderMapRef<FSSDSpatialAccumulationCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(

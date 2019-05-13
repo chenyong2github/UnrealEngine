@@ -36,6 +36,9 @@
 	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
 
+	#define CONFIG_INPUT_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
+	#define CONFIG_HISTORY_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
+
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
 	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY
 
@@ -51,6 +54,8 @@
 		#define CONFIG_USE_REJECTION_BUFFER               1
 		#define CONFIG_SIGNAL_HISTORY_REJECTION_LAYOUT    SIGNAL_BUFFER_LAYOUT_PENUMBRA_REJECTION
 		
+		#define CONFIG_REJECTION_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
+
 		#define CONFIG_REJECTION_INPUT_MODE               REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS
 		#define CONFIG_REJECTION_SAMPLE_SET               REJECTION_SAMPLE_SET_SOBEK2018
 	#endif
@@ -59,6 +64,9 @@
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
 	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
+
+	#define CONFIG_INPUT_TEXTURE_COUNT 2
+	#define CONFIG_HISTORY_TEXTURE_COUNT 2
 
 	// Can only be done using tokoyashi because have more than one sample at a time.
 	#define CONFIG_TOKOYASHI_LOBE_BILATERAL 1
@@ -74,6 +82,8 @@
 		#define CONFIG_USE_REJECTION_BUFFER               1
 		#define CONFIG_SIGNAL_HISTORY_REJECTION_LAYOUT    SIGNAL_BUFFER_LAYOUT_REFLECTIONS_REJECTION
 		
+		#define CONFIG_REJECTION_TEXTURE_COUNT 3 
+
 		#define CONFIG_REJECTION_BUFFER_COLOR_SPACE       REFLECTIONS_REJECTION_COLOR_SPACE
 		#define CONFIG_REJECTION_INPUT_MODE               REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS
 		#define CONFIG_REJECTION_SAMPLE_SET               REJECTION_SAMPLE_SET_SOBEK2018
@@ -84,6 +94,9 @@
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_AO_HISTORY
 	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_HISTORY
 
+	#define CONFIG_INPUT_TEXTURE_COUNT 1
+	#define CONFIG_HISTORY_TEXTURE_COUNT 1
+
 	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_VAR_BOUNDARIES
 
 	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
@@ -93,6 +106,9 @@
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_GI_AND_AO_RECONSTRUCTION
 	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_GI_AND_AO_HISTORY
+
+	#define CONFIG_INPUT_TEXTURE_COUNT 2
+	#define CONFIG_HISTORY_TEXTURE_COUNT 2
 
 	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_MINMAX_BOUNDARIES
 	//#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_ADAPTIVE_INTEGRATION
@@ -182,25 +198,90 @@ static const float MipLevel = 0;
 static const float MipLevelPow2 = 1;
 static const float InvMipLevelPow2 = 1;
 
-Texture2D SignalInput_Textures_0;
-Texture2D SignalInput_Textures_1;
-Texture2D SignalInput_Textures_2;
-Texture2D SignalInput_Textures_3;
 
-Texture2D HistoryRejectionSignal_Textures_0;
-Texture2D HistoryRejectionSignal_Textures_1;
-Texture2D HistoryRejectionSignal_Textures_2;
-Texture2D HistoryRejectionSignal_Textures_3;
+#if !defined(CONFIG_INPUT_TEXTURE_COUNT)
+	#error Missing CONFIG_INPUT_TEXTURE_COUNT
+#endif
+
+Texture2D SignalInput_Textures_0;
+
+#if CONFIG_INPUT_TEXTURE_COUNT > 1
+Texture2D SignalInput_Textures_1;
+#else
+#define SignalInput_Textures_1 SignalInput_Textures_0
+#endif
+
+#if CONFIG_INPUT_TEXTURE_COUNT > 2
+Texture2D SignalInput_Textures_2;
+#else
+#define SignalInput_Textures_2 SignalInput_Textures_0
+#endif
+
+#if CONFIG_INPUT_TEXTURE_COUNT > 3
+Texture2D SignalInput_Textures_3;
+#else
+#define SignalInput_Textures_3 SignalInput_Textures_0
+#endif
+
+
+#if CONFIG_USE_REJECTION_BUFFER
+	#if !defined(CONFIG_REJECTION_TEXTURE_COUNT)
+		#error Missing CONFIG_REJECTION_TEXTURE_COUNT
+	#endif
+
+	Texture2D HistoryRejectionSignal_Textures_0;
+
+	#if CONFIG_REJECTION_TEXTURE_COUNT > 1
+	Texture2D HistoryRejectionSignal_Textures_1;
+	#else
+	#define HistoryRejectionSignal_Textures_1 HistoryRejectionSignal_Textures_0
+	#endif
+
+	#if CONFIG_REJECTION_TEXTURE_COUNT > 2
+	Texture2D HistoryRejectionSignal_Textures_2;
+	#else
+	#define HistoryRejectionSignal_Textures_2 HistoryRejectionSignal_Textures_0
+	#endif
+
+	#if CONFIG_REJECTION_TEXTURE_COUNT > 3
+	Texture2D HistoryRejectionSignal_Textures_3;
+	#else
+	#define HistoryRejectionSignal_Textures_3 HistoryRejectionSignal_Textures_0
+	#endif
+#endif // CONFIG_USE_REJECTION_BUFFER
+
+
+#if !defined(CONFIG_HISTORY_TEXTURE_COUNT)
+	#error Missing CONFIG_HISTORY_TEXTURE_COUNT
+#endif
 
 Texture2D PrevHistory_Textures_0;
-Texture2D PrevHistory_Textures_1;
-Texture2D PrevHistory_Textures_2;
-Texture2D PrevHistory_Textures_3;
-
 RWTexture2D<float4>	SignalHistoryOutput_UAVs_0;
+
+#if CONFIG_HISTORY_TEXTURE_COUNT > 1
+Texture2D PrevHistory_Textures_1;
 RWTexture2D<float4>	SignalHistoryOutput_UAVs_1;
+#else
+#define PrevHistory_Textures_1 PrevHistory_Textures_0
+#define SignalHistoryOutput_UAVs_1 SignalHistoryOutput_UAVs_0
+#endif
+
+#if CONFIG_HISTORY_TEXTURE_COUNT > 2
+Texture2D PrevHistory_Textures_2;
 RWTexture2D<float4>	SignalHistoryOutput_UAVs_2;
+#else
+#define PrevHistory_Textures_2 PrevHistory_Textures_0
+#define SignalHistoryOutput_UAVs_2 SignalHistoryOutput_UAVs_0
+#endif
+
+#if CONFIG_HISTORY_TEXTURE_COUNT > 3
+Texture2D PrevHistory_Textures_3;
 RWTexture2D<float4>	SignalHistoryOutput_UAVs_3;
+#else
+#define PrevHistory_Textures_3 PrevHistory_Textures_0
+#define SignalHistoryOutput_UAVs_3 SignalHistoryOutput_UAVs_0
+#endif
+
 
 RWTexture2D<float4>	DebugOutput;
 
@@ -380,7 +461,6 @@ void TemporallyAccumulate(
 	#if (CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_MINMAX_BOUNDARIES || CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_VAR_BOUNDARIES)
 	{
 		// Whether the history is rejected using rejection history signal.
-		const bool bUsesHistoryRejectionSignal = CONFIG_USE_REJECTION_BUFFER;
 		const bool bUseCurrentSampleForCenter = !CONFIG_USE_REJECTION_BUFFER;
 
 		FSSDKernelConfig KernelConfig = CreateKernelConfig();
@@ -413,7 +493,7 @@ void TemporallyAccumulate(
 			}
 			#endif
 
-			if (bUsesHistoryRejectionSignal)
+			if (CONFIG_USE_REJECTION_BUFFER)
 			{
 				// History rejection have two moments of the signal being denoised.
 				KernelConfig.MultiplexedSignalsPerSignalDomain = 2;
@@ -492,14 +572,24 @@ void TemporallyAccumulate(
 			}
 		}
 
-		AccumulateKernel(
-			KernelConfig,
-			bUsesHistoryRejectionSignal ? HistoryRejectionSignal_Textures_0 : SignalInput_Textures_0,
-			bUsesHistoryRejectionSignal ? HistoryRejectionSignal_Textures_1 : SignalInput_Textures_1,
-			bUsesHistoryRejectionSignal ? HistoryRejectionSignal_Textures_2 : SignalInput_Textures_2,
-			bUsesHistoryRejectionSignal ? HistoryRejectionSignal_Textures_3 : SignalInput_Textures_3,
-			/* inout */ SignalAccumulators);
-		
+		#if CONFIG_USE_REJECTION_BUFFER
+			AccumulateKernel(
+				KernelConfig,
+				HistoryRejectionSignal_Textures_0,
+				HistoryRejectionSignal_Textures_1,
+				HistoryRejectionSignal_Textures_2,
+				HistoryRejectionSignal_Textures_3,
+				/* inout */ SignalAccumulators);
+		#else
+			AccumulateKernel(
+				KernelConfig,
+				SignalInput_Textures_0,
+				SignalInput_Textures_1,
+				SignalInput_Textures_2,
+				SignalInput_Textures_3,
+				/* inout */ SignalAccumulators);
+		#endif
+
 		// Clamp history
 		FIX_UNROLL(CONFIG_SIGNAL_BATCH_SIZE)
 		for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
