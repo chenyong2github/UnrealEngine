@@ -2625,7 +2625,7 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 		for (FLandscapeLayer& Layer : LandscapeLayers)
 		{
 			//Draw Layer heightmap to Combined RT Atlas
-			ShaderParams.ApplyLayerModifiers = true;
+			ShaderParams.ApplyLayerModifiers = false;
 			ShaderParams.LayerVisible = Layer.bVisible;
 			ShaderParams.GenerateNormals = false;
 			ShaderParams.LayerBlendMode = Layer.BlendMode;
@@ -2658,6 +2658,8 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 			// NOTE: From this point on, we always work in non atlas, we'll convert back at the end to atlas only
 			DrawHeightmapComponentsToRenderTarget(OutputDebugName ? FString::Printf(TEXT("LS Height: %s += -> NonAtlas %s"), *Layer.Name.ToString(), *LandscapeScratchRT1->GetName(), *LandscapeScratchRT2->GetName()) : TEXT(""),
 												  InLandscapeComponents, MinExtend, LandscapeScratchRT1, nullptr, LandscapeScratchRT2, ERTDrawingType::RTAtlasToNonAtlas, true, ShaderParams);
+
+			ShaderParams.ApplyLayerModifiers = true;
 
 			// Combine Current layer with current result
 			DrawHeightmapComponentsToRenderTarget(OutputDebugName ? FString::Printf(TEXT("LS Height: %s += -> CombinedNonAtlas %s"), *Layer.Name.ToString(), *LandscapeScratchRT2->GetName(), *CombinedHeightmapNonAtlasRT->GetName()) : TEXT(""),
@@ -4516,7 +4518,24 @@ void ALandscape::SetLayerName(int32 InLayerIndex, const FName& InName)
 	LandscapeLayers[InLayerIndex].Name = InName;
 }
 
-void ALandscape::SetLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bInHeightmap)
+float ALandscape::GetLayerAlpha(int32 InLayerIndex, bool bInHeightmap) const
+{
+	const FLandscapeLayer* SplinesReservedLayer = GetLandscapeSplinesReservedLayer();
+	const FLandscapeLayer* Layer = GetLayer(InLayerIndex);
+	if (Layer && SplinesReservedLayer != Layer)
+	{
+		return GetClampedLayerAlpha(bInHeightmap ? Layer->HeightmapAlpha : Layer->WeightmapAlpha, bInHeightmap);
+	}
+	return 1.0f;
+}
+
+float ALandscape::GetClampedLayerAlpha(float InAlpha, bool bInHeightmap) const
+{
+	float AlphaClamped = FMath::Clamp<float>(InAlpha, bInHeightmap  ? -1.f : 0.f, 1.f);
+	return AlphaClamped;
+}
+
+void ALandscape::SetLayerAlpha(int32 InLayerIndex, float InAlpha, bool bInHeightmap)
 {
 	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
 	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
@@ -4524,14 +4543,15 @@ void ALandscape::SetLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bIn
 	{
 		return;
 	}
+	const float InAlphaClamped = GetClampedLayerAlpha(InAlpha, bInHeightmap);
 	float& LayerAlpha = bInHeightmap ? Layer->HeightmapAlpha : Layer->WeightmapAlpha;
-	if (LayerAlpha == InAlpha)
+	if (LayerAlpha == InAlphaClamped)
 	{
 		return;
 	}
 
 	Modify();
-	LayerAlpha = InAlpha;
+	LayerAlpha = InAlphaClamped;
 	RequestLayersContentUpdateForceAll();
 }
 
