@@ -105,7 +105,7 @@ void MainCS(
 	
 	// Read reference meta data.
 	float2 ScreenPosition = ViewportUVToScreenPos(BufferUVToViewportUV(SceneBufferUV));
-	FSSFSampleSceneInfos RefSceneMetadata = FetchCurrentSceneInfos(ScreenPosition, SceneBufferUV);
+	FSSDSampleSceneInfos RefSceneMetadata = FetchCurrentSceneInfos(ScreenPosition, SceneBufferUV);
 
 	// Sample the reference sample.
 	FSSDSignalArray MultiplexedSamples = SampleMultiplexedSignals(

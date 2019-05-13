@@ -288,7 +288,7 @@ RWTexture2D<float4>	DebugOutput;
 
 //------------------------------------------------------- FUNCTIONS
 
-FSSFSignalSample TransformInputBufferForPreRejection(FSSFSignalSample Sample)
+FSSDSignalSample TransformInputBufferForPreRejection(FSSDSignalSample Sample)
 {
 	return TransformSignal(
 		Sample,
@@ -296,7 +296,7 @@ FSSFSignalSample TransformInputBufferForPreRejection(FSSFSignalSample Sample)
 		/* DestConfig = */ CONFIG_HISTORY_REJECTION_COLOR_SPACE);
 }
 
-FSSFSignalSample TransformSignalForPostRejection(FSSFSignalSample Sample)
+FSSDSignalSample TransformSignalForPostRejection(FSSDSignalSample Sample)
 {
 	return TransformSignal(
 		Sample,
@@ -346,7 +346,7 @@ void TemporallyAccumulate(
 
 
 	// Sample current frame data.
-	FSSFSampleSceneInfos RefSceneMetadata = FetchCurrentSceneInfos(ScreenPosition, SceneBufferUV);
+	FSSDSampleSceneInfos RefSceneMetadata = FetchCurrentSceneInfos(ScreenPosition, SceneBufferUV);
 	
 	FSSDSignalArray CurrentFrameSamples = SampleMultiplexedSignals(
 		SignalInput_Textures_0,
@@ -440,14 +440,14 @@ void TemporallyAccumulate(
 			FIX_UNROLL(CONFIG_SIGNAL_BATCH_SIZE)
 			for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 			{
-				FSSFSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
-				FSSFSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
+				FSSDSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
+				FSSDSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
 
 				// Override the previous frame's inverse frequency with the current frame's one, because don't know how much it changed.
 				HistorySamples.Array[BatchedSignalId].WorldBluringRadius = (
-					HistorySample.AccumulatedSampleCount *
+					HistorySample.SampleCount *
 					CurrentFrameSample.WorldBluringRadius *
-					SafeRcp(CurrentFrameSample.AccumulatedSampleCount));
+					SafeRcp(CurrentFrameSample.SampleCount));
 
 				// Applies correction when pre exposure change happen.
 				HistorySamples.Array[BatchedSignalId].SceneColor.rgb *= HistoryPreExposureCorrection;
@@ -524,7 +524,7 @@ void TemporallyAccumulate(
 				if (MAX_SIGNAL_BATCH_SIZE == 1)
 				{
 					// TODO: missing && abs(PixelOffset.x) <= 1 && abs(PixelOffset.y) <= 1;
-					KernelConfig.bForceAllAccumulation = CurrentFrameSamples.Array[0].AccumulatedSampleCount == 0;
+					KernelConfig.bForceAllAccumulation = CurrentFrameSamples.Array[0].SampleCount == 0;
 				}
 			}
 		}
@@ -550,7 +550,7 @@ void TemporallyAccumulate(
 			{
 				const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, SignalMultiplexId);
 
-				FSSFSignalSample TransformedCurrentFrame = TransformSignalSampleForAccumulation(
+				FSSDSignalSample TransformedCurrentFrame = TransformSignalSampleForAccumulation(
 					KernelConfig,
 					SignalMultiplexId,
 					NormalizeToOneSample(CurrentFrameSamples.Array[SignalMultiplexId]));
@@ -563,7 +563,7 @@ void TemporallyAccumulate(
 				if (KernelConfig.BilateralDistanceComputation == SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS)
 				{
 					// TODO: this is ineficient, could fetch the normalised WorldBluringRadius instead of SafeRcp().
-					SampleInfos.InvFrequency = TransformedCurrentFrame.WorldBluringRadius * SafeRcp(TransformedCurrentFrame.AccumulatedSampleCount);
+					SampleInfos.InvFrequency = TransformedCurrentFrame.WorldBluringRadius * SafeRcp(TransformedCurrentFrame.SampleCount);
 				}
 
 				AccumulateSample(
@@ -594,20 +594,20 @@ void TemporallyAccumulate(
 		FIX_UNROLL(CONFIG_SIGNAL_BATCH_SIZE)
 		for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 		{
-			FSSFSignalSample NeighborMin = SignalAccumulators.Array[BatchedSignalId].Min;
-			FSSFSignalSample NeighborMax = SignalAccumulators.Array[BatchedSignalId].Max;
+			FSSDSignalSample NeighborMin = SignalAccumulators.Array[BatchedSignalId].Min;
+			FSSDSignalSample NeighborMax = SignalAccumulators.Array[BatchedSignalId].Max;
 		
-			FSSFSignalSample NeighborMoment1 = CreateSignalSampleFromScalarValue(0.0);
-			FSSFSignalSample NeighborMoment2 = CreateSignalSampleFromScalarValue(0.0);
+			FSSDSignalSample NeighborMoment1 = CreateSignalSampleFromScalarValue(0.0);
+			FSSDSignalSample NeighborMoment2 = CreateSignalSampleFromScalarValue(0.0);
 			#if CONFIG_REJECTION_INPUT_MODE == REJECTION_INPUT_MODE_1UNNORMALIZED
 			{
-				float NormalizeFactor = SafeRcp(SignalAccumulators.Array[BatchedSignalId].Moment1.AccumulatedSampleCount);
+				float NormalizeFactor = SafeRcp(SignalAccumulators.Array[BatchedSignalId].Moment1.SampleCount);
 				NeighborMoment1 = Mul(SignalAccumulators.Array[BatchedSignalId].Moment1, NormalizeFactor);
 				NeighborMoment2 = Mul(SignalAccumulators.Array[BatchedSignalId].Moment2, NormalizeFactor);
 			}
 			#elif CONFIG_REJECTION_INPUT_MODE == REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS
 			{
-				float NormalizeFactor = SafeRcp(SignalAccumulators.Array[BatchedSignalId * 2 + 0].Moment1.AccumulatedSampleCount);
+				float NormalizeFactor = SafeRcp(SignalAccumulators.Array[BatchedSignalId * 2 + 0].Moment1.SampleCount);
 				NeighborMoment1 = Mul(SignalAccumulators.Array[BatchedSignalId * 2 + 0].Moment1, NormalizeFactor);
 				NeighborMoment2 = Mul(SignalAccumulators.Array[BatchedSignalId * 2 + 1].Moment1, NormalizeFactor);
 			}
@@ -616,14 +616,14 @@ void TemporallyAccumulate(
 			#endif
 		
 			#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS && 0
-				FSSFSignalSample Temp = TransformSignalForPostRejection(NeighborMoment1);
+				FSSDSignalSample Temp = TransformSignalForPostRejection(NeighborMoment1);
 				DebugOutput[DispatchThreadId] = float4(
 					Temp.SceneColor.rgb,
 					0);
 			#endif
 				
-			FSSFSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
-			FSSFSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
+			FSSDSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
+			FSSDSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
 
 			// Clamp the history.
 			#if CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_VAR_BOUNDARIES
@@ -631,32 +631,32 @@ void TemporallyAccumulate(
 				const float StdDevMultiplier = 1.25;
 
 				// StdDev = sqrt(abs(NeighborSquareAvg - NeighborAvg * NeighborAvg));
-				FSSFSignalSample StdDev = Sqrt(Abs(Subtract(NeighborMoment2, Power(NeighborMoment1, 2))));
+				FSSDSignalSample StdDev = Sqrt(Abs(Subtract(NeighborMoment2, Power(NeighborMoment1, 2))));
 				NeighborMin = Add(NeighborMoment1, Mul(StdDev, -StdDevMultiplier));
 				NeighborMax = Add(NeighborMoment1, Mul(StdDev,  StdDevMultiplier));
 
 				if (0)
 				{
-					FSSFSignalSample QuantizationErrorMin = Mul(NeighborMoment1, 1 - SafeRcp(HistorySample.AccumulatedSampleCount));
-					FSSFSignalSample QuantizationErrorMax = Mul(NeighborMoment1, 1 + SafeRcp(HistorySample.AccumulatedSampleCount));
+					FSSDSignalSample QuantizationErrorMin = Mul(NeighborMoment1, 1 - SafeRcp(HistorySample.SampleCount));
+					FSSDSignalSample QuantizationErrorMax = Mul(NeighborMoment1, 1 + SafeRcp(HistorySample.SampleCount));
 
 					NeighborMin = Min(NeighborMin, QuantizationErrorMin);
 					NeighborMax = Max(NeighborMax, QuantizationErrorMax);
 				}
 
 				// Transform the history so that it in correct component spaces, and normalized as the clamping box.
-				FSSFSignalSample NormalizedHistorySample = NormalizeToOneSample(HistorySample);
-				FSSFSignalSample TransformedHistorySample = TransformInputBufferForPreRejection(NormalizedHistorySample);
+				FSSDSignalSample NormalizedHistorySample = NormalizeToOneSample(HistorySample);
+				FSSDSignalSample TransformedHistorySample = TransformInputBufferForPreRejection(NormalizedHistorySample);
 
 				// Clamp the history.
-				FSSFSignalSample ClampedTransformedHistorySample = Clamp(TransformedHistorySample, NeighborMin, NeighborMax);
+				FSSDSignalSample ClampedTransformedHistorySample = Clamp(TransformedHistorySample, NeighborMin, NeighborMax);
 
 				// Transform the history back to linear component spaces.
-				FSSFSignalSample ClampedHistorySample = TransformSignalForPostRejection(ClampedTransformedHistorySample);
+				FSSDSignalSample ClampedHistorySample = TransformSignalForPostRejection(ClampedTransformedHistorySample);
 
 				// Reweight the anti ghosted history.
 				{
-					FSSFSignalSample RejectedDiff = Abs(Subtract(ClampedTransformedHistorySample, TransformedHistorySample));
+					FSSDSignalSample RejectedDiff = Abs(Subtract(ClampedTransformedHistorySample, TransformedHistorySample));
 
 					// Compute how much this history get changed.
 					float RejectionFactor = 0.0;
@@ -671,33 +671,33 @@ void TemporallyAccumulate(
 					}
 					#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_GI_AND_AO
 					{
-						RejectionFactor = abs(ClampedTransformedHistorySample.LeavingRayCount - TransformedHistorySample.LeavingRayCount);
+						RejectionFactor = abs(ClampedTransformedHistorySample.MissCount - TransformedHistorySample.MissCount);
 					}
 					#else
 						#error Unsupported signal rejection.
 					#endif
 			
 					// Compute an initial history weight as if we had removed sample.
-					float FinalHistoryWeight = HistorySample.AccumulatedSampleCount * saturate(1 - RejectionFactor);
+					float FinalHistoryWeight = HistorySample.SampleCount * saturate(1 - RejectionFactor);
 
 					// When doing the accumulation before rejection, need to make sure the input weight get through.
 					if (!bPostRejectionBlending)
 					{
-						FinalHistoryWeight = max(FinalHistoryWeight, CurrentFrameSample.AccumulatedSampleCount);
+						FinalHistoryWeight = max(FinalHistoryWeight, CurrentFrameSample.SampleCount);
 					}
 
 					// When doing upscaling, may have an invalid input sample.
-					FinalHistoryWeight = max(FinalHistoryWeight, NeighborMoment1.AccumulatedSampleCount * 0.1);
+					FinalHistoryWeight = max(FinalHistoryWeight, NeighborMoment1.SampleCount * 0.1);
 			
 					// Apply the history weight.
 					HistorySample = Mul(ClampedHistorySample, FinalHistoryWeight);
-					HistorySample.AccumulatedSampleCount = FinalHistoryWeight;
+					HistorySample.SampleCount = FinalHistoryWeight;
 				}
 			}
 			#elif CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_MINMAX_BOUNDARIES
 			{
 				float RejectedSampleCount = 0;
-				HistorySample = Mul(TransformSignalForPostRejection(Clamp(TransformInputBufferForPreRejection(NormalizeToOneSample(HistorySample)), NeighborMin, NeighborMax)), HistorySample.AccumulatedSampleCount - RejectedSampleCount);
+				HistorySample = Mul(TransformSignalForPostRejection(Clamp(TransformInputBufferForPreRejection(NormalizeToOneSample(HistorySample)), NeighborMin, NeighborMax)), HistorySample.SampleCount - RejectedSampleCount);
 			}
 			#endif
 
@@ -705,7 +705,7 @@ void TemporallyAccumulate(
 			if (1)
 			{
 				float NeightborMinBluringRadius = SignalAccumulators.Array[BatchedSignalId].MinInvFrequency;
-				CurrentFrameSample.WorldBluringRadius = min(CurrentFrameSample.WorldBluringRadius, NeightborMinBluringRadius * CurrentFrameSample.AccumulatedSampleCount); 
+				CurrentFrameSample.WorldBluringRadius = min(CurrentFrameSample.WorldBluringRadius, NeightborMinBluringRadius * CurrentFrameSample.SampleCount); 
 			
 				#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA && 0
 					DebugOutput[DispatchThreadId] = float4(
@@ -731,18 +731,18 @@ void TemporallyAccumulate(
 
 		const uint BatchedSignalId = 0;
 	
-		FSSFSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
-		FSSFSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
+		FSSDSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
+		FSSDSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
 
 		// Construct the current frame sample of the temporal analysis.
 		FSSDSignalArray CurrentTemporalAnalysis = CreateSignalArrayFromScalarValue(0.0);
 		{
 			float Luma = GetSignalLuma4(CurrentFrameSample, STANDARD_BUFFER_COLOR_SPACE);
-			float SampleCount = CurrentFrameSample.AccumulatedSampleCount; // TODO: 1 instead?
+			float SampleCount = CurrentFrameSample.SampleCount; // TODO: 1 instead?
 
-			CurrentTemporalAnalysis.Array[1].AccumulatedSampleCount = SampleCount;
+			CurrentTemporalAnalysis.Array[1].SampleCount = SampleCount;
 			CurrentTemporalAnalysis.Array[1].SceneColor.x = Luma * SampleCount;
-			CurrentTemporalAnalysis.Array[2].AccumulatedSampleCount = SampleCount;
+			CurrentTemporalAnalysis.Array[2].SampleCount = SampleCount;
 			CurrentTemporalAnalysis.Array[2].SceneColor.x = (Luma * Luma) * SampleCount;
 		}
 
@@ -751,8 +751,8 @@ void TemporallyAccumulate(
 		{
 			const float MinimumAnalasisHisteresis = 0.3; // TODO: expose cvar
 
-			float PreviousFrameWeight = min(HistorySample.AccumulatedSampleCount, HistorySamples.Array[1].AccumulatedSampleCount * rcp(MinimumAnalasisHisteresis) - CurrentFrameSample.AccumulatedSampleCount);
-			float PreviousFrameMultiplier = HistorySample.AccumulatedSampleCount > 0 ? PreviousFrameWeight / HistorySample.AccumulatedSampleCount : 0;
+			float PreviousFrameWeight = min(HistorySample.SampleCount, HistorySamples.Array[1].SampleCount * rcp(MinimumAnalasisHisteresis) - CurrentFrameSample.SampleCount);
+			float PreviousFrameMultiplier = HistorySample.SampleCount > 0 ? PreviousFrameWeight / HistorySample.SampleCount : 0;
 			
 			UNROLL
 			for (uint SignalMultiplexId = 1; SignalMultiplexId < 3; SignalMultiplexId++)
@@ -764,7 +764,7 @@ void TemporallyAccumulate(
 		// Compute the histeresis of the main signal.
 		float MainHisteresiss = 0;
 		{
-			float InvSampleCount = rcp(TemporalAnalysis.Array[1].AccumulatedSampleCount);
+			float InvSampleCount = rcp(TemporalAnalysis.Array[1].SampleCount);
 
 			float AvgLuma = TemporalAnalysis.Array[2].SceneColor.x * InvSampleCount;
 			float VarianceLuma = TemporalAnalysis.Array[2].SceneColor.x * InvSampleCount - AvgLuma * AvgLuma;
@@ -777,8 +777,8 @@ void TemporallyAccumulate(
 
 		// Accumulate the actual history.
 		{
-			float PreviousFrameWeight = min(HistorySample.AccumulatedSampleCount, CurrentFrameSample.AccumulatedSampleCount * rcp(MainHisteresiss) - CurrentFrameSample.AccumulatedSampleCount);
-			float PreviousFrameMultiplier = HistorySample.AccumulatedSampleCount > 0 ? PreviousFrameWeight / HistorySample.AccumulatedSampleCount : 0;
+			float PreviousFrameWeight = min(HistorySample.SampleCount, CurrentFrameSample.SampleCount * rcp(MainHisteresiss) - CurrentFrameSample.SampleCount);
+			float PreviousFrameMultiplier = HistorySample.SampleCount > 0 ? PreviousFrameWeight / HistorySample.SampleCount : 0;
 			
 			HistorySample = Add(Mul(HistorySample, PreviousFrameMultiplier), CurrentFrameSample);
 		}
@@ -797,11 +797,11 @@ void TemporallyAccumulate(
 		UNROLL
 		for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 		{
-			FSSFSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
-			FSSFSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
+			FSSDSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
+			FSSDSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
 
-			float PreviousFrameWeight = min(HistorySample.AccumulatedSampleCount, TargetedSampleCount - CurrentFrameSample.AccumulatedSampleCount);
-			float PreviousFrameMultiplier = HistorySample.AccumulatedSampleCount > 0 ? PreviousFrameWeight / HistorySample.AccumulatedSampleCount : 0;
+			float PreviousFrameWeight = min(HistorySample.SampleCount, TargetedSampleCount - CurrentFrameSample.SampleCount);
+			float PreviousFrameMultiplier = HistorySample.SampleCount > 0 ? PreviousFrameWeight / HistorySample.SampleCount : 0;
 
 			// TODO: use WeightedLerp instead for VALU perf.
 			// Pre transformation of the signal.
@@ -826,8 +826,8 @@ void TemporallyAccumulate(
 			// Ignore the bluring radius of previous frame frequencies as it gets clamped anyway, just take the current frame.
 			HistorySample.WorldBluringRadius = (
 				CurrentFrameSample.WorldBluringRadius *
-				SafeRcp(CurrentFrameSample.AccumulatedSampleCount) *
-				HistorySample.AccumulatedSampleCount);
+				SafeRcp(CurrentFrameSample.SampleCount) *
+				HistorySample.SampleCount);
 
 			HistorySamples.Array[BatchedSignalId] = HistorySample;
 		}

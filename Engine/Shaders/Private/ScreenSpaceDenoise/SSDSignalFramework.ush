@@ -159,7 +159,7 @@ float GetSignalColorTransformationExposure()
 }
 
 /** Returns the linear color space Luma with a 4 multiplier for ALU perf reasons. */
-float GetSignalLuma4(FSSFSignalSample Sample, const uint Basis)
+float GetSignalLuma4(FSSDSignalSample Sample, const uint Basis)
 {
 	// TODO: should force this to be scalar load.
 	float FrameExposureScale = GetSignalColorTransformationExposure();
@@ -177,7 +177,7 @@ float GetSignalLuma4(FSSFSignalSample Sample, const uint Basis)
 
 		if (!bIsNormalizedSample)
 		{
-			KarisX *= SafeRcp(Sample.AccumulatedSampleCount);
+			KarisX *= SafeRcp(Sample.SampleCount);
 		}
 		
 		return KarisX * KarisHdrWeightInvY(KarisX, FrameExposureScale);
@@ -194,7 +194,7 @@ float GetSignalLuma4(FSSFSignalSample Sample, const uint Basis)
 }
 
 /** Conveniently transform one simple from a source basis to a destination basis. */
-FSSFSignalSample TransformSignal(FSSFSignalSample Sample, const uint SrcBasis, const uint DestBasis)
+FSSDSignalSample TransformSignal(FSSDSignalSample Sample, const uint SrcBasis, const uint DestBasis)
 {
 	// If the source and destination bases are the same, early return to not pay ALU and floating point divergence.
 	if (SrcBasis == DestBasis)
@@ -216,7 +216,7 @@ FSSFSignalSample TransformSignal(FSSFSignalSample Sample, const uint SrcBasis, c
 
 	if (bDebugForceNormalizeColor)
 	{
-		Sample.SceneColor *= SafeRcp(Sample.AccumulatedSampleCount);
+		Sample.SceneColor *= SafeRcp(Sample.SampleCount);
 	}
 
 	// Remove Karis weighting before doing any color transformations.
@@ -230,7 +230,7 @@ FSSFSignalSample TransformSignal(FSSFSignalSample Sample, const uint SrcBasis, c
 
 		if (!bIsNormalizedColor)
 		{
-			KarisX *= SafeRcp(Sample.AccumulatedSampleCount);
+			KarisX *= SafeRcp(Sample.SampleCount);
 		}
 
 		Sample.SceneColor *= KarisHdrWeightInvY(KarisX, FrameExposureScale);
@@ -249,7 +249,7 @@ FSSFSignalSample TransformSignal(FSSFSignalSample Sample, const uint SrcBasis, c
 		Sample.SceneColor.rgb = LCoCg_2_LinearRGB(Sample.SceneColor.rgb);
 	}
 
-	float Alpha = Sample.SceneColor.a * SafeRcp(Sample.AccumulatedSampleCount);
+	float Alpha = Sample.SceneColor.a * SafeRcp(Sample.SampleCount);
 	if (bIsNormalizedColor)
 	{
 		Alpha = Sample.SceneColor.a;
@@ -293,13 +293,13 @@ FSSFSignalSample TransformSignal(FSSFSignalSample Sample, const uint SrcBasis, c
 		}
 		else
 		{
-			Sample.SceneColor *= KarisHdrWeightY(x * SafeRcp(Sample.AccumulatedSampleCount), FrameExposureScale);
+			Sample.SceneColor *= KarisHdrWeightY(x * SafeRcp(Sample.SampleCount), FrameExposureScale);
 		}
 	}
 	
 	if (bDebugForceNormalizeColor)
 	{
-		Sample.SceneColor *= Sample.AccumulatedSampleCount;
+		Sample.SceneColor *= Sample.SampleCount;
 	}
 
 	return Sample;
@@ -344,7 +344,7 @@ FSphericalGaussian ComputeRoughnessLobe(float Roughness, float3 N, float3 V)
 }
 
 /** Create a spherical gaussian lob for a given scene metadata. */
-FSphericalGaussian ComputeRoughnessLobe(FSSFSampleSceneInfos RefSceneMetadata)
+FSphericalGaussian ComputeRoughnessLobe(FSSDSampleSceneInfos RefSceneMetadata)
 {
 	float3 N = RefSceneMetadata.WorldNormal;
 	float3 V = normalize(View.TranslatedWorldCameraOrigin - RefSceneMetadata.TranslatedWorldPosition);
@@ -354,7 +354,7 @@ FSphericalGaussian ComputeRoughnessLobe(FSSFSampleSceneInfos RefSceneMetadata)
 }
 
 /** Return the size of the bluring radius caused by the specular lobe in ViewportUV.x space. */
-float ComputeInfinityBluringRadius(FSSFSampleSceneInfos SceneMetadata)
+float ComputeInfinityBluringRadius(FSSDSampleSceneInfos SceneMetadata)
 {
 	float RoughnessLobeAngle;
 	#if 1
@@ -396,13 +396,13 @@ float ComputeInfinityBluringRadius(FSSFSampleSceneInfos SceneMetadata)
 }
 
 /** Return the size of bluring radius caused by specular lobe in view space. */
-float ComputeBluringRadiusOfNormalizedSample(FSSFSignalSample Sample, FSSFSampleSceneInfos SceneMetadata)
+float ComputeBluringRadiusOfNormalizedSample(FSSDSignalSample Sample, FSSDSampleSceneInfos SceneMetadata)
 {
 	float DistanceCameraToPixel = length(View.TranslatedWorldCameraOrigin - SceneMetadata.TranslatedWorldPosition);
 
 	float InifinityRadius = ComputeInfinityBluringRadius(SceneMetadata);
 
-	return InifinityRadius * (1 - DistanceCameraToPixel / (DistanceCameraToPixel + Sample.PenumbraClosestHit));
+	return InifinityRadius * (1 - DistanceCameraToPixel / (DistanceCameraToPixel + Sample.ClosestHitDistance));
 }
 
 // TODO: duplicated...
@@ -445,7 +445,7 @@ float3 GenerateReflectedRayDirection(
 // TODO: duplicated...
 void GetInputRayDirectionPixel(
 	uint2 PixelCoord,
-	FSSFSampleSceneInfos SceneMetadata,
+	FSSDSampleSceneInfos SceneMetadata,
 	out float3 RayDirection,
 	out float PDF)
 {
@@ -474,23 +474,23 @@ void GetInputRayDirectionPixel(
 
 /** Return whether this signal is occluded or not. */
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
-bool IsMissSample(FSSFSignalSample Sample)
+bool IsMissSample(FSSDSignalSample Sample)
 {
-	return Sample.LeavingRayCount != 0.0;
+	return Sample.MissCount != 0.0;
 }
 #endif
 
 /** Return whether this signal is valid or not. */
-bool IsInvalidSample(FSSFSignalSample Sample)
+bool IsInvalidSample(FSSDSignalSample Sample)
 {
-	return Sample.AccumulatedSampleCount == 0.0;
+	return Sample.SampleCount == 0.0;
 }
 
 /** COmpute the weight of the bilateral filter to use between a reference sample and a neighbor. */
 float ComputeBilateralWeight(
 	float MaxWorldBluringDistance,
-	FSSFSampleSceneInfos RefSceneMetadata,
-	FSSFSampleSceneInfos NeighborSceneMetadata)
+	FSSDSampleSceneInfos RefSceneMetadata,
+	FSSDSampleSceneInfos NeighborSceneMetadata)
 {
 	if (DEBUG_DISABLE_BILATERAL)
 	{
@@ -595,7 +595,7 @@ float ComputeBilateralWeight(
 	return PositionBilateralWeight * NormalBilateralWeight * LobeSimilarity * AxesSimilarity;
 }
 
-float GetSignalWorldBluringRadius(FSSFSignalSample Sample, FSSFSampleSceneInfos SceneMetadata, uint BatchedSignalId)
+float GetSignalWorldBluringRadius(FSSDSignalSample Sample, FSSDSampleSceneInfos SceneMetadata, uint BatchedSignalId)
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
 {
 	if (IsInvalidSample(Sample))
@@ -616,14 +616,14 @@ float GetSignalWorldBluringRadius(FSSFSignalSample Sample, FSSFSampleSceneInfos 
 	BRANCH
 	if (DomainKnowledge.LightType == LIGHT_TYPE_DIRECTIONAL)
 	{
-		return DomainKnowledge.HitDistanceToWorldBluringRadius * Sample.PenumbraClosestHit;
+		return DomainKnowledge.HitDistanceToWorldBluringRadius * Sample.ClosestHitDistance;
 	}
 	else if (DomainKnowledge.LightType == LIGHT_TYPE_POINT || DomainKnowledge.LightType == LIGHT_TYPE_SPOT)
 	{
 		float3 PixelToLightWorldVector = (DomainKnowledge.Light.Position + View.PreViewTranslation) - SceneMetadata.TranslatedWorldPosition;
 		float DistanceFromLight = length(PixelToLightWorldVector);
 
-		return DomainKnowledge.Light.SourceRadius * Sample.PenumbraClosestHit / max(DistanceFromLight - Sample.PenumbraClosestHit, ClosestLightDistance);
+		return DomainKnowledge.Light.SourceRadius * Sample.ClosestHitDistance / max(DistanceFromLight - Sample.ClosestHitDistance, ClosestLightDistance);
 	}
 	else // if (DomainKnowledge.LightType == LIGHT_TYPE_RECT)
 	{
@@ -641,8 +641,8 @@ float GetSignalWorldBluringRadius(FSSFSignalSample Sample, FSSFSampleSceneInfos 
 		// TODO: area light anysotropy.
 		float SmallestLightDimension = min(LightDimensions.x, LightDimensions.y);
 
-		// TODO: Sample.PenumbraClosestHit depends on the direction of the ray, but does not DistanceFromLight, witch is bad for large area light.
-		return SmallestLightDimension * Sample.PenumbraClosestHit / max(DistanceFromLight - Sample.PenumbraClosestHit, ClosestLightDistance);
+		// TODO: Sample.ClosestHitDistance depends on the direction of the ray, but does not DistanceFromLight, witch is bad for large area light.
+		return SmallestLightDimension * Sample.ClosestHitDistance / max(DistanceFromLight - Sample.ClosestHitDistance, ClosestLightDistance);
 	}
 }
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
@@ -651,37 +651,37 @@ float GetSignalWorldBluringRadius(FSSFSignalSample Sample, FSSFSampleSceneInfos 
 }
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
 {
-	return Sample.PenumbraClosestHit;
+	return Sample.ClosestHitDistance;
 }
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_GI_AND_AO
 {
-	return Sample.PenumbraClosestHit;
+	return Sample.ClosestHitDistance;
 }
 #else
 	#error Unimplemented GetSignalWorldBluringRadius()
 #endif
 
 // Returns the penumbra of this sample, or 1 if invalid.
-float GetSamplePenumbraSafe(FSSFSignalSample Sample)
+float GetSamplePenumbraSafe(FSSDSignalSample Sample)
 {
-	return (Sample.AccumulatedSampleCount > 0 ? Sample.LeavingRayCount / Sample.AccumulatedSampleCount : 1);
+	return (Sample.SampleCount > 0 ? Sample.MissCount / Sample.SampleCount : 1);
 }
 
 // Get penumbra, but be aware of NaN.
-float GetSamplePenumbra(FSSFSignalSample Sample)
+float GetSamplePenumbra(FSSDSignalSample Sample)
 {
 	if (1) // TODO: For debugging purpose of division by 0.
 	{
 		return GetSamplePenumbraSafe(Sample);
 	}
-	return Sample.LeavingRayCount / Sample.AccumulatedSampleCount;
+	return Sample.MissCount / Sample.SampleCount;
 }
 
 /** Get the weight for multi importance sampling. */
 float GetRatioEstimatorWeight(
-	FSSFSampleSceneInfos RefSceneMetadata,
-	FSSFSampleSceneInfos SampleSceneMetadata,
-	FSSFSignalSample Sample,
+	FSSDSampleSceneInfos RefSceneMetadata,
+	FSSDSampleSceneInfos SampleSceneMetadata,
+	FSSDSignalSample Sample,
 	uint2 SamplePixelCoord)
 #if CONFIG_SPECULAR_RATIO_ESTIMATOR
 // [ Stackowiak 2018, "Stochastic all the things: Raytracing in hybrid real-time rendering" ]
@@ -702,7 +702,7 @@ float GetRatioEstimatorWeight(
 		/* out */ OriginalRayPDF);
 
 	// min to avoid floating point underflow that causes artifact by D anormally high.
-	float PenumbraClosestHit = min(Sample.PenumbraClosestHit, 1000000);
+	float ClosestHitDistance = min(Sample.ClosestHitDistance, 1000000);
 
 	float a2 = Pow4(RefSceneMetadata.Roughness);
 
@@ -712,7 +712,7 @@ float GetRatioEstimatorWeight(
 	#if CONFIG_VALU_OPTIMIZATIONS
 	{
 		float3 V = (View.TranslatedWorldCameraOrigin - RefSceneMetadata.TranslatedWorldPosition);
-		float3 L = ((SampleSceneMetadata.TranslatedWorldPosition - RefSceneMetadata.TranslatedWorldPosition) + OriginalRayDirection * PenumbraClosestHit);
+		float3 L = ((SampleSceneMetadata.TranslatedWorldPosition - RefSceneMetadata.TranslatedWorldPosition) + OriginalRayDirection * ClosestHitDistance);
 		float3 H = (L + V * (sqrt(length2(L)) * rsqrt(length2(V))));
 
 		NoH = saturate(dot(N, H) * rsqrt(length2(H)));
@@ -720,7 +720,7 @@ float GetRatioEstimatorWeight(
 	#else
 	{
 		float3 V = normalize(View.TranslatedWorldCameraOrigin - RefSceneMetadata.TranslatedWorldPosition);
-		float3 L = normalize((SampleSceneMetadata.TranslatedWorldPosition - RefSceneMetadata.TranslatedWorldPosition) + OriginalRayDirection * PenumbraClosestHit);
+		float3 L = normalize((SampleSceneMetadata.TranslatedWorldPosition - RefSceneMetadata.TranslatedWorldPosition) + OriginalRayDirection * ClosestHitDistance);
 		float3 H = normalize(L + V);
 
 		NoH = abs(dot(N, H));
