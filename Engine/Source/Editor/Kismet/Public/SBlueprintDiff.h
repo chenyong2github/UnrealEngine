@@ -220,9 +220,6 @@ protected:
 
 	friend struct FListItemGraphToDiff;
 
-	/** Helper class for highlighting diffs in different types of controls (graph view, details view, etc) */
-	TSharedPtr< class IDiffControl > DiffControl;
-
 	/** We can't use the global tab manager because we need to instance the diff control, so we have our own tab manager: */
 	TSharedPtr<FTabManager> TabManager;
 
