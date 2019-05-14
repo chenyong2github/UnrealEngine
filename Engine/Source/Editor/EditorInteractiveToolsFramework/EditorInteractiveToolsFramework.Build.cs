@@ -37,10 +37,14 @@ public class EditorInteractiveToolsFramework : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				"InputCore",
+                "Slate",
+                "SlateCore",
+                "InputCore",
 				"UnrealEd",
                 "ContentBrowser",
                 "LevelEditor",
+                "ApplicationCore",
+                "EditorStyle",
                 "InteractiveToolsFramework"
 
 				// ... add private dependencies that you statically link with here ...	
