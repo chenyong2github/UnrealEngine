@@ -1,12 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Input;
 using Timing_Data_Investigator.Models;
 
@@ -19,13 +17,11 @@ namespace Timing_Data_Investigator.Controls
     {
         public TimingDataGrid()
         {
-            InitializeComponent();
+			InitializeComponent();
         }
 
         private void Grid_Sorting(object sender, DataGridSortingEventArgs e)
         {
-			
-			
 			switch (e.Column.SortDirection)
 			{
 				case ListSortDirection.Ascending:
@@ -108,5 +104,16 @@ namespace Timing_Data_Investigator.Controls
                 }
             }
         }
-    }
+
+		private void Button_Click(object sender, System.Windows.RoutedEventArgs e)
+		{
+			TreeGridElement SelectedData = Grid.SelectedItem as TreeGridElement;
+			if (SelectedData == null)
+			{
+				return;
+			}
+
+			SelectedData.IsExpanded = !SelectedData.IsExpanded;
+		}
+	}
 }

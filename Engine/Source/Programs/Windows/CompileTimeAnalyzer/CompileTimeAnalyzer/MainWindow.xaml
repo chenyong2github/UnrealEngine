@@ -40,15 +40,17 @@
         <DockPanel Grid.Row="0">
             <Menu DockPanel.Dock="Top">
                 <MenuItem Header="_File">
-                    <MenuItem Header="_Open" Click="OpenFile_Click" />
-                    <Separator />
+                    <MenuItem Header="_Open Compile Time File" Click="OpenFile_Click" />
+					<Separator />
+					<MenuItem x:Name="RecentFiles" Header="Open Recent _File" IsEnabled="False" />
+					<Separator />
                     <MenuItem Header="E_xit" Click="Exit_Click" />
                 </MenuItem>
             </Menu>
             <TabControl x:Name="OpenedFiles">
                 <TabControl.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Orientation="Horizontal">
+                        <StackPanel Orientation="Horizontal" MouseDown="StackPanel_MouseDown">
 							<TextBlock Text="{Binding ShortName}" VerticalAlignment="Center" />
 							<Button Click="RemoveTab_Click" Style="{StaticResource TabCloseButton}" />
 						</StackPanel>

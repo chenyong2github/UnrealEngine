@@ -11,13 +11,15 @@
         <ContextMenu  x:Key="RowMenu" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
             <MenuItem Header="{Binding Name, StringFormat=Open {0} in New Tab}" Command="{Binding OpenCommand}" />
         </ContextMenu>
-        <Style x:Key="FilesRowStyle" TargetType="{x:Type DataGridRow}">
-            <Setter Property="ContextMenu" Value="{StaticResource RowMenu}" />
+		<Style x:Key="FilesRowStyle" TargetType="{x:Type DataGridRow}">
+			<EventSetter Event="MouseDoubleClick" Handler="DataGridRow_MouseDoubleClick" />
+			<EventSetter Event="MouseEnter" Handler="DataGridRow_MouseEnter" />
+			<EventSetter Event="MouseLeave" Handler="DataGridRow_MouseLeave" />
         </Style>
     </UserControl.Resources>
 
     <TabControl x:Name="SummaryTabs">
-        <TabItem x:Name="FilesTab" Header="Files" Visibility="Collapsed">
+		<TabItem x:Name="FilesTab" Header="Files" Visibility="Collapsed">
             <local:TimingDataGrid x:Name="FilesGrid" DockPanel.Dock="Top" />
         </TabItem>
         <TabItem x:Name="IncludesTab" Header="Includes">
@@ -26,11 +28,8 @@
 					<RowDefinition Height="Auto" />
 					<RowDefinition Height="*" />
 				</Grid.RowDefinitions>
-				<StackPanel Grid.Row="0" x:Name="FlattenIncludesRow" Orientation="Horizontal">
-					<TextBlock Text="Flatten Includes:" VerticalAlignment="Center" Margin="4 2" />
-					<CheckBox x:Name="FlattenIncludes" Checked="FlattenIncludes_Checked" Unchecked="FlattenIncludes_Checked" VerticalAlignment="Center" Margin="2"/>
-				</StackPanel>
-
+				
+				<CheckBox x:Name="FlattenIncludes" Checked="FlattenIncludes_Checked" Unchecked="FlattenIncludes_Checked" VerticalAlignment="Center" Margin="4" Content="Flatten Includes" />
 				<local:TimingDataGrid Grid.Row="1" x:Name="IncludesGrid" DockPanel.Dock="Top" />
 			</Grid>
 		</TabItem>
@@ -40,11 +39,8 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-				<StackPanel Grid.Row="0" x:Name="GroupClassesRow" Orientation="Horizontal">
-					<TextBlock Text="Group Template Classes:" VerticalAlignment="Center" Margin="4 2" />
-					<CheckBox x:Name="GroupClassTemplates" Checked="GroupTemplates_Checked" Unchecked="GroupTemplates_Checked" VerticalAlignment="Center" Margin="2" />
-                </StackPanel>
-
+				
+				<CheckBox x:Name="GroupClassTemplates" Checked="GroupTemplates_Checked" Unchecked="GroupTemplates_Checked" VerticalAlignment="Center" Margin="4" Content="Group Template Classes" />
                 <local:TimingDataGrid Grid.Row="1" x:Name="ClassesGrid" />
             </Grid>
         </TabItem>
@@ -54,11 +50,8 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <StackPanel Grid.Row="0" x:Name="GroupFunctionsRow" Orientation="Horizontal">
-					<TextBlock Text="Group Template Classes:" VerticalAlignment="Center" Margin="4 2" />
-					<CheckBox x:Name="GroupFunctionTemplates" Checked="GroupTemplates_Checked" Unchecked="GroupTemplates_Checked" VerticalAlignment="Center" Margin="2" />
-                </StackPanel>
-
+				
+				<CheckBox x:Name="GroupFunctionTemplates" Checked="GroupTemplates_Checked" Unchecked="GroupTemplates_Checked" VerticalAlignment="Center" Margin="4" Content="Group Template Functions" />
                 <local:TimingDataGrid Grid.Row="1" x:Name="FunctionsGrid" />
             </Grid>
         </TabItem>

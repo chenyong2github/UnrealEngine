@@ -35,14 +35,31 @@ namespace Timing_Data_Investigator.Models
 
 		public string Name { get; set; }
 		public TimingDataType Type { get; set; }
+		public int Count { get; set; } = 1;
+		public double? ParentDurationOverride { get; set; }
 		public double ExclusiveDuration { get; set; }
+		public double ExclusivePercent => GetPercentOfParent(ExclusiveDuration);
 		public double InclusiveDuration => ExclusiveDuration + Children.Cast<TimingDataViewModel>().Sum(c => c.InclusiveDuration);
-
+		public double InclusivePercent => GetPercentOfParent(InclusiveDuration);
 		public string ShortName => !string.IsNullOrWhiteSpace(Name) ? Path.GetFileName(Name) : null;
-
 		public ICommand OpenCommand { get; set; }
-
 		public int SortedIndex { get; set; }
+
+		private double GetPercentOfParent(double Duration)
+		{
+			if (Parent == null)
+			{
+				if (ParentDurationOverride.HasValue)
+				{
+					return (100 * Duration) / ParentDurationOverride.Value;
+				}
+
+				return 100.0;
+			}
+
+			TimingDataViewModel ParentViewModel = (TimingDataViewModel)Parent;
+			return (100 * Duration) / ParentViewModel.InclusiveDuration;
+		}
 
 		public void UpdateSortIndex(string SortMember, ListSortDirection SortDirection)
 		{
@@ -136,6 +153,7 @@ namespace Timing_Data_Investigator.Models
 			{
 				Name = TimingData.Name,
 				Type = TimingData.Type,
+				Count = TimingData.Count,
 				ExclusiveDuration = TimingData.ExclusiveDuration,
 				HasChildren = TimingData.Children.Any(),
 			};
@@ -216,6 +234,7 @@ namespace Timing_Data_Investigator.Models
 			{
 				Name = Name,
 				Type = Type,
+				ParentDurationOverride = ParentDurationOverride,
 				ExclusiveDuration = ExclusiveDuration,
 				HasChildren = Children.Any(),
 			};

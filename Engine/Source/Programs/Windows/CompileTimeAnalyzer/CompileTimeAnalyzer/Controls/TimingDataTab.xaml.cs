@@ -1,14 +1,13 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
+using System.Windows.Media;
 using Timing_Data_Investigator.Models;
 using UnrealBuildTool;
 
@@ -100,10 +99,7 @@ namespace Timing_Data_Investigator.Controls
 				UpdateUIForSingleFile(NewTimingData);
             }
 
-            SummaryTabs.SelectedItem = FilesModel == null ? IncludesTab : FilesTab;
-			FlattenIncludesRow.Visibility = FlattenedIncludesModel != null ? Visibility.Visible : Visibility.Hidden;
-			GroupClassesRow.Visibility = GroupedClassesModel != null ? Visibility.Visible : Visibility.Hidden;
-			GroupFunctionsRow.Visibility = GroupedFunctionsModel != null ? Visibility.Visible : Visibility.Hidden;
+			SummaryTabs.SelectedItem = FilesModel == null ? IncludesTab : FilesTab;
 
 			if (TabStates.TryGetValue(NewTimingData, out TabState State))
 			{
@@ -118,20 +114,27 @@ namespace Timing_Data_Investigator.Controls
 				RefreshTabState(IncludesTab, State);
 				RefreshTabState(ClassesTab, State);
 				RefreshTabState(FunctionsTab, State);
-
-				SortModel(FilesGrid.Grid);
-				SortModel(IncludesGrid.Grid);
-				SortModel(ClassesGrid.Grid);
-				SortModel(FunctionsGrid.Grid);
 			}
-        }
+			else
+			{
+				FilesGrid.Grid.Columns[0].SortDirection = ListSortDirection.Ascending;
+				IncludesGrid.Grid.Columns[2].SortDirection = ListSortDirection.Descending;
+				ClassesGrid.Grid.Columns[2].SortDirection = ListSortDirection.Descending;
+				FunctionsGrid.Grid.Columns[2].SortDirection = ListSortDirection.Descending;
+			}
+
+			SortModel(FilesGrid.Grid);
+			SortModel(IncludesGrid.Grid);
+			SortModel(ClassesGrid.Grid);
+			SortModel(FunctionsGrid.Grid);
+		}
 
 		private void UpdateUIForAggregate(TimingDataViewModel TimingData)
 		{
-			FilesModel = GenerateTreeGridModel(TimingData.Children[0].Children);
-			IncludesModel = GenerateTreeGridModel(TimingData.Children[1].Children);
-			ClassesModel = GenerateTreeGridModel(TimingData.Children[2].Children);
-			FunctionsModel = GenerateTreeGridModel(TimingData.Children[3].Children);
+			FilesModel = GenerateTreeGridModel(TimingData.Children[0]);
+			IncludesModel = GenerateTreeGridModel(TimingData.Children[1]);
+			ClassesModel = GenerateTreeGridModel(TimingData.Children[2]);
+			FunctionsModel = GenerateTreeGridModel(TimingData.Children[3]);
 			FlattenedIncludesModel = null;
 			GroupedClassesModel = null;
 			GroupedFunctionsModel = null;
@@ -140,14 +143,24 @@ namespace Timing_Data_Investigator.Controls
 			UpdateTabVisibility(IncludesModel.FlatModel, IncludesTab, IncludesGrid);
 			UpdateTabVisibility(ClassesModel.FlatModel, ClassesTab, ClassesGrid);
 			UpdateTabVisibility(FunctionsModel.FlatModel, FunctionsTab, FunctionsGrid);
+
+			FlattenIncludes.IsEnabled = false;
+			GroupClassTemplates.IsEnabled = false;
+			GroupFunctionTemplates.IsEnabled = false;
+
+			FilesGrid.CountColumn.Visibility = Visibility.Collapsed;
+			IncludesGrid.CountColumn.Visibility = Visibility.Visible;
+			IncludesGrid.ExclusiveDurationColumn.Visibility = Visibility.Collapsed;
+			ClassesGrid.ExclusiveDurationColumn.Visibility = Visibility.Collapsed;
+			FunctionsGrid.ExclusiveDurationColumn.Visibility = Visibility.Collapsed;
 		}
 
 		private void UpdateUIForSingleFile(TimingDataViewModel TimingData)
 		{
 			FilesModel = null;
-			IncludesModel = GenerateTreeGridModel(TimingData.Children[0].Children);
-			ClassesModel = GenerateTreeGridModel(TimingData.Children[1].Children);
-			FunctionsModel = GenerateTreeGridModel(TimingData.Children[2].Children);
+			IncludesModel = GenerateTreeGridModel(TimingData.Children[0]);
+			ClassesModel = GenerateTreeGridModel(TimingData.Children[1]);
+			FunctionsModel = GenerateTreeGridModel(TimingData.Children[2]);
 			FlattenedIncludesModel = GenerateFlattenedModel(IncludesModel);
 			GroupedClassesModel = GenerateGroupedModel(ClassesModel);
 			GroupedFunctionsModel = GenerateGroupedModel(FunctionsModel);
@@ -156,6 +169,15 @@ namespace Timing_Data_Investigator.Controls
 			UpdateTabVisibility(FlattenIncludes.IsChecked == true ? FlattenedIncludesModel.FlatModel : IncludesModel.FlatModel, IncludesTab, IncludesGrid);
 			UpdateTabVisibility(GroupClassTemplates.IsChecked == true ? GroupedClassesModel.FlatModel : ClassesModel.FlatModel, ClassesTab, ClassesGrid);
 			UpdateTabVisibility(GroupFunctionTemplates.IsChecked == true ? GroupedFunctionsModel.FlatModel : FunctionsModel.FlatModel, FunctionsTab, FunctionsGrid);
+
+			FlattenIncludes.IsEnabled = true;
+			GroupClassTemplates.IsEnabled = true;
+			GroupFunctionTemplates.IsEnabled = true;
+
+			IncludesGrid.CountColumn.Visibility = Visibility.Collapsed;
+			IncludesGrid.ExclusiveDurationColumn.Visibility = Visibility.Visible;
+			ClassesGrid.ExclusiveDurationColumn.Visibility = Visibility.Visible;
+			FunctionsGrid.ExclusiveDurationColumn.Visibility = Visibility.Visible;
 		}
 
 		private void RefreshTabState(TabItem Tab, TabState State)
@@ -194,18 +216,19 @@ namespace Timing_Data_Investigator.Controls
 			Grid.DataContext = TabModel;
         }
 
-		private TreeGridModel GenerateTreeGridModel(IEnumerable<TreeGridElement> Children)
+		private TreeGridModel GenerateTreeGridModel(TreeGridElement Parent)
 		{
-			TreeGridModel Model = new TreeGridModel();
-			foreach (TreeGridElement Child in Children)
+			// Make sure to set the parent duration override since these children will get de-parented.
+			double ParentDuration = ((TimingDataViewModel)Parent).InclusiveDuration;
+			foreach (TimingDataViewModel Child in Parent.Children.Cast<TimingDataViewModel>())
 			{
-				Model.Add(Child);
+				Child.ParentDurationOverride = ParentDuration;
 			}
 
-			return Model;
+			return new TreeGridModel(Parent.Children);
 		}
 
-		private void FlattenIncludesInternal(Dictionary<string, TimingDataViewModel> FlattenedIncludes, IEnumerable<TimingDataViewModel> ViewModels)
+		private void FlattenIncludesInternal(Dictionary<string, TimingDataViewModel> FlattenedIncludes, IEnumerable<TimingDataViewModel> ViewModels, double ParentDurationOverride)
 		{
 			foreach (TimingDataViewModel TimingData in ViewModels)
 			{
@@ -219,34 +242,32 @@ namespace Timing_Data_Investigator.Controls
 					{
 						Name = TimingData.Name,
 						Type = TimingData.Type,
+						ParentDurationOverride = ParentDurationOverride,
 						ExclusiveDuration = TimingData.ExclusiveDuration
 					};
 
 					FlattenedIncludes.Add(FlattenedInclude.Name, FlattenedInclude);
 				}
 
-				FlattenIncludesInternal(FlattenedIncludes, TimingData.Children.Cast<TimingDataViewModel>());
+				FlattenIncludesInternal(FlattenedIncludes, TimingData.Children.Cast<TimingDataViewModel>(), ParentDurationOverride);
 			}
 		}
 
 		private TreeGridModel GenerateFlattenedModel(TreeGridModel UnflattenedModel)
 		{
+			IEnumerable<TimingDataViewModel> TimingDataModel = UnflattenedModel.Cast<TimingDataViewModel>();
+			double OverrideDuration = TimingDataModel.ElementAt(0).ParentDurationOverride ?? TimingDataModel.Sum(d => d.InclusiveDuration);
 			Dictionary<string, TimingDataViewModel> FlattenedIncludes = new Dictionary<string, TimingDataViewModel>();
-			FlattenIncludesInternal(FlattenedIncludes, UnflattenedModel.Cast<TimingDataViewModel>());
-			TreeGridModel FlattenedModel = new TreeGridModel();
-			foreach (TimingDataViewModel TimingData in FlattenedIncludes.Values)
-			{
-				FlattenedModel.Add(TimingData);
-			}
-
-			return FlattenedModel;
+			FlattenIncludesInternal(FlattenedIncludes, TimingDataModel, OverrideDuration);
+			return new TreeGridModel(FlattenedIncludes.Values);
 		}
 
 		private TreeGridModel GenerateGroupedModel(TreeGridModel UngroupedModel)
         {
-			TreeGridModel GroupedModel = new TreeGridModel();
+			IEnumerable<TimingDataViewModel> TimingDataModel = UngroupedModel.Cast<TimingDataViewModel>();
+			double OverrideDuration = TimingDataModel.ElementAt(0).ParentDurationOverride ?? TimingDataModel.Sum(d => d.InclusiveDuration);
 			List<TimingDataViewModel> ClonedChildren = new List<TimingDataViewModel>();
-            foreach (TimingDataViewModel Child in UngroupedModel.Cast<TimingDataViewModel>())
+            foreach (TimingDataViewModel Child in TimingDataModel)
             {
 				TimingDataViewModel ClonedChild = Child.Clone();
                 if (ClonedChild.HasChildren)
@@ -262,12 +283,11 @@ namespace Timing_Data_Investigator.Controls
             }
 
 			IEnumerable<TimingDataViewModel> GroupedClonedChildren = GroupChildren(ClonedChildren);
-            foreach (TimingDataViewModel GroupedChild in GroupedClonedChildren)
-            {
-                GroupedModel.Add(GroupedChild);
-            }
-
-            return GroupedModel;
+			foreach (TimingDataViewModel Child in GroupedClonedChildren)
+			{
+				Child.ParentDurationOverride = OverrideDuration;
+			}
+			return new TreeGridModel(GroupedClonedChildren);
         }
 
         private IEnumerable<TimingDataViewModel> GroupChildren(IEnumerable<TimingDataViewModel> Children)
@@ -389,6 +409,25 @@ namespace Timing_Data_Investigator.Controls
 			{
 				UpdateGridModel(GroupFunctionTemplates, FunctionsGrid, FunctionsModel, GroupedFunctionsModel);
 			}
+		}
+
+		private void DataGridRow_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+		{
+			DataGridRow Row = sender as DataGridRow;
+			Row.Background = SystemColors.InactiveSelectionHighlightBrush;
+		}
+
+		private void DataGridRow_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+		{
+			DataGridRow Row = sender as DataGridRow;
+			Row.Background = Brushes.White;
+		}
+
+		private void DataGridRow_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+		{
+			DataGridRow Row = sender as DataGridRow;
+			TimingDataViewModel File = Row.DataContext as TimingDataViewModel;
+			File.OpenCommand.Execute(null);
 		}
 	}
 }

@@ -19,10 +19,19 @@ namespace Timing_Data_Investigator
 		private PropertyInfo CurrentSortProperty;
 		private ListSortDirection? CurrentSortDirection;
 
-		public TreeGridFlatModel()
+		public TreeGridFlatModel() : this(null)
+		{
+		}
+
+		public TreeGridFlatModel(IEnumerable<TreeGridElement> Elements)
 		{
 			// Initialize the model
 			Keys = new HashSet<TreeGridElement>();
+			foreach (TreeGridElement Element in Elements)
+			{
+				Items.Add(Element);
+				Keys.Add(Element);
+			}
 		}
 
 		public void Sort(PropertyInfo SortProperty, ListSortDirection? SortDirection)

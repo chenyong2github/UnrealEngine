@@ -187,14 +187,14 @@
     <Compile Include="ProjectFiles\Xcode\XcodeProjectFileGenerator.cs" />
     <Compile Include="System\Action.cs" />
     <Compile Include="System\ActionExecutor.cs" />
-    <Compile Include="System\AggregateParsedTimingInfo.cs" />
+    <Compile Include="Modes\AggregateParsedTimingInfo.cs" />
     <Compile Include="System\Asn.cs" />
     <Compile Include="System\BuildVersion.cs" />
     <Compile Include="System\CppCompileEnvironment.cs" />
     <Compile Include="System\CppDependencyCache.cs" />
     <Compile Include="System\CppIncludeParser.cs" />
     <Compile Include="System\FileMetadataPrefetch.cs" />
-    <Compile Include="System\ParseMsvcTimingInfo.cs" />
+    <Compile Include="Modes\ParseMsvcTimingInfo.cs" />
     <Compile Include="System\RulesScope.cs" />
     <Compile Include="System\SourceFileMetadataCache.cs" />
     <Compile Include="System\DataDrivenPlatformInfo.cs" />

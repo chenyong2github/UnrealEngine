@@ -71,18 +71,33 @@ namespace Timing_Data_Investigator
         {
 			Button RemoveTabButton = (Button)e.Source;
 			TimingDataViewModel TabToRemove = (TimingDataViewModel)RemoveTabButton.DataContext;
-            int IndexToSelect = OpenedFiles.Items.IndexOf(TabToRemove) - 1;
-            OpenedFiles.Items.Remove(TabToRemove);
-            if (IndexToSelect == 0 && OpenedFiles.Items.Count == 1)
-            {
-                NoOpenTabsTab.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                IndexToSelect = 1;
-            }
-
-            OpenedFiles.SelectedIndex = IndexToSelect;
+			CloseTab(TabToRemove);
         }
-    }
+
+		private void StackPanel_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+		{
+			if (e.ChangedButton == System.Windows.Input.MouseButton.Middle)
+			{
+				StackPanel TabStackPanel = (StackPanel)sender;
+				TimingDataViewModel TabToRemove = (TimingDataViewModel)TabStackPanel.DataContext;
+				CloseTab(TabToRemove);
+			}
+		}
+
+		private void CloseTab(TimingDataViewModel TabToRemove)
+		{
+			int IndexToSelect = OpenedFiles.Items.IndexOf(TabToRemove) - 1;
+			OpenedFiles.Items.Remove(TabToRemove);
+			if (IndexToSelect == 0 && OpenedFiles.Items.Count == 1)
+			{
+				NoOpenTabsTab.Visibility = Visibility.Visible;
+			}
+			else
+			{
+				IndexToSelect = 1;
+			}
+
+			OpenedFiles.SelectedIndex = IndexToSelect;
+		}
+	}
 }

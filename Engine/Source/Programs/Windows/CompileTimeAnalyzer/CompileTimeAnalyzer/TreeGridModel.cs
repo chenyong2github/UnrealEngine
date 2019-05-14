@@ -11,11 +11,23 @@ namespace Timing_Data_Investigator
 	{
 		private List<TreeGridElement> ItemCache;
 
-		public TreeGridModel()
+		public TreeGridModel() : this(null)
+		{
+		}
+
+		public TreeGridModel(IEnumerable<TreeGridElement> Elements)
 		{
 			// Initialize the model
 			ItemCache = new List<TreeGridElement>();
-			FlatModel = new TreeGridFlatModel();
+			FlatModel = new TreeGridFlatModel(Elements);
+			if (Elements != null)
+			{
+				foreach (TreeGridElement Element in Elements)
+				{
+					Items.Add(Element);
+					OnRootAdded(Element, false);
+				}
+			}
 		}
 
 		public TreeGridFlatModel FlatModel { get; private set; }
@@ -28,7 +40,7 @@ namespace Timing_Data_Investigator
 				case NotifyCollectionChangedAction.Add:
 
 					// Process added item
-					OnRootAdded(args.NewItems[0]);
+					OnRootAdded(args.NewItems[0], true);
 					break;
 			}
 		}
@@ -106,7 +118,7 @@ namespace Timing_Data_Investigator
 		{
 		}
 
-		private void OnRootAdded(object Item)
+		private void OnRootAdded(object Item, bool InsertIntoFlatModel)
 		{
 			// Verify the root item
 			TreeGridElement Root = TreeGridElement.VerifyItem(Item);
@@ -114,14 +126,17 @@ namespace Timing_Data_Investigator
 			// Set the model for the root
 			Root.SetModel(this);
 
-			// Find the index for insertion into the flat model
-			int index = FindFlatInsertionIndex(Root);
+			if (InsertIntoFlatModel)
+			{
+				// Find the index for insertion into the flat model
+				int index = FindFlatInsertionIndex(Root);
 
-			// Insert the root into the flat model
-			FlatModel.PrivateInsert(index, Root);
+				// Insert the root into the flat model
+				FlatModel.PrivateInsert(index, Root);
 
-			// Expand the root
-			Expand(Root);
+				// Expand the root
+				Expand(Root);
+			}
 		}
 
 		private void CacheFlatChildren(TreeGridElement item)

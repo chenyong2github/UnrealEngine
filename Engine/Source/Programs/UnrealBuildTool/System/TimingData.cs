@@ -67,7 +67,8 @@ namespace UnrealBuildTool
 		{
 			Name = Reader.ReadString();
 			Type = (TimingDataType)Reader.ReadByte();
-			ExclusiveDuration = (float)Reader.ReadDouble();
+			Count = Reader.ReadInt32();
+			ExclusiveDuration = Reader.ReadDouble();
 			int ChildCount = Reader.ReadInt32();
 			for (int i = 0; i < ChildCount; ++i)
 			{
@@ -87,20 +88,19 @@ namespace UnrealBuildTool
 		public TimingDataType Type { get; set; }
 
 		/// <summary>
+		/// Gets the number of times this event was encountered.
+		/// </summary>
+		public int Count { get; set; } = 1;
+
+		/// <summary>
 		/// Gets the amount of time, in milliseconds, that the event took to complete disregarding its sub-events.
 		/// </summary>
-		public double ExclusiveDuration { get; set; }
+		public double ExclusiveDuration { get; set; } = 0.0;
 
 		/// <summary>
 		/// Gets the amount of time, in milliseconds, that the event took including its sub-events.
 		/// </summary>
-		public double InclusiveDuration
-		{
-			get
-			{
-				return ExclusiveDuration + Children.Sum(c => c.Value.InclusiveDuration);
-			}
-		}
+		public double InclusiveDuration => ExclusiveDuration + Children.Sum(c => c.Value.InclusiveDuration);
 
 		/// <summary>
 		/// If this event is a sub-event, the parent is the event it is the sub-event to.
@@ -163,6 +163,7 @@ namespace UnrealBuildTool
 		{
 			Writer.Write(Name);
 			Writer.Write((byte)Type);
+			Writer.Write(Count);
 			Writer.Write(ExclusiveDuration);
 			Writer.Write(Children.Count);
 			foreach (TimingData Child in Children.Values)
