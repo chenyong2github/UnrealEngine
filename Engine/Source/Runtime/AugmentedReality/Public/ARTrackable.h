@@ -123,7 +123,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Plane Geometry")
 	UARPlaneGeometry* GetSubsumedBy() const { return SubsumedBy; };
 
+	UFUNCTION(BlueprintPure, Category="AR AugmentedReality|Plane Geometry")
+	EARPlaneOrientation GetOrientation() const { return Orientation; }
+	void SetOrientation(EARPlaneOrientation InOrientation) { Orientation = InOrientation; }
+
 private:
+	UPROPERTY()
+	EARPlaneOrientation Orientation;
+
 	UPROPERTY()
 	FVector Center;
 	

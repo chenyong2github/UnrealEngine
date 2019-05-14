@@ -133,6 +133,13 @@ enum class EARWorldMappingState : uint8
 	Mapped
 };
 
+/** Describes the tracked plane orientation */
+UENUM(BlueprintType)
+enum class EARPlaneOrientation : uint8
+{
+	Horizontal,
+	Vertical
+};
 
 /** The current state of the AR subsystem including an optional explanation string. */
 USTRUCT(BlueprintType)

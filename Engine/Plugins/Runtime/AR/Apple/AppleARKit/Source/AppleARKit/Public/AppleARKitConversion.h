@@ -171,6 +171,19 @@ struct APPLEARKIT_API FAppleARKitConversion
 
 	static ARWorldAlignment ToARWorldAlignment( const EARWorldAlignment& InWorldAlignment );
 
+	/**
+	 * Coverts plane orientation
+	 */
+	static FORCEINLINE EARPlaneOrientation ToEARPlaneOrientation(ARPlaneAnchorAlignment Alignment)
+	{
+		EARPlaneOrientation RetVal = EARPlaneOrientation::Horizontal;
+		if (Alignment == ARPlaneAnchorAlignmentVertical)
+		{
+			RetVal = EARPlaneOrientation::Vertical;
+		}
+		return RetVal;
+	}
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wpartial-availability"
 
@@ -240,12 +253,13 @@ struct FAppleARKitAnchorData
 	{
 	}
 
-	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform, FVector InCenter, FVector InExtent)
+	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform, FVector InCenter, FVector InExtent, EARPlaneOrientation InOrientation)
 		: Transform( InTransform )
 		, AnchorType( EAppleAnchorType::PlaneAnchor )
 		, AnchorGUID( InAnchorGuid )
 		, Center(InCenter)
 		, Extent(InExtent)
+		, Orientation(InOrientation)
 	{
 	}
 
@@ -331,7 +345,12 @@ struct FAppleARKitAnchorData
 	FGuid AnchorGUID;
 	FVector Center;
 	FVector Extent;
+	EARPlaneOrientation Orientation;
+	/** Set by the session config to detemine whether to generate geometry or not */
+	static bool bGenerateGeometry;
 	TArray<FVector> BoundaryVerts;
+	TArray<FVector> Vertices;
+	TArray<uint16> Indices;
 
 	FARBlendShapeMap BlendShapes;
 	TArray<FVector> FaceVerts;
