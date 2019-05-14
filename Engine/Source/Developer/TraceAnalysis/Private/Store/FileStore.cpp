@@ -3,8 +3,7 @@
 //
 
 #include "Trace/Store.h"
-#include "Trace/DataStream.h"
-#include "Trace/DataStream.h"
+#include "DataStream.h"
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/ScopeLock.h"
