@@ -223,6 +223,7 @@ static bool SignalSupportMultiSPP(ESignalProcessing SignalProcessing)
 	return (
 		SignalProcessing == ESignalProcessing::MonochromaticPenumbra ||
 		SignalProcessing == ESignalProcessing::Reflections ||
+		SignalProcessing == ESignalProcessing::AmbientOcclusion ||
 		SignalProcessing == ESignalProcessing::DiffuseIndirect);
 }
 
