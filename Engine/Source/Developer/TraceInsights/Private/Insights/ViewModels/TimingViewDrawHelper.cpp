@@ -171,7 +171,7 @@ bool FTimingViewDrawHelper::BeginTimeline(FTimingEventsTrack& Track)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingViewDrawHelper::EndTimeline(FTimingEventsTrack& Track, const TCHAR* TimelineName)
+void FTimingViewDrawHelper::EndTimeline(FTimingEventsTrack& Track)
 {
 	// Flush merged boxes.
 	for (int32 Depth = 0; Depth <= MaxDepth; ++Depth)
@@ -252,9 +252,9 @@ void FTimingViewDrawHelper::EndTimeline(FTimingEventsTrack& Track, const TCHAR* 
 		// Draw name of timeline.
 		//const FString Name = FString::Printf(TEXT("%d Y: %g, H: %g, VO: %g, VY: %g"), TimelineIndex, Track.Y, Track.H, Viewport.TopOffset, Viewport.ScrollPosY); //debug
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-		float NameWidth = FontMeasureService->Measure(TimelineName, EventFont).X;
+		float NameWidth = FontMeasureService->Measure(Track.GetName(), EventFont).X;
 		DC.DrawBox(DC.LayerId + TimelineHeaderLayer, 0.0f, Y + 1.0f, NameWidth + 4.0f, 12.0f, WhiteBrush, Color);
-		DC.DrawText(DC.LayerId + TimelineTextLayer, 2.0f, Y, TimelineName, EventFont, TextColor);
+		DC.DrawText(DC.LayerId + TimelineTextLayer, 2.0f, Y, Track.GetName(), EventFont, TextColor);
 	}
 
 	TimelineTopY += Track.H;

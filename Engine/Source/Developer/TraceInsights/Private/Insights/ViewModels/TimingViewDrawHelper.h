@@ -69,7 +69,7 @@ public:
 	void BeginTimelines();
 	bool BeginTimeline(FTimingEventsTrack& Track);
 	void AddEvent(double StartTime, double EndTime, uint32 Depth, const TCHAR* EventName, uint32 Color = 0);
-	void EndTimeline(FTimingEventsTrack& Track, const TCHAR* TimelineName);
+	void EndTimeline(FTimingEventsTrack& Track);
 	void EndTimelines();
 
 	void DrawTimingEventHighlight(double StartTime, double EndTime, float Y, EHighlightMode Mode);

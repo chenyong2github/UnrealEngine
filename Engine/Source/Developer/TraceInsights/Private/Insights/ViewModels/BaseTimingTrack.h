@@ -47,6 +47,7 @@ public:
 	bool IsVisible() const { return bIsVisible; }
 	void Show() { SetVisibilityFlag(true); }
 	void Hide() { SetVisibilityFlag(false); }
+	void ToggleVisibility() { SetVisibilityFlag(!IsVisible()); }
 	virtual void SetVisibilityFlag(bool bInIsVisible) { bIsVisible = bInIsVisible; }
 
 	bool IsSelected() const { return bIsSelected; }

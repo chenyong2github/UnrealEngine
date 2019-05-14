@@ -65,8 +65,10 @@ void FTimingEventsTrackLayout::Update()
 // FTimingEventsTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTimingEventsTrack::FTimingEventsTrack(uint64 InTrackId)
+FTimingEventsTrack::FTimingEventsTrack(uint64 InTrackId, ETimingEventsTrackType InType, const FString& InName)
 	: FBaseTimingTrack(InTrackId)
+	, Type(InType)
+	, Name(InName)
 	, Depth(-1)
 	, bIsCollapsed(false)
 {

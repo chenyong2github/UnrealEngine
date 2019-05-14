@@ -41,17 +41,39 @@ struct FTimingEventsTrackLayout
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+enum ETimingEventsTrackType
+{
+	Cpu,
+	Gpu,
+	Io
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FTimingEventsTrack : public FBaseTimingTrack
 {
 public:
-	FTimingEventsTrack(uint64 InTrackId);
+	FTimingEventsTrack(uint64 InTrackId, ETimingEventsTrackType InType, const FString& InName);
 	virtual ~FTimingEventsTrack();
+
+	ETimingEventsTrackType GetType() const { return Type; }
+	const FString& GetName() const { return Name; }
+
+	void SetOrder(int32 InOrder) { Order = InOrder; }
+	int32 GetOrder() const { return Order; }
+
+	int32 GetDepth() const { return Depth; }
+	int32 GetNumLanes() const { return Depth + 1; }
 
 	virtual void Reset() override;
 	virtual void UpdateHoveredState(float MX, float MY, const FTimingTrackViewport& Viewport);
 
 public:
-	int32 Depth; // how many lanes has this track
+	ETimingEventsTrackType Type;
+	FString Name;
+	int32 Order;
+
+	int32 Depth; // number of lanes == Depth + 1
 	bool bIsCollapsed;
 
 	// Cached OnPaint state.

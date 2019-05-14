@@ -110,6 +110,44 @@ void STimingView::Construct(const FArguments& InArgs)
 			//.RenderOpacity(0.75)
 			.OnUserScrolled(this, &STimingView::VerticalScrollBar_OnUserScrolled)
 		]
+
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Top)
+		.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
+		[
+			// Tracks Filter
+			SNew(SComboButton)
+			.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+			.ForegroundColor(FLinearColor::White)
+			.ToolTipText(LOCTEXT("TracksFilterToolTip", "Filter timing tracks."))
+			.OnGetMenuContent(this, &STimingView::MakeTracksFilterMenu)
+			.HasDownArrow(true)
+			.ContentPadding(FMargin(1.0f, 1.0f, 1.0f, 1.0f))
+			.ButtonContent()
+			[
+				SNew(SHorizontalBox)
+
+				+SHorizontalBox::Slot()
+				.Padding(0.0f)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+					.Text(FText::FromString(FString(TEXT("\xf0b0"))) /*fa-filter*/)
+				]
+
+				+SHorizontalBox::Slot()
+				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+					.Text(LOCTEXT("TracksFilter", "Tracks"))
+				]
+			]
+		]
 	];
 
 	UpdateHorizontalScrollBar();
@@ -122,8 +160,9 @@ void STimingView::Construct(const FArguments& InArgs)
 
 void STimingView::Reset()
 {
-	bDrawTimingEvents = true;
-	bDrawIoEvents = false;
+	bShowHideAllGpuTracks = true;
+	bShowHideAllCpuTracks = true;
+	bShowHideAllIoTracks = false;
 
 	//////////////////////////////////////////////////
 
@@ -146,13 +185,16 @@ void STimingView::Reset()
 
 	//////////////////////////////////////////////////
 
-	//TimingEventsTracks.Reset();
+	TimingEventsTracks.Reset();
 
 	bAreTimingEventsTracksDirty = true;
 
 	bUseDownSampling = true;
 
 	//////////////////////////////////////////////////
+
+	IoOverviewTrack = nullptr;
+	IoActivityTrack = nullptr;
 
 	bForceIoEventsUpdate = true;
 	bMergeIoLanes = true;
@@ -307,15 +349,15 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		Wnd->TimersView->RebuildTree(false);
 	}
 
-	// Check if horizontal scroll area has changed.
+	UpdateIo();
+
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session)
 	{
-		double SessionTime = 0.0;
-		{
-			Trace::FAnalysisSessionReadScope _(*Session.Get());
-			SessionTime = Session->GetDurationSeconds();
-		}
+		Trace::FAnalysisSessionReadScope _(*Session.Get());
+
+		// Check if horizontal scroll area has changed.
+		double SessionTime = Session->GetDurationSeconds();
 		if (SessionTime > Viewport.MaxValidTime &&
 			SessionTime != DBL_MAX &&
 			SessionTime != std::numeric_limits<double>::infinity())
@@ -331,17 +373,87 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 				MarkersTrack.SetDirtyFlag();
 			}
 		}
+
+		bool bIsTimingEventsTrackDirty = false;
+
+		if (IoOverviewTrack == nullptr)
+		{
+			IoOverviewTrack = AddTimingEventsTrack((0xF << 28) | 1, ETimingEventsTrackType::Io, TEXT("I/O Overview"), -1);
+			IoOverviewTrack->SetVisibilityFlag(bShowHideAllIoTracks);
+			bIsTimingEventsTrackDirty = true;
+		}
+
+		// Sync CachedTimelines and TimingEventsTracks with available timelines on analysis side.
+		// TODO: can we make this more efficient?
+		Session->ReadTimingProfilerProvider([this, &bIsTimingEventsTrackDirty, &Session](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
+		{
+			// Check if we have a GPU track.
+			uint32 GpuTimelineIndex;
+			if (TimingProfilerProvider.GetGpuTimelineIndex(GpuTimelineIndex))
+			{
+				if (!CachedTimelines.Contains(GpuTimelineIndex))
+				{
+					AddTimingEventsTrack(GpuTimelineIndex, ETimingEventsTrackType::Gpu, TEXT("GPU"), 0);
+					bIsTimingEventsTrackDirty = true;
+				}
+			}
+
+			// Check available CPU tracks.
+			Session->ReadThreadProvider([this, &bIsTimingEventsTrackDirty, &TimingProfilerProvider](const Trace::IThreadProvider& ThreadProvider)
+			{
+				int Order = 1;
+				ThreadProvider.EnumerateThreads([this, &Order, &bIsTimingEventsTrackDirty, &TimingProfilerProvider](const Trace::FThreadInfo& ThreadInfo)
+				{
+					uint32 CpuTimelineIndex;
+					if (TimingProfilerProvider.GetCpuThreadTimelineIndex(ThreadInfo.Id, CpuTimelineIndex))
+					{
+						if (!CachedTimelines.Contains(CpuTimelineIndex))
+						{
+							FString TrackName(ThreadInfo.Name && *ThreadInfo.Name ? ThreadInfo.Name : FString::Printf(TEXT("Thread %u")));
+							AddTimingEventsTrack(CpuTimelineIndex, ETimingEventsTrackType::Cpu, TrackName, Order);
+							bIsTimingEventsTrackDirty = true;
+						}
+						else
+						{
+							FTimingEventsTrack* Track = CachedTimelines[CpuTimelineIndex];
+							if (Track->GetOrder() != Order)
+							{
+								Track->SetOrder(Order);
+								bIsTimingEventsTrackDirty = true;
+							}
+						}
+						Order++;
+					}
+				});
+			});
+		});
+
+		if (IoActivityTrack == nullptr)
+		{
+			IoActivityTrack = AddTimingEventsTrack((0xF << 28) | 2, ETimingEventsTrackType::Io, TEXT("I/O Activity"), 999999);
+			IoActivityTrack->SetVisibilityFlag(bShowHideAllIoTracks);
+			bIsTimingEventsTrackDirty = true;
+		}
+
+		if (bIsTimingEventsTrackDirty)
+		{
+			// The list has changed. Sort the list again.
+			TimingEventsTracks.Sort([this](const FTimingEventsTrack& A, const FTimingEventsTrack& B) -> bool
+			{
+				return A.GetOrder() < B.GetOrder();
+			});
+		}
 	}
 
 	// Compute total height of visible tracks.
 	float TotalScrollHeight = 0.0f;
-	for (auto& KV : CachedTimelines)
+	for (int TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
 	{
-		FTimingEventsTrack& Track = *KV.Value;
+		FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
 
-		//if (Track.IsVisible)
+		if (Track.IsVisible())
 		{
-			//Track.Y = TotalHeight; // TODO: this is not the draw order!
+			Track.SetPosY(TotalScrollHeight);
 			TotalScrollHeight += Track.GetHeight();
 		}
 
@@ -426,10 +538,10 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			GraphTrack.Update(Viewport);
 		}
 
-		//for (int TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
-		//{
-		//	TimingEventsTracks[TrackIndex]->Update(Viewport);
-		//}
+		for (int TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
+		{
+			TimingEventsTracks[TrackIndex]->Update(Viewport);
+		}
 
 		Stopwatch.Stop();
 		TimelineCacheUpdateDurationHistory.AddValue(Stopwatch.AccumulatedTime);
@@ -488,19 +600,32 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	{
 		Helper.BeginTimelines();
 
-		if (bDrawIoEvents)
+		for (int TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
 		{
-			DrawIoOverviewTrack(Helper);
-		}
-
-		if (bDrawTimingEvents)
-		{
-			DrawTimingEvents(Helper);
-		}
-
-		if (bDrawIoEvents)
-		{
-			DrawIoTrack(Helper);
+			FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
+			if (Track.IsVisible())
+			{
+				//TODO: Track.Draw(Helper);
+				if (Track.GetType() == ETimingEventsTrackType::Cpu)
+				{
+					DrawCpuGpuTimelineTrack(Helper, Track);
+				}
+				else if (Track.GetType() == ETimingEventsTrackType::Gpu)
+				{
+					DrawCpuGpuTimelineTrack(Helper, Track);
+				}
+				else if (Track.GetType() == ETimingEventsTrackType::Io)
+				{
+					if (&Track == IoOverviewTrack)
+					{
+						DrawIoOverviewTrack(Helper, Track);
+					}
+					else if (&Track == IoActivityTrack)
+					{
+						DrawIoActivityTrack(Helper, Track);
+					}
+				}
+			}
 		}
 
 		Helper.EndTimelines();
@@ -552,6 +677,9 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	{
 		TimeRulerTrack.Draw(DC, Viewport, MousePosition, bIsSelecting, SelectionStartTime, SelectionEndTime);
 	}
+
+	// Fill background for the Tracks filter combobox.
+	DC.DrawBox(0, 0, 66, 22, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
 
 	//////////////////////////////////////////////////
 
@@ -846,93 +974,63 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTimingEventsTrack* STimingView::GetOrAddTimingEventsTrack(uint32 TrackId)
+FTimingEventsTrack* STimingView::AddTimingEventsTrack(uint32 TrackId, ETimingEventsTrackType TrackType, const FString& TrackName, int32 Order)
 {
-	if (CachedTimelines.Contains(TrackId))
-	{
-		return CachedTimelines[TrackId];
-	}
-	else
-	{
-		FTimingEventsTrack* Track = new FTimingEventsTrack(TrackId);
-		CachedTimelines.Add(TrackId, Track);
-		return Track;
-	}
+	FTimingEventsTrack* Track = new FTimingEventsTrack(TrackId, TrackType, TrackName);
+
+	Track->SetOrder(Order);
+
+	UE_LOG(TimingProfiler, Log, TEXT("New Timing Events Track (%d) : %s (\"%s\")"),
+		TimingEventsTracks.Num() + 1,
+		TrackType == ETimingEventsTrackType::Gpu ? TEXT("GPU") :
+		TrackType == ETimingEventsTrackType::Cpu ? TEXT("CPU") :
+		TrackType == ETimingEventsTrackType::Io ? TEXT("I/O") : TEXT("unknown"),
+		*TrackName);
+
+	CachedTimelines.Add(TrackId, Track);
+	TimingEventsTracks.Add(Track);
+
+	return Track;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::DrawTimingEvents(FTimingViewDrawHelper& DC) const
+void STimingView::DrawCpuGpuTimelineTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const
 {
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid())
+	if (Helper.BeginTimeline(Track))
 	{
-		Trace::FAnalysisSessionReadScope _(*Session.Get());
-
-		struct FTimelineHelper
+		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid())
 		{
-			void DrawTimeline(uint32 TimelineIndex, const TCHAR* Name)
-			{
-				// TODO: Adding tracks should be done in Tick(), not in OnPaint().
-				FTimingEventsTrack& Track = *const_cast<STimingView&>(Outer).GetOrAddTimingEventsTrack(TimelineIndex);
+			Trace::FAnalysisSessionReadScope _(*Session.Get());
 
-				if (DC.BeginTimeline(Track))
+			Session->ReadTimingProfilerProvider([this, &Helper, &Track](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
+			{
+				TimingProfilerProvider.ReadTimers([this, &Helper, &Track, &TimingProfilerProvider](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
 				{
-					TimingProfilerProvider.ReadTimeline(TimelineIndex, [this](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+					TimingProfilerProvider.ReadTimeline(Track.GetId(), [this, &Helper, &Track, Timers](const Trace::ITimingProfilerProvider::Timeline& Timeline)
 					{
-						if (Outer.bUseDownSampling)
+						if (bUseDownSampling)
 						{
-							const double SecondsPerPixel = 1.0 / DC.GetViewport().ScaleX;
-							Timeline.EnumerateEventsDownSampled(DC.GetViewport().StartTime, DC.GetViewport().EndTime, SecondsPerPixel, [this](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+							const double SecondsPerPixel = 1.0 / Helper.GetViewport().ScaleX;
+							Timeline.EnumerateEventsDownSampled(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, SecondsPerPixel, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
 							{
-								DC.AddEvent(StartTime, EndTime, Depth, *Timers[Event.TimerIndex].Name);
+								Helper.AddEvent(StartTime, EndTime, Depth, *Timers[Event.TimerIndex].Name);
 							});
 						}
 						else
 						{
-							Timeline.EnumerateEvents(DC.GetViewport().StartTime, DC.GetViewport().EndTime, [this](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+							Timeline.EnumerateEvents(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
 							{
-								DC.AddEvent(StartTime, EndTime, Depth, *Timers[Event.TimerIndex].Name);
+								Helper.AddEvent(StartTime, EndTime, Depth, *Timers[Event.TimerIndex].Name);
 							});
-						}
-					});
-					DC.EndTimeline(Track, Name);
-				}
-			}
-
-			const STimingView& Outer;
-			FTimingViewDrawHelper& DC;
-			const Trace::ITimingProfilerProvider& TimingProfilerProvider;
-			const Trace::FTimingProfilerTimer* Timers;
-		};
-
-		Session->ReadTimingProfilerProvider([this, &DC, &Session](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
-		{
-			TimingProfilerProvider.ReadTimers([this, &DC, &Session, &TimingProfilerProvider](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
-			{
-				FTimelineHelper Helper{ *this, DC, TimingProfilerProvider, Timers };
-
-				// Draw GPU track.
-				uint32 GpuTimelineIndex;
-				if (TimingProfilerProvider.GetGpuTimelineIndex(GpuTimelineIndex))
-				{
-					Helper.DrawTimeline(GpuTimelineIndex, TEXT("GPU"));
-				}
-
-				// Draw CPU tracks.
-				Session->ReadThreadProvider([this, &Helper, &TimingProfilerProvider](const Trace::IThreadProvider& ThreadProvider)
-				{
-					ThreadProvider.EnumerateThreads([this, &Helper, &TimingProfilerProvider](const Trace::FThreadInfo& ThreadInfo)
-					{
-						uint32 ThreadTimelineIndex;
-						if (TimingProfilerProvider.GetCpuThreadTimelineIndex(ThreadInfo.Id, ThreadTimelineIndex))
-						{
-							Helper.DrawTimeline(ThreadTimelineIndex, ThreadInfo.Name && *ThreadInfo.Name ? ThreadInfo.Name : *FString::Printf(TEXT("Thread %u"), ThreadInfo.Id));
 						}
 					});
 				});
 			});
-		});
+
+			Helper.EndTimeline(Track);
+		}
 	}
 }
 
@@ -975,14 +1073,9 @@ uint32 GetFileActivityTypeColor(Trace::EFileActivityType Type)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::DrawIoOverviewTrack(FTimingViewDrawHelper& DC) const
+void STimingView::DrawIoOverviewTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const
 {
-	// TODO: Adding tracks should be done in Tick(), not in OnPaint().
-	STimingView& NonConstThis = const_cast<STimingView&>(*this);
-	FTimingEventsTrack& Track = *NonConstThis.GetOrAddTimingEventsTrack((0xF << 28) | 1);
-	//TODO: FIoTimingEventsTrack& Track = *GetOrAddTimingEventsTrack(ETrackType::Io, 1);
-
-	if (DC.BeginTimeline(Track))
+	if (Helper.BeginTimeline(Track))
 	{
 		// Draw the IO Overiew track using cached events (as those are sorted by Start Time).
 		for (const FIoTimingEvent& Event : AllIoEvents)
@@ -994,11 +1087,11 @@ void STimingView::DrawIoOverviewTrack(FTimingViewDrawHelper& DC) const
 				// Ignore "Idle" and "NotClosed" events.
 				continue;
 			}
-			if (Event.EndTime <= DC.GetViewport().StartTime)
+			if (Event.EndTime <= Helper.GetViewport().StartTime)
 			{
 				continue;
 			}
-			if (Event.StartTime >= DC.GetViewport().EndTime)
+			if (Event.StartTime >= Helper.GetViewport().EndTime)
 			{
 				break;
 			}
@@ -1015,7 +1108,7 @@ void STimingView::DrawIoOverviewTrack(FTimingViewDrawHelper& DC) const
 				Name += Event.Path;
 				Name += "]";
 				Color = 0xFFAA0000;
-				DC.AddEvent(Event.StartTime, Event.EndTime, 0, *Name, Color);
+				Helper.AddEvent(Event.StartTime, Event.EndTime, 0, *Name, Color);
 			}
 			else if (ActivityType == Trace::FileActivityType_Open)
 			{
@@ -1023,28 +1116,23 @@ void STimingView::DrawIoOverviewTrack(FTimingViewDrawHelper& DC) const
 				Name += " [";
 				Name += Event.Path;
 				Name += "]";
-				DC.AddEvent(Event.StartTime, Event.EndTime, 0, *Name, Color);
+				Helper.AddEvent(Event.StartTime, Event.EndTime, 0, *Name, Color);
 			}
 			else
 			{
-				DC.AddEvent(Event.StartTime, Event.EndTime, 0, GetFileActivityTypeName(ActivityType), Color);
+				Helper.AddEvent(Event.StartTime, Event.EndTime, 0, GetFileActivityTypeName(ActivityType), Color);
 			}
 		}
 
-		DC.EndTimeline(Track, TEXT("IO Overview"));
+		Helper.EndTimeline(Track);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //PRAGMA_DISABLE_OPTIMIZATION
 
-void STimingView::DrawIoTrack(FTimingViewDrawHelper& DC) const
+void STimingView::UpdateIo()
 {
-	// TODO: Adding tracks should be done in Tick(), not in OnPaint().
-	STimingView& NonConstThis = const_cast<STimingView&>(*this);
-	FTimingEventsTrack& Track = *NonConstThis.GetOrAddTimingEventsTrack((0xF << 28) | 2);
-	//TODO: FIoTimingEventsTrack& Track = *GetOrAddTimingEventsTrack(ETrackType::Io, 2);
-
 	if (bForceIoEventsUpdate)
 	{
 		bForceIoEventsUpdate = false;
@@ -1056,13 +1144,13 @@ void STimingView::DrawIoTrack(FTimingViewDrawHelper& DC) const
 		{
 			Trace::FAnalysisSessionReadScope _(*Session.Get());
 
-			Session->ReadFileActivityProvider([this, &DC](const Trace::IFileActivityProvider& FileActivityProvider)
+			Session->ReadFileActivityProvider([this](const Trace::IFileActivityProvider& FileActivityProvider)
 			{
 				// Enumerate all IO events and cache them.
-				FileActivityProvider.EnumerateFileActivity([this, &DC](const Trace::FFileInfo& FileInfo, const Trace::IFileActivityProvider::Timeline& Timeline)
+				FileActivityProvider.EnumerateFileActivity([this](const Trace::FFileInfo& FileInfo, const Trace::IFileActivityProvider::Timeline& Timeline)
 				{
 					Timeline.EnumerateEvents(-std::numeric_limits<double>::infinity(), +std::numeric_limits<double>::infinity(),
-						[this, &DC, &FileInfo, &Timeline](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FFileActivity& FileActivity)
+						[this, &FileInfo, &Timeline](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FFileActivity& FileActivity)
 					{
 						if (bMergeIoLanes)
 						{
@@ -1212,17 +1300,23 @@ void STimingView::DrawIoTrack(FTimingViewDrawHelper& DC) const
 			//});
 		}
 	}
+}
 
-	if (DC.BeginTimeline(Track))
+//PRAGMA_ENABLE_OPTIMIZATION
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::DrawIoActivityTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const
+{
+	if (Helper.BeginTimeline(Track))
 	{
 		// Draw IO track using cached events.
 		for (const FIoTimingEvent& Event : AllIoEvents)
 		{
-			if (Event.EndTime <= DC.GetViewport().StartTime)
+			if (Event.EndTime <= Helper.GetViewport().StartTime)
 			{
 				continue;
 			}
-			if (Event.StartTime >= DC.GetViewport().EndTime)
+			if (Event.StartTime >= Helper.GetViewport().EndTime)
 			{
 				break;
 			}
@@ -1243,7 +1337,7 @@ void STimingView::DrawIoTrack(FTimingViewDrawHelper& DC) const
 					Name += Event.Path;
 					Name += "]";
 					Color = 0xFFAA0000;
-					DC.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, *Name, Color);
+					Helper.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, *Name, Color);
 				}
 				else if (ActivityType == Trace::FileActivityType_Open)
 				{
@@ -1251,11 +1345,11 @@ void STimingView::DrawIoTrack(FTimingViewDrawHelper& DC) const
 					Name += " [";
 					Name += Event.Path;
 					Name += "]";
-					DC.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, *Name, Color);
+					Helper.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, *Name, Color);
 				}
 				else
 				{
-					DC.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, GetFileActivityTypeName(ActivityType), Color);
+					Helper.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, GetFileActivityTypeName(ActivityType), Color);
 				}
 			}
 			else
@@ -1264,15 +1358,14 @@ void STimingView::DrawIoTrack(FTimingViewDrawHelper& DC) const
 				Name += " [";
 				Name += Event.Path;
 				Name += "]";
-				DC.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, *Name, Color);
+				Helper.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, *Name, Color);
 			}
 		}
 
-		DC.EndTimeline(Track, TEXT("IO Activity"));
+		Helper.EndTimeline(Track);
 	}
 }
 
-//PRAGMA_ENABLE_OPTIMIZATION
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::DrawTimeRangeSelection(FDrawContext& DC) const
@@ -1876,26 +1969,7 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	}
 	else if (InKeyEvent.GetKey() == EKeys::V)
 	{
-		if (Layout.TargetMinTimelineH == 0.0f)
-		{
-			Layout.TargetMinTimelineH = RealMinTimelineH;
-		}
-		else
-		{
-			Layout.TargetMinTimelineH = 0.0f;
-		}
-
-		Layout.MinTimelineH = Layout.TargetMinTimelineH; // no layout animation
-
-		for (auto& CachedTimelineKV : CachedTimelines)
-		{
-			CachedTimelineKV.Value->SetHeight(0.0f);
-		}
-
-		Viewport.ScrollPosY = 0.0f;
-		UpdateVerticalScrollBar();
-		bIsVerticalViewportDirty = true;
-
+		ToggleAutoHideEmptyTracks();
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Equals ||
@@ -2019,20 +2093,19 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	}
 	else if (InKeyEvent.GetKey() == EKeys::G) // debug: toggles Graph track on/off
 	{
-		GraphTrack.SetVisibilityFlag(!GraphTrack.IsVisible());
+		GraphTrack.ToggleVisibility();
 		bAreTimingEventsTracksDirty = true;
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::U) // debug: toggles Timing (GPU, CPU) tracks on/off
 	{
-		bDrawTimingEvents = !bDrawTimingEvents;
-		CachedTimelines.Reset();
+		ShowHideAllGpuTracks_Execute();
+		ShowHideAllCpuTracks_Execute();
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::I)  // debug: toggles IO tracks on/off
 	{
-		bDrawIoEvents = !bDrawIoEvents;
-		CachedTimelines.Reset();
+		ShowHideAllIoTracks_Execute();
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::O)  // debug: toggles IO merge lanes algorithm
@@ -2700,6 +2773,227 @@ const FTimerNodePtr STimingView::GetTimerNode(uint64 TypeId) const
 	}
 	return TimerNodePtrPtr ? *TimerNodePtrPtr : nullptr;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
+{
+	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
+
+	MenuBuilder.BeginSection("TracksFilter", LOCTEXT("TracksFilterHeading", "Quick Filter"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowAllGpuTracks", "Show/Hide All GPU Tracks (U)"),
+			LOCTEXT("ShowAllGpuTracks_Tooltip", "Show/hide all GPU tracks"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::ShowHideAllGpuTracks_Execute),
+				FCanExecuteAction::CreateLambda([] { return true; }),
+				FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllGpuTracks_IsChecked)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowAllCpuTracks", "Show/Hide All CPU Tracks (U)"),
+			LOCTEXT("ShowAllCpuTracks_Tooltip", "Show/hide all CPU tracks"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::ShowHideAllCpuTracks_Execute),
+				FCanExecuteAction::CreateLambda([] { return true; }),
+				FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllCpuTracks_IsChecked)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowAllIoTracks", "Show/Hide All I/O Tracks (I)"),
+			LOCTEXT("ShowAllIoTracks_Tooltip", "Show/hide all I/O tracks"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::ShowHideAllIoTracks_Execute),
+				FCanExecuteAction::CreateLambda([] { return true; }),
+				FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllIoTracks_IsChecked)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AutoHideEmptyTracks", "Auto Hide Empty Tracks (V)"),
+			LOCTEXT("AutoHideEmptyTracks_Tooltip", "Auto hide empty tracks (ones without timing events in current viewport)"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::ToggleAutoHideEmptyTracks),
+				FCanExecuteAction::CreateLambda([] { return true; }),
+				FIsActionChecked::CreateSP(this, &STimingView::IsAutoHideEmptyTracksEnabled)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("Tracks", LOCTEXT("TracksHeading", "Tracks"));
+	CreateTracksMenu(MenuBuilder);
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::CreateTracksMenu(FMenuBuilder& MenuBuilder)
+{
+	for (int TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
+	{
+		const FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
+		if (Track.GetHeight() > 0.0f || Layout.TargetMinTimelineH > 0.0f)
+		{
+			MenuBuilder.AddMenuEntry(
+				FText::FromString(Track.GetName()),
+				TAttribute<FText>(), // no tooltip
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &STimingView::ToggleTrackVisibility_Execute, Track.GetId()),
+					FCanExecuteAction::CreateLambda([] { return true; }),
+					FIsActionChecked::CreateSP(this, &STimingView::ToggleTrackVisibility_IsChecked, Track.GetId())),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::ShowHideAllCpuTracks_IsChecked() const
+{
+	return bShowHideAllCpuTracks;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ShowHideAllCpuTracks_Execute()
+{
+	bShowHideAllCpuTracks = !bShowHideAllCpuTracks;
+
+	for (int TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
+	{
+		FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
+		if (Track.GetType() == ETimingEventsTrackType::Cpu)
+		{
+			Track.SetVisibilityFlag(bShowHideAllCpuTracks);
+		}
+	}
+
+	bAreTimingEventsTracksDirty = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::ShowHideAllGpuTracks_IsChecked() const
+{
+	return bShowHideAllGpuTracks;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ShowHideAllGpuTracks_Execute()
+{
+	bShowHideAllGpuTracks = !bShowHideAllGpuTracks;
+
+	for (int TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
+	{
+		FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
+		if (Track.GetType() == ETimingEventsTrackType::Gpu)
+		{
+			Track.SetVisibilityFlag(bShowHideAllGpuTracks);
+		}
+	}
+
+	bAreTimingEventsTracksDirty = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::ShowHideAllIoTracks_IsChecked() const
+{
+	return bShowHideAllIoTracks;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ShowHideAllIoTracks_Execute()
+{
+	bShowHideAllIoTracks = !bShowHideAllIoTracks;
+
+	for (int TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
+	{
+		FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
+		if (Track.GetType() == ETimingEventsTrackType::Io)
+		{
+			Track.SetVisibilityFlag(bShowHideAllIoTracks);
+		}
+	}
+
+	bAreTimingEventsTracksDirty = true;
+
+	if (bShowHideAllIoTracks)
+	{
+		bForceIoEventsUpdate = true;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::IsAutoHideEmptyTracksEnabled() const
+{
+	return (Layout.TargetMinTimelineH == 0.0f);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ToggleAutoHideEmptyTracks()
+{
+	if (Layout.TargetMinTimelineH == 0.0f)
+	{
+		Layout.TargetMinTimelineH = RealMinTimelineH;
+	}
+	else
+	{
+		Layout.TargetMinTimelineH = 0.0f;
+	}
+
+	Layout.MinTimelineH = Layout.TargetMinTimelineH; // no layout animation
+
+	for (auto& CachedTimelineKV : CachedTimelines)
+	{
+		CachedTimelineKV.Value->SetHeight(0.0f);
+	}
+
+	Viewport.ScrollPosY = 0.0f;
+	UpdateVerticalScrollBar();
+	bIsVerticalViewportDirty = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::ToggleTrackVisibility_IsChecked(uint64 InTrackId) const
+{
+	if (CachedTimelines.Contains(InTrackId))
+	{
+		const FTimingEventsTrack* Track = CachedTimelines[InTrackId];
+		return Track->IsVisible();
+	}
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ToggleTrackVisibility_Execute(uint64 InTrackId)
+{
+	if (CachedTimelines.Contains(InTrackId))
+	{
+		FTimingEventsTrack* Track = CachedTimelines[InTrackId];
+		Track->ToggleVisibility();
+	}
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

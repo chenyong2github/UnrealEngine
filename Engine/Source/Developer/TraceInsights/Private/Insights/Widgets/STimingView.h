@@ -64,6 +64,24 @@ public:
 	 */
 	void Construct(const FArguments& InArgs);
 
+	TSharedRef<SWidget> MakeTracksFilterMenu();
+	void CreateTracksMenu(FMenuBuilder& MenuBuilder);
+
+	bool ShowHideAllCpuTracks_IsChecked() const;
+	void ShowHideAllCpuTracks_Execute();
+
+	bool ShowHideAllGpuTracks_IsChecked() const;
+	void ShowHideAllGpuTracks_Execute();
+
+	bool ShowHideAllIoTracks_IsChecked() const;
+	void ShowHideAllIoTracks_Execute();
+
+	bool IsAutoHideEmptyTracksEnabled() const;
+	void ToggleAutoHideEmptyTracks();
+
+	bool ToggleTrackVisibility_IsChecked(uint64 InTrackId) const;
+	void ToggleTrackVisibility_Execute(uint64 InTrackId);
+
 	/** Resets internal widget's data to the default one. */
 	void Reset();
 
@@ -226,11 +244,14 @@ protected:
 		return FVector2D(16.0f, 16.0f);
 	}
 
-	FTimingEventsTrack* GetOrAddTimingEventsTrack(uint32 TrackId);
+	FTimingEventsTrack* AddTimingEventsTrack(uint32 TrackId, ETimingEventsTrackType TrackType, const FString& TrackName, int32 Order);
 
-	void DrawTimingEvents(FTimingViewDrawHelper& DH) const;
-	void DrawIoOverviewTrack(FTimingViewDrawHelper& DH) const;
-	void DrawIoTrack(FTimingViewDrawHelper& DH) const;
+	void DrawCpuGpuTimelineTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
+
+	void UpdateIo();
+	void DrawIoOverviewTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
+	void DrawIoActivityTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
+
 	void DrawTimeRangeSelection(FDrawContext& DH) const;
 
 	void ShowContextMenu(const FVector2D& ScreenSpacePosition, const FPointerEvent& MouseEvent);
@@ -302,9 +323,9 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 protected:
-
-	bool bDrawTimingEvents;
-	bool bDrawIoEvents;
+	bool bShowHideAllGpuTracks;
+	bool bShowHideAllCpuTracks;
+	bool bShowHideAllIoTracks;
 
 	////////////////////////////////////////////////////////////
 
@@ -316,27 +337,28 @@ protected:
 
 	////////////////////////////////////////////////////////////
 
-	enum FTimingTrackType
-	{
-		TimeRuler,
-		Markers,
-		CpuEvents,
-		GpuEvents,
-		IoEvents,
-		Graph,
-		Other
-	};
+	//enum FTimingTrackType
+	//{
+	//	TimeRuler,
+	//	Markers,
+	//	CpuEvents,
+	//	GpuEvents,
+	//	IoEvents,
+	//	Graph,
+	//	Other
+	//};
 
 	mutable TMap<uint32, FTimingEventsTrack*> CachedTimelines; /// all tracks
 
-	//TODO: TArray<FBaseTimingTrack*> TopTracks; /// tracks docked on top, in order to be displayed
-	//TODO: TArray<FBaseTimingTrack*> ScrollableTracks; /// tracks in scrollable area, in order to be displayed
-	//TODO: TArray<FBaseTimingTrack*> BottomTracks; /// tracks docked on bottom, in order to be displayed
+	//TODO: TArray<FBaseTimingTrack*> TopTracks; /// tracks docked on top, in order to be displayed (top to bottom)
+	//TODO: TArray<FBaseTimingTrack*> ScrollableTracks; /// tracks in scrollable area, in order to be displayed (top to bottom)
+	//TODO: TArray<FBaseTimingTrack*> BottomTracks; /// tracks docked on bottom, in order to be displayed (top to bottom)
+	//TODO: TArray<FBaseTimingTrack*> ForegorundTracks; /// tracks to draw over top/scrollable/bottom tracks (can use entire area), in order to be displayed (back to front)
 
 	////////////////////////////////////////////////////////////
 	// Timing Events Tracks (GPU, CPU, IO)
 
-	//TODO: TArray<FTimingEventsTrack*> TimingEventsTracks; /// timing events tracks in order to be displayed
+	TArray<FTimingEventsTrack*> TimingEventsTracks; /// timing events tracks in order to be displayed
 
 	bool bAreTimingEventsTracksDirty;
 
@@ -345,9 +367,12 @@ protected:
 	////////////////////////////////////////////////////////////
 	// IO
 
-	bool bMergeIoLanes;
+	FTimingEventsTrack* IoOverviewTrack;
+	FTimingEventsTrack* IoActivityTrack;
 
 	mutable bool bForceIoEventsUpdate;
+
+	bool bMergeIoLanes;
 
 	struct FIoTimingEvent
 	{
