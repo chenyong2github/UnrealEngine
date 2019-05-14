@@ -29,7 +29,9 @@ private:
 
 protected:
 	//~ Begin AActor Interface.
+#if WITH_EDITOR
 	virtual void PostEditMove(bool bFinished) override;
+#endif
 	virtual bool IsLevelBoundsRelevant() const override { return false; }
 	//~ End AActor Interface
 };
