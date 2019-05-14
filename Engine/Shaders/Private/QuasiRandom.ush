@@ -8,6 +8,7 @@
 
 #include "BlueNoise.ush"
 #include "Halton.ush"
+#include "MortonCode.ush"
 
 struct FQuasiRandom
 {
@@ -59,7 +60,7 @@ float QuasiRandom_Sample(inout FQuasiRandom QuasiRandom)
 {
 	float RandomSample = 0.0;
 	BRANCH
-	if (QuasiRandom.Dimension < BlueNoise.Dimensions.z * 3)
+	if (QuasiRandom.Dimension < uint(BlueNoise.Dimensions.z * 3))
 	{
 		// Evaluate shift vector
 		float3 BlueNoiseShiftVector = EvalBlueNoise(QuasiRandom.BlueNoiseCoord, QuasiRandom.Dimension / 3);
@@ -87,7 +88,7 @@ float3 QuasiRandom_Sample3(inout FQuasiRandom QuasiRandom)
 {
 	float3 RandomSample = 0.0;
 	BRANCH
-	if (QuasiRandom.Dimension + 2 < BlueNoise.Dimensions.z * 3)
+	if (QuasiRandom.Dimension + 2 < uint(BlueNoise.Dimensions.z * 3))
 	{
 		// Evaluate shift vector
 		float3 BlueNoiseShift = EvalBlueNoise(QuasiRandom.BlueNoiseCoord, QuasiRandom.Dimension / 3);
