@@ -490,7 +490,7 @@ private:
 	void RemoveCachedMeshDrawCommands();
 
 #if RHI_RAYTRACING
-	TArray<FRayTracingGeometryRHIRef> RayTracingGeometries;
+	TArray<FRayTracingGeometry*> RayTracingGeometries;
 #endif
 };
 

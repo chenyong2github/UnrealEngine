@@ -198,9 +198,9 @@ public:
 	/** Gathers dynamic ray tracing instances from this proxy. */
 	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) {}
 
-	TArray<FRayTracingGeometryRHIRef>&& MoveRayTracingGeometries()
+	TArray<FRayTracingGeometry*>&& MoveRayTracingGeometries()
 	{
-		return static_cast<TArray<FRayTracingGeometryRHIRef>&&>(RayTracingGeometries);
+		return static_cast<TArray<FRayTracingGeometry*>&&>(RayTracingGeometries);
 	}
 #endif // RHI_RAYTRACING
 
@@ -745,7 +745,7 @@ protected:
 	}
 
 #if RHI_RAYTRACING
-	TArray<FRayTracingGeometryRHIRef> RayTracingGeometries;
+	TArray<FRayTracingGeometry*> RayTracingGeometries;
 #endif
 
 private:

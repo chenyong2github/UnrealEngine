@@ -214,9 +214,9 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 			}
 		}
 
-#if RHI_RAYTRACING
-		RayTracingGeometries[LODIndex] = RenderData->LODResources[LODIndex].RayTracingGeometry.RayTracingGeometryRHI;
-#endif
+	#if RHI_RAYTRACING
+		RayTracingGeometries[LODIndex] = &RenderData->LODResources[LODIndex].RayTracingGeometry;
+	#endif
 	}
 
 	// WPO is typically used for ambient animations, so don't include in cached shadowmaps

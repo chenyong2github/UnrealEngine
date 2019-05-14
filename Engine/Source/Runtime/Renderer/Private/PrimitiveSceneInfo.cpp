@@ -185,7 +185,7 @@ FRayTracingGeometryRHIRef FPrimitiveSceneInfo::GetStaticRayTracingGeometryInstan
 {
 	if (RayTracingGeometries.Num() > LodLevel)
 	{
-		return RayTracingGeometries[LodLevel];
+		return RayTracingGeometries[LodLevel]->RayTracingGeometryRHI;
 	}
 	else
 	{
