@@ -532,17 +532,17 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		const IScreenSpaceDenoiser* DefaultDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
 		const IScreenSpaceDenoiser* DenoiserToUse = GRayTracingGlobalIlluminationDenoiser == 1 ? DefaultDenoiser : GScreenSpaceDenoiser;
 
-		IScreenSpaceDenoiser::FGlobalIlluminationInputs DenoiserInputs;
+		IScreenSpaceDenoiser::FDiffuseIndirectInputs DenoiserInputs;
 		DenoiserInputs.Color = GlobalIlluminationTexture;
 		DenoiserInputs.RayHitDistance = RayDistanceTexture;
 
 		{
-			RDG_EVENT_SCOPE(GraphBuilder, "%s%s(GlobalIllumination) %dx%d",
+			RDG_EVENT_SCOPE(GraphBuilder, "%s%s(DiffuseIndirect) %dx%d",
 				DenoiserToUse != DefaultDenoiser ? TEXT("ThirdParty ") : TEXT(""),
 				DenoiserToUse->GetDebugName(),
 				View.ViewRect.Width(), View.ViewRect.Height());
 
-			IScreenSpaceDenoiser::FGlobalIlluminationOutputs DenoiserOutputs = DenoiserToUse->DenoiseGlobalIllumination(
+			IScreenSpaceDenoiser::FDiffuseIndirectOutputs DenoiserOutputs = DenoiserToUse->DenoiseDiffuseIndirect(
 				GraphBuilder,
 				View,
 				&View.PrevViewInfo,

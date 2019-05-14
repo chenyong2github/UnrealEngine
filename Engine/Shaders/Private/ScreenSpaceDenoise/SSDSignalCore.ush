@@ -553,7 +553,7 @@ void DecodeMultiplexedSignals(
 		}
 	}
 	#if CONFIG_SIGNAL_COLOR
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_GI_AND_AO_INPUT)
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_INPUT_NSPP)
 	{
 		OutSamples.Array[0].SampleCount = RawSample[1].g;
 		OutSamples.Array[0].MissCount = OutSamples.Array[0].SampleCount * (1 - RawSample[0].a);
@@ -563,7 +563,7 @@ void DecodeMultiplexedSignals(
 		OutSamples.Array[0].ClosestHitDistance = RawSample[1].r * OutSamples.Array[0].SampleCount;
 		OutSamples.Array[0].ClosestHitDistance = ((RawSample[1].r == -1.0) ? 1.0e20 : RawSample[1].r) * OutSamples.Array[0].SampleCount;
 	}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_GI_AND_AO_RECONSTRUCTION)
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_RECONSTRUCTION)
 	{
 		if (bNormalizeSample)
 		{
@@ -577,7 +577,7 @@ void DecodeMultiplexedSignals(
 		OutSamples.Array[0].MissCount = OutSamples.Array[0].SampleCount * (1 - RawSample[0].a);
 		OutSamples.Array[0].SceneColor = OutSamples.Array[0].SampleCount * RawSample[0];
 	}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_GI_AND_AO_HISTORY)
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_HISTORY)
 	{
 		if (bNormalizeSample)
 		{
@@ -766,7 +766,7 @@ void EncodeMultiplexedSignals(
 		OutRawSample[0].g = Sample[0].SampleCount;
 	}
 	#if CONFIG_SIGNAL_COLOR
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_GI_AND_AO_RECONSTRUCTION)
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_RECONSTRUCTION)
 	{
 		float NormalizationFactor = SafeRcp(Sample[0].SampleCount);
 
@@ -774,7 +774,7 @@ void EncodeMultiplexedSignals(
 		OutRawSample[1].r = Sample[0].SampleCount;
 		OutBufferCount = 2;
 	}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_GI_AND_AO_HISTORY)
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_HISTORY)
 	{
 		float NormalizationFactor = SafeRcp(Sample[0].SampleCount);
 

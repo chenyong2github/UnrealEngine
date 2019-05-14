@@ -157,34 +157,34 @@ public:
 		const FAmbientOcclusionRayTracingConfig RayTracingConfig) const = 0;
 
 	/** All the inputs of the GI denoisers. */
-	BEGIN_SHADER_PARAMETER_STRUCT(FGlobalIlluminationInputs, )
+	BEGIN_SHADER_PARAMETER_STRUCT(FDiffuseIndirectInputs, )
 		// Irradiance in RGB, AO mask in alpha.
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Color)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RayHitDistance)
 	END_SHADER_PARAMETER_STRUCT()
 
 	/** All the outputs of the GI denoiser may generate. */
-	BEGIN_SHADER_PARAMETER_STRUCT(FGlobalIlluminationOutputs, )
+	BEGIN_SHADER_PARAMETER_STRUCT(FDiffuseIndirectOutputs, )
 		// Irradiance in RGB, AO mask in alpha.
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Color)
 	END_SHADER_PARAMETER_STRUCT()
 
 	/** Entry point to denoise reflections. */
-	virtual FGlobalIlluminationOutputs DenoiseGlobalIllumination(
+	virtual FDiffuseIndirectOutputs DenoiseDiffuseIndirect(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
 		const FSceneViewFamilyBlackboard& SceneBlackboard,
-		const FGlobalIlluminationInputs& Inputs,
+		const FDiffuseIndirectInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const = 0;
 
 	/** Entry point to denoise SkyLight. */
-	virtual FGlobalIlluminationOutputs DenoiseSkyLight(
+	virtual FDiffuseIndirectOutputs DenoiseSkyLight(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
 		const FSceneViewFamilyBlackboard& SceneBlackboard,
-		const FGlobalIlluminationInputs& Inputs,
+		const FDiffuseIndirectInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const = 0;
 
 	/** Returns the interface of the default denoiser of the renderer. */

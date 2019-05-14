@@ -906,7 +906,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 			const IScreenSpaceDenoiser* DefaultDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
 			const IScreenSpaceDenoiser* DenoiserToUse = DefaultDenoiser;// GRayTracingGlobalIlluminationDenoiser == 1 ? DefaultDenoiser : GScreenSpaceDenoiser;
 
-			IScreenSpaceDenoiser::FGlobalIlluminationInputs DenoiserInputs;
+			IScreenSpaceDenoiser::FDiffuseIndirectInputs DenoiserInputs;
 			DenoiserInputs.Color = SkyLightTexture;
 			DenoiserInputs.RayHitDistance = RayDistanceTexture;
 
@@ -920,7 +920,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 					DenoiserToUse->GetDebugName(),
 					View.ViewRect.Width(), View.ViewRect.Height());
 
-				IScreenSpaceDenoiser::FGlobalIlluminationOutputs DenoiserOutputs = DenoiserToUse->DenoiseSkyLight(
+				IScreenSpaceDenoiser::FDiffuseIndirectOutputs DenoiserOutputs = DenoiserToUse->DenoiseSkyLight(
 					GraphBuilder,
 					View,
 					&View.PrevViewInfo,

@@ -138,7 +138,7 @@ enum class ESignalProcessing
 	MonochromaticPenumbra,
 	Reflections,
 	AmbientOcclusion,
-	GlobalIllumination,
+	DiffuseIndirect,
 
 	MAX,
 };
@@ -158,7 +158,7 @@ static bool UsesConstantPixelDensityPassLayout(ESignalProcessing SignalProcessin
 		SignalProcessing == ESignalProcessing::MonochromaticPenumbra ||
 		SignalProcessing == ESignalProcessing::Reflections ||
 		SignalProcessing == ESignalProcessing::AmbientOcclusion ||
-		SignalProcessing == ESignalProcessing::GlobalIllumination);
+		SignalProcessing == ESignalProcessing::DiffuseIndirect);
 }
 
 /** Returns whether a signal processing uses an injestion pass. */
@@ -172,7 +172,7 @@ static bool SignalUsesPreConvolution(ESignalProcessing SignalProcessing)
 {
 	return
 		SignalProcessing == ESignalProcessing::MonochromaticPenumbra ||
-		SignalProcessing == ESignalProcessing::GlobalIllumination;
+		SignalProcessing == ESignalProcessing::DiffuseIndirect;
 }
 
 /** Returns whether a signal processing uses a history rejection pre convolution pass. */
@@ -200,7 +200,7 @@ static int32 SignalMaxBatchSize(ESignalProcessing SignalProcessing)
 	else if (
 		SignalProcessing == ESignalProcessing::Reflections ||
 		SignalProcessing == ESignalProcessing::AmbientOcclusion ||
-		SignalProcessing == ESignalProcessing::GlobalIllumination)
+		SignalProcessing == ESignalProcessing::DiffuseIndirect)
 	{
 		return 1;
 	}
@@ -214,7 +214,7 @@ static bool SignalSupport1SPP(ESignalProcessing SignalProcessing)
 	return (
 		SignalProcessing == ESignalProcessing::MonochromaticPenumbra ||
 		SignalProcessing == ESignalProcessing::Reflections ||
-		SignalProcessing == ESignalProcessing::AmbientOcclusion);
+		SignalProcessing == ESignalProcessing::DiffuseIndirect);
 }
 
 /** Returns whether a signal can denoise multi sample per pixel. */
@@ -223,7 +223,7 @@ static bool SignalSupportMultiSPP(ESignalProcessing SignalProcessing)
 	return (
 		SignalProcessing == ESignalProcessing::MonochromaticPenumbra ||
 		SignalProcessing == ESignalProcessing::Reflections ||
-		SignalProcessing == ESignalProcessing::GlobalIllumination);
+		SignalProcessing == ESignalProcessing::DiffuseIndirect);
 }
 
 
@@ -258,7 +258,7 @@ const TCHAR* const kInjestResourceNames[] = {
 	nullptr,
 	nullptr,
 
-	// GlobalIllumination
+	// DiffuseIndirect
 	nullptr,
 	nullptr,
 	nullptr,
@@ -284,9 +284,9 @@ const TCHAR* const kReconstructionResourceNames[] = {
 	nullptr,
 	nullptr,
 
-	// GlobalIllumination
-	TEXT("GIReconstruction0"),
-	TEXT("GIReconstruction1"),
+	// DiffuseIndirect
+	TEXT("DiffuseIndirectReconstruction0"),
+	TEXT("DiffuseIndirectReconstruction1"),
 	nullptr,
 	nullptr,
 };
@@ -310,9 +310,9 @@ const TCHAR* const kPreConvolutionResourceNames[] = {
 	nullptr,
 	nullptr,
 
-	// GlobalIllumination
-	TEXT("GIPreConvolution0"),
-	TEXT("GIPreConvolution1"),
+	// DiffuseIndirect
+	TEXT("DiffuseIndirectPreConvolution0"),
+	TEXT("DiffuseIndirectPreConvolution1"),
 	nullptr,
 	nullptr,
 };
@@ -336,7 +336,7 @@ const TCHAR* const kRejectionPreConvolutionResourceNames[] = {
 	nullptr,
 	nullptr,
 
-	// GlobalIllumination
+	// DiffuseIndirect
 	nullptr,
 	nullptr,
 	nullptr,
@@ -362,9 +362,9 @@ const TCHAR* const kTemporalAccumulationResourceNames[] = {
 	nullptr,
 	nullptr,
 
-	// GlobalIllumination
-	TEXT("GITemporalAccumulation0"),
-	TEXT("GITemporalAccumulation1"),
+	// DiffuseIndirect
+	TEXT("DiffuseIndirectTemporalAccumulation0"),
+	TEXT("DiffuseIndirectTemporalAccumulation1"),
 	nullptr,
 	nullptr,
 };
@@ -388,9 +388,9 @@ const TCHAR* const kHistoryConvolutionResourceNames[] = {
 	nullptr,
 	nullptr,
 
-	// GlobalIllumination
-	TEXT("GIHistoryConvolution0"),
-	TEXT("GIHistoryConvolution1"),
+	// DiffuseIndirect
+	TEXT("DiffuseIndirectHistoryConvolution0"),
+	TEXT("DiffuseIndirectHistoryConvolution1"),
 	nullptr,
 	nullptr,
 };
@@ -414,7 +414,7 @@ const TCHAR* const kDenoiserOutputResourceNames[] = {
 	nullptr,
 	nullptr,
 
-	// GlobalIllumination
+	// DiffuseIndirect
 	nullptr,
 	nullptr,
 	nullptr,
@@ -439,7 +439,7 @@ bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlat
 	else if (
 		SignalProcessing == ESignalProcessing::MonochromaticPenumbra ||
 		SignalProcessing == ESignalProcessing::AmbientOcclusion ||
-		SignalProcessing == ESignalProcessing::GlobalIllumination)
+		SignalProcessing == ESignalProcessing::DiffuseIndirect)
 	{
 		// Only for ray tracing denoising.
 		return Platform == SP_PCD3D_SM5;
@@ -877,7 +877,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 			ReconstructionTextureCount = HistoryTextureCountPerSignal = 1;
 			bHasReconstructionLayoutDifferentFromHistory = false;
 		}
-		else if (Settings.SignalProcessing == ESignalProcessing::GlobalIllumination)
+		else if (Settings.SignalProcessing == ESignalProcessing::DiffuseIndirect)
 		{
 			ReconstructionDescs[0].Format = PF_FloatRGBA;
 			ReconstructionDescs[1].Format = PF_R16F;
@@ -916,7 +916,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 	}
 
 	#if RHI_RAYTRACING
-	if (Settings.SignalProcessing == ESignalProcessing::GlobalIllumination)
+	if (Settings.SignalProcessing == ESignalProcessing::DiffuseIndirect)
 	{
 		uint32 IterationCount = Settings.MaxInputSPP;
 		uint32 SequenceCount = 1;
@@ -1253,7 +1253,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 			// Requires the normal that are in GBuffer A.
 			if (Settings.SignalProcessing == ESignalProcessing::Reflections ||
 				Settings.SignalProcessing == ESignalProcessing::AmbientOcclusion ||
-				Settings.SignalProcessing == ESignalProcessing::GlobalIllumination)
+				Settings.SignalProcessing == ESignalProcessing::DiffuseIndirect)
 			{
 				GraphBuilder.QueueTextureExtraction(SceneBlackboard.SceneGBufferA, &View.ViewState->PrevFrameViewInfo.GBufferA);
 			}
@@ -1514,12 +1514,12 @@ public:
 		return AmbientOcclusionOutput;
 	}
 
-	FGlobalIlluminationOutputs DenoiseGlobalIllumination(
+	FDiffuseIndirectOutputs DenoiseDiffuseIndirect(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
 		const FSceneViewFamilyBlackboard& SceneBlackboard,
-		const FGlobalIlluminationInputs& Inputs,
+		const FDiffuseIndirectInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const override
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, DiffuseIndirectDenoiser);
@@ -1529,7 +1529,7 @@ public:
 		InputSignal.Textures[1] = Inputs.RayHitDistance;
 
 		FSSDConstantPixelDensitySettings Settings;
-		Settings.SignalProcessing = ESignalProcessing::GlobalIllumination;
+		Settings.SignalProcessing = ESignalProcessing::DiffuseIndirect;
 		Settings.InputResolutionFraction = Config.ResolutionFraction;
 		Settings.ReconstructionSamples = CVarGIReconstructionSampleCount.GetValueOnRenderThread();
 		Settings.PreConvolutionCount = CVarGIPreConvolutionCount.GetValueOnRenderThread();
@@ -1540,8 +1540,8 @@ public:
 
 		TStaticArray<FScreenSpaceFilteringHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevHistories;
 		TStaticArray<FScreenSpaceFilteringHistory*, IScreenSpaceDenoiser::kMaxBatchSize> NewHistories;
-		PrevHistories[0] = &PreviousViewInfos->GlobalIlluminationHistory;
-		NewHistories[0] = View.ViewState ? &View.ViewState->PrevFrameViewInfo.GlobalIlluminationHistory : nullptr;
+		PrevHistories[0] = &PreviousViewInfos->DiffuseIndirectHistory;
+		NewHistories[0] = View.ViewState ? &View.ViewState->PrevFrameViewInfo.DiffuseIndirectHistory : nullptr;
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
@@ -1551,17 +1551,17 @@ public:
 			NewHistories,
 			&SignalOutput);
 
-		FGlobalIlluminationOutputs GlobalIlluminationOutputs;
+		FDiffuseIndirectOutputs GlobalIlluminationOutputs;
 		GlobalIlluminationOutputs.Color = SignalOutput.Textures[0];
 		return GlobalIlluminationOutputs;
 	}
 
-	FGlobalIlluminationOutputs DenoiseSkyLight(
+	FDiffuseIndirectOutputs DenoiseSkyLight(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
 		const FSceneViewFamilyBlackboard& SceneBlackboard,
-		const FGlobalIlluminationInputs& Inputs,
+		const FDiffuseIndirectInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const override
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, DiffuseIndirectDenoiser);
@@ -1571,7 +1571,7 @@ public:
 		InputSignal.Textures[1] = Inputs.RayHitDistance;
 
 		FSSDConstantPixelDensitySettings Settings;
-		Settings.SignalProcessing = ESignalProcessing::GlobalIllumination;
+		Settings.SignalProcessing = ESignalProcessing::DiffuseIndirect;
 		Settings.InputResolutionFraction = Config.ResolutionFraction;
 		Settings.ReconstructionSamples = CVarGIReconstructionSampleCount.GetValueOnRenderThread();
 		Settings.PreConvolutionCount = CVarGIPreConvolutionCount.GetValueOnRenderThread();
@@ -1593,7 +1593,7 @@ public:
 			NewHistories,
 			&SignalOutput);
 
-		FGlobalIlluminationOutputs GlobalIlluminationOutputs;
+		FDiffuseIndirectOutputs GlobalIlluminationOutputs;
 		GlobalIlluminationOutputs.Color = SignalOutput.Textures[0];
 		return GlobalIlluminationOutputs;
 	}

@@ -114,14 +114,14 @@
 	#define SIGNAL_BUFFER_LAYOUT_AO_HISTORY 0xA002
 
 
-	/** Buffer layout given by the ray generation shader for global illumination. */
-	#define SIGNAL_BUFFER_LAYOUT_GI_AND_AO_INPUT 7
+	/** Buffer layout given by the ray generation shader for diffuse indirect  illumination. */
+	#define SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_INPUT_NSPP 0xD100
 
-	/** Internal buffer layout for global illumination. */
-	#define SIGNAL_BUFFER_LAYOUT_GI_AND_AO_RECONSTRUCTION 13
+	/** Internal buffer layout for diffuse indirect illumination. */
+	#define SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_RECONSTRUCTION 0xD101
 
-	/** Internal buffer layout for global illumination. */
-	#define SIGNAL_BUFFER_LAYOUT_GI_AND_AO_HISTORY 8
+	/** Internal buffer layout for diffuse indirect illumination. */
+	#define SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_HISTORY 0xD102
 
 
 /** Defines how the signal is being processed. Matches C++'s ESignalProcessing. */
@@ -135,7 +135,7 @@
 	#define SIGNAL_PROCESSING_AO 2
 
 	/** Global illumination denoising. */
-	#define SIGNAL_PROCESSING_GI_AND_AO 3
+	#define SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO 3
 
 
 

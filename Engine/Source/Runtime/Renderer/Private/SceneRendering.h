@@ -764,7 +764,7 @@ struct FPreviousViewInfo
 	FScreenSpaceFilteringHistory AmbientOcclusionHistory;
 
 	// History for global illumination
-	FScreenSpaceFilteringHistory GlobalIlluminationHistory;
+	FScreenSpaceFilteringHistory DiffuseIndirectHistory;
 
 	// History for sky light
 	FScreenSpaceFilteringHistory SkyLightHistory;
