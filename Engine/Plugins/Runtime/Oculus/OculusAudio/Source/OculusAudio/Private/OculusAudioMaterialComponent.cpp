@@ -1,8 +1,6 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "OculusAudioMaterialComponent.h"
 #include "OculusAudioDllManager.h"
-
-
-#pragma optimize("", off) //PAS - TEMP - DELETE THIS - better debugging
 
 UOculusAudioMaterialComponent::UOculusAudioMaterialComponent()
 	: MaterialPreset(EOculusAudioMaterial::NOMATERIAL) // default
