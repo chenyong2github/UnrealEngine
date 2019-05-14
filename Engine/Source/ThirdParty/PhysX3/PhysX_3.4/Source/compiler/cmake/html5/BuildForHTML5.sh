@@ -51,7 +51,7 @@ build_via_cmake()
 	cd PhysX
 
 	emcmake cmake -G "Unix Makefiles" \
-		-DTARGET_BUILD_PLATFORM=HTML5 \
+		-DTARGET_BUILD_PLATFORM=html5 \
 		-DPHYSX_ROOT_DIR="$GW_DEPS_ROOT"/PhysX_3.4 \
 		-DPXSHARED_ROOT_DIR="$GW_DEPS_ROOT"/PxShared \
 		-DNVTOOLSEXT_INCLUDE_DIRS="$GW_DEPS_ROOT"/PhysX_3.4/externals/nvToolsExt/include \
@@ -68,7 +68,7 @@ build_via_cmake()
 #	cd APEX
 #	emcmake cmake -G "Unix Makefiles" \
 #		-DAPEX_ENABLE_UE4=1 \
-#		-DTARGET_BUILD_PLATFORM=HTML5 \
+#		-DTARGET_BUILD_PLATFORM=html5 \
 #		-DPHYSX_ROOT_DIR="$GW_DEPS_ROOT"/PhysX_3.4 \
 #		-DPXSHARED_ROOT_DIR="$GW_DEPS_ROOT"/PxShared \
 #		-DNVSIMD_INCLUDE_DIR="$GW_DEPS_ROOT"/PxShared/src/NvSimd \
@@ -85,7 +85,7 @@ build_via_cmake()
 #	mkdir NvCloth
 #	cd NvCloth
 #	emcmake cmake -G "Unix Makefiles" \
-#		-DTARGET_BUILD_PLATFORM=HTML5 \
+#		-DTARGET_BUILD_PLATFORM=html5 \
 #		-DPXSHARED_ROOT_DIR="$GW_DEPS_ROOT"/PxShared \
 #		-DEMSCRIPTEN_GENERATE_BITCODE_STATIC_LIBRARIES=$UE_USE_BITECODE \
 #		-DCMAKE_BUILD_TYPE=$type \
@@ -158,14 +158,14 @@ build_all()
 	cd $MAKE_PATH$OPTIMIZATION
 		echo "Generating $MAKETARGET makefile..."
 		export CMAKE_MODULE_PATH="$GW_DEPS_ROOT/Externals/CMakeModules"
-		cmake -DCMAKE_TOOLCHAIN_FILE="Emscripten.cmake" -DTARGET_BUILD_PLATFORM="HTML5" \
+		cmake -DCMAKE_TOOLCHAIN_FILE="Emscripten.cmake" -DTARGET_BUILD_PLATFORM="html5" \
 			-DEMSCRIPTEN_GENERATE_BITCODE_STATIC_LIBRARIES=$UE_USE_BITECODE \
 			-DCMAKE_BUILD_TYPE="Release" \
 			-DPHYSX_ROOT_DIR="$GW_DEPS_ROOT/PhysX_3.4" \
 			-DPXSHARED_ROOT_DIR="$GW_DEPS_ROOT/PxShared" \
 			-DNVSIMD_INCLUDE_DIR="$GW_DEPS_ROOT/PxShared/src/NvSimd" \
 			-DNVTOOLSEXT_INCLUDE_DIRS="$GW_DEPS_ROOT/PhysX_3.4/externals/nvToolsExt/include" \
-			$CustomFlags -G "Unix Makefiles" "$GW_DEPS_ROOT/$MAKETARGET/compiler/cmake/HTML5"
+			$CustomFlags -G "Unix Makefiles" "$GW_DEPS_ROOT/$MAKETARGET/compiler/cmake/html5"
 
 		echo "Building $MAKETARGET ..."
 		emmake make clean VERBOSE=1
