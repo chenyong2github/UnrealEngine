@@ -108,8 +108,7 @@ FPrimitiveSceneInfoCompact::FPrimitiveSceneInfoCompact(FPrimitiveSceneInfo* InPr
 FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene* InScene):
 	Proxy(InComponent->SceneProxy),
 	PrimitiveComponentId(InComponent->ComponentId),
-	ComponentLastRenderTime(&InComponent->LastRenderTime),
-	ComponentLastRenderTimeOnScreen(&InComponent->LastRenderTimeOnScreen),
+	OwnerLastRenderTime(FActorLastRenderTime::GetPtr(InComponent->GetOwner())),
 	IndirectLightingCacheAllocation(NULL),
 	CachedPlanarReflectionProxy(NULL),
 	CachedReflectionCaptureProxy(NULL),
@@ -1009,4 +1008,17 @@ void FPrimitiveSceneInfo::CacheReflectionCaptures()
 	}
 	
 	bNeedsCachedReflectionCaptureUpdate = false;
+}
+
+void FPrimitiveSceneInfo::UpdateComponentLastRenderTime(float CurrentWorldTime, bool bUpdateLastRenderTimeOnScreen) const
+{
+	ComponentForDebuggingOnly->LastRenderTime = CurrentWorldTime;
+	if (bUpdateLastRenderTimeOnScreen)
+	{
+		ComponentForDebuggingOnly->LastRenderTimeOnScreen = CurrentWorldTime;
+	}
+	if (OwnerLastRenderTime)
+	{
+		*OwnerLastRenderTime = CurrentWorldTime; // Sets OwningActor->LastRenderTime
+	}
 }

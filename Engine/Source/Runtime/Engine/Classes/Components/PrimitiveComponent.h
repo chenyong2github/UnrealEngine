@@ -609,15 +609,18 @@ public:
 	/** Last time the component was submitted for rendering (called FScene::AddPrimitive). */
 	float LastSubmitTime;
 
+private:
 	/**
 	 * The value of WorldSettings->TimeSeconds for the frame when this component was last rendered.  This is written
 	 * from the render thread, which is up to a frame behind the game thread, so you should allow this time to
 	 * be at least a frame behind the game thread's world time before you consider the actor non-visible.
 	 */
-	float LastRenderTime;
+	mutable float LastRenderTime;
 
 	/** Same as LastRenderTimeOnScreen but only updated if the component is on screen. Used by the texture streamer. */
-	float LastRenderTimeOnScreen;
+	mutable float LastRenderTimeOnScreen;
+
+	friend class FPrimitiveSceneInfo;
 
 public:
 
