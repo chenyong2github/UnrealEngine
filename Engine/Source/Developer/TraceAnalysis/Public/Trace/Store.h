@@ -7,7 +7,6 @@
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
 #include "Templates/SharedPointer.h"
-#include "Trace/Store.h"
 
 namespace Trace
 {
