@@ -4,10 +4,6 @@
 
 #include "CoreMinimal.h"
 
-#if WITH_EDITOR
-#include "ImageCore.h"
-#endif
-
 #ifndef WITH_CRUNCH
 #define WITH_CRUNCH 1
 #endif
