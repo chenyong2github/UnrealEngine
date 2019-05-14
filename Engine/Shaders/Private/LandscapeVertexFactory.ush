@@ -187,7 +187,7 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIn
 	return INVARIANT(TransformLocalToTranslatedWorld(GetLocalPosition(Intermediates)));
 }
 
-float3 VertexFactoryGetWorldNormal(FVertexFactoryIntermediates Intermediates)
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
 	return Intermediates.WorldNormal;
 }

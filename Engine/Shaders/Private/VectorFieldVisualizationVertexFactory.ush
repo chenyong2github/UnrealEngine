@@ -126,9 +126,14 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
  * @param Intermediates - Intermediates computed for this vertex.
  * @returns the position of this vertex in world space.
  */
-float4 VertexFactoryGetWorldPosition( FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates )
+float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates )
 {
 	return Intermediates.WorldPosition;
+}
+
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return float3(0,0,1);
 }
 
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 TranslatedWorldPosition)

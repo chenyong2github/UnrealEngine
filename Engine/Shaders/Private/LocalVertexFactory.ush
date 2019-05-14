@@ -939,7 +939,7 @@ float3 VertexFactoryGetWorldNormal(FPositionAndNormalOnlyVertexFactoryInput Inpu
 }
 
 
-float3 VertexFactoryGetWorldNormal(FVertexFactoryIntermediates Intermediates)
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
 	return Intermediates.TangentToWorld[2];
 }
