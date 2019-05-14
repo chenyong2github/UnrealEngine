@@ -61,6 +61,7 @@ public:
 	USkeletalMesh* GetSkeletalMesh() const { return SkeletalMesh.Get(); }
 	USkeletalMeshComponent* GetSkeletalMeshComponent() const { return SkeletalMeshComponent.Get(); }
 	const FTransform& GetComponentTransform() const { return ComponentTransform; }
+	const FTransform& GetInitialRootTransform() const { return InitialRootTransform; }
 
 private:
 	bool ResolveTransformToRecord(FTransform& TransformToRecord);
@@ -77,6 +78,9 @@ private:
 
 	/** Local transform of the component we are recording */
 	FTransform ComponentTransform;
+
+	/** Inverse we are using to zero out root motion */
+	FTransform InitialRootTransform;
 
 	bool bAnimationRecorderCreated; 
 	/**Serializer */

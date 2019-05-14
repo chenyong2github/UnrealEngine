@@ -11,6 +11,8 @@
 #include "Evaluation/MovieSceneEvaluation.h"
 #include "IMovieScenePlayer.h"
 #include "UObject/ObjectKey.h"
+#include "UObject/StrongObjectPtr.h"
+
 
 bool ShouldUsePreviewPlayback(IMovieScenePlayer& Player, UObject& RuntimeObject)
 {
@@ -79,6 +81,8 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 				// Cache this object's current update flag and animation mode
 				VisibilityBasedAnimTickOption = InComponent->VisibilityBasedAnimTickOption;
 				AnimationMode = InComponent->GetAnimationMode();
+				CachedAnimInstance.Reset(InComponent->AnimScriptInstance);
+
 #if WITH_EDITOR
 				bUpdateAnimationInEditor = InComponent->GetUpdateAnimationInEditor();
 #endif
@@ -104,7 +108,6 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 				}
 
 				UAnimSequencerInstance::UnbindFromSkeletalMeshComponent(Component);
-
 				// Reset the mesh component update flag and animation mode to what they were before we animated the object
 				Component->VisibilityBasedAnimTickOption = VisibilityBasedAnimTickOption;
 				if (Component->GetAnimationMode() != AnimationMode)
@@ -113,6 +116,11 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 					// if we're using same anim blueprint, we don't want to keep reinitializing it. 
 					Component->SetAnimationMode(AnimationMode);
 				}
+				if (CachedAnimInstance.Get())
+				{
+					Component->AnimScriptInstance = CachedAnimInstance.Get();
+					CachedAnimInstance.Reset();
+				}
 #if WITH_EDITOR
 				Component->SetUpdateAnimationInEditor(bUpdateAnimationInEditor);
 #endif
@@ -120,6 +128,8 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 
 			EVisibilityBasedAnimTickOption VisibilityBasedAnimTickOption;
 			EAnimationMode::Type AnimationMode;
+			TStrongObjectPtr<UAnimInstance> CachedAnimInstance;
+
 #if WITH_EDITOR
 			bool bUpdateAnimationInEditor;
 #endif

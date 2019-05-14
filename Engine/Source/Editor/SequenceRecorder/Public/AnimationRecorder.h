@@ -38,6 +38,7 @@ private:
 	FBlendedHeapCurve PreviousAnimCurves;
 	FTransform PreviousComponentToWorld;
 	FTransform InvInitialRootTransform;
+	FTransform InitialRootTransform;
 	int32 SkeletonRootIndex;
 
 	/** Array of currently active notifies that have duration */
@@ -74,6 +75,8 @@ public:
 	void SetSampleRateAndLength(float SampleRateHz, float LengthInMinutes);
 
 	bool SetAnimCompressionScheme(TSubclassOf<class UAnimCompress> SchemeClass);
+
+	const FTransform& GetInitialRootTransform() const { return InitialRootTransform; }
 
 	/** If true, it will record root to include LocalToWorld */
 	uint8 bRecordLocalToWorld :1;
@@ -167,6 +170,7 @@ public:
 	float GetCurrentRecordingTime(USkeletalMeshComponent* Component);
 	void StopRecordingAnimation(USkeletalMeshComponent* Component, bool bShowMessage = true);
 	void StopRecordingAllAnimations();
+	const FTransform& GetInitialRootTransform(USkeletalMeshComponent* Component) const;
 
 	void Tick(float DeltaTime);
 

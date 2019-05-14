@@ -36,8 +36,6 @@
 #include "TrackRecorders/MovieSceneTrackRecorderSettings.h"
 
 #include "Compilation/MovieSceneCompiler.h"
-
-
 DEFINE_LOG_CATEGORY(ActorSerialization);
 
 #define LOCTEXT_NAMESPACE "UTakeRecorderActorSource"
@@ -186,6 +184,8 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PreRecording(class ULevel
 	{
 		return TArray<UTakeRecorderSource*>();
 	}
+	// We used to do this at the PostRecording but other Actor sources may need to check you recorded an animation so we keep it around
+	TrackRecorders.Empty();
 
 	// Resolve which actor we wish to record 
 	AActor* ActorToRecord = Target.Get();
@@ -627,9 +627,6 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSeque
 		SlowTask.EnterProgressFrame(1.0f, FText::Format(LOCTEXT("FinalizingTrackRecorder", "Finalizing Section Recorder {0}/{1}"), SectionRecorderIndex, TrackRecorders.Num()));
 		SectionRecorder->FinalizeTrack();
 	}
-
-	// Now that the section recorders have placed their data inside the resulting Level Sequence we can release them.
-	TrackRecorders.Empty();
 
 	// Expand the Movie Scene Playback Range to encompass all of the sections now that they've all been created.
 	SequenceRecorderUtils::ExtendSequencePlaybackRange(InSequence);
@@ -1470,6 +1467,30 @@ FGuid UTakeRecorderActorSource::GetRecordedActorGuid(class AActor* OtherActor) c
 	}
 
 	return FGuid();
+}
+
+FTransform UTakeRecorderActorSource::GetRecordedActorAnimationInitialRootTransform(class AActor* OtherActor) const
+{
+	UTakeRecorderSources* OwningSources = CastChecked<UTakeRecorderSources>(GetOuter());
+	for (UTakeRecorderSource* Source : OwningSources->GetSources())
+	{
+		if (UTakeRecorderActorSource* ActorSource = Cast<UTakeRecorderActorSource>(Source))
+		{
+			AActor* OtherTarget = ActorSource->Target.Get();
+			if (OtherTarget && OtherActor && (OtherTarget == OtherActor || OtherTarget->GetName() == OtherActor->GetName()))
+			{
+				for (UMovieSceneTrackRecorder* TrackRecorder : ActorSource->TrackRecorders)
+				{
+					if (TrackRecorder->IsA<UMovieSceneAnimationTrackRecorder>())
+					{
+						return Cast<UMovieSceneAnimationTrackRecorder>(TrackRecorder)->GetInitialRootTransform();
+					}
+				}
+
+			}
+		}
+	}
+	return FTransform::Identity;
 }
 
 FMovieSceneSequenceID UTakeRecorderActorSource::GetLevelSequenceID(class AActor* OtherActor)

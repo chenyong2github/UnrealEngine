@@ -576,6 +576,7 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 							// we make about root motion use are incorrect.
 							// NEW. But we don't do this if there is just one root bone. This has come up with recording
 							// single bone props and cameras.
+							InitialRootTransform = LocalTransform;
 							InvInitialRootTransform = LocalTransform.Inverse();
 						}
 						else
@@ -605,7 +606,7 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 					if (ParentIndex == SkeletonRootIndex)
 					{
 						// Remove initial root transform
-						LocalTransform.SetToRelativeTransform(SpacesBases[ParentIndex] * InvInitialRootTransform);
+						LocalTransform.SetToRelativeTransform(SpacesBases[ParentIndex]);
 					}
 					else
 					{
@@ -617,7 +618,6 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 				{
 					// Remove initial root transform
 					LocalTransform *= InvInitialRootTransform;
-					//LocalTransform = InvInitialRootTransform * LocalTransform;
 
 					if (bRecordLocalToWorld)
 					{
@@ -1028,6 +1028,18 @@ float FAnimationRecorderManager::GetCurrentRecordingTime(USkeletalMeshComponent*
 	}
 
 	return 0.0f;
+}
+
+const FTransform&  FAnimationRecorderManager::GetInitialRootTransform(USkeletalMeshComponent* Component) const
+{
+	for (const FAnimRecorderInstance& Instance : RecorderInstances)
+	{
+		if (Instance.SkelComp == Component)
+		{
+			return Instance.Recorder->GetInitialRootTransform();
+		}
+	}
+	return FTransform::Identity;
 }
 
 void FAnimationRecorderManager::StopRecordingAnimation(USkeletalMeshComponent* Component, bool bShowMessage)
