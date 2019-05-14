@@ -1236,9 +1236,8 @@ void FProjectedShadowInfo::UpdateShaderDepthBias()
 
 		// the z range is adjusted to we need to adjust here as well
 		DepthBias = CVarCSMShadowDepthBias.GetValueOnRenderThread() / (MaxSubjectZ - MinSubjectZ);
-
-		float WorldSpaceTexelScale = ShadowBounds.W / ResolutionX;
-		DepthBias *= WorldSpaceTexelScale;
+		const float WorldSpaceTexelScale = ShadowBounds.W / ResolutionX;
+		DepthBias = FMath::Lerp(DepthBias, DepthBias * WorldSpaceTexelScale, CascadeSettings.CascadeBiasDistribution);
 		DepthBias *= LightSceneInfo->Proxy->GetUserShadowBias();
 
 		SlopeScaleDepthBias = CVarCSMShadowSlopeScaleDepthBias.GetValueOnRenderThread();

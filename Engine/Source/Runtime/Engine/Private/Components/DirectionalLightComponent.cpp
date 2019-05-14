@@ -46,6 +46,9 @@ class FDirectionalLightSceneProxy : public FLightSceneProxy
 {
 public:
 
+	/** Control how the cascade size influence the shadow depth bias. */
+	float ShadowCascadeBiasDistribution;
+
 	/** Whether to occlude fog and atmosphere inscattering with screenspace blurred occlusion from this light. */
 	bool bEnableLightShaftOcclusion;
 
@@ -115,6 +118,7 @@ public:
 	/** Initialization constructor. */
 	FDirectionalLightSceneProxy(const UDirectionalLightComponent* Component) :
 		FLightSceneProxy(Component),
+		ShadowCascadeBiasDistribution(Component->ShadowCascadeBiasDistribution),
 		bEnableLightShaftOcclusion(Component->bEnableLightShaftOcclusion),
 		bUseInsetShadowsForMovableObjects(Component->bUseInsetShadowsForMovableObjects),
 		OcclusionMaskDarkness(Component->OcclusionMaskDarkness),
@@ -734,6 +738,7 @@ private:
 			OutCascadeSettings->SplitNear = SplitNear;
 			OutCascadeSettings->FadePlaneOffset = FadePlane;
 			OutCascadeSettings->FadePlaneLength = SplitFar - FadePlane;
+			OutCascadeSettings->CascadeBiasDistribution = ShadowCascadeBiasDistribution;
 		}
 
 		const FSphere CascadeSphere = FDirectionalLightSceneProxy::GetShadowSplitBoundsDepthRange(View, View.ViewMatrices.GetViewOrigin(), SplitNear, SplitFar, OutCascadeSettings);
@@ -764,6 +769,7 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 	OcclusionDepthRange = 100000.f;
 	OcclusionMaskDarkness = 0.05f;
 
+	ShadowCascadeBiasDistribution = 1;
 	WholeSceneDynamicShadowRadius_DEPRECATED = 20000.0f;
 	DynamicShadowDistanceMovableLight = 20000.0f;
 	DynamicShadowDistanceStationaryLight = 0.f;
@@ -800,11 +806,12 @@ void UDirectionalLightComponent::PostEditChangeProperty(FPropertyChangedEvent& P
 
 	DynamicShadowDistanceMovableLight = FMath::Max(DynamicShadowDistanceMovableLight, 0.0f);
 	DynamicShadowDistanceStationaryLight = FMath::Max(DynamicShadowDistanceStationaryLight, 0.0f);
+	ShadowCascadeBiasDistribution = FMath::Clamp(ShadowCascadeBiasDistribution, 0.f, 1.f);
 
 	DynamicShadowCascades = FMath::Clamp(DynamicShadowCascades, 0, 10);
 	FarShadowCascadeCount = FMath::Clamp(FarShadowCascadeCount, 0, 10);
 	CascadeDistributionExponent = FMath::Clamp(CascadeDistributionExponent, .1f, 10.0f);
-	CascadeTransitionFraction = FMath::Clamp(CascadeTransitionFraction, 0.0f, 0.3f);
+	CascadeTransitionFraction = FMath::Clamp(CascadeTransitionFraction, KINDA_SMALL_NUMBER, 0.3f);
 	ShadowDistanceFadeoutFraction = FMath::Clamp(ShadowDistanceFadeoutFraction, 0.0f, 1.0f);
 	// max range is larger than UI
 	ShadowBias = FMath::Clamp(ShadowBias, 0.0f, 10.0f);

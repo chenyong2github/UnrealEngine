@@ -897,6 +897,9 @@ public:
 	 * Or index of the direction if this is a whole scene shadow from a point light, otherwise INDEX_NONE. 
 	 */
 	int32 ShadowSplitIndex;
+
+	/** Strength of depth bias across cascades. */
+	float CascadeBiasDistribution;
 	
 	FShadowCascadeSettings()
 		: SplitNear(0.0f)
@@ -907,6 +910,7 @@ public:
 		, FadePlaneLength(SplitFar - FadePlaneOffset)
 		, bFarShadowCascade(false)
 		, ShadowSplitIndex(INDEX_NONE)
+		, CascadeBiasDistribution(1)
 	{
 	}
 };
