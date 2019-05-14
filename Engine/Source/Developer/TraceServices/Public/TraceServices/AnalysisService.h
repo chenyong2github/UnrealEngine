@@ -4,11 +4,13 @@
 
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
+#include "ProfilingDebugging/MiscTrace.h"
 #include "Templates/SharedPointer.h"
 #include "Trace/Store.h"
 #include "Delegates/Delegate.h"
 #include "GenericPlatform/GenericPlatformAffinity.h"
 #include "Serialization/LoadTimeTrace.h"
+#include "Templates/UniquePtr.h"
 
 namespace Trace
 {

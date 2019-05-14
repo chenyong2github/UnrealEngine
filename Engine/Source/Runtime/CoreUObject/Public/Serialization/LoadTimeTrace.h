@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 #if !IS_PROGRAM && !UE_BUILD_SHIPPING
 #define LOADTIMEPROFILERTRACE_ENABLED 0
 #else

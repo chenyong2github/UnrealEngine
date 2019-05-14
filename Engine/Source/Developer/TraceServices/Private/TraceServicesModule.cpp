@@ -1,5 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#include "Modules/ModuleManager.h"
 #include "TraceServices/ITraceServicesModule.h"
 #include "SessionServicePrivate.h"
 #include "AnalysisServicePrivate.h"
@@ -42,4 +43,4 @@ TSharedPtr<Trace::IAnalysisService> FTraceServicesModule::GetAnalysisService()
 	return AnalysisService;
 }
 
-IMPLEMENT_MODULE(FTraceServicesModule, TraceServices);
+IMPLEMENT_MODULE(FTraceServicesModule, TraceServices)

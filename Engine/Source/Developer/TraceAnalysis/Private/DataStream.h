@@ -5,7 +5,11 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Logging/LogMacros.h"
+#include "Containers/UnrealString.h"
 #include "Trace/DataStream.h"
+
+#include <memory.h>
 
 namespace Trace
 {
