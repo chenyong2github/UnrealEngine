@@ -330,7 +330,6 @@ inline void FUniqueRequestList::SortRequests(FVirtualTextureProducerCollection& 
 	}
 	FMemory::Memcpy(LoadRequests, SortedLoadRequests, sizeof(FVirtualTextureLocalTile) * NewNumLoadRequests);
 	FMemory::Memcpy(LoadRequestLayerMask, SortedLayerMask, sizeof(uint8) * NewNumLoadRequests);
-	NumLoadRequests = NewNumLoadRequests;
 
 	// Remap LoadRequest indices for all the mapping requests
 	// Can discard any mapping request that refers to a LoadRequest that's no longer being performed this frame
@@ -347,5 +346,7 @@ inline void FUniqueRequestList::SortRequests(FVirtualTextureProducerCollection& 
 			MappingRequests[NewNumMappingRequests++] = Request;
 		}
 	}
+
+	NumLoadRequests = NewNumLoadRequests;
 	NumMappingRequests = NewNumMappingRequests;
 }
