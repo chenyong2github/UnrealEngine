@@ -9,7 +9,7 @@ public class RHI : ModuleRules
 	{
 		PrivateDependencyModuleNames.Add("Core");
 		PrivateDependencyModuleNames.Add("ApplicationCore");
-		PrivateDependencyModuleNames.Add("Trace");
+		PrivateDependencyModuleNames.Add("TraceLog");
 
 		if (Target.bCompileAgainstEngine)
 		{

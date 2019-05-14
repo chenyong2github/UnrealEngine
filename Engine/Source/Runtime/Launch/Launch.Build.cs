@@ -31,7 +31,7 @@ public class Launch : ModuleRules
 				"Slate",
 				"SlateCore",
 				"Sockets",
-				"Trace",
+				"TraceLog",
 				"Overlay",
 				"UtilityShaders",
 				"PreLoadScreen"

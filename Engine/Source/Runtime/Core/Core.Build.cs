@@ -14,7 +14,7 @@ public class Core : ModuleRules
 
 		PrivateDependencyModuleNames.Add("BuildSettings");
 
-		PublicDependencyModuleNames.Add("Trace");
+		PublicDependencyModuleNames.Add("TraceLog");
 
 		PrivateIncludePaths.AddRange(
 			new string[] {

@@ -23,7 +23,7 @@ public class TraceInsights : ModuleRules
 				"RenderCore",
 				"Slate",
 				"EditorStyle",
-				"Trace",
+				"TraceLog",
 				"TraceServices",
 				"DesktopPlatform",
 			}

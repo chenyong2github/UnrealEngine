@@ -4,9 +4,9 @@ using UnrealBuildTool;
 using System;
 using System.IO;
 
-public class Trace : ModuleRules
+public class TraceLog : ModuleRules
 {
-	public Trace(ReadOnlyTargetRules Target) : base(Target)
+	public TraceLog(ReadOnlyTargetRules Target) : base(Target)
 	{
 		bRequiresImplementModule = false;
 		PrivateIncludePathModuleNames.Add("Core");
