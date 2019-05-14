@@ -6,6 +6,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableText.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -37,22 +38,14 @@ bool FSlateAccessibleCheckBox::GetCheckedState() const {
 	return false;
 }
 
-FString FSlateAccessibleEditableText::GetWidgetName() const
-{
-	return FSlateAccessibleWidget::GetWidgetName().Left(50);
-}
-
 const FString& FSlateAccessibleEditableText::GetText() const
 {
 	if (Widget.IsValid())
 	{
 		return StaticCastSharedPtr<SEditableText>(Widget.Pin())->GetText().ToString();
 	}
-	else
-	{
-		static FString EmptyString;
-		return EmptyString;
-	}
+	static FString EmptyString;
+	return EmptyString;
 }
 
 bool FSlateAccessibleEditableText::IsPassword() const
@@ -83,6 +76,47 @@ void FSlateAccessibleEditableText::SetValue(const FString& Value)
 	if (Widget.IsValid())
 	{
 		StaticCastSharedPtr<SEditableText>(Widget.Pin())->SetText(FText::FromString(Value));
+	}
+}
+
+const FString& FSlateAccessibleEditableTextBox::GetText() const
+{
+	if (Widget.IsValid())
+	{
+		return StaticCastSharedPtr<SEditableTextBox>(Widget.Pin())->GetText().ToString();
+	}
+	static FString EmptyString;
+	return EmptyString;
+}
+
+bool FSlateAccessibleEditableTextBox::IsPassword() const
+{
+	if (Widget.IsValid())
+	{
+		return StaticCastSharedPtr<SEditableTextBox>(Widget.Pin())->IsPassword();
+	}
+	return true;
+}
+
+bool FSlateAccessibleEditableTextBox::IsReadOnly() const
+{
+	if (Widget.IsValid())
+	{
+		return StaticCastSharedPtr<SEditableTextBox>(Widget.Pin())->IsReadOnly();
+	}
+	return true;
+}
+
+FString FSlateAccessibleEditableTextBox::GetValue() const
+{
+	return GetText();
+}
+
+void FSlateAccessibleEditableTextBox::SetValue(const FString& Value)
+{
+	if (Widget.IsValid())
+	{
+		StaticCastSharedPtr<SEditableTextBox>(Widget.Pin())->SetText(FText::FromString(Value));
 	}
 }
 
@@ -137,11 +171,6 @@ void FSlateAccessibleSlider::SetValue(const FString& Value)
 	{
 		StaticCastSharedPtr<SSlider>(Widget.Pin())->SetValue(FCString::Atof(*Value));
 	}
-}
-
-FString FSlateAccessibleTextBlock::GetWidgetName() const
-{
-	return FSlateAccessibleWidget::GetWidgetName().Left(50);
 }
 
 const FString& FSlateAccessibleTextBlock::GetText() const

@@ -174,5 +174,9 @@ protected:
 	void HandleOnControllerCaptureBegin();
 	void HandleOnControllerCaptureEnd();
 
+#if WITH_ACCESSIBILITY
+	virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
+#endif
+
 	PROPERTY_BINDING_IMPLEMENTATION(float, Value);
 };

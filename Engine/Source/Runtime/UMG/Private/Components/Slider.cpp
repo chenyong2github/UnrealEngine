@@ -196,6 +196,12 @@ void USlider::SetSliderBarColor(FLinearColor InValue)
 	}
 }
 
+#if WITH_ACCESSIBILITY
+TSharedPtr<SWidget> USlider::GetAccessibleWidget() const
+{
+	return MySlider;
+}
+#endif
 
 #if WITH_EDITOR
 

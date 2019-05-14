@@ -222,6 +222,13 @@ void UCheckBox::PostLoad()
 	}
 }
 
+#if WITH_ACCESSIBILITY
+TSharedPtr<SWidget> UCheckBox::GetAccessibleWidget() const
+{
+	return MyCheckbox;
+}
+#endif
+
 #if WITH_EDITOR
 
 const FText UCheckBox::GetPaletteCategory()

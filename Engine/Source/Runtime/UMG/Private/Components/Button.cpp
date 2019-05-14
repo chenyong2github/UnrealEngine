@@ -214,6 +214,13 @@ void UButton::SlateHandleUnhovered()
 	OnUnhovered.Broadcast();
 }
 
+#if WITH_ACCESSIBILITY
+TSharedPtr<SWidget> UButton::GetAccessibleWidget() const
+{
+	return MyButton;
+}
+#endif
+
 #if WITH_EDITOR
 
 const FText UButton::GetPaletteCategory()

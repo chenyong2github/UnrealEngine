@@ -223,6 +223,13 @@ EVisibility UTextBlock::GetTextWarningImageVisibility() const
 	return Text.IsCultureInvariant() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
+#if WITH_ACCESSIBILITY
+TSharedPtr<SWidget> UTextBlock::GetAccessibleWidget() const
+{
+	return MyTextBlock;
+}
+#endif
+
 void UTextBlock::OnBindingChanged(const FName& Property)
 {
 	Super::OnBindingChanged(Property);

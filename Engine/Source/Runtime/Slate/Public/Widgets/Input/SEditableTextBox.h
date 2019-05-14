@@ -52,7 +52,9 @@ public:
 		, _VirtualKeyboardOptions(FVirtualKeyboardOptions())
 		, _VirtualKeyboardTrigger(EVirtualKeyboardTrigger::OnFocusByPointer)
 		, _VirtualKeyboardDismissAction(EVirtualKeyboardDismissAction::TextChangeOnDismiss)
-		{}
+		{
+			_AccessibleParams = FAccessibleWidgetData(EAccessibleBehavior::Auto, EAccessibleBehavior::Auto, false);
+		}
 
 		/** The styling of the textbox */
 		SLATE_STYLE_ARGUMENT( FEditableTextBoxStyle, Style )
@@ -187,9 +189,13 @@ public:
 
 	/** See the IsReadOnly attribute */
 	void SetIsReadOnly( TAttribute< bool > InIsReadOnly );
+
+	bool IsReadOnly() const { return EditableText->IsTextReadOnly(); }
 	
 	/** See the IsPassword attribute */
 	void SetIsPassword( TAttribute< bool > InIsPassword );
+
+	bool IsPassword() const { return EditableText->IsTextPassword(); }
 
 	/** See the AllowContextMenu attribute */
 	void SetAllowContextMenu(TAttribute< bool > InAllowContextMenu);
@@ -336,6 +342,11 @@ public:
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
 protected:
+#if WITH_ACCESSIBILITY
+	virtual TSharedPtr<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	virtual void SetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) override;
+#endif
+
 	const FEditableTextBoxStyle* Style;
 
 	/** Box widget that adds padding around the editable text */

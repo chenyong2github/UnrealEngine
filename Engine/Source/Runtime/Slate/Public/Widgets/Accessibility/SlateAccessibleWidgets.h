@@ -53,7 +53,33 @@ public:
 	FSlateAccessibleEditableText(TWeakPtr<SWidget> InWidget) : FSlateAccessibleWidget(InWidget, EAccessibleWidgetType::TextEdit) {}
 
 	// IAccessibleWidget
-	virtual FString GetWidgetName() const override;
+	virtual IAccessibleText* AsText() override { return this; }
+	virtual IAccessibleProperty* AsProperty() override { return this; }
+	// ~
+
+	// IAccessibleText
+	virtual const FString& GetText() const override;
+	// ~
+
+	// IAccessibleProperty
+	virtual bool IsReadOnly() const override;
+	virtual bool IsPassword() const override;
+	virtual FString GetValue() const override;
+	virtual void SetValue(const FString& Value) override;
+	// ~
+};
+// ~
+
+// SEditableTextBox
+class SLATE_API FSlateAccessibleEditableTextBox
+	: public FSlateAccessibleWidget
+	, public IAccessibleText
+	, public IAccessibleProperty
+{
+public:
+	FSlateAccessibleEditableTextBox(TWeakPtr<SWidget> InWidget) : FSlateAccessibleWidget(InWidget, EAccessibleWidgetType::TextEdit) {}
+
+	// IAccessibleWidget
 	virtual IAccessibleText* AsText() override { return this; }
 	virtual IAccessibleProperty* AsProperty() override { return this; }
 	// ~
@@ -123,7 +149,6 @@ public:
 	FSlateAccessibleTextBlock(TWeakPtr<SWidget> InWidget) : FSlateAccessibleWidget(InWidget, EAccessibleWidgetType::Text) {}
 
 	// IAccessibleWidget
-	virtual FString GetWidgetName() const override;
 	//virtual IAccessibleText* AsText() override { return this; }
 	// ~
 

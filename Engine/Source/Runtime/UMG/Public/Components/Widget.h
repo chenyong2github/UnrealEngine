@@ -929,6 +929,11 @@ protected:
 
 	void SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus);
 
+#if WITH_ACCESSIBILITY
+	/** Gets the widget that accessibility properties should synchronize to. */
+	virtual TSharedPtr<SWidget> GetAccessibleWidget() const;
+#endif
+
 protected:
 	/** The underlying SWidget. */
 	TWeakPtr<SWidget> MyWidget;

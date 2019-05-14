@@ -1167,15 +1167,26 @@ void UWidget::SynchronizeProperties()
 	}
 
 #if WITH_ACCESSIBILITY
-	SafeWidget->SetAccessibleBehavior((EAccessibleBehavior)AccessibleBehavior, PROPERTY_BINDING(FText, AccessibleText), EAccessibleType::Main);
-	SafeWidget->SetAccessibleBehavior((EAccessibleBehavior)AccessibleSummaryBehavior, PROPERTY_BINDING(FText, AccessibleSummaryText), EAccessibleType::Summary);
-	SafeWidget->SetCanChildrenBeAccessible(bCanChildrenBeAccessible);
+	TSharedPtr<SWidget> AccessibleWidget = GetAccessibleWidget();
+	if (AccessibleWidget.IsValid())
+	{
+		AccessibleWidget->SetAccessibleBehavior((EAccessibleBehavior)AccessibleBehavior, PROPERTY_BINDING(FText, AccessibleText), EAccessibleType::Main);
+		AccessibleWidget->SetAccessibleBehavior((EAccessibleBehavior)AccessibleSummaryBehavior, PROPERTY_BINDING(FText, AccessibleSummaryText), EAccessibleType::Summary);
+		AccessibleWidget->SetCanChildrenBeAccessible(bCanChildrenBeAccessible);
+	}
 #endif
 
 #if !UE_BUILD_SHIPPING
 	SafeWidget->AddMetadata<FReflectionMetaData>(MakeShared<FReflectionMetaData>(GetFName(), GetClass(), this, GetSourceAssetOrClass()));
 #endif
 }
+
+#if WITH_ACCESSIBILITY
+TSharedPtr<SWidget> UWidget::GetAccessibleWidget() const
+{
+	return GetCachedWidget();
+}
+#endif
 
 UObject* UWidget::GetSourceAssetOrClass() const
 {

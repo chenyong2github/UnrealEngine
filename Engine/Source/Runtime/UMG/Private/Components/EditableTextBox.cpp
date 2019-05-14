@@ -39,6 +39,9 @@ UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
 	static const FEditableTextBoxStyle StaticNormalEditableTextBox = FCoreStyle::Get().GetWidgetStyle< FEditableTextBoxStyle >("NormalEditableTextBox");
 	WidgetStyle = StaticNormalEditableTextBox;
+
+	AccessibleBehavior = ESlateAccessibleBehavior::Auto;
+	bCanChildrenBeAccessible = false;
 }
 
 void UEditableTextBox::ReleaseSlateResources(bool bReleaseChildren)
@@ -226,6 +229,13 @@ void UEditableTextBox::PostLoad()
 		}
 	}
 }
+
+#if WITH_ACCESSIBILITY
+TSharedPtr<SWidget> UEditableTextBox::GetAccessibleWidget() const
+{
+	return MyEditableTextBlock;
+}
+#endif
 
 #if WITH_EDITOR
 

@@ -38,6 +38,9 @@ UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	AllowContextMenu = true;
 	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
 	Clipping = EWidgetClipping::ClipToBounds;
+
+	AccessibleBehavior = ESlateAccessibleBehavior::Auto;
+	bCanChildrenBeAccessible = false;
 }
 
 void UEditableText::ReleaseSlateResources(bool bReleaseChildren)
@@ -199,6 +202,13 @@ void UEditableText::PostLoad()
 		}
 	}
 }
+
+#if WITH_ACCESSIBILITY
+TSharedPtr<SWidget> UEditableText::GetAccessibleWidget() const
+{
+	return MyEditableText;
+}
+#endif
 
 #if WITH_EDITOR
 

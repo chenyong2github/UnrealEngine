@@ -200,6 +200,10 @@ protected:
 	virtual void HandleOnTextChanged(const FText& Text);
 	virtual void HandleOnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 
+#if WITH_ACCESSIBILITY
+	virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
+#endif
+
 protected:
 	TSharedPtr<SEditableTextBox> MyEditableTextBlock;
 
