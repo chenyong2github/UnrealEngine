@@ -418,10 +418,10 @@ static bool IsPinTypeDifferent(const FEdGraphPinType& T1, const FEdGraphPinType&
 	return bIsDifferent;
 }
 
-/** Find Pin in array that matches pin */
+/** Find linked pin in array that matches pin */
 static UEdGraphPin* FindOtherLink(TArray<UEdGraphPin*>& Links2, int32 OriginalIndex, UEdGraphPin* PinToFind)
 {
-	//sometimes the order of the pins is different between revisions, although the pins themselves are unchanged, so we have to look at all of them
+	// Sometimes the order of the pins is different between revisions, although the pins themselves are unchanged, so we have to look at all of them
 	UEdGraphNode* Node1 = PinToFind->GetOwningNode();
 	for (UEdGraphPin* Other : Links2)
 	{
@@ -588,20 +588,29 @@ bool FGraphDiffControl::FNodeMatch::Diff(const FNodeDiffContext& DiffContext, FD
 * FGraphDiffControl
 *******************************************************************************/
 
-FGraphDiffControl::FNodeMatch FGraphDiffControl::FindNodeMatch(UEdGraph* Graph, UEdGraphNode* Node, TArray<FNodeMatch> const& PriorMatches)
+FGraphDiffControl::FNodeMatch FGraphDiffControl::FindNodeMatch(UEdGraph* OldGraph, UEdGraphNode* NewNode, TArray<FNodeMatch> const& PriorMatches)
 {
 	FNodeMatch Match;
-	Match.NewNode = Node;
+	Match.NewNode = NewNode;
 
-	if (Graph)
+	if (OldGraph)
 	{
-		// attempt to find a node matching 'Node'
-		for (UEdGraphNode* GraphNode : Graph->Nodes) 
+		// Attempt to find a node matching 'NewNode', first try exact then try soft match
+		for (UEdGraphNode* GraphNode : OldGraph->Nodes)
 		{
-			if (GraphNode && IsNodeMatch(Node, GraphNode, &PriorMatches))
+			if (GraphNode && IsNodeMatch(NewNode, GraphNode, true, &PriorMatches))
 			{
 				Match.OldNode = GraphNode;
-				break;
+				return Match;
+			}
+		}
+
+		for (UEdGraphNode* GraphNode : OldGraph->Nodes)
+		{
+			if (GraphNode && IsNodeMatch(NewNode, GraphNode, false, &PriorMatches))
+			{
+				Match.OldNode = GraphNode;
+				return Match;
 			}
 		}
 	}	
@@ -609,7 +618,7 @@ FGraphDiffControl::FNodeMatch FGraphDiffControl::FindNodeMatch(UEdGraph* Graph, 
 	return Match;
 }
 
-bool FGraphDiffControl::IsNodeMatch(UEdGraphNode* Node1, UEdGraphNode* Node2, TArray<FGraphDiffControl::FNodeMatch> const* Exclusions)
+bool FGraphDiffControl::IsNodeMatch(UEdGraphNode* Node1, UEdGraphNode* Node2, bool bExactOnly, TArray<FGraphDiffControl::FNodeMatch> const* Exclusions)
 {
 	if(Node2->GetClass() != Node1->GetClass()) 
 	{
@@ -621,19 +630,14 @@ bool FGraphDiffControl::IsNodeMatch(UEdGraphNode* Node1, UEdGraphNode* Node2, TA
 		return true;
 	}
 
-	// we could be diffing two completely separate assets, this makes sure both 
-	// nodes historically belong to the same graph
-	bool bIsIntraAssetDiff = (Node1->GetGraph()->GraphGuid == Node2->GetGraph()->GraphGuid);
-
-	// if both nodes are from the same graph
-	if (bIsIntraAssetDiff)
+	if (bExactOnly)
 	{
-		return (Node1->GetFName() == Node2->GetFName());
+		return false;
 	}
 
 	if (Exclusions)
 	{
-		// have to see if this node has already been matched with another
+		// Have to see if this node has already been matched with another, if so don't allow a soft match
 		for (const FGraphDiffControl::FNodeMatch& PriorMatch : *Exclusions)
 		{
 			if (!PriorMatch.IsValid())
@@ -652,8 +656,7 @@ bool FGraphDiffControl::IsNodeMatch(UEdGraphNode* Node1, UEdGraphNode* Node2, TA
 		}
 	}
 
-	// the name hashes won't match for nodes from separate graph assets, so we 
-	// need to look for some kind of semblance between the two... title? (what's displayed to the user)
+	// For a soft match use the node title, which includes the function name and target usually
 	FText Title1 = Node1->GetNodeTitle(ENodeTitleType::FullTitle);
 	FText Title2 = Node2->GetNodeTitle(ENodeTitleType::FullTitle);
 
@@ -703,7 +706,10 @@ bool FGraphDiffControl::DiffGraphs(UEdGraph* const LhsGraph, UEdGraph* const Rhs
 				continue;
 			}
 
-			FGraphDiffControl::FNodeMatch NodeMatch = FGraphDiffControl::FindNodeMatch(RhsGraph, LhsNode, NodeMatches);
+			// There can't be a matching node in RhsGraph because it would have been found above
+			FGraphDiffControl::FNodeMatch NodeMatch;
+			NodeMatch.NewNode = LhsNode;
+
 			bFoundDifferences |= NodeMatch.Diff(SubtractiveDiffContext, &DiffsOut);
 		}
 	}
