@@ -133,7 +133,7 @@ void UOculusAudioGeometryLandscape::CreateGeometryFromLandscape(ovrAudioContext 
 			}
 		}
 
-		ovrAudioMesh ovrMesh = { 0 };
+		ovrAudioMesh ovrMesh = { { 0 } };
 
 		ovrAudioMeshVertices ovrVertices = { 0 };
 		ovrVertices.vertices = Vertices.GetData();
