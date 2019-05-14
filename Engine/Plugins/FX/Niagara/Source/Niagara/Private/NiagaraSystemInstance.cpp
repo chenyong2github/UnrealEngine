@@ -366,15 +366,16 @@ void FNiagaraSystemInstance::Complete()
 
 	if (bNeedToNotifyOthers)
 	{
+		// We've already notified once, no need to do so again.
+		bNotifyOnCompletion = false;
+
 		OnCompleteDelegate.Broadcast(this);
 
 		if (Component)
 		{
+			// Note: This call may destroy this instance of FNiagaraSystemInstance, so don't use bNotifyOnCompletion after it!
 			Component->OnSystemComplete();
 		}
-		
-		// We've already notified once, no need to do so again.
-		bNotifyOnCompletion = false;
 	}
 }
 
