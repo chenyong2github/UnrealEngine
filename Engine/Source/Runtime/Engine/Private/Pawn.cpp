@@ -32,6 +32,20 @@
 DEFINE_LOG_CATEGORY(LogDamage);
 DEFINE_LOG_CATEGORY_STATIC(LogPawn, Warning, All);
 
+namespace 
+{
+	FORCEINLINE void PatchAIControllerClass(APawn& Pawn)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (Pawn.AIControllerClass)
+		{
+			Pawn.AIControllerClassRef = Pawn.AIControllerClass;
+		}
+		Pawn.AIControllerClass = nullptr;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+}
+
 APawn::APawn(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -42,12 +56,11 @@ APawn::APawn(const FObjectInitializer& ObjectInitializer)
 
 	if (HasAnyFlags(RF_ClassDefaultObject) && GetClass() == APawn::StaticClass())
 	{
-		// WARNING: This line is why the AISupport plugin has to load the AIModule before UObject initialization, otherwise this load fails and CDOs are corrupt in the editor
-		AIControllerClass = LoadClass<AController>(nullptr, *((UEngine*)(UEngine::StaticClass()->GetDefaultObject()))->AIControllerClassName.ToString(), nullptr, LOAD_None, nullptr);
+		AIControllerClassRef = FSoftObjectPath(((UEngine*)(UEngine::StaticClass()->GetDefaultObject()))->AIControllerClassName);
 	}
 	else
 	{
-		AIControllerClass = ((APawn*)APawn::StaticClass()->GetDefaultObject())->AIControllerClass;
+		AIControllerClassRef = ((APawn*)APawn::StaticClass()->GetDefaultObject())->AIControllerClassRef;
 	}
 	bCanBeDamaged = true;
 	
@@ -131,12 +144,23 @@ void APawn::PostInitializeComponents()
 	}
 }
 
+void APawn::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	// 4.23 patching
+	PatchAIControllerClass(*this);
+}
+
 void APawn::PostLoad()
 {
 	Super::PostLoad();
 
 	// A pawn should never have this enabled, so we'll aggressively disable it if it did occur.
 	AutoReceiveInput = EAutoReceiveInput::Disabled;
+
+	// 4.23 patching
+	PatchAIControllerClass(*this);
 }
 
 void APawn::PostRegisterAllComponents()
@@ -312,14 +336,16 @@ void APawn::SpawnDefaultController()
 	{
 		return;
 	}
-	if ( AIControllerClass != nullptr )
+
+	UClass* AIControllerClassPtr = AIControllerClassRef.Get();
+	if (AIControllerClassPtr)
 	{
 		FActorSpawnParameters SpawnInfo;
 		SpawnInfo.Instigator = Instigator;
 		SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		SpawnInfo.OverrideLevel = GetLevel();
 		SpawnInfo.ObjectFlags |= RF_Transient;	// We never want to save AI controllers into a map
-		AController* NewController = GetWorld()->SpawnActor<AController>(AIControllerClass, GetActorLocation(), GetActorRotation(), SpawnInfo);
+		AController* NewController = GetWorld()->SpawnActor<AController>(AIControllerClassPtr, GetActorLocation(), GetActorRotation(), SpawnInfo);
 		if (NewController != nullptr)
 		{
 			// if successful will result in setting this->Controller 

@@ -93,7 +93,7 @@ public:
 
 	/**
 	 * Determines when the Pawn creates and is possessed by an AI Controller (on level start, when spawned, etc).
-	 * Only possible if AIControllerClass is set, and ignored if AutoPossessPlayer is enabled.
+	 * Only possible if AIControllerClassRef is set, and ignored if AutoPossessPlayer is enabled.
 	 * @see AutoPossessPlayer
 	 */
 	UPROPERTY(EditAnywhere, Category=Pawn)
@@ -103,9 +103,14 @@ public:
 	UPROPERTY(replicated)
 	uint8 RemoteViewPitch;
 
-	/** Default class to use when pawn is controlled by AI. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="AI Controller Class"), Category=Pawn)
+	/** This property is deprecated. Use \'AI Controller Class\' instead */
+	UE_DEPRECATED(4.23, "This property is deprecated. Use AIControllerClassRef instead.")
+	UPROPERTY(BlueprintReadWrite, meta=(DisplayName="DEPRECATED AI Controller Class", DeprecatedProperty, DeprecationMessage = "This property is deprecated. Use \'AIController Class Ref\' instead"), Category=Pawn)
 	TSubclassOf<AController> AIControllerClass;
+
+	/** Default controller class to use when pawn is controlled by AI. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowedClasses = "AIController"), Category = Pawn)
+	TSoftClassPtr<AController> AIControllerClassRef;
 
 	/**
 	 * Return our PawnNoiseEmitterComponent, if any. Default implementation returns the first PawnNoiseEmitterComponent found in the components array.
@@ -234,6 +239,7 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PreInitializeComponents() override;
 	virtual void PostInitializeComponents() override;
+	virtual void PostInitProperties() override;
 	virtual const AActor* GetNetOwner() const override;
 	virtual UPlayer* GetNetOwningPlayer() override;
 	virtual class UNetConnection* GetNetConnection() const override;
