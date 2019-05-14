@@ -3,6 +3,8 @@
 #include "UnrealInsightsMain.h"
 #include "HAL/ExceptionHandling.h"
 #include "Windows/WindowsHWrapper.h"
+#include "LaunchEngineLoop.h"
+#include "Misc/CommandLine.h"
 #include "Misc/OutputDeviceError.h"
 
 /**
