@@ -72,6 +72,8 @@
 		#define CONFIG_OUTPUT_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
 
 		#define CONFIG_SAMPLE_SET           SAMPLE_SET_HEXAWEB
+		#define CONFIG_CUSTOM_SPREAD_FACTOR 1
+
 		#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS
 		#define CONFIG_MAX_WITH_REF_DISTANCE 1
 		#define CONFIG_OUTPUT_MODE          OUTPUT_MODE_DRB
@@ -223,6 +225,7 @@
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_GI_AND_AO
 	#define CONFIG_SIGNAL_COLOR 1
+	#define CONFIG_SIGNAL_COLOR_SH 1
 
 	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
 	#define CONFIG_NORMAL_BASED_BILATERAL 1
@@ -238,6 +241,15 @@
 		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
 
 		#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_HIT_DISTANCE
+
+	#elif DIM_STAGE == STAGE_PRE_CONVOLUTION
+		// Input and output layout.
+		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_GI_AND_AO_RECONSTRUCTION
+		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_GI_AND_AO_RECONSTRUCTION
+
+		#define CONFIG_SAMPLE_SET           SAMPLE_SET_HEXAWEB
+		#define CONFIG_CUSTOM_SPREAD_FACTOR 1
+		//#define CONFIG_MAX_WITH_REF_DISTANCE 1
 
 	#elif DIM_STAGE == STAGE_POST_FILTERING
 		// Input and output layout.
@@ -493,9 +505,7 @@ void MainCS(
 		float RefBluringRadius = ComputeInfinityBluringRadius(RefSceneMetadata) * View.ViewSizeAndInvSize.x * rcp(KernelSpreadFactor);
 		float IdealSampleCount = PI * RefBluringRadius * RefBluringRadius;
 
-		const float MaxSampleCount = 1024; // TODO.
-
-		IdealSampleCount = min(IdealSampleCount, MaxSampleCount);
+		IdealSampleCount = min(IdealSampleCount, TARGETED_SAMPLE_COUNT);
 
 		RequestedSampleCount = IdealSampleCount / clamp(RefSamples.Array[0].SampleCount, 1, MaxSampleCount);
 	}
@@ -504,9 +514,7 @@ void MainCS(
 		#if CONFIG_SIGNAL_BATCH_SIZE != 1
 			#error Unable to support more than one signal.
 		#endif
-		const float IdealSampleCount = TARGETED_SAMPLE_COUNT;
-
-		RequestedSampleCount = clamp(IdealSampleCount / RefSamples.Array[0].SampleCount, 1, MaxSampleCount);
+		RequestedSampleCount = clamp(TARGETED_SAMPLE_COUNT / RefSamples.Array[0].SampleCount, 1, MaxSampleCount);
 	}
 	#else
 		#error Unknown policy to control the number of samples.
@@ -529,6 +537,9 @@ void MainCS(
 		KernelConfig.bNormalizeSample = CONFIG_NORMALIZE_INPUT != 0;
 		KernelConfig.bSampleKernelCenter = CONFIG_UPSCALE;
 		KernelConfig.bForceKernelCenterAccumulation = true;
+
+		// Reconstruct the spherical harmonic when reconstructing from 1spp.
+		KernelConfig.bComputeSampleColorSH = DIM_STAGE == STAGE_RECONSTRUCTION;
 		
 		{
 			UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
@@ -579,7 +590,6 @@ void MainCS(
 		#if CONFIG_SAMPLE_SET == SAMPLE_SET_HEXAWEB
 		{
 			KernelConfig.RingCount = 1;
-			KernelConfig.KernelSpreadFactor = 8;
 
 			// TODO: could be improved.
 			//KernelConfig.bMinSamplePairInvFrequency = true;
@@ -601,11 +611,14 @@ void MainCS(
 			for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
 			{
 				const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, SignalMultiplexId);
-
+				
+				uint2 RefPixelCoord = floor(KernelConfig.BufferUV * KernelConfig.BufferSizeAndInvSize.xy);
 				FSSDSignalSample CenterSample = TransformSignalSampleForAccumulation(
 					KernelConfig,
 					SignalMultiplexId,
-					RefSamples.Array[SignalMultiplexId]);
+					RefSceneMetadata,
+					RefSamples.Array[SignalMultiplexId],
+					RefPixelCoord);
 				
 				FSSDSampleAccumulationInfos SampleInfos;
 				SampleInfos.Sample = CenterSample;
@@ -803,7 +816,7 @@ void MainCS(
 		for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
 		{
 			float CurrentSampleCount = OutputSamples.Array[MultiplexId].SampleCount;
-			float NewSampleCount = min(CurrentSampleCount, 128);
+			float NewSampleCount = min(CurrentSampleCount, TARGETED_SAMPLE_COUNT);
 
 			OutputSamples.Array[MultiplexId] = Mul(OutputSamples.Array[MultiplexId], CurrentSampleCount > 0 ? NewSampleCount / CurrentSampleCount : 0);
 		}

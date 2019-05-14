@@ -44,6 +44,10 @@
 #include "../EyeAdaptationCommon.ush"
 #include "../LightShaderParameters.ush"
 
+#if CONFIG_SIGNAL_COLOR_SH
+	#include "../QuasiRandom.ush"
+#endif
+
 
 #if !defined(CONFIG_SIGNAL_PROCESSING)
 	#error Missing CONFIG_SIGNAL_PROCESSING
@@ -531,7 +535,7 @@ float ComputeBilateralWeight(
 	}
 	#elif CONFIG_VIEW_POSITION_BASED_BILATERAL == 2
 	{
-		float DistFromRefPlane = dot(RefSceneMetadata.WorldNormal, RefSceneMetadata.TranslatedWorldPosition - NeighborSceneMetadata.TranslatedWorldPosition);
+		float DistFromRefPlane = abs(dot(RefSceneMetadata.WorldNormal, RefSceneMetadata.TranslatedWorldPosition - NeighborSceneMetadata.TranslatedWorldPosition));
 
 		PositionBilateralWeight = saturate(1 - DistFromRefPlane * rcp(MaxWorldBluringDistance));
 	}
@@ -766,3 +770,31 @@ float GetRatioEstimatorWeight(
 	return 1.0;
 }
 #endif // CONFIG_SPECULAR_RATIO_ESTIMATOR
+
+
+// Matches GenerateCosineNormalRay()
+// TODO: expose a Weight that multiply directly onto the Sample.SceneColor to reduce ALU
+#if CONFIG_SIGNAL_COLOR_SH
+FSSDSphericalHarmonicRGB ComputeSampleColorSH(FSSDSampleSceneInfos SampleSceneMetadata, FSSDSignalSample Sample, uint2 NeighborPixelCoord)
+{
+	const uint SamplesPerPixel = 1;
+	FQuasiRandom QuasiRandom;
+	QuasiRandom_Initialize(QuasiRandom, NeighborPixelCoord, 0, SamplesPerPixel);
+	QuasiRandom_Update(QuasiRandom, /* SampleIndex = */ 0, SamplesPerPixel);
+
+	float3 RandSample = QuasiRandom_Sample3(QuasiRandom);
+
+	float4 TangentDirection = CosineSampleHemisphere(RandSample.yz);
+	float3 WorldDirection = TangentToWorld(TangentDirection.xyz, SampleSceneMetadata.WorldNormal);
+
+	#if SPHERICAL_HARMONIC_ORDER == 2
+		FSSDSphericalHarmonic SampleBasis = SHBasisFunction(WorldDirection);
+		return MulSH(SampleBasis, Sample.SceneColor.rgb);
+
+	#elif SPHERICAL_HARMONIC_ORDER == 3
+		FSSDSphericalHarmonic SampleBasis = SHBasisFunction3(WorldDirection);
+		return MulSH3(SampleBasis, Sample.SceneColor.rgb);
+
+	#endif
+}
+#endif

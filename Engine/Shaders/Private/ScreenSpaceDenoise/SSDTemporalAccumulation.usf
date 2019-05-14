@@ -392,14 +392,12 @@ void TemporallyAccumulate(
 		TargetedSampleCount = PI * SignalPixelBluringRadius * SignalPixelBluringRadius;
 
 		// TODO: try to make this better? * 0.125 to avoid banding caused by floating point precision.
-		TargetedSampleCount = clamp(TargetedSampleCount, 1, 0.125 * TARGETED_SAMPLE_COUNT);
+		TargetedSampleCount = clamp(TargetedSampleCount, 1, TARGETED_SAMPLE_COUNT);
 	}
-	#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_GI_AND_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
+	#else
 	{
 		TargetedSampleCount = TARGETED_SAMPLE_COUNT;
 	}
-	#else
-		#error
 	#endif
 
 	// Sample the history buffer.
@@ -474,6 +472,14 @@ void TemporallyAccumulate(
 			} // for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 		} // if (!bIsPreviousFrameOffscreen)
 	}
+	
+	#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_GI_AND_AO && 0
+		DebugOutput[DispatchThreadId] = float4(
+			HistorySamples.Array[0].SampleCount / 4096,
+			0,
+			0,
+			0);
+	#endif
 	
 	const bool bPostRejectionBlending = true;
 
@@ -569,11 +575,14 @@ void TemporallyAccumulate(
 			for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
 			{
 				const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, SignalMultiplexId);
-
+				
+				uint2 RefPixelCoord = floor(KernelConfig.BufferUV * KernelConfig.BufferSizeAndInvSize.xy);
 				FSSDSignalSample TransformedCurrentFrame = TransformSignalSampleForAccumulation(
 					KernelConfig,
 					SignalMultiplexId,
-					NormalizeToOneSample(CurrentFrameSamples.Array[SignalMultiplexId]));
+					RefSceneMetadata,
+					NormalizeToOneSample(CurrentFrameSamples.Array[SignalMultiplexId]),
+					RefPixelCoord);
 
 				FSSDSampleAccumulationInfos SampleInfos;
 				SampleInfos.Sample = TransformedCurrentFrame;
@@ -856,6 +865,7 @@ void TemporallyAccumulate(
 				SafeRcp(CurrentFrameSample.SampleCount) *
 				HistorySample.SampleCount);
 
+			if (View.GeneralPurposeTweak > 0.5)
 			HistorySamples.Array[BatchedSignalId] = HistorySample;
 		}
 	}

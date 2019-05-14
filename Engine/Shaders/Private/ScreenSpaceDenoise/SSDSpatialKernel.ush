@@ -91,6 +91,9 @@ struct FSSDKernelConfig
 	// Whether the bilateral distance should be maxed with reference bilateral distance.
 	bool bMaxWithRefBilateralDistance;
 
+	// Whether the spherical harmonic of a sample should be computed before accumulation.
+	bool bComputeSampleColorSH;
+
 	// The color space that has been encoded in the buffer.
 	uint BufferColorSpace[MAX_SIGNAL_MULTIPLEXING];
 	
@@ -154,6 +157,7 @@ FSSDKernelConfig CreateKernelConfig()
 	KernelConfig.bNormalizeSample = false;
 	KernelConfig.bMinSamplePairInvFrequency = false;
 	KernelConfig.bMaxWithRefBilateralDistance = false;
+	KernelConfig.bComputeSampleColorSH = false;
 	
 	{
 		UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
@@ -201,13 +205,24 @@ static const float kWaveletFilterWeights5x5[] = { 3.0 / 8.0, 1.0 / 4.0, 1.0 / 16
 FSSDSignalSample TransformSignalSampleForAccumulation(
 	FSSDKernelConfig KernelConfig,
 	uint MultiplexId,
-	FSSDSignalSample Sample)
+	FSSDSampleSceneInfos SampleSceneMetadata,
+	FSSDSignalSample Sample,
+	uint2 SamplePixelCoord)
 {
+	// Transform the color space.
 	// TODO: could pass down information that this sample may be normalized.
 	Sample = TransformSignal(
 		Sample, 
 		/* SrcBasis  = */ KernelConfig.BufferColorSpace[MultiplexId], 
 		/* DestBasis = */ KernelConfig.AccumulatorColorSpace[MultiplexId]);
+	
+	// Compute the spherical harmonic of the sample.
+	#if CONFIG_SIGNAL_COLOR_SH
+	if (KernelConfig.bComputeSampleColorSH)
+	{
+		Sample.ColorSH = ComputeSampleColorSH(SampleSceneMetadata, Sample, SamplePixelCoord);
+	}
+	#endif
 
 	return Sample;
 }
@@ -286,11 +301,13 @@ void AccumulateSampledMultiplexedSignals(
 	{
 		// Compute at compile time the id of the signal being processed.
 		const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, SignalMultiplexId);
+		
+		// TODO: direction of the ray should be cached by injest or output by RGS, otherwise ends up with VGPR pressure because of SampleBufferUV.
+		uint2 NeighborPixelCoord = floor(SampleBufferUV * KernelConfig.BufferSizeAndInvSize.xy);
 
 		// Fetch and pre process the sample for accumulation.
 		FSSDSignalSample Sample = MultiplexedSamples.Array[SignalMultiplexId];
-		
-		Sample = TransformSignalSampleForAccumulation(KernelConfig, SignalMultiplexId, Sample);
+		Sample = TransformSignalSampleForAccumulation(KernelConfig, SignalMultiplexId, SampleSceneMetadata, Sample, NeighborPixelCoord);
 		
 		// Compute the bluring radius of pixel itself.
 		float SamplePixelWorldBluringRadius = ComputeWorldBluringRadiusCausedByPixelSize(SampleSceneMetadata);
@@ -339,8 +356,6 @@ void AccumulateSampledMultiplexedSignals(
 			KernelConfig.RefSceneMetadata,
 			SampleSceneMetadata);
 		
-		// TODO: direction of the ray should be cached by injest or output by RGS, otherwise ends up with VGPR pressure because of SampleBufferUV.
-		uint2 NeighborPixelCoord = floor(SampleBufferUV * KernelConfig.BufferSizeAndInvSize.xy);
 		float RatioEstimatorWeight = GetRatioEstimatorWeight(
 			KernelConfig.RefSceneMetadata, SampleSceneMetadata, Sample, NeighborPixelCoord);
 

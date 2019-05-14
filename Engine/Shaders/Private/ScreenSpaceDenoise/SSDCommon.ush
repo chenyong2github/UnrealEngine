@@ -6,12 +6,40 @@
 
 #pragma once
 
+#if !defined(SPHERICAL_HARMONIC_ORDER)
+	#define SPHERICAL_HARMONIC_ORDER 0
+#endif
+
 #include "../Common.ush"
 #include "../SceneViewFamilyBlackboard.ush"
 #include "../ColorSpace.ush"
 #include "../SphericalGaussian.ush"
+
+#if SPHERICAL_HARMONIC_ORDER > 0
+	#include "../SHCommon.ush"
+#endif
+
 #include "SSDPublic.ush"
 #include "SSDDefinitions.ush"
+
+
+//------------------------------------------------------- SHARED CONSTANTS DEPENDING ON CONFIG OF SHADER
+
+#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
+	#define TARGETED_SAMPLE_COUNT 128
+
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
+	// A gray scale valued encoded into a 16bit float only have 10bits mantissa.
+	#define TARGETED_SAMPLE_COUNT 1024
+
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_GI_AND_AO
+	// Indirect diffuse requires really large spatial kernel to clean the noise.
+	#define TARGETED_SAMPLE_COUNT 4096
+
+#else
+	#error Unconfigured TARGETED_SAMPLE_COUNT
+
+#endif
 
 
 //------------------------------------------------------- SHARED SHADER PARAMETERS
@@ -30,6 +58,25 @@ float SafeRcp(float x)
 		return rcp(x);
 	return 0;
 }
+
+//------------------------------------------------------- SPHERICAL HARMONIC INTERFACE
+
+#if SPHERICAL_HARMONIC_ORDER == 0
+	// NOP
+
+#elif SPHERICAL_HARMONIC_ORDER == 2
+typedef FTwoBandSHVector FSSDSphericalHarmonic;
+typedef FTwoBandSHVectorRGB FSSDSphericalHarmonicRGB;
+
+#elif SPHERICAL_HARMONIC_ORDER == 3
+typedef FThreeBandSHVector FSSDSphericalHarmonic;
+typedef FThreeBandSHVectorRGB FSSDSphericalHarmonicRGB;
+
+#else
+	#error Unknown spherical harmonic configuration.
+
+#endif
+
 
 //------------------------------------------------------- COMMON SCENE INFOS
 
