@@ -55,7 +55,10 @@ FNiagaraEmitterHandle::FNiagaraEmitterHandle(const FNiagaraEmitterHandle& InHand
 	Instance->ClearFlags(RF_Standalone | RF_Public);
 	Instance->SetUniqueEmitterName(Name.ToString());
 	Instance->GraphSource->MarkNotSynchronized(InitialNotSynchronizedReason);
-	LastMergedSource->ClearFlags(RF_Standalone | RF_Public);
+	if (LastMergedSource != nullptr)
+	{
+		LastMergedSource->ClearFlags(RF_Standalone | RF_Public);
+	}
 }
 #endif
 
