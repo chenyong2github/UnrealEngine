@@ -27,9 +27,9 @@ private:
 	{
 		uint32 Id = 0;
 		FString Name;
-		uint32 GroupSortOrder = ~0ul;
-		uint32 PrioritySortOrder = ~0ul;
-		uint32 FallbackSortOrder = ~0ul;
+		uint32 GroupSortOrder = ~0u;
+		uint32 PrioritySortOrder = ~0u;
+		uint32 FallbackSortOrder = ~0u;
 		const TCHAR* GroupName = nullptr;
 		bool IsGameThread = false;
 

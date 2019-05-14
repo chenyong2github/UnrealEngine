@@ -11,10 +11,9 @@ struct FNoPageData
 template<typename ItemType, typename PageDataType = FNoPageData>
 class TPagedArray
 {
-public:
-
 	struct FPageInternal;
 
+public:
 	class FIterator
 	{
 	public:

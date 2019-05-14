@@ -2,8 +2,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 //
 
-#if PLATFORM_WINDOWS
 #include "Trace/Recorder.h"
+#include "CoreTypes.h"
+
+#if PLATFORM_WINDOWS
 #include "Trace/Store.h"
 #include "DataStream.h"
 #include "Templates/UniquePtr.h"

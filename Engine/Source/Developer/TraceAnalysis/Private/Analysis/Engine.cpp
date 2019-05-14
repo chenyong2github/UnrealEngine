@@ -12,7 +12,6 @@
 #include "Trace/Private/DataDecoder.h"
 #endif // 0
 #include "Trace/Private/Event.h"
-#include "Trace/Private/Field.h"
 
 namespace Trace
 {
