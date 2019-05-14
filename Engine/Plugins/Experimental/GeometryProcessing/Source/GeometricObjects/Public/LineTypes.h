@@ -50,7 +50,7 @@ struct FLine2
 	/**
 	 * @return point on line at given line parameter value (distance along line from origin)
 	 */
-	inline FVector2<T> PointAt(double LineParameter) const
+	inline FVector2<T> PointAt(T LineParameter) const
 	{
 		return Origin + LineParameter * Direction;
 	}
@@ -59,7 +59,7 @@ struct FLine2
 	/**
 	 * @return line parameter (ie distance from Origin) at nearest point on line to QueryPoint
 	 */
-	inline double Project(const FVector2<T>& QueryPoint) const
+	inline T Project(const FVector2<T>& QueryPoint) const
 	{
 		return (QueryPoint - Origin).Dot(Direction);
 	}
@@ -67,23 +67,33 @@ struct FLine2
 	/**
 	 * @return smallest squared distance from line to QueryPoint
 	 */
-	inline double DistanceSquared(const FVector2<T>& QueryPoint) const
+	inline T DistanceSquared(const FVector2<T>& QueryPoint) const
 	{
-		double t = (QueryPoint - Origin).Dot(Direction);
-		FVector2<T> proj = Origin + t * Direction;
+		T ParameterT = (QueryPoint - Origin).Dot(Direction);
+		FVector2<T> proj = Origin + ParameterT * Direction;
 		return (proj - QueryPoint).SquaredLength();
 	}
 
 	/**
+	 * @return nearest point on line to QueryPoint
+	 */
+	inline FVector2<T> NearestPoint(const FVector2<T>& QueryPoint) const
+	{
+		T ParameterT = (QueryPoint - Origin).Dot(Direction);
+		return Origin + ParameterT * Direction;
+	}
+
+
+	/**
 	 * @return +1 if QueryPoint is "right" of line, -1 if "left" or 0 if "on" line (up to given tolerance)
 	 */
-	inline int WhichSide(const FVector2<T>& QueryPoint, double OnLineTolerance = 0) const
+	inline int WhichSide(const FVector2<T>& QueryPoint, T OnLineTolerance = 0) const
 	{
-		double x0 = QueryPoint.X - Origin.X;
-		double y0 = QueryPoint.Y - Origin.Y;
-		double x1 = Direction.X;
-		double y1 = Direction.Y;
-		double det = x0 * y1 - x1 * y0;
+		T x0 = QueryPoint.X - Origin.X;
+		T y0 = QueryPoint.Y - Origin.Y;
+		T x1 = Direction.X;
+		T y1 = Direction.Y;
+		T det = x0 * y1 - x1 * y0;
 		return (det > OnLineTolerance ? +1 : (det < -OnLineTolerance ? -1 : 0));
 	}
 
@@ -95,15 +105,15 @@ struct FLine2
 	 * @param ParallelDotTolerance tolerance used to determine if lines are parallel (and hence cannot intersect)
 	 * @return true if lines intersect and IntersectionPointOut was computed
 	 */
-	bool IntersectionPoint(const FLine2& OtherLine, FVector2<T>& IntersectionPointOut, double ParallelDotTolerance = TMathUtil<T>::ZeroTolerance) const
+	bool IntersectionPoint(const FLine2<T>& OtherLine, FVector2<T>& IntersectionPointOut, T ParallelDotTolerance = TMathUtil<T>::ZeroTolerance) const
 	{
 		// see IntrFLine2FLine2 for more detailed explanation
 		FVector2<T> diff = OtherLine.Origin - Origin;
-		double D0DotPerpD1 = Direction.DotPerp(OtherLine.Direction);
+		T D0DotPerpD1 = Direction.DotPerp(OtherLine.Direction);
 		if (TMathUtil<T>::Abs(D0DotPerpD1) > ParallelDotTolerance)                     // FLines intersect in a single point.
 		{
-			double invD0DotPerpD1 = ((double)1) / D0DotPerpD1;
-			double diffDotPerpD1 = diff.DotPerp(OtherLine.Direction);
+			T invD0DotPerpD1 = ((T)1) / D0DotPerpD1;
+			T diffDotPerpD1 = diff.DotPerp(OtherLine.Direction);
 			T s = diffDotPerpD1 * invD0DotPerpD1;
 			IntersectionPointOut = Origin + s * Direction;
 			return true;
@@ -165,7 +175,7 @@ struct FLine3
 	/**
 	 * @return point on line at given line parameter value (distance along line from origin)
 	 */
-	inline FVector3<T> PointAt(double LineParameter) const
+	inline FVector3<T> PointAt(T LineParameter) const
 	{
 		return Origin + LineParameter * Direction;
 	}
@@ -174,7 +184,7 @@ struct FLine3
 	/**
 	 * @return line parameter (ie distance from Origin) at nearest point on line to QueryPoint
 	 */
-	inline double Project(const FVector3<T>& QueryPoint) const
+	inline T Project(const FVector3<T>& QueryPoint) const
 	{
 		return (QueryPoint - Origin).Dot(Direction);
 	}
@@ -182,12 +192,22 @@ struct FLine3
 	/**
 	 * @return smallest squared distance from line to QueryPoint
 	 */
-	inline double DistanceSquared(const FVector3<T>& QueryPoint) const
+	inline T DistanceSquared(const FVector3<T>& QueryPoint) const
 	{
-		double t = (QueryPoint - Origin).Dot(Direction);
+		T t = (QueryPoint - Origin).Dot(Direction);
 		FVector3<T> proj = Origin + t * Direction;
 		return (proj - QueryPoint).SquaredLength();
 	}
+
+	/**
+	 * @return nearest point on line to QueryPoint
+	 */
+	inline FVector3<T> NearestPoint(const FVector3<T>& QueryPoint) const
+	{
+		T ParameterT = (QueryPoint - Origin).Dot(Direction);
+		return Origin + ParameterT * Direction;
+	}
+
 
 };
 

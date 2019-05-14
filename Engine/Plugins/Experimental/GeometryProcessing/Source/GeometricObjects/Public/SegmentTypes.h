@@ -36,7 +36,7 @@ public:
 	/**
 	 * Construct a segment from a Center Point, normalized Direction, and scalar Extent
 	 */
-	FSegment2(const FVector2<T>& CenterIn, const FVector2<T>& DirectionIn, double ExtentIn)
+	FSegment2(const FVector2<T>& CenterIn, const FVector2<T>& DirectionIn, T ExtentIn)
 	{
 		Center = CenterIn;
 		Direction = DirectionIn; 
@@ -103,7 +103,7 @@ public:
 	 * @param UnitParameter value in range [0,1]
 	 * @return point on segment at that linearly interpolates between start and end based on Unit Parameter
 	 */
-	inline FVector2<T> PointBetween(double UnitParameter) const
+	inline FVector2<T> PointBetween(T UnitParameter) const
 	{
 		return Center + ((T)2 * UnitParameter - (T)1) * Extent * Direction;
 	}
@@ -111,9 +111,9 @@ public:
 	/**
 	 * @return minimum squared distance from Point to segment
 	 */
-	inline double DistanceSquared(const FVector2<T>& Point) const
+	inline T DistanceSquared(const FVector2<T>& Point) const
 	{
-		double DistParameter;
+		T DistParameter;
 		return DistanceSquared(Point, DistParameter);
 	}
 
@@ -124,7 +124,7 @@ public:
 	 * @param DistParameterOut calculated distance parameter in range [-Extent,Extent]
 	 * @return minimum squared distance from Point to Segment
 	 */	
-	double DistanceSquared(const FVector2<T>& Point, double& DistParameterOut) const
+	T DistanceSquared(const FVector2<T>& Point, T& DistParameterOut) const
 	{
 		DistParameterOut = (Point - Center).Dot(Direction);
 		if (DistParameterOut >= Extent)
@@ -147,7 +147,7 @@ public:
 	 */
 	inline FVector2<T> NearestPoint(const FVector2<T>& QueryPoint) const
 	{
-		double t = (QueryPoint - Center).Dot(Direction);
+		T t = (QueryPoint - Center).Dot(Direction);
 		if (t >= Extent)
 		{
 			return EndPoint();
@@ -163,7 +163,7 @@ public:
 	/**
 	 * @return scalar projection of QueryPoint onto line of Segment (not clamped to Extents)
 	 */
-	inline double Project(const FVector2<T>& QueryPoint) const
+	inline T Project(const FVector2<T>& QueryPoint) const
 	{
 		return (QueryPoint - Center).Dot(Direction);
 	}
@@ -175,12 +175,12 @@ public:
 	 * @param Tolerance tolerance band in which we return 0
 	 * @return +1 if point is to right of line, -1 if left, and 0 if on line or within tolerance band
 	 */
-	int WhichSide(const FVector2<T>& QueryPoint, double Tolerance = 0)
+	int WhichSide(const FVector2<T>& QueryPoint, T Tolerance = 0)
 	{
 		// [TODO] subtract Center from test?
 		FVector2<T> EndPt = Center + Extent * Direction;
 		FVector2<T> StartPt = Center - Extent * Direction;
-		double det = -FVector2<T>::Orient(EndPt, StartPt, QueryPoint);
+		T det = -FVector2<T>::Orient(EndPt, StartPt, QueryPoint);
 		return (det > Tolerance ? +1 : (det < -Tolerance ? -1 : 0));
 	}
 
@@ -300,3 +300,185 @@ protected:
 typedef FSegment2<float> FSegment2f;
 typedef FSegment2<double> FSegment2d;
 
+
+
+
+
+
+
+
+/*
+ * 3D Line Segmented stored as Center point, normalized Direction vector, and scalar Extent
+ */
+template<typename T>
+struct FSegment3
+{
+public:
+	/** Center point of segment */
+	FVector3<T> Center;
+	/** normalized Direction vector of segment */
+	FVector3<T> Direction;
+	/** Extent of segment, which is half the total length */
+	T Extent;
+
+	/**
+	 * Construct a Segment from two Points
+	 */
+	FSegment3(const FVector3<T>& Point0, const FVector3<T>& Point1)
+	{
+		// set from endpoints 
+		Center = T(.5) * (Point0 + Point1);
+		Direction = Point1 - Point0;
+		Extent = T(.5) * Direction.Normalize();
+	}
+
+	/**
+	 * Construct a segment from a Center Point, normalized Direction, and scalar Extent
+	 */
+	FSegment3(const FVector3<T>& CenterIn, const FVector3<T>& DirectionIn, T ExtentIn)
+	{
+		Center = CenterIn;
+		Direction = DirectionIn;
+		Extent = ExtentIn;
+	}
+
+
+
+	/** Update the Segment with a new start point */
+	inline void SetStartPoint(const FVector3<T>& Point)
+	{
+		update_from_endpoints(Point, EndPoint());
+	}
+
+	/** Update the Segment with a new end point */
+	inline void SetEndPoint(const FVector3<T>& Point)
+	{
+		update_from_endpoints(StartPoint(), Point);
+	}
+
+	/** Reverse the segment */
+	void Reverse()
+	{
+		update_from_endpoints(EndPoint(), StartPoint());
+	}
+
+
+
+
+	/** @return start point of segment */
+	inline FVector3<T> StartPoint() const
+	{
+		return Center - Extent * Direction;
+	}
+
+	/** @return end point of segment */
+	inline FVector3<T> EndPoint() const
+	{
+		return Center + Extent * Direction;
+	}
+
+
+	/** @return the Length of the segment */
+	inline T Length() const
+	{
+		return (T)2 * Extent;
+	}
+
+	/** @return first (i == 0) or second (i == 1) endpoint of the Segment  */
+	inline FVector3<T> GetPointFromIndex(int i) const
+	{
+		return (i == 0) ? (Center - Extent * Direction) : (Center + Extent * Direction);
+	}
+
+	/**
+	 * @return point on segment at given (signed) Distance from the segment Origin
+	 */
+	inline FVector3<T> PointAt(T DistanceParameter) const
+	{
+		return Center + DistanceParameter * Direction;
+	}
+
+	/**
+	 * @param UnitParameter value in range [0,1]
+	 * @return point on segment at that linearly interpolates between start and end based on Unit Parameter
+	 */
+	inline FVector3<T> PointBetween(T UnitParameter) const
+	{
+		return Center + ((T)2 * UnitParameter - (T)1) * Extent * Direction;
+	}
+
+	/**
+	 * @return minimum squared distance from Point to segment
+	 */
+	inline T DistanceSquared(const FVector3<T>& Point) const
+	{
+		T DistParameter;
+		return DistanceSquared(Point, DistParameter);
+	}
+
+
+
+	/**
+	 * @param Point query point
+	 * @param DistParameterOut calculated distance parameter in range [-Extent,Extent]
+	 * @return minimum squared distance from Point to Segment
+	 */
+	T DistanceSquared(const FVector3<T>& Point, T& DistParameterOut) const
+	{
+		DistParameterOut = (Point - Center).Dot(Direction);
+		if (DistParameterOut >= Extent)
+		{
+			DistParameterOut = Extent;
+			return Point.DistanceSquared(EndPoint());
+		}
+		else if (DistParameterOut <= -Extent)
+		{
+			DistParameterOut = -Extent;
+			return Point.DistanceSquared(StartPoint());
+		}
+		FVector3<T> ProjectedPt = Center + DistParameterOut * Direction;
+		return ProjectedPt.DistanceSquared(Point);
+	}
+
+
+	/**
+	 * @return nearest point on segment to QueryPoint
+	 */
+	inline FVector3<T> NearestPoint(const FVector3<T>& QueryPoint) const
+	{
+		T t = (QueryPoint - Center).Dot(Direction);
+		if (t >= Extent)
+		{
+			return EndPoint();
+		}
+		if (t <= -Extent)
+		{
+			return StartPoint();
+		}
+		return Center + t * Direction;
+	}
+
+
+	/**
+	 * @return scalar projection of QueryPoint onto line of Segment (not clamped to Extents)
+	 */
+	inline T Project(const FVector3<T>& QueryPoint) const
+	{
+		return (QueryPoint - Center).Dot(Direction);
+	}
+
+
+
+protected:
+
+	// update segment based on new endpoints
+	inline void update_from_endpoints(const FVector3<T>& p0, const FVector3<T>& p1)
+	{
+		Center = 0.5 * (p0 + p1);
+		Direction = p1 - p0;
+		Extent = 0.5 * Direction.Normalize();
+	}
+
+};
+typedef FSegment3<float> FSegment3f;
+typedef FSegment3<double> FSegment3d;
