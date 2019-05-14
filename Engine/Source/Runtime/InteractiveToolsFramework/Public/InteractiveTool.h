@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InputBehaviorSet.h"
+#include "InteractiveToolActionSet.h"
 #include "ToolContextInterfaces.h"
 #include "InteractiveTool.generated.h"
 
@@ -178,6 +179,7 @@ protected:
 	UInputBehaviorSet* InputBehaviors;
 
 	/** The current set of Property UObjects provided by this Tool. May contain pointer to itself. */
+	UPROPERTY()
 	TArray<UObject*> ToolPropertyObjects;
 
 	/**
@@ -191,6 +193,47 @@ protected:
 	 * @param PropertySet Property Set object to add
 	 */
 	virtual void AddToolPropertySource(UInteractiveToolPropertySet* PropertySet);
+
+
+
+
+	//
+	// Action support/system
+	// 
+	// Your Tool subclass can register a set of "Actions" it can execute
+	// by overloading RegisterActions(). Then external systems can use GetActionSet() to
+	// find out what Actions your Tool supports, and ExecuteAction() to run those actions.
+	//
+	
+public:
+	/**
+	 * Get the internal Action Set for this Tool. The action set is created and registered on-demand.
+	 * @return pointer to initialized Action set
+	 */
+	virtual FInteractiveToolActionSet* GetActionSet();
+
+	/**
+	 * Request that the Action identified by ActionID be executed.
+	 * Default implementation forwards these requests to internal ToolActionSet.
+	 */
+	virtual void ExecuteAction(int32 ActionID);
+
+
+protected:
+	/**
+	 * Override this function to register the set of Actions this Tool supports, using FInteractiveToolActionSet::RegisterAction.
+	 * Note that 
+	 */
+	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet);
+
+
+private:
+	/** 
+	 * Set of actions this Tool can execute. This variable is allocated on-demand. 
+	 * Use GetActionSet() instead of accessing this pointer directly!
+	 */
+	FInteractiveToolActionSet* ToolActionSet = nullptr;
+
 };
 
 

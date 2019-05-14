@@ -66,6 +66,27 @@ const TArray<UObject*>& UInteractiveTool::GetToolProperties() const
 }
 
 
+void UInteractiveTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
+{
+}
+
+FInteractiveToolActionSet* UInteractiveTool::GetActionSet()
+{
+	if (ToolActionSet == nullptr)
+	{
+		ToolActionSet = new FInteractiveToolActionSet();
+		RegisterActions(*ToolActionSet);
+	}
+	return ToolActionSet;
+}
+
+void UInteractiveTool::ExecuteAction(int32 ActionID)
+{
+	GetActionSet()->ExecuteAction(ActionID);
+}
+
+
+
 bool UInteractiveTool::HasCancel() const
 {
 	return false;
@@ -85,7 +106,6 @@ bool UInteractiveTool::CanAccept() const
 void UInteractiveTool::Tick(float DeltaTime)
 {
 }
-
 
 UInteractiveToolManager* UInteractiveTool::GetToolManager() const
 {
