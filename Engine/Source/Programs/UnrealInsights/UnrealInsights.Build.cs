@@ -21,7 +21,6 @@ public class UnrealInsights : ModuleRules
 				"SlateCore",
 				"SourceCodeAccess",
 				"StandaloneRenderer",
-				"Trace",
 				"TraceInsights",
 				"TraceServices"
 			}
