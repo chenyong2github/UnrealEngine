@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "String.h"
+#include "Containers/UnrealString.h"
 
 /*
 double is a 64 bit IEEE 754 double precision Floating Point Number
