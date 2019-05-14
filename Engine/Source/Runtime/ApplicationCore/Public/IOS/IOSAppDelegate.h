@@ -129,6 +129,13 @@ APPLICATIONCORE_API
 /** The time delay (in seconds) between idle timer enable requests and actually enabling the idle timer */
 @property (readonly) float IdleTimerEnablePeriod;
 
+#if WITH_ACCESSIBILITY
+/** Timer used for updating cached data from game thread for all accessible widgets. */
+@property (nonatomic, retain) NSTimer* AccessibilityCacheTimer;
+/** Callback for IOS notification of VoiceOver being enabled or disabled. */
+-(void)OnVoiceOverStatusChanged;
+#endif
+
 // parameters passed from openURL
 @property (nonatomic, retain) NSMutableArray* savedOpenUrlParameters;
 
@@ -166,6 +173,8 @@ APPLICATIONCORE_API
 -(bool)IsIdleTimerEnabled;
 -(void)EnableIdleTimer:(bool)bEnable;
 -(void)StartGameThread;
+/** Uses the TaskGraph to execute a function on the game thread, and then blocks until the function is executed. */
++(bool)WaitAndRunOnGameThread:(TUniqueFunction<void()>)Function;
 -(void)NoUrlCommandLine;
 
 -(int)GetAudioVolume;

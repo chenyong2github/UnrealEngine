@@ -12,6 +12,7 @@
 #include "Input/HittestGrid.h"
 #include "Application/SlateApplicationBase.h"
 #include "Application/SlateWindowHelper.h"
+#include "Math/NumericLimits.h"
 
 DECLARE_CYCLE_STAT(TEXT("Slate Accessibility: Get Widget At Point"), STAT_AccessibilitySlateGetChildAtPosition, STATGROUP_Accessibility);
 
@@ -21,10 +22,25 @@ FSlateAccessibleWidget::FSlateAccessibleWidget(TWeakPtr<SWidget> InWidget, EAcce
 	, SiblingIndex(INDEX_NONE)
 	, bChildrenDirty(true)
 {
+	static AccessibleWidgetId RuntimeIdCounter = 0;
+	if (RuntimeIdCounter == TNumericLimits<AccessibleWidgetId>::Max())
+	{
+		RuntimeIdCounter = TNumericLimits<AccessibleWidgetId>::Min();
+	}
+	if (RuntimeIdCounter == InvalidAccessibleWidgetId)
+	{
+		++RuntimeIdCounter;
+	}
+	Id = RuntimeIdCounter++;
 }
 
 FSlateAccessibleWidget::~FSlateAccessibleWidget()
 {
+}
+
+AccessibleWidgetId FSlateAccessibleWidget::GetId() const
+{
+	return Id;
 }
 
 bool FSlateAccessibleWidget::IsValid() const

@@ -11,12 +11,13 @@
 #include "Input/HittestGrid.h"
 
 DECLARE_CYCLE_STAT(TEXT("Slate Accessibility: Parent Updated"), STAT_AccessibilitySlateParentUpdated, STATGROUP_Accessibility);
+DECLARE_CYCLE_STAT(TEXT("Slate Accessibility: Children Updated"), STAT_AccessibilitySlateChildrenUpdated, STATGROUP_Accessibility);
 DECLARE_CYCLE_STAT(TEXT("Slate Accessibility: Behavior Changed"), STAT_AccessibilitySlateBehaviorChanged, STATGROUP_Accessibility);
 DECLARE_CYCLE_STAT(TEXT("Slate Accessibility: Event Raised"), STAT_AccessibilitySlateEventRaised, STATGROUP_Accessibility);
 
 void FSlateAccessibleMessageHandler::OnActivate()
 {
-	// widgets are initialized when their accessibility window is created
+	// widgets are initialized when their accessible window is created
 }
 
 void FSlateAccessibleMessageHandler::OnDeactivate()
@@ -35,6 +36,21 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleMessageHandler::GetAccessibleWindo
 		}
 	}
 	return nullptr;
+}
+
+AccessibleWidgetId FSlateAccessibleMessageHandler::GetAccessibleWindowId(const TSharedRef<FGenericWindow>& InWindow) const
+{
+	TSharedPtr<IAccessibleWidget> AccessibleWindow = GetAccessibleWindow(InWindow);
+	if (AccessibleWindow.IsValid())
+	{
+		return AccessibleWindow->GetId();
+	}
+	return IAccessibleWidget::InvalidAccessibleWidgetId;
+}
+
+TSharedPtr<IAccessibleWidget> FSlateAccessibleMessageHandler::GetAccessibleWidgetFromId(AccessibleWidgetId Id) const
+{
+	return FSlateAccessibleWidgetCache::Get().GetAccessibleWidgetFromId(Id);
 }
 
 void FSlateAccessibleMessageHandler::OnWidgetRemoved(SWidget* Widget)
@@ -80,6 +96,25 @@ void FSlateAccessibleMessageHandler::OnWidgetParentChanged(TSharedRef<SWidget> W
 			{
 				FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(AccessibleChildren[i])->UpdateParent(AccessibleParent);
 			}
+		}
+	}
+}
+
+void FSlateAccessibleMessageHandler::OnWidgetChildrenChanged(TSharedRef<SWidget> Widget)
+{
+	if (IsActive())
+	{
+		SCOPE_CYCLE_COUNTER(STAT_AccessibilitySlateChildrenUpdated);
+
+		TSharedPtr<SWidget> Parent = Widget;
+		while (Parent.IsValid() && !Parent->IsAccessible())
+		{
+			Parent = Parent->GetParentWidget();
+		}
+		if (Parent.IsValid())
+		{
+			TSharedPtr<IAccessibleWidget> AccessibleParent = FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(Parent);
+			StaticCastSharedPtr<FSlateAccessibleWidget>(AccessibleParent)->MarkChildrenDirty();
 		}
 	}
 }
@@ -138,16 +173,6 @@ void FSlateAccessibleMessageHandler::OnWidgetEventRaised(TSharedRef<SWidget> Wid
 		// todo: not sure what to do for a case like focus changed to not-accessible widget. maybe pass through a nullptr?
 		if (Widget->IsAccessible())
 		{
-			TSharedPtr<SWidget> Parent = Widget->GetParentWidget();
-			while (Parent.IsValid())
-			{
-				if (!Parent->CanChildrenBeAccessible())
-				{
-					return;
-				}
-				Parent = Parent->GetParentWidget();
-			}
-
 			FSlateAccessibleMessageHandler::RaiseEvent(FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(Widget).ToSharedRef(), Event, OldValue, NewValue);
 		}
 	}

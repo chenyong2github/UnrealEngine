@@ -472,7 +472,7 @@ HRESULT STDCALL FWindowsUIAWidgetProvider::GetRuntimeId(SAFEARRAY** pRetVal)
 {
 	if (IsValid())
 	{
-		int rtId[] = { UiaAppendRuntimeId, UIAManager->GetRuntimeId(this) };
+		int rtId[] = { UiaAppendRuntimeId, Widget->GetId() };
 		*pRetVal = SafeArrayCreateVector(VT_I4, 0, 2);
 		if (*pRetVal)
 		{

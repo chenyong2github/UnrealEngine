@@ -1,3 +1,5 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #if WITH_ACCESSIBILITY
@@ -17,6 +19,8 @@ public:
 	virtual void OnActivate() override;
 	virtual void OnDeactivate() override;
 	virtual TSharedPtr<IAccessibleWidget> GetAccessibleWindow(const TSharedRef<FGenericWindow>& InWindow) const override;
+	virtual AccessibleWidgetId GetAccessibleWindowId(const TSharedRef<FGenericWindow>& InWindow) const override;
+	virtual TSharedPtr<IAccessibleWidget> GetAccessibleWidgetFromId(AccessibleWidgetId Id) const override;
 	virtual bool ApplicationIsAccessible() const override { return true; }
 	//~
 
@@ -32,6 +36,15 @@ public:
 	 * @param Widget The widget whose parent changed.
 	 */
 	void OnWidgetParentChanged(TSharedRef<SWidget> Widget);
+	/**
+	 * Callback for a Slate widget's children changing. Although somewhat rare, widgets are not required
+	 * to return a child even if the child was parented to it (for instance, SWidgetSwitcher).
+	 *
+	 * Note: This should not be called if the children are already calling OnWidgetParentChanged().
+	 *
+	 * @param Widget The widget whose children changed.
+	 */
+	void OnWidgetChildrenChanged(TSharedRef<SWidget> Widget);
 	/**
 	 * Callback for a Slate widget's main accessible behavior changing. 
 	 *

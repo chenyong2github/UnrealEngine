@@ -22,6 +22,7 @@ public:
 	virtual ~FSlateAccessibleWidget();
 
 	// IAccessibleWidget
+	virtual AccessibleWidgetId GetId() const override final;
 	virtual bool IsValid() const override final;
 	virtual TSharedPtr<IAccessibleWidget> GetTopLevelWindow() const override final;
 	virtual FBox2D GetBounds() const override final;
@@ -92,6 +93,8 @@ protected:
 	TArray<TWeakPtr<FSlateAccessibleWidget>> Children;
 	/** The index of this widget in its parent's list of children. */
 	int32 SiblingIndex;
+	/** An application-unique identifier for GetId(). */
+	AccessibleWidgetId Id;
 	/** Whether the contents of the Children array has changed and UpdateAllChildren() needs to be called. */
 	bool bChildrenDirty;
 

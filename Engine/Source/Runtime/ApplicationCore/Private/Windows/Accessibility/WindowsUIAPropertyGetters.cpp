@@ -21,7 +21,7 @@ FVariant GetPropertyValue(TSharedRef<IAccessibleWidget> AccessibleWidget, PROPER
 	{
 	case UIA_ValueIsReadOnlyPropertyId:
 	case UIA_RangeValueIsReadOnlyPropertyId:
-		return !AccessibleWidget->AsProperty()->IsReadOnly();
+		return AccessibleWidget->AsProperty()->IsReadOnly();
 	case UIA_RangeValueLargeChangePropertyId:
 	case UIA_RangeValueSmallChangePropertyId:
 		return static_cast<double>(AccessibleWidget->AsProperty()->GetStepSize());

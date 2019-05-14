@@ -54,16 +54,6 @@ public:
 	FWindowsUIAWindowProvider& GetWindowProvider(TSharedRef<FWindowsWindow> InWindow);
 
 	/**
-	 * Generate an application-unique ID for this Provider. A widget must be able to be uniquely
-	 * identified in the case where it gets deleted, but only within the context of a specific hwnd.
-	 * It is OK for widgets to overlap IDs in separate running instances of the same application.
-	 * This returns an int because it's passed directly to Windows as one.
-	 *
-	 * @return An application-unique identifier for this Provider
-	 */
-	int GetRuntimeId(FWindowsUIAWidgetProvider* InProvider);
-
-	/**
 	 * Notify the Manager that the RefCount for a Provider has reached 0, which will cause it to be removed from the cache.
 	 *
 	 * If the Provider cache is empty after removing the Provider, accessibility will be disabled through the entire application.
@@ -87,7 +77,6 @@ private:
 
 	/** Cache of all Providers with a RefCount of at least 1 that map to an accessible widget. */
 	TMap<TSharedRef<IAccessibleWidget>, FWindowsUIAWidgetProvider*> CachedWidgetProviders;
-	TMap<FWindowsUIAWidgetProvider*, int> RuntimeIds;
 	/**
 	 * A set of all Providers with a RefCount of at least 1. This also includes non-widget Providers such as text ranges.
 	 * When the application is closed, this is used to notify Providers held by external applications that they are invalid.

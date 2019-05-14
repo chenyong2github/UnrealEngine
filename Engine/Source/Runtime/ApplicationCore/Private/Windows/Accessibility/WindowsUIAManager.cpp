@@ -110,31 +110,9 @@ FWindowsUIAWindowProvider& FWindowsUIAManager::GetWindowProvider(TSharedRef<FWin
 	return static_cast<FWindowsUIAWindowProvider&>(GetWidgetProvider(WindowsApplication.GetAccessibleMessageHandler()->GetAccessibleWindow(InWindow).ToSharedRef()));
 }
 
-int FWindowsUIAManager::GetRuntimeId(FWindowsUIAWidgetProvider* InProvider)
-{
-	const int* Value = RuntimeIds.Find(InProvider);
-	if (Value)
-	{
-		return *Value;
-	}
-	else
-	{
-		static int RuntimeIdCounter = 0;
-		if (RuntimeIdCounter == INT_MAX)
-		{
-			RuntimeIdCounter = INT_MIN;
-		}
-		return RuntimeIds.Add(InProvider, RuntimeIdCounter++);
-	}
-}
-
 void FWindowsUIAManager::OnWidgetProviderRemoved(TSharedRef<IAccessibleWidget> InWidget)
 {
-	FWindowsUIAWidgetProvider* Provider = nullptr;
-	if (CachedWidgetProviders.RemoveAndCopyValue(InWidget, Provider))
-	{
-		RuntimeIds.Remove(Provider);
-	}
+	CachedWidgetProviders.Remove(InWidget);
 
 	if (CachedWidgetProviders.Num() == 0)
 	{
@@ -182,18 +160,22 @@ void FWindowsUIAManager::OnEventRaised(TSharedRef<IAccessibleWidget> Widget, EAc
 		case EAccessibleEvent::Notification:
 		{
 			typedef HRESULT(WINAPI* UiaRaiseNotificationEventFunc)(IRawElementProviderSimple*, NotificationKind, NotificationProcessing, BSTR, BSTR);
-			// Cast to intermediary void* to avoid compiler warning 4191, since GetProcAddress doesn't know function arguments
-			UiaRaiseNotificationEventFunc NotificationFunc = (UiaRaiseNotificationEventFunc)(void*)GetProcAddress(GetModuleHandle(TEXT("Uiautomationcore.dll")), "UiaRaiseNotificationEvent");
-			if (NotificationFunc)
+			HMODULE Handle = GetModuleHandle(TEXT("Uiautomationcore.dll"));
+			if (Handle)
 			{
-				NotificationFunc(&ScopedProvider.Provider, NotificationKind_ActionCompleted, NotificationProcessing_All, SysAllocString(*NewValue.GetValue<FString>()), SysAllocString(TEXT("")));
+				// Cast to intermediary void* to avoid compiler warning 4191, since GetProcAddress doesn't know function arguments
+				UiaRaiseNotificationEventFunc NotificationFunc = (UiaRaiseNotificationEventFunc)(void*)GetProcAddress(Handle, "UiaRaiseNotificationEvent");
+				if (NotificationFunc)
+				{
+					NotificationFunc(&ScopedProvider.Provider, NotificationKind_ActionCompleted, NotificationProcessing_All, SysAllocString(*NewValue.GetValue<FString>()), SysAllocString(TEXT("")));
+				}
 			}
 			break;
 		}
 		case EAccessibleEvent::BeforeRemoveFromParent:
 		{
 			// ChildRemoved events require an ID passed along with them to identify which child (which no longer exists) was removed
-			int id[2] = { UiaAppendRuntimeId, GetRuntimeId(&ScopedProvider.Provider) };
+			int id[2] = { UiaAppendRuntimeId, Widget->GetId() };
 			FScopedWidgetProvider ParentProvider(GetWidgetProvider(Widget->GetParent().ToSharedRef()));
 			UiaRaiseStructureChangedEvent(&ParentProvider.Provider, StructureChangeType_ChildRemoved, id, ARRAYSIZE(id));
 			break;
@@ -206,11 +188,15 @@ void FWindowsUIAManager::OnEventRaised(TSharedRef<IAccessibleWidget> Widget, EAc
 		}
 		case EAccessibleEvent::WidgetRemoved:
 			typedef HRESULT(WINAPI* UiaDisconnectProviderFunc)(IRawElementProviderSimple*);
-			// Cast to intermediary void* to avoid compiler warning 4191, since GetProcAddress doesn't know function arguments
-			UiaDisconnectProviderFunc DisconnectFunc = (UiaDisconnectProviderFunc)(void*)GetProcAddress(GetModuleHandle(TEXT("Uiautomationcore.dll")), "UiaDisconnectProvider");
-			if (DisconnectFunc)
+			HMODULE Handle = GetModuleHandle(TEXT("Uiautomationcore.dll"));
+			if (Handle)
 			{
-				DisconnectFunc(&ScopedProvider.Provider);
+				// Cast to intermediary void* to avoid compiler warning 4191, since GetProcAddress doesn't know function arguments
+				UiaDisconnectProviderFunc DisconnectFunc = (UiaDisconnectProviderFunc)(void*)GetProcAddress(Handle, "UiaDisconnectProvider");
+				if (DisconnectFunc)
+				{
+					DisconnectFunc(&ScopedProvider.Provider);
+				}
 			}
 			break;
 		}

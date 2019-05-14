@@ -229,6 +229,8 @@ public:
 	virtual const FString& GetText() const = 0;
 };
 
+typedef int32 AccessibleWidgetId; 
+
 /**
  * Provides the core set of accessible data that is necessary in order for widget traversal and TTS to be implemented.
  * In order to support functionality beyond this, subclasses must implement the other accessible interfaces and
@@ -240,12 +242,22 @@ public:
 	IAccessibleWidget() {}
 	virtual ~IAccessibleWidget() {}
 
+	static const AccessibleWidgetId InvalidAccessibleWidgetId = -1;
+
+	/**
+	 * Get an application-unique identifier for this widget. If the widget is destroyed,
+	 * a different widget is allowed to re-use that ID.
+	 *
+	 * @return A unique ID that specifically refers to this widget.
+	 */
+	virtual AccessibleWidgetId GetId() const = 0;
 	/**
 	 * Whether or not the underlying widget backing this interface still exists
 	 *
 	 * @return true if functions can be called on this interface and should return valid results
 	 */
 	virtual bool IsValid() const = 0;
+
 	/**
 	 * Returns the window at the top of this widget's hierarchy. This function may return itself for accessible windows,
 	 * and could return nullptr in cases where the widget is not currently part of a hierarchy.
@@ -455,6 +467,23 @@ public:
 	 * @return The accessible object corresponding to the supplied native window
 	 */
 	virtual TSharedPtr<IAccessibleWidget> GetAccessibleWindow(const TSharedRef<FGenericWindow>& InWindow) const { return nullptr; }
+
+	/**
+	 * Creates or retrieves the identifier for an accessible object for a native OS window.
+	 * todo: Behavior for non-native windows (virtual or others) is currently undefined.
+	 *
+	 * @param InWindow The native window to find the accessible window for
+	 * @return The identifier for the accessible window created
+	 */
+	virtual AccessibleWidgetId GetAccessibleWindowId(const TSharedRef<FGenericWindow>& InWindow) const { return IAccessibleWidget::InvalidAccessibleWidgetId; }
+
+	/**
+	 * Retrieves an accessible widget that matches the given identifier.
+	 *
+	 * @param Id The identifier for the widget to get.
+	 * @return The widget that matches this identifier, or nullptr if the widget does not exist.
+	 */
+	virtual TSharedPtr<IAccessibleWidget> GetAccessibleWidgetFromId(AccessibleWidgetId Id) const { return nullptr; }
 
 	/**
 	 * Push an event from an accessible widget back to the platform layer.
