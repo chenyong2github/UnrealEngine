@@ -1984,6 +1984,28 @@ public:
 	ENGINE_API virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const;
 };
 
+
+/**
+ * An material render proxy which overrides the material's Color vector and Texture parameter (mixed together).
+ */
+class FColoredTexturedMaterialRenderProxy : public FColoredMaterialRenderProxy
+{
+public:
+
+	const UTexture* Texture;
+	FName TextureParamName;
+
+	/** Initialization constructor. */
+	FColoredTexturedMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InColor, FName InColorParamName, const UTexture* InTexture, FName InTextureParamName) :
+		FColoredMaterialRenderProxy(InParent, InColor, InColorParamName),
+		Texture(InTexture),
+		TextureParamName(InTextureParamName)
+	{}
+
+	ENGINE_API virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const;
+};
+
+
 /**
  * A material render proxy which overrides the selection color
  */

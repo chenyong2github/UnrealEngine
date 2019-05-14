@@ -2585,6 +2585,23 @@ bool FColoredMaterialRenderProxy::GetTextureValue(const FMaterialParameterInfo& 
 }
 
 /*-----------------------------------------------------------------------------
+	FColoredTexturedMaterialRenderProxy
+-----------------------------------------------------------------------------*/
+
+bool FColoredTexturedMaterialRenderProxy::GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const
+{
+	if (ParameterInfo.Name == TextureParamName)
+	{
+		*OutValue = Texture;
+		return true;
+	}
+	else
+	{
+		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+	}
+}
+
+/*-----------------------------------------------------------------------------
 	FOverrideSelectionColorMaterialRenderProxy
 -----------------------------------------------------------------------------*/
 const FMaterial& FOverrideSelectionColorMaterialRenderProxy::GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const

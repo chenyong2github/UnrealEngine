@@ -36,6 +36,7 @@
 #include "GPUScene.h"
 #include "TranslucentRendering.h"
 #include "Async/ParallelFor.h"
+#include "RectLightSceneProxy.h"
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -3964,7 +3965,8 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 					Origin = ToLight + View.ViewMatrices.GetViewOrigin();
 				
 					FLinearColor Color( LightParameters.Color.X, LightParameters.Color.Y, LightParameters.Color.Z, LightParameters.FalloffExponent );
-					if( !Proxy->IsRectLight() )
+					const bool bIsRectLight = Proxy->IsRectLight();
+					if( !bIsRectLight )
 					{
 						const float SphereArea = (4.0f * PI) * FMath::Square( LightParameters.SourceRadius );
 						const float CylinderArea = (2.0f * PI) * LightParameters.SourceRadius * LightParameters.SourceLength;
@@ -3993,17 +3995,28 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 					Color.A *= LightParameters.SpecularScale;
 
 					// Rect is one sided
-					if( Proxy->IsRectLight() && (L | LightParameters.Direction) < 0.0f )
+					if( bIsRectLight && (L | LightParameters.Direction) < 0.0f )
 						continue;
-				
-					FMaterialRenderProxy* const ColoredMeshInstance = new(FMemStack::Get()) FColoredMaterialRenderProxy( GEngine->DebugMeshMaterial->GetRenderProxy(), Color );
+
+					UTexture* SurfaceTexture = nullptr;
+					if (bIsRectLight)
+					{
+						const FRectLightSceneProxy* RectLightProxy = (const FRectLightSceneProxy*)Proxy;
+						SurfaceTexture = RectLightProxy->SourceTexture;
+					}
+					
+					FMaterialRenderProxy* ColoredMeshInstance = nullptr;
+					if (SurfaceTexture)
+						ColoredMeshInstance = new(FMemStack::Get()) FColoredTexturedMaterialRenderProxy(GEngine->EmissiveMeshMaterial->GetRenderProxy(), Color, NAME_Color, SurfaceTexture, NAME_LinearColor);
+					else
+						ColoredMeshInstance = new(FMemStack::Get()) FColoredMaterialRenderProxy(GEngine->EmissiveMeshMaterial->GetRenderProxy(), Color, NAME_Color);
 
 					FMatrix LightToWorld = Proxy->GetLightToWorld();
 					LightToWorld.RemoveScaling();
 
 					FViewElementPDI LightPDI( &View, NULL, &View.DynamicPrimitiveShaderData );
 
-					if( Proxy->IsRectLight() )
+					if( bIsRectLight )
 					{
 						DrawBox( &LightPDI, LightToWorld, FVector( 0.0f, LightParameters.SourceRadius, LightParameters.SourceLength ), ColoredMeshInstance, SDPG_World );
 					}

@@ -884,9 +884,17 @@ public:
 	UPROPERTY()
 	class UMaterial* DebugMeshMaterial;
 
-	/** @todo document */
+	/** Path of the default material for debug mesh */
 	UPROPERTY(globalconfig)
 	FSoftObjectPath DebugMeshMaterialName;
+
+	/** A material used to render emissive meshes (e.g. light source surface). */
+	UPROPERTY()
+	class UMaterial* EmissiveMeshMaterial;
+
+	/** Path of the default material for emissive mesh */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath EmissiveMeshMaterialName;
 
 	/** Material used for visualizing level membership in lit view port modes. */
 	UPROPERTY()
