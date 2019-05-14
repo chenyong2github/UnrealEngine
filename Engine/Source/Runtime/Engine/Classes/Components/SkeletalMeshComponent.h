@@ -1221,6 +1221,11 @@ private:
 	 **/
 	TMap<FName, float>	MorphTargetCurves;
 
+	/** 
+	 * Temporary storage for Curve UIDList of evaluating Animation 
+	 */
+	TArray<uint16> CachedCurveUIDList;
+
 public:
 	const TMap<FName, float>& GetMorphTargetCurves() const { return MorphTargetCurves;  }
 	// 

@@ -1468,6 +1468,11 @@ void USkeletalMeshComponent::RecalcRequiredCurves()
 		return;
 	}
 
+	if (SkeletalMesh->Skeleton)
+	{
+		CachedCurveUIDList = SkeletalMesh->Skeleton->GetDefaultCurveUIDList();
+	}
+
 	const FCurveEvaluationOption CurveEvalOption(bAllowAnimCurveEvaluation, &DisallowedAnimCurves, PredictedLODLevel);
 
 	// make sure animation requiredcurve to mark as dirty
@@ -1728,11 +1733,7 @@ void USkeletalMeshComponent::EvaluateAnimation(const USkeletalMesh* InSkeletalMe
 	}
 	else
 	{
-		// unfortunately it's possible they might not have skeleton, in that case, we don't have any place to copy the curve from
-		if (InSkeletalMesh->Skeleton)
-		{
-			OutCurve.InitFrom(&InSkeletalMesh->Skeleton->GetDefaultCurveUIDList());
-		}
+		OutCurve.InitFrom(&CachedCurveUIDList);
 	}
 }
 
