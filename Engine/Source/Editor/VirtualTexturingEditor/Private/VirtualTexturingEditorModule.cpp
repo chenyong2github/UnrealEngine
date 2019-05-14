@@ -19,7 +19,7 @@ public:
 	
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomClassLayout("RuntimeVirtualTexture", FOnGetDetailCustomizationInstance::CreateStatic(&FRuntimeVirtualTextureDetailsCustomization::MakeInstance));
-		PropertyModule.RegisterCustomClassLayout("RuntimeVirtualTexturePlane", FOnGetDetailCustomizationInstance::CreateStatic(&FRuntimeVirtualTextureActorDetailsCustomization::MakeInstance));
+		PropertyModule.RegisterCustomClassLayout("RuntimeVirtualTextureComponent", FOnGetDetailCustomizationInstance::CreateStatic(&FRuntimeVirtualTextureComponentDetailsCustomization::MakeInstance));
 	}
 
 	virtual void ShutdownModule() override

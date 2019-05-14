@@ -38,13 +38,13 @@ private:
 
 
 /** UI customization for ARuntimeVirtualTexturePlane */
-class FRuntimeVirtualTextureActorDetailsCustomization : public IDetailCustomization
+class FRuntimeVirtualTextureComponentDetailsCustomization : public IDetailCustomization
 {
 public:
 	static TSharedRef<IDetailCustomization> MakeInstance();
 
 protected:
-	FRuntimeVirtualTextureActorDetailsCustomization();
+	FRuntimeVirtualTextureComponentDetailsCustomization();
 
 	/** Callback for Copy Rotation button */
 	FReply SetRotation();
@@ -56,5 +56,5 @@ protected:
 	//~ End IDetailCustomization Interface.
 
 private:
-	class ARuntimeVirtualTexturePlane* VirtualTexturePlane;
+	class URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent;
 };

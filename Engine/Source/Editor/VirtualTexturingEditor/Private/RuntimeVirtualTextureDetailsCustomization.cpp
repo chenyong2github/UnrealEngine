@@ -153,32 +153,32 @@ void FRuntimeVirtualTextureDetailsCustomization::RefreshDetails()
 }
 
 
-FRuntimeVirtualTextureActorDetailsCustomization::FRuntimeVirtualTextureActorDetailsCustomization()
+FRuntimeVirtualTextureComponentDetailsCustomization::FRuntimeVirtualTextureComponentDetailsCustomization()
 {
 }
 
-TSharedRef<IDetailCustomization> FRuntimeVirtualTextureActorDetailsCustomization::MakeInstance()
+TSharedRef<IDetailCustomization> FRuntimeVirtualTextureComponentDetailsCustomization::MakeInstance()
 {
-	return MakeShareable(new FRuntimeVirtualTextureActorDetailsCustomization);
+	return MakeShareable(new FRuntimeVirtualTextureComponentDetailsCustomization);
 }
 
-void FRuntimeVirtualTextureActorDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	// Get and store the linked ARuntimeVirtualTexturePlane
+	// Get and store the linked ARuntimeRuntimeVirtualTextureComponent
 	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
 	DetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
 	if (ObjectsBeingCustomized.Num() > 1)
 	{
 		return;
 	}
-	VirtualTexturePlane = Cast<ARuntimeVirtualTexturePlane>(ObjectsBeingCustomized[0].Get());
-	if (VirtualTexturePlane == nullptr)
+	RuntimeVirtualTextureComponent = Cast<URuntimeVirtualTextureComponent>(ObjectsBeingCustomized[0].Get());
+	if (RuntimeVirtualTextureComponent == nullptr)
 	{
 		return;
 	}
 
 	// Use SourceActor property to add buttons
-	TSharedPtr<IPropertyHandle> SourceActorValue = DetailBuilder.GetProperty("SourceActor");
+	TSharedPtr<IPropertyHandle> SourceActorValue = DetailBuilder.GetProperty("BoundsSourceActor");
 	DetailBuilder.HideProperty(SourceActorValue);
 
 	IDetailCategoryBuilder& BoundsCategory = DetailBuilder.EditCategory("TransformFromBounds", FText::GetEmpty(), ECategoryPriority::Important);
@@ -218,7 +218,7 @@ void FRuntimeVirtualTextureActorDetailsCustomization::CustomizeDetails(IDetailLa
 						.HAlign(HAlign_Center)
 						.Text(LOCTEXT("Button_CopyRotation", "Copy Rotation"))
 						.ToolTipText(LOCTEXT("Button_CopyRotation_Tooltip", "Set the virtual texture rotation to match the source actor"))
-						.OnClicked(this, &FRuntimeVirtualTextureActorDetailsCustomization::SetRotation)
+						.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::SetRotation)
 					]
 
 					+ SVerticalBox::Slot()
@@ -228,7 +228,7 @@ void FRuntimeVirtualTextureActorDetailsCustomization::CustomizeDetails(IDetailLa
 						.HAlign(HAlign_Center)
 						.Text(LOCTEXT("Button_CopyBounds", "Copy Bounds"))
 						.ToolTipText(LOCTEXT("Button_CopyBounds_Tooltip", "Set the virtual texture transform so that it includes the full bounds of the source actor"))
-						.OnClicked(this, &FRuntimeVirtualTextureActorDetailsCustomization::SetTransformToBounds)
+						.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::SetTransformToBounds)
 					]
 				]
 			]
@@ -236,15 +236,15 @@ void FRuntimeVirtualTextureActorDetailsCustomization::CustomizeDetails(IDetailLa
 	];
 }
 
-FReply FRuntimeVirtualTextureActorDetailsCustomization::SetRotation()
+FReply FRuntimeVirtualTextureComponentDetailsCustomization::SetRotation()
 {
-	VirtualTexturePlane->SetRotation();
+	RuntimeVirtualTextureComponent->SetRotation();
 	return FReply::Handled();
 }
 
-FReply FRuntimeVirtualTextureActorDetailsCustomization::SetTransformToBounds()
+FReply FRuntimeVirtualTextureComponentDetailsCustomization::SetTransformToBounds()
 {
-	VirtualTexturePlane->SetTransformToBounds();
+	RuntimeVirtualTextureComponent->SetTransformToBounds();
 	return FReply::Handled();
 }
 

@@ -8,59 +8,72 @@
 
 class UMaterialInterface;
 class URuntimeVirtualTexture;
+class URuntimeVirtualTextureComponent;
 
-/** Actor used to place a URuntimeVirtualTexture in the world.
- *  todo[vt]: I think that this belongs in the Engine lib (not Landscape) but that requires removing the dependency on Renderer for direct creation of a FRuntimeVirtualTextureProducer
- *  todo[vt]: If we fix that and move to Engine then remove build dependency on Landscape in VirtualTexturingEditor.Build.cs
- */
+/** Actor used to place a URuntimeVirtualTexture in the world. */
 UCLASS(hidecategories=(Actor, Collision, Cooking, Input, LOD, Replication), MinimalAPI)
 class ARuntimeVirtualTexturePlane : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
-public:
-	/** Actor to copy the bounds from to set up the transform. */
-	UPROPERTY(EditAnywhere, DuplicateTransient, Category = TransformFromBounds)
-	AActor* SourceActor = nullptr;
-
-	/** The virtual texture object to use. */
-	UPROPERTY(EditAnywhere, DuplicateTransient, Category = VirtualTexture)
-	URuntimeVirtualTexture* VirtualTexture = nullptr;
-
 private:
+	/** Component that owns the runtime virtual texture. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (AllowPrivateAccess = "true"))
+	class URuntimeVirtualTextureComponent* VirtualTextureComponent;
+
 #if WITH_EDITORONLY_DATA
 	/** Box for visualizing virtual texture extents. */
 	UPROPERTY(Transient)
 	class UBoxComponent* Box = nullptr;
 #endif // WITH_EDITORONLY_DATA
 
-#if WITH_EDITOR
-	UFUNCTION(CallInEditor)
-	void OnVirtualTextureEditProperty(URuntimeVirtualTexture const* InVirtualTexture);
-#endif
+protected:
+	//~ Begin AActor Interface.
+	virtual void PostEditMove(bool bFinished) override;
+	virtual bool IsLevelBoundsRelevant() const override { return false; }
+	//~ End AActor Interface
+};
+
+/** Component used to place a URuntimeVirtualTexture in the world. */
+UCLASS(ClassGroup = Rendering, collapsecategories, hidecategories = (Activation, Collision, Cooking, Mobility, LOD, Object, Physics, Rendering), editinlinenew)
+class LANDSCAPE_API URuntimeVirtualTextureComponent : public USceneComponent
+{
+	GENERATED_UCLASS_BODY()
+
+private:
+	/** The virtual texture object to use. */
+	UPROPERTY(EditAnywhere, DuplicateTransient, Category = VirtualTexture)
+	URuntimeVirtualTexture* VirtualTexture = nullptr;
+
+	/** Actor to copy the bounds from to set up the transform. */
+	UPROPERTY(EditAnywhere, DuplicateTransient, Category = TransformFromBounds, meta = (DisplayName = "Source Actor"))
+	AActor* BoundsSourceActor = nullptr;
 
 public:
-#if WITH_EDITOR
-	/** Copy the rotation from SourceActor to this component. Called by our UI details customization. */
-	LANDSCAPE_API void SetRotation();
-
-	/** Set this component transform to include the SourceActor bounds. Called by our UI details customization. */
-	LANDSCAPE_API void SetTransformToBounds();
-#endif
-
-protected:
 	/** Call whenever we need to update the underlying URuntimeVirtualTexture. */
 	void UpdateVirtualTexture();
+
 	/** Call when we need to disconnect from the underlying URuntimeVirtualTexture. */
 	void ReleaseVirtualTexture();
 
-	//~ Begin AActor Interface.
-	virtual void PostRegisterAllComponents() override;
+#if WITH_EDITOR
+	UFUNCTION(CallInEditor)
+	void OnVirtualTextureEditProperty(URuntimeVirtualTexture const* InVirtualTexture);
+
+	/** Copy the rotation from SourceActor to this component. Called by our UI details customization. */
+	void SetRotation();
+
+	/** Set this component transform to include the SourceActor bounds. Called by our UI details customization. */
+	void SetTransformToBounds();
+#endif
+
+protected:
+	//~ Begin UObject Interface
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
-	virtual bool IsLevelBoundsRelevant() const override { return false; }
-#if WITH_EDITOR
-	virtual void PostEditMove(bool bFinished);
-#endif
-	//~ End AActor Interface.
+	//~ End UObject Interface
+
+	//~ Begin UActorComponent Interface
+	virtual void OnRegister() override;
+	//~ End UActorComponent Interface
 };

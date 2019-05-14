@@ -10,9 +10,10 @@
 ARuntimeVirtualTexturePlane::ARuntimeVirtualTexturePlane(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+	RootComponent = VirtualTextureComponent = CreateDefaultSubobject<URuntimeVirtualTextureComponent>(TEXT("VirtualTextureComponent"));
 
 #if WITH_EDITORONLY_DATA
+	// Add box for visualization of bounds
 	Box = CreateDefaultSubobject<UBoxComponent>(TEXT("Box"));
 	Box->SetBoxExtent(FVector(0.5f, 0.5f, 1.f), false);
 	Box->SetIsVisualizationComponent(true);
@@ -20,11 +21,51 @@ ARuntimeVirtualTexturePlane::ARuntimeVirtualTexturePlane(const FObjectInitialize
 	Box->SetCanEverAffectNavigation(false);
 	Box->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
 	Box->SetGenerateOverlapEvents(false);
-	Box->SetupAttachment(RootComponent);
+	Box->SetupAttachment(VirtualTextureComponent);
 #endif
 }
 
-void ARuntimeVirtualTexturePlane::UpdateVirtualTexture()
+#if WITH_EDITOR
+
+void ARuntimeVirtualTexturePlane::PostEditMove(bool bFinished)
+{
+	if (bFinished)
+	{
+		if (VirtualTextureComponent != nullptr)
+		{
+			VirtualTextureComponent->UpdateVirtualTexture();
+		}
+	}
+	Super::PostEditMove(bFinished);
+}
+
+#endif
+
+
+URuntimeVirtualTextureComponent::URuntimeVirtualTextureComponent(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+void URuntimeVirtualTextureComponent::OnRegister()
+{
+	Super::OnRegister();
+	UpdateVirtualTexture();
+}
+
+void URuntimeVirtualTextureComponent::PostLoad()
+{
+	Super::PostLoad();
+	UpdateVirtualTexture();
+}
+
+void URuntimeVirtualTextureComponent::BeginDestroy()
+{
+	ReleaseVirtualTexture();
+	Super::BeginDestroy();
+}
+
+void URuntimeVirtualTextureComponent::UpdateVirtualTexture()
 {
 	if (VirtualTexture != nullptr)
 	{
@@ -35,11 +76,11 @@ void ARuntimeVirtualTexturePlane::UpdateVirtualTexture()
 		const ERuntimeVirtualTextureMaterialType MaterialType = VirtualTexture->GetMaterialType();
 
 		// Transform is based on bottom left of the box
-		FTransform Transform = FTransform(FVector(-0.5f, -0.5f, 0.f)) * GetTransform();
-		
-		FRuntimeVirtualTextureProducer* Producer = new FRuntimeVirtualTextureProducer(Desc, MaterialType, RootComponent->GetScene(), Transform);
+		FTransform Transform = FTransform(FVector(-0.5f, -0.5f, 0.f)) * GetComponentToWorld();
+
+		FRuntimeVirtualTextureProducer* Producer = new FRuntimeVirtualTextureProducer(Desc, MaterialType, GetScene(), Transform);
 		VirtualTexture->Initialize(Producer, Transform);
-		
+
 #if WITH_EDITOR
 		// Bind function to ensure we call ReInit again if the virtual texture properties are modified
 		static const FName BinderFunction(TEXT("OnVirtualTextureEditProperty"));
@@ -48,7 +89,7 @@ void ARuntimeVirtualTexturePlane::UpdateVirtualTexture()
 	}
 }
 
-void ARuntimeVirtualTexturePlane::ReleaseVirtualTexture()
+void URuntimeVirtualTextureComponent::ReleaseVirtualTexture()
 {
 	if (VirtualTexture != nullptr)
 	{
@@ -60,27 +101,9 @@ void ARuntimeVirtualTexturePlane::ReleaseVirtualTexture()
 	}
 }
 
-void ARuntimeVirtualTexturePlane::PostRegisterAllComponents()
-{
-	Super::PostRegisterAllComponents();
-	UpdateVirtualTexture();
-}
-
-void ARuntimeVirtualTexturePlane::PostLoad()
-{
-	Super::PostLoad();
-	UpdateVirtualTexture();
-}
-
-void ARuntimeVirtualTexturePlane::BeginDestroy()
-{
-	ReleaseVirtualTexture();
-	Super::BeginDestroy();
-}
-
 #if WITH_EDITOR
 
-void ARuntimeVirtualTexturePlane::OnVirtualTextureEditProperty(URuntimeVirtualTexture const* InVirtualTexture)
+void URuntimeVirtualTextureComponent::OnVirtualTextureEditProperty(URuntimeVirtualTexture const* InVirtualTexture)
 {
 	if (InVirtualTexture == VirtualTexture)
 	{
@@ -88,41 +111,31 @@ void ARuntimeVirtualTexturePlane::OnVirtualTextureEditProperty(URuntimeVirtualTe
 	}
 }
 
-void ARuntimeVirtualTexturePlane::PostEditMove(bool bFinished)
+void URuntimeVirtualTextureComponent::SetRotation()
 {
-	if (bFinished)
+	if (BoundsSourceActor != nullptr)
 	{
-		UpdateVirtualTexture();
-	}
-	Super::PostEditMove(bFinished);
-}
-
-void ARuntimeVirtualTexturePlane::SetRotation()
-{
-	if (SourceActor != nullptr)
-	{
-		RootComponent->SetWorldRotation(SourceActor->GetTransform().GetRotation());
-
-		// Update the virtual texture to match the new transform
-		UpdateVirtualTexture();
+		// Copy the source actor rotation and notify the parent actor
+		SetWorldRotation(BoundsSourceActor->GetTransform().GetRotation());
+		GetOwner()->PostEditMove(true);
 	}
 }
 
-void ARuntimeVirtualTexturePlane::SetTransformToBounds()
+void URuntimeVirtualTextureComponent::SetTransformToBounds()
 {
-	if (SourceActor != nullptr)
+	if (BoundsSourceActor != nullptr)
 	{
-		// Calculate the bounds in our local rotation space translated to the SourceActor center
-		const FQuat TargetRotation = GetTransform().GetRotation();
-		const FVector InitialPosition = SourceActor->GetComponentsBoundingBox().GetCenter();
+		// Calculate the bounds in our local rotation space translated to the BoundsSourceActor center
+		const FQuat TargetRotation = GetComponentToWorld().GetRotation();
+		const FVector InitialPosition = BoundsSourceActor->GetComponentsBoundingBox().GetCenter();
 		const FVector InitialScale = FVector(0.5f, 0.5, 1.f);
 
 		FTransform LocalTransform;
 		LocalTransform.SetComponents(TargetRotation, InitialPosition, InitialScale);
 		FTransform WorldToLocal = LocalTransform.Inverse();
 
-		FBox Bounds(ForceInit);
-		for (const UActorComponent* Component : SourceActor->GetComponents())
+		FBox BoundBox(ForceInit);
+		for (const UActorComponent* Component : BoundsSourceActor->GetComponents())
 		{
 			// Only gather visual components in the bounds calculation
 			const UPrimitiveComponent* PrimitiveComponent = Cast<const UPrimitiveComponent>(Component);
@@ -130,24 +143,23 @@ void ARuntimeVirtualTexturePlane::SetTransformToBounds()
 			{
 				const FTransform ComponentToActor = PrimitiveComponent->GetComponentTransform() * WorldToLocal;
 				FBoxSphereBounds LocalSpaceComponentBounds = PrimitiveComponent->CalcBounds(ComponentToActor);
-				Bounds += LocalSpaceComponentBounds.GetBox();
+				BoundBox += LocalSpaceComponentBounds.GetBox();
 			}
 		}
 
 		// Create transform from bounds
 		FVector Origin;
 		FVector Extent;
-		Bounds.GetCenterAndExtents(Origin, Extent);
+		BoundBox.GetCenterAndExtents(Origin, Extent);
 
 		Origin = LocalTransform.TransformPosition(Origin);
 
 		FTransform Transform;
 		Transform.SetComponents(TargetRotation, Origin, Extent);
 
-		RootComponent->SetWorldTransform(Transform);
-
-		// Update the virtual texture to match the new transform
-		UpdateVirtualTexture();
+		// Apply final result and notify the parent actor
+		SetWorldTransform(Transform);
+		GetOwner()->PostEditMove(true);
 	}
 }
 
