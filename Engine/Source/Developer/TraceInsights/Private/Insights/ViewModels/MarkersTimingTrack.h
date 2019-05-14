@@ -141,7 +141,7 @@ public:
 	FMarkersTimingTrack& Track;
 	const FTimingTrackViewport& Viewport;
 
-	const TSharedRef<FSlateFontMeasure> FontMeasureService;
+	const TSharedRef<class FSlateFontMeasure> FontMeasureService;
 	const FSlateFontInfo Font;
 
 	const Trace::ILogProvider* LogProviderPtr; // valid only between BeginLog() and EndLog()
