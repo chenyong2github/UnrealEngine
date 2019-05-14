@@ -14,6 +14,7 @@
 #include "PipelineStateCache.h"
 #include "SceneViewFamilyBlackboard.h"
 #include "BlueNoise.h"
+#include "Halton.h"
 
 
 // ---------------------------------------------------- Cvars
