@@ -120,7 +120,7 @@ struct FLoadTimeProfilerTracePrivate
 	FLoadTimeProfilerTracePrivate::FFlushAsyncLoadingScope __LoadTimeTraceFlushAsyncLoadingScope(RequestId);
 
 #define TRACE_LOADTIME_CLASS_INFO(Class, Name) \
-	FMiscTrace::OutputClassInfo(Class, Name);
+	FLoadTimeProfilerTracePrivate::OutputClassInfo(Class, Name);
 
 #else
 

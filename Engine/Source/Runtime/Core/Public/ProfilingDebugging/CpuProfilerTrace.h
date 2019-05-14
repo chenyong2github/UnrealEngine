@@ -59,16 +59,6 @@ struct FCpuProfilerDynamicEventScope
 	}
 };
 
-#define TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(Name, Group) \
-	static uint16 PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__); \
-	if (PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__) == 0) { \
-		PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__) = FCpuProfilerEventSpec::AssignId(L###Name, Group); \
-	} \
-	FCpuProfilerEventScope PREPROCESSOR_JOIN(__CpuProfilerEventScope, __LINE__)(PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__));
-
-#define TRACE_CPUPROFILER_EVENT_SCOPE(Name) \
-	TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(Name, CpuProfilerGroup_Default);
-
 #define TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_GROUP(Name, Group) \
 	static uint16 PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__); \
 	if (PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__) == 0) { \
@@ -78,6 +68,12 @@ struct FCpuProfilerDynamicEventScope
 
 #define TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(Name) \
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_GROUP(Name, CpuProfilerGroup_Default)
+
+#define TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(Name, Group) \
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_GROUP(TEXT(#Name), Group);
+
+#define TRACE_CPUPROFILER_EVENT_SCOPE(Name) \
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_GROUP(TEXT(#Name), CpuProfilerGroup_Default);
 
 #define TRACE_CPUPROFILER_DYNAMIC_EVENT_SCOPE(Name) \
 	FCpuProfilerDynamicEventScope ANONYMOUS_VARIABLE(__Scope)(Name);
