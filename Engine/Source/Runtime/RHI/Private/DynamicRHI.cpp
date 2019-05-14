@@ -384,6 +384,11 @@ FRHIPooledRenderQuery FDefaultRHIRenderQueryPool::AllocateQuery()
 
 void FDefaultRHIRenderQueryPool::ReleaseQuery(TRefCountPtr<FRHIRenderQuery>&& Query)
 {
+	if (QueryType == ERenderQueryType::RQT_Occlusion)
+	{
+		static int dbg = 0;
+		dbg++;
+	}
 	check(IsInRenderingThread());
 	//Hard to validate because of Resource resurrection, better to remove GetQueryRef entirely
 	//checkf(Query.IsValid() && Query.GetRefCount() <= 2, TEXT("Query has been released but reference still held: use FRHIPooledRenderQuery::GetQueryRef() with extreme caution"));

@@ -86,7 +86,7 @@ public:
 	FPrimitiveComponentId PrimitiveId;
 
 	/** The occlusion query which contains the primitive's pending occlusion results. */
-	FRenderQueryRHIRef PendingOcclusionQuery[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
+	FRefCountedRHIPooledRenderQuery PendingOcclusionQuery[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
 	uint32 PendingOcclusionQueryFrames[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames]; 
 
 	uint32 LastTestFrameNumber;
@@ -133,7 +133,7 @@ private:
 	 *	Conditions where this is needed to get a query for read-back are described for bNeedsScanOnRead.
 	 *	Returns -1 if no such query exists in the occlusion history.
 	 */
-	FORCEINLINE int32 ScanOldestNonStaleQueryIndex(uint32 FrameNumber, int32 NumBufferedFrames, int32 LagTolerance) const
+	inline int32 ScanOldestNonStaleQueryIndex(uint32 FrameNumber, int32 NumBufferedFrames, int32 LagTolerance) const
 	{
 		uint32 OldestFrame = UINT32_MAX;
 		int32 OldestQueryIndex = -1;
@@ -152,7 +152,7 @@ private:
 
 public:
 	/** Initialization constructor. */
-	FORCEINLINE FPrimitiveOcclusionHistory(FPrimitiveComponentId InPrimitiveId, int32 SubQuery)
+	inline FPrimitiveOcclusionHistory(FPrimitiveComponentId InPrimitiveId, int32 SubQuery)
 		: PrimitiveId(InPrimitiveId)
 		, LastTestFrameNumber(~0u)
 		, LastConsideredFrameNumber(~0u)
@@ -173,7 +173,7 @@ public:
 		}
 	}
 
-	FORCEINLINE FPrimitiveOcclusionHistory()
+	inline FPrimitiveOcclusionHistory()
 		: LastTestFrameNumber(~0u)
 		, LastConsideredFrameNumber(~0u)
 		, HZBTestIndex(0)
@@ -193,8 +193,7 @@ public:
 		}
 	}
 
-	template<class TOcclusionQueryPool> // here we use a template just to allow this to be inlined without sorting out the header order
-	FORCEINLINE void ReleaseStaleQueries(TOcclusionQueryPool& Pool, uint32 FrameNumber, int32 NumBufferedFrames)
+	inline void ReleaseStaleQueries(uint32 FrameNumber, int32 NumBufferedFrames)
 	{
 		for (uint32 DeltaFrame = NumBufferedFrames; DeltaFrame > 0; DeltaFrame--)
 		{
@@ -202,35 +201,32 @@ public:
 			{
 				uint32 TestFrame = FrameNumber - (DeltaFrame - 1);
 				const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(TestFrame, NumBufferedFrames);
-				if (PendingOcclusionQuery[QueryIndex].GetReference() && PendingOcclusionQueryFrames[QueryIndex] != TestFrame)
+				if (PendingOcclusionQueryFrames[QueryIndex] != TestFrame)
 				{
-					Pool.ReleaseQuery(PendingOcclusionQuery[QueryIndex]);
+					PendingOcclusionQuery[QueryIndex].ReleaseQuery();
 				}
 			}
 		}
 	}
-	template<class TOcclusionQueryPool> // here we use a template just to allow this to be inlined without sorting out the header order
-	FORCEINLINE void ReleaseQuery(TOcclusionQueryPool& Pool, uint32 FrameNumber, int32 NumBufferedFrames)
+
+	inline void ReleaseQuery(uint32 FrameNumber, int32 NumBufferedFrames)
 	{
 		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(FrameNumber, NumBufferedFrames);
-		if (PendingOcclusionQuery[QueryIndex].IsValid())
-		{
-			Pool.ReleaseQuery(PendingOcclusionQuery[QueryIndex]);
-		}
+		PendingOcclusionQuery[QueryIndex].ReleaseQuery();
 	}
 
-	FORCEINLINE FRenderQueryRHIParamRef GetQueryForEviction(uint32 FrameNumber, int32 NumBufferedFrames) const
+	inline FRHIRenderQuery* GetQueryForEviction(uint32 FrameNumber, int32 NumBufferedFrames) const
 	{
 		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(FrameNumber, NumBufferedFrames);
 		if (PendingOcclusionQuery[QueryIndex].IsValid())
 		{
-			return PendingOcclusionQuery[QueryIndex].GetReference();
+			return PendingOcclusionQuery[QueryIndex].GetQuery();
 		}
 		return nullptr;
 	}
 
 
-	FORCEINLINE FRenderQueryRHIParamRef GetQueryForReading(uint32 FrameNumber, int32 NumBufferedFrames, int32 LagTolerance, bool& bOutGrouped) const
+	inline FRHIRenderQuery* GetQueryForReading(uint32 FrameNumber, int32 NumBufferedFrames, int32 LagTolerance, bool& bOutGrouped) const
 	{
 		const int32 OldestQueryIndex = bNeedsScanOnRead ? ScanOldestNonStaleQueryIndex(FrameNumber, NumBufferedFrames, LagTolerance)
 														: FOcclusionQueryHelpers::GetQueryLookupIndex(FrameNumber, NumBufferedFrames);
@@ -241,21 +237,21 @@ public:
 			return nullptr;
 		}
 		bOutGrouped = bGroupedQuery[OldestQueryIndex];
-		return PendingOcclusionQuery[OldestQueryIndex];
+		return PendingOcclusionQuery[OldestQueryIndex].GetQuery();
 	}
 
-	FORCEINLINE void SetCurrentQuery(uint32 FrameNumber, FRenderQueryRHIParamRef NewQuery, int32 NumBufferedFrames, bool bGrouped, bool bNeedsScan)
+	inline void SetCurrentQuery(uint32 FrameNumber, FRefCountedRHIPooledRenderQuery&& NewQuery, int32 NumBufferedFrames, bool bGrouped, bool bNeedsScan)
 	{
 		// Get the current occlusion query
 		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryIssueIndex(FrameNumber, NumBufferedFrames);
-		PendingOcclusionQuery[QueryIndex] = NewQuery;
+		PendingOcclusionQuery[QueryIndex] = MoveTemp(NewQuery);
 		PendingOcclusionQueryFrames[QueryIndex] = FrameNumber;
 		bGroupedQuery[QueryIndex] = bGrouped;
 
 		bNeedsScanOnRead = bNeedsScan;
 	}
 
-	FORCEINLINE uint32 LastQuerySubmitFrame() const
+	inline uint32 LastQuerySubmitFrame() const
 	{
 		uint32 Result = 0;
 
@@ -312,13 +308,12 @@ struct FPrimitiveOcclusionHistoryKeyFuncs : BaseKeyFuncs<FPrimitiveOcclusionHist
 
 class FIndividualOcclusionHistory
 {
-	FRenderQueryRHIRef PendingOcclusionQuery[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
+	FRHIPooledRenderQuery PendingOcclusionQuery[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
 	uint32 PendingOcclusionQueryFrames[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames]; // not intialized...this is ok
 
 public:
 
-	template<class TOcclusionQueryPool> // here we use a template just to allow this to be inlined without sorting out the header order
-	FORCEINLINE void ReleaseStaleQueries(TOcclusionQueryPool& Pool, uint32 FrameNumber, int32 NumBufferedFrames)
+	inline void ReleaseStaleQueries(uint32 FrameNumber, int32 NumBufferedFrames)
 	{
 		for (uint32 DeltaFrame = NumBufferedFrames; DeltaFrame > 0; DeltaFrame--)
 		{
@@ -326,39 +321,35 @@ public:
 			{
 				uint32 TestFrame = FrameNumber - (DeltaFrame - 1);
 				const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(TestFrame, NumBufferedFrames);
-				if (PendingOcclusionQuery[QueryIndex].GetReference() && PendingOcclusionQueryFrames[QueryIndex] != TestFrame)
+				if (PendingOcclusionQueryFrames[QueryIndex] != TestFrame)
 				{
-					Pool.ReleaseQuery(PendingOcclusionQuery[QueryIndex]);
+					PendingOcclusionQuery[QueryIndex].ReleaseQuery();
 				}
 			}
 		}
 	}
-	template<class TOcclusionQueryPool> // here we use a template just to allow this to be inlined without sorting out the header order
-	FORCEINLINE void ReleaseQuery(TOcclusionQueryPool& Pool, uint32 FrameNumber, int32 NumBufferedFrames)
+	inline void ReleaseQuery(uint32 FrameNumber, int32 NumBufferedFrames)
 	{
 		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(FrameNumber, NumBufferedFrames);
-		if (PendingOcclusionQuery[QueryIndex].GetReference())
-		{
-			Pool.ReleaseQuery(PendingOcclusionQuery[QueryIndex]);
-		}
+		PendingOcclusionQuery[QueryIndex].ReleaseQuery();
 	}
 
-	FORCEINLINE FRenderQueryRHIParamRef GetPastQuery(uint32 FrameNumber, int32 NumBufferedFrames)
+	inline FRHIRenderQuery* GetPastQuery(uint32 FrameNumber, int32 NumBufferedFrames)
 	{
 		// Get the oldest occlusion query
 		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(FrameNumber, NumBufferedFrames);
-		if (PendingOcclusionQuery[QueryIndex].GetReference() && PendingOcclusionQueryFrames[QueryIndex] == FrameNumber - uint32(NumBufferedFrames))
+		if (PendingOcclusionQuery[QueryIndex].GetQuery() && PendingOcclusionQueryFrames[QueryIndex] == FrameNumber - uint32(NumBufferedFrames))
 		{
-			return PendingOcclusionQuery[QueryIndex].GetReference();
+			return PendingOcclusionQuery[QueryIndex].GetQuery();
 		}
 		return nullptr;
 	}
 
-	FORCEINLINE void SetCurrentQuery(uint32 FrameNumber, FRenderQueryRHIParamRef NewQuery, int32 NumBufferedFrames)
+	inline void SetCurrentQuery(uint32 FrameNumber, FRHIPooledRenderQuery&& NewQuery, int32 NumBufferedFrames)
 	{
 		// Get the current occlusion query
 		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryIssueIndex(FrameNumber, NumBufferedFrames);
-		PendingOcclusionQuery[QueryIndex] = NewQuery;
+		PendingOcclusionQuery[QueryIndex] = MoveTemp(NewQuery);
 		PendingOcclusionQueryFrames[QueryIndex] = FrameNumber;
 	}
 };
@@ -502,7 +493,7 @@ public:
 	}
 
 	/** @return A random number between 0 and 1. */
-	FORCEINLINE float GetFraction()
+	inline float GetFraction()
 	{
 		if (CurrentSample >= NumSamples)
 		{
@@ -649,7 +640,7 @@ public:
 	{
 	public:
 
-		FORCEINLINE bool operator == (const FProjectedShadowKey &Other) const
+		inline bool operator == (const FProjectedShadowKey &Other) const
 		{
 			return (PrimitiveId == Other.PrimitiveId && Light == Other.Light && ShadowSplitIndex == Other.ShadowSplitIndex && bTranslucentShadow == Other.bTranslucentShadow);
 		}
@@ -670,7 +661,7 @@ public:
 		{
 		}
 
-		friend FORCEINLINE uint32 GetTypeHash(const FSceneViewState::FProjectedShadowKey& Key)
+		friend inline uint32 GetTypeHash(const FSceneViewState::FProjectedShadowKey& Key)
 		{
 			return PointerHash(Key.Light,GetTypeHash(Key.PrimitiveId));
 		}
@@ -683,11 +674,11 @@ public:
 	};
 
 	uint32 UniqueID;
-	typedef TMap<FSceneViewState::FProjectedShadowKey, FRenderQueryRHIRef> ShadowKeyOcclusionQueryMap;
+	typedef TMap<FSceneViewState::FProjectedShadowKey, FRHIPooledRenderQuery> ShadowKeyOcclusionQueryMap;
 	TArray<ShadowKeyOcclusionQueryMap, TInlineAllocator<FOcclusionQueryHelpers::MaxBufferedOcclusionFrames> > ShadowOcclusionQueryMaps;
 
 	/** The view's occlusion query pool. */
-	FRenderQueryPool OcclusionQueryPool;
+	FRenderQueryPoolRHIRef OcclusionQueryPool;
 
 	FHZBOcclusionTester HZBOcclusionTests;
 
@@ -2332,7 +2323,7 @@ struct MeshDrawCommandKeyFuncs : DefaultKeyFuncs<FMeshDrawCommandStateBucket,fal
 	/**
 	 * @return True if the keys match.
 	 */
-	static FORCEINLINE bool Matches(KeyInitType A,KeyInitType B)
+	static inline bool Matches(KeyInitType A,KeyInitType B)
 	{
 		return A.MatchesForDynamicInstancing(B);
 	}
@@ -2340,13 +2331,13 @@ struct MeshDrawCommandKeyFuncs : DefaultKeyFuncs<FMeshDrawCommandStateBucket,fal
 	/**
 	 * @return The key used to index the given element.
 	 */
-	static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
+	static inline KeyInitType GetSetKey(ElementInitType Element)
 	{
 		return Element.MeshDrawCommand;
 	}
 
 	/** Calculates a hash index for a key. */
-	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+	static inline uint32 GetKeyHash(KeyInitType Key)
 	{
 		return PointerHash(Key.IndexBuffer, GetTypeHash(Key.CachedPipelineId.GetId()));
 	}

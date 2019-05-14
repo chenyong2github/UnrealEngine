@@ -952,12 +952,12 @@ public:
 	FRHIPooledRenderQuery(FRHIPooledRenderQuery&&) = default;
 	FRHIPooledRenderQuery& operator=(FRHIPooledRenderQuery&&) = default;
 
-	FRHIRenderQuery* GetQuery() const
+	bool IsValid() const
 	{
-		return Query;
+		return Query.IsValid();
 	}
 
-	TRefCountPtr<FRHIRenderQuery> GetQueryRef() const
+	FRHIRenderQuery* GetQuery() const
 	{
 		return Query;
 	}

@@ -223,6 +223,101 @@ struct FOcclusionPrimitive
 	FVector Extent;
 };
 
+class FRefCountedRHIPooledRenderQuery
+{
+public:
+	FRefCountedRHIPooledRenderQuery() : FRefCountedRHIPooledRenderQuery(FRHIPooledRenderQuery())
+	{
+	}
+
+	explicit FRefCountedRHIPooledRenderQuery(FRHIPooledRenderQuery&& InQuery)
+	{
+		char* data = new char[sizeof(FRHIPooledRenderQuery) + sizeof(int)];
+		Query = new (data) FRHIPooledRenderQuery();
+		RefCount = new (data + sizeof(FRHIPooledRenderQuery)) int(1);
+		*Query = MoveTemp(InQuery);
+	}
+
+	~FRefCountedRHIPooledRenderQuery()
+	{
+		Deref();
+	}
+
+	bool IsValid() const
+	{
+		return Query && Query->IsValid();
+	}
+
+	FRHIRenderQuery* GetQuery() const
+	{
+		return Query ? Query->GetQuery() : nullptr;
+	}
+
+	void ReleaseQuery()
+	{
+		Deref();
+	}
+
+	FRefCountedRHIPooledRenderQuery(const FRefCountedRHIPooledRenderQuery& Other)
+	{
+		Other.Addref();
+		RefCount = Other.RefCount;
+		Query = Other.Query;
+	}
+
+	FRefCountedRHIPooledRenderQuery& operator= (const FRefCountedRHIPooledRenderQuery& Other)
+	{
+		Other.Addref();
+		Deref();
+		RefCount = Other.RefCount;
+		Query = Other.Query;
+
+		return *this;
+	}
+
+	FRefCountedRHIPooledRenderQuery(FRefCountedRHIPooledRenderQuery&& Other)
+	{
+		RefCount = Other.RefCount;
+		Query = Other.Query;
+		Other.RefCount = nullptr;
+		Other.Query = nullptr;
+	}
+
+	FRefCountedRHIPooledRenderQuery& operator=(FRefCountedRHIPooledRenderQuery&& Other)
+	{
+		Deref();
+		RefCount = Other.RefCount;
+		Query = Other.Query;
+		Other.RefCount = nullptr;
+		Other.Query = nullptr;
+
+		return *this;
+	}
+
+private:
+	void Addref() const
+	{
+		check(RefCount != nullptr);
+		(*RefCount)++;
+	}
+
+	void Deref()
+	{
+		if (RefCount && --(*RefCount) == 0)
+		{
+			Query->~FRHIPooledRenderQuery();
+			char* data = reinterpret_cast<char*>(Query);
+			delete[] data;
+		}
+
+		Query = nullptr;
+		RefCount = nullptr;
+	}
+
+	mutable int* RefCount = nullptr;
+	FRHIPooledRenderQuery* Query = nullptr;
+};
+
 /**
  * Combines consecutive primitives which use the same occlusion query into a single DrawIndexedPrimitive call.
  */
@@ -249,7 +344,7 @@ public:
 	 * Batches a primitive's occlusion query for rendering.
 	 * @param Bounds - The primitive's bounds.
 	 */
-	FRenderQueryRHIParamRef BatchPrimitive(const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
+	FRefCountedRHIPooledRenderQuery BatchPrimitive(const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
 	inline int32 GetNumBatchOcclusionQueries() const
 	{
 		return BatchOcclusionQueries.Num();
@@ -259,7 +354,7 @@ private:
 
 	struct FOcclusionBatch
 	{
-		FRenderQueryRHIRef Query;
+		FRefCountedRHIPooledRenderQuery Query;
 		FGlobalDynamicVertexBuffer::FAllocation VertexAllocation;
 	};
 
@@ -276,7 +371,7 @@ private:
 	uint32 NumBatchedPrimitives;
 
 	/** The pool to allocate occlusion queries from. */
-	class FRenderQueryPool* OcclusionQueryPool;
+	TRefCountPtr<FRHIRenderQueryPool> OcclusionQueryPool;
 };
 
 class FHZBOcclusionTester : public FRenderResource
