@@ -65,6 +65,11 @@ namespace ResonanceAudio
 
 		virtual TAmbisonicsMixerPtr CreateNewAmbisonicsMixer(FAudioDevice* OwningDevice) override;
 
+		virtual int32 GetMaxSupportedChannels() override
+		{
+			return 2;
+		}
+
 	};
 
 	/******************************************************/
@@ -143,9 +148,15 @@ namespace ResonanceAudio
 		// Returns Resonance Audio API dynamic library handle.
 		static void* GetResonanceAudioDynamicLibraryHandle() { return ResonanceAudioDynamicLibraryHandle; };
 
+		// Returns the global spatialization source settings set in the project settings
+		static UResonanceAudioSpatializationSourceSettings* GetGlobalSpatializationSourceSettings();
+
 	private:
 		// Resonance Audio API dynamic library handle.
 		static void* ResonanceAudioDynamicLibraryHandle;
+
+		// The global resonance audio spatialization source settings
+		static UResonanceAudioSpatializationSourceSettings* GlobalSpatializationSourceSettings;
 
 		// List of registered audio devices.
 		TArray<FAudioDevice*> RegisteredAudioDevices;
