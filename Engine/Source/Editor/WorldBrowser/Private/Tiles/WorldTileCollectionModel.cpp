@@ -1471,10 +1471,9 @@ void FWorldTileCollectionModel::AddLandscapeProxy_Executed(FWorldTileModel::EWor
 		Levels.Add(NewLevelModel);
 
 		ALandscapeProxy* SourceLandscape = LandscapeTileModel->GetLandscape();
-		FIntVector SourceTileOffset = LandscapeTileModel->GetAbsoluteLevelPosition();
-
+	
 		NewLevelModel->SetVisible(false);
-		NewLevelModel->CreateAdjacentLandscapeProxy(SourceLandscape, SourceTileOffset, InWhere);
+		NewLevelModel->CreateAdjacentLandscapeProxy(SourceLandscape, InWhere);
 		ShowLevels(Levels);
 	}
 }

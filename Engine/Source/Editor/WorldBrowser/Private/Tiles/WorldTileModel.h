@@ -148,7 +148,7 @@ public:
 	FBox GetLevelBounds() const override;
 	
 	/** Translate level center to new position */
-	void SetLevelPosition(const FIntVector& InPosition);
+	void SetLevelPosition(const FIntVector& InPosition, const FIntPoint* InLandscapeSectionOffset = nullptr);
 
 	/** Recursively sort all children by name */
 	void SortRecursive();
@@ -163,7 +163,7 @@ public:
 	ULevelStreaming* GetAssosiatedStreamingLevel() { return GetAssociatedStreamingLevel(); }
 
 	/**  */
-	bool CreateAdjacentLandscapeProxy(ALandscapeProxy* SourceLandscape, const FIntVector& SourceTileOffset, FWorldTileModel::EWorldDirections InWhere);
+	bool CreateAdjacentLandscapeProxy(ALandscapeProxy* SourceLandscape, FWorldTileModel::EWorldDirections InWhere);
 
 	/**  */
 	ALandscapeProxy* ImportLandscapeTile(const FLandscapeImportSettings& Settings);
