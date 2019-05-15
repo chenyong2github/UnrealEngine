@@ -1227,7 +1227,7 @@ bool ULocalPlayer::HandleListSkelMeshesCommand( const TCHAR* Cmd, FOutputDevice&
 				check(SkeletalMeshComponent);
 				UWorld* World = SkeletalMeshComponent->GetWorld();
 				check(World);
-				float TimeSinceLastRender = World->GetTimeSeconds() - SkeletalMeshComponent->LastRenderTime;
+				float TimeSinceLastRender = World->GetTimeSeconds() - SkeletalMeshComponent->GetLastRenderTime();
 
 				UE_LOG(LogPlayerManagement, Log, TEXT("%s%2i  Component    : %s"),
 					(TimeSinceLastRender > 0.5) ? TEXT(" ") : TEXT("*"),
