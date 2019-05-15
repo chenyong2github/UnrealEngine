@@ -95,7 +95,11 @@ template <typename T> struct TListTypeTraits< TSharedPtr<T, ESPMode::NotThreadSa
 public:
 	typedef TSharedPtr<T> NullableType;
 
-	static void AddReferencedObjects( FReferenceCollector&, TArray< TSharedPtr<T> >&, TSet< TSharedPtr<T> >&  )
+	template<typename U>
+	static void AddReferencedObjects( FReferenceCollector&, 
+		TArray< TSharedPtr<T> >&, 
+		TSet< TSharedPtr<T> >&, 
+		TMap< const U*, TSharedPtr<T> >& )
 	{
 	}
 
@@ -128,7 +132,11 @@ template <typename T> struct TListTypeTraits< TSharedPtr<T, ESPMode::ThreadSafe>
 public:
 	typedef TSharedPtr<T, ESPMode::ThreadSafe> NullableType;
 
-	static void AddReferencedObjects( FReferenceCollector&, TArray< TSharedPtr<T, ESPMode::ThreadSafe> >&, TSet< TSharedPtr<T, ESPMode::ThreadSafe> >&  )
+	template<typename U>
+	static void AddReferencedObjects( FReferenceCollector&, 
+		TArray< TSharedPtr<T, ESPMode::ThreadSafe> >&, 
+		TSet< TSharedPtr<T, ESPMode::ThreadSafe> >&, 
+		TMap< const U*, TSharedPtr<T, ESPMode::ThreadSafe> >& WidgetToItemMap)
 	{
 	}
 
@@ -161,7 +169,11 @@ template <typename T> struct TListTypeTraits< TSharedRef<T, ESPMode::NotThreadSa
 public:
 	typedef TSharedPtr<T> NullableType;
 
-	static void AddReferencedObjects( FReferenceCollector&, TArray< TSharedRef<T> >&, TSet< TSharedRef<T> >&  )
+	template<typename U>
+	static void AddReferencedObjects( FReferenceCollector&, 
+		TArray< TSharedRef<T> >&, 
+		TSet< TSharedRef<T> >&, 
+		TMap< const U*, TSharedRef<T> >& )
 	{
 	}
 
@@ -194,7 +206,11 @@ template <typename T> struct TListTypeTraits< TSharedRef<T, ESPMode::ThreadSafe>
 public:
 	typedef TSharedPtr<T, ESPMode::ThreadSafe> NullableType;
 
-	static void AddReferencedObjects( FReferenceCollector&, TArray< TSharedRef<T, ESPMode::ThreadSafe> >&, TSet< TSharedRef<T, ESPMode::ThreadSafe> >&  )
+	template<typename U>
+	static void AddReferencedObjects( FReferenceCollector&, 
+		TArray< TSharedRef<T, ESPMode::ThreadSafe> >&, 
+		TSet< TSharedRef<T, ESPMode::ThreadSafe> >&,
+		TMap< const U*, TSharedRef<T, ESPMode::ThreadSafe> >&)
 	{
 	}
 
@@ -230,7 +246,11 @@ template <typename T> struct TListTypeTraits< TWeakObjectPtr<T> >
 public:
 	typedef TWeakObjectPtr<T> NullableType;
 
-	static void AddReferencedObjects( FReferenceCollector&, TArray< TWeakObjectPtr<T> >&, TSet< TWeakObjectPtr<T> >&  )
+	template<typename U>
+	static void AddReferencedObjects( FReferenceCollector&, 
+		TArray< TWeakObjectPtr<T> >&,
+		TSet< TWeakObjectPtr<T> >&,
+		TMap< const U*, TWeakObjectPtr<T> >&)
 	{
 	}
 
@@ -269,10 +289,21 @@ struct TListTypeTraits<T*, typename TEnableIf<TPointerIsConvertibleFromTo<T, UOb
 public:
 	typedef T* NullableType;
 
-	static void AddReferencedObjects( FReferenceCollector& Collector, TArray<T*>& ItemsWithGeneratedWidgets, TSet<T*>& SelectedItems )
+	template<typename U>
+	static void AddReferencedObjects( FReferenceCollector& Collector, 
+		TArray<T*>& ItemsWithGeneratedWidgets, 
+		TSet<T*>& SelectedItems, 
+		TMap< const U*, T* >& WidgetToItemMap)
 	{
 		// Serialize generated items
 		Collector.AddReferencedObjects(ItemsWithGeneratedWidgets);
+		
+		// Serialize the map Value. We only do it for the WidgetToItemMap because we know that both maps are updated at the same time and contains the same objects
+		// Also, we cannot AddReferencedObject to the Keys of the ItemToWidgetMap or we end up with keys being set to 0 when the UObject is destroyed which generate an invalid id in the map.
+		for (auto& It : WidgetToItemMap)
+		{
+			Collector.AddReferencedObject(*(UObject**)&It.Value);
+		}
 
 		// Serialize the selected items
 		Collector.AddReferencedObjects(SelectedItems);
@@ -295,10 +326,21 @@ struct TListTypeTraits<const T*, typename TEnableIf<TPointerIsConvertibleFromTo<
 public:
 	typedef const T* NullableType;
 
-	static void AddReferencedObjects( FReferenceCollector& Collector, TArray<const T*>& ItemsWithGeneratedWidgets, TSet<const T*>& SelectedItems )
+	template<typename U>
+	static void AddReferencedObjects( FReferenceCollector& Collector, 
+		TArray<const T*>& ItemsWithGeneratedWidgets, 
+		TSet<const T*>& SelectedItems,
+		TMap< const U*, const T* >& WidgetToItemMap)
 	{
 		// Serialize generated items
 		Collector.AddReferencedObjects(ItemsWithGeneratedWidgets);
+
+		// Serialize the map Value. We only do it for the WidgetToItemMap because we know that both maps are updated at the same time and contains the same objects
+		// Also, we cannot AddReferencedObject to the Keys of the ItemToWidgetMap or we end up with keys being set to 0 when the UObject is destroyed which generate an invalid id in the map.
+		for (auto& It : WidgetToItemMap)
+		{
+			Collector.AddReferencedObject(*(UObject**)&It.Value);
+		}
 
 		// Serialize the selected items
 		Collector.AddReferencedObjects(SelectedItems);
