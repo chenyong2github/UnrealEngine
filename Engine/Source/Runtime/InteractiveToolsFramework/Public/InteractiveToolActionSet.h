@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericApplication.h"
+#include "InputCoreTypes.h"
 
 class UInteractiveTool;
-
 
 
 /**
