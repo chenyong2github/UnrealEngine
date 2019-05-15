@@ -204,12 +204,12 @@ struct FBXImportOptions
 	//This data allow to override some fbx Material(point by the uint64 id) with existing unreal material asset
 	TMap<uint64, class UMaterialInterface*> OverrideMaterials;
 
-	bool ShouldImportNormals()
+	bool ShouldImportNormals() const
 	{
 		return NormalImportMethod == FBXNIM_ImportNormals || NormalImportMethod == FBXNIM_ImportNormalsAndTangents;
 	}
 
-	bool ShouldImportTangents()
+	bool ShouldImportTangents() const
 	{
 		return NormalImportMethod == FBXNIM_ImportNormalsAndTangents;
 	}

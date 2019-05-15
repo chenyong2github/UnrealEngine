@@ -741,6 +741,11 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 			}
 		}
 	}
+
+	if (Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) >= FSkeletalMeshCustomVersion::SkinWeightProfiles)
+	{
+		Ar << SkinWeightProfiles;
+	}
 }
 
 

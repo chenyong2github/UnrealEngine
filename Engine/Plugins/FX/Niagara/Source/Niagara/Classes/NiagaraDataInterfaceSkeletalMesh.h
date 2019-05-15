@@ -282,7 +282,7 @@ struct FNDISkeletalMesh_InstanceData
 		}
 		else
 		{
-			OutSkinWeightBuffer = &Ret.SkinWeightVertexBuffer;
+			OutSkinWeightBuffer = Ret.GetSkinWeightVertexBuffer();
 		}
 		return Ret;
 	}

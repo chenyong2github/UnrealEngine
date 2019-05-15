@@ -4083,40 +4083,10 @@ public:
 				TangentY = BuildData.TangentY[WedgeIndex].GetSafeNormal();
 				TangentZ = BuildData.TangentZ[WedgeIndex].GetSafeNormal();
 
-				/*if (BuildData.BuildOptions.bComputeNormals || BuildData.BuildOptions.bComputeTangents)
-				{
-				TangentX = BuildData.TangentX[VertexIndex].GetSafeNormal();
-				TangentY = BuildData.TangentY[VertexIndex].GetSafeNormal();
-
-				if( BuildData.BuildOptions.bComputeNormals )
-				{
-				TangentZ = BuildData.TangentZ[VertexIndex].GetSafeNormal();
-				}
-				else
-				{
-				//TangentZ = Face.TangentZ[VertexIndex];
-				}
-
-				TangentY -= TangentX * (TangentX | TangentY);
-				TangentY.Normalize();
-
-				TangentX -= TangentZ * (TangentZ | TangentX);
-				TangentY -= TangentZ * (TangentZ | TangentY);
-
+				// Normalize overridden tangents.  Its possible for them to import un-normalized.
 				TangentX.Normalize();
 				TangentY.Normalize();
-				}
-				else*/
-				{
-					//TangentX = Face.TangentX[VertexIndex];
-					//TangentY = Face.TangentY[VertexIndex];
-					//TangentZ = Face.TangentZ[VertexIndex];
-
-					// Normalize overridden tangents.  Its possible for them to import un-normalized.
-					TangentX.Normalize();
-					TangentY.Normalize();
-					TangentZ.Normalize();
-				}
+				TangentZ.Normalize();
 
 				Vertex.TangentX = TangentX;
 				Vertex.TangentY = TangentY;
@@ -4178,10 +4148,30 @@ public:
 		// Generate chunks and their vertices and indices
 		SkeletalMeshTools::BuildSkeletalMeshChunks(BuildData.Faces, RawVertices, VertIndexAndZ, BuildData.BuildOptions.OverlappingThresholds, BuildData.Chunks, BuildData.bTooManyVerts);
 
+		//Get alternate skinning weights map to retrieve easily the data
+		TMap<uint32, TArray<FBoneIndexType>> AlternateBoneIDs;
+		AlternateBoneIDs.Reserve(BuildData.Points.Num());
+		for (auto Kvp : BuildData.LODModel.SkinWeightProfiles)
+		{
+			FImportedSkinWeightProfileData& ImportedProfileData = Kvp.Value;
+			if (ImportedProfileData.SourceModelInfluences.Num() > 0)
+			{
+				for (int32 InfluenceIndex = 0; InfluenceIndex < ImportedProfileData.SourceModelInfluences.Num(); ++InfluenceIndex)
+				{
+					const SkeletalMeshImportData::FVertInfluence& VertInfluence = ImportedProfileData.SourceModelInfluences[InfluenceIndex];
+					if (VertInfluence.Weight > 0.0f)
+					{
+						TArray<FBoneIndexType>& BoneMap = AlternateBoneIDs.FindOrAdd(VertInfluence.VertIndex);
+						BoneMap.AddUnique(VertInfluence.BoneIndex);
+					}
+				}
+			}
+		}
+
 		// Chunk vertices to satisfy the requested limit.
 		const uint32 MaxGPUSkinBones = FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones();
 		check(MaxGPUSkinBones <= FGPUBaseSkinVertexFactory::GHardwareMaxGPUSkinBones);
-		SkeletalMeshTools::ChunkSkinnedVertices(BuildData.Chunks, MaxGPUSkinBones);
+		SkeletalMeshTools::ChunkSkinnedVertices(BuildData.Chunks, AlternateBoneIDs, MaxGPUSkinBones);
 
 		EndSlowTask();
 
@@ -4913,10 +4903,30 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 	// Generate chunks and their vertices and indices
 	SkeletalMeshTools::BuildSkeletalMeshChunks(Faces, RawVertices, VertIndexAndZ, OverlappingThresholds, Chunks, bTooManyVerts);
 
+	//Get alternate skinning weights map to retrieve easily the data
+	TMap<uint32, TArray<FBoneIndexType>> AlternateBoneIDs;
+	AlternateBoneIDs.Reserve(Points.Num());
+	for (auto Kvp : LODModel.SkinWeightProfiles)
+	{
+		FImportedSkinWeightProfileData& ImportedProfileData = Kvp.Value;
+		if (ImportedProfileData.SourceModelInfluences.Num() > 0)
+		{
+			for (int32 InfluenceIndex = 0; InfluenceIndex < ImportedProfileData.SourceModelInfluences.Num(); ++InfluenceIndex)
+			{
+				const SkeletalMeshImportData::FVertInfluence& VertInfluence = ImportedProfileData.SourceModelInfluences[InfluenceIndex];
+				if (VertInfluence.Weight > 0.0f)
+				{
+					TArray<FBoneIndexType>& BoneMap = AlternateBoneIDs.FindOrAdd(VertInfluence.VertIndex);
+					BoneMap.AddUnique(VertInfluence.BoneIndex);
+				}
+			}
+		}
+	}
+
 	// Chunk vertices to satisfy the requested limit.
 	const uint32 MaxGPUSkinBones = FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones();
 	check(MaxGPUSkinBones <= FGPUBaseSkinVertexFactory::GHardwareMaxGPUSkinBones);
-	SkeletalMeshTools::ChunkSkinnedVertices(Chunks, MaxGPUSkinBones);
+	SkeletalMeshTools::ChunkSkinnedVertices(Chunks, AlternateBoneIDs, MaxGPUSkinBones);
 
 	// Build the skeletal model from chunks.
 	BuildSkeletalModelFromChunks(LODModel, RefSkeleton, Chunks, PointToOriginalMap);
@@ -5719,6 +5729,88 @@ void FMeshUtilities::CalculateOverlappingCorners(const TArray<FVector>& InVertic
 {
 	const float ComparisonThreshold = bIgnoreDegenerateTriangles ? THRESH_POINTS_ARE_SAME : 0.f;
 	FindOverlappingCorners(OutOverlappingCorners, InVertices, InIndices, ComparisonThreshold);
+}
+
+
+void FMeshUtilities::GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* ImportedModel, const TArray<FRawSkinWeight>& InRawSkinWeights, FRuntimeSkinWeightProfileData& InOutSkinWeightOverrideData) const
+{
+	const FSkeletalMeshLODModel& TargetLODModel = *ImportedModel;
+
+	// Make sure the number of verts of the LOD matches the provided number of skin weights
+	if (InRawSkinWeights.Num() == TargetLODModel.NumVertices)
+	{
+		// Retrieve all vertices for this LOD
+		TArray<FSoftSkinVertex> TargetVertices;
+		TargetLODModel.GetVertices(TargetVertices);
+
+		// Determine how many influences each skinweight can contain
+		const bool bTargetExtraBoneInfluences = TargetLODModel.DoSectionsNeedExtraBoneInfluences();
+		const int32 NumInfluences = bTargetExtraBoneInfluences ? MAX_TOTAL_INFLUENCES : MAX_INFLUENCES_PER_STREAM;
+
+		TArray<FRawSkinWeight> UniqueWeights;
+		for (int32 VertexIndex = 0; VertexIndex < TargetVertices.Num(); ++VertexIndex)
+		{
+			// Take each original skin weight from the LOD and compare it with supplied alternative weight data
+			const FRawSkinWeight& SourceSkinWeight = InRawSkinWeights[VertexIndex];
+			const FSoftSkinVertex& TargetVertex = TargetVertices[VertexIndex];
+
+			bool bIsDifferent = false;
+			for (int32 InfluenceIndex = 0; InfluenceIndex < NumInfluences; ++InfluenceIndex)
+			{
+				if (SourceSkinWeight.InfluenceBones[InfluenceIndex] != TargetVertex.InfluenceBones[InfluenceIndex]
+					|| SourceSkinWeight.InfluenceWeights[InfluenceIndex] != TargetVertex.InfluenceWeights[InfluenceIndex])
+				{
+					bIsDifferent = true;
+					break;
+				}
+			}
+
+			if (bIsDifferent)
+			{
+				// Check whether or not there is already an override store which matches the new skin weight data
+				int32 OverrideIndex = UniqueWeights.IndexOfByPredicate([SourceSkinWeight, NumInfluences](const FRawSkinWeight Override)
+				{
+					bool bSame = true;
+					for (int32 InfluenceIndex = 0; InfluenceIndex < NumInfluences; ++InfluenceIndex)
+					{
+						bSame &= (Override.InfluenceBones[InfluenceIndex] == SourceSkinWeight.InfluenceBones[InfluenceIndex]);
+						bSame &= (Override.InfluenceWeights[InfluenceIndex] == SourceSkinWeight.InfluenceWeights[InfluenceIndex]);
+					}
+
+					return bSame;
+				});
+
+				// If one hasn't been added yet, create a new one
+				if (OverrideIndex == INDEX_NONE)
+				{
+					FRuntimeSkinWeightProfileData::FSkinWeightOverrideInfo& DeltaOverride = InOutSkinWeightOverrideData.OverridesInfo.AddDefaulted_GetRef();
+
+					// Store offset into array and total number of influences to read
+					DeltaOverride.InfluencesOffset = InOutSkinWeightOverrideData.Weights.Num();
+					DeltaOverride.NumInfluences = 0;
+
+					// Write out non-zero weighted influences only
+					for (int32 InfluenceIndex = 0; InfluenceIndex < NumInfluences; ++InfluenceIndex)
+					{
+						if (SourceSkinWeight.InfluenceWeights[InfluenceIndex] > 0)
+						{
+							const uint16 Index = SourceSkinWeight.InfluenceBones[InfluenceIndex] << 8;
+							const uint16 Weight = SourceSkinWeight.InfluenceWeights[InfluenceIndex];
+							const uint16 Value = Index | Weight;
+
+							InOutSkinWeightOverrideData.Weights.Add(Value);
+							++DeltaOverride.NumInfluences;
+						}
+					}
+
+					OverrideIndex = InOutSkinWeightOverrideData.OverridesInfo.Num() - 1;
+					UniqueWeights.Add(SourceSkinWeight);
+				}
+
+				InOutSkinWeightOverrideData.VertexIndexOverrideIndex.Add(VertexIndex, OverrideIndex);
+			}
+		}
+	}
 }
 
 void FMeshUtilities::AddAnimationBlueprintEditorToolbarExtender()
