@@ -8107,8 +8107,9 @@ void UCharacterMovementComponent::CallServerMove
 	check(NewMove != nullptr);
 
 	// Compress rotation down to 5 bytes
-	const uint32 ClientYawPitchINT = PackYawAndPitchTo32(NewMove->SavedControlRotation.Yaw, NewMove->SavedControlRotation.Pitch);
-	const uint8 ClientRollBYTE = FRotator::CompressAxisToByte(NewMove->SavedControlRotation.Roll);
+	uint32 ClientYawPitchINT = 0;
+	uint8 ClientRollBYTE = 0;
+	NewMove->GetPackedAngles(ClientYawPitchINT, ClientRollBYTE);
 
 	// Determine if we send absolute or relative location
 	UPrimitiveComponent* ClientMovementBase = NewMove->EndBase.Get();
@@ -8124,7 +8125,9 @@ void UCharacterMovementComponent::CallServerMove
 	FNetworkPredictionData_Client_Character* ClientData = GetPredictionData_Client_Character();
 	if (const FSavedMove_Character* const PendingMove = ClientData->PendingMove.Get())
 	{
-		const uint32 OldClientYawPitchINT = PackYawAndPitchTo32(ClientData->PendingMove->SavedControlRotation.Yaw, ClientData->PendingMove->SavedControlRotation.Pitch);
+		uint32 OldClientYawPitchINT = 0;
+		uint8 OldClientRollBYTE = 0;
+		ClientData->PendingMove->GetPackedAngles(OldClientYawPitchINT, OldClientRollBYTE);
 
 		// If we delayed a move without root motion, and our new move has root motion, send these through a special function, so the server knows how to process them.
 		if ((PendingMove->RootMotionMontage == NULL) && (NewMove->RootMotionMontage != NULL))
@@ -10703,13 +10706,25 @@ float UCharacterMovementComponent::GetClientNetSendDeltaTime(const APlayerContro
 		}
 
 		// Lower frequency for standing still and not rotating camera
-		if (Acceleration.IsZero() && Velocity.IsZero() && ClientData->LastAckedMove.IsValid() && ClientData->LastAckedMove->StartControlRotation.Equals(PC->GetControlRotation(), CharacterMovementCVars::NetStationaryRotationTolerance))
+		if (Acceleration.IsZero() && Velocity.IsZero() && ClientData->LastAckedMove.IsValid() && ClientData->LastAckedMove->IsMatchingStartControlRotation(PC))
 		{
 			NetMoveDelta = FMath::Max(GameNetworkManager->ClientNetSendMoveDeltaTimeStationary, NetMoveDelta);
 		}
 	}
 	
 	return NetMoveDelta;
+}
+
+bool FSavedMove_Character::IsMatchingStartControlRotation(const APlayerController* PC) const
+{
+	return PC ? StartControlRotation.Equals(PC->GetControlRotation(), CharacterMovementCVars::NetStationaryRotationTolerance) : false;
+}
+
+void FSavedMove_Character::GetPackedAngles(uint32& YawAndPitchPack, uint8& RollPack) const
+{
+	// Compress rotation down to 5 bytes
+	YawAndPitchPack = UCharacterMovementComponent::PackYawAndPitchTo32(SavedControlRotation.Yaw, SavedControlRotation.Pitch);
+	RollPack = FRotator::CompressAxisToByte(SavedControlRotation.Roll);
 }
 
 bool FSavedMove_Character::CanCombineWith(const FSavedMovePtr& NewMovePtr, ACharacter* Character, float MaxDelta) const
