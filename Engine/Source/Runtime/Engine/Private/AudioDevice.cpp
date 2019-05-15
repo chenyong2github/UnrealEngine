@@ -634,6 +634,11 @@ void FAudioDevice::AddReferencedObjects(FReferenceCollector& Collector)
 		ActiveSound->AddReferencedObjects(Collector);
 	}
 
+	for (FActiveSound* ActiveSound : PendingSoundsToDelete)
+	{
+		ActiveSound->AddReferencedObjects(Collector);
+	}	
+
 	for (FVirtualLoopPair& Pair : VirtualLoops)
 	{
 		Pair.Key->AddReferencedObjects(Collector);
