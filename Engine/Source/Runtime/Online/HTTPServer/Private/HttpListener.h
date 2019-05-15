@@ -2,13 +2,11 @@
 #pragma once
 
 #include "HttpConnectionTypes.h"
+#include "HttpRouter.h"
 
 struct FHttpConnection;
 struct FHttpPath;
 class FSocket;
-
-class IHttpRouter;
-class FHttpRouter;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogHttpListener, Log, All);
 

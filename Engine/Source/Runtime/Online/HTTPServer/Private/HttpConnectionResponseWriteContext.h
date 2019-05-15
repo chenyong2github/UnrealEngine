@@ -6,6 +6,8 @@
 struct FHttpServerResponse;
 class FSocket;
 
+DECLARE_LOG_CATEGORY_EXTERN(LogHttpConnectionResponseWriteContext, Log, All);
+
 struct FHttpConnectionResponseWriteContext final : public FHttpConnectionContext
 {
 public:
