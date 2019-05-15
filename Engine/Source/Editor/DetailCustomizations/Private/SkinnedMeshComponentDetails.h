@@ -4,10 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
+#include "SNameComboBox.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "PropertyHandle.h"
 
 class FDetailWidgetRow;
 class IDetailLayoutBuilder;
 class UPhysicsAsset;
+class USkinnedMeshComponent;
+class IDetailCategoryBuilder;
 
 class FSkinnedMeshComponentDetails : public IDetailCustomization
 {
@@ -25,4 +30,15 @@ private:
 	void BrowseUsedPhysicsAsset(IDetailLayoutBuilder* DetailBuilder) const;
 
 	bool FindUniqueUsedPhysicsAsset(IDetailLayoutBuilder* DetailBuilder, UPhysicsAsset*& OutFoundPhysicsAsset) const;
+
+	void CreateSkinWeightProfileSelectionWidget(IDetailCategoryBuilder& SkinWeightCategory);
+	void PopulateSkinWeightProfileNames();
+
+	/** Skin Weight Profile Selector */
+	TSharedPtr<SNameComboBox> SkinWeightCombo;
+	TArray<TSharedPtr<FName>> SkinWeightProfileNames;
+	TSharedPtr<IPropertyHandle> SkeletalMeshHandle;
+
+	TWeakObjectPtr<USkinnedMeshComponent> WeakSkinnedMeshComponent;
+	
 };

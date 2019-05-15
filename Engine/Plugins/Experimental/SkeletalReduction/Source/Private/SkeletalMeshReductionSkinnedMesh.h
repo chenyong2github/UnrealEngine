@@ -125,7 +125,7 @@ namespace SkeletalSimplifier
 			// If all the verts are being used, there is nothing to do
 			if (RequiredVertCount == NumVerts)
 			{
-				if (Mask != NULL) delete[] Mask;
+				delete[] Mask;
 				return;
 			}
 
@@ -135,11 +135,11 @@ namespace SkeletalSimplifier
 
 			if (OldVertexBuffer != NULL && OldIndexBuffer != NULL)
 			{
-				int32 OldNumTris = NumTris;
+				int32 OldNumTris  = NumTris;
 				int32 OldNumVerts = NumVerts;
 
 				// null the pointers to keep the resize from deleting the arrays.
-				IndexBuffer = NULL;
+				IndexBuffer  = NULL;
 				VertexBuffer = NULL;
 
 				// Allocate memory for the compacted mesh.
@@ -173,7 +173,7 @@ namespace SkeletalSimplifier
 				for (int32 i = 0; i < OldNumTris * 3; ++i)
 				{
 					int32 OldVertIdx = OldIndexBuffer[i];
-					int32 VoidCount = Mask[OldVertIdx];
+					int32 VoidCount  = Mask[OldVertIdx];
 					int32 NewVertIdx = OldVertIdx - VoidCount;
 
 					checkSlow(NewVertIdx > -1);
@@ -183,10 +183,10 @@ namespace SkeletalSimplifier
 
 
 				// Clean up the temporary 
-				if (OldVertexBuffer != NULL)  delete[] OldVertexBuffer;
-				if (OldIndexBuffer != NULL)   delete[] OldIndexBuffer;
+				delete[] OldVertexBuffer;
+				delete[] OldIndexBuffer;
 			}
-			if (Mask != NULL) delete[] Mask;
+			delete[] Mask;
 		}
 
 
