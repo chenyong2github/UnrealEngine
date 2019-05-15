@@ -470,6 +470,7 @@ void FEdModeLandscape::Enter()
 	{ 
 		if (PropertyName == TEXT("bLandscapeLayerSystem"))
 		{
+			UpdateLandscapeList();
 			RefreshDetailPanel();
 		}
 	});
@@ -2306,15 +2307,6 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 				ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
 				if (LandscapeProxy)
 				{
-					// In Layer System for now disable Landscape Editing if Actor is not loaded
-					if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-					{
-						if (!LandscapeProxy->GetLandscapeActor())
-						{
-							continue;
-						}
-					}
-
 					if (CurrentToolTarget.LandscapeInfo == LandscapeInfo)
 					{
 						CurrentIndex = Index;
@@ -2383,6 +2375,12 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 		}
 	}
 
+	if (!CanEditCurrentTarget())
+	{
+		SetCurrentToolMode("ToolMode_Manage", false);
+		SetCurrentTool("NewLandscape");
+	}
+
 	return CurrentIndex;
 }
 
@@ -2418,6 +2416,41 @@ void FEdModeLandscape::SetTargetLandscape(const TWeakObjectPtr<ULandscapeInfo>& 
 
 	UpdateTargetList();
 	UpdateShownLayerList();
+}
+
+bool FEdModeLandscape::CanEditCurrentTarget(FText* Reason) const
+{
+	static FText DummyReason;
+	FText& LocalReason = Reason ? *Reason : DummyReason;
+
+	if (!CurrentToolTarget.LandscapeInfo.IsValid())
+	{
+		LocalReason = NSLOCTEXT("UnrealEd", "LandscapeInvalidTarget", "No landscape selected.");
+		return false;
+	}
+
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		// If Any Proxy has layer content disable editing when Landscape Layers are disabled
+		bool bHasLayerContent = false;
+		CurrentToolTarget.LandscapeInfo->ForAllLandscapeProxies([&bHasLayerContent](ALandscapeProxy* Proxy) { bHasLayerContent |= Proxy->HasLayersContent; });
+		if (bHasLayerContent)
+		{
+			LocalReason = NSLOCTEXT("UnrealEd", "LandscapeWithLayerContent", "Landscape contains layers and experimental flag is not enabled.");
+			return false;
+		}
+
+		return true;
+	}
+
+	// Landscape Layer Editing not available without a loaded Landscape Actor
+	if (CurrentToolTarget.LandscapeInfo->LandscapeActor == nullptr)
+	{
+		LocalReason = NSLOCTEXT("UnrealEd", "LandscapeActorNotLoaded", "Landscape actor is not loaded. It is needed to do layer editing.");
+		return false;
+	}
+
+	return true;
 }
 
 void FEdModeLandscape::UpdateTargetList()
@@ -2838,7 +2871,7 @@ void FEdModeLandscape::HandleLevelsChanged(bool ShouldExitMode)
 	}
 
 	// if a landscape is added somehow then switch to sculpt
-	if (!bHadLandscape && CurrentToolTarget.LandscapeInfo != nullptr)
+	if (!bHadLandscape && CanEditCurrentTarget())
 	{
 		SetCurrentTool("Select");
 		SetCurrentTool("Sculpt");
