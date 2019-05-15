@@ -23,6 +23,13 @@ struct CORE_API FCrc
 	/** generates CRC hash of the memory area */
 	static uint32 MemCrc32( const void* Data, int32 Length, uint32 CRC=0 );
 
+	/** generates CRC hash of the element */
+	template <typename T>
+	static uint32 TypeCrc32( const T& Data, uint32 CRC=0 )
+	{
+		return MemCrc32(&Data, sizeof(T), CRC);
+	}
+
 	/** String CRC. */
 	template <typename CharType>
 	static typename TEnableIf<sizeof(CharType) != 1, uint32>::Type StrCrc32(const CharType* Data, uint32 CRC = 0)

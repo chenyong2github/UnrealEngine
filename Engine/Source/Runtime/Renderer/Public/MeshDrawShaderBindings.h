@@ -24,6 +24,13 @@ public:
 		Frequency = (EShaderFrequency)Shader->GetTarget().Frequency;
 		checkSlow((EShaderFrequency)Frequency == (EShaderFrequency)Shader->GetTarget().Frequency);
 	}
+	
+	inline uint32 GetHash() const
+	{
+		uint32 LocalFrequency = Frequency;
+		uint32 Hash = FCrc::TypeCrc32(LocalFrequency, ParameterMapInfo.GetHash());
+		return Hash;
+	}
 
 	bool operator==(const FMeshDrawShaderBindingsLayout& Rhs) const
 	{

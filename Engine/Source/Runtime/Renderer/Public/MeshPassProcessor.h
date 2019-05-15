@@ -352,6 +352,8 @@ public:
 	/** Returns whether this set of shader bindings can be merged into an instanced draw call with another. */
 	bool MatchesForDynamicInstancing(const FMeshDrawShaderBindings& Rhs) const;
 
+	uint32 GetDynamicInstancingHash() const;
+
 	SIZE_T GetAllocatedSize() const
 	{
 		SIZE_T Bytes = ShaderLayouts.GetAllocatedSize();
@@ -499,6 +501,41 @@ public:
 			&& NumInstances == Rhs.NumInstances
 			&& ((NumPrimitives > 0 && VertexParams.BaseVertexIndex == Rhs.VertexParams.BaseVertexIndex && VertexParams.NumVertices == Rhs.VertexParams.NumVertices)
 				|| (NumPrimitives == 0 && IndirectArgsBuffer == Rhs.IndirectArgsBuffer));
+	}
+
+	uint32 GetDynamicInstancingHash() const
+	{
+		uint32 Hash = FCrc::TypeCrc32(CachedPipelineId.GetId(), 0);
+		Hash = FCrc::TypeCrc32(StencilRef, Hash);
+		Hash = HashCombine(ShaderBindings.GetDynamicInstancingHash(), Hash);
+
+		for (const FVertexInputStream& VertexInputStream: VertexStreams)
+		{
+			const uint32 StreamIndex = VertexInputStream.StreamIndex;
+			const uint32 Offset = VertexInputStream.Offset;
+
+			Hash = FCrc::TypeCrc32(StreamIndex, Hash);
+			Hash = FCrc::TypeCrc32(Offset, Hash);
+			Hash = PointerHash(VertexInputStream.VertexBuffer, Hash);
+		}
+
+		Hash = FCrc::TypeCrc32(PrimitiveIdStreamIndex, Hash);
+		Hash = PointerHash(IndexBuffer, Hash);
+		Hash = FCrc::TypeCrc32(FirstIndex, Hash);
+		Hash = FCrc::TypeCrc32(NumPrimitives, Hash);
+		Hash = FCrc::TypeCrc32(NumInstances, Hash);
+
+		if (NumPrimitives > 0)
+		{
+			Hash = FCrc::TypeCrc32(VertexParams.BaseVertexIndex, Hash);
+			Hash = FCrc::TypeCrc32(VertexParams.NumVertices, Hash);
+		}
+		else
+		{
+			Hash = PointerHash(IndirectArgsBuffer, Hash);
+		}		
+
+		return Hash;
 	}
 
 	/** Sets shaders on the mesh draw command and allocates room for the shader bindings. */
