@@ -91,7 +91,15 @@ void UProjectileMovementComponent::InitializeComponent()
 		{
 			if (UpdatedComponent)
 			{
-				UpdatedComponent->SetWorldRotation(Velocity.Rotation());
+				FRotator DesiredRotation = Velocity.Rotation();
+				if (bRotationRemainsVertical)
+				{
+					DesiredRotation.Pitch = 0.0f;
+					DesiredRotation.Yaw = FRotator::NormalizeAxis(DesiredRotation.Yaw);
+					DesiredRotation.Roll = 0.0f;
+				}
+
+				UpdatedComponent->SetWorldRotation(DesiredRotation);
 			}
 		}
 
@@ -182,7 +190,16 @@ void UProjectileMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 		Hit.Time = 1.f;
 		const FVector OldVelocity = Velocity;
 		const FVector MoveDelta = ComputeMoveDelta(OldVelocity, TimeTick);
-		const FQuat NewRotation = (bRotationFollowsVelocity && !OldVelocity.IsNearlyZero(0.01f)) ? OldVelocity.ToOrientationQuat() : UpdatedComponent->GetComponentQuat();
+		FQuat NewRotation = (bRotationFollowsVelocity && !OldVelocity.IsNearlyZero(0.01f)) ? OldVelocity.ToOrientationQuat() : UpdatedComponent->GetComponentQuat();
+
+		if (bRotationFollowsVelocity && bRotationRemainsVertical)
+		{
+			FRotator DesiredRotation = NewRotation.Rotator();
+			DesiredRotation.Pitch = 0.0f;
+			DesiredRotation.Yaw = FRotator::NormalizeAxis(DesiredRotation.Yaw);
+			DesiredRotation.Roll = 0.0f;
+			NewRotation = DesiredRotation.Quaternion();
+		}
 
 		// Move the component
 		if (bShouldBounce)
