@@ -1564,6 +1564,8 @@ void UWorld::MarkObjectsPendingKill()
 		Object->MarkPendingKill();
 	};
 	ForEachObjectWithOuter(this, MarkObjectPendingKill, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+
+	MarkPendingKill();
 	bMarkedObjectsPendingKill = true;
 }
 
