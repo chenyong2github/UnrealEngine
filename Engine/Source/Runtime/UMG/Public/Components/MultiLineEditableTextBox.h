@@ -43,7 +43,7 @@ public:
 public:
 
 	/** The style */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetWidgetStyle, Category="Style", meta=(DisplayName="Style"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style", meta=(DisplayName="Style"))
 	FEditableTextBoxStyle WidgetStyle;
 
 	/** The text style */
@@ -111,9 +111,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetIsReadOnly (Multi-Line Text Box)"))
 	void SetIsReadOnly(bool bReadOnly);
-
-	UFUNCTION(BlueprintSetter)
-	void SetWidgetStyle(const FEditableTextBoxStyle& InWidgetStyle);
 
 	UFUNCTION(BlueprintSetter)
 	void SetTextStyle(const FTextBlockStyle& InTextStyle);
