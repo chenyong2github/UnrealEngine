@@ -10,6 +10,8 @@ UInputRouter::UInputRouter()
 	ActiveLeftCaptureOwner = nullptr;
 	ActiveRightCapture = nullptr;
 	ActiveRightCaptureOwner = nullptr;
+	ActiveKeyboardCapture = nullptr;
+	ActiveKeyboardCaptureOwner = nullptr;
 
 	bAutoInvalidateOnHover = false;
 	bAutoInvalidateOnCapture = false;
@@ -45,25 +47,114 @@ void UInputRouter::DeregisterSource(IInputBehaviorSource* Source)
 
 
 
-
-
-
-
 void UInputRouter::PostInputEvent(const FInputDeviceState& Input)
 {
-	// currently mouse-specific...
-
-	if ( ActiveInputBehaviors->IsEmpty() )
+	if (ActiveInputBehaviors->IsEmpty())
 	{
 		return;
 	}
 
-	if (Input.IsFromDevice(EInputDevices::Mouse) == false)
+	if (Input.IsFromDevice(EInputDevices::Mouse))
 	{
-		TransactionsAPI->PostMessage(TEXT("UInteractiveToolManager::PostInputEvent - non-mouse devices not currently supported."), EToolMessageLevel::Internal);
+		PostInputEvent_Mouse(Input);
+	}
+	else if (Input.IsFromDevice(EInputDevices::Keyboard))
+	{
+		PostInputEvent_Keyboard(Input);
+	}
+	else
+	{
+		unimplemented();
+		TransactionsAPI->PostMessage(TEXT("UInteractiveToolManager::PostInputEvent - input device is not currently supported."), EToolMessageLevel::Internal);
+		return;
+	}
+}
+
+
+
+//
+// Keyboard event handling
+// 
+
+
+void UInputRouter::PostInputEvent_Keyboard(const FInputDeviceState& Input)
+{
+	if (ActiveKeyboardCapture != nullptr)
+	{
+		HandleCapturedKeyboardInput(Input);
+	}
+	else
+	{
+		ActiveKeyboardCaptureData = FInputCaptureData();
+		CheckForKeyboardCaptures(Input);
+	}
+}
+
+
+void UInputRouter::CheckForKeyboardCaptures(const FInputDeviceState& Input)
+{
+	TArray<FInputCaptureRequest> CaptureRequests;
+	ActiveInputBehaviors->CollectWantsCapture(Input, CaptureRequests);
+	if (CaptureRequests.Num() == 0)
+	{
 		return;
 	}
 
+	CaptureRequests.StableSort();
+
+	bool bAccepted = false;
+	for (int i = 0; i < CaptureRequests.Num() && bAccepted == false; ++i)
+	{
+		FInputCaptureUpdate Result =
+			CaptureRequests[i].Source->BeginCapture(Input, EInputCaptureSide::Left);
+		if (Result.State == EInputCaptureState::Begin)
+		{
+			ActiveKeyboardCapture = Result.Source;
+			ActiveKeyboardCaptureOwner = CaptureRequests[i].Owner;
+			ActiveKeyboardCaptureData = Result.Data;
+			bAccepted = true;
+		}
+	}
+}
+
+
+void UInputRouter::HandleCapturedKeyboardInput(const FInputDeviceState& Input)
+{
+	if (ActiveKeyboardCapture == nullptr)
+	{
+		return;
+	}
+
+	FInputCaptureUpdate Result =
+		ActiveKeyboardCapture->UpdateCapture(Input, ActiveKeyboardCaptureData);
+
+	if (Result.State == EInputCaptureState::End)
+	{
+		ActiveKeyboardCapture = nullptr;
+		ActiveKeyboardCaptureOwner = nullptr;
+		ActiveKeyboardCaptureData = FInputCaptureData();
+	}
+	else if (Result.State != EInputCaptureState::Continue)
+	{
+		TransactionsAPI->PostMessage(TEXT("UInteractiveToolManager::HandleCapturedKeyboardInput - unexpected capture state!"), EToolMessageLevel::Internal);
+	}
+
+	if (bAutoInvalidateOnCapture)
+	{
+		TransactionsAPI->PostInvalidation();
+	}
+}
+
+
+
+//
+// Mouse event handling
+//
+
+
+
+void UInputRouter::PostInputEvent_Mouse(const FInputDeviceState& Input)
+{
 	if (ActiveLeftCapture != nullptr)
 	{
 		HandleCapturedMouseInput(Input);
@@ -170,6 +261,14 @@ void UInputRouter::HandleCapturedMouseInput(const FInputDeviceState& Input)
 
 void UInputRouter::ForceTerminateAll()
 {
+	if (ActiveKeyboardCapture != nullptr)
+	{
+		ActiveKeyboardCapture->ForceEndCapture(ActiveKeyboardCaptureData);
+		ActiveKeyboardCapture = nullptr;
+		ActiveKeyboardCaptureOwner = nullptr;
+		ActiveKeyboardCaptureData = FInputCaptureData();
+	}
+
 	if (ActiveLeftCapture != nullptr)
 	{
 		ActiveLeftCapture->ForceEndCapture(ActiveLeftCaptureData);
@@ -192,6 +291,14 @@ void UInputRouter::ForceTerminateAll()
 
 void UInputRouter::ForceTerminateSource(IInputBehaviorSource* Source)
 {
+	if (ActiveKeyboardCapture != nullptr && ActiveKeyboardCaptureOwner == Source)
+	{
+		ActiveKeyboardCapture->ForceEndCapture(ActiveKeyboardCaptureData);
+		ActiveKeyboardCapture = nullptr;
+		ActiveKeyboardCaptureOwner = nullptr;
+		ActiveKeyboardCaptureData = FInputCaptureData();
+	}
+
 	if (ActiveLeftCapture != nullptr && ActiveLeftCaptureOwner == Source)
 	{
 		ActiveLeftCapture->ForceEndCapture(ActiveLeftCaptureData);

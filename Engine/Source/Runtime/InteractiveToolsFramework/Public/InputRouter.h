@@ -81,6 +81,10 @@ protected:
 	UPROPERTY()
 	UInputBehaviorSet* ActiveInputBehaviors;
 
+	UInputBehavior* ActiveKeyboardCapture;
+	void* ActiveKeyboardCaptureOwner;
+	FInputCaptureData ActiveKeyboardCaptureData;
+
 	UInputBehavior* ActiveLeftCapture;
 	void* ActiveLeftCaptureOwner;
 	FInputCaptureData ActiveLeftCaptureData;
@@ -91,6 +95,11 @@ protected:
 
 	FInputDeviceState LastHoverInput;
 
+	virtual void PostInputEvent_Keyboard(const FInputDeviceState& Input);
+	void CheckForKeyboardCaptures(const FInputDeviceState& Input);
+	void HandleCapturedKeyboardInput(const FInputDeviceState& Input);
+
+	virtual void PostInputEvent_Mouse(const FInputDeviceState& Input);
 	void CheckForMouseCaptures(const FInputDeviceState& Input);
 	void HandleCapturedMouseInput(const FInputDeviceState& Input);
 };

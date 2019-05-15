@@ -71,7 +71,7 @@ protected:
 	bool bInvalidationPending;
 
 	/** Input event instance used to keep track of various button states, etc, that we cannot directly query on-demand */
-	FInputDeviceState CurrentInputState;
+	FInputDeviceState CurrentMouseState;
 
 	static FRay GetRayFromMousePos(FEditorViewportClient* ViewportClient, FViewport* Viewport, int MouseX, int MouseY);
 

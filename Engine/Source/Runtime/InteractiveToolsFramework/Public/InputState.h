@@ -15,11 +15,12 @@ UENUM()
 enum class EInputDevices
 {
 	None = 0,
-	Mouse = 1,
-	Gamepad = 2,
+	Keyboard = 1,
+	Mouse = 2,
+	Gamepad = 4,
 
-	OculusTouch = 4,
-	HTCViveWands = 8,
+	OculusTouch = 8,
+	HTCViveWands = 16,
 	AnySpatialDevice = OculusTouch | HTCViveWands,
 
 	TabletFingers = 1024
@@ -71,6 +72,9 @@ struct FInputDeviceRay
  */
 struct FDeviceButtonState
 {
+	/** Button identifier */
+	FKey Button;
+
 	/** Was the button pressed down this frame. This should happen once per "click" */
 	bool bPressed;
 	/** Is the button currently pressed down. This should be true every frame the button is pressed. */
@@ -80,6 +84,13 @@ struct FDeviceButtonState
 
 	FDeviceButtonState()
 	{
+		Button = FKey();
+		bPressed = bDown = bReleased = false;
+	}
+
+	FDeviceButtonState(const FKey& ButtonIn)
+	{
+		Button = ButtonIn;
 		bPressed = bDown = bReleased = false;
 	}
 
@@ -90,6 +101,18 @@ struct FDeviceButtonState
 		bDown = bDownIn;
 		bReleased = bReleasedIn;
 	}
+};
+
+
+
+/**
+ * Current state of active keyboard key at a point in time
+ * @todo would be useful to track set of active keys
+ */
+struct FKeyboardInputDeviceState
+{
+	/** state of active key that was modified (ie press or release) */
+	FDeviceButtonState ActiveKey;
 };
 
 
@@ -121,9 +144,9 @@ struct FMouseInputDeviceState
 
 	FMouseInputDeviceState()
 	{
-		Left = FDeviceButtonState();
-		Middle = FDeviceButtonState();
-		Right = FDeviceButtonState();
+		Left = FDeviceButtonState(EKeys::LeftMouseButton);
+		Middle = FDeviceButtonState(EKeys::MiddleMouseButton);
+		Right = FDeviceButtonState(EKeys::RightMouseButton);
 		WheelDelta = false;
 		Position2D = FVector2D::ZeroVector;
 		Delta2D = FVector2D::ZeroVector;
@@ -156,6 +179,10 @@ struct FInputDeviceState
 	/** Is they keyboard CMD modifier key currently pressed down (only on Apple devices) */
 	bool bCmdKeyDown;
 
+
+	/** Current state of Keyboard device, if InputDevice == EInputDevices::Keyboard */
+	FKeyboardInputDeviceState Keyboard;
+
 	/** Current state of Mouse device, if InputDevice == EInputDevices::Mouse */
 	FMouseInputDeviceState Mouse;
 
@@ -164,11 +191,12 @@ struct FInputDeviceState
 	{
 		InputDevice = EInputDevices::None;
 		bShiftKeyDown = bAltKeyDown = bCtrlKeyDown = bCmdKeyDown = false;
+		Keyboard = FKeyboardInputDeviceState();
 		Mouse = FMouseInputDeviceState();
 	}
 
 	/** Update keyboard modifier key states */
-	void SetKeyStates(bool bShiftDown, bool bAltDown, bool bCtrlDown, bool bCmdDown) 
+	void SetModifierKeyStates(bool bShiftDown, bool bAltDown, bool bCtrlDown, bool bCmdDown) 
 	{
 		bShiftKeyDown = bShiftDown;
 		bAltKeyDown = bAltDown;

@@ -141,6 +141,7 @@ public:
 								SmallestAngle = VisualAngle;
 								SnapResult.Position = Positions[j];
 								SnapResult.TargetType = ESceneSnapQueryTargetType::MeshVertex;
+								SnapResult.TriSnapIndex = j;
 							}
 						}
 					}
@@ -158,6 +159,7 @@ public:
 								SmallestAngle = VisualAngle;
 								SnapResult.Position = EdgeNearestPt;
 								SnapResult.TargetType = ESceneSnapQueryTargetType::MeshEdge;
+								SnapResult.TriSnapIndex = j;
 							}
 						}
 					}
@@ -480,58 +482,85 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 
 	if (Event == IE_Pressed || Event == IE_Released)
 	{
-		bool bIsLeftMouse = (Key == EKeys::LeftMouseButton);
-		bool bIsMiddleMouse = (Key == EKeys::MiddleMouseButton);
-		bool bIsRightMouse = (Key == EKeys::RightMouseButton);
-
-		if (bIsLeftMouse || bIsMiddleMouse || bIsRightMouse)
+		if (Key.IsMouseButton())
 		{
+			bool bIsLeftMouse = (Key == EKeys::LeftMouseButton);
+			bool bIsMiddleMouse = (Key == EKeys::MiddleMouseButton);
+			bool bIsRightMouse = (Key == EKeys::RightMouseButton);
 
-			// early-out here if we are going to do camera manipulation
-			if (ViewportClient->IsAltPressed())
+			if (bIsLeftMouse || bIsMiddleMouse || bIsRightMouse)
 			{
-				return bHandled;
-			}
 
-			FInputDeviceState InputState = CurrentInputState;
-			InputState.InputDevice = EInputDevices::Mouse;
-			InputState.SetKeyStates(
+				// early-out here if we are going to do camera manipulation
+				if (ViewportClient->IsAltPressed())
+				{
+					return bHandled;
+				}
+
+				FInputDeviceState InputState = CurrentMouseState;
+				InputState.InputDevice = EInputDevices::Mouse;
+				InputState.SetModifierKeyStates(
+					ViewportClient->IsShiftPressed(), ViewportClient->IsAltPressed(),
+					ViewportClient->IsCtrlPressed(), ViewportClient->IsCmdPressed());
+
+				if (bIsLeftMouse)
+				{
+					InputState.Mouse.Left.SetStates(
+						(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
+					CurrentMouseState.Mouse.Left.bDown = (Event == IE_Pressed);
+				}
+				else if (bIsMiddleMouse)
+				{
+					InputState.Mouse.Middle.SetStates(
+						(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
+					CurrentMouseState.Mouse.Middle.bDown = (Event == IE_Pressed);
+				}
+				else
+				{
+					InputState.Mouse.Right.SetStates(
+						(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
+					CurrentMouseState.Mouse.Right.bDown = (Event == IE_Pressed);
+				}
+
+				InputRouter->PostInputEvent(InputState);
+
+				if (InputRouter->HasActiveMouseCapture())
+				{
+					// what is this about? MeshPaintMode has it...
+					ViewportClient->bLockFlightCamera = true;
+					bHandled = true;   // indicate that we handled this event,
+									   // which will disable camera movement/etc ?
+				}
+				else
+				{
+					//ViewportClient->bLockFlightCamera = false;
+				}
+
+			}
+		}
+		else if (Key.IsGamepadKey())
+		{
+			// not supported yet
+		}
+		else if (Key.IsTouch())
+		{
+			// not supported yet
+		}
+		else if (Key.IsFloatAxis() || Key.IsVectorAxis())
+		{
+			// not supported yet
+		}
+		else    // is this definitely a keyboard key?
+		{
+			FInputDeviceState InputState;
+			InputState.InputDevice = EInputDevices::Keyboard;
+			InputState.SetModifierKeyStates(
 				ViewportClient->IsShiftPressed(), ViewportClient->IsAltPressed(),
 				ViewportClient->IsCtrlPressed(), ViewportClient->IsCmdPressed());
-
-			if (bIsLeftMouse)
-			{
-				InputState.Mouse.Left.SetStates(
-					(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
-				CurrentInputState.Mouse.Left.bDown = (Event == IE_Pressed);
-			}
-			else if (bIsMiddleMouse)
-			{
-				InputState.Mouse.Middle.SetStates(
-					(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
-				CurrentInputState.Mouse.Middle.bDown = (Event == IE_Pressed);
-			}
-			else
-			{
-				InputState.Mouse.Right.SetStates(
-					(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
-				CurrentInputState.Mouse.Right.bDown = (Event == IE_Pressed);
-			}
-
+			InputState.Keyboard.ActiveKey.Button = Key;
+			bool bPressed = (Event == IE_Pressed);
+			InputState.Keyboard.ActiveKey.SetStates(bPressed, bPressed, !bPressed);
 			InputRouter->PostInputEvent(InputState);
-
-			if (InputRouter->HasActiveMouseCapture())
-			{
-				// what is this about? MeshPaintMode has it...
-				ViewportClient->bLockFlightCamera = true;
-				bHandled = true;   // indicate that we handled this event,
-								   // which will disable camera movement/etc ?
-			}
-			else
-			{
-				//ViewportClient->bLockFlightCamera = false;
-			}
-
 		}
 
 	}
@@ -548,8 +577,8 @@ bool UEdModeInteractiveToolsContext::MouseEnter(FEditorViewportClient* ViewportC
 	UE_LOG(LogTemp, Warning, TEXT("MOUSE ENTER"));
 #endif
 
-	CurrentInputState.Mouse.Position2D = FVector2D(x, y);
-	CurrentInputState.Mouse.WorldRay = GetRayFromMousePos(ViewportClient, Viewport, x, y);
+	CurrentMouseState.Mouse.Position2D = FVector2D(x, y);
+	CurrentMouseState.Mouse.WorldRay = GetRayFromMousePos(ViewportClient, Viewport, x, y);
 
 	return false;
 }
@@ -561,12 +590,12 @@ bool UEdModeInteractiveToolsContext::MouseMove(FEditorViewportClient* ViewportCl
 	//UE_LOG(LogTemp, Warning, TEXT("MOUSE MOVE"));
 #endif
 
-	CurrentInputState.Mouse.Position2D = FVector2D(x, y);
-	CurrentInputState.Mouse.WorldRay = GetRayFromMousePos(ViewportClient, Viewport, x, y);
-	FInputDeviceState InputState = CurrentInputState;
+	CurrentMouseState.Mouse.Position2D = FVector2D(x, y);
+	CurrentMouseState.Mouse.WorldRay = GetRayFromMousePos(ViewportClient, Viewport, x, y);
+	FInputDeviceState InputState = CurrentMouseState;
 	InputState.InputDevice = EInputDevices::Mouse;
 
-	InputState.SetKeyStates(
+	InputState.SetModifierKeyStates(
 		ViewportClient->IsShiftPressed(), ViewportClient->IsAltPressed(),
 		ViewportClient->IsCtrlPressed(), ViewportClient->IsCmdPressed());
 
@@ -608,18 +637,18 @@ bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* In
 	//UE_LOG(LogTemp, Warning, TEXT("CAPTURED MOUSE MOVE"));
 #endif
 
-	FVector2D OldPosition = CurrentInputState.Mouse.Position2D;
-	CurrentInputState.Mouse.Position2D = FVector2D(InMouseX, InMouseY);
-	CurrentInputState.Mouse.WorldRay = GetRayFromMousePos(InViewportClient, InViewport, InMouseX, InMouseY);
+	FVector2D OldPosition = CurrentMouseState.Mouse.Position2D;
+	CurrentMouseState.Mouse.Position2D = FVector2D(InMouseX, InMouseY);
+	CurrentMouseState.Mouse.WorldRay = GetRayFromMousePos(InViewportClient, InViewport, InMouseX, InMouseY);
 
 	if (InputRouter->HasActiveMouseCapture())
 	{
-		FInputDeviceState InputState = CurrentInputState;
+		FInputDeviceState InputState = CurrentMouseState;
 		InputState.InputDevice = EInputDevices::Mouse;
-		InputState.SetKeyStates(
+		InputState.SetModifierKeyStates(
 			InViewportClient->IsShiftPressed(), InViewportClient->IsAltPressed(),
 			InViewportClient->IsCtrlPressed(), InViewportClient->IsCmdPressed());
-		InputState.Mouse.Delta2D = CurrentInputState.Mouse.Position2D - OldPosition;
+		InputState.Mouse.Delta2D = CurrentMouseState.Mouse.Position2D - OldPosition;
 		InputRouter->PostInputEvent(InputState);
 		return true;
 	}
