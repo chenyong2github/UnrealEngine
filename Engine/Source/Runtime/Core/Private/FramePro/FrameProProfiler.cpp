@@ -357,6 +357,11 @@ void FFrameProProfiler::StartFrameProRecordingScopeOverrideFromCommand(const TAr
 
 FString FFrameProProfiler::StartFrameProRecording(const FString& FilenameRoot, int32 MinScopeTime)
 {
+	if (GFrameProIsRecording)
+	{
+		StopFrameProRecording();
+	}
+
 	FString RelPathName = FPaths::ProfilingDir() + TEXT("FramePro/");
 	bool bSuccess = IFileManager::Get().MakeDirectory(*RelPathName, true); // ensure folder exists
 

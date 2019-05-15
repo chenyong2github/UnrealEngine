@@ -7,7 +7,7 @@ Texture2DUpdate.h: Helpers to stream in and out mips.
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Streaming/RenderAssetUpdate.h"
+#include "RenderAssetUpdate.h"
 #include "Engine/Texture2D.h"
 #include "Async/AsyncFileHandle.h"
 
@@ -44,6 +44,9 @@ struct FTexture2DUpdateContext
 	EThreadType CurrentThread;
 };
 
+// Declare that TRenderAssetUpdate is instantiated for FTexture2DUpdateContext
+extern template class TRenderAssetUpdate<FTexture2DUpdateContext>;
+
 /**
  * This class provides a framework for loading and unloading the mips of 2D textures.
  * Each thread essentially calls Tick() until the job is done.
@@ -54,19 +57,10 @@ class FTexture2DUpdate : public TRenderAssetUpdate<FTexture2DUpdateContext>
 public:
 	FTexture2DUpdate(UTexture2D* InTexture, int32 InRequestedMips);
 
+protected:
+
 	virtual ~FTexture2DUpdate();
 
-	virtual void Abort()
-	{
-		TRenderAssetUpdate<FTexture2DUpdateContext>::Abort();
-	}
-
-#if WITH_EDITORONLY_DATA
-	/** Returns whether DDC of this texture needs to be regenerated.  */
-	virtual bool DDCIsInvalid() const { return false; }
-#endif
-
-protected:
 	// ****************************
 	// ********* Helpers **********
 	// ****************************

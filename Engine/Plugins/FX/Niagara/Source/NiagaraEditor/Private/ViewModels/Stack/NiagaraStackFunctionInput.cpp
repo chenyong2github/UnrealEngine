@@ -39,6 +39,7 @@
 #include "AssetRegistryModule.h"
 #include "ARFilter.h"
 #include "EdGraph/EdGraphPin.h"
+#include "INiagaraEditorTypeUtilities.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 
@@ -1552,6 +1553,44 @@ void UNiagaraStackFunctionInput::GetSearchItems(TArray<FStackSearchItem>& Search
 	if (GetShouldPassFilterForVisibleCondition() && GetIsInlineEditConditionToggle() == false)
 	{
 		SearchItems.Add({ FName("DisplayName"), GetDisplayName() });
+
+		if (InputValues.Mode == EValueMode::Local && InputType.IsValid() && InputValues.LocalStruct->IsValid())
+		{
+			FNiagaraVariable LocalValue = FNiagaraVariable(InputType, "");
+			LocalValue.SetData(InputValues.LocalStruct->GetStructMemory());
+			TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> ParameterTypeUtilities = FNiagaraEditorModule::Get().GetTypeUtilities(RapidIterationParameter.GetType());
+			if (ParameterTypeUtilities.IsValid() && ParameterTypeUtilities->CanHandlePinDefaults())
+			{
+				FText SearchText = ParameterTypeUtilities->GetSearchTextFromValue(LocalValue);
+				if (SearchText.IsEmpty() == false)
+				{
+					SearchItems.Add({ FName("LocalValueText"), SearchText });
+				}
+			}
+		}
+		else if (InputValues.Mode == EValueMode::Linked)
+		{
+			SearchItems.Add({ FName("LinkedParamName"), FText::FromName(InputValues.LinkedHandle.GetParameterHandleString()) });
+		}
+		else if (InputValues.Mode == EValueMode::Dynamic && InputValues.DynamicNode.Get() != nullptr)
+		{
+			SearchItems.Add({ FName("LinkedDynamicInputName"), InputValues.DynamicNode->GetNodeTitle(ENodeTitleType::MenuTitle)});
+		}
+		else if (InputValues.Mode == EValueMode::Data && InputValues.DataObjects.IsValid())
+		{
+			if (InputValues.DataObjects.GetValueObject() != nullptr)
+			{
+				SearchItems.Add({ FName("LinkedDataInterfaceName"), FText::FromString(InputValues.DataObjects.GetValueObject()->GetName()) });
+			}
+			if (InputValues.DataObjects.GetDefaultValueObject() != nullptr)
+			{
+				SearchItems.Add({ FName("LinkedDataInterfaceDefaultName"), InputValues.DataObjects.GetDefaultValueObject()->GetClass()->GetDisplayNameText() });
+			}
+		}
+		else if (InputValues.Mode == EValueMode::Expression && InputValues.ExpressionNode.Get() != nullptr)
+		{
+			SearchItems.Add({ FName("LinkedExpressionText"), InputValues.ExpressionNode->GetHlslText() });
+		}
 	}
 }
 

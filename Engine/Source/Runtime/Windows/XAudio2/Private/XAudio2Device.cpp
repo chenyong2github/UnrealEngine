@@ -15,6 +15,7 @@
 #include "AudioEffect.h"
 #include "OpusAudioInfo.h"
 #include "VorbisAudioInfo.h"
+#include "ADPCMAudioInfo.h"
 #include "XAudio2Effects.h"
 #include "Interfaces/IAudioFormat.h"
 #include "HAL/PlatformAffinity.h"
@@ -364,21 +365,26 @@ class ICompressedAudioInfo* FXAudio2Device::CreateCompressedAudioInfo(USoundWave
 {
 	check(SoundWave);
 
-#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
-	if (SoundWave->IsStreaming() && SoundWave->NumChannels <= 2 )
-	{
-		ICompressedAudioInfo* CompressedInfo = new FXMAAudioInfo();
-		if (!CompressedInfo)
-		{
-			UE_LOG(LogAudio, Error, TEXT("Failed to create new FXMAAudioInfo for streaming SoundWave %s: out of memory."), *SoundWave->GetName());
-			return nullptr;
-		}
-		return CompressedInfo;
-	}
-#endif
-
 	if (SoundWave->IsStreaming())
 	{
+		if (SoundWave->IsSeekableStreaming())
+		{
+			return new FADPCMAudioInfo();
+		}
+
+#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
+		if (SoundWave->NumChannels <= 2 )
+		{
+			ICompressedAudioInfo* CompressedInfo = new FXMAAudioInfo();
+			if (!CompressedInfo)
+			{
+				UE_LOG(LogAudio, Error, TEXT("Failed to create new FXMAAudioInfo for streaming SoundWave %s: out of memory."), *SoundWave->GetName());
+				return nullptr;
+			}
+			return CompressedInfo;
+		}
+#endif
+
 #if USE_VORBIS_FOR_STREAMING
 		return new FVorbisAudioInfo();
 #else

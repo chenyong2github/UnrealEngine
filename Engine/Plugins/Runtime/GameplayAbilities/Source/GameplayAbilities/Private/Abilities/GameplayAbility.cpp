@@ -750,7 +750,6 @@ void UGameplayAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, cons
 	SetCurrentInfo(Handle, ActorInfo, ActivationInfo);
 
 	Comp->HandleChangeAbilityCanBeCanceled(AbilityTags, this, true);
-	Comp->ApplyAbilityBlockAndCancelTags(AbilityTags, this, true, BlockAbilitiesWithTag, true, CancelAbilitiesWithTag);
 	Comp->AddLooseGameplayTags(ActivationOwnedTags);
 
 	if (OnGameplayAbilityEndedDelegate)
@@ -759,6 +758,8 @@ void UGameplayAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, cons
 	}
 
 	Comp->NotifyAbilityActivated(Handle, this);
+
+	Comp->ApplyAbilityBlockAndCancelTags(AbilityTags, this, true, BlockAbilitiesWithTag, true, CancelAbilitiesWithTag);
 }
 
 void UGameplayAbility::CallActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate, const FGameplayEventData* TriggerEventData)

@@ -115,7 +115,7 @@ void FConcurrencySoundData::SetTarget(float InTargetVolume, float InLerpTime)
 	LerpTime = FMath::Max(InLerpTime, 0.0f);
 	Elapsed = 0.0f;
 
-	DbTargetVolume = Audio::ConvertToDecibels(InTargetVolume);
+	DbTargetVolume = Audio::ConvertToDecibels(InTargetVolume, KINDA_SMALL_NUMBER);
 }
 
 /************************************************************************/
@@ -812,7 +812,7 @@ void FSoundConcurrencyManager::RemoveActiveSound(FActiveSound& ActiveSound)
 					}
 				}
 			}
-			
+
 			delete ConcurrencyGroup;
 		}
 	}

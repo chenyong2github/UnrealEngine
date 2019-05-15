@@ -145,6 +145,8 @@ struct FLandscapeLayer
 		, BlendMode(LSBM_AdditiveBlend)
 	{}
 
+	FLandscapeLayer(const FLandscapeLayer& OtherLayer) = default;
+
 	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
 	FGuid Guid;
 
@@ -226,10 +228,11 @@ public:
 
 	// Layers stuff
 #if WITH_EDITOR
-	LANDSCAPE_API void RequestLayersInitialization();
-	LANDSCAPE_API void RequestLayersContentUpdateForceAll();
-	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InModeMask, bool bInForceUpdateAllComponents = false);
+	LANDSCAPE_API void RequestLayersInitialization(bool bInRequestContentUpdate = true);
+	LANDSCAPE_API void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InModeMask = ELandscapeLayerUpdateMode::All);
+	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InModeMask);
 	LANDSCAPE_API bool ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex);
+	LANDSCAPE_API FLandscapeLayer* DuplicateLayer(const FLandscapeLayer& InOtherLayer);
 	LANDSCAPE_API void CreateLayer(FName InName = NAME_None);
 	LANDSCAPE_API void CreateDefaultLayer();
 	LANDSCAPE_API void CopyOldDataToDefaultLayer();
@@ -239,8 +242,11 @@ public:
 	LANDSCAPE_API bool IsLayerNameUnique(const FName& InName) const;
 	LANDSCAPE_API void SetLayerName(int32 InLayerIndex, const FName& InName);
 	LANDSCAPE_API void SetLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bInHeightmap);
+	LANDSCAPE_API float GetLayerAlpha(int32 InLayerIndex, bool bInHeightmap) const;
+	LANDSCAPE_API float GetClampedLayerAlpha(float InAlpha, bool bInHeightmap) const;
 	LANDSCAPE_API void SetLayerVisibility(int32 InLayerIndex, bool bInVisible);
 	LANDSCAPE_API void SetLayerLocked(int32 InLayerIndex, bool bLocked);
+	LANDSCAPE_API uint8 GetLayerCount() const;
 	LANDSCAPE_API struct FLandscapeLayer* GetLayer(int32 InLayerIndex);
 	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(int32 InLayerIndex) const;
 	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(const FGuid& InLayerGuid) const;
@@ -269,20 +275,23 @@ public:
 	LANDSCAPE_API class ALandscapeBlueprintCustomBrush* GetBrushForLayer(int32 InLayerIndex, int32 InTargetType, int8 BrushIndex) const;
 	LANDSCAPE_API TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForLayer(int32 InLayerIndex, int32 InTargetType) const;
 	
+	LANDSCAPE_API void OnPreSave();
+
 private:
 	void TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
 	void CreateLayersRenderingResource();
 	void ReleaseLayersRenderingResource();
-	void RegenerateLayersContent();
+	void UpdateLayersContent(bool bInWaitForStreaming = false);
 	void MonitorShaderCompilation();
-	void RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents);
-	void RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents);
+	int32 RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool bInWaitForStreaming);
+	int32 RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool bInWaitForStreaming);
+	static bool UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, const int32 InContentUpdateModes);
 	void ResolveLayersHeightmapTexture();
 	void ResolveLayersWeightmapTexture();
 	void ResolveLayersTexture(class FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOutputTexture);
 
-	bool PrepareLayersHeightmapTextureResources() const;
-	bool PrepareLayersWeightmapTextureResources() const;
+	bool PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming) const;
+	bool PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming) const;
 
 	void UpdateLayersMaterialInstances();
 
@@ -359,10 +368,7 @@ private:
 
 	UPROPERTY(Transient)
 	uint32 LayerContentUpdateModes;
-
-	UPROPERTY(Transient)
-	bool bLayerForceUpdateAllComponents;
-
+		
 	// Represent all the resolved paint layer, from all layers blended together (size of the landscape x material layer count)
 	class FLandscapeTexture2DArrayResource* CombinedLayersWeightmapAllMaterialLayersResource;
 	

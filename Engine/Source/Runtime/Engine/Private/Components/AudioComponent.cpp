@@ -1145,6 +1145,48 @@ void UAudioComponent::SetSubmixSend(USoundSubmix* Submix, float SendLevel)
 	}
 }
 
+// BP function to set source bus sends (pre effect)
+void UAudioComponent::SetSourceBusSendPreEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel)
+{
+	if (FAudioDevice* AudioDevice = GetAudioDevice())
+	{
+		const uint64 MyAudioComponentID = AudioComponentID;
+		FAudioThread::RunCommandOnAudioThread([AudioDevice, MyAudioComponentID, SoundSourceBus, SourceBusSendLevel]()
+		{
+			FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
+			if (ActiveSound)
+			{
+				FSoundSourceBusSendInfo SourceBusSendInfo;
+				SourceBusSendInfo.SoundSourceBus = SoundSourceBus;
+				SourceBusSendInfo.SendLevel = SourceBusSendLevel;
+
+				ActiveSound->SetSourceBusSend(EBusSendType::PreEffect, SourceBusSendInfo);
+			}
+		});
+	}
+}
+
+// BP function to set source bus sends (post effect)
+void UAudioComponent::SetSourceBusSendPostEffect(USoundSourceBus * SoundSourceBus, float SourceBusSendLevel)
+{
+	if (FAudioDevice* AudioDevice = GetAudioDevice())
+	{
+		const uint64 MyAudioComponentID = AudioComponentID;
+		FAudioThread::RunCommandOnAudioThread([AudioDevice, MyAudioComponentID, SoundSourceBus, SourceBusSendLevel]()
+		{
+			FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
+			if (ActiveSound)
+			{
+				FSoundSourceBusSendInfo SourceBusSendInfo;
+				SourceBusSendInfo.SoundSourceBus = SoundSourceBus;
+				SourceBusSendInfo.SendLevel = SourceBusSendLevel;
+
+				ActiveSound->SetSourceBusSend(EBusSendType::PostEffect, SourceBusSendInfo);
+			}
+		});
+	}
+}
+
 void UAudioComponent::SetLowPassFilterEnabled(bool InLowPassFilterEnabled)
 {
 	if (FAudioDevice* AudioDevice = GetAudioDevice())

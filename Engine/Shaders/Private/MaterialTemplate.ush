@@ -1421,11 +1421,6 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 	else if (SceneTextureId == 14)
 	{
 #if POST_PROCESS_MATERIAL	
-		// SceneColor was transformed to OpenGL coordinates during tonemapping
-		#if !POST_PROCESS_MATERIAL_BEFORE_TONEMAP && (COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1)
-		UV.y = 1.0 - UV.y; 
-		#endif
-
 		MaterialFloat4 Input0 = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV);
 		#if POST_PROCESS_MATERIAL_BEFORE_TONEMAP
 		Input0 = Decode32BPPHDR(Input0);

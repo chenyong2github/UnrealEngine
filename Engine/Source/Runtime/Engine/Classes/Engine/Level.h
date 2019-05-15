@@ -741,11 +741,6 @@ public:
 	void InvalidateModelSurface();
 
 	/**
-	 * Makes sure that all light components have valid GUIDs associated.
-	 */
-	void ValidateLightGUIDs();
-
-	/**
 	 * Sorts the actor list by net relevancy and static behaviour. First all not net relevant static
 	 * actors, then all net relevant static actors and then the rest. This is done to allow the dynamic
 	 * and net relevant actor iterators to skip large amounts of actors.

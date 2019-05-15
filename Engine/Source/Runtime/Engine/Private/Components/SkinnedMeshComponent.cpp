@@ -364,6 +364,8 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 	bExternalUpdate = false;
 	bExternalEvaluationRateLimited = false;
 	bExternalTickRateControlled = false;
+
+	CurrentSkinWeightProfileName = NAME_None;
 }
 
 
@@ -584,9 +586,9 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent()
 				const bool bMorphTargetsAllowed = CVarEnableMorphTargets.GetValueOnAnyThread(true) != 0;
 
 				// Are morph targets disabled for this LOD?
-				if(bDisableMorphTarget || !bMorphTargetsAllowed)
+				if (!bDisableMorphTarget && bMorphTargetsAllowed)
 				{
-					ActiveMorphTargets.Empty();
+					RefreshMorphTargets();
 				}
 
 				MeshObject->Update(PredictedLODLevel, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::UpdatePrevious);  // send to rendering thread
@@ -660,6 +662,7 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 		check (UseLOD < MeshObject->GetSkeletalMeshRenderData().LODRenderData.Num());
 		MeshObject->Update(UseLOD,this,ActiveMorphTargets, MorphTargetWeights, bExternalEvaluationRateLimited && !bExternalInterpolate ? EPreviousBoneTransformUpdateMode::DuplicateCurrentToPrevious : EPreviousBoneTransformUpdateMode::None);  // send to rendering thread
 		MeshObject->bHasBeenUpdatedAtLeastOnce = true;
+		bForceMeshObjectUpdate = false; 
 		
 		// scene proxy update of material usage based on active morphs
 		UpdateMorphMaterialUsageOnProxy();
@@ -776,7 +779,7 @@ void USkinnedMeshComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	// See if this mesh was rendered recently. This has to happen first because other data will rely on this
-	bRecentlyRendered = (LastRenderTime > GetWorld()->TimeSeconds - 1.0f);
+	bRecentlyRendered = (GetLastRenderTime() > GetWorld()->TimeSeconds - 1.0f);
 
 	// Update component's LOD settings
 	// This must be done BEFORE animation Update and Evaluate (TickPose and RefreshBoneTransforms respectively)
@@ -2392,9 +2395,15 @@ FSkinWeightVertexBuffer* USkinnedMeshComponent::GetSkinWeightBuffer(int32 LODInd
 		{
 			WeightBuffer = LODInfo[LODIndex].OverrideSkinWeights;
 		}
+		else if (LODInfo.IsValidIndex(LODIndex) &&
+			LODInfo[LODIndex].OverrideProfileSkinWeights &&
+			LODInfo[LODIndex].OverrideProfileSkinWeights->GetNumVertices() == LODData.GetNumVertices())
+		{
+			WeightBuffer = LODInfo[LODIndex].OverrideProfileSkinWeights;
+		}
 		else
 		{
-			WeightBuffer = &LODData.SkinWeightVertexBuffer;
+			WeightBuffer = LODData.GetSkinWeightVertexBuffer();
 		}
 	}
 
@@ -2496,7 +2505,7 @@ void USkinnedMeshComponent::SetRefPoseOverride(const TArray<FTransform>& NewRefP
 			ZAxis.IsNearlyZero(SMALL_NUMBER))
 		{
 			// this is not allowed, warn them 
-			UE_LOG(LogSkeletalMesh, Warning, TEXT("Reference Pose for joint (%s) includes NIL matrix. Zero scale isn't allowed on ref pose. "), *SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex).ToString());
+			UE_LOG(LogSkeletalMesh, Warning, TEXT("Reference Pose for asset %s for joint (%s) includes NIL matrix. Zero scale isn't allowed on ref pose. "), *SkeletalMesh->GetPathName(), *SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex).ToString());
 		}
 
 		// Precompute inverse so we can use from-refpose-skin vertices.
@@ -3047,6 +3056,7 @@ void USkinnedMeshComponent::BeginDestroy()
 FSkelMeshComponentLODInfo::FSkelMeshComponentLODInfo()
 : OverrideVertexColors(nullptr)
 , OverrideSkinWeights(nullptr)
+, OverrideProfileSkinWeights(nullptr)
 {
 
 }
@@ -3116,6 +3126,11 @@ void FSkelMeshComponentLODInfo::CleanUpOverrideSkinWeights()
 	{
 		delete OverrideSkinWeights;
 		OverrideSkinWeights = nullptr;
+	}
+
+	if (OverrideProfileSkinWeights)
+	{
+		OverrideProfileSkinWeights = nullptr;
 	}
 }
 
@@ -3395,6 +3410,8 @@ void USkinnedMeshComponent::SetSkinWeightOverride(int32 LODIndex, const TArray<F
 
 void USkinnedMeshComponent::ClearSkinWeightOverride(int32 LODIndex)
 {
+	SCOPED_NAMED_EVENT(USkinnedMeshComponent_ClearSkinWeightOverride, FColor::Yellow);
+
 	// If we have a render resource, and the requested LODIndex is valid (for both component and mesh, though these should be the same)
 	if (LODInfo.IsValidIndex(LODIndex))
 	{
@@ -3404,6 +3421,114 @@ void USkinnedMeshComponent::ClearSkinWeightOverride(int32 LODIndex)
 			Info.ReleaseOverrideSkinWeightsAndBlock();
 			MarkRenderStateDirty();
 		}
+	}
+}
+
+bool USkinnedMeshComponent::SetSkinWeightProfile(FName InProfileName)
+{
+	if (FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData())
+	{
+		// Ensure the LOD infos array is initialized
+		InitLODInfos();
+        for (int32 LODIndex = 0; LODIndex < LODInfo.Num(); ++LODIndex)
+        {
+			// Check whether or not setting a profile is allow for this LOD index
+			if (LODIndex > GSkinWeightProfilesAllowedFromLOD)
+			{
+				FSkeletalMeshLODRenderData& RenderData = SkelMeshRenderData->LODRenderData[LODIndex];
+				
+				// Retrieve this profile's skin weight buffer
+				FSkinWeightVertexBuffer* Buffer = RenderData.SkinWeightProfilesData.GetOverrideBuffer(InProfileName);
+				if (Buffer != nullptr)
+				{
+					FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
+					Info.OverrideProfileSkinWeights = Buffer;
+
+					bSkinWeightProfileSet = true;
+					CurrentSkinWeightProfileName = InProfileName;
+				}
+			}
+        }
+
+		if (bSkinWeightProfileSet)
+		{
+			UpdateSkinWeightOverrideBuffer();
+		}
+	}
+
+	return bSkinWeightProfileSet;
+}
+
+void USkinnedMeshComponent::ClearSkinWeightProfile()
+{
+	if (FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData())
+	{	
+		bool bCleared = false;
+
+		// Clear skin weight buffer set for all of the LODs
+		for (int32 LODIndex = 0; LODIndex < LODInfo.Num(); ++LODIndex)
+		{
+			FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
+			bCleared |= (Info.OverrideProfileSkinWeights != nullptr);
+			Info.OverrideProfileSkinWeights = nullptr;
+		}
+
+		if (bCleared)
+		{
+			UpdateSkinWeightOverrideBuffer();
+		}
+	}
+
+	bSkinWeightProfileSet = false;
+	CurrentSkinWeightProfileName = NAME_None;
+}
+
+void USkinnedMeshComponent::UnloadSkinWeightProfile(FName InProfileName)
+{
+	if (FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData())
+	{
+		if (LODInfo.Num())
+		{
+			bool bCleared = false;
+			for (int32 LODIndex = 0; LODIndex < LODInfo.Num(); ++LODIndex)
+			{
+				// Queue release and deletion of the skin weight buffer associated with the profile name
+				FSkeletalMeshLODRenderData& RenderData = SkelMeshRenderData->LODRenderData[LODIndex];
+				RenderData.SkinWeightProfilesData.ReleaseBuffer(InProfileName);
+
+				// In case the buffer previously released is currently set for this component, clear it
+				if (CurrentSkinWeightProfileName == InProfileName)
+				{
+					FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
+					Info.OverrideProfileSkinWeights = nullptr;
+					bCleared = true;
+				}
+			}
+
+			if (bCleared)
+			{
+				UpdateSkinWeightOverrideBuffer();
+			}
+		}
+	}
+
+	if (CurrentSkinWeightProfileName == InProfileName)
+	{
+		bSkinWeightProfileSet = false;
+		CurrentSkinWeightProfileName = NAME_None;
+	}
+}
+
+void USkinnedMeshComponent::UpdateSkinWeightOverrideBuffer()
+{
+	// Force a mesh update to ensure bone buffers are up to date
+	bForceMeshObjectUpdate = true;
+	MarkRenderDynamicDataDirty();
+
+	// Queue an update of the skin weight buffer used by the current Mesh Object
+	if (MeshObject)
+	{
+		MeshObject->UpdateSkinWeightBuffer(this);
 	}
 }
 

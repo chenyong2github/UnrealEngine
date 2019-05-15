@@ -361,6 +361,13 @@ public:
 	*/
 	virtual bool UsesDistanceFields() const = 0;
 
+	/**
+	* Gets down sample mesh distance field divider.
+	*
+	* @return 1 if platform does not need to downsample mesh distance fields
+	*/
+	virtual float GetDownSampleMeshDistanceFieldDivider() const = 0;
+
 #if WITH_ENGINE
 	/**
 	 * Gets the format to use for a particular body setup.

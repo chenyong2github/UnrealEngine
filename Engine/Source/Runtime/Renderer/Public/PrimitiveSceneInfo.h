@@ -192,15 +192,12 @@ public:
 	FPrimitiveComponentId PrimitiveComponentId;
 
 	/** 
-	 * Pointer to the primitive's last render time variable, which is written to by the RT and read by the GT.
+	 * Pointer to the last render time variable on the primitive's owning actor (if owned), which is written to by the RT and read by the GT.
 	 * The value of LastRenderTime will therefore not be deterministic due to race conditions, but the GT uses it in a way that allows this.
-	 * Storing a pointer to the UObject member variable only works because UPrimitiveComponent has a mechanism to ensure it does not get deleted before the proxy (DetachFence).
+	 * Storing a pointer to the UObject member variable only works because UPrimitiveComponent and AActor has a mechanism to ensure it does not get deleted before the proxy (DetachFence).
 	 * In general feedback from the renderer to the game thread like this should be avoided.
 	 */
-	float* ComponentLastRenderTime;
-
-	/** Same as ComponentLastRenderTime but only updated if the component is on screen. Used by the texture streamer. */
-	float* ComponentLastRenderTimeOnScreen;
+	float* OwnerLastRenderTime;
 
 	/** 
 	 * The root attachment component id for use with lighting, if valid.
@@ -439,6 +436,9 @@ public:
 	bool NeedsReflectionCaptureUpdate() const;
 	/** Cache per-primitive reflection captures used for mobile/forward rendering */
 	void CacheReflectionCaptures();
+
+	/** Helper function for writing out to the last render times to the game thread */
+	void UpdateComponentLastRenderTime(float CurrentWorldTime, bool bUpdateLastRenderTimeOnScreen) const;
 
 #if RHI_RAYTRACING
 	RENDERER_API FRayTracingGeometryRHIRef GetStaticRayTracingGeometryInstance(int LodLevel);

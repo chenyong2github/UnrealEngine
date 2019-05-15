@@ -135,6 +135,14 @@ FAutoConsoleVariableRef CVarSoundDistanceOptimizationLength(
 	TEXT("The maximum duration a sound must be in order to be a candidate to be culled due to one-shot distance optimization.\n"),
 	ECVF_Default);
 
+static int32 EnableBinauralAudioForAllSpatialSoundsCVar = 0;
+FAutoConsoleVariableRef CVarEnableBinauralAudioForAllSpatialSounds(
+	TEXT("au.EnableBinauralAudioForAllSpatialSounds"),
+	EnableBinauralAudioForAllSpatialSoundsCVar,
+	TEXT("Toggles binaural audio rendering for all spatial sounds if binaural rendering is available.\n"),
+	ECVF_Default);
+
+
 using FVirtualLoopPair = TPair<FActiveSound*, FAudioVirtualLoop>;
 
 /*-----------------------------------------------------------------------------
@@ -147,7 +155,6 @@ FAudioDevice::FAudioDevice()
 	, MaxChannelsScale(1.0f)
 	, MaxChannelsScale_GameThread(1.0f)
 	, NumStoppingVoices(32)
-	, MaxWaveInstances(0)
 	, SampleRate(0)
 	, NumPrecacheFrames(MONO_PCM_BUFFER_SAMPLES)
 	, CommonAudioPoolSize(0)
@@ -263,7 +270,7 @@ bool FAudioDevice::Init(int32 InMaxChannels)
 		PlatformAudioHeadroom = FMath::Pow(10.0f, Headroom / 20.0f);
 	}
 
-	int32 NumPrecacheFramesSettings = 0; 
+	int32 NumPrecacheFramesSettings = 0;
 	if (GConfig->GetInt(TEXT("Audio"), TEXT("NumPrecacheFrames"), NumPrecacheFramesSettings, GEngineIni))
 	{
 		NumPrecacheFrames = FMath::Min(128, NumPrecacheFramesSettings);
@@ -280,7 +287,6 @@ bool FAudioDevice::Init(int32 InMaxChannels)
 	bAllowCenterChannel3DPanning = AudioSettings->bAllowCenterChannel3DPanning;
 	bAllowVirtualizedSounds = AudioSettings->bAllowVirtualizedSounds;
 	DefaultReverbSendLevel = AudioSettings->DefaultReverbSendLevel;
-	MaxWaveInstances = AudioSettings->MaxWaveInstances;
 
 	const FSoftObjectPath DefaultBaseSoundMixName = GetDefault<UAudioSettings>()->DefaultBaseSoundMix;
 	if (DefaultBaseSoundMixName.IsValid())
@@ -555,7 +561,7 @@ void FAudioDevice::Teardown()
 		SpatializationPluginInterface.Reset();
 		bSpatializationInterfaceEnabled = false;
 	}
-	
+
 	if (ReverbPluginInterface.IsValid())
 	{
 		ReverbPluginInterface->Shutdown();
@@ -635,6 +641,11 @@ void FAudioDevice::AddReferencedObjects(FReferenceCollector& Collector)
 	{
 		ActiveSound->AddReferencedObjects(Collector);
 	}
+
+	for (FActiveSound* ActiveSound : PendingSoundsToDelete)
+	{
+		ActiveSound->AddReferencedObjects(Collector);
+	}	
 
 	for (FVirtualLoopPair& Pair : VirtualLoops)
 	{
@@ -1647,11 +1658,11 @@ bool FAudioDevice::IsHRTFEnabledForAll() const
 {
 	if (IsInAudioThread())
 	{
-		return bHRTFEnabledForAll && IsSpatializationPluginEnabled();
+		return (bHRTFEnabledForAll || EnableBinauralAudioForAllSpatialSoundsCVar == 1) && IsSpatializationPluginEnabled();
 	}
 
 	check(IsInGameThread());
-	return bHRTFEnabledForAll_OnGameThread && IsSpatializationPluginEnabled();
+	return (bHRTFEnabledForAll_OnGameThread || EnableBinauralAudioForAllSpatialSoundsCVar == 1) && IsSpatializationPluginEnabled();
 }
 
 void FAudioDevice::SetMixDebugState(EDebugState InDebugState)
@@ -3344,7 +3355,7 @@ int32 FAudioDevice::GetSortedActiveWaveInstances(TArray<FWaveInstance*>& WaveIns
 	{
 		StopQuietSoundsDueToMaxConcurrency(WaveInstances, ActiveSoundsCopy);
 	}
-	
+
 	int32 FirstActiveIndex = 0;
 	// Only need to do the wave instance sort if we have any waves and if our wave instances are greater than our max channels.
 	if (WaveInstances.Num() >= 0)
@@ -3545,12 +3556,11 @@ void FAudioDevice::StopSources(TArray<FWaveInstance*>& WaveInstances, int32 Firs
 
 #if STATS
 	uint32 AudibleInactiveSounds = 0;
-	static const float MinReportVol = Audio::ConvertToDecibels(-60.f);
 	// Count how many sounds are not being played but were audible
 	for (int32 InstanceIndex = 0; InstanceIndex < FirstActiveIndex; InstanceIndex++)
 	{
 		FWaveInstance* WaveInstance = WaveInstances[InstanceIndex];
-		if (WaveInstance->GetVolumeWithDistanceAttenuation() > MinReportVol)
+		if (WaveInstance->GetVolumeWithDistanceAttenuation() > KINDA_SMALL_NUMBER)
 		{
 			AudibleInactiveSounds++;
 		}
@@ -3868,22 +3878,6 @@ void FAudioDevice::Update(bool bGameTicking)
 
 		// Check which sounds are active from these wave instances and update passive SoundMixes
 		UpdatePassiveSoundMixModifiers(ActiveWaveInstances, FirstActiveIndex);
-
-		// Update the min priority cull threshold. It will be based off the min priority of the lowest priority sound here.
-		if (ActiveWaveInstances.Num() > MaxWaveInstances)
-		{
-			// Helper function for "Sort" (higher priority sorts last).
-			struct FCompareFWaveInstanceByPriority
-			{
-				FORCEINLINE bool operator()(const FWaveInstance& A, const FWaveInstance& B) const
-				{
-					return A.Priority > B.Priority;
-				}
-			};
-
-			// Sort by priority (lowest priority first).
-			ActiveWaveInstances.Sort(FCompareFWaveInstanceByPriority());
-		}
 
 		// If not paused, update the playback time of the active sounds after we've processed passive mix modifiers
 		// Note that for sounds which play while paused, this will result in longer active sound playback times, which will be ok. If we update the
@@ -5009,7 +5003,7 @@ UAudioComponent* FAudioDevice::CreateComponent(USoundBase* Sound, UWorld* World,
 	Params->bPlay = bPlay;
 	Params->bStopWhenOwnerDestroyed = bStopWhenOwnerDestroyed;
 	Params->AttenuationSettings = AttenuationSettings;
-	
+
 	if (ConcurrencySettings)
 	{
 		Params->ConcurrencySet.Add(ConcurrencySettings);

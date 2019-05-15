@@ -494,8 +494,14 @@ public:
 	float NetPriority;
 
 private:
-	/** Caches the most recent last render time we've looked at for this actor */
-	mutable float CachedLastRenderTime;
+	/**
+	 * The value of WorldSettings->TimeSeconds for the frame when one of this actor's components was last rendered.  This is written
+	 * from the render thread, which is up to a frame behind the game thread, so you should allow this time to
+	 * be at least a frame behind the game thread's world time before you consider the actor non-visible.
+	 */
+	float LastRenderTime;
+
+	friend struct FActorLastRenderTime;
 
 public:
 	/**
@@ -3068,6 +3074,24 @@ private:
 	}
 
 	friend UWorld;
+};
+
+/** Helper struct that allows UPrimitiveComponent and FPrimitiveSceneInfo write to the Actor's LastRenderTime member */
+struct FActorLastRenderTime
+{
+private:
+	static void Set(AActor* InActor, float LastRenderTime)
+	{
+		InActor->LastRenderTime = LastRenderTime;
+	}
+
+	static float* GetPtr(AActor* InActor)
+	{
+		return (InActor ? &InActor->LastRenderTime : nullptr);
+	}
+
+	friend class UPrimitiveComponent;
+	friend class FPrimitiveSceneInfo;
 };
 
 #if WITH_EDITOR

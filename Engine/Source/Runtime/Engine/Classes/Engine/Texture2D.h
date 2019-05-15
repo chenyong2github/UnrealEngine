@@ -8,6 +8,7 @@
 #include "UObject/ScriptMacros.h"
 #include "Engine/Texture.h"
 #include "TextureResource.h"
+#include "RenderAssetUpdate.h"
 #include "Texture2D.generated.h"
 
 class FTexture2DResourceMem;
@@ -90,7 +91,7 @@ public:
 protected:
 
 	/** Helper to manage the current pending update following a call to StreamIn() or StreamOut(). */
-	class FTexture2DUpdate* PendingUpdate;
+	TRefCountPtr<FRenderAssetUpdate> PendingUpdate;
 	friend class FTexture2DUpdate;
 
 public:

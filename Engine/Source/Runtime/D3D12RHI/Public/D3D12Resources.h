@@ -420,6 +420,7 @@ public:
 		eStandAlone,
 		eSubAllocation,
 		eFastAllocation,
+		eMultiFrameFastAllocation,
 		eAliased, // Oculus is the only API that uses this
 		eNodeReference,
 		eHeapAliased, 
@@ -495,9 +496,17 @@ public:
 	}
 
 
-	inline void AsFastAllocation(FD3D12Resource* Resource, uint32 BufferSize, D3D12_GPU_VIRTUAL_ADDRESS GPUBase, void* CPUBase, uint64 Offset)
+	inline void AsFastAllocation(FD3D12Resource* Resource, uint32 BufferSize, D3D12_GPU_VIRTUAL_ADDRESS GPUBase, void* CPUBase, uint64 Offset, bool bMultiFrame = false)
 	{
-		SetType(FD3D12ResourceLocation::ResourceLocationType::eFastAllocation);
+		if (bMultiFrame)
+		{
+			Resource->AddRef();
+			SetType(ResourceLocationType::eMultiFrameFastAllocation);
+		}
+		else
+		{
+			SetType(ResourceLocationType::eFastAllocation);
+		}
 		SetResource(Resource);
 		SetSize(BufferSize);
 		SetOffsetFromBaseOfResource(Offset);

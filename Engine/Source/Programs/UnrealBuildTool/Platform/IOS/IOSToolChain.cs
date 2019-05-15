@@ -499,7 +499,7 @@ namespace UnrealBuildTool
 				FileItem OutputFile = FileItem.GetItemByFileReference(LinkEnvironment.OutputFilePath);
 
 				Result += " -fembed-bitcode -Xlinker -bitcode_verify -Xlinker -bitcode_hide_symbols -Xlinker -bitcode_symbol_map ";
-				Result += " -Xlinker " + Path.GetDirectoryName(OutputFile.AbsolutePath);
+				Result += " -Xlinker \"" + Path.GetDirectoryName(OutputFile.AbsolutePath) + "\"";
 			}
 
 			Result += " -dead_strip";
@@ -889,7 +889,7 @@ namespace UnrealBuildTool
 
 				linkCommandArguments += string.Format("rm -f \"{0}\";", OutputFile.AbsolutePath);
 				linkCommandArguments += string.Format("rm -f \"{0}\\*.bcsymbolmap\";", Path.GetDirectoryName(OutputFile.AbsolutePath));
-				linkCommandArguments += LinkerPath + " " + LinkCommandArguments + ";";
+				linkCommandArguments += "\"" + LinkerPath + "\" " + LinkCommandArguments + ";";
 
 				linkCommandArguments += "'";
 
@@ -898,7 +898,7 @@ namespace UnrealBuildTool
 			else
 			{
 				// This is not a shipping build so no need to delete the output file since symbols will not have been stripped from it.
-				LinkAction.CommandArguments = string.Format("-c '{0} {1}'", LinkerPath, LinkCommandArguments);
+				LinkAction.CommandArguments = string.Format("-c '\"{0}\" {1}'", LinkerPath, LinkCommandArguments);
 			}
 			Actions.Add(LinkAction);
 
@@ -1870,6 +1870,9 @@ namespace UnrealBuildTool
 				UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
 				DeployHandler.ForDistribution = Target.bForDistribution;
 				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, Target.bCreateStubIPA, BundleID);
+
+				// write the entitlements file (building on Mac)
+				WriteEntitlements(Target);
 			}
 			
 

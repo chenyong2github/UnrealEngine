@@ -349,6 +349,21 @@ UEditorEngine::UEditorEngine(const FObjectInitializer& ObjectInitializer)
 	DefaultWorldFeatureLevel = GMaxRHIFeatureLevel;
 	PreviewFeatureLevel = DefaultWorldFeatureLevel;
 
+	FCoreDelegates::OnFeatureLevelDisabled.AddLambda([this](int RHIType, const FName& PreviewPlatformName)
+		{
+			ERHIFeatureLevel::Type FeatureLevelTypeToDisable = (ERHIFeatureLevel::Type)RHIType;
+			if (PreviewFeatureLevel == FeatureLevelTypeToDisable)
+			{
+				UMaterialShaderQualitySettings* MaterialShaderQualitySettings = UMaterialShaderQualitySettings::Get();
+				if (MaterialShaderQualitySettings->GetPreviewPlatform() != PreviewPlatformName)
+				{
+					return;
+				}
+				
+				SetPreviewPlatform(FName(), ERHIFeatureLevel::SM5);
+			}
+		});
+		
 	bNotifyUndoRedoSelectionChange = true;
 
 	EditorWorldExtensionsManager = nullptr;
@@ -1152,6 +1167,8 @@ void UEditorEngine::FinishDestroy()
 			// this needs to be already cleaned up
 			UE_LOG(LogEditor, Warning, TEXT("Warning: Play world is active"));
 		}
+
+		EditorSubsystemCollection.Deinitialize();
 
 		// Unregister events
 		FEditorDelegates::MapChange.RemoveAll(this);

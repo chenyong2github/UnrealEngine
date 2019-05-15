@@ -515,21 +515,6 @@ void ULevel::SortActorList()
 }
 
 
-void ULevel::ValidateLightGUIDs()
-{
-	for( TObjectIterator<ULightComponent> It; It; ++It )
-	{
-		ULightComponent*	LightComponent	= *It;
-		bool				IsInLevel		= LightComponent->IsIn( this );
-
-		if( IsInLevel )
-		{
-			LightComponent->ValidateLightGUIDs();
-		}
-	}
-}
-
-
 void ULevel::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 	Super::PreSave(TargetPlatform);
@@ -537,10 +522,6 @@ void ULevel::PreSave(const class ITargetPlatform* TargetPlatform)
 #if WITH_EDITOR
 	if( !IsTemplate() )
 	{
-		UPackage* Package = GetOutermost();
-
-		ValidateLightGUIDs();
-
 		// Clear out any crosslevel references
 		for( int32 ActorIdx = 0; ActorIdx < Actors.Num(); ActorIdx++ )
 		{
@@ -550,8 +531,6 @@ void ULevel::PreSave(const class ITargetPlatform* TargetPlatform)
 				Actor->ClearCrossLevelReferences();
 			}
 		}
-
-		// CheckTextureStreamingBuild(this);
 	}
 #endif // WITH_EDITOR
 }

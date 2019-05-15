@@ -195,6 +195,8 @@ struct FWeightmapLayerAllocationInfo
 	}
 	
 	FName GetLayerName() const;
+
+	uint32 GetHash() const;
 };
 
 struct FLandscapeComponentGrassData
@@ -872,7 +874,7 @@ public:
 	/** Updates the values of component-level properties exposed by the Landscape Actor */
 	LANDSCAPE_API void UpdatedSharedPropertiesFromActor();
 
-	LANDSCAPE_API bool IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag InFlag, uint32 InModeMask, bool bForce) const;
+	LANDSCAPE_API bool IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag InFlag, uint32 InModeMask) const;
 	LANDSCAPE_API void ClearUpdateFlagsForModes(uint32 InModeMask);
 	LANDSCAPE_API void RequestWeightmapUpdate(bool bUpdateAll = false);
 	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false);

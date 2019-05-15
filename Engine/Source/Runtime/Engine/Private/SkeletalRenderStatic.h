@@ -56,6 +56,9 @@ public:
 			LODs[I].GetResourceSizeEx(CumulativeResourceSize);
 		}
 	}
+
+	virtual void UpdateSkinWeightBuffer(USkinnedMeshComponent* InMeshComponent) override {}
+
 	//~ End FSkeletalMeshObject Interface
 
 private:

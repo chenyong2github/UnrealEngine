@@ -1631,6 +1631,10 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 				{
 					FinalCull = ComputeBoundsDrawDistance(MinSize, SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
 				}
+				if (View->SceneViewInitOptions.OverrideFarClippingPlaneDistance > 0.0f)
+				{
+					FinalCull = FMath::Min(FinalCull, View->SceneViewInitOptions.OverrideFarClippingPlaneDistance * MaxDrawDistanceScale);
+				}
 				if (UserData_AllInstances.EndCullDistance > 0.0f)
 				{
 					FinalCull = FMath::Min(FinalCull, UserData_AllInstances.EndCullDistance * MaxDrawDistanceScale);
@@ -1806,6 +1810,10 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 						if (MinSize > 0.0)
 						{
 							FinalCull = ComputeBoundsDrawDistance(MinSize, SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
+						}
+						if (View->SceneViewInitOptions.OverrideFarClippingPlaneDistance > 0.0f)
+						{
+							FinalCull = FMath::Min(FinalCull, View->SceneViewInitOptions.OverrideFarClippingPlaneDistance * MaxDrawDistanceScale);
 						}
 						if (UserData_AllInstances.EndCullDistance > 0.0f)
 						{
@@ -2819,25 +2827,32 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTreeAsync()
 
 void UHierarchicalInstancedStaticMeshComponent::PropagateLightingScenarioChange()
 {
-	if (GIsEditor && PerInstanceRenderData.IsValid())
+	if (PerInstanceRenderData.IsValid())
 	{
-		FComponentRecreateRenderStateContext Context(this);
-
-		const FMeshMapBuildData* MeshMapBuildData = nullptr;
-		if (LODData.Num() > 0)
+		if (GIsEditor)
 		{
-			MeshMapBuildData = GetMeshMapBuildData(LODData[0]);
-		}
+			FComponentRecreateRenderStateContext Context(this);
 
-		if (MeshMapBuildData != nullptr)
-		{
-			for (int32 InstanceIndex = 0; InstanceIndex < PerInstanceSMData.Num(); ++InstanceIndex)
+			const FMeshMapBuildData* MeshMapBuildData = nullptr;
+			if (LODData.Num() > 0)
 			{
-				int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
-
-				InstanceUpdateCmdBuffer.SetLightMapData(RenderIndex, MeshMapBuildData->PerInstanceLightmapData[InstanceIndex].LightmapUVBias);
-				InstanceUpdateCmdBuffer.SetShadowMapData(RenderIndex, MeshMapBuildData->PerInstanceLightmapData[InstanceIndex].ShadowmapUVBias);
+				MeshMapBuildData = GetMeshMapBuildData(LODData[0]);
 			}
+
+			if (MeshMapBuildData != nullptr)
+			{
+				for (int32 InstanceIndex = 0; InstanceIndex < PerInstanceSMData.Num(); ++InstanceIndex)
+				{
+					int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
+
+					InstanceUpdateCmdBuffer.SetLightMapData(RenderIndex, MeshMapBuildData->PerInstanceLightmapData[InstanceIndex].LightmapUVBias);
+					InstanceUpdateCmdBuffer.SetShadowMapData(RenderIndex, MeshMapBuildData->PerInstanceLightmapData[InstanceIndex].ShadowmapUVBias);
+				}
+			}
+		}
+		else
+		{
+			BuildTreeIfOutdated(true, true);
 		}
 	}
 }
@@ -2967,6 +2982,16 @@ void UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 		}
 		else
 		{
+			AActor* Owner = GetOwner();
+			ULevel* OwnerLevel = Owner->GetLevel();
+			UWorld* OwnerWorld = OwnerLevel ? OwnerLevel->OwningWorld : nullptr;
+
+			if (OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel)
+			{
+				//update the instance data if the lighting scenario isn't the owner level
+				bForceTreeBuild = true;
+			}
+
 			if (!bForceTreeBuild)
 			{
 				// create PerInstanceRenderData either from current data or pre-built instance buffer

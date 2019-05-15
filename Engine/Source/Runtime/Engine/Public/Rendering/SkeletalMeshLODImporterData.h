@@ -284,20 +284,20 @@ template <> struct TIsPODType<SkeletalMeshImportData::FVertInfluence> { enum { V
 class ENGINE_API FSkeletalMeshImportData
 {
 public:
-	TArray <SkeletalMeshImportData::FMaterial>			Materials;		// Materials
-	TArray <FVector>			Points;			// 3D Points
-	TArray <SkeletalMeshImportData::FVertex>			Wedges;			// Wedges
-	TArray <SkeletalMeshImportData::FTriangle>			Faces;			// Faces
-	TArray <SkeletalMeshImportData::FBone>				RefBonesBinary;	// Reference Skeleton
-	TArray <SkeletalMeshImportData::FRawBoneInfluence>	Influences;		// Influences
-	TArray <int32>				PointToRawMap;	// Mapping from current point index to the original import point index
-	uint32	NumTexCoords;						// The number of texture coordinate sets
-	uint32	MaxMaterialIndex;					// The max material index found on a triangle
-	bool 	bHasVertexColors; 					// If true there are vertex colors in the imported file
-	bool	bHasNormals;						// If true there are normals in the imported file
-	bool	bHasTangents;						// If true there are tangents in the imported file
-	bool	bUseT0AsRefPose;					// If true, then the pose at time=0 will be used instead of the ref pose
-	bool	bDiffPose;							// If true, one of the bones has a different pose at time=0 vs the ref pose
+	TArray <SkeletalMeshImportData::FMaterial>			Materials;				// Materials
+	TArray <FVector>			Points;											// 3D Points
+	TArray <SkeletalMeshImportData::FVertex>			Wedges;					// Wedges
+	TArray <SkeletalMeshImportData::FTriangle>			Faces;					// Faces
+	TArray <SkeletalMeshImportData::FBone>				RefBonesBinary;			// Reference Skeleton
+	TArray <SkeletalMeshImportData::FRawBoneInfluence>	Influences;				// Influences
+	TArray <int32>				PointToRawMap;									// Mapping from current point index to the original import point index
+	uint32	NumTexCoords;														// The number of texture coordinate sets
+	uint32	MaxMaterialIndex;													// The max material index found on a triangle
+	bool 	bHasVertexColors; 													// If true there are vertex colors in the imported file
+	bool	bHasNormals;														// If true there are normals in the imported file
+	bool	bHasTangents;														// If true there are tangents in the imported file
+	bool	bUseT0AsRefPose;													// If true, then the pose at time=0 will be used instead of the ref pose
+	bool	bDiffPose;															// If true, one of the bones has a different pose at time=0 vs the ref pose
 
 	FSkeletalMeshImportData()
 		: NumTexCoords(0)

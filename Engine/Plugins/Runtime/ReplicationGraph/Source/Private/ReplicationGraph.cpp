@@ -4827,7 +4827,7 @@ struct FPlayerGridCellInformation
 
 void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params)
 {
-	TArray<FLastLocationGatherInfo, FReplicationGraphConnectionsAllocator>& LastLocationArray = Params.ConnectionManager.LastGatherLocations;
+	TArray<FLastLocationGatherInfo>& LastLocationArray = Params.ConnectionManager.LastGatherLocations;
 	TArray<FVector2D, FReplicationGraphConnectionsAllocator> UniqueCurrentLocations;
 
 	// Consider all users that are in cells for this connection. 

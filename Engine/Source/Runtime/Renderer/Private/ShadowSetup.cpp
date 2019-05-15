@@ -1080,7 +1080,7 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 		{
 			// Update the primitive component's last render time. Allows the component to update when using bCastWhenHidden.
 			const float CurrentWorldTime = Views[0]->Family->CurrentWorldTime;
-			*(PrimitiveSceneInfo->ComponentLastRenderTime) = CurrentWorldTime;
+			PrimitiveSceneInfo->UpdateComponentLastRenderTime(CurrentWorldTime, /*bUpdateLastRenderTimeOnScreen=*/false);
 
 			if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
 			{

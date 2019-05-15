@@ -2524,6 +2524,7 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 				PostProcessTonemap->bDoScreenPercentageInTonemapper = false;
 				DoScreenPercentageInTonemapperPtr = &PostProcessTonemap->bDoScreenPercentageInTonemapper;
 			}
+			SetMobilePassFlipVerticalAxis(TonemapperPass);
 		}
 
 		// if Context.FinalOutput was the clipped result of sunmask stage then this stage also restores Context.FinalOutput back original target size.
@@ -2535,6 +2536,7 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 			{
 				Context.FinalOutput = AddPostProcessMaterialChain(Context, BL_AfterTonemapping, nullptr);
 			}
+			SetMobilePassFlipVerticalAxis(Context.FinalOutput.GetPass());
 
 			if (bUseAa)
 			{
@@ -2656,6 +2658,7 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 			CompositeContext.Process(Context.FinalOutput.GetPass(), TEXT("PostProcessingES2"));
 		}
 	}
+	SetMobilePassFlipVerticalAxis(nullptr);
 }
 
 void FPostProcessing::ProcessPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& VelocityRT, TRefCountPtr<IPooledRenderTarget>& OutFilteredSceneColor)

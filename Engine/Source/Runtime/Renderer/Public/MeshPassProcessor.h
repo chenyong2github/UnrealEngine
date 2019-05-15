@@ -288,11 +288,12 @@ const int32 NumInlineShaderBindings = 10;
 struct FMeshDrawCommandDebugData
 {
 #if MESH_DRAW_COMMAND_DEBUG_DATA
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy;
+	const FPrimitiveSceneProxy* PrimitiveSceneProxyIfNotUsingStateBuckets;
 	const FMaterial* Material;
 	const FMaterialRenderProxy* MaterialRenderProxy;
 	FMeshMaterialShader* VertexShader;
 	FMeshMaterialShader* PixelShader;
+	FName ResourceName;
 #endif
 };
 
@@ -352,6 +353,8 @@ public:
 
 	/** Returns whether this set of shader bindings can be merged into an instanced draw call with another. */
 	bool MatchesForDynamicInstancing(const FMeshDrawShaderBindings& Rhs) const;
+
+	uint32 GetDynamicInstancingHash() const;
 
 	SIZE_T GetAllocatedSize() const
 	{
@@ -502,6 +505,41 @@ public:
 				|| (NumPrimitives == 0 && IndirectArgsBuffer == Rhs.IndirectArgsBuffer));
 	}
 
+	uint32 GetDynamicInstancingHash() const
+	{
+		uint32 Hash = FCrc::TypeCrc32(CachedPipelineId.GetId(), 0);
+		Hash = FCrc::TypeCrc32(StencilRef, Hash);
+		Hash = HashCombine(ShaderBindings.GetDynamicInstancingHash(), Hash);
+
+		for (const FVertexInputStream& VertexInputStream: VertexStreams)
+		{
+			const uint32 StreamIndex = VertexInputStream.StreamIndex;
+			const uint32 Offset = VertexInputStream.Offset;
+
+			Hash = FCrc::TypeCrc32(StreamIndex, Hash);
+			Hash = FCrc::TypeCrc32(Offset, Hash);
+			Hash = PointerHash(VertexInputStream.VertexBuffer, Hash);
+		}
+
+		Hash = FCrc::TypeCrc32(PrimitiveIdStreamIndex, Hash);
+		Hash = PointerHash(IndexBuffer, Hash);
+		Hash = FCrc::TypeCrc32(FirstIndex, Hash);
+		Hash = FCrc::TypeCrc32(NumPrimitives, Hash);
+		Hash = FCrc::TypeCrc32(NumInstances, Hash);
+
+		if (NumPrimitives > 0)
+		{
+			Hash = FCrc::TypeCrc32(VertexParams.BaseVertexIndex, Hash);
+			Hash = FCrc::TypeCrc32(VertexParams.NumVertices, Hash);
+		}
+		else
+		{
+			Hash = PointerHash(IndirectArgsBuffer, Hash);
+		}		
+
+		return Hash;
+	}
+
 	/** Sets shaders on the mesh draw command and allocates room for the shader bindings. */
 	RENDERER_API void SetShaders(FVertexDeclarationRHIParamRef VertexDeclaration, const FMeshProcessorShaders& Shaders, FGraphicsMinimalPipelineStateInitializer& PipelineState);
 
@@ -538,17 +576,11 @@ public:
 	{
 		return Other.CachedPipelineId.GetId();
 	}
-
-	void SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders)
-	{
 #if MESH_DRAW_COMMAND_DEBUG_DATA
-		DebugData.PrimitiveSceneProxy = PrimitiveSceneProxy;
-		DebugData.Material = Material;
-		DebugData.MaterialRenderProxy = MaterialRenderProxy;
-		DebugData.VertexShader = UntypedShaders.VertexShader;
-		DebugData.PixelShader = UntypedShaders.PixelShader;
+	RENDERER_API void SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders);
+#else
+	void SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders){}
 #endif
-	}
 
 	SIZE_T GetAllocatedSize() const
 	{
@@ -564,6 +596,10 @@ public:
 	}
 
 #if MESH_DRAW_COMMAND_DEBUG_DATA
+	void ClearDebugPrimitiveSceneProxy()
+	{
+		DebugData.PrimitiveSceneProxyIfNotUsingStateBuckets = nullptr;
+	}
 private:
 	FMeshDrawCommandDebugData DebugData;
 #endif

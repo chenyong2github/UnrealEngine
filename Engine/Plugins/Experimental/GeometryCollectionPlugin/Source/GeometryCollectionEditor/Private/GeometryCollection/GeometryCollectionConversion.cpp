@@ -238,7 +238,7 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 					if (SkelMeshRenderData->LODRenderData.Num())
 					{
 						const FSkeletalMeshLODRenderData & SkeletalMeshLODRenderData = SkelMeshRenderData->LODRenderData[0];
-						const FSkinWeightVertexBuffer & SkinWeightVertexBuffer = SkeletalMeshLODRenderData.SkinWeightVertexBuffer;
+						const FSkinWeightVertexBuffer & SkinWeightVertexBuffer = *SkeletalMeshLODRenderData.GetSkinWeightVertexBuffer();
 
 						const FSkelMeshRenderSection & RenderSection = SkeletalMeshLODRenderData.RenderSections[0];
 						const TArray<FBoneIndexType> & SkeletalBoneMap = RenderSection.BoneMap;

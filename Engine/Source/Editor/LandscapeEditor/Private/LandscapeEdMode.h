@@ -478,6 +478,7 @@ public:
 	int32 UpdateLandscapeList();
 	void UpdateTargetList();
 	void SetTargetLandscape(const TWeakObjectPtr<ULandscapeInfo>& InLandscapeInfo);
+	bool CanEditCurrentTarget(FText* Reason = nullptr) const;
 
 	/** Update Display order list */
 	void UpdateTargetLayerDisplayOrder(ELandscapeLayerDisplayMode InTargetDisplayOrder);
@@ -499,8 +500,9 @@ public:
 	FName GetLayerName(int32 InLayerIndex) const;
 	void SetLayerName(int32 InLayerIndex, const FName& InName);
 	bool CanRenameLayerTo(int32 InLayerIndex, const FName& InNewName);
-	float GetLayerAlpha(int32 InLayerIndex) const;
 	void SetLayerAlpha(int32 InLayerIndex, float InAlpha);
+	float GetLayerAlpha(int32 InLayerIndex) const;
+	float GetClampedLayerAlpha(float InLayerAlpha) const;
 	void SetLayerVisibility(bool InVisible, int32 InLayerIndex);
 	bool IsLayerVisible(int32 InLayerIndex) const;
 	bool IsLayerLocked(int32 InLayerIndex) const;
@@ -523,14 +525,16 @@ public:
 	TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForCurrentLayer(int32 InTargetType);
 	
 	bool NeedToFillEmptyMaterialLayers() const;
-	void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode, bool bInForceUpdateAllComponents = false);
-	void RequestLayersContentUpdateForceAll();
+	void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode);
+	void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InUpdateMode = ELandscapeLayerUpdateMode::All);
 
 	void OnLevelActorAdded(AActor* InActor);
 	void OnLevelActorRemoved(AActor* InActor);
 
 	DECLARE_EVENT(FEdModeLandscape, FTargetsListUpdated);
 	static FTargetsListUpdated TargetsListUpdated;
+
+	void OnPreSaveWorld(uint32 InSaveFlags, const class UWorld* InWorld);
 
 	/** Called when the user presses a button on their motion controller device */
 	void OnVRAction(FEditorViewportClient& ViewportClient, UViewportInteractor* Interactor, const FViewportActionKeyInput& Action, bool& bOutIsInputCaptured, bool& bWasHandled);

@@ -1075,10 +1075,9 @@ ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 {
 #if WITH_EDITORONLY_DATA
 	bLockLocation = false;
-	bInitializedWithFlagExperimentalLandscapeLayers = false;
+	bInitializedWithFlagExperimentalLandscapeLayers = GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem;
 	WasCompilingShaders = false;
 	LayerContentUpdateModes = 0;
-	bLayerForceUpdateAllComponents = false;
 	CombinedLayersWeightmapAllMaterialLayersResource = nullptr;
 	CurrentLayersWeightmapAllMaterialLayersResource = nullptr;
 	WeightmapScratchExtractLayerTextureResource = nullptr;
@@ -2749,10 +2748,11 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 		StreamingProxy->FixupSharedData(LandscapeActor.Get());
 	}
 
-	if (LandscapeActor)
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && LandscapeActor)
 	{
 		// Force update rendering resources
-		LandscapeActor->RequestLayersInitialization();
+		const bool bInRequestContentUpdate = false;
+		LandscapeActor->RequestLayersInitialization(bInRequestContentUpdate);		
 	}
 
 	UpdateLayerInfoMap(Proxy);

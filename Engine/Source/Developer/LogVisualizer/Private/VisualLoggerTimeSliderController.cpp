@@ -368,6 +368,28 @@ FReply FVisualLoggerTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner,
 	return FReply::Unhandled();
 }
 
+float FVisualLoggerTimeSliderController::GetTimeAtCursorPosition(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) const
+{
+	FScrubRangeToScreen RangeToScreen(TimeSliderArgs.ViewRange.Get(), MyGeometry.GetLocalSize());
+	FVector2D CursorPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetLastScreenSpacePosition());
+	float NewValue = RangeToScreen.LocalXToInput(CursorPos.X);
+
+	float LocalClampMin = TimeSliderArgs.ClampRange.Get().GetLowerBoundValue();
+	float LocalClampMax = TimeSliderArgs.ClampRange.Get().GetUpperBoundValue();
+
+	if (NewValue < LocalClampMin)
+	{
+		NewValue = LocalClampMin;
+	}
+
+	if (NewValue > LocalClampMax)
+	{
+		NewValue = LocalClampMax;
+	}
+
+	return NewValue;
+}
+
 FReply FVisualLoggerTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
 	if ( WidgetOwner.HasMouseCapture() )
@@ -442,23 +464,7 @@ FReply FVisualLoggerTimeSliderController::OnMouseMove( SWidget& WidgetOwner, con
 			}
 			else
 			{
-				FScrubRangeToScreen RangeToScreen( TimeSliderArgs.ViewRange.Get(), MyGeometry.GetLocalSize());
-				FVector2D CursorPos = MyGeometry.AbsoluteToLocal( MouseEvent.GetLastScreenSpacePosition() );
-				float NewValue = RangeToScreen.LocalXToInput( CursorPos.X );
-
-				float LocalClampMin = TimeSliderArgs.ClampRange.Get().GetLowerBoundValue();
-				float LocalClampMax = TimeSliderArgs.ClampRange.Get().GetUpperBoundValue();
-
-				if (NewValue < LocalClampMin)
-				{
-					NewValue = LocalClampMin;
-				}
-
-				if (NewValue > LocalClampMax)
-				{
-					NewValue = LocalClampMax;
-				}
-
+				const float NewValue = GetTimeAtCursorPosition(MyGeometry, MouseEvent);
 				CommitScrubPosition(NewValue, /*bIsScrubbing=*/true);
 			}
 		}

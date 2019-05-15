@@ -3918,15 +3918,15 @@ private:
 		//
 		if (!Simulation->bDestroyed_GameThread)
 		{
-			FVectorFieldResource* Resource = Simulation->LocalVectorField.Resource;
-			ENQUEUE_RENDER_COMMAND(FResetVectorFieldCommand)(
-				[Resource](FRHICommandList& RHICmdList)
-				{
-					if (Resource)
-					{
+			FVectorFieldResource* Resource = Simulation->LocalVectorField.Resource.GetReference();
+			if (Resource)
+			{
+			    ENQUEUE_RENDER_COMMAND(FResetVectorFieldCommand)(
+				    [Resource](FRHICommandList& RHICmdList)
+				    {
 						Resource->ResetVectorField();
-					}
-				});
+					});
+		    }
 		}
 	}
 
@@ -4634,23 +4634,26 @@ static void SetParametersForVectorField(FVectorFieldUniformParameters& OutParame
 	check(VectorFieldInstance && VectorFieldInstance->Resource);
 	check(Index < MAX_VECTOR_FIELDS);
 
-	FVectorFieldResource* Resource = VectorFieldInstance->Resource;
-	const float Intensity = VectorFieldInstance->Intensity * Resource->Intensity * EmitterScale;
-
-	// Override vector field tightness if value is set (greater than 0). This override is only used for global vector fields.
-	float Tightness = EmitterTightness;
-	if(EmitterTightness == -1)
+	FVectorFieldResource* Resource = VectorFieldInstance->Resource.GetReference();
+	if (Resource)
 	{
-		Tightness = FMath::Clamp<float>(VectorFieldInstance->Tightness, 0.0f, 1.0f);
-	}
+		const float Intensity = VectorFieldInstance->Intensity * Resource->Intensity * EmitterScale;
 
-	OutParameters.WorldToVolume[Index] = VectorFieldInstance->WorldToVolume;
-	OutParameters.VolumeToWorld[Index] = VectorFieldInstance->VolumeToWorldNoScale;
-	OutParameters.VolumeSize[Index] = FVector4(Resource->SizeX, Resource->SizeY, Resource->SizeZ, 0);
-	OutParameters.IntensityAndTightness[Index] = FVector4(Intensity, Tightness, 0, 0 );
-	OutParameters.TilingAxes[Index].X = VectorFieldInstance->bTileX ? 1.0f : 0.0f;
-	OutParameters.TilingAxes[Index].Y = VectorFieldInstance->bTileY ? 1.0f : 0.0f;
-	OutParameters.TilingAxes[Index].Z = VectorFieldInstance->bTileZ ? 1.0f : 0.0f;
+		// Override vector field tightness if value is set (greater than 0). This override is only used for global vector fields.
+		float Tightness = EmitterTightness;
+		if(EmitterTightness == -1)
+		{
+			Tightness = FMath::Clamp<float>(VectorFieldInstance->Tightness, 0.0f, 1.0f);
+		}
+
+		OutParameters.WorldToVolume[Index] = VectorFieldInstance->WorldToVolume;
+		OutParameters.VolumeToWorld[Index] = VectorFieldInstance->VolumeToWorldNoScale;
+		OutParameters.VolumeSize[Index] = FVector4(Resource->SizeX, Resource->SizeY, Resource->SizeZ, 0);
+		OutParameters.IntensityAndTightness[Index] = FVector4(Intensity, Tightness, 0, 0 );
+		OutParameters.TilingAxes[Index].X = VectorFieldInstance->bTileX ? 1.0f : 0.0f;
+		OutParameters.TilingAxes[Index].Y = VectorFieldInstance->bTileY ? 1.0f : 0.0f;
+		OutParameters.TilingAxes[Index].Z = VectorFieldInstance->bTileZ ? 1.0f : 0.0f;
+	}
 }
 
 bool FFXSystem::UsesGlobalDistanceFieldInternal() const

@@ -168,9 +168,11 @@ BufferType* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 		{
 			check(Size == CreateInfo.ResourceArray->GetResourceDataSize());
 
+			const bool bOnAsyncThread = !IsInRHIThread() && !IsInRenderingThread();
+
 			// Get an upload heap and initialize data
 			FD3D12ResourceLocation SrcResourceLoc(BufferOut->GetParentDevice());
-			void* pData = SrcResourceLoc.GetParentDevice()->GetDefaultFastAllocator().Allocate<FD3D12ScopeLock>(Size, 4UL, &SrcResourceLoc);
+			void* pData = SrcResourceLoc.GetParentDevice()->GetDefaultFastAllocator().Allocate<FD3D12ScopeLock>(Size, 4UL, &SrcResourceLoc, bOnAsyncThread);
 			check(pData);
 			FMemory::Memcpy(pData, CreateInfo.ResourceArray->GetResourceData(), Size);
 
@@ -215,6 +217,7 @@ BufferType* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 								SrcResourceLoc.GetOffsetFromBaseOfResource(), Size);
 
 							hCommandList.UpdateResidency(Destination);
+							hCommandList.UpdateResidency(SrcResourceLoc.GetResource());
 						}
 
 						CurrentBuffer = CurrentBuffer->GetNextObject();
@@ -222,7 +225,7 @@ BufferType* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 				}
 			};
 			
-			if (!IsInRHIThread() && !IsInRenderingThread())
+			if (bOnAsyncThread)
 			{
 				// Need to update buffer content on RHI thread (immediate context) because the buffer can be a
 				// sub-allocation and its backing resource may be in a state incompatible with the copy queue.

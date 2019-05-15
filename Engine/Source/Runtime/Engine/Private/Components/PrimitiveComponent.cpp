@@ -513,6 +513,9 @@ void UPrimitiveComponent::OnRegister()
 	{
 		bNavigationRelevant = false;
 	}
+
+	// Update our Owner's LastRenderTime
+	SetLastRenderTime(LastRenderTime);
 }
 
 
@@ -3473,6 +3476,18 @@ void UPrimitiveComponent::SetCustomNavigableGeometry(const EHasCustomNavigableGe
 	bHasCustomNavigableGeometry = InType;
 }
  
+void UPrimitiveComponent::SetLastRenderTime(float InLastRenderTime)
+{
+	LastRenderTime = InLastRenderTime;
+	if (AActor* Owner = GetOwner())
+	{
+		if (LastRenderTime > Owner->GetLastRenderTime())
+		{
+			FActorLastRenderTime::Set(Owner, LastRenderTime);
+		}
+	}
+}
+
 #if WITH_EDITOR
 const bool UPrimitiveComponent::ShouldGenerateAutoLOD(const int32 HierarchicalLevelIndex) const
 {	

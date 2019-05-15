@@ -102,12 +102,18 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 
 			bool bD3d12gpuvalidation = false;
 			if (FParse::Param(FCommandLine::Get(), TEXT("d3d12gpuvalidation")) || FParse::Param(FCommandLine::Get(), TEXT("gpuvalidation")))
-			{
 				TRefCountPtr<ID3D12Debug1> DebugController1;
 				VERIFYD3D12RESULT(DebugController->QueryInterface(IID_PPV_ARGS(DebugController1.GetInitReference())));
 				DebugController1->SetEnableGPUBasedValidation(true);
 				bD3d12gpuvalidation = true;
 			}
+			if (FParse::Param(FCommandLine::Get(), TEXT("d3d12gpuvalidation")) || FParse::Param(FCommandLine::Get(), TEXT("gpuvalidation")))
+		{
+			TRefCountPtr<ID3D12Debug1> DebugController1;
+			VERIFYD3D12RESULT(DebugController->QueryInterface(IID_PPV_ARGS(DebugController1.GetInitReference())));
+			DebugController1->SetEnableGPUBasedValidation(true);
+			bD3d12gpuvalidation = true;
+		}
 
 			UE_LOG(LogD3D12RHI, Log, TEXT("InitD3DDevice: -D3DDebug = %s -D3D12GPUValidation = %s"), bWithDebug ? TEXT("on") : TEXT("off"), bD3d12gpuvalidation ? TEXT("on") : TEXT("off"));
 		}
@@ -177,6 +183,12 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		if (RootRayTracingDevice)
 		{
 			UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 ray tracing enabled."));
+
+			static auto CVarSkinCache = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.CompileShaders"));
+			if (CVarSkinCache->GetInt() <= 0)
+			{
+				UE_LOG(LogD3D12RHI, Fatal, TEXT("D3D12 ray tracing requires skin cache to be enabled. Set r.SkinCache.CompileShaders=1."));
+			}
 		}
 		else
 		{
