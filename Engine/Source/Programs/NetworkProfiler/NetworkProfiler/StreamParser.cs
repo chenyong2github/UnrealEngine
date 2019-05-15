@@ -298,7 +298,7 @@ namespace NetworkProfiler
 			ListView.Items.Clear();
 
 			// Columns are total size KByte, count, avg size in bytes, avg size in bits and associated name.
-			var Columns = new string[6];
+			var Columns = new string[7];
 			foreach( var SummaryEntry in Summaries )
 			{
 				Columns[0] = ((float)SummaryEntry.Value.SizeBits / 8 / 1024).ToString("0.0");
@@ -306,7 +306,8 @@ namespace NetworkProfiler
                 Columns[2] = ((float)SummaryEntry.Value.SizeBits / 8 / SummaryEntry.Value.Count).ToString("0.0");
 				Columns[3] = ((float)SummaryEntry.Value.SizeBits / SummaryEntry.Value.Count).ToString("0.0");
                 Columns[4] = SummaryEntry.Value.TimeInMS.ToString("0.00");
-                Columns[5] = NetworkStream.GetName(SummaryEntry.Key);
+				Columns[5] = (SummaryEntry.Value.TimeInMS / SummaryEntry.Value.Count).ToString("0.0000");
+				Columns[6] = NetworkStream.GetName(SummaryEntry.Key);
                 ListView.Items.Add(new ListViewItem(Columns));
 			}
 
