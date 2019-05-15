@@ -11,6 +11,7 @@
 #include "MeshBuild.h"
 
 #include "IMeshMergeUtilities.h"
+#include "Animation/SkinWeightProfile.h"
 
 class UMeshComponent;
 class USkeletalMesh;
@@ -335,4 +336,7 @@ public:
 	virtual void RecomputeTangentsAndNormalsForRawMesh(bool bRecomputeTangents, bool bRecomputeNormals, const FMeshBuildSettings& InBuildSettings, const FOverlappingCorners& InOverlappingCorners, FRawMesh &OutRawMesh) const = 0;
 
 	virtual void FindOverlappingCorners(FOverlappingCorners& OutOverlappingCorners, const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, float ComparisonThreshold) const = 0;
+
+	/** Used to generate runtime skin weight data from Editor-only data */
+	virtual void GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* ImportedModel, const TArray<FRawSkinWeight>& InRawSkinWeights, FRuntimeSkinWeightProfileData& InOutSkinWeightOverrideData) const = 0;
 };

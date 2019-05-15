@@ -51,6 +51,7 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimSequence.h"
 #include "UObject/NiagaraObjectVersion.h"
+#include "Animation/SkinWeightProfile.h"
 
 #if WITH_EDITOR
 #include "Rendering/SkeletalMeshModel.h"
@@ -3097,6 +3098,18 @@ const USkeletalMeshLODSettings* USkeletalMesh::GetDefaultLODSetting() const
 #endif // WITH_EDITORONLY_DATA
 
 	return GetDefault<USkeletalMeshLODSettings>();
+}
+
+void USkeletalMesh::ReleaseSkinWeightProfileResources()
+{
+	// This assumes that skin weights buffers are not used anywhere
+	if (FSkeletalMeshRenderData* RenderData = GetResourceForRendering())
+	{
+		for (FSkeletalMeshLODRenderData& LODData : RenderData->LODRenderData)
+		{
+			LODData.SkinWeightProfilesData.ReleaseResources();
+		}
+	}
 }
 
 FSkeletalMeshLODInfo& USkeletalMesh::AddLODInfo()

@@ -472,12 +472,15 @@ void FSkeletalMeshLODRenderData::ReleaseResources()
 	BeginReleaseResource(&SkinWeightVertexBuffer);
 	BeginReleaseResource(&StaticVertexBuffers.ColorVertexBuffer);
 	BeginReleaseResource(&ClothVertexBuffer);
-    for (auto& RenderSection : RenderSections)
-    {
-        check(RenderSection.DuplicatedVerticesBuffer.DupVertData.Num());
-        BeginReleaseResource(&RenderSection.DuplicatedVerticesBuffer);
-    }
+	for (auto& RenderSection : RenderSections)
+	{
+		check(RenderSection.DuplicatedVerticesBuffer.DupVertData.Num());
+		BeginReleaseResource(&RenderSection.DuplicatedVerticesBuffer);
+	}
 	BeginReleaseResource(&MorphTargetVertexInfoBuffers);
+	
+	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, SkinWeightProfilesData.GetResourcesSize());
+	SkinWeightProfilesData.ReleaseResources();
 }
 
 #if WITH_EDITOR
@@ -563,6 +566,14 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 
 	// MorphTargetVertexInfoBuffers are created in InitResources
 
+	SkinWeightProfilesData.Init(&SkinWeightVertexBuffer);
+	// Generate runtime version of skin weight profile data, containing all required per-skin weight override data
+	for (const auto& Pair : ImportedModel->SkinWeightProfiles)
+	{
+		FRuntimeSkinWeightProfileData& Override = SkinWeightProfilesData.AddOverrideData(Pair.Key);
+		MeshUtilities.GenerateRuntimeSkinWeightData(ImportedModel, Pair.Value.SkinWeights, Override);
+	}
+
 	ActiveBoneIndices = ImportedModel->ActiveBoneIndices;
 	RequiredBones = ImportedModel->RequiredBones;
 }
@@ -617,6 +628,7 @@ void FSkeletalMeshLODRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeRe
 	CumulativeResourceSize.AddUnknownMemoryBytes(SkinWeightVertexBuffer.GetVertexDataSize());
 	CumulativeResourceSize.AddUnknownMemoryBytes(StaticVertexBuffers.ColorVertexBuffer.GetAllocatedSize());
 	CumulativeResourceSize.AddUnknownMemoryBytes(ClothVertexBuffer.GetVertexDataSize());
+	CumulativeResourceSize.AddUnknownMemoryBytes(SkinWeightProfilesData.GetResourcesSize());	
 }
 
 void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
@@ -731,6 +743,18 @@ void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 I
 		{
 			Ar << ClothVertexBuffer;
 		}
+	}	
+
+	Ar << SkinWeightProfilesData;
+	SkinWeightProfilesData.Init(&SkinWeightVertexBuffer);
+
+	if (Ar.IsLoading() && !!GSkinWeightProfilesLoadByDefaultMode)
+	{
+#if !WITH_EDITOR
+		// Only allow overriding the base buffer in non-editor builds as it could otherwise be serialized into the asset
+		SkinWeightProfilesData.OverrideBaseBufferSkinWeightData(OwnerMesh, Idx);
+#endif 	
+		SkinWeightProfilesData.SetDynamicDefaultSkinWeightProfile(OwnerMesh, Idx);
 	}
 }
 

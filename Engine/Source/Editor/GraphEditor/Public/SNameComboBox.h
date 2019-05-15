@@ -10,6 +10,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Framework/SlateDelegates.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Styling/ISlateStyle.h"
 
 //#include "UnrealString.h"
 
@@ -24,13 +25,19 @@ public:
 	typedef TSlateDelegates< TSharedPtr<FName> >::FOnSelectionChanged FOnNameSelectionChanged;
 
 	SLATE_BEGIN_ARGS( SNameComboBox ) 
-		: _ColorAndOpacity( FSlateColor::UseForeground() )
+		: _ComboBoxStyle(&FCoreStyle::Get().GetWidgetStyle< FComboBoxStyle >("ComboBox"))
+		, _ColorAndOpacity( FSlateColor::UseForeground() )
 		, _ContentPadding(FMargin(4.0, 2.0))
 		, _OnGetNameLabelForItem()
 		{}
 
+		SLATE_STYLE_ARGUMENT(FComboBoxStyle, ComboBoxStyle)
+
 		/** Selection of FNames to pick from */
 		SLATE_ARGUMENT( TArray< TSharedPtr<FName> >*, OptionsSource )
+
+		/** Sets the font used to draw the text */
+		SLATE_ATTRIBUTE(FSlateFontInfo, Font)
 
 		/** Text color and opacity */
 		SLATE_ATTRIBUTE( FSlateColor, ColorAndOpacity )
@@ -97,4 +104,7 @@ private:
 
 	/** Forwarding Delegate */
 	FOnNameSelectionChanged SelectionChanged;
+
+	/** Sets the font used to draw the text */
+	TAttribute< FSlateFontInfo > Font;
 };

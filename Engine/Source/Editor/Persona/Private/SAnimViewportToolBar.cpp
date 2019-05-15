@@ -630,7 +630,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateCharacterMenu() const
 			InMenuBuilder.AddSubMenu(
 				LOCTEXT("CharacterMenu_AnimationSubMenu", "Animation"),
 				LOCTEXT("CharacterMenu_AnimationSubMenuToolTip", "Animation-related options"),
-				FNewMenuDelegate::CreateLambda([](FMenuBuilder& SubMenuBuilder)
+				FNewMenuDelegate::CreateLambda([WeakSharedViewport = Viewport](FMenuBuilder& SubMenuBuilder)
 				{
 					SubMenuBuilder.BeginSection("AnimViewportRootMotion", LOCTEXT("CharacterMenu_RootMotionLabel", "Root Motion"));
 					{
@@ -648,6 +648,14 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateCharacterMenu() const
 						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().DisablePostProcessBlueprint);
 					}
 					SubMenuBuilder.EndSection();
+					if ( WeakSharedViewport.IsValid())
+					{
+						SubMenuBuilder.BeginSection("SkinWeights", LOCTEXT("SkinWeights_Label", "Skin Weight Profiles"));
+						{
+							SubMenuBuilder.AddWidget(WeakSharedViewport.Pin()->SkinWeightCombo.ToSharedRef(), FText());
+						}
+						SubMenuBuilder.EndSection();
+					}
 				})
 			);
 
