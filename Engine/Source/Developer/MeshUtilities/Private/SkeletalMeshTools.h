@@ -110,7 +110,7 @@ namespace SkeletalMeshTools
 	 * @param Chunks			Chunks to split. Upon return contains the results of splitting chunks.
 	 * @param MaxBonesPerChunk	The maximum number of bones a chunk may reference.
 	*/
-	void ChunkSkinnedVertices(TArray<FSkinnedMeshChunk*>& Chunks,int32 MaxBonesPerChunk);
+	void ChunkSkinnedVertices(TArray<FSkinnedMeshChunk*>& Chunks, TMap<uint32, TArray<FBoneIndexType>>& AlternateBoneIDs, int32 MaxBonesPerChunk);
 
 	void CalcBoneVertInfos(USkeletalMesh* SkeletalMesh, TArray<FBoneVertInfo>& Infos, bool bOnlyDominant);
 };

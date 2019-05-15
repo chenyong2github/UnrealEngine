@@ -274,19 +274,22 @@ void SkeletalSimplifier::FMeshSimplifier::ComputeEdgeCollapseVertsAndFixBones(Si
 
 	const FVector CollapsedPos = EdgeAndNewVertArray[0].Get<2>().GetPos();
 
-	// Find the closest of the source verts.
+	// Find edge endpoint that is closest to the collapsed vert location.
 
-	float DstSqr0 = FVector::DistSquared(CollapsedPos, Pos0);
-	float DstSqr1 = FVector::DistSquared(CollapsedPos, Pos1);
+	const float DstSqr0 = FVector::DistSquared(CollapsedPos, Pos0);
+	const float DstSqr1 = FVector::DistSquared(CollapsedPos, Pos1);
 
-	const auto& SrcBones = (DstSqr1 < DstSqr0) ? Vert1->vert.GetSparseBones() : Vert0->vert.GetSparseBones();
+	const auto& ClosestSimpliferVert = (DstSqr1 < DstSqr0) ? Vert1->vert : Vert0->vert;
 
-	const int32 NumNewVerts = EdgeAndNewVertArray.Num();
+	const auto& SrcBones         = ClosestSimpliferVert.GetSparseBones();
+	const int32 MasterVertIndex  = ClosestSimpliferVert.MasterVertIndex;
+	const int32 NumNewVerts      = EdgeAndNewVertArray.Num();
 
 	for (int32 i = 0; i < NumNewVerts; ++i)
 	{
-		MeshVertType& simpVert = EdgeAndNewVertArray[i].Get<2>();
-		simpVert.SparseBones = SrcBones;
+		MeshVertType& simpVert   = EdgeAndNewVertArray[i].Get<2>();
+		simpVert.SparseBones     = SrcBones;
+		simpVert.MasterVertIndex = MasterVertIndex;
 	}
 
 }
