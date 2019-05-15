@@ -33,6 +33,11 @@ bool FTargetPlatformBase::UsesDistanceFields() const
 	return true;
 }
 
+float FTargetPlatformBase::GetDownSampleMeshDistanceFieldDivider() const
+{
+	return 1.0f;
+}
+
 TSharedPtr<IDeviceManagerCustomPlatformWidgetCreator> FTargetPlatformBase::GetCustomWidgetCreator() const
 {
 	static TSharedPtr<FDeviceBrowserDefaultPlatformWidgetCreator> DefaultWidgetCreator = MakeShared<FDeviceBrowserDefaultPlatformWidgetCreator>();
