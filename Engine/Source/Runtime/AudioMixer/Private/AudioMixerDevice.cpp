@@ -8,6 +8,7 @@
 #include "UObject/UObjectHash.h"
 #include "AudioMixerEffectsManager.h"
 #include "SubmixEffects/AudioMixerSubmixEffectReverb.h"
+#include "SubmixEffects/AudioMixerSubmixEffectReverbFast.h"
 #include "SubmixEffects/AudioMixerSubmixEffectEQ.h"
 #include "SubmixEffects/AudioMixerSubmixEffectDynamicsProcessor.h"
 #include "DSP/Noise.h"
@@ -666,9 +667,18 @@ namespace Audio
 			else if (MasterSubmixInstances[EMasterSubmixType::Reverb].IsValid())
 			{
 				// Setup the master reverb only if we don't have a reverb plugin
+				USoundEffectSubmixPreset* ReverbPreset = nullptr;
+				USoundSubmix* MasterReverbSoundSubmix = FMixerDevice::MasterSubmixes[EMasterSubmixType::Reverb];
 
-				USoundSubmix* MasterReverbSubix = FMixerDevice::MasterSubmixes[EMasterSubmixType::Reverb];
-				USubmixEffectReverbPreset* ReverbPreset = NewObject<USubmixEffectReverbPreset>(MasterReverbSubix, TEXT("Master Reverb Effect Preset"));
+				if (GetDefault<UAudioSettings>()->bEnableLegacyReverb)
+				{
+					ReverbPreset = NewObject<USubmixEffectReverbPreset>(MasterReverbSoundSubmix, TEXT("Master Reverb Effect Preset"));
+				}
+				else
+				{
+					ReverbPreset = NewObject<USubmixEffectReverbFastPreset>(MasterReverbSoundSubmix, TEXT("Master Reverb Effect Preset"));
+				}
+				
 				ReverbPreset->AddToRoot();
 
 				FSoundEffectSubmix* ReverbEffectSubmix = static_cast<FSoundEffectSubmix*>(ReverbPreset->CreateNewEffect());
