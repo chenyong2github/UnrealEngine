@@ -113,7 +113,6 @@ class FAndroidPlatformEditorModule
 		{
 			AndroidRuntimeSettings->OnPropertyChanged.AddLambda([this, AndroidRuntimeSettings](struct FPropertyChangedEvent& PropertyChangedEvent)
 				{
-					UEditorEngine* Editor = (UEditorEngine*)GEngine;
 					if (PropertyChangedEvent.Property != nullptr)
 					{
 						if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForES31) &&
