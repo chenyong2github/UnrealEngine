@@ -4589,6 +4589,18 @@ void UMaterialExpressionMakeMaterialAttributes::GetCaption(TArray<FString>& OutC
 {
 	OutCaptions.Add(TEXT("MakeMaterialAttributes"));
 }
+
+uint32 UMaterialExpressionMakeMaterialAttributes::GetInputType(int32 InputIndex)
+{
+	if (GetInputName(InputIndex).IsEqual("ShadingModel"))
+	{
+		return MCT_ShadingModel;
+	}
+	else
+	{
+		return UMaterialExpression::GetInputType(InputIndex);
+	}
+}
 #endif // WITH_EDITOR
 
 // -----
