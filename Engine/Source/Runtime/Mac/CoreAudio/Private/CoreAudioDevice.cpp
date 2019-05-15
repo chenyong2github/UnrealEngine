@@ -13,6 +13,7 @@
 #include "OpusAudioInfo.h"
 #include "AudioEffect.h"
 #include "CoreAudioEffects.h"
+#include "ADPCMAudioInfo.h"
 
 DEFINE_LOG_CATEGORY(LogCoreAudio);
 
@@ -513,6 +514,10 @@ class ICompressedAudioInfo* FCoreAudioDevice::CreateCompressedAudioInfo(USoundWa
 
 	if (SoundWave->IsStreaming())
 	{
+		if (SoundWave->IsSeekableStreaming())
+		{
+			return new FADPCMAudioInfo();
+		}
 		return new FOpusAudioInfo();
 	}
 

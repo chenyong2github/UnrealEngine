@@ -119,29 +119,31 @@ private:
 
 	virtual FName GetRuntimeFormat(USoundWave* SoundWave) override
 	{
-		static FName NAME_OPUS(TEXT("OPUS"));
-		static FName NAME_OGG(TEXT("OGG"));
-		static FName NAME_XMA(TEXT("XMA"));
-
-#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
-		if (SoundWave->IsStreaming() && SoundWave->NumChannels <= 2)
-		{
-			return NAME_XMA;
-		}
-#endif
-
-
-#if WITH_OGGVORBIS
+		static const FName NAME_ADPCM(TEXT("ADPCM"));
+		static const FName NAME_OGG(TEXT("OGG"));
+		static const FName NAME_OPUS(TEXT("OPUS"));
+		static const FName NAME_XMA(TEXT("XMA"));
 
 		if (SoundWave->IsStreaming())
 		{
+			if (SoundWave->IsSeekableStreaming())
+			{
+				return NAME_ADPCM;
+			}
+
+#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
+			else if (SoundWave->NumChannels <= 2)
+			{
+				return NAME_XMA;
+			}
+#endif // WITH_XMA2 && USE_XMA2_FOR_STREAMING
+
 #if USE_VORBIS_FOR_STREAMING
 			return NAME_OGG;
 #else
 			return NAME_OPUS;
-#endif
+#endif // else USE_VORBIS_FOR_STREAMING
 		}
-
 
 #if WITH_XMA2
 		if (SoundWave->NumChannels > 2)
@@ -153,13 +155,9 @@ private:
 		{
 			return NAME_XMA;
 		}
-#else
-		return NAME_OGG;
-#endif
+#endif // WITH_XMA2
 
-#else //WITH_OGGVORBIS
-		return NAME_XMA;
-#endif //WITH_OGGVORBIS
+		return NAME_OGG;
 	}
 
 	virtual bool HasCompressedAudioInfoClass(USoundWave* SoundWave) override;

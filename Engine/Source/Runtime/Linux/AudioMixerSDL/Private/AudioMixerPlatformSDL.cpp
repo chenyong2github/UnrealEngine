@@ -324,12 +324,19 @@ namespace Audio
 
 	FName FMixerPlatformSDL::GetRuntimeFormat(USoundWave* InSoundWave)
 	{
+		static FName NAME_OGG(TEXT("OGG"));
+		static FName NAME_OPUS(TEXT("OPUS"));
+		static FName NAME_ADPCM(TEXT("ADPCM"));
+
 		if (InSoundWave->IsStreaming())
 		{
-			return FName(TEXT("OPUS"));
-		}
+			if (InSoundWave->IsSeekableStreaming())
+			{
+				return NAME_ADPCM;
+			}
 
-		static FName NAME_OGG(TEXT("OGG"));
+			return NAME_OPUS;
+		}
 		return NAME_OGG;
 	}
 
@@ -344,6 +351,11 @@ namespace Audio
 
 		if (InSoundWave->IsStreaming())
 		{
+			if (InSoundWave->IsSeekableStreaming())
+			{
+				return new FADPCMAudioInfo();
+			}
+
 			return new FOpusAudioInfo();
 		}
 

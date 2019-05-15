@@ -46,7 +46,7 @@ extern int32 AndroidThunkCpp_GetMetaDataInt(const FString& Key);
 #endif
 
 namespace Audio
-{	
+{
 	FMixerPlatformAndroid::FMixerPlatformAndroid()
 		: bSuspended(false)
 		, bInitialized(false)
@@ -55,7 +55,7 @@ namespace Audio
 	}
 
 	FMixerPlatformAndroid::~FMixerPlatformAndroid()
-	{		
+	{
 		if (bInitialized)
 		{
 			TeardownHardware();
@@ -93,30 +93,30 @@ namespace Audio
 		{
 			return false;
 		}
-					
+
 		SLresult Result;
 		SLEngineOption EngineOption[] = { {(SLuint32) SL_ENGINEOPTION_THREADSAFE, (SLuint32) SL_BOOLEAN_TRUE} };
-	
+
 		// Create engine
 		Result = slCreateEngine( &SL_EngineObject, 1, EngineOption, 0, NULL, NULL);
 		OPENSLES_CHECK_ON_FAIL(Result);
-	
+
 		// Realize the engine
 		Result = (*SL_EngineObject)->Realize(SL_EngineObject, SL_BOOLEAN_FALSE);
 		OPENSLES_CHECK_ON_FAIL(Result);
-	
+
 		// get the engine interface, which is needed in order to create other objects
 		Result = (*SL_EngineObject)->GetInterface(SL_EngineObject, SL_IID_ENGINE, &SL_EngineEngine);
 		OPENSLES_CHECK_ON_FAIL(Result);
 
-		// create output mix 
+		// create output mix
 		Result = (*SL_EngineEngine)->CreateOutputMix(SL_EngineEngine, &SL_OutputMixObject, 0, NULL, NULL );
 		OPENSLES_CHECK_ON_FAIL(Result);
 
 		// realize the output mix
 		Result = (*SL_OutputMixObject)->Realize(SL_OutputMixObject, SL_BOOLEAN_FALSE);
 		OPENSLES_CHECK_ON_FAIL(Result);
-	
+
 		bInitialized = true;
 
 		return true;
@@ -128,7 +128,7 @@ namespace Audio
 		{
 			return true;
 		}
-		
+
 		// Teardown OpenSLES..
 		// Destroy the SLES objects in reverse order of creation:
 		if (SL_OutputMixObject)
@@ -146,7 +146,7 @@ namespace Audio
 		}
 
 		bInitialized = false;
-		
+
 		return true;
 	}
 
@@ -211,20 +211,20 @@ namespace Audio
 
 		// data info
 		SLDataLocator_AndroidSimpleBufferQueue LocationBuffer = { SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, 1};
-		
+
 		// PCM Info
 		SLDataFormat_PCM PCM_Format = {
-			SL_DATAFORMAT_PCM, 
+			SL_DATAFORMAT_PCM,
 			(SLuint32)AudioStreamInfo.DeviceInfo.NumChannels,
-			(SLuint32)(AudioStreamInfo.DeviceInfo.SampleRate * 1000), // NOTE: OpenSLES has sample rates specified in millihertz. 
-			SL_PCMSAMPLEFORMAT_FIXED_16, 
-			SL_PCMSAMPLEFORMAT_FIXED_16, 
-			SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT, 
-			SL_BYTEORDER_LITTLEENDIAN 
+			(SLuint32)(AudioStreamInfo.DeviceInfo.SampleRate * 1000), // NOTE: OpenSLES has sample rates specified in millihertz.
+			SL_PCMSAMPLEFORMAT_FIXED_16,
+			SL_PCMSAMPLEFORMAT_FIXED_16,
+			SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT,
+			SL_BYTEORDER_LITTLEENDIAN
 		};
-		
+
 		SLDataSource SoundDataSource = { &LocationBuffer, &PCM_Format };
-		
+
 		// configure audio sink
 		SLDataLocator_OutputMix OutputMix = { SL_DATALOCATOR_OUTPUTMIX, SL_OutputMixObject };
 		SLDataSink AudioSink = { &OutputMix, nullptr };
@@ -239,7 +239,7 @@ namespace Audio
 		// realize the player
 		Result = (*SL_PlayerObject)->Realize(SL_PlayerObject, SL_BOOLEAN_FALSE);
 		OPENSLES_RETURN_ON_FAIL(Result);
-		
+
 		// get the play interface
 		Result = (*SL_PlayerObject)->GetInterface(SL_PlayerObject, SL_IID_PLAY, &SL_PlayerPlayInterface);
 		OPENSLES_RETURN_ON_FAIL(Result);
@@ -262,17 +262,17 @@ namespace Audio
 		{
 			return false;
 		}
-		
+
 		SLresult Result =(*SL_PlayerBufferQueue)->RegisterCallback(SL_PlayerBufferQueue, nullptr, nullptr);
 
-		(*SL_PlayerObject)->Destroy(SL_PlayerObject);			
+		(*SL_PlayerObject)->Destroy(SL_PlayerObject);
 
 		SL_PlayerObject = nullptr;
 		SL_PlayerPlayInterface = nullptr;
 		SL_PlayerBufferQueue = nullptr;
 
 		AudioStreamInfo.StreamState = EAudioOutputStreamState::Closed;
-		
+
 		return true;
 	}
 
@@ -293,7 +293,7 @@ namespace Audio
 		{
 			return false;
 		}
-		
+
 		if (AudioStreamInfo.StreamState != EAudioOutputStreamState::Stopped)
 		{
 			// set the player's state to stopped
@@ -307,7 +307,7 @@ namespace Audio
 
 			check(AudioStreamInfo.StreamState == EAudioOutputStreamState::Stopped);
 		}
-	
+
 		return true;
 	}
 
@@ -380,9 +380,16 @@ namespace Audio
 		SLresult Result = (*SL_PlayerBufferQueue)->Enqueue(SL_PlayerBufferQueue, Buffer, BufferSize);
 		OPENSLES_LOG_ON_FAIL(Result);
 	}
-	
+
 	FName FMixerPlatformAndroid::GetRuntimeFormat(USoundWave* InSoundWave)
 	{
+		static FName NAME_ADPCM(TEXT("ADPCM"));
+
+		if (InSoundWave->IsSeekableStreaming())
+		{
+			return NAME_ADPCM;
+		}
+
 #if WITH_OGGVORBIS
 		static FName NAME_OGG(TEXT("OGG"));
 		if (InSoundWave->HasCompressedData(NAME_OGG))
@@ -390,57 +397,25 @@ namespace Audio
 			return NAME_OGG;
 		}
 #endif
-
-		static FName NAME_ADPCM(TEXT("ADPCM"));
-
 		return NAME_ADPCM;
 	}
 
 	bool FMixerPlatformAndroid::HasCompressedAudioInfoClass(USoundWave* InSoundWave)
 	{
-#if WITH_OGGVORBIS
-		if (InSoundWave->bStreaming)
-		{
-			return true;
-		}
-
-		static FName NAME_OGG(TEXT("OGG"));
-		if (InSoundWave->HasCompressedData(NAME_OGG))
-		{
-			return true;
-		}
-#endif
-
-		if (InSoundWave->bStreaming)
-		{
-			return true;
-		}
-
-		static FName NAME_ADPCM(TEXT("ADPCM"));
-		if (InSoundWave->HasCompressedData(NAME_ADPCM))
-		{
-			return true;
-		}
-
-		return false;
+		return true;
 	}
 
 	ICompressedAudioInfo* FMixerPlatformAndroid::CreateCompressedAudioInfo(USoundWave* InSoundWave)
 	{
-#if WITH_OGGVORBIS
 		static FName NAME_OGG(TEXT("OGG"));
-		if (InSoundWave->bStreaming || InSoundWave->HasCompressedData(NAME_OGG))
-		{
-			return new FVorbisAudioInfo();
-		}
-#endif
 		static FName NAME_ADPCM(TEXT("ADPCM"));
-		if (InSoundWave->bStreaming || InSoundWave->HasCompressedData(NAME_ADPCM))
+
+		if (InSoundWave->IsSeekableStreaming())
 		{
 			return new FADPCMAudioInfo();
 		}
 
-		return nullptr;
+		return new FVorbisAudioInfo();
 	}
 
 	FString FMixerPlatformAndroid::GetDefaultDeviceName()

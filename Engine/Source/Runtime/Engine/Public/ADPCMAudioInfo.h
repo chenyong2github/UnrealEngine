@@ -15,7 +15,7 @@
 #define NUM_ADAPTATION_COEFF 7
 
 #define WAVE_FORMAT_LPCM  1
-#ifndef WAVE_FORMAT_ADPCM 
+#ifndef WAVE_FORMAT_ADPCM
 #define WAVE_FORMAT_ADPCM 2
 #endif
 
@@ -125,13 +125,13 @@ public:
 	uint32	TotalDecodedSize;
 	int32	NumChannels;
 	int32	Format;
-	
+
 	uint8*			UncompressedBlockData;			// This holds the current block of compressed data for all channels
 	uint32			CurrentUncompressedBlockSampleIndex;	// This is the sample index within the current uncompressed block data
 	uint32			CurrentChunkIndex;				// This is the index that is currently being used, needed by streaming engine to make sure it stays loaded and the next chunk gets preloaded
 	uint32			CurrentChunkBufferOffset;		// This is this byte offset within the current chunk, used by streaming engine to prioritize a load if more then half way through current chunk
-	uint32			CurrentChunkDataSize;			// The size of the current chunk, the first chunk is bigger to accomodate the header info
-	uint32			TotalSamplesStreamed;			// The number of samples streamed so far
+	uint32			CurrentChunkDataSize;			// The size of the current chunk, the first chunk is bigger to accommodate the header info
+	uint32			TotalSamplesStreamed;			// The number of samples streamed so far (per channel)
 	uint32			TotalSamplesPerChannel;			// Number of samples per channel, used to detect when an audio waveform has ended
 	uint32			SamplesPerBlock;				// The number of samples per block
 	uint32			FirstChunkSampleDataOffset;		// The size of the header in the first chunk, used to skip over it when looping or starting the sample over
@@ -139,4 +139,5 @@ public:
 
 	uint32			CurrentCompressedBlockIndex;		// For non disk streaming - the current compressed block in the compressed source data
 	uint32			TotalCompressedBlocksPerChannel;	// For non disk streaming - the total number of compressed blocks per channel
+	uint8			bSeekPending : 1;					// Whether or not seek has been requested and pending a read
 };
