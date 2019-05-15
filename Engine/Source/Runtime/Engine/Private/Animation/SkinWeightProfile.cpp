@@ -319,10 +319,10 @@ void FSkinWeightProfilesData::ReleaseBuffer(const FName& ProfileName)
 	{
 		FSkinWeightVertexBuffer* Buffer = nullptr;
 		ProfileNameToBuffer.RemoveAndCopyValue(ProfileName, Buffer);
-		DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, Buffer->GetVertexDataSize());
 
 		if (Buffer)
 		{
+			DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, Buffer->GetVertexDataSize());
 			ENQUEUE_RENDER_COMMAND(ReleaseSkinSkinWeightProfilesDataBufferCommand)(
 				[Buffer](FRHICommandListImmediate& RHICmdList)
 			{			
