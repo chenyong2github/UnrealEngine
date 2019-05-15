@@ -1332,7 +1332,7 @@ void USkeletalMesh::CalculateInvRefMatrices()
 				ZAxis.IsNearlyZero(SMALL_NUMBER))
 			{
 				// this is not allowed, warn them 
-				UE_LOG(LogSkeletalMesh, Warning, TEXT("Reference Pose for joint (%s) includes NIL matrix. Zero scale isn't allowed on ref pose. "), *RefSkeleton.GetBoneName(b).ToString());
+				UE_LOG(LogSkeletalMesh, Warning, TEXT("Reference Pose for asset %s for joint (%s) includes NIL matrix. Zero scale isn't allowed on ref pose. "), *GetPathName(), *RefSkeleton.GetBoneName(b).ToString());
 			}
 
 			// Precompute inverse so we can use from-refpose-skin vertices.
