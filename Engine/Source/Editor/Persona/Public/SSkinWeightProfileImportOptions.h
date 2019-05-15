@@ -12,12 +12,12 @@
 #include "IDetailCustomization.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "PropertyHandle.h"
+#include "Engine/SkeletalMesh.h"
 
 #include "SSkinWeightProfileImportOptions.generated.h"
 
 // Forward declares
 class IDetailsView;
-class USkeletalMesh;
 
 UCLASS(Config = EditorPerProjectUserSettings)
 class USkinWeightImportOptions : public UObject
