@@ -500,8 +500,9 @@ public:
 	FName GetLayerName(int32 InLayerIndex) const;
 	void SetLayerName(int32 InLayerIndex, const FName& InName);
 	bool CanRenameLayerTo(int32 InLayerIndex, const FName& InNewName);
-	float GetLayerAlpha(int32 InLayerIndex) const;
 	void SetLayerAlpha(int32 InLayerIndex, float InAlpha);
+	float GetLayerAlpha(int32 InLayerIndex) const;
+	float GetClampedLayerAlpha(float InLayerAlpha) const;
 	void SetLayerVisibility(bool InVisible, int32 InLayerIndex);
 	bool IsLayerVisible(int32 InLayerIndex) const;
 	bool IsLayerLocked(int32 InLayerIndex) const;
