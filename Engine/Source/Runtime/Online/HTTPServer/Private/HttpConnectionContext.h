@@ -25,12 +25,18 @@ public:
 	/**
 	 * Gets the elapsed time (seconds) since last activity
 	 */
-	FORCEINLINE float GetElapsedIdleTime() const;
+	FORCEINLINE float GetElapsedIdleTime() const
+	{
+		return ElapsedIdleTime;
+	}
 
 	/**
 	 * Gets the cumulative error string
 	 */
-	FORCEINLINE const FString& GetErrorStr() const;
+	FORCEINLINE const FString& GetErrorStr() const
+	{
+		return ErrorBuilder;
+	}
 
 protected:
 
