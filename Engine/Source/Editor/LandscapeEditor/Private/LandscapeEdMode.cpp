@@ -4333,19 +4333,19 @@ void FEdModeLandscape::SetLayerLocked(int32 InLayerIndex, bool bInLocked)
 	}
 }
 
-void FEdModeLandscape::RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode, bool bInForceUpdateAllComponents)
+void FEdModeLandscape::RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode)
 {
 	if (ALandscape* Landscape = GetLandscape())
 	{
-		Landscape->RequestLayersContentUpdate(InUpdateMode, bInForceUpdateAllComponents);
+		Landscape->RequestLayersContentUpdate(InUpdateMode);
 	}
 }
 
-void FEdModeLandscape::RequestLayersContentUpdateForceAll()
+void FEdModeLandscape::RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InUpdateMode)
 {
 	if (ALandscape* Landscape = GetLandscape())
 	{
-		Landscape->RequestLayersContentUpdateForceAll();
+		Landscape->RequestLayersContentUpdateForceAll(InUpdateMode);
 	}
 }
 

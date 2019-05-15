@@ -2788,7 +2788,7 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 		// Partial Component Update
 		for (ULandscapeComponent* Component : InLandscapeComponents)
 		{
-			if(Component->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Update_Heightmap_Collision, HeightmapUpdateModes, bLayerForceUpdateAllComponents))
+			if(Component->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Update_Heightmap_Collision, HeightmapUpdateModes))
 			{
 				Component->UpdateCachedBounds();
 				Component->UpdateComponentToWorld();
@@ -3111,9 +3111,7 @@ void ALandscape::ReallocateLayersWeightmaps(const TArray<ULandscapeLayerInfoObje
 			Usage->ClearUsage();
 		}
 	}
-
-	bool NeedMaterialInstanceRebuild = false;
-
+		
 	// Build a map of all the allocation per components
 	TMap<ULandscapeComponent*, TArray<ULandscapeLayerInfoObject*>> LayerAllocsPerComponent;
 
@@ -3742,7 +3740,7 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 	
 		for (ULandscapeComponent* Component : InLandscapeComponents)
 		{
-			if (Component->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Update_Weightmap_Collision, WeightmapUpdateModes, bLayerForceUpdateAllComponents))
+			if (Component->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Update_Weightmap_Collision, WeightmapUpdateModes))
 			{
 				Component->UpdateCollisionLayerData();
 			}
@@ -3755,11 +3753,18 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 uint32 ULandscapeComponent::ComputeWeightmapsHash()
 {
 	uint32 Hash = 0;
+	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapAllocations = GetWeightmapLayerAllocations();
+	for (const FWeightmapLayerAllocationInfo& AllocationInfo : ComponentWeightmapAllocations)
+	{
+		Hash = HashCombine(AllocationInfo.GetHash(), Hash);
+	}
+
 	TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures();
 	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTextureUsage = GetWeightmapTexturesUsage();
 	for (int32 i = 0; i < ComponentWeightmapTextures.Num(); ++i)
 	{
 		Hash = PointerHash(ComponentWeightmapTextures[i], Hash);
+		Hash = PointerHash(ComponentWeightmapTextureUsage[i], Hash);
 		for (int32 j = 0; j < ULandscapeWeightmapUsage::NumChannels; ++j)
 		{
 			Hash = PointerHash(ComponentWeightmapTextureUsage[i]->ChannelUsage[j], Hash);
@@ -4010,37 +4015,55 @@ void ALandscape::RequestLayersInitialization(bool bInRequestContentUpdate)
 	}
 }
 
-void ALandscape::RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode, bool bInForceUpdateAllComponents)
+void ALandscape::RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode)
 {
 	LayerContentUpdateModes |= InUpdateMode;
-	bLayerForceUpdateAllComponents |= bInForceUpdateAllComponents;
 }
 
-void ALandscape::RequestLayersContentUpdateForceAll()
+void ALandscape::RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InModeMask)
 {
 	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
 		return;
 	}
 
+	const bool bUpdateWeightmap = (InModeMask & (ELandscapeLayerUpdateMode::Weightmap_All | ELandscapeLayerUpdateMode::Weightmap_Editing)) != 0;
+	const bool bUpdateHeightmap = (InModeMask & (ELandscapeLayerUpdateMode::Heightmap_All | ELandscapeLayerUpdateMode::Heightmap_Editing)) != 0;
 	if (ULandscapeInfo* LandscapeInfo = GetLandscapeInfo())
 	{
-		LandscapeInfo->ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
+		LandscapeInfo->ForAllLandscapeProxies([bUpdateHeightmap,bUpdateWeightmap](ALandscapeProxy* Proxy)
 		{
 			if (Proxy)
 			{
 				Proxy->InvalidateGeneratedComponentData();
+
+				for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
+				{
+					if (bUpdateWeightmap || bUpdateHeightmap)
+					{
+						Component->Modify();
+					}
+
+					if (bUpdateHeightmap)
+					{
+						Component->RequestHeightmapUpdate();
+					}
+
+					if (bUpdateWeightmap)
+					{
+						Component->RequestWeightmapUpdate();
+					}
+				}
 			}
 		});
 	}
-	
-	const bool bLocalForceUpdateAllComponents = true;
-	RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All, bLocalForceUpdateAllComponents);
+
+	RequestLayersContentUpdate(InModeMask);
 }
 
-bool ULandscapeComponent::IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag InFlag, uint32 InModeMask, bool bForce) const
+bool ULandscapeComponent::IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag InFlag, uint32 InModeMask) const
 {
-	uint32 UpdateMode = bForce? InModeMask : (LayerUpdateFlagPerMode & InModeMask);
+	uint32 UpdateMode = (LayerUpdateFlagPerMode & InModeMask);
 	
 	if (UpdateMode & ELandscapeLayerUpdateMode::Heightmap_All)
 	{
@@ -4179,26 +4202,20 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming)
 	ProcessedModes |= RegenerateLayersWeightmaps(AllLandscapeComponents, bInWaitForStreaming);
 	LayerContentUpdateModes &= ~ProcessedModes;
 
-	if (!ALandscape::UpdateCollisionAndClients(AllLandscapeComponents, ProcessedModes, bLayerForceUpdateAllComponents))
+	if (!ALandscape::UpdateCollisionAndClients(AllLandscapeComponents, ProcessedModes))
 	{
 		LayerContentUpdateModes |= ELandscapeLayerUpdateMode::DeferredClientUpdate;
 	}
-
-	// Clear flag if we managed to update all modes
-	if (LayerContentUpdateModes == 0)
-	{
-		bLayerForceUpdateAllComponents = false;
-	}
 }
 
-bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, const int32 InContentUpdateModes, const bool bInLayerForceUpdateAllComponents)
+bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, const int32 InContentUpdateModes)
 {
 	bool bAllClientsUpdated = true;
 
 	for (ULandscapeComponent* LandscapeComponent : InLandscapeComponents)
 	{
 		bool bDeferClientUpdateForComponent = false;
-		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::RecreateCollision, InContentUpdateModes, bInLayerForceUpdateAllComponents))
+		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::RecreateCollision, InContentUpdateModes))
 		{
 			if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->CollisionComponent.Get())
 			{
@@ -4206,7 +4223,7 @@ bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& I
 			}
 		}
 
-		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::ClientUpdate, InContentUpdateModes, bInLayerForceUpdateAllComponents))
+		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::ClientUpdate, InContentUpdateModes))
 		{
 			if (!GUndo)
 			{
@@ -5102,8 +5119,7 @@ void ALandscape::SetLayerSubstractiveBlendStatus(int32 InLayerIndex, bool InStat
 		*AllocationBlend = InStatus;
 	}
 
-	const bool bLocalForceUpdateAllComponents = true;
-	RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Weightmap_All, bLocalForceUpdateAllComponents);
+	RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Weightmap_All);
 }
 
 void ALandscape::AddBrushToLayer(int32 InLayerIndex, int32 InTargetType, ALandscapeBlueprintCustomBrush* InBrush)

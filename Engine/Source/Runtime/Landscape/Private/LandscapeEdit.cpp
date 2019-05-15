@@ -560,17 +560,22 @@ void ULandscapeComponent::PostEditUndo()
 {
 	if (!IsPendingKill())
 	{
-		UpdateMaterialInstances();
+		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		{
+			UpdateMaterialInstances();
+		}
 	}
 
 	Super::PostEditUndo();
 
 	if (!IsPendingKill())
 	{
-		EditToolRenderData.UpdateDebugColorMaterial(this);
-
 		EditToolRenderData.UpdateSelectionMaterial(EditToolRenderData.SelectedType, this);
-		UpdateEditToolRenderData();
+		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		{
+			EditToolRenderData.UpdateDebugColorMaterial(this);
+            UpdateEditToolRenderData();
+		}	
 	}
 		
 	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
