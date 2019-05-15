@@ -180,7 +180,7 @@ void SLogVisualizerTimeline::Construct(const FArguments& InArgs, TSharedPtr<FVis
 							[
 								SNew(STextBlock)
 								.Text(FText::FromName(OwnerClassName))
-								.TextStyle(FLogVisualizerStyle::Get(), TEXT("Sequencer.ClassNAme"))
+								.TextStyle(FLogVisualizerStyle::Get(), TEXT("Sequencer.ClassName"))
 							]
 						]
 					]
