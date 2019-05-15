@@ -143,11 +143,11 @@ static void ListUnbuiltHLODActors(const TArray<FString>& Args, UWorld* World)
 	for (TActorIterator<ALODActor> HLODIt(World); HLODIt; ++HLODIt)
 	{
 		ALODActor* Actor = *HLODIt;
-		if (!Actor->IsBuilt())
+		if (!Actor->IsBuilt() && Actor->HasValidLODChildren())
 		{
 			++NumUnbuilt;
 			FString ActorPathName = Actor->GetPathName(World);
-			UE_LOG(LogHLOD, Warning, TEXT("HLOD %s is unbuilt"), *ActorPathName);
+			UE_LOG(LogHLOD, Warning, TEXT("HLOD %s is unbuilt (HLOD level %i)"), *ActorPathName, Actor->LODLevel);
 		}
 	}
 
@@ -496,8 +496,37 @@ const bool ALODActor::IsBuilt(bool bInForce/*=false*/) const
 
 	return bCachedIsBuilt;
 }
-
 #endif
+
+const bool ALODActor::HasValidLODChildren() const
+{
+	if (SubActors.Num() > 0)
+	{
+		for (const AActor* Actor : SubActors)
+		{
+			if (Actor)
+			{
+				// Retrieve contained components for all sub-actors
+				TArray<const UPrimitiveComponent*> Components;
+				Actor->GetComponents(Components);
+
+				// Try and find the parent primitive(s) and see if it matches this LODActor's static mesh component
+				for (const UPrimitiveComponent* PrimitiveComponent : Components)
+				{
+					if (const UPrimitiveComponent* ParentPrimitiveComponent = PrimitiveComponent ? PrimitiveComponent->GetLODParentPrimitive() : nullptr)
+					{
+						if (ParentPrimitiveComponent && ParentPrimitiveComponent == GetStaticMeshComponent())
+						{
+							return true;
+						}
+					}
+				}
+			}
+		}		
+	}
+
+	return false;
+}
 
 #if WITH_EDITOR
 
