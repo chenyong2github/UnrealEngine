@@ -168,7 +168,14 @@ void UAutomatedLevelSequenceCapture::Initialize(TSharedPtr<FSceneViewport> InVie
 
 	if (Settings.bUsePathTracer)
 	{
-		DelayEveryFrame = float(Settings.FrameRate.AsSeconds(Settings.PathTracerSamplePerPixel));
+		float PathTracerSamplePerPixel = float(Settings.FrameRate.AsSeconds(Settings.PathTracerSamplePerPixel));
+
+		if (DelayEveryFrame != PathTracerSamplePerPixel)
+		{
+			UE_LOG(LogMovieSceneCapture, Log, TEXT("Delay every frame overridden by path tracer sample per pixel: %f"), PathTracerSamplePerPixel);
+
+			DelayEveryFrame = PathTracerSamplePerPixel;
+		}
 	}
 
 	ALevelSequenceActor* Actor = LevelSequenceActor.Get();
