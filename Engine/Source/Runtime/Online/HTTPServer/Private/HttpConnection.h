@@ -67,7 +67,7 @@ public:
 		return this->Socket == Other.Socket;
 	}
 
-	static friend uint32 GetTypeHash(const FHttpConnection& Conn) 
+	friend uint32 GetTypeHash(const FHttpConnection& Conn) 
 	{
 		return GetTypeHash(Conn.Socket);
 	}

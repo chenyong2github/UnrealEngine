@@ -65,7 +65,8 @@ public:
 		bool bEqual = (0 == Path.Compare(Other.Path, ESearchCase::CaseSensitive));
 		return bEqual;
 	}
-	static friend uint32 GetTypeHash(const FHttpPath& Path)
+
+	friend uint32 GetTypeHash(const FHttpPath& Path)
 	{
 		return GetTypeHash(Path.GetPath());
 	}
