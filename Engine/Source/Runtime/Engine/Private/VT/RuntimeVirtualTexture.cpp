@@ -7,6 +7,7 @@
 #include "Materials/Material.h"
 #include "RendererInterface.h"
 #include "UObject/UObjectIterator.h"
+#include "VT/RuntimeVirtualTexturePlane.h"
 #include "VT/VirtualTextureUtility.h"
 
 
@@ -171,7 +172,7 @@ void URuntimeVirtualTexture::ReleaseResource()
 {
 	if (Resource != nullptr)
 	{
-		ReleaseResourceAndFlush(Resource);
+		BeginReleaseResource(Resource);
 		Resource = nullptr;
 	}
 }
@@ -181,17 +182,6 @@ void URuntimeVirtualTexture::BeginDestroy()
 	ReleaseResource();
 	Super::BeginDestroy();
 }
-
-#if WITH_EDITOR
-
-void URuntimeVirtualTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	OnEditProperty.ExecuteIfBound(this);
-}
-
-#endif
 
 void URuntimeVirtualTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
@@ -203,12 +193,34 @@ void URuntimeVirtualTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& Out
 	OutTags.Add(FAssetRegistryTag("TileBorderSize", FString::FromInt(GetTileBorderSize()), FAssetRegistryTag::TT_Numerical));
 }
 
+#if WITH_EDITOR
+
+void URuntimeVirtualTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	// Find any components that reference this object and mark them dirty.
+	for (TObjectIterator<URuntimeVirtualTextureComponent> It; It; ++It)
+	{
+		if (It->GetVirtualTexture() == this)
+		{
+			It->MarkRenderStateDirty();
+		}
+	}
+}
+
+#endif
+
 void URuntimeVirtualTexture::NotifyMaterials()
 {
-	//todo[vt]: This can be expensive. We need to make sure we don't call this too often (or at all?) in non-editor builds?
-	
-	// In non-editor builds we can come here > 1 times during PostLoad callbacks.
-	// Is there a way to express the dependency so that materials are init'd after the VT is setup and then we don't need this at all?
+	// Find materials referencing this virtual texture and re-cache the uniforms
+	// We need to do this after any operation that reallocates the virtual texture since the material caches info about the VT allocation in it's uniform buffer
+
+	// todo [vt]:
+	//  This operation is very slow! We should only do it during edition, but currently we do it on runtime load/unload.
+	//  Can we pre-calculate the list of materials to touch during cook? But even then touching here them will be extra work.
+	//  Is there a way to set up dependencies so that we load the materials _after_ the virtual texture is allocated?
+	//  Or maybe we should consider serializing the WorldToUVTransform here and not depending on a URuntimeVirtualTextureComponent at runtime?
 
 	TSet<UMaterial*> BaseMaterialsThatUseThisTexture;
 	for (TObjectIterator<UMaterialInterface> It; It; ++It)
@@ -230,7 +242,7 @@ void URuntimeVirtualTexture::NotifyMaterials()
 
 	if (BaseMaterialsThatUseThisTexture.Num() > 0)
 	{
-		FMaterialUpdateContext UpdateContext;
+		FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::SyncWithRenderingThread);
 		for (TSet<UMaterial*>::TConstIterator It(BaseMaterialsThatUseThisTexture); It; ++It)
 		{
 			(*It)->RecacheUniformExpressions(false);

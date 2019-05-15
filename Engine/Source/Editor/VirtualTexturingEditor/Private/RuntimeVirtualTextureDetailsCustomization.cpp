@@ -5,12 +5,12 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "RuntimeVirtualTexturePlane.h"
 #include "SResetToDefaultMenu.h"
 #include "VT/RuntimeVirtualTexture.h"
-#include "Widgets/Layout/SWrapBox.h"
-#include "Widgets/Layout/SBox.h"
+#include "VT/RuntimeVirtualTexturePlane.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SWrapBox.h"
 
 #define LOCTEXT_NAMESPACE "VirtualTexturingEditorModule"
 

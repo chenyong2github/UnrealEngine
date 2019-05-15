@@ -54,6 +54,8 @@
 #include "DynamicShadowMapChannelBindingHelper.h"
 #include "GPUScene.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "VT/RuntimeVirtualTexturePlane.h"
+#include "VT/RuntimeVirtualTextureSceneProxy.h"
 #if RHI_RAYTRACING
 #include "RayTracingDynamicGeometryCollection.h"
 #endif
@@ -2357,6 +2359,18 @@ void FScene::RemovePrecomputedVolumetricLightmap(const FPrecomputedVolumetricLig
 #endif
 		Scene->VolumetricLightmapSceneData.RemoveLevelVolume(Volume);
 		});
+}
+
+void FScene::AddRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component)
+{
+	delete Component->SceneProxy;
+	Component->SceneProxy = new FRuntimeVirtualTextureSceneProxy(Component);
+}
+
+void FScene::RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component)
+{
+	delete Component->SceneProxy;
+	Component->SceneProxy = nullptr;
 }
 
 bool FScene::GetPreviousLocalToWorld(const FPrimitiveSceneInfo* PrimitiveSceneInfo, FMatrix& OutPreviousLocalToWorld) const

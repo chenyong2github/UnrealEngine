@@ -1,10 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "RuntimeVirtualTexturePlane.h"
+#include "VT/RuntimeVirtualTexturePlane.h"
 
 #include "Components/BoxComponent.h"
-#include "RuntimeVirtualTextureProducer.h"
-#include "VT/RuntimeVirtualTexture.h"
 
 
 ARuntimeVirtualTexturePlane::ARuntimeVirtualTexturePlane(const FObjectInitializer& ObjectInitializer)
@@ -25,91 +23,43 @@ ARuntimeVirtualTexturePlane::ARuntimeVirtualTexturePlane(const FObjectInitialize
 #endif
 }
 
-#if WITH_EDITOR
-
-void ARuntimeVirtualTexturePlane::PostEditMove(bool bFinished)
-{
-	if (bFinished)
-	{
-		if (VirtualTextureComponent != nullptr)
-		{
-			VirtualTextureComponent->UpdateVirtualTexture();
-		}
-	}
-	Super::PostEditMove(bFinished);
-}
-
-#endif
-
-
 URuntimeVirtualTextureComponent::URuntimeVirtualTextureComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, SceneProxy(nullptr)
 {
 }
 
-void URuntimeVirtualTextureComponent::OnRegister()
+void URuntimeVirtualTextureComponent::CreateRenderState_Concurrent()
 {
-	Super::OnRegister();
-	UpdateVirtualTexture();
-}
-
-void URuntimeVirtualTextureComponent::PostLoad()
-{
-	Super::PostLoad();
-	UpdateVirtualTexture();
-}
-
-void URuntimeVirtualTextureComponent::BeginDestroy()
-{
-	ReleaseVirtualTexture();
-	Super::BeginDestroy();
-}
-
-void URuntimeVirtualTextureComponent::UpdateVirtualTexture()
-{
-	if (VirtualTexture != nullptr)
+	if (ShouldRender() && VirtualTexture != nullptr)
 	{
-		// The Producer object created here will be passed into the Virtual Texture system which will take ownership
-		FVTProducerDescription Desc;
-		VirtualTexture->GetProducerDescription(Desc);
-
-		const ERuntimeVirtualTextureMaterialType MaterialType = VirtualTexture->GetMaterialType();
-
-		// Transform is based on bottom left of the box
-		FTransform Transform = FTransform(FVector(-0.5f, -0.5f, 0.f)) * GetComponentToWorld();
-
-		FRuntimeVirtualTextureProducer* Producer = new FRuntimeVirtualTextureProducer(Desc, MaterialType, GetScene(), Transform);
-		VirtualTexture->Initialize(Producer, Transform);
-
-#if WITH_EDITOR
-		// Bind function to ensure we call ReInit again if the virtual texture properties are modified
-		static const FName BinderFunction(TEXT("OnVirtualTextureEditProperty"));
-		VirtualTexture->OnEditProperty.BindUFunction(this, BinderFunction);
-#endif
+		// This will internally allocate modify the URuntimeVirtualTexture and allocate its VT
+		GetScene()->AddRuntimeVirtualTexture(this);
 	}
+
+	Super::CreateRenderState_Concurrent();
 }
 
-void URuntimeVirtualTextureComponent::ReleaseVirtualTexture()
+void URuntimeVirtualTextureComponent::SendRenderTransform_Concurrent()
 {
-	if (VirtualTexture != nullptr)
+	if (ShouldRender() && VirtualTexture != nullptr)
 	{
-		VirtualTexture->Release();
-
-#if WITH_EDITOR
-		VirtualTexture->OnEditProperty.Unbind();
-#endif
+		// This will internally allocate modify the URuntimeVirtualTexture and allocate its VT
+		GetScene()->AddRuntimeVirtualTexture(this);
 	}
+
+	Super::SendRenderTransform_Concurrent();
+}
+
+void URuntimeVirtualTextureComponent::DestroyRenderState_Concurrent()
+{
+	// This will internally allocate modify the URuntimeVirtualTexture and free its VT
+	GetScene()->RemoveRuntimeVirtualTexture(this);
+
+	Super::DestroyRenderState_Concurrent();
 }
 
 #if WITH_EDITOR
-
-void URuntimeVirtualTextureComponent::OnVirtualTextureEditProperty(URuntimeVirtualTexture const* InVirtualTexture)
-{
-	if (InVirtualTexture == VirtualTexture)
-	{
-		UpdateVirtualTexture();
-	}
-}
 
 void URuntimeVirtualTextureComponent::SetRotation()
 {

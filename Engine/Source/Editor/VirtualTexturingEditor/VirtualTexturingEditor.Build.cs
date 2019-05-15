@@ -21,21 +21,20 @@ public class VirtualTexturingEditor : ModuleRules
 
         PrivateDependencyModuleNames.AddRange(
             new string[] {
-                "AppFramework",
-                "AssetRegistry",
-                "ContentBrowser",
-                "Core",
-                "CoreUObject",
-                "DesktopPlatform",
-                "DesktopWidgets",
-                "EditorStyle",
-                "Engine",
-                "InputCore",
-                "Landscape",
-		"PropertyEditor",
-                "Slate",
-                "SlateCore",
-                "UnrealEd",
+				"AppFramework",
+				"AssetRegistry",
+				"ContentBrowser",
+				"Core",
+				"CoreUObject",
+				"DesktopPlatform",
+				"DesktopWidgets",
+				"EditorStyle",
+				"Engine",
+				"InputCore",
+				"PropertyEditor",
+				"Slate",
+				"SlateCore",
+				"UnrealEd",
             }
         );
     }

@@ -115,12 +115,6 @@ public:
 	/** Getter for the shader uniform parameters. */
 	FVector4 GetUniformParameter(int32 Index);
 
-#if WITH_EDITOR
-	/** Delegate to broadcast property changes. Use this so that the IVirtualTexture can be updated accordingly. */
-	DECLARE_DELEGATE_OneParam(FOnEditProperty, URuntimeVirtualTexture const*);
-	FOnEditProperty OnEditProperty;
-#endif
-
 protected:
 	/** Initialize the render resource. This kicks off render thread work. */
 	void InitResource(IVirtualTexture* InProducer);
@@ -131,10 +125,10 @@ protected:
 
 	//~ Begin UObject Interface.
 	virtual void BeginDestroy() override;
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	//~ End UObject Interface.
 
 private:

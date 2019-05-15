@@ -28,17 +28,17 @@ private:
 #endif // WITH_EDITORONLY_DATA
 
 protected:
+	//~ Begin UObject Interface.
+	virtual bool NeedsLoadForServer() const override { return false; }
+	//~ End UObject Interface.
 	//~ Begin AActor Interface.
-#if WITH_EDITOR
-	virtual void PostEditMove(bool bFinished) override;
-#endif
 	virtual bool IsLevelBoundsRelevant() const override { return false; }
 	//~ End AActor Interface
 };
 
 /** Component used to place a URuntimeVirtualTexture in the world. */
 UCLASS(ClassGroup = Rendering, collapsecategories, hidecategories = (Activation, Collision, Cooking, Mobility, LOD, Object, Physics, Rendering), editinlinenew)
-class LANDSCAPE_API URuntimeVirtualTextureComponent : public USceneComponent
+class ENGINE_API URuntimeVirtualTextureComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -52,30 +52,25 @@ private:
 	AActor* BoundsSourceActor = nullptr;
 
 public:
-	/** Call whenever we need to update the underlying URuntimeVirtualTexture. */
-	void UpdateVirtualTexture();
-
-	/** Call when we need to disconnect from the underlying URuntimeVirtualTexture. */
-	void ReleaseVirtualTexture();
+	/** Get the runtime virtual texture object set on this component */
+	URuntimeVirtualTexture* GetVirtualTexture() const { return VirtualTexture; }
 
 #if WITH_EDITOR
-	UFUNCTION(CallInEditor)
-	void OnVirtualTextureEditProperty(URuntimeVirtualTexture const* InVirtualTexture);
-
-	/** Copy the rotation from SourceActor to this component. Called by our UI details customization. */
+	/** Copy the rotation from BoundsSourceActor to this component. Called by our UI details customization. */
 	void SetRotation();
 
-	/** Set this component transform to include the SourceActor bounds. Called by our UI details customization. */
+	/** Set this component transform to include the BoundsSourceActor bounds. Called by our UI details customization. */
 	void SetTransformToBounds();
 #endif
 
 protected:
-	//~ Begin UObject Interface
-	virtual void PostLoad() override;
-	virtual void BeginDestroy() override;
-	//~ End UObject Interface
-
 	//~ Begin UActorComponent Interface
-	virtual void OnRegister() override;
+	virtual void CreateRenderState_Concurrent() override;
+	virtual void SendRenderTransform_Concurrent() override;
+	virtual void DestroyRenderState_Concurrent() override;
 	//~ End UActorComponent Interface
+
+public:
+	/** Scene proxy object. Managed by the scene but stored here. */
+	class FRuntimeVirtualTextureSceneProxy* SceneProxy;
 };

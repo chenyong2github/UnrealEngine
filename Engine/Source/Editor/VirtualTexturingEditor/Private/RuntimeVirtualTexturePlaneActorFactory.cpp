@@ -2,7 +2,7 @@
 
 #include "RuntimeVirtualTexturePlaneActorFactory.h"
 
-#include "RuntimeVirtualTexturePlane.h"
+#include "VT/RuntimeVirtualTexturePlane.h"
 
 #define LOCTEXT_NAMESPACE "VirtualTexturingEditorModule"
 
