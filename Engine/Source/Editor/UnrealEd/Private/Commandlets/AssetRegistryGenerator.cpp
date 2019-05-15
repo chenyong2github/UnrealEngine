@@ -624,6 +624,45 @@ FAssetPackageData* FAssetRegistryGenerator::GetAssetPackageData(const FName& Pac
 	return State.CreateOrGetAssetPackageData(PackageName);
 }
 
+void FAssetRegistryGenerator::UpdateKeptPackagesDiskData(const TArray<FName>& InKeptPackages)
+{
+	for (const FName& PackageName : InKeptPackages)
+	{
+		// Get mutable PackageData without creating it when it does not exist
+		FAssetPackageData* PackageData =
+			State.GetAssetPackageData(PackageName) ?
+			State.CreateOrGetAssetPackageData(PackageName) :
+			nullptr;
+		const FAssetPackageData* PreviousPackageData =
+			PreviousState.GetAssetPackageData(PackageName);
+
+		if (!PackageData || !PreviousPackageData)
+		{
+			continue;
+		}
+
+		if (PackageData->PackageGuid != PreviousPackageData->PackageGuid)
+		{
+			continue;
+		}
+
+		PackageData->CookedHash = PreviousPackageData->CookedHash;
+		PackageData->DiskSize = PreviousPackageData->DiskSize;
+	}
+}
+
+void FAssetRegistryGenerator::UpdateKeptPackagesAssetData()
+{
+	for (FName PackageName : KeptPackages)
+	{
+		const TArray<const FAssetData*>& PreviousAssetDatas = PreviousState.GetAssetsByPackageName(PackageName);
+		for (int I = 0; I < PreviousAssetDatas.Num(); ++I)
+		{
+			State.UpdateAssetData(*PreviousAssetDatas[I]);
+		}
+	}
+}
+
 void FAssetRegistryGenerator::Initialize(const TArray<FName> &InStartupPackages)
 {
 	StartupPackages.Append(InStartupPackages);
@@ -728,6 +767,14 @@ void FAssetRegistryGenerator::ComputePackageDifferences(TSet<FName>& ModifiedPac
 			}
 		}
 	}
+}
+
+void FAssetRegistryGenerator::UpdateKeptPackages(const TArray<FName>& InKeptPackages)
+{
+	KeptPackages.Append(InKeptPackages);
+	// Update disk data right away, disk data is only updated when packages are saved, and kept packages are never saved
+	UpdateKeptPackagesDiskData(InKeptPackages);
+	// Delay update of AssetData with TagsAndValues, this data may be modified up until serialization in SaveAssetRegistry
 }
 
 void FAssetRegistryGenerator::BuildChunkManifest(const TSet<FName>& InCookedPackages, const TSet<FName>& InDevelopmentOnlyPackages, FSandboxPlatformFile* InSandboxFile, bool bGenerateStreamingInstallManifest)
@@ -948,10 +995,11 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 		SaveOptions.DisableFilters();
 	}
 
-	// Flush the asset registry and make sure the asset data is in sync, as it may have been updated during cook
+	// First flush the asset registry and make sure the asset data is in sync, as it may have been updated during cook
 	AssetRegistry.Tick(-1.0f);
-
 	AssetRegistry.InitializeTemporaryAssetRegistryState(State, SaveOptions, true);
+	// Then possibly apply AssetData with TagsAndValues from a previous AssetRegistry for packages kept from a previous cook
+	UpdateKeptPackagesAssetData();
 
 	if (DevelopmentSaveOptions.bSerializeAssetRegistry && bSerializeDevelopmentAssetRegistry)
 	{

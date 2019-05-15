@@ -5192,6 +5192,8 @@ void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPla
 		uint32 NumMarkedFailedSaveKept = 0;
 		uint32 NumPackagesRemoved = 0;
 
+		TArray<FName> KeptPackages;
+
 		for (const auto& CookedPaths : UncookedPathToCookedPath)
 		{
 			const FName CookedFile = CookedPaths.Value;
@@ -5237,6 +5239,7 @@ void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPla
 				if (IdenticalCookedPackages.Contains(SourcePackageName))
 				{
 					PackageTracker->CookedPackages.Add(FFilePlatformCookedPackage(UncookedFilename, MoveTemp(PlatformNames), MoveTemp(Succeeded)));
+					KeptPackages.Add(SourcePackageName);
 					++NumPackagesKept;
 				}
 			}
@@ -5275,8 +5278,11 @@ void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPla
 			ensure(PackageTracker->CookedPackages.Exists(UncookedFilename, PlatformNames, false) == false);
 
 			PackageTracker->CookedPackages.Add(FFilePlatformCookedPackage(UncookedFilename, MoveTemp(PlatformNames)));
+			KeptPackages.Add(UncookedPackage);
 			++NumMarkedFailedSaveKept;
 		}
+
+		PlatformAssetRegistry->UpdateKeptPackages(KeptPackages);
 
 		UE_LOG(LogCook, Display, TEXT("Iterative cooking summary for %s, \nConsidered: %d, \nFile Hash missmatch: %d, \nPackages Kept: %d, \nPackages failed save kept: %d, \nMissing Cooked Info(expected 0): %d"),
 			*Target->PlatformName(),

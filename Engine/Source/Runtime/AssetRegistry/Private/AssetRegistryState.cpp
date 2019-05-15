@@ -1315,6 +1315,14 @@ void FAssetRegistryState::AddAssetData(FAssetData* AssetData)
 	}
 }
 
+void FAssetRegistryState::UpdateAssetData(const FAssetData& NewAssetData)
+{
+	if (FAssetData* AssetData = CachedAssetsByObjectPath.FindRef(NewAssetData.ObjectPath))
+	{
+		UpdateAssetData(AssetData, NewAssetData);
+	}
+}
+
 void FAssetRegistryState::UpdateAssetData(FAssetData* AssetData, const FAssetData& NewAssetData)
 {
 	// Determine if tags need to be remapped
