@@ -46,6 +46,7 @@ float3 SampleTextureXNormal(float2 InTextureCoordinates, float2 InTexelSize, boo
 
 void PSHeightmapMain(float2 InTextureCoordinates : TEXCOORD0, out float4 OutColor : SV_Target0)
 {
+	float LayerVisibility = LayerInfo.y;
 	float4 SourceColor = ReadTexture1.Sample(ReadTexture1Sampler, InTextureCoordinates);
 	float Height = ExtractHeight(SourceColor.rg);
 	
@@ -55,7 +56,8 @@ void PSHeightmapMain(float2 InTextureCoordinates : TEXCOORD0, out float4 OutColo
 	// Output as Layer, so apply Layer info
 	if (OutputConfig.x == 1.0)
 	{
-		Height = round(Height * LayerInfo.x * LayerInfo.y);
+		float LayerAlpha = LayerInfo.x;
+		Height *= LayerAlpha * LayerVisibility;
 	}
 
 	// Output using 2nd heightmap
@@ -64,7 +66,9 @@ void PSHeightmapMain(float2 InTextureCoordinates : TEXCOORD0, out float4 OutColo
 		float2 BaseColor = ReadTexture2.Sample(ReadTexture2Sampler, InTextureCoordinates).rg;
 		float BaseHeight = ExtractHeight(BaseColor.rg);
 		BaseHeight -= 32768.0;
-		if (LayerInfo.z == 1 && LayerInfo.y == 1)
+
+		float LayerBlendMode = LayerInfo.z;
+		if (LayerBlendMode == 1 && LayerVisibility == 1)
 		{
 			// Alpha Blend Mode
 			float HeightAlphaBlend = SourceColor.b;
