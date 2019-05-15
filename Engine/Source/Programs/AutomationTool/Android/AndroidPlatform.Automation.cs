@@ -549,7 +549,7 @@ public class AndroidPlatform : Platform
 							Type = TargetType.Server;
 						}
 						LogInformation("SavePackageInfo");
-						Deploy.SavePackageInfo(Params.ShortProjectName, SC.ProjectRoot.FullName, Type);
+						Deploy.SavePackageInfo(Params.ShortProjectName, SC.ProjectRoot.FullName, Type, true);
 					}
 					Deploy.PrepForUATPackageOrDeploy(Params.RawProjectPath, Params.ShortProjectName, SC.ProjectRoot, SOName, SC.LocalRoot + "/Engine", Params.Distribution, CookFlavor, SC.StageTargets[0].Receipt.Configuration, false, bShouldCompileAsDll);
 				}
