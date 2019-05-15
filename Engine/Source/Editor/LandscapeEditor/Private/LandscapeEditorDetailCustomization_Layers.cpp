@@ -269,9 +269,11 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::GenerateRow(int32 
 				[
 					SNew(SNumericEntryBox<float>)
 					.AllowSpin(true)
-					.MinValue(0.0f)
-					.MaxValue(100.0f)
-					.MaxSliderValue(100.0f)
+					.MinValue(-1.0f)
+					.MaxValue(1.0f)
+					.MinSliderValue(-1.0f)
+					.MaxSliderValue(1.0f)
+					.Delta(0.01f)
 					.MinDesiredValueWidth(60.0f)
 					.IsEnabled(this, &FLandscapeEditorCustomNodeBuilder_Layers::IsLayerEditionEnabled, InLayerIndex)
 					.Visibility(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetLayerAlphaVisibility, InLayerIndex)
@@ -585,7 +587,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::SetLayerAlpha(float InAlpha, int3
 	if (LandscapeEdMode)
 	{
 		// We get multiple commits when editing through the text box
-		if (LandscapeEdMode->GetLayerAlpha(InLayerIndex) == InAlpha)
+		if (LandscapeEdMode->GetLayerAlpha(InLayerIndex) == LandscapeEdMode->GetClampedLayerAlpha(InAlpha))
 		{
 			return;
 		}
