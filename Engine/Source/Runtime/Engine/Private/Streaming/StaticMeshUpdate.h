@@ -7,7 +7,6 @@ StaticMeshUpdate.h: Helpers to stream in and out static mesh LODs.
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Streaming/RenderAssetUpdate.h"
 #include "Engine/StaticMesh.h"
 #include "Async/AsyncFileHandle.h"
 
@@ -42,6 +41,9 @@ struct FStaticMeshUpdateContext
 	EThreadType CurrentThread;
 };
 
+// Declare that TRenderAssetUpdate is instantiated for FStaticMeshUpdateContext
+extern template class TRenderAssetUpdate<FStaticMeshUpdateContext>;
+
 /**
 * This class provides a framework for loading and unloading the LODs of static meshes.
 * Each thread essentially calls Tick() until the job is done.
@@ -52,19 +54,15 @@ class FStaticMeshUpdate : public TRenderAssetUpdate<FStaticMeshUpdateContext>
 public:
 	FStaticMeshUpdate(UStaticMesh* InMesh, int32 InRequestedMips);
 
-	virtual ~FStaticMeshUpdate() {}
-
 	virtual void Abort()
 	{
 		TRenderAssetUpdate<FStaticMeshUpdateContext>::Abort();
 	}
 
-#if WITH_EDITOR
-	/** Returns whether DDC of this texture needs to be regenerated.  */
-	virtual bool DDCIsInvalid() const { return false; }
-#endif
-
 protected:
+
+	virtual ~FStaticMeshUpdate() {}
+
 	/** Cached index of current first LOD that will be replaced by PendingFirstMip */
 	int32 CurrentFirstLODIdx;
 };
@@ -161,7 +159,7 @@ protected:
 		}
 
 	private:
-		FStaticMeshStreamIn_IO* PendingUpdate;
+		TRefCountPtr<FStaticMeshStreamIn_IO> PendingUpdate;
 	};
 
 	typedef FAutoDeleteAsyncTask<FCancelIORequestsTask> FAsyncCancelIORequestsTask;
@@ -221,7 +219,7 @@ public:
 
 	virtual ~FStaticMeshStreamIn_DDC() {}
 
-	virtual bool DDCIsInvalid() const override { return bDerivedDataInvalid; }
+	bool DDCIsInvalid() const override { return bDerivedDataInvalid; }
 
 protected:
 	void LoadNewLODsFromDDC(const FContext& Context);
