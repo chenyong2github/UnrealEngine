@@ -2004,7 +2004,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			else
 			{
 			GPostProcessing.Process(RHICmdList, Views[ ViewIndex ], SceneContext.SceneVelocity);
-		}
+			}
 		}
 
 		// End of frame, we don't need it anymore
