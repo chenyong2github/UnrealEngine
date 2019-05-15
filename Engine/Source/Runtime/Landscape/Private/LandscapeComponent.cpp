@@ -15,6 +15,14 @@ FName FWeightmapLayerAllocationInfo::GetLayerName() const
 	return NAME_None;
 }
 
+uint32 FWeightmapLayerAllocationInfo::GetHash() const
+{
+	uint32 Hash = PointerHash(LayerInfo);
+	Hash = HashCombine(GetTypeHash(WeightmapTextureIndex), Hash);
+	Hash = HashCombine(GetTypeHash(WeightmapTextureChannel), Hash);
+	return Hash;
+}
+
 #if WITH_EDITOR
 
 void FLandscapeEditToolRenderData::UpdateDebugColorMaterial(const ULandscapeComponent* const Component)

@@ -1749,9 +1749,12 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 	}
 
 	// Update the shaders for this component
-	Component->UpdateMaterialInstances();
-	Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
-	Component->UpdateEditToolRenderData();
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		Component->UpdateMaterialInstances();
+		Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
+		Component->UpdateEditToolRenderData();
+	}
 	Component->RequestWeightmapUpdate();
 	
 	// Update dominant layer info stored in collision component
@@ -1801,7 +1804,7 @@ void FLandscapeEditDataInterface::DeleteLayer(ULandscapeLayerInfoObject* LayerIn
 
 	if (LandscapeInfo->LandscapeActor)
 	{
-		LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All, true);
+		LandscapeInfo->LandscapeActor->RequestLayersContentUpdateForceAll();
 	}
 }
 
@@ -1949,10 +1952,12 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 	}
 
 	// Update the shaders for this component
-	Component->UpdateMaterialInstances();
-	Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
-	Component->UpdateEditToolRenderData();
-
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		Component->UpdateMaterialInstances();
+		Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
+		Component->UpdateEditToolRenderData();
+	}
 	Component->InvalidateLightingCache();
 	Component->RequestWeightmapUpdate();
 
@@ -2035,7 +2040,7 @@ void FLandscapeEditDataInterface::FillLayer(ULandscapeLayerInfoObject* LayerInfo
 	ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 	if (LandscapeInfo->LandscapeActor)
 	{
-		LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All, true);
+		LandscapeInfo->LandscapeActor->RequestLayersContentUpdateForceAll();
 	}
 }
 
@@ -2221,11 +2226,14 @@ void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo,
 		// Remove the layer
 		ComponentWeightmapLayerAllocations.RemoveAt(FromLayerIdx);
 
-		// Update the shaders for this component
-		UpdateMaterialInstances();
+		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		{
+			// Update the shaders for this component
+			UpdateMaterialInstances();
 
-		EditToolRenderData.UpdateDebugColorMaterial(this);
-		UpdateEditToolRenderData();
+			EditToolRenderData.UpdateDebugColorMaterial(this);
+			UpdateEditToolRenderData();
+		}
 	}
 
 	RequestWeightmapUpdate();
@@ -2287,7 +2295,7 @@ void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLa
 				FScopedSetLandscapeEditingLayer Scope(LandscapeInfo->LandscapeActor.Get(), CurrentLayer.Guid);
 				DoReplace();
 			});
-			LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Weightmap_All, true);
+			LandscapeInfo->LandscapeActor->RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Weightmap_All);
 		}
 	}
 	else
@@ -2849,11 +2857,13 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 				new (ComponentWeightmapLayerAllocations) FWeightmapLayerAllocationInfo(LayerInfo);
 				Component->ReallocateWeightmaps(this);
 
-				Component->UpdateMaterialInstances();
-
-				Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
-
-				Component->UpdateEditToolRenderData();
+				if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+				{
+					Component->UpdateMaterialInstances();
+					Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
+					Component->UpdateEditToolRenderData();
+				}
+				Component->RequestWeightmapUpdate();
 			}
 
 			// Lock data for all the weightmaps
@@ -3160,11 +3170,13 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 
 			if (bRemovedLayer)
 			{
-				Component->UpdateMaterialInstances();
-
-				Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
-
-				Component->UpdateEditToolRenderData();
+				if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+				{
+					Component->UpdateMaterialInstances();
+					Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
+					Component->UpdateEditToolRenderData();
+				}
+				Component->RequestWeightmapUpdate();
 			}
 		}
 	}
@@ -3267,11 +3279,14 @@ void FLandscapeEditDataInterface::SetAlphaData(const TSet<ULandscapeLayerInfoObj
 						ComponentWeightmapLayerAllocations.Emplace(LayerInfoNeedingAllocation);
 					}
 					Component->ReallocateWeightmaps(this);
-					Component->UpdateMaterialInstances();
 					
-					Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
-
-					Component->UpdateEditToolRenderData();
+					if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+					{
+						Component->UpdateMaterialInstances();
+						Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
+						Component->UpdateEditToolRenderData();
+					}
+					Component->RequestWeightmapUpdate();
 				}
 			}
 
@@ -3442,11 +3457,13 @@ void FLandscapeEditDataInterface::SetAlphaData(const TSet<ULandscapeLayerInfoObj
 
 			if (bRemovedLayer)
 			{
-				Component->UpdateMaterialInstances();
-
-				Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
-
-				Component->UpdateEditToolRenderData();
+				if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+				{
+					Component->UpdateMaterialInstances();
+					Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
+					Component->UpdateEditToolRenderData();
+				}
+				Component->RequestWeightmapUpdate();
 			}
 		}
 	}
