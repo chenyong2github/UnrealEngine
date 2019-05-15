@@ -85,6 +85,14 @@ class FSequencerTrackFilter_AudioTracks : public FSequencerTrackFilter_ClassType
 	virtual FText GetToolTipText() const override { return LOCTEXT("SequencerTrackFilter_AudioTracksToolTip", "Show only Audio tracks."); }
 	virtual FSlateIcon GetIcon() const override { return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Tracks.Audio"); }
 
+	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const override
+	{
+		static UClass* LevelSequenceClass = FindObject<UClass>(ANY_PACKAGE, TEXT("LevelSequence"), true);
+		static UClass* WidgetAnimationClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WidgetAnimation"), true);
+		return InSequence != nullptr &&
+			((LevelSequenceClass != nullptr && InSequence->GetClass()->IsChildOf(LevelSequenceClass)) ||
+			(WidgetAnimationClass != nullptr && InSequence->GetClass()->IsChildOf(WidgetAnimationClass)));
+	}
 };
 
 class FSequencerTrackFilter_EventTracks : public FSequencerTrackFilter_ClassType< UMovieSceneEventTrack >
@@ -93,6 +101,15 @@ class FSequencerTrackFilter_EventTracks : public FSequencerTrackFilter_ClassType
 	virtual FText GetDisplayName() const override { return LOCTEXT("SequencerTrackFilter_EventTracks", "Event"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("SequencerTrackFilter_EventTracksToolTip", "Show only Event tracks."); }
 	virtual FSlateIcon GetIcon() const override { return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Tracks.Event"); }
+
+	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const override
+	{
+		static UClass* LevelSequenceClass = FindObject<UClass>(ANY_PACKAGE, TEXT("LevelSequence"), true);
+		static UClass* WidgetAnimationClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WidgetAnimation"), true);
+		return InSequence != nullptr &&
+			((LevelSequenceClass != nullptr && InSequence->GetClass()->IsChildOf(LevelSequenceClass)) ||
+			(WidgetAnimationClass != nullptr && InSequence->GetClass()->IsChildOf(WidgetAnimationClass)));
+	}
 };
 
 class FSequencerTrackFilter_LevelVisibilityTracks : public FSequencerTrackFilter_ClassType< UMovieSceneLevelVisibilityTrack >
