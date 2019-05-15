@@ -66,9 +66,9 @@ public:
 		return bEqual;
 	}
 
-	friend uint32 GetTypeHash(const FHttpPath& Path)
+	friend uint32 GetTypeHash(const FHttpPath& InPath)
 	{
-		return GetTypeHash(Path.GetPath());
+		return GetTypeHash(InPath.GetPath());
 	}
 
 private:
