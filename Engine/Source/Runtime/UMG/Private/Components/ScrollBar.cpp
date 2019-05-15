@@ -8,6 +8,8 @@
 /////////////////////////////////////////////////////
 // UScrollBar
 
+static FScrollBarStyle* DefaultScrollBarStyle = nullptr;
+
 UScrollBar::UScrollBar(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -19,9 +21,16 @@ UScrollBar::UScrollBar(const FObjectInitializer& ObjectInitializer)
 	Thickness = FVector2D(16.0f, 16.0f);
 	Padding = FMargin(2.0f);
 
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	static const FScrollBarStyle StaticScrollbar = FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("Scrollbar");
-	WidgetStyle = StaticScrollbar;
+	if (DefaultScrollBarStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultScrollBarStyle = new FScrollBarStyle(FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("Scrollbar"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultScrollBarStyle->UnlinkColors();
+	}
+	
+	WidgetStyle = *DefaultScrollBarStyle;
 }
 
 void UScrollBar::ReleaseSlateResources(bool bReleaseChildren)

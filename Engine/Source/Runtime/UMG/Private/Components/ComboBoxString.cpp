@@ -10,15 +10,32 @@
 /////////////////////////////////////////////////////
 // UComboBoxString
 
+static FComboBoxStyle* DefaultComboBoxStyle = nullptr;
+static FTableRowStyle* DefaultComboBoxRowStyle = nullptr;
+
 UComboBoxString::UComboBoxString(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	static const FComboBoxStyle StaticComboboxStyle = FCoreStyle::Get().GetWidgetStyle< FComboBoxStyle >("ComboBox");
-	static const FTableRowStyle StaticRowStyle = FCoreStyle::Get().GetWidgetStyle< FTableRowStyle >("TableView.Row");
+	if (DefaultComboBoxStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultComboBoxStyle = new FComboBoxStyle(FCoreStyle::Get().GetWidgetStyle<FComboBoxStyle>("ComboBox"));
 
-	WidgetStyle = StaticComboboxStyle;
-	ItemStyle = StaticRowStyle;
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultComboBoxStyle->UnlinkColors();
+	}
+
+	if (DefaultComboBoxRowStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultComboBoxRowStyle = new FTableRowStyle(FCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultComboBoxRowStyle->UnlinkColors();
+	}
+
+	WidgetStyle = *DefaultComboBoxStyle;
+	ItemStyle = *DefaultComboBoxRowStyle;
 	ItemStyle.SelectorFocusedBrush.TintColor = ItemStyle.SelectorFocusedBrush.TintColor.GetSpecifiedColor();
 	ItemStyle.ActiveHoveredBrush.TintColor = ItemStyle.ActiveHoveredBrush.TintColor.GetSpecifiedColor();
 	ItemStyle.ActiveBrush.TintColor = ItemStyle.ActiveBrush.TintColor.GetSpecifiedColor();

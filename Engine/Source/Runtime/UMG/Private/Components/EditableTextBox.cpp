@@ -11,6 +11,8 @@
 /////////////////////////////////////////////////////
 // UEditableTextBox
 
+static FEditableTextBoxStyle* DefaultEditableTextBoxStyle = nullptr;
+
 UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -36,9 +38,16 @@ UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	AllowContextMenu = true;
 	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
 
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	static const FEditableTextBoxStyle StaticNormalEditableTextBox = FCoreStyle::Get().GetWidgetStyle< FEditableTextBoxStyle >("NormalEditableTextBox");
-	WidgetStyle = StaticNormalEditableTextBox;
+	if (DefaultEditableTextBoxStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultEditableTextBoxStyle = new FEditableTextBoxStyle(FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultEditableTextBoxStyle->UnlinkColors();
+	}
+
+	WidgetStyle = *DefaultEditableTextBoxStyle;
 
 	AccessibleBehavior = ESlateAccessibleBehavior::Auto;
 	bCanChildrenBeAccessible = false;

@@ -9,6 +9,8 @@
 /////////////////////////////////////////////////////
 // USlider
 
+static FSliderStyle* DefaultSliderStyle = nullptr;
+
 USlider::USlider(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -22,9 +24,16 @@ USlider::USlider(const FObjectInitializer& ObjectInitializer)
 	MouseUsesStep = false;
 	RequiresControllerLock = true;
 
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	static const FSliderStyle StaticSlider = FCoreStyle::Get().GetWidgetStyle<FSliderStyle>("Slider");
-	WidgetStyle = StaticSlider;
+	if (DefaultSliderStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultSliderStyle = new FSliderStyle(FCoreStyle::Get().GetWidgetStyle<FSliderStyle>("Slider"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultSliderStyle->UnlinkColors();
+	}
+
+	WidgetStyle = *DefaultSliderStyle;
 
 	AccessibleBehavior = ESlateAccessibleBehavior::Summary;
 	bCanChildrenBeAccessible = false;

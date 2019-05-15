@@ -10,6 +10,9 @@
 /////////////////////////////////////////////////////
 // UScrollBox
 
+static FScrollBoxStyle* DefaultScrollBoxStyle = nullptr;
+static FScrollBarStyle* DefaultScrollBoxBarStyle = nullptr;
+
 UScrollBox::UScrollBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Orientation(Orient_Vertical)
@@ -28,14 +31,26 @@ UScrollBox::UScrollBox(const FObjectInitializer& ObjectInitializer)
 	Visibility = ESlateVisibility::Visible;
 	Clipping = EWidgetClipping::ClipToBounds;
 
+	if (DefaultScrollBoxStyle == nullptr)
 	{
-		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-		static const FScrollBoxStyle StaticScrollBoxStyle = FCoreStyle::Get().GetWidgetStyle<FScrollBoxStyle>("ScrollBox");
-		static const FScrollBarStyle StaticScrollBarStyle = FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar");
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultScrollBoxStyle = new FScrollBoxStyle(FCoreStyle::Get().GetWidgetStyle<FScrollBoxStyle>("ScrollBox"));
 
-		WidgetStyle = StaticScrollBoxStyle;
-		WidgetBarStyle = StaticScrollBarStyle;
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultScrollBoxStyle->UnlinkColors();
 	}
+
+	if (DefaultScrollBoxBarStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultScrollBoxBarStyle = new FScrollBarStyle(FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultScrollBoxBarStyle->UnlinkColors();
+	}
+	
+	WidgetStyle = *DefaultScrollBoxStyle;
+	WidgetBarStyle = *DefaultScrollBoxBarStyle;
 
 	bAllowRightClickDragScrolling = true;
 }

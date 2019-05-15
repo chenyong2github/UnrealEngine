@@ -11,12 +11,21 @@
 /////////////////////////////////////////////////////
 // UCheckBox
 
+static FCheckBoxStyle* DefaultCheckboxStyle = nullptr;
+
 UCheckBox::UCheckBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	static const FCheckBoxStyle StaticCheckboxStyle = FCoreStyle::Get().GetWidgetStyle< FCheckBoxStyle >("Checkbox");
-	WidgetStyle = StaticCheckboxStyle;
+	if (DefaultCheckboxStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultCheckboxStyle = new FCheckBoxStyle(FCoreStyle::Get().GetWidgetStyle<FCheckBoxStyle>("Checkbox"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultCheckboxStyle->UnlinkColors();
+	}
+
+	WidgetStyle = *DefaultCheckboxStyle;
 
 	CheckedState = ECheckBoxState::Unchecked;
 

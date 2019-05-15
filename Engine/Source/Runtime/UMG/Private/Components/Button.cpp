@@ -11,12 +11,21 @@
 /////////////////////////////////////////////////////
 // UButton
 
+static FButtonStyle* DefaultButtonStyle = nullptr;
+
 UButton::UButton(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	static const FButtonStyle StaticButtonStyle = FCoreStyle::Get().GetWidgetStyle< FButtonStyle >("Button");
-	WidgetStyle = StaticButtonStyle;
+	if (DefaultButtonStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultButtonStyle = new FButtonStyle(FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultButtonStyle->UnlinkColors();
+	}
+
+	WidgetStyle = *DefaultButtonStyle;
 
 	ColorAndOpacity = FLinearColor::White;
 	BackgroundColor = FLinearColor::White;
