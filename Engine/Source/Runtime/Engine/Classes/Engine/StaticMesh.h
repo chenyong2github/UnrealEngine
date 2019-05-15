@@ -24,6 +24,7 @@
 #include "MeshDescription.h"
 #include "MeshAttributes.h"
 #include "MeshAttributeArray.h"
+#include "RenderAssetUpdate.h"
 
 #include "StaticMesh.generated.h"
 
@@ -787,7 +788,7 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = StaticMesh)
 	TArray<UAssetUserData*> AssetUserData;
 
-	FStaticMeshUpdate* PendingUpdate;
+	TRefCountPtr<FRenderAssetUpdate> PendingUpdate;
 
 	friend struct FStaticMeshUpdateContext;
 	friend class FStaticMeshUpdate;

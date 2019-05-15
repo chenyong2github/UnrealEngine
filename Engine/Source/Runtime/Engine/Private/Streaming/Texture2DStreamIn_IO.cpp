@@ -94,7 +94,7 @@ void FTexture2DStreamIn_IO::SetIOFilename(const FContext& Context)
 
 void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
 {
-	SetAsyncFileCallback(Context);
+	SetAsyncFileCallback();
 
 	check(!IOFileHandle);
 	IOFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*IOFilename);
@@ -169,9 +169,9 @@ void FTexture2DStreamIn_IO::ClearIORequests(const FContext& Context)
 	}
 }
 
-void FTexture2DStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
+void FTexture2DStreamIn_IO::SetAsyncFileCallback()
 {
-	AsyncFileCallBack = [this, Context](bool bWasCancelled, IAsyncReadRequest* Req)
+	AsyncFileCallBack = [this](bool bWasCancelled, IAsyncReadRequest* Req)
 	{
 		// At this point task synchronization would hold the number of pending requests.
 		TaskSynchronization.Decrement();
@@ -191,7 +191,7 @@ void FTexture2DStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 
 		// The tick here is intended to schedule the success or cancel callback.
 		// Using TT_None ensure gets which could create a dead lock.
-		Tick(Context.Texture, FTexture2DUpdate::TT_None);
+		Tick(FTexture2DUpdate::TT_None);
 	};
 }
 
@@ -206,7 +206,6 @@ void FTexture2DStreamIn_IO::Abort()
 		{
 			// Prevent the update from being considered done before this is finished.
 			// By checking that it was not already cancelled, we make sure this doesn't get called twice.
-			FPlatformAtomics::InterlockedIncrement(&ScheduledTaskCount);
 			(new FAsyncCancelIORequestsTask(this))->StartBackgroundTask();
 		}
 	}
@@ -217,8 +216,7 @@ void FTexture2DStreamIn_IO::FCancelIORequestsTask::DoWork()
 	check(PendingUpdate);
 	// Acquire the lock of this object in order to cancel any pending IO.
 	// If the object is currently being ticked, wait.
-	PendingUpdate->DoLock();
+	const ETaskState PreviousTaskState = PendingUpdate->DoLock();
 	PendingUpdate->CancelIORequests();
-	PendingUpdate->DoUnlock();
-	FPlatformAtomics::InterlockedDecrement(&PendingUpdate->ScheduledTaskCount);
+	PendingUpdate->DoUnlock(PreviousTaskState);
 }
