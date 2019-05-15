@@ -57,6 +57,12 @@ public:
 	void ComputePackageDifferences(TSet<FName>& ModifiedPackages, TSet<FName>& NewPackages, TSet<FName>& RemovedPackages, TSet<FName>& IdenticalCookedPackages, TSet<FName>& IdenticalUncookedPackages, bool bRecurseModifications, bool bRecurseScriptModifications);
 
 	/**
+	 * Tracks packages that were kept from a previous cook.
+	 * Updates the current asset registry from the previous one for all kept packages.
+	 */
+	void UpdateKeptPackages(const TArray<FName>& InKeptPackages);
+
+	/**
 	 * GenerateChunkManifest 
 	 * generate chunk manifest for the packages passed in using the asset registry to determine dependencies
 	 *
@@ -160,6 +166,8 @@ private:
 	TSet<FName> CookedPackages;
 	/** List of packages that were filtered out from cooking */
 	TSet<FName> DevelopmentOnlyPackages;
+	/** List of packages that were kept from a previous cook */
+	TArray<FName> KeptPackages;
 	/** Map of Package name to Sandbox Paths */
 	typedef TMap<FName, FString> FChunkPackageSet;
 	/** Holds a reference to asset registry */
@@ -215,6 +223,17 @@ private:
 		uint32		ParentNodeIndex;
 	};
 
+	/**
+	 * Updates disk data with CookedHash and DiskSize from previous asset registry
+	 * for all packages kept from a previous cook.
+	 */
+	void UpdateKeptPackagesDiskData(const TArray<FName>& InKeptPackages);
+
+	/**
+	 * Updates AssetData with TagsAndValues from previous asset registry
+	 * for all packages kept from a previous cook.
+	 */
+	void UpdateKeptPackagesAssetData();
 
 	/**
 	 * Adds a package to chunk manifest

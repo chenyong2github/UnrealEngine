@@ -240,6 +240,9 @@ public:
 	/** Adds the asset data to the lookup maps */
 	void AddAssetData(FAssetData* AssetData);
 
+	/** Finds an existing asset data based on object path and updates it with the new value and updates lookup maps */
+	void UpdateAssetData(const FAssetData& NewAssetData);
+
 	/** Updates an existing asset data with the new value and updates lookup maps */
 	void UpdateAssetData(FAssetData* AssetData, const FAssetData& NewAssetData);
 
