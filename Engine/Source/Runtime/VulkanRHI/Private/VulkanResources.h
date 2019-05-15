@@ -293,6 +293,8 @@ public:
 	virtual ~FVulkanSurface();
 
 	void Destroy();
+	void InvalidateMappedMemory(){ ResourceAllocation->InvalidateMappedMemory();}
+	void* GetMappedPointer() { return ResourceAllocation->GetMappedPointer(); }
 
 #if 0
 	/**

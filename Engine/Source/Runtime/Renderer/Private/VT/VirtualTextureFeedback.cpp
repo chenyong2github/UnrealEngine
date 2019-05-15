@@ -110,9 +110,7 @@ bool FVirtualTextureFeedback::Map( FRHICommandListImmediate& RHICmdList, MapResu
 		OutResult.Rect = FeedbackEntryCPU.Rect;
 
 		int32 LockHeight = 0;
-		// We can avoid flushing RHI thread here, since we wait for GPU fence to complete
-		const bool bFlushRHIThread = false;
-		RHICmdList.MapStagingSurface(FeedbackEntryCPU.TextureCPU->GetRenderTargetItem().ShaderResourceTexture, *(void**)&OutResult.Buffer, OutResult.Pitch, LockHeight, bFlushRHIThread);
+		RHICmdList.MapStagingSurface(FeedbackEntryCPU.TextureCPU->GetRenderTargetItem().ShaderResourceTexture, *(void**)&OutResult.Buffer, OutResult.Pitch, LockHeight);
 
 		check(PendingTargetCount > 0u);
 		--PendingTargetCount;
@@ -128,7 +126,6 @@ void FVirtualTextureFeedback::Unmap( FRHICommandListImmediate& RHICmdList, int32
 {
 	check(FeedbackTextureCPU[MapHandle].TextureCPU.IsValid());
 
-	const bool bFlushRHIThread = false;
-	RHICmdList.UnmapStagingSurface(FeedbackTextureCPU[MapHandle].TextureCPU->GetRenderTargetItem().ShaderResourceTexture, bFlushRHIThread);
+	RHICmdList.UnmapStagingSurface(FeedbackTextureCPU[MapHandle].TextureCPU->GetRenderTargetItem().ShaderResourceTexture);
 	GRenderTargetPool.FreeUnusedResource(FeedbackTextureCPU[MapHandle].TextureCPU);
 }

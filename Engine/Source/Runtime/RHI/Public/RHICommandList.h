@@ -4029,24 +4029,14 @@ public:
 		GDynamicRHI->RHIReadSurfaceData(Texture, Rect, OutData, InFlags);
 	}
 	
-	FORCEINLINE void MapStagingSurface(FTextureRHIParamRef Texture,void*& OutData,int32& OutWidth,int32& OutHeight, bool bFlushRHIThread = true)
+	FORCEINLINE void MapStagingSurface(FTextureRHIParamRef Texture,void*& OutData,int32& OutWidth,int32& OutHeight)
 	{
-		if (bFlushRHIThread)
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_MapStagingSurface_Flush);
-			ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
-		GDynamicRHI->RHIMapStagingSurface(Texture,OutData,OutWidth,OutHeight);
+		GDynamicRHI->RHIMapStagingSurface_RenderThread(*this, Texture,OutData,OutWidth,OutHeight);
 	}
 	
-	FORCEINLINE void UnmapStagingSurface(FTextureRHIParamRef Texture, bool bFlushRHIThread = true)
+	FORCEINLINE void UnmapStagingSurface(FTextureRHIParamRef Texture)
 	{
-		if (bFlushRHIThread)
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnmapStagingSurface_Flush);
-			ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
-		GDynamicRHI->RHIUnmapStagingSurface(Texture);
+		GDynamicRHI->RHIUnmapStagingSurface_RenderThread(*this, Texture);
 	}
 	
 	FORCEINLINE void ReadSurfaceFloatData(FTextureRHIParamRef Texture,FIntRect Rect,TArray<FFloat16Color>& OutData,ECubeFace CubeFace,int32 ArrayIndex,int32 MipIndex)
