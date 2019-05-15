@@ -1140,7 +1140,6 @@ Done:
 
 		if (Parser.Scanner.MatchToken(EHlslToken::Semicolon))
 		{
-check(0);
 			// Forward declare
 			return EParseResult::Matched;
 		}
