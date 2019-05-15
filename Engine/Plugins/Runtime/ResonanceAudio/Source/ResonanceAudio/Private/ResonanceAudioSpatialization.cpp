@@ -55,7 +55,16 @@ namespace ResonanceAudio {
 			BinauralSource.Id = RA_INVALID_SOURCE_ID;
 		}
 
-		SpatializationSettings[SourceId] = static_cast<UResonanceAudioSpatializationSourceSettings*>(InSettings);
+		// If we weren't passed in any settings, we want to get the settings from the global project settings
+		if (!InSettings)
+		{
+			SpatializationSettings[SourceId] = FResonanceAudioModule::GetGlobalSpatializationSourceSettings();
+		}
+		else
+		{
+			SpatializationSettings[SourceId] = static_cast<UResonanceAudioSpatializationSourceSettings*>(InSettings);
+		}
+
 
 		if (SpatializationSettings[SourceId] == nullptr)
 		{
