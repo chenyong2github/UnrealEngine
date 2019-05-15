@@ -710,7 +710,8 @@ public:
 	FActorRepListRefView ReplicationActorList;
 
 	/** List of previously (or currently if nothing changed last tick) focused actor data per connection */
-	TArray<FAlwaysRelevantActorInfo, FReplicationGraphConnectionsAllocator> PastRelevantActors;
+	UPROPERTY()
+	TArray<FAlwaysRelevantActorInfo> PastRelevantActors;
 
 	UE_DEPRECATED(4.23, "ViewTargets are now handled inside the PastRelevantActorMap")
 	UPROPERTY()
@@ -1046,7 +1047,8 @@ public:
 	UE_DEPRECATED(4.23, "Use the LastGatherLocations to have support for subconnection lookups")
 	FVector LastGatherLocation;
 
-	TArray<FLastLocationGatherInfo, FReplicationGraphConnectionsAllocator> LastGatherLocations;
+	UPROPERTY()
+	TArray<FLastLocationGatherInfo> LastGatherLocations;
 
 	// Nb of bits sent for actor channel creation when a dedicated budget is allocated for this
 	int32 QueuedBitsForActorDiscovery = 0;
