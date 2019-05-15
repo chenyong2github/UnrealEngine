@@ -586,6 +586,12 @@ void FD3D12ResourceLocation::ReleaseResource()
 		}
 		break;
 	}
+	case ResourceLocationType::eMultiFrameFastAllocation:
+	{
+		check(UnderlyingResource->GetRefCount() > 1);
+		UnderlyingResource->Release();
+		break;
+	}
 	case ResourceLocationType::eFastAllocation:
 	case ResourceLocationType::eUndefined:
 	default:
