@@ -44,7 +44,7 @@ void ULandscapeInfoMap::AddReferencedObjects(UObject* InThis, FReferenceCollecto
 }
 
 #if WITH_EDITORONLY_DATA
-ULandscapeInfoMap& ULandscapeInfoMap::GetLandscapeInfoMap(UWorld* World)
+ULandscapeInfoMap& ULandscapeInfoMap::GetLandscapeInfoMap(const UWorld* World)
 {
 	ULandscapeInfoMap *FoundObject = nullptr;
 	World->PerModuleDataObjects.FindItemByClass(&FoundObject);
