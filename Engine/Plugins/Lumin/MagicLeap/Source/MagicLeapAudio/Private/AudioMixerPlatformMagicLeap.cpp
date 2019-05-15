@@ -399,6 +399,11 @@ namespace Audio
 
 	ICompressedAudioInfo* FMixerPlatformMagicLeap::CreateCompressedAudioInfo(USoundWave* InSoundWave)
 	{
+		if (InSoundWave->IsSeekableStreaming())
+		{
+			return new FADPCMAudioInfo();
+		}
+
 #if WITH_OGGVORBIS
 		static FName NAME_OGG(TEXT("OGG"));
 		if (InSoundWave->HasCompressedData(NAME_OGG))
@@ -482,7 +487,7 @@ namespace Audio
 		{
 			return;
 		}
-		// Get the callback buffer from MLAudio 
+		// Get the callback buffer from MLAudio
 		MLResult Result = MLAudioGetOutputStreamBuffer(InPlatform->StreamHandle, &CallbackBuffer);
 		if (Result != MLResult_Ok)
 		{

@@ -10,6 +10,7 @@
 #include "Misc/ScopeLock.h"
 #if WITH_ENGINE
 #include "AudioCompressionSettings.h"
+#include "Sound/SoundWave.h"
 #endif
 
 #if PLATFORM_WINDOWS
@@ -287,7 +288,14 @@ const UTextureLODSettings& FHTML5TargetPlatform::GetTextureLODSettings() const
 
 FName FHTML5TargetPlatform::GetWaveFormat( const USoundWave* Wave ) const
 {
-	static FName NAME_OGG(TEXT("OGG"));
+	static const FName NAME_OGG(TEXT("OGG"));
+	static const FName NAME_ADPCM(TEXT("ADPCM"));
+
+	if (Wave->IsSeekableStreaming())
+	{
+		return NAME_ADPCM;
+	}
+
 	return NAME_OGG;
 }
 
@@ -295,7 +303,10 @@ FName FHTML5TargetPlatform::GetWaveFormat( const USoundWave* Wave ) const
 
 void FHTML5TargetPlatform::GetAllWaveFormats(TArray<FName>& OutFormats) const
 {
-	static FName NAME_OGG(TEXT("OGG"));
+	static const FName NAME_ADPCM(TEXT("ADPCM"));
+	static const FName NAME_OGG(TEXT("OGG"));
+
+	OutFormats.Add(NAME_ADPCM);
 	OutFormats.Add(NAME_OGG);
 }
 
