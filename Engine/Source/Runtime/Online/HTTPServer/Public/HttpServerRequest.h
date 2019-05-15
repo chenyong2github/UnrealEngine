@@ -6,12 +6,12 @@
 
 enum class EHttpServerRequestVerbs : uint16
 {
-	NONE   = 0,
-	GET    = 1 << 0,
-	POST   = 1 << 1,
-	PUT    = 1 << 2,
-	PATCH  = 1 << 3,
-	DELETE = 1 << 4
+	VERB_NONE   = 0,
+	VERB_GET    = 1 << 0,
+	VERB_POST   = 1 << 1,
+	VERB_PUT    = 1 << 2,
+	VERB_PATCH  = 1 << 3,
+	VERB_DELETE = 1 << 4
 };
 
 ENUM_CLASS_FLAGS(EHttpServerRequestVerbs);
