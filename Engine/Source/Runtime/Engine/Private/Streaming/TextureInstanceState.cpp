@@ -16,7 +16,7 @@
 
 int32 FRenderAssetInstanceState::AddBounds(const UPrimitiveComponent* Component)
 {
-	return AddBounds(Component->Bounds, PackedRelativeBox_Identity, Component, Component->LastRenderTimeOnScreen, Component->Bounds.Origin, 0, 0, FLT_MAX);
+	return AddBounds(Component->Bounds, PackedRelativeBox_Identity, Component, Component->GetLastRenderTimeOnScreen(), Component->Bounds.Origin, 0, 0, FLT_MAX);
 }
 
 int32 FRenderAssetInstanceState::AddBounds(const FBoxSphereBounds& Bounds, uint32 PackedRelativeBox, const UPrimitiveComponent* InComponent, float LastRenderTime, const FVector4& RangeOrigin, float MinDistanceSq, float MinRangeSq, float MaxRangeSq)
@@ -334,7 +334,7 @@ EAddComponentResult FRenderAssetInstanceState::AddComponent(const UPrimitiveComp
 				++NumOfBoundReferences;
 			}
 
-			const int32 BoundsIndex = AddBounds(FBoxSphereBounds(ForceInit), Info.PackedRelativeBox, Component, Component->LastRenderTimeOnScreen, FVector(ForceInit), 0, 0, FLT_MAX);
+			const int32 BoundsIndex = AddBounds(FBoxSphereBounds(ForceInit), Info.PackedRelativeBox, Component, Component->GetLastRenderTimeOnScreen(), FVector(ForceInit), 0, 0, FLT_MAX);
 			AddRenderAssetElements(Component, TArrayView<FStreamingRenderAssetPrimitiveInfo>(RenderAssetInstanceInfos.GetData() + InfoIndex, NumOfBoundReferences), BoundsIndex, ComponentLink);
 			BoundsToUnpack.Push(BoundsIndex);
 
@@ -374,7 +374,7 @@ EAddComponentResult FRenderAssetInstanceState::AddComponent(const UPrimitiveComp
 			}
 
 			GetDistanceAndRange(Component, Info.Bounds, MinDistanceSq, MinRangeSq, MaxRangeSq);
-			const int32 BoundsIndex = AddBounds(Info.Bounds, PackedRelativeBox_Identity, Component, Component->LastRenderTimeOnScreen, Component->Bounds.Origin, MinDistanceSq, MinRangeSq, MaxRangeSq);
+			const int32 BoundsIndex = AddBounds(Info.Bounds, PackedRelativeBox_Identity, Component, Component->GetLastRenderTimeOnScreen(), Component->Bounds.Origin, MinDistanceSq, MinRangeSq, MaxRangeSq);
 			AddRenderAssetElements(Component, TArrayView<FStreamingRenderAssetPrimitiveInfo>(RenderAssetInstanceInfos.GetData() + InfoIndex, NumOfBoundReferences), BoundsIndex, ComponentLink);
 
 			InfoIndex += NumOfBoundReferences;
@@ -492,7 +492,7 @@ void FRenderAssetInstanceState::UpdateBounds(const UPrimitiveComponent* Componen
 			const FElement& Element = Elements[ElementIndex];
 			if (Element.BoundsIndex != INDEX_NONE)
 			{
-				Bounds4[Element.BoundsIndex / 4].FullUpdate(Element.BoundsIndex % 4, Component->Bounds, Component->LastRenderTimeOnScreen);
+				Bounds4[Element.BoundsIndex / 4].FullUpdate(Element.BoundsIndex % 4, Component->Bounds, Component->GetLastRenderTimeOnScreen());
 			}
 			ElementIndex = Element.NextComponentLink;
 		}
@@ -504,7 +504,7 @@ bool FRenderAssetInstanceState::UpdateBounds(int32 BoundIndex)
 	const UPrimitiveComponent* Component = ensure(Bounds4Components.IsValidIndex(BoundIndex)) ? Bounds4Components[BoundIndex] : nullptr;
 	if (Component)
 	{
-		Bounds4[BoundIndex / 4].FullUpdate(BoundIndex % 4, Component->Bounds, Component->LastRenderTimeOnScreen);
+		Bounds4[BoundIndex / 4].FullUpdate(BoundIndex % 4, Component->Bounds, Component->GetLastRenderTimeOnScreen());
 		return true;
 	}
 	else
@@ -531,13 +531,13 @@ bool FRenderAssetInstanceState::ConditionalUpdateBounds(int32 BoundIndex)
 
 			if (0.5f * FMath::Min3<float>(XSquared, YSquared, ZSquared) <= RadiusSquared && RadiusSquared <= 2.f * (XSquared + YSquared + ZSquared))
 			{
-				Bounds4[BoundIndex / 4].FullUpdate(BoundIndex % 4, Bounds, Component->LastRenderTimeOnScreen);
+				Bounds4[BoundIndex / 4].FullUpdate(BoundIndex % 4, Bounds, Component->GetLastRenderTimeOnScreen());
 				return true;
 			}
 		}
 		else // Otherwise we assume it is guarantied to be good.
 		{
-			Bounds4[BoundIndex / 4].FullUpdate(BoundIndex % 4, Component->Bounds, Component->LastRenderTimeOnScreen);
+			Bounds4[BoundIndex / 4].FullUpdate(BoundIndex % 4, Component->Bounds, Component->GetLastRenderTimeOnScreen());
 			return true;
 		}
 	}
@@ -552,7 +552,7 @@ void FRenderAssetInstanceState::UpdateLastRenderTimeAndMaxDrawDistance(int32 Bou
 	{
 		const int32 Bounds4Idx = BoundIndex / 4;
 		const int32 SubIdx = BoundIndex & 3;
-		Bounds4[Bounds4Idx].UpdateLastRenderTime(SubIdx, Component->LastRenderTimeOnScreen);
+		Bounds4[Bounds4Idx].UpdateLastRenderTime(SubIdx, Component->GetLastRenderTimeOnScreen());
 		// The min draw distances of HLODs can change dynamically (see Tick, PauseDitherTransition,
 		// and StartDitherTransition methods of ALODActor)
 		const UPrimitiveComponent* LODParent = Component->GetLODParentPrimitive();

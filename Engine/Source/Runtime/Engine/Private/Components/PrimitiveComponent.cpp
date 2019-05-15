@@ -3464,6 +3464,11 @@ void UPrimitiveComponent::SetCustomNavigableGeometry(const EHasCustomNavigableGe
 	bHasCustomNavigableGeometry = InType;
 }
  
+void UPrimitiveComponent::SetLastRenderTime(float InLastRenderTime)
+{
+	LastRenderTime = InLastRenderTime;
+}
+
 #if WITH_EDITOR
 const bool UPrimitiveComponent::ShouldGenerateAutoLOD(const int32 HierarchicalLevelIndex) const
 {	
