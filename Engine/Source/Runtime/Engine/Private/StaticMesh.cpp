@@ -1288,18 +1288,41 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 			{
 				FStaticMeshLODResources& LOD = LODResources[ResourceIndex];
 				
-				bool bValid = (LOD.DistanceFieldData != NULL);
+				bool bValid = (LOD.DistanceFieldData != nullptr);
 
 				Ar << bValid;
 
 				if (bValid)
 				{
-					if (!LOD.DistanceFieldData)
+#if WITH_EDITOR
+					bool bDownSampling = Ar.IsCooking() && Ar.IsSaving();
+					
+					if (bDownSampling)
 					{
-						LOD.DistanceFieldData = new FDistanceFieldVolumeData();
+						float Divider = Ar.CookingTarget()->GetDownSampleMeshDistanceFieldDivider();
+						bDownSampling = Divider > 1;
+
+						if (bDownSampling)
+						{
+							FDistanceFieldVolumeData DownSampledDFVolumeData = *LOD.DistanceFieldData;
+							IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>(TEXT("MeshUtilities"));
+
+							MeshUtilities.DownSampleDistanceFieldVolumeData(DownSampledDFVolumeData, Divider);
+
+							Ar << DownSampledDFVolumeData;
+						}
 					}
 
-					Ar << *(LOD.DistanceFieldData);
+					if (!bDownSampling)
+#endif
+					{
+						if (!LOD.DistanceFieldData)
+						{
+							LOD.DistanceFieldData = new FDistanceFieldVolumeData();
+						}
+
+						Ar << *(LOD.DistanceFieldData);
+					}
 				}
 			}
 		}
