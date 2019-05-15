@@ -52,6 +52,8 @@ void FMaterialShadingModelCustomization::CustomizeHeader(TSharedRef<IPropertyHan
 		PropertyHandle->CreatePropertyNameWidget()
 	]
 	.ValueContent()
+	.MinDesiredWidth(150.0f) // To fit the longer names
+	.MaxDesiredWidth(0.0f) // Don't care
 	[
 		PropertyCustomizationHelpers::MakePropertyComboBox(PropertyHandle)
 	];
