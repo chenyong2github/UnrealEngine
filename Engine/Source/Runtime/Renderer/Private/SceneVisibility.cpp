@@ -1979,9 +1979,7 @@ struct FRelevancePacket
 			// on the game thread. This signals that the primitive is visible.
 			if (View.PrimitiveDefinitelyUnoccludedMap[BitIndex] || (View.Family->EngineShowFlags.Wireframe && View.PrimitiveVisibilityMap[BitIndex]))
 			{
-				// Update the PrimitiveComponent's LastRenderTime.
-				*(PrimitiveSceneInfo->ComponentLastRenderTime) = CurrentWorldTime;
-				*(PrimitiveSceneInfo->ComponentLastRenderTimeOnScreen) = CurrentWorldTime;
+				PrimitiveSceneInfo->UpdateComponentLastRenderTime(CurrentWorldTime, /*bUpdateLastRenderTimeOnScreen=*/true);
 			}
 
 			// Cache the nearest reflection proxy if needed
