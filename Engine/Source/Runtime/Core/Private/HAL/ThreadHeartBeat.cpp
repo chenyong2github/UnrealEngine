@@ -16,6 +16,7 @@
 #include "Stats/Stats.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Misc/App.h"
 
 #if PLATFORM_SWITCH
 #include "Switch/SwitchPlatformCrashContext.h"
