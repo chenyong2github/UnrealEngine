@@ -173,8 +173,6 @@ public:
 	{
 		FRepChangedParent & Parent = Parents[RepIndex];
 
-		checkSlow(Parent.IsConditional);
-
 		Parent.Active = (bIsActive || bIsClientReplayRecording) ? 1 : 0;
 		Parent.OldActive = Parent.Active;
 	}
