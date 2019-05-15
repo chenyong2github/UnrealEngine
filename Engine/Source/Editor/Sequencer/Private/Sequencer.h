@@ -951,6 +951,9 @@ protected:
 	/** Updates a viewport client from camera cut data */
 	void UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewportClient& InViewportClient, UObject* InCameraObject, bool bJumpCut) const;
 
+	/** Expands Possessables with multiple bindings into indidual Possessables for each binding */
+	TArray<FGuid> ExpandMultiplePossessableBindings(FGuid PossessableGuid);
+
 	/** Internal conversion function that doesn't perform expensive reset/update tasks */
 	TArray<FMovieSceneSpawnable*> ConvertToSpawnableInternal(FGuid PossessableGuid);
 

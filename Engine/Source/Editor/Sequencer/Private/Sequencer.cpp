@@ -7646,85 +7646,199 @@ void FSequencer::ConvertSelectedNodesToSpawnables()
 	NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemsChanged );
 }
 
+TArray<FGuid> FSequencer::ExpandMultiplePossessableBindings(FGuid PossessableGuid)
+{
+	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+
+	TArray<FGuid> NewPossessableGuids;
+
+	if (MovieScene->IsReadOnly())
+	{
+		return TArray<FGuid>();
+	}
+
+	
+	// Create a copy of the TArrayView of bound objects, as the underlying array will get destroyed
+	TArray<TWeakObjectPtr<>> FoundObjects;
+	for (TWeakObjectPtr<> BoundObject : FindBoundObjects(PossessableGuid, ActiveTemplateIDs.Top()))
+	{
+		FoundObjects.Insert(BoundObject,0);
+	}
+
+	if (FoundObjects.Num() < 2)
+	{
+		// If less than two objects, nothing to do, return the same Guid
+		NewPossessableGuids.Add(PossessableGuid);
+		return NewPossessableGuids;
+	}
+
+	Sequence->Modify();
+	MovieScene->Modify();
+
+	FMovieSceneBinding* PossessableBinding = (FMovieSceneBinding*)MovieScene->GetBindings().FindByPredicate([&](FMovieSceneBinding& Binding) { return Binding.GetObjectGuid() == PossessableGuid; });
+
+	// First gather the children
+	TArray<FGuid> ChildPossessableGuids;
+	for (int32 Index = 0; Index < MovieScene->GetPossessableCount(); ++Index)
+	{
+		FMovieScenePossessable& Possessable = MovieScene->GetPossessable(Index);
+		if (Possessable.GetParent() == PossessableGuid)
+		{
+			ChildPossessableGuids.Add(Possessable.GetGuid());
+		}
+	}
+
+	TArray<UMovieSceneTrack* > Tracks = PossessableBinding->StealTracks();
+
+	// Remove binding to stop any children from claiming the old guid as their parent
+	if (MovieScene->RemovePossessable(PossessableGuid))
+	{
+		Sequence->UnbindPossessableObjects(PossessableGuid);
+	}
+
+	for (TWeakObjectPtr<> FoundObjectPtr : FoundObjects)
+	{
+		UObject* FoundObject = FoundObjectPtr.Get();
+		check(FoundObject);
+
+		FoundObject->Modify();
+
+		UObject* BindingContext = GetPlaybackContext();
+
+		// Find this object's parent object, if it has one.
+		UObject* ParentObject = Sequence->GetParentObject(FoundObject);
+		if (ParentObject)
+		{
+			BindingContext = ParentObject;
+		}
+
+		// Create a new Possessable for this object
+		AActor* PossessedActor = Cast<AActor>(FoundObject);
+		const FGuid NewPossessableGuid = MovieScene->AddPossessable(PossessedActor != nullptr ? PossessedActor->GetActorLabel() : FoundObject->GetName(), FoundObject->GetClass());
+		FMovieScenePossessable* NewPossessable = MovieScene->FindPossessable(NewPossessableGuid);
+		if (NewPossessable)
+		{
+			FMovieSceneBinding* NewPossessableBinding = (FMovieSceneBinding*)MovieScene->GetBindings().FindByPredicate([&](FMovieSceneBinding& Binding) { return Binding.GetObjectGuid() == NewPossessableGuid; });
+			
+			if (ParentObject)
+			{
+				FGuid ParentGuid = FindObjectId(*ParentObject, ActiveTemplateIDs.Top());
+				NewPossessable->SetParent(ParentGuid);
+			}
+
+			Sequence->BindPossessableObject(NewPossessableGuid, *FoundObject, BindingContext);
+			NewPossessableGuids.Add(NewPossessableGuid);
+
+			// Create copies of the tracks
+			for (UMovieSceneTrack* Track : Tracks)
+			{
+				UMovieSceneTrack* DuplicatedTrack = Cast<UMovieSceneTrack>(StaticDuplicateObject(Track, MovieScene));
+				NewPossessableBinding->AddTrack(*DuplicatedTrack);
+			}
+		}
+	}
+
+	// Finally, recurse in to any children
+	for (FGuid ChildPossessableGuid : ChildPossessableGuids)
+	{
+		ExpandMultiplePossessableBindings(ChildPossessableGuid);
+	}
+
+	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+
+	return NewPossessableGuids;
+}
+
 TArray<FMovieSceneSpawnable*> FSequencer::ConvertToSpawnableInternal(FGuid PossessableGuid)
 {
 	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 
-	if (MovieScene->IsReadOnly())
+	if (MovieScene->IsReadOnly() || !Sequence->AllowsSpawnableObjects())
 	{
 		return TArray<FMovieSceneSpawnable*>();
 	}
 
 	TArrayView<TWeakObjectPtr<>> FoundObjects = FindBoundObjects(PossessableGuid, ActiveTemplateIDs.Top());
 
-	Sequence->Modify();
-	MovieScene->Modify();
-
-	// Locate the folder containing the original possessable
-	UMovieSceneFolder* ParentFolder;
-	for (UMovieSceneFolder* Folder : MovieScene->GetRootFolders())
-	{
-		ParentFolder = Folder->FindFolderContaining(PossessableGuid);
-		if (ParentFolder != nullptr)
-		{
-			break;
-		}
-	}
-
 	TArray<FMovieSceneSpawnable*> CreatedSpawnables;
 
-	if (Sequence->AllowsSpawnableObjects())
+	if (FoundObjects.Num() > 1)
 	{
-		
-		FMovieSceneBinding* PossessableBinding = MovieScene->FindBinding(PossessableGuid);
-		check(PossessableBinding);
-
-		TArray<UMovieSceneTrack* > Tracks = PossessableBinding->GetTracks();
-
-		int32 SortingOrder = PossessableBinding->GetSortingOrder();
-
-		for (TWeakObjectPtr<> FoundObjectPtr : FoundObjects)
+		// Expand to individual possessables for each bound object, then convert each one individually
+		TArray<FGuid> ExpandedPossessableGuids = ExpandMultiplePossessableBindings(PossessableGuid);
+		for (FGuid NewPossessableGuid : ExpandedPossessableGuids)
 		{
-			if (FoundObjectPtr.IsValid())
-			{
-				UObject* FoundObject = FoundObjectPtr.Get();
-				FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(AddSpawnable(*FoundObject));
-				if (Spawnable)
-				{
-					CreatedSpawnables.Add(Spawnable);
-
-					FGuid SpawnableGuid = Spawnable->GetGuid();
-
-					FMovieSceneBinding* SpawnableBinding = MovieScene->FindBinding(SpawnableGuid);
-					check(SpawnableBinding);
-
-					SpawnableBinding->SetSortingOrder(SortingOrder);
-
-					AActor* PossessedActor = Cast<AActor>(FoundObject);
-					Spawnable->AddChildPossessable(CreateBinding(*FoundObject, PossessedActor != nullptr ? PossessedActor->GetActorLabel() : FoundObject->GetName()));
-					
-					for (UMovieSceneTrack* Track : Tracks)
-					{
-						UMovieSceneTrack* DuplicatedTrack = Cast<UMovieSceneTrack>(StaticDuplicateObject(Track, MovieScene));
-						SpawnableBinding->AddTrack(*DuplicatedTrack);
-					}
-
-					TOptional<FTransformData> TransformData;
-					SpawnRegister->HandleConvertPossessableToSpawnable(FoundObject, *this, TransformData);
-					SpawnRegister->SetupDefaultsForSpawnable(nullptr, Spawnable->GetGuid(), TransformData, AsShared(), Settings);
-				}
-			}
-		}
-
-		if (MovieScene->RemovePossessable(PossessableGuid))
-		{
-			Sequence->UnbindPossessableObjects(PossessableGuid);
+			CreatedSpawnables.Append(ConvertToSpawnableInternal(NewPossessableGuid));
 		}
 
 		ForceEvaluate();
 	}
+	else
+	{
+		UObject* FoundObject = FoundObjects[0].Get();
+		if (!FoundObject)
+		{
+			return TArray<FMovieSceneSpawnable*>();
+		}
 
+		Sequence->Modify();
+		MovieScene->Modify();
+
+		// Locate the folder containing the original possessable
+		UMovieSceneFolder* ParentFolder;
+		for (UMovieSceneFolder* Folder : MovieScene->GetRootFolders())
+		{
+			ParentFolder = Folder->FindFolderContaining(PossessableGuid);
+			if (ParentFolder != nullptr)
+			{
+				break;
+			}
+		}
+
+		FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(AddSpawnable(*FoundObject));
+		if (Spawnable)
+		{
+			CreatedSpawnables.Add(Spawnable);
+			FGuid SpawnableGuid = Spawnable->GetGuid();
+
+			// Remap all the spawnable's tracks and child bindings onto the new possessable
+			MovieScene->MoveBindingContents(PossessableGuid, SpawnableGuid);
+
+			FMovieSceneBinding* PossessableBinding = (FMovieSceneBinding*)MovieScene->GetBindings().FindByPredicate([&](FMovieSceneBinding& Binding) { return Binding.GetObjectGuid() == PossessableGuid; });
+			check(PossessableBinding);
+
+			for (UMovieSceneFolder* Folder : MovieScene->GetRootFolders())
+			{
+				if (ReplaceFolderBindingGUID(Folder, PossessableGuid, SpawnableGuid))
+				{
+					break;
+				}
+			}
+
+			int32 SortingOrder = PossessableBinding->GetSortingOrder();
+
+			if (MovieScene->RemovePossessable(PossessableGuid))
+			{
+				Sequence->UnbindPossessableObjects(PossessableGuid);
+
+				FMovieSceneBinding* SpawnableBinding = (FMovieSceneBinding*)MovieScene->GetBindings().FindByPredicate([&](FMovieSceneBinding& Binding) { return Binding.GetObjectGuid() == SpawnableGuid; });
+				check(SpawnableBinding);
+
+				SpawnableBinding->SetSortingOrder(SortingOrder);
+
+			}
+
+			TOptional<FTransformData> TransformData;
+			SpawnRegister->HandleConvertPossessableToSpawnable(FoundObject, *this, TransformData);
+			SpawnRegister->SetupDefaultsForSpawnable(nullptr, Spawnable->GetGuid(), TransformData, AsShared(), Settings);
+
+			ForceEvaluate();
+
+			NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+		}
+	}
 
 	return CreatedSpawnables;
 }
