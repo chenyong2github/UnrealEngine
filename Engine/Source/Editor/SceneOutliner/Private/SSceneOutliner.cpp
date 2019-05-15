@@ -1160,8 +1160,7 @@ namespace SceneOutliner
 		}
 
 		// If we are allowing intermediate sorts and met the conditions, or this is the final sort after all ops are complete
-		if ((bMadeAnySignificantChanges && !SharedData->bRepresentingPlayWorld && !bDisableIntermediateSorting) ||
-			bFinalSort)
+		if ((bMadeAnySignificantChanges && !bDisableIntermediateSorting) || bFinalSort)
 		{
 			RequestSort();
 		}
