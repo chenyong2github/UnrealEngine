@@ -542,6 +542,12 @@ void ULightComponent::PostLoad()
 }
 
 #if WITH_EDITOR
+void ULightComponent::PreSave(const class ITargetPlatform* TargetPlatform)
+{
+	Super::PreSave(TargetPlatform);
+	ValidateLightGUIDs();
+}
+
 bool ULightComponent::CanEditChange(const UProperty* InProperty) const
 {
 	if (InProperty)
