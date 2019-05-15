@@ -269,6 +269,33 @@ void UK2Node_BaseMCDelegate::AutowireNewNode(UEdGraphPin* FromPin)
 	}
 }
 
+bool UK2Node_BaseMCDelegate::IsDeprecated() const
+{
+	if (Super::IsDeprecated() || DelegateReference.IsDeprecated())
+	{
+		return true;
+	}
+
+	UProperty* DelegateProperty = DelegateReference.ResolveMember<UProperty>(GetBlueprintClassFromNode());
+	if (DelegateProperty
+		&& (DelegateProperty->HasAllPropertyFlags(CPF_Deprecated) || DelegateProperty->HasMetaData(FBlueprintMetadata::MD_DeprecationMessage)))
+	{
+		return true;
+	}
+	return false;
+}
+
+FString UK2Node_BaseMCDelegate::GetDeprecationMessage() const
+{
+	UProperty* DelegateProperty = DelegateReference.ResolveMember<UProperty>(GetBlueprintClassFromNode());
+	if (DelegateProperty && DelegateProperty->HasMetaData(FBlueprintMetadata::MD_DeprecationMessage))
+	{
+		return FString::Printf(TEXT("%s %s"), *NSLOCTEXT("K2Node", "DelegateDeprecated_Warning", "@@ is deprecated;").ToString(), *DelegateProperty->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage));
+	}
+
+	return Super::GetDeprecationMessage();
+}
+
 /////// UK2Node_AddDelegate ///////////
 
 UK2Node_AddDelegate::UK2Node_AddDelegate(const FObjectInitializer& ObjectInitializer)
