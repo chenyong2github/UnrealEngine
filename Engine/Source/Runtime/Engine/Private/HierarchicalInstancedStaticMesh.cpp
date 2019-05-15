@@ -1620,6 +1620,10 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 				{
 					FinalCull = ComputeBoundsDrawDistance(MinSize, SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
 				}
+				if (View->SceneViewInitOptions.OverrideFarClippingPlaneDistance > 0.0f)
+				{
+					FinalCull = FMath::Min(FinalCull, View->SceneViewInitOptions.OverrideFarClippingPlaneDistance * MaxDrawDistanceScale);
+				}
 				if (UserData_AllInstances.EndCullDistance > 0.0f)
 				{
 					FinalCull = FMath::Min(FinalCull, UserData_AllInstances.EndCullDistance * MaxDrawDistanceScale);
@@ -1795,6 +1799,10 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 						if (MinSize > 0.0)
 						{
 							FinalCull = ComputeBoundsDrawDistance(MinSize, SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
+						}
+						if (View->SceneViewInitOptions.OverrideFarClippingPlaneDistance > 0.0f)
+						{
+							FinalCull = FMath::Min(FinalCull, View->SceneViewInitOptions.OverrideFarClippingPlaneDistance * MaxDrawDistanceScale);
 						}
 						if (UserData_AllInstances.EndCullDistance > 0.0f)
 						{
