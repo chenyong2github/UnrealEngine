@@ -69,12 +69,6 @@ public class Steamworks : ModuleRules
 			PublicDelayLoadDLLs.Add(String.Format("steam_api{0}.dll", ArchPlatformPrefix));
 
 			RuntimeDependencies.Add(SteamBinariesDir + String.Format("steam_api{0}.dll", ArchPlatformPrefix));
-
-			if(Target.Type != TargetType.Server)
-			{
-				// assume SteamController is needed
-				RuntimeDependencies.Add("$(EngineDir)/Config/controller.vdf");
-			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
