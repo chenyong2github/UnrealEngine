@@ -174,6 +174,11 @@ bool FNiagaraEditorVector2TypeUtilities::SetValueFromPinDefaultString(const FStr
 	return false;
 }
 
+FText FNiagaraEditorVector2TypeUtilities::GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const
+{
+	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
+}
+
 class SNiagaraVector3ParameterEditor : public SNiagaraVectorParameterEditorBase
 {
 public:
@@ -243,6 +248,11 @@ bool FNiagaraEditorVector3TypeUtilities::SetValueFromPinDefaultString(const FStr
 		return true;
 	}
 	return false;
+}
+
+FText FNiagaraEditorVector3TypeUtilities::GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const
+{
+	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
 }
 
 class SNiagaraVector4ParameterEditor : public SNiagaraVectorParameterEditorBase
@@ -315,6 +325,11 @@ bool FNiagaraEditorVector4TypeUtilities::SetValueFromPinDefaultString(const FStr
 	return false;
 }
 
+
+FText FNiagaraEditorVector4TypeUtilities::GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const
+{
+	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
+}
 
 class SNiagaraQuatParameterEditor : public SNiagaraVectorParameterEditorBase
 {
@@ -414,6 +429,11 @@ bool FNiagaraEditorQuatTypeUtilities::SetValueFromPinDefaultString(const FString
 		return true;
 	}
 	return false;
+}
+
+FText FNiagaraEditorQuatTypeUtilities::GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const
+{
+	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
 }
 
 void FNiagaraEditorQuatTypeUtilities::UpdateVariableWithDefaultValue(FNiagaraVariable& Variable) const
