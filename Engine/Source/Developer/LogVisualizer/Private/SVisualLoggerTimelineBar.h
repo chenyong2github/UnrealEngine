@@ -38,4 +38,5 @@ public:
 protected:
 	TSharedPtr<class FVisualLoggerTimeSliderController> TimeSliderController;
 	TWeakPtr<class SLogVisualizerTimeline> TimelineOwner;
+	int32 MouseMoveClosestItemIndex;
 };

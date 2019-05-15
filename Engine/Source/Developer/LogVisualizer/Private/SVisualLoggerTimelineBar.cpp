@@ -7,6 +7,7 @@
 #include "LogVisualizerStyle.h"
 #include "LogVisualizerPrivate.h"
 #include "VisualLoggerTimeSliderController.h"
+#include "Misc/OutputDeviceHelper.h"
 
 FReply SVisualLoggerTimelineBar::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
@@ -49,6 +50,39 @@ FReply SVisualLoggerTimelineBar::OnMouseButtonUp(const FGeometry& MyGeometry, co
 
 FReply SVisualLoggerTimelineBar::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
+	FName RowName = TimelineOwner.Pin()->GetName();
+	FVisualLoggerDBRow& DBRow = FVisualLoggerDatabase::Get().GetRowByName(RowName);
+
+	const float ClosestMouseTime = TimeSliderController->GetTimeAtCursorPosition(MyGeometry, MouseEvent);
+
+	const int32 NewItemIndex = DBRow.GetClosestItem(ClosestMouseTime);
+	const auto& Items = DBRow.GetItems();
+
+	if (NewItemIndex != MouseMoveClosestItemIndex)
+	{
+		MouseMoveClosestItemIndex = NewItemIndex;
+
+		FString TooltipBuilder;
+		if (Items.IsValidIndex(MouseMoveClosestItemIndex))
+		{
+			const FVisualLogEntry& CurrentEntry = Items[MouseMoveClosestItemIndex].Entry;
+				
+			TooltipBuilder = FString::Printf(TEXT("Time: %.2f"), CurrentEntry.TimeStamp);
+
+			for (const FVisualLogShapeElement& Shape : CurrentEntry.ElementsToDraw)
+			{
+				TooltipBuilder += FString::Printf(TEXT("\n(shape) %s: %s"), FOutputDeviceHelper::VerbosityToString(Shape.Verbosity), *Shape.Description);
+			}
+
+			for (const FVisualLogLine& Line : CurrentEntry.LogLines)
+			{
+				TooltipBuilder += FString::Printf(TEXT("\n(log) %s: %s"), FOutputDeviceHelper::VerbosityToString(Line.Verbosity), *Line.Line);
+			}
+		}
+
+		SetToolTipText(FText::AsCultureInvariant(TooltipBuilder));
+	}
+
 	return TimeSliderController->OnMouseMove(*this, MyGeometry, MouseEvent);
 }
 
@@ -76,6 +110,8 @@ void SVisualLoggerTimelineBar::Construct(const FArguments& InArgs, TSharedPtr<FV
 	TimelineOwner = InTimelineOwner;
 
 	TRange<float> LocalViewRange = TimeSliderController->GetTimeSliderArgs().ViewRange.Get();
+
+	MouseMoveClosestItemIndex = INDEX_NONE;
 }
 
 FVector2D SVisualLoggerTimelineBar::ComputeDesiredSize(float) const
