@@ -478,6 +478,7 @@ public:
 	int32 UpdateLandscapeList();
 	void UpdateTargetList();
 	void SetTargetLandscape(const TWeakObjectPtr<ULandscapeInfo>& InLandscapeInfo);
+	bool CanEditCurrentTarget(FText* Reason = nullptr) const;
 
 	/** Update Display order list */
 	void UpdateTargetLayerDisplayOrder(ELandscapeLayerDisplayMode InTargetDisplayOrder);
