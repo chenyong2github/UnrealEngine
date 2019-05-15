@@ -467,7 +467,7 @@ bool ULandscapeInfo::ApplySplines(bool bOnlySelected)
 	FGuid SplinesTargetLayerGuid = Layer ? Layer->Guid : FGuid();
 	FScopedSetLandscapeEditingLayer Scope(Landscape, SplinesTargetLayerGuid, [=] 
 	{ 
-		Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
+		Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All);
 	});
 
 	ForAllLandscapeProxies([&bResult, bOnlySelected, this](ALandscapeProxy* Proxy)
