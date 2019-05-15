@@ -228,3 +228,8 @@ bool FNiagaraEditorColorTypeUtilities::SetValueFromPinDefaultString(const FStrin
 	}
 	return false;
 }
+
+FText FNiagaraEditorColorTypeUtilities::GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const
+{
+	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
+}
