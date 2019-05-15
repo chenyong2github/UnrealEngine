@@ -18,6 +18,7 @@
 #include "MaterialShaderQualitySettings.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "ShaderPlatformQualitySettings.h"
+#include "Misc/CoreDelegates.h"
 
 #define LOCTEXT_NAMESPACE "FAndroidPlatformEditorModule"
 
@@ -104,6 +105,40 @@ class FAndroidPlatformEditorModule
 				);
 			}
 
+		}
+
+
+		auto AndroidRuntimeSettings = GetMutableDefault<UAndroidRuntimeSettings>();
+		if (AndroidRuntimeSettings)
+		{
+			AndroidRuntimeSettings->OnPropertyChanged.AddLambda([this, AndroidRuntimeSettings](struct FPropertyChangedEvent& PropertyChangedEvent)
+				{
+					UEditorEngine* Editor = (UEditorEngine*)GEngine;
+					if (PropertyChangedEvent.Property != nullptr)
+					{
+						if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForES31) &&
+							AndroidRuntimeSettings->bBuildForES31 == false)
+						{
+							FCoreDelegates::OnFeatureLevelDisabled.Broadcast(ERHIFeatureLevel::ES3_1, FName());
+							return;
+						}
+
+						if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForES2) &&
+							AndroidRuntimeSettings->bBuildForES2 == false)
+						{
+							FCoreDelegates::OnFeatureLevelDisabled.Broadcast(ERHIFeatureLevel::ES2, FName());
+							return;
+						}
+
+						if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bSupportsVulkan) &&
+							AndroidRuntimeSettings->bSupportsVulkan == false)
+						{
+							FCoreDelegates::OnFeatureLevelDisabled.Broadcast(ERHIFeatureLevel::ES3_1, LegacyShaderPlatformToShaderFormat(SP_VULKAN_ES3_1_ANDROID));
+							return;
+						}
+					}
+
+				});
 		}
 
 		// Force the SDK settings into a sane state initially so we can make use of them

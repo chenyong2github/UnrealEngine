@@ -348,6 +348,21 @@ UEditorEngine::UEditorEngine(const FObjectInitializer& ObjectInitializer)
 	DefaultWorldFeatureLevel = GMaxRHIFeatureLevel;
 	PreviewFeatureLevel = DefaultWorldFeatureLevel;
 
+	FCoreDelegates::OnFeatureLevelDisabled.AddLambda([this](int RHIType, const FName& PreviewPlatformName)
+		{
+			ERHIFeatureLevel::Type FeatureLevelTypeToDisable = (ERHIFeatureLevel::Type)RHIType;
+			if (PreviewFeatureLevel == FeatureLevelTypeToDisable)
+			{
+				UMaterialShaderQualitySettings* MaterialShaderQualitySettings = UMaterialShaderQualitySettings::Get();
+				if (MaterialShaderQualitySettings->GetPreviewPlatform() != PreviewPlatformName)
+				{
+					return;
+				}
+				
+				SetPreviewPlatform(FName(), ERHIFeatureLevel::SM5);
+			}
+		});
+		
 	bNotifyUndoRedoSelectionChange = true;
 
 	EditorWorldExtensionsManager = nullptr;
