@@ -275,8 +275,9 @@ private:
 	void ReleaseLayersRenderingResource();
 	void RegenerateLayersContent();
 	void MonitorShaderCompilation();
-	void RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents);
-	void RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents);
+	int32 RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents);
+	int32 RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents);
+	static bool UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, const int32 InContentUpdateModes, const bool bInLayerForceUpdateAllComponents);
 	void ResolveLayersHeightmapTexture();
 	void ResolveLayersWeightmapTexture();
 	void ResolveLayersTexture(class FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOutputTexture);
