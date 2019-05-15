@@ -55,7 +55,7 @@ protected:
 
 	 * @param ErrorCode The machine-readable error code
 	 */
-	void AddError(const TCHAR* ErrorCode);
+	void AddError(const FString& ErrorCode);
 
 	/** Tracks time since last read/write activity */
 	float ElapsedIdleTime = 0.0f;
