@@ -3287,10 +3287,7 @@ void UWorld::UpdateStreamingLevelPriority(ULevelStreaming* StreamingLevel)
 {
 	if (StreamingLevel)
 	{
-		if (StreamingLevelsToConsider.Remove(StreamingLevel))
-		{
-			StreamingLevelsToConsider.Add(StreamingLevel);
-		}
+		StreamingLevelsToConsider.Reevaluate(StreamingLevel);
 	}
 }
 
