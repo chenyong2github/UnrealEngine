@@ -4541,6 +4541,11 @@ void ALandscape::SetLayerLocked(int32 InLayerIndex, bool bLocked)
 	Layer->bLocked = bLocked;
 }
 
+uint8 ALandscape::GetLayerCount() const
+{
+	return LandscapeLayers.Num();
+}
+
 FLandscapeLayer* ALandscape::GetLayer(int32 InLayerIndex)
 {
 	if (LandscapeLayers.IsValidIndex(InLayerIndex))
@@ -4876,6 +4881,41 @@ void ALandscape::CreateDefaultLayer()
 	RequestLayersInitialization();
 }
 
+FLandscapeLayer* ALandscape::DuplicateLayer(const FLandscapeLayer& InOtherLayer)
+{
+	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+	if (!LandscapeInfo || !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		return nullptr;
+	}
+
+	FLandscapeLayer NewLayer(InOtherLayer);
+	NewLayer.Guid = FGuid::NewGuid();
+
+	// Copy Brush and reparent to the new landscape level if required
+	for (FLandscapeLayerBrush& Brush : NewLayer.Brushes)
+	{
+		if (Brush.BPCustomBrush != nullptr)
+		{
+			if (Brush.BPCustomBrush->GetTypedOuter<ULevel>() != GetTypedOuter<ULevel>())
+			{
+				Brush.BPCustomBrush = DuplicateObject<ALandscapeBlueprintCustomBrush>(Brush.BPCustomBrush, GetTypedOuter<ULevel>());
+			}
+
+			Brush.BPCustomBrush->SetOwningLandscape(this);
+		}
+	}
+
+	int32 AddedIndex = LandscapeLayers.Add(NewLayer);
+
+	// Create associated layer data in each landscape proxy
+	LandscapeInfo->ForAllLandscapeProxies([&NewLayer](ALandscapeProxy* Proxy)
+	{
+		Proxy->AddLayer(NewLayer.Guid);
+	});
+
+	return &LandscapeLayers[AddedIndex];
+}
 
 void ALandscape::CreateLayer(FName InName)
 {
