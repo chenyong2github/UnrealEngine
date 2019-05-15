@@ -302,6 +302,10 @@ public:
 	// called when a target platform changes it's return value of supported formats.  This is so anything caching those results can reset (like cached shaders for cooking)
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnTargetPlatformChangedSupportedFormats, const ITargetPlatform*); 
 	static FOnTargetPlatformChangedSupportedFormats OnTargetPlatformChangedSupportedFormats;
+
+	// Called when a feature level is disabled by the user.
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnFeatureLevelDisabled, int, const FName&);
+	static FOnFeatureLevelDisabled OnFeatureLevelDisabled;
 #endif
 
 	/** IOS-style application lifecycle delegates */
