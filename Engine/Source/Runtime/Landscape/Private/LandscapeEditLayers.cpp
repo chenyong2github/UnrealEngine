@@ -3771,6 +3771,8 @@ void ALandscape::UpdateLayersMaterialInstances()
 	TOptional<FMaterialUpdateContext> MaterialUpdateContext;
 	MaterialUpdateContext.Emplace(FMaterialUpdateContext::EOptions::Default & ~FMaterialUpdateContext::EOptions::RecreateRenderStates);
 
+	bool bHasUniformExpressionUpdatePending = false;
+
 	for (ULandscapeComponent* Component : ComponentsToUpdate)
 	{
 		int32 MaxLOD = FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1;
@@ -3862,6 +3864,11 @@ void ALandscape::UpdateLayersMaterialInstances()
 				{
 					MaterialInstance->PostEditChange();
 				}
+				else
+				{
+					bHasUniformExpressionUpdatePending = true;
+					MaterialInstance->RecacheUniformExpressions(true);
+				}
 
 				/*// Setup material instance with disabled tessellation
 				if (CombinationMaterialInstance->GetMaterial()->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
@@ -3906,6 +3913,15 @@ void ALandscape::UpdateLayersMaterialInstances()
 	// Recreate the render state for our components, needed to update the static drawlist which has cached the MaterialRenderProxies
 	// Must be after the FMaterialUpdateContext is destroyed
 	RecreateRenderStateContexts.Empty();
+
+	if (bHasUniformExpressionUpdatePending)
+	{
+		ENQUEUE_RENDER_COMMAND(UpdateDeferredCachedUniformExpressions)(
+			[](FRHICommandList& RHICmdList)
+		{
+			FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
+		});
+	}
 }
 
 void ALandscape::ResolveLayersWeightmapTexture()
@@ -3949,15 +3965,19 @@ void ALandscape::ResolveLayersWeightmapTexture()
 
 
 
-void ALandscape::RequestLayersInitialization()
+void ALandscape::RequestLayersInitialization(bool bInRequestContentUpdate)
 {
 	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
 		return;
 	}
 
-	bLandscapeLayersAreInitialized = false; 
-	RequestLayersContentUpdateForceAll();
+	bLandscapeLayersAreInitialized = false; 	
+
+	if (bInRequestContentUpdate)
+	{
+		RequestLayersContentUpdateForceAll();
+	}
 }
 
 void ALandscape::RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode, bool bInForceUpdateAllComponents)
