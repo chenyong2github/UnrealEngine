@@ -17,6 +17,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "LandscapeInfo.h"
 #include "LandscapeStreamingProxy.h"
+#include "Landscape.h"
 
 
 #define LOCTEXT_NAMESPACE "WorldBrowser"
@@ -996,18 +997,15 @@ ALandscapeProxy* FWorldTileModel::ImportLandscapeTile(const FLandscapeImportSett
 	// Cache pointer to landscape in the level model
 	Landscape = LandscapeProxy;
 
+	TMap<FGuid, TArray<uint16>> HeightmapDataPerLayers;
+	TMap<FGuid, TArray<FLandscapeImportLayerInfo>> MaterialLayerDataPerLayer;
+
+	HeightmapDataPerLayers.Add(FGuid(), Settings.HeightData);
+	MaterialLayerDataPerLayer.Add(FGuid(), Settings.ImportLayers);	
+
 	// Create landscape components
-	LandscapeProxy->Import(
-		Settings.LandscapeGuid,
-		0, 0,
-		Settings.SizeX - 1,
-		Settings.SizeY - 1,
-		Settings.SectionsPerComponent,
-		Settings.QuadsPerSection,
-		Settings.HeightData.GetData(),
-		*Settings.HeightmapFilename,
-		Settings.ImportLayers,
-		Settings.ImportLayerType);
+	LandscapeProxy->Import(	Settings.LandscapeGuid, 0, 0, Settings.SizeX - 1, Settings.SizeY - 1, Settings.SectionsPerComponent, Settings.QuadsPerSection, HeightmapDataPerLayers, *Settings.HeightmapFilename,	
+							MaterialLayerDataPerLayer,	Settings.ImportLayerType);
 
 	return LandscapeProxy;
 }
