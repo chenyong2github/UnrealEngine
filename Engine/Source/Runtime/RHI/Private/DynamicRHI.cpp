@@ -354,9 +354,3 @@ void FDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV
 {
 	UE_LOG(LogRHI, Fatal, TEXT("RHIUpdateShaderResourceView isn't implemented for the current RHI"));
 }
-
-
-EColorSpace FDynamicRHI::RHIGetColorSpace(FViewportRHIParamRef Viewport)
-{
-	return EColorSpace::ERec709sRGB;
-}
