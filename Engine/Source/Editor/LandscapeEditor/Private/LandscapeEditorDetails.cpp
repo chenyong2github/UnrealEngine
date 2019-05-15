@@ -6,6 +6,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "LandscapeEdMode.h"
 #include "LandscapeEditorDetailCustomization_NewLandscape.h"
 #include "LandscapeEditorDetailCustomization_ResizeLandscape.h"
@@ -21,6 +22,7 @@
 #include "LandscapeEditorDetailWidgets.h"
 #include "LandscapeEditorDetailCustomization_LayersBrushStack.h"
 #include "Settings/EditorExperimentalSettings.h"
+#include "Landscape.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor"
 
@@ -51,6 +53,30 @@ void FLandscapeEditorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 			.Text_Static(&FLandscapeEditorDetails::GetTargetLandscapeName)
 		]
 	];
+
+	FText Reason;
+	bool bDisabledEditing = LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid() && !LandscapeEdMode->CanEditCurrentTarget(&Reason);
+
+	if (bDisabledEditing)
+	{
+		LandscapeEditorCategory.AddCustomRow(FText::GetEmpty())
+			[
+				SNew(SMultiLineEditableTextBox)
+				.IsReadOnly(true)
+				.AutoWrapText(true)
+				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+				.Justification(ETextJustify::Center)
+				.BackgroundColor(FCoreStyle::Get().GetColor("ErrorReporting.BackgroundColor"))
+				.ForegroundColor(FCoreStyle::Get().GetColor("ErrorReporting.ForegroundColor"))
+				.Text(Reason)
+			];
+	}
+		
+	// Only continue cuztomization if we are in NewLandscape mode or if editing is not disabled
+	if (bDisabledEditing && LandscapeEdMode->CurrentTool->GetToolName() != FName("NewLandscape"))
+	{
+		return;
+	}
 
 	FToolSelectorBuilder ToolBrushSelectorButtons(CommandList, FMultiBoxCustomization::None);
 	{
@@ -348,6 +374,11 @@ bool FLandscapeEditorDetails::GetToolSelectorIsVisible() const
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode && LandscapeEdMode->CurrentTool)
 	{
+		if (!LandscapeEdMode->CanEditCurrentTarget())
+		{
+			return false;
+		}
+
 		if (!IsToolActive("NewLandscape") || LandscapeEdMode->GetLandscapeList().Num() > 0)
 		{
 			return true;
