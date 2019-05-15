@@ -155,12 +155,15 @@ void FVirtualTextureUploadCache::Finalize(FRHICommandListImmediate& RHICmdList)
 
 			const uint32 SkipBorderSize = Entry.SubmitSkipBorderSize;
 			const uint32 SubmitTileSize = TileSize - SkipBorderSize * 2;
-			const FVector2D SourceBoxStart(SrcTileX * TileSize + SkipBorderSize, SrcTileY * TileSize + SkipBorderSize);
-			const FVector2D DestinationBoxStart(Entry.SubmitDestX * SubmitTileSize, Entry.SubmitDestY * SubmitTileSize);
-			const FBox2D SourceBox(SourceBoxStart, SourceBoxStart + FVector2D(SubmitTileSize, SubmitTileSize));
-			const FBox2D DestinationBox(DestinationBoxStart, DestinationBoxStart + FVector2D(SubmitTileSize, SubmitTileSize));
+			const FIntVector SourceBoxStart(SrcTileX * TileSize + SkipBorderSize, SrcTileY * TileSize + SkipBorderSize, 0);
+			const FIntVector DestinationBoxStart(Entry.SubmitDestX * SubmitTileSize, Entry.SubmitDestY * SubmitTileSize, 0);
 
-			RHICmdList.CopySubTextureRegion(StagingTexture.RHITexture, Entry.RHISubmitTexture, SourceBox, DestinationBox);
+			FRHICopyTextureInfo CopyInfo;
+			CopyInfo.Size = FIntVector(SubmitTileSize, SubmitTileSize, 1);
+			CopyInfo.SourcePosition = SourceBoxStart;
+			CopyInfo.DestPosition = DestinationBoxStart;
+			RHICmdList.CopyTexture(StagingTexture.RHITexture, Entry.RHISubmitTexture, CopyInfo);
+
 			Entry.RHISubmitTexture = nullptr;
 			Entry.SubmitBatchIndex = 0u;
 			Entry.SubmitDestX = 0;

@@ -1974,8 +1974,9 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 			// Logical dimensions of mip image may be smaller than tile size (in this case tile will contain mirrored/wrapped padding)
 			// In this case, copy the proper sub-image from the tiled texture we produced into a new texture of the correct size
 			FTexture2DRHIRef ResizedTexture2DRHI = RHICreateTexture2D(MipWidth, MipHeight, PixelFormat, 1, 1, TexCreateFlags, CreateInfo);
-			const FBox2D CopyBox(FVector2D(0.0f, 0.0f), FVector2D(MipWidth, MipHeight));
-			RHICommandList.CopySubTextureRegion(Texture2DRHI, ResizedTexture2DRHI, CopyBox, CopyBox);
+			FRHICopyTextureInfo CopyInfo;
+			CopyInfo.Size = FIntVector(MipWidth, MipHeight, 1);
+			RHICommandList.CopyTexture(Texture2DRHI, ResizedTexture2DRHI, CopyInfo);
 			Texture2DRHI = MoveTemp(ResizedTexture2DRHI);
 		}
 
