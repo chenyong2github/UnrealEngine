@@ -3566,7 +3566,7 @@ bool UParticleSystemComponent::CanConsiderInvisible()const
 		const float ClampedMaxSecondsBeforeInactive = MaxSecondsBeforeInactive > 0 ? FMath::Max(MaxSecondsBeforeInactive, 0.1f) : 0.0f;
 		if (ClampedMaxSecondsBeforeInactive > 0.0f && AccumTickTime > ClampedMaxSecondsBeforeInactive && World->IsGameWorld())
 		{
-			return World->GetTimeSeconds() > (LastRenderTime + ClampedMaxSecondsBeforeInactive);
+			return World->GetTimeSeconds() > (GetLastRenderTime() + ClampedMaxSecondsBeforeInactive);
 		}
 	}
 	return false;
@@ -6030,7 +6030,7 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 	World = GetWorld(); // refresh the world pointer as it may have changed by this point
 	if(!bWasDeactivated && !bWasCompleted && ensure(World))
 	{
-		LastRenderTime = World->GetTimeSeconds();
+		SetLastRenderTime(World->GetTimeSeconds());
 	}
 }
 
@@ -6136,7 +6136,7 @@ void UParticleSystemComponent::DeactivateSystem()
 	//TODO: What if there are immortal particles but bKillOnDeactivate is false? Need to mark emitters with currently immortal particles, kill them and warn the user.
 	SetComponentTickEnabled(true);
 
-	LastRenderTime = World->GetTimeSeconds();
+	SetLastRenderTime(World->GetTimeSeconds());
 }
 
 void UParticleSystemComponent::CancelAutoAttachment(bool bDetachFromParent)
