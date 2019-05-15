@@ -433,7 +433,7 @@ void FRayTracingMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 	}
 }
 
-FRHIRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialPipeline(
+FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialPipeline(
 	FRHICommandList& RHICmdList,
 	const FViewInfo& View,
 	const TArrayView<const FRayTracingShaderRHIParamRef>& RayGenShaderTable,
@@ -443,7 +443,7 @@ FRHIRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMateri
 {
 	SCOPE_CYCLE_COUNTER(STAT_BindRayTracingPipeline);
 
-	FRHIRayTracingPipelineState* PipelineState = nullptr;
+	FRayTracingPipelineState* PipelineState = nullptr;
 
 	FRayTracingPipelineStateInitializer Initializer;
 
@@ -473,7 +473,7 @@ FRHIRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMateri
 
 	Initializer.SetHitGroupTable(RayTracingMaterialLibrary);
 
-	PipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(Initializer);
+	PipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
 
 	const FViewInfo& ReferenceView = Views[0];
 

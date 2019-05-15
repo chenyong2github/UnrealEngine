@@ -1079,7 +1079,7 @@ public:
 
 	// Primary pipeline state object to be used with the ray tracing scene for this view.
 	// Material shaders are only available when using this pipeline.
-	FRHIRayTracingPipelineState* RayTracingMaterialPipeline = nullptr;
+	FRayTracingPipelineState* RayTracingMaterialPipeline = nullptr;
 #endif // RHI_RAYTRACING
 
 	/** 

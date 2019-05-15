@@ -2195,35 +2195,35 @@ public:
 	const TArrayView<const FRayTracingShaderRHIParamRef>& GetCallableTable() const { return CallableTable; }
 
 	// Shaders used as entry point to ray tracing work. At least one RayGen shader must be provided.
-	void SetRayGenShaderTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InRayGenShaders)
+	void SetRayGenShaderTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InRayGenShaders, uint64 Hash = 0)
 	{
 		RayGenTable = InRayGenShaders;
-		RayGenHash = ComputeShaderTableHash(InRayGenShaders);
+		RayGenHash = Hash ? Hash : ComputeShaderTableHash(InRayGenShaders);
 	}
 
 	// Shaders that will be invoked if a ray misses all geometry.
 	// If this table is empty, then a built-in default miss shader will be used that sets HitT member of FDefaultPayload to -1.
 	// Desired miss shader can be selected by providing MissShaderIndex to TraceRay() function.
-	void SetMissShaderTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InMissShaders)
+	void SetMissShaderTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InMissShaders, uint64 Hash = 0)
 	{
 		MissTable = InMissShaders;
-		MissHash = ComputeShaderTableHash(InMissShaders);
+		MissHash = Hash ? Hash : ComputeShaderTableHash(InMissShaders);
 	}
 
 	// Shaders that will be invoked when ray intersects geometry.
 	// If this table is empty, then a built-in default shader will be used for all geometry, using FDefaultPayload.
-	void SetHitGroupTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InHitGroups)
+	void SetHitGroupTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InHitGroups, uint64 Hash = 0)
 	{
 		HitGroupTable = InHitGroups;
-		HitGroupHash = ComputeShaderTableHash(HitGroupTable);
+		HitGroupHash = Hash ? Hash : ComputeShaderTableHash(HitGroupTable);
 	}
 
 	// Shaders that can be explicitly invoked from RayGen shaders by their Shader Binding Table (SBT) index.
 	// SetRayTracingCallableShader() command must be used to fill SBT slots before a shader can be called.
-	void SetCallableTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InCallableShaders)
+	void SetCallableTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InCallableShaders, uint64 Hash = 0)
 	{
 		CallableTable = InCallableShaders;
-		CallableHash = ComputeShaderTableHash(CallableTable);
+		CallableHash = Hash ? Hash : ComputeShaderTableHash(CallableTable);
 	}
 
 	uint64 GetHitGroupHash() const { return HitGroupHash; }

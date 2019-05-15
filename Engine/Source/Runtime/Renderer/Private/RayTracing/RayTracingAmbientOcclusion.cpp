@@ -208,7 +208,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 		SetShaderParameters(GlobalResources, *RayGenerationShader, *PassParameters);
 
 		// TODO: Provide material support for opacity mask
-		FRHIRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
+		FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
 		if (CVarRayTracingAmbientOcclusionEnableMaterials.GetValueOnRenderThread() == 0)
 		{
 			// Declare default pipeline
@@ -224,7 +224,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 			Initializer.SetHitGroupTable(HitGroupTable);
 			Initializer.bAllowHitGroupIndexing = false; // Use the same hit shader for all geometry in the scene by disabling SBT indexing.
 
-			Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(Initializer);
+			Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
 		}
 
 		FRayTracingSceneRHIParamRef RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;

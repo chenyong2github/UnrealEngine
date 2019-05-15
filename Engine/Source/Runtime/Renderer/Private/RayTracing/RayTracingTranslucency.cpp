@@ -407,7 +407,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucencyView(
 		ERenderGraphPassFlags::Compute,
 		[PassParameters, this, &View, RayGenShader, RayTracingResolution](FRHICommandList& RHICmdList)
 	{
-		FRHIRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
+		FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
 
 		FRayTracingShaderBindingsWriter GlobalResources;
 		SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);

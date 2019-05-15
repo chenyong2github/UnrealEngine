@@ -272,7 +272,7 @@ void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 	FRayTracingSceneRHIParamRef Scene, 
 	uint32 InstanceIndex, 
 	uint32 SegmentIndex,
-	FRayTracingPipelineStateRHIParamRef PipelineState, 
+	FRayTracingPipelineState* PipelineState,
 	uint32 HitGroupIndex,
 	uint32 ShaderSlot) const
 {

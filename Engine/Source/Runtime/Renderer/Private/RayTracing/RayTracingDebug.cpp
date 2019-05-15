@@ -124,7 +124,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 	auto ClosestHitShader = ShaderMap->GetShader<FRayTracingDebugCHS>();
 	auto MissShader = ShaderMap->GetShader<FRayTracingDebugMS>();
 
-	FRHIRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
+	FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
 
 	FRayTracingSceneRHIParamRef RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
 

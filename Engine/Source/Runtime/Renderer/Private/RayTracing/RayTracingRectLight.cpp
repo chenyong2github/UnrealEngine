@@ -272,7 +272,7 @@ public:
 		FRayTracingShaderRHIParamRef RayGenShaderTable[] = { GetRayTracingShader() };
 		Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-		FRHIRayTracingPipelineState* Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(Initializer);
+		FRayTracingPipelineState* Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
 
 		FRayTracingShaderBindingsWriter GlobalResources;
 		GlobalResources.Set(TLASParameter, RayTracingScene.RayTracingSceneRHI->GetShaderResourceView());

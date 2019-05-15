@@ -877,7 +877,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 			FRayTracingShaderBindingsWriter GlobalResources;
 			SetShaderParameters(GlobalResources, *RayGenerationShader, *PassParameters);
 
-			FRHIRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
+			FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
 			if (CVarRayTracingSkyLightEnableMaterials.GetValueOnRenderThread() == 0)
 			{
 				// Declare default pipeline
@@ -893,7 +893,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 				Initializer.SetHitGroupTable(HitGroupTable);
 				Initializer.bAllowHitGroupIndexing = false; // Use the same hit shader for all geometry in the scene by disabling SBT indexing.
 
-				Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(Initializer);
+				Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
 			}
 
 			FRayTracingSceneRHIParamRef RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
