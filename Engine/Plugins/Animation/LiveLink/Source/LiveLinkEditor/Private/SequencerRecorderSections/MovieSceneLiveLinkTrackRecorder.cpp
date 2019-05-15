@@ -21,6 +21,11 @@
 //recording
 #include "HAL/FileManagerGeneric.h"
 
+static TAutoConsoleVariable<int32> CVarSequencerAlwaysUseRecordLiveLinkTimecode(
+	TEXT("Sequencer.AlwayRecordLiveLinkTimecode"),
+	0, TEXT("If nonzero we use the LiveLink Timecode for time, even if Subject isn't Synchronized."),
+	ECVF_Default);
+
 DEFINE_LOG_CATEGORY(LiveLinkSerialization);
 
 void UMovieSceneLiveLinkTrackRecorder::CreateTrack(UMovieScene* InMovieScene, const FName& InSubjectName, UMovieSceneTrackRecorderSettings* InSettingsObject)
@@ -142,7 +147,6 @@ void UMovieSceneLiveLinkTrackRecorder::SetSectionStartTimecodeImpl(const FTimeco
 	{
 		MovieSceneSection->TimecodeSource = FMovieSceneTimecodeSource(InSectionStartTimecode);
 	}
-	LastRotationValues.Reset();
 }
 
 void UMovieSceneLiveLinkTrackRecorder::StopRecordingImpl()
@@ -193,7 +197,9 @@ void UMovieSceneLiveLinkTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 		FFrameNumber CurrentFrame = CurrentTime.ConvertTo(TickResolution).FloorToFrame();
 		FFrameNumber FrameNumber;
 
-		bool bSynced = LiveLinkClient->IsSubjectTimeSynchronized(SubjectName);
+		const bool bAlwaysUseTimecode = CVarSequencerAlwaysUseRecordLiveLinkTimecode->GetInt() == 0 ? false : true;
+
+		bool bSyncedOrForced = bAlwaysUseTimecode || LiveLinkClient->IsSubjectTimeSynchronized(SubjectName);
 
 		MovieSceneSection->ExpandToFrame(MovieSceneSection->GetInclusiveStartFrame() + CurrentFrame);
 
@@ -213,14 +219,17 @@ void UMovieSceneLiveLinkTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 			{
 				int32 TransformIndex = 0;
 				int32 CurveIndex = 0;
-				if (bSynced && GEngine && GEngine->GetTimecodeProvider())
+				if (bSyncedOrForced && GEngine && GEngine->GetTimecodeProvider())
 				{
-					FQualifiedFrameTime QualifiedFrameTime = Frame.MetaData.SceneTime;
+					//Get StartTime on Section in TimeCode FrameRate
+					//Convert that to LiveLink FrameRate and subtract out from LiveLink Frame to get section starting from zero.
+					//Finally convert that to the actual MovieScene Section FrameRate(TickResolution).
+					FQualifiedFrameTime LiveLinkFrameTime = Frame.MetaData.SceneTime;
 					const UTimecodeProvider* TimecodeProvider = GEngine->GetTimecodeProvider();
-					FFrameNumber FrameNumberStart = MovieSceneSection->TimecodeSource.Timecode.ToFrameNumber(TimecodeProvider->GetFrameRate());
-					QualifiedFrameTime.Time.FrameNumber -= FrameNumberStart;
-
-					FFrameTime FrameTime = QualifiedFrameTime.ConvertTo(TickResolution);
+					FQualifiedFrameTime TimeProviderStartFrameTime = FQualifiedFrameTime(MovieSceneSection->TimecodeSource.Timecode, TimecodeProvider->GetFrameRate());
+					FFrameNumber FrameNumberStart = TimeProviderStartFrameTime.ConvertTo(LiveLinkFrameTime.Rate).FrameNumber;
+					LiveLinkFrameTime.Time.FrameNumber -= FrameNumberStart;
+					FFrameTime FrameTime = LiveLinkFrameTime.ConvertTo(TickResolution);
 					FrameNumber = FrameTime.FrameNumber;
 				}
 				else
@@ -268,7 +277,7 @@ void UMovieSceneLiveLinkTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 				int32 ChannelIndex = 0;
 				for (FLiveLinkTransformKeys& TransformKeys : LinkTransformKeysArray)
 				{
-					TransformKeys.AppendToFloatChannelsAndReset(ChannelIndex, FloatChannels, Times, LastRotationValues);
+					TransformKeys.AppendToFloatChannelsAndReset(ChannelIndex, FloatChannels, Times);
 					ChannelIndex += 9;
 				}
 				for (FLiveLinkCurveKeys CurveKeys : LinkCurveKeysArray)
