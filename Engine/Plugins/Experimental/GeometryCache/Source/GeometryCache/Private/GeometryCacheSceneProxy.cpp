@@ -164,6 +164,14 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 							Initializer.PrimitiveType = PT_TriangleList;
 							Initializer.bFastBuild = false;
 
+							TArray<FRayTracingGeometrySegment> Segments;
+							for (FGeometryCacheMeshBatchInfo& BatchInfo : Section->MeshData->BatchesInfo)
+							{
+								Segments.Add(FRayTracingGeometrySegment { BatchInfo.StartIndex / 3, BatchInfo.NumTriangles });
+							}
+
+							Initializer.Segments = Segments;
+
 							Section->RayTracingGeometry.SetInitializer(Initializer);
 							Section->RayTracingGeometry.InitResource();
 						}
