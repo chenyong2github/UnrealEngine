@@ -3280,7 +3280,8 @@ void FRendererModule::CreateAndInitSingleView(FRHICommandListImmediate& RHICmdLi
 	FViewInfo* NewView = new FViewInfo(*ViewInitOptions);
 	ViewFamily->Views.Add(NewView);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	SetRenderTarget(RHICmdList, ViewFamily->RenderTarget->GetRenderTargetTexture(), nullptr, ESimpleRenderTargetMode::EClearColorExistingDepth);
+	FRHIRenderTargetView RTV(ViewFamily->RenderTarget->GetRenderTargetTexture(), ERenderTargetLoadAction::EClear);
+	RHICmdList.SetRenderTargets(1, &RTV, nullptr, 0, nullptr);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FViewInfo* View = (FViewInfo*)ViewFamily->Views[0];
 	View->ViewRect = View->UnscaledViewRect;
@@ -3558,7 +3559,8 @@ static void DisplayInternals(FRHICommandListImmediate& RHICmdList, FViewInfo& In
 		Canvas.SetRenderTargetRect(FIntRect(0, 0, Family->RenderTarget->GetSizeXY().X, Family->RenderTarget->GetSizeXY().Y));
 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		SetRenderTarget(RHICmdList, Family->RenderTarget->GetRenderTargetTexture(), FTextureRHIRef());
+		FRHIRenderTargetView RTV(Family->RenderTarget->GetRenderTargetTexture(), ERenderTargetLoadAction::ELoad);
+		RHICmdList.SetRenderTargets(1, &RTV, nullptr, 0, nullptr);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// further down to not intersect with "LIGHTING NEEDS TO BE REBUILT"
