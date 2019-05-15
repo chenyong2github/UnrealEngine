@@ -2303,7 +2303,7 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 		{
 			ULandscapeInfo* LandscapeInfo = It.Value();
 			if (LandscapeInfo && !LandscapeInfo->IsPendingKill())
-			{
+			{				
 				ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
 				if (LandscapeProxy)
 				{
@@ -3800,7 +3800,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 
 	const int32 NewComponentSizeQuads = NumSubsections * SubsectionSizeQuads;
 
-	ALandscape* Landscape = NULL;
+	ALandscape* NewLandscape = NULL;
 
 	ULandscapeInfo* LandscapeInfo = CurrentToolTarget.LandscapeInfo.Get();
 	if (ensure(LandscapeInfo != NULL))
@@ -3808,18 +3808,20 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 		int32 OldMinX, OldMinY, OldMaxX, OldMaxY;
 		if (LandscapeInfo->GetLandscapeExtent(OldMinX, OldMinY, OldMaxX, OldMaxY))
 		{
-			ALandscapeProxy* OldLandscapeProxy = LandscapeInfo->GetLandscapeProxy();
+			ALandscape* OldLandscape = LandscapeInfo->LandscapeActor.Get();
+			check(OldLandscape != nullptr);
 
 			const int32 OldVertsX = OldMaxX - OldMinX + 1;
 			const int32 OldVertsY = OldMaxY - OldMinY + 1;
 			const int32 NewVertsX = NumComponentsX * NewComponentSizeQuads + 1;
 			const int32 NewVertsY = NumComponentsY * NewComponentSizeQuads + 1;
 
-			TArray<uint16> HeightData;
-			TArray<FLandscapeImportLayerInfo> ImportLayerInfos;
+			TMap<FGuid, TArray<uint16>> HeightDataPerLayers;			
+			TMap<FGuid, TArray<FLandscapeImportLayerInfo>> ImportMaterialLayerInfosPerLayers;
+
 			FVector LandscapeOffset = FVector::ZeroVector;
 			FIntPoint LandscapeOffsetQuads = FIntPoint::ZeroValue;
-			float LandscapeScaleFactor = 1.0f;
+			float LandscapeScaleFactor = bResample ? (float)OldLandscape->ComponentSizeQuads / NewComponentSizeQuads : 1.0f;
 
 			int32 NewMinX, NewMinY, NewMaxX, NewMaxY;
 
@@ -3832,33 +3834,6 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 					NewMinY = OldMinY / LandscapeInfo->ComponentSizeQuads * NewComponentSizeQuads;
 					NewMaxX = NewMinX + NewVertsX - 1;
 					NewMaxY = NewMinY + NewVertsY - 1;
-
-					HeightData.AddZeroed(OldVertsX * OldVertsY * sizeof(uint16));
-
-					// GetHeightData alters its args, so make temp copies to avoid screwing things up
-					int32 TMinX = OldMinX, TMinY = OldMinY, TMaxX = OldMaxX, TMaxY = OldMaxY;
-					LandscapeEdit.GetHeightData(TMinX, TMinY, TMaxX, TMaxY, HeightData.GetData(), 0);
-
-					HeightData = LandscapeEditorUtils::ResampleData(HeightData,
-						OldVertsX, OldVertsY, NewVertsX, NewVertsY);
-
-					for (const FLandscapeInfoLayerSettings& LayerSettings : LandscapeInfo->Layers)
-					{
-						if (LayerSettings.LayerInfoObj != NULL)
-						{
-							auto ImportLayerInfo = new(ImportLayerInfos)FLandscapeImportLayerInfo(LayerSettings);
-							ImportLayerInfo->LayerData.AddZeroed(OldVertsX * OldVertsY * sizeof(uint8));
-
-							TMinX = OldMinX; TMinY = OldMinY; TMaxX = OldMaxX; TMaxY = OldMaxY;
-							LandscapeEdit.GetWeightData(LayerSettings.LayerInfoObj, TMinX, TMinY, TMaxX, TMaxY, ImportLayerInfo->LayerData.GetData(), 0);
-
-							ImportLayerInfo->LayerData = LandscapeEditorUtils::ResampleData(ImportLayerInfo->LayerData,
-								OldVertsX, OldVertsY,
-								NewVertsX, NewVertsY);
-						}
-					}
-
-					LandscapeScaleFactor = (float)OldLandscapeProxy->ComponentSizeQuads / NewComponentSizeQuads;
 				}
 				else
 				{
@@ -3866,43 +3841,119 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 					NewMinY = OldMinY + (OldVertsY - NewVertsY) / 2;
 					NewMaxX = NewMinX + NewVertsX - 1;
 					NewMaxY = NewMinY + NewVertsY - 1;
-					const int32 RequestedMinX = FMath::Max(OldMinX, NewMinX);
-					const int32 RequestedMinY = FMath::Max(OldMinY, NewMinY);
-					const int32 RequestedMaxX = FMath::Min(OldMaxX, NewMaxX);
-					const int32 RequestedMaxY = FMath::Min(OldMaxY, NewMaxY);
-
-					const int32 RequestedVertsX = RequestedMaxX - RequestedMinX + 1;
-					const int32 RequestedVertsY = RequestedMaxY - RequestedMinY + 1;
-
-					HeightData.AddZeroed(RequestedVertsX * RequestedVertsY * sizeof(uint16));
-
-					// GetHeightData alters its args, so make temp copies to avoid screwing things up
-					int32 TMinX = RequestedMinX, TMinY = RequestedMinY, TMaxX = RequestedMaxX, TMaxY = RequestedMaxY;
-					LandscapeEdit.GetHeightData(TMinX, TMinY, TMaxX, OldMaxY, HeightData.GetData(), 0);
-
-					HeightData = LandscapeEditorUtils::ExpandData(HeightData,
-						RequestedMinX, RequestedMinY, RequestedMaxX, RequestedMaxY,
-						NewMinX, NewMinY, NewMaxX, NewMaxY);
-
-					for (const FLandscapeInfoLayerSettings& LayerSettings : LandscapeInfo->Layers)
-					{
-						if (LayerSettings.LayerInfoObj != NULL)
-						{
-							auto ImportLayerInfo = new(ImportLayerInfos)FLandscapeImportLayerInfo(LayerSettings);
-							ImportLayerInfo->LayerData.AddZeroed(NewVertsX * NewVertsY * sizeof(uint8));
-
-							TMinX = RequestedMinX; TMinY = RequestedMinY; TMaxX = RequestedMaxX; TMaxY = RequestedMaxY;
-							LandscapeEdit.GetWeightData(LayerSettings.LayerInfoObj, TMinX, TMinY, TMaxX, TMaxY, ImportLayerInfo->LayerData.GetData(), 0);
-
-							ImportLayerInfo->LayerData = LandscapeEditorUtils::ExpandData(ImportLayerInfo->LayerData,
-								RequestedMinX, RequestedMinY, RequestedMaxX, RequestedMaxY,
-								NewMinX, NewMinY, NewMaxX, NewMaxY);
-						}
-					}
 
 					// offset landscape to component boundary
-					LandscapeOffset = FVector(NewMinX, NewMinY, 0) * OldLandscapeProxy->GetActorScale();
+					LandscapeOffset = FVector(NewMinX, NewMinY, 0) * OldLandscape->GetActorScale();
 					LandscapeOffsetQuads = FIntPoint(NewMinX, NewMinY);
+				}
+
+				auto ExtractHeightmapWeightmapContent = [&](TArray<uint16>& OutHeightData, TArray<FLandscapeImportLayerInfo>& OutImportMaterialLayerInfos)
+				{
+					if (bResample)
+					{
+						OutHeightData.AddZeroed(OldVertsX * OldVertsY * sizeof(uint16));
+
+						// GetHeightData alters its args, so make temp copies to avoid screwing things up
+						int32 TMinX = OldMinX, TMinY = OldMinY, TMaxX = OldMaxX, TMaxY = OldMaxY;
+						LandscapeEdit.GetHeightData(TMinX, TMinY, TMaxX, TMaxY, OutHeightData.GetData(), 0);
+
+						OutHeightData = LandscapeEditorUtils::ResampleData(OutHeightData, OldVertsX, OldVertsY, NewVertsX, NewVertsY);
+
+						for (const FLandscapeInfoLayerSettings& LayerSettings : LandscapeInfo->Layers)
+						{
+							if (LayerSettings.LayerInfoObj != NULL)
+							{
+								auto ImportLayerInfo = new(OutImportMaterialLayerInfos) FLandscapeImportLayerInfo(LayerSettings);
+								ImportLayerInfo->LayerData.AddZeroed(OldVertsX * OldVertsY * sizeof(uint8));
+
+								TMinX = OldMinX; TMinY = OldMinY; TMaxX = OldMaxX; TMaxY = OldMaxY;
+								LandscapeEdit.GetWeightData(LayerSettings.LayerInfoObj, TMinX, TMinY, TMaxX, TMaxY, ImportLayerInfo->LayerData.GetData(), 0);
+
+								ImportLayerInfo->LayerData = LandscapeEditorUtils::ResampleData(ImportLayerInfo->LayerData, OldVertsX, OldVertsY, NewVertsX, NewVertsY);
+							}
+						}
+					}
+					else
+					{
+						const int32 RequestedMinX = FMath::Max(OldMinX, NewMinX);
+						const int32 RequestedMinY = FMath::Max(OldMinY, NewMinY);
+						const int32 RequestedMaxX = FMath::Min(OldMaxX, NewMaxX);
+						const int32 RequestedMaxY = FMath::Min(OldMaxY, NewMaxY);
+
+						const int32 RequestedVertsX = RequestedMaxX - RequestedMinX + 1;
+						const int32 RequestedVertsY = RequestedMaxY - RequestedMinY + 1;
+
+						OutHeightData.AddZeroed(RequestedVertsX * RequestedVertsY * sizeof(uint16));
+
+						// GetHeightData alters its args, so make temp copies to avoid screwing things up
+						int32 TMinX = RequestedMinX, TMinY = RequestedMinY, TMaxX = RequestedMaxX, TMaxY = RequestedMaxY;
+						LandscapeEdit.GetHeightData(TMinX, TMinY, TMaxX, OldMaxY, OutHeightData.GetData(), 0);
+
+						OutHeightData = LandscapeEditorUtils::ExpandData(OutHeightData, RequestedMinX, RequestedMinY, RequestedMaxX, RequestedMaxY, NewMinX, NewMinY, NewMaxX, NewMaxY);
+
+						for (const FLandscapeInfoLayerSettings& LayerSettings : LandscapeInfo->Layers)
+						{
+							if (LayerSettings.LayerInfoObj != NULL)
+							{
+								auto ImportLayerInfo = new(OutImportMaterialLayerInfos) FLandscapeImportLayerInfo(LayerSettings);
+								ImportLayerInfo->LayerData.AddZeroed(NewVertsX * NewVertsY * sizeof(uint8));
+
+								TMinX = RequestedMinX; TMinY = RequestedMinY; TMaxX = RequestedMaxX; TMaxY = RequestedMaxY;
+								LandscapeEdit.GetWeightData(LayerSettings.LayerInfoObj, TMinX, TMinY, TMaxX, TMaxY, ImportLayerInfo->LayerData.GetData(), 0);
+
+								ImportLayerInfo->LayerData = LandscapeEditorUtils::ExpandData(ImportLayerInfo->LayerData, RequestedMinX, RequestedMinY, RequestedMaxX, RequestedMaxY, NewMinX, NewMinY, NewMaxX, NewMaxY);
+							}
+						}
+					}
+				};
+
+				if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+				{
+					int32 HeightCount = 0;
+
+					for (const FLandscapeLayer& OldLayer : OldLandscape->LandscapeLayers)
+					{
+						FScopedSetLandscapeEditingLayer Scope(OldLandscape, OldLayer.Guid);
+
+						TArray<uint16> HeightData;
+						TArray<FLandscapeImportLayerInfo> ImportMaterialLayerInfos;
+
+						ExtractHeightmapWeightmapContent(HeightData, ImportMaterialLayerInfos);
+
+						HeightCount = FMath::Max(HeightCount, HeightData.Num());
+						HeightDataPerLayers.Add(OldLayer.Guid, MoveTemp(HeightData));
+						ImportMaterialLayerInfosPerLayers.Add(OldLayer.Guid, MoveTemp(ImportMaterialLayerInfos));
+					}
+
+					TArray<uint16> DefaultHeightData;
+					DefaultHeightData.AddUninitialized(HeightCount);
+
+					uint16 DefaultValue = LandscapeDataAccess::GetTexHeight(0.f);
+
+					// Initialize blank heightmap data
+					for (int32 i = 0; i < DefaultHeightData.Num(); i++)
+					{
+						DefaultHeightData[i] = DefaultValue;
+					}
+
+					HeightDataPerLayers.Add(FGuid(), DefaultHeightData);
+
+					TArray<FLandscapeImportLayerInfo> EmptyImportLayer;
+					ImportMaterialLayerInfosPerLayers.Add(FGuid(), EmptyImportLayer);
+				}
+				else
+				{
+					TArray<uint16> HeightData;
+					TArray<FLandscapeImportLayerInfo> ImportMaterialLayerInfos;
+
+					ExtractHeightmapWeightmapContent(HeightData, ImportMaterialLayerInfos);
+
+					HeightDataPerLayers.Add(FGuid(), MoveTemp(HeightData));
+					ImportMaterialLayerInfosPerLayers.Add(FGuid(), MoveTemp(ImportMaterialLayerInfos));
+				}
+
+				if (!bResample)
+				{
 					NewMinX = 0;
 					NewMinY = 0;
 					NewMaxX = NewVertsX - 1;
@@ -3912,84 +3963,71 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 
 			Progress.EnterProgressFrame(CurrentTaskProgress++);
 
-			const FVector Location = OldLandscapeProxy->GetActorLocation() + LandscapeOffset;
+			const FVector Location = OldLandscape->GetActorLocation() + LandscapeOffset;
 			FActorSpawnParameters SpawnParams;
-			SpawnParams.OverrideLevel = OldLandscapeProxy->GetLevel();
-			Landscape = OldLandscapeProxy->GetWorld()->SpawnActor<ALandscape>(Location, OldLandscapeProxy->GetActorRotation(), SpawnParams);
+			SpawnParams.OverrideLevel = OldLandscape->GetLevel();
+			NewLandscape = OldLandscape->GetWorld()->SpawnActor<ALandscape>(Location, OldLandscape->GetActorRotation(), SpawnParams);
 
-			const FVector OldScale = OldLandscapeProxy->GetActorScale();
-			Landscape->SetActorRelativeScale3D(FVector(OldScale.X * LandscapeScaleFactor, OldScale.Y * LandscapeScaleFactor, OldScale.Z));
+			const FVector OldScale = OldLandscape->GetActorScale();
+			NewLandscape->SetActorRelativeScale3D(FVector(OldScale.X * LandscapeScaleFactor, OldScale.Y * LandscapeScaleFactor, OldScale.Z));
 
-			Landscape->LandscapeMaterial = OldLandscapeProxy->LandscapeMaterial;
-			Landscape->LandscapeMaterialsOverride = OldLandscapeProxy->LandscapeMaterialsOverride;
-			Landscape->CollisionMipLevel = OldLandscapeProxy->CollisionMipLevel;
-			Landscape->Import(FGuid::NewGuid(), NewMinX, NewMinY, NewMaxX, NewMaxY, NumSubsections, SubsectionSizeQuads, HeightData.GetData(), *OldLandscapeProxy->ReimportHeightmapFilePath, ImportLayerInfos, ELandscapeImportAlphamapType::Additive);
-
-			Landscape->MaxLODLevel = OldLandscapeProxy->MaxLODLevel;
-			Landscape->LODDistanceFactor_DEPRECATED = OldLandscapeProxy->LODDistanceFactor_DEPRECATED;
-			Landscape->LODFalloff_DEPRECATED = OldLandscapeProxy->LODFalloff_DEPRECATED;
-			Landscape->TessellationComponentScreenSize = OldLandscapeProxy->TessellationComponentScreenSize;
-			Landscape->ComponentScreenSizeToUseSubSections = OldLandscapeProxy->ComponentScreenSizeToUseSubSections;
-			Landscape->UseTessellationComponentScreenSizeFalloff = OldLandscapeProxy->UseTessellationComponentScreenSizeFalloff;
-			Landscape->TessellationComponentScreenSizeFalloff = OldLandscapeProxy->TessellationComponentScreenSizeFalloff;
-			Landscape->LODDistributionSetting = OldLandscapeProxy->LODDistributionSetting;
-			Landscape->LOD0DistributionSetting = OldLandscapeProxy->LOD0DistributionSetting;
-			Landscape->OccluderGeometryLOD = OldLandscapeProxy->OccluderGeometryLOD;
-			Landscape->ExportLOD = OldLandscapeProxy->ExportLOD;
-			Landscape->StaticLightingLOD = OldLandscapeProxy->StaticLightingLOD;
-			Landscape->NegativeZBoundsExtension = OldLandscapeProxy->NegativeZBoundsExtension;
-			Landscape->PositiveZBoundsExtension = OldLandscapeProxy->PositiveZBoundsExtension;
-			Landscape->DefaultPhysMaterial = OldLandscapeProxy->DefaultPhysMaterial;
-			Landscape->StreamingDistanceMultiplier = OldLandscapeProxy->StreamingDistanceMultiplier;
-			Landscape->LandscapeHoleMaterial = OldLandscapeProxy->LandscapeHoleMaterial;
-			Landscape->StaticLightingResolution = OldLandscapeProxy->StaticLightingResolution;
-			Landscape->bCastStaticShadow = OldLandscapeProxy->bCastStaticShadow;
-			Landscape->bCastShadowAsTwoSided = OldLandscapeProxy->bCastShadowAsTwoSided;
-			Landscape->LightingChannels = OldLandscapeProxy->LightingChannels;
-			Landscape->bRenderCustomDepth = OldLandscapeProxy->bRenderCustomDepth;
-			Landscape->CustomDepthStencilValue = OldLandscapeProxy->CustomDepthStencilValue;
-			Landscape->LightmassSettings = OldLandscapeProxy->LightmassSettings;
-			Landscape->CollisionThickness = OldLandscapeProxy->CollisionThickness;
-			Landscape->BodyInstance.SetCollisionProfileName(OldLandscapeProxy->BodyInstance.GetCollisionProfileName());
-			if (Landscape->BodyInstance.DoesUseCollisionProfile() == false)
+			NewLandscape->LandscapeMaterial = OldLandscape->LandscapeMaterial;
+			NewLandscape->LandscapeMaterialsOverride = OldLandscape->LandscapeMaterialsOverride;
+			NewLandscape->CollisionMipLevel = OldLandscape->CollisionMipLevel;
+			NewLandscape->MaxLODLevel = OldLandscape->MaxLODLevel;
+			NewLandscape->LODDistanceFactor_DEPRECATED = OldLandscape->LODDistanceFactor_DEPRECATED;
+			NewLandscape->LODFalloff_DEPRECATED = OldLandscape->LODFalloff_DEPRECATED;
+			NewLandscape->TessellationComponentScreenSize = OldLandscape->TessellationComponentScreenSize;
+			NewLandscape->ComponentScreenSizeToUseSubSections = OldLandscape->ComponentScreenSizeToUseSubSections;
+			NewLandscape->UseTessellationComponentScreenSizeFalloff = OldLandscape->UseTessellationComponentScreenSizeFalloff;
+			NewLandscape->TessellationComponentScreenSizeFalloff = OldLandscape->TessellationComponentScreenSizeFalloff;
+			NewLandscape->LODDistributionSetting = OldLandscape->LODDistributionSetting;
+			NewLandscape->LOD0DistributionSetting = OldLandscape->LOD0DistributionSetting;
+			NewLandscape->OccluderGeometryLOD = OldLandscape->OccluderGeometryLOD;
+			NewLandscape->ExportLOD = OldLandscape->ExportLOD;
+			NewLandscape->StaticLightingLOD = OldLandscape->StaticLightingLOD;
+			NewLandscape->NegativeZBoundsExtension = OldLandscape->NegativeZBoundsExtension;
+			NewLandscape->PositiveZBoundsExtension = OldLandscape->PositiveZBoundsExtension;
+			NewLandscape->DefaultPhysMaterial = OldLandscape->DefaultPhysMaterial;
+			NewLandscape->StreamingDistanceMultiplier = OldLandscape->StreamingDistanceMultiplier;
+			NewLandscape->LandscapeHoleMaterial = OldLandscape->LandscapeHoleMaterial;
+			NewLandscape->StaticLightingResolution = OldLandscape->StaticLightingResolution;
+			NewLandscape->bCastStaticShadow = OldLandscape->bCastStaticShadow;
+			NewLandscape->bCastShadowAsTwoSided = OldLandscape->bCastShadowAsTwoSided;
+			NewLandscape->LightingChannels = OldLandscape->LightingChannels;
+			NewLandscape->bRenderCustomDepth = OldLandscape->bRenderCustomDepth;
+			NewLandscape->CustomDepthStencilValue = OldLandscape->CustomDepthStencilValue;
+			NewLandscape->LightmassSettings = OldLandscape->LightmassSettings;
+			NewLandscape->CollisionThickness = OldLandscape->CollisionThickness;
+			NewLandscape->BodyInstance.SetCollisionProfileName(OldLandscape->BodyInstance.GetCollisionProfileName());
+			if (NewLandscape->BodyInstance.DoesUseCollisionProfile() == false)
 			{
-				Landscape->BodyInstance.SetCollisionEnabled(OldLandscapeProxy->BodyInstance.GetCollisionEnabled());
-				Landscape->BodyInstance.SetObjectType(OldLandscapeProxy->BodyInstance.GetObjectType());
-				Landscape->BodyInstance.SetResponseToChannels(OldLandscapeProxy->BodyInstance.GetResponseToChannels());
+				NewLandscape->BodyInstance.SetCollisionEnabled(OldLandscape->BodyInstance.GetCollisionEnabled());
+				NewLandscape->BodyInstance.SetObjectType(OldLandscape->BodyInstance.GetObjectType());
+				NewLandscape->BodyInstance.SetResponseToChannels(OldLandscape->BodyInstance.GetResponseToChannels());
 			}
-			Landscape->EditorLayerSettings = OldLandscapeProxy->EditorLayerSettings;
-			Landscape->bUsedForNavigation = OldLandscapeProxy->bUsedForNavigation;
-			Landscape->MaxPaintedLayersPerComponent = OldLandscapeProxy->MaxPaintedLayersPerComponent;
+			NewLandscape->EditorLayerSettings = OldLandscape->EditorLayerSettings;
+			NewLandscape->bUsedForNavigation = OldLandscape->bUsedForNavigation;
+			NewLandscape->MaxPaintedLayersPerComponent = OldLandscape->MaxPaintedLayersPerComponent;
 
-			if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-			{
-				ALandscape* OldLandscapeActor = Cast<ALandscape>(OldLandscapeProxy);
-				ALandscape* NewLandscapeActor = Cast<ALandscape>(Landscape);
+			TArray<FLandscapeLayer>* LandscapeLayers = GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem ? &OldLandscape->LandscapeLayers : nullptr;
 
-				NewLandscapeActor->bInitializedWithFlagExperimentalLandscapeLayers = OldLandscapeActor->bInitializedWithFlagExperimentalLandscapeLayers;
+			NewLandscape->Import(FGuid::NewGuid(), NewMinX, NewMinY, NewMaxX, NewMaxY, NumSubsections, SubsectionSizeQuads, HeightDataPerLayers, *OldLandscape->ReimportHeightmapFilePath, ImportMaterialLayerInfosPerLayers, ELandscapeImportAlphamapType::Additive, LandscapeLayers);
 
-				// Moves specific config including brushes to new landscape actor
-				for (const FLandscapeLayer& Layer : OldLandscapeActor->LandscapeLayers)
-				{
-					FLandscapeLayer* NewLayer = NewLandscapeActor->LandscapeLayers.FindByPredicate( [&](const FLandscapeLayer& NewLayer)	{ return NewLayer.Name == Layer.Name; }	);
-					check(NewLayer != nullptr);
-					*NewLayer = Layer;
-				}
-			}
-
-			Landscape->CreateLandscapeInfo();
+			ULandscapeInfo* NewLandscapeInfo = NewLandscape->GetLandscapeInfo();
+			check(NewLandscapeInfo);
 
 			// Clone landscape splines
-			TLazyObjectPtr<ALandscape> OldLandscapeActor = LandscapeInfo->LandscapeActor;
-			if (OldLandscapeActor.IsValid() && OldLandscapeActor->SplineComponent != NULL)
+			ALandscape* OldLandscapeActor = LandscapeInfo->LandscapeActor.Get();
+			if (OldLandscapeActor != nullptr && OldLandscapeActor->SplineComponent != NULL)
 			{
 				ULandscapeSplinesComponent* OldSplines = OldLandscapeActor->SplineComponent;
-				ULandscapeSplinesComponent* NewSplines = DuplicateObject<ULandscapeSplinesComponent>(OldSplines, Landscape, OldSplines->GetFName());
-				NewSplines->AttachToComponent(Landscape->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
+				ULandscapeSplinesComponent* NewSplines = DuplicateObject<ULandscapeSplinesComponent>(OldSplines, NewLandscape, OldSplines->GetFName());
+				NewSplines->AttachToComponent(NewLandscape->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
 
 				const FVector OldSplineScale = OldSplines->GetRelativeTransform().GetScale3D();
 				NewSplines->SetRelativeScale3D(FVector(OldSplineScale.X / LandscapeScaleFactor, OldSplineScale.Y / LandscapeScaleFactor, OldSplineScale.Z));
-				Landscape->SplineComponent = NewSplines;
+				NewLandscape->SplineComponent = NewSplines;
 				NewSplines->RegisterComponent();
 
 				// TODO: Foliage on spline meshes
@@ -4000,7 +4038,6 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 			if (bResample)
 			{
 				// Remap foliage to the resampled components
-				ULandscapeInfo* NewLandscapeInfo = Landscape->GetLandscapeInfo();
 				for (const TPair<FIntPoint, ULandscapeComponent*>& Entry : LandscapeInfo->XYtoComponentMap)
 				{
 					ULandscapeComponent* NewComponent = NewLandscapeInfo->XYtoComponentMap.FindRef(Entry.Key);
@@ -4035,8 +4072,6 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 			}
 			else
 			{
-				ULandscapeInfo* NewLandscapeInfo = Landscape->GetLandscapeInfo();
-
 				// Move instances
 				for (const TPair<FIntPoint, ULandscapeComponent*>& OldEntry : LandscapeInfo->XYtoComponentMap)
 				{
@@ -4099,20 +4134,20 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 			}
 
 			// Delete the old Landscape and all its proxies
-			for (ALandscapeStreamingProxy* Proxy : TActorRange<ALandscapeStreamingProxy>(OldLandscapeProxy->GetWorld()))
+			for (ALandscapeStreamingProxy* Proxy : TActorRange<ALandscapeStreamingProxy>(OldLandscape->GetWorld()))
 			{
 				if (Proxy->LandscapeActor == OldLandscapeActor)
 				{
 					Proxy->Destroy();
 				}
 			}
-			OldLandscapeProxy->Destroy();
+			OldLandscape->Destroy();
 		}
 	}
 
 	GEditor->RedrawLevelEditingViewports();
 
-	return Landscape;
+	return NewLandscape;
 }
 
 ELandscapeEditingState FEdModeLandscape::GetEditingState() const
@@ -4147,7 +4182,7 @@ ELandscapeEditingState FEdModeLandscape::GetEditingState() const
 int32 FEdModeLandscape::GetLayerCount() const
 {
 	ALandscape* Landscape = GetLandscape();
-	return Landscape ? Landscape->LandscapeLayers.Num() : 0;
+	return Landscape ? Landscape->GetLayerCount() : 0;
 }
 
 void FEdModeLandscape::SetCurrentLayer(int32 InLayerIndex)
