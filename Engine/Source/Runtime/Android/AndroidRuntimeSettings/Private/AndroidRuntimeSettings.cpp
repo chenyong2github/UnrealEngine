@@ -108,6 +108,8 @@ void UAndroidRuntimeSettings::PostEditChangeProperty(struct FPropertyChangedEven
 		{
 			// Supported shader formats changed so invalidate cache
 			InvalidateAllAndroidPlatforms();
+
+			OnPropertyChanged.Broadcast(PropertyChangedEvent);
 		}
 	}
 

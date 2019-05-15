@@ -26,6 +26,7 @@ public class AndroidPlatformEditor : ModuleRules
                 "AndroidDeviceDetection",
                 "TargetPlatform",
                 "RenderCore",
+                "RHI",
                 "MaterialShaderQualitySettings",
 				"MainFrame",
                 "AudioSettingsEditor"

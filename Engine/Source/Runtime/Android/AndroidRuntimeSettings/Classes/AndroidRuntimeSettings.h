@@ -593,6 +593,10 @@ public:
 
 
 #if WITH_EDITOR
+	/** Called whenever a registered Android property changes. */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FPropertyChanged, struct FPropertyChangedEvent&);
+	FPropertyChanged OnPropertyChanged;
+
 private:
 	// UObject interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

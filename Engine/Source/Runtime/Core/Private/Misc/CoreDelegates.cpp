@@ -124,6 +124,7 @@ FCoreDelegates::FOnSystemResolutionChanged FCoreDelegates::OnSystemResolutionCha
 
 #if WITH_EDITOR
 FCoreDelegates::FOnTargetPlatformChangedSupportedFormats FCoreDelegates::OnTargetPlatformChangedSupportedFormats;
+FCoreDelegates::FOnFeatureLevelDisabled FCoreDelegates::OnFeatureLevelDisabled;
 #endif 
 
 FCoreDelegates::FStatCheckEnabled FCoreDelegates::StatCheckEnabled;
