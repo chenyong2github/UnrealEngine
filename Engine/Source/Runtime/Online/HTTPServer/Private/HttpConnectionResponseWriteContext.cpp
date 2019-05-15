@@ -4,6 +4,8 @@
 #include "HttpServerConstantsPrivate.h"
 #include "Sockets.h"
 
+DEFINE_LOG_CATEGORY(LogHttpConnectionResponseWriteContext);
+
 FHttpConnectionResponseWriteContext::FHttpConnectionResponseWriteContext(FSocket* InSocket)
 	: Socket(InSocket)
 {
@@ -75,7 +77,7 @@ bool FHttpConnectionResponseWriteContext::WriteBytes(const uint8* Bytes, int32 B
 	bool bWriteSuccess = Socket->Send(Bytes, BytesLen, OutBytesWritten);
 	if (!bWriteSuccess)
 	{
-		UE_LOG(LogHttpConnection, Warning,
+		UE_LOG(LogHttpConnectionResponseWriteContext, Warning,
 			TEXT("WriteBytes sent %d/%d bytes"), OutBytesWritten, BytesLen);
 	}
 
