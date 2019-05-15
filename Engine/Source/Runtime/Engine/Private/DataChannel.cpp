@@ -3083,7 +3083,10 @@ void UActorChannel::PrepareForRemoteFunction(UObject* TargetObj)
 {
 	// Make sure we create a replicator in case we destroy a sub object before we ever try to replicate its properties,
 	// otherwise it will not be in the ReplicationMap and we'll never send the deletion to clients
-	//FindOrCreateReplicator(TargetObj);
+	if (Connection && Connection->Driver && Connection->Driver->IsServer())
+	{
+		FindOrCreateReplicator(TargetObj);
+	}
 }
 
 void UActorChannel::QueueRemoteFunctionBunch( UObject* CallTarget, UFunction* Func, FOutBunch &Bunch )
