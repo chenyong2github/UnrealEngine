@@ -13,6 +13,7 @@
 #include "ALAudioDevice.h"
 #include "AudioEffect.h"
 #include "VorbisAudioInfo.h"
+#include "ADPCMAudioInfo.h"
 
 DEFINE_LOG_CATEGORY(LogALAudio);
 
@@ -334,6 +335,11 @@ bool FALAudioDevice::HasCompressedAudioInfoClass(USoundWave* SoundWave)
 
 class ICompressedAudioInfo* FALAudioDevice::CreateCompressedAudioInfo(USoundWave* SoundWave)
 {
+	if (SoundWave->IsSeekableStreaming())
+	{
+		return new FADPCMAudioInfo();
+	}
+
 #if WITH_OGGVORBIS
 	return new FVorbisAudioInfo();
 #else
