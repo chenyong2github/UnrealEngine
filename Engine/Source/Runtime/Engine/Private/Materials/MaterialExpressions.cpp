@@ -712,7 +712,7 @@ void UMaterialExpression::PostInitProperties()
 
 	UpdateParameterGuid(false, false);
 	
-	UpdateMaterialExpressionGuid(false, true);
+	UpdateMaterialExpressionGuid(false, false);
 }
 
 void UMaterialExpression::PostLoad()
