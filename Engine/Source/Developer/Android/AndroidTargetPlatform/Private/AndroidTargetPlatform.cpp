@@ -424,21 +424,11 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* InTexture, TArra
 		TArray<FName> FormatPerLayer;
 		FormatPerLayer.SetNum(NumLayers);
 
->>>> ORIGINAL //UE4/Main/Engine/Source/Developer/Android/AndroidTargetPlatform/Private/AndroidTargetPlatform.cpp#15
-	// The order we add texture formats to OutFormats is important. When multiple formats are cooked
-	// and supported by the device, the first supported format listed will be used. 
-	// eg, ETC1/uncompressed should always be last
-==== THEIRS //UE4/Main/Engine/Source/Developer/Android/AndroidTargetPlatform/Private/AndroidTargetPlatform.cpp#16
-	// The order we add texture formats to OutFormats is important. When multiple formats are cooked
-	// and supported by the device, the first supported format listed will be used.
-	// eg, ETC1/uncompressed should always be last
-==== YOURS //Juan.Canada_Dev-Rendering-MERGES/Engine/Source/Developer/Android/AndroidTargetPlatform/Private/AndroidTargetPlatform.cpp
 		bool bValidFormat = true;
 		for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 		{
 			FTextureFormatSettings LayerFormatSettings;
 			InTexture->GetLayerFormatSettings(LayerIndex, LayerFormatSettings);
-<<<<
 
 			const bool bNoCompression = LayerFormatSettings.CompressionNone				// Code wants the texture uncompressed.
 				|| (InTexture->LODGroup == TEXTUREGROUP_ColorLookupTable)	// Textures in certain LOD groups should remain uncompressed.
