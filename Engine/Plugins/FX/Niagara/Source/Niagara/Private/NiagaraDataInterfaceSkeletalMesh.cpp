@@ -432,7 +432,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 			LODIndex = FMath::Clamp(Interface->WholeMeshLOD, 0, Mesh->GetLODNum() - 1);
 		}
 
-		if (!Mesh->GetLODInfo(LODIndex)->bAllowCPUAccess && (GIsEditor || Interface->bUseTriangleSampling || Interface->bUseVertexSampling))
+		if (!Mesh->GetLODInfo(LODIndex)->bAllowCPUAccess && (Interface->bUseTriangleSampling || Interface->bUseVertexSampling))
 		{
 			UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to spawn from a whole mesh that does not allow CPU Access.\nInterface: %s\nMesh: %s\nLOD: %d"),
 				*Interface->GetFullName(),
@@ -512,7 +512,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	bool bNeedDataImmediately = true;
 		
 	//Grab a handle to the skinning data if we have a component to skin.
-	ENDISkeletalMesh_SkinningMode SkinningMode = (GIsEditor || Interface->bUseTriangleSampling || Interface->bUseVertexSampling) ? Interface->SkinningMode : ENDISkeletalMesh_SkinningMode::None;
+	ENDISkeletalMesh_SkinningMode SkinningMode = (Interface->bUseTriangleSampling || Interface->bUseVertexSampling) ? Interface->SkinningMode : ENDISkeletalMesh_SkinningMode::None;
 	FSkeletalMeshSkinningDataUsage Usage(
 		LODIndex,
 		SkinningMode == ENDISkeletalMesh_SkinningMode::SkinOnTheFly || SkinningMode == ENDISkeletalMesh_SkinningMode::PreSkin || Interface->bUseSkeletonSampling,
@@ -906,7 +906,7 @@ TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceSkeletalMesh::GetErrors(
 	bool bHasNoMeshAssignedError = false;
 	
 	// Collect Errors
-	if (DefaultMesh != nullptr && (GIsEditor || bUseTriangleSampling || bUseVertexSampling))
+	if (DefaultMesh != nullptr && (bUseTriangleSampling || bUseVertexSampling))
 	{
 		for (auto info : DefaultMesh->GetLODInfoArray())
 		{
