@@ -184,6 +184,11 @@ void MainPS_VideoOverlay(
 #endif
 
 #else // FEATURE_LEVEL_ES3_1
+
+#ifndef NEEDTOSWITCHVERTICLEAXIS
+#define NEEDTOSWITCHVERTICLEAXIS 0
+#endif
+
 //
 // Mobile version
 //
@@ -194,16 +199,11 @@ void MainVS_ES2(
 	out float2 OutViewportUV : TEXCOORD8
 	)
 {
-	// flip UV.y if we rendering to backbuffer in OpenGL space
-#if !POST_PROCESS_MATERIAL_BEFORE_TONEMAP && (COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1)
-	InTexCoord.y = 1.0 - InTexCoord.y;
-#endif
-	
 	Output = (FPostProcessMaterialVSToPS)0;
 	float2 OutUV;
 	DrawRectangle(InPosition, InTexCoord, Output.Position, OutUV);
 
-	OutViewportUV = OutUV;
+	OutViewportUV = InPosition.xy;
 	
 #if NUM_TEX_COORD_INTERPOLATORS
 	FMaterialVertexParameters VertexParameters = GetPostProcessMaterialVSParameters(OutUV);
@@ -250,14 +250,13 @@ void MainPS_ES2(
 	Parameters.VertexColor = 1;
 	
 	float4 SvPosition = Input.Position;
-	float4 SvPositionMP = SvPosition;
-	#if !POST_PROCESS_MATERIAL_BEFORE_TONEMAP && (COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1)
-		SvPositionMP.y = View.ViewSizeAndInvSize.y - SvPositionMP.y; 
-	#endif
-	SvPositionMP.z = LookupDeviceZ(InViewportUV);
-	SvPositionMP.z = max(SvPositionMP.z, 1e-18);
+#if NEEDTOSWITCHVERTICLEAXIS
+		SvPosition.y = View.ViewSizeAndInvSize.y - SvPosition.y; 
+#endif
+	SvPosition.z = LookupDeviceZ(InViewportUV);
+	SvPosition.z = max(SvPosition.z, 1e-18);
 	// fill out other related material parameters
-	CalcMaterialParametersPost(Parameters, PixelMaterialInputs, SvPositionMP, true);
+	CalcMaterialParametersPost(Parameters, PixelMaterialInputs, SvPosition, true);
 
 	// Grab emissive colour as output
 	half3 EmissiveColor = GetMaterialEmissive(PixelMaterialInputs);
