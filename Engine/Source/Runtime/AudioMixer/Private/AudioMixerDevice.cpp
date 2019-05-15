@@ -919,11 +919,11 @@ namespace Audio
 		}
 	}
 
-	void FMixerDevice::FlushAudioRenderingCommands()
+	void FMixerDevice::FlushAudioRenderingCommands(bool bPumpSynchronously)
 	{
 		if (IsInitialized() && (FPlatformProcess::SupportsMultithreading() && !AudioMixerPlatform->IsNonRealtime()))
 		{
-			SourceManager.FlushCommandQueue();
+			SourceManager.FlushCommandQueue(bPumpSynchronously);
 		}
 		else if (AudioMixerPlatform->IsNonRealtime())
 		{
