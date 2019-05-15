@@ -229,7 +229,7 @@ APlayerState* AGameStateBase::GetPlayerStateFromUniqueNetId(const FUniqueNetIdWr
 	const TArray<APlayerState*>& Players = PlayerArray;
 	for (APlayerState* Player : Players)
 	{
-		if (Player->UniqueId == InPlayerId)
+		if (Player && Player->UniqueId == InPlayerId)
 		{
 			return Player;
 		}
