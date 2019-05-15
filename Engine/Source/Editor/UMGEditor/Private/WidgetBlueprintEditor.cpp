@@ -1170,8 +1170,6 @@ void FWidgetBlueprintEditor::OnGetAnimationAddMenuContent(FMenuBuilder& MenuBuil
 
 void FWidgetBlueprintEditor::OnGetAnimationAddMenuContentAllWidgets(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.AddSearchWidget();
-
 	TArray<FObjectAndDisplayName> BindableObjects;
 	{
 		GetBindableObjects(GetPreview()->WidgetTree, BindableObjects);
