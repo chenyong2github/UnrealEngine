@@ -69,10 +69,22 @@ public:
 	HTTPSERVER_API static TUniquePtr<FHttpServerResponse> Create(int32 HttpResponseCode, const FString& ErrorCode);
 
 	/**
-	 * Creates an FHttpServerResponse 200 
+	 * Creates an FHttpServerResponse 200
+	 * 
+	 * @param Message The optional and respective success message
+	 * @param ContentType The optional and respective content type
 	 * @return A unique pointer to an initialized response object
 	 */
-	HTTPSERVER_API static TUniquePtr<FHttpServerResponse> Ok();
+	HTTPSERVER_API static TUniquePtr<FHttpServerResponse> Ok(const FString& Message = TEXT(""), FString ContentType = TEXT("text/text"));
+
+	/**
+    * Creates an FHttpServerResponse 500
+	*
+	* @param Message The optional and respective error message
+	* @param ContentType The optional and respective content type
+    * @return A unique pointer to an initialized response object
+    */
+	HTTPSERVER_API static TUniquePtr<FHttpServerResponse> Error(const FString& Message = TEXT(""), FString ContentType = TEXT("text/text"));
 };
 
 
