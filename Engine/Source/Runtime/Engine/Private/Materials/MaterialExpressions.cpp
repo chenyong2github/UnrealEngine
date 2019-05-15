@@ -4656,7 +4656,7 @@ UMaterialExpressionBreakMaterialAttributes::UMaterialExpressionBreakMaterialAttr
 	}
 
 	Outputs.Add(FExpressionOutput(TEXT("PixelDepthOffset"), 1, 1, 0, 0, 0));
-	Outputs.Add(FExpressionOutput(TEXT("ShadingModel"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("ShadingModel"), 0, 0, 0, 0, 0));
 #endif
 }
 
@@ -4696,15 +4696,16 @@ void UMaterialExpressionBreakMaterialAttributes::Serialize(FStructuredArchive::F
 		}
 
 		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); ++OutputIndex;// PixelDepthOffset
-		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); // ShadingModelFromMaterialExpression
+		Outputs[OutputIndex].SetMask(0, 0, 0, 0, 0); // ShadingModelFromMaterialExpression
 	}
 #endif // WITH_EDITOR
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionBreakMaterialAttributes::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+static TMap<EMaterialProperty, int32> PropertyToIOIndexMap;
+
+static void BuildPropertyToIOIndexMap()
 {
-	static TMap<EMaterialProperty, int32> PropertyToIOIndexMap;
 	if (PropertyToIOIndexMap.Num() == 0)
 	{
 		PropertyToIOIndexMap.Add(MP_BaseColor, 0);
@@ -4734,6 +4735,11 @@ int32 UMaterialExpressionBreakMaterialAttributes::Compile(class FMaterialCompile
 		PropertyToIOIndexMap.Add(MP_PixelDepthOffset, 24);
 		PropertyToIOIndexMap.Add(MP_ShadingModel, 25);
 	}
+}
+
+int32 UMaterialExpressionBreakMaterialAttributes::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	BuildPropertyToIOIndexMap();
 
 	// Here we don't care about any multiplex index coming in.
 	// We pass through our output index as the multiplex index so the MakeMaterialAttriubtes node at the other end can send us the right data.
@@ -4784,6 +4790,22 @@ FName UMaterialExpressionBreakMaterialAttributes::GetInputName(int32 InputIndex)
 bool UMaterialExpressionBreakMaterialAttributes::IsInputConnectionRequired(int32 InputIndex) const
 {
 	return true;
+}
+
+uint32 UMaterialExpressionBreakMaterialAttributes::GetOutputType(int32 OutputIndex)
+{
+	BuildPropertyToIOIndexMap();
+
+	const EMaterialProperty* Property = PropertyToIOIndexMap.FindKey(OutputIndex);
+
+	if (Property && *Property == EMaterialProperty::MP_ShadingModel)
+	{
+		return MCT_ShadingModel;
+	}
+	else
+	{
+		return UMaterialExpression::GetOutputType(OutputIndex);
+	}
 }
 #endif // WITH_EDITOR
 
