@@ -30,6 +30,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "Materials/MaterialExpressionLandscapeVisibilityMask.h"
 #include "ShaderCompiler.h"
 #include "Algo/Count.h"
+#include "LandscapeSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Landscape"
@@ -4933,6 +4934,11 @@ const FGuid& ALandscape::GetEditingLayer() const
 	return EditingLayer;
 }
 
+bool ALandscape::MaxLayersReached() const
+{
+	return LandscapeLayers.Num() >= GetDefault<ULandscapeSettings>()->MaxNumberOfLayers;
+}
+
 TMap<UTexture2D*, TArray<ULandscapeComponent*>> ALandscape::GenerateComponentsPerHeightmaps() const
 {
 	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
@@ -5010,7 +5016,7 @@ FLandscapeLayer* ALandscape::DuplicateLayer(const FLandscapeLayer& InOtherLayer)
 void ALandscape::CreateLayer(FName InName)
 {
 	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
-	if (!LandscapeInfo || !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (!LandscapeInfo || MaxLayersReached() || !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
 		return;
 	}
