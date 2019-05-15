@@ -4797,10 +4797,6 @@ bool UStaticMesh::StreamOut(int32 NewMipCount)
 	if (bIsStreamable && !PendingUpdate && RenderData.IsValid() && RenderData->bReadyForStreaming && NewMipCount < GetNumResidentMips())
 	{
 		PendingUpdate = new FStaticMeshStreamOut(this, NewMipCount);
-
-		// The object starts in the locked state while it is being initialized.
-		PendingUpdate->DoUnlock();
-
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;
@@ -4835,9 +4831,6 @@ bool UStaticMesh::StreamIn(int32 NewMipCount, bool bHighPrio)
 				PendingUpdate = new FStaticMeshStreamIn_IO_RenderThread(this, NewMipCount, bHighPrio);
 			}
 		}
-
-		// The object starts in the locked state while it is being initialized.
-		PendingUpdate->DoUnlock();
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;
@@ -4853,8 +4846,16 @@ bool UStaticMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 			PendingUpdate->Abort();
 		}
 
-		// When the renderthread is the gamethread, allow the Tick to execute rendercommands.
-		PendingUpdate->Tick(this, GIsThreadedRendering ? FStaticMeshUpdate::TT_None : FStaticMeshUpdate::TT_Render);
+		// When there is no renderthread, allow the gamethread to tick as the renderthread.
+		FRenderAssetUpdate::EThreadType TickThread = GIsThreadedRendering ? FRenderAssetUpdate::TT_None : FRenderAssetUpdate::TT_Render;
+		if (HasAnyFlags(RF_BeginDestroyed) && PendingUpdate->GetRelevantThread() == FRenderAssetUpdate::TT_Async)
+		{
+			// To avoid async tasks from timing out the GC, we tick as Async to force completion if this is relevant.
+			// This could lead the asset from releasing the PendingUpdate, which will be deleted once the async task completes.
+			TickThread = FRenderAssetUpdate::TT_Async;
+		}
+		PendingUpdate->Tick(TickThread);
+
 		if (!PendingUpdate->IsCompleted())
 		{
 			return true;
@@ -4864,8 +4865,7 @@ bool UStaticMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 		const bool bRebuildPlatformData = PendingUpdate->DDCIsInvalid() && !IsPendingKillOrUnreachable();
 #endif
 
-		delete PendingUpdate;
-		PendingUpdate = nullptr;
+		PendingUpdate.SafeRelease();
 
 #if WITH_EDITOR
 		if (GIsEditor)
