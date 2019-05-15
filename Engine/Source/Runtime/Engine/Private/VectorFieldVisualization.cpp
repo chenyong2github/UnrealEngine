@@ -244,7 +244,7 @@ void GetVectorFieldMesh(
 	int32 ViewIndex,
 	FMeshElementCollector& Collector)
 {
-	FVectorFieldResource* Resource = VectorFieldInstance->Resource;
+	FVectorFieldResource* Resource = VectorFieldInstance->Resource.GetReference();
 
 	if (Resource && IsValidRef(Resource->VolumeTextureRHI))
 	{
