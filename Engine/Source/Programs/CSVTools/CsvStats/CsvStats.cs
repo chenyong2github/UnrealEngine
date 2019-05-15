@@ -886,8 +886,12 @@ namespace CSVStats
                     {
                         if (csvEvent.Frame == startIndex)
                         {
-                            // Subsequent events will get offset by this amount
-                            FrameOffset -= endIndex - startIndex;
+							// Check if this is the last event this frame
+							if (i == Events.Count - 1 || Events[i + 1].Frame != csvEvent.Frame)
+							{
+								// Subsequent events will get offset by this amount
+								FrameOffset -= endIndex - startIndex;
+							}
                         }
 
                         if (csvEvent.Frame == endIndex+1)
