@@ -56,6 +56,13 @@ struct INTERACTIVETOOLSFRAMEWORK_API FViewCameraState
 	bool bIsOrthographic;
 	/** Is current view a VR view */
 	bool bIsVR;
+
+	/** @return "right"/horizontal direction in camera plane */
+	FVector Right() const { return Orientation.GetAxisY(); }
+	/** @return "up"/vertical direction in camera plane */
+	FVector Up() const { return Orientation.GetAxisZ(); }
+	/** @return forward camera direction */
+	FVector Forward() const { return Orientation.GetAxisX(); }
 };
 
 
@@ -125,6 +132,9 @@ struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryResult
 
 	/** Vertices of triangle that contains result (for debugging, may not be set) */
 	FVector TriVertices[3];
+	/** Vertex/Edge index we snapped to in triangle */
+	int TriSnapIndex;
+
 };
 
 

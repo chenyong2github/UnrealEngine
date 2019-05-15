@@ -50,6 +50,14 @@ FInputCaptureUpdate UMultiClickSequenceInputBehavior::UpdateCapture(const FInput
 
 	Modifiers.UpdateModifiers(input, Target);
 
+	// allow target to abort click sequence
+	if (Target->RequestAbortClickSequence())
+	{
+		Target->OnTerminateClickSequence();
+		bInActiveSequence = false;
+		return FInputCaptureUpdate::End();
+	}
+
 	if (IsReleased(input)) 
 	{
 		bool bContinue = Target->OnNextSequenceClick(GetDeviceRay(input));
@@ -72,4 +80,23 @@ void UMultiClickSequenceInputBehavior::ForceEndCapture(const FInputCaptureData& 
 {
 	Target->OnTerminateClickSequence();
 	bInActiveSequence = false;
+}
+
+
+bool UMultiClickSequenceInputBehavior::WantsHoverEvents()
+{
+	return true;
+}
+
+void UMultiClickSequenceInputBehavior::UpdateHover(const FInputDeviceState& Input)
+{
+	if (Target != nullptr)
+	{
+		Modifiers.UpdateModifiers(Input, Target);
+		Target->OnBeginSequencePreview(FInputDeviceRay(Input.Mouse.WorldRay, Input.Mouse.Position2D));
+	}
+}
+
+void UMultiClickSequenceInputBehavior::EndHover(const FInputDeviceState& input)
+{
 }

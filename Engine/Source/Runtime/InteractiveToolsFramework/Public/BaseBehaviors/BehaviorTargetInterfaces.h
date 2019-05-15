@@ -109,6 +109,12 @@ public:
 	virtual ~IClickSequenceBehaviorTarget() {}
 
 	/**
+	 * Notify Target device position has changed but a click sequence hasn't begun yet (eg for interactive previews)
+	 * @param ClickPos device position/ray at click point
+	 */
+	virtual void OnBeginSequencePreview(const FInputDeviceRay& ClickPos) = 0;
+
+	/**
 	 * Test if target would like to begin sequence based on this click
 	 * @param ClickPos device position/ray at click point
 	 * @return true if target wants to begin sequence
@@ -139,6 +145,11 @@ public:
 	 */
 	virtual void OnTerminateClickSequence() = 0;
 
+	/**
+	 * Target overrides this and returns true if it wants to abort click sequence.
+	 * Behavior checks every update and if this ever returns true, terminates sequence
+	 */
+	virtual bool RequestAbortClickSequence() { return false; }
 };
 
 
