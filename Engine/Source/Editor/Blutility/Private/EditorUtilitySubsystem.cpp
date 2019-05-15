@@ -3,6 +3,7 @@
 #include "EditorUtilitySubsystem.h"
 #include "EditorUtilityCommon.h"
 #include "Interfaces/IMainFrameModule.h"
+#include "Engine/Blueprint.h"
 
 UEditorUtilitySubsystem::UEditorUtilitySubsystem() :
 	UEditorSubsystem()
