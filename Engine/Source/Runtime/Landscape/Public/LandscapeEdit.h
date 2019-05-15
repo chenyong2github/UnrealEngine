@@ -82,7 +82,7 @@ private:
 
 struct LANDSCAPE_API FLandscapeTextureDataInterface
 {
-	// tor
+	FLandscapeTextureDataInterface(bool bInUploadTextureChangesToGPU = true);
 	virtual ~FLandscapeTextureDataInterface();
 
 	// Texture data access
@@ -108,13 +108,14 @@ struct LANDSCAPE_API FLandscapeTextureDataInterface
 
 private:
 	TMap<UTexture2D*, FLandscapeTextureDataInfo*> TextureDataMap;
+	bool bUploadTextureChangesToGPU;
 };
 
 
 struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataInterface
 {
 	// tor
-	FLandscapeEditDataInterface(ULandscapeInfo* InLandscape);
+	FLandscapeEditDataInterface(ULandscapeInfo* InLandscape, bool bInUploadTextureChangesToGPU = true);
 
 	// Misc
 	bool GetComponentsInRegion(int32 X1, int32 Y1, int32 X2, int32 Y2, TSet<ULandscapeComponent*>* OutComponents = NULL);
