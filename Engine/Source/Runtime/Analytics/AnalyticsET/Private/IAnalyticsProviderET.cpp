@@ -188,6 +188,7 @@ public:
 
 	virtual void SetAppID(FString&& AppID) override;
 	virtual const FString& GetAppID() const override;
+	virtual void SetAppVersion(FString&& AppVersion) override;
 	virtual const FString& GetAppVersion() const override;
 	virtual void SetUserID(const FString& InUserID) override;
 	virtual FString GetUserID() const override;
@@ -764,6 +765,16 @@ void FAnalyticsProviderET::SetAppID(FString&& InAppID)
 		// Flush any cached events that would be using the old AppID.
 		FlushEvents();
 		APIKey = MoveTemp(InAppID);
+	}
+}
+
+void FAnalyticsProviderET::SetAppVersion(FString&& InAppVersion)
+{
+	if (AppVersion != InAppVersion)
+	{
+		// Flush any cached events that would be using the old AppVersion.
+		FlushEvents();
+		AppVersion = MoveTemp(InAppVersion);
 	}
 }
 
