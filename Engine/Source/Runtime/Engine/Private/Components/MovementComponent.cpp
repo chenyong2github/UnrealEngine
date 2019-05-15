@@ -336,7 +336,7 @@ bool UMovementComponent::ShouldSkipUpdate(float DeltaTime) const
 
 		const float RenderTimeThreshold = 0.41f;
 		UWorld* TheWorld = GetWorld();
-		if (UpdatedPrimitive && TheWorld->TimeSince(UpdatedPrimitive->LastRenderTime) <= RenderTimeThreshold)
+		if (UpdatedPrimitive && TheWorld->TimeSince(UpdatedPrimitive->GetLastRenderTime()) <= RenderTimeThreshold)
 		{
 			return false; // Rendered, don't skip it.
 		}
@@ -349,7 +349,7 @@ bool UMovementComponent::ShouldSkipUpdate(float DeltaTime) const
 			const UPrimitiveComponent* PrimitiveChild = Cast<UPrimitiveComponent>(Child);
 			if (PrimitiveChild)
 			{
-				if (PrimitiveChild->IsRegistered() && TheWorld->TimeSince(PrimitiveChild->LastRenderTime) <= RenderTimeThreshold)
+				if (PrimitiveChild->IsRegistered() && TheWorld->TimeSince(PrimitiveChild->GetLastRenderTime()) <= RenderTimeThreshold)
 				{
 					return false; // Rendered, don't skip it.
 				}

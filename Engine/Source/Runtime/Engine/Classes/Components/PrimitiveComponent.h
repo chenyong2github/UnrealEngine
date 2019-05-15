@@ -607,7 +607,6 @@ public:
 	float BoundsScale;
 
 	/** Last time the component was submitted for rendering (called FScene::AddPrimitive). */
-	UPROPERTY(transient)
 	float LastSubmitTime;
 
 	/**
@@ -615,12 +614,16 @@ public:
 	 * from the render thread, which is up to a frame behind the game thread, so you should allow this time to
 	 * be at least a frame behind the game thread's world time before you consider the actor non-visible.
 	 */
-	UPROPERTY(transient)
 	float LastRenderTime;
 
 	/** Same as LastRenderTimeOnScreen but only updated if the component is on screen. Used by the texture streamer. */
-	UPROPERTY(transient)
 	float LastRenderTimeOnScreen;
+
+public:
+
+	void SetLastRenderTime(float InLastRenderTime);
+	float GetLastRenderTime() const { return LastRenderTime; }
+	float GetLastRenderTimeOnScreen() const { return LastRenderTimeOnScreen; }
 
 	/**
 	 * Set of actors to ignore during component sweeps in MoveComponent().
