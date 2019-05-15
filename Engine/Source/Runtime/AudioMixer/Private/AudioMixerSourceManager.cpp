@@ -298,6 +298,9 @@ namespace Audio
 
 				// Make sure we've actually emptied the command queue from the render thread before writing to it
 				check(CommandBuffers[NextIndex].SourceCommandQueue.Num() == 0);
+
+				// Here we ensure that we block for any pending calls to AudioMixerThreadCommand.
+				FScopeLock ScopeLock(&CommandBufferIndexCriticalSection);
 				RenderThreadCommandBufferIndex.Set(CurrentGameIndex);
 
 				CommandsProcessedEvent->Reset();
@@ -2419,11 +2422,14 @@ namespace Audio
 		}
 	}
 
+
 	void FMixerSourceManager::AudioMixerThreadCommand(TFunction<void()> InFunction)
 	{
+		// Here, we make sure that we don't flip our command double buffer while we are executing this function.
+		FScopeLock ScopeLock(&CommandBufferIndexCriticalSection);
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
 
-		// Add the function to the command queue
+		// Add the function to the command queue:
 		int32 AudioThreadCommandIndex = !RenderThreadCommandBufferIndex.GetValue();
 		CommandBuffers[AudioThreadCommandIndex].SourceCommandQueue.Add(MoveTemp(InFunction));
 		NumCommands.Increment();
