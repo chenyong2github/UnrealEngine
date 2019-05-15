@@ -286,11 +286,12 @@ const int32 NumInlineShaderBindings = 10;
 struct FMeshDrawCommandDebugData
 {
 #if MESH_DRAW_COMMAND_DEBUG_DATA
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy;
+	const FPrimitiveSceneProxy* PrimitiveSceneProxyIfNotUsingStateBuckets;
 	const FMaterial* Material;
 	const FMaterialRenderProxy* MaterialRenderProxy;
 	FMeshMaterialShader* VertexShader;
 	FMeshMaterialShader* PixelShader;
+	FName ResourceName;
 #endif
 };
 
@@ -536,17 +537,11 @@ public:
 	{
 		return Other.CachedPipelineId.GetId();
 	}
-
-	void SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders)
-	{
 #if MESH_DRAW_COMMAND_DEBUG_DATA
-		DebugData.PrimitiveSceneProxy = PrimitiveSceneProxy;
-		DebugData.Material = Material;
-		DebugData.MaterialRenderProxy = MaterialRenderProxy;
-		DebugData.VertexShader = UntypedShaders.VertexShader;
-		DebugData.PixelShader = UntypedShaders.PixelShader;
+	void SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders);
+#else
+	void SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders){}
 #endif
-	}
 
 	SIZE_T GetAllocatedSize() const
 	{
@@ -562,6 +557,10 @@ public:
 	}
 
 #if MESH_DRAW_COMMAND_DEBUG_DATA
+	void ClearDebugPrimitiveSceneProxy()
+	{
+		DebugData.PrimitiveSceneProxyIfNotUsingStateBuckets = nullptr;
+	}
 private:
 	FMeshDrawCommandDebugData DebugData;
 #endif
