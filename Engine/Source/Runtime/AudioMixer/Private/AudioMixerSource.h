@@ -77,6 +77,9 @@ namespace Audio
 		/** Updates and source effect on this voice. */
 		void UpdateEffects();
 
+		/** Updates source bus send levels based on game data. */
+		void UpdateSourceBusSends();
+
 		/** Updates the channel map of the sound if its a 3d sound.*/
 		void UpdateChannelMaps();
 
@@ -118,6 +121,32 @@ namespace Audio
 			{}
 		};
 
+		// This holds data copied from FSoundSourceBusSendInfo when a new sound starts playing
+		// so that distance-based level control can be calculated during rendering
+		struct FDynamicBusSendInfo
+		{
+			float SendLevel;
+			uint32 BusId;
+			ESourceBusSendLevelControlMethod BusSendLevelControlMethod;
+			EBusSendType BusSendType;
+			float MinSendLevel;
+			float MaxSendLevel;
+			float MinSendDistance;
+			float MaxSendDistance;
+			FRuntimeFloatCurve CustomSendLevelCurve;
+
+			FDynamicBusSendInfo()
+				: SendLevel(0.0f)
+				, BusId(0)
+				, BusSendLevelControlMethod(ESourceBusSendLevelControlMethod::Manual)
+				, BusSendType(EBusSendType::PreEffect)
+				, MinSendLevel(0.0f)
+				, MaxSendLevel(0.0f)
+				, MinSendDistance(0.0f)
+				, MaxSendDistance(0.0f)
+			{}
+		};
+
 		// Mapping of channel map types to channel maps. Determined by what submixes this source sends its audio to.
 		FChannelMapInfo ChannelMaps[(int32) ESubmixChannelFormat::Count];
 
@@ -136,6 +165,10 @@ namespace Audio
 		FThreadSafeBool bIsPlayingEffectTails;
 		FThreadSafeBool bFreeAsyncTask;
 
+		// Array of copied FSoundSourceBusSendInfo data for all the bus sends this
+		// source may need to live-update during its lifespan
+		TArray<FDynamicBusSendInfo> DynamicBusSendInfos;
+
 		// Whether or not we're currently releasing our resources. Prevents recycling the source until release is finished.
 		FThreadSafeBool bIsReleasing;
 
@@ -145,5 +178,6 @@ namespace Audio
 		uint32 bDebugMode : 1;
 		uint32 bIsVorbis : 1;
 		uint32 bIsStoppingVoicesEnabled : 1;
+		uint32 bSendingAudioToBuses : 1;
 	};
 }
