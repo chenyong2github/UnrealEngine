@@ -29,6 +29,17 @@ float GetMobileDepthOfFieldScale(const FViewInfo& View)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+static const FRenderingCompositePass* GMobilePassShouldFlipVerticalAxis = nullptr;
+void SetMobilePassFlipVerticalAxis(const FRenderingCompositePass* FlipPass)
+{
+	GMobilePassShouldFlipVerticalAxis = FlipPass;
+}
+
+bool ShouldMobilePassFlipVerticalAxis(const FRenderingCompositePass* ShouldFlipPass)
+{
+	return GMobilePassShouldFlipVerticalAxis == ShouldFlipPass;
+}
+
 //
 // BLOOM SETUP
 //

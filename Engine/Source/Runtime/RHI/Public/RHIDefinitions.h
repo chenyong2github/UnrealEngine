@@ -1138,7 +1138,8 @@ inline bool RHINeedsToSwitchVerticalAxis(EShaderPlatform Platform)
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ForceRHISwitchVerticalAxis"));
 	if (CVar->GetValueOnAnyThread())
 	{
-		return true;
+		// only allow this for mobile preview.
+		return IsMobilePlatform(Platform);
 	}
 #endif
 
