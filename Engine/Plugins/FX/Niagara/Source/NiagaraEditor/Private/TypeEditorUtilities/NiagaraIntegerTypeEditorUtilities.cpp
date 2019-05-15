@@ -110,3 +110,8 @@ bool FNiagaraEditorIntegerTypeUtilities::SetValueFromPinDefaultString(const FStr
 	}
 	return false;
 }
+
+FText FNiagaraEditorIntegerTypeUtilities::GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const
+{
+	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
+}

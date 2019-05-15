@@ -35,6 +35,12 @@ UNiagaraStackErrorItem::FOnIssueNotify& UNiagaraStackErrorItem::OnIssueModified(
 	return IssueModifiedDelegate;
 }
 
+void UNiagaraStackErrorItem::GetSearchItems(TArray<FStackSearchItem>& SearchItems) const
+{
+	SearchItems.Add({ FName("ErrorShortDescription"), StackIssue.GetShortDescription() });
+	SearchItems.Add({ FName("ErrorLongDescription"), StackIssue.GetLongDescription() });
+}
+
 void UNiagaraStackErrorItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
 	for (UNiagaraStackEntry* Child : CurrentChildren)
