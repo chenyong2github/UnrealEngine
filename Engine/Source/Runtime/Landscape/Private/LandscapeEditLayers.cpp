@@ -1231,6 +1231,19 @@ typedef FLandscapeLayersRender_RenderThread<FLandscapeLayersWeightmapShaderParam
 
 #if WITH_EDITOR
 
+struct FLandscapeIsTextureFullyStreamedIn
+{
+	bool operator()(UTexture2D* InTexture, bool bInWaitForStreaming)
+	{
+		check(InTexture);
+		if (bInWaitForStreaming)
+		{
+			InTexture->WaitForStreaming();
+		}
+		return InTexture->IsFullyStreamedIn();
+	}
+};
+
 void ALandscape::CreateLayersRenderingResource()
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();
@@ -2482,7 +2495,7 @@ void ALandscape::PrintLayersDebugTextureResource(const FString& InContext, FText
 	}
 }
 
-bool ALandscape::PrepareLayersHeightmapTextureResources() const
+bool ALandscape::PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming) const
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
@@ -2495,11 +2508,13 @@ bool ALandscape::PrepareLayersHeightmapTextureResources() const
 
 	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 	{
+		FLandscapeIsTextureFullyStreamedIn IsTextureFullyStreamedIn;
+				
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
 			UTexture2D* ComponentHeightmap = Component->GetHeightmap();
 
-			IsReady &= ComponentHeightmap->IsFullyStreamedIn();
+			IsReady &= IsTextureFullyStreamedIn(ComponentHeightmap, bInWaitForStreaming);
 
 			for (const FLandscapeLayer& Layer : LandscapeLayers)
 			{
@@ -2523,16 +2538,22 @@ bool ALandscape::PrepareLayersHeightmapTextureResources() const
 						}
 					}
 
-					IsReady &= LayerHeightmap->Resource != nullptr && LayerHeightmap->Resource->IsInitialized() && LayerHeightmap->IsFullyStreamedIn();
+					IsReady &= IsTextureFullyStreamedIn(LayerHeightmap, bInWaitForStreaming);
+					IsReady &= bInWaitForStreaming || (LayerHeightmap->Resource != nullptr && LayerHeightmap->Resource->IsInitialized());
 				}
 			}
 		}
 	});
 
+	if (bInWaitForStreaming)
+	{
+		FlushRenderingCommands();
+	}
+
 	return IsReady;
 }
 
-int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents)
+int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool bInWaitForStreaming)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersRegenerateHeightmaps);
 	ULandscapeInfo* Info = GetLandscapeInfo();
@@ -2541,7 +2562,7 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 	const int32 HeightmapUpdateModes = LayerContentUpdateModes & AllHeightmapUpdateModes;
 	const bool bForceRender = CVarOutputLayersDebugDrawCallName.GetValueOnAnyThread() == 1;
 
-	if ((HeightmapUpdateModes == 0 && !bForceRender) || Info == nullptr || !PrepareLayersHeightmapTextureResources())
+	if ((HeightmapUpdateModes == 0 && !bForceRender) || Info == nullptr || !PrepareLayersHeightmapTextureResources(bInWaitForStreaming))
 	{
 		return 0;
 	}
@@ -3287,7 +3308,7 @@ void ALandscape::InitializeLayersWeightmapResources()
 	BeginInitResource(WeightmapScratchPackLayerTextureResource);
 }
 
-bool ALandscape::PrepareLayersWeightmapTextureResources() const
+bool ALandscape::PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming) const
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
@@ -3300,13 +3321,14 @@ bool ALandscape::PrepareLayersWeightmapTextureResources() const
 
 	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 	{
+		FLandscapeIsTextureFullyStreamedIn IsTextureFullyStreamedIn;
 		for (const FLandscapeLayer& Layer : LandscapeLayers)
 		{
 			for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 			{
 				for (UTexture2D* ComponentWeightmap : Component->GetWeightmapTextures())
 				{
-					if (!ComponentWeightmap->IsFullyStreamedIn())
+					if (!IsTextureFullyStreamedIn(ComponentWeightmap, bInWaitForStreaming))
 					{
 						IsReady = false;
 						break;
@@ -3333,17 +3355,23 @@ bool ALandscape::PrepareLayersWeightmapTextureResources() const
 							}
 						}
 
-						IsReady &= LayerWeightmap->Resource != nullptr && LayerWeightmap->Resource->IsInitialized() && LayerWeightmap->IsFullyStreamedIn();
+						IsReady &= IsTextureFullyStreamedIn(LayerWeightmap, bInWaitForStreaming);
+						IsReady &= bInWaitForStreaming || (LayerWeightmap->Resource != nullptr && LayerWeightmap->Resource->IsInitialized());
 					}
 				}
 			}
 		}
 	});
 
+	if (bInWaitForStreaming)
+	{
+		FlushRenderingCommands();
+	}
+
 	return IsReady;
 }
 
-int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents)
+int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool bInWaitForStreaming)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersRegenerateWeightmaps);
 	const int32 AllWeightmapUpdateModes = (ELandscapeLayerUpdateMode::Weightmap_All | ELandscapeLayerUpdateMode::Weightmap_Editing);
@@ -3352,7 +3380,7 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 	
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
-	if ((WeightmapUpdateModes == 0 && !bForceRender) || Info == nullptr || Info->Layers.Num() == 0 || !PrepareLayersWeightmapTextureResources())
+	if ((WeightmapUpdateModes == 0 && !bForceRender) || Info == nullptr || Info->Layers.Num() == 0 || !PrepareLayersWeightmapTextureResources(bInWaitForStreaming))
 	{
 		return 0;
 	}
@@ -4115,8 +4143,24 @@ void ALandscape::MonitorShaderCompilation()
 	}
 }
 
-void ALandscape::RegenerateLayersContent()
+void ALandscape::UpdateLayersContent(bool bInWaitForStreaming)
 {
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		if (bInitializedWithFlagExperimentalLandscapeLayers)
+		{
+			ReleaseLayersRenderingResource();
+			bInitializedWithFlagExperimentalLandscapeLayers = false;
+		}
+		return;
+	}
+
+	if (!bLandscapeLayersAreInitialized || !bInitializedWithFlagExperimentalLandscapeLayers)
+	{
+		InitializeLayers();
+		bInitializedWithFlagExperimentalLandscapeLayers = true;
+	}
+	
 	MonitorShaderCompilation();
 
 	if (GetLandscapeInfo() == nullptr || LayerContentUpdateModes == 0)
@@ -4131,8 +4175,8 @@ void ALandscape::RegenerateLayersContent()
 	});
 
 	int32 ProcessedModes = (LayerContentUpdateModes & ELandscapeLayerUpdateMode::DeferredClientUpdate);
-	ProcessedModes |= RegenerateLayersHeightmaps(AllLandscapeComponents);
-	ProcessedModes |= RegenerateLayersWeightmaps(AllLandscapeComponents);
+	ProcessedModes |= RegenerateLayersHeightmaps(AllLandscapeComponents, bInWaitForStreaming);
+	ProcessedModes |= RegenerateLayersWeightmaps(AllLandscapeComponents, bInWaitForStreaming);
 	LayerContentUpdateModes &= ~ProcessedModes;
 
 	if (!ALandscape::UpdateCollisionAndClients(AllLandscapeComponents, ProcessedModes, bLayerForceUpdateAllComponents))
@@ -4210,6 +4254,12 @@ void ALandscape::InitializeLayers()
 	bLandscapeLayersAreInitialized = true;
 }
 
+void ALandscape::OnPreSave()
+{
+	const bool bWaitForStreaming = true;
+	UpdateLayersContent(bWaitForStreaming);
+}
+
 void ALandscape::TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
 {
 	check(GIsEditor);
@@ -4222,24 +4272,7 @@ void ALandscape::TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunc
 			World->bShouldSimulatePhysics = true;
 		}
 
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			if (!bLandscapeLayersAreInitialized || !bInitializedWithFlagExperimentalLandscapeLayers)
-			{
-				InitializeLayers();
-				bInitializedWithFlagExperimentalLandscapeLayers = true;
-			}
-
-			RegenerateLayersContent();
-		}
-		else
-		{
-			if (bInitializedWithFlagExperimentalLandscapeLayers)
-			{
-				ReleaseLayersRenderingResource();
-				bInitializedWithFlagExperimentalLandscapeLayers = false;
-			}
-		}
+		UpdateLayersContent();
 	}
 }
 

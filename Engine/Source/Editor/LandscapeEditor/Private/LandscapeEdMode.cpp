@@ -779,6 +779,25 @@ void FEdModeLandscape::OnVRHoverUpdate(UViewportInteractor* Interactor, FVector&
 	}
 }
 
+void FEdModeLandscape::OnPreSaveWorld(uint32 InSaveFlags, const class UWorld* InWorld)
+{
+	// Avoid doing this during cooking to keep determinism and we don't want to do this on GameWorlds.
+	if (!InWorld->IsGameWorld() && !GIsCookerLoadingPackage)
+	{
+		ULandscapeInfoMap& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(InWorld);
+		for (const TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfoMap.Map)
+		{
+			if (const ULandscapeInfo* LandscapeInfo = Pair.Value)
+			{
+				if (ALandscape* LandscapeActor = LandscapeInfo->LandscapeActor.Get())
+				{
+					LandscapeActor->OnPreSave();
+				}
+			}
+		}
+	}
+}
+
 void FEdModeLandscape::OnVRAction(FEditorViewportClient& ViewportClient, UViewportInteractor* Interactor, const struct FViewportActionKeyInput& Action, bool& bOutIsInputCaptured, bool& bWasHandled)
 {
 	UVREditorMode* VREditorMode = Cast<UVREditorMode>( GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions( GetWorld() )->FindExtension( UVREditorMode::StaticClass() ) );
