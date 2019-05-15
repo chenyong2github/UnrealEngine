@@ -44,19 +44,28 @@ namespace UnrealBuildTool
 				PlatformInfos = new Dictionary<string, ConfigDataDrivenPlatformInfo>();
 				Dictionary<string, string> IniParents = new Dictionary<string, string>();
 
-				// look through all config dirs looking for the data driven ini file
-				DirectoryReference EngineConfigDir = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Config");
-				foreach(DirectoryReference PlatformDir in DirectoryReference.EnumerateDirectories(EngineConfigDir))
+				foreach (DirectoryReference EngineConfigDir in UnrealBuildTool.GetAllEngineDirectories("Config"))
 				{
-					FileReference FilePath = FileReference.Combine(PlatformDir, "DataDrivenPlatformInfo.ini");
-					if(FileReference.Exists(FilePath))
+					// look through all config dirs looking for the data driven ini file
+					foreach (string FilePath in Directory.EnumerateFiles(EngineConfigDir.FullName, "DataDrivenPlatformInfo.ini", SearchOption.AllDirectories))
 					{
 						// get the platform name from the path
-						string IniPlatformName = PlatformDir.GetDirectoryName();
+						string IniPlatformName;
+						// Foo/Engine/Config/<Platform>/DataDrivenPlatformInfo.ini
+						if (EngineConfigDir.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
+						{
+							IniPlatformName = Path.GetFileName(Path.GetDirectoryName(FilePath));
+						}
+						// Foo/Platforms/<Platform>/Engine/Config/DataDrivenPlatformInfo.ini
+						else
+						{
+							IniPlatformName = Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(FilePath))));
+						}
 
 						// load the DataDrivenPlatformInfo from the path
-						ConfigFile Config = new ConfigFile(FilePath);
+						ConfigFile Config = new ConfigFile(new FileReference(FilePath));
 						ConfigDataDrivenPlatformInfo NewInfo = new ConfigDataDrivenPlatformInfo();
+
 
 						// we must have the key section 
 						ConfigFileSection Section = null;

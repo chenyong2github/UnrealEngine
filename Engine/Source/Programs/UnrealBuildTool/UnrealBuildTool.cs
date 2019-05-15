@@ -110,6 +110,43 @@ namespace UnrealBuildTool
 		public static readonly DirectoryReference EnterpriseIntermediateDirectory = DirectoryReference.Combine(EnterpriseDirectory, "Intermediate");
 
 		/// <summary>
+		/// The main engine directory and all found platform extension engine directories
+		/// </summary>
+		public static DirectoryReference[] GetAllEngineDirectories(string Suffix="")
+		{
+			List<DirectoryReference> EngineDirectories = new List<DirectoryReference>() { DirectoryReference.Combine(EngineDirectory, Suffix) };
+			foreach (DirectoryReference PlatformDirectory in DirectoryReference.EnumerateDirectories(PlatformExtensionsDirectory))
+			{
+				DirectoryReference PlatformEngineDirectory = DirectoryReference.Combine(PlatformDirectory, "Engine", Suffix);
+				if (DirectoryReference.Exists(PlatformEngineDirectory))
+				{
+					EngineDirectories.Add(PlatformEngineDirectory);
+				}
+			}
+			return EngineDirectories.ToArray();
+		}
+
+		/// <summary>
+		/// The main project directory and all found platform extension project directories
+		/// </summary>
+		public static DirectoryReference[] GetAllProjectDirectories(FileReference ProjectFile, string Suffix = "")
+		{
+			// project name may not match the directory name, so use the ProjectFile's name as ProjectName
+			string ProjectName = ProjectFile.GetFileNameWithoutAnyExtensions();
+
+			List<DirectoryReference> ProjectDirectories = new List<DirectoryReference>() { DirectoryReference.Combine(ProjectFile.Directory, Suffix) };
+			foreach (DirectoryReference PlatformDirectory in DirectoryReference.EnumerateDirectories(PlatformExtensionsDirectory))
+			{
+				DirectoryReference PlatformEngineDirectory = DirectoryReference.Combine(PlatformDirectory, ProjectName, Suffix);
+				if (DirectoryReference.Exists(PlatformEngineDirectory))
+				{
+					ProjectDirectories.Add(PlatformEngineDirectory);
+				}
+			}
+			return ProjectDirectories.ToArray();
+		}
+
+		/// <summary>
 		/// The Remote Ini directory.  This should always be valid when compiling using a remote server.
 		/// </summary>
 		static string RemoteIniPath = null;
