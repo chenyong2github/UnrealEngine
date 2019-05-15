@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Curves/CurveFloat.h"
 #include "SoundSourceBusSend.generated.h"
 
 class USoundSourceBus;
