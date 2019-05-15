@@ -529,29 +529,6 @@ static int32 RenderMemoryHeadings( class FCanvas* Canvas, const int32 X, const  
 	return Globals.GetFontHeight() + (Globals.GetFontHeight() / 3);
 }
 
-// @param bAutoType true: automatically choose GB/MB/KB/... false: always use MB for easier comparisons
-static FString GetMemoryString( const double Value, const bool bAutoType = true )
-{
-	if (bAutoType)
-	{
-		if (Value > 1024.0 * 1024.0 * 1024.0)
-		{
-			return FString::Printf( TEXT( "%.2f GB" ), float( Value / (1024.0 * 1024.0 * 1024.0) ) );
-		}
-		if (Value > 1024.0 * 1024.0)
-		{
-			return FString::Printf( TEXT( "%.2f MB" ), float( Value / (1024.0 * 1024.0) ) );
-		}
-		if (Value > 1024.0)
-		{
-			return FString::Printf( TEXT( "%.2f KB" ), float( Value / (1024.0) ) );
-		}
-		return FString::Printf( TEXT( "%.2f B" ), float( Value ) );
-	}
-
-	return FString::Printf( TEXT( "%.2f MB" ), float( Value / (1024.0 * 1024.0) ) );
-}
-
 static int32 RenderMemoryCounter( const FGameThreadStatsData& ViewData, const FComplexStatMessage& All, class FCanvas* Canvas, const int32 X, const int32 Y, const float Budget, const bool bIsBudgetIgnored )
 {
 	FPlatformMemory::EMemoryCounterRegion Region = FPlatformMemory::EMemoryCounterRegion(All.NameAndInfo.GetField<EMemoryRegion>());
