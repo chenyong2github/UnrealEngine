@@ -100,33 +100,6 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 		GSupportsDepthFetchDuringDepthTest = false;
 	}
 
-   	
-	bAllowHDR		= false;
-	bAllowFlip		= true;
-	bAllowTearing	= true;
-
-	TRefCountPtr<IDXGIFactory5> Factory5;
-	HRESULT HResult = DXGIFactory1->QueryInterface(IID_PPV_ARGS(Factory5.GetInitReference()));
-	if (SUCCEEDED(HResult))
-	{
-		HResult = Factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &bAllowTearing, sizeof(bAllowTearing));
-		bAllowHDR = true;
-	}
-
-	if (FAILED(HResult))
-	{
-		bAllowTearing = false;
-	}
-
-	// Disable FLIP if not on a supporting OS
-	TRefCountPtr<IDXGIFactory4> Factory4;
-	HResult = DXGIFactory1->QueryInterface(IID_PPV_ARGS(Factory4.GetInitReference()));
-	if (FAILED(HResult))
-	{
-		bAllowFlip =false;
-	}
-
-
 	ERHIFeatureLevel::Type PreviewFeatureLevel;
 	if (RHIGetPreviewFeatureLevel(PreviewFeatureLevel))
 	{
