@@ -309,8 +309,14 @@ return TSuper::SupportsFeature(Feature);
 
 	virtual FName GetWaveFormat( const class USoundWave* Wave ) const override
 	{
-		static FName NAME_OGG(TEXT("OGG"));
-		static FName NAME_OPUS(TEXT("OPUS"));
+		static const FName NAME_ADPCM(TEXT("ADPCM"));
+		static const FName NAME_OGG(TEXT("OGG"));
+		static const FName NAME_OPUS(TEXT("OPUS"));
+
+		if (Wave->IsSeekableStreaming())
+		{
+			return NAME_ADPCM;
+		}
 
 		if (Wave->IsStreaming())
 		{
@@ -322,8 +328,11 @@ return TSuper::SupportsFeature(Feature);
 
 	virtual void GetAllWaveFormats(TArray<FName>& OutFormats) const override
 	{
-		static FName NAME_OGG(TEXT("OGG"));
-		static FName NAME_OPUS(TEXT("OPUS"));
+		static const FName NAME_ADPCM(TEXT("ADPCM"));
+		static const FName NAME_OGG(TEXT("OGG"));
+		static const FName NAME_OPUS(TEXT("OPUS"));
+
+		OutFormats.Add(NAME_ADPCM);
 		OutFormats.Add(NAME_OGG);
 		OutFormats.Add(NAME_OPUS);
 	}

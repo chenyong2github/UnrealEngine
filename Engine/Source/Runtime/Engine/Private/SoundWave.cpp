@@ -203,13 +203,13 @@ void USoundWave::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 			check(!RawPCMData || RawPCMDataSize);
 			CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RawPCMDataSize);
 		}
-		else 
+		else
 		{
 			if (DecompressionType == DTYPE_RealTime && CachedRealtimeFirstBuffer)
 			{
 				CumulativeResourceSize.AddDedicatedSystemMemoryBytes(MONO_PCM_BUFFER_SIZE * NumChannels);
 			}
-			
+
 			if (!FPlatformProperties::SupportsAudioStreaming() || !IsStreaming())
 			{
 				CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetCompressedDataSize(LocalAudioDevice->GetRuntimeFormat(this)));
@@ -263,7 +263,7 @@ FString USoundWave::GetDesc()
 void USoundWave::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
 	Super::GetAssetRegistryTags(OutTags);
-	
+
 #if WITH_EDITORONLY_DATA
 	if (AssetImportData)
 	{
@@ -296,7 +296,7 @@ void USoundWave::Serialize( FArchive& Ar )
 		Ar << DummyCompressionName;
 	}
 
-	bool bShouldStreamSound = false; 
+	bool bShouldStreamSound = false;
 
 	if (Ar.IsSaving() || Ar.IsCooking())
 	{
@@ -358,7 +358,7 @@ void USoundWave::Serialize( FArchive& Ar )
 					}
 				}
 				bool bMapped = CookingTarget->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles) && CookingTarget->SupportsFeature(ETargetPlatformFeatures::MemoryMappedAudio);
-				CompressedFormatData.Serialize(Ar, this, &ActualFormatsToSave, true, DEFAULT_ALIGNMENT, 
+				CompressedFormatData.Serialize(Ar, this, &ActualFormatsToSave, true, DEFAULT_ALIGNMENT,
 					!bMapped, // inline if not mapped
 					bMapped);
 #endif
@@ -395,7 +395,7 @@ void USoundWave::Serialize( FArchive& Ar )
 			}
 		}
 
-#if WITH_EDITORONLY_DATA	
+#if WITH_EDITORONLY_DATA
 		if (Ar.IsLoading() && !Ar.IsTransacting() && !bCooked && !GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker))
 		{
 			BeginCachePlatformData();
@@ -441,7 +441,7 @@ void USoundWave::LogSubtitle( FOutputDevice& Ar )
 }
 
 float USoundWave::GetSubtitlePriority() const
-{ 
+{
 	return SubtitlePriority;
 };
 
@@ -630,7 +630,7 @@ FByteBulkData* USoundWave::GetCompressedData(FName Format, const FPlatformAudioC
 	{
 		return nullptr;
 	}
-	
+
 	FName PlatformSpecificFormat = GetPlatformSpecificFormat(Format, CompressionOverrides);
 
 	bool bContainedValidData = CompressedFormatData.Contains(PlatformSpecificFormat);
@@ -772,7 +772,7 @@ void USoundWave::BeginDestroy()
 
 	// Flag that this sound wave is beginning destroying. This will ensure that all sounds using this in the audio renderer are stopped before GC finishes.
 	bIsBeginDestroy = true;
-	
+
 #if WITH_EDITOR
 	// Flush any async results so we dont leak them in the DDC
 	if (GetDerivedDataCache() && AsyncLoadingDataFormats.Num() > 0)
@@ -886,7 +886,7 @@ void USoundWave::LogBakedData()
 
 	if (CookedEnvelopeTimeData.Num())
 	{
-		FString EnvelopeFileName = FString::Printf(TEXT("%s.envelope.csv"), *SoundWaveName);	
+		FString EnvelopeFileName = FString::Printf(TEXT("%s.envelope.csv"), *SoundWaveName);
 		FString FilenameFull = AnalysisPathName + EnvelopeFileName;
 
 		FArchive* FileAr = IFileManager::Get().CreateDebugFileWriter(*FilenameFull);
@@ -970,7 +970,7 @@ static bool AnyFFTAnalysisPropertiesChanged(const FName& PropertyName)
 			PropertyName == EnableFFTAnalysisFName ||
 			PropertyName == FFTSizeFName ||
 			PropertyName == FFTAnalysisFrameSizeFName ||
-			PropertyName == FrequenciesToAnalyzeFName || 
+			PropertyName == FrequenciesToAnalyzeFName ||
 			PropertyName == FFTAnalysisAttackTimeFName ||
 			PropertyName == FFTAnalysisReleaseTimeFName;
 }
@@ -1023,7 +1023,7 @@ void USoundWave::BakeFFTAnalysis()
 		{
 			SoundWaveToUseForAnalysis = OverrideSoundToUseForAnalysis;
 		}
-		
+
 		if (!SoundWaveToUseForAnalysis->GetImportedSoundWaveData(RawImportedWaveData, RawDataSampleRate, RawDataNumChannels))
 		{
 			return;
@@ -1137,7 +1137,7 @@ void USoundWave::BakeFFTAnalysis()
 				// Don't let the time shift be more than the negative or postive duration
 				float Duration = (float)NumFrames / RawDataSampleRate;
 				float TimeShift = FMath::Clamp((float)FFTAnalysisTimeOffset / 1000, -Duration, Duration);
-				
+
 				NewData.TimeSec = NewData.TimeSec + (float)FFTAnalysisTimeOffset / 1000;
 
 				// Truncate data if time shift is far enough to left that it's before the start of the sound
@@ -1177,7 +1177,7 @@ void USoundWave::BakeFFTAnalysis()
 
 		CookedSpectralTimeData.Sort(FSortSpectralDataByTime());
 
-		// It's possible for the maximum magnitude to be 0.0 if the audio file was silent. 
+		// It's possible for the maximum magnitude to be 0.0 if the audio file was silent.
 		if (MaximumMagnitude > 0.0f)
 		{
 			// Normalize all the magnitude values based on the highest magnitude
@@ -1265,6 +1265,7 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 	static const FName CompressionQualityFName = FName(TEXT("CompressionQuality"));
 	static FName StreamingFName = GET_MEMBER_NAME_CHECKED(USoundWave, bStreaming);
+	static FName SeekableStreamingFName = GET_MEMBER_NAME_CHECKED(USoundWave, bSeekableStreaming);
 
 	// Prevent constant re-compression of SoundWave while properties are being changed interactively
 	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
@@ -1273,19 +1274,19 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		if (UProperty* PropertyThatChanged = PropertyChangedEvent.Property)
 		{
 			const FName& Name = PropertyThatChanged->GetFName();
-			if (Name == CompressionQualityFName || Name == StreamingFName)
+			if (Name == CompressionQualityFName || Name == StreamingFName || Name == SeekableStreamingFName)
 			{
 				InvalidateCompressedData();
 				FreeResources();
 				UpdatePlatformData();
 				MarkPackageDirty();
 			}
-			
+
 			if (AnyFFTAnalysisPropertiesChanged(Name))
 			{
 				BakeFFTAnalysis();
 			}
-			
+
 			if (AnyEnvelopeAnalysisPropertiesChanged(Name))
 			{
 				BakeEnvelopeAnalysis();
@@ -1425,7 +1426,7 @@ bool USoundWave::IsReadyForFinishDestroy()
 				SoundWave->FreeResources();
 			}, GET_STATID(STAT_AudioFreeResources));
 		}
-	
+
 	return NumSourcesPlaying.GetValue() == 0 && ResourceState == ESoundWaveResourceState::Freed;
 }
 
@@ -1525,7 +1526,7 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 			WaveInstance->RadioFilterVolumeThreshold = SoundClassProperties->RadioFilterVolumeThreshold * ParseParams.VolumeMultiplier;
 			WaveInstance->StereoBleed = SoundClassProperties->StereoBleed;
 			WaveInstance->LFEBleed = SoundClassProperties->LFEBleed;
-			
+
 			WaveInstance->bIsUISound = ActiveSound.bIsUISound || SoundClassProperties->bIsUISound;
 			WaveInstance->bIsMusic = ActiveSound.bIsMusic || SoundClassProperties->bIsMusic;
 			WaveInstance->bCenterChannelOnly = ActiveSound.bCenterChannelOnly || SoundClassProperties->bCenterChannelOnly;
@@ -1712,6 +1713,11 @@ bool USoundWave::IsStreaming(const FPlatformAudioCookOverrides* Overrides /* = n
 		|| (Overrides != nullptr
 			&& Overrides->AutoStreamingThreshold > SMALL_NUMBER
 			&& Duration > Overrides->AutoStreamingThreshold);
+}
+
+bool USoundWave::IsSeekableStreaming() const
+{
+	return bStreaming && bSeekableStreaming;
 }
 
 bool USoundWave::GetSoundWavesWithCookedAnalysisData(TArray<USoundWave*>& OutSoundWaves)
@@ -1908,8 +1914,8 @@ bool USoundWave::GetInterpolatedCookedFFTDataForTime(float InTime, uint32& InOut
 				return true;
 			}
 		}
-		// We're looping 
-		else 
+		// We're looping
+		else
 		{
 			// Need to check initial wrap-around case (i.e. we're reading earlier than first data point so need to lerp from last data point to first
 			if (InTime >= 0.0f && InTime < CookedSpectralTimeData[0].TimeSec)
@@ -1938,7 +1944,7 @@ bool USoundWave::GetInterpolatedCookedFFTDataForTime(float InTime, uint32& InOut
 			// Or we've been offset a bit in the negative.
 			else if (InTime < 0.0f)
 			{
-				// Wrap the time to the end of the sound wave file 
+				// Wrap the time to the end of the sound wave file
 				InTime = FMath::Clamp(Duration + InTime, 0.0f, Duration);
 			}
 		}
@@ -2007,7 +2013,7 @@ bool USoundWave::GetInterpolatedCookedEnvelopeDataForTime(float InTime, uint32& 
 				InOutLastIndex = 0;
 				return true;
 			}
-		}	
+		}
 		else
 		{
 			// Need to check initial wrap-around case (i.e. we're reading earlier than first data point so need to lerp from last data point to first
@@ -2026,7 +2032,7 @@ bool USoundWave::GetInterpolatedCookedEnvelopeDataForTime(float InTime, uint32& 
 			// Or we've been offset a bit in the negative.
 			else if (InTime < 0.0f)
 			{
-				// Wrap the time to the end of the sound wave file 
+				// Wrap the time to the end of the sound wave file
 				InTime = FMath::Clamp(Duration + InTime, 0.0f, Duration);
 			}
 
