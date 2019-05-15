@@ -159,6 +159,9 @@ struct ENGINE_API FSkelMeshComponentLODInfo
 	/** Vertex buffer used to override skin weights */
 	FSkinWeightVertexBuffer* OverrideSkinWeights;
 
+	/** Vertex buffer used to override skin weights from one of the profiles */
+	FSkinWeightVertexBuffer* OverrideProfileSkinWeights;
+
 	FSkelMeshComponentLODInfo();
 	~FSkelMeshComponentLODInfo();
 
@@ -438,6 +441,8 @@ protected:
 	/** used to cache previous bone transform or not */
 	uint8 bHasValidBoneTransform:1;
 
+	/** Whether or not a Skin Weight profile is currently set for this component */
+	uint8 bSkinWeightProfileSet:1;
 public:
 
 	/** Whether we should use the min lod specified in MinLodModel for this component instead of the min lod in the mesh */
@@ -905,7 +910,6 @@ public:
 	*/
 	FVector2D GetVertexUV(int32 VertexIndex, uint32 UVChannel) const;
 
-
 	/** Allow override of skin weights on a per-component basis. */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
 	void SetSkinWeightOverride(int32 LODIndex, const TArray<FSkelMeshSkinWeightInfo>& SkinWeights);
@@ -914,6 +918,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
 	void ClearSkinWeightOverride(int32 LODIndex);
 
+	/** Setup an override Skin Weight Profile for this component */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	bool SetSkinWeightProfile(FName InProfileName);
+
+	/** Clear the Skin Weight Profile from this component, in case it is set */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	void ClearSkinWeightProfile();
+
+	/** Unload a Skin Weight Profile's skin weight buffer (if created) */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	void UnloadSkinWeightProfile(FName InProfileName);
+
+	/** Return the name of the Skin Weight Profile that is currently set otherwise returns 'None' */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	FName GetCurrentSkinWeightProfileName() const { return CurrentSkinWeightProfileName; }
+
+	/** Check whether or not a Skin Weight Profile is currently set */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	bool IsUsingSkinWeightProfile() const { return bSkinWeightProfileSet == 1;  }
+
+protected:
+	/** Queues an update of the Skin Weight Buffer used by the current MeshObject */
+	void UpdateSkinWeightOverrideBuffer();
+
+	/** Name of currently set up Skin Weight profile, otherwise is 'none' */
+	FName CurrentSkinWeightProfileName;
+public:
 	/** Returns skin weight vertex buffer to use for specific LOD (will look at override) */
 	FSkinWeightVertexBuffer* GetSkinWeightBuffer(int32 LODIndex) const;
 

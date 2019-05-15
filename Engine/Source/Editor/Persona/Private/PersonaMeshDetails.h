@@ -434,6 +434,8 @@ private:
 	/** Gets the max LOD that can be set from the lod count slider (current num plus an interval) */
 	TOptional<int32> GetLodSliderMaxValue() const;
 
+	void CustomizeSkinWeightProfiles(IDetailLayoutBuilder& DetailLayout);
+	TSharedRef<SWidget> CreateSkinWeightProfileMenuContent();
 public:
 
 	bool IsApplyNeeded() const;

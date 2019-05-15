@@ -6,6 +6,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Engine/SkeletalMesh.h"
+#include "Factories/FbxSkeletalMeshImportData.h"
 
 /**
 * Takes an imported bone name, removes any leading or trailing spaces, and converts the remaining spaces to dashes.
@@ -430,6 +431,7 @@ enum
 {
 	// Engine raw mesh version:
 	RAW_SKELETAL_MESH_BULKDATA_VER_INITIAL = 0,
+	RAW_SKELETAL_MESH_BULKDATA_VER_AlternateInfluence = 1,
 	// Add new raw mesh versions here.
 
 	RAW_SKELETAL_MESH_BULKDATA_VER_PLUS_ONE,
@@ -470,6 +472,13 @@ FArchive& operator<<(FArchive& Ar, FSkeletalMeshImportData& RawMesh)
 	Ar << RawMesh.PointToRawMap;
 	Ar << RawMesh.RefBonesBinary;
 	Ar << RawMesh.Wedges;
+	
+	//In the old version this processing was done after we save the asset
+	//We now save it after the processing is done so for old version we do it here when loading
+	if (Ar.IsLoading() && Version < RAW_SKELETAL_MESH_BULKDATA_VER_AlternateInfluence)
+	{
+		ProcessImportMeshInfluences(RawMesh);
+	}
 	return Ar;
 }
 

@@ -307,6 +307,12 @@ namespace SkeletalSimplifier
 			typedef BasicAttrContainerType_                                              BasicAttrContainerType;
 			typedef typename BasicAttrContainerType::DenseVecDType                       DenseVecDType;
 
+			// - The "closest" vertex in the source mesh as measured by incremental edge collapse 
+			//   i.e. this number should be inherited from the closest vert during edge collapse.
+			//   the value -1 will be used as a null-flag
+			
+			int32 MasterVertIndex;
+			
 			// The Vertex Point
 			uint32			MaterialIndex;
 			FVector			Position;
@@ -335,15 +341,19 @@ namespace SkeletalSimplifier
 
 
 			TSkeletalSimpVert() :
+				MasterVertIndex(-1),
 				MaterialIndex(0),
 				Position(ForceInitToZero),
 				SpecializedWeight(0.f),
-				BasicAttributes()
+				BasicAttributes(),
+				AdditionalAttributes(),
+				SparseBones()
 			{
 			}
 
 			// copy constructor
 			TSkeletalSimpVert(const TSkeletalSimpVert& Other) :
+				MasterVertIndex(Other.MasterVertIndex),
 				MaterialIndex(Other.MaterialIndex),
 				Position(Other.Position),
 				SpecializedWeight(Other.SpecializedWeight),
@@ -393,12 +403,14 @@ namespace SkeletalSimplifier
 
 			TSkeletalSimpVert& operator=(const TSkeletalSimpVert& Other)
 			{
+				MasterVertIndex       = Other.MasterVertIndex;
 				MaterialIndex        = Other.MaterialIndex;
 				Position             = Other.Position;
 				SpecializedWeight    = Other.SpecializedWeight;
 				BasicAttributes      = Other.BasicAttributes;
 				AdditionalAttributes = Other.AdditionalAttributes;
 				SparseBones          = Other.SparseBones;
+				
 				return *this;
 			}
 
@@ -410,6 +422,7 @@ namespace SkeletalSimplifier
 			{
 				bool bIsApprxEquals = 
 					(MaterialIndex == Other.MaterialIndex)
+                 && (MasterVertIndex == Other.MasterVertIndex)
 			     && PointsEqual(Position, Other.Position);
 
 				bIsApprxEquals = bIsApprxEquals
@@ -430,7 +443,8 @@ namespace SkeletalSimplifier
 
 			bool operator==(const VertType& Other) const
 			{
-				bool bIsEqual = (MaterialIndex == Other.MaterialIndex) &&
+				bool bIsEqual = (MaterialIndex == Other.MaterialIndex) && 
+					            (MasterVertIndex == Other.MasterVertIndex) &&
 					            (Position == Other.Position);
 				bIsEqual = bIsEqual && (SpecializedWeight == Other.SpecializedWeight);
 				bIsEqual = bIsEqual && (GetBasicAttrAccessor() == Other.GetBasicAttrAccessor());
@@ -440,7 +454,8 @@ namespace SkeletalSimplifier
 				return bIsEqual;
 			}
 
-			// Standard operator overloading
+			// Standard operator overloading.
+			// Note: these don't affect the MasterVertIndex or MaterialIndex
 
 			VertType operator+(const VertType& Other) const
 			{

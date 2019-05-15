@@ -7,11 +7,13 @@ void SNameComboBox::Construct( const FArguments& InArgs )
 {
 	SelectionChanged = InArgs._OnSelectionChanged;
 	GetTextLabelForItem = InArgs._OnGetNameLabelForItem;
+	Font = InArgs._Font;
 
 	// Then make widget
 	this->ChildSlot
 	[
 		SAssignNew(NameCombo, SComboBox< TSharedPtr<FName> > )
+		.ComboBoxStyle(InArgs._ComboBoxStyle)
 		.OptionsSource(InArgs._OptionsSource)
 		.OnGenerateWidget(this, &SNameComboBox::MakeItemWidget)
 		.OnSelectionChanged(this, &SNameComboBox::OnSelectionChanged)
@@ -22,6 +24,7 @@ void SNameComboBox::Construct( const FArguments& InArgs )
 			SNew(STextBlock)
 				.ColorAndOpacity(InArgs._ColorAndOpacity)
 				.Text(this, &SNameComboBox::GetSelectedNameLabel)
+				.Font(InArgs._Font)
 		]
 	];
 	SelectedItem = NameCombo->GetSelectedItem();
@@ -50,7 +53,8 @@ TSharedRef<SWidget> SNameComboBox::MakeItemWidget( TSharedPtr<FName> NameItem )
 	check( NameItem.IsValid() );
 
 	return SNew(STextBlock)
-		.Text(this, &SNameComboBox::GetItemNameLabel, NameItem);
+		.Text(this, &SNameComboBox::GetItemNameLabel, NameItem)
+		.Font(Font);
 }
 
 void SNameComboBox::OnSelectionChanged (TSharedPtr<FName> Selection, ESelectInfo::Type SelectInfo)

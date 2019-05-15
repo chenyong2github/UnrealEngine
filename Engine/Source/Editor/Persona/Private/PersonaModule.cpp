@@ -83,6 +83,7 @@
 #include "ScopedTransaction.h"
 #include "AnimPreviewInstance.h"
 #include "ISequenceRecorder.h"
+#include "SkinWeightProfileCustomization.h"
 
 IMPLEMENT_MODULE( FPersonaModule, Persona );
 
@@ -141,6 +142,8 @@ void FPersonaModule::StartupModule()
 
 		PropertyModule.RegisterCustomPropertyTypeLayout("BlendParameter", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FBlendParameterDetails::MakeInstance));
 		PropertyModule.RegisterCustomPropertyTypeLayout("InterpolationParameter", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FInterpolationParameterDetails::MakeInstance));
+
+		PropertyModule.RegisterCustomPropertyTypeLayout("SkinWeightProfileInfo", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSkinWeightProfileCustomization::MakeInstance));
 
 		PropertyModule.RegisterCustomPropertyTypeLayout("SkeletalMeshSamplingRegionBoneFilter", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraSkeletalMeshRegionBoneFilterDetails::MakeInstance));
 		PropertyModule.RegisterCustomPropertyTypeLayout("SkeletalMeshSamplingRegionMaterialFilter", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraSkeletalMeshRegionMaterialFilterDetails::MakeInstance));

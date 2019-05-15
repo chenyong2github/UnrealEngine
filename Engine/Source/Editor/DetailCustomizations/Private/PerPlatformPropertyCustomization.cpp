@@ -92,6 +92,13 @@ TSharedRef<SWidget> FPerPlatformPropertyCustomization<PerPlatformType>::GetWidge
 				EditProperty->SetInstanceMetaData(*It.Key.ToString(), *It.Value);
 			}
 		}
+
+		// Copy instance metadata as well
+		const TMap<FName, FString>* InstanceSourceMap = StructPropertyHandle->GetInstanceMetaDataMap();		
+		for (const auto& It : *InstanceSourceMap)
+		{
+			EditProperty->SetInstanceMetaData(*It.Key.ToString(), *It.Value);
+		}
 	}
 
 	if (EditProperty.IsValid())

@@ -57,6 +57,8 @@ struct FSkeletalMeshCustomVersion
 		DeprecateSectionDisabledFlag = 15,
 		// Add Section ignore by reduce
 		SectionIgnoreByReduceAdded = 16,
+		// Adding skin weight profile support
+		SkinWeightProfiles = 17,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
