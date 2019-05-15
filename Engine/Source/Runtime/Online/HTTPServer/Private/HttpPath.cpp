@@ -18,8 +18,7 @@ const FString& FHttpPath::GetPath() const
 
 uint32 FHttpPath::ParsePathTokens(TArray<FString>& OutPathTokens) const
 {
-	const TCHAR PathDelimiter[] = { TCHAR('/') };
-	return Path.ParseIntoArray(OutPathTokens, PathDelimiter, true);
+	return Path.ParseIntoArray(OutPathTokens, TEXT("/"), true);
 }
 
 void FHttpPath::SetPath(FString NewPath)
