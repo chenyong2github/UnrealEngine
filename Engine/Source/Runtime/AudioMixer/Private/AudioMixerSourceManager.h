@@ -317,6 +317,7 @@ namespace Audio
 		FThreadSafeCounter RenderThreadCommandBufferIndex;
 
 		FEvent* CommandsProcessedEvent;
+		FCriticalSection CommandBufferIndexCriticalSection;
 
 		TArray<int32> DebugSoloSources;
 

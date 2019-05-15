@@ -551,8 +551,11 @@ public:
 	 */
 	void Flush(UWorld* WorldToFlush, bool bClearActivatedReverb = true);
 
-	/** Allows audio rendering command queue to flush during audio device flush. */
-	virtual void FlushAudioRenderingCommands() {}
+	/** 
+	 * Allows audio rendering command queue to flush during audio device flush. 
+	 * @param bPumpSynchronously must be called in situations where the audio render thread is not being called.
+	 */
+	virtual void FlushAudioRenderingCommands(bool bPumpSynchronously = false) {}
 
 	/**
 	 * Stop any playing sounds that are using a particular SoundWave
