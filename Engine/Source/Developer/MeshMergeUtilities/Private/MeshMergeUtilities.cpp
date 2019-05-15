@@ -2584,6 +2584,13 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
 		StaticMesh->LightMapResolution = InSettings.bComputedLightMapResolution ? DataTracker.GetLightMapDimension() : InSettings.TargetLightMapResolution;
 
+#if WITH_EDITOR
+		//If we are running the automation test
+		if (GIsAutomationTesting)
+		{
+			StaticMesh->BuildCacheAutomationTestGuid = FGuid::NewGuid();
+		}
+#endif
 		StaticMesh->Build(bSilent);
 
 		if (ImposterBounds.IsValid)
