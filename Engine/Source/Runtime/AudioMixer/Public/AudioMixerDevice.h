@@ -131,7 +131,7 @@ namespace Audio
 		virtual void RegisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* InSubmix = nullptr) override;
 		virtual void UnregisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* InSubmix = nullptr) override;
 
-		virtual void FlushAudioRenderingCommands() override;
+		virtual void FlushAudioRenderingCommands(bool bPumpSynchronously = false) override;
 		//~ End FAudioDevice
 
 		//~ Begin IAudioMixer
