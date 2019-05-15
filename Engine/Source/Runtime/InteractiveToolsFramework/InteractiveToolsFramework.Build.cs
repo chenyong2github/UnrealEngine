@@ -6,7 +6,7 @@ public class InteractiveToolsFramework : ModuleRules
 {
 	public InteractiveToolsFramework(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+        PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
 		PublicIncludePaths.AddRange(
 			new string[] {
@@ -25,7 +25,10 @@ public class InteractiveToolsFramework : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core"
+                "Core",
+                "CoreUObject",
+                "InputCore",
+                "ApplicationCore",
 				// ... add other public dependencies that you statically link with here ...
 			}
             );
@@ -34,7 +37,6 @@ public class InteractiveToolsFramework : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"CoreUObject",
 				"Engine"
 				//"Slate",
 				//"SlateCore",

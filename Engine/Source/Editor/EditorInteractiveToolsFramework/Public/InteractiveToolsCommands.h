@@ -70,7 +70,7 @@ protected:
 
 	/** Forwarding constructor */
 	TInteractiveToolCommands(const FName InContextName, const FText& InContextDesc, const FName InContextParent, const FName InStyleSetName)
-		: TCommands(InContextName, InContextDesc, InContextParent, InStyleSetName)
+		: TCommands<CommandContextType>(InContextName, InContextDesc, InContextParent, InStyleSetName)
 	{
 	}
 
