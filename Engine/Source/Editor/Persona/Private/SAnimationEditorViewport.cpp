@@ -580,7 +580,10 @@ void SAnimationEditorViewportTabBody::Construct(const FArguments& InArgs, const 
 	PopulateSkinWeightProfileNames();
 
 	GetPreviewScene()->OnRecordingStateChanged().AddSP(this, &SAnimationEditorViewportTabBody::AddRecordingNotification);
-	GetPreviewScene()->GetPreviewMesh()->OnPostMeshCached().AddSP(this, &SAnimationEditorViewportTabBody::UpdateSkinWeightSelection);
+	if (GetPreviewScene()->GetPreviewMesh())
+	{
+		GetPreviewScene()->GetPreviewMesh()->OnPostMeshCached().AddSP(this, &SAnimationEditorViewportTabBody::UpdateSkinWeightSelection);
+	}
 
 	AddPostProcessNotification();
 
