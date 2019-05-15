@@ -450,13 +450,7 @@ FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 		GMaxRHIShaderPlatform = SP_PCD3D_SM5;
 	}
 
-	TArray<FD3D12Adapter*> RawPointers;
-	for (int32 i = 0; i < ChosenAdapters.Num(); i++)
-	{
-		RawPointers.Add(ChosenAdapters[i].Get());
-	}
-
-	return new FD3D12DynamicRHI(RawPointers);
+	return new FD3D12DynamicRHI(ChosenAdapters);
 }
 
 void FD3D12DynamicRHIModule::StartupModule()
@@ -505,7 +499,7 @@ void FD3D12DynamicRHIModule::ShutdownModule()
 
 void FD3D12DynamicRHI::Init()
 {
-	for (FD3D12Adapter*& Adapter : ChosenAdapters)
+	for (TSharedPtr<FD3D12Adapter>& Adapter : ChosenAdapters)
 	{
 		Adapter->Initialize(this);
 	}
@@ -533,7 +527,7 @@ void FD3D12DynamicRHI::Init()
 
 	// Create a device chain for each of the adapters we have choosen. This could be a single discrete card,
 	// a set discrete cards linked together (i.e. SLI/Crossfire) an Integrated device or any combination of the above
-	for (FD3D12Adapter*& Adapter : ChosenAdapters)
+	for (TSharedPtr<FD3D12Adapter>& Adapter : ChosenAdapters)
 	{
 		check(Adapter->GetDesc().IsValid());
 		Adapter->InitializeDevices();
@@ -715,7 +709,7 @@ void FD3D12DynamicRHI::PostInit()
 
 	if (GRHISupportsRayTracing)
 	{
-		for (FD3D12Adapter*& Adapter : ChosenAdapters)
+		for (TSharedPtr<FD3D12Adapter>& Adapter : ChosenAdapters)
 		{
 			Adapter->InitializeRayTracing();
 		}

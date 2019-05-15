@@ -912,7 +912,7 @@ void FD3D12DynamicRHI::RHIAdvanceFrameForGetViewportBackBuffer(FViewportRHIParam
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	auto& Adapter = ChosenAdapters[0];
 	{
-		check(Adapter != nullptr);
+		check(Adapter.IsValid());
 		Adapter->SignalFrameFence_RenderThread(RHICmdList);
 	}
 

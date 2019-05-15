@@ -207,7 +207,7 @@ private:
 public:
 
 	/** Initialization constructor. */
-	FD3D12DynamicRHI(TArray<FD3D12Adapter*>& ChosenAdaptersIn);
+	FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& ChosenAdaptersIn);
 
 	/** Destructor */
 	virtual ~FD3D12DynamicRHI();
@@ -937,7 +937,7 @@ public:
 
 protected:
 
-	TArray<FD3D12Adapter*> ChosenAdapters;
+	TArray<TSharedPtr<FD3D12Adapter>> ChosenAdapters;
 
 	/** The feature level of the device. */
 	D3D_FEATURE_LEVEL FeatureLevel;
