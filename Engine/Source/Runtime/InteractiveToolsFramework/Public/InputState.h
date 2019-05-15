@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "InputCoreTypes.h"
 #include "Math/UnrealMath.h"
 
 
