@@ -2296,7 +2296,19 @@ void FStaticMeshRenderData::Cache(UStaticMesh* Owner, const FStaticMeshLODSettin
 				// TODO: Save non-inlined LODs separately
 			}
 
-			GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData);
+			bool bSaveDDC = true;
+#if WITH_EDITOR
+			//Do not save ddc when we are forcing the regeneration of ddc in automation test
+			//No need to take more space in the ddc.
+			if (GIsAutomationTesting && Owner->BuildCacheAutomationTestGuid.IsValid())
+			{
+				bSaveDDC = false;
+			}
+#endif
+			if (bSaveDDC)
+			{
+				GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData);
+			}
 
 			int32 T1 = FPlatformTime::Cycles();
 			UE_LOG(LogStaticMesh,Log,TEXT("Built static mesh [%.2fs] %s"),
