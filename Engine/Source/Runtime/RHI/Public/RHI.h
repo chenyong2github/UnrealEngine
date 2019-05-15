@@ -1068,6 +1068,12 @@ enum class EClearBinding
 	EDepthStencilBound, //target has a depthstencil value bound.  Clears will use the bound values and do hardware clears.
 };
 
+enum class EColorSpace
+{
+	ERec709sRGB,				// 709 primaries with sRGB transfer 
+	ERec2020PQ,					// 2020 primaries with PQ transfer 
+};
+
 struct FClearValueBinding
 {
 	struct DSVAlue
