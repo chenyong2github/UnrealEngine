@@ -11,8 +11,7 @@ enum class EHttpServerRequestVerbs : uint16
 	POST   = 1 << 1,
 	PUT    = 1 << 2,
 	PATCH  = 1 << 3,
-	DELETE = 1 << 4,
-	ALL = GET | POST | PUT | PATCH | DELETE,
+	DELETE = 1 << 4
 };
 
 ENUM_CLASS_FLAGS(EHttpServerRequestVerbs);
