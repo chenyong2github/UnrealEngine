@@ -183,6 +183,9 @@ public:
 	/** Queue a function bunch for this channel to be sent on the next property update. */
 	void QueueRemoteFunctionBunch( UObject* CallTarget, UFunction* Func, FOutBunch &Bunch );
 
+	/** If not queueing the RPC, prepare the channel for replicating the call.  */
+	void PrepareForRemoteFunction(UObject* TargetObj);
+	
 	/** Returns true if channel is ready to go dormant (e.g., all outstanding property updates have been ACK'd) */
 	virtual bool ReadyForDormancy(bool debug=false) override;
 	
