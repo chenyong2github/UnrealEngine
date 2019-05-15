@@ -456,14 +456,14 @@ public:
 		CanUseDepthStencil = (1 << 0),
 
 		// Informs the processor whether primitives can receive shadows from cascade shadow maps.
-		CanReceiveCSM =  (1 << 1)
+		CanReceiveCSM = (1 << 1)
 	};
 
 	FMobileBasePassMeshProcessor(
-		const FScene* InScene, 
-		ERHIFeatureLevel::Type InFeatureLevel, 
-		const FSceneView* InViewIfDynamicMeshCommand, 
-		const FMeshPassProcessorRenderState& InDrawRenderState, 
+		const FScene* InScene,
+		ERHIFeatureLevel::Type InFeatureLevel,
+		const FSceneView* InViewIfDynamicMeshCommand,
+		const FMeshPassProcessorRenderState& InDrawRenderState,
 		FMeshPassDrawListContext* InDrawListContext,
 		EFlags Flags,
 		ETranslucencyPass::Type InTranslucencyPassType = ETranslucencyPass::TPT_MAX);
@@ -484,7 +484,7 @@ private:
 		FMaterialShadingModelField ShadingModels,
 		const ELightMapPolicyType LightMapPolicyType,
 		const FUniformLightMapPolicy::ElementDataType& RESTRICT LightMapElementData);
-			
+
 	const ETranslucencyPass::Type TranslucencyPassType;
 	const bool bTranslucentBasePass;
 	const bool bCanReceiveCSM;
