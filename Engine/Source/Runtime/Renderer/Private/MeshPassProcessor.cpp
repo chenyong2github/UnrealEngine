@@ -893,23 +893,14 @@ void FMeshDrawCommand::SubmitDraw(
 
 	if (GShowMaterialDrawEvents)
 	{
-		const FPrimitiveSceneProxy* PrimitiveSceneProxy = MeshDrawCommand.DebugData.PrimitiveSceneProxy;
 		const FMaterial* Material = MeshDrawCommand.DebugData.Material;
+		FName ResourceName = MeshDrawCommand.DebugData.ResourceName;
 
-		FString DrawEventName;
-
-		if (PrimitiveSceneProxy)
-		{
-			DrawEventName = FString::Printf(
-				TEXT("%s %s"),
-				// Note: this is the parent's material name, not the material instance
-				*Material->GetFriendlyName(),
-				PrimitiveSceneProxy->GetResourceName().IsValid() ? *PrimitiveSceneProxy->GetResourceName().ToString() : TEXT(""));
-		}
-		else
-		{
-			DrawEventName = Material->GetFriendlyName();
-		}
+		FString DrawEventName = FString::Printf(
+			TEXT("%s %s"),
+			// Note: this is the parent's material name, not the material instance
+			*Material->GetFriendlyName(),
+			ResourceName.IsValid() ? *ResourceName.ToString() : TEXT(""));
 
 		const uint32 Instances = MeshDrawCommand.NumInstances * InstanceFactor;
 		if (Instances > 1)
@@ -998,6 +989,17 @@ void FMeshDrawCommand::SubmitDraw(
 		);
 	}
 }
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+void FMeshDrawCommand::SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders)
+{
+	DebugData.PrimitiveSceneProxyIfNotUsingStateBuckets = PrimitiveSceneProxy;
+	DebugData.Material = Material;
+	DebugData.MaterialRenderProxy = MaterialRenderProxy;
+	DebugData.VertexShader = UntypedShaders.VertexShader;
+	DebugData.PixelShader = UntypedShaders.PixelShader;
+	DebugData.ResourceName =  PrimitiveSceneProxy ? PrimitiveSceneProxy->GetResourceName() : FName();
+}
+#endif
 
 void SubmitMeshDrawCommands(
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
@@ -1201,6 +1203,9 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 		}
 		else
 		{
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+			MeshDrawCommand.ClearDebugPrimitiveSceneProxy(); //When using State Buckets multiple PrimitiveSceneProxies use the same MeshDrawCommand, so The PrimitiveSceneProxy pointer can't be stored.
+#endif
 			SetId = Scene.CachedMeshDrawCommandStateBuckets.Add(FMeshDrawCommandStateBucket(1, MeshDrawCommand));
 		}
 

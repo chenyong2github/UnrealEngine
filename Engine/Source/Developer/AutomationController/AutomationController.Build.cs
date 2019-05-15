@@ -10,7 +10,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
-					"CoreUObject",
+					"CoreUObject"
 				}
 			); 
 			
@@ -26,7 +26,7 @@ namespace UnrealBuildTool.Rules
 					"ScreenShotComparisonTools",
 					"HTTP",
                     "AssetRegistry"
-                }
+				}
 			);
 
             if (Target.bBuildEditor)

@@ -33,6 +33,25 @@ class ULandscapeLayerInfoObject;
 
 #if WITH_EDITOR
 
+namespace ELandscapeToolTargetType
+{
+	enum Type : int8
+	{
+		Heightmap = 0,
+		Weightmap = 1,
+		Visibility = 2,
+		Invalid = -1, // only valid for LandscapeEdMode->CurrentToolTarget.TargetType
+	};
+}
+
+/** Landscape EdMode Interface (used by ALandscape in Editor mode to access EdMode properties) */
+class ILandscapeEdModeInterface
+{
+public:
+	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const = 0;
+	virtual FGuid GetLandscapeSelectedLayer() const = 0;
+};
+
 struct FLandscapeTextureDataInfo
 {
 	struct FMipInfo
@@ -82,7 +101,7 @@ private:
 
 struct LANDSCAPE_API FLandscapeTextureDataInterface
 {
-	// tor
+	FLandscapeTextureDataInterface(bool bInUploadTextureChangesToGPU = true);
 	virtual ~FLandscapeTextureDataInterface();
 
 	// Texture data access
@@ -108,13 +127,14 @@ struct LANDSCAPE_API FLandscapeTextureDataInterface
 
 private:
 	TMap<UTexture2D*, FLandscapeTextureDataInfo*> TextureDataMap;
+	bool bUploadTextureChangesToGPU;
 };
 
 
 struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataInterface
 {
 	// tor
-	FLandscapeEditDataInterface(ULandscapeInfo* InLandscape);
+	FLandscapeEditDataInterface(ULandscapeInfo* InLandscape, bool bInUploadTextureChangesToGPU = true);
 
 	// Misc
 	bool GetComponentsInRegion(int32 X1, int32 Y1, int32 X2, int32 Y2, TSet<ULandscapeComponent*>* OutComponents = NULL);
@@ -186,12 +206,22 @@ struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataI
 	// Replace/merge a layer
 	void ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo, ULandscapeLayerInfoObject* ToLayerInfo);
 
+	template<typename TStoreData>
+	void GetEditToolTextureData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TStoreData& StoreData, TFunctionRef<UTexture2D*(ULandscapeComponent*)> GetComponentTexture);
+	void SetEditToolTextureData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint8* Data, int32 Stride, TFunctionRef<UTexture2D*&(ULandscapeComponent*)> GetComponentTexture);
+
 	// Without data interpolation, Select Data 
 	template<typename TStoreData>
 	void GetSelectDataTempl(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TStoreData& StoreData);
 	void GetSelectData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, uint8* Data, int32 Stride);
 	void GetSelectData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TMap<FIntPoint, uint8>& SparseData);
 	void SetSelectData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, const uint8* Data, int32 Stride);
+	
+	template<typename TStoreData>
+	void GetLayerContributionDataTempl(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TStoreData& StoreData);
+	void GetLayerContributionData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, uint8* Data, int32 Stride);
+	void GetLayerContributionData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TMap<FIntPoint, uint8>& SparseData);
+	void SetLayerContributionData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, const uint8* Data, int32 Stride);
 
 	//
 	// XYOffsetmap access
@@ -229,6 +259,8 @@ private:
 	FVector DrawScale;
 
 	ULandscapeInfo* LandscapeInfo;
+
+	void FillLayer(ULandscapeLayerInfoObject* LayerInfo, bool bEmptyLayersOnly);
 
 	// Only for Missing Data interpolation... only internal usage
 	template<typename TData, typename TStoreData, typename FType>
@@ -317,13 +349,13 @@ struct FHeightmapAccessor
 			for (ULandscapeComponent* Component : Components)
 			{
 				Component->InvalidateLightingCache();
+				Component->RequestHeightmapUpdate();
 			}
-
-			// Flush dynamic foliage (grass)
-			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
-
+						
 			// Notify foliage to move any attached instances
 			bool bUpdateFoliage = false;
+
+			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 
             // Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
 			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
@@ -441,18 +473,21 @@ struct FAlphamapAccessor
 
 	~FAlphamapAccessor()
 	{
-		// Recreate collision for modified components to update the physical materials
-		for (ULandscapeComponent* Component : ModifiedComponents)
+		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
-			if (CollisionComponent)
+			// Recreate collision for modified components to update the physical materials
+			for (ULandscapeComponent* Component : ModifiedComponents)
 			{
-				CollisionComponent->RecreateCollision();
-
-				// We need to trigger navigation mesh build, in case user have painted holes on a landscape
-				if (LayerInfo == ALandscapeProxy::VisibilityLayer)
+				ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+				if (CollisionComponent)
 				{
-					FNavigationSystem::UpdateComponentData(*CollisionComponent);
+					CollisionComponent->RecreateCollision();
+
+					// We need to trigger navigation mesh build, in case user have painted holes on a landscape
+					if (LayerInfo == ALandscapeProxy::VisibilityLayer)
+					{
+						FNavigationSystem::UpdateComponentData(*CollisionComponent);
+					}
 				}
 			}
 		}
@@ -473,12 +508,20 @@ struct FAlphamapAccessor
 		TSet<ULandscapeComponent*> Components;
 		if (LandscapeEdit.GetComponentsInRegion(X1, Y1, X2, Y2, &Components))
 		{
-			// Flush dynamic foliage (grass)
 			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+			for (ULandscapeComponent* LandscapeComponent : Components)
+			{
+				// Flag both modes depending on client calling SetData
+				LandscapeComponent->RequestWeightmapUpdate();
+			}
+			
+			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			{
+				ModifiedComponents.Append(Components);
+			}
 
 			LandscapeEdit.SetAlphaData(LayerInfo, X1, Y1, X2, Y2, Data, 0, PaintingRestriction, bBlendWeight, bUseTotalNormalize);
 			//LayerInfo->IsReferencedFromLoadedData = true;
-			ModifiedComponents.Append(Components);
 		}
 	}
 

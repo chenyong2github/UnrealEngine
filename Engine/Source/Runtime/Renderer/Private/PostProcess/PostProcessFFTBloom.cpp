@@ -1071,14 +1071,15 @@ bool FRCPassFFTBloom::HasValidPhysicalKernel(FPostprocessContext& Context)
 		BloomConvolutionTexture = GEngine->DefaultBloomKernelTexture;
 	}
 
+	bool bValidSetup = (BloomConvolutionTexture != nullptr && BloomConvolutionTexture->Resource != nullptr);
+
 	// The bloom convolution kernel needs to be resident to avoid visual artifacts.
+	if (bValidSetup)
 	{
 		const int32 CinematicTextureGroups = 0;
 		const float Seconds = 5.0f;
 		BloomConvolutionTexture->SetForceMipLevelsToBeResident(Seconds, CinematicTextureGroups);
 	}
-
-	bool bValidSetup = (BloomConvolutionTexture != nullptr && BloomConvolutionTexture->Resource != nullptr);
 
 	const uint32 FramesPerWarning = 15;
 

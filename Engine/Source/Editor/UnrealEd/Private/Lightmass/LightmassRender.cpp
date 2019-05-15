@@ -41,7 +41,7 @@ struct FLightmassMaterialCompiler : public FProxyMaterialCompiler
 		return SF_Pixel;
 	}
 
-	virtual EMaterialShadingModel GetMaterialShadingModel() const override
+	virtual FMaterialShadingModelField GetMaterialShadingModels() const override
 	{ 
 		// not used by Lightmass
 		return MSM_MAX;
@@ -255,7 +255,7 @@ public:
 					GetDependentShaderAndVFTypes(GMaxRHIShaderPlatform, ShaderTypes, ShaderPipelineTypes, VFTypes);
 
 					// Overwrite the shader map Id's dependencies with ones that came from the FMaterial actually being compiled (this)
-					// This is necessary as we change FMaterial attributes like GetShadingModel(), which factor into the ShouldCache functions that determine dependent shader types
+					// This is necessary as we change FMaterial attributes like GetShadingModels(), which factor into the ShouldCache functions that determine dependent shader types
 					ResourceId.SetShaderDependencies(ShaderTypes, ShaderPipelineTypes, VFTypes, GMaxRHIShaderPlatform);
 				}
 
@@ -367,7 +367,7 @@ public:
 		{
 			UMaterial* ProxyMaterial = MaterialInterface->GetMaterial();
 			EBlendMode BlendMode = MaterialInterface->GetBlendMode();
-			EMaterialShadingModel ShadingModel = MaterialInterface->GetShadingModel();
+			bool bIsMaterialUnlit = MaterialInterface->GetShadingModels().IsUnlit();
 			check(ProxyMaterial);
 			FLightmassMaterialCompiler ProxyCompiler(Compiler);
 
@@ -413,7 +413,7 @@ public:
 				}
 				else if (BlendMode == BLEND_Modulate)
 				{
-					if (ShadingModel == MSM_Unlit)
+					if (bIsMaterialUnlit)
 					{
 						return MaterialInterface->CompileProperty(Compiler, MP_EmissiveColor, ForceCast_Exact_Replicate);
 					}
@@ -425,7 +425,7 @@ public:
 				else if ((BlendMode == BLEND_Translucent) || (BlendMode == BLEND_Additive || (BlendMode == BLEND_AlphaComposite)))
 				{
 					int32 ColoredOpacity = INDEX_NONE;
-					if (ShadingModel == MSM_Unlit)
+					if (bIsMaterialUnlit)
 					{
 						ColoredOpacity = MaterialInterface->CompileProperty(Compiler, MP_EmissiveColor, ForceCast_Exact_Replicate);
 					}
@@ -436,6 +436,8 @@ public:
 					return Compiler->Lerp(Compiler->Constant3(1.0f, 1.0f, 1.0f), ColoredOpacity, Compiler->Saturate(MaterialInterface->CompileProperty(&ProxyCompiler,MP_Opacity,MFCF_ForceCast)));
 				}
 				break;
+			case MP_ShadingModel:
+				return MaterialInterface->CompileProperty(&ProxyCompiler, MP_ShadingModel);
 			default:
 				return Compiler->Constant(1.0f);
 			}
@@ -451,6 +453,10 @@ public:
 		{
 			// Pass through customized UVs
 			return MaterialInterface->CompileProperty(Compiler, Property);
+		}
+		else if (Property == MP_ShadingModel)
+		{
+			return MaterialInterface->CompileProperty(Compiler, MP_ShadingModel);
 		}
 		else
 		{
@@ -523,11 +529,11 @@ public:
 		}
 		return false;
 	}
-	virtual bool IsMasked() const override								{ return false; }
-	virtual enum EBlendMode GetBlendMode() const override				{ return BLEND_Opaque; }
-	virtual enum EMaterialShadingModel GetShadingModel() const override	{ return MSM_Unlit; }
-	virtual float GetOpacityMaskClipValue() const override				{ return 0.5f; }
-	virtual bool GetCastDynamicShadowAsMasked() const override					{ return false; }
+	virtual bool IsMasked() const override									{ return false; }
+	virtual enum EBlendMode GetBlendMode() const override					{ return BLEND_Opaque; }
+	virtual FMaterialShadingModelField GetShadingModels() const override	{ return MSM_Unlit; }
+	virtual float GetOpacityMaskClipValue() const override					{ return 0.5f; }
+	virtual bool GetCastDynamicShadowAsMasked() const override				{ return false; }
 	virtual FString GetFriendlyName() const override { return FString::Printf(TEXT("FLightmassMaterialRenderer %s"), MaterialInterface ? *MaterialInterface->GetName() : TEXT("NULL")); }
 
 	/**
@@ -605,7 +611,7 @@ public:
 		OutUniformValue.A = 0.0f;
 
 		EBlendMode BlendMode = MaterialInterface->GetBlendMode();
-		EMaterialShadingModel ShadingModel = MaterialInterface->GetShadingModel();
+		bool bIsMaterialUnlit = MaterialInterface->GetShadingModels().IsUnlit();
 		
 		check(Material);
 		bool bExpressionIsNULL = false;
@@ -654,7 +660,7 @@ public:
 				(BlendMode == BLEND_AlphaComposite))
 			{
 				bool bColorInputIsNULL = false;
-				if (ShadingModel == MSM_Unlit)
+				if (bIsMaterialUnlit)
 				{
 					bColorInputIsNULL = !IsMaterialInputConnected(Material, MP_EmissiveColor);
 				}
@@ -924,15 +930,15 @@ bool FLightmassMaterialRenderer::GenerateMaterialData(
 	check(BaseMaterial);
 
 	EBlendMode BlendMode = InMaterial.GetBlendMode();
-	EMaterialShadingModel ShadingModel = InMaterial.GetShadingModel();
- 	if ((ShadingModel != MSM_DefaultLit) &&
-		(ShadingModel != MSM_Unlit) &&
-		(ShadingModel != MSM_Subsurface) &&
-		(ShadingModel != MSM_PreintegratedSkin) &&
-		(ShadingModel != MSM_SubsurfaceProfile))
+	FMaterialShadingModelField ShadingModels = InMaterial.GetShadingModels();
+ 	if (!ShadingModels.HasShadingModel(MSM_DefaultLit) &&
+		!ShadingModels.HasShadingModel(MSM_Unlit) &&
+		!ShadingModels.HasShadingModel(MSM_Subsurface) &&
+		!ShadingModels.HasShadingModel(MSM_PreintegratedSkin) &&
+		!ShadingModels.HasShadingModel(MSM_SubsurfaceProfile))
 	{
 		UE_LOG(LogLightmassRender, Warning, TEXT("LIGHTMASS: Material has an unsupported shading model: %d on %s"), 
-			(int32)ShadingModel,
+			(int32)ShadingModels.GetShadingModelField(),
 			*(InMaterial.GetPathName()));
 	}
 

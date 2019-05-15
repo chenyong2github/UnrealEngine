@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Units/Debug/RigUnit_DebugBase.h"
+#include "Math/ControlRigMathLibrary.h"
 #include "RigUnit_DebugBezier.generated.h"
 
 USTRUCT(meta=(DisplayName="Draw Bezier"))
@@ -12,7 +13,7 @@ struct FRigUnit_DebugBezier : public FRigUnit_DebugBaseMutable
 
 	FRigUnit_DebugBezier()
 	{
-		A = B = C = D = FVector::ZeroVector;
+		Bezier = FCRFourPointBezier();
 		Color = FLinearColor::Red;
 		MinimumU = 0.f;
 		MaximumU = 1.f;
@@ -25,16 +26,7 @@ struct FRigUnit_DebugBezier : public FRigUnit_DebugBaseMutable
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
-	FVector A;
-
-	UPROPERTY(meta = (Input))
-	FVector B;
-
-	UPROPERTY(meta = (Input))
-	FVector C;
-
-	UPROPERTY(meta = (Input))
-	FVector D;
+	FCRFourPointBezier Bezier;
 
 	UPROPERTY(meta = (Input))
 	float MinimumU;

@@ -1620,6 +1620,10 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 				{
 					FinalCull = ComputeBoundsDrawDistance(MinSize, SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
 				}
+				if (View->SceneViewInitOptions.OverrideFarClippingPlaneDistance > 0.0f)
+				{
+					FinalCull = FMath::Min(FinalCull, View->SceneViewInitOptions.OverrideFarClippingPlaneDistance * MaxDrawDistanceScale);
+				}
 				if (UserData_AllInstances.EndCullDistance > 0.0f)
 				{
 					FinalCull = FMath::Min(FinalCull, UserData_AllInstances.EndCullDistance * MaxDrawDistanceScale);
@@ -1796,6 +1800,10 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 						{
 							FinalCull = ComputeBoundsDrawDistance(MinSize, SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
 						}
+						if (View->SceneViewInitOptions.OverrideFarClippingPlaneDistance > 0.0f)
+						{
+							FinalCull = FMath::Min(FinalCull, View->SceneViewInitOptions.OverrideFarClippingPlaneDistance * MaxDrawDistanceScale);
+						}
 						if (UserData_AllInstances.EndCullDistance > 0.0f)
 						{
 							FinalCull = FMath::Min(FinalCull, UserData_AllInstances.EndCullDistance * MaxDrawDistanceScale);
@@ -1960,7 +1968,7 @@ void UHierarchicalInstancedStaticMeshComponent::PostEditChangeChainProperty(FPro
 		(PropertyChangedEvent.Property != NULL && PropertyChangedEvent.Property->GetFName() == "Transform") ||
 		(PropertyChangedEvent.Property != NULL && PropertyChangedEvent.Property->GetFName() == "StaticMesh"))
 	{
-		if (FApp::CanEverRender() && !HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+		if (FApp::CanEverRender())
 		{
 			BuildTreeIfOutdated(false, false);
 		}
@@ -2049,7 +2057,7 @@ void UHierarchicalInstancedStaticMeshComponent::PostDuplicate(bool bDuplicateFor
 {
 	Super::PostDuplicate(bDuplicateForPIE);
 
-	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) && bDuplicateForPIE)
+	if (bDuplicateForPIE)
 	{
 		BuildTreeIfOutdated(false, false);
 	}
@@ -2415,6 +2423,7 @@ void UHierarchicalInstancedStaticMeshComponent::PostBuildStats()
 
 void UHierarchicalInstancedStaticMeshComponent::BuildTree()
 {
+	check(!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject));
 	checkSlow(IsInGameThread());
 
 	// If we try to build the tree with the static mesh not fully loaded, we can end up in an inconsistent state which ends in a crash later
@@ -2666,20 +2675,22 @@ void UHierarchicalInstancedStaticMeshComponent::OnComponentCreated()
 {
 	Super::OnComponentCreated();
 
-	if (FApp::CanEverRender() && !HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	// if we are pasting/duplicating this component, it may be created with some instances already in place
+	// in this case, need to ensure that the tree is properly created
+	if (FApp::CanEverRender() && PerInstanceSMData.Num() > 0 && ClusterTreePtr->Num() == 0)
 	{
-		// if we are pasting/duplicating this component, it may be created with some instances already in place
-		// in this case, need to ensure that the tree is properly created
-		if (PerInstanceSMData.Num() > 0 && ClusterTreePtr->Num() == 0)
-		{
-			const bool bForceUpdate = true;
-			BuildTreeIfOutdated(false, bForceUpdate);
-		}
+		const bool bForceUpdate = true;
+		BuildTreeIfOutdated(false, bForceUpdate);
 	}
 }
 
 bool UHierarchicalInstancedStaticMeshComponent::BuildTreeIfOutdated(bool Async, bool ForceUpdate)
 {
+	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	{
+		return false;
+	}
+
 	if (ForceUpdate 
 		|| InstanceUpdateCmdBuffer.NumTotalCommands() != 0
 		|| InstanceReorderTable.Num() != PerInstanceSMData.Num()
@@ -2720,6 +2731,7 @@ bool UHierarchicalInstancedStaticMeshComponent::BuildTreeIfOutdated(bool Async, 
 
 void UHierarchicalInstancedStaticMeshComponent::BuildTreeAsync()
 {
+	check(!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject));
 	check(IsInGameThread());
 
 	// If we try to build the tree with the static mesh not fully loaded, we can end up in an inconsistent state which ends in a crash later
@@ -2804,25 +2816,32 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTreeAsync()
 
 void UHierarchicalInstancedStaticMeshComponent::PropagateLightingScenarioChange()
 {
-	if (GIsEditor && PerInstanceRenderData.IsValid())
+	if (PerInstanceRenderData.IsValid())
 	{
-		FComponentRecreateRenderStateContext Context(this);
-
-		const FMeshMapBuildData* MeshMapBuildData = nullptr;
-		if (LODData.Num() > 0)
+		if (GIsEditor)
 		{
-			MeshMapBuildData = GetMeshMapBuildData(LODData[0]);
-		}
+			FComponentRecreateRenderStateContext Context(this);
 
-		if (MeshMapBuildData != nullptr)
-		{
-			for (int32 InstanceIndex = 0; InstanceIndex < PerInstanceSMData.Num(); ++InstanceIndex)
+			const FMeshMapBuildData* MeshMapBuildData = nullptr;
+			if (LODData.Num() > 0)
 			{
-				int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
-
-				InstanceUpdateCmdBuffer.SetLightMapData(RenderIndex, MeshMapBuildData->PerInstanceLightmapData[InstanceIndex].LightmapUVBias);
-				InstanceUpdateCmdBuffer.SetShadowMapData(RenderIndex, MeshMapBuildData->PerInstanceLightmapData[InstanceIndex].ShadowmapUVBias);
+				MeshMapBuildData = GetMeshMapBuildData(LODData[0]);
 			}
+
+			if (MeshMapBuildData != nullptr)
+			{
+				for (int32 InstanceIndex = 0; InstanceIndex < PerInstanceSMData.Num(); ++InstanceIndex)
+				{
+					int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
+
+					InstanceUpdateCmdBuffer.SetLightMapData(RenderIndex, MeshMapBuildData->PerInstanceLightmapData[InstanceIndex].LightmapUVBias);
+					InstanceUpdateCmdBuffer.SetShadowMapData(RenderIndex, MeshMapBuildData->PerInstanceLightmapData[InstanceIndex].ShadowmapUVBias);
+				}
+			}
+		}
+		else
+		{
+			BuildTreeIfOutdated(true, true);
 		}
 	}
 }
@@ -2957,6 +2976,16 @@ void UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 		}
 		else
 		{
+			AActor* Owner = GetOwner();
+			ULevel* OwnerLevel = Owner->GetLevel();
+			UWorld* OwnerWorld = OwnerLevel ? OwnerLevel->OwningWorld : nullptr;
+
+			if (OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel)
+			{
+				//update the instance data if the lighting scenario isn't the owner level
+				bForceTreeBuild = true;
+			}
+
 			if (!bForceTreeBuild)
 			{
 				// create PerInstanceRenderData either from current data or pre-built instance buffer

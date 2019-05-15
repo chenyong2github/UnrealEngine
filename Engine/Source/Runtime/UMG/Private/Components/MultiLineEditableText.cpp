@@ -122,6 +122,27 @@ void UMultiLineEditableText::SetText(FText InText)
 	}
 }
 
+FText UMultiLineEditableText::GetHintText() const
+{
+	if (MyMultiLineEditableText.IsValid())
+	{
+		return MyMultiLineEditableText->GetHintText();
+	}
+
+	return HintText;
+}
+
+void UMultiLineEditableText::SetHintText(FText InHintText)
+{
+	HintText = InHintText;
+	HintTextDelegate.Clear();
+	if (MyMultiLineEditableText.IsValid())
+	{
+		TAttribute<FText> HintTextBinding = PROPERTY_BINDING(FText, HintText);
+		MyMultiLineEditableText->SetHintText(HintTextBinding);
+	}
+}
+
 void UMultiLineEditableText::SetIsReadOnly(bool bReadOnly)
 {
 	bIsReadOnly = bReadOnly;

@@ -13,7 +13,7 @@ class ALevelSequenceActor;
 class FJsonObject;
 class FSceneViewport;
 class ULevelSequenceBurnInOptions;
-
+struct FMovieSceneTimeController_FrameStep;
 
 UCLASS(config=EditorPerProjectUserSettings, PerObjectConfig)
 class MOVIESCENETOOLS_API UAutomatedLevelSequenceCapture : public UMovieSceneCapture
@@ -172,8 +172,6 @@ private:
 
 	FLevelSequencePlayerSnapshot CachedState;
 
-	TOptional<float> CachedPlayRate;
-
 	FTimerHandle DelayTimer;
 
 	struct FCinematicShotCache
@@ -199,5 +197,7 @@ private:
 	TOptional<FFrameNumber> CachedEndFrame;
 	TOptional<bool> bCachedUseCustomStartFrame;
 	TOptional<bool> bCachedUseCustomEndFrame;
+
+	TSharedPtr<FMovieSceneTimeController_FrameStep> TimeController;
 };
 

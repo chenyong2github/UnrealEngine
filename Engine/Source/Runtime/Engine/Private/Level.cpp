@@ -58,6 +58,7 @@ Level.cpp: Level-related functions
 #include "Engine/StaticMeshActor.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Algo/Copy.h"
+#include "HAL/LowLevelMemTracker.h"
 
 DEFINE_LOG_CATEGORY(LogLevel);
 
@@ -469,6 +470,7 @@ void ULevel::SortActorList()
 		// No need to sort an empty list
 		return;
 	}
+	LLM_REALLOC_SCOPE(Actors.GetData());
 
 	TArray<AActor*> NewActors;
 	TArray<AActor*> NewNetActors;
@@ -513,21 +515,6 @@ void ULevel::SortActorList()
 }
 
 
-void ULevel::ValidateLightGUIDs()
-{
-	for( TObjectIterator<ULightComponent> It; It; ++It )
-	{
-		ULightComponent*	LightComponent	= *It;
-		bool				IsInLevel		= LightComponent->IsIn( this );
-
-		if( IsInLevel )
-		{
-			LightComponent->ValidateLightGUIDs();
-		}
-	}
-}
-
-
 void ULevel::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 	Super::PreSave(TargetPlatform);
@@ -535,10 +522,6 @@ void ULevel::PreSave(const class ITargetPlatform* TargetPlatform)
 #if WITH_EDITOR
 	if( !IsTemplate() )
 	{
-		UPackage* Package = GetOutermost();
-
-		ValidateLightGUIDs();
-
 		// Clear out any crosslevel references
 		for( int32 ActorIdx = 0; ActorIdx < Actors.Num(); ActorIdx++ )
 		{
@@ -548,8 +531,6 @@ void ULevel::PreSave(const class ITargetPlatform* TargetPlatform)
 				Actor->ClearCrossLevelReferences();
 			}
 		}
-
-		// CheckTextureStreamingBuild(this);
 	}
 #endif // WITH_EDITOR
 }

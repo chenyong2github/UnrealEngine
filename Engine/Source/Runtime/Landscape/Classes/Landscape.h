@@ -10,6 +10,12 @@
 #include "Landscape.generated.h"
 
 class ULandscapeComponent;
+class ILandscapeEdModeInterface;
+
+namespace ELandscapeToolTargetType
+{
+	enum Type : int8;
+};
 
 UENUM()
 enum ELandscapeSetupErrors
@@ -72,31 +78,9 @@ enum EWeightmapRTType : uint8
 	WeightmapRT_Count
 };
 
-// Internal Update Flags that shouldn't be used alone
-enum EInternalLandscapeLayersContentUpdateFlag : uint32
-{
-	Internal_Heightmap_Render = 0x00000001u,
-	Internal_Heightmap_BoundsAndCollision = 0x00000002u,
-	Internal_Heightmap_ResolveToTexture = 0x00000004u,
-	Internal_Heightmap_ClientUpdate = 0x000000008u,
-
-	Internal_Weightmap_Render = 0x00000100u,
-	Internal_Weightmap_Collision = 0x00000200u,
-	Internal_Weightmap_ResolveToTexture = 0x00000400u,
-};
-
-enum ELandscapeLayersContentUpdateFlag : uint32
-{
-	Heightmap_Render = Internal_Heightmap_Render,
-	Weightmap_Render = Internal_Weightmap_Render,
-
-	// Combinations
-	Heightmap_All = Internal_Heightmap_Render | Internal_Heightmap_BoundsAndCollision | Internal_Heightmap_ResolveToTexture | Internal_Heightmap_ClientUpdate,
-	Weightmap_All = Internal_Weightmap_Render | Internal_Weightmap_Collision | Internal_Weightmap_ResolveToTexture,
-
-	All = Heightmap_All | Weightmap_All,
-	All_Render = Heightmap_Render | Weightmap_Render,
-};
+#if WITH_EDITOR
+enum ELandscapeLayerUpdateMode : uint32;
+#endif
 
 USTRUCT()
 struct FLandscapeLayerBrush
@@ -166,6 +150,8 @@ struct FLandscapeLayer
 		, WeightmapAlpha(1.0f)
 		, BlendMode(LSBM_AdditiveBlend)
 	{}
+
+	FLandscapeLayer(const FLandscapeLayer& OtherLayer) = default;
 
 	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
 	FGuid Guid;
@@ -248,9 +234,13 @@ public:
 
 	// Layers stuff
 #if WITH_EDITOR
-	LANDSCAPE_API void RequestLayersInitialization() { bLandscapeLayersAreInitialized = false; }
-	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag InDataFlags, bool InUpdateAllMaterials = false);
+	LANDSCAPE_API void RegisterLandscapeEdMode(ILandscapeEdModeInterface* InLandscapeEdMode) { LandscapeEdMode = InLandscapeEdMode; }
+	LANDSCAPE_API void UnregisterLandscapeEdMode() { LandscapeEdMode = nullptr; }
+	LANDSCAPE_API void RequestLayersInitialization(bool bInRequestContentUpdate = true);
+	LANDSCAPE_API void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InModeMask = ELandscapeLayerUpdateMode::Update_All);
+	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InModeMask);
 	LANDSCAPE_API bool ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex);
+	LANDSCAPE_API FLandscapeLayer* DuplicateLayer(const FLandscapeLayer& InOtherLayer);
 	LANDSCAPE_API void CreateLayer(FName InName = NAME_None);
 	LANDSCAPE_API void CreateDefaultLayer();
 	LANDSCAPE_API void CopyOldDataToDefaultLayer();
@@ -260,8 +250,11 @@ public:
 	LANDSCAPE_API bool IsLayerNameUnique(const FName& InName) const;
 	LANDSCAPE_API void SetLayerName(int32 InLayerIndex, const FName& InName);
 	LANDSCAPE_API void SetLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bInHeightmap);
+	LANDSCAPE_API float GetLayerAlpha(int32 InLayerIndex, bool bInHeightmap) const;
+	LANDSCAPE_API float GetClampedLayerAlpha(float InAlpha, bool bInHeightmap) const;
 	LANDSCAPE_API void SetLayerVisibility(int32 InLayerIndex, bool bInVisible);
 	LANDSCAPE_API void SetLayerLocked(int32 InLayerIndex, bool bLocked);
+	LANDSCAPE_API uint8 GetLayerCount() const;
 	LANDSCAPE_API struct FLandscapeLayer* GetLayer(int32 InLayerIndex);
 	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(int32 InLayerIndex) const;
 	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(const FGuid& InLayerGuid) const;
@@ -271,6 +264,7 @@ public:
 	LANDSCAPE_API void DeleteLayer(int32 InLayerIndex);
 	LANDSCAPE_API void SetEditingLayer(const FGuid& InLayerGuid = FGuid());
 	LANDSCAPE_API const FGuid& GetEditingLayer() const;
+	LANDSCAPE_API bool IsMaxLayersReached() const;
 	LANDSCAPE_API void ShowOnlySelectedLayer(int32 InLayerIndex);
 	LANDSCAPE_API void ShowAllLayers();
 	LANDSCAPE_API void UpdateLandscapeSplines(const FGuid& InLayerGuid = FGuid(), bool bUpdateOnlySelected = false);
@@ -290,26 +284,32 @@ public:
 	LANDSCAPE_API class ALandscapeBlueprintCustomBrush* GetBrushForLayer(int32 InLayerIndex, int32 InTargetType, int8 BrushIndex) const;
 	LANDSCAPE_API TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForLayer(int32 InLayerIndex, int32 InTargetType) const;
 	
+	LANDSCAPE_API void OnPreSave();
+
 private:
 	void TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
-	void CreateLayersRenderingResource(const FIntPoint& InComponentCounts);
-	void RegenerateLayersContent();
-	void RegenerateLayersHeightmaps();
-	void RegenerateLayersWeightmaps();
+	void CreateLayersRenderingResource();
+	void ReleaseLayersRenderingResource();
+	void UpdateLayersContent(bool bInWaitForStreaming = false);
+	void MonitorShaderCompilation();
+	void MonitorLandscapeEdModeChanges();
+	int32 RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool bInWaitForStreaming);
+	int32 RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool bInWaitForStreaming);
+	bool UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, const int32 InContentUpdateModes);
 	void ResolveLayersHeightmapTexture();
 	void ResolveLayersWeightmapTexture();
 	void ResolveLayersTexture(class FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOutputTexture);
 
-	bool PrepareLayersHeightmapTextureResources() const;
-	bool PrepareLayersWeightmapTextureResources() const;
+	bool PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming) const;
+	bool PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming) const;
 
-	void UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*>& InComponentsToUpdate);
+	void UpdateLayersMaterialInstances();
 
 	void PrepareComponentDataToExtractMaterialLayersCS(const FLandscapeLayer& InLayer, int32 InCurrentWeightmapToProcessIndex, const FIntPoint& InLandscapeBase, bool InOutputDebugName, class FLandscapeTexture2DResource* InOutTextureData,
 														  TArray<struct FLandscapeLayerWeightmapExtractMaterialLayersComponentData>& OutComponentData, TMap<ULandscapeLayerInfoObject*, int32>& OutLayerInfoObjects);
 	void PrepareComponentDataToPackMaterialLayersCS(int32 InCurrentWeightmapToProcessIndex, const FIntPoint& InLandscapeBase, bool InOutputDebugName, const TArray<ULandscapeComponent*>& InAllLandscapeComponents, TArray<UTexture2D*>& InOutProcessedWeightmaps,
 													TArray<class FLandscapeLayersTexture2DCPUReadBackResource*>& OutProcessedCPUReadBackTexture, TArray<struct FLandscapeLayerWeightmapPackMaterialLayersComponentData>& OutComponentData);
-	void ReallocateLayersWeightmaps(const TArray<ULandscapeLayerInfoObject*>& InBrushRequiredAllocations, TArray<ULandscapeComponent*>& OutComponentThatNeedMaterialRebuild);
+	void ReallocateLayersWeightmaps(const TArray<ULandscapeLayerInfoObject*>& InBrushRequiredAllocations);
 	void InitializeLayersWeightmapResources();
 	bool GenerateZeroAllocationPerComponents(const TArray<ALandscapeProxy*>& InAllLandscape, const TMap<ULandscapeLayerInfoObject*, bool>& InWeightmapLayersBlendSubstractive);
 
@@ -367,9 +367,24 @@ public:
 	TArray<UTextureRenderTarget2D*> WeightmapRTList;
 
 	UPROPERTY(Transient)
-	bool PreviousExperimentalLandscapeLayers;
+	bool bInitializedWithFlagExperimentalLandscapeLayers;
 
 private:
+	/** Provides information from LandscapeEdMode */
+	ILandscapeEdModeInterface* LandscapeEdMode;
+
+	/** Information provided by LandscapeEdMode */
+	struct FLandscapeEdModeInfo
+	{
+		FLandscapeEdModeInfo();
+
+		int32 ViewMode;
+		FGuid SelectedLayer;
+		ELandscapeToolTargetType::Type ToolTarget;
+	};
+
+	FLandscapeEdModeInfo LandscapeEdModeInfo;
+
 	UPROPERTY(Transient)
 	bool bLandscapeLayersAreInitialized;
 	
@@ -377,11 +392,8 @@ private:
 	bool WasCompilingShaders;
 
 	UPROPERTY(Transient)
-	uint32 LayersContentUpdateFlags;
-
-	UPROPERTY(Transient)
-	bool LayersUpdateAllMaterials;
-
+	uint32 LayerContentUpdateModes;
+		
 	// Represent all the resolved paint layer, from all layers blended together (size of the landscape x material layer count)
 	class FLandscapeTexture2DArrayResource* CombinedLayersWeightmapAllMaterialLayersResource;
 	
@@ -392,7 +404,7 @@ private:
 	class FLandscapeTexture2DResource* WeightmapScratchExtractLayerTextureResource;	
 	
 	// Used in packing the material layer data contained into CombinedLayersWeightmapAllMaterialLayersResource to be set again for each component weightmap (size of the landscape)
-	class FLandscapeTexture2DResource* WeightmapScratchPackLayerTextureResource;	
+	class FLandscapeTexture2DResource* WeightmapScratchPackLayerTextureResource;
 #endif
 
 protected:

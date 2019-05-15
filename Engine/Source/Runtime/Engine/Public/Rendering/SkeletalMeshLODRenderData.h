@@ -14,6 +14,7 @@
 #include "BoneIndices.h"
 #include "StaticMeshResources.h"
 #include "GPUSkinVertexFactory.h"
+#include "Animation/SkinWeightProfile.h"
 
 #if WITH_EDITOR
 class FSkeletalMeshLODModel;
@@ -120,6 +121,8 @@ public:
 	/** GPU friendly access data for MorphTargets for an LOD */
 	FMorphTargetVertexInfoBuffers	MorphTargetVertexInfoBuffers;
 
+	/** Skin weight profile data structures, can contain multiple profiles and their runtime FSkinWeightVertexBuffer */
+	FSkinWeightProfilesData SkinWeightProfilesData;
 
 	TArray<FBoneIndexType> ActiveBoneIndices;
 
@@ -179,6 +182,20 @@ public:
 	uint32 GetNumTexCoords() const
 	{
 		return StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+	}
+
+	/** Checks whether or not the skin weight buffer has been overridden 'by default' and if not return the original Skin Weight buffer */
+	FSkinWeightVertexBuffer* GetSkinWeightVertexBuffer() 
+	{
+		FSkinWeightVertexBuffer* OverrideBuffer = SkinWeightProfilesData.GetDefaultOverrideBuffer();
+		return OverrideBuffer != nullptr ? OverrideBuffer : &SkinWeightVertexBuffer;
+	}
+	
+	/** Checks whether or not the skin weight buffer has been overridden 'by default' and if not return the original Skin Weight buffer */
+	const FSkinWeightVertexBuffer* GetSkinWeightVertexBuffer() const
+	{
+		FSkinWeightVertexBuffer* OverrideBuffer = SkinWeightProfilesData.GetDefaultOverrideBuffer();
+		return OverrideBuffer != nullptr ? OverrideBuffer : &SkinWeightVertexBuffer;
 	}
 
 	/** Utility function for returning total number of faces in this LOD. */

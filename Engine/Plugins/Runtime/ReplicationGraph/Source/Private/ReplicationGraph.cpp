@@ -62,6 +62,10 @@
 #include "Misc/ScopeExit.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 
+#if USE_SERVER_PERF_COUNTERS
+#include "PerfCountersModule.h"
+#endif
+
 int32 CVar_RepGraph_Pause = 0;
 static FAutoConsoleVariableRef CVarRepGraphPause(TEXT("Net.RepGraph.Pause"), CVar_RepGraph_Pause, TEXT("Pauses actor replication in the Replication Graph."), ECVF_Default );
 
@@ -597,6 +601,12 @@ void UReplicationGraph::FlushNetDormancy(AActor* Actor, bool bWasDormInitial)
 		return;
 	}
 
+	if (IsActorValidForReplication(Actor) == false)
+	{
+		UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("UReplicationGraph::FlushNetDormancy called on %s. Ignored since actor is destroyed or about to be"), *Actor->GetPathName());
+		return;
+	}
+
 	FGlobalActorReplicationInfo& GlobalInfo = GlobalActorReplicationInfoMap.Get(Actor);
 	const bool bNewWantsToBeDormant = (Actor->NetDormancy > DORM_Awake);
 
@@ -701,6 +711,12 @@ void UReplicationGraph::NotifyActorDormancyChange(AActor* Actor, ENetDormancy Ol
 		return;
 	}
 
+	if (IsActorValidForReplication(Actor) == false)
+	{
+		UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("UReplicationGraph::NotifyActorDormancyChange %s. Ignoring change since actor is destroyed or about to be."), *Actor->GetPathName());
+		return;
+	}
+
 	ENetDormancy CurrentDormancy = Actor->NetDormancy;
 
 	UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("UReplicationGraph::NotifyActorDormancyChange %s. Old WantsToBeDormant: %d. New WantsToBeDormant: %d"), *Actor->GetPathName(), GlobalInfo->bWantsToBeDormant, CurrentDormancy > DORM_Awake ? 1 : 0);
@@ -788,6 +804,8 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 	++NetDriver->ReplicationFrame;	// This counter is used by RepLayout to utilize CL/serialization sharing. We must increment it ourselves, but other places can increment it too, in order to invalidate the shared state.
 	const uint32 FrameNum = ReplicationGraphFrame; // This counter is used internally and drives all frame based replication logic.
 
+	bWasConnectionSaturated = false;
+
 	ON_SCOPE_EXIT
 	{
 		// We increment this after our replication has happened. If we increment at the beginning of this function, then we rep with FrameNum X, then start the next game frame with the same FrameNum X. If at the top of that frame,
@@ -854,6 +872,12 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 		}
 
 		NumChildrenConnectionsProcessed += NetConnection->Children.Num();
+
+		ON_SCOPE_EXIT
+		{
+			NetConnection->TrackReplicationForAnalytics(bWasConnectionSaturated);
+			bWasConnectionSaturated = false;
+		};
 
 		FBitWriter& ConnectionSendBuffer = NetConnection->SendBuffer; // unused
 		ConnectionManager->QueuedBitsForActorDiscovery = 0;
@@ -1286,7 +1310,7 @@ void UReplicationGraph::ReplicateActorListsForConnections_Default(UNetReplicatio
 				// We've exceeded the budget for this category of replication list.
 				RG_QUICK_SCOPE_CYCLE_COUNTER(NET_ReplicateActors_PartialStarvedActorList);
 				HandleStarvedActorList(PrioritizedReplicationList, ActorIdx + 1, ConnectionActorInfoMap, FrameNum);
-				GNumSaturatedConnections++;
+				NotifyConnectionSaturated(*ConnectionManager);
 				break;
 			}
 		}
@@ -1483,7 +1507,7 @@ void UReplicationGraph::ReplicateActorListsForConnections_FastShared(UNetReplica
 #endif
 			if (TotalBitsWritten > MaxBits)
 			{
-				GNumSaturatedConnections++;
+				NotifyConnectionSaturated(*ConnectionManager);
 				return;
 			}
 		}
@@ -1832,12 +1856,12 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 
 	if (RepGraphConditionalActorBreakpoint(Actor, nullptr))
 	{
-		UE_LOG(LogReplicationGraph, Display, TEXT("UReplicationGraph::ProcessRemoteFunction: %s. Function: %s."), *Actor->GetName(), *GetNameSafe(Function));
+		UE_LOG(LogReplicationGraph, Display, TEXT("UReplicationGraph::ProcessRemoteFunction: %s. Function: %s."), *GetNameSafe(Actor), *GetNameSafe(Function));
 	}
 
 	if (IsActorValidForReplication(Actor) == false || Actor->IsActorBeingDestroyed())
 	{
-		UE_LOG(LogReplicationGraph, Display, TEXT("Destroted or not ready!"));
+		UE_LOG(LogReplicationGraph, Display, TEXT("UReplicationGraph::ProcessRemoteFunction: Actor %s destroyed or not ready! Function: %s."), *GetNameSafe(Actor), *GetNameSafe(Function));
 		return true;
 	}
 
@@ -2054,28 +2078,21 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 		UActorChannel* Ch = Connection->FindActorChannelRef(Actor);
 		if (Ch == nullptr)
 		{
-			if ( Actor->IsPendingKillPending() || !NetDriver->IsLevelInitializedForActor(Actor, Connection) )
+			if (Actor->IsPendingKillPending() || !NetDriver->IsLevelInitializedForActor(Actor, Connection))
 			{
 				// We can't open a channel for this actor here
 				return true;
 			}
 
-			if (UNetReplicationGraphConnection* ConnectionManager = Cast<UNetReplicationGraphConnection>(Connection->GetReplicationConnectionDriver()))
-			{
-				if (FConnectionReplicationActorInfo const * const ConnectionActorInfo = ConnectionManager->ActorInfoMap.Find(Actor))
-				{
-					const bool bIsValid = ensureMsgf(ConnectionActorInfo->Channel == nullptr, TEXT("UReplicationGraph::ProcessRemoteFunction: Trying to send RPC for Actor whose channel is in invalid state %s"), *ConnectionActorInfo->Channel->Describe());
-
-					// Don't try to open a channel for an unreliable RPC whose channel is closing.
-					if (!(bIsReliable || bIsValid))
-					{
-						return true;
-					}
-				}
-			}
-
 			Ch = (UActorChannel *)Connection->CreateChannelByName( NAME_Actor, EChannelCreateFlags::OpenedLocally );
 			Ch->SetChannelActor(Actor, ESetChannelActorFlags::None);
+			
+			if (UNetReplicationGraphConnection* ConnectionManager = Cast<UNetReplicationGraphConnection>(Connection->GetReplicationConnectionDriver()))
+			{
+				FConnectionReplicationActorInfo& ConnectionActorInfo = ConnectionManager->ActorInfoMap.FindOrAdd(Actor);
+				FGlobalActorReplicationInfo& GlobalInfo = GlobalActorReplicationInfoMap.Get(Actor);
+				UpdateActorChannelCloseFrameNum(Actor, ConnectionActorInfo, GlobalInfo, ReplicationGraphFrame+1 /** Plus one to error on safe side. RepFrame num will be incremented in the next tick */, Connection );
+			}
 		}
 
 		NetDriver->ProcessRemoteFunctionForChannel(Ch, ClassCache, FieldCache, TargetObj, Connection, Function, Parameters, OutParms, Stack, true);
@@ -2132,6 +2149,12 @@ void UReplicationGraph::SetActorDiscoveryBudget(int32 ActorDiscoveryBudgetInKByt
 
 	ActorDiscoveryMaxBitsPerFrame = (ActorDiscoveryBudgetInKBytesPerSec * 1000 * 8) / MaxNetworkFPS;
 	UE_LOG(LogReplicationGraph, Display, TEXT("SetActorDiscoveryBudget set to %d kBps (%d bits per network tick)."), ActorDiscoveryBudgetInKBytesPerSec, ActorDiscoveryMaxBitsPerFrame);
+}
+
+void UReplicationGraph::NotifyConnectionSaturated(UNetReplicationGraphConnection& Connection)
+{
+	bWasConnectionSaturated = true;
+	++GNumSaturatedConnections;
 }
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
@@ -2197,6 +2220,9 @@ void UNetReplicationGraphConnection::NotifyActorChannelAdded(AActor* Actor, clas
 	if (ActorInfo.Channel && Channel != ActorInfo.Channel)
 	{
 		UE_LOG(LogReplicationGraph, Log, TEXT("::NotifyActorChannelAdded. Fixing up stale channel reference Old: %s New: %s"), *ActorInfo.Channel->Describe(), *Channel->Describe());
+		ensureMsgf(ActorInfo.Channel->Closing, TEXT("Attempted to add an Actor Channel when a valid channel already exists for the actor. Actor=%s, OldChannel=%s, NewChannel=%s"),
+			*GetPathNameSafe(Actor), *ActorInfo.Channel->Describe(), *Channel->Describe());
+
 		ActorInfoMap.RemoveChannel(ActorInfo.Channel);
 	}
 
@@ -3202,7 +3228,7 @@ void UReplicationGraphNode_DynamicSpatialFrequency::GatherActorListsForConnectio
 			// Bandwidth Cap
 			if (BitsWritten > MaxBits && CVar_RepGraph_DynamicSpatialFrequency_UncapBandwidth == 0)
 			{
-				GNumSaturatedConnections++;
+				RepGraph->NotifyConnectionSaturated(Params.ConnectionManager);
 				break;
 			}
 		}
@@ -4801,7 +4827,7 @@ struct FPlayerGridCellInformation
 
 void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params)
 {
-	TArray<FLastLocationGatherInfo, FReplicationGraphConnectionsAllocator>& LastLocationArray = Params.ConnectionManager.LastGatherLocations;
+	TArray<FLastLocationGatherInfo>& LastLocationArray = Params.ConnectionManager.LastGatherLocations;
 	TArray<FVector2D, FReplicationGraphConnectionsAllocator> UniqueCurrentLocations;
 
 	// Consider all users that are in cells for this connection. 

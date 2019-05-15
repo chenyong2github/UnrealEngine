@@ -1191,12 +1191,3 @@ bool FWaitForMatineeToCompleteAndDoScreenshotsLatentCommand::Update()
 //}
 
 #endif //WITH_DEV_AUTOMATION_TESTS
-
-/* UAutomationTestSettings interface
-*****************************************************************************/
-
-UAutomationTestSettings::UAutomationTestSettings(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	DefaultScreenshotResolution = FIntPoint(1920, 1080);
-}

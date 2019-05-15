@@ -3296,7 +3296,7 @@ void UCharacterMovementComponent::RequestDirectMove(const FVector& MoveVelocity,
 		return;
 	}
 
-	if (IsFalling())
+	if (ShouldPerformAirControlForPathFollowing())
 	{
 		const FVector FallVelocity = MoveVelocity.GetClampedToMaxSize(GetMaxSpeed());
 		PerformAirControlForPathFollowing(FallVelocity, FallVelocity.Z);
@@ -3311,6 +3311,11 @@ void UCharacterMovementComponent::RequestDirectMove(const FVector& MoveVelocity,
 	{
 		RequestedVelocity.Z = 0.0f;
 	}
+}
+
+bool UCharacterMovementComponent::ShouldPerformAirControlForPathFollowing() const
+{
+	return IsFalling();
 }
 
 void UCharacterMovementComponent::RequestPathMove(const FVector& MoveInput)
@@ -4087,6 +4092,11 @@ FVector UCharacterMovementComponent::GetFallingLateralAcceleration(float DeltaTi
 }
 
 
+bool UCharacterMovementComponent::ShouldLimitAirControl(float DeltaTime, const FVector& FallAcceleration) const
+{
+	return (FallAcceleration.SizeSquared2D() > 0.f);
+}
+
 FVector UCharacterMovementComponent::GetAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration)
 {
 	// Boost
@@ -4122,7 +4132,7 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 
 	FVector FallAcceleration = GetFallingLateralAcceleration(deltaTime);
 	FallAcceleration.Z = 0.f;
-	const bool bHasAirControl = (FallAcceleration.SizeSquared2D() > 0.f);
+	const bool bHasLimitedAirControl = ShouldLimitAirControl(deltaTime, FallAcceleration);
 
 	float remainingTime = deltaTime;
 	while( (remainingTime >= MIN_TICK_TIME) && (Iterations < MaxSimulationIterations) )
@@ -4137,24 +4147,12 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 
 		RestorePreAdditiveRootMotionVelocity();
 
-		FVector OldVelocity = Velocity;
-		FVector VelocityNoAirControl = Velocity;
+		const FVector OldVelocity = Velocity;
 
 		// Apply input
+		const float MaxDecel = GetMaxBrakingDeceleration();
 		if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
 		{
-			const float MaxDecel = GetMaxBrakingDeceleration();
-			// Compute VelocityNoAirControl
-			if (bHasAirControl)
-			{
-				// Find velocity *without* acceleration.
-				TGuardValue<FVector> RestoreAcceleration(Acceleration, FVector::ZeroVector);
-				TGuardValue<FVector> RestoreVelocity(Velocity, Velocity);
-				Velocity.Z = 0.f;
-				CalcVelocity(timeTick, FallingLateralFriction, false, MaxDecel);
-				VelocityNoAirControl = FVector(Velocity.X, Velocity.Y, OldVelocity.Z);
-			}
-
 			// Compute Velocity
 			{
 				// Acceleration = FallAcceleration for CalcVelocity(), but we restore it after using it.
@@ -4162,12 +4160,6 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 				Velocity.Z = 0.f;
 				CalcVelocity(timeTick, FallingLateralFriction, false, MaxDecel);
 				Velocity.Z = OldVelocity.Z;
-			}
-
-			// Just copy Velocity to VelocityNoAirControl if they are the same (ie no acceleration).
-			if (!bHasAirControl)
-			{
-				VelocityNoAirControl = Velocity;
 			}
 		}
 
@@ -4194,8 +4186,6 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 
 		// Apply gravity
 		Velocity = NewFallVelocity(Velocity, Gravity, GravityTime);
-		VelocityNoAirControl = bHasAirControl ? NewFallVelocity(VelocityNoAirControl, Gravity, GravityTime) : Velocity;
-		const FVector AirControlAccel = (Velocity - VelocityNoAirControl) / timeTick;
 
 		// See if we need to sub-step to exactly reach the apex. This is important for avoiding "cutting off the top" of the trajectory as framerate varies.
 		if (CharacterMovementCVars::ForceJumpPeakSubstep && OldVelocity.Z > 0.f && Velocity.Z <= 0.f && NumJumpApexAttempts < MaxJumpApexAttemptsPerSimulation)
@@ -4300,9 +4290,23 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 
 				// Limit air control based on what we hit.
 				// We moved to the impact point using air control, but may want to deflect from there based on a limited air control acceleration.
-				if (bHasAirControl)
+				FVector VelocityNoAirControl = OldVelocity;
+				FVector AirControlAccel = Acceleration;
+				if (bHasLimitedAirControl)
 				{
+					// Compute VelocityNoAirControl
+					{
+						// Find velocity *without* acceleration.
+						TGuardValue<FVector> RestoreAcceleration(Acceleration, FVector::ZeroVector);
+						TGuardValue<FVector> RestoreVelocity(Velocity, OldVelocity);
+						Velocity.Z = 0.f;
+						CalcVelocity(timeTick, FallingLateralFriction, false, MaxDecel);
+						VelocityNoAirControl = FVector(Velocity.X, Velocity.Y, OldVelocity.Z);
+						VelocityNoAirControl = NewFallVelocity(VelocityNoAirControl, Gravity, GravityTime);
+					}
+
 					const bool bCheckLandingSpot = false; // we already checked above.
+					AirControlAccel = (Velocity - VelocityNoAirControl) / timeTick;
 					const FVector AirControlDeltaV = LimitAirControl(LastMoveTimeSlice, AirControlAccel, Hit, bCheckLandingSpot) * LastMoveTimeSlice;
 					Adjusted = (VelocityNoAirControl + AirControlDeltaV) * LastMoveTimeSlice;
 				}
@@ -4345,7 +4349,7 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 						}
 
 						// Act as if there was no air control on the last move when computing new deflection.
-						if (bHasAirControl && Hit.Normal.Z > VERTICAL_SLOPE_NORMAL_Z)
+						if (bHasLimitedAirControl && Hit.Normal.Z > VERTICAL_SLOPE_NORMAL_Z)
 						{
 							const FVector LastMoveNoAirControl = VelocityNoAirControl * LastMoveTimeSlice;
 							Delta = ComputeSlideVector(LastMoveNoAirControl, 1.f, OldHitNormal, Hit);
@@ -4355,7 +4359,7 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 						TwoWallAdjust(Delta, Hit, OldHitNormal);
 
 						// Limit air control, but allow a slide along the second wall.
-						if (bHasAirControl)
+						if (bHasLimitedAirControl)
 						{
 							const bool bCheckLandingSpot = false; // we already checked above.
 							const FVector AirControlDeltaV = LimitAirControl(subTimeTickRemaining, AirControlAccel, Hit, bCheckLandingSpot) * subTimeTickRemaining;
@@ -8106,8 +8110,9 @@ void UCharacterMovementComponent::CallServerMove
 	check(NewMove != nullptr);
 
 	// Compress rotation down to 5 bytes
-	const uint32 ClientYawPitchINT = PackYawAndPitchTo32(NewMove->SavedControlRotation.Yaw, NewMove->SavedControlRotation.Pitch);
-	const uint8 ClientRollBYTE = FRotator::CompressAxisToByte(NewMove->SavedControlRotation.Roll);
+	uint32 ClientYawPitchINT = 0;
+	uint8 ClientRollBYTE = 0;
+	NewMove->GetPackedAngles(ClientYawPitchINT, ClientRollBYTE);
 
 	// Determine if we send absolute or relative location
 	UPrimitiveComponent* ClientMovementBase = NewMove->EndBase.Get();
@@ -8123,7 +8128,9 @@ void UCharacterMovementComponent::CallServerMove
 	FNetworkPredictionData_Client_Character* ClientData = GetPredictionData_Client_Character();
 	if (const FSavedMove_Character* const PendingMove = ClientData->PendingMove.Get())
 	{
-		const uint32 OldClientYawPitchINT = PackYawAndPitchTo32(ClientData->PendingMove->SavedControlRotation.Yaw, ClientData->PendingMove->SavedControlRotation.Pitch);
+		uint32 OldClientYawPitchINT = 0;
+		uint8 OldClientRollBYTE = 0;
+		ClientData->PendingMove->GetPackedAngles(OldClientYawPitchINT, OldClientRollBYTE);
 
 		// If we delayed a move without root motion, and our new move has root motion, send these through a special function, so the server knows how to process them.
 		if ((PendingMove->RootMotionMontage == NULL) && (NewMove->RootMotionMontage != NULL))
@@ -10702,13 +10709,25 @@ float UCharacterMovementComponent::GetClientNetSendDeltaTime(const APlayerContro
 		}
 
 		// Lower frequency for standing still and not rotating camera
-		if (Acceleration.IsZero() && Velocity.IsZero() && ClientData->LastAckedMove.IsValid() && ClientData->LastAckedMove->StartControlRotation.Equals(PC->GetControlRotation(), CharacterMovementCVars::NetStationaryRotationTolerance))
+		if (Acceleration.IsZero() && Velocity.IsZero() && ClientData->LastAckedMove.IsValid() && ClientData->LastAckedMove->IsMatchingStartControlRotation(PC))
 		{
 			NetMoveDelta = FMath::Max(GameNetworkManager->ClientNetSendMoveDeltaTimeStationary, NetMoveDelta);
 		}
 	}
 	
 	return NetMoveDelta;
+}
+
+bool FSavedMove_Character::IsMatchingStartControlRotation(const APlayerController* PC) const
+{
+	return PC ? StartControlRotation.Equals(PC->GetControlRotation(), CharacterMovementCVars::NetStationaryRotationTolerance) : false;
+}
+
+void FSavedMove_Character::GetPackedAngles(uint32& YawAndPitchPack, uint8& RollPack) const
+{
+	// Compress rotation down to 5 bytes
+	YawAndPitchPack = UCharacterMovementComponent::PackYawAndPitchTo32(SavedControlRotation.Yaw, SavedControlRotation.Pitch);
+	RollPack = FRotator::CompressAxisToByte(SavedControlRotation.Roll);
 }
 
 bool FSavedMove_Character::CanCombineWith(const FSavedMovePtr& NewMovePtr, ACharacter* Character, float MaxDelta) const

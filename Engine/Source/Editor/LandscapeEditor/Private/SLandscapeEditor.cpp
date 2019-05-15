@@ -95,6 +95,7 @@ void FLandscapeToolKit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
 	MAP_TOOL("ResizeLandscape");
 
 	MAP_TOOL("Sculpt");
+	MAP_TOOL("Erase");
 	MAP_TOOL("Paint");
 	MAP_TOOL("Smooth");
 	MAP_TOOL("Flatten");
@@ -188,7 +189,7 @@ bool FLandscapeToolKit::IsModeEnabled(FName ModeName) const
 	if (LandscapeEdMode)
 	{
 		// Manage is the only mode enabled if we have no landscape
-		if (ModeName == "ToolMode_Manage" || LandscapeEdMode->GetLandscapeList().Num() > 0)
+		if (ModeName == "ToolMode_Manage" || (LandscapeEdMode->GetLandscapeList().Num() > 0 && LandscapeEdMode->CanEditCurrentTarget()))
 		{
 			return true;
 		}
@@ -465,8 +466,16 @@ bool SLandscapeEditor::GetIsPropertyVisible(const FPropertyAndParent& PropertyAn
 	const UProperty& Property = PropertyAndParent.Property;
 
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	
 	if (LandscapeEdMode != nullptr && LandscapeEdMode->CurrentTool != nullptr)
 	{
+	    // Hide all properties if the current target can't be edited. Except in New Landscape tool
+		if (LandscapeEdMode->CurrentTool->GetToolName() != FName("NewLandscape") &&
+			!LandscapeEdMode->CanEditCurrentTarget())
+		{
+			return false;
+		}
+
 		if (Property.HasMetaData("ShowForMask"))
 		{
 			const bool bMaskEnabled = LandscapeEdMode->CurrentTool &&

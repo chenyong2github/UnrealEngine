@@ -123,7 +123,7 @@ FReply SNiagaraStackRendererItem::DeleteClicked()
 
 EVisibility SNiagaraStackRendererItem::GetResetToBaseButtonVisibility() const
 {
-	if (RendererItem->CanHaveBase())
+	if (RendererItem->HasBaseEmitter())
 	{
 		return RendererItem->CanResetToBase() ? EVisibility::Visible : EVisibility::Hidden;
 	}

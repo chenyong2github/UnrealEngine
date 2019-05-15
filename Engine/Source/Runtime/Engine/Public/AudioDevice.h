@@ -533,21 +533,6 @@ public:
 	void AddReferencedObjects(FReferenceCollector& Collector);
 
 	/**
-	 * Register an audio component to re-trigger based on re-entering proximity (MaxDistance as provided by owned sound instance).
-	 */
-	void RegisterProximityRetriggeringAudioComponent(UAudioComponent& Component);
-
-	/**
-	 * Returns set of AudioComponents currently set to re-trigger on listener proximity
-	 */
-	const TArray<FAudioComponentPtr>& GetProximityRetriggerComponents() const;
-
-	/**
-	 * Unregister an audio component to re-trigger based on re-entering proximity (MaxDistance as provided by owned sound instance).
-	 */
-	void UnregisterProximityRetriggeringAudioComponent(UAudioComponent& Component);
-
-	/**
 	 * Iterate over the active AudioComponents for wave instances that could be playing.
 	 *
 	 * @return Index of first wave instance that can have a source attached
@@ -566,8 +551,11 @@ public:
 	 */
 	void Flush(UWorld* WorldToFlush, bool bClearActivatedReverb = true);
 
-	/** Allows audio rendering command queue to flush during audio device flush. */
-	virtual void FlushAudioRenderingCommands() {}
+	/** 
+	 * Allows audio rendering command queue to flush during audio device flush. 
+	 * @param bPumpSynchronously must be called in situations where the audio render thread is not being called.
+	 */
+	virtual void FlushAudioRenderingCommands(bool bPumpSynchronously = false) {}
 
 	/**
 	 * Stop any playing sounds that are using a particular SoundWave
@@ -1492,8 +1480,6 @@ public:
 	/** Returns the game's delta time */
 	float GetGameDeltaTime() const;
 
-	void UpdateProximityRetriggerComponents();
-
 	void UpdateVirtualLoops();
 
 	/** Sets the update delta time for the audio frame */
@@ -1608,9 +1594,6 @@ public:
 
 	/** The number of sources to reserve for stopping sounds. */
 	int32 NumStoppingVoices;
-
-	/** The maximum number of wave instances allowed. */
-	int32 MaxWaveInstances;
 
 	/** The sample rate of all the audio devices */
 	int32 SampleRate;
@@ -1825,8 +1808,6 @@ private:
 	  */
 	TMap<FActiveSound*, FAudioVirtualLoop> VirtualLoops;
 
-	TArray<FAudioComponentPtr> ProximityRetriggerComponents;
-
 	/** Cached copy of sound class adjusters array. Cached to avoid allocating every frame. */
 	TArray<FSoundClassAdjuster> SoundClassAdjustersCopy;
 
@@ -1859,9 +1840,6 @@ private:
 
 	/** A count of the number of one-shot active sounds. */
 	uint32 OneShotCount;
-
-	/** Threshold priority for allowing oneshot active sounds through the max oneshot active sound limit. */
-	float OneShotPriorityCullThreshold;
 
 	// Global min and max pitch scale, derived from audio settings
 	float GlobalMinPitch;

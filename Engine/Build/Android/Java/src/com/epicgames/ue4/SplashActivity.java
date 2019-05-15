@@ -2,16 +2,25 @@
 
 package com.epicgames.ue4;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.content.pm.PermissionInfo;
+import android.provider.Settings;
 import android.view.View;
 import android.view.WindowManager;
+import android.net.Uri;
 
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -19,10 +28,14 @@ import android.support.v4.content.ContextCompat;
 public class SplashActivity extends Activity
 {
 	private static final int PERMISSION_REQUEST_CODE = 1105;
+	private static final int REQUEST_PERMISSION_SETTING = 1;
+
+	private String packageName;
+	private PackageManager pm;
+	private String[] permissionsRequiredAtStart = {};
 
 	private Intent GameActivityIntent;
 	private boolean WaitForPermission = false;
-
 
 	public static Logger Log = new Logger("UE4-SplashActivity");
 	
@@ -31,13 +44,15 @@ public class SplashActivity extends Activity
 	protected void onCreate(Bundle savedInstanceState)
 	{
 		super.onCreate(savedInstanceState);
+		packageName = getPackageName();
+		pm = getPackageManager();
 
 		boolean ShouldHideUI = false;
 		boolean UseDisplayCutout = false;
 		boolean IsShipping = false;
 		boolean UseExternalFilesDir = false;
 		try {
-			ApplicationInfo ai = getPackageManager().getApplicationInfo(getPackageName(), PackageManager.GET_META_DATA);
+			ApplicationInfo ai = pm.getApplicationInfo(packageName, PackageManager.GET_META_DATA);
 			Bundle bundle = ai.metaData;
 
 			if(bundle.containsKey("com.epicgames.ue4.GameActivity.bShouldHideUI"))
@@ -57,6 +72,10 @@ public class SplashActivity extends Activity
             {
                 UseExternalFilesDir = bundle.getBoolean("com.epicgames.ue4.GameActivity.bUseExternalFilesDir");
             }
+			if (bundle.containsKey("com.epicgames.ue4.GameActivity.StartupPermissions"))
+			{
+				permissionsRequiredAtStart = bundle.getString("com.epicgames.ue4.GameActivity.StartupPermissions").split(",");
+			}
 		}
 		catch (NameNotFoundException | NullPointerException e)
 		{
@@ -76,7 +95,6 @@ public class SplashActivity extends Activity
 											| View.SYSTEM_UI_FLAG_IMMERSIVE);  // NOT sticky (will be set later in MainActivity)
 			}
 		}
-
 		
 		// allow certain models for now to use full area around cutout
 		boolean BlockDisplayCutout = true;
@@ -142,28 +160,12 @@ public class SplashActivity extends Activity
 			GameActivityIntent.setAction(intentAction);
 		}
 
-		// check if we need to wait for permissions
-		int targetSdkVersion = 0;
-		try 
+		// make a list of ungranted dangerous permissions in manifest required at start of GameActivity and request any we still need
+		ArrayList<String> ungrantedPermissions = getUngrantedPermissions(this, getDangerousPermissions(pm, packageName), permissionsRequiredAtStart);
+		if (ungrantedPermissions.size() > 0)
 		{
-			PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
-			targetSdkVersion = packageInfo.applicationInfo.targetSdkVersion;
-		}
-		catch (PackageManager.NameNotFoundException e) 
-		{
-		}
-
-		if (android.os.Build.VERSION.SDK_INT >= 23 && targetSdkVersion >= 23) //23 is the API level (Marshmallow) where runtime permission handling is available
-		{
-			// we might need to ask for permission if we don't already have it
-			if (ContextCompat.checkSelfPermission(this, "android.permission.WRITE_EXTERNAL_STORAGE") != PackageManager.PERMISSION_GRANTED)
-			{
-				if (!IsShipping || !UseExternalFilesDir)
-				{
-					ActivityCompat.requestPermissions(this, new String[] {"android.permission.WRITE_EXTERNAL_STORAGE"}, PERMISSION_REQUEST_CODE);
-					WaitForPermission = true;
-				}
-			}
+			ActivityCompat.requestPermissions(this, ungrantedPermissions.toArray(new String[ungrantedPermissions.size()]), PERMISSION_REQUEST_CODE);
+			WaitForPermission = true;
 		}
 
 		if (!WaitForPermission)
@@ -174,21 +176,207 @@ public class SplashActivity extends Activity
 		}
 	}
 
+	private int getResourceId(String VariableName, String ResourceName, String PackageName)
+	{
+		try {
+			return getResources().getIdentifier(VariableName, ResourceName, PackageName);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			return -1;
+		} 
+	}
+
+	private String getResourceStringOrDefault(String PackageName, String ResourceName, String DefaultString)
+	{
+		int resourceId = getResourceId(ResourceName, "string", PackageName);
+		return (resourceId < 1) ? DefaultString : getString(resourceId);
+	}
+
+	public ArrayList<String> getUngrantedPermissions(Context context, ArrayList<String> dangerousPermissions, String[] requiredPermissions)
+	{
+		ArrayList<String> ungrantedPermissions = new ArrayList<>();
+		if (dangerousPermissions.size() > 0)
+		{
+			for (String required : requiredPermissions)
+			{
+				required = required.replaceAll("\\s", "");
+				if (required.length() > 0 && dangerousPermissions.contains(required))
+				{
+					if (ContextCompat.checkSelfPermission(context, required) != PackageManager.PERMISSION_GRANTED)
+					{
+						ungrantedPermissions.add(required);
+					}
+				}
+			}
+		}
+		return ungrantedPermissions;
+	}
+
+	public ArrayList<String> getDangerousPermissions(PackageManager pm, String packageName)
+	{
+		int targetSdkVersion = 0;
+		ArrayList<String> dangerousPermissions = new ArrayList<>();
+		try 
+		{
+			PackageInfo packageInfo = pm.getPackageInfo(packageName, 0);
+			targetSdkVersion = packageInfo.applicationInfo.targetSdkVersion;
+
+			// 23 is the API level (Marshmallow) where runtime permission handling is available
+			if (android.os.Build.VERSION.SDK_INT >= 23 && targetSdkVersion >= 23)
+			{
+				packageInfo = pm.getPackageInfo(packageName, PackageManager.GET_PERMISSIONS);
+				if (packageInfo != null)
+				{
+					if (packageInfo.requestedPermissions != null && packageInfo.requestedPermissions.length > 0)
+					{
+						if (android.os.Build.VERSION.SDK_INT >= 28)
+						{
+							for (String permission : packageInfo.requestedPermissions)
+							{
+								try
+								{
+									PermissionInfo permissionInfo = pm.getPermissionInfo(permission, 0);
+									if (permissionInfo.getProtection() == PermissionInfo.PROTECTION_DANGEROUS)
+									{
+										dangerousPermissions.add(permission);
+									}
+								}
+								catch (PackageManager.NameNotFoundException e)
+								{
+								}
+							}
+						}
+						else
+						{
+							for (String permission : packageInfo.requestedPermissions)
+							{
+								try
+								{
+									PermissionInfo permissionInfo = pm.getPermissionInfo(permission, 0);
+									if ((permissionInfo.protectionLevel & PermissionInfo.PROTECTION_MASK_BASE) == PermissionInfo.PROTECTION_DANGEROUS)
+									{
+										dangerousPermissions.add(permission);
+									}
+								}
+								catch (PackageManager.NameNotFoundException e)
+								{
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		catch (PackageManager.NameNotFoundException e) 
+		{
+		}
+
+		// if asking for WRITE_EXTERNAL_STORAGE, don't also need ask for READ_EXTERNAL_STORAGE
+		if (dangerousPermissions.contains("android.permission.WRITE_EXTERNAL_STORAGE"))
+		{
+			dangerousPermissions.remove("android.permission.READ_EXTERNAL_STORAGE");
+		}
+
+		return dangerousPermissions;
+	}
+
+	public String getRationale(String permission)
+	{
+		return getResourceStringOrDefault(packageName, "PERM_Info_" + permission, "This permission is required to start the game:\n" + permission);
+	}
+
+	public void showDialog(String title, String message, boolean bShowSettings)
+	{
+		final String dialogTitle = title;
+		final String dialogMessage = message;
+		final boolean dialogSettings = bShowSettings;
+
+		runOnUiThread(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				AlertDialog.Builder dialog = new AlertDialog.Builder(SplashActivity.this);
+				dialog.setCancelable(false);
+				dialog.setTitle(dialogTitle);
+				dialog.setMessage(dialogMessage);
+				dialog.setNegativeButton(getResourceStringOrDefault(packageName, "PERM_Quit", "Quit"), new DialogInterface.OnClickListener() {
+					@Override
+					public void onClick(DialogInterface dialog, int id) {
+						dialog.dismiss();
+						System.exit(0);
+					}
+				});
+				if (!dialogSettings)
+				{
+					dialog.setPositiveButton(getResourceStringOrDefault(packageName, "PERM_OK", "OK"), new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int id) {
+							dialog.dismiss();
+							ArrayList<String> ungrantedPermissions = getUngrantedPermissions(SplashActivity.this, getDangerousPermissions(pm, packageName), permissionsRequiredAtStart);
+							if (ungrantedPermissions.size() > 0)
+							{
+								ActivityCompat.requestPermissions(SplashActivity.this, ungrantedPermissions.toArray(new String[ungrantedPermissions.size()]), PERMISSION_REQUEST_CODE);
+							}
+							else
+							{
+								// should not get here, but launch GameActivity since have all permissions
+								startActivity(GameActivityIntent);
+								finish();
+								overridePendingTransition(0, 0);
+							}
+						}
+					});
+				}
+				else
+				{
+					dialog.setPositiveButton(getResourceStringOrDefault(packageName, "PERM_Settings", "Settings"), new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int id) {
+							dialog.dismiss();
+							Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+							Uri uri = Uri.fromParts("package", packageName, null);
+							intent.setData(uri);
+							startActivityForResult(intent, REQUEST_PERMISSION_SETTING);
+							System.exit(0);
+						}
+					});
+				}
+
+				dialog.create().show();
+			}
+		});
+	}
+
 	@Override
 	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults)
 	{
 		if (requestCode==PERMISSION_REQUEST_CODE && permissions.length>0) 
 		{
-			if (grantResults.length>0 && grantResults[0]==PackageManager.PERMISSION_GRANTED)
+			for (int index=0; index < grantResults.length; index++)
 			{
-				startActivity(GameActivityIntent);
-				finish();
-				overridePendingTransition(0, 0);
+				String permission = permissions[index];
+				if (grantResults[index] == PackageManager.PERMISSION_DENIED)
+				{
+					boolean showRationale = ActivityCompat.shouldShowRequestPermissionRationale(SplashActivity.this, permission);
+					if (showRationale)
+					{
+						showDialog(getResourceStringOrDefault(packageName, "PERM_Caption_PermRequired", "Permissions Required"), getRationale(permission), false);
+					}
+					else
+					{
+						showDialog(getResourceStringOrDefault(packageName, "PERM_Caption_PermRequired", "Permissions Required"), getResourceStringOrDefault(packageName, "PERM_Info_ApproveSettings", "You must approve this permission in App Settings:") + "\n\n" +
+									getResourceStringOrDefault(packageName, "PERM_SettingsName_" + permission, permission), true);
+					}
+					return;
+				}
 			}
-			else
-			{
-				finish();
-			}
+
+			// all permissions granted, start GameActivity
+			startActivity(GameActivityIntent);
+			finish();
+			overridePendingTransition(0, 0);
 		}
 	}
 

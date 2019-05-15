@@ -22,6 +22,7 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraScriptGraphViewModel> InViewModel);
 
+	const TSharedPtr<SGraphEditor> GetGraphEditor() { return GraphEditor; };
 
 private:
 	/** Constructs the graph editor widget for the current graph. */

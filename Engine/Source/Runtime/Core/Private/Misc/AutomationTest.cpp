@@ -29,28 +29,29 @@ void FAutomationTestFramework::FAutomationTestFeedbackContext::Serialize( const 
 	// Ensure there's a valid unit test associated with the context
 	if ( CurTest )
 	{
-		// Warnings
-		if ( Verbosity == ELogVerbosity::Warning )
+		bool CaptureLog = !CurTest->SuppressLogs() 
+					&& (Verbosity == ELogVerbosity::Error || Verbosity == ELogVerbosity::Warning || Verbosity == ELogVerbosity::Display);
+
+		if (CaptureLog)
 		{
-			// If warnings should be treated as errors, log the warnings as such in the current unit test
-			if ( TreatWarningsAsErrors )
+			bool IsError = (Verbosity == ELogVerbosity::Error && CurTest->TreatLogErrorsAsErrors()) || (Verbosity == ELogVerbosity::Warning && CurTest->TreatLogWarningsAsErrors());
+			bool IsWarning = (Verbosity == ELogVerbosity::Warning || Verbosity == ELogVerbosity::Error) && !IsError;
+			
+			// Errors
+			if (IsError)
 			{
 				CurTest->AddError(FString(V), STACK_OFFSET);
 			}
-			else
+			// Warnings
+			else if (IsWarning)
 			{
 				CurTest->AddWarning(FString(V), STACK_OFFSET);
 			}
-		}
-		// Errors
-		else if ( Verbosity == ELogVerbosity::Error )
-		{
-			CurTest->AddError(FString(V), STACK_OFFSET);
-		}
-		// Display
-		if ( Verbosity == ELogVerbosity::Display )
-		{
-			CurTest->AddInfo(FString(V), STACK_OFFSET);
+			// Display
+			else
+			{
+				CurTest->AddInfo(FString(V), STACK_OFFSET);
+			}
 		}
 		// Log...etc
 		else
@@ -673,16 +674,6 @@ void FAutomationTestFramework::AddAnalyticsItemToCurrentTest( const FString& Ana
 	}
 }
 
-bool FAutomationTestFramework::GetTreatWarningsAsErrors() const
-{
-	return AutomationTestFeedbackContext.TreatWarningsAsErrors;
-}
-
-void FAutomationTestFramework::SetTreatWarningsAsErrors(TOptional<bool> bTreatWarningsAsErrors)
-{
-	AutomationTestFeedbackContext.TreatWarningsAsErrors = bTreatWarningsAsErrors.IsSet() ? bTreatWarningsAsErrors.GetValue() : GWarn->TreatWarningsAsErrors;
-}
-
 void FAutomationTestFramework::NotifyScreenshotComparisonComplete(const FAutomationScreenshotCompareResults& CompareResults)
 {
 	OnScreenshotCompared.Broadcast(CompareResults);
@@ -877,7 +868,7 @@ void FAutomationTestBase::ClearExecutionInfo()
 
 void FAutomationTestBase::AddError(const FString& InError, int32 StackOffset)
 {
-	if( !bSuppressLogs && !IsExpectedError(InError))
+	if( !IsExpectedError(InError))
 	{
 		ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Error, InError), StackOffset + 1);
 	}
@@ -893,7 +884,7 @@ void FAutomationTestBase::AddErrorIfFalse(bool bCondition, const FString& InErro
 
 void FAutomationTestBase::AddErrorS(const FString& InError, const FString& InFilename, int32 InLineNumber)
 {
-	if ( !bSuppressLogs && !IsExpectedError(InError))
+	if ( !IsExpectedError(InError))
 	{
 		//ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Error, InError, ExecutionInfo.GetContext(), InFilename, InLineNumber));
 	}
@@ -901,7 +892,7 @@ void FAutomationTestBase::AddErrorS(const FString& InError, const FString& InFil
 
 void FAutomationTestBase::AddWarningS(const FString& InWarning, const FString& InFilename, int32 InLineNumber)
 {
-	if ( !bSuppressLogs && !IsExpectedError(InWarning))
+	if ( !IsExpectedError(InWarning))
 	{
 		//ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Warning, InWarning, ExecutionInfo.GetContext(), InFilename, InLineNumber));
 	}
@@ -909,7 +900,7 @@ void FAutomationTestBase::AddWarningS(const FString& InWarning, const FString& I
 
 void FAutomationTestBase::AddWarning( const FString& InWarning, int32 StackOffset )
 {
-	if ( !bSuppressLogs && !IsExpectedError(InWarning))
+	if ( !IsExpectedError(InWarning))
 	{
 		ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Warning, InWarning), StackOffset + 1);
 	}
@@ -917,10 +908,7 @@ void FAutomationTestBase::AddWarning( const FString& InWarning, int32 StackOffse
 
 void FAutomationTestBase::AddInfo( const FString& InLogItem, int32 StackOffset )
 {
-	if ( !bSuppressLogs )
-	{
-		ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Info, InLogItem), StackOffset + 1);
-	}
+	ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Info, InLogItem), StackOffset + 1);
 }
 
 void FAutomationTestBase::AddAnalyticsItem(const FString& InAnalyticsItem)
@@ -930,10 +918,7 @@ void FAutomationTestBase::AddAnalyticsItem(const FString& InAnalyticsItem)
 
 void FAutomationTestBase::AddEvent(const FAutomationEvent& InEvent, int32 StackOffset)
 {
-	if (!bSuppressLogs)
-	{
-		ExecutionInfo.AddEvent(InEvent, StackOffset + 1);
-	}
+	ExecutionInfo.AddEvent(InEvent, StackOffset + 1);
 }
 
 bool FAutomationTestBase::HasAnyErrors() const

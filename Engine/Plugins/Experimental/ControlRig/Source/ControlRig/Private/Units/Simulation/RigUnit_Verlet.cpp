@@ -17,7 +17,7 @@ void FRigUnit_VerletIntegrateVector::Execute(const FRigUnitContext& Context)
 	float U = FMath::Clamp<float>(Blend * Context.DeltaTime, 0.f, 1.f);
 	FVector Force = (Target - Point.Position) * FMath::Max(Strength, 0.0001f);
 	FVector PreviousVelocity = Point.LinearVelocity;
-	Point = FControlRigSimulationLibrary::IntegrateVerlet(Point, Force, Blend, Context.DeltaTime);
+	Point = Point.IntegrateVerlet(Force, Blend, Context.DeltaTime);
 	Acceleration = Point.LinearVelocity - PreviousVelocity;
 	Position = Point.Position;
 	Velocity = Point.LinearVelocity;

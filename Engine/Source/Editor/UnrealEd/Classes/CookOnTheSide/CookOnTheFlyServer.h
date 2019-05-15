@@ -197,7 +197,10 @@ private:
 	int32 LastCookedPackagesCount = 0;
 	double LastProgressDisplayTime = 0;
 
-	FName ConvertCookedPathToUncookedPath(const FString& SandboxPath, const FString& CookedPath) const;
+	FName ConvertCookedPathToUncookedPath(
+		const FString& SandboxRootDir, const FString& RelativeRootDir,
+		const FString& SandboxProjectDir, const FString& RelativeProjectDir,
+		const FString& CookedPath, FString& OutUncookedPath) const;
 
 	/** Get dependencies for package */
 	const TArray<FName>& GetFullPackageDependencies(const FName& PackageName) const;
@@ -891,9 +894,9 @@ private:
 	* Returns a map of the uncooked file path matches to the cooked file path for each package which exists
 	*
 	* @param UncookedpathToCookedPath out Map of the uncooked path matched with the cooked package which exists
-	* @param SandboxPath path to search for cooked packages in
+	* @param SandboxRootDir root dir to search for cooked packages in
 	*/
-	void GetAllCookedFiles(TMap<FName, FName>& UncookedPathToCookedPath, const FString& SandboxPath);
+	void GetAllCookedFiles(TMap<FName, FName>& UncookedPathToCookedPath, const FString& SandboxRootDir);
 
 	/** Generates asset registry */
 	void GenerateAssetRegistry();

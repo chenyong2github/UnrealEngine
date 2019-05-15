@@ -129,6 +129,27 @@ void UMultiLineEditableTextBox::SetText(FText InText)
 	}
 }
 
+FText UMultiLineEditableTextBox::GetHintText() const
+{
+	if (MyEditableTextBlock.IsValid())
+	{
+		return MyEditableTextBlock->GetHintText();
+	}
+
+	return HintText;
+}
+
+void UMultiLineEditableTextBox::SetHintText(FText InHintText)
+{
+	HintText = InHintText;
+	HintTextDelegate.Clear();
+	if ( MyEditableTextBlock.IsValid() )
+	{
+		TAttribute<FText> HintTextBinding = PROPERTY_BINDING(FText, HintText);
+		MyEditableTextBlock->SetHintText(HintTextBinding);
+	}
+}
+
 void UMultiLineEditableTextBox::SetError(FText InError)
 {
 	if ( MyEditableTextBlock.IsValid() )

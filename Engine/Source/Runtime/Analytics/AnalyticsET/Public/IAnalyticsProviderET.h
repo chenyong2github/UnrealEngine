@@ -29,6 +29,13 @@ public:
 	virtual const FString& GetAppID() const = 0;
 
 	/**
+	 * Sets the AppVersion.
+	 *
+	 * @param AppVersion The new AppVersion.
+	 */
+	virtual void SetAppVersion(FString&& AppVersion) = 0;
+
+	/**
 	* Method to get the AppVersion
 	*
 	* @return the AppVersion

@@ -18,6 +18,7 @@
 #include "Components/SlateWrapperTypes.h"
 #include "Slate/WidgetTransform.h"
 #include "UObject/UObjectThreadContext.h"
+#include "GameFramework/PlayerController.h"
 
 #if WITH_EDITOR
 // This violates IWYU, but the alternative is .cpp includes that are invariably not within #if WITH_EDITOR and cause non-editor build failures
@@ -26,7 +27,6 @@
 
 #include "Widget.generated.h"
 
-class APlayerController;
 class ULocalPlayer;
 class SObjectWidget;
 class UPanelSlot;
@@ -701,6 +701,16 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Widget")
 	virtual APlayerController* GetOwningPlayer() const;
+
+	/**
+	 * Gets the player controller associated with this UI cast to the template type.
+	 * @return The player controller that owns the UI. May be NULL if the cast fails.
+	 */
+	template <class TPlayerController = APlayerController >
+	TPlayerController* GetOwningPlayer() const
+	{
+		return Cast<TPlayerController>(GetOwningPlayer());
+	}
 
 	/**
 	 * Gets the local player associated with this UI.

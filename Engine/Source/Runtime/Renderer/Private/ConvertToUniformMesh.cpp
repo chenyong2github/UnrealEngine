@@ -212,7 +212,7 @@ bool ShouldGenerateSurfelsOnMesh(const FMeshBatch& Mesh, ERHIFeatureLevel::Type 
 	//@todo - support for tessellated meshes
 	return Mesh.Type == PT_TriangleList 
 		&& !Mesh.IsTranslucent(FeatureLevel) 
-		&& Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel)->GetShadingModel() != MSM_Unlit;
+		&& Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel)->GetShadingModels().IsLit();
 }
 
 bool ShouldConvertMesh(const FMeshBatch& Mesh)

@@ -6,25 +6,27 @@
 #if WITH_EDITOR
 
 
-LANDSCAPE_API FLandscapeComponentDataInterface::FLandscapeComponentDataInterface(ULandscapeComponent* InComponent, int32 InMipLevel) :
+LANDSCAPE_API FLandscapeComponentDataInterface::FLandscapeComponentDataInterface(ULandscapeComponent* InComponent, int32 InMipLevel, bool InWorkOnEditingLayer) :
 	Component(InComponent),
+	bWorkOnEditingLayer(InWorkOnEditingLayer),
 	HeightMipData(NULL),
 	XYOffsetMipData(NULL),
 	MipLevel(InMipLevel)
 {
 	// Offset and stride for this component's data in heightmap texture
-	HeightmapStride = Component->GetHeightmap(true)->Source.GetSizeX() >> MipLevel;
-	HeightmapComponentOffsetX = FMath::RoundToInt((float)(Component->GetHeightmap(true)->Source.GetSizeX() >> MipLevel) * Component->HeightmapScaleBias.Z);
-	HeightmapComponentOffsetY = FMath::RoundToInt((float)(Component->GetHeightmap(true)->Source.GetSizeY() >> MipLevel) * Component->HeightmapScaleBias.W);
+	UTexture2D* HeightMapTexture = Component->GetHeightmap(bWorkOnEditingLayer);
+	HeightmapStride = HeightMapTexture->Source.GetSizeX() >> MipLevel;
+	HeightmapComponentOffsetX = FMath::RoundToInt((float)(HeightMapTexture->Source.GetSizeX() >> MipLevel) * Component->HeightmapScaleBias.Z);
+	HeightmapComponentOffsetY = FMath::RoundToInt((float)(HeightMapTexture->Source.GetSizeY() >> MipLevel) * Component->HeightmapScaleBias.W);
 	HeightmapSubsectionOffset = (Component->SubsectionSizeQuads + 1) >> MipLevel;
 
 	ComponentSizeVerts = (Component->ComponentSizeQuads + 1) >> MipLevel;
 	SubsectionSizeVerts = (Component->SubsectionSizeQuads + 1) >> MipLevel;
 	ComponentNumSubsections = Component->NumSubsections;
 
-	if (MipLevel < Component->GetHeightmap(true)->Source.GetNumMips())
+	if (MipLevel < HeightMapTexture->Source.GetNumMips())
 	{
-		HeightMipData = (FColor*)DataInterface.LockMip(Component->GetHeightmap(true), MipLevel);
+		HeightMipData = (FColor*)DataInterface.LockMip(HeightMapTexture, MipLevel);
 		if (Component->XYOffsetmapTexture)
 		{
 			XYOffsetMipData = (FColor*)DataInterface.LockMip(Component->XYOffsetmapTexture, MipLevel);
@@ -36,7 +38,8 @@ LANDSCAPE_API FLandscapeComponentDataInterface::~FLandscapeComponentDataInterfac
 {
 	if (HeightMipData)
 	{
-		DataInterface.UnlockMip(Component->GetHeightmap(true), MipLevel);
+		UTexture2D* HeightMapTexture = Component->GetHeightmap(bWorkOnEditingLayer);
+		DataInterface.UnlockMip(HeightMapTexture, MipLevel);
 		if (Component->XYOffsetmapTexture)
 		{
 			DataInterface.UnlockMip(Component->XYOffsetmapTexture, MipLevel);

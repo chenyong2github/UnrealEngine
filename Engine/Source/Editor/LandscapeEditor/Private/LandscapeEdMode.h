@@ -12,6 +12,7 @@
 #include "LandscapeInfo.h"
 #include "LandscapeLayerInfoObject.h"
 #include "LandscapeGizmoActiveActor.h"
+#include "LandscapeEdit.h"
 
 class ALandscape;
 class FCanvas;
@@ -250,7 +251,7 @@ enum class ELandscapeEditingState : uint8
 /**
  * Landscape editor mode
  */
-class FEdModeLandscape : public FEdMode
+class FEdModeLandscape : public FEdMode, public ILandscapeEdModeInterface
 {
 public:
 
@@ -325,6 +326,10 @@ public:
 
 	/** Destructor */
 	virtual ~FEdModeLandscape();
+
+	/** ILandscapeEdModeInterface */
+	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const override;
+	virtual FGuid GetLandscapeSelectedLayer() const override;
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -478,6 +483,7 @@ public:
 	int32 UpdateLandscapeList();
 	void UpdateTargetList();
 	void SetTargetLandscape(const TWeakObjectPtr<ULandscapeInfo>& InLandscapeInfo);
+	bool CanEditCurrentTarget(FText* Reason = nullptr) const;
 
 	/** Update Display order list */
 	void UpdateTargetLayerDisplayOrder(ELandscapeLayerDisplayMode InTargetDisplayOrder);
@@ -499,8 +505,9 @@ public:
 	FName GetLayerName(int32 InLayerIndex) const;
 	void SetLayerName(int32 InLayerIndex, const FName& InName);
 	bool CanRenameLayerTo(int32 InLayerIndex, const FName& InNewName);
-	float GetLayerAlpha(int32 InLayerIndex) const;
 	void SetLayerAlpha(int32 InLayerIndex, float InAlpha);
+	float GetLayerAlpha(int32 InLayerIndex) const;
+	float GetClampedLayerAlpha(float InLayerAlpha) const;
 	void SetLayerVisibility(bool InVisible, int32 InLayerIndex);
 	bool IsLayerVisible(int32 InLayerIndex) const;
 	bool IsLayerLocked(int32 InLayerIndex) const;
@@ -523,13 +530,16 @@ public:
 	TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForCurrentLayer(int32 InTargetType);
 	
 	bool NeedToFillEmptyMaterialLayers() const;
-	void RequestLayersContentUpdate(bool InUpdateAllMaterials = false);
+	void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode);
+	void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InUpdateMode = ELandscapeLayerUpdateMode::Update_All);
 
 	void OnLevelActorAdded(AActor* InActor);
 	void OnLevelActorRemoved(AActor* InActor);
 
 	DECLARE_EVENT(FEdModeLandscape, FTargetsListUpdated);
 	static FTargetsListUpdated TargetsListUpdated;
+
+	void OnPreSaveWorld(uint32 InSaveFlags, const class UWorld* InWorld);
 
 	/** Called when the user presses a button on their motion controller device */
 	void OnVRAction(FEditorViewportClient& ViewportClient, UViewportInteractor* Interactor, const FViewportActionKeyInput& Action, bool& bOutIsInputCaptured, bool& bWasHandled);
@@ -582,6 +592,7 @@ private:
 
 	FDelegateHandle OnLevelActorDeletedDelegateHandle;
 	FDelegateHandle OnLevelActorAddedDelegateHandle;
+	FDelegateHandle OnLandscapeLayerSystemFlagChangedDelegateHandle;
 
 	/** Check if we are painting using the VREditor */
 	bool bIsPaintingInVR;

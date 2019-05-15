@@ -20,6 +20,11 @@ namespace Gauntlet
 			SB = new StringBuilder();
 		}
 
+		public MarkdownBuilder(string Contents)
+		{
+			SB = new StringBuilder(Contents);
+		}
+
 		/// <summary>
 		/// Returns our formatted text
 		/// </summary>

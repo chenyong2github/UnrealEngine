@@ -37,6 +37,7 @@
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionVertexInterpolator.h"
 #include "Materials/MaterialExpressionSceneColor.h"
+#include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
@@ -152,7 +153,7 @@ int32 FMaterialResource::CompilePropertyAndSetMaterialProperty(EMaterialProperty
 		case MP_OpacityMask:
 			// Force basic opaque surfaces to skip masked/translucent-only attributes.
 			// Some features can force the material to create a masked variant which unintentionally runs this dormant code
-			if (GetMaterialDomain() != MD_Surface || GetBlendMode() != BLEND_Opaque || !(GetShadingModel() == MSM_Unlit || GetShadingModel() == MSM_DefaultLit))
+			if (GetMaterialDomain() != MD_Surface || GetBlendMode() != BLEND_Opaque || (GetShadingModels().IsLit() && !GetShadingModels().HasShadingModel(MSM_DefaultLit)))
 			{
 				Ret = MaterialInterface->CompileProperty(Compiler, Property);
 			}
@@ -267,9 +268,9 @@ public:
 		FDefaultMaterialInstance* Resource = this;
 		ENQUEUE_RENDER_COMMAND(FDestroyDefaultMaterialInstanceCommand)(
 			[Resource](FRHICommandList& RHICmdList)
-			{
-				delete Resource;
-			});
+		{
+			delete Resource;
+		});
 	}
 
 	// FMaterialRenderProxy interface.
@@ -829,6 +830,7 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 {
 	BlendMode = BLEND_Opaque;
 	ShadingModel = MSM_DefaultLit;
+	ShadingModels = FMaterialShadingModelField(ShadingModel); 
 	TranslucencyLightingMode = TLM_VolumetricNonDirectional;
 	TranslucencyDirectionalLightingIntensity = 1.0f;
 	TranslucentShadowDensityScale = 0.5f;
@@ -3057,6 +3059,12 @@ void UMaterial::UpdateMaterialShaderCacheAndTextureReferences()
 
 void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 {
+	
+#if WITH_EDITOR
+	// Always rebuild the shading model field on recompile
+	RebuildShadingModelField();
+#endif //WITH_EDITOR
+
 	if (bRegenerateId)
 	{
 		// Regenerate this material's Id if requested
@@ -3482,7 +3490,7 @@ void UMaterial::Serialize(FArchive& Ar)
 	}
 #endif // #if WITH_EDITOR
 
-	static_assert(MP_MAX == 29, "New material properties must have DoMaterialAttributesReorder called on them to ensure that any future reordering of property pins is correctly applied.");
+	static_assert(MP_MAX == 30, "New material properties must have DoMaterialAttributeReorder called on them to ensure that any future reordering of property pins is correctly applied.");
 
 	if (Ar.UE4Ver() < VER_UE4_MATERIAL_MASKED_BLENDMODE_TIDY)
 	{
@@ -3829,6 +3837,7 @@ void UMaterial::PostLoad()
 	DoMaterialAttributeReorder(&CustomizedUVs[6], UE4Ver);
 	DoMaterialAttributeReorder(&CustomizedUVs[7], UE4Ver);
 	DoMaterialAttributeReorder(&PixelDepthOffset, UE4Ver);
+	DoMaterialAttributeReorder(&ShadingModelFromMaterialExpression, UE4Ver);
 #endif // WITH_EDITORONLY_DATA
 
 	if (!IsDefaultMaterial())
@@ -3882,6 +3891,12 @@ void UMaterial::PostLoad()
 	if(ShadingModel == MSM_MAX)
 	{
 		ShadingModel = MSM_DefaultLit;
+	}
+
+	// Take care of loading materials that were not compiled when the shading model field existed
+	if (ShadingModel != MSM_FromMaterialExpression)
+	{
+		ShadingModels = FMaterialShadingModelField(ShadingModel);
 	}
 
 	if(DecalBlendMode == DBM_MAX)
@@ -4249,7 +4264,7 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 	
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, ShadingModel))
 		{
-			return MaterialDomain == MD_Surface || (MaterialDomain == MD_DeferredDecal && DecalBlendMode == DBM_Volumetric_DistanceFunction);
+			return (MaterialDomain == MD_Surface || (MaterialDomain == MD_DeferredDecal && DecalBlendMode == DBM_Volumetric_DistanceFunction));
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, DecalBlendMode))
@@ -4289,12 +4304,12 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, TranslucentMultipleScatteringExtinction)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, TranslucentShadowStartOffset))
 		{
-			return MaterialDomain != MD_DeferredDecal && IsTranslucentBlendMode(BlendMode) && ShadingModel != MSM_Unlit;
+			return MaterialDomain != MD_DeferredDecal && IsTranslucentBlendMode(BlendMode) && GetShadingModels().IsLit();
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, SubsurfaceProfile))
 		{
-			return MaterialDomain == MD_Surface && UseSubsurfaceProfile(ShadingModel) && (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked);
+			return MaterialDomain == MD_Surface && UseSubsurfaceProfile(ShadingModels) && (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked);
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FLightmassMaterialInterfaceSettings, bCastShadowAsMasked))
@@ -4325,7 +4340,7 @@ void UMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
-	
+
 	//Cancel any current compilation jobs that are in flight for this material.
 	CancelOutstandingCompilation();
 
@@ -4355,7 +4370,7 @@ void UMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 
 	TranslucencyDirectionalLightingIntensity = FMath::Clamp(TranslucencyDirectionalLightingIntensity, .1f, 10.0f);
 
-	// Don't want to recompile after a duplicate because it's just been done by PostLoad, nor during interactive changes to prevent constant recompliation while spinning properties.
+	// Don't want to recompile after a duplicate because it's just been done by PostLoad, nor during interactive changes to prevent constant recompilation while spinning properties.
 	if( PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate || PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive )
 	{
 		bRequiresCompilation = false;
@@ -4609,6 +4624,45 @@ void UMaterial::UpdateExpressionParameterName(UMaterialExpression* Expression)
 			AddExpressionParameter(Expression, EditorParameters);
 			break;
 		}
+	}
+}
+
+void UMaterial::RebuildShadingModelField()
+{
+	ShadingModels.ClearShadingModels();
+	// If using shading model from material expression, go through the expressions and look for the ShadingModel expression to figure out what shading models need to be supported in this material
+	if (ShadingModel == MSM_FromMaterialExpression)
+	{
+		TArray<UMaterialExpression*> ShadingModelPropertyExpressions;
+
+		// Depending on if we use Material Attributes or not, we have to start at the right property
+		if (bUseMaterialAttributes)
+		{
+			GetExpressionsInPropertyChain(MP_MaterialAttributes, ShadingModelPropertyExpressions, nullptr);
+		}
+		else
+		{
+			GetExpressionsInPropertyChain(MP_ShadingModel, ShadingModelPropertyExpressions, nullptr);
+		}
+
+		for (UMaterialExpression* MatExpr: ShadingModelPropertyExpressions)
+		{
+			if (UMaterialExpressionShadingModel* ShadingModelExpression = Cast<UMaterialExpressionShadingModel>(MatExpr))
+			{
+				ShadingModels.AddShadingModel(ShadingModelExpression->ShadingModel);
+			}
+		}
+
+		// If no expressions have been found, set a default
+		if (!ShadingModels.IsValid())
+		{
+			ShadingModels.AddShadingModel(MSM_DefaultLit);
+		}
+	}
+	else 
+	{
+		// If a shading model has been selected directly for the material, set it here
+		ShadingModels.AddShadingModel(ShadingModel);
 	}
 }
 #endif // WITH_EDITOR
@@ -5100,6 +5154,7 @@ FExpressionInput* UMaterial::GetExpressionInputForProperty(EMaterialProperty InP
 		case MP_Refraction:				return &Refraction;
 		case MP_MaterialAttributes:		return &MaterialAttributes;
 		case MP_PixelDepthOffset:		return &PixelDepthOffset;
+		case MP_ShadingModel:			return &ShadingModelFromMaterialExpression;
 	}
 
 	if (InProperty >= MP_CustomizedUVs0 && InProperty <= MP_CustomizedUVs7)
@@ -5638,6 +5693,7 @@ int32 UMaterial::CompilePropertyEx( FMaterialCompiler* Compiler, const FGuid& At
 		case MP_WorldPositionOffset:	return WorldPositionOffset.CompileWithDefault(Compiler, Property);
 		case MP_WorldDisplacement:		return WorldDisplacement.CompileWithDefault(Compiler, Property);
 		case MP_PixelDepthOffset:		return PixelDepthOffset.CompileWithDefault(Compiler, Property);
+		case MP_ShadingModel:			return ShadingModelFromMaterialExpression.CompileWithDefault(Compiler, Property);
 
 		default:
 			if (Property >= MP_CustomizedUVs0 && Property <= MP_CustomizedUVs7)
@@ -5805,13 +5861,13 @@ EBlendMode UMaterial::GetBlendMode() const
 	}
 }
 
-EMaterialShadingModel UMaterial::GetShadingModel() const
+FMaterialShadingModelField UMaterial::GetShadingModels() const
 {
 	switch (MaterialDomain)
 	{
 		case MD_Surface:
 		case MD_Volume:
-			return ShadingModel;
+			return ShadingModels;
 		case MD_DeferredDecal:
 			return MSM_DefaultLit;
 
@@ -5825,6 +5881,11 @@ EMaterialShadingModel UMaterial::GetShadingModel() const
 			checkNoEntry();
 			return MSM_Unlit;
 	}
+}
+
+bool UMaterial::IsShadingModelFromMaterialExpression() const
+{
+	return ShadingModel == MSM_FromMaterialExpression;
 }
 
 bool UMaterial::IsTwoSided() const
@@ -5856,12 +5917,13 @@ USubsurfaceProfile* UMaterial::GetSubsurfaceProfile_Internal() const
 static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	EMaterialDomain Domain,
 	EBlendMode BlendMode,
-	EMaterialShadingModel ShadingModel,
+	FMaterialShadingModelField ShadingModels,
 	ETranslucencyLightingMode TranslucencyLightingMode,
 	EDecalBlendMode DecalBlendMode,
 	bool bBlendableOutputAlpha,
 	bool bHasTessellation,
-	bool bHasRefraction )
+	bool bHasRefraction,
+	bool bUsesShadingModelFromMaterialExpression)
 {
 	if (Domain == MD_PostProcess)
 	{
@@ -6042,7 +6104,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		break;
 	case MP_Opacity:
 		Active = bIsTranslucentBlendMode && BlendMode != BLEND_Modulate;
-		if (IsSubsurfaceShadingModel(ShadingModel))
+		if (IsSubsurfaceShadingModel(ShadingModels))
 		{
 			Active = true;
 		}
@@ -6052,27 +6114,27 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		break;
 	case MP_BaseColor:
 	case MP_AmbientOcclusion:
-		Active = ShadingModel != MSM_Unlit;
+		Active = ShadingModels.IsLit();
 		break;
 	case MP_Specular:
 	case MP_Roughness:
-		Active = ShadingModel != MSM_Unlit && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
+		Active = ShadingModels.IsLit() && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
 		break;
 	case MP_Metallic:
 		// Subsurface models store opacity in place of Metallic in the GBuffer
-		Active = ShadingModel != MSM_Unlit && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
+		Active = ShadingModels.IsLit() && (!bIsTranslucentBlendMode || !bIsVolumetricTranslucencyLightingMode);
 		break;
 	case MP_Normal:
-		Active = (ShadingModel != MSM_Unlit && (!bIsTranslucentBlendMode || !bIsNonDirectionalTranslucencyLightingMode)) || bHasRefraction;
+		Active = (ShadingModels.IsLit() && (!bIsTranslucentBlendMode || !bIsNonDirectionalTranslucencyLightingMode)) || bHasRefraction;
 		break;
 	case MP_SubsurfaceColor:
-		Active = ShadingModel == MSM_Subsurface || ShadingModel == MSM_PreintegratedSkin || ShadingModel == MSM_TwoSidedFoliage || ShadingModel == MSM_Cloth;
+		Active = ShadingModels.HasAnyShadingModel({ MSM_Subsurface, MSM_PreintegratedSkin, MSM_TwoSidedFoliage, MSM_Cloth });
 		break;
 	case MP_CustomData0:
-		Active = ShadingModel == MSM_ClearCoat || ShadingModel == MSM_Hair || ShadingModel == MSM_Cloth || ShadingModel == MSM_Eye;
+		Active = ShadingModels.HasAnyShadingModel({ MSM_ClearCoat, MSM_Hair, MSM_Cloth, MSM_Eye });
 		break;
 	case MP_CustomData1:
-		Active = ShadingModel == MSM_ClearCoat || ShadingModel == MSM_Eye;
+		Active = ShadingModels.HasAnyShadingModel({ MSM_ClearCoat, MSM_Eye });
 		break;
 	case MP_TessellationMultiplier:
 	case MP_WorldDisplacement:
@@ -6088,6 +6150,9 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	case MP_PixelDepthOffset:
 		Active = !bIsTranslucentBlendMode;
 		break;
+	case MP_ShadingModel:
+		Active = bUsesShadingModelFromMaterialExpression;
+                break;
 	case MP_MaterialAttributes:
 	default:
 		Active = true;
@@ -6109,12 +6174,13 @@ bool UMaterial::IsPropertyActiveInEditor(EMaterialProperty InProperty) const
 	return IsPropertyActive_Internal(InProperty,
 		MaterialDomain,
 		BlendMode,
-		ShadingModel,
+		ShadingModels,
 		TranslucencyLightingMode,
 		DecalBlendMode,
 		BlendableOutputAlpha,
 		D3D11TessellationMode != MTM_NoTessellation,
-		Refraction.IsConnected());
+		Refraction.IsConnected(),
+		IsShadingModelFromMaterialExpression());
 }
 #endif // WITH_EDITOR
 
@@ -6123,12 +6189,13 @@ bool UMaterial::IsPropertyActiveInDerived(EMaterialProperty InProperty, const UM
 	return IsPropertyActive_Internal(InProperty,
 		MaterialDomain,
 		DerivedMaterial->GetBlendMode(),
-		DerivedMaterial->GetShadingModel(),
+		DerivedMaterial->GetShadingModels(),
 		TranslucencyLightingMode,
 		DecalBlendMode,
 		BlendableOutputAlpha,
 		D3D11TessellationMode != MTM_NoTessellation,
-		Refraction.IsConnected());
+		Refraction.IsConnected(),
+		DerivedMaterial->IsShadingModelFromMaterialExpression());
 }
 
 #if WITH_EDITORONLY_DATA

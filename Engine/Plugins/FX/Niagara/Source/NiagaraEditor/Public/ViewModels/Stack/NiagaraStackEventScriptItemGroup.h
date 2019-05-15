@@ -37,12 +37,14 @@ private:
 
 	void SelectEmitterStackObjectRootTreeNodes(TArray<TSharedRef<IDetailTreeNode>> Source, TArray<TSharedRef<IDetailTreeNode>>* Selected);
 
+	bool HasBaseEventHandler() const;
+
 private:
 	FGuid EventScriptUsageId;
 
-	bool bHasBaseEventHandler;
+	mutable TOptional<bool> bHasBaseEventHandlerCache;
 
-	mutable TOptional<bool> bCanResetToBase;
+	mutable TOptional<bool> bCanResetToBaseCache;
 
 	TWeakObjectPtr<UNiagaraEmitter> Emitter;
 
@@ -77,9 +79,12 @@ protected:
 
 	virtual bool CanDelete() const override;
 	virtual bool Delete() override;
+
+private:
+	bool HasBaseEventHandler() const;
 	
 private:
-	bool bHasBaseEventHandler;
+	mutable TOptional<bool> bHasBaseEventHandlerCache;
 
 	UPROPERTY()
 	UNiagaraStackEventHandlerPropertiesItem* EventHandlerProperties;

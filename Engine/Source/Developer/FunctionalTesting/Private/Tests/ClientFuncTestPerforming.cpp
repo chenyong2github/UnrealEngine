@@ -8,6 +8,8 @@
 #include "FunctionalTestingModule.h"
 #include "EngineGlobals.h"
 #include "Tests/AutomationCommon.h"
+#include "FunctionalTestBase.h"
+#include "FunctionalTest.h"
 #include "FunctionalTestingHelper.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -16,11 +18,11 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogFunctionalTesting, Log, All);
 
-class FClientFunctionalTestingMapsBase : public FAutomationTestBase
+class FClientFunctionalTestingMapsBase : public FFunctionalTestBase
 {
 public:
 	FClientFunctionalTestingMapsBase(const FString& InName, const bool bInComplexTask)
-		: FAutomationTestBase(InName, bInComplexTask)
+		: FFunctionalTestBase(InName, bInComplexTask)
 	{
 	}
 
@@ -96,6 +98,9 @@ public:
 
 		IFunctionalTestingModule::Get().MarkPendingActivation();
 
+		// Always reset these, even though tests should do the same
+		SetLogErrorAndWarningHandlingToDefault();
+
 		UWorld* TestWorld = GetAnyGameWorld();
 		if (TestWorld && TestWorld->GetMapName() == MapPackageName)
 		{
@@ -129,6 +134,7 @@ public:
 		UE_LOG(LogFunctionalTest, Error, TEXT("Failed to start the %s map (possibly due to BP compilation issues)"), *MapPackageName);
 		return false;
 	}
+
 };
 
 // Runtime tests

@@ -1357,7 +1357,7 @@ void UAnimSharingInstance::TickActorStates()
 			ActorData.bRequiresTick = ActorData.SignificanceValue >= ScalabilitySettings->TickSignificanceValue.Default;
 			for (int32 ComponentIndex : ActorData.ComponentIndices)
 			{
-				if (PerComponentData[ComponentIndex].Component->LastRenderTime > (WorldTime - 1.f))
+				if (PerComponentData[ComponentIndex].Component->GetLastRenderTime() > (WorldTime - 1.f))
 				{
 					PerComponentData[ComponentIndex].Component->bRecentlyRendered = true;
 					ActorData.bRequiresTick = true;

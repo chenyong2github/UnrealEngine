@@ -65,6 +65,7 @@
 #include "Particles/Lifetime/ParticleModuleLifetimeBase.h"
 #include "Particles/Lifetime/ParticleModuleLifetime.h"
 #include "Particles/Light/ParticleModuleLight.h"
+#include "Particles/Location/ParticleModuleLocationBoneSocket.h"
 #include "Particles/Material/ParticleModuleMeshMaterial.h"
 #include "Particles/Modules/Location/ParticleModulePivotOffset.h"
 #include "Particles/Orbit/ParticleModuleOrbit.h"
@@ -382,6 +383,8 @@ void UParticleLODLevel::PostLoad()
 
 void UParticleLODLevel::UpdateModuleLists()
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	SpawningModules.Empty();
 	SpawnModules.Empty();
 	UpdateModules.Empty();
@@ -1837,6 +1840,15 @@ void UParticleEmitter::CacheEmitterModuleInfo()
 				? ModuleSubUVAnimation
 				: NULL;
 		}
+		// Perform validation / fixup on some modules that can cause crashes if LODs / Modules are out of sync
+		// This should only be applied on uncooked builds to avoid wasting cycles
+		else if ( !FPlatformProperties::RequiresCookedData() )
+		{
+			if (ParticleModule->IsA(UParticleModuleLocationBoneSocket::StaticClass()))
+			{
+				UParticleModuleLocationBoneSocket::ValidateLODLevels(this, ModuleIdx);
+			}
+		}
 
 		// Set bMeshRotationActive if module says so
 		if(!bMeshRotationActive && ParticleModule->TouchesMeshRotation())
@@ -2055,6 +2067,15 @@ void UParticleSpriteEmitter::SetToSensibleDefaults()
 #if WITH_EDITOR
 	PostEditChange();
 #endif // WITH_EDITOR
+}
+
+/*-----------------------------------------------------------------------------
+	UFXSystemAsset implementation.
+-----------------------------------------------------------------------------*/
+
+UFXSystemAsset::UFXSystemAsset(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
 }
 
 /*-----------------------------------------------------------------------------
@@ -3318,6 +3339,10 @@ bool UParticleSystem::HasGPUEmitter() const
 	return false;
 }
 
+UFXSystemComponent::UFXSystemComponent(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{}
+
 FOnSystemPreActivationChange UParticleSystemComponent::OnSystemPreActivationChange;
 
 UParticleSystemComponent::UParticleSystemComponent(const FObjectInitializer& ObjectInitializer)
@@ -3564,7 +3589,7 @@ bool UParticleSystemComponent::CanConsiderInvisible()const
 		const float ClampedMaxSecondsBeforeInactive = MaxSecondsBeforeInactive > 0 ? FMath::Max(MaxSecondsBeforeInactive, 0.1f) : 0.0f;
 		if (ClampedMaxSecondsBeforeInactive > 0.0f && AccumTickTime > ClampedMaxSecondsBeforeInactive && World->IsGameWorld())
 		{
-			return World->GetTimeSeconds() > (LastRenderTime + ClampedMaxSecondsBeforeInactive);
+			return World->GetTimeSeconds() > (GetLastRenderTime() + ClampedMaxSecondsBeforeInactive);
 		}
 	}
 	return false;
@@ -6028,7 +6053,7 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 	World = GetWorld(); // refresh the world pointer as it may have changed by this point
 	if(!bWasDeactivated && !bWasCompleted && ensure(World))
 	{
-		LastRenderTime = World->GetTimeSeconds();
+		SetLastRenderTime(World->GetTimeSeconds());
 	}
 }
 
@@ -6134,7 +6159,7 @@ void UParticleSystemComponent::DeactivateSystem()
 	//TODO: What if there are immortal particles but bKillOnDeactivate is false? Need to mark emitters with currently immortal particles, kill them and warn the user.
 	SetComponentTickEnabled(true);
 
-	LastRenderTime = World->GetTimeSeconds();
+	SetLastRenderTime(World->GetTimeSeconds());
 }
 
 void UParticleSystemComponent::CancelAutoAttachment(bool bDetachFromParent)
@@ -6996,6 +7021,8 @@ int32 UParticleSystemComponent::GetLODLevel()
  */
 void UParticleSystemComponent::SetFloatParameter(FName Name, float Param)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	if(Name == NAME_None)
 	{
 		return;
@@ -7023,6 +7050,8 @@ void UParticleSystemComponent::SetFloatParameter(FName Name, float Param)
 
 void UParticleSystemComponent::SetFloatRandParameter(FName ParameterName,float Param,float ParamLow)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	if (ParameterName == NAME_None)
 	{
 		return;
@@ -7052,6 +7081,8 @@ void UParticleSystemComponent::SetFloatRandParameter(FName ParameterName,float P
 
 void UParticleSystemComponent::SetVectorParameter(FName Name, FVector Param)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	if (Name == NAME_None)
 	{
 		return;
@@ -7079,6 +7110,8 @@ void UParticleSystemComponent::SetVectorParameter(FName Name, FVector Param)
 
 void UParticleSystemComponent::SetVectorRandParameter(FName ParameterName,const FVector& Param,const FVector& ParamLow)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	if (ParameterName == NAME_None)
 	{
 		return;
@@ -7108,6 +7141,8 @@ void UParticleSystemComponent::SetVectorRandParameter(FName ParameterName,const 
 
 void UParticleSystemComponent::SetColorParameter(FName Name, FLinearColor Param)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	if(Name == NAME_None)
 	{
 		return;
@@ -7137,6 +7172,8 @@ void UParticleSystemComponent::SetColorParameter(FName Name, FLinearColor Param)
 
 void UParticleSystemComponent::SetActorParameter(FName Name, AActor* Param)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	if(Name == NAME_None)
 	{
 		return;
@@ -7164,6 +7201,8 @@ void UParticleSystemComponent::SetActorParameter(FName Name, AActor* Param)
 
 void UParticleSystemComponent::SetMaterialParameter(FName Name, UMaterialInterface* Param)
 {
+	LLM_SCOPE(ELLMTag::Particles);
+
 	if(Name == NAME_None)
 	{
 		return;

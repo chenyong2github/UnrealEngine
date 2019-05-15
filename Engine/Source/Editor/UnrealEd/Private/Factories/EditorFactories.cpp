@@ -263,6 +263,8 @@
 #include "DesktopPlatformModule.h"
 #include "Interfaces/IMainFrameModule.h"
 
+#include "LODUtilities.h"
+
 DEFINE_LOG_CATEGORY(LogEditorFactories);
 
 #define LOCTEXT_NAMESPACE "EditorFactories"
@@ -5887,6 +5889,9 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 			ImportOptions->bUpdateSkeletonReferencePose = false;
 		}
 
+		//Save all skinweight profile infos (need a copy, because they will be removed)
+		const TArray<FSkinWeightProfileInfo> ExistingSkinWeightProfileInfos = SkeletalMesh->GetSkinWeightProfiles();
+
 		if ( FFbxImporter->ImportFromFile( *Filename, FPaths::GetExtension( Filename ), true ) )
 		{
 			if ( FFbxImporter->ReimportSkeletalMesh(SkeletalMesh, ImportData) )
@@ -5917,6 +5922,14 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 		FFbxImporter->ReleaseScene(); 
 
 		CleanUp();
+
+		if (bSuccess && ExistingSkinWeightProfileInfos.Num() > 0)
+		{
+			//Restore skin weight profile infos, then reimport affected LODs
+			TArray<FSkinWeightProfileInfo>&SkinWeightsProfile = SkeletalMesh->GetSkinWeightProfiles();
+			SkinWeightsProfile = ExistingSkinWeightProfileInfos;
+			FLODUtilities::ReimportAlternateSkinWeight(SkeletalMesh, 0, true);
+		}
 
 		// Reimporting can have dangerous effects if the mesh is still in the transaction buffer.  Reset the transaction buffer if this is the case
 		if(!IsRunningCommandlet() && GEditor->IsObjectInTransactionBuffer( SkeletalMesh ) )

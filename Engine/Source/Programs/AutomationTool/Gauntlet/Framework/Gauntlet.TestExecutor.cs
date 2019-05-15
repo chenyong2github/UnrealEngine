@@ -523,7 +523,7 @@ namespace Gauntlet
 			}
 			else
 			{
-				if (TestInfo.TestNode.HasWarnings)
+				if (TestInfo.TestNode.GetWarnings().Any())
 				{
 					Log.Warning("{0} result={1}", TestInfo, TestInfo.FinalResult);
 				}
@@ -533,6 +533,11 @@ namespace Gauntlet
 				}
 			}
 			Summary.Split('\n').ToList().ForEach(L => Log.Info("  " + L));
+
+			TestInfo.TestNode.GetErrors().ToList().ForEach(E => Log.Error("{0}", E));
+
+			TestInfo.TestNode.GetWarnings().ToList().ForEach(E => Log.Warning("{0}", E));
+
 		}
 
 		/// <summary>
@@ -550,7 +555,7 @@ namespace Gauntlet
 
 			int TestCount = AllInfo.Count();
 			int FailedCount = AllInfo.Where(T => T.FinalResult != TestResult.Passed).Count();
-			int WarningCount = AllInfo.Where(T => T.TestNode.HasWarnings).Count();
+			int WarningCount = AllInfo.Where(T => T.TestNode.GetWarnings().Any()).Count();
 
 			var SortedInfo = AllInfo;
 
@@ -564,7 +569,7 @@ namespace Gauntlet
 						return 10;
 					}
 
-					if (T.TestNode.HasWarnings)
+					if (T.TestNode.GetWarnings().Any())
 					{
 						return 5;
 					}
@@ -582,7 +587,7 @@ namespace Gauntlet
 			List<string> TestResults = new List<string>();
 			foreach (TestExecutionInfo Info in SortedInfo)
 			{
-				string WarningString = Info.TestNode.HasWarnings ? " With Warnings" : "";
+				string WarningString = Info.TestNode.GetWarnings().Any() ? " With Warnings" : "";
 				TestResults.Add(string.Format("\t{0} result={1}{2}", Info, Info.FinalResult, WarningString));
 			}
 

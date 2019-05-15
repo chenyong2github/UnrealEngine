@@ -35,6 +35,8 @@ DEFINE_STAT(STAT_AudioSources);
 DEFINE_STAT(STAT_AudioVirtualLoops);
 DEFINE_STAT(STAT_WaveInstances);
 DEFINE_STAT(STAT_WavesDroppedDueToPriority);
+DEFINE_STAT(STAT_AudioMaxChannels);
+DEFINE_STAT(STAT_AudioMaxStoppingSources);
 DEFINE_STAT(STAT_AudibleWavesDroppedDueToPriority);
 DEFINE_STAT(STAT_AudioFinishedDelegatesCalled);
 DEFINE_STAT(STAT_AudioFinishedDelegates);
@@ -73,6 +75,14 @@ FAutoConsoleVariableRef CVarAllowAudioSpatializationCVar(
 	AllowAudioSpatializationCVar,
 	TEXT("Controls if we allow spatialization of audio, normally this is enabled.  If disabled all audio won't be spatialized, but will have attenuation.\n")
 	TEXT("0: Disable, >0: Enable"),
+	ECVF_Default);
+
+static int32 SpatialSourceVisualizeEnabledCVar = 1;
+FAutoConsoleVariableRef CVarAudioVisualizeSpatialSourceEnabled(
+	TEXT("au.3dVisualize.SpatialSources"),
+	SpatialSourceVisualizeEnabledCVar,
+	TEXT("Whether or not audio spatialized sources are visible when 3d visualize is enabled. \n")
+	TEXT("0: Not Enabled, 1: Enabled"),
 	ECVF_Default);
 
 bool IsAudioPluginEnabled(EAudioPlugin PluginType)
@@ -412,44 +422,42 @@ void FSoundSource::UpdateStereoEmitterPositions()
 void FSoundSource::DrawDebugInfo()
 {
 #if ENABLE_DRAW_DEBUG
-	// Draw 3d Debug information about this source, if enabled
-	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
+	if (!WaveInstance)
+	{
+		return;
+	}
 
+	const FActiveSound* ActiveSound = WaveInstance->ActiveSound;
+	if (!ActiveSound)
+	{
+		return;
+	}
+
+	if (!SpatialSourceVisualizeEnabledCVar)
+	{
+		return;
+	}
+
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager && DeviceManager->IsVisualizeDebug3dEnabled())
 	{
-		const uint32 AudioComponentID = WaveInstance->ActiveSound->GetAudioComponentID();
+		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.DrawSourceDebugInfo"), STAT_AudioDrawSourceDebugInfo, STATGROUP_TaskGraphTasks);
 
-		if (AudioComponentID > 0)
+		const bool bSpatialized = Buffer->NumChannels == 2 && WaveInstance->GetUseSpatialization();
+		if (bSpatialized)
 		{
-			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.DrawSourceDebugInfo"), STAT_AudioDrawSourceDebugInfo, STATGROUP_TaskGraphTasks);
+			const FRotator Rotator = ActiveSound->Transform.GetRotation().Rotator();
 
-			USoundBase* Sound = WaveInstance->ActiveSound->GetSound();
-			const FVector Location = WaveInstance->Location;
-
-			const bool bSpatialized = Buffer->NumChannels == 2 && WaveInstance->GetUseSpatialization();
+			TWeakObjectPtr<UWorld> WorldPtr = WaveInstance->ActiveSound->GetWeakWorld();
 			const FVector LeftChannelSourceLoc = LeftChannelSourceLocation;
 			const FVector RightChannelSourceLoc = RightChannelSourceLocation;
-
-			FAudioThread::RunCommandOnGameThread([AudioComponentID, Sound, bSpatialized, Location, LeftChannelSourceLoc, RightChannelSourceLoc]()
+			FAudioThread::RunCommandOnGameThread([LeftChannelSourceLoc, RightChannelSourceLoc, Rotator, WorldPtr]()
 			{
-				UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID);
-				if (AudioComponent)
+				if (WorldPtr.IsValid())
 				{
-					UWorld* SoundWorld = AudioComponent->GetWorld();
-					if (SoundWorld)
-					{
-						FRotator SoundRotation = AudioComponent->GetComponentRotation();
-						DrawDebugCrosshairs(SoundWorld, Location, SoundRotation, 20.0f, FColor::White, false, -1.0f, SDPG_Foreground);
-
-						if (bSpatialized)
-						{
-							DrawDebugCrosshairs(SoundWorld, LeftChannelSourceLoc, SoundRotation, 20.0f, FColor::Red, false, -1.0f, SDPG_Foreground);
-							DrawDebugCrosshairs(SoundWorld, RightChannelSourceLoc, SoundRotation, 20.0f, FColor::Green, false, -1.0f, SDPG_Foreground);
-						}
-
-						const FString Name = Sound->GetName();
-						DrawDebugString(SoundWorld, AudioComponent->GetComponentLocation() + FVector(0, 0, 32), *Name, nullptr, FColor::White, 0.033, false);
-					}
+					UWorld* World = WorldPtr.Get();
+					DrawDebugCrosshairs(World, LeftChannelSourceLoc, Rotator, 20.0f, FColor::Red, false, -1.0f, SDPG_Foreground);
+					DrawDebugCrosshairs(World, RightChannelSourceLoc, Rotator, 20.0f, FColor::Green, false, -1.0f, SDPG_Foreground);
 				}
 			}, GET_STATID(STAT_AudioDrawSourceDebugInfo));
 		}
@@ -973,6 +981,28 @@ float FWaveInstance::GetVolumeWeightedPriority() const
 	{
 		return Priority - 2.0f * MAX_SOUND_PRIORITY - 1.0f;
 	}
+}
+
+bool FWaveInstance::IsSeekable() const
+{
+	check(WaveData);
+
+	if (StartTime == 0.0f)
+	{
+		return false;
+	}
+
+	if (WaveData->bIsBus || WaveData->bProcedural)
+	{
+		return false;
+	}
+
+	if (IsStreaming() && !WaveData->IsSeekableStreaming())
+	{
+		return false;
+	}
+
+	return true;
 }
 
 bool FWaveInstance::IsStreaming() const

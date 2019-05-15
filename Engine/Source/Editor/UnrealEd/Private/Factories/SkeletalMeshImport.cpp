@@ -198,15 +198,13 @@ bool ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleto
 }
 
 /**
-* Process and update the vertex Influences using the raw binary import data
+* Process and update the vertex Influences using the predefined wedges
 * 
-* @param ImportData - raw binary import data to process
+* @param WedgeCount - The number of wedges in the corresponding mesh.
+* @param Influences - BoneWeights and Ids for the corresponding vertices. 
 */
-void ProcessImportMeshInfluences(FSkeletalMeshImportData& ImportData)
+void ProcessImportMeshInfluences(const int32 WedgeCount, TArray<SkeletalMeshImportData::FRawBoneInfluence>& Influences)
 {
-	TArray <FVector>& Points = ImportData.Points;
-	TArray <SkeletalMeshImportData::FVertex>& Wedges = ImportData.Wedges;
-	TArray <SkeletalMeshImportData::FRawBoneInfluence>& Influences = ImportData.Influences;
 
 	// Sort influences by vertex index.
 	struct FCompareVertexIndex
@@ -333,8 +331,8 @@ void ProcessImportMeshInfluences(FSkeletalMeshImportData& ImportData)
 		// warn about no influences
 		FFbxImporter->AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("WarningNoSkelInfluences", "Warning skeletal mesh is has no vertex influences")), FFbxErrors::SkeletalMesh_NoInfluences);
 		// add one for each wedge entry
-		Influences.AddUninitialized(Wedges.Num());
-		for( int32 WedgeIdx=0; WedgeIdx<Wedges.Num(); WedgeIdx++ )
+		Influences.AddUninitialized(WedgeCount);
+		for( int32 WedgeIdx=0; WedgeIdx<WedgeCount; WedgeIdx++ )
 		{	
 			Influences[WedgeIdx].VertexIndex = WedgeIdx;
 			Influences[WedgeIdx].BoneIndex = 0;
@@ -358,6 +356,16 @@ void ProcessImportMeshInfluences(FSkeletalMeshImportData& ImportData)
 			}
 		}
 	}
+}
+
+/**
+* Process and update the vertex Influences using the raw binary import data
+*
+* @param ImportData - raw binary import data to process
+*/
+void ProcessImportMeshInfluences(FSkeletalMeshImportData& ImportData)
+{
+	ProcessImportMeshInfluences(ImportData.Wedges.Num(), ImportData.Influences);
 }
 
 bool SkeletalMeshIsUsingMaterialSlotNameWorkflow(UAssetImportData* AssetImportData)

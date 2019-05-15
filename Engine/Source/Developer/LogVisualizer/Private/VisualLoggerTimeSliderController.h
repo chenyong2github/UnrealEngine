@@ -101,6 +101,7 @@ public:
 	void SetClampRange(float MinValue, float MaxValue);
 	bool IsPanning() { return bPanning; }
 
+	float GetTimeAtCursorPosition(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) const;
 private:
 	// forward declared as class members to prevent name collision with similar types defined in other units
 	struct FScrubRangeToScreen;

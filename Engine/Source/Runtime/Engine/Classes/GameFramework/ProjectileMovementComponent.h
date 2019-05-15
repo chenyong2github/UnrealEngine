@@ -38,6 +38,10 @@ class ENGINE_API UProjectileMovementComponent : public UMovementComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Projectile)
 	uint8 bRotationFollowsVelocity:1;
 
+	/** If true, this projectile will have its rotation updated each frame to maintain the rotations Yaw only. (bRotationFollowsVelocity is required to be true) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Projectile, meta = (EditCondition = "bRotationFollowsVelocity"))
+	uint8 bRotationRemainsVertical:1;
+
 	/** If true, simple bounces will be simulated. Set this to false to stop simulating on contact. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ProjectileBounces)
 	uint8 bShouldBounce:1;
@@ -395,6 +399,8 @@ protected:
 	/** Computes result of a bounce and returns the new velocity. */
 	virtual FVector ComputeBounceResult(const FHitResult& Hit, float TimeSlice, const FVector& MoveDelta);
 
+public:
+
 	/** Don't allow velocity magnitude to exceed MaxSpeed, if MaxSpeed is non-zero. */
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ProjectileMovement")
 	FVector LimitVelocity(FVector NewVelocity) const;
@@ -407,6 +413,8 @@ protected:
 
 	/** Allow the projectile to track towards its homing target. */
 	virtual FVector ComputeHomingAcceleration(const FVector& InVelocity, float DeltaTime) const;
+
+protected:
 
 	virtual void TickInterpolation(float DeltaTime);
 	

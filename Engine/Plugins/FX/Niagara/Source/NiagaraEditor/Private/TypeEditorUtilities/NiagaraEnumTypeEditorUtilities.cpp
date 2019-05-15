@@ -245,3 +245,14 @@ bool FNiagaraEditorEnumTypeUtilities::SetValueFromDisplayName(const FText& TextV
 	}
 	return false;
 }
+
+FText FNiagaraEditorEnumTypeUtilities::GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const
+{
+	checkf(AllocatedVariable.IsDataAllocated(), TEXT("Can not generate search text for an unallocated variable."));
+
+	const UEnum* Enum = AllocatedVariable.GetType().GetEnum();
+	checkf(Enum != nullptr, TEXT("Variable is not an enum type."));
+
+	const int32 EnumNameIndex = Enum->GetIndexByValue(AllocatedVariable.GetValue<int32>());
+	return Enum->GetDisplayNameTextByIndex(EnumNameIndex);
+}

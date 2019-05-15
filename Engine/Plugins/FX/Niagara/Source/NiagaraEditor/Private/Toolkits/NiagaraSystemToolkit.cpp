@@ -50,10 +50,7 @@
 #include "Misc/FileHelper.h"
 #include "MessageLog/Public/MessageLogModule.h"
 #include "MessageLog/Public/IMessageLogListing.h"
-#include "NiagaraScriptSource.h" //@todo(ng) remove this include after making FNiagaraMessageManager
-#include "NiagaraNodeFunctionCall.h" //@todo(ng) remove this include after making FNiagaraMessageManager
-#include "NiagaraScript.h" //@todo(ng) dependency for fniagaracompile event, remove this include after making FNiagaraMessageManager
-#include "NiagaraNodeEmitter.h" //@todo(ng) remove this include after making FNiagaraMessageManager
+#include "NiagaraMessageManager.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemEditor"
 
@@ -175,121 +172,6 @@ FNiagaraSystemToolkit::~FNiagaraSystemToolkit()
 	SystemViewModel.Reset();
 }
 
-//@todo(ng) move to message manager class
-TSharedRef<FTokenizedMessage> FNiagaraSystemToolkit::BuildMessageForCompileEvent(FNiagaraCompileEvent& InCompileEvent, UNiagaraScript* InOriginatingScript)
-{
-	TArray<FGuid>& ContextStackGuids = InCompileEvent.StackGuids;
-
-	UNiagaraScriptSourceBase* FunctionScriptSourceBase = InOriginatingScript->GetSource();
-	checkf(FunctionScriptSourceBase->IsA<UNiagaraScriptSource>(), TEXT("Script source for function call node is not assigned or is not of type UNiagaraScriptSource!"))
-	UNiagaraScriptSource* FunctionScriptSource = Cast<UNiagaraScriptSource>(FunctionScriptSourceBase);
-	checkf(FunctionScriptSource, TEXT("Script source base was somehow not a derived type!"));
-	UNiagaraGraph* ThisScriptGraph = FunctionScriptSource->NodeGraph;
-	checkf(ThisScriptGraph, TEXT("Function Script does not have a UNiagaraGraph!"));
-
-	TArray<TSharedRef<IMessageToken>> MessageTokens;
-	TOptional<UNiagaraGraph*> OriginatingGraph = RecursiveBuildMessageTokensFromContextStackAndGetOriginatingGraph(ContextStackGuids, ThisScriptGraph, MessageTokens);
-	if (OriginatingGraph.IsSet())
-	{
-		EMessageSeverity::Type MessageSeverity = EMessageSeverity::Info;
-		switch (InCompileEvent.Severity) {
-		case FNiagaraCompileEventSeverity::Error:
-			MessageSeverity = EMessageSeverity::Error;
-			break;
-		case FNiagaraCompileEventSeverity::Warning:
-			MessageSeverity = EMessageSeverity::Warning;
-			break;
-		case FNiagaraCompileEventSeverity::Log:
-			MessageSeverity = EMessageSeverity::Info;
-			break;
-		default:
-			verifyf(false, TEXT("Compile event severity type not handled!"));
-			MessageSeverity = EMessageSeverity::Info;
-			break;
-		}
-		TSharedRef<FTokenizedMessage> MessageToBuild = FTokenizedMessage::Create(MessageSeverity);
-
-		//Add message from compile event at start of message
-		MessageToBuild->AddToken(FTextToken::Create(FText::FromString(InCompileEvent.Message)));
-		//Now add the context stack of the scripts that were passed through to get to the originating graph
-		for (TSharedRef<IMessageToken> Token : MessageTokens)
-		{
-			MessageToBuild->AddToken(Token);
-		}
-		return MessageToBuild;
-	}
-
-	// Failed to get originating graph!
-	verifyf(false, TEXT("Failed to find originating graph for compile event!"));
-	return FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("NiagaraCompileEventFailedToFindScript", "Could not find script(s) for compile event ! Please recompile script to get full compile info."));
-}
-
-//@todo(ng) move to message manager class
-TOptional<UNiagaraGraph*> FNiagaraSystemToolkit::RecursiveBuildMessageTokensFromContextStackAndGetOriginatingGraph(TArray<FGuid>& InContextStackNodeGuids, UNiagaraGraph* InGraphToSearch, TArray<TSharedRef<IMessageToken>>& OutMessageTokensToAdd)
-{
-	verifyf(InGraphToSearch, TEXT("Failed to get a node graph to search!"));
-
-	if (InGraphToSearch && InContextStackNodeGuids.Num() == 0)
-	{
-		//StackGuids arr has been cleared out which means we have walked the entire context and can now return the graph we are in.
-		return InGraphToSearch;
-	}
-
-	// Search in the current graph for a node with a GUID that matches a GUID in the list of Function Call and Emitter node GUIDs that define the context stack for a compile event
-	auto FindNodeInGraphWithContextStackGuid = [&InGraphToSearch, &InContextStackNodeGuids]()->TOptional<UEdGraphNode*> {
-		for (UEdGraphNode* GraphNode : InGraphToSearch->Nodes)
-		{
-			for (int i = 0; i < InContextStackNodeGuids.Num(); i++)
-			{
-				if (GraphNode->NodeGuid == InContextStackNodeGuids[i])
-				{
-					InContextStackNodeGuids.RemoveAt(i);
-					return GraphNode;
-				}
-			}
-		}
-		return TOptional<UEdGraphNode*>();
-	};
-
-	TOptional<UEdGraphNode*> ContextNode = FindNodeInGraphWithContextStackGuid();
-	if (ContextNode.IsSet())
-	{
-		// found a node in the current graph that has a GUID in the context list
-		UNiagaraNodeFunctionCall* FunctionCallNode = Cast<UNiagaraNodeFunctionCall>(ContextNode.GetValue());
-		if (FunctionCallNode)
-		{
-			// node is a function call node, now get the Niagara Script assigned to this node, add a message token and recursively call into the graph of that script.
-			UNiagaraScript* FunctionCallNodeAssignedScript = FunctionCallNode->FunctionScript;
-			checkf(FunctionCallNodeAssignedScript, TEXT("Script for function call node is not assigned!"));
-			UNiagaraScriptSourceBase* FunctionScriptSourceBase = FunctionCallNodeAssignedScript->GetSource();
-			checkf(FunctionScriptSourceBase->IsA<UNiagaraScriptSource>(), TEXT("Script source for function call node is not assigned or is not of type UNiagaraScriptSource!"));
-			UNiagaraScriptSource* FunctionScriptSource = Cast<UNiagaraScriptSource>(FunctionScriptSourceBase);
-			checkf(FunctionScriptSource, TEXT("Script source base was somehow not a derived type!"));
-			UNiagaraGraph* FunctionScriptGraph = FunctionScriptSource->NodeGraph;
-			checkf(FunctionScriptGraph, TEXT("Function Script does not have a UNiagaraGraph!"));
-
-			TSharedRef<FNiagaraAssetNameToken> VisitedGraphContextToken = FNiagaraAssetNameToken::Create(FunctionCallNodeAssignedScript->GetPathName(), FText::FromString(*FunctionCallNodeAssignedScript->GetName()));
-			OutMessageTokensToAdd.Add(VisitedGraphContextToken);
-			return RecursiveBuildMessageTokensFromContextStackAndGetOriginatingGraph(InContextStackNodeGuids, FunctionScriptGraph, OutMessageTokensToAdd);
-		}
-		UNiagaraNodeEmitter* EmitterNode = Cast<UNiagaraNodeEmitter>(ContextNode.GetValue());
-		if (EmitterNode)
-		{
-			// node is an emitter node, now get the Emitter name, add a message token and recursively call into the graph of that emitter.
-			UNiagaraScriptSource* EmitterScriptSource = EmitterNode->GetScriptSource();
-			UNiagaraGraph* EmitterScriptGraph = EmitterScriptSource->NodeGraph;
-			checkf(EmitterScriptGraph, TEXT("Emitter Script Source does not have a UNiagaraGraph!")); //@todo(ng) see about filtering the message log by emitter?
-
-			TSharedRef<FTextToken> SourceEmitterContextToken = FTextToken::Create(FText::FromString(EmitterNode->GetEmitterUniqueName()));
-			OutMessageTokensToAdd.Add(SourceEmitterContextToken);
-			return RecursiveBuildMessageTokensFromContextStackAndGetOriginatingGraph(InContextStackNodeGuids, EmitterScriptGraph, OutMessageTokensToAdd);
-		}
-		checkf(false, TEXT("Matching node is not a function call or emitter node!"));
-	}
-	verifyf(false, TEXT("Failed to walk the entire context stack, is this compile event out of date?"));
-	return TOptional<UNiagaraGraph*>();
-}
-
 void FNiagaraSystemToolkit::AddReferencedObjects(FReferenceCollector& Collector) 
 {
 	Collector.AddReferencedObject(System);
@@ -309,14 +191,14 @@ void FNiagaraSystemToolkit::UpdateMessageLog()
 		ScriptsToGetCompileEventsFrom.Append(EmitterScripts);
 	}
 
+	TArray<TSharedPtr<INiagaraMessage>> NiagaraMessages;
 	uint32 ErrorCount = 0;
 	uint32 WarningCount = 0;
-	TArray< TSharedRef<class FTokenizedMessage> > Messages;
 	for (UNiagaraScript* Script : ScriptsToGetCompileEventsFrom)
 	{
-		for (FNiagaraCompileEvent CompileEvent : Script->GetVMExecutableData().LastCompileEvents)
+		for (const FNiagaraCompileEvent CompileEvent : Script->GetVMExecutableData().LastCompileEvents)
 		{
-			Messages.Add(BuildMessageForCompileEvent(CompileEvent, Script));
+			NiagaraMessages.Add(FNiagaraMessageManager::Get()->QueueMessageJob(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, TWeakObjectPtr<UNiagaraScript>(Script), false)));
 			if (CompileEvent.Severity == FNiagaraCompileEventSeverity::Error)
 			{
 				ErrorCount++;
@@ -325,6 +207,25 @@ void FNiagaraSystemToolkit::UpdateMessageLog()
 			{
 				WarningCount++;
 			}
+		}
+	}
+
+	TArray<TSharedRef<FTokenizedMessage>> TokenizedMessages;
+	for (const TSharedPtr<INiagaraMessage> Message : NiagaraMessages)
+	{
+		if (Message->GetMessageType() == ENiagaraMessageType::CompileEventMessage)
+		{
+			const TSharedPtr<const FNiagaraMessageCompileEvent> MessageCompileEvent = StaticCastSharedPtr<const FNiagaraMessageCompileEvent>(Message);
+			TokenizedMessages.Add(MessageCompileEvent->GenerateTokenizedMessage());
+		}
+		else if (Message->GetMessageType() == ENiagaraMessageType::NeedRecompileMessage)
+		{
+			const TSharedPtr<const FNiagaraMessageNeedRecompile> MessageNeedRecompile = StaticCastSharedPtr<const FNiagaraMessageNeedRecompile>(Message);
+			TokenizedMessages.Add(MessageNeedRecompile->GenerateTokenizedMessage());
+		}
+		else
+		{
+			checkf(false, TEXT("Message is of ENiagaraMessageType that is unhandled!"));
 		}
 	}
 
@@ -350,10 +251,10 @@ void FNiagaraSystemToolkit::UpdateMessageLog()
 	};
 	
 	const FText CompileCompleteMessageText = GetCompileCompleteMessageText(SystemViewModel->GetLatestCompileStatus());
-	Messages.Add(FTokenizedMessage::Create(EMessageSeverity::Info, CompileCompleteMessageText));
+	TokenizedMessages.Add(FTokenizedMessage::Create(EMessageSeverity::Info, CompileCompleteMessageText));
 
 	NiagaraMessageLogListing->ClearMessages();
-	NiagaraMessageLogListing->AddMessages(Messages);
+	NiagaraMessageLogListing->AddMessages(TokenizedMessages);
 }
 
 void FNiagaraSystemToolkit::InitializeWithSystem(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UNiagaraSystem& InSystem)
@@ -436,6 +337,10 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 	SystemViewModel = MakeShareable(new FNiagaraSystemViewModel(*System, SystemOptions));
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
 	SystemViewModel->AddEmitter(*Emitter);
+
+	// Always remove the source information from the emitter handle when editing an emitter asset because inheritance is not valid in this case.
+	System->GetEmitterHandle(0).RemoveSource();
+
 	// We set this to the copy's change id here instead of the original emitter's change id because the copy's change id may have been
 	// updated from the original as part of post load and we use this id to detect if the editable emitter has been changed.
 	LastSyncedEmitterChangeId = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel()->GetEmitter()->GetChangeId();

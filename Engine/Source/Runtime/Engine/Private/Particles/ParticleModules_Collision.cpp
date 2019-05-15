@@ -217,7 +217,7 @@ void UParticleModuleCollision::Update(FParticleEmitterInstance* Owner, int32 Off
 
 		// LOD collision based on visibility
 		// This is at the 'emitter instance' level as it will be true or false for the whole instance...
-		if (bCollideOnlyIfVisible && ((World->TimeSeconds - Owner->Component->LastRenderTime) > GParticleCollisionIgnoreInvisibleTime))
+		if (bCollideOnlyIfVisible && ((World->TimeSeconds - Owner->Component->GetLastRenderTime()) > GParticleCollisionIgnoreInvisibleTime))
 		{
 			// no collision if not recently rendered
 			bIgnoreAllCollision = true;

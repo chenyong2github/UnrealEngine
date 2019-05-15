@@ -86,6 +86,17 @@ FMetalVertexBuffer::~FMetalVertexBuffer()
 {
 }
 
+void FMetalVertexBuffer::Swap(FMetalVertexBuffer& Other)
+{
+	FRHIVertexBuffer::Swap(Other);
+	FMetalRHIBuffer::Swap(Other);
+}
+
+void FMetalRHIBuffer::Swap(FMetalRHIBuffer& Other)
+{
+	::Swap(*this, Other);
+}
+
 bool FMetalRHIBuffer::UsePrivateMemory() const
 {
 	return (FMetalCommandQueue::SupportsFeature(EMetalFeaturesEfficientBufferBlits) && (Usage & (BUF_Dynamic|BUF_Static)))
@@ -527,6 +538,11 @@ void FMetalRHIBuffer::Unlock()
 FVertexBufferRHIRef FMetalDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	@autoreleasepool {
+	if (CreateInfo.bWithoutNativeResource)
+	{
+		return new FMetalVertexBuffer(0, 0);
+	}
+	
 	// make the RHI object, which will allocate memory
 	FMetalVertexBuffer* VertexBuffer = new FMetalVertexBuffer(Size, InUsage);
 
@@ -648,6 +664,11 @@ struct FMetalRHICommandInitialiseVertexBuffer : public FRHICommand<FMetalRHIComm
 FVertexBufferRHIRef FMetalDynamicRHI::CreateVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	@autoreleasepool {
+		if (CreateInfo.bWithoutNativeResource)
+		{
+			return new FMetalVertexBuffer(0, 0);
+		}
+		
 		// make the RHI object, which will allocate memory
 		TRefCountPtr<FMetalVertexBuffer> VertexBuffer = new FMetalVertexBuffer(Size, InUsage);
 		
@@ -719,6 +740,22 @@ FVertexBufferRHIRef FMetalDynamicRHI::CreateVertexBuffer_RenderThread(class FRHI
 		}
 		
 		return VertexBuffer.GetReference();
+	}
+}
+
+void FMetalDynamicRHI::RHITransferVertexBufferUnderlyingResource(FVertexBufferRHIParamRef DestVertexBuffer, FVertexBufferRHIParamRef SrcVertexBuffer)
+{
+	check(DestVertexBuffer);
+	FMetalVertexBuffer* Dest = ResourceCast(DestVertexBuffer);
+	if (!SrcVertexBuffer)
+	{
+		TRefCountPtr<FMetalVertexBuffer> DeletionProxy = new FMetalVertexBuffer(0, 0);
+		Dest->Swap(*DeletionProxy);
+	}
+	else
+	{
+		FMetalVertexBuffer* Src = ResourceCast(SrcVertexBuffer);
+		Dest->Swap(*Src);
 	}
 }
 

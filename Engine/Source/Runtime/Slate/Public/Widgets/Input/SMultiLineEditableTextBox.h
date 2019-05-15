@@ -271,6 +271,16 @@ public:
 	void SetText( const TAttribute< FText >& InNewText );
 
 	/**
+	 * Returns the hint text string
+	 *
+	 * @return  Hint text string
+	 */
+	FText GetHintText() const
+	{
+		return EditableText->GetHintText();
+	}
+
+	/**
 	 * Sets the text that appears when there is no text in the text box
 	 *
 	 * @param  InHintText The hint text string

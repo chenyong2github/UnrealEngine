@@ -1,4 +1,3 @@
-
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
@@ -3080,6 +3079,16 @@ void UActorChannel::Serialize(FArchive& Ar)
 	}
 }
 
+void UActorChannel::PrepareForRemoteFunction(UObject* TargetObj)
+{
+	// Make sure we create a replicator in case we destroy a sub object before we ever try to replicate its properties,
+	// otherwise it will not be in the ReplicationMap and we'll never send the deletion to clients
+	if (Connection && Connection->Driver && Connection->Driver->IsServer())
+	{
+		FindOrCreateReplicator(TargetObj);
+	}
+}
+
 void UActorChannel::QueueRemoteFunctionBunch( UObject* CallTarget, UFunction* Func, FOutBunch &Bunch )
 {
 	FindOrCreateReplicator(CallTarget).Get().QueueRemoteFunctionBunch( Func, Bunch );
@@ -3818,6 +3827,11 @@ void UActorChannel::AddedToChannelPool()
 bool UActorChannel::ReplicateSubobject(UObject *Obj, FOutBunch &Bunch, const FReplicationFlags &RepFlags)
 {
 	SCOPE_CYCLE_UOBJECT(ActorChannelRepSubObj, Obj);
+
+	if (!Obj || Obj->IsPendingKill())
+	{
+		return false;
+	}
 
 	TWeakObjectPtr<UObject> WeakObj(Obj);
 

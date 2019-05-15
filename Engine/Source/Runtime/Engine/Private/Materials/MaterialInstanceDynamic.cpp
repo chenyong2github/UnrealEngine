@@ -12,6 +12,7 @@
 #include "UnrealEngine.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "Stats/StatsMisc.h"
+#include "HAL/LowLevelMemTracker.h"
 
 UMaterialInstanceDynamic::UMaterialInstanceDynamic(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -20,6 +21,7 @@ UMaterialInstanceDynamic::UMaterialInstanceDynamic(const FObjectInitializer& Obj
 
 UMaterialInstanceDynamic* UMaterialInstanceDynamic::Create(UMaterialInterface* ParentMaterial, UObject* InOuter)
 {
+	LLM_SCOPE(ELLMTag::MaterialInstance);
 	UObject* Outer = InOuter ? InOuter : GetTransientPackage();
 	UMaterialInstanceDynamic* MID = NewObject<UMaterialInstanceDynamic>(Outer);
 	MID->SetParentInternal(ParentMaterial, false);
@@ -28,6 +30,7 @@ UMaterialInstanceDynamic* UMaterialInstanceDynamic::Create(UMaterialInterface* P
 
 UMaterialInstanceDynamic* UMaterialInstanceDynamic::Create(UMaterialInterface* ParentMaterial, UObject* InOuter, FName Name)
 {
+	LLM_SCOPE(ELLMTag::MaterialInstance);
 	UObject* Outer = InOuter ? InOuter : GetTransientPackage();
 	UMaterialInstanceDynamic* MID = NewObject<UMaterialInstanceDynamic>(Outer, Name);
 	MID->SetParentInternal(ParentMaterial, false);
@@ -324,6 +327,8 @@ void UMaterialInstanceDynamic::CopyInterpParameters(UMaterialInstance* Source)
 
 void UMaterialInstanceDynamic::CopyParameterOverrides(UMaterialInstance* MaterialInstance)
 {
+	LLM_SCOPE(ELLMTag::MaterialInstance);
+
 	ClearParameterValues();
 	if (ensureAsRuntimeWarning(MaterialInstance != nullptr))
 	{

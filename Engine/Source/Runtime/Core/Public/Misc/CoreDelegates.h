@@ -158,6 +158,10 @@ public:
 	// After an attempt to mount all pak files, but none wre found, this is called
 	static FNoPakFilesMountedDelegate NoPakFilesMountedDelegate;
 
+	// When a file is opened for read from a pak file
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnFileOpenedForReadFromPakFile, const TCHAR* /*PakFile*/, const TCHAR* /*FileName*/);
+	static FOnFileOpenedForReadFromPakFile OnFileOpenedForReadFromPakFile;
+
     // Delegate used to register a movie streamer with any movie player modules that bind to this delegate
     // Designed to be called when a platform specific movie streamer plugin starts up so that it doesn't need to implement a register for all movie player plugins
     static FRegisterMovieStreamerDelegate RegisterMovieStreamerDelegate;
@@ -281,6 +285,13 @@ public:
 	static FOnFConfigFileCreated OnFConfigCreated;
 	static FOnFConfigFileDeleted OnFConfigDeleted;
 
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnConfigValueRead, const TCHAR* /*IniFilename*/, const TCHAR* /*SectionName*/, const TCHAR* /*Key*/);
+	static FOnConfigValueRead OnConfigValueRead;
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConfigSectionRead, const TCHAR* /*IniFilename*/, const TCHAR* /*SectionName*/);
+	static FOnConfigSectionRead OnConfigSectionRead;
+	static FOnConfigSectionRead OnConfigSectionNameRead;
+
 	DECLARE_MULTICAST_DELEGATE_FourParams(FOnApplyCVarFromIni, const TCHAR* /*SectionName*/, const TCHAR* /*IniFilename*/, uint32 /*SetBy*/, bool /*bAllowCheating*/);
 	static FOnApplyCVarFromIni OnApplyCVarFromIni;
 
@@ -291,6 +302,10 @@ public:
 	// called when a target platform changes it's return value of supported formats.  This is so anything caching those results can reset (like cached shaders for cooking)
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnTargetPlatformChangedSupportedFormats, const ITargetPlatform*); 
 	static FOnTargetPlatformChangedSupportedFormats OnTargetPlatformChangedSupportedFormats;
+
+	// Called when a feature level is disabled by the user.
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnFeatureLevelDisabled, int, const FName&);
+	static FOnFeatureLevelDisabled OnFeatureLevelDisabled;
 #endif
 
 	/** IOS-style application lifecycle delegates */

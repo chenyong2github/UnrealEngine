@@ -24,7 +24,7 @@
 #include "Analytics/EngineNetAnalytics.h"
 #include "PacketTraits.h"
 #include "Net/Util/ResizableCircularQueue.h"
-#include "Net/DelinquencyAnalytics.h"
+#include "Net/NetAnalyticsTypes.h"
 
 #include "NetConnection.generated.h"
 
@@ -1087,6 +1087,27 @@ public:
 	/** Resets the current delinquency analytics. */
 	ENGINE_API void ResetQueuedActorDelinquencyAnalytics();
 
+	/**
+	 * Returns the current saturation analytics and resets them.
+	 * This would be similar to calls to Get and Reset separately, except that the caller
+	 * will assume ownership of data in this case.
+	 */
+	ENGINE_API void ConsumeSaturationAnalytics(FNetConnectionSaturationAnalytics& Out);
+
+	/** Returns the current saturation analytics. */
+	ENGINE_API const FNetConnectionSaturationAnalytics& GetSaturationAnalytics() const;
+
+	/** Resets the current saturation analytics. */
+	ENGINE_API void ResetSaturationAnalytics();
+
+	/**
+	 * Called to notify the connection that we attempted to replicate its actors this frame.
+	 * This is primarily for analytics book keeping.
+	 *
+	 * @param bWasSaturated		True if we failed to replicate all data because we were saturated.
+	 */
+	ENGINE_API void TrackReplicationForAnalytics(const bool bWasSaturated);
+	
 protected:
 
 	ENGINE_API void SetPendingCloseDueToSocketSendFailure();
@@ -1193,6 +1214,8 @@ private:
 
 	/** The current number of valid packets in PacketOrderCache */
 	int32 PacketOrderCacheCount;
+
+	FNetConnectionSaturationAnalytics SaturationAnalytics;
 
 	/** Whether or not PacketOrderCache is presently being flushed */
 	bool bFlushingPacketOrderCache;

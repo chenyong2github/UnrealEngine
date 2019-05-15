@@ -821,6 +821,7 @@ void UDemoNetDriver::ResetDemoState()
 	bIsLoadingCheckpoint = false;
 	bIsWaitingForHeaderDownload = false;
 	bIsWaitingForStream = false;
+	bIsFinalizingFastForward = false;
 
 	ExternalDataToObjectMap.Empty();
 	PlaybackPackets.Empty();
@@ -1116,6 +1117,8 @@ bool UDemoNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool 
 
 void UDemoNetDriver::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 {
+	LLM_SCOPE(ELLMTag::Networking);
+
 	Super::OnLevelAddedToWorld(InLevel, InWorld);
 
 	if (InLevel && !InLevel->bClientOnlyVisible && GetWorld() == InWorld && HasLevelStreamingFixes() && IsPlaying())
@@ -1358,6 +1361,7 @@ double GTickFlushDemoDriverTimeSeconds = 0.0;
 
 void UDemoNetDriver::TickFlushInternal(float DeltaSeconds)
 {
+	LLM_SCOPE(ELLMTag::Networking);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(DemoRecording);
 
 	GTickFlushDemoDriverTimeSeconds = 0.0;
@@ -3736,6 +3740,7 @@ static FCsvDemoSettings GetCsvDemoSettings()
 
 void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 {
+	LLM_SCOPE(ELLMTag::Networking);
 	SCOPED_NAMED_EVENT(UDemoNetDriver_TickDemoPlayback, FColor::Purple);
 	if (World && World->IsInSeamlessTravel())
 	{
@@ -3856,6 +3861,8 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 	// Clamp time
 	DemoCurrentTime = FMath::Clamp(DemoCurrentTime, 0.0f, DemoTotalTime + 0.01f);
 
+	ReplayStreamer->UpdatePlaybackTime(GetDemoCurrentTimeInMS());
+
 	bool bProcessAvailableData = (PlaybackPackets.Num() > 0) || ReplayStreamer->IsDataAvailable();
 	
 	if (CVarFastForwardLevelsPausePlayback.GetValueOnAnyThread() == 0)
@@ -3922,6 +3929,8 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 void UDemoNetDriver::FinalizeFastForward(const double StartTime)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Demo_FinalizeFastForward"), Demo_FinalizeFastForward, STATGROUP_Net);
+
+	TGuardValue<bool> FinalizingFastForward(bIsFinalizingFastForward, true);
 
 	// This must be set before we CallRepNotifies or they might be skipped again
 	bIsFastForwarding = false;

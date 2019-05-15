@@ -61,7 +61,8 @@ public:
 		DebugChannelR(INDEX_NONE),
 		DebugChannelG(INDEX_NONE),
 		DebugChannelB(INDEX_NONE),
-		DataTexture(NULL)
+		DataTexture(NULL),
+		LayerContributionTexture(NULL)
 	{}
 
 	// Material used to render the tool.
@@ -87,6 +88,9 @@ public:
 
 	UPROPERTY(NonTransactional)
 	UTexture2D* DataTexture; // Data texture other than height/weight
+
+	UPROPERTY(NonTransactional)
+	UTexture2D* LayerContributionTexture; // Data texture used to represent layer contribution
 
 #if WITH_EDITOR
 	void UpdateDebugColorMaterial(const ULandscapeComponent* const Component);
@@ -195,6 +199,8 @@ struct FWeightmapLayerAllocationInfo
 	}
 	
 	FName GetLayerName() const;
+
+	uint32 GetHash() const;
 };
 
 struct FLandscapeComponentGrassData
@@ -290,6 +296,37 @@ struct FLandscapeLayerComponentData
 	bool IsInitialized() const { return HeightmapData.Texture != nullptr || WeightmapData.Textures.Num() > 0;  }
 };
 
+#if WITH_EDITOR
+enum ELandscapeComponentUpdateFlag : uint32
+{
+	// Will call UpdateCollisionHeightData, UpdateCacheBounds, UpdateComponentToWorld on Component
+	Component_Update_Heightmap_Collision = 1 << 0,
+	// Will call UdateCollisionLayerData on Component
+	Component_Update_Weightmap_Collision = 1 << 1,
+	// Will call RecreateCollision on Component
+	Component_Update_Recreate_Collision = 1 << 2,
+	// Will update Component clients: Navigation data, Foliage, Grass, etc.
+	Component_Update_Client = 1 << 3,
+	// Will update Component clients while editing
+	Component_Update_Client_Editing = 1 << 4
+};
+
+enum ELandscapeLayerUpdateMode : uint32
+{ 
+	Update_Heightmap_All = 1 << 0,
+	Update_Heightmap_Editing = 1 << 1,
+	Update_Weightmap_All = 1 << 2,
+	Update_Weightmap_Editing = 1 << 3,
+	Update_All = Update_Weightmap_All | Update_Heightmap_All,
+	Update_All_Editing = Update_Weightmap_Editing | Update_Heightmap_Editing,
+	// In cases where we couldn't update the clients right away this flag will be set in RegenerateLayersContent
+	Update_Client_Deferred = 1 << 4,
+	// Update landscape component clients while editing
+	Update_Client_Editing = 1 << 5
+};
+
+#endif
+
 UCLASS(hidecategories=(Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility), showcategories=("Rendering|Material"), MinimalAPI, Within=LandscapeProxy)
 class ULandscapeComponent : public UPrimitiveComponent
 {
@@ -379,6 +416,9 @@ private:
 	// Final layer data
 	UPROPERTY(Transient)
 	TArray<ULandscapeWeightmapUsage*> WeightmapTexturesUsage;
+
+	UPROPERTY(Transient)
+	uint32 LayerUpdateFlagPerMode;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Heightmap texture reference */
@@ -464,6 +504,9 @@ public:
 	/** Represent the chosen material for each LOD */
 	UPROPERTY(DuplicateTransient)
 	TMap<UMaterialInterface*, int8> MaterialPerLOD;
+
+	/** Represents hash of last weightmap usage update */
+	uint32 WeightmapsHash;
 #endif
 
 	/** For ES2 */
@@ -766,7 +809,7 @@ public:
 	 * @param XYOffsetTextureMipData: xy-offset map data
 	 * @returns True if CollisionComponent was created in this update.
 	 */
-	bool UpdateCollisionHeightData(const FColor* HeightmapTextureMipData, const FColor* SimpleCollisionHeightmapTextureData, int32 ComponentX1=0, int32 ComponentY1=0, int32 ComponentX2=MAX_int32, int32 ComponentY2=MAX_int32, bool bUpdateBounds=false, const FColor* XYOffsetTextureMipData=nullptr);
+	void UpdateCollisionHeightData(const FColor* HeightmapTextureMipData, const FColor* SimpleCollisionHeightmapTextureData, int32 ComponentX1=0, int32 ComponentY1=0, int32 ComponentX2=MAX_int32, int32 ComponentY2=MAX_int32, bool bUpdateBounds=false, const FColor* XYOffsetTextureMipData=nullptr);
 
 	/**
 	 * Deletes Collision Component
@@ -774,7 +817,7 @@ public:
 	void DestroyCollisionData();
 
 	/** Updates collision component height data for the entire component, locking and unlocking heightmap textures
-	 * @param: bRebuild: If true, recreates the collision component */
+	 */
 	void UpdateCollisionData();
 
 	/**
@@ -838,6 +881,14 @@ public:
 	
 	/** Updates the values of component-level properties exposed by the Landscape Actor */
 	LANDSCAPE_API void UpdatedSharedPropertiesFromActor();
+
+	LANDSCAPE_API bool IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag InFlag, uint32 InModeMask) const;
+	LANDSCAPE_API void ClearUpdateFlagsForModes(uint32 InModeMask);
+	LANDSCAPE_API void RequestWeightmapUpdate(bool bUpdateAll = false);
+	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false);
+	LANDSCAPE_API void RequestEditingClientUpdate();
+	LANDSCAPE_API void RequestDeferredClientUpdate();
+	LANDSCAPE_API uint32 ComputeWeightmapsHash();
 #endif
 
 	friend class FLandscapeComponentSceneProxy;

@@ -1501,6 +1501,43 @@ void UParticleModuleLocationBoneSocket::SetSourceIndexMode()
 	}
 }
 
+void UParticleModuleLocationBoneSocket::ValidateLODLevels(UParticleEmitter* Emitter, int32 iModule)
+{
+	const int32 NumLODLevels = Emitter->LODLevels.Num();
+	if ( NumLODLevels <= 1 )
+		return;
+
+	bool bRequiresValidate = false;
+	for (int32 iLOD=0; iLOD < NumLODLevels; ++iLOD)
+	{
+		UParticleLODLevel* LODLevel = Emitter->LODLevels[iLOD];
+		UParticleModuleLocationBoneSocket* LODModule = CastChecked<UParticleModuleLocationBoneSocket>(LODLevel->Modules[iModule]);
+		if (!LODModule->bInheritBoneVelocity && !LODModule->bUpdatePositionEachFrame)
+			continue;
+
+		bRequiresValidate = true;
+	}
+
+	if (bRequiresValidate)
+	{
+		UParticleModuleLocationBoneSocket* HighestLODModule = CastChecked<UParticleModuleLocationBoneSocket>(Emitter->LODLevels[0]->Modules[iModule]);
+
+		for (int32 iLOD=1; iLOD < NumLODLevels; ++iLOD)
+		{
+			UParticleLODLevel* LODLevel = Emitter->LODLevels[iLOD];
+			UParticleModuleLocationBoneSocket* LODModule = CastChecked<UParticleModuleLocationBoneSocket>(LODLevel->Modules[iModule]);
+			if (LODModule == HighestLODModule)
+				continue;
+
+			if (LODModule->SourceLocations.Num() != HighestLODModule->SourceLocations.Num())
+			{
+				UE_LOG(LogParticles, Warning, TEXT("UParticleModuleLocationBoneSocket: ParticleSystem '%s' contains an Emitter '%s' LOD '%d' with inconsistent SourceLocations that could lead to a crash or unexpected behaviour.  Fixing by copying the Highest LOD SourceLocations to LOD."), *Emitter->GetOuter()->GetFullName(), *Emitter->GetEmitterName().ToString(), iLOD);
+				LODModule->SourceLocations = HighestLODModule->SourceLocations;
+			}
+		}
+	}
+}
+
 void UParticleModuleLocationBoneSocket::PostLoad()
 {
 	Super::PostLoad();
@@ -2894,7 +2931,7 @@ bool UParticleModuleLocationSkelVertSurface::VertInfluencedByActiveBone(FParticl
 			}
 		}
 
-		return LODData.SkinWeightVertexBuffer.HasExtraBoneInfluences()
+		return LODData.GetSkinWeightVertexBuffer()->HasExtraBoneInfluences()
 			? VertInfluencedByActiveBoneTyped<true>(LODData, 0, Section, VertIndex, InSkelMeshComponent, InstancePayload, OutBoneIndex)
 			: VertInfluencedByActiveBoneTyped<false>(LODData, 0, Section, VertIndex, InSkelMeshComponent, InstancePayload, OutBoneIndex);
 	}

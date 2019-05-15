@@ -1114,6 +1114,12 @@ static void ConformComponentsUtils::ConformRemovedNativeComponents(UObject* BpCd
 		// else, the component has been removed from our native super class
 
 		Component->DestroyComponent(/*bPromoteChildren =*/false);
+		if (Component->HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading))
+		{
+			// Async loading components cannot be pending kill, or the async loading code will assert when trying to postload them.
+			Component->ClearPendingKill();
+			FLinkerLoad::InvalidateExport(Component);
+		}
 		DestroyedComponents.Add(Component);
 
 		// The DestroyComponent() call above will clear the RootComponent value in this case.

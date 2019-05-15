@@ -223,6 +223,14 @@ struct FScalarMaterialInput : public FMaterialInput
 
 #if !CPP      //noexport struct
 USTRUCT(noexport)
+struct FShadingModelMaterialInput : public FMaterialInput
+{
+	// No support for constant
+};
+#endif
+
+#if !CPP      //noexport struct
+USTRUCT(noexport)
 struct FVectorMaterialInput : public FMaterialInput
 {
 #if WITH_EDITORONLY_DATA
@@ -401,7 +409,11 @@ class ENGINE_VTABLE UMaterial : public UMaterialInterface
 private:
 	/** Determines how inputs are combined to create the material's final color. */
 	UPROPERTY(EditAnywhere, Category=Material, AssetRegistrySearchable)
-	TEnumAsByte<enum EMaterialShadingModel> ShadingModel;
+	TEnumAsByte<enum EMaterialShadingModel> ShadingModel; 
+
+	UPROPERTY(AssetRegistrySearchable)
+	FMaterialShadingModelField ShadingModels;
+
 public:
 
 	/** If BlendMode is BLEND_Masked, the surface is not rendered where OpacityMask < OpacityMaskClipValue. */
@@ -466,6 +478,9 @@ public:
 
 	UPROPERTY()
 	FScalarMaterialInput PixelDepthOffset;
+
+	UPROPERTY()
+	FShadingModelMaterialInput ShadingModelFromMaterialExpression;
 
 	/** Indicates that the material should be rendered in the SeparateTranslucency Pass (not affected by DOF, requires bAllowSeparateTranslucency to be set in .ini). */
 	UPROPERTY(EditAnywhere, Category=Translucency, meta=(DisplayName = "Render After DOF"), AdvancedDisplay)
@@ -978,11 +993,12 @@ public:
 		ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQuality) override;
 #endif
 	ENGINE_API virtual void RecacheUniformExpressions(bool bRecreateUniformBuffer) const override;
-
+	
 	ENGINE_API virtual float GetOpacityMaskClipValue() const override;
 	ENGINE_API virtual bool GetCastDynamicShadowAsMasked() const override;
 	ENGINE_API virtual EBlendMode GetBlendMode() const override;
-	ENGINE_API virtual EMaterialShadingModel GetShadingModel() const override;
+	ENGINE_API virtual FMaterialShadingModelField GetShadingModels() const override;
+	ENGINE_API virtual bool IsShadingModelFromMaterialExpression() const override;
 	ENGINE_API virtual bool IsTwoSided() const override;
 	ENGINE_API virtual bool IsDitheredLODTransition() const override;
 	ENGINE_API virtual bool IsTranslucencyWritingCustomDepth() const override;
@@ -991,7 +1007,7 @@ public:
 	ENGINE_API virtual bool IsPostProcessMaterial() const { return MaterialDomain == MD_PostProcess; }
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const override;
 
-	ENGINE_API void SetShadingModel(EMaterialShadingModel NewModel) {ShadingModel = NewModel;}
+	ENGINE_API void SetShadingModel(EMaterialShadingModel NewModel) { ensure(ShadingModel < MSM_NUM); ShadingModel = NewModel; ShadingModels = FMaterialShadingModelField(ShadingModel); }
 
 	/** Checks to see if an input property should be active, based on the state of the material */
 	ENGINE_API virtual bool IsPropertyActive(EMaterialProperty InProperty) const override;
@@ -1544,6 +1560,9 @@ public:
 	 * @param	Expression	The expression dynamic parameter to check for duplicates.
 	 */
 	ENGINE_API virtual bool HasDuplicateDynamicParameters(const UMaterialExpression* Expression);
+
+	/** Walk the material expression graph from the Shading Model input pin (or from the Material Attribute) and find all used Shading Models for this material and update the field in this material. */
+	ENGINE_API void RebuildShadingModelField();
 #endif // WITH_EDITOR
 
 	/**

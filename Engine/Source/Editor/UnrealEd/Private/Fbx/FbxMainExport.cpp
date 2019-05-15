@@ -1346,7 +1346,7 @@ FbxSurfaceMaterial* FFbxExporter::ExportMaterial(UMaterialInterface* MaterialInt
 	UMaterial *Material = MaterialInterface->GetMaterial();
 	
 	// Set the shading model
-	if (Material->GetShadingModel() == MSM_DefaultLit)
+	if (Material->GetShadingModels().HasOnlyShadingModel(MSM_DefaultLit))
 	{
 		FbxMaterial = FbxSurfacePhong::Create(Scene, TCHAR_TO_UTF8(*MaterialInterface->GetName()));
 		//((FbxSurfacePhong*)FbxMaterial)->Specular.Set(Material->Specular));

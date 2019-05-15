@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Units/Math/RigUnit_MathBase.h"
+#include "Math/ControlRigMathLibrary.h"
 #include "RigUnit_MathVector.generated.h"
 
 USTRUCT(meta=(Abstract, Category="Math|Vector", MenuDescSuffix="(Vector)"))
@@ -722,23 +723,15 @@ struct FRigUnit_MathVectorBezierFourPoint : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorBezierFourPoint()
 	{
-		A = B = C = D = Result = Tangent = FVector::ZeroVector;
+		Bezier = FCRFourPointBezier();
 		T = 0.f;
+		Result = Tangent = FVector::ZeroVector;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
-	FVector A;
-
-	UPROPERTY(meta=(Input))
-	FVector B;
-
-	UPROPERTY(meta=(Input))
-	FVector C;
-
-	UPROPERTY(meta=(Input))
-	FVector D;
+	FCRFourPointBezier Bezier;
 
 	UPROPERTY(meta=(Input))
 	float T;
@@ -748,4 +741,21 @@ struct FRigUnit_MathVectorBezierFourPoint : public FRigUnit_MathVectorBase
 
 	UPROPERTY(meta=(Output))
 	FVector Tangent;
+};
+
+/**
+ * Creates a bezier four point
+ */
+USTRUCT(meta = (DisplayName = "Make Bezier Four Point"))
+struct FRigUnit_MathVectorMakeBezierFourPoint : public FRigUnit_MathVectorBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathVectorMakeBezierFourPoint()
+	{
+		Bezier = FCRFourPointBezier();
+	}
+
+	UPROPERTY(meta = (Input, Output))
+	FCRFourPointBezier Bezier;
 };

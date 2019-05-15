@@ -167,7 +167,7 @@ void FRCPassPostProcessVisualizeShadingModels::Process(FRenderingCompositePassCo
 
 	Y += 5;
 
-	for(uint32 i = 0; i < MSM_MAX; ++i)
+	for(uint32 i = 0; i < MSM_NUM; ++i)
 	{
 		FString Name = Enum->GetNameStringByValue(i);
 		Line = FString::Printf(TEXT("%d.  %s"), i, *Name);

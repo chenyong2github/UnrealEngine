@@ -223,7 +223,11 @@ namespace PerfSummaries
 
         public void ReadStatsFromXML(XElement element)
         {
-            stats = element.Element("stats").Value.Split(',').ToList();
+			XElement statsElement = element.Element("stats");
+			if (statsElement != null)
+			{
+				stats = statsElement.Value.Split(',').ToList();
+			}
             foreach (XElement child in element.Elements())
             {
                 if (child.Name == "capture")
@@ -817,15 +821,21 @@ namespace PerfSummaries
 
             foreach (string unitStat in stats)
             {
-                Hitches.Clear();
                 string StatToCheck = unitStat.Split('(')[0];
-                htmlFile.WriteLine("  <tr><td  bgcolor='#ffffff'><b>" + StatToCheck + "</b></td>");
+				StatSamples statSample = csvStats.GetStat(StatToCheck.ToLower());
+				if (statSample == null)
+				{
+					continue;
+				}
+
+				Hitches.Clear();
+				htmlFile.WriteLine("  <tr><td  bgcolor='#ffffff'><b>" + StatToCheck + "</b></td>");
                 Hitches.Add(StatToCheck);
                 int thresholdIndex = 0;
 
                 foreach (float threshold in HitchThresholds)
-                {
-                    float count = (float)csvStats.GetStat(StatToCheck.ToLower()).GetCountOfFramesOverBudget(threshold);
+                {				
+					float count = (float)statSample.GetCountOfFramesOverBudget(threshold);
                     int numSamples = csvStats.GetStat(StatToCheck.ToLower()).GetNumSamples();
                     // if we have 20k frames in a typical flythrough then 20 frames would be red
                     float redThresholdFor50ms = (float)numSamples / 500.0f;
@@ -1024,12 +1034,20 @@ namespace PerfSummaries
     {
         public PeakSummary(XElement element)
         {
-            multipliers = new List<double>();
-            budgets = new List<double>();
-            hidePrefixes = new List<string>();
-            sectionPrefixes = new List<string>();
-            shortenedStatNames = new List<string>();
-            isInMainSummary = new List<bool>();
+			multipliers = new List<double>();
+			budgets = new List<double>();
+			hidePrefixes = new List<string>();
+			sectionPrefixes = new List<string>();
+			shortenedStatNames = new List<string>();
+			isInMainSummary = new List<bool>();
+
+			//read the child elements (mostly for colourThresholds)
+			ReadStatsFromXML(element);
+			if (stats.Count > 0)
+			{
+				throw new System.Exception("<stats> is not supported for Peak summary type"); //...yet
+			}
+
             foreach (XElement child in element.Elements())
             {
                 if (child.Name == "hidePrefix")
@@ -1060,7 +1078,7 @@ namespace PerfSummaries
                 }
             }
 
-            if (!bSummaryStatsFound)
+            if (!bSummaryStatsFound && !bIncludeSummaryCsv)
             {
                 return;
             }
@@ -1095,7 +1113,6 @@ namespace PerfSummaries
                 string statName = stat.Split('(')[0];
 
                 if ((csvStats.Stats.ContainsKey(statName.ToLower())) && // If the main stats table contains this stat AND
-                     (isInMainSummary[i] == isMainSummary) && // If we are in the main summary then this stat appears ONLY in the main summary
                      (sectionPrefix == null || statName.StartsWith(sectionPrefix)) // If there is no hide prefix just display the stat, otherwise, make sure they match.
                    )
                 {
@@ -1112,7 +1129,11 @@ namespace PerfSummaries
                     string peakColour = ColourThresholdList.GetThresholdColour(peak, redValue, orangeValue, yellowValue, greenValue);
                     string averageColour = ColourThresholdList.GetThresholdColour(average, redValue, orangeValue, yellowValue, greenValue);
                     string cleanStatName = stats[i].Replace('/', ' ').Replace("$32$", " ");
-                    htmlFile.WriteLine("    <tr><td bgcolor='#ffffff'>" + cleanStatName + "</td><td bgcolor=" + averageColour + ">" + average.ToString("0") + "</td><td bgcolor=" + peakColour + ">" + peak.ToString("0") + "</td><td bgcolor='#ffffff'>" + budget.ToString("0") + "</td></tr>");
+
+					if (isInMainSummary[i] == isMainSummary) // If we are in the main summary then this stat appears ONLY in the main summary
+					{
+						htmlFile.WriteLine("    <tr><td bgcolor='#ffffff'>" + cleanStatName + "</td><td bgcolor=" + averageColour + ">" + average.ToString("0") + "</td><td bgcolor=" + peakColour + ">" + peak.ToString("0") + "</td><td bgcolor='#ffffff'>" + budget.ToString("0") + "</td></tr>");
+					}
 
 					if (LLMCsvData != null)
 					{
@@ -1137,6 +1158,24 @@ namespace PerfSummaries
 			{
 				return;
 			}
+
+			//update metadata
+			if (metadata != null)
+			{
+				foreach (string statName in stats)
+				{
+					if (!csvStats.Stats.ContainsKey(statName.ToLower()))
+					{
+						continue;
+					}
+
+					var statValue = csvStats.Stats[statName.ToLower()];
+					metadata.Add(statName + " Avg", statValue.average.ToString("0.00"), GetStatColourThresholdList(statName));
+					metadata.Add(statName + " Max", statValue.ComputeMaxValue().ToString("0.00"), GetStatColourThresholdList(statName));
+					metadata.Add(statName + " Min", statValue.ComputeMinValue().ToString("0.00"), GetStatColourThresholdList(statName));
+				}
+			}
+
 			// The first thing we always write is the main summary.
 			WriteStatsToHTML(htmlFile, csvStats, true, null, htmlFileName, bIncludeSummaryCsv);
 
@@ -1147,7 +1186,7 @@ namespace PerfSummaries
             for (i = 0; i < sectionPrefixes.Count(); i++)
             {
                 string currentPrefix = sectionPrefixes[i];
-                WriteStatsToHTML(htmlFile, csvStats, false, currentPrefix, htmlFileName, bIncludeSummaryCsv);
+                WriteStatsToHTML(htmlFile, csvStats, false, currentPrefix, htmlFileName, false);
             }
         }
 
@@ -1176,6 +1215,7 @@ namespace PerfSummaries
             multipliers.Add(multiplier);
             isInMainSummary.Add(bIsInMainSummary);
         }
+		
         public override void PostInit(ReportTypeInfo reportTypeInfo)
         {
             // Find the stats by spinning through the graphs in this reporttype

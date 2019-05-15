@@ -788,6 +788,13 @@ public:
 	 */
 	const FString* GetInstanceMetaData(const FName& Key) const;
 
+	/**
+	 * Get metadata map for this property instance (as opposed to the class)
+	 * 
+	 * @return Map ptr containing metadata pairs
+	 */
+	const TMap<FName, FString>* GetInstanceMetaDataMap() const;
+
 	bool ParentOrSelfHasMetaData(const FName& MetaDataKey) const;
 
 	/**

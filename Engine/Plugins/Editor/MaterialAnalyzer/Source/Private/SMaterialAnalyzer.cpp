@@ -694,7 +694,16 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 		}
 		else if (BasePropertyOverrideName.Key.IsEqual(TEXT("bOverride_ShadingModel")))
 		{
-			TempValue = (float)CurrentMaterialInterface->GetShadingModel();
+			if (CurrentMaterialInterface->IsShadingModelFromMaterialExpression())
+			{
+				TempValue = (float)MSM_FromMaterialExpression;
+			}
+			else
+			{
+				ensure(CurrentMaterialInterface->GetShadingModels().CountShadingModels() == 1);
+				TempValue = (float)CurrentMaterialInterface->GetShadingModels().GetFirstShadingModel();
+			}
+
 			if (CurrentMaterialInstance)
 			{
 				bIsOverridden = CurrentMaterialInstance->BasePropertyOverrides.bOverride_ShadingModel;

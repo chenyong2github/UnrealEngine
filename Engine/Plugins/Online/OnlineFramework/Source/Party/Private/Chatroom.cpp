@@ -142,7 +142,7 @@ void UChatroom::OnChatRoomCreatedOrJoined(const FUniqueNetId& LocalUserId, const
 
 					FUniqueNetIdRepl StrongUserId(LocalUserId.AsShared());
 
-					auto RetryDelegate = FTimerDelegate::CreateLambda([this, StrongUserId, RoomId, CompletionDelegate, RoomConfig] ()
+					auto RetryDelegate = FTimerDelegate::CreateWeakLambda(this, [this, StrongUserId, RoomId, CompletionDelegate, RoomConfig] ()
 					{
 						// Attempt to rejoin room shortly
 						CreateOrJoinChatRoom(StrongUserId, RoomId, CompletionDelegate, RoomConfig);

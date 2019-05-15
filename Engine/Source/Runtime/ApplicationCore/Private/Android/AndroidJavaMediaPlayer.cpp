@@ -28,7 +28,7 @@ static jfieldID FindField(JNIEnv* JEnv, jclass Class, const ANSICHAR* FieldName,
 *****************************************************************************/
 
 FCriticalSection FJavaAndroidMediaPlayer::MediaDataSourcesCS;
-TMap<int64, TWeakPtr<FJavaAndroidMediaDataSource>> FJavaAndroidMediaPlayer::AllMediaDataSources;
+TMap<int64, TWeakPtr<FJavaAndroidMediaDataSource, ESPMode::ThreadSafe>> FJavaAndroidMediaPlayer::AllMediaDataSources;
 
 TSharedPtr<FJavaAndroidMediaDataSource, ESPMode::ThreadSafe> FJavaAndroidMediaPlayer::GetMediaDataSourcePtr(int64 Identifier)
 {

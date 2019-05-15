@@ -66,6 +66,9 @@
 
 #include "Dialogs/SOutputLogDialog.h"
 
+#include "IAudioExtensionPlugin.h"
+#include "AudioPluginUtilities.h"
+#include "Sound/AudioSettings.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundEffectSource.h"
 #include "Components/SynthComponent.h"
@@ -90,17 +93,68 @@
 TWeakPtr<SNotificationItem> GameProjectUtils::UpdateGameProjectNotification = NULL;
 TWeakPtr<SNotificationItem> GameProjectUtils::WarningProjectNameNotification = NULL;
 
-FString GameProjectUtils::DefaultFeaturePackExtension(TEXT(".upack"));	
+FString GameProjectUtils::DefaultFeaturePackExtension(TEXT(".upack"));
 
 bool GameProjectUtils::bUseAudioMixerForAllPlatforms = false;
 
-TArray<FString> GameProjectUtils::AudioMixerEnabledPlatforms(
+struct FAudioDefaultPlatformSettings
 {
-	// If bUseAudioMixerForAllPlatforms is set to false,
-	// This can be used to only flag specific platforms to use the new audio engine on new projects.
-	// For example, for windows:
-	//TEXT("Windows")
-});
+	FString Name;
+	EAudioPlatform Platform;
+	FAudioPlatformSettings Settings;
+	bool bUseAudioMixer;
+
+	FAudioDefaultPlatformSettings(EAudioPlatform InPlatform)
+		: Platform(InPlatform)
+		, bUseAudioMixer(false)
+	{
+	}
+};
+
+namespace
+{
+	TMap<FString, FAudioDefaultPlatformSettings> GetAudioPlatformProjectDefaultSettings()
+	{
+		TMap<FString, FAudioDefaultPlatformSettings> DefaultProjectSettings;
+
+		// If bUseAudioMixerForAllPlatforms is set to false, uncomment the following line to enable
+		// the new audio mixer on specific platform. Ex. for Windows:
+		// WindowsSettings.bUseAudioMixer = true;
+
+		FAudioDefaultPlatformSettings AndroidSettings(EAudioPlatform::Android);
+		AndroidSettings.Settings.MaxChannels = 12;
+		DefaultProjectSettings.Add(TEXT("Android"), AndroidSettings);
+
+		FAudioDefaultPlatformSettings IOSSettings(EAudioPlatform::IOS);
+		IOSSettings.Settings.MaxChannels = 16;
+		DefaultProjectSettings.Add(TEXT("IOS"), IOSSettings);
+
+		FAudioDefaultPlatformSettings LinuxSettings(EAudioPlatform::Linux);
+		LinuxSettings.Settings.MaxChannels = 16;
+		DefaultProjectSettings.Add(TEXT("Linux"), LinuxSettings);
+
+		FAudioDefaultPlatformSettings MacSettings(EAudioPlatform::Mac);
+		DefaultProjectSettings.Add(TEXT("Mac"), MacSettings);
+
+		FAudioDefaultPlatformSettings PS4Settings(EAudioPlatform::Playstation4);
+		DefaultProjectSettings.Add(TEXT("PS4"), PS4Settings);
+
+		FAudioDefaultPlatformSettings SwitchSettings(EAudioPlatform::Switch);
+		DefaultProjectSettings.Add(TEXT("Switch"), SwitchSettings);
+
+		FAudioDefaultPlatformSettings WindowsSettings(EAudioPlatform::Windows);
+		WindowsSettings.Settings.CallbackBufferFrameSize = 256;
+		WindowsSettings.Settings.NumBuffers = 7;
+		DefaultProjectSettings.Add(TEXT("Windows"), WindowsSettings);
+
+		FAudioDefaultPlatformSettings XBoxSettings(EAudioPlatform::XboxOne);
+		XBoxSettings.Settings.CallbackBufferFrameSize = 256;
+		XBoxSettings.Settings.NumBuffers = 7;
+		DefaultProjectSettings.Add(TEXT("XboxOne"), XBoxSettings);
+
+		return MoveTemp(DefaultProjectSettings);
+	}
+} // namespace <>
 
 FText FNewClassInfo::GetClassName() const
 {
@@ -148,7 +202,7 @@ FText FNewClassInfo::GetClassDescription(const bool bFullDescription/* = true*/)
 					}
 
 					// Strip out any new-lines in the description
-					ClassDescription.ReplaceInline(TEXT("\n"), TEXT(" "));	
+					ClassDescription.ReplaceInline(TEXT("\n"), TEXT(" "));
 				}
 
 				return FText::FromString(ClassDescription);
@@ -458,7 +512,7 @@ FString FNewClassInfo::GetSourceTemplateFilename() const
 			}
 			// Some other non-actor, non-component UObject class
 			return TEXT( "UObjectClass.cpp.template" );
-	
+
 	case EClassType::EmptyCpp:
 		return TEXT("EmptyClass.cpp.template");
 
@@ -688,7 +742,7 @@ bool GameProjectUtils::OpenCodeIDE(const FString& ProjectFile, FText& OutFailRea
 void GameProjectUtils::GetStarterContentFiles(TArray<FString>& OutFilenames)
 {
 	FString const SrcFolder = FPaths::FeaturePackDir();
-	
+
 	FString SearchPath = TEXT("*");
 	SearchPath += DefaultFeaturePackExtension;
 	IFileManager::Get().FindFilesRecursive(OutFilenames, *SrcFolder, *SearchPath, /*Files=*/true, /*Directories=*/false);
@@ -961,7 +1015,7 @@ void GameProjectUtils::OpenAddToProjectDialog(const FAddToProjectConfig& Config,
 		.SizingRule( ESizingRule::FixedSize )
 		.SupportsMinimize(false) .SupportsMaximize(false);
 
-	TSharedRef<SNewClassDialog> NewClassDialog = 
+	TSharedRef<SNewClassDialog> NewClassDialog =
 		SNew(SNewClassDialog)
 		.ParentWindow(AddCodeWindow)
 		.Class(Config._ParentClass)
@@ -1041,7 +1095,7 @@ bool GameProjectUtils::IsValidClassNameForCreation(const FString& NewClassName, 
 	{
 		return false;
 	}
-	
+
 	// Look for a duplicate class in memory
 	for ( TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt )
 	{
@@ -1204,7 +1258,7 @@ bool GameProjectUtils::GenerateProjectFromScratch(const FProjectInformation& InP
 	{
 		return false;
 	}
-	
+
 	// Make the Content folder
 	const FString ContentFolder = NewProjectFolder / TEXT("Content");
 	if ( !IFileManager::Get().MakeDirectory(*ContentFolder) )
@@ -1527,7 +1581,7 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 					// Comment lines start with ";". Skip these lines entirely.
 					else if ( Line.StartsWith(TEXT(";")) )
 					{
-						
+
 					}
 					// If this is a section line, update the section
 					else if ( Line.StartsWith(TEXT("[")) )
@@ -1617,7 +1671,7 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 	{
 		return false;
 	}
-	
+
 	SlowTask.EnterProgressFrame();
 
 	// Generate the project file
@@ -1677,7 +1731,7 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 	{
 		return false;
 	}
-	
+
 	if( OutCreatedFiles != nullptr )
 	{
 		OutCreatedFiles->Append(CreatedFiles);
@@ -1796,7 +1850,7 @@ void GameProjectUtils::DeleteCreatedFiles(const FString& RootFolder, const TArra
 FString GameProjectUtils::GetHardwareConfigString(const FProjectInformation& InProjectInfo)
 {
 	FString HardwareTargeting;
-	
+
 	FString TargetHardwareAsString;
 	UEnum::GetValueAsString(TEXT("/Script/HardwareTargeting.EHardwareClass"), InProjectInfo.TargetedHardware, /*out*/ TargetHardwareAsString);
 
@@ -1827,7 +1881,7 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 
 		FileContents += GetHardwareConfigString(InProjectInfo);
 		FileContents += LINE_TERMINATOR;
-		
+
 		if(bUseAudioMixerForAllPlatforms)
 		{
 			FileContents += TEXT("[Audio]") LINE_TERMINATOR;
@@ -1861,7 +1915,7 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 					SpecificGameDefaultMap = TEXT("/Game/StarterContent/Maps/Minimal_Default");
 				}
 			}
-			
+
 			// Write out the settings for startup map and game default map
 			FileContents += TEXT("[/Script/EngineSettings.GameMapsSettings]") LINE_TERMINATOR;
 			FileContents += FString::Printf(TEXT("EditorStartupMap=%s") LINE_TERMINATOR, *SpecificEditorStartupMap);
@@ -1869,7 +1923,7 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 			if (InProjectInfo.bShouldGenerateCode)
 			{
 				FileContents += FString::Printf(TEXT("GlobalDefaultGameMode=\"/Script/%s.%sGameMode\"") LINE_TERMINATOR, *NewProjectName, *NewProjectName);
-			}			
+			}
 		}
 
 		if (WriteOutputFile(DefaultEngineIniFilename, FileContents, OutFailReason))
@@ -1914,40 +1968,81 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 		}
 	}
 
-	// inis for any audiomixer-enabled platforms:
+	// Platforms inis:
 	{
-		for (const FString& PlatformName : AudioMixerEnabledPlatforms)
+		if (!GeneratePlatformConfigFiles(InProjectInfo, OutFailReason))
 		{
-			if (!GeneratePlatformConfigFiles(InProjectInfo, PlatformName, OutFailReason))
-			{
-				return false;
-			}
+			return false;
 		}
 	}
 
 	return true;
 }
 
-bool GameProjectUtils::GeneratePlatformConfigFiles(const FProjectInformation& InProjectInfo, const FString& InPlatformName, FText& OutFailReason)
+bool GameProjectUtils::GeneratePlatformConfigFiles(const FProjectInformation& InProjectInfo, FText& OutFailReason)
 {
-	const FString NewProjectFolder = FPaths::GetPath(InProjectInfo.ProjectFilename);
+	TMap<FString, FAudioDefaultPlatformSettings> ProjectDefaults = GetAudioPlatformProjectDefaultSettings();
 
-	FString ProjectConfigPath = NewProjectFolder / TEXT("Config");
+	static const FAudioPlatformSettings DefaultSettings;
 
-	const FString PlatformEngineIniFilename = ProjectConfigPath / InPlatformName / InPlatformName + TEXT("Engine.ini");
-	FString FileContents;
-
-	FileContents += TEXT("[Audio]") LINE_TERMINATOR;
-	FileContents += TEXT("UseAudioMixer=True");
-
-	if (WriteOutputFile(PlatformEngineIniFilename, FileContents, OutFailReason))
+	for (TPair<FString, FAudioDefaultPlatformSettings>& SettingsPair : ProjectDefaults)
 	{
-		return true;
+		FString FileContents;
+
+		if (bUseAudioMixerForAllPlatforms || SettingsPair.Value.bUseAudioMixer)
+		{
+			FileContents += TEXT("[Audio]") LINE_TERMINATOR;
+			FileContents += TEXT("UseAudioMixer=True") LINE_TERMINATOR;
+			FileContents += LINE_TERMINATOR;
+		}
+
+		const FString& PlatformName = SettingsPair.Key;
+		const FAudioPlatformSettings& PlatformSettings = SettingsPair.Value.Settings;
+
+		FileContents += TEXT("[") + FString(AudioPluginUtilities::GetPlatformConfigSection(SettingsPair.Value.Platform)) + TEXT("]") + LINE_TERMINATOR;
+
+		if (DefaultSettings.SampleRate == PlatformSettings.SampleRate)
+		{
+			FileContents += TEXT(";");
+		}
+		FileContents += TEXT("AudioSampleRate=") + FString::Printf(TEXT("%d"), PlatformSettings.SampleRate) + LINE_TERMINATOR;
+
+		if (DefaultSettings.MaxChannels == PlatformSettings.MaxChannels)
+		{
+			FileContents += TEXT(";");
+		}
+		FileContents += TEXT("AudioMaxChannels=") + FString::Printf(TEXT("%d"), PlatformSettings.MaxChannels) + LINE_TERMINATOR;
+
+		if (DefaultSettings.CallbackBufferFrameSize == PlatformSettings.CallbackBufferFrameSize)
+		{
+			FileContents += TEXT(";");
+		}
+		FileContents += TEXT("AudioCallbackBufferFrameSize=") + FString::Printf(TEXT("%d"), PlatformSettings.CallbackBufferFrameSize) + LINE_TERMINATOR;
+
+		if (DefaultSettings.NumBuffers == PlatformSettings.NumBuffers)
+		{
+			FileContents += TEXT(";");
+		}
+		FileContents += TEXT("AudioNumBuffersToEnqueue=") + FString::Printf(TEXT("%d"), PlatformSettings.NumBuffers) + LINE_TERMINATOR;
+
+		if (DefaultSettings.NumSourceWorkers == PlatformSettings.NumSourceWorkers)
+		{
+			FileContents += TEXT(";");
+		}
+		FileContents += TEXT("AudioNumSourceWorkers=") + FString::Printf(TEXT("%d"), PlatformSettings.NumSourceWorkers) + LINE_TERMINATOR;
+
+		FileContents += LINE_TERMINATOR;
+
+		const FString NewProjectFolder = FPaths::GetPath(InProjectInfo.ProjectFilename);
+		const FString ProjectConfigPath = NewProjectFolder / TEXT("Config");
+		const FString PlatformEngineIniFilename = ProjectConfigPath / PlatformName / PlatformName + TEXT("Engine.ini");
+		if (!WriteOutputFile(PlatformEngineIniFilename, FileContents, OutFailReason))
+		{
+			return false;
+		}
 	}
-	else
-	{
-		return false;
-	}
+
+	return true;
 }
 
 bool GameProjectUtils::GenerateBasicSourceCode(TArray<FString>& OutCreatedFiles, FText& OutFailReason)
@@ -2084,7 +2179,7 @@ bool GameProjectUtils::GenerateGameFrameworkSourceCode(const FString& NewProject
 		const UClass* BaseClass = AGameModeBase::StaticClass();
 		const FString NewClassName = NewProjectName + BaseClass->GetName();
 		const FString NewCPPFilename = GameModulePath / NewClassName + TEXT(".cpp");
-		
+
 		TArray<FString> PropertyOverrides;
 		TArray<FString> AdditionalIncludes;
 		FString UnusedSyncLocation;
@@ -2154,7 +2249,7 @@ bool GameProjectUtils::IsStarterContentAvailableForNewProjects()
 {
 	TArray<FString> StarterContentFiles;
 	GetStarterContentFiles(StarterContentFiles);
-	
+
 	bool bHasStaterContent = StarterContentFiles.FindByPredicate([&](const FString& Str){ return Str.Contains("StarterContent"); }) != nullptr;
 	return bHasStaterContent;
 }
@@ -2787,9 +2882,9 @@ FString GameProjectUtils::DetermineModuleIncludePath(const FModuleContextInfo& M
 
 	if(FindSourceFileInProject(ModuleInfo.ModuleName + ".h", ModuleInfo.ModuleSourcePath, ModuleIncludePath))
 	{
-		// Work out where the module header is; 
+		// Work out where the module header is;
 		// if it's Public then we can include it without any path since all Public and Classes folders are on the include path
-		// if it's located elsewhere, then we'll need to include it relative to the module source root as we can't guarantee 
+		// if it's located elsewhere, then we'll need to include it relative to the module source root as we can't guarantee
 		// that other folders are on the include paths
 		EClassLocation ModuleLocation;
 		if(GetClassLocation(ModuleIncludePath, ModuleInfo, ModuleLocation))
@@ -3136,7 +3231,7 @@ bool GameProjectUtils::GeneratePluginModuleBuildFile(const FString& NewBuildFile
 	FinalOutput = FinalOutput.Replace(TEXT("%PUBLIC_DEPENDENCY_MODULE_NAMES%"), *MakeCommaDelimitedList(PublicDependencyModuleNames), ESearchCase::CaseSensitive);
 	FinalOutput = FinalOutput.Replace(TEXT("%PRIVATE_DEPENDENCY_MODULE_NAMES%"), *MakeCommaDelimitedList(PrivateDependencyModuleNames), ESearchCase::CaseSensitive);
 	FinalOutput = FinalOutput.Replace(TEXT("%MODULE_NAME%"), *ModuleName, ESearchCase::CaseSensitive);
-	
+
 	const FString PCHUsage = bUseExplicitOrSharedPCHs ? TEXT("UseExplicitOrSharedPCHs") : TEXT("UseSharedPCHs");
 	FinalOutput = FinalOutput.Replace(TEXT("%PCH_USAGE%"), *PCHUsage, ESearchCase::CaseSensitive);
 
@@ -3478,7 +3573,7 @@ void FindCodeFiles(const TCHAR* BaseDirectory, TArray<FString>& FileNames, int32
 		TArray<FString>& FileNames;
 		int32 MaxNumFileNames;
 
-		FDirectoryVisitor(TArray<FString>& InFileNames, int32 InMaxNumFileNames) 
+		FDirectoryVisitor(TArray<FString>& InFileNames, int32 InMaxNumFileNames)
 			: FileNames(InFileNames)
 			, MaxNumFileNames(InMaxNumFileNames)
 		{
@@ -3725,7 +3820,7 @@ GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject_Int
 
 	// Update project file if needed.
 	auto bUpdateProjectModules = false;
-	
+
 	// If the project does not already contain code, add the primary game module
 	TArray<FString> CreatedFiles;
 	TArray<FString> StartupModuleNames;
@@ -3824,7 +3919,7 @@ GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject_Int
 		// We managed the gather, so we can skip running the full generate
 		bGenerateProjectFiles = false;
 	}
-	
+
 	if ( bGenerateProjectFiles )
 	{
 		// Generate project files if we happen to be using a project file.
@@ -3933,7 +4028,7 @@ bool GameProjectUtils::FindSourceFileInProject(const FString& InFilename, const 
 {
 	TArray<FString> Filenames;
 	IFileManager::Get().FindFilesRecursive(Filenames, *InSearchPath, *InFilename, true, false, false);
-	
+
 	if(Filenames.Num())
 	{
 		// Assume it's the first match (we should really only find a single file with a given name within a project anyway)
@@ -4000,7 +4095,7 @@ bool GameProjectUtils::InsertFeaturePacksIntoINIFile(const FProjectInformation& 
 		}
 		PackList.Add(StarterPack);
 	}
-	
+
 	if (PackList.Num() != 0)
 	{
 		FString FileOutput;
@@ -4038,7 +4133,7 @@ bool GameProjectUtils::AddSharedContentToProject(const FProjectInformation &InPr
 
 	const FString ProjectConfigPath = DestFolder / TEXT("Config");
 	const FString IniFilename = ProjectConfigPath / TEXT("DefaultGame.ini");
-	
+
 	// Now any packs specified in the template def.
 	UTemplateProjectDefs* TemplateDefs = LoadTemplateDefs(SrcFolder);
 	if (TemplateDefs != NULL)
@@ -4057,7 +4152,7 @@ bool GameProjectUtils::AddSharedContentToProject(const FProjectInformation &InPr
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("TemplateName"), FText::FromString(SrcFolder));
 			OutFailReason = FText::Format(LOCTEXT("SharedResourceError", "Error adding shared resources for '{TemplateName}'."), Args);
-			return false;		
+			return false;
 		}
 	}
 	return true;

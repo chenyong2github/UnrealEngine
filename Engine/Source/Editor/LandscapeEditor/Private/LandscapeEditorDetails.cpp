@@ -6,6 +6,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "LandscapeEdMode.h"
 #include "LandscapeEditorDetailCustomization_NewLandscape.h"
 #include "LandscapeEditorDetailCustomization_ResizeLandscape.h"
@@ -21,6 +22,7 @@
 #include "LandscapeEditorDetailWidgets.h"
 #include "LandscapeEditorDetailCustomization_LayersBrushStack.h"
 #include "Settings/EditorExperimentalSettings.h"
+#include "Landscape.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor"
 
@@ -51,6 +53,30 @@ void FLandscapeEditorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 			.Text_Static(&FLandscapeEditorDetails::GetTargetLandscapeName)
 		]
 	];
+
+	FText Reason;
+	bool bDisabledEditing = LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid() && !LandscapeEdMode->CanEditCurrentTarget(&Reason);
+
+	if (bDisabledEditing)
+	{
+		LandscapeEditorCategory.AddCustomRow(FText::GetEmpty())
+			[
+				SNew(SMultiLineEditableTextBox)
+				.IsReadOnly(true)
+				.AutoWrapText(true)
+				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+				.Justification(ETextJustify::Center)
+				.BackgroundColor(FCoreStyle::Get().GetColor("ErrorReporting.BackgroundColor"))
+				.ForegroundColor(FCoreStyle::Get().GetColor("ErrorReporting.ForegroundColor"))
+				.Text(Reason)
+			];
+	}
+		
+	// Only continue cuztomization if we are in NewLandscape mode or if editing is not disabled
+	if (bDisabledEditing && LandscapeEdMode->CurrentTool->GetToolName() != FName("NewLandscape"))
+	{
+		return;
+	}
 
 	FToolSelectorBuilder ToolBrushSelectorButtons(CommandList, FMultiBoxCustomization::None);
 	{
@@ -133,6 +159,7 @@ FText FLandscapeEditorDetails::GetLocalizedName(FString Name)
 		LOCTEXT("ToolSet_NewLandscape", "New Landscape");
 		LOCTEXT("ToolSet_ResizeLandscape", "Change Component Size");
 		LOCTEXT("ToolSet_Sculpt", "Sculpt");
+		LOCTEXT("ToolSet_Erase", "Erase");
 		LOCTEXT("ToolSet_Paint", "Paint");
 		LOCTEXT("ToolSet_Smooth", "Smooth");
 		LOCTEXT("ToolSet_Flatten", "Flatten");
@@ -291,6 +318,12 @@ TSharedRef<SWidget> FLandscapeEditorDetails::GetToolSelector()
 		{
 			MenuBuilder.BeginSection(NAME_None, LOCTEXT("SculptToolsTitle", "Sculpting Tools"));
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Sculpt"), NAME_None, LOCTEXT("Tool.Sculpt", "Sculpt"), LOCTEXT("Tool.Sculpt.Tooltip", "Sculpt height data.\nCtrl+Click to Raise, Ctrl+Shift+Click to lower"));
+			
+			if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			{
+				MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Erase"), NAME_None, LOCTEXT("Tool.Erase", "Erase"), LOCTEXT("Tool.Erase.Tooltip", "Erase height data."));
+			}
+			
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Smooth"), NAME_None, LOCTEXT("Tool.Smooth", "Smooth"), LOCTEXT("Tool.Smooth.Tooltip", "Smooths heightmaps or blend layers"));
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Flatten"), NAME_None, LOCTEXT("Tool.Flatten", "Flatten"), LOCTEXT("Tool.Flatten.Tooltip", "Flattens an area of heightmap or blend layer"));
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Ramp"), NAME_None, LOCTEXT("Tool.Ramp", "Ramp"), LOCTEXT("Tool.Ramp.Tooltip", "Creates a ramp between two points"));
@@ -341,6 +374,11 @@ bool FLandscapeEditorDetails::GetToolSelectorIsVisible() const
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode && LandscapeEdMode->CurrentTool)
 	{
+		if (!LandscapeEdMode->CanEditCurrentTarget())
+		{
+			return false;
+		}
+
 		if (!IsToolActive("NewLandscape") || LandscapeEdMode->GetLandscapeList().Num() > 0)
 		{
 			return true;

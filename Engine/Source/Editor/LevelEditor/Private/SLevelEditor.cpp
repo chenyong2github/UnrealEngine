@@ -289,8 +289,11 @@ SLevelEditor::~SLevelEditor()
 
 	FEditorDelegates::MapChange.RemoveAll(this);
 
-	CastChecked<UEditorEngine>(GEngine)->OnPreviewFeatureLevelChanged().Remove(PreviewFeatureLevelChangedHandle);
-	
+	if (GEngine)
+	{
+		CastChecked<UEditorEngine>(GEngine)->OnPreviewFeatureLevelChanged().Remove(PreviewFeatureLevelChangedHandle);
+	}
+
 	if (GEditor)
 	{
 		GEditor->GetEditorWorldContext(true).RemoveRef(World);

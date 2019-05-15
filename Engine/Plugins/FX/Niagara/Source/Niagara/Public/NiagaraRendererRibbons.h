@@ -17,6 +17,7 @@ class FNiagaraDataSet;
 class NIAGARA_API NiagaraRendererRibbons : public NiagaraRenderer
 {
 public:
+
 	NiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureLevel, UNiagaraRendererProperties *Props);
 	~NiagaraRendererRibbons()
 	{
@@ -46,8 +47,6 @@ public:
 		ParamData.Add(Param);
 	}
 
-
-
 	virtual void SetDynamicData_RenderThread(FNiagaraDynamicDataBase* NewDynamicData) override;
 	int GetDynamicDataSize() override;
 	bool HasDynamicData() override;
@@ -64,7 +63,12 @@ public:
 		return Properties;
 	}
 
+protected:
+
+	static void GenerateIndexBuffer(uint16* OutIndices, const TArray<int32>& SegmentData, int32 MaxTessellation, bool bInvertOrder, bool bCullTwistedStrips);
+
 private:
+
 	class FNiagaraRibbonVertexFactory *VertexFactory;
 	UNiagaraRibbonRendererProperties *Properties;
 	mutable TUniformBuffer<FPrimitiveUniformShaderParameters> WorldSpacePrimitiveUniformBuffer;
@@ -81,6 +85,16 @@ private:
 	int32 MaterialParamOffset1;
 	int32 MaterialParamOffset2;
 	int32 MaterialParamOffset3;
+
+	// Average curvature of the segments.
+	float TessellationAngle = 0;
+	// Average angle of the curvature of the segments (in radian).
+	float TessellationCurvature = 0;
+
+	// Average twist of the segments.
+	float TessellationTwistAngle = 0;
+	// Average twist curvature of the segments.
+	float TessellationTwistCurvature = 0;
 };
 
 

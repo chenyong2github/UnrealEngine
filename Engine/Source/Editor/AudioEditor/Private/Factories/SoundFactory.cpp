@@ -521,7 +521,7 @@ UObject* USoundFactory::CreateObject
 
 void USoundFactory::SuppressImportDialogs()
 {
-	SuppressImportDialogOptions = ESuppressImportDialog::Overwrite & ESuppressImportDialog::UseTemplate;
+	SuppressImportDialogOptions = ESuppressImportDialog::Overwrite | ESuppressImportDialog::UseTemplate;
 }
 
 void USoundFactory::UpdateTemplate()

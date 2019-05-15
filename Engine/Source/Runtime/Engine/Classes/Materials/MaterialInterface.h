@@ -708,7 +708,8 @@ public:
 	ENGINE_API virtual float GetOpacityMaskClipValue() const;
 	ENGINE_API virtual bool GetCastDynamicShadowAsMasked() const;
 	ENGINE_API virtual EBlendMode GetBlendMode() const;
-	ENGINE_API virtual EMaterialShadingModel GetShadingModel() const;
+	ENGINE_API virtual FMaterialShadingModelField GetShadingModels() const;
+	ENGINE_API virtual bool IsShadingModelFromMaterialExpression() const;
 	ENGINE_API virtual bool IsTwoSided() const;
 	ENGINE_API virtual bool IsDitheredLODTransition() const;
 	ENGINE_API virtual bool IsTranslucencyWritingCustomDepth() const;

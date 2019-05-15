@@ -53,6 +53,7 @@
 #include "GPUSkinCache.h"
 #include "DynamicShadowMapChannelBindingHelper.h"
 #include "GPUScene.h"
+#include "HAL/LowLevelMemTracker.h"
 #if RHI_RAYTRACING
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RHIGPUReadback.h"
@@ -258,7 +259,11 @@ FSceneViewState::~FSceneViewState()
 	DestroyRWBuffer(VarianceMipTree);
 	DestroyRWBuffer(TotalRayCountBuffer);
 
-	delete RayCountGPUReadback;
+	ENQUEUE_RENDER_COMMAND(FDeleteGpuReadback)(
+		[DeleteMe = RayCountGPUReadback](FRHICommandList&)
+	{
+		delete DeleteMe;
+	});
 #endif // RHI_RAYTRACING
 }
 
@@ -1722,6 +1727,8 @@ void FScene::AddLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 
 void FScene::AddLight(ULightComponent* Light)
 {
+	LLM_SCOPE(ELLMTag::SceneRender);
+
 	// Create the light's scene proxy.
 	FLightSceneProxy* Proxy = Light->CreateSceneProxy();
 	if(Proxy)

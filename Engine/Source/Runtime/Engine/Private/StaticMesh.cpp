@@ -1288,18 +1288,43 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 			{
 				FStaticMeshLODResources& LOD = LODResources[ResourceIndex];
 				
-				bool bValid = (LOD.DistanceFieldData != NULL);
+				bool bValid = (LOD.DistanceFieldData != nullptr);
 
 				Ar << bValid;
 
 				if (bValid)
 				{
-					if (!LOD.DistanceFieldData)
+#if WITH_EDITOR
+					bool bDownSampling = Ar.IsCooking() && Ar.IsSaving();
+					
+					if (bDownSampling)
 					{
-						LOD.DistanceFieldData = new FDistanceFieldVolumeData();
+						float Divider = Ar.CookingTarget()->GetDownSampleMeshDistanceFieldDivider();
+						bDownSampling = Divider > 1;
+
+						if (bDownSampling)
+						{
+							CA_ASSUME(LOD.DistanceFieldData != nullptr);
+
+							FDistanceFieldVolumeData DownSampledDFVolumeData = *LOD.DistanceFieldData;
+							IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>(TEXT("MeshUtilities"));
+
+							MeshUtilities.DownSampleDistanceFieldVolumeData(DownSampledDFVolumeData, Divider);
+
+							Ar << DownSampledDFVolumeData;
+						}
 					}
 
-					Ar << *(LOD.DistanceFieldData);
+					if (!bDownSampling)
+#endif
+					{
+						if (LOD.DistanceFieldData == nullptr)
+						{
+							LOD.DistanceFieldData = new FDistanceFieldVolumeData();
+						}
+
+						Ar << *(LOD.DistanceFieldData);
+					}
 				}
 			}
 		}
@@ -2273,7 +2298,19 @@ void FStaticMeshRenderData::Cache(UStaticMesh* Owner, const FStaticMeshLODSettin
 				// TODO: Save non-inlined LODs separately
 			}
 
-			GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData);
+			bool bSaveDDC = true;
+#if WITH_EDITOR
+			//Do not save ddc when we are forcing the regeneration of ddc in automation test
+			//No need to take more space in the ddc.
+			if (GIsAutomationTesting && Owner->BuildCacheAutomationTestGuid.IsValid())
+			{
+				bSaveDDC = false;
+			}
+#endif
+			if (bSaveDDC)
+			{
+				GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData);
+			}
 
 			int32 T1 = FPlatformTime::Cycles();
 			UE_LOG(LogStaticMesh,Log,TEXT("Built static mesh [%.2fs] %s"),
@@ -3122,7 +3159,7 @@ void UStaticMesh::BeginDestroy()
 
 bool UStaticMesh::IsReadyForFinishDestroy()
 {
-	return ReleaseResourcesFence.IsFenceComplete();
+	return ReleaseResourcesFence.IsFenceComplete() && !UpdateStreamingStatus();
 }
 
 int32 UStaticMesh::GetNumSectionsWithCollision() const
@@ -4797,10 +4834,6 @@ bool UStaticMesh::StreamOut(int32 NewMipCount)
 	if (bIsStreamable && !PendingUpdate && RenderData.IsValid() && RenderData->bReadyForStreaming && NewMipCount < GetNumResidentMips())
 	{
 		PendingUpdate = new FStaticMeshStreamOut(this, NewMipCount);
-
-		// The object starts in the locked state while it is being initialized.
-		PendingUpdate->DoUnlock();
-
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;
@@ -4835,9 +4868,6 @@ bool UStaticMesh::StreamIn(int32 NewMipCount, bool bHighPrio)
 				PendingUpdate = new FStaticMeshStreamIn_IO_RenderThread(this, NewMipCount, bHighPrio);
 			}
 		}
-
-		// The object starts in the locked state while it is being initialized.
-		PendingUpdate->DoUnlock();
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;
@@ -4853,8 +4883,16 @@ bool UStaticMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 			PendingUpdate->Abort();
 		}
 
-		// When the renderthread is the gamethread, allow the Tick to execute rendercommands.
-		PendingUpdate->Tick(this, GIsThreadedRendering ? FStaticMeshUpdate::TT_None : FStaticMeshUpdate::TT_Render);
+		// When there is no renderthread, allow the gamethread to tick as the renderthread.
+		FRenderAssetUpdate::EThreadType TickThread = GIsThreadedRendering ? FRenderAssetUpdate::TT_None : FRenderAssetUpdate::TT_Render;
+		if (HasAnyFlags(RF_BeginDestroyed) && PendingUpdate->GetRelevantThread() == FRenderAssetUpdate::TT_Async)
+		{
+			// To avoid async tasks from timing out the GC, we tick as Async to force completion if this is relevant.
+			// This could lead the asset from releasing the PendingUpdate, which will be deleted once the async task completes.
+			TickThread = FRenderAssetUpdate::TT_Async;
+		}
+		PendingUpdate->Tick(TickThread);
+
 		if (!PendingUpdate->IsCompleted())
 		{
 			return true;
@@ -4864,8 +4902,7 @@ bool UStaticMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 		const bool bRebuildPlatformData = PendingUpdate->DDCIsInvalid() && !IsPendingKillOrUnreachable();
 #endif
 
-		delete PendingUpdate;
-		PendingUpdate = nullptr;
+		PendingUpdate.SafeRelease();
 
 #if WITH_EDITOR
 		if (GIsEditor)

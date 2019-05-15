@@ -50,6 +50,7 @@ namespace ELandscapeViewMode
 		LayerUsage,
 		LOD,
 		WireframeOnTop,
+		LayerContribution
 	};
 }
 
@@ -77,6 +78,7 @@ LANDSCAPE_API extern UMaterialInterface* GLayerDebugColorMaterial;
 LANDSCAPE_API extern UMaterialInterface* GSelectionColorMaterial;
 LANDSCAPE_API extern UMaterialInterface* GSelectionRegionMaterial;
 LANDSCAPE_API extern UMaterialInterface* GMaskRegionMaterial;
+LANDSCAPE_API extern UMaterialInterface* GColorMaskRegionMaterial;
 LANDSCAPE_API extern UTexture2D* GLandscapeBlackTexture;
 LANDSCAPE_API extern UMaterialInterface* GLandscapeLayerUsageMaterial;
 #endif

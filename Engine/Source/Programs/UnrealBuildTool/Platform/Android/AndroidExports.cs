@@ -73,7 +73,8 @@ namespace UnrealBuildTool
 		/// <param name="ProjectName"></param>
 		/// <param name="ProjectDirectoryFullName"></param>
 		/// <param name="Type"></param>
-		bool SavePackageInfo(string ProjectName, string ProjectDirectoryFullName, TargetType Type);
+		/// <param name="bIsEmbedded"></param>
+		bool SavePackageInfo(string ProjectName, string ProjectDirectoryFullName, TargetType Type, bool bIsEmbedded);
 	}
 
 	/// <summary>

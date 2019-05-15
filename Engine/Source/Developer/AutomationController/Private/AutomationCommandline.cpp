@@ -14,7 +14,7 @@
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "AssetRegistryModule.h"
-#include "AutomationControllerManager.h"
+#include "AutomationControllerSettings.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationCommandLine, Log, All);
 
@@ -133,7 +133,7 @@ public:
 		TArray<FAutomatedTestFilter> Filters;
 
 		// get our settings CDO where things are stored
-		UAutomatedTestSettings* Settings = UAutomatedTestSettings::StaticClass()->GetDefaultObject<UAutomatedTestSettings>();
+		UAutomationControllerSettings* Settings = UAutomationControllerSettings::StaticClass()->GetDefaultObject<UAutomationControllerSettings>();
 
 		// iterate through the arguments to build a filter list by doing the following -
 		// 1) If argument is a filter (filter:system) then make sure we only filter-in tests that start with that filter
@@ -464,7 +464,7 @@ public:
 
 					UE_LOG(LogAutomationCommandLine, Log, TEXT("Forcing shutdown."));
 					// some tools parse this.
-					//UE_LOG(LogAutomationCommandLine, Display, TEXT("**** TEST COMPLETE. EXIT CODE: %d ****"), GIsCriticalError ? -1 : 0);
+					UE_LOG(LogAutomationCommandLine, Display, TEXT("**** TEST COMPLETE. EXIT CODE: %d ****"), GIsCriticalError ? -1 : 0);
 					FPlatformMisc::RequestExit(true);
 					// We have finished the testing, and results are available
 					AutomationTestState = EAutomationTestState::Complete;

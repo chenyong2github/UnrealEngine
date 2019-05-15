@@ -615,7 +615,6 @@ static IOSAppDelegate* CachedDelegate = nil;
 						AVAudioSessionCategoryOptions opts =
 							AVAudioSessionCategoryOptionAllowBluetoothA2DP |
 #if !PLATFORM_TVOS
-							AVAudioSessionCategoryOptionAllowBluetooth |
 							AVAudioSessionCategoryOptionDefaultToSpeaker |
 #endif
 							AVAudioSessionCategoryOptionMixWithOthers;
@@ -689,7 +688,6 @@ static IOSAppDelegate* CachedDelegate = nil;
 					AVAudioSessionCategoryOptions opts =
 						AVAudioSessionCategoryOptionAllowBluetoothA2DP |
 #if !PLATFORM_TVOS
-						AVAudioSessionCategoryOptionAllowBluetooth |
 						AVAudioSessionCategoryOptionDefaultToSpeaker |
 #endif
 						AVAudioSessionCategoryOptionMixWithOthers;
@@ -719,7 +717,6 @@ static IOSAppDelegate* CachedDelegate = nil;
 			AVAudioSessionCategoryOptions opts =
 				AVAudioSessionCategoryOptionAllowBluetoothA2DP |
 #if !PLATFORM_TVOS
-				AVAudioSessionCategoryOptionAllowBluetooth |
 				AVAudioSessionCategoryOptionDefaultToSpeaker |
 #endif
 				AVAudioSessionCategoryOptionMixWithOthers;

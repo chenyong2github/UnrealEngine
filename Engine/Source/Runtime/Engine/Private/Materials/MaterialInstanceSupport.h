@@ -10,6 +10,7 @@
 #include "RenderingThread.h"
 #include "MaterialShared.h"
 #include "Materials/MaterialInstance.h"
+#include "HAL/LowLevelMemTracker.h"
 
 class UTexture;
 
@@ -117,6 +118,8 @@ public:
 	template <typename ValueType>
 	void RenderThread_UpdateParameter(const FMaterialParameterInfo& ParameterInfo, const ValueType& Value )
 	{
+		LLM_SCOPE(ELLMTag::MaterialInstance);
+
 		InvalidateUniformExpressionCache(false);
 		TArray<TNamedParameter<ValueType> >& ValueArray = GetValueArray<ValueType>();
 		const int32 ParameterCount = ValueArray.Num();

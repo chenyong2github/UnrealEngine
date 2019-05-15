@@ -59,6 +59,17 @@ public:
 	EMemberConnectionStatus PreviousMemberConnectionStatus = EMemberConnectionStatus::Uninitialized;
 
 	/**
+	 * Event when a party member's attribute has changed
+	 * @see FOnlineUser::GetUserAttribute
+	 * @param ChangedUserId id associated with this notification
+	 * @param Attribute attribute that changed
+	 * @param NewValue the new value for the attribute
+	 * @param PreviousValue the previous value for the attribute
+	 */
+	DECLARE_EVENT_FourParams(FOnlinePartyMember, FOnMemberAttributeChanged, const FUniqueNetId& /*ChangedUserId*/, const FString& /*Attribute*/, const FString& /*NewValue*/, const FString& /*OldValue*/);
+	FOnMemberAttributeChanged& OnMemberAttributeChanged() const { return OnMemberAttributeChangedEvent; }
+
+	/**
 	 * Event when a party member's connection status has changed
 	 * @param ChangedUserId - id associated with this notification
 	 * @param NewMemberConnectionStatus - new member data status
@@ -80,6 +91,8 @@ public:
 private:
 	/** Event fired when connection status changes */
 	mutable FOnMemberConnectionStatusChanged OnMemberConnectionStatusChangedEvent;
+	/** Event fired when an attribute changes */
+	mutable FOnMemberAttributeChanged OnMemberAttributeChangedEvent;
 };
 
 typedef TSharedRef<const FOnlinePartyMember> FOnlinePartyMemberConstRef;
@@ -610,12 +623,16 @@ enum class EPartyInvitationRemovedReason : uint8
 {
 	/** Unknown or undefined reason */
 	Unknown,
+	/** User accepted the invitation */
+	Accepted,
+	/** User declined the invitation */
+	Declined,
+	/** ClearInvitations was called, the invitation should no longer be displayed */
+	Cleared,
 	/** Expired */
 	Expired,
 	/** Became invalid (for example, party was destroyed) */
 	Invalidated,
-	/** User declined the invitation */
-	Declined,
 };
 
 /** Recipient information for SendInvitation */
@@ -939,7 +956,7 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyInviteRemoved);
  * Notification when a new invite is received
  * @param LocalUserId id associated with this notification
  * @param PartyId id associated with the party
- * @param SenderId id of member that sent the invite
+ * @param SenderId id of user that sent the invite
  * @param bWasAccepted whether or not the invite was accepted
  */
 DECLARE_MULTICAST_DELEGATE_FourParams(F_PREFIX(OnPartyInviteResponseReceived), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/, const EInvitationResponse /*Response*/);
@@ -1659,11 +1676,11 @@ public:
 	DEFINE_ONLINE_DELEGATE_FOUR_PARAM(OnPartyInviteRemoved, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/, EPartyInvitationRemovedReason /*Reason*/);
 
 	/**
-	 * Notification when a new invite is received
+	 * Notification when an invitation response is received
 	 * @param LocalUserId - id associated with this notification
 	 * @param PartyId - id associated with the party
-	 * @param SenderId - id of member that sent the invite
-	 * @param bWasAccepted - true is the invite was accepted
+	 * @param SenderId - id of user that responded to an invite
+	 * @param Response - the response
 	 */
 	DEFINE_ONLINE_DELEGATE_FOUR_PARAM(OnPartyInviteResponseReceived, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/, const EInvitationResponse /*Response*/);
 
@@ -1926,6 +1943,8 @@ ONLINESUBSYSTEM_API EPartyState EPartyStateFromString(const TCHAR* Value);
 
 /** @return the stringified version of the enum passed in */
 ONLINESUBSYSTEM_API const TCHAR* ToString(const EMemberExitedReason Value);
+/** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const EPartyInvitationRemovedReason Value);
 /** @return the stringified version of the enum passed in */
 ONLINESUBSYSTEM_API const TCHAR* ToString(const ECreatePartyCompletionResult Value);
 /** @return the stringified version of the enum passed in */

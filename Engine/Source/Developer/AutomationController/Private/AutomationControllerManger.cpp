@@ -1078,6 +1078,79 @@ void FAutomationControllerManager::HandleRequestTestsReplyCompleteMessage(const 
 	SetTestNames(Context->GetSender(), TestInfo);
 }
 
+
+void FAutomationControllerManager::ReportAutomationResult(const TSharedPtr<IAutomationReport> InReport, int32 ClusterIndex, int32 PassIndex)
+{
+	// these strings are parsed by Gauntlet (AutomationLogParser) so make sure changes are replicated there!
+	#define AutomationSuccessFormat		TEXT("Automation Test Succeeded (%s - %s)")
+	#define AutomationFailureFormat		TEXT("Automation Test Failed (%s - %s)")
+	#define BeginEventsFormat			TEXT("BeginEvents: %s")
+	#define EndEventsFormat				TEXT("EndEvents: %s")
+
+	FName CategoryName = "LogAutomationController";
+#if WITH_EDITOR
+	FMessageLog AutomationTestingLog(CategoryName);
+	// we log these messages ourselves for non-editor platforms so suppress this.
+	AutomationTestingLog.SuppressLoggingToOutputLog(true);
+	AutomationTestingLog.Open();
+#endif
+
+	const FAutomationTestResults& Results = InReport->GetResults(ClusterIndex, PassIndex);
+
+	if (Results.State == EAutomationState::Success)
+	{
+		FString SuccessString = FString::Printf(AutomationSuccessFormat, *InReport->GetDisplayName(), *InReport->GetFullTestPath());
+		UE_LOG(LogAutomationController, Display, TEXT("%s"), *SuccessString);
+#if WITH_EDITOR
+		AutomationTestingLog.Info(FText::FromString(*SuccessString));
+#endif
+	}
+	else
+	{
+		FString FailureString = FString::Printf(AutomationFailureFormat, *InReport->GetDisplayName(), *InReport->GetFullTestPath());
+		UE_LOG(LogAutomationController, Error, TEXT("%s"), *FailureString);
+#if WITH_EDITOR
+		AutomationTestingLog.Error(FText::FromString(*FailureString));
+#endif
+	}
+
+	// bracket these for easy parsing
+	UE_LOG(LogAutomationController, Log, BeginEventsFormat, *InReport->GetFullTestPath());
+
+	for (const FAutomationExecutionEntry& Entry : Results.GetEntries())
+	{
+		switch (Entry.Event.Type)
+		{
+		case EAutomationEventType::Info:
+			UE_LOG(LogAutomationController, Log, TEXT("%s"), *Entry.ToString());
+#if WITH_EDITOR
+			AutomationTestingLog.Info(FText::FromString(Entry.ToString()));
+#endif
+			break;
+		case EAutomationEventType::Warning:
+			UE_LOG(LogAutomationController, Warning, TEXT("%s"), *Entry.ToString());
+#if WITH_EDITOR
+			AutomationTestingLog.Warning(FText::FromString(Entry.ToString()));
+#endif
+			break;
+		case EAutomationEventType::Error:
+			UE_LOG(LogAutomationController, Error, TEXT("%s"), *Entry.ToString());
+#if WITH_EDITOR
+			AutomationTestingLog.Error(FText::FromString(Entry.ToString()));
+#endif
+			break;
+		}
+	}
+
+	UE_LOG(LogAutomationController, Log, EndEventsFormat, *InReport->GetFullTestPath());
+
+	#undef AutomationSuccessFormat
+	#undef AutomationFailureFormat
+	#undef BeginEventsFormat
+	#undef EndEventsFormat
+}
+
+
 void FAutomationControllerManager::HandleRunTestsReplyMessage(const FAutomationWorkerRunTestsReply& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
 	// If we should commit these results
@@ -1108,55 +1181,7 @@ void FAutomationControllerManager::HandleRunTestsReplyMessage(const FAutomationW
 			// Gather all of the data relevant to this test for our json reporting.
 			CollectTestResults(Report, FinalResults);
 
-			FName CategoryName = "LogAutomationController";
-#if WITH_EDITOR
-			FMessageLog AutomationTestingLog(CategoryName);
-			// we log these messages ourselves for non-editor platforms so suppress this.
-			AutomationTestingLog.SuppressLoggingToOutputLog(true);
-			AutomationTestingLog.Open();
-#endif
-
-			for (const FAutomationExecutionEntry& Entry : TestResults.GetEntries())
-			{
-				switch (Entry.Event.Type)
-				{
-				case EAutomationEventType::Info:
-					UE_LOG(LogAutomationController, Log, TEXT("%s"), *Entry.ToString());
-#if WITH_EDITOR
-					AutomationTestingLog.Info(FText::FromString(Entry.ToString()));
-#endif
-					break;
-				case EAutomationEventType::Warning:
-					UE_LOG(LogAutomationController, Warning, TEXT("%s"), *Entry.ToString());
-#if WITH_EDITOR
-					AutomationTestingLog.Warning(FText::FromString(Entry.ToString()));
-#endif
-					break;
-				case EAutomationEventType::Error:
-					UE_LOG(LogAutomationController, Error, TEXT("%s"), *Entry.ToString());
-#if WITH_EDITOR
-					AutomationTestingLog.Error(FText::FromString(Entry.ToString()));
-#endif
-					break;
-				}
-			}
-
-			if (TestResults.State == EAutomationState::Success)
-			{
-				FString SuccessString = FString::Printf(TEXT("Automation Test Succeeded (%s - %s)"), *Report->GetDisplayName(), *Report->GetFullTestPath());
-				UE_LOG(LogAutomationController, Log, TEXT("%s"), *SuccessString);
-#if WITH_EDITOR
-				AutomationTestingLog.Info(FText::FromString(*SuccessString));
-#endif
-			}
-			else
-			{
-				FString FailureString = FString::Printf(TEXT("Automation Test Failed (%s - %s)"), *Report->GetDisplayName(), *Report->GetFullTestPath());
-				UE_LOG(LogAutomationController, Log, TEXT("%s"), *FailureString);
-#if WITH_EDITOR
-				AutomationTestingLog.Error(FText::FromString(*FailureString));
-#endif
-			}
+			ReportAutomationResult(Report, ClusterIndex, CurrentTestPass);
 		}
 
 		// Device is now good to go

@@ -52,6 +52,7 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeWeightmapUsage.h"
 
 #if WITH_EDITOR
+#include "LandscapeEdit.h"
 #include "MaterialUtilities.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Editor.h"
@@ -140,6 +141,10 @@ FAutoConsoleCommand CmdPrintNumLandscapeShadows(
 
 ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
+, LayerUpdateFlagPerMode(0)
+, WeightmapsHash(0)
+#endif
 , GrassData(MakeShareable(new FLandscapeComponentGrassData()))
 , ChangeTag(0)
 {
@@ -1066,19 +1071,28 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	FrameOffsetForTickInterval = FrameOffsetForTickIntervalInc++;
 }
 
+#if WITH_EDITORONLY_DATA
+ALandscape::FLandscapeEdModeInfo::FLandscapeEdModeInfo()
+	: ViewMode(ELandscapeViewMode::Invalid)
+	, ToolTarget(ELandscapeToolTargetType::Invalid)
+{
+}
+#endif
+
 ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 #if WITH_EDITORONLY_DATA
 	bLockLocation = false;
-	PreviousExperimentalLandscapeLayers = false;
+	bInitializedWithFlagExperimentalLandscapeLayers = GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem;
 	WasCompilingShaders = false;
-	LayersContentUpdateFlags = 0;
+	LayerContentUpdateModes = 0;
 	CombinedLayersWeightmapAllMaterialLayersResource = nullptr;
 	CurrentLayersWeightmapAllMaterialLayersResource = nullptr;
 	WeightmapScratchExtractLayerTextureResource = nullptr;
 	WeightmapScratchPackLayerTextureResource = nullptr;
 	bLandscapeLayersAreInitialized = false;
+	LandscapeEdMode = nullptr;
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -2729,10 +2743,11 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 		StreamingProxy->FixupSharedData(LandscapeActor.Get());
 	}
 
-	if (LandscapeActor)
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && LandscapeActor)
 	{
 		// Force update rendering resources
-		LandscapeActor->RequestLayersInitialization();
+		const bool bInRequestContentUpdate = false;
+		LandscapeActor->RequestLayersInitialization(bInRequestContentUpdate);		
 	}
 
 	UpdateLayerInfoMap(Proxy);
@@ -3484,6 +3499,11 @@ void InvalidateGeneratedComponentDataImpl(const ContainerType& Components)
 void ALandscapeProxy::InvalidateGeneratedComponentData()
 {
 	InvalidateGeneratedComponentDataImpl(LandscapeComponents);
+}
+
+void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeComponent*>& Components)
+{
+	InvalidateGeneratedComponentDataImpl(Components);
 }
 
 void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components)

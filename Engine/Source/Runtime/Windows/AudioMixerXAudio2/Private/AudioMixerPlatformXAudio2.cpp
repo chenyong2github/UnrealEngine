@@ -20,7 +20,7 @@
 #endif  //#if WITH_XMA2
 #include "OpusAudioInfo.h"
 #include "VorbisAudioInfo.h"
-
+#include "ADPCMAudioInfo.h"
 
 #include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
@@ -813,20 +813,24 @@ namespace Audio
 		static FName NAME_OGG(TEXT("OGG"));
 		static FName NAME_OPUS(TEXT("OPUS"));
 		static FName NAME_XMA(TEXT("XMA"));
-
-#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
-		if (InSoundWave->IsStreaming() && InSoundWave->NumChannels <= 2)
-		{
-			return NAME_XMA;
-		}
-#endif
+		static FName NAME_ADPCM(TEXT("ADPCM"));
 
 		if (InSoundWave->IsStreaming())
 		{
+			if (InSoundWave->IsSeekableStreaming())
+			{
+				return NAME_ADPCM;
+			}
+
+#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
+			if (InSoundWave->NumChannels <= 2)
+			{
+				return NAME_XMA;
+			}
+#endif
+
 #if USE_VORBIS_FOR_STREAMING
 			return NAME_OGG;
-#else
-			return NAME_OPUS;
 #endif
 		}
 
@@ -848,6 +852,14 @@ namespace Audio
 	ICompressedAudioInfo* FMixerPlatformXAudio2::CreateCompressedAudioInfo(USoundWave* InSoundWave)
 	{
 		check(InSoundWave);
+
+		if (InSoundWave->IsStreaming())
+		{
+			if (InSoundWave->IsSeekableStreaming())
+			{
+				return new FADPCMAudioInfo();
+			}
+		}
 
 #if WITH_XMA2 && USE_XMA2_FOR_STREAMING
 		if (InSoundWave->IsStreaming() && InSoundWave->NumChannels <= 2 )

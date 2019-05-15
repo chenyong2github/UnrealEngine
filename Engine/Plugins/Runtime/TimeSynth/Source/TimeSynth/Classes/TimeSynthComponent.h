@@ -242,7 +242,7 @@ public:
 	float DefaultVolume;
 };
 
-UCLASS(ClassGroup = Synth, meta = (BlueprintSpawnableComponent))
+UCLASS(BlueprintType, ClassGroup = Synth, meta = (BlueprintSpawnableComponent))
 class TIMESYNTH_API UTimeSynthClip : public UObject
 {
 	GENERATED_BODY()
@@ -529,6 +529,10 @@ public:
 	// The envelope follower settings to use
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Filter", meta = (EditCondition = "bisEnvelopeFollowerEnabled"))
 	FTimeSynthEnvelopeFollowerSettings EnvelopeFollowerSettings;
+
+	// Set the Max Pool Size
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TimeSynth", meta = (UIMin = 20, UIMax = 50, ClampMin = 20))
+	int32 MaxPoolSize;
 
 	// Register an event to respond to a specific quantization event
 	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject"))

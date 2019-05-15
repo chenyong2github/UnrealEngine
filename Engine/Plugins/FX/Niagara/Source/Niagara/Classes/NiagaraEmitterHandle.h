@@ -87,6 +87,9 @@ public:
 	/** Sets an object which will contain the history of modifications to the emitter instance. */
 	void SetEmitterModificationHistory();
 
+	/** Removes the source system from the this emitter handle which will prevent inheriting any further changes. */
+	void RemoveSource();
+
 #endif
 public:
 	/** A static const invalid handle. */

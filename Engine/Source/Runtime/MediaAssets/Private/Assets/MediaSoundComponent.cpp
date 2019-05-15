@@ -157,6 +157,19 @@ void UMediaSoundComponent::UpdatePlayer()
 		CurrentPlayerFacade = PlayerFacade;
 	}
 
+	//
+	// Some players might require bSyncAudioAfterDropouts to be forced to true or false
+	if (PlayerFacade->GetPlayer())
+	{
+		bool bNewAudioSyncAfterDropouts = PlayerFacade->GetPlayer()->RequiresAudioSyncAfterDropouts();
+		if (bNewAudioSyncAfterDropouts != bSyncAudioAfterDropouts)
+		{
+			FScopeLock Lock(&CriticalSection);
+			bSyncAudioAfterDropouts = bNewAudioSyncAfterDropouts;
+			FrameSyncOffset = 0;
+		}
+	}
+
 	// caching play rate and time for audio thread (eventual consistency is sufficient)
 	CachedRate = PlayerFacade->GetRate();
 	CachedTime = PlayerFacade->GetTime();

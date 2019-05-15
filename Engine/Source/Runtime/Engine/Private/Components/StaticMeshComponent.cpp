@@ -602,6 +602,12 @@ void UStaticMeshComponent::OnUnregister()
 	Super::OnUnregister();
 }
 
+void UStaticMeshComponent::CreateRenderState_Concurrent()
+{
+	LLM_SCOPE(ELLMTag::StaticMesh);
+	Super::CreateRenderState_Concurrent();
+}
+
 void UStaticMeshComponent::OnCreatePhysicsState()
 {
 	Super::OnCreatePhysicsState();
@@ -1907,7 +1913,7 @@ bool UStaticMeshComponent::UsesOnlyUnlitMaterials() const
 				UMaterialInterface*	MaterialInterface	= GetMaterial(LOD.Sections[ElementIndex].MaterialIndex);
 				UMaterial*			Material			= MaterialInterface ? MaterialInterface->GetMaterial() : NULL;
 
-				bUsesOnlyUnlitMaterials = Material && Material->GetShadingModel() == MSM_Unlit;
+				bUsesOnlyUnlitMaterials = Material && Material->GetShadingModels().IsUnlit();
 			}
 		}
 		return bUsesOnlyUnlitMaterials;
