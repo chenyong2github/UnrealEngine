@@ -46,7 +46,7 @@ namespace MetadataTool
 			if (SourceFileNames.Count > 0)
 			{
 				TrackedIssueFingerprint Fingerprint = new TrackedIssueFingerprint(Category, GetSummary(SourceFileNames), Diagnostic.Url, Job.Change);
-				Fingerprint.Details.Add(Diagnostic.Message);
+				Fingerprint.Details.Add(ShortenPaths(Diagnostic.Message));
 				Fingerprint.FileNames.UnionWith(SourceFileNames);
 				Fingerprints.Add(Fingerprint);
 				return true;
@@ -54,6 +54,12 @@ namespace MetadataTool
 
 			// Otherwise pass
 			return false;
+		}
+
+		static string ShortenPaths(string Text)
+		{
+			Text = Regex.Replace(Text, @"^(\s*(?:In file included from\s*)?)(?:[A-Za-z]:)?[^\s(:]+[/\\]([^\s/\\]+[\(:]\d)", "$1$2", RegexOptions.Multiline);
+			return Text;
 		}
 
 		public override void Merge(TrackedIssueFingerprint Source, TrackedIssueFingerprint Target)
