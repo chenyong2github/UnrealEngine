@@ -1841,7 +1841,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			FRDGBufferDesc DrawListDescs = FRDGBufferDesc::CreateStructuredDesc(sizeof(float) * 4, 5 * MaxScatteringGroupCount);
 			if (bForegroundHybridScattering)
 				ForegroundScatterDrawListBuffer = GraphBuilder.CreateBuffer(DrawListDescs, TEXT("DOFForegroundDrawList"));
-			if (bForegroundHybridScattering)
+			if (bBackgroundHybridScattering)
 				BackgroundScatterDrawListBuffer = GraphBuilder.CreateBuffer(DrawListDescs, TEXT("DOFBackgroundDrawList"));
 		}
 		
