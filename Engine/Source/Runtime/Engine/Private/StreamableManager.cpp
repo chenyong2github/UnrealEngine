@@ -507,7 +507,7 @@ void FStreamableHandle::StartStalledHandle()
 FStreamableHandle::~FStreamableHandle()
 {
 	TRACE_LOADTIME_DESTROY_STREAMABLE_HANDLE(this);
-	check(IsInGameThread());
+	check(IsInGameThread() || IsInGarbageCollectorThread());
 
 	if (IsActive())
 	{

@@ -282,6 +282,11 @@ public:
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 	/**
+	  * UObject interface
+	  */
+	virtual bool IsDestructionThreadSafe() const override { return false; }
+
+	/**
 	 * Dumps cooking stats to the log
 	 *  run from the exec command "Cook stats"
 	 */

@@ -44,6 +44,10 @@ public:
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UAppleVisionDetectFacesAsyncTaskBlueprintProxy, STATGROUP_Tickables); }
 	//~ End FTickableObject Interface
 
+	//~ Begin UObject Interface
+	virtual bool IsDestructionThreadSafe() const override { return false; }
+	//~ End UObject Interface
+
 	/** The async task to check during Tick() */
 	TSharedPtr<FAppleVisionDetectFacesAsyncTaskBase, ESPMode::ThreadSafe> AsyncTask;
 

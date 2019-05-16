@@ -169,6 +169,7 @@ UGarbageCollectionSettings::UGarbageCollectionSettings()
 	FlushStreamingOnGC = false;
 	AllowParallelGC = true;
 	IncrementalBeginDestroyEnabled = true;
+	MultithreadedDestructionEnabled = true;
 	NumRetriesBeforeForcingGC = 0;
 	MaxObjectsNotConsideredByGC = 0;
 	SizeOfPermanentObjectPool = 0;

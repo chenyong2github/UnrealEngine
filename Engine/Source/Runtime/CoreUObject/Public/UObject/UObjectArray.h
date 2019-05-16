@@ -1095,8 +1095,11 @@ public:
 	 */
 	void DissolveCluster(UObjectBaseUtility* ClusterRootOrObjectFromCluster);
 
-	/** Dissolve all clusters marked for dissolving */
-	void DissolveClusters();
+	/** 
+	 * Dissolve all clusters marked for dissolving 
+	 * @param bForceDissolveAllClusters if true, dissolves all clusters even if they're not marked for dissolving
+	 */
+	void DissolveClusters(bool bForceDissolveAllClusters = false);
 
 	/** Dissolve the specified cluster and all clusters that reference it */
 	void DissolveClusterAndMarkObjectsAsUnreachable(FUObjectItem* RootObjectItem);

@@ -88,6 +88,10 @@ public:
 	/** FTickableGameObject interface */
 	virtual UWorld* GetTickableGameObjectWorld() const override;
 
+	//~ Begin UObject Interface
+	virtual bool IsDestructionThreadSafe() const override { return false; }
+	//~ End UObject Interface
+
 private:
 	class FIdentityImpl *Impl;
 };

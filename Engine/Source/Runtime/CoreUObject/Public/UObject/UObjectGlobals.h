@@ -426,6 +426,11 @@ COREUOBJECT_API float GetAsyncLoadPercentage( const FName& PackageName );
 */
 COREUOBJECT_API bool IsGarbageCollecting();
 
+/**
+* Whether we are running on the Garbage Collector Thread
+*/
+COREUOBJECT_API bool IsInGarbageCollectorThread();
+
 /** 
  * Deletes all unreferenced objects, keeping objects that have any of the passed in KeepFlags set. Will wait for other threads to unlock GC.
  *
@@ -465,6 +470,13 @@ COREUOBJECT_API bool IsIncrementalUnhashPending();
  * @return	true if incremental purge needs to be kicked off or is currently in progress, false othwerise.
  */
 COREUOBJECT_API bool IsIncrementalPurgePending();
+
+/**
+ * Gathers unreachable objects for IncrementalPurgeGarbage.
+ *
+ * @param bForceSingleThreaded true to force the process to just one thread
+ */
+COREUOBJECT_API void GatherUnreachableObjects(bool bForceSingleThreaded);
 
 /**
  * Incrementally purge garbage by deleting all unreferenced objects after routing Destroy.

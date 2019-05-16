@@ -440,6 +440,16 @@ public:
 	}
 
 	/**
+	* Called during garbage collection to determine if an object can have its destructor called on a worker thread.
+	*
+	* @return	true if this object's destructor is thread safe
+	*/
+	virtual bool IsDestructionThreadSafe() const
+	{
+		return true;
+	}
+
+	/**
 	* Called during cooking. Must return all objects that will be Preload()ed when this is serialized at load time. Only used by the EDL.
 	*
 	* @param	OutDeps				all objects that will be preloaded when this is serialized at load time

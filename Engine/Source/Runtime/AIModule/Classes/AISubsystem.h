@@ -30,7 +30,11 @@ public:
 	virtual void Tick(float DeltaTime) override {}
 	virtual ETickableTickType GetTickableTickType() const override;
 	virtual TStatId GetStatId() const override;
-	// FTickableGameObject begin
+	// FTickableGameObject end
+
+	// UObject begin
+	virtual bool IsDestructionThreadSafe() const override { return false; }
+	// UObject end
 
 	UWorld* GetWorldFast() const { return AISystem ? AISystem->GetOuterWorld() : GetOuter()->GetWorld(); }
 };

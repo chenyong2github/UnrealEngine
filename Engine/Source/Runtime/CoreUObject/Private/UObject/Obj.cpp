@@ -4341,7 +4341,7 @@ void StaticUObjectInit()
 }
 
 // Internal cleanup functions
-void CleanupGCArrayPools();
+void ShutdownGarbageCollection();
 void CleanupLinkerAnnotations();
 void CleanupCachedArchetypes();
 
@@ -4365,7 +4365,9 @@ void StaticExit()
 		GObjTransientPkg = NULL;
 	}
 
-	IncrementalPurgeGarbage( false );
+	GatherUnreachableObjects(false);
+	IncrementalPurgeGarbage(false);
+	GUObjectClusters.DissolveClusters(true);
 
 	// Keep track of how many objects there are for GC stats as we simulate a mark pass.
 	extern FThreadSafeCounter GObjectCountDuringLastMarkPhase;
@@ -4400,19 +4402,8 @@ void StaticExit()
 	// set on all objects that are about to be deleted. One example is FLinkerLoad detaching textures - the SetLinker call needs to 
 	// not kick off texture streaming.
 	//
-	for ( FRawObjectIterator It; It; ++It )
-	{
-		FUObjectItem* ObjItem = *It;
-		checkSlow(ObjItem);
-		if (ObjItem->IsUnreachable())
-		{
-			// Begin the object's asynchronous destruction.
-			UObject* Obj = static_cast<UObject*>(ObjItem->Object);
-			Obj->ConditionalBeginDestroy();
-		}
-	}
-
-	IncrementalPurgeGarbage( false );
+	GatherUnreachableObjects(false);
+	IncrementalPurgeGarbage(false);
 
 	{
 		//Repeat GC for every object, including structures and properties.
@@ -4422,25 +4413,15 @@ void StaticExit()
 			It->SetUnreachable();
 		}
 
-		for (FRawObjectIterator It; It; ++It)
-		{
-			FUObjectItem* ObjItem = *It;
-			checkSlow(ObjItem);
-			if (ObjItem->IsUnreachable())
-			{
-				// Begin the object's asynchronous destruction.
-				UObject* Obj = static_cast<UObject*>(ObjItem->Object);
-				Obj->ConditionalBeginDestroy();
-			}
-		}
-
+		GatherUnreachableObjects(false);
 		IncrementalPurgeGarbage(false);
 	}
 
+	ShutdownGarbageCollection();
 	UObjectBaseShutdown();
+
 	// Empty arrays to prevent falsely-reported memory leaks.
-	FDeferredMessageLog::Cleanup();
-	CleanupGCArrayPools();
+	FDeferredMessageLog::Cleanup();	
 	CleanupLinkerAnnotations();
 	CleanupCachedArchetypes();
 

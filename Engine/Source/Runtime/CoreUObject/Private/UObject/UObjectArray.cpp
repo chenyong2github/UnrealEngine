@@ -197,7 +197,7 @@ void FUObjectArray::AllocateUObjectIndex(UObjectBase* Object, bool bMergingThrea
 void FUObjectArray::FreeUObjectIndex(UObjectBase* Object)
 {
 	// This should only be happening on the game thread (GC runs only on game thread when it's freeing objects)
-	check(IsInGameThread());
+	check(IsInGameThread() || IsInGarbageCollectorThread());
 
 	int32 Index = Object->InternalIndex;
 	// At this point no two objects exist with the same index so no need to lock here
@@ -214,9 +214,9 @@ void FUObjectArray::FreeUObjectIndex(UObjectBase* Object)
 	}
 	// You cannot safely recycle indicies in the non-GC range
 	// No point in filling this list when doing exit purge. Nothing should be allocated afterwards anyway.
+	IndexToObject(Index)->ResetSerialNumberAndFlags();
 	if (Index > ObjLastNonGCIndex && !GExitPurge)  
 	{
-		IndexToObject(Index)->ResetSerialNumberAndFlags();
 		ObjAvailableList.Push((int32*)(uintptr_t)Index);
 #if UE_GC_TRACK_OBJ_AVAILABLE
 		ObjAvailableCount.Increment();

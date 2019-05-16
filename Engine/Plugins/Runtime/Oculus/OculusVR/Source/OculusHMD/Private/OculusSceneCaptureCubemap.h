@@ -56,6 +56,9 @@ public:
 	static void CaptureCubemapCommandHandler(const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar);
 #endif // UE_BUILD_SHIPPING
 
+	// UObject implementation
+	virtual bool IsDestructionThreadSafe() const override { return false; }
+
 private:
 
 	enum EStage

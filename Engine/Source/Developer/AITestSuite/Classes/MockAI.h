@@ -60,4 +60,7 @@ class UMockAI : public UObject
 	void SetEnableTicking(bool bShouldTick);
 
 	virtual void TickMe(float DeltaTime);
+
+	// UObject implementation
+	virtual bool IsDestructionThreadSafe() const override { return false; }
 };
