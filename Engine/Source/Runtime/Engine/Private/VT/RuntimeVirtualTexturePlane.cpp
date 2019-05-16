@@ -3,6 +3,7 @@
 #include "VT/RuntimeVirtualTexturePlane.h"
 
 #include "Components/BoxComponent.h"
+#include "VT/RuntimeVirtualTextureNotify.h"
 
 
 ARuntimeVirtualTexturePlane::ARuntimeVirtualTexturePlane(const FObjectInitializer& ObjectInitializer)
@@ -25,8 +26,11 @@ ARuntimeVirtualTexturePlane::ARuntimeVirtualTexturePlane(const FObjectInitialize
 
 URuntimeVirtualTextureComponent::URuntimeVirtualTextureComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bNotifyInNextTick(false)
 	, SceneProxy(nullptr)
 {
+	PrimaryComponentTick.bCanEverTick = true;
+	bTickInEditor = true;
 }
 
 void URuntimeVirtualTextureComponent::CreateRenderState_Concurrent()
@@ -35,6 +39,7 @@ void URuntimeVirtualTextureComponent::CreateRenderState_Concurrent()
 	{
 		// This will internally allocate modify the URuntimeVirtualTexture and allocate its VT
 		GetScene()->AddRuntimeVirtualTexture(this);
+		bNotifyInNextTick = true;
 	}
 
 	Super::CreateRenderState_Concurrent();
@@ -46,6 +51,7 @@ void URuntimeVirtualTextureComponent::SendRenderTransform_Concurrent()
 	{
 		// This will internally allocate modify the URuntimeVirtualTexture and allocate its VT
 		GetScene()->AddRuntimeVirtualTexture(this);
+		bNotifyInNextTick = true;
 	}
 
 	Super::SendRenderTransform_Concurrent();
@@ -55,8 +61,19 @@ void URuntimeVirtualTextureComponent::DestroyRenderState_Concurrent()
 {
 	// This will internally allocate modify the URuntimeVirtualTexture and free its VT
 	GetScene()->RemoveRuntimeVirtualTexture(this);
+	bNotifyInNextTick = true;
 
 	Super::DestroyRenderState_Concurrent();
+}
+
+void URuntimeVirtualTextureComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	if (bNotifyInNextTick)
+	{
+		// Notify materials of reallocation of the virtual texture caused by render state update
+		RuntimeVirtualTexture::NotifyMaterials(VirtualTexture);
+		bNotifyInNextTick = false;
+	}
 }
 
 #if WITH_EDITOR

@@ -120,8 +120,6 @@ protected:
 	void InitResource(IVirtualTexture* InProducer);
 	/** Release the render resource. This kicks off render thread work. */
 	void ReleaseResource();
-	/** Trigger an update for materials that reference this object. */
-	void NotifyMaterials();
 
 	//~ Begin UObject Interface.
 	virtual void BeginDestroy() override;

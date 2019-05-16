@@ -3,12 +3,8 @@
 #include "VT/RuntimeVirtualTexture.h"
 
 #include "EngineModule.h"
-#include "MaterialShared.h"
-#include "Materials/Material.h"
 #include "RendererInterface.h"
-#include "UObject/UObjectIterator.h"
-#include "VT/RuntimeVirtualTexturePlane.h"
-#include "VT/VirtualTextureUtility.h"
+#include "VT/RuntimeVirtualTextureNotify.h"
 
 
 FRuntimeVirtualTextureRenderResource::FRuntimeVirtualTextureRenderResource(FVTProducerDescription const& InProducerDesc, IVirtualTexture* InVirtualTextureProducer)
@@ -147,13 +143,11 @@ void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FTransform 
 
 	ReleaseResource();
 	InitResource(InProducer);
-	NotifyMaterials();
 }
 
 void URuntimeVirtualTexture::Release()
 {
 	ReleaseResource();
-	NotifyMaterials();
 }
 
 void URuntimeVirtualTexture::InitResource(IVirtualTexture* InProducer)
@@ -199,54 +193,8 @@ void URuntimeVirtualTexture::PostEditChangeProperty(FPropertyChangedEvent& Prope
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	// Find any components that reference this object and mark them dirty.
-	for (TObjectIterator<URuntimeVirtualTextureComponent> It; It; ++It)
-	{
-		if (It->GetVirtualTexture() == this)
-		{
-			It->MarkRenderStateDirty();
-		}
-	}
+	RuntimeVirtualTexture::NotifyComponents(this);
+	RuntimeVirtualTexture::NotifyPrimitives(this);
 }
 
 #endif
-
-void URuntimeVirtualTexture::NotifyMaterials()
-{
-	// Find materials referencing this virtual texture and re-cache the uniforms
-	// We need to do this after any operation that reallocates the virtual texture since the material caches info about the VT allocation in it's uniform buffer
-
-	// todo [vt]:
-	//  This operation is very slow! We should only do it during edition, but currently we do it on runtime load/unload.
-	//  Can we pre-calculate the list of materials to touch during cook? But even then touching here them will be extra work.
-	//  Is there a way to set up dependencies so that we load the materials _after_ the virtual texture is allocated?
-	//  Or maybe we should consider serializing the WorldToUVTransform here and not depending on a URuntimeVirtualTextureComponent at runtime?
-
-	TSet<UMaterial*> BaseMaterialsThatUseThisTexture;
-	for (TObjectIterator<UMaterialInterface> It; It; ++It)
-	{
-		UMaterialInterface* MaterialInterface = *It;
-
-		TArray<UObject*> Textures;
-		MaterialInterface->AppendReferencedTextures(Textures);
-
-		for (auto Texture : Textures)
-		{
-			if (Texture == this)
-			{
-				BaseMaterialsThatUseThisTexture.Add(MaterialInterface->GetMaterial());
-				break;
-			}
-		}
-	}
-
-	if (BaseMaterialsThatUseThisTexture.Num() > 0)
-	{
-		FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::SyncWithRenderingThread);
-		for (TSet<UMaterial*>::TConstIterator It(BaseMaterialsThatUseThisTexture); It; ++It)
-		{
-			(*It)->RecacheUniformExpressions(false);
-			UpdateContext.AddMaterial(*It);
-		}
-	}
-}
