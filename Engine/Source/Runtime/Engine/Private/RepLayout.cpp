@@ -835,7 +835,7 @@ static void CompareRoleProperties(
 		const FRepLayoutCmd& RemoteRoleCmd = SharedParams.Cmds[RemoteRoleParent.CmdStart];
 		const uint16 RemoteRoleHandle = RemoteRoleCmd.RelativeHandle;
 
-		const ENetRole ObjectRemoteRole = *(const ENetRole*)(Data + RemoteRoleParent).Data;
+		const TEnumAsByte<ENetRole> ObjectRemoteRole = *(const TEnumAsByte<ENetRole>*)(Data + RemoteRoleParent).Data;
 		if (SharedParams.bForceFail || RepState->SavedRemoteRole != ObjectRemoteRole)
 		{
 			RepState->SavedRemoteRole = ObjectRemoteRole;
@@ -846,7 +846,7 @@ static void CompareRoleProperties(
 		const FRepLayoutCmd& RoleCmd = SharedParams.Cmds[RoleParent.CmdStart];
 		const uint16 RoleHandle = RoleCmd.RelativeHandle;
 
-		const ENetRole ObjectRole = *(const ENetRole*)(Data + RoleParent).Data;
+		const TEnumAsByte<ENetRole> ObjectRole = *(const TEnumAsByte<ENetRole>*)(Data + RoleParent).Data;
 		if (SharedParams.bForceFail || RepState->SavedRole != ObjectRole)
 		{
 			RepState->SavedRole = ObjectRole;
@@ -893,7 +893,7 @@ static void CompareParentProperties(
 		// In that case, just allow this to fail and perform the old logic.
 		if (UNLIKELY(RepState && ParentIndex == SharedParams.RoleIndex))
 		{
-			const ENetRole ObjectRole = *(const ENetRole*)(Data + Parent).Data;
+			const TEnumAsByte<ENetRole> ObjectRole = *(const TEnumAsByte<ENetRole>*)(Data + Parent).Data;
 			if (SharedParams.bForceFail || RepState->SavedRole != ObjectRole)
 			{
 				RepState->SavedRole = ObjectRole;
@@ -902,7 +902,7 @@ static void CompareParentProperties(
 		}
 		else if (UNLIKELY(RepState && ParentIndex == SharedParams.RemoteRoleIndex))
 		{
-			const ENetRole ObjectRemoteRole = *(const ENetRole*)(Data + Parent).Data;
+			const TEnumAsByte<ENetRole> ObjectRemoteRole = *(const TEnumAsByte<ENetRole>*)(Data + Parent).Data;
 			if (SharedParams.bForceFail || RepState->SavedRemoteRole != ObjectRemoteRole)
 			{
 				RepState->SavedRemoteRole = ObjectRemoteRole;
