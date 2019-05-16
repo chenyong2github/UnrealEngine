@@ -355,5 +355,3 @@ void UOculusAudioMaterialComponent::ResetAcousticMaterialPreset()
 	}
 
 #endif // WITH_EDITOR
-
-#pragma optimize("", on) //PAS - TEMP - DELETE THIS - better debugging
