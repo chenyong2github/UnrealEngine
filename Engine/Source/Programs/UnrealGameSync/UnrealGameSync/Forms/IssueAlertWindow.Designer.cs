@@ -163,7 +163,7 @@ namespace UnrealGameSync
             this.DetailsBtn.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.DetailsBtn.Size = new System.Drawing.Size(95, 29);
             this.DetailsBtn.TabIndex = 3;
-            this.DetailsBtn.Text = "History";
+            this.DetailsBtn.Text = "Details";
             this.DetailsBtn.Theme = UnrealGameSync.AlertButtonControl.AlertButtonTheme.Normal;
             this.DetailsBtn.UseVisualStyleBackColor = true;
             // 
