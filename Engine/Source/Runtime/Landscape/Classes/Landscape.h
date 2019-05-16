@@ -10,12 +10,6 @@
 #include "Landscape.generated.h"
 
 class ULandscapeComponent;
-class ILandscapeEdModeInterface;
-
-namespace ELandscapeToolTargetType
-{
-	enum Type : int8;
-};
 
 UENUM()
 enum ELandscapeSetupErrors
@@ -234,10 +228,8 @@ public:
 
 	// Layers stuff
 #if WITH_EDITOR
-	LANDSCAPE_API void RegisterLandscapeEdMode(ILandscapeEdModeInterface* InLandscapeEdMode) { LandscapeEdMode = InLandscapeEdMode; }
-	LANDSCAPE_API void UnregisterLandscapeEdMode() { LandscapeEdMode = nullptr; }
 	LANDSCAPE_API void RequestLayersInitialization(bool bInRequestContentUpdate = true);
-	LANDSCAPE_API void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InModeMask = ELandscapeLayerUpdateMode::Update_All);
+	LANDSCAPE_API void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InModeMask = ELandscapeLayerUpdateMode::All);
 	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InModeMask);
 	LANDSCAPE_API bool ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex);
 	LANDSCAPE_API FLandscapeLayer* DuplicateLayer(const FLandscapeLayer& InOtherLayer);
@@ -292,10 +284,9 @@ private:
 	void ReleaseLayersRenderingResource();
 	void UpdateLayersContent(bool bInWaitForStreaming = false);
 	void MonitorShaderCompilation();
-	void MonitorLandscapeEdModeChanges();
 	int32 RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool bInWaitForStreaming);
 	int32 RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool bInWaitForStreaming);
-	bool UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, const int32 InContentUpdateModes);
+	static bool UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, const int32 InContentUpdateModes);
 	void ResolveLayersHeightmapTexture();
 	void ResolveLayersWeightmapTexture();
 	void ResolveLayersTexture(class FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOutputTexture);
@@ -370,21 +361,6 @@ public:
 	bool bInitializedWithFlagExperimentalLandscapeLayers;
 
 private:
-	/** Provides information from LandscapeEdMode */
-	ILandscapeEdModeInterface* LandscapeEdMode;
-
-	/** Information provided by LandscapeEdMode */
-	struct FLandscapeEdModeInfo
-	{
-		FLandscapeEdModeInfo();
-
-		int32 ViewMode;
-		FGuid SelectedLayer;
-		ELandscapeToolTargetType::Type ToolTarget;
-	};
-
-	FLandscapeEdModeInfo LandscapeEdModeInfo;
-
 	UPROPERTY(Transient)
 	bool bLandscapeLayersAreInitialized;
 	

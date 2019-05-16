@@ -33,25 +33,6 @@ class ULandscapeLayerInfoObject;
 
 #if WITH_EDITOR
 
-namespace ELandscapeToolTargetType
-{
-	enum Type : int8
-	{
-		Heightmap = 0,
-		Weightmap = 1,
-		Visibility = 2,
-		Invalid = -1, // only valid for LandscapeEdMode->CurrentToolTarget.TargetType
-	};
-}
-
-/** Landscape EdMode Interface (used by ALandscape in Editor mode to access EdMode properties) */
-class ILandscapeEdModeInterface
-{
-public:
-	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const = 0;
-	virtual FGuid GetLandscapeSelectedLayer() const = 0;
-};
-
 struct FLandscapeTextureDataInfo
 {
 	struct FMipInfo
@@ -206,22 +187,12 @@ struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataI
 	// Replace/merge a layer
 	void ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo, ULandscapeLayerInfoObject* ToLayerInfo);
 
-	template<typename TStoreData>
-	void GetEditToolTextureData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TStoreData& StoreData, TFunctionRef<UTexture2D*(ULandscapeComponent*)> GetComponentTexture);
-	void SetEditToolTextureData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint8* Data, int32 Stride, TFunctionRef<UTexture2D*&(ULandscapeComponent*)> GetComponentTexture);
-
 	// Without data interpolation, Select Data 
 	template<typename TStoreData>
 	void GetSelectDataTempl(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TStoreData& StoreData);
 	void GetSelectData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, uint8* Data, int32 Stride);
 	void GetSelectData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TMap<FIntPoint, uint8>& SparseData);
 	void SetSelectData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, const uint8* Data, int32 Stride);
-	
-	template<typename TStoreData>
-	void GetLayerContributionDataTempl(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TStoreData& StoreData);
-	void GetLayerContributionData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, uint8* Data, int32 Stride);
-	void GetLayerContributionData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TMap<FIntPoint, uint8>& SparseData);
-	void SetLayerContributionData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, const uint8* Data, int32 Stride);
 
 	//
 	// XYOffsetmap access
