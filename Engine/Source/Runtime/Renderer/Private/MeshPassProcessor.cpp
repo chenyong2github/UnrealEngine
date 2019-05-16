@@ -15,8 +15,8 @@
 #include "PipelineStateCache.h"
 
 TSet<FRefCountedGraphicsMinimalPipelineStateInitializer, RefCountedGraphicsMinimalPipelineStateInitializerKeyFuncs> FGraphicsMinimalPipelineStateId::PersistentIdTable;
-TSet<FGraphicsMinimalPipelineStateInitializer> FGraphicsMinimalPipelineStateId::OneFrameIdTable;
-FRWLock FGraphicsMinimalPipelineStateId::OneFrameIdTableCriticalSection;
+int32 FGraphicsMinimalPipelineStateId::LocalPipelineIdTableSize = 0;
+int32 FGraphicsMinimalPipelineStateId::CurrentLocalPipelineIdTableSize = 0;
 
 const FMeshDrawCommandSortKey FMeshDrawCommandSortKey::Default = { {0} };
 
@@ -328,14 +328,14 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPersistentId
 
 	FGraphicsMinimalPipelineStateId Ret;
 	Ret.bValid = 1;
-	Ret.bOneFrameId = 0;
+	Ret.bComesFromLocalPipelineStateSet = 0;
 	Ret.SetElementIndex = TableId.AsInteger();
 	return Ret;
 }
 
 void FGraphicsMinimalPipelineStateId::RemovePersistentId(FGraphicsMinimalPipelineStateId Id)
 {
-	check(!Id.bOneFrameId && Id.bValid);
+	check(!Id.bComesFromLocalPipelineStateSet && Id.bValid);
 
 	const FSetElementId SetElementId = FSetElementId::FromInteger(Id.SetElementIndex);
 	FRefCountedGraphicsMinimalPipelineStateInitializer& RefCountedStateInitializer = PersistentIdTable[SetElementId];
@@ -348,23 +348,20 @@ void FGraphicsMinimalPipelineStateId::RemovePersistentId(FGraphicsMinimalPipelin
 	}
 }
 
-FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetOneFrameId(const FGraphicsMinimalPipelineStateInitializer& InPipelineState)
+FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPipelineStateId(const FGraphicsMinimalPipelineStateInitializer& InPipelineState, FGraphicsMinimalPipelineStateSet& InOutPassSet)
 {
-	// Need to lock as this is called from multiple parallel tasks during mesh draw command generation or patching.	
 	FGraphicsMinimalPipelineStateId Ret;
 	Ret.bValid = 1;
-	Ret.bOneFrameId = 0;
+	Ret.bComesFromLocalPipelineStateSet = 0;
 
 	FSetElementId TableId = PersistentIdTable.FindId(InPipelineState);
 	if (!TableId.IsValidId())
 	{
-		FRWScopeLock ScopeLock(OneFrameIdTableCriticalSection, SLT_Write);
-		Ret.bOneFrameId = 1;
-
-		TableId = OneFrameIdTable.FindId(InPipelineState);
+		Ret.bComesFromLocalPipelineStateSet = 1;
+		TableId = InOutPassSet.FindId(InPipelineState);
 		if (!TableId.IsValidId())
 		{
-			TableId = OneFrameIdTable.Add(InPipelineState);
+			TableId = InOutPassSet.Add(InPipelineState);
 		}
 	}
 
@@ -374,36 +371,15 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetOneFrameId(c
 	return Ret;
 }
 
-FGraphicsMinimalPipelineStateId::FPipelineStateIdLookupScope::FPipelineStateIdLookupScope(const FGraphicsMinimalPipelineStateId& LookupID)
+void FGraphicsMinimalPipelineStateId::ResetLocalPipelineIdTableSize()
 {
-	bLocked = false;
-	if (LookupID.bOneFrameId)
-	{
-		if (CVarSafeStateLookup.GetValueOnRenderThread())
-		{
-			OneFrameIdTableCriticalSection.ReadLock();
-			bLocked = true;
-		}
-	}
-	SafeStateRef = &LookupID.GetPipelineState();
+	LocalPipelineIdTableSize = CurrentLocalPipelineIdTableSize;
+	CurrentLocalPipelineIdTableSize = 0;
 }
 
-FGraphicsMinimalPipelineStateId::FPipelineStateIdLookupScope::~FPipelineStateIdLookupScope()
+void FGraphicsMinimalPipelineStateId::AddSizeToLocalPipelineIdTableSize(SIZE_T Size)
 {
-	if (bLocked)
-	{
-		OneFrameIdTableCriticalSection.ReadUnlock();
-	}
-}
-
-const FGraphicsMinimalPipelineStateInitializer& FGraphicsMinimalPipelineStateId::FPipelineStateIdLookupScope::GetPipelineState()
-{
-	return *SafeStateRef;
-}
-
-void FGraphicsMinimalPipelineStateId::ResetOneFrameIdTable()
-{
-	OneFrameIdTable.Reset();
+	CurrentLocalPipelineIdTableSize += int32(Size);
 }
 
 class FMeshDrawCommandStateCache
@@ -880,6 +856,7 @@ uint32 FMeshDrawShaderBindings::GetDynamicInstancingHash() const
 
 void FMeshDrawCommand::SubmitDraw(
 	const FMeshDrawCommand& RESTRICT MeshDrawCommand, 
+	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	FVertexBufferRHIParamRef ScenePrimitiveIdsBuffer,
 	int32 PrimitiveIdOffset,
 	uint32 InstanceFactor,
@@ -921,8 +898,7 @@ void FMeshDrawCommand::SubmitDraw(
 #endif
 
 	{
-		FGraphicsMinimalPipelineStateId::FPipelineStateIdLookupScope SafeLookupScope(MeshDrawCommand.CachedPipelineId);
-		const FGraphicsMinimalPipelineStateInitializer& MeshPipelineState = SafeLookupScope.GetPipelineState();
+		const FGraphicsMinimalPipelineStateInitializer& MeshPipelineState = MeshDrawCommand.CachedPipelineId.GetPipelineState(GraphicsMinimalPipelineStateSet);
 
 		if (MeshDrawCommand.CachedPipelineId.GetId() != StateCache.PipelineId)
 		{
@@ -1003,17 +979,19 @@ void FMeshDrawCommand::SetDebugData(const FPrimitiveSceneProxy* PrimitiveScenePr
 
 void SubmitMeshDrawCommands(
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
+	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet, 
 	FVertexBufferRHIParamRef PrimitiveIdsBuffer,
 	int32 BasePrimitiveIdsOffset,
 	bool bDynamicInstancing,
 	uint32 InstanceFactor,
 	FRHICommandList& RHICmdList)
 {
-	SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, PrimitiveIdsBuffer, BasePrimitiveIdsOffset, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);
+	SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdsBuffer, BasePrimitiveIdsOffset, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);
 }
 
 void SubmitMeshDrawCommandsRange(
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
+	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	FVertexBufferRHIParamRef PrimitiveIdsBuffer,
 	int32 BasePrimitiveIdsOffset,
 	bool bDynamicInstancing,
@@ -1032,7 +1010,7 @@ void SubmitMeshDrawCommandsRange(
 		const FVisibleMeshDrawCommand& VisibleMeshDrawCommand = VisibleMeshDrawCommands[DrawCommandIndex];
 		const int32 PrimitiveIdBufferOffset = BasePrimitiveIdsOffset + (bDynamicInstancing ? VisibleMeshDrawCommand.PrimitiveIdBufferOffset : DrawCommandIndex) * sizeof(int32);
 		checkSlow(!bDynamicInstancing || VisibleMeshDrawCommand.PrimitiveIdBufferOffset >= 0);
-		FMeshDrawCommand::SubmitDraw(*VisibleMeshDrawCommand.MeshDrawCommand, PrimitiveIdsBuffer, PrimitiveIdBufferOffset, InstanceFactor, RHICmdList, StateCache);
+		FMeshDrawCommand::SubmitDraw(*VisibleMeshDrawCommand.MeshDrawCommand, GraphicsMinimalPipelineStateSet, PrimitiveIdsBuffer, PrimitiveIdBufferOffset, InstanceFactor, RHICmdList, StateCache);
 	}
 }
 
@@ -1041,6 +1019,7 @@ void DrawDynamicMeshPassPrivate(
 	FRHICommandList& RHICmdList,
 	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	FDynamicMeshDrawCommandStorage& DynamicMeshDrawCommandStorage,
+	FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	uint32 InstanceFactor)
 {
 	if (VisibleMeshDrawCommands.Num() > 0)
@@ -1051,7 +1030,7 @@ void DrawDynamicMeshPassPrivate(
 
 		SortAndMergeDynamicPassMeshDrawCommands(View.GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, InstanceFactor);
 
-		SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, PrimitiveIdVertexBuffer, 0, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);
+		SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);
 	}
 }
 
