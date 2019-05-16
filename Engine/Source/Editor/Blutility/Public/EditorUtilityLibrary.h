@@ -29,6 +29,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	static TArray<UObject*> GetSelectedAssets();
 
+	// Gets the set of currently selected asset data
+	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
+	static TArray<FAssetData> GetSelectedAssetData();
+
 	// Renames an asset (cannot move folders)
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	static void RenameAsset(UObject* Asset, const FString& NewName);
