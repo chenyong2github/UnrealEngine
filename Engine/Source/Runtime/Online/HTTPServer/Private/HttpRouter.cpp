@@ -17,7 +17,7 @@ FHttpRouter::FHttpRouter()
 FHttpRouteHandle FHttpRouter::BindRoute(const FHttpPath& HttpPath,  const EHttpServerRequestVerbs& HttpVerbs,  const FHttpRequestHandler& Handler)
 {
 	check(HttpPath.IsValidPath());
-	check(EHttpServerRequestVerbs::NONE != HttpVerbs);
+	check(EHttpServerRequestVerbs::VERB_NONE != HttpVerbs);
 
 	if (RequestHandlerRegistrar->Contains(HttpPath.GetPath()))
 	{

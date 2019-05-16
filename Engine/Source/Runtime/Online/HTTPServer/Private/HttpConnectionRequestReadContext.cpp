@@ -150,7 +150,7 @@ bool FHttpConnectionRequestReadContext::IsRequestValid(const FHttpServerRequest&
 
 	switch (InRequest.Verb)
 	{
-	case EHttpServerRequestVerbs::GET:
+	case EHttpServerRequestVerbs::VERB_GET:
 		// Enforce content length missing or 0
 		if (bContentLengthSpecified && 0 != RequestContentLength)
 		{
@@ -159,8 +159,8 @@ bool FHttpConnectionRequestReadContext::IsRequestValid(const FHttpServerRequest&
 		}
 		break;
 
-	case EHttpServerRequestVerbs::PUT:
-	case EHttpServerRequestVerbs::POST:
+	case EHttpServerRequestVerbs::VERB_PUT:
+	case EHttpServerRequestVerbs::VERB_POST:
 		// Content length must be set
 		if (!bContentLengthSpecified)
 		{
@@ -219,27 +219,27 @@ TSharedPtr<FHttpServerRequest> FHttpConnectionRequestReadContext::BuildRequest(c
 	if (0 == RequestVerb.Compare(TEXT("GET"),
 		ESearchCase::IgnoreCase))
 	{
-		Request->Verb = EHttpServerRequestVerbs::GET;
+		Request->Verb = EHttpServerRequestVerbs::VERB_GET;
 	}
 	else if (0 == RequestVerb.Compare(TEXT("POST"),
 		ESearchCase::IgnoreCase))
 	{
-		Request->Verb = EHttpServerRequestVerbs::POST;
+		Request->Verb = EHttpServerRequestVerbs::VERB_POST;
 	}
 	else if (0 == RequestVerb.Compare(TEXT("PUT"),
 		ESearchCase::IgnoreCase))
 	{
-		Request->Verb = EHttpServerRequestVerbs::PUT;
+		Request->Verb = EHttpServerRequestVerbs::VERB_PUT;
 	}
 	else if (0 == RequestVerb.Compare(TEXT("DELETE"),
 		ESearchCase::IgnoreCase))
 	{
-		Request->Verb = EHttpServerRequestVerbs::DELETE;
+		Request->Verb = EHttpServerRequestVerbs::VERB_DELETE;
 	}
 	else if (0 == RequestVerb.Compare(TEXT("PATCH"),
 		ESearchCase::IgnoreCase))
 	{
-		Request->Verb = EHttpServerRequestVerbs::PATCH;
+		Request->Verb = EHttpServerRequestVerbs::VERB_PATCH;
 	}
 	else
 	{
