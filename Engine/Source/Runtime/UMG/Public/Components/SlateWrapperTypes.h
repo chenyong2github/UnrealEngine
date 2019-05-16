@@ -20,16 +20,16 @@
 UENUM(BlueprintType)
 enum class ESlateVisibility : uint8
 {
-	/** Default widget visibility - visible and can interact with the cursor */
+	/** Visible and hit-testable (can interact with cursor). Default value. */
 	Visible,
-	/** Not visible and takes up no space in the layout; can never be clicked on because it takes up no space. */
+	/** Not visible and takes up no space in the layout (obviously not hit-testable). */
 	Collapsed,
-	/** Not visible, but occupies layout space. Not interactive for obvious reasons. */
+	/** Not visible but occupies layout space (obviously not hit-testable). */
 	Hidden,
-	/** Visible to the user, but only as art. The cursors hit tests will never see this widget. */
-	HitTestInvisible,
-	/** Same as HitTestInvisible, but doesn't apply to child widgets. */
-	SelfHitTestInvisible
+	/** Visible but not hit-testable (cannot interact with cursor) and children in the hierarchy (if any) are also not hit-testable. */
+	HitTestInvisible UMETA(DisplayName = "Not Hit-Testable (Self & All Children)"),
+	/** Visible but not hit-testable (cannot interact with cursor) and doesn't affect hit-testing on children (if any). */
+	SelfHitTestInvisible UMETA(DisplayName = "Not Hit-Testable (Self Only)")
 };
 
 /** Whether a widget should be included in accessibility, and if so, how its text should be retrieved. */
