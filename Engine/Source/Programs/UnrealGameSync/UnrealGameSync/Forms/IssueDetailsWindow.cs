@@ -428,7 +428,14 @@ namespace UnrealGameSync
 
 			UpdateSummaryTextIfChanged(DetailsTextBox, Issue.Details.Replace("\n", "\r\n"));
 
-			ReopenBtn.Enabled = (Issue.FixChange != 0);
+			if(Issue.FixChange == 0)
+			{
+				MarkFixedBtn.Text = "Mark Fixed...";
+			}
+			else
+			{
+				MarkFixedBtn.Text = "Reopen";
+			}
 		}
 
 		private void IssueDetailsWindow_Disposed(object sender, EventArgs e)
@@ -1136,11 +1143,21 @@ namespace UnrealGameSync
 		private void MarkFixedBtn_Click(object sender, EventArgs e)
 		{
 			int FixChangeNumber = Issue.FixChange;
-			if(IssueFixedWindow.ShowModal(this, Perforce, ref FixChangeNumber))
+			if(FixChangeNumber == 0)
+			{
+				if(IssueFixedWindow.ShowModal(this, Perforce, ref FixChangeNumber))
+				{
+					IssueUpdateData Update = new IssueUpdateData();
+					Update.Id = Issue.Id;
+					Update.FixChange = FixChangeNumber;
+					IssueMonitor.PostUpdate(Update);
+				}
+			}
+			else
 			{
 				IssueUpdateData Update = new IssueUpdateData();
 				Update.Id = Issue.Id;
-				Update.FixChange = FixChangeNumber;
+				Update.FixChange = 0;
 				IssueMonitor.PostUpdate(Update);
 			}
 		}
@@ -1151,17 +1168,6 @@ namespace UnrealGameSync
 			if(LastBuild != null)
 			{
 				System.Diagnostics.Process.Start(LastBuild.ErrorUrl);
-			}
-		}
-
-		private void ReopenBtn_Click(object sender, EventArgs e)
-		{
-			if(Issue.FixChange != 0)
-			{
-				IssueUpdateData Update = new IssueUpdateData();
-				Update.Id = Issue.Id;
-				Update.FixChange = 0;
-				IssueMonitor.PostUpdate(Update);
 			}
 		}
 

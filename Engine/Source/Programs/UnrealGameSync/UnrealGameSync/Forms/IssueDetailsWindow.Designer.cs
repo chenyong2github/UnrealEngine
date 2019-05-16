@@ -63,18 +63,17 @@ namespace UnrealGameSync
             this.DescriptionHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.AssignToMeBtn = new System.Windows.Forms.Button();
             this.MarkFixedBtn = new System.Windows.Forms.Button();
-            this.ReopenBtn = new System.Windows.Forms.Button();
             this.tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.panel1 = new System.Windows.Forms.Panel();
             this.DetailsTextBox = new System.Windows.Forms.TextBox();
             this.tableLayoutPanel5 = new System.Windows.Forms.TableLayoutPanel();
             this.JobContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.JobContextMenu_ShowFirstError = new System.Windows.Forms.ToolStripMenuItem();
+            this.JobContextMenu_ViewJob = new System.Windows.Forms.ToolStripMenuItem();
             this.JobContextMenu_StepSeparatorMin = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.JobContextMenu_StepSeparatorMax = new System.Windows.Forms.ToolStripSeparator();
-            this.JobContextMenu_ViewJob = new System.Windows.Forms.ToolStripMenuItem();
+            this.JobContextMenu_ShowFirstError = new System.Windows.Forms.ToolStripMenuItem();
             this.BuildListContextMenu.SuspendLayout();
             this.tableLayoutPanel1.SuspendLayout();
             this.groupBox1.SuspendLayout();
@@ -462,17 +461,6 @@ namespace UnrealGameSync
             this.MarkFixedBtn.UseVisualStyleBackColor = true;
             this.MarkFixedBtn.Click += new System.EventHandler(this.MarkFixedBtn_Click);
             // 
-            // ReopenBtn
-            // 
-            this.ReopenBtn.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.ReopenBtn.Location = new System.Drawing.Point(838, 3);
-            this.ReopenBtn.Name = "ReopenBtn";
-            this.ReopenBtn.Size = new System.Drawing.Size(108, 27);
-            this.ReopenBtn.TabIndex = 5;
-            this.ReopenBtn.Text = "Reopen";
-            this.ReopenBtn.UseVisualStyleBackColor = true;
-            this.ReopenBtn.Click += new System.EventHandler(this.ReopenBtn_Click);
-            // 
             // tableLayoutPanel4
             // 
             this.tableLayoutPanel4.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
@@ -549,19 +537,18 @@ namespace UnrealGameSync
             this.tableLayoutPanel5.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
             this.tableLayoutPanel5.AutoSize = true;
             this.tableLayoutPanel5.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.tableLayoutPanel5.ColumnCount = 7;
+            this.tableLayoutPanel5.ColumnCount = 6;
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
-            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
             this.tableLayoutPanel5.Controls.Add(this.AssignBtn, 0, 0);
             this.tableLayoutPanel5.Controls.Add(this.AssignToMeBtn, 1, 0);
-            this.tableLayoutPanel5.Controls.Add(this.MarkFixedBtn, 5, 0);
-            this.tableLayoutPanel5.Controls.Add(this.OkBtn, 6, 0);
-            this.tableLayoutPanel5.Controls.Add(this.ReopenBtn, 4, 0);
+            this.tableLayoutPanel5.Controls.Add(this.MarkFixedBtn, 4, 0);
+            this.tableLayoutPanel5.Controls.Add(this.OkBtn, 5, 0);
             this.tableLayoutPanel5.Controls.Add(this.AssignToOtherBtn, 2, 0);
             this.tableLayoutPanel5.Location = new System.Drawing.Point(3, 660);
             this.tableLayoutPanel5.Margin = new System.Windows.Forms.Padding(3, 11, 3, 3);
@@ -582,13 +569,12 @@ namespace UnrealGameSync
             this.JobContextMenu.Name = "JobContextMenu";
             this.JobContextMenu.Size = new System.Drawing.Size(151, 82);
             // 
-            // JobContextMenu_ShowFirstError
+            // JobContextMenu_ViewJob
             // 
-            this.JobContextMenu_ShowFirstError.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.JobContextMenu_ShowFirstError.Name = "JobContextMenu_ShowFirstError";
-            this.JobContextMenu_ShowFirstError.Size = new System.Drawing.Size(150, 22);
-            this.JobContextMenu_ShowFirstError.Text = "View first error";
-            this.JobContextMenu_ShowFirstError.Click += new System.EventHandler(this.JobContextMenu_ShowError_Click);
+            this.JobContextMenu_ViewJob.Name = "JobContextMenu_ViewJob";
+            this.JobContextMenu_ViewJob.Size = new System.Drawing.Size(150, 22);
+            this.JobContextMenu_ViewJob.Text = "View Job...";
+            this.JobContextMenu_ViewJob.Click += new System.EventHandler(this.JobContextMenu_ViewJob_Click);
             // 
             // JobContextMenu_StepSeparatorMin
             // 
@@ -606,12 +592,13 @@ namespace UnrealGameSync
             this.JobContextMenu_StepSeparatorMax.Name = "JobContextMenu_StepSeparatorMax";
             this.JobContextMenu_StepSeparatorMax.Size = new System.Drawing.Size(147, 6);
             // 
-            // JobContextMenu_ViewJob
+            // JobContextMenu_ShowFirstError
             // 
-            this.JobContextMenu_ViewJob.Name = "JobContextMenu_ViewJob";
-            this.JobContextMenu_ViewJob.Size = new System.Drawing.Size(150, 22);
-            this.JobContextMenu_ViewJob.Text = "View Job...";
-            this.JobContextMenu_ViewJob.Click += new System.EventHandler(this.JobContextMenu_ViewJob_Click);
+            this.JobContextMenu_ShowFirstError.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.JobContextMenu_ShowFirstError.Name = "JobContextMenu_ShowFirstError";
+            this.JobContextMenu_ShowFirstError.Size = new System.Drawing.Size(150, 22);
+            this.JobContextMenu_ShowFirstError.Text = "View first error";
+            this.JobContextMenu_ShowFirstError.Click += new System.EventHandler(this.JobContextMenu_ShowError_Click);
             // 
             // IssueDetailsWindow
             // 
@@ -678,7 +665,6 @@ namespace UnrealGameSync
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel3;
 		private System.Windows.Forms.Button AssignToMeBtn;
 		private System.Windows.Forms.Button MarkFixedBtn;
-		private System.Windows.Forms.Button ReopenBtn;
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel4;
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel5;
 		private System.Windows.Forms.TextBox DetailsTextBox;
