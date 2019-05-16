@@ -1,6 +1,4 @@
-//
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-//
 
 #include "Trace/Trace.h"
 #include "Trace/Private/Event.h"
