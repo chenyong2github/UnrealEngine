@@ -9,9 +9,14 @@
 //#include "Editor.h"
 
 FLandscapeSettingsDetails::FLandscapeSettingsDetails()
+	: DetailLayoutBuilder(nullptr)
 {
 }
 
+FLandscapeSettingsDetails::~FLandscapeSettingsDetails()
+{
+	GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().RemoveAll(this);
+}
 
 TSharedRef<IDetailCustomization> FLandscapeSettingsDetails::MakeInstance()
 {
@@ -22,9 +27,12 @@ void FLandscapeSettingsDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBu
 {
 	TArray<TWeakObjectPtr<UObject>> EditingObjects;
 	DetailBuilder.GetObjectsBeingCustomized(EditingObjects);
-	DetailLayoutBuilder = &DetailBuilder;
-
-	GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().AddSP(this, &FLandscapeSettingsDetails::OnEditorExperimentalSettingsChanged);
+	
+	if (!DetailLayoutBuilder)
+	{
+		DetailLayoutBuilder = &DetailBuilder;
+		GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().AddSP(this, &FLandscapeSettingsDetails::OnEditorExperimentalSettingsChanged);
+	}
 
 	if (EditingObjects.Num() == 1)
 	{
