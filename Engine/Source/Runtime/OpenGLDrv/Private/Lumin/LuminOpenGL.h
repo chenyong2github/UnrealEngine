@@ -415,6 +415,10 @@ struct FLuminOpenGL : public FOpenGLES2
 		glFramebufferTextureLayer(Target, Attachment, Texture, Level, Layer);
 	}
 
+	static FORCEINLINE void	CopyTexSubImage1D(GLenum Target, GLint Level, GLint XOffset, GLint X, GLint Y, GLsizei Width)
+	{
+	}
+
 	// Android ES2 shaders have code that allows compile selection of
 	// 32 bpp HDR encoding mode via 'intrinsic_GetHDR32bppEncodeModeES2()'.
 	static FORCEINLINE bool SupportsHDR32bppEncodeModeIntrinsic()		{ return true; }

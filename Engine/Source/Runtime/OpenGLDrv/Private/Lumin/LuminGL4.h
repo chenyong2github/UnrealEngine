@@ -524,6 +524,10 @@ struct FLuminOpenGL4 : public FOpenGL4
 		glCopyImageSubData(SrcName, SrcTarget, SrcLevel, SrcX, SrcY, SrcZ, DstName, DstTarget, DstLevel, DstX, DstY, DstZ, Width, Height, Depth);
 	}
 
+	static FORCEINLINE void	CopyTexSubImage1D(GLenum Target, GLint Level, GLint XOffset, GLint X, GLint Y, GLsizei Width)
+	{
+	}
+
 	static FORCEINLINE bool SupportsBindlessTexture()
 	{
 		return bSupportsBindlessTexture;
