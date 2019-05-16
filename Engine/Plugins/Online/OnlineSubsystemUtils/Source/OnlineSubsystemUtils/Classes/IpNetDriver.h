@@ -144,6 +144,14 @@ private:
 	UPROPERTY(Config)
 	uint32 ClientDesiredSocketSendBufferBytes;
 
+	/** Maximum time in seconds the TickDispatch can loop on received socket data*/
+	UPROPERTY(Config)
+	double MaxSecondsInReceive = 0.0;
+
+	/** Nb of packets to wait before testing if the receive time went over MaxSecondsInReceive */
+	UPROPERTY(Config)
+	int32 NbPacketsBetweenReceiveTimeTest = 0;
+
 	/** Represents a packet received and/or error encountered by the receive thread, if enabled, queued for the game thread to process. */
 	struct FReceivedPacket
 	{
