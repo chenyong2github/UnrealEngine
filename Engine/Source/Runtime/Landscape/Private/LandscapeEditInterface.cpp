@@ -2295,7 +2295,7 @@ void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLa
 				FScopedSetLandscapeEditingLayer Scope(LandscapeInfo->LandscapeActor.Get(), CurrentLayer.Guid);
 				DoReplace();
 			});
-			LandscapeInfo->LandscapeActor->RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Weightmap_All);
+			LandscapeInfo->LandscapeActor->RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Update_Weightmap_All);
 		}
 	}
 	else
@@ -4453,83 +4453,15 @@ bool FLandscapeTextureDataInterface::EqualTextureValue(UTexture2D* Src, FColor V
 	return EqualTextureValueTempl<FColor>(Src, Value);
 }
 
-
 template<typename TStoreData>
 void FLandscapeEditDataInterface::GetSelectDataTempl(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TStoreData& StoreData)
 {
-	int32 ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2;
-	ALandscape::CalcComponentIndicesNoOverlap(X1, Y1, X2, Y2, ComponentSizeQuads, ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2);
-
-	for( int32 ComponentIndexY=ComponentIndexY1;ComponentIndexY<=ComponentIndexY2;ComponentIndexY++ )
+	auto ReturnComponentTexture = [&](ULandscapeComponent* Component) -> UTexture2D*
 	{
-		for( int32 ComponentIndexX=ComponentIndexX1;ComponentIndexX<=ComponentIndexX2;ComponentIndexX++ )
-		{		
-			ULandscapeComponent* Component = LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX,ComponentIndexY));
-
-			FLandscapeTextureDataInfo* TexDataInfo = NULL;
-			uint8* SelectTextureData = NULL;
-			if( Component && Component->EditToolRenderData.DataTexture )
-			{
-				TexDataInfo = GetTextureDataInfo(Component->EditToolRenderData.DataTexture);
-				SelectTextureData = (uint8*)TexDataInfo->GetMipData(0);
-			}
-
-			// Find coordinates of box that lies inside component
-			int32 ComponentX1 = FMath::Clamp<int32>(X1-ComponentIndexX*ComponentSizeQuads, 0, ComponentSizeQuads);
-			int32 ComponentY1 = FMath::Clamp<int32>(Y1-ComponentIndexY*ComponentSizeQuads, 0, ComponentSizeQuads);
-			int32 ComponentX2 = FMath::Clamp<int32>(X2-ComponentIndexX*ComponentSizeQuads, 0, ComponentSizeQuads);
-			int32 ComponentY2 = FMath::Clamp<int32>(Y2-ComponentIndexY*ComponentSizeQuads, 0, ComponentSizeQuads);
-
-			// Find subsection range for this box
-			int32 SubIndexX1 = FMath::Clamp<int32>((ComponentX1-1) / SubsectionSizeQuads,0,ComponentNumSubsections-1);	// -1 because we need to pick up vertices shared between subsections
-			int32 SubIndexY1 = FMath::Clamp<int32>((ComponentY1-1) / SubsectionSizeQuads,0,ComponentNumSubsections-1);
-			int32 SubIndexX2 = FMath::Clamp<int32>(ComponentX2 / SubsectionSizeQuads,0,ComponentNumSubsections-1);
-			int32 SubIndexY2 = FMath::Clamp<int32>(ComponentY2 / SubsectionSizeQuads,0,ComponentNumSubsections-1);
-
-			for( int32 SubIndexY=SubIndexY1;SubIndexY<=SubIndexY2;SubIndexY++ )
-			{
-				for( int32 SubIndexX=SubIndexX1;SubIndexX<=SubIndexX2;SubIndexX++ )
-				{
-					// Find coordinates of box that lies inside subsection
-					int32 SubX1 = FMath::Clamp<int32>(ComponentX1-SubsectionSizeQuads*SubIndexX, 0, SubsectionSizeQuads);
-					int32 SubY1 = FMath::Clamp<int32>(ComponentY1-SubsectionSizeQuads*SubIndexY, 0, SubsectionSizeQuads);
-					int32 SubX2 = FMath::Clamp<int32>(ComponentX2-SubsectionSizeQuads*SubIndexX, 0, SubsectionSizeQuads);
-					int32 SubY2 = FMath::Clamp<int32>(ComponentY2-SubsectionSizeQuads*SubIndexY, 0, SubsectionSizeQuads);
-
-					// Update texture data for the box that lies inside subsection
-					for( int32 SubY=SubY1;SubY<=SubY2;SubY++ )
-					{
-						for( int32 SubX=SubX1;SubX<=SubX2;SubX++ )
-						{
-							int32 LandscapeX = SubIndexX*SubsectionSizeQuads + ComponentIndexX*ComponentSizeQuads + SubX;
-							int32 LandscapeY = SubIndexY*SubsectionSizeQuads + ComponentIndexY*ComponentSizeQuads + SubY;
-
-							// Find the input data corresponding to this vertex
-							if( Component && SelectTextureData )
-							{
-								// Find the texture data corresponding to this vertex
-								int32 SizeU = Component->EditToolRenderData.DataTexture->Source.GetSizeX();
-								int32 SizeV = Component->EditToolRenderData.DataTexture->Source.GetSizeY();
-								int32 WeightmapOffsetX = Component->WeightmapScaleBias.Z * (float)SizeU;
-								int32 WeightmapOffsetY = Component->WeightmapScaleBias.W * (float)SizeV;
-
-								int32 TexX = WeightmapOffsetX + (SubsectionSizeQuads+1) * SubIndexX + SubX;
-								int32 TexY = WeightmapOffsetY + (SubsectionSizeQuads+1) * SubIndexY + SubY;
-								uint8& TexData = SelectTextureData[ TexX + TexY * SizeU ];
-
-								StoreData.Store(LandscapeX, LandscapeY, TexData);
-							}
-							else
-							{
-								StoreData.Store(LandscapeX, LandscapeY, 0);
-							}
-
-						}
-					}
-				}
-			}
-		}
-	}
+		check(Component);
+		return Component->EditToolRenderData.DataTexture;
+	};
+	GetEditToolTextureData(X1, Y1, X2, Y2, StoreData, ReturnComponentTexture);
 }
 
 void FLandscapeEditDataInterface::GetSelectData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TMap<FIntPoint, uint8>& SparseData)
@@ -4550,6 +4482,133 @@ void FLandscapeEditDataInterface::GetSelectData(const int32 X1, const int32 Y1, 
 
 void FLandscapeEditDataInterface::SetSelectData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint8* Data, int32 Stride)
 {
+	auto ReturnComponentTexture = [&](ULandscapeComponent* Component) -> UTexture2D*&
+	{
+		check(Component);
+		return Component->EditToolRenderData.DataTexture;
+	};
+	SetEditToolTextureData(X1, Y1, X2, Y2, Data, Stride, ReturnComponentTexture);
+}
+
+template<typename TStoreData>
+void FLandscapeEditDataInterface::GetLayerContributionDataTempl(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TStoreData& StoreData)
+{
+	auto ReturnComponentTexture = [&](const ULandscapeComponent* Component) -> UTexture2D*
+	{
+		check(Component);
+		return Component->EditToolRenderData.LayerContributionTexture;
+	};
+	GetEditToolTextureData(X1, Y1, X2, Y2, StoreData, ReturnComponentTexture);
+}
+
+void FLandscapeEditDataInterface::GetLayerContributionData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TMap<FIntPoint, uint8>& SparseData)
+{
+	TSparseStoreData<uint8> SparseStoreData(SparseData);
+	GetLayerContributionDataTempl(X1, Y1, X2, Y2, SparseStoreData);
+}
+
+void FLandscapeEditDataInterface::GetLayerContributionData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, uint8* Data, int32 Stride)
+{
+	if (Stride == 0)
+	{
+		Stride = (1 + X2 - X1);
+	}
+	TArrayStoreData<uint8> ArrayStoreData(X1, Y1, Data, Stride);
+	GetLayerContributionDataTempl(X1, Y1, X2, Y2, ArrayStoreData);
+}
+
+
+void FLandscapeEditDataInterface::SetLayerContributionData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint8* Data, int32 Stride)
+{
+	auto ReturnComponentTexture = [](ULandscapeComponent* Component) -> UTexture2D*&
+	{
+		check(Component);
+		return Component->EditToolRenderData.LayerContributionTexture;
+	};
+	SetEditToolTextureData(X1, Y1, X2, Y2, Data, Stride, ReturnComponentTexture);
+}
+
+template<typename TStoreData>
+void FLandscapeEditDataInterface::GetEditToolTextureData(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TStoreData& StoreData, TFunctionRef<UTexture2D*(ULandscapeComponent*)> GetComponentTexture)
+{
+	int32 ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2;
+	ALandscape::CalcComponentIndicesNoOverlap(X1, Y1, X2, Y2, ComponentSizeQuads, ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2);
+
+	for (int32 ComponentIndexY = ComponentIndexY1; ComponentIndexY <= ComponentIndexY2; ComponentIndexY++)
+	{
+		for (int32 ComponentIndexX = ComponentIndexX1; ComponentIndexX <= ComponentIndexX2; ComponentIndexX++)
+		{
+			ULandscapeComponent* Component = LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX, ComponentIndexY));
+
+			FLandscapeTextureDataInfo* TexDataInfo = NULL;
+			uint8* SelectTextureData = NULL;
+			UTexture2D* EditToolTexture = Component ? GetComponentTexture(Component) : nullptr;
+			if (EditToolTexture)
+			{
+				TexDataInfo = GetTextureDataInfo(EditToolTexture);
+				SelectTextureData = (uint8*)TexDataInfo->GetMipData(0);
+			}
+
+			// Find coordinates of box that lies inside component
+			int32 ComponentX1 = FMath::Clamp<int32>(X1 - ComponentIndexX * ComponentSizeQuads, 0, ComponentSizeQuads);
+			int32 ComponentY1 = FMath::Clamp<int32>(Y1 - ComponentIndexY * ComponentSizeQuads, 0, ComponentSizeQuads);
+			int32 ComponentX2 = FMath::Clamp<int32>(X2 - ComponentIndexX * ComponentSizeQuads, 0, ComponentSizeQuads);
+			int32 ComponentY2 = FMath::Clamp<int32>(Y2 - ComponentIndexY * ComponentSizeQuads, 0, ComponentSizeQuads);
+
+			// Find subsection range for this box
+			int32 SubIndexX1 = FMath::Clamp<int32>((ComponentX1 - 1) / SubsectionSizeQuads, 0, ComponentNumSubsections - 1);	// -1 because we need to pick up vertices shared between subsections
+			int32 SubIndexY1 = FMath::Clamp<int32>((ComponentY1 - 1) / SubsectionSizeQuads, 0, ComponentNumSubsections - 1);
+			int32 SubIndexX2 = FMath::Clamp<int32>(ComponentX2 / SubsectionSizeQuads, 0, ComponentNumSubsections - 1);
+			int32 SubIndexY2 = FMath::Clamp<int32>(ComponentY2 / SubsectionSizeQuads, 0, ComponentNumSubsections - 1);
+
+			for (int32 SubIndexY = SubIndexY1; SubIndexY <= SubIndexY2; SubIndexY++)
+			{
+				for (int32 SubIndexX = SubIndexX1; SubIndexX <= SubIndexX2; SubIndexX++)
+				{
+					// Find coordinates of box that lies inside subsection
+					int32 SubX1 = FMath::Clamp<int32>(ComponentX1 - SubsectionSizeQuads * SubIndexX, 0, SubsectionSizeQuads);
+					int32 SubY1 = FMath::Clamp<int32>(ComponentY1 - SubsectionSizeQuads * SubIndexY, 0, SubsectionSizeQuads);
+					int32 SubX2 = FMath::Clamp<int32>(ComponentX2 - SubsectionSizeQuads * SubIndexX, 0, SubsectionSizeQuads);
+					int32 SubY2 = FMath::Clamp<int32>(ComponentY2 - SubsectionSizeQuads * SubIndexY, 0, SubsectionSizeQuads);
+
+					// Update texture data for the box that lies inside subsection
+					for (int32 SubY = SubY1; SubY <= SubY2; SubY++)
+					{
+						for (int32 SubX = SubX1; SubX <= SubX2; SubX++)
+						{
+							int32 LandscapeX = SubIndexX * SubsectionSizeQuads + ComponentIndexX * ComponentSizeQuads + SubX;
+							int32 LandscapeY = SubIndexY * SubsectionSizeQuads + ComponentIndexY * ComponentSizeQuads + SubY;
+
+							// Find the input data corresponding to this vertex
+							if (Component && SelectTextureData)
+							{
+								// Find the texture data corresponding to this vertex
+								int32 SizeU = EditToolTexture->Source.GetSizeX();
+								int32 SizeV = EditToolTexture->Source.GetSizeY();
+								int32 WeightmapOffsetX = Component->WeightmapScaleBias.Z * (float)SizeU;
+								int32 WeightmapOffsetY = Component->WeightmapScaleBias.W * (float)SizeV;
+
+								int32 TexX = WeightmapOffsetX + (SubsectionSizeQuads + 1) * SubIndexX + SubX;
+								int32 TexY = WeightmapOffsetY + (SubsectionSizeQuads + 1) * SubIndexY + SubY;
+								uint8& TexData = SelectTextureData[TexX + TexY * SizeU];
+
+								StoreData.Store(LandscapeX, LandscapeY, TexData);
+							}
+							else
+							{
+								StoreData.Store(LandscapeX, LandscapeY, 0);
+							}
+
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void FLandscapeEditDataInterface::SetEditToolTextureData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint8* Data, int32 Stride, TFunctionRef<UTexture2D*&(ULandscapeComponent*)> GetComponentTexture)
+{
 	if( Stride==0 )
 	{
 		Stride = (1+X2-X1);
@@ -4566,49 +4625,44 @@ void FLandscapeEditDataInterface::SetSelectData(int32 X1, int32 Y1, int32 X2, in
 		{	
 			FIntPoint ComponentKey(ComponentIndexX,ComponentIndexY);
 			ULandscapeComponent* Component = LandscapeInfo->XYtoComponentMap.FindRef(ComponentKey);
-
-			UTexture2D* DataTexture = NULL;
-			// if NULL, it was painted away
-			if( Component==NULL)
+			if (Component == NULL)
 			{
 				continue;
 			}
-			else if (Component->EditToolRenderData.DataTexture == NULL)
+
+			UTexture2D*& EditToolTexture = GetComponentTexture(Component);
+			// if NULL, it was painted away
+			if (EditToolTexture == NULL)
 			{
 				//FlushRenderingCommands();
 				// Construct Texture...
 				int32 WeightmapSize = (Component->SubsectionSizeQuads+1) * Component->NumSubsections;
-				DataTexture = Component->GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_G8);
+				EditToolTexture = Component->GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_G8);
 				// Alloc dummy mips
-				ULandscapeComponent::CreateEmptyTextureMips(DataTexture, true);
-				DataTexture->PostEditChange();
+				ULandscapeComponent::CreateEmptyTextureMips(EditToolTexture, true);
+				EditToolTexture->PostEditChange();
 
 				//FlushRenderingCommands();
-				ZeroTexture(DataTexture);
-				FLandscapeTextureDataInfo* TexDataInfo = GetTextureDataInfo(DataTexture);
-				int32 NumMips = DataTexture->Source.GetNumMips();
+				ZeroTexture(EditToolTexture);
+				FLandscapeTextureDataInfo* TexDataInfo = GetTextureDataInfo(EditToolTexture);
+				int32 NumMips = EditToolTexture->Source.GetNumMips();
 				TArray<uint8*> TextureMipData;
 				TextureMipData.AddUninitialized(NumMips);
 				for( int32 MipIdx=0;MipIdx<NumMips;MipIdx++ )
 				{
 					TextureMipData[MipIdx] = (uint8*)TexDataInfo->GetMipData(MipIdx);
 				}
-				ULandscapeComponent::UpdateDataMips(ComponentNumSubsections, SubsectionSizeQuads, DataTexture, TextureMipData, 0, 0, MAX_int32, MAX_int32, TexDataInfo);
-				
-				Component->EditToolRenderData.DataTexture = DataTexture;
+				ULandscapeComponent::UpdateDataMips(ComponentNumSubsections, SubsectionSizeQuads, EditToolTexture, TextureMipData, 0, 0, MAX_int32, MAX_int32, TexDataInfo);
+
 				Component->UpdateEditToolRenderData();
 			}
-			else
-			{
-				DataTexture = Component->EditToolRenderData.DataTexture;
-			}
 
-			FLandscapeTextureDataInfo* TexDataInfo = GetTextureDataInfo(DataTexture);
+			FLandscapeTextureDataInfo* TexDataInfo = GetTextureDataInfo(EditToolTexture);
 			uint8* SelectTextureData = (uint8*)TexDataInfo->GetMipData(0);
 
 			// Find the texture data corresponding to this vertex
-			int32 SizeU = DataTexture->Source.GetSizeX();
-			int32 SizeV = DataTexture->Source.GetSizeY();
+			int32 SizeU = EditToolTexture->Source.GetSizeX();
+			int32 SizeV = EditToolTexture->Source.GetSizeY();
 			int32 WeightmapOffsetX = Component->WeightmapScaleBias.Z * (float)SizeU;
 			int32 WeightmapOffsetY = Component->WeightmapScaleBias.W * (float)SizeV;
 
@@ -4665,14 +4719,14 @@ void FLandscapeEditDataInterface::SetSelectData(int32 X1, int32 Y1, int32 X2, in
 				}
 			}
 			// Update mipmaps
-			int32 NumMips = DataTexture->Source.GetNumMips();
+			int32 NumMips = EditToolTexture->Source.GetNumMips();
 			TArray<uint8*> TextureMipData;
 			TextureMipData.AddUninitialized(NumMips);
 			for( int32 MipIdx=0;MipIdx<NumMips;MipIdx++ )
 			{
 				TextureMipData[MipIdx] = (uint8*)TexDataInfo->GetMipData(MipIdx);
 			}
-			ULandscapeComponent::UpdateDataMips(ComponentNumSubsections, SubsectionSizeQuads, DataTexture, TextureMipData, ComponentX1, ComponentY1, ComponentX2, ComponentY2, TexDataInfo);
+			ULandscapeComponent::UpdateDataMips(ComponentNumSubsections, SubsectionSizeQuads, EditToolTexture, TextureMipData, ComponentX1, ComponentY1, ComponentX2, ComponentY2, TexDataInfo);
 		}
 	}
 }

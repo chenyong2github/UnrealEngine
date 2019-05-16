@@ -75,6 +75,7 @@ public:
 	TSharedPtr<FUICommandInfo> ViewModeLayerDebug;
 	TSharedPtr<FUICommandInfo> ViewModeWireframeOnTop;
 	TSharedPtr<FUICommandInfo> ViewModeLayerUsage;
+	TSharedPtr<FUICommandInfo> ViewModeLayerContribution;
 
 	// Adjusting brushes
 	TSharedPtr<FUICommandInfo> IncreaseBrushSize;

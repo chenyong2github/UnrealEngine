@@ -12,6 +12,7 @@
 #include "LandscapeInfo.h"
 #include "LandscapeLayerInfoObject.h"
 #include "LandscapeGizmoActiveActor.h"
+#include "LandscapeEdit.h"
 
 class ALandscape;
 class FCanvas;
@@ -250,7 +251,7 @@ enum class ELandscapeEditingState : uint8
 /**
  * Landscape editor mode
  */
-class FEdModeLandscape : public FEdMode
+class FEdModeLandscape : public FEdMode, public ILandscapeEdModeInterface
 {
 public:
 
@@ -325,6 +326,10 @@ public:
 
 	/** Destructor */
 	virtual ~FEdModeLandscape();
+
+	/** ILandscapeEdModeInterface */
+	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const override;
+	virtual FGuid GetLandscapeSelectedLayer() const override;
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -526,7 +531,7 @@ public:
 	
 	bool NeedToFillEmptyMaterialLayers() const;
 	void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode);
-	void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InUpdateMode = ELandscapeLayerUpdateMode::All);
+	void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InUpdateMode = ELandscapeLayerUpdateMode::Update_All);
 
 	void OnLevelActorAdded(AActor* InActor);
 	void OnLevelActorRemoved(AActor* InActor);
