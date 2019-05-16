@@ -1455,6 +1455,11 @@ void FAppleARKitSystem::SessionDidUpdateFrame_DelegateThread(TSharedPtr< FAppleA
 		{
 			WriteCameraImageToDisk(Frame->CameraImage);
 		}
+		// Queue an update on the render thread
+		if (CameraImage != nullptr)
+		{
+			CameraImage->Init_RenderThread(Frame->CameraImage);
+		}
 #endif
 	}
 }
