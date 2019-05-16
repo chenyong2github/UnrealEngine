@@ -459,3 +459,41 @@ void TActorListAllocator<NumListsPerBlock, MaxNumPools>::LogDetails(int32 PoolSi
 	}
 }
 
+void FGlobalActorReplicationInfoMap::AddDependentActor(AActor* Parent, AActor* Child, FGlobalActorReplicationInfoMap::EWarnFlag WarnFlag)
+{
+	const bool bIsParentValid = ensureMsgf(Parent && IsActorValidForReplication(Parent), TEXT("FGlobalActorReplicationInfoMap::AddDependentActor Invalid Parent! %s"),
+										   *GetPathNameSafe(Parent));
+
+	const bool bIsChildValid = ensureMsgf(Child && IsActorValidForReplication(Child), TEXT("FGlobalActorReplicationInfoMap::AddDependentActor Invalid Child! %s"),
+										  *GetPathNameSafe(Child));
+
+	if (bIsParentValid && bIsChildValid)
+	{
+		const bool bDoWarnings = (WarnFlag & WarnAlreadyDependant) != 0;
+
+		bool bChildIsAlreadyDependant(false);
+		if (FGlobalActorReplicationInfo* ParentInfo = Find(Parent))
+		{
+			bChildIsAlreadyDependant = bDoWarnings && ParentInfo->DependentActorList.IsValid() && ParentInfo->DependentActorList.Contains(Child);
+
+			ParentInfo->DependentActorList.PrepareForWrite();
+			ParentInfo->DependentActorList.ConditionalAdd(Child);
+		}
+
+		bool bChildHadParentAlready(false);
+		if (FGlobalActorReplicationInfo* ChildInfo = Find(Child))
+		{
+			bChildHadParentAlready = bDoWarnings && ChildInfo->ParentActorList.IsValid() && ChildInfo->ParentActorList.Contains(Parent);
+			ChildInfo->ParentActorList.PrepareForWrite();
+			ChildInfo->ParentActorList.ConditionalAdd(Parent);
+		}
+
+		if (bChildIsAlreadyDependant || bChildHadParentAlready)
+		{
+			UE_LOG(LogReplicationGraph, Warning, TEXT("FGlobalActorReplicationInfoMap::AddDependentActor Child %s - Parent %s | Child already dependant of parent: %d | Child previously had parent in list: %d"),
+				   *GetPathNameSafe(Child), *GetPathNameSafe(Parent),
+				   bChildIsAlreadyDependant, bChildHadParentAlready);
+		}
+	}
+}
+
