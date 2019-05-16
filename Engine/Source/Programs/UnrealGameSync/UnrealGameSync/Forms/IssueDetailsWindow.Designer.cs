@@ -39,7 +39,6 @@ namespace UnrealGameSync
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.BuildListContextMenu_MoreInfo = new System.Windows.Forms.ToolStripMenuItem();
             this.OpenSinceTextBox = new System.Windows.Forms.TextBox();
-            this.AssignBtn = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
@@ -117,7 +116,7 @@ namespace UnrealGameSync
             // AssignToOtherBtn
             // 
             this.AssignToOtherBtn.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.AssignToOtherBtn.Location = new System.Drawing.Point(273, 3);
+            this.AssignToOtherBtn.Location = new System.Drawing.Point(138, 3);
             this.AssignToOtherBtn.Name = "AssignToOtherBtn";
             this.AssignToOtherBtn.Size = new System.Drawing.Size(129, 27);
             this.AssignToOtherBtn.TabIndex = 2;
@@ -164,17 +163,6 @@ namespace UnrealGameSync
             this.OpenSinceTextBox.Size = new System.Drawing.Size(1058, 16);
             this.OpenSinceTextBox.TabIndex = 5;
             this.OpenSinceTextBox.Text = "1/23/2019 (3 minutes)";
-            // 
-            // AssignBtn
-            // 
-            this.AssignBtn.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.AssignBtn.Location = new System.Drawing.Point(3, 3);
-            this.AssignBtn.Name = "AssignBtn";
-            this.AssignBtn.Size = new System.Drawing.Size(129, 27);
-            this.AssignBtn.TabIndex = 0;
-            this.AssignBtn.Text = "Assign";
-            this.AssignBtn.UseVisualStyleBackColor = true;
-            this.AssignBtn.Click += new System.EventHandler(this.AssignBtn_Click);
             // 
             // label1
             // 
@@ -406,7 +394,6 @@ namespace UnrealGameSync
             this.BuildListView.DrawColumnHeader += new System.Windows.Forms.DrawListViewColumnHeaderEventHandler(this.BuildListView_DrawColumnHeader);
             this.BuildListView.DrawItem += new System.Windows.Forms.DrawListViewItemEventHandler(this.BuildListView_DrawItem);
             this.BuildListView.DrawSubItem += new System.Windows.Forms.DrawListViewSubItemEventHandler(this.BuildListView_DrawSubItem);
-            this.BuildListView.SelectedIndexChanged += new System.EventHandler(this.BuildListView_SelectedIndexChanged);
             this.BuildListView.FontChanged += new System.EventHandler(this.BuildListView_FontChanged);
             this.BuildListView.MouseClick += new System.Windows.Forms.MouseEventHandler(this.BuildListView_MouseClick);
             this.BuildListView.MouseUp += new System.Windows.Forms.MouseEventHandler(this.BuildListView_MouseUp);
@@ -442,7 +429,7 @@ namespace UnrealGameSync
             // AssignToMeBtn
             // 
             this.AssignToMeBtn.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.AssignToMeBtn.Location = new System.Drawing.Point(138, 3);
+            this.AssignToMeBtn.Location = new System.Drawing.Point(3, 3);
             this.AssignToMeBtn.Name = "AssignToMeBtn";
             this.AssignToMeBtn.Size = new System.Drawing.Size(129, 27);
             this.AssignToMeBtn.TabIndex = 1;
@@ -537,19 +524,17 @@ namespace UnrealGameSync
             this.tableLayoutPanel5.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
             this.tableLayoutPanel5.AutoSize = true;
             this.tableLayoutPanel5.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.tableLayoutPanel5.ColumnCount = 6;
-            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.tableLayoutPanel5.ColumnCount = 5;
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.tableLayoutPanel5.Controls.Add(this.AssignBtn, 0, 0);
-            this.tableLayoutPanel5.Controls.Add(this.AssignToMeBtn, 1, 0);
-            this.tableLayoutPanel5.Controls.Add(this.MarkFixedBtn, 4, 0);
-            this.tableLayoutPanel5.Controls.Add(this.OkBtn, 5, 0);
-            this.tableLayoutPanel5.Controls.Add(this.AssignToOtherBtn, 2, 0);
+            this.tableLayoutPanel5.Controls.Add(this.AssignToMeBtn, 0, 0);
+            this.tableLayoutPanel5.Controls.Add(this.MarkFixedBtn, 3, 0);
+            this.tableLayoutPanel5.Controls.Add(this.OkBtn, 4, 0);
+            this.tableLayoutPanel5.Controls.Add(this.AssignToOtherBtn, 1, 0);
             this.tableLayoutPanel5.Location = new System.Drawing.Point(3, 660);
             this.tableLayoutPanel5.Margin = new System.Windows.Forms.Padding(3, 11, 3, 3);
             this.tableLayoutPanel5.Name = "tableLayoutPanel5";
@@ -652,7 +637,6 @@ namespace UnrealGameSync
 		private System.Windows.Forms.ToolStripMenuItem BuildListContextMenu_Assign;
 		private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
 		private System.Windows.Forms.TextBox OpenSinceTextBox;
-		private System.Windows.Forms.Button AssignBtn;
 		private System.Windows.Forms.Label label1;
 		private System.Windows.Forms.Label label3;
 		private System.Windows.Forms.Label label5;
