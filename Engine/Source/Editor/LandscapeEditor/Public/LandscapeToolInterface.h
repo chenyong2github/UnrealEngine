@@ -7,7 +7,6 @@
 #include "UObject/GCObject.h"
 #include "UnrealWidget.h"
 #include "EdMode.h"
-#include "LandscapeEdit.h"
 
 class FEditorViewportClient;
 class FPrimitiveDrawInterface;
@@ -136,6 +135,18 @@ struct FLandscapeBrushSet
 		}
 	}
 };
+
+namespace ELandscapeToolTargetType
+{
+	enum Type : int8
+	{
+		Heightmap  = 0,
+		Weightmap  = 1,
+		Visibility = 2,
+
+		Invalid    = -1, // only valid for LandscapeEdMode->CurrentToolTarget.TargetType
+	};
+}
 
 namespace ELandscapeToolTargetTypeMask
 {

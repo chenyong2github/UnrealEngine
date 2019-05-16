@@ -31,7 +31,6 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "ShaderCompiler.h"
 #include "Algo/Count.h"
 #include "LandscapeSettings.h"
-#include "LandscapeRender.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Landscape"
@@ -2560,7 +2559,7 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersRegenerateHeightmaps);
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
-	const int32 AllHeightmapUpdateModes = (ELandscapeLayerUpdateMode::Update_Heightmap_All |  ELandscapeLayerUpdateMode::Update_Heightmap_Editing);
+	const int32 AllHeightmapUpdateModes = (ELandscapeLayerUpdateMode::Heightmap_All |  ELandscapeLayerUpdateMode::Heightmap_Editing);
 	const int32 HeightmapUpdateModes = LayerContentUpdateModes & AllHeightmapUpdateModes;
 	const bool bForceRender = CVarOutputLayersDebugDrawCallName.GetValueOnAnyThread() == 1;
 
@@ -2790,7 +2789,7 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 		// Partial Component Update
 		for (ULandscapeComponent* Component : InLandscapeComponents)
 		{
-			if(Component->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Heightmap_Collision, HeightmapUpdateModes))
+			if(Component->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Update_Heightmap_Collision, HeightmapUpdateModes))
 			{
 				Component->UpdateCachedBounds();
 				Component->UpdateComponentToWorld();
@@ -3374,7 +3373,7 @@ bool ALandscape::PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming
 int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool bInWaitForStreaming)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersRegenerateWeightmaps);
-	const int32 AllWeightmapUpdateModes = (ELandscapeLayerUpdateMode::Update_Weightmap_All | ELandscapeLayerUpdateMode::Update_Weightmap_Editing);
+	const int32 AllWeightmapUpdateModes = (ELandscapeLayerUpdateMode::Weightmap_All | ELandscapeLayerUpdateMode::Weightmap_Editing);
 	const int32 WeightmapUpdateModes = LayerContentUpdateModes & AllWeightmapUpdateModes;
 	const bool bForceRender = CVarOutputLayersDebugDrawCallName.GetValueOnAnyThread() == 1;
 	
@@ -3742,7 +3741,7 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 	
 		for (ULandscapeComponent* Component : InLandscapeComponents)
 		{
-			if (Component->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Weightmap_Collision, WeightmapUpdateModes))
+			if (Component->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Update_Weightmap_Collision, WeightmapUpdateModes))
 			{
 				Component->UpdateCollisionLayerData();
 			}
@@ -4029,12 +4028,11 @@ void ALandscape::RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode In
 		return;
 	}
 
-	const bool bUpdateWeightmap = (InModeMask & (ELandscapeLayerUpdateMode::Update_Weightmap_All | ELandscapeLayerUpdateMode::Update_Weightmap_Editing)) != 0;
-	const bool bUpdateHeightmap = (InModeMask & (ELandscapeLayerUpdateMode::Update_Heightmap_All | ELandscapeLayerUpdateMode::Update_Heightmap_Editing)) != 0;
-	const bool bUpdateClientUdpateEditing = (InModeMask & ELandscapeLayerUpdateMode::Update_Client_Editing) != 0;
+	const bool bUpdateWeightmap = (InModeMask & (ELandscapeLayerUpdateMode::Weightmap_All | ELandscapeLayerUpdateMode::Weightmap_Editing)) != 0;
+	const bool bUpdateHeightmap = (InModeMask & (ELandscapeLayerUpdateMode::Heightmap_All | ELandscapeLayerUpdateMode::Heightmap_Editing)) != 0;
 	if (ULandscapeInfo* LandscapeInfo = GetLandscapeInfo())
 	{
-		LandscapeInfo->ForAllLandscapeProxies([bUpdateHeightmap, bUpdateWeightmap, bUpdateClientUdpateEditing](ALandscapeProxy* Proxy)
+		LandscapeInfo->ForAllLandscapeProxies([bUpdateHeightmap,bUpdateWeightmap](ALandscapeProxy* Proxy)
 		{
 			if (Proxy)
 			{
@@ -4056,11 +4054,6 @@ void ALandscape::RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode In
 					{
 						Component->RequestWeightmapUpdate();
 					}
-
-					if (bUpdateClientUdpateEditing)
-					{
-						Component->RequestEditingClientUpdate();
-					}
 				}
 			}
 		});
@@ -4073,54 +4066,45 @@ bool ULandscapeComponent::IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateF
 {
 	uint32 UpdateMode = (LayerUpdateFlagPerMode & InModeMask);
 	
-	if (UpdateMode & ELandscapeLayerUpdateMode::Update_Heightmap_All)
+	if (UpdateMode & ELandscapeLayerUpdateMode::Heightmap_All)
 	{
-		const uint32 HeightmapAllFlags = ELandscapeComponentUpdateFlag::Component_Update_Heightmap_Collision | ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision | ELandscapeComponentUpdateFlag::Component_Update_Client;
+		const uint32 HeightmapAllFlags = ELandscapeComponentUpdateFlag::Update_Heightmap_Collision | ELandscapeComponentUpdateFlag::RecreateCollision | ELandscapeComponentUpdateFlag::ClientUpdate;
 		if (HeightmapAllFlags & InFlag)
 		{
 			return true;
 		}
 	}
 		
-	if (UpdateMode & ELandscapeLayerUpdateMode::Update_Heightmap_Editing)
+	if (UpdateMode & ELandscapeLayerUpdateMode::Heightmap_Editing)
 	{
-		const uint32 HeightmapEditingFlags = ELandscapeComponentUpdateFlag::Component_Update_Heightmap_Collision | ELandscapeComponentUpdateFlag::Component_Update_Client_Editing;
+		const uint32 HeightmapEditingFlags = ELandscapeComponentUpdateFlag::Update_Heightmap_Collision;
 		if (HeightmapEditingFlags & InFlag)
 		{
 			return true;
 		}
 	}
 		
-	if (UpdateMode & ELandscapeLayerUpdateMode::Update_Weightmap_All)
+	if (UpdateMode & ELandscapeLayerUpdateMode::Weightmap_All)
 	{
-		const uint32 WeightmapAllFlags = ELandscapeComponentUpdateFlag::Component_Update_Weightmap_Collision | ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision | ELandscapeComponentUpdateFlag::Component_Update_Client;
+		const uint32 WeightmapAllFlags = ELandscapeComponentUpdateFlag::Update_Weightmap_Collision | ELandscapeComponentUpdateFlag::RecreateCollision | ELandscapeComponentUpdateFlag::ClientUpdate;
 		if (WeightmapAllFlags & InFlag)
 		{
 			return true;
 		}
 	}
 
-	if (UpdateMode & ELandscapeLayerUpdateMode::Update_Weightmap_Editing)
+	if (UpdateMode & ELandscapeLayerUpdateMode::Weightmap_Editing)
 	{
-		const uint32 WeightmapEditingFlags = ELandscapeComponentUpdateFlag::Component_Update_Weightmap_Collision | ELandscapeComponentUpdateFlag::Component_Update_Client_Editing;
+		const uint32 WeightmapEditingFlags = ELandscapeComponentUpdateFlag::Update_Weightmap_Collision;
 		if (WeightmapEditingFlags & InFlag)
 		{
 			return true;
 		}
 	}
 
-	if (UpdateMode & ELandscapeLayerUpdateMode::Update_Client_Editing)
+	if (UpdateMode & ELandscapeLayerUpdateMode::DeferredClientUpdate)
 	{
-		const uint32 WeightmapEditingFlags = ELandscapeComponentUpdateFlag::Component_Update_Client_Editing;
-		if (WeightmapEditingFlags & InFlag)
-		{
-			return true;
-		}
-	}
-
-	if (UpdateMode & ELandscapeLayerUpdateMode::Update_Client_Deferred)
-	{
-		const uint32 DeferredClientUpdateFlags = ELandscapeComponentUpdateFlag::Component_Update_Client;
+		const uint32 DeferredClientUpdateFlags = ELandscapeComponentUpdateFlag::ClientUpdate;
 		if (DeferredClientUpdateFlags & InFlag)
 		{
 			return true;
@@ -4137,72 +4121,34 @@ void ULandscapeComponent::ClearUpdateFlagsForModes(uint32 InModeMask)
 
 void ULandscapeComponent::RequestDeferredClientUpdate()
 {
-	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Update_Client_Deferred;
-}
-
-void ULandscapeComponent::RequestEditingClientUpdate()
-{
-	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Update_Client_Editing;
-	if (ALandscape* LandscapeActor = GetLandscapeActor())
-	{
-		LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_Client_Editing);
-	}
+	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::DeferredClientUpdate;
 }
 
 void ULandscapeComponent::RequestHeightmapUpdate(bool bUpdateAll)
 {
-	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Update_Heightmap_Editing;
-	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Update_Heightmap_All;
+	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Heightmap_Editing;
+	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Heightmap_All;
 	if (ALandscape* LandscapeActor = GetLandscapeActor())
 	{
-		LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_Heightmap_Editing);
+		LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Heightmap_Editing);
 		if (bUpdateAll)
 		{
-			LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_Heightmap_All);
+			LandscapeActor->RequestLayersContentUpdate(Heightmap_All);
 		}
 	}
 }
 
 void ULandscapeComponent::RequestWeightmapUpdate(bool bUpdateAll)
 {
-	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Update_Weightmap_Editing;
-	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Update_Weightmap_All;
+	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Weightmap_Editing;
+	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Weightmap_All;
 	if (ALandscape* LandscapeActor = GetLandscapeActor())
 	{
-		LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_Weightmap_Editing);
+		LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Weightmap_Editing);
 		if (bUpdateAll)
 		{
-			LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_Weightmap_All);
+			LandscapeActor->RequestLayersContentUpdate(Weightmap_All);
 		}
-	}
-}
-
-void ALandscape::MonitorLandscapeEdModeChanges()
-{
-	bool bRequiredEditingClientFullUpdate = false;
-	if (LandscapeEdModeInfo.ViewMode != GLandscapeViewMode)
-	{
-		LandscapeEdModeInfo.ViewMode = GLandscapeViewMode;
-		bRequiredEditingClientFullUpdate = true;
-	}
-
-	ELandscapeToolTargetType::Type NewValue = LandscapeEdMode ? LandscapeEdMode->GetLandscapeToolTargetType() : ELandscapeToolTargetType::Invalid;
-	if (LandscapeEdModeInfo.ToolTarget != NewValue)
-	{
-		LandscapeEdModeInfo.ToolTarget = NewValue;
-		bRequiredEditingClientFullUpdate = true;
-	}
-
-	FGuid NewSelectedLayer = LandscapeEdMode ? LandscapeEdMode->GetLandscapeSelectedLayer() : FGuid();
-	if (LandscapeEdModeInfo.SelectedLayer != NewSelectedLayer)
-	{
-		LandscapeEdModeInfo.SelectedLayer = NewSelectedLayer;
-		bRequiredEditingClientFullUpdate = true;
-	}
-
-	if (bRequiredEditingClientFullUpdate && (LandscapeEdModeInfo.ViewMode == ELandscapeViewMode::LayerContribution))
-	{
-		RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Update_Client_Editing);
 	}
 }
 
@@ -4240,7 +4186,6 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming)
 	}
 	
 	MonitorShaderCompilation();
-	MonitorLandscapeEdModeChanges();
 
 	if (GetLandscapeInfo() == nullptr || LayerContentUpdateModes == 0)
 	{
@@ -4253,16 +4198,14 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming)
 		AllLandscapeComponents.Append(Proxy->LandscapeComponents);
 	});
 
-	int32 ProcessedModes = 0;
+	int32 ProcessedModes = (LayerContentUpdateModes & ELandscapeLayerUpdateMode::DeferredClientUpdate);
 	ProcessedModes |= RegenerateLayersHeightmaps(AllLandscapeComponents, bInWaitForStreaming);
 	ProcessedModes |= RegenerateLayersWeightmaps(AllLandscapeComponents, bInWaitForStreaming);
-	ProcessedModes |= (LayerContentUpdateModes & ELandscapeLayerUpdateMode::Update_Client_Deferred);
-	ProcessedModes |= (LayerContentUpdateModes & ELandscapeLayerUpdateMode::Update_Client_Editing);
 	LayerContentUpdateModes &= ~ProcessedModes;
 
 	if (!ALandscape::UpdateCollisionAndClients(AllLandscapeComponents, ProcessedModes))
 	{
-		LayerContentUpdateModes |= ELandscapeLayerUpdateMode::Update_Client_Deferred;
+		LayerContentUpdateModes |= ELandscapeLayerUpdateMode::DeferredClientUpdate;
 	}
 }
 
@@ -4270,17 +4213,10 @@ bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& I
 {
 	bool bAllClientsUpdated = true;
 
-	const uint16 DefaultHeightValue = LandscapeDataAccess::GetTexHeight(0.f);
-	const uint8 DefaultWeightValue = 0;
-	const uint8 LayerContributingValue = 64;
-	TArray<uint16> HeightData;
-	TArray<uint8> WeightData;
-	TArray<uint8> LayerContributionMaskData;
-
 	for (ULandscapeComponent* LandscapeComponent : InLandscapeComponents)
 	{
 		bool bDeferClientUpdateForComponent = false;
-		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision, InContentUpdateModes))
+		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::RecreateCollision, InContentUpdateModes))
 		{
 			if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->CollisionComponent.Get())
 			{
@@ -4288,7 +4224,7 @@ bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& I
 			}
 		}
 
-		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Client, InContentUpdateModes))
+		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::ClientUpdate, InContentUpdateModes))
 		{
 			if (!GUndo)
 			{
@@ -4302,68 +4238,6 @@ bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& I
 			{
 				bDeferClientUpdateForComponent = true;
 				bAllClientsUpdated = false;
-			}
-		}
-
-		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Client_Editing, InContentUpdateModes))
-		{
-			if (LandscapeEdModeInfo.ViewMode == ELandscapeViewMode::LayerContribution && LandscapeEdModeInfo.SelectedLayer.IsValid())
-			{
-				ULandscapeInfo* Info = LandscapeComponent->GetLandscapeInfo();
-				check(Info);
-
-				FLandscapeEditDataInterface LandscapeEdit(Info);
-				FScopedSetLandscapeEditingLayer Scope(this, LandscapeEdModeInfo.SelectedLayer);
-
-				check(ComponentSizeQuads == LandscapeComponent->ComponentSizeQuads);
-				const int32 Stride = (1 + ComponentSizeQuads);
-				const int32 ArraySize = Stride * Stride;
-				if (LayerContributionMaskData.Num() != ArraySize)
-				{
-					LayerContributionMaskData.AddZeroed(ArraySize);
-				}
-				uint8* LayerContributionMaskDataPtr = LayerContributionMaskData.GetData();
-				const int32 X1 = LandscapeComponent->GetSectionBase().X;
-				const int32 X2 = X1 + ComponentSizeQuads;
-				const int32 Y1 = LandscapeComponent->GetSectionBase().Y;
-				const int32 Y2 = Y1 + ComponentSizeQuads;
-
-				if (LandscapeEdModeInfo.ToolTarget == ELandscapeToolTargetType::Heightmap)
-				{
-					if (HeightData.Num() != ArraySize)
-					{
-						HeightData.AddZeroed(ArraySize);
-					}
-					LandscapeEdit.GetHeightDataFast(X1, Y1, X2, Y2, HeightData.GetData(), Stride);
-					for (int i = 0; i < ArraySize; ++i)
-					{
-						LayerContributionMaskData[i] = HeightData[i] != DefaultHeightValue ? LayerContributingValue : 0;
-					}
-				}
-				else if (LandscapeEdModeInfo.ToolTarget == ELandscapeToolTargetType::Weightmap)
-				{
-					if (WeightData.Num() != ArraySize)
-					{
-						WeightData.AddZeroed(ArraySize);
-					}
-					FMemory::Memzero(LayerContributionMaskDataPtr, ArraySize);
-					for (const FLandscapeInfoLayerSettings& LayerSettings : Info->Layers)
-					{
-						if (LayerSettings.LayerInfoObj == ALandscapeProxy::VisibilityLayer)
-						{
-							continue;
-						}
-						LandscapeEdit.GetWeightDataFast(LayerSettings.LayerInfoObj, X1, Y1, X2, Y2, WeightData.GetData(), Stride);
-						for (int i = 0; i < ArraySize; ++i)
-						{
-							if (WeightData[i] != DefaultWeightValue)
-							{
-								LayerContributionMaskData[i] = LayerContributingValue;
-							}
-						}
-					}
-				}
-				LandscapeEdit.SetLayerContributionData(X1, Y1, X2, Y2, LayerContributionMaskDataPtr, 0);
 			}
 		}
 
@@ -5251,7 +5125,7 @@ void ALandscape::SetLayerSubstractiveBlendStatus(int32 InLayerIndex, bool InStat
 		*AllocationBlend = InStatus;
 	}
 
-	RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Update_Weightmap_All);
+	RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Weightmap_All);
 }
 
 void ALandscape::AddBrushToLayer(int32 InLayerIndex, int32 InTargetType, ALandscapeBlueprintCustomBrush* InBrush)
