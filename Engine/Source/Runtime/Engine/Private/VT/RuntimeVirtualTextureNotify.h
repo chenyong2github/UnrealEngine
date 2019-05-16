@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+class URuntimeVirtualTexture;
+
 namespace RuntimeVirtualTexture
 {
 #if WITH_EDITOR
