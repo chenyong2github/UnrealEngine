@@ -6,6 +6,8 @@
 
 #include "Trace/Trace.h"
 
+#include <emmintrin.h>
+
 namespace Trace
 {
 
