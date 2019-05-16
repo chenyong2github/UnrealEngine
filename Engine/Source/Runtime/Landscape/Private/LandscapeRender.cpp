@@ -113,7 +113,7 @@ LANDSCAPE_API int32 GLandscapeViewMode = ELandscapeViewMode::Normal;
 FAutoConsoleVariableRef CVarLandscapeDebugViewMode(
 	TEXT("Landscape.DebugViewMode"),
 	GLandscapeViewMode,
-	TEXT("Change the view mode of the landscape rendering. Valid Input: 0 = Normal, 2 = DebugLayer, 3 = LayerDensity, 4 = LayerUsage, 5 = LOD Distribution, 6 = WireframeOnTop"),
+	TEXT("Change the view mode of the landscape rendering. Valid Input: 0 = Normal, 2 = DebugLayer, 3 = LayerDensity, 4 = LayerUsage, 5 = LOD Distribution, 6 = WireframeOnTop, 7 = LayerContribution"),
 	ECVF_Cheat
 );
 #endif
@@ -546,6 +546,7 @@ UMaterialInterface* GLayerDebugColorMaterial = nullptr;
 UMaterialInterface* GSelectionColorMaterial = nullptr;
 UMaterialInterface* GSelectionRegionMaterial = nullptr;
 UMaterialInterface* GMaskRegionMaterial = nullptr;
+UMaterialInterface* GColorMaskRegionMaterial = nullptr;
 UTexture2D* GLandscapeBlackTexture = nullptr;
 UMaterialInterface* GLandscapeLayerUsageMaterial = nullptr;
 #endif
@@ -596,6 +597,7 @@ void ULandscapeComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 		OutMaterials.Add(GSelectionColorMaterial);
 		OutMaterials.Add(GSelectionRegionMaterial);
 		OutMaterials.Add(GMaskRegionMaterial);
+		OutMaterials.Add(GColorMaskRegionMaterial);
 		OutMaterials.Add(GLandscapeLayerUsageMaterial);
 	}
 #endif
@@ -1091,6 +1093,12 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 				ToolRelevance |= GMaskRegionMaterial->GetRelevance_Concurrent(FeatureLevel);
 			}
 
+			if (GLandscapeViewMode == ELandscapeViewMode::LayerContribution)
+			{
+				Result.bDynamicRelevance = true;
+				ToolRelevance |= GColorMaskRegionMaterial->GetRelevance_Concurrent(FeatureLevel);
+			}
+
 			ToolRelevance.SetPrimitiveViewRelevance(Result);
 		}
 	}
@@ -1116,7 +1124,7 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 		View->Family->EngineShowFlags.Wireframe ||
 #if WITH_EDITOR
 		(IsSelected() && !GLandscapeEditModeActive) ||
-		GLandscapeViewMode != ELandscapeViewMode::Normal ||
+		(GLandscapeViewMode != ELandscapeViewMode::Normal) ||
 #else
 		IsSelected() ||
 #endif
@@ -2676,6 +2684,26 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 				NumPasses++;
 				NumTriangles += WireMesh.GetNumPrimitives();
 				NumDrawCalls++;
+			}
+			break;
+
+			case ELandscapeViewMode::LayerContribution:
+			{
+				Mesh.bCanApplyViewModeOverrides = false;
+				Collector.AddMesh(ViewIndex, Mesh);
+				NumPasses++;
+				NumTriangles += Mesh.GetNumPrimitives();
+				NumDrawCalls += Mesh.Elements.Num();
+
+				FMeshBatch& MaskMesh = Collector.AllocateMesh();
+				MaskMesh = MeshTools;
+				auto ColorMaskMaterialInstance = new FLandscapeMaskMaterialRenderProxy(GColorMaskRegionMaterial->GetRenderProxy(), EditToolRenderData.LayerContributionTexture ? EditToolRenderData.LayerContributionTexture : GLandscapeBlackTexture, true);
+				MaskMesh.MaterialRenderProxy = ColorMaskMaterialInstance;
+				Collector.RegisterOneFrameMaterialProxy(ColorMaskMaterialInstance);
+				Collector.AddMesh(ViewIndex, MaskMesh);
+				NumPasses++;
+				NumTriangles += MaskMesh.GetNumPrimitives();
+				NumDrawCalls += MaskMesh.Elements.Num();
 			}
 			break;
 
