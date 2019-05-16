@@ -786,6 +786,13 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 	{
 		for ( auto& Node : OutlinerSelection )
 		{
+			auto Parent = Node->GetParent();
+			while (Parent.IsValid())
+			{
+				TreeView->SetItemExpansion(Parent->AsShared(), true);
+				Parent = Parent->GetParent();
+			}
+
 			TreeView->RequestScrollIntoView( Node );
 			break;
 		}
@@ -1882,6 +1889,13 @@ void SSequencer::UpdateLayoutTree()
 			{
 				if (Node->GetPathName() == NodePath)
 				{
+					auto Parent = Node->GetParent();
+					while (Parent.IsValid())
+					{
+						TreeView->SetItemExpansion(Parent->AsShared(), true);
+						Parent = Parent->GetParent();
+					}
+
 					TreeView->RequestScrollIntoView(Node);
 					break;
 				}
