@@ -163,13 +163,18 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void OkBtn_Click(object sender, EventArgs e)
+		private void UpdateSelectedChangeAndClose()
 		{
-			if(TryGetSelectedChange(out ChangeNumber))
+			if (TryGetSelectedChange(out ChangeNumber))
 			{
 				DialogResult = DialogResult.OK;
 				Close();
 			}
+		}
+
+		private void OkBtn_Click(object sender, EventArgs e)
+		{
+			UpdateSelectedChangeAndClose();
 		}
 
 		private void PopulateChanges(string UserName, List<PerforceDescribeRecord> Changes)
@@ -229,6 +234,11 @@ namespace UnrealGameSync
 					}
 				}
 			}
+		}
+
+		private void ChangesListView_MouseDoubleClick(object sender, MouseEventArgs e)
+		{
+			UpdateSelectedChangeAndClose();
 		}
 
 		private void ChangesContextMenu_MoreInfo_Click(object sender, EventArgs e)
