@@ -31,11 +31,11 @@ bool FHttpServerIntegrationTest::RunTest(const FString& Parameters)
 	{
 		return true;
 	};
-	FHttpRouteHandle HttpRouteHandle = HttpRouter->BindRoute(HttpPath, EHttpServerRequestVerbs::GET, RequestHandler);
+	FHttpRouteHandle HttpRouteHandle = HttpRouter->BindRoute(HttpPath, EHttpServerRequestVerbs::VERB_GET, RequestHandler);
 	TestTrue(TEXT("HttpRouteHandle.IsValid()"), HttpRouteHandle.IsValid());
 
 	// Disallow duplicate route bindings
-	FHttpRouteHandle DuplicateHandle = HttpRouter->BindRoute(HttpPath, EHttpServerRequestVerbs::GET, RequestHandler);
+	FHttpRouteHandle DuplicateHandle = HttpRouter->BindRoute(HttpPath, EHttpServerRequestVerbs::VERB_GET, RequestHandler);
 	TestFalse(TEXT("HttpRouteHandle Duplicated"), DuplicateHandle.IsValid());
 
 	// Make a request
