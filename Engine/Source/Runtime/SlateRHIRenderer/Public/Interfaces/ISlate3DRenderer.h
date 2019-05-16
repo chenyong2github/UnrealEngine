@@ -15,6 +15,7 @@ public:
 
 	/** set if this renderer should render in gamma space by default. */
 	virtual void SetUseGammaCorrection(bool bUseGammaCorrection) = 0;
+	virtual void SetApplyColorDeficiencyCorrection(bool bApplyColorCorrection) = 0;
 
 	/** @return The free buffer for drawing */
 	virtual FSlateDrawBuffer& GetDrawBuffer() = 0;
