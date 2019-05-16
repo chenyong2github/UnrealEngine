@@ -99,6 +99,9 @@ public:
 	const bool IsBuilt(bool bInForce = false) const;
 #endif
 
+	/** Returns whether or not this LODActor has valid SubActors and whether or not their contained Primitive Components are linked (LODParentPrimitive) to StaticMeshComponent*/
+	const bool HasValidLODChildren() const;
+
 #if WITH_EDITOR
 	/** Force this actor to appear unbuilt (zeros-out key) */
 	void ForceUnbuilt();
