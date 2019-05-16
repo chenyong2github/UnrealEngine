@@ -7,7 +7,6 @@
 #include "Modules/ModuleManager.h"
 #include "Containers/Ticker.h" 
 
-
 class FHttpListener;
 class IHttpRouter;
 
@@ -48,6 +47,11 @@ public:
 	 bool Tick(float DeltaTime) override;
 
 	 /**
+	  * Starts all listeners
+	  */
+	 HTTPSERVER_API void StartAllListeners();
+
+	 /**
 	  * Stops all listeners
 	  */
 	 HTTPSERVER_API void StopAllListeners();
@@ -85,5 +89,8 @@ private:
 
 	/** Whether this module has been initialized */
 	bool bInitialized = false;
+
+	/** Whether listeners can be started */
+	bool bHttpListenersEnabled = false;
 };
 
