@@ -430,6 +430,8 @@ public:
 		ECollectionType CollectionType,
 		bool* bOutCacheHit = nullptr)
 	{
+		FScopeLock Lock(&CriticalSection);
+
 		const uint64 ShaderHash = GetShaderHash64(Shader);
 
 		ID3D12RootSignature* LocalRootSignature = nullptr;
@@ -570,6 +572,7 @@ public:
 
 private:
 
+	FCriticalSection CriticalSection;
 	TMap<FKey, FEntry> Cache;
 	FD3D12RootSignature DefaultLocalRootSignature; // Default empty root signature used for default hit shaders.
 };
