@@ -32,8 +32,8 @@ inline bool operator!=(const FVirtualTextureProducerHandle& Lhs, const FVirtualT
 /** Maximum number of layers that can be allocated in a single VT page table */
 #define VIRTUALTEXTURE_SPACE_MAXLAYERS 8
 
-/** Maximum dimension of VT page table texture (Duplicated in PageTableUpdate.usf, keep in sync) */
-#define VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE 11u
+/** Maximum dimension of VT page table texture */
+#define VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE 12u
 #define VIRTUALTEXTURE_MAX_PAGETABLE_SIZE (1u << VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE)
 
 /**
@@ -98,9 +98,18 @@ struct FVTProducerDescription
 	bool bCreateRenderTarget = false;
 	uint32 TileSize = 0u;
 	uint32 TileBorderSize = 0u;
-	uint32 WidthInTiles = 0u;
-	uint32 HeightInTiles = 0u;
+
+	/**
+	 * Producers are made up of a number of block, each block has uniform size, and blocks are arranged in a larger grid
+	 * 'Normal' VTs will typically be a single block, for UDIM textures, blocks will map to individual UDIM texture sheets
+	 * When multiple producers are allocated together, they will be aligned such that blocks of each layer overlay on top of each other
+	 * Number of blocks for each layer may be different in this case, this is handled by wrapping blocks for layers with fewer blocks
+	 */
+	uint32 BlockWidthInTiles = 0u;
+	uint32 BlockHeightInTiles = 0u;
 	uint32 DepthInTiles = 0u;
+	uint16 WidthInBlocks = 1u;
+	uint16 HeightInBlocks = 1u;
 	uint8 Dimensions = 0u;
 	uint8 NumLayers = 0u;
 	uint8 MaxLevel = 0u;
@@ -255,13 +264,17 @@ public:
 	inline IAllocatedVirtualTexture(const FAllocatedVTDescription& InDesc,
 		uint32 InSpaceID,
 		EVTPageTableFormat InPageTableFormat,
-		uint32 InWidthInTiles,
-		uint32 InHeightInTiles,
+		uint32 InBlockWidthInTiles,
+		uint32 InBlockHeightInTiles,
+		uint32 InWidthInBlocks,
+		uint32 InHeightInBlocks,
 		uint32 InDepthInTiles)
 		: Description(InDesc)
 		, SpaceID(InSpaceID)
-		, WidthInTiles(InWidthInTiles)
-		, HeightInTiles(InHeightInTiles)
+		, BlockWidthInTiles(InBlockWidthInTiles)
+		, BlockHeightInTiles(InBlockHeightInTiles)
+		, WidthInBlocks(InWidthInBlocks)
+		, HeightInBlocks(InHeightInBlocks)
 		, DepthInTiles(InDepthInTiles)
 		, PageTableFormat(InPageTableFormat)
 		, MaxLevel(0u)
@@ -272,6 +285,13 @@ public:
 	virtual FRHITexture* GetPhysicalTexture(uint32 InLayerIndex) const = 0;
 	virtual FRHIShaderResourceView* GetPhysicalTextureView(uint32 InLayerIndex, bool bSRGB) const = 0;
 	virtual uint32 GetPhysicalTextureSize(uint32 InLayerIndex) const = 0;
+
+	/** Writes 2x FUintVector4 */
+	virtual void GetPackedPageTableUniform(FUintVector4* OutUniform, bool bApplyBlockScale) const = 0;
+
+	/** Writes 1x FUintVector4 */
+	virtual void GetPackedUniform(FUintVector4* OutUniform, uint32 LayerIndex) const = 0;
+
 	virtual void DumpToConsole(bool bVerbose) const {}
 
 	inline const FAllocatedVTDescription& GetDescription() const { return Description; }
@@ -283,11 +303,13 @@ public:
 	inline uint32 GetPhysicalTileSize() const { return Description.TileSize + Description.TileBorderSize * 2u; }
 	inline uint32 GetNumLayers() const { return Description.NumLayers; }
 	inline uint8 GetDimensions() const { return Description.Dimensions; }
-	inline uint32 GetWidthInTiles() const { return WidthInTiles; }
-	inline uint32 GetHeightInTiles() const { return HeightInTiles; }
+	inline uint32 GetWidthInBlocks() const { return WidthInBlocks; }
+	inline uint32 GetHeightInBlocks() const { return HeightInBlocks; }
+	inline uint32 GetWidthInTiles() const { return BlockWidthInTiles * WidthInBlocks; }
+	inline uint32 GetHeightInTiles() const { return BlockHeightInTiles * HeightInBlocks; }
 	inline uint32 GetDepthInTiles() const { return DepthInTiles; }
-	inline uint32 GetWidthInPixels() const { return WidthInTiles * Description.TileSize; }
-	inline uint32 GetHeightInPixels() const { return HeightInTiles * Description.TileSize; }
+	inline uint32 GetWidthInPixels() const { return GetWidthInTiles() * Description.TileSize; }
+	inline uint32 GetHeightInPixels() const { return GetHeightInTiles() * Description.TileSize; }
 	inline uint32 GetDepthInPixels() const { return DepthInTiles * Description.TileSize; }
 	inline uint32 GetNumPageTableTextures() const { return (Description.NumLayers + LayersPerPageTableTexture - 1u) / LayersPerPageTableTexture; }
 	inline uint32 GetSpaceID() const { return SpaceID; }
@@ -302,8 +324,10 @@ protected:
 
 	FAllocatedVTDescription Description;
 	uint32 SpaceID;
-	uint32 WidthInTiles;
-	uint32 HeightInTiles;
+	uint32 BlockWidthInTiles;
+	uint32 BlockHeightInTiles;
+	uint32 WidthInBlocks;
+	uint32 HeightInBlocks;
 	uint32 DepthInTiles;
 	EVTPageTableFormat PageTableFormat;
 

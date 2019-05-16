@@ -296,8 +296,6 @@ public:
 	ENGINE_API uint32 GetBorderSize() const;
 	uint32 GetAllocatedvAddress() const;
 
-	ENGINE_API void GetPackedPageTableUniform(FUintVector4* Uniform) const;
-	ENGINE_API void GetPackedPhysicalTextureUniform(FUintVector4* Uniform, uint32 LayerIndex) const;
 	ENGINE_API FIntPoint GetPhysicalTextureSize(uint32 LayerIndex) const;
 
 private:

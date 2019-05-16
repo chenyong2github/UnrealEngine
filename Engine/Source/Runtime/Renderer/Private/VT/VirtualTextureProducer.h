@@ -20,8 +20,8 @@ public:
 	inline const FVTProducerDescription& GetDescription() const { return Description; }
 	inline IVirtualTexture* GetVirtualTexture() const { return VirtualTexture; }
 	inline uint32 GetNumLayers() const { return Description.NumLayers; }
-	inline uint32 GetWidthInTiles() const { return Description.WidthInTiles; }
-	inline uint32 GetHeightInTiles() const { return Description.HeightInTiles; }
+	inline uint32 GetWidthInTiles() const { return Description.BlockWidthInTiles * Description.WidthInBlocks; }
+	inline uint32 GetHeightInTiles() const { return Description.BlockHeightInTiles * Description.HeightInBlocks; }
 	inline uint32 GetDepthInTiles() const { return Description.DepthInTiles; }
 	inline EPixelFormat GetLayerFormat(uint32 LayerIndex) const { check(LayerIndex < Description.NumLayers); return Description.LayerFormat[LayerIndex]; }
 	inline FVirtualTexturePhysicalSpace* GetPhysicalSpace(uint32 LayerIndex) const { check(LayerIndex < Description.NumLayers); return PhysicalSpace[LayerIndex]; }

@@ -135,7 +135,11 @@ struct FVirtualTextureBuiltData
 	{
 		check(vLevel < NumMips);
 		const uint32 TileIndex = TileIndexPerMip[vLevel] + vAddress * NumLayers;
-		check(TileIndex < TileIndexPerMip[vLevel + 1]);
+		if (TileIndex >= TileIndexPerMip[vLevel + 1])
+		{
+			// vAddress is out of bounds for this texture/mip level
+			return ~0u;
+		}
 		return TileIndex;
 	}
 

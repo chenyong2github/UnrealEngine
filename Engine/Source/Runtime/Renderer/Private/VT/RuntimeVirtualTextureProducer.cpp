@@ -41,8 +41,8 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 
 		const uint32 X = FMath::ReverseMortonCode2(Entry.vAddress);
 		const uint32 Y = FMath::ReverseMortonCode2(Entry.vAddress >> 1);
-		const uint32 DivisorX = Desc.WidthInTiles >> Entry.vLevel;
-		const uint32 DivisorY = Desc.HeightInTiles >> Entry.vLevel;
+		const uint32 DivisorX = Desc.BlockWidthInTiles >> Entry.vLevel;
+		const uint32 DivisorY = Desc.BlockHeightInTiles >> Entry.vLevel;
 
 		const FVector2D UV((float)X / (float)DivisorX, (float)Y / (float)DivisorY);
 		const FVector2D UVSize(1.f / (float)DivisorX, 1.f / (float)DivisorY);

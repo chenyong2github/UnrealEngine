@@ -70,6 +70,13 @@ uint32 FUploadingVirtualTexture::GetLocalMipBias(uint8 vLevel, uint32 vAddress) 
 	while (vLevel < NumMips)
 	{
 		const uint32 TileIndex = Data->GetTileIndex(vLevel, vAddress);
+		if (TileIndex == ~0u)
+		{
+			// vAddress is out-of-bounds for the given producer, this is a 
+			NumNonResidentLevels += (NumMips - vLevel);
+			break;
+		}
+
 		const int32 ChunkIndex = Data->GetChunkIndex(TileIndex);
 		if (ChunkIndex >= 0)
 		{

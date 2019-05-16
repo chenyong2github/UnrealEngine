@@ -17,12 +17,15 @@ class FTexturePageLocks;
 class FAllocatedVirtualTexture final : public IAllocatedVirtualTexture
 {
 public:
-	FAllocatedVirtualTexture(uint32 InFrame,
+	FAllocatedVirtualTexture(FVirtualTextureSystem* InSystem,
+		uint32 InFrame,
 		const FAllocatedVTDescription& InDesc,
 		FVirtualTextureSpace* InSpace,
 		FVirtualTextureProducer* const* InProducers,
-		uint32 InWidthInTiles,
-		uint32 InHeightInTiles,
+		uint32 InBlockWidthInTiles,
+		uint32 InBlockHeightInTiles,
+		uint32 InWidthInBlocks,
+		uint32 InHeightInBlocks,
 		uint32 InDepthInTiles);
 
 	virtual ~FAllocatedVirtualTexture();
@@ -34,6 +37,8 @@ public:
 	virtual FRHITexture* GetPhysicalTexture(uint32 InLayerIndex) const override;
 	virtual FRHIShaderResourceView* GetPhysicalTextureView(uint32 InLayerIndex, bool bSRGB) const override;
 	virtual uint32 GetPhysicalTextureSize(uint32 InLayerIndex) const override;
+	virtual void GetPackedPageTableUniform(FUintVector4* OutUniform, bool bApplyBlockScale) const override;
+	virtual void GetPackedUniform(FUintVector4* OutUniform, uint32 LayerIndex) const override;
 	virtual void Destroy(FVirtualTextureSystem* System) override;
 	// end IAllocatedVirtualTexture
 

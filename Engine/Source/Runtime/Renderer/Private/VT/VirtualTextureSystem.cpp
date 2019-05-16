@@ -326,8 +326,10 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 		return AllocatedVT;
 	}
 
-	uint32 WidthInTiles = 0u;
-	uint32 HeightInTiles = 0u;
+	uint32 BlockWidthInTiles = 0u;
+	uint32 BlockHeightInTiles = 0u;
+	uint32 WidthInBlocks = 0u;
+	uint32 HeightInBlocks = 0u;
 	uint32 DepthInTiles = 0u;
 	bool bSupport16BitPageTable = true;
 	FVirtualTextureProducer* ProducerForLayer[VIRTUALTEXTURE_SPACE_MAXLAYERS] = { nullptr };
@@ -338,9 +340,13 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 		ProducerForLayer[LayerIndex] = Producer;
 		if (Producer)
 		{
-			WidthInTiles = FMath::Max(WidthInTiles, Producer->GetWidthInTiles());
-			HeightInTiles = FMath::Max(HeightInTiles, Producer->GetHeightInTiles());
-			DepthInTiles = FMath::Max(DepthInTiles, Producer->GetDepthInTiles());
+			const FVTProducerDescription& ProducerDesc = Producer->GetDescription();
+			BlockWidthInTiles = FMath::Max(BlockWidthInTiles, ProducerDesc.BlockWidthInTiles);
+			BlockHeightInTiles = FMath::Max(BlockHeightInTiles, ProducerDesc.BlockHeightInTiles);
+			WidthInBlocks = FMath::Max<uint32>(WidthInBlocks, ProducerDesc.WidthInBlocks);
+			HeightInBlocks = FMath::Max<uint32>(HeightInBlocks, ProducerDesc.HeightInBlocks);
+			DepthInTiles = FMath::Max(DepthInTiles, ProducerDesc.DepthInTiles);
+
 			FVirtualTexturePhysicalSpace* PhysicalSpace = Producer->GetPhysicalSpace(Desc.LocalLayerToProduce[LayerIndex]);
 			if (!PhysicalSpace->DoesSupport16BitPageTable())
 			{
@@ -350,8 +356,10 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 		}
 	}
 
-	check(WidthInTiles > 0u);
-	check(HeightInTiles > 0u);
+	check(BlockWidthInTiles > 0u);
+	check(BlockHeightInTiles > 0u);
+	check(WidthInBlocks > 0u);
+	check(HeightInBlocks > 0u);
 	check(DepthInTiles > 0u);
 
 	FVTSpaceDescription SpaceDesc;
@@ -361,9 +369,9 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 	SpaceDesc.TileBorderSize = Desc.TileBorderSize;
 	SpaceDesc.bPrivateSpace = Desc.bPrivateSpace;
 	SpaceDesc.Format = bSupport16BitPageTable ? EVTPageTableFormat::UInt16 : EVTPageTableFormat::UInt32;
-	FVirtualTextureSpace* Space = AcquireSpace(SpaceDesc, FMath::Max(WidthInTiles, HeightInTiles));
+	FVirtualTextureSpace* Space = AcquireSpace(SpaceDesc, FMath::Max(BlockWidthInTiles * WidthInBlocks, BlockHeightInTiles * HeightInBlocks));
 
-	AllocatedVT = new FAllocatedVirtualTexture(Frame, Desc, Space, ProducerForLayer, WidthInTiles, HeightInTiles, DepthInTiles);
+	AllocatedVT = new FAllocatedVirtualTexture(this, Frame, Desc, Space, ProducerForLayer, BlockWidthInTiles, BlockHeightInTiles, WidthInBlocks, HeightInBlocks, DepthInTiles);
 	if (bAnyLayerProducerWantsPersistentHighestMip)
 	{
 		AllocatedVTsToMap.Add(AllocatedVT);
@@ -419,6 +427,11 @@ FVirtualTextureProducerHandle FVirtualTextureSystem::RegisterProducer(const FVTP
 void FVirtualTextureSystem::ReleaseProducer(const FVirtualTextureProducerHandle& Handle)
 {
 	Producers.ReleaseProducer(this, Handle);
+}
+
+FVirtualTextureProducer* FVirtualTextureSystem::FindProducer(const FVirtualTextureProducerHandle& Handle)
+{
+	return Producers.FindProducer(Handle);
 }
 
 FVirtualTextureSpace* FVirtualTextureSystem::AcquireSpace(const FVTSpaceDescription& InDesc, uint32 InSizeNeeded)
@@ -501,30 +514,51 @@ void FVirtualTextureSystem::ReleasePhysicalSpace(FVirtualTexturePhysicalSpace* S
 void FVirtualTextureSystem::LockTile(const FVirtualTextureLocalTile& Tile)
 {
 	check(IsInRenderingThread());
-	TilesToLock.Add(Tile);
+
+	if (TileLocks.Lock(Tile))
+	{
+		checkSlow(!TilesToLock.Contains(Tile));
+		TilesToLock.Add(Tile);
+	}
 }
 
-void FVirtualTextureSystem::UnlockTile(const FVirtualTextureLocalTile& Tile)
+static void UnlockTileInternal(const FVirtualTextureProducerHandle& ProducerHandle, const FVirtualTextureProducer* Producer, const FVirtualTextureLocalTile& Tile, uint32 Frame)
+{
+	for (uint32 LocalLayerIndex = 0u; LocalLayerIndex < Producer->GetNumLayers(); ++LocalLayerIndex)
+	{
+		FVirtualTexturePhysicalSpace* PhysicalSpace = Producer->GetPhysicalSpace(LocalLayerIndex);
+		FTexturePagePool& PagePool = PhysicalSpace->GetPagePool();
+		const uint32 pAddress = PagePool.FindPageAddress(ProducerHandle, LocalLayerIndex, Tile.Local_vAddress, Tile.Local_vLevel);
+		if (pAddress != ~0u)
+		{
+			PagePool.Unlock(Frame, pAddress);
+		}
+	}
+}
+
+void FVirtualTextureSystem::UnlockTile(const FVirtualTextureLocalTile& Tile, const FVirtualTextureProducer* Producer)
 {
 	check(IsInRenderingThread());
 
-	// Tile is no longer locked
-	TilesToLock.Remove(Tile);
-
-	const FVirtualTextureProducerHandle ProducerHandle = Tile.GetProducerHandle();
-	const FVirtualTextureProducer* Producer = Producers.FindProducer(ProducerHandle);
-	if (Producer)
+	if (TileLocks.Unlock(Tile))
 	{
-		for (uint32 LocalLayerIndex = 0u; LocalLayerIndex < Producer->GetNumLayers(); ++LocalLayerIndex)
-		{
-			FVirtualTexturePhysicalSpace* PhysicalSpace = Producer->GetPhysicalSpace(LocalLayerIndex);
-			FTexturePagePool& PagePool = PhysicalSpace->GetPagePool();
-			const uint32 pAddress = PagePool.FindPageAddress(ProducerHandle, LocalLayerIndex, Tile.Local_vAddress, Tile.Local_vLevel);
-			if (pAddress != ~0u)
-			{
-				PagePool.Unlock(Frame, pAddress);
-			}
-		}
+		// Tile is no longer locked
+		TilesToLock.Remove(Tile);
+		UnlockTileInternal(Tile.GetProducerHandle(), Producer, Tile, Frame);
+	}
+}
+
+void FVirtualTextureSystem::ForceUnlockAllTiles(const FVirtualTextureProducerHandle& ProducerHandle, const FVirtualTextureProducer* Producer)
+{
+	check(IsInRenderingThread());
+
+	TArray<FVirtualTextureLocalTile> TilesToUnlock;
+	TileLocks.ForceUnlockAll(ProducerHandle, TilesToUnlock);
+
+	for (const FVirtualTextureLocalTile& Tile : TilesToUnlock)
+	{
+		TilesToLock.Remove(Tile);
+		UnlockTileInternal(ProducerHandle, Producer, Tile, Frame);
 	}
 }
 
@@ -805,6 +839,7 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 		{
 			const FVirtualTextureProducerHandle ProducerHandle = Tile.GetProducerHandle();
 			const FVirtualTextureProducer* Producer = Producers.FindProducer(ProducerHandle);
+			checkSlow(TileLocks.IsLocked(Tile));
 			if (Producer)
 			{
 				uint8 LocalLayerMaskToLoad = 0u;
@@ -1153,6 +1188,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 				continue;
 			}
 
+			const uint32 MaxLevel = FMath::Min(Producer->GetMaxLevel(), AllocatedVT->GetMaxLevel());
 			const uint32 ProducerMipBias = AllocatedVT->GetUniqueProducerMipBias(ProducerIndex);
 			uint32 Mapping_vLevel = FMath::Max(vLevel, ProducerMipBias);
 
@@ -1163,16 +1199,25 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 			// Local_vLevel is the level within the producer that we want to allocate/map
 			// here we subtract ProducerMipBias (clamped to ensure we don't fall below 0),
 			// which effectively matches more detailed mips of lower resolution producers with less detailed mips of higher resolution producers
-			uint8 Local_vLevel = vLevel - FMath::Min(vLevel, ProducerMipBias);
+			uint32 Local_vLevel = vLevel - FMath::Min(vLevel, ProducerMipBias);
+
+			// Wrap Local_vAddress for the given producer
+			// For square textures, this could simply be (Local_vAddress % NumTilesInMip), but that doesn't work for non-square
+			// Possible there is a more clever approach to take here
+			{
+				const uint32 ProducerMipWidthInTiles = FMath::Max(Producer->GetWidthInTiles() >> Local_vLevel, 1u);
+				const uint32 ProducerMipHeightInTiles = FMath::Max(Producer->GetWidthInTiles() >> Local_vLevel, 1u);
+				uint32 Local_vTileX = FMath::ReverseMortonCode2(Local_vAddress);
+				uint32 Local_vTileY = FMath::ReverseMortonCode2(Local_vAddress >> 1);
+				Local_vTileX &= (ProducerMipWidthInTiles - 1u);
+				Local_vTileY &= (ProducerMipHeightInTiles - 1u);
+				Local_vAddress = FMath::MortonCode2(Local_vTileX) | (FMath::MortonCode2(Local_vTileY) << 1);
+			}
 
 			const uint32 LocalMipBias = Producer->GetVirtualTexture()->GetLocalMipBias(Local_vLevel, Local_vAddress);
 			if (LocalMipBias > 0u)
 			{
 				Local_vLevel += LocalMipBias;
-				if (Local_vLevel > Producer->GetMaxLevel())
-				{
-					continue;
-				}
 				Local_vAddress >>= (LocalMipBias * vDimensions);
 				Mapping_vLevel = FMath::Max(vLevel, LocalMipBias + ProducerMipBias);
 			}
@@ -1191,15 +1236,15 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 				const FTexturePagePool& RESTRICT PagePool = PhysicalSpace->GetPagePool();
 
 				// Find the highest resolution tile that's currently loaded
-				const uint32 pAddress = PagePool.FindNearestPageAddress(ProducerHandle, LocalLayerIndex, Local_vAddress, Local_vLevel, Producer->GetMaxLevel());
-				uint32 AllocatedLocal_vLevel = Producer->GetMaxLevel() + 1u;
+				const uint32 pAddress = PagePool.FindNearestPageAddress(ProducerHandle, LocalLayerIndex, Local_vAddress, Local_vLevel, MaxLevel);
+				uint32 AllocatedLocal_vLevel = MaxLevel + 1u;
 				if (pAddress != ~0u)
 				{
 					AllocatedLocal_vLevel = PagePool.GetLocalLevelForAddress(pAddress);
 					check(AllocatedLocal_vLevel >= Local_vLevel);
 
 					const uint32 Allocated_vLevel = AllocatedLocal_vLevel + ProducerMipBias;
-					check(Allocated_vLevel <= AllocatedVT->GetMaxLevel());
+					ensure(Allocated_vLevel <= AllocatedVT->GetMaxLevel());
 
 					const uint32 AllocatedMapping_vLevel = FMath::Max(Allocated_vLevel, ProducerMipBias);
 					const uint32 Allocated_vAddress = vAddress & (0xffffffff << (Allocated_vLevel * vDimensions));
@@ -1302,7 +1347,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 					if (LoadRequestIndex != 0xffff)
 					{
 						const uint32 Prefetch_vLevel = PrefetchLocal_vLevel + ProducerMipBias;
-						check(Prefetch_vLevel <= AllocatedVT->GetMaxLevel());
+						ensure(Prefetch_vLevel <= AllocatedVT->GetMaxLevel());
 						const uint32 PrefetchMapping_vLevel = FMath::Max(Prefetch_vLevel, ProducerMipBias);
 						const uint32 Prefetch_vAddress = vAddress & (0xffffffff << (Prefetch_vLevel * vDimensions));
 						for (uint32 LoadLayerIndex = 0u; LoadLayerIndex < NumLayersToLoad; ++LoadLayerIndex)
@@ -1321,7 +1366,6 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 				}
 			}
 
-			// it's possible that 'LocalLayerMaskToLoad' is now 0, if all the required pages were already resident and simply needed to be mapped
 			if (LocalLayerMaskToLoad != 0u)
 			{
 				const uint16 LoadRequestIndex = RequestList->AddLoadRequest(FVirtualTextureLocalTile(ProducerHandle, Local_vAddress, Local_vLevel), LocalLayerMaskToLoad, PageCount);
@@ -1631,8 +1675,6 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 		{
 			const FAllocatedVirtualTexture* AllocatedVT = AllocatedVTsToMap[Index];
 			const uint32 vDimensions = AllocatedVT->GetDimensions();
-			const uint32 WidthInTiles = AllocatedVT->GetWidthInTiles();
-			const uint32 HeightInTiles = AllocatedVT->GetHeightInTiles();
 			const uint32 BaseTileX = FMath::ReverseMortonCode2(AllocatedVT->GetVirtualAddress());
 			const uint32 BaseTileY = FMath::ReverseMortonCode2(AllocatedVT->GetVirtualAddress() >> 1);
 			FVirtualTextureSpace* Space = AllocatedVT->GetSpace();
@@ -1645,12 +1687,16 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 				const uint32 LocalLayerIndex = AllocatedVT->GetLocalLayerToProduce(LayerIndex);
 				const FVirtualTextureProducerHandle ProducerHandle = AllocatedVT->GetUniqueProducerHandle(ProducerIndex);
 				const FVirtualTextureProducer* Producer = Producers.FindProducer(ProducerHandle);
+				const uint32 WidthInTiles = Producer->GetWidthInTiles();
+				const uint32 HeightInTiles = Producer->GetHeightInTiles();
+				const uint32 MaxLevel = FMath::Min(Producer->GetMaxLevel(), AllocatedVT->GetMaxLevel());
+
 				FVirtualTexturePhysicalSpace* PhysicalSpace = AllocatedVT->GetPhysicalSpace(LayerIndex);
 				FTexturePagePool& PagePool = PhysicalSpace->GetPagePool();
 				FTexturePageMap& PageMap = Space->GetPageMap(LayerIndex);
 				
 				bool bIsLayerFullyMapped = false;
-				for (uint32 Local_vLevel = 0u; Local_vLevel <= Producer->GetMaxLevel(); ++Local_vLevel)
+				for (uint32 Local_vLevel = 0u; Local_vLevel <= MaxLevel; ++Local_vLevel)
 				{
 					const uint32 vLevel = Local_vLevel + ProducerMipBias;
 					const uint32 LevelWidthInTiles = FMath::Max(WidthInTiles >> vLevel, 1u);

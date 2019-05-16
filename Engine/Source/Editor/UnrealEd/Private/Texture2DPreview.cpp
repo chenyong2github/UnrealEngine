@@ -83,8 +83,9 @@ public:
 
 			FUintVector4 PageTableUniform[2];
 			FUintVector4 Uniform;
-			VirtualTextureValue->GetPackedPageTableUniform(PageTableUniform);
-			VirtualTextureValue->GetPackedPhysicalTextureUniform(&Uniform, (uint32)LayerIndex);
+
+			AllocatedVT->GetPackedPageTableUniform(PageTableUniform, false);
+			AllocatedVT->GetPackedUniform(&Uniform, (uint32)LayerIndex);
 
 			SetShaderValueArray(RHICmdList, GetPixelShader(), VTPackedPageTableUniform, PageTableUniform, ARRAY_COUNT(PageTableUniform));
 			SetShaderValue(RHICmdList, GetPixelShader(), VTPackedUniform, Uniform);

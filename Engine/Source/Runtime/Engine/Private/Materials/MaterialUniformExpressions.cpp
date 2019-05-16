@@ -16,7 +16,6 @@
 #include "RenderCore.h"
 #include "VirtualTexturing.h"
 #include "VT/RuntimeVirtualTexture.h"
-#include "VT/VirtualTextureUtility.h"
 
 static TAutoConsoleVariable<int32> CVarSupportMaterialLayers(
 	TEXT("r.SupportMaterialLayers"),
@@ -451,7 +450,15 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 		{
 			const IAllocatedVirtualTexture* AllocatedVT = UniformExpressionCache.AllocatedVTs[VTStackIndex];
 			FUintVector4* VTPackedPageTableUniform = (FUintVector4*)BufferCursor;
-			VTGetPackedPageTableUniform(VTPackedPageTableUniform, AllocatedVT);
+			if (AllocatedVT)
+			{
+				AllocatedVT->GetPackedPageTableUniform(VTPackedPageTableUniform, true);
+			}
+			else
+			{
+				VTPackedPageTableUniform[0] = FUintVector4(ForceInitToZero);
+				VTPackedPageTableUniform[1] = FUintVector4(ForceInitToZero);
+			}
 			BufferCursor = VTPackedPageTableUniform + 2;
 		}
 		
@@ -472,8 +479,10 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				{
 					const FVTPackedStackAndLayerIndex StackAndLayerIndex = GetVTStackAndLayerIndex(ExpressionIndex);
 					const IAllocatedVirtualTexture* AllocatedVT = UniformExpressionCache.AllocatedVTs[StackAndLayerIndex.StackIndex];
-					VTGetPackedUniform(VTPackedUniform, AllocatedVT, StackAndLayerIndex.LayerIndex);
-
+					if (AllocatedVT)
+					{
+						AllocatedVT->GetPackedUniform(VTPackedUniform, StackAndLayerIndex.LayerIndex);
+					}
 					bFoundTexture = true;
 				}
 			}
@@ -487,7 +496,10 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				{
 					int32 LayerIndex = UniformVirtualTextureExpressions[ExpressionIndex]->GetLayerIndex();
 					IAllocatedVirtualTexture const* AllocatedVT = Texture->GetAllocatedVirtualTexture();
-					VTGetPackedUniform(VTPackedUniform, AllocatedVT, LayerIndex);
+					if (AllocatedVT)
+					{
+						AllocatedVT->GetPackedUniform(VTPackedUniform, LayerIndex);
+					}
 				}
 			}
 		}

@@ -4279,24 +4279,34 @@ protected:
 
 			TextureAddress AddressU = TA_Wrap;
 			TextureAddress AddressV = TA_Wrap;
-			switch (SamplerSource)
+			if (Tex2D && Tex2D->Source.GetNumBlocks() > 1)
 			{
-			case SSM_FromTextureAsset:
-				check(Tex2D);
-				AddressU = Tex2D->AddressX;
-				AddressV = Tex2D->AddressY;
-				break;
-			case SSM_Wrap_WorldGroupSettings:
+				// UDIM (multi-block) texture are forced to use wrap address mode
+				// This is important for supporting VT stacks made from UDIMs with differing number of blocks, as this requires wrapping vAddress for certain layers
 				AddressU = TA_Wrap;
 				AddressV = TA_Wrap;
-				break;
-			case SSM_Clamp_WorldGroupSettings:
-				AddressU = TA_Clamp;
-				AddressV = TA_Clamp;
-				break;
-			default:
-				checkNoEntry();
-				break;
+			}
+			else
+			{
+				switch (SamplerSource)
+				{
+				case SSM_FromTextureAsset:
+					check(Tex2D);
+					AddressU = Tex2D->AddressX;
+					AddressV = Tex2D->AddressY;
+					break;
+				case SSM_Wrap_WorldGroupSettings:
+					AddressU = TA_Wrap;
+					AddressV = TA_Wrap;
+					break;
+				case SSM_Clamp_WorldGroupSettings:
+					AddressU = TA_Clamp;
+					AddressV = TA_Clamp;
+					break;
+				default:
+					checkNoEntry();
+					break;
+				}
 			}
 
 			VTLayerIndex = MaterialCompilationOutput.UniformExpressionSet.UniformVirtualTextureExpressions[VirtualTextureIndex]->GetLayerIndex();
@@ -4312,19 +4322,11 @@ protected:
 				// This also means that any texture parameters set in material instances for VTs must match the aspect ratio of the texture in the parent material
 				// (Otherwise could potentially break stacks)
 				check(Tex2D);
-				const float TextureAspectRatio = (float)Tex2D->GetSizeX() / (float)Tex2D->GetSizeY();
 
-				const FIntPoint SizeInBlocks = Tex2D->Source.GetSizeInBlocks();
-				if (SizeInBlocks.X > 1 || SizeInBlocks.Y > 1)
-				{
-					// Transform the UVs to UDIM space if needed
-					// This will bake the proper UDIM dimensions into the material shader, which means these dimensions must match for any textures set in material instances
-					// This doesn't create any additional restrictions however, since it's also a requirement that UDIM dimensions must match for all layers of a VT stack
-					// That means that if we let overridden textures change UDIM dimensions, that could potentially break any stacks that are already baked into material
-					const float UVScaleX = (SizeInBlocks.X == 0) ? 1.0f : (1.0f / (float)SizeInBlocks.X);
-					const float UVScaleY = (SizeInBlocks.Y == 0) ? 1.0f : (1.0f / (float)SizeInBlocks.Y);
-					CoordinateIndex = Mul(CoordinateIndex, Constant2(UVScaleX, UVScaleY));
-				}
+				// Using Source size because we care about the aspect ratio of each block (each block of multi-block texture must have same aspect ratio)
+				// We can still combine multi-block textures of different block aspect ratios, as long as each block has the same ratio
+				// This is because we only need to overlay VT pages from within a given block
+				const float TextureAspectRatio = (float)Tex2D->Source.GetSizeX() / (float)Tex2D->Source.GetSizeY();
 
 				// Create a page table sample for each new set of sample parameters
 				VTStackIndex = AcquireVTStackIndex(MipValueMode, AddressU, AddressV, TextureAspectRatio, CoordinateIndex, MipValue0Index, MipValue1Index, INDEX_NONE);

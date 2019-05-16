@@ -81,10 +81,12 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 	OutDesc.Dimensions = 2;
 	OutDesc.TileSize = GetTileSize();
 	OutDesc.TileBorderSize = GetTileBorderSize();
-	OutDesc.WidthInTiles = GetWidth() / GetTileSize();
-	OutDesc.HeightInTiles = GetHeight() / GetTileSize();
-	OutDesc.MaxLevel = FMath::Max(FMath::CeilLogTwo(FMath::Max(OutDesc.WidthInTiles, OutDesc.HeightInTiles)) - RemoveLowMips, 1u);
+	OutDesc.BlockWidthInTiles = GetWidth() / GetTileSize();
+	OutDesc.BlockHeightInTiles = GetHeight() / GetTileSize();
+	OutDesc.MaxLevel = FMath::Max(FMath::CeilLogTwo(FMath::Max(OutDesc.BlockWidthInTiles, OutDesc.BlockHeightInTiles)) - RemoveLowMips, 1u);
 	OutDesc.DepthInTiles = 1;
+	OutDesc.WidthInBlocks = 1;
+	OutDesc.HeightInBlocks = 1;
 
 	switch (MaterialType)
 	{

@@ -8,17 +8,7 @@ void FVirtualTextureProducer::Release(FVirtualTextureSystem* System, const FVirt
 {
 	if (Description.bPersistentHighestMip)
 	{
-		const uint32 RootWidthInTiles = FMath::Max(Description.WidthInTiles >> Description.MaxLevel, 1u);
-		const uint32 RootHeightInTiles = FMath::Max(Description.HeightInTiles >> Description.MaxLevel, 1u);
-		for (uint32 TileY = 0u; TileY < RootHeightInTiles; ++TileY)
-		{
-			for (uint32 TileX = 0u; TileX < RootWidthInTiles; ++TileX)
-			{
-				const uint32 Local_vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
-				const FVirtualTextureLocalTile TileToUnlock(HandleToSelf, Local_vAddress, Description.MaxLevel);
-				System->UnlockTile(TileToUnlock);
-			}
-		}
+		System->ForceUnlockAllTiles(HandleToSelf, this);
 	}
 
 	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumLayers; ++LayerIndex)
@@ -42,7 +32,11 @@ FVirtualTextureProducerCollection::FVirtualTextureProducerCollection()
 FVirtualTextureProducerHandle FVirtualTextureProducerCollection::RegisterProducer(FVirtualTextureSystem* System, const FVTProducerDescription& InDesc, IVirtualTexture* InProducer)
 {
 	check(IsInRenderingThread());
-	check(InDesc.MaxLevel <= FMath::CeilLogTwo(FMath::Max(InDesc.WidthInTiles, InDesc.HeightInTiles)));
+	const uint32 ProducerWidth = InDesc.BlockWidthInTiles * InDesc.WidthInBlocks * InDesc.TileSize;
+	const uint32 ProducerHeight = InDesc.BlockHeightInTiles * InDesc.HeightInBlocks * InDesc.TileSize;
+	check(ProducerWidth > 0u);
+	check(ProducerHeight > 0u);
+	check(InDesc.MaxLevel <= FMath::CeilLogTwo(FMath::Max(ProducerWidth, ProducerHeight)));
 	check(InProducer);
 
 	const uint32 Index = AcquireEntry();
@@ -63,23 +57,6 @@ FVirtualTextureProducerHandle FVirtualTextureProducerCollection::RegisterProduce
 	}
 
 	const FVirtualTextureProducerHandle Handle(Index, Entry.Magic);
-
-	if (InDesc.bPersistentHighestMip)
-	{
-		const uint32 MaxLevel = InDesc.MaxLevel;
-		const uint32 RootWidthInTiles = FMath::Max(InDesc.WidthInTiles >> MaxLevel, 1u);
-		const uint32 RootHeightInTiles = FMath::Max(InDesc.HeightInTiles >> MaxLevel, 1u);
-		for (uint32 TileY = 0u; TileY < RootHeightInTiles; ++TileY)
-		{
-			for (uint32 TileX = 0u; TileX < RootWidthInTiles; ++TileX)
-			{
-				const uint32 Local_vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
-				const FVirtualTextureLocalTile TileToLock(Handle, Local_vAddress, MaxLevel);
-				System->LockTile(TileToLock);
-			}
-		}
-	}
-
 	return Handle;
 }
 

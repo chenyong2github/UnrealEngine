@@ -7,6 +7,7 @@
 #include "RendererInterface.h"
 #include "Templates/UniquePtr.h"
 #include "VT/VirtualTextureProducer.h"
+#include "VT/TexturePageLocks.h"
 #include "VirtualTexturing.h"
 
 class FAllocatedVirtualTexture;
@@ -42,6 +43,7 @@ public:
 
 	FVirtualTextureProducerHandle RegisterProducer(const FVTProducerDescription& InDesc, IVirtualTexture* InProducer);
 	void ReleaseProducer(const FVirtualTextureProducerHandle& Handle);
+	FVirtualTextureProducer* FindProducer(const FVirtualTextureProducerHandle& Handle);
 
 	FVirtualTextureSpace* AcquireSpace(const FVTSpaceDescription& InDesc, uint32 InSizeNeeded);
 	void ReleaseSpace(FVirtualTextureSpace* Space);
@@ -53,7 +55,8 @@ public:
 	FVirtualTexturePhysicalSpace* GetPhysicalSpace(uint16 ID) const { return PhysicalSpaces[ID].Get(); }
 
 	void LockTile(const FVirtualTextureLocalTile& Tile);
-	void UnlockTile(const FVirtualTextureLocalTile& Tile);
+	void UnlockTile(const FVirtualTextureLocalTile& Tile, const FVirtualTextureProducer* Producer);
+	void ForceUnlockAllTiles(const FVirtualTextureProducerHandle& ProducerHandle, const FVirtualTextureProducer* Producer);
 	void RequestTilesForRegion(const IAllocatedVirtualTexture* AllocatedVT, const FVector2D& InScreenSpaceSize, const FIntRect& InTextureRegion, int32 InMipLevel = -1);
 	void LoadPendingTiles(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);
 	void FlushCache();
@@ -108,6 +111,8 @@ private:
 	TArray<uint32> RequestedPackedTiles;
 
 	TArray<FVirtualTextureLocalTile> TilesToLock;
+	FTexturePageLocks TileLocks;
+
 	FCriticalSection ContinuousUpdateTilesToProduceCS;
 	TSet<FVirtualTextureLocalTile> ContinuousUpdateTilesToProduce;
 	TSet<FVirtualTextureLocalTile> MappedTilesToProduce;

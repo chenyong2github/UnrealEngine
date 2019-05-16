@@ -37,7 +37,6 @@
 
 #include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTexturePoolConfig.h"
-#include "VT/VirtualTextureUtility.h"
 
 #if WITH_EDITOR
 #include "Settings/EditorExperimentalSettings.h"
@@ -1830,19 +1829,20 @@ void FTexture2DResource::GetData( uint32 MipIndex, void* Dest, uint32 DestPitch 
 
 
 
-FVirtualTexture2DResource::FVirtualTexture2DResource(const UTexture2D* InOwner, FVirtualTextureBuiltData* InVTData, int32 SetFirstMipToUse)
+FVirtualTexture2DResource::FVirtualTexture2DResource(const UTexture2D* InOwner, FVirtualTextureBuiltData* InVTData, int32 InFirstMipToUse)
 	: AllocatedVT(nullptr)
 	, VTData(InVTData)
 	, TextureOwner(InOwner)
 {
 	check(InOwner);
 	check(InVTData);
-	FirstMipToUse = FMath::Min((int32)VTData->GetNumMips() - 1, SetFirstMipToUse);
-	if (InOwner)
-	{
-		// InOwner may be NULL in the case of virtual lightmap
-		bSRGB = InOwner->SRGB;
-	}
+
+	// Don't allow input mip bias to drop size below a single tile
+	const uint32 SizeInTiles = FMath::Max(VTData->GetWidthInTiles(), VTData->GetHeightInTiles());
+	const uint32 MaxMip = FMath::CeilLogTwo(SizeInTiles);
+	FirstMipToUse = FMath::Min((int32)MaxMip, InFirstMipToUse);
+
+	bSRGB = InOwner->SRGB;
 }
 
 FVirtualTexture2DResource::~FVirtualTexture2DResource()
@@ -1882,8 +1882,10 @@ void FVirtualTexture2DResource::InitRHI()
 	ProducerDesc.Dimensions = 2;
 	ProducerDesc.TileSize = VTData->TileSize;
 	ProducerDesc.TileBorderSize = VTData->TileBorderSize;
-	ProducerDesc.WidthInTiles = GetNumTilesX();
-	ProducerDesc.HeightInTiles = GetNumTilesY();
+	ProducerDesc.BlockWidthInTiles = FMath::DivideAndRoundUp<uint32>(GetNumTilesX(), VTData->WidthInBlocks);
+	ProducerDesc.BlockHeightInTiles = FMath::DivideAndRoundUp<uint32>(GetNumTilesY(), VTData->HeightInBlocks);
+	ProducerDesc.WidthInBlocks = VTData->WidthInBlocks;
+	ProducerDesc.HeightInBlocks = VTData->HeightInBlocks;
 	ProducerDesc.DepthInTiles = 1u;
 	ProducerDesc.MaxLevel = MaxLevel;
 	ProducerDesc.NumLayers = VTData->GetNumLayers();
@@ -1915,12 +1917,21 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 			uint32 TileY;
 		};
 
+		// Choose a mip level for the thumbnail texture to ensure proper size
+		const uint32 MaxMipLevel = VTData->GetNumMips() - 1u;
+		uint32 MipLevel = 0;
+		uint32 MipWidth = GetSizeX();
+		uint32 MipHeight = GetSizeY();
+		while ((MipWidth > 128u && MipHeight > 128u) && MipLevel < MaxMipLevel)
+		{
+			++MipLevel;
+			MipWidth = FMath::Max(MipWidth / 2u, 1u);
+			MipHeight = FMath::Max(MipHeight / 2u, 1u);
+		}
+
 		const EPixelFormat PixelFormat = VTData->LayerTypes[0];
-		const uint32 MaxLevel = GetNumMips() - 1u; // Could potentially use a more detailed mip level here, if thumbnails are too low resolution
-		const uint32 MipWidth = FMath::Max(GetSizeX() >> MaxLevel, 1u);
-		const uint32 MipHeight = FMath::Max(GetSizeY() >> MaxLevel, 1u);
-		const uint32 MipWidthInTiles = FMath::Max(GetNumTilesX() >> MaxLevel, 1u);
-		const uint32 MipHeightInTiles = FMath::Max(GetNumTilesY() >> MaxLevel, 1u);
+		const uint32 MipWidthInTiles = FMath::Max(GetNumTilesX() >> MipLevel, 1u);
+		const uint32 MipHeightInTiles = FMath::Max(GetNumTilesY() >> MipLevel, 1u);
 		const uint32 TileSizeInPixels = GetTileSize();
 		const uint32 LayerMask = 1u; // FVirtualTexture2DResource should only have a single layer
 
@@ -1931,7 +1942,7 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 			for (uint32 TileX = 0u; TileX < MipWidthInTiles; ++TileX)
 			{
 				const uint32 vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
-				const FVTRequestPageResult RequestResult = InVirtualTexture->RequestPageData(ProducerHandle, LayerMask, MaxLevel, vAddress, EVTRequestPagePriority::High);
+				const FVTRequestPageResult RequestResult = InVirtualTexture->RequestPageData(ProducerHandle, LayerMask, MipLevel, vAddress, EVTRequestPagePriority::High);
 				// High priority request should always generate data
 				if (ensure(VTRequestPageStatus_HasData(RequestResult.Status)))
 				{
@@ -1962,7 +1973,7 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 			IVirtualTextureFinalizer* Finalizer = InVirtualTexture->ProducePageData(RHICommandList,
 				GMaxRHIFeatureLevel,
 				EVTProducePageFlags::SkipPageBorders, // don't want to produce page borders, since we're laying out tiles in a regular texture
-				ProducerHandle, LayerMask, MaxLevel, vAddress,
+				ProducerHandle, LayerMask, MipLevel, vAddress,
 				Page.Handle,
 				&TargetLayer);
 			if (Finalizer)
@@ -2041,12 +2052,12 @@ void FVirtualTexture2DResource::ReleaseAllocatedVT()
 
 uint32 FVirtualTexture2DResource::GetSizeX() const
 {
-	return VTData->Width >> FirstMipToUse;
+	return FMath::Max(VTData->Width >> FirstMipToUse, 1u);
 }
 
 uint32 FVirtualTexture2DResource::GetSizeY() const
 {
-	return VTData->Height >> FirstMipToUse;
+	return FMath::Max(VTData->Height >> FirstMipToUse, 1u);
 }
 
 EPixelFormat FVirtualTexture2DResource::GetFormat(uint32 LayerIndex) const
@@ -2061,12 +2072,12 @@ FIntPoint FVirtualTexture2DResource::GetSizeInBlocks() const
 
 uint32 FVirtualTexture2DResource::GetNumTilesX() const
 {
-	return VTData->GetWidthInTiles() >> FirstMipToUse;
+	return FMath::Max(VTData->GetWidthInTiles() >> FirstMipToUse, 1u);
 }
 
 uint32 FVirtualTexture2DResource::GetNumTilesY() const
 {
-	return VTData->GetHeightInTiles() >> FirstMipToUse;
+	return FMath::Max(VTData->GetHeightInTiles() >> FirstMipToUse, 1u);
 }
 
 uint32 FVirtualTexture2DResource::GetBorderSize() const
@@ -2097,19 +2108,6 @@ uint32 FVirtualTexture2DResource::GetAllocatedvAddress() const
 		return AllocatedVT->GetVirtualAddress();
 	}
 	return ~0;
-}
-
-void FVirtualTexture2DResource::GetPackedPageTableUniform(FUintVector4* Uniform) const
-{
-	check(AllocatedVT);
-	VTGetPackedPageTableUniform(Uniform, AllocatedVT);
-	
-}
-
-void FVirtualTexture2DResource::GetPackedPhysicalTextureUniform(FUintVector4* Uniform, uint32 LayerIndex) const
-{
-	check(AllocatedVT);
-	VTGetPackedUniform(Uniform, AllocatedVT, LayerIndex);
 }
 
 FIntPoint FVirtualTexture2DResource::GetPhysicalTextureSize(uint32 LayerIndex) const

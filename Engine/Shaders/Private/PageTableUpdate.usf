@@ -2,8 +2,6 @@
 
 #include "Common.ush"
 
-#define VIRTUALTEXTURE_MAX_PAGETABLE_SIZE 2048u
-
 uint PageTableSize;
 uint FirstUpdate;
 uint NumUpdates;
@@ -71,10 +69,12 @@ void PageTableUpdateVS(
 	Page |= pPage.x << 4;
 	Page |= pPage.y << 10;
 #else
-	// vPagesWideInLevel is an integer quantity, but we store as a half-float, since VT sampling code needs value as floating point
-	// we can extract half-float from lower 16 bits to a full float vgpr with a single instruction
-	const float vPagesWideInLevel = float(VIRTUALTEXTURE_MAX_PAGETABLE_SIZE >> vLevel);
-	uint Page = f32tof16(vPagesWideInLevel);
+	// We want to store the quantity vPagesWideInLevel (computed as VIRTUALTEXTURE_MAX_PAGETABLE_SIZE >> vLevel)
+	// We then want to scale by (1/VIRTUALTEXTURE_MAX_PAGETABLE_SIZE), to avoid the need to explicitly factor this into other uniforms
+	// So scale factor becomes (VIRTUALTEXTURE_MAX_PAGETABLE_SIZE >> vLevel) / VIRTUALTEXTURE_MAX_PAGETABLE_SIZE, which simplifies to (1 / exp2(vLevel)) or (1 / (1 << vLevel))
+	// Also nice that this avoids need to depend on specific value of VIRTUALTEXTURE_MAX_PAGETABLE_SIZE
+
+	uint Page = f32tof16(1.0f / float(1u << vLevel));
 	Page |= pPage.x << 16;
 	Page |= pPage.y << 24;
 #endif

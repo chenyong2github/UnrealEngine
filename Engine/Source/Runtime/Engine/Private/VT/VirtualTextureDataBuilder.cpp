@@ -333,7 +333,9 @@ void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, c
 	const uint32 SizeInTiles = FMath::DivideAndRoundUp<uint32>(Size, TileSize);
 	const uint32 BlockSize = FMath::Max(BlockSizeX, BlockSizeY);
 	const uint32 BlockSizeInTiles = FMath::DivideAndRoundUp<uint32>(BlockSize, TileSize);
-	OutData.NumMips = FMath::CeilLogTwo(SizeInTiles) + 1;
+
+	// Mip down to 1x1 pixels, but don't create more mips than can fit in max page table texture
+	OutData.NumMips = FMath::Min<uint32>(FMath::CeilLogTwo(Size) + 1, VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE);
 
 	BuildSourcePixels(InSourceData, InCompositeSourceData);
 
@@ -884,10 +886,17 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 			BlockData.SizeY = CompressedMips[0].SizeY;
 
 			const uint32 BlockSize = FMath::Max(BlockData.SizeX, BlockData.SizeY);
-			const uint32 BlockSizeInTiles = FMath::DivideAndRoundUp<uint32>(BlockSize, TileSize);
-			const uint32 MaxMipInBlock = FMath::CeilLogTwo(BlockSizeInTiles);
-
-			BlockData.NumMips = FMath::Min<int32>(CompressedMips.Num(), MaxMipInBlock + 1);
+			if (NumBlocks == 1u)
+			{
+				const uint32 MaxMipInBlock = FMath::CeilLogTwo(BlockSize);
+				BlockData.NumMips = FMath::Min<int32>(CompressedMips.Num(), MaxMipInBlock + 1);
+			}
+			else
+			{
+				const uint32 BlockSizeInTiles = FMath::DivideAndRoundUp<uint32>(BlockSize, TileSize);
+				const uint32 MaxMipInBlock = FMath::CeilLogTwo(BlockSizeInTiles);
+				BlockData.NumMips = FMath::Min<int32>(CompressedMips.Num(), MaxMipInBlock + 1);
+			}
 			BlockData.MipsPerLayer[LayerIndex].Reserve(BlockData.NumMips);
 			for (int32 MipIndex = 0; MipIndex < BlockData.NumMips; ++MipIndex)
 			{
@@ -920,7 +929,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 		const uint32 MipInputSizeX = FMath::RoundUpToPowerOfTwo(SizeInBlocksX * MipWidthInBlock);
 		const uint32 MipInputSizeY = FMath::RoundUpToPowerOfTwo(SizeInBlocksY * MipHeightInBlock);
 		const uint32 MipInputSize = FMath::Max(MipInputSizeX, MipInputSizeY);
-		const uint32 MipInputSizeInTiles = FMath::DivideAndRoundUp<uint32>(MipInputSize, TileSize);
+		//const uint32 MipInputSizeInTiles = FMath::DivideAndRoundUp<uint32>(MipInputSize, TileSize);
 
 		FTextureSourceBlockData& SourceMiptailBlock = SourceBlocks.AddDefaulted_GetRef();
 		SourceMiptailBlock.BlockX = 0;
@@ -929,7 +938,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 		SourceMiptailBlock.SizeInBlocksY = SizeInBlocksY;
 		SourceMiptailBlock.SizeX = FMath::Max(MipInputSizeX >> 1, 1u);
 		SourceMiptailBlock.SizeY = FMath::Max(MipInputSizeY >> 1, 1u);
-		SourceMiptailBlock.NumMips = FMath::CeilLogTwo(MipInputSizeInTiles); // Don't add 1, since 'MipInputSizeInTiles' is one mip larger
+		SourceMiptailBlock.NumMips = OutData.NumMips - MaxMipInBlock - 1;//   FMath::CeilLogTwo(MipInputSize); // Don't add 1, since 'MipInputSize' is one mip larger
 		SourceMiptailBlock.NumSlices = 1; // TODO?
 		SourceMiptailBlock.MipBias = MaxMipInBlock + 1;
 		SourceMiptailBlock.MipsPerLayer.AddDefaulted(NumLayers);
