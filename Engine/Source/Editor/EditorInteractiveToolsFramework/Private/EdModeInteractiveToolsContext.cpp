@@ -2,6 +2,7 @@
 
 
 #include "EdModeInteractiveToolsContext.h"
+#include "Editor.h"
 #include "EditorViewportClient.h"
 #include "EditorModeManager.h"
 #include "LevelEditorViewport.h"   // for GCurrentLevelEditingViewportClient
@@ -315,11 +316,23 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 {
 	UInteractiveToolsContext::Initialize(QueriesAPIIn, TransactionsAPIIn);
 
+	BeginPIEDelegateHandle = FEditorDelegates::BeginPIE.AddLambda([this](bool bSimulating)
+	{
+		TerminateActiveToolsOnPIEStart();
+	});
+	PreSaveWorldDelegateHandle = FEditorDelegates::PreSaveWorld.AddLambda([this](uint32 SaveFlags, UWorld* World)
+	{
+		TerminateActiveToolsOnSaveWorld();
+	});
+
 	bInvalidationPending = false;
 }
 
 void UEdModeInteractiveToolsContext::Shutdown()
 {
+	FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
+	FEditorDelegates::PreSaveWorld.Remove(PreSaveWorldDelegateHandle);
+
 	UInteractiveToolsContext::Shutdown();
 }
 
@@ -377,6 +390,42 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 
 	this->EditorMode = nullptr;
 }
+
+
+
+
+void UEdModeInteractiveToolsContext::TerminateActiveToolsOnPIEStart()
+{
+	if (ToolManager->HasActiveTool(EToolSide::Left))
+	{
+		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Left) ?
+			EToolShutdownType::Accept : EToolShutdownType::Cancel;
+		ToolManager->DeactivateTool(EToolSide::Left, ShutdownType);
+	}
+	if (ToolManager->HasActiveTool(EToolSide::Right))
+	{
+		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Right) ?
+			EToolShutdownType::Accept : EToolShutdownType::Cancel;
+		ToolManager->DeactivateTool(EToolSide::Right, ShutdownType);
+	}
+}
+void UEdModeInteractiveToolsContext::TerminateActiveToolsOnSaveWorld()
+{
+	if (ToolManager->HasActiveTool(EToolSide::Left))
+	{
+		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Left) ?
+			EToolShutdownType::Accept : EToolShutdownType::Cancel;
+		ToolManager->DeactivateTool(EToolSide::Left, ShutdownType);
+	}
+	if (ToolManager->HasActiveTool(EToolSide::Right))
+	{
+		EToolShutdownType ShutdownType = ToolManager->CanAcceptActiveTool(EToolSide::Right) ?
+			EToolShutdownType::Accept : EToolShutdownType::Cancel;
+		ToolManager->DeactivateTool(EToolSide::Right, ShutdownType);
+	}
+}
+
+
 
 
 

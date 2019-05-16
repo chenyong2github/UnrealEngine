@@ -25,6 +25,11 @@ public:
 	virtual void InitializeContextFromEdMode(FEdMode* EditorMode);
 	virtual void ShutdownContext();
 
+	// default behavior is to accept active tool
+	virtual void TerminateActiveToolsOnPIEStart();
+
+	// default behavior is to accept active tool
+	virtual void TerminateActiveToolsOnSaveWorld();
 
 	IToolsContextQueriesAPI* GetQueriesAPI() const { return QueriesAPI; }
 	IToolsContextTransactionsAPI* GetTransactionAPI() const { return TransactionAPI; }
@@ -62,6 +67,9 @@ public:
 
 protected:
 	FEdMode* EditorMode;
+
+	FDelegateHandle BeginPIEDelegateHandle;
+	FDelegateHandle PreSaveWorldDelegateHandle;
 
 	IToolsContextQueriesAPI* QueriesAPI;
 	IToolsContextTransactionsAPI* TransactionAPI;
