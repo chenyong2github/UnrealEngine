@@ -50,6 +50,11 @@ void FSlate3DRenderer::SetUseGammaCorrection(bool bUseGammaCorrection)
 	RenderTargetPolicy->SetUseGammaCorrection(bUseGammaCorrection);
 }
 
+void FSlate3DRenderer::SetApplyColorDeficiencyCorrection(bool bApplyColorCorrection)
+{
+	RenderTargetPolicy->SetApplyColorDeficiencyCorrection(bApplyColorCorrection);
+}
+
 FSlateDrawBuffer& FSlate3DRenderer::GetDrawBuffer()
 {
 	FreeBufferIndex = (FreeBufferIndex + 1) % NUM_DRAW_BUFFERS;
