@@ -41,6 +41,8 @@ public:
 	bool GetUseGammaCorrection() const { return bUseGammaSpace; }
 	void SetUseGammaCorrection(bool bInUseGammaSpace);
 
+	void SetApplyColorDeficiencyCorrection(bool bInApplyColorCorrection);
+
 	ISlate3DRenderer* GetSlateRenderer();
 
 	static UTextureRenderTarget2D* CreateTargetFor(FVector2D DrawSize, TextureFilter InFilter, bool bUseGammaCorrection);
