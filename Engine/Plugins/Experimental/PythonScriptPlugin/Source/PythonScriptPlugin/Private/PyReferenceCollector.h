@@ -44,6 +44,9 @@ public:
 	/** Purge any Python references to the given UObject instances */
 	void PurgeUnrealObjectReferences(const TArrayView<const UObject*>& InObjects, const bool bIncludeInnerObjects);
 
+	/** Purge any Python references to any Unreal types generated from or for Python */
+	void PurgeUnrealGeneratedTypes();
+
 	//~ FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& InCollector) override;
 
