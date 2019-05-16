@@ -157,13 +157,13 @@ var UE_JavascriptLibrary = {
         HEAPU8.set(byteArray, buffer);
 
         if (onload)
-          Runtime.dynCall('viiiii', onload, [ctx, buffer, byteArray.length, header_buffer, xhr.status]);
+          dynCall('viiiii', onload, [ctx, buffer, byteArray.length, header_buffer, xhr.status]);
         if (freeBuffer) // seems POST reqeusts keeps the buffer
           _free(buffer);
         _free(header_buffer);
       } else {
         if (onerror)
-          Runtime.dynCall('viii', onerror, [ctx, xhr.status, xhr.statusText]);
+          dynCall('viii', onerror, [ctx, xhr.status, xhr.statusText]);
       }
     });
 
@@ -172,13 +172,13 @@ var UE_JavascriptLibrary = {
       if ( xhr.responseURL == "" )
         console.log('ERROR: Cross-Origin Resource Sharing [CORS] check FAILED'); // common error that's not quite so clear during onerror callbacks
       if (onerror)
-        Runtime.dynCall('viii', onerror, [ctx, xhr.status, xhr.statusText]);
+        dynCall('viii', onerror, [ctx, xhr.status, xhr.statusText]);
     });
 
     // Onprogress event handler
     xhr.addEventListener('progress', function (e) {
       if (onprogress)
-        Runtime.dynCall('viii', onprogress, [ctx, e.loaded, e.lengthComputable || e.lengthComputable === undefined ? e.total : 0]);
+        dynCall('viii', onprogress, [ctx, e.loaded, e.lengthComputable || e.lengthComputable === undefined ? e.total : 0]);
     });
 
     // Ontimeout event handler
@@ -186,7 +186,7 @@ var UE_JavascriptLibrary = {
       if ( ! this.UE_fetch.timeout ) {
       console.log("Fetching " + this.UE_fetch.url + " timed out");
         if (onerror)
-          Runtime.dynCall('viii', onerror, [ctx, xhr.status, xhr.statusText]);
+          dynCall('viii', onerror, [ctx, xhr.status, xhr.statusText]);
         return;
       }
       this.UE_fetch.timeout--;
@@ -299,7 +299,7 @@ var UE_JavascriptLibrary = {
         var contexts = callbacks[0].ctx;
         for ( var y in contexts ) {
           try { // jic
-            Runtime.dynCall('vi', callbacks[x].callback, [contexts[y]]);
+            dynCall('vi', callbacks[x].callback, [contexts[y]]);
           } catch (e) {}
         }
       }
@@ -368,16 +368,16 @@ var UE_JavascriptLibrary = {
 
   UE_GSystemResolution: function( resX, resY ) {
     UE_JSlib.UE_GSystemResolution_ResX = function() {
-      return Runtime.dynCall('i', resX, []);
+      return dynCall('i', resX, []);
     };
     UE_JSlib.UE_GSystemResolution_ResY = function() {
-      return Runtime.dynCall('i', resY, []);
+      return dynCall('i', resY, []);
     };
   },
  
   UE_EngineRegisterCanvasResizeListener: function(listener) {
     UE_JSlib.UE_CanvasSizeChanged = function() {
-      Runtime.dynCall('v', listener);
+      dynCall('v', listener);
     }
   },
 

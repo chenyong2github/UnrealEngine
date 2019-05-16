@@ -159,8 +159,9 @@ namespace UnrealBuildTool
 
 			if (enableMultithreading)
 			{
-				Result += " -msse2 -s USE_PTHREADS=1";
-				Result += " -DEXPERIMENTAL_OPENGL_RHITHREAD=" + (bMultithreading_UseOffscreenCanvas ? "1" : "0");
+//				Result += " -msse2 -s USE_PTHREADS=1";
+				Result += " -s USE_PTHREADS=1";
+				Result += " -DEXPERIMENTAL_OPENGL_RHITHREAD=" + (bMultithreading_UseOffscreenCanvas ? "0" : "1");
 
 				// NOTE: use "emscripten native" video, keyboard, mouse
 			}
@@ -330,19 +331,14 @@ namespace UnrealBuildTool
 			// --------------------------------------------------
 			// emscripten memory
 
+			Result += " -s ALLOW_MEMORY_GROWTH=0";
+			Result += " -s TOTAL_MEMORY=512MB";
 			if (enableMultithreading)
 			{
-				Result += " -s ALLOW_MEMORY_GROWTH=0";
-				Result += " -s TOTAL_MEMORY=512MB";
-
 // NOTE: browsers needs to temporarly have some flags set:
 //  https://github.com/kripken/emscripten/wiki/Pthreads-with-WebAssembly
 //  https://kripken.github.io/emscripten-site/docs/porting/pthreads.html
 				Result += " -s PTHREAD_POOL_SIZE=4 -s PTHREAD_HINT_NUM_CORES=2";
-			}
-			else
-			{
-				Result += " -s ALLOW_MEMORY_GROWTH=1";
 			}
 
 
