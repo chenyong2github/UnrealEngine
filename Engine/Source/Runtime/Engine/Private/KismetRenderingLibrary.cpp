@@ -64,12 +64,12 @@ UTextureRenderTarget2D* UKismetRenderingLibrary::CreateRenderTarget2D(UObject* W
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 
-	if (Width > 0 && Height > 0 && World && FApp::CanEverRender())
+	if (Width > 0 && Height > 0 && World)
 	{
 		UTextureRenderTarget2D* NewRenderTarget2D = NewObject<UTextureRenderTarget2D>(WorldContextObject);
 		check(NewRenderTarget2D);
 		NewRenderTarget2D->RenderTargetFormat = Format;
-		NewRenderTarget2D->InitAutoFormat(Width, Height); 
+		NewRenderTarget2D->InitAutoFormat(Width, Height);
 		NewRenderTarget2D->UpdateResourceImmediate(true);
 
 		return NewRenderTarget2D; 
