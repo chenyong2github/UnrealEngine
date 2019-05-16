@@ -48,7 +48,6 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "LandscapeEditorCommands.h"
-#include "Settings/EditorExperimentalSettings.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.Layers"
 
