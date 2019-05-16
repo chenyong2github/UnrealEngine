@@ -61,8 +61,7 @@ public:
 		DebugChannelR(INDEX_NONE),
 		DebugChannelG(INDEX_NONE),
 		DebugChannelB(INDEX_NONE),
-		DataTexture(NULL),
-		LayerContributionTexture(NULL)
+		DataTexture(NULL)
 	{}
 
 	// Material used to render the tool.
@@ -88,9 +87,6 @@ public:
 
 	UPROPERTY(NonTransactional)
 	UTexture2D* DataTexture; // Data texture other than height/weight
-
-	UPROPERTY(NonTransactional)
-	UTexture2D* LayerContributionTexture; // Data texture used to represent layer contribution
 
 #if WITH_EDITOR
 	void UpdateDebugColorMaterial(const ULandscapeComponent* const Component);
@@ -300,29 +296,25 @@ struct FLandscapeLayerComponentData
 enum ELandscapeComponentUpdateFlag : uint32
 {
 	// Will call UpdateCollisionHeightData, UpdateCacheBounds, UpdateComponentToWorld on Component
-	Component_Update_Heightmap_Collision = 1 << 0,
+	Update_Heightmap_Collision = 1 << 0,
 	// Will call UdateCollisionLayerData on Component
-	Component_Update_Weightmap_Collision = 1 << 1,
+	Update_Weightmap_Collision = 1 << 1,
 	// Will call RecreateCollision on Component
-	Component_Update_Recreate_Collision = 1 << 2,
+	RecreateCollision = 1 << 2,
 	// Will update Component clients: Navigation data, Foliage, Grass, etc.
-	Component_Update_Client = 1 << 3,
-	// Will update Component clients while editing
-	Component_Update_Client_Editing = 1 << 4
+	ClientUpdate = 1 << 3
 };
 
 enum ELandscapeLayerUpdateMode : uint32
 { 
-	Update_Heightmap_All = 1 << 0,
-	Update_Heightmap_Editing = 1 << 1,
-	Update_Weightmap_All = 1 << 2,
-	Update_Weightmap_Editing = 1 << 3,
-	Update_All = Update_Weightmap_All | Update_Heightmap_All,
-	Update_All_Editing = Update_Weightmap_Editing | Update_Heightmap_Editing,
+	Heightmap_All = 1 << 0,
+	Heightmap_Editing = 1 << 1,
+	Weightmap_All = 1 << 2,
+	Weightmap_Editing = 1 << 3,
+	All = Weightmap_All | Heightmap_All,
+	All_Editing = Weightmap_Editing | Heightmap_Editing,
 	// In cases where we couldn't update the clients right away this flag will be set in RegenerateLayersContent
-	Update_Client_Deferred = 1 << 4,
-	// Update landscape component clients while editing
-	Update_Client_Editing = 1 << 5
+	DeferredClientUpdate = 1 << 4,
 };
 
 #endif
@@ -886,7 +878,6 @@ public:
 	LANDSCAPE_API void ClearUpdateFlagsForModes(uint32 InModeMask);
 	LANDSCAPE_API void RequestWeightmapUpdate(bool bUpdateAll = false);
 	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false);
-	LANDSCAPE_API void RequestEditingClientUpdate();
 	LANDSCAPE_API void RequestDeferredClientUpdate();
 	LANDSCAPE_API uint32 ComputeWeightmapsHash();
 #endif
