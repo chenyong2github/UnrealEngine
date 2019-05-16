@@ -121,34 +121,11 @@
 					// All UIKit functions must be run on Main Thread
 					dispatch_async(dispatch_get_main_queue(), ^
 					{
-						for (AccessibleWidgetId ChildId : ChildIds)
-						{
-							// Ensure child widgets are created. This is pretty wasteful although at the moment
-							// we have no good way to detect either when a widget is created outside of the hierarchy
-							// or when am SWidgetSwitcher changes to a child that hasn't been initialized yet.
-							[[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:ChildId];
-						}
-							
 						FIOSAccessibilityContainer* Element = [[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:Id];
 						Element.ChildIds = ChildIds;
-						if (bIsVisible)
-						{
-							Element.Bounds = CGRectMake(Bounds.Min.X, Bounds.Min.Y, Bounds.Max.X - Bounds.Min.X, Bounds.Max.Y - Bounds.Min.Y);
-						}
-						else
-						{
-							// Rather than removing hidden items from the tree, we set their bounding rect to 0 so they're never selected.
-							Element.Bounds = CGRectMake(0, 0, 0, 0);
-						}
+						Element.Bounds = Bounds;
 
-						if (bIsEnabled)
-						{
-							[Element GetLeaf].Traits &= ~UIAccessibilityTraitNotEnabled;
-						}
-						else
-						{
-							[Element GetLeaf].Traits |= UIAccessibilityTraitNotEnabled;
-						}
+						[[Element GetLeaf] SetAccessibilityTrait:UIAccessibilityTraitNotEnabled Set:!bIsEnabled];
 						Element.bIsVisible = bIsVisible;
 					});
 				}

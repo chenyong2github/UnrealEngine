@@ -40,7 +40,7 @@
 /** A list of identifiers for all current children of this container. */
 @property (nonatomic) TArray<AccessibleWidgetId> ChildIds;
 /** The bounding rect of the container. */
-@property (nonatomic) CGRect Bounds;
+@property (nonatomic) FBox2D Bounds;
 /** Whether or not the widget is currently visible. */
 @property (nonatomic) bool bIsVisible;
 
@@ -53,13 +53,14 @@
  */
 @interface FIOSAccessibilityLeaf : UIAccessibilityElement
 {
-@private
-	/** Timestamp for when Label, Hint, and Value were last cached. */
-	double LastCachedStringTime;
 }
 
 /** This must be used instead of initWithAccessibilityContainer in order to work properly. */
 -(id)initWithParent:(FIOSAccessibilityContainer*)Parent;
+/** Check if LastCachedStringTime was updated recently. */
+-(bool)ShouldCacheStrings;
+/**  Toggle an individual trait on or off */
+-(void)SetAccessibilityTrait:(UIAccessibilityTraits)Trait Set:(bool)IsEnabled;
 
 /** A cached version of the name of the widget. */
 @property (nonatomic) FString Label;
@@ -69,6 +70,8 @@
 @property (nonatomic) FString Value;
 /** Bitflag of traits that describe the widget. Most are set once on initialization. */
 @property (nonatomic) UIAccessibilityTraits Traits;
+/** Timestamp for when Label, Hint, and Value were last cached. */
+@property (nonatomic) double LastCachedStringTime;
 
 @end
 

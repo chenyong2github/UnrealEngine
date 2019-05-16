@@ -71,7 +71,10 @@
 
 -(CGRect)accessibilityFrame
 {
-	return Bounds;
+	// This function will be called less than the function to cache the bounds, so make
+	// the IOS rect here. If we refactor the code to not using a polling-based cache,
+	// it may make more sense to change the Bounds property itself to a CGRect.
+	return CGRectMake(Bounds.Min.X, Bounds.Min.Y, Bounds.Max.X - Bounds.Min.X, Bounds.Max.Y - Bounds.Min.Y);
 }
 
 -(NSInteger)accessibilityElementCount
@@ -112,6 +115,54 @@
 	return NSNotFound;
 }
 
+-(id)accessibilityHitTest:(CGPoint)point
+{
+	const AccessibleWidgetId TempId = self.Id;
+	AccessibleWidgetId FoundId = IAccessibleWidget::InvalidAccessibleWidgetId;
+
+	const float Scale = [IOSAppDelegate GetDelegate].IOSView.contentScaleFactor;
+	const int32 X = point.x * Scale;
+	const int32 Y = point.y * Scale;
+	// Update the labels while we're on the game thread, since IOS is going to request them immediately.
+	FString TempLabel, TempHint, TempValue;
+
+	[IOSAppDelegate WaitAndRunOnGameThread:[TempId, X, Y, &FoundId, &TempLabel, &TempHint, &TempValue]()
+	{
+		const TSharedPtr<IAccessibleWidget> Widget = [IOSAppDelegate GetDelegate].IOSApplication->GetAccessibleMessageHandler()->GetAccessibleWidgetFromId(TempId);
+		if (Widget.IsValid())
+		{
+			const TSharedPtr<IAccessibleWidget> HitWidget = Widget->GetTopLevelWindow()->AsWindow()->GetChildAtPosition(X, Y);
+			if (HitWidget.IsValid())
+			{
+				FoundId = HitWidget->GetId();
+				TempLabel = HitWidget->GetWidgetName();
+				TempHint = HitWidget->GetHelpText();
+				if (HitWidget->AsProperty())
+				{
+					TempValue = HitWidget->AsProperty()->GetValue();
+				}
+			}
+		}
+	}];
+
+	if (FoundId != IAccessibleWidget::InvalidAccessibleWidgetId)
+	{
+		FIOSAccessibilityLeaf* FoundLeaf = [[[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:FoundId] GetLeaf];
+		if ([FoundLeaf ShouldCacheStrings])
+		{
+			FoundLeaf.Label = MoveTemp(TempLabel);
+			FoundLeaf.Hint = MoveTemp(TempHint);
+			FoundLeaf.Value = MoveTemp(TempValue);
+			FoundLeaf.LastCachedStringTime = FPlatformTime::Seconds();
+		}
+		return FoundLeaf;
+	}
+	else
+	{
+		return Leaf;
+	}
+}
+
 @end
 
 @implementation FIOSAccessibilityLeaf
@@ -120,6 +171,7 @@
 @synthesize Hint;
 @synthesize Value;
 @synthesize Traits;
+@synthesize LastCachedStringTime;
 
 -(id)initWithParent:(FIOSAccessibilityContainer*)Parent
 {
@@ -155,11 +207,23 @@
 					InitialTraits |= UIAccessibilityTraitNotEnabled;
 				}
 
+				FString InitialLabel = Widget->GetWidgetName();
+				FString InitialHint = Widget->GetHelpText();
+				FString InitialValue;
+				if (Widget->AsProperty())
+				{
+					InitialValue = Widget->AsProperty()->GetValue();
+				}
+
 				// All UIKit functions must be run on Main Thread
 				dispatch_async(dispatch_get_main_queue(), ^
 				{
-					FIOSAccessibilityContainer* Element = [[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:ParentId];
-					[Element GetLeaf].Traits = InitialTraits;
+					FIOSAccessibilityLeaf* Self = [[[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:ParentId] GetLeaf];
+					Self.Traits = InitialTraits;
+					Self.Label = InitialLabel;
+					Self.Hint = InitialHint;
+					Self.Value = InitialValue;
+					Self.LastCachedStringTime = FPlatformTime::Seconds();
 				});
 			}
 		}, TStatId(), NULL, ENamedThreads::GameThread);
@@ -177,44 +241,13 @@
 	return [self.accessibilityContainer accessibilityFrame];
 }
 
-/**
- * Since Strings are expensive to copy over and over, we don't update them with polling.
- * When any one of the three are requested, we cache all three in order to restrict it to
- * a single cross-thread call. This will add a slight delay when the user taps on a widget,
- * but at the moment it isn't noticeable. The slower the framerate of the game, the more
- * noticeable this delay may become.
- */
--(void)CacheStrings
+-(bool)ShouldCacheStrings
 {
-	const double StartTime = FPlatformTime::Seconds();
-	if (StartTime - LastCachedStringTime > 1.0)
-	{
-		const AccessibleWidgetId TempId = ((FIOSAccessibilityContainer*)self.accessibilityContainer).Id;
-		FString TempLabel, TempHint, TempValue;
-		// All IAccessibleWidget functions must be run on Game Thread
-		[IOSAppDelegate WaitAndRunOnGameThread : [TempId, &TempLabel, &TempHint, &TempValue]()
-		{
-			TSharedPtr<IAccessibleWidget> Widget = [IOSAppDelegate GetDelegate].IOSApplication->GetAccessibleMessageHandler()->GetAccessibleWidgetFromId(TempId);
-			if (Widget.IsValid())
-			{
-				TempLabel = Widget->GetWidgetName();
-				TempHint = Widget->GetHelpText();
-				if (Widget->AsProperty())
-				{
-					TempValue = Widget->AsProperty()->GetValue();
-				}
-			}
-		}];
-		self.Label = MoveTemp(TempLabel);
-		self.Hint = MoveTemp(TempHint);
-		self.Value = MoveTemp(TempValue);
-		LastCachedStringTime = FPlatformTime::Seconds();
-	}
+	return FPlatformTime::Seconds() - LastCachedStringTime > 1.0;
 }
 
 -(NSString*)accessibilityLabel
 {
-	[self CacheStrings];
 	if (!self.Label.IsEmpty())
 	{
 		return [NSString stringWithFString:self.Label];
@@ -224,7 +257,6 @@
 
 -(NSString*)accessibilityHint
 {
-	[self CacheStrings];
 	if (!self.Hint.IsEmpty())
 	{
 		return [NSString stringWithFString:self.Hint];
@@ -234,12 +266,23 @@
 
 -(NSString*)accessibilityValue
 {
-	[self CacheStrings];
 	if (!self.Value.IsEmpty())
 	{
 		return [NSString stringWithFString:self.Value];
 	}
 	return nil;
+}
+
+-(void)SetAccessibilityTrait:(UIAccessibilityTraits)Trait Set:(bool)IsEnabled
+{
+	if (IsEnabled)
+	{
+		self.Traits |= Trait;
+	}
+	else
+	{
+		self.Traits &= ~Trait;
+	}
 }
 
 -(UIAccessibilityTraits)accessibilityTraits

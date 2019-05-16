@@ -354,7 +354,8 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleWidget::GetChildAtUsingGeometry(in
 	if (!IsHidden() && GetBounds().IsInside(FVector2D(X, Y)))
 	{
 		UpdateAllChildren();
-		for (int32 i = 0; i < Children.Num(); ++i)
+		// Traverse the hierarchy backwards in order to handle the case where widgets are overlaid on top of each other.
+		for (int32 i = Children.Num() - 1; i >= 0; --i)
 		{
 			if (Children[i].IsValid())
 			{
@@ -382,6 +383,7 @@ TSharedPtr<FGenericWindow> FSlateAccessibleWindow::GetNativeWindow() const
 
 TSharedPtr<IAccessibleWidget> FSlateAccessibleWindow::GetChildAtPosition(int32 X, int32 Y)
 {
+	TSharedPtr<IAccessibleWidget> HitWidget;
 	if (Widget.IsValid())
 	{
 		static const bool UseHitTestGrid = false;
@@ -403,15 +405,15 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleWindow::GetChildAtPosition(int32 X
 					break;
 				}
 			}
-			return FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(LastAccessibleWidget);
+			HitWidget = FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(LastAccessibleWidget);
 		}
 		else
 		{
-			return GetChildAtUsingGeometry(X, Y);
+			HitWidget = GetChildAtUsingGeometry(X, Y);
 		}
 	}
 
-	return nullptr;
+	return HitWidget;
 }
 
 TSharedPtr<IAccessibleWidget> FSlateAccessibleWindow::GetFocusedWidget() const
