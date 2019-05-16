@@ -1334,8 +1334,8 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FTexture
 		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
 		SRVDesc.Texture2DArray.MostDetailedMip = CreateInfo.MipLevel;
 		SRVDesc.Texture2DArray.MipLevels = CreateInfo.NumMipLevels;
-		SRVDesc.Texture2DArray.FirstArraySlice = 0;
-		SRVDesc.Texture2DArray.ArraySize = TextureDesc.ArraySize;
+		SRVDesc.Texture2DArray.FirstArraySlice = CreateInfo.FirstArraySlice;
+		SRVDesc.Texture2DArray.ArraySize = (CreateInfo.NumArraySlices == 0 ? TextureDesc.ArraySize : CreateInfo.NumArraySlices);
 	}
 	else if (TextureRHI->GetTextureCube() != NULL)
 	{

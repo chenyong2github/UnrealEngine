@@ -1232,6 +1232,17 @@ struct FRHITextureSRVCreateInfo
 		, SRGBOverride(SRGBO_Default)
 		, MipLevel(InMipLevel)
 		, NumMipLevels(InNumMipLevels)
+		, FirstArraySlice(0)
+		, NumArraySlices(0)
+	{}
+
+	explicit FRHITextureSRVCreateInfo(uint8 InMipLevel, uint8 InNumMipLevels, uint32 InFirstArraySlice, uint32 InNumArraySlices, uint8 InFormat = PF_Unknown)
+		: Format(InFormat)
+		, SRGBOverride(SRGBO_Default)
+		, MipLevel(InMipLevel)
+		, NumMipLevels(InNumMipLevels)
+		, FirstArraySlice(InFirstArraySlice)
+		, NumArraySlices(InNumArraySlices)
 	{}
 
 	/** View the texture with a different format. Leave as PF_Unknown to use original format. Useful when sampling stencil */
@@ -1245,6 +1256,12 @@ struct FRHITextureSRVCreateInfo
 
 	/** Create a view to a single, or multiple mip levels */
 	uint8 NumMipLevels;
+
+	/** Specify first array slice index. By default 0. */
+	uint32 FirstArraySlice;
+
+	/** Specify number of array slices. If FirstArraySlice and NumArraySlices are both zero, the SRV is created for all array slices. By default 0. */
+	uint32 NumArraySlices;
 };
 
 // Forward-declaration.

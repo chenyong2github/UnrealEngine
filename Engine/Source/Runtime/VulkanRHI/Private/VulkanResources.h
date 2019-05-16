@@ -1322,6 +1322,8 @@ public:
 		, SourceStructuredBuffer(nullptr)
 		, MipLevel(InCreateInfo.MipLevel)
 		, NumMips(InCreateInfo.NumMipLevels)
+		, FirstArraySlice(InCreateInfo.FirstArraySlice)
+		, NumArraySlices(InCreateInfo.NumArraySlices)
 		, Size(0)
 		, SourceBuffer(nullptr)
 		, VolatileLockCounter(MAX_uint32)
@@ -1336,6 +1338,8 @@ public:
 		, SourceStructuredBuffer(InStructuredBuffer)
 		, MipLevel(0)
 		, NumMips(0)
+		, FirstArraySlice(0)
+		, NumArraySlices(0)
 		, Size(InStructuredBuffer->GetSize())
 		, SourceBuffer(nullptr)
 		, VolatileLockCounter(MAX_uint32)
@@ -1362,6 +1366,8 @@ public:
 	FVulkanStructuredBuffer* SourceStructuredBuffer;
 	uint32 MipLevel;
 	uint32 NumMips;
+	uint32 FirstArraySlice;
+	uint32 NumArraySlices;
 
 	~FVulkanShaderResourceView();
 
