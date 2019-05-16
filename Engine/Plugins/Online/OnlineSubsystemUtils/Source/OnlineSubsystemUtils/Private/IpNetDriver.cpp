@@ -541,9 +541,14 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 	double AlarmTime = StartReceiveTime + GIpNetDriverMaxDesiredTimeSliceBeforeAlarmSecs;
 	const bool bSlowFrameChecks = OnNetworkProcessingCausingSlowFrame.IsBound();
 
+	const bool bCheckReceiveTime = (MaxSecondsInReceive > 0.0) && (NbPacketsBetweenReceiveTimeTest > 0);
+	const double BailOutTime = StartReceiveTime + MaxSecondsInReceive;
+	int32 PacketsLeftUntilTimeTest = NbPacketsBetweenReceiveTimeTest;
+
+	bool bContinueProcessing(true);
 
 	// Process all incoming packets
-	for (FPacketIterator It(this); It; ++It)
+	for (FPacketIterator It(this); It && bContinueProcessing; ++It)
 	{
 		// @todo: Remove the slow frame checks, eventually - potential DDoS and Switch platform constraint
 		if (bSlowFrameChecks)
@@ -554,6 +559,22 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 				OnNetworkProcessingCausingSlowFrame.Broadcast();
 
 				AlarmTime = CurrentTime + GIpNetDriverMaxDesiredTimeSliceBeforeAlarmSecs;
+			}
+		}
+
+		if (bCheckReceiveTime)
+		{
+			--PacketsLeftUntilTimeTest;
+			if (PacketsLeftUntilTimeTest <= 0)
+			{
+				PacketsLeftUntilTimeTest = NbPacketsBetweenReceiveTimeTest;
+
+				const double CurrentTime = FPlatformTime::Seconds();
+				if (CurrentTime > BailOutTime)
+				{
+					bContinueProcessing = false;
+					UE_LOG(LogNet, Warning, TEXT("UIpNetDriver::TickDispatch: Stopping packet reception after processing for more than %f seconds. %s"), MaxSecondsInReceive, *GetName());
+				}
 			}
 		}
 
