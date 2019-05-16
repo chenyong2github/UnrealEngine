@@ -33,7 +33,7 @@ void FAnimNode_SequencePlayer::Initialize_AnyThread(const FAnimationInitializeCo
 
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	if(ensureMsgf(Sequence->IsA<UAnimMontage>(), TEXT("Sequence players do not support anim montages.")))
+	if(ensureMsgf(!Sequence->IsA<UAnimMontage>(), TEXT("Sequence players do not support anim montages.")))
 	{
 		Sequence = nullptr;
 	}
@@ -61,7 +61,7 @@ void FAnimNode_SequencePlayer::UpdateAssetPlayer(const FAnimationUpdateContext& 
 {
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	if(ensureMsgf(Sequence->IsA<UAnimMontage>(), TEXT("Sequence players do not support anim montages.")))
+	if(ensureMsgf(!Sequence->IsA<UAnimMontage>(), TEXT("Sequence players do not support anim montages.")))
 	{
 		Sequence = nullptr;
 	}

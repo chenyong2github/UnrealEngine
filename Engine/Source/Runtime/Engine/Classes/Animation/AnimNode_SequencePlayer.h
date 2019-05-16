@@ -18,7 +18,7 @@ struct ENGINE_API FAnimNode_SequencePlayer : public FAnimNode_AssetPlayerBase
 	GENERATED_USTRUCT_BODY()
 public:
 	// The animation sequence asset to play
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault, DisallowedClasses="AnimMontage"))
 	UAnimSequenceBase* Sequence;
 
 	// The Basis in which the PlayRate is expressed in. This is used to rescale PlayRate inputs.
