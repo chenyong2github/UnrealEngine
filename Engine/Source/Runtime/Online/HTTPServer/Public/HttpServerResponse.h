@@ -1,6 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "CoreMinimal.h"
+#include "HttpServerConstants.h"
+#include "HttpServerHttpVersion.h"
 
 struct FHttpServerResponse final
 {
@@ -21,8 +23,11 @@ public:
 		: Body(MoveTemp(InBody))
 	{ }
 
+	/** Http protocol version */
+	HttpVersion::EHttpServerHttpVersion HttpVersion;
+
 	/** Http Response Code */
-	int32 Code;
+	EHttpServerResponseCodes Code;
 
 	/** Http Headers */
 	TMap<FString, TArray<FString>> Headers;
@@ -60,31 +65,20 @@ public:
 	HTTPSERVER_API static TUniquePtr<FHttpServerResponse> Create(const TArrayView<uint8>& RawBytes, FString ContentType);
 
 	/**
-	 * Creates an FHttpServerResponse from a response code
-	 *
-	 * @param  HttpResponseCode  The HTTP response/error code
-	 * @param  ErrorCode         The string error code/message
-	 * @return                   A unique pointer to an initialized response object
-	 */
-	HTTPSERVER_API static TUniquePtr<FHttpServerResponse> Create(int32 HttpResponseCode, const FString& ErrorCode);
-
-	/**
-	 * Creates an FHttpServerResponse 200
+	 * Creates an FHttpServerResponse 204
 	 * 
-	 * @param Message The optional and respective success message
-	 * @param ContentType The optional and respective content type
 	 * @return A unique pointer to an initialized response object
 	 */
-	HTTPSERVER_API static TUniquePtr<FHttpServerResponse> Ok(const FString& Message = TEXT(""), FString ContentType = TEXT("text/text"));
+	HTTPSERVER_API static TUniquePtr<FHttpServerResponse> Ok();
 
 	/**
-    * Creates an FHttpServerResponse 500
+    * Creates an FHttpServerResponse with the caller-supplied response and error codes
 	*
-	* @param Message The optional and respective error message
-	* @param ContentType The optional and respective content type
+	* @param ResponseCode The HTTP response code
+	* @param ErrorCode    The machine-readable error code
     * @return A unique pointer to an initialized response object
     */
-	HTTPSERVER_API static TUniquePtr<FHttpServerResponse> Error(const FString& Message = TEXT(""), FString ContentType = TEXT("text/text"));
+	HTTPSERVER_API static TUniquePtr<FHttpServerResponse> Error(EHttpServerResponseCodes ResponseCode, const FString& ErrorCode = TEXT(""));
 };
 
 
