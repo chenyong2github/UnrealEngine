@@ -12,6 +12,8 @@ class IDetailLayoutBuilder;
 class FLandscapeSettingsDetails : public IDetailCustomization
 {
 public:
+	~FLandscapeSettingsDetails();
+
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IDetailCustomization> MakeInstance();
 
