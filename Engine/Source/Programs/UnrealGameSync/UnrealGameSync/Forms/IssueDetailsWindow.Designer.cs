@@ -18,79 +18,66 @@ namespace UnrealGameSync
 		private void InitializeComponent()
 		{
             this.components = new System.ComponentModel.Container();
-            this.StreamComboBox = new System.Windows.Forms.ComboBox();
             this.OkBtn = new System.Windows.Forms.Button();
             this.AssignToOtherBtn = new System.Windows.Forms.Button();
             this.BuildListContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.BuildListContextMenu_Assign = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.BuildListContextMenu_MoreInfo = new System.Windows.Forms.ToolStripMenuItem();
-            this.OpenSinceTextBox = new System.Windows.Forms.TextBox();
+            this.OpenSinceTextBox = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
-            this.StatusTextBox = new System.Windows.Forms.TextBox();
+            this.StatusTextBox = new System.Windows.Forms.Label();
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
-            this.StreamNamesTextBox = new System.Windows.Forms.TextBox();
+            this.SummaryTextBox = new System.Windows.Forms.Label();
+            this.StreamNamesTextBox = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
-            this.StepNamesTextBox = new System.Windows.Forms.TextBox();
+            this.StepNamesTextBox = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
-            this.SummaryTextBox = new System.Windows.Forms.TextBox();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.label6 = new System.Windows.Forms.Label();
+            this.BuildLinkLabel = new System.Windows.Forms.LinkLabel();
+            this.AssignToMeBtn = new System.Windows.Forms.Button();
+            this.MarkFixedBtn = new System.Windows.Forms.Button();
+            this.tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
+            this.tabControl1 = new System.Windows.Forms.TabControl();
+            this.OutputTabPage = new System.Windows.Forms.TabPage();
+            this.DetailsTextBox = new System.Windows.Forms.TextBox();
+            this.ChangesTabPage = new System.Windows.Forms.TabPage();
             this.tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
             this.tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
-            this.FilterTextBox = new UnrealGameSync.TextBoxWithCueBanner();
             this.FilterTypeComboBox = new System.Windows.Forms.ComboBox();
+            this.StreamComboBox = new System.Windows.Forms.ComboBox();
+            this.tableLayoutPanel5 = new System.Windows.Forms.TableLayoutPanel();
+            this.JobContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.JobContextMenu_ViewJob = new System.Windows.Forms.ToolStripMenuItem();
+            this.JobContextMenu_StepSeparatorMin = new System.Windows.Forms.ToolStripSeparator();
+            this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.FilterTextBox = new UnrealGameSync.TextBoxWithCueBanner();
             this.BuildListView = new UnrealGameSync.CustomListViewControl();
             this.IconHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.ChangeHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.TypeHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.AuthorHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.DescriptionHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.AssignToMeBtn = new System.Windows.Forms.Button();
-            this.MarkFixedBtn = new System.Windows.Forms.Button();
-            this.tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
-            this.splitContainer1 = new System.Windows.Forms.SplitContainer();
-            this.panel1 = new System.Windows.Forms.Panel();
-            this.DetailsTextBox = new System.Windows.Forms.TextBox();
-            this.tableLayoutPanel5 = new System.Windows.Forms.TableLayoutPanel();
-            this.JobContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.JobContextMenu_ViewJob = new System.Windows.Forms.ToolStripMenuItem();
-            this.JobContextMenu_StepSeparatorMin = new System.Windows.Forms.ToolStripSeparator();
-            this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.BuildListContextMenu.SuspendLayout();
             this.tableLayoutPanel1.SuspendLayout();
-            this.groupBox1.SuspendLayout();
+            this.tableLayoutPanel4.SuspendLayout();
+            this.tabControl1.SuspendLayout();
+            this.OutputTabPage.SuspendLayout();
+            this.ChangesTabPage.SuspendLayout();
             this.tableLayoutPanel2.SuspendLayout();
             this.tableLayoutPanel3.SuspendLayout();
-            this.tableLayoutPanel4.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
-            this.splitContainer1.Panel1.SuspendLayout();
-            this.splitContainer1.Panel2.SuspendLayout();
-            this.splitContainer1.SuspendLayout();
-            this.panel1.SuspendLayout();
             this.tableLayoutPanel5.SuspendLayout();
             this.JobContextMenu.SuspendLayout();
             this.SuspendLayout();
-            // 
-            // StreamComboBox
-            // 
-            this.StreamComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.StreamComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.StreamComboBox.FormattingEnabled = true;
-            this.StreamComboBox.Location = new System.Drawing.Point(3, 3);
-            this.StreamComboBox.Name = "StreamComboBox";
-            this.StreamComboBox.Size = new System.Drawing.Size(1131, 23);
-            this.StreamComboBox.TabIndex = 0;
-            this.StreamComboBox.SelectedIndexChanged += new System.EventHandler(this.StreamComboBox_SelectedIndexChanged);
             // 
             // OkBtn
             // 
             this.OkBtn.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.OkBtn.DialogResult = System.Windows.Forms.DialogResult.Cancel;
             this.OkBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F);
-            this.OkBtn.Location = new System.Drawing.Point(1065, 3);
+            this.OkBtn.Location = new System.Drawing.Point(976, 3);
             this.OkBtn.Name = "OkBtn";
             this.OkBtn.Size = new System.Drawing.Size(97, 27);
             this.OkBtn.TabIndex = 4;
@@ -139,21 +126,20 @@ namespace UnrealGameSync
             // 
             // OpenSinceTextBox
             // 
-            this.OpenSinceTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.OpenSinceTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.OpenSinceTextBox.Location = new System.Drawing.Point(104, 47);
+            this.OpenSinceTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.OpenSinceTextBox.Location = new System.Drawing.Point(104, 75);
+            this.OpenSinceTextBox.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.OpenSinceTextBox.Name = "OpenSinceTextBox";
-            this.OpenSinceTextBox.ReadOnly = true;
-            this.OpenSinceTextBox.Size = new System.Drawing.Size(1058, 16);
+            this.OpenSinceTextBox.Size = new System.Drawing.Size(969, 16);
             this.OpenSinceTextBox.TabIndex = 5;
             this.OpenSinceTextBox.Text = "1/23/2019 (3 minutes)";
             // 
             // label1
             // 
+            this.label1.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(3, 3);
-            this.label1.Margin = new System.Windows.Forms.Padding(3);
+            this.label1.Location = new System.Drawing.Point(3, 4);
+            this.label1.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.label1.Name = "label1";
             this.label1.Padding = new System.Windows.Forms.Padding(0, 0, 25, 0);
             this.label1.Size = new System.Drawing.Size(86, 15);
@@ -162,9 +148,10 @@ namespace UnrealGameSync
             // 
             // label3
             // 
+            this.label3.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(3, 47);
-            this.label3.Margin = new System.Windows.Forms.Padding(3);
+            this.label3.Location = new System.Drawing.Point(3, 75);
+            this.label3.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.label3.Name = "label3";
             this.label3.Padding = new System.Windows.Forms.Padding(0, 0, 25, 0);
             this.label3.Size = new System.Drawing.Size(95, 15);
@@ -173,9 +160,10 @@ namespace UnrealGameSync
             // 
             // label5
             // 
+            this.label5.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(3, 25);
-            this.label5.Margin = new System.Windows.Forms.Padding(3);
+            this.label5.Location = new System.Drawing.Point(3, 51);
+            this.label5.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.label5.Name = "label5";
             this.label5.Padding = new System.Windows.Forms.Padding(0, 0, 25, 0);
             this.label5.Size = new System.Drawing.Size(67, 15);
@@ -184,13 +172,11 @@ namespace UnrealGameSync
             // 
             // StatusTextBox
             // 
-            this.StatusTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.StatusTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.StatusTextBox.Location = new System.Drawing.Point(104, 25);
+            this.StatusTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.StatusTextBox.Location = new System.Drawing.Point(104, 51);
+            this.StatusTextBox.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.StatusTextBox.Name = "StatusTextBox";
-            this.StatusTextBox.ReadOnly = true;
-            this.StatusTextBox.Size = new System.Drawing.Size(1058, 16);
+            this.StatusTextBox.Size = new System.Drawing.Size(969, 16);
             this.StatusTextBox.TabIndex = 3;
             this.StatusTextBox.Text = "Assigned to Ben.Marsh";
             // 
@@ -202,46 +188,58 @@ namespace UnrealGameSync
             this.tableLayoutPanel1.ColumnCount = 2;
             this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tableLayoutPanel1.Controls.Add(this.StreamNamesTextBox, 1, 4);
-            this.tableLayoutPanel1.Controls.Add(this.label4, 0, 4);
-            this.tableLayoutPanel1.Controls.Add(this.StepNamesTextBox, 1, 3);
-            this.tableLayoutPanel1.Controls.Add(this.label1, 0, 0);
-            this.tableLayoutPanel1.Controls.Add(this.label3, 0, 2);
-            this.tableLayoutPanel1.Controls.Add(this.OpenSinceTextBox, 1, 2);
-            this.tableLayoutPanel1.Controls.Add(this.StatusTextBox, 1, 1);
-            this.tableLayoutPanel1.Controls.Add(this.label5, 0, 1);
-            this.tableLayoutPanel1.Controls.Add(this.label2, 0, 3);
             this.tableLayoutPanel1.Controls.Add(this.SummaryTextBox, 1, 0);
+            this.tableLayoutPanel1.Controls.Add(this.StreamNamesTextBox, 1, 5);
+            this.tableLayoutPanel1.Controls.Add(this.label4, 0, 5);
+            this.tableLayoutPanel1.Controls.Add(this.StepNamesTextBox, 1, 4);
+            this.tableLayoutPanel1.Controls.Add(this.label1, 0, 0);
+            this.tableLayoutPanel1.Controls.Add(this.label3, 0, 3);
+            this.tableLayoutPanel1.Controls.Add(this.OpenSinceTextBox, 1, 3);
+            this.tableLayoutPanel1.Controls.Add(this.StatusTextBox, 1, 2);
+            this.tableLayoutPanel1.Controls.Add(this.label5, 0, 2);
+            this.tableLayoutPanel1.Controls.Add(this.label2, 0, 4);
+            this.tableLayoutPanel1.Controls.Add(this.label6, 0, 1);
+            this.tableLayoutPanel1.Controls.Add(this.BuildLinkLabel, 1, 1);
             this.tableLayoutPanel1.Location = new System.Drawing.Point(3, 3);
             this.tableLayoutPanel1.Margin = new System.Windows.Forms.Padding(3, 3, 3, 11);
             this.tableLayoutPanel1.Name = "tableLayoutPanel1";
-            this.tableLayoutPanel1.RowCount = 5;
+            this.tableLayoutPanel1.RowCount = 6;
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.tableLayoutPanel1.Size = new System.Drawing.Size(1165, 110);
+            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            this.tableLayoutPanel1.Size = new System.Drawing.Size(1076, 142);
             this.tableLayoutPanel1.TabIndex = 0;
+            // 
+            // SummaryTextBox
+            // 
+            this.SummaryTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.SummaryTextBox.AutoEllipsis = true;
+            this.SummaryTextBox.Location = new System.Drawing.Point(104, 4);
+            this.SummaryTextBox.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.SummaryTextBox.Name = "SummaryTextBox";
+            this.SummaryTextBox.Size = new System.Drawing.Size(969, 15);
+            this.SummaryTextBox.TabIndex = 11;
+            this.SummaryTextBox.Text = "Summary Text";
             // 
             // StreamNamesTextBox
             // 
-            this.StreamNamesTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.StreamNamesTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.StreamNamesTextBox.Location = new System.Drawing.Point(104, 91);
+            this.StreamNamesTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.StreamNamesTextBox.Location = new System.Drawing.Point(104, 122);
+            this.StreamNamesTextBox.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.StreamNamesTextBox.Name = "StreamNamesTextBox";
-            this.StreamNamesTextBox.ReadOnly = true;
-            this.StreamNamesTextBox.Size = new System.Drawing.Size(1058, 16);
+            this.StreamNamesTextBox.Size = new System.Drawing.Size(969, 16);
             this.StreamNamesTextBox.TabIndex = 10;
             this.StreamNamesTextBox.Text = "Stream A, Stream B, Stream C";
             // 
             // label4
             // 
+            this.label4.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(3, 91);
-            this.label4.Margin = new System.Windows.Forms.Padding(3);
+            this.label4.Location = new System.Drawing.Point(3, 122);
+            this.label4.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(52, 15);
             this.label4.TabIndex = 8;
@@ -249,68 +247,158 @@ namespace UnrealGameSync
             // 
             // StepNamesTextBox
             // 
-            this.StepNamesTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.StepNamesTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.StepNamesTextBox.Location = new System.Drawing.Point(104, 69);
+            this.StepNamesTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.StepNamesTextBox.AutoEllipsis = true;
+            this.StepNamesTextBox.Location = new System.Drawing.Point(104, 99);
+            this.StepNamesTextBox.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.StepNamesTextBox.Name = "StepNamesTextBox";
-            this.StepNamesTextBox.ReadOnly = true;
-            this.StepNamesTextBox.Size = new System.Drawing.Size(1058, 16);
+            this.StepNamesTextBox.Size = new System.Drawing.Size(969, 15);
             this.StepNamesTextBox.TabIndex = 7;
             this.StepNamesTextBox.Text = "Step A, Step B, Step C";
             // 
             // label2
             // 
+            this.label2.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(3, 69);
-            this.label2.Margin = new System.Windows.Forms.Padding(3);
+            this.label2.Location = new System.Drawing.Point(3, 99);
+            this.label2.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(38, 15);
             this.label2.TabIndex = 6;
             this.label2.Text = "Steps:";
             // 
-            // SummaryTextBox
+            // label6
             // 
-            this.SummaryTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            this.label6.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.label6.AutoSize = true;
+            this.label6.Location = new System.Drawing.Point(3, 27);
+            this.label6.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(37, 15);
+            this.label6.TabIndex = 12;
+            this.label6.Text = "Build:";
+            // 
+            // BuildLinkLabel
+            // 
+            this.BuildLinkLabel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.BuildLinkLabel.AutoEllipsis = true;
+            this.BuildLinkLabel.Location = new System.Drawing.Point(104, 27);
+            this.BuildLinkLabel.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.BuildLinkLabel.Name = "BuildLinkLabel";
+            this.BuildLinkLabel.Size = new System.Drawing.Size(969, 16);
+            this.BuildLinkLabel.TabIndex = 13;
+            this.BuildLinkLabel.TabStop = true;
+            this.BuildLinkLabel.Text = "Build Link";
+            this.BuildLinkLabel.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.BuildLinkLabel_LinkClicked);
+            // 
+            // AssignToMeBtn
+            // 
+            this.AssignToMeBtn.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.AssignToMeBtn.Location = new System.Drawing.Point(3, 3);
+            this.AssignToMeBtn.Name = "AssignToMeBtn";
+            this.AssignToMeBtn.Size = new System.Drawing.Size(129, 27);
+            this.AssignToMeBtn.TabIndex = 1;
+            this.AssignToMeBtn.Text = "Assign To Me";
+            this.AssignToMeBtn.UseVisualStyleBackColor = true;
+            this.AssignToMeBtn.Click += new System.EventHandler(this.AssignToMeBtn_Click);
+            // 
+            // MarkFixedBtn
+            // 
+            this.MarkFixedBtn.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.MarkFixedBtn.Location = new System.Drawing.Point(863, 3);
+            this.MarkFixedBtn.Name = "MarkFixedBtn";
+            this.MarkFixedBtn.Size = new System.Drawing.Size(107, 27);
+            this.MarkFixedBtn.TabIndex = 3;
+            this.MarkFixedBtn.Text = "Mark Fixed...";
+            this.MarkFixedBtn.UseVisualStyleBackColor = true;
+            this.MarkFixedBtn.Click += new System.EventHandler(this.MarkFixedBtn_Click);
+            // 
+            // tableLayoutPanel4
+            // 
+            this.tableLayoutPanel4.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.SummaryTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.SummaryTextBox.Location = new System.Drawing.Point(104, 3);
-            this.SummaryTextBox.Name = "SummaryTextBox";
-            this.SummaryTextBox.ReadOnly = true;
-            this.SummaryTextBox.Size = new System.Drawing.Size(1058, 16);
-            this.SummaryTextBox.TabIndex = 9;
-            this.SummaryTextBox.Text = "Issue Summary";
+            this.tableLayoutPanel4.ColumnCount = 1;
+            this.tableLayoutPanel4.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tableLayoutPanel4.Controls.Add(this.tabControl1, 0, 1);
+            this.tableLayoutPanel4.Controls.Add(this.tableLayoutPanel5, 0, 2);
+            this.tableLayoutPanel4.Controls.Add(this.tableLayoutPanel1, 0, 0);
+            this.tableLayoutPanel4.Location = new System.Drawing.Point(12, 12);
+            this.tableLayoutPanel4.Name = "tableLayoutPanel4";
+            this.tableLayoutPanel4.RowCount = 3;
+            this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.tableLayoutPanel4.Size = new System.Drawing.Size(1082, 572);
+            this.tableLayoutPanel4.TabIndex = 6;
             // 
-            // groupBox1
+            // tabControl1
             // 
-            this.groupBox1.Controls.Add(this.tableLayoutPanel2);
-            this.groupBox1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.groupBox1.Location = new System.Drawing.Point(0, 0);
-            this.groupBox1.Margin = new System.Windows.Forms.Padding(3, 11, 3, 11);
-            this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(1165, 386);
-            this.groupBox1.TabIndex = 0;
-            this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "History";
+            this.tabControl1.Controls.Add(this.OutputTabPage);
+            this.tabControl1.Controls.Add(this.ChangesTabPage);
+            this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tabControl1.Location = new System.Drawing.Point(3, 159);
+            this.tabControl1.Name = "tabControl1";
+            this.tabControl1.SelectedIndex = 0;
+            this.tabControl1.Size = new System.Drawing.Size(1076, 366);
+            this.tabControl1.TabIndex = 7;
+            // 
+            // OutputTabPage
+            // 
+            this.OutputTabPage.Controls.Add(this.DetailsTextBox);
+            this.OutputTabPage.Location = new System.Drawing.Point(4, 24);
+            this.OutputTabPage.Name = "OutputTabPage";
+            this.OutputTabPage.Padding = new System.Windows.Forms.Padding(8);
+            this.OutputTabPage.Size = new System.Drawing.Size(1068, 338);
+            this.OutputTabPage.TabIndex = 0;
+            this.OutputTabPage.Text = "Output";
+            this.OutputTabPage.UseVisualStyleBackColor = true;
+            // 
+            // DetailsTextBox
+            // 
+            this.DetailsTextBox.BackColor = System.Drawing.SystemColors.Window;
+            this.DetailsTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.DetailsTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.DetailsTextBox.Font = new System.Drawing.Font("Courier New", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.DetailsTextBox.Location = new System.Drawing.Point(8, 8);
+            this.DetailsTextBox.Margin = new System.Windows.Forms.Padding(0);
+            this.DetailsTextBox.Multiline = true;
+            this.DetailsTextBox.Name = "DetailsTextBox";
+            this.DetailsTextBox.ReadOnly = true;
+            this.DetailsTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both;
+            this.DetailsTextBox.Size = new System.Drawing.Size(1052, 322);
+            this.DetailsTextBox.TabIndex = 0;
+            this.DetailsTextBox.Text = "This is an error";
+            this.DetailsTextBox.WordWrap = false;
+            // 
+            // ChangesTabPage
+            // 
+            this.ChangesTabPage.Controls.Add(this.tableLayoutPanel2);
+            this.ChangesTabPage.Location = new System.Drawing.Point(4, 24);
+            this.ChangesTabPage.Name = "ChangesTabPage";
+            this.ChangesTabPage.Padding = new System.Windows.Forms.Padding(8);
+            this.ChangesTabPage.Size = new System.Drawing.Size(1068, 335);
+            this.ChangesTabPage.TabIndex = 1;
+            this.ChangesTabPage.Text = "Changes";
+            this.ChangesTabPage.UseVisualStyleBackColor = true;
             // 
             // tableLayoutPanel2
             // 
-            this.tableLayoutPanel2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
             this.tableLayoutPanel2.ColumnCount = 1;
             this.tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tableLayoutPanel2.Controls.Add(this.tableLayoutPanel3, 0, 2);
             this.tableLayoutPanel2.Controls.Add(this.StreamComboBox, 0, 0);
             this.tableLayoutPanel2.Controls.Add(this.BuildListView, 0, 1);
-            this.tableLayoutPanel2.Location = new System.Drawing.Point(15, 22);
+            this.tableLayoutPanel2.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tableLayoutPanel2.Location = new System.Drawing.Point(8, 8);
             this.tableLayoutPanel2.Margin = new System.Windows.Forms.Padding(0);
             this.tableLayoutPanel2.Name = "tableLayoutPanel2";
             this.tableLayoutPanel2.RowCount = 3;
             this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel2.Size = new System.Drawing.Size(1137, 352);
+            this.tableLayoutPanel2.Size = new System.Drawing.Size(1052, 321);
             this.tableLayoutPanel2.TabIndex = 4;
             // 
             // tableLayoutPanel3
@@ -322,23 +410,13 @@ namespace UnrealGameSync
             this.tableLayoutPanel3.Controls.Add(this.FilterTextBox, 0, 0);
             this.tableLayoutPanel3.Controls.Add(this.FilterTypeComboBox, 1, 0);
             this.tableLayoutPanel3.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tableLayoutPanel3.Location = new System.Drawing.Point(0, 323);
+            this.tableLayoutPanel3.Location = new System.Drawing.Point(0, 292);
             this.tableLayoutPanel3.Margin = new System.Windows.Forms.Padding(0);
             this.tableLayoutPanel3.Name = "tableLayoutPanel3";
             this.tableLayoutPanel3.RowCount = 1;
             this.tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tableLayoutPanel3.Size = new System.Drawing.Size(1137, 29);
+            this.tableLayoutPanel3.Size = new System.Drawing.Size(1052, 29);
             this.tableLayoutPanel3.TabIndex = 0;
-            // 
-            // FilterTextBox
-            // 
-            this.FilterTextBox.CueBanner = "Enter search terms. Use wildcards to match paths of modified files.";
-            this.FilterTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.FilterTextBox.Location = new System.Drawing.Point(3, 3);
-            this.FilterTextBox.Name = "FilterTextBox";
-            this.FilterTextBox.Size = new System.Drawing.Size(1004, 23);
-            this.FilterTextBox.TabIndex = 0;
-            this.FilterTextBox.TextChanged += new System.EventHandler(this.FilterTextBox_TextChanged);
             // 
             // FilterTypeComboBox
             // 
@@ -348,11 +426,84 @@ namespace UnrealGameSync
             "Code & Content",
             "Code Only",
             "Content Only"});
-            this.FilterTypeComboBox.Location = new System.Drawing.Point(1013, 3);
+            this.FilterTypeComboBox.Location = new System.Drawing.Point(928, 3);
             this.FilterTypeComboBox.Name = "FilterTypeComboBox";
             this.FilterTypeComboBox.Size = new System.Drawing.Size(121, 23);
             this.FilterTypeComboBox.TabIndex = 1;
             this.FilterTypeComboBox.SelectedIndexChanged += new System.EventHandler(this.FilterTypeComboBox_SelectedIndexChanged);
+            // 
+            // StreamComboBox
+            // 
+            this.StreamComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.StreamComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.StreamComboBox.FormattingEnabled = true;
+            this.StreamComboBox.Location = new System.Drawing.Point(3, 3);
+            this.StreamComboBox.Name = "StreamComboBox";
+            this.StreamComboBox.Size = new System.Drawing.Size(1046, 23);
+            this.StreamComboBox.TabIndex = 0;
+            this.StreamComboBox.SelectedIndexChanged += new System.EventHandler(this.StreamComboBox_SelectedIndexChanged);
+            // 
+            // tableLayoutPanel5
+            // 
+            this.tableLayoutPanel5.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.tableLayoutPanel5.AutoSize = true;
+            this.tableLayoutPanel5.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.tableLayoutPanel5.ColumnCount = 5;
+            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.tableLayoutPanel5.Controls.Add(this.AssignToMeBtn, 0, 0);
+            this.tableLayoutPanel5.Controls.Add(this.MarkFixedBtn, 3, 0);
+            this.tableLayoutPanel5.Controls.Add(this.OkBtn, 4, 0);
+            this.tableLayoutPanel5.Controls.Add(this.AssignToOtherBtn, 1, 0);
+            this.tableLayoutPanel5.Location = new System.Drawing.Point(3, 536);
+            this.tableLayoutPanel5.Margin = new System.Windows.Forms.Padding(3, 8, 3, 3);
+            this.tableLayoutPanel5.Name = "tableLayoutPanel5";
+            this.tableLayoutPanel5.RowCount = 1;
+            this.tableLayoutPanel5.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            this.tableLayoutPanel5.Size = new System.Drawing.Size(1076, 33);
+            this.tableLayoutPanel5.TabIndex = 1;
+            // 
+            // JobContextMenu
+            // 
+            this.JobContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.JobContextMenu_ViewJob,
+            this.JobContextMenu_StepSeparatorMin,
+            this.toolStripMenuItem1});
+            this.JobContextMenu.Name = "JobContextMenu";
+            this.JobContextMenu.Size = new System.Drawing.Size(130, 54);
+            // 
+            // JobContextMenu_ViewJob
+            // 
+            this.JobContextMenu_ViewJob.Name = "JobContextMenu_ViewJob";
+            this.JobContextMenu_ViewJob.Size = new System.Drawing.Size(129, 22);
+            this.JobContextMenu_ViewJob.Text = "View Job...";
+            this.JobContextMenu_ViewJob.Click += new System.EventHandler(this.JobContextMenu_ViewJob_Click);
+            // 
+            // JobContextMenu_StepSeparatorMin
+            // 
+            this.JobContextMenu_StepSeparatorMin.Name = "JobContextMenu_StepSeparatorMin";
+            this.JobContextMenu_StepSeparatorMin.Size = new System.Drawing.Size(126, 6);
+            // 
+            // toolStripMenuItem1
+            // 
+            this.toolStripMenuItem1.Name = "toolStripMenuItem1";
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(129, 22);
+            this.toolStripMenuItem1.Text = "Step: XYZ";
+            // 
+            // FilterTextBox
+            // 
+            this.FilterTextBox.CueBanner = "Enter search terms. Use wildcards to match paths of modified files.";
+            this.FilterTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.FilterTextBox.Location = new System.Drawing.Point(3, 3);
+            this.FilterTextBox.Name = "FilterTextBox";
+            this.FilterTextBox.Size = new System.Drawing.Size(919, 23);
+            this.FilterTextBox.TabIndex = 0;
+            this.FilterTextBox.TextChanged += new System.EventHandler(this.FilterTextBox_TextChanged);
             // 
             // BuildListView
             // 
@@ -372,7 +523,7 @@ namespace UnrealGameSync
             this.BuildListView.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.BuildListView.Name = "BuildListView";
             this.BuildListView.OwnerDraw = true;
-            this.BuildListView.Size = new System.Drawing.Size(1131, 286);
+            this.BuildListView.Size = new System.Drawing.Size(1046, 255);
             this.BuildListView.TabIndex = 1;
             this.BuildListView.UseCompatibleStateImageBehavior = false;
             this.BuildListView.View = System.Windows.Forms.View.Details;
@@ -409,151 +560,7 @@ namespace UnrealGameSync
             // DescriptionHeader
             // 
             this.DescriptionHeader.Text = "Description";
-            this.DescriptionHeader.Width = 777;
-            // 
-            // AssignToMeBtn
-            // 
-            this.AssignToMeBtn.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.AssignToMeBtn.Location = new System.Drawing.Point(3, 3);
-            this.AssignToMeBtn.Name = "AssignToMeBtn";
-            this.AssignToMeBtn.Size = new System.Drawing.Size(129, 27);
-            this.AssignToMeBtn.TabIndex = 1;
-            this.AssignToMeBtn.Text = "Assign To Me";
-            this.AssignToMeBtn.UseVisualStyleBackColor = true;
-            this.AssignToMeBtn.Click += new System.EventHandler(this.AssignToMeBtn_Click);
-            // 
-            // MarkFixedBtn
-            // 
-            this.MarkFixedBtn.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.MarkFixedBtn.Location = new System.Drawing.Point(952, 3);
-            this.MarkFixedBtn.Name = "MarkFixedBtn";
-            this.MarkFixedBtn.Size = new System.Drawing.Size(107, 27);
-            this.MarkFixedBtn.TabIndex = 3;
-            this.MarkFixedBtn.Text = "Mark Fixed...";
-            this.MarkFixedBtn.UseVisualStyleBackColor = true;
-            this.MarkFixedBtn.Click += new System.EventHandler(this.MarkFixedBtn_Click);
-            // 
-            // tableLayoutPanel4
-            // 
-            this.tableLayoutPanel4.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.tableLayoutPanel4.ColumnCount = 1;
-            this.tableLayoutPanel4.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tableLayoutPanel4.Controls.Add(this.splitContainer1, 0, 1);
-            this.tableLayoutPanel4.Controls.Add(this.tableLayoutPanel5, 0, 2);
-            this.tableLayoutPanel4.Controls.Add(this.tableLayoutPanel1, 0, 0);
-            this.tableLayoutPanel4.Location = new System.Drawing.Point(12, 12);
-            this.tableLayoutPanel4.Name = "tableLayoutPanel4";
-            this.tableLayoutPanel4.RowCount = 3;
-            this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.tableLayoutPanel4.Size = new System.Drawing.Size(1171, 696);
-            this.tableLayoutPanel4.TabIndex = 6;
-            // 
-            // splitContainer1
-            // 
-            this.splitContainer1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.splitContainer1.Location = new System.Drawing.Point(3, 127);
-            this.splitContainer1.Name = "splitContainer1";
-            this.splitContainer1.Orientation = System.Windows.Forms.Orientation.Horizontal;
-            // 
-            // splitContainer1.Panel1
-            // 
-            this.splitContainer1.Panel1.Controls.Add(this.panel1);
-            // 
-            // splitContainer1.Panel2
-            // 
-            this.splitContainer1.Panel2.Controls.Add(this.groupBox1);
-            this.splitContainer1.Size = new System.Drawing.Size(1165, 519);
-            this.splitContainer1.SplitterDistance = 121;
-            this.splitContainer1.SplitterWidth = 12;
-            this.splitContainer1.TabIndex = 1;
-            // 
-            // panel1
-            // 
-            this.panel1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.panel1.BackColor = System.Drawing.SystemColors.Window;
-            this.panel1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.panel1.Controls.Add(this.DetailsTextBox);
-            this.panel1.Location = new System.Drawing.Point(6, 3);
-            this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(1156, 117);
-            this.panel1.TabIndex = 1;
-            // 
-            // DetailsTextBox
-            // 
-            this.DetailsTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.DetailsTextBox.BackColor = System.Drawing.SystemColors.Window;
-            this.DetailsTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.DetailsTextBox.Font = new System.Drawing.Font("Courier New", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.DetailsTextBox.Location = new System.Drawing.Point(8, 8);
-            this.DetailsTextBox.Margin = new System.Windows.Forms.Padding(0);
-            this.DetailsTextBox.Multiline = true;
-            this.DetailsTextBox.Name = "DetailsTextBox";
-            this.DetailsTextBox.ReadOnly = true;
-            this.DetailsTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.DetailsTextBox.Size = new System.Drawing.Size(1138, 98);
-            this.DetailsTextBox.TabIndex = 0;
-            this.DetailsTextBox.Text = "This is an error";
-            this.DetailsTextBox.WordWrap = false;
-            // 
-            // tableLayoutPanel5
-            // 
-            this.tableLayoutPanel5.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            this.tableLayoutPanel5.AutoSize = true;
-            this.tableLayoutPanel5.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.tableLayoutPanel5.ColumnCount = 5;
-            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
-            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
-            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
-            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
-            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.tableLayoutPanel5.Controls.Add(this.AssignToMeBtn, 0, 0);
-            this.tableLayoutPanel5.Controls.Add(this.MarkFixedBtn, 3, 0);
-            this.tableLayoutPanel5.Controls.Add(this.OkBtn, 4, 0);
-            this.tableLayoutPanel5.Controls.Add(this.AssignToOtherBtn, 1, 0);
-            this.tableLayoutPanel5.Location = new System.Drawing.Point(3, 660);
-            this.tableLayoutPanel5.Margin = new System.Windows.Forms.Padding(3, 11, 3, 3);
-            this.tableLayoutPanel5.Name = "tableLayoutPanel5";
-            this.tableLayoutPanel5.RowCount = 1;
-            this.tableLayoutPanel5.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel5.Size = new System.Drawing.Size(1165, 33);
-            this.tableLayoutPanel5.TabIndex = 1;
-            // 
-            // JobContextMenu
-            // 
-            this.JobContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.JobContextMenu_ViewJob,
-            this.JobContextMenu_StepSeparatorMin,
-            this.toolStripMenuItem1});
-            this.JobContextMenu.Name = "JobContextMenu";
-            this.JobContextMenu.Size = new System.Drawing.Size(181, 76);
-            // 
-            // JobContextMenu_ViewJob
-            // 
-            this.JobContextMenu_ViewJob.Name = "JobContextMenu_ViewJob";
-            this.JobContextMenu_ViewJob.Size = new System.Drawing.Size(180, 22);
-            this.JobContextMenu_ViewJob.Text = "View Job...";
-            this.JobContextMenu_ViewJob.Click += new System.EventHandler(this.JobContextMenu_ViewJob_Click);
-            // 
-            // JobContextMenu_StepSeparatorMin
-            // 
-            this.JobContextMenu_StepSeparatorMin.Name = "JobContextMenu_StepSeparatorMin";
-            this.JobContextMenu_StepSeparatorMin.Size = new System.Drawing.Size(177, 6);
-            // 
-            // toolStripMenuItem1
-            // 
-            this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(180, 22);
-            this.toolStripMenuItem1.Text = "Step: XYZ";
+            this.DescriptionHeader.Width = 694;
             // 
             // IssueDetailsWindow
             // 
@@ -561,7 +568,7 @@ namespace UnrealGameSync
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
             this.CancelButton = this.OkBtn;
-            this.ClientSize = new System.Drawing.Size(1195, 720);
+            this.ClientSize = new System.Drawing.Size(1106, 596);
             this.Controls.Add(this.tableLayoutPanel4);
             this.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.Name = "IssueDetailsWindow";
@@ -572,19 +579,16 @@ namespace UnrealGameSync
             this.BuildListContextMenu.ResumeLayout(false);
             this.tableLayoutPanel1.ResumeLayout(false);
             this.tableLayoutPanel1.PerformLayout();
-            this.groupBox1.ResumeLayout(false);
+            this.tableLayoutPanel4.ResumeLayout(false);
+            this.tableLayoutPanel4.PerformLayout();
+            this.tabControl1.ResumeLayout(false);
+            this.OutputTabPage.ResumeLayout(false);
+            this.OutputTabPage.PerformLayout();
+            this.ChangesTabPage.ResumeLayout(false);
             this.tableLayoutPanel2.ResumeLayout(false);
             this.tableLayoutPanel2.PerformLayout();
             this.tableLayoutPanel3.ResumeLayout(false);
             this.tableLayoutPanel3.PerformLayout();
-            this.tableLayoutPanel4.ResumeLayout(false);
-            this.tableLayoutPanel4.PerformLayout();
-            this.splitContainer1.Panel1.ResumeLayout(false);
-            this.splitContainer1.Panel2.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
-            this.splitContainer1.ResumeLayout(false);
-            this.panel1.ResumeLayout(false);
-            this.panel1.PerformLayout();
             this.tableLayoutPanel5.ResumeLayout(false);
             this.JobContextMenu.ResumeLayout(false);
             this.ResumeLayout(false);
@@ -592,46 +596,47 @@ namespace UnrealGameSync
 		}
 
 		#endregion
-
-		private CustomListViewControl BuildListView;
-		private System.Windows.Forms.ColumnHeader ChangeHeader;
-		private System.Windows.Forms.ColumnHeader TypeHeader;
-		private System.Windows.Forms.ColumnHeader AuthorHeader;
-		private System.Windows.Forms.ColumnHeader DescriptionHeader;
-		private System.Windows.Forms.ComboBox StreamComboBox;
 		private System.Windows.Forms.Button OkBtn;
 		private System.Windows.Forms.Button AssignToOtherBtn;
-		private System.Windows.Forms.ColumnHeader IconHeader;
 		private System.Windows.Forms.ContextMenuStrip BuildListContextMenu;
 		private System.Windows.Forms.ToolStripMenuItem BuildListContextMenu_MoreInfo;
 		private System.Windows.Forms.ToolStripMenuItem BuildListContextMenu_Assign;
 		private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
-		private System.Windows.Forms.TextBox OpenSinceTextBox;
+		private System.Windows.Forms.Label OpenSinceTextBox;
 		private System.Windows.Forms.Label label1;
 		private System.Windows.Forms.Label label3;
 		private System.Windows.Forms.Label label5;
-		private System.Windows.Forms.TextBox StatusTextBox;
+		private System.Windows.Forms.Label StatusTextBox;
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
-		private System.Windows.Forms.GroupBox groupBox1;
-		private TextBoxWithCueBanner FilterTextBox;
-		private System.Windows.Forms.ComboBox FilterTypeComboBox;
-		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;
-		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel3;
 		private System.Windows.Forms.Button AssignToMeBtn;
 		private System.Windows.Forms.Button MarkFixedBtn;
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel4;
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel5;
-		private System.Windows.Forms.TextBox DetailsTextBox;
-		private System.Windows.Forms.SplitContainer splitContainer1;
-		private System.Windows.Forms.Panel panel1;
-		private System.Windows.Forms.TextBox StepNamesTextBox;
+		private System.Windows.Forms.Label StepNamesTextBox;
 		private System.Windows.Forms.Label label2;
 		private System.Windows.Forms.Label label4;
-		private System.Windows.Forms.TextBox SummaryTextBox;
-		private System.Windows.Forms.TextBox StreamNamesTextBox;
+		private System.Windows.Forms.Label StreamNamesTextBox;
 		private System.Windows.Forms.ContextMenuStrip JobContextMenu;
 		private System.Windows.Forms.ToolStripSeparator JobContextMenu_StepSeparatorMin;
 		private System.Windows.Forms.ToolStripMenuItem toolStripMenuItem1;
 		private System.Windows.Forms.ToolStripMenuItem JobContextMenu_ViewJob;
+		private System.Windows.Forms.TabControl tabControl1;
+		private System.Windows.Forms.TabPage OutputTabPage;
+		private System.Windows.Forms.TextBox DetailsTextBox;
+		private System.Windows.Forms.TabPage ChangesTabPage;
+		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;
+		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel3;
+		private TextBoxWithCueBanner FilterTextBox;
+		private System.Windows.Forms.ComboBox FilterTypeComboBox;
+		private System.Windows.Forms.ComboBox StreamComboBox;
+		private CustomListViewControl BuildListView;
+		private System.Windows.Forms.ColumnHeader IconHeader;
+		private System.Windows.Forms.ColumnHeader ChangeHeader;
+		private System.Windows.Forms.ColumnHeader TypeHeader;
+		private System.Windows.Forms.ColumnHeader AuthorHeader;
+		private System.Windows.Forms.ColumnHeader DescriptionHeader;
+		private System.Windows.Forms.Label SummaryTextBox;
+		private System.Windows.Forms.Label label6;
+		private System.Windows.Forms.LinkLabel BuildLinkLabel;
 	}
 }

@@ -351,6 +351,14 @@ namespace UnrealGameSync
 			StopUpdateTimer();
 		}
 
+		void UpdateSummaryTextIfChanged(Label Label, string NewText)
+		{
+			if (Label.Text != NewText)
+			{
+				Label.Text = NewText;
+			}
+		}
+
 		void UpdateSummaryTextIfChanged(TextBox TextBox, string NewText)
 		{
 			if(TextBox.Text != NewText)
@@ -364,6 +372,8 @@ namespace UnrealGameSync
 		void UpdateCurrentIssue()
 		{
 			UpdateSummaryTextIfChanged(SummaryTextBox, Issue.Summary.ToString());
+
+			BuildLinkLabel.Text = (Issue.Builds.Count > 0) ? Issue.Builds[0].JobName : "Unknown";
 
 			StringBuilder Status = new StringBuilder();
 			if(IssueMonitor.HasPendingUpdate())
@@ -1202,6 +1212,15 @@ namespace UnrealGameSync
 						ShowJobContextMenu(e.Location, Group);
 					}
 				}
+			}
+		}
+
+		private void BuildLinkLabel_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+		{
+			IssueBuildData Build = Issue.Builds.FirstOrDefault(x => x.ErrorUrl != null);
+			if (Build != null)
+			{
+				System.Diagnostics.Process.Start(Build.ErrorUrl);
 			}
 		}
 	}
