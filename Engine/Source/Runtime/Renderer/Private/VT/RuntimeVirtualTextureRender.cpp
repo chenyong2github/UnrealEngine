@@ -617,9 +617,9 @@ namespace RuntimeVirtualTexture
 				RDG_EVENT_NAME("VirtualTextureDraw"),
 				PassParameters,
 				ERenderGraphPassFlags::None,
-				[Scene, View, MaterialType](FRHICommandListImmediate& RHICmdList)
+				[Scene, View, MaterialType](FRHICommandListImmediate& RHICmdListImmediate)
 			{
-				DrawMeshes(RHICmdList, Scene, View, MaterialType);
+				DrawMeshes(RHICmdListImmediate, Scene, View, MaterialType);
 			});
 		}
 

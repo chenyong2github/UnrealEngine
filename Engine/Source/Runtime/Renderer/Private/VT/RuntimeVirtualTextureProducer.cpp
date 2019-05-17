@@ -77,11 +77,7 @@ FVTRequestPageResult FRuntimeVirtualTextureProducer::RequestPageData(
 	EVTRequestPagePriority Priority)
 {
 	//todo[vt]: 
-	// Investigate what causes a partial layer mask to be requested.
-	// If we can't avoid it then look at ways to handle it efficiently (right now we render all layers even for partial requests).
-
-	//todo[vt]: 
-	// Possibly throttle rendering according to performance by returning Saturated here.
+	// Possibly throttle rendering according to performance and return Saturated here.
 
 	FVTRequestPageResult result;
 	result.Handle = 0;
@@ -105,7 +101,12 @@ IVirtualTextureFinalizer* FRuntimeVirtualTextureProducer::ProducePageData(
 	FRuntimeVirtualTextureFinalizer::FTileEntry Tile;
 	Tile.vAddress = vAddress;
 	Tile.vLevel = vLevel;
-	
+
+	//todo[vt]: 
+	// Partial layer masks can happen when one layer has more physical space available so that old pages are evicted at different rates.
+	// This can be almost always be avoided by setting up the physical pools correctly for the application's needs.
+	// If we can't avoid partial layer masks then we could look at ways to handle it more efficiently (right now we render all layers even for these partial requests).
+
 	//todo[vt]: Add support for more than two layers
 	if (LayerMask & 1)
 	{

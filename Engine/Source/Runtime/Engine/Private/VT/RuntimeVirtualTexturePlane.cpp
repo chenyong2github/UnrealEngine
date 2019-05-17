@@ -37,7 +37,7 @@ void URuntimeVirtualTextureComponent::CreateRenderState_Concurrent()
 {
 	if (ShouldRender() && VirtualTexture != nullptr)
 	{
-		// This will internally allocate modify the URuntimeVirtualTexture and allocate its VT
+		// This will modify the URuntimeVirtualTexture and allocate its VT
 		GetScene()->AddRuntimeVirtualTexture(this);
 		bNotifyInNextTick = true;
 	}
@@ -49,7 +49,7 @@ void URuntimeVirtualTextureComponent::SendRenderTransform_Concurrent()
 {
 	if (ShouldRender() && VirtualTexture != nullptr)
 	{
-		// This will internally allocate modify the URuntimeVirtualTexture and allocate its VT
+		// This will modify the URuntimeVirtualTexture and allocate its VT
 		GetScene()->AddRuntimeVirtualTexture(this);
 		bNotifyInNextTick = true;
 	}
@@ -59,7 +59,7 @@ void URuntimeVirtualTextureComponent::SendRenderTransform_Concurrent()
 
 void URuntimeVirtualTextureComponent::DestroyRenderState_Concurrent()
 {
-	// This will internally allocate modify the URuntimeVirtualTexture and free its VT
+	// This will modify the URuntimeVirtualTexture and free its VT
 	GetScene()->RemoveRuntimeVirtualTexture(this);
 	bNotifyInNextTick = true;
 
@@ -70,7 +70,8 @@ void URuntimeVirtualTextureComponent::TickComponent(float DeltaTime, ELevelTick 
 {
 	if (bNotifyInNextTick)
 	{
-		// Notify materials of reallocation of the virtual texture caused by render state update
+		// Notify materials of reallocation of the virtual texture caused by render state update.
+		// This is slow and ideally we will find a different approach.
 		RuntimeVirtualTexture::NotifyMaterials(VirtualTexture);
 		bNotifyInNextTick = false;
 	}
