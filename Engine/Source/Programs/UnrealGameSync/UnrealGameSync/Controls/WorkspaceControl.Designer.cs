@@ -140,7 +140,6 @@ namespace UnrealGameSync
             this.BuildHealthContextMenu_MinSeparator = new System.Windows.Forms.ToolStripSeparator();
             this.BuildHealthContextMenu_MaxSeparator = new System.Windows.Forms.ToolStripSeparator();
             this.BuildHealthContextMenu_Settings = new System.Windows.Forms.ToolStripMenuItem();
-            this.CloseBuildIssueMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.OptionsContextMenu.SuspendLayout();
             this.BuildListContextMenu.SuspendLayout();
             this.flowLayoutPanel1.SuspendLayout();
@@ -1147,13 +1146,13 @@ namespace UnrealGameSync
             this.BuildHealthContextMenu_MaxSeparator,
             this.BuildHealthContextMenu_Settings});
             this.BuildHealthContextMenu.Name = "BuildHealthContextMenu";
-            this.BuildHealthContextMenu.Size = new System.Drawing.Size(181, 82);
+            this.BuildHealthContextMenu.Size = new System.Drawing.Size(130, 60);
             // 
             // BuildHealthContextMenu_Browse
             // 
             this.BuildHealthContextMenu_Browse.Name = "BuildHealthContextMenu_Browse";
-            this.BuildHealthContextMenu_Browse.Size = new System.Drawing.Size(180, 22);
-            this.BuildHealthContextMenu_Browse.Text = "Browse...";
+            this.BuildHealthContextMenu_Browse.Size = new System.Drawing.Size(129, 22);
+            this.BuildHealthContextMenu_Browse.Text = "Show All...";
             this.BuildHealthContextMenu_Browse.Click += new System.EventHandler(this.BuildHealthContextMenu_Browse_Click);
             // 
             // BuildHealthContextMenu_MinSeparator
@@ -1172,11 +1171,6 @@ namespace UnrealGameSync
             this.BuildHealthContextMenu_Settings.Size = new System.Drawing.Size(180, 22);
             this.BuildHealthContextMenu_Settings.Text = "Settings...";
             this.BuildHealthContextMenu_Settings.Click += new System.EventHandler(this.BuildHealthContextMenu_Settings_Click);
-            // 
-            // CloseBuildIssueMenu
-            // 
-            this.CloseBuildIssueMenu.Name = "CloseBuildIssueMenu";
-            this.CloseBuildIssueMenu.Size = new System.Drawing.Size(61, 4);
             // 
             // WorkspaceControl
             // 
@@ -1338,7 +1332,6 @@ namespace UnrealGameSync
 		private System.Windows.Forms.ContextMenuStrip BuildHealthContextMenu;
 		private System.Windows.Forms.ToolStripSeparator BuildHealthContextMenu_MaxSeparator;
 		private System.Windows.Forms.ToolStripMenuItem BuildHealthContextMenu_Settings;
-		private System.Windows.Forms.ContextMenuStrip CloseBuildIssueMenu;
 		private System.Windows.Forms.ToolStripMenuItem BuildHealthContextMenu_Browse;
 		private System.Windows.Forms.ToolStripSeparator BuildHealthContextMenu_MinSeparator;
 	}
