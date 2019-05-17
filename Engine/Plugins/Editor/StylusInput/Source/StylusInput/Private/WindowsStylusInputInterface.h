@@ -1,5 +1,7 @@
 #pragma once
 
+#include "IStylusInputModule.h"
+
 class FWindowsStylusInputInterfaceImpl;
 
 class FWindowsStylusInputInterface : public IStylusInputInterfaceInternal

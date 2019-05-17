@@ -10,6 +10,9 @@
 #include "Widgets/SWindow.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "SStylusInputDebugWidget.h"
+
+#define LOCTEXT_NAMESPACE "FStylusInputModule"
 
 DEFINE_LOG_CATEGORY_STATIC(LogStylusInput, Log, All);
 
@@ -21,13 +24,6 @@ class FStylusInputModule : public IModuleInterface
 
 IMPLEMENT_MODULE(FStylusInputModule, StylusInput)
 
-// This is the interface that all platform-specific implementations must implement.
-class IStylusInputInterfaceInternal
-{
-public:
-	virtual IStylusInputDevice* GetInputDevice(int32 Index) const = 0;
-	virtual int32 NumInputDevices() const = 0;
-};
 
 // This is the function that all platform-specific implementations are required to implement.
 TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface();
@@ -123,3 +119,7 @@ TSharedRef<SDockTab> UStylusInputSubsystem::OnSpawnPluginTab(const FSpawnTabArgs
 			SNew(SStylusInputDebugWidget, *this)
 		];
 }
+
+
+
+#undef LOCTEXT_NAMESPACE

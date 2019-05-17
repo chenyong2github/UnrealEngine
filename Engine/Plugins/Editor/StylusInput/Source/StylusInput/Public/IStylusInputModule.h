@@ -8,6 +8,9 @@
 #include "Modules/ModuleManager.h"
 #include "EditorSubsystem.h"
 
+#include "TickableEditorObject.h"
+#include "Widgets\Docking\SDockTab.h"
+
 #include "IStylusInputModule.generated.h"
 
 /**
@@ -36,7 +39,14 @@ public:
 	}
 };
 
-class IStylusInputInterfaceInternal;
+// This is the interface that all platform-specific implementations must implement.
+class IStylusInputInterfaceInternal
+{
+public:
+	virtual IStylusInputDevice* GetInputDevice(int32 Index) const = 0;
+	virtual int32 NumInputDevices() const = 0;
+};
+
 
 UCLASS()
 class STYLUSINPUT_API UStylusInputSubsystem : 
