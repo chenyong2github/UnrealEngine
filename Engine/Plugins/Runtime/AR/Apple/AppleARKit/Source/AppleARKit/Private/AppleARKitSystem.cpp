@@ -1519,6 +1519,14 @@ static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData( ARAnchor* Anchor, doubl
 			}
 		}
 #endif
+#if SUPPORTS_ARKIT_2_0
+		if (FAppleARKitAvailability::SupportsARKit20())
+		{
+			NewAnchor->ObjectClassification = FAppleARKitConversion::ToEARObjectClassification(PlaneAnchor.classification);
+		}
+#else
+		NewAnchor->ObjectClassification = ToEARObjectClassification::Unknown;
+#endif
 	}
 #if SUPPORTS_ARKIT_1_5
 	else if (FAppleARKitAvailability::SupportsARKit15() && [Anchor isKindOfClass:[ARImageAnchor class]])
@@ -1731,6 +1739,7 @@ void FAppleARKitSystem::SessionDidAddAnchors_Internal( TSharedRef<FAppleARKitAnc
 				// Connect the tracked geo to the MRMesh
 				NewGeo->SetUnderlyingMesh(MRMesh);
 			}
+			NewGeo->SetObjectClassification(AnchorData->ObjectClassification);
 			NewGeometry = NewGeo;
 			break;
 		}
@@ -1867,6 +1876,7 @@ void FAppleARKitSystem::SessionDidUpdateAnchors_Internal( TSharedRef<FAppleARKit
 						Pin->OnTransformUpdated(Pin_LocalToTrackingTransform_PostUpdate);
 					}
 					PlaneGeo->SetOrientation(AnchorData->Orientation);
+					PlaneGeo->SetObjectClassification(AnchorData->ObjectClassification);
 					// Update the occlusion geo if configured
 					if (GetARCompositionComponent()->GetSessionConfig().bGenerateMeshDataFromTrackedGeometry)
 					{

@@ -184,6 +184,40 @@ struct APPLEARKIT_API FAppleARKitConversion
 		return RetVal;
 	}
 
+#if SUPPORTS_ARKIT_2_0
+	static FORCEINLINE EARObjectClassification ToEARObjectClassification(ARPlaneClassification Classification)
+	{
+		switch(Classification)
+		{
+			case ARPlaneClassificationWall:
+			{
+				return EARObjectClassification::Wall;
+			}
+
+			case ARPlaneClassificationFloor:
+			{
+				return EARObjectClassification::Floor;
+			}
+
+			case ARPlaneClassificationCeiling:
+			{
+				return EARObjectClassification::Ceiling;
+			}
+
+			case ARPlaneClassificationTable:
+			{
+				return EARObjectClassification::Table;
+			}
+
+			case ARPlaneClassificationSeat:
+			{
+				return EARObjectClassification::Seat;
+			}
+		}
+		return EARObjectClassification::Unknown;
+	}
+#endif
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wpartial-availability"
 
@@ -329,6 +363,11 @@ struct FAppleARKitAnchorData
 		Timecode = Other.Timecode;
 		FrameRate = Other.FrameRate;
 
+		Vertices = Other.Vertices;
+		Indices = Other.Indices;
+		Orientation = Other.Orientation;
+		ObjectClassification = Other.ObjectClassification;
+
 		bIsTracked = Other.bIsTracked;
 	}
 
@@ -337,6 +376,8 @@ struct FAppleARKitAnchorData
 		BoundaryVerts.Empty();
 		BlendShapes.Empty();
 		FaceVerts.Empty();
+		Vertices.Empty();
+		Indices.Empty();
 		ProbeTexture = nullptr;
 	}
 
@@ -346,6 +387,7 @@ struct FAppleARKitAnchorData
 	FVector Center;
 	FVector Extent;
 	EARPlaneOrientation Orientation;
+	EARObjectClassification ObjectClassification;
 	/** Set by the session config to detemine whether to generate geometry or not */
 	static bool bGenerateGeometry;
 	TArray<FVector> BoundaryVerts;
