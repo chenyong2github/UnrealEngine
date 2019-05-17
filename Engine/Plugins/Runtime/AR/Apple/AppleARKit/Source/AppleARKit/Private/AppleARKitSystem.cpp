@@ -1004,6 +1004,7 @@ public:
 		 completionHandler: ^(ARReferenceObject* refObject, NSError* error)
 		{
 			ReferenceObject = refObject;
+			CFRetain(ReferenceObject);
 			bool bWasSuccessful = error == nullptr;
 			bHadError = error != nullptr;
 			FString ErrorString;
