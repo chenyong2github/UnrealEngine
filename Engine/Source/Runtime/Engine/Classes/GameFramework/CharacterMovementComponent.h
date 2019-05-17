@@ -1530,6 +1530,14 @@ public:
 	virtual FVector GetFallingLateralAcceleration(float DeltaTime);
 	
 	/**
+	 * Returns true if falling movement should limit air control. Limiting air control prevents input acceleration during falling movement
+	 * from allowing velocity to redirect forces upwards while falling, which could result in slower falling or even upward boosting.
+	 *
+	 * @see GetFallingLateralAcceleration(), BoostAirControl(), GetAirControl(), LimitAirControl()
+	 */
+	virtual bool ShouldLimitAirControl(float DeltaTime, const FVector& FallAcceleration) const;
+
+	/**
 	 * Get the air control to use during falling movement.
 	 * Given an initial air control (TickAirControl), applies the result of BoostAirControl().
 	 * This function is used internally by GetFallingLateralAcceleration().
@@ -2112,6 +2120,8 @@ public:
 	virtual void ResetPredictionData_Client() override;
 	virtual void ResetPredictionData_Server() override;
 
+	static uint32 PackYawAndPitchTo32(const float Yaw, const float Pitch);
+
 protected:
 	class FNetworkPredictionData_Client_Character* ClientPredictionData;
 	class FNetworkPredictionData_Server_Character* ServerPredictionData;
@@ -2132,8 +2142,6 @@ protected:
 
 	/** Update mesh location based on interpolated values. */
 	void SmoothClientPosition_UpdateVisuals();
-
-	static uint32 PackYawAndPitchTo32(const float Yaw, const float Pitch); 
 
 	/*
 	========================================================================
@@ -2633,6 +2641,12 @@ public:
 
 	/** Returns a byte containing encoded special movement information (jumping, crouching, etc.)	 */
 	virtual uint8 GetCompressedFlags() const;
+
+	/** Compare current control rotation with stored starting data */
+	virtual bool IsMatchingStartControlRotation(const APlayerController* PC) const;
+
+	/** Packs control rotation for network transport */
+	virtual void GetPackedAngles(uint32& YawAndPitchPack, uint8& RollPack) const;
 
 	// Bit masks used by GetCompressedFlags() to encode movement information.
 	enum CompressedFlags

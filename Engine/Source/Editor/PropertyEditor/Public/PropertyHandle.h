@@ -124,6 +124,13 @@ public:
 	virtual const FString* GetInstanceMetaData(const FName& Key) const = 0;
 
 	/**
+	 * Get metadata map for this property instance (as opposed to the class)
+	 * 
+	 * @return Map ptr containing metadata pairs; nullptr if property node is invalid
+	 */
+	virtual const TMap<FName, FString>* GetInstanceMetaDataMap() const = 0;
+
+	/**
 	 * Gets the property tool tip text.
 	 */
 	virtual FText GetToolTipText() const = 0;

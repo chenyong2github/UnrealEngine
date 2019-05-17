@@ -86,4 +86,8 @@ private:
 	static void ReplaceWidgetWithChildren(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, UWidgetBlueprint* BP, FWidgetReference Widget);
 
 	static void ReplaceWidgets(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, UWidgetBlueprint* BP, TSet<FWidgetReference> Widgets, UClass* WidgetClass);
+
+	static FString FindNextValidName(UWidgetTree* WidgetTree, const FString& Name);
+
+	static bool IsGenericName(const FString& Name, const UClass* WidgetClass);
 };

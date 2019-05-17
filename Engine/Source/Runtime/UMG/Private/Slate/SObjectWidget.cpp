@@ -86,7 +86,7 @@ FString SObjectWidget::GetReferencerName() const
 
 void SObjectWidget::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObject(WidgetObject);
+	Collector.AddReferencedObject(WidgetObject, FGCObject::GGCObjectReferencer);
 }
 
 void SObjectWidget::SetPadding(const TAttribute<FMargin>& InMargin)

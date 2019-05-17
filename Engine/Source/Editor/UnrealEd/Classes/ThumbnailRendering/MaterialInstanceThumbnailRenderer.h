@@ -30,5 +30,7 @@ class UMaterialInstanceThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 
 private:
 	class FMaterialThumbnailScene* ThumbnailScene;
+	class FWidgetRenderer* WidgetRenderer;
+	struct FSlateMaterialBrush* UIMaterialBrush;
 };
 

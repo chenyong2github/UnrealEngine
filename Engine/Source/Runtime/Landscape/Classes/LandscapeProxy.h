@@ -596,9 +596,6 @@ public:
 	UPROPERTY()
 	TArray<FLandscapeEditorLayerSettings> EditorLayerSettings;
 
-	UPROPERTY()
-	bool HasLayersContent;
-
 	TMap<UTexture2D*, FLandscapeLayersTexture2DCPUReadBackResource*> HeightmapsCPUReadBack;
 	TMap<UTexture2D*, FLandscapeLayersTexture2DCPUReadBackResource*> WeightmapsCPUReadBack;
 	FRenderCommandFence ReleaseResourceFence;
@@ -633,6 +630,10 @@ public:
 	/** Flag whether or not this Landscape's surface can be used for culling hidden triangles **/
 	UPROPERTY(EditAnywhere, Category = HierarchicalLOD)
 	bool bUseLandscapeForCullingInvisibleHLODVertices;
+
+	/** Flag that tell if we have some layers content **/
+	UPROPERTY()
+	bool bHasLayersContent;
 
 public:
 
@@ -849,9 +850,8 @@ public:
 	LANDSCAPE_API static ULandscapeMaterialInstanceConstant* GetLayerThumbnailMIC(UMaterialInterface* LandscapeMaterial, FName LayerName, UTexture2D* ThumbnailWeightmap, UTexture2D* ThumbnailHeightmap, ALandscapeProxy* Proxy);
 
 	/** Import the given Height/Weight data into this landscape */
-	LANDSCAPE_API void Import(FGuid Guid, int32 MinX, int32 MinY, int32 MaxX, int32 MaxY, int32 NumSubsections, int32 SubsectionSizeQuads,
-							const uint16* HeightData, const TCHAR* HeightmapFileName,
-							const TArray<FLandscapeImportLayerInfo>& ImportLayerInfos, ELandscapeImportAlphamapType ImportLayerType);
+	LANDSCAPE_API void Import(const FGuid& InGuid, int32 InMinX, int32 InMinY, int32 InMaxX, int32 InMaxY, int32 InNumSubsections, int32 InSubsectionSizeQuads, const TMap<FGuid, TArray<uint16>>& InImportHeightData,
+							  const TCHAR* const InHeightmapFileName, const TMap<FGuid, TArray<FLandscapeImportLayerInfo>>& InImportMaterialLayerInfos, ELandscapeImportAlphamapType InImportMaterialLayerType, const TArray<struct FLandscapeLayer>* InImportLayers = nullptr);
 
 	/**
 	 * Exports landscape into raw mesh
@@ -943,6 +943,14 @@ public:
 	DECLARE_EVENT(ALandscape, FLandscapeMaterialChangedDelegate);
 	FLandscapeMaterialChangedDelegate& OnMaterialChangedDelegate() { return LandscapeMaterialChangedDelegate; }
 
+	/** Will tell if the landscape proxy as some content related to the layer system */
+	LANDSCAPE_API virtual bool HasLayersContent() const;
+	
+	/** Will tell if the landscape proxy can have some content related to the layer system */
+	LANDSCAPE_API bool CanHaveLayersContent() const;
+
+	void UpdateCachedHasLayersContent(bool InCheckComponentDataIntegrity = false);
+
 protected:
 	friend class ALandscape;
 
@@ -967,4 +975,7 @@ protected:
 	FLandscapeMaterialChangedDelegate LandscapeMaterialChangedDelegate;
 
 #endif
+private:
+	/** Returns Grass Update interval */
+	int32 GetGrassUpdateInterval() const;
 };

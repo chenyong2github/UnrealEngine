@@ -376,6 +376,7 @@ struct FPakCommandLineParameters
 	bool   GeneratePatch;
 	FString SourcePatchPakFilename;
 	FString SourcePatchDiffDirectory;
+	FString InputFinalPakFilename; // This is the resulting pak file we want to end up with after we generate the pak patch.  This is used instead of passing in the raw content.
 	bool EncryptIndex;
 	bool UseCustomCompressor;
 	FGuid EncryptionKeyGuid;
@@ -429,6 +430,22 @@ struct FPakEntryOrder
 	uint64  Order;
 };
 
+
+struct FFileInfo
+{
+	uint64 FileSize;
+	int32 PatchIndex;
+	bool bIsDeleteRecord;
+	bool bForceInclude;
+	uint8 Hash[16];
+};
+
+bool ExtractFilesFromPak(const TCHAR* InPakFilename, TMap<FString, FFileInfo>& InFileHashes, 
+	const TCHAR* InDestPath, bool bUseMountPoint, 
+	const FKeyChain& InKeyChain, const FString* InFilter, 
+	TArray<FPakInputPair>* OutEntries = nullptr, TArray<FPakInputPair>* OutDeletedEntries = nullptr, 
+	FPakOrderMap* OutOrderMap = nullptr, TArray<FGuid>* OutUsedEncryptionKeys = nullptr, bool* OutAnyPakSigned = nullptr);
+
 struct FCompressedFileBuffer
 {
 	FCompressedFileBuffer()
@@ -471,6 +488,9 @@ struct FCompressedFileBuffer
 	int64				CompressedBufferSize;
 	TUniquePtr<uint8[]>		CompressedBuffer;
 };
+
+void LoadKeyChainFromFile(const FString& InFilename, FKeyChain& OutCryptoSettings);
+void ApplyEncryptionKeys(const FKeyChain& KeyChain);
 
 template <class T>
 bool ReadSizeParam(const TCHAR* CmdLine, const TCHAR* ParamStr, T& SizeOut)
@@ -846,9 +866,15 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 
 	if (FParse::Value(CmdLine, TEXT("-create="), ResponseFile))
 	{
-		TArray<FString> Lines;
+		
 
 		CmdLineParameters.GeneratePatch = FParse::Value(CmdLine, TEXT("-generatepatch="), CmdLineParameters.SourcePatchPakFilename);
+
+
+		bool bCompress = FParse::Param(CmdLine, TEXT("compress"));
+		bool bEncrypt = FParse::Param(CmdLine, TEXT("encrypt"));
+
+		
 
 		if (CmdLineParameters.GeneratePatch)
 		{
@@ -862,93 +888,121 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 				CmdLineParameters.SeekOptParams.Mode = ESeekOptMode::OnePass;
 			}
 			FParse::Value(CmdLine, TEXT("-patchSeekOptMode="), (int32&)CmdLineParameters.SeekOptParams.Mode);
+
+			
 		}
 
-		bool bCompress = FParse::Param(CmdLine, TEXT("compress"));
-		bool bEncrypt = FParse::Param(CmdLine, TEXT("encrypt"));
-
-		bool bParseLines = true;
-		if (IFileManager::Get().DirectoryExists(*ResponseFile))
+		// if the response file is a pak file, then this is the pak file we want to use as the source
+		if (ResponseFile.EndsWith(TEXT(".pak"), ESearchCase::IgnoreCase) && CmdLineParameters.GeneratePatch)
 		{
-			IFileManager::Get().FindFilesRecursive(Lines, *ResponseFile, TEXT("*"), true, false);
-			bParseLines = false;
+			FString OutputPath;
+			if (FParse::Value(CmdLine, TEXT("extractedpaktemp="), OutputPath) == false)
+			{
+				UE_LOG(LogPakFile, Error, TEXT("-extractedpaktemp= not specified.  Required when specifying pak file as the response file."), *ResponseFile);
+			}
+
+			FString ExtractedPakKeysFile;
+			FKeyChain ExtractedPakKeys;
+			if ( FParse::Value(CmdLine, TEXT("extractedpakcryptokeys="), ExtractedPakKeysFile) )
+			{
+				LoadKeyChainFromFile(ExtractedPakKeysFile, ExtractedPakKeys);
+				ApplyEncryptionKeys(ExtractedPakKeys);
+			}
+
+			TMap<FString, FFileInfo> FileHashes;
+			ExtractFilesFromPak(*ResponseFile, FileHashes, *OutputPath, true, ExtractedPakKeys, nullptr, &Entries, nullptr, nullptr, nullptr, nullptr);
 		}
 		else
 		{
-			FString Text;
-			UE_LOG(LogPakFile, Display, TEXT("Loading response file %s"), *ResponseFile);
-			if (FFileHelper::LoadFileToString(Text, *ResponseFile))
+			TArray<FString> Lines;
+			bool bParseLines = true;
+			if (IFileManager::Get().DirectoryExists(*ResponseFile))
 			{
-				// Remove all carriage return characters.
-				Text.ReplaceInline(TEXT("\r"), TEXT(""));
-				// Read all lines
-				Text.ParseIntoArray(Lines, TEXT("\n"), true);
+				IFileManager::Get().FindFilesRecursive(Lines, *ResponseFile, TEXT("*"), true, false);
+				bParseLines = false;
 			}
 			else
 			{
-				UE_LOG(LogPakFile, Error, TEXT("Failed to load %s"), *ResponseFile);
+				FString Text;
+				UE_LOG(LogPakFile, Display, TEXT("Loading response file %s"), *ResponseFile);
+				if (FFileHelper::LoadFileToString(Text, *ResponseFile))
+				{
+					// Remove all carriage return characters.
+					Text.ReplaceInline(TEXT("\r"), TEXT(""));
+					// Read all lines
+					Text.ParseIntoArray(Lines, TEXT("\n"), true);
+				}
+				else
+				{
+					UE_LOG(LogPakFile, Error, TEXT("Failed to load %s"), *ResponseFile);
+				}
+			}
+
+			for (int32 EntryIndex = 0; EntryIndex < Lines.Num(); EntryIndex++)
+			{
+				TArray<FString> SourceAndDest;
+				TArray<FString> Switches;
+				if (bParseLines)
+				{
+					Lines[EntryIndex].TrimStartInline();
+					CommandLineParseHelper(*Lines[EntryIndex], SourceAndDest, Switches);
+				}
+				else
+				{
+					SourceAndDest.Add(Lines[EntryIndex]);
+				}
+				if (SourceAndDest.Num() == 0)
+				{
+					continue;
+				}
+				FPakInputPair Input;
+
+				Input.Source = SourceAndDest[0];
+				FPaths::NormalizeFilename(Input.Source);
+				if (SourceAndDest.Num() > 1)
+				{
+					Input.Dest = FPaths::GetPath(SourceAndDest[1]);
+				}
+				else
+				{
+					Input.Dest = FPaths::GetPath(Input.Source);
+				}
+				FPaths::NormalizeFilename(Input.Dest);
+				FPakFile::MakeDirectoryFromPath(Input.Dest);
+
+				//check for compression switches
+				for (int32 Index = 0; Index < Switches.Num(); ++Index)
+				{
+					if (Switches[Index] == TEXT("compress"))
+					{
+						Input.bNeedsCompression = true;
+					}
+					if (Switches[Index] == TEXT("encrypt"))
+					{
+						Input.bNeedEncryption = true;
+					}
+					if (Switches[Index] == TEXT("delete"))
+					{
+						Input.bIsDeleteRecord = true;
+						Input.Dest = Input.Source;
+					}
+				}
+				Input.bNeedsCompression |= bCompress;
+				Input.bNeedEncryption |= bEncrypt;
+
+				UE_LOG(LogPakFile, Log, TEXT("Added file Source: %s Dest: %s"), *Input.Source, *Input.Dest);
+
+				bool bIsMappedBulk = Input.Source.EndsWith(TEXT(".m.ubulk"));
+				if (bIsMappedBulk && CmdLineParameters.AlignForMemoryMapping > 0 && Input.bNeedsCompression
+					&& !Input.bNeedEncryption) // if it is encrypted, we will compress it anyway since it won't be mapped at runtime
+				{
+					// no compression for bulk aligned files because they are memory mapped
+					Input.bNeedsCompression = false;
+					UE_LOG(LogPakFile, Log, TEXT("Stripped compression from %s for memory mapping."), *Input.Dest);
+				}
+				Entries.Add(Input);
 			}
 		}
-
-		for (int32 EntryIndex = 0; EntryIndex < Lines.Num(); EntryIndex++)
-		{
-			TArray<FString> SourceAndDest;
-			TArray<FString> Switches;
-			if (bParseLines)
-			{
-				Lines[EntryIndex].TrimStartInline();
-				CommandLineParseHelper(*Lines[EntryIndex], SourceAndDest, Switches);
-			}
-			else
-			{
-				SourceAndDest.Add(Lines[EntryIndex]);
-			}
-			if( SourceAndDest.Num() == 0)
-			{
-				continue;
-			}
-			FPakInputPair Input;
-
-			Input.Source = SourceAndDest[0];
-			FPaths::NormalizeFilename(Input.Source);
-			if (SourceAndDest.Num() > 1)
-			{
-				Input.Dest = FPaths::GetPath(SourceAndDest[1]);
-			}
-			else
-			{
-				Input.Dest = FPaths::GetPath(Input.Source);
-			}
-			FPaths::NormalizeFilename(Input.Dest);
-			FPakFile::MakeDirectoryFromPath(Input.Dest);
-
-			//check for compression switches
-			for (int32 Index = 0; Index < Switches.Num(); ++Index)
-			{
-				if (Switches[Index] == TEXT("compress"))
-				{
-					Input.bNeedsCompression = true;
-				}
-				if (Switches[Index] == TEXT("encrypt"))
-				{
-					Input.bNeedEncryption = true;
-				}
-			}
-			Input.bNeedsCompression |= bCompress;
-			Input.bNeedEncryption |= bEncrypt;
-
-			UE_LOG(LogPakFile, Log, TEXT("Added file Source: %s Dest: %s"), *Input.Source, *Input.Dest);
-
-			bool bIsMappedBulk = Input.Source.EndsWith(TEXT(".m.ubulk"));
-			if (bIsMappedBulk && CmdLineParameters.AlignForMemoryMapping > 0 && Input.bNeedsCompression 
-				&& !Input.bNeedEncryption) // if it is encrypted, we will compress it anyway since it won't be mapped at runtime
-			{
-				// no compression for bulk aligned files because they are memory mapped
-				Input.bNeedsCompression = false;
-				UE_LOG(LogPakFile, Log, TEXT("Stripped compression from %s for memory mapping."), *Input.Dest);
-			}
-			Entries.Add(Input);
-		}			
 	}
 	else
 	{
@@ -997,6 +1051,12 @@ void CollectFilesToAdd(TArray<FPakInputPair>& OutFilesToAdd, const TArray<FPakIn
 		bool bCompression = Input.bNeedsCompression;
 		bool bEncryption = Input.bNeedEncryption;
 
+		if (Input.bIsDeleteRecord)
+		{
+			// just pass through any delete records found in the input
+			OutFilesToAdd.Add(Input);
+			continue;
+		}
 
 		FString Filename = FPaths::GetCleanFilename(Source);
 		FString Directory = FPaths::GetPath(Source);
@@ -1100,7 +1160,7 @@ void CollectFilesToAdd(TArray<FPakInputPair>& OutFilesToAdd, const TArray<FPakIn
 	{
 		FORCEINLINE bool operator()(const FPakInputPair& A, const FPakInputPair& B) const
 		{
-			return A.SuggestedOrder == B.SuggestedOrder ? A.Dest < B.Dest : A.SuggestedOrder < B.SuggestedOrder;
+			return  A.bIsDeleteRecord == B.bIsDeleteRecord ? (A.SuggestedOrder == B.SuggestedOrder ? A.Dest < B.Dest : A.SuggestedOrder < B.SuggestedOrder) : A.bIsDeleteRecord < B.bIsDeleteRecord;
 		}
 	};
 	OutFilesToAdd.Sort(FInputPairSort());
@@ -1281,6 +1341,8 @@ void LoadKeyChainFromFile(const FString& InFilename, FKeyChain& OutCryptoSetting
 		}
 	}
 	delete File;
+	FGuid EncryptionKeyOverrideGuid;
+	OutCryptoSettings.MasterEncryptionKey = OutCryptoSettings.EncryptionKeys.Find(EncryptionKeyOverrideGuid);
 }
 
 void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
@@ -2602,16 +2664,10 @@ bool GeneratePIXMappingFile(const TArray<FString> InPakFileList, const FString& 
 	return true;
 }
 
-struct FFileInfo
-{
-	uint64 FileSize;
-	int32 PatchIndex;
-	bool bIsDeleteRecord;
-	bool bForceInclude;
-	uint8 Hash[16];
-};
-
-bool ExtractFilesFromPak(const TCHAR* InPakFilename, TMap<FString, FFileInfo>& InFileHashes, const TCHAR* InDestPath, bool bUseMountPoint, const FKeyChain& InKeyChain, const FString* InFilter, TArray<FPakInputPair>* OutEntries = nullptr, TArray<FPakInputPair>* OutDeletedEntries = nullptr, FPakOrderMap* OutOrderMap = nullptr, TArray<FGuid>* OutUsedEncryptionKeys = nullptr, bool* OutAnyPakSigned = nullptr)
+bool ExtractFilesFromPak(const TCHAR* InPakFilename, TMap<FString, FFileInfo>& InFileHashes, 
+	const TCHAR* InDestPath, bool bUseMountPoint, const FKeyChain& InKeyChain, const FString* InFilter, 
+	TArray<FPakInputPair>* OutEntries, TArray<FPakInputPair>* OutDeletedEntries, FPakOrderMap* OutOrderMap, 
+	TArray<FGuid>* OutUsedEncryptionKeys, bool* OutAnyPakSigned)
 {
 	// Gather all patch versions of the requested pak file and run through each separately
 	TArray<FString> PakFileList;
@@ -2951,17 +3007,12 @@ bool GenerateHashesFromPak(const TCHAR* InPakFilename, const TCHAR* InDestPakFil
 {
 	OutLowestSourcePakVersion = FPakInfo::PakFile_Version_Invalid;
 
-	TArray<FString> FoundFiles;
-	IFileManager::Get().FindFiles(FoundFiles, InPakFilename, true, false);
-	if (FoundFiles.Num() == 0)
-	{
-		return false;
-	}
-
 	// Gather all patch pak files and run through them one at a time
 	TArray<FString> PakFileList;
+	IFileManager::Get().FindFiles(PakFileList, InPakFilename, true, false);
+
 	FString PakFileDirectory = FPaths::GetPath(InPakFilename);
-	IFileManager::Get().FindFiles(PakFileList, *PakFileDirectory, *FPaths::GetCleanFilename(InPakFilename));
+
 	for (int32 PakFileIndex = 0; PakFileIndex < PakFileList.Num(); PakFileIndex++)
 	{
 		FString PakFilename = PakFileDirectory + "\\" + PakFileList[PakFileIndex];
@@ -3919,11 +3970,14 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 	
 		if (NonOptionArguments.Num() != 2)
 		{
-			UE_LOG(LogPakFile, Error, TEXT("Incorrect arguments. Expected: -Extract <PakFile> <OutputPath>"));
+			UE_LOG(LogPakFile, Error, TEXT("Incorrect arguments. Expected: -Extract <PakFile> <OutputPath> [-responsefile=<filename>]"));
 			return false;
 		}
 
 		FString PakFilename = GetPakPath(*NonOptionArguments[0], false);
+
+		FString ResponseFileName;
+		bool bGenerateResponseFile = FParse::Value(CmdLine, TEXT("responseFile="), ResponseFileName);
 
 		bool bUseFilter = false;
 		FString Filter;
@@ -3932,7 +3986,45 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		bUseFilter = FParse::Value(CmdLine, TEXT("Filter="), Filter);
 		bool bExtractToMountPoint = FParse::Param(CmdLine, TEXT("ExtractToMountPoint"));
 		TMap<FString, FFileInfo> EmptyMap;
-		return ExtractFilesFromPak(*PakFilename, EmptyMap, *DestPath, bExtractToMountPoint, KeyChain, bUseFilter ? &Filter : nullptr);
+		TArray<FPakInputPair> ResponseContent;
+		TArray<FPakInputPair> DeletedContent;
+		if (ExtractFilesFromPak(*PakFilename, EmptyMap, *DestPath, bExtractToMountPoint, KeyChain, bUseFilter ? &Filter : nullptr, &ResponseContent, &DeletedContent) == false)
+		{
+			return false;
+		}
+
+		if (bGenerateResponseFile)
+		{
+			FArchive* ResponseArchive = IFileManager::Get().CreateFileWriter(*ResponseFileName);
+			ResponseArchive->SetIsTextFormat(true);
+			// generate a response file
+			if (FParse::Param(CmdLine, TEXT("includedeleted")))
+			{
+				for (int32 I = 0; I < DeletedContent.Num(); ++I)
+				{
+					ResponseArchive->Logf(TEXT("%s -delete"), *DeletedContent[I].Dest);
+				}
+			}
+
+			for (int32 I = 0; I < ResponseContent.Num(); ++I)
+			{
+				const FPakInputPair& Response = ResponseContent[I];
+				FString Line = FString::Printf(TEXT("%s %s"), *Response.Source, *Response.Dest);
+				if (Response.bNeedEncryption)
+				{
+					Line += " -encrypt";
+				}
+				if (Response.bNeedsCompression)
+				{
+					Line += " -compress";
+				}
+				ResponseArchive->Logf(TEXT("%s"), *Line);
+			}
+			ResponseArchive->Close();
+			delete ResponseArchive;
+		}
+
+		return true;
 	}
 
 	if (FParse::Param(CmdLine, TEXT("AuditFiles")))

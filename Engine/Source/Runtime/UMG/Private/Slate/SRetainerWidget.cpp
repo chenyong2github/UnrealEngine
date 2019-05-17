@@ -129,6 +129,10 @@ void SRetainerWidget::UpdateWidgetRenderer()
 	FWidgetRenderer* WidgetRenderer = RenderingResources->WidgetRenderer;
 
 	WidgetRenderer->SetUseGammaCorrection(bWriteContentInGammaSpace);
+
+	// This will be handled by the main slate rendering pass
+	WidgetRenderer->SetApplyColorDeficiencyCorrection(false);
+
 	WidgetRenderer->SetIsPrepassNeeded(false);
 	WidgetRenderer->SetClearHitTestGrid(false);
 

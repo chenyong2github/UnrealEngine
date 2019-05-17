@@ -19,4 +19,5 @@ public:
 	virtual bool SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const override;
 	virtual bool CanSetValueFromDisplayName() const override;
 	virtual bool SetValueFromDisplayName(const FText& TextValue, FNiagaraVariable& Variable) const override;
+	virtual FText GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const override;
 };

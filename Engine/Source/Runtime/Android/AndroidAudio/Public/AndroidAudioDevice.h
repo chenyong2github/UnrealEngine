@@ -316,6 +316,8 @@ public:
 	/** Starts up any platform specific hardware/APIs */
 	virtual bool InitializeHardware() override;
 
+	virtual FAudioPlatformSettings GetPlatformSettings() const override;
+
 	virtual void TeardownHardware() override
 	{
 		Teardown();

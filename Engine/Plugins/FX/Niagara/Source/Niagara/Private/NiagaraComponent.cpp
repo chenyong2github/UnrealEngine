@@ -358,6 +358,28 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	SavedAutoAttachRelativeScale3D = FVector(1.f, 1.f, 1.f);
 }
 
+/********* UFXSystemComponent *********/
+void UNiagaraComponent::SetFloatParameter(FName ParameterName, float Param)
+{
+	SetNiagaraVariableFloat(ParameterName.ToString(), Param);
+}
+
+void UNiagaraComponent::SetVectorParameter(FName ParameterName, FVector Param)
+{
+	SetNiagaraVariableVec3(ParameterName.ToString(), Param);
+}
+
+void UNiagaraComponent::SetColorParameter(FName ParameterName, FLinearColor Param)
+{
+	SetNiagaraVariableLinearColor(ParameterName.ToString(), Param);
+}
+
+void UNiagaraComponent::SetActorParameter(FName ParameterName, class AActor* Param)
+{
+	SetNiagaraVariableActor(ParameterName.ToString(), Param);
+}
+/********* UFXSystemComponent *********/
+
 
 void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
@@ -582,6 +604,16 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 
 	
 	Super::Activate(bReset);
+
+	// Early out if we're not forcing a reset, and both the component and system instance are already active.
+	if (bReset == false &&
+		IsActive() &&
+		SystemInstance != nullptr &&
+		SystemInstance->GetRequestedExecutionState() == ENiagaraExecutionState::Active &&
+		SystemInstance->GetActualExecutionState() == ENiagaraExecutionState::Active)
+	{
+		return;
+	}
 
 	//UE_LOG(LogNiagara, Log, TEXT("Activate: %u - %s"), this, *Asset->GetName());
 	

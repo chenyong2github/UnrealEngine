@@ -64,6 +64,15 @@ static FAutoConsoleVariableRef CVarNiagaraRibbonMinSegmentLength(
 	ECVF_Scalability
 );
 
+float GNiagaraRibbonMaxAveraging = .98f;
+static FAutoConsoleVariableRef CVarNiagaraRibbonMaxAveraging(
+	TEXT("Niagara.Ribbon.Tessellation.MaxAveraging"),
+	GNiagaraRibbonMaxAveraging,
+	TEXT("Averaging value between the max metrics and the current metrics. (default=95%)"),
+	ECVF_Scalability
+);
+
+
 
 // max absolute error 9.0x10^-3
 // Eberly's polynomial degree 1 - respect bounds
@@ -76,18 +85,11 @@ FORCEINLINE float AcosFast(float InX)
     return (InX >= 0) ? Res : PI - Res;
 }
 
-
 struct FNiagaraDynamicDataRibbon : public FNiagaraDynamicDataBase
 {
 	// The list of all segments, each one connecting SortedIndices[SegmentId] to SortedIndices[SegmentId + 1].
 	// We use this format because the final index buffer gets generated based on view sorting and InterpCount.
 	TArray<int32> SegmentData;
-
-	// Curvature of the segment.
-	float AverageSegmentCurvature = 0;
-	// Angle of the curvature over the segment (in radian)­.
-	float AverangeSegmentAngle = 0; 
-
 	TArray<int32> SortedIndices;
 	TArray<FVector4> TangentAndDistances;
 	TArray<uint32> MultiRibbonIndices;
@@ -271,16 +273,26 @@ void NiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVie
 		if (VisibilityMap & (1 << ViewIndex))
 		{
 			const FSceneView* View = Views[ViewIndex];
+			check(View);
+
+			const FVector ViewOriginForDistanceCulling = View->ViewMatrices.GetViewOrigin();
 
 			int32 SegmentTessellation = 1;
 			int32 NumSegments = DynamicDataRibbon->SegmentData.Num();
-			if (GNiagaraRibbonMaxTessellation > 1)
+			if (GNiagaraRibbonMaxTessellation > 1 && TessellationCurvature > SMALL_NUMBER && ViewFamily.GetFeatureLevel() == ERHIFeatureLevel::SM5)
 			{
-				const float MinTesselation = FMath::Max<float>(1.f, DynamicDataRibbon->AverangeSegmentAngle / FMath::Max<float>(SMALL_NUMBER, GNiagaraRibbonTessellationAngle));
+				const float MinTesselation = FMath::Max<float>(1.f, TessellationAngle / FMath::Max<float>(SMALL_NUMBER, GNiagaraRibbonTessellationAngle));
 
-				const float ViewDistance = SceneProxy->GetBounds().ComputeSquaredDistanceFromBoxToPoint(View->ViewLocation);
+				const float ViewDistance = SceneProxy->GetBounds().ComputeSquaredDistanceFromBoxToPoint(ViewOriginForDistanceCulling);
 				const float MaxDisplacementError = FMath::Max(GNiagaraRibbonTessellationMinDisplacementError, GNiagaraRibbonTessellationScreenPercentage * FMath::Sqrt(ViewDistance) / View->LODDistanceFactor);
-				const float Tess = DynamicDataRibbon->AverangeSegmentAngle / FMath::Max(SMALL_NUMBER, AcosFast(DynamicDataRibbon->AverageSegmentCurvature / (DynamicDataRibbon->AverageSegmentCurvature + MaxDisplacementError)));
+				float Tess = TessellationAngle / FMath::Max(SMALL_NUMBER, AcosFast(TessellationCurvature / (TessellationCurvature + MaxDisplacementError)));
+				// FMath::RoundUpToPowerOfTwo ? This could avoid vertices moving around as tesselation increases
+
+				if (TessellationTwistAngle > 0 && TessellationTwistCurvature > 0)
+				{
+					const float TwistTess  = TessellationTwistAngle / FMath::Max(SMALL_NUMBER, AcosFast(TessellationTwistCurvature / (TessellationTwistCurvature + MaxDisplacementError)));
+					Tess = FMath::Max(TwistTess, Tess);
+				}
 				SegmentTessellation = FMath::Clamp<int32>(FMath::RoundToInt(Tess), FMath::RoundToInt(MinTesselation), GNiagaraRibbonMaxTessellation);
 				NumSegments *= SegmentTessellation;
 			}
@@ -289,8 +301,8 @@ void NiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVie
 
 			// Figure out whether start is closer to the view plane than end
 			// TODO : This doesn't work with multi-ribbons.
-			const float StartDist = FVector::DotProduct(View->GetViewDirection(), DynamicDataRibbon->StartPos - View->ViewLocation);
-			const float EndDist = FVector::DotProduct(View->GetViewDirection(), DynamicDataRibbon->EndPos - View->ViewLocation);
+			const float StartDist = FVector::DotProduct(View->GetViewDirection(), DynamicDataRibbon->StartPos - ViewOriginForDistanceCulling);
+			const float EndDist = FVector::DotProduct(View->GetViewDirection(), DynamicDataRibbon->EndPos - ViewOriginForDistanceCulling);
 			const bool bInvertOrder = ((StartDist > EndDist) && Properties->DrawDirection == ENiagaraRibbonDrawDirection::BackToFront)
 					|| ((StartDist < EndDist) && Properties->DrawDirection == ENiagaraRibbonDrawDirection::FrontToBack);
 
@@ -523,7 +535,7 @@ void CalculateUVScaleAndOffsets(
 	}
 }
 
-FNiagaraDynamicDataBase *NiagaraRendererRibbons::GenerateVertexData(const FNiagaraSceneProxy* Proxy, FNiagaraDataSet &Data, const ENiagaraSimTarget Target)
+FNiagaraDynamicDataBase* NiagaraRendererRibbons::GenerateVertexData(const FNiagaraSceneProxy* Proxy, FNiagaraDataSet &Data, const ENiagaraSimTarget Target)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGenRibbonVertexData);
 
@@ -536,6 +548,8 @@ FNiagaraDynamicDataBase *NiagaraRendererRibbons::GenerateVertexData(const FNiaga
 	TArray<int32>& SegmentData = DynamicData->SegmentData;
 	float TotalSegmentLength = 0;
 	float TotalSegmentAngle = 0;
+	float TotalTwistAngle = 0;
+	float TotalWidth = 0;
 	int NumTotalSamples = 0;
 
 	FNiagaraDataSetAccessor<FVector> PosData(Data, Properties->PositionBinding.DataSetVariable);
@@ -604,30 +618,39 @@ FNiagaraDynamicDataBase *NiagaraRendererRibbons::GenerateVertexData(const FNiaga
 	bool bFullIDs = RibbonFullIDData.IsValid();
 	bool bSimpleIDs = !bFullIDs && RibbonIdData.IsValid();
 	bool bMultiRibbons = bFullIDs || bSimpleIDs;
+	bool bHasTwist = TwistData.IsValid() && SizeData.IsValid();
 
 	auto AddRibbonVerts = [&](TArray<int32>& RibbonIndices, uint32 RibbonIndex)
 	{
 		int32 StartIndex = DynamicData->SortedIndices.Num();
 		int32 NumIndices = RibbonIndices.Num();
 
-			float TotalDistance = 0.0f;
+		float TotalDistance = 0.0f;
 
 		const FVector FirstPos = PosData[RibbonIndices[0]];
 		FVector CurrPos = FirstPos;
 		FVector LastToCurrVec = FVector::ZeroVector;
 		float LastToCurrSize = 0;
+		float LastTwist = 0;
+		float LastWidth = 0;
 
 		// Find the first position with enough distance.
 		int32 CurrentIndex = 1;
 		while (CurrentIndex < RibbonIndices.Num())
-			{
-			CurrPos = PosData[RibbonIndices[CurrentIndex]];
+		{
+			const int32 CurrentDataIndex = RibbonIndices[CurrentIndex];
+			CurrPos = PosData[CurrentDataIndex];
 			LastToCurrVec = CurrPos - FirstPos;
 			LastToCurrSize = LastToCurrVec.Size();
+			if (bHasTwist)
+			{
+				LastTwist = TwistData[CurrentDataIndex];
+				LastWidth = SizeData[CurrentDataIndex];
+			}
 
 			// Find the first segment, or unique segment
 			if (LastToCurrSize > GNiagaraRibbonMinSegmentLength)
-				{
+			{
 				// Normalize LastToCurrVec
 				LastToCurrVec *= 1.f / LastToCurrSize;
 
@@ -637,27 +660,36 @@ FNiagaraDynamicDataBase *NiagaraRendererRibbons::GenerateVertexData(const FNiaga
 				DynamicData->MultiRibbonIndices.Add(RibbonIndex);
 
 				break;
-				}
-				else
-				{
+			}
+			else
+			{
 				LastToCurrSize = 0; // Ensure that the segment gets ignored if too small
 				++CurrentIndex;
 			}
-				}
+		}
 
 		// Now iterate on all other points, to proceed each particle connected to 2 segments.
 		int32 NextIndex = CurrentIndex + 1;
 		while (NextIndex < RibbonIndices.Num())
-				{
-			const FVector NextPos = PosData[RibbonIndices[NextIndex]];
+		{
+			const int32 NextDataIndex = RibbonIndices[NextIndex];
+			const FVector NextPos = PosData[NextDataIndex];
 			FVector CurrToNextVec = NextPos - CurrPos;
 			const float CurrToNextSize = CurrToNextVec.Size();
+			
+			float NextTwist = 0;
+			float NextWidth = 0;
+			if (bHasTwist)
+			{
+				NextTwist = TwistData[NextDataIndex];
+				NextWidth = SizeData[NextDataIndex];
+			}
 
 			// It the next is far enough, or the last element
 			if (CurrToNextSize > GNiagaraRibbonMinSegmentLength || NextIndex == RibbonIndices.Num() - 1)
 			{
 				// Normalize CurrToNextVec
-				CurrToNextVec *= 1.f / CurrToNextSize;
+				CurrToNextVec *= 1.f / FMath::Max(GNiagaraRibbonMinSegmentLength, CurrToNextSize);
 				const FVector Tangent = (LastToCurrVec + CurrToNextVec).GetSafeNormal();
 
 				// Update the distance for CurrentIndex.
@@ -666,11 +698,13 @@ FNiagaraDynamicDataBase *NiagaraRendererRibbons::GenerateVertexData(const FNiaga
 				// Add the current point, which tangent is computed from neighbors
 				DynamicData->SortedIndices.Add(RibbonIndices[CurrentIndex]);
 				DynamicData->TangentAndDistances.Add(FVector4(Tangent.X, Tangent.Y, Tangent.Z, TotalDistance));
-					DynamicData->MultiRibbonIndices.Add(RibbonIndex);
+				DynamicData->MultiRibbonIndices.Add(RibbonIndex);
 
 				// Assumed equal to dot(Tangent, CurrToNextVec)
 				TotalSegmentLength += CurrToNextSize;
 				TotalSegmentAngle += AcosFast(FVector::DotProduct(LastToCurrVec, CurrToNextVec));
+				TotalTwistAngle += FMath::Abs(NextTwist - LastTwist);
+				TotalWidth += LastWidth;
 				++NumTotalSamples;
 
 				// Move to next segment.
@@ -678,11 +712,13 @@ FNiagaraDynamicDataBase *NiagaraRendererRibbons::GenerateVertexData(const FNiaga
 				CurrPos = NextPos;
 				LastToCurrVec = CurrToNextVec;
 				LastToCurrSize = CurrToNextSize;
-					}
+				LastTwist = NextTwist;
+				LastWidth = NextWidth;
+			}
 
 			// Try next if there is one.
 			++NextIndex;
-				}
+		}
 
 		// Close the last point and segment if there was at least 2.
 		if (LastToCurrSize > 0)
@@ -694,7 +730,7 @@ FNiagaraDynamicDataBase *NiagaraRendererRibbons::GenerateVertexData(const FNiaga
 			DynamicData->SortedIndices.Add(RibbonIndices[CurrentIndex]);
 			DynamicData->TangentAndDistances.Add(FVector4(LastToCurrVec.X, LastToCurrVec.Y, LastToCurrVec.Z, TotalDistance));
 			DynamicData->MultiRibbonIndices.Add(RibbonIndex);
-			}
+		}
 
 		const int32 EndIndex = DynamicData->SortedIndices.Num() - 1;
 		const int32 NumSegments = EndIndex - StartIndex;
@@ -711,7 +747,7 @@ FNiagaraDynamicDataBase *NiagaraRendererRibbons::GenerateVertexData(const FNiaga
 				FVector& LastTangent = reinterpret_cast<FVector&>(DynamicData->TangentAndDistances[EndIndex]);
 				FVector& PrevToLastTangent = reinterpret_cast<FVector&>(DynamicData->TangentAndDistances[EndIndex - 1]);
 				LastTangent = (2.f * FVector::DotProduct(LastTangent, PrevToLastTangent)) * LastTangent - PrevToLastTangent;
-		}
+			}
 
 			// Add segment data
 			for (int32 SegmentIndex = StartIndex; SegmentIndex < EndIndex; ++SegmentIndex)
@@ -721,10 +757,10 @@ FNiagaraDynamicDataBase *NiagaraRendererRibbons::GenerateVertexData(const FNiaga
 
 			float U0Offset, U0Scale, U1Offset, U1Scale;
 
-		CalculateUVScaleAndOffsets(SortKeyData, DynamicData->SortedIndices, bSortKeyIsAge, StartIndex, DynamicData->SortedIndices.Num() - 1, NumSegments,
-			Properties->UV0TilingDistance,	Properties->UV0Scale.X, Properties->UV0Offset.X, Properties->UV0AgeOffsetMode, U0Scale, U0Offset);
-		CalculateUVScaleAndOffsets(SortKeyData, DynamicData->SortedIndices, bSortKeyIsAge, StartIndex, DynamicData->SortedIndices.Num() - 1, NumSegments,
-			Properties->UV1TilingDistance, Properties->UV1Scale.X, Properties->UV1Offset.X, Properties->UV1AgeOffsetMode, U1Scale, U1Offset);
+			CalculateUVScaleAndOffsets(SortKeyData, DynamicData->SortedIndices, bSortKeyIsAge, StartIndex, DynamicData->SortedIndices.Num() - 1, NumSegments,
+				Properties->UV0TilingDistance,	Properties->UV0Scale.X, Properties->UV0Offset.X, Properties->UV0AgeOffsetMode, U0Scale, U0Offset);
+			CalculateUVScaleAndOffsets(SortKeyData, DynamicData->SortedIndices, bSortKeyIsAge, StartIndex, DynamicData->SortedIndices.Num() - 1, NumSegments,
+				Properties->UV1TilingDistance, Properties->UV1Scale.X, Properties->UV1Offset.X, Properties->UV1AgeOffsetMode, U1Scale, U1Offset);
 
 			DynamicData->PackPerRibbonData(U0Scale, U0Offset, U1Scale, U1Offset, NumSegments, StartIndex);
 		}
@@ -798,10 +834,32 @@ FNiagaraDynamicDataBase *NiagaraRendererRibbons::GenerateVertexData(const FNiaga
 	if (NumTotalSamples > 0)
 	{
 		const float OneOverSampleCount = 1.f / (float)NumTotalSamples;
-		DynamicData->AverangeSegmentAngle = TotalSegmentAngle * OneOverSampleCount;
-		DynamicData->AverageSegmentCurvature = TotalSegmentLength * OneOverSampleCount * .5 / (FMath::Max(SMALL_NUMBER, FMath::Abs(FMath::Sin(DynamicData->AverangeSegmentAngle))));
-	}
+		const float AverageSegmentAngle = TotalSegmentAngle * OneOverSampleCount;
+		const float AverageSegmentCurvature = TotalSegmentLength * OneOverSampleCount * .5 / (FMath::Max(SMALL_NUMBER, FMath::Abs(FMath::Sin(AverageSegmentAngle))));
 
+		// Accumulate the max so that tessellation is ever increasing and stabilizes over time.
+		// This is to avoid the spawning and unspawning of ribbons to constantly generate different tessellation factors.
+		
+		TessellationAngle = FMath::Lerp<float>(AverageSegmentAngle, FMath::Max(TessellationAngle, AverageSegmentAngle), GNiagaraRibbonMaxAveraging);
+		TessellationCurvature = FMath::Lerp<float>(AverageSegmentCurvature, FMath::Max(TessellationCurvature, AverageSegmentCurvature), GNiagaraRibbonMaxAveraging);
+
+		if (bHasTwist)
+		{
+			const float AverageTwistAngle = TotalTwistAngle * OneOverSampleCount;
+			const float AverageTwistCurvature = TotalWidth * OneOverSampleCount;
+			
+			TessellationTwistAngle = FMath::Lerp<float>(AverageTwistAngle, FMath::Max(TessellationTwistAngle, AverageTwistAngle), GNiagaraRibbonMaxAveraging);
+			TessellationTwistCurvature = FMath::Lerp<float>(AverageTwistCurvature, FMath::Max(TessellationTwistCurvature, AverageTwistCurvature), GNiagaraRibbonMaxAveraging);
+		}
+	}
+	else // Reset the metrics when the ribbons are reset.
+	{
+		TessellationAngle = 0;
+		TessellationCurvature = 0;
+		TessellationTwistAngle = 0;
+		TessellationTwistCurvature = 0;
+	}
+	 
 	if (Data.CurrData().GetNumInstances() > 0)
 	{
 		//TODO: This buffer is far fatter than needed. Just pull out the data needed for rendering.
@@ -814,5 +872,3 @@ FNiagaraDynamicDataBase *NiagaraRendererRibbons::GenerateVertexData(const FNiaga
 
 	return DynamicData;
 }
-
-

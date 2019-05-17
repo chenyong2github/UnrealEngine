@@ -410,7 +410,7 @@ void FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(TMap<FName
 	}
 	else if (TargetMaterial->GetFeatureLevel() >= ERHIFeatureLevel::SM4)
 	{
-		if (TargetMaterial->GetShadingModel() == MSM_Unlit)
+		if (TargetMaterial->GetShadingModels().IsUnlit())
 		{
 			//unlit materials are never lightmapped
 			static FName TBasePassPSFNoLightMapPolicyName = TEXT("TBasePassPSFNoLightMapPolicy");
@@ -453,7 +453,7 @@ void FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(TMap<FName
 	{
 		const TCHAR* DescSuffix = bMobileHDR ? TEXT(" (HDR)") : TEXT(" (LDR)");
 
-		if (TargetMaterial->GetShadingModel() == MSM_Unlit)
+		if (TargetMaterial->GetShadingModels().IsUnlit())
 		{
 			//unlit materials are never lightmapped
 			static FName Name_HDRLinear64 = TEXT("TMobileBasePassPSFNoLightMapPolicy0HDRLinear64");

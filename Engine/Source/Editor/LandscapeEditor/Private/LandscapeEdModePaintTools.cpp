@@ -13,7 +13,6 @@
 #include "LandscapeEdit.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapeEdModeTools.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "Landscape.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
@@ -255,14 +254,6 @@ public:
 			}
 		}
 
-		ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
-
-		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
-		}
-
 		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data, UISettings->PaintingRestriction);
 		this->Cache.Flush();
 	}
@@ -287,6 +278,81 @@ public:
 		}
 
 		FLandscapeToolPaintBase::EnterTool();
+	}
+};
+
+class FLandscapeToolStrokeErase : public FLandscapeToolStrokePaintBase<FHeightmapToolTarget>
+{
+	typedef FHeightmapToolTarget ToolTarget;
+	const typename ToolTarget::CacheClass::DataType FlattenHeight;
+
+public:
+	// Heightmap sculpt tool will continuously sculpt in the same location, weightmap paint tool doesn't
+	enum { UseContinuousApply = true };
+
+	FLandscapeToolStrokeErase(FEdModeLandscape* InEdMode, FEditorViewportClient* InViewportClient, const FLandscapeToolTarget& InTarget)
+		: FLandscapeToolStrokePaintBase<FHeightmapToolTarget>(InEdMode, InViewportClient, InTarget)
+		, FlattenHeight(LandscapeDataAccess::GetTexHeight(0.f))
+	{
+	}
+
+	void Apply(FEditorViewportClient* ViewportClient, FLandscapeBrush* Brush, const ULandscapeEditorObject* UISettings, const TArray<FLandscapeToolInteractorPosition>& InteractorPositions)
+	{
+		if (!this->LandscapeInfo) return;
+
+		// Get list of verts to update
+		FLandscapeBrushData BrushInfo = Brush->ApplyBrush(InteractorPositions);
+		if (!BrushInfo)
+		{
+			return;
+		}
+
+		int32 X1, Y1, X2, Y2;
+		BrushInfo.GetInclusiveBounds(X1, Y1, X2, Y2);
+
+		// Tablet pressure
+		float Pressure = ViewportClient->Viewport->IsPenActive() ? ViewportClient->Viewport->GetTabletPressure() : 1.0f;
+
+		// expand the area by one vertex in each direction to ensure normals are calculated correctly
+		X1 -= 1;
+		Y1 -= 1;
+		X2 += 1;
+		Y2 += 1;
+		
+		this->Cache.CacheData(X1, Y1, X2, Y2);
+
+		TArray<typename ToolTarget::CacheClass::DataType> Data;
+		this->Cache.GetCachedData(X1, Y1, X2, Y2, Data);
+
+		// Apply the brush
+		for (int32 Y = BrushInfo.GetBounds().Min.Y; Y < BrushInfo.GetBounds().Max.Y; Y++)
+		{
+			const float* BrushScanline = BrushInfo.GetDataPtr(FIntPoint(0, Y));
+			auto* DataScanline = Data.GetData() + (Y - Y1) * (X2 - X1 + 1) + (0 - X1);
+
+			for (int32 X = BrushInfo.GetBounds().Min.X; X < BrushInfo.GetBounds().Max.X; X++)
+			{
+				const float BrushValue = BrushScanline[X];
+
+				if (BrushValue > 0.0f)
+				{
+					float Strength = FMath::Clamp<float>(BrushValue * UISettings->ToolStrength * Pressure, 0.0f, 1.0f);
+
+					int32 Delta = DataScanline[X] - FlattenHeight;
+					if (Delta > 0)
+					{
+						DataScanline[X] = FMath::FloorToInt(FMath::Lerp((float)DataScanline[X], (float)FlattenHeight, Strength));
+					}
+					else
+					{
+						DataScanline[X] = FMath::CeilToInt(FMath::Lerp((float)DataScanline[X], (float)FlattenHeight, Strength));
+					}
+				}
+			}
+		}
+
+		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data, UISettings->PaintingRestriction);
+		this->Cache.Flush();
 	}
 };
 
@@ -498,14 +564,6 @@ public:
 			}
 		}
 
-		ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
-
-		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
-		}
-
 		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data);
 		this->Cache.Flush();
 	}
@@ -521,6 +579,18 @@ public:
 
 	virtual const TCHAR* GetToolName() override { return TEXT("Sculpt"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_Sculpt", "Sculpt"); };
+};
+
+class FLandscapeToolErase : public FLandscapeToolPaintBase<FHeightmapToolTarget, FLandscapeToolStrokeErase>
+{
+public:
+	FLandscapeToolErase(FEdModeLandscape* InEdMode)
+		: FLandscapeToolPaintBase<FHeightmapToolTarget, FLandscapeToolStrokeErase>(InEdMode)
+	{
+	}
+
+	virtual const TCHAR* GetToolName() override { return TEXT("Erase"); }
+	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_Erase", "Erase"); };
 };
 
 // 
@@ -630,14 +700,6 @@ public:
 					}
 				}
 			}
-		}
-
-		ALandscape* Landscape = this->LandscapeInfo->LandscapeActor.Get();
-
-		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 		}
 
 		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data, UISettings->PaintingRestriction);
@@ -874,14 +936,6 @@ public:
 			}
 		}
 
-		ALandscape* Landscape = this->LandscapeInfo->LandscapeActor.Get();
-
-		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
-		}
-
 		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data, UISettings->PaintingRestriction);
 		this->Cache.Flush();
 	}
@@ -1104,14 +1158,6 @@ public:
 			}
 		}
 
-		ALandscape* Landscape = this->LandscapeInfo->LandscapeActor.Get();
-
-		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
-		}
-
 		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data, UISettings->PaintingRestriction);
 		this->Cache.Flush();
 	}
@@ -1142,6 +1188,10 @@ void FEdModeLandscape::InitializeTool_Paint()
 	Tool_Sculpt->ValidBrushes.Add("BrushSet_Pattern");
 	Tool_Sculpt->ValidBrushes.Add("BrushSet_Component");
 	LandscapeTools.Add(MoveTemp(Tool_Sculpt));
+
+	auto Tool_Erase = MakeUnique<FLandscapeToolErase>(this);
+	Tool_Erase->ValidBrushes.Add("BrushSet_Circle");
+	LandscapeTools.Add(MoveTemp(Tool_Erase));
 
 	auto Tool_Paint = MakeUnique<FLandscapeToolPaint>(this);
 	Tool_Paint->ValidBrushes.Add("BrushSet_Circle");

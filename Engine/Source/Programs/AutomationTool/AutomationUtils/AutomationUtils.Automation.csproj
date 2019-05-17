@@ -58,6 +58,7 @@
     <Compile Include="AutomationException.cs" />
     <Compile Include="BuildCommand.cs" />
     <Compile Include="BuildUtils.cs" />
+    <Compile Include="BundleUtils.cs" />
     <Compile Include="CommandEnvironment.cs" />
     <Compile Include="DeviceReservation.cs" />
     <Compile Include="ImageUtils.cs" />

@@ -365,6 +365,29 @@ TArray<FColor>* FScreenshotRequest::GetHighresScreenshotMaskColorArray()
 }
 
 
+// @param bAutoType true: automatically choose GB/MB/KB/... false: always use MB for easier comparisons
+FString GetMemoryString( const double Value, const bool bAutoType )
+{
+	if (bAutoType)
+	{
+		if (Value > 1024.0 * 1024.0 * 1024.0)
+		{
+			return FString::Printf( TEXT( "%.2f GB" ), float( Value / (1024.0 * 1024.0 * 1024.0) ) );
+		}
+		if (Value > 1024.0 * 1024.0)
+		{
+			return FString::Printf( TEXT( "%.2f MB" ), float( Value / (1024.0 * 1024.0) ) );
+		}
+		if (Value > 1024.0)
+		{
+			return FString::Printf( TEXT( "%.2f KB" ), float( Value / (1024.0) ) );
+		}
+		return FString::Printf( TEXT( "%.2f B" ), float( Value ) );
+	}
+	
+	return FString::Printf( TEXT( "%.2f MB" ), float( Value / (1024.0 * 1024.0) ) );
+}
+
 FOnScreenshotRequestProcessed FScreenshotRequest::ScreenshotProcessedDelegate;
 bool FScreenshotRequest::bIsScreenshotRequested = false;
 FString FScreenshotRequest::Filename;
@@ -615,15 +638,30 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 			InY += RowHeight;
 		}
 		{
-			uint64 MemoryUsed = FPlatformMemory::GetMemoryUsedFast();
-			if (MemoryUsed > 0)
+			if (bShowUnitMaxTimes)
 			{
-				// print out currently used memory
+				FPlatformMemoryStats Stats = FPlatformMemory::GetStats();
+
 				InCanvas->DrawShadowedString(X1, InY, TEXT("Mem:"), Font, bShowUnitTimeGraph ? FColor(100, 100, 255) : FColor::White);
-				double MemInGb = MemoryUsed / (1024.0 * 1024.0 * 1024.0);
-				double MemInMb = MemoryUsed / (1024.0 * 1024.0);
-				InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%3.2f%s"), MemInGb > 1.0 ? MemInGb : MemInMb, MemInGb > 1.0 ? TEXT("GB") : TEXT("MB")), Font, FColor::Green);
+				InCanvas->DrawShadowedString(X2, InY, *GetMemoryString(Stats.UsedPhysical), Font, FColor::Green);
+				InCanvas->DrawShadowedString(X3, InY, *GetMemoryString(Stats.PeakUsedPhysical), Font, FColor::Green);
 				InY += RowHeight;
+				
+				InCanvas->DrawShadowedString(X1, InY, TEXT("VMem:"), Font, bShowUnitTimeGraph ? FColor(100, 100, 255) : FColor::White);
+				InCanvas->DrawShadowedString(X2, InY, *GetMemoryString(Stats.UsedVirtual), Font, FColor::Green);
+				InCanvas->DrawShadowedString(X3, InY, *GetMemoryString(Stats.PeakUsedVirtual), Font, FColor::Green);
+				InY += RowHeight;
+			}
+			else
+			{
+				uint64 MemoryUsed = FPlatformMemory::GetMemoryUsedFast();
+				if (MemoryUsed > 0)
+				{
+					// print out currently used memory
+					InCanvas->DrawShadowedString(X1, InY, TEXT("Mem:"), Font, bShowUnitTimeGraph ? FColor(100, 100, 255) : FColor::White);
+					InCanvas->DrawShadowedString(X2, InY, *GetMemoryString(MemoryUsed), Font, FColor::Green);
+					InY += RowHeight;
+				}
 			}
 		}
 
@@ -1533,9 +1571,17 @@ void FViewport::Draw( bool bShouldPresent /*= true */)
 				UWorld* ViewportWorld = ViewportClient->GetWorld();
 				FCanvas Canvas(this, nullptr, ViewportWorld, ViewportWorld ? ViewportWorld->FeatureLevel.GetValue() : GMaxRHIFeatureLevel, FCanvas::CDM_DeferDrawing, ViewportClient->ShouldDPIScaleSceneCanvas() ? ViewportClient->GetDPIScale() : 1.0f);
 				Canvas.SetRenderTargetRect(FIntRect(0, 0, SizeX, SizeY));
+
+				// When rendering the viewport we need to know whether the final result will be shown on a HDR display. This affects the final post processing step
+//				TSharedPtr<SWindow> Window = GetWindow();
+				//FSceneViewport *SceneViewport = static_cast<FSceneViewport*>(this);
+				//TSharedPtr<SWindow> Window = SceneViewport->FindWindow();
+//				this->SetHDRMode(Window->GetIsHDR());
+
 				{
 					// Make sure the Canvas is not rendered upside down
 					Canvas.SetAllowSwitchVerticalAxis(false);
+
 					ViewportClient->Draw(this, &Canvas);
 				}
 				Canvas.Flush_GameThread();

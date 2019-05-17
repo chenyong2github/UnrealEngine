@@ -387,7 +387,7 @@ FTimerHandle UKismetSystemLibrary::K2_InvalidateTimerHandle(FTimerHandle& TimerH
 	return TimerHandle;
 }
 
-FTimerHandle UKismetSystemLibrary::K2_SetTimer(UObject* Object, FString FunctionName, float Time, bool bLooping, float InitialStartDelay)
+FTimerHandle UKismetSystemLibrary::K2_SetTimer(UObject* Object, FString FunctionName, float Time, bool bLooping, float InitialStartDelay, float InitialStartDelayVariance)
 {
 	FName const FunctionFName(*FunctionName);
 
@@ -404,9 +404,10 @@ FTimerHandle UKismetSystemLibrary::K2_SetTimer(UObject* Object, FString Function
 		}
 	}
 
-	if (Time <= 0.f || InitialStartDelay < 0.f)
+	InitialStartDelay += FMath::RandRange(-InitialStartDelayVariance, InitialStartDelayVariance);
+	if (Time <= 0.f || ((Time + InitialStartDelay) - InitialStartDelayVariance) < 0.f)
 	{
-		FFrame::KismetExecutionMessage(TEXT("SetTimer passed a negative time or initial start delay.  The associated timer may fail to fire!"), ELogVerbosity::Warning);
+		FFrame::KismetExecutionMessage(TEXT("SetTimer passed a negative time.  The associated timer may fail to fire!  If using InitialStartDelayVariance, ensure it is smaller than (Time + InitialStartDelay)."), ELogVerbosity::Warning);
 	}
 
 	FTimerDynamicDelegate Delegate;
@@ -414,7 +415,7 @@ FTimerHandle UKismetSystemLibrary::K2_SetTimer(UObject* Object, FString Function
 	return K2_SetTimerDelegate(Delegate, Time, bLooping, InitialStartDelay);
 }
 
-FTimerHandle UKismetSystemLibrary::K2_SetTimerDelegate(FTimerDynamicDelegate Delegate, float Time, bool bLooping, float InitialStartDelay)
+FTimerHandle UKismetSystemLibrary::K2_SetTimerDelegate(FTimerDynamicDelegate Delegate, float Time, bool bLooping, float InitialStartDelay, float InitialStartDelayVariance)
 {
 	FTimerHandle Handle;
 	if (Delegate.IsBound())
@@ -422,9 +423,10 @@ FTimerHandle UKismetSystemLibrary::K2_SetTimerDelegate(FTimerDynamicDelegate Del
 		const UWorld* const World = GEngine->GetWorldFromContextObject(Delegate.GetUObject(), EGetWorldErrorMode::LogAndReturnNull);
 		if(World)
 		{
-			if (Time <= 0.f || InitialStartDelay < 0.f)
+			InitialStartDelay += FMath::RandRange(-InitialStartDelayVariance, InitialStartDelayVariance);
+			if (Time <= 0.f || ((Time + InitialStartDelay) - InitialStartDelayVariance) < 0.f)
 			{
-				FFrame::KismetExecutionMessage(TEXT("SetTimer passed a negative time or initial start delay.  The associated timer may fail to fire!"), ELogVerbosity::Warning);
+				FFrame::KismetExecutionMessage(TEXT("SetTimer passed a negative time or initial start delay.  The associated timer may fail to fire!  If using InitialStartDelayVariance, ensure it is smaller than (Time + InitialStartDelay)."), ELogVerbosity::Warning);
 			}
 
 			FTimerManager& TimerManager = World->GetTimerManager();

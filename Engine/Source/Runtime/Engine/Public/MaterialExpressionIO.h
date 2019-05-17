@@ -210,6 +210,25 @@ struct TStructOpsTypeTraits<FScalarMaterialInput>
 	};
 };
 
+struct FShadingModelMaterialInput : FMaterialInput<uint32>
+{
+#if WITH_EDITOR
+	ENGINE_API int32 CompileWithDefault(class FMaterialCompiler* Compiler, EMaterialProperty Property);
+#endif  // WITH_EDITOR
+	/** ICPPStructOps interface */
+	ENGINE_API bool Serialize(FArchive& Ar);
+};
+
+template<>
+struct TStructOpsTypeTraits<FShadingModelMaterialInput>
+	: public TStructOpsTypeTraitsBase2<FShadingModelMaterialInput>
+{
+	enum
+	{
+		WithSerializer = true,
+	};
+};
+
 struct FVectorMaterialInput : FMaterialInput<FVector>
 {
 #if WITH_EDITOR

@@ -45,10 +45,6 @@
 #include "Physics/PhysicsInterfaceCore.h"
 #include "Physics/PhysicsInterfaceUtils.h"
 
-#if WITH_EDITOR
-#include "Settings/EditorExperimentalSettings.h"
-#endif
-
 #if WITH_EDITOR && WITH_PHYSX
 	#include "Physics/IPhysXCooking.h"
 #endif
@@ -1464,7 +1460,7 @@ void ULandscapeHeightfieldCollisionComponent::PostEditImport()
 {
 	Super::PostEditImport();
 
-	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (!GetLandscapeProxy()->HasLayersContent())
 	{
 		// Reinitialize physics after paste
 		if (CollisionSizeQuads > 0)
@@ -1479,7 +1475,7 @@ void ULandscapeHeightfieldCollisionComponent::PostEditUndo()
 	Super::PostEditUndo();
 
     // Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
-	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (!GetLandscapeProxy()->HasLayersContent())
 	{
 		// Reinitialize physics after undo
 		if (CollisionSizeQuads > 0)

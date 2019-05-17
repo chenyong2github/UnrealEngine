@@ -1913,7 +1913,7 @@ bool UStaticMeshComponent::UsesOnlyUnlitMaterials() const
 				UMaterialInterface*	MaterialInterface	= GetMaterial(LOD.Sections[ElementIndex].MaterialIndex);
 				UMaterial*			Material			= MaterialInterface ? MaterialInterface->GetMaterial() : NULL;
 
-				bUsesOnlyUnlitMaterials = Material && Material->GetShadingModel() == MSM_Unlit;
+				bUsesOnlyUnlitMaterials = Material && Material->GetShadingModels().IsUnlit();
 			}
 		}
 		return bUsesOnlyUnlitMaterials;

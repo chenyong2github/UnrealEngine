@@ -348,6 +348,21 @@ UEditorEngine::UEditorEngine(const FObjectInitializer& ObjectInitializer)
 	DefaultWorldFeatureLevel = GMaxRHIFeatureLevel;
 	PreviewFeatureLevel = DefaultWorldFeatureLevel;
 
+	FCoreDelegates::OnFeatureLevelDisabled.AddLambda([this](int RHIType, const FName& PreviewPlatformName)
+		{
+			ERHIFeatureLevel::Type FeatureLevelTypeToDisable = (ERHIFeatureLevel::Type)RHIType;
+			if (PreviewFeatureLevel == FeatureLevelTypeToDisable)
+			{
+				UMaterialShaderQualitySettings* MaterialShaderQualitySettings = UMaterialShaderQualitySettings::Get();
+				if (MaterialShaderQualitySettings->GetPreviewPlatform() != PreviewPlatformName)
+				{
+					return;
+				}
+				
+				SetPreviewPlatform(FName(), ERHIFeatureLevel::SM5);
+			}
+		});
+		
 	bNotifyUndoRedoSelectionChange = true;
 
 	EditorWorldExtensionsManager = nullptr;
@@ -1151,6 +1166,8 @@ void UEditorEngine::FinishDestroy()
 			// this needs to be already cleaned up
 			UE_LOG(LogEditor, Warning, TEXT("Warning: Play world is active"));
 		}
+
+		EditorSubsystemCollection.Deinitialize();
 
 		// Unregister events
 		FEditorDelegates::MapChange.RemoveAll(this);
@@ -1973,6 +1990,14 @@ void UEditorEngine::SetRealTimeAudioVolume(float VolumeLevel)
 bool UEditorEngine::UpdateSingleViewportClient(FEditorViewportClient* InViewportClient, const bool bInAllowNonRealtimeViewportToDraw, bool bLinkedOrthoMovement )
 {
 	bool bUpdatedNonRealtimeViewport = false;
+
+	// When rendering the viewport we need to know whether the final result will be shown on a HDR display. This affects the final post processing step
+	FSceneViewport *SceneViewport = static_cast<FSceneViewport*>(InViewportClient->Viewport);
+	TSharedPtr<SWindow> Window = SceneViewport->FindWindow();
+	if (Window)
+	{
+		InViewportClient->Viewport->SetHDRMode(Window->GetIsHDR());
+	}
 
 	// Always submit view information for content streaming 
 	// otherwise content for editor view can be streamed out if there are other views (ex: thumbnails)

@@ -78,7 +78,7 @@ void ALandscapeBlueprintCustomBrush::PostEditMove(bool bFinished)
 
 	if (OwningLandscape != nullptr)
 	{
-		OwningLandscape->RequestLayersContentUpdate(bFinished ? ELandscapeLayersContentUpdateFlag::All : ELandscapeLayersContentUpdateFlag::All_Render);
+		OwningLandscape->RequestLayersContentUpdate(bFinished ? ELandscapeLayerUpdateMode::Update_All : ELandscapeLayerUpdateMode::Update_All_Editing);
 	}
 }
 
@@ -157,7 +157,7 @@ void ALandscapeBlueprintCustomBrush::PostEditChangeProperty(FPropertyChangedEven
 
 	if (OwningLandscape != nullptr)
 	{
-		OwningLandscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true); // For now since we dont have brush bounds, we have to force an update of all components, otherwise we will have not right layer being rendered as materials are not updated
+		OwningLandscape->RequestLayersContentUpdateForceAll(); // For now since we dont have brush bounds, we have to force an update of all components, otherwise we will have not right layer being rendered as materials are not updated
 	}
 }
 #endif

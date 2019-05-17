@@ -254,7 +254,8 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 
 		// If time advances, update simulation
 		// Reset if necessary
-		if (ResetSimulatedTeleportType != ETeleportType::None)
+		bool bDynamicsReset = (ResetSimulatedTeleportType != ETeleportType::None);
+		if (bDynamicsReset)
 		{
 			// Capture bone velocities if we have captured a bone velocity pose.
 			if (bTransferBoneVelocities && (CapturedBoneVelocityPose.GetPose().GetNumBones() > 0))
@@ -358,7 +359,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 			PreviousComponentLinearVelocity = FVector::ZeroVector;
 		}
 		// Only need to tick physics if we didn't reset and we have some time to simulate
-		else if(DeltaSeconds > AnimPhysicsMinDeltaTime)
+		if((bSimulateAnimPhysicsAfterReset || !bDynamicsReset) && DeltaSeconds > AnimPhysicsMinDeltaTime)
 		{
 			// Transfer bone velocities previously captured.
 			if (bTransferBoneVelocities && (CapturedBoneVelocityPose.GetPose().GetNumBones() > 0))
@@ -591,10 +592,12 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 	if (UPhysicsSettings* Settings = UPhysicsSettings::Get())
 	{
 		AnimPhysicsMinDeltaTime = Settings->AnimPhysicsMinDeltaTime;
+		bSimulateAnimPhysicsAfterReset = Settings->bSimulateAnimPhysicsAfterReset;
 	}
 	else
 	{
 		AnimPhysicsMinDeltaTime = 0.f;
+		bSimulateAnimPhysicsAfterReset = false;
 	}
 
 	if(UsePhysicsAsset)

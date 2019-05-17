@@ -194,14 +194,14 @@ void FVulkanAndroidPlatform::OverridePlatformHandlers(bool bInit)
 	}
 }
 
-void FVulkanAndroidPlatform::BlockUntilWindowIsAwailable()
+void FVulkanAndroidPlatform::BlockUntilWindowIsAvailable()
 {
 	void* WindowHandle = FAndroidWindow::GetHardwareWindow();
 	if (WindowHandle == nullptr)
 	{
 		// Sleep if the hardware window isn't currently available.
 		// The Window may not exist if the activity is pausing/resuming, in which case we make this thread wait
-		FPlatformMisc::LowLevelOutputDebugString(TEXT("Waiting for Native window in FVulkanAndroidPlatform::BlockUntilWindowIsAwailable"));
+		FPlatformMisc::LowLevelOutputDebugString(TEXT("Waiting for Native window in FVulkanAndroidPlatform::BlockUntilWindowIsAvailable()"));
 		while (WindowHandle == nullptr)
 		{
 			FPlatformProcess::Sleep(0.001f);

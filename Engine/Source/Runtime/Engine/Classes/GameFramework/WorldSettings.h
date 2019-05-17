@@ -366,7 +366,9 @@ struct FBroadphaseSettings
 	FBroadphaseSettings()
 		: bUseMBPOnClient(false)
 		, bUseMBPOnServer(false)
+		, bUseMBPOuterBounds(false)
 		, MBPBounds(EForceInit::ForceInitToZero)
+		, MBPOuterBounds(EForceInit::ForceInitToZero)
 		, MBPNumSubdivs(2)
 	{
 
@@ -379,9 +381,17 @@ struct FBroadphaseSettings
 	UPROPERTY(EditAnywhere, Category = Broadphase)
 	bool bUseMBPOnServer;
 
+	/** Whether to have MBP grid over concentrated inner bounds with loose outer bounds */
+	UPROPERTY(EditAnywhere, Category = Broadphase)
+	bool bUseMBPOuterBounds;
+
 	/** Total bounds for MBP, must cover the game world or collisions are disabled for out of bounds actors */
 	UPROPERTY(EditAnywhere, Category = Broadphase, meta = (EditCondition = bUseMBP))
 	FBox MBPBounds;
+
+	/** Total bounds for MBP, should cover absolute maximum bounds of the game world where physics is required */
+	UPROPERTY(EditAnywhere, Category = Broadphase, meta = (EditCondition = bUseMBP))
+	FBox MBPOuterBounds;
 
 	/** Number of times to subdivide the MBP bounds, final number of regions is MBPNumSubdivs^2 */
 	UPROPERTY(EditAnywhere, Category = Broadphase, meta = (EditCondition = bUseMBP, ClampMin=1, ClampMax=16))
@@ -453,6 +463,10 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World)
 	uint8 bEnableWorldComposition:1;
+
+	/** Enables landscape layers system for this world */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = World)
+	uint8 bEnableLandscapeLayers : 1;
 
 	/**
 	 * Enables client-side streaming volumes instead of server-side.
@@ -704,7 +718,22 @@ public:
 	UPROPERTY()
 	TArray<UAssetUserData*> AssetUserData;
 
+public:
+	/**
+	 * Returns an event delegate that is executed when a setting has changed.
+	 *
+	 * @return The delegate.
+	 */
+	DECLARE_EVENT_OneParam(AWorldSettings, FSettingChangedEvent, FName /*PropertyName*/);
+	FSettingChangedEvent& OnSettingChanged()
+	{
+		return SettingChangedEvent;
+	}
+
 private:
+	// Holds an event delegate that is executed when a setting has changed.
+	FSettingChangedEvent SettingChangedEvent;
+
 	// If paused, PlayerState of person pausing the game.
 	UPROPERTY(transient, replicated)
 	class APlayerState* PauserPlayerState;

@@ -29,6 +29,7 @@
 #include "Stats/StatsData.h"
 #include "Misc/TextFilter.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 static const uint32 MAX_AUTOCOMPLETION_LINES = 20;
 
@@ -519,6 +520,7 @@ void UConsole::SetCursorPos( int32 Position )
 
 void UConsole::ConsoleCommand(const FString& Command)
 {
+	CSV_EVENT_GLOBAL(TEXT("Cmd: %s"), *Command);
 	// insert into history buffer
 	{
 		HistoryBuffer.Remove(Command);

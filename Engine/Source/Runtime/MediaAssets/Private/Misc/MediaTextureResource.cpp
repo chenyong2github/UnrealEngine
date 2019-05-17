@@ -618,6 +618,15 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				YUVOffset = MediaShaders::YUVOffset10bits;
 			}
 
+			bool bIsSampleOutputSrgb = Sample->IsOutputSrgb();
+			if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2 && IsSimulatedPlatform(GMaxRHIShaderPlatform) )
+			{
+				// simulated ES2 has no HW support for sRGB, all external textures are assumed to be in sRGB form. 
+				// see FHLSLMaterialTranslator::TextureSample(), SAMPLERTYPE_External case.
+				// We must not convert to linear for the ES2 case.
+				bIsSampleOutputSrgb = false;
+			}
+
 			switch (Sample->GetFormat())
 			{
 			case EMediaTextureSampleFormat::CharAYUV:
@@ -625,7 +634,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				TShaderMapRef<FAYUVConvertPS> ConvertShader(ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ConvertShader);
 				SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
-				ConvertShader->SetParameters(CommandList, InputTexture, YUVToRGBMatrix, YUVOffset, Sample->IsOutputSrgb());
+				ConvertShader->SetParameters(CommandList, InputTexture, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
 			}
 			break;
 
@@ -634,7 +643,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				TShaderMapRef<FBMPConvertPS> ConvertShader(ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ConvertShader);
 				SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
-				ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, Sample->IsOutputSrgb() && !SrgbOutput);
+				ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, bIsSampleOutputSrgb && !SrgbOutput);
 			}
 			break;
 
@@ -643,7 +652,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				TShaderMapRef<FNV12ConvertPS> ConvertShader(ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ConvertShader);
 				SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
-				ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, Sample->IsOutputSrgb());
+				ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
 			}
 			break;
 
@@ -652,7 +661,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				TShaderMapRef<FNV21ConvertPS> ConvertShader(ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ConvertShader);
 				SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
-				ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, Sample->IsOutputSrgb());
+				ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
 			}
 			break;
 
@@ -661,7 +670,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				TShaderMapRef<FUYVYConvertPS> ConvertShader(ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ConvertShader);
 				SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
-				ConvertShader->SetParameters(CommandList, InputTexture, YUVToRGBMatrix, YUVOffset, Sample->IsOutputSrgb());
+				ConvertShader->SetParameters(CommandList, InputTexture, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
 			}
 			break;
 
@@ -670,7 +679,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				TShaderMapRef<FYUY2ConvertPS> ConvertShader(ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ConvertShader);
 				SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
-				ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, Sample->IsOutputSrgb());
+				ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
 			}
 			break;
 
@@ -679,7 +688,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				TShaderMapRef<FYVYUConvertPS> ConvertShader(ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ConvertShader);
 				SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
-				ConvertShader->SetParameters(CommandList, InputTexture, YUVToRGBMatrix, YUVOffset, Sample->IsOutputSrgb());
+				ConvertShader->SetParameters(CommandList, InputTexture, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
 			}
 			break;
 
@@ -688,7 +697,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				TShaderMapRef<FYUVv210ConvertPS> ConvertShader(ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ConvertShader);
 				SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
-				ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, Sample->IsOutputSrgb());
+				ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
 			}
 			break;
 
@@ -697,7 +706,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				TShaderMapRef<FRGBConvertPS> ConvertShader(ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ConvertShader);
 				SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
-				ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, Sample->IsOutputSrgb());
+				ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, bIsSampleOutputSrgb);
 			}
 			break;
 

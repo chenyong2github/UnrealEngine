@@ -571,7 +571,7 @@ bool FXAudio2SoundSource::Init(FWaveInstance* InWaveInstance)
 
 			if (WaveInstance->StartTime > 0.0f)
 			{
-				if (WaveInstance->WaveData->bStreaming)
+				if (WaveInstance->WaveData->bStreaming && !WaveInstance->WaveData->bSeekableStreaming)
 				{
 					UE_LOG(LogXAudio2, Verbose, TEXT("Seeking (aka start time) is not supported for streaming sound waves ('%s')."), *InWaveInstance->GetName());
 				}

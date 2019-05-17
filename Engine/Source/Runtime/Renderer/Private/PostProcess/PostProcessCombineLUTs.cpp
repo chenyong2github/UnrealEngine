@@ -61,7 +61,7 @@ static TAutoConsoleVariable<int32> CVarMobileTonemapperFilm(
 // USE_VOLUME_LUT: needs to be the same for C++ and HLSL
 bool UseVolumeTextureLUT(EShaderPlatform Platform) 
 {
-	return (IsFeatureLevelSupported(Platform,ERHIFeatureLevel::SM4) && GSupportsVolumeTextureRendering && (Platform != SP_METAL_MRT && Platform != SP_METAL_MRT_MAC) && (RHISupportsGeometryShaders(Platform) || RHISupportsVertexShaderLayer(Platform)));
+	return (IsFeatureLevelSupported(Platform,ERHIFeatureLevel::SM4) && GSupportsVolumeTextureRendering && (Platform != SP_METAL_MRT && Platform != SP_METAL_MRT_MAC && Platform != SP_VULKAN_SM5_LUMIN) && (RHISupportsGeometryShaders(Platform) || RHISupportsVertexShaderLayer(Platform)));
 }
 
 // including the neutral one at index 0
@@ -243,6 +243,12 @@ public:
 
 			int32 OutputDeviceValue = CVarOutputDevice->GetValueOnRenderThread();
 			float Gamma = CVarOutputGamma->GetValueOnRenderThread();
+
+			// If the Viewfamily is requesting HDR for editor usage then override the CVAR setting
+			if (ViewFamily.bIsHDR)
+			{
+				OutputDeviceValue = 3;
+			}
 
 			if (PLATFORM_APPLE && Gamma == 0.0f)
 			{

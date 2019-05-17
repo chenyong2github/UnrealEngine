@@ -196,6 +196,9 @@ private:
 	static TArray<FColor> HighresScreenshotMaskColorArray;
 };
 
+// @param bAutoType true: automatically choose GB/MB/KB/... false: always use MB for easier comparisons
+ENGINE_API FString GetMemoryString( const double Value, const bool bAutoType = true );
+
 /** Data needed to display perframe stat tracking when STAT UNIT is enabled */
 struct FStatUnitData
 {
@@ -572,6 +575,12 @@ public:
 	/** Returns true if this is an FSlateSceneViewport */
 	bool IsSlateViewport() const { return bIsSlateViewport; }
 
+	/** Returns true if this viewport should be rendered in HDR */
+	bool IsHDRViewport() const { return bIsHDR; }
+
+	/** Sets HDR Status of Viewport */
+	void SetHDRMode( bool bHDR) { bIsHDR = bHDR; }
+
 	/** The current version of the running instance */
 	FString AppVersionString;
 
@@ -693,6 +702,9 @@ protected:
 
 	/** If true this viewport is an FSlateSceneViewport */
 	uint32 bIsSlateViewport : 1;
+
+	/** If true this viewport is being displayed on a HDR monitor */
+	uint32 bIsHDR : 1;
 
 	/** true if we should draw game viewports (has no effect on Editor viewports) */
 	ENGINE_API static bool bIsGameRenderingEnabled;
@@ -1180,7 +1192,8 @@ public:
 		FTexture2DRHIRef ShaderResourceTextureRHI;
 
 		FRHIResourceCreateInfo CreateInfo;
-		RHICreateTargetableShaderResource2D( SizeX, SizeY, PF_A2B10G10R10, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, RenderTargetTextureRHI, ShaderResourceTextureRHI );
+		RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_FloatRGB, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, RenderTargetTextureRHI, ShaderResourceTextureRHI);
+//		RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_A2B10G10R10, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, RenderTargetTextureRHI, ShaderResourceTextureRHI);
 	}
 
 	// @todo UE4 DLL: Without these functions we get unresolved linker errors with FRenderResource

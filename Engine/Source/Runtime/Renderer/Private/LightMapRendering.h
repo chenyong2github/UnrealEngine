@@ -131,7 +131,7 @@ struct TLightMapPolicy
 		const bool bShouldCacheQuality = (LightmapQuality != ELightmapQuality::LQ_LIGHTMAP) || bProjectCanHaveLowQualityLightmaps;
 
 		// GetValueOnAnyThread() as it's possible that ShouldCache is called from rendering thread. That is to output some error message.
-		return (Material->GetShadingModel() != MSM_Unlit)
+		return (Material->GetShadingModels().IsLit())
 			&& bShouldCacheQuality
 			&& VertexFactoryType->SupportsStaticLighting() 
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0)
@@ -167,7 +167,7 @@ public:
 
 	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
 	{
-		return Material->GetShadingModel() != MSM_Unlit && VertexFactoryType->SupportsStaticLighting();
+		return Material->GetShadingModels().IsLit() && VertexFactoryType->SupportsStaticLighting();
 	}
 };
 
@@ -205,7 +205,7 @@ public:
 
 	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
 	{
-		return Material->GetShadingModel() != MSM_Unlit && IsTranslucentBlendMode(Material->GetBlendMode()) && IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4);
+		return Material->GetShadingModels().IsLit() && IsTranslucentBlendMode(Material->GetBlendMode()) && IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4);
 	}
 
 	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
@@ -251,7 +251,7 @@ struct FPrecomputedVolumetricLightmapLightingPolicy
 	{
 		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 	
-		return Material->GetShadingModel() != MSM_Unlit
+		return Material->GetShadingModels().IsLit()
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0);
 	}
 
@@ -270,7 +270,7 @@ struct FCachedVolumeIndirectLightingPolicy
 	{
 		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 
-		return Material->GetShadingModel() != MSM_Unlit 
+		return Material->GetShadingModels().IsLit()
 			&& !IsTranslucentBlendMode(Material->GetBlendMode()) 
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0)
 			&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4);
@@ -297,7 +297,7 @@ struct FCachedPointIndirectLightingPolicy
 	{
 		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 	
-		return Material->GetShadingModel() != MSM_Unlit
+		return Material->GetShadingModels().IsLit()
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0);
 	}
 
@@ -366,7 +366,7 @@ struct FSimpleDirectionalLightLightingPolicy
 	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
 	{
 		return PlatformSupportsSimpleForwardShading(Platform)
-			&& Material->GetShadingModel() != MSM_Unlit;
+			&& Material->GetShadingModels().IsLit();
 	}
 
 	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
@@ -488,7 +488,7 @@ public:
 	{
 		static auto* CVarMobileEnableStaticAndCSMShadowReceivers = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EnableStaticAndCSMShadowReceivers"));
 		const bool bMobileEnableStaticAndCSMShadowReceivers = CVarMobileEnableStaticAndCSMShadowReceivers->GetValueOnAnyThread() == 1;
-		return bMobileEnableStaticAndCSMShadowReceivers && (Material->GetShadingModel() != MSM_Unlit) && Super::ShouldCompilePermutation(Platform, Material, VertexFactoryType);
+		return bMobileEnableStaticAndCSMShadowReceivers && (Material->GetShadingModels().IsLit()) && Super::ShouldCompilePermutation(Platform, Material, VertexFactoryType);
 	}
 
 	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
@@ -513,7 +513,7 @@ struct FMobileDirectionalLightAndSHIndirectPolicy
 		static auto* CVarAllowStaticLighting = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 		const bool bAllowStaticLighting = CVarAllowStaticLighting->GetValueOnAnyThread() != 0;
 
-		return bAllowStaticLighting && Material->GetShadingModel() != MSM_Unlit && FCachedPointIndirectLightingPolicy::ShouldCompilePermutation(Platform, Material, VertexFactoryType);
+		return bAllowStaticLighting && Material->GetShadingModels().IsLit() && FCachedPointIndirectLightingPolicy::ShouldCompilePermutation(Platform, Material, VertexFactoryType);
 	}
 
 	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
@@ -592,7 +592,7 @@ struct FMobileMovableDirectionalLightLightingPolicy
 		static auto* CVarMobileAllowMovableDirectionalLights = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AllowMovableDirectionalLights"));
 		const bool bMobileAllowMovableDirectionalLights = CVarMobileAllowMovableDirectionalLights->GetValueOnAnyThread() != 0;
 
-		return bMobileAllowMovableDirectionalLights && Material->GetShadingModel() != MSM_Unlit;
+		return bMobileAllowMovableDirectionalLights && Material->GetShadingModels().IsLit();
 	}
 
 	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
@@ -614,7 +614,7 @@ struct FMobileMovableDirectionalLightCSMLightingPolicy
 		static auto* CVarMobileAllowMovableDirectionalLights = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AllowMovableDirectionalLights"));
 		const bool bMobileAllowMovableDirectionalLights = CVarMobileAllowMovableDirectionalLights->GetValueOnAnyThread() != 0;
 
-		return bMobileAllowMovableDirectionalLights && Material->GetShadingModel() != MSM_Unlit;
+		return bMobileAllowMovableDirectionalLights && Material->GetShadingModels().IsLit();
 	}	
 
 	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
@@ -645,7 +645,7 @@ struct FMobileMovableDirectionalLightWithLightmapPolicy : public TLightMapPolicy
 		static auto* CVarAllowStaticLighting = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 		const bool bAllowStaticLighting = (!CVarAllowStaticLighting || CVarAllowStaticLighting->GetValueOnAnyThread() != 0);
 
-		return bAllowStaticLighting && bMobileAllowMovableDirectionalLights && (Material->GetShadingModel() != MSM_Unlit) && Super::ShouldCompilePermutation(Platform, Material, VertexFactoryType);
+		return bAllowStaticLighting && bMobileAllowMovableDirectionalLights && (Material->GetShadingModels().IsLit()) && Super::ShouldCompilePermutation(Platform, Material, VertexFactoryType);
 	}
 
 	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
@@ -1001,7 +1001,7 @@ public:
 	{
 		static IConsoleVariable* AllowStaticLightingVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AllowStaticLighting"));
 
-		return Material->GetShadingModel() != MSM_Unlit 
+		return Material->GetShadingModels().IsLit()
 			&& IsTranslucentBlendMode(Material->GetBlendMode()) 
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetInt() != 0)
 			&& FSelfShadowedTranslucencyPolicy::ShouldCompilePermutation(Platform, Material, VertexFactoryType);
@@ -1050,7 +1050,7 @@ public:
 	{
 		static IConsoleVariable* AllowStaticLightingVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AllowStaticLighting"));
 
-		return Material->GetShadingModel() != MSM_Unlit 
+		return Material->GetShadingModels().IsLit()
 			&& IsTranslucentBlendMode(Material->GetBlendMode()) 
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetInt() != 0)
 			&& FSelfShadowedTranslucencyPolicy::ShouldCompilePermutation(Platform, Material, VertexFactoryType);

@@ -13,7 +13,7 @@
 #include "Serialization/BulkData.h"
 #include "SkeletalMeshTypes.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
-
+#include "Animation/SkinWeightProfile.h"
 
 //
 //	FSoftSkinVertex
@@ -214,6 +214,9 @@ public:
 	*/
 	TArray<FBoneIndexType> RequiredBones;
 
+	/** Set of skin weight profile, identified by a FName which matches FSkinWeightProfileInfo.Name in the owning Skeletal Mesh*/
+	TMap<FName, FImportedSkinWeightProfileData> SkinWeightProfiles;
+
 	/** Mapping from final mesh vertex index to raw import vertex index. Needed for vertex animation, which only stores positions for import verts. */
 	TArray<int32>				MeshToImportVertexMap;
 	/** The max index in MeshToImportVertexMap, ie. the number of imported (raw) verts. */
@@ -280,7 +283,7 @@ public:
 	*/
 	ENGINE_API void GetNonClothVertices(TArray<FSoftSkinVertex>& OutVertices) const;
 
-	bool DoSectionsNeedExtraBoneInfluences() const;
+	ENGINE_API bool DoSectionsNeedExtraBoneInfluences() const;
 
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
 };

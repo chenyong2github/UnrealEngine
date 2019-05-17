@@ -33,11 +33,14 @@ struct ENGINE_API AudioPluginUtilities
 	static const EAudioPlatform CurrentPlatform = EAudioPlatform::Unknown;
 #endif
 
+	/** Platform config section for each platform's target settings. */
+	static const TCHAR* GetPlatformConfigSection(EAudioPlatform AudioPlatform);
+
 	/*
 	 * These functions return a pointer to the plugin factory
 	 * that matches the plugin name specified in the target
 	 * platform's settings.
-	 * 
+	 *
 	 * if no matching plugin is found, nullptr is returned.
 	 */
 	static IAudioSpatializationFactory* GetDesiredSpatializationPlugin(EAudioPlatform AudioPlatform);

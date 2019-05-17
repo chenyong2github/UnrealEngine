@@ -983,6 +983,28 @@ float FWaveInstance::GetVolumeWeightedPriority() const
 	}
 }
 
+bool FWaveInstance::IsSeekable() const
+{
+	check(WaveData);
+
+	if (StartTime == 0.0f)
+	{
+		return false;
+	}
+
+	if (WaveData->bIsBus || WaveData->bProcedural)
+	{
+		return false;
+	}
+
+	if (IsStreaming() && !WaveData->IsSeekableStreaming())
+	{
+		return false;
+	}
+
+	return true;
+}
+
 bool FWaveInstance::IsStreaming() const
 {
 	return FPlatformProperties::SupportsAudioStreaming() && WaveData != nullptr && WaveData->IsStreaming();

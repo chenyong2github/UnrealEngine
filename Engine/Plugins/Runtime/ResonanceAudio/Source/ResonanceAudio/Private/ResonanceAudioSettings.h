@@ -23,4 +23,8 @@ public:
 	// Default settings for global reverb: This is overridden when a player enters Audio Volumes.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = General, meta = (AllowedClasses = "ResonanceAudioReverbPluginPreset"))
 	FSoftObjectPath GlobalReverbPreset;
+
+	// Default settings for global source settings
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = General, meta = (AllowedClasses = "ResonanceAudioSourcePluginPreset"))
+	FSoftObjectPath GlobalSourcePreset;
 };

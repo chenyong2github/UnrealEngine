@@ -1,5 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#include "ShadingCommon.ush"
 #include "/Engine/Generated/UniformBuffers/PrecomputedLightingBuffer.ush"
 #include "VolumetricLightmapShared.ush"
 #include "VirtualTextureCommon.ush"
@@ -79,7 +80,7 @@ half4 GetLightMapColorLQ( float2 LightmapUV0, float2 LightmapUV1, uint LightmapD
 	return half4( Color, Luma );
 }
 
-void GetLightMapColorHQ( float2 LightmapUV0, float2 LightmapUV1, uint LightmapDataIndex, half3 WorldNormal, float2 SvPositionXY, out half3 OutDiffuseLighting, out half3 OutSubsurfaceLighting, out uint VTRequest )
+void GetLightMapColorHQ( float2 LightmapUV0, float2 LightmapUV1, uint LightmapDataIndex, half3 WorldNormal, float2 SvPositionXY, uint ShadingModel, out half3 OutDiffuseLighting, out half3 OutSubsurfaceLighting, out uint VTRequest )
 {
 	OutSubsurfaceLighting = 0;
 
@@ -123,14 +124,20 @@ void GetLightMapColorHQ( float2 LightmapUV0, float2 LightmapUV1, uint LightmapDa
 	half Directionality = max( 0.0, dot( SH, float4(WorldNormal.yzx, 1) ) );
 
 	#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
-		half SubsurfaceDirectionality = max( 0.0, dot( SH, float4(-WorldNormal.yzx, 1) ) );
+	if (ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE)
+	{
+		half SubsurfaceDirectionality = max(0.0, dot(SH, float4(-WorldNormal.yzx, 1)));
 		OutSubsurfaceLighting = L * SubsurfaceDirectionality * UVW;
+	}
 	#endif
 #else
 	half Directionality = 0.6;
 
 	#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
+	if (ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE)
+	{
 		OutSubsurfaceLighting = L * Directionality * UVW;
+	}
 	#endif
 #endif
 

@@ -1,0 +1,96 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Misc/CoreMisc.h"
+#include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
+#include "Containers/Ticker.h" 
+
+class FHttpListener;
+class IHttpRouter;
+
+DECLARE_LOG_CATEGORY_EXTERN(LogHttpServerModule, Log, All);
+
+/**
+ * Module for HtttpServer Implementation
+ */
+class FHttpServerModule : 
+	public IModuleInterface
+	,public FTickerObjectBase
+{
+
+public:
+
+	/**
+	 * Singleton-like access to this module's interface.  This is just for convenience!
+	 * Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.
+	 *
+	 * @return Returns singleton instance, loading the module on demand if needed
+	 */
+	HTTPSERVER_API static FHttpServerModule& Get();
+
+	/**
+	 * Per-port-binding access to an http router
+	 *
+	 * @param  Port The listener's bound port 
+	 * @return An IHttpRouter instance that can be leveraged to respond to HTTP requests
+	 */
+	HTTPSERVER_API TSharedPtr<IHttpRouter> GetHttpRouter(uint32 Port);
+
+	/**
+	 * FTicker callback
+	 * 
+	 * @param DeltaTime  The time in seconds since the last tick
+	 * @return           false if no longer needs ticking, true otherwise
+	 */
+	 bool Tick(float DeltaTime) override;
+
+	 /**
+	  * Starts all listeners
+	  */
+	 HTTPSERVER_API void StartAllListeners();
+
+	 /**
+	  * Stops all listeners
+	  */
+	 HTTPSERVER_API void StopAllListeners();
+
+	 /**
+	  * Determines if any listeners are pending operations
+	  *
+	  * @return true if there are pending listeners, false otherwise
+	  */
+	 HTTPSERVER_API bool HasPendingListeners() const;
+
+private:
+
+	// IModuleInterface
+
+	/**
+	 * Called when voice module is loaded
+	 * Initialize platform specific parts of template handling
+	 */
+	virtual void StartupModule() override;
+	
+	/**
+	 * Called when voice module is unloaded
+	 * Shutdown platform specific parts of template handling
+	 */
+	virtual void ShutdownModule() override;
+
+private:
+
+	/** Singleton Instance */
+	static FHttpServerModule* Singleton;
+
+	/** The association of port bindings and respective HTTP listeners */
+	TMap<uint32, TUniquePtr<FHttpListener>> Listeners;
+
+	/** Whether this module has been initialized */
+	bool bInitialized = false;
+
+	/** Whether listeners can be started */
+	bool bHttpListenersEnabled = false;
+};
+

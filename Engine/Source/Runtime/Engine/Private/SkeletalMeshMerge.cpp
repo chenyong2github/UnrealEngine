@@ -412,7 +412,7 @@ void FSkeletalMeshMerge::CopyVertexFromSource(VertexDataType& DestVert, const FS
 template<typename SkinWeightType, bool bHasExtraBoneInfluences>
 void FSkeletalMeshMerge::CopyWeightFromSource(SkinWeightType& DestWeight, const FSkeletalMeshLODRenderData& SrcLODData, int32 SourceVertIdx, const FMergeSectionInfo& MergeSectionInfo)
 {
-	const TSkinWeightInfo<bHasExtraBoneInfluences>* SrcSkinWeights = SrcLODData.SkinWeightVertexBuffer.GetSkinWeightPtr<bHasExtraBoneInfluences>(SourceVertIdx);
+	const TSkinWeightInfo<bHasExtraBoneInfluences>* SrcSkinWeights = SrcLODData.GetSkinWeightVertexBuffer()->GetSkinWeightPtr<bHasExtraBoneInfluences>(SourceVertIdx);
 
 	// if source doesn't have extra influence, we have to clear the buffer
 	FMemory::Memzero(DestWeight.InfluenceBones);
@@ -591,7 +591,7 @@ void FSkeletalMeshMerge::GenerateLODModel( int32 LODIdx )
 			// keep track of the current base vertex index before adding any new vertices
 			// this will be needed to remap the index buffer values to the new range
 			int32 CurrentBaseVertexIndex = MergedVertexBuffer.Num();
-			const bool bSourceExtraBoneInfluence = SrcLODData.SkinWeightVertexBuffer.HasExtraBoneInfluences();
+			const bool bSourceExtraBoneInfluence = SrcLODData.GetSkinWeightVertexBuffer()->HasExtraBoneInfluences();
 			for( int32 VertIdx=MergeSectionInfo.Section->BaseVertexIndex; VertIdx < MaxVertIdx; VertIdx++ )
 			{
 				// add the new vertex

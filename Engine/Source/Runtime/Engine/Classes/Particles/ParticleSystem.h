@@ -103,13 +103,21 @@ struct FNamedEmitterMaterial
 	class UMaterialInterface* Material;
 };
 
+UCLASS(Abstract, MinimalAPI, BlueprintType)
+class UFXSystemAsset : public UObject
+{
+	GENERATED_UCLASS_BODY()
+public:
+	UFXSystemAsset() {}
+};
+
 /**
  * A ParticleSystem is a complete particle effect that contains any number of ParticleEmitters. By allowing multiple emitters
  * in a system, the designer can create elaborate particle effects that are held in a single system. Once created using
  * Cascade, a ParticleSystem can then be inserted into a level or created in script.
  */
 UCLASS(hidecategories=Object, MinimalAPI, BlueprintType)
-class UParticleSystem : public UObject
+class UParticleSystem : public UFXSystemAsset
 {
 	GENERATED_UCLASS_BODY()
 

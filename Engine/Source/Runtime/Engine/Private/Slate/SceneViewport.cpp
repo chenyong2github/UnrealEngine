@@ -791,6 +791,7 @@ FReply FSceneViewport::OnTouchEnded( const FGeometry& MyGeometry, const FPointer
 	}
 	else
 	{
+		UpdateCachedCursorPos(MyGeometry, TouchEvent);
 		CurCursorPos = CachedCursorPos;
 		CachedCursorPos = FIntPoint(-1, -1);
 	}
@@ -1934,6 +1935,16 @@ void FSceneViewport::InitDynamicRHI()
 
 		static const auto CVarDefaultBackBufferPixelFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultBackBufferPixelFormat"));
 		EPixelFormat SceneTargetFormat = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnRenderThread()));
+	
+#if WITH_EDITOR
+		// HDR Editor needs to be in float format if running with HDR
+		// TODO - Just set this when we know we want HDR capabilites
+		static auto CVarHDREnable = IConsoleManager::Get().FindConsoleVariable(TEXT("Editor.HDRSupport"));
+		if(CVarHDREnable && (CVarHDREnable->GetInt() != 0))
+		{
+			SceneTargetFormat = PF_FloatRGBA;
+		}
+#endif
 
 		FRHIResourceCreateInfo CreateInfo;
 		FTexture2DRHIRef BufferedRTRHI;

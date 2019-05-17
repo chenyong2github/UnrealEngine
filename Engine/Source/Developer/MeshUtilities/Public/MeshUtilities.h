@@ -11,6 +11,7 @@
 #include "MeshBuild.h"
 
 #include "IMeshMergeUtilities.h"
+#include "Animation/SkinWeightProfile.h"
 
 class UMeshComponent;
 class USkeletalMesh;
@@ -199,6 +200,16 @@ public:
 		bool bGenerateAsIfTwoSided,
 		class FDistanceFieldVolumeData& OutData) = 0;
 
+	/** 
+	 * Down sample distance field volume. 
+	 * Method overwrites data of DistanceFieldData. 
+	 * If input is compressed, it will be decompressed, downsampled and recompressed
+	 */
+	virtual void DownSampleDistanceFieldVolumeData(
+		class FDistanceFieldVolumeData& DistanceFieldData,
+		float Divider) = 0;
+
+
 	/** Helper structure for skeletal mesh import options */
 	struct MeshBuildOptions
 	{
@@ -335,4 +346,7 @@ public:
 	virtual void RecomputeTangentsAndNormalsForRawMesh(bool bRecomputeTangents, bool bRecomputeNormals, const FMeshBuildSettings& InBuildSettings, const FOverlappingCorners& InOverlappingCorners, FRawMesh &OutRawMesh) const = 0;
 
 	virtual void FindOverlappingCorners(FOverlappingCorners& OutOverlappingCorners, const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, float ComparisonThreshold) const = 0;
+
+	/** Used to generate runtime skin weight data from Editor-only data */
+	virtual void GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* ImportedModel, const TArray<FRawSkinWeight>& InRawSkinWeights, FRuntimeSkinWeightProfileData& InOutSkinWeightOverrideData) const = 0;
 };

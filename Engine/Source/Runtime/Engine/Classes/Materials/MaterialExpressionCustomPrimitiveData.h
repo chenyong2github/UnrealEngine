@@ -7,6 +7,20 @@
 #include "Materials/MaterialExpression.h"
 #include "MaterialExpressionCustomPrimitiveData.generated.h"
 
+USTRUCT()
+struct FPrimitiveDataIndex
+{
+	GENERATED_USTRUCT_BODY()
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category=MaterialExpression)
+	FString CustomDesc;
+#endif
+
+	UPROPERTY(EditAnywhere, Category=MaterialExpression, meta=(ClampMin="0"))
+	uint8 PrimitiveDataIndex;
+};
+
 UCLASS(collapsecategories, hidecategories = Object)
 class UMaterialExpressionCustomPrimitiveData: public UMaterialExpression
 {
@@ -18,10 +32,9 @@ class UMaterialExpressionCustomPrimitiveData: public UMaterialExpression
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UMaterialExpression Interface
-#if WITH_EDITORONLY_DATA
-	/** Custom descriptions for each custom data pin, only for making things more readable, don't rely on this data for run-time things */
+#endif
+
+	/** Custom index into the custom data for each pin, also includes custom descriptions for each custom data pin only for making things more readable */
 	UPROPERTY(EditAnywhere, Category=MaterialExpression)
-	TArray<FString> CustomDescs;
-#endif
-#endif
+	TArray<FPrimitiveDataIndex> CustomIndices;
 };

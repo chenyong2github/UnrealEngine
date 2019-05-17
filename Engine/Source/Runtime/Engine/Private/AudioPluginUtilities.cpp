@@ -6,51 +6,6 @@
 #include "CoreGlobals.h"
 
 
-/** Platform config section for each platform's target settings. */
-FORCEINLINE const TCHAR* GetPlatformConfigSection(EAudioPlatform AudioPlatform)
-{
-	switch (AudioPlatform)
-	{
-		case EAudioPlatform::Windows:
-			return TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings");
-
-		case EAudioPlatform::Mac:
-			return TEXT("/Script/MacTargetPlatform.MacTargetSettings");
-
-		case EAudioPlatform::Linux:
-			return TEXT("/Script/LinuxTargetPlatform.LinuxTargetSettings");
-
-		case EAudioPlatform::IOS:
-			return TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings");
-
-		case EAudioPlatform::Android:
-			return TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
-
-		case EAudioPlatform::XboxOne:
-			return TEXT("/Script/XboxOnePlatformEditor.XboxOneTargetSettings");
-
-		case EAudioPlatform::Playstation4:
-			return TEXT("/Script/PS4PlatformEditor.PS4TargetSettings");
-
-		case EAudioPlatform::Switch:
-			return TEXT("/Script/SwitchRuntimeSettings.SwitchRuntimeSettings");
-
-		case EAudioPlatform::HTML5:
-			return TEXT("/Script/HTML5PlatformEditor.HTML5TargetSettings");
-
-		case EAudioPlatform::Lumin:
-			return TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings");
-
-		case EAudioPlatform::Unknown:
-			return TEXT("");
-
-		default:
-			checkf(false, TEXT("Undefined audio platform."));
-			break;
-	}
-	return TEXT("");
-}
-
 /** Get the target setting name for each platform type. */
 FORCEINLINE const TCHAR* GetPluginConfigName(EAudioPlugin PluginType)
 {
@@ -74,6 +29,88 @@ FORCEINLINE const TCHAR* GetPluginConfigName(EAudioPlugin PluginType)
 /************************************************************************/
 /* Plugin Utilities                                                     */
 /************************************************************************/
+/** Platform config section for each platform's target settings. */
+const TCHAR* AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform AudioPlatform)
+{
+	static const FString UnknownConfig = TEXT("");
+
+	switch (AudioPlatform)
+	{
+		case EAudioPlatform::Windows:
+		{
+			static const FString WindowsConfig = TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings");
+			return *WindowsConfig;
+		}
+
+		case EAudioPlatform::Mac:
+		{
+			static const FString MacConfig = TEXT("/Script/MacTargetPlatform.MacTargetSettings");
+			return *MacConfig;
+		}
+
+		case EAudioPlatform::Linux:
+		{
+			static const FString LinuxConfig = TEXT("/Script/LinuxTargetPlatform.LinuxTargetSettings");
+			return *LinuxConfig;
+		}
+
+		case EAudioPlatform::IOS:
+		{
+			static const FString IOSConfig = TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings");
+			return *IOSConfig;
+		}
+
+		case EAudioPlatform::Android:
+		{
+			static const FString AndroidConfig = TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
+			return *AndroidConfig;
+		}
+
+		case EAudioPlatform::XboxOne:
+		{
+			static const FString XBoxConfig = TEXT("/Script/XboxOnePlatformEditor.XboxOneTargetSettings");
+			return *XBoxConfig;
+		}
+
+		case EAudioPlatform::Playstation4:
+		{
+			static const FString Playstation4Config = TEXT("/Script/PS4PlatformEditor.PS4TargetSettings");
+			return *Playstation4Config;
+		}
+
+		case EAudioPlatform::Switch:
+		{
+			static const FString SwitchConfig = TEXT("/Script/SwitchRuntimeSettings.SwitchRuntimeSettings");
+			return *SwitchConfig;
+		}
+
+		case EAudioPlatform::HTML5:
+		{
+			static const FString HTML5Config = TEXT("/Script/HTML5PlatformEditor.HTML5TargetSettings");
+			return *HTML5Config;
+		}
+
+		case EAudioPlatform::Lumin:
+		{
+			static FString LuminConfig = TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings");
+			return *LuminConfig;
+		}
+
+		case EAudioPlatform::Unknown:
+		{
+			return *UnknownConfig;
+		}
+
+		default:
+		{
+			checkf(false, TEXT("Undefined audio platform."));
+			break;
+		}
+	}
+
+	return *UnknownConfig;
+}
+
 IAudioSpatializationFactory* AudioPluginUtilities::GetDesiredSpatializationPlugin(EAudioPlatform AudioPlatform)
 {
 	//Get the name of the desired spatialization plugin:
