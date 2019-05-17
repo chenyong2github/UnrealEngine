@@ -33,6 +33,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "LandscapeRender.h"
 #include "LandscapeInfoMap.h"
 #include "Misc/MessageDialog.h"
+#include "GameFramework/WorldSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Landscape"
