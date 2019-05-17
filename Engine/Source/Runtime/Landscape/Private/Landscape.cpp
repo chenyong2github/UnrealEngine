@@ -1090,13 +1090,7 @@ ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 	WeightmapScratchExtractLayerTextureResource = nullptr;
 	WeightmapScratchPackLayerTextureResource = nullptr;
 	bLandscapeLayersAreInitialized = false;
-	LandscapeEdMode = nullptr;
-
-	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
-	{
-		ALandscape::RegisterChangeLandscapeLayersStateDelegate();
-	}
-	
+	LandscapeEdMode = nullptr;	
 #endif // WITH_EDITORONLY_DATA
 }
 

@@ -532,9 +532,7 @@ void FEdModeLandscape::Enter()
 			}
 		});
 	}
-
-	ALandscape::RegisterChangeLandscapeLayersStateDelegate();
-
+		
 	UpdateToolModes();
 
 	ALandscapeProxy* SelectedLandscape = GEditor->GetSelectedActors()->GetTop<ALandscapeProxy>();
