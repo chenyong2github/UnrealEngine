@@ -141,6 +141,27 @@ enum class EARPlaneOrientation : uint8
 	Vertical
 };
 
+/** Indicates what type of object the scene understanding system thinks it is */
+UENUM(BlueprintType)
+enum class EARObjectClassification : uint8
+{
+	/** Scene understanding doesn't know what this is */
+	Unknown,
+	/** The vertical plane that is a wall */
+	Wall,
+	/** The horizontal plane that is the ceiling */
+	Ceiling,
+	/** The horizontal plane that is the floor */
+	Floor,
+	/** The horizontal plane that is a table */
+	Table,
+	/** The horizontal plane that is a seat */
+	Seat,
+	/** A recognized image in the scene */
+	Image,
+	// Add other types here...
+};
+
 /** The current state of the AR subsystem including an optional explanation string. */
 USTRUCT(BlueprintType)
 struct AUGMENTEDREALITY_API FARSessionStatus

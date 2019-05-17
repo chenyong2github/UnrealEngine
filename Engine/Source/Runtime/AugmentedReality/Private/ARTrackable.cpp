@@ -197,6 +197,7 @@ void UARTrackedImage::UpdateTrackedGeometry(const TSharedRef<FARSupportInterface
 	Super::UpdateTrackedGeometry(InTrackingSystem, FrameNumber, Timestamp, InLocalToTrackingTransform, InAlignmentTransform);
 	EstimatedSize = InEstimatedSize;
 	DetectedImage = InDetectedImage;
+	ObjectClassification = EARObjectClassification::Image;
 }
 
 FVector2D UARTrackedImage::GetEstimateSize()
