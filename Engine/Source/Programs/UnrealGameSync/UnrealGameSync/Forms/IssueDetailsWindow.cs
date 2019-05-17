@@ -687,12 +687,8 @@ namespace UnrealGameSync
 		{
 			SelectedBuildGroup = BuildGroup;
 
-			bool bHasErrorUrl = BuildGroup.Builds.Any(x => x.ErrorUrl != null);
-			JobContextMenu_StepSeparatorMax.Visible = bHasErrorUrl;
-			JobContextMenu_ShowFirstError.Visible = bHasErrorUrl;
-
 			int MinIndex = JobContextMenu.Items.IndexOf(JobContextMenu_StepSeparatorMin) + 1;
-			while(JobContextMenu.Items[MinIndex] != JobContextMenu_StepSeparatorMax)
+			while(JobContextMenu.Items.Count > MinIndex)
 			{
 				JobContextMenu.Items.RemoveAt(MinIndex);
 			}

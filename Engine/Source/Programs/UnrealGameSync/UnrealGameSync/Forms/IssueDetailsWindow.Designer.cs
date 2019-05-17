@@ -58,8 +58,6 @@ namespace UnrealGameSync
             this.JobContextMenu_ViewJob = new System.Windows.Forms.ToolStripMenuItem();
             this.JobContextMenu_StepSeparatorMin = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
-            this.JobContextMenu_StepSeparatorMax = new System.Windows.Forms.ToolStripSeparator();
-            this.JobContextMenu_ShowFirstError = new System.Windows.Forms.ToolStripMenuItem();
             this.BuildListContextMenu.SuspendLayout();
             this.tableLayoutPanel1.SuspendLayout();
             this.groupBox1.SuspendLayout();
@@ -535,42 +533,27 @@ namespace UnrealGameSync
             this.JobContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.JobContextMenu_ViewJob,
             this.JobContextMenu_StepSeparatorMin,
-            this.toolStripMenuItem1,
-            this.JobContextMenu_StepSeparatorMax,
-            this.JobContextMenu_ShowFirstError});
+            this.toolStripMenuItem1});
             this.JobContextMenu.Name = "JobContextMenu";
-            this.JobContextMenu.Size = new System.Drawing.Size(151, 82);
+            this.JobContextMenu.Size = new System.Drawing.Size(181, 76);
             // 
             // JobContextMenu_ViewJob
             // 
             this.JobContextMenu_ViewJob.Name = "JobContextMenu_ViewJob";
-            this.JobContextMenu_ViewJob.Size = new System.Drawing.Size(150, 22);
+            this.JobContextMenu_ViewJob.Size = new System.Drawing.Size(180, 22);
             this.JobContextMenu_ViewJob.Text = "View Job...";
             this.JobContextMenu_ViewJob.Click += new System.EventHandler(this.JobContextMenu_ViewJob_Click);
             // 
             // JobContextMenu_StepSeparatorMin
             // 
             this.JobContextMenu_StepSeparatorMin.Name = "JobContextMenu_StepSeparatorMin";
-            this.JobContextMenu_StepSeparatorMin.Size = new System.Drawing.Size(147, 6);
+            this.JobContextMenu_StepSeparatorMin.Size = new System.Drawing.Size(177, 6);
             // 
             // toolStripMenuItem1
             // 
             this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(150, 22);
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(180, 22);
             this.toolStripMenuItem1.Text = "Step: XYZ";
-            // 
-            // JobContextMenu_StepSeparatorMax
-            // 
-            this.JobContextMenu_StepSeparatorMax.Name = "JobContextMenu_StepSeparatorMax";
-            this.JobContextMenu_StepSeparatorMax.Size = new System.Drawing.Size(147, 6);
-            // 
-            // JobContextMenu_ShowFirstError
-            // 
-            this.JobContextMenu_ShowFirstError.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.JobContextMenu_ShowFirstError.Name = "JobContextMenu_ShowFirstError";
-            this.JobContextMenu_ShowFirstError.Size = new System.Drawing.Size(150, 22);
-            this.JobContextMenu_ShowFirstError.Text = "View first error";
-            this.JobContextMenu_ShowFirstError.Click += new System.EventHandler(this.JobContextMenu_ShowError_Click);
             // 
             // IssueDetailsWindow
             // 
@@ -647,10 +630,8 @@ namespace UnrealGameSync
 		private System.Windows.Forms.TextBox SummaryTextBox;
 		private System.Windows.Forms.TextBox StreamNamesTextBox;
 		private System.Windows.Forms.ContextMenuStrip JobContextMenu;
-		private System.Windows.Forms.ToolStripMenuItem JobContextMenu_ShowFirstError;
 		private System.Windows.Forms.ToolStripSeparator JobContextMenu_StepSeparatorMin;
 		private System.Windows.Forms.ToolStripMenuItem toolStripMenuItem1;
-		private System.Windows.Forms.ToolStripSeparator JobContextMenu_StepSeparatorMax;
 		private System.Windows.Forms.ToolStripMenuItem JobContextMenu_ViewJob;
 	}
 }
