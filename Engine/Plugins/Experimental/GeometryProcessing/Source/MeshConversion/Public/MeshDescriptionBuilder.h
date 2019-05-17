@@ -25,20 +25,37 @@ class MESHCONVERSION_API FMeshDescriptionBuilder
 public:
 	void SetMeshDescription(FMeshDescription* Description);
 
-	/** Enable per-triangle integer attribute named PolyTriGroups */
-	void EnablePolyGroups();
-
 	/** Append vertex and return new vertex ID */
 	FVertexID AppendVertex(const FVector& Position);
-	
+
+	/** Return position of vertex */
+	FVector GetPosition(const FVertexID& VertexID);
+
+	/** Return position of vertex parent of instance */
+	FVector GetPosition(const FVertexInstanceID& InstanceID);
+
+	/** Set the position of a vertex */
+	void SetPosition(const FVertexID& VertexID, const FVector& NewPosition);
+
+
+
 	/** Append new vertex instance and return ID */
 	FVertexInstanceID AppendInstance(const FVertexID& VertexID);
 
 	/** Set the UV and Normal of a vertex instance*/
 	void SetInstance(const FVertexInstanceID& InstanceID, const FVector2D& InstanceUV, const FVector& InstanceNormal);
 
+
+
+	/** Enable per-triangle integer attribute named PolyTriGroups */
+	void EnablePolyGroups();
+
 	/** Create a new polygon group and return it's ID */
 	FPolygonGroupID AppendPolygonGroup();
+
+	/** Set the PolyTriGroups attribute value to a specific GroupID for a Polygon */
+	void SetPolyGroupID(const FPolygonID& PolygonID, int GroupID);
+
 
 
 	/** Append a triangle to the mesh with the given PolygonGroup ID */
@@ -69,14 +86,14 @@ public:
 
 
 
-	/** Set the PolyTriGroups attribute value to a specific GroupID for a Polygon */
-	void SetPolyGroupID(const FPolygonID& PolygonID, int GroupID);
-
 	/** Set MeshAttribute::Edge::IsHard to true for all edges */
 	void SetAllEdgesHardness(bool bHard);
 
 	/** Translate the MeshDescription vertex positions */
 	void Translate(const FVector& Translation);
+
+	/** Calculate normals on the MeshDescription vertex instances, using area-weighted face average */
+	void RecalculateInstanceNormals();
 
 	/** Return the current bounding box of the mesh */
 	FBox ComputeBoundingBox() const;

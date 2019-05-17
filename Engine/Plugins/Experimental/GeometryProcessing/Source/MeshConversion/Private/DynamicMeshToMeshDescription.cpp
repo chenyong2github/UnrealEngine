@@ -8,6 +8,35 @@
 #include "MeshNormals.h"
 
 
+
+void FDynamicMeshToMeshDescription::Update(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut)
+{
+	FMeshDescriptionBuilder Builder;
+	Builder.SetMeshDescription(&MeshOut);
+
+	check(MeshIn->IsCompactV());
+	check(MeshIn->VertexCount() == MeshOut.Vertices().Num());
+
+	// update positions
+	for (int VertID : MeshIn->VertexIndicesItr())
+	{
+		Builder.SetPosition(FVertexID(VertID), MeshIn->GetVertex(VertID));
+	}
+
+	// can't trust these yet...
+	//const FDynamicMeshUVOverlay* UVOverlay = MeshIn->HasAttributes() ? MeshIn->Attributes()->PrimaryUV() : nullptr;
+	//const FDynamicMeshNormalOverlay* NormalOverlay = MeshIn->HasAttributes() ? MeshIn->Attributes()->PrimaryNormals() : nullptr;
+
+	Builder.RecalculateInstanceNormals();
+}
+
+
+
+
+
+
+
+
 void FDynamicMeshToMeshDescription::Convert(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut)
 {
 	if (MeshIn->HasAttributes())
@@ -19,9 +48,6 @@ void FDynamicMeshToMeshDescription::Convert(const FDynamicMesh3* MeshIn, FMeshDe
 		Convert_NoAttributes(MeshIn, MeshOut);
 	}
 }
-
-
-
 
 
 void FDynamicMeshToMeshDescription::Convert_NoAttributes(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut)

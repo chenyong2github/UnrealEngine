@@ -25,6 +25,13 @@ public:
 	void Convert(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut);
 
 
+	/**
+	 * Update existing MeshDescription based on DynamicMesh. Assumes mesh topology has not changed.
+	 * Copies positions, recalculates MeshDescription normals.
+	 */
+	void Update(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut);
+
+
 	//
 	// Internal functions that you can also call directly
 	//

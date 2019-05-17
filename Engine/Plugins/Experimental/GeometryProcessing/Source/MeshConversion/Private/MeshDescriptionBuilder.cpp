@@ -74,6 +74,22 @@ FVertexInstanceID FMeshDescriptionBuilder::AppendInstance(const FVertexID& Verte
 
 
 
+void FMeshDescriptionBuilder::SetPosition(const FVertexID& VertexID, const FVector& NewPosition)
+{
+	VertexPositions.Set(VertexID, 0, NewPosition);
+}
+
+FVector FMeshDescriptionBuilder::GetPosition(const FVertexID& VertexID)
+{
+	return VertexPositions.Get(VertexID, 0);
+}
+
+FVector FMeshDescriptionBuilder::GetPosition(const FVertexInstanceID& InstanceID)
+{
+	return VertexPositions.Get(MeshDescription->GetVertexInstance(InstanceID).VertexID, 0);
+}
+
+
 void FMeshDescriptionBuilder::SetInstance(const FVertexInstanceID& InstanceID, const FVector2D& InstanceUV, const FVector& InstanceNormal)
 {
 	if (InstanceUVs.IsValid())
@@ -267,6 +283,53 @@ void FMeshDescriptionBuilder::SetAllEdgesHardness(bool bHard)
 		EdgeHardness.Set(EdgeID, 0, bHard);
 	}
 }
+
+
+
+void FMeshDescriptionBuilder::RecalculateInstanceNormals()
+{
+	for (int k = 0; k < InstanceNormals.GetNumElements(); ++k)
+	{
+		InstanceNormals.Set(FVertexInstanceID(k), 0, FVector::ZeroVector);
+	}
+
+	const FPolygonArray& Polygons = MeshDescription->Polygons();
+	for (const FPolygonID PolygonID : Polygons.GetElementIDs())
+	{
+		const TArray<FMeshTriangle>& Triangles = MeshDescription->GetPolygonTriangles(PolygonID);
+		for (FMeshTriangle Triangle : Triangles)
+		{
+			FVector3d A = GetPosition(Triangle.VertexInstanceID0);
+			FVector3d B = GetPosition(Triangle.VertexInstanceID1);
+			FVector3d C = GetPosition(Triangle.VertexInstanceID2);
+			double Area = 1.0;
+			FVector FaceNormal = VectorUtil::FastNormalArea(A, B, C, Area);
+			if (Area > FMathf::ZeroTolerance)
+			{
+				FaceNormal *= Area;
+				InstanceNormals.Set(Triangle.VertexInstanceID0,
+					InstanceNormals.Get(Triangle.VertexInstanceID0, 0) + FaceNormal);
+				InstanceNormals.Set(Triangle.VertexInstanceID1,
+					InstanceNormals.Get(Triangle.VertexInstanceID1, 0) + FaceNormal);
+				InstanceNormals.Set(Triangle.VertexInstanceID2,
+					InstanceNormals.Get(Triangle.VertexInstanceID2, 0) + FaceNormal);
+			}
+		}
+	}
+
+
+	for (int k = 0; k < InstanceNormals.GetNumElements(); ++k)
+	{
+		FVector SumNormal = InstanceNormals.Get(FVertexInstanceID(k), 0);
+		SumNormal.Normalize();
+		if ( SumNormal.Size() < 0.99 )
+		{ 
+			SumNormal = FVector(1, 0, 0);
+		}
+		InstanceNormals.Set(FVertexInstanceID(k), 0, SumNormal);
+	}
+}
+
 
 
 FBox FMeshDescriptionBuilder::ComputeBoundingBox() const
