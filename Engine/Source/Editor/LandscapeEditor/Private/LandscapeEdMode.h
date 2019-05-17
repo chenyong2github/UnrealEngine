@@ -12,6 +12,7 @@
 #include "LandscapeInfo.h"
 #include "LandscapeLayerInfoObject.h"
 #include "LandscapeGizmoActiveActor.h"
+#include "LandscapeEdit.h"
 
 class ALandscape;
 class FCanvas;
@@ -250,11 +251,13 @@ enum class ELandscapeEditingState : uint8
 /**
  * Landscape editor mode
  */
-class FEdModeLandscape : public FEdMode
+class FEdModeLandscape : public FEdMode, public ILandscapeEdModeInterface
 {
 public:
 
 	ULandscapeEditorObject* UISettings;
+
+	FText ErrorReasonOnMouseUp;
 
 	FLandscapeToolMode* CurrentToolMode;
 	FLandscapeTool* CurrentTool;
@@ -321,10 +324,15 @@ public:
 	void InitializeTool_Ramp();
 	void InitializeTool_Mirror();
 	void InitializeTool_BPCustom();
-	void InitializeToolModes();
+	void UpdateToolModes();
 
 	/** Destructor */
 	virtual ~FEdModeLandscape();
+
+	/** ILandscapeEdModeInterface */
+	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const override;
+	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const override;
+	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const override;
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -492,6 +500,8 @@ public:
 	void RefreshDetailPanel();
 
 	// Layers
+	bool CanHaveLandscapeLayersContent() const;
+	bool HasLandscapeLayersContent() const;
 	int32 GetLayerCount() const;
 	void SetCurrentLayer(int32 InLayerIndex);
 	int32 GetCurrentLayerIndex() const;
@@ -526,7 +536,7 @@ public:
 	
 	bool NeedToFillEmptyMaterialLayers() const;
 	void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode);
-	void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InUpdateMode = ELandscapeLayerUpdateMode::All);
+	void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InUpdateMode = ELandscapeLayerUpdateMode::Update_All);
 
 	void OnLevelActorAdded(AActor* InActor);
 	void OnLevelActorRemoved(AActor* InActor);
@@ -568,6 +578,8 @@ public:
 	{
 		return GetEditingState() == ELandscapeEditingState::Enabled;
 	}
+
+	void SetLandscapeInfo(ULandscapeInfo* InLandscapeInfo);
 	
 private:
 	TArray<TSharedRef<FLandscapeTargetListInfo>> LandscapeTargetList;

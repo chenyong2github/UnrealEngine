@@ -464,6 +464,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World)
 	uint8 bEnableWorldComposition:1;
 
+	/** Enables landscape layers system for this world */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = World)
+	uint8 bEnableLandscapeLayers : 1;
+
 	/**
 	 * Enables client-side streaming volumes instead of server-side.
 	 * Expected usage scenario: server has all streaming levels always loaded, clients independently stream levels in/out based on streaming volumes.
@@ -714,7 +718,22 @@ public:
 	UPROPERTY()
 	TArray<UAssetUserData*> AssetUserData;
 
+public:
+	/**
+	 * Returns an event delegate that is executed when a setting has changed.
+	 *
+	 * @return The delegate.
+	 */
+	DECLARE_EVENT_OneParam(AWorldSettings, FSettingChangedEvent, FName /*PropertyName*/);
+	FSettingChangedEvent& OnSettingChanged()
+	{
+		return SettingChangedEvent;
+	}
+
 private:
+	// Holds an event delegate that is executed when a setting has changed.
+	FSettingChangedEvent SettingChangedEvent;
+
 	// If paused, PlayerState of person pausing the game.
 	UPROPERTY(transient, replicated)
 	class APlayerState* PauserPlayerState;

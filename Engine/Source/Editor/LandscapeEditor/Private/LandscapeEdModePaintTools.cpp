@@ -13,7 +13,6 @@
 #include "LandscapeEdit.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapeEdModeTools.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "Landscape.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
@@ -256,14 +255,6 @@ public:
 			}
 		}
 
-		ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
-
-		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
-		}
-
 		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data, UISettings->PaintingRestriction);
 		this->Cache.Flush();
 
@@ -367,14 +358,6 @@ public:
 					}
 				}
 			}
-		}
-
-		ALandscape* Landscape = this->LandscapeInfo->LandscapeActor.Get();
-
-		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 		}
 
 		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data, UISettings->PaintingRestriction);
@@ -590,14 +573,6 @@ public:
 			}
 		}
 
-		ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
-
-		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
-		}
-
 		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data);
 		this->Cache.Flush();
 	}
@@ -734,14 +709,6 @@ public:
 					}
 				}
 			}
-		}
-
-		ALandscape* Landscape = this->LandscapeInfo->LandscapeActor.Get();
-
-		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 		}
 
 		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data, UISettings->PaintingRestriction);
@@ -978,14 +945,6 @@ public:
 			}
 		}
 
-		ALandscape* Landscape = this->LandscapeInfo->LandscapeActor.Get();
-
-		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
-		}
-
 		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data, UISettings->PaintingRestriction);
 		this->Cache.Flush();
 	}
@@ -1206,14 +1165,6 @@ public:
 					}
 				}
 			}
-		}
-
-		ALandscape* Landscape = this->LandscapeInfo->LandscapeActor.Get();
-
-		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 		}
 
 		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data, UISettings->PaintingRestriction);

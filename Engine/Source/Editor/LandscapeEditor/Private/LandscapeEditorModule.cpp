@@ -17,6 +17,7 @@
 #include "Classes/ActorFactoryLandscape.h"
 #include "LandscapeFileFormatPng.h"
 #include "LandscapeFileFormatRaw.h"
+#include "Settings/EditorExperimentalSettings.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "PropertyEditorModule.h"
@@ -70,6 +71,7 @@ public:
 			true,
 			300
 			);
+		ALandscape::RegisterChangeLandscapeLayersStateDelegate();
 
 		// register customizations
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -89,6 +91,7 @@ public:
 		GlobalUICommandList->MapAction(LandscapeActions.ViewModeLayerDebug, FExecuteAction::CreateStatic(&ChangeLandscapeViewMode, ELandscapeViewMode::DebugLayer), FCanExecuteAction(), FIsActionChecked::CreateStatic(&IsLandscapeViewModeSelected, ELandscapeViewMode::DebugLayer));
 		GlobalUICommandList->MapAction(LandscapeActions.ViewModeWireframeOnTop, FExecuteAction::CreateStatic(&ChangeLandscapeViewMode, ELandscapeViewMode::WireframeOnTop), FCanExecuteAction(), FIsActionChecked::CreateStatic(&IsLandscapeViewModeSelected, ELandscapeViewMode::WireframeOnTop));
 		GlobalUICommandList->MapAction(LandscapeActions.ViewModeLayerUsage, FExecuteAction::CreateStatic(&ChangeLandscapeViewMode, ELandscapeViewMode::LayerUsage), FCanExecuteAction(), FIsActionChecked::CreateStatic(&IsLandscapeViewModeSelected, ELandscapeViewMode::LayerUsage));
+		GlobalUICommandList->MapAction(LandscapeActions.ViewModeLayerContribution, FExecuteAction::CreateStatic(&ChangeLandscapeViewMode, ELandscapeViewMode::LayerContribution), FCanExecuteAction(), FIsActionChecked::CreateStatic(&IsLandscapeViewModeSelected, ELandscapeViewMode::LayerContribution));
 
 		ViewportMenuExtender = MakeShareable(new FExtender);
 		ViewportMenuExtender->AddMenuExtension("LevelViewportLandscape", EExtensionHook::First, GlobalUICommandList, FMenuExtensionDelegate::CreateStatic(&ConstructLandscapeViewportMenu));
@@ -116,6 +119,7 @@ public:
 	 */
 	virtual void ShutdownModule() override
 	{
+		ALandscape::UnregisterChangeLandscapeLayersStateDelegate();
 		FLandscapeEditorCommands::Unregister();
 
 		FEditorDelegates::PreSaveWorld.Remove(PreSaveWorldHandle);
@@ -160,6 +164,13 @@ public:
 					{
 						InMenuBuilder.AddMenuEntry(LandscapeActions.ViewModeLayerUsage, NAME_None, LOCTEXT("LandscapeViewModeLayerUsage", "Layer Usage"));
 						InMenuBuilder.AddMenuEntry(LandscapeActions.ViewModeLayerDebug, NAME_None, LOCTEXT("LandscapeViewModeLayerDebug", "Layer Debug"));
+
+						FEdModeLandscape* LandscapeMode = (FEdModeLandscape*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_Landscape);
+
+						if (LandscapeMode->CanHaveLandscapeLayersContent())
+						{
+							InMenuBuilder.AddMenuEntry(LandscapeActions.ViewModeLayerContribution, NAME_None, LOCTEXT("LandscapeViewModeLayerContribution", "Layer Contribution"));
+						}
 					}
 					InMenuBuilder.AddMenuEntry(LandscapeActions.ViewModeWireframeOnTop, NAME_None, LOCTEXT("LandscapeViewModeWireframeOnTop", "Wireframe on Top"));
 				}

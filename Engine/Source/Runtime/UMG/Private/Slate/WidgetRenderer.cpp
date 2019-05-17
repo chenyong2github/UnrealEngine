@@ -52,6 +52,16 @@ void FWidgetRenderer::SetUseGammaCorrection(bool bInUseGammaSpace)
 #endif
 }
 
+void FWidgetRenderer::SetApplyColorDeficiencyCorrection(bool bInApplyColorCorrection)
+{
+#if !UE_SERVER
+	if (LIKELY(FApp::CanEverRender()))
+	{
+		Renderer->SetApplyColorDeficiencyCorrection(bInApplyColorCorrection);
+	}
+#endif
+}
+
 UTextureRenderTarget2D* FWidgetRenderer::DrawWidget(const TSharedRef<SWidget>& Widget, FVector2D DrawSize)
 {
 	if ( LIKELY(FApp::CanEverRender()) )

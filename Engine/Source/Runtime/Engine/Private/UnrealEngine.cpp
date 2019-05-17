@@ -5203,10 +5203,10 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 				SortedMesh.VertexCountTotal,
 				SortedMesh.VertexCountCollision,
 				SortedMesh.ShapeCountCollision,
-				SortedMesh.ResKBIncMobile,
-				SortedMesh.MobileMinLOD,
-				SortedMesh.VertexCountTotalMobile,
 				SortedMesh.UsageCount,
+				SortedMesh.ResKBIncMobile,
+				SortedMesh.VertexCountTotalMobile,
+				SortedMesh.MobileMinLOD,
 				*SortedMesh.Name);
 		}
 		else
@@ -9661,7 +9661,7 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 			GUnbuiltHLODCount = 0;
 			for (TActorIterator<ALODActor> HLODIt(World); HLODIt; ++HLODIt)
 			{
-				if (!HLODIt->IsBuilt())
+				if (!HLODIt->IsBuilt() && HLODIt->HasValidLODChildren())
 				{
 					++GUnbuiltHLODCount;
 				}

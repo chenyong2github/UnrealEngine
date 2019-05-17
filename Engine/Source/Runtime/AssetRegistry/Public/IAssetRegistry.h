@@ -54,6 +54,51 @@ namespace EAssetSetManagerFlags
 	};
 }
 
+USTRUCT(BlueprintType)
+struct FAssetRegistryDependencyOptions
+{
+	GENERATED_BODY()
+
+	void SetFromFlags(const EAssetRegistryDependencyType::Type InFlags)
+	{
+		bIncludeSoftPackageReferences = (InFlags & EAssetRegistryDependencyType::Soft);
+		bIncludeHardPackageReferences = (InFlags & EAssetRegistryDependencyType::Hard);
+		bIncludeSearchableNames = (InFlags & EAssetRegistryDependencyType::SearchableName);
+		bIncludeSoftManagementReferences = (InFlags & EAssetRegistryDependencyType::SoftManage);
+		bIncludeHardManagementReferences = (InFlags & EAssetRegistryDependencyType::HardManage);
+	}
+
+	EAssetRegistryDependencyType::Type GetAsFlags() const
+	{
+		uint32 Flags = EAssetRegistryDependencyType::None;
+		Flags |= (bIncludeSoftPackageReferences ? EAssetRegistryDependencyType::Soft : EAssetRegistryDependencyType::None);
+		Flags |= (bIncludeHardPackageReferences ? EAssetRegistryDependencyType::Hard : EAssetRegistryDependencyType::None);
+		Flags |= (bIncludeSearchableNames ? EAssetRegistryDependencyType::SearchableName : EAssetRegistryDependencyType::None);
+		Flags |= (bIncludeSoftManagementReferences ? EAssetRegistryDependencyType::SoftManage : EAssetRegistryDependencyType::None);
+		Flags |= (bIncludeHardManagementReferences ? EAssetRegistryDependencyType::HardManage : EAssetRegistryDependencyType::None);
+		return (EAssetRegistryDependencyType::Type)Flags;
+	}
+
+	/** Dependencies which don't need to be loaded for the object to be used (i.e. soft object paths) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AssetRegistry")
+	bool bIncludeSoftPackageReferences = true;
+
+	/** Dependencies which are required for correct usage of the source asset, and must be loaded at the same time */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AssetRegistry")
+	bool bIncludeHardPackageReferences = true;
+
+	/** References to specific SearchableNames inside a package */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AssetRegistry")
+	bool bIncludeSearchableNames = false;
+
+	/** Indirect management references, these are set through recursion for Primary Assets that manage packages or other primary assets */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AssetRegistry")
+	bool bIncludeSoftManagementReferences = false;
+
+	/** Reference that says one object directly manages another object, set when Primary Assets manage things explicitly */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AssetRegistry")
+	bool bIncludeHardManagementReferences = false;
+};
 
 UINTERFACE(MinimalApi, BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
 class UAssetRegistry : public UInterface
@@ -71,7 +116,7 @@ public:
 	 * @param PackagePath the path to query asset data in
 	 * @param bRecursive if true, the supplied path will be tested recursively
 	 */
-	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
 	virtual bool HasAssets(const FName PackagePath, const bool bRecursive = false) const = 0;
 
 	/**
@@ -80,7 +125,7 @@ public:
 	 * @param PackageName the package name for the requested assets
 	 * @param OutAssetData the list of assets in this path
 	 */
-	UFUNCTION(BlueprintCallable, Category="AssetRegistry")
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="AssetRegistry")
 	virtual bool GetAssetsByPackageName(FName PackageName, TArray<FAssetData>& OutAssetData, bool bIncludeOnlyOnDiskAssets = false) const = 0;
 
 	/**
@@ -90,7 +135,7 @@ public:
 	 * @param OutAssetData the list of assets in this path
 	 * @param bRecursive if true, all supplied paths will be searched recursively
 	 */
-	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
 	virtual bool GetAssetsByPath(FName PackagePath, TArray<FAssetData>& OutAssetData, bool bRecursive = false, bool bIncludeOnlyOnDiskAssets = false) const = 0;
 
 	/**
@@ -100,7 +145,7 @@ public:
 	 * @param OutAssetData the list of assets in this path
 	 * @param bSearchSubClasses if true, all subclasses of the passed in class will be searched as well
 	 */
-	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
 	virtual bool GetAssetsByClass(FName ClassName, TArray<FAssetData>& OutAssetData, bool bSearchSubClasses = false) const = 0;
 
 	/**
@@ -127,7 +172,7 @@ public:
 	 * @param Filter filter to apply to the assets in the AssetRegistry
 	 * @param OutAssetData the list of assets in this path
 	 */
-	UFUNCTION(BlueprintCallable, Category="AssetRegistry")
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="AssetRegistry")
 	virtual bool GetAssets(const FARFilter& Filter, TArray<FAssetData>& OutAssetData) const = 0;
 
 	/**
@@ -137,7 +182,7 @@ public:
 	 * @param bIncludeOnlyOnDiskAssets if true, in-memory objects will be ignored. The call will be faster.
 	 * @return the assets data;Will be invalid if object could not be found
 	 */
-	UFUNCTION(BlueprintCallable, Category="AssetRegistry")
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="AssetRegistry")
 	virtual FAssetData GetAssetByObjectPath( const FName ObjectPath, bool bIncludeOnlyOnDiskAssets = false ) const = 0;
 
 	/**
@@ -146,7 +191,7 @@ public:
 	 *
 	 * @param OutAssetData the list of assets in this path
 	 */
-	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
 	virtual bool GetAllAssets(TArray<FAssetData>& OutAssetData, bool bIncludeOnlyOnDiskAssets = false) const = 0;
 
 	/**
@@ -168,6 +213,19 @@ public:
 	virtual bool GetDependencies(FName PackageName, TArray<FName>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType = EAssetRegistryDependencyType::Packages) const = 0;
 
 	/**
+	 * Gets a list of paths to objects that are referenced by the supplied package. (On disk references ONLY)
+	 *
+	 * @param PackageName		the name of the package for which to gather dependencies
+	 * @param DependencyOptions	which kinds of dependencies to include in the output list
+	 * @param OutDependencies	a list of packages that are referenced by the package whose path is PackageName
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry", meta=(DisplayName="Get Dependencies", ScriptName="GetDependencies"))
+	virtual bool K2_GetDependencies(FName PackageName, const FAssetRegistryDependencyOptions& DependencyOptions, TArray<FName>& OutDependencies) const
+	{
+		return GetDependencies(PackageName, OutDependencies, DependencyOptions.GetAsFlags());
+	}
+
+	/**
 	 * Gets a list of packages and searchable names that reference the supplied package or name. (On disk references ONLY)
 	 *
 	 * @param AssetIdentifier	the name of the package/name for which to gather dependencies
@@ -184,6 +242,19 @@ public:
 	 * @param InReferenceType	which kinds of reference to include in the output list
 	 */
 	virtual bool GetReferencers(FName PackageName, TArray<FName>& OutReferencers, EAssetRegistryDependencyType::Type InReferenceType = EAssetRegistryDependencyType::Packages) const = 0;
+
+	/**
+	 * Gets a list of packages that reference the supplied package. (On disk references ONLY)
+	 *
+	 * @param PackageName		the name of the package for which to gather dependencies
+	 * @param ReferenceOptions	which kinds of references to include in the output list
+	 * @param OutReferencers	a list of packages that reference the package whose path is PackageName
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry", meta=(DisplayName="Get Referencers", ScriptName="GetReferencers"))
+	virtual bool K2_GetReferencers(FName PackageName, const FAssetRegistryDependencyOptions& ReferenceOptions, TArray<FName>& OutReferencers) const
+	{
+		return GetReferencers(PackageName, OutReferencers, ReferenceOptions.GetAsFlags());
+	}
 
 	/** Finds Package data for a package name. This data is only updated on save and can only be accessed for valid packages */
 	virtual const FAssetPackageData* GetAssetPackageData(FName PackageName) const = 0;
@@ -207,19 +278,19 @@ public:
 	virtual void GetDerivedClassNames(const TArray<FName>& ClassNames, const TSet<FName>& ExcludedClassNames, TSet<FName>& OutDerivedClassNames) const = 0;
 
 	/** Gets a list of all paths that are currently cached */
-	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
 	virtual void GetAllCachedPaths(TArray<FString>& OutPathList) const = 0;
 
 	/** Gets a list of all paths that are currently cached below the passed-in base path */
-	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
 	virtual void GetSubPaths(const FString& InBasePath, TArray<FString>& OutPathList, bool bInRecurse) const = 0;
 
 	/** Trims items out of the asset data list that do not pass the supplied filter */
-	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
 	virtual void RunAssetsThroughFilter(TArray<FAssetData>& AssetDataList, const FARFilter& Filter) const = 0;
 
 	/** Trims items out of the asset data list that do not pass the supplied filter */
-	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
 	virtual void UseFilterToExcludeAssets(TArray<FAssetData>& AssetDataList, const FARFilter& Filter) const = 0;
 
 	/** Modifies passed in filter to make it safe for use on FAssetRegistryState. This expands recursive paths and classes */

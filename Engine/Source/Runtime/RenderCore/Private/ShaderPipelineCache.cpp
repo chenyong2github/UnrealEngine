@@ -594,6 +594,11 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 		
 		GraphicsInitializer.RenderTargetsEnabled = PSO.GraphicsDesc.RenderTargetsActive;
 		GraphicsInitializer.NumSamples = PSO.GraphicsDesc.MSAASamples;
+		
+		if(GraphicsInitializer.RenderTargetsEnabled > MaxSimultaneousRenderTargets || GraphicsInitializer.NumSamples > 16)
+		{
+			return false;
+		}
 
 		GraphicsInitializer.SubpassHint = (ESubpassHint)PSO.GraphicsDesc.SubpassHint;
 		GraphicsInitializer.SubpassIndex = PSO.GraphicsDesc.SubpassIndex;

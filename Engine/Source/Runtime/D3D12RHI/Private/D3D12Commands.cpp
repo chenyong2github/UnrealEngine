@@ -1811,6 +1811,11 @@ uint32 FD3D12DynamicRHI::RHIGetGPUFrameCycles()
 	return GGPUFrameTime;
 }
 
+EColorSpace FD3D12DynamicRHI::RHIGetColorSpace(FViewportRHIParamRef Viewport)
+{
+	return EColorSpace::ERec709sRGB;
+}
+
 void FD3D12DynamicRHI::RHIExecuteCommandList(FRHICommandList* CmdList)
 {
 	check(0); // this path has gone stale and needs updated methods, starting at ERCT_SetScissorRect

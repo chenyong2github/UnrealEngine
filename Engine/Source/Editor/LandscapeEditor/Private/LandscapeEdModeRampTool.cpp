@@ -20,7 +20,6 @@
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "Raster.h"
 #include "Landscape.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
@@ -486,7 +485,7 @@ public:
 
 		FScopedTransaction Transaction(LOCTEXT("Ramp_Apply", "Landscape Editing: Add ramp"));
 		ALandscape* Landscape = EdMode->GetLandscape();
-		FScopedSetLandscapeEditingLayer Scope(Landscape, EdMode->GetCurrentLayerGuid(), [&] { if (Landscape) { Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Heightmap_All); } });
+		FScopedSetLandscapeEditingLayer Scope(Landscape, EdMode->GetCurrentLayerGuid(), [&] { if (Landscape) { Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_Heightmap_All); } });
 
 		const ULandscapeInfo* LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo.Get();
 		const ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
@@ -582,7 +581,7 @@ public:
 			LandscapeEdit.SetHeightData(MinX, MinY, MaxX, MaxY, Data.GetData(), 0, true);
 			LandscapeEdit.Flush();
 
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!EdMode->HasLandscapeLayersContent())
 			{
 				TSet<ULandscapeComponent*> Components;
 				if (LandscapeEdit.GetComponentsInRegion(MinX, MinY, MaxX, MaxY, &Components))

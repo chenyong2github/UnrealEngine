@@ -488,6 +488,7 @@ public:
 		ScreenPosToScenePixel.Bind(ParameterMap, TEXT("ScreenPosToScenePixel"));
 		SceneUVMinMax.Bind(ParameterMap, TEXT("SceneUVMinMax"));
 		SceneBloomUVMinMax.Bind(ParameterMap, TEXT("SceneBloomUVMinMax"));
+		HDRParams.Bind(ParameterMap, TEXT("HDRParams"));
 	}
 	
 	template <typename TRHICmdList, typename TRHIShader>
@@ -522,6 +523,20 @@ public:
 
 			SetShaderValue(RHICmdList, ShaderRHI, TonemapperParams, Value);
 		}
+
+		{
+			float EditorNITLevel = 160.0f;
+#if WITH_EDITOR
+			static auto CVarHDRNITLevel = IConsoleManager::Get().FindConsoleVariable(TEXT("Editor.HDRNITLevel"));
+			if (CVarHDRNITLevel)
+			{
+				EditorNITLevel = CVarHDRNITLevel->GetFloat();
+			}
+#endif
+			FVector4 Value(	ViewFamily.bIsHDR ? 1.0f : 0.0f, EditorNITLevel, 0.0f, 0.0f);
+			SetShaderValue(RHICmdList, ShaderRHI, HDRParams, Value);
+		}
+
 
 		FVector GrainValue;
 		GrainPostSettings(&GrainValue, &Settings);
@@ -669,7 +684,7 @@ public:
 		Ar << P.ColorGradingLUT << P.ColorGradingLUTSampler;
 		Ar << P.SceneUVMinMax << P.SceneBloomUVMinMax;
 		Ar << P.ChromaticAberrationParams << P.ScreenPosToScenePixel;
-
+		Ar << P.HDRParams;
 		return Ar;
 	}
 
@@ -687,6 +702,7 @@ public:
 
 	FShaderParameter SceneUVMinMax;
 	FShaderParameter SceneBloomUVMinMax;
+	FShaderParameter HDRParams;
 };
 
 
@@ -1009,7 +1025,14 @@ void FRCPassPostProcessTonemap::Process(FRenderingCompositePassContext& Context)
 		}
 		else
 		{
-			DesktopPermutationVector.Set<TonemapperPermutation::FTonemapperOutputDeviceDim>(GetOutputDeviceValue());
+			if (ViewFamily.bIsHDR)
+			{
+				DesktopPermutationVector.Set<TonemapperPermutation::FTonemapperOutputDeviceDim>(FTonemapperOutputDevice::ACES1000nitST2084);
+			}
+			else
+			{
+				DesktopPermutationVector.Set<TonemapperPermutation::FTonemapperOutputDeviceDim>(GetOutputDeviceValue());
+			}
 		}
 
 		DesktopPermutationVector = TonemapperPermutation::RemapPermutation(DesktopPermutationVector);

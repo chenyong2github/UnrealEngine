@@ -270,7 +270,7 @@ namespace Audio
 		bPumpQueue = false;
 	}
 
-	void FMixerSourceManager::Update()
+	void FMixerSourceManager::Update(bool bTimedOut)
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
 
@@ -297,7 +297,12 @@ namespace Audio
 				const int32 NextIndex = (CurrentGameIndex + 1) & 1;
 
 				// Make sure we've actually emptied the command queue from the render thread before writing to it
-				check(CommandBuffers[NextIndex].SourceCommandQueue.Num() == 0);
+#if !UE_BUILD_SHIPPING
+				if (bTimedOut)
+				{
+					check(CommandBuffers[NextIndex].SourceCommandQueue.Num() == 0);
+				}
+#endif
 
 				// Here we ensure that we block for any pending calls to AudioMixerThreadCommand.
 				FScopeLock ScopeLock(&CommandBufferIndexCriticalSection);
@@ -991,7 +996,7 @@ namespace Audio
 			FSourceInfo& SourceInfo = SourceInfos[SourceId];
 			FSourceDownmixData& DownmixData = DownmixDataArray[SourceId];
 
-			if (DownmixData.NumInputChannels != NumInputChannels)
+			if (DownmixData.NumInputChannels != NumInputChannels && !SourceInfo.bUseHRTFSpatializer)
 			{
 				// This means that this source has been reinitialized as a different source while this command was in flight,
 				// In which case it is of no use to us. Exit.
@@ -2484,9 +2489,11 @@ namespace Audio
 		}
 
 		// Make sure current current executing 
+		bool bTimedOut = false;
 		if (!CommandsProcessedEvent->Wait(1000))
 		{
 			CommandsProcessedEvent->Trigger();
+			bTimedOut = true;
 			UE_LOG(LogAudioMixer, Warning, TEXT("Timed out waiting to flush the source manager command queue (1)."));
 		}
 		else
@@ -2495,7 +2502,7 @@ namespace Audio
 		}
 
 		// Call update to trigger a final pump of commands
-		Update();
+		Update(bTimedOut);
 
 		if (bPumpInCommand)
 		{

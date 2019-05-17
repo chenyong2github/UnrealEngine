@@ -15,7 +15,6 @@
 #include "InstancedFoliageActor.h"
 #include "VREditorInteractor.h"
 #include "AI/NavigationSystemBase.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "Landscape.h"
 
 // VR Editor
@@ -698,7 +697,7 @@ struct FXYOffsetmapAccessor
 			
 			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!LandscapeEdit->HasLandscapeLayersContent())
 			{
 				for (ULandscapeComponent* Component : Components)
 				{
@@ -839,7 +838,7 @@ struct FFullWeightmapAccessor
 
 	~FFullWeightmapAccessor()
 	{
-		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (!LandscapeEdit.HasLandscapeLayersContent())
 		{
 			// Recreate collision for modified components to update the physical materials
 			for (ULandscapeComponent* Component : ModifiedComponents)
@@ -878,7 +877,7 @@ struct FFullWeightmapAccessor
 		{
 			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!LandscapeEdit.HasLandscapeLayersContent())
 			{
 				ModifiedComponents.Append(Components);
 			}
@@ -1129,12 +1128,12 @@ public:
 	{
 	}
 
-	virtual bool ShouldUpdateEditingLayer() const { return GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem; }
+	virtual bool ShouldUpdateEditingLayer() const { return EdMode->CanHaveLandscapeLayersContent(); }
 
 	virtual ELandscapeLayerUpdateMode GetBeginToolContentUpdateFlag() const
 	{
 		bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap; 
-		return bUpdateHeightmap ? ELandscapeLayerUpdateMode::Heightmap_Editing : ELandscapeLayerUpdateMode::Weightmap_Editing;
+		return bUpdateHeightmap ? ELandscapeLayerUpdateMode::Update_Heightmap_Editing : ELandscapeLayerUpdateMode::Update_Weightmap_Editing;
 	}
 
 	virtual ELandscapeLayerUpdateMode GetTickToolContentUpdateFlag() const
@@ -1145,7 +1144,7 @@ public:
 	virtual ELandscapeLayerUpdateMode GetEndToolContentUpdateFlag() const
 	{
 		bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
-		return bUpdateHeightmap ? ELandscapeLayerUpdateMode::Heightmap_All : ELandscapeLayerUpdateMode::Weightmap_All;
+		return bUpdateHeightmap ? ELandscapeLayerUpdateMode::Update_Heightmap_All : ELandscapeLayerUpdateMode::Update_Weightmap_All;
 	}
 
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override

@@ -972,6 +972,8 @@ public:
 		RHIResizeViewport(Viewport, SizeX, SizeY, bIsFullscreen);
 	}
 
+	virtual EColorSpace RHIGetColorSpace(FViewportRHIParamRef Viewport);
+
 	//  must be called from the main thread.
 	// FlushType: Thread safe
 	virtual void RHITick(float DeltaTime) = 0;
@@ -1358,6 +1360,11 @@ FORCEINLINE FViewportRHIRef RHICreateViewport(void* WindowHandle, uint32 SizeX, 
 FORCEINLINE void RHIResizeViewport(FViewportRHIParamRef Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat)
 {
 	GDynamicRHI->RHIResizeViewport(Viewport, SizeX, SizeY, bIsFullscreen, PreferredPixelFormat);
+}
+
+FORCEINLINE EColorSpace RHIGetColorSpace(FViewportRHIParamRef Viewport)
+{
+	return GDynamicRHI->RHIGetColorSpace(Viewport);
 }
 
 FORCEINLINE void RHITick(float DeltaTime)

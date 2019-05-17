@@ -2966,7 +2966,7 @@ void FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHIComman
 
 	// Can relase only after all mesh pass tasks are finished.
 	GPrimitiveIdVertexBufferPool.DiscardAll();
-	FGraphicsMinimalPipelineStateId::ResetOneFrameIdTable();
+	FGraphicsMinimalPipelineStateId::ResetLocalPipelineIdTableSize();
 
 	delete LocalRootMark;
 }

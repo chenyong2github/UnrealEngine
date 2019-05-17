@@ -132,6 +132,9 @@ struct RefCountedGraphicsMinimalPipelineStateInitializerKeyFuncs : DefaultKeyFun
 	}
 };
 
+/** Set of FGraphicsMinimalPipelineStateInitializer unique per MeshDrawCommandsPassContext */
+typedef TSet< FGraphicsMinimalPipelineStateInitializer > FGraphicsMinimalPipelineStateSet;
+
 /** Uniquely represents a FGraphicsMinimalPipelineStateInitializer for fast compares. */
 class FGraphicsMinimalPipelineStateId
 {
@@ -158,6 +161,18 @@ public:
 		return !(*this == rhs);
 	}
 	
+	inline const FGraphicsMinimalPipelineStateInitializer& GetPipelineState(const FGraphicsMinimalPipelineStateSet& InPipelineSet) const
+	{
+		const FSetElementId SetElementId = FSetElementId::FromInteger(SetElementIndex);
+
+		if (bComesFromLocalPipelineStateSet)
+		{
+			return InPipelineSet[SetElementId];
+		}
+
+		return PersistentIdTable[SetElementId].StateInitializer;
+	}
+
 	/**
 	 * Get a ref counted persistent pipeline id, which needs to manually released.
 	 */
@@ -167,62 +182,36 @@ public:
 	 * Removes a persistent pipeline Id from the global persistent Id table.
 	 */
 	static void RemovePersistentId(FGraphicsMinimalPipelineStateId Id);
-
+	
 	/**
-	 * Get a pipeline id, which is valid only for a single frame and doesn't need to be released manually.
+	 * Get a pipeline state id in this order: global persistent Id table. If not found, will lookup in PassSet argument. If not found in PassSet argument, create a blank pipeline set id and add it PassSet argument
 	 */
-	RENDERER_API static FGraphicsMinimalPipelineStateId GetOneFrameId(const FGraphicsMinimalPipelineStateInitializer& InPipelineState);
+	RENDERER_API static FGraphicsMinimalPipelineStateId GetPipelineStateId(const FGraphicsMinimalPipelineStateInitializer& InPipelineState, FGraphicsMinimalPipelineStateSet& InOutPassSet);
 
-	static void ResetOneFrameIdTable();
+	static int32 GetLocalPipelineIdTableSize() { return LocalPipelineIdTableSize; }
+	static void ResetLocalPipelineIdTableSize();
+	static void AddSizeToLocalPipelineIdTableSize(SIZE_T Size);
+
 	static SIZE_T GetPersistentIdTableSize() { return PersistentIdTable.GetAllocatedSize(); }
 	static int32 GetPersistentIdNum() { return PersistentIdTable.Num(); }
-	static SIZE_T GetOneFrameIdTableSize() { return OneFrameIdTable.GetAllocatedSize(); }
-
-	class FPipelineStateIdLookupScope
-	{
-	public:
-		FPipelineStateIdLookupScope(const FGraphicsMinimalPipelineStateId& LookupID);
-		~FPipelineStateIdLookupScope();
-		
-		const FGraphicsMinimalPipelineStateInitializer& GetPipelineState();
-	private:
-		FPipelineStateIdLookupScope() {}
-		const FGraphicsMinimalPipelineStateInitializer* SafeStateRef;
-		bool bLocked;
-	};
 
 private:
-
-	friend class FPipelineStateIdLookupScope;
-
-	//this reference isn't safe unless it's wrapped in a scope with an FRWLock around OneFrameIDTable.
-	inline const FGraphicsMinimalPipelineStateInitializer& GetPipelineState() const
-	{
-		const FSetElementId SetElementId = FSetElementId::FromInteger(SetElementIndex);
-
-		if (bOneFrameId)
-		{
-			return OneFrameIdTable[SetElementId];
-		}
-
-		return PersistentIdTable[SetElementId].StateInitializer;
-	}
-
 	union
 	{
 		uint32 PackedId = 0;
 
 		struct
 		{
-			uint32 SetElementIndex	: 30;
-			uint32 bOneFrameId		: 1;
-			uint32 bValid			: 1;
+			uint32 SetElementIndex				   : 30;
+			uint32 bComesFromLocalPipelineStateSet : 1;
+			uint32 bValid						   : 1;
 		};
 	};
 
 	static TSet<FRefCountedGraphicsMinimalPipelineStateInitializer, RefCountedGraphicsMinimalPipelineStateInitializerKeyFuncs> PersistentIdTable;
-	static TSet<FGraphicsMinimalPipelineStateInitializer> OneFrameIdTable;
-	static FRWLock OneFrameIdTableCriticalSection;
+	
+	static int32 LocalPipelineIdTableSize;
+	static int32 CurrentLocalPipelineIdTableSize;
 };
 
 struct FMeshProcessorShaders
@@ -566,7 +555,8 @@ public:
 	/** Submits commands to the RHI Commandlist to draw the MeshDrawCommand. */
 	static void SubmitDraw(
 		const FMeshDrawCommand& RESTRICT MeshDrawCommand, 
-		FVertexBufferRHIParamRef ScenePrimitiveIdsBuffer, 
+		const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+		FVertexBufferRHIParamRef ScenePrimitiveIdsBuffer,
 		int32 PrimitiveIdOffset,
 		uint32 InstanceFactor,
 		FRHICommandList& CommandList, 
@@ -749,10 +739,12 @@ public:
 	FDynamicPassMeshDrawListContext
 	(
 		FDynamicMeshDrawCommandStorage& InDrawListStorage, 
-		FMeshCommandOneFrameArray& InDrawList
+		FMeshCommandOneFrameArray& InDrawList,
+		FGraphicsMinimalPipelineStateSet& InPipelineStateSet
 	) :
 		DrawListStorage(InDrawListStorage),
-		DrawList(InDrawList)
+		DrawList(InDrawList),
+		GraphicsMinimalPipelineStateSet(InPipelineStateSet)
 	{}
 
 	virtual FMeshDrawCommand& AddCommand(const FMeshDrawCommand& Initializer) override final
@@ -774,8 +766,7 @@ public:
 		const FMeshProcessorShaders* ShadersForDebugging,
 		FMeshDrawCommand& MeshDrawCommand) override final
 	{
-		FGraphicsMinimalPipelineStateId PipelineId;
-		PipelineId = FGraphicsMinimalPipelineStateId::GetOneFrameId(PipelineState);
+		FGraphicsMinimalPipelineStateId PipelineId = FGraphicsMinimalPipelineStateId::GetPipelineStateId(PipelineState, GraphicsMinimalPipelineStateSet);
 
 		MeshDrawCommand.SetDrawParametersAndFinalize(MeshBatch, BatchElementIndex, PipelineId, ShadersForDebugging);
 
@@ -789,6 +780,7 @@ public:
 private:
 	FDynamicMeshDrawCommandStorage& DrawListStorage;
 	FMeshCommandOneFrameArray& DrawList;
+	FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet;
 };
 
 #if PLATFORM_SUPPORTS_PRAGMA_PACK
@@ -1169,6 +1161,7 @@ private:
 
 extern void SubmitMeshDrawCommands(
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
+	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet, 
 	FVertexBufferRHIParamRef PrimitiveIdsBuffer,
 	int32 BasePrimitiveIdsOffset,
 	bool bDynamicInstancing,
@@ -1177,6 +1170,7 @@ extern void SubmitMeshDrawCommands(
 
 extern void SubmitMeshDrawCommandsRange(
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
+	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	FVertexBufferRHIParamRef PrimitiveIdsBuffer,
 	int32 BasePrimitiveIdsOffset,
 	bool bDynamicInstancing,
@@ -1190,6 +1184,7 @@ RENDERER_API extern void DrawDynamicMeshPassPrivate(
 	FRHICommandList& RHICmdList,
 	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	FDynamicMeshDrawCommandStorage& DynamicMeshDrawCommandStorage,
+	FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	uint32 InstanceFactor);
 
 RENDERER_API extern FMeshDrawCommandSortKey CalculateMeshStaticSortKey(const FMeshMaterialShader* VertexShader, const FMeshMaterialShader* PixelShader);

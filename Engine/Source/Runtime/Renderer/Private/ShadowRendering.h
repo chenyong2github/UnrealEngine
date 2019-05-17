@@ -547,6 +547,7 @@ private:
 	TArray<FShadowMeshDrawCommandPass, TInlineAllocator<2>> ProjectionStencilingPasses;
 
 	FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage;
+	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
 
 	/**
 	 * Bias during in shadowmap rendering, stored redundantly for better performance 

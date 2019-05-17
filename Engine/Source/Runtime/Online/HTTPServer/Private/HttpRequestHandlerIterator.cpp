@@ -31,7 +31,7 @@ const FHttpRequestHandler * const FHttpRequestHandlerIterator::Next()
 
 		// Filter by http verb
 		const EHttpServerRequestVerbs VerbFilterResult = RouteHandle->Verbs & Request->Verb;
-		if (EHttpServerRequestVerbs::NONE == VerbFilterResult)
+		if (EHttpServerRequestVerbs::VERB_NONE == VerbFilterResult)
 		{
 			// Not a matching verb
 			continue;

@@ -72,6 +72,7 @@ FSlateRHIRenderingPolicy::FSlateRHIRenderingPolicy(TSharedRef<FSlateFontServices
 	, PostProcessor(new FSlatePostProcessor)
 	, ResourceManager(InResourceManager)
 	, bGammaCorrect(true)
+	, bApplyColorDeficiencyCorrection(true)
 	, InitialBufferSizeOverride(InitialBufferSize)
 	, LastDeviceProfile(nullptr)
 {
@@ -1287,7 +1288,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 	// Don't do color correction on iOS or Android, we don't have the GPU overhead for it.
 #if !(PLATFORM_IOS || PLATFORM_ANDROID)
-	if (GSlateColorDeficiencyType != EColorVisionDeficiency::NormalVision && GSlateColorDeficiencySeverity > 0)
+	if (bApplyColorDeficiencyCorrection && GSlateColorDeficiencyType != EColorVisionDeficiency::NormalVision && GSlateColorDeficiencySeverity > 0)
 	{
 		RHICmdList.EndRenderPass();
 

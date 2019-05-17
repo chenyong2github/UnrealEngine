@@ -22,7 +22,6 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Materials/MaterialExpressionLandscapeVisibilityMask.h"
 #include "Algo/Copy.h"
-#include "Settings/EditorExperimentalSettings.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -215,14 +214,6 @@ public:
 				}
 			}
 
-			ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
-
-			if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-			{
-				FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-				FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
-			}
-
 			Cache.SetCachedData(X1, Y1, X2, Y2, Data);
 			Cache.Flush();
 		}
@@ -300,14 +291,6 @@ public:
 						DataScanline[X] = Value;
 					}
 				}
-			}
-
-			ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
-
-			if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-			{
-				FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-				FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 			}
 
 			Cache.SetCachedData(X1, Y1, X2, Y2, Data);
@@ -804,13 +787,6 @@ public:
 				NewComponents[Idx]->RegisterComponent();
 			}
 
-			if (LandscapeInfo->LandscapeActor.IsValid() && LandscapeInfo->LandscapeActor.Get()->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-			{
-				FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-
-				FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
-			}
-
 			if (bHasXYOffset)
 			{
 				XYOffsetCache.SetCachedData(X1, Y1, X2, Y2, XYOffsetData);
@@ -822,7 +798,9 @@ public:
 
 			ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
 
-			if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			bool bHasLandscapeLayersContent = Landscape->HasLayersContent();
+
+			if (bHasLandscapeLayersContent)
 			{
 				check(Landscape != nullptr); // Landscape actor is required if layer system is enabled
 
@@ -831,7 +809,7 @@ public:
 
 			for (ULandscapeComponent* NewComponent : NewComponents)
 			{
-				if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+				if (bHasLandscapeLayersContent)
 				{
 					TArray<ULandscapeComponent*> ComponentsUsingHeightmap;
 					ComponentsUsingHeightmap.Add(NewComponent);
@@ -849,7 +827,7 @@ public:
 				NewComponent->UpdateBounds();
 				NewComponent->MarkRenderStateDirty();
 
-				if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+				if (!bHasLandscapeLayersContent)
 				{
 					ULandscapeHeightfieldCollisionComponent* CollisionComp = NewComponent->CollisionComponent.Get();
 					if (CollisionComp && !bHasXYOffset)
@@ -929,7 +907,7 @@ public:
 			EdMode->LandscapeRenderAddCollision = nullptr;
 
 			// Add/update "add collision" around the newly added components
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!bHasLandscapeLayersContent)
 			{
 				// Top row
 				int32 ComponentIndexY = ComponentIndexY1 - 1;
@@ -1660,14 +1638,6 @@ public:
 				}
 			}
 
-			ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
-
-			if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-			{
-				FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
-				FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
-			}
-
 			if (bApplyToAll)
 			{
 				HeightCache.SetCachedData(X1, Y1, X2, Y2, HeightData);
@@ -1725,11 +1695,11 @@ public:
 		return ELandscapeToolTargetTypeMask::FromType(ToolTarget::TargetType);
 	}
 
-	virtual ELandscapeLayerUpdateMode GetBeginToolContentUpdateFlag() const override { return ELandscapeLayerUpdateMode::All_Editing; }
+	virtual ELandscapeLayerUpdateMode GetBeginToolContentUpdateFlag() const override { return ELandscapeLayerUpdateMode::Update_All_Editing; }
 
 	virtual ELandscapeLayerUpdateMode GetTickToolContentUpdateFlag() const override { return GetBeginToolContentUpdateFlag(); }
 	
-	virtual ELandscapeLayerUpdateMode GetEndToolContentUpdateFlag() const override { return ELandscapeLayerUpdateMode::All; }
+	virtual ELandscapeLayerUpdateMode GetEndToolContentUpdateFlag() const override { return ELandscapeLayerUpdateMode::Update_All; }
 		
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
 	{

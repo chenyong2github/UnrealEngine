@@ -3636,6 +3636,8 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 
 	ViewFamily.EngineShowFlags = EngineShowFlags;
 
+	ViewFamily.bIsHDR = Viewport->IsHDRViewport();
+	
 	UpdateDebugViewModeShaders();
 
 	if( ModeTools->GetActiveMode( FBuiltinEditorModes::EM_InterpEdit ) == 0 || !AllowsCinematicControl() )

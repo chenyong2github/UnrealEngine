@@ -76,6 +76,23 @@ void UMovieSceneFolder::RemoveChildObjectBinding( const FGuid& InObjectBinding )
 	ChildObjectBindings.Remove( InObjectBinding );
 }
 
+void UMovieSceneFolder::PostLoad()
+{
+	// Remove any null folders
+	for (int32 ChildFolderIndex = 0; ChildFolderIndex < ChildFolders.Num(); )
+	{
+		if (ChildFolders[ChildFolderIndex] == nullptr)
+		{
+			ChildFolders.RemoveAt(ChildFolderIndex);
+		}
+		else
+		{
+			++ChildFolderIndex;
+		}
+	}
+
+	Super::PostLoad();
+}
 
 void UMovieSceneFolder::Serialize( FArchive& Archive )
 {

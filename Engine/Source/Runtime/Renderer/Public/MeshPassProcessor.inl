@@ -143,12 +143,13 @@ void DrawDynamicMeshPass(const FSceneView& View, FRHICommandList& RHICmdList, co
 {
 	FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage;
 	FMeshCommandOneFrameArray VisibleMeshDrawCommands;
+	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
 
-	FDynamicPassMeshDrawListContext DynamicMeshPassContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands);
+	FDynamicPassMeshDrawListContext DynamicMeshPassContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet);
 
 	BuildPassProcessorLambda(&DynamicMeshPassContext);
 
 	// We assume all dynamic passes are in stereo if it is enabled in the view, so we apply ISR to them
 	const uint32 InstanceFactor = View.IsInstancedStereoPass() ? 2 : 1;
-	DrawDynamicMeshPassPrivate(View, RHICmdList, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, InstanceFactor);
+	DrawDynamicMeshPassPrivate(View, RHICmdList, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, InstanceFactor);
 }

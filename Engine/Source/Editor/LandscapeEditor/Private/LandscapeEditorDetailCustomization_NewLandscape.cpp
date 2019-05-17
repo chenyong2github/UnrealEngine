@@ -40,7 +40,6 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "LandscapeDataAccess.h"
-#include "Settings/EditorExperimentalSettings.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.NewLandscape"
 
@@ -857,7 +856,7 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		}
 
 		LandscapeEdMode->UpdateLandscapeList();
-		LandscapeEdMode->CurrentToolTarget.LandscapeInfo = LandscapeInfo;
+		LandscapeEdMode->SetLandscapeInfo(LandscapeInfo);
 		LandscapeEdMode->CurrentToolTarget.TargetType = ELandscapeToolTargetType::Heightmap;
 		LandscapeEdMode->CurrentToolTarget.LayerInfo = nullptr;
 		LandscapeEdMode->CurrentToolTarget.LayerName = NAME_None;
