@@ -317,15 +317,12 @@ struct ENGINE_API FStreamableManager : public FGCObject
 	const FString& GetManagerName() const;
 
 	/** Modifies the debug name of this manager, used for debugging GC references */
-	void SetManagerName(const FString& InName);
+	void SetManagerName(FString InName);
 
 	/** Add referenced objects to stop them from GCing */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override { return TEXT("FStreamableManager"); }
+	virtual FString GetReferencerName() const override { return ManagerName; }
 	virtual bool GetReferencerPropertyName(UObject* Object, FString& OutPropertyName) const override;
-
-	/** Returns debug name */
-	virtual FString GetReferencerName() const override;
 
 	FStreamableManager();
 	~FStreamableManager();

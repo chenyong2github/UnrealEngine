@@ -797,19 +797,14 @@ void FStreamableManager::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 }
 
-FString FStreamableManager::GetReferencerName() const
-{
-	return ManagerName;
-}
-
 const FString& FStreamableManager::GetManagerName() const
 {
 	return ManagerName;
 }
 
-void FStreamableManager::SetManagerName(const FString& InName)
+void FStreamableManager::SetManagerName(FString InName)
 {
-	ManagerName = InName;
+	ManagerName = MoveTemp(InName);
 }
 
 bool FStreamableManager::GetReferencerPropertyName(UObject* Object, FString& OutPropertyName) const
