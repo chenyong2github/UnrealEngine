@@ -419,7 +419,7 @@ namespace UnrealGameSync
 							CloseAlertWindow(AlertWindow);
 						}
 					}
-					IssueMonitor.Dispose();
+					IssueMonitor.Release();
 				}
 			}
 			IssueMonitors = NewIssueMonitors.ToList();
@@ -453,7 +453,7 @@ namespace UnrealGameSync
 
 			foreach(IssueMonitor IssueMonitor in IssueMonitors)
 			{
-				IssueMonitor.Dispose();
+				IssueMonitor.Release();
 			}
 			IssueMonitors.Clear();
 

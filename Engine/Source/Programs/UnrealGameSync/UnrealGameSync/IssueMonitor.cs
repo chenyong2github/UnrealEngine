@@ -71,12 +71,13 @@ namespace UnrealGameSync
 	{
 		public readonly string ApiUrl;
 		public readonly string UserName;
+		int RefCount = 1;
 		Thread WorkerThread;
 		BoundedLogWriter LogWriter;
 		bool bDisposing;
 		AutoResetEvent RefreshEvent;
 		int UpdateIntervalMs;
-		long TrackingIssueId = -1;
+		List<long> TrackingIssueIds = new List<long>();
 		List<IssueData> Issues = new List<IssueData>();
 		object LockObject = new object();
 		List<IssueUpdateData> PendingUpdates = new List<IssueUpdateData>();
@@ -131,7 +132,7 @@ namespace UnrealGameSync
 		{
 			lock(LockObject)
 			{
-				TrackingIssueId = IssueId;
+				TrackingIssueIds.Add(IssueId);
 			}
 			RefreshEvent.Set();
 		}
@@ -140,7 +141,7 @@ namespace UnrealGameSync
 		{
 			lock(LockObject)
 			{
-				TrackingIssueId = -1;
+				TrackingIssueIds.RemoveAt(TrackingIssueIds.IndexOf(IssueId));
 			}
 		}
 
@@ -213,7 +214,34 @@ namespace UnrealGameSync
 			}
 		}
 
-		public void Dispose()
+		public void AddRef()
+		{
+			if(RefCount == 0)
+			{
+				throw new Exception("Invalid reference count for IssueMonitor (zero)");
+			}
+			RefCount++;
+		}
+
+		public void Release()
+		{
+			RefCount--;
+			if(RefCount < 0)
+			{
+				throw new Exception("Invalid reference count for IssueMonitor (ltz)");
+			}
+			if(RefCount == 0)
+			{
+				DisposeInternal();
+			}
+		}
+
+		void IDisposable.Dispose()
+		{
+			DisposeInternal();
+		}
+
+		void DisposeInternal()
 		{
 			bDisposing = true;
 			if(WorkerThread != null)
@@ -303,24 +331,27 @@ namespace UnrealGameSync
 				List<IssueData> NewIssues = RESTApi.GET<List<IssueData>>(ApiUrl, String.Format("issues?user={0}", UserName));
 
 				// Check if we're tracking a particular issue. If so, we want updates even when it's resolved.
-				long LocalTrackingIssueId;
+				long[] LocalTrackingIssueIds;
 				lock(LockObject)
 				{
-					LocalTrackingIssueId = TrackingIssueId;
+					LocalTrackingIssueIds = TrackingIssueIds.Distinct().ToArray();
 				}
-				if(LocalTrackingIssueId != -1 && !NewIssues.Any(x => x.Id == LocalTrackingIssueId))
+				foreach(long LocalTrackingIssueId in LocalTrackingIssueIds)
 				{
-					try
+					if(!NewIssues.Any(x => x.Id == LocalTrackingIssueId))
 					{
-						IssueData Issue = RESTApi.GET<IssueData>(ApiUrl, String.Format("issues/{0}", LocalTrackingIssueId));
-						if(Issue != null)
+						try
 						{
-							NewIssues.Add(Issue);
+							IssueData Issue = RESTApi.GET<IssueData>(ApiUrl, String.Format("issues/{0}", LocalTrackingIssueId));
+							if(Issue != null)
+							{
+								NewIssues.Add(Issue);
+							}
 						}
-					}
-					catch(Exception Ex)
-					{
-						LogWriter.WriteException(Ex, "Exception while fetching tracked issue");
+						catch(Exception Ex)
+						{
+							LogWriter.WriteException(Ex, "Exception while fetching tracked issue");
+						}
 					}
 				}
 

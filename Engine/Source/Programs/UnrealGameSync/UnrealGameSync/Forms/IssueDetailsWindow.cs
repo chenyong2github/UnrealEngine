@@ -261,6 +261,8 @@ namespace UnrealGameSync
 			this.Perforce = new PerforceConnection(UserName, null, ServerAndPort);
 			this.Log = Log;
 
+			IssueMonitor.AddRef();
+
 			MainThreadSynchronizationContext = SynchronizationContext.Current;
 
 			InitializeComponent();
@@ -305,6 +307,18 @@ namespace UnrealGameSync
 			CreateWorker();
 
 			UpdateCurrentIssue();
+		}
+
+		protected override void Dispose(bool disposing)
+		{
+			if (disposing && (components != null))
+			{
+				components.Dispose();
+			}
+
+			IssueMonitor.Release();
+
+			base.Dispose(disposing);
 		}
 
 		private void StartUpdateTimer()
@@ -847,11 +861,25 @@ namespace UnrealGameSync
 			MainThreadSynchronizationContext.Post((o) => { if(!bIsDisposing) { UpdateChangeMetadata(Change); } }, null);
 		}
 
-		public static void ShowModal(IWin32Window Owner, IssueMonitor IssueMonitor, string ServerAndPort, string UserName, IssueData Issue, TextWriter Log, string CurrentStream)
+		static List<IssueDetailsWindow> ExistingWindows = new List<IssueDetailsWindow>();
+
+		public static void Show(Form Owner, IssueMonitor IssueMonitor, string ServerAndPort, string UserName, IssueData Issue, TextWriter Log, string CurrentStream)
 		{
-			using(IssueDetailsWindow Window = new IssueDetailsWindow(IssueMonitor, Issue, ServerAndPort, UserName, Log, CurrentStream))
+			IssueDetailsWindow Window = ExistingWindows.FirstOrDefault(x => x.IssueMonitor == IssueMonitor && x.Issue.Id == Issue.Id);
+			if(Window == null)
 			{
-				Window.ShowDialog(Owner);
+				Window = new IssueDetailsWindow(IssueMonitor, Issue, ServerAndPort, UserName, Log, CurrentStream);
+				Window.Owner = Owner;
+				Window.StartPosition = FormStartPosition.Manual;
+				Window.Location = new Point(Owner.Location.X + (Owner.Width - Window.Width) / 2, Owner.Location.Y + (Owner.Height - Window.Height) / 2);
+				Window.Show();
+
+				ExistingWindows.Add(Window);
+				Window.FormClosed += (S, E) => ExistingWindows.Remove(Window);
+			}
+			else
+			{
+				Window.Activate();
 			}
 		}
 

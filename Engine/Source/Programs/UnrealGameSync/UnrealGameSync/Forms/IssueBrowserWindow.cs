@@ -30,10 +30,24 @@ namespace UnrealGameSync
 			this.Log = Log;
 			this.CurrentStream = CurrentStream;
 
+			IssueMonitor.AddRef();
+
 			InitializeComponent();
 
 			System.Reflection.PropertyInfo DoubleBufferedProperty = typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 			DoubleBufferedProperty.SetValue(IssueListView, true, null);
+		}
+
+		protected override void Dispose(bool disposing)
+		{
+			if (disposing && (components != null))
+			{
+				components.Dispose();
+			}
+
+			IssueMonitor.Release();
+
+			base.Dispose(disposing);
 		}
 
 		private void IssueBrowserWindow_Load(object sender, EventArgs e)
@@ -118,10 +132,26 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static void ShowModal(IWin32Window Owner, IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TextWriter Log, string CurrentStream)
+		static List<IssueBrowserWindow> ExistingWindows = new List<IssueBrowserWindow>();
+
+		public static void Show(Form Owner, IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TextWriter Log, string CurrentStream)
 		{
-			IssueBrowserWindow Window = new IssueBrowserWindow(IssueMonitor, ServerAndPort, UserName, Log, CurrentStream);
-			Window.ShowDialog(Owner);
+			IssueBrowserWindow Window = ExistingWindows.FirstOrDefault(x => x.IssueMonitor == IssueMonitor);
+			if(Window == null)
+			{
+				Window = new IssueBrowserWindow(IssueMonitor, ServerAndPort, UserName, Log, CurrentStream);
+				Window.Owner = Owner;
+				Window.StartPosition = FormStartPosition.Manual;
+				Window.Location = new Point(Owner.Location.X + (Owner.Width - Window.Width) / 2, Owner.Location.Y + (Owner.Height - Window.Height) / 2);
+				Window.Show(Owner);
+
+				ExistingWindows.Add(Window);
+				Window.FormClosed += (E, S) => ExistingWindows.Remove(Window);
+			}
+			else
+			{
+				Window.Activate();
+			}
 		}
 
 		private void FetchMoreResultsLinkLabel_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -168,7 +198,7 @@ namespace UnrealGameSync
 		private void ShowIssue(IssueData Issue)
 		{
 			Issue.Builds = RESTApi.GET<List<IssueBuildData>>(IssueMonitor.ApiUrl, String.Format("issues/{0}/builds", Issue.Id));
-			IssueDetailsWindow.ShowModal(this, IssueMonitor, ServerAndPort, UserName, Issue, Log, CurrentStream);
+			IssueDetailsWindow.Show(Owner, IssueMonitor, ServerAndPort, UserName, Issue, Log, CurrentStream);
 		}
 
 		private void IssueListView_DrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)
