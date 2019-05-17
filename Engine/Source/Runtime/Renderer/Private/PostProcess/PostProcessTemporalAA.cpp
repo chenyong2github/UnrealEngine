@@ -820,7 +820,13 @@ void FRCPassPostProcessTemporalAA::Process(FRenderingCompositePassContext& Conte
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
 	FSceneViewFamilyBlackboard SceneBlackboard;
 	SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
-	
+
+	// FPostProcessing::Process() does a AdjustGBufferRefCount(RHICmdList, -1), therefore need to pass down reference on velocity buffer manually.
+	if (FRDGTextureRef SceneVelocityBuffer = CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input2, TEXT("SceneVelocity")))
+	{
+		SceneBlackboard.SceneVelocityBuffer = SceneVelocityBuffer;
+	}
+
 	FTAAPassParameters Parameters = SavedParameters;
 	Parameters.SceneColorInput = CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
 	Parameters.SceneMetadataInput = CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input1, TEXT("SceneColor"));

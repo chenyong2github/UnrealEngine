@@ -1398,7 +1398,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 			// Applies DOF and separate translucency,
 			{
 				FRenderingCompositePass* DiaphragmDOFPass = Context.Graph.RegisterPass(
-					new(FMemStack::Get()) TRCPassForRDG<2, 1>([bDepthOfField](FRenderingCompositePass* Pass, FRenderingCompositePassContext& InContext)
+					new(FMemStack::Get()) TRCPassForRDG<3, 1>([bDepthOfField](FRenderingCompositePass* Pass, FRenderingCompositePassContext& InContext)
 				{
 					FRDGBuilder GraphBuilder(InContext.RHICmdList);
 
@@ -1407,6 +1407,12 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 	
 					FRDGTextureRef SceneColor = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
 					FRDGTextureRef LocalSeparateTranslucency = Pass->CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"));
+					
+					// FPostProcessing::Process() does a AdjustGBufferRefCount(RHICmdList, -1), therefore need to pass down reference on velocity buffer manually.
+					if (FRDGTextureRef SceneVelocityBuffer = Pass->CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input2, TEXT("SceneVelocity")))
+					{
+						SceneBlackboard.SceneVelocityBuffer = SceneVelocityBuffer;
+					}
 
 					FRDGTextureRef NewSceneColor = SceneColor;
 
@@ -1430,6 +1436,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 				}));
 				DiaphragmDOFPass->SetInput(ePId_Input0, Context.FinalOutput);
 				DiaphragmDOFPass->SetInput(ePId_Input1, SeparateTranslucency);
+				DiaphragmDOFPass->SetInput(ePId_Input2, VelocityInput);
 				Context.FinalOutput = FRenderingCompositeOutputRef(DiaphragmDOFPass, ePId_Output0);
 			}
 

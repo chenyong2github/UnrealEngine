@@ -390,7 +390,10 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 
 		bool bSSRTemporal = ShouldRenderScreenSpaceReflections(View) && IsSSRTemporalPassRequired(View);
 
-		bNeedsVelocity |= bMotionBlur || bTemporalAA || bDistanceFieldAO || bSSRTemporal;
+		bool bRayTracing = IsRayTracingEnabled();
+		bool bDenoise = bRayTracing;
+
+		bNeedsVelocity |= bMotionBlur || bTemporalAA || bDistanceFieldAO || bSSRTemporal || bDenoise;
 	}
 
 	return bNeedsVelocity;

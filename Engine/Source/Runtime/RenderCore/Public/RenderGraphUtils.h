@@ -55,7 +55,12 @@ FORCEINLINE_DEBUGGABLE void ClearUnusedGraphResources(
 }
 
 
-/** Register external texture with fallback if the resource is invalid. */
+/**
+ * Register external texture with fallback if the resource is invalid.
+ *
+ * CAUTION: use this function very wisely. It may actually remove shader parameter validation
+ * failure when a pass is actually trying to access a resource not yet or no longer available.
+ */
 RENDERCORE_API FRDGTextureRef RegisterExternalTextureWithFallback(
 	FRDGBuilder& GraphBuilder,
 	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
