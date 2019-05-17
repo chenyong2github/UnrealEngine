@@ -79,8 +79,8 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingDeferredM
 			ShaderSlot,
 			PipelineState,
 			HitGroupIndex,
-			0, 
-			nullptr,
+			0, nullptr, // uniform buffers
+			0, nullptr, // loose data
 			MaterialIndexInUserData);
 	}
 

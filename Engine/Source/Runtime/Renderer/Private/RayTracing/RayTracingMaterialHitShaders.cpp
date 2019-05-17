@@ -510,7 +510,9 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 					MeshCommand.GeometrySegmentIndex,
 					RAY_TRACING_SHADER_SLOT_SHADOW,
 					PipelineState, OpaqueShadowMaterialIndex,
-					0, nullptr, 0);
+					0, nullptr, // uniform buffers
+					0, nullptr, // loose data
+					0);
 			}
 			else
 			{
@@ -532,7 +534,9 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 				MeshCommand.GeometrySegmentIndex,
 				RAY_TRACING_SHADER_SLOT_SHADOW,
 				PipelineState, HiddenMaterialIndex,
-				0, nullptr, 0);
+				0, nullptr, // uniform buffers
+				0, nullptr, // loose data
+				0);
 		}
 	}
 

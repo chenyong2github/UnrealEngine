@@ -89,6 +89,9 @@ public:
 	FD3D12RayTracingShaderTable* FindExistingShaderTable(const FD3D12RayTracingPipelineState* Pipeline, FD3D12Device* Device) const;
 
 	TMap<const FD3D12RayTracingPipelineState*, FD3D12RayTracingShaderTable*> ShaderTables[MAX_NUM_GPUS];
+
+	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
+	uint64 CreatedFrameFenceValue = 0;
 };
 
 #endif // D3D12_RHI_RAYTRACING

@@ -99,6 +99,20 @@ static bool IsRayTracingShader(const FShaderTarget& Target)
 	}
 }
 
+static bool IsGlobalConstantBufferSupported(const FShaderTarget& Target)
+{
+	switch (Target.Frequency)
+	{
+	case SF_RayGen:
+	case SF_RayMiss:
+	case SF_RayCallable:
+		// Global CB is not currently implemented for RayGen, Miss and Callable ray tracing shaders.
+		return false;
+	default:
+		return true;
+	}
+}
+
 static uint32 GetAutoBindingSpace(const FShaderTarget& Target)
 {
 	switch (Target.Frequency)
@@ -1172,9 +1186,12 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 				{
 					Output.bSucceeded = true;
 
-					if (bGlobalUniformBufferUsed && bIsRayTracingShader)
+					bool bGlobalUniformBufferAllowed = false;
+
+					if (bGlobalUniformBufferUsed && !IsGlobalConstantBufferSupported(Input.Target))
 					{
-						FString ErrorString = TEXT("Global constant buffer cannot be used in a ray tracing shader.");
+						const TCHAR* ShaderFrequencyString = GetShaderFrequencyString(Input.Target.GetFrequency(), false);
+						FString ErrorString = FString::Printf(TEXT("Global uniform buffer cannot be used in a %s shader."), ShaderFrequencyString);
 
 						uint32 NumLooseParameters = 0;
 						for (const auto& It : Output.ParameterMap.ParameterMap)

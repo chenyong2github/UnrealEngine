@@ -134,6 +134,15 @@ struct FRayTracingGeometryInitializer
 	bool bAllowUpdate = false;
 };
 
+enum ERayTracingSceneLifetime
+{
+	// Scene may only be used during the frame when it was created.
+	RTSL_SingleFrame,
+
+	// Scene may be constructed once and used in any number of later frames (not currently implemented).
+	// RTSL_MultiFrame,
+};
+
 struct FRayTracingSceneInitializer
 {
 	TArrayView<FRayTracingGeometryInstance> Instances;
@@ -148,6 +157,10 @@ struct FRayTracingSceneInitializer
 	// Defines how many different callable shaders with unique resource bindings can be bound to this scene.
 	// Shaders and resources are assigned to slots in the scene using SetRayTracingCallableShader().
 	uint32 NumCallableShaderSlots = 0;
+
+	// Defines whether data in this scene should persist between frames.
+	// Currently only single-frame lifetime is supported.
+	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
 };
 
 class FDynamicRHI;

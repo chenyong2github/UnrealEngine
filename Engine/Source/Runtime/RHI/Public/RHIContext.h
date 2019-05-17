@@ -627,6 +627,7 @@ public:
 		FRayTracingSceneRHIParamRef Scene, uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot,
 		FRayTracingPipelineStateRHIParamRef Pipeline, uint32 HitGroupIndex,
 		uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
+		uint32 LooseParameterDataSize, const void* LooseParameterData,
 		uint32 UserData)
 	{
 		checkNoEntry();

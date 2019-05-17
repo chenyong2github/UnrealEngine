@@ -588,7 +588,10 @@ void FRHICommandSetRayTracingBindings::Execute(FRHICommandListBase& CmdList)
 	extern RHI_API FRHIRayTracingPipelineState* GetRHIRayTracingPipelineState(FRayTracingPipelineState*);
 	if (BindingType == EBindingType_HitGroup)
 	{
-		INTERNAL_DECORATOR(RHISetRayTracingHitGroup)(Scene, InstanceIndex, SegmentIndex, ShaderSlot, GetRHIRayTracingPipelineState(Pipeline), ShaderIndex, NumUniformBuffers, UniformBuffers, UserData);
+		INTERNAL_DECORATOR(RHISetRayTracingHitGroup)(Scene, InstanceIndex, SegmentIndex, ShaderSlot, GetRHIRayTracingPipelineState(Pipeline), ShaderIndex,
+			NumUniformBuffers, UniformBuffers,
+			LooseParameterDataSize, LooseParameterData,
+			UserData);
 	}
 	else
 	{

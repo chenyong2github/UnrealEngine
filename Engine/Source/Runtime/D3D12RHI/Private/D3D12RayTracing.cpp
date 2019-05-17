@@ -1201,7 +1201,7 @@ public:
 	{
 		bool bIsAlreadyInSet = false;
 		ReferencedD3D12Resources.Add(D3D12Resource, &bIsAlreadyInSet);
-		if (!bIsAlreadyInSet)
+		if (!bIsAlreadyInSet && Resource)
 		{
 			ReferencedResources.Add(Resource);
 		}
@@ -1368,6 +1368,7 @@ public:
 		{
 			FD3D12RayTracingShader* Shader = FD3D12DynamicRHI::ResourceCast(ShaderRHI);
 			checkf(Shader->pRootSignature->GetRootSignature() == GlobalRootSignature, TEXT("All raygen and miss shaders must share the same root signature"));
+			checkf(!Shader->ResourceCounts.bGlobalUniformBufferUsed, TEXT("Global uniform buffers are not implemented for ray generation shaders"));
 
 			D3D12_EXISTING_COLLECTION_DESC CollectionDesc = AddShaderCollection(Shader, FD3D12RayTracingPipelineCache::ECollectionType::RayGen);
 
@@ -1385,6 +1386,7 @@ public:
 		{
 			FD3D12RayTracingShader* Shader = FD3D12DynamicRHI::ResourceCast(ShaderRHI);
 			checkf(Shader->pRootSignature->GetRootSignature() == GlobalRootSignature, TEXT("All raygen and miss shaders must share the same root signature"));
+			checkf(!Shader->ResourceCounts.bGlobalUniformBufferUsed, TEXT("Global uniform buffers are not implemented for ray tracing miss shaders"));
 
 			D3D12_EXISTING_COLLECTION_DESC CollectionDesc = AddShaderCollection(Shader, FD3D12RayTracingPipelineCache::ECollectionType::Miss);
 
@@ -1406,7 +1408,6 @@ public:
 			FD3D12RayTracingShader* Shader = FD3D12DynamicRHI::ResourceCast(ShaderRHI);
 
 			checkf(Shader, TEXT("A valid ray tracing hit group shader must be provided for all elements in the FRayTracingPipelineStateInitializer hit group table."));
-			checkf(!Shader->ResourceCounts.bGlobalUniformBufferUsed, TEXT("Global uniform buffers are not implemented for ray tracing shaders"));
 
 			const uint32 ShaderViewDescriptors = Shader->ResourceCounts.NumSRVs + Shader->ResourceCounts.NumUAVs;
 			MaxHitGroupViewDescriptors = FMath::Max(MaxHitGroupViewDescriptors, ShaderViewDescriptors);
@@ -1430,7 +1431,7 @@ public:
 			FD3D12RayTracingShader* Shader = FD3D12DynamicRHI::ResourceCast(ShaderRHI);
 
 			checkf(Shader, TEXT("A valid ray tracing shader must be provided for all elements in the FRayTracingPipelineStateInitializer callable shader table."));
-			checkf(!Shader->ResourceCounts.bGlobalUniformBufferUsed, TEXT("Global uniform buffers are not implemented for ray tracing shaders"));
+			checkf(!Shader->ResourceCounts.bGlobalUniformBufferUsed, TEXT("Global uniform buffers are not implemented for ray tracing callable shaders"));
 
 			const uint32 ShaderViewDescriptors = Shader->ResourceCounts.NumSRVs + Shader->ResourceCounts.NumUAVs;
 			MaxHitGroupViewDescriptors = FMath::Max(MaxHitGroupViewDescriptors, ShaderViewDescriptors);
@@ -1765,6 +1766,10 @@ FRayTracingSceneRHIRef FD3D12DynamicRHI::RHICreateRayTracingScene(const FRayTrac
 
 	FD3D12RayTracingScene* Result = new FD3D12RayTracingScene(Adapter);
 
+	checkf(Initializer.Lifetime == RTSL_SingleFrame, TEXT("Only single-frame ray tracing scenes are currently implemented."));
+
+	Result->Lifetime = Initializer.Lifetime;
+	Result->CreatedFrameFenceValue = Adapter.GetFrameFence().GetCurrentFence();
 	Result->Instances = TArray<FRayTracingGeometryInstance>(Initializer.Instances.GetData(), Initializer.Instances.Num());
 	Result->ShaderSlotsPerGeometrySegment = Initializer.ShaderSlotsPerGeometrySegment;
 
@@ -2431,6 +2436,12 @@ struct FD3D12RayTracingGlobalResourceBinder
 		CommandContext.CommandListHandle->SetComputeRootDescriptorTable(SlotIndex, DescriptorTable);
 	}
 
+	D3D12_GPU_VIRTUAL_ADDRESS CreateTransientConstantBuffer(const void* Data, uint32 DataSize)
+	{
+		checkf(0, TEXT("Loose parameters and transient constant buffers are not implemented for global ray tracing shaders (raygen, miss, callable)"));
+		return (D3D12_GPU_VIRTUAL_ADDRESS)0;
+	}
+
 	void AddResourceReference(FD3D12Resource* D3D12Resource, FRHIResource* RHIResource)
 	{
 		D3D12Resource->UpdateResidency(CommandContext.CommandListHandle);
@@ -2442,7 +2453,8 @@ struct FD3D12RayTracingGlobalResourceBinder
 struct FD3D12RayTracingLocalResourceBinder
 {
 	FD3D12RayTracingLocalResourceBinder(FD3D12CommandContext& InCommandContext, FD3D12RayTracingShaderTable* InShaderTable, const FD3D12RootSignature* InRootSignature, uint32 InRecordIndex)
-		: ShaderTable(InShaderTable)
+		: Device(InCommandContext.GetParentDevice())
+		, ShaderTable(InShaderTable)
 		, RootSignature(InRootSignature)
 		, RecordIndex(InRecordIndex)
 	{
@@ -2473,11 +2485,29 @@ struct FD3D12RayTracingLocalResourceBinder
 		ShaderTable->SetLocalShaderParameters(RecordIndex, BindOffset, DescriptorTable);
 	}
 
+	D3D12_GPU_VIRTUAL_ADDRESS CreateTransientConstantBuffer(const void* Data, uint32 DataSize)
+	{
+		// If we see a significant number of transient allocations coming through this path, we should consider
+		// caching constant buffer blocks inside ShaderTable and linearly sub-allocate from them.
+		// If the amount of data is relatively small, it may also be possible to use root constants and avoid extra allocations entirely.
+
+		FD3D12FastConstantAllocator& Allocator = Device->GetParentAdapter()->GetTransientUniformBufferAllocator();
+		FD3D12ResourceLocation ResourceLocation(Device);
+		void* MappedData = Allocator.Allocate(DataSize, ResourceLocation);
+
+		FMemory::Memcpy(MappedData, Data, DataSize);
+
+		ShaderTable->AddResourceReference(ResourceLocation.GetResource(), nullptr);
+
+		return ResourceLocation.GetGPUVirtualAddress();
+	}
+
 	void AddResourceReference(FD3D12Resource* D3D12Resource, FRHIResource* RHIResource)
 	{
 		ShaderTable->AddResourceReference(D3D12Resource, RHIResource);
 	}
 
+	FD3D12Device* Device = nullptr;
 	FD3D12RayTracingShaderTable* ShaderTable = nullptr;
 	const FD3D12RootSignature* RootSignature = nullptr;
 	uint32 RecordIndex = ~0u;
@@ -2492,6 +2522,7 @@ static void SetRayTracingShaderResources(
 	uint32 InNumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
 	uint32 InNumSamplers, const FSamplerStateRHIParamRef* Samplers,
 	uint32 InNumUAVs, const FUnorderedAccessViewRHIParamRef* UAVs,
+	uint32 InLooseParameterDataSize, const void* InLooseParameterData,
 	FD3D12RayTracingDescriptorCache& DescriptorCache,
 	ResourceBinderType& Binder)
 {
@@ -2499,7 +2530,7 @@ static void SetRayTracingShaderResources(
 
 	const FD3D12RootSignature* RootSignature = Shader->pRootSignature;
 
-	FD3D12UniformBuffer*        LocalCBVs[MAX_CBS];
+	D3D12_GPU_VIRTUAL_ADDRESS   LocalCBVs[MAX_CBS];
 	D3D12_CPU_DESCRIPTOR_HANDLE LocalSRVs[MAX_SRVS];
 	D3D12_CPU_DESCRIPTOR_HANDLE LocalUAVs[MAX_UAVS];
 	D3D12_CPU_DESCRIPTOR_HANDLE LocalSamplers[MAX_SAMPLERS];
@@ -2548,7 +2579,7 @@ static void SetRayTracingShaderResources(
 		if (Resource)
 		{
 			FD3D12UniformBuffer* CBV = CommandContext.RetrieveObject<FD3D12UniformBuffer>(Resource);
-			LocalCBVs[CBVIndex] = CBV;
+			LocalCBVs[CBVIndex] = CBV->ResourceLocation.GetGPUVirtualAddress();
 			BoundCBVMask |= 1ull << CBVIndex;
 
 			ReferencedResources.Add({ CBV->ResourceLocation.GetResource(), Resource });
@@ -2676,6 +2707,22 @@ static void SetRayTracingShaderResources(
 		}
 	}
 
+	// Bind loose parameters
+
+	if (Shader->ResourceCounts.bGlobalUniformBufferUsed)
+	{
+		checkf(InLooseParameterDataSize && InLooseParameterData, TEXT("Shader uses global uniform buffer, but the required loose parameter data is not provided."));
+	}
+
+	if (InLooseParameterData && Shader->ResourceCounts.bGlobalUniformBufferUsed)
+	{
+		const uint32 CBVIndex = 0; // Global uniform buffer is always assumed to be in slot 0
+		LocalCBVs[CBVIndex] = Binder.CreateTransientConstantBuffer(InLooseParameterData, InLooseParameterDataSize);
+		BoundCBVMask |= 1ull << CBVIndex;
+	}
+
+	// Validate that all resources required by the shader are set
+
 	auto IsCompleteBinding = [](uint32 ExpectedCount, uint64 BoundMask)
 	{
 		if (ExpectedCount > 64) return false; // Bound resource mask can't be represented by uint64
@@ -2723,7 +2770,7 @@ static void SetRayTracingShaderResources(
 		for (uint32 i = 0; i < Shader->ResourceCounts.NumCBs; ++i)
 		{
 			const uint64 SlotMask = (1ull << i);
-			D3D12_GPU_VIRTUAL_ADDRESS BufferAddress = (BoundCBVMask & SlotMask) ? LocalCBVs[i]->ResourceLocation.GetGPUVirtualAddress() : 0;
+			D3D12_GPU_VIRTUAL_ADDRESS BufferAddress = (BoundCBVMask & SlotMask) ? LocalCBVs[i] : 0;
 			Binder.SetRootCBV(BindSlot, i, BufferAddress);
 		}
 	}
@@ -2765,6 +2812,7 @@ static void SetRayTracingShaderResources(
 		ARRAY_COUNT(ResourceBindings.UniformBuffers), ResourceBindings.UniformBuffers,
 		ARRAY_COUNT(ResourceBindings.Samplers), ResourceBindings.Samplers,
 		ARRAY_COUNT(ResourceBindings.UAVs), ResourceBindings.UAVs,
+		0, nullptr, // loose parameters
 		DescriptorCache, Binder);
 }
 
@@ -2942,6 +2990,7 @@ void FD3D12CommandContext::RHISetRayTracingHitGroup(
 	FRayTracingSceneRHIParamRef InScene, uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot,
 	FRayTracingPipelineStateRHIParamRef InPipeline, uint32 HitGroupIndex,
 	uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
+	uint32 LooseParameterDataSize, const void* LooseParameterData,
 	uint32 UserData)
 {
 	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(InScene);
@@ -2969,6 +3018,7 @@ void FD3D12CommandContext::RHISetRayTracingHitGroup(
 		NumUniformBuffers, UniformBuffers,
 		0, nullptr, // Samplers
 		0, nullptr, // UAVs
+		LooseParameterDataSize, LooseParameterData,
 		*(ShaderTable->DescriptorCache), ResourceBinder);
 }
 
@@ -3002,6 +3052,7 @@ void FD3D12CommandContext::RHISetRayTracingCallableShader(
 		NumUniformBuffers, UniformBuffers,
 		0, nullptr, // Samplers
 		0, nullptr, // UAVs
+		0, nullptr, // Loose parameters
 		*(ShaderTable->DescriptorCache), ResourceBinder);
 }
 
