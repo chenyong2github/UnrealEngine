@@ -1271,10 +1271,12 @@ static EScreenOrientation::Type GetAppOrientation()
 
 void FAppleARKitSystem::ClearTrackedGeometries()
 {
+#if SUPPORTS_ARKIT_1_0
 	for (auto GeoIt=TrackedGeometries.CreateIterator(); GeoIt; ++GeoIt)
 	{
 		SessionDidRemoveAnchors_Internal(GeoIt.Key());
 	}
+#endif
 }
 
 PRAGMA_DISABLE_OPTIMIZATION
