@@ -5531,9 +5531,9 @@ FAsyncPackage::~FAsyncPackage()
 
 void FAsyncPackage::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObjects(ReferencedObjects);
-	Collector.AddReferencedObjects(DeferredFinalizeObjects);
-	Collector.AddReferencedObjects(PackageObjLoaded);
+	Collector.AddReferencedObjects(ReferencedObjects, FGCObject::GGCObjectReferencer);
+	Collector.AddReferencedObjects(DeferredFinalizeObjects, FGCObject::GGCObjectReferencer);
+	Collector.AddReferencedObjects(PackageObjLoaded, FGCObject::GGCObjectReferencer);
 }
 
 void FAsyncPackage::AddObjectReference(UObject* InObject)
