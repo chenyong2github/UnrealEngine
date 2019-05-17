@@ -139,6 +139,12 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 		View.InitRHIResources();
 		DrawRenderState.SetViewUniformBuffer(View.ViewUniformBuffer);
 
+		if (!DrawRenderState.GetReflectionCaptureUniformBuffer())
+		{
+			FReflectionCaptureShaderData EmptyData;
+			DrawRenderState.SetReflectionCaptureUniformBuffer(TUniformBufferRef<FReflectionCaptureShaderData>::CreateUniformBufferImmediate(EmptyData, UniformBuffer_SingleFrame));
+		}
+
 		if (ShadingPath == EShadingPath::Mobile)
 		{
 			View.MobileDirectionalLightUniformBuffers[0] = TUniformBufferRef<FMobileDirectionalLightShaderParameters>::CreateUniformBufferImmediate(FMobileDirectionalLightShaderParameters(), UniformBuffer_SingleFrame);

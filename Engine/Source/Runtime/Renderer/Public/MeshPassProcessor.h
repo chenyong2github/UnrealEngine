@@ -915,6 +915,7 @@ struct FMeshPassProcessorRenderState
 		, DepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilRead)
 		, ViewUniformBuffer(SceneView.ViewUniformBuffer)
 		, InstancedViewUniformBuffer()
+		, ReflectionCaptureUniformBuffer()
 		, PassUniformBuffer(InPassUniformBuffer)
 		, StencilRef(0)
 	{
@@ -926,6 +927,7 @@ struct FMeshPassProcessorRenderState
 		, DepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilRead)
 		, ViewUniformBuffer(InViewUniformBuffer)
 		, InstancedViewUniformBuffer()
+		, ReflectionCaptureUniformBuffer()
 		, PassUniformBuffer(InPassUniformBuffer)
 		, StencilRef(0)
 	{
@@ -936,6 +938,7 @@ struct FMeshPassProcessorRenderState
 		, DepthStencilState(nullptr)
 		, ViewUniformBuffer()
 		, InstancedViewUniformBuffer()
+		, ReflectionCaptureUniformBuffer()
 		, PassUniformBuffer(nullptr)
 		, StencilRef(0)
 	{
@@ -947,6 +950,7 @@ struct FMeshPassProcessorRenderState
 		, DepthStencilAccess(DrawRenderState.DepthStencilAccess)
 		, ViewUniformBuffer(DrawRenderState.ViewUniformBuffer)
 		, InstancedViewUniformBuffer(DrawRenderState.InstancedViewUniformBuffer)
+		, ReflectionCaptureUniformBuffer(DrawRenderState.ReflectionCaptureUniformBuffer)
 		, PassUniformBuffer(DrawRenderState.PassUniformBuffer)
 		, StencilRef(DrawRenderState.StencilRef)
 	{
@@ -1013,7 +1017,17 @@ public:
 		return InstancedViewUniformBuffer.IsValid() ? InstancedViewUniformBuffer : reinterpret_cast<const TUniformBufferRef<FInstancedViewUniformShaderParameters>&>(ViewUniformBuffer);
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetPassUniformBuffer(FUniformBufferRHIParamRef InPassUniformBuffer)
+	FORCEINLINE_DEBUGGABLE void SetReflectionCaptureUniformBuffer(FUniformBufferRHIParamRef InUniformBuffer)
+	{
+		ReflectionCaptureUniformBuffer = InUniformBuffer;
+	}
+
+	FORCEINLINE_DEBUGGABLE const FUniformBufferRHIRef& GetReflectionCaptureUniformBuffer() const
+	{
+		return ReflectionCaptureUniformBuffer;
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetPassUniformBuffer(const FUniformBufferRHIRef& InPassUniformBuffer)
 	{
 		PassUniformBuffer = InPassUniformBuffer;
 	}
@@ -1041,6 +1055,10 @@ private:
 
 	TUniformBufferRef<FViewUniformShaderParameters>	ViewUniformBuffer;
 	TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedViewUniformBuffer;
+
+	/** Will be bound as reflection capture uniform buffer in case where scene is not available, typically set to dummy/empty buffer to avoid null binding */
+	FUniformBufferRHIRef			ReflectionCaptureUniformBuffer;
+
 	FUniformBufferRHIParamRef		PassUniformBuffer;
 	uint32							StencilRef;
 };

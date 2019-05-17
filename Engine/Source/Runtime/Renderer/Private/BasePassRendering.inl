@@ -39,7 +39,7 @@ void TBasePassVertexShaderPolicyParamType<LightMapPolicyType>::GetShaderBindings
 	}
 	else
 	{
-		ensure(!ReflectionCaptureBuffer.IsBound());
+		ShaderBindings.Add(ReflectionCaptureBuffer, DrawRenderState.GetReflectionCaptureUniformBuffer());
 	}
 
 	LightMapPolicyType::GetVertexShaderBindings(
@@ -86,7 +86,7 @@ void TBasePassPixelShaderPolicyParamType<LightMapPolicyType>::GetShaderBindings(
 	}
 	else
 	{
-		ensure(!ReflectionCaptureBuffer.IsBound());
+		ShaderBindings.Add(ReflectionCaptureBuffer, DrawRenderState.GetReflectionCaptureUniformBuffer());
 	}
 
 	LightMapPolicyType::GetPixelShaderBindings(
