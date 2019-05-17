@@ -58,15 +58,12 @@ static TAutoConsoleVariable<int32> CVarMobileTonemapperFilm(
 	);
 
 // false:use 256x16 texture / true:use volume texture (faster, requires geometry shader)
-// USE_VOLUME_LUT: needs to be the same for C++ and HLSL
-bool PipelineVolumeTextureLUTMayBeSupportedAtRuntime(EShaderPlatform Platform)
+// USE_VOLUME_LUT: needs to be the same for C++ and HLSL.
+// Safe to use at pipeline and run time.
+bool PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(EShaderPlatform Platform)
 {
 	// This is used to know if the target shader platform does not support required volume texture features we need for sure (read, render to).
-	return (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) && (Platform != SP_METAL_MRT && Platform != SP_METAL_MRT_MAC && Platform != SP_VULKAN_SM5_LUMIN) && (RHISupportsGeometryShaders(Platform) || RHISupportsVertexShaderLayer(Platform)));
-}
-bool RuntimeVolumeTextureLUTSupported(EShaderPlatform Platform)	// Only valid to be called during runtime
-{
-	return PipelineVolumeTextureLUTMayBeSupportedAtRuntime(Platform) && GSupportsVolumeTextureRendering;
+	return RHIVolumeTextureRenderingSupportGuaranteed(Platform) && (RHISupportsGeometryShaders(Platform) || RHISupportsVertexShaderLayer(Platform));
 }
 
 // including the neutral one at index 0
@@ -568,17 +565,11 @@ class FLUTBlenderPS : public FGlobalShader
 
 public:
 
-	class FBlenderUseVolumeLut : SHADER_PERMUTATION_BOOL("USE_VOLUME_LUT");
 	class FBlendCount : SHADER_PERMUTATION_RANGE_INT("BLENDCOUNT", 1, 5);
-	using FPermutationDomain = TShaderPermutationDomain<FBlenderUseVolumeLut, FBlendCount>;
+	using FPermutationDomain = TShaderPermutationDomain<FBlendCount>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (!PipelineVolumeTextureLUTMayBeSupportedAtRuntime(Parameters.Platform) && PermutationVector.Get<FBlenderUseVolumeLut>())
-		{
-			return false; // We know that this platform does not support volume textures feature needed for our post process, so do not compile the permutation.
-		}
 		return true;
 	}
 
@@ -598,6 +589,9 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		const int UseVolumeLut = PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(Parameters.Platform) ? 1 : 0;
+		OutEnvironment.SetDefine(TEXT("USE_VOLUME_LUT"), UseVolumeLut);
 	}
 
 	virtual bool Serialize(FArchive& Ar) override
@@ -624,17 +618,11 @@ class FLUTBlenderCS : public FGlobalShader
 
 public:
 
-	class FBlenderUseVolumeLut : SHADER_PERMUTATION_BOOL("USE_VOLUME_LUT");
 	class FBlendCount : SHADER_PERMUTATION_RANGE_INT("BLENDCOUNT", 1, 5);
-	using FPermutationDomain = TShaderPermutationDomain<FBlenderUseVolumeLut, FBlendCount>;
+	using FPermutationDomain = TShaderPermutationDomain<FBlendCount>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (!PipelineVolumeTextureLUTMayBeSupportedAtRuntime(Parameters.Platform) && PermutationVector.template Get<FBlenderUseVolumeLut>())
-		{
-			return false; // We know that this platform does not support volume textures feature needed for our post process, so do not compile the permutation.
-		}
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
@@ -643,6 +631,9 @@ public:
 		// CS params
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GCombineLUTsComputeTileSize);
+
+		const int UseVolumeLut = PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(Parameters.Platform) ? 1 : 0;
+		OutEnvironment.SetDefine(TEXT("USE_VOLUME_LUT"), UseVolumeLut);
 	}
 
 	FLUTBlenderCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -718,11 +709,10 @@ static void SetLUTBlenderShader(FRenderingCompositePassContext& Context, TRHICom
 	auto ShaderMap = Context.GetShaderMap();
 
 	FLUTBlenderPS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FLUTBlenderPS::FBlenderUseVolumeLut>(RuntimeVolumeTextureLUTSupported(Context.GetShaderPlatform()));
 	PermutationVector.Set<FLUTBlenderPS::FBlendCount>(BlendCount);
 	TShaderMapRef<FLUTBlenderPS> PixelShader(ShaderMap, PermutationVector);
 
-	if(RuntimeVolumeTextureLUTSupported(Context.View.GetShaderPlatform()))
+	if(PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(Context.View.GetShaderPlatform()))
 	{
 		TShaderMapRef<FWriteToSliceVS> VertexShader(ShaderMap);
 		TOptionalShaderMapRef<FWriteToSliceGS> GeometryShader(ShaderMap);
@@ -888,7 +878,7 @@ void FRCPassPostProcessCombineLUTs::Process(FRenderingCompositePassContext& Cont
 	SCOPED_DRAW_EVENTF(Context.RHICmdList, PostProcessCombineLUTs, TEXT("PostProcessCombineLUTs%s [%d] %dx%dx%d"),
 		bIsComputePass?TEXT("Compute"):TEXT(""), LocalCount, GLUTSize, GLUTSize, GLUTSize);
 
-	const bool bUseVolumeTextureLUT = RuntimeVolumeTextureLUTSupported(ShaderPlatform);
+	const bool bUseVolumeTextureLUT = PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(ShaderPlatform);
 	// for a 3D texture, the viewport is 16x16 (per slice), for a 2D texture, it's unwrapped to 256x16
 	FIntPoint DestSize(bUseVolumeTextureLUT ? GLUTSize : GLUTSize * GLUTSize, GLUTSize);
 
@@ -985,14 +975,13 @@ void FRCPassPostProcessCombineLUTs::DispatchCS(TRHICmdList& RHICmdList, FRenderi
 {
 	auto ShaderMap = Context.GetShaderMap();
 
-	const bool bRuntimeVolumeTextureLUTSupported = RuntimeVolumeTextureLUTSupported(ShaderPlatform);
+	const bool bRuntimeVolumeTextureLUTSupported = PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(ShaderPlatform);
 
 	FIntPoint DestSize(DestRect.Width(), DestRect.Height());
 	uint32 GroupSizeXY = FMath::DivideAndRoundUp(DestSize.X, GCombineLUTsComputeTileSize);
 	uint32 GroupSizeZ = bRuntimeVolumeTextureLUTSupported ? GroupSizeXY : 1;
 
 	FLUTBlenderCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FLUTBlenderCS::FBlenderUseVolumeLut>(bRuntimeVolumeTextureLUTSupported);
 	PermutationVector.Set<FLUTBlenderCS::FBlendCount>(BlendCount);
 	TShaderMapRef<FLUTBlenderCS> ComputeShader(ShaderMap, PermutationVector);
 	RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
@@ -1015,7 +1004,7 @@ FPooledRenderTargetDesc FRCPassPostProcessCombineLUTs::ComputeOutputDesc(EPassOu
 	}
 	else
 	{
-		Ret =FSceneViewState::CreateLUTRenderTarget(GLUTSize, RuntimeVolumeTextureLUTSupported(ShaderPlatform), false, bNeedFloatOutput);
+		Ret =FSceneViewState::CreateLUTRenderTarget(GLUTSize, PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(ShaderPlatform), false, bNeedFloatOutput);
 	}
 	Ret.ClearValue = FClearValueBinding::Transparent;
 

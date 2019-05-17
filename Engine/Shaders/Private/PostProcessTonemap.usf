@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	PostProcessTonemap.usf: PostProcessing tone mapping 
+	PostProcessTonemap.usf: PostProcessing tone mapping  
 =============================================================================*/
 
 #include "Common.ush"

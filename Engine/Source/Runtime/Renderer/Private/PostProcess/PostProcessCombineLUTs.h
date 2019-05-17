@@ -14,8 +14,7 @@
 class UTexture;
 class FFinalPostProcessSettings;
 
-bool PipelineVolumeTextureLUTMayBeSupportedAtRuntime(EShaderPlatform Platform);
-bool RuntimeVolumeTextureLUTSupported(EShaderPlatform Platform);
+bool PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(EShaderPlatform Platform);
 
 // derives from TRenderingCompositePassBase<InputCount, OutputCount>
 class FRCPassPostProcessCombineLUTs : public TRenderingCompositePassBase<0, 1>

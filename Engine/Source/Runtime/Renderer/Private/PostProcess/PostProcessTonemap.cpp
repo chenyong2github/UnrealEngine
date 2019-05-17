@@ -125,7 +125,6 @@ class FTonemapperVignetteDim       : SHADER_PERMUTATION_BOOL("USE_VIGNETTE");
 class FTonemapperSharpenDim        : SHADER_PERMUTATION_BOOL("USE_SHARPEN");
 class FTonemapperGrainJitterDim    : SHADER_PERMUTATION_BOOL("USE_GRAIN_JITTER");
 class FTonemapperSwitchAxis        : SHADER_PERMUTATION_BOOL("NEEDTOSWITCHVERTICLEAXIS");
-class FTonemapperUseVolumeLut      : SHADER_PERMUTATION_BOOL("USE_VOLUME_LUT");
 
 using FCommonDomain = TShaderPermutationDomain<
 	FTonemapperBloomDim,
@@ -134,8 +133,7 @@ using FCommonDomain = TShaderPermutationDomain<
 	FTonemapperVignetteDim,
 	FTonemapperSharpenDim,
 	FTonemapperGrainJitterDim,
-	FTonemapperSwitchAxis,
-	FTonemapperUseVolumeLut>;
+	FTonemapperSwitchAxis>;
 
 FORCEINLINE_DEBUGGABLE bool ShouldCompileCommonPermutation(const FGlobalShaderPermutationParameters& Parameters, const FCommonDomain& PermutationVector)
 {
@@ -180,8 +178,6 @@ FCommonDomain BuildCommonPermutationDomain(const FViewInfo& View, bool bGammaOnl
 	PermutationVector.Set<FTonemapperGrainJitterDim>(Settings.GrainJitter > 0.0f);
 	PermutationVector.Set<FTonemapperSharpenDim>(CVarTonemapperSharpen.GetValueOnRenderThread() > 0.0f);	
 	PermutationVector.Set<FTonemapperSwitchAxis>(bSwitchVerticalAxis);
-
-	PermutationVector.Set<FTonemapperUseVolumeLut>(RuntimeVolumeTextureLUTSupported(View.GetShaderPlatform()));
 
 	return PermutationVector;
 }
@@ -254,10 +250,6 @@ bool ShouldCompileDesktopPermutation(const FGlobalShaderPermutationParameters& P
 		return !PermutationVector.Get<FTonemapperColorFringeDim>() &&
 			!PermutationVector.Get<FTonemapperGrainQuantizationDim>();
 	}
-
-	if (!PipelineVolumeTextureLUTMayBeSupportedAtRuntime(Parameters.Platform) && CommonPermutationVector.Get<FTonemapperUseVolumeLut>())
-		return false; // We know that this platform does not support volume textures feature needed for our post process, so do not compile the permutation.
-
 	return true;
 }
 
@@ -719,6 +711,8 @@ class FPostProcessTonemapPS : public FGlobalShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		const int UseVolumeLut = PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(Parameters.Platform) ? 1 : 0;
+		OutEnvironment.SetDefine(TEXT("USE_VOLUME_LUT"), UseVolumeLut);
 	}
 
 	/** Default constructor. */
@@ -795,6 +789,9 @@ class FPostProcessTonemapCS : public FGlobalShader
 	{
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), GTonemapComputeTileSizeX);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), GTonemapComputeTileSizeY);
+
+		const int UseVolumeLut = PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(Parameters.Platform) ? 1 : 0;
+		OutEnvironment.SetDefine(TEXT("USE_VOLUME_LUT"), UseVolumeLut);
 	}
 
 	/** Default constructor. */

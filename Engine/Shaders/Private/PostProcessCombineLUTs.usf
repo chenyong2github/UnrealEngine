@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	LUTBlender.usf: Filter pixel shader source.  
+	LUTBlender.usf: Filter pixel shader source.   
 =============================================================================*/
 
 #define USE_COLOR_MATRIX	1

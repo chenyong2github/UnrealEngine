@@ -3880,7 +3880,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
 		}
 
 		ensureMsgf(
-			PermutationCountToCompile < 397,	// ToneMapper today (2019-04-17) can go up to 396 permutations
+			PermutationCountToCompile < 200,	// Please try to not bump this
 			TEXT("Global shader %s has %i permutation: probably more that it needs."),
 			GlobalShaderType->GetName(), PermutationCountToCompile);
 
