@@ -519,4 +519,17 @@ FText UK2Node_CustomEvent::GetKeywords() const
 	return FText::Format(LOCTEXT("CustomEventKeywords", "{ParentKeywords} Custom"), Args);
 }
 
+bool UK2Node_CustomEvent::ShouldWarnOnDeprecation() const
+{
+	// Only warn on override usage. This allows the source event to be marked as deprecated in the class that defines it without warning.
+	return IsOverride();
+}
+
+FString UK2Node_CustomEvent::GetDeprecationMessage() const
+{
+	FText EventName = FText::FromName(GetFunctionName());
+	FText DetailedMessage = FText::FromString(DeprecationMessage);
+	return FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(EventName, DetailedMessage).ToString();
+}
+
 #undef LOCTEXT_NAMESPACE

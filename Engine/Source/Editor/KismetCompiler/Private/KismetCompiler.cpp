@@ -3150,7 +3150,9 @@ void FKismetCompilerContext::VerifyValidOverrideEvent(const UEdGraph* Graph)
 				{
 					if (EventNode->IsDeprecated())
 					{
-						MessageLog.Warning(*EventNode->GetDeprecationMessage(), EventNode);
+						// The event cannot be placed because it has been deprecated. However, we already emit a
+						// warning in FGraphCompilerContext::ValidateNode(), so there's no need to repeat it here.
+						continue;
 					}
 					else if(!Function->HasAllFunctionFlags(FUNC_Const))	// ...allow legacy event nodes that override methods declared as 'const' to pass.
 					{

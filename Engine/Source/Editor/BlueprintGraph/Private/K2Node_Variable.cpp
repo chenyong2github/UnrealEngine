@@ -954,29 +954,41 @@ void UK2Node_Variable::PostPasteNode()
 
 bool UK2Node_Variable::IsDeprecated() const
 {
+	// Check if either the node itself or the referenced variable is deprecated.
 	if (Super::IsDeprecated() || VariableReference.IsDeprecated())
 	{
 		return true;
 	}
-
-	UProperty* VariableProperty = VariableReference.ResolveMember<UProperty>(GetBlueprintClassFromNode());
-	if (VariableProperty 
-		&& (VariableProperty->HasAllPropertyFlags(CPF_Deprecated) || VariableProperty->HasMetaData(FBlueprintMetadata::MD_DeprecationMessage)))
+	else if (UProperty* VariableProperty = VariableReference.ResolveMember<UProperty>(GetBlueprintClassFromNode()))
 	{
-		return true;
+		// Backcompat: Allow variables tagged only with 'DeprecationMessage' meta to be seen as deprecated if inherited from a native parent class.
+		const bool bHasDeprecationMessage = VariableProperty->HasMetaData(FBlueprintMetadata::MD_DeprecationMessage);
+		if (bHasDeprecationMessage && VariableProperty->GetOuter()->IsNative())
+		{
+			return true;
+		}
 	}
+
 	return false;
 }
 
 FString UK2Node_Variable::GetDeprecationMessage() const
 {
-	UProperty* VariableProperty = VariableReference.ResolveMember<UProperty>(GetBlueprintClassFromNode());
-	if (VariableProperty && VariableProperty->HasMetaData(FBlueprintMetadata::MD_DeprecationMessage))
+	// Handle the default case where the node itself has been deprecated (return the default message).
+	if (Super::IsDeprecated())
 	{
-		return FString::Printf(TEXT("%s %s"), *LOCTEXT("PropertyDeprecated_Warning", "@@ is deprecated;").ToString(), *VariableProperty->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage));
+		return Super::GetDeprecationMessage();
 	}
 
-	return Super::GetDeprecationMessage();
+	FText Result;
+	if (UProperty* VariableProperty = VariableReference.ResolveMember<UProperty>(GetBlueprintClassFromNode()))
+	{
+		FName MemberName = VariableReference.GetMemberName();
+		FString DetailedMessage = VariableProperty->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage);
+		Result = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(FText::FromName(MemberName), FText::FromString(DetailedMessage));
+	}
+	
+	return Result.ToString();
 }
 
 UObject* UK2Node_Variable::GetJumpTargetForDoubleClick() const

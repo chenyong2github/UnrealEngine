@@ -789,17 +789,23 @@ bool UK2Node_Event::IsDeprecated() const
 	return false;
 }
 
+bool UK2Node_Event::ShouldWarnOnDeprecation() const
+{
+	// Only warn on override usage. This allows the source event to be marked as deprecated in the class that defines it without warning.
+	return bOverrideFunction;
+}
+
 FString UK2Node_Event::GetDeprecationMessage() const
 {
+	FText Result;
 	if (UFunction* Function = EventReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
 	{
-		if (Function->HasMetaData(FBlueprintMetadata::MD_DeprecationMessage))
-		{
-			return FString::Printf(TEXT("%s %s"), *LOCTEXT("EventDeprecated_Warning", "@@ is deprecated;").ToString(), *Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage));
-		}
+		FName EventName = GetFunctionName();
+		FString DetailedMessage = Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage);
+		Result = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(FText::FromName(EventName), FText::FromString(DetailedMessage));
 	}
 
-	return Super::GetDeprecationMessage();
+	return Result.ToString();
 }
 
 UObject* UK2Node_Event::GetJumpTargetForDoubleClick() const

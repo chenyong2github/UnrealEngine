@@ -470,17 +470,23 @@ bool UK2Node_FunctionEntry::IsDeprecated() const
 	return false;
 }
 
+bool UK2Node_FunctionEntry::ShouldWarnOnDeprecation() const
+{
+	// Only warn on non-editable (i.e. override) usage. This allows the source graph to be marked as deprecated in the class that defines it without warning.
+	return !IsEditable();
+}
+
 FString UK2Node_FunctionEntry::GetDeprecationMessage() const
 {
+	FText Result;
 	if (UFunction* const Function = FunctionReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
 	{
-		if (Function->HasMetaData(FBlueprintMetadata::MD_DeprecationMessage))
-		{
-			return FString::Printf(TEXT("%s %s"), *LOCTEXT("FunctionDeprecated_Warning", "@@ is deprecated;").ToString(), *Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage));
-		}
+		FName FunctionName = FunctionReference.GetMemberName();
+		FString DetailedMessage = Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage);
+		Result = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(FText::FromName(FunctionName), FText::FromString(DetailedMessage));
 	}
 
-	return Super::GetDeprecationMessage();
+	return Result.ToString();
 }
 
 FText UK2Node_FunctionEntry::GetTooltipText() const

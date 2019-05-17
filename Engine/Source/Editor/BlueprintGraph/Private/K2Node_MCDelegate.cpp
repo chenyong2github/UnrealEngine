@@ -17,6 +17,7 @@
 #include "K2Node_CallDelegate.h"
 #include "K2Node_ClearDelegate.h"
 #include "K2Node_RemoveDelegate.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 
 #include "KismetCompiler.h"
 #include "DelegateNodeHandlers.h"
@@ -271,29 +272,26 @@ void UK2Node_BaseMCDelegate::AutowireNewNode(UEdGraphPin* FromPin)
 
 bool UK2Node_BaseMCDelegate::IsDeprecated() const
 {
-	if (Super::IsDeprecated() || DelegateReference.IsDeprecated())
-	{
-		return true;
-	}
-
-	UProperty* DelegateProperty = DelegateReference.ResolveMember<UProperty>(GetBlueprintClassFromNode());
-	if (DelegateProperty
-		&& (DelegateProperty->HasAllPropertyFlags(CPF_Deprecated) || DelegateProperty->HasMetaData(FBlueprintMetadata::MD_DeprecationMessage)))
-	{
-		return true;
-	}
-	return false;
+	// Check if either the node itself or the referenced delegate is deprecated.
+	return Super::IsDeprecated() || DelegateReference.IsDeprecated();
 }
 
 FString UK2Node_BaseMCDelegate::GetDeprecationMessage() const
 {
-	UProperty* DelegateProperty = DelegateReference.ResolveMember<UProperty>(GetBlueprintClassFromNode());
-	if (DelegateProperty && DelegateProperty->HasMetaData(FBlueprintMetadata::MD_DeprecationMessage))
+	// Handle the default case where the node itself has been deprecated (return the default message).
+	if (Super::IsDeprecated())
 	{
-		return FString::Printf(TEXT("%s %s"), *NSLOCTEXT("K2Node", "DelegateDeprecated_Warning", "@@ is deprecated;").ToString(), *DelegateProperty->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage));
+		return Super::GetDeprecationMessage();
 	}
 
-	return Super::GetDeprecationMessage();
+	FText Result;
+	if (UProperty* DelegateProperty = DelegateReference.ResolveMember<UProperty>(GetBlueprintClassFromNode()))
+	{
+		FString DetailedMessage = DelegateProperty->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage);
+		Result = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(GetPropertyDisplayName(), FText::FromString(DetailedMessage));
+	}
+
+	return Result.ToString();
 }
 
 /////// UK2Node_AddDelegate ///////////

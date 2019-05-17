@@ -9020,6 +9020,17 @@ FString FBlueprintEditorUtils::GetClassNameWithoutSuffix(const UClass* Class)
 	}
 }
 
+FText FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(const FText& MemberName, const FText& DetailedMessage)
+{
+	static FText UnknownName = LOCTEXT("UnknownDeprecatedMemberName", "[unknown]");
+	static FText DefaultMessage = LOCTEXT("DefaultDeprecatedMemberUsageDetails", "Please replace or remove it.");
+
+	FFormatNamedArguments Args;
+	Args.Add("MemberName", ensure(!MemberName.IsEmpty()) ? MemberName : UnknownName);
+	Args.Add("DetailedMessage", DetailedMessage.IsEmpty() ? DefaultMessage : DetailedMessage);
+	return FText::Format(LOCTEXT("DeprecatedMemberUsageNodeWarning", "@@: Usage of '{MemberName}' has been deprecated. {DetailedMessage}"), Args);
+}
+
 UK2Node_FunctionResult* FBlueprintEditorUtils::FindOrCreateFunctionResultNode(UK2Node_EditablePinBase* InFunctionEntryNode)
 {
 	UK2Node_FunctionResult* FunctionResult = nullptr;

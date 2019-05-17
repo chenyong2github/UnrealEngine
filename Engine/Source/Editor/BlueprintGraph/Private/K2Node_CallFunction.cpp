@@ -451,13 +451,14 @@ bool UK2Node_CallFunction::ShouldWarnOnDeprecation() const
 
 FString UK2Node_CallFunction::GetDeprecationMessage() const
 {
-	UFunction* Function = GetTargetFunction();
-	if (Function && Function->HasMetaData(FBlueprintMetadata::MD_DeprecationMessage))
+	FText Result;
+	if (UFunction* Function = GetTargetFunction())
 	{
-		return FString::Printf(TEXT("%s %s"), *LOCTEXT("CallFunctionDeprecated_Warning", "@@ is deprecated;").ToString(), *Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage));
+		FString DetailedMessage = Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage);
+		Result = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(GetUserFacingFunctionName(Function), FText::FromString(DetailedMessage));
 	}
-
-	return Super::GetDeprecationMessage();
+	
+	return Result.ToString();
 }
 
 

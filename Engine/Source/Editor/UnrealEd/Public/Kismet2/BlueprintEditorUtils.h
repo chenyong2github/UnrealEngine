@@ -1594,6 +1594,14 @@ public:
 	static FString GetClassNameWithoutSuffix(const UClass* Class);
 
 	/**
+	 * Returns a formatted warning message regarding usage of a deprecated variable or function member with the given name.
+	 *
+	 * @param MemberName		(Required) User-facing name of the deprecated variable or function.
+	 * @param DetailedMessage	(Optional) Instructional text or other details from the owner. If empty, a default message will be used.
+	 */
+	static FText GetDeprecatedMemberUsageNodeWarning(const FText& MemberName, const FText& DetailedMessage);
+
+	/**
 	 * Remove overridden component templates from instance component handlers when a parent class disables editable when inherited boolean.
 	 */
 	static void HandleDisableEditableWhenInherited(UObject* ModifiedObject, TArray<UObject*>& ArchetypeInstances);
