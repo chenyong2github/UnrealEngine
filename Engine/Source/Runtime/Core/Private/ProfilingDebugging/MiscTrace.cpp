@@ -36,8 +36,6 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(Misc, BookmarkSpec)
 	UE_TRACE_EVENT_FIELD(const void*, BookmarkPoint)
 	UE_TRACE_EVENT_FIELD(int32, Line)
-	UE_TRACE_EVENT_FIELD(uint16, FileNameLength)
-	UE_TRACE_EVENT_FIELD(uint16, FormatStringLength)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Misc, Bookmark)
@@ -150,25 +148,15 @@ void FMiscTrace::OutputEndThreadGroupScope()
 
 void FMiscTrace::OutputBookmarkSpec(const void* BookmarkPoint, const ANSICHAR* File, int32 Line, const TCHAR* Format)
 {
-	uint16 FileNameLength = strlen(File);
-	int32 FormatStringLength = FCString::Strlen(Format);
-	auto StringCopyFunc = [FileNameLength, FormatStringLength, File, Format](uint8* Out) {
-		ANSICHAR* OutAnsiChar = reinterpret_cast<ANSICHAR*>(Out);
-		for (int i = 0; i < FileNameLength; ++i)
-		{
-			*OutAnsiChar++ = File[i];
-		}
-		TCHAR* OutTChar = reinterpret_cast<TCHAR*>(OutAnsiChar);
-		for (int i = 0; i < FormatStringLength; ++i)
-		{
-			*OutTChar++ = Format[i];
-		}
+	uint16 FileNameSize = strlen(File) + 1;
+	uint16 FormatStringSize = (FCString::Strlen(Format) + 1) * sizeof(TCHAR);
+	auto StringCopyFunc = [FileNameSize, FormatStringSize, File, Format](uint8* Out) {
+		memcpy(Out, File, FileNameSize);
+		memcpy(Out + FileNameSize, Format, FormatStringSize);
 	};
-	UE_TRACE_LOG(Misc, BookmarkSpec, FileNameLength + FormatStringLength * 2)
+	UE_TRACE_LOG(Misc, BookmarkSpec, FileNameSize + FormatStringSize)
 		<< BookmarkSpec.BookmarkPoint(BookmarkPoint)
 		<< BookmarkSpec.Line(Line)
-		<< BookmarkSpec.FileNameLength(FileNameLength)
-		<< BookmarkSpec.FormatStringLength(FormatStringLength)
 		<< BookmarkSpec.Attachment(StringCopyFunc);
 }
 

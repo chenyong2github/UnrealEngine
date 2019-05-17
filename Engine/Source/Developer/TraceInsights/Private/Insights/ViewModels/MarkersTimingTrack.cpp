@@ -139,8 +139,7 @@ void FMarkersTimingTrack::Update(const FTimingTrackViewport& InViewport)
 			LogProvider.EnumerateMessages(
 				CB.GetViewport().StartTime,
 				CB.GetViewport().EndTime,
-				[&CB](const Trace::FLogMessage& Message) { CB.AddLogMessage(Message); },
-				false);
+				[&CB](const Trace::FLogMessage& Message) { CB.AddLogMessage(Message); });
 
 			CB.EndLog();
 		});
@@ -342,18 +341,17 @@ void FTimeMarkerTrackBuilder::AddLogMessage(const Trace::FLogMessage& Message)
 		//TODO: Search API like: LogProviderPtr->SearchMessage(StartIndex, ESearchDirection::Backward, LambdaPredicate, bResolveFormatString);
 		LogProviderPtr->ReadMessage(
 			Message.Index - 1,
-			[this](const Trace::FLogMessage& Message) { AddLogMessage(Message); },
-			false); // do not resolve format string
+			[this](const Trace::FLogMessage& Message) { AddLogMessage(Message); });
 	}
 
-	if (!Track.bUseOnlyBookmarks || FCString::Strcmp(*Message.Category->Name, TEXT("LogBookmark")) == 0)
+	if (!Track.bUseOnlyBookmarks || FCString::Strcmp(Message.Category->Name, TEXT("LogBookmark")) == 0)
 	{
 		float X = Viewport.TimeToSlateUnitsRounded(Message.Time);
 		if (X < 0)
 		{
 			X = -1.0f;
 		}
-		AddTimeMarker(X, *Message.Category->Name, Message.Verbosity, Message.Index);
+		AddTimeMarker(X, Message.Category->Name, Message.Verbosity, Message.Index);
 	}
 }
 
@@ -460,8 +458,7 @@ void FTimeMarkerTrackBuilder::Flush(float AvailableTextW)
 						TextInfo.Message.AppendChars(Message.Message, LastWholeCharacterIndexMessage + 1);
 					}
 				}
-			},
-				true); // resolve format string
+			});
 		}
 	}
 }

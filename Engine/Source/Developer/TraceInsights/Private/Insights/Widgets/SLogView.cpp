@@ -732,7 +732,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 						CategoryStr = CategoryStr.RightChop(3);
 					if (Categories.Contains(FName(*CategoryStr)))
 					{
-						UE_LOG(TimingProfiler, Log, TEXT("[LogView] Duplicated Log Category: \"%s\""), *Category.Name);
+						UE_LOG(TimingProfiler, Log, TEXT("[LogView] Duplicated Log Category: \"%s\""), Category.Name);
 					}
 					Categories.Add(FName(*CategoryStr));
 				});

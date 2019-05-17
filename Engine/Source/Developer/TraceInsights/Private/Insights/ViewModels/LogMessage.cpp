@@ -153,8 +153,7 @@ FLogMessageRecord& FLogMessageCache::Get(uint64 Index)
 				FScopeLock Lock(&CriticalSection);
 				FLogMessageRecord Entry(Message);
 				Map.Add(Index, Entry);
-			},
-				true); // resolve format string
+			});
 		});
 	}
 
@@ -186,8 +185,7 @@ TSharedPtr<FLogMessageRecord> FLogMessageCache::GetUncached(uint64 Index, bool b
 				[&EntryPtr](const Trace::FLogMessage& Message)
 			{
 				EntryPtr = MakeShareable(new FLogMessageRecord(Message));
-			},
-				bResolveFormatString);
+			});
 		});
 	}
 

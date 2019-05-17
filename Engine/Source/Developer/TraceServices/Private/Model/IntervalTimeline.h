@@ -28,6 +28,7 @@ public:
 	}
 
 	virtual ~TIntervalTimeline() = default;
+	virtual uint64 GetModCount() const override { return ModCount; }
 	virtual uint64 GetEventCount() const override { return Events.Num(); }
 	
 	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, TFunctionRef<void(bool, double, const EventType&)> Callback) const override { check(false); }
@@ -87,6 +88,8 @@ public:
 
 		LastPage->EndEventIndex = Index + 1;
 
+		++ModCount;
+
 		return Index;
 	}
 
@@ -99,6 +102,9 @@ public:
 		EventInternal.EndTime = EndTime;
 		FEventPage* Page = Events.GetItemPage(EventIndex);
 		Page->EndTime = FMath::Max(Page->EndTime, EndTime);
+
+		++ModCount;
+
 		return EventInternal.Event;
 	}
 
@@ -121,6 +127,7 @@ private:
 	TPagedArray<FEventInternal, FEventPage> Events;
 	FEventPage* CurrentPage = nullptr;
 	double LastTime = 0.0;
+	uint64 ModCount = 0;
 };
 
 }

@@ -54,6 +54,7 @@ class FCountersProvider
 public:
 	FCountersProvider(FSlabAllocator& Allocator, FAnalysisSessionLock& SessionLock);
 	virtual ~FCountersProvider();
+	virtual uint64 GetCounterCount() const override { return Counters.Num(); }
 	virtual void EnumerateCounters(TFunctionRef<void(const ICounter&)> Callback) const override;
 
 	FCounterInternal* CreateCounter(const TCHAR* Name, const TCHAR* Description, ECounterDisplayHint DisplayHint);

@@ -25,12 +25,13 @@ class IBookmarkProvider
 {
 public:
 	virtual ~IBookmarkProvider() = default;
+	virtual uint64 GetBookmarkCount() const = 0;
 	virtual void EnumerateBookmarks(double IntervalStart, double IntervalEnd, TFunctionRef<void(const FBookmark&)> Callback) const = 0;
 };
 
 struct FLogCategory
 {
-	FString Name;
+	const TCHAR* Name = nullptr;
 	ELogVerbosity::Type DefaultVerbosity;
 };
 
@@ -38,9 +39,9 @@ struct FLogMessage
 {
 	uint64 Index;
 	double Time;
-	const FLogCategory* Category;
-	const TCHAR* File;
-	const TCHAR* Message;
+	const FLogCategory* Category = nullptr;
+	const TCHAR* File = nullptr;
+	const TCHAR* Message = nullptr;
 	int32 Line;
 	ELogVerbosity::Type Verbosity;
 };
@@ -50,9 +51,10 @@ class ILogProvider
 public:
 	virtual ~ILogProvider() = default;
 	virtual uint64 GetMessageCount() const = 0;
-	virtual void EnumerateMessages(double IntervalStart, double IntervalEnd, TFunctionRef<void(const FLogMessage&)> Callback, bool ResolveFormatString = true) const = 0;
-	virtual void EnumerateMessagesByIndex(uint64 Start, uint64 End, TFunctionRef<void(const FLogMessage&)> Callback, bool ResolveFormatString = true) const = 0;
-	virtual bool ReadMessage(uint64 Index, TFunctionRef<void(const FLogMessage&)> Callback, bool ResolveFormatString = true) const = 0;
+	virtual void EnumerateMessages(double IntervalStart, double IntervalEnd, TFunctionRef<void(const FLogMessage&)> Callback) const = 0;
+	virtual void EnumerateMessagesByIndex(uint64 Start, uint64 End, TFunctionRef<void(const FLogMessage&)> Callback) const = 0;
+	virtual bool ReadMessage(uint64 Index, TFunctionRef<void(const FLogMessage&)> Callback) const = 0;
+	virtual uint64 GetCategoryCount() const = 0;
 	virtual void EnumerateCategories(TFunctionRef<void(const FLogCategory&)> Callback) const = 0;
 };
 
@@ -67,6 +69,7 @@ class IThreadProvider
 {
 public:
 	virtual ~IThreadProvider() = default;
+	virtual uint64 GetModCount() const = 0;
 	virtual void EnumerateThreads(TFunctionRef<void(const FThreadInfo&)> Callback) const = 0;
 };
 
@@ -75,6 +78,7 @@ class ITimeline
 {
 public:
 	virtual ~ITimeline() = default;
+	virtual uint64 GetModCount() const = 0;
 	virtual uint64 GetEventCount() const = 0;
 	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, TFunctionRef<void(bool, double, const EventType&)> Callback) const = 0;
 	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, TFunctionRef<void(double, double, uint32, const EventType&)> Callback) const = 0;
@@ -104,6 +108,7 @@ public:
 	virtual bool GetCpuThreadTimelineIndex(uint32 ThreadId, uint32& OutTimelineIndex) const = 0;
 	virtual bool GetGpuTimelineIndex(uint32& OutTimelineIndex) const = 0;
 	virtual bool ReadTimeline(uint32 Index, TFunctionRef<void(const Timeline&)> Callback) const = 0;
+	virtual uint64 GetTimelineCount() const = 0;
 	virtual void EnumerateTimelines(TFunctionRef<void(const Timeline&)> Callback) const = 0;
 	virtual void ReadTimers(TFunctionRef<void(const FTimingProfilerTimer*, uint64)> Callback) const = 0;
 };
@@ -200,6 +205,7 @@ public:
 	typedef ITimeline<FLoadTimeProfilerCpuEvent> CpuTimeline;
 
 	virtual ~ILoadTimeProfilerProvider() = default;
+	virtual uint64 GetPackageCount() const = 0;
 	virtual void EnumeratePackages(TFunctionRef<void(const FPackageInfo&)> Callback) const = 0; 
 	virtual void ReadMainThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const = 0;
 	virtual void ReadAsyncLoadingThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const = 0;
@@ -228,6 +234,7 @@ class ICountersProvider
 {
 public:
 	virtual ~ICountersProvider() = default;
+	virtual uint64 GetCounterCount() const = 0;
 	virtual void EnumerateCounters(TFunctionRef<void(const ICounter&)> Callback) const = 0;
 };
 

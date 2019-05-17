@@ -93,6 +93,7 @@ public:
 			}
 			SetEvent(DetailLevel, CurrentDepthState.PendingEventIndex, Event);
 		}
+		++ModCount;
 	}
 
 	void AppendEndEvent(double EndTime)
@@ -108,6 +109,12 @@ public:
 
 			UpdateDominatingEvent(DetailLevel, CurrentDepth, EndTime);
 		}
+		++ModCount;
+	}
+
+	virtual uint64 GetModCount() const override
+	{
+		return ModCount;
 	}
 
 	virtual uint64 GetEventCount() const override
@@ -455,6 +462,7 @@ private:
 
 	FSlabAllocator& Allocator;
 	TArray<FDetailLevel> DetailLevels;
+	uint64 ModCount = 0;
 };
 
 }

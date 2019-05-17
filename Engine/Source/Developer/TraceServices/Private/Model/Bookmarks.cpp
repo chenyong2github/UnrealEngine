@@ -7,8 +7,9 @@
 namespace Trace
 {
 
-FBookmarkProvider::FBookmarkProvider(const FAnalysisSessionLock& InSessionLock)
+FBookmarkProvider::FBookmarkProvider(const FAnalysisSessionLock& InSessionLock, FStringStore& InStringStore)
 	: SessionLock(InSessionLock)
+	, StringStore(InStringStore)
 {
 
 }
@@ -28,15 +29,14 @@ FBookmarkSpec& FBookmarkProvider::GetSpec(uint64 BookmarkPoint)
 	}
 }
 
-void FBookmarkProvider::AppendBookmark(double Time, uint64 BookmarkPoint, uint16 FormatArgsSize, const uint8* FormatArgs)
+void FBookmarkProvider::AppendBookmark(double Time, uint64 BookmarkPoint, const uint8* FormatArgs)
 {
 	SessionLock.WriteAccessCheck();
 	FBookmarkSpec& Spec = GetSpec(BookmarkPoint);
 	TSharedRef<FBookmarkInternal> Bookmark = MakeShared<FBookmarkInternal>();
 	Bookmark->Time = Time;
-	TCHAR Buffer[4096];
-	FFormatArgsHelper::Format(Buffer, 4096, *Spec.FormatString, FormatArgs);
-	Bookmark->Text = Buffer;
+	FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, Spec.FormatString, FormatArgs);
+	Bookmark->Text = StringStore.Store(FormatBuffer);
 	Bookmarks.Add(Bookmark);
 }
 
@@ -70,7 +70,7 @@ void FBookmarkProvider::EnumerateBookmarks(double IntervalStart, double Interval
 		const FBookmarkInternal& InternalBookmark = Bookmarks[Index].Get();
 		FBookmark Bookmark;
 		Bookmark.Time = InternalBookmark.Time;
-		Bookmark.Text = *InternalBookmark.Text;
+		Bookmark.Text = InternalBookmark.Text;
 		Callback(Bookmark);
 	}
 }

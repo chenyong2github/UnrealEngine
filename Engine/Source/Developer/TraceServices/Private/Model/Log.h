@@ -10,21 +10,22 @@ namespace Trace
 {
 
 class FAnalysisSessionLock;
+class FStringStore;
 
 struct FLogMessageSpec
 {
-	FLogCategory* Category;
-	FString File;
-	FString FormatString;
+	FLogCategory* Category = nullptr;
+	const TCHAR* File = nullptr;
+	const TCHAR* FormatString = nullptr;
 	int32 Line;
 	ELogVerbosity::Type Verbosity;
 };
 
 struct FLogMessageInternal
 {
-	FLogMessageSpec* Spec;
+	FLogMessageSpec* Spec = nullptr;
 	double Time;
-	uint64 FormatArgsOffset;
+	const TCHAR* Message = nullptr;
 };
 
 class FLogProvider :
@@ -36,29 +37,36 @@ public:
 		ReservedLogCategory_Bookmark = 0
 	};
 	
-	FLogProvider(FSlabAllocator& Allocator, FAnalysisSessionLock& SessionLock);
+	FLogProvider(FSlabAllocator& Allocator, FAnalysisSessionLock& SessionLock, FStringStore& StringStore);
 
 	FLogCategory& GetCategory(uint64 CategoryPointer);
 	FLogMessageSpec& GetMessageSpec(uint64 LogPoint);
-	void AppendMessage(uint64 LogPoint, double Time, uint16 FormatArgsSize, const uint8* FormatArgs);
+	void AppendMessage(uint64 LogPoint, double Time, const uint8* FormatArgs);
 
 	virtual uint64 GetMessageCount() const override;
-	virtual bool ReadMessage(uint64 Index, TFunctionRef<void(const FLogMessage &)> Callback, bool ResolveFormatString) const override;
-	virtual void EnumerateMessages(double IntervalStart, double IntervalEnd, TFunctionRef<void(const FLogMessage&)> Callback, bool ResolveFormatString) const override;
-	virtual void EnumerateMessagesByIndex(uint64 Start, uint64 End, TFunctionRef<void(const FLogMessage&)> Callback, bool ResolveFormatString) const override;
+	virtual bool ReadMessage(uint64 Index, TFunctionRef<void(const FLogMessage &)> Callback) const override;
+	virtual void EnumerateMessages(double IntervalStart, double IntervalEnd, TFunctionRef<void(const FLogMessage&)> Callback) const override;
+	virtual void EnumerateMessagesByIndex(uint64 Start, uint64 End, TFunctionRef<void(const FLogMessage&)> Callback) const override;
+	virtual uint64 GetCategoryCount() const override { return Categories.Num(); }
 	virtual void EnumerateCategories(TFunctionRef<void(const FLogCategory&)> Callback) const override;
 
 private:
-	void ConstructMessage(uint64 Id, TFunctionRef<void(const FLogMessage &)> Callback, bool ResolveFormatString) const;
+	void ConstructMessage(uint64 Id, TFunctionRef<void(const FLogMessage &)> Callback) const;
 	
+	enum
+	{
+		FormatBufferSize = 65536
+	};
+
 	FSlabAllocator& Allocator;
 	FAnalysisSessionLock& SessionLock;
+	FStringStore& StringStore;
 	TMap<uint64, FLogCategory*> CategoryMap;
 	TMap<uint64, FLogMessageSpec*> SpecMap;
 	TPagedArray<FLogCategory> Categories;
 	TPagedArray<FLogMessageSpec> MessageSpecs;
 	TArray<FLogMessageInternal> Messages;
-	TArray<uint8> FormatArgsMemory;
+	TCHAR FormatBuffer[FormatBufferSize];
 };
 
 }

@@ -25,6 +25,7 @@ void FThreadProvider::EnsureThreadExists(uint32 Id)
 		SortedThreads.Add(ThreadInfo);
 		ThreadMap.Add(Id, ThreadInfo);
 		SortThreads();
+		++ModCount;
 	}
 }
 
@@ -41,6 +42,7 @@ void FThreadProvider::AddGameThread(uint32 Id)
 	ThreadInfo->IsGameThread = true;
 	SortedThreads.Add(ThreadInfo);
 	ThreadMap.Add(Id, ThreadInfo);
+	++ModCount;
 }
 
 void FThreadProvider::AddThread(uint32 Id, const FString& Name, EThreadPriority Priority)
@@ -63,6 +65,7 @@ void FThreadProvider::AddThread(uint32 Id, const FString& Name, EThreadPriority 
 	ThreadInfo->PrioritySortOrder = GetPrioritySortOrder(Priority);
 	ThreadInfo->Name = Name;
 	SortThreads();
+	++ModCount;
 }
 
 void FThreadProvider::SetThreadPriority(uint32 Id, EThreadPriority Priority)
@@ -73,6 +76,7 @@ void FThreadProvider::SetThreadPriority(uint32 Id, EThreadPriority Priority)
 	TSharedRef<FThreadInfoInternal> ThreadInfo = ThreadMap[Id];
 	ThreadInfo->PrioritySortOrder = GetPrioritySortOrder(Priority);
 	SortThreads();
+	++ModCount;
 }
 
 void FThreadProvider::SetThreadGroup(uint32 Id, ETraceThreadGroup Group)
@@ -110,6 +114,7 @@ void FThreadProvider::SetThreadGroup(uint32 Id, ETraceThreadGroup Group)
 		break;
 	}
 	SortThreads();
+	++ModCount;
 }
 
 void FThreadProvider::EnumerateThreads(TFunctionRef<void(const FThreadInfo &)> Callback) const

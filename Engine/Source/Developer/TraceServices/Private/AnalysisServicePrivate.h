@@ -7,6 +7,7 @@
 #include "Containers/HashTable.h"
 #include "Misc/ScopeLock.h"
 #include "Model/TimingProfiler.h"
+#include "Common/StringStore.h"
 
 struct FRandomStream;
 
@@ -78,6 +79,8 @@ public:
 	TSharedRef<FCountersProvider> EditCountersProvider() { return CountersProvider; }
 	virtual void ReadCountersProvider(TFunctionRef<void(const ICountersProvider &)> Callback) const override;
 
+	const TCHAR* StoreString(const TCHAR* String) { return StringStore.Store(String); }
+
 	virtual void BeginRead() const override { Lock.BeginRead(); }
 	virtual void EndRead() const override { Lock.EndRead(); }
 
@@ -91,6 +94,7 @@ private:
 	bool IsComplete = false;
 	double DurationSeconds = 0.0;
 	FSlabAllocator Allocator;
+	FStringStore StringStore;
 	TPagedArray<FClassInfo> ClassInfos;
 	TSharedRef<FBookmarkProvider> BookmarkProvider;
 	TSharedRef<FLogProvider> LogProvider;

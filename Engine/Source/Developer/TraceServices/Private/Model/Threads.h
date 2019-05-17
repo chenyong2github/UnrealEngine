@@ -19,7 +19,7 @@ public:
 	void AddThread(uint32 Id, const FString& Name, EThreadPriority Priority);
 	void SetThreadPriority(uint32 Id, EThreadPriority Priority);
 	void SetThreadGroup(uint32 Id, ETraceThreadGroup Group);
-
+	virtual uint64 GetModCount() const override { return ModCount; }
 	virtual void EnumerateThreads(TFunctionRef<void(const FThreadInfo&)> Callback) const override;
 
 private:
@@ -41,6 +41,7 @@ private:
 	static uint32 GetGroupSortOrder(ETraceThreadGroup ThreadGroup);
 
 	const FAnalysisSessionLock& SessionLock;
+	uint64 ModCount = 0;
 	TMap<uint32, TSharedRef<FThreadInfoInternal>> ThreadMap;
 	TArray<TSharedRef<FThreadInfoInternal>> SortedThreads;
 };

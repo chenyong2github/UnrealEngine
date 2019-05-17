@@ -9,34 +9,43 @@ namespace Trace
 {
 
 class FAnalysisSessionLock;
+class FStringStore;
 
 struct FBookmarkSpec
 {
-	FString File;
-	FString FormatString;
+	const TCHAR* File;
+	const TCHAR* FormatString;
 	int32 Line;
 };
 
 struct FBookmarkInternal
 {
 	double Time;
-	FString Text;
+	const TCHAR* Text;
 };
 
 class FBookmarkProvider
 	: public IBookmarkProvider
 {
 public:
-	FBookmarkProvider(const FAnalysisSessionLock& SessionLock);
+	FBookmarkProvider(const FAnalysisSessionLock& SessionLock, FStringStore& StringStore);
 
 	FBookmarkSpec& GetSpec(uint64 BookmarkPoint);
-	void AppendBookmark(double Time, uint64 BookmarkPoint, uint16 FormatArgsSize, const uint8* FormatArgs);
+	virtual uint64 GetBookmarkCount() const override { return Bookmarks.Num(); }
+	void AppendBookmark(double Time, uint64 BookmarkPoint, const uint8* FormatArgs);
 	virtual void EnumerateBookmarks(double IntervalStart, double IntervalEnd, TFunctionRef<void(const FBookmark&)> Callback) const override;
 
 private:
+	enum
+	{
+		FormatBufferSize = 65536
+	};
+
 	const FAnalysisSessionLock& SessionLock;
+	FStringStore& StringStore;
 	TMap<uint64, TSharedPtr<FBookmarkSpec>> SpecMap;
 	TArray<TSharedRef<FBookmarkInternal>> Bookmarks;
+	TCHAR FormatBuffer[FormatBufferSize];
 };
 
 }

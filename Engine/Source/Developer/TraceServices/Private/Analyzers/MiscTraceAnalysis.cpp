@@ -134,10 +134,9 @@ void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		uint64 BookmarkPoint = EventData.GetValue("BookmarkPoint").As<uint64>();
 		Trace::FBookmarkSpec& Spec = BookmarkProvider->GetSpec(BookmarkPoint);
 		Spec.Line = EventData.GetValue("Line").As<int32>();
-		uint16 FileNameLength = EventData.GetValue("FileNameLength").As<uint16>();
-		Spec.File = FString(FileNameLength, reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment()));
-		uint16 FormatStringLength = EventData.GetValue("FormatStringLength").As<uint16>();
-		Spec.FormatString = FString(FormatStringLength, reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + FileNameLength));
+		const ANSICHAR* File = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
+		Spec.File = Session->StoreString(ANSI_TO_TCHAR(File));
+		Spec.FormatString = Session->StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + strlen(File) + 1));
 
 		Trace::FLogMessageSpec& LogMessageSpec = LogProvider->GetMessageSpec(BookmarkPoint);
 		LogMessageSpec.Category = &LogProvider->GetCategory(Trace::FLogProvider::ReservedLogCategory_Bookmark);
@@ -151,11 +150,9 @@ void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	{
 		uint64 BookmarkPoint = EventData.GetValue("BookmarkPoint").As<uint64>();
 		uint64 Cycle = EventData.GetValue("Cycle").As<uint64>();
-		uint16 FormatArgsSize = EventData.GetAttachmentSize();
 		double Timestamp = Context.SessionContext.TimestampFromCycle(Cycle);
-		BookmarkProvider->AppendBookmark(Timestamp, BookmarkPoint, FormatArgsSize, EventData.GetAttachment());
-
-		LogProvider->AppendMessage(BookmarkPoint, Timestamp, FormatArgsSize, EventData.GetAttachment());
+		BookmarkProvider->AppendBookmark(Timestamp, BookmarkPoint, EventData.GetAttachment());
+		LogProvider->AppendMessage(BookmarkPoint, Timestamp, EventData.GetAttachment());
 		break;
 	}
 	case RouteId_BeginFrame:

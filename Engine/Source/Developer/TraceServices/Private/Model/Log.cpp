@@ -7,9 +7,10 @@
 namespace Trace
 {
 
-FLogProvider::FLogProvider(FSlabAllocator& InAllocator, FAnalysisSessionLock& InSessionLock)
+FLogProvider::FLogProvider(FSlabAllocator& InAllocator, FAnalysisSessionLock& InSessionLock, FStringStore& InStringStore)
 	: Allocator(InAllocator)
 	, SessionLock(InSessionLock)
+	, StringStore(InStringStore)
 	, Categories(Allocator, 128)
 	, MessageSpecs(Allocator, 1024)
 {
@@ -46,16 +47,15 @@ FLogMessageSpec& FLogProvider::GetMessageSpec(uint64 LogPoint)
 	}
 }
 
-void FLogProvider::AppendMessage(uint64 LogPoint, double Time, uint16 FormatArgsSize, const uint8* FormatArgs)
+void FLogProvider::AppendMessage(uint64 LogPoint, double Time, const uint8* FormatArgs)
 {
 	SessionLock.WriteAccessCheck();
 	check(SpecMap.Contains(LogPoint));
 	FLogMessageInternal& InternalMessage = Messages.AddDefaulted_GetRef();
 	InternalMessage.Time = Time;
 	InternalMessage.Spec = SpecMap[LogPoint];
-	InternalMessage.FormatArgsOffset = FormatArgsMemory.Num();
-	FormatArgsMemory.AddUninitialized(FormatArgsSize);
-	memcpy(FormatArgsMemory.GetData() + InternalMessage.FormatArgsOffset, FormatArgs, FormatArgsSize);
+	FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, InternalMessage.Spec->FormatString, FormatArgs);
+	InternalMessage.Message = StringStore.Store(FormatBuffer);
 }
 
 uint64 FLogProvider::GetMessageCount() const
@@ -64,49 +64,36 @@ uint64 FLogProvider::GetMessageCount() const
 	return Messages.Num();
 }
 
-bool FLogProvider::ReadMessage(uint64 Index, TFunctionRef<void(const FLogMessage &)> Callback, bool ResolveFormatString) const
+bool FLogProvider::ReadMessage(uint64 Index, TFunctionRef<void(const FLogMessage &)> Callback) const
 {
 	SessionLock.ReadAccessCheck();
 	if (Index >= Messages.Num())
 	{
 		return false;
 	}
-	ConstructMessage(Index, Callback, ResolveFormatString);
+	ConstructMessage(Index, Callback);
 	return true;
 }
 
-void FLogProvider::EnumerateMessages(double IntervalStart, double IntervalEnd, TFunctionRef<void(const FLogMessage&)> Callback, bool ResolveFormatString) const
+void FLogProvider::EnumerateMessages(double IntervalStart, double IntervalEnd, TFunctionRef<void(const FLogMessage&)> Callback) const
 {
 	SessionLock.ReadAccessCheck();
 	if (IntervalStart > IntervalEnd)
 	{
 		return;
 	}
-	uint64 FirstMessageIndex = Algo::LowerBoundBy(Messages, IntervalStart, [](const FLogMessageInternal& M)
-	{
-		return M.Time;
-	});
 	uint64 MessageCount = Messages.Num();
-	if (FirstMessageIndex >= MessageCount)
+	for (uint64 Index = 0; Index < MessageCount; ++Index)
 	{
-		return;
-	}
-	uint64 LastMessageIndex = Algo::UpperBoundBy(Messages, IntervalEnd, [](const FLogMessageInternal& M)
-	{
-		return M.Time;
-	});
-	if (LastMessageIndex == 0)
-	{
-		return;
-	}
-	--LastMessageIndex;
-	for (uint64 Index = FirstMessageIndex; Index <= LastMessageIndex; ++Index)
-	{
-		ConstructMessage(Index, Callback, ResolveFormatString);
+		double Time = Messages[Index].Time;
+		if (IntervalStart <= Time && Time <= IntervalEnd)
+		{
+			ConstructMessage(Index, Callback);
+		}
 	}
 }
 
-void FLogProvider::EnumerateMessagesByIndex(uint64 Start, uint64 End, TFunctionRef<void(const FLogMessage &)> Callback, bool ResolveFormatString) const
+void FLogProvider::EnumerateMessagesByIndex(uint64 Start, uint64 End, TFunctionRef<void(const FLogMessage &)> Callback) const
 {
 	SessionLock.ReadAccessCheck();
 	uint64 Count = Messages.Num();
@@ -124,30 +111,21 @@ void FLogProvider::EnumerateMessagesByIndex(uint64 Start, uint64 End, TFunctionR
 	}
 	for (uint64 Index = Start; Index < End; ++Index)
 	{
-		ConstructMessage(Index, Callback, ResolveFormatString);
+		ConstructMessage(Index, Callback);
 	}
 }
 
-void FLogProvider::ConstructMessage(uint64 Index, TFunctionRef<void(const FLogMessage &)> Callback, bool ResolveFormatString) const
+void FLogProvider::ConstructMessage(uint64 Index, TFunctionRef<void(const FLogMessage &)> Callback) const
 {
 	const FLogMessageInternal& InternalMessage = Messages[Index];
 	FLogMessage Message;
 	Message.Index = Index;
 	Message.Time = InternalMessage.Time;
 	Message.Category = InternalMessage.Spec->Category;
-	Message.File = *InternalMessage.Spec->File;
+	Message.File = InternalMessage.Spec->File;
 	Message.Line = InternalMessage.Spec->Line;
 	Message.Verbosity = InternalMessage.Spec->Verbosity;
-	if (ResolveFormatString)
-	{
-		TCHAR Buffer[65535];
-		FFormatArgsHelper::Format(Buffer, 65534, *InternalMessage.Spec->FormatString, FormatArgsMemory.GetData() + InternalMessage.FormatArgsOffset);
-		Message.Message = Buffer;
-	}
-	else
-	{
-		Message.Message = *InternalMessage.Spec->FormatString;
-	}
+	Message.Message = InternalMessage.Message;
 	Callback(Message);
 }
 

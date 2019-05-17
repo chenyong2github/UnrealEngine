@@ -19,6 +19,7 @@ public:
 	typedef TMonotonicTimeline<FLoadTimeProfilerCpuEvent> CpuTimelineInternal;
 
 	FLoadTimeProfilerProvider(FSlabAllocator& Allocator, FAnalysisSessionLock& InSessionLock);
+	virtual uint64 GetPackageCount() const override { return Packages.Num(); }
 	virtual void EnumeratePackages(TFunctionRef<void(const FPackageInfo&)> Callback) const override;
 	virtual void ReadMainThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const override;
 	virtual void ReadAsyncLoadingThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const override;
