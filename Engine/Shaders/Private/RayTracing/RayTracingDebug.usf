@@ -106,7 +106,7 @@ void RayTracingDebugMainRGS()
 		}
 	}
 
-	Output[PixelCoord] = Result;
+	Output[PixelCoord] = Result * View.PreExposure;
 }
 
 [shader("miss")]
