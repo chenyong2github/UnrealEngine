@@ -809,6 +809,16 @@ bool FAppleARKitSystem::OnIsTrackingTypeSupported(EARSessionType SessionType) co
 			}
 			return false;
 		}
+#if SUPPORTS_ARKIT_2_0
+		case EARSessionType::Image:
+		{
+			return ARImageTrackingConfiguration.isSupported == TRUE;
+		}
+		case EARSessionType::ObjectScanning:
+		{
+			return ARObjectScanningConfiguration.isSupported == TRUE;
+		}
+#endif
 	}
 #endif
 	return false;
