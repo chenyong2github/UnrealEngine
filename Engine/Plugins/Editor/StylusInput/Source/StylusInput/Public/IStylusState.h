@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Math/Vector2D.h"
+
 /**
  * The types of stylus inputs that can be potentially supported by a stylus.
  */
