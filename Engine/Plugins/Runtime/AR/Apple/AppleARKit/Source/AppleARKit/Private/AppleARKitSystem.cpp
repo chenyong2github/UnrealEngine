@@ -1269,6 +1269,14 @@ static EScreenOrientation::Type GetAppOrientation()
 #endif
 }
 
+void FAppleARKitSystem::ClearTrackedGeometries()
+{
+	for (auto GeoIt=TrackedGeometries.CreateIterator(); GeoIt; ++GeoIt)
+	{
+		SessionDidRemoveAnchors_Internal(GeoIt.Key());
+	}
+}
+
 PRAGMA_DISABLE_OPTIMIZATION
 bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 {
@@ -1338,6 +1346,8 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 			if (SessionConfig->ShouldResetTrackedObjects())
 			{
 				options |= ARSessionRunOptionRemoveExistingAnchors;
+				// The user requested us to remove existing anchors so remove ours now
+				ClearTrackedGeometries();
 			}
 
 			[Session pause];
@@ -1978,23 +1988,28 @@ void FAppleARKitSystem::SessionDidRemoveAnchors_Internal( FGuid AnchorGuid )
 
 	// Notify pin that it is being orphaned
 	{
-		UARTrackedGeometry* TrackedGeometryBeingRemoved = TrackedGeometries.FindChecked(AnchorGuid);
-		TrackedGeometryBeingRemoved->UpdateTrackingState(EARTrackingState::StoppedTracking);
-		// Remove the occlusion mesh if present
-		UMRMeshComponent* MRMesh = TrackedGeometryBeingRemoved->GetUnderlyingMesh();
-		if (MRMesh != nullptr)
+		UARTrackedGeometry** FoundGeo = TrackedGeometries.Find(AnchorGuid);
+		// This no longer performs a FindChecked() because the act of discard on restart can cause this to be missing
+		if (FoundGeo != nullptr)
 		{
-			MRMesh->UnregisterComponent();
-			TrackedGeometryBeingRemoved->SetUnderlyingMesh(nullptr);
-		}
+			UARTrackedGeometry* TrackedGeometryBeingRemoved = *FoundGeo;
+			TrackedGeometryBeingRemoved->UpdateTrackingState(EARTrackingState::StoppedTracking);
+			// Remove the occlusion mesh if present
+			UMRMeshComponent* MRMesh = TrackedGeometryBeingRemoved->GetUnderlyingMesh();
+			if (MRMesh != nullptr)
+			{
+				MRMesh->UnregisterComponent();
+				TrackedGeometryBeingRemoved->SetUnderlyingMesh(nullptr);
+			}
 
-		TArray<UARPin*> ARPinsBeingOrphaned = ARKitUtil::PinsFromGeometry(TrackedGeometryBeingRemoved, Pins);
-		for(UARPin* PinBeingOrphaned : ARPinsBeingOrphaned)
-		{
-			PinBeingOrphaned->OnTrackingStateChanged(EARTrackingState::StoppedTracking);
+			TArray<UARPin*> ARPinsBeingOrphaned = ARKitUtil::PinsFromGeometry(TrackedGeometryBeingRemoved, Pins);
+			for(UARPin* PinBeingOrphaned : ARPinsBeingOrphaned)
+			{
+				PinBeingOrphaned->OnTrackingStateChanged(EARTrackingState::StoppedTracking);
+			}
+			// Trigger the delegate so anyone listening can take action
+			TriggerOnTrackableRemovedDelegates(TrackedGeometryBeingRemoved);
 		}
-		// Trigger the delegate so anyone listening can take action
-		TriggerOnTrackableRemovedDelegates(TrackedGeometryBeingRemoved);
 	}
 	
 	TrackedGeometries.Remove(AnchorGuid);

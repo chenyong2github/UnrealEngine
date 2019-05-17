@@ -116,7 +116,8 @@ private:
 	void SessionDidRemoveAnchors_Internal( FGuid AnchorGuid );
 #endif
 	void SessionDidUpdateFrame_Internal( TSharedRef< FAppleARKitFrame, ESPMode::ThreadSafe > Frame );
-
+	/** Removes all tracked geometries, marking them as not tracked and sending the delegate event */
+	void ClearTrackedGeometries();
 	
 public:
 	/**
