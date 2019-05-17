@@ -14,7 +14,6 @@
 
 #define LOCTEXT_NAMESPACE "FStylusInputModule"
 
-DEFINE_LOG_CATEGORY_STATIC(LogStylusInput, Log, All);
 
 static const FName StylusInputDebugTabName = FName("StylusInputDebug");
 

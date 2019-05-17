@@ -219,3 +219,6 @@ ECheckBoxState SStylusInputDebugWidget::IsInverted() const
 {
 	return State.IsStylusInverted() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
+
+
+#undef LOCTEXT_NAMESPACE

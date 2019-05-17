@@ -4,8 +4,6 @@
 #include "WindowsRealTimeStylusPlugin.h"
 #include "Interfaces/IMainFrameModule.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogStylusInput, Log, All);
-
 class FWindowsStylusInputInterfaceImpl
 {
 public:

@@ -4,6 +4,7 @@
 #include "EditorUtilityCommon.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Engine/Blueprint.h"
+#include "ScopedTransaction.h"
 
 UEditorUtilitySubsystem::UEditorUtilitySubsystem() :
 	UEditorSubsystem()
@@ -73,22 +74,15 @@ bool UEditorUtilitySubsystem::TryRun(UObject* Asset)
 	}
 
 	static const FName RunFunctionName("Run");
-	if (UFunction* RunFunction = ObjectClass->FindFunctionByName(RunFunctionName))
+	UFunction* RunFunction = ObjectClass->FindFunctionByName(RunFunctionName);
+	if (RunFunction)
 	{
-		if (RunFunction->NumParms == 0)
-		{
-			UObject* Instance = NewObject<UObject>(this, ObjectClass);
-			ObjectInstances.Add(Asset, Instance);
+		UObject* Instance = NewObject<UObject>(this, ObjectClass);
+		ObjectInstances.Add(Asset, Instance);
 
-			FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "BlutilityAction", "Blutility Action") );
-			FEditorScriptExecutionGuard ScriptGuard;
-			Instance->ProcessEvent(RunFunction, nullptr);
-			return true;
-		}
-		else
-		{
-			UE_LOG(LogEditorUtilityBlueprint, Warning, TEXT("'Run' Function cannot have parameters or return values: %s"), *Asset->GetPathName());
-		}
+		FEditorScriptExecutionGuard ScriptGuard;
+		Instance->ProcessEvent(RunFunction, nullptr);
+		return true;
 	}
 	else
 	{

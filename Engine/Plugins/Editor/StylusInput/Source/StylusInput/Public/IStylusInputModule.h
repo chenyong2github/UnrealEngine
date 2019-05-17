@@ -13,6 +13,8 @@
 
 #include "IStylusInputModule.generated.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogStylusInput, Log, All);
+
 /**
  * Module to handle Wacom-style tablet input using styluses.
  */
