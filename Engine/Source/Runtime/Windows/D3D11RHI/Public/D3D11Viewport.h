@@ -9,7 +9,6 @@
 #include "CoreMinimal.h"
 #include "RenderResource.h"
 #include "RenderUtils.h"
-#include "DXGI1_5.h"
 
 /** A D3D event query resource. */
 class FD3D11EventQuery : public FRenderResource
@@ -76,7 +75,6 @@ public:
 	// Accessors.
 	FIntPoint GetSizeXY() const { return FIntPoint(SizeX, SizeY); }
 	FD3D11Texture2D* GetBackBuffer() const { return BackBuffer; }
-	EColorSpace GetPixelColorSpace() const { return PixelColorSpace; }
 
 	void WaitForFrameEventCompletion()
 	{
@@ -123,12 +121,10 @@ private:
 	uint32 MaximumFrameLatency;
 	uint32 SizeX;
 	uint32 SizeY;
-	uint32 BackBufferCount;
 	bool bIsFullscreen;
 	EPixelFormat PixelFormat;
-	EColorSpace PixelColorSpace;
 	bool bIsValid;
-	TRefCountPtr<IDXGISwapChain1> SwapChain;
+	TRefCountPtr<IDXGISwapChain> SwapChain;
 	TRefCountPtr<FD3D11Texture2D> BackBuffer;
 
 	// Support for selecting non-default output for display in fullscreen exclusive
