@@ -61,6 +61,7 @@ public class PropertyEditor : ModuleRules
                 "RHI",
 				"ConfigEditor",
                 "SceneOutliner",
+				"DesktopPlatform",
             }
         );
 
