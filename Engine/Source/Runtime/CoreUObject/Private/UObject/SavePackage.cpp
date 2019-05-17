@@ -4571,6 +4571,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				SlowTask.EnterProgressFrame();
 
 				// Save names.
+				if (!bTextFormat)
 				{
 					FStructuredArchive::FStream NameStream = StructuredArchiveRoot.EnterStream(FIELD_NAME_TEXT("Names"));
 #if WITH_EDITOR
