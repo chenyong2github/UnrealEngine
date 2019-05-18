@@ -1144,3 +1144,37 @@ private:
 	FCriticalSection CS;
 	static __declspec(thread) void* ThisThreadObject;
 };
+
+#if PLATFORM_XBOXONE
+#include "XboxOneAllowPlatformTypes.h"
+#include <xg.h>
+#include "XboxOneHidePlatformTypes.h"
+
+FORCEINLINE XG_TILE_MODE GetXgOptimalTileMode(const D3D12_RESOURCE_DESC& TextureDesc, XG_BIND_FLAG BindFlags, XG_RESOURCE_MISC_FLAG MiscFlags)
+{
+	XG_RESOURCE_DIMENSION xgDimension = (XG_RESOURCE_DIMENSION)TextureDesc.Dimension;
+	check(xgDimension == XG_RESOURCE_DIMENSION_TEXTURE2D || xgDimension == XG_RESOURCE_DIMENSION_TEXTURE3D);  
+	XG_TILE_MODE iTileMode = XG_TILE_MODE_INVALID;
+	if ((BindFlags & XG_BIND_DEPTH_STENCIL) == XG_BIND_DEPTH_STENCIL)
+	{
+		XG_TILE_MODE iTileModeStencil = XG_TILE_MODE_INVALID;
+		const bool bCompressed = (MiscFlags & XG_RESOURCE_MISC_NO_DEPTH_COMPRESSION) != 0;
+
+#if _XDK_EDITION >= 170600
+		const bool TileResource = false;
+		const bool TextureCompatible = false;
+		XGComputeOptimalDepthStencilTileModes((XG_FORMAT)TextureDesc.Format, TextureDesc.Width, TextureDesc.Height, TextureDesc.DepthOrArraySize, TextureDesc.SampleDesc.Count, bCompressed, TileResource, TextureCompatible, &iTileMode, &iTileModeStencil);
+#else
+		XGComputeOptimalDepthStencilTileModes((XG_FORMAT)TextureDesc.Format, TextureDesc.Width, TextureDesc.Height, TextureDesc.DepthOrArraySize, TextureDesc.SampleDesc.Count, bCompressed, &iTileMode, &iTileModeStencil);
+#endif
+	}
+	else
+	{
+		iTileMode = XGComputeOptimalTileMode(xgDimension, (XG_FORMAT)TextureDesc.Format, TextureDesc.Width, TextureDesc.Height, TextureDesc.Dimension, TextureDesc.SampleDesc.Count, BindFlags, MiscFlags);
+
+	}
+	check(iTileMode != XG_TILE_MODE_INVALID);
+	return iTileMode;
+}
+
+#endif
