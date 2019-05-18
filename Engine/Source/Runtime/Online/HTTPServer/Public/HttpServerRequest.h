@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "HttpPath.h"
+#include "HttpServerHttpVersion.h"
 
 enum class EHttpServerRequestVerbs : uint16
 {
@@ -28,6 +29,9 @@ public:
 
 	/** The HTTP-compliant verb  */
 	EHttpServerRequestVerbs Verb;
+
+	/** The request HTTP protocol version */
+	HttpVersion::EHttpServerHttpVersion HttpVersion;
 
 	/** The HTTP headers */
 	TMap<FString, TArray<FString>> Headers;

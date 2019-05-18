@@ -2,6 +2,8 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "HttpConnectionContext.h"
+#include "HttpServerHttpVersion.h"
+
 
 struct FHttpServerResponse;
 class FSocket;
@@ -63,11 +65,12 @@ private:
 	/**
 	 * Creates a UTF8-serialized HTTP header in byte representation
 	 *
-	 * @param  The HTTP response code
-	 * @param  HeadersMap The associative header key to values map
-	 * @return The UTF8-encoded byte representation
+	 * @param  HttpVersion  The HTTP version
+	 * @param  ResponseCode The HTTP response code
+	 * @param  HeadersMap   The associative header key to values map
+	 * @return              The UTF8-encoded byte representation
 	 */
-	static TArray<uint8> SerializeHeadersUtf8(int32 ResponseCode, const TMap<FString, TArray<FString>>& HeadersMap);
+	static TArray<uint8> SerializeHeadersUtf8(HttpVersion::EHttpServerHttpVersion HttpVersion, EHttpServerResponseCodes ResponseCode, const TMap<FString, TArray<FString>>& HeadersMap);
 
 private:
 
