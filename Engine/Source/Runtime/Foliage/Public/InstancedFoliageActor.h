@@ -203,6 +203,7 @@ private:
 #endif//WITH_EDITORONLY_DATA
 	
 #if WITH_EDITOR
+	void ClearSelection();
 	void OnLevelActorMoved(AActor* InActor);
 	void OnLevelActorDeleted(AActor* InActor);
 	void OnPostApplyLevelOffset(ULevel* InLevel, UWorld* InWorld, const FVector& InOffset, bool bWorldShift);
