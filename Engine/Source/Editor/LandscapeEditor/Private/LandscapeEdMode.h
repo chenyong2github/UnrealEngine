@@ -257,6 +257,8 @@ public:
 
 	ULandscapeEditorObject* UISettings;
 
+	FText ErrorReasonOnMouseUp;
+
 	FLandscapeToolMode* CurrentToolMode;
 	FLandscapeTool* CurrentTool;
 	FLandscapeBrush* CurrentBrush;
