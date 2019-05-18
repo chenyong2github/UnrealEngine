@@ -485,6 +485,8 @@ FGuid FEdModeLandscape::GetLandscapeSelectedLayer() const
 /** FEdMode: Called when the mode is entered */
 void FEdModeLandscape::Enter()
 {
+	ErrorReasonOnMouseUp = FText::GetEmpty();
+
 	// Call parent implementation
 	FEdMode::Enter();
 
@@ -506,7 +508,7 @@ void FEdModeLandscape::Enter()
 	OnLevelActorAddedDelegateHandle = GEngine->OnLevelActorAdded().AddSP(this, &FEdModeLandscape::OnLevelActorAdded);
 	OnLandscapeLayerSystemFlagChangedDelegateHandle = GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().AddLambda([this](FName PropertyName)
 	{ 
-		if (PropertyName == TEXT("bLandscapeLayerSystem"))
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UEditorExperimentalSettings, bLandscapeLayerSystem))
 		{
 			UpdateLandscapeList();
 			RefreshDetailPanel();
@@ -1824,6 +1826,14 @@ bool FEdModeLandscape::InputKey(FEditorViewportClient* ViewportClient, FViewport
 		return false;
 	}
 
+	if (!ErrorReasonOnMouseUp.IsEmpty() && Key == EKeys::LeftMouseButton && Event == IE_Released)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorReasonOnMouseUp);
+		ErrorReasonOnMouseUp = FText::GetEmpty();
+		return false;
+	}
+
+
 	if(IsAdjustingBrush(Viewport))
 	{
 		ToolActiveViewport = Viewport;
@@ -1932,10 +1942,8 @@ bool FEdModeLandscape::InputKey(FEditorViewportClient* ViewportClient, FViewport
 					FVector HitLocation;
 					if (LandscapeMouseTrace(ViewportClient, HitLocation))
 					{
-						FText Reason;
-						if (!CanEditLayer(&Reason))
+						if (!CanEditLayer(&ErrorReasonOnMouseUp))
 						{
-							FMessageDialog::Open(EAppMsgType::Ok, Reason);
 							return true;
 						}
 
