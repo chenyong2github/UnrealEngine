@@ -138,6 +138,11 @@ struct FFrame3
 		return Rotation * FVector3<RealType>(X,Y,Z) + Origin;
 	}
 
+	/** @return point at distances along frame axes */
+	FVector3<RealType> PointAt(const FVector3<RealType>& Point) const
+	{
+		return Rotation * FVector3<RealType>(Point.X, Point.Y, Point.Z) + Origin;
+	}
 	
 	/** @return input Point transformed into local coordinate system of Frame */
 	FVector3<RealType> ToFramePoint(const FVector3<RealType>& Point) const

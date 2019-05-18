@@ -236,6 +236,9 @@ public:
 	/** Initialize mesh from the output of a MeshShapeGenerator (assumes Generate() was already called) */
 	FDynamicMesh3(const FMeshShapeGenerator* Generator);
 
+	/** copy assignment operator */
+	const FDynamicMesh3& operator=(const FDynamicMesh3& CopyMesh);
+
 	//
 	// Copy functions to construct a mesh from an input mesh
 	//

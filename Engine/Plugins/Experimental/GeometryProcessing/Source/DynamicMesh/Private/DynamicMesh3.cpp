@@ -91,6 +91,13 @@ FDynamicMesh3::FDynamicMesh3(const FDynamicMesh3& CopyMesh, bool bCompact, bool 
 
 
 
+const FDynamicMesh3& FDynamicMesh3::operator=(const FDynamicMesh3& CopyMesh)
+{
+	Copy(CopyMesh);
+	return *this;
+}
+
+
 FDynamicMesh3::FDynamicMesh3(const FMeshShapeGenerator* Generator)
 {
 	Copy(Generator);
