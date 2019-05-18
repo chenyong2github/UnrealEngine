@@ -781,6 +781,17 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithSelectedTemplate(TSharedRef<F
 		CurrentParent->SetFlags(RF_Transactional);
 		CurrentParent->Modify();
 		CurrentParent->ReplaceChild(ThisWidget, NewReplacementWidget);
+
+		FString ReplaceName = ThisWidget->GetName();
+		// Rename the removed widget to the transient package so that it doesn't conflict with future widgets sharing the same name.
+		ThisWidget->Rename(nullptr, nullptr);
+
+		// Rename the new Widget to maintain the current name if it's not a generic name
+		if (!IsGenericName(ReplaceName, ThisWidget->GetClass()))
+		{
+			ReplaceName = FindNextValidName(BP->WidgetTree, ReplaceName);
+			NewReplacementWidget->Rename(*ReplaceName, BP->WidgetTree);
+		}
 	}
 	else if (ThisWidget == BP->WidgetTree->RootWidget)
 	{
@@ -936,8 +947,17 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgets(TSharedRef<FWidgetBlueprintEdit
 				}
 			}
 
+			FString ReplaceName = Item.GetTemplate()->GetName();
 			// Rename the removed widget to the transient package so that it doesn't conflict with future widgets sharing the same name.
 			Item.GetTemplate()->Rename(nullptr, nullptr);
+
+			// Rename the new Widget to maintain the current name if it's not a generic name
+			if (!IsGenericName(ReplaceName, Item.GetTemplate()->GetClass()))
+			{
+				ReplaceName = FindNextValidName(BP->WidgetTree, ReplaceName);
+				NewReplacementWidget->Rename(*ReplaceName, BP->WidgetTree);
+			}
+
 	}
 
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
@@ -1527,6 +1547,12 @@ FString FWidgetBlueprintEditorUtils::FindNextValidName(UWidgetTree* WidgetTree, 
 		return NewName;
 	}
 	return Name;
+}
+
+bool FWidgetBlueprintEditorUtils::IsGenericName(const FString& Name, const UClass* WidgetClass)
+{
+	FString NewName = RemoveSuffixFromName(Name);
+	return (NewName == WidgetClass->GetName());
 }
 
 #undef LOCTEXT_NAMESPACE
