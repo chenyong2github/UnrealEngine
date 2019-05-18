@@ -17,8 +17,16 @@ void FHttpConnectionContext::AddElapsedIdleTime(float DeltaTime)
 	ElapsedIdleTime += DeltaTime;
 }
 
-void FHttpConnectionContext::AddError(const FString& ErrorCode)
+void FHttpConnectionContext::AddError(const FString& ErrorCodeStr, EHttpServerResponseCodes HttpErrorCode)
 {
-	ErrorBuilder.Append(ErrorCode);
-	ErrorBuilder.AppendChar(TCHAR(' '));
+	if (!ErrorBuilder.IsEmpty())
+	{
+		ErrorBuilder.AppendChar(TCHAR(' '));
+	}
+	ErrorBuilder.Append(ErrorCodeStr);
+
+	if (EHttpServerResponseCodes::Unknown != HttpErrorCode)
+	{
+		ErrorCode = HttpErrorCode;
+	}
 }

@@ -41,24 +41,17 @@ TUniquePtr<FHttpServerResponse> FHttpServerResponse::Create(const TArrayView<uin
 	return Response;
 }
 
-TUniquePtr<FHttpServerResponse> FHttpServerResponse::Create(int32 HttpResponseCode, const FString& ErrorCode)
+TUniquePtr<FHttpServerResponse> FHttpServerResponse::Ok()
+{
+	TUniquePtr<FHttpServerResponse> Response = MakeUnique<FHttpServerResponse>();
+	Response->Code = EHttpServerResponseCodes::NoContent;
+	return Response;
+}
+
+TUniquePtr<FHttpServerResponse> FHttpServerResponse::Error(EHttpServerResponseCodes ResponseCode, const FString& ErrorCode)
 {
 	const FString& ResponseBody = FString::Printf(TEXT("{\"errorCode\": \"%s\"}"), *ErrorCode);
 	auto Response = Create(ResponseBody, TEXT("application/json"));
-	Response->Code = HttpResponseCode;
-	return Response;
-}
-
-TUniquePtr<FHttpServerResponse> FHttpServerResponse::Ok(const FString& Message, FString ContentType)
-{
-	auto Response = Create(Message, MoveTemp(ContentType));
-	Response->Code = EHttpServerResponseCodes::Ok;
-	return Response;
-}
-
-TUniquePtr<FHttpServerResponse> FHttpServerResponse::Error(const FString& Message, FString ContentType)
-{
-	auto Response = Create(Message, MoveTemp(ContentType));
-	Response->Code = EHttpServerResponseCodes::ServerError;
+	Response->Code = ResponseCode;
 	return Response;
 }
