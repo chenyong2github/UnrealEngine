@@ -2778,6 +2778,8 @@ void FNetGUIDCache::AsyncPackageCallback(const FName& PackageName, UPackage * Pa
 
 			if (UObject* Object = CacheObject->Object.Get())
 			{
+				UpdateQueuedBunchObjectReference(PendingLoadRequest->NetGUID, Object);
+
 				if (UWorld* World = Object->GetWorld())
 				{
 					if (AGameStateBase* GS = World->GetGameState())
@@ -3078,6 +3080,9 @@ UObject* FNetGUIDCache::GetObjectFromNetGUID( const FNetworkGUID& NetGUID, const
 		NetGUIDLookup.Add( Object, NetGUID );
 	}
 
+	// Update our QueuedObjectReference if one exists.
+	UpdateQueuedBunchObjectReference(NetGUID, Object);
+
 	return Object;
 }
 
@@ -3141,106 +3146,56 @@ bool FNetGUIDCache::IsGUIDRegistered( const FNetworkGUID& NetGUID ) const
 	return ObjectLookup.Contains( NetGUID );
 }
 
-bool FNetGUIDCache::IsGUIDLoaded( const FNetworkGUID& NetGUID ) const
+FNetGuidCacheObject const * const FNetGUIDCache::GetCacheObject(const FNetworkGUID& NetGUID) const
 {
-	if ( !NetGUID.IsValid() )
-	{
-		return false;
-	}
-
-	if ( NetGUID.IsDefault() )
-	{
-		return false;
-	}
-
-	const FNetGuidCacheObject* CacheObjectPtr = ObjectLookup.Find( NetGUID );
-
-	if ( CacheObjectPtr == NULL )
-	{
-		return false;
-	}
-
-	return CacheObjectPtr->Object != NULL;
+	return (!NetGUID.IsValid() || NetGUID.IsDefault()) ? nullptr : ObjectLookup.Find(NetGUID);
 }
 
-bool FNetGUIDCache::IsGUIDBroken( const FNetworkGUID& NetGUID, const bool bMustBeRegistered ) const
+bool FNetGUIDCache::IsGUIDLoaded(const FNetworkGUID& NetGUID) const
 {
-	if ( !NetGUID.IsValid() )
-	{
-		return false;
-	}
-
-	if ( NetGUID.IsDefault() )
-	{
-		return false;
-	}
-
-	const FNetGuidCacheObject* CacheObjectPtr = ObjectLookup.Find( NetGUID );
-
-	if ( CacheObjectPtr == NULL )
-	{
-		return bMustBeRegistered;
-	}
-
-	return CacheObjectPtr->bIsBroken;
+	FNetGuidCacheObject const * const CacheObjectPtr = GetCacheObject(NetGUID);
+	return CacheObjectPtr && CacheObjectPtr->Object != nullptr;
 }
 
-bool FNetGUIDCache::IsGUIDNoLoad( const FNetworkGUID& NetGUID ) const
+bool FNetGUIDCache::IsGUIDBroken(const FNetworkGUID& NetGUID, const bool bMustBeRegistered) const
 {
-	if ( !NetGUID.IsValid() )
+	if (!NetGUID.IsValid())
 	{
 		return false;
 	}
 
-	if ( NetGUID.IsDefault() )
+	if (NetGUID.IsDefault())
 	{
 		return false;
 	}
 
-	const FNetGuidCacheObject* const CacheObjectPtr = ObjectLookup.Find( NetGUID );
-
-	if ( CacheObjectPtr == nullptr )
+	if (FNetGuidCacheObject const * const CacheObjectPtr = ObjectLookup.Find(NetGUID))
 	{
-		return false;
+		return CacheObjectPtr->bIsBroken;
 	}
 
-	return CacheObjectPtr->bNoLoad;
+	return bMustBeRegistered;
 }
 
-bool FNetGUIDCache::IsGUIDPending( const FNetworkGUID& NetGUID ) const
+bool FNetGUIDCache::IsGUIDNoLoad(const FNetworkGUID& NetGUID) const
 {
-	if ( !NetGUID.IsValid() )
-	{
-		return false;
-	}
+	FNetGuidCacheObject const * const CacheObjectPtr = GetCacheObject(NetGUID);
+	return CacheObjectPtr && CacheObjectPtr->bNoLoad;
+}
 
-	if ( NetGUID.IsDefault() )
-	{
-		return false;
-	}
-
-	const FNetGuidCacheObject* const CacheObjectPtr = ObjectLookup.Find( NetGUID );
-
-	if ( CacheObjectPtr == nullptr )
-	{
-		return false;
-	}
-
-	return CacheObjectPtr->bIsPending;
+bool FNetGUIDCache::IsGUIDPending(const FNetworkGUID& NetGUID) const
+{
+	FNetGuidCacheObject const * const CacheObjectPtr = GetCacheObject(NetGUID);
+	return CacheObjectPtr && CacheObjectPtr->bIsPending;
 }
 
 FNetworkGUID FNetGUIDCache::GetOuterNetGUID( const FNetworkGUID& NetGUID ) const
 {
 	FNetworkGUID OuterGUID;
 
-	if ( NetGUID.IsValid() && !NetGUID.IsDefault() )
+	if (FNetGuidCacheObject const * const CacheObjectPtr = GetCacheObject(NetGUID))
 	{
-		const FNetGuidCacheObject* const CacheObjectPtr = ObjectLookup.Find( NetGUID );
-
-		if ( CacheObjectPtr != nullptr)
-		{
-			OuterGUID = CacheObjectPtr->OuterGUID;
-		}
+		OuterGUID = CacheObjectPtr->OuterGUID;
 	}
 
 	return OuterGUID;
@@ -3425,6 +3380,18 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
 	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DelinquentAsyncLoads", DelinquentAsyncLoads.CountBytes(Ar));
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueuedBunchObjectReferences",
+
+		QueuedBunchObjectReferences.CountBytes(Ar);
+		for (const auto& QueuedBunchObjectReferencePair : QueuedBunchObjectReferences)
+		{
+			if (QueuedBunchObjectReferencePair.Value.IsValid())
+			{
+				Ar.CountBytes(sizeof(FQueuedBunchObjectReference), sizeof(FQueuedBunchObjectReference));
+			}
+		}
+	);
 }
 
 void FNetFieldExport::CountBytes(FArchive& Ar) const
@@ -3482,6 +3449,66 @@ const FNetQueuedActorDelinquencyAnalytics& UPackageMapClient::GetQueuedActorDeli
 void UPackageMapClient::ResetQueuedActorDelinquencyAnalytics()
 {
 	DelinquentQueuedActors.Reset();
+}
+
+void FNetGUIDCache::CollectReferences(class FReferenceCollector& ReferenceCollector)
+{
+	for (auto It = QueuedBunchObjectReferences.CreateIterator(); It; ++It)
+	{
+		TSharedPtr<FQueuedBunchObjectReference> SharedQueuedObjectReference = It.Value().Pin();
+		FQueuedBunchObjectReference* ObjectRefPtr = SharedQueuedObjectReference.Get();
+		if (ObjectRefPtr)
+		{
+			// Don't bother adding the reference if we don't have an object.
+			if (ObjectRefPtr->Object)
+			{
+				// AddReferencedObject will set our reference to nullptr if the object is pending kill.
+				ReferenceCollector.AddReferencedObject(ObjectRefPtr->Object, Driver);
+
+				if (!ObjectRefPtr->Object)
+				{
+					UE_LOG(LogNetPackageMap, Warning, TEXT("FNetGUIDCache::CollectReferences: QueuedBunchObjectReference was killed by GC. NetGUID=%s"), *It.Key().ToString());
+				}
+			}
+		}
+		else
+		{
+			// If our weak pointer doesn't resolve, we're clearly the last referencer.
+			// No need to keep it around.
+			It.RemoveCurrent();
+		}
+	}
+
+	QueuedBunchObjectReferences.Compact();
+}
+
+TSharedRef<FQueuedBunchObjectReference> FNetGUIDCache::TrackQueuedBunchObjectReference(const FNetworkGUID InNetGUID, UObject* InObject)
+{
+	if (TWeakPtr<FQueuedBunchObjectReference>* ExistingRef = QueuedBunchObjectReferences.Find(InNetGUID))
+	{
+		TSharedPtr<FQueuedBunchObjectReference> ExistingRefShared = ExistingRef->Pin();
+		if (ExistingRefShared.IsValid())
+		{
+			return ExistingRefShared.ToSharedRef();
+		}
+	}
+
+	// Using MakeShareable instead of MakeShared to allow private constructor.
+	TSharedRef<FQueuedBunchObjectReference> NewRef = MakeShareable<FQueuedBunchObjectReference>(new FQueuedBunchObjectReference(InNetGUID, InObject));
+	QueuedBunchObjectReferences.Add(InNetGUID, NewRef);
+	return NewRef;
+}
+
+void FNetGUIDCache::UpdateQueuedBunchObjectReference(const FNetworkGUID NetGUID, UObject* NewObject)
+{
+	if (TWeakPtr<FQueuedBunchObjectReference>* WeakObjectReference = QueuedBunchObjectReferences.Find(NetGUID))
+	{
+		TSharedPtr<FQueuedBunchObjectReference> SharedObjectReference = WeakObjectReference->Pin();
+		if (FQueuedBunchObjectReference* ObjectReference = SharedObjectReference.Get())
+		{
+			ObjectReference->Object = NewObject;
+		}
+	}
 }
 
 //------------------------------------------------------

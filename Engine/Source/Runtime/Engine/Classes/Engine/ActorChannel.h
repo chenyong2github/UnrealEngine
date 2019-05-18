@@ -98,7 +98,8 @@ public:
 	// Async networking loading support state
 	TArray< class FInBunch * >			QueuedBunches;			// Queued bunches waiting on pending guids to resolve
 	double								QueuedBunchStartTime;	// Time when since queued bunches was last empty
-	TSet< FNetworkGUID >				PendingGuidResolves;	// These guids are waiting for their resolves, we need to queue up bunches until these are resolved
+
+	TSet<FNetworkGUID> PendingGuidResolves;	// These guids are waiting for their resolves, we need to queue up bunches until these are resolved
 
 	UPROPERTY()
 	TArray< UObject* >					CreateSubObjects;		// Any sub-object we created on this channel
@@ -117,20 +118,9 @@ public:
 	/**
 	 * Default constructor
 	 */
-	UActorChannel(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get())
-		: UChannel(ObjectInitializer)
-#if !UE_BUILD_SHIPPING
-		, bBlockChannelFailure(false)
-#endif
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		ChType = CHTYPE_Actor;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		ChName = NAME_Actor;
-		bClearRecentActorRefs = true;
-		bHoldQueuedExportBunchesAndGUIDs = false;
-		QueuedCloseReason = EChannelCloseReason::Destroyed;
-	}
+	UActorChannel(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	~UActorChannel();
 
 public:
 
@@ -333,4 +323,10 @@ protected:
 
 	/** Closes the actor channel but with a 'dormant' flag set so it can be reopened */
 	virtual void BecomeDormant() override;
+
+private:
+
+	// TODO: It would be nice to merge the tracking of these with PendingGuidResolves, to not duplicate memory,
+	// especially since both of these sets should be empty most of the time for most channels.
+	TSet<TSharedRef<struct FQueuedBunchObjectReference>> QueuedBunchObjectReferences;
 };
