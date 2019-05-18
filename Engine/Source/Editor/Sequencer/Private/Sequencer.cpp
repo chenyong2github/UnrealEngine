@@ -7867,6 +7867,22 @@ void FSequencer::ToggleExpandCollapseNodesAndDescendants()
 }
 
 
+void FSequencer::AddSelectedActors()
+{
+	USelection* ActorSelection = GEditor->GetSelectedActors();
+	TArray<TWeakObjectPtr<AActor> > SelectedActors;
+	for (FSelectionIterator Iter(*ActorSelection); Iter; ++Iter)
+	{
+		AActor* Actor = Cast<AActor>(*Iter);
+		if (Actor)
+		{
+			SelectedActors.Add(Actor);
+		}
+	}
+
+	AddActors(SelectedActors);
+}
+
 void FSequencer::SetKey()
 {
 	FScopedTransaction SetKeyTransaction( NSLOCTEXT("Sequencer", "SetKey_Transaction", "Set Key") );
@@ -9121,6 +9137,10 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleExpandCollapseNodesAndDescendants,
 		FExecuteAction::CreateSP(this, &FSequencer::ToggleExpandCollapseNodesAndDescendants));
+
+	SequencerCommandBindings->MapAction(
+		Commands.AddActorsToSequencer,
+		FExecuteAction::CreateSP( this, &FSequencer::AddSelectedActors));
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetKey,

@@ -136,6 +136,9 @@ public:
 	/** Select all keys and sections that fall into the selection range*/
 	TSharedPtr< FUICommandInfo > SelectAllInSelectionRange;
 
+	/** Add selected actors to sequencer */
+	TSharedPtr< FUICommandInfo > AddActorsToSequencer;
+
 	/** Sets a key at the current time for the selected actor */
 	TSharedPtr< FUICommandInfo > SetKey;
 
