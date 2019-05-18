@@ -467,7 +467,7 @@ ELandscapeToolTargetType::Type FEdModeLandscape::GetLandscapeToolTargetType() co
 	{
 		if (CurrentToolMode->ToolModeName == "ToolMode_Sculpt")
 		{
-			return ELandscapeToolTargetType::Heightmap;
+			return CurrentToolTarget.TargetType == ELandscapeToolTargetType::Visibility ? ELandscapeToolTargetType::Visibility : ELandscapeToolTargetType::Heightmap;
 		}
 		else if (CurrentToolMode->ToolModeName == "ToolMode_Paint")
 		{
