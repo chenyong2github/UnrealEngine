@@ -23,7 +23,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "DrawDebugHelpers.h"
-
+#include "EngineUtils.h"
 
 namespace FGameplayDebuggerCategoryTweakables
 {
@@ -480,10 +480,9 @@ void FGameplayDebuggerCategory_AI::DrawOverheadInfo(AActor& DebugActor, FGamepla
 void FGameplayDebuggerCategory_AI::DrawPawnIcons(UWorld* World, AActor* DebugActor, APawn* SkipPawn, FGameplayDebuggerCanvasContext& CanvasContext)
 {
 	FString FailsafeIcon = TEXT("/Engine/EngineResources/AICON-Green.AICON-Green");
-	for (FConstPawnIterator It = World->GetPawnIterator(); It; ++It)
+	for (const APawn* ItPawn : TActorRange<APawn>(World))
 	{
-		const APawn* ItPawn = It->Get();
-		if (IsValid(ItPawn) && SkipPawn != ItPawn)
+		if (SkipPawn != ItPawn)
 		{
 			const FVector IconLocation = ItPawn->GetActorLocation() + FVector(0, 0, ItPawn->GetSimpleCollisionHalfHeight());
 			const AAIController* ItAI = Cast<const AAIController>(ItPawn->GetController());
