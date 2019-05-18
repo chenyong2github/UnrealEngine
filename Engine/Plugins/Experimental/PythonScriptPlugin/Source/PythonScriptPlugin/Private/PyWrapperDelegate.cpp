@@ -1289,8 +1289,6 @@ PyTypeObject PyWrapperMulticastDelegateType = InitializePyWrapperMulticastDelega
 
 void FPyWrapperDelegateMetaData::AddReferencedObjects(FPyWrapperBase* Instance, FReferenceCollector& Collector)
 {
-	TPyWrapperDelegateMetaData<FPyWrapperDelegate>::AddReferencedObjects(Instance, Collector);
-
 	FPyWrapperDelegate* Self = static_cast<FPyWrapperDelegate*>(Instance);
 	if (Self->DelegateInstance)
 	{
@@ -1300,8 +1298,6 @@ void FPyWrapperDelegateMetaData::AddReferencedObjects(FPyWrapperBase* Instance, 
 
 void FPyWrapperMulticastDelegateMetaData::AddReferencedObjects(FPyWrapperBase* Instance, FReferenceCollector& Collector)
 {
-	TPyWrapperDelegateMetaData<FPyWrapperMulticastDelegate>::AddReferencedObjects(Instance, Collector);
-
 	FPyWrapperMulticastDelegate* Self = static_cast<FPyWrapperMulticastDelegate*>(Instance);
 	if (Self->DelegateInstance)
 	{
