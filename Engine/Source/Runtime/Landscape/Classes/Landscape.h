@@ -392,6 +392,7 @@ private:
 
 		int32 ViewMode;
 		FGuid SelectedLayer;
+		TWeakObjectPtr<ULandscapeLayerInfoObject> SelectedLayerInfoObject;
 		ELandscapeToolTargetType::Type ToolTarget;
 	};
 

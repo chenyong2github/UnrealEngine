@@ -48,7 +48,8 @@ class ILandscapeEdModeInterface
 {
 public:
 	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const = 0;
-	virtual FGuid GetLandscapeSelectedLayer() const = 0;
+	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const = 0;
+	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const = 0;
 };
 
 struct FLandscapeTextureDataInfo
