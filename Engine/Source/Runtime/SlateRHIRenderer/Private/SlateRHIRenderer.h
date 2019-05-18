@@ -95,8 +95,6 @@ struct FViewportInfo : public FRenderResource
 	int32 HDRColorGamut;
 	/** Device format for output to HDR display */
 	int32 HDROutputDevice;
-	/** Whether is in a HDR Color Space */
-	bool	bHDREnabled;
 
 	IViewportRenderTargetProvider* RTProvider;
 	
@@ -116,7 +114,6 @@ struct FViewportInfo : public FRenderResource
 			bFullscreen(false),
 			PixelFormat(EPixelFormat::PF_Unknown),
 			SDRPixelFormat(EPixelFormat::PF_Unknown),
-			bHDREnabled(false),
 			RTProvider(nullptr)
 	{
 	}
