@@ -28,18 +28,40 @@ void FHttpServerModule::ShutdownModule()
 	Listeners.Empty();
 }
 
+void FHttpServerModule::StartAllListeners()
+{
+	bHttpListenersEnabled = true;
+
+	UE_LOG(LogHttpServerModule, Log,
+		TEXT("Starting all listeners..."));
+
+	for (const auto& Listener : Listeners)
+	{
+		if (!Listener.Value->IsListening())
+		{
+			Listener.Value->StartListening();
+		}
+	}
+	UE_LOG(LogHttpServerModule, Log,
+		TEXT("All listeners started"));
+}
+
 void FHttpServerModule::StopAllListeners()
 {
+	UE_LOG(LogHttpServerModule, Log, 
+		TEXT("Stopping all listeners..."));
+
 	for (const auto& Listener : Listeners)
 	{
 		if (Listener.Value->IsListening())
 		{
-			UE_LOG(LogHttpServerModule, Log,
-				TEXT("Stopping listener on Port: %u"), Listener.Key);
-
 			Listener.Value->StopListening();
 		}
 	}
+
+	UE_LOG(LogHttpServerModule, Log,
+		TEXT("All listeners stopped"));
+
 }
 
 bool FHttpServerModule::HasPendingListeners() const 
@@ -67,10 +89,7 @@ FHttpServerModule& FHttpServerModule::Get()
 
 TSharedPtr<IHttpRouter> FHttpServerModule::GetHttpRouter(uint32 Port)
 {
-	if (!bInitialized)
-	{
-		return nullptr;
-	}
+	check(bInitialized);
 
 	// We may already be listening on this port
 	TUniquePtr<FHttpListener>* ExistingListener = Listeners.Find(Port);
@@ -78,27 +97,30 @@ TSharedPtr<IHttpRouter> FHttpServerModule::GetHttpRouter(uint32 Port)
 	{
 		return ExistingListener->Get()->GetRouter();
 	}
-	else
+
+	// Otherwise create a new one
+	TUniquePtr<FHttpListener> NewListener = MakeUnique<FHttpListener>(Port);
+
+    // Try to start this listener now
+	if (bHttpListenersEnabled)
 	{
-		// Otherwise create a new one
-		TUniquePtr<FHttpListener> NewListener = MakeUnique<FHttpListener>(Port);
-		if (NewListener->StartListening())
-		{
-			const auto& NewListenerRef = Listeners.Add(Port, MoveTemp(NewListener));
-			return NewListenerRef->GetRouter();
-		}
+		NewListener->StartListening();
 	}
-	return nullptr;
+	const auto& NewListenerRef = Listeners.Add(Port, MoveTemp(NewListener));
+	return NewListenerRef->GetRouter();
 }
 
 bool FHttpServerModule::Tick(float DeltaTime)
 {
 	check(Singleton == this);
+	check(bInitialized);
 
-	for (const auto& Listener : Listeners)
+	if (bHttpListenersEnabled)
 	{
-		check(Listener.Value);
-		Listener.Value->Tick(DeltaTime);
+		for (const auto& Listener : Listeners)
+		{
+			Listener.Value->Tick(DeltaTime);
+		}
 	}
 	return true;
 }
