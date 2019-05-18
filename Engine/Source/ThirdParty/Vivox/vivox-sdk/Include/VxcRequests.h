@@ -21,8 +21,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-    /* The Vivox request structs. These structs all contain a vx_request action in the beginning so they can be identified, and
-    have a cookie (VX_COOKIE). */
+/* The Vivox request structs. These structs all contain a vx_request action in the beginning so they can be identified, and
+have a cookie (VX_COOKIE). */
+
+#define VX_USE_PLATFORM_SPECIFIC_PORT_RANGE (-1)
+
 /**
  * Used to connect the application to the Vivox service.
  *
@@ -39,24 +42,36 @@ typedef struct vx_req_connector_create {
     /**
      * @deprecated - do not use.
      */
-    char* client_name;
+    char *client_name;
     /**
      * URL for the Vivox account management server; this value is provided by Vivox
      */
-    char* acct_mgmt_server;
+    char *acct_mgmt_server;
     /**
-     * Optional parameter specifying the minimum port to be used by the SDK.
-     * This is an optional parameter.  If a range of ports on the client needs to be specified enter the minimum port number
-     * and the maximum port number to create a range of ports for the Vivox SDK to use.  If a range is not set, the Vivox SDK will use random open ports.
+     * Optional parameter specifying the minimum UDP source port to be used by the SDK.
+     * If the value is 0, then Vivox SDK will use ephemeral ports (assigned by the operating system).  This is the recommended setting.
+     * If a range of ports on the client needs to be specified (not recommended), please enter
+     * the minimum port number and the maximum port number to create a range of ports for the Vivox SDK to use.
      * The specified range must be at least 32 ports.  Only ports above 1024 are allowed.
+     * If you need Vivox SDK to use a fixed port range (not recommended), you can specify VX_USE_PLATFORM_SPECIFIC_PORT_RANGE value
+     * for both minimum_port and maximum_port fields.  In this case the SDK will choose the range suitable for a specific platform.
+     * Now the default value is VX_USE_PLATFORM_SPECIFIC_PORT_RANGE for compatibility with previous versions.
+     * Please note that both minimum_port and maximum port should be either set to 0, or both set to VX_USE_PLATFORM_SPECIFIC_PORT_RANGE,
+     * or set to a specific port range.
      */
     int minimum_port;
-     /**
-     * Optional parameter specifying the maximum port to be used by the SDK.
-     * This is an optional parameter.  If a range of ports on the client needs to be specified enter the minimum port number
-     * and the maximum port number to create a range of ports for the Vivox SDK to use.  If a range is not set, the Vivox SDK will use random open ports.
+    /**
+     * Optional parameter specifying the maximum UDP source port to be used by the SDK.
+     * If the value is 0, then Vivox SDK will use ephemeral ports (assigned by the operating system).  This is the recommended setting.
+     * If a range of ports on the client needs to be specified (not recommended), please enter
+     * the minimum port number and the maximum port number to create a range of ports for the Vivox SDK to use.
      * The specified range must be at least 32 ports.  Only ports above 1024 are allowed.
-     */
+     * If you need Vivox SDK to use a fixed port range (not recommended), you can specify VX_USE_PLATFORM_SPECIFIC_PORT_RANGE value
+     * for both minimum_port and maximum_port fields.  In this case the SDK will choose the range suitable for a specific platform.
+     * Now the default value is VX_USE_PLATFORM_SPECIFIC_PORT_RANGE for compatibility with previous versions.
+     * Please note that both minimum_port and maximum port should be either set to 0, or both set to VX_USE_PLATFORM_SPECIFIC_PORT_RANGE,
+     * or set to a specific port range.
+    */
     int maximum_port;
     /**
     * Control how the SDK attempts to traverse NAT devices.
@@ -71,15 +86,15 @@ typedef struct vx_req_connector_create {
     /**
     * The folder where any logs will be created.
     */
-    char* log_folder;
+    char *log_folder;
     /**
     * This will be prepended to beginning of each log file.
     */
-    char* log_filename_prefix;
+    char *log_filename_prefix;
     /**
     * The suffix or extension to be appended to each log file.
     */
-    char* log_filename_suffix;
+    char *log_filename_suffix;
     /**
      * Specifies the log level to be used by the Vivox SDK.
      *    - 0: NONE - No logging
@@ -103,7 +118,7 @@ typedef struct vx_req_connector_create {
      * - vx_evt_buddy_presence_t
      * - vx_evt_session_added_t
      */
-    char* application;
+    char *application;
     /**
      * The maximum number of calls that can be active at any one time.
      * The minumum is 2, the default is 3, and the maximum is 1000.
@@ -127,26 +142,26 @@ typedef struct vx_req_connector_create {
      *
      * This is restricted to alpha numeric characters only and is also restricted to 3 characters
      */
-    char* user_agent_id;
+    char *user_agent_id;
 
     /*
      * in form ip-address:starting-port
      */
     char *media_probe_server;
-     /**
-      * The DNS name of an HTTP proxy server that must be used inorder to
-      * successfully connect to the account management server.
-     */
+    /**
+     * The DNS name of an HTTP proxy server that must be used inorder to
+     * successfully connect to the account management server.
+    */
     char *http_proxy_server_name;
-     /**
-     * The port that the HTTP proxy server is listening on, defaults to 80 if not set.
-     */
-    int   http_proxy_server_port;
+    /**
+    * The port that the HTTP proxy server is listening on, defaults to 80 if not set.
+    */
+    int http_proxy_server_port;
     /**
      * OBSOLETE
      * handle multiple participants with the same SIP URI more gracefully in channel
      */
-    int   enable_duplicate_participant_uris;
+    int enable_duplicate_participant_uris;
     /**
      * The preferred connector handle. This must not match any existing handle. If empty, one will be generated automatically.
      * Preferred handles must include at least one non numeric character.
@@ -163,7 +178,7 @@ typedef struct vx_req_connector_create {
  * used to allocate and initialize a vx_req_connector_create object
  * \ingroup connector
  */
-VIVOXSDK_DLLEXPORT int vx_req_connector_create_create(vx_req_connector_create_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_connector_create_create(vx_req_connector_create_t **req);
 #endif
 /**
  * Shutdown should be called when the application is shutting down to gracefully release resources.
@@ -186,14 +201,14 @@ typedef struct vx_req_connector_initiate_shutdown {
      * DEPRECATED
      * @deprecated
      */
-    char* client_name;
+    char *client_name;
 } vx_req_connector_initiate_shutdown_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * used to allocate and initialize a vx_req_connector_initiate_shutdown object
  * \ingroup connector
  */
-VIVOXSDK_DLLEXPORT int vx_req_connector_initiate_shutdown_create(vx_req_connector_initiate_shutdown_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_connector_initiate_shutdown_create(vx_req_connector_initiate_shutdown_t **req);
 #endif
 /**
 * Used to login and logout of specific user account(s). It may only be called after Connector initialization has completed successfully
@@ -215,11 +230,11 @@ typedef struct vx_req_account_login {
     /**
      * User's account name.
      */
-    char* acct_name;
+    char *acct_name;
     /**
      * User's account password.
      */
-    char* acct_password;
+    char *acct_password;
     /**
      * Use to control how the SDK responds to incoming voice calls.
      * mode_verify_answer is the default.
@@ -300,13 +315,13 @@ typedef struct vx_req_account_login {
      *
      * If set, this overrides the corresponding value in connector create
      */
-    char* application_override;
+    char *application_override;
     /**
      * The actual client IP address, to be passed in requests to the Vivox
      * network.  This is only supported in the server SDK, otherwise it is
      * ignored.
      */
-    char* client_ip_override;
+    char *client_ip_override;
     /**
      * when set to 1, the buddy and watchers list is downloaded from the Vivox backend.
      * when set to 0, the application is responsible for setting buddies and watchers
@@ -326,7 +341,7 @@ typedef struct vx_req_account_login {
  * used to allocate and initialize a vx_req_account_login object
  * \ingroup login
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_login_create(vx_req_account_login_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_login_create(vx_req_account_login_t **req);
 #endif
 
 /**
@@ -351,7 +366,7 @@ typedef struct vx_req_account_authtoken_login {
      * User's auth token.
      * The auth token is created by the clients server making the viv_adm_auth.php call.
      */
-    char* authtoken;
+    char *authtoken;
     /**
      * This flag is used to determine if the user is going to enable text or not for all sessions.
      * Setting this to text_mode_enabled means that text will be enabled and text_mode_disabled
@@ -419,7 +434,7 @@ typedef struct vx_req_account_authtoken_login {
      *
      * If set, this overrides the corresponding value in connector create
      */
-    char* application_override;
+    char *application_override;
     /**
      * Use to control how the SDK responds to incoming voice calls.
      * mode_verify_answer is the default.
@@ -432,7 +447,7 @@ typedef struct vx_req_account_authtoken_login {
      * network.  This is only supported in the server SDK, otherwise it is
      * ignored.
      */
-    char* client_ip_override;
+    char *client_ip_override;
     /**
      * when set to 1, the buddy and watchers list is downloaded from the Vivox backend.
      * when set to 0, the application is responsible for setting buddies and watchers
@@ -452,7 +467,7 @@ typedef struct vx_req_account_authtoken_login {
  * used to allocate and initialize a vx_req_account_authtoken_login object
  * \ingroup login
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_authtoken_login_create(vx_req_account_authtoken_login_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_authtoken_login_create(vx_req_account_authtoken_login_t **req);
 #endif
 
 /**
@@ -476,7 +491,7 @@ typedef struct vx_req_account_anonymous_login {
     /**
      * User's display name, this will be used as the display name that will be seen by others.
      */
-    char* displayname;
+    char *displayname;
     /**
     * This is an integer that specifies how often the SDK will send participant property events while in a channel.
     * If this is not set the default will be "on state change", which means that the events will be sent when
@@ -529,13 +544,13 @@ typedef struct vx_req_account_anonymous_login {
      *
      * If set, this overrides the corresponding value in connector create
      */
-    char* application_override;
+    char *application_override;
     /**
      * The actual client IP address, to be passed in requests to the Vivox
      * network.  This is only supported in the server SDK, otherwise it is
      * ignored.
      */
-    char* client_ip_override;
+    char *client_ip_override;
     /**
      * when set to 1, the buddy and watchers list is downloaded from the Vivox backend.
      * when set to 0, the application is responsible for setting buddies and watchers
@@ -551,7 +566,7 @@ typedef struct vx_req_account_anonymous_login {
     char *account_handle;
     /**
      * Desired username portion of the participant URI.
-     * 
+     *
      * acct_name has the following restrictions:
      * - Name must start and end with a period ('.')
      * - Only alpha-numeric, space and the following characters are allowed: = + - _ . ! ~ ( )
@@ -569,7 +584,7 @@ typedef struct vx_req_account_anonymous_login {
  * used to allocate and initialize a vx_req_account_anonymous_login object
  * \ingroup login
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_anonymous_login_create(vx_req_account_anonymous_login_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_anonymous_login_create(vx_req_account_anonymous_login_t **req);
 #endif
 
 /**
@@ -594,14 +609,14 @@ typedef struct vx_req_account_logout {
     * event.  It can be used by applications to determine the reason for logout
     * if needed.
     */
-    char* logout_reason;
+    char *logout_reason;
 } vx_req_account_logout_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * used to allocate and initialize a vx_req_account_logout object
  * \ingroup login
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_logout_create(vx_req_account_logout_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_logout_create(vx_req_account_logout_t **req);
 #endif
 
 /**
@@ -613,9 +628,9 @@ VIVOXSDK_DLLEXPORT int vx_req_account_logout_create(vx_req_account_logout_t ** r
 * \ingroup obsolete
 */
 typedef struct vx_req_account_set_login_properties {
-     /**
-     * The common properties for all requests
-     */
+    /**
+    * The common properties for all requests
+    */
     vx_req_base_t base;
     /**
     * Handle returned from successful login' request
@@ -644,7 +659,7 @@ typedef struct vx_req_account_set_login_properties {
  * used to allocate and initialize a vx_req_account_set_login_properties object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_set_login_properties_create(vx_req_account_set_login_properties_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_set_login_properties_create(vx_req_account_set_login_properties_t **req);
 #endif
 
 /**
@@ -726,7 +741,7 @@ typedef struct vx_req_sessiongroup_create {
  *
  * \ingroup sessiongroup
  */
-VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_create_create(vx_req_sessiongroup_create_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_create_create(vx_req_sessiongroup_create_t **req);
 #endif
 
 /**
@@ -753,7 +768,7 @@ typedef struct vx_req_sessiongroup_terminate {
  * Used to allocate and initialize a vx_req_sessiongroup_terminate object.
  * \ingroup sessiongroup
  */
-VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_terminate_create(vx_req_sessiongroup_terminate_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_terminate_create(vx_req_sessiongroup_terminate_t **req);
 #endif
 
 /**
@@ -793,15 +808,15 @@ typedef struct vx_req_sessiongroup_add_session {
      *          - 3) :     - %3A
      * - 2) URI length must not exceed MAX_CHANNEL_URI_LENGTH
      */
-    char* uri;
+    char *uri;
     /**
      * This is the display name of the entity being called (user or channel).
      */
-    char* name;
+    char *name;
     /**
      * This is the password used if the user is joining a password protected channel.
      */
-    char* password;
+    char *password;
     /**
      * This flag is used to determine if the session is going to connect to audio or not.
      * Setting this to 1 means that Audio will be connected and 0 means that Audio will not be connected.  The default value is 0.
@@ -848,7 +863,7 @@ typedef struct vx_req_sessiongroup_add_session {
  * Used to allocate and initialize a vx_req_sessiongroup_add_session object
  * \ingroup sessiongroup
  */
-VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_add_session_create(vx_req_sessiongroup_add_session_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_add_session_create(vx_req_sessiongroup_add_session_t **req);
 #endif
 
 /**
@@ -877,7 +892,7 @@ typedef struct vx_req_sessiongroup_remove_session {
 /**
  * Used to allocate and initialize a vx_req_sessiongroup_remove_session object
  */
-VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_remove_session_create(vx_req_sessiongroup_remove_session_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_remove_session_create(vx_req_sessiongroup_remove_session_t **req);
 #endif
 
 #ifndef VX_DISABLE_SESSIONGRP_FOCUS
@@ -915,7 +930,7 @@ typedef struct vx_req_sessiongroup_set_focus {
  * Used to allocate and initialize a vx_req_sessiongroup_set_focus object
  * \ingroup sessiongroup
  */
-VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_set_focus_create(vx_req_sessiongroup_set_focus_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_set_focus_create(vx_req_sessiongroup_set_focus_t **req);
 #endif
 
 /**
@@ -947,7 +962,7 @@ typedef struct vx_req_sessiongroup_unset_focus {
  * Used to allocate and initialize a vx_req_sessiongroup_unset_focus object
  * \ingroup sessiongroup
  */
-VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_unset_focus_create(vx_req_sessiongroup_unset_focus_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_unset_focus_create(vx_req_sessiongroup_unset_focus_t **req);
 #endif
 
 /**
@@ -973,7 +988,7 @@ typedef struct vx_req_sessiongroup_reset_focus {
  * Used to allocate and initialize a vx_req_sessiongroup_reset_focus object
  * \ingroup sessiongroup
  */
-VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_reset_focus_create(vx_req_sessiongroup_reset_focus_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_reset_focus_create(vx_req_sessiongroup_reset_focus_t **req);
 #endif
 #endif
 
@@ -1009,7 +1024,7 @@ typedef struct vx_req_sessiongroup_set_tx_session {
  * Used to allocate and initialize a vx_req_sessiongroup_set_tx_session object
  * \ingroup sessiongroup
  */
-VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_set_tx_session_create(vx_req_sessiongroup_set_tx_session_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_set_tx_session_create(vx_req_sessiongroup_set_tx_session_t **req);
 #endif
 
 /**
@@ -1035,7 +1050,7 @@ typedef struct vx_req_sessiongroup_set_tx_all_sessions {
  * Used to allocate and initialize a vx_req_sessiongroup_set_tx_all_sessions object
  * \ingroup sessiongroup
  */
-VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_set_tx_all_sessions_create(vx_req_sessiongroup_set_tx_all_sessions_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_set_tx_all_sessions_create(vx_req_sessiongroup_set_tx_all_sessions_t **req);
 #endif
 
 /**
@@ -1061,7 +1076,7 @@ typedef struct vx_req_sessiongroup_set_tx_no_session {
  * Used to allocate and initialize a vx_req_sessiongroup_set_tx_no_session object
  * \ingroup sessiongroup
  */
-VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_set_tx_no_session_create(vx_req_sessiongroup_set_tx_no_session_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_set_tx_no_session_create(vx_req_sessiongroup_set_tx_no_session_t **req);
 #endif
 
 /**
@@ -1104,7 +1119,7 @@ typedef struct vx_req_sessiongroup_set_session_3d_position {
  * Used to allocate and initialize a vx_req_sessiongroup_set_session_3d_position object
  * \ingroup sessiongroup
  */
-VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_set_session_3d_position_create(vx_req_sessiongroup_set_session_3d_position_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_set_session_3d_position_create(vx_req_sessiongroup_set_session_3d_position_t **req);
 #endif
 
 /**
@@ -1117,9 +1132,9 @@ VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_set_session_3d_position_create(vx_req
 
 */
 typedef struct vx_req_sessiongroup_control_audio_injection {
-   /**
-     * The common properties for all requests.
-     */
+    /**
+      * The common properties for all requests.
+      */
     vx_req_base_t base;
     /*
      * Whether to start or stop the audio injection
@@ -1133,14 +1148,13 @@ typedef struct vx_req_sessiongroup_control_audio_injection {
      * The full pathname for the WAV file to use for audio injection (MUST be single channel, 16-bit PCM, with the same sample rate as the negotiated audio codec)
     */
     char *filename;
-
 } vx_req_sessiongroup_control_audio_injection_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_sessiongroup_control_audio_injection object
  * \ingroup adi
  */
-VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_control_audio_injection_create(vx_req_sessiongroup_control_audio_injection_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_control_audio_injection_create(vx_req_sessiongroup_control_audio_injection_t **req);
 #endif
 
 
@@ -1170,7 +1184,7 @@ typedef struct vx_req_session_create {
     /**
      * This is the display name of the entity being called (user or channel)
      */
-    char* name;
+    char *name;
     /**
      * This is the URI of the terminating point of the session (ie who/what is being called).
      * URI's must be valid and are restricted to the following rules:
@@ -1184,11 +1198,11 @@ typedef struct vx_req_session_create {
      *          - 2) @     - %40
      *          - 3) :     - %3A
      */
-    char* uri;
+    char *uri;
     /**
      * This is the password used if the user is joining a password protected channel
      */
-    char* password;
+    char *password;
     /**
      * This flag is used to determine if the session is going to join audio or not.
      * Setting this to 1 means that Audio will be joined and 0 means that Audio will
@@ -1265,7 +1279,7 @@ typedef struct vx_req_session_create {
  * DEPRECATED. used to allocate and initialize a vx_req_session_create object
  * \deprecated
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_create_create(vx_req_session_create_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_create_create(vx_req_session_create_t **req);
 #endif
 
 
@@ -1304,7 +1318,7 @@ typedef struct vx_req_session_media_connect {
      * DEPRECATED
      * @deprecated
      */
-    vx_media_type media;        //DEPRECATED
+    vx_media_type media;        // DEPRECATED
     /**
      * DEPRECATED
      * @deprecated
@@ -1345,7 +1359,7 @@ typedef struct vx_req_session_media_connect {
  * Used to allocate and initialize a vx_req_session_media_connect object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_media_connect_create(vx_req_session_media_connect_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_media_connect_create(vx_req_session_media_connect_t **req);
 #endif
 
 /**
@@ -1386,7 +1400,7 @@ typedef struct vx_req_session_media_disconnect {
  * Used to allocate and initialize a vx_req_session_media_disconnect object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_media_disconnect_create(vx_req_session_media_disconnect_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_media_disconnect_create(vx_req_session_media_disconnect_t **req);
 #endif
 
 /**
@@ -1416,7 +1430,7 @@ typedef struct vx_req_session_text_connect {
 /**
  * Used to allocate and initialize a vx_req_session_text_connect object
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_text_connect_create(vx_req_session_text_connect_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_text_connect_create(vx_req_session_text_connect_t **req);
 #endif
 
 /**
@@ -1447,7 +1461,7 @@ typedef struct vx_req_session_text_disconnect {
  * Used to allocate and initialize a vx_req_session_text_disconnect object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_text_disconnect_create(vx_req_session_text_disconnect_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_text_disconnect_create(vx_req_session_text_disconnect_t **req);
 #endif
 
 /**
@@ -1473,7 +1487,7 @@ typedef struct vx_req_session_terminate {
  * Used to allocate and initialize a vx_req_session_terminate object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_terminate_create(vx_req_session_terminate_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_terminate_create(vx_req_session_terminate_t **req);
 #endif
 
 /**
@@ -1509,7 +1523,7 @@ typedef struct vx_req_session_mute_local_speaker {
  * Used to allocate and initialize a vx_req_session_mute_local_speaker object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_mute_local_speaker_create(vx_req_session_mute_local_speaker_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_mute_local_speaker_create(vx_req_session_mute_local_speaker_t **req);
 #endif
 
 /**
@@ -1539,7 +1553,7 @@ typedef struct vx_req_session_set_local_speaker_volume {
  * Used to allocate and initialize a vx_req_session_set_local_speaker_volume object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_set_local_speaker_volume_create(vx_req_session_set_local_speaker_volume_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_set_local_speaker_volume_create(vx_req_session_set_local_speaker_volume_t **req);
 #endif
 
 
@@ -1574,14 +1588,14 @@ typedef struct vx_req_session_channel_invite_user {
     /**
      * The SIP URI of the participant to invite.
      */
-    char* participant_uri;
+    char *participant_uri;
 } vx_req_session_channel_invite_user_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to create a vx_req_session_channel_invite_user_t request.
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_channel_invite_user_create(vx_req_session_channel_invite_user_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_channel_invite_user_create(vx_req_session_channel_invite_user_t **req);
 #endif
 
 /**
@@ -1607,7 +1621,7 @@ typedef struct vx_req_session_set_participant_volume_for_me {
     /**
      * The fully specified URI of the Participant
      */
-    char* participant_uri;
+    char *participant_uri;
     /**
      * This is the volume level that has been set by the user, this should not change often and is a value between 0 and 100
      * where 50 represents 'normal' speaking volume.
@@ -1619,7 +1633,7 @@ typedef struct vx_req_session_set_participant_volume_for_me {
  * Used to allocate and initialize a vx_req_session_set_participant_volume_for_me object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_set_participant_volume_for_me_create(vx_req_session_set_participant_volume_for_me_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_set_participant_volume_for_me_create(vx_req_session_set_participant_volume_for_me_t **req);
 #endif
 
 /**
@@ -1647,7 +1661,7 @@ typedef struct vx_req_session_set_participant_mute_for_me {
     /**
      * The fully specified URI of the Participant
      */
-    char* participant_uri;
+    char *participant_uri;
     /**
      *  Indicated whether or not to mute or unmute the specified participant.  1 = mute, 0 = unmute.
      */
@@ -1664,7 +1678,7 @@ typedef struct vx_req_session_set_participant_mute_for_me {
  * Used to allocate and initialize a vx_req_session_set_participant_mute_for_me object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_set_participant_mute_for_me_create(vx_req_session_set_participant_mute_for_me_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_set_participant_mute_for_me_create(vx_req_session_set_participant_mute_for_me_t **req);
 #endif
 
 /**
@@ -1770,7 +1784,7 @@ typedef struct vx_req_session_set_3d_position {
  * Used to allocate and initialize a vx_req_session_set_3d_position object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_set_3d_position_create(vx_req_session_set_3d_position_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_set_3d_position_create(vx_req_session_set_3d_position_t **req);
 #endif
 
 /**
@@ -1802,7 +1816,7 @@ typedef struct vx_req_session_set_voice_font {
  * Used to allocate and initialize a vx_req_session_set_voice_font object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_set_voice_font_create(vx_req_session_set_voice_font_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_set_voice_font_create(vx_req_session_set_voice_font_t **req);
 #endif
 
 /**
@@ -1821,7 +1835,7 @@ typedef struct vx_req_account_channel_get_participants {
     /**
     * The channel to return the active particpants for
     */
-    char* channel_uri;
+    char *channel_uri;
     /**
     * The page number of the results to return
     */
@@ -1836,7 +1850,7 @@ typedef struct vx_req_account_channel_get_participants {
  * Used to allocate and initialize a vx_req_account_channel_get_participants object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_get_participants_create(vx_req_account_channel_get_participants_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_get_participants_create(vx_req_account_channel_get_participants_t **req);
 #endif
 
 /**
@@ -1857,18 +1871,18 @@ typedef struct vx_req_account_channel_change_owner {
     /**
     * The channel who's ownership is changing
     */
-    char* channel_uri;
+    char *channel_uri;
     /**
     * The URI of the target owner of the specified channel
     */
-    char* new_owner_uri;
+    char *new_owner_uri;
 } vx_req_account_channel_change_owner_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_channel_change_owner object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_change_owner_create(vx_req_account_channel_change_owner_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_change_owner_create(vx_req_account_channel_change_owner_t **req);
 #endif
 
 /**
@@ -1887,21 +1901,21 @@ typedef struct vx_req_account_send_user_app_data {
     /**
     * The URI of the account to send the data to.
     */
-    char* to_uri;
+    char *to_uri;
     /**
     * The type of the data being sent. Note that multipart mime types are not supported (e.g multipart/digest etc).
     */
-    char* content_type;
+    char *content_type;
     /**
     * The content of the message being sent
     */
-    char* content;
+    char *content;
 } vx_req_account_send_user_app_data_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_send_user_app_data object
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_send_user_app_data_create(vx_req_account_send_user_app_data_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_send_user_app_data_create(vx_req_account_send_user_app_data_t **req);
 #endif
 
 
@@ -1925,11 +1939,11 @@ typedef struct vx_req_account_channel_create {
     /**
     * Channel Name
     */
-    char* channel_name;
+    char *channel_name;
     /**
     * Channel Description
     */
-    char* channel_desc;
+    char *channel_desc;
     /**
     * Used to indicate the type of channel to be created, this can be a static channel or a positional channel.
     */
@@ -1953,7 +1967,7 @@ typedef struct vx_req_account_channel_create {
     *
     * If channel_type == dir, this does not apply.
     */
-    char* protected_password;
+    char *protected_password;
     /**
     * DEPRECATED.
     * The forecast number of participants in the channel.  When creating a channel, use 0 for server default.
@@ -2053,7 +2067,7 @@ typedef struct vx_req_account_channel_create {
  * Used to allocate and initialize a vx_req_account_channel_create object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_create_create(vx_req_account_channel_create_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_create_create(vx_req_account_channel_create_t **req);
 #endif
 
 /**
@@ -2080,15 +2094,15 @@ typedef struct vx_req_account_channel_update {
     /**
      * The URI of the channel to update.
      */
-    char* channel_uri;
+    char *channel_uri;
     /**
      * Used to update the channel name.
      */
-    char* channel_name;
+    char *channel_name;
     /**
      * Used to update the channel description.
      */
-    char* channel_desc;
+    char *channel_desc;
     /**
      * Used to update the persistent status of the channel (1 = persistent, 0 = non-persistent).
      *
@@ -2108,7 +2122,7 @@ typedef struct vx_req_account_channel_update {
      *
      * If channel_type == dir, this does not apply.
      */
-    char* protected_password;
+    char *protected_password;
     /**
      * DEPRECATED
      * @deprecated
@@ -2195,7 +2209,7 @@ typedef struct vx_req_account_channel_update {
  * Used to allocate and initialize a vx_req_account_channel_update object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_update_create(vx_req_account_channel_update_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_update_create(vx_req_account_channel_update_t **req);
 #endif
 
 /**
@@ -2218,14 +2232,14 @@ typedef struct vx_req_account_channel_delete {
     /**
      * The URI of the channel to delete.
      */
-    char* channel_uri;
+    char *channel_uri;
 } vx_req_account_channel_delete_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_channel_delete object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_delete_create(vx_req_account_channel_delete_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_delete_create(vx_req_account_channel_delete_t **req);
 #endif
 
 /**
@@ -2251,7 +2265,7 @@ typedef struct vx_req_account_channel_favorites_get_list {
  * Used to allocate and initialize a vx_req_account_channel_favorites_get_list object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_favorites_get_list_create(vx_req_account_channel_favorites_get_list_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_favorites_get_list_create(vx_req_account_channel_favorites_get_list_t **req);
 #endif
 
 /**
@@ -2280,15 +2294,15 @@ typedef struct vx_req_account_channel_favorite_set {
     /**
     * The readable "nickname" for the channel favorite
     */
-    char* channel_favorite_label;
+    char *channel_favorite_label;
     /**
     * Channel URI to be added as a favorite
     */
-    char* channel_favorite_uri;
+    char *channel_favorite_uri;
     /**
     * Data to be stored with the favorite
     */
-    char* channel_favorite_data;
+    char *channel_favorite_data;
     /**
     * The ID of the channel favorite folder to add this favorite to.
     * 0 is default, implies no group.
@@ -2300,7 +2314,7 @@ typedef struct vx_req_account_channel_favorite_set {
  * Used to allocate and initialize a vx_req_account_channel_favorite_set object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_favorite_set_create(vx_req_account_channel_favorite_set_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_favorite_set_create(vx_req_account_channel_favorite_set_t **req);
 #endif
 
 /**
@@ -2316,9 +2330,9 @@ typedef struct vx_req_account_channel_favorite_delete {
      * The common properties for all requests
      */
     vx_req_base_t base;
-     /**
-     * Handle returned from successful vx_req_account_login request
-     */
+    /**
+    * Handle returned from successful vx_req_account_login request
+    */
     VX_HANDLE account_handle;
     /**
      * The id of channel favorite to delete
@@ -2330,7 +2344,7 @@ typedef struct vx_req_account_channel_favorite_delete {
  * Used to allocate and initialize a vx_req_account_channel_favorite_delete object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_favorite_delete_create(vx_req_account_channel_favorite_delete_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_favorite_delete_create(vx_req_account_channel_favorite_delete_t **req);
 #endif
 
 /**
@@ -2359,18 +2373,18 @@ typedef struct vx_req_account_channel_favorite_group_set {
     /**
     * Name of the favorite group
     */
-    char* channel_favorite_group_name;
+    char *channel_favorite_group_name;
     /**
     * Data to be stored with the favorite group
     */
-    char* channel_favorite_group_data;
+    char *channel_favorite_group_data;
 } vx_req_account_channel_favorite_group_set_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_channel_favorite_group_set object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_favorite_group_set_create(vx_req_account_channel_favorite_group_set_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_favorite_group_set_create(vx_req_account_channel_favorite_group_set_t **req);
 #endif
 
 /**
@@ -2400,7 +2414,7 @@ typedef struct vx_req_account_channel_favorite_group_delete {
  * Used to allocate and initialize a vx_req_account_channel_favorite_group_delete object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_favorite_group_delete_create(vx_req_account_channel_favorite_group_delete_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_favorite_group_delete_create(vx_req_account_channel_favorite_group_delete_t **req);
 #endif
 
 /**
@@ -2423,14 +2437,14 @@ typedef struct vx_req_account_channel_get_info {
     /**
     * Channel URI
     */
-    char* channel_uri;
+    char *channel_uri;
 } vx_req_account_channel_get_info_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_channel_get_info object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_get_info_create(vx_req_account_channel_get_info_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_get_info_create(vx_req_account_channel_get_info_t **req);
 #endif
 
 /**
@@ -2463,12 +2477,12 @@ typedef struct vx_req_account_channel_search {
     * The name of the channel to search on.
     * Leave blank if the search shouldn't take channel name into consideration.
     */
-    char* channel_name;
+    char *channel_name;
     /**
     * The description of the channel to search on.
     * Leave blank if the search shouldn't take channel description into consideration.
     */
-    char* channel_description;
+    char *channel_description;
     /**
     * If set to 1, will only return channels with at least one active participant.
     * Any value other than 1 will return the full set.
@@ -2494,7 +2508,7 @@ typedef struct vx_req_account_channel_search {
  * Used to allocate and initialize a vx_req_account_channel_search object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_search_create(vx_req_account_channel_search_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_search_create(vx_req_account_channel_search_t **req);
 #endif
 
 #ifndef VX_DISABLE_PRESENCE
@@ -2527,22 +2541,22 @@ typedef struct vx_req_account_buddy_search {
      * The first name of the buddy to search for.
      * Leave blank if the search shouldn't take this into consideration.
      */
-    char* buddy_first_name;
+    char *buddy_first_name;
     /**
      * The last name of the buddy to search for.
      * Leave blank if the search shouldn't take this into consideration.
      */
-    char* buddy_last_name;
+    char *buddy_last_name;
     /**
      * The user name of the buddy to search for.
      * Leave blank if the search shouldn't take this into consideration.
      */
-    char* buddy_user_name;
+    char *buddy_user_name;
     /**
      * The email address of the buddy to search for.
      * Leave blank if the search shouldn't take this into consideration.
      */
-    char* buddy_email;
+    char *buddy_email;
     /**
     * Looks for all search criteria with "begins with" masks.
     * '*' is not allowed in search criteia when this is set.  Default is 0 (off).
@@ -2558,7 +2572,7 @@ typedef struct vx_req_account_buddy_search {
  * Used to allocate and initialize a vx_req_account_buddy_search object
  * \ingroup buddy
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_buddy_search_create(vx_req_account_buddy_search_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_buddy_search_create(vx_req_account_buddy_search_t **req);
 #endif
 #endif
 
@@ -2582,22 +2596,22 @@ typedef struct vx_req_account_channel_add_moderator {
     /**
     * Channel URI
     */
-    char* channel_uri;
+    char *channel_uri;
     /**
     * Channel Name
     */
-    char* channel_name;
+    char *channel_name;
     /**
     * Fully specified URI of the user being added or removed from the moderator group
     */
-    char* moderator_uri;
+    char *moderator_uri;
 } vx_req_account_channel_add_moderator_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_channel_add_moderator object
 * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_add_moderator_create(vx_req_account_channel_add_moderator_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_add_moderator_create(vx_req_account_channel_add_moderator_t **req);
 #endif
 
 /**
@@ -2620,22 +2634,22 @@ typedef struct vx_req_account_channel_remove_moderator {
     /**
      * The URI of the channel
      */
-    char* channel_uri;
+    char *channel_uri;
     /**
      * The Name of the channel
      */
-    char* channel_name;
+    char *channel_name;
     /**
      * The URI of the moderator to remove
      */
-    char* moderator_uri;
+    char *moderator_uri;
 } vx_req_account_channel_remove_moderator_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_channel_remove_moderator object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_remove_moderator_create(vx_req_account_channel_remove_moderator_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_remove_moderator_create(vx_req_account_channel_remove_moderator_t **req);
 #endif
 
 /**
@@ -2658,14 +2672,14 @@ typedef struct vx_req_account_channel_get_moderators {
     /**
     * Channel URI
     */
-    char* channel_uri;
+    char *channel_uri;
 } vx_req_account_channel_get_moderators_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_channel_get_moderators object
 * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_get_moderators_create(vx_req_account_channel_get_moderators_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_get_moderators_create(vx_req_account_channel_get_moderators_t **req);
 #endif
 
 #ifndef VX_DISABLE_ACL
@@ -2689,18 +2703,18 @@ typedef struct vx_req_account_channel_add_acl {
     /**
     * Channel URI
     */
-    char* channel_uri;
+    char *channel_uri;
     /**
     * Fully specified URI of the user being added to the channel Access Control List.
     */
-    char* acl_uri;
+    char *acl_uri;
 } vx_req_account_channel_add_acl_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_channel_add_acl object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_add_acl_create(vx_req_account_channel_add_acl_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_add_acl_create(vx_req_account_channel_add_acl_t **req);
 #endif
 
 /**
@@ -2723,18 +2737,18 @@ typedef struct vx_req_account_channel_remove_acl {
     /**
      * Channel URI
      */
-    char* channel_uri;
+    char *channel_uri;
     /**
     * Fully specified URI of the user being removed from the channel Access Control List.
      */
-    char* acl_uri;
+    char *acl_uri;
 } vx_req_account_channel_remove_acl_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_channel_remove_acl object
 * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_remove_acl_create(vx_req_account_channel_remove_acl_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_remove_acl_create(vx_req_account_channel_remove_acl_t **req);
 #endif
 
 /**
@@ -2757,14 +2771,14 @@ typedef struct vx_req_account_channel_get_acl {
     /**
     * Channel URI
     */
-    char* channel_uri;
+    char *channel_uri;
 } vx_req_account_channel_get_acl_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_channel_get_acl object
 * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_channel_get_acl_create(vx_req_account_channel_get_acl_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_channel_get_acl_create(vx_req_account_channel_get_acl_t **req);
 #endif
 
 #endif // WEB_CLIENT
@@ -2792,15 +2806,15 @@ typedef struct vx_req_channel_mute_user {
      * The name of the channel
      * @deprecated
     */
-    char* channel_name;
+    char *channel_name;
     /**
      * The URI of the channel where the muting will occur
      */
-    char* channel_uri;
+    char *channel_uri;
     /**
      * The URI of the participant to mute or unmute
      */
-    char* participant_uri;
+    char *participant_uri;
     /**
      * 1 to mute the user, 0 to unmute the user
      */
@@ -2812,14 +2826,14 @@ typedef struct vx_req_channel_mute_user {
     /**
      * A Vivox Access Token to authorize the operation.
      */
-    char* access_token;
+    char *access_token;
 } vx_req_channel_mute_user_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_channel_mute_user object
  * \ingroup channel
 */
-VIVOXSDK_DLLEXPORT int vx_req_channel_mute_user_create(vx_req_channel_mute_user_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_channel_mute_user_create(vx_req_channel_mute_user_t **req);
 #endif
 
 /**
@@ -2833,9 +2847,9 @@ VIVOXSDK_DLLEXPORT int vx_req_channel_mute_user_create(vx_req_channel_mute_user_
 * \ingroup obsolete
 */
 typedef struct vx_req_channel_ban_user {
-   /**
-    * The common properties for all requests
-    */
+    /**
+     * The common properties for all requests
+     */
     vx_req_base_t base;
     /**
      * Handle returned from successful vx_req_account_login request
@@ -2846,15 +2860,15 @@ typedef struct vx_req_channel_ban_user {
      * The name of the channel
      * @deprecated
      */
-    char* channel_name;
+    char *channel_name;
     /**
      * The URI of the channel
      */
-    char* channel_uri;
+    char *channel_uri;
     /**
      * The uri of the participant to ban/unban.
      */
-    char* participant_uri;
+    char *participant_uri;
     /**
      * 1 to ban the user, 0 to unban the user.
      */
@@ -2865,7 +2879,7 @@ typedef struct vx_req_channel_ban_user {
  * Used to allocate and initialize a vx_req_channel_ban_user object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_channel_ban_user_create(vx_req_channel_ban_user_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_channel_ban_user_create(vx_req_channel_ban_user_t **req);
 #endif
 
 /**
@@ -2888,14 +2902,14 @@ typedef struct vx_req_channel_get_banned_users {
     /**
     * Channel URI
     */
-    char* channel_uri;
+    char *channel_uri;
 } vx_req_channel_get_banned_users_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_channel_get_banned_users object
 * \ingroup obsolete
 */
-VIVOXSDK_DLLEXPORT int vx_req_channel_get_banned_users_create(vx_req_channel_get_banned_users_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_channel_get_banned_users_create(vx_req_channel_get_banned_users_t **req);
 #endif
 
 /**
@@ -2920,26 +2934,26 @@ typedef struct vx_req_channel_kick_user {
      * The name of the channel
      * @deprecated
      */
-    char* channel_name;
+    char *channel_name;
     /**
      * The URI of the channel
      */
-    char* channel_uri;
+    char *channel_uri;
     /**
      * The participant URI
      */
-    char* participant_uri;
+    char *participant_uri;
     /**
      * A Vivox Access Token to authorize the operation.
      */
-    char* access_token;
+    char *access_token;
 } vx_req_channel_kick_user_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_channel_kick_user object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_channel_kick_user_create(vx_req_channel_kick_user_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_channel_kick_user_create(vx_req_channel_kick_user_t **req);
 #endif
 
 /**
@@ -2965,11 +2979,11 @@ typedef struct vx_req_channel_mute_all_users {
      * The name of the channel
      * @deprecated
      */
-    char* channel_name;
+    char *channel_name;
     /**
      * The URI of the channel
      */
-    char* channel_uri;
+    char *channel_uri;
     /**
      * 1 to mute, 0 to unmute
      */
@@ -2982,14 +2996,14 @@ typedef struct vx_req_channel_mute_all_users {
     /**
      * A Vivox Access Token to authorize the operation.
      */
-    char* access_token;
+    char *access_token;
 } vx_req_channel_mute_all_users_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_channel_mute_all_users object
  * \ingroup channel
  */
-VIVOXSDK_DLLEXPORT int vx_req_channel_mute_all_users_create(vx_req_channel_mute_all_users_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_channel_mute_all_users_create(vx_req_channel_mute_all_users_t **req);
 #endif
 
 /**
@@ -3016,7 +3030,7 @@ typedef struct vx_req_channel_set_lock_mode
     /**
     * The URI of the channel to set the lock status on
     */
-    char* channel_uri;
+    char *channel_uri;
     /**
     * The channel lock mode
     */
@@ -3027,7 +3041,7 @@ typedef struct vx_req_channel_set_lock_mode
  * Used to allocate and initialize a vx_req_channel_set_lock_mode object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_channel_set_lock_mode_create(vx_req_channel_set_lock_mode_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_channel_set_lock_mode_create(vx_req_channel_set_lock_mode_t **req);
 #endif
 
 /**
@@ -3057,7 +3071,7 @@ typedef struct vx_req_connector_mute_local_mic {
  * Used to allocate and initialize a vx_req_connector_mute_local_mic object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_connector_mute_local_mic_create(vx_req_connector_mute_local_mic_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_connector_mute_local_mic_create(vx_req_connector_mute_local_mic_t **req);
 #endif
 
 /**
@@ -3088,7 +3102,7 @@ typedef struct vx_req_connector_mute_local_speaker {
  * Used to allocate and initialize a vx_req_connector_mute_local_speaker object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_connector_mute_local_speaker_create(vx_req_connector_mute_local_speaker_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_connector_mute_local_speaker_create(vx_req_connector_mute_local_speaker_t **req);
 #endif
 
 /**
@@ -3124,7 +3138,7 @@ typedef struct vx_req_connector_set_local_mic_volume {
  * Used to allocate and initialize a vx_req_connector_set_local_mic_volume object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_connector_set_local_mic_volume_create(vx_req_connector_set_local_mic_volume_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_connector_set_local_mic_volume_create(vx_req_connector_set_local_mic_volume_t **req);
 #endif
 
 /**
@@ -3160,7 +3174,7 @@ typedef struct vx_req_connector_set_local_speaker_volume {
  * Used to allocate and initialize a vx_req_connector_set_local_speaker_volume object
  * \ingroup obsolete
  */
-VIVOXSDK_DLLEXPORT int vx_req_connector_set_local_speaker_volume_create(vx_req_connector_set_local_speaker_volume_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_connector_set_local_speaker_volume_create(vx_req_connector_set_local_speaker_volume_t **req);
 #endif
 
 /**
@@ -3188,7 +3202,7 @@ typedef struct vx_req_connector_get_local_audio_info {
  * Used to allocate and initialize a vx_req_connector_get_local_audio_info object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_connector_get_local_audio_info_create(vx_req_connector_get_local_audio_info_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_connector_get_local_audio_info_create(vx_req_connector_get_local_audio_info_t **req);
 #endif
 
 #ifndef VX_DISABLE_PRESENCE
@@ -3216,15 +3230,15 @@ typedef struct vx_req_account_buddy_set {
     /**
     * The identifier of the buddy to add to the list.
     */
-    char* buddy_uri;
+    char *buddy_uri;
     /**
     * Readable name for display only.  Not required.
     */
-    char* display_name;
+    char *display_name;
     /**
     * A place to store extra data about a buddy. Not required.
     */
-    char* buddy_data;
+    char *buddy_data;
     /**
     * The ID of the group to add the buddy to. Set to 0 to remove the buddy from a group.
     */
@@ -3233,14 +3247,14 @@ typedef struct vx_req_account_buddy_set {
     * NOT CURRENTLY IMPLEMENTED.
     * Optional personalize message the user will see if he/she receives a vx_evt_subscription_t event. 256 chars max.
     */
-    char* message;
+    char *message;
 } vx_req_account_buddy_set_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_buddy_set object
  * \ingroup buddies
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_buddy_set_create(vx_req_account_buddy_set_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_buddy_set_create(vx_req_account_buddy_set_t **req);
 #endif
 
 /**
@@ -3263,14 +3277,14 @@ typedef struct vx_req_account_buddy_delete {
     /**
     * The identifier of the buddy to be removed from the user's buddy list.
     */
-    char* buddy_uri;
+    char *buddy_uri;
 } vx_req_account_buddy_delete_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_buddy_delete object
  * \ingroup buddies
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_buddy_delete_create(vx_req_account_buddy_delete_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_buddy_delete_create(vx_req_account_buddy_delete_t **req);
 #endif
 
 /**
@@ -3300,19 +3314,19 @@ typedef struct vx_req_account_buddygroup_set {
     /**
     * The readable name of the group being added or updated.
     */
-    char* group_name;
+    char *group_name;
     /**
     * A place to store extra data about a buddy group.
     * Not required.
     */
-    char* group_data;
+    char *group_data;
 } vx_req_account_buddygroup_set_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_buddygroup_set object
  * \ingroup buddies
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_buddygroup_set_create(vx_req_account_buddygroup_set_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_buddygroup_set_create(vx_req_account_buddygroup_set_t **req);
 #endif
 
 /**
@@ -3344,7 +3358,7 @@ typedef struct vx_req_account_buddygroup_delete {
  * Used to allocate and initialize a vx_req_account_buddygroup_delete object
  * \ingroup buddies
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_buddygroup_delete_create(vx_req_account_buddygroup_delete_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_buddygroup_delete_create(vx_req_account_buddygroup_delete_t **req);
 #endif
 
 /**
@@ -3365,7 +3379,7 @@ typedef struct vx_req_account_list_buddies_and_groups {
  * Used to allocate and initialize a vx_req_account_list_buddies_and_groups object
  * \ingroup buddies
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_list_buddies_and_groups_create(vx_req_account_list_buddies_and_groups_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_list_buddies_and_groups_create(vx_req_account_list_buddies_and_groups_t **req);
 #endif
 #endif
 
@@ -3392,18 +3406,18 @@ typedef struct vx_req_session_send_message {
     * will be validated so it must be in a valid format.  For a full description of valid
     * content types please see RFC 2046 (http://www.ietf.org/rfc/rfc2046.txt).
     */
-    char* message_header;
+    char *message_header;
     /**
     * The contents of the message
     */
-    char* message_body;
+    char *message_body;
 } vx_req_session_send_message_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_session_send_message object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_send_message_create(vx_req_session_send_message_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_send_message_create(vx_req_session_send_message_t **req);
 #endif
 
 #ifndef VX_DISABLE_PRESENCE
@@ -3440,7 +3454,7 @@ typedef struct vx_req_account_set_presence {
     /**
     * Custom message string when presence is set.
     */
-    char* custom_message;
+    char *custom_message;
     /**
      * DEPRECATED
      * @deprecated
@@ -3452,7 +3466,7 @@ typedef struct vx_req_account_set_presence {
  * Used to allocate and initialize a vx_req_account_set_presence object
  * \ingroup buddies
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_set_presence_create(vx_req_account_set_presence_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_set_presence_create(vx_req_account_set_presence_t **req);
 #endif
 
 
@@ -3487,18 +3501,18 @@ typedef struct vx_req_account_send_subscription_reply {
     /**
     * The identifier of the buddy who sent the initial subscription
     */
-    char* buddy_uri;
+    char *buddy_uri;
     /**
     * The subscription identifier that was presented with the inbound subscription event
     */
-    char* subscription_handle;
+    char *subscription_handle;
 } vx_req_account_send_subscription_reply_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_send_subscription_reply object
  * \ingroup buddies
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_send_subscription_reply_create(vx_req_account_send_subscription_reply_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_send_subscription_reply_create(vx_req_account_send_subscription_reply_t **req);
 #endif
 #endif
 
@@ -3530,7 +3544,7 @@ typedef struct vx_req_session_send_notification {
  * Used to allocate and initialize a vx_req_session_send_notification object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_send_notification_create(vx_req_session_send_notification_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_send_notification_create(vx_req_session_send_notification_t **req);
 #endif
 
 /**
@@ -3580,7 +3594,7 @@ typedef struct vx_req_session_send_dtmf {
  *
  * \attention Not supported on the PLAYSTATION(R)3 platform
  */
-VIVOXSDK_DLLEXPORT int vx_req_session_send_dtmf_create(vx_req_session_send_dtmf_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_session_send_dtmf_create(vx_req_session_send_dtmf_t **req);
 #endif
 
 #ifndef VX_DISABLE_PRESENCE
@@ -3604,7 +3618,7 @@ typedef struct vx_req_account_create_block_rule {
     /**
     * SIP URI of the buddy to block.
     */
-    char* block_mask;
+    char *block_mask;
     /**
     * Blocks the visibility of presence, and/or communication.
     * Valid values: 0 (default) or 1. [not relevant for delete]
@@ -3616,7 +3630,7 @@ typedef struct vx_req_account_create_block_rule {
  * Used to allocate and initialize a vx_req_account_create_block_rule object
  * \ingroup buddies
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_create_block_rule_create(vx_req_account_create_block_rule_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_create_block_rule_create(vx_req_account_create_block_rule_t **req);
 #endif
 
 /**
@@ -3639,14 +3653,14 @@ typedef struct vx_req_account_delete_block_rule {
     /**
     * SIP URI of the buddy.
      */
-    char* block_mask;
+    char *block_mask;
 } vx_req_account_delete_block_rule_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_delete_block_rule object
  * \ingroup buddies
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_delete_block_rule_create(vx_req_account_delete_block_rule_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_delete_block_rule_create(vx_req_account_delete_block_rule_t **req);
 #endif
 
 /**
@@ -3674,7 +3688,7 @@ typedef struct vx_req_account_list_block_rules {
  * Used to allocate and initialize a vx_req_account_list_block_rules object
  * \ingroup buddies
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_list_block_rules_create(vx_req_account_list_block_rules_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_list_block_rules_create(vx_req_account_list_block_rules_t **req);
 #endif
 
 /**
@@ -3698,7 +3712,7 @@ typedef struct vx_req_account_create_auto_accept_rule {
     /**
     * SIP URI of buddy
     */
-    char* auto_accept_mask;
+    char *auto_accept_mask;
     /**
     * Will cause a requesting buddy that matches this rule to be automatically added to the
     * buddy list associated with the account_handle.
@@ -3708,14 +3722,14 @@ typedef struct vx_req_account_create_auto_accept_rule {
     /**
      * Optional, add the accept rule with this nickname
      */
-    char* auto_accept_nickname;
+    char *auto_accept_nickname;
 } vx_req_account_create_auto_accept_rule_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_create_auto_accept_rule object
  * \ingroup buddies
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_create_auto_accept_rule_create(vx_req_account_create_auto_accept_rule_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_create_auto_accept_rule_create(vx_req_account_create_auto_accept_rule_t **req);
 #endif
 
 /**
@@ -3727,25 +3741,25 @@ VIVOXSDK_DLLEXPORT int vx_req_account_create_auto_accept_rule_create(vx_req_acco
  * \ingroup buddies
  */
 typedef struct vx_req_account_delete_auto_accept_rule {
-     /**
-     * The common properties for all requests
-     */
+    /**
+    * The common properties for all requests
+    */
     vx_req_base_t base;
-     /**
-     * Handle returned from successful vx_req_account_login request
-     */
+    /**
+    * Handle returned from successful vx_req_account_login request
+    */
     VX_HANDLE account_handle;
     /**
      * SIP URI of buddy
      */
-    char* auto_accept_mask;
+    char *auto_accept_mask;
 } vx_req_account_delete_auto_accept_rule_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_delete_auto_accept_rule object
  * \ingroup buddies
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_delete_auto_accept_rule_create(vx_req_account_delete_auto_accept_rule_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_delete_auto_accept_rule_create(vx_req_account_delete_auto_accept_rule_t **req);
 #endif
 
 /**
@@ -3773,7 +3787,7 @@ typedef struct vx_req_account_list_auto_accept_rules {
  * Used to allocate and initialize a vx_req_account_list_auto_accept_rules object
  * \ingroup buddies
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_list_auto_accept_rules_create(vx_req_account_list_auto_accept_rules_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_list_auto_accept_rules_create(vx_req_account_list_auto_accept_rules_t **req);
 #endif
 #endif
 /**
@@ -3797,13 +3811,13 @@ typedef struct vx_req_account_update_account {
     /**
     * The display name for the account
     */
-    char* displayname;
+    char *displayname;
 } vx_req_account_update_account_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_update_account object
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_update_account_create(vx_req_account_update_account_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_update_account_create(vx_req_account_update_account_t **req);
 #endif
 
 /**
@@ -3829,13 +3843,13 @@ typedef struct vx_req_account_get_account {
      * DEPRECATED - this field is no longer used
      * @deprecated
      */
-    char* uri;
+    char *uri;
 } vx_req_account_get_account_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_account_get_account object
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_get_account_create(vx_req_account_get_account_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_get_account_create(vx_req_account_get_account_t **req);
 #endif
 
 /*
@@ -3863,11 +3877,11 @@ typedef struct vx_req_account_send_sms {
     /*
     * The URI of intended receiver of the message
     */
-    char* recipient_uri;
+    char *recipient_uri;
     /*
     * The body of the message being sent
     */
-    char* content;
+    char *content;
 } vx_req_account_send_sms_t;
 #ifndef VIVOX_TYPES_ONLY
 /*
@@ -3875,7 +3889,7 @@ typedef struct vx_req_account_send_sms {
  *
  * \attention Not supported on the PLAYSTATION(R)3 platform
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_send_sms_create(vx_req_account_send_sms_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_send_sms_create(vx_req_account_send_sms_t **req);
 #endif
 
 
@@ -3900,15 +3914,15 @@ typedef struct vx_req_aux_connectivity_info {
     /**
     * Provided by Vivox
     */
-    char* well_known_ip;
+    char *well_known_ip;
     /**
     * Provided by Vivox
     */
-    char* stun_server;
+    char *stun_server;
     /**
     * Provided by Vivox
     */
-    char* echo_server;
+    char *echo_server;
     /**
     * Provided by Vivox
     */
@@ -3921,14 +3935,14 @@ typedef struct vx_req_aux_connectivity_info {
     * If this is specified, all other fields will be ignored and only the values obtained from the server will be used.
     * These parameters will be returned in the response..  If this field is NULL, the fields specified above will be used to perform the network test.
     */
-    char* acct_mgmt_server;
+    char *acct_mgmt_server;
 } vx_req_aux_connectivity_info_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_aux_connectivity_info object
 * \ingroup diagnostics
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_connectivity_info_create(vx_req_aux_connectivity_info_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_connectivity_info_create(vx_req_aux_connectivity_info_t **req);
 #endif
 
 /**
@@ -3954,7 +3968,7 @@ typedef struct vx_req_aux_get_render_devices {
  * Used to allocate and initialize a vx_req_aux_get_render_devices object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_get_render_devices_create(vx_req_aux_get_render_devices_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_get_render_devices_create(vx_req_aux_get_render_devices_t **req);
 #endif
 
 /**
@@ -3977,7 +3991,7 @@ typedef struct vx_req_aux_get_capture_devices {
  * Used to allocate and initialize a vx_req_aux_get_render_devices object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_get_capture_devices_create(vx_req_aux_get_capture_devices_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_get_capture_devices_create(vx_req_aux_get_capture_devices_t **req);
 #endif
 
 /**
@@ -4005,14 +4019,14 @@ typedef struct vx_req_aux_set_render_device {
     *
     * On PS4, this can be the string representation of the user ID - e.g. "1", "2", "3" etc.
     */
-    char* render_device_specifier;
+    char *render_device_specifier;
 } vx_req_aux_set_render_device_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_aux_set_render_device object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_set_render_device_create(vx_req_aux_set_render_device_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_set_render_device_create(vx_req_aux_set_render_device_t **req);
 #endif
 
 /**
@@ -4040,14 +4054,14 @@ typedef struct vx_req_aux_set_capture_device {
     *
     * On PS4, this can be the string representation of the user ID.
     */
-    char* capture_device_specifier;
+    char *capture_device_specifier;
 } vx_req_aux_set_capture_device_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_aux_set_capture_device object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_set_capture_device_create(vx_req_aux_set_capture_device_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_set_capture_device_create(vx_req_aux_set_capture_device_t **req);
 #endif
 
 /**
@@ -4072,7 +4086,7 @@ typedef struct vx_req_aux_get_mic_level {
  * Used to allocate and initialize a vx_req_aux_get_mic_level object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_get_mic_level_create(vx_req_aux_get_mic_level_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_get_mic_level_create(vx_req_aux_get_mic_level_t **req);
 #endif
 
 /**
@@ -4097,7 +4111,7 @@ typedef struct vx_req_aux_get_speaker_level {
  * Used to allocate and initialize a vx_req_aux_get_speaker_level object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_get_speaker_level_create(vx_req_aux_get_speaker_level_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_get_speaker_level_create(vx_req_aux_get_speaker_level_t **req);
 #endif
 
 /**
@@ -4126,7 +4140,7 @@ typedef struct vx_req_aux_set_mic_level {
  * Used to allocate and initialize a vx_req_aux_set_mic_level object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_set_mic_level_create(vx_req_aux_set_mic_level_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_set_mic_level_create(vx_req_aux_set_mic_level_t **req);
 #endif
 
 /**
@@ -4155,7 +4169,7 @@ typedef struct vx_req_aux_set_speaker_level {
  * Used to allocate and initialize a vx_req_aux_set_speaker_level object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_set_speaker_level_create(vx_req_aux_set_speaker_level_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_set_speaker_level_create(vx_req_aux_set_speaker_level_t **req);
 #endif
 
 /**
@@ -4177,7 +4191,7 @@ typedef struct vx_req_aux_render_audio_start {
     /**
      * A local directory path name of a monaural 'wav' or 'au' sound file
      */
-    char* sound_file_path;
+    char *sound_file_path;
     /**
      * If set to 1, the sound system will play the file in a continuous loop, until the 'render audio stop' method
      * is called; If set to 0, the file will play once or until the render audio stop' method
@@ -4195,7 +4209,7 @@ typedef struct vx_req_aux_render_audio_start {
  * Used to allocate and initialize a vx_req_aux_render_audio_start object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_render_audio_start_create(vx_req_aux_render_audio_start_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_render_audio_start_create(vx_req_aux_render_audio_start_t **req);
 #endif
 
 /**
@@ -4218,7 +4232,7 @@ typedef struct vx_req_aux_render_audio_modify {
 /**
  * Used to allocate and initialize a vx_req_aux_render_audio_modify object
   */
-VIVOXSDK_DLLEXPORT int vx_req_aux_render_audio_modify_create(vx_req_aux_render_audio_modify_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_render_audio_modify_create(vx_req_aux_render_audio_modify_t **req);
 #endif
 
 /**
@@ -4238,7 +4252,7 @@ typedef struct vx_req_aux_get_vad_properties {
  * Used to allocate and initialize a vx_req_aux_get_vad_properties object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_get_vad_properties_create(vx_req_aux_get_vad_properties_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_get_vad_properties_create(vx_req_aux_get_vad_properties_t **req);
 #endif
 
 /**
@@ -4277,7 +4291,7 @@ typedef struct vx_req_aux_set_vad_properties {
  * Used to allocate and initialize a vx_req_aux_render_audio_modify object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_set_vad_properties_create(vx_req_aux_set_vad_properties_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_set_vad_properties_create(vx_req_aux_set_vad_properties_t **req);
 #endif
 
 
@@ -4301,7 +4315,7 @@ typedef struct vx_req_aux_render_audio_stop {
  * Used to allocate and initialize a vx_req_aux_render_audio_stop object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_render_audio_stop_create(vx_req_aux_render_audio_stop_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_render_audio_stop_create(vx_req_aux_render_audio_stop_t **req);
 #endif
 
 
@@ -4336,7 +4350,7 @@ typedef struct vx_req_aux_capture_audio_start {
  * Used to allocate and initialize a vx_req_aux_capture_audio_start object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_capture_audio_start_create(vx_req_aux_capture_audio_start_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_capture_audio_start_create(vx_req_aux_capture_audio_start_t **req);
 #endif
 
 /**
@@ -4359,7 +4373,7 @@ typedef struct vx_req_aux_capture_audio_stop {
  * Used to allocate and initialize a vx_req_aux_capture_audio_stop object
  * \ingroup devices
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_capture_audio_stop_create(vx_req_aux_capture_audio_stop_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_capture_audio_stop_create(vx_req_aux_capture_audio_stop_t **req);
 #endif
 
 /**
@@ -4385,7 +4399,7 @@ typedef struct vx_req_account_get_session_fonts {
  * Used to allocate and initialize a vx_req_account_get_session_fonts object
  * \ingroup voicefonts
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_get_session_fonts_create(vx_req_account_get_session_fonts_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_get_session_fonts_create(vx_req_account_get_session_fonts_t **req);
 #endif
 
 /**
@@ -4411,7 +4425,7 @@ typedef struct vx_req_account_get_template_fonts {
  * Used to allocate and initialize a vx_req_account_get_template_fonts object
  * \ingroup voicefonts
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_get_template_fonts_create(vx_req_account_get_template_fonts_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_get_template_fonts_create(vx_req_account_get_template_fonts_t **req);
 #endif
 
 /**
@@ -4435,7 +4449,7 @@ typedef struct vx_req_aux_start_buffer_capture {
  * Used to allocate and initialize a vx_req_aux_start_buffer_capture object
  * \ingroup adi
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_start_buffer_capture_create(vx_req_aux_start_buffer_capture_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_start_buffer_capture_create(vx_req_aux_start_buffer_capture_t **req);
 #endif
 
 /**
@@ -4464,14 +4478,14 @@ typedef struct vx_req_aux_play_audio_buffer {
     * Fhe font delta to apply to the chosen template font.
     * Will be ignored if no template_font_id is supplied.  Leave null to play font without changes.
     */
-    char* font_delta;
+    char *font_delta;
 } vx_req_aux_play_audio_buffer_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_aux_play_audio_buffer object
  * \ingroup adi
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_play_audio_buffer_create(vx_req_aux_play_audio_buffer_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_play_audio_buffer_create(vx_req_aux_play_audio_buffer_t **req);
 #endif
 
 /**
@@ -4501,7 +4515,7 @@ typedef struct vx_req_aux_global_monitor_keyboard_mouse {
      * An application defined name for the binding.
      * This name will be returned in the vx_evt_keyboard_mouse_t event when the key combination is pressed or released.
      */
-    char * name;
+    char *name;
     /**
      * The number of valid key codes in the codes member.
      * If this is zero, the binding for that name is cleared, and no more events will be received for that binding.
@@ -4520,7 +4534,7 @@ typedef struct vx_req_aux_global_monitor_keyboard_mouse {
  * \attention Not supported on the PLAYSTATION(R)3 platform
  * \attention Not supported on the iPhone mobile digital device platform
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_global_monitor_keyboard_mouse_create(vx_req_aux_global_monitor_keyboard_mouse_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_global_monitor_keyboard_mouse_create(vx_req_aux_global_monitor_keyboard_mouse_t **req);
 #endif
 
 /**
@@ -4557,7 +4571,7 @@ typedef struct vx_req_aux_set_idle_timeout {
  * \attention Not supported on the PLAYSTATION(R)3 platform
  * \attention Not supported on the iPhone mobile digital device platform
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_set_idle_timeout_create(vx_req_aux_set_idle_timeout_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_set_idle_timeout_create(vx_req_aux_set_idle_timeout_t **req);
 #endif
 
 /**
@@ -4673,7 +4687,7 @@ typedef struct vx_req_aux_create_account {
  * \attention Not supported on PLAYSTATION(R)3 platform
  * \attention Not supported on the iPhone mobile digital device platform
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_create_account_create(vx_req_aux_create_account_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_create_account_create(vx_req_aux_create_account_t **req);
 #endif
 
 /**
@@ -4712,7 +4726,7 @@ typedef struct vx_req_aux_reactivate_account {
  * \attention Not supported on PLAYSTATION(R)3 platform
  * \attention Not supported on the iPhone mobile digital device platform
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_reactivate_account_create(vx_req_aux_reactivate_account_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_reactivate_account_create(vx_req_aux_reactivate_account_t **req);
 #endif
 
 /**
@@ -4752,7 +4766,7 @@ typedef struct vx_req_aux_deactivate_account {
  * \attention Not supported on PLAYSTATION(R)3 platform
  * \attention Not supported on the iPhone mobile digital device platform
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_deactivate_account_create(vx_req_aux_deactivate_account_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_deactivate_account_create(vx_req_aux_deactivate_account_t **req);
 #endif
 
 /**
@@ -4788,7 +4802,7 @@ typedef struct vx_req_account_post_crash_dump {
  * \attention Not supported on PLAYSTATION(R)3 platform
  * \attention Not supported on the iPhone mobile digital device platform
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_post_crash_dump_create(vx_req_account_post_crash_dump_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_post_crash_dump_create(vx_req_account_post_crash_dump_t **req);
 #endif
 
 /**
@@ -4820,7 +4834,7 @@ typedef struct vx_req_aux_reset_password {
 /**
  * Used to allocate and initialize a vx_req_aux_reset_password object
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_reset_password_create(vx_req_aux_reset_password_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_reset_password_create(vx_req_aux_reset_password_t **req);
 #endif
 
 /**
@@ -4851,7 +4865,7 @@ typedef struct vx_req_aux_diagnostic_state_dump {
  * \attention Not supported on the PLAYSTATION(R)3 platform
  * \attention Not supported on the iPhone mobile digital device platform
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_diagnostic_state_dump_create(vx_req_aux_diagnostic_state_dump_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_diagnostic_state_dump_create(vx_req_aux_diagnostic_state_dump_t **req);
 #endif
 
 
@@ -4888,7 +4902,7 @@ typedef struct vx_req_account_web_call {
 /**
  * Used to allocate and initialize a vx_req_account_web_call object
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_web_call_create(vx_req_account_web_call_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_web_call_create(vx_req_account_web_call_t **req);
 #endif
 
 
@@ -4916,7 +4930,7 @@ typedef struct vx_req_sessiongroup_get_stats {
  * Used to allocate and initialize a vx_req_sessiongroup_get_stats object
  *
  */
-VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_get_stats_create(vx_req_sessiongroup_get_stats_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_sessiongroup_get_stats_create(vx_req_sessiongroup_get_stats_t **req);
 #endif
 
 
@@ -4947,25 +4961,24 @@ typedef struct vx_req_account_send_message {
     * will be validated so it must be in a valid format.  For a full description of valid
     * content types please see RFC 2046 (http://www.ietf.org/rfc/rfc2046.txt).
     */
-    char* message_header;
+    char *message_header;
     /**
     * The contents of the message
     */
-    char* message_body;
+    char *message_body;
     /**
      * DEPRECATED
      * @deprecated
      */
-    char* alias_username;
+    char *alias_username;
 } vx_req_account_send_message_t;
 #ifndef VIVOX_TYPES_ONLY
 /**
  * Used to allocate and initialize a vx_req_session_send_message object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_send_message_create(vx_req_account_send_message_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_send_message_create(vx_req_account_send_message_t **req);
 #endif
-
 
 
 /**
@@ -4990,7 +5003,7 @@ typedef struct vx_req_aux_notify_application_state_change {
  * Used to allocate and initialize a vx_req_aux_notify_application_state_change object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_aux_notify_application_state_change_create(vx_req_aux_notify_application_state_change_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_aux_notify_application_state_change_create(vx_req_aux_notify_application_state_change_t **req);
 #endif
 
 
@@ -5027,7 +5040,7 @@ typedef struct vx_req_account_control_communications {
  * Used to allocate and initialize a vx_req_account_control_communications object
  * \ingroup session
  */
-VIVOXSDK_DLLEXPORT int vx_req_account_control_communications_create(vx_req_account_control_communications_t ** req);
+VIVOXSDK_DLLEXPORT int vx_req_account_control_communications_create(vx_req_account_control_communications_t **req);
 #endif
 
 
