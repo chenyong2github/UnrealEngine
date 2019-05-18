@@ -736,7 +736,13 @@ struct FGlobalActorReplicationInfoMap
 		ClassMap.CountBytes(Ar);
 	}
 
-	void AddDependentActor(AActor* Parent, AActor* Child)
+	enum EWarnFlag
+	{
+		None = 0,
+		WarnAlreadyDependant = 1 << 1,
+	};
+
+	void AddDependentActor(AActor* Parent, AActor* Child, FGlobalActorReplicationInfoMap::EWarnFlag WarnFlag=FGlobalActorReplicationInfoMap::None)
 	{
 		const bool bIsParentValid = ensureMsgf(Parent && IsActorValidForReplication(Parent), TEXT("FGlobalActorReplicationInfoMap::AddDependentActor Invalid Parent! %s"),
 			*GetPathNameSafe(Parent));
@@ -746,16 +752,30 @@ struct FGlobalActorReplicationInfoMap
 
 		if (bIsParentValid && bIsChildValid)
 		{
+			const bool bDoWarnings = (WarnFlag & WarnAlreadyDependant) != 0;
+
+			bool bChildIsAlreadyDependant(false);
 			if (FGlobalActorReplicationInfo* ParentInfo = Find(Parent))
 			{
+				bChildIsAlreadyDependant = bDoWarnings && ParentInfo->DependentActorList.IsValid() && ParentInfo->DependentActorList.Contains(Child);
+
 				ParentInfo->DependentActorList.PrepareForWrite();
 				ParentInfo->DependentActorList.ConditionalAdd(Child);
 			}
 
+			bool bChildHadParentAlready(false);
 			if (FGlobalActorReplicationInfo* ChildInfo = Find(Child))
 			{
+				bChildHadParentAlready = bDoWarnings && ChildInfo->ParentActorList.IsValid() && ChildInfo->ParentActorList.Contains(Parent);
 				ChildInfo->ParentActorList.PrepareForWrite();
 				ChildInfo->ParentActorList.ConditionalAdd(Parent);
+			}
+
+			if (bChildIsAlreadyDependant || bChildHadParentAlready)
+			{
+				UE_LOG(LogReplicationGraph, Warning, TEXT("FGlobalActorReplicationInfoMap::AddDependentActor Child %s - Parent %s | Child already dependant of parent: %d | Child previously had parent in list: %d"), 
+					   *GetPathNameSafe(Child), *GetPathNameSafe(Parent),
+					   bChildIsAlreadyDependant, bChildHadParentAlready);
 			}
 		}
 	}
@@ -775,6 +795,43 @@ struct FGlobalActorReplicationInfoMap
 				ChildInfo->ParentActorList.PrepareForWrite();
 				ChildInfo->ParentActorList.Remove(Parent);
 			}
+		}
+	}
+
+	void RemoveAllActorDependancies(AActor* MainActor)
+	{
+		FGlobalActorReplicationInfo* MainActorInfo = Find(MainActor);
+		if (MainActor == nullptr)
+		{
+			return;
+		}
+		
+		if (MainActorInfo->ParentActorList.IsValid())
+		{
+			// Remove this actor from all his parents
+			for (FActorRepListType ParentActor : MainActorInfo->ParentActorList)
+			{
+				if (FGlobalActorReplicationInfo* ParentInfo = Find(ParentActor))
+				{
+					ParentInfo->DependentActorList.PrepareForWrite();
+					ParentInfo->DependentActorList.Remove(MainActor);
+				}
+			}
+			MainActorInfo->ParentActorList.Reset();
+		}
+
+		if (MainActorInfo->DependentActorList.IsValid())
+		{
+            // Remove all dependant childs from this actor
+			for (FActorRepListType ChildActor : MainActorInfo->DependentActorList)
+			{
+				if (FGlobalActorReplicationInfo* ChildInfo = Find(ChildActor))
+				{
+					ChildInfo->ParentActorList.PrepareForWrite();
+					ChildInfo->ParentActorList.Remove(MainActor);
+				}
+			}
+			MainActorInfo->DependentActorList.Reset();
 		}
 	}
 
