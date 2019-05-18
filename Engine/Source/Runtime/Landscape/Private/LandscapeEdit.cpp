@@ -3609,7 +3609,7 @@ void ALandscape::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All);
+	RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
 }
 
 bool ALandscape::ShouldImport(FString* ActorPropString, bool IsMovingLevel)
@@ -4056,7 +4056,7 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		{
 			if(ALandscape* LandscapeActor = GetLandscapeActor())
 			{
-				LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::All);
+				LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
 			}
 		}
 		
