@@ -188,7 +188,11 @@ void ScreenSpaceReflectionsPS(
 		LOOP for( uint i = 0; i < NumRays; i++ )
 		{
 			float StepOffset = Noise.x;
-			StepOffset -= 0.9;
+			#if 0 // TODO
+				StepOffset -= 0.9;
+			#else
+				StepOffset -= 0.5;
+			#endif
 			
 			float2 E = Hammersley16( i, NumRays, Random );
 
@@ -285,7 +289,11 @@ void ScreenSpaceReflectionsPS(
 	else
 	{
 		float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
-		StepOffset -= 0.9;
+		#if 0 // TODO
+			StepOffset -= 0.9;
+		#else
+			StepOffset -= 0.5;
+		#endif
 		
 		float3 L;
 		if (bGlossy)

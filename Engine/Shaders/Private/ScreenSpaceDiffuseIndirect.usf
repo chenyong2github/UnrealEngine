@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#define IS_SSGI_SHADER 1
+
 #include "Common.ush"	
 #include "PostProcessCommon.ush"				
 #include "DeferredShadingCommon.ush"
@@ -68,11 +70,14 @@ void ScreenSpaceDiffuseIndirectPS(
 	//uint2 Random = 0x10000 * Noise;
 	uint2 Random = Rand3DPCG16( int3( PixelPos, View.StateFrameIndexMod8 ) ).xy;
 			
+	// TODO: lot of VGPR, worth recomputing every ray instead?
 	float3x3 TangentBasis = GetTangentBasis( N );
 
 	// Shoot multiple rays
 	LOOP for( int i = 0; i < NumRays; i++ )
 	{
+		// TOOD: VGPR, might be worth recomputing instead?
+		// SvPosition: is SvPosition really needed? Can recompute from PositionTranslatedWorld?
 		float StepOffset = Noise.x;
 		StepOffset -= 0.9;
 			

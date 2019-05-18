@@ -2,6 +2,10 @@
 
 #pragma once
 
+#ifndef IS_SSGI_SHADER
+#define IS_SSGI_SHADER 0
+#endif
+
 #include "Common.ush"	
 
 bool RayCast(
@@ -40,8 +44,11 @@ bool RayCast(
 	float3 RayStepUVz  = float3(  RayStepScreen.xy  * float2( 0.5, -0.5 )		 * HZBUvFactorAndInvFactor.xy, RayStepScreen.z );
 	
 	const float Step = 1.0 / NumSteps;
-	float CompareTolerance = max( abs( RayStepUVz.z ), ( RayStartScreen.z - RayDepthScreen.z ) * 2 ) * Step;
-	//const float CompareTolerance = abs( RayDepthScreen.z - RayStartScreen.z ) * Step * 2;
+	#if IS_SSGI_SHADER
+		float CompareTolerance = max( abs( RayStepUVz.z ), ( RayStartScreen.z - RayDepthScreen.z ) * 2 ) * Step;
+	#else
+		float CompareTolerance = abs( RayDepthScreen.z - RayStartScreen.z ) * Step * 4;
+	#endif
 
 	// avoid bugs with early returns inside of loops on certain platform compilers.
 	bool bHit = false;
@@ -76,7 +83,7 @@ bool RayCast(
 
 		BRANCH if( any( Hit ) )
 		{
-			if(1)
+			if(IS_SSGI_SHADER)
 			{
 				// If hit set to intersect time. If missed set to beyond end of ray
 				float4 HitTime = Hit ? float4( 1, 2, 3, 4 ) : 5;
