@@ -5562,6 +5562,7 @@ void FLandscapeEditDataInterface::GetXYOffsetDataFast(const int32 X1, const int3
 FLandscapeTextureDataInfo::FLandscapeTextureDataInfo(UTexture2D* InTexture)
 :	Texture(InTexture)
 {
+	check(InTexture->IsAsyncCacheComplete());
 	MipInfo.AddZeroed(Texture->Source.GetNumMips());
 	Texture->SetFlags(RF_Transactional);
 	Texture->TemporarilyDisableStreaming();

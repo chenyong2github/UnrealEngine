@@ -2544,7 +2544,7 @@ bool ALandscape::PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming
 				{
 					UTexture2D* LayerHeightmap = ComponentLayerData->HeightmapData.Texture;
 
-					if (LayerHeightmap->IsAsyncCacheComplete() && LayerHeightmap->Resource == nullptr)
+					if ((LayerHeightmap->IsAsyncCacheComplete() || bInWaitForStreaming) && LayerHeightmap->Resource == nullptr)
 					{
 						LayerHeightmap->FinishCachePlatformData();
 
@@ -3359,7 +3359,7 @@ bool ALandscape::PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming
 				{
 					for (UTexture2D* LayerWeightmap : ComponentLayerData->WeightmapData.Textures)
 					{
-						if (LayerWeightmap->IsAsyncCacheComplete() && LayerWeightmap->Resource == nullptr)
+						if ((LayerWeightmap->IsAsyncCacheComplete() || bInWaitForStreaming) && LayerWeightmap->Resource == nullptr)
 						{
 							LayerWeightmap->FinishCachePlatformData();
 
@@ -4736,6 +4736,15 @@ void ALandscapeProxy::InitializeLayerWithEmptyContent(const FGuid& InLayerGuid)
 		check(ComponentsUsingHeightmap != nullptr);
 
 		Component->AddDefaultLayerData(InLayerGuid, *ComponentsUsingHeightmap, CreatedHeightmapTextures);
+	}
+
+	// Finish caching
+	for (TPair<UTexture2D*, UTexture2D*> Pair : CreatedHeightmapTextures)
+	{
+		if (Pair.Value != nullptr && !Pair.Value->IsAsyncCacheComplete())
+		{
+			Pair.Value->FinishCachePlatformData();
+		}
 	}
 }
 #endif
