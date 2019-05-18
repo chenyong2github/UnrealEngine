@@ -1853,7 +1853,7 @@ bool UWorld::UpdateCullDistanceVolumes(AActor* ActorToUpdate, UPrimitiveComponen
 }
 
 
-void UWorld::ModifyLevel(ULevel* Level)
+void UWorld::ModifyLevel(ULevel* Level) const
 {
 	if( Level && Level->HasAnyFlags(RF_Transactional))
 	{
