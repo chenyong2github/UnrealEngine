@@ -61,6 +61,11 @@ bool UGCObjectReferencer::GetReferencerName(UObject* Object, FString& OutName) c
 		if (ObjectArray.Contains(Object))
 		{
 			OutName = GCReporter->GetReferencerName();
+			FString ReferencerProperty;
+			if (GCReporter->GetReferencerPropertyName(Object, ReferencerProperty))
+			{
+				OutName += TEXT(":") + ReferencerProperty;
+			}
 			return true;
 		}
 	}
