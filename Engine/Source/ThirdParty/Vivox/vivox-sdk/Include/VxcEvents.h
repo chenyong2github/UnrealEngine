@@ -1,7 +1,7 @@
 #pragma once
 /* Copyright (c) 2013-2018 by Mercer Road Corp
  *
- * Permission to use, copy, modify or distribute this software in binary or source form 
+ * Permission to use, copy, modify or distribute this software in binary or source form
  * for any purpose is allowed only under explicit prior consent in writing from Mercer Road Corp
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND MERCER ROAD CORP DISCLAIMS
@@ -25,7 +25,7 @@ extern "C" {
 
 /**
  * This event message is sent whenever the login state of the particular Account has transitioned from one value to another.
- * 
+ *
  * The XML for this event can be found here: \ref AccountLoginStateChangeEvent
  *
  * \ingroup login
@@ -50,7 +50,7 @@ typedef struct vx_evt_account_login_state_change {
     /**
     * Text (in English) to describe the Status Code
     */
-    char* status_string;
+    char *status_string;
     /**
      * originating login request cookie
      *
@@ -84,13 +84,13 @@ typedef struct vx_evt_buddy_presence {
      */
     vx_buddy_presence_state state;
     /**
-    * Handle returned from successful 'login' request 
+    * Handle returned from successful 'login' request
     */
     VX_HANDLE account_handle;
     /**
     * The URI of the sender of the message
     */
-    char* buddy_uri;
+    char *buddy_uri;
     /**
     * New presense of the buddy, please refer to the codes in table \ref vx_buddy_presence_state
     */
@@ -98,41 +98,41 @@ typedef struct vx_evt_buddy_presence {
     /**
     * Custom message string when presence is set to custom.
     */
-    char* custom_message;
+    char *custom_message;
     /**
      * The displayname if the buddy_uri had a displayname
      */
-    char* displayname;
+    char *displayname;
     /**
-     * The application of the buddy who's presence is being reported.  
+     * The application of the buddy who's presence is being reported.
      * May be NULL or empty.
      */
-    char* application;
+    char *application;
     /**
-     * The contact address (Uri) of the buddy who's presence is being reported.  
+     * The contact address (Uri) of the buddy who's presence is being reported.
      * May be NULL or empty.
      */
-    char* contact;
+    char *contact;
     /**
-     * RESERVED FOR FUTURE USE: The priority of the buddy who's presence is being reported.  
+     * RESERVED FOR FUTURE USE: The priority of the buddy who's presence is being reported.
      * May be NULL or empty.
      */
-    char* priority;
+    char *priority;
     /**
-     * The unique id of the instance of the buddy who's presence is being reported.  
+     * The unique id of the instance of the buddy who's presence is being reported.
      * May be NULL or empty.
      */
-    char* id;
+    char *id;
 } vx_evt_buddy_presence_t;
 
 /**
- * Generated when a buddy wants to request presence visibility.  
- * This event will not be presented if an auto-accept or auto-block rule matches the requesting 
- * buddy_uri. Typically the application would use this event to prompt a user to explicitly 
- * accept or deny the request for presence.  Optionally the application might create and store 
- * an auto-accept or auto-block rule based upon the users' choice. The application should generate a 
- * vx_req_account_send_subscription_reply_t resquest based upon application logic and/or end-user response. 
- * The subscription_handle value must be extracted and returned as a parameter to  
+ * Generated when a buddy wants to request presence visibility.
+ * This event will not be presented if an auto-accept or auto-block rule matches the requesting
+ * buddy_uri. Typically the application would use this event to prompt a user to explicitly
+ * accept or deny the request for presence.  Optionally the application might create and store
+ * an auto-accept or auto-block rule based upon the users' choice. The application should generate a
+ * vx_req_account_send_subscription_reply_t resquest based upon application logic and/or end-user response.
+ * The subscription_handle value must be extracted and returned as a parameter to
  * vx_req_account_send_subscription_reply_t
  *
  * The XML for this event can be found here: \ref SubscriptionEvent
@@ -146,18 +146,18 @@ typedef struct vx_evt_subscription {
      */
     vx_evt_base_t base;
     /**
-     * Handle returned from successful 'login' request 
+     * Handle returned from successful 'login' request
      */
     VX_HANDLE account_handle;
     /**
      * The URI of the buddy who's presence is being sent
      */
-    char* buddy_uri;
+    char *buddy_uri;
     /**
-     * The identifier of the subscription event. 
+     * The identifier of the subscription event.
      * Used when forming a reply with vx_req_account_send_subscription_reply_t
      */
-    char* subscription_handle;
+    char *subscription_handle;
     /**
      * "subscription_presence" is currently the only supported value
      */
@@ -165,22 +165,22 @@ typedef struct vx_evt_subscription {
     /**
      * The displayname if the buddy_uri had a displayname
      */
-    char* displayname;
+    char *displayname;
     /**
-     * The application of the buddy who's subscription is being reported.  
+     * The application of the buddy who's subscription is being reported.
      * May be NULL or empty.
      */
-    char* application;
+    char *application;
     /**
     * NOT CURRENTLY IMPLEMENTED
     * Optional message supplied by the initiating user on vx_req_account_buddy_set_t.
     */
-    char* message;
+    char *message;
 } vx_evt_subscription_t;
 #endif
 
 /**
- * Received when another user has started or stopped typing, or raised or lowered their hand, 
+ * Received when another user has started or stopped typing, or raised or lowered their hand,
  * within the context of a session.
  *
  * The XML for this event can be found here: \ref SessionNotificationEvent
@@ -204,7 +204,7 @@ typedef struct vx_evt_session_notification {
     /**
     * The URI of the buddy who's presence is being sent
     */
-    char* participant_uri;
+    char *participant_uri;
     /**
     * New notification type from the buddy, please refer to the codes in table \ref vx_notification_type
     */
@@ -238,36 +238,36 @@ typedef struct vx_evt_message {
      */
     vx_message_state state;
     /**
-     * Handle returned from successful SessionGroup 'create' request 
+     * Handle returned from successful SessionGroup 'create' request
      * \see vx_req_sessiongroup_create
      */
     VX_HANDLE sessiongroup_handle;
     /**
-     * Handle returned from successful Session 'add' request 
+     * Handle returned from successful Session 'add' request
      * \see vx_req_sessiongroup_add_session
      */
     VX_HANDLE session_handle;
     /**
      * The URI of the sender of the message
      */
-    char* participant_uri;
+    char *participant_uri;
     /**
      * Content type of the message
      */
-    char* message_header;
+    char *message_header;
     /**
      * The contents of the message
      */
-    char* message_body;
+    char *message_body;
     /**
      * The displayname if the participant_uri had a displayname
      */
-    char* participant_displayname;
+    char *participant_displayname;
     /**
-     * The application of the entity who is sending the message.  
+     * The application of the entity who is sending the message.
      * May be NULL or empty.
      */
-    char* application;
+    char *application;
     /**
      * the identity that the original sender wished to present.
      * This is different than the participant_uri, which is the actual internal Vivox identity of the original sender.
@@ -285,8 +285,8 @@ typedef struct vx_evt_message {
 
 
 /**
- * The auxiliary 'audio properties' events are used by the SDK sound system to present 
- * audio information to the application, which may be used to create a visual representation of the speaker 
+ * The auxiliary 'audio properties' events are used by the SDK sound system to present
+ * audio information to the application, which may be used to create a visual representation of the speaker
  * (for example, a so called 'VU' meter). These events are presented at one half the rate of the audio capture rate.
  *
  * The XML for this event can be found here: \ref AuxAudioPropertiesEvent
@@ -305,28 +305,28 @@ typedef struct vx_evt_aux_audio_properties {
     vx_aux_audio_properties_state state;
     /**
     * Flag used to determine if the mic is active.
-    *   - 1 - Indicates that the capture device is detecting 'speech activity' (as determined by the built in 
-    *         Vivox Voice Activity Detector). 
+    *   - 1 - Indicates that the capture device is detecting 'speech activity' (as determined by the built in
+    *         Vivox Voice Activity Detector).
     *   - 0 - Indicates no speech energy has been detected.
     */
     int mic_is_active;
     /**
-    * Indicates the current value of the master 'microphone' volume, as set using the 'set mic volume' method above. 
+    * Indicates the current value of the master 'microphone' volume, as set using the 'set mic volume' method above.
     * Non negative value between 0 and 100 (inclusive)
     */
     int mic_volume;
     /**
-    * The instantaneous (fast) energy at the capture device. 
+    * The instantaneous (fast) energy at the capture device.
     * A value from 0.0 to 1.0, when graphed will show behavior like an analog VU Meter. (NOTE: For an unsmoothed dBFS value of fast energy, see fast_energy_meter and its companion *_meter values below)
     */
     double mic_energy;
     /**
-    * Indicates the current value of the master 'speaker' volume, as set using the 'set speaker volume' method above. 
+    * Indicates the current value of the master 'speaker' volume, as set using the 'set speaker volume' method above.
     * Non negative value between 0 and 100 (inclusive)
     */
     int speaker_volume;
     /**
-    * The energy associated with any rendered audio 
+    * The energy associated with any rendered audio
     */
     double speaker_energy;
     /**
@@ -352,7 +352,7 @@ typedef struct vx_evt_aux_audio_properties {
 
 
 /**
- * For vx_evt_buddy_changed_t and vx_evt_buddy_group_changed_t objects, indicates whether the object is deleted 
+ * For vx_evt_buddy_changed_t and vx_evt_buddy_group_changed_t objects, indicates whether the object is deleted
  * or "set", which means either added or updated.
  * \ingroup buddy
  */
@@ -381,7 +381,7 @@ typedef struct vx_evt_buddy_changed {
      */
     vx_evt_base_t base;
     /**
-    * Handle returned from successful 'login' request 
+    * Handle returned from successful 'login' request
     */
     VX_HANDLE account_handle;
     /**
@@ -425,7 +425,7 @@ typedef struct vx_evt_buddy_group_changed {
      */
     vx_evt_base_t base;
     /**
-    * Handle returned from successful 'login' request 
+    * Handle returned from successful 'login' request
     */
     VX_HANDLE account_handle;
     /**
@@ -448,7 +448,7 @@ typedef struct vx_evt_buddy_group_changed {
 } vx_evt_buddy_group_changed_t;
 
 /**
- * Presented when the buddy or group list undergoes a significant change. 
+ * Presented when the buddy or group list undergoes a significant change.
  * This event is always received after login, and can be used to build the initial buddy and group UI.
  *
  * The XML for this event can be found here: \ref BuddyAndGroupListChangedEvent
@@ -461,7 +461,7 @@ typedef struct vx_evt_buddy_and_group_list_changed {
      */
     vx_evt_base_t base;
     /**
-     * Handle returned from successful 'login' request 
+     * Handle returned from successful 'login' request
      */
     VX_HANDLE account_handle;
     /**
@@ -484,7 +484,7 @@ typedef struct vx_evt_buddy_and_group_list_changed {
 #endif
 
 /**
-* The vx_evt_keyboard_mouse_t event is raised to indicate to the application that a particular 
+* The vx_evt_keyboard_mouse_t event is raised to indicate to the application that a particular
 * keyboard/mouse button combination has been pressed or cleared.
 *
 * The XML for this event can be found here: \ref KeyboardMouseEvent
@@ -510,7 +510,7 @@ typedef struct vx_evt_keyboard_mouse {
 } vx_evt_keyboard_mouse_t;
 
 /**
-* The vx_evt_idle_state_changed_t event is raised to indicate to the application that the user 
+* The vx_evt_idle_state_changed_t event is raised to indicate to the application that the user
 * has transitioned from the between idle and non-idle states (and vice-versa).
 *
 * The XML for this event can be found here: \ref IdleStateChangedEvent
@@ -579,7 +579,7 @@ typedef struct vx_call_stats {
      * The number of packets sent
      */
     int outgoing_sent;
-    /** 
+    /**
      * The number of render device underruns - mobile platforms only
      */
     int render_device_underruns;
@@ -696,7 +696,7 @@ typedef struct vx_call_stats {
 } vx_call_stats_t;
 
 /**
-* Sent when Session Media has been altered. 
+* Sent when Session Media has been altered.
 *
 * The XML for this event can be found here: \ref MediaStreamUpdatedEvent
 *
@@ -719,7 +719,7 @@ typedef struct vx_evt_media_stream_updated {
      * Code used to identify why a state change has been made.
      * This code is only useful if state is equal to 'session_media_disconnected'.
      * In this case the following rules apply:
-     * 
+     *
      *   1. Any code < 400 can be ignored.
      *   2. 401 - A password is needed to join this channel. Typically an application will present a password dialog at this point. You may retry the request if you obtain a password from the user.
      *   3. 403 - If the call is to a channel, the user does not have sufficient privilege to join the channel, otherwise, the call has been declined.
@@ -732,8 +732,8 @@ typedef struct vx_evt_media_stream_updated {
      *
      * The application should only retry a failed request if there is a chance the retry will succeed.  Those cases are marked above with "you may retry".
      *
-     * It is recommended that the status_string field only be display as diagnostic information for status codes > 400, and not in the list above. 
-     * This status_string is often generated by the network, which can include public PSTN networks as well. This can result in status_string values that 
+     * It is recommended that the status_string field only be display as diagnostic information for status codes > 400, and not in the list above.
+     * This status_string is often generated by the network, which can include public PSTN networks as well. This can result in status_string values that
      * are informative to a technician, but not to an end user, and may be subject to change. Applications should not depend on the value of this field.
      *
      * Applications should present an application specific message for each of the status codes outlined above.
@@ -744,7 +744,7 @@ typedef struct vx_evt_media_stream_updated {
      *
      * See the status_code field above.
      */
-    char* status_string;
+    char *status_string;
     /**
      * New state of the entity, please refer to the codes in table \ref vx_session_media_state
      */
@@ -811,7 +811,7 @@ typedef struct vx_evt_text_stream_updated {
      *
      * See \ref vx_evt_media_stream_updated for guidelines for using this field.
      */
-    char* status_string;
+    char *status_string;
 } vx_evt_text_stream_updated_t;
 
 /**
@@ -827,11 +827,11 @@ typedef struct vx_evt_sessiongroup_added {
      */
     vx_evt_base_t base;
     /**
-     * Returned from successful Session Group 'create' request 
+     * Returned from successful Session Group 'create' request
      */
     VX_HANDLE sessiongroup_handle;
     /**
-     * Returned from successful Session Group 'login' request 
+     * Returned from successful Session Group 'login' request
      */
     VX_HANDLE account_handle;
     /**
@@ -857,7 +857,7 @@ typedef struct vx_evt_sessiongroup_removed {
      */
     vx_evt_base_t base;
     /**
-     * Returned from successful Session Group 'create' request 
+     * Returned from successful Session Group 'create' request
      */
     VX_HANDLE sessiongroup_handle;
 } vx_evt_sessiongroup_removed_t;
@@ -875,7 +875,7 @@ typedef struct vx_evt_session_added {
      */
     vx_evt_base_t base;
     /**
-    * Handle returned from successful Session Group 'create' request 
+    * Handle returned from successful Session Group 'create' request
     */
     VX_HANDLE sessiongroup_handle;
     /**
@@ -885,7 +885,7 @@ typedef struct vx_evt_session_added {
     /**
     * Full URI of the session (user/channel?)
     */
-    char* uri;
+    char *uri;
     /**
     * Set to 1 if this session relates to a Channel,  0 if  not
     */
@@ -896,20 +896,20 @@ typedef struct vx_evt_session_added {
      */
     int incoming;
     /**
-    * The name of the channel, if passed in when the channel is created.  
+    * The name of the channel, if passed in when the channel is created.
     * Always empty for incoming sessions.
     */
-    char* channel_name;
+    char *channel_name;
     /**
      * DEPRECATED
      * @deprecated
      */
-    char* displayname;
+    char *displayname;
     /**
      * DEPRECATED
      * @deprecated
      */
-    char* application;
+    char *application;
     /**
      * the identity of the remote user, if p2p, or null if a channel call.
      * This is different than the participant_uri, which is the actual internal Vivox identity of the remote user.
@@ -930,7 +930,7 @@ typedef struct vx_evt_session_removed {
      */
     vx_evt_base_t base;
     /**
-    * Handle returned from successful Session Group 'create' request 
+    * Handle returned from successful Session Group 'create' request
     */
     VX_HANDLE sessiongroup_handle;
     /**
@@ -940,11 +940,11 @@ typedef struct vx_evt_session_removed {
     /**
     * Full URI of the session (user/channel?)
     */
-    char* uri;
+    char *uri;
 } vx_evt_session_removed_t;
 
 /**
-* Presented when a Participant is added to a session.  
+* Presented when a Participant is added to a session.
 * When joining a channel, a Participant Added Event will be raised for all active participants in the channel.
 *
 * The XML for this event can be found here: \ref ParticipantAddedEvent
@@ -957,7 +957,7 @@ typedef struct vx_evt_participant_added {
      */
     vx_evt_base_t base;
     /**
-    * Handle returned from successful Session Group 'create' request 
+    * Handle returned from successful Session Group 'create' request
     */
     VX_HANDLE sessiongroup_handle;
     /**
@@ -967,16 +967,16 @@ typedef struct vx_evt_participant_added {
     /**
     * The URI of the participant whose state has changed
     */
-    char* participant_uri;
+    char *participant_uri;
     /**
-    * The Account name of the participant 
+    * The Account name of the participant
     */
-    char* account_name;
+    char *account_name;
     /**
      * DEPRECATED - Please use displayname instead
      * @deprecated
     */
-    char* display_name;
+    char *display_name;
     /**
     * DEPRECATED, WILL NOT BE IMPLEMENTED
     * @deprecated
@@ -986,7 +986,7 @@ typedef struct vx_evt_participant_added {
      * DEPRECATED
      * @deprecated
     */
-    char* application;
+    char *application;
     /**
     * This field will indicate if the user is loggen in anonymously (as a guest)
     * 0 = anthenticated user, 1 = Anonymous (Guest) user
@@ -994,16 +994,16 @@ typedef struct vx_evt_participant_added {
     */
     int is_anonymous_login;
     /**
-    * The Display Name of the participant if in a channel or in a P2P initiated session.  
+    * The Display Name of the participant if in a channel or in a P2P initiated session.
     * This field will not be populated for callee in a text initiated P2P session.
     *
-    * The displayname field will contain the following information if available: 
+    * The displayname field will contain the following information if available:
     *   - 1) buddy display name (if not available then)
     *   - 2) sip display name (only available for the callee, not available for caller.  If this is not available then)
     *   - 3) account name (unless the account is out of domain then)
     *   - 4) uri without the sip: (ex: username@foo.vivox.com)
     */
-    char* displayname;
+    char *displayname;
     /**
      * the identity of the user,if p2p, or null if a channel call.
      * This is different than the participant_uri, which is the actual internal Vivox identity of the remote user.
@@ -1032,7 +1032,7 @@ typedef struct vx_evt_participant_removed {
      */
     vx_evt_base_t base;
     /**
-    * Handle returned from successful Session Group 'create' request 
+    * Handle returned from successful Session Group 'create' request
     */
     VX_HANDLE sessiongroup_handle;
     /**
@@ -1042,13 +1042,13 @@ typedef struct vx_evt_participant_removed {
     /**
     * The URI of the participant whose state has changed
     */
-    char* participant_uri;
+    char *participant_uri;
     /**
-    * The Account name of the Participant 
+    * The Account name of the Participant
     */
-    char* account_name;
+    char *account_name;
     /**
-    * The reason the participant was removed from the session.  
+    * The reason the participant was removed from the session.
     * Default is "left".  \ref vx_participant_removed_reason
     */
     vx_participant_removed_reason reason;
@@ -1058,7 +1058,7 @@ typedef struct vx_evt_participant_removed {
      */
     char *alias_username;
     /**
-     * The encoded URI for the user with the tag. This uniquely identifies users that might appear multiple times in a channel 
+     * The encoded URI for the user with the tag. This uniquely identifies users that might appear multiple times in a channel
      */
     char *encoded_uri_with_tag;
     /**
@@ -1084,44 +1084,44 @@ typedef enum {
 * \ingroup session
 */
 typedef struct vx_evt_participant_updated {
-     /**
-     * The common properties for all events
-     */
+    /**
+    * The common properties for all events
+    */
     vx_evt_base_t base;
-     /**
-     * Returned from successful  Session Group 'create' request 
-     */
+    /**
+    * Returned from successful  Session Group 'create' request
+    */
     VX_HANDLE sessiongroup_handle;
-     /**
-     * Handle returned from successful  Session 'create' request
-     */
+    /**
+    * Handle returned from successful  Session 'create' request
+    */
     VX_HANDLE session_handle;
-     /**
-     * The URI of the participant whose properties are being updated
-     */
-    char* participant_uri;
-     /**
-     * Used to determine if the user has been muted by the moderator (0 - not muted, 1 - muted)
-     */
+    /**
+    * The URI of the participant whose properties are being updated
+    */
+    char *participant_uri;
+    /**
+    * Used to determine if the user has been muted by the moderator (0 - not muted, 1 - muted)
+    */
     int is_moderator_muted;
-     /**
-     * Indicates if the participant is speaking
-     */
+    /**
+    * Indicates if the participant is speaking
+    */
     int is_speaking;
-     /**
-     * This is the volume level that has been set by the user, this should not change often and is a value between 
-     * 0 and 100 where 50 represents 'normal' speaking volume.
-     */
+    /**
+    * This is the volume level that has been set by the user, this should not change often and is a value between
+    * 0 and 100 where 50 represents 'normal' speaking volume.
+    */
     int volume;
-     /**
-     * This is the energy, or intensity of the participants audio.  
-     * This is used to determine how loud the user is speaking.  This is a value between 0 and 1.
-     */
+    /**
+    * This is the energy, or intensity of the participants audio.
+    * This is used to determine how loud the user is speaking.  This is a value between 0 and 1.
+    */
     double energy;
     /**
-     * This indicates which media the user is participating in. 
+     * This indicates which media the user is participating in.
      * See #VX_MEDIA_FLAGS_AUDIO and #VX_MEDIA_FLAGS_TEXT
-     */ 
+     */
     int active_media;
     /**
     * Indicates whether or not this participant's audio is locally muted for the user
@@ -1209,7 +1209,7 @@ typedef struct vx_evt_session_updated {
      */
     vx_evt_base_t base;
     /**
-    * Handle returned from successful Session Group 'create' request 
+    * Handle returned from successful Session Group 'create' request
     */
     VX_HANDLE sessiongroup_handle;
     /**
@@ -1219,7 +1219,7 @@ typedef struct vx_evt_session_updated {
     /**
     * Full URI of the session
     */
-    char* uri;
+    char *uri;
     /**
     * Whether or not the session's audio is muted
     */
@@ -1237,14 +1237,14 @@ typedef struct vx_evt_session_updated {
     */
     int is_focused;
     /**
-     * The position of the virtual 'mouth'. 
+     * The position of the virtual 'mouth'.
      * This 3 vector is a right handed Cartesian coordinate, with the positive axis pointing
-     * towards the speaker's right, the positive Y axis pointing up, and the positive Z axis 
+     * towards the speaker's right, the positive Y axis pointing up, and the positive Z axis
      * pointing towards the speaker.
      */
     double speaker_position[3]; // {x, y, z}
     /**
-    * The ID of the session font applied to this session.  
+    * The ID of the session font applied to this session.
     * 0 = none.
     */
     int session_font_id;
@@ -1271,12 +1271,12 @@ typedef struct vx_evt_sessiongroup_updated {
      */
     vx_evt_base_t base;
     /**
-     * Returned from successful Session Group 'create' request 
+     * Returned from successful Session Group 'create' request
      */
     VX_HANDLE sessiongroup_handle;
     /**
      * OBSOLETE
-     * Whether or not in delayed playback. 
+     * Whether or not in delayed playback.
      * When in delayed playback, the mic is not active
      */
     int in_delayed_playback;
@@ -1345,12 +1345,12 @@ typedef struct vx_evt_sessiongroup_updated {
 * \ingroup sessiongroup
 */
 typedef struct vx_evt_media_completion {
-     /**
-     * The common properties for all events
-     */
+    /**
+    * The common properties for all events
+    */
     vx_evt_base_t base;
     /**
-     * Handle returned from successful SessionGroup 'create' request 
+     * Handle returned from successful SessionGroup 'create' request
      * This field will stay empty if the completion type is 'aux_*'
      * \see vx_req_sessiongroup_create
      */
@@ -1368,9 +1368,9 @@ typedef struct vx_evt_media_completion {
 *
 */
 typedef struct vx_evt_server_app_data {
-     /**
-     * The common properties for all events
-     */
+    /**
+    * The common properties for all events
+    */
     vx_evt_base_t base;
     /**
      * Handle returned from successful Account Login request
@@ -1380,23 +1380,23 @@ typedef struct vx_evt_server_app_data {
     /**
     * The type of the incoming data
     */
-    char* content_type;
+    char *content_type;
     /**
     * The content of the message being received from the server
     */
-    char* content;
+    char *content;
 } vx_evt_server_app_data_t;
 
 /**
-* This event is raised when a message from another user is received.  
+* This event is raised when a message from another user is received.
 * This is not to be confused with IMs... this is a peer-ro-peer communication mechanism for applications
 * to communicate custom content.
 * \see vx_req_account_send_user_app_data
 */
 typedef struct vx_evt_user_app_data {
-     /**
-     * The common properties for all events
-     */
+    /**
+    * The common properties for all events
+    */
     vx_evt_base_t base;
     /**
      * Handle returned from successful Account Login request
@@ -1406,15 +1406,15 @@ typedef struct vx_evt_user_app_data {
     /**
     * URI of the account sending the message.
     */
-    char* from_uri;
+    char *from_uri;
     /**
     * The type of the incoming data
     */
-    char* content_type;
+    char *content_type;
     /**
     * The content of the message being received from the specified account
     */
-    char* content;
+    char *content;
 } vx_evt_user_app_data_t;
 
 
@@ -1429,13 +1429,13 @@ typedef enum {
 
 /**
  * This event is raised when the network sends a message to a user (as opposed to a user to user message).
- * At this time this includes messages that were stored and forwarded on behalf the user, and generic 
+ * At this time this includes messages that were stored and forwarded on behalf the user, and generic
  * admin messages.
  */
 typedef struct vx_evt_network_message {
-     /**
-     * The common properties for all events
-     */
+    /**
+    * The common properties for all events
+    */
     vx_evt_base_t base;
     /**
      * Handle returned from successful Account Login request
@@ -1449,15 +1449,15 @@ typedef struct vx_evt_network_message {
     /**
     * The type of the incoming data
     */
-    char* content_type;
+    char *content_type;
     /**
     * The content of the message being received from the server
     */
-    char* content;
+    char *content;
     /**
      * The sender of the message
      */
-    char* sender_uri;
+    char *sender_uri;
     /**
      * The sender display name
      */
@@ -1476,15 +1476,15 @@ typedef struct vx_evt_network_message {
 } vx_evt_network_message_t;
 
 /**
- * This event is raised when the SDK is running out of process and the connection state of the 
- * Vivox Voice Service (VVS) changes.  
- * This event will be sent when the connection is made and when the connection is lost.  This 
+ * This event is raised when the SDK is running out of process and the connection state of the
+ * Vivox Voice Service (VVS) changes.
+ * This event will be sent when the connection is made and when the connection is lost.  This
  * will alert the applicaiton so that the VVS may be restarted if needed.
  */
 typedef struct vx_evt_voice_service_connection_state_changed {
-     /**
-     * The common properties for all events
-     */
+    /**
+    * The common properties for all events
+    */
     vx_evt_base_t base;
     /**
      * Whether or not the voice service connection state is connected.
@@ -1503,7 +1503,7 @@ typedef struct vx_evt_voice_service_connection_state_changed {
      */
     char *data_directory;
     /**
-     * Whether or not the network test ran.  
+     * Whether or not the network test ran.
      */
     int network_test_run;
     /**
@@ -1511,7 +1511,7 @@ typedef struct vx_evt_voice_service_connection_state_changed {
      */
     int network_test_completed;
     /**
-     * Whether or not the network test passed or failed.  This may 
+     * Whether or not the network test passed or failed.  This may
      * change depending on network connection and power state of the machine.
      */
     int network_test_state;
@@ -1522,10 +1522,9 @@ typedef struct vx_evt_voice_service_connection_state_changed {
 } vx_evt_voice_service_connection_state_changed_t;
 
 
-
 typedef enum {
     /*
-    ** On some platforms (WinXP) with some drivers, polling to find out which devices has changed can take 
+    ** On some platforms (WinXP) with some drivers, polling to find out which devices has changed can take
     ** a long time. When the SDK finds that polling can take a long time, it stops looking for a device changes.
     ** When this happens, vx_evt_audio_device_hot_swap is raised with event_type set to vx_audio_device_hot_swap_event_type_disabled_due_to_platform_constraints
     */
@@ -1550,7 +1549,7 @@ typedef enum {
 
 #ifndef VX_DISABLE_PRESENCE
 /**
- * 
+ *
  *
  * The XML for this event can be found here: \ref BuddyPresenceEvent
  *
@@ -1562,7 +1561,7 @@ typedef struct vx_evt_publication_state_changed {
      */
     vx_evt_base_t base;
     /**
-    * Handle returned from successful 'login' request 
+    * Handle returned from successful 'login' request
     */
     VX_HANDLE account_handle;
     /**
@@ -1588,7 +1587,7 @@ typedef struct vx_evt_publication_state_changed {
     /**
     * Custom message string when presence is set.
     */
-    char* custom_message;
+    char *custom_message;
     /**
     * Code used to identify why a state change has been made
     */
@@ -1596,24 +1595,24 @@ typedef struct vx_evt_publication_state_changed {
     /**
     * Text (in English) to describe the Status Code
     */
-    char* status_string;
+    char *status_string;
 } vx_evt_publication_state_changed_t;
-#endif//VX_DISABLE_PRESENCE
+#endif // VX_DISABLE_PRESENCE
 
 /**
  * This event is raised when there are signficant state changes due to a user plugging in or unplugging in an audio device
  */
 typedef struct vx_evt_audio_device_hot_swap {
-     /**
-     * The common properties for all events
-     */
+    /**
+    * The common properties for all events
+    */
     vx_evt_base_t base;
     /**
      * The type of hot swap event
      */
     vx_audio_device_hot_swap_event_type_t event_type;
     /**
-     * In the case of vx_audio_device_hot_swap_event_type_active_render_device_changed or vx_audio_device_hot_swap_event_type_active_capture_device_changed, 
+     * In the case of vx_audio_device_hot_swap_event_type_active_render_device_changed or vx_audio_device_hot_swap_event_type_active_capture_device_changed,
      * the new active device
      */
     vx_device_t *relevant_device;
