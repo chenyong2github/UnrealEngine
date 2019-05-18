@@ -649,7 +649,7 @@ public:
 		{
 			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!EdMode->HasLandscapeLayersContent())
 			{
 				for (ULandscapeComponent* Component : Components)
 				{

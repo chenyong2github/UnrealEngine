@@ -42,7 +42,6 @@
 #include "IDetailGroup.h"
 #include "Widgets/SBoxPanel.h"
 #include "Editor/EditorStyle/Private/SlateEditorStyle.h"
-#include "Settings/EditorExperimentalSettings.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.TargetLayers"
 
@@ -1106,8 +1105,8 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::FillEmptyLayers(ULandscapeI
 	if (LandscapeEdMode)
 	{
 		FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
-		
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+
+		if (LandscapeEdMode->CanHaveLandscapeLayersContent())
 		{
 			if (LandscapeEdMode->NeedToFillEmptyMaterialLayers())
 			{
@@ -1427,7 +1426,8 @@ EVisibility FLandscapeEditorCustomNodeBuilder_TargetLayers::GetDebugModeLayerUsa
 
 EVisibility FLandscapeEditorCustomNodeBuilder_TargetLayers::GetLayersSubstractiveBlendVisibility(const TSharedRef<FLandscapeTargetListInfo> Target)
 {
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && Target->TargetType != ELandscapeToolTargetType::Heightmap && Target->LayerInfoObj.IsValid())
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode != nullptr && LandscapeEdMode->CanHaveLandscapeLayersContent() && Target->TargetType != ELandscapeToolTargetType::Heightmap && Target->LayerInfoObj.IsValid())
 	{
 		return EVisibility::Visible;
 	}

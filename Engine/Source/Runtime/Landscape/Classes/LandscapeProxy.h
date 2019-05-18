@@ -596,9 +596,6 @@ public:
 	UPROPERTY()
 	TArray<FLandscapeEditorLayerSettings> EditorLayerSettings;
 
-	UPROPERTY()
-	bool HasLayersContent;
-
 	TMap<UTexture2D*, FLandscapeLayersTexture2DCPUReadBackResource*> HeightmapsCPUReadBack;
 	TMap<UTexture2D*, FLandscapeLayersTexture2DCPUReadBackResource*> WeightmapsCPUReadBack;
 	FRenderCommandFence ReleaseResourceFence;
@@ -633,6 +630,10 @@ public:
 	/** Flag whether or not this Landscape's surface can be used for culling hidden triangles **/
 	UPROPERTY(EditAnywhere, Category = HierarchicalLOD)
 	bool bUseLandscapeForCullingInvisibleHLODVertices;
+
+	/** Flag that tell if we have some layers content **/
+	UPROPERTY()
+	bool bHasLayersContent;
 
 public:
 
@@ -941,6 +942,14 @@ public:
 
 	DECLARE_EVENT(ALandscape, FLandscapeMaterialChangedDelegate);
 	FLandscapeMaterialChangedDelegate& OnMaterialChangedDelegate() { return LandscapeMaterialChangedDelegate; }
+
+	/** Will tell if the landscape proxy as some content related to the layer system */
+	LANDSCAPE_API virtual bool HasLayersContent() const;
+	
+	/** Will tell if the landscape proxy can have some content related to the layer system */
+	LANDSCAPE_API bool CanHaveLayersContent() const;
+
+	void UpdateCachedHasLayersContent(bool InCheckComponentDataIntegrity = false);
 
 protected:
 	friend class ALandscape;

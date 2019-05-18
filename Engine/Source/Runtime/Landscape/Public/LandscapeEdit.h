@@ -19,11 +19,10 @@ LandscapeEdit.h: Classes for the editor to access to Landscape data
 #include "LandscapeLayerInfoObject.h"
 
 #if WITH_EDITOR
-
 #include "Containers/ArrayView.h"
-#include "Settings/EditorExperimentalSettings.h"
-
 #endif
+
+#include "Landscape.h"
 
 class ULandscapeComponent;
 class ULandscapeInfo;
@@ -252,6 +251,10 @@ struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataI
 	static void ShrinkData(TArray<T>& Data, int32 OldMinX, int32 OldMinY, int32 OldMaxX, int32 OldMaxY, int32 NewMinX, int32 NewMinY, int32 NewMaxX, int32 NewMaxY);
 
 	const ALandscape* GetTargetLandscape() const;
+
+	bool CanHaveLandscapeLayersContent() const;
+	bool HasLandscapeLayersContent() const;
+
 private:
 	int32 ComponentSizeQuads;
 	int32 SubsectionSizeQuads;
@@ -358,7 +361,7 @@ struct FHeightmapAccessor
 			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 
             // Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!LandscapeEdit->HasLandscapeLayersContent())
 			{
 				for (ULandscapeComponent* Component : Components)
 				{
@@ -414,11 +417,8 @@ struct FHeightmapAccessor
 
 	virtual ~FHeightmapAccessor()
 	{
-		delete LandscapeEdit;
-		LandscapeEdit = NULL;
-
 		// Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
-		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (!LandscapeEdit->HasLandscapeLayersContent())
 		{
 			// Update the bounds and navmesh for the components we edited
 			for (TSet<ULandscapeComponent*>::TConstIterator It(ChangedComponents); It; ++It)
@@ -435,6 +435,9 @@ struct FHeightmapAccessor
 				}
 			}
 		}
+
+		delete LandscapeEdit;
+		LandscapeEdit = NULL;
 	}
 
 private:
@@ -473,7 +476,7 @@ struct FAlphamapAccessor
 
 	~FAlphamapAccessor()
 	{
-		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (!LandscapeEdit.HasLandscapeLayersContent())
 		{
 			// Recreate collision for modified components to update the physical materials
 			for (ULandscapeComponent* Component : ModifiedComponents)
@@ -515,7 +518,7 @@ struct FAlphamapAccessor
 				LandscapeComponent->RequestWeightmapUpdate();
 			}
 			
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!LandscapeEdit.HasLandscapeLayersContent())
 			{
 				ModifiedComponents.Append(Components);
 			}
