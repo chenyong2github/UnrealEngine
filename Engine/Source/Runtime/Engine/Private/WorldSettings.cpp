@@ -35,6 +35,8 @@
 #include "HierarchicalLOD.h"
 #include "IMeshMergeUtilities.h"
 #include "MeshMergeModule.h"
+#include "Settings/EditorExperimentalSettings.h"
+#include "Landscape.h"
 #endif 
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
@@ -71,6 +73,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	NavigationSystemConfig = nullptr;
 	bEnableAISystem = true;
 	bEnableWorldComposition = false;
+	bEnableLandscapeLayers = false;
 	bEnableWorldOriginRebasing = false;
 #if WITH_EDITORONLY_DATA	
 	bEnableHierarchicalLODSystem = false;
@@ -605,6 +608,22 @@ void AWorldSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 				bEnableWorldComposition = false;
 			}
 		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, bEnableLandscapeLayers))
+		{
+			if (ALandscape::ChangeLandscapeLayersStateEvent.IsBound())
+			{
+				bool WasChanged = ALandscape::ChangeLandscapeLayersStateEvent.Execute(GetWorld(), bEnableLandscapeLayers);
+
+				if (!WasChanged)
+				{
+					bEnableLandscapeLayers = !bEnableLandscapeLayers;
+				}
+			}
+			else
+			{
+				bEnableLandscapeLayers = false;
+			}
+		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, NavigationSystemConfig))
 		{
 			UWorld* World = GetWorld();
@@ -685,8 +704,12 @@ void AWorldSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
 
+	if (PropertyThatChanged)
+	{
+		SettingChangedEvent.Broadcast(PropertyThatChanged->GetFName());
+	}
+}
 
 void UHierarchicalLODSetup::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
