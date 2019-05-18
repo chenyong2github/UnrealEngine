@@ -4223,7 +4223,11 @@ void ALandscape::MonitorLandscapeEdModeChanges()
 		bRequiredEditingClientFullUpdate = true;
 	}
 
-	TWeakObjectPtr<ULandscapeLayerInfoObject> NewLayerInfoObject = LandscapeEdMode->GetSelectedLandscapeLayerInfo();
+	TWeakObjectPtr<ULandscapeLayerInfoObject> NewLayerInfoObject;
+	if (LandscapeEdMode)
+	{
+		NewLayerInfoObject = LandscapeEdMode->GetSelectedLandscapeLayerInfo();
+	}
 	if (LandscapeEdModeInfo.SelectedLayerInfoObject != NewLayerInfoObject)
 	{
 		LandscapeEdModeInfo.SelectedLayerInfoObject = NewLayerInfoObject;
