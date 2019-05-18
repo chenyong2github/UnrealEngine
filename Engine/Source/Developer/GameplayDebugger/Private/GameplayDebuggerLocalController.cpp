@@ -24,6 +24,7 @@
 #include "UnrealEngine.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerInput.h"
+#include "EngineUtils.h"
 
 #if WITH_EDITOR
 #include "Editor/GameplayDebuggerEdMode.h"
@@ -623,10 +624,9 @@ void UGameplayDebuggerLocalController::OnSelectActorTick()
 		float BestScore = MinViewDirDot;
 		
 		const FVector ViewDir = CameraRotation.Vector();
-		for (FConstPawnIterator It = OwnerPC->GetWorld()->GetPawnIterator(); It; ++It)
+		for (APawn* TestPawn  : TActorRange<APawn>(OwnerPC->GetWorld()))
 		{
-			APawn* TestPawn = It->Get();
-			if (TestPawn && !TestPawn->bHidden && TestPawn->GetActorEnableCollision() &&
+			if (!TestPawn->bHidden && TestPawn->GetActorEnableCollision() &&
 				!TestPawn->IsA(ASpectatorPawn::StaticClass()) &&
 				TestPawn != OwnerPC->GetPawn())
 			{
