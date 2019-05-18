@@ -1571,17 +1571,9 @@ void FViewport::Draw( bool bShouldPresent /*= true */)
 				UWorld* ViewportWorld = ViewportClient->GetWorld();
 				FCanvas Canvas(this, nullptr, ViewportWorld, ViewportWorld ? ViewportWorld->FeatureLevel.GetValue() : GMaxRHIFeatureLevel, FCanvas::CDM_DeferDrawing, ViewportClient->ShouldDPIScaleSceneCanvas() ? ViewportClient->GetDPIScale() : 1.0f);
 				Canvas.SetRenderTargetRect(FIntRect(0, 0, SizeX, SizeY));
-
-				// When rendering the viewport we need to know whether the final result will be shown on a HDR display. This affects the final post processing step
-//				TSharedPtr<SWindow> Window = GetWindow();
-				//FSceneViewport *SceneViewport = static_cast<FSceneViewport*>(this);
-				//TSharedPtr<SWindow> Window = SceneViewport->FindWindow();
-//				this->SetHDRMode(Window->GetIsHDR());
-
 				{
 					// Make sure the Canvas is not rendered upside down
 					Canvas.SetAllowSwitchVerticalAxis(false);
-
 					ViewportClient->Draw(this, &Canvas);
 				}
 				Canvas.Flush_GameThread();
