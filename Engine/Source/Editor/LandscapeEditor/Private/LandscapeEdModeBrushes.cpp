@@ -202,7 +202,11 @@ public:
 			const ALandscapeProxy* LandscapeProxy = Component->GetLandscapeProxy();
 			const ULandscapeLayerInfoObject* LayerInfo = EdMode->CurrentToolTarget.LayerInfo.Get();
 
-			if (EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap &&
+			if (!EdMode->CanEditLayer())
+			{
+				bCanPaint = false;
+			}
+			else if (EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap &&
 				EdMode->UISettings->PaintingRestriction != ELandscapeLayerPaintingRestriction::None)
 			{
 				if (EdMode->UISettings->PaintingRestriction == ELandscapeLayerPaintingRestriction::UseComponentWhitelist &&
