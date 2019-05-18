@@ -5194,10 +5194,10 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 				SortedMesh.VertexCountTotal,
 				SortedMesh.VertexCountCollision,
 				SortedMesh.ShapeCountCollision,
-				SortedMesh.ResKBIncMobile,
-				SortedMesh.MobileMinLOD,
-				SortedMesh.VertexCountTotalMobile,
 				SortedMesh.UsageCount,
+				SortedMesh.ResKBIncMobile,
+				SortedMesh.VertexCountTotalMobile,
+				SortedMesh.MobileMinLOD,
 				*SortedMesh.Name);
 		}
 		else
