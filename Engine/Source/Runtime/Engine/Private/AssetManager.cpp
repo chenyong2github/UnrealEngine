@@ -1203,6 +1203,14 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 				DebugName += TEXT(")");
 			}
 
+			if (PathsToLoad.Num() == 0)
+			{
+				// New state has no assets to load. Set the CurrentState's bundles and clear the handle
+				NameData->CurrentState.BundleNames = NewBundleState;
+				NameData->CurrentState.Handle.Reset();
+				continue;
+			}
+
 			NewHandle = LoadAssetList(PathsToLoad.Array(), FStreamableDelegate(), Priority, DebugName);
 
 			if (!NewHandle.IsValid())

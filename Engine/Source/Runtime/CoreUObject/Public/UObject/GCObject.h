@@ -164,5 +164,13 @@ public:
 	{
 		return "Unknown FGCObject";
 	}
+
+	/**
+	 * Use this method to report how the specified object is referenced, if necessary
+	 */
+	virtual bool GetReferencerPropertyName(UObject* Object, FString& OutPropertyName) const
+	{
+		return false;
+	}
 };
 

@@ -283,9 +283,9 @@ public:
 	}
 
 	/** Report any references to UObjects to the reference collector. */
-	void AddReferencedObjects(FReferenceCollector& Collector)
+	void AddReferencedObjects(FReferenceCollector& Collector, UObject* ReferencingObject = nullptr)
 	{
-		Collector.AddReferencedObject(ResourceObject);
+		Collector.AddReferencedObject(ResourceObject, ReferencingObject);
 	}
 
 	/**
