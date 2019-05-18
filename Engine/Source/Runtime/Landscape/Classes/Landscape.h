@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "LandscapeProxy.h"
 #include "LandscapeBPCustomBrush.h"
+#include "Delegates/DelegateCombinations.h"
 
 #include "Landscape.generated.h"
 
@@ -187,6 +188,8 @@ struct FLandscapeLayer
 	TMap<ULandscapeLayerInfoObject*, bool> WeightmapLayerAllocationBlend; // True -> Substractive, False -> Additive
 };
 
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FChangeLandscapeLayersState, UWorld*, bool);
+
 UCLASS(MinimalAPI, showcategories=(Display, Movement, Collision, Lighting, LOD, Input), hidecategories=(Mobility))
 class ALandscape : public ALandscapeProxy
 {
@@ -236,6 +239,7 @@ public:
 #if WITH_EDITOR
 	LANDSCAPE_API void RegisterLandscapeEdMode(ILandscapeEdModeInterface* InLandscapeEdMode) { LandscapeEdMode = InLandscapeEdMode; }
 	LANDSCAPE_API void UnregisterLandscapeEdMode() { LandscapeEdMode = nullptr; }
+	LANDSCAPE_API virtual bool HasLayersContent() const override;
 	LANDSCAPE_API void RequestLayersInitialization(bool bInRequestContentUpdate = true);
 	LANDSCAPE_API void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InModeMask = ELandscapeLayerUpdateMode::Update_All);
 	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InModeMask);
@@ -244,6 +248,7 @@ public:
 	LANDSCAPE_API void CreateLayer(FName InName = NAME_None);
 	LANDSCAPE_API void CreateDefaultLayer();
 	LANDSCAPE_API void CopyOldDataToDefaultLayer();
+	LANDSCAPE_API void CopyOldDataToDefaultLayer(ALandscapeProxy* Proxy);
 	LANDSCAPE_API void AddLayersToProxy(ALandscapeProxy* InProxy);
 	LANDSCAPE_API TMap<UTexture2D*, TArray<ULandscapeComponent*>> GenerateComponentsPerHeightmaps() const;
 	LANDSCAPE_API FIntPoint ComputeComponentCounts() const;
@@ -262,6 +267,7 @@ public:
 	LANDSCAPE_API void ClearLayer(int32 InLayerIndex, bool bInUpdateCollision = true);
 	LANDSCAPE_API void ClearLayer(const FGuid& InLayerGuid, bool bInUpdateCollision = true);
 	LANDSCAPE_API void DeleteLayer(int32 InLayerIndex);
+	LANDSCAPE_API void DeleteLayers();
 	LANDSCAPE_API void SetEditingLayer(const FGuid& InLayerGuid = FGuid());
 	LANDSCAPE_API const FGuid& GetEditingLayer() const;
 	LANDSCAPE_API bool IsMaxLayersReached() const;
@@ -286,10 +292,14 @@ public:
 	
 	LANDSCAPE_API void OnPreSave();
 
+	void ReleaseLayersRenderingResource();
+
+	LANDSCAPE_API static void RegisterChangeLandscapeLayersStateDelegate();
+	LANDSCAPE_API static void UnregisterChangeLandscapeLayersStateDelegate();
+
 private:
 	void TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
 	void CreateLayersRenderingResource();
-	void ReleaseLayersRenderingResource();
 	void UpdateLayersContent(bool bInWaitForStreaming = false);
 	void MonitorShaderCompilation();
 	void MonitorLandscapeEdModeChanges();
@@ -345,6 +355,8 @@ private:
 	void PrintLayersDebugTextureResource(const FString& InContext, FTextureResource* InTextureResource, uint8 InMipRender = 0, bool InOutputHeight = true, bool InOutputNormals = false) const;
 	void PrintLayersDebugHeightData(const FString& InContext, const TArray<FColor>& InHeightmapData, const FIntPoint& InDataSize, uint8 InMipRender, bool InOutputNormals = false) const;
 	void PrintLayersDebugWeightData(const FString& InContext, const TArray<FColor>& InWeightmapData, const FIntPoint& InDataSize, uint8 InMipRender) const;
+
+	LANDSCAPE_API static bool ChangeLandscapeLayersState(UWorld* InWorld, bool bInEnable);
 #endif
 
 public:
@@ -366,8 +378,8 @@ public:
 	UPROPERTY(Transient)
 	TArray<UTextureRenderTarget2D*> WeightmapRTList;
 
-	UPROPERTY(Transient)
-	bool bInitializedWithFlagExperimentalLandscapeLayers;
+	/** Event that will be triggered if the Landscape Layers settings from the WorldSettings is changed*/
+	LANDSCAPE_API static FChangeLandscapeLayersState ChangeLandscapeLayersStateEvent;
 
 private:
 	/** Provides information from LandscapeEdMode */
