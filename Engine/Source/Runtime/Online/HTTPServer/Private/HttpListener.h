@@ -109,6 +109,9 @@ private:
 	/** The collection of unique connections */
 	FHttpConnectionPool Connections;
 
+	/** The total number of connections accepted by this listener */
+	uint32 NumConnectionsAccepted = 0;
+
 	/** Maximum number of connections to accept per frame */
 	static constexpr uint32 MaxConnectionsToAcceptPerFrame = 1;
 	/** Maximum number of pending connections to queue */
