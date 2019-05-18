@@ -203,28 +203,28 @@ static void SendCPUStats()
 		switch (CoreIdx)
 		{
 		case 0:
-			FRAMEPRO_CUSTOM_STAT("Core0Frequency", Freq, "CPUFreq", "GHz");
+			FRAMEPRO_CUSTOM_STAT("Core0Frequency", Freq, "CPUFreq", "GHz", FRAMEPRO_COLOUR(255,255,255) );
 			break;
 		case 1:
-			FRAMEPRO_CUSTOM_STAT("Core1Frequency", Freq, "CPUFreq", "GHz");
+			FRAMEPRO_CUSTOM_STAT("Core1Frequency", Freq, "CPUFreq", "GHz", FRAMEPRO_COLOUR(255,255,255));
 			break;
 		case 2:
-			FRAMEPRO_CUSTOM_STAT("Core2Frequency", Freq, "CPUFreq", "GHz");
+			FRAMEPRO_CUSTOM_STAT("Core2Frequency", Freq, "CPUFreq", "GHz", FRAMEPRO_COLOUR(255,255,255));
 			break;
 		case 3:
-			FRAMEPRO_CUSTOM_STAT("Core3Frequency", Freq, "CPUFreq", "GHz");
+			FRAMEPRO_CUSTOM_STAT("Core3Frequency", Freq, "CPUFreq", "GHz", FRAMEPRO_COLOUR(255,255,255));
 			break;
 		case 4:
-			FRAMEPRO_CUSTOM_STAT("Core4Frequency", Freq, "CPUFreq", "GHz");
+			FRAMEPRO_CUSTOM_STAT("Core4Frequency", Freq, "CPUFreq", "GHz", FRAMEPRO_COLOUR(255,255,255));
 			break;
 		case 5:
-			FRAMEPRO_CUSTOM_STAT("Core5Frequency", Freq, "CPUFreq", "GHz");
+			FRAMEPRO_CUSTOM_STAT("Core5Frequency", Freq, "CPUFreq", "GHz", FRAMEPRO_COLOUR(255,255,255));
 			break;
 		case 6:
-			FRAMEPRO_CUSTOM_STAT("Core6Frequency", Freq, "CPUFreq", "GHz");
+			FRAMEPRO_CUSTOM_STAT("Core6Frequency", Freq, "CPUFreq", "GHz", FRAMEPRO_COLOUR(255,255,255));
 			break;
 		case 7:
-			FRAMEPRO_CUSTOM_STAT("Core7Frequency", Freq, "CPUFreq", "GHz");
+			FRAMEPRO_CUSTOM_STAT("Core7Frequency", Freq, "CPUFreq", "GHz", FRAMEPRO_COLOUR(255,255,255));
 			break;
 		}
 	}
