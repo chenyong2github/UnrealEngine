@@ -4038,7 +4038,10 @@ void ALandscape::RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode In
 		{
 			if (Proxy)
 			{
-				Proxy->InvalidateGeneratedComponentData();
+				if (bUpdateHeightmap || bUpdateWeightmap)
+				{
+					Proxy->InvalidateGeneratedComponentData();
+				}
 
 				for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 				{
@@ -4340,25 +4343,37 @@ bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& I
 						LayerContributionMaskData[i] = HeightData[i] != DefaultHeightValue ? LayerContributingValue : 0;
 					}
 				}
-				else if (LandscapeEdModeInfo.ToolTarget == ELandscapeToolTargetType::Weightmap)
+				else if (LandscapeEdModeInfo.ToolTarget == ELandscapeToolTargetType::Weightmap ||
+						 LandscapeEdModeInfo.ToolTarget == ELandscapeToolTargetType::Visibility)
 				{
 					if (WeightData.Num() != ArraySize)
 					{
 						WeightData.AddZeroed(ArraySize);
 					}
-					FMemory::Memzero(LayerContributionMaskDataPtr, ArraySize);
-					for (const FLandscapeInfoLayerSettings& LayerSettings : Info->Layers)
+					if (LandscapeEdModeInfo.ToolTarget == ELandscapeToolTargetType::Visibility)
 					{
-						if (LayerSettings.LayerInfoObj == ALandscapeProxy::VisibilityLayer)
-						{
-							continue;
-						}
-						LandscapeEdit.GetWeightDataFast(LayerSettings.LayerInfoObj, X1, Y1, X2, Y2, WeightData.GetData(), Stride);
+						LandscapeEdit.GetWeightDataFast(ALandscapeProxy::VisibilityLayer, X1, Y1, X2, Y2, WeightData.GetData(), Stride);
 						for (int i = 0; i < ArraySize; ++i)
 						{
-							if (WeightData[i] != DefaultWeightValue)
+							LayerContributionMaskData[i] = WeightData[i] != DefaultWeightValue ? LayerContributingValue : 0;
+						}
+					}
+					else
+					{
+						FMemory::Memzero(LayerContributionMaskDataPtr, ArraySize);
+						for (const FLandscapeInfoLayerSettings& LayerSettings : Info->Layers)
+						{
+							if (LayerSettings.LayerInfoObj == ALandscapeProxy::VisibilityLayer)
 							{
-								LayerContributionMaskData[i] = LayerContributingValue;
+								continue;
+							}
+							LandscapeEdit.GetWeightDataFast(LayerSettings.LayerInfoObj, X1, Y1, X2, Y2, WeightData.GetData(), Stride);
+							for (int i = 0; i < ArraySize; ++i)
+							{
+								if (WeightData[i] != DefaultWeightValue)
+								{
+									LayerContributionMaskData[i] = LayerContributingValue;
+								}
 							}
 						}
 					}
