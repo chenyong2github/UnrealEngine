@@ -1,9 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	ScreenSpaceReflections.h: Post processing Screen Space Reflections implementation.
-=============================================================================*/
-
 #pragma once
 
 #include "RenderGraph.h"
@@ -38,3 +34,5 @@ void RenderScreenSpaceReflections(
 	ESSRQuality SSRQuality,
 	bool bDenoiser,
 	IScreenSpaceDenoiser::FReflectionsInputs* DenoiserInputs);
+
+void RenderScreenSpaceDiffuseIndirect( FRHICommandListImmediate& RHICmdList, FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& VelocityRT );

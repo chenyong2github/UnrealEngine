@@ -25,13 +25,13 @@
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/PostProcessSubsurface.h"
 #include "PostProcess/PostProcessTemporalAA.h"
-#include "PostProcess/ScreenSpaceReflections.h"
 #include "LightRendering.h"
 #include "LightPropagationVolumeSettings.h"
 #include "PipelineStateCache.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "SceneViewFamilyBlackboard.h"
 #include "ScreenSpaceDenoise.h"
+#include "ScreenSpaceRayTracing.h"
 #include "RayTracing/RaytracingOptions.h"
 
 DECLARE_GPU_STAT_NAMED(ReflectionEnvironment, TEXT("Reflection Environment"));

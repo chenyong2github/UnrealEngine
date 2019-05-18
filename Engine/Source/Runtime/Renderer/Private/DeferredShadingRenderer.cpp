@@ -10,7 +10,6 @@
 #include "ScenePrivate.h"
 #include "ScreenRendering.h"
 #include "PostProcess/SceneFilterRendering.h"
-#include "PostProcess/ScreenSpaceReflections.h"
 #include "PostProcess/PostProcessSubsurface.h"
 #include "CompositionLighting/CompositionLighting.h"
 #include "FXSystem.h"
@@ -33,6 +32,7 @@
 #include "RayTracingDynamicGeometryCollection.h"
 #include "SceneViewFamilyBlackboard.h"
 #include "ScreenSpaceDenoise.h"
+#include "ScreenSpaceRayTracing.h"
 #include "RayTracing/RaytracingOptions.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
@@ -795,7 +795,6 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 #endif // RHI_RAYTRACING
 
 extern bool IsLpvIndirectPassRequired(const FViewInfo& View);
-void RenderScreenSpaceDiffuseIndirect( FRHICommandListImmediate& RHICmdList, FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& VelocityRT );
 
 static TAutoConsoleVariable<float> CVarStallInitViews(
 	TEXT("CriticalPathStall.AfterInitViews"),

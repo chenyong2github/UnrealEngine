@@ -1,16 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	ScreenSpaceReflections.usf: To generate screen space reflections as a postprocess
-=============================================================================*/
-
-#include "Common.ush"
-#include "Random.ush"
-#include "BRDF.ush"
-#include "MonteCarlo.ush"
-#include "ScreenSpaceRayCast.ush"
-#include "SceneViewFamilyBlackboard.ush"
-#include "ScreenSpaceDenoise/SSDPublic.ush"
+#include "SSRTRayCast.ush"
+#include "../Random.ush"
+#include "../BRDF.ush"
+#include "../MonteCarlo.ush"
+#include "../SceneViewFamilyBlackboard.ush"
+#include "../ScreenSpaceDenoise/SSDPublic.ush"
 
 // Generate vector truncation warnings to errors.
 #pragma warning(error: 3206)

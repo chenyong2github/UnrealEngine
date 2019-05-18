@@ -2,13 +2,12 @@
 
 #define IS_SSGI_SHADER 1
 
-#include "Common.ush"	
-#include "PostProcessCommon.ush"				
-#include "DeferredShadingCommon.ush"
-#include "Random.ush"
-#include "BRDF.ush"
-#include "MonteCarlo.ush"
-#include "ScreenSpaceRayCast.ush"
+#include "SSRTRayCast.ush"	
+#include "../PostProcessCommon.ush"				
+#include "../DeferredShadingCommon.ush"
+#include "../Random.ush"
+#include "../BRDF.ush"
+#include "../MonteCarlo.ush"
 
 Texture2D		HZBTexture;
 SamplerState	HZBSampler;

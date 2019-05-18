@@ -29,7 +29,7 @@
 #include "DBufferDecalShared.ush"
 
 #define PREV_FRAME_COLOR	1
-#include "ScreenSpaceRayCast.ush"
+#include "SSRT/SSRTRayCast.ush"
 
 #if NEEDS_BASEPASS_PIXEL_FOGGING || NEEDS_BASEPASS_PIXEL_VOLUMETRIC_FOGGING
 	#include "HeightFogCommon.ush"

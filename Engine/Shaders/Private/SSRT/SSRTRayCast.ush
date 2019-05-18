@@ -6,7 +6,7 @@
 #define IS_SSGI_SHADER 0
 #endif
 
-#include "Common.ush"	
+#include "../Common.ush"	
 
 bool RayCast(
 	Texture2D Texture, SamplerState Sampler,

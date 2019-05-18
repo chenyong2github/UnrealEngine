@@ -15,7 +15,7 @@
 #include "SceneRendering.h"
 #include "DeferredShadingRenderer.h"
 #include "ScenePrivate.h"
-#include "PostProcess/ScreenSpaceReflections.h"
+#include "ScreenSpaceRayTracing.h"
 #include "PostProcess/PostProcessMotionBlur.h"
 #include "UnrealEngine.h"
 #if WITH_EDITOR
