@@ -553,8 +553,8 @@ public:
 	// Cache off the RemoteRole and Role per connection to avoid issues with
 	// FScopedRoleDowngrade. See UE-66313 (among others).
 
-	ENetRole SavedRemoteRole = ROLE_MAX;
-	ENetRole SavedRole = ROLE_MAX;
+	TEnumAsByte<ENetRole> SavedRemoteRole = ROLE_MAX;
+	TEnumAsByte<ENetRole> SavedRole = ROLE_MAX;
 
 	/** Index in the buffer where changelist history starts (i.e., the Oldest changelist). */
 	int32 HistoryStart;
