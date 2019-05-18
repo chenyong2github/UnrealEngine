@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "CoreMinimal.h"
+#include "HttpServerConstants.h"
 
 enum class EHttpConnectionContextState
 {
@@ -31,6 +32,14 @@ public:
 	}
 
 	/**
+    * Gets the respective error code
+	*/
+	FORCEINLINE EHttpServerResponseCodes GetErrorCode() const
+	{
+		return ErrorCode;
+	}
+
+	/**
 	 * Gets the cumulative error string
 	 */
 	FORCEINLINE const FString& GetErrorStr() const
@@ -55,12 +64,14 @@ protected:
 
 	 * @param ErrorCode The machine-readable error code
 	 */
-	void AddError(const FString& ErrorCode);
+	void AddError(const FString& ErrorCodeStr, EHttpServerResponseCodes ErrorCode = EHttpServerResponseCodes::Unknown);
 
 	/** Tracks time since last read/write activity */
 	float ElapsedIdleTime = 0.0f;
 
+	/** Tracks the respective ErrorCode  */
+	EHttpServerResponseCodes ErrorCode = EHttpServerResponseCodes::Unknown;
+
 	/** Tracks cumulative context errors */
 	FStringOutputDevice ErrorBuilder;
-
 };

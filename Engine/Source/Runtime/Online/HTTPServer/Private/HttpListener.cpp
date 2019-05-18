@@ -44,7 +44,7 @@ bool FHttpListener::StartListening()
 	if (nullptr == SocketSubsystem)
 	{
 		UE_LOG(LogHttpListener, Error, 
-			TEXT("IHttpListener - SocketSubsystem Initialization Failed"));
+			TEXT("HttpListener - SocketSubsystem Initialization Failed"));
 		return false;
 	}
 
@@ -52,7 +52,7 @@ bool FHttpListener::StartListening()
 	if (nullptr == ListenSocket)
 	{
 		UE_LOG(LogHttpListener, Error, 
-			TEXT("IHttpListener - Unable to allocate stream socket"));
+			TEXT("HttpListener - Unable to allocate stream socket"));
 		return false;
 	}
 	ListenSocket->SetNonBlocking(true);
@@ -64,7 +64,7 @@ bool FHttpListener::StartListening()
 	if (!ListenSocket->Bind(*LocalhostAddr))
 	{
 		UE_LOG(LogHttpListener, Error, 
-			TEXT("IHttpListener unable to bind to %s"), 
+			TEXT("HttpListener unable to bind to %s"), 
 			*LocalhostAddr->ToString(true));
 		return false;
 	}
@@ -74,19 +74,19 @@ bool FHttpListener::StartListening()
 	if (ActualBufferSize != ListenerBufferSize)
 	{
 		UE_LOG(LogHttpListener, Warning, 
-			TEXT("IHttpListener unable to set desired buffer size (%d): Limited to %d"),
+			TEXT("HttpListener unable to set desired buffer size (%d): Limited to %d"),
 			ListenerBufferSize, ActualBufferSize);
 	}
 
 	if (!ListenSocket->Listen(ListenerConnectionBacklogSize))
 	{
 		UE_LOG(LogHttpListener, Error, 
-			TEXT("IHttpListener unable to listen on socket"));
+			TEXT("HttpListener unable to listen on socket"));
 		return false;
 	}
 
 	UE_LOG(LogHttpListener, Log, 
-		TEXT("Created new HttpListener on port %d"), ListenPort);
+		TEXT("Created new HttpListener on port %u"), ListenPort);
 	return true;
 }
 
@@ -97,6 +97,9 @@ void FHttpListener::StopListening()
 	// Tear down our top-level listener first
 	if (ListenSocket)
 	{
+		UE_LOG(LogHttpListener, Log,
+			TEXT("HttListener stopping listening on Port %u"), ListenPort);
+
 		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 		if (SocketSubsystem)
 		{
@@ -179,7 +182,8 @@ void FHttpListener::AcceptConnections(uint32 MaxConnectionsToAccept)
 			}
 
 			IncomingConnection->SetNonBlocking(true);
-			TSharedPtr<FHttpConnection> Connection = MakeShared<FHttpConnection>(IncomingConnection, Router);
+			TSharedPtr<FHttpConnection> Connection = 
+				MakeShared<FHttpConnection>(IncomingConnection, Router, ListenPort, NumConnectionsAccepted++);
 			Connections.Add(Connection);
 		}
 	}
