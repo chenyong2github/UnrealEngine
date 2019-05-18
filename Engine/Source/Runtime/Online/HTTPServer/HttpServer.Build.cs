@@ -6,10 +6,6 @@ public class HTTPServer : ModuleRules
 {
     public HTTPServer(ReadOnlyTargetRules Target) : base(Target)
     {
-        //OptimizeCode = CodeOptimization.Never;
-
-        PublicDefinitions.Add("HTTPSERVER_PACKAGE=1");
-
         PublicIncludePaths.AddRange(
 			new string[] {
 				"Runtime/Online/HTTPServer/Public",
