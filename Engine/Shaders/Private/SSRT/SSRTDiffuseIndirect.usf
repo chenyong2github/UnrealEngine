@@ -2,8 +2,7 @@
 
 #define IS_SSGI_SHADER 1
 
-#include "SSRTRayCast.ush"	
-#include "../PostProcessCommon.ush"				
+#include "SSRTRayCast.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../Random.ush"
 #include "../BRDF.ush"
