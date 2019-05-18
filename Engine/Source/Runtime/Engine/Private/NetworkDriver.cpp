@@ -3201,6 +3201,11 @@ void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 	{
 		Collector.AddReferencedObject(It.Value(), This);
 	}
+
+	if (This->GuidCache.IsValid())
+	{
+		This->GuidCache->CollectReferences(Collector);
+	}
 }
 
 
