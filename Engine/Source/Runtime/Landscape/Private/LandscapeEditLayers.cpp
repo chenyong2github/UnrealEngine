@@ -4740,8 +4740,6 @@ void ALandscapeProxy::InitializeLayerWithEmptyContent(const FGuid& InLayerGuid)
 void ALandscape::BeginDestroy()
 {
 #if WITH_EDITOR
-	ALandscape::UnregisterChangeLandscapeLayersStateDelegate();
-
 	if (CanHaveLayersContent())
 	{
 		if (CombinedLayersWeightmapAllMaterialLayersResource != nullptr)
