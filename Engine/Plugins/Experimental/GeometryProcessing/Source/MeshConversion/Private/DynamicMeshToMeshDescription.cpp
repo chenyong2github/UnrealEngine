@@ -104,7 +104,7 @@ void FDynamicMeshToMeshDescription::Convert_NoAttributes(const FDynamicMesh3* Me
 		}
 	}
 
-	MeshOut.ComputeTangentsAndNormals(EComputeNTBsOptions::Tangents);
+	Builder.RecalculateInstanceNormals();
 }
 
 
