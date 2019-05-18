@@ -306,6 +306,7 @@ FEdModeLandscape::FEdModeLandscape()
 	GSelectionColorMaterial  = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/SelectBrushMaterial_Selected.SelectBrushMaterial_Selected")));
 	GSelectionRegionMaterial = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/SelectBrushMaterial_SelectedRegion.SelectBrushMaterial_SelectedRegion")));
 	GMaskRegionMaterial      = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/MaskBrushMaterial_MaskedRegion.MaskBrushMaterial_MaskedRegion")));
+	GColorMaskRegionMaterial = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/ColorMaskBrushMaterial_MaskedRegion.ColorMaskBrushMaterial_MaskedRegion")));
 	GLandscapeBlackTexture   = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/Black.Black"));
 	GLandscapeLayerUsageMaterial = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorLandscapeResources/LandscapeLayerUsageMaterial.LandscapeLayerUsageMaterial")));
 
@@ -379,6 +380,7 @@ FEdModeLandscape::~FEdModeLandscape()
 	GSelectionColorMaterial = NULL;
 	GSelectionRegionMaterial = NULL;
 	GMaskRegionMaterial = NULL;
+	GColorMaskRegionMaterial = NULL;
 	GLandscapeBlackTexture = NULL;
 	GLandscapeLayerUsageMaterial = NULL;
 
@@ -397,6 +399,7 @@ void FEdModeLandscape::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject(GSelectionColorMaterial);
 	Collector.AddReferencedObject(GSelectionRegionMaterial);
 	Collector.AddReferencedObject(GMaskRegionMaterial);
+	Collector.AddReferencedObject(GColorMaskRegionMaterial);
 	Collector.AddReferencedObject(GLandscapeBlackTexture);
 	Collector.AddReferencedObject(GLandscapeLayerUsageMaterial);
 }
@@ -458,11 +461,46 @@ TSharedRef<FUICommandList> FEdModeLandscape::GetUICommandList() const
 	return Toolkit->GetToolkitCommands();
 }
 
+ELandscapeToolTargetType::Type FEdModeLandscape::GetLandscapeToolTargetType() const
+{
+	if (CurrentToolMode)
+	{
+		if (CurrentToolMode->ToolModeName == "ToolMode_Sculpt")
+		{
+			return ELandscapeToolTargetType::Heightmap;
+		}
+		else if (CurrentToolMode->ToolModeName == "ToolMode_Paint")
+		{
+			return ELandscapeToolTargetType::Weightmap;
+		}
+	}
+	return ELandscapeToolTargetType::Invalid;
+}
+
+FGuid FEdModeLandscape::GetLandscapeSelectedLayer() const
+{
+	return GetCurrentLayerGuid();
+}
+
 /** FEdMode: Called when the mode is entered */
 void FEdModeLandscape::Enter()
 {
 	// Call parent implementation
 	FEdMode::Enter();
+
+	if (UWorld* World = GetWorld())
+	{
+		for (auto It = ULandscapeInfoMap::GetLandscapeInfoMap(World).Map.CreateIterator(); It; ++It)
+		{
+			if (ULandscapeInfo* LandscapeInfo = It.Value())
+			{
+				if (ALandscape* Landscape = !LandscapeInfo->IsPendingKill() ? LandscapeInfo->LandscapeActor.Get() : nullptr)
+				{
+					Landscape->RegisterLandscapeEdMode(this);
+				}
+			}
+		}
+	}
 
 	OnLevelActorDeletedDelegateHandle = GEngine->OnLevelActorDeleted().AddSP(this, &FEdModeLandscape::OnLevelActorRemoved);
 	OnLevelActorAddedDelegateHandle = GEngine->OnLevelActorAdded().AddSP(this, &FEdModeLandscape::OnLevelActorAdded);
@@ -660,6 +698,20 @@ void FEdModeLandscape::Enter()
 /** FEdMode: Called when the mode is exited */
 void FEdModeLandscape::Exit()
 {
+	if (UWorld* World = GetWorld())
+	{
+		for (auto It = ULandscapeInfoMap::GetLandscapeInfoMap(World).Map.CreateIterator(); It; ++It)
+		{
+			if (ULandscapeInfo* LandscapeInfo = It.Value())
+			{
+				if (ALandscape* Landscape = !LandscapeInfo->IsPendingKill() ? LandscapeInfo->LandscapeActor.Get() : nullptr)
+				{
+					Landscape->UnregisterLandscapeEdMode();
+				}
+			}
+		}
+	}
+
 	// Unregister VR mode from event handlers
 	UViewportWorldInteraction* ViewportWorldInteraction = Cast<UViewportWorldInteraction>(GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(GetWorld())->FindExtension(UViewportWorldInteraction::StaticClass()));
 	if (ViewportWorldInteraction != nullptr)
@@ -3498,7 +3550,7 @@ void FEdModeLandscape::ImportData(const FLandscapeTargetListInfo& TargetInfo, co
 
 			{
 				ALandscape* Landscape = GetLandscape();
-				FScopedSetLandscapeEditingLayer Scope(Landscape, GetCurrentLayerGuid(), [&] { check(Landscape); Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Heightmap_All); });
+				FScopedSetLandscapeEditingLayer Scope(Landscape, GetCurrentLayerGuid(), [&] { check(Landscape); Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_Heightmap_All); });
 
 				TArray<uint16> Data;
 				if (ImportResolution != LandscapeResolution)
@@ -3614,7 +3666,7 @@ void FEdModeLandscape::ImportData(const FLandscapeTargetListInfo& TargetInfo, co
 
 			{
 				ALandscape* Landscape = GetLandscape();
-				FScopedSetLandscapeEditingLayer Scope(Landscape, GetCurrentLayerGuid(), [&] { check(Landscape); Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Weightmap_All); });
+				FScopedSetLandscapeEditingLayer Scope(Landscape, GetCurrentLayerGuid(), [&] { check(Landscape); Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_Weightmap_All); });
 
 				TArray<uint8> Data;
 				if (ImportResolution != LandscapeResolution)
@@ -4208,8 +4260,8 @@ void FEdModeLandscape::SetCurrentLayer(int32 InLayerIndex)
 {
 	UISettings->Modify();
 	UISettings->CurrentLayerIndex = InLayerIndex;
-
 	RefreshDetailPanel();
+	RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Update_Client_Editing);
 }
 
 int32 FEdModeLandscape::GetCurrentLayerIndex() const
@@ -4622,6 +4674,11 @@ bool FEdModeLandscape::NeedToFillEmptyMaterialLayers() const
 
 void FEdModeLandscape::OnLevelActorAdded(AActor* InActor)
 {
+	if (ALandscape* Landscape = Cast <ALandscape>(InActor))
+	{
+		Landscape->RegisterLandscapeEdMode(this);
+	}
+
 	ALandscapeBlueprintCustomBrush* Brush = Cast<ALandscapeBlueprintCustomBrush>(InActor);
 
 	if (Brush != nullptr && Brush->GetTypedOuter<UPackage>() != GetTransientPackage())
@@ -4633,6 +4690,11 @@ void FEdModeLandscape::OnLevelActorAdded(AActor* InActor)
 
 void FEdModeLandscape::OnLevelActorRemoved(AActor* InActor)
 {
+	if (ALandscape* Landscape = Cast <ALandscape>(InActor))
+	{
+		Landscape->UnregisterLandscapeEdMode();
+	}
+
 	ALandscapeBlueprintCustomBrush* Brush = Cast<ALandscapeBlueprintCustomBrush>(InActor);
 
 	if (Brush != nullptr && Brush->GetTypedOuter<UPackage>() != GetTransientPackage())

@@ -52,6 +52,7 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeWeightmapUsage.h"
 
 #if WITH_EDITOR
+#include "LandscapeEdit.h"
 #include "MaterialUtilities.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Editor.h"
@@ -1070,6 +1071,14 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	FrameOffsetForTickInterval = FrameOffsetForTickIntervalInc++;
 }
 
+#if WITH_EDITORONLY_DATA
+ALandscape::FLandscapeEdModeInfo::FLandscapeEdModeInfo()
+	: ViewMode(ELandscapeViewMode::Invalid)
+	, ToolTarget(ELandscapeToolTargetType::Invalid)
+{
+}
+#endif
+
 ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -1083,6 +1092,7 @@ ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 	WeightmapScratchExtractLayerTextureResource = nullptr;
 	WeightmapScratchPackLayerTextureResource = nullptr;
 	bLandscapeLayersAreInitialized = false;
+	LandscapeEdMode = nullptr;
 #endif // WITH_EDITORONLY_DATA
 }
 
