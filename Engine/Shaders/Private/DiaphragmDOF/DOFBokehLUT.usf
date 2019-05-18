@@ -153,10 +153,6 @@ void RingCoordinateFromCartesianCoordinate(const float2 C, out float OutRingRadi
 
 //------------------------------------------------------- OUTPUTS
 
-#if !defined(NEW_CODE) // TODO: remove me
-#define BokehLUTOutput Output0
-#endif
-
 RWTexture2D<float4>	BokehLUTOutput;
 
 

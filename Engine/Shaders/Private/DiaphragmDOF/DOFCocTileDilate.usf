@@ -18,6 +18,7 @@
 
 //------------------------------------------------------- PASSES.
 
+uint4 ViewportRect;
 uint SampleOffsetMultipler = 1;
 float fSampleOffsetMultipler = 1;
 
@@ -31,22 +32,11 @@ Texture2D TileInput_Background;
 Texture2D DilatedTileMinMax_Foreground;
 Texture2D DilatedTileMinMax_Background;
 
-#if defined(NEW_CODE) // TODO: remove me
-#define Output0 TileOutput_Foreground
-#define Output1 TileOutput_Background
-#else
-#define TileInput_Foreground PostprocessInput0
-#define TileInput_Background PostprocessInput1
-
-#define DilatedTileMinMax_Foreground PostprocessInput2
-#define DilatedTileMinMax_Background PostprocessInput3
-#endif
-
 
 //------------------------------------------------------- OUTPUTS.
 
-RWTexture2D<float4>	Output0;
-RWTexture2D<float4>	Output1;
+RWTexture2D<float4>	TileOutput_Foreground;
+RWTexture2D<float4>	TileOutput_Background;
 
 
 //------------------------------------------------------- ENTRY POINT.
@@ -257,10 +247,10 @@ void CocDilateMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		float4 RawOutput[COC_TILE_MAX_BUFFER_COUNT];
 		EncodeCocTileSample(OutSample, CocTileLayout, RawOutput);
 
-		Output0[PixelPos] = RawOutput[0];
+		TileOutput_Foreground[PixelPos] = RawOutput[0];
 		if (static_condition(GetBufferCountForCocTileLayour(CocTileLayout) > 1))
 		{
-			Output1[PixelPos] = RawOutput[1];
+			TileOutput_Background[PixelPos] = RawOutput[1];
 		}
 	}
 }

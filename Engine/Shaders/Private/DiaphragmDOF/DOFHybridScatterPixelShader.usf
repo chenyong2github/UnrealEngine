@@ -28,14 +28,6 @@ float4 ScatterOcclusionSize;
 Texture2D ScatterOcclusion;
 
 
-#if !defined(NEW_CODE) // TODO: remove me
-#define BokehLUT PostprocessInput2
-#define ScatterOcclusionSize PostprocessInput3Size
-#define ScatterOcclusion PostprocessInput3
-#endif
-
-
-
 //------------------------------------------------------- ENTRY POINT
 
 void ScatterMainPS(

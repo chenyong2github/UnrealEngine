@@ -12,19 +12,13 @@
 
 //------------------------------------------------------- PARAMETERS
 
+float4 ViewportSize;
+
 float4 GatherInputSize;
 Texture2D GatherInput_SceneColor;
 Texture2D GatherInput_SeparateCoc;
 
 Texture2D BokehLUT;
-
-
-#if !defined(NEW_CODE) // TODO: remove me
-#define GatherInputSize PostprocessInput0Size
-#define GatherInput_SceneColor PostprocessInput0
-#define GatherInput_SeparateCoc PostprocessInput1
-#define BokehLUT PostprocessInput4
-#endif
 
 
 //------------------------------------------------------- GATHERING KERNEL

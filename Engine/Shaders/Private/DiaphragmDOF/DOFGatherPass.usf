@@ -25,6 +25,7 @@ float2 TemporalJitterPixels;
 // Mip bias for the gathering kernel.
 float MipBias;
 
+uint4 ViewportRect;
 float2 DispatchThreadIdToInputBufferUV;
 float MaxRecombineAbsCocRadius;
 
@@ -40,15 +41,6 @@ Texture2D TileClassification_Background;
 
 
 //------------------------------------------------------- OUTPUTS
-
-#if !defined(NEW_CODE) // TODO: remove me
-#define ConvolutionOutput_SceneColor Output0
-#define ConvolutionOutput_SeparateAlpha Output1
-#define ScatterOcclusionOutput Output2
-
-#define TileClassification_Foreground PostprocessInput2
-#define TileClassification_Background PostprocessInput3
-#endif
 
 RWTexture2D<float4>	ConvolutionOutput_SceneColor;
 RWTexture2D<float4>	ConvolutionOutput_SeparateAlpha;
@@ -101,7 +93,6 @@ void StoreAccumulatorOutput(in uint2 OutputPixelPosition, in FAccumulatorOutput 
 		#elif DIM_LAYER_PROCESSING == LAYER_PROCESSING_BACKGROUND_ONLY
 			ConvolutionOutput_SceneColor[OutputPixelPosition] = AccumulatorOutput.BackgroundColor;
 			ConvolutionOutput_SeparateAlpha[OutputPixelPosition] = AccumulatorOutput.BackgroundWeight > 0 ? 1 : 0;
-			//Output1[OutputPixelPosition] = float4(1, 0, 0, 0);
 		
 		#elif DIM_LAYER_PROCESSING == LAYER_PROCESSING_SLIGHT_OUT_OF_FOCUS
 			ConvolutionOutput_SceneColor[OutputPixelPosition] = float4(
@@ -280,19 +271,6 @@ void GatherMainCS(
 
 		#endif
 	}
-	#endif
-
-	#if DIM_LAYER_PROCESSING == LAYER_PROCESSING_FOREGROUND_HOLE_FILLING && 0
-		if (all(DispatchThreadId < ViewportRect.zw) && bSkipGathering)
-		{
-			//Output0[DispatchThreadId] = float4(
-			//	GatherParameters.KernelRadius,
-			//	MaxCocRadiusAbs,
-			//	MinCocRadiusAbs,
-			//	1);
-			Output0[DispatchThreadId] = float4(1, 0, 0, 0);
-		}
-		return;
 	#endif
 
 	// Early return if there is no convolution to do.

@@ -13,6 +13,7 @@
 #define THREADGROUP_SIZEY		(THREADGROUP_SIZEX)
 #define THREADGROUP_TOTALSIZE	(THREADGROUP_SIZEX * THREADGROUP_SIZEY)
 
+uint4 ViewportRect;
 float2 MaxInputBufferUV;
 float MinGatherRadius;
 
@@ -23,18 +24,6 @@ Texture2D ConvolutionInput_SeparateAlpha;
 
 Texture2D TileClassification_Foreground;
 Texture2D TileClassification_Background;
-
-#if !defined(NEW_CODE) // TODO: remove me
-#define ConvolutionOutput_SceneColor Output0
-#define ConvolutionOutput_SeparateAlpha Output1
-
-#define ConvolutionInputSize PostprocessInput0Size
-#define ConvolutionInput_SceneColor PostprocessInput0
-#define ConvolutionInput_SeparateAlpha PostprocessInput1
-
-#define TileClassification_Foreground PostprocessInput2
-#define TileClassification_Background PostprocessInput3
-#endif
 
 
 RWTexture2D<float4>	ConvolutionOutput_SceneColor;

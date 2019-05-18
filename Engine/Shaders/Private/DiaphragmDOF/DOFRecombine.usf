@@ -131,6 +131,9 @@
 
 //------------------------------------------------------- PARAMETERS
 
+float4 ViewportSize;
+uint4 ViewportRect;
+
 float2 TemporalJitterPixels;
 float4 CocModelParameters;
 float2 DepthBlurParameters;
@@ -156,30 +159,6 @@ Texture2D SlightOutOfFocusConvolution_SeparateAlpha;
 
 Texture2D BackgroundConvolution_SceneColor;
 Texture2D BackgroundConvolution_SeparateAlpha;
-
-
-#if !defined(NEW_CODE) // TODO: remove me
-
-#define SceneColorInput PostprocessInput0
-#define SceneSeparateCoc PostprocessInput1
-#define SceneSeparateTranslucency PostprocessInput2
-
-#define BokehLUT PostprocessInput10
-
-#define ForegroundConvolution_SceneColor PostprocessInput3
-#define ForegroundConvolution_SeparateAlpha PostprocessInput4
-
-#define ForegroundHoleFillingConvolution_SceneColor PostprocessInput5
-#define ForegroundHoleFillingConvolution_SeparateAlpha PostprocessInput6
-
-#define SlightOutOfFocusConvolution_SceneColor PostprocessInput9
-
-#define BackgroundConvolution_SceneColor PostprocessInput7
-#define BackgroundConvolution_SeparateAlpha PostprocessInput8
-
-#define SceneColorOutput Output0
-
-#endif
 
 
 RWTexture2D<float4>	SceneColorOutput;
@@ -211,11 +190,7 @@ struct FRecombineInputParameters
 
 float SampleWorldDepth(float2 BufferUV)
 {
-#if defined(NEW_CODE)
 	return ConvertFromDeviceZ(SceneDepthTexture.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).x);
-#else
-	return CalcSceneDepth(BufferUV);
-#endif
 }
 
 // {0 to 1} output.
@@ -714,11 +689,7 @@ void RecombineMainCS(
 	// Setup input parameters.
 	FRecombineInputParameters InputParameters;
 	{
-#if defined(NEW_CODE) // TODO: remove me
 		InputParameters.DOFBufferSize = ConvolutionInputSize;
-#else
-		InputParameters.DOFBufferSize = (DIM_LAYER_PROCESSING == LAYER_PROCESSING_BACKGROUND_ONLY) ? PostprocessInput7Size : PostprocessInput3Size;
-#endif
 
 		InputParameters.ViewportUV = (DispatchThreadId + 0.5) * ViewportSize.zw;
 		InputParameters.SceneBufferUV = ViewportUVToBufferUV(InputParameters.ViewportUV);

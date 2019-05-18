@@ -9,6 +9,7 @@
 
 //------------------------------------------------------- PARAMETERS
 
+uint4 ViewportRect;
 float2 MaxBufferUV;
 float OutputCocRadiusMultiplier;
 
@@ -16,24 +17,13 @@ float4 GatherInputSize;
 Texture2D GatherInput_SceneColor;
 Texture2D GatherInput_SeparateCoc;
 
-#if defined(NEW_CODE) // TODO: remove me
-#define Output0 OutDownsampledGatherInput_SceneColor
-#define Output1 OutDownsampledGatherInput_SeparateCoc
-
-#else
-#define GatherInputSize PostprocessInput0Size
-#define GatherInput_SceneColor PostprocessInput0
-#define GatherInput_SeparateCoc PostprocessInput1
-
-#endif
-
 
 //------------------------------------------------------- OUTPUTS
 
-RWTexture2D<float4>	Output0;
+RWTexture2D<float4>	OutDownsampledGatherInput_SceneColor;
 
 #if CONFIG_DOF_ALPHA
-RWTexture2D<float>	Output1;
+RWTexture2D<float>	OutDownsampledGatherInput_SeparateCoc;
 #endif
 
 
@@ -87,12 +77,12 @@ void DownsampleCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	{
 		#if CONFIG_DOF_ALPHA
 		{
-			Output0[DispatchThreadId] = OutColor;
-			Output1[DispatchThreadId] = OutCocRadius * OutputCocRadiusMultiplier;
+			OutDownsampledGatherInput_SceneColor[DispatchThreadId] = OutColor;
+			OutDownsampledGatherInput_SeparateCoc[DispatchThreadId] = OutCocRadius * OutputCocRadiusMultiplier;
 		}
 		#else
 		{
-			Output0[DispatchThreadId] = float4(OutColor.rgb, OutCocRadius * OutputCocRadiusMultiplier);
+			OutDownsampledGatherInput_SceneColor[DispatchThreadId] = float4(OutColor.rgb, OutCocRadius * OutputCocRadiusMultiplier);
 		}
 		#endif
 	}

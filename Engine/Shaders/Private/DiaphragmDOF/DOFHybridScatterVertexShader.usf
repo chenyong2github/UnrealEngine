@@ -21,6 +21,8 @@ static const float2 kSpriteVertices[6] = {
 
 //------------------------------------------------------- PARAMETERS
 
+float4 ViewportSize;
+
 float ScatteringScaling;
 float CocRadiusToCircumscribedRadius;
 StructuredBuffer<float4> ScatterDrawList;

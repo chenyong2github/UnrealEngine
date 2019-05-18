@@ -420,7 +420,6 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		OutEnvironment.SetDefine(TEXT("COC_TILE_SIZE"), kCocTileSize);
-		OutEnvironment.SetDefine(TEXT("NEW_CODE"), kCocTileSize); // TODO: kill that
 	}
 
 	FDiaphragmDOFShader() {}

@@ -24,27 +24,18 @@
 
 //------------------------------------------------------- PARAMETERS.
 
+uint4 ViewportRect;
 float2 ThreadIdToBufferUV;
 float2 MaxBufferUV;
 
 Texture2D GatherInput_SceneColor;
 Texture2D GatherInput_SeparateCoc;
 
-#if defined(NEW_CODE) // TODO: remove me
-#define Output0 TileOutput_Foreground
-#define Output1 TileOutput_Background
-#else
-#define GatherInput_SceneColor PostprocessInput0
-#define GatherInput_SeparateCoc PostprocessInput0
-#endif
-
 
 //------------------------------------------------------- OUTPUTS.
 
-RWTexture2D<float4>	Output0;
-RWTexture2D<float4>	Output1;
-//RWTexture2D<float4>	TileOutput_Foreground;
-//RWTexture2D<float4>	TileOutput_Background;
+RWTexture2D<float4>	TileOutput_Foreground;
+RWTexture2D<float4>	TileOutput_Background;
 
 
 //------------------------------------------------------- LDS.
@@ -217,10 +208,10 @@ void CocFlattenMainCS(
 			EncodeCocTileSample(Local, LDS_LAYOUT, RawOutput);
 	
 			// Output.
-			Output0[GroupId] = RawOutput[0];
+			TileOutput_Foreground[GroupId] = RawOutput[0];
 			if (static_condition(GetBufferCountForCocTileLayour(LDS_LAYOUT) > 1))
 			{
-				Output1[GroupId] = RawOutput[1];
+				TileOutput_Background[GroupId] = RawOutput[1];
 			}
 		}
 	}
@@ -304,10 +295,10 @@ void CocFlattenMainCS(
 			EncodeCocTileSample(OutputTileSample, LDS_LAYOUT, RawOutput);
 	
 			// Output.
-			Output0[GroupId] = RawOutput[0];
+			TileOutput_Foreground[GroupId] = RawOutput[0];
 			if (static_condition(GetBufferCountForCocTileLayour(LDS_LAYOUT) > 1))
 			{
-				Output1[GroupId] = RawOutput[1];
+				TileOutput_Background[GroupId] = RawOutput[1];
 			}
 		}
 	}
