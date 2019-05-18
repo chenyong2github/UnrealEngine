@@ -20,7 +20,6 @@
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "Raster.h"
 #include "Landscape.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
@@ -582,7 +581,7 @@ public:
 			LandscapeEdit.SetHeightData(MinX, MinY, MaxX, MaxY, Data.GetData(), 0, true);
 			LandscapeEdit.Flush();
 
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!EdMode->HasLandscapeLayersContent())
 			{
 				TSet<ULandscapeComponent*> Components;
 				if (LandscapeEdit.GetComponentsInRegion(MinX, MinY, MaxX, MaxY, &Components))
