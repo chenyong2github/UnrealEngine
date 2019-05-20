@@ -8,6 +8,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/Engine.h"
+#include "EngineUtils.h"
 #include "AIController.h"
 #include "Components/PawnNoiseEmitterComponent.h"
 
@@ -227,10 +228,9 @@ void UPawnSensingComponent::UpdateAISensing()
 	}
 	else
 	{
-		for (FConstPawnIterator Iterator = Owner->GetWorld()->GetPawnIterator(); Iterator; ++Iterator)
+		for (APawn* Pawn : TActorRange<APawn>(Owner->GetWorld()))
 		{
-			APawn* Pawn = Iterator->Get();
-			if (IsValid(Pawn) && !IsSensorActor(Pawn))
+			if (!IsSensorActor(Pawn))
 			{
 				SensePawn(*Pawn);
 			}
