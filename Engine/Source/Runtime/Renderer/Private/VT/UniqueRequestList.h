@@ -319,7 +319,8 @@ inline void FUniqueRequestList::SortRequests(FVirtualTextureProducerCollection& 
 	// Re-index load request list, using sorted indices
 	FVirtualTextureLocalTile* SortedLoadRequests = new(MemStack) FVirtualTextureLocalTile[NewNumLoadRequests];
 	uint8* SortedLayerMask = new(MemStack) uint8[NewNumLoadRequests];
-	uint16* LoadIndexToSortedLoadIndex = new(MemStack, MEM_Oned) uint16[NumLoadRequests];
+	uint16* LoadIndexToSortedLoadIndex = new(MemStack) uint16[NumLoadRequests];
+	FMemory::Memset(LoadIndexToSortedLoadIndex, 0xff, NumLoadRequests * sizeof(uint16));
 	for (uint32 i = 0u; i < NewNumLoadRequests; ++i)
 	{
 		const uint32 SortedIndex = SortedKeys[i].Index;

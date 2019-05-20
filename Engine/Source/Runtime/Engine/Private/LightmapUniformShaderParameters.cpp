@@ -97,6 +97,7 @@ void GetPrecomputedLightingParameters(
 		uint32 NumLightmapVTLayers = 0u;
 		if (bUseVirtualTextures)
 		{
+			check(LCI); // If LCI was nullptr, LightMapInteraction.GetType() would be LMIT_None, not LMIT_Texture
 			const FLightmapResourceCluster* ResourceCluster = LCI->GetResourceCluster();
 			check(ResourceCluster);
 			IAllocatedVirtualTexture* AllocatedVT = ResourceCluster->AcquireAllocatedVT();

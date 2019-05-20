@@ -371,12 +371,15 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 			for (uint32 LayerIndex = 0u; LayerIndex < Desc.NumLayers; ++LayerIndex)
 			{
 				const FVirtualTextureProducer* Producer = ProducerForLayer[LayerIndex];
-				if ((WidthInBlocks % Producer->GetDescription().WidthInBlocks) != 0u)
+				if (Producer)
 				{
-					WidthInBlocks += MinWidthInBlocks;
-					check(WidthInBlocks > MinWidthInBlocks); // check for overflow
-					bFoundValidWidthInBlocks = false;
-					break;
+					if ((WidthInBlocks % Producer->GetDescription().WidthInBlocks) != 0u)
+					{
+						WidthInBlocks += MinWidthInBlocks;
+						check(WidthInBlocks > MinWidthInBlocks); // check for overflow
+						bFoundValidWidthInBlocks = false;
+						break;
+					}
 				}
 			}
 		}
@@ -392,12 +395,15 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 			for (uint32 LayerIndex = 0u; LayerIndex < Desc.NumLayers; ++LayerIndex)
 			{
 				const FVirtualTextureProducer* Producer = ProducerForLayer[LayerIndex];
-				if ((HeightInBlocks % Producer->GetDescription().HeightInBlocks) != 0u)
+				if (Producer)
 				{
-					HeightInBlocks += MinHeightInBlocks;
-					check(HeightInBlocks > MinHeightInBlocks); // check for overflow
-					bFoundValidHeightInBlocks = false;
-					break;
+					if ((HeightInBlocks % Producer->GetDescription().HeightInBlocks) != 0u)
+					{
+						HeightInBlocks += MinHeightInBlocks;
+						check(HeightInBlocks > MinHeightInBlocks); // check for overflow
+						bFoundValidHeightInBlocks = false;
+						break;
+					}
 				}
 			}
 		}
