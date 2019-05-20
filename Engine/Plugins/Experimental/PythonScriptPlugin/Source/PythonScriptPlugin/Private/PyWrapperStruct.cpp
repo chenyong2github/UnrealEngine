@@ -1500,6 +1500,14 @@ void UPythonGeneratedStruct::InitializeStruct(void* Dest, int32 ArrayDim) const
 	}
 }
 
+void UPythonGeneratedStruct::ReleasePythonResources()
+{
+	PyType.Reset();
+	PyPostInitFunction.Reset();
+	PropertyDefs.Reset();
+	PyMetaData = FPyWrapperStructMetaData();
+}
+
 UPythonGeneratedStruct* UPythonGeneratedStruct::GenerateStruct(PyTypeObject* InPyType)
 {
 	// Get the correct super struct from the parent type in Python
