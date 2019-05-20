@@ -72,10 +72,6 @@ const static float MaxHalfFloat = 65504.0f;
 #define USE_RAYTRACED_TEXTURE_RAYCONE_LOD (RAYHITGROUPSHADER)
 #endif
 
-#if COMPILER_HLSLCC
-	// Workaround until UE-69158 gets fixed
-	#define ComputeRayConeLod(Tex)	0
-#else
 static float GlobalRayCone_TexArea;
 float ComputeRayConeLod(Texture2D Tex)
 {
@@ -88,7 +84,6 @@ float ComputeRayConeLod(Texture2D Tex)
     return 0;
 #endif
 }
-#endif
 
 float  ClampToHalfFloatRange(float  X) { return clamp(X, float(0), MaxHalfFloat); }
 float2 ClampToHalfFloatRange(float2 X) { return clamp(X, float(0).xx, MaxHalfFloat.xx); }

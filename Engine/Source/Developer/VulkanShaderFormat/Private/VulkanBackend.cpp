@@ -429,7 +429,7 @@ struct FSamplerMappingGatherData
 {
 	struct FEntry
 	{
-		bool bUsingLoad = false;
+		bool bUsingLoadOrDim = false; // either "Load" or "GetDimensions" intrinsics are used
 		TStringSet SamplerStates;
 	};
 	std::map<std::string, FEntry> Entries;
@@ -451,7 +451,7 @@ struct FSamplerMapping
 		// First find all samplers using T.Load()
 		for (auto EntryPair : GatherData.Entries)
 		{
-			if (EntryPair.second.bUsingLoad)
+			if (EntryPair.second.bUsingLoadOrDim)
 			{
 				CombinedSamplers.insert(EntryPair.first);
 			}
@@ -3831,23 +3831,16 @@ struct FGenerateSamplerToTextureMapVisitor : public ir_hierarchical_visitor
 			}
 			else
 			{
-				if (IR->op == ir_txf)
+				if (IR->op == ir_txf || IR->op == ir_txs || IR->op == ir_txm)
 				{
-					GatherData.Entries[Sampler->name].bUsingLoad = true;
+					GatherData.Entries[Sampler->name].bUsingLoadOrDim = true;
 				}
 				else
 				{
-					if (IR->op == ir_txs || IR->op == ir_txm)
-					{
-						// Will be patched later
-					}
-					else
-					{
 #if UE_BUILD_DEBUG
-						// Internal error!!!
-						ensure(0);
+					// Internal error!!!
+					ensure(0);
 #endif
-					}
 					GatherData.Entries[Sampler->name].SamplerStates.insert("");
 				}
 			}
