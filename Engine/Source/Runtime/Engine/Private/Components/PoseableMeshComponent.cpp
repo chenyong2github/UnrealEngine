@@ -202,7 +202,7 @@ FTransform GetBoneTransformByNameHelper(FName BoneName, EBoneSpaces::Type BoneSp
 	}*/
 
 	FA2CSPose CSPose;
-	CSPose.AllocateLocalPoses(RequiredBones, Component->BoneSpaceTransforms);
+	CSPose.AllocateLocalPoses(RequiredBones, Component->GetBoneSpaceTransforms());
 
 	if (BoneSpace == EBoneSpaces::ComponentSpace)
 	{
@@ -278,16 +278,16 @@ void UPoseableMeshComponent::ResetBoneTransformByName(FName BoneName)
 	}
 }
 
-void UPoseableMeshComponent::CopyPoseFromSkeletalComponent(const USkeletalMeshComponent* InComponentToCopy)
+void UPoseableMeshComponent::CopyPoseFromSkeletalComponent(USkeletalMeshComponent* InComponentToCopy)
 {
 	if(RequiredBones.IsValid())
 	{
-		if(this->SkeletalMesh == InComponentToCopy->SkeletalMesh)
+		TArray<FTransform> LocalTransforms = InComponentToCopy->GetBoneSpaceTransforms();
+		if(this->SkeletalMesh == InComponentToCopy->SkeletalMesh 
+			&& LocalTransforms.Num() == BoneSpaceTransforms.Num())
 		{
-			check(BoneSpaceTransforms.Num() == InComponentToCopy->BoneSpaceTransforms.Num());
-
-			// Quick path, we know everything matches, just copy the local atoms
-			BoneSpaceTransforms = InComponentToCopy->BoneSpaceTransforms;
+			
+			Exchange(BoneSpaceTransforms, LocalTransforms);
 		}
 		else
 		{
@@ -306,7 +306,7 @@ void UPoseableMeshComponent::CopyPoseFromSkeletalComponent(const USkeletalMeshCo
 
 				if(TargetBoneIndex != INDEX_NONE)
 				{
-					BoneSpaceTransforms[TargetBoneIndex] = InComponentToCopy->BoneSpaceTransforms[SourceBoneIndex];
+					BoneSpaceTransforms[TargetBoneIndex] = LocalTransforms[SourceBoneIndex];
 				}
 			}
 		}

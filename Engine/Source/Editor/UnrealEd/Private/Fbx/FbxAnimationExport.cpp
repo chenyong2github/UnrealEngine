@@ -505,6 +505,7 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 	}
 
 	FTransform InitialInvParentTransform;
+	TArray<FTransform> LocalBoneTransforms = SkeletalMeshComponent->GetBoneSpaceTransforms();
 
 	float SampleTime;
 	for(SampleTime = AnimationStart; SampleTime <= AnimationEnd; SampleTime += SamplingRate)
@@ -560,7 +561,7 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 				Curves[i]->KeyModifyBegin();
 			}
 
-			FTransform BoneTransform = SkeletalMeshComponent->BoneSpaceTransforms[BoneIndex];
+			FTransform BoneTransform = LocalBoneTransforms[BoneIndex];
 
 			if (GetExportOptions()->MapSkeletalMotionToRoot && BoneIndex == 0)
 			{
