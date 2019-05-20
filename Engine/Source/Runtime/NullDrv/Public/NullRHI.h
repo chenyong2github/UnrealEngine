@@ -525,12 +525,6 @@ public:
 	{
 
 	}
-
-	virtual EColorSpace RHIGetColorSpace(FViewportRHIParamRef Viewport) final override
-	{
-		return EColorSpace::ERec709sRGB;
-	}
-
 	virtual void RHITick(float DeltaTime) final override
 	{
 

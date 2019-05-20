@@ -50,7 +50,8 @@ namespace ResonanceAudio
 			{
 				GlobalSpatializationSourceSettings = LoadObject<UResonanceAudioSpatializationSourceSettings>(nullptr, *GlobalPluginPresetName.ToString());
 			}
-			else
+			
+			if (!GlobalSpatializationSourceSettings)
 			{
 				GlobalSpatializationSourceSettings = NewObject<UResonanceAudioSpatializationSourceSettings>(UResonanceAudioSpatializationSourceSettings::StaticClass(), TEXT("Default Global Resonance Spatialization Preset"));
 			}

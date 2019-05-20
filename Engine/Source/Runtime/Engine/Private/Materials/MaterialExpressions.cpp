@@ -72,7 +72,6 @@
 #include "Materials/MaterialExpressionCosine.h"
 #include "Materials/MaterialExpressionCrossProduct.h"
 #include "Materials/MaterialExpressionCustom.h"
-#include "Materials/MaterialExpressionCustomPrimitiveData.h"
 #include "Materials/MaterialExpressionDDX.h"
 #include "Materials/MaterialExpressionDDY.h"
 #include "Materials/MaterialExpressionDecalDerivative.h"
@@ -6353,17 +6352,48 @@ UMaterialExpressionVectorParameter::UMaterialExpressionVectorParameter(const FOb
 #if WITH_EDITOR
 int32 UMaterialExpressionVectorParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compiler->VectorParameter(ParameterName,DefaultValue);
+	if (bUseCustomPrimitiveData)
+	{
+		return Compiler->CustomPrimitiveData(PrimitiveDataIndex, MCT_Float4);
+	}
+	else
+	{
+		return Compiler->VectorParameter(ParameterName,DefaultValue);
+	}
 }
 
 void UMaterialExpressionVectorParameter::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(FString::Printf(
-		 TEXT("Param (%.3g,%.3g,%.3g,%.3g)"),
-		 DefaultValue.R,
-		 DefaultValue.G,
-		 DefaultValue.B,
-		 DefaultValue.A ));
+	if (bUseCustomPrimitiveData)
+	{
+		FString IndexString = FString::Printf(TEXT("Index %d"), PrimitiveDataIndex);
+
+		// Add info about remaining 3 components
+		for (int i = 1; i < 4; i++)
+		{
+			// Append index if it's valid, otherwise append N/A
+			if(PrimitiveDataIndex+i < FCustomPrimitiveData::NumCustomPrimitiveDataFloats)
+			{
+				IndexString.Append(FString::Printf(TEXT(", %d"), PrimitiveDataIndex+i));
+			}
+			else
+			{
+				IndexString.Append(FString::Printf(TEXT(", N/A")));
+			}
+		}
+
+		OutCaptions.Add(IndexString); 
+		OutCaptions.Add(FString::Printf(TEXT("Custom Primitive Data"))); 
+	}
+	else
+	{
+		OutCaptions.Add(FString::Printf(
+			 TEXT("Param (%.3g,%.3g,%.3g,%.3g)"),
+			 DefaultValue.R,
+			 DefaultValue.G,
+			 DefaultValue.B,
+			 DefaultValue.A ));
+	}
 
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString())); 
 }
@@ -6378,6 +6408,14 @@ bool UMaterialExpressionVectorParameter::IsNamedParameter(const FMaterialParamet
 	}
 
 	return false;
+}
+
+void UMaterialExpressionVectorParameter::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
+{
+	if (!bUseCustomPrimitiveData)
+	{
+		Super::GetAllParameterInfo(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
+	}
 }
 
 #if WITH_EDITOR
@@ -6400,6 +6438,12 @@ void UMaterialExpressionVectorParameter::PostEditChangeProperty(FPropertyChanged
 	{
 		// Callback into the editor
 		FEditorSupportDelegates::VectorParameterDefaultChanged.Broadcast(this, ParameterName, DefaultValue);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, PrimitiveDataIndex))
+	{
+		// Clamp value
+		const int32 PrimDataIndex = PrimitiveDataIndex;
+		PrimitiveDataIndex = (uint8)FMath::Clamp(PrimDataIndex, 0, FCustomPrimitiveData::NumCustomPrimitiveDataFloats-1);
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -6620,15 +6664,29 @@ UMaterialExpressionScalarParameter::UMaterialExpressionScalarParameter(const FOb
 #if WITH_EDITOR
 int32 UMaterialExpressionScalarParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compiler->ScalarParameter(ParameterName,DefaultValue);
+	if (bUseCustomPrimitiveData)
+	{
+		return Compiler->CustomPrimitiveData(PrimitiveDataIndex, MCT_Float);
+	}
+	else
+	{
+		return Compiler->ScalarParameter(ParameterName,DefaultValue);
+	}
 }
 
 void UMaterialExpressionScalarParameter::GetCaption(TArray<FString>& OutCaptions) const
 {
-	 OutCaptions.Add(FString::Printf(
-		 TEXT("Param (%.4g)"),
-		 DefaultValue )); 
-
+	if (bUseCustomPrimitiveData)
+	{
+		OutCaptions.Add(FString::Printf(TEXT("Index %d"), PrimitiveDataIndex)); 
+		OutCaptions.Add(FString::Printf(TEXT("Custom Primitive Data"))); 
+	}
+	else
+	{
+		OutCaptions.Add(FString::Printf(
+			 TEXT("Param (%.4g)"),
+			DefaultValue )); 
+	}
 	 OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString())); 
 }
 #endif // WITH_EDITOR
@@ -6642,6 +6700,14 @@ bool UMaterialExpressionScalarParameter::IsNamedParameter(const FMaterialParamet
 	}
 
 	return false;
+}
+
+void UMaterialExpressionScalarParameter::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
+{
+	if (!bUseCustomPrimitiveData)
+	{
+		Super::GetAllParameterInfo(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
+	}
 }
 
 #if WITH_EDITOR
@@ -6665,7 +6731,12 @@ void UMaterialExpressionScalarParameter::PostEditChangeProperty(FPropertyChanged
 		// Callback into the editor
 		FEditorSupportDelegates::ScalarParameterDefaultChanged.Broadcast(this, ParameterName, DefaultValue);
 	}
-
+	else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionScalarParameter, PrimitiveDataIndex))
+	{
+		// Clamp value
+		const int32 PrimDataIndex = PrimitiveDataIndex;
+		PrimitiveDataIndex = (uint8)FMath::Clamp(PrimDataIndex, 0, FCustomPrimitiveData::NumCustomPrimitiveDataFloats-1);
+	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
@@ -15316,95 +15387,6 @@ void UMaterialExpressionCurveAtlasRowParameter::PostEditChangeProperty(FProperty
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
-
-//
-// UMaterialExpressionCustomPrimitiveData
-//
-UMaterialExpressionCustomPrimitiveData::UMaterialExpressionCustomPrimitiveData(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-#if WITH_EDITORONLY_DATA
-	// Structure to hold one-time initialization
-	struct FConstructorStatics
-	{
-		FText NAME_Vectors;
-		FConstructorStatics()
-			: NAME_Vectors(LOCTEXT("Custom", "Custom"))
-		{
-		}
-	};
-	static FConstructorStatics ConstructorStatics;
-
-	MenuCategories.Add(ConstructorStatics.NAME_Vectors);
-
-	bShaderInputData = true;
-	bShowOutputNameOnPin = true;
-
-	Outputs.Reset();
-#endif
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionCustomPrimitiveData::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	if (Material && Material->MaterialDomain == MD_DeferredDecal)
-	{
-		return CompilerError(Compiler, TEXT("Expression not available in the deferred decal material domain."));
-	}
-
-	return Compiler->CustomPrimitiveData(CustomIndices[OutputIndex].PrimitiveDataIndex);
-}
-
-void UMaterialExpressionCustomPrimitiveData::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("Custom Primitive Data"));
-}
-
-void UMaterialExpressionCustomPrimitiveData::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-#if WITH_EDITORONLY_DATA
-	
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FPrimitiveDataIndex, CustomDesc) ||
-		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterialExpressionCustomPrimitiveData, CustomIndices))
-	{
-		// If more than the supported number of custom floats have been added, remove the overflow
-		if (CustomIndices.Num() > FCustomPrimitiveData::NumCustomPrimitiveDataFloats)
-		{
-			CustomIndices.SetNum(FCustomPrimitiveData::NumCustomPrimitiveDataFloats);
-		}
-
-		// Match the number of pins to the number of descriptions
-		Outputs.SetNumZeroed(CustomIndices.Num());
-
-		// Update the names of the pins
-		for (int i = 0; i < Outputs.Num(); i++)
-		{
-			Outputs[i].OutputName = *(CustomIndices[i].CustomDesc);
-		}
-
-		// Reconstruct the node to get the new names applied to the pins
-		GraphNode->ReconstructNode();
-
-		// No need to update preview if we only change output descriptions
-		bNeedToUpdatePreview = false;
-
-		// Done here (skip calling base class)
-		return;
-	}
-	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FPrimitiveDataIndex, PrimitiveDataIndex))
-	{
-		// Clamp indices
-		for (int i = 0; i < CustomIndices.Num(); i++)
-		{
-			const int32 PrimDataIndex = CustomIndices[i].PrimitiveDataIndex;
-			CustomIndices[i].PrimitiveDataIndex = FMath::Clamp(PrimDataIndex, 0, FCustomPrimitiveData::NumCustomPrimitiveDataFloats-1);
-		}
-	}
-#endif
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-#endif // WITH_EDITOR
 
 //
 //	UMaterialExpressionShadingModel

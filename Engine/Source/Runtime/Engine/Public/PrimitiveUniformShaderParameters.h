@@ -41,7 +41,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(int32, SingleCaptureIndex)
     SHADER_PARAMETER(uint32, OutputVelocity)
 	// 12 bytes of padding here, feel free to use
-	SHADER_PARAMETER_ARRAY(FVector4, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through UMaterialExpressionCustomPrimitiveData and modified through UStaticMeshComponent
+	SHADER_PARAMETER_ARRAY(FVector4, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 

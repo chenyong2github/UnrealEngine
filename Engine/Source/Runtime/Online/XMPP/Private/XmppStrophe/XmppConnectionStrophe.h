@@ -60,6 +60,8 @@ public:
 	virtual IXmppChatPtr PrivateChat() override;
 	virtual IXmppPubSubPtr PubSub() override;
 
+	virtual void DumpState() const override;
+
 	// FTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 
@@ -81,6 +83,10 @@ public:
 
 	/** Get the MUC domain that was saved right before we connected */
 	const FString& GetMucDomain() const { return MucDomain; }
+
+private:
+	/** Notify that Login was triggered again while already connected */
+	void ReconnectLogin();
 
 protected:
 	/** XMPP Context to use across this connection */
