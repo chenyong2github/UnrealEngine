@@ -864,7 +864,7 @@ public:
 		return 0;
 	}
 
-	// Returns nullptr and Size -1 if not key was not found
+	// Returns nullptr and Size -1 if key was not found
 	const uint8* FindOptionalDataAndSize(uint8 InKey, int32& OutSize) const
 	{
 		check(ShaderCode.Num() >= 4);
