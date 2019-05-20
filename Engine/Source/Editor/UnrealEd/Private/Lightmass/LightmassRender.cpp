@@ -1136,7 +1136,10 @@ bool FLightmassMaterialRenderer::GenerateMaterialPropertyData(
 						const FUniformExpressionCache& UniformExpressionCache = InMaterialProxy->UniformExpressionCache[InFeatureLevel];
 						for (IAllocatedVirtualTexture* AllocatedVT : UniformExpressionCache.AllocatedVTs)
 						{
-							GetRendererModule().RequestVirtualTextureTilesForRegion(AllocatedVT, InScreenSpaceSize, FIntRect(), -1);
+							if (AllocatedVT)
+							{
+								GetRendererModule().RequestVirtualTextureTilesForRegion(AllocatedVT, InScreenSpaceSize, FIntRect(), -1);
+							}
 						}
 
 						ENQUEUE_RENDER_COMMAND(LoadTiles)(

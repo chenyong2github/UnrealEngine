@@ -27,6 +27,7 @@ void FVirtualTextureProducer::Release(FVirtualTextureSystem* System, const FVirt
 FVirtualTextureProducerCollection::FVirtualTextureProducerCollection()
 {
 	Producers.AddDefaulted(1);
+	Producers[0].Magic = 1u; // make sure FVirtualTextureProducerHandle(0) will not resolve to the dummy producer entry
 }
 
 FVirtualTextureProducerHandle FVirtualTextureProducerCollection::RegisterProducer(FVirtualTextureSystem* System, const FVTProducerDescription& InDesc, IVirtualTexture* InProducer)

@@ -2296,27 +2296,34 @@ static IAllocatedVirtualTexture* AllocateVTStack(const FMaterialRenderContext& C
 
 	const UTexture2D* LayerTextures[VIRTUALTEXTURE_SPACE_MAXLAYERS] = { nullptr };
 	VTStack.GetTextureValues(Context, UniformExpressionSet, LayerTextures);
-	check(LayerTextures[0]);
-	check(LayerTextures[0]->IsCurrentlyVirtualTextured());
-	const FVirtualTexture2DResource* VirtualTextureResource = (FVirtualTexture2DResource*)LayerTextures[0]->Resource;
 
 	FAllocatedVTDescription VTDesc;
 	VTDesc.Dimensions = 2;
-	VTDesc.TileSize = VirtualTextureResource->GetTileSize();
-	VTDesc.TileBorderSize = VirtualTextureResource->GetBorderSize();
 	VTDesc.NumLayers = NumLayers;
+	bool bFoundValidLayer = false;
 	for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumLayers; ++LayerIndex)
 	{
-		check(LayerTextures[LayerIndex]->IsCurrentlyVirtualTextured());
-		const FVirtualTexture2DResource* VirtualTextureResourceForLayer = (FVirtualTexture2DResource*)LayerTextures[LayerIndex]->Resource;
+		const UTexture2D* Texture = LayerTextures[LayerIndex];
+		const FVirtualTexture2DResource* VirtualTextureResourceForLayer = (Texture && Texture->IsCurrentlyVirtualTextured()) ? (FVirtualTexture2DResource*)Texture->Resource : nullptr;
 		if (VirtualTextureResourceForLayer != nullptr)
 		{
+			// All tile sizes need to match
+			check(!bFoundValidLayer || VTDesc.TileSize == VirtualTextureResourceForLayer->GetTileSize());
+			check(!bFoundValidLayer || VTDesc.TileBorderSize == VirtualTextureResourceForLayer->GetBorderSize());
+
+			VTDesc.TileSize = VirtualTextureResourceForLayer->GetTileSize();
+			VTDesc.TileBorderSize = VirtualTextureResourceForLayer->GetBorderSize();
 			VTDesc.ProducerHandle[LayerIndex] = VirtualTextureResourceForLayer->GetProducerHandle();
 			VTDesc.LocalLayerToProduce[LayerIndex] = 0u;
+			bFoundValidLayer = true;
 		}
 	}
 
-	return GetRendererModule().AllocateVirtualTexture(VTDesc);
+	if (bFoundValidLayer)
+	{
+		return GetRendererModule().AllocateVirtualTexture(VTDesc);
+	}
+	return nullptr;
 }
 
 FUniformExpressionCache::~FUniformExpressionCache()

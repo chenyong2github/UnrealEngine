@@ -1729,11 +1729,17 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 			uint32 NumFullyMappedLayers = 0u;
 			for (uint32 LayerIndex = 0u; LayerIndex < AllocatedVT->GetNumLayers(); ++LayerIndex)
 			{
+				const FVirtualTextureProducerHandle ProducerHandle = AllocatedVT->GetProducerHandle(LayerIndex);
+				const FVirtualTextureProducer* Producer = Producers.FindProducer(ProducerHandle);
+				if (!Producer)
+				{
+					++NumFullyMappedLayers;
+					continue;
+				}
+
 				const uint32 ProducerIndex = AllocatedVT->GetUniqueProducerIndexForLayer(LayerIndex);
 				const uint32 ProducerMipBias = AllocatedVT->GetUniqueProducerMipBias(ProducerIndex);
 				const uint32 LocalLayerIndex = AllocatedVT->GetLocalLayerToProduce(LayerIndex);
-				const FVirtualTextureProducerHandle ProducerHandle = AllocatedVT->GetUniqueProducerHandle(ProducerIndex);
-				const FVirtualTextureProducer* Producer = Producers.FindProducer(ProducerHandle);
 				const uint32 WidthInTiles = Producer->GetWidthInTiles();
 				const uint32 HeightInTiles = Producer->GetHeightInTiles();
 				const uint32 MaxLevel = FMath::Min(Producer->GetMaxLevel(), AllocatedVT->GetMaxLevel());
