@@ -54,44 +54,40 @@ static bool operator==(FNameEntryHeader A, FNameEntryHeader B)
 	return (uint16&)A == (uint16&)B;
 }
 
+template<typename FromCharType, typename ToCharType>
+ToCharType* ConvertInPlace(FromCharType* Str, uint32 Len)
+{
+	static_assert(TIsSame<FromCharType, ToCharType>::Value, "Unsupported conversion");
+	return Str;
+}
+
+template<>
+WIDECHAR* ConvertInPlace<ANSICHAR, WIDECHAR>(ANSICHAR* Str, uint32 Len)
+{
+	for (uint32 Index = Len; Index--; )
+	{
+		reinterpret_cast<WIDECHAR*>(Str)[Index] = Str[Index];
+	}
+
+	return reinterpret_cast<WIDECHAR*>(Str);
+}
+
+template<>
+ANSICHAR* ConvertInPlace<WIDECHAR, ANSICHAR>(WIDECHAR* Str, uint32 Len)
+{
+	for (uint32 Index = 0; Index < Len; ++Index)
+	{
+		reinterpret_cast<ANSICHAR*>(Str)[Index] = Str[Index];
+	}
+
+	return reinterpret_cast<ANSICHAR*>(Str);
+}
+
 union FNameBuffer
 {
 	ANSICHAR AnsiName[NAME_SIZE];
 	WIDECHAR WideName[NAME_SIZE];
-
-	template<typename FromCharType, typename ToCharType>
-	ToCharType* ConvertInPlace(uint32 Len);
 };
-
-template<> ANSICHAR* FNameBuffer::ConvertInPlace<ANSICHAR, ANSICHAR>(uint32 Len)
-{
-	return AnsiName;
-}
-
-template<> WIDECHAR* FNameBuffer::ConvertInPlace<WIDECHAR, WIDECHAR>(uint32 Len)
-{
-	return WideName;
-}
-
-template<> WIDECHAR* FNameBuffer::ConvertInPlace<ANSICHAR, WIDECHAR>(uint32 Len)
-{
-	for (uint32 Index = Len; Index--; )
-	{
-		WideName[Index] = AnsiName[Index];
-	}
-
-	return WideName;
-}
-
-template<> ANSICHAR* FNameBuffer::ConvertInPlace<WIDECHAR, ANSICHAR>(uint32 Len)
-{
-	for (uint32 Index = 0; Index < Len; ++Index)
-	{
-		AnsiName[Index] = WideName[Index];
-	}
-
-	return AnsiName;
-}
 
 struct FNameStringView
 {
@@ -719,6 +715,7 @@ private:
 
 	// Put constant lookup on separate cache line to avoid it being constantly invalidated by insertion
 	alignas(PLATFORM_CACHE_LINE_SIZE) FNameEntryId ENameToEntry[NAME_MaxHardcodedNameIndex] = {};
+	uint32 LargestEnameUnstableId;
 	TMap<FNameEntryId, EName, TInlineSetAllocator<MaxENames>> EntryToEName;
 };
 
@@ -744,11 +741,13 @@ FNamePool::FNamePool()
 #undef REGISTER_NAME
 
 	// Make reverse mapping
+	LargestEnameUnstableId = 0;
 	for (uint32 ENameIndex = 0; ENameIndex < NAME_MaxHardcodedNameIndex; ++ENameIndex)
 	{
 		if (ENameIndex == NAME_None || ENameToEntry[ENameIndex])
 		{
 			EntryToEName.Add(ENameToEntry[ENameIndex], (EName)ENameIndex);
+			LargestEnameUnstableId = FMath::Max(LargestEnameUnstableId, ENameToEntry[ENameIndex].ToUnstableInt());
 		}
 	}
 
@@ -877,7 +876,7 @@ bool FNamePool::IsValid(FNameEntryHandle Handle) const
 
 const EName* FNamePool::FindEName(FNameEntryId Id) const
 {
-	return EntryToEName.Find(Id);
+	return Id.ToUnstableInt() > LargestEnameUnstableId ? nullptr : EntryToEName.Find(Id);
 }
 
 static bool bNamePoolInitialized;
@@ -898,9 +897,16 @@ static FNamePool& GetNamePool()
 	return *Singleton;
 }
 
+// Only call from functions guaranteed to run after FName lazy initialization
+static FNamePool& GetNamePoolPostInit()
+{
+	checkSlow(bNamePoolInitialized);
+	return (FNamePool&)NamePoolData;
+}
+
 bool operator==(FNameEntryId Id, EName Ename)
 {
-	return Id == GetNamePool().Find(Ename);
+	return Id == GetNamePoolPostInit().Find(Ename);
 }
 
 static int32 CompareDifferentIdsAlphabetically(FNameEntryId AId, FNameEntryId BId)
@@ -919,11 +925,11 @@ static int32 CompareDifferentIdsAlphabetically(FNameEntryId AId, FNameEntryId BI
 		FNameBuffer& AnsiBuffer =	AView.bIsWide ? BBuffer : ABuffer;
 
 #ifndef WITH_CUSTOM_NAME_ENCODING
-		memcpy(AnsiBuffer.AnsiName, AnsiView.Ansi, AnsiView.Len * sizeof(ANSICHAR));
+		FPlatformMemory::Memcpy(AnsiBuffer.AnsiName, AnsiView.Ansi, AnsiView.Len * sizeof(ANSICHAR));
 		AnsiView.Ansi = AnsiBuffer.AnsiName;
 #endif
 
-		AnsiBuffer.ConvertInPlace<ANSICHAR, WIDECHAR>(AnsiView.Len);
+		ConvertInPlace<ANSICHAR, WIDECHAR>(AnsiBuffer.AnsiName, AnsiView.Len);
 		AnsiView.bIsWide = true;
 	}
 
@@ -1013,25 +1019,25 @@ static uint16 GetRawNonCasePreservingHash(const TCharType* Source)
 
 void FNameEntry::StoreName(const ANSICHAR* InName, uint32 Len)
 {
-	memcpy(AnsiName, InName, sizeof(ANSICHAR) * Len);
+	FPlatformMemory::Memcpy(AnsiName, InName, sizeof(ANSICHAR) * Len);
 	Encode(AnsiName, Len);
 }
 
 void FNameEntry::StoreName(const WIDECHAR* InName, uint32 Len)
 {
-	memcpy(WideName, InName, sizeof(WIDECHAR) * Len);
+	FPlatformMemory::Memcpy(WideName, InName, sizeof(WIDECHAR) * Len);
 	Encode(WideName, Len);
 }
 
 void FNameEntry::CopyUnterminatedName(ANSICHAR* Out) const
 {
-	memcpy(Out, AnsiName, sizeof(ANSICHAR) * Header.Len);
+	FPlatformMemory::Memcpy(Out, AnsiName, sizeof(ANSICHAR) * Header.Len);
 	Decode(Out, Header.Len);
 }
 
 void FNameEntry::CopyUnterminatedName(WIDECHAR* Out) const
 {
-	memcpy(Out, WideName, sizeof(WIDECHAR) * Header.Len);
+	FPlatformMemory::Memcpy(Out, WideName, sizeof(WIDECHAR) * Header.Len);
 	Decode(Out, Header.Len);
 }
 
@@ -1061,6 +1067,39 @@ FORCEINLINE FNameStringView FNameEntry::MakeView(FNameBuffer& OptionalDecodeBuff
 					: FNameStringView(GetUnterminatedName(OptionalDecodeBuffer.AnsiName), GetNameLength());
 }
 
+void FNameEntry::GetUnterminatedName(TCHAR* OutName, uint32 OutLen) const
+{
+	check(static_cast<int32>(OutLen) >= GetNameLength());
+	CopyAndConvertUnterminatedName(OutName);
+}
+
+void FNameEntry::GetName(TCHAR(&OutName)[NAME_SIZE]) const
+{
+	CopyAndConvertUnterminatedName(OutName);
+	OutName[GetNameLength()] = '\0';
+}
+
+void FNameEntry::CopyAndConvertUnterminatedName(TCHAR* OutName) const
+{
+	if (sizeof(TCHAR) < sizeof(WIDECHAR) && IsWide()) // Normally compiled out
+	{
+		FNameBuffer Temp;
+		CopyUnterminatedName(Temp.WideName);
+		ConvertInPlace<WIDECHAR, TCHAR>(Temp.WideName, Header.Len);
+		FPlatformMemory::Memcpy(OutName, Temp.AnsiName, Header.Len * sizeof(TCHAR));
+	}
+	else if (IsWide())
+	{
+		CopyUnterminatedName((WIDECHAR*)OutName);
+		ConvertInPlace<WIDECHAR, TCHAR>((WIDECHAR*)OutName, Header.Len);
+	}
+	else
+	{
+		CopyUnterminatedName((ANSICHAR*)OutName);
+		ConvertInPlace<ANSICHAR, TCHAR>((ANSICHAR*)OutName, Header.Len);
+	}
+}
+
 void FNameEntry::GetAnsiName(ANSICHAR(&Out)[NAME_SIZE]) const
 {
 	check(!IsWide());
@@ -1081,12 +1120,12 @@ static const TCHAR* EntryToCString(const FNameEntry& Entry, FNameBuffer& Temp)
 	if (Entry.IsWide())
 	{
 		Entry.GetWideName(Temp.WideName);
-		return Temp.ConvertInPlace<WIDECHAR, TCHAR>(Entry.GetNameLength() + 1);
+		return ConvertInPlace<WIDECHAR, TCHAR>(Temp.WideName, Entry.GetNameLength() + 1);
 	}
 	else
 	{
 		Entry.GetAnsiName(Temp.AnsiName);
-		return Temp.ConvertInPlace<ANSICHAR, TCHAR>(Entry.GetNameLength() + 1);
+		return ConvertInPlace<ANSICHAR, TCHAR>(Temp.AnsiName, Entry.GetNameLength() + 1);
 	}
 }
 
@@ -1327,12 +1366,12 @@ FString FName::NameToDisplayString( const FString& InDisplayName, const bool bIs
 
 const EName* FName::ToEName() const
 {
-	return GetNamePool().FindEName(ComparisonIndex);
+	return GetNamePoolPostInit().FindEName(ComparisonIndex);
 }
 
 bool FName::IsWithinBounds(FNameEntryId Id)
 {
-	return GetNamePool().IsValid(Id);
+	return GetNamePoolPostInit().IsValid(Id);
 }
 
 /*-----------------------------------------------------------------------------
@@ -1593,14 +1632,12 @@ struct FNameHelper
 };
 
 
+#if WITH_CASE_PRESERVING_NAME
 FNameEntryId FName::GetComparisonIdFromDisplayId(FNameEntryId DisplayId)
 {
-#if WITH_CASE_PRESERVING_NAME
 	return GetEntry(DisplayId)->ComparisonId;
-#else
-	return DisplayId;
-#endif
 }
+#endif
 
 FName::FName(const WIDECHAR* Name, EFindName FindType)
 	: FName(FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name), FindType))
@@ -1682,14 +1719,16 @@ int32 FName::Compare( const FName& Other ) const
 	return CompareDifferentIdsAlphabetically(ComparisonIndex, Other.ComparisonIndex);
 }
 
+uint32 FName::GetPlainNameString(TCHAR(&OutName)[NAME_SIZE]) const
+{
+	const FNameEntry& Entry = *GetDisplayNameEntry();
+	Entry.GetName(OutName);
+	return Entry.GetNameLength();
+}
+
 FString FName::GetPlainNameString() const
 {
-	if (const FNameEntry* CurEntry = GetDisplayNameEntry())
-	{
-		return CurEntry->GetPlainNameString();
-	}
-
-	return TEXT("*INVALID*");
+	return GetDisplayNameEntry()->GetPlainNameString();
 }
 
 void FName::GetPlainANSIString(ANSICHAR(&AnsiName)[NAME_SIZE]) const
@@ -1716,11 +1755,8 @@ FString FName::ToString() const
 {
 	if (GetNumber() == NAME_NO_NUMBER_INTERNAL)
 	{
-		if (const FNameEntry* const DisplayEntry = GetDisplayNameEntry())
-		{
-			// Avoids some extra allocations in non-number case
-			return DisplayEntry->GetPlainNameString();
-		}
+		// Avoids some extra allocations in non-number case
+		return GetDisplayNameEntry()->GetPlainNameString();
 	}
 	
 	FString Out;	
@@ -1733,11 +1769,7 @@ void FName::ToString(FString& Out) const
 	// A version of ToString that saves at least one string copy
 	const FNameEntry* const NameEntry = GetDisplayNameEntry();
 
-	if (NameEntry == nullptr)
-	{
-		Out = TEXT("*INVALID*");
-	}
-	else if (GetNumber() == NAME_NO_NUMBER_INTERNAL)
+	if (GetNumber() == NAME_NO_NUMBER_INTERNAL)
 	{
 		Out.Empty(NameEntry->GetNameLength());
 		NameEntry->AppendNameToString(Out);
@@ -1752,22 +1784,58 @@ void FName::ToString(FString& Out) const
 	}
 }
 
+uint32 FName::GetStringLength() const
+{
+	const FNameEntry& Entry = *GetDisplayNameEntry();
+	uint32 NameLen = Entry.GetNameLength();
+
+	if (GetNumber() == NAME_NO_NUMBER_INTERNAL)
+	{
+		return NameLen;
+	}
+	else
+	{
+		TCHAR NumberSuffixStr[16];
+		int32 SuffixLen = FCString::Sprintf(NumberSuffixStr, TEXT("_%d"), NAME_INTERNAL_TO_EXTERNAL(GetNumber()));
+		check(SuffixLen > 0);
+
+		return NameLen + SuffixLen;
+	}
+}
+
+uint32 FName::ToString(TCHAR* Out, uint32 OutSize) const
+{
+	const FNameEntry& Entry = *GetDisplayNameEntry();
+	uint32 NameLen = Entry.GetNameLength();
+	Entry.GetUnterminatedName(Out, OutSize);
+
+	if (GetNumber() == NAME_NO_NUMBER_INTERNAL)
+	{
+		Out[NameLen] = '\0';
+		return NameLen;
+	}
+	else
+	{
+		TCHAR NumberSuffixStr[16];
+		int32 SuffixLen = FCString::Sprintf(NumberSuffixStr, TEXT("_%d"), NAME_INTERNAL_TO_EXTERNAL(GetNumber()));
+		uint32 TotalLen = NameLen + SuffixLen;
+		check(SuffixLen > 0 && OutSize > TotalLen);
+
+		FPlatformMemory::Memcpy(Out + NameLen, NumberSuffixStr, SuffixLen * sizeof(TCHAR));
+		Out[TotalLen] = '\0';
+		return TotalLen;
+	}
+}
+
 void FName::AppendString(FString& Out) const
 {
 	const FNameEntry* const NameEntry = GetDisplayNameEntry();
 
-	if (NameEntry == nullptr)
+	NameEntry->AppendNameToString( Out );
+	if (GetNumber() != NAME_NO_NUMBER_INTERNAL)
 	{
-		Out += TEXT("*INVALID*");
-	}
-	else
-	{
-		NameEntry->AppendNameToString( Out );
-		if (GetNumber() != NAME_NO_NUMBER_INTERNAL)
-		{
-			Out += TEXT('_');
-			Out.AppendInt(NAME_INTERNAL_TO_EXTERNAL(GetNumber()));
-		}
+		Out += TEXT('_');
+		Out.AppendInt(NAME_INTERNAL_TO_EXTERNAL(GetNumber()));
 	}
 }
 
@@ -1817,6 +1885,7 @@ bool FName::IsValidXName(const FString& InName, const FString& InInvalidChars, F
 
 void FName::AutoTest()
 {
+#if DO_CHECK
 	check(FNameHash::IsAnsiNone("None", 4) == 1);
 	check(FNameHash::IsAnsiNone("none", 4) == 1);
 	check(FNameHash::IsAnsiNone("NONE", 4) == 1);
@@ -1835,18 +1904,35 @@ void FName::AutoTest()
 	check(AutoTest_1 != AutoTest_2);
 	check(AutoTest_1 == autoTest_1);
 	check(AutoTest_1 == autoTeSt_1);
+
+	TCHAR Buffer[FName::StringBufferSize];
+
 #if WITH_CASE_PRESERVING_NAME
 	check(!FCString::Strcmp(*AutoTest_1.ToString(), TEXT("AutoTest_1")));
 	check(!FCString::Strcmp(*autoTest_1.ToString(), TEXT("autoTest_1")));
 	check(!FCString::Strcmp(*autoTeSt_1.ToString(), TEXT("autoTeSt_1")));
 	check(!FCString::Strcmp(*AutoTestB_2.ToString(), TEXT("AutoTestB_2")));
+	
+	check(FName("ABC").ToString(Buffer) == 3 &&			!FCString::Strcmp(Buffer, TEXT("ABC")));
+	check(FName("abc").ToString(Buffer) == 3 &&			!FCString::Strcmp(Buffer, TEXT("abc")));
+	check(FName(TEXT("abc")).ToString(Buffer) == 3 &&	!FCString::Strcmp(Buffer, TEXT("abc")));
+	check(FName("ABC_0").ToString(Buffer) == 5 &&		!FCString::Strcmp(Buffer, TEXT("ABC_0")));
+	check(FName("ABC_10").ToString(Buffer) == 6 &&		!FCString::Strcmp(Buffer, TEXT("ABC_10")));	
 #endif
+
 	check(autoTest_1.GetComparisonIndex() == AutoTest_2.GetComparisonIndex());
 	check(autoTest_1.GetPlainNameString() == AutoTest_1.GetPlainNameString());
 	check(autoTest_1.GetPlainNameString() == AutoTest_2.GetPlainNameString());
 	check(*AutoTestB_2.GetPlainNameString() != *AutoTest_2.GetPlainNameString());
 	check(AutoTestB_2.GetNumber() == AutoTest_2.GetNumber());
 	check(autoTest_1.GetNumber() != AutoTest_2.GetNumber());
+
+	check(FCStringAnsi::Strlen("None") == FName().GetStringLength());
+	check(FCStringAnsi::Strlen("ABC") == FName("ABC").GetStringLength());
+	check(FCStringAnsi::Strlen("ABC_0") == FName("ABC_0").GetStringLength());
+	check(FCStringAnsi::Strlen("ABC_9") == FName("ABC_9").GetStringLength());
+	check(FCStringAnsi::Strlen("ABC_10") == FName("ABC_10").GetStringLength());
+	check(FCStringAnsi::Strlen("ABC_2000000000") == FName("ABC_2000000000").GetStringLength());
 
 	const FName NullName(static_cast<ANSICHAR*>(nullptr));
 	check(NullName.IsNone());
@@ -1875,6 +1961,9 @@ void FName::AutoTest()
 	Wide[4] = 60000;
 	FName WideName(*Wide);
 	check(WideName.GetPlainNameString() == Wide);
+	check(FName(*Wide).GetPlainNameString() == Wide);
+	check(FName(*Wide).ToString(Buffer) == 5 && !FCString::Strcmp(Buffer, *Wide));
+	check(Wide.Len() == WideName.GetStringLength());
 	FString WideLong = FString::ChrN(1000, 60000);
 	check(FName(*WideLong).GetPlainNameString() == WideLong);
 
@@ -1960,7 +2049,7 @@ void FName::AutoTest()
 
 #if 0
 	// Check hash table growth still yields the same unique FName ids
-	static int32 OverflowAtLeastTwiceCount = 4 * FNamePoolInitialSlots * FNamePoolShards;
+	static int32 OverflowAtLeastTwiceCount = 4 * FNamePoolInitialSlotsPerShard * FNamePoolShards;
 	TArray<FNameEntryId> Ids;
 	for (int I = 0; I < OverflowAtLeastTwiceCount; ++I)
 	{
@@ -1980,7 +2069,9 @@ void FName::AutoTest()
 		check(Id == OldId);
 	}
 #endif
+#endif // DO_CHECK
 }
+
 
 /*-----------------------------------------------------------------------------
 	FNameEntry implementation.
@@ -2071,17 +2162,15 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 			ANSICHAR* AnsiName = const_cast<ANSICHAR*>(E.GetAnsiName());
 			Ar.Serialize(AnsiName, StringLen);
 		}
-		if (Ar.UE4Ver() >= VER_UE4_NAME_HASHES_SERIALIZED)
-		{
-			// These hashes are no longer used. They're only kept to maintain serialization format.
-			// Please remove them if you ever change serialization format.
-			Ar << E.NonCasePreservingHash;
-			Ar << E.CasePreservingHash;
-			E.bWereHashesLoaded = true;
-		}
+
+		uint16 DummyHashes[2];
+		uint32 SkipPastHashBytes = (Ar.UE4Ver() >= VER_UE4_NAME_HASHES_SERIALIZED) * sizeof(DummyHashes);
+		Ar.Serialize(&DummyHashes, SkipPastHashBytes);
 	}
 	else
 	{
+		// These hashes are no longer used. They're only kept to maintain serialization format.
+		// Please remove them if you ever change serialization format.
 		FString Str = E.GetPlainNameString();
 		Ar << Str;
 		Ar << E.NonCasePreservingHash;
@@ -2106,8 +2195,6 @@ void operator<<(FStructuredArchive::FSlot Slot, FNameEntrySerialized& E)
 			// get the pointer to the wide array 
 			WIDECHAR* WideName = const_cast<WIDECHAR*>(E.GetWideName());
 			FCString::Strcpy(WideName, 1024, *Str);
-
-			E.bWereHashesLoaded = false;
 		}
 	}
 	else

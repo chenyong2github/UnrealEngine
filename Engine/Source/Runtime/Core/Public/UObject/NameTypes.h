@@ -74,6 +74,8 @@ private:
 CORE_API uint32 GetTypeHash(FNameEntryId Id);
 CORE_API bool operator==(FNameEntryId Id, EName Ename);
 inline bool operator==(EName Ename, FNameEntryId Id) { return Id == Ename; }
+inline bool operator!=(EName Ename, FNameEntryId Id) { return !(Id == Ename); }
+inline bool operator!=(FNameEntryId Id, EName Ename) { return !(Id == Ename); }
 
 /** Serialize as process specific unstable int */
 CORE_API FArchive& operator<<(FArchive& Ar, FNameEntryId& InId);
@@ -163,7 +165,7 @@ struct FNameEntryHeader
 };
 
 /**
- * A global name, as stored in the global name table.
+ * A global deduplicated name stored in the global name table.
  */
 struct FNameEntry
 {
@@ -184,49 +186,42 @@ private:
 	FNameEntry& operator=(FNameEntry&&) = delete;
 
 public:
-	/**
-	 * Returns whether this name entry is represented via WIDECHAR or ANSICHAR
-	 */
+	/** Returns whether this name entry is represented via WIDECHAR or ANSICHAR. */
 	FORCEINLINE bool IsWide() const
 	{
 		return Header.bIsWide;
 	}
-
-	/**
-	 * @return FString of name portion minus number.
-	 */
-	CORE_API FString GetPlainNameString() const;	
-
-	/**
-	 * Appends this name entry to the passed in string.
-	 *
-	 * @param	String	String to append this name to
-	 */
-	CORE_API void AppendNameToString( FString& String ) const;
-
-	/**
-	* Appends this name entry to the passed in string, adding path separator between strings (with FString operator/).
-	*
-	* @param	String	String to append this name to
-	*/
-	CORE_API void AppendNameToPathString( FString& String ) const;
-
-	int32 GetNameLength() const
+	
+	FORCEINLINE int32 GetNameLength() const
 	{
 		return Header.Len;
 	}
 
 	/**
-	 * Copy name to a buffer to avoid allocation
+	 * Copy unterminated name to TCHAR buffer without allocating.
+	 *
+	 * @param OutSize must be at least GetNameLength()
 	 */
+	void GetUnterminatedName(TCHAR* OutName, uint32 OutSize) const;
+
+	/** Copy null-terminated name to TCHAR buffer without allocating. */
+	void GetName(TCHAR(&OutName)[NAME_SIZE]) const;
+
+	/** Copy null-terminated name to ANSICHAR buffer without allocating. Entry must not be wide. */
 	CORE_API void GetAnsiName(ANSICHAR(&OutName)[NAME_SIZE]) const;
 
-	/**
-	 * Copy name to a buffer to avoid allocation
-	 */
+	/** Copy null-terminated name to WIDECHAR buffer without allocating. Entry must be wide. */
 	CORE_API void GetWideName(WIDECHAR(&OutName)[NAME_SIZE]) const;
 
-	static CORE_API int32 GetSize( const TCHAR* Name );
+	/** Copy name to a dynamically allocated FString. */
+	CORE_API FString GetPlainNameString() const;
+
+	/** Appends name to string. May allocate. */
+	CORE_API void AppendNameToString(FString& OutString) const;
+
+	/** Appends name to string with path separator using FString::PathAppend(). */
+	CORE_API void AppendNameToPathString(FString& OutString) const;
+
 
 	/**
 	 * Returns the size in bytes for FNameEntry structure. This is != sizeof(FNameEntry) as we only allocated as needed.
@@ -236,10 +231,10 @@ public:
 	 * @return	required size of FNameEntry structure to hold this string (might be wide or ansi)
 	 */
 	static int32 GetSize(int32 Length, bool bIsPureAnsi);
+	static CORE_API int32 GetSize(const TCHAR* Name);
 
 	CORE_API int32 GetSizeInBytes() const;
 
-	// Functions.
 	CORE_API void Write(FArchive& Ar) const;
 	CORE_API void Write(FStructuredArchive::FSlot Slot) const;
 
@@ -260,6 +255,7 @@ private:
 	void StoreName(const WIDECHAR* InName, uint32 Len);
 	void CopyUnterminatedName(ANSICHAR* OutName) const;
 	void CopyUnterminatedName(WIDECHAR* OutName) const;
+	void CopyAndConvertUnterminatedName(TCHAR* OutName) const;
 	const ANSICHAR* GetUnterminatedName(ANSICHAR(&OptionalDecodeBuffer)[NAME_SIZE]) const;
 	const WIDECHAR* GetUnterminatedName(WIDECHAR(&OptionalDecodeBuffer)[NAME_SIZE]) const;
 };
@@ -281,7 +277,6 @@ struct FNameEntrySerialized
 	// These are not used anymore but recalculated on save to maintain serialization format
 	uint16 NonCasePreservingHash = 0;
 	uint16 CasePreservingHash = 0;
-	bool bWereHashesLoaded = false;
 
 	FNameEntrySerialized(const FNameEntry& NameEntry);
 	FNameEntrySerialized(enum ELinkerNameTableConstructor) {}
@@ -406,17 +401,16 @@ public:
 		Number = NewNumber;
 	}
 	
-	/** Returns the pure name string without any trailing numbers */
+	/** Get name without number part as a dynamically allocated string */
 	FString GetPlainNameString() const;
 
-	/**
-	 * Returns the underlying ANSI string pointer.  No allocations.  Will fail if this is actually a wide name.
-	 */
+	/** Convert name without number part into TCHAR buffer and returns string length. Doesn't allocate. */
+	uint32 GetPlainNameString(TCHAR(&OutName)[NAME_SIZE]) const;
+
+	/** Copy ANSI name without number part. Must *only* be used for ANSI FNames. Doesn't allocate. */
 	void GetPlainANSIString(ANSICHAR(&AnsiName)[NAME_SIZE]) const;
 
-	/**
-	 * Returns the underlying WIDE string pointer.  No allocations.  Will fail if this is actually an ANSI name.
-	 */
+	/** Copy wide name without number part. Must *only* be used for wide FNames. Doesn't allocate. */
 	void GetPlainWIDEString(WIDECHAR(&WideName)[NAME_SIZE]) const;
 
 	const FNameEntry* GetComparisonNameEntry() const;
@@ -435,6 +429,31 @@ public:
 	 * @param Out String to fill with the string representation of the name
 	 */
 	void ToString(FString& Out) const;
+
+	/**
+	 * Get the number of characters, excluding null-terminator, that ToString() would yield
+	 */
+	uint32 GetStringLength() const;
+
+	/**
+	 * Buffer size required for any null-terminated FName string, i.e. [name] '_' [digits] '\0'
+	 */
+	static constexpr uint32 StringBufferSize = NAME_SIZE + 1 + 10; // NAME_SIZE includes null-terminator
+
+	/**
+	 * Convert to string buffer to avoid dynamic allocations and returns string length
+	 *
+	 * Fails hard if OutLen < GetStringLength() + 1. StringBufferSize guarantees success.
+	 *
+	 * Note that a default constructed FName returns "None" instead of ""
+	 */
+	uint32 ToString(TCHAR* Out, uint32 OutSize) const;
+
+	template<int N>
+	uint32 ToString(TCHAR (&Out)[N]) const
+	{
+		return ToString(Out, N);
+	}
 
 	/**
 	 * Converts an FName to a readable format, in place, appending to an existing string (ala GetFullName)
@@ -460,6 +479,16 @@ public:
 	FORCEINLINE bool operator!=(const FName& Other) const
 	{
 		return !(*this == Other);
+	}
+
+	FORCEINLINE bool operator==(EName Ename) const
+	{
+		return (ComparisonIndex == Ename) & (GetNumber() == 0);
+	}
+	
+	FORCEINLINE bool operator!=(EName Ename) const
+	{
+		return (ComparisonIndex != Ename) | (GetNumber() != 0);
 	}
 
 	UE_DEPRECATED(4.23, "Please use FastLess() / FNameFastLess or LexicalLess() / FNameLexicalLess instead. "
@@ -636,7 +665,11 @@ public:
 	{
 	}
 
+#if WITH_CASE_PRESERVING_NAME
 	static FNameEntryId GetComparisonIdFromDisplayId(FNameEntryId DisplayId);
+#else
+	static FNameEntryId GetComparisonIdFromDisplayId(FNameEntryId DisplayId) { return DisplayId; }
+#endif
 
 	/**
 	 * Only call this if you *really* know what you're doing
