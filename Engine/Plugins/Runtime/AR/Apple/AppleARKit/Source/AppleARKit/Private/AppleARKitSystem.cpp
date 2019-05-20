@@ -1353,8 +1353,6 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 				// The user requested us to remove existing anchors so remove ours now
 				ClearTrackedGeometries();
 			}
-
-			[Session pause];
 		}
 
 		// Create MetalTextureCache
