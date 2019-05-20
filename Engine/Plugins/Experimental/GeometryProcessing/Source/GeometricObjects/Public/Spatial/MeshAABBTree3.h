@@ -431,7 +431,7 @@ protected:
 			}
 			FVector3d centroid = TMeshQueries<TriangleMeshType>::GetTriCentroid(*Mesh, ti);
 			double d2 = centroid.SquaredLength();
-			bool bInvalid = isnan(d2) || (isfinite(d2) == false);
+			bool bInvalid = FMathd::IsNaN(d2) || (FMathd::IsFinite(d2) == false);
 			check(bInvalid == false);
 			if (bInvalid == false)
 			{
