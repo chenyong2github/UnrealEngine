@@ -258,8 +258,6 @@ private:
 
 	// Variables used during async linker creation.
 
-	/** Current index into name map, used by async linker creation for spreading out serializing name entries.					*/
-	int32						NameMapIndex;
 	/** Current index into gatherable text data map, used by async linker creation for spreading out serializing text entries.	*/
 	int32						GatherableTextDataMapIndex;
 	/** Current index into import map, used by async linker creation for spreading out serializing importmap entries.			*/
@@ -809,29 +807,28 @@ private:
 	void BadNameIndexError(int32 NameIndex);
 	FORCEINLINE virtual FArchive& operator<<(FName& Name) override
 	{
-		Name = NAME_None;
 		FArchive& Ar = *this;
 		int32 NameIndex;
 		Ar << NameIndex;
-		int32 Number;
+		int32 Number = 0;
 		Ar << Number;
 
-		if (!NameMap.IsValidIndex(NameIndex))
+		if (NameMap.IsValidIndex(NameIndex))
 		{
+			// if the name wasn't loaded (because it wasn't valid in this context)
+			FNameEntryId MappedName = NameMap[NameIndex];
+
+			// simply create the name from the NameMap's name and the serialized instance number
+			Name = FName::CreateFromDisplayId(MappedName, Number);
+		}
+		else
+		{
+			Name = FName();
 			BadNameIndexError(NameIndex);
 			ArIsError = true;
 			ArIsCriticalError = true;
 		}
-		else
-		{
-			// if the name wasn't loaded (because it wasn't valid in this context)
-			FNameEntryId MappedName = NameMap[NameIndex];
-			if (MappedName)
-			{
-				// simply create the name from the NameMap's name and the serialized instance number
-				Name = FName::CreateFromDisplayId(MappedName, Number);
-			}
-		}
+
 		return *this;
 	}
 

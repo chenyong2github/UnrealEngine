@@ -536,13 +536,16 @@ UObject* StaticFindObjectFastInternalThreadSafe(FUObjectHashTables& ThreadHash, 
 	{
 		// Find an object with the specified name and (optional) class, in any package; if bAnyPackage is false, only matches top-level packages
 		FName ActualObjectName = ObjectName;
-		const FString ObjectNameString = ObjectName.ToString();
-		const int32 DotIndex = FMath::Max<int32>(ObjectNameString.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromEnd),
-			ObjectNameString.Find(TEXT(":"), ESearchCase::CaseSensitive, ESearchDir::FromEnd));
-		if (DotIndex != INDEX_NONE)
+		TCHAR ObjectNameString[NAME_SIZE];
+		ObjectName.GetPlainNameString(ObjectNameString);
+
+		const TCHAR* LastDot = FCString::Strrchr(ObjectNameString, '.');
+		const TCHAR* FirstColon = FCString::Strchr(ObjectNameString, ':');
+		if (const TCHAR* LastDelimiter = (UPTRINT)LastDot > (UPTRINT)FirstColon ? LastDot : FirstColon)
 		{
-			ActualObjectName = FName(*ObjectNameString.Mid(DotIndex + 1));
+			ActualObjectName = FName(LastDelimiter + 1, ObjectName.GetNumber());
 		}
+
 		const int32 Hash = GetObjectHash(ActualObjectName);
 		FHashTableLock HashLock(ThreadHash);
 

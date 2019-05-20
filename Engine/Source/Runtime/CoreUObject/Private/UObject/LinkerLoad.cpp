@@ -822,7 +822,6 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const TCHAR* InFilename, uint32 InL
 , StructuredArchiveFormatter(nullptr)
 , Loader(nullptr)
 , AsyncRoot(nullptr)
-, NameMapIndex(0)
 , GatherableTextDataMapIndex(0)
 , ImportMapIndex(0)
 , ExportMapIndex(0)
@@ -1407,15 +1406,16 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeNameMap()
 	// before any serialization. @todo async, @todo seamless: this could be spread out across name,
 	// import and export maps if the package file summary contained more detailed information on
 	// serialized size of individual entries.
-	bool bFinishedPrecaching = true;
-
-	if( NameMapIndex == 0 && Summary.NameCount > 0 )
+	const int32 NameCount = Summary.NameCount;
+	if (NameMap.Num() == 0 && NameCount > 0)
 	{
 		Seek(Summary.NameOffset);
 
 		// Make sure there is something to precache first.
-		if( Summary.TotalHeaderSize > 0 )
+		if (Summary.TotalHeaderSize > 0)
 		{
+			bool bFinishedPrecaching = true;
+
 			// Precache name, import and export map.
 			if (bLoaderIsFArchiveAsync2)
 			{
@@ -1426,33 +1426,32 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeNameMap()
 			{
 				bFinishedPrecaching = Loader->Precache(Summary.NameOffset, Summary.TotalHeaderSize - Summary.NameOffset);
 			}
-		}
-		// Backward compat code for VER_MOVED_EXPORTIMPORTMAPS_ADDED_TOTALHEADERSIZE.
-		else
-		{
-			bFinishedPrecaching = true;
+
+			if (!bFinishedPrecaching)
+			{
+				return LINKER_TimedOut;
+			}
 		}
 	}
 
-	NameMap.Reserve(Summary.NameCount);
+	SCOPED_LOADTIMER(LinkerLoad_SerializeNameMap_ProcessingEntries);
 
-	while (bFinishedPrecaching && NameMapIndex < Summary.NameCount && !IsTimeLimitExceeded(TEXT("serializing name map"), 100))
+	NameMap.Reserve(NameCount);
+	FNameEntrySerialized NameEntry(ENAME_LinkerConstructor);
+	for (int32 Idx = NameMap.Num(); Idx < NameCount; ++Idx)
 	{
-		//SCOPED_LOADTIMER(LinkerLoad_SerializeNameMap_ProcessingEntries);
-
-		FNameEntrySerialized NameEntry(ENAME_LinkerConstructor);
-
-		// Read the name from the underlying Archive when the format is binary to avoid the overhead from ArchiveProxy
 		*this << NameEntry;
-
-		// Add it to the name table with no splitting and no hash calculations
 		NameMap.Emplace(FName(NameEntry).GetDisplayIndex());
 
-		NameMapIndex++;
+		constexpr int32 TimeSliceGranularity = 128;
+		if (Idx % TimeSliceGranularity == TimeSliceGranularity - 1 && 
+			NameMap.Num() != NameCount && IsTimeLimitExceeded(TEXT("serializing name map")))
+		{
+			return LINKER_TimedOut;
+		}
 	}
-
-	// Return whether we finished this step and it's safe to start with the next.
-	return ((NameMapIndex == Summary.NameCount) && !IsTimeLimitExceeded( TEXT("serializing name map") )) ? LINKER_Loaded : LINKER_TimedOut;
+	
+	return LINKER_Loaded;
 }
 
 /**
