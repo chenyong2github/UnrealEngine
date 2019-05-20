@@ -1491,14 +1491,18 @@ VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InIm
 	ensure(NumMips != 0xFFFFFFFF);
 	ViewInfo.subresourceRange.levelCount = NumMips;
 
-	auto CheckUseNvidiaWorkaround = []() -> bool
+	auto CheckUseNvidiaWorkaround = [&Device]() -> bool
 	{
 		if (IsRHIDeviceNVIDIA())
 		{
-			if(FParse::Param(FCommandLine::Get(), TEXT("rtx20xxmipworkaround")))
+			// Workaround for 20xx family not copying last mips correctly, so instead the view is created without the last 1x1 and 2x2 mips
+			if (GRHIAdapterName.Contains(TEXT("RTX 20")))
 			{
-				// Workaround for 20xx family not copying last mips correctly, so instead the view is created without the last 1x1 and 2x2 mips
-				if (GRHIAdapterName.Contains(TEXT("RTX 20")))
+				UNvidiaDriverVersion NvidiaVersion;
+				const VkPhysicalDeviceProperties& Props = Device.GetDeviceProperties();
+				static_assert(sizeof(NvidiaVersion) == sizeof(Props.driverVersion), "Mismatched Nvidia pack driver version!");
+				NvidiaVersion.Packed = Props.driverVersion;
+				if (NvidiaVersion.Major < 430)
 				{
 					return true;
 				}
@@ -1506,8 +1510,8 @@ VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InIm
 		}
 		return false;
 	};
-	static bool NvidiaWorkaround = CheckUseNvidiaWorkaround();
-	if(NvidiaWorkaround && Format >= VK_FORMAT_BC1_RGB_UNORM_BLOCK && Format <= VK_FORMAT_BC7_SRGB_BLOCK && NumMips > 1)
+	static bool bNvidiaWorkaround = CheckUseNvidiaWorkaround();
+	if (bNvidiaWorkaround && Format >= VK_FORMAT_BC1_RGB_UNORM_BLOCK && Format <= VK_FORMAT_BC7_SRGB_BLOCK && NumMips > 1)
 	{
 		ViewInfo.subresourceRange.levelCount = FMath::Max(1, int32(NumMips) - 2);
 	}

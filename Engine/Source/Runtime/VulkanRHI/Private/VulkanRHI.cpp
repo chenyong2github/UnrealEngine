@@ -642,24 +642,6 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	}
 	else if (IsRHIDeviceNVIDIA())
 	{
-		union UNvidiaDriverVersion
-		{
-			struct
-			{
-#if PLATFORM_LITTLE_ENDIAN
-				uint32 Tertiary		: 6;
-				uint32 Secondary	: 8;
-				uint32 Minor		: 8;
-				uint32 Major		: 10;
-#else
-				uint32 Major		: 10;
-				uint32 Minor		: 8;
-				uint32 Secondary	: 8;
-				uint32 Tertiary		: 6;
-#endif
-			};
-			uint32 Packed;
-		};
 		UNvidiaDriverVersion NvidiaVersion;
 		static_assert(sizeof(NvidiaVersion) == sizeof(Props.driverVersion), "Mismatched Nvidia pack driver version!");
 		NvidiaVersion.Packed = Props.driverVersion;

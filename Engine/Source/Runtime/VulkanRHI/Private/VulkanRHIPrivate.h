@@ -297,6 +297,25 @@ private:
 	FVulkanDevice&				Device;
 };
 
+union UNvidiaDriverVersion
+{
+	struct
+	{
+#if PLATFORM_LITTLE_ENDIAN
+		uint32 Tertiary		: 6;
+		uint32 Secondary	: 8;
+		uint32 Minor		: 8;
+		uint32 Major		: 10;
+#else
+		uint32 Major		: 10;
+		uint32 Minor		: 8;
+		uint32 Secondary	: 8;
+		uint32 Tertiary		: 6;
+#endif
+	};
+	uint32 Packed;
+};
+
 
 namespace VulkanRHI
 {
