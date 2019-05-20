@@ -101,6 +101,10 @@ void ADebugCameraHUD::PostRender()
 			Canvas->DrawText(RenderFont, SpeedString, X, yl, 1.f, 1.f, FontRenderInfo);
 			yl += Y;
 
+			FString const ViewModeString = FString::Printf(TEXT("ViewMode=%s"), GetWorld()->GetGameViewport() ? GetViewModeName((EViewModeIndex)GetWorld()->GetGameViewport()->ViewModeIndex) : TEXT("<Not found>"));
+			Canvas->DrawText(RenderFont, ViewModeString, X, yl, 1.f, 1.f, FontRenderInfo);
+			yl += Y;
+
 			const TCHAR* CVarComplexName = TEXT("g.DebugCameraTraceComplex");
 			bool bTraceComplex = true;
 
@@ -218,6 +222,12 @@ void ADebugCameraHUD::PostRender()
 			yl += Y;
 
 			Canvas->DrawText(RenderFont, TEXT("Orbit Selected Actor: Shift-O"), X, yl, 1.f, 1.f, FontRenderInfo);
+			yl += Y;
+
+			Canvas->DrawText(RenderFont, TEXT("Toggle Buffer Visualization: B ('Enter' to toggle full buffer mode)"), X, yl, 1.f, 1.f, FontRenderInfo);
+			yl += Y;
+
+			Canvas->DrawText(RenderFont, TEXT("Cycle View Mode: V"), X, yl, 1.f, 1.f, FontRenderInfo);
 			yl += Y;
 		}
 	}

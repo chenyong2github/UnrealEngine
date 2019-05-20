@@ -8,6 +8,8 @@
 #include "PostProcessCommon.ush"
 #include "DeferredShadingCommon.ush"
 
+float4 SelectionColor;
+
 /** Main pixel shader function */
 void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
 {
@@ -29,8 +31,19 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	const int Border1 = 10;
 	const int Border2 = 8;
 	float BorderDistance = ComputeDistanceToRect(QuarterTileLocalPos, int2(0, 0) + Border1.xx, QuarterInsetSize - 2 * Border1.xx);
-	Alpha = 1 - saturate((BorderDistance - Border2.x) * 0.5f);
+	Alpha = (1 - saturate((BorderDistance - Border2.x) * 0.5f));
+
+
 #endif
 
 	OutColor = float4(Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UVAndScreenPos.xy).rgb, Alpha);
+
+#if DRAWING_TILE
+
+	// border around selected tile
+	OutColor.xyz = lerp(OutColor.xyz, SelectionColor.xyz, saturate(BorderDistance - Border2.x));
+	OutColor.w = lerp(OutColor.w, SelectionColor.w, saturate(BorderDistance - Border2.x));
+	OutColor.w = lerp(OutColor.w, 0.0f, saturate(BorderDistance - Border1.x));
+
+#endif
 }
