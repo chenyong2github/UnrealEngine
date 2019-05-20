@@ -367,7 +367,7 @@ public:
 
 	void PrepareParallelFromBase(const FVulkanCommandListContext& BaseContext);
 
-	void* Hotfix;
+	void* Hotfix = nullptr;
 
 protected:
 	FVulkanDynamicRHI* RHI;

@@ -850,7 +850,7 @@ namespace VulkanRHI
 		FBufferSuballocation* AllocUniformBuffer(uint32 Size, const void* Contents);
 		void ReleaseUniformBuffer(FBufferSuballocation* UBAlloc);
 
-		void* Hotfix;
+		void* Hotfix = nullptr;
 
 	protected:
 		FDeviceMemoryManager* DeviceMemoryManager;
