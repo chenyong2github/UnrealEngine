@@ -324,7 +324,7 @@ public:
 	void InitializeTool_Ramp();
 	void InitializeTool_Mirror();
 	void InitializeTool_BPCustom();
-	void InitializeToolModes();
+	void UpdateToolModes();
 
 	/** Destructor */
 	virtual ~FEdModeLandscape();
@@ -499,6 +499,8 @@ public:
 	void RefreshDetailPanel();
 
 	// Layers
+	bool CanHaveLandscapeLayersContent() const;
+	bool HasLandscapeLayersContent() const;
 	int32 GetLayerCount() const;
 	void SetCurrentLayer(int32 InLayerIndex);
 	int32 GetCurrentLayerIndex() const;

@@ -17,7 +17,6 @@
 #include "IDetailsView.h"
 #include "PropertyEditorModule.h"
 #include "IIntroTutorials.h"
-#include "Settings/EditorExperimentalSettings.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor"
 
@@ -345,7 +344,7 @@ void SLandscapeEditor::Construct(const FArguments& InArgs, TSharedRef<FLandscape
 			.Padding(0, 0, 0, 5)
 			[
 				SNew(SMultiLineEditableTextBox)
-				.Visibility_Lambda([]() { return GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem? EVisibility::Visible : EVisibility::Collapsed; })
+				.Visibility_Lambda([=]() { return LandscapeEdMode->CanHaveLandscapeLayersContent() ? EVisibility::Visible : EVisibility::Collapsed; })
 				.IsReadOnly(true)
 				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
 				.Justification(ETextJustify::Center)

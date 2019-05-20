@@ -20,7 +20,6 @@
 #include "ScopedTransaction.h"
 #include "Raster.h"
 #include "Landscape.h"
-#include "Settings/EditorExperimentalSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Landscape"
@@ -632,7 +631,7 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 		
 	for (ULandscapeComponent* Component : ModifiedComponents)
 	{
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (Component->GetLandscapeProxy()->HasLayersContent())
 		{
 			Component->RequestHeightmapUpdate();
 			Component->RequestWeightmapUpdate();
@@ -730,7 +729,7 @@ namespace LandscapeSplineRaster
 
 		LandscapeEdit.Flush();
 
-		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (!LandscapeProxy->HasLayersContent())
 		{
 			for (ULandscapeComponent* Component : ModifiedComponents)
 			{
