@@ -854,6 +854,11 @@ struct ENGINE_API FURL
 	FString ToString( bool FullyQualified=0 ) const;
 
 	/**
+	 * Prepares the Host and Port values into a standards compliant string
+	 */
+	FString GetHostPortString() const;
+
+	/**
 	 * Serializes a FURL to or from an archive.
 	 */
 	ENGINE_API friend FArchive& operator<<( FArchive& Ar, FURL& U );

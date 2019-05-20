@@ -142,23 +142,19 @@ void FInternetAddrBSD::SetIp(const TCHAR* InAddr, bool& bIsValid)
 	FString AddressString(InAddr);
 	FString Port;
 
-	const bool bHasOpenBracket = AddressString.Contains("[");
-	const int32 CloseBracketIndex = AddressString.Find("]");
-	const bool bHasCloseBracket = CloseBracketIndex != INDEX_NONE;
-	bool bIsIPv6 = bHasOpenBracket && bHasCloseBracket;
-
+	// Find some colons to try to determine the input given to us.
+	const int32 FirstColonIndex = AddressString.Find(":", ESearchCase::IgnoreCase, ESearchDir::FromStart);
 	const int32 LastColonIndex = AddressString.Find(":", ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 
-	// IPv4 address will only have a port when a colon is present.
-	// IPv6 address will only have a port when surrounded by brackets.
-	const bool bHasPort = (INDEX_NONE != LastColonIndex) && (!bIsIPv6 || (bHasCloseBracket && LastColonIndex > CloseBracketIndex));
-
-	if (bHasPort)
+	// Either this is an IPv6 address as we will have a "]:" when ports are involved
+	// or this is an IPv4 address as there's one colon and it exists in the string
+	if (AddressString.Contains("]:") || (FirstColonIndex == LastColonIndex && LastColonIndex != INDEX_NONE))
 	{
 		Port = AddressString.RightChop(LastColonIndex + 1);
 		AddressString = AddressString.Left(LastColonIndex);
 	}
 
+	// Strip these for backwards compatibility.
 	AddressString.RemoveFromStart("[");
 	AddressString.RemoveFromEnd("]");
 	
@@ -169,7 +165,7 @@ void FInternetAddrBSD::SetIp(const TCHAR* InAddr, bool& bIsValid)
 		{
 			bIsValid = true;
 			SetRawIp(NewAddr->GetRawIp());
-			if (bHasPort)
+			if (!Port.IsEmpty())
 			{
 				SetPort(FCString::Atoi(*Port));
 			}
@@ -446,7 +442,9 @@ FString FInternetAddrBSD::ToString(bool bAppendPort) const
 				IPv6Str = IPv6Str.Left(InterfaceMarkerIndex);
 			}
 
-			ReturnVal = FString::Printf(TEXT("[%s]"), *IPv6Str);
+			// Using dynamic formatting strings are deprecated.
+			ReturnVal = bAppendPort ? FString::Printf(TEXT("[%s]"), *IPv6Str) 
+				: FString::Printf(TEXT("%s"), *IPv6Str);
 		}
 		else
 		{

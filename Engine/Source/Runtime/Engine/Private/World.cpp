@@ -6436,7 +6436,7 @@ bool UWorld::UsesGameHiddenFlags() const
 
 FString UWorld::GetAddressURL() const
 {
-	return FString::Printf( TEXT("%s:%i"), *URL.Host, URL.Port );
+	return FString::Printf( TEXT("%s"), *URL.GetHostPortString() );
 }
 
 FString UWorld::RemovePIEPrefix(const FString &Source)

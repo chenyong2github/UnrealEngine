@@ -98,7 +98,7 @@ public:
 	 * Sets the ip address from a string IPv6 or IPv4 address.
 	 * Ports may be included using the form Address:Port, or excluded and set manually.
 	 *
-	 * IPv6 - [1111:2222:3333:4444:5555:6666:7777:8888]:PORT || [1111:2222:3333::]:PORT || [::ffff:IPv4]:PORT
+	 * IPv6 - [1111:2222:3333:4444:5555:6666:7777:8888]:PORT || [1111:2222:3333::]:PORT || [::ffff:IPv4]:PORT || any of these without the brackets and port
 	 * IPv4 - aaa.bbb.ccc.ddd:PORT || 127.0.0.1:PORT
 	 *
 	 * @param InAddr the string containing the new ip address to use
