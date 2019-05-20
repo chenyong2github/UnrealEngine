@@ -44,6 +44,8 @@ public:
 	virtual IXmppMultiUserChatPtr MultiUserChat() override;
 	virtual IXmppChatPtr PrivateChat() override;
 
+	virtual void DumpState() const override;
+
 	// FTickerObjectBase
 
 	virtual bool Tick(float DeltaTime) override;
