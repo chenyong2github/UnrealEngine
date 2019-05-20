@@ -77,6 +77,9 @@ struct ENGINE_API FPawnIteratorObject
 	APawn& operator*() const { return *Pawn; }
 	APawn* Get() const { return Pawn; }
 
+	bool operator==(const UObject* Other) const { return Pawn == Other; }
+	bool operator!=(const UObject* Other) const { return Pawn != Other; }
+
 private:
 	FPawnIteratorObject()
 		: Pawn(nullptr)
