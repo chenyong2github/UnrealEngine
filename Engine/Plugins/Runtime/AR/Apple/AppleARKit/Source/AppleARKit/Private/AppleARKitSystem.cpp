@@ -99,7 +99,7 @@ private:
 		const bool bShouldOverrideFOV = ARKitSystem.GetARCompositionComponent()->GetSessionConfig().ShouldRenderCameraOverlay();
 		if (bShouldOverrideFOV && ARKitSystem.GameThreadFrame.IsValid())
 		{
-			if (ARKitSystem.DeviceOrientation == EScreenOrientation::Portrait || ARKitSystem.DeviceOrientation == EScreenOrientation::PortraitUpsideDown)
+			if (ARKitSystem.DeviceOrientation == EDeviceScreenOrientation::Portrait || ARKitSystem.DeviceOrientation == EDeviceScreenOrientation::PortraitUpsideDown)
 			{
 				// Portrait
 				InOutFOV = ARKitSystem.GameThreadFrame->Camera.GetVerticalFieldOfViewForScreen(EAppleARKitBackgroundFitMode::Fill);
@@ -208,7 +208,7 @@ private:
 
 FAppleARKitSystem::FAppleARKitSystem()
 : FXRTrackingSystemBase(this)
-, DeviceOrientation(EScreenOrientation::Unknown)
+, DeviceOrientation(EDeviceScreenOrientation::Unknown)
 , DerivedTrackingToUnrealRotation(FRotator::ZeroRotator)
 , LightEstimate(nullptr)
 , CameraImage(nullptr)
@@ -321,19 +321,19 @@ void FAppleARKitSystem::CalcTrackingToWorldRotation()
 	{
 		switch (DeviceOrientation)
 		{
-			case EScreenOrientation::Portrait:
+			case EDeviceScreenOrientation::Portrait:
 				DerivedTrackingToUnrealRotation = FRotator(0.0f, 0.0f, -90.0f);
 				break;
 				
-			case EScreenOrientation::PortraitUpsideDown:
+			case EDeviceScreenOrientation::PortraitUpsideDown:
 				DerivedTrackingToUnrealRotation = FRotator(0.0f, 0.0f, 90.0f);
 				break;
 				
 			default:
-			case EScreenOrientation::LandscapeLeft:
+			case EDeviceScreenOrientation::LandscapeRight:
 				break;
 				
-			case EScreenOrientation::LandscapeRight:
+			case EDeviceScreenOrientation::LandscapeLeft:
 				DerivedTrackingToUnrealRotation = FRotator(0.0f, 0.0f, 180.0f);
 				break;
 		}
@@ -343,20 +343,20 @@ void FAppleARKitSystem::CalcTrackingToWorldRotation()
 	{
 		switch (DeviceOrientation)
 		{
-			case EScreenOrientation::Portrait:
+			case EDeviceScreenOrientation::Portrait:
 				DerivedTrackingToUnrealRotation = FRotator(0.0f, 0.0f, 90.0f);
 				break;
 				
-			case EScreenOrientation::PortraitUpsideDown:
+			case EDeviceScreenOrientation::PortraitUpsideDown:
 				DerivedTrackingToUnrealRotation = FRotator(0.0f, 0.0f, -90.0f);
 				break;
 				
 			default:
-			case EScreenOrientation::LandscapeLeft:
+			case EDeviceScreenOrientation::LandscapeLeft:
 				DerivedTrackingToUnrealRotation = FRotator(0.0f, 0.0f, -180.0f);
 				break;
 				
-			case EScreenOrientation::LandscapeRight:
+			case EDeviceScreenOrientation::LandscapeRight:
 				break;
 		}
 	}
@@ -610,19 +610,19 @@ TArray<FARTraceResult> FAppleARKitSystem::OnLineTraceTrackedObjects( const FVect
 				FVector2D NormalizedImagePosition = FAppleARKitCamera( HitTestFrame.camera ).GetImageCoordinateForScreenPosition( ScreenCoord, EAppleARKitBackgroundFitMode::Fill );
 				switch (DeviceOrientation)
 				{
-					case EScreenOrientation::Portrait:
+					case EDeviceScreenOrientation::Portrait:
 						NormalizedImagePosition = FVector2D( NormalizedImagePosition.Y, 1.0f - NormalizedImagePosition.X );
 						break;
 						
-					case EScreenOrientation::PortraitUpsideDown:
+					case EDeviceScreenOrientation::PortraitUpsideDown:
 						NormalizedImagePosition = FVector2D( 1.0f - NormalizedImagePosition.Y, NormalizedImagePosition.X );
 						break;
 						
 					default:
-					case EScreenOrientation::LandscapeLeft:
+					case EDeviceScreenOrientation::LandscapeRight:
 						break;
 						
-					case EScreenOrientation::LandscapeRight:
+					case EDeviceScreenOrientation::LandscapeLeft:
 						NormalizedImagePosition = FVector2D(1.0f, 1.0f) - NormalizedImagePosition;
 						break;
 				};
@@ -1150,123 +1150,20 @@ bool FAppleARKitSystem::HitTestAtScreenPosition(const FVector2D ScreenPosition, 
 	return false;
 }
 
-static TOptional<EScreenOrientation::Type> PickAllowedDeviceOrientation( EScreenOrientation::Type InOrientation )
+void FAppleARKitSystem::SetDeviceOrientation(EDeviceScreenOrientation InOrientation)
 {
-#if SUPPORTS_ARKIT_1_0
-	const UIOSRuntimeSettings* IOSSettings = GetDefault<UIOSRuntimeSettings>();
-	
-	const bool bOrientationSupported[] =
+	ensureAlwaysMsgf(InOrientation != EDeviceScreenOrientation::Unknown, TEXT("statusBarOrientation should only ever return valid orientations"));
+	if (InOrientation == EDeviceScreenOrientation::Unknown)
 	{
-		true, // Unknown
-		IOSSettings->bSupportsPortraitOrientation != 0, // Portait
-		IOSSettings->bSupportsUpsideDownOrientation != 0, // PortraitUpsideDown
-		IOSSettings->bSupportsLandscapeRightOrientation != 0, // LandscapeLeft; These are flipped vs the enum name?
-		IOSSettings->bSupportsLandscapeLeftOrientation != 0, // LandscapeRight; These are flipped vs the enum name?
-		false, // FaceUp
-		false // FaceDown
-	};
-	
-	if (bOrientationSupported[static_cast<int32>(InOrientation)])
-	{
-		return InOrientation;
+		// This is the default for AR apps
+		InOrientation = EDeviceScreenOrientation::LandscapeLeft;
 	}
-	else
+
+	if (DeviceOrientation != InOrientation)
 	{
-		return TOptional<EScreenOrientation::Type>();
-	}
-#else
-	return TOptional<EScreenOrientation::Type>();
-#endif
-}
-
-void FAppleARKitSystem::SetDeviceOrientation( EScreenOrientation::Type InOrientation )
-{
-	TOptional<EScreenOrientation::Type> NewOrientation = PickAllowedDeviceOrientation(InOrientation);
-
-	if (!NewOrientation.IsSet() && DeviceOrientation == EScreenOrientation::Unknown)
-	{
-		// We do not currently have a valid orientation, nor did the device provide one.
-		// So pick ANY ALLOWED default.
-		// This only realy happens if the device is face down on something or
-		// in another "useless" state for AR.
-
-		// Note: the order in which this selection is done is important and must match that 
-		// established in UEDeployIOS.cs and written into UISupportedInterfaceOrientations.
-		// IOSView preferredInterfaceOrientationForPresentation presumably also should match.
-		//
-		// However it would very likely be better to hook statusBarOrientation instead of deviceOrientation to update
-		// our orientation, in which case we would only need to handle unknown.
-		
-		if (!NewOrientation.IsSet())
-		{
-			NewOrientation = PickAllowedDeviceOrientation(EScreenOrientation::Portrait);
-		}
-
-		if (!NewOrientation.IsSet())
-		{
-			NewOrientation = PickAllowedDeviceOrientation(EScreenOrientation::PortraitUpsideDown);
-		}
-
-#if SUPPORTS_ARKIT_1_0
-		const UIOSRuntimeSettings* IOSSettings = GetDefault<UIOSRuntimeSettings>();
-		const bool bPreferLandscapeLeftHomeButton = IOSSettings->PreferredLandscapeOrientation == EIOSLandscapeOrientation::LandscapeLeft;
-#else
-		const bool bPreferLandscapeLeftHomeButton = true;
-#endif
-		if (bPreferLandscapeLeftHomeButton)
-		{
-			if (!NewOrientation.IsSet())
-			{
-				NewOrientation = PickAllowedDeviceOrientation(EScreenOrientation::LandscapeRight);
-			}
-			if (!NewOrientation.IsSet())
-			{
-				NewOrientation = PickAllowedDeviceOrientation(EScreenOrientation::LandscapeLeft);
-			}
-		}
-		else
-		{
-			if (!NewOrientation.IsSet())
-			{
-				NewOrientation = PickAllowedDeviceOrientation(EScreenOrientation::LandscapeLeft);
-			}
-			if (!NewOrientation.IsSet())
-			{
-				NewOrientation = PickAllowedDeviceOrientation(EScreenOrientation::LandscapeRight);
-			}
-		}
-		
-		check(NewOrientation.IsSet());
-	}
-	
-	if (NewOrientation.IsSet() && DeviceOrientation != NewOrientation.GetValue())
-	{
-		DeviceOrientation = NewOrientation.GetValue();
+		DeviceOrientation = InOrientation;
 		CalcTrackingToWorldRotation();
 	}
-}
-
-static EScreenOrientation::Type GetAppOrientation()
-{
-#if PLATFORM_IOS && !PLATFORM_TVOS
-	// We want the orientation that the app is running with, not necessarily the orientation of the device right now.
-	UIInterfaceOrientation Orientation = [[UIApplication sharedApplication] statusBarOrientation];
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0
-	Orientation = [[IOSAppDelegate GetDelegate].IOSController interfaceOrientation];
-#endif
-	EScreenOrientation::Type ScreenOrientation = EScreenOrientation::Unknown;
-	switch (Orientation)
-	{
-	case UIInterfaceOrientationUnknown:				return EScreenOrientation::Unknown;
-	case UIInterfaceOrientationPortrait:			return EScreenOrientation::Portrait;
-	case UIInterfaceOrientationPortraitUpsideDown:	return EScreenOrientation::PortraitUpsideDown;
-	case UIInterfaceOrientationLandscapeLeft:		return EScreenOrientation::LandscapeRight;
-	case UIInterfaceOrientationLandscapeRight:		return EScreenOrientation::LandscapeLeft;
-	default:										check(false); return EScreenOrientation::Unknown;
-	}
-#else
-	return static_cast<EScreenOrientation::Type>(FPlatformMisc::GetDeviceOrientation());
-#endif
 }
 
 void FAppleARKitSystem::ClearTrackedGeometries()
@@ -1294,9 +1191,9 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 	}
 
 	// Make sure this is set at session start, because there are timing issues with using only the delegate approach
-	if (DeviceOrientation == EScreenOrientation::Unknown)
+	if (DeviceOrientation == EDeviceScreenOrientation::Unknown)
 	{
-		const EScreenOrientation::Type ScreenOrientation = GetAppOrientation();
+		EDeviceScreenOrientation ScreenOrientation = FPlatformMisc::GetDeviceOrientation();
 		SetDeviceOrientation( ScreenOrientation );
 	}
 
@@ -1461,7 +1358,7 @@ bool FAppleARKitSystem::Pause()
 
 void FAppleARKitSystem::OrientationChanged(const int32 NewOrientationRaw)
 {
-	const EScreenOrientation::Type NewOrientation = static_cast<EScreenOrientation::Type>(NewOrientationRaw);
+	const EDeviceScreenOrientation NewOrientation = static_cast<EDeviceScreenOrientation>(NewOrientationRaw);
 	SetDeviceOrientation(NewOrientation);
 }
 						

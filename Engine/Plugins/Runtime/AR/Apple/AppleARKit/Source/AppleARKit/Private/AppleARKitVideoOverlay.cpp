@@ -375,7 +375,7 @@ private:
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FARKitCameraOverlayPS<true>, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainPS_ES2"), SF_Pixel);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FARKitCameraOverlayPS<false>, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainPS_VideoOverlay"), SF_Pixel);
 
-void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, const EScreenOrientation::Type DeviceOrientation)
+void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, const EDeviceScreenOrientation DeviceOrientation)
 {
 #if SUPPORTS_ARKIT_1_0
 
@@ -447,19 +447,19 @@ void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImm
 		FVertexBufferRHIParamRef VertexBufferRHI = nullptr;
 		switch (DeviceOrientation)
 		{
-			case EScreenOrientation::Type::LandscapeLeft:
+			case EDeviceScreenOrientation::LandscapeRight:
 				VertexBufferRHI = OverlayVertexBufferRHI[0];
 				break;
 
-			case EScreenOrientation::Type::LandscapeRight:
+			case EDeviceScreenOrientation::LandscapeLeft:
 				VertexBufferRHI = OverlayVertexBufferRHI[1];
 				break;
 
-			case EScreenOrientation::Type::Portrait:
+			case EDeviceScreenOrientation::Portrait:
 				VertexBufferRHI = OverlayVertexBufferRHI[2];
 				break;
 
-			case EScreenOrientation::Type::PortraitUpsideDown:
+			case EDeviceScreenOrientation::PortraitUpsideDown:
 				VertexBufferRHI = OverlayVertexBufferRHI[3];
 				break;
 
@@ -486,7 +486,7 @@ void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImm
 }
 
 
-bool FAppleARKitVideoOverlay::GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs, const EScreenOrientation::Type DeviceOrientation)
+bool FAppleARKitVideoOverlay::GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs, const EDeviceScreenOrientation DeviceOrientation)
 {
 #if SUPPORTS_ARKIT_1_0
 	if (VideoTextureY != nullptr) // make sure UVOffset has been initialized
@@ -495,28 +495,28 @@ bool FAppleARKitVideoOverlay::GetPassthroughCameraUVs_RenderThread(TArray<FVecto
 
 		switch (DeviceOrientation)
 		{
-		case EScreenOrientation::Type::LandscapeLeft:
+		case EDeviceScreenOrientation::LandscapeRight:
 			OutUVs[1] = FVector2D(UVOffset.X, 1.0f - UVOffset.Y);
 			OutUVs[0] = FVector2D(UVOffset.X, UVOffset.Y);
 			OutUVs[3] = FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y);
 			OutUVs[2] = FVector2D(1.0f - UVOffset.X, UVOffset.Y);
 			return true;
 
-		case EScreenOrientation::Type::LandscapeRight:
+		case EDeviceScreenOrientation::LandscapeLeft:
 			OutUVs[1] = FVector2D(1.0f - UVOffset.X, UVOffset.Y);
 			OutUVs[0] = FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y);
 			OutUVs[3] = FVector2D(UVOffset.X, UVOffset.Y);
 			OutUVs[2] = FVector2D(UVOffset.X, 1.0f - UVOffset.Y);
 			return true;
 
-		case EScreenOrientation::Type::Portrait:
+		case EDeviceScreenOrientation::Portrait:
 			OutUVs[1] = FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y);
 			OutUVs[0] = FVector2D(UVOffset.X, 1.0f - UVOffset.Y);
 			OutUVs[3] = FVector2D(1.0f - UVOffset.X, UVOffset.Y);
 			OutUVs[2] = FVector2D(UVOffset.X, UVOffset.Y);
 			return true;
 
-		case EScreenOrientation::Type::PortraitUpsideDown:
+		case EDeviceScreenOrientation::PortraitUpsideDown:
 			OutUVs[1] = FVector2D(UVOffset.X, UVOffset.Y);
 			OutUVs[0] = FVector2D(1.0f - UVOffset.X, UVOffset.Y);
 			OutUVs[3] = FVector2D(UVOffset.X, 1.0f - UVOffset.Y);

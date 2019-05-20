@@ -35,8 +35,8 @@ public:
 	FAppleARKitVideoOverlay();
 
 	void UpdateVideoTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FAppleARKitFrame& Frame, const FSceneViewFamily& InViewFamily);
-	void RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, const EScreenOrientation::Type DeviceOrientation);
-	bool GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs, const EScreenOrientation::Type DeviceOrientation);
+	void RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, const EDeviceScreenOrientation DeviceOrientation);
+	bool GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs, const EDeviceScreenOrientation DeviceOrientation);
 
 private:
 	FTextureRHIRef VideoTextureY;

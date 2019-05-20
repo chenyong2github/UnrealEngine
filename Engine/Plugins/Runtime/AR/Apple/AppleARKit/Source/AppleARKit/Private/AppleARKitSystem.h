@@ -139,7 +139,7 @@ private:
 	
 	bool bIsRunning = false;
 	
-	void SetDeviceOrientation( EScreenOrientation::Type InOrientation );
+	void SetDeviceOrientation(EDeviceScreenOrientation InOrientation);
 
 	/** Creates or clears the face ar support object if face ar has been requested */
 	void CheckForFaceARSupport(UARSessionConfig* InSessionConfig);
@@ -147,8 +147,8 @@ private:
 	/** Updates the ARKit perf counters */
 	void UpdateARKitPerfStats();
 	
-	/** The orientation of the device; see EScreenOrientation */
-	EScreenOrientation::Type DeviceOrientation;
+	/** The orientation of the device; see EDeviceScreenOrientation */
+	EDeviceScreenOrientation DeviceOrientation;
 	
 	/** A rotation from ARKit TrackingSpace to Unreal Space. It is re-derived based on other parameters; users should not set it directly. */
 	FRotator DerivedTrackingToUnrealRotation;
