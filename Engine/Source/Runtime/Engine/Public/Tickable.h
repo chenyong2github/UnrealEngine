@@ -9,6 +9,7 @@
 
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
+#include "Misc/ScopeLock.h"
 
 /**
  * Enum used to convey whether a tickable object will always tick, conditionally tick, or never tick.
