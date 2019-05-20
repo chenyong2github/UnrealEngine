@@ -2876,6 +2876,26 @@ void AInstancedFoliageActor::RemoveFoliageType(UFoliageType** InFoliageTypes, in
 	RegisterAllComponents();
 }
 
+void AInstancedFoliageActor::ClearSelection()
+{
+	UWorld* World = GetWorld();
+	const int32 NumLevels = World->GetNumLevels();
+	for (int32 LevelIdx = 0; LevelIdx < NumLevels; ++LevelIdx)
+	{
+		if (ULevel* Level = World->GetLevel(LevelIdx))
+		{
+			if (AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(Level))
+			{
+				for (auto& Pair : IFA->FoliageInfos)
+				{
+					FFoliageInfo& Info = *Pair.Value;
+					Info.ClearSelection();
+				}
+			}
+		}
+	}
+}
+
 void AInstancedFoliageActor::SelectInstance(UInstancedStaticMeshComponent* InComponent, int32 InInstanceIndex, bool bToggle)
 {
 	Modify();
@@ -2883,11 +2903,7 @@ void AInstancedFoliageActor::SelectInstance(UInstancedStaticMeshComponent* InCom
 	// If we're not toggling, we need to first deselect everything else
 	if (!bToggle)
 	{
-		for (auto& Pair : FoliageInfos)
-		{
-			FFoliageInfo& Info = *Pair.Value;
-			Info.ClearSelection();
-		}
+		ClearSelection();
 	}
 
 	if (InComponent)
@@ -2944,11 +2960,7 @@ void AInstancedFoliageActor::SelectInstance(AActor* InActor, bool bToggle)
 	// If we're not toggling, we need to first deselect everything else
 	if (!bToggle)
 	{
-		for (auto& Pair : FoliageInfos)
-		{
-			FFoliageInfo& Info = *Pair.Value;
-			Info.ClearSelection();
-		}
+		ClearSelection();
 	}
 
 	if (InActor)
