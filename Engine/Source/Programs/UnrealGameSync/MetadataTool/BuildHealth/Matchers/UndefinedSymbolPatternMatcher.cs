@@ -13,7 +13,7 @@ namespace MetadataTool
 	{
 		public override string Category => "UndefinedSymbol";
 
-		public override bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<TrackedIssueFingerprint> Fingerprints)
+		public override bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<TrackedIssue> Issues)
 		{
 			List<string> SymbolMatches = new List<string>();
 
@@ -83,10 +83,10 @@ namespace MetadataTool
 			// If we found any symbol names, create a fingerprint for them
 			if (SymbolNames.Count > 0)
 			{
-				TrackedIssueFingerprint Fingerprint = new TrackedIssueFingerprint(Category, GetSummary(SymbolNames), Diagnostic.Url, Job.Change);
-				Fingerprint.Details.Add(Diagnostic.Message);
-				Fingerprint.Identifiers.UnionWith(SymbolNames);
-				Fingerprints.Add(Fingerprint);
+				TrackedIssue Issue = new TrackedIssue(Category, Job.Url, Diagnostic.Url);
+				Issue.Details.Add(Diagnostic.Message);
+				Issue.Identifiers.UnionWith(SymbolNames);
+				Issues.Add(Issue);
 				return true;
 			}
 
@@ -94,22 +94,15 @@ namespace MetadataTool
 			return false;
 		}
 
-		public override void Merge(TrackedIssueFingerprint Source, TrackedIssueFingerprint Target)
+		public override string GetSummary(TrackedIssue Issue)
 		{
-			base.Merge(Source, Target);
-
-			Target.Summary = GetSummary(Target.Identifiers);
-		}
-
-		string GetSummary(SortedSet<string> SymbolNames)
-		{
-			if(SymbolNames.Count == 1)
+			if(Issue.Identifiers.Count == 1)
 			{
-				return String.Format("Undefined symbol '{0}'", SymbolNames.First());
+				return String.Format("Undefined symbol '{0}'", Issue.Identifiers.First());
 			}
 			else
 			{
-				return String.Format("Undefined symbols - '{0}'", String.Join("', '", SymbolNames));
+				return String.Format("Undefined symbols - '{0}'", String.Join("', '", Issue.Identifiers));
 			}
 		}
 	}

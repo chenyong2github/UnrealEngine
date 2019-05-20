@@ -26,7 +26,7 @@ namespace MetadataTool
 
 		public override string Category => "Compile";
 
-		public override bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<TrackedIssueFingerprint> Fingerprints)
+		public override bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<TrackedIssue> Issues)
 		{
 			// Find any files in compiler output format
 			HashSet<string> SourceFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -45,10 +45,10 @@ namespace MetadataTool
 			// If we found any source files, create a diagnostic category for them
 			if (SourceFileNames.Count > 0)
 			{
-				TrackedIssueFingerprint Fingerprint = new TrackedIssueFingerprint(Category, GetSummary(SourceFileNames), Diagnostic.Url, Job.Change);
-				Fingerprint.Details.Add(ShortenPaths(Diagnostic.Message));
-				Fingerprint.FileNames.UnionWith(SourceFileNames);
-				Fingerprints.Add(Fingerprint);
+				TrackedIssue Issue = new TrackedIssue(Category, Job.Url, Diagnostic.Url);
+				Issue.Details.Add(ShortenPaths(Diagnostic.Message));
+				Issue.FileNames.UnionWith(SourceFileNames);
+				Issues.Add(Issue);
 				return true;
 			}
 
@@ -62,16 +62,9 @@ namespace MetadataTool
 			return Text;
 		}
 
-		public override void Merge(TrackedIssueFingerprint Source, TrackedIssueFingerprint Target)
+		public override string GetSummary(TrackedIssue Issue)
 		{
-			base.Merge(Source, Target);
-
-			Target.Summary = GetSummary(Target.FileNames);
-		}
-
-		string GetSummary(IEnumerable<string> SourceFileNames)
-		{
-			SortedSet<string> ShortFileNames = TrackedIssueFingerprint.GetSourceFileNames(SourceFileNames);
+			SortedSet<string> ShortFileNames = GetSourceFileNames(Issue.FileNames);
 			if (ShortFileNames.Count == 0)
 			{
 				return "Compile errors";

@@ -19,78 +19,104 @@ namespace MetadataTool
 		/// <summary>
 		/// The issue id in the database. -1 for issues that have not been posted yet.
 		/// </summary>
-		[DataMember(IsRequired = true)]
+		[DataMember(Order = 0, IsRequired = true)]
 		public long Id = -1;
+
+		/// <summary>
+		/// Type common to all diagnostics within this issue.
+		/// </summary>
+		[DataMember(Order = 1, IsRequired = true)]
+		public string Category;
+
+		/// <summary>
+		/// The initial job that this error was seen on. Allows other issues from the same job to be merged.
+		/// </summary>
+		[DataMember(Order = 2, IsRequired = true)]
+		public string InitialJobUrl;
+
+		/// <summary>
+		/// Url for this issue
+		/// </summary>
+		[DataMember(Order = 3, IsRequired = true)]
+		public string ErrorUrl;
+
+		/// <summary>
+		/// List of strings to display in the details panel for this job
+		/// </summary>
+		[DataMember(Order = 4, IsRequired = true)]
+		public List<string> Details = new List<string>();
+
+		/// <summary>
+		/// List of files associated with this issue
+		/// </summary>
+		[DataMember(Order = 5)]
+		public HashSet<string> FileNames = new HashSet<string>();
+
+		/// <summary>
+		/// List of messages associated with this issue
+		/// </summary>
+		[DataMember(Order = 6)]
+		public SortedSet<string> Identifiers = new SortedSet<string>();
 
 		/// <summary>
 		/// The last posted issue summary. Will be updated if it changes.
 		/// </summary>
-		[DataMember]
+		[DataMember(Order = 20)]
 		public string PostedSummary;
 
 		/// <summary>
 		/// The last posted issue details. Will be updated if it changes.
 		/// </summary>
-		[DataMember]
+		[DataMember(Order = 21)]
 		public string PostedDetails;
-
-		/// <summary>
-		/// Type common to all diagnostics within this issue.
-		/// </summary>
-		[DataMember(IsRequired = true)]
-		public TrackedIssueFingerprint Fingerprint;
-
-		/// <summary>
-		/// The initial change that this issue was seen on. We will allow additional diagnostics from the same build to be appended.
-		/// </summary>
-		[DataMember]
-		public int InitialChange;
 
 		/// <summary>
 		/// Whether we've posted an update to the resolved flag to the server
 		/// </summary>
-		[DataMember]
+		[DataMember(Order = 22)]
 		public bool bPostedResolved;
 
 		/// <summary>
 		/// The time at which the issue was closed. Issues will be retained for 24 hours after they are closed, in case the same issue appears in another stream and to prevent the issue being added again. 
 		/// </summary>
-		[DataMember]
+		[DataMember(Order = 23)]
 		public DateTime? ResolvedAt;
 
 		/// <summary>
 		/// Map of stream name -> step name -> history for builds exhibiting this issue
 		/// </summary>
-		[DataMember(IsRequired = true)]
+		[DataMember(Order = 30, IsRequired = true)]
 		public Dictionary<string, Dictionary<string, TrackedIssueHistory>> Streams = new Dictionary<string, Dictionary<string, TrackedIssueHistory>>();
 
 		/// <summary>
 		/// Set of changes which may have caused this issue. Used to de-duplicate issues between streams.
 		/// </summary>
-		[DataMember]
+		[DataMember(Order = 31)]
 		public HashSet<int> SourceChanges = new HashSet<int>();
 
 		/// <summary>
 		/// List of possible causers 
 		/// </summary>
-		[DataMember]
+		[DataMember(Order = 32)]
 		public HashSet<string> Watchers = new HashSet<string>();
 
 		/// <summary>
 		/// Set of causers that have yet to be added to the possible causers list
 		/// </summary>
-		[DataMember]
+		[DataMember(Order = 33)]
 		public HashSet<string> PendingWatchers = new HashSet<string>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Type">Type name for this issue</param>
-		/// <param name="InitialChange">Initial build changelist that this issue was seen on</param>
-		public TrackedIssue(TrackedIssueFingerprint Fingerprint, int InitialChange)
+		/// <param name="Category">Category of this issue</param>
+		/// <param name="InitialJobUrl">Url of the initial job that this error was seen with</param>
+		/// <param name="ErrorUrl"></param>
+		public TrackedIssue(string Category, string InitialJobUrl, string ErrorUrl)
 		{
-			this.Fingerprint = Fingerprint;
-			this.InitialChange = InitialChange;
+			this.Category = Category;
+			this.InitialJobUrl = InitialJobUrl;
+			this.ErrorUrl = ErrorUrl;
 		}
 
 		/// <summary>

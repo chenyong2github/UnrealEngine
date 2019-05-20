@@ -194,14 +194,15 @@ namespace MetadataTool
 				foreach(TrackedIssue Issue in State.Issues)
 				{
 					PatternMatcher Matcher;
-					if(!CategoryNameToMatcher.TryGetValue(Issue.Fingerprint.Category, out Matcher))
+					if(!CategoryNameToMatcher.TryGetValue(Issue.Category, out Matcher))
 					{
 						continue;
 					}
 
+					string Summary = Matcher.GetSummary(Issue);
 					if(Issue.Id == -1)
 					{
-						Log.TraceInformation("Adding issue: {0}", Issue.Fingerprint);
+						Log.TraceInformation("Adding issue: {0}", Issue);
 
 						if(Issue.PendingWatchers.Count == 0)
 						{
@@ -210,8 +211,8 @@ namespace MetadataTool
 
 						CommandTypes.AddIssue IssueBody = new CommandTypes.AddIssue();
 						IssueBody.Project = "Fortnite";
-						IssueBody.Summary = Issue.Fingerprint.Summary;
-						IssueBody.Details = String.Join("\n", Issue.Fingerprint.Details);
+						IssueBody.Summary = Summary;
+						IssueBody.Details = String.Join("\n", Issue.Details);
 
 						if(Issue.PendingWatchers.Count == 1)
 						{
@@ -228,16 +229,16 @@ namespace MetadataTool
 							Issue.Id = ParseHttpResponse<CommandTypes.AddIssueResponse>(Response).Id;
 						}
 
-						Issue.PostedSummary = Issue.Fingerprint.Summary;
+						Issue.PostedSummary = Summary;
 						WriteState(StateFile, State);
 					}
-					else if(Issue.PostedSummary == null || !String.Equals(Issue.PostedSummary, Issue.Fingerprint.Summary, StringComparison.Ordinal))
+					else if(Issue.PostedSummary == null || !String.Equals(Issue.PostedSummary, Summary, StringComparison.Ordinal))
 					{
 						Log.TraceInformation("Updating issue {0}", Issue.Id);
 
 						CommandTypes.UpdateIssue IssueBody = new CommandTypes.UpdateIssue();
-						IssueBody.Summary = Issue.Fingerprint.Summary;
-						IssueBody.Details = String.Join("\n", Issue.Fingerprint.Details);
+						IssueBody.Summary = Summary;
+						IssueBody.Details = String.Join("\n", Issue.Details);
 
 						using (HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}", ServerUrl, Issue.Id), "PUT", IssueBody))
 						{
@@ -248,7 +249,7 @@ namespace MetadataTool
 							}
 						}
 
-						Issue.PostedSummary = Issue.Fingerprint.Summary;
+						Issue.PostedSummary = Summary;
 						WriteState(StateFile, State);
 					}
 				}
@@ -258,7 +259,7 @@ namespace MetadataTool
 				{
 					if (Issue.Id == -1)
 					{
-						Log.TraceInformation("Adding issue: {0}", Issue.Fingerprint);
+						Log.TraceInformation("Adding issue: {0}", Issue);
 					}
 				}
 
@@ -434,21 +435,21 @@ namespace MetadataTool
 		void AddStep(PerforceConnection Perforce, TrackedState State, InputJob InputJob, InputJobStep InputJobStep)
 		{
 			// Create all the fingerprints for failures in this step
-			List<TrackedIssueFingerprint> Fingerprints = new List<TrackedIssueFingerprint>();
+			List<TrackedIssue> InputIssues = new List<TrackedIssue>();
 			if(InputJobStep.Diagnostics != null)
 			{
 				List<InputDiagnostic> Diagnostics = new List<InputDiagnostic>(InputJobStep.Diagnostics); 
 				foreach(PatternMatcher PatternMatcher in Matchers)
 				{
-					PatternMatcher.Match(InputJob, InputJobStep, Diagnostics, Fingerprints);
+					PatternMatcher.Match(InputJob, InputJobStep, Diagnostics, InputIssues);
 				}
 			}
 
 			// Add all the fingerprints to issues
-			foreach(TrackedIssueFingerprint Fingerprint in Fingerprints)
+			foreach(TrackedIssue InputIssue in InputIssues)
 			{
-				TrackedIssue Issue = FindOrAddIssueForFingerprint(Perforce, State, InputJob, InputJobStep, Fingerprint);
-				AddFailureToIssue(Issue, Fingerprint, InputJob, InputJobStep, State);
+				TrackedIssue Issue = FindOrAddIssueForFingerprint(Perforce, State, InputJob, InputJobStep, InputIssue);
+				AddFailureToIssue(Issue, InputJob, InputJobStep, InputIssue.ErrorUrl, State);
 			}
 		}
 
@@ -461,10 +462,10 @@ namespace MetadataTool
 		/// <param name="PreviousChange">The last changelist that was built before this one</param>
 		/// <param name="InputJob">Job containing the step to add</param>
 		/// <param name="InputJobStep">The job step to add</param>
-		TrackedIssue FindOrAddIssueForFingerprint(PerforceConnection Perforce, TrackedState State, InputJob InputJob, InputJobStep InputJobStep, TrackedIssueFingerprint Fingerprint)
+		TrackedIssue FindOrAddIssueForFingerprint(PerforceConnection Perforce, TrackedState State, InputJob InputJob, InputJobStep InputJobStep, TrackedIssue InputIssue)
 		{
 			// Find the pattern matcher for this fingerprint
-			PatternMatcher Matcher = CategoryToMatcher[Fingerprint.Category];
+			PatternMatcher Matcher = CategoryToMatcher[InputIssue.Category];
 
 			// Check if it can be added to an existing open issue
 			foreach (TrackedIssue Issue in State.Issues)
@@ -494,13 +495,13 @@ namespace MetadataTool
 				}
 
 				// Try to merge the fingerprint
-				if(!Matcher.CanMerge(Fingerprint, Issue.Fingerprint))
+				if(!Matcher.CanMerge(InputIssue, Issue))
 				{
 					continue;
 				}
 
 				// Add the new build
-				Matcher.Merge(Fingerprint, Issue.Fingerprint);
+				Matcher.Merge(InputIssue, Issue);
 				return Issue;
 			}
 
@@ -537,13 +538,13 @@ namespace MetadataTool
 							{
 								continue;
 							}
-							if (!Matcher.CanMerge(Fingerprint, Issue.Fingerprint))
+							if (!Matcher.CanMerge(InputIssue, Issue))
 							{
 								continue;
 							}
 
 							// Merge the issue
-							Matcher.Merge(Fingerprint, Issue.Fingerprint);
+							Matcher.Merge(InputIssue, Issue);
 							return Issue;
 						}
 					}
@@ -551,18 +552,17 @@ namespace MetadataTool
 			}
 
 			// Create new issues for everything else in this stream
-			TrackedIssue NewIssue = new TrackedIssue(Fingerprint, InputJob.Change);
 			if (Changes != null)
 			{
-				List<ChangeInfo> Causers = Matcher.FindCausers(Perforce, Fingerprint, Changes);
+				List<ChangeInfo> Causers = Matcher.FindCausers(Perforce, InputIssue, Changes);
 				foreach(ChangeInfo Causer in Causers)
 				{
-					NewIssue.SourceChanges.UnionWith(Causer.SourceChanges);
-					NewIssue.PendingWatchers.Add(Causer.Record.User);
+					InputIssue.SourceChanges.UnionWith(Causer.SourceChanges);
+					InputIssue.PendingWatchers.Add(Causer.Record.User);
 				}
 			}
-			State.Issues.Add(NewIssue);
-			return NewIssue;
+			State.Issues.Add(InputIssue);
+			return InputIssue;
 		}
 
 		/// <summary>
@@ -570,21 +570,22 @@ namespace MetadataTool
 		/// </summary>
 		/// <param name="InputJob">The job to create a build for</param>
 		/// <param name="InputJobStep">The step to create a build for</param>
+		/// <param name="InputErrorUrl">The error Url</param>
 		/// <returns>New build instance</returns>
-		TrackedBuild CreateBuildForJobStep(InputJob InputJob, InputJobStep InputJobStep, TrackedIssueFingerprint Fingerprint)
+		TrackedBuild CreateBuildForJobStep(InputJob InputJob, InputJobStep InputJobStep, string InputErrorUrl)
 		{
-			return new TrackedBuild(InputJob.Change, InputJob.Name, InputJob.Url, InputJobStep.Name, InputJobStep.Url, Fingerprint.ErrorUrl);
+			return new TrackedBuild(InputJob.Change, InputJob.Name, InputJob.Url, InputJobStep.Name, InputJobStep.Url, InputErrorUrl);
 		}
 
 		/// <summary>
 		/// Adds a new build history for a stream
 		/// </summary>
 		/// <param name="Issue">The issue to add a build to</param>
-		/// <param name="Fingerprint">Fingerprint of the new issue being added</param>
-		/// <param name="Stream">The new stream containing the issue</param>
-		/// <param name="Build">The first failing build</param>
+		/// <param name="InputJob">The job containing the error</param>
+		/// <param name="InputJobStep">The job step containing the error</param>
+		/// <param name="InputErrorUrl">Url of the error</param>
 		/// <param name="State">Current persistent state. Used to find previous build history.</param>
-		void AddFailureToIssue(TrackedIssue Issue, TrackedIssueFingerprint Fingerprint, InputJob InputJob, InputJobStep InputJobStep, TrackedState State)
+		void AddFailureToIssue(TrackedIssue Issue, InputJob InputJob, InputJobStep InputJobStep, string InputErrorUrl, TrackedState State)
 		{
 			// Find or add a step name to history mapping
 			Dictionary<string, TrackedIssueHistory> StepNameToHistory;
@@ -603,7 +604,7 @@ namespace MetadataTool
 			}
 
 			// Add the new build
-			History.AddFailedBuild(CreateBuildForJobStep(InputJob, InputJobStep, Fingerprint));
+			History.AddFailedBuild(CreateBuildForJobStep(InputJob, InputJobStep, InputErrorUrl));
 		}
 
 		/// <summary>

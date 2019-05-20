@@ -29,13 +29,13 @@ namespace MetadataTool
 		/// <param name="Job">The job that was run</param>
 		/// <param name="JobStep">The job step that was run</param>
 		/// <param name="Diagnostics">List of diagnostics that were produced by the build. Items should be removed from this list if they match.</param>
-		/// <param name="Fingerprints">List which receives all the matched fingerprints.</param>
-		public virtual void Match(InputJob Job, InputJobStep JobStep, List<InputDiagnostic> Diagnostics, List<TrackedIssueFingerprint> Fingerprints)
+		/// <param name="Issues">List which receives all the matched issues.</param>
+		public virtual void Match(InputJob Job, InputJobStep JobStep, List<InputDiagnostic> Diagnostics, List<TrackedIssue> Issues)
 		{
 			for (int Idx = 0; Idx < Diagnostics.Count; Idx++)
 			{
 				InputDiagnostic Diagnostic = Diagnostics[Idx];
-				if(TryMatch(Job, JobStep, Diagnostic, Fingerprints))
+				if(TryMatch(Job, JobStep, Diagnostic, Issues))
 				{
 					Diagnostics.RemoveAt(Idx);
 					Idx--;
@@ -49,16 +49,16 @@ namespace MetadataTool
 		/// <param name="Job">The job that was run</param>
 		/// <param name="JobStep">The job step that was run</param>
 		/// <param name="Diagnostic">A diagnostic from the given job step</param>
-		/// <param name="Fingerprints">List which receives all the matched fingerprints.</param>
+		/// <param name="Issues">List which receives all the matched issues.</param>
 		/// <returns>True if this diagnostic should be removed (usually because a fingerprint was created)</returns>
-		public abstract bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<TrackedIssueFingerprint> Fingerprints);
+		public abstract bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<TrackedIssue> Issues);
 
 		/// <summary>
 		/// Determines if one fingerprint can be merged with another one
 		/// </summary>
 		/// <param name="Source">The source fingerprint</param>
 		/// <param name="Target">The fingerprint to merge into</param>
-		public virtual bool CanMerge(TrackedIssueFingerprint Source, TrackedIssueFingerprint Target)
+		public virtual bool CanMerge(TrackedIssue Source, TrackedIssue Target)
 		{
 			// Make sure the categories match
 			if (Source.Category != Target.Category)
@@ -67,7 +67,7 @@ namespace MetadataTool
 			}
 
 			// Check that a filename or message matches
-			if (Source.InitialChange != Target.InitialChange)
+			if (Source.InitialJobUrl != Target.InitialJobUrl)
 			{
 				if (!Source.FileNames.Any(x => Target.FileNames.Contains(x)) && !Source.Identifiers.Any(x => Target.Identifiers.Contains(x)))
 				{
@@ -82,8 +82,9 @@ namespace MetadataTool
 		/// </summary>
 		/// <param name="Source">The source fingerprint</param>
 		/// <param name="Target">The fingerprint to merge into</param>
-		public virtual void Merge(TrackedIssueFingerprint Source, TrackedIssueFingerprint Target)
+		public virtual void Merge(TrackedIssue Source, TrackedIssue Target)
 		{
+			Target.Details.AddRange(Source.Details);
 			Target.FileNames.UnionWith(Source.FileNames);
 			Target.Identifiers.UnionWith(Source.Identifiers);
 		}
@@ -95,9 +96,9 @@ namespace MetadataTool
 		/// <param name="Fingerprint">Fingerprint for the issue</param>
 		/// <param name="Changes">List of changes since the issue first occurred.</param>
 		/// <returns>List of changes which are causers for the issue</returns>
-		public virtual List<ChangeInfo> FindCausers(PerforceConnection Perforce, TrackedIssueFingerprint Fingerprint, IReadOnlyList<ChangeInfo> Changes)
+		public virtual List<ChangeInfo> FindCausers(PerforceConnection Perforce, TrackedIssue Issue, IReadOnlyList<ChangeInfo> Changes)
 		{
-			SortedSet<string> FileNamesWithoutPath = TrackedIssueFingerprint.GetFileNamesWithoutPath(Fingerprint.FileNames);
+			SortedSet<string> FileNamesWithoutPath = GetFileNamesWithoutPath(Issue.FileNames);
 
 			List<ChangeInfo> Causers = new List<ChangeInfo>();
 			foreach (ChangeInfo Change in Changes)
@@ -175,5 +176,78 @@ namespace MetadataTool
 			}
 			return NormalizedFileName;
 		}
+
+		/// <summary>
+		/// Finds all the unique filenames without their path components
+		/// </summary>
+		/// <returns>Set of sorted filenames</returns>
+		protected static SortedSet<string> GetFileNamesWithoutPath(IEnumerable<string> FileNames)
+		{
+			SortedSet<string> FileNamesWithoutPath = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+			foreach (string FileName in FileNames)
+			{
+				int Idx = FileName.LastIndexOf('/');
+				if (Idx != -1)
+				{
+					FileNamesWithoutPath.Add(FileName.Substring(Idx + 1));
+				}
+			}
+			return FileNamesWithoutPath;
+		}
+
+		/// <summary>
+		/// Gets a set of unique source file names that relate to this issue
+		/// </summary>
+		/// <returns>Set of source file names</returns>
+		protected static SortedSet<string> GetSourceFileNames(IEnumerable<string> FileNames)
+		{
+			SortedSet<string> ShortFileNames = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+			foreach (string FileName in FileNames)
+			{
+				int Idx = FileName.LastIndexOfAny(new char[] { '/', '\\' });
+				if (Idx != -1)
+				{
+					string ShortFileName = FileName.Substring(Idx + 1);
+					if (!ShortFileName.StartsWith("Module.", StringComparison.OrdinalIgnoreCase))
+					{
+						ShortFileNames.Add(ShortFileName);
+					}
+				}
+			}
+			return ShortFileNames;
+		}
+
+		/// <summary>
+		/// Gets a set of unique asset filenames that relate to this issue
+		/// </summary>
+		/// <returns>Set of asset names</returns>
+		protected static SortedSet<string> GetAssetNames(IEnumerable<string> FileNames)
+		{
+			SortedSet<string> ShortFileNames = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+			foreach (string FileName in FileNames)
+			{
+				int Idx = FileName.LastIndexOfAny(new char[] { '/', '\\' });
+				if (Idx != -1)
+				{
+					string AssetName = FileName.Substring(Idx + 1);
+
+					int DotIdx = AssetName.LastIndexOf('.');
+					if (DotIdx != -1)
+					{
+						AssetName = AssetName.Substring(0, DotIdx);
+					}
+
+					ShortFileNames.Add(AssetName);
+				}
+			}
+			return ShortFileNames;
+		}
+
+		/// <summary>
+		/// Gets the summary for an issue
+		/// </summary>
+		/// <param name="Issue">The issue to summarize</param>
+		/// <returns>The summary text for this issue</returns>
+		public abstract string GetSummary(TrackedIssue Issue);
 	}
 }
