@@ -61,6 +61,11 @@ bool UGCObjectReferencer::GetReferencerName(UObject* Object, FString& OutName, b
 			return false;
 		}
 		OutName = CurrentlySerializingObject->GetReferencerName();
+		FString ReferencerProperty;
+		if (CurrentlySerializingObject->GetReferencerPropertyName(Object, ReferencerProperty))
+		{
+			OutName += TEXT(":") + ReferencerProperty;
+		}
 		return true;
 	}
 

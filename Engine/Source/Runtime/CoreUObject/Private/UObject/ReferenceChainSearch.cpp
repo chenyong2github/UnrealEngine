@@ -378,7 +378,6 @@ public:
 					FString RefName;
 					if (FGCObject::GGCObjectReferencer->GetReferencerName(Object, RefName, true))
 					{
-						RefInfo.Type = FReferenceChainSearch::EReferenceType::Property;
 						RefInfo.ReferencerName = FName(*RefName);
 					}
 					else if (ReferencingObject)
