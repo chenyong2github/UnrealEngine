@@ -445,7 +445,7 @@ void FVulkanDynamicRHI::CreateInstance()
 	else if (Result != VK_SUCCESS)
 	{
 		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, TEXT(
-			"Vulkan failed to create instace (apiVersion=0x%x)\n\nDo you have a compatible Vulkan "
+			"Vulkan failed to create instance (apiVersion=0x%x)\n\nDo you have a compatible Vulkan "
 			 "driver (ICD) installed?\nPlease look at "
 			 "the Getting Started guide for additional information."), TEXT("No Vulkan driver found!"));
 		FPlatformMisc::RequestExitWithStatus(true, 1);
@@ -521,6 +521,8 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	TArray<FDeviceInfo> DiscreteDevices;
 	TArray<FDeviceInfo> IntegratedDevices;
 
+	TArray<FDeviceInfo> OriginalOrderedDevices;
+
 #if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
 	// Allow HMD to override which graphics adapter is chosen, so we pick the adapter where the HMD is connected
 	uint64 HmdGraphicsAdapterLuid  = IHeadMountedDisplayModule::IsAvailable() ? IHeadMountedDisplayModule::Get().GetGraphicsAdapterLuid() : 0;
@@ -551,6 +553,8 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 		{
 			IntegratedDevices.Add({NewDevice, Index});
 		}
+
+		OriginalOrderedDevices.Add({NewDevice, Index});
 	}
 
 	uint32 DeviceIndex = -1;
@@ -566,35 +570,60 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	// Add all integrated to the end of the list
 	DiscreteDevices.Append(IntegratedDevices);
 
+	// Non-static as it is used only a few times
+	auto* CVarGraphicsAdapter = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GraphicsAdapter"));
+	int32 CVarExplicitAdapterValue = CVarGraphicsAdapter ? CVarGraphicsAdapter->GetValueOnAnyThread() : -1;
+	FParse::Value(FCommandLine::Get(), TEXT("graphicsadapter="), CVarExplicitAdapterValue);
+
+	// If HMD didn't choose one...
 	if (DeviceIndex == -1)
 	{
-		if (DiscreteDevices.Num() > 0)
+		if (CVarExplicitAdapterValue >= (int32)GpuCount)
 		{
-			int32 PreferredVendor = PreferAdapterVendor();
-			if (DiscreteDevices.Num() > 1 && PreferredVendor != -1)
-			{
-				// Check for preferred
-				for (int32 Index = 0; Index < DiscreteDevices.Num(); ++Index)
-				{
-					if (DiscreteDevices[Index].Device->GpuProps.vendorID == PreferredVendor)
-					{
-						DeviceIndex = DiscreteDevices[Index].DeviceIndex;
-						Device = DiscreteDevices[Index].Device;
-						break;
-					}
-				}
-			}
-
-			if (DeviceIndex == -1)
-			{
-				Device = DiscreteDevices[0].Device;
-				DeviceIndex = DiscreteDevices[0].DeviceIndex;
-			}
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Tried to use r.GraphicsAdapter=%d, but only %d Adapter(s) found. Falling back to first device..."), CVarExplicitAdapterValue, GpuCount);
+			CVarExplicitAdapterValue = 0;
+		}
+		
+		if (CVarExplicitAdapterValue >= 0)
+		{
+			DeviceIndex = OriginalOrderedDevices[CVarExplicitAdapterValue].DeviceIndex;
+			Device = OriginalOrderedDevices[CVarExplicitAdapterValue].Device;
 		}
 		else
 		{
-			checkf(0, TEXT("No devices found!"));
-			DeviceIndex = 0;
+			if (CVarExplicitAdapterValue == -2)
+			{
+				DeviceIndex = OriginalOrderedDevices[0].DeviceIndex;
+				Device = OriginalOrderedDevices[0].Device;
+			}
+			else if (DiscreteDevices.Num() > 0 && CVarExplicitAdapterValue == -1)
+			{
+				int32 PreferredVendor = PreferAdapterVendor();
+				if (DiscreteDevices.Num() > 1 && PreferredVendor != -1)
+				{
+					// Check for preferred
+					for (int32 Index = 0; Index < DiscreteDevices.Num(); ++Index)
+					{
+						if (DiscreteDevices[Index].Device->GpuProps.vendorID == PreferredVendor)
+						{
+							DeviceIndex = DiscreteDevices[Index].DeviceIndex;
+							Device = DiscreteDevices[Index].Device;
+							break;
+						}
+					}
+				}
+
+				if (DeviceIndex == -1)
+				{
+					Device = DiscreteDevices[0].Device;
+					DeviceIndex = DiscreteDevices[0].DeviceIndex;
+				}
+			}
+			else
+			{
+				checkf(0, TEXT("No devices found!"));
+				DeviceIndex = 0;
+			}
 		}
 	}
 

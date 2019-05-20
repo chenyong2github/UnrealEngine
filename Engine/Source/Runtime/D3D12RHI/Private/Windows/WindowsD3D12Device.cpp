@@ -26,16 +26,6 @@ extern bool D3D12RHI_ShouldCreateWithWarp();
 extern bool D3D12RHI_ShouldAllowAsyncResourceCreation();
 extern bool D3D12RHI_ShouldForceCompatibility();
 
-static TAutoConsoleVariable<int32> CVarGraphicsAdapter(
-	TEXT("D3D12.GraphicsAdapter"),
-	-1,
-	TEXT("User request to pick a specific graphics adapter (e.g. when using an integrated graphics card with a discrete one)\n")
-	TEXT(" -2: Take the first one that fulfills the criteria\n")
-	TEXT(" -1: Favor discrete because they are usually faster (default)\n")
-	TEXT("  0: Adapter #0\n")
-	TEXT("  1: Adapter #1, ..."),
-	ECVF_RenderThreadSafe);
-
 #if NV_AFTERMATH
 // Disabled by default since introduces stalls between render and driver threads
 int32 GDX12NVAfterMathEnabled = 0;
@@ -289,7 +279,10 @@ void FD3D12DynamicRHIModule::FindAdapter()
 
 	// Allow HMD to override which graphics adapter is chosen, so we pick the adapter where the HMD is connected
 	uint64 HmdGraphicsAdapterLuid = IHeadMountedDisplayModule::IsAvailable() ? IHeadMountedDisplayModule::Get().GetGraphicsAdapterLuid() : 0;
-	int32 CVarExplicitAdapterValue = HmdGraphicsAdapterLuid == 0 ? CVarGraphicsAdapter.GetValueOnGameThread() : -2;
+	// Non-static as it is used only a few times
+	auto* CVarGraphicsAdapter = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GraphicsAdapter"));
+	int32 CVarExplicitAdapterValue = HmdGraphicsAdapterLuid == 0 ? (CVarGraphicsAdapter ? CVarGraphicsAdapter->GetValueOnGameThread() : -1) : -2;
+	FParse::Value(FCommandLine::Get(), TEXT("graphicsadapter="), CVarExplicitAdapterValue);
 
 	const bool bFavorNonIntegrated = CVarExplicitAdapterValue == -1;
 

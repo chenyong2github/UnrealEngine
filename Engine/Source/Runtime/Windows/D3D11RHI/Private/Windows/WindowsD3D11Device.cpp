@@ -35,7 +35,7 @@ FD3D11DynamicRHI*	GD3D11RHI = nullptr;
 extern bool D3D11RHI_ShouldCreateWithD3DDebug();
 extern bool D3D11RHI_ShouldAllowAsyncResourceCreation();
 
-int D3D11RHI_PreferAdaperVendor()
+static int D3D11RHI_PreferAdapterVendor()
 {
 	if (FParse::Param(FCommandLine::Get(), TEXT("preferAMD")))
 	{
@@ -55,7 +55,7 @@ int D3D11RHI_PreferAdaperVendor()
 	return -1;
 }
 
-bool D3D11RHI_AllowSoftwareFallback()
+static bool D3D11RHI_AllowSoftwareFallback()
 {
 	if (FParse::Param(FCommandLine::Get(), TEXT("AllowSoftwareRendering")))
 	{
@@ -72,17 +72,6 @@ struct AmdAgsInfo
 	AGSGPUInfo AmdGpuInfo;
 };
 static AmdAgsInfo AmdInfo;
-
-static TAutoConsoleVariable<int32> CVarGraphicsAdapter(
-	TEXT("r.GraphicsAdapter"),
-	-1,
-	TEXT("User request to pick a specific graphics adapter (e.g. when using a integrated graphics card with a discrete one)\n")
-	TEXT("At the moment this only works on Direct3D 11. Unless a specific adapter is chosen we reject Microsoft adapters because we don't want the software emulation.\n")
-	TEXT(" -2: Take the first one that fulfills the criteria\n")
-	TEXT(" -1: Favour non integrated because there are usually faster (default)\n")
-	TEXT("  0: Adapter #0\n")
-	TEXT("  1: Adapter #1, ..."),
-	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarForceAMDToSM4(
 	TEXT("r.ForceAMDToSM4"),
@@ -741,7 +730,10 @@ void FD3D11DynamicRHIModule::FindAdapter()
 
 	// Allow HMD to override which graphics adapter is chosen, so we pick the adapter where the HMD is connected
 	uint64 HmdGraphicsAdapterLuid  = IHeadMountedDisplayModule::IsAvailable() ? IHeadMountedDisplayModule::Get().GetGraphicsAdapterLuid() : 0;
-	int32 CVarExplicitAdapterValue = HmdGraphicsAdapterLuid == 0 ? CVarGraphicsAdapter.GetValueOnGameThread() : -2;
+	// Non-static as it is used only a few times
+	auto* CVarGraphicsAdapter = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GraphicsAdapter"));
+	int32 CVarExplicitAdapterValue = HmdGraphicsAdapterLuid == 0 ? (CVarGraphicsAdapter ? CVarGraphicsAdapter->GetValueOnGameThread() : -1) : -2;
+	FParse::Value(FCommandLine::Get(), TEXT("graphicsadapter="), CVarExplicitAdapterValue);
 
 	const bool bFavorNonIntegrated = CVarExplicitAdapterValue == -1;
 
@@ -759,7 +751,7 @@ void FD3D11DynamicRHIModule::FindAdapter()
 
 	UE_LOG(LogD3D11RHI, Log, TEXT("D3D11 adapters:"));
 
-	int PreferredVendor = D3D11RHI_PreferAdaperVendor();
+	int PreferredVendor = D3D11RHI_PreferAdapterVendor();
 	bool bAllowSoftwareFallback = D3D11RHI_AllowSoftwareFallback();
 
 	// Enumerate the DXGIFactory's adapters.
