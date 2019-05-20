@@ -7,6 +7,7 @@
 #include "Logging/LogMacros.h"
 #include "HAL/PlatformTLS.h"
 #include "Templates/Atomic.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 class Error;
 class FConfigCacheIni;
