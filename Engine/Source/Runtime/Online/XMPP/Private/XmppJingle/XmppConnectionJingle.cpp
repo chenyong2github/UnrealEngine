@@ -725,7 +725,8 @@ void FXmppConnectionJingle::Login(const FString& UserId, const FString& Password
 
 			OnLoginComplete().Broadcast(GetUserJid(), true, FString());
 			OnLoginChanged().Broadcast(GetUserJid(), EXmppLoginStatus::LoggedIn);
-			ReconnectLogin();
+			//@todo - rebroadcast presence after login triggered on already logged in connection
+			//ReconnectLogin();
 			return;
 		}
 		else
