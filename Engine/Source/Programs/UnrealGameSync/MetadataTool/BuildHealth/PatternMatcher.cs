@@ -69,7 +69,7 @@ namespace MetadataTool
 			// Check that a filename or message matches
 			if (Source.InitialChange != Target.InitialChange)
 			{
-				if (!Source.FileNames.Any(x => Target.FileNames.Contains(x)) && !Source.Messages.Any(x => Target.Messages.Contains(x)))
+				if (!Source.FileNames.Any(x => Target.FileNames.Contains(x)) && !Source.Identifiers.Any(x => Target.Identifiers.Contains(x)))
 				{
 					return false;
 				}
@@ -85,7 +85,7 @@ namespace MetadataTool
 		public virtual void Merge(TrackedIssueFingerprint Source, TrackedIssueFingerprint Target)
 		{
 			Target.FileNames.UnionWith(Source.FileNames);
-			Target.Messages.UnionWith(Source.Messages);
+			Target.Identifiers.UnionWith(Source.Identifiers);
 		}
 
 		/// <summary>

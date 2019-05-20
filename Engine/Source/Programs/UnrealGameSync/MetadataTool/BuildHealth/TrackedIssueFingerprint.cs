@@ -56,7 +56,7 @@ namespace MetadataTool
 		/// List of messages associated with this issue
 		/// </summary>
 		[DataMember]
-		public SortedSet<string> Messages = new SortedSet<string>();
+		public SortedSet<string> Identifiers = new SortedSet<string>();
 
 		/// <summary>
 		/// Constructor

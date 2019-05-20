@@ -85,7 +85,7 @@ namespace MetadataTool
 			{
 				TrackedIssueFingerprint Fingerprint = new TrackedIssueFingerprint(Category, GetSummary(SymbolNames), Diagnostic.Url, Job.Change);
 				Fingerprint.Details.Add(Diagnostic.Message);
-				Fingerprint.Messages.UnionWith(SymbolNames);
+				Fingerprint.Identifiers.UnionWith(SymbolNames);
 				Fingerprints.Add(Fingerprint);
 				return true;
 			}
@@ -98,7 +98,7 @@ namespace MetadataTool
 		{
 			base.Merge(Source, Target);
 
-			Target.Summary = GetSummary(Target.Messages);
+			Target.Summary = GetSummary(Target.Identifiers);
 		}
 
 		string GetSummary(SortedSet<string> SymbolNames)
