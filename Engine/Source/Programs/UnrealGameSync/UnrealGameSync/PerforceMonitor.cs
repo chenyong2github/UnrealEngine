@@ -382,7 +382,7 @@ namespace UnrealGameSync
 			foreach(int QueryChangeNumber in QueryChangeNumbers)
 			{
 				// Skip this stuff if the user wants us to query for more changes
-				if(PendingMaxChanges > CurrentMaxChanges)
+				if(PendingMaxChanges != CurrentMaxChanges)
 				{
 					break;
 				}
