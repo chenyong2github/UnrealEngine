@@ -400,7 +400,7 @@ public:
 		: Owner(InOwner)
 	{
 		bGreyScaleFormat = false;
-		bSRGB = true;
+		bSRGB = InOwner->SRGB;
 	}
 	
 	virtual ~FARMetalResource()
