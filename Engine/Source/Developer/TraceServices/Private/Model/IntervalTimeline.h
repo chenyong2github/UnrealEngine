@@ -109,19 +109,21 @@ public:
 	}
 
 private:
+	struct FEventInternal
+	{
+		double StartTime;
+		double EndTime;
+		EventType Event;
+	};
+
 	struct FEventPage
 	{
 		double BeginTime = 0.0;
 		double EndTime = 0.0;
 		uint64 BeginEventIndex = 0;
 		uint64 EndEventIndex = 0;
-	};
-
-	struct FEventInternal
-	{
-		double StartTime;
-		double EndTime;
-		EventType Event;
+		FEventInternal* Items = nullptr;
+		uint64 Count = 0;
 	};
 
 	TPagedArray<FEventInternal, FEventPage> Events;

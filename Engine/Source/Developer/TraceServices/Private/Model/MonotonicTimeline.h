@@ -139,7 +139,7 @@ public:
 			return;
 		}
 
-		uint64 FirstScopePageIndex = Algo::UpperBoundBy(DetailLevel.ScopeEntries.GetPages(), IntervalStart, [](const FEventScopeEntryPage& Page)
+		uint64 FirstScopePageIndex = Algo::UpperBoundBy(DetailLevel.ScopeEntries, IntervalStart, [](const FEventScopeEntryPage& Page)
 		{
 			return Page.BeginTime;
 		});
@@ -322,6 +322,8 @@ private:
 
 	struct FEventScopeEntryPage
 	{
+		FEventScopeEntry* Items = nullptr;
+		uint64 Count = 0;
 		double BeginTime = 0.0;
 		double EndTime = 0.0;
 		uint64 BeginEventIndex = 0;

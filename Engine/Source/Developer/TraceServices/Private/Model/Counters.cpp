@@ -129,11 +129,28 @@ template<typename T>
 static void InsertOp(FCounterInternal& Counter, double Time, ECounterOpType Type, T Arg)
 {
 	TPagedArray<double>& Timestamps = Counter.EditTimestamps();
-	uint64 Count = Timestamps.Num();
-	uint64 InsertionIndex = Count;
-	while (InsertionIndex > 0 && Timestamps[InsertionIndex - 1] > Time)
+	uint64 InsertionIndex;
+	if (Timestamps.Num() == 0 || Timestamps[Timestamps.Num() - 1] <= Time)
 	{
-		--InsertionIndex;
+		InsertionIndex = Timestamps.Num();
+	}
+	else
+	{
+		auto TimestampIterator = Timestamps.GetIteratorFromItem(Timestamps.Num() - 1);
+		auto CurrentPage = TimestampIterator.GetCurrentPage();
+		while (CurrentPage && *GetFirstItem(*CurrentPage) > Time)
+		{
+			CurrentPage = TimestampIterator.PrevPage();
+		}
+		if (!CurrentPage)
+		{
+			InsertionIndex = 0;
+		}
+		else
+		{
+			uint64 PageInsertionIndex = Algo::LowerBound(*CurrentPage, Time);
+			InsertionIndex = TimestampIterator.GetCurrentPageIndex() * Timestamps.GetPageSize() + PageInsertionIndex;
+		}
 	}
 	Timestamps.Insert(InsertionIndex) = Time;
 	Counter.EditOps().Insert(InsertionIndex) = Type;
