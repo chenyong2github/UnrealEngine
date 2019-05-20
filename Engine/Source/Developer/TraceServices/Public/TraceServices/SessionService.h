@@ -14,7 +14,9 @@ class ISessionService
 {
 public:
 	virtual ~ISessionService() = default;
-	virtual void StartRecorderServer() = 0;
+	virtual bool StartRecorderServer() = 0;
+	virtual bool IsRecorderServerRunning() const = 0;
+	virtual void StopRecorderServer() = 0;
 	virtual void GetAvailableSessions(TArray<Trace::FSessionHandle>& OutSessions) = 0;
 	virtual bool GetSessionInfo(Trace::FSessionHandle SessionHandle, Trace::FSessionInfo& OutSessionInfo) = 0;
 	virtual Trace::IInDataStream* OpenSessionStream(Trace::FSessionHandle SessionHandle) = 0;

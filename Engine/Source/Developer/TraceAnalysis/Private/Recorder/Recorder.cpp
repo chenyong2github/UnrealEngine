@@ -1,128 +1,247 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Trace/Recorder.h"
-#include "CoreTypes.h"
 
-#if PLATFORM_WINDOWS
+#include "Containers/Array.h"
+#include "HAL/Runnable.h"
+#include "HAL/RunnableThread.h"
+#include "IPAddress.h"
+#include "Sockets.h"
+#include "SocketSubsystem.h"
+#include "Trace/DataStream.h"
 #include "Trace/Store.h"
-#include "DataStream.h"
-#include "Templates/UniquePtr.h"
-
-#include "Windows/AllowWindowsPlatformTypes.h"
-#define _WINSOCK_DEPRECATED_NO_WARNINGS  
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include "Windows/HideWindowsPlatformTypes.h"
-#pragma comment(lib, "ws2_32.lib")
-
-#include <thread>
 
 namespace Trace
 {
 
-class FSocketStream
-	: public IInDataStream
+////////////////////////////////////////////////////////////////////////////////
+class FRecorder
+	: public IRecorder
+	, public FRunnable
 {
 public:
-					FSocketStream(SOCKET InSocket);
-	virtual int32	Read(void* Data, uint32 Size) override;
+						FRecorder(TSharedRef<IStore> InStore);
+	virtual				~FRecorder();
 
 private:
-	SOCKET			Socket;
+	struct FSession
+	{
+		FSocket*		Socket;
+		IOutDataStream*	StoreSession;
+		bool			bDead;
+	};
+
+	virtual uint32		Run() override;
+	virtual bool		IsRunning() const override;
+	virtual bool		StartRecording() override;
+	virtual void		StopRecording() override;
+	virtual uint32		GetSessionCount() const override;
+	TSharedRef<IStore>	Store;
+	TArray<FSession>	Sessions;
+	FRunnableThread*	Thread = nullptr;
+	FSocket*			ListenSocket = nullptr;
+	volatile bool		bStopRequested;
 };
 
-FSocketStream::FSocketStream(SOCKET InSocket)
-: Socket(InSocket)
+////////////////////////////////////////////////////////////////////////////////
+FRecorder::FRecorder(TSharedRef<IStore> InStore)
+: Store(InStore)
 {
 }
 
-int32 FSocketStream::Read(void* Data, uint32 Size)
+////////////////////////////////////////////////////////////////////////////////
+FRecorder::~FRecorder()
 {
-	return recv(Socket, (char*)Data, Size, 0);
+	StopRecording();
 }
 
-static void Recorder_Record(TSharedRef<IStore> TraceStore, IInDataStream& DataStream)
+////////////////////////////////////////////////////////////////////////////////
+uint32 FRecorder::Run()
 {
-	static const uint32 BufferSize = 1 << 20;
-	void* Buffer = FPlatformMemory::MemoryRangeReserve(BufferSize, true /*Commit*/);
+	ISocketSubsystem& Sockets = *(ISocketSubsystem::Get());
 
-	TUniquePtr<IOutDataStream> File = TUniquePtr<IOutDataStream>(TraceStore->CreateNewSession());
-	
-	while (true)
+	auto KillSession = [&] (FSession& Session)
 	{
-		int32 ReadSize = DataStream.Read(Buffer, BufferSize);
-		if (ReadSize <= 0)
+		Session.Socket->Close();
+		Sockets.DestroySocket(Session.Socket);
+		delete Session.StoreSession;
+	};
+
+	static const uint32 BufferSize = 5 * 1024 * 1024;
+	uint8* Buffer = new uint8[BufferSize];
+
+	while (!bStopRequested)
+	{
+		bool bPending;
+		if (!ListenSocket->HasPendingConnection(bPending))
 		{
 			break;
 		}
 
-		File->Write(Buffer, ReadSize);
+		if (bPending)
+		{
+			FSocket* Socket = ListenSocket->Accept(TEXT("TraceRecClient"));
+
+			bool bAcceptable = false;
+			if (Socket->Wait(ESocketWaitConditions::WaitForRead, FTimespan(ETimespan::TicksPerSecond / 2)))
+			{
+				uint32 Magic;
+				int32 RecvSize;
+				if (Socket->Recv((uint8*)&Magic, sizeof(Magic), RecvSize))
+				{
+					bAcceptable = (RecvSize == sizeof(Magic)) & (Magic == 'TRCE');
+				}
+			}
+
+			if (bAcceptable)
+			{
+				IOutDataStream* StoreSession = Store->CreateNewSession();
+				FSession Session = { Socket, StoreSession, false };
+				Sessions.Add(Session);
+			}
+			else
+			{
+				Sockets.DestroySocket(Socket);
+			}
+		}
+
+		if (Sessions.Num() == 0)
+		{
+			FPlatformProcess::SleepNoStats(0.1f);
+			continue;
+		}
+
+		for (FSession& Session : Sessions)
+		{
+			uint32 PendingSize;
+			FSocket& Socket = *(Session.Socket);
+			if (!Socket.HasPendingData(PendingSize))
+			{
+				if (Socket.GetConnectionState() != SCS_Connected)
+				{
+					Session.bDead = true;
+				}
+				continue;
+			}
+
+			while (PendingSize)
+			{
+				int32 RecvSize = (PendingSize > BufferSize) ? BufferSize : PendingSize;
+				if (!Socket.Recv(Buffer, RecvSize, RecvSize))
+				{
+					Session.bDead = true;
+					break;
+				}
+
+				Session.StoreSession->Write(Buffer, RecvSize);
+				PendingSize -= RecvSize;
+			}
+		}
+
+		// Reap dead sessions
+		int SessionCount = Sessions.Num();
+		for (int i = 0; i < SessionCount; ++i)
+		{
+			FSession& Session = Sessions[i];
+			if (!Session.bDead)
+			{
+				continue;
+			}
+
+			KillSession(Session);
+
+			--SessionCount;
+			Sessions[i] = Sessions[SessionCount];
+		}
+		Sessions.SetNumUnsafeInternal(SessionCount);
 	}
 
-	FPlatformMemory::MemoryRangeFree(Buffer, BufferSize);
+	for (FSession& Session : Sessions)
+	{
+		KillSession(Session);
+	}
+
+	ListenSocket->Close();
+	Sockets.DestroySocket(ListenSocket);
+	ListenSocket = nullptr;
+
+	delete[] Buffer;
+	return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static void Recorder_SocketServer(TSharedRef<IStore> TraceStore)
+bool FRecorder::IsRunning() const
 {
-	WSADATA WsaData;
-	int Result = WSAStartup(MAKEWORD(2, 2), &WsaData);
-	check(Result == 0);
+	return (ListenSocket != nullptr);
+}
 
-	SOCKET ListenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	check(ListenSocket != INVALID_SOCKET);
-
-	sockaddr_in ServerDesc;
-	ServerDesc.sin_family = AF_INET;
-	ServerDesc.sin_addr.s_addr = {};
-	ServerDesc.sin_port = htons(1980);
-	Result = bind(ListenSocket, (SOCKADDR*)&ServerDesc, sizeof(ServerDesc));
-	check(Result != SOCKET_ERROR);
-
-	Result = listen(ListenSocket, 1);
-	check(Result != SOCKET_ERROR);
-
-	while (true)
+////////////////////////////////////////////////////////////////////////////////
+bool FRecorder::StartRecording()
+{
+	if (IsRunning())
 	{
-		sockaddr_in SockAddr = {};
-		int SockAddrSize = sizeof(SockAddr);
-		SOCKET Socket = accept(ListenSocket, (sockaddr*)&SockAddr, &SockAddrSize);
-		check(Socket != INVALID_SOCKET);
-
-		auto ClientLambda = [] (TSharedRef<IStore> TraceStore, SOCKET Socket)
-		{
-			uint32 Magic;
-			int Recvd = recv(Socket, (char*)&Magic, sizeof(Magic), 0);
-			if (Recvd == sizeof(Magic) && Magic == 'TRCE')
-			{
-				FSocketStream Stream(Socket);
-				Recorder_Record(TraceStore, Stream);
-			}
-
-			shutdown(Socket, SD_BOTH);
-			closesocket(Socket);
-		};
-
-		std::thread(ClientLambda, TraceStore, Socket);
+		return true;
 	}
 
-	closesocket(ListenSocket);
+	StopRecording();
+
+	ISocketSubsystem& Sockets = *(ISocketSubsystem::Get());
+
+	// Create a socket to use for listening for inbound connections
+	FSocket* Socket = Sockets.CreateSocket(NAME_Stream, TEXT("TraceRecListen"));
+	if (Socket == nullptr)
+	{
+		return false;
+	}
+
+	// Bind it to the trace-recording port
+	bool bBound = false;
+	TSharedPtr<FInternetAddr> Addr = Sockets.CreateInternetAddr();
+	Addr->SetPort(1980);
+	if (Socket->Bind(*Addr))
+	{
+		bBound = true;
+	}
+
+	// Set the socket listening for connections to accept
+	if (!bBound || !Socket->Listen(32))
+	{
+		Sockets.DestroySocket(Socket);
+		return false;
+	}
+
+	bStopRequested = false;
+	ListenSocket = Socket;
+	Thread = FRunnableThread::Create(this, TEXT("TraceRec"));
+	return true;
 }
 
-void Recorder_StartServer(TSharedRef<IStore> TraceStore)
+////////////////////////////////////////////////////////////////////////////////
+void FRecorder::StopRecording()
 {
-	std::thread(Recorder_SocketServer, TraceStore);
+	if (Thread == nullptr || bStopRequested)
+	{
+		return;
+	}
+
+	bStopRequested = true;
+	Thread->Kill(true);
+	delete Thread;
+	Thread = nullptr;
 }
 
-}
-
-#else
-
-namespace Trace
+////////////////////////////////////////////////////////////////////////////////
+uint32 FRecorder::GetSessionCount() const
 {
-
-void Recorder_StartServer(TSharedRef<IStore> TraceStore) {}
-
+	return Sessions.Num();
 }
 
-#endif
+
+
+////////////////////////////////////////////////////////////////////////////////
+TSharedPtr<IRecorder> Recorder_Create(TSharedRef<IStore> Store)
+{
+	return MakeShared<FRecorder>(Store);
+}
+
+} // namespace Trace

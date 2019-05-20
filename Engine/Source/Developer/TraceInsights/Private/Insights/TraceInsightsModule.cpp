@@ -127,6 +127,8 @@ void FTraceInsightsModule::StartupModule()
 
 void FTraceInsightsModule::ShutdownModule()
 {
+	TraceSessionService->StopRecorderServer();
+
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(StartPageTabName);
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TimingProfilerTabName);
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(IoProfilerTabName);

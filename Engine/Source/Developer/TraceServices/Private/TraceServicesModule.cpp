@@ -4,7 +4,6 @@
 #include "TraceServices/ITraceServicesModule.h"
 #include "SessionServicePrivate.h"
 #include "AnalysisServicePrivate.h"
-#include "Trace/Recorder.h"
 
 class FTraceServicesModule
 	: public ITraceServicesModule

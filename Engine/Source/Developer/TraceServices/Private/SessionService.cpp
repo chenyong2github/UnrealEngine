@@ -12,7 +12,7 @@ namespace Trace
 FSessionService::FSessionService(TSharedRef<IStore> InTraceStore)
 	: TraceStore(InTraceStore)
 {
-	
+	TraceRecorder = Recorder_Create(TraceStore);
 }
 
 FSessionService::~FSessionService()
@@ -20,9 +20,19 @@ FSessionService::~FSessionService()
 	
 }
 
-void FSessionService::StartRecorderServer()
+bool FSessionService::StartRecorderServer()
 {
-	Trace::Recorder_StartServer(TraceStore);
+	return TraceRecorder->StartRecording();
+}
+
+bool FSessionService::IsRecorderServerRunning() const
+{
+	return (TraceRecorder == nullptr) ? false : TraceRecorder->IsRunning();
+}
+
+void FSessionService::StopRecorderServer()
+{
+	TraceRecorder->StopRecording();
 }
 
 void FSessionService::GetAvailableSessions(TArray<Trace::FSessionHandle>& OutSessions)
