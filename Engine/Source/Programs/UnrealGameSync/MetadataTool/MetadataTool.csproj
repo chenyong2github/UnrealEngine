@@ -62,10 +62,10 @@
     <Compile Include="BuildHealth\InputData.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="BuildHealth\TrackedBuild.cs" />
-    <Compile Include="BuildHealth\TrackedIssueHistory.cs" />
-    <Compile Include="BuildHealth\TrackedIssue.cs" />
-    <Compile Include="BuildHealth\TrackedState.cs" />
+    <Compile Include="BuildHealth\BuildHealthIssue.cs" />
+    <Compile Include="BuildHealth\BuildHealthJobStep.cs" />
+    <Compile Include="BuildHealth\BuildHealthJobStepHistory.cs" />
+    <Compile Include="BuildHealth\BuildHealthState.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
