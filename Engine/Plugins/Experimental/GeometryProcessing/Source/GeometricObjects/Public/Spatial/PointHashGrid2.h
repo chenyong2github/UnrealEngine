@@ -162,14 +162,15 @@ public:
 	 */
 	TPair<PointDataType, double> FindNearestInRadius(
 		const FVector2d& QueryPoint, double Radius, 
-		TFunction<double(const PointDataType&)> DistanceFunc,
+		TFunction<double(const PointDataType&)> DistanceSqFunc,
 		TFunction<bool(const PointDataType&)> IgnoreFunc = [](const PointDataType& data) { return false; }) const
 	{
 		FVector2i min_idx = Indexer.ToGrid(QueryPoint - Radius * FVector2d::One());
 		FVector2i max_idx = Indexer.ToGrid(QueryPoint + Radius * FVector2d::One());
 
-		double min_dist = TNumericLimits<double>::Max();
+		double min_distsq = TNumericLimits<double>::Max();
 		PointDataType nearest = InvalidValue();
+		double RadiusSquared = Radius * Radius;
 
 		TArray<PointDataType> Values;
 		for (int yi = min_idx.Y; yi <= max_idx.Y; yi++) 
@@ -185,17 +186,17 @@ public:
 					{
 						continue;
 					}
-					double dist = DistanceFunc(Value);
-					if (dist < Radius && dist < min_dist)
+					double distsq = DistanceSqFunc(Value);
+					if (distsq < RadiusSquared && distsq < min_distsq)
 					{
 						nearest = Value;
-						min_dist = dist;
+						min_distsq = distsq;
 					}
 				}
 			}
 		}
 
-		return TPair<PointDataType, double>(nearest, min_dist);
+		return TPair<PointDataType, double>(nearest, min_distsq);
 	}
 };
 

@@ -21,7 +21,7 @@ struct TScaleGridIndexer2
 	/** Convert real-valued point to integer grid coordinates */
 	inline FVector2i ToGrid(const FVector2<RealType>& P) const
 	{
-		return FVector2i((int)P.X / CellSize, (int)P.Y / CellSize);
+		return FVector2i(int(P.X / CellSize), int(P.Y / CellSize));
 	}
 
 	/** Convert integer grid coordinates to real-valued point */
