@@ -2182,14 +2182,10 @@ UMaterialExpressionTextureSampleParameter::UMaterialExpressionTextureSampleParam
 #if WITH_EDITOR
 int32 UMaterialExpressionTextureSampleParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (Texture == NULL)
+	FString ErrorMessage;
+	if (!TextureIsValid(Texture, ErrorMessage))
 	{
-		return CompilerError(Compiler, GetRequirements());
-	}
-
-	if (!TextureIsValid(Texture))
-	{
-		return CompilerError(Compiler, GetRequirements());
+		return CompilerError(Compiler, *ErrorMessage);
 	}
 
 	if (!VerifySamplerType(Compiler, (Desc.Len() > 0 ? *Desc : TEXT("TextureSampleParameter")), Texture, SamplerType))
@@ -2260,16 +2256,11 @@ bool UMaterialExpressionTextureSampleParameter::SetParameterValue(FName InParame
 }
 #endif
 
-bool UMaterialExpressionTextureSampleParameter::TextureIsValid( UTexture* /*InTexture*/ )
+bool UMaterialExpressionTextureSampleParameter::TextureIsValid(UTexture* /*InTexture*/, FString& OutMessage)
 {
+	OutMessage = TEXT("Invalid texture type");
 	return false;
 }
-
-const TCHAR* UMaterialExpressionTextureSampleParameter::GetRequirements()
-{
-	return TEXT("Invalid texture type");
-}
-
 
 void UMaterialExpressionTextureSampleParameter::SetDefaultTexture()
 {
@@ -2336,14 +2327,6 @@ void UMaterialExpressionTextureObjectParameter::GetCaption(TArray<FString>& OutC
 	OutCaptions.Add(TEXT("Param Tex Object")); 
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
 }
-#endif // WITH_EDITOR
-
-const TCHAR* UMaterialExpressionTextureObjectParameter::GetRequirements()
-{
-	return TEXT("Requires valid texture");
-}
-
-#if WITH_EDITOR
 
 const TArray<FExpressionInput*> UMaterialExpressionTextureObjectParameter::GetInputs()
 {
@@ -2355,7 +2338,7 @@ int32 UMaterialExpressionTextureObjectParameter::Compile(class FMaterialCompiler
 {
 	if (!Texture)
 	{
-		return CompilerError(Compiler, GetRequirements());
+		return CompilerError(Compiler, TEXT("Requires valid texture"));
 	}
 
 	// It seems like this error should be checked here, but this can break existing materials, see https://jira.it.epicgames.net/browse/UE-68862
@@ -2371,7 +2354,7 @@ int32 UMaterialExpressionTextureObjectParameter::CompilePreview(class FMaterialC
 {
 	if (!Texture)
 	{
-		return CompilerError(Compiler, GetRequirements());
+		return CompilerError(Compiler, TEXT("Requires valid texture"));
 	}
 
 	// Preview the texture object by actually sampling it
@@ -2617,36 +2600,32 @@ void UMaterialExpressionTextureSampleParameter2D::GetCaption(TArray<FString>& Ou
 }
 #endif // WITH_EDITOR
 
-bool UMaterialExpressionTextureSampleParameter2D::TextureIsValid( UTexture* InTexture )
+bool UMaterialExpressionTextureSampleParameter2D::TextureIsValid(UTexture* InTexture, FString& OutMessage)
 {
-	bool Result=false;
-	if (InTexture)		
+	const bool bRequiresVirtualTexture = IsVirtualSamplerType(SamplerType);
+	if (!InTexture)
 	{
-		if (InTexture->IsA(UTexture2D::StaticClass()))
-		{
-			Result = true;
-		}
-		if( InTexture->IsA(UTextureRenderTarget2D::StaticClass()) )	
-		{
-			Result = true;
-		}
-		if ( InTexture->IsA(UTexture2DDynamic::StaticClass()) )
-		{
-			Result = true;
-		}
-		if ( InTexture->GetMaterialType() == MCT_TextureExternal )
-		{
-			Result = true;
-		}
+		OutMessage = TEXT("Found NULL, requires Texture2D");
+		return false;
 	}
-	return Result;
-}
+	else if (!(InTexture->GetMaterialType() & (MCT_Texture2D | MCT_TextureExternal | MCT_TextureVirtual)))
+	{
+		OutMessage = FString::Printf(TEXT("Found %s, requires Texture2D"), *InTexture->GetClass()->GetName());
+		return false;
+	}
+	else if (bRequiresVirtualTexture && !InTexture->VirtualTextureStreaming)
+	{
+		OutMessage = TEXT("Sampler requires VirtualTexture");
+		return false;
+	}
+	else if (!bRequiresVirtualTexture && InTexture->VirtualTextureStreaming)
+	{
+		OutMessage = TEXT("Sampler requires non-VirtualTexture");
+		return false;
+	}
 
-const TCHAR* UMaterialExpressionTextureSampleParameter2D::GetRequirements()
-{
-	return TEXT("Requires Texture2D");
+	return true;
 }
-
 
 void UMaterialExpressionTextureSampleParameter2D::SetDefaultTexture()
 {
@@ -2725,24 +2704,20 @@ void UMaterialExpressionTextureSampleParameterCube::GetCaption(TArray<FString>& 
 }
 #endif // WITH_EDITOR
 
-bool UMaterialExpressionTextureSampleParameterCube::TextureIsValid( UTexture* InTexture )
+bool UMaterialExpressionTextureSampleParameterCube::TextureIsValid(UTexture* InTexture, FString& OutMessage)
 {
-	bool Result=false;
-	if (InTexture)
+	if (!InTexture)
 	{
-		if( InTexture->GetClass() == UTextureCube::StaticClass() ) {
-			Result = true;
-		}
-		if( InTexture->IsA(UTextureRenderTargetCube::StaticClass()) ) {
-			Result = true;
-		}
+		OutMessage = TEXT("Found NULL, requires TextureCube");
+		return false;
 	}
-	return Result;
-}
+	else if (!(InTexture->GetMaterialType() & MCT_TextureCube))
+	{
+		OutMessage = FString::Printf(TEXT("Found %s, requires TextureCube"), *InTexture->GetClass()->GetName());
+		return false;
+	}
 
-const TCHAR* UMaterialExpressionTextureSampleParameterCube::GetRequirements()
-{
-	return TEXT("Requires TextureCube");
+	return true;
 }
 
 void UMaterialExpressionTextureSampleParameterCube::SetDefaultTexture()
@@ -2798,22 +2773,20 @@ void UMaterialExpressionTextureSampleParameterVolume::GetCaption(TArray<FString>
 }
 #endif // WITH_EDITOR
 
-bool UMaterialExpressionTextureSampleParameterVolume::TextureIsValid( UTexture* InTexture )
+bool UMaterialExpressionTextureSampleParameterVolume::TextureIsValid(UTexture* InTexture, FString& OutMessage)
 {
-	bool Result=false;
-	if (InTexture)
+	if (!InTexture)
 	{
-		if( InTexture->GetClass() == UVolumeTexture::StaticClass() )
-		{
-			Result = true;
-		}
+		OutMessage = TEXT("Found NULL, requires VolumeTexture");
+		return false;
 	}
-	return Result;
-}
+	else if (!(InTexture->GetMaterialType() & MCT_VolumeTexture))
+	{
+		OutMessage = FString::Printf(TEXT("Found %s, requires VolumeTexture"), *InTexture->GetClass()->GetName());
+		return false;
+	}
 
-const TCHAR* UMaterialExpressionTextureSampleParameterVolume::GetRequirements()
-{
-	return TEXT("Requires VolumeTexture");
+	return true;
 }
 
 void UMaterialExpressionTextureSampleParameterVolume::SetDefaultTexture()
@@ -2857,14 +2830,10 @@ UMaterialExpressionTextureSampleParameterSubUV::UMaterialExpressionTextureSample
 #if WITH_EDITOR
 int32 UMaterialExpressionTextureSampleParameterSubUV::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (Texture == NULL)
+	FString ErrorMessage;
+	if (!TextureIsValid(Texture, ErrorMessage))
 	{
-		return CompilerError(Compiler, GetRequirements());
-	}
-
-	if (!TextureIsValid(Texture))
-	{
-		return CompilerError(Compiler, GetRequirements());
+		return CompilerError(Compiler, *ErrorMessage);
 	}
 
 	if (!VerifySamplerType(Compiler, (Desc.Len() > 0 ? *Desc : TEXT("TextureSampleParameterSubUV")), Texture, SamplerType))
@@ -2882,14 +2851,9 @@ void UMaterialExpressionTextureSampleParameterSubUV::GetCaption(TArray<FString>&
 }
 #endif // WITH_EDITOR
 
-bool UMaterialExpressionTextureSampleParameterSubUV::TextureIsValid( UTexture* InTexture )
+bool UMaterialExpressionTextureSampleParameterSubUV::TextureIsValid(UTexture* InTexture, FString& OutMessage)
 {
-	return UMaterialExpressionTextureSampleParameter2D::TextureIsValid(InTexture);
-}
-
-const TCHAR* UMaterialExpressionTextureSampleParameterSubUV::GetRequirements()
-{
-	return UMaterialExpressionTextureSampleParameter2D::GetRequirements();
+	return UMaterialExpressionTextureSampleParameter2D::TextureIsValid(InTexture, OutMessage);
 }
 
 #if WITH_EDITOR
@@ -14224,9 +14188,10 @@ int32 UMaterialExpressionAntialiasedTextureMask::Compile(class FMaterialCompiler
 
 	int32 ArgCoord = Coordinates.Expression ? Coordinates.Compile(Compiler) : Compiler->TextureCoordinate(ConstCoordinate, false, false);
 
-	if (!TextureIsValid(Texture))
+	FString ErrorMessage;
+	if (!TextureIsValid(Texture, ErrorMessage))
 	{
-		return CompilerError(Compiler, GetRequirements());
+		return CompilerError(Compiler, *ErrorMessage);
 	}
 
 	int32 TextureCodeIndex;
@@ -14255,26 +14220,21 @@ void UMaterialExpressionAntialiasedTextureMask::GetCaption(TArray<FString>& OutC
 }
 #endif // WITH_EDITOR
 
-bool UMaterialExpressionAntialiasedTextureMask::TextureIsValid( UTexture* InTexture )
+bool UMaterialExpressionAntialiasedTextureMask::TextureIsValid(UTexture* InTexture, FString& OutMessage)
 {
-	bool Result=false;
-	if (InTexture)		
+	if (!InTexture)
 	{
-		if( InTexture->GetClass() == UTexture2D::StaticClass() ) 
-		{
-			Result = true;
-		}
-		if( InTexture->IsA(UTextureRenderTarget2D::StaticClass()) )	
-		{
-			Result = true;
-		}
+		OutMessage = TEXT("Found NULL, requires Texture2D");
+		return false;
 	}
-	return Result;
-}
-
-const TCHAR* UMaterialExpressionAntialiasedTextureMask::GetRequirements()
-{
-	return TEXT("Requires Texture2D");
+	// Doesn't allow virtual/external textures here
+	else if (!(InTexture->GetMaterialType() & MCT_Texture2D))
+	{
+		OutMessage = FString::Printf(TEXT("Found %s, requires Texture2D"), *InTexture->GetClass()->GetName());
+		return false;
+	}
+	
+	return true;
 }
 
 void UMaterialExpressionAntialiasedTextureMask::SetDefaultTexture()

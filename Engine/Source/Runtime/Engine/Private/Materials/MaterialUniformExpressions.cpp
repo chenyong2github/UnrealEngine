@@ -586,11 +586,15 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			BufferCursor = ((uint8*)BufferCursor) + (SHADER_PARAMETER_POINTER_ALIGNMENT * 2);
 			check(BufferCursor <= TempBuffer + TempBufferSize);
 
+			// ExternalTexture is allowed here, with warning above
+			// VirtualTexture is allowed here, as these may be demoted to regular textures on platforms that don't have VT support
+			const uint32 ValidTextureTypes = MCT_Texture2D | MCT_TextureVirtual | MCT_TextureExternal;
+
 			// TextureReference.TextureReferenceRHI is cleared from a render command issued by UTexture::BeginDestroy
 			// It's possible for this command to trigger before a given material is cleaned up and removed from deferred update list
-			// Technically I don't think it's necesary to check 'Resource' for nullptr here, as if TextureReferenceRHI has been initialized, that should be enough
+			// Technically I don't think it's necessary to check 'Resource' for nullptr here, as if TextureReferenceRHI has been initialized, that should be enough
 			// Going to leave the check for now though, to hopefully avoid any unexpected problems
-			if (Value && Value->Resource && Value->TextureReference.TextureReferenceRHI)
+			if (Value && Value->Resource && Value->TextureReference.TextureReferenceRHI && (Value->GetMaterialType() & ValidTextureTypes) != 0u)
 			{
 				//@todo-rco: Help track down a invalid values
 				checkf(Value->IsA(UTexture::StaticClass()), TEXT("Expecting a UTexture! Value='%s' class='%s'"), *Value->GetName(), *Value->GetClass()->GetName());
@@ -633,7 +637,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			BufferCursor = ((uint8*)BufferCursor) + (SHADER_PARAMETER_POINTER_ALIGNMENT * 2);
 			check(BufferCursor <= TempBuffer + TempBufferSize);
 
-			if(Value && Value->Resource)
+			if(Value && Value->Resource && (Value->GetMaterialType() & MCT_TextureCube) != 0u)
 			{
 				check(Value->TextureReference.TextureReferenceRHI);
 				*ResourceTableTexturePtr = Value->TextureReference.TextureReferenceRHI;
@@ -672,7 +676,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			BufferCursor = ((uint8*)BufferCursor) + (SHADER_PARAMETER_POINTER_ALIGNMENT * 2);
 			check(BufferCursor <= TempBuffer + TempBufferSize);
 
-			if(Value && Value->Resource)
+			if(Value && Value->Resource && (Value->GetMaterialType() & MCT_VolumeTexture) != 0u)
 			{
 				check(Value->TextureReference.TextureReferenceRHI);
 				*ResourceTableTexturePtr = Value->TextureReference.TextureReferenceRHI;

@@ -33,8 +33,7 @@ class UMaterialExpressionAntialiasedTextureMask : public UMaterialExpressionText
 
 
 	//~ Begin UMaterialExpressionTextureSampleParameter Interface
-	virtual bool TextureIsValid( UTexture* InTexture ) override;
-	virtual const TCHAR* GetRequirements() override;
+	virtual bool TextureIsValid(UTexture* InTexture, FString& OutMessage) override;
 	virtual void SetDefaultTexture() override;
 	//~ End UMaterialExpressionTextureSampleParameter Interface
 
