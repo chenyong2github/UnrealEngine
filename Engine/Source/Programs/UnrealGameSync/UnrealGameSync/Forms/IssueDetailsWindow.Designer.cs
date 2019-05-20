@@ -42,7 +42,7 @@ namespace UnrealGameSync
             this.tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.OutputTabPage = new System.Windows.Forms.TabPage();
-            this.DetailsTextBox = new System.Windows.Forms.TextBox();
+            this.DetailsTextBox = new System.Windows.Forms.RichTextBox();
             this.ChangesTabPage = new System.Windows.Forms.TabPage();
             this.tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
             this.tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
@@ -366,7 +366,7 @@ namespace UnrealGameSync
             this.DetailsTextBox.Multiline = true;
             this.DetailsTextBox.Name = "DetailsTextBox";
             this.DetailsTextBox.ReadOnly = true;
-            this.DetailsTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both;
+            this.DetailsTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Both;
             this.DetailsTextBox.Size = new System.Drawing.Size(1052, 322);
             this.DetailsTextBox.TabIndex = 0;
             this.DetailsTextBox.Text = "This is an error";
@@ -622,7 +622,7 @@ namespace UnrealGameSync
 		private System.Windows.Forms.ToolStripMenuItem JobContextMenu_ViewJob;
 		private System.Windows.Forms.TabControl tabControl1;
 		private System.Windows.Forms.TabPage OutputTabPage;
-		private System.Windows.Forms.TextBox DetailsTextBox;
+		private System.Windows.Forms.RichTextBox DetailsTextBox;
 		private System.Windows.Forms.TabPage ChangesTabPage;
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel3;
