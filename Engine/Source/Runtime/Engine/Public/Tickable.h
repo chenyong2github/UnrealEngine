@@ -135,10 +135,24 @@ private:
 		return TickableObjects;
 	}
 
-	static TArray<FTickableGameObject*>& GetPendingTickableObjects()
+	static FCriticalSection& GetTickableObjectsCritical()
 	{
-		static TArray<FTickableGameObject*> PendingTickableObjects;
-		return PendingTickableObjects;
+		static FCriticalSection TickableObjectsCritical;
+		return TickableObjectsCritical;
+	}
+
+	/** List of newly created objects */
+	static TLockFreePointerListUnordered<FTickableGameObject, PLATFORM_CACHE_LINE_SIZE>& GetNewTickableObjects()
+	{
+		static TLockFreePointerListUnordered<FTickableGameObject, PLATFORM_CACHE_LINE_SIZE> NewTickableObjects;
+		return NewTickableObjects;
+	}
+
+	/** Deleted list is for cases when an object gets deleted before it was added to the tickable objects array from the NewTickableObjects list */
+	static TSet<FTickableGameObject*>& GetDeletedTickableObjects()
+	{
+		static TSet<FTickableGameObject*> DeletedTickableObjects;
+		return DeletedTickableObjects;
 	}
 
 	static bool bIsTickingObjects;
@@ -150,22 +164,17 @@ public:
 	 */
 	FTickableGameObject()
 	{
-		ensure(IsInGameThread() || IsInAsyncLoadingThread());
-		check(!GetPendingTickableObjects().Contains(this));
-		check(!GetTickableObjects().Contains(this));
-		GetPendingTickableObjects().Add(this);
+		GetNewTickableObjects().Push(this);
 	}
 
 	/**
 	 * Removes this instance from the static array of tickable objects.
 	 */
 	virtual ~FTickableGameObject()
-	{
-		ensure(IsInGameThread() || IsInAsyncLoadingThread());
-		if (GetPendingTickableObjects().Remove(this) == 0)
-		{
-			RemoveTickableObject(GetTickableObjects(), this, bIsTickingObjects);
-		}
+	{		
+		FScopeLock LockTickableObjects(&GetTickableObjectsCritical());
+		GetDeletedTickableObjects().Add(this);
+		RemoveTickableObject(GetTickableObjects(), this, bIsTickingObjects);
 	}
 
 	/**

@@ -1324,14 +1324,25 @@ void FTickableGameObject::TickObjects(UWorld* World, const int32 InTickType, con
 	SCOPE_CYCLE_COUNTER(STAT_TickableGameObjectsTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Tickables);
 
-	TArray<FTickableGameObject*>& PendingTickableObjects = GetPendingTickableObjects();
-	TArray<FTickableObjectEntry>& TickableObjects = GetTickableObjects();
+	check(IsInGameThread());
 
-	for (FTickableGameObject* PendingTickable : PendingTickableObjects)
+	TLockFreePointerListUnordered<FTickableGameObject, PLATFORM_CACHE_LINE_SIZE>& NewTickableObjects = GetNewTickableObjects();	
+
+	// It's a long lock but it's ok, the only thing we can block here is the GC worker thread that destroys UObjects
+	FScopeLock LockTickableObjects(&GetTickableObjectsCritical());
+
+	TArray<FTickableObjectEntry>& TickableObjects = GetTickableObjects();
+	TSet<FTickableGameObject*>& DeletedTickableObjects = GetDeletedTickableObjects();
+
+	while (FTickableGameObject* NewTickableObject = NewTickableObjects.Pop())
 	{
-		AddTickableObject(TickableObjects, PendingTickable);
+		// If the new tickable object has already been deleted, don't add it to the tickable objects list
+		if (!DeletedTickableObjects.Contains(NewTickableObject))
+		{
+			AddTickableObject(TickableObjects, NewTickableObject);
+		}
 	}
-	PendingTickableObjects.Empty();
+	DeletedTickableObjects.Empty();
 
 	if (TickableObjects.Num() > 0)
 	{
