@@ -8,15 +8,17 @@
 namespace Trace
 {
 class FAnalysisSessionLock;
+class FStringStore;
 
 class FThreadProvider
 	: public IThreadProvider
 {
 public:
-	FThreadProvider(const FAnalysisSessionLock& SessionLock);
+	FThreadProvider(const FAnalysisSessionLock& SessionLock, FStringStore& StringStore);
+	~FThreadProvider();
 	void EnsureThreadExists(uint32 Id);
 	void AddGameThread(uint32 Id);
-	void AddThread(uint32 Id, const FString& Name, EThreadPriority Priority);
+	void AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Priority);
 	void SetThreadPriority(uint32 Id, EThreadPriority Priority);
 	void SetThreadGroup(uint32 Id, ETraceThreadGroup Group);
 	virtual uint64 GetModCount() const override { return ModCount; }
@@ -26,7 +28,7 @@ private:
 	struct FThreadInfoInternal
 	{
 		uint32 Id = 0;
-		FString Name;
+		const TCHAR* Name = nullptr;
 		uint32 GroupSortOrder = ~0u;
 		uint32 PrioritySortOrder = ~0u;
 		uint32 FallbackSortOrder = ~0u;
@@ -41,9 +43,10 @@ private:
 	static uint32 GetGroupSortOrder(ETraceThreadGroup ThreadGroup);
 
 	const FAnalysisSessionLock& SessionLock;
+	FStringStore& StringStore;
 	uint64 ModCount = 0;
-	TMap<uint32, TSharedRef<FThreadInfoInternal>> ThreadMap;
-	TArray<TSharedRef<FThreadInfoInternal>> SortedThreads;
+	TMap<uint32, FThreadInfoInternal*> ThreadMap;
+	TArray<FThreadInfoInternal*> SortedThreads;
 };
 
 }

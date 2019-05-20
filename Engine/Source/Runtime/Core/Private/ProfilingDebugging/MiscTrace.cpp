@@ -21,12 +21,10 @@ UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Misc, SetThreadGroup)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
-	UE_TRACE_EVENT_FIELD(uint16, GroupNameLength)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Misc, BeginThreadGroupScope)
 	UE_TRACE_EVENT_FIELD(uint32, CurrentThreadId)
-	UE_TRACE_EVENT_FIELD(uint16, GroupNameLength)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Misc, EndThreadGroupScope)
@@ -61,21 +59,12 @@ void FMiscTrace::OutputRegisterGameThread(uint32 Id)
 
 void FMiscTrace::OutputCreateThread(uint32 Id, const TCHAR* Name, uint32 Priority)
 {
-	uint16 NameLength = FCString::Strlen(Name);
-	auto NameCopy = [NameLength, Name](uint8* Out) {
-		int32 i = 0;
-		for (; i < NameLength; ++i)
-		{
-			Out[i] = Name[i] & 0x7f;
-		}
-		Out[i] = 0;
-	};
-	UE_TRACE_LOG(Misc, CreateThread, NameLength + 1)
+	uint16 NameSize = (FCString::Strlen(Name) + 1) * sizeof(TCHAR);
+	UE_TRACE_LOG(Misc, CreateThread, NameSize)
 		<< CreateThread.CurrentThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< CreateThread.CreatedThreadId(Id)
 		<< CreateThread.Priority(Priority)
-		<< CreateThread.NameSize(NameLength)
-		<< CreateThread.Attachment(NameCopy);
+		<< CreateThread.Attachment(Name, NameSize);
 }
 
 static const char* GetThreadGroupName(ETraceThreadGroup Group)
@@ -108,36 +97,19 @@ static const char* GetThreadGroupName(ETraceThreadGroup Group)
 void FMiscTrace::OutputSetThreadGroup(uint32 Id, ETraceThreadGroup Group)
 {
 	const char* GroupName = GetThreadGroupName(Group);
-	uint16 NameLength = strlen(GroupName);
-	auto NameCopy = [NameLength, GroupName](uint8* Out) {
-		int32 i = 0;
-		for (; i < NameLength; ++i)
-		{
-			Out[i] = GroupName[i];
-		}
-		Out[i] = 0;
-	};
-	UE_TRACE_LOG(Misc, SetThreadGroup, NameLength + 1)
+	uint16 NameSize = strlen(GroupName) + 1;
+	UE_TRACE_LOG(Misc, SetThreadGroup, NameSize)
 		<< SetThreadGroup.ThreadId(Id)
-		<< SetThreadGroup.GroupNameLength(NameLength)
-		<< SetThreadGroup.Attachment(NameCopy);
+		<< SetThreadGroup.Attachment(GroupName, NameSize);
 }
 
 void FMiscTrace::OutputBeginThreadGroupScope(ETraceThreadGroup Group)
 {
 	const char* GroupName = GetThreadGroupName(Group);
-	uint16 NameLength = strlen(GroupName);
-	auto NameCopy = [NameLength, GroupName](uint8* Out) {
-		int32 i = 0;
-		for (; i < NameLength; ++i)
-		{
-			Out[i] = GroupName[i];
-		}
-		Out[i] = 0;
-	};
-	UE_TRACE_LOG(Misc, BeginThreadGroupScope, NameLength + 1)
+	uint16 NameSize = strlen(GroupName) + 1;
+	UE_TRACE_LOG(Misc, BeginThreadGroupScope, NameSize)
 		<< BeginThreadGroupScope.CurrentThreadId(FPlatformTLS::GetCurrentThreadId())
-		<< BeginThreadGroupScope.Attachment(NameCopy);
+		<< BeginThreadGroupScope.Attachment(GroupName, NameSize);
 }
 
 void FMiscTrace::OutputEndThreadGroupScope()

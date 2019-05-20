@@ -3,6 +3,7 @@
 #pragma once
 
 #include "HAL/UnrealMemory.h"
+#include "Containers/Array.h"
 
 class FSlabAllocator
 {

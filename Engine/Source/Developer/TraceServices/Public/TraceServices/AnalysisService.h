@@ -88,7 +88,7 @@ public:
 
 struct FTimingProfilerTimer
 {
-	FString Name;
+	const TCHAR* Name;
 	uint32 Id;
 	uint32 NameHash;
 	bool IsGpuTimer;

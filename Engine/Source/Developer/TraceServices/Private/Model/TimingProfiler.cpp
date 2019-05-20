@@ -2,13 +2,15 @@
 
 #include "Model/TimingProfiler.h"
 #include "AnalysisServicePrivate.h"
+#include "Common/StringStore.h"
 
 namespace Trace
 {
 
-FTimingProfilerProvider::FTimingProfilerProvider(FSlabAllocator& InAllocator, FAnalysisSessionLock& InSessionLock)
+FTimingProfilerProvider::FTimingProfilerProvider(FSlabAllocator& InAllocator, FAnalysisSessionLock& InSessionLock, FStringStore& InStringStore)
 	: Allocator(InAllocator)
 	, SessionLock(InSessionLock)
+	, StringStore(InStringStore)
 {
 	Timelines.Add(MakeShared<TimelineInternal>(Allocator));
 }
@@ -37,7 +39,7 @@ FTimingProfilerTimer& FTimingProfilerProvider::AddTimerInternal(const TCHAR* Nam
 {
 	FTimingProfilerTimer& Timer = Timers.AddDefaulted_GetRef();
 	Timer.Id = Timers.Num() - 1;
-	Timer.Name = Name;
+	Timer.Name = StringStore.Store(Name);
 	uint32 NameHash = 0;
 	for (const TCHAR* c = Name; *c; ++c)
 	{

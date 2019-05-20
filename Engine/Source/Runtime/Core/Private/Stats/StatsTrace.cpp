@@ -27,7 +27,7 @@ public:
 	enum
 	{
 		MaxBufferSize = 512,
-		MaxEncodedEventSize = 21, // 3 + 9 + 9
+		MaxEncodedEventSize = 27, // 9 + 9 + 9
 		FullBufferThreshold = MaxBufferSize - MaxEncodedEventSize,
 	};
 
@@ -49,32 +49,25 @@ public:
 		uint8 Buffer[MaxBufferSize];
 	};
 
+	static FThreadState* GetThreadState() { return ThreadLocalThreadState; }
 	FORCENOINLINE static FThreadState* InitThreadState();
 	FORCENOINLINE static void FlushThreadBuffer(FThreadState* ThreadState);
 	static void BeginEncodeOp(const FName& Stat, EOpType Op, FStatsTraceInternal::FThreadState*& OutThreadState, uint8*& OutBufferPtr);
 	static void EndEncodeOp(FStatsTraceInternal::FThreadState* ThreadState, uint8* BufferPtr);
 
-	static uint32 TlsSlot;
-
 private:
-	FStatsTraceInternal();
+	static thread_local FThreadState* ThreadLocalThreadState;
 };
 
-uint32 FStatsTraceInternal::TlsSlot;
-
-FStatsTraceInternal::FStatsTraceInternal()
-{
-	TlsSlot = FPlatformTLS::AllocTlsSlot();
-}
+thread_local FStatsTraceInternal::FThreadState* FStatsTraceInternal::ThreadLocalThreadState = nullptr;
 
 FStatsTraceInternal::FThreadState* FStatsTraceInternal::InitThreadState()
 {
-	FThreadState* ThreadState = new FThreadState();
-	ThreadState->BufferSize = 0;
-	ThreadState->ThreadId = FPlatformTLS::GetCurrentThreadId();
-	ThreadState->LastCycle = 0;
-	FPlatformTLS::SetTlsValue(TlsSlot, ThreadState);
-	return ThreadState;
+	ThreadLocalThreadState = new FThreadState();
+	ThreadLocalThreadState->BufferSize = 0;
+	ThreadLocalThreadState->ThreadId = FPlatformTLS::GetCurrentThreadId();
+	ThreadLocalThreadState->LastCycle = 0;
+	return ThreadLocalThreadState;
 }
 
 void FStatsTraceInternal::FlushThreadBuffer(FThreadState* ThreadState)
@@ -88,7 +81,7 @@ void FStatsTraceInternal::FlushThreadBuffer(FThreadState* ThreadState)
 void FStatsTraceInternal::BeginEncodeOp(const FName& Stat, EOpType Op, FThreadState*& OutThreadState, uint8*& OutBufferPtr)
 {
 	uint64 Cycle = FPlatformTime::Cycles64();
-	OutThreadState = (FThreadState*)FPlatformTLS::GetTlsValue(TlsSlot);
+	OutThreadState = GetThreadState();
 	if (!OutThreadState)
 	{
 		OutThreadState = InitThreadState();

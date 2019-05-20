@@ -3,14 +3,24 @@
 #include "Model/Threads.h"
 #include "Misc/ScopeLock.h"
 #include "AnalysisServicePrivate.h"
+#include "Common/StringStore.h"
 
 namespace Trace
 {
 
-FThreadProvider::FThreadProvider(const FAnalysisSessionLock& InSessionLock)
+FThreadProvider::FThreadProvider(const FAnalysisSessionLock& InSessionLock, FStringStore& InStringStore)
 	: SessionLock(InSessionLock)
+	, StringStore(InStringStore)
 {
 
+}
+
+FThreadProvider::~FThreadProvider()
+{
+	for (FThreadInfoInternal* Thread : SortedThreads)
+	{
+		delete Thread;
+	}
 }
 
 void FThreadProvider::EnsureThreadExists(uint32 Id)
@@ -19,7 +29,7 @@ void FThreadProvider::EnsureThreadExists(uint32 Id)
 
 	if (!ThreadMap.Contains(Id))
 	{
-		TSharedRef<FThreadInfoInternal> ThreadInfo = MakeShared<FThreadInfoInternal>();
+		FThreadInfoInternal* ThreadInfo = new FThreadInfoInternal();
 		ThreadInfo->Id = Id;
 		ThreadInfo->FallbackSortOrder = SortedThreads.Num();
 		SortedThreads.Add(ThreadInfo);
@@ -34,10 +44,10 @@ void FThreadProvider::AddGameThread(uint32 Id)
 	SessionLock.WriteAccessCheck();
 
 	check(!ThreadMap.Contains(Id));
-	TSharedRef<FThreadInfoInternal> ThreadInfo = MakeShared<FThreadInfoInternal>();
+	FThreadInfoInternal* ThreadInfo = new FThreadInfoInternal();
 	ThreadInfo->Id = Id;
 	ThreadInfo->PrioritySortOrder = GetPrioritySortOrder(TPri_Normal);
-	ThreadInfo->Name = *FName(NAME_GameThread).GetPlainNameString();
+	ThreadInfo->Name = StringStore.Store(*FName(NAME_GameThread).GetPlainNameString());
 	ThreadInfo->FallbackSortOrder = SortedThreads.Num();
 	ThreadInfo->IsGameThread = true;
 	SortedThreads.Add(ThreadInfo);
@@ -45,25 +55,25 @@ void FThreadProvider::AddGameThread(uint32 Id)
 	++ModCount;
 }
 
-void FThreadProvider::AddThread(uint32 Id, const FString& Name, EThreadPriority Priority)
+void FThreadProvider::AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Priority)
 {
 	SessionLock.WriteAccessCheck();
 
-	TSharedPtr<FThreadInfoInternal> ThreadInfo;
+	FThreadInfoInternal* ThreadInfo;
 	if (!ThreadMap.Contains(Id))
 	{
-		ThreadInfo = MakeShared<FThreadInfoInternal>();
+		ThreadInfo = new FThreadInfoInternal();
 		ThreadInfo->Id = Id;
 		ThreadInfo->FallbackSortOrder = SortedThreads.Num();
-		SortedThreads.Add(ThreadInfo.ToSharedRef());
-		ThreadMap.Add(Id, ThreadInfo.ToSharedRef());
+		SortedThreads.Add(ThreadInfo);
+		ThreadMap.Add(Id, ThreadInfo);
 	}
 	else
 	{
 		ThreadInfo = ThreadMap[Id];
 	}
 	ThreadInfo->PrioritySortOrder = GetPrioritySortOrder(Priority);
-	ThreadInfo->Name = Name;
+	ThreadInfo->Name = StringStore.Store(Name);
 	SortThreads();
 	++ModCount;
 }
@@ -73,7 +83,7 @@ void FThreadProvider::SetThreadPriority(uint32 Id, EThreadPriority Priority)
 	SessionLock.WriteAccessCheck();
 
 	check(ThreadMap.Contains(Id));
-	TSharedRef<FThreadInfoInternal> ThreadInfo = ThreadMap[Id];
+	FThreadInfoInternal* ThreadInfo = ThreadMap[Id];
 	ThreadInfo->PrioritySortOrder = GetPrioritySortOrder(Priority);
 	SortThreads();
 	++ModCount;
@@ -84,7 +94,7 @@ void FThreadProvider::SetThreadGroup(uint32 Id, ETraceThreadGroup Group)
 	SessionLock.WriteAccessCheck();
 
 	check(ThreadMap.Contains(Id));
-	TSharedRef<FThreadInfoInternal> ThreadInfo = ThreadMap[Id];
+	FThreadInfoInternal* ThreadInfo = ThreadMap[Id];
 	ThreadInfo->GroupSortOrder = GetGroupSortOrder(Group);
 	switch (Group)
 	{
@@ -121,11 +131,11 @@ void FThreadProvider::EnumerateThreads(TFunctionRef<void(const FThreadInfo &)> C
 {
 	SessionLock.ReadAccessCheck();
 
-	for (const TSharedRef<FThreadInfoInternal>& Thread : SortedThreads)
+	for (const FThreadInfoInternal* Thread : SortedThreads)
 	{
 		FThreadInfo ThreadInfo;
 		ThreadInfo.Id = Thread->Id;
-		ThreadInfo.Name = *Thread->Name;
+		ThreadInfo.Name = Thread->Name;
 		ThreadInfo.GroupName = Thread->GroupName;
 		Callback(ThreadInfo);
 	}
@@ -133,9 +143,9 @@ void FThreadProvider::EnumerateThreads(TFunctionRef<void(const FThreadInfo &)> C
 
 void FThreadProvider::SortThreads()
 {
-	Algo::SortBy(SortedThreads, [](const TSharedRef<FThreadInfoInternal>& In) -> const FThreadInfoInternal&
+	Algo::SortBy(SortedThreads, [](const FThreadInfoInternal* In) -> const FThreadInfoInternal&
 	{
-		return In.Get();
+		return *In;
 	});
 }
 

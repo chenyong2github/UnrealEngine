@@ -34,18 +34,15 @@ private:
 	{
 		TArray<EventScopeState> ScopeStack;
 		TSharedPtr<Trace::FTimingProfilerProvider::TimelineInternal> Timeline;
+		double LastCycle = 0.0;
 	};
 
 	TSharedRef<FThreadState> GetThreadState(uint32 ThreadId);
-	uint16 DecodeSpecId(const uint8*& BufferPtr);
 
 	enum : uint16
 	{
 		RouteId_EventSpec,
-		RouteId_DynamicEventName,
 		RouteId_EventBatch,
-		RouteId_BeginGameFrame,
-		RouteId_BeginRenderingFrame
 	};
 
 	TSharedRef<Trace::FAnalysisSession> Session;
@@ -53,5 +50,4 @@ private:
 	TSharedRef<Trace::FTimingProfilerProvider> TimingProfilerProvider;
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStatesMap;
 	TMap<uint16, uint32> ScopeIdToEventIdMap;
-	TMap<uint16, uint32> DynamicNameToEventIdMap;
 };

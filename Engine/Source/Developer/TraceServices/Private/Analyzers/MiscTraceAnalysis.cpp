@@ -94,9 +94,8 @@ void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	case RouteId_CreateThread:
 	{
 		uint32 CreatedThreadId = EventData.GetValue("CreatedThreadId").As<uint32>();
-		FString Name = FString((const char*)EventData.GetAttachment(), EventData.GetValue("NameSize").As<uint16>());
 		EThreadPriority Priority = static_cast<EThreadPriority>(EventData.GetValue("Priority").As<uint32>());
-		ThreadProvider->AddThread(CreatedThreadId, Name, Priority);
+		ThreadProvider->AddThread(CreatedThreadId, reinterpret_cast<const TCHAR*>(EventData.GetAttachment()), Priority);
 		uint32 CurrentThreadId = EventData.GetValue("CurrentThreadId").As<uint32>();
 		FThreadState* ThreadState = GetThreadState(CurrentThreadId);
 		if (ThreadState->ThreadGroupStack.Num())
@@ -107,7 +106,7 @@ void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	}
 	case RouteId_SetThreadGroup:
 	{
-		const char* GroupName = (const char*)EventData.GetAttachment();
+		const char* GroupName = reinterpret_cast<const char*>(EventData.GetAttachment());
 		ETraceThreadGroup ThreadGroup = GetThreadGroupFromName(GroupName);
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
 		ThreadProvider->SetThreadGroup(ThreadId, ThreadGroup);
@@ -115,7 +114,7 @@ void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	}
 	case RouteId_BeginThreadGroupScope:
 	{
-		const char* GroupName = (const char*)EventData.GetAttachment();
+		const char* GroupName = reinterpret_cast<const char*>(EventData.GetAttachment());
 		ETraceThreadGroup ThreadGroup = GetThreadGroupFromName(GroupName);
 		uint32 CurrentThreadId = EventData.GetValue("CurrentThreadId").As<uint32>();
 		FThreadState* ThreadState = GetThreadState(CurrentThreadId);

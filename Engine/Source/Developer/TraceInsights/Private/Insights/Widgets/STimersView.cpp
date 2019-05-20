@@ -1480,7 +1480,7 @@ void STimersView::RebuildTree(bool bRebuildEvenIfNotChanged)
 					for (uint64 TimerIndex = 0; TimerIndex < TimersCount; ++TimerIndex)
 					{
 						const Trace::FTimingProfilerTimer& Timer = Timers[TimerIndex];
-						FName Name(*Timer.Name);// +TEXT(" [GPU]")));
+						FName Name(Timer.Name);// +TEXT(" [GPU]")));
 						FName Group(Timer.IsGpuTimer ? TEXT("GPU") : TEXT("CPU"));
 						ETimerNodeType Type = Timer.IsGpuTimer ? ETimerNodeType::GpuScope : ETimerNodeType::CpuScope;
 						FTimerNode* TimerPtr = new FTimerNode(Timer.Id, Name, Group, Type);

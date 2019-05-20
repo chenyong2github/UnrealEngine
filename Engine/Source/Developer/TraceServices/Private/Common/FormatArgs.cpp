@@ -252,15 +252,7 @@ int32 FFormatArgsHelper::FormatArgument(TCHAR* Out, uint64 MaxOut, const FFormat
 	case FFormatArgsTrace::FormatArgTypeCode_CategoryInteger:
 		if (ArgSpec.NothingPrinted)
 		{
-			if (ArgSpec.AdditionalIntegerArgumentCount == 2)
-			{
-				ExtractIntegerArgument(ArgStream);
-			}
-			if (ArgSpec.AdditionalIntegerArgumentCount >= 1)
-			{
-				ExtractIntegerArgument(ArgStream);
-			}
-			else
+			for (uint8 IntegerArgIndex = 0; IntegerArgIndex < ArgSpec.AdditionalIntegerArgumentCount + 1; ++IntegerArgIndex)
 			{
 				ExtractIntegerArgument(ArgStream);
 			}

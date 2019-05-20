@@ -1015,14 +1015,14 @@ void STimingView::DrawCpuGpuTimelineTrack(FTimingViewDrawHelper& Helper, FTiming
 							const double SecondsPerPixel = 1.0 / Helper.GetViewport().ScaleX;
 							Timeline.EnumerateEventsDownSampled(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, SecondsPerPixel, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
 							{
-								Helper.AddEvent(StartTime, EndTime, Depth, *Timers[Event.TimerIndex].Name);
+								Helper.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name);
 							});
 						}
 						else
 						{
 							Timeline.EnumerateEvents(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
 							{
-								Helper.AddEvent(StartTime, EndTime, Depth, *Timers[Event.TimerIndex].Name);
+								Helper.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name);
 							});
 						}
 					});

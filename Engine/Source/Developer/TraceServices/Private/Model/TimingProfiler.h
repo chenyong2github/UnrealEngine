@@ -10,6 +10,7 @@ namespace Trace
 {
 
 class FAnalysisSessionLock;
+class FStringStore;
 
 class FTimingProfilerProvider
 	: public ITimingProfilerProvider
@@ -17,7 +18,7 @@ class FTimingProfilerProvider
 public:
 	typedef TMonotonicTimeline<FTimingProfilerEvent> TimelineInternal;
 
-	FTimingProfilerProvider(FSlabAllocator& Allocator, FAnalysisSessionLock& InSessionLock);
+	FTimingProfilerProvider(FSlabAllocator& Allocator, FAnalysisSessionLock& InSessionLock, FStringStore& StringStore);
 	virtual ~FTimingProfilerProvider();
 	uint32 AddCpuTimer(const TCHAR* Name);
 	uint32 AddGpuTimer(const TCHAR* Name);
@@ -35,6 +36,7 @@ private:
 
 	FSlabAllocator& Allocator;
 	FAnalysisSessionLock& SessionLock;
+	FStringStore& StringStore;
 	TArray<FTimingProfilerTimer> Timers;
 	TArray<TSharedRef<TimelineInternal>> Timelines;
 	TMap<uint32, uint32> CpuThreadTimelineIndexMap;

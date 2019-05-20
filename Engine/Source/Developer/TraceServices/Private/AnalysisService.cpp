@@ -74,9 +74,9 @@ FAnalysisSession::FAnalysisSession(const TCHAR* SessionName)
 	, ClassInfos(Allocator, 4096)
 	, BookmarkProvider(MakeShared<FBookmarkProvider>(Lock, StringStore))
 	, LogProvider(MakeShared<FLogProvider>(Allocator, Lock, StringStore))
-	, ThreadProvider(MakeShared<FThreadProvider>(Lock))
+	, ThreadProvider(MakeShared<FThreadProvider>(Lock, StringStore))
 	, FramesProvider(MakeShared<FFrameProvider>(Allocator, Lock))
-	, TimingProfilerProvider(MakeShared<FTimingProfilerProvider>(Allocator, Lock))
+	, TimingProfilerProvider(MakeShared<FTimingProfilerProvider>(Allocator, Lock, StringStore))
 	, FileActivityProvider(MakeShared<FFileActivityProvider>(Allocator, Lock))
 	, LoadTimeProfilerProvider(MakeShared<FLoadTimeProfilerProvider>(Allocator, Lock))
 	, CountersProvider(MakeShared<FCountersProvider>(Allocator, Lock))
@@ -215,7 +215,7 @@ void FAnalysisService::FMockGenerator::CreateMockData()
 		int32 ThreadId = 4;
 		while (ThreadId <= 10)
 		{
-			ThreadProvider->AddThread(ThreadId, FString::Printf(TEXT("Thread %d"), ThreadId), TPri_SlightlyBelowNormal);
+			ThreadProvider->AddThread(ThreadId, *FString::Printf(TEXT("Thread %d"), ThreadId), TPri_SlightlyBelowNormal);
 			ThreadProvider->SetThreadGroup(ThreadId, TraceThreadGroup_ThreadPool);
 			Timelines.Add(TimingProfilerProvider->EditCpuThreadTimeline(ThreadId));
 			++ThreadId;
