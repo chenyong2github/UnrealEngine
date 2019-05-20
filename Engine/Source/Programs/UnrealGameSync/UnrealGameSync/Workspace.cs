@@ -1091,6 +1091,7 @@ namespace UnrealGameSync
 				{
 					SyncPaths.Add(ClientRootPath + "/Enterprise/...");
 				}
+				SyncPaths.Add(ClientRootPath + "/Platforms/...");
 				SyncPaths.Add(PerforceUtils.GetClientOrDepotDirectoryName(SelectedClientFileName) + "/...");
 			}
 
