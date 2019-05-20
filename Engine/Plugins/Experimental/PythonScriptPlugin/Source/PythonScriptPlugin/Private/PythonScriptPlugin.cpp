@@ -668,6 +668,8 @@ void FPythonScriptPlugin::ShutdownPython()
 	FEditorSupportDelegates::PrepareToCleanseEditorObject.RemoveAll(this);
 #endif	// WITH_EDITOR
 
+	FPyReferenceCollector::Get().PurgeUnrealGeneratedTypes();
+
 	PyUnrealModule.Reset();
 	PyDefaultGlobalDict.Reset();
 	PyDefaultLocalDict.Reset();
