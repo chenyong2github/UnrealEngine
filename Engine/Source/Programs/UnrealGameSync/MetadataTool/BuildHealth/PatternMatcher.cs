@@ -84,7 +84,7 @@ namespace MetadataTool
 		/// <param name="Target">The fingerprint to merge into</param>
 		public virtual void Merge(BuildHealthIssue Source, BuildHealthIssue Target)
 		{
-			Target.Details.AddRange(Source.Details);
+			Target.Diagnostics.AddRange(Source.Diagnostics);
 			Target.FileNames.UnionWith(Source.FileNames);
 			Target.Identifiers.UnionWith(Source.Identifiers);
 		}

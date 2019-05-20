@@ -11,6 +11,45 @@ using System.Threading.Tasks;
 namespace MetadataTool
 {
 	/// <summary>
+	/// Information about a message
+	/// </summary>
+	[DataContract]
+	[DebuggerDisplay("{Message}")]
+	public class BuildHealthDiagnostic
+	{
+		/// <summary>
+		/// Name of this job step
+		/// </summary>
+		[DataMember(Order = 0, IsRequired = true)]
+		public string JobStepName;
+
+		/// <summary>
+		/// The diagnostic message
+		/// </summary>
+		[DataMember(Order = 1, IsRequired = true)]
+		public string Message;
+
+		/// <summary>
+		/// Url to the error
+		/// </summary>
+		[DataMember(Order = 2, IsRequired = true)]
+		public string ErrorUrl;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="JobStepName">Name of the job step</param>
+		/// <param name="Message">Message to display</param>
+		/// <param name="ErrorUrl">Url to link to</param>
+		public BuildHealthDiagnostic(string JobStepName, string Message, string ErrorUrl)
+		{
+			this.JobStepName = JobStepName;
+			this.Message = Message;
+			this.ErrorUrl = ErrorUrl;
+		}
+	}
+
+	/// <summary>
 	/// Information about a particular issue
 	/// </summary>
 	[DataContract]
@@ -35,16 +74,10 @@ namespace MetadataTool
 		public string InitialJobUrl;
 
 		/// <summary>
-		/// Url for this issue
-		/// </summary>
-		[DataMember(Order = 3, IsRequired = true)]
-		public string ErrorUrl;
-
-		/// <summary>
 		/// List of strings to display in the details panel for this job
 		/// </summary>
 		[DataMember(Order = 4, IsRequired = true)]
-		public List<string> Details = new List<string>();
+		public List<BuildHealthDiagnostic> Diagnostics = new List<BuildHealthDiagnostic>();
 
 		/// <summary>
 		/// List of files associated with this issue
@@ -112,11 +145,11 @@ namespace MetadataTool
 		/// <param name="Category">Category of this issue</param>
 		/// <param name="InitialJobUrl">Url of the initial job that this error was seen with</param>
 		/// <param name="ErrorUrl"></param>
-		public BuildHealthIssue(string Category, string InitialJobUrl, string ErrorUrl)
+		public BuildHealthIssue(string Category, string InitialJobUrl, BuildHealthDiagnostic Diagnostic)
 		{
 			this.Category = Category;
 			this.InitialJobUrl = InitialJobUrl;
-			this.ErrorUrl = ErrorUrl;
+			this.Diagnostics.Add(Diagnostic);
 		}
 
 		/// <summary>

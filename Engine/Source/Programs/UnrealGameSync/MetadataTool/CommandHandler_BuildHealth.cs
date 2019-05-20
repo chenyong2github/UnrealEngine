@@ -199,8 +199,15 @@ namespace MetadataTool
 						continue;
 					}
 
+					StringBuilder DetailsBuilder = new StringBuilder();
+					foreach (BuildHealthDiagnostic Diagnostic in Issue.Diagnostics)
+					{
+						DetailsBuilder.AppendFormat("##{0}##\n{1}\n", Diagnostic.JobStepName, Diagnostic.Message);
+					}
+
 					string Summary = Matcher.GetSummary(Issue);
-					if(Issue.Id == -1)
+					string Details = DetailsBuilder.ToString().TrimEnd();
+					if (Issue.Id == -1)
 					{
 						Log.TraceInformation("Adding issue: {0}", Issue);
 
@@ -212,7 +219,7 @@ namespace MetadataTool
 						CommandTypes.AddIssue IssueBody = new CommandTypes.AddIssue();
 						IssueBody.Project = "Fortnite";
 						IssueBody.Summary = Summary;
-						IssueBody.Details = String.Join("\n", Issue.Details);
+						IssueBody.Details = Details;
 
 						if(Issue.PendingWatchers.Count == 1)
 						{
@@ -232,13 +239,16 @@ namespace MetadataTool
 						Issue.PostedSummary = Summary;
 						WriteState(StateFile, State);
 					}
-					else if(Issue.PostedSummary == null || !String.Equals(Issue.PostedSummary, Summary, StringComparison.Ordinal))
+					else if(Issue.PostedSummary == null 
+							|| Issue.PostedDetails == null
+							|| !String.Equals(Issue.PostedSummary, Summary, StringComparison.Ordinal)
+							|| !String.Equals(Issue.PostedDetails, Details, StringComparison.Ordinal))
 					{
 						Log.TraceInformation("Updating issue {0}", Issue.Id);
 
 						CommandTypes.UpdateIssue IssueBody = new CommandTypes.UpdateIssue();
 						IssueBody.Summary = Summary;
-						IssueBody.Details = String.Join("\n", Issue.Details);
+						IssueBody.Details = Details;
 
 						using (HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}", ServerUrl, Issue.Id), "PUT", IssueBody))
 						{
@@ -449,7 +459,7 @@ namespace MetadataTool
 			foreach(BuildHealthIssue InputIssue in InputIssues)
 			{
 				BuildHealthIssue Issue = FindOrAddIssueForFingerprint(Perforce, State, InputJob, InputJobStep, InputIssue);
-				AddFailureToIssue(Issue, InputJob, InputJobStep, InputIssue.ErrorUrl, State);
+				AddFailureToIssue(Issue, InputJob, InputJobStep, InputIssue.Diagnostics[0].ErrorUrl, State);
 			}
 		}
 
