@@ -479,9 +479,14 @@ ELandscapeToolTargetType::Type FEdModeLandscape::GetLandscapeToolTargetType() co
 	return ELandscapeToolTargetType::Invalid;
 }
 
-FGuid FEdModeLandscape::GetLandscapeSelectedLayer() const
+const FLandscapeLayer* FEdModeLandscape::GetLandscapeSelectedLayer() const
 {
-	return GetCurrentLayerGuid();
+	return GetCurrentLayer();
+}
+
+ULandscapeLayerInfoObject* FEdModeLandscape::GetSelectedLandscapeLayerInfo() const
+{
+	return CurrentToolTarget.LayerInfo.Get();
 }
 
 /** FEdMode: Called when the mode is entered */

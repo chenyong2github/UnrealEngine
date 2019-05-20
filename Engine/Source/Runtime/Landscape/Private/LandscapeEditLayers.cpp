@@ -4214,10 +4214,18 @@ void ALandscape::MonitorLandscapeEdModeChanges()
 		bRequiredEditingClientFullUpdate = true;
 	}
 
-	FGuid NewSelectedLayer = LandscapeEdMode ? LandscapeEdMode->GetLandscapeSelectedLayer() : FGuid();
+	const FLandscapeLayer* SelectedLayer = LandscapeEdMode ? LandscapeEdMode->GetLandscapeSelectedLayer() : nullptr;
+	FGuid NewSelectedLayer = SelectedLayer && SelectedLayer->bVisible ? SelectedLayer->Guid : FGuid();
 	if (LandscapeEdModeInfo.SelectedLayer != NewSelectedLayer)
 	{
 		LandscapeEdModeInfo.SelectedLayer = NewSelectedLayer;
+		bRequiredEditingClientFullUpdate = true;
+	}
+
+	TWeakObjectPtr<ULandscapeLayerInfoObject> NewLayerInfoObject = LandscapeEdMode->GetSelectedLandscapeLayerInfo();
+	if (LandscapeEdModeInfo.SelectedLayerInfoObject != NewLayerInfoObject)
+	{
+		LandscapeEdModeInfo.SelectedLayerInfoObject = NewLayerInfoObject;
 		bRequiredEditingClientFullUpdate = true;
 	}
 
@@ -4322,14 +4330,8 @@ bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& I
 
 		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Client_Editing, InContentUpdateModes))
 		{
-			if (LandscapeEdModeInfo.ViewMode == ELandscapeViewMode::LayerContribution && LandscapeEdModeInfo.SelectedLayer.IsValid())
+			if (LandscapeEdModeInfo.ViewMode == ELandscapeViewMode::LayerContribution)
 			{
-				ULandscapeInfo* Info = LandscapeComponent->GetLandscapeInfo();
-				check(Info);
-
-				FLandscapeEditDataInterface LandscapeEdit(Info);
-				FScopedSetLandscapeEditingLayer Scope(this, LandscapeEdModeInfo.SelectedLayer);
-
 				check(ComponentSizeQuads == LandscapeComponent->ComponentSizeQuads);
 				const int32 Stride = (1 + ComponentSizeQuads);
 				const int32 ArraySize = Stride * Stride;
@@ -4342,53 +4344,49 @@ bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& I
 				const int32 X2 = X1 + ComponentSizeQuads;
 				const int32 Y1 = LandscapeComponent->GetSectionBase().Y;
 				const int32 Y2 = Y1 + ComponentSizeQuads;
+				bool bLayerContributionWrittenData = false;
 
-				if (LandscapeEdModeInfo.ToolTarget == ELandscapeToolTargetType::Heightmap)
+				ULandscapeInfo* Info = LandscapeComponent->GetLandscapeInfo();
+				check(Info);
+				FLandscapeEditDataInterface LandscapeEdit(Info);
+
+				if (LandscapeEdModeInfo.SelectedLayer.IsValid())
 				{
-					if (HeightData.Num() != ArraySize)
+					FScopedSetLandscapeEditingLayer Scope(this, LandscapeEdModeInfo.SelectedLayer);
+					if (LandscapeEdModeInfo.ToolTarget == ELandscapeToolTargetType::Heightmap)
 					{
-						HeightData.AddZeroed(ArraySize);
-					}
-					LandscapeEdit.GetHeightDataFast(X1, Y1, X2, Y2, HeightData.GetData(), Stride);
-					for (int i = 0; i < ArraySize; ++i)
-					{
-						LayerContributionMaskData[i] = HeightData[i] != DefaultHeightValue ? LayerContributingValue : 0;
-					}
-				}
-				else if (LandscapeEdModeInfo.ToolTarget == ELandscapeToolTargetType::Weightmap ||
-						 LandscapeEdModeInfo.ToolTarget == ELandscapeToolTargetType::Visibility)
-				{
-					if (WeightData.Num() != ArraySize)
-					{
-						WeightData.AddZeroed(ArraySize);
-					}
-					if (LandscapeEdModeInfo.ToolTarget == ELandscapeToolTargetType::Visibility)
-					{
-						LandscapeEdit.GetWeightDataFast(ALandscapeProxy::VisibilityLayer, X1, Y1, X2, Y2, WeightData.GetData(), Stride);
+						if (HeightData.Num() != ArraySize)
+						{
+							HeightData.AddZeroed(ArraySize);
+						}
+						LandscapeEdit.GetHeightDataFast(X1, Y1, X2, Y2, HeightData.GetData(), Stride);
 						for (int i = 0; i < ArraySize; ++i)
 						{
-							LayerContributionMaskData[i] = WeightData[i] != DefaultWeightValue ? LayerContributingValue : 0;
+							LayerContributionMaskData[i] = HeightData[i] != DefaultHeightValue ? LayerContributingValue : 0;
 						}
+						bLayerContributionWrittenData = true;
 					}
-					else
+					else if (LandscapeEdModeInfo.ToolTarget == ELandscapeToolTargetType::Weightmap || LandscapeEdModeInfo.ToolTarget == ELandscapeToolTargetType::Visibility)
 					{
-						FMemory::Memzero(LayerContributionMaskDataPtr, ArraySize);
-						for (const FLandscapeInfoLayerSettings& LayerSettings : Info->Layers)
+						if (WeightData.Num() != ArraySize)
 						{
-							if (LayerSettings.LayerInfoObj == ALandscapeProxy::VisibilityLayer)
-							{
-								continue;
-							}
-							LandscapeEdit.GetWeightDataFast(LayerSettings.LayerInfoObj, X1, Y1, X2, Y2, WeightData.GetData(), Stride);
+							WeightData.AddZeroed(ArraySize);
+						}
+						ULandscapeLayerInfoObject* LayerObject = (LandscapeEdModeInfo.ToolTarget == ELandscapeToolTargetType::Visibility) ? ALandscapeProxy::VisibilityLayer : LandscapeEdModeInfo.SelectedLayerInfoObject.Get();
+						if (LayerObject)
+						{
+							LandscapeEdit.GetWeightDataFast(LayerObject, X1, Y1, X2, Y2, WeightData.GetData(), Stride);
 							for (int i = 0; i < ArraySize; ++i)
 							{
-								if (WeightData[i] != DefaultWeightValue)
-								{
-									LayerContributionMaskData[i] = LayerContributingValue;
-								}
+								LayerContributionMaskData[i] = WeightData[i] != DefaultWeightValue ? LayerContributingValue : 0;
 							}
+							bLayerContributionWrittenData = true;
 						}
 					}
+				}
+				if (!bLayerContributionWrittenData)
+				{
+					FMemory::Memzero(LayerContributionMaskDataPtr, ArraySize);
 				}
 				LandscapeEdit.SetLayerContributionData(X1, Y1, X2, Y2, LayerContributionMaskDataPtr, 0);
 			}

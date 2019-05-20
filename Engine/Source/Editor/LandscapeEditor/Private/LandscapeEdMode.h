@@ -331,7 +331,8 @@ public:
 
 	/** ILandscapeEdModeInterface */
 	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const override;
-	virtual FGuid GetLandscapeSelectedLayer() const override;
+	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const override;
+	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const override;
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
