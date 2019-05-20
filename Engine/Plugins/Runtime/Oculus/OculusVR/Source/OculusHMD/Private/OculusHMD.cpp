@@ -1409,11 +1409,11 @@ namespace OculusHMD
 
 			UE_LOG(LogHMD, Log, TEXT("Allocating Oculus %d x %d rendertarget swapchain"), SizeX, SizeY);
 
-			const FTextureSetProxyPtr& TextureSetProxy = EyeLayer_RenderThread->GetTextureSetProxy();
+			const FXRSwapChainPtr& SwapChain = EyeLayer_RenderThread->GetSwapChain();
 
-			if (TextureSetProxy.IsValid())
+			if (SwapChain.IsValid())
 			{
-				OutTargetableTexture = OutShaderResourceTexture = TextureSetProxy->GetTexture2DArray() ? TextureSetProxy->GetTexture2DArray() : TextureSetProxy->GetTexture2D();
+				OutTargetableTexture = OutShaderResourceTexture = SwapChain->GetTexture2DArray() ? SwapChain->GetTexture2DArray() : SwapChain->GetTexture2D();
 				bNeedReAllocateViewportRenderTarget = false;
 				return true;
 			}
@@ -1431,12 +1431,12 @@ namespace OculusHMD
 
 		if (EyeLayer_RenderThread.IsValid())
 		{
-			const FTextureSetProxyPtr& TextureSet = EyeLayer_RenderThread->GetDepthTextureSetProxy();
+			const FXRSwapChainPtr& SwapChain = EyeLayer_RenderThread->GetDepthSwapChain();
 
-			if (TextureSet.IsValid())
+			if (SwapChain.IsValid())
 			{
 				// Ensure the texture size matches the eye layer. We may get other depth allocations unrelated to the main scene render.
-				if (FIntPoint(SizeX, SizeY) == TextureSet->GetTexture2D()->GetSizeXY())
+				if (FIntPoint(SizeX, SizeY) == SwapChain->GetTexture2D()->GetSizeXY())
 				{
 					if (bNeedReAllocateDepthTexture_RenderThread)
 					{
@@ -1444,8 +1444,8 @@ namespace OculusHMD
 						bNeedReAllocateDepthTexture_RenderThread = false;
 					}
 
-					OutTargetableTexture = TextureSet->GetTexture2D();
-					OutShaderResourceTexture = TextureSet->GetTexture2D();
+					OutTargetableTexture = SwapChain->GetTexture2D();
+					OutShaderResourceTexture = SwapChain->GetTexture2D();
 					return true;
 				}
 			}
@@ -1664,32 +1664,32 @@ namespace OculusHMD
 			return;
 		}
 
-		if (LayerFound && (*LayerFound)->GetTextureSetProxy().IsValid())
+		if (LayerFound && (*LayerFound)->GetSwapChain().IsValid())
 		{
-			bool bRightTexture = (*LayerFound)->GetRightTextureSetProxy().IsValid();
+			bool bRightTexture = (*LayerFound)->GetRightSwapChain().IsValid();
 			switch ((*LayerFound)->GetDesc().ShapeType)
 			{
 			case IStereoLayers::CubemapLayer:
 				if (bRightTexture)
 				{
-					Texture = (*LayerFound)->GetRightTextureSetProxy()->GetTextureCube();
-					LeftTexture = (*LayerFound)->GetTextureSetProxy()->GetTextureCube();
+					Texture = (*LayerFound)->GetRightSwapChain()->GetTextureCube();
+					LeftTexture = (*LayerFound)->GetSwapChain()->GetTextureCube();
 				}
 				else
 				{
-					Texture = LeftTexture = (*LayerFound)->GetTextureSetProxy()->GetTextureCube();
+					Texture = LeftTexture = (*LayerFound)->GetSwapChain()->GetTextureCube();
 				}				break;
 
 			case IStereoLayers::CylinderLayer:
 			case IStereoLayers::QuadLayer:
 				if (bRightTexture)
 				{
-					Texture = (*LayerFound)->GetRightTextureSetProxy()->GetTexture2D();
-					LeftTexture = (*LayerFound)->GetTextureSetProxy()->GetTexture2D();
+					Texture = (*LayerFound)->GetRightSwapChain()->GetTexture2D();
+					LeftTexture = (*LayerFound)->GetSwapChain()->GetTexture2D();
 				}
 				else
 				{
-					Texture = LeftTexture = (*LayerFound)->GetTextureSetProxy()->GetTexture2D();
+					Texture = LeftTexture = (*LayerFound)->GetSwapChain()->GetTexture2D();
 				}
 				break;
 
@@ -2153,9 +2153,9 @@ namespace OculusHMD
 			InitializeEyeLayer_RenderThread(RHICmdList);
 		});
 
-		if (!EyeLayer_RenderThread.IsValid() || !EyeLayer_RenderThread->GetTextureSetProxy().IsValid())
+		if (!EyeLayer_RenderThread.IsValid() || !EyeLayer_RenderThread->GetSwapChain().IsValid())
 		{
-			UE_LOG(LogHMD, Error, TEXT("Failed to create eye layer texture set."));
+			UE_LOG(LogHMD, Error, TEXT("Failed to create eye layer swap chain."));
 			ShutdownSession();
 			return false;
 		}
@@ -2505,9 +2505,9 @@ namespace OculusHMD
 				Layers_RenderThread.Add(EyeLayer);
 			}
 
-			if (EyeLayer->GetDepthTextureSetProxy().IsValid())
+			if (EyeLayer->GetDepthSwapChain().IsValid())
 			{
-				if (!EyeLayer_RenderThread.IsValid() || EyeLayer->GetDepthTextureSetProxy() != EyeLayer_RenderThread->GetDepthTextureSetProxy())
+				if (!EyeLayer_RenderThread.IsValid() || EyeLayer->GetDepthSwapChain() != EyeLayer_RenderThread->GetDepthSwapChain())
 				{
 					bNeedReAllocateDepthTexture_RenderThread = true;
 				}

@@ -253,8 +253,7 @@ void FOpenXRHMD::FOpenXRSwapchain::IncrementSwapChainIndex_RenderThread(XrDurati
 	WaitInfo.timeout = Timeout;
 	XR_ENSURE(xrWaitSwapchainImage(Handle, &WaitInfo));
 
-	FD3D11DynamicRHI* DynamicRHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
-	DynamicRHI->RHIAliasTextureResources(RHITexture, RHITextureSwapChain[SwapChainIndex_RenderThread]);
+	GDynamicRHI->RHIAliasTextureResources(RHITexture, RHITextureSwapChain[SwapChainIndex_RenderThread]);
 }
 
 void FOpenXRHMD::FOpenXRSwapchain::ReleaseSwapChainImage_RenderThread()

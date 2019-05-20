@@ -276,7 +276,7 @@ int FCustomPresent::GetSystemRecommendedMSAALevel() const
 }
 
 
-FTextureSetProxyPtr FCustomPresent::CreateTextureSetProxy_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, const TArray<ovrpTextureHandle>& InTextures, uint32 InTexCreateFlags)
+FXRSwapChainPtr FCustomPresent::CreateSwapChain_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, const TArray<ovrpTextureHandle>& InTextures, uint32 InTexCreateFlags)
 {
 	CheckInRenderThread();
 
@@ -293,7 +293,7 @@ FTextureSetProxyPtr FCustomPresent::CreateTextureSetProxy_RenderThread(uint32 In
 		}
 	}
 
-	return MakeShareable(new FTextureSetProxy(RHITexture, RHITextureSwapChain));
+	return MakeShareable(new FXRSwapChain(RHITexture, RHITextureSwapChain));
 }
 
 

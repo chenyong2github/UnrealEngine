@@ -31,7 +31,6 @@ public:
 	virtual void* GetOvrpDevice() const override;
 	virtual void* GetOvrpCommandQueue() const override;
 	virtual FTextureRHIRef CreateTexture_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, ovrpTextureHandle InTexture, uint32 InTexCreateFlags) override;
-	virtual void AliasTextureResources_RHIThread(FTextureRHIParamRef DestTexture, FTextureRHIParamRef SrcTexture) override;
 };
 
 
@@ -136,16 +135,6 @@ FTextureRHIRef FVulkanCustomPresent::CreateTexture_RenderThread(uint32 InSizeX, 
 		return nullptr;
 	}
 }
-
-
-void FVulkanCustomPresent::AliasTextureResources_RHIThread(FTextureRHIParamRef DestTexture, FTextureRHIParamRef SrcTexture)
-{
-	CheckInRHIThread();
-
-	FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
-	DynamicRHI->RHIAliasTextureResources(DestTexture, SrcTexture);
-}
-
 
 //-------------------------------------------------------------------------------------------------
 // APIs

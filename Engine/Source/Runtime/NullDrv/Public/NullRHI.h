@@ -493,6 +493,10 @@ public:
 	{
 
 	}
+	virtual void RHIAliasTextureResources(FTextureRHIParamRef DestTexture, FTextureRHIParamRef SrcTexture) final override
+	{
+
+	}
 	virtual void RHIAdvanceFrameForGetViewportBackBuffer(FViewportRHIParamRef Viewport) final override
 	{
 

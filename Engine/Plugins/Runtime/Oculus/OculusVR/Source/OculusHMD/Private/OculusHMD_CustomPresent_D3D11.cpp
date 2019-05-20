@@ -26,7 +26,6 @@ public:
 	virtual bool IsUsingCorrectDisplayAdapter() const override;
 	virtual void* GetOvrpDevice() const override;
 	virtual FTextureRHIRef CreateTexture_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, ovrpTextureHandle InTexture, uint32 InTexCreateFlags) override;
-	virtual void AliasTextureResources_RHIThread(FTextureRHIParamRef DestTexture, FTextureRHIParamRef SrcTexture) override;
 };
 
 
@@ -106,16 +105,6 @@ FTextureRHIRef FD3D11CustomPresent::CreateTexture_RenderThread(uint32 InSizeX, u
 		return nullptr;
 	}
 }
-
-
-void FD3D11CustomPresent::AliasTextureResources_RHIThread(FTextureRHIParamRef DestTexture, FTextureRHIParamRef SrcTexture)
-{
-	CheckInRHIThread();
-
-	FD3D11DynamicRHI* DynamicRHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
-	DynamicRHI->RHIAliasTextureResources(DestTexture, SrcTexture);
-}
-
 
 //-------------------------------------------------------------------------------------------------
 // APIs

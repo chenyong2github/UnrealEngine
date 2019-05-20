@@ -1,47 +1,38 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "OculusHMDPrivate.h"
-
-#if OCULUS_HMD_SUPPORTED_PLATFORMS
-
-namespace OculusHMD
-{
-
-class FCustomPresent;
-
+#include "CoreMinimal.h"
+#include "RHI.h"
 
 //-------------------------------------------------------------------------------------------------
-// FTextureSetProxy
+// FXRSwapChain
 //-------------------------------------------------------------------------------------------------
 
-class FTextureSetProxy : public TSharedFromThis<FTextureSetProxy, ESPMode::ThreadSafe>
+class HEADMOUNTEDDISPLAY_API FXRSwapChain : public TSharedFromThis<FXRSwapChain, ESPMode::ThreadSafe>
 {
 public:
-	FTextureSetProxy(FTextureRHIParamRef InRHITexture, const TArray<FTextureRHIRef>& InRHITextureSwapChain);
-	virtual ~FTextureSetProxy();
+	FXRSwapChain(FTextureRHIParamRef InRHITexture, const TArray<FTextureRHIRef>& InRHITextureSwapChain);
+	virtual ~FXRSwapChain();
 
 	FRHITexture* GetTexture() const { return RHITexture.GetReference(); }
 	FRHITexture2D* GetTexture2D() const { return RHITexture->GetTexture2D(); }
 	FRHITexture2DArray* GetTexture2DArray() const { return RHITexture->GetTexture2DArray(); }
 	FRHITextureCube* GetTextureCube() const { return RHITexture->GetTextureCube(); }
-	uint32 GetSwapChainLength() const { return (uint32) RHITextureSwapChain.Num(); }
+	uint32 GetSwapChainLength() const { return (uint32)RHITextureSwapChain.Num(); }
 
 	void GenerateMips_RenderThread(FRHICommandListImmediate& RHICmdList);
 	uint32 GetSwapChainIndex_RHIThread() { return SwapChainIndex_RHIThread; }
-	void IncrementSwapChainIndex_RHIThread(FCustomPresent* CustomPresent);
+
+	virtual void IncrementSwapChainIndex_RHIThread();
+	virtual void ReleaseCurrentImage_RHIThread() {}		
 
 protected:
-	void ReleaseResources_RHIThread();
+	virtual void ReleaseResources_RHIThread();
 
 	FTextureRHIRef RHITexture;
 	TArray<FTextureRHIRef> RHITextureSwapChain;
 	uint32 SwapChainIndex_RHIThread;
 };
 
-typedef TSharedPtr<FTextureSetProxy, ESPMode::ThreadSafe> FTextureSetProxyPtr;
+typedef TSharedPtr<FXRSwapChain, ESPMode::ThreadSafe> FXRSwapChainPtr;
 
-
-} // namespace OculusHMD
-
-#endif //OCULUS_HMD_SUPPORTED_PLATFORMS

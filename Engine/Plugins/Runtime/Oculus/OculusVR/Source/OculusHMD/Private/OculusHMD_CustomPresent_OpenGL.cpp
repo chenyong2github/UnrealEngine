@@ -31,7 +31,6 @@ public:
 	// Implementation of FCustomPresent, called by Plugin itself
 	virtual int GetLayerFlags() const override;
 	virtual FTextureRHIRef CreateTexture_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, ovrpTextureHandle InTexture, uint32 InTexCreateFlags) override;
-	virtual void AliasTextureResources_RHIThread(FTextureRHIParamRef DestTexture, FTextureRHIParamRef SrcTexture) override;
 	virtual void SubmitGPUFrameTime(float GPUFrameTime) override;
 };
 
@@ -72,15 +71,6 @@ FTextureRHIRef FOpenGLCustomPresent::CreateTexture_RenderThread(uint32 InSizeX, 
 	default:
 		return nullptr;
 	}
-}
-
-
-void FOpenGLCustomPresent::AliasTextureResources_RHIThread(FTextureRHIParamRef DestTexture, FTextureRHIParamRef SrcTexture)
-{
-	CheckInRHIThread();
-
-	FOpenGLDynamicRHI* DynamicRHI = static_cast<FOpenGLDynamicRHI*>(GDynamicRHI);
-	DynamicRHI->RHIAliasTextureResources(DestTexture, SrcTexture);
 }
 
 void FOpenGLCustomPresent::SubmitGPUFrameTime(float GPUFrameTime)
