@@ -15,7 +15,7 @@ namespace MetadataTool
 	/// </summary>
 	[DataContract]
 	[DebuggerDisplay("{Change}: {JobName}")]
-	class TrackedBuild : IComparable<TrackedBuild>
+	class BuildHealthJobStep : IComparable<BuildHealthJobStep>
 	{
 		/// <summary>
 		/// The changelist that this build was run at.
@@ -62,7 +62,7 @@ namespace MetadataTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public TrackedBuild(int Change, string JobName, string JobUrl, string JobStepName, string JobStepUrl, string ErrorUrl)
+		public BuildHealthJobStep(int Change, string JobName, string JobUrl, string JobStepName, string JobStepUrl, string ErrorUrl)
 		{
 			this.Change = Change;
 			this.JobName = JobName;
@@ -77,7 +77,7 @@ namespace MetadataTool
 		/// </summary>
 		/// <param name="Other">Build to compare to</param>
 		/// <returns>Value indicating how the two builds should be ordered</returns>
-		public int CompareTo(TrackedBuild Other)
+		public int CompareTo(BuildHealthJobStep Other)
 		{
 			int Delta = Change - Other.Change;
 			if (Delta == 0)

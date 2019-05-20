@@ -13,7 +13,7 @@ namespace MetadataTool
 	{
 		public override string Category => "UndefinedSymbol";
 
-		public override bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<TrackedIssue> Issues)
+		public override bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<BuildHealthIssue> Issues)
 		{
 			List<string> SymbolMatches = new List<string>();
 
@@ -83,7 +83,7 @@ namespace MetadataTool
 			// If we found any symbol names, create a fingerprint for them
 			if (SymbolNames.Count > 0)
 			{
-				TrackedIssue Issue = new TrackedIssue(Category, Job.Url, Diagnostic.Url);
+				BuildHealthIssue Issue = new BuildHealthIssue(Category, Job.Url, Diagnostic.Url);
 				Issue.Details.Add(Diagnostic.Message);
 				Issue.Identifiers.UnionWith(SymbolNames);
 				Issues.Add(Issue);
@@ -94,7 +94,7 @@ namespace MetadataTool
 			return false;
 		}
 
-		public override string GetSummary(TrackedIssue Issue)
+		public override string GetSummary(BuildHealthIssue Issue)
 		{
 			if(Issue.Identifiers.Count == 1)
 			{

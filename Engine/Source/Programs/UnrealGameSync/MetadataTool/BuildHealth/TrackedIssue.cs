@@ -14,7 +14,7 @@ namespace MetadataTool
 	/// Information about a particular issue
 	/// </summary>
 	[DataContract]
-	class TrackedIssue
+	class BuildHealthIssue
 	{
 		/// <summary>
 		/// The issue id in the database. -1 for issues that have not been posted yet.
@@ -86,7 +86,7 @@ namespace MetadataTool
 		/// Map of stream name -> step name -> history for builds exhibiting this issue
 		/// </summary>
 		[DataMember(Order = 30, IsRequired = true)]
-		public Dictionary<string, Dictionary<string, TrackedIssueHistory>> Streams = new Dictionary<string, Dictionary<string, TrackedIssueHistory>>();
+		public Dictionary<string, Dictionary<string, BuildHealthJobHistory>> Streams = new Dictionary<string, Dictionary<string, BuildHealthJobHistory>>();
 
 		/// <summary>
 		/// Set of changes which may have caused this issue. Used to de-duplicate issues between streams.
@@ -112,7 +112,7 @@ namespace MetadataTool
 		/// <param name="Category">Category of this issue</param>
 		/// <param name="InitialJobUrl">Url of the initial job that this error was seen with</param>
 		/// <param name="ErrorUrl"></param>
-		public TrackedIssue(string Category, string InitialJobUrl, string ErrorUrl)
+		public BuildHealthIssue(string Category, string InitialJobUrl, string ErrorUrl)
 		{
 			this.Category = Category;
 			this.InitialJobUrl = InitialJobUrl;

@@ -13,30 +13,30 @@ namespace MetadataTool
 	/// History of builds within a particular stream that contribute to an issue
 	/// </summary>
 	[DataContract]
-	class TrackedIssueHistory
+	class BuildHealthJobHistory
 	{
 		/// <summary>
 		/// The previous build before it started failing. This should be updated as new builds come in.
 		/// </summary>
 		[DataMember]
-		public TrackedBuild PrevSuccessfulBuild;
+		public BuildHealthJobStep PrevSuccessfulBuild;
 
 		/// <summary>
 		/// List of failing builds contributing to this issue
 		/// </summary>
 		[DataMember]
-		public List<TrackedBuild> FailedBuilds = new List<TrackedBuild>();
+		public List<BuildHealthJobStep> FailedBuilds = new List<BuildHealthJobStep>();
 
 		/// <summary>
 		/// The first successful build after the failures.
 		/// </summary>
 		[DataMember]
-		public TrackedBuild NextSuccessfulBuild;
+		public BuildHealthJobStep NextSuccessfulBuild;
 
 		/// <summary>
 		/// Constructs a new history for a particular stream
 		/// </summary>
-		public TrackedIssueHistory(TrackedBuild PrevSuccessfulBuild)
+		public BuildHealthJobHistory(BuildHealthJobStep PrevSuccessfulBuild)
 		{
 			this.PrevSuccessfulBuild  = PrevSuccessfulBuild;
 		}
@@ -45,7 +45,7 @@ namespace MetadataTool
 		/// Adds a failed build to this object
 		/// </summary>
 		/// <param name="Build">The failed build</param>
-		public void AddFailedBuild(TrackedBuild Build)
+		public void AddFailedBuild(BuildHealthJobStep Build)
 		{
 			int Index = FailedBuilds.BinarySearch(Build);
 			if (Index < 0)
@@ -79,7 +79,7 @@ namespace MetadataTool
 		/// <summary>
 		/// Enumerates all the builds in this stream
 		/// </summary>
-		public IEnumerable<TrackedBuild> Builds
+		public IEnumerable<BuildHealthJobStep> Builds
 		{
 			get
 			{
@@ -87,7 +87,7 @@ namespace MetadataTool
 				{
 					yield return PrevSuccessfulBuild;
 				}
-				foreach(TrackedBuild FailedBuild in FailedBuilds)
+				foreach(BuildHealthJobStep FailedBuild in FailedBuilds)
 				{
 					yield return FailedBuild;
 				}

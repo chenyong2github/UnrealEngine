@@ -76,16 +76,16 @@ namespace MetadataTool
 			CompleteStateTransaction(StateFile);
 
 			// Read the persistent data file
-			TrackedState State;
+			BuildHealthState State;
 			if (!bClean && FileReference.Exists(StateFile))
 			{
 				Log.TraceInformation("Reading persistent data from {0}", StateFile);
-				State = DeserializeJson<TrackedState>(StateFile);
+				State = DeserializeJson<BuildHealthState>(StateFile);
 			}
 			else
 			{
 				Log.TraceInformation("Creating new persistent data");
-				State = new TrackedState();
+				State = new BuildHealthState();
 			}
 
 			// Create the Perforce connection
@@ -98,7 +98,7 @@ namespace MetadataTool
 				// Add a new build for each job step
 				foreach(InputJobStep InputJobStep in InputJob.Steps)
 				{
-					TrackedBuild NewBuild = new TrackedBuild(InputJob.Change, InputJob.Name, InputJob.Url, InputJobStep.Name, InputJobStep.Url, null);
+					BuildHealthJobStep NewBuild = new BuildHealthJobStep(InputJob.Change, InputJob.Name, InputJob.Url, InputJobStep.Name, InputJobStep.Url, null);
 					State.AddBuild(InputJob.Stream, NewBuild);
 				}
 
@@ -113,17 +113,17 @@ namespace MetadataTool
 			// Try to find the next successful build for each stream, so we can close it as part of updating the server
 			for (int Idx = 0; Idx < State.Issues.Count; Idx++)
 			{
-				TrackedIssue Issue = State.Issues[Idx];
+				BuildHealthIssue Issue = State.Issues[Idx];
 				foreach(string Stream in Issue.Streams.Keys)
 				{
-					Dictionary<string, TrackedIssueHistory> StepNameToHistory = Issue.Streams[Stream];
+					Dictionary<string, BuildHealthJobHistory> StepNameToHistory = Issue.Streams[Stream];
 					foreach(string StepName in StepNameToHistory.Keys)
 					{
-						TrackedIssueHistory IssueHistory = StepNameToHistory[StepName];
+						BuildHealthJobHistory IssueHistory = StepNameToHistory[StepName];
 						if(IssueHistory.FailedBuilds.Count > 0 && IssueHistory.NextSuccessfulBuild == null)
 						{
 							// Find the successful build after this change
-							TrackedBuild LastFailedBuild = IssueHistory.FailedBuilds[IssueHistory.FailedBuilds.Count - 1];
+							BuildHealthJobStep LastFailedBuild = IssueHistory.FailedBuilds[IssueHistory.FailedBuilds.Count - 1];
 							IssueHistory.NextSuccessfulBuild = State.FindBuildAfter(Stream, LastFailedBuild.Change, StepName);
 						}
 					}
@@ -135,7 +135,7 @@ namespace MetadataTool
 			{
 				// Find all the unique change numbers for each stream
 				SortedSet<int> ChangeNumbers = new SortedSet<int>();
-				foreach (List<TrackedBuild> Builds in State.Streams.Values)
+				foreach (List<BuildHealthJobStep> Builds in State.Streams.Values)
 				{
 					ChangeNumbers.UnionWith(Builds.Select(x => x.Change));
 				}
@@ -157,14 +157,14 @@ namespace MetadataTool
 				}
 
 				// Remove any builds we no longer want to track
-				foreach (List<TrackedBuild> Builds in State.Streams.Values)
+				foreach (List<BuildHealthJobStep> Builds in State.Streams.Values)
 				{
 					Builds.RemoveAll(x => x.Change <= DeleteChangeNumber);
 				}
 			}
 
 			// Mark any issues as resolved
-			foreach(TrackedIssue Issue in State.Issues)
+			foreach(BuildHealthIssue Issue in State.Issues)
 			{
 				if(Issue.IsResolved())
 				{
@@ -191,7 +191,7 @@ namespace MetadataTool
 			if (ServerUrl != null)
 			{
 				// Post any issue updates
-				foreach(TrackedIssue Issue in State.Issues)
+				foreach(BuildHealthIssue Issue in State.Issues)
 				{
 					PatternMatcher Matcher;
 					if(!CategoryNameToMatcher.TryGetValue(Issue.Category, out Matcher))
@@ -255,7 +255,7 @@ namespace MetadataTool
 				}
 
 				// Update the summary for any issues that are still open
-				foreach (TrackedIssue Issue in State.Issues)
+				foreach (BuildHealthIssue Issue in State.Issues)
 				{
 					if (Issue.Id == -1)
 					{
@@ -264,13 +264,13 @@ namespace MetadataTool
 				}
 
 				// Add any new builds associated with issues
-				foreach (TrackedIssue Issue in State.Issues)
+				foreach (BuildHealthIssue Issue in State.Issues)
 				{
-					foreach(KeyValuePair<string, Dictionary<string, TrackedIssueHistory>> StreamPair in Issue.Streams)
+					foreach(KeyValuePair<string, Dictionary<string, BuildHealthJobHistory>> StreamPair in Issue.Streams)
 					{
-						foreach(TrackedIssueHistory StreamHistory in StreamPair.Value.Values)
+						foreach(BuildHealthJobHistory StreamHistory in StreamPair.Value.Values)
 						{
-							foreach(TrackedBuild Build in StreamHistory.Builds)
+							foreach(BuildHealthJobStep Build in StreamHistory.Builds)
 							{
 								if(!Build.bPostedToServer)
 								{
@@ -306,7 +306,7 @@ namespace MetadataTool
 				// Close any issues which are complete
 				for (int Idx = 0; Idx < State.Issues.Count; Idx++)
 				{
-					TrackedIssue Issue = State.Issues[Idx];
+					BuildHealthIssue Issue = State.Issues[Idx];
 					if (Issue.ResolvedAt.HasValue != Issue.bPostedResolved)
 					{
 						Log.TraceInformation("Setting issue {0} resolved flag to {1}", Issue.Id, Issue.ResolvedAt.HasValue);
@@ -329,7 +329,7 @@ namespace MetadataTool
 				}
 
 				// Update watchers on any open builds
-				foreach(TrackedIssue Issue in State.Issues)
+				foreach(BuildHealthIssue Issue in State.Issues)
 				{
 					while (Issue.PendingWatchers.Count > 0)
 					{
@@ -358,7 +358,7 @@ namespace MetadataTool
 			DateTime RemoveIssueTime = DateTime.UtcNow - TimeSpan.FromHours(24.0);
 			for(int Idx = 0; Idx < State.Issues.Count; Idx++)
 			{
-				TrackedIssue Issue = State.Issues[Idx];
+				BuildHealthIssue Issue = State.Issues[Idx];
 				if(Issue.ResolvedAt.HasValue && Issue.ResolvedAt.Value < RemoveIssueTime)
 				{
 					State.Issues.RemoveAt(Idx--);
@@ -432,10 +432,10 @@ namespace MetadataTool
 		/// <param name="PreviousChange">The last changelist that was built before this one</param>
 		/// <param name="InputJob">Job containing the step to add</param>
 		/// <param name="InputJobStep">The job step to add</param>
-		void AddStep(PerforceConnection Perforce, TrackedState State, InputJob InputJob, InputJobStep InputJobStep)
+		void AddStep(PerforceConnection Perforce, BuildHealthState State, InputJob InputJob, InputJobStep InputJobStep)
 		{
 			// Create all the fingerprints for failures in this step
-			List<TrackedIssue> InputIssues = new List<TrackedIssue>();
+			List<BuildHealthIssue> InputIssues = new List<BuildHealthIssue>();
 			if(InputJobStep.Diagnostics != null)
 			{
 				List<InputDiagnostic> Diagnostics = new List<InputDiagnostic>(InputJobStep.Diagnostics); 
@@ -446,9 +446,9 @@ namespace MetadataTool
 			}
 
 			// Add all the fingerprints to issues
-			foreach(TrackedIssue InputIssue in InputIssues)
+			foreach(BuildHealthIssue InputIssue in InputIssues)
 			{
-				TrackedIssue Issue = FindOrAddIssueForFingerprint(Perforce, State, InputJob, InputJobStep, InputIssue);
+				BuildHealthIssue Issue = FindOrAddIssueForFingerprint(Perforce, State, InputJob, InputJobStep, InputIssue);
 				AddFailureToIssue(Issue, InputJob, InputJobStep, InputIssue.ErrorUrl, State);
 			}
 		}
@@ -462,23 +462,23 @@ namespace MetadataTool
 		/// <param name="PreviousChange">The last changelist that was built before this one</param>
 		/// <param name="InputJob">Job containing the step to add</param>
 		/// <param name="InputJobStep">The job step to add</param>
-		TrackedIssue FindOrAddIssueForFingerprint(PerforceConnection Perforce, TrackedState State, InputJob InputJob, InputJobStep InputJobStep, TrackedIssue InputIssue)
+		BuildHealthIssue FindOrAddIssueForFingerprint(PerforceConnection Perforce, BuildHealthState State, InputJob InputJob, InputJobStep InputJobStep, BuildHealthIssue InputIssue)
 		{
 			// Find the pattern matcher for this fingerprint
 			PatternMatcher Matcher = CategoryToMatcher[InputIssue.Category];
 
 			// Check if it can be added to an existing open issue
-			foreach (TrackedIssue Issue in State.Issues)
+			foreach (BuildHealthIssue Issue in State.Issues)
 			{
 				// Check this issue already exists in the current stream
-				Dictionary<string, TrackedIssueHistory> StepNameToHistory;
+				Dictionary<string, BuildHealthJobHistory> StepNameToHistory;
 				if(!Issue.Streams.TryGetValue(InputJob.Stream, out StepNameToHistory))
 				{
 					continue;
 				}
 
 				// Check that this issue has not already been closed
-				TrackedIssueHistory History;
+				BuildHealthJobHistory History;
 				if (StepNameToHistory.TryGetValue(InputJobStep.Name, out History))
 				{
 					if(!History.CanAddFailedBuild(InputJob.Change))
@@ -509,7 +509,7 @@ namespace MetadataTool
 			IReadOnlyList<ChangeInfo> Changes = null;
 
 			// Find the previous changelist that was built in this stream
-			List<TrackedBuild> StreamBuilds;
+			List<BuildHealthJobStep> StreamBuilds;
 			if(State.Streams.TryGetValue(InputJob.Stream, out StreamBuilds))
 			{
 				// Find the last change submitted to this stream before it started failing
@@ -527,7 +527,7 @@ namespace MetadataTool
 					if (Changes.Count > 0)
 					{
 						SortedSet<int> SourceChanges = new SortedSet<int>(Changes.SelectMany(x => x.SourceChanges));
-						foreach (TrackedIssue Issue in State.Issues)
+						foreach (BuildHealthIssue Issue in State.Issues)
 						{
 							// Check if this issue does not already contain this stream, but contains one of the causing changes
 							if (Issue.Streams.ContainsKey(InputJob.Stream))
@@ -572,9 +572,9 @@ namespace MetadataTool
 		/// <param name="InputJobStep">The step to create a build for</param>
 		/// <param name="InputErrorUrl">The error Url</param>
 		/// <returns>New build instance</returns>
-		TrackedBuild CreateBuildForJobStep(InputJob InputJob, InputJobStep InputJobStep, string InputErrorUrl)
+		BuildHealthJobStep CreateBuildForJobStep(InputJob InputJob, InputJobStep InputJobStep, string InputErrorUrl)
 		{
-			return new TrackedBuild(InputJob.Change, InputJob.Name, InputJob.Url, InputJobStep.Name, InputJobStep.Url, InputErrorUrl);
+			return new BuildHealthJobStep(InputJob.Change, InputJob.Name, InputJob.Url, InputJobStep.Name, InputJobStep.Url, InputErrorUrl);
 		}
 
 		/// <summary>
@@ -585,21 +585,21 @@ namespace MetadataTool
 		/// <param name="InputJobStep">The job step containing the error</param>
 		/// <param name="InputErrorUrl">Url of the error</param>
 		/// <param name="State">Current persistent state. Used to find previous build history.</param>
-		void AddFailureToIssue(TrackedIssue Issue, InputJob InputJob, InputJobStep InputJobStep, string InputErrorUrl, TrackedState State)
+		void AddFailureToIssue(BuildHealthIssue Issue, InputJob InputJob, InputJobStep InputJobStep, string InputErrorUrl, BuildHealthState State)
 		{
 			// Find or add a step name to history mapping
-			Dictionary<string, TrackedIssueHistory> StepNameToHistory;
+			Dictionary<string, BuildHealthJobHistory> StepNameToHistory;
 			if(!Issue.Streams.TryGetValue(InputJob.Stream, out StepNameToHistory))
 			{
-				StepNameToHistory = new Dictionary<string, TrackedIssueHistory>();
+				StepNameToHistory = new Dictionary<string, BuildHealthJobHistory>();
 				Issue.Streams.Add(InputJob.Stream, StepNameToHistory);
 			}
 
 			// Find or add a history for this step
-			TrackedIssueHistory History;
+			BuildHealthJobHistory History;
 			if(!StepNameToHistory.TryGetValue(InputJobStep.Name, out History))
 			{
-				History = new TrackedIssueHistory(State.FindBuildBefore(InputJob.Stream, InputJob.Change, InputJobStep.Name));
+				History = new BuildHealthJobHistory(State.FindBuildBefore(InputJob.Stream, InputJob.Change, InputJobStep.Name));
 				StepNameToHistory.Add(InputJobStep.Name, History);
 			}
 
@@ -686,7 +686,7 @@ namespace MetadataTool
 		/// </summary>
 		/// <param name="StateFile">The file to write to</param>
 		/// <param name="State">The state object</param>
-		static void WriteState(FileReference StateFile, TrackedState State)
+		static void WriteState(FileReference StateFile, BuildHealthState State)
 		{
 			// Write out the state to the transaction file
 			FileReference StateTransactionFile = GetStateTransactionFile(StateFile);
@@ -708,9 +708,7 @@ namespace MetadataTool
 			{
 				DataContractJsonSerializer InputFileDataSerializer = new DataContractJsonSerializer(Object.GetType());
 				InputFileDataSerializer.WriteObject(Stream, Object);
-
-				string Text = Encoding.UTF8.GetString(Stream.ToArray());
-				FileReference.WriteAllText(Location, Json.Format(Text));
+				FileReference.WriteAllBytes(Location, Stream.ToArray());
 			}
 		}
 

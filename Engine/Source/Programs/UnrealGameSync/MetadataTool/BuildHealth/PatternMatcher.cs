@@ -30,7 +30,7 @@ namespace MetadataTool
 		/// <param name="JobStep">The job step that was run</param>
 		/// <param name="Diagnostics">List of diagnostics that were produced by the build. Items should be removed from this list if they match.</param>
 		/// <param name="Issues">List which receives all the matched issues.</param>
-		public virtual void Match(InputJob Job, InputJobStep JobStep, List<InputDiagnostic> Diagnostics, List<TrackedIssue> Issues)
+		public virtual void Match(InputJob Job, InputJobStep JobStep, List<InputDiagnostic> Diagnostics, List<BuildHealthIssue> Issues)
 		{
 			for (int Idx = 0; Idx < Diagnostics.Count; Idx++)
 			{
@@ -51,14 +51,14 @@ namespace MetadataTool
 		/// <param name="Diagnostic">A diagnostic from the given job step</param>
 		/// <param name="Issues">List which receives all the matched issues.</param>
 		/// <returns>True if this diagnostic should be removed (usually because a fingerprint was created)</returns>
-		public abstract bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<TrackedIssue> Issues);
+		public abstract bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<BuildHealthIssue> Issues);
 
 		/// <summary>
 		/// Determines if one fingerprint can be merged with another one
 		/// </summary>
 		/// <param name="Source">The source fingerprint</param>
 		/// <param name="Target">The fingerprint to merge into</param>
-		public virtual bool CanMerge(TrackedIssue Source, TrackedIssue Target)
+		public virtual bool CanMerge(BuildHealthIssue Source, BuildHealthIssue Target)
 		{
 			// Make sure the categories match
 			if (Source.Category != Target.Category)
@@ -82,7 +82,7 @@ namespace MetadataTool
 		/// </summary>
 		/// <param name="Source">The source fingerprint</param>
 		/// <param name="Target">The fingerprint to merge into</param>
-		public virtual void Merge(TrackedIssue Source, TrackedIssue Target)
+		public virtual void Merge(BuildHealthIssue Source, BuildHealthIssue Target)
 		{
 			Target.Details.AddRange(Source.Details);
 			Target.FileNames.UnionWith(Source.FileNames);
@@ -96,7 +96,7 @@ namespace MetadataTool
 		/// <param name="Fingerprint">Fingerprint for the issue</param>
 		/// <param name="Changes">List of changes since the issue first occurred.</param>
 		/// <returns>List of changes which are causers for the issue</returns>
-		public virtual List<ChangeInfo> FindCausers(PerforceConnection Perforce, TrackedIssue Issue, IReadOnlyList<ChangeInfo> Changes)
+		public virtual List<ChangeInfo> FindCausers(PerforceConnection Perforce, BuildHealthIssue Issue, IReadOnlyList<ChangeInfo> Changes)
 		{
 			SortedSet<string> FileNamesWithoutPath = GetFileNamesWithoutPath(Issue.FileNames);
 
@@ -248,6 +248,6 @@ namespace MetadataTool
 		/// </summary>
 		/// <param name="Issue">The issue to summarize</param>
 		/// <returns>The summary text for this issue</returns>
-		public abstract string GetSummary(TrackedIssue Issue);
+		public abstract string GetSummary(BuildHealthIssue Issue);
 	}
 }

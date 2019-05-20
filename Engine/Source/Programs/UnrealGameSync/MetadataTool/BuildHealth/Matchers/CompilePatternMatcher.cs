@@ -26,7 +26,7 @@ namespace MetadataTool
 
 		public override string Category => "Compile";
 
-		public override bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<TrackedIssue> Issues)
+		public override bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<BuildHealthIssue> Issues)
 		{
 			// Find any files in compiler output format
 			HashSet<string> SourceFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -45,7 +45,7 @@ namespace MetadataTool
 			// If we found any source files, create a diagnostic category for them
 			if (SourceFileNames.Count > 0)
 			{
-				TrackedIssue Issue = new TrackedIssue(Category, Job.Url, Diagnostic.Url);
+				BuildHealthIssue Issue = new BuildHealthIssue(Category, Job.Url, Diagnostic.Url);
 				Issue.Details.Add(ShortenPaths(Diagnostic.Message));
 				Issue.FileNames.UnionWith(SourceFileNames);
 				Issues.Add(Issue);
@@ -62,7 +62,7 @@ namespace MetadataTool
 			return Text;
 		}
 
-		public override string GetSummary(TrackedIssue Issue)
+		public override string GetSummary(BuildHealthIssue Issue)
 		{
 			SortedSet<string> ShortFileNames = GetSourceFileNames(Issue.FileNames);
 			if (ShortFileNames.Count == 0)
