@@ -680,7 +680,33 @@ void SPropertyEditorAsset::OnMenuOpenChanged(bool bOpen)
 
 bool SPropertyEditorAsset::IsFilteredActor( const AActor* const Actor ) const
 {
-	return Actor->IsA( ObjectClass ) && !Actor->IsChildActor();
+	bool IsAllowed = Actor->IsA(ObjectClass) && !Actor->IsChildActor();
+
+	if (IsAllowed)
+	{
+		bool ClassFilterAllowed = false;
+		for (const UClass* Class : AllowedClassFilters)
+		{
+			if (Actor->GetClass()->IsChildOf(Class))
+			{
+				ClassFilterAllowed = true;
+				break;
+			}
+		}
+
+		for (const UClass* Class : DisallowedClassFilters)
+		{
+			if (Actor->GetClass()->IsChildOf(Class))
+			{
+				ClassFilterAllowed = false;
+				break;
+			}
+		}
+
+		IsAllowed = ClassFilterAllowed;
+	}
+
+	return IsAllowed;
 }
 
 void SPropertyEditorAsset::CloseComboButton()
