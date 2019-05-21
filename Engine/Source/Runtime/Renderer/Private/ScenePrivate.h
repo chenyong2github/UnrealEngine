@@ -2263,6 +2263,7 @@ public:
 	void Initialize();
 	// @return Whether uniform buffer was updated
 	bool UpdateViewUniformBuffer(const FViewInfo& View);
+	void UpdateViewUniformBufferImmediate(const FViewUniformShaderParameters& Parameters);
 
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer;
 	TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedViewUniformBuffer;
