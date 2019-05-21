@@ -310,7 +310,7 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 
 	const FSceneRenderTargetItem* CustomDepthStencilTarget = nullptr;
 
-	FDepthStencilStateRHIParamRef DepthStencilState;
+	FRHIDepthStencilState* DepthStencilState;
 	uint32 StencilRefValue = 0;
 
 	if (bDoStencilTest)
@@ -339,7 +339,7 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 			Swap(SceneContext.CustomDepth, CustomDepthStencilCopy);
 		}
 
-		static const FDepthStencilStateRHIParamRef StencilStates[] =
+		static FRHIDepthStencilState* StencilStates[] =
 		{
 			TStaticDepthStencilState<false, CF_Always, true, CF_Less>::GetRHI(),
 			TStaticDepthStencilState<false, CF_Always, true, CF_LessEqual>::GetRHI(),
@@ -360,11 +360,11 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 		DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 	}
 
-	FBlendStateRHIParamRef BlendState = TStaticBlendState<>::GetRHI();
+	FRHIBlendState* BlendState = TStaticBlendState<>::GetRHI();
 	bool bDoOutputBlend = Material->GetBlendableOutputAlpha() && CVarPostProcessAllowBlendModes.GetValueOnRenderThread() != 0;
 	if (bDoOutputBlend)
 	{
-		static const FBlendStateRHIParamRef BlendStates[] =
+		static FRHIBlendState* BlendStates[] =
 		{
 			TStaticBlendState<>::GetRHI(),
 			TStaticBlendState<>::GetRHI(),

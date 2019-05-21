@@ -469,7 +469,7 @@ void FProjectedShadowInfo::SetBlendStateForProjection(
 
 	if (bProjectingForForwardShading)
 	{
-		FBlendStateRHIParamRef BlendState = NULL;
+		FRHIBlendState* BlendState = nullptr;
 
 		if (bUseFadePlane)
 		{

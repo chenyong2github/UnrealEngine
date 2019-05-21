@@ -28,13 +28,11 @@ static void ClearQuadSetup( FRHICommandList& RHICmdList, bool bClearColor, int32
 	}
 
 	// Set new states
-	FBlendStateRHIParamRef BlendStateRHI;
-		
-	BlendStateRHI = bClearColor
+	FRHIBlendState* BlendStateRHI = bClearColor
 		? TStaticBlendState<>::GetRHI()
 		: TStaticBlendStateWriteMask<CW_NONE,CW_NONE,CW_NONE,CW_NONE,CW_NONE,CW_NONE,CW_NONE,CW_NONE>::GetRHI();
 	
-	const FDepthStencilStateRHIParamRef DepthStencilStateRHI = 
+	FRHIDepthStencilState* DepthStencilStateRHI =
 		(bClearDepth && bClearStencil)
 			? TStaticDepthStencilState<
 				true, CF_Always,
@@ -60,8 +58,7 @@ static void ClearQuadSetup( FRHICommandList& RHICmdList, bool bClearColor, int32
 	GraphicsPSOInit.BlendState = BlendStateRHI;
 	GraphicsPSOInit.DepthStencilState = DepthStencilStateRHI;
 
-	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-
+	auto* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
 	// Set the new shaders
 	TShaderMapRef<TOneColorVS<true> > VertexShader(ShaderMap);

@@ -54,7 +54,7 @@ struct FDecalDepthState
 };
 
 // @param RenderState 0:before BasePass, 1:before lighting, (later we could add "after lighting" and multiply)
-FBlendStateRHIParamRef GetDecalBlendState(const ERHIFeatureLevel::Type SMFeatureLevel, EDecalRenderStage InDecalRenderStage, EDecalBlendMode DecalBlendMode, bool bHasNormal)
+FRHIBlendState* GetDecalBlendState(const ERHIFeatureLevel::Type SMFeatureLevel, EDecalRenderStage InDecalRenderStage, EDecalBlendMode DecalBlendMode, bool bHasNormal)
 {
 	if (InDecalRenderStage == DRS_BeforeBasePass)
 	{
@@ -404,7 +404,7 @@ static FDecalDepthState ComputeDecalDepthState(EDecalRenderStage LocalDecalStage
 	return Ret;
 }
 
-static FDepthStencilStateRHIParamRef GetDecalDepthState(uint32& StencilRef, FDecalDepthState DecalDepthState)
+static FRHIDepthStencilState* GetDecalDepthState(uint32& StencilRef, FDecalDepthState DecalDepthState)
 {
 	switch (DecalDepthState.DepthTest)
 	{

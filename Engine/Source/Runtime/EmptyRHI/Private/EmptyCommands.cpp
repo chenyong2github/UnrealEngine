@@ -238,13 +238,13 @@ void FEmptyDynamicRHI::RHISetShaderUniformBuffer(FComputeShaderRHIParamRef Compu
 }
 
 
-void FEmptyDynamicRHI::RHISetDepthStencilState(FDepthStencilStateRHIParamRef NewStateRHI, uint32 StencilRef)
+void FEmptyDynamicRHI::RHISetDepthStencilState(FRHIDepthStencilState* NewStateRHI, uint32 StencilRef)
 {
 	FEmptyDepthStencilState* NewState = ResourceCast(NewStateRHI);
 
 }
 
-void FEmptyDynamicRHI::RHISetBlendState(FBlendStateRHIParamRef NewStateRHI, const FLinearColor& BlendFactor)
+void FEmptyDynamicRHI::RHISetBlendState(FRHIBlendState* NewStateRHI, const FLinearColor& BlendFactor)
 {
 	FEmptyBlendState* NewState = ResourceCast(NewStateRHI);
 

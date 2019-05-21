@@ -406,7 +406,7 @@ public:
 		RHIContext->RHISetScissorRect(bEnable, MinX, MinY, MaxX, MaxY);
 	}
 
-	virtual void RHISetGraphicsPipelineState(FGraphicsPipelineStateRHIParamRef GraphicsState) override final
+	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState) override final
 	{
 		checkf(State.bInsideBeginRenderPass, TEXT("Graphics PSOs can only be set inside a RenderPass!"));
 		State.bGfxPSOSet = true;

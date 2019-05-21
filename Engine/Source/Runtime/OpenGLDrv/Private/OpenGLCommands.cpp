@@ -1252,7 +1252,7 @@ void FOpenGLDynamicRHI::RHISetShaderParameter(FComputeShaderRHIParamRef ComputeS
 	PendingState.LinkedProgramAndDirtyFlag = nullptr;
 }
 
-void FOpenGLDynamicRHI::RHISetDepthStencilState(FDepthStencilStateRHIParamRef NewStateRHI,uint32 StencilRef)
+void FOpenGLDynamicRHI::RHISetDepthStencilState(FRHIDepthStencilState* NewStateRHI,uint32 StencilRef)
 {
 	VERIFY_GL_SCOPE();
 	FOpenGLDepthStencilState* NewState = ResourceCast(NewStateRHI);
@@ -1609,7 +1609,7 @@ void FOpenGLDynamicRHI::SetPendingBlendStateForActiveRenderTargets( FOpenGLConte
 	}
 }
 
-void FOpenGLDynamicRHI::RHISetBlendState(FBlendStateRHIParamRef NewStateRHI,const FLinearColor& BlendFactor)
+void FOpenGLDynamicRHI::RHISetBlendState(FRHIBlendState* NewStateRHI,const FLinearColor& BlendFactor)
 {
 	VERIFY_GL_SCOPE();
 	FOpenGLBlendState* NewState = ResourceCast(NewStateRHI);

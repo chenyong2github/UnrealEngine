@@ -961,17 +961,17 @@ struct FMeshPassProcessorRenderState
 	}
 
 public:
-	FORCEINLINE_DEBUGGABLE void SetBlendState(FBlendStateRHIParamRef InBlendState)
+	FORCEINLINE_DEBUGGABLE void SetBlendState(FRHIBlendState* InBlendState)
 	{
 		BlendState = InBlendState;
 	}
 
-	FORCEINLINE_DEBUGGABLE const FBlendStateRHIParamRef GetBlendState() const
+	FORCEINLINE_DEBUGGABLE FRHIBlendState* GetBlendState() const
 	{
 		return BlendState;
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetDepthStencilState(FDepthStencilStateRHIParamRef InDepthStencilState)
+	FORCEINLINE_DEBUGGABLE void SetDepthStencilState(FRHIDepthStencilState* InDepthStencilState)
 	{
 		DepthStencilState = InDepthStencilState;
 		StencilRef = 0;
@@ -982,7 +982,7 @@ public:
 		StencilRef = InStencilRef;
 	}
 
-	FORCEINLINE_DEBUGGABLE const FDepthStencilStateRHIParamRef GetDepthStencilState() const
+	FORCEINLINE_DEBUGGABLE FRHIDepthStencilState* GetDepthStencilState() const
 	{
 		return DepthStencilState;
 	}
@@ -1049,8 +1049,8 @@ public:
 	}
 
 private:
-	FBlendStateRHIParamRef			BlendState;
-	FDepthStencilStateRHIParamRef	DepthStencilState;
+	FRHIBlendState*					BlendState;
+	FRHIDepthStencilState*			DepthStencilState;
 	FExclusiveDepthStencil::Type	DepthStencilAccess;
 
 	TUniformBufferRef<FViewUniformShaderParameters>	ViewUniformBuffer;

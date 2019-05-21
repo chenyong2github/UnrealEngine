@@ -258,7 +258,7 @@ class TStaticDepthStencilState : public TStaticStateRHI<
 		StencilWriteMask
 		>,
 	FDepthStencilStateRHIRef,
-	FDepthStencilStateRHIParamRef
+	FRHIDepthStencilState*
 	>
 {
 public:
@@ -370,7 +370,7 @@ class TStaticBlendState : public TStaticStateRHI<
 		RT7ColorWriteMask,RT7ColorBlendOp,RT7ColorSrcBlend,RT7ColorDestBlend,RT7AlphaBlendOp,RT7AlphaSrcBlend,RT7AlphaDestBlend
 		>,
 	FBlendStateRHIRef,
-	FBlendStateRHIParamRef
+	FRHIBlendState*
 	>
 {
 public:

@@ -1105,9 +1105,11 @@ UE_DEPRECATED(4.23, "FRasterizerStateRHIParamRef typedef is deprecated; please u
 typedef FRHIRasterizerState*              FRasterizerStateRHIParamRef;
 typedef TRefCountPtr<FRHIRasterizerState> FRasterizerStateRHIRef;
 
+UE_DEPRECATED(4.23, "FDepthStencilStateRHIParamRef typedef is deprecated; please use FRHIDepthStencilState* directly instead.")
 typedef FRHIDepthStencilState*              FDepthStencilStateRHIParamRef;
 typedef TRefCountPtr<FRHIDepthStencilState> FDepthStencilStateRHIRef;
 
+UE_DEPRECATED(4.23, "FBlendStateRHIParamRef typedef is deprecated; please use FRHIBlendState* directly instead.")
 typedef FRHIBlendState*              FBlendStateRHIParamRef;
 typedef TRefCountPtr<FRHIBlendState> FBlendStateRHIRef;
 
@@ -1190,6 +1192,7 @@ typedef TRefCountPtr<FRHIUnorderedAccessView> FUnorderedAccessViewRHIRef;
 typedef FRHIShaderResourceView*              FShaderResourceViewRHIParamRef;
 typedef TRefCountPtr<FRHIShaderResourceView> FShaderResourceViewRHIRef;
 
+UE_DEPRECATED(4.23, "FGraphicsPipelineStateRHIParamRef typedef is deprecated; please use FRHIGraphicsPipelineState* directly instead.")
 typedef FRHIGraphicsPipelineState*              FGraphicsPipelineStateRHIParamRef;
 typedef TRefCountPtr<FRHIGraphicsPipelineState> FGraphicsPipelineStateRHIRef;
 
@@ -1832,12 +1835,12 @@ public:
 	}
 
 	FGraphicsMinimalPipelineStateInitializer(
-		FBoundShaderStateInput				InBoundShaderState,
-		FBlendStateRHIParamRef				InBlendState,
-		FRHIRasterizerState*				InRasterizerState,
-		FDepthStencilStateRHIParamRef		InDepthStencilState,
-		FImmutableSamplerState				InImmutableSamplerState,
-		EPrimitiveType						InPrimitiveType
+		FBoundShaderStateInput		InBoundShaderState,
+		FRHIBlendState*				InBlendState,
+		FRHIRasterizerState*		InRasterizerState,
+		FRHIDepthStencilState*		InDepthStencilState,
+		FImmutableSamplerState		InImmutableSamplerState,
+		EPrimitiveType				InPrimitiveType
 		)
 		: BoundShaderState(InBoundShaderState)
 		, BlendState(InBlendState)
@@ -1962,19 +1965,19 @@ public:
 
 	// TODO: [PSO API] - As we migrate reuse existing API objects, but eventually we can move to the direct initializers. 
 	// When we do that work, move this to RHI.h as its more appropriate there, but here for now since dependent typdefs are here.
-	FBoundShaderStateInput			BoundShaderState;
-	FBlendStateRHIParamRef			BlendState;
-	FRHIRasterizerState*			RasterizerState;
-	FDepthStencilStateRHIParamRef	DepthStencilState;
-	FImmutableSamplerState			ImmutableSamplerState;
+	FBoundShaderStateInput	BoundShaderState;
+	FRHIBlendState*			BlendState;
+	FRHIRasterizerState*	RasterizerState;
+	FRHIDepthStencilState*	DepthStencilState;
+	FImmutableSamplerState	ImmutableSamplerState;
 
 	// Note: FGraphicsMinimalPipelineStateInitializer is 8-byte aligned and can't have any implicit padding,
 	// as it is sometimes hashed and compared as raw bytes. Explicit padding is therefore required between
 	// all data members and at the end of the structure.
-	bool							bDepthBounds = false;
-	uint8							Padding[3] = {};
+	bool					bDepthBounds = false;
+	uint8					Padding[3] = {};
 
-	EPrimitiveType					PrimitiveType;
+	EPrimitiveType			PrimitiveType;
 };
 
 // Hints for some RHIs that support subpasses
@@ -2032,26 +2035,26 @@ public:
 	}
 
 	FGraphicsPipelineStateInitializer(
-		FBoundShaderStateInput				InBoundShaderState,
-		FBlendStateRHIParamRef				InBlendState,
-		FRHIRasterizerState*				InRasterizerState,
-		FDepthStencilStateRHIParamRef		InDepthStencilState,
-		FImmutableSamplerState				InImmutableSamplerState,
-		EPrimitiveType						InPrimitiveType,
-		uint32								InRenderTargetsEnabled,
-		const TRenderTargetFormats&			InRenderTargetFormats,
-		const TRenderTargetFlags&			InRenderTargetFlags,
-		EPixelFormat						InDepthStencilTargetFormat,
-		uint32								InDepthStencilTargetFlag,
-		ERenderTargetLoadAction				InDepthTargetLoadAction,
-		ERenderTargetStoreAction			InDepthTargetStoreAction,
-		ERenderTargetLoadAction				InStencilTargetLoadAction,
-		ERenderTargetStoreAction			InStencilTargetStoreAction,
-		FExclusiveDepthStencil				InDepthStencilAccess,
-		uint32								InNumSamples,
-		ESubpassHint						InSubpassHint,
-		uint8								InSubpassIndex,
-		uint16								InFlags
+		FBoundShaderStateInput		InBoundShaderState,
+		FRHIBlendState*				InBlendState,
+		FRHIRasterizerState*		InRasterizerState,
+		FRHIDepthStencilState*		InDepthStencilState,
+		FImmutableSamplerState		InImmutableSamplerState,
+		EPrimitiveType				InPrimitiveType,
+		uint32						InRenderTargetsEnabled,
+		const TRenderTargetFormats&	InRenderTargetFormats,
+		const TRenderTargetFlags&	InRenderTargetFlags,
+		EPixelFormat				InDepthStencilTargetFormat,
+		uint32						InDepthStencilTargetFlag,
+		ERenderTargetLoadAction		InDepthTargetLoadAction,
+		ERenderTargetStoreAction	InDepthTargetStoreAction,
+		ERenderTargetLoadAction		InStencilTargetLoadAction,
+		ERenderTargetStoreAction	InStencilTargetStoreAction,
+		FExclusiveDepthStencil		InDepthStencilAccess,
+		uint32						InNumSamples,
+		ESubpassHint				InSubpassHint,
+		uint8						InSubpassIndex,
+		uint16						InFlags
 		)
 		: FGraphicsMinimalPipelineStateInitializer(InBoundShaderState, InBlendState, InRasterizerState, InDepthStencilState, InImmutableSamplerState, InPrimitiveType)
 		, RenderTargetsEnabled(InRenderTargetsEnabled)

@@ -813,7 +813,7 @@ void FD3D11DynamicRHI::ValidateExclusiveDepthStencilAccess(FExclusiveDepthStenci
 	}
 }
 
-void FD3D11DynamicRHI::RHISetDepthStencilState(FDepthStencilStateRHIParamRef NewStateRHI,uint32 StencilRef)
+void FD3D11DynamicRHI::RHISetDepthStencilState(FRHIDepthStencilState* NewStateRHI,uint32 StencilRef)
 {
 	FD3D11DepthStencilState* NewState = ResourceCast(NewStateRHI);
 
@@ -827,7 +827,7 @@ void FD3D11DynamicRHI::RHISetStencilRef(uint32 StencilRef)
 	StateCache.SetStencilRef(StencilRef);
 }
 
-void FD3D11DynamicRHI::RHISetBlendState(FBlendStateRHIParamRef NewStateRHI,const FLinearColor& BlendFactor)
+void FD3D11DynamicRHI::RHISetBlendState(FRHIBlendState* NewStateRHI,const FLinearColor& BlendFactor)
 {
 	FD3D11BlendState* NewState = ResourceCast(NewStateRHI);
 	StateCache.SetBlendState(NewState->Resource, (const float*)&BlendFactor, 0xffffffff);

@@ -72,7 +72,7 @@ namespace RuntimeVirtualTexture
 			OutEnvironment.SetDefine(TEXT("OUT_BASECOLOR"), 1);
 		}
 
-		static FBlendStateRHIParamRef GetBlendState()
+		static FRHIBlendState* GetBlendState()
 		{
 			return TStaticBlendState< CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One >::GetRHI();
 		}
@@ -87,7 +87,7 @@ namespace RuntimeVirtualTexture
 			OutEnvironment.SetDefine(TEXT("OUT_BASECOLOR_NORMAL"), 1);
 		}
 
-		static FBlendStateRHIParamRef GetBlendState()
+		static FRHIBlendState* GetBlendState()
 		{
 			return TStaticBlendState<
 				CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,
@@ -104,7 +104,7 @@ namespace RuntimeVirtualTexture
 			OutEnvironment.SetDefine(TEXT("OUT_BASECOLOR_NORMAL_SPECULAR"), 1);
 		}
 
-		static FBlendStateRHIParamRef GetBlendState()
+		static FRHIBlendState* GetBlendState()
 		{
 			return TStaticBlendState<
 				CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,

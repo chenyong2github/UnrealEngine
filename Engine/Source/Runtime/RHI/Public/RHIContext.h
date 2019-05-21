@@ -326,7 +326,7 @@ public:
 	// @param MaxY excluding like Win32 RECT
 	virtual void RHISetScissorRect(bool bEnable, uint32 MinX, uint32 MinY, uint32 MaxX, uint32 MaxY) = 0;
 
-	virtual void RHISetGraphicsPipelineState(FGraphicsPipelineStateRHIParamRef GraphicsState) = 0;
+	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState) = 0;
 
 	/** Set the shader resource view of a surface.  This is used for binding TextureMS parameter types that need a multi sampled view. */
 	virtual void RHISetShaderTexture(FVertexShaderRHIParamRef VertexShader, uint32 TextureIndex, FTextureRHIParamRef NewTexture) = 0;
@@ -668,11 +668,11 @@ public:
 	*/
 	virtual void RHISetBoundShaderState(FBoundShaderStateRHIParamRef BoundShaderState) = 0;
 
-	virtual void RHISetDepthStencilState(FDepthStencilStateRHIParamRef NewState, uint32 StencilRef) = 0;
+	virtual void RHISetDepthStencilState(FRHIDepthStencilState* NewState, uint32 StencilRef) = 0;
 
 	virtual void RHISetRasterizerState(FRHIRasterizerState* NewState) = 0;
 
-	virtual void RHISetBlendState(FBlendStateRHIParamRef NewState, const FLinearColor& BlendFactor) = 0;
+	virtual void RHISetBlendState(FRHIBlendState* NewState, const FLinearColor& BlendFactor) = 0;
 
 	virtual void RHIEnableDepthBoundsTest(bool bEnable) = 0;
 
@@ -680,7 +680,7 @@ public:
 	* This will set most relevant pipeline state. Legacy APIs are expected to set corresponding disjoint state as well.
 	* @param GraphicsShaderState - the graphics pipeline state
 	*/
-	virtual void RHISetGraphicsPipelineState(FGraphicsPipelineStateRHIParamRef GraphicsState) override
+	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState) override
 	{
 		FRHIGraphicsPipelineStateFallBack* FallbackGraphicsState = static_cast<FRHIGraphicsPipelineStateFallBack*>(GraphicsState);
 		FGraphicsPipelineStateInitializer& PsoInit = FallbackGraphicsState->Initializer;

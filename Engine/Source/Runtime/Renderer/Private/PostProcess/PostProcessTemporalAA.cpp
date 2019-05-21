@@ -734,7 +734,7 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 			FTemporalAAPS::FPermutationDomain PermutationVector = BasePermutationVector;
 
 			// Lambda to draw pixel shader.
-			auto DrawTAAPixelShader = [&](FDepthStencilStateRHIParamRef DepthStencilState)
+			auto DrawTAAPixelShader = [&](FRHIDepthStencilState* DepthStencilState)
 			{
 				TShaderMapRef<FTemporalAAPS> TAAPixelShader(View.ShaderMap, PermutationVector);
 
@@ -752,7 +752,7 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 			{
 				// Normal temporal feedback
 				// Draw to pixels where stencil == 0
-				FDepthStencilStateRHIParamRef DepthStencilState = TStaticDepthStencilState<
+				FRHIDepthStencilState* DepthStencilState = TStaticDepthStencilState<
 					false, CF_Always,
 					true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
 					false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
