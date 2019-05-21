@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/EngineTypes.h"
+#include "FinalPostProcessSettings.h"
 #include "SceneTypes.h"
 #include "GameFramework/PlayerController.h"
 #include "DebugCameraController.generated.h"
