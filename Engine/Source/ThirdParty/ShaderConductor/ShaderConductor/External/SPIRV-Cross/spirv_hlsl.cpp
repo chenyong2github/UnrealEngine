@@ -723,17 +723,25 @@ string CompilerHLSL::to_interpolation_qualifiers(const Bitset &flags)
 	return res;
 }
 
-std::string CompilerHLSL::to_semantic(uint32_t vertex_location)
+std::string CompilerHLSL::to_semantic(uint32_t location, ExecutionModel em, StorageClass sc)
 {
-	for (auto &attribute : remap_vertex_attributes)
-		if (attribute.location == vertex_location)
-			return attribute.semantic;
+	if (em == ExecutionModelVertex && sc == StorageClassInput)
+	{
+		// We have a vertex attribute - we should look at remapping it if the user provided
+		// vertex attribute hints.
+		for (auto &attribute : remap_vertex_attributes)
+			if (attribute.location == location)
+				return attribute.semantic;
+	}
 
-	return join("TEXCOORD", vertex_location);
+	// Not a vertex attribute, or no remap_vertex_attributes entry.
+	return join("TEXCOORD", location);
 }
 
 void CompilerHLSL::emit_io_block(const SPIRVariable &var)
 {
+	auto &execution = get_entry_point();
+
 	auto &type = get<SPIRType>(var.basetype);
 	add_resource_name(type.self);
 
@@ -749,7 +757,7 @@ void CompilerHLSL::emit_io_block(const SPIRVariable &var)
 		if (has_member_decoration(type.self, i, DecorationLocation))
 		{
 			uint32_t location = get_member_decoration(type.self, i, DecorationLocation);
-			semantic = join(" : ", to_semantic(location));
+			semantic = join(" : ", to_semantic(location, execution.model, var.storage));
 		}
 		else
 		{
@@ -757,7 +765,7 @@ void CompilerHLSL::emit_io_block(const SPIRVariable &var)
 			// There could be a conflict if the block members partially specialize the locations.
 			// It is unclear how SPIR-V deals with this. Assume this does not happen for now.
 			uint32_t location = base_location + i;
-			semantic = join(" : ", to_semantic(location));
+			semantic = join(" : ", to_semantic(location, execution.model, var.storage));
 		}
 
 		add_member_name(type, i);
@@ -820,7 +828,7 @@ void CompilerHLSL::emit_interface_block_in_struct(const SPIRVariable &var, unord
 			location_number = get_vacant_location();
 
 		// Allow semantic remap if specified.
-		auto semantic = to_semantic(location_number);
+		auto semantic = to_semantic(location_number, execution.model, var.storage);
 
 		if (need_matrix_unroll && type.columns > 1)
 		{
@@ -1998,7 +2006,7 @@ void CompilerHLSL::emit_function_prototype(SPIRFunction &func, const Bitset &ret
 	auto &type = get<SPIRType>(func.return_type);
 	if (type.array.empty())
 	{
-		decl += flags_to_precision_qualifiers_glsl(type, return_flags);
+		decl += flags_to_qualifiers_glsl(type, return_flags);
 		decl += type_to_glsl(type);
 		decl += " ";
 	}
@@ -3705,7 +3713,6 @@ void CompilerHLSL::emit_atomic(const uint32_t *ops, uint32_t length, spv::Op op)
 	auto expr = bitcast_expression(type, expr_type, to_name(id));
 	set<SPIRExpression>(id, expr, result_type, true);
 	flush_all_atomic_capable_variables();
-	register_read(ops[1], ops[2], should_forward(ops[2]));
 }
 
 void CompilerHLSL::emit_subgroup_op(const Instruction &i)
@@ -4501,6 +4508,25 @@ void CompilerHLSL::emit_instruction(const Instruction &instruction)
 		HLSL_UFOP(reversebits);
 		break;
 
+	case OpArrayLength:
+	{
+		auto *var = maybe_get<SPIRVariable>(ops[2]);
+		if (!var)
+			SPIRV_CROSS_THROW("Array length must point directly to an SSBO block.");
+
+		auto &type = get<SPIRType>(var->basetype);
+		if (!has_decoration(type.self, DecorationBlock) && !has_decoration(type.self, DecorationBufferBlock))
+			SPIRV_CROSS_THROW("Array length expression must point to a block type.");
+
+		// This must be 32-bit uint, so we're good to go.
+		emit_uninitialized_temporary_expression(ops[0], ops[1]);
+		statement(to_expression(ops[2]), ".GetDimensions(", to_expression(ops[1]), ");");
+		uint32_t offset = type_struct_member_offset(type, ops[3]);
+		uint32_t stride = type_struct_member_array_stride(type, ops[3]);
+		statement(to_expression(ops[1]), " = (", to_expression(ops[1]), " - ", offset, ") / ", stride, ";");
+		break;
+	}
+
 	default:
 		CompilerGLSL::emit_instruction(instruction);
 		break;
@@ -4621,6 +4647,28 @@ uint32_t CompilerHLSL::remap_num_workgroups_builtin()
 	return variable_id;
 }
 
+void CompilerHLSL::validate_shader_model()
+{
+	// Check for nonuniform qualifier.
+	// Instead of looping over all decorations to find this, just look at capabilities.
+	for (auto &cap : ir.declared_capabilities)
+	{
+		switch (cap)
+		{
+		case CapabilityShaderNonUniformEXT:
+		case CapabilityRuntimeDescriptorArrayEXT:
+			if (hlsl_options.shader_model < 51)
+				SPIRV_CROSS_THROW(
+				    "Shader model 5.1 or higher is required to use bindless resources or NonUniformResourceIndex.");
+		default:
+			break;
+		}
+	}
+
+	if (ir.addressing_model != AddressingModelLogical)
+		SPIRV_CROSS_THROW("Only Logical addressing model can be used with HLSL.");
+}
+
 string CompilerHLSL::compile()
 {
 	// Do not deal with ES-isms like precision, older extensions and such.
@@ -4637,7 +4685,7 @@ string CompilerHLSL::compile()
 	backend.basic_uint_type = "uint";
 	backend.swizzle_is_function = false;
 	backend.shared_is_implied = true;
-	backend.flexible_member_array_supported = false;
+	backend.unsized_array_supported = true;
 	backend.explicit_struct_type = false;
 	backend.use_initializer_list = true;
 	backend.use_constructor_splatting = false;
@@ -4646,8 +4694,10 @@ string CompilerHLSL::compile()
 	backend.can_declare_struct_inline = false;
 	backend.can_declare_arrays_inline = false;
 	backend.can_return_array = false;
+	backend.nonuniform_qualifier = "NonUniformResourceIndex";
 
 	build_function_control_flow_graphs_and_analyze();
+	validate_shader_model();
 	update_active_builtins();
 	analyze_image_and_sampler_usage();
 
