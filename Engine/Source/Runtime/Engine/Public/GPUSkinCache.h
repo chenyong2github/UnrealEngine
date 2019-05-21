@@ -283,19 +283,21 @@ public:
 #if RHI_RAYTRACING
 	void AddRayTracingGeometryToUpdate(FRayTracingGeometry* RayTracingGeometry)
 	{
-		FAccelerationStructureUpdateParams Params;
-		Params.Geometry     = RayTracingGeometry->RayTracingGeometryRHI;
-		Params.VertexBuffer = RayTracingGeometry->Initializer.PositionVertexBuffer;
-
-		RayTracingGeometriesToUpdate.Add(Params);
+		RayTracingGeometriesToUpdate.Add(RayTracingGeometry);
 	}
 
 	void CommitRayTracingGeometryUpdates(FRHICommandList& RHICmdList);
+
+	void RemoveRayTracingGeometryUpdate(FRayTracingGeometry* RayTracingGeometry)
+	{
+		if (RayTracingGeometriesToUpdate.Find(RayTracingGeometry) != nullptr)
+			RayTracingGeometriesToUpdate.Remove(RayTracingGeometry);
+	}
 #endif // RHI_RAYTRACING
 
 protected:
 	TArray<FUnorderedAccessViewRHIParamRef> BuffersToTransition;
-	TArray<FAccelerationStructureUpdateParams> RayTracingGeometriesToUpdate;
+	TSet<FRayTracingGeometry*> RayTracingGeometriesToUpdate;
 
 	TArray<FRWBuffersAllocation*> Allocations;
 	TArray<FGPUSkinCacheEntry*> Entries;

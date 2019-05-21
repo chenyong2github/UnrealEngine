@@ -608,9 +608,20 @@ void FGPUSkinCache::TransitionAllToReadable(FRHICommandList& RHICmdList)
 #if RHI_RAYTRACING
 void FGPUSkinCache::CommitRayTracingGeometryUpdates(FRHICommandList& RHICmdList)
 {
+	SCOPED_DRAW_EVENT(RHICmdList, CommitSkeletalRayTracingGeometryUpdates);
+
 	if (RayTracingGeometriesToUpdate.Num())
 	{
-		RHICmdList.UpdateAccelerationStructures(RayTracingGeometriesToUpdate);
+		TArray<FAccelerationStructureUpdateParams> Updates;
+		for (const auto& RayTracingGeometry : RayTracingGeometriesToUpdate)
+		{
+			FAccelerationStructureUpdateParams Params;
+			Params.Geometry = RayTracingGeometry->RayTracingGeometryRHI;
+			Params.VertexBuffer = RayTracingGeometry->Initializer.PositionVertexBuffer;
+			Updates.Add(Params);
+		}
+
+		RHICmdList.UpdateAccelerationStructures(Updates);
 		RayTracingGeometriesToUpdate.Reset();
 	}
 }
@@ -1322,6 +1333,7 @@ void FGPUSkinCache::FRWBuffersAllocation::RemoveAllFromTransitionArray(TArray<FU
 void FGPUSkinCache::ReleaseSkinCacheEntry(FGPUSkinCacheEntry* SkinCacheEntry)
 {
 	FGPUSkinCache* SkinCache = SkinCacheEntry->SkinCache;
+	SkinCache->RemoveRayTracingGeometryUpdate(&SkinCacheEntry->GPUSkin->RayTracingGeometry);
 	FRWBuffersAllocation* PositionAllocation = SkinCacheEntry->PositionAllocation;
 	if (PositionAllocation)
 	{
