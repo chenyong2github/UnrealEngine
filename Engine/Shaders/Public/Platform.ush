@@ -462,6 +462,9 @@
 #define EARLYDEPTHSTENCIL [earlydepthstencil]
 #endif
 
+#ifndef DEPTHSTENCIL_EARLYTEST_LATEWRITE
+#define DEPTHSTENCIL_EARLYTEST_LATEWRITE EARLYDEPTHSTENCIL
+#endif
 
 // ---------------------------------------------------- Compiler attribute fallbacks
 
@@ -648,6 +651,12 @@ float4 max3( float4 a, float4 b, float4 c )
 
 #endif
 
+#if !defined(COMPILER_SUPPORTS_UNPACKBYTEN)
+float UnpackByte0(uint v) { return float(v & 0xff); }
+float UnpackByte1(uint v) { return float((v >> 8) & 0xff); }
+float UnpackByte2(uint v) { return float((v >> 16) & 0xff); }
+float UnpackByte3(uint v) { return float(v >> 24); }
+#endif // !COMPILER_SUPPORTS_UNPACKBYTEN
 
 #if COMPILER_HLSLCC
 #define ddx_fine(x) ddx(x)

@@ -49,14 +49,8 @@ PixelShaderOutputCommon.usf: To allow PS input/output passed int functions throu
 
 #if LIGHTMAP_VT_ENABLED || NUM_VIRTUALTEXTURE_SAMPLES
 	// If virtual texture is enabled need to make sure we're using early depth test, in order for UAV feedback buffer writes to respect depth test
-	#if PS4_PROFILE
-		// PS4 HW has both early depth test and RE_Z mode
-		// On PS4, early depth stencil test also implies early depth write, which is not compatible with pixel shaders that discard or modify output depth
-		// To handle these cases, RE_Z mode performs depth test once before pixel shader (to handle early rejection) and again after pixel shader along with depth write
-		ENABLE_RE_Z
-	#else
-		EARLYDEPTHSTENCIL
-	#endif
+	// Also need to wait until after pixel shader to write depth, since we may be using discard, or modifying depth
+	DEPTHSTENCIL_EARLYTEST_LATEWRITE
 #endif // LIGHTMAP_VT_ENABLED || NUM_VIRTUALTEXTURE_SAMPLES
 void MainPS
 	(

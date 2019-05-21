@@ -419,13 +419,6 @@ VTUniform VTUniform_Unpack(uint4 PackedUniform)
 	return result;
 }
 
-#if !PS4_PROFILE
-float UnpackByte0(uint v) { return float(v & 0xff); }
-float UnpackByte1(uint v) { return float((v >> 8) & 0xff); }
-float UnpackByte2(uint v) { return float((v >> 16) & 0xff); }
-float UnpackByte3(uint v) { return float(v >> 24); }
-#endif
-
 // Applies proper scaling to dUVdx/dUVdy in PageTableResult
 float2 VTComputePhysicalUVs(in out VTPageTableResult PageTableResult, uint LayerIndex, VTUniform Uniform)
 {
