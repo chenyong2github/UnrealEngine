@@ -174,8 +174,6 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 	// for deleting, renaming, dragging
 	CommandList = MakeShared<FUICommandList>();
 
-	InControlRigEditor->OnGraphNodeSelectionChanged().AddSP(this, &SRigHierarchy::HandleGraphSelectionChanged);
-
 	UEditorEngine* Editor = Cast<UEditorEngine>(GEngine);
 	if (Editor != nullptr)
 	{
@@ -336,11 +334,6 @@ TSharedRef<ITableRow> SRigHierarchy::MakeTableRowWidget(TSharedPtr<FRigTreeBone>
 void SRigHierarchy::HandleGetChildrenForTree(TSharedPtr<FRigTreeBone> InItem, TArray<TSharedPtr<FRigTreeBone>>& OutChildren)
 {
 	OutChildren = InItem.Get()->Children;
-}
-
-void SRigHierarchy::HandleGraphSelectionChanged(const TSet<UObject*>& SelectedBones)
-{
-
 }
 
 void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeBone> Selection, ESelectInfo::Type SelectInfo)

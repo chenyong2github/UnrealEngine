@@ -175,6 +175,8 @@ struct PROPERTYPATH_API FCachedPropertyPath
 	/** Trims this property path at the start */
 	void RemoveFromStart(int32 InNumSegments = 1);
 
+	/** Returns UProperty if valid. This can be UFunction */
+	UProperty* GetUProperty() const;
 private:
 	/** Path segments for this path */
 	UPROPERTY()

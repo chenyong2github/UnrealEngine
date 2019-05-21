@@ -560,14 +560,14 @@ void FAnimBlueprintCompilerContext::ProcessAnimationNode(UAnimGraphNode_Base* Vi
 			int32 SourceArrayIndex = INDEX_NONE;
 
 			// We have special handling below if we're targeting a subinstance instead of our own instance properties
-			UAnimGraphNode_SubInstance* SubInstanceNode = Cast<UAnimGraphNode_SubInstance>(VisualAnimNode);
+			UAnimGraphNode_CustomProperty* CustomPropertyNode = Cast<UAnimGraphNode_CustomProperty>(VisualAnimNode);
 
 			// Does this pin have an associated evaluation handler?
-			if(SubInstanceNode)
+			if(CustomPropertyNode)
 			{
 				// Subinstance nodes use instance properties not node properties as they aren't UObjects
 				// and we can't store non-native properties there
-				SubInstanceNode->GetInstancePinProperty(NewAnimBlueprintClass, SourcePin, SourcePinProperty);
+				CustomPropertyNode->GetInstancePinProperty(NewAnimBlueprintClass, SourcePin, SourcePinProperty);
 			}
 			else
 			{
@@ -601,7 +601,7 @@ void FAnimBlueprintCompilerContext::ProcessAnimationNode(UAnimGraphNode_Base* Vi
 					EvalHandler.NodeVariableProperty = NewProperty;
 					EvalHandler.RegisterPin(SourcePin, SourcePinProperty, SourceArrayIndex);
 
-					if(SubInstanceNode)
+					if(CustomPropertyNode)
 					{
 						EvalHandler.bServicesInstanceProperties = true;
 

@@ -75,8 +75,13 @@ void FControlRigBlueprintCompilerContext::BuildPropertyLinks()
 			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
 			if (RigGraph)
 			{
-				FControlRigGraphTraverser Traverser(ControlRigBlueprint, RigGraph);
-				Traverser.TraverseAndBuildPropertyLinks();
+				if (ControlRigBlueprint->Model == nullptr)
+				{
+					ControlRigBlueprint->PopulateModelFromGraph(RigGraph);
+				}
+
+				FControlRigGraphTraverser Traverser(ControlRigBlueprint->Model);
+				Traverser.TraverseAndBuildPropertyLinks(ControlRigBlueprint);
 
 				bool bEncounteredChange = false;
 				for (UEdGraphNode* Node : RigGraph->Nodes)
@@ -84,7 +89,7 @@ void FControlRigBlueprintCompilerContext::BuildPropertyLinks()
 					UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
 					if (RigNode)
 					{
-						bool bDisplayAsDisabled = !Traverser.IsWiredToExecution(RigNode);
+						bool bDisplayAsDisabled = !Traverser.IsWiredToExecution(RigNode->PropertyName);
 						if (bDisplayAsDisabled != RigNode->IsDisplayAsDisabledForced())
 						{
 							RigNode->SetForceDisplayAsDisabled(bDisplayAsDisabled);
@@ -387,19 +392,32 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 
 	FKismetCompilerContext::PostCompile();
 
-	// We need to copy any pin defaults over to underlying properties once the class is built
-	// as the defaults may not have been propagated from new nodes yet
-	for(UEdGraph* UbergraphPage : Blueprint->UbergraphPages)
+	// ask the model to update all defaults
+	bool bSetDefaultsFromModel = false;
+	if (ControlRigBlueprint)
 	{
-		if(UControlRigGraph* ControlRigGraph = Cast<UControlRigGraph>(UbergraphPage))
+		if (ControlRigBlueprint->ModelController)
 		{
-			for(UEdGraphNode* Node : ControlRigGraph->Nodes)
+			bSetDefaultsFromModel = ControlRigBlueprint->ModelController->ResendAllPinDefaultNotifications();
+		}
+	}
+
+	if (!bSetDefaultsFromModel)
+	{
+		// We need to copy any pin defaults over to underlying properties once the class is built
+		// as the defaults may not have been propagated from new nodes yet
+		for (UEdGraph* UbergraphPage : Blueprint->UbergraphPages)
+		{
+			if (UControlRigGraph* ControlRigGraph = Cast<UControlRigGraph>(UbergraphPage))
 			{
-				if(UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(Node))
+				for (UEdGraphNode* Node : ControlRigGraph->Nodes)
 				{
-					for(UEdGraphPin* Pin : ControlRigGraphNode->Pins)
+					if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(Node))
 					{
-						ControlRigGraphNode->CopyPinDefaultsToProperties(Pin, false, false);
+						for (UEdGraphPin* Pin : ControlRigGraphNode->Pins)
+						{
+							ControlRigGraphNode->CopyPinDefaultsToModel(Pin);
+						}
 					}
 				}
 			}
@@ -418,6 +436,7 @@ void FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObjec
 		ControlRig->Hierarchy.BaseHierarchy = ControlRigBlueprint->Hierarchy;
 		// copy available rig units info, so that control rig can do things with it
 		ControlRig->AllowSourceAccessProperties = ControlRigBlueprint->AllowSourceAccessProperties;
+		ControlRigBlueprint->UpdateParametersOnControlRig(ControlRig);
 	}
 }
 

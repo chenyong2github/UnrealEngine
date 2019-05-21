@@ -137,9 +137,6 @@ private:
 	/** Delete Item */
 	void HandleRenameItem();
 
-	/** Sync up selection with the graph */
-	void HandleGraphSelectionChanged(const TSet<UObject*>& SelectedBones);
-
 	/** Set Selection Changed */
 	void OnSelectionChanged(TSharedPtr<FRigTreeBone> Selection, ESelectInfo::Type SelectInfo);
 

@@ -3,8 +3,7 @@
 #pragma once
 
 #include "ControlRigBlueprint.h"
-#include "Graph/ControlRigGraph.h"
-#include "Graph/ControlRigGraphNode.h"
+#include "ControlRigModel.h"
 
 /*
  * The ControlRigTraverser is used to walk the UI graph (UEdGraph).
@@ -16,23 +15,22 @@ class CONTROLRIGDEVELOPER_API FControlRigGraphTraverser
 {
 public:
 
-	FControlRigGraphTraverser(UControlRigBlueprint* InBlueprint, UControlRigGraph* InGraph);
+	FControlRigGraphTraverser(UControlRigModel* InModel);
 
 #if WITH_EDITORONLY_DATA
 	// Returns true if a given unit is part of a valid execution graph
-	bool IsWiredToExecution(const FName& UnitName);
+	bool IsWiredToExecution(const FName& NodeName);
 #endif
 
 	// walks the UEdGraph, finds all valid nodes and builds property links
-	void TraverseAndBuildPropertyLinks();
+	void TraverseAndBuildPropertyLinks(UControlRigBlueprint* Blueprint);
 
 private:
 
 	// Returns true if a given node is part of a valid execution graph
-	bool IsWiredToExecution(UControlRigGraphNode* Node);
+	bool IsWiredToExecution(const FControlRigModelNode* Node);
 
-	UControlRigBlueprint* Blueprint;
-	UControlRigGraph* Graph;
+	UControlRigModel* Model;
 	TMap<FName, bool> VisitedNodes;
 
 	friend class FControlRigBlueprintCompilerContext;

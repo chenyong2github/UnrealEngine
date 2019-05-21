@@ -5,6 +5,7 @@
 #include "EdGraph/EdGraph.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "Hierarchy.h"
+#include "ControlRigModel.h"
 #include "ControlRigGraph.generated.h"
 
 class UControlRigBlueprint;
@@ -30,13 +31,21 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 #endif
 #if WITH_EDITOR
+
 	virtual void PostLoad() override;
 	void OnBlueprintCompiledPostLoad(UBlueprint*);
 	FDelegateHandle BlueprintOnCompiledHandle;
 	void CacheBoneNameList(const FRigHierarchy& Hierarchy);
 	const TArray<TSharedPtr<FString>>& GetBoneNameList() const;
 
+	bool bSuspendModelNotifications;
+	bool bIsTemporaryGraphForCopyPaste;
+
+	UControlRigGraphNode* FindNodeFromPropertyName(const FName& InPropertyName);
+
 private:
+
+	void HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload);
 
 	TArray<UControlRigGraphNode*> FoundHierarchyRefVariableNodes;
 	TArray<UControlRigGraphNode*> FoundHierarchyRefMutableNodes;
