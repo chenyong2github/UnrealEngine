@@ -551,11 +551,19 @@ public:
 	struct FLandscapeSectionRayTracingState
 	{
 		int8 CurrentLOD;
+		FVector4 LODBias;
+		FVector4 SectionLOD;
+		FVector4 CurrentNeighborLOD;
+
 		FRayTracingGeometry Geometry;
 		FRWBuffer RayTracingDynamicVertexBuffer;
 		FLandscapeVertexFactoryMVFUniformBufferRef UniformBuffer;
 
-		FLandscapeSectionRayTracingState() : CurrentLOD(-1) {}
+		FLandscapeSectionRayTracingState() 
+			: CurrentLOD(-1)
+			, LODBias(-1000.0f, -1000.0f, -1000.0f, -1000.0f)
+			, SectionLOD(-1000.0f, -1000.0f, -1000.0f, -1000.0f)
+			, CurrentNeighborLOD(-1000.0f, -1000.0f, -1000.0f, -1000.0f) {}
 	};
 
 	TStaticArray<FLandscapeSectionRayTracingState, MAX_SUBSECTION_COUNT> SectionRayTracingStates;

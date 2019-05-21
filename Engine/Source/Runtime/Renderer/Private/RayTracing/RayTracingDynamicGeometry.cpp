@@ -6,6 +6,8 @@
 
 #if RHI_RAYTRACING
 
+DECLARE_GPU_STAT_NAMED(RayTracingDynamicGeom, TEXT("Ray Tracing Dynamic Geometry Update"));
+
 static bool IsSupportedDynamicVertexFactoryType(const FVertexFactoryType* VertexFactoryType)
 {
 	return VertexFactoryType == FindVertexFactoryType(FName(TEXT("FNiagaraSpriteVertexFactory"), FNAME_Find)) || VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeVertexFactory"), FNAME_Find));
@@ -179,6 +181,7 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHICommandListImmedi
 	if (DispatchCommands->Num() > 0)
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, RayTracingDynamicGeometryUpdate);
+		SCOPED_GPU_STAT(RHICmdList, RayTracingDynamicGeom);
 
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, VSinCSComputeDispatch);
