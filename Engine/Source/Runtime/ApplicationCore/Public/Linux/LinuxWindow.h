@@ -269,11 +269,6 @@ private:
 	/** Whether native properties cache is valid */
 	bool bValidNativePropertiesCache;
 
-	/** Whether the window size was set to zero at some point, if its the case we need to hide our window and will need to
-	 *  restore the window when we set our selfs to a new size that is not zero
-	 */
-	bool bZeroSize;
-
 	/**
 	 * Ratio of pixels to SlateUnits in this window.
 	 * E.g. DPIScale of 2.0 means there is a 2x2 pixel square for every 1x1 SlateUnit.
