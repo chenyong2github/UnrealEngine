@@ -90,6 +90,18 @@ class ENGINE_API UKismetInputLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Is Valid"), Category = "Utilities|Key")
 	static bool Key_IsValid(const FKey& Key);
 
+	/** Returns the navigation action corresponding to this key, or Invalid if not found */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Key Navigation Action"), Category = "Utilities|Key")
+	static EUINavigationAction Key_GetNavigationAction(const FKey& InKey);
+
+	/** Returns the navigation action corresponding to this key, or Invalid if not found */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Key Event Navigation Direction"), Category = "Utilities|KeyEvent")
+	static EUINavigation Key_GetNavigationDirectionFromKey(const FKeyEvent& InKeyEvent);
+
+	/** Returns the navigation action corresponding to this key, or Invalid if not found */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Analog Event Navigation Direction"), Category = "Utilities|AnalogEvent")
+	static EUINavigation Key_GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent);
+
 	/**
 	 * Returns the display name of the key.
 	 */

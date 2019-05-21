@@ -2087,6 +2087,11 @@ EUINavigation FSlateApplication::GetNavigationDirectionFromAnalog(const FAnalogI
 	return NavigationConfig->GetNavigationDirectionFromAnalog(InAnalogEvent);
 }
 
+EUINavigationAction FSlateApplication::GetNavigationActionForKey(const FKey& InKey) const
+{
+	return NavigationConfig->GetNavigationActionForKey(InKey);
+}
+
 void FSlateApplication::AddModalWindow( TSharedRef<SWindow> InSlateWindow, const TSharedPtr<const SWidget> InParentWidget, bool bSlowTaskWindow )
 {
 	if( !CanAddModalWindow() )
@@ -2977,11 +2982,14 @@ bool FSlateApplication::SetUserFocus(FSlateUser* User, const FWidgetPath& InFocu
 		FSlateDebugging::BroadcastFocusReceived(FocusEvent, OldFocusedWidgetPath, OldFocusedWidget, NewFocusedWidgetPath, NewFocusedWidget);
 #endif
 
+		FFocusEvent FocusEvent = FFocusEvent(InCause, User->GetUserIndex());
 		FReply Reply = NewFocusedWidget->OnFocusReceived(WidgetToFocus.Geometry, FocusEvent);
 		if (Reply.IsEventHandled())
 		{
 			ProcessReply(InFocusPath, Reply, nullptr, nullptr, User->GetUserIndex());
 		}
+
+		NavigationConfig->OnNavigationChangedFocus(OldFocusedWidget, NewFocusedWidget, FocusEvent);
 	}
 
 	return true;

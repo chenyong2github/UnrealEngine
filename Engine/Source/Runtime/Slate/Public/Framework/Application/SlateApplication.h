@@ -370,6 +370,9 @@ public:
 	virtual EUINavigation GetNavigationDirectionFromKey(const FKeyEvent& InKeyEvent) const override;
 	virtual EUINavigation GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent) override;
 
+	/** Returns the navigation action corresponding to this key, or Invalid if not found */
+	virtual EUINavigationAction GetNavigationActionForKey(const FKey& InKey) const override;
+
 	/**
 	 * Adds a modal window to the application.  
 	 * In most cases, this function does not return until the modal window is closed (the only exception is a modal window for slow tasks)  
