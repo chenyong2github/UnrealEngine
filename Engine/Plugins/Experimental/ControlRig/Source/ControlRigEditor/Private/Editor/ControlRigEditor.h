@@ -120,6 +120,7 @@ protected:
 	virtual void Compile() override;
 	virtual bool IsInAScriptingMode() const override { return true; }
 	virtual void CreateDefaultTabContents(const TArray<UBlueprint*>& InBlueprints) override;
+	virtual bool IsSectionVisible(NodeSectionID::Type InSectionID) const override;
 	virtual FGraphAppearanceInfo GetGraphAppearance(class UEdGraph* InGraph) const override;
 	virtual bool IsEditable(UEdGraph* InGraph) const override;
 	virtual FText GetGraphDecorationString(UEdGraph* InGraph) const override;

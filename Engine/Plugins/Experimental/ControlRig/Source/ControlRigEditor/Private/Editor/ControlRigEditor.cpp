@@ -59,6 +59,7 @@
 #include "EdGraphUtilities.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "SNodePanel.h"
+#include "Kismet/Private/SMyBlueprint.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -643,6 +644,22 @@ void FControlRigEditor::RedoAction()
 void FControlRigEditor::CreateDefaultTabContents(const TArray<UBlueprint*>& InBlueprints)
 {
 	FBlueprintEditor::CreateDefaultTabContents(InBlueprints);
+}
+
+bool FControlRigEditor::IsSectionVisible(NodeSectionID::Type InSectionID) const
+{
+	switch (InSectionID)
+	{
+		case NodeSectionID::GRAPH:
+		{
+			return true;
+		}
+		default:
+		{
+			break;
+		}
+	}
+	return false;
 }
 
 FGraphAppearanceInfo FControlRigEditor::GetGraphAppearance(UEdGraph* InGraph) const
