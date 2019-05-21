@@ -149,24 +149,11 @@ void UControlRigBlueprint::PopulateModelFromGraph(const UControlRigGraph* InGrap
 						}
 					}
 
-					EControlRigModelParameterType ParameterType = EControlRigModelParameterType::Hidden;
-					UProperty* Property = GeneratedClass->FindPropertyByName(NodeName);
-					if (Property != nullptr)
+					EControlRigModelParameterType ParameterType = (EControlRigModelParameterType)RigNode->ParameterType;
+					if (ParameterType == EControlRigModelParameterType::None)
 					{
-						bool bIsInput = Property->HasMetaData(UControlRig::AnimationInputMetaName);
-						bool bIsOutput = Property->HasMetaData(UControlRig::AnimationOutputMetaName);
-						ensure(!(bIsInput && bIsOutput));
-
-						if (bIsInput)
-						{
-							ParameterType = EControlRigModelParameterType::Input;
-						}
-						else if (bIsOutput)
-						{
-							ParameterType = EControlRigModelParameterType::Output;
-						}
+						ParameterType = EControlRigModelParameterType::Hidden;
 					}
-
 					ModelController->AddParameter(NodeName, DataType, ParameterType, NodePosition, false);
 				}
 				else
@@ -258,6 +245,7 @@ void UControlRigBlueprint::HandleModelModified(const UControlRigModel* InModel, 
 					if (Node->IsParameter())
 					{
 						FControlRigBlueprintUtils::AddPropertyMember(this, Node->Pins[0].Type, *Node->Name.ToString());
+						HandleModelModified(InModel, EControlRigModelNotifType::NodeChanged, InPayload);
 					}
 					else
 					{

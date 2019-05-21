@@ -38,6 +38,7 @@ UControlRigGraphNode::UControlRigGraphNode()
 
 	bHasCompilerMessage = false;
 	ErrorType = (int32)EMessageSeverity::Info + 1;
+	ParameterType = (int32)EControlRigModelParameterType::None;
 }
 
 FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const

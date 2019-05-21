@@ -268,6 +268,10 @@ void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, ECon
 				if (EdNode != nullptr)
 				{
 					EdNode->CreateNewGuid();
+					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
+					{
+						RigNode->ParameterType = (int32)Node->ParameterType;
+					}
 				}
 			}
 			break;
@@ -297,6 +301,7 @@ void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, ECon
 					RigNode->NodePosY = (int32)Node->Position.Y;
 					RigNode->Modify();
 				}
+				RigNode->ParameterType = (int32)Node->ParameterType;
 			}
 			break;
 		}

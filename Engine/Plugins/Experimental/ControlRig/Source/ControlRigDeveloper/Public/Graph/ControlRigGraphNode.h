@@ -136,6 +136,10 @@ private:
 	UPROPERTY()
 	FEdGraphPinType PinType;
 
+	/** The type of parameter */
+	UPROPERTY()
+	int32 ParameterType;
+
 	/** Expanded pins */
 	UPROPERTY()
 	TArray<FString> ExpandedPins;
