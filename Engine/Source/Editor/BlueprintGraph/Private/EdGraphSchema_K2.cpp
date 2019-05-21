@@ -1345,6 +1345,20 @@ bool UEdGraphSchema_K2::PinDefaultValueIsEditable(const UEdGraphPin& InGraphPin)
 	return true;
 }
 
+bool UEdGraphSchema_K2::PinHasCustomDefaultFormat(const UEdGraphPin& InGraphPin) const
+{
+	if (InGraphPin.PinType.PinCategory == PC_Struct)
+	{
+		// Some struct types have custom formats for default value for historical reasons
+		UObject const& SubCategoryObject = *InGraphPin.PinType.PinSubCategoryObject;
+		return &SubCategoryObject == VectorStruct
+			|| &SubCategoryObject == RotatorStruct
+			|| &SubCategoryObject == TransformStruct
+			|| &SubCategoryObject == LinearColorStruct;
+	}
+	return false;
+}
+
 void UEdGraphSchema_K2::SelectAllNodesInDirection(TEnumAsByte<enum EEdGraphPinDirection> InDirection, UEdGraph* Graph, UEdGraphPin* InGraphPin)
 {
 	/** Traverses the node graph out from the specified pin, logging each node that it visits along the way. */

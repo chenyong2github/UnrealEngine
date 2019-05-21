@@ -548,6 +548,9 @@ public:
 	/** Returns true if the pin has a value field that can be edited inline */
 	bool PinDefaultValueIsEditable(const UEdGraphPin& InGraphPin) const;
 
+	/** Returns true if the pin has a custom default string format and it is not safe to use ExportText */
+	bool PinHasCustomDefaultFormat(const UEdGraphPin& InGraphPin) const;
+
 	struct FCreateSplitPinNodeParams
 	{
 		FCreateSplitPinNodeParams(const bool bInTransient)

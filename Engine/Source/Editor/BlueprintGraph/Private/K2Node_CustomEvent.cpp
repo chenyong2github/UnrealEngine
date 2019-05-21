@@ -343,6 +343,31 @@ void UK2Node_CustomEvent::GetMenuActions(FBlueprintActionDatabaseRegistrar& Acti
 	}
 }
 
+void UK2Node_CustomEvent::FixupPinStringDataReferences(FArchive* SavingArchive)
+{
+	Super::FixupPinStringDataReferences(SavingArchive);
+	if (SavingArchive)
+	{ 
+		// If any of our pins got fixed up, we need to refresh our user pin default values
+		// For custom events, the Pin default values are authoritative
+		for (TSharedPtr<FUserPinInfo> PinInfo : UserDefinedPins)
+		{
+			if (UEdGraphPin* Pin = FindPin(PinInfo->PinName))
+			{
+				if (Pin->Direction == PinInfo->DesiredPinDirection)
+				{
+					FString DefaultsString = Pin->GetDefaultAsString();
+
+					if (DefaultsString != PinInfo->PinDefaultValue)
+					{
+						ModifyUserDefinedPinDefaultValue(PinInfo, Pin->GetDefaultAsString());
+					}
+				}
+			}
+		}
+	}
+}
+
 void UK2Node_CustomEvent::ReconstructNode()
 {
 	CachedNodeTitle.MarkDirty();

@@ -2123,15 +2123,17 @@ void FBlueprintEditorUtils::MarkBlueprintAsModified(UBlueprint* Blueprint, FProp
 	Blueprint->bCachedDependenciesUpToDate = false;
 	if (Blueprint->Status != BS_BeingCreated)
 	{
+		// This clears any cached data, which includes the macro tunnel node data
 		TArray<UEdGraph*> AllGraphs;
 		Blueprint->GetAllGraphs(AllGraphs);
-		for (int32 i = 0; i < AllGraphs.Num(); i++)
+		for (UEdGraph* GraphToClear : AllGraphs)
 		{
-			UK2Node_EditablePinBase* EntryNode = GetEntryNode(AllGraphs[i]);
-			if(UK2Node_Tunnel* TunnelNode = ExactCast<UK2Node_Tunnel>(EntryNode))
+			for (UEdGraphNode* Node : GraphToClear->Nodes)
 			{
-				// Remove data marking graphs as latent, this will be re-cache'd as needed
-				TunnelNode->MetaData.HasLatentFunctions = INDEX_NONE;
+				if (UK2Node* BPNode = Cast<UK2Node>(Node))
+				{
+					BPNode->ClearCachedBlueprintData(Blueprint);
+				}
 			}
 		}
 

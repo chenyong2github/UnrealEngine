@@ -152,13 +152,31 @@ class UK2Node_EditablePinBase : public UK2Node
 	 */
 	virtual UEdGraphPin* CreatePinFromUserDefinition(const TSharedPtr<FUserPinInfo> NewPinInfo) { return nullptr; }
 
-	// Modifies the default value of an existing pin on the node.
+	/** Modifies the default value of an existing pin on the node, this will update both the UserPinInfo and the linked editor pin */
 	BLUEPRINTGRAPH_API virtual bool ModifyUserDefinedPinDefaultValue(TSharedPtr<FUserPinInfo> PinInfo, const FString& NewDefaultValue);
 
 	/**
 	 * Creates function pins that are user defined based on a function signature.
 	 */
 	BLUEPRINTGRAPH_API virtual bool CreateUserDefinedPinsForFunctionEntryExit(const UFunction* Function, bool bForFunctionEntry);
+
+	/**
+	 * Copies data from any user pins matching properties in VariableStruct into the VariableStructData. Will also copy LocalVariables if passed in
+	 *
+	 * @param	VariableStruct		UStruct defining the variables to copy
+	 * @param	VariableStructData	Raw data for a variable cache
+	 * @param	LocalVariables		Optional list of local variables to copy
+	 */
+	BLUEPRINTGRAPH_API bool UpdateVariableStructFromDefaults(const UStruct* VariableStruct, uint8* VariableStructData, TArray<FBPVariableDescription>* LocalVariables = nullptr);
+
+	/**
+	 * Copies data from VariableStruct into the user defined pins as well as an optional list of local variables
+	 *
+	 * @param	VariableStruct		UStruct defining the variables to copy
+	 * @param	VariableStructData	Raw data for a variable cache
+	 * @param	LocalVariables		Optional list of local variables to copy
+	 */
+	BLUEPRINTGRAPH_API bool UpdateDefaultsFromVariableStruct(const UStruct* VariableStruct, uint8* VariableStructData, TArray<FBPVariableDescription>* LocalVariables = nullptr);
 
 	/**
 	 * Can this node have execution wires added or removed?
@@ -174,5 +192,9 @@ class UK2Node_EditablePinBase : public UK2Node
 	 * Should this node require 'const' for pass-by-reference parameters?
 	 */
 	virtual bool ShouldUseConstRefParams() const { return false;  }
+
+private:
+	/** Internal function that just updates the UEdGraphPin, separate to avoid recursive update calls */
+	bool UpdateEdGraphPinDefaultValue(TSharedPtr<FUserPinInfo> PinInfo, FString& NewDefaultValue);
 };
 

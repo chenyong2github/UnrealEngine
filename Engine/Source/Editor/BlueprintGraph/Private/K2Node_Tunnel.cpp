@@ -177,6 +177,12 @@ bool UK2Node_Tunnel::CanCreateUserDefinedPin(const FEdGraphPinType& InPinType, E
 	return bResult;
 }
 
+void UK2Node_Tunnel::ClearCachedBlueprintData(UBlueprint* Blueprint)
+{
+	// Remove data marking graphs as latent, this will be re-cache'd as needed
+	MetaData.HasLatentFunctions = INDEX_NONE;
+}
+
 UEdGraphPin* UK2Node_Tunnel::CreatePinFromUserDefinition(const TSharedPtr<FUserPinInfo> NewPinInfo)
 {
 	// Create the new pin

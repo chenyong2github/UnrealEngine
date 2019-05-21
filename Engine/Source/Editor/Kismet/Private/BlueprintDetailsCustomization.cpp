@@ -830,7 +830,6 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 				UFunction* StructScope = Cast<UFunction>(VariableProperty->GetOuter());
 				check(StructScope);
 
-				TSharedPtr<FStructOnScope> StructData = MakeShareable(new FStructOnScope((UFunction*)StructScope));
 				UEdGraph* Graph = FBlueprintEditorUtils::FindScopeGraph(GetBlueprintObj(), (UFunction*)StructScope);
 
 				// Find the function entry nodes in the current graph
@@ -843,18 +842,9 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 				const UStructProperty* PotentialUDSProperty = Cast<const UStructProperty>(VariableProperty);
 				
 				UK2Node_FunctionEntry* FuncEntry = EntryNodes[0];
-				for (const FBPVariableDescription& LocalVar : FuncEntry->LocalVariables)
-				{
-					if(LocalVar.VarName == VariableProperty->GetFName()) //Property->GetFName())
-					{
-						// Only set the default value if there is one
-						if(!LocalVar.DefaultValue.IsEmpty())
-						{
-							FBlueprintEditorUtils::PropertyValueFromString(VariableProperty, LocalVar.DefaultValue, StructData->GetStructMemory());
-						}
-						break;
-					}
-				}
+
+				// This uses the cached struct data inside the node, which is updated on change
+				TSharedPtr<FStructOnScope> StructData = FuncEntry->GetFunctionVariableCache();
 
 				if(BlueprintEditor.IsValid())
 				{
@@ -2651,6 +2641,7 @@ void FBlueprintVarActionDetails::OnFinishedChangingProperties(const FPropertyCha
 					FuncEntry->Modify();
 					GetBlueprintObj()->Modify();
 					LocalVar.DefaultValue = DefaultValueString;
+					FuncEntry->RefreshFunctionVariableCache();
 					FBlueprintEditorUtils::MarkBlueprintAsModified(GetBlueprintObj());
 					break;
 				}

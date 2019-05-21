@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "K2Node_FunctionTerminator.h"
 #include "Engine/Blueprint.h"
+#include "UObject/StructOnScope.h"
 #include "K2Node_FunctionEntry.generated.h"
 
 class UEdGraph;
@@ -34,6 +35,7 @@ class UK2Node_FunctionEntry : public UK2Node_FunctionTerminator
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	virtual void PostLoad() override;
 	//~ End UObject Interface
 
 	//~ Begin UEdGraphNode Interface
@@ -53,6 +55,8 @@ class UK2Node_FunctionEntry : public UK2Node_FunctionTerminator
 	virtual void GetRedirectPinNames(const UEdGraphPin& Pin, TArray<FString>& RedirectPinNames) const override;
 	virtual void ExpandNode(class FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph) override;
 	virtual void PostReconstructNode() override;
+	virtual void ClearCachedBlueprintData(UBlueprint* Blueprint) override;
+	virtual void FixupPinStringDataReferences(FArchive* SavingArchive) override;
 	//~ End UK2Node Interface
 
 	//~ Begin UK2Node_EditablePinBase Interface
@@ -65,6 +69,15 @@ class UK2Node_FunctionEntry : public UK2Node_FunctionTerminator
 	virtual bool CanCreateUserDefinedPin(const FEdGraphPinType& InPinType, EEdGraphPinDirection InDesiredDirection, FText& OutErrorMessage) override;
 	virtual UEdGraphPin* CreatePinFromUserDefinition(const TSharedPtr<FUserPinInfo> NewPinInfo) override;
 	//~ End K2Node_FunctionTerminator Interface
+
+	/** Gets the UFunction and function variable cache structure that should be used for serialization fixups for function variables. If bForceRefresh is true it will always recreate the cache */
+	BLUEPRINTGRAPH_API TSharedPtr<FStructOnScope> GetFunctionVariableCache(bool bForceRefresh = false);
+
+	/** Copies data from the local/input variable defaults into the variable cache */
+	BLUEPRINTGRAPH_API bool RefreshFunctionVariableCache();
+
+	/** Handles updating loaded default values, by going default string into variable cache and back, if bForceRefresh it will happen even if the cache is already setup */
+	BLUEPRINTGRAPH_API bool UpdateLoadedDefaultValues(bool bForceRefresh = false);
 
 	// Removes an output pin from the node
 	BLUEPRINTGRAPH_API void RemoveOutputPin(UEdGraphPin* PinToRemove);
@@ -101,5 +114,12 @@ protected:
 	/** Any extra flags that the function may need */
 	UPROPERTY()
 	int32 ExtraFlags;
+
+	/** Holds a an in-memory representation of the UFunction struct, used to fixup local and user variables */
+	TSharedPtr<FStructOnScope> FunctionVariableCache;
+
+	/** True if we've updated the default values on this node at least once */
+	UPROPERTY(Transient)
+	bool bUpdatedDefaultValuesOnLoad;
 };
 
