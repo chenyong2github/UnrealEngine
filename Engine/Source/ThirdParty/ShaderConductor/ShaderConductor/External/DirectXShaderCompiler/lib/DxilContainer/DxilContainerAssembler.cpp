@@ -971,7 +971,6 @@ using namespace DXIL;
 
 class DxilRDATWriter : public DxilPartWriter {
 private:
-  const DxilModule &m_Module;
   SmallVector<char, 1024> m_RDATBuffer;
 
   std::vector<std::unique_ptr<RDATPart>> m_Parts;
@@ -1070,21 +1069,21 @@ private:
     m_pResourceTable->Insert(info);
   }
 
-  void UpdateResourceInfo() {
+  void UpdateResourceInfo(const DxilModule &DM) {
     // Try to allocate string table for resources. String table is a sequence
     // of strings delimited by \0
     uint32_t resourceIndex = 0;
-    for (auto &resource : m_Module.GetCBuffers()) {
+    for (auto &resource : DM.GetCBuffers()) {
       InsertToResourceTable(*resource.get(), ResourceClass::CBuffer, resourceIndex);
 
     }
-    for (auto &resource : m_Module.GetSamplers()) {
+    for (auto &resource : DM.GetSamplers()) {
       InsertToResourceTable(*resource.get(), ResourceClass::Sampler, resourceIndex);
     }
-    for (auto &resource : m_Module.GetSRVs()) {
+    for (auto &resource : DM.GetSRVs()) {
       InsertToResourceTable(*resource.get(), ResourceClass::SRV, resourceIndex);
     }
-    for (auto &resource : m_Module.GetUAVs()) {
+    for (auto &resource : DM.GetUAVs()) {
       InsertToResourceTable(*resource.get(), ResourceClass::UAV, resourceIndex);
     }
   }
@@ -1102,8 +1101,8 @@ private:
     }
   }
 
-  void UpdateFunctionInfo() {
-    for (auto &function : m_Module.GetModule()->getFunctionList()) {
+  void UpdateFunctionInfo(const DxilModule &DM) {
+    for (auto &function : DM.GetModule()->getFunctionList()) {
       if (function.isDeclaration() && !function.isIntrinsic()) {
         if (OP::IsDxilOpFunc(&function)) {
           // update min shader model and shader stage mask per function
@@ -1114,7 +1113,7 @@ private:
         }
       }
     }
-    for (auto &function : m_Module.GetModule()->getFunctionList()) {
+    for (auto &function : DM.GetModule()->getFunctionList()) {
       if (!function.isDeclaration()) {
         StringRef mangled = function.getName();
         StringRef unmangled = hlsl::dxilutil::DemangleFunctionName(function.getName());
@@ -1135,8 +1134,8 @@ private:
           functionDependencies =
               m_pIndexArraysPart->AddIndex(m_FuncToDependencies[&function].begin(),
                                   m_FuncToDependencies[&function].end());
-        if (m_Module.HasDxilFunctionProps(&function)) {
-          auto props = m_Module.GetDxilFunctionProps(&function);
+        if (DM.HasDxilFunctionProps(&function)) {
+          auto props = DM.GetDxilFunctionProps(&function);
           if (props.IsClosestHit() || props.IsAnyHit()) {
             payloadSizeInBytes = props.ShaderProps.Ray.payloadSizeInBytes;
             attrSizeInBytes = props.ShaderProps.Ray.attributeSizeInBytes;
@@ -1149,7 +1148,7 @@ private:
           }
           shaderKind = (uint32_t)props.shaderKind;
         }
-        ShaderFlags flags = ShaderFlags::CollectShaderFlags(&function, &m_Module);
+        ShaderFlags flags = ShaderFlags::CollectShaderFlags(&function, &DM);
         RuntimeDataFunctionInfo info = {};
         info.Name = mangledIndex;
         info.UnmangledName = unmangledIndex;
@@ -1193,10 +1192,10 @@ private:
     }
   }
 
-  void UpdateSubobjectInfo() {
-    if (!m_Module.GetSubobjects())
+  void UpdateSubobjectInfo(const DxilModule &DM) {
+    if (!DM.GetSubobjects())
       return;
-    for (auto &it : m_Module.GetSubobjects()->GetSubobjects()) {
+    for (auto &it : DM.GetSubobjects()->GetSubobjects()) {
       auto &obj = *it.second;
       RuntimeDataSubobjectInfo info = {};
       info.Name = m_pStringBufferPart->Insert(obj.GetName());
@@ -1280,11 +1279,11 @@ private:
 
 public:
   DxilRDATWriter(const DxilModule &module, uint32_t InfoVersion = 0)
-      : m_Module(module), m_RDATBuffer(), m_Parts(), m_FuncToResNameOffset() {
+      : m_RDATBuffer(), m_Parts(), m_FuncToResNameOffset() {
     CreateParts();
-    UpdateResourceInfo();
-    UpdateFunctionInfo();
-    UpdateSubobjectInfo();
+    UpdateResourceInfo(module);
+    UpdateFunctionInfo(module);
+    UpdateSubobjectInfo(module);
 
     // Delete any empty parts:
     std::vector<std::unique_ptr<RDATPart>>::iterator it = m_Parts.begin();
@@ -1448,10 +1447,10 @@ namespace {
 
 class RootSignatureWriter : public DxilPartWriter {
 private:
-  const std::vector<uint8_t> &m_Sig;
+  std::vector<uint8_t> m_Sig;
 
 public:
-  RootSignatureWriter(const std::vector<uint8_t> &S) : m_Sig(S) {}
+  RootSignatureWriter(std::vector<uint8_t> &&S) : m_Sig(std::move(S)) {}
   uint32_t size() const { return m_Sig.size(); }
   void write(AbstractMemoryStream *pStream) {
     ULONG cbWritten;
@@ -1527,9 +1526,10 @@ void hlsl::SerializeDxilContainerForModule(DxilModule *pModule,
   std::unique_ptr<DxilPSVWriter> pPSVWriter = nullptr;
   unsigned int major, minor;
   pModule->GetDxilVersion(major, minor);
-  RootSignatureWriter rootSigWriter(pModule->GetSerializedRootSignature());
+  RootSignatureWriter rootSigWriter(std::move(pModule->GetSerializedRootSignature())); // Grab RS here
+  DXASSERT_NOMSG(pModule->GetSerializedRootSignature().empty());
 
-  bool bModuleDirty = false;
+  bool bMetadataStripped = false;
   if (pModule->GetShaderModel()->IsLib()) {
     DXASSERT(pModule->GetSerializedRootSignature().empty(),
              "otherwise, library has root signature outside subobject definitions");
@@ -1538,7 +1538,8 @@ void hlsl::SerializeDxilContainerForModule(DxilModule *pModule,
     writer.AddPart(
         DFCC_RuntimeData, pRDATWriter->size(),
         [&](AbstractMemoryStream *pStream) { pRDATWriter->write(pStream); });
-    bModuleDirty |= pModule->StripSubobjectsFromMetadata();
+    bMetadataStripped |= pModule->StripSubobjectsFromMetadata();
+    pModule->ResetSubobjects(nullptr);
   } else {
     // Write the DxilPipelineStateValidation (PSV0) part.
     pPSVWriter = llvm::make_unique<DxilPSVWriter>(*pModule);
@@ -1546,17 +1547,17 @@ void hlsl::SerializeDxilContainerForModule(DxilModule *pModule,
         DFCC_PipelineStateValidation, pPSVWriter->size(),
         [&](AbstractMemoryStream *pStream) { pPSVWriter->write(pStream); });
     // Write the root signature (RTS0) part.
-    if (!pModule->GetSerializedRootSignature().empty()) {
+    if (rootSigWriter.size()) {
       writer.AddPart(
         DFCC_RootSignature, rootSigWriter.size(),
         [&](AbstractMemoryStream *pStream) { rootSigWriter.write(pStream); });
-      bModuleDirty |= pModule->StripRootSignatureFromMetadata();
+      bMetadataStripped |= pModule->StripRootSignatureFromMetadata();
     }
   }
 
-  // If metadata was stripped, re-serialize the module.
+  // If metadata was stripped, re-serialize the input module.
   CComPtr<AbstractMemoryStream> pInputProgramStream = pModuleBitcode;
-  if (bModuleDirty) {
+  if (bMetadataStripped) {
     pInputProgramStream.Release();
     IFT(CreateMemoryStream(DxcGetThreadMallocNoRef(), &pInputProgramStream));
     raw_stream_ostream outStream(pInputProgramStream.p);
@@ -1565,11 +1566,9 @@ void hlsl::SerializeDxilContainerForModule(DxilModule *pModule,
 
   // If we have debug information present, serialize it to a debug part, then use the stripped version as the canonical program version.
   CComPtr<AbstractMemoryStream> pProgramStream = pInputProgramStream;
-  const uint32_t DebugInfoNameHashLen = 32;   // 32 chars of MD5
-  const uint32_t DebugInfoNameSuffix = 4;     // '.lld'
-  const uint32_t DebugInfoNameNullAndPad = 4; // '\0\0\0\0'
-  CComPtr<AbstractMemoryStream> pHashStream;
-  if (HasDebugInfo(*pModule->GetModule())) {
+  bool bModuleStripped = false;
+  bool bHasDebugInfo = HasDebugInfo(*pModule->GetModule());
+  if (bHasDebugInfo) {
     uint32_t debugInUInt32, debugPaddingBytes;
     GetPaddedProgramPartSize(pInputProgramStream, debugInUInt32, debugPaddingBytes);
     if (Flags & SerializeDxilFlags::IncludeDebugInfoPart) {
@@ -1578,71 +1577,72 @@ void hlsl::SerializeDxilContainerForModule(DxilModule *pModule,
       });
     }
 
-    pProgramStream.Release();
-
     llvm::StripDebugInfo(*pModule->GetModule());
     pModule->StripDebugRelatedCode();
+    bModuleStripped = true;
+  } else {
+    // If no debug info, clear DebugNameDependOnSource
+    // (it's default, and this scenario can happen)
+    Flags &= ~SerializeDxilFlags::DebugNameDependOnSource;
+  }
 
+  if (Flags & SerializeDxilFlags::StripReflectionFromDxilPart) {
+    pModule->StripReflection();
+    bModuleStripped = true;
+  }
+
+  // If debug info or reflection was stripped, re-serialize the module.
+  if (bModuleStripped) {
+    pProgramStream.Release();
     IFT(CreateMemoryStream(DxcGetThreadMallocNoRef(), &pProgramStream));
     raw_stream_ostream outStream(pProgramStream.p);
-    WriteBitcodeToFile(pModule->GetModule(), outStream, true);
+    WriteBitcodeToFile(pModule->GetModule(), outStream, false);
+  }
 
-    if (Flags & SerializeDxilFlags::IncludeDebugNamePart) {
+  // Serialize debug name if requested.
+  CComPtr<AbstractMemoryStream> pHashStream;
+  std::string DebugNameStr; // Used if constructing name based on hash
+  if (Flags & SerializeDxilFlags::IncludeDebugNamePart) {
+    if (DebugName.empty()) {
       // If the debug name should be specific to the sources, base the name on the debug
       // bitcode, which will include the source references, line numbers, etc. Otherwise,
       // do it exclusively on the target shader bitcode.
-
       pHashStream = (int)(Flags & SerializeDxilFlags::DebugNameDependOnSource)
-                        ? CComPtr<AbstractMemoryStream>(pModuleBitcode)
-                        : CComPtr<AbstractMemoryStream>(pProgramStream);
+                      ? CComPtr<AbstractMemoryStream>(pModuleBitcode)
+                      : CComPtr<AbstractMemoryStream>(pProgramStream);
 
-      // Use user specified debug name if a) it's given and b) it's not a path
-      bool UseDebugName = DebugName.size() && !DebugName.endswith(llvm::StringRef("\\"));
-
-      // Calculate the length of the name
-      const uint32_t NameLen = UseDebugName ? 
-        DebugName.size() :
-        DebugInfoNameHashLen +  DebugInfoNameSuffix;
-
-      // Calculate the size of the blob part.
-      const uint32_t DebugInfoContentLen =
-          sizeof(DxilShaderDebugName) + NameLen + DebugInfoNameNullAndPad;
-
-      writer.AddPart(DFCC_ShaderDebugName, DebugInfoContentLen,
-        [DebugInfoNameSuffix, DebugInfoNameHashLen, UseDebugName, DebugName, pHashStream]
-        (AbstractMemoryStream *pStream)
-      {
-        DxilShaderDebugName NameContent;
-        NameContent.Flags = 0;
-
-        if (UseDebugName) {
-          NameContent.NameLength = DebugName.size();
-          IFT(WriteStreamValue(pStream, NameContent));
-
-          ULONG cbWritten;
-          IFT(pStream->Write(DebugName.begin(), DebugName.size(), &cbWritten));
-          const char Pad[] = { '\0','\0','\0','\0' };
-          IFT(pStream->Write(Pad, _countof(Pad), &cbWritten));
-        }
-        else {
-          NameContent.NameLength = DebugInfoNameHashLen + DebugInfoNameSuffix;
-          IFT(WriteStreamValue(pStream, NameContent));
-
-          ArrayRef<uint8_t> Data((uint8_t *)pHashStream->GetPtr(), pHashStream->GetPtrSize());
-          llvm::MD5 md5;
-          llvm::MD5::MD5Result md5Result;
-          SmallString<32> Hash;
-          md5.update(Data);
-          md5.final(md5Result);
-          md5.stringifyResult(md5Result, Hash);
-
-          ULONG cbWritten;
-          IFT(pStream->Write(Hash.data(), Hash.size(), &cbWritten));
-          const char SuffixAndPad[] = { '.','l','l','d','\0','\0','\0','\0' };
-          IFT(pStream->Write(SuffixAndPad, _countof(SuffixAndPad), &cbWritten));
-        }
-      });
+      ArrayRef<uint8_t> Data((uint8_t *)pHashStream->GetPtr(), pHashStream->GetPtrSize());
+      llvm::MD5 md5;
+      llvm::MD5::MD5Result md5Result;
+      SmallString<32> Hash;
+      md5.update(Data);
+      md5.final(md5Result);
+      md5.stringifyResult(md5Result, Hash);
+      DebugNameStr += Hash;
+      DebugNameStr += ".lld";
+      DebugName = DebugNameStr;
     }
+
+    // Calculate the size of the blob part.
+    const uint32_t DebugInfoContentLen = PSVALIGN4(
+        sizeof(DxilShaderDebugName) + DebugName.size() + 1); // 1 for null
+
+    writer.AddPart(DFCC_ShaderDebugName, DebugInfoContentLen,
+      [DebugName]
+      (AbstractMemoryStream *pStream)
+    {
+      DxilShaderDebugName NameContent;
+      NameContent.Flags = 0;
+      NameContent.NameLength = DebugName.size();
+      IFT(WriteStreamValue(pStream, NameContent));
+
+      ULONG cbWritten;
+      IFT(pStream->Write(DebugName.begin(), DebugName.size(), &cbWritten));
+      const char Pad[] = { '\0','\0','\0','\0' };
+      // Always writes at least one null to align size
+      unsigned padLen = (4 - ((sizeof(DxilShaderDebugName) + cbWritten) & 0x3));
+      IFT(pStream->Write(Pad, padLen, &cbWritten));
+    });
   }
 
   // Compute padded bitcode size.

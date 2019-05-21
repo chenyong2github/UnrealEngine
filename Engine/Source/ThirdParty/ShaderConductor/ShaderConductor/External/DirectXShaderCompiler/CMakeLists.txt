@@ -398,6 +398,7 @@ set(TARGET_TRIPLE "${LLVM_DEFAULT_TARGET_TRIPLE}")
 
 include(HandleLLVMOptions)
 
+# UE Change begin - continue to support Python 2 for now
 # Verify that we can find a Python 2 interpreter.  Python 3 is unsupported.
 # FIXME: We should support systems with only Python 3, but that requires work
 # on LLDB.
@@ -413,6 +414,7 @@ endif()
 if( ${PYTHON_VERSION_STRING} VERSION_LESS 2.7 )
   message(FATAL_ERROR "Python 2.7 or newer is required")
 endif()
+# UE Change end - continue to support Python 2 for now
 
 ######
 # LLVMBuild Integration

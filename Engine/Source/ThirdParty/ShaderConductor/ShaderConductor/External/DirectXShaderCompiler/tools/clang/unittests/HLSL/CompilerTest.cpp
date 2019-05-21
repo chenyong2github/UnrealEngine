@@ -252,26 +252,8 @@ public:
   TEST_METHOD(DiaLoadDebugThenOK)
   TEST_METHOD(DiaTableIndexThenOK)
 
-  TEST_METHOD(CodeGenAttributeAtVertex)
-  TEST_METHOD(CodeGenAttributeAtVertexNoOpt)
-  TEST_METHOD(CodeGenBarycentrics)
-  TEST_METHOD(CodeGenBarycentrics1)
-  TEST_METHOD(CodeGenBarycentricsThreeSV)
-  TEST_METHOD(CodeGenBitCast16Bits)
-  TEST_METHOD(CodeGenCbuffer64Types)
-  TEST_METHOD(CodeGenCbufferHalf)
-  TEST_METHOD(CodeGenCbufferHalfStruct)
-  TEST_METHOD(CodeGenCbufferInt16)
-  TEST_METHOD(CodeGenCbufferInt16Struct)
-  TEST_METHOD(CodeGenDataLayoutHalf)
-  TEST_METHOD(CodeGenEnum3)
   TEST_METHOD(CodeGenFloatingPointEnvironment)
-  TEST_METHOD(CodeGenFixedWidthTypes)
-  TEST_METHOD(CodeGenFixedWidthTypes16Bit)
-  TEST_METHOD(CodeGenFunctionAttribute)
   TEST_METHOD(CodeGenInclude)
-  TEST_METHOD(CodeGenInt16Op)
-  TEST_METHOD(CodeGenInt16OpBits)
   TEST_METHOD(CodeGenLibCsEntry)
   TEST_METHOD(CodeGenLibCsEntry2)
   TEST_METHOD(CodeGenLibCsEntry3)
@@ -280,35 +262,16 @@ public:
   TEST_METHOD(CodeGenLibNoAlias)
   TEST_METHOD(CodeGenLibResource)
   TEST_METHOD(CodeGenLibUnusedFunc)
-  TEST_METHOD(CodeGenMultiUAVLoad2)
-  TEST_METHOD(CodeGenMultiUAVLoad4)
-  TEST_METHOD(CodeGenMultiUAVLoad5)
-  TEST_METHOD(CodeGenMultiUAVLoad6)
-  TEST_METHOD(CodeGenMultiUAVLoad7)
-  TEST_METHOD(CodeGenRaw_Buf2)
-  TEST_METHOD(CodeGenRaw_Buf4)
-  TEST_METHOD(CodeGenRaw_Buf5)
-  TEST_METHOD(CodeGenSignaturePackingByWidth)
-  TEST_METHOD(CodeGenStruct_Buf2)
-  TEST_METHOD(CodeGenStruct_Buf3)
-  TEST_METHOD(CodeGenStruct_Buf4)
-  TEST_METHOD(CodeGenStruct_Buf5)
-  TEST_METHOD(CodeGenStruct_Buf6)
-  TEST_METHOD(CodeGenStruct_Buf_New_Layout)
-  TEST_METHOD(CodeGenUav_Typed_Load_Store3)
-  TEST_METHOD(CodeGenUint64_2)
 
-  TEST_METHOD(CodeGenLiterals_Exact_Precision_Mod)
-  TEST_METHOD(CodeGenTypedBufferHalf)
   TEST_METHOD(CodeGenRootSigProfile)
   TEST_METHOD(CodeGenRootSigProfile2)
   TEST_METHOD(CodeGenRootSigProfile5)
   TEST_METHOD(PreprocessWhenValidThenOK)
+  TEST_METHOD(LibGVStore)
   TEST_METHOD(PreprocessWhenExpandTokenPastingOperandThenAccept)
   TEST_METHOD(WhenSigMismatchPCFunctionThenFail)
 
   TEST_METHOD(CodeGenSamples)
-  TEST_METHOD(ViewID)
   TEST_METHOD(SubobjectCodeGenErrors)
   TEST_METHOD(DebugInfo)
   TEST_METHOD(QuickTest)
@@ -318,6 +281,9 @@ public:
 
   // Batch directories
   TEST_METHOD(CodeGenBatch)
+  BEGIN_TEST_METHOD(CodeGenHashStability)
+      TEST_METHOD_PROPERTY(L"Priority", L"2")
+  END_TEST_METHOD()
 
   dxc::DxcDllSupport m_dllSupport;
   VersionSupportInfo m_ver;
@@ -707,6 +673,72 @@ public:
     std::string disassembleString(BlobToUtf8(pDisassembleBlob));
     VERIFY_ARE_NOT_EQUAL(0U, disassembleString.size());
   }
+  
+  void CodeGenTestHashFullPath(LPCWSTR fullPath) {
+    FileRunTestResult t = FileRunTestResult::RunHashTestFromFileCommands(fullPath);
+    if (t.RunResult != 0) {
+      CA2W commentWide(t.ErrorMessage.c_str(), CP_UTF8);
+      WEX::Logging::Log::Comment(commentWide);
+      WEX::Logging::Log::Error(L"Run result is not zero");
+    }
+  }
+
+  void CodeGenTestHash(LPCWSTR name, bool implicitDir) {
+    std::wstring path = name;
+    if (implicitDir) {
+      path.insert(0, L"..\\CodeGenHLSL\\");
+      path = hlsl_test::GetPathToHlslDataFile(path.c_str());
+    }
+    CodeGenTestHashFullPath(path.c_str());
+  }
+
+  void CodeGenTestCheckBatchHash(std::wstring suitePath, bool implicitDir = true) {
+    using namespace llvm;
+    using namespace WEX::TestExecution;
+
+    if (implicitDir) suitePath.insert(0, L"..\\CodeGenHLSL\\");
+
+    ::llvm::sys::fs::MSFileSystem *msfPtr;
+    VERIFY_SUCCEEDED(CreateMSFileSystemForDisk(&msfPtr));
+    std::unique_ptr<::llvm::sys::fs::MSFileSystem> msf(msfPtr);
+    ::llvm::sys::fs::AutoPerThreadSystem pts(msf.get());
+    IFTLLVM(pts.error_code());
+
+    CW2A pUtf8Filename(suitePath.c_str());
+    if (!llvm::sys::path::is_absolute(pUtf8Filename.m_psz)) {
+      suitePath = hlsl_test::GetPathToHlslDataFile(suitePath.c_str());
+    }
+
+    CW2A utf8SuitePath(suitePath.c_str());
+
+    unsigned numTestsRun = 0;
+
+    std::error_code EC;
+    llvm::SmallString<128> DirNative;
+    llvm::sys::path::native(utf8SuitePath.m_psz, DirNative);
+    for (llvm::sys::fs::recursive_directory_iterator Dir(DirNative, EC), DirEnd;
+         Dir != DirEnd && !EC; Dir.increment(EC)) {
+      // Check whether this entry has an extension typically associated with
+      // headers.
+      if (!llvm::StringSwitch<bool>(llvm::sys::path::extension(Dir->path()))
+          .Cases(".hlsl", ".ll", true).Default(false))
+        continue;
+      StringRef filename = Dir->path();
+      std::string filetag = Dir->path();
+      filetag += "<HASH>";
+
+      CA2W wRelTag(filetag.data());
+      CA2W wRelPath(filename.data());
+
+      WEX::Logging::Log::StartGroup(wRelTag);
+      CodeGenTestHash(wRelPath, /*implicitDir*/ false);
+      WEX::Logging::Log::EndGroup(wRelTag);
+
+      numTestsRun++;
+    }
+
+    VERIFY_IS_GREATER_THAN(numTestsRun, (unsigned)0, L"No test files found in batch directory.");
+  }
 
   void CodeGenTestCheckFullPath(LPCWSTR fullPath) {
     FileRunTestResult t = FileRunTestResult::RunFromFileCommands(fullPath);
@@ -830,7 +862,7 @@ public:
 
     VERIFY_SUCCEEDED(CreateCompiler(&pCompiler));
     CreateBlobFromText(hlsl, &pSource);
-    LPCWSTR args[] = { L"/Zi" };
+    LPCWSTR args[] = { L"/Zi", L"/Qembed_debug" };
     VERIFY_SUCCEEDED(pCompiler->Compile(pSource, L"source.hlsl", L"main",
       L"ps_6_0", args, _countof(args), nullptr, 0, nullptr, &pResult));
     VERIFY_SUCCEEDED(pResult->GetResult(&pProgram));
@@ -1255,7 +1287,7 @@ TEST_F(CompilerTest, CompileWhenDebugWorksThenStripDebug) {
                      "  return local;\r\n"
                      "}",
                      &pSource);
-  LPCWSTR args[] = {L"/Zi"};
+  LPCWSTR args[] = {L"/Zi", L"/Qembed_debug"};
 
   VERIFY_SUCCEEDED(pCompiler->Compile(pSource, L"source.hlsl", L"main",
                                       L"ps_6_0", args, _countof(args), nullptr,
@@ -1352,7 +1384,7 @@ TEST_F(CompilerTest, CompileThenAddCustomDebugName) {
     "}",
     &pSource);
 
-  LPCWSTR args[] = { L"/Zi", L"/Zss" };
+  LPCWSTR args[] = { L"/Zi", L"/Qembed_debug", L"/Zss" };
 
   VERIFY_SUCCEEDED(pCompiler->Compile(pSource, L"source.hlsl", L"main",
     L"ps_6_0", args, _countof(args), nullptr, 0,
@@ -2266,8 +2298,11 @@ static void CompileTestAndLoadDia(dxc::DxcDllSupport &dllSupport, IDiaDataSource
   CComPtr<IDxcLibrary> pLib;
   CComPtr<IDxcContainerReflection> pReflection;
   UINT32 index;
+  std::vector<LPCWSTR> args;
+  args.push_back(L"/Zi");
+  args.push_back(L"/Qembed_debug");
 
-  VerifyCompileOK(dllSupport, EmptyCompute, L"cs_6_0", L"/Zi", &pContainer);
+  VerifyCompileOK(dllSupport, EmptyCompute, L"cs_6_0", args, &pContainer);
   VERIFY_SUCCEEDED(dllSupport.CreateInstance(CLSID_DxcLibrary, &pLib));
   VERIFY_SUCCEEDED(dllSupport.CreateInstance(CLSID_DxcContainerReflection, &pReflection));
   VERIFY_SUCCEEDED(pReflection->Load(pContainer));
@@ -2314,71 +2349,6 @@ TEST_F(CompilerTest, DiaTableIndexThenOK) {
   VERIFY_FAILED(pEnumTables->Item(vtIndex, &pTable));
 }
 #endif // _WIN32 - exclude dia stuff
-
-TEST_F(CompilerTest, CodeGenAttributeAtVertex) {
-  if (m_ver.SkipDxilVersion(1,1)) return;
-  CodeGenTestCheck(L"attributeAtVertex.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenAttributeAtVertexNoOpt) {
-  if (m_ver.SkipDxilVersion(1,1)) return;
-  CodeGenTestCheck(L"attributeAtVertexNoOpt.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenBarycentrics) {
-  if (m_ver.SkipDxilVersion(1,1)) return;
-  CodeGenTestCheck(L"barycentrics.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenBarycentrics1) {
-  if (m_ver.SkipDxilVersion(1,1)) return;
-  CodeGenTestCheck(L"barycentrics1.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenBarycentricsThreeSV) {
-  if (m_ver.SkipDxilVersion(1,1)) return;
-  CodeGenTestCheck(L"barycentricsThreeSV.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenBitCast16Bits) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"bitcast_16bits.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenCbuffer64Types) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"cbuffer64Types.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenCbufferHalf) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"cbufferHalf.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenCbufferHalfStruct) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"cbufferHalf-struct.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenCbufferInt16) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"cbufferInt16.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenCbufferInt16Struct) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"cbufferInt16-struct.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenDataLayoutHalf) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"dataLayoutHalf.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenEnum3) {
-  if (m_ver.SkipDxilVersion(1,1)) return;
-  CodeGenTestCheck(L"enum3.hlsl");
-}
 
 #ifdef _WIN32
 
@@ -2465,34 +2435,8 @@ TEST_F(CompilerTest, CodeGenFloatingPointEnvironment) {
 
 #endif  // _WIN32
 
-
-TEST_F(CompilerTest, CodeGenFixedWidthTypes) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"fixedWidth.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenFixedWidthTypes16Bit) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"fixedWidth16Bit.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenFunctionAttribute) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"functionAttribute.hlsl");
-}
-
 TEST_F(CompilerTest, CodeGenInclude) {
   CodeGenTestCheck(L"Include.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenInt16Op) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"int16Op.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenInt16OpBits) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"int16OpBits.hlsl");
 }
 
 TEST_F(CompilerTest, CodeGenLibCsEntry) {
@@ -2527,101 +2471,6 @@ TEST_F(CompilerTest, CodeGenLibUnusedFunc) {
   CodeGenTestCheck(L"lib_unused_func.hlsl");
 }
 
-TEST_F(CompilerTest, CodeGenMultiUAVLoad2) {
-  if (m_ver.SkipDxilVersion(1,1)) return;
-  CodeGenTestCheck(L"multiUAVLoad2.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenMultiUAVLoad4) {
-  if (m_ver.SkipDxilVersion(1,1)) return;
-  CodeGenTestCheck(L"multiUAVLoad4.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenMultiUAVLoad5) {
-  if (m_ver.SkipDxilVersion(1,1)) return;
-  CodeGenTestCheck(L"multiUAVLoad5.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenMultiUAVLoad6) {
-  if (m_ver.SkipDxilVersion(1,1)) return;
-  CodeGenTestCheck(L"multiUAVLoad6.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenMultiUAVLoad7) {
-  if (m_ver.SkipDxilVersion(1,1)) return;
-  CodeGenTestCheck(L"multiUAVLoad7.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenRaw_Buf2) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"raw_buf2.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenRaw_Buf4) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"raw_buf4.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenRaw_Buf5) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"raw_buf5.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenSignaturePackingByWidth) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"signature_packing_by_width.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenStruct_Buf2) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"struct_buf2.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenStruct_Buf3) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"struct_buf3.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenStruct_Buf4) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"struct_buf4.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenStruct_Buf5) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"struct_buf5.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenStruct_Buf6) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"struct_buf6.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenStruct_Buf_New_Layout) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"struct_buf_new_layout.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenUav_Typed_Load_Store3) {
-  if (m_ver.SkipDxilVersion(1,2)) return;
-  CodeGenTestCheck(L"uav_typed_load_store3.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenUint64_2) {
-  if (m_ver.SkipDxilVersion(1,1)) return;
-  CodeGenTestCheck(L"uint64_2.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenLiterals_Exact_Precision_Mod) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"literals_exact_precision_Mod.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenTypedBufferHalf) {
-  if (m_ver.SkipDxilVersion(1, 2)) return;
-  CodeGenTestCheck(L"typed_buffer_half.hlsl");
-}
-
 TEST_F(CompilerTest, CodeGenRootSigProfile) {
   CodeGenTest(L"rootSigProfile.hlsl");
 }
@@ -2637,6 +2486,82 @@ TEST_F(CompilerTest, CodeGenRootSigProfile5) {
 
 TEST_F(CompilerTest, CodeGenSamples){
   CodeGenTestCheckBatchDir(L"Samples");
+}
+
+TEST_F(CompilerTest, LibGVStore) {
+  CComPtr<IDxcCompiler> pCompiler;
+  CComPtr<IDxcOperationResult> pResult;
+  CComPtr<IDxcBlobEncoding> pSource;
+  CComPtr<IDxcContainerReflection> pReflection;
+  CComPtr<IDxcAssembler> pAssembler;
+
+  VERIFY_SUCCEEDED(this->m_dllSupport.CreateInstance(CLSID_DxcContainerReflection, &pReflection));
+  VERIFY_SUCCEEDED(this->m_dllSupport.CreateInstance(CLSID_DxcAssembler, &pAssembler));
+  VERIFY_SUCCEEDED(CreateCompiler(&pCompiler));
+  CreateBlobFromText(
+    R"(
+      struct T {
+      RWByteAddressBuffer outputBuffer;
+      RWByteAddressBuffer outputBuffer2;
+      };
+
+      struct D {
+        float4 a;
+        int4 b;
+      };
+
+      struct T2 {
+         RWStructuredBuffer<D> uav;
+      };
+
+      T2 resStruct(T t, uint2 id);
+
+      RWByteAddressBuffer outputBuffer;
+      RWByteAddressBuffer outputBuffer2;
+
+      [numthreads(8, 8, 1)]
+      void main( uint2 id : SV_DispatchThreadID )
+      {
+          T t = {outputBuffer,outputBuffer2};
+          T2 t2 = resStruct(t, id);
+          uint counter = t2.uav.IncrementCounter();
+          t2.uav[counter].b.xy = id;
+      }
+    )", &pSource);
+
+  const WCHAR *pArgs[] = {
+    L"/Zi",
+  };
+  VERIFY_SUCCEEDED(pCompiler->Compile(pSource, L"file.hlsl", L"", L"lib_6_x",
+                                         pArgs, _countof(pArgs), nullptr, 0, nullptr,
+                                         &pResult));
+
+  CComPtr<IDxcBlob> pShader;
+  VERIFY_SUCCEEDED(pResult->GetResult(&pShader));
+  VERIFY_SUCCEEDED(pReflection->Load(pShader));
+
+  UINT32 index = 0;
+  VERIFY_SUCCEEDED(pReflection->FindFirstPartKind(hlsl::DFCC_DXIL, &index));
+
+  CComPtr<IDxcBlob> pBitcode;
+  VERIFY_SUCCEEDED(pReflection->GetPartContent(index, &pBitcode));
+
+  const char *bitcode = hlsl::GetDxilBitcodeData((hlsl::DxilProgramHeader *)pBitcode->GetBufferPointer());
+  unsigned bitcode_size = hlsl::GetDxilBitcodeSize((hlsl::DxilProgramHeader *)pBitcode->GetBufferPointer());
+
+  CComPtr<IDxcBlobEncoding> pBitcodeBlob;
+  CreateBlobPinned(bitcode, bitcode_size, CP_UTF8, &pBitcodeBlob);
+
+  CComPtr<IDxcBlob> pReassembled;
+  CComPtr<IDxcOperationResult> pReassembleResult;
+  VERIFY_SUCCEEDED(pAssembler->AssembleToContainer(pBitcodeBlob, &pReassembleResult));
+  VERIFY_SUCCEEDED(pReassembleResult->GetResult(&pReassembled));
+
+  CComPtr<IDxcBlobEncoding> pTextBlob;
+  VERIFY_SUCCEEDED(pCompiler->Disassemble(pReassembled, &pTextBlob));
+
+  std::string Text = (const char *)pTextBlob->GetBufferPointer();
+  VERIFY_ARE_NOT_EQUAL(std::string::npos, Text.find("store"));
 }
 
 TEST_F(CompilerTest, PreprocessWhenValidThenOK) {
@@ -2766,11 +2691,6 @@ TEST_F(CompilerTest, WhenSigMismatchPCFunctionThenFail) {
     "Signature element SV_Position, referred to by patch constant function, is not found in corresponding hull shader output."));
 }
 
-TEST_F(CompilerTest, ViewID) {
-  if (m_ver.SkipDxilVersion(1,1)) return;
-  CodeGenTestCheckBatchDir(L"viewid");
-}
-
 TEST_F(CompilerTest, SubobjectCodeGenErrors) {
   struct SubobjectErrorTestCase {
     const char *shaderText;
@@ -2849,6 +2769,11 @@ TEST_F(CompilerTest, DISABLED_ManualFileCheckTest) {
   } else {
     CodeGenTestCheck(path.c_str(), /*implicitDir*/ false);
   }
+}
+
+
+TEST_F(CompilerTest, CodeGenHashStability) {
+  CodeGenTestCheckBatchHash(L"batch");
 }
 
 TEST_F(CompilerTest, CodeGenBatch) {

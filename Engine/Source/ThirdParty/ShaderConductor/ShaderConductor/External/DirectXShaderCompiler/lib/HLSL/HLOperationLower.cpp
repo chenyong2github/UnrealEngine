@@ -12,6 +12,7 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <unordered_set>
+#include <functional>
 
 #include "dxc/DXIL/DxilModule.h"
 #include "dxc/DXIL/DxilOperations.h"
@@ -23,6 +24,7 @@
 #include "dxc/HLSL/HLOperationLowerExtension.h"
 #include "dxc/HLSL/HLOperations.h"
 #include "dxc/HlslIntrinsicOp.h"
+#include "dxc/HLSL/DxilConvergent.h"
 
 #include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/IRBuilder.h"
@@ -780,9 +782,7 @@ Value *TranslateAddUint64(CallInst *CI, IntrinsicOp IOP,
 bool IsValidLoadInput(Value *V) {
   // Must be load input.
   // TODO: report this error on front-end
-  if (!isa<CallInst>(V)) {
-    V->getContext().emitError("attribute evaluation can only be done on values "
-                              "taken directly from inputs");
+  if (!V || !isa<CallInst>(V)) {
     return false;
   }
   CallInst *CI = cast<CallInst>(V);
@@ -791,8 +791,6 @@ bool IsValidLoadInput(Value *V) {
       cast<ConstantInt>(CI->getArgOperand(DXIL::OperandIndex::kOpcodeIdx));
   DXIL::OpCode op = static_cast<DXIL::OpCode>(opArg->getLimitedValue());
   if (op != DXIL::OpCode::LoadInput) {
-    V->getContext().emitError("attribute evaluation can only be done on values "
-                              "taken directly from inputs");
     return false;
   }
   return true;
@@ -816,46 +814,83 @@ Constant *AccumulateMask(Constant *curMask, Constant *prevMask) {
   return ConstantDataVector::get(curMask->getContext(), Elts);
 }
 
-Constant *GetLoadInputsForEvaluate(Value *V, std::vector<CallInst*> &loadList) {
-  Constant *shufMask = nullptr;
-  if (V->getType()->isVectorTy()) {
-    // Must be insert element inst. Keeping track of masks for shuffle vector
-    Value *Vec = V;
-    while (ShuffleVectorInst *shuf = dyn_cast<ShuffleVectorInst>(Vec)) {
-      shufMask = AccumulateMask(shufMask, shuf->getMask());
-      Vec = shuf->getOperand(0);
-    }
-
-    // TODO: We are assuming that the operand of insertelement is a LoadInput.
-    // This will fail on the case where we pass in matrix member using array subscript.
-    while (!isa<UndefValue>(Vec)) {
-      InsertElementInst *insertInst = cast<InsertElementInst>(Vec);
-      Vec = insertInst->getOperand(0);
-      Value *Elt = insertInst->getOperand(1);
-      if (IsValidLoadInput(Elt)) {
-        loadList.emplace_back(cast<CallInst>(Elt));
+// Tunnel through insert/extract element and shuffle to find original source
+// of scalar value, or specified element (vecIdx) of vector value.
+Value *FindScalarSource(Value *src, unsigned vecIdx = 0) {
+  Type *srcTy = src->getType()->getScalarType();
+  while (src && !isa<UndefValue>(src)) {
+    if (src->getType()->isVectorTy()) {
+      if (InsertElementInst *IE = dyn_cast<InsertElementInst>(src)) {
+        unsigned curIdx = (unsigned)cast<ConstantInt>(IE->getOperand(2))
+          ->getUniqueInteger().getLimitedValue();
+        src = IE->getOperand( (curIdx == vecIdx) ? 1 : 0 );
+      } else if (ShuffleVectorInst *SV = dyn_cast<ShuffleVectorInst>(src)) {
+        int newIdx = SV->getMaskValue(vecIdx);
+        if (newIdx < 0)
+          return UndefValue::get(srcTy);
+        vecIdx = (unsigned)newIdx;
+        src = SV->getOperand(0);
+        unsigned numElt = src->getType()->getVectorNumElements();
+        if (numElt <= vecIdx) {
+          vecIdx -= numElt;
+          src = SV->getOperand(1);
+        }
+      } else {
+        return UndefValue::get(srcTy);  // Didn't find it.
+      }
+    } else {
+      if (ExtractElementInst *EE = dyn_cast<ExtractElementInst>(src)) {
+        vecIdx = (unsigned)cast<ConstantInt>(EE->getIndexOperand())
+          ->getUniqueInteger().getLimitedValue();
+        src = EE->getVectorOperand();
+      } else if (hlsl::IsConvergentMarker(src)) {
+        src = hlsl::GetConvergentSource(src);
+      } else {
+        break;  // Found it.
       }
     }
-  } else {
-    if (IsValidLoadInput(V)) {
-      loadList.emplace_back(cast<CallInst>(V));
-    }
   }
-  return shufMask;
+  return src;
 }
 
-// Swizzle could reduce the dimensionality of the Type, but
-// for temporary insertelement instructions should maintain the existing size of the loadinput.
-// So we have to analyze the type of src in order to determine the actual size required.
-Type *GetInsertElementTypeForEvaluate(Value *src) {
-  if (dyn_cast<InsertElementInst>(src)) {
-    return src->getType();
+// Finds corresponding inputs, calls translation for each, and returns
+// resulting vector or scalar.
+// Uses functor that takes (inputElemID, rowIdx, colIdx), and returns
+// translation for one input scalar.
+Value *TranslateEvalHelper(CallInst *CI, Value *val, IRBuilder<> &Builder,
+    std::function<Value*(Value*, Value*, Value*)> fnTranslateScalarInput) {
+  Type *Ty = CI->getType();
+  Value *result = UndefValue::get(Ty);
+  if (Ty->isVectorTy()) {
+    for (unsigned i = 0; i < Ty->getVectorNumElements(); ++i) {
+      Value *InputEl = FindScalarSource(val, i);
+      if (!IsValidLoadInput(InputEl)) {
+        CI->getContext().emitError(CI, "attribute evaluation can only be done "
+                                       "on values taken directly from inputs");
+        return result;
+      }
+      CallInst *loadInput = cast<CallInst>(InputEl);
+      Value *inputElemID = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputIDOpIdx);
+      Value *rowIdx = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputRowOpIdx);
+      Value *colIdx = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputColOpIdx);
+      Value *Elt = fnTranslateScalarInput(inputElemID, rowIdx, colIdx);
+      result = Builder.CreateInsertElement(result, Elt, i);
+    }
   }
-  else if (ShuffleVectorInst *SV = dyn_cast<ShuffleVectorInst>(src)) {
-    return SV->getOperand(0)->getType();
+  else {
+    Value *InputEl = FindScalarSource(val);
+    if (!IsValidLoadInput(InputEl)) {
+      CI->getContext().emitError(CI, "attribute evaluation can only be done "
+                                     "on values taken directly from inputs");
+      return result;
+    }
+    CallInst *loadInput = cast<CallInst>(InputEl);
+    Value *inputElemID = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputIDOpIdx);
+    Value *rowIdx = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputRowOpIdx);
+    Value *colIdx = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputColOpIdx);
+    result = fnTranslateScalarInput(inputElemID, rowIdx, colIdx);
   }
-  src->getContext().emitError("Invalid type call for EvaluateAttribute function");
-  return nullptr;
+  return result;
 }
 
 Value *TranslateEvalSample(CallInst *CI, IntrinsicOp IOP, OP::OpCode op,
@@ -864,137 +899,74 @@ Value *TranslateEvalSample(CallInst *CI, IntrinsicOp IOP, OP::OpCode op,
   Value *val = CI->getArgOperand(HLOperandIndex::kBinaryOpSrc0Idx);
   Value *sampleIdx = CI->getArgOperand(HLOperandIndex::kBinaryOpSrc1Idx);
   IRBuilder<> Builder(CI);
-
-  std::vector<CallInst*> loadList;
-  Constant *shufMask = GetLoadInputsForEvaluate(val, loadList);
-
-  unsigned size = loadList.size();
   OP::OpCode opcode = OP::OpCode::EvalSampleIndex; 
-
   Value *opArg = hlslOP->GetU32Const((unsigned)opcode);
-  Type *Ty = GetInsertElementTypeForEvaluate(val);
+  Function *evalFunc = hlslOP->GetOpFunc(opcode, CI->getType()->getScalarType());
 
-  Function *evalFunc = hlslOP->GetOpFunc(opcode, Ty->getScalarType());
-    
-  Value *result = UndefValue::get(Ty);
-  for (unsigned i = 0; i < size; i++) {
-    CallInst *loadInput = loadList[size-1-i];
-    Value *inputElemID = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputIDOpIdx);
-    Value *rowIdx = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputRowOpIdx);
-    Value *colIdx = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputColOpIdx);
-    Value *Elt = Builder.CreateCall(evalFunc, { opArg, inputElemID, rowIdx, colIdx, sampleIdx });
-    result = Builder.CreateInsertElement(result, Elt, i);
-  }
-  if (shufMask)
-    result = Builder.CreateShuffleVector(result, UndefValue::get(Ty), shufMask);
-  return result;
+  return TranslateEvalHelper(CI, val, Builder,
+    [&](Value *inputElemID, Value *rowIdx, Value *colIdx) -> Value* {
+      return Builder.CreateCall(evalFunc, { opArg, inputElemID, rowIdx, colIdx, sampleIdx });
+    }
+  );
 }
 
 Value *TranslateEvalSnapped(CallInst *CI, IntrinsicOp IOP, OP::OpCode op,
-                            HLOperationLowerHelper &helper,  HLObjectOperationLowerHelper *pObjHelper, bool &Translated) {
+                            HLOperationLowerHelper &helper,
+                            HLObjectOperationLowerHelper *pObjHelper,
+                            bool &Translated) {
   hlsl::OP *hlslOP = &helper.hlslOP;
   Value *val = CI->getArgOperand(HLOperandIndex::kBinaryOpSrc0Idx);
   Value *offset = CI->getArgOperand(HLOperandIndex::kBinaryOpSrc1Idx);
   IRBuilder<> Builder(CI);
   Value *offsetX = Builder.CreateExtractElement(offset, (uint64_t)0);
   Value *offsetY = Builder.CreateExtractElement(offset, 1);
-
-  std::vector<CallInst*> loadList;
-  Constant *shufMask = GetLoadInputsForEvaluate(val, loadList);
-
-  unsigned size = loadList.size();
   OP::OpCode opcode = OP::OpCode::EvalSnapped; 
-
   Value *opArg = hlslOP->GetU32Const((unsigned)opcode);
-  Type *Ty = GetInsertElementTypeForEvaluate(val);
-  Function *evalFunc = hlslOP->GetOpFunc(opcode, Ty->getScalarType());
-    
-  Value *result = UndefValue::get(Ty);
-  for (unsigned i = 0; i < size; i++) {
-    CallInst *loadInput = loadList[size-1-i];
-    Value *inputElemID = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputIDOpIdx);
-    Value *rowIdx = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputRowOpIdx);
-    Value *colIdx = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputColOpIdx);
-    Value *Elt = Builder.CreateCall(evalFunc, { opArg, inputElemID, rowIdx, colIdx, offsetX, offsetY });
-    result = Builder.CreateInsertElement(result, Elt, i);
-  }
-  if (shufMask)
-    result = Builder.CreateShuffleVector(result, UndefValue::get(Ty), shufMask);
-  return result;
+  Function *evalFunc = hlslOP->GetOpFunc(opcode, CI->getType()->getScalarType());
+
+  return TranslateEvalHelper(CI, val, Builder,
+    [&](Value *inputElemID, Value *rowIdx, Value *colIdx) -> Value* {
+      return Builder.CreateCall(evalFunc, { opArg, inputElemID, rowIdx, colIdx, offsetX, offsetY });
+    }
+  );
 }
 
-
 Value *TranslateEvalCentroid(CallInst *CI, IntrinsicOp IOP, OP::OpCode op,
-                            HLOperationLowerHelper &helper,  HLObjectOperationLowerHelper *pObjHelper, bool &Translated) {
+                             HLOperationLowerHelper &helper,
+                             HLObjectOperationLowerHelper *pObjHelper,
+                             bool &Translated) {
   hlsl::OP *hlslOP = &helper.hlslOP;
-  Value *src = CI->getArgOperand(DXIL::OperandIndex::kUnarySrc0OpIdx);
-  std::vector<CallInst*> loadList;
-  Constant *shufMask = GetLoadInputsForEvaluate(src, loadList);
-
-  unsigned size = loadList.size();
-
+  Value *val = CI->getArgOperand(DXIL::OperandIndex::kUnarySrc0OpIdx);
   IRBuilder<> Builder(CI);
-
   OP::OpCode opcode = OP::OpCode::EvalCentroid; 
-
   Value *opArg = hlslOP->GetU32Const((unsigned)opcode);
+  Function *evalFunc = hlslOP->GetOpFunc(opcode, CI->getType()->getScalarType());
 
-  Type *Ty = GetInsertElementTypeForEvaluate(src);
-  Function *evalFunc = hlslOP->GetOpFunc(opcode, Ty->getScalarType());
-    
-  Value *result = UndefValue::get(Ty);
-  for (unsigned i = 0; i < size; i++) {
-    CallInst *loadInput = loadList[size-1-i];
-    Value *inputElemID = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputIDOpIdx);
-    Value *rowIdx = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputRowOpIdx);
-    Value *colIdx = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputColOpIdx);
-    Value *Elt = Builder.CreateCall(evalFunc, { opArg, inputElemID, rowIdx, colIdx });
-    result = Builder.CreateInsertElement(result, Elt, i);
-  }
-  if (shufMask)
-    result = Builder.CreateShuffleVector(result, UndefValue::get(Ty), shufMask);
-  return result;
+  return TranslateEvalHelper(CI, val, Builder,
+    [&](Value *inputElemID, Value *rowIdx, Value *colIdx) -> Value* {
+      return Builder.CreateCall(evalFunc, { opArg, inputElemID, rowIdx, colIdx });
+    }
+  );
 }
 
 Value *TranslateGetAttributeAtVertex(CallInst *CI, IntrinsicOp IOP, OP::OpCode op,
-  HLOperationLowerHelper &helper,
-  HLObjectOperationLowerHelper *pObjHelper,
-  bool &Translated) {
+                                     HLOperationLowerHelper &helper,
+                                     HLObjectOperationLowerHelper *pObjHelper,
+                                     bool &Translated) {
   DXASSERT(op == OP::OpCode::AttributeAtVertex, "Wrong opcode to translate");
   hlsl::OP *hlslOP = &helper.hlslOP;
   IRBuilder<> Builder(CI);
-  Type *Ty = CI->getType();
   Value *val = CI->getArgOperand(DXIL::OperandIndex::kBinarySrc0OpIdx);
   Value *vertexIdx = CI->getArgOperand(DXIL::OperandIndex::kBinarySrc1OpIdx);
   Value *vertexI8Idx = Builder.CreateTrunc(vertexIdx, Type::getInt8Ty(CI->getContext()));
-
-  // Check the range of VertexID
-  Value *vertex0 = Builder.getInt8(0);
-  Value *vertex1 = Builder.getInt8(1);
-  Value *vertex2 = Builder.getInt8(2);
-  if (vertexI8Idx != vertex0 && vertexI8Idx != vertex1 && vertexI8Idx != vertex2) {
-    CI->getContext().emitError(CI, "VertexID at GetAttributeAtVertex can only range from 0 to 2");
-    return UndefValue::get(Ty);
-  }
-
-  std::vector<CallInst*> loadList;
-  Constant *shufMask = GetLoadInputsForEvaluate(val, loadList);
-
-  unsigned size = loadList.size();
   Value *opArg = hlslOP->GetU32Const((unsigned)op);
-  Function *evalFunc = hlslOP->GetOpFunc(op, Ty->getScalarType());
-  Value *result = UndefValue::get(Ty);
-  for (unsigned i = 0; i < size; ++i) {
-    CallInst *loadInput = loadList[size - 1 - i];
-    Value *inputElemID = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputIDOpIdx);
-    Value *rowIdx = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputRowOpIdx);
-    Value *colIdx = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputColOpIdx);
-    Value *Elt = Builder.CreateCall(evalFunc, { opArg, inputElemID, rowIdx, colIdx,  vertexI8Idx });
-    result = Builder.CreateInsertElement(result, Elt, i);
-  }
-  if (shufMask)
-    result = Builder.CreateShuffleVector(result, UndefValue::get(Ty), shufMask);
-  return result;
+  Function *evalFunc = hlslOP->GetOpFunc(op, val->getType()->getScalarType());
+
+  return TranslateEvalHelper(CI, val, Builder,
+    [&](Value *inputElemID, Value *rowIdx, Value *colIdx) -> Value* {
+      return Builder.CreateCall(evalFunc, { opArg, inputElemID, rowIdx, colIdx,  vertexI8Idx });
+    }
+  );
 }
 
 Value *TrivialNoArgOperation(CallInst *CI, IntrinsicOp IOP, OP::OpCode opcode,
@@ -3241,7 +3213,7 @@ ResLoadHelper::ResLoadHelper(CallInst *CI, DxilResource::Kind RK,
 }
 
 void TranslateStructBufSubscript(CallInst *CI, Value *handle, Value *status,
-                                 hlsl::OP *OP, const DataLayout &DL);
+                                 hlsl::OP *OP, HLResource::Kind RK, const DataLayout &DL);
 
 // Create { v0, v1 } from { v0.lo, v0.hi, v1.lo, v1.hi }
 void Make64bitResultForLoad(Type *EltTy, ArrayRef<Value *> resultElts32,
@@ -3308,7 +3280,7 @@ void TranslateLoad(ResLoadHelper &helper, HLResource::Kind RK,
   if (Ty->isPointerTy()) {
     DXASSERT(!DxilResource::IsAnyTexture(RK), "Textures should not be treated as structured buffers.");
     TranslateStructBufSubscript(cast<CallInst>(helper.retVal), helper.handle,
-                                helper.status, OP, DL);
+                                helper.status, OP, RK, DL);
     return;
   }
 
@@ -3341,6 +3313,12 @@ void TranslateLoad(ResLoadHelper &helper, HLResource::Kind RK,
   bool is64 = EltTy == i64Ty || EltTy == doubleTy;
   if (is64 && isTyped) {
     EltTy = i32Ty;
+  }
+  bool isBool = EltTy->isIntegerTy(1);
+  if (isBool) {
+    // Value will be loaded in its memory representation.
+    EltTy = i32Ty;
+    if (Ty->isVectorTy()) Ty = VectorType::get(EltTy, numComponents);
   }
 
   Function *F = OP->GetOpFunc(opcode, EltTy);
@@ -3436,6 +3414,12 @@ void TranslateLoad(ResLoadHelper &helper, HLResource::Kind RK,
 
     retValNew = ScalarizeElements(Ty, Elts, Builder);
   }
+
+  if (isBool) {
+    // Convert result back to register representation.
+    retValNew = Builder.CreateICmpNE(retValNew, Constant::getNullValue(retValNew->getType()));
+  }
+
   // replace
   helper.retVal->replaceAllUsesWith(retValNew);
   // Save new ret val.
@@ -3526,6 +3510,14 @@ void TranslateStore(DxilResource::Kind RK, Value *handle, Value *val,
   Type *i64Ty = Builder.getInt64Ty();
   Type *doubleTy = Builder.getDoubleTy();
   Type *EltTy = Ty->getScalarType();
+  if (EltTy->isIntegerTy(1)) {
+    // Since we're going to memory, convert bools to their memory representation.
+    EltTy = i32Ty;
+    if (Ty->isVectorTy()) Ty = VectorType::get(EltTy, Ty->getVectorNumElements());
+    else Ty = EltTy;
+    val = Builder.CreateZExt(val, Ty);
+  }
+
   Constant *Alignment = OP->GetI32Const(OP->GetAllocSizeForType(EltTy));
   bool is64 = EltTy == i64Ty || EltTy == doubleTy;
   if (is64 && isTyped) {
@@ -4643,7 +4635,8 @@ namespace {
 
 Value *EmptyLower(CallInst *CI, IntrinsicOp IOP, DXIL::OpCode opcode,
                   HLOperationLowerHelper &helper,  HLObjectOperationLowerHelper *pObjHelper, bool &Translated) {
-  DXASSERT(0, "unsupported intrinsic");
+  Translated = false;
+  CI->getContext().emitError(CI, "Unsupported intrinsic");
   return nullptr;
 }
 
@@ -4654,7 +4647,8 @@ Value *UnsupportedVulkanIntrinsic(CallInst *CI, IntrinsicOp IOP,
                                   HLOperationLowerHelper &helper,
                                   HLObjectOperationLowerHelper *pObjHelper,
                                   bool &Translated) {
-  DXASSERT(0, "unsupported Vulkan intrinsic");
+  Translated = false;
+  CI->getContext().emitError(CI, "Unsupported Vulkan intrinsic");
   return nullptr;
 }
 #endif // ENABLE_SPIRV_CODEGEN
@@ -5951,6 +5945,13 @@ Value *GenerateStructBufLd(Value *handle, Value *bufIdx, Value *offset,
   DXASSERT(resultElts.size() <= 4,
            "buffer load cannot load more than 4 values");
 
+  if (bufIdx == nullptr) {
+    // This is actually a byte address buffer load with a struct template type.
+    // The call takes only one coordinates for the offset.
+    bufIdx = offset;
+    offset = UndefValue::get(offset->getType());
+  }
+
   Function *dxilF = OP->GetOpFunc(opcode, EltTy);
   Constant *mask = GetRawBufferMaskForETy(EltTy, NumComponents, OP);
   Value *Args[] = {OP->GetU32Const((unsigned)opcode),
@@ -6474,14 +6475,23 @@ void TranslateStructBufSubscriptUser(Instruction *user, Value *handle,
 }
 
 void TranslateStructBufSubscript(CallInst *CI, Value *handle, Value *status,
-                                 hlsl::OP *OP, const DataLayout &DL) {
-  Value *bufIdx = CI->getArgOperand(HLOperandIndex::kSubscriptIndexOpIdx);
+                                 hlsl::OP *OP, HLResource::Kind ResKind, const DataLayout &DL) {
+  Value *subscriptIndex = CI->getArgOperand(HLOperandIndex::kSubscriptIndexOpIdx);
+  Value* bufIdx = nullptr;
+  Value *offset = nullptr;
+  if (ResKind == HLResource::Kind::RawBuffer) {
+    offset = subscriptIndex;
+  }
+  else {
+    // StructuredBuffer, TypedBuffer, etc.
+    bufIdx = subscriptIndex;
+  }
 
   for (auto U = CI->user_begin(); U != CI->user_end();) {
     Value *user = *(U++);
 
     TranslateStructBufSubscriptUser(cast<Instruction>(user), handle, bufIdx,
-                                    /*baseOffset*/ nullptr, status, OP, DL);
+                                    offset, status, OP, DL);
   }
 }
 }
@@ -6828,11 +6838,11 @@ void TranslateHLSubscript(CallInst *CI, HLSubscriptOpcode opcode,
       Type *ObjTy = pObjHelper->GetResourceType(handle);
       Type *RetTy = ObjTy->getStructElementType(0);
       if (RK == DxilResource::Kind::StructuredBuffer) {
-        TranslateStructBufSubscript(CI, handle, /*status*/ nullptr, hlslOP,
+        TranslateStructBufSubscript(CI, handle, /*status*/ nullptr, hlslOP, RK,
                                     helper.dataLayout);
       } else if (RetTy->isAggregateType() &&
                  RK == DxilResource::Kind::TypedBuffer) {
-        TranslateStructBufSubscript(CI, handle, /*status*/ nullptr, hlslOP,
+        TranslateStructBufSubscript(CI, handle, /*status*/ nullptr, hlslOP, RK,
                                     helper.dataLayout);
         // Clear offset for typed buf.
         for (auto User = handle->user_begin(); User != handle->user_end(); ) {

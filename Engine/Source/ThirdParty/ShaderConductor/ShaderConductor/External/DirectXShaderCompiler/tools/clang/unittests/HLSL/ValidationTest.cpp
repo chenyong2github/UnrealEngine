@@ -256,7 +256,7 @@ public:
   TEST_METHOD(WhenMissingPayloadThenFail)
   TEST_METHOD(ShaderFunctionReturnTypeVoid)
 
-  TEST_METHOD(SpaceOnlyRegisterFail)
+  TEST_METHOD(WhenDisassembleInvalidBlobThenFail)
 
   dxc::DxcDllSupport m_dllSupport;
   VersionSupportInfo m_ver;
@@ -1063,7 +1063,7 @@ TEST_F(ValidationTest, SignatureDataWidth) {
   if (m_ver.SkipDxilVersion(1, 2)) return;
   std::vector<LPCWSTR> pArguments = { L"-enable-16bit-types", L"-HV", L"2018" };
   RewriteAssemblyCheckMsg(
-      L"..\\CodeGenHLSL\\signature_packing_by_width.hlsl", "ps_6_2",
+      L"..\\CodeGenHLSL\\validation\\signature_packing_by_width.hlsl", "ps_6_2",
       pArguments.data(), 3, nullptr, 0,
       {"i8 8, i8 0, (![0-9]+), i8 2, i32 1, i8 2, i32 0, i8 0, null}"},
       {"i8 9, i8 0, \\1, i8 2, i32 1, i8 2, i32 0, i8 0, null}"},
@@ -3053,8 +3053,20 @@ float4 main(uint vid : SV_ViewID, float3 In[31] : INPUT) : SV_Target \
     /*bRegex*/true);
 }
 
-TEST_F(ValidationTest, SpaceOnlyRegisterFail) {
-  TestCheck(L"..\\CodeGenHLSL\\space-only-register.hlsl");
+// Regression test for a double-delete when failing to parse bitcode.
+TEST_F(ValidationTest, WhenDisassembleInvalidBlobThenFail) {
+  if (!m_dllSupport.IsEnabled()) {
+    VERIFY_SUCCEEDED(m_dllSupport.Initialize());
+  }
+
+  CComPtr<IDxcBlobEncoding> pInvalidBitcode;
+  Utf8ToBlob(m_dllSupport, "This text is certainly not bitcode", &pInvalidBitcode);
+
+  CComPtr<IDxcCompiler> pCompiler;
+  VERIFY_SUCCEEDED(m_dllSupport.CreateInstance(CLSID_DxcCompiler, &pCompiler));
+
+  CComPtr<IDxcBlobEncoding> pDisassembly;
+  VERIFY_FAILED(pCompiler->Disassemble(pInvalidBitcode, &pDisassembly));
 }
 
 TEST_F(ValidationTest, GSMainMissingAttributeFail) {
@@ -3175,8 +3187,8 @@ TEST_F(ValidationTest, ResCounter) {
     RewriteAssemblyCheckMsg(
         "RWStructuredBuffer<float4> buf; export float GetCounter() {return buf.IncrementCounter();}",
         "lib_6_3",
-        { "!\"buf\", i32 0, i32 -1, i32 1, i32 12, i1 false, i1 true, i1 false, !" },
-        { "!\"buf\", i32 0, i32 -1, i32 1, i32 12, i1 false, i1 false, i1 false, !" },
+        { "!\"buf\", i32 -1, i32 -1, i32 1, i32 12, i1 false, i1 true, i1 false, !" },
+        { "!\"buf\", i32 -1, i32 -1, i32 1, i32 12, i1 false, i1 false, i1 false, !" },
         "BufferUpdateCounter valid only when HasCounter is true",
         true);
 }

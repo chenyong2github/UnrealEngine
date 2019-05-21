@@ -116,7 +116,7 @@ private:
   uint32_t AddSampler(VarDecl *samplerDecl);
   uint32_t AddUAVSRV(VarDecl *decl, hlsl::DxilResourceBase::Class resClass);
   bool SetUAVSRV(SourceLocation loc, hlsl::DxilResourceBase::Class resClass,
-                 DxilResource *hlslRes, const RecordDecl *RD);
+                 DxilResource *hlslRes, QualType QualTy);
   uint32_t AddCBuffer(HLSLBufferDecl *D);
   hlsl::DxilResourceBase::Class TypeToClass(clang::QualType Ty);
 
@@ -739,7 +739,7 @@ MDNode *CGMSHLSLRuntime::GetOrAddResTypeMD(QualType resTy) {
   case DXIL::ResourceClass::UAV: {
     DxilResource UAV;
     // TODO: save globalcoherent to variable in EmitHLSLBuiltinCallExpr.
-    SetUAVSRV(loc, resClass, &UAV, RD);
+    SetUAVSRV(loc, resClass, &UAV, resTy);
     // Set global symbol to save type.
     UAV.SetGlobalSymbol(UndefValue::get(Ty));
     MDNode *MD = m_pHLModule->DxilUAVToMDNode(UAV);
@@ -748,7 +748,7 @@ MDNode *CGMSHLSLRuntime::GetOrAddResTypeMD(QualType resTy) {
   } break;
   case DXIL::ResourceClass::SRV: {
     DxilResource SRV;
-    SetUAVSRV(loc, resClass, &SRV, RD);
+    SetUAVSRV(loc, resClass, &SRV, resTy);
     // Set global symbol to save type.
     SRV.SetGlobalSymbol(UndefValue::get(Ty));
     MDNode *MD = m_pHLModule->DxilSRVToMDNode(SRV);
@@ -2314,7 +2314,8 @@ hlsl::DxilResourceBase::Class CGMSHLSLRuntime::TypeToClass(clang::QualType Ty) {
 namespace {
   void GetResourceDeclElemTypeAndRangeSize(CodeGenModule &CGM, HLModule &HL, VarDecl &VD,
     QualType &ElemType, unsigned& rangeSize) {
-    ElemType = VD.getType().getCanonicalType();
+    // We can't canonicalize nor desugar the type without losing the 'snorm' in Buffer<snorm float>
+    ElemType = VD.getType();
     rangeSize = 1;
     while (const clang::ArrayType *arrayType = CGM.getContext().getAsArrayType(ElemType)) {
       if (rangeSize != UINT_MAX) {
@@ -2336,12 +2337,43 @@ namespace {
   }
 }
 
+static void InitFromUnusualAnnotations(DxilResourceBase &Resource, NamedDecl &Decl) {
+  for (hlsl::UnusualAnnotation* It : Decl.getUnusualAnnotations()) {
+    switch (It->getKind()) {
+    case hlsl::UnusualAnnotation::UA_RegisterAssignment: {
+      hlsl::RegisterAssignment* RegAssign = cast<hlsl::RegisterAssignment>(It);
+      if (RegAssign->RegisterType) {
+        Resource.SetLowerBound(RegAssign->RegisterNumber);
+        // For backcompat, don't auto-assign the register space if there's an
+        // explicit register type.
+        Resource.SetSpaceID(RegAssign->RegisterSpace.getValueOr(0));
+      }
+      else {
+        Resource.SetSpaceID(RegAssign->RegisterSpace.getValueOr(UINT_MAX));
+      }
+      break;
+    }
+    case hlsl::UnusualAnnotation::UA_SemanticDecl:
+      // Ignore Semantics
+      break;
+    case hlsl::UnusualAnnotation::UA_ConstantPacking:
+      // Should be handled by front-end
+      llvm_unreachable("packoffset on resource");
+      break;
+    default:
+      llvm_unreachable("unknown UnusualAnnotation on resource");
+      break;
+    }
+  }
+}
+
 uint32_t CGMSHLSLRuntime::AddSampler(VarDecl *samplerDecl) {
   llvm::GlobalVariable *val =
     cast<llvm::GlobalVariable>(CGM.GetAddrOfGlobalVar(samplerDecl));
 
   unique_ptr<DxilSampler> hlslRes(new DxilSampler);
   hlslRes->SetLowerBound(UINT_MAX);
+  hlslRes->SetSpaceID(UINT_MAX);
   hlslRes->SetGlobalSymbol(val);
   hlslRes->SetGlobalName(samplerDecl->getName());
 
@@ -2355,27 +2387,7 @@ uint32_t CGMSHLSLRuntime::AddSampler(VarDecl *samplerDecl) {
   DxilSampler::SamplerKind kind = KeywordToSamplerKind(RT->getDecl()->getName());
 
   hlslRes->SetSamplerKind(kind);
-
-  for (hlsl::UnusualAnnotation *it : samplerDecl->getUnusualAnnotations()) {
-    switch (it->getKind()) {
-    case hlsl::UnusualAnnotation::UA_RegisterAssignment: {
-      hlsl::RegisterAssignment *ra = cast<hlsl::RegisterAssignment>(it);
-      hlslRes->SetLowerBound(ra->RegisterNumber);
-      hlslRes->SetSpaceID(ra->RegisterSpace);
-      break;
-    }
-    case hlsl::UnusualAnnotation::UA_SemanticDecl:
-      // Ignore Semantics
-      break;
-    case hlsl::UnusualAnnotation::UA_ConstantPacking:
-      // Should be handled by front-end
-      llvm_unreachable("packoffset on sampler");
-      break;
-    default:
-      llvm_unreachable("unknown UnusualAnnotation on sampler");
-      break;
-    }
-  }
+  InitFromUnusualAnnotations(*hlslRes, *samplerDecl);
 
   hlslRes->SetID(m_pHLModule->GetSamplers().size());
   return m_pHLModule->AddSampler(std::move(hlslRes));
@@ -2594,14 +2606,14 @@ static void CollectScalarTypes(std::vector<QualType> &ScalarTys, QualType Ty) {
 
 bool CGMSHLSLRuntime::SetUAVSRV(SourceLocation loc,
                                 hlsl::DxilResourceBase::Class resClass,
-                                DxilResource *hlslRes, const RecordDecl *RD) {
+                                DxilResource *hlslRes, QualType QualTy) {
+
+  RecordDecl *RD = QualTy->getAs<RecordType>()->getDecl();
+
   hlsl::DxilResource::Kind kind = KeywordToKind(RD->getName());
   hlslRes->SetKind(kind);
-
-  // Get the result type from handle field.
-  FieldDecl *FD = *(RD->field_begin());
-  DXASSERT(FD->getName() == "h", "must be handle field");
-  QualType resultTy = FD->getType();
+  
+  QualType resultTy = hlsl::GetHLSLResourceResultType(QualTy);
   // Type annotation for result type of resource.
   DxilTypeSystem &dxilTypeSys = m_pHLModule->GetTypeSystem();
   unsigned arrayEltSize = 0;
@@ -2673,12 +2685,10 @@ bool CGMSHLSLRuntime::SetUAVSRV(SourceLocation loc,
       }
     }
 
-    EltTy = EltTy.getCanonicalType();
     bool bSNorm = false;
     bool bHasNormAttribute = hlsl::HasHLSLUNormSNorm(Ty, &bSNorm);
 
-    if (EltTy->isBuiltinType()) {
-      const BuiltinType *BTy = EltTy->getAs<BuiltinType>();
+    if (const BuiltinType *BTy = EltTy->getAs<BuiltinType>()) {
       CompType::Kind kind = BuiltinTyToCompTy(BTy, bHasNormAttribute && bSNorm, bHasNormAttribute && !bSNorm);
       // 64bits types are implemented with u32.
       if (kind == CompType::Kind::U64 || kind == CompType::Kind::I64 ||
@@ -2733,6 +2743,7 @@ uint32_t CGMSHLSLRuntime::AddUAVSRV(VarDecl *decl,
 
   unique_ptr<HLResource> hlslRes(new HLResource);
   hlslRes->SetLowerBound(UINT_MAX);
+  hlslRes->SetSpaceID(UINT_MAX);
   hlslRes->SetGlobalSymbol(val);
   hlslRes->SetGlobalName(decl->getName());
 
@@ -2741,36 +2752,13 @@ uint32_t CGMSHLSLRuntime::AddUAVSRV(VarDecl *decl,
   GetResourceDeclElemTypeAndRangeSize(CGM, *m_pHLModule, *decl,
     VarTy, rangeSize);
   hlslRes->SetRangeSize(rangeSize);
-
-  for (hlsl::UnusualAnnotation *it : decl->getUnusualAnnotations()) {
-    switch (it->getKind()) {
-    case hlsl::UnusualAnnotation::UA_RegisterAssignment: {
-      hlsl::RegisterAssignment *ra = cast<hlsl::RegisterAssignment>(it);
-      hlslRes->SetLowerBound(ra->RegisterNumber);
-      hlslRes->SetSpaceID(ra->RegisterSpace);
-      break;
-    }
-    case hlsl::UnusualAnnotation::UA_SemanticDecl:
-      // Ignore Semantics
-      break;
-    case hlsl::UnusualAnnotation::UA_ConstantPacking:
-      // Should be handled by front-end
-      llvm_unreachable("packoffset on uav/srv");
-      break;
-    default:
-      llvm_unreachable("unknown UnusualAnnotation on uav/srv");
-      break;
-    }
-  }
-
-  const RecordType *RT = VarTy->getAs<RecordType>();
-  RecordDecl *RD = RT->getDecl();
+  InitFromUnusualAnnotations(*hlslRes, *decl);
 
   if (decl->hasAttr<HLSLGloballyCoherentAttr>()) {
     hlslRes->SetGloballyCoherent(true);
   }
 
-  if (!SetUAVSRV(decl->getLocation(), resClass, hlslRes.get(), RD))
+  if (!SetUAVSRV(decl->getLocation(), resClass, hlslRes.get(), VarTy))
     return 0;
 
   if (resClass == hlsl::DxilResourceBase::Class::SRV) {
@@ -2857,6 +2845,13 @@ void CGMSHLSLRuntime::AddConstant(VarDecl *constDecl, HLCBuffer &CB) {
     case hlsl::UnusualAnnotation::UA_RegisterAssignment: {
       if (isGlobalCB) {
         RegisterAssignment *ra = cast<RegisterAssignment>(it);
+        if (ra->RegisterSpace.hasValue()) {
+          DiagnosticsEngine& Diags = CGM.getDiags();
+          unsigned DiagID = Diags.getCustomDiagID(
+            DiagnosticsEngine::Error,
+            "register space cannot be specified on global constants.");
+          Diags.Report(it->Loc, DiagID);
+        }
         offset = ra->RegisterNumber << 2;
         // Change to byte.
         offset <<= 2;
@@ -2872,6 +2867,7 @@ void CGMSHLSLRuntime::AddConstant(VarDecl *constDecl, HLCBuffer &CB) {
 
   std::unique_ptr<DxilResourceBase> pHlslConst = llvm::make_unique<DxilResourceBase>(DXIL::ResourceClass::Invalid);
   pHlslConst->SetLowerBound(UINT_MAX);
+  pHlslConst->SetSpaceID(0);
   pHlslConst->SetGlobalSymbol(cast<llvm::GlobalVariable>(constVal));
   pHlslConst->SetGlobalName(constDecl->getName());
 
@@ -2917,6 +2913,7 @@ uint32_t CGMSHLSLRuntime::AddCBuffer(HLSLBufferDecl *D) {
   // setup the CB
   CB->SetGlobalSymbol(nullptr);
   CB->SetGlobalName(D->getNameAsString());
+  CB->SetSpaceID(UINT_MAX);
   CB->SetLowerBound(UINT_MAX);
   if (!D->isCBuffer()) {
     CB->SetKind(DXIL::ResourceKind::TBuffer);
@@ -2925,24 +2922,7 @@ uint32_t CGMSHLSLRuntime::AddCBuffer(HLSLBufferDecl *D) {
   // the global variable will only used once by the createHandle?
   // SetHandle(llvm::Value *pHandle);
 
-  for (hlsl::UnusualAnnotation *it : D->getUnusualAnnotations()) {
-    switch (it->getKind()) {
-    case hlsl::UnusualAnnotation::UA_RegisterAssignment: {
-      hlsl::RegisterAssignment *ra = cast<hlsl::RegisterAssignment>(it);
-      uint32_t regNum = ra->RegisterNumber;
-      uint32_t regSpace = ra->RegisterSpace;
-      CB->SetSpaceID(regSpace);
-      CB->SetLowerBound(regNum);
-      break;
-    }
-    case hlsl::UnusualAnnotation::UA_SemanticDecl:
-      // skip semantic on constant buffer
-      break;
-    case hlsl::UnusualAnnotation::UA_ConstantPacking:
-      llvm_unreachable("no packoffset on constant buffer");
-      break;
-    }
-  }
+  InitFromUnusualAnnotations(*CB, *D);
 
   // Add constant
   if (D->isConstantBufferView()) {
@@ -4005,6 +3985,7 @@ static void SimplifyBitCast(BitCastOperator *BC, SmallInstSet &deadInsts) {
     Value *zeroIdx = Builder.getInt32(0);
     unsigned nestLevel = 1;
     while (llvm::StructType *ST = dyn_cast<llvm::StructType>(FromTy)) {
+      if (ST->getNumElements() == 0) break;
       FromTy = ST->getElementType(0);
       nestLevel++;
     }
@@ -7126,18 +7107,6 @@ void CGMSHLSLRuntime::EmitHLSLOutParamConversionInit(
                         CGF.getContext().getTrivialTypeSourceInfo(ParamTy),
                         StorageClass::SC_Auto);
 
-    bool isEmptyAggregate = false;
-    if (isAggregateType) {
-      DXASSERT(argAddr, "should be RV or simple LV");
-      llvm::Type *ElTy = argAddr->getType()->getPointerElementType();
-      while (ElTy->isArrayTy())
-        ElTy = ElTy->getArrayElementType();
-      if (llvm::StructType *ST = dyn_cast<StructType>(ElTy)) {
-        DxilStructAnnotation *SA = m_pHLModule->GetTypeSystem().GetStructAnnotation(ST);
-        isEmptyAggregate = SA && SA->IsEmptyStruct();
-      }
-    }
-
     // Aggregate type will be indirect param convert to pointer type.
     // So don't update to ReferenceType, use RValue for it.
     const DeclRefExpr *tmpRef = DeclRefExpr::Create(
@@ -7159,11 +7128,6 @@ void CGMSHLSLRuntime::EmitHLSLOutParamConversionInit(
 
     // add it to local decl map
     TmpArgMap(tmpArg, tmpArgAddr);
-
-    // If param is empty, copy in/out will just create problems.
-    // No copy will result in undef, which is fine.
-    if (isEmptyAggregate)
-      continue;
 
     LValue tmpLV = LValue::MakeAddr(tmpArgAddr, ParamTy, argAlignment,
                                     CGF.getContext());

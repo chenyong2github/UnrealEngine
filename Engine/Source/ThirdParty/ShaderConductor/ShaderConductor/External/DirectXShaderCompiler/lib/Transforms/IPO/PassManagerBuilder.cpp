@@ -221,6 +221,9 @@ static void addHLSLPasses(bool HLSLHighLevel, unsigned OptLevel, hlsl::HLSLExten
     MPM.add(createHLDeadFunctionEliminationPass());
   }
 
+  // Expand buffer store intrinsics before we SROA
+  MPM.add(createHLExpandStoreIntrinsicsPass());
+
   // Split struct and array of parameter.
   MPM.add(createSROA_Parameter_HLSL());
 
@@ -294,6 +297,10 @@ static void addHLSLPasses(bool HLSLHighLevel, unsigned OptLevel, hlsl::HLSLExten
   MPM.add(createCFGSimplificationPass());
 
   MPM.add(createDeadCodeEliminationPass());
+
+  if (OptLevel > 0) {
+    MPM.add(createDxilFixConstArrayInitializerPass());
+  }
 }
 // HLSL Change Ends
 

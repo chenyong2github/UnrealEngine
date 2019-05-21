@@ -42,6 +42,7 @@ public:
   TEST_METHOD(RunConstAssign)
   TEST_METHOD(RunConstDefault)
   TEST_METHOD(RunConversionsBetweenTypeShapes)
+  TEST_METHOD(RunConversionsNonNumericAggregates)
   TEST_METHOD(RunCppErrors)
   TEST_METHOD(RunCppErrorsHV2015)
   TEST_METHOD(RunCXX11Attributes)
@@ -53,6 +54,7 @@ public:
   TEST_METHOD(RunMatrixAssignments)
   TEST_METHOD(RunMatrixSyntax)
   TEST_METHOD(RunMatrixSyntaxExactPrecision)
+  TEST_METHOD(RunMintypesPromotionWarnings)
   TEST_METHOD(RunMoreOperators)
   TEST_METHOD(RunObjectOperators)
   TEST_METHOD(RunPackReg)
@@ -63,6 +65,7 @@ public:
   TEST_METHOD(RunScalarOperatorsAssignExactPrecision)
   TEST_METHOD(RunScalarOperators)
   TEST_METHOD(RunScalarOperatorsExactPrecision)
+  TEST_METHOD(RunSizeof)
   TEST_METHOD(RunString)
   TEST_METHOD(RunStructAssignments)
   TEST_METHOD(RunSubobjects)
@@ -171,6 +174,10 @@ TEST_F(VerifierTest, RunConversionsBetweenTypeShapes) {
   CheckVerifiesHLSL(L"conversions-between-type-shapes.hlsl");
 }
 
+TEST_F(VerifierTest, RunConversionsNonNumericAggregates) {
+  CheckVerifiesHLSL(L"conversions-non-numeric-aggregates.hlsl");
+}
+
 TEST_F(VerifierTest, RunCppErrors) {
   CheckVerifiesHLSL(L"cpp-errors.hlsl");
 }
@@ -215,6 +222,10 @@ TEST_F(VerifierTest, RunMatrixSyntaxExactPrecision) {
   CheckVerifiesHLSL(L"matrix-syntax-exact-precision.hlsl");
 }
 
+TEST_F(VerifierTest, RunMintypesPromotionWarnings) {
+  CheckVerifiesHLSL(L"mintypes-promotion-warnings.hlsl");
+}
+
 TEST_F(VerifierTest, RunMoreOperators) {
   CheckVerifiesHLSL(L"more-operators.hlsl");
 }
@@ -253,6 +264,10 @@ TEST_F(VerifierTest, RunScalarOperators) {
 
 TEST_F(VerifierTest, RunScalarOperatorsExactPrecision) {
   CheckVerifiesHLSL(L"scalar-operators-exact-precision.hlsl");
+}
+
+TEST_F(VerifierTest, RunSizeof) {
+  CheckVerifiesHLSL(L"sizeof.hlsl");
 }
 
 TEST_F(VerifierTest, RunString) {

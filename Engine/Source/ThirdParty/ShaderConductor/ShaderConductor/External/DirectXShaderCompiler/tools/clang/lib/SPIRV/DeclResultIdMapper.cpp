@@ -697,6 +697,8 @@ SpirvVariable *DeclResultIdMapper::createStructOrStructArrayVarOfExplicitLayout(
   const bool forTBuffer = usageKind == ContextUsageKind::TBuffer;
   const bool forGlobals = usageKind == ContextUsageKind::Globals;
   const bool forPC = usageKind == ContextUsageKind::PushConstant;
+  const bool forShaderRecordNV =
+      usageKind == ContextUsageKind::ShaderRecordBufferNV;
 
   const llvm::SmallVector<const Decl *, 4> &declGroup =
       collectDeclsInDeclContext(decl);
@@ -719,12 +721,12 @@ SpirvVariable *DeclResultIdMapper::createStructOrStructArrayVarOfExplicitLayout(
     varType.removeLocalConst();
 	// UE Begin Change: Threadgroup memory should not be put into the globals table
 	if (!forGlobals || !declDecl->getAttr<HLSLGroupSharedAttr>()) {
-	  HybridStructType::FieldInfo info(varType, declDecl->getName(),
+    HybridStructType::FieldInfo info(varType, declDecl->getName(),
                                      declDecl->getAttr<VKOffsetAttr>(),
                                      getPackOffset(declDecl), registerC,
                                      declDecl->hasAttr<HLSLPreciseAttr>());
-      fields.push_back(info);
-	}
+    fields.push_back(info);
+  }
 	// UE End Change: Threadgroup memory should not be put into the globals table
   }
 
@@ -747,8 +749,10 @@ SpirvVariable *DeclResultIdMapper::createStructOrStructArrayVarOfExplicitLayout(
   // Register the <type-id> for this decl
   ctBufferPCTypes[decl] = resultType;
 
-  const auto sc =
-      forPC ? spv::StorageClass::PushConstant : spv::StorageClass::Uniform;
+  const auto sc = forPC ? spv::StorageClass::PushConstant
+                        : forShaderRecordNV
+                              ? spv::StorageClass::ShaderRecordBufferNV
+                              : spv::StorageClass::Uniform;
 
   // Create the variable for the whole struct / struct array.
   // The fields may be 'precise', but the structure itself is not.
@@ -856,6 +860,51 @@ SpirvVariable *DeclResultIdMapper::createPushConstant(const VarDecl *decl) {
   return var;
 }
 
+SpirvVariable *
+DeclResultIdMapper::createShaderRecordBufferNV(const VarDecl *decl) {
+  const auto *recordType = decl->getType()->getAs<RecordType>();
+  assert(recordType);
+
+  const std::string structName =
+      "type.ShaderRecordBufferNV." + recordType->getDecl()->getName().str();
+  SpirvVariable *var = createStructOrStructArrayVarOfExplicitLayout(
+      recordType->getDecl(), /*arraySize*/ 0,
+      ContextUsageKind::ShaderRecordBufferNV, structName, decl->getName());
+
+  // Register the VarDecl
+  astDecls[decl] = DeclSpirvInfo(var);
+
+  // Do not push this variable into resourceVars since it does not need
+  // descriptor set.
+
+  return var;
+}
+
+SpirvVariable *
+DeclResultIdMapper::createShaderRecordBufferNV(const HLSLBufferDecl *decl) {
+
+  const std::string structName =
+      "type.ShaderRecordBufferNV." + decl->getName().str();
+  // The front-end does not allow arrays of cbuffer/tbuffer.
+  SpirvVariable *bufferVar = createStructOrStructArrayVarOfExplicitLayout(
+      decl, /*arraySize*/ 0, ContextUsageKind::ShaderRecordBufferNV, structName,
+      decl->getName());
+
+  // We still register all VarDecls seperately here. All the VarDecls are
+  // mapped to the <result-id> of the buffer object, which means when
+  // querying the <result-id> for a certain VarDecl, we need to do an extra
+  // OpAccessChain.
+  int index = 0;
+  for (const auto *subDecl : decl->decls()) {
+    if (shouldSkipInStructLayout(subDecl))
+      continue;
+
+    const auto *varDecl = cast<VarDecl>(subDecl);
+    astDecls[varDecl] = DeclSpirvInfo(bufferVar, index++);
+  }
+  return bufferVar;
+}
+
 void DeclResultIdMapper::createGlobalsCBuffer(const VarDecl *var) {
   if (astDecls.count(var) != 0)
     return;
@@ -866,7 +915,8 @@ void DeclResultIdMapper::createGlobalsCBuffer(const VarDecl *var) {
       "$Globals");
 
   resourceVars.emplace_back(globals, SourceLocation(), nullptr, nullptr,
-                            nullptr);
+                            nullptr, /*isCounterVar*/ false,
+                            /*isGlobalsCBuffer*/ true);
 
   uint32_t index = 0;
   for (const auto *decl : collectDeclsInDeclContext(context))
@@ -888,8 +938,8 @@ void DeclResultIdMapper::createGlobalsCBuffer(const VarDecl *var) {
 
 	  // UE Begin Change: Threadgroup memory should not be put into the globals table
 	  if (!varDecl->getAttr<HLSLGroupSharedAttr>()) {
-		astDecls[varDecl] = DeclSpirvInfo(globals, index++);
-	  }
+      astDecls[varDecl] = DeclSpirvInfo(globals, index++);
+    }
 	  // UE End Change: Threadgroup memory should not be put into the globals table
 	}
 }
@@ -1341,7 +1391,7 @@ public:
   bool getSetBinding(const hlsl::RegisterAssignment *regAttr, int *setNo,
                      int *bindNo) const {
     std::ostringstream iss;
-    iss << regAttr->RegisterSpace << regAttr->RegisterType
+    iss << regAttr->RegisterSpace.getValueOr(0) << regAttr->RegisterType
         << regAttr->RegisterNumber;
 
     auto found = mapping.find(iss.str());
@@ -1379,6 +1429,25 @@ bool DeclResultIdMapper::decorateResourceBindings() {
   // - m2
   // - m3, m4, mX * c2
 
+  const bool bindGlobals = !spirvOptions.bindGlobals.empty();
+  int32_t globalsBindNo = -1, globalsSetNo = -1;
+  if (bindGlobals) {
+    assert(spirvOptions.bindGlobals.size() == 2);
+    if (StringRef(spirvOptions.bindGlobals[0])
+            .getAsInteger(10, globalsBindNo) ||
+        globalsBindNo < 0) {
+      emitError("invalid -fvk-bind-globals binding number: %0", {})
+          << spirvOptions.bindGlobals[0];
+      return false;
+    }
+    if (StringRef(spirvOptions.bindGlobals[1]).getAsInteger(10, globalsSetNo) ||
+        globalsSetNo < 0) {
+      emitError("invalid -fvk-bind-globals set number: %0", {})
+          << spirvOptions.bindGlobals[1];
+      return false;
+    }
+  }
+
   // Special handling of -fvk-bind-register, which requires
   // * All resources are annoated with :register() in the source code
   // * -fvk-bind-register is specified for every resource
@@ -1406,6 +1475,9 @@ bool DeclResultIdMapper::decorateResourceBindings() {
           }
           spvBuilder.decorateDSetBinding(var.getSpirvInstr(), setNo, bindNo);
         }
+      } else if (bindGlobals && var.isGlobalsBuffer()) {
+        spvBuilder.decorateDSetBinding(var.getSpirvInstr(), globalsSetNo,
+                                       globalsBindNo);
       } else {
         emitError(
             "-fvk-bind-register requires register annotations on all resources",
@@ -1435,7 +1507,7 @@ bool DeclResultIdMapper::decorateResourceBindings() {
         if (const auto *vkBinding = var.getBinding())
           set = vkBinding->getSet();
         else if (const auto *reg = var.getRegister())
-          set = reg->RegisterSpace;
+          set = reg->RegisterSpace.getValueOr(0);
 
         tryToDecorate(var.getSpirvInstr(), set, vkCBinding->getBinding());
       }
@@ -1461,7 +1533,7 @@ bool DeclResultIdMapper::decorateResourceBindings() {
         if (reg->isSpaceOnly())
           continue;
 
-        const uint32_t set = reg->RegisterSpace;
+        const uint32_t set = reg->RegisterSpace.getValueOr(0);
         uint32_t binding = reg->RegisterNumber;
         switch (reg->RegisterType) {
         case 'b':
@@ -1494,7 +1566,7 @@ bool DeclResultIdMapper::decorateResourceBindings() {
         if (const auto *vkBinding = var.getBinding())
           set = vkBinding->getSet();
         else if (const auto *reg = var.getRegister())
-          set = reg->RegisterSpace;
+          set = reg->RegisterSpace.getValueOr(0);
 
         spvBuilder.decorateDSetBinding(var.getSpirvInstr(), set,
                                        bindingSet.useNextBinding(set));
@@ -1502,13 +1574,24 @@ bool DeclResultIdMapper::decorateResourceBindings() {
     } else if (!var.getBinding()) {
       const auto *reg = var.getRegister();
       if (reg && reg->isSpaceOnly()) {
-        const uint32_t set = reg->RegisterSpace;
+        const uint32_t set = reg->RegisterSpace.getValueOr(0);
         spvBuilder.decorateDSetBinding(var.getSpirvInstr(), set,
                                        bindingSet.useNextBinding(set));
       } else if (!reg) {
-        // Process m3
-        spvBuilder.decorateDSetBinding(var.getSpirvInstr(), 0,
-                                       bindingSet.useNextBinding(0));
+        // Process m3 (no 'vk::binding' and no ':register' assignment)
+
+        // There is a special case for the $Globals cbuffer. The $Globals buffer
+        // doesn't have either 'vk::binding' or ':register', but the user may
+        // ask for a specific binding for it via command line options.
+        if (bindGlobals && var.isGlobalsBuffer()) {
+          spvBuilder.decorateDSetBinding(var.getSpirvInstr(), globalsSetNo,
+                                         globalsBindNo);
+        }
+        // The normal case
+        else {
+          spvBuilder.decorateDSetBinding(var.getSpirvInstr(), 0,
+                                         bindingSet.useNextBinding(0));
+        }
       }
     }
   }

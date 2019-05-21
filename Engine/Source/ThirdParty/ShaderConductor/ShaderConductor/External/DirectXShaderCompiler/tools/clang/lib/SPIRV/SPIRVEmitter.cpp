@@ -1151,6 +1151,30 @@ bool SpirvEmitter::validateVKAttributes(const NamedDecl *decl) {
     }
   }
 
+  // vk::shader_record_nv is supported only on cbuffer/ConstantBuffer
+  if (const auto *srbAttr = decl->getAttr<VKShaderRecordNVAttr>()) {
+    const auto loc = srbAttr->getLocation();
+    const HLSLBufferDecl *bufDecl = nullptr;
+    bool isValidType = false;
+    if (bufDecl = dyn_cast<HLSLBufferDecl>(decl))
+      isValidType = bufDecl->isCBuffer();
+    else if (bufDecl = dyn_cast<HLSLBufferDecl>(decl->getDeclContext()))
+      isValidType = bufDecl->isCBuffer();
+
+    if (!isValidType) {
+      emitError(
+          "vk::shader_record_nv can be applied only to cbuffer/ConstantBuffer",
+          loc);
+      success = false;
+    }
+    if (decl->hasAttr<VKBindingAttr>()) {
+      emitError("vk::shader_record_nv attribute cannot be used together with "
+                "vk::binding attribute",
+                loc);
+      success = false;
+    }
+  }
+
   return success;
 }
 
@@ -1179,7 +1203,11 @@ void SpirvEmitter::doHLSLBufferDecl(const HLSLBufferDecl *bufferDecl) {
   }
   if (!validateVKAttributes(bufferDecl))
     return;
-  (void)declIdMapper.createCTBuffer(bufferDecl);
+  if (bufferDecl->hasAttr<VKShaderRecordNVAttr>()) {
+    (void)declIdMapper.createShaderRecordBufferNV(bufferDecl);
+  } else {
+    (void)declIdMapper.createCTBuffer(bufferDecl);
+  }
 }
 
 void SpirvEmitter::doImplicitDecl(const Decl *decl) {
@@ -1250,6 +1278,11 @@ void SpirvEmitter::doVarDecl(const VarDecl *decl) {
   if (decl->hasAttr<VKPushConstantAttr>()) {
     // This is a VarDecl for PushConstant block.
     (void)declIdMapper.createPushConstant(decl);
+    return;
+  }
+
+  if (decl->hasAttr<VKShaderRecordNVAttr>()) {
+    (void)declIdMapper.createShaderRecordBufferNV(decl);
     return;
   }
 
@@ -2757,12 +2790,16 @@ SpirvInstruction *SpirvEmitter::processRWByteAddressBufferAtomicMethods(
       spvBuilder.createStore(doExpr(expr->getArg(3)), originalVal);
   } else {
     auto *value = doExpr(expr->getArg(1));
-    auto *originalVal = spvBuilder.createAtomicOp(
+    SpirvInstruction *originalVal = spvBuilder.createAtomicOp(
         translateAtomicHlslOpcodeToSpirvOpcode(opcode),
         astContext.UnsignedIntTy, ptr, spv::Scope::Device,
         spv::MemorySemanticsMask::MaskNone, value, srcLoc);
-    if (expr->getNumArgs() > 2)
+    if (expr->getNumArgs() > 2) {
+      originalVal = castToType(originalVal, astContext.UnsignedIntTy,
+                               expr->getArg(2)->getType(),
+                               expr->getArg(2)->getLocStart());
       spvBuilder.createStore(doExpr(expr->getArg(2)), originalVal);
+    }
   }
 
   return nullptr;
