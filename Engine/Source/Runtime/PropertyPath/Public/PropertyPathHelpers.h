@@ -80,7 +80,6 @@ struct PROPERTYPATH_API FCachedPropertyPath
 	FCachedPropertyPath(const FString& Path);
 
 	/** */
-	UE_DEPRECATED(4.23, "FCachedPropertyPath(const FString& Path)")
 	FCachedPropertyPath(const TArray<FString>& PropertyChain);
 
 	/** Check whether this property path is non-empty */
