@@ -4,9 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-
 namespace UnrealBuildTool
 {
+	/// <summary>
+	/// Maps a unique string to an integer
+	/// </summary>
 	class UniqueStringRegistry
 	{
 		// protect the InstanceMap

@@ -229,7 +229,6 @@
     <Compile Include="System\SingleInstanceMutex.cs" />
     <Compile Include="System\SourceFileWorkingSet.cs" />
     <Compile Include="System\StartupTraceListener.cs" />
-    <Compile Include="System\StringToInstanceRegistry.cs" />
     <Compile Include="System\SupportedConfigurationsAttribute.cs" />
     <Compile Include="System\SupportedPlatformsAttribute.cs" />
     <Compile Include="System\TargetMakefile.cs" />
@@ -237,6 +236,7 @@
     <Compile Include="System\Timeline.cs" />
     <Compile Include="System\TimingData.cs" />
     <Compile Include="System\ToolMode.cs" />
+    <Compile Include="System\UniqueStringRegistry.cs" />
     <Compile Include="System\VersionNumber.cs" />
     <Compile Include="System\XmlConfig.cs" />
     <Compile Include="System\XmlConfigData.cs" />
