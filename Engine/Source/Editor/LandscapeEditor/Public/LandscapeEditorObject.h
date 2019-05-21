@@ -523,6 +523,8 @@ private:
 	UPROPERTY(NonTransactional)
 	TArray<uint16> ImportLandscape_Data;
 public:
+	UPROPERTY(Category = "New Landscape", EditAnywhere, NonTransactional, meta = (DisplayName= "Enable Layer Support", ShowForTools= "NewLandscape"))
+	bool bCanHaveLayersContent = false;
 
 	// Whether the imported alpha maps are to be interpreted as "layered" or "additive" (UE4 uses additive internally)
 	UPROPERTY(Category="New Landscape", EditAnywhere, NonTransactional, meta=(DisplayName="Layer Alphamap Type", ShowForTools="NewLandscape"))
