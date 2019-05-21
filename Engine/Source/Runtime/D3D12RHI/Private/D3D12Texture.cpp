@@ -2443,7 +2443,7 @@ FTextureReferenceRHIRef FD3D12DynamicRHI::RHICreateTextureReference(FLastRenderT
 	return new FD3D12TextureReference(GetRHIDevice(), LastRenderTime);
 }
 
-void FD3D12CommandContext::RHIUpdateTextureReference(FTextureReferenceRHIParamRef TextureRefRHI, FTextureRHIParamRef NewTextureRHI)
+void FD3D12CommandContext::RHIUpdateTextureReference(FRHITextureReference* TextureRefRHI, FTextureRHIParamRef NewTextureRHI)
 {
 #if 0
 	// Updating texture references is disallowed while the RHI could be caching them in referenced resource tables.

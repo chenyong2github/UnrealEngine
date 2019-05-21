@@ -288,7 +288,7 @@ void FOpenGLDynamicRHI::RHISetStreamOutTargets(uint32 NumTargets, const FVertexB
 }
 
 // Rasterizer state.
-void FOpenGLDynamicRHI::RHISetRasterizerState(FRasterizerStateRHIParamRef NewStateRHI)
+void FOpenGLDynamicRHI::RHISetRasterizerState(FRHIRasterizerState* NewStateRHI)
 {
 	VERIFY_GL_SCOPE();
 	FOpenGLRasterizerState* NewState = ResourceCast(NewStateRHI);

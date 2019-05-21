@@ -262,6 +262,6 @@ FTextureReferenceRHIRef FEmptyDynamicRHI::RHICreateTextureReference(FLastRenderT
 	return nullptr;
 }
 
-void FEmptyDynamicRHI::RHIUpdateTextureReference(FTextureReferenceRHIParamRef TextureRef, FTextureRHIParamRef NewTexture)
+void FEmptyDynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRef, FTextureRHIParamRef NewTexture)
 {
 }

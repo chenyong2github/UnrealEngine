@@ -188,7 +188,7 @@ public:
 	void ReleaseTexture(FMetalTexture& Texture);
 	void ReleaseFence(FMetalFence* Fence);
 	void RegisterUB(FMetalUniformBuffer* UB);
-	void UpdateIABs(FTextureReferenceRHIParamRef ModifiedRef);
+	void UpdateIABs(FRHITextureReference* ModifiedRef);
 	void UnregisterUB(FMetalUniformBuffer* UB);
 	
 	void BeginFrame();

@@ -17,7 +17,7 @@ void FEmptyDynamicRHI::RHISetStreamOutTargets(uint32 NumTargets, const FVertexBu
 
 }
 
-void FEmptyDynamicRHI::RHISetRasterizerState(FRasterizerStateRHIParamRef NewStateRHI)
+void FEmptyDynamicRHI::RHISetRasterizerState(FRHIRasterizerState* NewStateRHI)
 {
 	FEmptyRasterizerState* NewState = ResourceCast(NewStateRHI);
 

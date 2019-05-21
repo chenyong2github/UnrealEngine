@@ -1101,6 +1101,7 @@ UE_DEPRECATED(4.23, "FSamplerStateRHIParamRef typedef is deprecated; please use 
 typedef FRHISamplerState*              FSamplerStateRHIParamRef;
 typedef TRefCountPtr<FRHISamplerState> FSamplerStateRHIRef;
 
+UE_DEPRECATED(4.23, "FRasterizerStateRHIParamRef typedef is deprecated; please use FRHIRasterizerState* directly instead.")
 typedef FRHIRasterizerState*              FRasterizerStateRHIParamRef;
 typedef TRefCountPtr<FRHIRasterizerState> FRasterizerStateRHIRef;
 
@@ -1167,6 +1168,7 @@ typedef TRefCountPtr<FRHITexture3D> FTexture3DRHIRef;
 typedef FRHITextureCube*              FTextureCubeRHIParamRef;
 typedef TRefCountPtr<FRHITextureCube> FTextureCubeRHIRef;
 
+UE_DEPRECATED(4.23, "FTextureReferenceRHIParamRef typedef is deprecated; please use FRHITextureReference* directly instead.")
 typedef FRHITextureReference*              FTextureReferenceRHIParamRef;
 typedef TRefCountPtr<FRHITextureReference> FTextureReferenceRHIRef;
 
@@ -1191,6 +1193,7 @@ typedef TRefCountPtr<FRHIShaderResourceView> FShaderResourceViewRHIRef;
 typedef FRHIGraphicsPipelineState*              FGraphicsPipelineStateRHIParamRef;
 typedef TRefCountPtr<FRHIGraphicsPipelineState> FGraphicsPipelineStateRHIRef;
 
+UE_DEPRECATED(4.23, "FRayTracingPipelineStateRHIParamRef typedef is deprecated; please use FRHIRayTracingPipelineState* directly instead.")
 typedef FRHIRayTracingPipelineState*              FRayTracingPipelineStateRHIParamRef;
 typedef TRefCountPtr<FRHIRayTracingPipelineState> FRayTracingPipelineStateRHIRef;
 
@@ -1831,7 +1834,7 @@ public:
 	FGraphicsMinimalPipelineStateInitializer(
 		FBoundShaderStateInput				InBoundShaderState,
 		FBlendStateRHIParamRef				InBlendState,
-		FRasterizerStateRHIParamRef			InRasterizerState,
+		FRHIRasterizerState*				InRasterizerState,
 		FDepthStencilStateRHIParamRef		InDepthStencilState,
 		FImmutableSamplerState				InImmutableSamplerState,
 		EPrimitiveType						InPrimitiveType
@@ -1961,7 +1964,7 @@ public:
 	// When we do that work, move this to RHI.h as its more appropriate there, but here for now since dependent typdefs are here.
 	FBoundShaderStateInput			BoundShaderState;
 	FBlendStateRHIParamRef			BlendState;
-	FRasterizerStateRHIParamRef		RasterizerState;
+	FRHIRasterizerState*			RasterizerState;
 	FDepthStencilStateRHIParamRef	DepthStencilState;
 	FImmutableSamplerState			ImmutableSamplerState;
 
@@ -2031,7 +2034,7 @@ public:
 	FGraphicsPipelineStateInitializer(
 		FBoundShaderStateInput				InBoundShaderState,
 		FBlendStateRHIParamRef				InBlendState,
-		FRasterizerStateRHIParamRef			InRasterizerState,
+		FRHIRasterizerState*				InRasterizerState,
 		FDepthStencilStateRHIParamRef		InDepthStencilState,
 		FImmutableSamplerState				InImmutableSamplerState,
 		EPrimitiveType						InPrimitiveType,

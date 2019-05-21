@@ -485,7 +485,7 @@ static FDepthStencilStateRHIParamRef GetDecalDepthState(uint32& StencilRef, FDec
 	}
 }
 
-FRasterizerStateRHIParamRef GetDecalRasterizerState(EDecalRasterizerState DecalRasterizerState)
+FRHIRasterizerState* GetDecalRasterizerState(EDecalRasterizerState DecalRasterizerState)
 {
 	switch (DecalRasterizerState)
 	{

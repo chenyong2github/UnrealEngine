@@ -2200,7 +2200,7 @@ FTextureReferenceRHIRef FVulkanDynamicRHI::RHICreateTextureReference(FLastRender
 	return new FVulkanTextureReference(*Device, LastRenderTime);
 }
 
-void FVulkanCommandListContext::RHIUpdateTextureReference(FTextureReferenceRHIParamRef TextureRef, FTextureRHIParamRef NewTexture)
+void FVulkanCommandListContext::RHIUpdateTextureReference(FRHITextureReference* TextureRef, FTextureRHIParamRef NewTexture)
 {
 	//#todo-rco: Implementation needs to be verified
 	FVulkanTextureReference* VulkanTextureRef = (FVulkanTextureReference*)TextureRef;

@@ -2550,7 +2550,7 @@ void FOpenGLTextureReference::SetReferencedTexture(FRHITexture* InTexture)
 	TexturePtr = GetOpenGLTextureFromRHITexture(InTexture);
 }
 
-void FOpenGLDynamicRHI::RHIUpdateTextureReference(FTextureReferenceRHIParamRef TextureRefRHI, FTextureRHIParamRef NewTextureRHI)
+void FOpenGLDynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRefRHI, FTextureRHIParamRef NewTextureRHI)
 {
 	auto* TextureRef = (FOpenGLTextureReference*)TextureRefRHI;
 	if (TextureRef)

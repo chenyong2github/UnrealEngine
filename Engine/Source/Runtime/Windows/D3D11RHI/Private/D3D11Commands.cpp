@@ -179,7 +179,7 @@ void FD3D11DynamicRHI::RHISetStreamOutTargets(uint32 NumTargets, const FVertexBu
 }
 
 // Rasterizer state.
-void FD3D11DynamicRHI::RHISetRasterizerState(FRasterizerStateRHIParamRef NewStateRHI)
+void FD3D11DynamicRHI::RHISetRasterizerState(FRHIRasterizerState* NewStateRHI)
 {
 	FD3D11RasterizerState* NewState = ResourceCast(NewStateRHI);
 	StateCache.SetRasterizerState(NewState->Resource);

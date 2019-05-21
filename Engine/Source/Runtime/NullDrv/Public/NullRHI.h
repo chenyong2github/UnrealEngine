@@ -271,7 +271,7 @@ public:
 		return new FRHITextureReferenceNullImpl(); 
 	}
 
-	virtual void RHIUpdateTextureReference(FTextureReferenceRHIParamRef TextureRef, FTextureRHIParamRef NewTexture) final override
+	virtual void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FTextureRHIParamRef NewTexture) final override
 	{ 
 		if(TextureRef) 
 		{ 
@@ -518,7 +518,7 @@ public:
 	{
 
 	}
-	virtual void RHISetRasterizerState(FRasterizerStateRHIParamRef NewState) final override
+	virtual void RHISetRasterizerState(FRHIRasterizerState* NewState) final override
 	{
 
 	}

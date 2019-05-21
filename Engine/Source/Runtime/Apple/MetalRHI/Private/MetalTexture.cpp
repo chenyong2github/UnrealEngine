@@ -2362,7 +2362,7 @@ FTextureReferenceRHIRef FMetalDynamicRHI::RHICreateTextureReference(FLastRenderT
 	}
 }
 
-void FMetalRHICommandContext::RHIUpdateTextureReference(FTextureReferenceRHIParamRef TextureRefRHI, FTextureRHIParamRef NewTextureRHI)
+void FMetalRHICommandContext::RHIUpdateTextureReference(FRHITextureReference* TextureRefRHI, FTextureRHIParamRef NewTextureRHI)
 {
 	@autoreleasepool {
 		FMetalTextureReference* TextureRef = (FMetalTextureReference*)TextureRefRHI;

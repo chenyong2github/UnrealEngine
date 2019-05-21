@@ -252,7 +252,7 @@ public:
 	
 	virtual void RHIPopEvent() final override;
 	
-	virtual void RHIUpdateTextureReference(FTextureReferenceRHIParamRef TextureRef, FTextureRHIParamRef NewTexture) final override;
+	virtual void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FTextureRHIParamRef NewTexture) final override;
 	
 	/**
 	 * Explicitly transition a UAV from readable -> writable by the GPU or vice versa.

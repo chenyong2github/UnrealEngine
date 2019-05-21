@@ -736,7 +736,7 @@ void FMetalDeviceContext::RegisterUB(FMetalUniformBuffer* UB)
 	UniformBuffers.Add(UB);
 }
 
-void FMetalDeviceContext::UpdateIABs(FTextureReferenceRHIParamRef ModifiedRef)
+void FMetalDeviceContext::UpdateIABs(FRHITextureReference* ModifiedRef)
 {
 	if(GIsMetalInitialized)
 	{

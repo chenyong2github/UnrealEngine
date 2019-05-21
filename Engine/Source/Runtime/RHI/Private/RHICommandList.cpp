@@ -2471,7 +2471,7 @@ void FDynamicRHI::RHIReadSurfaceFloatData_RenderThread(class FRHICommandListImme
 }
 
 
-void FRHICommandListImmediate::UpdateTextureReference(FTextureReferenceRHIParamRef TextureRef, FTextureRHIParamRef NewTexture)
+void FRHICommandListImmediate::UpdateTextureReference(FRHITextureReference* TextureRef, FTextureRHIParamRef NewTexture)
 {
 	if (Bypass() || !IsRunningRHIInSeparateThread() || CVarRHICmdFlushUpdateTextureReference.GetValueOnRenderThread() > 0)
 	{

@@ -1757,9 +1757,9 @@ struct FRHICommandDebugBreak final : public FRHICommand<FRHICommandDebugBreak>
 
 struct FRHICommandUpdateTextureReference final : public FRHICommand<FRHICommandUpdateTextureReference>
 {
-	FTextureReferenceRHIParamRef TextureRef;
+	FRHITextureReference* TextureRef;
 	FTextureRHIParamRef NewTexture;
-	FORCEINLINE_DEBUGGABLE FRHICommandUpdateTextureReference(FTextureReferenceRHIParamRef InTextureRef, FTextureRHIParamRef InNewTexture)
+	FORCEINLINE_DEBUGGABLE FRHICommandUpdateTextureReference(FRHITextureReference* InTextureRef, FTextureRHIParamRef InNewTexture)
 		: TextureRef(InTextureRef)
 		, NewTexture(InNewTexture)
 	{
@@ -4326,7 +4326,7 @@ public:
 	{
 		return RHIGetCommandContextContainer(Index, Num, GetGPUMask());
 	}
-	void UpdateTextureReference(FTextureReferenceRHIParamRef TextureRef, FTextureRHIParamRef NewTexture);
+	void UpdateTextureReference(FRHITextureReference* TextureRef, FTextureRHIParamRef NewTexture);
 
 	FORCEINLINE void PollRenderQueryResults()
 	{
@@ -4687,7 +4687,7 @@ FORCEINLINE FTextureReferenceRHIRef RHICreateTextureReference(FLastRenderTimeCon
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateTextureReference(LastRenderTime);
 }
 
-FORCEINLINE void RHIUpdateTextureReference(FTextureReferenceRHIParamRef TextureRef, FTextureRHIParamRef NewTexture)
+FORCEINLINE void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FTextureRHIParamRef NewTexture)
 {
 	 FRHICommandListExecutor::GetImmediateCommandList().UpdateTextureReference(TextureRef, NewTexture);
 }
