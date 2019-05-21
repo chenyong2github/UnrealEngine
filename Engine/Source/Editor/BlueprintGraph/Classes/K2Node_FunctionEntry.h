@@ -70,10 +70,10 @@ class UK2Node_FunctionEntry : public UK2Node_FunctionTerminator
 	virtual UEdGraphPin* CreatePinFromUserDefinition(const TSharedPtr<FUserPinInfo> NewPinInfo) override;
 	//~ End K2Node_FunctionTerminator Interface
 
-	/** Gets the UFunction and function variable cache structure that should be used for serialization fixups for function variables. If bForceRefresh is true it will always recreate the cache */
+	/** Gets the UFunction and function variable cache structure that should be used for serialization fixups for local variables. If bForceRefresh is true it will always recreate the cache */
 	BLUEPRINTGRAPH_API TSharedPtr<FStructOnScope> GetFunctionVariableCache(bool bForceRefresh = false);
 
-	/** Copies data from the local/input variable defaults into the variable cache */
+	/** Copies data from the local variable defaults into the variable cache */
 	BLUEPRINTGRAPH_API bool RefreshFunctionVariableCache();
 
 	/** Handles updating loaded default values, by going default string into variable cache and back, if bForceRefresh it will happen even if the cache is already setup */
@@ -111,6 +111,12 @@ class UK2Node_FunctionEntry : public UK2Node_FunctionTerminator
 	}
 
 protected:
+	/** Copies data from any local variables matching properties in VariableStruct into the VariableStructData */
+	BLUEPRINTGRAPH_API bool UpdateVariableStructFromDefaults(const UStruct* VariableStruct, uint8* VariableStructData);
+
+	/** Copies data from VariableStruct into the local variables */
+	BLUEPRINTGRAPH_API bool UpdateDefaultsFromVariableStruct(const UStruct* VariableStruct, uint8* VariableStructData);
+
 	/** Any extra flags that the function may need */
 	UPROPERTY()
 	int32 ExtraFlags;
@@ -119,7 +125,6 @@ protected:
 	TSharedPtr<FStructOnScope> FunctionVariableCache;
 
 	/** True if we've updated the default values on this node at least once */
-	UPROPERTY(Transient)
 	bool bUpdatedDefaultValuesOnLoad;
 };
 

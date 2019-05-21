@@ -8150,12 +8150,12 @@ bool FBlueprintEditorUtils::IsObjectADebugCandidate( AActor* InActorObject, UBlu
 	return bPassesFlags && bCanDebugThisObject;
 }
 
-bool FBlueprintEditorUtils::PropertyValueFromString(const UProperty* Property, const FString& StrValue, uint8* Container)
+bool FBlueprintEditorUtils::PropertyValueFromString(const UProperty* Property, const FString& StrValue, uint8* Container, UObject* OwningObject)
 {
-	return PropertyValueFromString_Direct(Property, StrValue, Property->ContainerPtrToValuePtr<uint8>(Container));
+	return PropertyValueFromString_Direct(Property, StrValue, Property->ContainerPtrToValuePtr<uint8>(Container), OwningObject);
 }
 
-bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const UProperty* Property, const FString& StrValue, uint8* DirectValue)
+bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const UProperty* Property, const FString& StrValue, uint8* DirectValue, UObject* OwningObject)
 {
 	bool bParseSucceeded = true;
 	if (!Property->IsA(UStructProperty::StaticClass()))
@@ -8221,7 +8221,7 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const UProperty* Prop
 		else if (Property->IsA(UTextProperty::StaticClass()))
 		{
 			FStringOutputDevice ImportError;
-			const TCHAR* EndOfParsedBuff = Property->ImportText(*StrValue, DirectValue, PPF_SerializedAsImportText, nullptr, &ImportError);
+			const TCHAR* EndOfParsedBuff = Property->ImportText(*StrValue, DirectValue, PPF_SerializedAsImportText, OwningObject, &ImportError);
 			bParseSucceeded = EndOfParsedBuff && ImportError.IsEmpty();
 		}
 		else
@@ -8232,7 +8232,7 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const UProperty* Prop
 				: *StrValue;
 
 			FStringOutputDevice ImportError;
-			const TCHAR* EndOfParsedBuff = Property->ImportText(*StrValue, DirectValue, PPF_SerializedAsImportText, nullptr, &ImportError);
+			const TCHAR* EndOfParsedBuff = Property->ImportText(*StrValue, DirectValue, PPF_SerializedAsImportText, OwningObject, &ImportError);
 			bParseSucceeded = EndOfParsedBuff && ImportError.IsEmpty();
 		}
 	}
@@ -8279,7 +8279,7 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const UProperty* Prop
 			ensure(1 == StructProperty->ArrayDim);
 
 			FStringOutputDevice ImportError;
-			const TCHAR* EndOfParsedBuff = StructProperty->ImportText(StrValue.IsEmpty() ? TEXT("()") : *StrValue, DirectValue, PPF_SerializedAsImportText, nullptr, &ImportError);
+			const TCHAR* EndOfParsedBuff = StructProperty->ImportText(StrValue.IsEmpty() ? TEXT("()") : *StrValue, DirectValue, PPF_SerializedAsImportText, OwningObject, &ImportError);
 			bParseSucceeded &= EndOfParsedBuff && ImportError.IsEmpty();
 		}
 	}
@@ -8287,12 +8287,12 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const UProperty* Prop
 	return bParseSucceeded;
 }
 
-bool FBlueprintEditorUtils::PropertyValueToString(const UProperty* Property, const uint8* Container, FString& OutForm)
+bool FBlueprintEditorUtils::PropertyValueToString(const UProperty* Property, const uint8* Container, FString& OutForm, UObject* OwningObject)
 {
-	return PropertyValueToString_Direct(Property, Property->ContainerPtrToValuePtr<const uint8>(Container), OutForm);
+	return PropertyValueToString_Direct(Property, Property->ContainerPtrToValuePtr<const uint8>(Container), OutForm, OwningObject);
 }
 
-bool FBlueprintEditorUtils::PropertyValueToString_Direct(const UProperty* Property, const uint8* DirectValue, FString& OutForm)
+bool FBlueprintEditorUtils::PropertyValueToString_Direct(const UProperty* Property, const uint8* DirectValue, FString& OutForm, UObject* OwningObject)
 {
 	check(Property && DirectValue);
 	OutForm.Reset();
@@ -8336,7 +8336,7 @@ bool FBlueprintEditorUtils::PropertyValueToString_Direct(const UProperty* Proper
 	if (OutForm.IsEmpty())
 	{
 		const uint8* DefaultValue = DirectValue;	
-		bSucceeded = Property->ExportText_Direct(OutForm, DirectValue, DefaultValue, nullptr, PPF_SerializedAsImportText);
+		bSucceeded = Property->ExportText_Direct(OutForm, DirectValue, DefaultValue, OwningObject, PPF_SerializedAsImportText);
 	}
 	return bSucceeded;
 }

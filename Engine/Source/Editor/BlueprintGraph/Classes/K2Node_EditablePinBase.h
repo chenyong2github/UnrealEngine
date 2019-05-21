@@ -161,24 +161,6 @@ class UK2Node_EditablePinBase : public UK2Node
 	BLUEPRINTGRAPH_API virtual bool CreateUserDefinedPinsForFunctionEntryExit(const UFunction* Function, bool bForFunctionEntry);
 
 	/**
-	 * Copies data from any user pins matching properties in VariableStruct into the VariableStructData. Will also copy LocalVariables if passed in
-	 *
-	 * @param	VariableStruct		UStruct defining the variables to copy
-	 * @param	VariableStructData	Raw data for a variable cache
-	 * @param	LocalVariables		Optional list of local variables to copy
-	 */
-	BLUEPRINTGRAPH_API bool UpdateVariableStructFromDefaults(const UStruct* VariableStruct, uint8* VariableStructData, TArray<struct FBPVariableDescription>* LocalVariables = nullptr);
-
-	/**
-	 * Copies data from VariableStruct into the user defined pins as well as an optional list of local variables
-	 *
-	 * @param	VariableStruct		UStruct defining the variables to copy
-	 * @param	VariableStructData	Raw data for a variable cache
-	 * @param	LocalVariables		Optional list of local variables to copy
-	 */
-	BLUEPRINTGRAPH_API bool UpdateDefaultsFromVariableStruct(const UStruct* VariableStruct, uint8* VariableStructData, TArray<struct FBPVariableDescription>* LocalVariables = nullptr);
-
-	/**
 	 * Can this node have execution wires added or removed?
 	 */
 	virtual bool CanModifyExecutionWires() { return false; }

@@ -835,7 +835,7 @@ public:
 	
 protected:
 	/**
-	 * Finds the difference in properties of node instance
+	 * Finds the difference in properties of node instance, for subobjects
 	 *
 	 * @param StructA The struct of the class we are looking at LHS
 	 * @param StructB The struct of the class we are looking at RHS
@@ -845,6 +845,18 @@ protected:
 	 * @param Diff The single result with default parameters setup
 	 */
 	virtual void DiffProperties(UClass* StructA, UClass* StructB, UObject* DataA, UObject* DataB, FDiffResults& Results, FDiffSingleResult& Diff) const;
+
+	/**
+	 * Finds the difference in properties of node instance, for arbitrary UStructs
+	 *
+	 * @param StructA The struct we are looking at LHS
+	 * @param StructB The struct we are looking at RHS
+	 * @param DataA The raw data we are comparing LHS
+	 * @param DataB The raw data we are comparing RHS
+	 * @param Results The Results where differences are stored
+	 * @param Diff The single result with default parameters setup
+	 */
+	virtual void DiffProperties(UStruct* StructA, UStruct* StructB, uint8* DataA, uint8* DataB, FDiffResults& Results, FDiffSingleResult& Diff) const;
 
 	// Returns a human-friendly description of the property in the form "PropertyName: Value"
 	virtual FString GetPropertyNameAndValueForDiff(const UProperty* Prop, const uint8* PropertyAddr) const;

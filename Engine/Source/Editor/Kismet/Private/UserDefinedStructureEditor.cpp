@@ -216,7 +216,7 @@ void FDefaultValueDetails::OnFinishedChangingProperties(const FPropertyChangedEv
 				{
 					if (StructData.IsValid() && StructData->IsValid())
 					{
-						bDefaultValueSet = FBlueprintEditorUtils::PropertyValueToString(DirectProperty, StructData->GetStructMemory(), DefaultValueString);
+						bDefaultValueSet = FBlueprintEditorUtils::PropertyValueToString(DirectProperty, StructData->GetStructMemory(), DefaultValueString, OwnerStruct);
 					}
 				}
 

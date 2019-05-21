@@ -86,7 +86,7 @@ void UK2Node::Serialize(FArchive& Ar)
 
 	Super::Serialize(Ar);
 
-	if (Ar.IsLoading() && ((Ar.GetPortFlags() | PPF_Duplicate) == 0))
+	if (Ar.IsLoading() && ((Ar.GetPortFlags() & PPF_Duplicate) == 0))
 	{
 		// Fix up pin default values, must be done before post load
 		FixupPinDefaultValues();
@@ -189,7 +189,7 @@ void UK2Node::FixupPinStringDataReferences(FArchive* SavingArchive)
 					
 					// Convert back to the default value string as we might have changed
 					FString NewValue;
-					Struct->ExportText(NewValue, StructData->GetStructMemory(), nullptr, this, PPF_SerializedAsImportText, nullptr);
+					Struct->ExportText(NewValue, StructData->GetStructMemory(), StructData->GetStructMemory(), this, PPF_SerializedAsImportText, nullptr);
 
 					if (Pin->DefaultValue != NewValue)
 					{

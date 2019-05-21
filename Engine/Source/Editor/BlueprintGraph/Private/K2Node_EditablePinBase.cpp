@@ -258,13 +258,13 @@ void UK2Node_EditablePinBase::Serialize(FArchive& Ar)
 			}
 
 			// We need to fixup text default values because many of them got saved with the wrong package namespace
-			if (!PinInfo->PinDefaultValue.IsEmpty() && PinInfo->PinType.PinCategory == UEdGraphSchema_K2::PC_Text)
+			/*if (!PinInfo->PinDefaultValue.IsEmpty() && PinInfo->PinType.PinCategory == UEdGraphSchema_K2::PC_Text)
 			{
 				FString UseDefaultValue;
 				UObject* UseDefaultObject = nullptr;
 				FText UseDefaultText;
 
-				K2Schema->GetPinDefaultValuesFromString(PinInfo->PinType, this, PinInfo->PinDefaultValue, UseDefaultValue, UseDefaultObject, UseDefaultText, /*bPreserveTextIdentity*/false);
+				K2Schema->GetPinDefaultValuesFromString(PinInfo->PinType, this, PinInfo->PinDefaultValue, UseDefaultValue, UseDefaultObject, UseDefaultText,false);
 
 				if (!UseDefaultText.IsEmpty())
 				{
@@ -272,7 +272,7 @@ void UK2Node_EditablePinBase::Serialize(FArchive& Ar)
 					PinInfo->PinDefaultValue.Reset();
 					FTextStringHelper::WriteToBuffer(PinInfo->PinDefaultValue, UseDefaultText);
 				}
-			}
+			}*/
 
 			UserDefinedPins.Add(PinInfo);
 		}
@@ -403,153 +403,4 @@ bool UK2Node_EditablePinBase::CreateUserDefinedPinsForFunctionEntryExit(const UF
 	}
 
 	return bAllPinsGood;
-}
-
-bool UK2Node_EditablePinBase::UpdateVariableStructFromDefaults(const UStruct* VariableStruct, uint8* VariableStructData, TArray<FBPVariableDescription>* LocalVariables /*= nullptr*/)
-{
-	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
-
-	if (!VariableStruct || !VariableStructData)
-	{
-		return false;
-	}
-
-	/* This isn't safe because we have too many invalid pin default values
-	for (TSharedPtr<FUserPinInfo> PinInfo : UserDefinedPins)
-	{
-		if (PinInfo->DesiredPinDirection == EGPD_Output && !PinInfo->PinDefaultValue.IsEmpty())
-		{
-			UProperty* PinProperty = VariableStruct->FindPropertyByName(PinInfo->PinName);
-			if (PinProperty && (!PinProperty->HasAnyPropertyFlags(CPF_OutParm) || PinProperty->HasAnyPropertyFlags(CPF_ReferenceParm)))
-			{
-				FEdGraphPinType PinType;
-				K2Schema->ConvertPropertyToPinType(PinProperty, PinType);
-
-				if (PinType != PinInfo->PinType)
-				{
-					UE_LOG(LogBlueprint, Log, TEXT("Pin type for variable %s does not match type on struct %s during UpdateVariableStructFromDefaults, ignoring old default"), *PinInfo->PinName.ToString(), *VariableStruct->GetName());
-				}
-				else
-				{
-					FBlueprintEditorUtils::PropertyValueFromString(PinProperty, PinInfo->PinDefaultValue, VariableStructData);
-				}
-			}
-			else
-			{
-				UE_LOG(LogBlueprint, Log, TEXT("Could not find property %s on struct %s during UpdateVariableStructFromDefaults"), *PinInfo->PinName.ToString(), *VariableStruct->GetName());
-			}
-		}
-	} */
-
-	if (LocalVariables)
-	{
-		for (FBPVariableDescription& LocalVariable : *LocalVariables)
-		{
-			if (!LocalVariable.DefaultValue.IsEmpty())
-			{
-				UProperty* PinProperty = VariableStruct->FindPropertyByName(LocalVariable.VarName);
-
-				if (PinProperty && (!PinProperty->HasAnyPropertyFlags(CPF_OutParm) || PinProperty->HasAnyPropertyFlags(CPF_ReferenceParm)))
-				{
-					FEdGraphPinType PinType;
-					K2Schema->ConvertPropertyToPinType(PinProperty, /*out*/ PinType);
-
-					if (PinType != LocalVariable.VarType)
-					{
-						UE_LOG(LogBlueprint, Log, TEXT("Pin type for local variable %s does not match type on struct %s during UpdateVariableStructFromDefaults, ignoring old default"), *LocalVariable.VarName.ToString(), *VariableStruct->GetName());
-					}
-					else
-					{
-						FBlueprintEditorUtils::PropertyValueFromString(PinProperty, LocalVariable.DefaultValue, VariableStructData);
-					}
-				}
-				else
-				{
-					UE_LOG(LogBlueprint, Log, TEXT("Could not find local variable property %s on struct %s during UpdateVariableStructFromDefaults"), *LocalVariable.VarName.ToString(), *VariableStruct->GetName());
-				}
-			}
-		}
-	}
-
-	return true;
-}
-
-bool UK2Node_EditablePinBase::UpdateDefaultsFromVariableStruct(const UStruct* VariableStruct, uint8* VariableStructData, TArray<FBPVariableDescription>* LocalVariables /*= nullptr*/)
-{
-	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
-
-	if (!VariableStruct || !VariableStructData)
-	{
-		return false;
-	}
-
-	/* This isn't safe because we have too many invalid pin default values
-	for (TSharedPtr<FUserPinInfo> PinInfo : UserDefinedPins)
-	{
-		if (PinInfo->DesiredPinDirection == EGPD_Output)
-		{
-			UProperty* PinProperty = VariableStruct->FindPropertyByName(PinInfo->PinName);
-			if (PinProperty && (!PinProperty->HasAnyPropertyFlags(CPF_OutParm) || PinProperty->HasAnyPropertyFlags(CPF_ReferenceParm)))
-			{
-				FEdGraphPinType PinType;
-				K2Schema->ConvertPropertyToPinType(PinProperty, PinType);
-
-				if (PinType != PinInfo->PinType)
-				{
-					UE_LOG(LogBlueprint, Log, TEXT("Pin type for variable %s does not match type on struct %s during UpdateDefaultsFromVariableStruct, ignoring old default"), *PinInfo->PinName.ToString(), *VariableStruct->GetName());
-				}
-				else
-				{
-					FString NewDefaultValue;
-					FBlueprintEditorUtils::PropertyValueToString(PinProperty, VariableStructData, NewDefaultValue);
-
-					if (NewDefaultValue != PinInfo->PinDefaultValue)
-					{
-						// Call the internal function to avoid recursion back into this update
-						if (UpdateEdGraphPinDefaultValue(PinInfo, NewDefaultValue))
-						{
-							PinInfo->PinDefaultValue = NewDefaultValue;
-						}
-						else
-						{
-							UE_LOG(LogBlueprint, Warning, TEXT("Failed to update variable %s on struct %s during UpdateDefaultsFromVariableStruct with new default %s"), *PinInfo->PinName.ToString(), *VariableStruct->GetName(), *NewDefaultValue);
-						}
-					}
-				}
-			}
-			else
-			{
-				UE_LOG(LogBlueprint, Log, TEXT("Could not find property %s on struct %s during UpdateDefaultsFromVariableStruct"), *PinInfo->PinName.ToString(), *VariableStruct->GetName());
-			}
-		}
-	}*/
-
-	if (LocalVariables)
-	{
-		for (FBPVariableDescription& LocalVariable : *LocalVariables)
-		{
-			UProperty* PinProperty = VariableStruct->FindPropertyByName(LocalVariable.VarName);
-
-			if (PinProperty && (!PinProperty->HasAnyPropertyFlags(CPF_OutParm) || PinProperty->HasAnyPropertyFlags(CPF_ReferenceParm)))
-			{
-				FEdGraphPinType PinType;
-				K2Schema->ConvertPropertyToPinType(PinProperty, /*out*/ PinType);
-
-				if (PinType != LocalVariable.VarType)
-				{
-					UE_LOG(LogBlueprint, Log, TEXT("Pin type for local variable %s does not match type on struct %s during UpdateDefaultsFromVariableStruct, ignoring old default"), *LocalVariable.VarName.ToString(), *VariableStruct->GetName());
-				}
-				else
-				{
-					FBlueprintEditorUtils::PropertyValueToString(PinProperty, VariableStructData, LocalVariable.DefaultValue);
-				}
-			}
-			else
-			{
-				UE_LOG(LogBlueprint, Log, TEXT("Could not find local variable property %s on struct %s during UpdateDefaultsFromVariableStruct"), *LocalVariable.VarName.ToString(), *VariableStruct->GetName());
-			}
-		}
-	}
-
-	return true;
 }

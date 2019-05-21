@@ -75,7 +75,7 @@ void UAnimGraphNode_CustomProperty::ReallocatePinsDuringReconstruction(TArray<UE
 			FString CDODefaultValueString;
 			uint8* ContainerPtr = reinterpret_cast<uint8*>(TargetClass->GetDefaultObject());
 
-			if(FBlueprintEditorUtils::PropertyValueToString(Property, ContainerPtr, CDODefaultValueString))
+			if(FBlueprintEditorUtils::PropertyValueToString(Property, ContainerPtr, CDODefaultValueString, this))
 			{
 				// If we successfully pulled a value, set it to the pin
 				Schema->TrySetDefaultValue(*NewPin, CDODefaultValueString);

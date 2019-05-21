@@ -360,7 +360,7 @@ void UK2Node_CustomEvent::FixupPinStringDataReferences(FArchive* SavingArchive)
 
 					if (DefaultsString != PinInfo->PinDefaultValue)
 					{
-						ModifyUserDefinedPinDefaultValue(PinInfo, Pin->GetDefaultAsString());
+						ModifyUserDefinedPinDefaultValue(PinInfo, DefaultsString);
 					}
 				}
 			}

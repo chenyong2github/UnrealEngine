@@ -447,7 +447,7 @@ bool FStructureEditorUtils::ChangeVariableDefaultValue(UUserDefinedStruct* Struc
 			const UProperty* Property = FindField<UProperty>(Struct, VarDesc->VarName);
 			FStructOnScope StructDefaultMem(Struct);
 			bAdvancedValidation = StructDefaultMem.IsValid() && Property &&
-				FBlueprintEditorUtils::PropertyValueFromString(Property, NewDefaultValue, StructDefaultMem.GetStructMemory());
+				FBlueprintEditorUtils::PropertyValueFromString(Property, NewDefaultValue, StructDefaultMem.GetStructMemory(), Struct);
 		}
 
 		if (bAdvancedValidation)

@@ -115,7 +115,7 @@ void FAnimBlueprintNodeOptionalPinManager::PostRemovedOldPin(FOptionalPinFromPro
 		if (UEdGraphPin* OldPin = OldPinMap.FindRef(OldPinName))
 		{
 			// Convert DefaultValue/DefaultValueObject and push back into the struct
-			FBlueprintEditorUtils::PropertyValueFromString_Direct(Property, OldPin->GetDefaultAsString(), PropertyAddress);
+			FBlueprintEditorUtils::PropertyValueFromString_Direct(Property, OldPin->GetDefaultAsString(), PropertyAddress, OldPin->GetOwningNodeUnchecked());
 		}
 	}
 }

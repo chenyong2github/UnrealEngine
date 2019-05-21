@@ -1156,16 +1156,16 @@ public:
 	static bool IsVariableUsed(const UBlueprint* Blueprint, const FName& Name, UEdGraph* LocalGraphScope = nullptr);
 
 	/** Copies the value from the passed in string into a property. ContainerMem points to the Struct or Class containing Property */
-	static bool PropertyValueFromString(const UProperty* Property, const FString& StrValue, uint8* Container);
+	static bool PropertyValueFromString(const UProperty* Property, const FString& StrValue, uint8* Container, UObject* OwningObject = nullptr);
 
 	/** Copies the value from the passed in string into a property. DirectValue is the raw memory address of the property value */
-	static bool PropertyValueFromString_Direct(const UProperty* Property, const FString& StrValue, uint8* DirectValue);
+	static bool PropertyValueFromString_Direct(const UProperty* Property, const FString& StrValue, uint8* DirectValue, UObject* OwningObject = nullptr);
 
 	/** Copies the value from a property into the string OutForm. ContainerMem points to the Struct or Class containing Property */
-	static bool PropertyValueToString(const UProperty* Property, const uint8* Container, FString& OutForm);
+	static bool PropertyValueToString(const UProperty* Property, const uint8* Container, FString& OutForm, UObject* OwningObject = nullptr);
 
 	/** Copies the value from a property into the string OutForm. DirectValue is the raw memory address of the property value */
-	static bool PropertyValueToString_Direct(const UProperty* Property, const uint8* DirectValue, FString& OutForm);
+	static bool PropertyValueToString_Direct(const UProperty* Property, const uint8* DirectValue, FString& OutForm, UObject* OwningObject = nullptr);
 
 	/** Call PostEditChange() on all Actors based on the given Blueprint */
 	static void PostEditChangeBlueprintActors(UBlueprint* Blueprint, bool bComponentEditChange = false);

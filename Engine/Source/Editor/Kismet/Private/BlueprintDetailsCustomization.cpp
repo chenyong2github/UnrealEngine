@@ -2625,12 +2625,12 @@ void FBlueprintVarActionDetails::OnFinishedChangingProperties(const FPropertyCha
 
 	if (InStructData.IsValid())
 	{
-		bDefaultValueSet = FBlueprintEditorUtils::PropertyValueToString(DirectProperty, InStructData->GetStructMemory(), DefaultValueString);
+		UK2Node_FunctionEntry* FuncEntry = Cast<UK2Node_FunctionEntry>(InEntryNode.Get());
+
+		bDefaultValueSet = FBlueprintEditorUtils::PropertyValueToString(DirectProperty, InStructData->GetStructMemory(), DefaultValueString, FuncEntry);
 
 		if(bDefaultValueSet)
 		{
-			UK2Node_FunctionEntry* FuncEntry = Cast<UK2Node_FunctionEntry>(InEntryNode.Get());
-
 			// Search out the correct local variable in the Function Entry Node and set the default value
 			for (FBPVariableDescription& LocalVar : FuncEntry->LocalVariables)
 			{
