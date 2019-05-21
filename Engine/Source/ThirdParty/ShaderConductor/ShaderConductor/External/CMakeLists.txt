@@ -69,8 +69,8 @@ set(SPIRV_TOOLS_EXTRA_DEFINITIONS /D_ITERATOR_DEBUG_LEVEL=0)
 add_subdirectory(SPIRV-Tools EXCLUDE_FROM_ALL)
 foreach(target
     "spirv-tools-pkg-config" "spirv-tools-shared-pkg-config"
-    "spirv-tools-build-version" "spirv-tools-debuginfo" "spirv-tools-header-DebugInfo" "spirv-tools-spv-amd-gcn-shader"
-    "spirv-tools-spv-amd-shader-ballot" "spirv-tools-spv-amd-shader-explicit-vertex-parameter" "spirv-tools-spv-amd-shader-trinary-minmax"
+    "spirv-tools-build-version" "spv-tools-debuginfo" "spirv-tools-header-DebugInfo" "spv-tools-spv-amd-gs"
+    "spv-tools-spv-amd-sb" "spv-tools-spv-amd-sevp" "spv-tools-spv-amd-stm"
     "SPIRV-Tools-link" "SPIRV-Tools-shared"
     "spirv-tools-vimsyntax")
     get_target_property(vsFolder ${target} FOLDER)
