@@ -1296,6 +1296,39 @@ public:
 		SetItemSelection( SoleSelectedItem, true, SelectInfo );
 	}
 
+	/** 
+	 * Set the current selection mode of the list.
+	 * If going from multi-select to a type of single-select and one item is selected, it will be maintained (otherwise all will be cleared).
+	 * If disabling selection, any current selections will be cleared.
+	 */
+	void SetSelectionMode(const TAttribute<ESelectionMode::Type>& NewSelectionMode)
+	{
+		const ESelectionMode::Type PreviousMode = SelectionMode.Get();
+		SelectionMode = NewSelectionMode;
+		const ESelectionMode::Type NewMode = NewSelectionMode.Get();
+		if (PreviousMode != NewMode)
+		{
+			if (NewMode == ESelectionMode::None)
+			{
+				ClearSelection();
+			}
+			else if (PreviousMode == ESelectionMode::Multi)
+			{
+				// We've gone to a single-selection mode, so if we already had a single item selected, preserve it
+				if (SelectedItems.Num() == 1)
+				{
+					SetSelection(*SelectedItems.CreateIterator());
+				}
+				else
+				{
+					// Otherwise, there's no way to know accurately which item was selected most recently, so just wipe it all
+					// The caller responsible for changing the mode can decide themselves which item they want to be selected
+					ClearSelection();
+				}
+			}
+		}
+	}
+
 	/**
 	 * Find a widget for this item if it has already been constructed.
 	 *

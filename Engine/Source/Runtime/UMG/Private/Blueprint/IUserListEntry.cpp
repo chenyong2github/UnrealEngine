@@ -8,11 +8,6 @@
 
 TMap<TWeakObjectPtr<const UUserWidget>, TWeakPtr<const IObjectTableRow>> IObjectTableRow::ObjectRowsByUserWidget;
 
-UNativeUserListEntry::UNativeUserListEntry(const FObjectInitializer& Initializer)
-	: Super(Initializer)
-{
-}
-
 UUserListEntry::UUserListEntry(const FObjectInitializer& Initializer)
 	: Super(Initializer)
 {
@@ -56,32 +51,17 @@ void IUserListEntry::UpdateItemExpansion(UUserWidget& ListEntryWidget, bool bIsE
 
 bool IUserListEntry::IsListItemSelected() const
 {
-	TSharedPtr<const IObjectTableRow> SlateRow = IObjectTableRow::ObjectRowFromUserWidget(CastChecked<const UUserWidget>(this, ECastCheckedType::NullAllowed));
-	if (SlateRow.IsValid())
-	{
-		return SlateRow->IsItemSelected();
-	}
-	return false;
+	return UUserListEntryLibrary::IsListItemSelected(Cast<UUserWidget>(const_cast<IUserListEntry*>(this)));
 }
 
 bool IUserListEntry::IsListItemExpanded() const
 {
-	TSharedPtr<const IObjectTableRow> SlateRow = IObjectTableRow::ObjectRowFromUserWidget(CastChecked<const UUserWidget>(this, ECastCheckedType::NullAllowed));
-	if (SlateRow.IsValid())
-	{
-		return SlateRow->IsItemExpanded();
-	}
-	return false;
+	return UUserListEntryLibrary::IsListItemExpanded(Cast<UUserWidget>(const_cast<IUserListEntry*>(this)));
 }
 
 UListViewBase* IUserListEntry::GetOwningListView() const
 {
-	TSharedPtr<const IObjectTableRow> SlateRow = IObjectTableRow::ObjectRowFromUserWidget(CastChecked<const UUserWidget>(this, ECastCheckedType::NullAllowed));
-	if (SlateRow.IsValid())
-	{
-		return SlateRow->GetOwningListView();
-	}
-	return nullptr;
+	return UUserListEntryLibrary::GetOwningListView(Cast<UUserWidget>(const_cast<IUserListEntry*>(this)));
 }
 
 void IUserListEntry::NativeOnEntryReleased()
@@ -97,4 +77,34 @@ void IUserListEntry::NativeOnItemSelectionChanged(bool bIsSelected)
 void IUserListEntry::NativeOnItemExpansionChanged(bool bIsExpanded)
 {
 	Execute_BP_OnItemExpansionChanged(Cast<UObject>(this), bIsExpanded);
+}
+
+bool UUserListEntryLibrary::IsListItemSelected(TScriptInterface<IUserListEntry> UserListEntry)
+{
+	TSharedPtr<const IObjectTableRow> SlateRow = IObjectTableRow::ObjectRowFromUserWidget(Cast<UUserWidget>(UserListEntry.GetObject()));
+	if (SlateRow.IsValid())
+	{
+		return SlateRow->IsItemSelected();
+	}
+	return false;
+}
+
+bool UUserListEntryLibrary::IsListItemExpanded(TScriptInterface<IUserListEntry> UserListEntry)
+{
+	TSharedPtr<const IObjectTableRow> SlateRow = IObjectTableRow::ObjectRowFromUserWidget(Cast<UUserWidget>(UserListEntry.GetObject()));
+	if (SlateRow.IsValid())
+	{
+		return SlateRow->IsItemExpanded();
+	}
+	return false;
+}
+
+UListViewBase* UUserListEntryLibrary::GetOwningListView(TScriptInterface<IUserListEntry> UserListEntry)
+{
+	TSharedPtr<const IObjectTableRow> SlateRow = IObjectTableRow::ObjectRowFromUserWidget(Cast<UUserWidget>(UserListEntry.GetObject()));
+	if (SlateRow.IsValid())
+	{
+		return SlateRow->GetOwningListView();
+	}
+	return nullptr;
 }
