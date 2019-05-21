@@ -297,7 +297,9 @@ public:
 
 protected:
 	TArray<FUnorderedAccessViewRHIParamRef> BuffersToTransition;
+#if RHI_RAYTRACING
 	TSet<FRayTracingGeometry*> RayTracingGeometriesToUpdate;
+#endif // RHI_RAYTRACING
 
 	TArray<FRWBuffersAllocation*> Allocations;
 	TArray<FGPUSkinCacheEntry*> Entries;
