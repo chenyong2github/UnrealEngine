@@ -4,12 +4,11 @@
 
 #include "IStylusState.h"
 
+#include "EditorSubsystem.h"
+#include "TickableEditorObject.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "EditorSubsystem.h"
-
-#include "TickableEditorObject.h"
-#include "Widgets\Docking\SDockTab.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #include "IStylusInputModule.generated.h"
 
