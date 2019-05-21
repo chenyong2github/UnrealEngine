@@ -634,6 +634,10 @@ public:
 	UPROPERTY(Config)
 	int32 NetServerMaxTickRate;
 
+	/** Limit tick rate of replication to allow very high frame rates to still replicate data. A value less or equal to zero means use the engine tick rate. A value greater than zero will clamp the net tick rate to this value.  */
+	UPROPERTY(Config)
+	int32 MaxNetTickRate;
+
 	/** @todo document */
 	UPROPERTY(Config)
 	int32 MaxInternetClientRate;

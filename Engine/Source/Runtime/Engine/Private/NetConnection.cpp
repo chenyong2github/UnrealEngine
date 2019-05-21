@@ -2701,6 +2701,18 @@ void UNetConnection::Tick()
 	}
 
 	FrameTime = CurrentRealtimeSeconds - LastTime;
+	const int32 MaxNetTickRate = Driver->MaxNetTickRate;
+	const float MaxNetTickRateFloat = MaxNetTickRate > 0 ? float(MaxNetTickRate) : FLT_MAX;
+	const float DesiredTickRate = FMath::Clamp(GEngine->GetMaxTickRate(0.0f, false), 0.0f, MaxNetTickRateFloat);
+	if (!InternalAck && MaxNetTickRate > 0 && DesiredTickRate > 0.0f)
+	{
+		const float MinNetFrameTime = 1.0f/DesiredTickRate;
+		if (FrameTime < MinNetFrameTime)
+		{
+			return;
+		}
+	}
+
 	LastTime = CurrentRealtimeSeconds;
 	CumulativeTime += FrameTime;
 	CountedFrames++;
@@ -2970,7 +2982,6 @@ void UNetConnection::Tick()
 
 	// Clamp DeltaTime for bandwidth limiting so that if there is a hitch, we don't try to send
 	// a large burst on the next frame, which can cause another hitch if a lot of additional replication occurs.
-	const float DesiredTickRate = GEngine->GetMaxTickRate(0.0f, false);
 	float BandwidthDeltaTime = DeltaTime;
 	if (DesiredTickRate != 0.0f)
 	{
