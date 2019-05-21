@@ -28,7 +28,9 @@ namespace MetadataServer.Connectors
 			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
 			{
 				Connection.Open();
-				using (SQLiteCommand Command = new SQLiteCommand("SELECT Id FROM [UserVotes] WHERE Project LIKE @param1 GROUP BY Changelist ORDER BY Changelist DESC LIMIT 1 OFFSET 432;", Connection))
+				using (SQLiteCommand Command = new SQLiteCommand("SELECT UserVotes.Id FROM [UserVotes] " +
+																 "INNER JOIN [Projects] ON Projects.Id = UserVotes.ProjectId " +
+																 "WHERE Projects.Name LIKE @param1 GROUP BY Changelist ORDER BY Changelist DESC LIMIT 1 OFFSET 432", Connection))
 				{
 					Command.Parameters.AddWithValue("@param1", ProjectLikeString);
 					using (SQLiteDataReader Reader = Command.ExecuteReader())
@@ -40,7 +42,10 @@ namespace MetadataServer.Connectors
 						}
 					}
 				}
-				using (SQLiteCommand Command = new SQLiteCommand("SELECT Id FROM [Comments] WHERE Project LIKE @param1 GROUP BY ChangeNumber ORDER BY ChangeNumber DESC LIMIT 1 OFFSET 432;", Connection))
+				
+				using (SQLiteCommand Command = new SQLiteCommand("SELECT Comments.Id FROM [Comments] " +
+																 "INNER JOIN [Projects] ON Projects.Id = Comments.ProjectId " +
+																 "WHERE Projects.Name LIKE @param1 GROUP BY ChangeNumber ORDER BY ChangeNumber DESC LIMIT 1 OFFSET 432", Connection))
 				{
 					Command.Parameters.AddWithValue("@param1", ProjectLikeString);
 					using (SQLiteDataReader Reader = Command.ExecuteReader())
@@ -52,14 +57,17 @@ namespace MetadataServer.Connectors
 						}
 					}
 				}
-				using (SQLiteCommand Command = new SQLiteCommand("SELECT Id FROM [CIS] WHERE Project LIKE @param1 GROUP BY ChangeNumber ORDER BY ChangeNumber DESC LIMIT 1 OFFSET 432", Connection))
+				using (SQLiteCommand Command = new SQLiteCommand("SELECT Badges.Id FROM [Badges] " +
+																 "INNER JOIN [Projects] ON Projects.Id = Badges.ProjectId " +
+																 "WHERE Projects.Name LIKE @param1 GROUP BY ChangeNumber ORDER BY ChangeNumber DESC LIMIT 1 OFFSET 432", Connection))
 				{
+					//Command.Parameters.AddWithValue("@param1", ProjectId);
 					Command.Parameters.AddWithValue("@param1", ProjectLikeString);
 					using (SQLiteDataReader Reader = Command.ExecuteReader())
 					{
 						while (Reader.Read())
 						{
-							LastBuildId = Reader.GetInt32(0);
+							LastBuildId = Math.Max(LastBuildId, Reader.GetInt32(0));
 							break;
 						}
 					}
@@ -74,7 +82,8 @@ namespace MetadataServer.Connectors
 			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
 			{
 				Connection.Open();
-				using (SQLiteCommand Command = new SQLiteCommand("SELECT Id, Changelist, UserName, Verdict, Project FROM [UserVotes] WHERE Id > @param1 AND Project LIKE @param2 ORDER BY Id", Connection))
+				using (SQLiteCommand Command = new SQLiteCommand("SELECT UserVotes.Id, UserVotes.Changelist, UserVotes.UserName, UserVotes.Verdict, UserVotes.Project FROM [UserVotes] " +
+																 "INNER JOIN [Projects] ON Projects.Id = UserVotes.ProjectId WHERE UserVotes.Id > @param1 AND Projects.Name LIKE @param2 ORDER BY UserVotes.Id", Connection))
 				{
 					Command.Parameters.AddWithValue("@param1", LastEventId);
 					Command.Parameters.AddWithValue("@param2", ProjectLikeString);
@@ -107,7 +116,8 @@ namespace MetadataServer.Connectors
 			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
 			{
 				Connection.Open();
-				using (SQLiteCommand Command = new SQLiteCommand("SELECT Id, ChangeNumber, UserName, Text, Project FROM [Comments] WHERE Id > @param1 AND Project LIKE @param2 ORDER BY Id", Connection))
+				using (SQLiteCommand Command = new SQLiteCommand("SELECT Comments.Id, Comments.ChangeNumber, Comments.UserName, Comments.Text, Comments.Project FROM [Comments] " +
+															     "INNER JOIN [Projects] ON Projects.Id = Comments.ProjectId WHERE Comments.Id > @param1 AND Projects.Name LIKE @param2 ORDER BY Comments.Id", Connection))
 				{
 					Command.Parameters.AddWithValue("@param1", LastCommentId);
 					Command.Parameters.AddWithValue("@param2", ProjectLikeString);
@@ -139,8 +149,9 @@ namespace MetadataServer.Connectors
 			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
 			{
 				Connection.Open();
-				using (SQLiteCommand Command = new SQLiteCommand("SELECT Id, ChangeNumber, BuildType, Result, Url, Project FROM [CIS] WHERE Id > @param1 AND Project LIKE @param2 ORDER BY Id", Connection))
-				{
+				using (SQLiteCommand Command = new SQLiteCommand("SELECT Badges.Id, Badges.ChangeNumber, Badges.BuildType, Badges.Result, Badges.Url, Projects.Name, Badges.ArchivePath FROM [Badges] " +
+																 "INNER JOIN [Projects] ON Projects.Id = Badges.ProjectId WHERE Badges.Id > @param1 AND Projects.Name LIKE @param2 ORDER BY Badges.Id", Connection))
+				{ 
 					Command.Parameters.AddWithValue("@param1", LastBuildId);
 					Command.Parameters.AddWithValue("@param2", ProjectLikeString);
 					using (SQLiteDataReader Reader = Command.ExecuteReader())
@@ -198,20 +209,29 @@ namespace MetadataServer.Connectors
 			return ReturnedErrors;
 		}
 
-
+		private static long TryInsertAndGetProject(SQLiteConnection Connection, string Project)
+		{
+			using (SQLiteCommand Command = new SQLiteCommand("INSERT OR IGNORE INTO [Projects] (Name) VALUES (@Project); SELECT [Id] FROM [Projects] WHERE Name = @Project", Connection))
+			{
+				Command.Parameters.AddWithValue("@Project", Project);
+				object ProjectId = Command.ExecuteScalar();
+				return (long)ProjectId;
+			}
+		}
 		public static void PostBuild(BuildData Build)
 		{
 			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
 			{
 				Connection.Open();
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [CIS] (ChangeNumber, BuildType, Result, URL, Project, ArchivePath) VALUES (@ChangeNumber, @BuildType, @Result, @URL, @Project, @ArchivePath)", Connection))
+				long ProjectId = TryInsertAndGetProject(Connection, Build.Project);
+				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Badges] (ChangeNumber, BuildType, Result, URL, ArchivePath, ProjectId) VALUES (@ChangeNumber, @BuildType, @Result, @URL, @ArchivePath, @ProjectId)", Connection))
 				{
 					Command.Parameters.AddWithValue("@ChangeNumber", Build.ChangeNumber);
 					Command.Parameters.AddWithValue("@BuildType", Build.BuildType);
 					Command.Parameters.AddWithValue("@Result", Build.Result);
 					Command.Parameters.AddWithValue("@URL", Build.Url);
-					Command.Parameters.AddWithValue("@Project", Build.Project);
 					Command.Parameters.AddWithValue("@ArchivePath", Build.ArchivePath);
+					Command.Parameters.AddWithValue("@ProjectId", ProjectId);
 					Command.ExecuteNonQuery();
 				}
 			}
@@ -222,12 +242,14 @@ namespace MetadataServer.Connectors
 			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
 			{
 				Connection.Open();
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [UserVotes] (Changelist, UserName, Verdict, Project) VALUES (@Changelist, @UserName, @Verdict, @Project)", Connection))
+				long ProjectId = TryInsertAndGetProject(Connection, Event.Project);
+				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [UserVotes] (Changelist, UserName, Verdict, Project, ProjectId) VALUES (@Changelist, @UserName, @Verdict, @Project, @ProjectId)", Connection))
 				{
 					Command.Parameters.AddWithValue("@Changelist", Event.Change);
 					Command.Parameters.AddWithValue("@UserName", Event.UserName.ToString());
 					Command.Parameters.AddWithValue("@Verdict", Event.Type.ToString());
 					Command.Parameters.AddWithValue("@Project", Event.Project);
+					Command.Parameters.AddWithValue("@ProjectId", ProjectId);
 					Command.ExecuteNonQuery();
 				}
 			}
@@ -238,12 +260,14 @@ namespace MetadataServer.Connectors
 			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
 			{
 				Connection.Open();
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Comments] (ChangeNumber, UserName, Text, Project) VALUES (@ChangeNumber, @UserName, @Text, @Project)", Connection))
+				long ProjectId = TryInsertAndGetProject(Connection, Comment.Project);
+				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Comments] (ChangeNumber, UserName, Text, Project, ProjectId) VALUES (@ChangeNumber, @UserName, @Text, @Project, @ProjectId)", Connection))
 				{
 					Command.Parameters.AddWithValue("@ChangeNumber", Comment.ChangeNumber);
 					Command.Parameters.AddWithValue("@UserName", Comment.UserName);
 					Command.Parameters.AddWithValue("@Text", Comment.Text);
 					Command.Parameters.AddWithValue("@Project", Comment.Project);
+					Command.Parameters.AddWithValue("@ProjectId", ProjectId);
 					Command.ExecuteNonQuery();
 				}
 			}
@@ -254,7 +278,8 @@ namespace MetadataServer.Connectors
 			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
 			{
 				Connection.Open();
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Telemetry.v2] (Action, Result, UserName, Project, Timestamp, Duration, Version, IpAddress) VALUES (@Action, @Result, @UserName, @Project, @Timestamp, @Duration, @Version, @IpAddress)", Connection))
+				long ProjectId = TryInsertAndGetProject(Connection, Data.Project);
+				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Telemetry.v2] (Action, Result, UserName, Project, Timestamp, Duration, Version, IpAddress, ProjectId) VALUES (@Action, @Result, @UserName, @Project, @Timestamp, @Duration, @Version, @IpAddress, @ProjectId)", Connection))
 				{
 					Command.Parameters.AddWithValue("@Action", Data.Action);
 					Command.Parameters.AddWithValue("@Result", Data.Result);
@@ -264,6 +289,7 @@ namespace MetadataServer.Connectors
 					Command.Parameters.AddWithValue("@Duration", Data.Duration);
 					Command.Parameters.AddWithValue("@Version", Version);
 					Command.Parameters.AddWithValue("@IPAddress", IpAddress);
+					Command.Parameters.AddWithValue("@ProjectId", ProjectId);
 					Command.ExecuteNonQuery();
 				}
 			}
@@ -274,7 +300,12 @@ namespace MetadataServer.Connectors
 			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
 			{
 				Connection.Open();
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Errors] (Type, Text, UserName, Project, Timestamp, Version, IpAddress) VALUES (@Type, @Text, @UserName, @Project, @Timestamp, @Version, @IpAddress)", Connection))
+				long? ProjectId = null;
+				if(Data.Project != null)
+				{
+					ProjectId = TryInsertAndGetProject(Connection, Data.Project);
+				}
+				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Errors] (Type, Text, UserName, Project, Timestamp, Version, IpAddress, ProjectId) VALUES (@Type, @Text, @UserName, @Project, @Timestamp, @Version, @IpAddress, @ProjectId)", Connection))
 				{
 					Command.Parameters.AddWithValue("@Type", Data.Type.ToString());
 					Command.Parameters.AddWithValue("@Text", Data.Text);
@@ -282,10 +313,12 @@ namespace MetadataServer.Connectors
 					if (Data.Project == null)
 					{
 						Command.Parameters.AddWithValue("@Project", DBNull.Value);
+						Command.Parameters.AddWithValue("@ProjectId", DBNull.Value);
 					}
 					else
 					{
 						Command.Parameters.AddWithValue("@Project", Data.Project);
+						Command.Parameters.AddWithValue("@ProjectId", ProjectId.Value);
 					}
 					Command.Parameters.AddWithValue("@Timestamp", Data.Timestamp);
 					Command.Parameters.AddWithValue("@Version", Version);
