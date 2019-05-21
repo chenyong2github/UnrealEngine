@@ -12,11 +12,19 @@
  * Example use cases:
  *
  *   constexpr FAsciiSet WhitespaceCharacters(" \v\f\t\r\n");
- *   bool bIsWhitespace = WhitespaceCharacters.Contains(MyChar);
- *   const char* HelloWorld = FAsciiSet::Skip("  \t\tHello world!", WhitespaceCharacters;
- *
+ *   bool bIsWhitespace = WhitespaceCharacters.Test(MyChar);
+ *   const char* HelloWorld = FAsciiSet::Skip("  \t\tHello world!", WhitespaceCharacters);
+ *   
  *   constexpr FAsciiSet XmlEscapeChars("&<>\"'");
  *   check(FAsciiSet::HasNone(EscapedXmlString, XmlEscapeChars));
+ *   
+ *   constexpr FAsciiSet Delimiters(".:;");
+ *   const TCHAR* DelimiterOrEnd = FAsciiSet::FindFirstOrEnd(PrefixedName, Delimiters);
+ *   FString Prefix(PrefixedName, DelimiterOrEnd - PrefixedName);
+ *   
+ *   constexpr FAsciiSet Slashes("/\\");
+ *   const TCHAR* SlashOrEnd = FAsciiSet::FindLastOrEnd(PathName, Slashes);
+ *   const TCHAR* FileName = *SlashOrEnd ? SlashOrEnd + 1 : PathName;
  */
 class FAsciiSet
 {
@@ -41,7 +49,7 @@ public:
 		return FAsciiSet(Bitset);
 	}
 
-	/** Create new set containg inverse set of characters - likely including null-terminator */
+	/** Create new set containing inverse set of characters - likely including null-terminator */
 	constexpr FORCEINLINE FAsciiSet operator~() const
 	{
 		return FAsciiSet(~LoMask, ~HiMask);
@@ -49,34 +57,48 @@ public:
 
 	// C string util functions
 
-	/** Scan string for first character in a set or null-terminator */
+	/** Find first character of string inside set or end pointer. Never returns null. */
 	template<class CharType>
-	static constexpr const CharType* Find(const CharType* Str, FAsciiSet Set)
+	static constexpr const CharType* FindFirstOrEnd(const CharType* Str, FAsciiSet Set)
 	{
 		for (FAsciiSet SetOrNil(Set.LoMask | NilMask, Set.HiMask); !SetOrNil.Test(*Str); ++Str);
 
 		return Str;
 	}
 
-	/** Scan string for first character not in a set or null-terminator */
+	/** Find last character of string inside set or end pointer. Never returns null. */
+	template<class CharType>
+	static constexpr const CharType* FindLastOrEnd(const CharType* Str, FAsciiSet Set)
+	{
+		const CharType* Last = FindFirstOrEnd(Str, Set);
+
+		for (const CharType* It = Last; *It; It = FindFirstOrEnd(It + 1, Set))
+		{
+			Last = It;
+		}
+
+		return Last;
+	}
+
+	/** Find first character of string outside set or end pointer. Never returns null. */
 	template<typename CharType>
 	static constexpr const CharType* Skip(const CharType* Str, FAsciiSet Set)
 	{
-		return Find(Str, ~Set);
+		return FindFirstOrEnd(Str, ~Set);
 	}
 
 	/** Test if string contains any character in set */
 	template<typename CharType>
 	static constexpr bool HasAny(const CharType* Str, FAsciiSet Set)
 	{
-		return *Find(Str, Set) != '\0';
+		return *FindFirstOrEnd(Str, Set) != '\0';
 	}
 
 	/** Test if string contains no character in set */
 	template<typename CharType>
 	static constexpr bool HasNone(const CharType* Str, FAsciiSet Set)
 	{
-		return *Find(Str, Set) == '\0';
+		return *FindFirstOrEnd(Str, Set) == '\0';
 	}
 
 	/** Test if string contains any character outside of set */

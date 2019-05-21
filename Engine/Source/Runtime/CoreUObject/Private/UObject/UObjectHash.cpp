@@ -541,17 +541,14 @@ UObject* StaticFindObjectFastInternalThreadSafe(FUObjectHashTables& ThreadHash, 
 		TCHAR PlainObjectName[NAME_SIZE];
 		int32 PlainObjectNameLen = ObjectName.GetPlainNameString(PlainObjectName);
 		
-		// Reverse scan for first '.' or ':'
+		// Drop part prefixed by '.' or ':' and keep the suffix part
 		constexpr FAsciiSet DotColon(".:");
-		for (const TCHAR* PlainIt = PlainObjectName + PlainObjectNameLen - 1; PlainIt > PlainObjectName; --PlainIt)
+		const TCHAR* DelimiterOrEnd = FAsciiSet::FindLastOrEnd(PlainObjectName, DotColon);
+		if (*DelimiterOrEnd)
 		{
-			if (DotColon.Test(*PlainIt))
-			{
-				ActualObjectName = FName(PlainIt + 1, ObjectName.GetNumber());
-				int32 OuterLen = static_cast<int32>(PlainIt - PlainObjectName);
-				VerifyOuterName = FName(OuterLen, PlainObjectName);
-				break;
-			}
+			ActualObjectName = FName(DelimiterOrEnd + 1, ObjectName.GetNumber());
+			int32 OuterLen = static_cast<int32>(DelimiterOrEnd - PlainObjectName);
+			VerifyOuterName = FName(OuterLen, PlainObjectName);
 		}
 
 		const int32 Hash = GetObjectHash(ActualObjectName);
