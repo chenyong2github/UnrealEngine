@@ -195,6 +195,7 @@
     <Compile Include="System\CppIncludeParser.cs" />
     <Compile Include="System\FileMetadataPrefetch.cs" />
     <Compile Include="Modes\ParseMsvcTimingInfo.cs" />
+    <Compile Include="System\RestrictedFolders.cs" />
     <Compile Include="System\RulesScope.cs" />
     <Compile Include="System\SourceFileMetadataCache.cs" />
     <Compile Include="System\DataDrivenPlatformInfo.cs" />

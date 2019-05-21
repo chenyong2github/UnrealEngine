@@ -258,7 +258,10 @@ class BuildPlugin : BuildCommand
 		}
 
 		// Apply the standard exclusion rules
-		Filter.ExcludeRestrictedFolders();
+		foreach (string RestrictedFolderName in RestrictedFolder.GetNames())
+		{
+			Filter.AddRule(String.Format(".../{0}/...", RestrictedFolderName), FileFilterType.Exclude);
+		}
 
 		// Apply the filter to the plugin directory
 		return Filter.ApplyToDirectory(PluginFile.Directory, true);

@@ -420,7 +420,7 @@ public class DeploymentContext //: ProjectParams
 		{
 			RestrictedFolderNames.ExceptWith(PlatformExports.GetIncludedFolderNames(StagePlatform));
 		}
-		RestrictedFolderNames.UnionWith(RestrictedFolders.Names);
+		RestrictedFolderNames.UnionWith(RestrictedFolder.GetNames());
 		RestrictedFolderNames.Remove(StageTargetPlatform.IniPlatformType.ToString());
 
 		// Read the game config files
