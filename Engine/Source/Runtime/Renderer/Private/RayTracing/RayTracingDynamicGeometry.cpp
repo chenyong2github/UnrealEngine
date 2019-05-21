@@ -2,14 +2,13 @@
 
 #include "MeshMaterialShader.h"
 #include "ScenePrivate.h"
-#include "MeshPassProcessor.inl"
 #include "RayTracingDynamicGeometryCollection.h"
 
 #if RHI_RAYTRACING
 
 static bool IsSupportedDynamicVertexFactoryType(const FVertexFactoryType* VertexFactoryType)
 {
-	return VertexFactoryType == FindVertexFactoryType(FName(TEXT("FNiagaraSpriteVertexFactory"), FNAME_Find));
+	return VertexFactoryType == FindVertexFactoryType(FName(TEXT("FNiagaraSpriteVertexFactory"), FNAME_Find)) || VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeVertexFactory"), FNAME_Find));
 }
 
 class FRayTracingDynamicGeometryConverterCS : public FMeshMaterialShader
@@ -87,11 +86,15 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	const FScene* Scene, 
 	const FSceneView* View, 
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy, 
-	const FMeshBatch& MeshBatch, 
-	FRayTracingGeometry& Geometry,
-	uint32 NumMaxVertices,
-	FRWBuffer& Buffer)
+	FRayTracingDynamicGeometryUpdateParams UpdateParams
+)
 {
+	const FMeshBatch& MeshBatch = UpdateParams.MeshBatch;
+	FRayTracingGeometry& Geometry = *UpdateParams.Geometry;
+	bool bUsingIndirectDraw = UpdateParams.bUsingIndirectDraw;
+	uint32 NumMaxVertices = UpdateParams.NumVertices;
+	FRWBuffer& Buffer = *UpdateParams.Buffer;
+
 	const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 	const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(Scene->GetFeatureLevel(), FallbackMaterialRenderProxyPtr);
 
@@ -128,14 +131,29 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	DispatchCmd.TargetBuffer = &Buffer;
 	DispatchCmd.TargetGeometry = &Geometry;
 	DispatchCmd.NumMaxVertices = NumMaxVertices;
-	DispatchCmd.NumCPUVertices = MeshBatch.Elements[0].NumPrimitives * 2 * MeshBatch.Elements[0].NumInstances;
+	DispatchCmd.NumCPUVertices = !bUsingIndirectDraw ? UpdateParams.NumVertices : 0;
 
-	uint32 DesiredVertexBufferSize = FMath::DivideAndRoundUp((uint32)(NumMaxVertices * sizeof(FVector)), 4096u) * 4096u;
+	bool bRefit = true;
+
+	uint32 DesiredVertexBufferSize = UpdateParams.VertexBufferSize;
 	if (Buffer.NumBytes != DesiredVertexBufferSize)
 	{
 		int32 OriginalSize = Buffer.NumBytes;
-		Buffer.Initialize(4, DesiredVertexBufferSize / 4, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("RayTracingDynamicVertexBuffer"));
+		Buffer.Initialize(sizeof(float), DesiredVertexBufferSize / sizeof(float), PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("RayTracingDynamicVertexBuffer"));
+		bRefit = false;
 	}
+
+	if (!Geometry.RayTracingGeometryRHI.IsValid())
+	{
+		bRefit = false;
+	}
+
+	if (!Geometry.Initializer.bAllowUpdate)
+	{
+		bRefit = false;
+	}
+
+	DispatchCmd.bRefit = bRefit;
 
 	check(DispatchCmd.TargetBuffer->NumBytes >= NumMaxVertices * sizeof(FVector));
 
@@ -148,8 +166,12 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 
 	check(Geometry.IsInitialized());
 	Geometry.Initializer.PositionVertexBuffer = Buffer.Buffer;
-	Geometry.Initializer.TotalPrimitiveCount = NumMaxVertices / 3;
-	Geometry.RayTracingGeometryRHI = RHICreateRayTracingGeometry(Geometry.Initializer);
+	Geometry.Initializer.TotalPrimitiveCount = UpdateParams.NumTriangles;
+
+	if (!bRefit)
+	{
+		Geometry.RayTracingGeometryRHI = RHICreateRayTracingGeometry(Geometry.Initializer);
+	}
 }
 
 void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHICommandListImmediate& RHICmdList)
@@ -158,29 +180,47 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHICommandListImmedi
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, RayTracingDynamicGeometryUpdate);
 
-		for (auto& Cmd : *DispatchCommands)
 		{
-			FRayTracingDynamicGeometryConverterCS* Shader = Cmd.MaterialShader;
+			SCOPED_DRAW_EVENT(RHICmdList, VSinCSComputeDispatch);
+			for (auto& Cmd : *DispatchCommands)
+			{
+				{
+					FRayTracingDynamicGeometryConverterCS* Shader = Cmd.MaterialShader;
 
-			RHICmdList.SetComputeShader(Shader->GetComputeShader());
+					RHICmdList.SetComputeShader(Shader->GetComputeShader());
 
-			Cmd.ShaderBindings.SetOnCommandListForCompute(RHICmdList, Shader->GetComputeShader());
-			Shader->RWVertexPositions.SetBuffer(RHICmdList, Shader->GetComputeShader(), *Cmd.TargetBuffer);
-			SetShaderValue(RHICmdList, Shader->GetComputeShader(), Shader->NumMaxVertices, Cmd.NumMaxVertices);
-			SetShaderValue(RHICmdList, Shader->GetComputeShader(), Shader->NumCPUVertices, Cmd.NumCPUVertices);
+					Cmd.ShaderBindings.SetOnCommandListForCompute(RHICmdList, Shader->GetComputeShader());
+					Shader->RWVertexPositions.SetBuffer(RHICmdList, Shader->GetComputeShader(), *Cmd.TargetBuffer);
+					SetShaderValue(RHICmdList, Shader->GetComputeShader(), Shader->NumMaxVertices, Cmd.TargetBuffer->NumBytes / sizeof(FVector));
+					SetShaderValue(RHICmdList, Shader->GetComputeShader(), Shader->NumCPUVertices, Cmd.NumCPUVertices);
 
-			RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp<uint32>(Cmd.NumMaxVertices, 256), 1, 1);
-			Shader->RWVertexPositions.UnsetUAV(RHICmdList, Shader->GetComputeShader());
+					RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp<uint32>(Cmd.NumMaxVertices, 256), 1, 1);
+
+					Shader->RWVertexPositions.UnsetUAV(RHICmdList, Shader->GetComputeShader());
+				}
+			}
 		}
 
 		TArray<FAccelerationStructureUpdateParams> BuildParams;
+		TArray<FAccelerationStructureUpdateParams> RefitParams;
 
 		for (auto& Cmd : *DispatchCommands)
 		{
-			BuildParams.Add(FAccelerationStructureUpdateParams { Cmd.TargetGeometry->RayTracingGeometryRHI, Cmd.TargetBuffer->Buffer });
+			if (Cmd.bRefit)
+				RefitParams.Add(FAccelerationStructureUpdateParams{ Cmd.TargetGeometry->RayTracingGeometryRHI, Cmd.TargetBuffer->Buffer });
+			else
+				BuildParams.Add(FAccelerationStructureUpdateParams { Cmd.TargetGeometry->RayTracingGeometryRHI, Cmd.TargetBuffer->Buffer });
 		}
 
-		RHICmdList.BuildAccelerationStructures(BuildParams);
+		{
+			SCOPED_DRAW_EVENT(RHICmdList, Build);
+			RHICmdList.BuildAccelerationStructures(BuildParams);
+		}
+
+		{
+			SCOPED_DRAW_EVENT(RHICmdList, Refit);
+			RHICmdList.UpdateAccelerationStructures(RefitParams);
+		}
 
 		Clear();
 	}

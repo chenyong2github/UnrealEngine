@@ -95,11 +95,27 @@ SHADER_PARAMETER(FVector4, SubsectionSizeVertsLayerUVPan)
 SHADER_PARAMETER(FVector4, SubsectionOffsetParams)
 SHADER_PARAMETER(FVector4, LightmapSubsectionOffsetParams)
 SHADER_PARAMETER(FMatrix, LocalToWorldNoScaling)
+SHADER_PARAMETER_TEXTURE(Texture2D, HeightmapTexture)
+SHADER_PARAMETER_SAMPLER(SamplerState, HeightmapTextureSampler)
+SHADER_PARAMETER_TEXTURE(Texture2D, NormalmapTexture)
+SHADER_PARAMETER_SAMPLER(SamplerState, NormalmapTextureSampler)
+SHADER_PARAMETER_TEXTURE(Texture2D, XYOffsetmapTexture)
+SHADER_PARAMETER_SAMPLER(SamplerState, XYOffsetmapTextureSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeVertexFactoryMVFParameters, LANDSCAPE_API)
+	SHADER_PARAMETER(FIntPoint, SubXY)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+typedef TUniformBufferRef<FLandscapeVertexFactoryMVFParameters> FLandscapeVertexFactoryMVFUniformBufferRef;
 
 /* Data needed for the landscape vertex factory to set the render state for an individual batch element */
 struct FLandscapeBatchElementParams
 {
+#if RHI_RAYTRACING
+	FLandscapeVertexFactoryMVFUniformBufferRef LandscapeVertexFactoryMVFUniformBuffer;
+#endif
 	const TUniformBuffer<FLandscapeUniformShaderParameters>* LandscapeUniformShaderParametersResource;
 	const FMatrix* LocalToWorldNoScalingPtr;
 
@@ -120,17 +136,8 @@ public:
 class FLandscapeVertexFactoryPixelShaderParameters : public FVertexFactoryShaderParameters
 {
 public:
-	/**
-	* Bind shader constants by name
-	* @param	ParameterMap - mapping of named shader constants to indices
-	*/
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override;
-
-	/**
-	* Serialize shader params to an archive
-	* @param	Ar - archive to serialize to
-	*/
-	virtual void Serialize(FArchive& Ar) override;
+	virtual void Bind(const class FShaderParameterMap& ParameterMap) {}
+	virtual void Serialize(FArchive& Ar) {}
 
 	virtual void GetElementShaderBindings(
 		const class FSceneInterface* Scene,
@@ -148,11 +155,6 @@ public:
 	{
 		return sizeof(*this);
 	}
-
-private:
-	FShaderResourceParameter NormalmapTextureParameter;
-	FShaderResourceParameter NormalmapTextureParameterSampler;
-	FShaderParameter LocalToWorldNoScalingParameter;
 };
 
 /** vertex factory for VTF-heightmap terrain  */
@@ -339,6 +341,10 @@ public:
 #if WITH_EDITOR
 	FIndexBuffer* GrassIndexBuffer;
 	TArray<int32, TInlineAllocator<8>> GrassIndexMipOffsets;
+#endif
+
+#if RHI_RAYTRACING
+	TArray<FIndexBuffer*> ZeroOffsetIndexBuffers;
 #endif
 
 	FLandscapeSharedBuffers(int32 SharedBuffersKey, int32 SubsectionSizeQuads, int32 NumSubsections, ERHIFeatureLevel::Type FeatureLevel, bool bRequiresAdjacencyInformation, int32 NumOcclusionVertices);
@@ -541,6 +547,20 @@ public:
 		FVector4 LodTessellationParams;
 	};
 
+#if RHI_RAYTRACING
+	struct FLandscapeSectionRayTracingState
+	{
+		int8 CurrentLOD;
+		FRayTracingGeometry Geometry;
+		FRWBuffer RayTracingDynamicVertexBuffer;
+		FLandscapeVertexFactoryMVFUniformBufferRef UniformBuffer;
+
+		FLandscapeSectionRayTracingState() : CurrentLOD(-1) {}
+	};
+
+	TStaticArray<FLandscapeSectionRayTracingState, MAX_SUBSECTION_COUNT> SectionRayTracingStates;
+#endif
+
 protected:
 	int8						MaxLOD;		// Maximum LOD level, user override possible
 	bool						UseTessellationComponentScreenSizeFalloff:1;	// Tell if we should apply a Tessellation falloff
@@ -742,6 +762,11 @@ public:
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	virtual int32 GetLightMapResolution() const override { return LightMapResolution; }
+#endif
+
+#if RHI_RAYTRACING
+	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override final;
+	virtual bool IsRayTracingRelevant() const override { return true; }
 #endif
 };
 

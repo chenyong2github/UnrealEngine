@@ -38,6 +38,7 @@ LandscapeRender.cpp: New terrain rendering
 #include "HAL/LowLevelMemTracker.h"
 #include "MeshMaterialShader.h"
 #include "VT/RuntimeVirtualTexture.h"
+#include "RayTracingInstance.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, "LandscapeParameters");
 
@@ -1023,6 +1024,34 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 		}
 	}
 #endif
+
+#if RHI_RAYTRACING
+	for (int32 SubY = 0; SubY < NumSubsections; SubY++)
+	{
+		for (int32 SubX = 0; SubX < NumSubsections; SubX++)
+		{
+			const int8 SubSectionIdx = SubX + SubY * NumSubsections;
+
+			int32 LodSubsectionSizeVerts = (SubsectionSizeVerts >> 0);
+			uint32 NumPrimitives = FMath::Square((LodSubsectionSizeVerts - 1)) * 2;
+
+			FRayTracingGeometryInitializer Initializer;
+			FRHIResourceCreateInfo CreateInfo;
+			Initializer.PositionVertexBuffer = RHICreateVertexBuffer(sizeof(FVector4) * NumPrimitives * 3, BUF_UnorderedAccess | BUF_ShaderResource, CreateInfo);
+			Initializer.IndexBuffer = nullptr;
+			Initializer.BaseVertexIndex = 0;
+			Initializer.VertexBufferStride = sizeof(FVector);
+			Initializer.TotalPrimitiveCount = NumPrimitives;
+			Initializer.VertexBufferElementType = VET_Float3;
+			Initializer.GeometryType = RTGT_Triangles;
+			Initializer.bFastBuild = true;
+			Initializer.bAllowUpdate = true;
+
+			SectionRayTracingStates[SubSectionIdx].Geometry.SetInitializer(Initializer);
+			SectionRayTracingStates[SubSectionIdx].Geometry.InitResource();
+		}
+	}
+#endif
 }
 
 void FLandscapeComponentSceneProxy::OnLevelAddedToWorld()
@@ -1046,6 +1075,18 @@ FLandscapeComponentSceneProxy::~FLandscapeComponentSceneProxy()
 		}
 		SharedBuffers = nullptr;
 	}
+
+#if RHI_RAYTRACING
+	for (int32 SubY = 0; SubY < NumSubsections; SubY++)
+	{
+		for (int32 SubX = 0; SubX < NumSubsections; SubX++)
+		{
+			const int8 SubSectionIdx = SubX + SubY * NumSubsections;
+			SectionRayTracingStates[SubSectionIdx].Geometry.ReleaseResource();
+			SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer.Release();
+		}
+	}
+#endif
 }
 
 bool FLandscapeComponentSceneProxy::CanBeOccluded() const
@@ -1310,6 +1351,39 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 		0,
 		0
 	);
+
+	if (HeightmapTexture)
+	{
+		LandscapeParams.HeightmapTexture = HeightmapTexture->TextureReference.TextureReferenceRHI;
+		LandscapeParams.HeightmapTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	}
+	else
+	{
+		LandscapeParams.HeightmapTexture = GBlackTexture->TextureRHI;
+		LandscapeParams.HeightmapTextureSampler = GBlackTexture->SamplerStateRHI;
+	}
+
+	if (XYOffsetmapTexture)
+	{
+		LandscapeParams.XYOffsetmapTexture = XYOffsetmapTexture->TextureReference.TextureReferenceRHI;
+		LandscapeParams.XYOffsetmapTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	}
+	else
+	{
+		LandscapeParams.XYOffsetmapTexture = GBlackTexture->TextureRHI;
+		LandscapeParams.XYOffsetmapTextureSampler = GBlackTexture->SamplerStateRHI;
+	}
+
+	if (NormalmapTexture)
+	{
+		LandscapeParams.NormalmapTexture = NormalmapTexture->TextureReference.TextureReferenceRHI;
+		LandscapeParams.NormalmapTextureSampler = NormalmapTexture->Resource->SamplerStateRHI;
+	}
+	else
+	{
+		LandscapeParams.NormalmapTexture = GBlackTexture->TextureRHI;
+		LandscapeParams.NormalmapTextureSampler = GBlackTexture->SamplerStateRHI;
+	}
 
 	LandscapeUniformShaderParameters.SetContents(LandscapeParams);
 }
@@ -2218,7 +2292,6 @@ float FLandscapeComponentSceneProxy::GetNeighborLOD(const FSceneView& InView, fl
 	// Handle subsection
 	if (InSubSectionX != INDEX_NONE && InSubSectionY != INDEX_NONE)
 	{
-
 		const SubSectionData& Data = SubSectionValues[CurrentSubSectionIndex][InNeighborIndex];
 		DesiredSubSectionX = InSubSectionX + Data.SubSectionOffsetX;
 		DesiredSubSectionY = InSubSectionY + Data.SubSectionOffsetY;
@@ -2238,6 +2311,8 @@ float FLandscapeComponentSceneProxy::GetNeighborLOD(const FSceneView& InView, fl
 		}
 		else
 		{
+			DesiredSubSectionX = InSubSectionX;
+			DesiredSubSectionY = InSubSectionY;
 			DesiredSubSectionIndex = CurrentSubSectionIndex;
 		}
 	}
@@ -2260,44 +2335,54 @@ float FLandscapeComponentSceneProxy::GetNeighborLOD(const FSceneView& InView, fl
 
 	if (ComputeNeighborCustomDataLOD)
 	{
-		FVector LandscapeComponentOrigin = LandscapeComponent->Bounds.Origin;
-		float LandscapeComponentMaxExtends = ComponentMaxExtend;
+		FBoxSphereBounds NeighborBounds = LandscapeComponent->Bounds;
+		float NeighborMaxExtends = ComponentMaxExtend;
+		FLandscapeComponentSceneProxy* NeighborSceneProxy = nullptr;
 
 		if (Neighbor != nullptr)
 		{
-			const ULandscapeComponent* NeighborComponent = Neighbor->GetLandscapeComponent();
-
-			if (Neighbor->GetLandscapeComponent() != nullptr)
-			{
-				LandscapeComponentOrigin = NeighborComponent->Bounds.Origin;
-				LandscapeComponentMaxExtends = NeighborComponent->SubsectionSizeQuads * FMath::Max(NeighborComponent->GetComponentTransform().GetScale3D().X, NeighborComponent->GetComponentTransform().GetScale3D().Y);
-			}
+			NeighborSceneProxy = (FLandscapeComponentSceneProxy*)Neighbor;
+			NeighborBounds = NeighborSceneProxy->GetBounds();
+			NeighborMaxExtends = NeighborSceneProxy->SubsectionSizeQuads * FMath::Max(NeighborSceneProxy->GetLocalToWorld().GetScaleVector().X, NeighborSceneProxy->GetLocalToWorld().GetScaleVector().Y);
 		}
 
 		if (NumSubsections > 1)
 		{
-			float SubSectionMaxExtend = LandscapeComponentMaxExtends / 2.0f;
-			FVector ComponentTopLeftCorner = LandscapeComponentOrigin - FVector(SubSectionMaxExtend, SubSectionMaxExtend, 0.0f);
+			float NeighborSubsectionMaxExtends = NeighborMaxExtends / 2.0f;
+			FVector ComponentTopLeftCorner = NeighborBounds.Origin - FVector(NeighborSubsectionMaxExtends, NeighborSubsectionMaxExtends, 0.0f);
 
-			FVector SubSectionOrigin = ComponentTopLeftCorner + FVector(LandscapeComponentMaxExtends * DesiredSubSectionX, LandscapeComponentMaxExtends * DesiredSubSectionY, 0.0f);
-			float MeshBatchScreenSizeSquared = GetComponentScreenSize(&InView, SubSectionOrigin, SubSectionMaxExtend, LandscapeComponent->Bounds.SphereRadius / 2.0f);
+			FVector SubSectionOrigin = ComponentTopLeftCorner + FVector(NeighborMaxExtends * DesiredSubSectionX, NeighborMaxExtends * DesiredSubSectionY, 0.0f);
+			float MeshBatchScreenSizeSquared = GetComponentScreenSize(&InView, SubSectionOrigin, NeighborSubsectionMaxExtends, NeighborBounds.SphereRadius / 2.0f);
 
 			FViewCustomDataLOD NeighborLODData;
-			CalculateLODFromScreenSize(InView, MeshBatchScreenSizeSquared, InView.LODDistanceFactor, DesiredSubSectionIndex, NeighborLODData);
+			if (NeighborSceneProxy != nullptr)
+			{
+				// Needs to pull some data like per-component LOD bias from neighbor scene proxy
+				NeighborSceneProxy->CalculateLODFromScreenSize(InView, MeshBatchScreenSizeSquared, InView.LODDistanceFactor, DesiredSubSectionIndex, NeighborLODData);
+			}
+			else
+			{
+				CalculateLODFromScreenSize(InView, MeshBatchScreenSizeSquared, InView.LODDistanceFactor, DesiredSubSectionIndex, NeighborLODData);
+			}
+
 			const FViewCustomDataSubSectionLOD& SubSectionData = NeighborLODData.SubSections[DesiredSubSectionIndex];
 			check(SubSectionData.fBatchElementCurrentLOD != -1.0f);
 
-			if (SubSectionData.fBatchElementCurrentLOD > InBatchElementCurrentLOD)
-			{
-				NeighborLOD = SubSectionData.fBatchElementCurrentLOD;
-			}
+			NeighborLOD = FMath::Max(SubSectionData.fBatchElementCurrentLOD, InBatchElementCurrentLOD);
 		}
 		else
 		{
-			float MeshBatchScreenSizeSquared = GetComponentScreenSize(&InView, LandscapeComponentOrigin, LandscapeComponentMaxExtends, LandscapeComponent->Bounds.SphereRadius);
+			float MeshBatchScreenSizeSquared = GetComponentScreenSize(&InView, NeighborBounds.Origin, NeighborMaxExtends, NeighborBounds.SphereRadius);
 
 			FViewCustomDataLOD NeighborLODData;
-			CalculateLODFromScreenSize(InView, MeshBatchScreenSizeSquared, InView.LODDistanceFactor, 0, NeighborLODData);
+			if (NeighborSceneProxy != nullptr)
+			{
+				NeighborSceneProxy->CalculateLODFromScreenSize(InView, MeshBatchScreenSizeSquared, InView.LODDistanceFactor, DesiredSubSectionIndex, NeighborLODData);
+			}
+			else
+			{
+				CalculateLODFromScreenSize(InView, MeshBatchScreenSizeSquared, InView.LODDistanceFactor, DesiredSubSectionIndex, NeighborLODData);
+			}
 
 			FViewCustomDataSubSectionLOD& SubSectionLODData = NeighborLODData.SubSections[0];
 			check(SubSectionLODData.fBatchElementCurrentLOD != -1.0f);
@@ -2973,6 +3058,111 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 	INC_DWORD_STAT_BY(STAT_LandscapeTriangles, NumTriangles * NumPasses);
 }
 
+#if RHI_RAYTRACING
+void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
+{
+	FMemStackBase& PrimitiveCustomDataMemStack = FMemStack::Get();
+
+	float MeshScreenSizeSquared = 0;
+	int32 ForcedLODLevel = (Context.ReferenceView->Family->EngineShowFlags.LOD) ? GetCVarForceLOD() : 0;
+
+	FLODMask LODToRender = GetCustomLOD(*Context.ReferenceView, Context.ReferenceView->LODDistanceFactor, ForcedLODLevel, MeshScreenSizeSquared);
+	FViewCustomDataLOD* InPrimitiveCustomData = (FViewCustomDataLOD*)InitViewCustomData(*Context.ReferenceView, Context.ReferenceView->LODDistanceFactor, PrimitiveCustomDataMemStack, false, false, &LODToRender, MeshScreenSizeSquared);
+	PostInitViewCustomData(*Context.ReferenceView, InPrimitiveCustomData);
+
+	FLandscapeElementParamArray& ParameterArray = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FLandscapeElementParamArray>();
+	ParameterArray.ElementParams.AddDefaulted(NumSubsections * NumSubsections);
+
+	if (AvailableMaterials.Num() == 0)
+	{
+		return;
+	}
+
+	const int8 CurrentLODIndex = InPrimitiveCustomData->SubSections[0].BatchElementCurrentLOD;
+	int8 MaterialIndex = LODIndexToMaterialIndex.IsValidIndex(CurrentLODIndex) ? LODIndexToMaterialIndex[CurrentLODIndex] : INDEX_NONE;
+	UMaterialInterface* SelectedMaterial = MaterialIndex != INDEX_NONE ? AvailableMaterials[MaterialIndex] : nullptr;
+
+	// this is really not normal that we have no material at this point, so do not continue
+	if (SelectedMaterial == nullptr)
+	{
+		return;
+	}
+
+	FMeshBatch BaseMeshBatch;
+	BaseMeshBatch.VertexFactory = VertexFactory;
+	BaseMeshBatch.MaterialRenderProxy = SelectedMaterial->GetRenderProxy();
+	BaseMeshBatch.LCI = ComponentLightInfo.Get();
+	BaseMeshBatch.CastShadow = true;
+	BaseMeshBatch.CastRayTracedShadow = true;
+	BaseMeshBatch.bUseForMaterial = true;
+	BaseMeshBatch.SegmentIndex = 0;
+
+	BaseMeshBatch.Elements.Empty();
+
+	for (int32 SubY = 0; SubY < NumSubsections; SubY++)
+	{
+		for (int32 SubX = 0; SubX < NumSubsections; SubX++)
+		{
+			const int8 SubSectionIdx = SubX + SubY * NumSubsections;
+			const int8 CurrentLOD = InPrimitiveCustomData->SubSections[SubSectionIdx].BatchElementCurrentLOD;
+
+			FMeshBatch MeshBatch = BaseMeshBatch;
+
+			FMeshBatchElement BatchElement;
+			FLandscapeBatchElementParams& BatchElementParams = ParameterArray.ElementParams[SubSectionIdx];
+
+			BatchElementParams.LocalToWorldNoScalingPtr = &LocalToWorldNoScaling;
+			BatchElementParams.LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
+			BatchElementParams.SceneProxy = this;
+			BatchElementParams.SubX = SubX;
+			BatchElementParams.SubY = SubY;
+			BatchElementParams.CurrentLOD = CurrentLOD;
+			BatchElement.UserData = &BatchElementParams;
+			BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
+
+			int32 LodSubsectionSizeVerts = SubsectionSizeVerts >> CurrentLOD;
+			uint32 NumPrimitives = FMath::Square(LodSubsectionSizeVerts - 1) * 2;
+
+			BatchElement.IndexBuffer = SharedBuffers->ZeroOffsetIndexBuffers[CurrentLOD];
+			BatchElement.FirstIndex = 0;
+			BatchElement.NumPrimitives = NumPrimitives;
+
+			MeshBatch.Elements.Add(BatchElement);
+
+			SectionRayTracingStates[SubSectionIdx].Geometry.Initializer.IndexBuffer = BatchElement.IndexBuffer->IndexBufferRHI;
+
+			{
+				FLandscapeVertexFactoryMVFParameters UniformBufferParams;
+
+				UniformBufferParams.SubXY = FIntPoint(SubX, SubY);
+
+				BatchElementParams.LandscapeVertexFactoryMVFUniformBuffer = FLandscapeVertexFactoryMVFUniformBufferRef::CreateUniformBufferImmediate(UniformBufferParams, UniformBuffer_SingleFrame);
+			}
+
+			Context.DynamicRayTracingGeometriesToUpdate.Add(
+				FRayTracingDynamicGeometryUpdateParams
+				{
+					MeshBatch,
+					false,
+					(uint32)FMath::Square(LodSubsectionSizeVerts),
+					(uint32)FMath::Square(LodSubsectionSizeVerts) * sizeof(FVector),
+					(uint32)FMath::Square(LodSubsectionSizeVerts - 1) * 2,
+					&SectionRayTracingStates[SubSectionIdx].Geometry,
+					&SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer
+				}
+			);
+
+			FRayTracingInstance RayTracingInstance;
+			RayTracingInstance.Geometry = &SectionRayTracingStates[SubSectionIdx].Geometry;
+			RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
+			RayTracingInstance.Materials.Add(MeshBatch);
+			RayTracingInstance.BuildInstanceMaskAndFlags();
+			OutRayTracingInstances.Add(RayTracingInstance);
+		}
+	}
+}
+#endif
+
 bool FLandscapeComponentSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
 {
 	// TODO: implement
@@ -3234,6 +3424,37 @@ void FLandscapeSharedBuffers::CreateIndexBuffers(ERHIFeatureLevel::Type InFeatur
 		}
 
 		IndexBuffers[Mip] = IndexBuffer;
+
+#if RHI_RAYTRACING
+		if (IsRayTracingEnabled())
+		{
+			TArray<INDEX_TYPE> ZeroOffsetIndices;
+
+			for (int32 y = 0; y < LodSubsectionSizeQuads; y++)
+			{
+				for (int32 x = 0; x < LodSubsectionSizeQuads; x++)
+				{
+					INDEX_TYPE i00 = (x + 0) + (y + 0) * (SubsectionSizeVerts >> Mip);
+					INDEX_TYPE i10 = (x + 1) + (y + 0) * (SubsectionSizeVerts >> Mip);
+					INDEX_TYPE i11 = (x + 1) + (y + 1) * (SubsectionSizeVerts >> Mip);
+					INDEX_TYPE i01 = (x + 0) + (y + 1) * (SubsectionSizeVerts >> Mip);
+
+					ZeroOffsetIndices.Add(i00);
+					ZeroOffsetIndices.Add(i11);
+					ZeroOffsetIndices.Add(i10);
+
+					ZeroOffsetIndices.Add(i00);
+					ZeroOffsetIndices.Add(i01);
+					ZeroOffsetIndices.Add(i11);
+				}
+			}
+
+			FRawStaticIndexBuffer16or32<INDEX_TYPE>* ZeroOffsetIndexBuffer = new FRawStaticIndexBuffer16or32<INDEX_TYPE>(false);
+			ZeroOffsetIndexBuffer->AssignNewBuffer(ZeroOffsetIndices);
+			ZeroOffsetIndexBuffer->InitResource();
+			ZeroOffsetIndexBuffers[Mip] = ZeroOffsetIndexBuffer;
+		}
+#endif
 	}
 }
 
@@ -3346,6 +3567,13 @@ FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey,
 	FMemory::Memzero(IndexBuffers, sizeof(FIndexBuffer*)* NumIndexBuffers);
 	IndexRanges = new FLandscapeIndexRanges[NumIndexBuffers]();
 
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		ZeroOffsetIndexBuffers.AddZeroed(NumIndexBuffers);
+	}
+#endif
+
 	// See if we need to use 16 or 32-bit index buffers
 	if (NumVertices > 65535)
 	{
@@ -3383,6 +3611,18 @@ FLandscapeSharedBuffers::~FLandscapeSharedBuffers()
 	}
 	delete[] IndexBuffers;
 	delete[] IndexRanges;
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		while (ZeroOffsetIndexBuffers.Num() > 0)
+		{
+			FIndexBuffer* Buffer = ZeroOffsetIndexBuffers.Pop();
+			Buffer->ReleaseResource();
+			delete Buffer;
+		}
+	}
+#endif
 
 #if WITH_EDITOR
 	if (GrassIndexBuffer)
@@ -3506,15 +3746,11 @@ public:
 	*/
 	virtual void Bind(const FShaderParameterMap& ParameterMap) override
 	{
-		HeightmapTextureParameter.Bind(ParameterMap, TEXT("HeightmapTexture"));
-		HeightmapTextureParameterSampler.Bind(ParameterMap, TEXT("HeightmapTextureSampler"));
+		LodBiasParameter.Bind(ParameterMap, TEXT("LodBias"));
 		LodValuesParameter.Bind(ParameterMap, TEXT("LodValues"));
 		LodTessellationParameter.Bind(ParameterMap, TEXT("LodTessellationParams"));
-		NeighborSectionLodParameter.Bind(ParameterMap, TEXT("NeighborSectionLod"));
-		LodBiasParameter.Bind(ParameterMap, TEXT("LodBias"));
 		SectionLodsParameter.Bind(ParameterMap, TEXT("SectionLods"));
-		XYOffsetTextureParameter.Bind(ParameterMap, TEXT("XYOffsetmapTexture"));
-		XYOffsetTextureParameterSampler.Bind(ParameterMap, TEXT("XYOffsetmapTextureSampler"));
+		NeighborSectionLodParameter.Bind(ParameterMap, TEXT("NeighborSectionLod"));
 	}
 
 	/**
@@ -3523,15 +3759,11 @@ public:
 	*/
 	virtual void Serialize(FArchive& Ar) override
 	{
-		Ar << HeightmapTextureParameter;
-		Ar << HeightmapTextureParameterSampler;
 		Ar << LodValuesParameter;
 		Ar << LodTessellationParameter;
 		Ar << NeighborSectionLodParameter;
 		Ar << LodBiasParameter;
 		Ar << SectionLodsParameter;
-		Ar << XYOffsetTextureParameter;
-		Ar << XYOffsetTextureParameterSampler;
 	}
 
 	virtual void GetElementShaderBindings(
@@ -3555,10 +3787,12 @@ public:
 
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(), *BatchElementParams->LandscapeUniformShaderParametersResource);
 
-		if (HeightmapTextureParameter.IsBound())
+#if RHI_RAYTRACING
+		if (IsRayTracingEnabled())
 		{
-			ShaderBindings.AddTexture(HeightmapTextureParameter, HeightmapTextureParameterSampler, TStaticSamplerState<SF_Point>::GetRHI(), SceneProxy->HeightmapTexture->Resource->TextureRHI);
+			ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeVertexFactoryMVFParameters>(), BatchElementParams->LandscapeVertexFactoryMVFUniformBuffer);
 		}
+#endif
 
 		if (LodValuesParameter.IsBound())
 		{
@@ -3670,11 +3904,6 @@ public:
 				ShaderBindings.Add(NeighborSectionLodParameter, CurrentNeighborLOD);
 			}				
 		}
-
-		if (XYOffsetTextureParameter.IsBound() && SceneProxy->XYOffsetmapTexture)
-		{
-			ShaderBindings.AddTexture(XYOffsetTextureParameter, XYOffsetTextureParameterSampler, TStaticSamplerState<SF_Point>::GetRHI(), SceneProxy->XYOffsetmapTexture->Resource->TextureRHI);
-		}
 	}
 
 	virtual uint32 GetSize() const override
@@ -3688,10 +3917,6 @@ protected:
 	FShaderParameter NeighborSectionLodParameter;
 	FShaderParameter LodBiasParameter;
 	FShaderParameter SectionLodsParameter;
-	FShaderResourceParameter HeightmapTextureParameter;
-	FShaderResourceParameter HeightmapTextureParameterSampler;
-	FShaderResourceParameter XYOffsetTextureParameter;
-	FShaderResourceParameter XYOffsetTextureParameterSampler;
 	TShaderUniformBufferParameter<FLandscapeUniformShaderParameters> LandscapeShaderParameters;
 };
 
@@ -3723,11 +3948,6 @@ public:
 
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(), *BatchElementParams->LandscapeUniformShaderParametersResource);
 
-		if (HeightmapTextureParameter.IsBound())
-		{
-			ShaderBindings.AddTexture(HeightmapTextureParameter, HeightmapTextureParameterSampler, TStaticSamplerState<SF_Point>::GetRHI(), SceneProxy->HeightmapTexture->Resource->TextureRHI);
-		}
-
 		if (LodValuesParameter.IsBound())
 		{
 			ShaderBindings.Add(LodValuesParameter, SceneProxy->GetShaderLODValues(BatchElementParams->CurrentLOD));
@@ -3743,27 +3963,6 @@ public:
 //
 // FLandscapeVertexFactoryPixelShaderParameters
 //
-/**
-* Bind shader constants by name
-* @param	ParameterMap - mapping of named shader constants to indices
-*/
-void FLandscapeVertexFactoryPixelShaderParameters::Bind(const FShaderParameterMap& ParameterMap)
-{
-	NormalmapTextureParameter.Bind(ParameterMap, TEXT("NormalmapTexture"));
-	NormalmapTextureParameterSampler.Bind(ParameterMap, TEXT("NormalmapTextureSampler"));
-	LocalToWorldNoScalingParameter.Bind(ParameterMap, TEXT("LocalToWorldNoScaling"));
-}
-
-/**
-* Serialize shader params to an archive
-* @param	Ar - archive to serialize to
-*/
-void FLandscapeVertexFactoryPixelShaderParameters::Serialize(FArchive& Ar)
-{
-	Ar << NormalmapTextureParameter
-		<< NormalmapTextureParameterSampler
-		<< LocalToWorldNoScalingParameter;
-}
 
 void FLandscapeVertexFactoryPixelShaderParameters::GetElementShaderBindings(
 	const class FSceneInterface* Scene,
@@ -3781,25 +3980,14 @@ void FLandscapeVertexFactoryPixelShaderParameters::GetElementShaderBindings(
 
 	const FLandscapeBatchElementParams* BatchElementParams = (const FLandscapeBatchElementParams*)BatchElement.UserData;
 
-	if (LocalToWorldNoScalingParameter.IsBound())
-	{
-		ShaderBindings.Add(LocalToWorldNoScalingParameter, *BatchElementParams->LocalToWorldNoScalingPtr);
-	}
-
-	if (NormalmapTextureParameter.IsBound())
-	{
-		const FTexture* NormalmapTexture = BatchElementParams->SceneProxy->NormalmapTexture->Resource;
-		ShaderBindings.AddTexture(
-			NormalmapTextureParameter,
-			NormalmapTextureParameterSampler,
-			NormalmapTexture->SamplerStateRHI,
-			NormalmapTexture->TextureRHI);
-	}
+	ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(), *BatchElementParams->LandscapeUniformShaderParametersResource);
 }
 
 //
 // FLandscapeVertexFactory
 //
+
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeVertexFactoryMVFParameters, "LandscapeMVF");
 
 void FLandscapeVertexFactory::InitRHI()
 {
@@ -3823,6 +4011,10 @@ FVertexFactoryShaderParameters* FLandscapeVertexFactory::ConstructShaderParamete
 	switch (ShaderFrequency)
 	{
 	case SF_Vertex:
+#if RHI_RAYTRACING
+	case SF_Compute:
+	case SF_RayHitGroup:
+#endif
 		return new FLandscapeVertexFactoryVertexShaderParameters();
 		break;
 	case SF_Pixel:

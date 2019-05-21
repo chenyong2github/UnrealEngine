@@ -372,6 +372,7 @@ void NiagaraRendererSprites::CreateMeshBatchForView(
 
 	MeshBatch.VertexFactory = &CollectorResources.VertexFactory;
 	MeshBatch.CastShadow = SceneProxy->CastsDynamicShadow();
+	MeshBatch.CastRayTracedShadow = SceneProxy->CastsDynamicShadow();
 	MeshBatch.bUseAsOccluder = false;
 	MeshBatch.ReverseCulling = SceneProxy->IsLocalToWorldDeterminantNegative();
 	MeshBatch.Type = PT_TriangleList;
@@ -493,14 +494,18 @@ void NiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		RayTracingInstance.Materials.Add(MeshBatch);
 
 		// Update dynamic ray tracing geometry
-		Context.DynamicRayTracingGeometriesToUpdate.AddDynamicMeshBatchForGeometryUpdate(
-			Context.Scene,
-			Context.ReferenceView,
-			SceneProxy,
-			MeshBatch,
-			RayTracingGeometry,
-			6 * DynamicDataSprites->RTParticleData.GetNumInstances(),
-			RayTracingDynamicVertexBuffer);
+		Context.DynamicRayTracingGeometriesToUpdate.Add(
+			FRayTracingDynamicGeometryUpdateParams
+			{
+				MeshBatch,
+				MeshBatch.Elements[0].NumPrimitives == 0,
+				6 * DynamicDataSprites->RTParticleData.GetNumInstances(),
+				6 * DynamicDataSprites->RTParticleData.GetNumInstances() * sizeof(FVector),
+				2 * DynamicDataSprites->RTParticleData.GetNumInstances(),
+				&RayTracingGeometry,
+				&RayTracingDynamicVertexBuffer
+			}
+		);
 	}
 
 	RayTracingInstance.BuildInstanceMaskAndFlags();

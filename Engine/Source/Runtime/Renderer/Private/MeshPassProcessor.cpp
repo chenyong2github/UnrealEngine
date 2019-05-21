@@ -304,13 +304,35 @@ void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 
 	const TArray<FShaderLooseParameterBufferInfo>& LooseParameterBuffers = SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers;	
 
-	const void* LooseParameterData = SingleShaderBindings.GetLooseDataStart();
-	uint32 LooseParameterDataSize = 0;
-	check(LooseParameterBuffers.Num() <= 1);
+	// This array must be alive until RHICmdList.SetRayTracingHitGroup() finishes
+	TArray<uint8> ReorderedLooseParameters;
+
 	if (LooseParameterBuffers.Num())
 	{
-		LooseParameterDataSize = LooseParameterBuffers[0].BufferSize;
-		check(LooseParameterBuffers[0].BufferIndex == 0);
+		check(LooseParameterBuffers.Num() <= 1);
+
+		const FShaderLooseParameterBufferInfo& LooseParameterBuffer = SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers[0];
+		check(LooseParameterBuffer.BufferIndex == 0);
+
+		uint32 LooseParameterDataSize = 0;
+
+		for (int32 LooseParameterIndex = 0; LooseParameterIndex < LooseParameterBuffer.Parameters.Num(); LooseParameterIndex++)
+		{
+			FShaderParameterInfo LooseParameter = LooseParameterBuffer.Parameters[LooseParameterIndex];
+			LooseParameterDataSize = FMath::Max<uint32>(LooseParameterDataSize, LooseParameter.BaseIndex + LooseParameter.Size);
+		}
+
+		ReorderedLooseParameters.AddZeroed(LooseParameterDataSize);
+
+		const uint8* LooseDataOffset = SingleShaderBindings.GetLooseDataStart();
+
+		for (int32 LooseParameterIndex = 0; LooseParameterIndex < LooseParameterBuffer.Parameters.Num(); LooseParameterIndex++)
+		{
+			FShaderParameterInfo LooseParameter = LooseParameterBuffer.Parameters[LooseParameterIndex];
+			FMemory::Memcpy(ReorderedLooseParameters.GetData() + LooseParameter.BaseIndex, LooseDataOffset, LooseParameter.Size);
+
+			LooseDataOffset += LooseParameter.Size;
+		}
 	}
 
 	check(SegmentIndex < 0xFF);
@@ -318,7 +340,7 @@ void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 	const uint32 UserData = 0; // UserData could be used to store material ID or any other kind of per-material constant. This can be retrieved in hit shaders via GetHitGroupUserData().
 	RHICmdList.SetRayTracingHitGroup(Scene, InstanceIndex, SegmentIndex, ShaderSlot, PipelineState, HitGroupIndex, 
 		NumUniformBuffersToSet, LocalUniformBuffers,
-		LooseParameterDataSize, LooseParameterData,
+		ReorderedLooseParameters.Num(), ReorderedLooseParameters.GetData(),
 		UserData);
 }
 #endif // RHI_RAYTRACING

@@ -572,8 +572,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 			Scene,
 			&ReferenceView,
 			ViewFamily,
-			*ReferenceView.RayTracingMeshResourceCollector,
-			*Scene->RayTracingDynamicGeometryCollection
+			*ReferenceView.RayTracingMeshResourceCollector
 		};
 
 		int32 BroadIndex = 0;
@@ -705,6 +704,20 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 				FPrimitiveSceneProxy* SceneProxy = Scene->PrimitiveSceneProxies[PrimitiveIndex];
 				TArray<FRayTracingInstance> RayTracingInstances;
 				SceneProxy->GetDynamicRayTracingInstances(MaterialGatheringContext, RayTracingInstances);
+
+				{
+					for (auto DynamicRayTracingGeometryUpdate : MaterialGatheringContext.DynamicRayTracingGeometriesToUpdate)
+					{
+						Scene->GetRayTracingDynamicGeometryCollection()->AddDynamicMeshBatchForGeometryUpdate(
+							Scene,
+							&ReferenceView,
+							SceneProxy,
+							DynamicRayTracingGeometryUpdate
+						);
+					}
+
+					MaterialGatheringContext.DynamicRayTracingGeometriesToUpdate.Reset();
+				}
 
 				if (RayTracingInstances.Num() > 0)
 				{

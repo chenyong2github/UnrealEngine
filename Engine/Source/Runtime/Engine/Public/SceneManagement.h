@@ -2248,6 +2248,21 @@ public:
 	}
 };
 
+struct FRayTracingDynamicGeometryUpdateParams
+{
+	FMeshBatch MeshBatch;
+
+	bool bUsingIndirectDraw;
+	// When bUsingIndirectDraw == false, NumVertices == the actual number of vertices to process
+	// When bUsingIndirectDraw == true, it is the maximum possible vertices that GPU can emit
+	uint32 NumVertices;
+	uint32 VertexBufferSize;
+	uint32 NumTriangles;
+
+	FRayTracingGeometry* Geometry;
+	FRWBuffer* Buffer;
+};
+
 struct FRayTracingMaterialGatheringContext
 {
 	const class FScene* Scene;
@@ -2255,7 +2270,7 @@ struct FRayTracingMaterialGatheringContext
 	const FSceneViewFamily& ReferenceViewFamily;
 
 	FRayTracingMeshResourceCollector& RayTracingMeshResourceCollector;
-	class FRayTracingDynamicGeometryCollection& DynamicRayTracingGeometriesToUpdate;
+	TArray<FRayTracingDynamicGeometryUpdateParams> DynamicRayTracingGeometriesToUpdate;
 };
 #endif
 
