@@ -839,6 +839,13 @@ private:
 	UPythonGeneratedEnum* NewEnum;
 };
 
+void UPythonGeneratedEnum::ReleasePythonResources()
+{
+	PyType.Reset();
+	EnumValueDefs.Reset();
+	PyMetaData = FPyWrapperEnumMetaData();
+}
+
 UPythonGeneratedEnum* UPythonGeneratedEnum::GenerateEnum(PyTypeObject* InPyType)
 {
 	// Builder used to generate the enum

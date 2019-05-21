@@ -261,12 +261,6 @@ public:
 
 			float Gamma = CVarOutputGamma->GetValueOnRenderThread();
 
-			// If the Viewfamily is requesting HDR for editor usage then override the CVAR setting
-			if (ViewFamily.bIsHDR)
-			{
-				OutputDeviceValue = 3;
-			}
-
 			if (PLATFORM_APPLE && Gamma == 0.0f)
 			{
 				Gamma = 2.2f;

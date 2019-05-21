@@ -9,6 +9,7 @@
 #include "Misc/MessageDialog.h"
 #include "UnrealEdMisc.h"
 #include "Misc/ConfigCacheIni.h"
+#include "HAL/PlatformFilemanager.h"
 
 /** The editor object. */
 extern UNREALED_API class UEditorEngine* GEditor;
@@ -117,6 +118,9 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 			&& bEnableRayTracing 
 			&& !bSupportSkinCacheShaders)
 		{
+			FString FullPath = FPaths::ConvertRelativePathToFull(GetDefaultConfigFilename());
+			FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*FullPath, false);
+
 			if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("Skin Cache Disabled", "Ray Tracing requires enabling skin cache. Do you want to automatically enable skin cache now?")) == EAppReturnType::Yes)
 			{
 				bSupportSkinCacheShaders = 1;

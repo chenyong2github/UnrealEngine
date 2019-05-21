@@ -38,6 +38,12 @@ namespace EngineTest
 		public string ReportOutputURL = "";
 
 		/// <summary>
+		/// Validate DDC during tests
+		/// </summary>
+		[AutoParam]
+		public bool VerifyDDC = false;
+
+		/// <summary>
 		/// Used for having the editor and any client communicate
 		/// </summary>
 		public string SessionID = Guid.NewGuid().ToString();
@@ -53,6 +59,11 @@ namespace EngineTest
 				if (ConfigRole.RoleType == UnrealTargetRole.Editor)
 				{
 					AppConfig.CommandLine += string.Format(" -NoWatchdog -stdout -FORCELOGFLUSH -CrashForUAT -unattended -buildmachine {0} -ExecCmds=\"Automation RunTests {1}; Quit;\"", ReportOutputArg, TestFilter);
+				}
+
+				if (VerifyDDC)
+				{
+					AppConfig.CommandLine += " -VerifyDDC";
 				}
 			}
 			else

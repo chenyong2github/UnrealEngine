@@ -326,10 +326,6 @@ void FSlateRHIRenderer::CreateViewport(const TSharedRef<SWindow> Window)
 		NewInfo->ViewportRHI = RHICreateViewport( NewInfo->OSWindow, Width, Height, bFullscreen, NewInfo->PixelFormat );
 		NewInfo->bFullscreen = bFullscreen;
 
-		// Was the window created on a HDR compatable display?
-		NewInfo->bHDREnabled = RHIGetColorSpace(NewInfo->ViewportRHI) == EColorSpace::ERec2020PQ ;
-		Window->SetIsHDR(NewInfo->bHDREnabled);
-
 		WindowToViewportInfo.Add(&Window.Get(), NewInfo);
 
 		BeginInitResource(NewInfo);
@@ -656,15 +652,6 @@ static FAutoConsoleVariableRef CVarSlateWireframe(TEXT("Slate.ShowWireFrame"), S
 void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmdList, FViewportInfo& ViewportInfo, FSlateWindowElementList& WindowElementList, const struct FSlateDrawWindowCommandParams& DrawCommandParams)
 {
 	LLM_SCOPE(ELLMTag::SceneRender);
-	
-	bool bRenderOffscreen = false;	// Render to an offscreen texture which can then be finally color converted at the end.
-	
-#if WITH_EDITOR
-	if (RHIGetColorSpace(ViewportInfo.ViewportRHI)== EColorSpace::ERec2020PQ)
-	{
-		bRenderOffscreen = true;
-	}
-#endif
 
 	static uint32 LastTimestamp = FPlatformTime::Cycles();
 	{
@@ -737,8 +724,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 			FTexture2DRHIRef ViewportRT = bRenderedStereo ? nullptr : ViewportInfo.GetRenderTargetTexture();
 			FTexture2DRHIRef BackBuffer = (ViewportRT) ? ViewportRT : RHICmdList.GetViewportBackBuffer(ViewportInfo.ViewportRHI);
-			//FTexture2DRHIRef PostProceessBuffer = BackBuffer;	// If compositing UI then this will be different to the back buffer
-	
+
 			const uint32 ViewportWidth = (ViewportRT) ? ViewportRT->GetSizeX() : ViewportInfo.Width;
 			const uint32 ViewportHeight = (ViewportRT) ? ViewportRT->GetSizeY() : ViewportInfo.Height;
 
@@ -773,23 +759,6 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				bLUTStale = true;
 			}
 
-			TRefCountPtr<IPooledRenderTarget> HDRRenderRT;
-
-			if (bRenderOffscreen )
-			{
-				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(ViewportWidth, ViewportHeight),
-					PF_FloatRGBA,
-					FClearValueBinding::Transparent,
-					TexCreate_None,
-					TexCreate_ShaderResource | TexCreate_RenderTargetable,
-					false,
-					1,
-					true,
-					true));
-
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, HDRRenderRT, TEXT("HDRTargetRT"));
-			}
-
 			FTexture2DRHIRef FinalBuffer = BackBuffer;
 
 			bool bClear = DrawCommandParams.bClear;
@@ -803,13 +772,6 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 				// UI backbuffer is temp target
 				BackBuffer = ViewportInfo.UITargetRT->GetRenderTargetItem().TargetableTexture->GetTexture2D();
-			}
-
-			if (bRenderOffscreen)
-			{
-				FResolveParams ResolveParams;
-				RHICmdList.CopyToResolveTarget(FinalBuffer, FinalBuffer, ResolveParams);
-				BackBuffer = HDRRenderRT->GetRenderTargetItem().TargetableTexture->GetTexture2D();
 			}
 
 			if (SlateWireFrame)
@@ -869,7 +831,6 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 							RHICmdList,
 							BackBufferTarget,
 							BackBuffer,
-							//PostProceessBuffer,
 							ViewportInfo.bRequiresStencilTest ? ViewportInfo.DepthStencil : EmptyTarget,
 							BatchData.GetRenderBatches(),
 							RenderParams
@@ -1009,53 +970,6 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				BackBuffer = FinalBuffer;
 			} //bCompositeUI
 
-
-#if WITH_EDITOR
-			if (bRenderOffscreen)
-			{
-				const auto FeatureLevel = GMaxRHIFeatureLevel;
-				auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
-
-				FRHIRenderPassInfo RPInfo(FinalBuffer, ERenderTargetActions::Load_Store);
-				RHICmdList.BeginRenderPass(RPInfo, TEXT("SlateComposite"));
-
-				FGraphicsPipelineStateInitializer GraphicsPSOInit;
-				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-				GraphicsPSOInit.BlendState			= TStaticBlendState<>::GetRHI();
-				GraphicsPSOInit.RasterizerState		= TStaticRasterizerState<>::GetRHI();
-				GraphicsPSOInit.DepthStencilState	= TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-				// ST2084 (PQ) encoding
-				TShaderMapRef<FHDREditorConvertPS> PixelShader(ShaderMap);
-				TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
-
-				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-				PixelShader->SetParameters(RHICmdList, HDRRenderRT->GetRenderTargetItem().TargetableTexture );
-
-				static const FName RendererModuleName("Renderer");
-				IRendererModule& RendererModule = FModuleManager::GetModuleChecked<IRendererModule>(RendererModuleName);
-
-				RendererModule.DrawRectangle(
-					RHICmdList,
-					0, 0,
-					ViewportWidth, ViewportHeight,
-					0, 0,
-					ViewportWidth, ViewportHeight,
-					FIntPoint(ViewportWidth, ViewportHeight),
-					FIntPoint(ViewportWidth, ViewportHeight),
-					*VertexShader,
-					EDRF_UseTriangleOptimization);
-				
-				RHICmdList.EndRenderPass();
-				BackBuffer = FinalBuffer;
-			}
-#endif
 			if (!bRenderedStereo && GEngine && IsValidRef(ViewportInfo.GetRenderTargetTexture()) && GEngine->StereoRenderingDevice.IsValid())
 			{
 				const FVector2D WindowSize = WindowElementList.GetWindowSize();
@@ -1214,10 +1128,6 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 
 				// The viewport had better exist at this point  
 				FViewportInfo* ViewInfo = WindowToViewportInfo.FindChecked(Window);
-
-				// Cache off the HDR status
-				ViewInfo->bHDREnabled = RHIGetColorSpace(ViewInfo->ViewportRHI) == EColorSpace::ERec2020PQ;
-				Window->SetIsHDR(ViewInfo->bHDREnabled);
 
 				if (Window->IsViewportSizeDrivenByWindow())
 				{

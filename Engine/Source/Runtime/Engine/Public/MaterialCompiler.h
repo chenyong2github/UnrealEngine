@@ -316,7 +316,7 @@ public:
 	virtual int32 EyeAdaptation() = 0;
 	virtual int32 AtmosphericLightVector() = 0;
 	virtual int32 AtmosphericLightColor() = 0;
-	virtual int32 CustomPrimitiveData(int32 OutputIndex) = 0;
+	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) = 0;
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) = 0;
 
 	// The compiler can run in a different state and this affects caching of sub expression, Expressions are different (e.g. View.PrevWorldViewOrigin) when using previous frame's values
@@ -581,9 +581,9 @@ public:
 		return Compiler->AtmosphericLightColor();
 	}
 	
-	virtual int32 CustomPrimitiveData(int32 OutputIndex) override
+	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) override
 	{
-		return Compiler->CustomPrimitiveData(OutputIndex);
+		return Compiler->CustomPrimitiveData(OutputIndex, Type);
 	}
 
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) override
