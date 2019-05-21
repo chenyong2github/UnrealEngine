@@ -6,7 +6,7 @@ var UE_JavascriptLibrary = {
     // NOTE: C++ calling this function are written with syncronus logic
     // otherwise, use: UE_MakeHTTPDataRequest() -- see below
 
-    var _url = Pointer_stringify(url);
+    var _url = UTF8ToString(url);
 
     var request = new XMLHttpRequest();
     request.UE_fetch = {
@@ -38,7 +38,7 @@ var UE_JavascriptLibrary = {
   // ================================================================================
 
   UE_SaveGame: function (name, indata, insize) {
-    var _name = Pointer_stringify(name);
+    var _name = UTF8ToString(name);
     var gamedata = Module.HEAPU8.subarray(indata, indata + insize);
     // local storage only takes strings, we need to convert string to base64 before storing.
     var b64encoded = base64EncArr(gamedata);
@@ -47,7 +47,7 @@ var UE_JavascriptLibrary = {
   },
 
   UE_LoadGame: function (name, outdataptr, outsizeptr) {
-    var _name = Pointer_stringify(name);
+    var _name = UTF8ToString(name);
     // local storage only takes strings, we need to convert string to base64 before storing.
     var b64encoded = $.jStorage.get(_name);
     if (b64encoded === null)
@@ -67,12 +67,12 @@ var UE_JavascriptLibrary = {
   },
 
   UE_DeleteSavedGame: function (name){
-    var _name = Pointer_stringify(name);
+    var _name = UTF8ToString(name);
     return $.jStorage.deleteKey(_name);
   },
 
   UE_DoesSaveGameExist: function (name){
-    var _name = Pointer_stringify(name);
+    var _name = UTF8ToString(name);
     var keys = $.jStorage.index();
     for (var i in keys)
     {
@@ -87,7 +87,7 @@ var UE_JavascriptLibrary = {
 
   UE_MessageBox: function (type, message, caption ) {
     // type maps to EAppMsgType::Type
-    var text = Pointer_stringify(message);
+    var text = UTF8ToString(message);
     if (!type) return confirm(text);
     alert(text);
     return 1;
@@ -113,9 +113,9 @@ var UE_JavascriptLibrary = {
   // ================================================================================
 
   UE_MakeHTTPDataRequest: function (ctx, url, verb, payload, payloadsize, headers, async, freeBuffer, onload, onerror, onprogress) {
-    var _url = Pointer_stringify(url);
-    var _verb = Pointer_stringify(verb);
-    var _headers = Pointer_stringify(headers);
+    var _url = UTF8ToString(url);
+    var _verb = UTF8ToString(verb);
+    var _headers = UTF8ToString(headers);
 
     var xhr = new XMLHttpRequest();
     xhr.UE_fetch = {
