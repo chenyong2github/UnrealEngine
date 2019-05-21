@@ -422,7 +422,7 @@ FReply SSourceControlSubmitWidget::OKClicked()
 	DialogResult = ESubmitResults::SUBMIT_ACCEPTED;
 	ParentFrame.Pin()->RequestDestroyWindow();
 
-	ChangeListDescriptionTextCtrl->ClearContent(); // Don't save description on Submit
+	ChangeListDescriptionTextCtrl->SetText(FText()); // Don't save description on Submit
 
 	return FReply::Handled();
 }
