@@ -140,8 +140,7 @@ void FAnalysisSession::ReadCountersProvider(TFunctionRef<void(const ICountersPro
 	Callback(*CountersProvider);
 }
 
-FAnalysisService::FAnalysisService(TSharedRef<IStore> InTraceStore)
-	: TraceStore(InTraceStore)
+FAnalysisService::FAnalysisService()
 {
 
 }

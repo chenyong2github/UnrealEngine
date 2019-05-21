@@ -5,14 +5,16 @@
 #include "Trace/Store.h"
 #include "Trace/Recorder.h"
 #include "Trace/DataStream.h"
+#include "Misc/Paths.h"
 
 namespace Trace
 {
 
-FSessionService::FSessionService(TSharedRef<IStore> InTraceStore)
-	: TraceStore(InTraceStore)
+FSessionService::FSessionService()
 {
-	TraceRecorder = Recorder_Create(TraceStore);
+	LocalSessionDirectory = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
+	TraceStore = Store_Create(*LocalSessionDirectory);
+	TraceRecorder = Recorder_Create(TraceStore.ToSharedRef());
 }
 
 FSessionService::~FSessionService()
@@ -54,20 +56,5 @@ Trace::IInDataStream* FSessionService::OpenSessionFromFile(const TCHAR* FilePath
 {
 	return Trace::DataStream_ReadFile(FilePath);
 }
-
-/*void FSessionService::GetSessions(TArray<TSharedRef<FSessionInfo>>& OutSessions)
-{
-	OutSessions.Reset(AvailableSessions.Num());
-	for (const auto& KV : AvailableSessions)
-	{
-		OutSessions.Add(KV.Value);
-	}
-}*/
-
-/*void FSessionService::SelectSession(TSharedPtr<FSessionInfo> Session)
-{
-	SelectedSession = Session;
-	OnSessionSelected().Broadcast(SelectedSession);
-}*/
 
 }

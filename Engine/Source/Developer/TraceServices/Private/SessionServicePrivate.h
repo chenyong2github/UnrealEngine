@@ -13,18 +13,20 @@ class FSessionService
 	: public ISessionService
 {
 public:
-	FSessionService(TSharedRef<IStore> InTraceStore);
+	FSessionService();
 	virtual ~FSessionService();
 	virtual bool StartRecorderServer() override;
 	virtual bool IsRecorderServerRunning() const override;
 	virtual void StopRecorderServer() override;
+	virtual const TCHAR* GetLocalSessionDirectory() const override { return *LocalSessionDirectory; }
 	virtual void GetAvailableSessions(TArray<Trace::FSessionHandle>& OutSessions) override;
 	virtual bool GetSessionInfo(Trace::FSessionHandle SessionHandle, Trace::FSessionInfo& OutSessionInfo) override;
 	virtual Trace::IInDataStream* OpenSessionStream(Trace::FSessionHandle SessionHandle) override;
 	virtual Trace::IInDataStream* OpenSessionFromFile(const TCHAR* FilePath) override;
 
 private:
-	TSharedRef<IStore> TraceStore;
+	FString LocalSessionDirectory;
+	TSharedPtr<IStore> TraceStore;
 	TSharedPtr<IRecorder> TraceRecorder;
 };
 

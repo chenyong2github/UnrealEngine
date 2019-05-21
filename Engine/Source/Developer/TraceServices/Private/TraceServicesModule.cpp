@@ -9,26 +9,19 @@ class FTraceServicesModule
 	: public ITraceServicesModule
 {
 public:
-	virtual void StartupModule() override;
 	virtual TSharedPtr<Trace::ISessionService> GetSessionService() override;
 	virtual TSharedPtr<Trace::IAnalysisService> GetAnalysisService() override;
 
 private:
-	TSharedPtr<Trace::IStore> TraceStore;
 	TSharedPtr<Trace::FSessionService> SessionService;
 	TSharedPtr<Trace::FAnalysisService> AnalysisService;
 };
-
-void FTraceServicesModule::StartupModule()
-{
-	TraceStore = Trace::Store_Create(TEXT("D:\\Trace"));
-}
 
 TSharedPtr<Trace::ISessionService> FTraceServicesModule::GetSessionService()
 {
 	if (!SessionService.IsValid())
 	{
-		SessionService = MakeShareable(new Trace::FSessionService(TraceStore.ToSharedRef()));
+		SessionService = MakeShared<Trace::FSessionService>();
 	}
 	return SessionService;
 }
@@ -37,7 +30,7 @@ TSharedPtr<Trace::IAnalysisService> FTraceServicesModule::GetAnalysisService()
 {
 	if (!AnalysisService.IsValid())
 	{
-		AnalysisService = MakeShareable(new Trace::FAnalysisService(TraceStore.ToSharedRef()));
+		AnalysisService = MakeShared<Trace::FAnalysisService>();
 	}
 	return AnalysisService;
 }

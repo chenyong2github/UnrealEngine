@@ -126,7 +126,7 @@ class FAnalysisService
 	: public IAnalysisService
 {
 public:
-	FAnalysisService(TSharedRef<IStore> InTraceStore);
+	FAnalysisService();
 	virtual ~FAnalysisService();
 	virtual TSharedPtr<const IAnalysisSession> Analyze(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& DataStream) override;
 	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& DataStream) override;
@@ -169,7 +169,6 @@ private:
 
 	FAnalysisStartedEvent AnalysisStartedEvent;
 	FAnalysisFinishedEvent AnalysisFinishedEvent;
-	TSharedRef<IStore> TraceStore;
 	TArray<TSharedPtr<FAsyncTask<FAnalysisWorker>>> Tasks;
 };
 
