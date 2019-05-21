@@ -298,11 +298,6 @@ public:
 	bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
 
 	/**
-	 * UObject methods
-	 */
-	virtual bool IsDestructionThreadSafe() const override { return false; }
-	
-	/**
 	 * FOutputDevice methods
 	 */
 

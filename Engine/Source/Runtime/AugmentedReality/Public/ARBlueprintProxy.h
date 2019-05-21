@@ -27,10 +27,6 @@ public:
 	virtual bool IsTickable() const override { return !HasAnyFlags(RF_ClassDefaultObject) && bShouldTick; }
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UARBaseAsyncTaskBlueprintProxy, STATGROUP_Tickables); }
 	//~ End FTickableObject Interface
-	
-	//~ Begin UObject Interface
-	virtual bool IsDestructionThreadSafe() const override { return false; }
-	//~ End UObject Interface
 
 	virtual void ReportSuccess() { check(0); }
 	virtual void ReportFailure() { check(0); }

@@ -72,10 +72,6 @@ public:
 		RETURN_QUICK_DECLARE_CYCLE_STAT( USceneCapturer, STATGROUP_Tickables );
 	}
 
-	//~ Begin UObject Interface
-	virtual bool IsDestructionThreadSafe() const override { return false; }
-	//~ End UObject Interface
-
 public:
 
 	void InitCaptureComponent( USceneCaptureComponent2D* CaptureComponent, float HFov, float VFov, EStereoscopicPass InStereoPass );

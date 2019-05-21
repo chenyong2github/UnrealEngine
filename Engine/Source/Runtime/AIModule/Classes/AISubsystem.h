@@ -32,9 +32,5 @@ public:
 	virtual TStatId GetStatId() const override;
 	// FTickableGameObject end
 
-	// UObject begin
-	virtual bool IsDestructionThreadSafe() const override { return false; }
-	// UObject end
-
 	UWorld* GetWorldFast() const { return AISystem ? AISystem->GetOuterWorld() : GetOuter()->GetWorld(); }
 };
