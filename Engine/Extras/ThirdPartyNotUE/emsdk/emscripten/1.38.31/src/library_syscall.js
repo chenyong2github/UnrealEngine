@@ -573,6 +573,13 @@ var SyscallsLibrary = {
         HEAPU8.set(msg.buffer, buf);
         return msg.buffer.byteLength;
       }
+// EPIC EDIT start -- nick.shin 2019-05-20 -- UE-74110
+      case 13: { // shutdown
+        var sock = SYSCALLS.getSocketFromFD();
+        sock.sock_ops.close(sock);
+        return 0;
+      }
+// EPIC EDIT end -- nick.shin 2019-05-20
       case 14: { // setsockopt
         return -ERRNO_CODES.ENOPROTOOPT; // The option is unknown at the level indicated.
       }
