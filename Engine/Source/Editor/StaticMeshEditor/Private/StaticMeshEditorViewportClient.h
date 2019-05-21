@@ -7,6 +7,7 @@
 #include "UnrealWidget.h"
 #include "EditorViewportClient.h"
 #include "Components.h"
+#include "Interfaces/Interface_CollisionDataProvider.h"
 
 class FAdvancedPreviewScene;
 class FCanvas;
