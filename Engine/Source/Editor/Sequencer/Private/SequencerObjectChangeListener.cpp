@@ -97,6 +97,11 @@ void FSequencerObjectChangeListener::BroadcastPropertyChanged( FKeyPropertyParam
 		{
 			StructPathToKey = *KeyPropertyParams.PropertyPath.TrimRoot(PropertyPath.GetNumProperties());
 		}
+
+		// Create a transaction record because we are about to add keys/tracks
+		const bool bShouldActuallyTransact = !GIsTransacting;		// Don't transact if we're recording in a PIE world.  That type of keyframe capture cannot be undone.
+		FScopedTransaction PropertyChangedTransaction(NSLOCTEXT("Sequencer", "PropertyChanged", "Animatable Property Changed"), bShouldActuallyTransact);
+
 		FPropertyChangedParams Params(KeyableObjects, PropertyPath, StructPathToKey, KeyPropertyParams.KeyMode);
 		Delegate.Broadcast(Params);
 	}
