@@ -109,10 +109,12 @@ struct FShadowMapAllocation
 				// TODO: We currently only support one LOD of static lighting in foliage
 				// Need to create per-LOD instance data to fix that
 				MeshBuildData->PerInstanceLightmapData[InstanceIndex].ShadowmapUVBias = ShadowMap->GetCoordinateBias();
-				int32 RenderIndex = (Component->InstanceReorderTable.IsValidIndex(InstanceIndex) && Component->InstanceReorderTable[InstanceIndex] != INDEX_NONE) ? Component->InstanceReorderTable[InstanceIndex] : InstanceIndex;
-
-				Component->InstanceUpdateCmdBuffer.SetShadowMapData(RenderIndex, MeshBuildData->PerInstanceLightmapData[InstanceIndex].ShadowmapUVBias);
-				Component->MarkRenderStateDirty();
+				int32 RenderIndex = Component->InstanceReorderTable.IsValidIndex(InstanceIndex) ? Component->InstanceReorderTable[InstanceIndex] : InstanceIndex;
+				if (RenderIndex != INDEX_NONE)
+				{
+					Component->InstanceUpdateCmdBuffer.SetShadowMapData(RenderIndex, MeshBuildData->PerInstanceLightmapData[InstanceIndex].ShadowmapUVBias);
+					Component->MarkRenderStateDirty();
+				}
 			}
 		}
 	}
