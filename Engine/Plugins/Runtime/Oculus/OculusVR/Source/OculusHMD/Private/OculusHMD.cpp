@@ -533,15 +533,21 @@ namespace OculusHMD
 	{
 		CheckInGameThread();
 
+#if WITH_EDITOR
 		if (GIsEditor && !GEnableVREditorHacks)
 		{
 			// @todo vreditor: If we add support for starting PIE while in VR Editor, we don't want to kill stereo mode when exiting PIE
+			if (Splash->IsShown())
+			{
+				Splash->Hide();
+			}
 			EnableStereo(false);
 			ReleaseDevice();
 
 			FApp::SetUseVRFocus(false);
 			FApp::SetHasVRFocus(false);
 		}
+#endif
 	}
 
 	DECLARE_STATS_GROUP(TEXT("Oculus System Metrics"), STATGROUP_OculusSystemMetrics, STATCAT_Advanced);

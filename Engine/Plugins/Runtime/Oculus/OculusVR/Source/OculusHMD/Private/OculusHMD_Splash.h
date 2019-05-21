@@ -93,6 +93,7 @@ protected:
 	uint32 NextLayerId;
 	FLayerPtr BlackLayer;
 	FLayerPtr UELayer;
+	TArray<TTuple<FLayerPtr, FQuat>> Layers_RenderThread_DeltaRotation;
 	TArray<FLayerPtr> Layers_RenderThread_Input;
 	TArray<FLayerPtr> Layers_RenderThread;
 	TArray<FLayerPtr> Layers_RHIThread;
