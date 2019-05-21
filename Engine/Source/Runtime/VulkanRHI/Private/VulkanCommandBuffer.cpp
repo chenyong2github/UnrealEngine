@@ -148,9 +148,33 @@ void FVulkanCmdBuffer::BeginRenderPass(const FVulkanRenderTargetLayout& Layout, 
 	}
 }
 
+
+void FVulkanCmdBuffer::AddPendingTimestampQuery(uint64 Index, uint64 Count, VkQueryPool PoolHandle, VkBuffer BufferHandle)
+{
+	PendingQuery PQ;
+	PQ.Index = Index;
+	PQ.Count = Count;
+	PQ.PoolHandle = PoolHandle;
+	PQ.BufferHandle = BufferHandle;
+	PendingQueries.Add(PQ);
+}
+
+
 void FVulkanCmdBuffer::End()
 {
 	checkf(IsOutsideRenderPass(), TEXT("Can't End as we're inside a render pass! CmdBuffer 0x%p State=%d"), CommandBufferHandle, (int32)State);
+
+
+	for (PendingQuery& Query : PendingQueries)
+	{
+		uint64 Index = Query.Index;
+		VkBuffer BufferHandle = Query.BufferHandle;
+		VkQueryPool PoolHandle = Query.PoolHandle;
+		VulkanRHI::vkCmdCopyQueryPoolResults(GetHandle(), PoolHandle, Index, Query.Count, BufferHandle, sizeof(uint64) * Index, sizeof(uint64), VK_QUERY_RESULT_64_BIT);
+		VulkanRHI::vkCmdResetQueryPool(GetHandle(), PoolHandle, Index, Query.Count);
+	}
+
+	PendingQueries.Reset();
 
 	if (GVulkanProfileCmdBuffers)
 	{
