@@ -32,7 +32,7 @@ namespace MetadataTool
 			public string Project;
 			public string Summary;
 			public string Details;
-			public string Owner;
+			[Optional] public string Owner;
 		}
 
 		public class UpdateBuild

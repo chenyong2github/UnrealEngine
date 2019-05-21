@@ -330,7 +330,7 @@ namespace UnrealGameSync
             this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.tableLayoutPanel4.Size = new System.Drawing.Size(1082, 572);
+            this.tableLayoutPanel4.Size = new System.Drawing.Size(1082, 647);
             this.tableLayoutPanel4.TabIndex = 6;
             // 
             // tabControl1
@@ -341,7 +341,7 @@ namespace UnrealGameSync
             this.tabControl1.Location = new System.Drawing.Point(3, 159);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(1076, 366);
+            this.tabControl1.Size = new System.Drawing.Size(1076, 441);
             this.tabControl1.TabIndex = 7;
             // 
             // OutputTabPage
@@ -350,7 +350,7 @@ namespace UnrealGameSync
             this.OutputTabPage.Location = new System.Drawing.Point(4, 24);
             this.OutputTabPage.Name = "OutputTabPage";
             this.OutputTabPage.Padding = new System.Windows.Forms.Padding(8);
-            this.OutputTabPage.Size = new System.Drawing.Size(1068, 338);
+            this.OutputTabPage.Size = new System.Drawing.Size(1068, 413);
             this.OutputTabPage.TabIndex = 0;
             this.OutputTabPage.Text = "Output";
             this.OutputTabPage.UseVisualStyleBackColor = true;
@@ -363,11 +363,9 @@ namespace UnrealGameSync
             this.DetailsTextBox.Font = new System.Drawing.Font("Courier New", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.DetailsTextBox.Location = new System.Drawing.Point(8, 8);
             this.DetailsTextBox.Margin = new System.Windows.Forms.Padding(0);
-            this.DetailsTextBox.Multiline = true;
             this.DetailsTextBox.Name = "DetailsTextBox";
             this.DetailsTextBox.ReadOnly = true;
-            this.DetailsTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Both;
-            this.DetailsTextBox.Size = new System.Drawing.Size(1052, 322);
+            this.DetailsTextBox.Size = new System.Drawing.Size(1052, 397);
             this.DetailsTextBox.TabIndex = 0;
             this.DetailsTextBox.Text = "This is an error";
             this.DetailsTextBox.WordWrap = false;
@@ -378,7 +376,7 @@ namespace UnrealGameSync
             this.ChangesTabPage.Location = new System.Drawing.Point(4, 24);
             this.ChangesTabPage.Name = "ChangesTabPage";
             this.ChangesTabPage.Padding = new System.Windows.Forms.Padding(8);
-            this.ChangesTabPage.Size = new System.Drawing.Size(1068, 335);
+            this.ChangesTabPage.Size = new System.Drawing.Size(1068, 338);
             this.ChangesTabPage.TabIndex = 1;
             this.ChangesTabPage.Text = "Changes";
             this.ChangesTabPage.UseVisualStyleBackColor = true;
@@ -398,7 +396,7 @@ namespace UnrealGameSync
             this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel2.Size = new System.Drawing.Size(1052, 321);
+            this.tableLayoutPanel2.Size = new System.Drawing.Size(1052, 324);
             this.tableLayoutPanel2.TabIndex = 4;
             // 
             // tableLayoutPanel3
@@ -410,7 +408,7 @@ namespace UnrealGameSync
             this.tableLayoutPanel3.Controls.Add(this.FilterTextBox, 0, 0);
             this.tableLayoutPanel3.Controls.Add(this.FilterTypeComboBox, 1, 0);
             this.tableLayoutPanel3.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tableLayoutPanel3.Location = new System.Drawing.Point(0, 292);
+            this.tableLayoutPanel3.Location = new System.Drawing.Point(0, 295);
             this.tableLayoutPanel3.Margin = new System.Windows.Forms.Padding(0);
             this.tableLayoutPanel3.Name = "tableLayoutPanel3";
             this.tableLayoutPanel3.RowCount = 1;
@@ -460,7 +458,7 @@ namespace UnrealGameSync
             this.tableLayoutPanel5.Controls.Add(this.MarkFixedBtn, 3, 0);
             this.tableLayoutPanel5.Controls.Add(this.OkBtn, 4, 0);
             this.tableLayoutPanel5.Controls.Add(this.AssignToOtherBtn, 1, 0);
-            this.tableLayoutPanel5.Location = new System.Drawing.Point(3, 536);
+            this.tableLayoutPanel5.Location = new System.Drawing.Point(3, 611);
             this.tableLayoutPanel5.Margin = new System.Windows.Forms.Padding(3, 8, 3, 3);
             this.tableLayoutPanel5.Name = "tableLayoutPanel5";
             this.tableLayoutPanel5.RowCount = 1;
@@ -523,7 +521,7 @@ namespace UnrealGameSync
             this.BuildListView.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.BuildListView.Name = "BuildListView";
             this.BuildListView.OwnerDraw = true;
-            this.BuildListView.Size = new System.Drawing.Size(1046, 255);
+            this.BuildListView.Size = new System.Drawing.Size(1046, 258);
             this.BuildListView.TabIndex = 1;
             this.BuildListView.UseCompatibleStateImageBehavior = false;
             this.BuildListView.View = System.Windows.Forms.View.Details;
@@ -568,7 +566,7 @@ namespace UnrealGameSync
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
             this.CancelButton = this.OkBtn;
-            this.ClientSize = new System.Drawing.Size(1106, 596);
+            this.ClientSize = new System.Drawing.Size(1106, 671);
             this.Controls.Add(this.tableLayoutPanel4);
             this.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.Name = "IssueDetailsWindow";
@@ -583,7 +581,6 @@ namespace UnrealGameSync
             this.tableLayoutPanel4.PerformLayout();
             this.tabControl1.ResumeLayout(false);
             this.OutputTabPage.ResumeLayout(false);
-            this.OutputTabPage.PerformLayout();
             this.ChangesTabPage.ResumeLayout(false);
             this.tableLayoutPanel2.ResumeLayout(false);
             this.tableLayoutPanel2.PerformLayout();

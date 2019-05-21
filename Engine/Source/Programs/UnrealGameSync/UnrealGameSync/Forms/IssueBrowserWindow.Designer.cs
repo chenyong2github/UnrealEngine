@@ -17,23 +17,29 @@ namespace UnrealGameSync
 		/// </summary>
 		private void InitializeComponent()
 		{
+            this.components = new System.ComponentModel.Container();
             this.IssueListView = new UnrealGameSync.CustomListViewControl();
             this.IconHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.IdHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.CreatedHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.ResolvedHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.OwnerHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.DescriptionHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.OkBtn = new System.Windows.Forms.Button();
-            this.DetailsBtn = new System.Windows.Forms.Button();
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
+            this.FilterBtn = new System.Windows.Forms.Button();
             this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
             this.StatusLabel = new System.Windows.Forms.Label();
             this.FetchMoreResultsLinkLabel = new System.Windows.Forms.LinkLabel();
             this.tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
-            this.OwnerHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.FilterMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.FilterMenu_ShowAll = new System.Windows.Forms.ToolStripMenuItem();
+            this.FilterMenu_Separator = new System.Windows.Forms.ToolStripSeparator();
+            this.ProjectHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.tableLayoutPanel1.SuspendLayout();
             this.flowLayoutPanel1.SuspendLayout();
             this.tableLayoutPanel2.SuspendLayout();
+            this.FilterMenu.SuspendLayout();
             this.SuspendLayout();
             // 
             // IssueListView
@@ -44,6 +50,7 @@ namespace UnrealGameSync
             this.IssueListView.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.IconHeader,
             this.IdHeader,
+            this.ProjectHeader,
             this.CreatedHeader,
             this.ResolvedHeader,
             this.OwnerHeader,
@@ -62,7 +69,6 @@ namespace UnrealGameSync
             this.IssueListView.DrawColumnHeader += new System.Windows.Forms.DrawListViewColumnHeaderEventHandler(this.IssueListView_DrawColumnHeader);
             this.IssueListView.DrawItem += new System.Windows.Forms.DrawListViewItemEventHandler(this.IssueListView_DrawItem);
             this.IssueListView.DrawSubItem += new System.Windows.Forms.DrawListViewSubItemEventHandler(this.IssueListView_DrawSubItem);
-            this.IssueListView.SelectedIndexChanged += new System.EventHandler(this.IssueListView_SelectedIndexChanged);
             this.IssueListView.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.IssueListView_MouseDoubleClick);
             // 
             // IconHeader
@@ -87,32 +93,27 @@ namespace UnrealGameSync
             this.ResolvedHeader.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.ResolvedHeader.Width = 125;
             // 
+            // OwnerHeader
+            // 
+            this.OwnerHeader.Text = "Owner";
+            this.OwnerHeader.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.OwnerHeader.Width = 135;
+            // 
             // DescriptionHeader
             // 
             this.DescriptionHeader.Text = "Description";
-            this.DescriptionHeader.Width = 567;
+            this.DescriptionHeader.Width = 452;
             // 
             // OkBtn
             // 
             this.OkBtn.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.OkBtn.Location = new System.Drawing.Point(956, 3);
+            this.OkBtn.Location = new System.Drawing.Point(939, 3);
             this.OkBtn.Name = "OkBtn";
-            this.OkBtn.Size = new System.Drawing.Size(96, 29);
+            this.OkBtn.Size = new System.Drawing.Size(113, 29);
             this.OkBtn.TabIndex = 3;
             this.OkBtn.Text = "Ok";
             this.OkBtn.UseVisualStyleBackColor = true;
             this.OkBtn.Click += new System.EventHandler(this.OkBtn_Click);
-            // 
-            // DetailsBtn
-            // 
-            this.DetailsBtn.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.DetailsBtn.Location = new System.Drawing.Point(3, 3);
-            this.DetailsBtn.Name = "DetailsBtn";
-            this.DetailsBtn.Size = new System.Drawing.Size(114, 29);
-            this.DetailsBtn.TabIndex = 4;
-            this.DetailsBtn.Text = "Details";
-            this.DetailsBtn.UseVisualStyleBackColor = true;
-            this.DetailsBtn.Click += new System.EventHandler(this.DetailsBtn_Click);
             // 
             // tableLayoutPanel1
             // 
@@ -124,8 +125,9 @@ namespace UnrealGameSync
             this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
             this.tableLayoutPanel1.Controls.Add(this.OkBtn, 2, 0);
-            this.tableLayoutPanel1.Controls.Add(this.DetailsBtn, 0, 0);
+            this.tableLayoutPanel1.Controls.Add(this.FilterBtn, 0, 0);
             this.tableLayoutPanel1.Controls.Add(this.flowLayoutPanel1, 1, 0);
             this.tableLayoutPanel1.Location = new System.Drawing.Point(0, 447);
             this.tableLayoutPanel1.Margin = new System.Windows.Forms.Padding(0);
@@ -135,6 +137,19 @@ namespace UnrealGameSync
             this.tableLayoutPanel1.Size = new System.Drawing.Size(1055, 35);
             this.tableLayoutPanel1.TabIndex = 5;
             // 
+            // FilterBtn
+            // 
+            this.FilterBtn.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.FilterBtn.Image = global::UnrealGameSync.Properties.Resources.DropList;
+            this.FilterBtn.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
+            this.FilterBtn.Location = new System.Drawing.Point(3, 3);
+            this.FilterBtn.Name = "FilterBtn";
+            this.FilterBtn.Size = new System.Drawing.Size(125, 29);
+            this.FilterBtn.TabIndex = 4;
+            this.FilterBtn.Text = "Filter";
+            this.FilterBtn.UseVisualStyleBackColor = true;
+            this.FilterBtn.Click += new System.EventHandler(this.FilterBtn_Click);
+            // 
             // flowLayoutPanel1
             // 
             this.flowLayoutPanel1.Anchor = System.Windows.Forms.AnchorStyles.None;
@@ -142,7 +157,7 @@ namespace UnrealGameSync
             this.flowLayoutPanel1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.flowLayoutPanel1.Controls.Add(this.StatusLabel);
             this.flowLayoutPanel1.Controls.Add(this.FetchMoreResultsLinkLabel);
-            this.flowLayoutPanel1.Location = new System.Drawing.Point(473, 10);
+            this.flowLayoutPanel1.Location = new System.Drawing.Point(470, 10);
             this.flowLayoutPanel1.Name = "flowLayoutPanel1";
             this.flowLayoutPanel1.Size = new System.Drawing.Size(127, 15);
             this.flowLayoutPanel1.TabIndex = 0;
@@ -188,11 +203,31 @@ namespace UnrealGameSync
             this.tableLayoutPanel2.Size = new System.Drawing.Size(1055, 482);
             this.tableLayoutPanel2.TabIndex = 6;
             // 
-            // OwnerHeader
+            // FilterMenu
             // 
-            this.OwnerHeader.Text = "Owner";
-            this.OwnerHeader.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            this.OwnerHeader.Width = 135;
+            this.FilterMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.FilterMenu_ShowAll,
+            this.FilterMenu_Separator});
+            this.FilterMenu.Name = "FilterMenu";
+            this.FilterMenu.Size = new System.Drawing.Size(121, 32);
+            // 
+            // FilterMenu_ShowAll
+            // 
+            this.FilterMenu_ShowAll.Name = "FilterMenu_ShowAll";
+            this.FilterMenu_ShowAll.Size = new System.Drawing.Size(120, 22);
+            this.FilterMenu_ShowAll.Text = "Show All";
+            this.FilterMenu_ShowAll.Click += new System.EventHandler(this.FilterMenu_ShowAll_Click);
+            // 
+            // FilterMenu_Separator
+            // 
+            this.FilterMenu_Separator.Name = "FilterMenu_Separator";
+            this.FilterMenu_Separator.Size = new System.Drawing.Size(117, 6);
+            // 
+            // ProjectHeader
+            // 
+            this.ProjectHeader.Text = "Project";
+            this.ProjectHeader.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.ProjectHeader.Width = 119;
             // 
             // IssueBrowserWindow
             // 
@@ -216,6 +251,7 @@ namespace UnrealGameSync
             this.flowLayoutPanel1.PerformLayout();
             this.tableLayoutPanel2.ResumeLayout(false);
             this.tableLayoutPanel2.PerformLayout();
+            this.FilterMenu.ResumeLayout(false);
             this.ResumeLayout(false);
 
 		}
@@ -228,7 +264,6 @@ namespace UnrealGameSync
 		private System.Windows.Forms.ColumnHeader ResolvedHeader;
 		private System.Windows.Forms.ColumnHeader DescriptionHeader;
 		private System.Windows.Forms.Button OkBtn;
-		private System.Windows.Forms.Button DetailsBtn;
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
 		private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel1;
 		private System.Windows.Forms.Label StatusLabel;
@@ -236,5 +271,10 @@ namespace UnrealGameSync
 		private System.Windows.Forms.LinkLabel FetchMoreResultsLinkLabel;
 		private System.Windows.Forms.ColumnHeader IconHeader;
 		private System.Windows.Forms.ColumnHeader OwnerHeader;
+		private System.Windows.Forms.Button FilterBtn;
+		private System.Windows.Forms.ContextMenuStrip FilterMenu;
+		private System.Windows.Forms.ToolStripMenuItem FilterMenu_ShowAll;
+		private System.Windows.Forms.ToolStripSeparator FilterMenu_Separator;
+		private System.Windows.Forms.ColumnHeader ProjectHeader;
 	}
 }

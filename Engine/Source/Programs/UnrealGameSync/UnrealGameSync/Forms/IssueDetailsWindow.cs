@@ -438,7 +438,7 @@ namespace UnrealGameSync
 						RichText.Append(@"\fs16");   // Font size
 						if (Idx > 0)
 						{
-							RichText.Append(@"\sb200"); // Space before
+							RichText.Append(@"\sb300"); // Space before
 						}
 						RichText.AppendFormat(@"In step '{0}':", StepName);
 						RichText.AppendLine(@"\par");
@@ -452,6 +452,8 @@ namespace UnrealGameSync
 					RichText.Append(@"\b1");     // Bold
 					RichText.Append(@"\f0");     // Font
 					RichText.Append(@"\fs16");   // Font size
+					RichText.Append(@"\fi50");   // First line indent
+					RichText.Append(@"\li50");   // Other line indent
 					RichText.Append(@"\sb100");  // Space before
 					RichText.Append(@"\sa50");   // Space after
 					RichText.AppendFormat(@"Error {0}/{1}", ++StepNameToIndex[StepName], StepNameToCount[StepName]);

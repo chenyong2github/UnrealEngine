@@ -1522,6 +1522,13 @@ namespace UnrealGameSync
 
 		void UpdateBuildFailureNotification()
 		{
+			// Ignore this if we're using the new build health system
+			string BuildHealthProject;
+			if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "BuildHealthProject", out BuildHealthProject))
+			{
+				return;
+			}
+
 			int LastChangeByCurrentUser = PerforceMonitor.LastChangeByCurrentUser;
 			int LastCodeChangeByCurrentUser = PerforceMonitor.LastCodeChangeByCurrentUser;
 
@@ -2941,16 +2948,17 @@ namespace UnrealGameSync
 				ProgramsLine.AddText("  |  ");
 				ProgramsLine.AddLink("Windows Explorer", FontStyle.Regular, () => { Process.Start("explorer.exe", String.Format("\"{0}\"", Path.GetDirectoryName(SelectedFileName))); });
 
-				if(Workspace.ProjectConfigFile.GetValue("Options.ShowBuildHealth", false))
+				string BuildHealthProject;
+				if(TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "BuildHealthProject", out BuildHealthProject))
 				{
 					ProgramsLine.AddText("  |  ");
 					if(bUserHasOpenIssues)
 					{
-						ProgramsLine.AddBadge("Build Health", GetBuildBadgeColor(BadgeResult.Failure), (P, R) => ShowBuildHealthMenu(R));
+						ProgramsLine.AddBadge("Build Health", GetBuildBadgeColor(BadgeResult.Failure), (P, R) => ShowBuildHealthMenu(R, BuildHealthProject));
 					}
 					else
 					{
-						ProgramsLine.AddLink("Build Health", FontStyle.Regular, (P, R) => { ShowBuildHealthMenu(R); });
+						ProgramsLine.AddLink("Build Health", FontStyle.Regular, (P, R) => { ShowBuildHealthMenu(R, BuildHealthProject); });
 					}
 				}
 
@@ -3055,7 +3063,7 @@ namespace UnrealGameSync
 			StatusPanel.Set(Lines, Caption, Alert, TintColor);
 		}
 
-		private void ShowBuildHealthMenu(Rectangle Bounds)
+		private void ShowBuildHealthMenu(Rectangle Bounds, string BuildHealthProject)
 		{
 			int MinSeparatorIdx = BuildHealthContextMenu.Items.IndexOf(BuildHealthContextMenu_MinSeparator);
 
@@ -3064,7 +3072,22 @@ namespace UnrealGameSync
 				BuildHealthContextMenu.Items.RemoveAt(MinSeparatorIdx + 1);
 			}
 
-			List<IssueData> Issues = IssueMonitor.GetIssues();
+			List<IssueData> Issues = new List<IssueData>();
+			bool bHasOtherAssignedIssue = false;
+			foreach(IssueData Issue in IssueMonitor.GetIssues())
+			{
+				if(Issue.Project == BuildHealthProject)
+				{
+					Issues.Add(Issue);
+				}
+				else if(Issue.FixChange == 0 && Issue.Owner != null && String.Compare(Issue.Owner, Workspace.Perforce.UserName, StringComparison.OrdinalIgnoreCase) == 0)
+				{
+					bHasOtherAssignedIssue = true;
+				}
+			}
+			
+			BuildHealthContextMenu_Browse.Font = new Font(BuildHealthContextMenu_Browse.Font, bHasOtherAssignedIssue? FontStyle.Bold : FontStyle.Regular);
+
 			if(Issues.Count == 0)
 			{
 				BuildHealthContextMenu_MaxSeparator.Visible = false;

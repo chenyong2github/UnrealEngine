@@ -21,6 +21,9 @@ namespace UnrealGameSync
 		TextWriter Log;
 		string CurrentStream;
 		int MaxResults = 0;
+		string FilterProjectName;
+		List<string> ProjectNames = new List<string>();
+		List<IssueData> Issues = new List<IssueData>();
 
 		public IssueBrowserWindow(IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TextWriter Log, string CurrentStream)
 		{
@@ -53,7 +56,6 @@ namespace UnrealGameSync
 		private void IssueBrowserWindow_Load(object sender, EventArgs e)
 		{
 			FetchMoreResults();
-			UpdateDetailsBtn();
 		}
 
 		class QueryIssuesTask : IModalTask
@@ -95,6 +97,17 @@ namespace UnrealGameSync
 				return;
 			}
 
+			// Update the list of project names
+			Issues = Task.Issues;
+			ProjectNames = Task.Issues.Select(x => x.Project).Distinct().OrderBy(x => x).ToList();
+
+			// Populate the list control
+			UpdateIssueList();
+			MaxResults = NewMaxResults;
+		}
+
+		void UpdateIssueList()
+		{
 			// Get the time at midnight
 			DateTime Now = DateTime.Now;
 			DateTime Midnight = (Now - Now.TimeOfDay).ToUniversalTime();
@@ -102,22 +115,25 @@ namespace UnrealGameSync
 			// Fetch the new issues
 			IssueListView.BeginUpdate();
 			IssueListView.Items.Clear();
-			foreach(IssueData Issue in Task.Issues)
+			foreach(IssueData Issue in Issues)
 			{
-				ListViewItem Item = new ListViewItem("");
-				Item.SubItems.Add(Issue.Id.ToString());
-				Item.SubItems.Add(FormatIssueDateTime(Issue.CreatedAt.ToLocalTime(), Midnight));
-				Item.SubItems.Add(Issue.ResolvedAt.HasValue? FormatIssueDateTime(Issue.ResolvedAt.Value.ToLocalTime(), Midnight) : "Unresolved");
-				Item.SubItems.Add((Issue.Owner == null)? "-" : Utility.FormatUserName(Issue.Owner));
-				Item.SubItems.Add(Issue.Summary);
-				Item.Tag = Issue;
-				IssueListView.Items.Add(Item);
+				if(FilterProjectName == null || Issue.Project == FilterProjectName)
+				{
+					ListViewItem Item = new ListViewItem("");
+					Item.SubItems.Add(Issue.Id.ToString());
+					Item.SubItems.Add(Issue.Project);
+					Item.SubItems.Add(FormatIssueDateTime(Issue.CreatedAt.ToLocalTime(), Midnight));
+					Item.SubItems.Add(Issue.ResolvedAt.HasValue? FormatIssueDateTime(Issue.ResolvedAt.Value.ToLocalTime(), Midnight) : "Unresolved");
+					Item.SubItems.Add((Issue.Owner == null)? "-" : Utility.FormatUserName(Issue.Owner));
+					Item.SubItems.Add(Issue.Summary);
+					Item.Tag = Issue;
+					IssueListView.Items.Add(Item);
+				}
 			}
 			IssueListView.EndUpdate();
 
 			// Update the maximum number of results
-			StatusLabel.Text = String.Format("Showing {0} results.", Task.Issues.Count);
-			MaxResults = NewMaxResults;
+			StatusLabel.Text = (IssueListView.Items.Count == Issues.Count)? String.Format("Showing {0} results.", Issues.Count) : String.Format("Showing {0}/{1} results.", IssueListView.Items.Count, Issues.Count);
 		}
 
 		static string FormatIssueDateTime(DateTime DateTime, DateTime Midnight)
@@ -165,16 +181,6 @@ namespace UnrealGameSync
 			Close();
 		}
 
-		private void IssueListView_SelectedIndexChanged(object sender, EventArgs e)
-		{
-			UpdateDetailsBtn();
-		}
-
-		void UpdateDetailsBtn()
-		{
-			DetailsBtn.Enabled = (IssueListView.SelectedItems.Count != 0);
-		}
-
 		private void IssueListView_MouseDoubleClick(object sender, MouseEventArgs e)
 		{
 			ListViewHitTestInfo HitTest = IssueListView.HitTest(e.Location);
@@ -185,14 +191,31 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void DetailsBtn_Click(object sender, EventArgs e)
+		private void FilterBtn_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem Item in IssueListView.SelectedItems)
+			int SeparatorIdx = FilterMenu.Items.IndexOf(FilterMenu_Separator);
+			while(FilterMenu.Items.Count > SeparatorIdx + 1)
 			{
-				IssueData Issue = (IssueData)Item.Tag;
-				ShowIssue(Issue);
-				break;
+				FilterMenu.Items.RemoveAt(SeparatorIdx + 1);
 			}
+
+			FilterMenu_ShowAll.Checked = (FilterProjectName == null);
+
+			foreach(string ProjectName in ProjectNames)
+			{
+				ToolStripMenuItem Item = new ToolStripMenuItem(ProjectName);
+				Item.Checked = (FilterProjectName == ProjectName);
+				Item.Click += (S, E) => { FilterProjectName = ProjectName; UpdateIssueList(); };
+				FilterMenu.Items.Add(Item);
+			}
+
+			FilterMenu.Show(FilterBtn, new Point(FilterBtn.Left, FilterBtn.Bottom));
+		}
+
+		private void FilterMenu_ShowAll_Click(object sender, EventArgs e)
+		{
+			FilterProjectName = null;
+			UpdateIssueList();
 		}
 
 		private void ShowIssue(IssueData Issue)
