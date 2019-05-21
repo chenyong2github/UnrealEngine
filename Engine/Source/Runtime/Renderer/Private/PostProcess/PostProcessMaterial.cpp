@@ -16,6 +16,7 @@
 #include "ClearQuad.h"
 #include "Materials/MaterialExpressionSceneTexture.h"
 #include "RHI/Public/PipelineStateCache.h"
+#include "PostProcessing.h"
 #include "PostProcessMobile.h"
 
 static TAutoConsoleVariable<int32> CVarPostProcessAllowStencilTest(
@@ -394,11 +395,76 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 		{
 			DestRenderTarget = &PassOutputs[0].RequestSurface(Context);
 
+			FTextureRHIParamRef DstTexture = DestRenderTarget->TargetableTexture;
+			FTextureRHIParamRef SrcTexture = GetInput(ePId_Input0)->GetOutput()->RequestSurface(Context).ShaderResourceTexture;
+
+			// CopyResource() can only be called when format and size match. Otherwise must use shader to do stretch & format conversion.
+			if (DstTexture->GetFormat() == SrcTexture->GetFormat() && DstTexture->GetSizeXYZ() == SrcTexture->GetSizeXYZ())
+			{
 			Context.RHICmdList.CopyTexture(
-				GetInput(ePId_Input0)->GetOutput()->RequestSurface(Context).ShaderResourceTexture,
-				DestRenderTarget->TargetableTexture,
+					SrcTexture,
+					DstTexture,
 				FRHICopyTextureInfo()
 				);
+		}
+			else
+			{
+				TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(Context.View.FeatureLevel);
+
+				FIntRect DstRect = Context.GetSceneColorDestRect(*DestRenderTarget);
+				FIntRect SrcRect = Context.SceneColorViewRect;
+
+				FRHIRenderPassInfo RPInfo = FRHIRenderPassInfo(
+					DstTexture,
+					MakeRenderTargetActions(Context.GetLoadActionForRenderTarget(*DestRenderTarget), ERenderTargetStoreAction::EStore)
+					);
+
+				Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("Copy Rect"));
+				{
+					Context.SetViewportAndCallRHI(DstRect);
+
+					FGraphicsPipelineStateInitializer GraphicsPSOInit;
+					Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+					GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+					GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+					auto VS = GlobalShaderMap->GetShader<FPostProcessVS>();
+					auto PS = GlobalShaderMap->GetShader<FCopyRectPS>();
+
+					GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(VS);
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PS);
+					GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+					SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
+
+					FCopyRectPS::FParameters PixelParams;
+					PixelParams.SrcTexture = SrcTexture;
+					PixelParams.SrcSampler = TStaticSamplerState<>::GetRHI();
+
+					SetShaderParameters(Context.RHICmdList, PS, PS->GetPixelShader(), PixelParams);
+
+					DrawRectangle(
+						Context.RHICmdList,
+						DstRect.Min.X,
+						DstRect.Min.Y,
+						DstRect.Width(),
+						DstRect.Height(),
+						SrcRect.Min.X,
+						SrcRect.Min.Y,
+						SrcRect.Width(),
+						SrcRect.Height(),
+						DstTexture->GetTexture2D()->GetSizeXY(),
+						SrcTexture->GetTexture2D()->GetSizeXY(),
+						VS,
+						EDRF_UseTriangleOptimization
+						);
+				}
+				Context.RHICmdList.EndRenderPass();
+				Context.RHICmdList.CopyToResolveTarget(DestRenderTarget->TargetableTexture, DestRenderTarget->ShaderResourceTexture, FResolveParams());
+			}
 		}
 
 		DestRenderTargetLoadAction = ERenderTargetLoadAction::ELoad;

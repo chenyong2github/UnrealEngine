@@ -105,3 +105,20 @@ class RENDERCORE_API FScreenVertexShaderVS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 	END_SHADER_PARAMETER_STRUCT()
 };
+
+/** Pixel shader to copy pixels from src to dst performing a format change that works on all platforms. */
+class RENDERCORE_API FCopyRectPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FCopyRectPS);
+	SHADER_USE_PARAMETER_STRUCT(FCopyRectPS, FGlobalShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
+	{
+		return true;
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_TEXTURE(Texture2D, SrcTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SrcSampler)
+	END_SHADER_PARAMETER_STRUCT()
+};

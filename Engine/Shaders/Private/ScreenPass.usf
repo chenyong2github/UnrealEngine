@@ -10,3 +10,14 @@ void ScreenPassVS(
 {
 	DrawRectangle(InPosition, InTexCoord, OutPosition, OutUVAndScreenPos);
 }
+
+Texture2D SrcTexture;
+SamplerState SrcSampler;
+
+float4 CopyRectPS(
+	noperspective float4 UVAndScreenPos : TEXCOORD0
+    ) : SV_Target0
+{
+    float2 UV = UVAndScreenPos.xy;
+    return Texture2DSample(SrcTexture, SrcSampler, UV);
+}
