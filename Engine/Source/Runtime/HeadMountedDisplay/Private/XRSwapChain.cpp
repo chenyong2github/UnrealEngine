@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "XRSwapChain.h"
+#include "RenderingThread.h"
 #include "XRThreadUtils.h"
 #include "CoreGlobals.h"
 
