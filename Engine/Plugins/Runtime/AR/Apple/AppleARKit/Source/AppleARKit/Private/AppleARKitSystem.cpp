@@ -1759,7 +1759,7 @@ void FAppleARKitSystem::SessionDidUpdateAnchors_Internal( TSharedRef<FAppleARKit
 	}
 
 	UARTrackedGeometry** GeometrySearchResult = TrackedGeometries.Find(AnchorData->AnchorGUID);
-	if (ensure(GeometrySearchResult != nullptr))
+	if (GeometrySearchResult != nullptr)
 	{
 		UARTrackedGeometry* FoundGeometry = *GeometrySearchResult;
 		TArray<UARPin*> PinsToUpdate = ARKitUtil::PinsFromGeometry(FoundGeometry, Pins);
