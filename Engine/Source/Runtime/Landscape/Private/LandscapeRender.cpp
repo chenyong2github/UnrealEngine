@@ -3129,6 +3129,11 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 
 			MeshBatch.Elements.Add(BatchElement);
 
+			if (SectionRayTracingStates[SubSectionIdx].CurrentLOD != CurrentLOD)
+			{
+				SectionRayTracingStates[SubSectionIdx].CurrentLOD = CurrentLOD;
+				SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer.Release();
+			}
 			SectionRayTracingStates[SubSectionIdx].Geometry.Initializer.IndexBuffer = BatchElement.IndexBuffer->IndexBufferRHI;
 
 			{
