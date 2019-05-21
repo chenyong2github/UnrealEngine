@@ -324,7 +324,7 @@ ConstantFoldingRule FoldFPBinaryOp(BinaryScalarFoldingRule scalar_rule) {
 
       /* UE Begin Change: Workaround a crash caused by vector binOp(scalar, vector) somehow ending up in here */
       if (constants[0]->AsVectorConstant()) {
-      	a_components = constants[0]->GetVectorComponents(const_mgr);
+      a_components = constants[0]->GetVectorComponents(const_mgr);
       }
       else if ((constants[0]->AsScalarConstant())) {
         for (uint32_t i = 0; i < vector_type->element_count(); i++) {
@@ -333,7 +333,7 @@ ConstantFoldingRule FoldFPBinaryOp(BinaryScalarFoldingRule scalar_rule) {
       }
       
       if (constants[1]->AsVectorConstant()) {
-      	b_components = constants[1]->GetVectorComponents(const_mgr);
+      b_components = constants[1]->GetVectorComponents(const_mgr);
       }
       else if ((constants[1]->AsScalarConstant())) {
         for (uint32_t i = 0; i < vector_type->element_count(); i++) {

@@ -179,7 +179,7 @@ class AggressiveDCEPass : public MemPass {
 
   // Store instructions to variables of private storage
   std::vector<Instruction*> private_stores_;
-	
+
   /* UE Change Begin: Track function-variable stores to handle intrinsics that use such variables as operands but DCE only considers the declaration of the variable. */
   // Store instructions to variables of private storage
   std::unordered_map<uint32_t, Instruction*> function_stores_;
