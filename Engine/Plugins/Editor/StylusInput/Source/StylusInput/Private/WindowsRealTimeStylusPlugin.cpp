@@ -2,6 +2,8 @@
 
 #include "WindowsRealTimeStylusPlugin.h"
 
+#if PLATFORM_WINDOWS
+
 HRESULT FWindowsRealTimeStylusPlugin::QueryInterface(const IID& InterfaceID, void** Pointer)
 {
 	if ((InterfaceID == __uuidof(IStylusSyncPlugin)) || (InterfaceID == IID_IUnknown))
@@ -388,3 +390,5 @@ HRESULT FWindowsRealTimeStylusPlugin::InAirPackets(IRealTimeStylus* RealTimeStyl
 	HandlePacket(RealTimeStylus, StylusInfo, PacketCount, PacketBufferLength, Packets);
 	return S_OK;
 }
+
+#endif // PLATFORM_WINDOWS

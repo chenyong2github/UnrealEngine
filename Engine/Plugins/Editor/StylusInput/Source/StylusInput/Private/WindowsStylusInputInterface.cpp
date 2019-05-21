@@ -4,6 +4,8 @@
 #include "WindowsRealTimeStylusPlugin.h"
 #include "Interfaces/IMainFrameModule.h"
 
+#if PLATFORM_WINDOWS
+
 class FWindowsStylusInputInterfaceImpl
 {
 public:
@@ -157,3 +159,5 @@ TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface()
 
 	return MakeShareable(new FWindowsStylusInputInterface(WindowsImpl));
 }
+
+#endif // PLATFORM_WINDOWS

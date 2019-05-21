@@ -23,13 +23,14 @@ class FStylusInputModule : public IModuleInterface
 
 IMPLEMENT_MODULE(FStylusInputModule, StylusInput)
 
-
 // This is the function that all platform-specific implementations are required to implement.
 TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface();
 
 #if PLATFORM_WINDOWS
 #include "WindowsStylusInputInterface.h"
-#endif // PLATFORM_WINDOWS
+#else
+TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface() { return TSharedPtr<IStylusInputInterfaceInternal>(); }
+#endif
 
 // TODO: Other platforms
 
@@ -40,6 +41,12 @@ void UStylusInputSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	UE_LOG(LogStylusInput, Log, TEXT("Initializing StylusInput subsystem."));
 
 	InputInterface = CreateStylusInputInterface();
+
+	if (!InputInterface.IsValid())
+	{
+		UE_LOG(LogStylusInput, Log, TEXT("StylusInput not supported on this platform."));
+		return;
+	}
 
 	const TSharedRef<FGlobalTabmanager>& TabManager = FGlobalTabmanager::Get();
 	const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
