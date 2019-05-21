@@ -879,7 +879,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				}
 #endif
 
-				FSamplerStateRHIParamRef SamplerState = BilinearClamp;
+				FRHISamplerState* SamplerState = BilinearClamp;
 				FTextureRHIParamRef TextureRHI = GWhiteTexture->TextureRHI;
 				if (ShaderResource)
 				{

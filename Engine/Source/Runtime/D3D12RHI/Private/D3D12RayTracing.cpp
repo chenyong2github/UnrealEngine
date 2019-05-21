@@ -2520,7 +2520,7 @@ static void SetRayTracingShaderResources(
 	uint32 InNumTextures, const FTextureRHIParamRef* Textures,
 	uint32 InNumSRVs, const FShaderResourceViewRHIParamRef* SRVs,
 	uint32 InNumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
-	uint32 InNumSamplers, const FSamplerStateRHIParamRef* Samplers,
+	uint32 InNumSamplers, FRHISamplerState* const* Samplers,
 	uint32 InNumUAVs, const FUnorderedAccessViewRHIParamRef* UAVs,
 	uint32 InLooseParameterDataSize, const void* InLooseParameterData,
 	FD3D12RayTracingDescriptorCache& DescriptorCache,
@@ -2588,7 +2588,7 @@ static void SetRayTracingShaderResources(
 
 	for (uint32 SamplerIndex = 0; SamplerIndex < InNumSamplers; ++SamplerIndex)
 	{
-		FSamplerStateRHIParamRef Resource = Samplers[SamplerIndex];
+		FRHISamplerState* Resource = Samplers[SamplerIndex];
 		if (Resource)
 		{
 			LocalSamplers[SamplerIndex] = CommandContext.RetrieveObject<FD3D12SamplerState>(Resource)->Descriptor;

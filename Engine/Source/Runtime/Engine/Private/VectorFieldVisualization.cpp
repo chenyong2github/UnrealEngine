@@ -183,7 +183,7 @@ void FVectorFieldVisualizationVertexFactoryShaderParameters::GetElementShaderBin
 	FVertexInputStreamArray& VertexStreams) const
 {
 	FVectorFieldVisualizationVertexFactory* VertexFactory = (FVectorFieldVisualizationVertexFactory*)InVertexFactory;
-	FSamplerStateRHIParamRef SamplerStatePoint = TStaticSamplerState<SF_Point>::GetRHI();
+	FRHISamplerState* SamplerStatePoint = TStaticSamplerState<SF_Point>::GetRHI();
 	ShaderBindings.Add(Shader->GetUniformBufferParameter<FVectorFieldVisualizationParameters>(), VertexFactory->UniformBuffer);
 	ShaderBindings.AddTexture(VectorFieldTexture, VectorFieldTextureSampler, SamplerStatePoint, VertexFactory->VectorFieldTextureRHI);
 }

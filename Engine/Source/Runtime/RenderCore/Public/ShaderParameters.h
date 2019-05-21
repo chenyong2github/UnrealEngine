@@ -275,7 +275,7 @@ struct FRayTracingShaderBindingsWriter : FRayTracingShaderBindings
 		}
 	}
 
-	void Set(const FShaderResourceParameter& Param, FSamplerStateRHIParamRef Value)
+	void Set(const FShaderResourceParameter& Param, FRHISamplerState* Value)
 	{
 		if (Param.IsBound())
 		{
@@ -296,7 +296,7 @@ struct FRayTracingShaderBindingsWriter : FRayTracingShaderBindings
 		SRVs[BaseIndex] = Value;
 	}
 
-	void SetSampler(uint16 BaseIndex, FSamplerStateRHIParamRef Value)
+	void SetSampler(uint16 BaseIndex, FRHISamplerState* Value)
 	{
 		checkSlow(BaseIndex < ARRAY_COUNT(Samplers));
 		Samplers[BaseIndex] = Value;

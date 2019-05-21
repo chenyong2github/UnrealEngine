@@ -45,7 +45,7 @@ void SetupSceneViewFamilyBlackboard(
 
 void SetupSceneTextureSamplers(FSceneTextureSamplerParameters* OutSamplers)
 {
-	FSamplerStateRHIParamRef Sampler = TStaticSamplerState<SF_Point>::GetRHI();
+	FRHISamplerState* Sampler = TStaticSamplerState<SF_Point>::GetRHI();
 	OutSamplers->SceneDepthBufferSampler = Sampler;
 	OutSamplers->SceneVelocityBufferSampler = Sampler;
 	OutSamplers->SceneGBufferASampler = Sampler;

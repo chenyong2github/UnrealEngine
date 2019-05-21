@@ -337,7 +337,7 @@ public:
 	using FPermutationDomain = TShaderPermutationDomain<FDimensionDirection, FDimensionQuality>;
 
 	// Returns the sampler state based on the requested SSS filter CVar setting.
-	static FSamplerStateRHIParamRef GetSamplerState()
+	static FRHISamplerState* GetSamplerState()
 	{
 		if (CVarSSSFilter.GetValueOnRenderThread())
 		{
@@ -481,8 +481,8 @@ void ComputeSubsurfaceForView(
 	FRDGTextureRef SubsurfaceTextureX = nullptr;
 	FRDGTextureRef SubsurfaceTextureY = nullptr;
 
-	FSamplerStateRHIParamRef PointClampSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	FSamplerStateRHIParamRef BilinearBorderSampler = TStaticSamplerState<SF_Bilinear, AM_Border, AM_Border, AM_Border>::GetRHI();
+	FRHISamplerState* PointClampSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	FRHISamplerState* BilinearBorderSampler = TStaticSamplerState<SF_Bilinear, AM_Border, AM_Border, AM_Border>::GetRHI();
 
 	/**
 	 * When in bypass mode, the setup and convolution passes are skipped, but lighting
@@ -517,7 +517,7 @@ void ComputeSubsurfaceForView(
 		SubsurfaceTextureX = GraphBuilder.CreateTexture(SubsurfaceTextureDescriptor, TEXT("SubsurfaceTextureX"));
 		SubsurfaceTextureY = GraphBuilder.CreateTexture(SubsurfaceTextureDescriptor, TEXT("SubsurfaceTextureY"));
 
-		FSamplerStateRHIParamRef SubsurfaceSamplerState = FSubsurfacePS::GetSamplerState();
+		FRHISamplerState* SubsurfaceSamplerState = FSubsurfacePS::GetSamplerState();
 		const FSubsurfacePS::EQuality SubsurfaceQuality = FSubsurfacePS::GetQuality();
 
 		struct FSubsurfacePassInfo

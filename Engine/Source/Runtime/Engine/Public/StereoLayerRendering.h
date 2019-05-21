@@ -97,7 +97,7 @@ public:
 	}
 	FStereoLayerPS() {}
 
-	void SetParameters(FRHICommandList& RHICmdList, FSamplerStateRHIParamRef SamplerStateRHI, FTextureRHIParamRef TextureRHI)
+	void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FTextureRHIParamRef TextureRHI)
 	{
 		FPixelShaderRHIParamRef PS = GetPixelShader();
 

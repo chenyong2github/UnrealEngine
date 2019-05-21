@@ -55,7 +55,7 @@ public:
 
 		SetShaderValue(RHICmdList, PixelShaderRHI, FarPlaneDistance, farPlaneDistanceValue);
 
-		FSamplerStateRHIParamRef SamplerStateRHI = TStaticSamplerState<SF_Point>::GetRHI();
+		FRHISamplerState* SamplerStateRHI = TStaticSamplerState<SF_Point>::GetRHI();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, InDepthTexture, InTextureSampler, SamplerStateRHI, DepthTexture);
 	}
 

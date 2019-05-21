@@ -72,7 +72,7 @@ public:
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
 
 		// filter only if needed for better performance
-		FSamplerStateRHIParamRef Filter = (Method == 2) ? 
+		FRHISamplerState* Filter = (Method == 2) ?
 			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI():
 			TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		
@@ -213,7 +213,7 @@ public:
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 
 		// filter only if needed for better performance
-		FSamplerStateRHIParamRef Filter = (Method == 2) ? 
+		FRHISamplerState* Filter = (Method == 2) ?
 			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI():
 			TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 

@@ -73,7 +73,7 @@ protected:
 	inline uint32 GetSRVOffset() const
 	{
 		return GetSamplerOffset() 
-			+ ParameterMapInfo.TextureSamplers.Num() * sizeof(FSamplerStateRHIParamRef);
+			+ ParameterMapInfo.TextureSamplers.Num() * sizeof(FRHISamplerState*);
 	}
 
 	inline uint32 GetSRVTypeOffset() const
@@ -153,7 +153,7 @@ public:
 	void AddTexture(
 		FShaderResourceParameter TextureParameter,
 		FShaderResourceParameter SamplerParameter,
-		FSamplerStateRHIParamRef SamplerStateRHI,
+		FRHISamplerState* SamplerStateRHI,
 		FTextureRHIParamRef TextureRHI)
 	{
 		checkfSlow(TextureParameter.IsInitialized(), TEXT("Parameter was not serialized"));
@@ -223,10 +223,10 @@ private:
 		return (FUniformBufferRHIParamRef*)(Data + GetUniformBufferOffset());
 	}
 
-	inline FSamplerStateRHIParamRef* GetSamplerStart() const
+	inline FRHISamplerState** GetSamplerStart() const
 	{
 		uint8* SamplerDataStart = Data + GetSamplerOffset();
-		return (FSamplerStateRHIParamRef*)SamplerDataStart;
+		return (FRHISamplerState**)SamplerDataStart;
 	}
 
 	inline FRHIResource** GetSRVStart() const
@@ -280,7 +280,7 @@ private:
 		checkfSlow(FoundIndex >= 0, TEXT("Attempted to set a uniform buffer at BaseIndex %u which was never in the shader's parameter map."), BaseIndex);
 	}
 
-	inline void WriteBindingSampler(FSamplerStateRHIParamRef Value, uint32 BaseIndex)
+	inline void WriteBindingSampler(FRHISamplerState* Value, uint32 BaseIndex)
 	{
 		int32 FoundIndex = -1;
 

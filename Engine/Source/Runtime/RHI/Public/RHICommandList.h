@@ -115,7 +115,7 @@ struct FRayTracingShaderBindings
 	FTextureRHIParamRef Textures[32] = {};
 	FShaderResourceViewRHIParamRef SRVs[32] = {};
 	FUniformBufferRHIParamRef UniformBuffers[8] = {};
-	FSamplerStateRHIParamRef Samplers[16] = {};
+	FRHISamplerState* Samplers[16] = {};
 	FUnorderedAccessViewRHIParamRef UAVs[8] = {};
 };
 
@@ -830,8 +830,8 @@ struct FRHICommandSetShaderSampler final : public FRHICommand<FRHICommandSetShad
 {
 	TShaderRHIParamRef Shader;
 	uint32 SamplerIndex;
-	FSamplerStateRHIParamRef Sampler;
-	FORCEINLINE_DEBUGGABLE FRHICommandSetShaderSampler(TShaderRHIParamRef InShader, uint32 InSamplerIndex, FSamplerStateRHIParamRef InSampler)
+	FRHISamplerState* Sampler;
+	FORCEINLINE_DEBUGGABLE FRHICommandSetShaderSampler(TShaderRHIParamRef InShader, uint32 InSamplerIndex, FRHISamplerState* InSampler)
 		: Shader(InShader)
 		, SamplerIndex(InSamplerIndex)
 		, Sampler(InSampler)
@@ -2204,7 +2204,7 @@ public:
 	}
 
 	template <typename TShaderRHIParamRef>
-	FORCEINLINE_DEBUGGABLE void SetShaderSampler(TShaderRHIParamRef Shader, uint32 SamplerIndex, FSamplerStateRHIParamRef State)
+	FORCEINLINE_DEBUGGABLE void SetShaderSampler(TShaderRHIParamRef Shader, uint32 SamplerIndex, FRHISamplerState* State)
 	{
 		//check(IsOutsideRenderPass());
 		
@@ -2224,7 +2224,7 @@ public:
 	}
 
 	template <typename TShaderRHI>
-	FORCEINLINE_DEBUGGABLE void SetShaderSampler(TRefCountPtr<TShaderRHI>& Shader, uint32 SamplerIndex, FSamplerStateRHIParamRef State)
+	FORCEINLINE_DEBUGGABLE void SetShaderSampler(TRefCountPtr<TShaderRHI>& Shader, uint32 SamplerIndex, FRHISamplerState* State)
 	{
 		SetShaderSampler(Shader.GetReference(), SamplerIndex, State);
 	}
@@ -3218,7 +3218,7 @@ public:
 		ALLOC_COMMAND(FRHICommandSetShaderResourceViewParameter<FComputeShaderRHIParamRef, ECmdList::ECompute>)(Shader, SamplerIndex, SRV);
 	}
 	
-	FORCEINLINE_DEBUGGABLE void SetShaderSampler(FComputeShaderRHIParamRef Shader, uint32 SamplerIndex, FSamplerStateRHIParamRef State)
+	FORCEINLINE_DEBUGGABLE void SetShaderSampler(FComputeShaderRHIParamRef Shader, uint32 SamplerIndex, FRHISamplerState* State)
 	{
 		// Immutable samplers can't be set dynamically
 		check(!State->IsImmutable());

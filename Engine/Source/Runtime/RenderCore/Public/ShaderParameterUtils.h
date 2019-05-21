@@ -234,7 +234,7 @@ FORCEINLINE void SetTextureParameter(
 	ShaderTypeRHIParamRef Shader,
 	const FShaderResourceParameter& TextureParameter,
 	const FShaderResourceParameter& SamplerParameter,
-	FSamplerStateRHIParamRef SamplerStateRHI,
+	FRHISamplerState* SamplerStateRHI,
 	FTextureRHIParamRef TextureRHI,
 	uint32 ElementIndex = 0
 	)
@@ -294,7 +294,7 @@ FORCEINLINE void SetSamplerParameter(
 	TRHICmdList& RHICmdList,
 	ShaderTypeRHIParamRef Shader,
 	const FShaderResourceParameter& Parameter,
-	FSamplerStateRHIParamRef SamplerStateRHI
+	FRHISamplerState* SamplerStateRHI
 	)
 {
 	if(Parameter.IsBound())

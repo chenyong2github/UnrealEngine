@@ -49,7 +49,7 @@ public:
 	int32 MaxTextureUsed = -1;
 	FTextureRHIParamRef Textures[MAX_SRVs_PER_SHADER_STAGE] = {};
 	int32 MaxSamplerUsed = -1;
-	FSamplerStateRHIParamRef Samplers[MAX_SAMPLERS_PER_SHADER_STAGE] = {};
+	FRHISamplerState* Samplers[MAX_SAMPLERS_PER_SHADER_STAGE] = {};
 };
 
 class FReadOnlyMeshDrawSingleShaderBindings : public FMeshDrawShaderBindingsLayout
@@ -66,10 +66,10 @@ public:
 		return (const FUniformBufferRHIParamRef*)(Data + GetUniformBufferOffset());
 	}
 
-	inline const FSamplerStateRHIParamRef* GetSamplerStart() const
+	inline const FRHISamplerState** GetSamplerStart() const
 	{
 		const uint8* SamplerDataStart = Data + GetSamplerOffset();
-		return (const FSamplerStateRHIParamRef*)SamplerDataStart;
+		return (const FRHISamplerState**)SamplerDataStart;
 	}
 
 	inline const FRHIResource** GetSRVStart() const
@@ -119,7 +119,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 		}
 	}
 
-	const FSamplerStateRHIParamRef* RESTRICT SamplerBindings = SingleShaderBindings.GetSamplerStart();
+	const FRHISamplerState** RESTRICT SamplerBindings = SingleShaderBindings.GetSamplerStart();
 	const FShaderParameterInfo* RESTRICT TextureSamplerParameters = SingleShaderBindings.ParameterMapInfo.TextureSamplers.GetData();
 	const int32 NumTextureSamplers = SingleShaderBindings.ParameterMapInfo.TextureSamplers.Num();
 
@@ -127,7 +127,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 	{
 		FShaderParameterInfo Parameter = TextureSamplerParameters[SamplerIndex];
 		checkSlow(Parameter.BaseIndex < ARRAY_COUNT(ShaderBindingState.Samplers));
-		FSamplerStateRHIParamRef Sampler = SamplerBindings[SamplerIndex];
+		FRHISamplerState* Sampler = (FRHISamplerState*)SamplerBindings[SamplerIndex];
 
 		if (Sampler != ShaderBindingState.Samplers[Parameter.BaseIndex])
 		{
@@ -211,14 +211,14 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 		RHICmdList.SetShaderUniformBuffer(Shader, Parameter.BaseIndex, UniformBuffer);
 	}
 
-	const FSamplerStateRHIParamRef* RESTRICT SamplerBindings = SingleShaderBindings.GetSamplerStart();
+	const FRHISamplerState** RESTRICT SamplerBindings = SingleShaderBindings.GetSamplerStart();
 	const FShaderParameterInfo* RESTRICT TextureSamplerParameters = SingleShaderBindings.ParameterMapInfo.TextureSamplers.GetData();
 	const int32 NumTextureSamplers = SingleShaderBindings.ParameterMapInfo.TextureSamplers.Num();
 
 	for (int32 SamplerIndex = 0; SamplerIndex < NumTextureSamplers; SamplerIndex++)
 	{
 		FShaderParameterInfo Parameter = TextureSamplerParameters[SamplerIndex];
-		FSamplerStateRHIParamRef Sampler = SamplerBindings[SamplerIndex];
+		FRHISamplerState* Sampler = (FRHISamplerState*)SamplerBindings[SamplerIndex];
 
 		RHICmdList.SetShaderSampler(Shader, Parameter.BaseIndex, Sampler);
 	}
@@ -604,12 +604,12 @@ void FMeshDrawShaderBindings::Finalize(const FMeshProcessorShaders* ShadersForDe
 			}
 		}
 
-		const FSamplerStateRHIParamRef* SamplerBindings = SingleShaderBindings.GetSamplerStart();
+		const FRHISamplerState** SamplerBindings = SingleShaderBindings.GetSamplerStart();
 
 		for (int32 BindingIndex = 0; BindingIndex < ShaderLayout.ParameterMapInfo.TextureSamplers.Num(); BindingIndex++)
 		{
 			FShaderParameterInfo ParameterInfo = ShaderLayout.ParameterMapInfo.TextureSamplers[BindingIndex];
-			FSamplerStateRHIParamRef SamplerValue = SamplerBindings[BindingIndex];
+			const FRHISamplerState* SamplerValue = SamplerBindings[BindingIndex];
 			ensureMsgf(SamplerValue, TEXT("Shader %s with vertex factory %s never set sampler at BaseIndex %u.  This can cause GPU hangs, depending on how the shader uses it."), 
 				Shader->GetType()->GetName(), 
 				Shader->GetVertexFactoryType()->GetName(),

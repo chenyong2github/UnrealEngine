@@ -150,7 +150,7 @@ EMotionBlurQuality GetMotionBlurQuality()
 	return static_cast<EMotionBlurQuality>(Quality - 1);
 }
 
-FSamplerStateRHIParamRef GetMotionBlurColorSampler()
+FRHISamplerState* GetMotionBlurColorSampler()
 {
 	bool bFiltered = false;
 
@@ -168,7 +168,7 @@ FSamplerStateRHIParamRef GetMotionBlurColorSampler()
 	}
 }
 
-FSamplerStateRHIParamRef GetMotionBlurVelocitySampler()
+FRHISamplerState* GetMotionBlurVelocitySampler()
 {
 	return TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 }

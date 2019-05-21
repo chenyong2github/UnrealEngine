@@ -852,16 +852,16 @@ void FPostProcessPassParameters::Bind(const FShaderParameterMap& ParameterMap)
 }
 
 template <typename TRHICmdList>
-void FPostProcessPassParameters::SetPS(TRHICmdList& RHICmdList, const FPixelShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, FSamplerStateRHIParamRef Filter, EFallbackColor FallbackColor, FSamplerStateRHIParamRef* FilterOverrideArray)
+void FPostProcessPassParameters::SetPS(TRHICmdList& RHICmdList, const FPixelShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray)
 {
 	Set(RHICmdList, ShaderRHI, Context, Filter, FallbackColor, FilterOverrideArray);
 }
 
-template void FPostProcessPassParameters::SetPS(FRHICommandList& RHICmdList, const FPixelShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, FSamplerStateRHIParamRef Filter, EFallbackColor FallbackColor, FSamplerStateRHIParamRef* FilterOverrideArray);
-template void FPostProcessPassParameters::SetPS(FRHICommandListImmediate& RHICmdList, const FPixelShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, FSamplerStateRHIParamRef Filter, EFallbackColor FallbackColor, FSamplerStateRHIParamRef* FilterOverrideArray);
+template void FPostProcessPassParameters::SetPS(FRHICommandList& RHICmdList, const FPixelShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray);
+template void FPostProcessPassParameters::SetPS(FRHICommandListImmediate& RHICmdList, const FPixelShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray);
 
 template< typename TRHICmdList >
-void FPostProcessPassParameters::SetCS(const FComputeShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, TRHICmdList& RHICmdList, FSamplerStateRHIParamRef Filter, EFallbackColor FallbackColor, FSamplerStateRHIParamRef* FilterOverrideArray)
+void FPostProcessPassParameters::SetCS(const FComputeShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, TRHICmdList& RHICmdList, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray)
 {
 	Set(RHICmdList, ShaderRHI, Context, Filter, FallbackColor, FilterOverrideArray);
 }
@@ -869,21 +869,21 @@ template void FPostProcessPassParameters::SetCS< FRHICommandListImmediate >(
 	const FComputeShaderRHIParamRef& ShaderRHI,
 	const FRenderingCompositePassContext& Context,
 	FRHICommandListImmediate& RHICmdList,
-	FSamplerStateRHIParamRef Filter,
+	FRHISamplerState* Filter,
 	EFallbackColor FallbackColor,
-	FSamplerStateRHIParamRef* FilterOverrideArray
+	FRHISamplerState** FilterOverrideArray
 	);
 
 template void FPostProcessPassParameters::SetCS< FRHIAsyncComputeCommandListImmediate >(
 	const FComputeShaderRHIParamRef& ShaderRHI,
 	const FRenderingCompositePassContext& Context,
 	FRHIAsyncComputeCommandListImmediate& RHICmdList,
-	FSamplerStateRHIParamRef Filter,
+	FRHISamplerState* Filter,
 	EFallbackColor FallbackColor,
-	FSamplerStateRHIParamRef* FilterOverrideArray
+	FRHISamplerState** FilterOverrideArray
 	);
 
-void FPostProcessPassParameters::SetVS(const FVertexShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, FSamplerStateRHIParamRef Filter, EFallbackColor FallbackColor, FSamplerStateRHIParamRef* FilterOverrideArray)
+void FPostProcessPassParameters::SetVS(const FVertexShaderRHIParamRef& ShaderRHI, const FRenderingCompositePassContext& Context, FRHISamplerState* Filter, EFallbackColor FallbackColor, FRHISamplerState** FilterOverrideArray)
 {
 	Set(Context.RHICmdList, ShaderRHI, Context, Filter, FallbackColor, FilterOverrideArray);
 }
@@ -893,9 +893,9 @@ void FPostProcessPassParameters::Set(
 	TRHICmdList& RHICmdList,
 	const TShaderRHIParamRef& ShaderRHI,
 	const FRenderingCompositePassContext& Context,
-	FSamplerStateRHIParamRef Filter,
+	FRHISamplerState* Filter,
 	EFallbackColor FallbackColor,
-	FSamplerStateRHIParamRef* FilterOverrideArray)
+	FRHISamplerState** FilterOverrideArray)
 {
 	// assuming all outputs have the same size
 	FRenderingCompositeOutput* Output = Context.Pass->GetOutput(ePId_Output0);
@@ -984,7 +984,7 @@ void FPostProcessPassParameters::Set(
 			InputPooledElement = Input->RequestInput();
 		}
 
-		FSamplerStateRHIParamRef LocalFilter = FilterOverrideArray ? FilterOverrideArray[Id] : Filter;
+		FRHISamplerState* LocalFilter = FilterOverrideArray ? FilterOverrideArray[Id] : Filter;
 
 		if(InputPooledElement)
 		{
@@ -1033,9 +1033,9 @@ void FPostProcessPassParameters::Set(
 		TRHICmdList& RHICmdList,						\
 		const TShaderRHIParamRef& ShaderRHI,			\
 		const FRenderingCompositePassContext& Context,	\
-		FSamplerStateRHIParamRef Filter,				\
+		FRHISamplerState* Filter,				\
 		EFallbackColor FallbackColor,					\
-		FSamplerStateRHIParamRef* FilterOverrideArray	\
+		FRHISamplerState** FilterOverrideArray	\
 	);
 
 IMPLEMENT_POST_PROCESS_PARAM_SET( FVertexShaderRHIParamRef, FRHICommandListImmediate );

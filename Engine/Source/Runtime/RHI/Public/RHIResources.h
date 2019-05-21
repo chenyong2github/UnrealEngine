@@ -1097,6 +1097,7 @@ class FRHIUnorderedAccessView : public FRHIResource {};
 class FRHIShaderResourceView : public FRHIResource {};
 
 
+UE_DEPRECATED(4.23, "FSamplerStateRHIParamRef typedef is deprecated; please use FRHISamplerState* directly instead.")
 typedef FRHISamplerState*              FSamplerStateRHIParamRef;
 typedef TRefCountPtr<FRHISamplerState> FSamplerStateRHIRef;
 
@@ -1778,7 +1779,7 @@ struct FBoundShaderStateInput
 
 struct FImmutableSamplerState
 {
-	using TImmutableSamplers = TStaticArray<FSamplerStateRHIParamRef, MaxImmutableSamplers>;
+	using TImmutableSamplers = TStaticArray<FRHISamplerState*, MaxImmutableSamplers>;
 
 	FImmutableSamplerState()
 		: ImmutableSamplers(nullptr)
