@@ -803,6 +803,12 @@ namespace ShaderConductor
 				{
 					mslOpts.texel_buffer_texture_width = (uint32_t)std::stoi(Define.value);
 				}
+                /* UE Change Begin: Use Metal's native texture-buffer type for HLSL buffers. */
+				if (!strcmp(Define.name, "texture_buffer_native"))
+				{
+					mslOpts.texture_buffer_native = (std::stoi(Define.value) != 0);
+                }
+                /* UE Change End: Use Metal's native texture-buffer type for HLSL buffers. */
                 /* UE Change Begin: Use Metal's native frame-buffer fetch API for subpass inputs. */
 				if (!strcmp(Define.name, "ios_use_framebuffer_fetch_subpasses"))
 				{
