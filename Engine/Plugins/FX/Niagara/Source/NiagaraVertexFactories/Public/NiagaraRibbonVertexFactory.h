@@ -42,10 +42,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonUniformParameters, NIAGARAVER
 	SHADER_PARAMETER(int, MaterialParam2DataOffset)
 	SHADER_PARAMETER(int, MaterialParam3DataOffset)
 	SHADER_PARAMETER(int, TotalNumInstances)
-	SHADER_PARAMETER(uint32, UseCustomFacing)
-	SHADER_PARAMETER(uint32, InvertDrawOrder)
-	SHADER_PARAMETER(float, UV0TilingDistance)
-	SHADER_PARAMETER(float, UV1TilingDistance)
+	SHADER_PARAMETER(int, InterpCount)
+	SHADER_PARAMETER(float, OneOverInterpCount)
+	SHADER_PARAMETER(float, OneOverUV0TilingDistance)
+	SHADER_PARAMETER(float, OneOverUV1TilingDistance)
 	SHADER_PARAMETER(FVector4, PackedVData)
 	SHADER_PARAMETER_EX(FMatrix, LocalToWorld, EShaderPrecisionModifier::Half)
 	SHADER_PARAMETER_EX(FMatrix, LocalToWorldInverseTransposed, EShaderPrecisionModifier::Half)
@@ -132,9 +132,9 @@ public:
 		SortedIndicesOffset = InSortedIndicesOffset;
 	}
 
-	void SetSegmentDistances(const FShaderResourceViewRHIRef& InSegmentDistancesSRV)
+	void SetTangentAndDistances(const FShaderResourceViewRHIRef& InTangentAndDistancesSRV)
 	{
-		SegmentDistancesSRV = InSegmentDistancesSRV;
+		TangentAndDistancesSRV = InTangentAndDistancesSRV;
 	}
 
 
@@ -173,9 +173,9 @@ public:
 		return SortedIndicesOffset;
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef GetSegmentDistancesSRV()
+	FORCEINLINE FShaderResourceViewRHIRef GetTangentAndDistancesSRV()
 	{
-		return SegmentDistancesSRV;
+		return TangentAndDistancesSRV;
 	}
 
 	FORCEINLINE FShaderResourceViewRHIRef GetMultiRibbonIndicesSRV()
@@ -225,7 +225,7 @@ private:
 	uint32 FloatDataStride;
 
 	FShaderResourceViewRHIRef SortedIndicesSRV;
-	FShaderResourceViewRHIRef SegmentDistancesSRV;
+	FShaderResourceViewRHIRef TangentAndDistancesSRV;
 	FShaderResourceViewRHIRef MultiRibbonIndicesSRV;
 	FShaderResourceViewRHIRef PackedPerRibbonDataByIndexSRV;
 

@@ -18,5 +18,7 @@ class BLUTILITY_API UEditorUtilityObject : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-	
+	// Standard function to execute
+	UFUNCTION(BlueprintImplementableEvent)
+	void Run();
 };

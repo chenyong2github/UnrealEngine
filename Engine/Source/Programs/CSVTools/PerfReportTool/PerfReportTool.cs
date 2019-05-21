@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "3.77";
+        private static string VersionString = "3.80";
 
         public static string Get() { return VersionString; }
     };
@@ -257,9 +257,9 @@ namespace PerfReportTool
 			"       -maxx <frameNumber>\n" +
 			"       -maxy <value>\n" +
 			"       -graphScale <value>\n" +
-            "       -noStripEvents : if specified, don't strip out excluded events from the stats" +
-            "       -perfLog : output performance logging information" +
-			"		-writeSummaryCsv : if specified, a csv file containing summary information will be generated. Not available in bulk mode." +
+            "       -noStripEvents : if specified, don't strip out excluded events from the stats\n" +
+			"       -perfLog : output performance logging information\n" +
+			"       -writeSummaryCsv : if specified, a csv file containing summary information will be generated. Not available in bulk mode.\n" +
             "\n" +
 			"Optional bulk mode args: (use with -csvdir)\n" +
 			"       -recurse \n" +

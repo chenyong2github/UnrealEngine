@@ -345,7 +345,7 @@ namespace MobileBasePass
 		const FMeshBatch& MeshBatch, 
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy, 
 		const FLightSceneInfo* MobileDirectionalLight, 
-		EMaterialShadingModel ShadingModel, 
+		FMaterialShadingModelField ShadingModels, 
 		bool bPrimReceivesCSM, 
 		ERHIFeatureLevel::Type FeatureLevel);
 
@@ -395,7 +395,7 @@ public:
 		const bool bMobileDynamicPointLightsUseStaticBranch = (MobileDynamicPointLightsUseStaticBranchCVar->GetValueOnAnyThread() == 1);
 		const int32 MobileNumDynamicPointLights = MobileNumDynamicPointLightsCVar->GetValueOnAnyThread();
 		const int32 MobileSkyLightPermutationOptions = MobileSkyLightPermutationCVar->GetValueOnAnyThread();
-		const bool bIsUnlit = Material->GetShadingModel() == MSM_Unlit;
+		const bool bIsUnlit = Material->GetShadingModels().IsUnlit();
 
 		// Only compile skylight version for lit materials on ES2 (Metal) or higher
 		const bool bShouldCacheBySkylight = !bEnableSkyLight || !bIsUnlit;
@@ -456,14 +456,14 @@ public:
 		CanUseDepthStencil = (1 << 0),
 
 		// Informs the processor whether primitives can receive shadows from cascade shadow maps.
-		CanReceiveCSM =  (1 << 1)
+		CanReceiveCSM = (1 << 1)
 	};
 
 	FMobileBasePassMeshProcessor(
-		const FScene* InScene, 
-		ERHIFeatureLevel::Type InFeatureLevel, 
-		const FSceneView* InViewIfDynamicMeshCommand, 
-		const FMeshPassProcessorRenderState& InDrawRenderState, 
+		const FScene* InScene,
+		ERHIFeatureLevel::Type InFeatureLevel,
+		const FSceneView* InViewIfDynamicMeshCommand,
+		const FMeshPassProcessorRenderState& InDrawRenderState,
 		FMeshPassDrawListContext* InDrawListContext,
 		EFlags Flags,
 		ETranslucencyPass::Type InTranslucencyPassType = ETranslucencyPass::TPT_MAX);
@@ -481,10 +481,10 @@ private:
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT MaterialResource,
 		EBlendMode BlendMode,
-		EMaterialShadingModel ShadingModel,
+		FMaterialShadingModelField ShadingModels,
 		const ELightMapPolicyType LightMapPolicyType,
 		const FUniformLightMapPolicy::ElementDataType& RESTRICT LightMapElementData);
-			
+
 	const ETranslucencyPass::Type TranslucencyPassType;
 	const bool bTranslucentBasePass;
 	const bool bCanReceiveCSM;

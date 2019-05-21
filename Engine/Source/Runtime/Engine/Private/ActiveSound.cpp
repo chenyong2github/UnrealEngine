@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "ActiveSound.h"
 
+#include "DrawDebugHelpers.h"
 #include "EngineDefines.h"
 #include "Misc/App.h"
 #include "AudioThread.h"
@@ -25,6 +26,21 @@ FAutoConsoleVariableRef CVarAudioDisableConcurrencyStopSilentForLoops(
 	TEXT("Disables (1) or enables (0) audio concurrency for loops subscribing to stop silent.\n"),
 	ECVF_Default);
 
+static int32 ActiveSoundVisualizeModeCVar = 1;
+FAutoConsoleVariableRef CVarAudioVisualizeActiveSoundsMode(
+	TEXT("au.3dVisualize.ActiveSounds"),
+	ActiveSoundVisualizeModeCVar,
+	TEXT("Visualization mode for active sounds. \n")
+	TEXT("0: Not Enabled, 1: Volume (Lin), 2: Volume (dB), 3: Distance, 4: Random color"),
+	ECVF_Default);
+
+static int32 ActiveSoundVisualizeTypeCVar = 0;
+FAutoConsoleVariableRef CVarAudioVisualizeActiveSounds(
+	TEXT("au.3dVisualize.ActiveSounds.Type"),
+	ActiveSoundVisualizeTypeCVar,
+	TEXT("Whether to show all sounds, on AudioComponents (Components Only), or off of AudioComponents (Non-Component Only). \n")
+	TEXT("0: All, 1: Components Only, 2: Non-Component Only"),
+	ECVF_Default);
 
 FTraceDelegate FActiveSound::ActiveSoundTraceDelegate;
 TMap<FTraceHandle, FActiveSound::FAsyncTraceDetails> FActiveSound::TraceToActiveSoundMap;
@@ -105,6 +121,9 @@ FActiveSound::FActiveSound()
 	, CurrentInteriorLPF(MAX_FILTER_FREQUENCY)
 	, EnvelopeFollowerAttackTime(10)
 	, EnvelopeFollowerReleaseTime(100)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	, DebugColor(FColor::Black)
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	, ClosestListenerPtr(nullptr)
 	, InternalFocusFactor(1.0f)
 {
@@ -626,7 +645,114 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 
 	}
 
+	if (ActiveSoundVisualizeModeCVar != 0)
+	{
+		DrawDebugInfo(&ThisSoundsWaveInstances);
+	}
+
 	InWaveInstances.Append(ThisSoundsWaveInstances);
+}
+
+void FActiveSound::DrawDebugInfo(const TArray<FWaveInstance*>* ThisSoundsWaveInstances)
+{
+#if ENABLE_DRAW_DEBUG
+	// Only draw spatialized sounds
+	if (!Sound || !bAllowSpatialization)
+	{
+		return;
+	}
+
+	if (ActiveSoundVisualizeTypeCVar > 0)
+	{
+		if (ActiveSoundVisualizeTypeCVar == 1 && AudioComponentID == 0)
+		{
+			return;
+		}
+
+		if (ActiveSoundVisualizeTypeCVar == 2 && AudioComponentID > 0)
+		{
+			return;
+		}
+	}
+
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
+	if (DeviceManager && DeviceManager->IsVisualizeDebug3dEnabled())
+	{
+		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.DrawActiveSoundDebugInfo"), STAT_AudioDrawActiveSoundDebugInfo, STATGROUP_TaskGraphTasks);
+
+		const FString Name = Sound->GetName();
+		const FTransform CurTransform = Transform;
+		FColor TextColor = FColor::White;
+		const float CurMaxDistance = MaxDistance;
+		float DisplayValue = 0.0f;
+		if (ActiveSoundVisualizeModeCVar == 1 || ActiveSoundVisualizeModeCVar == 2)
+		{
+			DisplayValue = ThisSoundsWaveInstances && ThisSoundsWaveInstances->Num() == 1
+				? (*ThisSoundsWaveInstances)[0]->GetVolumeWithDistanceAttenuation()
+				: GetVolume();
+		}
+		else if (ActiveSoundVisualizeModeCVar == 3)
+		{
+			if (AudioDevice)
+			{
+				DisplayValue = AudioDevice->GetDistanceToNearestListener(Transform.GetLocation()) / CurMaxDistance;
+			}
+		}
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		else if (ActiveSoundVisualizeModeCVar == 4)
+		{
+			if (DebugColor == FColor::Black)
+			{
+				DebugColor = FColor::MakeRandomColor();
+			}
+
+			TextColor = DebugColor;
+		}
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+		TWeakObjectPtr<UWorld> WorldPtr = GetWeakWorld();
+		FAudioThread::RunCommandOnGameThread([Name, TextColor, CurTransform, DisplayValue, WorldPtr, CurMaxDistance]()
+		{
+			if (WorldPtr.IsValid())
+			{
+				static const float ColorRedHue = 0.0f;
+				static const float ColorGreenHue = 85.0f;
+
+				const FVector Location = CurTransform.GetLocation();
+				UWorld* DebugWorld = WorldPtr.Get();
+				DrawDebugSphere(DebugWorld, Location, 10.0f, 8, FColor::White, false, -1.0f, SDPG_Foreground);
+				FColor Color = TextColor;
+
+				FString Descriptor;
+				if (ActiveSoundVisualizeModeCVar == 1 || ActiveSoundVisualizeModeCVar == 2)
+				{
+					const float DisplayDbVolume = Audio::ConvertToDecibels(DisplayValue);
+					if (ActiveSoundVisualizeModeCVar == 1)
+					{
+						Descriptor = FString::Printf(TEXT(" (Vol: %.3f)"), DisplayValue);
+					}
+					else
+					{
+						Descriptor = FString::Printf(TEXT(" (Vol: %.3f dB)"), DisplayDbVolume);
+					}
+					static const float DbColorMinVol = -30.0f;
+					const float DbVolume = FMath::Clamp(DisplayDbVolume, DbColorMinVol, 0.0f);
+					const float Hue = FMath::Lerp(ColorRedHue, ColorGreenHue, (-1.0f * DbVolume / DbColorMinVol) + 1.0f);
+					Color = FLinearColor::MakeFromHSV8(static_cast<uint8>(Hue), 255u, 255u).ToFColor(true);
+				}
+				else if (ActiveSoundVisualizeModeCVar == 3)
+				{
+					Descriptor = FString::Printf(TEXT(" (Dist: %.3f, Max: %.3f)"), DisplayValue * CurMaxDistance, CurMaxDistance);
+					const float Hue = FMath::Lerp(ColorGreenHue, ColorRedHue, DisplayValue);
+					Color = FLinearColor::MakeFromHSV8(static_cast<uint8>(FMath::Clamp(Hue, 0.0f, 255.f)), 255u, 255u).ToFColor(true);
+				}
+
+				const FString Description = FString::Printf(TEXT("%s%s"), *Name, *Descriptor);
+				DrawDebugString(DebugWorld, Location + FVector(0, 0, 32), *Description, nullptr, Color, 0.03f, false);
+			}
+		}, GET_STATID(STAT_AudioDrawActiveSoundDebugInfo));
+	}
+#endif // ENABLE_DRAW_DEBUG
 }
 
 void FActiveSound::Stop(bool bStopNow)

@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
 #include "AssetToolsModule.h"
-#include "Factories/Factory.h"
 #include "AssetTypeActions_Base.h"
+#include "CoreMinimal.h"
+#include "Factories/Factory.h"
+#include "Stats/Stats.h"
 #include "TimeSynthClip.generated.h"
+
+class USoundWave;
 
 class FAssetTypeActions_TimeSynthClip : public FAssetTypeActions_Base
 {
@@ -26,7 +28,6 @@ class UTimeSynthClipFactory : public UFactory
 	//~ Begin UFactory Interface
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	//~ Begin UFactory Interface	
+
+	TArray<TWeakObjectPtr<USoundWave>> SoundWaves;
 };
-
-
-

@@ -969,4 +969,4 @@ CORE_API void DumpRecordedConfigReadsFromIni();
 /**
  * Helper function to clean up config read history
  */
-CORE_API void DeleteRecordConfigReadsFromIni();
+CORE_API void DeleteRecordedConfigReadsFromIni();

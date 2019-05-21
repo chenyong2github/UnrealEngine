@@ -1616,6 +1616,12 @@ half3 GetMaterialEmissiveForCS(FMaterialPixelParameters Parameters)
 %s;
 }
 
+// Shading Model is an uint and represents a SHADINGMODELID_* in ShadingCommon.ush 
+uint GetMaterialShadingModel(FPixelMaterialInputs PixelMaterialInputs)
+{
+	return PixelMaterialInputs.ShadingModel;
+}
+
 half3 GetMaterialBaseColorRaw(FPixelMaterialInputs PixelMaterialInputs)
 {
 	return PixelMaterialInputs.BaseColor;

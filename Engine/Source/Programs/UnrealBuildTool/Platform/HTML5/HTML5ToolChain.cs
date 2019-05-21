@@ -253,7 +253,7 @@ namespace UnrealBuildTool
 			 *	relink only of UE4Game.js (at least when building blueprints projects). Therefore after editing, delete the old build
 			 *	outputs to force UE4 to relink:
 			 *
-			 *    > rm Engine/Binaries/HTML5/UE4Game.js*
+			 *    > rm Engine/Binaries/HTML5/UE4Game.bc
 			 */
 
 

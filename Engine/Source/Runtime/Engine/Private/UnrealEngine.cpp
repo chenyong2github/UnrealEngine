@@ -1730,6 +1730,7 @@ void UEngine::TickDeferredCommands()
 	const int32 DeferredCommandsCount = DeferredCommands.Num();
 	for( int32 DeferredCommandsIndex=0; DeferredCommandsIndex<DeferredCommandsCount; DeferredCommandsIndex++ )
 	{
+		CSV_EVENT_GLOBAL(TEXT("Cmd: %s"), *DeferredCommands[DeferredCommandsIndex]);
 		// Use LocalPlayer if available...
 		ULocalPlayer* LocalPlayer = GetDebugLocalPlayer();
 		if( LocalPlayer )
@@ -5193,10 +5194,10 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 				SortedMesh.VertexCountTotal,
 				SortedMesh.VertexCountCollision,
 				SortedMesh.ShapeCountCollision,
-				SortedMesh.ResKBIncMobile,
-				SortedMesh.MobileMinLOD,
-				SortedMesh.VertexCountTotalMobile,
 				SortedMesh.UsageCount,
+				SortedMesh.ResKBIncMobile,
+				SortedMesh.VertexCountTotalMobile,
+				SortedMesh.MobileMinLOD,
 				*SortedMesh.Name);
 		}
 		else
@@ -9651,7 +9652,7 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 			GUnbuiltHLODCount = 0;
 			for (TActorIterator<ALODActor> HLODIt(World); HLODIt; ++HLODIt)
 			{
-				if (!HLODIt->IsBuilt())
+				if (!HLODIt->IsBuilt() && HLODIt->HasValidLODChildren())
 				{
 					++GUnbuiltHLODCount;
 				}
@@ -16142,7 +16143,7 @@ int32 UEngine::RenderStatAI(UWorld* World, FViewport* Viewport, FCanvas* Canvas,
 		if (Controller && !Cast<APlayerController>(Controller))
 		{
 			++NumAI;
-			if (Controller->GetPawn() != NULL && World->GetTimeSeconds() - Controller->GetPawn()->GetLastRenderTime() < 0.08f)
+			if (Controller->GetPawn() && Controller->GetPawn()->WasRecentlyRendered(0.08f))
 			{
 				++NumAIRendered;
 			}

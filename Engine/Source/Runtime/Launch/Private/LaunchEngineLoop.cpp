@@ -884,6 +884,98 @@ void LaunchUpdateMostRecentProjectFile()
 	}
 }
 
+#if !UE_BUILD_SHIPPING
+class FFileInPakFileHistoryHelper
+{
+private:
+	struct FFileInPakFileHistory
+	{
+		FString PakFileName;
+		FString FileName;
+	};
+	friend uint32 GetTypeHash(const FFileInPakFileHistory& H)
+	{
+		uint32 Hash = ::GetTypeHash(H.PakFileName);
+		Hash = HashCombine(Hash, ::GetTypeHash(H.FileName));
+		return Hash;
+	}
+	friend bool operator==(const FFileInPakFileHistory& A, const FFileInPakFileHistory& B)
+	{
+		return A.PakFileName == B.PakFileName && A.FileName == B.FileName;
+	}
+
+	TSet<FFileInPakFileHistory> History;
+
+	void OnFileOpenedForRead(const TCHAR* PakFileName, const TCHAR* FileName)
+	{
+		History.Emplace(FFileInPakFileHistory{ PakFileName, FileName });
+	}
+
+public:
+	FFileInPakFileHistoryHelper()
+	{
+		FCoreDelegates::OnFileOpenedForReadFromPakFile.AddRaw(this, &FFileInPakFileHistoryHelper::OnFileOpenedForRead);
+	}
+
+	~FFileInPakFileHistoryHelper()
+	{
+		FCoreDelegates::OnFileOpenedForReadFromPakFile.RemoveAll(this);
+	}
+
+	void DumpHistory()
+	{
+		const FString SavePath = FPaths::ProjectLogDir() / TEXT("FilesLoadedFromPakFiles.csv");
+
+		FArchive* Writer = IFileManager::Get().CreateFileWriter(*SavePath, FILEWRITE_NoFail);
+
+		auto WriteLine = [Writer](FString&& Line)
+		{
+			UE_LOG(LogInit, Display, TEXT("%s"), *Line);
+			FTCHARToUTF8 UTF8String(*(MoveTemp(Line) + LINE_TERMINATOR));
+			Writer->Serialize((UTF8CHAR*)UTF8String.Get(), UTF8String.Length());
+		};
+
+		UE_LOG(LogInit, Display, TEXT("Dumping History of files read from Paks to %s"), *SavePath);
+		UE_LOG(LogInit, Display, TEXT("Begin History of files read from Paks"));
+		UE_LOG(LogInit, Display, TEXT("------------------------------------------------------"));
+		WriteLine(FString::Printf(TEXT("PakFile, File")));
+		for (const FFileInPakFileHistory& H : History)
+		{
+			WriteLine(FString::Printf(TEXT("%s, %s"), *H.PakFileName, *H.FileName));
+		}
+		UE_LOG(LogInit, Display, TEXT("------------------------------------------------------"));
+		UE_LOG(LogInit, Display, TEXT("End History of files read from Paks"));
+
+		delete Writer;
+		Writer = nullptr;
+	}
+};
+TUniquePtr<FFileInPakFileHistoryHelper> FileInPakFileHistoryHelper;
+#endif // !UE_BUILD_SHIPPING
+
+void RecordFileReadsFromPaks()
+{
+#if !UE_BUILD_SHIPPING
+	FileInPakFileHistoryHelper = MakeUnique<FFileInPakFileHistoryHelper>();
+#endif
+}
+
+void DumpRecordedFileReadsFromPaks()
+{
+#if !UE_BUILD_SHIPPING
+	if (FileInPakFileHistoryHelper)
+	{
+		FileInPakFileHistoryHelper->DumpHistory();
+	}
+#endif
+}
+
+void DeleteRecordedFileReadsFromPaks()
+{
+#if !UE_BUILD_SHIPPING
+	FileInPakFileHistoryHelper = nullptr;
+#endif
+}
 
 /*-----------------------------------------------------------------------------
 	FEngineLoop implementation.
@@ -1599,8 +1691,15 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	}
 
 	const bool bDumpEarlyConfigReads = FParse::Param(FCommandLine::Get(), TEXT("DumpEarlyConfigReads"));
+	const bool bDumpEarlyPakFileReads = FParse::Param(FCommandLine::Get(), TEXT("DumpEarlyPakFileReads"));
 
-	constexpr bool bWithConfigPatching = (WITH_CONFIG_PATCHING != 0);
+	// Overly verbose to avoid a dumb static analysis warning
+#if WITH_CONFIG_PATCHING
+	constexpr bool bWithConfigPatching = true;
+#else
+	constexpr bool bWithConfigPatching = false;
+#endif
+
 	if (bWithConfigPatching)
 	{
 		UE_LOG(LogInit, Verbose, TEXT("Begin recording CVar changes for config patching."));
@@ -1608,6 +1707,10 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		if (bDumpEarlyConfigReads)
 		{
 			RecordConfigReadsFromIni();
+		}
+		if (bDumpEarlyPakFileReads)
+		{
+			RecordFileReadsFromPaks();
 		}
 
 		RecordApplyCVarSettingsFromIni();
@@ -2241,7 +2344,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 				IPlatformInstallBundleManager* BundleManager = FPlatformMisc::GetPlatformInstallBundleManager();
 				if (BundleManager != nullptr && !BundleManager->IsNullInterface())
 				{
-					IPlatformInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FEngineLoop::OnStartupContentMounted, bDumpEarlyConfigReads);
+					IPlatformInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FEngineLoop::OnStartupContentMounted, bDumpEarlyConfigReads, bDumpEarlyPakFileReads);
 				}
 				// If not using the bundle manager, config will be reloaded after ESP, see below
 			}
@@ -2374,14 +2477,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			{
 				SCOPED_BOOT_TIMING("ReapplyCVarsFromIniAfterEarlyStartupScreen");
 
-				if (bDumpEarlyConfigReads)
-				{
-					DumpRecordedConfigReadsFromIni();
-					DeleteRecordConfigReadsFromIni();
-				}
-
-				ReapplyRecordedCVarSettingsFromIni();
-				DeleteRecordedCVarSettingsFromIni();
+				HandleConfigReload(bDumpEarlyConfigReads, bDumpEarlyPakFileReads);
 			}
 
 			//Handle opening shader library after our EarlyLoadScreen
@@ -3635,21 +3731,32 @@ void FEngineLoop::ProcessLocalPlayerSlateOperations() const
 	}
 }
 
-void FEngineLoop::OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads)
+void FEngineLoop::OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads)
 {
 	if (Result.bIsStartup && Result.Result == EInstallBundleResult::OK)
 	{
-		if (bDumpEarlyConfigReads)
-		{
-			DumpRecordedConfigReadsFromIni();
-			DeleteRecordConfigReadsFromIni();
-		}
-
-		ReapplyRecordedCVarSettingsFromIni();
-		DeleteRecordedCVarSettingsFromIni();
+		HandleConfigReload(bDumpEarlyConfigReads, bDumpEarlyPakFileReads);
 
 		IPlatformInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
 	}
+}
+
+void FEngineLoop::HandleConfigReload(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads)
+{
+	if (bDumpEarlyConfigReads)
+	{
+		DumpRecordedConfigReadsFromIni();
+		DeleteRecordedConfigReadsFromIni();
+	}
+
+	if (bDumpEarlyPakFileReads)
+	{
+		DumpRecordedFileReadsFromPaks();
+		DeleteRecordedFileReadsFromPaks();
+	}
+
+	ReapplyRecordedCVarSettingsFromIni();
+	DeleteRecordedCVarSettingsFromIni();
 }
 
 bool FEngineLoop::ShouldUseIdleMode() const

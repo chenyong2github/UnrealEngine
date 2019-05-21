@@ -63,6 +63,18 @@ public class VorbisFile : ModuleRules
 			PublicAdditionalLibraries.Add(VorbisPath + "lib/Linux/" + Target.Architecture + "/libvorbisfile.a");
 			PublicAdditionalLibraries.Add(VorbisPath + "lib/Linux/" + Target.Architecture + "/libvorbisenc.a");
 		}
+        else if (Target.Platform == UnrealTargetPlatform.IOS)
+        {
+            PublicAdditionalLibraries.Add(VorbisPath + "lib/IOS/libvorbis.a");
+            PublicAdditionalLibraries.Add(VorbisPath + "lib/IOS/libvorbisfile.a");
+            PublicAdditionalLibraries.Add(VorbisPath + "lib/IOS/libvorbisenc.a");
+        }
+        else if (Target.Platform == UnrealTargetPlatform.TVOS)
+        {
+            PublicAdditionalLibraries.Add(VorbisPath + "lib/TVOS/libvorbis.a");
+            PublicAdditionalLibraries.Add(VorbisPath + "lib/TVOS/libvorbisfile.a");
+            PublicAdditionalLibraries.Add(VorbisPath + "lib/TVOS/libvorbisenc.a");
+        }
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
 			// Use reflection to allow type not to exist if console code is not present

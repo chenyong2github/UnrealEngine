@@ -96,6 +96,7 @@ public:
 	TArray<const FStaticMeshBatch*, SceneRenderingAllocator> DynamicMeshCommandBuildRequests;
 	TArray<const FStaticMeshBatch*, SceneRenderingAllocator> MobileBasePassCSMDynamicMeshCommandBuildRequests;
 	FDynamicMeshDrawCommandStorage MeshDrawCommandStorage;
+	FGraphicsMinimalPipelineStateSet MinimalPipelineStatePassSet;
 
 	// Resources preallocated on rendering thread.
 	void* PrimitiveIdBufferData;

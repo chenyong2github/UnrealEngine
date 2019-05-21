@@ -15,9 +15,9 @@ class PRELOADSCREEN_API FPreLoadSettingsContainerBase : public FDeferredCleanupI
 {
 public:
 
-    //Helper class to store groups of things we want to display together in the UI so that we can parse it easily in the .ini. 
+    //Helper struct to store groups of things we want to display together in the UI so that we can parse it easily in the .ini. 
     //IE: Show this background, with this text at this font size
-    class FScreenGroupingBase
+    struct FScreenGroupingBase
     {
     public:
         
@@ -31,6 +31,41 @@ public:
             , FontSize(FontSizeIn)
         {}
     };
+
+	//This is a listing of ScreenGroupings (stored by Identifier) that should be displayed in this order during a particular LoadingGroup.
+	//@TODO: TRoss, possible to move these loading groups into their own DeferreedCleanupInterface instead of the entire container being the DeferredCleanupInterface,
+	//if we want to support unloading them. For right now though, we mostly just care about loading them selectively and are ok with keeping them in memory until we clean everything up.
+	struct FScreenOrderByLoadingGroup
+	{
+	public:
+		TArray<FName> ScreenGroupings;
+
+		FScreenOrderByLoadingGroup()
+			: ScreenGroupings ()
+		{}
+	};
+
+	//Helper struct  to store information required to construct a CustomSlateImageBrush. Parsed from our .ini
+	struct FCustomBrushDefine
+	{
+	public:
+		FString BrushIdentifier;
+		FString FilePath;
+		FVector2D Size;
+
+		FCustomBrushDefine(const FString& BrushIdentifierIn, const FString& FilePathIn, FVector2D SizeIn)
+			: BrushIdentifier(BrushIdentifierIn)
+			, FilePath(FilePathIn)
+			, Size(SizeIn)
+		{}
+	};
+
+	//Helper struct to store all BrushDefines we need to load for a given BrushLoadingGroup
+	struct FCustomBrushLoadingGroup
+	{
+	public:
+		TArray<FCustomBrushDefine> CustomBrushDefinesToLoad;
+	};
 
 public:
 
@@ -56,8 +91,10 @@ public:
 public:
 
     FPreLoadSettingsContainerBase() 
+		: CurrentLoadGroup(NAME_None)
     {
 		bShouldLoadBrushes = true;
+		HasCreatedSystemFontFile = false;
     }
 
     virtual ~FPreLoadSettingsContainerBase();
@@ -71,8 +108,8 @@ public:
 
     int GetNumScreenGroupings() const { return ScreenGroupings.Num(); }
 
-    virtual const FScreenGroupingBase* GetScreenAtIndex(int index) { return IsValidScreenIndex(index) ? &ScreenGroupings[*ScreenDisplayOrder[index]] : nullptr; }
-    virtual bool IsValidScreenIndex(int index) { return ScreenDisplayOrder.IsValidIndex(index); }
+	virtual const FScreenGroupingBase* GetScreenAtIndex(int index) const;
+	virtual bool IsValidScreenIndex(int index) const;
 
     virtual void CreateCustomSlateImageBrush(const FString& Identifier, const FString& TexturePath, const FVector2D& ImageDimensions);
     virtual void AddLocalizedText(const FString& Identifier, FText LocalizedText);
@@ -81,13 +118,21 @@ public:
     //Maps the given font file to the given language and stores it under the FontIdentifier.
     //Identifier maps the entire CompositeFont, so if you want to add multiple fonts  for multiple languages, just store them all under the same identifer
     virtual void BuildCustomFont(const FString& FontIdentifier, const FString& Language, const FString& FilePath);
+	virtual bool BuildSystemFontFile();
+	virtual const FString GetSystemFontFilePath() const;
 
     //Helper functions that parse a .ini config entry and call the appropriate create function to 
     virtual void ParseBrushConfigEntry(const FString& BrushConfigEntry);
     virtual void ParseFontConfigEntry(const FString&  SplitConfigEntry);
     virtual void ParseLocalizedTextConfigString(const FString&  SplitConfigEntry);
     virtual void ParseScreenGroupingConfigString(const FString&  SplitConfigEntry);
-    
+
+	//Helper function to parse all .ini entries for LoadingGroups and ScreenOrder. Do these together so we can assert if
+	//we don't find a matching LoadingGroup identifier in the config. Should be run after we parse all screen groupings
+	virtual void ParseLoadingGroups(TArray<FString>& LoadingGroupIdentifiers);
+	virtual void ParseAllScreenOrderEntries(TArray<FString>& LoadingGroups, TArray<FString>& ScreenOrderEntries);
+	virtual void ParseScreenOrderConfigString(const FString& ScreenOrderEntry);
+
     //Sets the PluginContent dir so that when parsing config entries we can accept plugin relative file paths
     virtual void SetPluginContentDir(const FString& PluginContentDirIn) { PluginContentDir = PluginContentDirIn; }
 
@@ -96,8 +141,9 @@ public:
 
     float TimeToDisplayEachBackground;
     
-    //Screens are displayed in the order of this array
-    TArray<FString> ScreenDisplayOrder;
+	FName GetCurrentLoadGrouping() const { return CurrentLoadGroup; }
+	void LoadGrouping(FName Identifier);
+	void PerformInitialAssetLoad();
 
     //Helper function that takes in a file path and tries to reconsile it to be Plugin Specific if applicable.
     //Ensures if file is not found in either Plugin's content dir or the original path
@@ -112,18 +158,33 @@ protected:
     virtual bool IsValidScreenGrooupingConfigString(TArray<FString>& SplitConfigEntry);
 
 protected:
-    
-    /* Property Storage. Ties FName to a particular resource so we can get it by identifier. */
+	TArray<FString> ParsedLoadingGroupIdentifiers;
+
+	/* Property Storage. Ties FName to a particular resource so we can get it by identifier. */
     TMap<FName, const FSlateDynamicImageBrush*> BrushResources;
     TMap<FName, FText> LocalizedTextResources;
     TMap<FName, TSharedPtr<FCompositeFont>> FontResources;
+
+	TMap<FName, FScreenOrderByLoadingGroup> ScreenOrderByLoadingGroups;
     TMap<FName, FScreenGroupingBase> ScreenGroupings;
+
+	TMap<FName, FCustomBrushLoadingGroup> BrushLoadingGroups;
 
     //This string is used to make file paths relative to a particular Plugin's content directory when parsing file paths.
     FString PluginContentDir;
 
 	// Rather we should load image brushes
 	bool bShouldLoadBrushes;
+
+	FName CurrentLoadGroup;
+
+	bool HasCreatedSystemFontFile;
+
+	//If our Font filepath is set to this, we use the system font instead of a custom font we load in
+	static FString UseSystemFontOverride;
+
+	//If we supply no loading groups, use this identifier by default
+	static FString DefaultInitialLoadingGroupIdentifier;
 
     // Singleton Instance -- This is only not a TSharedPtr as it needs to be cleaned up by a deferredcleanup call which directly
     // nukes the underlying object, causing a SharedPtr crash at shutdown.

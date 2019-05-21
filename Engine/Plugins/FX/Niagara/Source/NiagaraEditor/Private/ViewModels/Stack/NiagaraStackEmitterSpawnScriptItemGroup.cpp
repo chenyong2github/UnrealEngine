@@ -36,25 +36,25 @@ FText UNiagaraStackEmitterPropertiesItem::GetDisplayName() const
 
 bool UNiagaraStackEmitterPropertiesItem::CanResetToBase() const
 {
-	if (bCanResetToBase.IsSet() == false)
+	if (bCanResetToBaseCache.IsSet() == false)
 	{
 		const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*Emitter.Get(), GetSystemViewModel()->GetSystem());
 		if (BaseEmitter != nullptr && Emitter != BaseEmitter)
 		{
 			TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-			bCanResetToBase = MergeManager->IsEmitterEditablePropertySetDifferentFromBase(*Emitter.Get(), *BaseEmitter);
+			bCanResetToBaseCache = MergeManager->IsEmitterEditablePropertySetDifferentFromBase(*Emitter.Get(), *BaseEmitter);
 		}
 		else
 		{
-			bCanResetToBase = false;
+			bCanResetToBaseCache = false;
 		}
 	}
-	return bCanResetToBase.GetValue();
+	return bCanResetToBaseCache.GetValue();
 }
 
 void UNiagaraStackEmitterPropertiesItem::ResetToBase()
 {
-	if (bCanResetToBase.GetValue())
+	if (CanResetToBase())
 	{
 		const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*Emitter.Get(), GetSystemViewModel()->GetSystem());
 		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
@@ -73,13 +73,13 @@ void UNiagaraStackEmitterPropertiesItem::RefreshChildrenInternal(const TArray<UN
 	}
 
 	NewChildren.Add(EmitterObject);
-	bCanResetToBase.Reset();
+	bCanResetToBaseCache.Reset();
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }
 
 void UNiagaraStackEmitterPropertiesItem::EmitterPropertiesChanged()
 {
-	bCanResetToBase.Reset();
+	bCanResetToBaseCache.Reset();
 }
 
 UNiagaraStackEmitterSpawnScriptItemGroup::UNiagaraStackEmitterSpawnScriptItemGroup()

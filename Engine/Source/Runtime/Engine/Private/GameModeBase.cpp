@@ -1366,10 +1366,9 @@ bool AGameModeBase::SpawnPlayerFromSimulate(const FVector& NewLocation, const FR
 		if (PC->GetPawn() == nullptr)
 		{
 			// Use the "auto-possess" pawn in the world, if there is one.
-			for (FConstPawnIterator Iterator = GetWorld()->GetPawnIterator(); Iterator; ++Iterator)
+			for (APawn* Pawn : TActorRange<APawn>(GetWorld()))
 			{
-				APawn* Pawn = Iterator->Get();
-				if (Pawn && Pawn->AutoPossessPlayer == EAutoReceiveInput::Player0)
+				if (Pawn->AutoPossessPlayer == EAutoReceiveInput::Player0)
 				{
 					if (Pawn->Controller == nullptr)
 					{

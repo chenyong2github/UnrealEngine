@@ -896,6 +896,9 @@ protected:
 	/** Sort all nodes and their descendants by category then alphabetically */
 	void SortAllNodesAndDescendants();
 
+	/** Add selected actors to sequencer */
+	void AddSelectedActors();
+
 	/** Manually sets a key for the selected objects at the current time */
 	void SetKey();
 

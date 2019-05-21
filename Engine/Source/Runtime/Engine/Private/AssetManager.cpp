@@ -1203,6 +1203,14 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 				DebugName += TEXT(")");
 			}
 
+			if (PathsToLoad.Num() == 0)
+			{
+				// New state has no assets to load. Set the CurrentState's bundles and clear the handle
+				NameData->CurrentState.BundleNames = NewBundleState;
+				NameData->CurrentState.Handle.Reset();
+				continue;
+			}
+
 			NewHandle = LoadAssetList(PathsToLoad.Array(), FStreamableDelegate(), Priority, DebugName);
 
 			if (!NewHandle.IsValid())
@@ -2064,6 +2072,30 @@ void UAssetManager::LoadRedirectorMaps()
 	for (const FAssetManagerRedirect& Redirect : Settings.AssetPathRedirects)
 	{
 		AssetPathRedirects.Add(FName(*Redirect.Old), FName(*Redirect.New));
+	}
+
+	// Collapse all redirects to resolve recursive relationships.
+	for (const TPair<FName, FName>& Pair : AssetPathRedirects)
+	{
+		const FName OldPath = Pair.Key;
+		FName NewPath = Pair.Value;
+		TSet<FName> CollapsedPaths;
+		CollapsedPaths.Add(OldPath);
+		CollapsedPaths.Add(NewPath);
+		while (FName* NewPathValue = AssetPathRedirects.Find(NewPath)) // Does the NewPath exist as a key?
+		{
+			NewPath = *NewPathValue;
+			if (CollapsedPaths.Contains(NewPath))
+			{
+				UE_LOG(LogAssetManager, Error, TEXT("AssetPathRedirect cycle detected when redirecting: %s to %s"), *OldPath.ToString(), *NewPath.ToString());
+				break;
+			}
+			else
+			{
+				CollapsedPaths.Add(NewPath);
+			}
+		}
+		AssetPathRedirects[OldPath] = NewPath;
 	}
 }
 
@@ -3562,6 +3594,12 @@ void UAssetManager::RefreshAssetData(UObject* ChangedObject)
 
 void UAssetManager::InitializeAssetBundlesFromMetadata(const UStruct* Struct, const void* StructValue, FAssetBundleData& AssetBundle, FName DebugName) const
 {
+	TSet<const void*> AllVisitedStructValues;
+	InitializeAssetBundlesFromMetadata_Recursive(Struct, StructValue, AssetBundle, DebugName, AllVisitedStructValues);
+}
+
+void UAssetManager::InitializeAssetBundlesFromMetadata_Recursive(const UStruct* Struct, const void* StructValue, FAssetBundleData& AssetBundle, FName DebugName, TSet<const void*>& AllVisitedStructValues) const
+{
 	static FName AssetBundlesName = TEXT("AssetBundles");
 	static FName IncludeAssetBundlesName = TEXT("IncludeAssetBundles");
 
@@ -3569,6 +3607,13 @@ void UAssetManager::InitializeAssetBundlesFromMetadata(const UStruct* Struct, co
 	{
 		return;
 	}
+
+	if (AllVisitedStructValues.Contains(StructValue))
+	{
+		return;
+	}
+
+	AllVisitedStructValues.Add(StructValue);
 
 	for (TPropertyValueIterator<const UProperty> It(Struct, StructValue); It; ++It)
 	{
@@ -3613,7 +3658,8 @@ void UAssetManager::InitializeAssetBundlesFromMetadata(const UStruct* Struct, co
 				UObject* const* ObjectPtr = reinterpret_cast<UObject* const*>(PropertyValue);
 				if (ObjectPtr && *ObjectPtr)
 				{
-					UAssetManager::Get().InitializeAssetBundlesFromMetadata(*ObjectPtr, AssetBundle);
+					const UObject* Object = *ObjectPtr;
+					InitializeAssetBundlesFromMetadata_Recursive(Object->GetClass(), Object, AssetBundle, Object->GetFName(), AllVisitedStructValues);
 				}
 			}
 		}

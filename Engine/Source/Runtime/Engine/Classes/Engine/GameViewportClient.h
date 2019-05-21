@@ -881,6 +881,9 @@ private:
 	 */
 	bool SetDisplayConfiguration( const FIntPoint* Dimensions, EWindowMode::Type WindowMode);
 
+	/** Updates CSVProfiler camera stats */
+	void UpdateCsvCameraStats(const FSceneView* View);
+
 #if WITH_EDITOR
 	/** Delegate called when game viewport client received input key */
 	FOnGameViewportInputKey GameViewportInputKeyDelegate;

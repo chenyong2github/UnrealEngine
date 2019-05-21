@@ -15,7 +15,6 @@
 #include "InstancedFoliageActor.h"
 #include "VREditorInteractor.h"
 #include "AI/NavigationSystemBase.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "Landscape.h"
 
 // VR Editor
@@ -695,11 +694,11 @@ struct FXYOffsetmapAccessor
 						
 			// Notify foliage to move any attached instances
 			bool bUpdateFoliage = false;
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-			{
-				// Flush dynamic foliage (grass)
-				ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+			
+			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 
+			if (!LandscapeEdit->HasLandscapeLayersContent())
+			{
 				for (ULandscapeComponent* Component : Components)
 				{
 					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
@@ -839,7 +838,7 @@ struct FFullWeightmapAccessor
 
 	~FFullWeightmapAccessor()
 	{
-		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (!LandscapeEdit.HasLandscapeLayersContent())
 		{
 			// Recreate collision for modified components to update the physical materials
 			for (ULandscapeComponent* Component : ModifiedComponents)
@@ -876,10 +875,10 @@ struct FFullWeightmapAccessor
 		TSet<ULandscapeComponent*> Components;
 		if (LandscapeEdit.GetComponentsInRegion(X1, Y1, X2, Y2, &Components))
 		{
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+
+			if (!LandscapeEdit.HasLandscapeLayersContent())
 			{
-				// Flush dynamic foliage (grass)
-				ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 				ModifiedComponents.Append(Components);
 			}
 			LandscapeEdit.SetAlphaData(DirtyLayerInfos, X1, Y1, X2, Y2, Data, 0, PaintingRestriction);
@@ -1129,23 +1128,23 @@ public:
 	{
 	}
 
-	virtual bool ShouldUpdateEditingLayer() const { return GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem; }
+	virtual bool ShouldUpdateEditingLayer() const { return EdMode->CanHaveLandscapeLayersContent(); }
 
-	virtual ELandscapeLayersContentUpdateFlag GetBeginToolContentUpdateFlag() const
+	virtual ELandscapeLayerUpdateMode GetBeginToolContentUpdateFlag() const
 	{
 		bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap; 
-		return bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_Render : ELandscapeLayersContentUpdateFlag::Weightmap_Render;
+		return bUpdateHeightmap ? ELandscapeLayerUpdateMode::Update_Heightmap_Editing : ELandscapeLayerUpdateMode::Update_Weightmap_Editing;
 	}
 
-	virtual ELandscapeLayersContentUpdateFlag GetTickToolContentUpdateFlag() const
+	virtual ELandscapeLayerUpdateMode GetTickToolContentUpdateFlag() const
 	{
 		return GetBeginToolContentUpdateFlag();
 	}
 
-	virtual ELandscapeLayersContentUpdateFlag GetEndToolContentUpdateFlag() const
+	virtual ELandscapeLayerUpdateMode GetEndToolContentUpdateFlag() const
 	{
 		bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
-		return bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_All : ELandscapeLayersContentUpdateFlag::Weightmap_All;
+		return bUpdateHeightmap ? ELandscapeLayerUpdateMode::Update_Heightmap_All : ELandscapeLayerUpdateMode::Update_Weightmap_All;
 	}
 
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override

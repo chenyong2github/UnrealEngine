@@ -338,7 +338,7 @@ const FShaderParametersMetadata& FUniformExpressionSet::GetUniformBufferStruct()
 	return UniformBufferStruct.GetValue();
 }
 
-void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, void* TempBuffer) const
+void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, uint8* TempBuffer, int TempBufferSize) const
 {
 	check(UniformBufferStruct);
 	check(IsInParallelRenderingThread());
@@ -348,6 +348,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FUniformExpressionSet_FillUniformBuffer);
 
 		void* BufferCursor = TempBuffer;
+		check(BufferCursor <= TempBuffer + TempBufferSize);
 
 		// Dump vector expression into the buffer.
 		for(int32 VectorIndex = 0;VectorIndex < UniformVectorExpressions.Num();++VectorIndex)
@@ -358,6 +359,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			FLinearColor* DestAddress = (FLinearColor*)BufferCursor;
 			*DestAddress = VectorValue;
 			BufferCursor = DestAddress + 1;
+			check(BufferCursor <= TempBuffer + TempBufferSize);
 		}
 
 		// Dump scalar expression into the buffer.
@@ -369,10 +371,12 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			float* DestAddress = (float*)BufferCursor;
 			*DestAddress = VectorValue.R;
 			BufferCursor = DestAddress + 1;
+			check(BufferCursor <= TempBuffer + TempBufferSize);
 		}
 
 		// Offsets the cursor to next first resource.
 		BufferCursor = ((float*)BufferCursor) + ((4 - UniformScalarExpressions.Num() % 4) % 4);
+		check(BufferCursor <= TempBuffer + TempBufferSize);
 		
 		{
 			const TArray<FRHIUniformBufferLayout::FResourceParameter>& ResourceParameters = UniformBufferStruct->GetLayout().Resources;
@@ -414,6 +418,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			void** ResourceTableTexturePtr = (void**)((uint8*)BufferCursor + 0 * SHADER_PARAMETER_POINTER_ALIGNMENT);
 			void** ResourceTableSamplerPtr = (void**)((uint8*)BufferCursor + 1 * SHADER_PARAMETER_POINTER_ALIGNMENT);
 			BufferCursor = ((uint8*)BufferCursor) + (SHADER_PARAMETER_POINTER_ALIGNMENT * 2);
+			check(BufferCursor <= TempBuffer + TempBufferSize);
 
 			// TextureReference.TextureReferenceRHI is cleared from a render command issued by UTexture::BeginDestroy
 			// It's possible for this command to trigger before a given material is cleaned up and removed from deferred update list
@@ -460,6 +465,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			void** ResourceTableTexturePtr = (void**)((uint8*)BufferCursor + 0 * SHADER_PARAMETER_POINTER_ALIGNMENT);
 			void** ResourceTableSamplerPtr = (void**)((uint8*)BufferCursor + 1 * SHADER_PARAMETER_POINTER_ALIGNMENT);
 			BufferCursor = ((uint8*)BufferCursor) + (SHADER_PARAMETER_POINTER_ALIGNMENT * 2);
+			check(BufferCursor <= TempBuffer + TempBufferSize);
 
 			if(Value && Value->Resource)
 			{
@@ -498,6 +504,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			void** ResourceTableTexturePtr = (void**)((uint8*)BufferCursor + 0 * SHADER_PARAMETER_POINTER_ALIGNMENT);
 			void** ResourceTableSamplerPtr = (void**)((uint8*)BufferCursor + 1 * SHADER_PARAMETER_POINTER_ALIGNMENT);
 			BufferCursor = ((uint8*)BufferCursor) + (SHADER_PARAMETER_POINTER_ALIGNMENT * 2);
+			check(BufferCursor <= TempBuffer + TempBufferSize);
 
 			if(Value && Value->Resource)
 			{
@@ -538,6 +545,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			void** ResourceTableTexturePtr = (void**)((uint8*)BufferCursor + 0 * SHADER_PARAMETER_POINTER_ALIGNMENT);
 			void** ResourceTableSamplerPtr = (void**)((uint8*)BufferCursor + 1 * SHADER_PARAMETER_POINTER_ALIGNMENT);
 			BufferCursor = ((uint8*)BufferCursor) + (SHADER_PARAMETER_POINTER_ALIGNMENT * 2);
+			check(BufferCursor <= TempBuffer + TempBufferSize);
 
 			if (UniformExternalTextureExpressions[ExpressionIndex]->GetExternalTexture(MaterialRenderContext, TextureRHI, SamplerStateRHI))
 			{
@@ -562,12 +570,13 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			void** Wrap_WorldGroupSettingsSamplerPtr = (void**)((uint8*)BufferCursor + 0 * SHADER_PARAMETER_POINTER_ALIGNMENT);
 			check(Wrap_WorldGroupSettings->SamplerStateRHI);
 			*Wrap_WorldGroupSettingsSamplerPtr = Wrap_WorldGroupSettings->SamplerStateRHI;
-		}
 
-		{
 			void** Clamp_WorldGroupSettingsSamplerPtr = (void**)((uint8*)BufferCursor + 1 * SHADER_PARAMETER_POINTER_ALIGNMENT);
 			check(Clamp_WorldGroupSettings->SamplerStateRHI);
 			*Clamp_WorldGroupSettingsSamplerPtr = Clamp_WorldGroupSettings->SamplerStateRHI;
+
+			BufferCursor = ((uint8*)BufferCursor) + (SHADER_PARAMETER_POINTER_ALIGNMENT * 2);
+			check(BufferCursor <= TempBuffer + TempBufferSize);
 		}
 	}
 }

@@ -13,7 +13,8 @@ public class ReplicationGraph : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"EngineSettings"
+				"EngineSettings",
+				"PerfCounters"
 			}
 		);
 

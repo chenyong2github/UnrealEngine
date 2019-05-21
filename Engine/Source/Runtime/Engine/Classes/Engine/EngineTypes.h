@@ -460,17 +460,68 @@ namespace EParticleCollisionMode
 UENUM()
 enum EMaterialShadingModel
 {
-	MSM_Unlit				UMETA(DisplayName="Unlit"),
-	MSM_DefaultLit			UMETA(DisplayName="Default Lit"),
-	MSM_Subsurface			UMETA(DisplayName="Subsurface"),
-	MSM_PreintegratedSkin	UMETA(DisplayName="Preintegrated Skin"),
-	MSM_ClearCoat			UMETA(DisplayName="Clear Coat"),
-	MSM_SubsurfaceProfile	UMETA(DisplayName="Subsurface Profile"),
-	MSM_TwoSidedFoliage		UMETA(DisplayName="Two Sided Foliage"),
-	MSM_Hair				UMETA(DisplayName="Hair"),
-	MSM_Cloth				UMETA(DisplayName="Cloth"),
-	MSM_Eye					UMETA(DisplayName="Eye"),
-	MSM_MAX,
+	MSM_Unlit					UMETA(DisplayName="Unlit"),
+	MSM_DefaultLit				UMETA(DisplayName="Default Lit"),
+	MSM_Subsurface				UMETA(DisplayName="Subsurface"),
+	MSM_PreintegratedSkin		UMETA(DisplayName="Preintegrated Skin"),
+	MSM_ClearCoat				UMETA(DisplayName="Clear Coat"),
+	MSM_SubsurfaceProfile		UMETA(DisplayName="Subsurface Profile"),
+	MSM_TwoSidedFoliage			UMETA(DisplayName="Two Sided Foliage"),
+	MSM_Hair					UMETA(DisplayName="Hair"),
+	MSM_Cloth					UMETA(DisplayName="Cloth"),
+	MSM_Eye						UMETA(DisplayName="Eye"),
+	/** Number of unique shading models. */
+	MSM_NUM						UMETA(Hidden),
+	/** Shading model will be determined by the Material Expression Graph,
+		by utilizing the 'Shading Model' MaterialAttribute output pin. */
+	MSM_FromMaterialExpression	UMETA(DisplayName="From Material Expression"),
+	MSM_MAX
+};
+
+static_assert(MSM_NUM <= 16, "Do not exceed 16 shading models without expanding FMaterialShadingModelField to support uint32 instead of uint16!");
+
+/** Wrapper for a bitfield of shading models. A material contains one of these to describe what possible shading models can be used by that material. */
+USTRUCT(BlueprintType)
+struct ENGINE_API FMaterialShadingModelField
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+	FMaterialShadingModelField() {}
+	FMaterialShadingModelField(EMaterialShadingModel InShadingModel)		{ AddShadingModel(InShadingModel); }
+
+	void AddShadingModel(EMaterialShadingModel InShadingModel)				{ check(InShadingModel < MSM_NUM); ShadingModelField |= (1 << (uint16)InShadingModel); }
+	void RemoveShadingModel(EMaterialShadingModel InShadingModel)			{ ShadingModelField &= ~(1 << (uint16)InShadingModel); }
+	void ClearShadingModels()												{ ShadingModelField = 0; }
+
+	// Check if any of the given shading models are present
+	bool HasAnyShadingModel(TArray<EMaterialShadingModel> InShadingModels) const	
+	{ 
+		for (EMaterialShadingModel ShadingModel : InShadingModels)
+		{
+			if (HasShadingModel(ShadingModel))
+			{
+				return true;
+			}
+		}
+		return false; 
+	}
+
+	bool HasShadingModel(EMaterialShadingModel InShadingModel) const		{ return (ShadingModelField & (1 << (uint16)InShadingModel)) != 0; }
+	bool HasOnlyShadingModel(EMaterialShadingModel InShadingModel) const	{ return ShadingModelField == (1 << (uint16)InShadingModel); }
+	bool IsUnlit() const													{ return HasShadingModel(MSM_Unlit); }
+	bool IsLit() const														{ return !IsUnlit(); }
+	bool IsValid() const													{ return (ShadingModelField > 0) && (ShadingModelField < (1 << MSM_NUM)); }
+	uint16 GetShadingModelField() const										{ return ShadingModelField; }
+	int32 CountShadingModels() const										{ return FMath::CountBits(ShadingModelField); }
+	EMaterialShadingModel GetFirstShadingModel() const						{ check(IsValid()); return (EMaterialShadingModel)FMath::CountTrailingZeros(ShadingModelField); }
+
+	bool operator==(const FMaterialShadingModelField& Other) const			{ return ShadingModelField == Other.GetShadingModelField(); }
+	bool operator!=(const FMaterialShadingModelField& Other) const			{ return ShadingModelField != Other.GetShadingModelField(); }
+
+private:
+	UPROPERTY()
+	uint16 ShadingModelField = 0;
 };
 
 /** This is used by the drawing passes to determine tessellation policy, so changes here need to be supported in native code. */

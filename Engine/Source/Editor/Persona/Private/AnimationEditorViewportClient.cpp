@@ -926,6 +926,20 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 				FText::AsNumber(FMath::RoundToInt(PreviewMeshComponent->Bounds.BoxExtent.Y * 2.0f)),
 				FText::AsNumber(FMath::RoundToInt(PreviewMeshComponent->Bounds.BoxExtent.Z * 2.0f))));
 		}
+
+		// In case a skin weight profile is currently being previewed show the number of override skin weights it stores
+		if (PreviewMeshComponent->IsUsingSkinWeightProfile())
+		{
+			const FSkeletalMeshRenderData* SkelMeshResource = PreviewMeshComponent->GetSkeletalMeshRenderData();
+			check(SkelMeshResource);
+			
+			const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->PredictedLODLevel, 0, SkelMeshResource->LODRenderData.Num() - 1);
+			const FSkeletalMeshLODRenderData& LODData = SkelMeshResource->LODRenderData[LODIndex];
+			
+			const FName ProfileName = PreviewMeshComponent->GetCurrentSkinWeightProfileName();
+			const FRuntimeSkinWeightProfileData* OverrideData = LODData.SkinWeightProfilesData.GetOverrideData(ProfileName);
+			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("NumSkinWeightOverrides", "Skin Weight Profile Weights: {0}"),	OverrideData ? FText::AsNumber(OverrideData->OverridesInfo.Num()) : LOCTEXT("NoSkinWeightsOverridesForLOD", "no data for LOD")));
+		}
 	}
 
 	if (PreviewMeshComponent->GetSectionPreview() != INDEX_NONE)

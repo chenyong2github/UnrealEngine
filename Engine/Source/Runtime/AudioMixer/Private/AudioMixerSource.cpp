@@ -16,7 +16,7 @@ FAutoConsoleVariableRef CVarDisableHRTF(
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
 
-static int32 UseListenerOverrideForSpreadCVar = 1;
+static int32 UseListenerOverrideForSpreadCVar = 0;
 FAutoConsoleVariableRef CVarUseListenerOverrideForSpread(
 	TEXT("au.UseListenerOverrideForSpread"),
 	UseListenerOverrideForSpreadCVar,
@@ -47,6 +47,7 @@ namespace Audio
 		, bDebugMode(false)
 		, bIsVorbis(false)
 		, bIsStoppingVoicesEnabled(InAudioDevice->IsStoppingVoicesEnabled())
+		, bSendingAudioToBuses(false)
 	{
 	}
 
@@ -167,6 +168,7 @@ namespace Audio
 				// Toggle muting the source if sending only to output bus. 
 				// This can get set even if the source doesn't have bus sends since bus sends can be dynamically enabled.
 				InitParams.bOutputToBusOnly = WaveInstance->bOutputToBusOnly;
+				DynamicBusSendInfos.Reset();
 
 				// If this source is sending its audio to a bus
 				for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
@@ -180,6 +182,23 @@ namespace Audio
 							BusSend.BusId = SendInfo.SoundSourceBus->GetUniqueID();
 							BusSend.SendLevel = SendInfo.SendLevel;
 							InitParams.BusSends[BusSendType].Add(BusSend);
+
+							FDynamicBusSendInfo DynamicBusSendInfo;
+							DynamicBusSendInfo.SendLevel = SendInfo.SendLevel;
+							DynamicBusSendInfo.BusId = BusSend.BusId;
+							DynamicBusSendInfo.BusSendLevelControlMethod = SendInfo.SourceBusSendLevelControlMethod;
+							DynamicBusSendInfo.BusSendType = (EBusSendType)BusSendType;
+							DynamicBusSendInfo.MinSendLevel = SendInfo.MinSendLevel;
+							DynamicBusSendInfo.MaxSendLevel = SendInfo.MaxSendLevel;
+							DynamicBusSendInfo.MinSendDistance = SendInfo.MinSendDistance;
+							DynamicBusSendInfo.MaxSendDistance = SendInfo.MaxSendDistance;
+							DynamicBusSendInfo.CustomSendLevelCurve = SendInfo.CustomSendLevelCurve;
+
+							// Copy the bus SourceBusSendInfo structs to a local copy so we can update it in the update tick
+							DynamicBusSendInfos.Add(DynamicBusSendInfo);
+
+							// Flag that we're sending audio to buses so we can check for updates to send levels
+							bSendingAudioToBuses = true;
 						}
 					}
 				}
@@ -381,6 +400,8 @@ namespace Audio
 
 		UpdateEffects();
 
+		UpdateSourceBusSends();
+
 		UpdateChannelMaps();
 
 		FSoundSource::DrawDebugInfo();
@@ -485,7 +506,7 @@ namespace Audio
 						if (WaveInstance->StartTime > 0.0f || WaveInstance->WaveData->bProcedural || WaveInstance->WaveData->bIsBus || !WaveInstance->WaveData->CachedRealtimeFirstBuffer)
 						{
 							// Before reading more PCMRT data, we first need to seek the buffer
-							if (WaveInstance->StartTime > 0.0f && !(BufferType == EBufferType::Streaming) && !WaveInstance->WaveData->bIsBus && !WaveInstance->WaveData->bProcedural)
+							if (WaveInstance->IsSeekable())
 							{
 								MixerBuffer->Seek(WaveInstance->StartTime);
 							}
@@ -529,6 +550,12 @@ namespace Audio
 		if (Paused && (bIsStopping || bIsDone))
 		{
 			StopNow();
+			return;
+		}
+
+		if (bIsStopping)
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("Restarting a source which was stopping. Stopping now."));
 			return;
 		}
 
@@ -900,16 +927,95 @@ namespace Audio
 			}
 		}
 
+		// Update submix send levels
 		for (FSoundSubmixSendInfo& SendInfo : WaveInstance->SoundSubmixSends)
 		{
 			if (SendInfo.SoundSubmix != nullptr)
 			{
 				FMixerSubmixWeakPtr SubmixInstance = MixerDevice->GetSubmixInstance(SendInfo.SoundSubmix);
-				MixerSourceVoice->SetSubmixSendInfo(SubmixInstance, SendInfo.SendLevel);
+				float SendLevel = 0.0f;
+
+				// calculate send level based on distance if that method is enabled
+				if (SendInfo.SendLevelControlMethod == ESendLevelControlMethod::Manual)
+				{
+					SendLevel = FMath::Clamp(SendInfo.SendLevel, 0.0f, 1.0f);
+				}
+				else
+				{
+					// The alpha value is determined identically between manual and custom curve methods
+					const FVector2D SendRadialRange = { SendInfo.MinSendDistance, SendInfo.MaxSendDistance};
+					const FVector2D SendLevelRange = { SendInfo.MinSendLevel, SendInfo.MaxSendLevel };
+					const float Denom = FMath::Max(SendRadialRange.Y - SendRadialRange.X, 1.0f);
+					const float Alpha = FMath::Clamp((WaveInstance->ListenerToSoundDistance - SendRadialRange.X) / Denom, 0.0f, 1.0f);
+
+					if (SendInfo.SendLevelControlMethod == ESendLevelControlMethod::Linear)
+					{
+						SendLevel = FMath::Clamp(FMath::Lerp(SendLevelRange.X, SendLevelRange.Y, Alpha), 0.0f, 1.0f);
+					}
+					else // use curve
+					{
+						SendLevel = FMath::Clamp(SendInfo.CustomSendLevelCurve.GetRichCurveConst()->Eval(Alpha), 0.0f, 1.0f);
+					}
+				}
+
+				// set the level for this send
+				MixerSourceVoice->SetSubmixSendInfo(SubmixInstance, SendLevel);
 
 				// Make sure we flag that we're using this submix sends since these can be dynamically added from BP
 				// If we don't flag this then these channel maps won't be generated for this channel format
 				ChannelMaps[(int32)SendInfo.SoundSubmix->ChannelFormat].bUsed = true;
+			}
+		}
+ 	}
+
+	void FMixerSource::UpdateSourceBusSends()
+	{
+		// 1) loop through all bus sends
+		// 2) check for any bus sends that are set to update non-manually
+		// 3) Cache previous send level and only do update if it's changed in any significant amount
+
+		if (!bSendingAudioToBuses)
+		{
+			return;
+		}
+
+		// If this source is sending its audio to a bus, we need to check if it needs to be updated
+		for (FDynamicBusSendInfo& DynamicBusSendInfo : DynamicBusSendInfos)
+		{
+			float SendLevel = 0.0f;
+
+			if (DynamicBusSendInfo.BusSendLevelControlMethod == ESourceBusSendLevelControlMethod::Manual)
+			{
+				SendLevel = FMath::Clamp(DynamicBusSendInfo.SendLevel, 0.0f, 1.0f);
+			}
+			else
+			{
+				// The alpha value is determined identically between linear and custom curve methods
+				const FVector2D SendRadialRange = { DynamicBusSendInfo.MinSendDistance, DynamicBusSendInfo.MaxSendDistance};
+				const FVector2D SendLevelRange = { DynamicBusSendInfo.MinSendLevel, DynamicBusSendInfo.MaxSendLevel };
+				const float Denom = FMath::Max(SendRadialRange.Y - SendRadialRange.X, 1.0f);
+				const float Alpha = FMath::Clamp((WaveInstance->ListenerToSoundDistance - SendRadialRange.X) / Denom, 0.0f, 1.0f);
+
+				if (DynamicBusSendInfo.BusSendLevelControlMethod == ESourceBusSendLevelControlMethod::Linear)
+				{
+					SendLevel = FMath::Clamp(FMath::Lerp(SendLevelRange.X, SendLevelRange.Y, Alpha), 0.0f, 1.0f);
+				}
+				else // use curve
+				{
+					SendLevel = FMath::Clamp(DynamicBusSendInfo.CustomSendLevelCurve.GetRichCurveConst()->Eval(Alpha), 0.0f, 1.0f);
+				}
+			}
+
+			// If the send level changed, then we need to send an update to the audio render thread
+			if (!FMath::IsNearlyEqual(SendLevel, DynamicBusSendInfo.SendLevel))
+			{
+				DynamicBusSendInfo.SendLevel = SendLevel;
+
+				FMixerBusSend BusSend;
+				BusSend.BusId = DynamicBusSendInfo.BusId;
+				BusSend.SendLevel = SendLevel;
+
+				MixerSourceVoice->SetBusSendInfo(DynamicBusSendInfo.BusSendType, BusSend);
 			}
 		}
 	}

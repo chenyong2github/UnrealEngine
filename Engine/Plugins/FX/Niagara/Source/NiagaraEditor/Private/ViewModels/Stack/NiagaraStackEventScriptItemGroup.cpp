@@ -35,13 +35,6 @@ void UNiagaraStackEventHandlerPropertiesItem::Initialize(FRequiredEntryData InRe
 
 	Emitter = GetEmitterViewModel()->GetEmitter();
 	Emitter->OnPropertiesChanged().AddUObject(this, &UNiagaraStackEventHandlerPropertiesItem::EventHandlerPropertiesChanged);
-
-	const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*Emitter.Get(), GetSystemViewModel()->GetSystem());
-	if (BaseEmitter != nullptr && Emitter != BaseEmitter)
-	{
-		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-		bHasBaseEventHandler = MergeManager->HasBaseEventHandler(*BaseEmitter, EventScriptUsageId);
-	}
 }
 
 void UNiagaraStackEventHandlerPropertiesItem::FinalizeInternal()
@@ -60,32 +53,32 @@ FText UNiagaraStackEventHandlerPropertiesItem::GetDisplayName() const
 
 bool UNiagaraStackEventHandlerPropertiesItem::CanResetToBase() const
 {
-	if (bCanResetToBase.IsSet() == false)
+	if (bCanResetToBaseCache.IsSet() == false)
 	{
-		if (bHasBaseEventHandler)
+		if (HasBaseEventHandler())
 		{
 			const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*Emitter.Get(), GetSystemViewModel()->GetSystem());
 			if (BaseEmitter != nullptr && Emitter != BaseEmitter)
 			{
 				TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-				bCanResetToBase = MergeManager->IsEventHandlerPropertySetDifferentFromBase(*Emitter.Get(), *BaseEmitter, EventScriptUsageId);
+				bCanResetToBaseCache = MergeManager->IsEventHandlerPropertySetDifferentFromBase(*Emitter.Get(), *BaseEmitter, EventScriptUsageId);
 			}
 			else
 			{
-				bCanResetToBase = false;
+				bCanResetToBaseCache = false;
 			}
 		}
 		else
 		{
-			bCanResetToBase = false;
+			bCanResetToBaseCache = false;
 		}
 	}
-	return bCanResetToBase.GetValue();
+	return bCanResetToBaseCache.GetValue();
 }
 
 void UNiagaraStackEventHandlerPropertiesItem::ResetToBase()
 {
-	if (bCanResetToBase.GetValue())
+	if (CanResetToBase())
 	{
 		const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*Emitter.Get(), GetSystemViewModel()->GetSystem());
 		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
@@ -108,13 +101,15 @@ void UNiagaraStackEventHandlerPropertiesItem::RefreshChildrenInternal(const TArr
 
 	NewChildren.Add(EmitterObject);
 
-	bCanResetToBase.Reset();
+	bCanResetToBaseCache.Reset();
+	bHasBaseEventHandlerCache.Reset();
+
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }
 
 void UNiagaraStackEventHandlerPropertiesItem::EventHandlerPropertiesChanged()
 {
-	bCanResetToBase.Reset();
+	bCanResetToBaseCache.Reset();
 }
 
 TSharedPtr<IDetailTreeNode> GetEventHandlerArrayPropertyNode(const TArray<TSharedRef<IDetailTreeNode>>& Nodes)
@@ -174,6 +169,24 @@ void UNiagaraStackEventHandlerPropertiesItem::SelectEmitterStackObjectRootTreeNo
 	}
 }
 
+bool UNiagaraStackEventHandlerPropertiesItem::HasBaseEventHandler() const
+{
+	if (bHasBaseEventHandlerCache.IsSet() == false)
+	{
+		const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*Emitter.Get(), GetSystemViewModel()->GetSystem());
+		if (BaseEmitter != nullptr && Emitter != BaseEmitter)
+		{
+			TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
+			bHasBaseEventHandlerCache = MergeManager->HasBaseEventHandler(*BaseEmitter, EventScriptUsageId);
+		}
+		else
+		{
+			bHasBaseEventHandlerCache = false;
+		}
+	}
+	return bHasBaseEventHandlerCache.GetValue();
+}
+
 void UNiagaraStackEventScriptItemGroup::Initialize(
 	FRequiredEntryData InRequiredEntryData,
 	TSharedRef<FNiagaraScriptViewModel> InScriptViewModel,
@@ -187,6 +200,8 @@ void UNiagaraStackEventScriptItemGroup::Initialize(
 
 void UNiagaraStackEventScriptItemGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
+	bHasBaseEventHandlerCache.Reset();
+
 	FName EventSpacerKey = *FString::Printf(TEXT("EventSpacer"));
 	UNiagaraStackSpacer* SeparatorSpacer = FindCurrentChildOfTypeByPredicate<UNiagaraStackSpacer>(CurrentChildren,
 		[=](UNiagaraStackSpacer* CurrentSpacer) { return CurrentSpacer->GetSpacerKey() == EventSpacerKey; });
@@ -206,14 +221,10 @@ void UNiagaraStackEventScriptItemGroup::RefreshChildrenInternal(const TArray<UNi
 	if (EventScriptProperties != nullptr)
 	{
 		SetDisplayName(FText::Format(LOCTEXT("FormatEventScriptDisplayName", "Event Handler - Source: {0}"), FText::FromName(EventScriptProperties->SourceEventName)));
-
-		const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*Emitter, GetSystemViewModel()->GetSystem());
-		bHasBaseEventHandler = BaseEmitter != nullptr && FNiagaraScriptMergeManager::Get()->HasBaseEventHandler(*BaseEmitter, GetScriptUsageId());
 	}
 	else
 	{
 		SetDisplayName(LOCTEXT("UnassignedEventDisplayName", "Unassigned Event"));
-		bHasBaseEventHandler = false;
 	}
 
 	if (EventHandlerProperties == nullptr)
@@ -228,7 +239,7 @@ void UNiagaraStackEventScriptItemGroup::RefreshChildrenInternal(const TArray<UNi
 
 bool UNiagaraStackEventScriptItemGroup::CanDelete() const
 {
-	return bHasBaseEventHandler == false;
+	return HasBaseEventHandler() == false;
 }
 
 bool UNiagaraStackEventScriptItemGroup::Delete()
@@ -270,6 +281,16 @@ bool UNiagaraStackEventScriptItemGroup::Delete()
 	OnModifiedEventHandlersDelegate.ExecuteIfBound();
 
 	return true;
+}
+
+bool UNiagaraStackEventScriptItemGroup::HasBaseEventHandler() const
+{
+	if (bHasBaseEventHandlerCache.IsSet() == false)
+	{
+		const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*GetEmitterViewModel()->GetEmitter(), GetSystemViewModel()->GetSystem());
+		bHasBaseEventHandlerCache = BaseEmitter != nullptr && FNiagaraScriptMergeManager::Get()->HasBaseEventHandler(*BaseEmitter, GetScriptUsageId());
+	}
+	return bHasBaseEventHandlerCache.GetValue();
 }
 
 void UNiagaraStackEventScriptItemGroup::SetOnModifiedEventHandlers(FOnModifiedEventHandlers OnModifiedEventHandlers)

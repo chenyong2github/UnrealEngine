@@ -5,6 +5,7 @@
 
 #include "IDetailTreeNode.h"
 #include "PropertyHandle.h"
+#include "IDetailPropertyRow.h"
 
 void UNiagaraStackPropertyRow::Initialize(FRequiredEntryData InRequiredEntryData, TSharedRef<IDetailTreeNode> InDetailTreeNode, FString InOwnerStackItemEditorDataKey, FString InOwnerStackEditorDataKey, UNiagaraNode* InOwningNiagaraNode)
 {
@@ -62,4 +63,16 @@ void UNiagaraStackPropertyRow::GetSearchItems(TArray<FStackSearchItem>& SearchIt
 	{
 		SearchItems.Add({ "PropertyRowFilterString", FText::FromString(FilterString) });
 	}
+
+	TSharedPtr<IDetailPropertyRow> DetailPropertyRow = DetailTreeNode->GetRow();
+	if (DetailPropertyRow.IsValid())
+	{
+		TSharedPtr<IPropertyHandle> PropertyHandle = DetailPropertyRow->GetPropertyHandle();
+		if (PropertyHandle)
+		{
+			FText PropertyRowHandleText;
+			PropertyHandle->GetValueAsDisplayText(PropertyRowHandleText);
+			SearchItems.Add({ "PropertyRowHandleText", PropertyRowHandleText });
+		}
+	}	
 }

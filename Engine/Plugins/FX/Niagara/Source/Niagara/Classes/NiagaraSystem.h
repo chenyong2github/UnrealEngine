@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "Particles/ParticleSystem.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraEmitterInstance.h"
@@ -58,7 +59,7 @@ struct FNiagaraSystemCompileRequest
 
 /** Container for multiple emitters that combine together to create a particle system effect.*/
 UCLASS(BlueprintType)
-class NIAGARA_API UNiagaraSystem : public UObject
+class NIAGARA_API UNiagaraSystem : public UFXSystemAsset
 {
 	GENERATED_UCLASS_BODY()
 

@@ -217,7 +217,7 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 			// #dxr_todo warning this is a hack:
 			//  - The only reason we exclude unlit from any RT acceleration structure right now is to not hit the sky dome. 
 			//  - It works but this would need consideration (e.g. infinite RTAO would not work if the sky dome is hit, double reflection due sky light cubemap, reflection testing no intersection, etc.).
-			if (SectionInfo.Material->GetShadingModel() != MSM_Unlit)
+			if (SectionInfo.Material->GetShadingModels().IsLit())
 			{
 				bHasNonUnlitSections = true;
 			}

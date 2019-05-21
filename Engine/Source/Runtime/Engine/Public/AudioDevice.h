@@ -551,8 +551,11 @@ public:
 	 */
 	void Flush(UWorld* WorldToFlush, bool bClearActivatedReverb = true);
 
-	/** Allows audio rendering command queue to flush during audio device flush. */
-	virtual void FlushAudioRenderingCommands() {}
+	/** 
+	 * Allows audio rendering command queue to flush during audio device flush. 
+	 * @param bPumpSynchronously must be called in situations where the audio render thread is not being called.
+	 */
+	virtual void FlushAudioRenderingCommands(bool bPumpSynchronously = false) {}
 
 	/**
 	 * Stop any playing sounds that are using a particular SoundWave
@@ -1591,9 +1594,6 @@ public:
 
 	/** The number of sources to reserve for stopping sounds. */
 	int32 NumStoppingVoices;
-
-	/** The maximum number of wave instances allowed. */
-	int32 MaxWaveInstances;
 
 	/** The sample rate of all the audio devices */
 	int32 SampleRate;

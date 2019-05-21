@@ -29,7 +29,7 @@ void UEditorUtilityWidget::ExecuteDefaultAction()
 	FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "BlutilityAction", "Blutility Action"));
 	FEditorScriptExecutionGuard ScriptGuard;
 
-	OnDefaultActionClicked();
+	Run();
 }
 
 

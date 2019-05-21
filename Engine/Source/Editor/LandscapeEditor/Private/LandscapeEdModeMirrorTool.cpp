@@ -508,7 +508,7 @@ public:
 			return;
 		}
 		FScopedTransaction Transaction(LOCTEXT("Mirror_Apply", "Landscape Editing: Mirror Landscape"));
-		FScopedSetLandscapeEditingLayer Scope(EdMode->GetLandscape(), EdMode->GetCurrentLayerGuid(), [&] { EdMode->RequestLayersContentUpdate(true); });
+		FScopedSetLandscapeEditingLayer Scope(EdMode->GetLandscape(), EdMode->GetCurrentLayerGuid(), [&] { EdMode->RequestLayersContentUpdateForceAll(); });
 
 		const ULandscapeInfo* const LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo.Get();
 		const ALandscapeProxy* const LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
@@ -647,7 +647,9 @@ public:
 		TSet<ULandscapeComponent*> Components;
 		if (LandscapeEdit.GetComponentsInRegion(DestMinX, DestMinY, DestMaxX, DestMaxY, &Components) && Components.Num() > 0)
 		{
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+
+			if (!EdMode->HasLandscapeLayersContent())
 			{
 				for (ULandscapeComponent* Component : Components)
 				{
@@ -659,9 +661,6 @@ public:
 						FNavigationSystem::UpdateComponentData(*CollisionComponent);
 					}
 				}
-
-				// Flush dynamic foliage (grass)
-				ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 			}
 
 			EdMode->UpdateLayerUsageInformation();

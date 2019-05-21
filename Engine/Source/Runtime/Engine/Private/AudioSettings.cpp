@@ -65,13 +65,12 @@ void UAudioSettings::AddDefaultSettings()
 {
 	FAudioQualitySettings DefaultSettings;
 	DefaultSettings.DisplayName = LOCTEXT("DefaultSettingsName", "Default");
-	GConfig->GetInt(TEXT("Audio"), TEXT("MaxChannels"), DefaultSettings.MaxChannels, GEngineIni); // for backwards compatibility
 	QualityLevels.Add(DefaultSettings);
 	bAllowVirtualizedSounds = true;
 	DefaultReverbSendLevel = 0.0f;
+	bEnableLegacyReverb = false;
 	VoiPSampleRate = EVoiceSampleRate::Low16000Hz;
 	VoipBufferingDelay = 0.2f;
-	MaxWaveInstances = 100;
 	NumStoppingSources = 8;
 }
 

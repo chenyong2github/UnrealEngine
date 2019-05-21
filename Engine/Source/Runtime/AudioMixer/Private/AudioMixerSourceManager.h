@@ -9,7 +9,7 @@
 #include "AudioMixerBuffer.h"
 #include "AudioMixerSubmix.h"
 #include "AudioMixerBus.h"
-#include "DSP/OnePole.h"
+#include "DSP/InterpolatedOnePole.h"
 #include "DSP/Filter.h"
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/ParamInterpolator.h"
@@ -198,7 +198,7 @@ namespace Audio
 		~FMixerSourceManager();
 
 		void Init(const FSourceManagerInitParams& InitParams);
-		void Update();
+		void Update(bool bTimedOut = false);
 
 		bool GetFreeSourceId(int32& OutSourceId);
 		int32 GetNumActiveSources() const;
@@ -230,6 +230,7 @@ namespace Audio
 		void MixOutputBuffers(const int32 SourceId, const ESubmixChannelFormat InSubmixChannelType, const float SendLevel, AlignedFloatBuffer& OutWetBuffer) const;
 
 		void SetSubmixSendInfo(const int32 SourceId, const FMixerSourceSubmixSend& SubmixSend);
+		void SetBusSendInfo(const int32 SourceId, EBusSendType InBusSendType, FMixerBusSend& BusSend);
 
 		void UpdateDeviceChannelCount(const int32 InNumOutputChannels);
 
@@ -313,10 +314,10 @@ namespace Audio
 		};
 
 		FCommands CommandBuffers[2];
-		FThreadSafeCounter AudioThreadCommandBufferIndex;
 		FThreadSafeCounter RenderThreadCommandBufferIndex;
 
 		FEvent* CommandsProcessedEvent;
+		FCriticalSection CommandBufferIndexCriticalSection;
 
 		TArray<int32> DebugSoloSources;
 
@@ -446,12 +447,10 @@ namespace Audio
 
 			float DistanceAttenuationSourceStart;
 			float DistanceAttenuationSourceDestination;
-			FParam LPFCutoffFrequencyParam;
-			FParam HPFCutoffFrequencyParam;
 
 			// One-Pole LPFs and HPFs per source
-			Audio::FOnePoleLPFBank LowPassFilter;
-			Audio::FOnePoleFilter HighPassFilter;
+			Audio::FInterpolatedLPF LowPassFilter;
+			Audio::FInterpolatedHPF HighPassFilter;
 
 			// Source effect instances
 			uint32 SourceEffectChainId;

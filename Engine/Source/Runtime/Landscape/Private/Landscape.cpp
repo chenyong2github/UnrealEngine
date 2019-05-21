@@ -52,8 +52,8 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeWeightmapUsage.h"
 
 #if WITH_EDITOR
+#include "LandscapeEdit.h"
 #include "MaterialUtilities.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "Editor.h"
 #include "Algo/Transform.h"
 #endif
@@ -141,7 +141,8 @@ FAutoConsoleCommand CmdPrintNumLandscapeShadows(
 ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
-, bLayerContentDirty(false)
+, LayerUpdateFlagPerMode(0)
+, WeightmapsHash(0)
 #endif
 , GrassData(MakeShareable(new FLandscapeComponentGrassData()))
 , ChangeTag(0)
@@ -1031,7 +1032,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	bGenerateOverlapEvents = false;
 #if WITH_EDITORONLY_DATA
 	MaxPaintedLayersPerComponent = 0;
-	HasLayersContent = false;
+	bHasLayersContent = false;
 #endif
 
 #if WITH_EDITOR
@@ -1069,19 +1070,27 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	FrameOffsetForTickInterval = FrameOffsetForTickIntervalInc++;
 }
 
+#if WITH_EDITORONLY_DATA
+ALandscape::FLandscapeEdModeInfo::FLandscapeEdModeInfo()
+	: ViewMode(ELandscapeViewMode::Invalid)
+	, ToolTarget(ELandscapeToolTargetType::Invalid)
+{
+}
+#endif
+
 ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 #if WITH_EDITORONLY_DATA
 	bLockLocation = false;
-	PreviousExperimentalLandscapeLayers = false;
 	WasCompilingShaders = false;
-	LayersContentUpdateFlags = 0;
+	LayerContentUpdateModes = 0;
 	CombinedLayersWeightmapAllMaterialLayersResource = nullptr;
 	CurrentLayersWeightmapAllMaterialLayersResource = nullptr;
 	WeightmapScratchExtractLayerTextureResource = nullptr;
 	WeightmapScratchPackLayerTextureResource = nullptr;
 	bLandscapeLayersAreInitialized = false;
+	LandscapeEdMode = nullptr;	
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -1433,7 +1442,7 @@ void ULandscapeComponent::OnUnregister()
 UTexture2D* ULandscapeComponent::GetHeightmap(bool InReturnEditingHeightmap) const
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnEditingHeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (InReturnEditingHeightmap && GetLandscapeProxy()->HasLayersContent())
 	{
 		const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
 
@@ -1450,7 +1459,7 @@ UTexture2D* ULandscapeComponent::GetHeightmap(bool InReturnEditingHeightmap) con
 const TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnEditingWeightmap) const
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (InReturnEditingWeightmap && GetLandscapeProxy()->HasLayersContent())
 	{
 		const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
 
@@ -1467,7 +1476,7 @@ const TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InRetu
 TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnEditingWeightmap)
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (InReturnEditingWeightmap && GetLandscapeProxy()->HasLayersContent())
 	{
 		FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
 
@@ -1484,7 +1493,7 @@ TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnEdit
 const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(bool InReturnEditingWeightmap) const
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (InReturnEditingWeightmap && GetLandscapeProxy()->HasLayersContent())
 	{
 		const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
 
@@ -1501,7 +1510,7 @@ const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLa
 TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(bool InReturnEditingWeightmap)
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (InReturnEditingWeightmap && GetLandscapeProxy()->HasLayersContent())
 	{
 		FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
 
@@ -1533,6 +1542,11 @@ FGuid ULandscapeComponent::GetEditingLayerGUID() const
 {
 	ALandscape* Landscape = GetLandscapeActor();
 	return Landscape != nullptr ? Landscape->GetEditingLayer() : FGuid();
+}
+
+bool ULandscapeComponent::HasLayersData() const
+{
+	return LayersData.Num() > 0;
 }
 
 const FLandscapeLayerComponentData* ULandscapeComponent::GetLayerData(const FGuid& InLayerGuid) const 
@@ -1675,7 +1689,7 @@ void ULandscapeComponent::SetWeightmapLayerAllocations(const TArray<FWeightmapLa
 TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnEditingWeightmap)
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (InReturnEditingWeightmap && GetLandscapeProxy()->HasLayersContent())
 	{
 		FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
 
@@ -1692,7 +1706,7 @@ TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsag
 const TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnEditingWeightmap) const
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (InReturnEditingWeightmap && GetLandscapeProxy()->HasLayersContent())
 	{
 		const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
 
@@ -1887,11 +1901,6 @@ void ALandscapeProxy::PreSave(const class ITargetPlatform* TargetPlatform)
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		bHasLandscapeGrass = LandscapeComponents.ContainsByPredicate([](ULandscapeComponent* Component) { return Component->MaterialHasGrass(); });
-	}
-
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-	{
-		HasLayersContent = true;
 	}
 #endif
 }
@@ -2255,17 +2264,33 @@ void ALandscapeProxy::PostLoad()
 
 	if (GIsEditor && !GetWorld()->IsGameWorld())
 	{
+		UpdateCachedHasLayersContent(true);
+		
 		ULandscapeInfo* LandscapeInfo = CreateLandscapeInfo();
+
+		// Cache the value at this point as RegisterActor might create/destroy layers content if there was a mismatch between landscape & proxy
+		const bool bDeleteLayerContent = HasLayersContent() && !CanHaveLayersContent();
+		if (bDeleteLayerContent && LandscapeInfo->LandscapeActor.IsValid())
+		{
+			LandscapeInfo->LandscapeActor->DeleteLayers();
+			UE_LOG(LogLandscape, Warning, TEXT("Landscape layer data is being deleted because World Settings doesn't have layers enabled."));
+		}
+		
+		const bool bNeedOldDataMigration = !HasLayersContent() && CanHaveLayersContent();
+				
 		LandscapeInfo->RegisterActor(this, true);
 
 		FixupWeightmaps();
+
+		if (bNeedOldDataMigration && LandscapeInfo->LandscapeActor.IsValid())
+		{
+			LandscapeInfo->LandscapeActor.Get()->CopyOldDataToDefaultLayer(this);
+		}
 	}
 
 	// track feature level change to flush grass cache
 	FOnFeatureLevelChanged::FDelegate FeatureLevelChangedDelegate = FOnFeatureLevelChanged::FDelegate::CreateUObject(this, &ALandscapeProxy::OnFeatureLevelChanged);
 	FeatureLevelChangedDelegateHandle = GetWorld()->AddOnFeatureLevelChangedHandler(FeatureLevelChangedDelegate);
-
-
 #endif
 }
 
@@ -2434,7 +2459,6 @@ void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 	{
 		bUpdated |= AddLayer(Layer.Guid);
 	}
-
 
 	if (bUpdated)
 	{
@@ -2747,10 +2771,11 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 		StreamingProxy->FixupSharedData(LandscapeActor.Get());
 	}
 
-	if (LandscapeActor)
+	if (LandscapeActor && LandscapeActor->HasLayersContent())
 	{
 		// Force update rendering resources
-		LandscapeActor->RequestLayersInitialization();
+		const bool bInRequestContentUpdate = false;
+		LandscapeActor->RequestLayersInitialization(bInRequestContentUpdate);		
 	}
 
 	UpdateLayerInfoMap(Proxy);

@@ -5,6 +5,7 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/UnrealType.h"
 #include "UObject/FastReferenceCollector.h"
+#include "UObject/GCObject.h"
 #include "HAL/ThreadHeartBeat.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogReferenceChain, Log, All);
@@ -268,7 +269,7 @@ void FReferenceChainSearch::DumpChain(FReferenceChain* Chain)
 			const FNodeReferenceInfo& ReferenceInfo = Chain->GetReferenceInfo(NodeIndex);
 
 			UE_LOG(LogReferenceChain, Log, TEXT("%s%s%s%s"),
-				FCString::Spc(Chain->Num() - NodeIndex - 1),
+				FCString::Spc(FMath::Min<int32>(TCStringSpcHelper<TCHAR>::MAX_SPACES, Chain->Num() - NodeIndex - 1)),
 				*GetObjectFlags(Object),
 				*Object->GetFullName(),
 				*ReferenceInfo.ToString()
@@ -349,7 +350,20 @@ public:
 			else
 			{
 				RefInfo.Type = FReferenceChainSearch::EReferenceType::AddReferencedObjects;
-				if (ReferencingObject)
+				if (ReferencingObject == FGCObject::GGCObjectReferencer)
+				{
+					FString RefName;
+					if (FGCObject::GGCObjectReferencer->GetReferencerName(Object, RefName))
+					{
+						RefInfo.Type = FReferenceChainSearch::EReferenceType::Property;
+						RefInfo.ReferencerName = FName(*RefName);
+					}
+					else
+					{
+						RefInfo.ReferencerName = ReferencingObject->GetFName();
+					}
+				}
+				else if (ReferencingObject)
 				{
 					RefInfo.ReferencerName = ReferencingObject->GetFName();
 				}

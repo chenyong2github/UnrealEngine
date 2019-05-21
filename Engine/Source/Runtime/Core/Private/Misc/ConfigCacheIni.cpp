@@ -4184,6 +4184,7 @@ FConfigHistoryHelper* ConfigHistoryHelper = nullptr;
 
 void RecordApplyCVarSettingsFromIni()
 {
+	check(IniHistoryHelper == nullptr);
 	IniHistoryHelper = new FCVarIniHistoryHelper();
 }
 
@@ -4206,7 +4207,7 @@ void ReapplyRecordedCVarSettingsFromIni()
 	for (const FIniToReload& IniToReload : InisToReloadList)
 	{
 		FString TempGlobalName = IniToReload.IniGlobalName;
-		ensure(GConfig->LoadGlobalIniFile(TempGlobalName, *IniToReload.IniBaseName, nullptr, true));
+		GConfig->LoadGlobalIniFile(TempGlobalName, *IniToReload.IniBaseName, nullptr, true);
 		if (TempGlobalName.Compare(IniToReload.IniGlobalName, ESearchCase::IgnoreCase) != 0)
 		{
 			UE_LOG(LogConfig, Warning, TEXT("Tried to reload ini %s final name was %s"), *IniToReload.IniGlobalName, *TempGlobalName );
@@ -4227,6 +4228,7 @@ void DeleteRecordedCVarSettingsFromIni()
 void RecordConfigReadsFromIni()
 {
 #if !UE_BUILD_SHIPPING
+	check(ConfigHistoryHelper == nullptr);
 	ConfigHistoryHelper = new FConfigHistoryHelper();
 #endif
 }
@@ -4239,7 +4241,7 @@ void DumpRecordedConfigReadsFromIni()
 #endif
 }
 
-void DeleteRecordConfigReadsFromIni()
+void DeleteRecordedConfigReadsFromIni()
 {
 #if !UE_BUILD_SHIPPING
 	check(ConfigHistoryHelper);

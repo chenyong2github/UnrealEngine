@@ -184,6 +184,11 @@ void MainPS_VideoOverlay(
 #endif
 
 #else // FEATURE_LEVEL_ES3_1
+
+#ifndef NEEDTOSWITCHVERTICLEAXIS
+#define NEEDTOSWITCHVERTICLEAXIS 0
+#endif
+
 //
 // Mobile version
 //
@@ -198,8 +203,7 @@ void MainVS_ES2(
 	float2 OutUV;
 	DrawRectangle(InPosition, InTexCoord, Output.Position, OutUV);
 
-	OutUV = BufferUVToViewportUV(OutUV);
-	OutViewportUV = OutUV;
+	OutViewportUV = InPosition.xy;
 	
 #if NUM_TEX_COORD_INTERPOLATORS
 	FMaterialVertexParameters VertexParameters = GetPostProcessMaterialVSParameters(OutUV);
@@ -246,6 +250,9 @@ void MainPS_ES2(
 	Parameters.VertexColor = 1;
 	
 	float4 SvPosition = Input.Position;
+#if NEEDTOSWITCHVERTICLEAXIS
+		SvPosition.y = View.ViewSizeAndInvSize.y - SvPosition.y; 
+#endif
 	SvPosition.z = LookupDeviceZ(InViewportUV);
 	SvPosition.z = max(SvPosition.z, 1e-18);
 	// fill out other related material parameters

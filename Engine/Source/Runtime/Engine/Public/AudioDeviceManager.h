@@ -172,7 +172,7 @@ public:
 	bool IsPlayAllDeviceAudio() const { return bPlayAllDeviceAudio; }
 
 	/** Is debug visualization of 3d sounds enabled */
-	bool IsVisualizeDebug3dEnabled() const { return bVisualize3dDebug; }
+	bool IsVisualizeDebug3dEnabled() const;
 
 	/** Toggles 3d visualization of 3d sounds on/off */
 	void ToggleVisualize3dDebug();

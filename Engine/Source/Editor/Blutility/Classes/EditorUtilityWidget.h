@@ -24,7 +24,7 @@ class BLUTILITY_API UEditorUtilityWidget : public UUserWidget
 public:
 	// The default action called when the widget is invoked if bAutoRunDefaultAction=true (it is never called otherwise)
 	UFUNCTION(BlueprintImplementableEvent)
-	void OnDefaultActionClicked();
+	void Run();
 
 	// Run the default action
 	void ExecuteDefaultAction();

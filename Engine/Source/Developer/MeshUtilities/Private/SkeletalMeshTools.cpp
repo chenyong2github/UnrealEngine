@@ -184,7 +184,7 @@ namespace SkeletalMeshTools
 		}
 	}
 
-	void ChunkSkinnedVertices(TArray<FSkinnedMeshChunk*>& Chunks,int32 MaxBonesPerChunk)
+	void ChunkSkinnedVertices(TArray<FSkinnedMeshChunk*>& Chunks, TMap<uint32, TArray<FBoneIndexType>>& AlternateBoneIDs, int32 MaxBonesPerChunk)
 	{
 #if WITH_EDITORONLY_DATA
 		// Copy over the old chunks (this is just copying pointers).
@@ -215,13 +215,22 @@ namespace SkeletalMeshTools
 				UniqueBones.Reset();
 				for (int32 Corner = 0; Corner < 3; Corner++)
 				{
-					int32 VertexIndex = SrcChunk->Indices[i + Corner];
+					uint32 VertexIndex = SrcChunk->Indices[i + Corner];
 					FSoftSkinBuildVertex& V = SrcChunk->Vertices[VertexIndex];
 					for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; InfluenceIndex++)
 					{
 						if (V.InfluenceWeights[InfluenceIndex] > 0)
 						{
 							UniqueBones.AddUnique(V.InfluenceBones[InfluenceIndex]);
+						}
+					}
+					//Add the alternate bones
+					TArray<FBoneIndexType>* AlternateBones = AlternateBoneIDs.Find(V.PointWedgeIdx);
+					if (AlternateBones)
+					{
+						for (int32 InfluenceIndex = 0; InfluenceIndex < AlternateBones->Num(); InfluenceIndex++)
+						{
+							UniqueBones.AddUnique((*AlternateBones)[InfluenceIndex]);
 						}
 					}
 				}

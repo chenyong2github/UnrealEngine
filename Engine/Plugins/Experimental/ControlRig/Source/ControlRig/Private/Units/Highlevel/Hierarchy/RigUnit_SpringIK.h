@@ -59,6 +59,7 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 		StartBone = EndBone = PoleVectorSpace = NAME_None;
 		HierarchyStrength = 256.f;
 		EffectorStrength = RootStrength = 64.f;
+		EffectorRatio = RootRatio = 0.5f;
 		Damping = 0.4f;
 		PoleVector = FVector(0.f, 0.f, 1.f);
 		bFlipPolePlane = false;
@@ -100,10 +101,24 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 	float EffectorStrength;
 
 	/**
+	 * Defines the equilibrium of the effector springs.
+	 * This value ranges from 0.0 (zero distance) to 1.0 (distance in initial pose)
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	float EffectorRatio;
+
+	/**
 	 * Sets the coefficient of the springs towards the root. Values between 1 and 2048 are common.
 	 */
 	UPROPERTY(meta = (Input, Constant))
 	float RootStrength;
+
+	/**
+	 * Defines the equilibrium of the root springs.
+	 * This value ranges from 0.0 (zero distance) to 1.0 (distance in initial pose)
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	float RootRatio;
 
 	/**
 	 * The higher the value to more quickly the simulation calms down. Values between 0.0001 and 0.75 are common.

@@ -168,6 +168,12 @@ FFilenameSecurityDelegate& FPakPlatformFile::GetFilenameSecurityDelegate()
 	return Delegate;
 }
 
+FPakCustomEncryptionDelegate& FPakPlatformFile::GetPakCustomEncryptionDelegate()
+{
+	static FPakCustomEncryptionDelegate Delegate;
+	return Delegate;
+}
+
 FPakChunkSignatureCheckFailedHandler& FPakPlatformFile::GetPakChunkSignatureCheckFailedHandler()
 {
 	static FPakChunkSignatureCheckFailedHandler Delegate;
@@ -288,11 +294,18 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("PakCache Async Decrypts (Uncompressed Path)
 
 void DecryptData(uint8* InData, uint32 InDataSize, FGuid InEncryptionKeyGuid)
 {
-	SCOPE_SECONDS_ACCUMULATOR(STAT_PakCache_DecryptTime);
-	FAES::FAESKey Key;
-	FPakPlatformFile::GetPakEncryptionKey(Key, InEncryptionKeyGuid);
-	check(Key.IsValid());
-	FAES::DecryptData(InData, InDataSize, Key);
+	if (FPakPlatformFile::GetPakCustomEncryptionDelegate().IsBound())
+	{
+		FPakPlatformFile::GetPakCustomEncryptionDelegate().Execute(InData, InDataSize, InEncryptionKeyGuid);
+	}
+	else
+	{
+		SCOPE_SECONDS_ACCUMULATOR(STAT_PakCache_DecryptTime);
+		FAES::FAESKey Key;
+		FPakPlatformFile::GetPakEncryptionKey(Key, InEncryptionKeyGuid);
+		check(Key.IsValid());
+		FAES::DecryptData(InData, InDataSize, Key);
+	}
 }
 
 #if USE_PAK_PRECACHE
@@ -5930,6 +5943,11 @@ IFileHandle* FPakPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)
 #endif
 
 		Result = CreatePakFileHandle(Filename, PakFile, &FileEntry);
+
+		if (Result)
+		{
+			FCoreDelegates::OnFileOpenedForReadFromPakFile.Broadcast(*PakFile->GetFilename(), Filename);
+		}
 	}
 	else
 	{

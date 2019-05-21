@@ -164,6 +164,7 @@
 #include "Materials/MaterialExpressionSceneTexelSize.h"
 #include "Materials/MaterialExpressionSceneTexture.h"
 #include "Materials/MaterialExpressionScreenPosition.h"
+#include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialExpressionSine.h"
 #include "Materials/MaterialExpressionSobol.h"
 #include "Materials/MaterialExpressionSpeedTree.h"
@@ -350,6 +351,8 @@ void GetMaterialValueTypeDescriptions(uint32 MaterialValueType, TArray<FText>& O
 		OutDescriptions.Add(LOCTEXT("StaticBool", "Bool"));
 	if (MaterialValueType & MCT_MaterialAttributes)
 		OutDescriptions.Add(LOCTEXT("MaterialAttributes", "Material Attributes"));
+	if (MaterialValueType & MCT_ShadingModel)
+		OutDescriptions.Add(LOCTEXT("ShadingModel", "Shading Model"));
 	if (MaterialValueType & MCT_Unknown)
 		OutDescriptions.Add(LOCTEXT("Unknown", "Unknown"));
 }
@@ -529,6 +532,28 @@ int32 CompileTextureSample(
 }
 #endif // WITH_EDITOR
 
+/**
+ * Compile a select "blend" between ShadingModels
+ *
+ * @param Compiler				The compiler to add code to
+ * @param A						Select A if Alpha is less than 0.5f
+ * @param B						Select B if Alpha is greater or equal to 0.5f
+ * @param Alpha					Bland factor [0..1]
+ * @return						Index to a new code chunk
+ */
+int32 CompileShadingModelBlendFunction(FMaterialCompiler* Compiler, int32 A, int32 B, int32 Alpha)
+{
+	if (A == INDEX_NONE || B == INDEX_NONE || Alpha == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	int32  MidPoint = Compiler->Constant(0.5f);
+
+	return Compiler->If(Alpha, MidPoint, B, INDEX_NONE, A, INDEX_NONE);
+}
+
+
 UMaterialExpression::UMaterialExpression(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
@@ -687,7 +712,7 @@ void UMaterialExpression::PostInitProperties()
 
 	UpdateParameterGuid(false, false);
 	
-	UpdateMaterialExpressionGuid(false, true);
+	UpdateMaterialExpressionGuid(false, false);
 }
 
 void UMaterialExpression::PostLoad()
@@ -4516,7 +4541,7 @@ int32 UMaterialExpressionMakeMaterialAttributes::Compile(class FMaterialCompiler
 	int32 Ret = INDEX_NONE;
 	UMaterialExpression* Expression = NULL;
 
- 	static_assert(MP_MAX == 29, 
+ 	static_assert(MP_MAX == 30, 
 		"New material properties should be added to the end of the inputs for this expression. \
 		The order of properties here should match the material results pins, the make material attriubtes node inputs and the mapping of IO indices to properties in GetMaterialPropertyFromInputOutputIndex().\
 		Insertions into the middle of the properties or a change in the order of properties will also require that existing data is fixed up in DoMaterialAttriubtesReorder().\
@@ -4543,6 +4568,7 @@ int32 UMaterialExpressionMakeMaterialAttributes::Compile(class FMaterialCompiler
 	case MP_AmbientOcclusion: Ret = AmbientOcclusion.Compile(Compiler); Expression = AmbientOcclusion.Expression; break;
 	case MP_Refraction: Ret = Refraction.Compile(Compiler); Expression = Refraction.Expression; break;
 	case MP_PixelDepthOffset: Ret = PixelDepthOffset.Compile(Compiler); Expression = PixelDepthOffset.Expression; break;
+	case MP_ShadingModel: Ret = ShadingModel.Compile(Compiler); Expression = ShadingModel.Expression; break;
 	};
 
 	if (Property >= MP_CustomizedUVs0 && Property <= MP_CustomizedUVs7)
@@ -4562,6 +4588,18 @@ int32 UMaterialExpressionMakeMaterialAttributes::Compile(class FMaterialCompiler
 void UMaterialExpressionMakeMaterialAttributes::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("MakeMaterialAttributes"));
+}
+
+uint32 UMaterialExpressionMakeMaterialAttributes::GetInputType(int32 InputIndex)
+{
+	if (GetInputName(InputIndex).IsEqual("ShadingModel"))
+	{
+		return MCT_ShadingModel;
+	}
+	else
+	{
+		return UMaterialExpression::GetInputType(InputIndex);
+	}
 }
 #endif // WITH_EDITOR
 
@@ -4588,7 +4626,7 @@ UMaterialExpressionBreakMaterialAttributes::UMaterialExpressionBreakMaterialAttr
 
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialAttributes);
 	
- 	static_assert(MP_MAX == 29, 
+ 	static_assert(MP_MAX == 30, 
 		"New material properties should be added to the end of the outputs for this expression. \
 		The order of properties here should match the material results pins, the make material attriubtes node inputs and the mapping of IO indices to properties in GetMaterialPropertyFromInputOutputIndex().\
 		Insertions into the middle of the properties or a change in the order of properties will also require that existing data is fixed up in DoMaterialAttriubtesReorder().\
@@ -4618,6 +4656,7 @@ UMaterialExpressionBreakMaterialAttributes::UMaterialExpressionBreakMaterialAttr
 	}
 
 	Outputs.Add(FExpressionOutput(TEXT("PixelDepthOffset"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("ShadingModel"), 0, 0, 0, 0, 0));
 #endif
 }
 
@@ -4656,15 +4695,17 @@ void UMaterialExpressionBreakMaterialAttributes::Serialize(FStructuredArchive::F
 			Outputs[OutputIndex].SetMask(1, 1, 1, 0, 0);
 		}
 
-		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); // PixelDepthOffset
+		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); ++OutputIndex;// PixelDepthOffset
+		Outputs[OutputIndex].SetMask(0, 0, 0, 0, 0); // ShadingModelFromMaterialExpression
 	}
 #endif // WITH_EDITOR
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionBreakMaterialAttributes::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+static TMap<EMaterialProperty, int32> PropertyToIOIndexMap;
+
+static void BuildPropertyToIOIndexMap()
 {
-	static TMap<EMaterialProperty, int32> PropertyToIOIndexMap;
 	if (PropertyToIOIndexMap.Num() == 0)
 	{
 		PropertyToIOIndexMap.Add(MP_BaseColor, 0);
@@ -4692,7 +4733,13 @@ int32 UMaterialExpressionBreakMaterialAttributes::Compile(class FMaterialCompile
 		PropertyToIOIndexMap.Add(MP_CustomizedUVs6, 22);
 		PropertyToIOIndexMap.Add(MP_CustomizedUVs7, 23);
 		PropertyToIOIndexMap.Add(MP_PixelDepthOffset, 24);
+		PropertyToIOIndexMap.Add(MP_ShadingModel, 25);
 	}
+}
+
+int32 UMaterialExpressionBreakMaterialAttributes::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	BuildPropertyToIOIndexMap();
 
 	// Here we don't care about any multiplex index coming in.
 	// We pass through our output index as the multiplex index so the MakeMaterialAttriubtes node at the other end can send us the right data.
@@ -4743,6 +4790,22 @@ FName UMaterialExpressionBreakMaterialAttributes::GetInputName(int32 InputIndex)
 bool UMaterialExpressionBreakMaterialAttributes::IsInputConnectionRequired(int32 InputIndex) const
 {
 	return true;
+}
+
+uint32 UMaterialExpressionBreakMaterialAttributes::GetOutputType(int32 OutputIndex)
+{
+	BuildPropertyToIOIndexMap();
+
+	const EMaterialProperty* Property = PropertyToIOIndexMap.FindKey(OutputIndex);
+
+	if (Property && *Property == EMaterialProperty::MP_ShadingModel)
+	{
+		return MCT_ShadingModel;
+	}
+	else
+	{
+		return UMaterialExpression::GetOutputType(OutputIndex);
+	}
 }
 #endif // WITH_EDITOR
 
@@ -4837,6 +4900,25 @@ FExpressionInput* UMaterialExpressionGetMaterialAttributes::GetInput(int32 Input
 FName UMaterialExpressionGetMaterialAttributes::GetInputName(int32 InputIndex) const
 {
 	return NAME_None;
+}
+
+uint32 UMaterialExpressionGetMaterialAttributes::GetOutputType(int32 OutputIndex)
+{
+	// Call base class impl to get the type
+	uint32 OutputType = Super::GetOutputType(OutputIndex);
+
+	// Override the type if it's a ShadingModel type
+	if (OutputIndex > 0) // "0th" place is the mandatory MaterialAttribute itself, skip it
+	{
+		ensure(OutputIndex < AttributeGetTypes.Num() + 1);
+		EMaterialValueType PinType = FMaterialAttributeDefinitionMap::GetValueType(AttributeGetTypes[OutputIndex - 1]);
+		if (PinType == MCT_ShadingModel)
+		{
+			OutputType = PinType;
+		}
+	}
+
+	return OutputType;
 }
 
 void UMaterialExpressionGetMaterialAttributes::PreEditChange(UProperty* PropertyAboutToChange)
@@ -5064,6 +5146,31 @@ FName UMaterialExpressionSetMaterialAttributes::GetInputName(int32 InputIndex) c
 	return Name;
 }
 
+uint32 UMaterialExpressionSetMaterialAttributes::GetInputType(int32 InputIndex)
+{
+	uint32 InputType = MCT_Unknown;
+
+	if (InputIndex == 0)
+	{
+		InputType = MCT_MaterialAttributes;
+	}
+	else
+	{
+		ensure(InputIndex > 0 && InputIndex < AttributeSetTypes.Num() + 1);
+		InputType = FMaterialAttributeDefinitionMap::GetValueType(AttributeSetTypes[InputIndex - 1]);
+		if (InputType == MCT_ShadingModel)
+		{
+			InputType = MCT_ShadingModel;
+		}
+		else
+		{
+			InputType = MCT_Float3;
+		}
+	}
+
+	return InputType;
+}
+
 void UMaterialExpressionSetMaterialAttributes::PreEditChange(UProperty* PropertyAboutToChange)
 {
 	// Backup attribute array so we can re-connect pins
@@ -5098,7 +5205,7 @@ void UMaterialExpressionSetMaterialAttributes::PostEditChangeProperty(FPropertyC
 		
 			// Copy final defaults to new input
 			Inputs.Add(FExpressionInput());
-			Inputs.Last().ExpressionName = FName(*FMaterialAttributeDefinitionMap::GetDisplayName(AttributeSetTypes.Last()));
+			Inputs.Last().InputName = FName(*FMaterialAttributeDefinitionMap::GetDisplayName(AttributeSetTypes.Last()));
 			GraphNode->ReconstructNode();
 		}	 
 		else if (PreEditAttributeSetTypes.Num() > AttributeSetTypes.Num())
@@ -8537,10 +8644,15 @@ uint32 UMaterialExpressionIf::GetInputType(int32 InputIndex)
 		{
 			return MCT_MaterialAttributes;
 		}
+		else if ((A.GetTracedInput().Expression && !A.Expression->ContainsInputLoop() && A.Expression->GetOutputType(0) == MCT_ShadingModel) &&
+			(B.GetTracedInput().Expression && !B.Expression->ContainsInputLoop() && B.Expression->GetOutputType(0) == MCT_ShadingModel))
+		{
+			return MCT_ShadingModel;
+		}	
 		else
 		{
 			return MCT_Float;
-		}	
+		}
 	}
 
 	return MCT_Unknown;
@@ -15240,7 +15352,7 @@ int32 UMaterialExpressionCustomPrimitiveData::Compile(class FMaterialCompiler* C
 		return CompilerError(Compiler, TEXT("Expression not available in the deferred decal material domain."));
 	}
 
-	return Compiler->CustomPrimitiveData(OutputIndex);
+	return Compiler->CustomPrimitiveData(CustomIndices[OutputIndex].PrimitiveDataIndex);
 }
 
 void UMaterialExpressionCustomPrimitiveData::GetCaption(TArray<FString>& OutCaptions) const
@@ -15251,21 +15363,23 @@ void UMaterialExpressionCustomPrimitiveData::GetCaption(TArray<FString>& OutCapt
 void UMaterialExpressionCustomPrimitiveData::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 #if WITH_EDITORONLY_DATA
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterialExpressionCustomPrimitiveData, CustomDescs))
+	
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FPrimitiveDataIndex, CustomDesc) ||
+		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterialExpressionCustomPrimitiveData, CustomIndices))
 	{
 		// If more than the supported number of custom floats have been added, remove the overflow
-		if (CustomDescs.Num() > FCustomPrimitiveData::NumCustomPrimitiveDataFloats)
+		if (CustomIndices.Num() > FCustomPrimitiveData::NumCustomPrimitiveDataFloats)
 		{
-			CustomDescs.SetNum(FCustomPrimitiveData::NumCustomPrimitiveDataFloats);
+			CustomIndices.SetNum(FCustomPrimitiveData::NumCustomPrimitiveDataFloats);
 		}
 
 		// Match the number of pins to the number of descriptions
-		Outputs.SetNumZeroed(CustomDescs.Num());
+		Outputs.SetNumZeroed(CustomIndices.Num());
 
 		// Update the names of the pins
 		for (int i = 0; i < Outputs.Num(); i++)
 		{
-			Outputs[i].OutputName = *CustomDescs[i];
+			Outputs[i].OutputName = *(CustomIndices[i].CustomDesc);
 		}
 
 		// Reconstruct the node to get the new names applied to the pins
@@ -15273,13 +15387,65 @@ void UMaterialExpressionCustomPrimitiveData::PostEditChangeProperty(FPropertyCha
 
 		// No need to update preview if we only change output descriptions
 		bNeedToUpdatePreview = false;
+
+		// Done here (skip calling base class)
+		return;
 	}
-	else
-#endif
+	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FPrimitiveDataIndex, PrimitiveDataIndex))
 	{
-		Super::PostEditChangeProperty(PropertyChangedEvent);
+		// Clamp indices
+		for (int i = 0; i < CustomIndices.Num(); i++)
+		{
+			const int32 PrimDataIndex = CustomIndices[i].PrimitiveDataIndex;
+			CustomIndices[i].PrimitiveDataIndex = FMath::Clamp(PrimDataIndex, 0, FCustomPrimitiveData::NumCustomPrimitiveDataFloats-1);
+		}
 	}
+#endif
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif // WITH_EDITOR
+
+//
+//	UMaterialExpressionShadingModel
+//
+UMaterialExpressionShadingModel::UMaterialExpressionShadingModel(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+
+	MenuCategories.Add(LOCTEXT("Shading Model", "Shading Model"));
+
+	// bShaderInputData = true;
+	bShowOutputNameOnPin = true;
+	
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("")));
+#endif
 }
 
+#if WITH_EDITOR
+int32 UMaterialExpressionShadingModel::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	// Maybe add the shading model to the material here. Don't forget to clear the material shading model list before compilation though
+	return Compiler->ShadingModel(ShadingModel);
+}
+
+void UMaterialExpressionShadingModel::GetCaption(TArray<FString>& OutCaptions) const
+{
+	const UEnum* ShadingModelEnum = FindObject<UEnum>(NULL, TEXT("Engine.EMaterialShadingModel"));
+	check(ShadingModelEnum);
+
+	const FString ShadingModelDisplayName = ShadingModelEnum->GetDisplayNameTextByValue(ShadingModel).ToString();
+
+	// Add as a stack, last caption to be added will be the main (bold) caption
+	OutCaptions.Add(ShadingModelDisplayName);
+	OutCaptions.Add(TEXT("Shading Model"));
+}
+
+uint32 UMaterialExpressionShadingModel::GetOutputType(int32 OutputIndex)
+{
+	return MCT_ShadingModel;
+}
 #endif // WITH_EDITOR
 #undef LOCTEXT_NAMESPACE
