@@ -66,8 +66,9 @@ namespace Gauntlet
 		{
 			Type = InType;
             PlatformOverride = InPlatformOverride;
-			CommandLine = "";
-			ExplicitClientCommandLine = "";
+			CommandLine = string.Empty;
+			MapOverride = string.Empty;
+			ExplicitClientCommandLine = string.Empty;
 			Controllers = new List<string>();
             FilesToCopy = new List<UnrealFileToCopy>();
             RoleType = ERoleModifier.None;
@@ -102,6 +103,11 @@ namespace Gauntlet
 		public string ExplicitClientCommandLine { get; set; }
 
         public List<UnrealFileToCopy> FilesToCopy { get; set; }
+
+		/// <summary>
+		/// A map value passed in per server in case a test needs multiple servers on different maps.
+		/// </summary>
+		public string MapOverride { get; set; }
 
 		/// <summary>
 		/// Role device configuration 

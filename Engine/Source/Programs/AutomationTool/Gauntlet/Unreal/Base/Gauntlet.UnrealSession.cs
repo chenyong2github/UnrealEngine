@@ -60,6 +60,11 @@ namespace Gauntlet
 		public string CommandLine;
 
 		/// <summary>
+		/// Map override to use on a server in case we don't want them all running the same map.
+		/// </summary>
+		public string MapOverride;
+
+		/// <summary>
 		/// List of files to copy to the device.
 		/// </summary>
 		public List<UnrealFileToCopy> FilesToCopy;
@@ -116,10 +121,11 @@ namespace Gauntlet
 
 			Platform = InPlatform;
 			Configuration = InConfiguration;
+			MapOverride = string.Empty;
 
 			if (string.IsNullOrEmpty(InCommandLine))
 			{
-				CommandLine = "";
+				CommandLine = string.Empty;
 			}
 			else
 			{
