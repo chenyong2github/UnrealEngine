@@ -250,13 +250,9 @@ namespace UnrealGameSync
 			IssueData Issue = (IssueData)e.Item.Tag;
 			if (e.ColumnIndex == IconHeader.Index)
 			{
-				if(!Issue.ResolvedAt.HasValue)
+				if(!Issue.ResolvedAt.HasValue && Issue.FixChange == 0)
 				{
 					IssueListView.DrawIcon(e.Graphics, e.Bounds, WorkspaceControl.BadBuildIcon);
-				}
-				else if (Issue.FixChange > 0)
-				{
-					IssueListView.DrawIcon(e.Graphics, e.Bounds, WorkspaceControl.MixedBuildIcon);
 				}
 				else
 				{
