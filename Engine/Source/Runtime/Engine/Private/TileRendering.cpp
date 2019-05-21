@@ -19,7 +19,7 @@
 #include "EngineModule.h"
 #include "MeshPassProcessor.h"
 
-#define NUM_MATERIAL_TILE_VERTS	6
+#define NUM_MATERIAL_TILE_VERTS	4
 
 /** 
 * Vertex buffer
@@ -43,7 +43,7 @@ public:
 	virtual void InitRHI() override
 	{
 		FVector* PositionBufferData = nullptr;
-		// used with a trilist, so 6 vertices are needed
+
 		uint32 PositionSize = NUM_MATERIAL_TILE_VERTS * sizeof(FVector);
 		// create vertex buffer
 		{
@@ -59,7 +59,7 @@ public:
 		}
 
 		FPackedNormal* TangentBufferData = nullptr;
-		// used with a trilist, so 6 vertices are needed
+
 		uint32 TangentSize = NUM_MATERIAL_TILE_VERTS * 2 * sizeof(FPackedNormal);
 		// create vertex buffer
 		{
@@ -74,7 +74,7 @@ public:
 		}
 
 		FVector2D* TexCoordBufferData = nullptr;
-		// used with a trilist, so 6 vertices are needed
+
 		uint32 TexCoordSize = NUM_MATERIAL_TILE_VERTS * sizeof(FVector2D);
 		// create vertex buffer
 		{
@@ -90,7 +90,7 @@ public:
 		}
 
 		uint32* ColorBufferData = nullptr;
-		// used with a trilist, so 6 vertices are needed
+
 		uint32 ColorSize = NUM_MATERIAL_TILE_VERTS * sizeof(uint32);
 		// create vertex buffer
 		{
@@ -108,16 +108,12 @@ public:
 		PositionBufferData[0] = FVector( 1, -1, 0);
 		PositionBufferData[1] = FVector( 1,  1, 0);
 		PositionBufferData[2] = FVector(-1, -1, 0);
-		PositionBufferData[3] = FVector(-1, -1, 0);
-		PositionBufferData[4] = FVector( 1,  1, 0);	
-		PositionBufferData[5] = FVector(-1,  1, 0);
+		PositionBufferData[3] = FVector(-1,  1, 0);
 
 		TexCoordBufferData[0] = FVector2D(1, 1);
 		TexCoordBufferData[1] = FVector2D(1, 0);
 		TexCoordBufferData[2] = FVector2D(0, 1);
-		TexCoordBufferData[3] = FVector2D(0, 1);
-		TexCoordBufferData[4] = FVector2D(1, 0);
-		TexCoordBufferData[5] = FVector2D(0, 0);
+		TexCoordBufferData[3] = FVector2D(0, 0);
 
 		for (int i = 0; i < NUM_MATERIAL_TILE_VERTS; i++)
 		{
@@ -179,8 +175,11 @@ FCanvasTileRendererItem::FTileVertexFactory::FTileVertexFactory(ERHIFeatureLevel
 /**
  * Mesh used to render tiles.
  */
-FCanvasTileRendererItem::FTileMesh::FTileMesh(FCanvasTileRendererItem::FTileVertexFactory* InVertexFactory)
-	: VertexFactory(InVertexFactory)
+FCanvasTileRendererItem::FTileMesh::FTileMesh(
+	const FRawIndexBuffer* InIndexBuffer,
+	const FCanvasTileRendererItem::FTileVertexFactory* InVertexFactory)
+	: IndexBuffer(InIndexBuffer)
+	, VertexFactory(InVertexFactory)
 {
 }
 
@@ -188,6 +187,7 @@ void FCanvasTileRendererItem::FTileMesh::InitRHI()
 {
 	FMeshBatchElement& BatchElement = MeshElement.Elements[0];
 	MeshElement.VertexFactory = VertexFactory;
+	BatchElement.IndexBuffer = IndexBuffer;
 	BatchElement.FirstIndex = 0;
 	BatchElement.NumPrimitives = 2;
 	BatchElement.MinVertexIndex = 0;
@@ -206,7 +206,7 @@ FCanvasTileRendererItem::FRenderData::FRenderData(ERHIFeatureLevel::Type InFeatu
 	const FMaterialRenderProxy* InMaterialRenderProxy,
 	const FCanvas::FTransformEntry& InTransform )
 	: VertexFactory(InFeatureLevel)
-	, TileMesh(&VertexFactory)
+	, TileMesh(&IndexBuffer, &VertexFactory)
 	, MaterialRenderProxy(InMaterialRenderProxy)
 	, Transform(InTransform)
 {
@@ -270,14 +270,24 @@ FCanvasTileRendererItem::~FCanvasTileRendererItem()
 
 void FCanvasTileRendererItem::InitTileBuffers(FLocalVertexFactory* VertexFactory, TArray<FTileInst>& Tiles, const FSceneView& View, bool bNeedsToSwitchVerticalAxis)
 {
-	static_assert(NUM_MATERIAL_TILE_VERTS == 6, "Invalid tile tri-list size.");
+	static_assert(NUM_MATERIAL_TILE_VERTS == 4, "Invalid tile tri-list size.");
 	Data->StaticMeshVertexBuffers.PositionVertexBuffer.Init(Tiles.Num() * NUM_MATERIAL_TILE_VERTS);
 	Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.Init(Tiles.Num() * NUM_MATERIAL_TILE_VERTS, 1);
 	Data->StaticMeshVertexBuffers.ColorVertexBuffer.Init(Tiles.Num() * NUM_MATERIAL_TILE_VERTS);
 
+	Data->IndexBuffer.Indices.SetNum(Tiles.Num() * NUM_MATERIAL_TILE_VERTS);
+
 	for (int32 i = 0; i < Tiles.Num(); i++)
 	{
 		const FTileInst& Tile = Tiles[i];
+		const uint32 FirstIndex = i * 6;
+
+		Data->IndexBuffer.Indices[FirstIndex + 0] = FirstIndex + 0;
+		Data->IndexBuffer.Indices[FirstIndex + 1] = FirstIndex + 1;
+		Data->IndexBuffer.Indices[FirstIndex + 2] = FirstIndex + 2;
+		Data->IndexBuffer.Indices[FirstIndex + 3] = FirstIndex + 2;
+		Data->IndexBuffer.Indices[FirstIndex + 4] = FirstIndex + 1;
+		Data->IndexBuffer.Indices[FirstIndex + 5] = FirstIndex + 3;
 
 		const float X = Tile.X;
 		const float Y = Tile.Y;
@@ -293,32 +303,24 @@ void FCanvasTileRendererItem::InitTileBuffers(FLocalVertexFactory* VertexFactory
 			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * NUM_MATERIAL_TILE_VERTS + 0) = FVector(X + SizeX, View.UnscaledViewRect.Height() - (Y + SizeY), 0.0f);
 			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * NUM_MATERIAL_TILE_VERTS + 1) = FVector(X, View.UnscaledViewRect.Height() - (Y + SizeY), 0.0f);
 			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * NUM_MATERIAL_TILE_VERTS + 2) = FVector(X + SizeX, View.UnscaledViewRect.Height() - Y, 0.0f);
-			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * NUM_MATERIAL_TILE_VERTS + 3) = FVector(X + SizeX, View.UnscaledViewRect.Height() - Y, 0.0f);
-			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * NUM_MATERIAL_TILE_VERTS + 4) = FVector(X, View.UnscaledViewRect.Height() - (Y + SizeY), 0.0f);
-			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * NUM_MATERIAL_TILE_VERTS + 5) = FVector(X, View.UnscaledViewRect.Height() - Y, 0.0f);
+			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * NUM_MATERIAL_TILE_VERTS + 3) = FVector(X, View.UnscaledViewRect.Height() - Y, 0.0f);
 
 			Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * NUM_MATERIAL_TILE_VERTS + 0, 0, FVector2D(U + SizeU, V + SizeV));
 			Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * NUM_MATERIAL_TILE_VERTS + 1, 0, FVector2D(U, V + SizeV));
 			Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * NUM_MATERIAL_TILE_VERTS + 2, 0, FVector2D(U + SizeU, V));
-			Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * NUM_MATERIAL_TILE_VERTS + 3, 0, FVector2D(U + SizeU, V));
-			Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * NUM_MATERIAL_TILE_VERTS + 4, 0, FVector2D(U, V + SizeV));
-			Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * NUM_MATERIAL_TILE_VERTS + 5, 0, FVector2D(U, V));
+			Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * NUM_MATERIAL_TILE_VERTS + 3, 0, FVector2D(U, V));
 		}
 		else
 		{
 			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * NUM_MATERIAL_TILE_VERTS + 0) = FVector(X + SizeX, Y, 0.0f);
 			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * NUM_MATERIAL_TILE_VERTS + 1) = FVector(X, Y, 0.0f);
 			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * NUM_MATERIAL_TILE_VERTS + 2) = FVector(X + SizeX, Y + SizeY, 0.0f);
-			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * NUM_MATERIAL_TILE_VERTS + 3) = FVector(X + SizeX, Y + SizeY, 0.0f);
-			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * NUM_MATERIAL_TILE_VERTS + 4) = FVector(X, Y, 0.0f);
-			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * NUM_MATERIAL_TILE_VERTS + 5) = FVector(X, Y + SizeY, 0.0f);
+			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * NUM_MATERIAL_TILE_VERTS + 3) = FVector(X, Y + SizeY, 0.0f);
 
 			Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * NUM_MATERIAL_TILE_VERTS + 0, 0, FVector2D(U + SizeU, V));
 			Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * NUM_MATERIAL_TILE_VERTS + 1, 0, FVector2D(U, V));
 			Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * NUM_MATERIAL_TILE_VERTS + 2, 0, FVector2D(U + SizeU, V + SizeV));
-			Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * NUM_MATERIAL_TILE_VERTS + 3, 0, FVector2D(U + SizeU, V + SizeV));
-			Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * NUM_MATERIAL_TILE_VERTS + 4, 0, FVector2D(U, V));
-			Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * NUM_MATERIAL_TILE_VERTS + 5, 0, FVector2D(U, V + SizeV));
+			Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * NUM_MATERIAL_TILE_VERTS + 3, 0, FVector2D(U, V + SizeV));
 		}
 
 		for (int j = 0; j < NUM_MATERIAL_TILE_VERTS; j++)
@@ -344,6 +346,7 @@ void FCanvasTileRendererItem::InitTileBuffers(FLocalVertexFactory* VertexFactory
 		RenderData->StaticMeshVertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(VertexFactory, RData);
 		VertexFactory->SetData(RData);
 
+		RenderData->IndexBuffer.InitResource();
 		RenderData->VertexFactory.InitResource();
 		RenderData->TileMesh.InitResource();
 	});
@@ -398,7 +401,7 @@ bool FCanvasTileRendererItem::Render_RenderThread(FRHICommandListImmediate& RHIC
 		// update the FMeshBatch
 		FMeshBatch& Mesh = Data->TileMesh.MeshElement;
 		Mesh.MaterialRenderProxy = Data->MaterialRenderProxy;
-		Mesh.Elements[0].BaseVertexIndex = NUM_MATERIAL_TILE_VERTS * TileIdx;
+		Mesh.Elements[0].FirstIndex = 6 * TileIdx;
 
 		GetRendererModule().DrawTileMesh(RHICmdList, DrawRenderState, *View, Mesh, Canvas->IsHitTesting(), Tile.HitProxyId);
 	}
@@ -502,6 +505,7 @@ bool FCanvasTileRendererItem::Render_GameThread(const FCanvas* Canvas, FRenderTh
 		DrawTileParameters.RenderData->StaticMeshVertexBuffers.ColorVertexBuffer.ReleaseResource();
 		DrawTileParameters.RenderData->TileMesh.ReleaseResource();
 		DrawTileParameters.RenderData->VertexFactory.ReleaseResource();
+		DrawTileParameters.RenderData->IndexBuffer.ReleaseResource();
 
 		delete DrawTileParameters.View->Family;
 		delete DrawTileParameters.View;

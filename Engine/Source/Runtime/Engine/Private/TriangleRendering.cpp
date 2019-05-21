@@ -190,8 +190,9 @@ FCanvasTriangleRendererItem::FTriangleVertexFactory::FTriangleVertexFactory(ERHI
 /**
  * Mesh used to render triangles.
  */
-FCanvasTriangleRendererItem::FTriangleMesh::FTriangleMesh(FTriangleVertexFactory* InVertexFactory)
-	: VertexFactory(InVertexFactory)
+FCanvasTriangleRendererItem::FTriangleMesh::FTriangleMesh(const FRawIndexBuffer* InIndexBuffer, const FTriangleVertexFactory* InVertexFactory)
+	: IndexBuffer(InIndexBuffer)
+	, VertexFactory(InVertexFactory)
 {
 
 }
@@ -203,6 +204,7 @@ void FCanvasTriangleRendererItem::FTriangleMesh::InitRHI()
 {
 	FMeshBatchElement& BatchElement = TriMeshElement.Elements[0];
 	TriMeshElement.VertexFactory = VertexFactory;
+	BatchElement.IndexBuffer = IndexBuffer;
 	BatchElement.FirstIndex = 0;
 	BatchElement.NumPrimitives = 1;
 	BatchElement.MinVertexIndex = 0;
@@ -224,35 +226,46 @@ void FCanvasTriangleRendererItem::InitTriangleBuffers(FLocalVertexFactory* Verte
 	Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.Init(Triangles.Num() * 3, 1);
 	Data->StaticMeshVertexBuffers.ColorVertexBuffer.Init(Triangles.Num() * 3);
 
+	Data->IndexBuffer.Indices.SetNum(Triangles.Num() * 3);
+
 	for (int32 i = 0; i < Triangles.Num(); i++)
 	{
+		const uint32 StartIndex = i * 3;
+
+		/** The use of an index buffer here is actually necessary to workaround an issue with BaseVertexIndex, DrawPrimitive, and manual vertex fetch.
+		 *  In short, DrawIndexedPrimitive with StartIndex map SV_VertexId to the correct location, but DrawPrimitive with BaseVertexIndex will not.
+		 */
+		Data->IndexBuffer.Indices[StartIndex + 0] = StartIndex + 0;
+		Data->IndexBuffer.Indices[StartIndex + 1] = StartIndex + 1;
+		Data->IndexBuffer.Indices[StartIndex + 2] = StartIndex + 2;
+
 		const FCanvasUVTri& Tri = Triangles[i].Tri;
 
 		// create verts. Notice the order is (1, 0, 2)
 		if (bNeedsToSwitchVerticalAxis)
 		{
-			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * 3 + 0) = FVector(Tri.V1_Pos.X, View.UnscaledViewRect.Height() - Tri.V1_Pos.Y, 0.0f);
-			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * 3 + 1) = FVector(Tri.V0_Pos.X, View.UnscaledViewRect.Height() - Tri.V0_Pos.Y, 0.0f);
-			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * 3 + 2) = FVector(Tri.V2_Pos.X, View.UnscaledViewRect.Height() - Tri.V2_Pos.Y, 0.0f);
+			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 0) = FVector(Tri.V1_Pos.X, View.UnscaledViewRect.Height() - Tri.V1_Pos.Y, 0.0f);
+			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 1) = FVector(Tri.V0_Pos.X, View.UnscaledViewRect.Height() - Tri.V0_Pos.Y, 0.0f);
+			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 2) = FVector(Tri.V2_Pos.X, View.UnscaledViewRect.Height() - Tri.V2_Pos.Y, 0.0f);
 		}
 		else
 		{
-			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * 3 + 0) = FVector(Tri.V1_Pos.X, Tri.V1_Pos.Y, 0.0f);
-			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * 3 + 1) = FVector(Tri.V0_Pos.X, Tri.V0_Pos.Y, 0.0f);
-			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(i * 3 + 2) = FVector(Tri.V2_Pos.X, Tri.V2_Pos.Y, 0.0f);
+			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 0) = FVector(Tri.V1_Pos.X, Tri.V1_Pos.Y, 0.0f);
+			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 1) = FVector(Tri.V0_Pos.X, Tri.V0_Pos.Y, 0.0f);
+			Data->StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 2) = FVector(Tri.V2_Pos.X, Tri.V2_Pos.Y, 0.0f);
 		}
 
-		Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(i * 3 + 0, FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f), FVector(0.0f, 0.0f, 1.0f));
-		Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(i * 3 + 1, FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f), FVector(0.0f, 0.0f, 1.0f));
-		Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(i * 3 + 2, FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f), FVector(0.0f, 0.0f, 1.0f));
+		Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(StartIndex + 0, FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f), FVector(0.0f, 0.0f, 1.0f));
+		Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(StartIndex + 1, FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f), FVector(0.0f, 0.0f, 1.0f));
+		Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(StartIndex + 2, FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f), FVector(0.0f, 0.0f, 1.0f));
 
-		Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * 3 + 0, 0, FVector2D(Tri.V1_UV.X, Tri.V1_UV.Y));
-		Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * 3 + 1, 0, FVector2D(Tri.V0_UV.X, Tri.V0_UV.Y));
-		Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i * 3 + 2, 0, FVector2D(Tri.V2_UV.X, Tri.V2_UV.Y));
+		Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(StartIndex + 0, 0, FVector2D(Tri.V1_UV.X, Tri.V1_UV.Y));
+		Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(StartIndex + 1, 0, FVector2D(Tri.V0_UV.X, Tri.V0_UV.Y));
+		Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(StartIndex + 2, 0, FVector2D(Tri.V2_UV.X, Tri.V2_UV.Y));
 
-		Data->StaticMeshVertexBuffers.ColorVertexBuffer.VertexColor(i * 3 + 0) = Tri.V1_Color.ToFColor(true);
-		Data->StaticMeshVertexBuffers.ColorVertexBuffer.VertexColor(i * 3 + 1) = Tri.V0_Color.ToFColor(true);
-		Data->StaticMeshVertexBuffers.ColorVertexBuffer.VertexColor(i * 3 + 2) = Tri.V2_Color.ToFColor(true);
+		Data->StaticMeshVertexBuffers.ColorVertexBuffer.VertexColor(StartIndex + 0) = Tri.V1_Color.ToFColor(true);
+		Data->StaticMeshVertexBuffers.ColorVertexBuffer.VertexColor(StartIndex + 1) = Tri.V0_Color.ToFColor(true);
+		Data->StaticMeshVertexBuffers.ColorVertexBuffer.VertexColor(StartIndex + 2) = Tri.V2_Color.ToFColor(true);
 	}
 
 	FCanvasTriangleRendererItem::FRenderData* RenderData = Data;
@@ -271,6 +284,7 @@ void FCanvasTriangleRendererItem::InitTriangleBuffers(FLocalVertexFactory* Verte
 		RenderData->StaticMeshVertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(VertexFactory, RData);
 		VertexFactory->SetData(RData);
 
+		RenderData->IndexBuffer.InitResource();
 		RenderData->VertexFactory.InitResource();
 		RenderData->TriMesh.InitResource();
 	});
@@ -326,7 +340,7 @@ bool FCanvasTriangleRendererItem::Render_RenderThread(FRHICommandListImmediate& 
 		FMeshBatch& TriMesh = Data->TriMesh.TriMeshElement;
 		TriMesh.VertexFactory = &Data->VertexFactory;
 		TriMesh.MaterialRenderProxy = Data->MaterialRenderProxy;
-		TriMesh.Elements[0].BaseVertexIndex = 3 * TriIdx;
+		TriMesh.Elements[0].FirstIndex = 3 * TriIdx;
 
 		GetRendererModule().DrawTileMesh(RHICmdList, DrawRenderState, *View, TriMesh, Canvas->IsHitTesting(), Tri.HitProxyId);
 	}
@@ -334,6 +348,7 @@ bool FCanvasTriangleRendererItem::Render_RenderThread(FRHICommandListImmediate& 
 	Data->StaticMeshVertexBuffers.PositionVertexBuffer.ReleaseResource();
 	Data->StaticMeshVertexBuffers.StaticMeshVertexBuffer.ReleaseResource();
 	Data->StaticMeshVertexBuffers.ColorVertexBuffer.ReleaseResource();
+	Data->IndexBuffer.ReleaseResource();
 	Data->TriMesh.ReleaseResource();
 	Data->VertexFactory.ReleaseResource();
 
@@ -420,7 +435,7 @@ bool FCanvasTriangleRendererItem::Render_GameThread(const FCanvas* Canvas, FRend
 			FMeshBatch& TriMesh = Parameters.RenderData->TriMesh.TriMeshElement;
 			TriMesh.VertexFactory = &Parameters.RenderData->VertexFactory;
 			TriMesh.MaterialRenderProxy = Parameters.RenderData->MaterialRenderProxy;
-			TriMesh.Elements[0].BaseVertexIndex = 3 * TriIdx;
+			TriMesh.Elements[0].FirstIndex = 3 * TriIdx;
 
 			GetRendererModule().DrawTileMesh(RHICmdList, DrawRenderState, *Parameters.View, TriMesh, Parameters.bIsHitTesting, Tri.HitProxyId);
 		}
@@ -428,6 +443,7 @@ bool FCanvasTriangleRendererItem::Render_GameThread(const FCanvas* Canvas, FRend
 		Parameters.RenderData->StaticMeshVertexBuffers.PositionVertexBuffer.ReleaseResource();
 		Parameters.RenderData->StaticMeshVertexBuffers.StaticMeshVertexBuffer.ReleaseResource();
 		Parameters.RenderData->StaticMeshVertexBuffers.ColorVertexBuffer.ReleaseResource();
+		Parameters.RenderData->IndexBuffer.ReleaseResource();
 		Parameters.RenderData->TriMesh.ReleaseResource();
 		Parameters.RenderData->VertexFactory.ReleaseResource();
 

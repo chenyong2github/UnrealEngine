@@ -1049,7 +1049,7 @@ private:
 	class FTileMesh : public FRenderResource
 	{
 	public:
-		FTileMesh(FTileVertexFactory* VertexFactory);
+		FTileMesh(const FRawIndexBuffer* IndexBuffer, const FTileVertexFactory* VertexFactory);
 
 		/** The mesh element. */
 		FMeshBatch MeshElement;
@@ -1057,7 +1057,8 @@ private:
 		virtual void InitRHI() override;
 		virtual void ReleaseRHI() override;
 	private:
-		FTileVertexFactory* VertexFactory;
+		const FRawIndexBuffer* IndexBuffer;
+		const FTileVertexFactory* VertexFactory;
 	};
 
 	class FRenderData
@@ -1066,6 +1067,7 @@ private:
 
 	private:
 		/** The buffer containing vertex data. */
+		FRawIndexBuffer IndexBuffer;
 		FStaticMeshVertexBuffers StaticMeshVertexBuffers;
 		FTileVertexFactory VertexFactory;
 		FTileMesh TileMesh;
@@ -1220,14 +1222,15 @@ private:
 	class FTriangleMesh : public FRenderResource
 	{
 	public:
-		FTriangleMesh(FTriangleVertexFactory* VertexFactory);
+		FTriangleMesh(const FRawIndexBuffer* IndexBuffer, const FTriangleVertexFactory* VertexFactory);
 
 		/** The mesh element. */
 		FMeshBatch TriMeshElement;
 		virtual void InitRHI() override;
 		virtual void ReleaseRHI() override;
 	private:
-		FTriangleVertexFactory* VertexFactory;
+		const FRawIndexBuffer* IndexBuffer;
+		const FTriangleVertexFactory* VertexFactory;
 	};
 
 	class FRenderData
@@ -1239,6 +1242,7 @@ private:
 		FCanvas::FTransformEntry Transform;
 
 		/** The buffer containing vertex data. */
+		FRawIndexBuffer IndexBuffer;
 		FStaticMeshVertexBuffers StaticMeshVertexBuffers;
 		FTriangleVertexFactory VertexFactory;
 		FTriangleMesh TriMesh;
@@ -1257,7 +1261,7 @@ private:
 			: MaterialRenderProxy(InMaterialRenderProxy)
 			, Transform(InTransform)
 			, VertexFactory(InFeatureLevel)
-			, TriMesh(&VertexFactory)
+			, TriMesh(&IndexBuffer, &VertexFactory)
 		{
 		}
 
