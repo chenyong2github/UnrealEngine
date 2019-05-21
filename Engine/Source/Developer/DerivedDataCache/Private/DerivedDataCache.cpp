@@ -306,7 +306,11 @@ public:
 		AddToAsyncCompletionCounter(1);
 		if (!bSync)
 		{
+#if WITH_EDITOR
+			AsyncTask->StartBackgroundTask(GLargeThreadPool);
+#else
 			AsyncTask->StartBackgroundTask();
+#endif
 		}
 		else
 		{
