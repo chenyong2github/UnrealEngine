@@ -14,8 +14,8 @@ namespace Private
 ////////////////////////////////////////////////////////////////////////////////
 extern UPTRINT	GPendingDataHandle;
 void			Writer_Flush();
-bool			Writer_ConnectImpl(const ANSICHAR*);
-bool			Writer_ToggleEventImpl(const ANSICHAR*, const ANSICHAR*, bool);
+bool			Writer_Connect(const ANSICHAR*);
+bool			Writer_ToggleEvent(const ANSICHAR*, const ANSICHAR*, bool);
 
 } // namespace Private
 
@@ -41,7 +41,7 @@ bool Connect(const TCHAR* InHost)
 	char Host[32];
 	ToAnsiCheap(Host, InHost);
 
-	return Private::Writer_ConnectImpl(Host);
+	return Private::Writer_Connect(Host);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -52,7 +52,7 @@ bool ToggleEvent(const TCHAR* LoggerName, const TCHAR* EventName, bool State)
 	ToAnsiCheap(LoggerNameA, LoggerName);
 	ToAnsiCheap(EventNameA, EventName);
 
-	return Private::Writer_ToggleEventImpl(LoggerNameA, EventNameA, State);
+	return Private::Writer_ToggleEvent(LoggerNameA, EventNameA, State);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

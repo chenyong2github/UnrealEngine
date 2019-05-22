@@ -470,8 +470,8 @@ struct FControlCommands
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-bool Writer_ConnectImpl(const ANSICHAR*);
-bool Writer_ToggleEventImpl(const ANSICHAR*, const ANSICHAR*, bool);
+bool Writer_Connect(const ANSICHAR*);
+bool Writer_ToggleEvent(const ANSICHAR*, const ANSICHAR*, bool);
 
 ////////////////////////////////////////////////////////////////////////////////
 static FControlCommands	GControlCommands;
@@ -695,7 +695,7 @@ static void Writer_InitializeControl()
 		{
 			if (ArgC > 0)
 			{
-				Writer_ConnectImpl(ArgV[0]);
+				Writer_Connect(ArgV[0]);
 			}
 		}
 	);
@@ -710,7 +710,7 @@ static void Writer_InitializeControl()
 			const ANSICHAR* LoggerName = ArgV[0];
 			const ANSICHAR* EventName = ArgV[1];
 			const ANSICHAR* State = (ArgC > 2) ? ArgV[2] : "";
-			Writer_ToggleEventImpl(LoggerName, EventName, State[0] != '0');
+			Writer_ToggleEvent(LoggerName, EventName, State[0] != '0');
 		}
 	);
 }
@@ -831,7 +831,7 @@ void Writer_Initialize()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-bool Writer_ConnectImpl(const ANSICHAR* Host)
+bool Writer_Connect(const ANSICHAR* Host)
 {
 	Writer_Initialize();
 
@@ -846,7 +846,7 @@ bool Writer_ConnectImpl(const ANSICHAR* Host)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool Writer_ToggleEventImpl(const ANSICHAR* LoggerName, const ANSICHAR* EventName, bool State)
+bool Writer_ToggleEvent(const ANSICHAR* LoggerName, const ANSICHAR* EventName, bool State)
 {
 	Writer_Initialize();
 
