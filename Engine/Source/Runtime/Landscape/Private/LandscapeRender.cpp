@@ -24,6 +24,7 @@ LandscapeRender.cpp: New terrain rendering
 #include "LandscapeMaterialInstanceConstant.h"
 #include "Engine/ShadowMapTexture2D.h"
 #include "EngineGlobals.h"
+#include "EngineModule.h"
 #include "UnrealEngine.h"
 #include "LandscapeLight.h"
 #include "Algo/Find.h"
@@ -861,6 +862,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 
 	bSupportsHeightfieldRepresentation = true;
 
+	// Store the target runtime virtual texture information
 	if (UseVirtualTexturing(FeatureLevel))
 	{
 		//todo[vt]: Should the virtual texture settings be in the component overrides?
@@ -870,6 +872,10 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 			{
 				RuntimeVirtualTextures.Add(VirtualTexture);
 				RuntimeVirtualTextureMaterialTypes.Add(VirtualTexture->GetMaterialType());
+
+				//todo[vt]: Only flush specific virtual textures
+				//todo[vt]: Only flush primitive bounds 
+				GetRendererModule().FlushVirtualTextureCache();
 			}
 		}
 	}
@@ -5034,6 +5040,13 @@ FLandscapeMeshProxySceneProxy::~FLandscapeMeshProxySceneProxy()
 	for (FLandscapeNeighborInfo& Info : ProxyNeighborInfos)
 	{
 		Info.UnregisterNeighbors();
+	}
+
+	for (URuntimeVirtualTexture* VirtualTexture : RuntimeVirtualTextures)
+	{
+		//todo[vt]: Only flush specific virtual textures
+		//todo[vt]: Only flush primitive bounds 
+		GetRendererModule().FlushVirtualTextureCache();
 	}
 }
 

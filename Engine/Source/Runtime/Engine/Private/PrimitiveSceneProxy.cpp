@@ -7,6 +7,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "Engine/Brush.h"
 #include "UObject/Package.h"
+#include "EngineModule.h"
 #include "EngineUtils.h"
 #include "Components/BrushComponent.h"
 #include "SceneManagement.h"
@@ -213,6 +214,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 	InComponent->GetUsedMaterials(UsedMaterialsForVerification, bGetDebugMaterials);
 #endif
 
+	// Store the target runtime virtual texture information
 	if (UseVirtualTexturing(GetScene().GetFeatureLevel()))
 	{
 		for (URuntimeVirtualTexture* VirtualTexture : InComponent->RuntimeVirtualTextures)
@@ -221,6 +223,10 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 			{
 				RuntimeVirtualTextures.Add(VirtualTexture);
 				RuntimeVirtualTextureMaterialTypes.Add(VirtualTexture->GetMaterialType());
+			
+				//todo[vt]: Only flush this specific virtual textures
+				//todo[vt]: Only flush primitive bounds 
+				GetRendererModule().FlushVirtualTextureCache();
 			}
 		}
 	}
@@ -238,6 +244,13 @@ void FPrimitiveSceneProxy::SetUsedMaterialForVerification(const TArray<UMaterial
 FPrimitiveSceneProxy::~FPrimitiveSceneProxy()
 {
 	check(IsInRenderingThread());
+
+	for (URuntimeVirtualTexture* VirtualTexture : RuntimeVirtualTextures)
+	{
+		//todo[vt]: Only flush Bounds 
+		//todo[vt]: Only flush specific virtual textures
+		GetRendererModule().FlushVirtualTextureCache();
+	}
 }
 
 HHitProxy* FPrimitiveSceneProxy::CreateHitProxies(UPrimitiveComponent* Component,TArray<TRefCountPtr<HHitProxy> >& OutHitProxies)

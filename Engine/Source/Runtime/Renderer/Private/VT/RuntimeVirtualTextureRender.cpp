@@ -309,23 +309,26 @@ namespace RuntimeVirtualTexture
 							{
 								// Use cached draw command
 								const int32 StaticMeshCommandInfoIndex = StaticMeshRelevance.GetStaticMeshCommandInfoIndex(EMeshPass::VirtualTexture);
-								FCachedMeshDrawCommandInfo& CachedMeshDrawCommand = PrimitiveSceneInfo->StaticMeshCommandInfos[StaticMeshCommandInfoIndex];
+								if (StaticMeshCommandInfoIndex >= 0)
+								{
+									FCachedMeshDrawCommandInfo& CachedMeshDrawCommand = PrimitiveSceneInfo->StaticMeshCommandInfos[StaticMeshCommandInfoIndex];
 
-								const FMeshDrawCommand* MeshDrawCommand = CachedMeshDrawCommand.StateBucketId >= 0
-									? &Scene->CachedMeshDrawCommandStateBuckets[FSetElementId::FromInteger(CachedMeshDrawCommand.StateBucketId)].MeshDrawCommand
-									: &SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex];
+									const FMeshDrawCommand* MeshDrawCommand = CachedMeshDrawCommand.StateBucketId >= 0
+										? &Scene->CachedMeshDrawCommandStateBuckets[FSetElementId::FromInteger(CachedMeshDrawCommand.StateBucketId)].MeshDrawCommand
+										: &SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex];
 
-								FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
-								NewVisibleMeshDrawCommand.Setup(
-									MeshDrawCommand,
-									PrimitiveIndex,
-									PrimitiveIndex,
-									CachedMeshDrawCommand.StateBucketId,
-									CachedMeshDrawCommand.MeshFillMode,
-									CachedMeshDrawCommand.MeshCullMode,
-									CachedMeshDrawCommand.SortKey);
+									FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
+									NewVisibleMeshDrawCommand.Setup(
+										MeshDrawCommand,
+										PrimitiveIndex,
+										PrimitiveIndex,
+										CachedMeshDrawCommand.StateBucketId,
+										CachedMeshDrawCommand.MeshFillMode,
+										CachedMeshDrawCommand.MeshCullMode,
+										CachedMeshDrawCommand.SortKey);
 
-								CachedDrawCommands.Add(NewVisibleMeshDrawCommand);
+									CachedDrawCommands.Add(NewVisibleMeshDrawCommand);
+								}
 							}
 							else
 							{
