@@ -50,11 +50,13 @@ public:
 	// Joins this thread.
 	void Join(void);
 
-	void* EnableModule(const wchar_t* const nameOfExeOrDll);
-	void* EnableAllModules(const wchar_t* const nameOfExeOrDll);
+	void* EnableModule(const wchar_t* nameOfExeOrDll);
+	void* EnableModules(const wchar_t* namesOfExeOrDll[], unsigned int count);
+	void* EnableAllModules(const wchar_t* nameOfExeOrDll);
 
-	void* DisableModule(const wchar_t* const nameOfExeOrDll);
-	void* DisableAllModules(const wchar_t* const nameOfExeOrDll);
+	void* DisableModule(const wchar_t* nameOfExeOrDll);
+	void* DisableModules(const wchar_t* namesOfExeOrDll[], unsigned int count);
+	void* DisableAllModules(const wchar_t* nameOfExeOrDll);
 
 	void WaitForToken(void* token);
 	void TriggerRecompile(void);
@@ -80,9 +82,9 @@ public:
 	void EnableLazyLoadedModule(const wchar_t* fileName, Windows::HMODULE moduleBase);
 	// END EPIC MOD
 
-	void ApplySettingBool(const char* const settingName, int value);
-	void ApplySettingInt(const char* const settingName, int value);
-	void ApplySettingString(const char* const settingName, const wchar_t* const value);
+	void ApplySettingBool(const char* settingName, int value);
+	void ApplySettingInt(const char* settingName, int value);
+	void ApplySettingString(const char* settingName, const wchar_t* value);
 
 	void InstallExceptionHandler(void);
 	ExceptionResult HandleException(EXCEPTION_RECORD* exception, CONTEXT* context, unsigned int threadId);

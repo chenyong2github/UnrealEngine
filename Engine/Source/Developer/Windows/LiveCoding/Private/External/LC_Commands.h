@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "../../../LiveCodingServer/Private/External/LC_Hook.h"
 #include "Windows/WindowsHWrapper.h"
 
 namespace hook
@@ -106,8 +107,9 @@ namespace commands
 	{
 		static const uint32_t ID = LeaveSyncPoint::ID + 1u;
 
-		const hook::Function* first;
-		const hook::Function* last;
+		hook::Type::Enum type;
+		const void* rangeBegin;
+		const void* rangeEnd;
 	};
 
 	// tell the DLL to load a DLL

@@ -64,7 +64,7 @@ BOOL WINAPI DllMain(_In_ HINSTANCE hinstDLL, _In_ DWORD dwReason, _In_ LPVOID /*
 // END EPIC MOD - Internalizing API
 
 
-LPP_DLL_API void __cdecl LppRegisterProcessGroup(const char* const groupName)
+LPP_DLL_API void __cdecl LppRegisterProcessGroup(const char* groupName)
 {
 	// now that we have the process group name, start Live++.
 	// ensure that initialization can happen only once, even if the user calls this more than once.
@@ -85,28 +85,42 @@ LPP_DLL_API void __cdecl LppRegisterProcessGroup(const char* const groupName)
 }
 
 
-LPP_DLL_API void* __cdecl LppEnableModule(const wchar_t* const nameOfExeOrDll)
+LPP_DLL_API void* __cdecl LppEnableModule(const wchar_t* nameOfExeOrDll)
 {
 	// hand command creation to the user command thread
 	return g_startupThread->EnableModule(nameOfExeOrDll);
 }
 
 
-LPP_DLL_API void* __cdecl LppEnableAllModules(const wchar_t* const nameOfExeOrDll)
+LPP_DLL_API void* __cdecl LppEnableModules(const wchar_t* namesOfExeOrDll[], unsigned int count)
+{
+	// hand command creation to the user command thread
+	return g_startupThread->EnableModules(namesOfExeOrDll, count);
+}
+
+
+LPP_DLL_API void* __cdecl LppEnableAllModules(const wchar_t* nameOfExeOrDll)
 {
 	// hand command creation to the user command thread
 	return g_startupThread->EnableAllModules(nameOfExeOrDll);
 }
 
 
-LPP_DLL_API void* __cdecl LppDisableModule(const wchar_t* const nameOfExeOrDll)
+LPP_DLL_API void* __cdecl LppDisableModule(const wchar_t* nameOfExeOrDll)
 {
 	// hand command creation to the user command thread
 	return g_startupThread->DisableModule(nameOfExeOrDll);
 }
 
 
-LPP_DLL_API void* __cdecl LppDisableAllModules(const wchar_t* const nameOfExeOrDll)
+LPP_DLL_API void* __cdecl LppDisableModules(const wchar_t* namesOfExeOrDll[], unsigned int count)
+{
+	// hand command creation to the user command thread
+	return g_startupThread->DisableModules(namesOfExeOrDll, count);
+}
+
+
+LPP_DLL_API void* __cdecl LppDisableAllModules(const wchar_t* nameOfExeOrDll)
 {
 	// hand command creation to the user command thread
 	return g_startupThread->DisableAllModules(nameOfExeOrDll);
@@ -183,28 +197,29 @@ LPP_DLL_API void __cdecl LppSetBuildArguments(const wchar_t* arguments)
 // END EPIC MOD
 
 // BEGIN EPIC MOD - Support for lazy-loading modules
-LPP_DLL_API void __cdecl LppEnableLazyLoadedModule(const wchar_t* const nameOfExeOrDll)
+LPP_DLL_API void __cdecl LppEnableLazyLoadedModule(const wchar_t* nameOfExeOrDll)
 {
 	HMODULE baseAddress = GetModuleHandle(nameOfExeOrDll);
 	g_startupThread->EnableLazyLoadedModule(nameOfExeOrDll, baseAddress);
 }
 // END EPIC MOD
 
-LPP_DLL_API void __cdecl LppApplySettingBool(const char* const settingName, int value)
+
+LPP_DLL_API void __cdecl LppApplySettingBool(const char* settingName, int value)
 {
 	// hand command creation to the user command thread
 	g_startupThread->ApplySettingBool(settingName, value);
 }
 
 
-LPP_DLL_API void __cdecl LppApplySettingInt(const char* const settingName, int value)
+LPP_DLL_API void __cdecl LppApplySettingInt(const char* settingName, int value)
 {
 	// hand command creation to the user command thread
 	g_startupThread->ApplySettingInt(settingName, value);
 }
 
 
-LPP_DLL_API void __cdecl LppApplySettingString(const char* const settingName, const wchar_t* const value)
+LPP_DLL_API void __cdecl LppApplySettingString(const char* settingName, const wchar_t* value)
 {
 	// hand command creation to the user command thread
 	g_startupThread->ApplySettingString(settingName, value);

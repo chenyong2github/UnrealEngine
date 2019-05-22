@@ -12,10 +12,10 @@
 
 bool actions::RegisterProcessFinished::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
-	pipe->SendAck();
-
 	bool* successfullyRegisteredProcess = static_cast<bool*>(context);
 	*successfullyRegisteredProcess = command->success;
+
+	pipe->SendAck();
 
 	// don't continue execution
 	return false;
@@ -60,16 +60,33 @@ bool actions::LeaveSyncPoint::Execute(const CommandType*, const DuplexPipe* pipe
 }
 
 
-bool actions::CallHooks::Execute(const CommandType* command, const DuplexPipe* pipe, void*, const void*, size_t)
+bool actions::CallHooks::Execute(const CommandType* command, const DuplexPipe* pipe, void*, const void* payload, size_t)
 {
-	for (const hook::Function* hook = command->first; hook < command->last; ++hook)
+	switch (command->type)
 	{
-		// note that sections are often padded with zeroes, so skip everything that's zero
-		hook::Function function = *hook;
-		if (function)
-		{
-			function();
-		}
+		case hook::Type::PREPATCH:
+			hook::CallHooksInRange<hook::PrepatchFunction>(command->rangeBegin, command->rangeEnd);
+			break;
+
+		case hook::Type::POSTPATCH:
+			hook::CallHooksInRange<hook::PostpatchFunction>(command->rangeBegin, command->rangeEnd);
+			break;
+
+		case hook::Type::COMPILE_START:
+			hook::CallHooksInRange<hook::CompileStartFunction>(command->rangeBegin, command->rangeEnd);
+			break;
+
+		case hook::Type::COMPILE_SUCCESS:
+			hook::CallHooksInRange<hook::CompileSuccessFunction>(command->rangeBegin, command->rangeEnd);
+			break;
+
+		case hook::Type::COMPILE_ERROR:
+			hook::CallHooksInRange<hook::CompileErrorFunction>(command->rangeBegin, command->rangeEnd);
+			break;
+
+		case hook::Type::COMPILE_ERROR_MESSAGE:
+			hook::CallHooksInRange<hook::CompileErrorMessageFunction>(command->rangeBegin, command->rangeEnd, static_cast<const wchar_t*>(payload));
+			break;
 	}
 
 	pipe->SendAck();

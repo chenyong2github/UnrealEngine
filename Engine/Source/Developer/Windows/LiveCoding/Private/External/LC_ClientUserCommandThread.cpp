@@ -176,32 +176,59 @@ void ClientUserCommandThread::Join(void)
 }
 
 
-void* ClientUserCommandThread::EnableModule(const wchar_t* const nameOfExeOrDll)
+void* ClientUserCommandThread::EnableModule(const wchar_t* nameOfExeOrDll)
 {
-	HMODULE module = ::GetModuleHandleW(nameOfExeOrDll);
-	if (!module)
+	return EnableModules(&nameOfExeOrDll, 1u);
+}
+
+
+void* ClientUserCommandThread::EnableModules(const wchar_t* namesOfExeOrDll[], unsigned int count)
+{
+	std::vector<Windows::HMODULE> loadedModules;
+	loadedModules.reserve(count);
+
+	for (unsigned int i = 0u; i < count; ++i)
 	{
-		LC_ERROR_USER("Cannot enable module %S because it is not loaded by this process.", nameOfExeOrDll);
+		Windows::HMODULE module = ::GetModuleHandleW(namesOfExeOrDll[i]);
+		if (module)
+		{
+			loadedModules.push_back(module);
+		}
+		else
+		{
+			LC_ERROR_USER("Cannot enable module %S because it is not loaded by this process.", namesOfExeOrDll[i]);
+		}
+	}
+
+	const size_t loadedModuleCount = loadedModules.size();
+	if (loadedModuleCount == 0u)
+	{
+		// nothing to load
 		return nullptr;
 	}
 
-	ProxyCommand<commands::EnableModules>* proxy = new ProxyCommand<commands::EnableModules>(true, sizeof(commands::ModuleData)*1u);
+	ProxyCommand<commands::EnableModules>* proxy = new ProxyCommand<commands::EnableModules>(true, sizeof(commands::ModuleData) * loadedModuleCount);
 	proxy->m_command.processId = process::GetId();
-	proxy->m_command.moduleCount = 1u;
+	proxy->m_command.moduleCount = static_cast<unsigned int>(loadedModuleCount);
 	proxy->m_command.token = new Event(nullptr, Event::Type::AUTO_RESET);
 
-	commands::ModuleData moduleData = {};
-	moduleData.base = module;
-	::GetModuleFileNameW(module, moduleData.path, MAX_PATH);
+	for (size_t i = 0u; i < loadedModuleCount; ++i)
+	{
+		Windows::HMODULE module = loadedModules[i];
 
-	proxy->m_payload.Write(moduleData);
+		commands::ModuleData moduleData = {};
+		moduleData.base = module;
+		::GetModuleFileNameW(module, moduleData.path, MAX_PATH);
+
+		proxy->m_payload.Write(moduleData);
+	}
 
 	PushUserCommand(proxy);
 
 	return proxy->m_command.token;
 }
 
-void* ClientUserCommandThread::EnableAllModules(const wchar_t* const nameOfExeOrDll)
+void* ClientUserCommandThread::EnableAllModules(const wchar_t* nameOfExeOrDll)
 {
 	HMODULE module = ::GetModuleHandleW(nameOfExeOrDll);
 	if (!module)
@@ -230,25 +257,52 @@ void* ClientUserCommandThread::EnableAllModules(const wchar_t* const nameOfExeOr
 }
 
 
-void* ClientUserCommandThread::DisableModule(const wchar_t* const nameOfExeOrDll)
+void* ClientUserCommandThread::DisableModule(const wchar_t* nameOfExeOrDll)
 {
-	HMODULE module = ::GetModuleHandleW(nameOfExeOrDll);
-	if (!module)
+	return DisableModules(&nameOfExeOrDll, 1u);
+}
+
+
+void* ClientUserCommandThread::DisableModules(const wchar_t* namesOfExeOrDll[], unsigned int count)
+{
+	std::vector<Windows::HMODULE> loadedModules;
+	loadedModules.reserve(count);
+
+	for (unsigned int i = 0u; i < count; ++i)
 	{
-		LC_ERROR_USER("Cannot disable module %S because it is not loaded by this process.", nameOfExeOrDll);
+		Windows::HMODULE module = ::GetModuleHandleW(namesOfExeOrDll[i]);
+		if (module)
+		{
+			loadedModules.push_back(module);
+		}
+		else
+		{
+			LC_ERROR_USER("Cannot disable module %S because it is not loaded by this process.", namesOfExeOrDll[i]);
+		}
+	}
+
+	const size_t loadedModuleCount = loadedModules.size();
+	if (loadedModuleCount == 0u)
+	{
+		// nothing to unload
 		return nullptr;
 	}
 
-	ProxyCommand<commands::DisableModules>* proxy = new ProxyCommand<commands::DisableModules>(true, sizeof(commands::ModuleData) * 1u);
+	ProxyCommand<commands::DisableModules>* proxy = new ProxyCommand<commands::DisableModules>(true, sizeof(commands::ModuleData) * loadedModuleCount);
 	proxy->m_command.processId = process::GetId();
-	proxy->m_command.moduleCount = 1u;
+	proxy->m_command.moduleCount = static_cast<unsigned int>(loadedModuleCount);
 	proxy->m_command.token = new Event(nullptr, Event::Type::AUTO_RESET);
 
-	commands::ModuleData moduleData = {};
-	moduleData.base = module;
-	::GetModuleFileNameW(module, moduleData.path, MAX_PATH);
+	for (size_t i = 0u; i < loadedModuleCount; ++i)
+	{
+		HMODULE module = loadedModules[i];
 
-	proxy->m_payload.Write(moduleData);
+		commands::ModuleData moduleData = {};
+		moduleData.base = module;
+		::GetModuleFileNameW(module, moduleData.path, MAX_PATH);
+
+		proxy->m_payload.Write(moduleData);
+	}
 
 	PushUserCommand(proxy);
 
@@ -256,7 +310,7 @@ void* ClientUserCommandThread::DisableModule(const wchar_t* const nameOfExeOrDll
 }
 
 
-void* ClientUserCommandThread::DisableAllModules(const wchar_t* const nameOfExeOrDll)
+void* ClientUserCommandThread::DisableAllModules(const wchar_t* nameOfExeOrDll)
 {
 	HMODULE module = ::GetModuleHandleW(nameOfExeOrDll);
 	if (!module)
@@ -333,7 +387,7 @@ void ClientUserCommandThread::BuildPatch(const wchar_t* moduleNames[], const wch
 }
 
 
-void ClientUserCommandThread::ApplySettingBool(const char* const settingName, int value)
+void ClientUserCommandThread::ApplySettingBool(const char* settingName, int value)
 {
 	ProxyCommand<commands::ApplySettingBool>* proxy = new ProxyCommand<commands::ApplySettingBool>(false, 0u);
 	strcpy_s(proxy->m_command.settingName, settingName);
@@ -343,7 +397,7 @@ void ClientUserCommandThread::ApplySettingBool(const char* const settingName, in
 }
 
 
-void ClientUserCommandThread::ApplySettingInt(const char* const settingName, int value)
+void ClientUserCommandThread::ApplySettingInt(const char* settingName, int value)
 {
 	ProxyCommand<commands::ApplySettingInt>* proxy = new ProxyCommand<commands::ApplySettingInt>(false, 0u);
 	strcpy_s(proxy->m_command.settingName, settingName);
@@ -353,7 +407,7 @@ void ClientUserCommandThread::ApplySettingInt(const char* const settingName, int
 }
 
 
-void ClientUserCommandThread::ApplySettingString(const char* const settingName, const wchar_t* const value)
+void ClientUserCommandThread::ApplySettingString(const char* settingName, const wchar_t* value)
 {
 	ProxyCommand<commands::ApplySettingString>* proxy = new ProxyCommand<commands::ApplySettingString>(false, 0u);
 	strcpy_s(proxy->m_command.settingName, settingName);

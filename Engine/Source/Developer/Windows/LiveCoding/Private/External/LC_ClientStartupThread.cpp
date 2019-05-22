@@ -129,7 +129,7 @@ void ClientStartupThread::Join(void)
 }
 
 
-void* ClientStartupThread::EnableModule(const wchar_t* const nameOfExeOrDll)
+void* ClientStartupThread::EnableModule(const wchar_t* nameOfExeOrDll)
 {
 	// wait for the startup thread to finish initialization
 	Join();
@@ -143,7 +143,21 @@ void* ClientStartupThread::EnableModule(const wchar_t* const nameOfExeOrDll)
 }
 
 
-void* ClientStartupThread::EnableAllModules(const wchar_t* const nameOfExeOrDll)
+void* ClientStartupThread::EnableModules(const wchar_t* namesOfExeOrDll[], unsigned int count)
+{
+	// wait for the startup thread to finish initialization
+	Join();
+
+	if (m_userCommandThread)
+	{
+		return m_userCommandThread->EnableModules(namesOfExeOrDll, count);
+	}
+
+	return nullptr;
+}
+
+
+void* ClientStartupThread::EnableAllModules(const wchar_t* nameOfExeOrDll)
 {
 	// wait for the startup thread to finish initialization
 	Join();
@@ -157,7 +171,7 @@ void* ClientStartupThread::EnableAllModules(const wchar_t* const nameOfExeOrDll)
 }
 
 
-void* ClientStartupThread::DisableModule(const wchar_t* const nameOfExeOrDll)
+void* ClientStartupThread::DisableModule(const wchar_t* nameOfExeOrDll)
 {
 	// wait for the startup thread to finish initialization
 	Join();
@@ -171,7 +185,21 @@ void* ClientStartupThread::DisableModule(const wchar_t* const nameOfExeOrDll)
 }
 
 
-void* ClientStartupThread::DisableAllModules(const wchar_t* const nameOfExeOrDll)
+void* ClientStartupThread::DisableModules(const wchar_t* namesOfExeOrDll[], unsigned int count)
+{
+	// wait for the startup thread to finish initialization
+	Join();
+
+	if (m_userCommandThread)
+	{
+		return m_userCommandThread->DisableModules(namesOfExeOrDll, count);
+	}
+
+	return nullptr;
+}
+
+
+void* ClientStartupThread::DisableAllModules(const wchar_t* nameOfExeOrDll)
 {
 	// wait for the startup thread to finish initialization
 	Join();
@@ -301,7 +329,8 @@ void ClientStartupThread::EnableLazyLoadedModule(const wchar_t* fileName, Window
 }
 // END EPIC MOD
 
-void ClientStartupThread::ApplySettingBool(const char* const settingName, int value)
+
+void ClientStartupThread::ApplySettingBool(const char* settingName, int value)
 {
 	// wait for the startup thread to finish initialization
 	Join();
@@ -313,7 +342,7 @@ void ClientStartupThread::ApplySettingBool(const char* const settingName, int va
 }
 
 
-void ClientStartupThread::ApplySettingInt(const char* const settingName, int value)
+void ClientStartupThread::ApplySettingInt(const char* settingName, int value)
 {
 	// wait for the startup thread to finish initialization
 	Join();
@@ -325,7 +354,7 @@ void ClientStartupThread::ApplySettingInt(const char* const settingName, int val
 }
 
 
-void ClientStartupThread::ApplySettingString(const char* const settingName, const wchar_t* const value)
+void ClientStartupThread::ApplySettingString(const char* settingName, const wchar_t* value)
 {
 	// wait for the startup thread to finish initialization
 	Join();

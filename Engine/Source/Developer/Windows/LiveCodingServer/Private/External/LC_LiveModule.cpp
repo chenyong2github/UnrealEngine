@@ -195,7 +195,22 @@ namespace
 		return coff::SymbolRemovalStrategy::MSVC_COMPATIBLE;
 	}
 
-	static LiveModule::CompileResult Compile(const symbols::ObjPath& normalizedObjPath, symbols::Compiland* compiland, const LiveModule::PerProcessData* processData, size_t processCount, unsigned int flags, LiveModule::UpdateType::Enum updateType)
+
+	// helper function for creating a CallHooks command
+	static commands::CallHooks MakeCallHooksCommand(hook::Type::Enum type, const void* moduleBase, uint32_t firstRva, uint32_t lastRva)
+	{
+		return commands::CallHooks { type, pointer::Offset<const void*>(moduleBase, firstRva), pointer::Offset<const void*>(moduleBase, lastRva) };
+	}
+
+
+	// helper function for creating a CallHooks command
+	static commands::CallHooks MakeCallHooksCommand(hook::Type::Enum type, const void* moduleBase, const ModuleCache::FindHookData& hookData)
+	{
+		return MakeCallHooksCommand(type, moduleBase, hookData.firstRva, hookData.lastRva);
+	}
+
+
+	static LiveModule::CompileResult Compile(ModuleCache* moduleCache, const symbols::ObjPath& normalizedObjPath, symbols::Compiland* compiland, const LiveModule::PerProcessData* processData, size_t processCount, unsigned int flags, LiveModule::UpdateType::Enum updateType)
 	{
 		const std::wstring compilerPath = GetCompilerPath(compiland);
 
@@ -332,10 +347,10 @@ namespace
 			logging::LogNoFormat<logging::Channel::DEV>("\n");
 		}
 
-		// send compiler output to main executable
 		{
 			CriticalSection::ScopedLock lock(&g_compileOutputCS);
 
+			// log to local UI
 			logging::LogNoFormat<logging::Channel::USER>(compilerOutput);
 
 			const size_t outputLength = processContext->stdoutData.length();
@@ -343,12 +358,32 @@ namespace
 			{
 				if (updateType != LiveModule::UpdateType::NO_CLIENT_COMMUNICATION)
 				{
+					// send log to host DLL
 					for (size_t p = 0u; p < processCount; ++p)
 					{
 						const DuplexPipe* pipe = processData[p].liveProcess->GetPipe();
 
 						commands::LogOutput cmd {};
 						pipe->SendCommandAndWaitForAck(cmd, compilerOutput, (outputLength + 1u) * sizeof(wchar_t));
+					}
+
+					// send log to all registered hooks in case compilation was not successful
+					if (exitCode != 0u)
+					{
+						const ModuleCache::FindHookData& hookData = moduleCache->FindHooksInSectionBackwards(ModuleCache::SEARCH_ALL_MODULES, ImmutableString(LPP_COMPILE_ERROR_MESSAGE_SECTION));
+						if ((hookData.firstRva != 0u) && (hookData.lastRva != 0u))
+						{
+							const size_t count = hookData.data->processes.size();
+							for (size_t p = 0u; p < count; ++p)
+							{
+								const ModuleCache::ProcessData& hookProcessData = hookData.data->processes[p];
+
+								void* moduleBase = hookProcessData.moduleBase;
+								const DuplexPipe* pipe = hookProcessData.pipe;
+
+								pipe->SendCommandAndWaitForAck(MakeCallHooksCommand(hook::Type::COMPILE_ERROR_MESSAGE, moduleBase, hookData), compilerOutput, (outputLength + 1u) * sizeof(wchar_t));
+							}
+						}
 					}
 				}
 			}
@@ -825,7 +860,7 @@ namespace
 				const DuplexPipe* pipe = processData.pipe;
 
 				LC_LOG_USER("Calling compile start hooks (PID: %d)", pid);
-				pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) }, nullptr, 0u);
+				pipe->SendCommandAndWaitForAck(MakeCallHooksCommand(hook::Type::COMPILE_START, moduleBase, hookData), nullptr, 0u);
 			}
 		}
 	}
@@ -851,8 +886,8 @@ namespace
 				void* moduleBase = processData.moduleBase;
 				const DuplexPipe* pipe = processData.pipe;
 
-				LC_LOG_USER("Calling compile success hooks (PID: %d)", pid);				
-				pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) }, nullptr, 0u);
+				LC_LOG_USER("Calling compile success hooks (PID: %d)", pid);
+				pipe->SendCommandAndWaitForAck(MakeCallHooksCommand(hook::Type::COMPILE_SUCCESS, moduleBase, hookData), nullptr, 0u);
 			}
 		}
 	}
@@ -879,7 +914,7 @@ namespace
 				const DuplexPipe* pipe = processData.pipe;
 
 				LC_LOG_USER("Calling compile error hooks (PID: %d)", pid);
-				pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) }, nullptr, 0u);
+				pipe->SendCommandAndWaitForAck(MakeCallHooksCommand(hook::Type::COMPILE_ERROR, moduleBase, hookData), nullptr, 0u);
 			}
 		}
 	}
@@ -1641,6 +1676,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 			CompileResult compileResult;
 		};
 
+		ModuleCache* moduleCache = m_moduleCache;
 		double wholeCompileTime = 0.0;
 
 		// now figure out which files can be compiled in parallel.
@@ -1663,10 +1699,10 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 
 				if (compilerOptions::CreatesPrecompiledHeader(compiland->commandLine.c_str()))
 				{
-					auto task = scheduler::CreateTask(taskRoot, [i, objPath, compiland, processData, processCount, updateType]()
+					auto task = scheduler::CreateTask(taskRoot, [i, moduleCache, objPath, compiland, processData, processCount, updateType]()
 					{
 						telemetry::Scope compileScope("Compile");
-						const CompileResult& result = Compile(objPath, compiland, processData, processCount, 0u, updateType);
+						const CompileResult& result = Compile(moduleCache, objPath, compiland, processData, processCount, 0u, updateType);
 						return LocalCompileResult{ i, compileScope.ReadSeconds(), result };
 					});
 					scheduler::RunTask(task);
@@ -1743,11 +1779,11 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 
 				if (compilerOptions::UsesC7DebugFormat(compiland->commandLine.c_str()))
 				{
-					auto task = scheduler::CreateTask(taskRoot, [i, objPath, compiland, processData, processCount, updateType]()
+					auto task = scheduler::CreateTask(taskRoot, [i, moduleCache, objPath, compiland, processData, processCount, updateType]()
 					{
 						telemetry::Scope compileScope("Compile");
 
-						const CompileResult& result = Compile(objPath, compiland, processData, processCount, 0u, updateType);
+						const CompileResult& result = Compile(moduleCache, objPath, compiland, processData, processCount, 0u, updateType);
 						return LocalCompileResult{ i, compileScope.ReadSeconds(), result };
 					});
 					scheduler::RunTask(task);
@@ -1834,7 +1870,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 
 					telemetry::Scope compileScope("Compile");
 
-					const CompileResult& result = Compile(objPath, compiland, processData, processCount, 0u, updateType);
+					const CompileResult& result = Compile(moduleCache, objPath, compiland, processData, processCount, 0u, updateType);
 					OnCompiledFile(objPath, compiland, result, compileScope.ReadSeconds(), forceAmalgamationPartsLinkage);
 
 					if (result.exitCode != 0u)
@@ -1862,11 +1898,11 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 					symbols::Compiland* compiland = availableModifiedFiles[fileIndex].compiland;
 
 					// this PDB file is being written to by one compiland only, we can compile that without any extra options
-					auto task = scheduler::CreateTask(taskRoot, [fileIndex, objPath, compiland, processData, processCount, updateType]()
+					auto task = scheduler::CreateTask(taskRoot, [fileIndex, moduleCache, objPath, compiland, processData, processCount, updateType]()
 					{
 						telemetry::Scope compileScope("Compile");
 
-						const CompileResult& result = Compile(objPath, compiland, processData, processCount, 0u, updateType);
+						const CompileResult& result = Compile(moduleCache, objPath, compiland, processData, processCount, 0u, updateType);
 						return LocalCompileResult{ fileIndex, compileScope.ReadSeconds(), result };
 					});
 					scheduler::RunTask(task);
@@ -1882,11 +1918,11 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 						const symbols::ObjPath& objPath = availableModifiedFiles[fileIndex].objPath;
 						symbols::Compiland* compiland = availableModifiedFiles[fileIndex].compiland;
 
-						auto task = scheduler::CreateTask(taskRoot, [fileIndex, objPath, compiland, processData, processCount, updateType]()
+						auto task = scheduler::CreateTask(taskRoot, [fileIndex, moduleCache, objPath, compiland, processData, processCount, updateType]()
 						{
 							telemetry::Scope compileScope("Compile");
 
-							const CompileResult& result = Compile(objPath, compiland, processData, processCount, CompileFlags::SERIALIZE_PDB_ACCESS, updateType);
+							const CompileResult& result = Compile(moduleCache, objPath, compiland, processData, processCount, CompileFlags::SERIALIZE_PDB_ACCESS, updateType);
 							return LocalCompileResult{ fileIndex, compileScope.ReadSeconds(), result };
 						});
 						scheduler::RunTask(task);
@@ -3549,7 +3585,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 					const DuplexPipe* pipe = hookProcessData.pipe;
 
 					LC_LOG_USER("Calling pre-patch hooks (PID: %d)", pid);
-					pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) }, nullptr, 0u);
+					pipe->SendCommandAndWaitForAck(MakeCallHooksCommand(hook::Type::PREPATCH, moduleBase, hookData), nullptr, 0u);
 				}
 
 				compiledModulePatch->RegisterPrePatchHooks(hookData.data->index, hookData.firstRva, hookData.lastRva);
@@ -4112,7 +4148,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 					const DuplexPipe* pipe = hookData.data->processes[p].pipe;
 
 					LC_LOG_USER("Calling post-patch hooks (PID: %d)", pid);
-					pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) }, nullptr, 0u);
+					pipe->SendCommandAndWaitForAck(MakeCallHooksCommand(hook::Type::POSTPATCH, moduleBase, hookData), nullptr, 0u);
 				}
 
 				compiledModulePatch->RegisterPostPatchHooks(hookData.data->index, hookData.firstRva, hookData.lastRva);
@@ -4270,7 +4306,7 @@ bool LiveModule::InstallCompiledPatches(LiveProcess* liveProcess, void* original
 		LC_LOG_DEV("Calling pre-patch hooks");
 		{
 			void* hookModule = processModuleBases[patchData.prePatchHookModuleIndex];
-			pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(hookModule, patchData.firstPrePatchHook), hook::MakeFunction(hookModule, patchData.lastPrePatchHook) }, nullptr, 0u);
+			pipe->SendCommandAndWaitForAck(MakeCallHooksCommand(hook::Type::PREPATCH, hookModule, patchData.firstPrePatchHook, patchData.lastPrePatchHook), nullptr, 0u);
 		}
 
 
@@ -4355,7 +4391,7 @@ bool LiveModule::InstallCompiledPatches(LiveProcess* liveProcess, void* original
 		LC_LOG_DEV("Calling post-patch hooks");
 		{
 			void* hookModule = processModuleBases[patchData.postPatchHookModuleIndex];
-			pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(hookModule, patchData.firstPostPatchHook), hook::MakeFunction(hookModule, patchData.lastPostPatchHook) }, nullptr, 0u);
+			pipe->SendCommandAndWaitForAck(MakeCallHooksCommand(hook::Type::POSTPATCH, hookModule, patchData.firstPostPatchHook, patchData.lastPostPatchHook), nullptr, 0u);
 		}
 
 
