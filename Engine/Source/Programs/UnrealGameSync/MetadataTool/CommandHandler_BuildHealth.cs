@@ -248,6 +248,7 @@ namespace MetadataTool
 						}
 
 						Issue.PostedSummary = Summary;
+						Issue.PostedDetails = Details;
 						WriteState(StateFile, State);
 					}
 					else if(Issue.PostedSummary == null 
@@ -271,6 +272,7 @@ namespace MetadataTool
 						}
 
 						Issue.PostedSummary = Summary;
+						Issue.PostedDetails = Details;
 						WriteState(StateFile, State);
 					}
 				}
