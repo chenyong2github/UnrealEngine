@@ -543,7 +543,7 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 			case MTLArgumentTypeBuffer:
 			{
 				checkf(Arg.index < ML_MaxBuffers, TEXT("Metal buffer index exceeded!"));
-				if (FString(Arg.name) != TEXT("BufferSizes"))
+				if (FString(Arg.name) != TEXT("BufferSizes") && FString(Arg.name) != TEXT("spvBufferSizes"))
 				{
 					ResourceMask[Frequency].BufferMask |= (1 << Arg.index);
 				
