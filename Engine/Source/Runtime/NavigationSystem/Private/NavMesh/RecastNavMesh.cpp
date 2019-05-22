@@ -2393,7 +2393,6 @@ void ARecastNavMesh::ConditionalConstructGenerator()
 		if (Generator)
 		{
 			NavDataGenerator = MakeShareable(Generator);
-			Generator->Init();
 		}
 
 		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
