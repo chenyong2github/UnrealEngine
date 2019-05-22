@@ -10,6 +10,7 @@ namespace Trace
 
 UE_TRACE_API bool Connect(const TCHAR* Host) UE_TRACE_IMPL(false);
 UE_TRACE_API bool ToggleEvent(const TCHAR* LoggerName, const TCHAR* EventName, bool State) UE_TRACE_IMPL(false);
+UE_TRACE_API void Flush() UE_TRACE_IMPL();
 
 } // namespace Trace
 

@@ -203,7 +203,7 @@ static void Writer_UpdateBuffers(void (*DataSink)(const uint8*, uint32))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static void Writer_Flush()
+void Writer_Flush()
 {
 	using namespace Private;
 

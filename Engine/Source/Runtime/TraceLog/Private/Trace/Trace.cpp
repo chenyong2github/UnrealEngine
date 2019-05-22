@@ -13,6 +13,7 @@ namespace Private
 
 ////////////////////////////////////////////////////////////////////////////////
 extern UPTRINT	GPendingDataHandle;
+void			Writer_Flush();
 bool			Writer_ConnectImpl(const ANSICHAR*);
 bool			Writer_ToggleEventImpl(const ANSICHAR*, const ANSICHAR*, bool);
 
@@ -52,6 +53,12 @@ bool ToggleEvent(const TCHAR* LoggerName, const TCHAR* EventName, bool State)
 	ToAnsiCheap(EventNameA, EventName);
 
 	return Private::Writer_ToggleEventImpl(LoggerNameA, EventNameA, State);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void Flush()
+{
+	Private::Writer_Flush();
 }
 
 } // namespace Trace
