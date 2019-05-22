@@ -89,11 +89,12 @@ static void OnMainFrameCreated(FWindowsStylusInputInterfaceImpl& WindowsImpl, TS
 TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface()
 {
 	FWindowsStylusInputInterfaceImpl* WindowsImpl = new FWindowsStylusInputInterfaceImpl();
+	TSharedPtr<IStylusInputInterfaceInternal> InterfaceImpl = MakeShareable(new FWindowsStylusInputInterface(WindowsImpl));
 
 	if (!FWindowsPlatformMisc::CoInitialize()) 
 	{
 		UE_LOG(LogStylusInput, Error, TEXT("Could not initialize COM library!"));
-		return TSharedPtr<IStylusInputInterfaceInternal>();
+		return nullptr;
 	}
 
 	// Load RealTimeStylus DLL
@@ -106,7 +107,7 @@ TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface()
 	{
 		FWindowsPlatformMisc::CoUninitialize();
 		UE_LOG(LogStylusInput, Error, TEXT("Could not load RTSCom.dll!"));
-		return TSharedPtr<IStylusInputInterfaceInternal>();
+		return nullptr;
 	}
 
 	FPlatformProcess::PopDllDirectory(*InkDLLDirectory);
@@ -118,7 +119,7 @@ TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface()
 	{
 		FWindowsPlatformMisc::CoUninitialize();
 		UE_LOG(LogStylusInput, Error, TEXT("Could not create RealTimeStylus!"));
-		return TSharedPtr<IStylusInputInterfaceInternal>();
+		return nullptr;
 	}
 
 	WindowsImpl->RealTimeStylus = static_cast<IRealTimeStylus*>(OutInstance);
@@ -131,7 +132,7 @@ TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface()
 	{
 		FWindowsPlatformMisc::CoUninitialize();
 		UE_LOG(LogStylusInput, Error, TEXT("Could not create FreeThreadedMarshaller!"));
-		return TSharedPtr<IStylusInputInterfaceInternal>();
+		return nullptr;
 	}
 
 	// Add stylus plugin to the interface
@@ -140,7 +141,7 @@ TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface()
 	{
 		FWindowsPlatformMisc::CoUninitialize();
 		UE_LOG(LogStylusInput, Error, TEXT("Could not add stylus plugin to API!"));
-		return TSharedPtr<IStylusInputInterfaceInternal>();
+		return nullptr;
 	}
 
 	// Set hook to catch main window creation
@@ -157,7 +158,7 @@ TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface()
 		OnMainFrameCreated(*WindowsImpl, MainFrameModule.GetParentWindow());
 	}
 
-	return MakeShareable(new FWindowsStylusInputInterface(WindowsImpl));
+	return InterfaceImpl;
 }
 
 #endif // PLATFORM_WINDOWS

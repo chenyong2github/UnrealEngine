@@ -130,94 +130,140 @@ static void SetupTabletSupportedPackets(TComPtr<IRealTimeStylus> RealTimeStylus,
 	RealTimeStylus->GetTabletFromTabletContextId(TabletContext.ID, &InkTablet);
 
 	int16 Supported;
-	InkTablet->IsPacketPropertySupported(STR_GUID_X, &Supported);
+
+	BSTR GuidBSTR;
+	
+	GuidBSTR = SysAllocString(STR_GUID_X);
+
+	InkTablet->IsPacketPropertySupported(GuidBSTR, &Supported);
 	if (Supported)
 	{
 		TabletContext.SupportedPackets.Add(EWindowsPacketType::X);
 	}
 
-	InkTablet->IsPacketPropertySupported(STR_GUID_Y, &Supported);
+	SysFreeString(GuidBSTR);
+	GuidBSTR = SysAllocString(STR_GUID_Y);
+
+	InkTablet->IsPacketPropertySupported(GuidBSTR, &Supported);
 	if (Supported)
 	{
 		TabletContext.SupportedPackets.Add(EWindowsPacketType::Y);
 	}
+	
+	SysFreeString(GuidBSTR);
+	GuidBSTR = SysAllocString(STR_GUID_Z);
 
-	InkTablet->IsPacketPropertySupported(STR_GUID_Z, &Supported);
+	InkTablet->IsPacketPropertySupported(GuidBSTR, &Supported);
 	if (Supported)
 	{
 		TabletContext.SupportedPackets.Add(EWindowsPacketType::Z);
 		TabletContext.AddSupportedInput(EStylusInputType::Z);
 	}
 
-	InkTablet->IsPacketPropertySupported(STR_GUID_PAKETSTATUS, &Supported);
+	SysFreeString(GuidBSTR);
+	GuidBSTR = SysAllocString(STR_GUID_PAKETSTATUS);
+	
+	InkTablet->IsPacketPropertySupported(GuidBSTR, &Supported);
 	if (Supported)
 	{
 		TabletContext.SupportedPackets.Add(EWindowsPacketType::Status);
 	}
 
-	InkTablet->IsPacketPropertySupported(STR_GUID_NORMALPRESSURE, &Supported);
+	SysFreeString(GuidBSTR);
+	GuidBSTR = SysAllocString(STR_GUID_NORMALPRESSURE);
+
+	InkTablet->IsPacketPropertySupported(GuidBSTR, &Supported);
 	if (Supported)
 	{
 		TabletContext.SupportedPackets.Add(EWindowsPacketType::NormalPressure);
 		TabletContext.AddSupportedInput(EStylusInputType::Pressure);
 	}
 
-	InkTablet->IsPacketPropertySupported(STR_GUID_TANGENTPRESSURE, &Supported);
+	SysFreeString(GuidBSTR);
+	GuidBSTR = SysAllocString(STR_GUID_TANGENTPRESSURE);
+
+	InkTablet->IsPacketPropertySupported(GuidBSTR, &Supported);
 	if (Supported)
 	{
 		TabletContext.SupportedPackets.Add(EWindowsPacketType::TangentPressure);
 		TabletContext.AddSupportedInput(EStylusInputType::TangentPressure);
 	}
 
-	InkTablet->IsPacketPropertySupported(STR_GUID_BUTTONPRESSURE, &Supported);
+	SysFreeString(GuidBSTR);
+	GuidBSTR = SysAllocString(STR_GUID_BUTTONPRESSURE);
+
+	InkTablet->IsPacketPropertySupported(GuidBSTR, &Supported);
 	if (Supported)
 	{
 		TabletContext.SupportedPackets.Add(EWindowsPacketType::ButtonPressure);
 		TabletContext.AddSupportedInput(EStylusInputType::ButtonPressure);
 	}
 
-	InkTablet->IsPacketPropertySupported(STR_GUID_AZIMUTHORIENTATION, &Supported);
+	SysFreeString(GuidBSTR);
+	GuidBSTR = SysAllocString(STR_GUID_AZIMUTHORIENTATION);
+
+	InkTablet->IsPacketPropertySupported(GuidBSTR, &Supported);
 	if (Supported)
 	{
 		TabletContext.SupportedPackets.Add(EWindowsPacketType::Azimuth);
 	}
 
-	InkTablet->IsPacketPropertySupported(STR_GUID_ALTITUDEORIENTATION, &Supported);
+	SysFreeString(GuidBSTR);
+	GuidBSTR = SysAllocString(STR_GUID_ALTITUDEORIENTATION);
+
+	InkTablet->IsPacketPropertySupported(GuidBSTR, &Supported);
 	if (Supported)
 	{
 		TabletContext.SupportedPackets.Add(EWindowsPacketType::Altitude);
 	}
 
-	InkTablet->IsPacketPropertySupported(STR_GUID_XTILTORIENTATION, &Supported);
+	SysFreeString(GuidBSTR);
+	GuidBSTR = SysAllocString(STR_GUID_XTILTORIENTATION);
+	
+	InkTablet->IsPacketPropertySupported(GuidBSTR, &Supported);
 	if (Supported)
 	{
 		TabletContext.SupportedPackets.Add(EWindowsPacketType::XTilt);
 	}
 
-	InkTablet->IsPacketPropertySupported(STR_GUID_YTILTORIENTATION, &Supported);
+	SysFreeString(GuidBSTR);
+	GuidBSTR = SysAllocString(STR_GUID_YTILTORIENTATION);
+
+	InkTablet->IsPacketPropertySupported(GuidBSTR, &Supported);
 	if (Supported)
 	{
 		TabletContext.SupportedPackets.Add(EWindowsPacketType::YTilt);
 	}
 
-	InkTablet->IsPacketPropertySupported(STR_GUID_TWISTORIENTATION, &Supported);
+	SysFreeString(GuidBSTR);
+	GuidBSTR = SysAllocString(STR_GUID_TWISTORIENTATION);
+
+	InkTablet->IsPacketPropertySupported(GuidBSTR, &Supported);
 	if (Supported)
 	{
 		TabletContext.SupportedPackets.Add(EWindowsPacketType::Twist);
 		TabletContext.AddSupportedInput(EStylusInputType::Twist);
 	}
 
-	InkTablet->IsPacketPropertySupported(STR_GUID_WIDTH, &Supported);
+	SysFreeString(GuidBSTR);
+	GuidBSTR = SysAllocString(STR_GUID_WIDTH);
+
+	InkTablet->IsPacketPropertySupported(GuidBSTR, &Supported);
 	if (Supported)
 	{
 		TabletContext.SupportedPackets.Add(EWindowsPacketType::Width);
 	}
 
-	InkTablet->IsPacketPropertySupported(STR_GUID_HEIGHT, &Supported);
+	SysFreeString(GuidBSTR);
+	GuidBSTR = SysAllocString(STR_GUID_HEIGHT);
+
+	InkTablet->IsPacketPropertySupported(GuidBSTR, &Supported);
 	if (Supported)
 	{
 		TabletContext.SupportedPackets.Add(EWindowsPacketType::Height);
 	}
+
+	SysFreeString(GuidBSTR);
 
 	if (TabletContext.SupportedPackets.Contains(EWindowsPacketType::X) &&
 		TabletContext.SupportedPackets.Contains(EWindowsPacketType::Y))
