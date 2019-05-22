@@ -405,18 +405,25 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FTextureRHIParamRef SceneDepth = nullptr;
 	ERenderTargetActions ColorTargetAction = ERenderTargetActions::Clear_Store;
 	EDepthStencilTargetActions DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_DontStoreDepthStencil;
-	bool bMobileMSAA = false;
+	bool bMobileMSAA = SceneContext.GetSceneColorSurface()->GetNumSamples() > 1;
 	
 	if (bGammaSpace && !bRenderToSceneColor)
 	{
-		SceneColor = GetMultiViewSceneColor(SceneContext);
-		bMobileMSAA = SceneColor->GetNumSamples() > 1;
-		SceneDepth = (View.bIsMobileMultiViewEnabled) ? SceneContext.MobileMultiViewSceneDepthZ->GetRenderTargetItem().TargetableTexture : static_cast<FTextureRHIRef>(SceneContext.GetSceneDepthTexture());
+		if (bMobileMSAA)
+		{
+			SceneColor = (View.bIsMobileMultiViewEnabled) ? SceneContext.MobileMultiViewSceneColor->GetRenderTargetItem().TargetableTexture : SceneContext.GetSceneColorSurface();
+			SceneColorResolve = GetMultiViewSceneColor(SceneContext);
+			ColorTargetAction = ERenderTargetActions::Clear_Resolve;
+		}
+		else
+		{
+			SceneColor = GetMultiViewSceneColor(SceneContext);
+		}
+		SceneDepth = (View.bIsMobileMultiViewEnabled) ? SceneContext.MobileMultiViewSceneDepthZ->GetRenderTargetItem().TargetableTexture : static_cast<FTextureRHIRef>(SceneContext.GetSceneDepthSurface());
 	}
 	else
 	{
 		SceneColor = SceneContext.GetSceneColorSurface();
-		bMobileMSAA = SceneColor->GetNumSamples() > 1;
 		SceneColorResolve = bMobileMSAA ? SceneContext.GetSceneColorTexture() : nullptr;
 		ColorTargetAction = bMobileMSAA ? ERenderTargetActions::Clear_Resolve : ERenderTargetActions::Clear_Store;
 		SceneDepth = SceneContext.GetSceneDepthSurface();

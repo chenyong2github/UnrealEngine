@@ -593,7 +593,7 @@ public:
 			Flags |= TexCreate_UAV;
 		}
 
-		TextureRHI = RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, Flags, CreateInfo);
+		TextureRHI = RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, 1, Flags, CreateInfo);
 
 		if (CreateUAV)
 		{

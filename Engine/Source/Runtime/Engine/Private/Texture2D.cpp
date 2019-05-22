@@ -1861,7 +1861,7 @@ void FTexture2DArrayResource::InitRHI()
 	// Create the RHI texture.
 	const uint32 TexCreateFlags = (bSRGB ? TexCreate_SRGB : 0) | TexCreate_OfflineProcessed;
 	FRHIResourceCreateInfo CreateInfo;
-	FTexture2DArrayRHIRef TextureArray = RHICreateTexture2DArray(SizeX, SizeY, GetNumValidTextures(), Format, NumMips, TexCreateFlags, CreateInfo);
+	FTexture2DArrayRHIRef TextureArray = RHICreateTexture2DArray(SizeX, SizeY, GetNumValidTextures(), Format, NumMips, 1, TexCreateFlags, CreateInfo);
 	TextureRHI = TextureArray;
 
 	// Read the mip-levels into the RHI texture.

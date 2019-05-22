@@ -256,6 +256,7 @@ private:
 	// Save image off for comparison, in case it gets aliased.
 	uint32 NumColorAttachments;
 	VkImage ColorRenderTargetImages[MaxSimultaneousRenderTargets];
+	VkImage ColorResolveTargetImages[MaxSimultaneousRenderTargets];
 	VkImage DepthStencilRenderTargetImage;
 
 	// Predefined set of barriers, when executes ensuring all writes are finished

@@ -101,6 +101,8 @@ public:
 	// Does the platform allow a nullptr Pixelshader on the pipeline
 	static bool SupportsNullPixelShader() { return false; }
 
+	static bool RequiresRenderPassResolveAttachments() { return true; }
+
 protected:
 	static void* VulkanLib;
 	static bool bAttemptedLoad;

@@ -1602,7 +1602,7 @@ void FOpenGLDynamicRHI::RHICopySharedMips(FTexture2DRHIParamRef DestTexture2D,FT
 	check(0);
 }
 
-FTexture2DArrayRHIRef FOpenGLDynamicRHI::RHICreateTexture2DArray(uint32 SizeX,uint32 SizeY,uint32 SizeZ,uint8 Format,uint32 NumMips,uint32 Flags, FRHIResourceCreateInfo& Info)
+FTexture2DArrayRHIRef FOpenGLDynamicRHI::RHICreateTexture2DArray(uint32 SizeX,uint32 SizeY,uint32 SizeZ,uint8 Format,uint32 NumMips,uint32 NumSamples,uint32 Flags, FRHIResourceCreateInfo& Info)
 {
 	VERIFY_GL_SCOPE();
 

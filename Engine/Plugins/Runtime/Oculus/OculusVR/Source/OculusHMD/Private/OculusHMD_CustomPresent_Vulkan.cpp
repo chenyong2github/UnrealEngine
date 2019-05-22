@@ -126,7 +126,7 @@ FTextureRHIRef FVulkanCustomPresent::CreateTexture_RenderThread(uint32 InSizeX, 
 		return DynamicRHI->RHICreateTexture2DFromResource(InFormat, InSizeX, InSizeY, InNumMips, InNumSamples, (VkImage) InTexture, InTexCreateFlags).GetReference();
 
 	case RRT_Texture2DArray:
-		return DynamicRHI->RHICreateTexture2DArrayFromResource(InFormat, InSizeX, InSizeY, 2, InNumMips, (VkImage) InTexture, InTexCreateFlags).GetReference();
+		return DynamicRHI->RHICreateTexture2DArrayFromResource(InFormat, InSizeX, InSizeY, 2, InNumMips, InNumSamples, (VkImage) InTexture, InTexCreateFlags).GetReference();
 
 	case RRT_TextureCube:
 		return DynamicRHI->RHICreateTextureCubeFromResource(InFormat, InSizeX, false, 1, InNumMips, (VkImage) InTexture, InTexCreateFlags).GetReference();

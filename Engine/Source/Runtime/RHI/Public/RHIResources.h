@@ -751,8 +751,8 @@ class RHI_API FRHITexture2DArray : public FRHITexture2D
 public:
 	
 	/** Initialization constructor. */
-	FRHITexture2DArray(uint32 InSizeX,uint32 InSizeY,uint32 InSizeZ,uint32 InNumMips,EPixelFormat InFormat,uint32 InFlags, const FClearValueBinding& InClearValue)
-	: FRHITexture2D(InSizeX, InSizeY, InNumMips,1,InFormat,InFlags, InClearValue)
+	FRHITexture2DArray(uint32 InSizeX,uint32 InSizeY,uint32 InSizeZ,uint32 InNumMips,uint32 NumSamples, EPixelFormat InFormat,uint32 InFlags, const FClearValueBinding& InClearValue)
+	: FRHITexture2D(InSizeX, InSizeY, InNumMips,NumSamples,InFormat,InFlags, InClearValue)
 	, SizeZ(InSizeZ)
 	{}
 	
@@ -1500,6 +1500,10 @@ public:
 	int32 NumColorRenderTargets;
 	bool bClearColor;
 
+	// Color Render Targets Info
+	FRHIRenderTargetView ColorResolveRenderTarget[MaxSimultaneousRenderTargets];	
+	bool bHasResolveAttachments;
+
 	// Depth/Stencil Render Target Info
 	FRHIDepthRenderTargetView DepthStencilRenderTarget;	
 	bool bClearDepth;
@@ -1511,7 +1515,8 @@ public:
 
 	FRHISetRenderTargetsInfo() :
 		NumColorRenderTargets(0),
-		bClearColor(false),		
+		bClearColor(false),
+		bHasResolveAttachments(false),
 		bClearDepth(false),
 		bClearStencil(false),
 		NumUAVs(0)
@@ -1520,6 +1525,7 @@ public:
 	FRHISetRenderTargetsInfo(int32 InNumColorRenderTargets, const FRHIRenderTargetView* InColorRenderTargets, const FRHIDepthRenderTargetView& InDepthStencilRenderTarget) :
 		NumColorRenderTargets(InNumColorRenderTargets),
 		bClearColor(InNumColorRenderTargets > 0 && InColorRenderTargets[0].LoadAction == ERenderTargetLoadAction::EClear),
+		bHasResolveAttachments(false),
 		DepthStencilRenderTarget(InDepthStencilRenderTarget),		
 		bClearDepth(InDepthStencilRenderTarget.Texture && InDepthStencilRenderTarget.DepthLoadAction == ERenderTargetLoadAction::EClear),
 		bClearStencil(InDepthStencilRenderTarget.Texture && InDepthStencilRenderTarget.StencilLoadAction == ERenderTargetLoadAction::EClear),
@@ -1552,7 +1558,7 @@ public:
 		struct FHashableStruct
 		{
 			// Depth goes in the last slot
-			FRHITexture* Texture[MaxSimultaneousRenderTargets + 1];
+			FRHITexture* Texture[MaxSimultaneousRenderTargets*2 + 1];
 			uint32 MipIndex[MaxSimultaneousRenderTargets];
 			uint32 ArraySliceIndex[MaxSimultaneousRenderTargets];
 			ERenderTargetLoadAction LoadAction[MaxSimultaneousRenderTargets];
@@ -1567,6 +1573,7 @@ public:
 			bool bClearDepth;
 			bool bClearStencil;
 			bool bClearColor;
+			bool bHasResolveAttachments;
 			FRHIUnorderedAccessView* UnorderedAccessView[MaxSimultaneousUAVs];
 
 			void Set(const FRHISetRenderTargetsInfo& RTInfo)
@@ -1575,6 +1582,7 @@ public:
 				for (int32 Index = 0; Index < RTInfo.NumColorRenderTargets; ++Index)
 				{
 					Texture[Index] = RTInfo.ColorRenderTarget[Index].Texture;
+					Texture[MaxSimultaneousRenderTargets+Index] = RTInfo.ColorResolveRenderTarget[Index].Texture;
 					MipIndex[Index] = RTInfo.ColorRenderTarget[Index].MipIndex;
 					ArraySliceIndex[Index] = RTInfo.ColorRenderTarget[Index].ArraySliceIndex;
 					LoadAction[Index] = RTInfo.ColorRenderTarget[Index].LoadAction;
@@ -1591,6 +1599,7 @@ public:
 				bClearDepth = RTInfo.bClearDepth;
 				bClearStencil = RTInfo.bClearStencil;
 				bClearColor = RTInfo.bClearColor;
+				bHasResolveAttachments = RTInfo.bHasResolveAttachments;
 
 				for (int32 Index = 0; Index < MaxSimultaneousUAVs; ++Index)
 				{

@@ -543,7 +543,7 @@ class FD3D11BaseTexture2DArray : public FRHITexture2DArray
 {
 public:
 	FD3D11BaseTexture2DArray(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, uint32 InFlags, const FClearValueBinding& InClearValue)
-	: FRHITexture2DArray(InSizeX,InSizeY,InSizeZ,InNumMips,InFormat,InFlags,InClearValue)
+	: FRHITexture2DArray(InSizeX,InSizeY,InSizeZ,InNumMips,InNumSamples, InFormat,InFlags,InClearValue)
 	{ check(InNumSamples == 1); }
 };
 

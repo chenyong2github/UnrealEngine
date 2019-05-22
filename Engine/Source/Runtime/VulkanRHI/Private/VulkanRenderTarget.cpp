@@ -361,10 +361,6 @@ void FTransitionAndLayoutManager::BeginRealRenderPass(FVulkanCommandListContext&
 			ClearValues[ClearValueIndex].depthStencil.depth = Depth;
 			ClearValues[ClearValueIndex].depthStencil.stencil = Stencil;
 			++ClearValueIndex;
-			if (Surface.GetNumSamples() > 1)
-			{
-				++ClearValueIndex;
-			}
 		}
 	}
 
@@ -1888,17 +1884,19 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 
 			ColorReferences[NumColorAttachments].attachment = NumAttachmentDescriptions;
 			ColorReferences[NumColorAttachments].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-#if VULKAN_USE_MSAA_RESOLVE_ATTACHMENTS
-			if (CurrDesc.samples > VK_SAMPLE_COUNT_1_BIT)
+
+			const bool bHasValidResolveAttachment = RTInfo.bHasResolveAttachments && RTInfo.ColorResolveRenderTarget[Index].Texture;
+			ensure(!(CurrDesc.samples > VK_SAMPLE_COUNT_1_BIT && FVulkanPlatform::RequiresRenderPassResolveAttachments()) || bHasValidResolveAttachment);
+			if (CurrDesc.samples > VK_SAMPLE_COUNT_1_BIT && bHasValidResolveAttachment && FVulkanPlatform::RequiresRenderPassResolveAttachments())
 			{
 				Desc[NumAttachmentDescriptions + 1] = Desc[NumAttachmentDescriptions];
 				Desc[NumAttachmentDescriptions + 1].samples = VK_SAMPLE_COUNT_1_BIT;
+				Desc[NumAttachmentDescriptions + 1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 				ResolveReferences[NumColorAttachments].attachment = NumAttachmentDescriptions + 1;
-				ResolveReferences[NumColorAttachments].layout = VK_IMAGE_LAYOUT_GENERAL;
+				ResolveReferences[NumColorAttachments].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 				++NumAttachmentDescriptions;
 				bHasResolveAttachments = true;
 			}
-#endif
 
 			CompatibleHashInfo.Formats[NumColorAttachments] = CurrDesc.format;
 			FullHashInfo.LoadOps[NumColorAttachments] = CurrDesc.loadOp;
@@ -2067,17 +2065,18 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 
 		ColorReferences[NumColorAttachments].attachment = NumAttachmentDescriptions;
 		ColorReferences[NumColorAttachments].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-#if VULKAN_USE_MSAA_RESOLVE_ATTACHMENTS
-		if (CurrDesc.samples > VK_SAMPLE_COUNT_1_BIT)
+
+		ensure(!(CurrDesc.samples > VK_SAMPLE_COUNT_1_BIT && FVulkanPlatform::RequiresRenderPassResolveAttachments()) || ColorEntry.ResolveTarget);
+		if (CurrDesc.samples > VK_SAMPLE_COUNT_1_BIT && ColorEntry.ResolveTarget && FVulkanPlatform::RequiresRenderPassResolveAttachments())
 		{
 			Desc[NumAttachmentDescriptions + 1] = Desc[NumAttachmentDescriptions];
 			Desc[NumAttachmentDescriptions + 1].samples = VK_SAMPLE_COUNT_1_BIT;
+			Desc[NumAttachmentDescriptions + 1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 			ResolveReferences[NumColorAttachments].attachment = NumAttachmentDescriptions + 1;
 			ResolveReferences[NumColorAttachments].layout = VK_IMAGE_LAYOUT_GENERAL;
 			++NumAttachmentDescriptions;
 			bHasResolveAttachments = true;
 		}
-#endif
 
 		CompatibleHashInfo.Formats[NumColorAttachments] = CurrDesc.format;
 		FullHashInfo.LoadOps[NumColorAttachments] = CurrDesc.loadOp;
@@ -2223,17 +2222,17 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(const FGraphicsPipelineStat
 
 			ColorReferences[NumColorAttachments].attachment = NumAttachmentDescriptions;
 			ColorReferences[NumColorAttachments].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-#if VULKAN_USE_MSAA_RESOLVE_ATTACHMENTS
-			if (CurrDesc.samples > VK_SAMPLE_COUNT_1_BIT)
+
+			if (CurrDesc.samples > VK_SAMPLE_COUNT_1_BIT && FVulkanPlatform::RequiresRenderPassResolveAttachments())
 			{
 				Desc[NumAttachmentDescriptions + 1] = Desc[NumAttachmentDescriptions];
 				Desc[NumAttachmentDescriptions + 1].samples = VK_SAMPLE_COUNT_1_BIT;
+				Desc[NumAttachmentDescriptions + 1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 				ResolveReferences[NumColorAttachments].attachment = NumAttachmentDescriptions + 1;
 				ResolveReferences[NumColorAttachments].layout = VK_IMAGE_LAYOUT_GENERAL;
 				++NumAttachmentDescriptions;
 				bHasResolveAttachments = true;
 			}
-#endif
 
 			CompatibleHashInfo.Formats[NumColorAttachments] = CurrDesc.format;
 			FullHashInfo.LoadOps[NumColorAttachments] = CurrDesc.loadOp;
