@@ -1406,7 +1406,7 @@ namespace UnrealBuildTool
 						}
 						if (TargetRulesObject.bWithLiveCoding && bBuildLiveCodingConsole && !UnrealBuildTool.IsEngineInstalled())
 						{
-							ExtraTargets.Add("LiveCodingConsole Win64 Development");
+							ExtraTargets.Add(TargetRulesObject.bUseDebugLiveCodingConsole? "LiveCodingConsole Win64 Debug" : "LiveCodingConsole Win64 Development");
 						}
 					}
 

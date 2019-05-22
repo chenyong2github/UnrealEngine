@@ -46,9 +46,15 @@ void FLiveCodingModule::StartupModule()
 		ECVF_Cheat
 	);
 
+#if USE_DEBUG_LIVE_CODING_CONSOLE
+	static const TCHAR* DefaultConsolePath = TEXT("Binaries/Win64/LiveCodingConsole-Win64-Debug.exe");
+#else
+	static const TCHAR* DefaultConsolePath = TEXT("Binaries/Win64/LiveCodingConsole.exe");
+#endif 
+
 	ConsolePathVariable = ConsoleManager.RegisterConsoleVariable(
 		TEXT("LiveCoding.ConsolePath"),
-		FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / TEXT("Binaries/Win64/LiveCodingConsole.exe")),
+		FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / DefaultConsolePath),
 		TEXT("Path to the live coding console application"),
 		ECVF_Cheat
 	);

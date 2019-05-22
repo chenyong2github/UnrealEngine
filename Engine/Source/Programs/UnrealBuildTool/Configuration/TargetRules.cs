@@ -537,9 +537,16 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bWithLiveCoding = false;
 
-        /// <summary>
-        /// Whether to turn on logging for test/shipping builds.
-        /// </summary>
+		/// <summary>
+		/// Whether to enable support for live coding
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bUseDebugLiveCodingConsole = false;
+
+		/// <summary>
+		/// Whether to turn on logging for test/shipping builds.
+		/// </summary>
 		[RequiresUniqueBuildEnvironment]
         public bool bUseLoggingInShipping = false;
 
@@ -1870,7 +1877,12 @@ namespace UnrealBuildTool
 			get { return Inner.bWithLiveCoding; }
 		}
 
-        public bool bUseLoggingInShipping
+		public bool bUseDebugLiveCodingConsole
+		{
+			get { return Inner.bUseDebugLiveCodingConsole; }
+		}
+
+		public bool bUseLoggingInShipping
 		{
 			get { return Inner.bUseLoggingInShipping; }
 		}

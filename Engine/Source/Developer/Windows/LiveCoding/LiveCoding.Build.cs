@@ -11,6 +11,15 @@ public class LiveCoding : ModuleRules
 		PrivateDependencyModuleNames.Add("CoreUObject");
 		PrivateDependencyModuleNames.Add("Settings");
 
+		if(Target.bUseDebugLiveCodingConsole)
+        {
+            PrivateDefinitions.Add("USE_DEBUG_LIVE_CODING_CONSOLE=1");
+        }
+		else
+        {
+            PrivateDefinitions.Add("USE_DEBUG_LIVE_CODING_CONSOLE=0");
+        }
+
 		PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "Private", "External", "LC_JumpToSelf.lib"));
 	}
 }
