@@ -134,7 +134,7 @@ public:
 		EResourceTransitionAccess TransitionAccess,
 		EResourceTransitionPipeline TransitionPipeline,
 		FRWBuffer& MipTree,
-		FComputeFenceRHIParamRef Fence)
+		FRHIComputeFence* Fence)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 

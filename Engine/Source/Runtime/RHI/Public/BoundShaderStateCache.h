@@ -18,7 +18,7 @@ class FBoundShaderStateKey
 public:
 	/** Initialization constructor. */
 	FBoundShaderStateKey(
-		FVertexDeclarationRHIParamRef InVertexDeclaration, 
+		FRHIVertexDeclaration* InVertexDeclaration,
 		FVertexShaderRHIParamRef InVertexShader, 
 		FPixelShaderRHIParamRef InPixelShader,
 		FHullShaderRHIParamRef InHullShader = NULL,
@@ -45,7 +45,7 @@ public:
 	/**
 	* Get the RHI vertex declaration.
 	*/
-	FORCEINLINE FVertexDeclarationRHIParamRef GetVertexDeclaration() const { return VertexDeclaration; }
+	FORCEINLINE FRHIVertexDeclaration* GetVertexDeclaration() const { return VertexDeclaration; }
 
 private:
 	/**
@@ -164,7 +164,7 @@ public:
 
 	/** Adds the bound shader state to the cache. */
 	FCachedBoundShaderStateLink(
-		FVertexDeclarationRHIParamRef VertexDeclaration,
+		FRHIVertexDeclaration* VertexDeclaration,
 		FVertexShaderRHIParamRef VertexShader,
 		FPixelShaderRHIParamRef PixelShader,
 		FRHIBoundShaderState* InBoundShaderState,
@@ -173,7 +173,7 @@ public:
 
 	/** Adds the bound shader state to the cache. */
 	FCachedBoundShaderStateLink(
-		FVertexDeclarationRHIParamRef VertexDeclaration,
+		FRHIVertexDeclaration* VertexDeclaration,
 		FVertexShaderRHIParamRef VertexShader,
 		FPixelShaderRHIParamRef PixelShader,
 		FHullShaderRHIParamRef HullShader,
@@ -198,7 +198,7 @@ public:
 	/**
 	* Get the RHI vertex declaration.
 	*/
-	FORCEINLINE FVertexDeclarationRHIParamRef GetVertexDeclaration() const { return Key.GetVertexDeclaration(); }
+	FORCEINLINE FRHIVertexDeclaration* GetVertexDeclaration() const { return Key.GetVertexDeclaration(); }
 
 protected:
 	FBoundShaderStateKey Key;
@@ -211,7 +211,7 @@ protected:
  * @return If a bound shader state matching the parameters is cached, it is returned; otherwise NULL is returned.
  */
 extern RHI_API FCachedBoundShaderStateLink* GetCachedBoundShaderState(
-	FVertexDeclarationRHIParamRef VertexDeclaration,
+	FRHIVertexDeclaration* VertexDeclaration,
 	FVertexShaderRHIParamRef VertexShader,
 	FPixelShaderRHIParamRef PixelShader,
 	FHullShaderRHIParamRef HullShader = NULL,
@@ -226,7 +226,7 @@ class RHI_API FCachedBoundShaderStateLink_Threadsafe : public FCachedBoundShader
 public:
 	/** Adds the bound shader state to the cache. */
 	FCachedBoundShaderStateLink_Threadsafe(
-		FVertexDeclarationRHIParamRef VertexDeclaration,
+		FRHIVertexDeclaration* VertexDeclaration,
 		FVertexShaderRHIParamRef VertexShader,
 		FPixelShaderRHIParamRef PixelShader,
 		FRHIBoundShaderState* InBoundShaderState
@@ -237,7 +237,7 @@ public:
 
 	/** Adds the bound shader state to the cache. */
 	FCachedBoundShaderStateLink_Threadsafe(
-		FVertexDeclarationRHIParamRef VertexDeclaration,
+		FRHIVertexDeclaration* VertexDeclaration,
 		FVertexShaderRHIParamRef VertexShader,
 		FPixelShaderRHIParamRef PixelShader,
 		FHullShaderRHIParamRef HullShader,
@@ -258,7 +258,7 @@ public:
  * @return If a bound shader state matching the parameters is cached, it is returned; otherwise NULL is returned.
  */
 extern RHI_API FBoundShaderStateRHIRef GetCachedBoundShaderState_Threadsafe(
-	FVertexDeclarationRHIParamRef VertexDeclaration,
+	FRHIVertexDeclaration* VertexDeclaration,
 	FVertexShaderRHIParamRef VertexShader,
 	FPixelShaderRHIParamRef PixelShader,
 	FHullShaderRHIParamRef HullShader = NULL,

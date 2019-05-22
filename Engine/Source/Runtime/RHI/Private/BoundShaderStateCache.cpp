@@ -30,7 +30,7 @@ static FCriticalSection BoundShaderStateCacheLock;
 
 
 FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
-	FVertexDeclarationRHIParamRef VertexDeclaration,
+	FRHIVertexDeclaration* VertexDeclaration,
 	FVertexShaderRHIParamRef VertexShader,
 	FPixelShaderRHIParamRef PixelShader,
 	FHullShaderRHIParamRef HullShader,
@@ -50,7 +50,7 @@ FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
 }
 
 FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
-	FVertexDeclarationRHIParamRef VertexDeclaration,
+	FRHIVertexDeclaration* VertexDeclaration,
 	FVertexShaderRHIParamRef VertexShader,
 	FPixelShaderRHIParamRef PixelShader,
 	FRHIBoundShaderState* InBoundShaderState,
@@ -76,7 +76,7 @@ FCachedBoundShaderStateLink::~FCachedBoundShaderStateLink()
 }
 
 FCachedBoundShaderStateLink* GetCachedBoundShaderState(
-	FVertexDeclarationRHIParamRef VertexDeclaration,
+	FRHIVertexDeclaration* VertexDeclaration,
 	FVertexShaderRHIParamRef VertexShader,
 	FPixelShaderRHIParamRef PixelShader,
 	FHullShaderRHIParamRef HullShader,
@@ -104,7 +104,7 @@ void FCachedBoundShaderStateLink_Threadsafe::RemoveFromCache()
 
 
 FBoundShaderStateRHIRef GetCachedBoundShaderState_Threadsafe(
-	FVertexDeclarationRHIParamRef VertexDeclaration,
+	FRHIVertexDeclaration* VertexDeclaration,
 	FVertexShaderRHIParamRef VertexShader,
 	FPixelShaderRHIParamRef PixelShader,
 	FHullShaderRHIParamRef HullShader,

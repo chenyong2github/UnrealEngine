@@ -43,7 +43,7 @@ public:
 
 	/** Initialization constructor. */
 	FEmptyBoundShaderState(
-		FVertexDeclarationRHIParamRef InVertexDeclarationRHI,
+		FRHIVertexDeclaration* InVertexDeclarationRHI,
 		FVertexShaderRHIParamRef InVertexShaderRHI,
 		FPixelShaderRHIParamRef InPixelShaderRHI,
 		FHullShaderRHIParamRef InHullShaderRHI,

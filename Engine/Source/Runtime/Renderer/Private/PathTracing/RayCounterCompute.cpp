@@ -65,7 +65,7 @@ public:
 		EResourceTransitionAccess TransitionAccess,
 		EResourceTransitionPipeline TransitionPipeline,
 		FRWBuffer& TotalRayCountBuffer,
-		FComputeFenceRHIParamRef Fence)
+		FRHIComputeFence* Fence)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 

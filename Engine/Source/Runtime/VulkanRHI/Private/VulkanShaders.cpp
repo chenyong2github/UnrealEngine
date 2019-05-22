@@ -638,7 +638,7 @@ void FVulkanGfxPipelineDescriptorInfo::Initialize(const FDescriptorSetRemappingI
 }
 
 
-FVulkanBoundShaderState::FVulkanBoundShaderState(FVertexDeclarationRHIParamRef InVertexDeclarationRHI, FVertexShaderRHIParamRef InVertexShaderRHI,
+FVulkanBoundShaderState::FVulkanBoundShaderState(FRHIVertexDeclaration* InVertexDeclarationRHI, FVertexShaderRHIParamRef InVertexShaderRHI,
 	FPixelShaderRHIParamRef InPixelShaderRHI, FHullShaderRHIParamRef InHullShaderRHI,
 	FDomainShaderRHIParamRef InDomainShaderRHI, FGeometryShaderRHIParamRef InGeometryShaderRHI)
 	: CacheLink(InVertexDeclarationRHI, InVertexShaderRHI, InPixelShaderRHI, InHullShaderRHI, InDomainShaderRHI, InGeometryShaderRHI, this)
@@ -652,7 +652,7 @@ FVulkanBoundShaderState::~FVulkanBoundShaderState()
 }
 
 FBoundShaderStateRHIRef FVulkanDynamicRHI::RHICreateBoundShaderState(
-	FVertexDeclarationRHIParamRef VertexDeclarationRHI, 
+	FRHIVertexDeclaration* VertexDeclarationRHI,
 	FVertexShaderRHIParamRef VertexShaderRHI, 
 	FHullShaderRHIParamRef HullShaderRHI, 
 	FDomainShaderRHIParamRef DomainShaderRHI, 

@@ -35,7 +35,7 @@ public:
 	/**
 	* Compute queue will wait for the fence to be written before continuing.
 	*/
-	virtual void RHIWaitComputeFence(FComputeFenceRHIParamRef InFence) = 0;
+	virtual void RHIWaitComputeFence(FRHIComputeFence* InFence) = 0;
 
 	/**
 	*Sets the current compute shader.
@@ -68,7 +68,7 @@ public:
 	* @param NumUAVs - number of UAVs to transition
 	* @param WriteComputeFence - Optional ComputeFence to write as part of this transition
 	*/
-	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FComputeFenceRHIParamRef WriteComputeFence) = 0;
+	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence) = 0;
 
 	/** Set the shader resource view of a surface.  This is used for binding TextureMS parameter types that need a multi sampled view. */
 	virtual void RHISetShaderTexture(FComputeShaderRHIParamRef PixelShader, uint32 TextureIndex, FTextureRHIParamRef NewTexture) = 0;
@@ -167,7 +167,7 @@ public:
 	/**
 	* Compute queue will wait for the fence to be written before continuing.
 	*/
-	virtual void RHIWaitComputeFence(FComputeFenceRHIParamRef InFence) override
+	virtual void RHIWaitComputeFence(FRHIComputeFence* InFence) override
 	{
 		if (InFence)
 		{
@@ -232,7 +232,7 @@ public:
 	* @param NumUAVs - number of UAVs to transition
 	* @param WriteComputeFence - Optional ComputeFence to write as part of this transition
 	*/
-	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FComputeFenceRHIParamRef WriteComputeFence)
+	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence)
 	{
 		if (WriteComputeFence)
 		{
@@ -649,7 +649,7 @@ public:
 
 
 FORCEINLINE FBoundShaderStateRHIRef RHICreateBoundShaderState(
-	FVertexDeclarationRHIParamRef VertexDeclaration,
+	FRHIVertexDeclaration* VertexDeclaration,
 	FVertexShaderRHIParamRef VertexShader,
 	FHullShaderRHIParamRef HullShader,
 	FDomainShaderRHIParamRef DomainShader,

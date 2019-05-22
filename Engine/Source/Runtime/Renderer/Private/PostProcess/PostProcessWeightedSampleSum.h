@@ -53,7 +53,7 @@ public:
 	// @param InCrossCenterWeight >=0
 	void SetCrossCenterWeight(float InCrossCenterWeight) { check(InCrossCenterWeight >= 0.0f); CrossCenterWeight = InCrossCenterWeight; }
 
-	virtual FComputeFenceRHIParamRef GetComputePassEndFence() const override { return AsyncEndFence; }
+	virtual FRHIComputeFence* GetComputePassEndFence() const override { return AsyncEndFence; }
 
 private:
 	void AdjustRectsForFastBlur(FIntRect& SrcRect, FIntRect& DestRect) const;

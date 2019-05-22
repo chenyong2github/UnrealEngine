@@ -220,7 +220,7 @@ class FVulkanBoundShaderState : public FRHIBoundShaderState
 {
 public:
 	FVulkanBoundShaderState(
-		FVertexDeclarationRHIParamRef InVertexDeclarationRHI,
+		FRHIVertexDeclaration* InVertexDeclarationRHI,
 		FVertexShaderRHIParamRef InVertexShaderRHI,
 		FPixelShaderRHIParamRef InPixelShaderRHI,
 		FHullShaderRHIParamRef InHullShaderRHI,

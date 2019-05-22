@@ -89,7 +89,7 @@ public:
 		FUnorderedAccessViewRHIParamRef RadianceSortedBlueUAV,
 		FUnorderedAccessViewRHIParamRef RadianceSortedAlphaUAV,
 		FUnorderedAccessViewRHIParamRef SampleCountSortedUAV,
-		FComputeFenceRHIParamRef Fence)
+		FRHIComputeFence* Fence)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 

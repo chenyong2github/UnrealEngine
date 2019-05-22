@@ -1584,7 +1584,7 @@ FRHIShaderLibraryRef FMetalDynamicRHI::RHICreateShaderLibrary(EShaderPlatform Pl
 }
 
 FBoundShaderStateRHIRef FMetalDynamicRHI::RHICreateBoundShaderState(
-	FVertexDeclarationRHIParamRef VertexDeclarationRHI, 
+	FRHIVertexDeclaration* VertexDeclarationRHI,
 	FVertexShaderRHIParamRef VertexShaderRHI, 
 	FHullShaderRHIParamRef HullShaderRHI, 
 	FDomainShaderRHIParamRef DomainShaderRHI, 

@@ -1166,7 +1166,7 @@ public:
 	/** Initialization constructor. */
 	FOpenGLBoundShaderState(
 		FOpenGLLinkedProgram* InLinkedProgram,
-		FVertexDeclarationRHIParamRef InVertexDeclarationRHI,
+		FRHIVertexDeclaration* InVertexDeclarationRHI,
 		FVertexShaderRHIParamRef InVertexShaderRHI,
 		FPixelShaderRHIParamRef InPixelShaderRHI,
 		FGeometryShaderRHIParamRef InGeometryShaderRHI,

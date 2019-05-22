@@ -400,7 +400,7 @@ public:
 		EResourceTransitionAccess TransitionAccess,
 		EResourceTransitionPipeline TransitionPipeline,
 		FRWBuffer& MipTreePdf,
-		FComputeFenceRHIParamRef Fence
+		FRHIComputeFence* Fence
 	)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();

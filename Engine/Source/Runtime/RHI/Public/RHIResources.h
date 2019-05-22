@@ -1113,6 +1113,7 @@ UE_DEPRECATED(4.23, "FBlendStateRHIParamRef typedef is deprecated; please use FR
 typedef FRHIBlendState*              FBlendStateRHIParamRef;
 typedef TRefCountPtr<FRHIBlendState> FBlendStateRHIRef;
 
+UE_DEPRECATED(4.23, "FVertexDeclarationRHIParamRef typedef is deprecated; please use FRHIVertexDeclaration* directly instead.")
 typedef FRHIVertexDeclaration*              FVertexDeclarationRHIParamRef;
 typedef TRefCountPtr<FRHIVertexDeclaration> FVertexDeclarationRHIRef;
 
@@ -1137,6 +1138,7 @@ typedef TRefCountPtr<FRHIComputeShader> FComputeShaderRHIRef;
 typedef FRHIRayTracingShader*                       FRayTracingShaderRHIParamRef;
 typedef TRefCountPtr<FRHIRayTracingShader>          FRayTracingShaderRHIRef;
 
+UE_DEPRECATED(4.23, "FComputeFenceRHIParamRef typedef is deprecated; please use FRHIComputeFence* directly instead.")
 typedef FRHIComputeFence*				FComputeFenceRHIParamRef;
 typedef TRefCountPtr<FRHIComputeFence>	FComputeFenceRHIRef;
 
@@ -1752,7 +1754,7 @@ struct FBoundShaderStateInput
 
 	inline FBoundShaderStateInput
 	(
-		FVertexDeclarationRHIParamRef InVertexDeclarationRHI
+		FRHIVertexDeclaration* InVertexDeclarationRHI
 		, FVertexShaderRHIParamRef InVertexShaderRHI
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		, FHullShaderRHIParamRef InHullShaderRHI
@@ -1776,7 +1778,7 @@ struct FBoundShaderStateInput
 	{
 	}
 
-	FVertexDeclarationRHIParamRef VertexDeclarationRHI = nullptr;
+	FRHIVertexDeclaration* VertexDeclarationRHI = nullptr;
 	FVertexShaderRHIParamRef VertexShaderRHI = nullptr;
 	FHullShaderRHIParamRef HullShaderRHI = nullptr;
 	FDomainShaderRHIParamRef DomainShaderRHI = nullptr;

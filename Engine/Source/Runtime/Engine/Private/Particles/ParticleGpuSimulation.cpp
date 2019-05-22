@@ -1360,7 +1360,7 @@ public:
 
 TGlobalResource<FInstancedParticleTileVertexDeclaration> GInstancedParticleTileVertexDeclaration;
 
-static FVertexDeclarationRHIParamRef GetParticleTileVertexDeclaration(ERHIFeatureLevel::Type FeatureLevel)
+static FRHIVertexDeclaration* GetParticleTileVertexDeclaration(ERHIFeatureLevel::Type FeatureLevel)
 {
 	if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
 	{

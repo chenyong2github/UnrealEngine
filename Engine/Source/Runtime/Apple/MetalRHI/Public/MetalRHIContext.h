@@ -265,7 +265,7 @@ public:
 	 * @param NumUAVs - number of UAVs to transition
 	 * @param WriteComputeFence - Optional ComputeFence to write as part of this transition
 	 */
-	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FComputeFenceRHIParamRef WriteComputeFence) final override;
+	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence) final override;
 	
 	virtual void RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef DestinationStagingBufferRHI, uint32 Offset, uint32 NumBytes) final override;
 	virtual void RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI) final override;
@@ -284,7 +284,7 @@ public:
 	/**
 	 * Compute queue will wait for the fence to be written before continuing.
 	 */
-	virtual void RHIWaitComputeFence(FComputeFenceRHIParamRef InFence) final override;
+	virtual void RHIWaitComputeFence(FRHIComputeFence* InFence) final override;
 
 	virtual void RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName) final override;
 

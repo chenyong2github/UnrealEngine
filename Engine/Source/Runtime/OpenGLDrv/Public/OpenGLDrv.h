@@ -998,7 +998,7 @@ public:
 	}
 
 	FBoundShaderStateRHIRef RHICreateBoundShaderState_internal(
-		FVertexDeclarationRHIParamRef VertexDeclarationRHI,
+		FRHIVertexDeclaration* VertexDeclarationRHI,
 		FVertexShaderRHIParamRef VertexShaderRHI,
 		FHullShaderRHIParamRef HullShaderRHI,
 		FDomainShaderRHIParamRef DomainShaderRHI,
@@ -1021,7 +1021,7 @@ public:
 	}
 
 	virtual FBoundShaderStateRHIRef RHICreateBoundShaderState(
-		FVertexDeclarationRHIParamRef VertexDeclarationRHI,
+		FRHIVertexDeclaration* VertexDeclarationRHI,
 		FVertexShaderRHIParamRef VertexShaderRHI,
 		FHullShaderRHIParamRef HullShaderRHI,
 		FDomainShaderRHIParamRef DomainShaderRHI,
@@ -1040,7 +1040,7 @@ public:
 	}
 
 
-	FBoundShaderStateRHIRef RHICreateBoundShaderState_OnThisThread(FVertexDeclarationRHIParamRef VertexDeclaration, FVertexShaderRHIParamRef VertexShader, FHullShaderRHIParamRef HullShader, FDomainShaderRHIParamRef DomainShader, FPixelShaderRHIParamRef PixelShader, FGeometryShaderRHIParamRef GeometryShader, bool FromPSOFileCache);
+	FBoundShaderStateRHIRef RHICreateBoundShaderState_OnThisThread(FRHIVertexDeclaration* VertexDeclaration, FVertexShaderRHIParamRef VertexShader, FHullShaderRHIParamRef HullShader, FDomainShaderRHIParamRef DomainShader, FPixelShaderRHIParamRef PixelShader, FGeometryShaderRHIParamRef GeometryShader, bool FromPSOFileCache);
 	void RHIPerFrameRHIFlushComplete();
 
 	FOpenGLGPUProfiler& GetGPUProfilingData() {

@@ -51,7 +51,7 @@ FGlobalBoundShaderStateResource::~FGlobalBoundShaderStateResource()
  * Initializes a global bound shader state with a vanilla bound shader state and required information.
  */
 FRHIBoundShaderState* FGlobalBoundShaderStateResource::GetInitializedRHI(
-	FVertexDeclarationRHIParamRef VertexDeclaration,
+	FRHIVertexDeclaration* VertexDeclaration,
 	FVertexShaderRHIParamRef VertexShader, 
 	FPixelShaderRHIParamRef PixelShader,
 	FGeometryShaderRHIParamRef GeometryShader

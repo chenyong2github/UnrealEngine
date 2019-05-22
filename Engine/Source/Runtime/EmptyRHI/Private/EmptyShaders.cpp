@@ -68,7 +68,7 @@ FComputeShaderRHIRef FEmptyDynamicRHI::RHICreateComputeShader(const TArray<uint8
 
 
 FEmptyBoundShaderState::FEmptyBoundShaderState(
-			FVertexDeclarationRHIParamRef InVertexDeclarationRHI,
+			FRHIVertexDeclaration* InVertexDeclarationRHI,
 			FVertexShaderRHIParamRef InVertexShaderRHI,
 			FPixelShaderRHIParamRef InPixelShaderRHI,
 			FHullShaderRHIParamRef InHullShaderRHI,
@@ -98,7 +98,7 @@ FEmptyBoundShaderState::~FEmptyBoundShaderState()
 }
 
 FBoundShaderStateRHIRef FEmptyDynamicRHI::RHICreateBoundShaderState(
-	FVertexDeclarationRHIParamRef VertexDeclarationRHI, 
+	FRHIVertexDeclaration* VertexDeclarationRHI,
 	FVertexShaderRHIParamRef VertexShaderRHI, 
 	FHullShaderRHIParamRef HullShaderRHI, 
 	FDomainShaderRHIParamRef DomainShaderRHI, 

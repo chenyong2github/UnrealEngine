@@ -133,7 +133,7 @@ void FD3D12CommandContext::RHISetComputeShader(FComputeShaderRHIParamRef Compute
 	RHISetComputePipelineState(ComputePipelineState);
 }
 
-void FD3D12CommandContextBase::RHIWaitComputeFence(FComputeFenceRHIParamRef InFenceRHI)
+void FD3D12CommandContextBase::RHIWaitComputeFence(FRHIComputeFence* InFenceRHI)
 {
 	FD3D12Fence* Fence = FD3D12DynamicRHI::ResourceCast(InFenceRHI);
 
@@ -278,7 +278,7 @@ void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess Tran
 }
 
 
-void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 InNumUAVs, FComputeFenceRHIParamRef WriteComputeFenceRHI)
+void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 InNumUAVs, FRHIComputeFence* WriteComputeFenceRHI)
 {
 	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
 	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;

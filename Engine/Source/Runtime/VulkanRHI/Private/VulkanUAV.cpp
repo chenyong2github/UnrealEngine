@@ -434,7 +434,7 @@ FGPUFenceRHIRef FVulkanDynamicRHI::RHICreateGPUFence(const FName& Name)
 	return new FVulkanGPUFence(Name);
 }
 
-void FVulkanCommandListContext::RHIWaitComputeFence(FComputeFenceRHIParamRef InFence)
+void FVulkanCommandListContext::RHIWaitComputeFence(FRHIComputeFence* InFence)
 {
 	FVulkanComputeFence* Fence = ResourceCast(InFence);
 	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();

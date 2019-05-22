@@ -39,7 +39,7 @@ public:
 	/** @return 0xffffffff if not found */
 	uint32 FindIndex(const FFinalPostProcessSettings& Settings, UTexture* Tex) const;
 
-	virtual FComputeFenceRHIParamRef GetComputePassEndFence() const override { return AsyncEndFence; }
+	virtual FRHIComputeFence* GetComputePassEndFence() const override { return AsyncEndFence; }
 
 private:
 	template <typename TRHICmdList>

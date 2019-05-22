@@ -324,7 +324,7 @@ void FD3D12CommandContext::RHISetMultipleViewports(uint32 Count, const FViewport
 }
 
 FD3D12BoundShaderState::FD3D12BoundShaderState(
-	FVertexDeclarationRHIParamRef InVertexDeclarationRHI,
+	FRHIVertexDeclaration* InVertexDeclarationRHI,
 	FVertexShaderRHIParamRef InVertexShaderRHI,
 	FPixelShaderRHIParamRef InPixelShaderRHI,
 	FHullShaderRHIParamRef InHullShaderRHI,
@@ -371,7 +371,7 @@ FD3D12BoundShaderState::~FD3D12BoundShaderState()
 * @param GeometryShader - existing geometry shader
 */
 FBoundShaderStateRHIRef FD3D12DynamicRHI::RHICreateBoundShaderState(
-	FVertexDeclarationRHIParamRef VertexDeclarationRHI,
+	FRHIVertexDeclaration* VertexDeclarationRHI,
 	FVertexShaderRHIParamRef VertexShaderRHI,
 	FHullShaderRHIParamRef HullShaderRHI,
 	FDomainShaderRHIParamRef DomainShaderRHI,

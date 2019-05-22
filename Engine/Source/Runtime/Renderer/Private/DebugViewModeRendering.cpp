@@ -235,7 +235,7 @@ void FDeferredShadingSceneRenderer::DoDebugViewModePostProcessing(FRHICommandLis
 		// May need to wait on the final pass to complete
 		if (Context.FinalOutput.IsAsyncComputePass())
 		{
-			FComputeFenceRHIParamRef ComputeFinalizeFence = Context.FinalOutput.GetComputePassEndFence();
+			FRHIComputeFence* ComputeFinalizeFence = Context.FinalOutput.GetComputePassEndFence();
 			if (ComputeFinalizeFence)
 			{
 				Context.RHICmdList.WaitComputeFence(ComputeFinalizeFence);

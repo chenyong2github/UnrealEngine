@@ -205,7 +205,7 @@ void RunBenchmarkShader(FRHICommandList& RHICmdList, FVertexBufferRHIParamRef Ve
 	TShaderMapRef<FPostProcessBenchmarkPS<PsMethod>> PixelShader(ShaderMap);
 
 	bool bVertexTest = VsMethod != 0;
-	FVertexDeclarationRHIParamRef VertexDeclaration = bVertexTest
+	FRHIVertexDeclaration* VertexDeclaration = bVertexTest
 		? GVertexThroughputDeclaration.DeclRHI
 		: GFilterVertexDeclaration.VertexDeclarationRHI;
 

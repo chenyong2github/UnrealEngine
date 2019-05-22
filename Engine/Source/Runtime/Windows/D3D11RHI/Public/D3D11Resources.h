@@ -128,7 +128,7 @@ public:
 
 	/** Initialization constructor. */
 	FD3D11BoundShaderState(
-		FVertexDeclarationRHIParamRef InVertexDeclarationRHI,
+		FRHIVertexDeclaration* InVertexDeclarationRHI,
 		FVertexShaderRHIParamRef InVertexShaderRHI,
 		FPixelShaderRHIParamRef InPixelShaderRHI,
 		FHullShaderRHIParamRef InHullShaderRHI,

@@ -67,7 +67,7 @@ public:
 		EResourceTransitionPipeline TransitionPipeline,
 		FRWBuffer& ResultsBuffer,
 		FRWBuffer& FloatResultsBuffer,
-		FComputeFenceRHIParamRef Fence)
+		FRHIComputeFence* Fence)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 
@@ -152,7 +152,7 @@ public:
 		EResourceTransitionAccess TransitionAccess,
 		EResourceTransitionPipeline TransitionPipeline,
 		FRWBuffer& PdfsResultsBuffer,
-		FComputeFenceRHIParamRef Fence)
+		FRHIComputeFence* Fence)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 
@@ -241,7 +241,7 @@ public:
 		EResourceTransitionAccess TransitionAccess,
 		EResourceTransitionPipeline TransitionPipeline,
 		FRWBuffer& PdfsResultsBuffer,
-		FComputeFenceRHIParamRef Fence)
+		FRHIComputeFence* Fence)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 
@@ -329,7 +329,7 @@ public:
 		EResourceTransitionAccess TransitionAccess,
 		EResourceTransitionPipeline TransitionPipeline,
 		FRWBuffer& PdfsResultsBuffer,
-		FComputeFenceRHIParamRef Fence)
+		FRHIComputeFence* Fence)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 

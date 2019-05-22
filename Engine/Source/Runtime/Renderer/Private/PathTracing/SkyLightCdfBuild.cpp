@@ -70,7 +70,7 @@ public:
 	}
 
 	void UnsetParameters(FRHICommandList& RHICmdList, EResourceTransitionAccess TransitionAccess, EResourceTransitionPipeline TransitionPipeline,
-		const FRWBuffer& Buffer, FComputeFenceRHIParamRef Fence)
+		const FRWBuffer& Buffer, FRHIComputeFence* Fence)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 		RowCdfParameter.UnsetUAV(RHICmdList, ShaderRHI);
@@ -157,7 +157,7 @@ public:
 	}
 
 	void UnsetParameters(FRHICommandList& RHICmdList, EResourceTransitionAccess TransitionAccess, EResourceTransitionPipeline TransitionPipeline,
-		const FRWBuffer& ColumnCdf, FComputeFenceRHIParamRef Fence)
+		const FRWBuffer& ColumnCdf, FRHIComputeFence* Fence)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 		ColumnCdfParameter.UnsetUAV(RHICmdList, ShaderRHI);
@@ -236,7 +236,7 @@ public:
 	}
 
 	void UnsetParameters(FRHICommandList& RHICmdList, EResourceTransitionAccess TransitionAccess, EResourceTransitionPipeline TransitionPipeline,
-		const FRWBuffer& CubeFaceCdf, FComputeFenceRHIParamRef Fence)
+		const FRWBuffer& CubeFaceCdf, FRHIComputeFence* Fence)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 		CubeFaceCdfParameter.UnsetUAV(RHICmdList, ShaderRHI);

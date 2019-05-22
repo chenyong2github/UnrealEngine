@@ -3521,7 +3521,7 @@ static void BindShaderStage(FOpenGLLinkedProgramConfiguration& Config, CrossComp
 // ============================================================================================================================
 
 FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThread(
-	FVertexDeclarationRHIParamRef VertexDeclarationRHI, 
+	FRHIVertexDeclaration* VertexDeclarationRHI,
 	FVertexShaderRHIParamRef VertexShaderRHI, 
 	FHullShaderRHIParamRef HullShaderRHI,
 	FDomainShaderRHIParamRef DomainShaderRHI, 
@@ -3967,7 +3967,7 @@ void FOpenGLDynamicRHI::BindPendingShaderState( FOpenGLContextState& ContextStat
 
 FOpenGLBoundShaderState::FOpenGLBoundShaderState(
 	FOpenGLLinkedProgram* InLinkedProgram,
-	FVertexDeclarationRHIParamRef InVertexDeclarationRHI,
+	FRHIVertexDeclaration* InVertexDeclarationRHI,
 	FVertexShaderRHIParamRef InVertexShaderRHI,
 	FPixelShaderRHIParamRef InPixelShaderRHI,
 	FGeometryShaderRHIParamRef InGeometryShaderRHI,

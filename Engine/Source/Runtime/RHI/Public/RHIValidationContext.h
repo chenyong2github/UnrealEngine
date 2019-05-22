@@ -24,7 +24,7 @@ public:
 	/**
 	* Compute queue will wait for the fence to be written before continuing.
 	*/
-	virtual void RHIWaitComputeFence(FComputeFenceRHIParamRef InFence) override final
+	virtual void RHIWaitComputeFence(FRHIComputeFence* InFence) override final
 	{
 		RHIContext->RHIWaitComputeFence(InFence);
 	}
@@ -65,7 +65,7 @@ public:
 	* @param NumUAVs - number of UAVs to transition
 	* @param WriteComputeFence - Optional ComputeFence to write as part of this transition
 	*/
-	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FComputeFenceRHIParamRef WriteComputeFence) override final
+	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence) override final
 	{
 		RHIContext->RHITransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, WriteComputeFence);
 	}
@@ -182,7 +182,7 @@ public:
 	/**
 	* Compute queue will wait for the fence to be written before continuing.
 	*/
-	virtual void RHIWaitComputeFence(FComputeFenceRHIParamRef InFence) override final
+	virtual void RHIWaitComputeFence(FRHIComputeFence* InFence) override final
 	{
 		RHIContext->RHIWaitComputeFence(InFence);
 	}
@@ -273,7 +273,7 @@ public:
 	* @param NumUAVs - number of UAVs to transition
 	* @param WriteComputeFence - Optional ComputeFence to write as part of this transition
 	*/
-	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FComputeFenceRHIParamRef WriteComputeFence) override final
+	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence) override final
 	{
 		RHIContext->RHITransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, WriteComputeFence);
 	}

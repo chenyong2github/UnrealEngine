@@ -715,7 +715,7 @@ void FMetalComputeFence::Reset()
 	Fence = nullptr;
 }
 
-void FMetalRHICommandContext::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FComputeFenceRHIParamRef WriteComputeFence)
+void FMetalRHICommandContext::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence)
 {
 	@autoreleasepool
 	{
@@ -761,7 +761,7 @@ void FMetalRHICommandContext::RHITransitionResources(EResourceTransitionAccess T
 	}
 }
 
-void FMetalRHICommandContext::RHIWaitComputeFence(FComputeFenceRHIParamRef InFence)
+void FMetalRHICommandContext::RHIWaitComputeFence(FRHIComputeFence* InFence)
 {
 	@autoreleasepool {
 	if (InFence)

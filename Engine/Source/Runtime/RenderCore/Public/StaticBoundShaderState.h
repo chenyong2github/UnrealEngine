@@ -35,7 +35,7 @@ public:
 	 * @return The bound shader state RHI.
 	 */
 	FRHIBoundShaderState* GetInitializedRHI(
-		FVertexDeclarationRHIParamRef VertexDeclaration, 
+		FRHIVertexDeclaration* VertexDeclaration,
 		FVertexShaderRHIParamRef VertexShader, 
 		FPixelShaderRHIParamRef PixelShader,
 		FGeometryShaderRHIParamRef GeometryShader
@@ -59,7 +59,7 @@ private:
 	RENDERCORE_API virtual void ReleaseRHI();
 
 #if DO_CHECK
-	FVertexDeclarationRHIParamRef BoundVertexDeclaration;
+	FRHIVertexDeclaration* BoundVertexDeclaration;
 	FVertexShaderRHIParamRef BoundVertexShader;
 	FPixelShaderRHIParamRef BoundPixelShader;
 	FGeometryShaderRHIParamRef BoundGeometryShader;
@@ -71,7 +71,7 @@ typedef TGlobalResource<FGlobalBoundShaderStateResource> FGlobalBoundShaderState
 
 struct FGlobalBoundShaderStateArgs
 {
-	FVertexDeclarationRHIParamRef VertexDeclarationRHI;
+	FRHIVertexDeclaration* VertexDeclarationRHI;
 	FShader* VertexShader;
 	FShader* PixelShader;
 	FShader* GeometryShader;

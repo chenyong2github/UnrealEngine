@@ -37,7 +37,7 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 	if ((MeshPassFeatures & EMeshPassFeatures::PositionAndNormalOnly) != EMeshPassFeatures::Default)	InputStreamType = EVertexInputStreamType::PositionAndNormalOnly;
 
 	check(VertexFactory && VertexFactory->IsInitialized());
-	FVertexDeclarationRHIParamRef VertexDeclaration = VertexFactory->GetDeclaration(InputStreamType);
+	FRHIVertexDeclaration* VertexDeclaration = VertexFactory->GetDeclaration(InputStreamType);
 
 	check(!VertexFactory->NeedsDeclaration() || VertexDeclaration);
 
