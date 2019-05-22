@@ -20,7 +20,7 @@ namespace UE4StrongObjectPtr_Private
 
 		virtual ~FInternalReferenceCollector()
 		{
-			check(IsInGameThread());
+			check(IsInGameThread() || IsInGarbageCollectorThread());
 		}
 
 		bool IsValid() const
