@@ -28,6 +28,13 @@ FVirtualTextureProducerCollection::FVirtualTextureProducerCollection()
 {
 	Producers.AddDefaulted(1);
 	Producers[0].Magic = 1u; // make sure FVirtualTextureProducerHandle(0) will not resolve to the dummy producer entry
+
+	Callbacks.AddDefaulted(CallbackList_Count);
+	for (uint32 CallbackIndex = 0u; CallbackIndex < CallbackList_Count; ++CallbackIndex)
+	{
+		FCallbackEntry& Callback = Callbacks[CallbackIndex];
+		Callback.NextIndex = Callback.PrevIndex = CallbackIndex;
+	}
 }
 
 FVirtualTextureProducerHandle FVirtualTextureProducerCollection::RegisterProducer(FVirtualTextureSystem* System, const FVTProducerDescription& InDesc, IVirtualTexture* InProducer)
@@ -44,6 +51,7 @@ FVirtualTextureProducerHandle FVirtualTextureProducerCollection::RegisterProduce
 	FProducerEntry& Entry = Producers[Index];
 	Entry.Producer.Description = InDesc;
 	Entry.Producer.VirtualTexture = InProducer;
+	Entry.DestroyedCallbacksIndex = AcquireCallback();
 
 	check(InDesc.NumLayers <= VIRTUALTEXTURE_SPACE_MAXLAYERS);
 	for (uint32 LayerIndex = 0u; LayerIndex < InDesc.NumLayers; ++LayerIndex)
@@ -67,9 +75,88 @@ void FVirtualTextureProducerCollection::ReleaseProducer(FVirtualTextureSystem* S
 
 	if (FProducerEntry* Entry = GetEntry(Handle))
 	{
-		Entry->Producer.Release(System, Handle);
+		uint32 CallbackIndex = Callbacks[Entry->DestroyedCallbacksIndex].NextIndex;
+		while (CallbackIndex != Entry->DestroyedCallbacksIndex)
+		{
+			FCallbackEntry& Callback = Callbacks[CallbackIndex];
+			const uint32 NextIndex = Callback.NextIndex;
+			check(Callback.OwnerHandle == Handle);
+
+			// Move callback to pending list
+			RemoveCallbackFromList(CallbackIndex);
+			AddCallbackToList(CallbackList_Pending, CallbackIndex);
+			
+			CallbackIndex = NextIndex;
+		}
+
+		ReleaseCallback(Entry->DestroyedCallbacksIndex);
+		Entry->DestroyedCallbacksIndex = 0u;
+
 		Entry->Magic = (Entry->Magic + 1u) & 1023u;
+		Entry->Producer.Release(System, Handle);
 		ReleaseEntry(Handle.Index);
+	}
+}
+
+void FVirtualTextureProducerCollection::CallPendingCallbacks()
+{
+	uint32 CallbackIndex = Callbacks[CallbackList_Pending].NextIndex;
+	while (CallbackIndex != CallbackList_Pending)
+	{
+		FCallbackEntry& Callback = Callbacks[CallbackIndex];
+		check(Callback.DestroyedFunction);
+		check(Callback.OwnerHandle.PackedValue != 0u);
+
+		// Make a copy, then release the callback entry before calling the callback function
+		// (The destroyed callback may try to remove this or other callbacks, so need to make sure state is valid before calling)
+		const FCallbackEntry CallbackCopy(Callback);
+		Callback.DestroyedFunction = nullptr;
+		Callback.Baton = nullptr;
+		Callback.OwnerHandle = FVirtualTextureProducerHandle();
+		ReleaseCallback(CallbackIndex);
+
+		CallbackCopy.DestroyedFunction(CallbackCopy.OwnerHandle, CallbackCopy.Baton);
+		CallbackIndex = CallbackCopy.NextIndex;
+	}
+}
+
+void FVirtualTextureProducerCollection::AddDestroyedCallback(const FVirtualTextureProducerHandle& Handle, FVTProducerDestroyedFunction* Function, void* Baton)
+{
+	check(IsInRenderingThread());
+	check(Function);
+
+	FProducerEntry* Entry = GetEntry(Handle);
+	if (Entry)
+	{
+		const uint32 CallbackIndex = AcquireCallback();
+		AddCallbackToList(Entry->DestroyedCallbacksIndex, CallbackIndex);
+		FCallbackEntry& Callback = Callbacks[CallbackIndex];
+		Callback.DestroyedFunction = Function;
+		Callback.Baton = Baton;
+		Callback.OwnerHandle = Handle;
+	}
+}
+
+void FVirtualTextureProducerCollection::RemoveAllCallbacks(const void* Baton)
+{
+	check(IsInRenderingThread());
+	check(Baton);
+
+	for (int32 CallbackIndex = 0u; CallbackIndex < Callbacks.Num(); ++CallbackIndex)
+	{
+		FCallbackEntry& Callback = Callbacks[CallbackIndex];
+		if (Callback.Baton == Baton)
+		{
+			check(Callback.DestroyedFunction);
+			FProducerEntry* Entry = GetEntry(Callback.OwnerHandle);
+			if (Entry)
+			{
+				Callback.DestroyedFunction = nullptr;
+				Callback.Baton = nullptr;
+				Callback.OwnerHandle = FVirtualTextureProducerHandle();
+				ReleaseCallback(CallbackIndex);
+			}
+		}
 	}
 }
 

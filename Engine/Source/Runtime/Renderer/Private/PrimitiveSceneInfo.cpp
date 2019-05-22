@@ -13,6 +13,8 @@
 #include "ScenePrivate.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
+#include "VT/VirtualTextureSystem.h"
+#include "GPUScene.h"
 
 /** An implementation of FStaticPrimitiveDrawInterface that stores the drawn elements for the rendering thread to use. */
 class FBatchingSPDI : public FStaticPrimitiveDrawInterface
@@ -134,6 +136,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	bNeedsStaticMeshUpdateWithoutVisibilityCheck(false),
 	bNeedsUniformBufferUpdate(false),
 	bIndirectLightingCacheBufferDirty(false),
+	bRegisteredVirtualTextureProducerCallback(false),
 	LightmapDataOffset(INDEX_NONE),
 	NumLightmapDataEntries(0)
 {
@@ -431,6 +434,52 @@ void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, 
 	}
 }
 
+static void OnVirtualTextureDestroyed(const FVirtualTextureProducerHandle& InHandle, void* Baton)
+{
+	FPrimitiveSceneInfo* PrimitiveSceneInfo = static_cast<FPrimitiveSceneInfo*>(Baton);
+
+	// Update the main uniform buffer
+	PrimitiveSceneInfo->UpdateStaticLightingBuffer();
+
+	// Also need to update lightmap data inside GPUScene, if that's enabled
+	AddPrimitiveToUpdateGPU(*PrimitiveSceneInfo->Scene, PrimitiveSceneInfo->GetIndex());
+}
+
+int32 FPrimitiveSceneInfo::UpdateStaticLightingBuffer()
+{
+	checkSlow(IsInRenderingThread());
+
+	if (bRegisteredVirtualTextureProducerCallback)
+	{
+		// Remove any previous VT callbacks
+		FVirtualTextureSystem::Get().RemoveAllProducerDestroyedCallbacks(this);
+		bRegisteredVirtualTextureProducerCallback = false;
+	}
+
+	FPrimitiveSceneProxy::FLCIArray LCIs;
+	Proxy->GetLCIs(LCIs);
+	for (int32 i = 0; i < LCIs.Num(); ++i)
+	{
+		FLightCacheInterface* LCI = LCIs[i];
+
+		if (LCI)
+		{
+			LCI->CreatePrecomputedLightingUniformBuffer_RenderingThread(Scene->GetFeatureLevel());
+
+			// If lightmap is using virtual texture, need to set a callback to update our uniform buffers if VT is destroyed,
+			// since we cache VT parameters inside these uniform buffers
+			FVirtualTextureProducerHandle VTProducerHandle;
+			if (LCI->GetVirtualTextureLightmapProducer(Scene->GetFeatureLevel(), VTProducerHandle))
+			{
+				FVirtualTextureSystem::Get().AddProducerDestroyedCallback(VTProducerHandle, &OnVirtualTextureDestroyed, this);
+				bRegisteredVirtualTextureProducerCallback = true;
+			}
+		}
+	}
+
+	return LCIs.Num();
+}
+
 void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool bUpdateStaticDrawLists, bool bAddToStaticDrawLists)
 {
 	check(IsInRenderingThread());
@@ -482,20 +531,7 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool 
 	const bool bAllowStaticLighting = FReadOnlyCVARCache::Get().bAllowStaticLighting;
 	if (bAllowStaticLighting)
 	{
-		FPrimitiveSceneProxy::FLCIArray LCIs;
-		Proxy->GetLCIs(LCIs);
-		for (int32 i = 0; i < LCIs.Num(); ++i)
-		{
-			FLightCacheInterface* LCI = LCIs[i];
-
-			if (LCI)
-			{
-				LCI->CreatePrecomputedLightingUniformBuffer_RenderingThread(Scene->GetFeatureLevel());
-			}
-		}
-
-		NumLightmapDataEntries = LCIs.Num();
-
+		NumLightmapDataEntries = UpdateStaticLightingBuffer();
 		if (NumLightmapDataEntries > 0 && UseGPUScene(GMaxRHIShaderPlatform, Scene->GetFeatureLevel()))
 		{
 			LightmapDataOffset = Scene->GPUScene.LightmapDataAllocator.Allocate(NumLightmapDataEntries);
@@ -659,6 +695,12 @@ void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
 		IndirectLightingCacheUniformBuffer.SafeRelease();
 
 		RemoveStaticMeshes();
+	}
+
+	if (bRegisteredVirtualTextureProducerCallback)
+	{
+		FVirtualTextureSystem::Get().RemoveAllProducerDestroyedCallbacks(this);
+		bRegisteredVirtualTextureProducerCallback = false;
 	}
 }
 

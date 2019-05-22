@@ -787,8 +787,32 @@ void FLightCacheInterface::CreatePrecomputedLightingUniformBuffer_RenderingThrea
 	{
 		FPrecomputedLightingUniformParameters Parameters;
 		GetPrecomputedLightingParameters(FeatureLevel, Parameters, this);
-		PrecomputedLightingUniformBuffer = FPrecomputedLightingUniformParameters::CreateUniformBuffer(Parameters, UniformBuffer_MultiFrame);
+		if (PrecomputedLightingUniformBuffer)
+		{
+			// Don't recreate the buffer if it already exists
+			RHIUpdateUniformBuffer(PrecomputedLightingUniformBuffer, &Parameters);
+		}
+		else
+		{
+			PrecomputedLightingUniformBuffer = FPrecomputedLightingUniformParameters::CreateUniformBuffer(Parameters, UniformBuffer_MultiFrame);
+		}
 	}
+}
+
+bool FLightCacheInterface::GetVirtualTextureLightmapProducer(ERHIFeatureLevel::Type FeatureLevel, FVirtualTextureProducerHandle& OutProducerHandle)
+{
+	const FLightMapInteraction LightMapInteraction = GetLightMapInteraction(FeatureLevel);
+	if (LightMapInteraction.GetType() == LMIT_Texture)
+	{
+		const ULightMapVirtualTexture2D* VirtualTexture = LightMapInteraction.GetVirtualTexture();
+		if (VirtualTexture)
+		{
+			FVirtualTexture2DResource* Resource = (FVirtualTexture2DResource*)VirtualTexture->Resource;
+			OutProducerHandle = Resource->GetProducerHandle();
+			return true;
+		}
+	}
+	return false;
 }
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLightmapResourceClusterShaderParameters, "LightmapResourceCluster");

@@ -116,6 +116,8 @@ struct FVTProducerDescription
 	TEnumAsByte<EPixelFormat> LayerFormat[VIRTUALTEXTURE_SPACE_MAXLAYERS] = { PF_Unknown };
 };
 
+typedef void (FVTProducerDestroyedFunction)(const FVirtualTextureProducerHandle& InHandle, void* Baton);
+
 class IVirtualTextureFinalizer
 {
 public:

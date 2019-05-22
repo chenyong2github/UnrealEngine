@@ -440,6 +440,9 @@ public:
 	/** Helper function for writing out to the last render times to the game thread */
 	void UpdateComponentLastRenderTime(float CurrentWorldTime, bool bUpdateLastRenderTimeOnScreen) const;
 
+	/** Updates static lighting uniform buffer, returns the number of entries needed for GPUScene */
+	int32 UpdateStaticLightingBuffer();
+
 #if RHI_RAYTRACING
 	RENDERER_API FRayTracingGeometryRHIRef GetStaticRayTracingGeometryInstance(int LodLevel);
 #endif
@@ -470,6 +473,8 @@ private:
 
 	/** If this is TRUE, this primitive's indirect lighting cache buffer needs to be updated before it can be rendered. */
 	bool bIndirectLightingCacheBufferDirty : 1;
+
+	bool bRegisteredVirtualTextureProducerCallback : 1;
 
 	/** Offset into the scene's lightmap data buffer, when GPUScene is enabled. */
 	int32 LightmapDataOffset;

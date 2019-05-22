@@ -2284,7 +2284,13 @@ static IAllocatedVirtualTexture* GetPreallocatedVTStack(const FMaterialRenderCon
 	return (Texture == nullptr) ? nullptr : Texture->GetAllocatedVirtualTexture();
 }
 
-static IAllocatedVirtualTexture* AllocateVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack)
+static void OnVirtualTextureDestroyed(const FVirtualTextureProducerHandle& InHandle, void* Baton)
+{
+	FMaterialRenderProxy* MaterialProxy = static_cast<FMaterialRenderProxy*>(Baton);
+	MaterialProxy->CacheUniformExpressions(false);
+}
+
+static IAllocatedVirtualTexture* AllocateVTStack(const FMaterialRenderProxy* MaterialProxy, const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack)
 {
 	check(!VTStack.IsPreallocatedStack())
 
@@ -2313,8 +2319,10 @@ static IAllocatedVirtualTexture* AllocateVTStack(const FMaterialRenderContext& C
 
 			VTDesc.TileSize = VirtualTextureResourceForLayer->GetTileSize();
 			VTDesc.TileBorderSize = VirtualTextureResourceForLayer->GetBorderSize();
-			VTDesc.ProducerHandle[LayerIndex] = VirtualTextureResourceForLayer->GetProducerHandle();
+			const FVirtualTextureProducerHandle& ProducerHandle = VirtualTextureResourceForLayer->GetProducerHandle();
+			VTDesc.ProducerHandle[LayerIndex] = ProducerHandle;
 			VTDesc.LocalLayerToProduce[LayerIndex] = 0u;
+			GetRendererModule().AddVirtualTextureProducerDestroyedCallback(ProducerHandle, &OnVirtualTextureDestroyed, const_cast<FMaterialRenderProxy*>(MaterialProxy));
 			bFoundValidLayer = true;
 		}
 	}
@@ -2366,7 +2374,7 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 		}
 		else
 		{
-			AllocatedVT = AllocateVTStack(Context, UniformExpressionSet, VTStack);
+			AllocatedVT = AllocateVTStack(this, Context, UniformExpressionSet, VTStack);
 			if (AllocatedVT != nullptr)
 			{
 				OutUniformExpressionCache.OwnedAllocatedVTs.Add(AllocatedVT);
@@ -2459,6 +2467,8 @@ void FMaterialRenderProxy::InvalidateUniformExpressionCache(bool bRecreateUnifor
 		UniformExpressionCache[i].bUpToDate = false;
 		UniformExpressionCache[i].CachedUniformExpressionShaderMap = nullptr;
 		UniformExpressionCache[i].ResetAllocatedVTs();
+
+		GetRendererModule().RemoveAllVirtualTextureProducerDestroyedCallbacks(this);
 
 		if (bRecreateUniformBuffer)
 		{

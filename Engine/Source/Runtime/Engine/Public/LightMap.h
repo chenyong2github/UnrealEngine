@@ -640,13 +640,11 @@ public:
 	virtual ~FLightmapResourceCluster();
 
 	ENGINE_API virtual void InitRHI();
+	ENGINE_API virtual void ReleaseRHI();
 
-	virtual void ReleaseRHI()
-	{
-		UniformBuffer = nullptr;
-	}
-	
 	ENGINE_API void UpdateUniformBuffer(ERHIFeatureLevel::Type InFeatureLevel);
+
+	void UpdateUniformBuffer_RenderThread();
 
 	/**
 	 * Allocates virtual texture on demand and returns it, may return nullptr if not using virtual texture
@@ -654,6 +652,7 @@ public:
 	 * it's possible for commands that want to access AllocatedVT from here execute before this has a chance to run InitRHI()
 	 */
 	IAllocatedVirtualTexture* AcquireAllocatedVT() const;
+	void ReleaseAllocatedVT();
 
 	FLightmapClusterResourceInput Input;
 	mutable IAllocatedVirtualTexture* AllocatedVT;

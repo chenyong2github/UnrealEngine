@@ -753,6 +753,8 @@ public:
 	
 	ENGINE_API void CreatePrecomputedLightingUniformBuffer_RenderingThread(ERHIFeatureLevel::Type FeatureLevel);
 
+	ENGINE_API bool GetVirtualTextureLightmapProducer(ERHIFeatureLevel::Type FeatureLevel, FVirtualTextureProducerHandle& OutProducerHandle);
+
 	// @param InLightMap may be 0
 	void SetLightMap(const FLightMap* InLightMap)
 	{

@@ -43,6 +43,8 @@ public:
 
 	FVirtualTextureProducerHandle RegisterProducer(const FVTProducerDescription& InDesc, IVirtualTexture* InProducer);
 	void ReleaseProducer(const FVirtualTextureProducerHandle& Handle);
+	void AddProducerDestroyedCallback(const FVirtualTextureProducerHandle& Handle, FVTProducerDestroyedFunction* Function, void* Baton);
+	void RemoveAllProducerDestroyedCallbacks(const void* Baton);
 	FVirtualTextureProducer* FindProducer(const FVirtualTextureProducerHandle& Handle);
 
 	FVirtualTextureSpace* AcquireSpace(const FVTSpaceDescription& InDesc, uint32 InSizeNeeded);

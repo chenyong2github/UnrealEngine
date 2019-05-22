@@ -3198,10 +3198,7 @@ bool FQuantizedLightmapData::HasNonZeroData() const
 
 FLightmapResourceCluster::~FLightmapResourceCluster()
 {
-	if (AllocatedVT)
-	{
-		GetRendererModule().DestroyVirtualTexture(AllocatedVT);
-	}
+	check(AllocatedVT == nullptr);
 }
 
 void FLightmapResourceCluster::UpdateUniformBuffer(ERHIFeatureLevel::Type InFeatureLevel)
@@ -3211,16 +3208,28 @@ void FLightmapResourceCluster::UpdateUniformBuffer(ERHIFeatureLevel::Type InFeat
 	ENQUEUE_RENDER_COMMAND(SetFeatureLevel)(
 		[Cluster, InFeatureLevel](FRHICommandList& RHICmdList)
 	{
-		const bool bAllowHighQualityLightMaps = AllowHighQualityLightmaps(InFeatureLevel);
-		const bool bUseVirtualTextures = bAllowHighQualityLightMaps && (CVarVirtualTexturedLightMaps.GetValueOnRenderThread() != 0) && UseVirtualTexturing(InFeatureLevel);
-	
 		Cluster->FeatureLevel = InFeatureLevel;
-
-		FLightmapResourceClusterShaderParameters Parameters;
-		GetLightmapClusterResourceParameters(InFeatureLevel, Cluster->Input, bUseVirtualTextures ? Cluster->AcquireAllocatedVT() : nullptr, Parameters);
-
-		RHIUpdateUniformBuffer(Cluster->UniformBuffer, &Parameters);
+		Cluster->UpdateUniformBuffer_RenderThread();
 	});
+}
+
+void FLightmapResourceCluster::UpdateUniformBuffer_RenderThread()
+{
+	check(IsInRenderingThread());
+	const bool bAllowHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
+	const bool bUseVirtualTextures = bAllowHighQualityLightMaps && (CVarVirtualTexturedLightMaps.GetValueOnRenderThread() != 0) && UseVirtualTexturing(FeatureLevel);
+
+	FLightmapResourceClusterShaderParameters Parameters;
+	GetLightmapClusterResourceParameters(FeatureLevel, Input, bUseVirtualTextures ? AcquireAllocatedVT() : nullptr, Parameters);
+
+	RHIUpdateUniformBuffer(UniformBuffer, &Parameters);
+}
+
+static void OnVirtualTextureDestroyed(const FVirtualTextureProducerHandle& InHandle, void* Baton)
+{
+	FLightmapResourceCluster* Cluster = static_cast<FLightmapResourceCluster*>(Baton);
+	Cluster->ReleaseAllocatedVT();
+	Cluster->UpdateUniformBuffer_RenderThread();
 }
 
 IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
@@ -3232,6 +3241,9 @@ IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
 	{
 		check(VirtualTexture->VirtualTextureStreaming);
 		const FVirtualTexture2DResource* Resource = (FVirtualTexture2DResource*)VirtualTexture->Resource;
+		const FVirtualTextureProducerHandle ProducerHandle = Resource->GetProducerHandle();
+
+		GetRendererModule().AddVirtualTextureProducerDestroyedCallback(ProducerHandle, &OnVirtualTextureDestroyed, const_cast<FLightmapResourceCluster*>(this));
 
 		FAllocatedVTDescription VTDesc;
 		VTDesc.Dimensions = 2;
@@ -3245,7 +3257,7 @@ IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
 			if (LayerIndex != ~0u)
 			{
 				VTDesc.NumLayers = TypeIndex + 1u;
-				VTDesc.ProducerHandle[TypeIndex] = Resource->GetProducerHandle(); // use the same producer for each layer
+				VTDesc.ProducerHandle[TypeIndex] = ProducerHandle; // use the same producer for each layer
 				VTDesc.LocalLayerToProduce[TypeIndex] = LayerIndex;
 			}
 			else
@@ -3263,7 +3275,7 @@ IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
 				// this isn't strictly necessary, but without this VT feedback analysis will see an unmapped page each frame for the empty layer,
 				// and attempt to do some extra work before determining there's nothing else to do...this wastes CPU time
 				// By mapping to layer0, we ensure that every layer has a valid mapping, and the overhead of mapping the empty layer to layer0 is very small, since layer0 will already be resident
-				VTDesc.ProducerHandle[LayerIndex] = Resource->GetProducerHandle();
+				VTDesc.ProducerHandle[LayerIndex] = ProducerHandle;
 				VTDesc.LocalLayerToProduce[LayerIndex] = 0u;
 			}
 		}
@@ -3274,10 +3286,26 @@ IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
 	return AllocatedVT;
 }
 
+void FLightmapResourceCluster::ReleaseAllocatedVT()
+{
+	if (AllocatedVT)
+	{
+		GetRendererModule().RemoveAllVirtualTextureProducerDestroyedCallbacks(this);
+		GetRendererModule().DestroyVirtualTexture(AllocatedVT);
+		AllocatedVT = nullptr;
+	}
+}
+
 void FLightmapResourceCluster::InitRHI()
 {
 	FLightmapResourceClusterShaderParameters Parameters;
 	GetLightmapClusterResourceParameters(GMaxRHIFeatureLevel, FLightmapClusterResourceInput(), nullptr, Parameters);
 
 	UniformBuffer = FLightmapResourceClusterShaderParameters::CreateUniformBuffer(Parameters, UniformBuffer_MultiFrame);
+}
+
+void FLightmapResourceCluster::ReleaseRHI()
+{
+	ReleaseAllocatedVT();
+	UniformBuffer = nullptr;
 }

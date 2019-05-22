@@ -476,6 +476,16 @@ void FVirtualTextureSystem::ReleaseProducer(const FVirtualTextureProducerHandle&
 	Producers.ReleaseProducer(this, Handle);
 }
 
+void FVirtualTextureSystem::AddProducerDestroyedCallback(const FVirtualTextureProducerHandle& Handle, FVTProducerDestroyedFunction* Function, void* Baton)
+{
+	Producers.AddDestroyedCallback(Handle, Function, Baton);
+}
+
+void FVirtualTextureSystem::RemoveAllProducerDestroyedCallbacks(const void* Baton)
+{
+	Producers.RemoveAllCallbacks(Baton);
+}
+
 FVirtualTextureProducer* FVirtualTextureSystem::FindProducer(const FVirtualTextureProducerHandle& Handle)
 {
 	return Producers.FindProducer(Handle);
@@ -768,6 +778,8 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 
 		bFlushCaches = false;
 	}
+
+	Producers.CallPendingCallbacks();
 
 	DestroyPendingVirtualTextures();
 

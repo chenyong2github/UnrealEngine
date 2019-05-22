@@ -42,6 +42,10 @@ public:
 	FVirtualTextureProducerCollection();
 	FVirtualTextureProducerHandle RegisterProducer(FVirtualTextureSystem* System, const FVTProducerDescription& InDesc, IVirtualTexture* InProducer);
 	void ReleaseProducer(FVirtualTextureSystem* System, const FVirtualTextureProducerHandle& Handle);
+	
+	void AddDestroyedCallback(const FVirtualTextureProducerHandle& Handle, FVTProducerDestroyedFunction* Function, void* Baton);
+	void RemoveAllCallbacks(const void* Baton);
+	void CallPendingCallbacks();
 
 	/**
 	 * Gets the producer associated with the given handle, or nullptr if handle is invalid
@@ -56,9 +60,26 @@ private:
 	struct FProducerEntry
 	{
 		FVirtualTextureProducer Producer;
+		uint32 DestroyedCallbacksIndex = 0u;
 		uint32 NextIndex = 0u;
 		uint32 PrevIndex = 0u;
 		uint16 Magic = 0u;
+	};
+
+	struct FCallbackEntry
+	{
+		FVTProducerDestroyedFunction* DestroyedFunction = nullptr;
+		void* Baton = nullptr;
+		FVirtualTextureProducerHandle OwnerHandle;
+		uint32 NextIndex = 0u;
+		uint32 PrevIndex = 0u;
+	};
+
+	enum ECallbackListType
+	{
+		CallbackList_Free,
+		CallbackList_Pending,
+		CallbackList_Count,
 	};
 
 	FProducerEntry* GetEntry(const FVirtualTextureProducerHandle& Handle);
@@ -109,5 +130,52 @@ private:
 		AddEntryToList(0u, Index);
 	}
 
+	void RemoveCallbackFromList(uint32 Index)
+	{
+		FCallbackEntry& Entry = Callbacks[Index];
+		Callbacks[Entry.PrevIndex].NextIndex = Entry.NextIndex;
+		Callbacks[Entry.NextIndex].PrevIndex = Entry.PrevIndex;
+		Entry.NextIndex = Entry.PrevIndex = Index;
+	}
+
+	void AddCallbackToList(uint32 HeadIndex, uint32 Index)
+	{
+		FCallbackEntry& Head = Callbacks[HeadIndex];
+		FCallbackEntry& Entry = Callbacks[Index];
+		check(Index >= CallbackList_Count); // make sure we're not trying to add a list head to another list
+
+		// make sure we're not currently in any list
+		check(Entry.NextIndex == Index);
+		check(Entry.PrevIndex == Index);
+
+		Entry.NextIndex = HeadIndex;
+		Entry.PrevIndex = Head.PrevIndex;
+		Callbacks[Head.PrevIndex].NextIndex = Index;
+		Head.PrevIndex = Index;
+	}
+
+	uint32 AcquireCallback()
+	{
+		FCallbackEntry& FreeHead = Callbacks[CallbackList_Free];
+		uint32 Index = FreeHead.NextIndex;
+		if (Index != CallbackList_Free)
+		{
+			RemoveCallbackFromList(Index);
+			return Index;
+		}
+
+		Index = Callbacks.AddDefaulted();
+		FCallbackEntry& Entry = Callbacks[Index];
+		Entry.NextIndex = Entry.PrevIndex = Index;
+		return Index;
+	}
+
+	void ReleaseCallback(uint32 Index)
+	{
+		RemoveCallbackFromList(Index);
+		AddCallbackToList(CallbackList_Free, Index);
+	}
+
 	TArray<FProducerEntry> Producers;
+	TArray<FCallbackEntry> Callbacks;
 };
