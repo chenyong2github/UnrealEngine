@@ -24,6 +24,8 @@ void FMeshDescriptionBuilder::SetMeshDescription(FMeshDescription* Description)
 		MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 	this->InstanceNormals =
 		MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	this->InstanceColors =
+		MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
 }
 
 
@@ -103,6 +105,22 @@ void FMeshDescriptionBuilder::SetInstance(const FVertexInstanceID& InstanceID, c
 }
 
 
+void FMeshDescriptionBuilder::SetInstanceNormal(const FVertexInstanceID& InstanceID, const FVector& Normal)
+{
+	if (InstanceNormals.IsValid())
+	{
+		InstanceNormals.Set(InstanceID, Normal);
+	}
+}
+
+
+void FMeshDescriptionBuilder::SetInstanceColor(const FVertexInstanceID& InstanceID, const FVector4& Color)
+{
+	if (InstanceColors.IsValid())
+	{
+		InstanceColors.Set(InstanceID, Color);
+	}
+}
 
 
 FPolygonID FMeshDescriptionBuilder::AppendTriangle(const FVertexID* Triangle, const FPolygonGroupID& PolygonGroup, 
@@ -220,6 +238,8 @@ void FMeshDescriptionBuilder::AppendMesh(const FDynamicMesh3* Mesh, bool bSetPol
 
 	FPolygonGroupID AllGroupID = AppendPolygonGroup();
 
+	bool bHasVertexColors = Mesh->HasVertexColors();
+	bool bHasVertexNormals = Mesh->HasVertexNormals();
 	const FDynamicMeshUVOverlay* UVOverlay = Mesh->HasAttributes() ? Mesh->Attributes()->PrimaryUV() : nullptr;
 	const FDynamicMeshNormalOverlay* NormalOverlay = Mesh->HasAttributes() ? Mesh->Attributes()->PrimaryNormals() : nullptr;
 	//FDynamicMeshUVOverlay* UVOverlay = nullptr;
@@ -253,6 +273,22 @@ void FMeshDescriptionBuilder::AppendMesh(const FDynamicMesh3* Mesh, bool bSetPol
 		if (bDoTransferPolyGroups)
 		{
 			SetPolyGroupID(NewPolyID, Mesh->GetTriangleGroup(TriID));
+		}
+
+		if (bHasVertexColors)
+		{
+			for (int j = 0; j < 3; ++j)
+			{
+				FVector3f Color = Mesh->GetVertexColor(Triangle[j]);
+				FVector4 Color4(Color.X, Color.Y, Color.Z, 1.0);
+				SetInstanceColor(InstanceTri[j], Color4);
+			}
+		}
+		if (NormalOverlay == nullptr && bHasVertexNormals)
+		{
+			SetInstanceNormal(InstanceTri[0], Mesh->GetVertexNormal(Triangle[0]));
+			SetInstanceNormal(InstanceTri[1], Mesh->GetVertexNormal(Triangle[1]));
+			SetInstanceNormal(InstanceTri[2], Mesh->GetVertexNormal(Triangle[2]));
 		}
 	}
 }

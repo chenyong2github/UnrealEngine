@@ -187,6 +187,32 @@ namespace VectorUtil
 	}
 
 	/**
+	 * Calculates one vector perpendicular to input Normal, as efficiently as possible.
+	 */
+	template <typename RealType>
+	inline void MakePerpVector(const FVector3<RealType>& Normal, FVector3<RealType>& OutPerp1)
+	{
+		// Duff et al method, from https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+		if (Normal.Z < (RealType)0)
+		{
+			RealType A = (RealType)1 / ((RealType)1 - Normal.Z);
+			RealType B = Normal.X * Normal.Y * A;
+			OutPerp1.X = (RealType)1 - Normal.X * Normal.X * A;
+			OutPerp1.Y = -B;
+			OutPerp1.Z = Normal.X;
+		}
+		else
+		{
+			RealType A = (RealType)1 / ((RealType)1 + Normal.Z);
+			RealType B = -Normal.X * Normal.Y * A;
+			OutPerp1.X = (RealType)1 - Normal.X * Normal.X * A;
+			OutPerp1.Y = B;
+			OutPerp1.Z = -Normal.X;
+		}
+	}
+
+
+	/**
 	 * Calculates angle between VFrom and VTo after projection onto plane with normal defined by PlaneN
 	 * @return angle in degrees
 	 */
@@ -271,5 +297,36 @@ namespace VectorUtil
 		B.Normalize();
 		return A.AngleD(B);
 	}
+
+
+
+	/**
+	 * @return sign of Binormal/Bitangent relative to Normal and Tangent
+	 */
+	template<typename RealType>
+	inline RealType BinormalSign(const FVector3<RealType>& NormalIn, const FVector3<RealType>& TangentIn, const FVector3<RealType>& BinormalIn)
+	{
+		// following math from RenderUtils.h::GetBasisDeterminantSign()
+		RealType Cross00 = BinormalIn.Y*NormalIn.Z - BinormalIn.Z*NormalIn.Y;
+		RealType Cross10 = BinormalIn.Z*NormalIn.X - BinormalIn.X*NormalIn.Z;
+		RealType Cross20 = BinormalIn.X*NormalIn.Y - BinormalIn.Y*NormalIn.X;
+		RealType Determinant = TangentIn.X*Cross00 + TangentIn.Y*Cross10 + TangentIn.Z*Cross20;
+		return (Determinant < 0) ? (RealType)-1 : (RealType)1;
+	}
+
+	/**
+	 * @return Binormal vector based on given Normal, Tangent, and Sign value (+1/-1)
+	 */
+	template<typename RealType>
+	inline FVector3<RealType> Binormal(const FVector3<RealType>& NormalIn, const FVector3<RealType>& TangentIn, RealType BinormalSign)
+	{
+		return BinormalSign * FVector3<RealType>(
+			NormalIn.Y*TangentIn.Z - NormalIn.Z*TangentIn.Y,
+			NormalIn.Z*TangentIn.X - NormalIn.X*TangentIn.Z,
+			NormalIn.X*TangentIn.Y - NormalIn.Y*TangentIn.X);
+	}
+
+
+
 
 }; // namespace VectorUtil

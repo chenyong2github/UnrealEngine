@@ -173,8 +173,11 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		FPolygonGroupID PolygonGroupID = MeshIn->GetPolygonPolygonGroup(PolygonID);
 
 		const TArray<FMeshTriangle>& Triangles = MeshIn->GetPolygonTriangles(PolygonID);
-		for (FMeshTriangle Triangle : Triangles)
+		int NumTriangles = Triangles.Num();
+		for ( int TriIdx = 0; TriIdx < NumTriangles; ++TriIdx)
 		{
+			const FMeshTriangle& Triangle = Triangles[TriIdx];
+				
 			FVertexInstanceID InstanceTri[3];
 			InstanceTri[0] = Triangle.VertexInstanceID0; 
 			InstanceTri[1] = Triangle.VertexInstanceID1; 
@@ -204,6 +207,11 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 			int VertexID2 = MeshIn->GetVertexInstance(Triangle.VertexInstanceID2).VertexID.GetValue();
 			int NewTriangleID = MeshOut.AppendTriangle(VertexID0, VertexID1, VertexID2, GroupID);
 			FIndex3i Tri(VertexID0, VertexID1, VertexID2);
+
+			if (bCalculateMaps)
+			{
+				TriToPolyTriMap.Insert(FIndex2i(PolygonID.GetValue(), TriIdx), NewTriangleID);
+			}
 
 			if (UVOverlay != nullptr)
 			{
@@ -235,6 +243,50 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		int NumUVs = (UVOverlay != nullptr) ? UVOverlay->MaxElementID() : 0;
 		int NumNormals = (NormalOverlay != nullptr) ? NormalOverlay->MaxElementID() : 0;
 		UE_LOG(LogTemp, Warning, TEXT("FMeshDescriptionToDynamicMesh:  FDynamicMesh verts %d triangles %d uvs %d normals %d"), MeshOut.MaxVertexID(), MeshOut.MaxTriangleID(), NumUVs, NumNormals);
+	}
+
+}
+
+
+
+
+
+void FMeshDescriptionToDynamicMesh::CopyTangents(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, FMeshTangentsf& TangentsOut)
+{
+	check(bCalculateMaps == true);
+	check(TriToPolyTriMap.Num() == TargetMesh->TriangleCount());
+
+	TVertexInstanceAttributesConstRef<FVector> InstanceNormals =
+		SourceMesh->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	TVertexInstanceAttributesConstRef<FVector> InstanceTangents =
+		SourceMesh->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
+	TVertexInstanceAttributesConstRef<float> InstanceSigns =
+		SourceMesh->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
+	check(InstanceNormals.IsValid());
+	check(InstanceTangents.IsValid());
+	check(InstanceSigns.IsValid());
+
+	TangentsOut.SetMesh(TargetMesh);
+	TangentsOut.InitializePerTriangleTangents(false);
+	
+	for (int TriID : TargetMesh->TriangleIndicesItr())
+	{
+		FIndex2i PolyTriIdx = TriToPolyTriMap[TriID];
+		const TArray<FMeshTriangle>& Triangles = SourceMesh->GetPolygonTriangles( FPolygonID(PolyTriIdx.A) );
+		const FMeshTriangle& Triangle = Triangles[PolyTriIdx.B];
+		FVertexInstanceID InstanceTri[3];
+		InstanceTri[0] = Triangle.VertexInstanceID0;
+		InstanceTri[1] = Triangle.VertexInstanceID1;
+		InstanceTri[2] = Triangle.VertexInstanceID2;
+		for (int j = 0; j < 3; ++j)
+		{
+			FVector Normal = InstanceNormals.Get(InstanceTri[j], 0);
+			FVector Tangent = InstanceTangents.Get(InstanceTri[j], 0);
+			float BinormalSign = InstanceSigns.Get(InstanceTri[j], 0);
+			FVector3f Bitangent = VectorUtil::Binormal((FVector3f)Normal, (FVector3f)Tangent, (float)BinormalSign);
+			Tangent.Normalize(); Bitangent.Normalize();
+			TangentsOut.SetPerTriangleTangent(TriID, j, Tangent, Bitangent);
+		}
 	}
 
 }

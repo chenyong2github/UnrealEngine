@@ -58,9 +58,23 @@ struct FVector3
 	}
 
 
-	inline operator FColor() const
+	explicit inline operator FLinearColor() const
 	{
-		return FColor((float)X, (float)Y, (float)Z);
+		return FLinearColor((float)X, (float)Y, (float)Z);
+	}
+	inline FVector3(const FLinearColor& Color)
+	{
+		X = (T)Color.R;
+		Y = (T)Color.G;
+		Z = (T)Color.B;
+	}
+
+	explicit inline operator FColor() const
+	{
+		return FColor(
+			FMathf::Clamp((int)((float)X*255.0f), 0, 255),
+			FMathf::Clamp((int)((float)Y*255.0f), 0, 255),
+			FMathf::Clamp((int)((float)Z*255.0f), 0, 255));
 	}
 
 

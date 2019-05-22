@@ -49,6 +49,7 @@ public:
 	static inline bool IsNaN(const RealType Value);
 	static inline bool IsFinite(const RealType Value);
 	static inline RealType Abs(const RealType Value);
+	static inline RealType Clamp(const RealType Value, const RealType ClampMin, const RealType ClampMax);
 	static inline RealType Sign(const RealType Value);
 	static inline RealType SignNonZero(const RealType Value);
 	static inline RealType Max(const RealType A, const RealType B);
@@ -92,6 +93,13 @@ template<typename RealType>
 RealType TMathUtil<RealType>::Abs(const RealType Value)
 {
 	return (Value >= (RealType)0) ? Value : -Value;
+}
+
+
+template<typename RealType>
+RealType TMathUtil<RealType>::Clamp(const RealType Value, const RealType ClampMin, const RealType ClampMax)
+{
+	return (Value < ClampMin) ? ClampMin : ((Value > ClampMax) ? ClampMax : Value);
 }
 
 

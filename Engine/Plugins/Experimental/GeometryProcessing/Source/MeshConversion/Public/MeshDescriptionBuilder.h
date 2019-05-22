@@ -45,7 +45,11 @@ public:
 	/** Set the UV and Normal of a vertex instance*/
 	void SetInstance(const FVertexInstanceID& InstanceID, const FVector2D& InstanceUV, const FVector& InstanceNormal);
 
+	/** Set the Normal of a vertex instance*/
+	void SetInstanceNormal(const FVertexInstanceID& InstanceID, const FVector& Normal);
 
+	/** Set the Color of a vertex instance*/
+	void SetInstanceColor(const FVertexInstanceID& InstanceID, const FVector4& Color);
 
 	/** Enable per-triangle integer attribute named PolyTriGroups */
 	void EnablePolyGroups();
@@ -104,6 +108,7 @@ protected:
 	TVertexAttributesRef<FVector> VertexPositions;
 	TVertexInstanceAttributesRef<FVector2D> InstanceUVs;
 	TVertexInstanceAttributesRef<FVector> InstanceNormals;
+	TVertexInstanceAttributesRef<FVector4> InstanceColors;
 	TArray<FVertexID> TempBuffer;
 	TArray<FVector2D> UVBuffer;
 	TArray<FVector> NormalBuffer;

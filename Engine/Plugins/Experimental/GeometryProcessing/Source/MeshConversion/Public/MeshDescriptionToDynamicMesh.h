@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh3.h"
+#include "MeshTangents.h"
 #include "MeshDescription.h"
 
 /**
@@ -22,6 +23,13 @@ public:
 
 	/** Should we initialize triangle groups on output mesh */
 	bool bEnableOutputGroups = true;
+
+	/** Should we calculate conversion index maps */
+	bool bCalculateMaps = true;
+
+	/** map from triangle ID to (polygon,triangle) pair */
+	TArray<FIndex2i> TriToPolyTriMap;
+
 
 	/**
 	 * Various modes can be used to create output triangle groups
@@ -43,4 +51,10 @@ public:
 	 * Default conversion of MeshDescription to DynamicMesh
 	 */
 	void Convert(const FMeshDescription* MeshIn, FDynamicMesh3& MeshOut);
+
+	/**
+	 * Copy tangents from MeshDescription to a FMeshTangents instance.
+	 * @warning Convert() must have been used to create the TargetMesh before calling this function
+	 */
+	void CopyTangents(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, FMeshTangentsf& TangentsOut);
 };
