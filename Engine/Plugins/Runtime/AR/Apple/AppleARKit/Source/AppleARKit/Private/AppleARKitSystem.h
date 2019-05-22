@@ -146,7 +146,10 @@ private:
 	
 	/** Updates the ARKit perf counters */
 	void UpdateARKitPerfStats();
-	
+
+	/** Inits the textures and sets the texture on the overlay */
+	void SetupCameraTextures();
+
 	/** The orientation of the device; see EDeviceScreenOrientation */
 	EDeviceScreenOrientation DeviceOrientation;
 	

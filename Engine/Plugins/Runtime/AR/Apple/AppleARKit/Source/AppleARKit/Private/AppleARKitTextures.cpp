@@ -45,22 +45,31 @@ public:
 			CGColorSpaceRef ColorSpaceRef = CGColorSpaceCreateDeviceRGB();
 			CIImage* Image = [[CIImage alloc] initWithCVPixelBuffer: CameraImage];
 
-			// Textures always need to be rotated to the "LandscapeRight" orientation
+			// Textures always need to be rotated so to a sane orientation (and mirrored because of differing coord system)
 			CIImage* RotatedImage = [Image imageByApplyingOrientation: GetRotationFromDeviceOrientation()];
+			// Get the sizes from the rotated image
+			CGRect ImageExtent = RotatedImage.extent;
 
-			// Get the size using the rotated image
-			Size.X = RotatedImage.extent.size.width;
-			Size.Y = RotatedImage.extent.size.height;
-
-			// Create the target texture that we'll update into
-			FRHIResourceCreateInfo CreateInfo;
-			DecodedTextureRef = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_Dynamic | TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+			// Don't reallocate the texture if the sizes match
+			if (Size.X != ImageExtent.size.width || Size.Y != ImageExtent.size.height)
+			{
+				Size.X = ImageExtent.size.width;
+				Size.Y = ImageExtent.size.height;
+				
+				// Let go of the last texture
+				RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, FTextureRHIParamRef());
+				DecodedTextureRef.SafeRelease();
+				
+				// Create the target texture that we'll update into
+				FRHIResourceCreateInfo CreateInfo;
+				DecodedTextureRef = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_Dynamic | TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
+			}
 
 			// Get the underlying metal texture so we can render to it
 			id<MTLTexture> UnderlyingMetalTexture = (id<MTLTexture>)DecodedTextureRef->GetNativeResource();
 
 			// Do the conversion on the GPU
-			[[CIContext context] render: RotatedImage toMTLTexture: UnderlyingMetalTexture commandBuffer: nil bounds: RotatedImage.extent colorSpace: ColorSpaceRef];
+			[[CIContext context] render: RotatedImage toMTLTexture: UnderlyingMetalTexture commandBuffer: nil bounds: ImageExtent colorSpace: ColorSpaceRef];
 
 			// Now that the conversion is done, we can get rid of our refs
 			[Image release];
@@ -119,7 +128,6 @@ public:
 		if (LastFrameNumber != GFrameNumber)
 		{
 			LastFrameNumber = GFrameNumber;
-			ReleaseRHI();
 			CameraImage = InCameraImage;
 			CFRetain(CameraImage);
 			InitRHI();
@@ -132,27 +140,28 @@ private:
 	/** @return the rotation to use to rotate the texture to the proper direction */
 	int32 GetRotationFromDeviceOrientation()
 	{
-		extern UIInterfaceOrientation GInterfaceOrientation;
-		switch (GInterfaceOrientation)
+		// NOTE: The texture we are reading from is in device space and mirrored, because Apple hates us
+		EDeviceScreenOrientation ScreenOrientation = FPlatformMisc::GetDeviceOrientation();
+		switch (ScreenOrientation)
 		{
-			case UIInterfaceOrientationPortrait:
+			case EDeviceScreenOrientation::Portrait:
 			{
-				return kCGImagePropertyOrientationRight;
+				return kCGImagePropertyOrientationRightMirrored;
 			}
 
-			case UIInterfaceOrientationLandscapeLeft:
+			case EDeviceScreenOrientation::LandscapeLeft:
 			{
-				return kCGImagePropertyOrientationDown;
+				return kCGImagePropertyOrientationUpMirrored;
 			}
 
-			case UIInterfaceOrientationPortraitUpsideDown:
+			case EDeviceScreenOrientation::PortraitUpsideDown:
 			{
-				return kCGImagePropertyOrientationLeft;
+				return kCGImagePropertyOrientationLeftMirrored;
 			}
 
-			case UIInterfaceOrientationLandscapeRight:
+			case EDeviceScreenOrientation::LandscapeRight:
 			{
-				return kCGImagePropertyOrientationUp;
+				return kCGImagePropertyOrientationDownMirrored;
 			}
 		}
 		// Don't know so don't rotate

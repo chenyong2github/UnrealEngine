@@ -89,6 +89,11 @@ public:
 	{
 		ThreadPriority.Set(NewPriority);
 	}
+
+	void SetOverlayTexture(UARTextureCameraImage* InCameraImage)
+	{
+		VideoOverlay.SetOverlayTexture(InCameraImage);
+	}
 	
 private:
 	//~ FDefaultXRCamera
@@ -140,25 +145,12 @@ private:
 	
 	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override
 	{
-		// Grab the latest frame from ARKit
-		{
-			FScopeLock ScopeLock(&ARKitSystem.FrameLock);
-			ARKitSystem.RenderThreadFrame = ARKitSystem.LastReceivedFrame;
-		}
-		
-		// @todo arkit: Camera late update? 
-		
-		if (ARKitSystem.RenderThreadFrame.IsValid())
-		{
-			VideoOverlay.UpdateVideoTexture_RenderThread(RHICmdList, *ARKitSystem.RenderThreadFrame, InViewFamily);
-		}
-		
 		FDefaultXRCamera::PreRenderViewFamily_RenderThread(RHICmdList, InViewFamily);
 	}
 	
 	virtual void PostRenderBasePass_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override
 	{
-		VideoOverlay.RenderVideoOverlay_RenderThread(RHICmdList, InView, ARKitSystem.DeviceOrientation);
+		VideoOverlay.RenderVideoOverlay_RenderThread(RHICmdList, InView);
 	}
 	
 	virtual bool GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs) override
@@ -183,13 +175,8 @@ private:
 		{
 			return bRenderOverlay;
 		}
-		else
-		{
-			return false;
-		}
-#else
-		return false;
 #endif
+		return false;
 	}
 	//~ FDefaultXRCamera
 	
@@ -375,22 +362,12 @@ void FAppleARKitSystem::UpdateFrame()
 #if SUPPORTS_ARKIT_1_0
 			if (GameThreadFrame->CameraImage != nullptr)
 			{
-				// Only create a new camera image texture if it's set and we don't already have one
-				if (CameraImage == nullptr)
-				{
-					CameraImage = NewObject<UAppleARKitTextureCameraImage>();
-				}
 				// Reuse the UObjects because otherwise the time between GCs causes ARKit to be starved of resources
                 CameraImage->Init(FPlatformTime::Seconds(), GameThreadFrame->CameraImage);
 			}
 
 			if (GameThreadFrame->CameraDepth != nullptr)
 			{
-				// Only create a new camera depth texture if it's set and we don't already have one
-				if (CameraDepth == nullptr)
-				{
-					CameraDepth = NewObject<UAppleARKitTextureCameraDepth>();
-				}
 				// Reuse the UObjects because otherwise the time between GCs causes ARKit to be starved of resources
                 CameraDepth->Init(FPlatformTime::Seconds(), GameThreadFrame->CameraDepth);
 			}
@@ -1178,10 +1155,29 @@ void FAppleARKitSystem::ClearTrackedGeometries()
 #endif
 }
 
+void FAppleARKitSystem::SetupCameraTextures()
+{
+#if SUPPORTS_ARKIT_1_0
+	if (CameraImage == nullptr)
+	{
+		CameraImage = NewObject<UAppleARKitTextureCameraImage>();
+		CameraImage->Init(FPlatformTime::Seconds(), nullptr);
+		FAppleARKitXRCamera* Camera = (FAppleARKitXRCamera*)XRCamera.Get();
+		Camera->SetOverlayTexture(CameraImage);
+	}
+	if (CameraDepth == nullptr)
+	{
+		CameraDepth = NewObject<UAppleARKitTextureCameraDepth>();
+	}
+#endif
+}
+
 PRAGMA_DISABLE_OPTIMIZATION
 bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 {
 	TimecodeProvider = UAppleARKitSettings::GetTimecodeProvider();
+
+	SetupCameraTextures();
 
 	{
 		// Clear out any existing frames since they aren't valid anymore
