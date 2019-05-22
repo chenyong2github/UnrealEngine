@@ -3335,6 +3335,9 @@ void FLevelEditorViewportClient::MoveLockedActorToCamera()
 				}
 			}
 
+			// Need to disable orbit camera before setting actor position so that the viewport camera location is converted back
+			GCurrentLevelEditingViewportClient->ToggleOrbitCamera(false);
+
 			// If we're locked to a camera then we're reflecting the camera view and not the actor position. We need to reflect that delta when we reposition the piloted actor
 			if (bUseControllingActorViewInfo)
 			{
