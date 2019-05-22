@@ -645,17 +645,9 @@ bool UNavigationSystemV1::ConditionalPopulateNavOctree()
 			for (int32 LevelIndex = 0; LevelIndex < World->GetNumLevels(); ++LevelIndex)
 			{
 				ULevel* Level = World->GetLevel(LevelIndex);
-				AddLevelCollisionToOctree(Level);
-
-				for (int32 ActorIndex = 0; ActorIndex < Level->Actors.Num(); ActorIndex++)
+				if (ensure(Level))
 				{
-					AActor* Actor = Level->Actors[ActorIndex];
-
-					const bool bLegalActor = Actor && !Actor->IsPendingKill();
-					if (bLegalActor)
-					{
-						ConditionalPopulateNavOctreeActor(*Actor);
-					}
+					AddLevelToOctree(*Level);
 				}
 			}
 		}
@@ -3029,11 +3021,6 @@ void UNavigationSystemV1::OnActorUnregistered(AActor* Actor)
 	}
 }
 
-void UNavigationSystemV1::ConditionalPopulateNavOctreeActor(AActor& Actor)
-{
-	UpdateActorAndComponentsInNavOctree(Actor);
-}
-
 void UNavigationSystemV1::FindElementsInNavOctree(const FBox& QueryBox, const FNavigationOctreeFilter& Filter, TArray<FNavigationOctreeElement>& Elements)
 {
 	if (NavOctree.IsValid() == false)
@@ -3705,6 +3692,22 @@ void UNavigationSystemV1::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWor
 					}
 				}
 			}
+		}
+	}
+}
+
+void UNavigationSystemV1::AddLevelToOctree(ULevel& Level)
+{
+	AddLevelCollisionToOctree(&Level);
+
+	for (int32 ActorIndex = 0; ActorIndex < Level.Actors.Num(); ActorIndex++)
+	{
+		AActor* Actor = Level.Actors[ActorIndex];
+
+		const bool bLegalActor = Actor && !Actor->IsPendingKill();
+		if (bLegalActor)
+		{
+			UpdateActorAndComponentsInNavOctree(*Actor);
 		}
 	}
 }

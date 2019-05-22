@@ -712,8 +712,9 @@ protected:
 	/** spawn new crowd manager */
 	virtual void UpdateAbstractNavData();
 
-	/** Called when ConditionalPopulateNavOctree processes each Actor */
-	virtual void ConditionalPopulateNavOctreeActor(AActor& Actor);
+	/** Called during ConditionalPopulateNavOctree and gives subclassess a chance 
+	 *	to influence what gets added */
+	virtual void AddLevelToOctree(ULevel& Level);
 	
 public:
 	/** Called upon UWorld destruction to release what needs to be released */
