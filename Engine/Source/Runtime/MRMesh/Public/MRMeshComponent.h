@@ -48,6 +48,7 @@ public:
 		const TArray<FPackedNormal>& TangentXZData;
 		const TArray<FColor>& ColorData;
 		const TArray<MRMESH_INDEX_TYPE>& Indices;
+		const FBox Bounds;
 	};
 
 	virtual void SetConnected(bool value) = 0;
@@ -112,6 +113,10 @@ public:
 	void SetNeverCreateCollisionMesh(bool bNeverCreate) { bNeverCreateCollisionMesh = bNeverCreate; }
 	void SetEnableNavMesh(bool bEnable) { bUpdateNavMeshOnMeshUpdate = bEnable;  }
 
+	/** Trackers feeding mesh data to this component may want to know when we clear our mesh data */
+	DECLARE_EVENT(UMRMeshComponent, FOnClear);
+	FOnClear& OnClear() { return OnClearEvent; }
+
 private:
 	//~ UPrimitiveComponent
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
@@ -173,4 +178,6 @@ private:
 
 	TArray<FBodyInstance*> BodyInstances;
 	TArray<IMRMesh::FBrickId> BodyIds;
+
+	FOnClear OnClearEvent;
 };
