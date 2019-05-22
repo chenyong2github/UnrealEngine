@@ -252,6 +252,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "AR Settings | World Mapping")
 	bool bRenderMeshDataInWireframe;
 
+	/** Whether the AR system should report scene objects (@see EARObjectClassification::SceneObject) */
+	UPROPERTY(EditAnywhere, Category = "AR Settings | World Mapping")
+	bool bTrackSceneObjects;
+
 private:
 	//~ UObject interface
 	virtual void Serialize(FArchive& Ar) override;
