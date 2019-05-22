@@ -36,7 +36,7 @@ FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
 	FHullShaderRHIParamRef HullShader,
 	FDomainShaderRHIParamRef DomainShader,
 	FGeometryShaderRHIParamRef GeometryShader,
-	FBoundShaderStateRHIParamRef InBoundShaderState,
+	FRHIBoundShaderState* InBoundShaderState,
 	bool bAddToSingleThreadedCache
 	):
 	BoundShaderState(InBoundShaderState),
@@ -53,7 +53,7 @@ FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
 	FVertexDeclarationRHIParamRef VertexDeclaration,
 	FVertexShaderRHIParamRef VertexShader,
 	FPixelShaderRHIParamRef PixelShader,
-	FBoundShaderStateRHIParamRef InBoundShaderState,
+	FRHIBoundShaderState* InBoundShaderState,
 	bool bAddToSingleThreadedCache
 	):
 	BoundShaderState(InBoundShaderState),

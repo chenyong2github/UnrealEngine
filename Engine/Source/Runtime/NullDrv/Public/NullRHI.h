@@ -532,9 +532,8 @@ public:
 	{
 	}
 
-	virtual void RHISetBoundShaderState(FBoundShaderStateRHIParamRef BoundShaderState) final override
+	virtual void RHISetBoundShaderState(FRHIBoundShaderState* BoundShaderState) final override
 	{
-
 	}
 
 

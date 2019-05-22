@@ -666,7 +666,7 @@ public:
 	* Set bound shader state. This will set the vertex decl/shader, and pixel shader
 	* @param BoundShaderState - state resource
 	*/
-	virtual void RHISetBoundShaderState(FBoundShaderStateRHIParamRef BoundShaderState) = 0;
+	virtual void RHISetBoundShaderState(FRHIBoundShaderState* BoundShaderState) = 0;
 
 	virtual void RHISetDepthStencilState(FRHIDepthStencilState* NewState, uint32 StencilRef) = 0;
 

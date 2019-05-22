@@ -160,14 +160,14 @@ public:
 	 * The cached bound shader state.  This is not a reference counted pointer because we rely on the RHI to destruct this object
 	 * when the bound shader state this references is destructed.
 	 */
-	FBoundShaderStateRHIParamRef BoundShaderState;
+	FRHIBoundShaderState* BoundShaderState;
 
 	/** Adds the bound shader state to the cache. */
 	FCachedBoundShaderStateLink(
 		FVertexDeclarationRHIParamRef VertexDeclaration,
 		FVertexShaderRHIParamRef VertexShader,
 		FPixelShaderRHIParamRef PixelShader,
-		FBoundShaderStateRHIParamRef InBoundShaderState,
+		FRHIBoundShaderState* InBoundShaderState,
 		bool bAddToSingleThreadedCache = true
 		);
 
@@ -179,7 +179,7 @@ public:
 		FHullShaderRHIParamRef HullShader,
 		FDomainShaderRHIParamRef DomainShader,
 		FGeometryShaderRHIParamRef GeometryShader,
-		FBoundShaderStateRHIParamRef InBoundShaderState,
+		FRHIBoundShaderState* InBoundShaderState,
 		bool bAddToSingleThreadedCache = true
 		);
 
@@ -229,7 +229,7 @@ public:
 		FVertexDeclarationRHIParamRef VertexDeclaration,
 		FVertexShaderRHIParamRef VertexShader,
 		FPixelShaderRHIParamRef PixelShader,
-		FBoundShaderStateRHIParamRef InBoundShaderState
+		FRHIBoundShaderState* InBoundShaderState
 		)
 		: FCachedBoundShaderStateLink(VertexDeclaration, VertexShader, PixelShader, InBoundShaderState, false)
 	{
@@ -243,7 +243,7 @@ public:
 		FHullShaderRHIParamRef HullShader,
 		FDomainShaderRHIParamRef DomainShader,
 		FGeometryShaderRHIParamRef GeometryShader,
-		FBoundShaderStateRHIParamRef InBoundShaderState
+		FRHIBoundShaderState* InBoundShaderState
 		)
 		: FCachedBoundShaderStateLink(VertexDeclaration, VertexShader, PixelShader, HullShader, DomainShader, GeometryShader, InBoundShaderState, false)
 	{

@@ -34,7 +34,7 @@ public:
 	 * If this global bound shader state hasn't been initialized yet, initialize it.
 	 * @return The bound shader state RHI.
 	 */
-	FBoundShaderStateRHIParamRef GetInitializedRHI(
+	FRHIBoundShaderState* GetInitializedRHI(
 		FVertexDeclarationRHIParamRef VertexDeclaration, 
 		FVertexShaderRHIParamRef VertexShader, 
 		FPixelShaderRHIParamRef PixelShader,
@@ -45,7 +45,7 @@ public:
 	 * If this global bound shader state has been initialized return it, otherwise return null. Can be called from any thread.
 	 * @return The bound shader state RHI.
 	 */
-	FBoundShaderStateRHIParamRef GetPreinitializedRHI();
+	FRHIBoundShaderState* GetPreinitializedRHI();
 
 private:
 

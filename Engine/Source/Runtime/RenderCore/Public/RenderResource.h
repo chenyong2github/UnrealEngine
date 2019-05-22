@@ -768,7 +768,7 @@ public:
 	{}
 
 	/** Adds a bound shader state to the history. */
-	FORCEINLINE void Add(FBoundShaderStateRHIParamRef BoundShaderState)
+	FORCEINLINE void Add(FRHIBoundShaderState* BoundShaderState)
 	{
 		if (TThreadSafe && GRHISupportsParallelRHIExecute)
 		{
@@ -782,7 +782,7 @@ public:
 		}
 	}
 
-	FBoundShaderStateRHIParamRef GetLast()
+	FRHIBoundShaderState* GetLast()
 	{
 		check(!GRHISupportsParallelRHIExecute);
 		// % doesn't work as we want on negative numbers, so handle the wraparound manually

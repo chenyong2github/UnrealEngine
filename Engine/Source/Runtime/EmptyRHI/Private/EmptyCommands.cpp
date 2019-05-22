@@ -55,7 +55,7 @@ void FEmptyDynamicRHI::RHISetScissorRect(bool bEnable,uint32 MinX,uint32 MinY,ui
 
 }
 
-void FEmptyDynamicRHI::RHISetBoundShaderState( FBoundShaderStateRHIParamRef BoundShaderStateRHI)
+void FEmptyDynamicRHI::RHISetBoundShaderState(FRHIBoundShaderState* BoundShaderStateRHI)
 {
 	FEmptyBoundShaderState* BoundShaderState = ResourceCast(BoundShaderStateRHI);
 
