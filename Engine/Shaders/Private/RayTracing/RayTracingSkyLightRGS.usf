@@ -240,10 +240,13 @@ void SkyLightRGS()
 	float3 CameraOrigin = View.WorldCameraOrigin;
 	float3 CameraDirection = normalize(WorldPosition - CameraOrigin);
 	float3 WorldNormal = ScreenSpaceData.GBuffer.WorldNormal;
-	float3 BaseColor = ScreenSpaceData.GBuffer.BaseColor;
+	float3 Albedo = ScreenSpaceData.GBuffer.DiffuseColor;
+
+	// Recalculate DiffuseColor if subsurface reverted the contribution within the G-Buffer
 	if (UseSubsurfaceProfile(GBuffer.ShadingModelID))
 	{
-		ScreenSpaceData.GBuffer.DiffuseColor = ScreenSpaceData.GBuffer.StoredBaseColor;
+		Albedo = ScreenSpaceData.GBuffer.StoredBaseColor - ScreenSpaceData.GBuffer.StoredBaseColor * ScreenSpaceData.GBuffer.Metallic;
+		ScreenSpaceData.GBuffer.DiffuseColor = Albedo;
 	}
 	float3 SpecularColor = ScreenSpaceData.GBuffer.SpecularColor;
 	float Roughness = ScreenSpaceData.GBuffer.Roughness;
@@ -353,7 +356,6 @@ void SkyLightRGS()
 	}
 
 	// Pre-divide by albedo, to be recovered in compositing
-	float3 Albedo = ScreenSpaceData.GBuffer.BaseColor;
 	DiffuseExitantRadiance.r = Albedo.r > 0.0 ? DiffuseExitantRadiance.r / Albedo.r : DiffuseExitantRadiance.r;
 	DiffuseExitantRadiance.g = Albedo.g > 0.0 ? DiffuseExitantRadiance.g / Albedo.g : DiffuseExitantRadiance.g;
 	DiffuseExitantRadiance.b = Albedo.b > 0.0 ? DiffuseExitantRadiance.b / Albedo.b : DiffuseExitantRadiance.b;
