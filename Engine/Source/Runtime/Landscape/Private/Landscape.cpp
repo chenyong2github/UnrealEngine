@@ -1742,7 +1742,7 @@ void ALandscapeProxy::PostRegisterAllComponents()
 
 #if WITH_EDITOR
 	// Game worlds don't have landscape infos
-	if (!GetWorld()->IsGameWorld())
+	if (!GetWorld()->IsGameWorld() && !IsPendingKillPending())
 	{
 		// Duplicated Landscapes don't have a valid guid until PostEditImport is called, we'll register then
 		if (LandscapeGuid.IsValid())
