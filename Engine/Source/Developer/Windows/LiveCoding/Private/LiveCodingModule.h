@@ -39,6 +39,7 @@ private:
 	bool bEnabledLastTick;
 	bool bEnabledForSession;
 	bool bStarted;
+	bool bUpdateModulesInTick;
 	TSet<FName> ConfiguredModules;
 
 	const FString FullEnginePluginsDir;
