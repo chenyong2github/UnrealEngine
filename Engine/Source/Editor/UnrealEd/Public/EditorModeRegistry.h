@@ -52,6 +52,9 @@ struct FEditorModeInfo
 	/** The mode ID */
 	FEditorModeID ID;
 
+	/** Name of the toolbar this mode uses and can be used by external systems to customize that mode toolbar */
+	FName ToolbarCustomizationName;
+
 	/** Name for the editor to display */
 	FText Name;
 
