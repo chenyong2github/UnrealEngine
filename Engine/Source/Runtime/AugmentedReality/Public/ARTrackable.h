@@ -63,6 +63,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality|Tracked Geometry")
 	FGuid UniqueId;
 
+	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Scene Understanding")
+	EARObjectClassification GetObjectClassification() const { return ObjectClassification; }
+	void SetObjectClassification(EARObjectClassification InClassification) { ObjectClassification = InClassification; }
+
 protected:
 	TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> GetARSystem() const;
 	
@@ -81,6 +85,10 @@ protected:
 	/** For AR systems that support arbitrary mesh geometry associated with a tracked point */
 	UPROPERTY()
 	UMRMeshComponent* UnderlyingMesh;
+
+	/** What the scene understanding system thinks this object is */
+	UPROPERTY()
+	EARObjectClassification ObjectClassification;
 
 private:
 	TWeakPtr<FARSupportInterface , ESPMode::ThreadSafe> ARSystem;
@@ -127,14 +135,7 @@ public:
 	EARPlaneOrientation GetOrientation() const { return Orientation; }
 	void SetOrientation(EARPlaneOrientation InOrientation) { Orientation = InOrientation; }
 
-	UFUNCTION(BlueprintPure, Category="AR AugmentedReality|Plane Geometry")
-	EARObjectClassification GetObjectClassification() const { return ObjectClassification; }
-	void SetObjectClassification(EARObjectClassification InClassification) { ObjectClassification = InClassification; }
-
 private:
-	UPROPERTY()
-	EARObjectClassification ObjectClassification;
-
 	UPROPERTY()
 	EARPlaneOrientation Orientation;
 
@@ -192,14 +193,6 @@ public:
 	/** Whether the image is currently being tracked by the AR system */
 	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality|Face Geometry")
 	bool bIsTracked;
-
-	UFUNCTION(BlueprintPure, Category="AR AugmentedReality|Plane Geometry")
-	EARObjectClassification GetObjectClassification() const { return ObjectClassification; }
-	void SetObjectClassification(EARObjectClassification InClassification) { ObjectClassification = InClassification; }
-
-private:
-	UPROPERTY()
-	EARObjectClassification ObjectClassification;
 
 protected:
 	/** The candidate image that was detected in the scene */

@@ -58,7 +58,7 @@ bool UARTrackedGeometry::IsTracked() const
 
 void UARTrackedGeometry::SetTrackingState(EARTrackingState NewState)
 {
-	TrackingState = NewState;
+	UpdateTrackingState(NewState);
 }
 
 FTransform UARTrackedGeometry::GetLocalToWorldTransform() const
@@ -94,10 +94,13 @@ void UARTrackedGeometry::UpdateTrackingState( EARTrackingState NewTrackingState 
 {
 	TrackingState = NewTrackingState;
 
-	if (TrackingState == EARTrackingState::StoppedTracking && NativeResource)
+	if (TrackingState == EARTrackingState::StoppedTracking)
 	{
-		// Remove reference to the native resource since the tracked geometry is stopped tracking.
-		NativeResource->RemoveRef();
+		if (NativeResource.IsValid())
+		{
+			// Remove reference to the native resource since the tracked geometry is stopped tracking.
+			NativeResource->RemoveRef();
+		}
 	}
 }
 
@@ -219,6 +222,7 @@ void UARFaceGeometry::UpdateFaceGeometry(const TSharedRef<FARSupportInterface, E
 	LeftEyeTransform = InLeftEyeTransform;
 	RightEyeTransform = InRightEyeTransform;
 	LookAtTarget = InLookAtTarget;
+	ObjectClassification = EARObjectClassification::Face;
 }
 
 void UARTrackedPoint::DebugDraw(UWorld* World, const FLinearColor& OutlineColor, float OutlineThickness, float PersistForSeconds /*= 0.0f*/) const
@@ -322,5 +326,6 @@ void UARTrackedObject::UpdateTrackedGeometry(const TSharedRef<FARSupportInterfac
 {
 	Super::UpdateTrackedGeometry(InTrackingSystem, FrameNumber, Timestamp, InLocalToTrackingTransform, InAlignmentTransform);
 	DetectedObject = InDetectedObject;
+	ObjectClassification = EARObjectClassification::SceneObject;
 }
 

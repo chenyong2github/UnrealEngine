@@ -145,20 +145,28 @@ enum class EARPlaneOrientation : uint8
 UENUM(BlueprintType)
 enum class EARObjectClassification : uint8
 {
+	/** Not applicable to scene understanding */
+	NotApplicable,
 	/** Scene understanding doesn't know what this is */
 	Unknown,
-	/** The vertical plane that is a wall */
+	/** A vertical plane that is a wall */
 	Wall,
-	/** The horizontal plane that is the ceiling */
+	/** A horizontal plane that is the ceiling */
 	Ceiling,
-	/** The horizontal plane that is the floor */
+	/** A horizontal plane that is the floor */
 	Floor,
-	/** The horizontal plane that is a table */
+	/** A horizontal plane that is a table */
 	Table,
-	/** The horizontal plane that is a seat */
+	/** A horizontal plane that is a seat */
 	Seat,
+	/** A human face */
+	Face,
 	/** A recognized image in the scene */
 	Image,
+	/** A chunk of mesh that does not map to a specific object type but is seen by the AR system */
+	World,
+	/** A mesh that was recognized in the scene */
+	SceneObject,
 	// Add other types here...
 };
 
