@@ -3,8 +3,10 @@
 #include "SStartPageWindow.h"
 
 #include "EditorStyleSet.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/WorkspaceItem.h"
 #include "SlateOptMacros.h"
+#include "TraceServices/SessionService.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
@@ -25,9 +27,11 @@
 
 // Insights
 #include "Insights/InsightsManager.h"
+#include "Insights/TimingProfilerManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/Version.h"
 #include "Insights/Widgets/SInsightsSettings.h"
+#include "Insights/Widgets/STimingProfilerWindow.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -35,7 +39,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO: move this function to InsightsManager or in TraceSession.h
+
 static FText GetTextForNotification(const EInsightsNotificationType NotificatonType, const ELoadingProgressState ProgressState, const FString& Filename, const float ProgressPercent = 0.0f)
 {
 	FText Result;
@@ -117,97 +121,151 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 
 			// Overlay slot for the main window area
 			+ SOverlay::Slot()
-				.HAlign(HAlign_Center)
+				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Center)
 				[
-					SNew(SHorizontalBox)
+					SNew(SVerticalBox)
 
-					+ SHorizontalBox::Slot()
-						.AutoWidth()
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.HAlign(HAlign_Center)
 						[
-							SNew(SButton)
-							//.OnClicked(this, &StartPageWindow::Live_OnClicked)
-							.ToolTipText(LOCTEXT("LiveButtonTooltip", "Start a live session or try loading the last trace file."))
-							.ContentPadding(8.0f)
-							.Content()
+							SNew(SBorder)
+							.Visibility(this, &SStartPageWindow::IsSessionOverlayVisible)
+							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+							.Padding(8.0f)
 							[
-								SNew(SHorizontalBox)
-
-								+SHorizontalBox::Slot()
-									.AutoWidth()
-									[
-										SNew(SImage)
-										.Image(FInsightsStyle::GetBrush("Live.Icon.Large"))
-									]
-								+SHorizontalBox::Slot()
-									.AutoWidth()
-									.VAlign(VAlign_Center)
-									[
-										SNew(SBox)
-										.WidthOverride(100.0f)
-										[
-											SNew(STextBlock)
-											.Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
-											.Text(LOCTEXT("LiveButtonText", "Live"))
-										]
-									]
+								SNew(STextBlock)
+								.Text(LOCTEXT("SelectTraceOverlayText", "Please select a trace."))
 							]
 						]
 
-					+ SHorizontalBox::Slot()
-						.AutoWidth()
+					+ SVerticalBox::Slot()
+						.AutoHeight()
 						[
 							SNew(SBox)
-							.WidthOverride(6.0f)
+							.HeightOverride(6.0f)
 						]
 
-					+ SHorizontalBox::Slot()
-						.AutoWidth()
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.HAlign(HAlign_Center)
 						[
-							SNew(SButton)
-							//.OnClicked(this, &StartPageWindow::Load_OnClicked)
-							.ToolTipText(LOCTEXT("LoadButtonTooltip", "Last a trace file."))
-							.ContentPadding(8.0f)
-							.Content()
-							[
-								SNew(SHorizontalBox)
+							SNew(SHorizontalBox)
 
-								+SHorizontalBox::Slot()
-									.AutoWidth()
+							+ SHorizontalBox::Slot()
+								.AutoWidth()
+								[
+									SNew(SButton)
+									.OnClicked(this, &SStartPageWindow::Live_OnClicked)
+									.ToolTipText(LOCTEXT("LiveButtonTooltip", "Start a live session or load the last trace file from the Local Session Directory."))
+									.ContentPadding(8.0f)
+									.Content()
 									[
-										SNew(SImage)
-										.Image(FInsightsStyle::GetBrush("Load.Icon.Large"))
+										SNew(SHorizontalBox)
+
+										+SHorizontalBox::Slot()
+											.AutoWidth()
+											[
+												SNew(SImage)
+												.Image(FInsightsStyle::GetBrush("Live.Icon.Large"))
+											]
+
+										+SHorizontalBox::Slot()
+											.AutoWidth()
+											.VAlign(VAlign_Center)
+											[
+												SNew(SBox)
+												.WidthOverride(100.0f)
+												[
+													SNew(STextBlock)
+													.Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
+													.Text(LOCTEXT("LiveButtonText", "Live"))
+												]
+											]
 									]
-								+SHorizontalBox::Slot()
-									.AutoWidth()
-									.VAlign(VAlign_Center)
+								]
+
+							+ SHorizontalBox::Slot()
+								.AutoWidth()
+								[
+									SNew(SBox)
+									.WidthOverride(6.0f)
+								]
+
+							+ SHorizontalBox::Slot()
+								.AutoWidth()
+								[
+									SNew(SButton)
+									.OnClicked(this, &SStartPageWindow::Load_OnClicked)
+									.ToolTipText(LOCTEXT("LoadButtonTooltip", "Load a trace file."))
+									.ContentPadding(8.0f)
+									.Content()
 									[
-										SNew(SBox)
-										.WidthOverride(100.0f)
-										[
-											SNew(STextBlock)
-											.Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
-											.Text(LOCTEXT("LoadButtonText", "Load..."))
-										]
+										SNew(SHorizontalBox)
+
+										+SHorizontalBox::Slot()
+											.AutoWidth()
+											[
+												SNew(SImage)
+												.Image(FInsightsStyle::GetBrush("Load.Icon.Large"))
+											]
+
+										+SHorizontalBox::Slot()
+											.AutoWidth()
+											.VAlign(VAlign_Center)
+											[
+												SNew(SBox)
+												.WidthOverride(100.0f)
+												[
+													SNew(STextBlock)
+													.Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
+													.Text(LOCTEXT("LoadButtonText", "Load..."))
+												]
+											]
+									]
+								]
+						]
+
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						[
+							SNew(SBox)
+							.HeightOverride(6.0f)
+						]
+
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.HAlign(HAlign_Center)
+						[
+							SNew(SBorder)
+							.Visibility(this, &SStartPageWindow::IsSessionOverlayVisible)
+							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+							.Padding(8.0f)
+							[
+								SNew(SVerticalBox)
+
+								+ SVerticalBox::Slot()
+									.AutoHeight()
+									.HAlign(HAlign_Center)
+									.Padding(0.0, 2.0f)
+									[
+										SNew(STextBlock)
+										.Text(LOCTEXT("LocalSessionDirectoryText", "Local Session Directory:"))
+										.ColorAndOpacity(FLinearColor::Gray)
+									]
+
+								+SVerticalBox::Slot()
+									.AutoHeight()
+									.HAlign(HAlign_Center)
+									.Padding(0.0, 2.0f)
+									[
+										SNew(STextBlock)
+										.Text(this, &SStartPageWindow::GetLocalSessionDirectory)
 									]
 							]
 						]
-				]
 
-			// Session hint overlay
-			+ SOverlay::Slot()
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Padding(0.0f, 0.0f, 0.0f, 48.0f)
-				[
-					SNew(SBorder)
-						.Visibility(this, &SStartPageWindow::IsSessionOverlayVisible)
-						.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-						.Padding(8.0f)
-						[
-							SNew(STextBlock)
-								.Text(LOCTEXT("SelectTraceOverlayText", "Please select a trace."))
-						]
 				]
 
 			// Notification area overlay
@@ -456,6 +514,71 @@ FReply SStartPageWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEven
 	}
 
 	return SCompoundWidget::OnDrop(MyGeometry, DragDropEvent);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStartPageWindow::SpawnAndActivateTabs()
+{
+	//TODO: expose those in FInsightsManager; see also TraceInsightsModule.cpp
+	static const FName StartPageTabName(TEXT("StartPage"));
+	static const FName TimingProfilerTabName(TEXT("TimingProfiler"));
+	static const FName IoProfilerTabName(TEXT("IoProfiler"));
+
+	// Open tabs for profilers.
+	if (FGlobalTabmanager::Get()->CanSpawnTab(TimingProfilerTabName))
+	{
+		FGlobalTabmanager::Get()->InvokeTab(TimingProfilerTabName);
+	}
+	if (FGlobalTabmanager::Get()->CanSpawnTab(IoProfilerTabName))
+	{
+		FGlobalTabmanager::Get()->InvokeTab(IoProfilerTabName);
+	}
+
+	// Ensure Timing Insights / Timing View is the active tab.
+	if (TSharedPtr<SDockTab> TimingInsightsTab = FGlobalTabmanager::Get()->FindExistingLiveTab(TimingProfilerTabName))
+	{
+		//FGlobalTabmanager::Get()->SetActiveTab(TimingProfilerTabName); // doesn't really work :(
+		FGlobalTabmanager::Get()->InvokeTab(TimingProfilerTabName); // this activates the tab (brings the tab in foreground)
+
+		TSharedPtr<class STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (Wnd)
+		{
+			TSharedPtr<FTabManager> TabManager = Wnd->GetTabManager();
+			if (TSharedPtr<SDockTab> TimingViewTab = TabManager->FindExistingLiveTab(FTimingProfilerTabs::TimingViewID))
+			{
+				TabManager->DrawAttention(TimingViewTab.ToSharedRef());
+				TimingViewTab->ActivateInParent(ETabActivationCause::SetDirectly);
+				FSlateApplication::Get().SetKeyboardFocus(TimingViewTab->GetContent());
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SStartPageWindow::GetLocalSessionDirectory() const
+{
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	return FText::FromString(FPaths::ConvertRelativePathToFull(SessionService->GetLocalSessionDirectory()));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SStartPageWindow::Live_OnClicked()
+{
+	SpawnAndActivateTabs();
+	FInsightsManager::Get()->GetCommandList()->ExecuteAction(FInsightsManager::GetCommands().InsightsManager_Live.ToSharedRef());
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SStartPageWindow::Load_OnClicked()
+{
+	SpawnAndActivateTabs();
+	FInsightsManager::Get()->GetCommandList()->ExecuteAction(FInsightsManager::GetCommands().InsightsManager_Load.ToSharedRef());
+	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

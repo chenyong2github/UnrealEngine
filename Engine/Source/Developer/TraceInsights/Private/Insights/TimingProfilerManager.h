@@ -23,8 +23,7 @@ namespace Trace
 /**
  * This class manages the Timing Profiler state and settings.
  */
-class FTimingProfilerManager
-	: public TSharedFromThis<FTimingProfilerManager>
+class FTimingProfilerManager : public TSharedFromThis<FTimingProfilerManager>
 {
 	friend class FTimingProfilerActionManager;
 
@@ -56,7 +55,7 @@ public:
 	}
 
 protected:
-	/** Finishes initialization of the profiler manager */
+	/** Finishes initialization of the profiler manager. */
 	void PostConstructor();
 
 	/** Binds our UI commands to delegates. */

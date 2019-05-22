@@ -95,7 +95,7 @@ void FTraceInsightsModule::StartupModule()
 	// Register tab spawner for the Start Page.
 	auto& StartPageTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterTabSpawner(StartPageTabName,
 		FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnStartPageTab))
-		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "StartPageTabTitle", "Start Page"))
+		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "StartPageTabTitle", "Unreal Insights"))
 		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "StartPageTooltipText", "Open the start page for Unreal Insights."))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "StartPage.Icon.Small"));
 
@@ -155,10 +155,10 @@ void FTraceInsightsModule::OnNewLayout(TSharedRef<FTabManager::FLayout> NewLayou
 		(
 			FTabManager::NewStack()
 			->AddTab(StartPageTabName, ETabState::OpenedTab)
-			->AddTab(TimingProfilerTabName, ETabState::OpenedTab)
-			->AddTab(IoProfilerTabName, ETabState::OpenedTab)
-			//->AddTab(FName("MemoryProfiler"), ETabState::OpenedTab)
-			->SetForegroundTab(FTabId(TimingProfilerTabName))
+			->AddTab(TimingProfilerTabName, ETabState::ClosedTab)
+			->AddTab(IoProfilerTabName, ETabState::ClosedTab)
+			//->AddTab(FName("MemoryProfiler"), ETabState::ClosedTab)
+			->SetForegroundTab(FTabId(StartPageTabName))
 		)
 	);
 }

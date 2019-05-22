@@ -12,8 +12,7 @@ class FMenuBuilder;
 /**
  * Class that holds all profiler commands.
  */
-class FTimingProfilerCommands
-	: public TCommands<FTimingProfilerCommands>
+class FTimingProfilerCommands : public TCommands<FTimingProfilerCommands>
 {
 public:
 	/** Default constructor. */
@@ -81,7 +80,7 @@ class FTimingProfilerActionManager
 	friend class FTimingProfilerManager;
 
 private:
-	/// Private constructor.
+	/** Private constructor. */
 	FTimingProfilerActionManager(class FTimingProfilerManager* Instance)
 		: This(Instance)
 	{}

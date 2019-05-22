@@ -34,34 +34,32 @@ struct FSampleRef
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Widget used to present frames data in a track.
-
+/**
+ * Widget used to present frames data in a track.
+ */
 class SFrameTrack : public SCompoundWidget
 {
 	enum
 	{
-		/// Number of pixels.
+		/** Number of pixels. */
 		MOUSE_SNAP_DISTANCE = 4,
 	};
 
-	struct EFrameTrackCursor
+	enum class EFrameTrackCursor
 	{
-		enum Type
-		{
-			Default,
-			Arrow,
-			Hand,
-		};
+		Default,
+		Arrow,
+		Hand,
 	};
 
 public:
-	/// Default constructor.
+	/** Default constructor. */
 	SFrameTrack();
 
-	/// Virtual destructor.
+	/** Virtual destructor. */
 	virtual ~SFrameTrack();
 
-	/// Resets internal widget's data to the default one.
+	/** Resets internal widget's data to the default one. */
 	void Reset();
 
 	SLATE_BEGIN_ARGS(SFrameTrack)
@@ -70,14 +68,18 @@ public:
 	}
 	SLATE_END_ARGS()
 
-	/// Construct this widget
-	/// @param InArgs The declaration data for this widget
+	/**
+	 * Construct this widget
+	 * @param InArgs The declaration data for this widget
+	 */
 	void Construct(const FArguments& InArgs);
 
-	/// Ticks this widget. Override in derived classes, but always call the parent implementation.
-	/// @param  AllottedGeometry The space allotted for this widget
-	/// @param  InCurrentTime  Current absolute real time
-	/// @param  InDeltaTime  Real time passed since last tick
+	/**
+	 * Ticks this widget. Override in derived classes, but always call the parent implementation.
+	 * @param  AllottedGeometry The space allotted for this widget
+	 * @param  InCurrentTime  Current absolute real time
+	 * @param  InDeltaTime  Real time passed since last tick
+	 */
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
@@ -93,11 +95,6 @@ public:
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 
 protected:
-	//virtual FVector2D ComputeDesiredSize(float) const override
-	//{
-	//	return FVector2D(16.0f, 16.0f);
-	//}
-
 	bool IsReady() { return true; }
 
 	void UpdateState();
@@ -107,11 +104,13 @@ protected:
 
 	void ShowContextMenu(const FVector2D& ScreenSpacePosition);
 
-	/// Binds our UI commands to delegates.
+	/** Binds our UI commands to delegates. */
 	void BindCommands();
 
-	/// Called when the user scrolls the horizontal scrollbar.
-	/// @param ScrollOffset Scroll offset as a fraction between 0 and 1.
+	/**
+	 * Called when the user scrolls the horizontal scrollbar.
+	 * @param ScrollOffset Scroll offset as a fraction between 0 and 1.
+	 */
 	void HorizontalScrollBar_OnUserScrolled(float ScrollOffset);
 	void UpdateHorizontalScrollBar();
 
@@ -121,21 +120,21 @@ protected:
 	// SelectionBoxChanged Event
 
 public:
-	/// The event to execute when the selection box has been changed.
+	/** The event to execute when the selection box has been changed. */
 	DECLARE_EVENT_TwoParams(SFrameTrack, FSelectionBoxChangedEvent, int32 /*FrameStart*/, int32 /*FrameEnd*/);
 	FSelectionBoxChangedEvent& OnSelectionBoxChanged() { return SelectionBoxChangedEvent; }
 protected:
-	/// The event to execute when the selection box has been changed.
+	/** The event to execute when the selection box has been changed. */
 	FSelectionBoxChangedEvent SelectionBoxChangedEvent;
 
 	//////////////////////////////////////////////////
 
 protected:
-	/// The track's viewport. Encapsulates info about position and scale.
+	/** The track's viewport. Encapsulates info about position and scale. */
 	FFrameTrackViewport Viewport;
 	bool bIsViewportDirty;
 
-	/// Cached info for timelines.
+	/** Cached info for timelines. */
 	TMap<uint64, FFrameTrackTimeline> CachedTimelines;
 	TArray<int32> TimelinesOrder;
 
@@ -150,21 +149,21 @@ protected:
 	//////////////////////////////////////////////////
 	// Panning, Zooming and Selection behaviors
 
-	/// The current mouse position.
+	/** The current mouse position. */
 	FVector2D MousePosition;
 
-	/// Mouse position during the call on mouse button down.
+	/** Mouse position during the call on mouse button down. */
 	FVector2D MousePositionOnButtonDown;
 	float ViewportPosXOnButtonDown;
 	float ViewportPosYOnButtonDown;
 
-	/// Mouse position during the call on mouse button up.
+	/** Mouse position during the call on mouse button up. */
 	FVector2D MousePositionOnButtonUp;
 
 	bool bIsLMB_Pressed;
 	bool bIsRMB_Pressed;
 
-	/// True, if the user is currently interactively scrolling the view by holding the right mouse button and dragging.
+	/** True, if the user is currently interactively scrolling the view by holding the right mouse button and dragging. */
 	bool bIsRMB_Scrolling;
 
 	//////////////////////////////////////////////////
@@ -179,8 +178,8 @@ protected:
 
 	FGeometry ThisGeometry;
 
-	/// Cursor type.
-	EFrameTrackCursor::Type CursorType;
+	/** Cursor type. */
+	EFrameTrackCursor CursorType;
 
 	// Debug stats
 	int32 NumUpdatedFrames;

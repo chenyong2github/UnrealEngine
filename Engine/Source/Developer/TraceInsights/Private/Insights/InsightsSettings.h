@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/ConfigCacheIni.h"
 
-/// Contains all settings for the Unreal Insights, accessible through the main manager.
+/** Contains all settings for the Unreal Insights, accessible through the main manager. */
 class FInsightsSettings
 {
 public:
@@ -69,21 +69,21 @@ public:
 
 //protected:
 public:
-	/// Contains default settings.
+	/** Contains default settings. */
 	static FInsightsSettings Defaults;
 
-	/// Setting filename ini.
+	/** Setting filename ini. */
 	FString SettingsIni;
 
-	/// Whether profiler settings is in edit mode.
+	/** Whether profiler settings is in edit mode. */
 	bool bIsEditing;
 
-	/// Whether this instance contains defaults.
+	/** Whether this instance contains defaults. */
 	bool bIsDefault;
 
 	//////////////////////////////////////////////////
 	// Actual settings.
 
-	/// If True, the Timing View will show empty tracks by default.
+	/** If True, the Timing View will show empty tracks by default. */
 	bool bShowEmptyTracksByDefault;
 };

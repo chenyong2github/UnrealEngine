@@ -48,7 +48,7 @@ FTimingProfilerCommands::FTimingProfilerCommands()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// UI_COMMAND takes long for the compile to optimize
+// UI_COMMAND takes long for the compiler to optimize
 PRAGMA_DISABLE_OPTIMIZATION
 void FTimingProfilerCommands::RegisterCommands()
 {

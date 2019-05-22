@@ -58,17 +58,24 @@ public:
 
 	void ShowHideTab(const FName& TabID, bool bIsVisible);
 
-protected:
+private:
 	/** Callback for determining the visibility of the 'Select a session' overlay. */
 	EVisibility IsSessionOverlayVisible() const;
 
 	bool IsSessionValid() const;
 
 	void SendingServiceSideCapture_Cancel(const FString Filename);
-
 	void SendingServiceSideCapture_Load(const FString Filename);
 
-private:
+	FText GetLocalSessionDirectory() const;
+
+	void SpawnAndActivateTabs();
+
+	FReply Live_OnClicked();
+	FReply Load_OnClicked();
+
+	/** Updates the amount of time the profiler has been active. */
+	EActiveTimerReturnType UpdateActiveDuration(double InCurrentTime, float InDeltaTime);
 
 	/**
 	 * Ticks this widget.  Override in derived classes, but always call the parent implementation.
@@ -123,10 +130,6 @@ private:
 	 * @return A reply that indicated whether this event was handled.
 	 */
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)  override;
-
-private:
-	/** Updates the amount of time the profiler has been active. */
-	EActiveTimerReturnType UpdateActiveDuration(double InCurrentTime, float InDeltaTime);
 
 public:
 	/** Widget for the non-intrusive notifications. */

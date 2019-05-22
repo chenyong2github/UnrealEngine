@@ -8,8 +8,10 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 
 #if WITH_EDITOR
@@ -22,56 +24,11 @@
 #include "Insights/Version.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/IoProfilerManager.h"
-#include "Insights/Widgets/SFrameTrack.h"
-#include "Insights/Widgets/SGraphTrack.h"
-#include "Insights/Widgets/SInsightsSettings.h"
-#include "Insights/Widgets/SLogView.h"
-//#include "Insights/Widgets/SIoProfilerToolbar.h"
-#include "Insights/Widgets/STimersView.h"
 #include "Insights/Widgets/STimingView.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define LOCTEXT_NAMESPACE "SIoProfilerWindow"
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// TODO: move this function to InsightsManager or in TraceSession.h
-static FText Io_GetTextForNotification(const EInsightsNotificationType NotificatonType, const ELoadingProgressState ProgressState, const FString& Filename, const float ProgressPercent = 0.0f)
-{
-	FText Result;
-
-	if (NotificatonType == EInsightsNotificationType::LoadingTraceFile)
-	{
-		if (ProgressState == ELoadingProgressState::Started)
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Filename"), FText::FromString(Filename));
-			Result = FText::Format(LOCTEXT("DescF_OfflineCapture_Started", "Started loading a file {Filename}"), Args);
-		}
-		else if (ProgressState == ELoadingProgressState::InProgress)
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Filename"), FText::FromString(Filename));
-			Args.Add(TEXT("LoadingProgressPercent"), FText::AsPercent(ProgressPercent));
-			Result = FText::Format(LOCTEXT("DescF_OfflineCapture_InProgress", "Loading a file {Filename} {LoadingProgressPercent}"), Args);
-		}
-		else if (ProgressState == ELoadingProgressState::Loaded)
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Filename"), FText::FromString(Filename));
-			Result = FText::Format(LOCTEXT("DescF_OfflineCapture_Loaded", "File {Filename} has been successfully loaded"), Args);
-		}
-		else if (ProgressState == ELoadingProgressState::Failed)
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Filename"), FText::FromString(Filename));
-			Result = FText::Format(LOCTEXT("DescF_OfflineCapture_Failed", "Failed to load file {Filename}"), Args);
-		}
-	}
-
-	return Result;
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -84,13 +41,6 @@ SIoProfilerWindow::SIoProfilerWindow()
 
 SIoProfilerWindow::~SIoProfilerWindow()
 {
-	// Remove ourselves from the profiler manager.
-	//if (FIoProfilerManager::Get().IsValid())
-	//{
-	//	//...
-	//	FIoProfilerManager::Get()->OnViewModeChanged().RemoveAll(this);
-	//}
-
 #if WITH_EDITOR
 	if (DurationActive > 0.0f && FEngineAnalytics::IsAvailable())
 	{
@@ -102,268 +52,6 @@ SIoProfilerWindow::~SIoProfilerWindow()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-TSharedRef<SWidget> SIoProfilerWindow::ConstructMultiTrackView()
-{
-	return SNew(SSplitter)
-		.Orientation(Orient_Vertical)
-
-	+ SSplitter::Slot()
-		.Value(0.1f)
-		[
-			ConstructFramesTrack()
-		]
-
-	+ SSplitter::Slot()
-		.Value(0.2f)
-		[
-			ConstructGraphTrack()
-		]
-
-	+ SSplitter::Slot()
-		.Value(0.7f)
-		[
-			ConstructTimingTrack()
-		]
-
-	; // end of Widget
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedRef<SWidget> SIoProfilerWindow::ConstructFramesTrack()
-{
-	return SNew(SVerticalBox)
-		.Visibility(this, &SIoProfilerWindow::IsFramesTrackVisible)
-		.IsEnabled(this, &SIoProfilerWindow::IsProfilerEnabled)
-
-	// Frame Track
-	+ SVerticalBox::Slot()
-		.FillHeight(1.0)
-		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SBox)
-				.HeightOverride(48.0f)
-				.IsEnabled(this, &SIoProfilerWindow::IsProfilerEnabled)
-				[
-					SAssignNew(FrameTrack, SFrameTrack)
-
-					//SNew(SHorizontalBox)
-					//
-					//+ SHorizontalBox::Slot()
-					//	.FillWidth(1.0f)
-					//	.Padding(0.0f)
-					//	.HAlign(HAlign_Fill)
-					//	.VAlign(VAlign_Fill)
-					//	[
-					//
-					//	]
-				]
-		]
-
-	; // end of Widget
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedRef<SWidget> SIoProfilerWindow::ConstructGraphTrack()
-{
-	return SNew(SVerticalBox)
-		.Visibility(this, &SIoProfilerWindow::IsGraphTrackVisible)
-		.IsEnabled(this, &SIoProfilerWindow::IsProfilerEnabled)
-
-	/*
-	// Header
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SImage)
-						.Image(FEditorStyle::GetBrush(TEXT("Profiler.Tab.GraphView")))
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-						.Text(LOCTEXT("GraphTrackLabel", "Overview Timing Graph"))
-						.Margin(FMargin(0.0f, 2.0f, 0.0f, 0.0f))
-				]
-		]
-	*/
-
-	// Graph Track
-	+ SVerticalBox::Slot()
-		.FillHeight(1.0)
-		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SBox)
-				.HeightOverride(48.0f)
-				.IsEnabled(this, &SIoProfilerWindow::IsProfilerEnabled)
-				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-						.FillWidth(1.0f)
-						.Padding(0.0f)
-						.HAlign(HAlign_Fill)
-						.VAlign(VAlign_Fill)
-						[
-							SAssignNew(GraphTrack, SGraphTrack)
-						]
-				]
-		]
-
-	; // end of Widget
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedRef<SWidget> SIoProfilerWindow::ConstructTimingTrack()
-{
-	return SNew(SVerticalBox)
-		.Visibility(this, &SIoProfilerWindow::IsTimingTrackVisible)
-		.IsEnabled(this, &SIoProfilerWindow::IsProfilerEnabled)
-
-	/*
-	// Header
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SImage)
-						.Image(FEditorStyle::GetBrush(TEXT("Profiler.Tab.GraphView")))
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-						.Text(LOCTEXT("TimingLabel", "Main Timing View"))
-						.Margin(FMargin(0.0f, 2.0f, 0.0f, 0.0f))
-				]
-		]
-	*/
-
-	// Timing Track
-	+ SVerticalBox::Slot()
-		.FillHeight(1.0)
-		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SBox)
-				.HeightOverride(48.0f)
-				.IsEnabled(this, &SIoProfilerWindow::IsProfilerEnabled)
-				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-						.FillWidth(1.0f)
-						.Padding(0.0f)
-						.HAlign(HAlign_Fill)
-						.VAlign(VAlign_Fill)
-						[
-							SAssignNew(TimingView, STimingView)
-						]
-				]
-		]
-
-	//// Threads Panel
-	//+ SVerticalBox::Slot()
-	//	.FillHeight(1.0)
-	//	.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-	//	[
-	//		SAssignNew(ThreadsPanel, SVerticalBox)
-	//	]
-
-	; // end of Widget
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedRef<SWidget> SIoProfilerWindow::ConstructTimersView()
-{
-	return SNew(SVerticalBox)
-		.Visibility(this, &SIoProfilerWindow::IsTimersViewVisible)
-		.IsEnabled(this, &SIoProfilerWindow::IsProfilerEnabled)
-
-	// Header
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SImage)
-						.Image(FEditorStyle::GetBrush(TEXT("Profiler.Tab.FiltersAndPresets")))
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-						.Text(LOCTEXT("TimersLabel", "Timers"))
-				]
-		]
-
-	// Timers
-	+ SVerticalBox::Slot()
-		.FillHeight(1.0f)
-		.Padding(0.0f, 2.0f, 0.0f, 0.0f)
-		[
-			SAssignNew(TimersView, STimersView)
-		]
-
-	; // end of Widget
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedRef<SWidget> SIoProfilerWindow::ConstructLogView()
-{
-	return SNew(SVerticalBox)
-		.Visibility(this, &SIoProfilerWindow::IsLogViewVisible)
-
-	// Header
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SImage)
-						.Image(FEditorStyle::GetBrush(TEXT("Profiler.Tab.FiltersAndPresets")))
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-						.Text(LOCTEXT("LogViewLabel", "Log View"))
-				]
-		]
-
-	// Log View
-	+ SVerticalBox::Slot()
-		.FillHeight(1.0f)
-		[
-			SAssignNew(LogView, SLogView)
-		]
-
-	; // end of Widget
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -390,56 +78,15 @@ void SIoProfilerWindow::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
 				[
-					SAssignNew(MainContentPanel, SVerticalBox)
-
-					// Toolbar
-					//+ SVerticalBox::Slot()
-					//	.AutoHeight()
-					//	[
-					//TODO:		SNew(SIoProfilerToolbar)
-					//	]
-
-					+ SVerticalBox::Slot()
-						.HAlign(HAlign_Fill)
-						.VAlign(VAlign_Fill)
+					SNew(SBox)
+						.Visibility(this, &SIoProfilerWindow::IsTimingViewVisible)
+						.IsEnabled(this, &SIoProfilerWindow::IsProfilerEnabled)
 						[
-							SNew(SSplitter)
-								.Orientation(Orient_Horizontal)
-
-							+ SSplitter::Slot()
-								.Value(0.65f)
-								[
-									SNew(SSplitter)
-										.Orientation(Orient_Vertical)
-
-									// Multi Track View
-									+ SSplitter::Slot()
-										.Value(0.75f)
-										[
-											//ConstructMultiTrackView()
-											ConstructTimingTrack()
-										]
-
-									// Log View
-									//+ SSplitter::Slot()
-									//	.Value(0.25f)
-									//	[
-									//		ConstructLogView()
-									//	]
-								]
-
-							// Timers View
-							//+ SSplitter::Slot()
-							//	.Value(0.35f)
-							//	//.SizeRule(SSplitter::SizeToContent)
-							//	.Expose(TimersViewSlot)
-							//	[
-							//		ConstructTimersView()
-							//	]
+							SAssignNew(TimingView, STimingView)
 						]
 				]
 
-			// session hint overlay
+			// Session hint overlay
 			+ SOverlay::Slot()
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
@@ -453,94 +100,25 @@ void SIoProfilerWindow::Construct(const FArguments& InArgs)
 								.Text(LOCTEXT("SelectTraceOverlayText", "Please select a trace."))
 						]
 				]
-
-			// notification area overlay
-			+ SOverlay::Slot()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Bottom)
-				.Padding(16.0f)
-				[
-					SAssignNew(NotificationList, SNotificationList)
-				]
-
-			// profiler settings overlay
-			+ SOverlay::Slot()
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Expose(OverlaySettingsSlot)
 		];
 
 	TimingView->SetGraphTrackVisible(true);
-
-	//ProfilerMiniView->OnSelectionBoxChanged().AddSP(GraphPanel.ToSharedRef(), &SIoProfilerGraphPanel::MiniView_OnSelectionBoxChanged);
-	//FIoProfilerManager::Get()->OnViewModeChanged().AddSP(this, &SIoProfilerWindow::ProfilerManager_OnViewModeChanged);
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-EVisibility SIoProfilerWindow::IsFramesTrackVisible() const
+EVisibility SIoProfilerWindow::IsTimingViewVisible() const
 {
-	if (FIoProfilerManager::Get()->IsFramesTrackVisible() &&
-		FInsightsManager::Get()->GetSession().IsValid())
+	if (FInsightsManager::Get()->GetSession().IsValid())
 	{
 		return EVisibility::Visible;
 	}
-
-	return EVisibility::Collapsed;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-EVisibility SIoProfilerWindow::IsGraphTrackVisible() const
-{
-	if (FIoProfilerManager::Get()->IsGraphTrackVisible() &&
-		FInsightsManager::Get()->GetSession().IsValid())
+	else
 	{
-		return EVisibility::Visible;
+		return EVisibility::Collapsed;
 	}
-
-	return EVisibility::Collapsed;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-EVisibility SIoProfilerWindow::IsTimingTrackVisible() const
-{
-	if (FIoProfilerManager::Get()->IsTimingTrackVisible() &&
-		FInsightsManager::Get()->GetSession().IsValid())
-	{
-		return EVisibility::Visible;
-	}
-
-	return EVisibility::Collapsed;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-EVisibility SIoProfilerWindow::IsTimersViewVisible() const
-{
-	if (FIoProfilerManager::Get()->IsTimersViewVisible() &&
-		FInsightsManager::Get()->GetSession().IsValid())
-	{
-		return EVisibility::Visible;
-	}
-
-	return EVisibility::Collapsed;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-EVisibility SIoProfilerWindow::IsLogViewVisible() const
-{
-	if (FIoProfilerManager::Get()->IsLogViewVisible() &&
-		FInsightsManager::Get()->GetSession().IsValid())
-	{
-		return EVisibility::Visible;
-	}
-
-	return EVisibility::Collapsed;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -551,132 +129,17 @@ EVisibility SIoProfilerWindow::IsSessionOverlayVisible() const
 	{
 		return EVisibility::Hidden;
 	}
-
-	return EVisibility::Visible;
+	else
+	{
+		return EVisibility::Visible;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool SIoProfilerWindow::IsProfilerEnabled() const
 {
-	const bool bIsActive = FInsightsManager::Get()->GetSession().IsValid();
-	return bIsActive;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SIoProfilerWindow::ManageLoadingProgressNotificationState(const FString& Filename, const EInsightsNotificationType NotificatonType, const ELoadingProgressState ProgressState, const float LoadingProgress)
-{
-	const FString BaseFilename = FPaths::GetBaseFilename(Filename);
-
-	if (ProgressState == ELoadingProgressState::Started)
-	{
-		const bool bContains = ActiveNotifications.Contains(Filename);
-		if (!bContains)
-		{
-			FNotificationInfo NotificationInfo(Io_GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
-			NotificationInfo.bFireAndForget = false;
-			NotificationInfo.bUseLargeFont = false;
-
-			// Add two buttons, one for cancel, one for loading the received file.
-			if (NotificatonType == EInsightsNotificationType::LoadingTraceFile)
-			{
-				const FText CancelButtonText = LOCTEXT("CancelButton_Text", "Cancel");
-				const FText CancelButtonTT = LOCTEXT("CancelButton_TTText", "Hides this notification");
-				const FText LoadButtonText = LOCTEXT("LoadButton_Text", "Load file");
-				const FText LoadButtonTT = LOCTEXT("LoadButton_TTText", "Loads the received file and hides this notification");
-
-				NotificationInfo.ButtonDetails.Add(FNotificationButtonInfo(CancelButtonText, CancelButtonTT,
-					FSimpleDelegate::CreateSP(this, &SIoProfilerWindow::SendingServiceSideCapture_Cancel, Filename), SNotificationItem::CS_Success));
-				NotificationInfo.ButtonDetails.Add(FNotificationButtonInfo(LoadButtonText, LoadButtonTT,
-					FSimpleDelegate::CreateSP(this, &SIoProfilerWindow::SendingServiceSideCapture_Load, Filename), SNotificationItem::CS_Success));
-			}
-
-			SNotificationItemWeak NotificationItem = NotificationList->AddNotification(NotificationInfo);
-			NotificationItem.Pin()->SetCompletionState(SNotificationItem::CS_Pending);
-			ActiveNotifications.Add(Filename, NotificationItem);
-		}
-	}
-	else if (ProgressState == ELoadingProgressState::InProgress)
-	{
-		const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-		if (LoadingProgressPtr)
-		{
-			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->SetText(Io_GetTextForNotification(NotificatonType, ProgressState, BaseFilename, LoadingProgress));
-			LoadingProcessPinned->SetCompletionState(SNotificationItem::CS_Pending);
-		}
-	}
-	else if (ProgressState == ELoadingProgressState::Loaded)
-	{
-		const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-		if (LoadingProgressPtr)
-		{
-			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->SetText(Io_GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
-			LoadingProcessPinned->SetCompletionState(SNotificationItem::CS_Success);
-
-			// Notifications for received files are handled by the user.
-			if (NotificatonType == EInsightsNotificationType::LoadingTraceFile)
-			{
-				LoadingProcessPinned->ExpireAndFadeout();
-				ActiveNotifications.Remove(Filename);
-			}
-		}
-	}
-	else if (ProgressState == ELoadingProgressState::Failed)
-	{
-		const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-		if (LoadingProgressPtr)
-		{
-			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->SetText(Io_GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
-			LoadingProcessPinned->SetCompletionState(SNotificationItem::CS_Fail);
-
-			LoadingProcessPinned->ExpireAndFadeout();
-			ActiveNotifications.Remove(Filename);
-		}
-	}
-	else if (ProgressState == ELoadingProgressState::Cancelled)
-	{
-		const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-		if (LoadingProgressPtr)
-		{
-			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->ExpireAndFadeout();
-			ActiveNotifications.Remove(Filename);
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SIoProfilerWindow::SendingServiceSideCapture_Cancel(const FString Filename)
-{
-	const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-	if (LoadingProgressPtr)
-	{
-		TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-		LoadingProcessPinned->ExpireAndFadeout();
-		ActiveNotifications.Remove(Filename);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SIoProfilerWindow::SendingServiceSideCapture_Load(const FString Filename)
-{
-	const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-	if (LoadingProgressPtr)
-	{
-		TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-		LoadingProcessPinned->ExpireAndFadeout();
-		ActiveNotifications.Remove(Filename);
-
-		const FString PathName = FPaths::ProfilingDir() + TEXT("UnrealStats/Received/");
-		const FString TraceFilepath = PathName + Filename;
-		FInsightsManager::Get()->LoadTraceFile(TraceFilepath);
-	}
+	return FInsightsManager::Get()->GetSession().IsValid();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -771,62 +234,6 @@ FReply SIoProfilerWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEve
 
 	return SCompoundWidget::OnDrop(MyGeometry,DragDropEvent);
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SIoProfilerWindow::OpenProfilerSettings()
-{
-	MainContentPanel->SetEnabled(false);
-	(*OverlaySettingsSlot)
-	[
-		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-		.Padding(8.0f)
-		[
-			SNew(SInsightsSettings)
-			.OnClose(this, &SIoProfilerWindow::CloseProfilerSettings)
-			.SettingPtr(&FInsightsManager::GetSettings())
-		]
-	];
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SIoProfilerWindow::CloseProfilerSettings()
-{
-	// Close the profiler settings by simply replacing widget with a null one.
-	(*OverlaySettingsSlot)
-	[
-		SNullWidget::NullWidget
-	];
-	MainContentPanel->SetEnabled(true);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-//void SIoProfilerWindow::ProfilerManager_OnViewModeChanged(EIoProfilerViewMode NewViewMode)
-//{
-//	if (NewViewMode == EIoProfilerViewMode::LineIndexBased)
-//	{
-//		EventGraphPanel->SetVisibility(EVisibility::Visible);
-//		EventGraphPanel->SetEnabled(true);
-//
-//		(*FiltersAndPresetsSlot)
-//		[
-//			FiltersAndPresets.ToSharedRef()
-//		];
-//	}
-//	else if (NewViewMode == EIoProfilerViewMode::ThreadViewTimeBased)
-//	{
-//		EventGraphPanel->SetVisibility(EVisibility::Collapsed);
-//		EventGraphPanel->SetEnabled(false);
-//
-//		(*FiltersAndPresetsSlot)
-//		[
-//			SNullWidget::NullWidget
-//		];
-//	}
-//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

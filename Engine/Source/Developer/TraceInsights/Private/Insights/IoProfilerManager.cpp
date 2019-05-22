@@ -11,13 +11,8 @@
 // Insights
 #include "Insights/InsightsManager.h"
 //#include "Insights/IoProfilerCommon.h"
-#include "Insights/Widgets/SFrameTrack.h"
-#include "Insights/Widgets/SGraphTrack.h"
-#include "Insights/Widgets/SLogView.h"
-#include "Insights/Widgets/STimersView.h"
 #include "Insights/Widgets/STimingView.h"
 #include "Insights/Widgets/SIoProfilerWindow.h"
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -38,11 +33,7 @@ FIoProfilerManager::FIoProfilerManager(TSharedRef<FUICommandList> InCommandList)
 	: CommandList(InCommandList)
 	, ActionManager(this)
 	, ProfilerWindow(nullptr)
-	, bIsFramesTrackVisible(true)
-	, bIsGraphTrackVisible(false)
-	, bIsTimingTrackVisible(true)
-	, bIsTimersViewVisible(true)
-	, bIsLogViewVisible(true)
+	, bIsTimingViewVisible(true)
 {
 }
 
@@ -62,11 +53,7 @@ void FIoProfilerManager::PostConstructor()
 
 void FIoProfilerManager::BindCommands()
 {
-	ActionManager.Map_ToggleFramesTrackVisibility_Global();
-	ActionManager.Map_ToggleGraphTrackVisibility_Global();
-	ActionManager.Map_ToggleTimingTrackVisibility_Global();
-	ActionManager.Map_ToggleTimersViewVisibility_Global();
-	ActionManager.Map_ToggleLogViewVisibility_Global();
+	ActionManager.Map_ToggleTimingViewVisibility_Global();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -123,30 +110,28 @@ void FIoProfilerManager::OnSessionChanged()
 	TSharedPtr<SIoProfilerWindow> Wnd = GetProfilerWindow();
 	if (Wnd.IsValid())
 	{
-		Wnd->FrameTrack->Reset();
-		Wnd->GraphTrack->Reset();
-		Wnd->TimingView->Reset();
-		Wnd->TimersView->RebuildTree();
-		Wnd->LogView->Reset();
+		TSharedPtr<STimingView> TimingView = Wnd->GetTimingView();
+		if (TimingView)
+		{
+			TimingView->Reset();
+		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FIoProfilerManager::SetTimersViewVisible(const bool bTimersViewVisibleState)
+void FIoProfilerManager::SetTimingViewVisible(const bool bTimingViewVisibleState)
 {
-	bool bWasTimersViewVisible = bIsTimersViewVisible;
+	//bool bWasTimingViewVisible = bIsTimingViewVisible;
 
-	bIsTimersViewVisible = bTimersViewVisibleState;
+	bIsTimingViewVisible = bTimingViewVisibleState;
 
-	if (bIsTimersViewVisible && !bWasTimersViewVisible && FInsightsManager::Get()->GetSession().IsValid())
-	{
-		TSharedPtr<SIoProfilerWindow> Wnd = GetProfilerWindow();
-		if (Wnd.IsValid())
-		{
-			Wnd->TimersView->RebuildTree();
-		}
-	}
+	// TODO
+	//TSharedPtr<SIoProfilerWindow> Wnd = GetProfilerWindow();
+	//if (Wnd.IsValid())
+	//{
+	//	Wnd->ShowHideTab(FIoProfilerTabs::TimingViewID, bIsTimingViewVisible);
+	//}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

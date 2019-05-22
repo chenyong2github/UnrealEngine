@@ -39,7 +39,7 @@ void FIoProfilerMenuBuilder::AddMenuEntry(FMenuBuilder& MenuBuilder, const TShar
 FIoProfilerCommands::FIoProfilerCommands()
 	: TCommands<FIoProfilerCommands>(
 		TEXT("IoProfilerCommand"), // Context name for fast lookup
-		NSLOCTEXT("Contexts", "IoProfilerCommand", "Timing Profiler Command"), // Localized context name for displaying
+		NSLOCTEXT("Contexts", "IoProfilerCommand", "Asset Loading Insights Command"), // Localized context name for displaying
 		NAME_None, // Parent
 		FEditorStyle::GetStyleSetName() // Icon Style Set
 	)
@@ -48,15 +48,11 @@ FIoProfilerCommands::FIoProfilerCommands()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// UI_COMMAND takes long for the compile to optimize
+// UI_COMMAND takes long for the compiler to optimize
 PRAGMA_DISABLE_OPTIMIZATION
 void FIoProfilerCommands::RegisterCommands()
 {
-	UI_COMMAND(ToggleFramesTrackVisibility, "Frames", "Toggles the visibility of the Frames track", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::F));
-	UI_COMMAND(ToggleGraphTrackVisibility, "Graph", "Toggles the visibility of the Overview Graph track", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::G));
-	UI_COMMAND(ToggleTimingTrackVisibility, "Timing", "Toggles the visibility of the main Timing view", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::T));
-	UI_COMMAND(ToggleTimersViewVisibility, "Timers", "Toggles the visibility of the Timers view", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::T));
-	UI_COMMAND(ToggleLogViewVisibility, "Log", "Toggles the visibility of the Log view", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::L));
+	UI_COMMAND(ToggleTimingViewVisibility, "Timing", "Toggles the visibility of the main Timing view", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::T));
 }
 PRAGMA_ENABLE_OPTIMIZATION
 
@@ -97,11 +93,7 @@ PRAGMA_ENABLE_OPTIMIZATION
 		return b##IsEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;\
 	}
 
-IMPLEMENT_TOGGLE_COMMAND(ToggleFramesTrackVisibility, IsFramesTrackVisible, SetFramesTrackVisible)
-IMPLEMENT_TOGGLE_COMMAND(ToggleGraphTrackVisibility, IsGraphTrackVisible, SetGraphTrackVisible)
-IMPLEMENT_TOGGLE_COMMAND(ToggleTimingTrackVisibility, IsTimingTrackVisible, SetTimingTrackVisible)
-IMPLEMENT_TOGGLE_COMMAND(ToggleTimersViewVisibility, IsTimersViewVisible, SetTimersViewVisible)
-IMPLEMENT_TOGGLE_COMMAND(ToggleLogViewVisibility, IsLogViewVisible, SetLogViewVisible)
+IMPLEMENT_TOGGLE_COMMAND(ToggleTimingViewVisibility, IsTimingViewVisible, SetTimingViewVisible)
 
 #undef IMPLEMENT_TOGGLE_COMMAND
 

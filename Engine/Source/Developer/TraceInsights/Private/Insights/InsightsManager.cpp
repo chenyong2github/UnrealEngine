@@ -10,7 +10,7 @@
 
 // Insights
 #include "Insights/TimingProfilerManager.h"
-#include "Insights/Widgets/STimingProfilerWindow.h"
+#include "Insights/Widgets/SStartPageWindow.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -48,7 +48,6 @@ void FInsightsManager::BindCommands()
 {
 	ActionManager.Map_InsightsManager_Live();
 	ActionManager.Map_InsightsManager_Load();
-	ActionManager.Map_InsightsManager_Mock();
 	ActionManager.Map_ToggleDebugInfo_Global();
 	ActionManager.Map_OpenSettings_Global();
 }
@@ -119,20 +118,19 @@ bool FInsightsManager::Tick(float DeltaTime)
 void FInsightsManager::ResetSession()
 {
 	Session = nullptr;
-
-	FTimingProfilerManager::Get()->OnSessionChanged();
-	SessionChangedEvent.Broadcast();
+	OnSessionChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FInsightsManager::CreateMockSession()
+void FInsightsManager::OnSessionChanged()
 {
-	ResetSession();
+	if (TSharedPtr<FTimingProfilerManager> TimingProfilerManager = FTimingProfilerManager::Get())
+	{
+		// FIXME: make TimingProfilerManager to register to SessionChangedEvent instead
+		TimingProfilerManager->OnSessionChanged();
+	}
 
-	Session = AnalysisService->MockAnalysis();
-
-	FTimingProfilerManager::Get()->OnSessionChanged();
 	SessionChangedEvent.Broadcast();
 }
 
@@ -142,9 +140,9 @@ void FInsightsManager::CreateLiveSession()
 {
 	ResetSession();
 
-	Session = nullptr;
 	TArray<Trace::FSessionHandle> AvailableSessions;
 	SessionService->GetAvailableSessions(AvailableSessions);
+
 	for (Trace::FSessionHandle SessionHandle : AvailableSessions)
 	{
 		Trace::FSessionInfo SessionInfo;
@@ -157,6 +155,7 @@ void FInsightsManager::CreateLiveSession()
 			break;
 		}
 	}
+
 	if (!Session && AvailableSessions.Num())
 	{
 		Trace::FSessionHandle SessionHandle = AvailableSessions.Last();
@@ -165,8 +164,7 @@ void FInsightsManager::CreateLiveSession()
 		Session = AnalysisService->StartAnalysis(TEXT("Latest session"), MoveTemp(DataStream));
 	}
 
-	FTimingProfilerManager::Get()->OnSessionChanged();
-	SessionChangedEvent.Broadcast();
+	OnSessionChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -180,15 +178,18 @@ void FInsightsManager::LoadTraceFile(const FString& TraceFilepath)
 
 	Session = AnalysisService->StartAnalysis(*TraceFilepath, MoveTemp(DataStream));
 
-	FTimingProfilerManager::Get()->OnSessionChanged();
-	SessionChangedEvent.Broadcast();
+	OnSessionChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FInsightsManager::OpenSettings()
 {
-	FTimingProfilerManager::Get()->GetProfilerWindow()->OpenProfilerSettings();
+	TSharedPtr<SStartPageWindow> Wnd = GetStartPageWindow();
+	if (Wnd.IsValid())
+	{
+		Wnd->OpenSettings();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -330,7 +330,7 @@ protected:
 
 	////////////////////////////////////////////////////////////
 
-	/// The track's viewport. Encapsulates info about position and scale.
+	/** The track's viewport. Encapsulates info about position and scale. */
 	FTimingTrackViewport Viewport;
 
 	bool bIsViewportDirty;
@@ -349,17 +349,17 @@ protected:
 	//	Other
 	//};
 
-	mutable TMap<uint32, FTimingEventsTrack*> CachedTimelines; /// all tracks
+	mutable TMap<uint32, FTimingEventsTrack*> CachedTimelines; /**< all tracks */
 
-	//TODO: TArray<FBaseTimingTrack*> TopTracks; /// tracks docked on top, in order to be displayed (top to bottom)
-	//TODO: TArray<FBaseTimingTrack*> ScrollableTracks; /// tracks in scrollable area, in order to be displayed (top to bottom)
-	//TODO: TArray<FBaseTimingTrack*> BottomTracks; /// tracks docked on bottom, in order to be displayed (top to bottom)
-	//TODO: TArray<FBaseTimingTrack*> ForegorundTracks; /// tracks to draw over top/scrollable/bottom tracks (can use entire area), in order to be displayed (back to front)
+	//TODO: TArray<FBaseTimingTrack*> TopTracks; /**< tracks docked on top, in order to be displayed (top to bottom) */
+	//TODO: TArray<FBaseTimingTrack*> ScrollableTracks; /**< tracks in scrollable area, in order to be displayed (top to bottom) */
+	//TODO: TArray<FBaseTimingTrack*> BottomTracks; /**< tracks docked on bottom, in order to be displayed (top to bottom) */
+	//TODO: TArray<FBaseTimingTrack*> ForegorundTracks; /**< tracks to draw over top/scrollable/bottom tracks (can use entire area), in order to be displayed (back to front) */
 
 	////////////////////////////////////////////////////////////
 	// Timing Events Tracks (GPU, CPU, IO)
 
-	TArray<FTimingEventsTrack*> TimingEventsTracks; /// timing events tracks in order to be displayed
+	TArray<FTimingEventsTrack*> TimingEventsTracks; /**< timing events tracks in order to be displayed */
 
 	bool bAreTimingEventsTracksDirty;
 
@@ -384,18 +384,18 @@ protected:
 		const TCHAR* Path;
 	};
 
-	/// All IO events, cached.
+	/** All IO events, cached. */
 	mutable TArray<FIoTimingEvent> AllIoEvents;
 
 	////////////////////////////////////////////////////////////
 
-	/// The time ruler track.
+	/** The time ruler track. */
 	FTimeRulerTrack TimeRulerTrack;
 
-	/// The time markers track.
+	/** The time markers track. */
 	FMarkersTimingTrack MarkersTrack;
 
-	/// A graph track for frame times.
+	/** A graph track for frame times. */
 	FFramesGraphTrack GraphTrack;
 
 	////////////////////////////////////////////////////////////
@@ -408,15 +408,15 @@ protected:
 
 	////////////////////////////////////////////////////////////
 
-	/// The current mouse position.
+	/** The current mouse position. */
 	FVector2D MousePosition;
 
-	/// Mouse position during the call on mouse button down.
+	/** Mouse position during the call on mouse button down. */
 	FVector2D MousePositionOnButtonDown;
 	double ViewportStartTimeOnButtonDown;
 	float ViewportScrollPosYOnButtonDown;
 
-	/// Mouse position during the call on mouse button up.
+	/** Mouse position during the call on mouse button up. */
 	FVector2D MousePositionOnButtonUp;
 
 	bool bIsLMB_Pressed;
@@ -428,12 +428,14 @@ protected:
 	////////////////////////////////////////////////////////////
 	// Panning
 
-	/// True, if the user is currently interactively panning the view (horizontally and/or vertically),
-	/// either by holding the right mouse button and dragging
-	/// or by holding spacebar pressed and dragging with left mouse button.
+	/**
+	 * True, if the user is currently interactively panning the view (horizontally and/or vertically),
+	 * either by holding the right mouse button and dragging
+	 * or by holding spacebar pressed and dragging with left mouse button.
+	 */
 	bool bIsPanning;
 
-	/// How to pan.
+	/** How to pan. */
 	enum class EPanningMode : uint8
 	{
 		None = 0,
@@ -446,7 +448,7 @@ protected:
 	////////////////////////////////////////////////////////////
 	// Selection
 
-	/// True, if the user is currently changing the selection (by holding the left mouse button and dragging).
+	/** True, if the user is currently changing the selection (by holding the left mouse button and dragging). */
 	bool bIsSelecting;
 
 	double SelectionStartTime;

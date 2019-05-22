@@ -7,16 +7,16 @@
 #include "Framework/Commands/Commands.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Class that holds all profiler commands.
-
-class FInsightsCommands
-	: public TCommands<FInsightsCommands>
+/**
+ * Class that holds all profiler commands.
+ */
+class FInsightsCommands : public TCommands<FInsightsCommands>
 {
 public:
-	/// Default constructor.
+	/** Default constructor. */
 	FInsightsCommands();
 
-	/// Initialize commands.
+	/** Initialize commands. */
 	virtual void RegisterCommands() override;
 
 public:
@@ -27,32 +27,30 @@ public:
 	//     const FUIAction <CommandName>_Custom(...) const;
 	//////////////////////////////////////////////////
 
-	/// Load profiler data from a live trace session. Global version.
+	/** Load profiler data from a live trace session. Global version. */
 	TSharedPtr<FUICommandInfo> InsightsManager_Live;
 
-	/// Load profiler data from a trace file. Global version.
+	/** Load profiler data from a trace file. Global version. */
 	TSharedPtr<FUICommandInfo> InsightsManager_Load;
 
-	/// Create mock profiler data. Global version.
-	TSharedPtr<FUICommandInfo> InsightsManager_Mock;
-
-	/// Toggles the debug info. Global and custom command.
+	/** Toggles the debug info. Global and custom command. */
 	TSharedPtr<FUICommandInfo> ToggleDebugInfo;
 
-	/// Open settings for the profiler manager.
+	/** Open settings for the profiler manager. */
 	TSharedPtr<FUICommandInfo> OpenSettings;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Class that provides helper functions for the commands to avoid cluttering manager with many small functions.
-/// Can't contain any variables. Directly operates on the manager instance.
-
+/**
+ * Class that provides helper functions for the commands to avoid cluttering manager with many small functions.
+ * Can't contain any variables. Directly operates on the manager instance.
+ */
 class FInsightsActionManager
 {
 	friend class FInsightsManager;
 
 private:
-	/// Private constructor.
+	/** Private constructor. */
 	FInsightsActionManager(class FInsightsManager* Instance)
 		: This(Instance)
 	{}
@@ -61,53 +59,44 @@ private:
 	// InsightsManager_Live
 
 public:
-	void Map_InsightsManager_Live(); ///< Maps UI command info InsightsManager_Live with the specified UI command list.
+	void Map_InsightsManager_Live(); /**< Maps UI command info InsightsManager_Live with the specified UI command list. */
 protected:
-	void InsightsManager_Live_Execute(); ///< Handles FExecuteAction for InsightsManager_Live.
-	bool InsightsManager_Live_CanExecute() const; ///< Handles FCanExecuteAction for InsightsManager_Live.
+	void InsightsManager_Live_Execute(); /**< Handles FExecuteAction for InsightsManager_Live. */
+	bool InsightsManager_Live_CanExecute() const; /**< Handles FCanExecuteAction for InsightsManager_Live. */
 
 	//////////////////////////////////////////////////
 	// InsightsManager_Load
 
 public:
-	void Map_InsightsManager_Load(); ///< Maps UI command info InsightsManager_Load with the specified UI command list.
+	void Map_InsightsManager_Load(); /**< Maps UI command info InsightsManager_Load with the specified UI command list. */
 protected:
-	void InsightsManager_Load_Execute(); ///< Handles FExecuteAction for InsightsManager_Load.
-	bool InsightsManager_Load_CanExecute() const; ///< Handles FCanExecuteAction for InsightsManager_Load.
-
-	//////////////////////////////////////////////////
-	// InsightsManager_Mock
-
-public:
-	void Map_InsightsManager_Mock(); ///< Maps UI command info InsightsManager_Mock with the specified UI command list.
-protected:
-	void InsightsManager_Mock_Execute(); ///< Handles FExecuteAction for InsightsManager_Mock.
-	bool InsightsManager_Mock_CanExecute() const; ///< Handles FCanExecuteAction for InsightsManager_Mock.
+	void InsightsManager_Load_Execute(); /**< Handles FExecuteAction for InsightsManager_Load. */
+	bool InsightsManager_Load_CanExecute() const; /**< Handles FCanExecuteAction for InsightsManager_Load. */
 
 	//////////////////////////////////////////////////
 	// ToggleDebugInfo
 
 public:
-	void Map_ToggleDebugInfo_Global(); ///< Maps UI command info ToggleDebugInfo with the specified UI command list.
-	const FUIAction ToggleDebugInfo_Custom() const; ///< UI action for ToggleDebugInfo command.
+	void Map_ToggleDebugInfo_Global(); /**< Maps UI command info ToggleDebugInfo with the specified UI command list. */
+	const FUIAction ToggleDebugInfo_Custom() const; /**< UI action for ToggleDebugInfo command. */
 protected:
-	void ToggleDebugInfo_Execute(); ///< Handles FExecuteAction for ToggleDebugInfo.
-	bool ToggleDebugInfo_CanExecute() const; ///< Handles FCanExecuteAction for ToggleDebugInfo.
-	ECheckBoxState ToggleDebugInfo_GetCheckState() const; ///< Handles FGetActionCheckState for ToggleDebugInfo.
+	void ToggleDebugInfo_Execute(); /**< Handles FExecuteAction for ToggleDebugInfo. */
+	bool ToggleDebugInfo_CanExecute() const; /**< Handles FCanExecuteAction for ToggleDebugInfo. */
+	ECheckBoxState ToggleDebugInfo_GetCheckState() const; /**< Handles FGetActionCheckState for ToggleDebugInfo. */
 
 	//////////////////////////////////////////////////
 	// OpenSettings
 
 public:
-	void Map_OpenSettings_Global(); ///< Maps UI command info OpenSettings with the specified UI command list.
-	const FUIAction OpenSettings_Custom() const; ///< UI action for OpenSettings command.
+	void Map_OpenSettings_Global(); /**< Maps UI command info OpenSettings with the specified UI command list. */
+	const FUIAction OpenSettings_Custom() const; /**< UI action for OpenSettings command. */
 protected:
-	void OpenSettings_Execute(); ///< Handles FExecuteAction for OpenSettings.
-	bool OpenSettings_CanExecute() const; ///< Handles FCanExecuteAction for OpenSettings.
+	void OpenSettings_Execute(); /**< Handles FExecuteAction for OpenSettings. */
+	bool OpenSettings_CanExecute() const; /**< Handles FCanExecuteAction for OpenSettings. */
 
 	//////////////////////////////////////////////////
 
 protected:
-	/// Reference to the global instance of the Insights manager.
+	/** Reference to the global instance of the Insights manager. */
 	class FInsightsManager* This;
 };

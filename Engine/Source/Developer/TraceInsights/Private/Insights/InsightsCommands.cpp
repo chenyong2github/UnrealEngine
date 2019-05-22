@@ -38,7 +38,6 @@ void FInsightsCommands::RegisterCommands()
 {
 	UI_COMMAND(InsightsManager_Live, "Live", "Loads profiler data from a live trace session", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(InsightsManager_Load, "Load...", "Loads profiler data from a trace file", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::L));
-	UI_COMMAND(InsightsManager_Mock, "Mock", "Creates mock profiler data", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ToggleDebugInfo, "Debug", "Toggles the display of debug info", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::D));
 	UI_COMMAND(OpenSettings, "Settings", "Opens the Unreal Insights settings", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::O));
 }
@@ -157,33 +156,6 @@ void FInsightsActionManager::InsightsManager_Load_Execute()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool FInsightsActionManager::InsightsManager_Load_CanExecute() const
-{
-	return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// InsightsManager_Mock
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FInsightsActionManager::Map_InsightsManager_Mock()
-{
-	FUIAction UIAction;
-	UIAction.ExecuteAction = FExecuteAction::CreateRaw(this, &FInsightsActionManager::InsightsManager_Mock_Execute);
-	UIAction.CanExecuteAction = FCanExecuteAction::CreateRaw(this, &FInsightsActionManager::InsightsManager_Mock_CanExecute);
-
-	This->CommandList->MapAction(This->GetCommands().InsightsManager_Mock, UIAction);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FInsightsActionManager::InsightsManager_Mock_Execute()
-{
-	This->CreateMockSession();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FInsightsActionManager::InsightsManager_Mock_CanExecute() const
 {
 	return true;
 }

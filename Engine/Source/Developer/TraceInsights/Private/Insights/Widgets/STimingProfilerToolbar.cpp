@@ -47,7 +47,6 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 			{
 				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().InsightsManager_Live);
 				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().InsightsManager_Load);
-				//ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().InsightsManager_Mock);
 			}
 			ToolbarBuilder.EndSection();
 			ToolbarBuilder.BeginSection("View");

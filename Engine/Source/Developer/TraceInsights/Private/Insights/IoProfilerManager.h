@@ -20,21 +20,21 @@ namespace Trace
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/// This class manages the Timing Profiler state and settings.
-
-class FIoProfilerManager
-	: public TSharedFromThis<FIoProfilerManager>
+/**
+ * This class manages the Timing Profiler state and settings.
+ */
+class FIoProfilerManager : public TSharedFromThis<FIoProfilerManager>
 {
 	friend class FIoProfilerActionManager;
 
 public:
-	/// Creates the Timing Profiler manager, only one instance can exist.
+	/** Creates the Timing Profiler manager, only one instance can exist. */
 	FIoProfilerManager(TSharedRef<FUICommandList> InCommandList);
 
-	/// Virtual destructor.
+	/** Virtual destructor. */
 	virtual ~FIoProfilerManager();
 
-	/// Creates an instance of the profiler manager.
+	/** Creates an instance of the profiler manager. */
 	static TSharedPtr<FIoProfilerManager> Initialize()
 	{
 		if (FIoProfilerManager::Instance.IsValid())
@@ -48,34 +48,36 @@ public:
 		return FIoProfilerManager::Instance;
 	}
 
-	/// Shutdowns the Timing Profiler manager.
+	/** Shutdowns the Timing Profiler manager. */
 	void Shutdown()
 	{
 		FIoProfilerManager::Instance.Reset();
 	}
 
 protected:
-	/// Finishes initialization of the profiler manager
+	/** Finishes initialization of the profiler manager. */
 	void PostConstructor();
 
-	/// Binds our UI commands to delegates.
+	/** Binds our UI commands to delegates. */
 	void BindCommands();
 
 public:
-	/// @return the global instance of the Timing Profiler manager (FIoProfilerManager).
-	/// This is an internal singleton and cannot be used outside ProfilerModule.
-	/// For external use:
-	///     IProfilerModule& ProfilerModule = FModuleManager::Get().LoadModuleChecked<IProfilerModule>("Profiler");
-	///     ProfilerModule.GetProfilerManager();
+	/**
+	 * @return the global instance of the Timing Profiler manager (FIoProfilerManager).
+	 * This is an internal singleton and cannot be used outside ProfilerModule.
+	 * For external use:
+	 *     IProfilerModule& ProfilerModule = FModuleManager::Get().LoadModuleChecked<IProfilerModule>("Profiler");
+	 *     ProfilerModule.GetProfilerManager();
+	 */
 	static TSharedPtr<FIoProfilerManager> Get();
 
-	/// @returns UI command list for the Timing Profiler manager.
+	/** @returns UI command list for the Timing Profiler manager. */
 	const TSharedRef<FUICommandList> GetCommandList() const;
 
-	/// @return an instance of the Timing Profiler commands.
+	/** @return an instance of the Timing Profiler commands. */
 	static const FIoProfilerCommands& GetCommands();
 
-	/// @return an instance of the Timing Profiler action manager.
+	/** @return an instance of the Timing Profiler action manager. */
 	static FIoProfilerActionManager& GetActionManager();
 
 	void AssignProfilerWindow(const TSharedRef<SIoProfilerWindow>& InProfilerWindow)
@@ -83,8 +85,10 @@ public:
 		ProfilerWindow = InProfilerWindow;
 	}
 
-	/// Converts profiler window weak pointer to a shared pointer and returns it.
-	/// Make sure the returned pointer is valid before trying to dereference it.
+	/**
+	 * Converts profiler window weak pointer to a shared pointer and returns it.
+	 * Make sure the returned pointer is valid before trying to dereference it.
+	 */
 	TSharedPtr<class SIoProfilerWindow> GetProfilerWindow() const
 	{
 		return ProfilerWindow.Pin();
@@ -93,65 +97,37 @@ public:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Getters and setters used by Toggle Commands.
 
-	/// @return true, if Frames Track is visible
-	const bool IsFramesTrackVisible() const { return bIsFramesTrackVisible; }
-	void SetFramesTrackVisible(const bool bFramesTrackVisibleState) { bIsFramesTrackVisible = bFramesTrackVisibleState; }
-
-	/// @return true, if Graph Track is visible
-	const bool IsGraphTrackVisible() const { return bIsGraphTrackVisible; }
-	void SetGraphTrackVisible(const bool bGraphTrackVisibleState) { bIsGraphTrackVisible = bGraphTrackVisibleState; }
-
-	/// @return true, if Timing Track is visible
-	const bool IsTimingTrackVisible() const { return bIsTimingTrackVisible; }
-	void SetTimingTrackVisible(const bool bTimingTrackVisibleState) { bIsTimingTrackVisible = bTimingTrackVisibleState; }
-
-	/// @return true, if Timers View is visible
-	const bool IsTimersViewVisible() const { return bIsTimersViewVisible; }
-	void SetTimersViewVisible(const bool bTimersViewVisibleState);
-
-	/// @return true, if Log View is visible
-	const bool IsLogViewVisible() const { return bIsLogViewVisible; }
-	void SetLogViewVisible(const bool bLogViewVisibleState) { bIsLogViewVisible = bLogViewVisibleState; }
+	/** @return true, if Timing View is visible */
+	const bool IsTimingViewVisible() const { return bIsTimingViewVisible; }
+	void SetTimingViewVisible(const bool bTimingViewVisibleState);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void OnSessionChanged();
 
 protected:
-	/// Updates this manager, done through FCoreTicker.
+	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);
 
 protected:
-	/// The delegate to be invoked when this manager ticks.
+	/** The delegate to be invoked when this manager ticks. */
 	FTickerDelegate OnTick;
 
-	/// Handle to the registered OnTick.
+	/** Handle to the registered OnTick. */
 	FDelegateHandle OnTickHandle;
 
-	/// List of UI commands for this manager. This will be filled by this and corresponding classes.
+	/** List of UI commands for this manager. This will be filled by this and corresponding classes. */
 	TSharedRef<FUICommandList> CommandList;
 
-	/// An instance of the Timing Manager action manager.
+	/** An instance of the Timing Manager action manager. */
 	FIoProfilerActionManager ActionManager;
 
-	/// A weak pointer to the Timing Profiler window.
+	/** A weak pointer to the Timing Profiler window. */
 	TWeakPtr<class SIoProfilerWindow> ProfilerWindow;
 
-	/// If the Frames Track is visible or hidden.
-	bool bIsFramesTrackVisible;
+	/** If the Timing View is visible or hidden. */
+	bool bIsTimingViewVisible;
 
-	/// If the Graph Track is visible or hidden.
-	bool bIsGraphTrackVisible;
-
-	/// If the Timing Track is visible or hidden.
-	bool bIsTimingTrackVisible;
-
-	/// If the Timers View is visible or hidden.
-	bool bIsTimersViewVisible;
-
-	/// If the Log View is visible or hidden.
-	bool bIsLogViewVisible;
-
-	/// A shared pointer to the global instance of the profiler manager.
+	/** A shared pointer to the global instance of the profiler manager. */
 	static TSharedPtr<FIoProfilerManager> Instance;
 };

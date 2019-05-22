@@ -52,45 +52,6 @@ const FName FTimingProfilerTabs::LogViewID(TEXT("LogView"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO: move this function to InsightsManager or in TraceSession.h
-static FText Timing_GetTextForNotification(const EInsightsNotificationType NotificatonType, const ELoadingProgressState ProgressState, const FString& Filename, const float ProgressPercent = 0.0f)
-{
-	FText Result;
-
-	if (NotificatonType == EInsightsNotificationType::LoadingTraceFile)
-	{
-		if (ProgressState == ELoadingProgressState::Started)
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Filename"), FText::FromString(Filename));
-			Result = FText::Format(LOCTEXT("DescF_OfflineCapture_Started", "Started loading a file {Filename}"), Args);
-		}
-		else if (ProgressState == ELoadingProgressState::InProgress)
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Filename"), FText::FromString(Filename));
-			Args.Add(TEXT("LoadingProgressPercent"), FText::AsPercent(ProgressPercent));
-			Result = FText::Format(LOCTEXT("DescF_OfflineCapture_InProgress", "Loading a file {Filename} {LoadingProgressPercent}"), Args);
-		}
-		else if (ProgressState == ELoadingProgressState::Loaded)
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Filename"), FText::FromString(Filename));
-			Result = FText::Format(LOCTEXT("DescF_OfflineCapture_Loaded", "File {Filename} has been successfully loaded"), Args);
-		}
-		else if (ProgressState == ELoadingProgressState::Failed)
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Filename"), FText::FromString(Filename));
-			Result = FText::Format(LOCTEXT("DescF_OfflineCapture_Failed", "Failed to load file {Filename}"), Args);
-		}
-	}
-
-	return Result;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 STimingProfilerWindow::STimingProfilerWindow()
 	: DurationActive(0.0f)
 {
@@ -117,6 +78,7 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_Toolbar(const FSpawnTabArgs
 	return SNew(SDockTab)
 		.ShouldAutosize(true)
 		.TabRole(ETabRole::PanelTab)
+		//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
 		[
 			SNew(STimingProfilerToolbar)
 		];
@@ -129,10 +91,9 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_FramesTrack(const FSpawnTab
 	return SNew(SDockTab)
 		.ShouldAutosize(false)
 		.TabRole(ETabRole::PanelTab)
+		//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
 		[
 			SAssignNew(FrameTrack, SFrameTrack)
-			//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
-			//.Visibility(this, &STimingProfilerWindow::IsFramesTrackVisible)
 		];
 }
 
@@ -143,10 +104,9 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_GraphTrack(const FSpawnTabA
 	return SNew(SDockTab)
 		.ShouldAutosize(false)
 		.TabRole(ETabRole::PanelTab)
+		//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
 		[
 			SAssignNew(GraphTrack, SGraphTrack)
-			//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
-			//.Visibility(this, &STimingProfilerWindow::IsGraphTrackVisible)
 		];
 }
 
@@ -157,10 +117,9 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_TimingView(const FSpawnTabA
 	return SNew(SDockTab)
 		.ShouldAutosize(false)
 		.TabRole(ETabRole::PanelTab)
+		//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
 		[
 			SAssignNew(TimingView, STimingView)
-			//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
-			//.Visibility(this, &STimingProfilerWindow::IsTimersViewVisible)
 		];
 }
 
@@ -171,11 +130,9 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_Timers(const FSpawnTabArgs&
 	return SNew(SDockTab)
 		.ShouldAutosize(false)
 		.TabRole(ETabRole::PanelTab)
+		//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
 		[
-		
 			SAssignNew(TimersView, STimersView)
-			//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
-			//.Visibility(this, &STimingProfilerWindow::IsTimersViewVisible)
 		];
 }
 
@@ -186,11 +143,9 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_StatsCounters(const FSpawnT
 	return SNew(SDockTab)
 		.ShouldAutosize(false)
 		.TabRole(ETabRole::PanelTab)
+		//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
 		[
 			SAssignNew(StatsView, SStatsView)
-			//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
-			//.Visibility(this, &STimingProfilerWindow::IsStatsCountersViewVisible)
-			
 		];
 }
 
@@ -201,10 +156,9 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_LogView(const FSpawnTabArgs
 	return SNew(SDockTab)
 		.ShouldAutosize(false)
 		.TabRole(ETabRole::PanelTab)
+		//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
 		[
 			SAssignNew(LogView, SLogView)
-			//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
-			//.Visibility(this, &STimingProfilerWindow::IsLogViewVisible)
 		];
 }
 
@@ -308,6 +262,7 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 					->SetSizeCoefficient(0.35f)
 					->AddTab(FTimingProfilerTabs::TimersID, FTimingProfilerManager::Get()->IsTimersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
 					->AddTab(FTimingProfilerTabs::StatsCountersID, FTimingProfilerManager::Get()->IsStatsCountersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+					->SetForegroundTab(FTimingProfilerTabs::TimersID)
 				)
 			)
 		);
@@ -343,7 +298,7 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
 				[
-					SAssignNew(MainContentPanel, SVerticalBox)
+					SNew(SVerticalBox)
 
 					+ SVerticalBox::Slot()
 						.AutoHeight()
@@ -372,21 +327,6 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 								.Text(LOCTEXT("SelectTraceOverlayText", "Please select a trace."))
 						]
 				]
-
-			// Notification area overlay
-			+ SOverlay::Slot()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Bottom)
-				.Padding(16.0f)
-				[
-					SAssignNew(NotificationList, SNotificationList)
-				]
-
-			// Settings dialog overlay
-			+ SOverlay::Slot()
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Expose(OverlaySettingsSlot)
 		];
 
 	// Tell tab-manager about the global menu bar.
@@ -413,87 +353,22 @@ void STimingProfilerWindow::FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-EVisibility STimingProfilerWindow::IsFramesTrackVisible() const
+void STimingProfilerWindow::ShowTab(const FName& TabID)
 {
-	if (FTimingProfilerManager::Get()->IsFramesTrackVisible() &&
-		FInsightsManager::Get()->GetSession().IsValid())
+	if (TabManager->CanSpawnTab(TabID))
 	{
-		return EVisibility::Visible;
+		TabManager->InvokeTab(TabID);
 	}
-
-	return EVisibility::Collapsed;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-EVisibility STimingProfilerWindow::IsGraphTrackVisible() const
+void STimingProfilerWindow::HideTab(const FName& TabID)
 {
-	if (FTimingProfilerManager::Get()->IsGraphTrackVisible() &&
-		FInsightsManager::Get()->GetSession().IsValid())
+	TSharedPtr<SDockTab> Tab = TabManager->FindExistingLiveTab(TabID);
+	if (Tab.IsValid())
 	{
-		return EVisibility::Visible;
-	}
-
-	return EVisibility::Collapsed;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-EVisibility STimingProfilerWindow::IsTimingViewVisible() const
-{
-	if (FTimingProfilerManager::Get()->IsTimingViewVisible() &&
-		FInsightsManager::Get()->GetSession().IsValid())
-	{
-		return EVisibility::Visible;
-	}
-
-	return EVisibility::Collapsed;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-EVisibility STimingProfilerWindow::IsTimersViewVisible() const
-{
-	if (FTimingProfilerManager::Get()->IsTimersViewVisible() &&
-		FInsightsManager::Get()->GetSession().IsValid())
-	{
-		return EVisibility::Visible;
-	}
-
-	return EVisibility::Collapsed;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-EVisibility STimingProfilerWindow::IsLogViewVisible() const
-{
-	if (FTimingProfilerManager::Get()->IsLogViewVisible() &&
-		FInsightsManager::Get()->GetSession().IsValid())
-	{
-		return EVisibility::Visible;
-	}
-
-	return EVisibility::Collapsed;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingProfilerWindow::ShowHideTab(const FName& TabID, bool bIsVisible)
-{
-	if (!bIsVisible)
-	{
-		TSharedPtr<SDockTab> Tab = TabManager->FindExistingLiveTab(TabID);
-		if (Tab.IsValid())
-		{
-			Tab->RequestCloseTab();
-		}
-	}
-	else
-	{
-		if (TabManager->CanSpawnTab(TabID))
-		{
-			TabManager->InvokeTab(TabID);
-		}
+		Tab->RequestCloseTab();
 	}
 }
 
@@ -505,132 +380,17 @@ EVisibility STimingProfilerWindow::IsSessionOverlayVisible() const
 	{
 		return EVisibility::Hidden;
 	}
-
-	return EVisibility::Visible;
+	else
+	{
+		return EVisibility::Visible;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool STimingProfilerWindow::IsProfilerEnabled() const
 {
-	const bool bIsActive = FInsightsManager::Get()->GetSession().IsValid();
-	return bIsActive;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingProfilerWindow::ManageLoadingProgressNotificationState(const FString& Filename, const EInsightsNotificationType NotificatonType, const ELoadingProgressState ProgressState, const float LoadingProgress)
-{
-	const FString BaseFilename = FPaths::GetBaseFilename(Filename);
-
-	if (ProgressState == ELoadingProgressState::Started)
-	{
-		const bool bContains = ActiveNotifications.Contains(Filename);
-		if (!bContains)
-		{
-			FNotificationInfo NotificationInfo(Timing_GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
-			NotificationInfo.bFireAndForget = false;
-			NotificationInfo.bUseLargeFont = false;
-
-			// Add two buttons, one for cancel, one for loading the received file.
-			if (NotificatonType == EInsightsNotificationType::LoadingTraceFile)
-			{
-				const FText CancelButtonText = LOCTEXT("CancelButton_Text", "Cancel");
-				const FText CancelButtonTT = LOCTEXT("CancelButton_TTText", "Hides this notification");
-				const FText LoadButtonText = LOCTEXT("LoadButton_Text", "Load file");
-				const FText LoadButtonTT = LOCTEXT("LoadButton_TTText", "Loads the received file and hides this notification");
-
-				NotificationInfo.ButtonDetails.Add(FNotificationButtonInfo(CancelButtonText, CancelButtonTT,
-					FSimpleDelegate::CreateSP(this, &STimingProfilerWindow::SendingServiceSideCapture_Cancel, Filename), SNotificationItem::CS_Success));
-				NotificationInfo.ButtonDetails.Add(FNotificationButtonInfo(LoadButtonText, LoadButtonTT,
-					FSimpleDelegate::CreateSP(this, &STimingProfilerWindow::SendingServiceSideCapture_Load, Filename), SNotificationItem::CS_Success));
-			}
-
-			SNotificationItemWeak NotificationItem = NotificationList->AddNotification(NotificationInfo);
-			NotificationItem.Pin()->SetCompletionState(SNotificationItem::CS_Pending);
-			ActiveNotifications.Add(Filename, NotificationItem);
-		}
-	}
-	else if (ProgressState == ELoadingProgressState::InProgress)
-	{
-		const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-		if (LoadingProgressPtr)
-		{
-			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->SetText(Timing_GetTextForNotification(NotificatonType, ProgressState, BaseFilename, LoadingProgress));
-			LoadingProcessPinned->SetCompletionState(SNotificationItem::CS_Pending);
-		}
-	}
-	else if (ProgressState == ELoadingProgressState::Loaded)
-	{
-		const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-		if (LoadingProgressPtr)
-		{
-			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->SetText(Timing_GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
-			LoadingProcessPinned->SetCompletionState(SNotificationItem::CS_Success);
-
-			// Notifications for received files are handled by the user.
-			if (NotificatonType == EInsightsNotificationType::LoadingTraceFile)
-			{
-				LoadingProcessPinned->ExpireAndFadeout();
-				ActiveNotifications.Remove(Filename);
-			}
-		}
-	}
-	else if (ProgressState == ELoadingProgressState::Failed)
-	{
-		const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-		if (LoadingProgressPtr)
-		{
-			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->SetText(Timing_GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
-			LoadingProcessPinned->SetCompletionState(SNotificationItem::CS_Fail);
-
-			LoadingProcessPinned->ExpireAndFadeout();
-			ActiveNotifications.Remove(Filename);
-		}
-	}
-	else if (ProgressState == ELoadingProgressState::Cancelled)
-	{
-		const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-		if (LoadingProgressPtr)
-		{
-			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->ExpireAndFadeout();
-			ActiveNotifications.Remove(Filename);
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingProfilerWindow::SendingServiceSideCapture_Cancel(const FString Filename)
-{
-	const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-	if (LoadingProgressPtr)
-	{
-		TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-		LoadingProcessPinned->ExpireAndFadeout();
-		ActiveNotifications.Remove(Filename);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingProfilerWindow::SendingServiceSideCapture_Load(const FString Filename)
-{
-	const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-	if (LoadingProgressPtr)
-	{
-		TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-		LoadingProcessPinned->ExpireAndFadeout();
-		ActiveNotifications.Remove(Filename);
-
-		const FString PathName = FPaths::ProfilingDir() + TEXT("UnrealStats/Received/");
-		const FString TraceFilepath = PathName + Filename;
-		FInsightsManager::Get()->LoadTraceFile(TraceFilepath);
-	}
+	return FInsightsManager::Get()->GetSession().IsValid();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -724,36 +484,6 @@ FReply STimingProfilerWindow::OnDrop(const FGeometry& MyGeometry, const FDragDro
 	}
 
 	return SCompoundWidget::OnDrop(MyGeometry,DragDropEvent);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingProfilerWindow::OpenProfilerSettings()
-{
-	MainContentPanel->SetEnabled(false);
-	(*OverlaySettingsSlot)
-	[
-		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-		.Padding(8.0f)
-		[
-			SNew(SInsightsSettings)
-			.OnClose(this, &STimingProfilerWindow::CloseProfilerSettings)
-			.SettingPtr(&FInsightsManager::GetSettings())
-		]
-	];
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingProfilerWindow::CloseProfilerSettings()
-{
-	// Close the profiler settings by simply replacing widget with a null one.
-	(*OverlaySettingsSlot)
-	[
-		SNullWidget::NullWidget
-	];
-	MainContentPanel->SetEnabled(true);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

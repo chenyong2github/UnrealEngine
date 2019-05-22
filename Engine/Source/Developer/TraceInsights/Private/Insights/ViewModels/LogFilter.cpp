@@ -9,8 +9,9 @@
 #include "Insights/Widgets/SLogView.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Expression context to test the given messages against the current text filter
-
+/**
+ * Expression context to test the given messages against the current text filter.
+ */
 class FLogFilter_TextFilterExpressionContext : public ITextFilterExpressionContext
 {
 public:

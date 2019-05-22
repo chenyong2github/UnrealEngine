@@ -10,8 +10,8 @@
 
 #define UNREAL_INSIGHTS_VERSION_STRING "0.06"
 
-/// Extra identifier string (like: "alpha", "beta.1", "beta.2", "test", "featureX", etc.)
-#define UNREAL_INSIGHTS_VERSION_ID_STRING "im"
+/** Extra identifier string (like: "alpha", "beta.1", "beta.2", "test", "featureX", etc.). */
+//#define UNREAL_INSIGHTS_VERSION_ID_STRING "alpha"
 
 #ifdef UNREAL_INSIGHTS_VERSION_ID_STRING
 #define UNREAL_INSIGHTS_VERSION_STRING_EX "v" UNREAL_INSIGHTS_VERSION_STRING "-" UNREAL_INSIGHTS_VERSION_ID_STRING

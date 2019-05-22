@@ -12,7 +12,7 @@ class FInsightsSettings;
 class SGridPanel;
 enum class ECheckBoxState : uint8;
 
-/// Widget used to modify settings for the profiler, created on demand and destroyed on close.
+/** Widget used to modify settings for the profiler, created on demand and destroyed on close. */
 class SInsightsSettings : public SCompoundWidget
 {
 public:
@@ -21,8 +21,11 @@ public:
 		SLATE_ARGUMENT(FInsightsSettings*, SettingPtr)
 	SLATE_END_ARGS()
 
-	///  Construct this widget
-	/// @param InArgs The declaration data for this widget.
+	/**
+	 * Construct this widget
+	 *
+	 * @param InArgs The declaration data for this widget.
+	 */
 	void Construct(const FArguments& InArgs);
 
 private:
@@ -42,9 +45,9 @@ private:
 	ECheckBoxState OptionValue_IsChecked(const bool* ValuePtr) const;
 
 private:
-	/// Delegate to call when this profiler settings is closed.
+	/** Delegate to call when this profiler settings is closed. */
 	FSimpleDelegate OnClose;
 
-	/// Pointer to the profiler settings.
+	/** Pointer to the profiler settings. */
 	FInsightsSettings* SettingPtr;
 };
