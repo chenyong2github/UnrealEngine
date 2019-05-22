@@ -433,9 +433,11 @@ void FControlRigEditor::DeleteSelectedNodes()
 		{
 			if (Node->CanUserDeleteNode())
 			{
-				UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
 				AnalyticsTrackNodeEvent(GetBlueprintObj(), Node, true);
-				RigBlueprint->ModelController->RemoveNode(RigNode->PropertyName);
+				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+				{
+					RigBlueprint->ModelController->RemoveNode(RigNode->PropertyName);
+				}
 			}
 		}
 	}
