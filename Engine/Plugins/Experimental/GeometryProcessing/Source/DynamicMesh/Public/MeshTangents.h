@@ -46,7 +46,7 @@ public:
 	 * @param TriangleID triangle index in mesh
 	 * @param TriVertIdx vertex index in range 0,1,2
 	 */
-	void GetPerTriangleTangent(int TriangleID, int TriVertIdx, FVector3<RealType>& TangentOut, FVector3<RealType>& BitangentOut)
+	void GetPerTriangleTangent(int TriangleID, int TriVertIdx, FVector3<RealType>& TangentOut, FVector3<RealType>& BitangentOut) const
 	{
 		int k = TriangleID * 3 + TriVertIdx;
 		TangentOut = Tangents[k];

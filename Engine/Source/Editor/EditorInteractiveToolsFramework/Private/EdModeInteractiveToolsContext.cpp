@@ -527,7 +527,11 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 		}
 	}
 
-
+	// if alt is down we do not process mouse event
+	if (ViewportClient->IsAltPressed())
+	{
+		return false;
+	}
 
 	if (Event == IE_Pressed || Event == IE_Released)
 	{
@@ -685,6 +689,12 @@ bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* In
 #ifdef ENABLE_DEBUG_PRINTING
 	//UE_LOG(LogTemp, Warning, TEXT("CAPTURED MOUSE MOVE"));
 #endif
+
+	// if alt is down we will not allow client to see this event
+	if (InViewportClient->IsAltPressed())
+	{
+		return false;
+	}
 
 	FVector2D OldPosition = CurrentMouseState.Mouse.Position2D;
 	CurrentMouseState.Mouse.Position2D = FVector2D(InMouseX, InMouseY);

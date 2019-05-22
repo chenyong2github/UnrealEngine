@@ -149,6 +149,15 @@ public:
 	virtual void Render(IToolsContextRenderAPI* RenderAPI);
 
 
+
+	//
+	// access to APIs, etc
+	//
+
+	/** @return current IToolsContextQueriesAPI */
+	virtual IToolsContextQueriesAPI* GetContextQueriesAPI() { return QueriesAPI; }
+
+
 public:
 	/** set of Currently-active Gizmos */
 	UPROPERTY()
