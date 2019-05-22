@@ -295,12 +295,12 @@ void SLevelViewport::ConstructViewportOverlayContent()
 		.AutoHeight()
 		.Padding(2.0f, 1.0f, 2.0f, 1.0f)
 		[
-			SNew(SHorizontalBox)
+			SNew(SVerticalBox)
 			.Visibility(this, &SLevelViewport::GetSelectedActorsCurrentLevelTextVisibility)
 			// Current level label
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2.0f, 1.0f, 2.0f, 1.0f)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(6.0f, 1.0f, 2.0f, 1.0f)
 			[
 				SNew(STextBlock)
 				.Text(this, &SLevelViewport::GetSelectedActorsCurrentLevelText, true)
@@ -308,9 +308,9 @@ void SLevelViewport::ConstructViewportOverlayContent()
 				.ShadowOffset(FVector2D(1, 1))
 			]
 			// Current level
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.0f, 1.0f, 2.0f, 1.0f)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(6.0f, 1.0f, 2.0f, 1.0f)
 			[
 				SNew(STextBlock)
 				.Text(this, &SLevelViewport::GetSelectedActorsCurrentLevelText, false)
@@ -333,7 +333,7 @@ void SLevelViewport::ConstructViewportOverlayContent()
 				.VAlign(VAlign_Center)
 				.ButtonStyle(FEditorStyle::Get(), "EditorViewportToolBar.MenuButton")
 				.OnClicked(this, &SLevelViewport::OnMenuClicked)
-				.Visibility(this, &SLevelViewport::GetCurrentLevelTextVisibility)
+				.Visibility(this, &SLevelViewport::GetCurrentLevelButtonVisibility)
 				[
 					SNew(SHorizontalBox)
 					.Visibility(this, &SLevelViewport::GetCurrentLevelTextVisibility)
@@ -3566,7 +3566,20 @@ EVisibility SLevelViewport::GetCurrentLevelTextVisibility() const
 	{
 		ContentVisibility = EVisibility::SelfHitTestInvisible;
 	}
-	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient) && !IsPlayInEditorViewportActive() ? ContentVisibility : EVisibility::Collapsed;
+	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient) 
+		&& !IsPlayInEditorViewportActive() 
+		&& GetWorld() && GetWorld()->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1
+		?  ContentVisibility : EVisibility::Collapsed;
+}
+
+EVisibility SLevelViewport::GetCurrentLevelButtonVisibility() const
+{
+	EVisibility TextVisibility = GetCurrentLevelTextVisibility();
+	if (TextVisibility == EVisibility::SelfHitTestInvisible)
+	{
+		TextVisibility = EVisibility::Visible;
+	}
+	return TextVisibility;
 }
 
 EVisibility SLevelViewport::GetSelectedActorsCurrentLevelTextVisibility() const
@@ -3576,7 +3589,11 @@ EVisibility SLevelViewport::GetSelectedActorsCurrentLevelTextVisibility() const
 	{
 		ContentVisibility = EVisibility::SelfHitTestInvisible;
 	}
-	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient) && (GEditor->GetSelectedActorCount() > 0) && !IsPlayInEditorViewportActive() ? ContentVisibility : EVisibility::Collapsed;
+	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient) 
+		&& (GEditor->GetSelectedActorCount() > 0) 
+		&& !IsPlayInEditorViewportActive() 
+		&& GetWorld() && GetWorld()->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1
+		? ContentVisibility : EVisibility::Collapsed;
 }
 
 FText SLevelViewport::GetSelectedActorsCurrentLevelText(bool bDrawOnlyLabel) const
