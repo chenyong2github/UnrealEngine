@@ -815,6 +815,16 @@ namespace ShaderConductor
 					mslOpts.ios_use_framebuffer_fetch_subpasses = (std::stoi(Define.value) != 0);
 				}
                 /* UE Change End: Use Metal's native frame-buffer fetch API for subpass inputs. */
+				/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
+				if (!strcmp(Define.name, "enforce_storge_buffer_bounds"))
+				{
+					mslOpts.enforce_storge_buffer_bounds = (std::stoi(Define.value) != 0);
+				}
+				if (!strcmp(Define.name, "metadata_buffer_index"))
+				{
+					mslOpts.metadata_buffer_index = (uint32_t)std::stoi(Define.value);
+				}
+				/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
 			}
 			
 			mslCompiler->set_msl_options(mslOpts);

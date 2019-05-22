@@ -183,6 +183,9 @@ public:
 		uint32_t shader_output_buffer_index = 28;
 		uint32_t shader_patch_output_buffer_index = 27;
 		uint32_t shader_tess_factor_buffer_index = 26;
+		/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
+		uint32_t metadata_buffer_index = 25;
+		/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
 		uint32_t shader_input_wg_index = 0;
 		bool enable_point_size_builtin = true;
 		bool disable_rasterization = false;
@@ -204,6 +207,10 @@ public:
 		bool ios_use_framebuffer_fetch_subpasses = false;
 		/* UE Change End: Use Metal's native frame-buffer fetch API for subpass inputs. */
 
+		/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
+		bool enforce_storge_buffer_bounds = false;
+		/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
+		
 		// Requires MSL 2.1, use the native support for texel buffers.
 		bool texture_buffer_native = false;
 
@@ -287,6 +294,15 @@ public:
 	{
 		return capture_output_to_buffer && stage_in_var_id != 0;
 	}
+	
+	/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
+	// Provide feedback to calling API to allow it to pass an auxiliary
+	// metadata buffer if the shader needs it.
+	bool needs_metadata_buffer() const
+	{
+		return used_metadata_buffer;
+	}
+	/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
 
 	explicit CompilerMSL(std::vector<uint32_t> spirv);
 	CompilerMSL(const uint32_t *ir, size_t word_count);
@@ -355,6 +371,9 @@ protected:
 		/* UE Change Begin: Emulate texture2D atomic operations */
 		SPVFuncImplImage2DAtomicCoords,
 		/* UE Change End: Emulate texture2D atomic operations */
+		/* UE Change Begin: Storage buffer robustness */
+		SPVFuncImplStorageBufferCoords,
+		/* UE Change End: Storage buffer robustness */
 		SPVFuncImplInverse4x4,
 		SPVFuncImplInverse3x3,
 		SPVFuncImplInverse2x2,
@@ -428,7 +447,9 @@ protected:
 	bool is_non_native_row_major_matrix(uint32_t id) override;
 	bool member_is_non_native_row_major_matrix(const SPIRType &type, uint32_t index) override;
 	std::string convert_row_major_matrix(std::string exp_str, const SPIRType &exp_type, bool is_packed) override;
-
+	/* UE Change Begin: Storage buffer robustness */
+	std::string access_chain_internal(uint32_t base, const uint32_t *indices, uint32_t count, AccessChainFlags flags, AccessChainMeta *meta) override;
+	/* UE Change End: Storage buffer robustness */
 	void preprocess_op_codes();
 	void localize_global_variables();
 	void extract_global_variables_from_functions();
@@ -522,6 +543,9 @@ protected:
 	uint32_t builtin_subgroup_invocation_id_id = 0;
 	uint32_t builtin_subgroup_size_id = 0;
 	uint32_t swizzle_buffer_id = 0;
+	/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
+	uint32_t metadata_buffer_id = 0;
+	/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
 
 	void bitcast_to_builtin_store(uint32_t target_id, std::string &expr, const SPIRType &expr_type) override;
 	void bitcast_from_builtin_load(uint32_t source_id, std::string &expr, const SPIRType &expr_type) override;
@@ -573,6 +597,10 @@ protected:
 	bool used_swizzle_buffer = false;
 	bool added_builtin_tess_level = false;
 	bool needs_subgroup_invocation_id = false;
+	/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
+	bool needs_metadata_buffer_def = false;
+	bool used_metadata_buffer = false;
+	/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
 	std::string qual_pos_var_name;
 	std::string stage_in_var_name = "in";
 	std::string stage_out_var_name = "out";
@@ -584,6 +612,9 @@ protected:
 	std::string output_buffer_var_name = "spvOut";
 	std::string patch_output_buffer_var_name = "spvPatchOut";
 	std::string tess_factor_buffer_var_name = "spvTessLevel";
+	/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
+	std::string metadata_name_suffix = "Meta";
+	/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
 	spv::Op previous_instruction_opcode = spv::OpNop;
 
 	std::unordered_map<uint32_t, MSLConstexprSampler> constexpr_samplers;

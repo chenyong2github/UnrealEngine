@@ -6322,9 +6322,7 @@ string CompilerGLSL::access_chain_internal(uint32_t base, const uint32_t *indice
 				if (!pending_array_enclose)
 					expr += "]";
 			}
-			/* UE Change Begin: Sample mask input for Metal is not an array */
-			else if (ir.meta[base].decoration.builtin_type != BuiltInSampleMask)
-			/* UE Change End: Sample mask input for Metal is not an array */
+			else
 			{
 				append_index(index);
 			}

@@ -423,6 +423,43 @@ void CompilerMSL::build_implicit_builtins()
 		set_decoration(var_id, DecorationBinding, msl_options.swizzle_buffer_index);
 		swizzle_buffer_id = var_id;
 	}
+	
+    /* UE Change Begin: Storage buffer robustness */
+	if (needs_metadata_buffer_def)
+	{
+		uint32_t offset = ir.increase_bound_by(4);
+		uint32_t type_id = offset;
+		uint32_t type_ptr_id = offset + 1;
+		uint32_t type_ptr_ptr_id = offset + 2;
+		uint32_t var_id = offset + 3;
+		
+		// Create a buffer to hold extra data, including the swizzle constants.
+		SPIRType uint_type;
+		uint_type.basetype = SPIRType::UInt;
+		uint_type.width = 32;
+		set<SPIRType>(type_id, uint_type);
+		
+		SPIRType uint_type_pointer = uint_type;
+		uint_type_pointer.pointer = true;
+		uint_type_pointer.pointer_depth = 1;
+		uint_type_pointer.parent_type = type_id;
+		uint_type_pointer.storage = StorageClassUniform;
+		set<SPIRType>(type_ptr_id, uint_type_pointer);
+		set_decoration(type_ptr_id, DecorationArrayStride, 4);
+		
+		SPIRType uint_type_pointer2 = uint_type_pointer;
+		uint_type_pointer2.pointer_depth++;
+		uint_type_pointer2.parent_type = type_ptr_id;
+		set<SPIRType>(type_ptr_ptr_id, uint_type_pointer2);
+		
+		set<SPIRVariable>(var_id, type_ptr_ptr_id, StorageClassUniformConstant);
+		set_name(var_id, "spvBufferSizes");
+		// This should never match anything.
+		set_decoration(var_id, DecorationDescriptorSet, 0xFFFFFFFE);
+		set_decoration(var_id, DecorationBinding, msl_options.metadata_buffer_index);
+		metadata_buffer_id = var_id;
+	}
+    /* UE Change End: Storage buffer robustness */
 }
 
 static string create_sampler_address(const char *prefix, MSLSamplerAddress addr)
@@ -675,6 +712,10 @@ string CompilerMSL::compile()
 	set_enabled_interface_variables(get_active_interface_variables());
 	if (swizzle_buffer_id)
 		active_interface_variables.insert(swizzle_buffer_id);
+    /* UE Change Begin: Storage buffer robustness */
+	if (metadata_buffer_id)
+		active_interface_variables.insert(metadata_buffer_id);
+    /* UE Change End: Storage buffer robustness */
 
 	// Create structs to hold input, output and uniform variables.
 	// Do output first to ensure out. is declared at top of entry function.
@@ -2710,6 +2751,15 @@ void CompilerMSL::emit_custom_functions()
 			break;
 		}
 		/* UE Change End: Emulate texture2D atomic operations */
+				
+		/* UE Change Begin: Storage buffer robustness */
+		case SPVFuncImplStorageBufferCoords:
+		{
+			statement("// Returns buffer coords clamped to storage buffer size");
+			statement("#define spvStorageBufferCoords(idx, sizes, type, coord) metal::min(coord, (sizes[idx*2] / sizeof(type)) - 1)");
+			break;
+		}
+		/* UE Change End: Storage buffer robustness */
 
 		case SPVFuncImplInverse4x4:
 			statement("// Returns the determinant of a 2x2 matrix.");
@@ -3645,7 +3695,7 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 		uint32_t id = ops[1];
 		uint32_t ptr = ops[2];
 		if (ir.meta[ptr].decoration.builtin_type == BuiltInSampleMask)
-	{
+		{
 			ir.meta[id].decoration.builtin_type = BuiltInSampleMask;
 		}
 		CompilerGLSL::emit_instruction(instruction);
@@ -7550,11 +7600,12 @@ string CompilerMSL::image_type_glsl(const SPIRType &type, uint32_t id)
 			else
 				img_type_name += "texture2d";
 			break;
+        /* UE Change Begin: Use Metal's native frame-buffer fetch API for subpass inputs. */
 		case DimSubpassData:
             if (msl_options.ios_use_framebuffer_fetch_subpasses)
                 return type_to_glsl(get<SPIRType>(img_type.type));
-		case Dim2D:
         /* UE Change End: Use Metal's native frame-buffer fetch API for subpass inputs. */
+		case Dim2D:
 			if (img_type.ms && img_type.arrayed)
 			{
 				if (!msl_options.supports_msl_version(2, 1))
@@ -7959,7 +8010,7 @@ string CompilerMSL::builtin_to_glsl(BuiltIn builtin, StorageClass storage)
 		if (msl_options.supports_msl_version(1, 1) && (msl_options.ios_support_base_vertex_instance || msl_options.is_macos()))
 		{
 			needs_base_vertex_arg--;
-		return "gl_BaseVertex";
+			return "gl_BaseVertex";
 		}
 		else
 		{
@@ -7969,7 +8020,7 @@ string CompilerMSL::builtin_to_glsl(BuiltIn builtin, StorageClass storage)
 		if (msl_options.supports_msl_version(1, 1) && (msl_options.ios_support_base_vertex_instance || msl_options.is_macos()))
 		{
 			needs_base_instance_arg--;
-		return "gl_BaseInstance";
+			return "gl_BaseInstance";
 		}
 		else
 		{
@@ -8068,7 +8119,7 @@ string CompilerMSL::builtin_qualifier(BuiltIn builtin)
 		if (msl_options.supports_msl_version(2, 1) && execution.model == ExecutionModelVertex && ir.source.hlsl == true)
 			return "position, invariant";
 		else
-		return "position";
+			return "position";
 		/* UE Change End: Support invariant position for HLSL source. */
 	case BuiltInLayer:
 		return "render_target_array_index";
@@ -8564,11 +8615,369 @@ void CompilerMSL::OpCodePreprocessor::check_resource_write(uint32_t var_id)
 		uses_resource_write = true;
 }
 
+/* UE Change Begin: Storage buffer robustness */
+std::string CompilerMSL::access_chain_internal(uint32_t base, const uint32_t *indices, uint32_t count, AccessChainFlags flags, AccessChainMeta *meta)
+{
+	std::string expr;
+	
+	bool index_is_literal = (flags & ACCESS_CHAIN_INDEX_IS_LITERAL_BIT) != 0;
+	bool chain_only = (flags & ACCESS_CHAIN_CHAIN_ONLY_BIT) != 0;
+	bool ptr_chain = (flags & ACCESS_CHAIN_PTR_CHAIN_BIT) != 0;
+	bool register_expression_read = (flags & ACCESS_CHAIN_SKIP_REGISTER_EXPRESSION_READ_BIT) == 0;
+	
+	if (!chain_only)
+		expr = to_enclosed_expression(base, register_expression_read);
+	
+	// Start traversing type hierarchy at the proper non-pointer types,
+	// but keep type_id referencing the original pointer for use below.
+	uint32_t type_id = expression_type_id(base);
+	
+	if (!backend.native_pointers)
+	{
+		if (ptr_chain)
+			SPIRV_CROSS_THROW("Backend does not support native pointers and does not support OpPtrAccessChain.");
+		
+		// Wrapped buffer reference pointer types will need to poke into the internal "value" member before
+		// continuing the access chain.
+		if (should_dereference(base))
+		{
+			auto &type = get<SPIRType>(type_id);
+			expr = dereference_expression(type, expr);
+		}
+	}
+	
+	const auto *type = &get_pointee_type(type_id);
+	
+	auto *var = maybe_get<SPIRVariable>(base);
+	const auto *var_type = var ? maybe_get<SPIRType>(var->basetype) : nullptr;
+	bool ssbo = msl_options.enforce_storge_buffer_bounds && var && var_type && (var->storage == StorageClassStorageBuffer || (var_type->basetype == SPIRType::Struct && var->storage == StorageClassUniform && has_decoration(var_type->self, DecorationBufferBlock)));
+	
+	bool access_chain_is_arrayed = expr.find_first_of('[') != string::npos;
+	bool row_major_matrix_needs_conversion = is_non_native_row_major_matrix(base);
+	bool is_packed = has_extended_decoration(base, SPIRVCrossDecorationPacked);
+	uint32_t packed_type = get_extended_decoration(base, SPIRVCrossDecorationPackedType);
+	bool is_invariant = has_decoration(base, DecorationInvariant);
+	bool pending_array_enclose = false;
+	bool dimension_flatten = false;
+	
+	const auto append_index = [&](uint32_t index) {
+		expr += "[";
+		
+		if (ssbo)
+		{
+			expr += "spvStorageBufferCoords(";
+			uint32_t var_index = get_metal_resource_index(*var,var_type->basetype);
+			expr += convert_to_string(var_index);
+			expr += ", ";
+			expr += "spvBufferSizes";
+			expr += ", ";
+			const auto &innertype = get<SPIRType>(type->parent_type);
+			expr += type_to_glsl(innertype);
+			expr += ", ";
+		}
+		
+		// If we are indexing into an array of SSBOs or UBOs, we need to index it with a non-uniform qualifier.
+		bool nonuniform_index =
+		has_decoration(index, DecorationNonUniformEXT) &&
+		(has_decoration(type->self, DecorationBlock) || has_decoration(type->self, DecorationBufferBlock));
+		if (nonuniform_index)
+		{
+			expr += backend.nonuniform_qualifier;
+			expr += "(";
+		}
+		
+		if (index_is_literal)
+			expr += convert_to_string(index);
+		else
+			expr += to_expression(index, register_expression_read);
+		
+		if (nonuniform_index)
+			expr += ")";
+		
+		if (ssbo)
+		{
+			expr += ")";
+			ssbo = false;
+		}
+		
+		expr += "]";
+	};
+	
+	for (uint32_t i = 0; i < count; i++)
+	{
+		uint32_t index = indices[i];
+		
+		// Pointer chains
+		if (ptr_chain && i == 0)
+		{
+			// If we are flattening multidimensional arrays, only create opening bracket on first
+			// array index.
+			if (options.flatten_multidimensional_arrays)
+			{
+				dimension_flatten = type->array.size() >= 1;
+				pending_array_enclose = dimension_flatten;
+				if (pending_array_enclose)
+					expr += "[";
+			}
+			
+			if (options.flatten_multidimensional_arrays && dimension_flatten)
+			{
+				// If we are flattening multidimensional arrays, do manual stride computation.
+				if (index_is_literal)
+					expr += convert_to_string(index);
+				else
+					expr += to_enclosed_expression(index, register_expression_read);
+				
+				for (auto j = uint32_t(type->array.size()); j; j--)
+				{
+					expr += " * ";
+					expr += enclose_expression(to_array_size(*type, j - 1));
+				}
+				
+				if (type->array.empty())
+					pending_array_enclose = false;
+				else
+					expr += " + ";
+				
+				if (!pending_array_enclose)
+					expr += "]";
+			}
+			else
+			{
+				append_index(index);
+			}
+			
+			if (type->basetype == SPIRType::ControlPointArray)
+			{
+				type_id = type->parent_type;
+				type = &get<SPIRType>(type_id);
+			}
+			
+			access_chain_is_arrayed = true;
+		}
+		// Arrays
+		else if (!type->array.empty())
+		{
+			// If we are flattening multidimensional arrays, only create opening bracket on first
+			// array index.
+			if (options.flatten_multidimensional_arrays && !pending_array_enclose)
+			{
+				dimension_flatten = type->array.size() > 1;
+				pending_array_enclose = dimension_flatten;
+				if (pending_array_enclose)
+					expr += "[";
+			}
+			
+			assert(type->parent_type);
+			
+			if (backend.force_gl_in_out_block && i == 0 && var && is_builtin_variable(*var) &&
+				!has_decoration(type->self, DecorationBlock))
+			{
+				// This deals with scenarios for tesc/geom where arrays of gl_Position[] are declared.
+				// Normally, these variables live in blocks when compiled from GLSL,
+				// but HLSL seems to just emit straight arrays here.
+				// We must pretend this access goes through gl_in/gl_out arrays
+				// to be able to access certain builtins as arrays.
+				auto builtin = ir.meta[base].decoration.builtin_type;
+				switch (builtin)
+				{
+						// case BuiltInCullDistance: // These are already arrays, need to figure out rules for these in tess/geom.
+						// case BuiltInClipDistance:
+					case BuiltInPosition:
+					case BuiltInPointSize:
+						if (var->storage == StorageClassInput)
+							expr = join("gl_in[", to_expression(index, register_expression_read), "].", expr);
+						else if (var->storage == StorageClassOutput)
+							expr = join("gl_out[", to_expression(index, register_expression_read), "].", expr);
+						else
+							append_index(index);
+						break;
+						
+					default:
+						append_index(index);
+						break;
+				}
+			}
+			else if (options.flatten_multidimensional_arrays && dimension_flatten)
+			{
+				// If we are flattening multidimensional arrays, do manual stride computation.
+				auto &parent_type = get<SPIRType>(type->parent_type);
+				
+				if (index_is_literal)
+					expr += convert_to_string(index);
+				else
+					expr += to_enclosed_expression(index, register_expression_read);
+				
+				for (auto j = uint32_t(parent_type.array.size()); j; j--)
+				{
+					expr += " * ";
+					expr += enclose_expression(to_array_size(parent_type, j - 1));
+				}
+				
+				if (parent_type.array.empty())
+					pending_array_enclose = false;
+				else
+					expr += " + ";
+				
+				if (!pending_array_enclose)
+					expr += "]";
+			}
+			/* UE Change Begin: Sample mask input for Metal is not an array */
+			else if (ir.meta[base].decoration.builtin_type != BuiltInSampleMask)
+			/* UE Change End: Sample mask input for Metal is not an array */
+			{
+				append_index(index);
+			}
+			
+			type_id = type->parent_type;
+			type = &get<SPIRType>(type_id);
+			
+			access_chain_is_arrayed = true;
+		}
+		// For structs, the index refers to a constant, which indexes into the members.
+		// We also check if this member is a builtin, since we then replace the entire expression with the builtin one.
+		else if (type->basetype == SPIRType::Struct)
+		{
+			if (!index_is_literal)
+				index = get<SPIRConstant>(index).scalar();
+			
+			if (index >= type->member_types.size())
+				SPIRV_CROSS_THROW("Member index is out of bounds!");
+			
+			BuiltIn builtin;
+			if (is_member_builtin(*type, index, &builtin))
+			{
+				// FIXME: We rely here on OpName on gl_in/gl_out to make this work properly.
+				// To make this properly work by omitting all OpName opcodes,
+				// we need to infer gl_in or gl_out based on the builtin, and stage.
+				if (access_chain_is_arrayed)
+				{
+					expr += ".";
+					expr += builtin_to_glsl(builtin, type->storage);
+				}
+				else
+					expr = builtin_to_glsl(builtin, type->storage);
+			}
+			else
+			{
+				// If the member has a qualified name, use it as the entire chain
+				string qual_mbr_name = get_member_qualified_name(type_id, index);
+				if (!qual_mbr_name.empty())
+					expr = qual_mbr_name;
+				else
+					expr += to_member_reference(base, *type, index, ptr_chain);
+			}
+			
+			if (has_member_decoration(type->self, index, DecorationInvariant))
+				is_invariant = true;
+			
+			is_packed = member_is_packed_type(*type, index);
+			if (is_packed)
+				packed_type = get_extended_member_decoration(type->self, index, SPIRVCrossDecorationPackedType);
+			else
+				packed_type = 0;
+			
+			row_major_matrix_needs_conversion = member_is_non_native_row_major_matrix(*type, index);
+			type = &get<SPIRType>(type->member_types[index]);
+		}
+		// Matrix -> Vector
+		else if (type->columns > 1)
+		{
+			if (row_major_matrix_needs_conversion)
+			{
+				expr = convert_row_major_matrix(expr, *type, is_packed);
+				row_major_matrix_needs_conversion = false;
+				is_packed = false;
+				packed_type = 0;
+			}
+			
+			expr += "[";
+			if (index_is_literal)
+				expr += convert_to_string(index);
+			else
+				expr += to_expression(index, register_expression_read);
+			expr += "]";
+			
+			type_id = type->parent_type;
+			type = &get<SPIRType>(type_id);
+		}
+		// Vector -> Scalar
+		else if (type->vecsize > 1)
+		{
+			if (index_is_literal && !is_packed)
+			{
+				expr += ".";
+				expr += index_to_swizzle(index);
+			}
+			else if (ir.ids[index].get_type() == TypeConstant && !is_packed)
+			{
+				auto &c = get<SPIRConstant>(index);
+				expr += ".";
+				expr += index_to_swizzle(c.scalar());
+			}
+			else if (index_is_literal)
+			{
+				// For packed vectors, we can only access them as an array, not by swizzle.
+				expr += join("[", index, "]");
+			}
+			else
+			{
+				expr += "[";
+				expr += to_expression(index, register_expression_read);
+				expr += "]";
+			}
+			
+			is_packed = false;
+			packed_type = 0;
+			type_id = type->parent_type;
+			type = &get<SPIRType>(type_id);
+		}
+		else if (!backend.allow_truncated_access_chain)
+			SPIRV_CROSS_THROW("Cannot subdivide a scalar value!");
+	}
+	
+	if (pending_array_enclose)
+	{
+		SPIRV_CROSS_THROW("Flattening of multidimensional arrays were enabled, "
+						  "but the access chain was terminated in the middle of a multidimensional array. "
+						  "This is not supported.");
+	}
+	
+	if (meta)
+	{
+		meta->need_transpose = row_major_matrix_needs_conversion;
+		meta->storage_is_packed = is_packed;
+		meta->storage_is_invariant = is_invariant;
+		meta->storage_packed_type = packed_type;
+	}
+	
+	return expr;
+}
+/* UE Change End: Storage buffer robustness */
+
 // Returns an enumeration of a SPIR-V function that needs to be output for certain Op codes.
 CompilerMSL::SPVFuncImpl CompilerMSL::OpCodePreprocessor::get_spv_func_impl(Op opcode, const uint32_t *args)
 {
 	switch (opcode)
 	{
+	/* UE Change Begin: Storage buffer robustness */
+	case OpInBoundsAccessChain:
+	case OpAccessChain:
+	case OpPtrAccessChain:
+	{
+		auto &var = compiler.get<SPIRVariable>(args[2]);
+		auto &type = compiler.get<SPIRType>(var.basetype);
+		bool ssbo = compiler.has_decoration(type.self, DecorationBufferBlock);
+		if (compiler.msl_options.enforce_storge_buffer_bounds && (var.storage == StorageClassStorageBuffer || (type.basetype == SPIRType::Struct && var.storage == StorageClassUniform && ssbo)))
+		{
+			compiler.needs_metadata_buffer_def = true;
+			return SPVFuncImplStorageBufferCoords;
+		}
+		
+		break;
+	}
+	/* UE Change End: Storage buffer robustness */
+
 	case OpFMod:
 		return SPVFuncImplMod;
 
@@ -8580,7 +8989,7 @@ CompilerMSL::SPVFuncImpl CompilerMSL::OpCodePreprocessor::get_spv_func_impl(Op o
 	}
 
 	case OpStore:
-			{
+	{
         /* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
         /* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
 		break;

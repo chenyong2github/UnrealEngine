@@ -465,10 +465,10 @@ protected:
 	bool expression_is_forwarded(uint32_t id);
 	SPIRExpression &emit_op(uint32_t result_type, uint32_t result_id, const std::string &rhs, bool forward_rhs,
 	                        bool suppress_usage_tracking = false);
-
-	std::string access_chain_internal(uint32_t base, const uint32_t *indices, uint32_t count, AccessChainFlags flags,
+	/* UE Change Begin: Storage buffer robustness */
+	virtual std::string access_chain_internal(uint32_t base, const uint32_t *indices, uint32_t count, AccessChainFlags flags,
 	                                  AccessChainMeta *meta);
-
+	/* UE Change End: Storage buffer robustness */
 	std::string access_chain(uint32_t base, const uint32_t *indices, uint32_t count, const SPIRType &target_type,
 	                         AccessChainMeta *meta = nullptr, bool ptr_chain = false);
 
