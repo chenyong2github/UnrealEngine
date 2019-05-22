@@ -353,7 +353,7 @@ void UControlRigBlueprint::HandleModelModified(const UControlRigModel* InModel, 
 									return true;
 								}, true, true);
 							}
-							else if (InType == EControlRigModelNotifType::PinRemoved)
+							else
 							{
 								PerformArrayOperation(PinPath, [](FScriptArrayHelper& InArrayHelper, int32 InArrayIndex)
 								{
