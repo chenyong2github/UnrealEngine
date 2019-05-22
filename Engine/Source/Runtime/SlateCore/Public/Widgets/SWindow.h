@@ -155,6 +155,7 @@ public:
 		, _SaneWindowPlacement( true )
 		, _LayoutBorder(FMargin(5, 5, 5, 5))
 		, _UserResizeBorder(FMargin(5, 5, 5, 5))
+		, _bManualManageDPI( false )
 
 	{
 		_AccessibleParams = FAccessibleWidgetData(EAccessibleBehavior::Auto);
