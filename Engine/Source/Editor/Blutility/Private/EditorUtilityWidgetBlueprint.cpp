@@ -68,9 +68,7 @@ TSharedRef<SWidget> UEditorUtilityWidgetBlueprint::CreateUtilityWidget()
 	UClass* BlueprintClass = GeneratedClass;
 	TSubclassOf<UEditorUtilityWidget> WidgetClass = BlueprintClass;
 	UWorld* World = GEditor->GetEditorWorldContext().World();
-	check(World);
-
-	if (!CreatedUMGWidget)
+	if (!CreatedUMGWidget && World)
 	{
 		CreatedUMGWidget = CreateWidget<UEditorUtilityWidget>(World, WidgetClass);
 	}
