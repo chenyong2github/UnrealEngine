@@ -3979,6 +3979,17 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 			{
 				coord = join("spvImage2DAtomicCoord(", coord, ", ", to_expression(ops[2]), ")");
 			}
+			
+			/* UE Change Begin: Storage buffer robustness */
+			if (msl_options.enforce_storge_buffer_bounds)
+			{
+				const auto *var_type = var ? maybe_get<SPIRType>(var->basetype) : nullptr;
+				uint32_t var_index = get_metal_resource_index(*var,var_type->basetype);
+				const auto &innertype = var_type->basetype == SPIRType::Image ? get<SPIRType>(var_type->image.type) : *var_type;
+				coord = join("spvStorageBufferCoords(", convert_to_string(var_index), ", spvBufferSizes, ", type_to_glsl(innertype), ", ", coord, ")");
+			}
+			/* UE Change End: Storage buffer robustness */
+			
 			auto &e = set<SPIRExpression>(id, join(to_expression(ops[2]), "_atomic[", coord, "]"), result_type, true);
 			e.loaded_from = var ? var->self : 0;
 		}
@@ -9017,8 +9028,16 @@ CompilerMSL::SPVFuncImpl CompilerMSL::OpCodePreprocessor::get_spv_func_impl(Op o
 		if (it != image_pointers.end())
 		{
 			uint32_t tid = it->second->basetype;
+			/* UE Change Begin: Storage buffer robustness */
+			compiler.needs_metadata_buffer_def = true;
+			/* UE Change End: Storage buffer robustness */
+			
 			if (tid && compiler.get<SPIRType>(tid).image.dim == Dim2D)
 				return SPVFuncImplImage2DAtomicCoords;
+
+			/* UE Change Begin: Storage buffer robustness */
+			return SPVFuncImplStorageBufferCoords;
+			/* UE Change End: Storage buffer robustness */
 		}
 		break;
 	}
