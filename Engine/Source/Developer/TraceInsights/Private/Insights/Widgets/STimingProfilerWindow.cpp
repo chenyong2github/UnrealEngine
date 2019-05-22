@@ -53,7 +53,7 @@ const FName FTimingProfilerTabs::LogViewID(TEXT("LogView"));
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // TODO: move this function to InsightsManager or in TraceSession.h
-static FText GetTextForNotification(const EInsightsNotificationType NotificatonType, const ELoadingProgressState ProgressState, const FString& Filename, const float ProgressPercent = 0.0f)
+static FText Timing_GetTextForNotification(const EInsightsNotificationType NotificatonType, const ELoadingProgressState ProgressState, const FString& Filename, const float ProgressPercent = 0.0f)
 {
 	FText Result;
 
@@ -528,7 +528,7 @@ void STimingProfilerWindow::ManageLoadingProgressNotificationState(const FString
 		const bool bContains = ActiveNotifications.Contains(Filename);
 		if (!bContains)
 		{
-			FNotificationInfo NotificationInfo(GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
+			FNotificationInfo NotificationInfo(Timing_GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
 			NotificationInfo.bFireAndForget = false;
 			NotificationInfo.bUseLargeFont = false;
 
@@ -557,7 +557,7 @@ void STimingProfilerWindow::ManageLoadingProgressNotificationState(const FString
 		if (LoadingProgressPtr)
 		{
 			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->SetText(GetTextForNotification(NotificatonType, ProgressState, BaseFilename, LoadingProgress));
+			LoadingProcessPinned->SetText(Timing_GetTextForNotification(NotificatonType, ProgressState, BaseFilename, LoadingProgress));
 			LoadingProcessPinned->SetCompletionState(SNotificationItem::CS_Pending);
 		}
 	}
@@ -567,7 +567,7 @@ void STimingProfilerWindow::ManageLoadingProgressNotificationState(const FString
 		if (LoadingProgressPtr)
 		{
 			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->SetText(GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
+			LoadingProcessPinned->SetText(Timing_GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
 			LoadingProcessPinned->SetCompletionState(SNotificationItem::CS_Success);
 
 			// Notifications for received files are handled by the user.
@@ -584,7 +584,7 @@ void STimingProfilerWindow::ManageLoadingProgressNotificationState(const FString
 		if (LoadingProgressPtr)
 		{
 			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->SetText(GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
+			LoadingProcessPinned->SetText(Timing_GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
 			LoadingProcessPinned->SetCompletionState(SNotificationItem::CS_Fail);
 
 			LoadingProcessPinned->ExpireAndFadeout();

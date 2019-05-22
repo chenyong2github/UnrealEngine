@@ -9,7 +9,7 @@
 // Insights
 #include "Insights/ViewModels/StatsNode.h"
 
-DECLARE_DELEGATE_TwoParams(FSetHoveredTableCell, const FName /*ColumnId*/, const FStatsNodePtr /*SamplePtr*/);
+DECLARE_DELEGATE_TwoParams(FSetHoveredStatsTableCell, const FName /*ColumnId*/, const FStatsNodePtr /*SamplePtr*/);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FIsColumnVisibleDelegate, const FName /*ColumnId*/);
 DECLARE_DELEGATE_RetVal_OneParam(EHorizontalAlignment, FGetColumnOutlineHAlignmentDelegate, const FName /*ColumnId*/);
 
@@ -17,7 +17,7 @@ class SStatsTableCell : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SStatsTableCell) {}
-		SLATE_EVENT(FSetHoveredTableCell, OnSetHoveredTableCell)
+		SLATE_EVENT(FSetHoveredStatsTableCell, OnSetHoveredTableCell)
 		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_ARGUMENT(FStatsNodePtr, StatsNodePtr)
 		SLATE_ARGUMENT(FName, ColumnId)
@@ -136,5 +136,5 @@ protected:
 	/** The Id of the column where this stats belongs. */
 	FName ColumnId;
 
-	FSetHoveredTableCell SetHoveredTableCellDelegate;
+	FSetHoveredStatsTableCell SetHoveredTableCellDelegate;
 };

@@ -9,7 +9,7 @@
 // Insights
 #include "Insights/ViewModels/TimerNode.h"
 
-DECLARE_DELEGATE_TwoParams(FSetHoveredTableCell, const FName /*ColumnId*/, const FTimerNodePtr /*SamplePtr*/);
+DECLARE_DELEGATE_TwoParams(FSetHoveredTimerTableCell, const FName /*ColumnId*/, const FTimerNodePtr /*SamplePtr*/);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FIsColumnVisibleDelegate, const FName /*ColumnId*/);
 DECLARE_DELEGATE_RetVal_OneParam(EHorizontalAlignment, FGetColumnOutlineHAlignmentDelegate, const FName /*ColumnId*/);
 
@@ -17,7 +17,7 @@ class STimerTableCell : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(STimerTableCell) {}
-		SLATE_EVENT(FSetHoveredTableCell, OnSetHoveredTableCell)
+		SLATE_EVENT(FSetHoveredTimerTableCell, OnSetHoveredTableCell)
 		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_ARGUMENT(FTimerNodePtr, TimerNodePtr)
 		SLATE_ARGUMENT(FName, ColumnId)
@@ -136,5 +136,5 @@ protected:
 	/** The Id of the column where this timer belongs. */
 	FName ColumnId;
 
-	FSetHoveredTableCell SetHoveredTableCellDelegate;
+	FSetHoveredTimerTableCell SetHoveredTableCellDelegate;
 };
