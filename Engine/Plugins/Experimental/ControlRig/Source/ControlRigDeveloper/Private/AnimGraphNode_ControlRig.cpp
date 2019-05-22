@@ -160,8 +160,8 @@ void UAnimGraphNode_ControlRig::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 		.OnGetAvailableMapping(FOnGetAvailableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::GetAvailableMapping, true))
 		.OnCreateVariableMapping(FOnCreateVariableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::CreateVariableMapping, true))
 		.OnVariableOptionAvailable(FOnVarOptionAvailable::CreateUObject(this, &UAnimGraphNode_ControlRig::IsAvailableToMapToCurve, true))
-		.OnPinGetCheckState(FOnPinGetCheckState::CreateUObject(this, &UAnimGraphNode_CustomProperty::IsPropertyExposed))
-		.OnPinCheckStateChanged(FOnPinCheckStateChanged::CreateUObject(this, &UAnimGraphNode_CustomProperty::OnPropertyExposeCheckboxChanged))
+		.OnPinGetCheckState(FOnPinGetCheckState::CreateUObject(this, &UAnimGraphNode_ControlRig::IsPropertyExposed))
+		.OnPinCheckStateChanged(FOnPinCheckStateChanged::CreateUObject(this, &UAnimGraphNode_ControlRig::OnPropertyExposeCheckboxChanged))
 		.OnPinIsEnabledCheckState(FOnPinIsCheckEnabled::CreateUObject(this, &UAnimGraphNode_ControlRig::IsPropertyExposeEnabled))
 	];
 
@@ -176,15 +176,15 @@ void UAnimGraphNode_ControlRig::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 		.OnGetAvailableMapping(FOnGetAvailableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::GetAvailableMapping, false))
 		.OnCreateVariableMapping(FOnCreateVariableMapping::CreateUObject(this, &UAnimGraphNode_ControlRig::CreateVariableMapping, false))
 		.OnVariableOptionAvailable(FOnVarOptionAvailable::CreateUObject(this, &UAnimGraphNode_ControlRig::IsAvailableToMapToCurve, false))
-		.OnPinGetCheckState(FOnPinGetCheckState::CreateUObject(this, &UAnimGraphNode_CustomProperty::IsPropertyExposed))
-		.OnPinCheckStateChanged(FOnPinCheckStateChanged::CreateUObject(this, &UAnimGraphNode_CustomProperty::OnPropertyExposeCheckboxChanged))
+		.OnPinGetCheckState(FOnPinGetCheckState::CreateUObject(this, &UAnimGraphNode_ControlRig::IsPropertyExposed))
+		.OnPinCheckStateChanged(FOnPinCheckStateChanged::CreateUObject(this, &UAnimGraphNode_ControlRig::OnPropertyExposeCheckboxChanged))
 		.OnPinIsEnabledCheckState(FOnPinIsCheckEnabled::CreateUObject(this, &UAnimGraphNode_ControlRig::IsPropertyExposeEnabled))
 	];
 
 	TSharedRef<IPropertyHandle> ClassHandle = DetailBuilder.GetProperty(TEXT("Node.ControlRigClass"), GetClass());
 	if (ClassHandle->IsValidHandle())
 	{
-		ClassHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateUObject(this, &UAnimGraphNode_CustomProperty::OnInstanceClassChanged, &DetailBuilder));
+		ClassHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateUObject(this, &UAnimGraphNode_ControlRig::OnInstanceClassChanged, &DetailBuilder));
 	}
 }
 

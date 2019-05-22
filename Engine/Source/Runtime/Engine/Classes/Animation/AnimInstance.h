@@ -698,7 +698,39 @@ public:
 	virtual void OnMontageInstanceStopped(FAnimMontageInstance & StoppedMontageInstance);
 	void ClearMontageInstanceReferences(FAnimMontageInstance& InMontageInstance);
 
-	FAnimNode_SubInput* GetSubInputNode() const;
+	/** 
+	 * Get a sub-input node by name, given a named graph.
+	 * @param	InSubInput	The name of the sub-input. If this is NAME_None, then we assume that the desired input is FAnimNode_SubInput::DefaultInputPoseName.
+	 * @param	InGraph		The name of the graph in which to find the sub-input. If this is NAME_None, then we assume that the desired graph is "AnimGraph", the default.
+	 */
+	FAnimNode_SubInput* GetSubInputNode(FName InSubInput = NAME_None, FName InGraph = NAME_None);
+
+	/** Runs through all nodes, attempting to find the first sub-instance by name/tag */
+	UFUNCTION(BlueprintPure, Category = "Sub-Instances")
+	UAnimInstance* GetSubInstanceByTag(FName InTag) const;
+
+	/** Runs through all nodes, attempting to find all sub-instance that match the name/tag */
+	UFUNCTION(BlueprintPure, Category = "Sub-Instances")
+	void GetSubInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutSubInstances) const;
+
+	/** Runs through all nodes, attempting to find sub-instance by name/tag, then sets the class of each node if the tag matches */
+	UFUNCTION(BlueprintCallable, Category = "Sub-Instances")
+	void SetSubInstanceClassByTag(FName InTag, TSubclassOf<UAnimInstance> InClass);
+
+	/** 
+	 * Runs through all layer nodes, attempting to layer nodes that are implemented by the specified class, then sets up a sub instance of the class for each.
+	 * Allocates one sub instance to run each of the groups specified in the class, so state is shared.
+	 * If InClass is null, then layers are reset to their defaults.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Layers")
+	void SetLayerOverlay(TSubclassOf<UAnimInstance> InClass);
+
+	/** Gets the sub instance corresponding to the specified group */
+	UFUNCTION(BlueprintCallable, Category = "Layers")
+	UAnimInstance* GetLayerSubInstanceByGroup(FName InGroup) const;
+
+	/** Sets up initial layer groupings */
+	void InitializeGroupedLayers();
 
 protected:
 	/** Map between Active Montages and their FAnimMontageInstance */

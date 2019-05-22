@@ -11,19 +11,12 @@
 struct FVariableMappingInfo;
 
 UCLASS(MinimalAPI)
-class UAnimGraphNode_ControlRig : public UAnimGraphNode_CustomProperty, public TSharedFromThis<UAnimGraphNode_ControlRig>
+class UAnimGraphNode_ControlRig : public UAnimGraphNode_CustomProperty
 {
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FAnimNode_ControlRig Node;
-
-	// return true if this pin name is property exposed
-	// return false if this pin doesn't belong to property
-	virtual bool IsValidPropertyPin(const FName& PinName) const override
-	{
-		return UAnimGraphNode_CustomProperty::IsValidPropertyPin(PinName) && (PinName != FName(TEXT("Source"), FNAME_Find));
-	}
 
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -33,8 +26,8 @@ private:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetTooltipText() const override;
 
-	virtual FAnimNode_CustomProperty* GetInternalNode() override { return &Node; }
-	virtual const FAnimNode_CustomProperty* GetInternalNode() const override { return &Node; }
+	virtual FAnimNode_CustomProperty* GetCustomPropertyNode() override { return &Node; }
+	virtual const FAnimNode_CustomProperty* GetCustomPropertyNode() const override { return &Node; }
 
 	// property related things
 	void GetIOProperties(bool bInput, TMap<FName, FControlRigIOVariable>& OutVars) const;

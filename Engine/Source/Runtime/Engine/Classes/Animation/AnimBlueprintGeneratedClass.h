@@ -190,16 +190,17 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 	UPROPERTY()
 	TArray<FAnimNotifyEvent> AnimNotifies;
 
-	// The index of the root node in the animation tree (created during link)
-	int32 RootAnimNodeIndex;
-
-	// Indices for each of the saved pose nodes that require updating, in the order they need to get updates.
+	// Indices for each of the saved pose nodes that require updating, in the order they need to get updates, per layer
 	UPROPERTY()
-	TArray<int32> OrderedSavedPoseIndices;
+	TMap<FName, FCachedPoseIndices> OrderedSavedPoseIndicesMap;
 
-	// The array of anim nodes; this is transient generated data (created during Link)
-	UStructProperty* RootAnimNodeProperty;
+	// The various anim functions that this class holds (created during Link)
+	TArray<FAnimBlueprintFunction> AnimBlueprintFunctions;
+
+	// The arrays of anim nodes; this is transient generated data (created during Link)
 	TArray<UStructProperty*> AnimNodeProperties;
+	TArray<UStructProperty*> SubInstanceNodeProperties;
+	TArray<UStructProperty*> LayerNodeProperties;
 
 	// Array of sync group names in the order that they are requested during compile
 	UPROPERTY()
@@ -212,24 +213,16 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 public:
 
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines() const override { return BakedStateMachines; }
-
 	virtual USkeleton* GetTargetSkeleton() const override { return TargetSkeleton; }
-
 	virtual const TArray<FAnimNotifyEvent>& GetAnimNotifies() const override { return AnimNotifies; }
-
-	virtual int32 GetRootAnimNodeIndex() const override { return RootAnimNodeIndex; }
-
-	virtual UStructProperty* GetRootAnimNodeProperty() const override { return RootAnimNodeProperty; }
-
 	virtual const TArray<UStructProperty*>& GetAnimNodeProperties() const override { return AnimNodeProperties; }
-
+	virtual const TArray<UStructProperty*>& GetSubInstanceNodeProperties() const override { return SubInstanceNodeProperties; }
+	virtual const TArray<UStructProperty*>& GetLayerNodeProperties() const override { return LayerNodeProperties; }
 	virtual const TArray<FName>& GetSyncGroupNames() const override { return SyncGroupNames; }
-
-	virtual const TArray<int32>& GetOrderedSavedPoseNodeIndices() const override { return OrderedSavedPoseIndices; }
-
+	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const override { return OrderedSavedPoseIndicesMap; }
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const override { return SyncGroupNames.IndexOfByKey(SyncGroupName); }
-
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const { return EvaluateGraphExposedInputs; }
+	virtual const TArray<FAnimBlueprintFunction>& GetAnimBlueprintFunctions() const override { return AnimBlueprintFunctions; }
 
 public:
 #if WITH_EDITORONLY_DATA
@@ -337,8 +330,10 @@ public:
 	}
 
 	const int32* GetNodePropertyIndexFromGuid(FGuid Guid, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis);
-
 #endif
+
+	// Called after Link to patch up refereces to the nodes in the CDO
+	void LinkFunctionsToDefaultObjectNodes(UObject* DefaultObject);
 
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;

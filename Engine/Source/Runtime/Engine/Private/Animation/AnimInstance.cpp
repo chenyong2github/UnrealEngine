@@ -26,6 +26,9 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Animation/AnimNode_SubInstance.h"
+#include "Animation/AnimNode_SubInput.h"
+#include "Animation/AnimNode_Layer.h"
 
 /** Anim stats */
 
@@ -214,6 +217,8 @@ void UAnimInstance::InitializeAnimation()
 
 	// we can bind rules & events now the graph has been initialized
 	GetProxyOnGameThread<FAnimInstanceProxy>().BindNativeDelegates();
+
+	InitializeGroupedLayers();
 }
 
 void UAnimInstance::UninitializeAnimation()
@@ -458,8 +463,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if(bNeedsValidRootMotion || NeedsImmediateUpdate(DeltaSeconds))
 	{
-		// cant use parallel update, so just do the work here
-		Proxy.UpdateAnimation();
+		// cant use parallel update, so just do the work here (we call this function here to do the work on the game thread)
+		ParallelUpdateAnimation();
 		PostUpdateAnimation();
 	}
 }
@@ -575,6 +580,14 @@ void UAnimInstance::DispatchQueuedAnimEvents()
 void UAnimInstance::ParallelUpdateAnimation()
 {
 	GetProxyOnAnyThread<FAnimInstanceProxy>().UpdateAnimation();
+
+	// Tick asset players for this and any sub instances we have
+	for(UAnimInstance* SubInstance : GetSkelMeshComponent()->SubInstances)
+	{
+		SubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>().TickAssetPlayerInstances();
+	}
+
+	GetProxyOnAnyThread<FAnimInstanceProxy>().TickAssetPlayerInstances();
 }
 
 bool UAnimInstance::NeedsImmediateUpdate(float DeltaSeconds) const
@@ -2381,10 +2394,229 @@ void UAnimInstance::ClearMontageInstanceReferences(FAnimMontageInstance& InMonta
 	InMontageInstance.MontageSync_StopLeading();
 }
 
-FAnimNode_SubInput* UAnimInstance::GetSubInputNode() const
+FAnimNode_SubInput* UAnimInstance::GetSubInputNode(FName InSubInputName, FName InGraph)
 {
+	static const FName NAME_AnimGraph("AnimGraph");
 	const FAnimInstanceProxy& Proxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
-	return Proxy.SubInstanceInputNode;
+	if(InSubInputName == NAME_None && InGraph == NAME_None)
+	{
+		return Proxy.DefaultSubInstanceInputNode;
+	}
+	else if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
+	{
+		if(InSubInputName == NAME_None)
+		{
+			InSubInputName = FAnimNode_SubInput::DefaultInputPoseName;
+		}
+		if(InGraph == NAME_None)
+		{
+			InGraph = NAME_AnimGraph;
+		}
+		for(const FAnimBlueprintFunction& AnimBlueprintFunction : AnimBlueprintClass->GetAnimBlueprintFunctions())
+		{
+			if(AnimBlueprintFunction.Name == InGraph)
+			{
+				check(AnimBlueprintFunction.InputPoseNames.Num() == AnimBlueprintFunction.InputPoseNodeProperties.Num());
+				for(int32 InputIndex = 0; InputIndex < AnimBlueprintFunction.InputPoseNames.Num(); ++InputIndex)
+				{
+					if(AnimBlueprintFunction.InputPoseNames[InputIndex] == InSubInputName && AnimBlueprintFunction.InputPoseNodeProperties[InputIndex] != nullptr)
+					{
+						FAnimNode_SubInput* SubInput = AnimBlueprintFunction.InputPoseNodeProperties[InputIndex]->ContainerPtrToValuePtr<FAnimNode_SubInput>(this);
+						check(SubInput->Name == InSubInputName);
+						return SubInput;
+					}
+				}
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+UAnimInstance* UAnimInstance::GetSubInstanceByTag(FName InTag) const
+{
+	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
+	{
+		const TArray<UStructProperty*>& SubInstanceNodeProperties = AnimBlueprintClass->GetSubInstanceNodeProperties();
+		for(UStructProperty* SubInstanceNodeProperty : SubInstanceNodeProperties)
+		{
+			const FAnimNode_SubInstance* SubInstance = SubInstanceNodeProperty->ContainerPtrToValuePtr<FAnimNode_SubInstance>(this);
+			if(SubInstance && SubInstance->Tag == InTag)
+			{
+				return SubInstance->GetTargetInstance<UAnimInstance>();
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+void UAnimInstance::GetSubInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutSubInstances) const
+{
+	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
+	{
+		const TArray<UStructProperty*>& SubInstanceNodeProperties = AnimBlueprintClass->GetSubInstanceNodeProperties();
+		for(UStructProperty* SubInstanceNodeProperty : SubInstanceNodeProperties)
+		{
+			const FAnimNode_SubInstance* SubInstance = SubInstanceNodeProperty->ContainerPtrToValuePtr<FAnimNode_SubInstance>(this);
+			if(SubInstance && SubInstance->Tag == InTag)
+			{
+				OutSubInstances.Add(SubInstance->GetTargetInstance<UAnimInstance>());
+			}
+		}
+	}
+}
+
+void UAnimInstance::SetSubInstanceClassByTag(FName InTag, TSubclassOf<UAnimInstance> InClass)
+{
+	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
+	{
+		const TArray<UStructProperty*>& SubInstanceNodeProperties = AnimBlueprintClass->GetSubInstanceNodeProperties();
+		for(UStructProperty* SubInstanceNodeProperty : SubInstanceNodeProperties)
+		{
+			FAnimNode_SubInstance* SubInstance = SubInstanceNodeProperty->ContainerPtrToValuePtr<FAnimNode_SubInstance>(this);
+			if(SubInstance && SubInstance->Tag == InTag)
+			{
+				SubInstance->SetAnimClass(InClass, this);
+			}
+		}
+	}
+}
+
+void UAnimInstance::SetLayerOverlay(TSubclassOf<UAnimInstance> InClass)
+{
+	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
+	{
+		UClass* NewClass = InClass.Get();
+		if(NewClass)
+		{
+			// Verify target skeleton matches at runtime
+			IAnimClassInterface* SubAnimBlueprintClass = IAnimClassInterface::GetFromClass(NewClass);
+			USkeleton* SubSkeleton = SubAnimBlueprintClass->GetTargetSkeleton();
+			USkeleton* OuterSkeleton = AnimBlueprintClass->GetTargetSkeleton();
+			if(SubSkeleton != OuterSkeleton)
+			{
+				UE_LOG(LogAnimation, Warning, TEXT("Setting layer overlay: Sub instance class has a mismatched target skeleton. Expected %s, found %s."), OuterSkeleton ? *OuterSkeleton->GetName() : TEXT("null"), SubSkeleton ? *SubSkeleton->GetName() : TEXT("null"));
+				return;
+			}
+		}
+
+		// Map of group name->nodes to run under that group instance
+		TMap<FName, TArray<FAnimNode_Layer*, TInlineAllocator<4>>, TInlineSetAllocator<4>> LayerNodesToSet;
+
+		const TArray<UStructProperty*>& LayerNodeProperties = AnimBlueprintClass->GetLayerNodeProperties();
+		for(UStructProperty* LayerNodeProperty : LayerNodeProperties)
+		{
+			FAnimNode_Layer* Layer = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_Layer>(this);
+
+			// If the class is null, then reset to default (which can be null)
+			UClass* ClassToSet = NewClass != nullptr ? NewClass : Layer->InstanceClass.Get();
+
+			if(ClassToSet != nullptr)
+			{
+				// Now check whether the layer is implemented by the class
+				IAnimClassInterface* NewAnimClassInterface = IAnimClassInterface::GetFromClass(ClassToSet);
+				if(const FAnimBlueprintFunction* FoundFunction = IAnimClassInterface::FindAnimBlueprintFunction(NewAnimClassInterface, Layer->Layer))
+				{
+					if(FoundFunction->bImplemented)
+					{
+						TArray<FAnimNode_Layer*, TInlineAllocator<4>>& LayerNodes = LayerNodesToSet.FindOrAdd(FoundFunction->Group);
+						LayerNodes.Add(Layer);
+					}
+				}
+			}
+			else
+			{
+				// Add null classes so we clear the node's instance below
+				TArray<FAnimNode_Layer*, TInlineAllocator<4>>& LayerNodes = LayerNodesToSet.FindOrAdd(NAME_None);
+				LayerNodes.Add(Layer);
+			}
+		}
+
+		if(LayerNodesToSet.Num() > 0)
+		{
+			for(TPair<FName, TArray<FAnimNode_Layer*, TInlineAllocator<4>>> LayerPair : LayerNodesToSet)
+			{
+				// If the class is null, then reset to default (which can be null)
+				UClass* ClassToSet = NewClass != nullptr ? NewClass : LayerPair.Value[0]->InstanceClass.Get();
+				if(ClassToSet != nullptr)
+				{
+					if(ClassToSet == GetClass())
+					{
+						// Cant instance a version of this class, otherwise we will end up in an infinite recursion
+						UE_LOG(LogAnimation, Error, TEXT("Setting layer overlay: Potential infinite recursion - cant set an overlay to the same class as its layer's host (%s)"), *ClassToSet->GetName())
+						break;
+					}
+
+					// Create and add one sub-instance for this group
+					USkeletalMeshComponent* MeshComp = GetSkelMeshComponent();
+					UAnimInstance* NewSubInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);
+
+					for(FAnimNode_Layer* LayerNode : LayerPair.Value)
+					{
+						LayerNode->SetLayerOverlaySubInstance(this, NewSubInstance);
+					}
+
+					// Init after we link in the new graph segments, so propagation happens correctly
+					NewSubInstance->InitializeAnimation();
+
+					// Initialize the correct part of the sub instance
+					if(LayerPair.Value[0]->LinkedRoot)
+					{
+						NewSubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>().InitializeRootNode_WithRoot(LayerPair.Value[0]->LinkedRoot);
+					}
+
+					MeshComp->SubInstances.Add(NewSubInstance);
+				}
+				else
+				{
+					// Clear the node's instance - we didnt find a class to use
+					for(FAnimNode_Layer* LayerNode : LayerPair.Value)
+					{
+						LayerNode->SetLayerOverlaySubInstance(this, nullptr);
+					}
+				}
+			}
+		}
+	}
+}
+
+void UAnimInstance::InitializeGroupedLayers()
+{
+	SetLayerOverlay(nullptr);
+}
+
+UAnimInstance* UAnimInstance::GetLayerSubInstanceByGroup(FName InGroup) const
+{
+	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
+	{
+		const TArray<UStructProperty*>& LayerNodeProperties = AnimBlueprintClass->GetLayerNodeProperties();
+		for(UStructProperty* LayerNodeProperty : LayerNodeProperties)
+		{
+			const FAnimNode_Layer* Layer = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_Layer>(this);
+
+			UClass* ClassForGroups;
+			if(UClass* InterfaceClass = Layer->Interface.Get())
+			{
+				ClassForGroups = InterfaceClass;
+			}
+			else
+			{
+				ClassForGroups = GetClass();
+			}
+
+			IAnimClassInterface* AnimClassInterfaceForGroups = IAnimClassInterface::GetFromClass(ClassForGroups);
+			if(const FAnimBlueprintFunction* FoundFunction = IAnimClassInterface::FindAnimBlueprintFunction(AnimClassInterfaceForGroups, Layer->Layer))
+			{
+				if(InGroup == FoundFunction->Group)
+				{
+					return Layer->GetTargetInstance<UAnimInstance>();
+				}
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 FAnimMontageInstance* UAnimInstance::GetActiveInstanceForMontage(UAnimMontage const& Montage) const
