@@ -85,7 +85,18 @@ namespace MetadataTool
 		public virtual void Merge(BuildHealthIssue Source, BuildHealthIssue Target)
 		{
 			HashSet<string> TargetUrls = new HashSet<string>(Target.Diagnostics.Select(x => x.ErrorUrl), StringComparer.Ordinal);
-			Target.Diagnostics.AddRange(Source.Diagnostics.Where(x => !TargetUrls.Contains(x.ErrorUrl)));
+			foreach(BuildHealthDiagnostic SourceDiagnostic in Source.Diagnostics)
+			{
+				if(Target.Diagnostics.Count >= 50)
+				{
+					break;
+				}
+				if(!TargetUrls.Contains(SourceDiagnostic.ErrorUrl))
+				{
+					Target.Diagnostics.Add(SourceDiagnostic);
+				}
+			}
+
 			Target.FileNames.UnionWith(Source.FileNames);
 			Target.Identifiers.UnionWith(Source.Identifiers);
 		}

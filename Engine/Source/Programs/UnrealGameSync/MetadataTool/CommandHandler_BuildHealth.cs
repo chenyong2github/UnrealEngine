@@ -56,7 +56,7 @@ namespace MetadataTool
 			bool bClean = Arguments.HasOption("-Clean");
 			string PerforcePort = Arguments.GetStringOrDefault("-P4Port=", null);
 			string PerforceUser = Arguments.GetStringOrDefault("-P4User=", null);
-			FileReference InputFile = Arguments.GetFileReference("-InputFile=");
+			FileReference InputFile = Arguments.GetFileReferenceOrDefault("-InputFile=", null);
 			FileReference StateFile = Arguments.GetFileReference("-StateFile=");
 			string ServerUrl = Arguments.GetStringOrDefault("-Server=", null);
 			bool bKeepHistory = Arguments.HasOption("-KeepHistory");
@@ -68,10 +68,6 @@ namespace MetadataTool
 			{
 				CategoryNameToMatcher[Matcher.Category] = Matcher;
 			}
-
-			// Parse the input file
-			Log.TraceInformation("Reading build results from {0}", InputFile);
-			InputData InputData = DeserializeJson<InputData>(InputFile);
 
 			// Complete any interrupted operation to update the state file
 			CompleteStateTransaction(StateFile);
@@ -92,77 +88,85 @@ namespace MetadataTool
 			// Create the Perforce connection
 			PerforceConnection Perforce = new PerforceConnection(PerforcePort, PerforceUser, null);
 
-			// Parse all the builds and add them to the persistent data
-			List<InputJob> InputJobs = InputData.Jobs.OrderBy(x => x.Change).ThenBy(x => x.Stream).ToList();
-			Stopwatch Timer = Stopwatch.StartNew();
-			foreach (InputJob InputJob in InputJobs)
+			// Process the input data
+			if(InputFile != null)
 			{
-				// Add a new build for each job step
-				foreach(InputJobStep InputJobStep in InputJob.Steps)
-				{
-					BuildHealthJobStep NewBuild = new BuildHealthJobStep(InputJob.Change, InputJob.Name, InputJob.Url, InputJobStep.Name, InputJobStep.Url, null);
-					State.AddBuild(InputJob.Stream, NewBuild);
-				}
+				// Parse the input file
+				Log.TraceInformation("Reading build results from {0}", InputFile);
+				InputData InputData = DeserializeJson<InputData>(InputFile);
 
-				// Add all the job steps
-				List<InputJobStep> InputJobSteps = InputJob.Steps.OrderBy(x => x.Name).ToList();
-				foreach (InputJobStep InputJobStep in InputJobSteps)
+				// Parse all the builds and add them to the persistent data
+				List<InputJob> InputJobs = InputData.Jobs.OrderBy(x => x.Change).ThenBy(x => x.Stream).ToList();
+				Stopwatch Timer = Stopwatch.StartNew();
+				foreach (InputJob InputJob in InputJobs)
 				{
-					AddStep(Perforce, State, InputJob, InputJobStep);
-				}
-			}
-			Log.TraceInformation("Added jobs in {0}s", Timer.Elapsed.TotalSeconds);
-
-			// Try to find the next successful build for each stream, so we can close it as part of updating the server
-			for (int Idx = 0; Idx < State.Issues.Count; Idx++)
-			{
-				BuildHealthIssue Issue = State.Issues[Idx];
-				foreach(string Stream in Issue.Streams.Keys)
-				{
-					Dictionary<string, BuildHealthJobHistory> StepNameToHistory = Issue.Streams[Stream];
-					foreach(string StepName in StepNameToHistory.Keys)
+					// Add a new build for each job step
+					foreach(InputJobStep InputJobStep in InputJob.Steps)
 					{
-						BuildHealthJobHistory IssueHistory = StepNameToHistory[StepName];
-						if(IssueHistory.FailedBuilds.Count > 0 && IssueHistory.NextSuccessfulBuild == null)
+						BuildHealthJobStep NewBuild = new BuildHealthJobStep(InputJob.Change, InputJob.Name, InputJob.Url, InputJobStep.Name, InputJobStep.Url, null);
+						State.AddBuild(InputJob.Stream, NewBuild);
+					}
+
+					// Add all the job steps
+					List<InputJobStep> InputJobSteps = InputJob.Steps.OrderBy(x => x.Name).ToList();
+					foreach (InputJobStep InputJobStep in InputJobSteps)
+					{
+						AddStep(Perforce, State, InputJob, InputJobStep);
+					}
+				}
+				Log.TraceInformation("Added jobs in {0}s", Timer.Elapsed.TotalSeconds);
+
+				// Try to find the next successful build for each stream, so we can close it as part of updating the server
+				for (int Idx = 0; Idx < State.Issues.Count; Idx++)
+				{
+					BuildHealthIssue Issue = State.Issues[Idx];
+					foreach(string Stream in Issue.Streams.Keys)
+					{
+						Dictionary<string, BuildHealthJobHistory> StepNameToHistory = Issue.Streams[Stream];
+						foreach(string StepName in StepNameToHistory.Keys)
 						{
-							// Find the successful build after this change
-							BuildHealthJobStep LastFailedBuild = IssueHistory.FailedBuilds[IssueHistory.FailedBuilds.Count - 1];
-							IssueHistory.NextSuccessfulBuild = State.FindBuildAfter(Stream, LastFailedBuild.Change, StepName);
+							BuildHealthJobHistory IssueHistory = StepNameToHistory[StepName];
+							if(IssueHistory.FailedBuilds.Count > 0 && IssueHistory.NextSuccessfulBuild == null)
+							{
+								// Find the successful build after this change
+								BuildHealthJobStep LastFailedBuild = IssueHistory.FailedBuilds[IssueHistory.FailedBuilds.Count - 1];
+								IssueHistory.NextSuccessfulBuild = State.FindBuildAfter(Stream, LastFailedBuild.Change, StepName);
+							}
 						}
 					}
 				}
-			}
 
-			// Find the change two days before the latest change being added
-			if(InputData.Jobs.Count > 0 && !bKeepHistory)
-			{
-				// Find all the unique change numbers for each stream
-				SortedSet<int> ChangeNumbers = new SortedSet<int>();
-				foreach (List<BuildHealthJobStep> Builds in State.Streams.Values)
+				// Find the change two days before the latest change being added
+				if(InputData.Jobs.Count > 0 && !bKeepHistory)
 				{
-					ChangeNumbers.UnionWith(Builds.Select(x => x.Change));
-				}
-
-				// Get the latest change record
-				int LatestChangeNumber = InputData.Jobs.Min(x => x.Change);
-				ChangeRecord LatestChangeRecord = Perforce.GetChange(GetChangeOptions.None, LatestChangeNumber).Data;
-
-				// Step forward through all the changelists until we get to one we don't want to delete
-				int DeleteChangeNumber = -1;
-				foreach(int ChangeNumber in ChangeNumbers)
-				{
-					ChangeRecord ChangeRecord = Perforce.GetChange(GetChangeOptions.None, ChangeNumber).Data;
-					if (ChangeRecord.Date > LatestChangeRecord.Date - TimeSpan.FromDays(2))
+					// Find all the unique change numbers for each stream
+					SortedSet<int> ChangeNumbers = new SortedSet<int>();
+					foreach (List<BuildHealthJobStep> Builds in State.Streams.Values)
 					{
-						break;
+						ChangeNumbers.UnionWith(Builds.Select(x => x.Change));
 					}
-					DeleteChangeNumber = ChangeNumber;
-				}
 
-				// Remove any builds we no longer want to track
-				foreach (List<BuildHealthJobStep> Builds in State.Streams.Values)
-				{
-					Builds.RemoveAll(x => x.Change <= DeleteChangeNumber);
+					// Get the latest change record
+					int LatestChangeNumber = InputData.Jobs.Min(x => x.Change);
+					ChangeRecord LatestChangeRecord = Perforce.GetChange(GetChangeOptions.None, LatestChangeNumber).Data;
+
+					// Step forward through all the changelists until we get to one we don't want to delete
+					int DeleteChangeNumber = -1;
+					foreach(int ChangeNumber in ChangeNumbers)
+					{
+						ChangeRecord ChangeRecord = Perforce.GetChange(GetChangeOptions.None, ChangeNumber).Data;
+						if (ChangeRecord.Date > LatestChangeRecord.Date - TimeSpan.FromDays(2))
+						{
+							break;
+						}
+						DeleteChangeNumber = ChangeNumber;
+					}
+
+					// Remove any builds we no longer want to track
+					foreach (List<BuildHealthJobStep> Builds in State.Streams.Values)
+					{
+						Builds.RemoveAll(x => x.Change <= DeleteChangeNumber);
+					}
 				}
 			}
 
@@ -206,6 +210,10 @@ namespace MetadataTool
 					foreach (BuildHealthDiagnostic Diagnostic in Issue.Diagnostics)
 					{
 						DetailsBuilder.AppendFormat("##{0}##\n{1}\n", Diagnostic.JobStepName, Diagnostic.Message);
+					}
+					if(DetailsBuilder.Length > CommandTypes.MaxIssueDetailsLength)
+					{
+						DetailsBuilder.Remove(CommandTypes.MaxIssueDetailsLength, DetailsBuilder.Length - CommandTypes.MaxIssueDetailsLength);
 					}
 
 					string Summary = Matcher.GetSummary(Issue);

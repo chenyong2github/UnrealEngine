@@ -15,6 +15,8 @@ namespace MetadataTool
 
 	static class CommandTypes
 	{
+		public const int MaxIssueDetailsLength = 8192;
+
 		public enum Outcome
 		{
 			Success = 1,
