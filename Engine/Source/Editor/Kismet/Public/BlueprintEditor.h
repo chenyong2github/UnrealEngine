@@ -45,10 +45,26 @@ class UUserDefinedEnum;
 class UUserDefinedStruct;
 struct Rect;
 
+/* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NodeSectionID
 {
-	enum Type;
-}
+	enum Type
+	{
+		NONE = 0,
+		GRAPH,					// Graph
+		FUNCTION,				// Functions
+		FUNCTION_OVERRIDABLE,	// Overridable functions
+		INTERFACE,				// Interface
+		MACRO,					// Macros
+		VARIABLE,				// Variables
+		COMPONENT,				// Components
+		DELEGATE,				// Delegate/Event
+		USER_ENUM,				// User defined enums
+		LOCAL_VARIABLE,			// Local variables
+		USER_STRUCT,			// User defined structs
+		USER_SORTED				// User sorted categories
+	};
+};
 
 /////////////////////////////////////////////////////
 // FCustomDebugObjectEntry - Used to pass a custom debug object override around
