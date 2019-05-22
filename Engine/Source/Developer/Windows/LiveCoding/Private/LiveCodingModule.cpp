@@ -263,13 +263,36 @@ void FLiveCodingModule::UpdateModules()
 	TArray<FModuleStatus> ModuleStatuses;
 	FModuleManager::Get().QueryModules(ModuleStatuses);
 
+	TArray<FString> EnableModules;
 	for (const FModuleStatus& ModuleStatus : ModuleStatuses)
 	{
 		if (ModuleStatus.bIsLoaded)
 		{
-			FString FullFilePath = FPaths::ConvertRelativePathToFull(ModuleStatus.FilePath);
-			ConfigureModule(FName(*ModuleStatus.Name), FullFilePath);
+			FName ModuleName(*ModuleStatus.Name);
+			if (!ConfiguredModules.Contains(ModuleName))
+			{
+				FString FullFilePath = FPaths::ConvertRelativePathToFull(ModuleStatus.FilePath);
+				if (ShouldPreloadModule(ModuleName, FullFilePath))
+				{
+					EnableModules.Add(FullFilePath);
+				}
+				else
+				{
+					LppEnableLazyLoadedModule(*FullFilePath);
+				}
+				ConfiguredModules.Add(ModuleName);
+			}
 		}
+	}
+
+	if (EnableModules.Num() > 0)
+	{
+		TArray<const TCHAR*> EnableModuleFileNames;
+		for (const FString& EnableModule : EnableModules)
+		{
+			EnableModuleFileNames.Add(*EnableModule);
+		}
+		LppEnableModules(EnableModuleFileNames.GetData(), EnableModuleFileNames.Num());
 	}
 #endif
 }
@@ -282,27 +305,20 @@ void FLiveCodingModule::OnModulesChanged(FName ModuleName, EModuleChangeReason R
 		FModuleStatus Status;
 		if (FModuleManager::Get().QueryModule(ModuleName, Status))
 		{
-			FString FullFilePath = FPaths::ConvertRelativePathToFull(Status.FilePath);
-			ConfigureModule(ModuleName, FullFilePath);
+			if (!ConfiguredModules.Contains(ModuleName))
+			{
+				FString FullFilePath = FPaths::ConvertRelativePathToFull(Status.FilePath);
+				if (ShouldPreloadModule(ModuleName, FullFilePath))
+				{
+					LppEnableModule(*FullFilePath);
+				}
+				else
+				{
+					LppEnableLazyLoadedModule(*FullFilePath);
+				}
+				ConfiguredModules.Add(ModuleName);
+			}
 		}
-	}
-#endif
-}
-
-void FLiveCodingModule::ConfigureModule(const FName& Name, const FString& FullFilePath)
-{
-#if !IS_MONOLITHIC
-	if (!ConfiguredModules.Contains(Name))
-	{
-		if (ShouldPreloadModule(Name, FullFilePath))
-		{
-			LppEnableModule(*FullFilePath);
-		}
-		else
-		{
-			LppEnableLazyLoadedModule(*FullFilePath);
-		}
-		ConfiguredModules.Add(Name);
 	}
 #endif
 }

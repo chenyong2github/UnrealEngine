@@ -56,7 +56,6 @@ private:
 
 	void UpdateModules();
 
-	void ConfigureModule(const FName& Name, const FString& FullFilePath);
 	bool ShouldPreloadModule(const FName& Name, const FString& FullFilePath) const;
 };
 
