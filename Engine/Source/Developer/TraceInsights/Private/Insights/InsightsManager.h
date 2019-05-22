@@ -120,15 +120,15 @@ public:
 	void SetDebugInfo(const bool bDebugInfoEnabledState) { bIsDebugInfoEnabled = bDebugInfoEnabledState; }
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	// RequestTimersUpdateEvent
+	// SessionChangedEvent
 
 public:
-	/// The event to execute when the filter and presets widget should be updated with the latest data.
-	DECLARE_EVENT(FTimingProfilerManager, FRequestTimersUpdateEvent);
-	FRequestTimersUpdateEvent& OnRequestTimersUpdate() { return RequestTimersUpdateEvent; }
+	/// The event to execute when the session has changed.
+	DECLARE_EVENT(FTimingProfilerManager, FSessionChangedEvent);
+	FSessionChangedEvent& GetSessionChangedEvent() { return SessionChangedEvent; }
 protected:
-	/// The event to execute when the filter and presets widget should be updated with the latest data.
-	FRequestTimersUpdateEvent RequestTimersUpdateEvent;
+	/// The event to execute when the session has changed.
+	FSessionChangedEvent SessionChangedEvent;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 

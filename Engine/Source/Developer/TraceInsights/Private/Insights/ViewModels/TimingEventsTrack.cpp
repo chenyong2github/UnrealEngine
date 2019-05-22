@@ -92,24 +92,19 @@ void FTimingEventsTrack::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingEventsTrack::UpdateHoveredState(float MX, float MY, const FTimingTrackViewport& Viewport)
+void FTimingEventsTrack::UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport)
 {
-	if (MY >= Y && MY < Y + H)
-	{
-		bIsHovered = true;
+	static const float HeaderWidth = 100.0f;
+	static const float HeaderHeight = 14.0f;
 
-		if (MX < 100.0f && MY < Y + 14.0f)
-		{
-			bIsHeaderHovered = true;
-		}
-		else
-		{
-			bIsHeaderHovered = false;
-		}
+	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
+	{
+		SetHoveredState(true);
+		SetHeaderHoveredState(MouseX < HeaderWidth && MouseY < GetPosY() + HeaderHeight);
 	}
 	else
 	{
-		bIsHovered = false;
+		SetHoveredState(false);
 	}
 }
 

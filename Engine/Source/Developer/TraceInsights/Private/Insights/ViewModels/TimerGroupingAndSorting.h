@@ -8,19 +8,19 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Grouping
 
-/// Enumerates types of grouping or sorting for the timer nodes.
-enum class ETimerGroupingMode : uint32
+/** Enumerates types of grouping or sorting for the timer nodes. */
+enum class ETimerGroupingMode
 {
-	/// Creates a single group for all timers.
+	/** Creates a single group for all timers. */
 	Flat,
 
-	/// Creates one group for one letter.
+	/** Creates one group for one letter. */
 	ByName,
 
-	/// Creates groups based on timer metadata group names.
+	/** Creates groups based on timer metadata group names. */
 	ByMetaGroupName,
 
-	/// Creates one group for each timer type.
+	/** Creates one group for each timer type. */
 	ByType,
 
 	ByTotalInclusiveTime,
@@ -29,11 +29,11 @@ enum class ETimerGroupingMode : uint32
 
 	ByInstanceCount,
 
-	/// Invalid enum type, may be used as a number of enumerations.
+	/** Invalid enum type, may be used as a number of enumerations. */
 	InvalidOrMax,
 };
 
-/// Type definition for shared pointers to instances of ETimerGroupingMode.
+/** Type definition for shared pointers to instances of ETimerGroupingMode. */
 typedef TSharedPtr<ETimerGroupingMode> ETimerGroupingModePtr;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

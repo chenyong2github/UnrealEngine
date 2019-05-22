@@ -55,7 +55,7 @@ namespace TimeUtils
 	};
 
 	FString FormatTimeAuto(const double Duration);
-	FString FormatTimeMs(const double Duration, const int NumDigits = 2, bool bAddTimeUnit = false);
+	FString FormatTimeMs(const double Duration, const int32 NumDigits = 2, bool bAddTimeUnit = false);
 	FString FormatTime(const double Time, const double Precision = 0.0);
 	FString FormatTimeHMS(const double Time, const double Precision = 0.0);
 	void SplitTime(const double Time, FTimeSplit& OutTimeSplit);

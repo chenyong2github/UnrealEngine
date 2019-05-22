@@ -3,7 +3,9 @@
 #include "STimingProfilerWindow.h"
 
 #include "EditorStyleSet.h"
+#include "Framework/Docking/WorkspaceItem.h"
 #include "SlateOptMacros.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
@@ -11,6 +13,8 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
+//#include "WorkspaceMenuStructure.h"
+//#include "WorkspaceMenuStructureModule.h"
 
 #if WITH_EDITOR
 	#include "EngineAnalytics.h"
@@ -19,13 +23,15 @@
 #endif // WITH_EDITOR
 
 // Insights
-#include "Insights/Version.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/Version.h"
 #include "Insights/Widgets/SFrameTrack.h"
 #include "Insights/Widgets/SGraphTrack.h"
 #include "Insights/Widgets/SInsightsSettings.h"
 #include "Insights/Widgets/SLogView.h"
+#include "Insights/Widgets/SStatsView.h"
 #include "Insights/Widgets/STimersView.h"
 #include "Insights/Widgets/STimingProfilerToolbar.h"
 #include "Insights/Widgets/STimingView.h"
@@ -33,6 +39,16 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define LOCTEXT_NAMESPACE "STimingProfilerWindow"
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FName FTimingProfilerTabs::ToolbarID(TEXT("Toolbar"));
+const FName FTimingProfilerTabs::FramesTrackID(TEXT("Frames"));
+const FName FTimingProfilerTabs::GraphTrackID(TEXT("Graph"));
+const FName FTimingProfilerTabs::TimingViewID(TEXT("TimingView"));
+const FName FTimingProfilerTabs::TimersID(TEXT("Timers"));
+const FName FTimingProfilerTabs::StatsCountersID(TEXT("StasCounters"));
+const FName FTimingProfilerTabs::LogViewID(TEXT("LogView"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -84,13 +100,6 @@ STimingProfilerWindow::STimingProfilerWindow()
 
 STimingProfilerWindow::~STimingProfilerWindow()
 {
-	// Remove ourselves from the profiler manager.
-	//if (FTimingProfilerManager::Get().IsValid())
-	//{
-	//	//...
-	//	FTimingProfilerManager::Get()->OnViewModeChanged().RemoveAll(this);
-	//}
-
 #if WITH_EDITOR
 	if (DurationActive > 0.0f && FEngineAnalytics::IsAvailable())
 	{
@@ -103,243 +112,216 @@ STimingProfilerWindow::~STimingProfilerWindow()
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-TSharedRef<SWidget> STimingProfilerWindow::ConstructMultiTrackView()
+TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_Toolbar(const FSpawnTabArgs& Args)
 {
-	return SNew(SSplitter)
-		.Orientation(Orient_Vertical)
-
-	+ SSplitter::Slot()
-		.Value(0.1f)
+	return SNew(SDockTab)
+		.ShouldAutosize(true)
+		.TabRole(ETabRole::PanelTab)
 		[
-			ConstructFramesTrack()
-		]
-
-	+ SSplitter::Slot()
-		.Value(0.2f)
-		[
-			ConstructGraphTrack()
-		]
-
-	+ SSplitter::Slot()
-		.Value(0.7f)
-		[
-			ConstructTimingTrack()
-		]
-
-	; // end of Widget
+			SNew(STimingProfilerToolbar)
+		];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimingProfilerWindow::ConstructFramesTrack()
+TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_FramesTrack(const FSpawnTabArgs& Args)
 {
-	return SNew(SVerticalBox)
-		.Visibility(this, &STimingProfilerWindow::IsFramesTrackVisible)
-		.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
-
-	// Frame Track
-	+ SVerticalBox::Slot()
-		.FillHeight(1.0)
-		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+	return SNew(SDockTab)
+		.ShouldAutosize(false)
+		.TabRole(ETabRole::PanelTab)
 		[
-			SNew(SBox)
-				.HeightOverride(48.0f)
-				.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
-				[
-					SAssignNew(FrameTrack, SFrameTrack)
-
-					//SNew(SHorizontalBox)
-					//
-					//+ SHorizontalBox::Slot()
-					//	.FillWidth(1.0f)
-					//	.Padding(0.0f)
-					//	.HAlign(HAlign_Fill)
-					//	.VAlign(VAlign_Fill)
-					//	[
-					//
-					//	]
-				]
-		]
-
-	; // end of Widget
+			SAssignNew(FrameTrack, SFrameTrack)
+			//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
+			//.Visibility(this, &STimingProfilerWindow::IsFramesTrackVisible)
+		];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimingProfilerWindow::ConstructGraphTrack()
+TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_GraphTrack(const FSpawnTabArgs& Args)
 {
-	return SNew(SVerticalBox)
-		.Visibility(this, &STimingProfilerWindow::IsGraphTrackVisible)
-		.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
-
-	/*
-	// Header
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+	return SNew(SDockTab)
+		.ShouldAutosize(false)
+		.TabRole(ETabRole::PanelTab)
 		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SImage)
-						.Image(FEditorStyle::GetBrush(TEXT("Profiler.Tab.GraphView")))
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-						.Text(LOCTEXT("GraphTrackLabel", "Overview Timing Graph"))
-						.Margin(FMargin(0.0f, 2.0f, 0.0f, 0.0f))
-				]
-		]
-	*/
-
-	// Graph Track
-	+ SVerticalBox::Slot()
-		.FillHeight(1.0)
-		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SBox)
-				.HeightOverride(48.0f)
-				.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
-				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-						.FillWidth(1.0f)
-						.Padding(0.0f)
-						.HAlign(HAlign_Fill)
-						.VAlign(VAlign_Fill)
-						[
-							SAssignNew(GraphTrack, SGraphTrack)
-						]
-				]
-		]
-
-	; // end of Widget
+			SAssignNew(GraphTrack, SGraphTrack)
+			//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
+			//.Visibility(this, &STimingProfilerWindow::IsGraphTrackVisible)
+		];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimingProfilerWindow::ConstructTimingTrack()
+TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_TimingView(const FSpawnTabArgs& Args)
 {
-	return SNew(SVerticalBox)
-		.Visibility(this, &STimingProfilerWindow::IsTimingTrackVisible)
-		.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
-
-	/*
-	// Header
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+	return SNew(SDockTab)
+		.ShouldAutosize(false)
+		.TabRole(ETabRole::PanelTab)
 		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SImage)
-						.Image(FEditorStyle::GetBrush(TEXT("Profiler.Tab.GraphView")))
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-						.Text(LOCTEXT("TimingLabel", "Main Timing View"))
-						.Margin(FMargin(0.0f, 2.0f, 0.0f, 0.0f))
-				]
-		]
-	*/
-
-	// Timing Track
-	+ SVerticalBox::Slot()
-		.FillHeight(1.0)
-		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SBox)
-				.HeightOverride(48.0f)
-				.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
-				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-						.FillWidth(1.0f)
-						.Padding(0.0f)
-						.HAlign(HAlign_Fill)
-						.VAlign(VAlign_Fill)
-						[
-							SAssignNew(TimingView, STimingView)
-						]
-				]
-		]
-
-	//// Threads Panel
-	//+ SVerticalBox::Slot()
-	//	.FillHeight(1.0)
-	//	.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-	//	[
-	//		SAssignNew(ThreadsPanel, SVerticalBox)
-	//	]
-
-	; // end of Widget
+			SAssignNew(TimingView, STimingView)
+			//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
+			//.Visibility(this, &STimingProfilerWindow::IsTimersViewVisible)
+		];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimingProfilerWindow::ConstructTimersView()
+TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_Timers(const FSpawnTabArgs& Args)
 {
-	return SNew(SVerticalBox)
-		.Visibility(this, &STimingProfilerWindow::IsTimersViewVisible)
-		.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
-
-	// Header
-	+ SVerticalBox::Slot()
-		.AutoHeight()
+	return SNew(SDockTab)
+		.ShouldAutosize(false)
+		.TabRole(ETabRole::PanelTab)
 		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SImage)
-						.Image(FEditorStyle::GetBrush(TEXT("Profiler.Tab.FiltersAndPresets")))
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-						.Text(LOCTEXT("TimersLabel", "Timers"))
-				]
-		]
-
-	// Timers
-	+ SVerticalBox::Slot()
-		.FillHeight(1.0f)
-		.Padding(0.0f, 2.0f, 0.0f, 0.0f)
-		[
+		
 			SAssignNew(TimersView, STimersView)
-		]
-
-	; // end of Widget
+			//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
+			//.Visibility(this, &STimingProfilerWindow::IsTimersViewVisible)
+		];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimingProfilerWindow::ConstructLogView()
+TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_StatsCounters(const FSpawnTabArgs& Args)
 {
-	return SAssignNew(LogView, SLogView)
-		.Visibility(this, &STimingProfilerWindow::IsLogViewVisible);
+	return SNew(SDockTab)
+		.ShouldAutosize(false)
+		.TabRole(ETabRole::PanelTab)
+		[
+			SAssignNew(StatsView, SStatsView)
+			//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
+			//.Visibility(this, &STimingProfilerWindow::IsStatsCountersViewVisible)
+			
+		];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingProfilerWindow::Construct(const FArguments& InArgs)
+TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_LogView(const FSpawnTabArgs& Args)
 {
+	return SNew(SDockTab)
+		.ShouldAutosize(false)
+		.TabRole(ETabRole::PanelTab)
+		[
+			SAssignNew(LogView, SLogView)
+			//.IsEnabled(this, &STimingProfilerWindow::IsProfilerEnabled)
+			//.Visibility(this, &STimingProfilerWindow::IsLogViewVisible)
+		];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
+{
+	// Create & initialize tab manager.
+	TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab);
+	TSharedRef<FWorkspaceItem> AppMenuGroup = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("TimingProfilerMenuGroupName", "Timing Insights"));
+
+	TabManager->RegisterTabSpawner(FTimingProfilerTabs::ToolbarID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_Toolbar))
+		.SetDisplayName(LOCTEXT("DeviceToolbarTabTitle", "Toolbar"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Toolbar.Icon.Small"))
+		.SetGroup(AppMenuGroup);
+
+	TabManager->RegisterTabSpawner(FTimingProfilerTabs::FramesTrackID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_FramesTrack))
+		.SetDisplayName(LOCTEXT("FramesTrackTabTitle", "Frames"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "FramesTrack.Icon.Small"))
+		.SetGroup(AppMenuGroup);
+
+	TabManager->RegisterTabSpawner(FTimingProfilerTabs::GraphTrackID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_GraphTrack))
+		.SetDisplayName(LOCTEXT("GraphTrackTabTitle", "Graph"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "GraphTrack.Icon.Small"))
+		.SetGroup(AppMenuGroup);
+
+	TabManager->RegisterTabSpawner(FTimingProfilerTabs::TimingViewID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_TimingView))
+		.SetDisplayName(LOCTEXT("TimingViewTabTitle", "Timing View"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingView.Icon.Small"))
+		.SetGroup(AppMenuGroup);
+
+	TabManager->RegisterTabSpawner(FTimingProfilerTabs::TimersID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_Timers))
+		.SetDisplayName(LOCTEXT("TimersTabTitle", "Timers"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimersView.Icon.Small"))
+		.SetGroup(AppMenuGroup);
+
+	TabManager->RegisterTabSpawner(FTimingProfilerTabs::StatsCountersID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_StatsCounters))
+		.SetDisplayName(LOCTEXT("StatsCountersTabTitle", "Stats Counters"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "StatsCountersView.Icon.Small"))
+		.SetGroup(AppMenuGroup);
+
+	TabManager->RegisterTabSpawner(FTimingProfilerTabs::LogViewID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_LogView))
+		.SetDisplayName(LOCTEXT("LogViewTabTitle", "Log View"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "LogView.Icon.Small"))
+		.SetGroup(AppMenuGroup);
+
+	// Create tab layout.
+	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("InsightsTimingProfilerLayout_v1.0")
+		->AddArea
+		(
+			FTabManager::NewPrimaryArea()
+			->SetOrientation(Orient_Vertical)
+			->Split
+			(
+				FTabManager::NewStack()
+				->AddTab(FTimingProfilerTabs::ToolbarID, ETabState::OpenedTab)
+				->SetHideTabWell(true)
+			)
+			->Split
+			(
+				FTabManager::NewSplitter()
+				->SetOrientation(Orient_Horizontal)
+				->SetSizeCoefficient(1.0f)
+				->Split
+				(
+					FTabManager::NewSplitter()
+					->SetOrientation(Orient_Vertical)
+					->SetSizeCoefficient(0.65f)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.1f)
+						->SetHideTabWell(true)
+						->AddTab(FTimingProfilerTabs::FramesTrackID, FTimingProfilerManager::Get()->IsFramesTrackVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.2f)
+						->SetHideTabWell(true)
+						->AddTab(FTimingProfilerTabs::GraphTrackID, FTimingProfilerManager::Get()->IsGraphTrackVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.5f)
+						->SetHideTabWell(true)
+						->AddTab(FTimingProfilerTabs::TimingViewID, FTimingProfilerManager::Get()->IsTimingViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.2f)
+						->SetHideTabWell(true)
+						->AddTab(FTimingProfilerTabs::LogViewID, FTimingProfilerManager::Get()->IsLogViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+					)
+				)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.35f)
+					->AddTab(FTimingProfilerTabs::TimersID, FTimingProfilerManager::Get()->IsTimersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+					->AddTab(FTimingProfilerTabs::StatsCountersID, FTimingProfilerManager::Get()->IsStatsCountersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+				)
+			)
+		);
+
+	// Create & initialize main menu.
+	FMenuBarBuilder MenuBarBuilder = FMenuBarBuilder(TSharedPtr<FUICommandList>());
+	
+	MenuBarBuilder.AddPullDownMenu(
+		LOCTEXT("MenuLabel", "MENU"),
+		FText::GetEmpty(),
+		FNewMenuDelegate::CreateStatic(&STimingProfilerWindow::FillMenu, TabManager),
+		FName(TEXT("MENU"))
+	);
+
 	ChildSlot
 		[
 			SNew(SOverlay)
@@ -363,53 +345,20 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs)
 				[
 					SAssignNew(MainContentPanel, SVerticalBox)
 
-					// Toolbar
 					+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
-							SNew(STimingProfilerToolbar)
+							MenuBarBuilder.MakeWidget()
 						]
 
 					+ SVerticalBox::Slot()
-						.HAlign(HAlign_Fill)
-						.VAlign(VAlign_Fill)
+						.FillHeight(1.0f)
 						[
-							SNew(SSplitter)
-								.Orientation(Orient_Horizontal)
-
-							+ SSplitter::Slot()
-								.Value(0.65f)
-								[
-									SNew(SSplitter)
-										.Orientation(Orient_Vertical)
-
-									// Multi Track View
-									+ SSplitter::Slot()
-										.Value(0.75f)
-										[
-											ConstructMultiTrackView()
-										]
-
-									// Log View
-									+ SSplitter::Slot()
-										.Value(0.25f)
-										[
-											ConstructLogView()
-										]
-								]
-
-							// Timers View
-							+ SSplitter::Slot()
-								.Value(0.35f)
-								//.SizeRule(SSplitter::SizeToContent)
-								.Expose(TimersViewSlot)
-								[
-									ConstructTimersView()
-								]
+							TabManager->RestoreFrom(Layout, ConstructUnderWindow).ToSharedRef()
 						]
 				]
 
-			// session hint overlay
+			// Session hint overlay
 			+ SOverlay::Slot()
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
@@ -424,7 +373,7 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs)
 						]
 				]
 
-			// notification area overlay
+			// Notification area overlay
 			+ SOverlay::Slot()
 				.HAlign(HAlign_Right)
 				.VAlign(VAlign_Bottom)
@@ -433,18 +382,34 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs)
 					SAssignNew(NotificationList, SNotificationList)
 				]
 
-			// profiler settings overlay
+			// Settings dialog overlay
 			+ SOverlay::Slot()
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.Expose(OverlaySettingsSlot)
 		];
 
-	//ProfilerMiniView->OnSelectionBoxChanged().AddSP(GraphPanel.ToSharedRef(), &STimingProfilerGraphPanel::MiniView_OnSelectionBoxChanged);
-	//FTimingProfilerManager::Get()->OnViewModeChanged().AddSP(this, &STimingProfilerWindow::ProfilerManager_OnViewModeChanged);
+	// Tell tab-manager about the global menu bar.
+	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox());
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingProfilerWindow::FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr<FTabManager> TabManager)
+{
+	if (!TabManager.IsValid())
+	{
+		return;
+	}
+
+#if !WITH_EDITOR
+	//TODO: FGlobalTabmanager::Get()->PopulateTabSpawnerMenu(MenuBuilder, WorkspaceMenu::GetMenuStructure().GetStructureRoot());
+#endif //!WITH_EDITOR
+
+	TabManager->PopulateLocalTabSpawnerMenu(MenuBuilder);
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -474,9 +439,9 @@ EVisibility STimingProfilerWindow::IsGraphTrackVisible() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-EVisibility STimingProfilerWindow::IsTimingTrackVisible() const
+EVisibility STimingProfilerWindow::IsTimingViewVisible() const
 {
-	if (FTimingProfilerManager::Get()->IsTimingTrackVisible() &&
+	if (FTimingProfilerManager::Get()->IsTimingViewVisible() &&
 		FInsightsManager::Get()->GetSession().IsValid())
 	{
 		return EVisibility::Visible;
@@ -509,6 +474,27 @@ EVisibility STimingProfilerWindow::IsLogViewVisible() const
 	}
 
 	return EVisibility::Collapsed;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingProfilerWindow::ShowHideTab(const FName& TabID, bool bIsVisible)
+{
+	if (!bIsVisible)
+	{
+		TSharedPtr<SDockTab> Tab = TabManager->FindExistingLiveTab(TabID);
+		if (Tab.IsValid())
+		{
+			Tab->RequestCloseTab();
+		}
+	}
+	else
+	{
+		if (TabManager->CanSpawnTab(TabID))
+		{
+			TabManager->InvokeTab(TabID);
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -769,32 +755,6 @@ void STimingProfilerWindow::CloseProfilerSettings()
 	];
 	MainContentPanel->SetEnabled(true);
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-//void STimingProfilerWindow::ProfilerManager_OnViewModeChanged(ETimingProfilerViewMode NewViewMode)
-//{
-//	if (NewViewMode == ETimingProfilerViewMode::LineIndexBased)
-//	{
-//		EventGraphPanel->SetVisibility(EVisibility::Visible);
-//		EventGraphPanel->SetEnabled(true);
-//
-//		(*FiltersAndPresetsSlot)
-//		[
-//			FiltersAndPresets.ToSharedRef()
-//		];
-//	}
-//	else if (NewViewMode == ETimingProfilerViewMode::ThreadViewTimeBased)
-//	{
-//		EventGraphPanel->SetVisibility(EVisibility::Collapsed);
-//		EventGraphPanel->SetEnabled(false);
-//
-//		(*FiltersAndPresetsSlot)
-//		[
-//			SNullWidget::NullWidget
-//		];
-//	}
-//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

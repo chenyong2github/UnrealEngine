@@ -37,7 +37,7 @@ PRAGMA_DISABLE_OPTIMIZATION
 void FInsightsCommands::RegisterCommands()
 {
 	UI_COMMAND(InsightsManager_Live, "Live", "Loads profiler data from a live trace session", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(InsightsManager_Load, "Load", "Loads profiler data from a trace file", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::L));
+	UI_COMMAND(InsightsManager_Load, "Load...", "Loads profiler data from a trace file", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::L));
 	UI_COMMAND(InsightsManager_Mock, "Mock", "Creates mock profiler data", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ToggleDebugInfo, "Debug", "Toggles the display of debug info", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::D));
 	UI_COMMAND(OpenSettings, "Settings", "Opens the Unreal Insights settings", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::O));

@@ -160,7 +160,7 @@ class FAsyncLogFilterProxy;
 class FLogFilteringAsyncTask : public FNonAbandonableTask
 {
 public:
-	FLogFilteringAsyncTask(int InStartIndex, int InEndIndex, const FLogFilter& InFilter, TSharedPtr<SLogView> InLogView)
+	FLogFilteringAsyncTask(int32 InStartIndex, int32 InEndIndex, const FLogFilter& InFilter, TSharedPtr<SLogView> InLogView)
 		: StartIndex(InStartIndex)
 		, EndIndex(InEndIndex)
 		, Filter(InFilter)
@@ -170,8 +170,8 @@ public:
 
 	void DoWork();
 
-	int GetStartIndex() const { return StartIndex; }
-	int GetEndIndex() const { return EndIndex; }
+	int32 GetStartIndex() const { return StartIndex; }
+	int32 GetEndIndex() const { return EndIndex; }
 	const FLogFilter& GetFilter() const { return Filter; }
 
 	const TArray<uint32>& GetFilteredMessages() const { return FilteredMessages; }
@@ -183,8 +183,8 @@ public:
 
 private:
 	// [StartIndex, EndIndex) is the range of log messages to filter; accessible from worker thread.
-	int StartIndex;
-	int EndIndex;
+	int32 StartIndex;
+	int32 EndIndex;
 
 	/** A copy of the filter settings. */
 	FLogFilter Filter;

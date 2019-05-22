@@ -172,7 +172,7 @@ FString FormatTimeAuto(const double InDuration)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FString FormatTimeMs(const double InDuration, const int NumDigits, bool bAddTimeUnit)
+FString FormatTimeMs(const double InDuration, const int32 NumDigits, bool bAddTimeUnit)
 {
 	if (FMath::IsNearlyZero(InDuration, TimeUtils::Picosecond))
 	{
@@ -394,7 +394,7 @@ void SplitTime(const double InTime, FTimeSplit& OutTimeSplit)
 	{
 		OutTimeSplit.bIsZero = false;
 		OutTimeSplit.bIsInfinite = true;
-		for (int Index = 0; Index < 8; ++Index)
+		for (int32 Index = 0; Index < 8; ++Index)
 		{
 			OutTimeSplit.Units[Index] = 0;
 		}

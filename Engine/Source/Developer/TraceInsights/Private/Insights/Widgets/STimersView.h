@@ -20,6 +20,8 @@
 #include "Insights/ViewModels/TimerNode.h"
 #include "Insights/ViewModels/TimersViewColumn.h"
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FMenuBuilder;
 
 namespace Trace
@@ -28,29 +30,33 @@ namespace Trace
 	struct FTimelineEvent;
 }
 
-static constexpr int HistogramLen = 100; // number of buckets per histogram
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct FTimerStatsEx
 {
-	FTimerStats BaseStats;
+	static constexpr int32 HistogramLen = 100; // number of buckets per histogram
+
+	FTimerAggregatedStats BaseStats;
 
 	// Histogram for computing median inclusive time.
-	int InclHistogram[HistogramLen];
+	int32 InclHistogram[HistogramLen];
 	double InclDT; // bucket size
 
 	// Histogram for computing median exclusive time.
-	int ExclHistogram[HistogramLen];
+	int32 ExclHistogram[HistogramLen];
 	double ExclDT; // bucket size
 
 	FTimerStatsEx()
 	{
-		FMemory::Memzero(InclHistogram, sizeof(int) * HistogramLen);
+		FMemory::Memzero(InclHistogram, sizeof(int32) * HistogramLen);
 		InclDT = 1.0;
 
-		FMemory::Memzero(ExclHistogram, sizeof(int) * HistogramLen);
+		FMemory::Memzero(ExclHistogram, sizeof(int32) * HistogramLen);
 		ExclDT = 1.0;
 	}
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** The filter collection - used for updating the list of timer nodes. */
 typedef TFilterCollection<const FTimerNodePtr&> FTimerNodeFilterCollection;
@@ -58,7 +64,10 @@ typedef TFilterCollection<const FTimerNodePtr&> FTimerNodeFilterCollection;
 /** The text based filter - used for updating the list of timer nodes. */
 typedef TTextFilter<const FTimerNodePtr&> FTimerNodeTextFilter;
 
-/** A custom widget used to display the list of timers. */
+////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * A custom widget used to display the list of timers.
+ */
 class STimersView : public SCompoundWidget
 {
 public:
@@ -73,11 +82,15 @@ public:
 
 	/**
 	 * Construct this widget
-	 * @param	InArgs	- The declaration data for this widget
+	 * @param InArgs - The declaration data for this widget
 	 */
 	void Construct(const FArguments& InArgs);
 
-	void RebuildTree(bool bRebuildEvenIfNotChanged = true);
+	/**
+	 * Rebuilds the tree (if necessary).
+	 * @param bResync - If true, it forces a resync with list of timers from Analysis, even if the list did not changed since last sync.
+	 */
+	void RebuildTree(bool bResync = true);
 	void UpdateStats(double StartTime, double EndTime);
 
 	void SelectTimerNode(uint64 Id);
@@ -95,14 +108,14 @@ protected:
 	static void UpdateHistogramForTimerStats(FTimerStatsEx& StatsEx, double InclTime, double ExclTime);
 	static void PostProcessTimerStats(FTimerStatsEx& StatsEx, bool bComputeMedian);
 
-	/** Called when the filter and presets widget should be updated with the latest data. */
-	void ProfilerManager_OnRequestTimersUpdate();
+	/** Called when the analysis session has changed. */
+	void InsightsManager_OnSessionChanged();
 
 	/**
 	 * Populates OutSearchStrings with the strings that should be used in searching.
 	 *
-	 * @param GroupOrStatNodePtr	- the group and stat node to get a text description from.
-	 * @param OutSearchStrings		- an array of strings to use in searching.
+	 * @param GroupOrStatNodePtr - the group and stat node to get a text description from.
+	 * @param OutSearchStrings   - an array of strings to use in searching.
 	 *
 	 */
 	void HandleItemToStringArray(const FTimerNodePtr& GroupOrStatNodePtr, TArray<FString>& OutSearchStrings) const;
@@ -129,8 +142,8 @@ protected:
 
 	/**
 	 * Called by STreeView to retrieves the children for the specified parent item.
-	 * @param InParent		- The parent node to retrieve the children from.
-	 * @param OutChildren	- List of children for the parent node.
+	 * @param InParent    - The parent node to retrieve the children from.
+	 * @param OutChildren - List of children for the parent node.
 	 */
 	void TreeView_OnGetChildren(FTimerNodePtr InParent, TArray<FTimerNodePtr>& OutChildren);
 
@@ -236,77 +249,77 @@ protected:
 	void ContextMenu_ResetColumns_Execute();
 
 protected:
-	/// A weak pointer to the profiler session used to populate this widget.
+	/** A weak pointer to the profiler session used to populate this widget. */
 	TSharedPtr<const Trace::IAnalysisSession>/*Weak*/ Session;
 
 	//////////////////////////////////////////////////
 	// Tree View, Columns
 
-	/// The tree widget which holds the list of timer groups and timers corresponding with each group.
+	/** The tree widget which holds the list of groups and timers corresponding with each group. */
 	TSharedPtr<STreeView<FTimerNodePtr>> TreeView;
 
-	/// Column metadata used to initialize column arguments, stored as PropertyName -> FEventGraphColumn.
+	/** Column metadata used to initialize column arguments, stored as PropertyName -> FEventGraphColumn. */
 	TMap<FName, FTimersViewColumn> TreeViewHeaderColumns;
 
-	/// Column arguments used to initialize a new header column in the tree view, stored as column name to column arguments mapping.
+	/** Column arguments used to initialize a new header column in the tree view, stored as column name to column arguments mapping. */
 	TMap<FName, SHeaderRow::FColumn::FArguments> TreeViewHeaderColumnArgs;
 
-	/// Holds the tree view header row widget which display all columns in the tree view.
+	/** Holds the tree view header row widget which display all columns in the tree view. */
 	TSharedPtr<SHeaderRow> TreeViewHeaderRow;
 
-	/// External scrollbar used to synchronize tree view position.
+	/** External scrollbar used to synchronize tree view position. */
 	TSharedPtr<SScrollBar> ExternalScrollbar;
 
 	//////////////////////////////////////////////////
 	// Hovered Column, Hovered Timer Node
 
-	/// Name of the column currently being hovered by the mouse.
+	/** Name of the column currently being hovered by the mouse. */
 	FName HoveredColumnId;
 
-	/// A shared pointer to the timer currently being hovered by the mouse.
+	/** A shared pointer to the timer node currently being hovered by the mouse. */
 	FTimerNodePtr HoveredTimerNodePtr;
 
-	/// Name of the timer that should be drawn as highlighted.
+	/** Name of the timer that should be drawn as highlighted. */
 	FName HighlightedTimerName;
 
 	//////////////////////////////////////////////////
 	// Timer Nodes
 
-	/// An array of group and timer nodes generated from the metadata.
+	/** An array of group and timer nodes generated from the metadata. */
 	TArray<FTimerNodePtr> GroupNodes;
 
-	/// A filtered array of group and timer nodes to be displayed in the tree widget.
+	/** A filtered array of group and timer nodes to be displayed in the tree widget. */
 	TArray<FTimerNodePtr> FilteredGroupNodes;
 
-	/// All timer nodes.
+	/** All timer nodes. */
 	TSet<FTimerNodePtr> TimerNodes;
 
-	/// All timer nodes, stored as TimerName -> FTimerNodePtr.
+	/** All timer nodes, stored as TimerName -> FTimerNodePtr. */
 	//TMap<FName, FTimerNodePtr> TimerNodesMap;
 
-	/// All timer nodes, stored as TimerId -> FTimerNodePtr.
+	/** All timer nodes, stored as TimerId -> FTimerNodePtr. */
 	TMap<uint64, FTimerNodePtr> TimerNodesIdMap;
 
-	/// Currently expanded group nodes.
+	/** Currently expanded group nodes. */
 	TSet<FTimerNodePtr> ExpandedNodes;
 
-	/// If true, the expanded nodes have been saved before applying a text filter.
+	/** If true, the expanded nodes have been saved before applying a text filter. */
 	bool bExpansionSaved;
 
 	//////////////////////////////////////////////////
 	// Search box and filters
 
-	/// The search box widget used to filter items displayed in the stats and groups tree.
+	/** The search box widget used to filter items displayed in the stats and groups tree. */
 	TSharedPtr<SSearchBox> SearchBox;
 
-	/// The text based filter.
+	/** The text based filter. */
 	TSharedPtr<FTimerNodeTextFilter> TextFilter;
 
-	/// The filter collection.
+	/** The filter collection. */
 	TSharedPtr<FTimerNodeFilterCollection> Filters;
 
-	/// Holds the visibility of each timer type.
-	bool bTimerNodeIsVisible[ETimerNodeType::InvalidOrMax];
+	/** Holds the visibility of each timer type. */
+	bool bTimerNodeIsVisible[static_cast<int>(ETimerNodeType::InvalidOrMax)];
 
 	//////////////////////////////////////////////////
 	// Grouping
@@ -315,20 +328,25 @@ protected:
 
 	TSharedPtr<SComboBox<TSharedPtr<ETimerGroupingMode>>> GroupByComboBox;
 
-	/// How we group the timers?
+	/** How we group the timers? */
 	ETimerGroupingMode GroupingMode;
 
 	//////////////////////////////////////////////////
 	// Sorting
 
-	/// How we sort the timers?
+	/** How we sort the timers? */
 	EColumnSortMode::Type ColumnSortMode;
 
-	/// Name of the column currently being sorted, NAME_None if sorting is disabled.
+	/** Name of the column currently being sorted, NAME_None if sorting is disabled. */
 	FName ColumnBeingSorted;
+
+	static const EColumnSortMode::Type DefaultColumnSortMode;
+	static const FName DefaultColumnBeingSorted;
 
 	//////////////////////////////////////////////////
 
 	double StatsStartTime;
 	double StatsEndTime;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////

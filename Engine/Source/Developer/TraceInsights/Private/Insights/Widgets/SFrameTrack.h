@@ -141,6 +141,8 @@ protected:
 
 	bool bIsStateDirty;
 
+	uint64 AnalysisSyncNextTimestamp;
+
 	//////////////////////////////////////////////////
 
 	TSharedPtr<SScrollBar> HorizontalScrollBar;

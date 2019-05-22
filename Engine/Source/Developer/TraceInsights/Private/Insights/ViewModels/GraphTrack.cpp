@@ -43,6 +43,7 @@ FGraphTrackSeries::~FGraphTrackSeries()
 
 FGraphTrack::FGraphTrack(uint64 InTrackId)
 	: FBaseTimingTrack(InTrackId)
+	//, AllSeries()
 	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
 	, PointBrush(FEditorStyle::GetBrush("Graph.ExecutionBubble"))
 	, BorderBrush(new FSlateBorderBrush(NAME_None, FMargin(1.0f)))
@@ -55,6 +56,10 @@ FGraphTrack::FGraphTrack(uint64 InTrackId)
 	, bDrawBoxes(true)
 	, BaselineY(0.0f)
 	, ScaleY(1.0)
+	, NumAddedEvents(0)
+	, NumDrawPoints(0)
+	, NumDrawLines(0)
+	, NumDrawBoxes(0)
 {
 }
 
@@ -67,24 +72,19 @@ FGraphTrack::~FGraphTrack()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FGraphTrack::UpdateHoveredState(float MX, float MY, const FTimingTrackViewport& Viewport)
+void FGraphTrack::UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport)
 {
-	if (MY >= Y && MY < Y + H)
-	{
-		bIsHovered = true;
+	static const float HeaderWidth = 100.0f;
+	static const float HeaderHeight = 14.0f;
 
-		if (MX < 100.0f && MY < Y + 14.0f)
-		{
-			bIsHeaderHovered = true;
-		}
-		else
-		{
-			bIsHeaderHovered = false;
-		}
+	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
+	{
+		SetHoveredState(true);
+		SetHeaderHoveredState(MouseX < HeaderWidth && MouseY < GetPosY() + HeaderHeight);
 	}
 	else
 	{
-		bIsHovered = false;
+		SetHoveredState(false);
 	}
 }
 
@@ -106,106 +106,110 @@ void FGraphTrack::UpdateStats()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FGraphTrack::Draw(FDrawContext& DC, const FTimingTrackViewport& Viewport) const
+void FGraphTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const
 {
-	DC.DrawBox(0.0f, Y, Viewport.Width, H, WhiteBrush, FLinearColor(0.1f, 0.1f, 0.1f, 1.0f));
-	DC.LayerId++;
+	DrawContext.DrawBox(0.0f, GetPosY(), Viewport.Width, GetHeight(), WhiteBrush, FLinearColor(0.1f, 0.1f, 0.1f, 1.0f));
+	DrawContext.LayerId++;
 
-	//TODO: Set clipping to (0, Y, Viewport.Width, H)!
+	//TODO: Set clipping to (0, GetPosY(), Viewport.Width, GetHeight())!
 
 	for (const FGraphTrackSeries& Series : AllSeries)
 	{
-		DrawSeries(Series, DC, Viewport);
+		DrawSeries(Series, DrawContext, Viewport);
 	}
 
-	// Draw bottom of the track (debug).
-	//DC.DrawBox(0.0f, Viewport.Height - 1.0f, Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.5f, 0.0f, 0.0f, 1.0f));
-	//DC.LayerId++;
-
 	// Draw baseline (Value == 0).
-	DC.DrawBox(0.0f, Y + BaselineY - 1.0f, Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
-	DC.LayerId++;
+	DrawContext.DrawBox(0.0f, GetPosY() + BaselineY - 1.0f, Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
+	DrawContext.LayerId++;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FGraphTrack::DrawSeries(const FGraphTrackSeries& Series, FDrawContext& DC, const FTimingTrackViewport& Viewport) const
+void FGraphTrack::DrawSeries(const FGraphTrackSeries& Series, FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const
 {
 	if (bDrawBoxes)
 	{
-		int NumBoxes = Series.Boxes.Num();
-		for (int Index = 0; Index < NumBoxes; ++Index)
+		int32 NumBoxes = Series.Boxes.Num();
+		for (int32 Index = 0; Index < NumBoxes; ++Index)
 		{
 			const FGraphBox& Box = Series.Boxes[Index];
-			DC.DrawBox(Box.X, Y + Box.Y, Box.W, BaselineY - Box.Y, WhiteBrush, Series.Color);
+			DrawContext.DrawBox(Box.X, GetPosY() + Box.Y, Box.W, BaselineY - Box.Y, WhiteBrush, Series.Color);
 		}
-		DC.LayerId++;
+		DrawContext.LayerId++;
 	}
 
 	if (bDrawLines)
 	{
-		FPaintGeometry Geo = DC.Geometry.ToPaintGeometry();
-		Geo.AppendTransform(FSlateLayoutTransform(FVector2D(0, Y)));
-		FSlateDrawElement::MakeLines(DC.ElementList, DC.LayerId, Geo, Series.LinePoints, DC.DrawEffects, Series.Color, false, 1.0f);
-		DC.LayerId++;
+		FPaintGeometry Geo = DrawContext.Geometry.ToPaintGeometry();
+		Geo.AppendTransform(FSlateLayoutTransform(FVector2D(0, GetPosY())));
+		FSlateDrawElement::MakeLines(DrawContext.ElementList, DrawContext.LayerId, Geo, Series.LinePoints, DrawContext.DrawEffects, Series.Color, false, 1.0f);
+		DrawContext.LayerId++;
 	}
 
 	if (bDrawPoints)
 	{
-		int NumPoints = Series.Points.Num();
+		int32 NumPoints = Series.Points.Num();
+
+#define INSIGHTS_GRAPH_TRACK_DRAW_POINTS_AS_RECTANGLES 0
+#if !INSIGHTS_GRAPH_TRACK_DRAW_POINTS_AS_RECTANGLES
 
 		if (bDrawPointsWithBorder)
 		{
 			// Draw points (border).
-			for (int Index = 0; Index < NumPoints; ++Index)
+			for (int32 Index = 0; Index < NumPoints; ++Index)
 			{
 				const FVector2D& Pt = Series.Points[Index];
 				const float PtX = Pt.X - GraphTrackPointVisualSize / 2.0f - 1.0f;
-				const float PtY = Y + Pt.Y - GraphTrackPointVisualSize / 2.0f - 1.0f;
-				DC.DrawBox(PtX, PtY, GraphTrackPointVisualSize + 2.0f, GraphTrackPointVisualSize + 2.0f, PointBrush, Series.BorderColor);
+				const float PtY = GetPosY() + Pt.Y - GraphTrackPointVisualSize / 2.0f - 1.0f;
+				DrawContext.DrawBox(PtX, PtY, GraphTrackPointVisualSize + 2.0f, GraphTrackPointVisualSize + 2.0f, PointBrush, Series.BorderColor);
 			}
-			DC.LayerId++;
+			DrawContext.LayerId++;
 		}
 
 		// Draw points (interior).
-		for (int Index = 0; Index < NumPoints; ++Index)
+		for (int32 Index = 0; Index < NumPoints; ++Index)
 		{
 			const FVector2D& Pt = Series.Points[Index];
 			const float PtX = Pt.X - GraphTrackPointVisualSize / 2.0f;
-			const float PtY = Y + Pt.Y - GraphTrackPointVisualSize / 2.0f;
-			DC.DrawBox(PtX, PtY, GraphTrackPointVisualSize, GraphTrackPointVisualSize, PointBrush, Series.Color);
+			const float PtY = GetPosY() + Pt.Y - GraphTrackPointVisualSize / 2.0f;
+			DrawContext.DrawBox(PtX, PtY, GraphTrackPointVisualSize, GraphTrackPointVisualSize, PointBrush, Series.Color);
 		}
-		DC.LayerId++;
+		DrawContext.LayerId++;
 
-		/*
+#else // Alternative way of drawing points; kept here for debugging purposes.
+
 		//const float Angle = FMath::DegreesToRadians(45.0f);
+
+		if (bDrawPointsWithBorder)
+		{
+			// Draw borders.
+			const float BorderPtSize = GraphTrackPointVisualSize;
+			//FVector2D BorderRotationPoint(BorderPtSize / 2.0f, BorderPtSize / 2.0f);
+			for (int32 Index = 0; Index < NumPoints; ++Index)
+			{
+				const FVector2D& Pt = Series.Points[Index];
+				const float PtX = Pt.X - BorderPtSize / 2.0f;
+				const float PtY = GetPosY() + Pt.Y - BorderPtSize / 2.0f;
+				DrawContext.DrawBox(PtX, PtY, BorderPtSize, BorderPtSize, BorderBrush, Series.BorderColor);
+				//DrawContext.DrawRotatedBox(PtX, PtY, BorderPtSize, BorderPtSize, BorderBrush, Series.BorderColor, Angle, BorderRotationPoint);
+			}
+			DrawContext.LayerId++;
+		}
 
 		// Draw points as rectangles.
 		const float PtSize = GraphTrackPointVisualSize - 2.0f;
 		//FVector2D RotationPoint(PtSize / 2.0f, PtSize / 2.0f);
-		for (int Index = 0; Index < NumPoints; ++Index)
+		for (int32 Index = 0; Index < NumPoints; ++Index)
 		{
 			const FVector2D& Pt = Series.Points[Index];
 			const float PtX = Pt.X - PtSize / 2.0f;
-			const float PtY = Y + Pt.Y - PtSize / 2.0f;
-			DC.DrawBox(PtX, PtY, PtSize, PtSize, PointBrush, Series.Color);
-			//DC.DrawRotatedBox(PtX, PtY, PtSize, PtSize, WhiteBrush, Series.Color, Angle, RotationPoint);
+			const float PtY = GetPosY() + Pt.Y - PtSize / 2.0f;
+			DrawContext.DrawBox(PtX, PtY, PtSize, PtSize, PointBrush, Series.Color);
+			//DrawContext.DrawRotatedBox(PtX, PtY, PtSize, PtSize, WhiteBrush, Series.Color, Angle, RotationPoint);
 		}
-		DC.LayerId++;
+		DrawContext.LayerId++;
 
-		// Draw borders.
-		const float BorderPtSize = GraphTrackPointVisualSize;
-		//FVector2D BorderRotationPoint(BorderPtSize / 2.0f, BorderPtSize / 2.0f);
-		for (int Index = 0; Index < NumPoints; ++Index)
-		{
-			const FVector2D& Pt = Series.Points[Index];
-			const float PtX = Pt.X - BorderPtSize / 2.0f;
-			const float PtY = Y + Pt.Y - BorderPtSize / 2.0f;
-			DC.DrawBox(PtX, PtY, BorderPtSize, BorderPtSize, BorderBrush, Series.BorderColor);
-			//DC.DrawRotatedBox(PtX, PtY, BorderPtSize, BorderPtSize, BorderBrush, Series.BorderColor, Angle, BorderRotationPoint);
-		}
-		DC.LayerId++;
-		*/
+#endif
 	}
 }
 
@@ -240,9 +244,10 @@ void FRandomGraphTrack::Update(const FTimingTrackViewport& Viewport)
 	NumAddedEvents = 0;
 
 	// TODO: vertical panning and zooming
-	BaselineY = H;
+	BaselineY = GetHeight();
 	ScaleY = 1.0;
 
+	ensure(AllSeries.Num() == 1);
 	GenerateSeries(AllSeries[0], Viewport, 1000000);
 
 	UpdateStats();
@@ -250,15 +255,15 @@ void FRandomGraphTrack::Update(const FTimingTrackViewport& Viewport)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FRandomGraphTrack::GenerateSeries(FGraphTrackSeries& Series, const FTimingTrackViewport& Viewport, const int EventCount)
+void FRandomGraphTrack::GenerateSeries(FGraphTrackSeries& Series, const FTimingTrackViewport& Viewport, const int32 EventCount)
 {
 	//////////////////////////////////////////////////
 	// Generate random events.
 
-	static const double DT1 = 0.0000001; // 100ns
-	static const double DT2 = 0.01; // 100ms
-	const float V1 = 0;
-	const float V2 = H;
+	static const double MinDeltaTime = 0.0000001; // 100ns
+	static const double MaxDeltaTime = 0.01; // 100ms
+	const float MinValue = 0;
+	const float MaxValue = GetHeight();
 
 	struct FGraphEvent
 	{
@@ -272,50 +277,45 @@ void FRandomGraphTrack::GenerateSeries(FGraphTrackSeries& Series, const FTimingT
 
 	FRandomStream RandomStream(0);
 	double NextT = 0.0;
-	for (int Index = 0; Index < EventCount; ++Index)
+	for (int32 Index = 0; Index < EventCount; ++Index)
 	{
 		FGraphEvent Ev;
 		Ev.Time = NextT;
-		NextT += DT1 + RandomStream.GetFraction() * (DT2 - DT1);
-		Ev.Duration = DT1 + RandomStream.GetFraction() * (NextT - Ev.Time - DT1);
-		Ev.Value = V1 + RandomStream.GetFraction() * (V2 - V1);
+		const double TimeAdvance = RandomStream.GetFraction() * (MaxDeltaTime - MinDeltaTime);
+		NextT += MinDeltaTime + TimeAdvance;
+		Ev.Duration = MinDeltaTime + RandomStream.GetFraction() * TimeAdvance;
+		Ev.Value = MinValue + RandomStream.GetFraction() * (MaxValue - MinValue);
 		Events.Add(Ev);
 	}
 
-	// Sort events by time.
-	//Events.Sort([](const FGraphEvent& A, const FGraphEvent& B) { return A.Time < B.Time; });
-
 	//////////////////////////////////////////////////
 	// Optimize and build draw lists.
-
-	FGraphTrackBuilder Builder(*this, Series, Viewport);
-
-	Builder.Begin();
-
-	int Index = 0;
-	while (Index < EventCount && Events[Index].Time < Viewport.StartTime)
 	{
-		++Index;
-	}
-	if (Index > 0)
-	{
-		Index--; // one point outside screen (left side)
-	}
-	while (Index < EventCount)
-	{
-		const FGraphEvent& Ev = Events[Index];
-		Builder.AddEvent(Ev.Time, Ev.Duration, Ev.Value);
+		FGraphTrackBuilder Builder(*this, Series, Viewport);
 
-		if (Ev.Time > Viewport.EndTime)
+		int32 Index = 0;
+		while (Index < EventCount && Events[Index].Time < Viewport.StartTime)
 		{
-			// one point outside screen (right side)
-			break;
+			++Index;
 		}
+		if (Index > 0)
+		{
+			Index--; // one point outside screen (left side)
+		}
+		while (Index < EventCount)
+		{
+			const FGraphEvent& Ev = Events[Index];
+			Builder.AddEvent(Ev.Time, Ev.Duration, Ev.Value);
 
-		++Index;
+			if (Ev.Time > Viewport.EndTime)
+			{
+				// one point outside screen (right side)
+				break;
+			}
+
+			++Index;
+		}
 	}
-
-	Builder.End();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -334,11 +334,9 @@ FFramesGraphTrack::FFramesGraphTrack(uint64 InTrackId)
 	AllSeries.AddDefaulted(2);
 
 	FGraphTrackSeries& GameFramesSeries = AllSeries[0];
-	//GameFramesSeries.SetColor(FLinearColor(1.0f, 0.5f, 0.0f, 1.0f), FLinearColor(1.0f, 0.8f, 0.3f, 1.0f));
 	GameFramesSeries.SetColor(FLinearColor(0.3f, 0.3f, 1.0f, 1.0f), FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
 
 	FGraphTrackSeries& RenderFramesSeries = AllSeries[1];
-	//RenderFramesSeries.SetColor(FLinearColor(1.0f, 0.0f, 0.5f, 1.0f), FLinearColor(1.0f, 0.3f, 0.8f, 1.0f));
 	RenderFramesSeries.SetColor(FLinearColor(1.0f, 0.3f, 0.3f, 1.0f), FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
 }
 
@@ -355,9 +353,10 @@ void FFramesGraphTrack::Update(const FTimingTrackViewport& Viewport)
 	NumAddedEvents = 0;
 
 	// TODO: Vertical panning and zooming needs to be moved out in a Viewport like controller.
-	BaselineY = H;
+	BaselineY = GetHeight();
 	ScaleY = 200.0 / 0.1; // 200px = 100ms
 
+	ensure(AllSeries.Num() == 2);
 	UpdateSeries(AllSeries[0], Viewport, TraceFrameType_Game);
 	UpdateSeries(AllSeries[1], Viewport, TraceFrameType_Rendering);
 
@@ -370,12 +369,10 @@ void FFramesGraphTrack::UpdateSeries(FGraphTrackSeries& Series, const FTimingTra
 {
 	FGraphTrackBuilder Builder(*this, Series, Viewport);
 
-	Builder.Begin();
-
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope _(*Session.Get());
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		Session->ReadFramesProvider([this, &Builder, FrameType](const Trace::IFrameProvider& FramesProvider)
 		{
 			uint64 FrameCount = FramesProvider.GetFrameCount(FrameType);
@@ -386,8 +383,6 @@ void FFramesGraphTrack::UpdateSeries(FGraphTrackSeries& Series, const FTimingTra
 			});
 		});
 	}
-
-	Builder.End();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -399,12 +394,6 @@ FGraphTrackBuilder::FGraphTrackBuilder(FGraphTrack& InTrack, FGraphTrackSeries& 
 	, Series(InSeries)
 	, Viewport(InViewport)
 {
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrackBuilder::Begin()
-{
 	BeginPoints();
 	BeginConnectedLines();
 	BeginBoxes();
@@ -412,7 +401,7 @@ void FGraphTrackBuilder::Begin()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FGraphTrackBuilder::End()
+FGraphTrackBuilder::~FGraphTrackBuilder()
 {
 	EndPoints();
 	EndConnectedLines();
@@ -456,10 +445,12 @@ void FGraphTrackBuilder::BeginPoints()
 
 	PointsCurrentX = -DBL_MAX;
 
-	int MaxPointsPerLineScan = FMath::CeilToInt(Track.H / GraphTrackPointDY);
 	PointsAtCurrentX.Reset();
-	PointsAtCurrentX.AddDefaulted(MaxPointsPerLineScan);
-	//PointsAtCurrentX.SetNum(MaxPointsPerLineScan);
+	int32 MaxPointsPerLineScan = FMath::CeilToInt(Track.GetHeight() / GraphTrackPointDY);
+	if (MaxPointsPerLineScan > 0)
+	{
+		PointsAtCurrentX.AddDefaulted(MaxPointsPerLineScan);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -483,7 +474,7 @@ void FGraphTrackBuilder::AddPoint(double Time, double Value)
 
 	const float Y = Track.GetYForValue(Value);
 
-	int Index = FMath::RoundToInt(Y / GraphTrackPointDY);
+	int32 Index = FMath::RoundToInt(Y / GraphTrackPointDY);
 	if (Index >= 0 && Index < PointsAtCurrentX.Num())
 	{
 		FPointInfo& Pt = PointsAtCurrentX[Index];
@@ -497,13 +488,12 @@ void FGraphTrackBuilder::AddPoint(double Time, double Value)
 
 void FGraphTrackBuilder::FlushPoints()
 {
-	for (int Index = 0; Index < PointsAtCurrentX.Num(); ++Index)
+	for (int32 Index = 0; Index < PointsAtCurrentX.Num(); ++Index)
 	{
 		FPointInfo& Pt = PointsAtCurrentX[Index];
 		if (Pt.bValid)
 		{
 			Pt.bValid = false;
-			//const float Y = Index * GraphTrackPointDY + GraphTrackPointDY / 2.0f;
 			Series.Points.Add(FVector2D(Pt.X, Pt.Y));
 		}
 	}
@@ -670,8 +660,16 @@ void FGraphTrackBuilder::AddBox(double Time, double Duration, double Value)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FGraphTrackBuilder::FlushBox()
+{
+	// TODO: reduction algorithm
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FGraphTrackBuilder::EndBoxes()
 {
+	FlushBox();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

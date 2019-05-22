@@ -34,7 +34,7 @@ void SInsightsSettings::Construct(const FArguments& InArgs)
 	SettingPtr = InArgs._SettingPtr;
 
 	const TSharedRef<SGridPanel> SettingsGrid = SNew(SGridPanel);
-	int CurrentRowPos = 0;
+	int32 CurrentRowPos = 0;
 
 	AddTitle(LOCTEXT("SettingsTitle","Unreal Insights - Settings"), SettingsGrid, CurrentRowPos);
 	AddSeparator(SettingsGrid, CurrentRowPos);

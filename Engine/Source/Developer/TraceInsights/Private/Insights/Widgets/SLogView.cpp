@@ -476,27 +476,27 @@ void SLogView::Construct(const FArguments& InArgs)
 			SNew(SHorizontalBox)
 
 			// Icon
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush(TEXT("Log.TabIcon")))
-			]
-
-			// Label
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(2.0f, 0.0f)
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("LogViewLabel", "Log View"))
-			]
+			//+ SHorizontalBox::Slot()
+			//.VAlign(VAlign_Center)
+			//.AutoWidth()
+			//[
+			//	SNew(SImage)
+			//	.Image(FEditorStyle::GetBrush(TEXT("Log.TabIcon")))
+			//]
+			//
+			//// Label
+			//+ SHorizontalBox::Slot()
+			//.VAlign(VAlign_Center)
+			//.Padding(2.0f, 0.0f)
+			//.AutoWidth()
+			//[
+			//	SNew(STextBlock)
+			//	.Text(LOCTEXT("LogViewLabel", "Log View"))
+			//]
 
 			// Verbosity Threshold Filter
 			+SHorizontalBox::Slot()
-			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+			//.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
@@ -695,7 +695,7 @@ TSharedRef<ITableRow> SLogView::OnGenerateRow(TSharedPtr<FLogMessage> InLogMessa
 
 void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	int NewMessageCount = 0;
+	int32 NewMessageCount = 0;
 
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 
@@ -703,17 +703,17 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope _(*Session.Get());
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		Session->ReadLogProvider([this, &NewMessageCount](const Trace::ILogProvider& LogProvider)
 		{
-			NewMessageCount = static_cast<int>(LogProvider.GetMessageCount());
+			NewMessageCount = static_cast<int32>(LogProvider.GetMessageCount());
 
 			//TODO: show only categories that are used in current trace
 			//TODO: cause of duplicates: a) runtime, b) case insensitive, c) stripped "Log" prefix
 			//TODO: FString vs. FText vs. FName ?
 
-			//TODO: int NumCategories = static_cast<int>(LogProvider.GetCategoriesCount());
-			int NumCategories = 0;
+			//TODO: int32 NumCategories = static_cast<int32>(LogProvider.GetCategoriesCount());
+			int32 NumCategories = 0;
 			LogProvider.EnumerateCategories([&NumCategories](const Trace::FLogCategory& Category)
 			{
 				NumCategories++;
@@ -796,13 +796,13 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 			{
 				FilteringStopwatch.Restart();
 
-				for (int Index = TotalNumMessages; Index < NewMessageCount; Index++)
+				for (int32 Index = TotalNumMessages; Index < NewMessageCount; Index++)
 				{
 					FLogMessage LogMessage(Index);
 					Messages.Add(MakeShared<FLogMessage>(MoveTemp(LogMessage)));
 				}
 
-				const int NumAddedMessages = NewMessageCount - TotalNumMessages;
+				const int32 NumAddedMessages = NewMessageCount - TotalNumMessages;
 				TotalNumMessages = NewMessageCount;
 				ListView->RebuildList();
 				bIsDirty = false;
@@ -852,8 +852,8 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 			const TArray<uint32>& FilteredMessages = Task.GetFilteredMessages();
 
 			// Add filtered messages to current Messages array.
-			const int NumFilteredMessages = FilteredMessages.Num();
-			for (int Index = 0; Index < NumFilteredMessages; Index++)
+			const int32 NumFilteredMessages = FilteredMessages.Num();
+			for (int32 Index = 0; Index < NumFilteredMessages; Index++)
 			{
 				FLogMessage LogMessage(FilteredMessages[Index]);
 				Messages.Add(MakeShared<FLogMessage>(MoveTemp(LogMessage)));
@@ -869,7 +869,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 			uint64 DurationMs = FilteringStopwatch.GetAccumulatedTimeMs();
 			if (DurationMs > 10) // avoids spams
 			{
-				int NumAsyncFilteredMessages = Task.GetEndIndex() - Task.GetStartIndex();
+				int32 NumAsyncFilteredMessages = Task.GetEndIndex() - Task.GetStartIndex();
 				double Speed = static_cast<double>(NumAsyncFilteredMessages) / FilteringStopwatch.GetAccumulatedTime();
 				UE_LOG(TimingProfiler, Log, TEXT("[LogView] Updated (%d added / %d async filtered / %d total messages) in %llu ms (%.2f messages/second)."),
 					NumFilteredMessages, NumAsyncFilteredMessages, TotalNumMessages, DurationMs, Speed);
@@ -1075,7 +1075,7 @@ void  SLogView::CreateVerbosityThresholdMenuSection(FMenuBuilder& MenuBuilder)
 		{ ELogVerbosity::Fatal,       LOCTEXT("VerbosityThresholdFatal",       "Fatal"),       LOCTEXT("VerbosityThresholdFatal_Tooltip",       "Show only Fatal log messages."), },
 	};
 
-	for (int Index = 0; Index < sizeof(VerbosityThresholds) / sizeof(FVerbosityThresholdInfo); ++Index)
+	for (int32 Index = 0; Index < sizeof(VerbosityThresholds) / sizeof(FVerbosityThresholdInfo); ++Index)
 	{
 		const FVerbosityThresholdInfo& Threshold = VerbosityThresholds[Index];
 

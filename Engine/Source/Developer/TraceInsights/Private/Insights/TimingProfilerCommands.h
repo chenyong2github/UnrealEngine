@@ -9,16 +9,17 @@
 class FMenuBuilder;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Class that holds all profiler commands.
-
+/**
+ * Class that holds all profiler commands.
+ */
 class FTimingProfilerCommands
 	: public TCommands<FTimingProfilerCommands>
 {
 public:
-	/// Default constructor.
+	/** Default constructor. */
 	FTimingProfilerCommands();
 
-	/// Initialize commands.
+	/** Initialize commands. */
 	virtual void RegisterCommands() override;
 
 public:
@@ -29,45 +30,52 @@ public:
 	//     const FUIAction <CommandName>_Custom(...) const;
 	//////////////////////////////////////////////////
 
-	/// Toggles visibility for the Frames Track. Global and custom command.
+	/** Toggles visibility for the Frames Track. Global and custom command. */
 	TSharedPtr<FUICommandInfo> ToggleFramesTrackVisibility;
 
-	/// Toggles visibility for the Graph Track. Global and custom command.
+	/** Toggles visibility for the Graph Track. Global and custom command. */
 	TSharedPtr<FUICommandInfo> ToggleGraphTrackVisibility;
 
-	/// Toggles visibility for the Timing Track. Global and custom command.
-	TSharedPtr<FUICommandInfo> ToggleTimingTrackVisibility;
+	/** Toggles visibility for the Timing View. Global and custom command. */
+	TSharedPtr<FUICommandInfo> ToggleTimingViewVisibility;
 
-	/// Toggles visibility for the Timers View. Global and custom command.
+	/** Toggles visibility for the Timers View. Global and custom command. */
 	TSharedPtr<FUICommandInfo> ToggleTimersViewVisibility;
 
-	/// Toggles visibility for the Log View. Global and custom command.
+	/** Toggles visibility for the Stats Counters View. Global and custom command. */
+	TSharedPtr<FUICommandInfo> ToggleStatsCountersViewVisibility;
+
+	/** Toggles visibility for the Log View. Global and custom command. */
 	TSharedPtr<FUICommandInfo> ToggleLogViewVisibility;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
+/**
+ * Menu builder. Helper class for adding a customized menu entry using the global UI command info.
+ */
 class FTimingProfilerMenuBuilder
 {
 public:
-	/// Helper method for adding a customized menu entry using the global UI command info.
-	/// FUICommandInfo cannot be executed with custom parameters, so we need to create a custom FUIAction,
-	/// but sometime we have global and local version for the UI command, so reuse data from the global UI command info.
-	/// Ex:
-	///     SessionInstance_ToggleCapture          - Global version will toggle capture process for all active session instances
-	///     SessionInstance_ToggleCapture_OneParam - Local version will toggle capture process only for the specified session instance
-	///
-	/// @param MenuBuilder The menu to add items to
-	/// @param FUICommandInfo A shared pointer to the UI command info
-	/// @param UIAction Customized version of the UI command info stored in an UI action
-	///
+	/**
+	 * Helper method for adding a customized menu entry using the global UI command info.
+	 * FUICommandInfo cannot be executed with custom parameters, so we need to create a custom FUIAction,
+	 * but sometime we have global and local version for the UI command, so reuse data from the global UI command info.
+	 * Ex:
+	 *     SessionInstance_ToggleCapture          - Global version will toggle capture process for all active session instances
+	 *     SessionInstance_ToggleCapture_OneParam - Local version will toggle capture process only for the specified session instance
+	 *
+	 * @param MenuBuilder The menu to add items to
+	 * @param FUICommandInfo A shared pointer to the UI command info
+	 * @param UIAction Customized version of the UI command info stored in an UI action
+	 */
 	static void AddMenuEntry(FMenuBuilder& MenuBuilder, const TSharedPtr<FUICommandInfo>& UICommandInfo, const FUIAction& UIAction);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Class that provides helper functions for the commands to avoid cluttering profiler manager with many small functions.
-/// Can't contain any variables. Directly operates on the profiler manager instance.
-
+/**
+ * Class that provides helper functions for the commands to avoid cluttering profiler manager with many small functions.
+ * Can't contain any variables. Directly operates on the profiler manager instance.
+ */
 class FTimingProfilerActionManager
 {
 	friend class FTimingProfilerManager;
@@ -92,8 +100,9 @@ protected:\
 
 	DECLARE_TOGGLE_COMMAND(ToggleFramesTrackVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleGraphTrackVisibility)
-	DECLARE_TOGGLE_COMMAND(ToggleTimingTrackVisibility)
+	DECLARE_TOGGLE_COMMAND(ToggleTimingViewVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleTimersViewVisibility)
+	DECLARE_TOGGLE_COMMAND(ToggleStatsCountersViewVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleLogViewVisibility)
 #undef DECLARE_TOGGLE_COMMAND
 
@@ -101,15 +110,15 @@ protected:\
 	// OpenSettings
 
 public:
-	void Map_OpenSettings_Global(); ///< Maps UI command info OpenSettings with the specified UI command list.
-	const FUIAction OpenSettings_Custom() const; ///< UI action for OpenSettings command.
+	void Map_OpenSettings_Global(); /**< Maps UI command info OpenSettings with the specified UI command list. */
+	const FUIAction OpenSettings_Custom() const; /**< UI action for OpenSettings command. */
 protected:
-	void OpenSettings_Execute(); ///< Handles FExecuteAction for OpenSettings.
-	bool OpenSettings_CanExecute() const; ///< Handles FCanExecuteAction for OpenSettings.
+	void OpenSettings_Execute(); /**< Handles FExecuteAction for OpenSettings. */
+	bool OpenSettings_CanExecute() const; /**< Handles FCanExecuteAction for OpenSettings. */
 
 	//////////////////////////////////////////////////
 
 protected:
-	/// Reference to the global instance of the profiler manager.
+	/** Reference to the global instance of the profiler manager. */
 	class FTimingProfilerManager* This;
 };

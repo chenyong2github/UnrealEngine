@@ -7,6 +7,7 @@
 
 enum class ESlateDrawEffect : uint8;
 
+struct FDrawContext;
 struct FGeometry;
 struct FSlateBrush;
 
@@ -18,13 +19,17 @@ namespace Trace
 	struct FFrame;
 }
 
-enum EFrameType
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+enum class EFrameType
 {
 	Unknown = -1,
 
 	Game,
 	Render
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct FFrameTrackSample
 {
@@ -47,74 +52,86 @@ struct FFrameTrackSample
 	{}
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 struct FFrameTrackTimeline
 {
 	uint64 Id;
-	//EFrameType Type;
+	//TODO: EFrameType Type;
 
-	//double MinValue; // min value
-	//double MaxValue; // max value
-	//double AvgValue; // average value
+	//TODO: double MinValue; // min value
+	//TODO: double MaxValue; // max value
 
-	//float SampleW; // width of a sample, in Slate units
-	//int FramesPerSample; // number of frames in a sample
-	//int FirstFrameIndex; // index of first frame in first sample; can be negative
-	//int NumSamples; // total number of samples
-	int NumAggregatedFrames; // total number of frames aggregated in samples; ie. sum of all Sample.NumFrames
+	//TODO: float SampleW; // width of a sample, in Slate units
+	//TODO: int32 FramesPerSample; // number of frames in a sample
+	//TODO: int32 FirstFrameIndex; // index of first frame in first sample; can be negative
+	//TODO: int32 NumSamples; // total number of samples
+	int32 NumAggregatedFrames; // total number of frames aggregated in samples; ie. sum of all Sample.NumFrames
 
 	TArray<FFrameTrackSample> Samples;
 };
 
-class FFrameTrackCacheContext : public FNoncopyable
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FFrameTrackTimelineBuilder
 {
 public:
-	FFrameTrackCacheContext(const FFrameTrackViewport& InViewport);
-	//~FFrameTrackCacheContext();
+	FFrameTrackTimelineBuilder(FFrameTrackTimeline& InTimeline, const FFrameTrackViewport& InViewport);
 
-	void Begin();
-	bool BeginTimeline(FFrameTrackTimeline& CachedTimeline);
-	void AddEvent(const Trace::FFrame& Event);
-	void EndTimeline();
-	void End();
+	/**
+	 * Non-copyable
+	 */
+	FFrameTrackTimelineBuilder(const FFrameTrackTimelineBuilder&) = delete;
+	FFrameTrackTimelineBuilder& operator=(const FFrameTrackTimelineBuilder&) = delete;
 
-public:
+	void AddFrame(const Trace::FFrame& Frame);
+
+	int32 GetNumAddedFrames() const { return NumAddedFrames; }
+
+private:
+	FFrameTrackTimeline& Timeline;
 	const FFrameTrackViewport& Viewport;
-
-	FFrameTrackTimeline* CurrentCachedTimeline; // pointer to current FFrameTrackTimeline; valid only between BeginTimeline - EndTimeline calls.
 
 	float SampleW; // width of a sample, in Slate units
-	int FramesPerSample; // number of frames in a sample
-	int FirstFrameIndex; // index of first frame in first sample; can be negative
-	int NumSamples; // total number of samples
+	int32 FramesPerSample; // number of frames in a sample
+	int32 FirstFrameIndex; // index of first frame in first sample; can be negative
+	int32 NumSamples; // total number of samples
 
 	// Debug stats.
-	int NumFrames; // number of added frames
+	int32 NumAddedFrames; // counts total number of added frame events
 };
 
-class FFrameTrackDrawContext : public FNoncopyable
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FFrameTrackDrawHelper
 {
 public:
-	FFrameTrackDrawContext(const FFrameTrackViewport& InViewport, const FGeometry& InAllottedGeometry, int32& InLayerId, FSlateWindowElementList& InElementList);
-	//~FFrameTrackDrawContext();
+	FFrameTrackDrawHelper(const FDrawContext& InDrawContext, const FFrameTrackViewport& InViewport);
 
-	void DrawBackground(const FWidgetStyle& InWidgetStyle) const;
-	void DrawCached(const FFrameTrackTimeline& CachedTimeline) const;
+	/**
+	 * Non-copyable
+	 */
+	FFrameTrackDrawHelper(const FFrameTrackDrawHelper&) = delete;
+	FFrameTrackDrawHelper& operator=(const FFrameTrackDrawHelper&) = delete;
+
+	void DrawBackground() const;
+	void DrawCached(const FFrameTrackTimeline& Timeline) const;
 	void DrawHoveredSample(const FFrameTrackSample& Sample) const;
-	void DrawHighlightedInterval(const FFrameTrackTimeline& CachedTimeline, const double StartTime, const double EndTime) const;
+	void DrawHighlightedInterval(const FFrameTrackTimeline& Timeline, const double StartTime, const double EndTime) const;
 
-	FLinearColor GetColorById(int Id) const;
+	FLinearColor GetColorById(int32 Id) const;
 
-public:
+	int32 GetNumFrames() const { return NumFrames; }
+	int32 GetNumDrawSamples() const { return NumDrawSamples; }
+
+private:
+	const FDrawContext& DrawContext;
 	const FFrameTrackViewport& Viewport;
-	const FGeometry& AllottedGeometry;
-	int32& LayerId;
-	FSlateWindowElementList& ElementList;
-	const ESlateDrawEffect DrawEffects;
 
 	const FSlateBrush* WhiteBrush;
 	const FSlateBrush* BorderBrush;
 
 	// Debug stats.
-	mutable int NumFrames;
-	mutable int NumDrawSamples;
+	mutable int32 NumFrames;
+	mutable int32 NumDrawSamples;
 };

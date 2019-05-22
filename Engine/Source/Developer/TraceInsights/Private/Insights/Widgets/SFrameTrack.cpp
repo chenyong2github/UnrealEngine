@@ -59,6 +59,8 @@ void SFrameTrack::Reset()
 	TimelinesOrder.Add(2);
 	bIsStateDirty = true;
 
+	AnalysisSyncNextTimestamp = 0;
+
 	MousePosition = FVector2D::ZeroVector;
 
 	MousePositionOnButtonDown = FVector2D::ZeroVector;
@@ -173,35 +175,43 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		}
 	}
 
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid())
+	uint64 Time = FPlatformTime::Cycles64();
+	if (Time > AnalysisSyncNextTimestamp)
 	{
-		Trace::FAnalysisSessionReadScope _(*Session.Get());
-		Session->ReadFramesProvider([this](const Trace::IFrameProvider& FramesProvider)
+		const uint64 WaitTime = static_cast<uint64>(0.1 / FPlatformTime::GetSecondsPerCycle64()); // 100ms
+		AnalysisSyncNextTimestamp = Time + WaitTime;
+
+		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid())
 		{
-			for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
+			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+			Session->ReadFramesProvider([this](const Trace::IFrameProvider& FramesProvider)
 			{
-				FFrameTrackTimeline& CachedTimeline = CachedTimelines.FindOrAdd(FrameType);
-				CachedTimeline.Id = FrameType;
-
-				int32 NumFrames = FramesProvider.GetFrameCount(ETraceFrameType(FrameType));
-				if (NumFrames > Viewport.MaxIndex)
+				for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 				{
-					Viewport.SetMinMaxIndexInterval(0, NumFrames);
-					UpdateHorizontalScrollBar();
-					bIsStateDirty = true;
+					FFrameTrackTimeline& CachedTimeline = CachedTimelines.FindOrAdd(FrameType);
+					CachedTimeline.Id = FrameType;
 
-					// Auto zoom out.
-					float SampleW = Viewport.GetSampleWidth();
-					int32 NumSamples = FMath::CeilToInt(Viewport.Width / SampleW);
-					if (NumFrames > NumSamples * Viewport.GetNumFramesPerSample())
+					int32 NumFrames = FramesProvider.GetFrameCount(ETraceFrameType(FrameType));
+					if (NumFrames > Viewport.MaxIndex)
 					{
-						ZoomHorizontally(-0.1f, 0.0f);
-						Viewport.ScrollAtPosX(0.0f);
+						Viewport.SetMinMaxIndexInterval(0, NumFrames);
+						UpdateHorizontalScrollBar();
+						bIsStateDirty = true;
+
+						// Auto zoom out.
+						float SampleW = Viewport.GetSampleWidth();
+						int32 NumSamples = FMath::CeilToInt(Viewport.Width / SampleW);
+						if (NumFrames > NumSamples * Viewport.GetNumFramesPerSample())
+						{
+							ZoomHorizontally(-0.1f, 0.0f);
+							Viewport.ScrollAtPosX(0.0f);
+						}
 					}
 				}
-			}
-		});
+			});
+		}
 	}
 
 	if (bIsStateDirty)
@@ -218,47 +228,41 @@ void SFrameTrack::UpdateState()
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
 
-	for (auto It = CachedTimelines.CreateIterator(); It; ++It)
+	// Reset stats.
+	for (TPair<uint64, FFrameTrackTimeline>& KeyValuePair : CachedTimelines)
 	{
-		(*It).Value.NumAggregatedFrames = 0;
+		FFrameTrackTimeline& Timeline = KeyValuePair.Value;
+		Timeline.NumAggregatedFrames = 0;
 	}
-
-	FFrameTrackCacheContext CC(Viewport);
-	CC.Begin();
+	NumUpdatedFrames = 0;
 
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope _(*Session.Get());
-		Session->ReadFramesProvider([this, &CC](const Trace::IFrameProvider& FramesProvider)
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+		Session->ReadFramesProvider([this](const Trace::IFrameProvider& FramesProvider)
 		{
 			for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 			{
-				FFrameTrackTimeline& CachedTimeline = CachedTimelines.FindOrAdd(FrameType);
-				CachedTimeline.Id = FrameType;
+				FFrameTrackTimeline& Timeline = CachedTimelines.FindOrAdd(FrameType);
+				Timeline.Id = FrameType;
 
-				if (CC.BeginTimeline(CachedTimeline))
+				FFrameTrackTimelineBuilder Builder(Timeline, Viewport);
+
+				int32 StartIndex = FMath::Max(0, Viewport.GetIndexAtViewportX(0.0f));
+				int32 EndIndex = Viewport.GetIndexAtViewportX(Viewport.Width);
+				FramesProvider.EnumerateFrames(ETraceFrameType(FrameType), static_cast<uint64>(StartIndex), static_cast<uint64>(EndIndex), [&Builder](const Trace::FFrame& Frame)
 				{
-					int32 StartIndex = FMath::Max(0, CC.Viewport.GetIndexAtViewportX(0.0f));
-					int32 EndIndex = CC.Viewport.GetIndexAtViewportX(Viewport.Width);
-					//int32 NumFrames = Timeline.GetEventCount();
-					//int32 EndIndex = FMath::Min(NumFrames, CC.Viewport.GetIndexAtViewportX(Viewport.Width));
+					Builder.AddFrame(Frame);
+				});
 
-					FramesProvider.EnumerateFrames(ETraceFrameType(FrameType), static_cast<uint64>(StartIndex), static_cast<uint64>(EndIndex), [&CC](const Trace::FFrame& Frame)
-					{
-						CC.AddEvent(Frame);
-					});
-
-					CC.EndTimeline();
-				}
+				NumUpdatedFrames += Builder.GetNumAddedFrames();
 			}
 		});
 	}
 
-	CC.End();
-
 	Stopwatch.Stop();
-	NumUpdatedFrames = CC.NumFrames;
 	UpdateDurationHistory.AddValue(Stopwatch.AccumulatedTime);
 }
 
@@ -267,14 +271,14 @@ void SFrameTrack::UpdateState()
 FSampleRef SFrameTrack::GetSampleAtMousePosition(float X, float Y)
 {
 	float SampleW = Viewport.GetSampleWidth();
-	int SampleIndex = FMath::FloorToInt(X / SampleW);
+	int32 SampleIndex = FMath::FloorToInt(X / SampleW);
 	if (SampleIndex >= 0)
 	{
 		const float ViewportHeight = FMath::RoundToFloat(Viewport.Height);
 		const float SampleY2 = ViewportHeight - FMath::RoundToFloat(Viewport.GetViewportYForValue(0.0));
 
 		// Search in reverse paint order.
-		for (int TimelineIndex = TimelinesOrder.Num() - 1; TimelineIndex >= 0; --TimelineIndex)
+		for (int32 TimelineIndex = TimelinesOrder.Num() - 1; TimelineIndex >= 0; --TimelineIndex)
 		{
 			int32 TimelineId = TimelinesOrder[TimelineIndex];
 			if (CachedTimelines.Contains(TimelineId))
@@ -313,9 +317,13 @@ void SFrameTrack::SelectFrameAtMousePosition(float X, float Y)
 {
 	FSampleRef SampleRef = GetSampleAtMousePosition(X, Y);
 	if (!SampleRef.IsValid())
+	{
 		SampleRef = GetSampleAtMousePosition(X - 1.0f, Y);
+	}
 	if (!SampleRef.IsValid())
+	{
 		SampleRef = GetSampleAtMousePosition(X + 1.0f, Y);
+	}
 
 	if (SampleRef.IsValid())
 	{
@@ -335,95 +343,83 @@ void SFrameTrack::SelectFrameAtMousePosition(float X, float Y)
 
 int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
-	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-
 	const bool bEnabled = ShouldBeEnabled(bParentEnabled);
 	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
+	FDrawContext DrawContext(AllottedGeometry, MyCullingRect, InWidgetStyle, DrawEffects, OutDrawElements, LayerId);
+
+	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
 	const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush("WhiteBrush");
 
 	const float ViewWidth = AllottedGeometry.Size.X;
 	const float ViewHeight = AllottedGeometry.Size.Y;
 
-	FFrameTrackDrawContext DC(Viewport, AllottedGeometry, LayerId, OutDrawElements);
+	int32 NumDrawSamples = 0;
 
-	FStopwatch Stopwatch;
-	Stopwatch.Start();
-
-	DC.DrawBackground(InWidgetStyle);
-
-	// Draw frames.
 	{
-		DC.NumFrames = 0;
-		DC.NumDrawSamples = 0;
+		FStopwatch Stopwatch;
+		Stopwatch.Start();
 
-		for (auto It = CachedTimelines.CreateConstIterator(); It; ++It)
+		FFrameTrackDrawHelper Helper(DrawContext, Viewport);
+
+		Helper.DrawBackground();
+
+		// Draw frames, for each visible timeline.
+		for (const TPair<uint64, FFrameTrackTimeline>& KeyValuePair : CachedTimelines)
 		{
-			DC.DrawCached((*It).Value);
+			const FFrameTrackTimeline& Timeline = KeyValuePair.Value;
+			Helper.DrawCached(Timeline);
 		}
-		//ensure(DC.NumFrames == NumUpdatedFrames);
-	}
+		NumDrawSamples = Helper.GetNumDrawSamples();
 
-	// Highlight the mouse hovered sample.
-	if (HoveredSample.IsValid())
-	{
-		DC.DrawHoveredSample(*HoveredSample.Sample);
+		// Highlight the mouse hovered sample.
+		if (HoveredSample.IsValid())
+		{
+			Helper.DrawHoveredSample(*HoveredSample.Sample);
 
-		FString Text = FString::Format(TEXT("{0} frame {1} ({2})"),
+			FString Text = FString::Format(TEXT("{0} frame {1} ({2})"),
+				{
+					(HoveredSample.Timeline->Id == 0) ? TEXT("Game") :
+					(HoveredSample.Timeline->Id == 1) ? TEXT("Render") : TEXT("Misc"),
+					FText::AsNumber(HoveredSample.Sample->LargestFrameIndex).ToString(),
+					TimeUtils::FormatTimeAuto(HoveredSample.Sample->LargestFrameDuration)
+				});
+
+			FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
+			FVector2D TextSize = FontMeasureService->Measure(Text, SummaryFont);
+
+			const float DX = 2.0f;
+			const float W2 = TextSize.X / 2 + DX;
+
+			float X1 = Viewport.GetViewportXForIndex(HoveredSample.Sample->LargestFrameIndex);
+			float CX = X1 + FMath::RoundToFloat(Viewport.GetSampleWidth() / 2);
+			if (CX + W2 > Viewport.Width)
 			{
-				(HoveredSample.Timeline->Id == 0) ? TEXT("Game") :
-				(HoveredSample.Timeline->Id == 1) ? TEXT("Render") : TEXT("Misc"),
-				FText::AsNumber(HoveredSample.Sample->LargestFrameIndex).ToString(),
-				TimeUtils::FormatTimeAuto(HoveredSample.Sample->LargestFrameDuration)
-			});
+				CX = FMath::RoundToFloat(Viewport.Width - W2);
+			}
+			if (CX - W2 < 0)
+			{
+				CX = W2;
+			}
 
-		FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
-		FVector2D TextSize = FontMeasureService->Measure(Text, SummaryFont);
+			const float Y = 10.0f;
+			const float H = 14.0f;
+			DrawContext.DrawBox(CX - W2, Y, 2 * W2, H, WhiteBrush, FLinearColor(0.7, 0.7, 0.7, 0.9));
+			DrawContext.DrawText(CX - W2 + DX, Y + 1.0f, Text, SummaryFont, FLinearColor(0.0, 0.0, 0.0, 0.9));
+		}
 
-		const float DX = 2.0f;
-		const float W2 = TextSize.X/2 + DX;
+		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (Window && Window->TimingView && CachedTimelines.Num() > 0)
+		{
+			// Highlight the area corresponding to viewport of Timing View.
+			const double StartTime = Window->TimingView->GetViewport().StartTime;
+			const double EndTime = Window->TimingView->GetViewport().EndTime;
+			Helper.DrawHighlightedInterval(CachedTimelines[0], StartTime, EndTime);
+		}
 
-		float X1 = Viewport.GetViewportXForIndex(HoveredSample.Sample->LargestFrameIndex);
-		float CX = X1 + FMath::RoundToFloat(Viewport.GetSampleWidth() / 2);
-		if (CX + W2 > Viewport.Width)
-			CX = FMath::RoundToFloat(Viewport.Width - W2);
-		if (CX - W2 < 0)
-			CX = W2;
-
-		const float Y = 10.0f;
-		const float H = 14.0f;
-
-		FSlateDrawElement::MakeBox(
-			OutDrawElements,
-			LayerId,
-			MAKE_PAINT_GEOMETRY_RC(AllottedGeometry, CX - W2, Y, 2 * W2, H),
-			WhiteBrush,
-			DrawEffects,
-			FLinearColor(0.7, 0.7, 0.7, 0.9)
-		);
-
-		FSlateDrawElement::MakeText
-		(
-			OutDrawElements,
-			LayerId,
-			MAKE_PAINT_GEOMETRY_PT(AllottedGeometry, CX - W2 + DX, Y + 1.0f),
-			Text,
-			SummaryFont,
-			DrawEffects,
-			FLinearColor(0.0, 0.0, 0.0, 0.9)
-		);
+		Stopwatch.Stop();
+		DrawDurationHistory.AddValue(Stopwatch.AccumulatedTime);
 	}
-
-	TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
-	if (Window.IsValid() && CachedTimelines.Num() > 0)
-	{
-		const double StartTime = Window->TimingView->GetViewport().StartTime;
-		const double EndTime = Window->TimingView->GetViewport().EndTime;
-		DC.DrawHighlightedInterval(CachedTimelines[0], StartTime, EndTime);
-	}
-
-	Stopwatch.Stop();
-	DrawDurationHistory.AddValue(Stopwatch.AccumulatedTime);
 
 	//////////////////////////////////////////////////
 
@@ -491,7 +487,7 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			FString::Format(TEXT("U: {0} frames, D: {1} samples"),
 				{
 					FText::AsNumber(NumUpdatedFrames).ToString(),
-					FText::AsNumber(DC.NumDrawSamples).ToString()
+					FText::AsNumber(NumDrawSamples).ToString()
 				}),
 			SummaryFont,
 			DrawEffects,

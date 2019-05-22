@@ -39,7 +39,9 @@ FLogMessageRecord::FLogMessageRecord(const Trace::FLogMessage& TraceLogMessage)
 	// Strip the "Log" prefix.
 	FString CategoryStr(TraceLogMessage.Category->Name);
 	if (CategoryStr.StartsWith(TEXT("Log")))
+	{
 		CategoryStr = CategoryStr.RightChop(3);
+	}
 	Category = FText::FromString(CategoryStr);
 
 	// Strip the trailing whitespaces (ex. some messages ends with "\n" and we do not want the LogView rows to have an unnecessary increased height).
@@ -142,19 +144,19 @@ FLogMessageRecord& FLogMessageCache::Get(uint64 Index)
 
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope _(*Session.Get());
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		Session->ReadLogProvider(
 			[this, Index](const Trace::ILogProvider& LogProvider)
-		{
-			LogProvider.ReadMessage(
-				Index,
-				[this, Index](const Trace::FLogMessage& Message)
 			{
-				FScopeLock Lock(&CriticalSection);
-				FLogMessageRecord Entry(Message);
-				Map.Add(Index, Entry);
+				LogProvider.ReadMessage(
+					Index,
+					[this, Index](const Trace::FLogMessage& Message)
+					{
+						FScopeLock Lock(&CriticalSection);
+						FLogMessageRecord Entry(Message);
+						Map.Add(Index, Entry);
+					});
 			});
-		});
 	}
 
 	{
@@ -170,23 +172,23 @@ FLogMessageRecord& FLogMessageCache::Get(uint64 Index)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FLogMessageRecord> FLogMessageCache::GetUncached(uint64 Index, bool bResolveFormatString) const
+TSharedPtr<FLogMessageRecord> FLogMessageCache::GetUncached(uint64 Index) const
 {
 	TSharedPtr<FLogMessageRecord> EntryPtr;
 
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope _(*Session.Get());
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		Session->ReadLogProvider(
-			[Index, bResolveFormatString, &EntryPtr](const Trace::ILogProvider& LogProvider)
-		{
-			LogProvider.ReadMessage(
-				Index,
-				[&EntryPtr](const Trace::FLogMessage& Message)
+			[Index, &EntryPtr](const Trace::ILogProvider& LogProvider)
 			{
-				EntryPtr = MakeShareable(new FLogMessageRecord(Message));
+				LogProvider.ReadMessage(
+					Index,
+					[&EntryPtr](const Trace::FLogMessage& Message)
+					{
+						EntryPtr = MakeShareable(new FLogMessageRecord(Message));
+					});
 			});
-		});
 	}
 
 	return EntryPtr;

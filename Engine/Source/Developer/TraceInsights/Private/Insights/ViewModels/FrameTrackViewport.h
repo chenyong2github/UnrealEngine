@@ -27,8 +27,8 @@ public:
 		MaxX = 0.0f;
 		PosX = 0.0f;
 		MinScaleX = 0.0001f;
-		MaxScaleX = 10.0f;
-		ScaleX = 1.0f;
+		MaxScaleX = 16.0f;
+		ScaleX = MaxScaleX;
 
 		MinValue = 0.0;
 		MaxValue = 1.0f;

@@ -47,23 +47,24 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 			{
 				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().InsightsManager_Live);
 				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().InsightsManager_Load);
-				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().InsightsManager_Mock);
+				//ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().InsightsManager_Mock);
 			}
 			ToolbarBuilder.EndSection();
 			ToolbarBuilder.BeginSection("View");
 			{
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleFramesTrackVisibility);
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleGraphTrackVisibility);
-				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleTimingTrackVisibility);
+				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleTimingViewVisibility);
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleTimersViewVisibility);
+				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleStatsCountersViewVisibility);
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleLogViewVisibility);
 			}
 			ToolbarBuilder.EndSection();
-			ToolbarBuilder.BeginSection("Options");
-			{
-				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().OpenSettings);
-			}
-			ToolbarBuilder.EndSection();
+			//ToolbarBuilder.BeginSection("Options");
+			//{
+			//	ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().OpenSettings);
+			//}
+			//ToolbarBuilder.EndSection();
 		}
 
 		static void FillToolbar2(FToolBarBuilder& ToolbarBuilder)

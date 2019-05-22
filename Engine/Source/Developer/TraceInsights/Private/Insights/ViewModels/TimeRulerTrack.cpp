@@ -32,30 +32,35 @@ FTimeRulerTrack::~FTimeRulerTrack()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimeRulerTrack::UpdateHoveredState(float MX, float MY, const FTimingTrackViewport& Viewport)
+void FTimeRulerTrack::Reset()
 {
-	if (MY >= Y && MY < Y + H)
-	{
-		bIsHovered = true;
+	FBaseTimingTrack::Reset();
 
-		//if (MX < 100.0f && MY < Y + 14.0f)
-		//{
-		//	bIsHeaderHovered = true;
-		//}
-		//else
-		//{
-		//	bIsHeaderHovered = false;
-		//}
+	static const float TimeRulerHeight = 22.0f;
+	SetHeight(TimeRulerHeight);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimeRulerTrack::UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport)
+{
+	//static const float HeaderWidth = 100.0f;
+	//static const float HeaderHeight = 14.0f;
+
+	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
+	{
+		SetHoveredState(true);
+		//SetHeaderHoveredState(MouseX < HeaderWidth && MouseY < GetPosY() + HeaderHeight);
 	}
 	else
 	{
-		bIsHovered = false;
+		SetHoveredState(false);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimeRulerTrack::Draw(FDrawContext& DC, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition, const bool bIsSelecting, const double SelectionStartTime, const double SelectionEndTime) const
+void FTimeRulerTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition, const bool bIsSelecting, const double SelectionStartTime, const double SelectionEndTime) const
 {
 	const float MinorTickMark = 5.0f;
 	const float MajorTickMark = 20 * MinorTickMark;
@@ -63,7 +68,7 @@ void FTimeRulerTrack::Draw(FDrawContext& DC, const FTimingTrackViewport& Viewpor
 	const float MinorTickMarkHeight = 5.0f;
 	const float MajorTickMarkHeight = 9.0f;
 
-	const float TextY = Y + MajorTickMarkHeight;
+	const float TextY = GetPosY() + MajorTickMarkHeight;
 
 	double MinorTickMarkTime = Viewport.GetDurationForViewportDX(MinorTickMark);
 	double MajorTickMarkTime = Viewport.GetDurationForViewportDX(MajorTickMark);
@@ -75,23 +80,23 @@ void FTimeRulerTrack::Draw(FDrawContext& DC, const FTimingTrackViewport& Viewpor
 	float MajorOX = static_cast<float>(FMath::RoundToDouble(MajorN * static_cast<double>(MajorTickMark) - VX));
 
 	// Draw the time ruler's background.
-	DC.DrawBox(0.0f, Y, Viewport.Width, TimeRulerHeight, WhiteBrush, FLinearColor(0.09f, 0.09f, 0.09f, 1.0f));
-	DC.LayerId++;
+	DrawContext.DrawBox(0.0f, GetPosY(), Viewport.Width, GetHeight(), WhiteBrush, FLinearColor(0.09f, 0.09f, 0.09f, 1.0f));
+	DrawContext.LayerId++;
 
 	// Draw the minor tick marks.
 	for (float X = MinorOX; X < Viewport.Width; X += MinorTickMark)
 	{
-		const bool bIsTenth = ((int)(((X - MajorOX) / MinorTickMark) + 0.4f) % 2 == 0);
+		const bool bIsTenth = ((int32)(((X - MajorOX) / MinorTickMark) + 0.4f) % 2 == 0);
 		const float MinorTickH = bIsTenth ? MinorTickMarkHeight : MinorTickMarkHeight - 1.0f;
-		DC.DrawBox(X, Y, 1.0f, MinorTickH, WhiteBrush,
+		DrawContext.DrawBox(X, GetPosY(), 1.0f, MinorTickH, WhiteBrush,
 			bIsTenth ? FLinearColor(0.3f, 0.3f, 0.3f, 1.0f) : FLinearColor(0.25f, 0.25f, 0.25f, 1.0f));
 	}
 	// Draw the major tick marks.
 	for (float X = MajorOX; X < Viewport.Width; X += MajorTickMark)
 	{
-		DC.DrawBox(X, Y, 1.0f, MajorTickMarkHeight, WhiteBrush, FLinearColor(0.4f, 0.4f, 0.4f, 1.0f));
+		DrawContext.DrawBox(X, GetPosY(), 1.0f, MajorTickMarkHeight, WhiteBrush, FLinearColor(0.4f, 0.4f, 0.4f, 1.0f));
 	}
-	DC.LayerId++;
+	DrawContext.LayerId++;
 
 	const double DT = static_cast<double>(MajorTickMark) / Viewport.ScaleX;
 	const double Precision = FMath::Max(DT / 10.0, TimeUtils::Nanosecond);
@@ -104,10 +109,10 @@ void FTimeRulerTrack::Draw(FDrawContext& DC, const FTimingTrackViewport& Viewpor
 		const double T = Viewport.SlateUnitsToTime(X);
 		FString Text = TimeUtils::FormatTime(T, Precision);
 		const float TextWidth = FontMeasureService->Measure(Text, Font).X;
-		DC.DrawText(X - TextWidth / 2, TextY, Text, Font,
+		DrawContext.DrawText(X - TextWidth / 2, TextY, Text, Font,
 			(T < 0 || T >= Viewport.MaxValidTime) ? FLinearColor(0.7f, 0.5f, 0.5f, 1.0f) : FLinearColor(0.8f, 0.8f, 0.8f, 1.0f));
 	}
-	DC.LayerId++;
+	DrawContext.LayerId++;
 
 	bool bShowMousePos = !MousePosition.IsZero();
 	if (bShowMousePos)
@@ -121,7 +126,7 @@ void FTimeRulerTrack::Draw(FDrawContext& DC, const FTimingTrackViewport& Viewpor
 
 		const double MousePosTime = Viewport.SlateUnitsToTime(MousePosition.X);
 		const double MousePosPrecision = FMath::Max(DT / 100.0, TimeUtils::Nanosecond);
-		if (MousePosition.Y >= Y && MousePosition.Y < Y + H)
+		if (MousePosition.Y >= GetPosY() && MousePosition.Y < GetPosY() + GetHeight())
 		{
 			// If mouse is hovering the time ruller, format time with a better precision (split seconds in ms, us, ns and ps).
 			MousePosText = TimeUtils::FormatTimeSplit(MousePosTime, MousePosPrecision);
@@ -148,30 +153,34 @@ void FTimeRulerTrack::Draw(FDrawContext& DC, const FTimingTrackViewport& Viewpor
 			float SelectionX1 = Viewport.TimeToSlateUnitsRounded(SelectionStartTime);
 			float SelectionX2 = Viewport.TimeToSlateUnitsRounded(SelectionEndTime);
 			if (X - SelectionX1 > 1.0f)
+			{
 				X = SelectionX2 + W / 2;
+			}
 			if (SelectionX2 - X > 1.0f)
+			{
 				X = SelectionX1 - W / 2;
+			}
 			MousePosTextForegroundColor = FLinearColor(FColor(32, 64, 128, 255));
 		}
 		else
 		{
 			// Draw horizontal line at mouse position.
-			//DC.DrawBox(0.0f, MousePosition.Y, Viewport.Width, 1.0f, WhiteBrush, MousePosLineColor);
+			//DrawContext.DrawBox(0.0f, MousePosition.Y, Viewport.Width, 1.0f, WhiteBrush, MousePosLineColor);
 
 			// Draw vertical line at mouse position.
-			DC.DrawBox(MousePosition.X, 0.0f, 1.0f, Viewport.Height, WhiteBrush, MousePosLineColor);
+			DrawContext.DrawBox(MousePosition.X, 0.0f, 1.0f, Viewport.Height, WhiteBrush, MousePosLineColor);
 
 			// Stroke the vertical line above current time box.
-			DC.DrawBox(MousePosition.X, 0.0f, 1.0f, TextY, WhiteBrush, MousePosTextBackgroundColor);
+			DrawContext.DrawBox(MousePosition.X, 0.0f, 1.0f, TextY, WhiteBrush, MousePosTextBackgroundColor);
 		}
 
 		// Fill the current time box.
-		DC.DrawBox(X - W / 2, TextY, W, 12.0f, WhiteBrush, MousePosTextBackgroundColor);
-		DC.LayerId++;
+		DrawContext.DrawBox(X - W / 2, TextY, W, 12.0f, WhiteBrush, MousePosTextBackgroundColor);
+		DrawContext.LayerId++;
 
 		// Draw current time text.
-		DC.DrawText(X - MousePosTextWidth / 2, TextY, MousePosText, Font, MousePosTextForegroundColor);
-		DC.LayerId++;
+		DrawContext.DrawText(X - MousePosTextWidth / 2, TextY, MousePosText, Font, MousePosTextForegroundColor);
+		DrawContext.LayerId++;
 	}
 }
 

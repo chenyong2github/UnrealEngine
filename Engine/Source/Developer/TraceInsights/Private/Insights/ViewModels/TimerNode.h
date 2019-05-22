@@ -18,7 +18,7 @@ typedef TSharedRef<const class FTimerNode> FTimerNodeRefConst;
 /** Type definition for weak references to instances of FTimerNode. */
 typedef TWeakPtr<class FTimerNode> FTimerNodeWeak;
 
-enum ETimerNodeType
+enum class ETimerNodeType
 {
 	/** The TimerNode is a CPU Scope timer. */
 	CpuScope,
@@ -36,8 +36,13 @@ enum ETimerNodeType
 	InvalidOrMax,
 };
 
-struct FTimerStats
+struct FTimerAggregatedStats
 {
+	//FAggregatedStats InclusiveTime; /** Aggregated stats for inclusive time, in seconds. */
+	//FAggregatedStats ExclusiveTime; /** Aggregated stats for exclusive time, in seconds. */
+	////FAggregatedStats InstanceCountPerFrame; /** Aggregated stats for variation of number of instances per frame. */
+	//uint64 GetInstanceCount() { return InclusiveTime.Count; } /** Number of instances. */
+
 	double TotalInclusiveTime; /** Total inclusive time, in seconds. */
 	double MinInclusiveTime; /** Min inclusive time, in seconds. */
 	double MaxInclusiveTime; /** Max inclusive time, in seconds. */
@@ -51,20 +56,16 @@ struct FTimerStats
 	double MedianExclusiveTime; /** Median exclusive time, in seconds. */
 
 	uint64 InstanceCount; /** Number of instances. */
-	//uint64 MinInstanceCountPerFrame;
-	//uint64 MaxInstanceCountPerFrame;
-	//uint64 AverageInstanceCountPerFrame;
-	//uint64 MedianInstanceCountPerFrame;
 
-	FTimerStats()
+	FTimerAggregatedStats()
 		: TotalInclusiveTime(0.0)
 		, MinInclusiveTime(DBL_MAX)
-		, MaxInclusiveTime(DBL_MIN)
+		, MaxInclusiveTime(-DBL_MAX)
 		, AverageInclusiveTime(0.0)
 		, MedianInclusiveTime(0.0)
 		, TotalExclusiveTime(0.0)
 		, MinExclusiveTime(DBL_MAX)
-		, MaxExclusiveTime(DBL_MIN)
+		, MaxExclusiveTime(-DBL_MAX)
 		, AverageExclusiveTime(0.0)
 		, MedianExclusiveTime(0.0)
 		, InstanceCount(0)
@@ -75,12 +76,12 @@ struct FTimerStats
 	{
 		TotalInclusiveTime = 0.0;
 		MinInclusiveTime = DBL_MAX;
-		MaxInclusiveTime = DBL_MIN;
+		MaxInclusiveTime = -DBL_MAX;
 		AverageInclusiveTime = 0.0;
 		MedianInclusiveTime = 0.0;
 		TotalExclusiveTime = 0.0;
 		MinExclusiveTime = DBL_MAX;
-		MaxExclusiveTime = DBL_MIN;
+		MaxExclusiveTime = -DBL_MAX;
 		AverageExclusiveTime = 0.0;
 		MedianExclusiveTime = 0.0;
 		InstanceCount = 0;
@@ -104,7 +105,7 @@ public:
 		, Type(InType)
 		, bForceExpandGroupNode(false)
 	{
-		ResetStats();
+		ResetAggregatedStats();
 	}
 
 	/** Initialization constructor for the group node. */
@@ -114,7 +115,7 @@ public:
 		, Type(ETimerNodeType::Group)
 		, bForceExpandGroupNode(false)
 	{
-		ResetStats();
+		ResetAggregatedStats();
 	}
 
 	/**
@@ -163,16 +164,16 @@ public:
 	}
 
 	/**
-	 * @return the stats of this timer.
+	 * @return the aggregated stats for this timer.
 	 */
-	const FTimerStats& GetStats() const
+	const FTimerAggregatedStats& GetAggregatedStats() const
 	{
-		return Stats;
+		return AggregatedStats;
 	}
 
-	void ResetStats();
+	void ResetAggregatedStats();
 
-	void SetStats(FTimerStats& Stats);
+	void SetAggregatedStats(FTimerAggregatedStats& AggregatedStats);
 
 	/**
 	 * @return a const reference to the child nodes of this group.
@@ -259,8 +260,8 @@ protected:
 	/** Holds the type of this timer; for the group, this is Group. */
 	const ETimerNodeType Type;
 
-	/** Stats */
-	FTimerStats Stats;
+	/** Aggregated stats. */
+	FTimerAggregatedStats AggregatedStats;
 
 	/** Children of this node. */
 	TArray<FTimerNodePtr> Children;

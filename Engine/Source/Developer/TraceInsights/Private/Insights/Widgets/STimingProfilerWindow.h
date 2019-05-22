@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/Docking/TabManager.h"
 #include "Input/Reply.h"
 #include "Layout/Visibility.h"
 #include "Misc/Guid.h"
 #include "SlateFwd.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SOverlay.h"
@@ -15,71 +17,109 @@
 // Insights
 #include "Insights/InsightsManager.h"
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FActiveTimerHandle;
 class SVerticalBox;
 class SFrameTrack;
 class SGraphTrack;
+class SStatsView;
 class STimersView;
 class STimingView;
 class SLogView;
 
-/// Type definition for shared pointers to instances of SNotificationItem.
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Type definition for shared pointers to instances of SNotificationItem. */
 typedef TSharedPtr<class SNotificationItem> SNotificationItemPtr;
 
-/// Type definition for shared references to instances of SNotificationItem.
+/** Type definition for shared references to instances of SNotificationItem. */
 typedef TSharedRef<class SNotificationItem> SNotificationItemRef;
 
-/// Type definition for weak references to instances of SNotificationItem.
+/** Type definition for weak references to instances of SNotificationItem. */
 typedef TWeakPtr<class SNotificationItem> SNotificationItemWeak;
 
-/// Implements the timing profiler window.
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FTimingProfilerTabs
+{
+	// Tab identifiers
+	static const FName ToolbarID;
+	static const FName FramesTrackID;
+	static const FName GraphTrackID;
+	static const FName TimingViewID;
+	static const FName TimersID;
+	static const FName StatsCountersID;
+	static const FName LogViewID;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Implements the timing profiler window. */
 class STimingProfilerWindow : public SCompoundWidget
 {
 public:
-	/// Default constructor.
+	/** Default constructor. */
 	STimingProfilerWindow();
 
-	/// Virtual destructor.
+	/** Virtual destructor. */
 	virtual ~STimingProfilerWindow();
 
 	SLATE_BEGIN_ARGS(STimingProfilerWindow){}
 	SLATE_END_ARGS()
 
-	/// Constructs this widget.
-	void Construct(const FArguments& InArgs);
+	/** Constructs this widget. */
+	void Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow);
 
 	void ManageLoadingProgressNotificationState(const FString& Filename, const EInsightsNotificationType NotificatonType, const ELoadingProgressState ProgressState, const float LoadingProgress);
 
 	void OpenProfilerSettings();
 	void CloseProfilerSettings();
 
-protected:
-	TSharedRef<SWidget> ConstructMultiTrackView();
-	TSharedRef<SWidget> ConstructFramesTrack();
-	TSharedRef<SWidget> ConstructGraphTrack();
-	TSharedRef<SWidget> ConstructTimingTrack();
-	TSharedRef<SWidget> ConstructTimersView();
-	TSharedRef<SWidget> ConstructLogView();
+	void ShowHideTab(const FName& TabID, bool bIsVisible);
 
-	/// Callback for determining the visibility of the Frames track.
+protected:
+	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_FramesTrack(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_GraphTrack(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_TimingView(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_Timers(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_StatsCounters(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_LogView(const FSpawnTabArgs& Args);
+
+	//void RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager);
+	//void UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager);
+
+	/**
+	 * Fill the main menu with menu items.
+	 *
+	 * @param MenuBuilder The multi-box builder that should be filled with content for this pull-down menu.
+	 * @param TabManager A Tab Manager from which to populate tab spawner menu items.
+	 */
+	static void FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr<FTabManager> TabManager);
+
+	/** Callback for determining the visibility of the Frames track. */
 	EVisibility IsFramesTrackVisible() const;
 
-	/// Callback for determining the visibility of the Graph track.
+	/** Callback for determining the visibility of the Graph track. */
 	EVisibility IsGraphTrackVisible() const;
 
-	/// Callback for determining the visibility of the Timing track.
-	EVisibility IsTimingTrackVisible() const;
+	/** Callback for determining the visibility of the Timing view. */
+	EVisibility IsTimingViewVisible() const;
 
-	/// Callback for determining the visibility of the Timers View.
+	/** Callback for determining the visibility of the Timers View. */
 	EVisibility IsTimersViewVisible() const;
 
-	/// Callback for determining the visibility of the Log View.
+	/** Callback for determining the visibility of the Stats Counters View. */
+	EVisibility IsStatsCountersVisible() const;
+
+	/** Callback for determining the visibility of the Log View. */
 	EVisibility IsLogViewVisible() const;
 
-	/// Callback for determining the visibility of the 'Select a session' overlay.
+	/** Callback for determining the visibility of the 'Select a session' overlay. */
 	EVisibility IsSessionOverlayVisible() const;
 
-	/// Callback for getting the enabled state of the profiler window.
+	/** Callback for getting the enabled state of the profiler window. */
 	bool IsProfilerEnabled() const;
 
 	void SendingServiceSideCapture_Cancel(const FString Filename);
@@ -143,45 +183,47 @@ private:
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)  override;
 
 private:
-	/// Updates the amount of time the profiler has been active
+	/** Updates the amount of time the profiler has been active. */
 	EActiveTimerReturnType UpdateActiveDuration(double InCurrentTime, float InDeltaTime);
 
 public:
-	/// Widget for the frame track
+	/** Widget for the frame track */
 	TSharedPtr<SFrameTrack> FrameTrack;
 
-	/// Widget for the graph track
+	/** Widget for the graph track */
 	TSharedPtr<SGraphTrack> GraphTrack;
 
-	/// Holds all timing tracks (one for each thread).
-	TSharedPtr<SVerticalBox> ThreadsPanel;
-
-	/// Widget for the timing track
+	/** Widget for the timing track */
 	TSharedPtr<STimingView> TimingView;
 
-	/// Holds the Timers view widget/slot.
-	SSplitter::FSlot* TimersViewSlot;
+	/** Holds the Timers view widget. */
 	TSharedPtr<STimersView> TimersView;
 
-	/// Widget for the log view
+	/** Holds the Stats (Counters) view widget. */
+	TSharedPtr<SStatsView> StatsView;
+
+	/** Widget for the log view */
 	TSharedPtr<SLogView> LogView;
 
-	/// Widget for the non-intrusive notifications.
+	/** Widget for the non-intrusive notifications. */
 	TSharedPtr<SNotificationList> NotificationList;
 
-	/// Holds all active and visible notifications, stored as FGuid -> SNotificationItemWeak.
+	/** Holds all active and visible notifications, stored as FGuid -> SNotificationItemWeak. */
 	TMap<FString, SNotificationItemWeak> ActiveNotifications;
 
-	/// Overlay slot which contains the profiler settings widget.
+	/** Overlay slot which contains the profiler settings widget. */
 	SOverlay::FOverlaySlot* OverlaySettingsSlot;
 
-	/// The number of seconds the profiler has been active
+	/** The number of seconds the profiler has been active */
 	float DurationActive;
 
 private:
-	/// The handle to the active update duration tick
+	/** Holds the tab manager that manages the front-end's tabs. */
+	TSharedPtr<FTabManager> TabManager;
+
+	/** The handle to the active update duration tick */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
 
-	/// Holds all widgets for the profiler window like menu bar, toolbar and tabs.
+	/** Holds all widgets for the profiler window like menu bar, toolbar and tabs. */
 	TSharedPtr<SVerticalBox> MainContentPanel;
 };

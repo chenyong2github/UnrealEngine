@@ -21,7 +21,7 @@ class FTimersViewColumn;
 
 #define LOCTEXT_NAMESPACE "STimersView"
 
-// Timers View Tooltip
+/** Timers View Tooltip */
 class STimersViewTooltip
 {
 	const uint32 TimerId;

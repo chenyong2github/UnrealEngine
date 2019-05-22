@@ -6,6 +6,7 @@
 #include "Widgets/Images/SImage.h"
 
 // Insights
+#include "Insights/Common/TimeUtils.h"
 #include "Insights/ViewModels/TimersViewColumnFactory.h"
 #include "Insights/Widgets/STimersViewTooltip.h"
 #include "Insights/Widgets/STimerTableCell.h"
@@ -188,7 +189,7 @@ FSlateColor STimerTableRow::GetColorAndOpacity() const
 
 FSlateColor STimerTableRow::GetBackgroundColorAndOpacity() const
 {
-	return GetBackgroundColorAndOpacity(TimerNodePtr->GetStats().TotalInclusiveTime);
+	return GetBackgroundColorAndOpacity(TimerNodePtr->GetAggregatedStats().TotalInclusiveTime);
 	//return FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)
 }
 

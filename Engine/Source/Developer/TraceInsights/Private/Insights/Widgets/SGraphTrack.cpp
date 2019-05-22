@@ -62,21 +62,8 @@ void SGraphTrack::Reset()
 
 void SGraphTrack::Construct(const FArguments& InArgs)
 {
-	ChildSlot
-	[
-		SNew(SOverlay)
-		.Visibility(EVisibility::SelfHitTestInvisible)
-
-		//+SOverlay::Slot()
-		//.HAlign(HAlign_Left)
-		//.VAlign(VAlign_Top)
-		//.Padding(FMargin(48.0f, 16.0f, 48.0f, 16.0f))	// Make some space for graph labels
-		//[
-		//	SAssignNew(GraphDescriptionsVBox, SVerticalBox)
-		//]
-	];
-
-	//BindCommands();
+	//TODO: Add toggle buttons for Points/Lines/Bars.
+	//TODO: Add "show list of series" expand button + toggle buttons for each available graph series.
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -112,115 +99,17 @@ void SGraphTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//PRAGMA_DISABLE_OPTIMIZATION
 int32 SGraphTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	const bool bEnabled = ShouldBeEnabled(bParentEnabled);
 	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	FDrawContext DC(AllottedGeometry, MyCullingRect, InWidgetStyle, DrawEffects, OutDrawElements, LayerId);
+	FDrawContext DrawContext(AllottedGeometry, MyCullingRect, InWidgetStyle, DrawEffects, OutDrawElements, LayerId);
 
-	GraphTrack.Draw(DC, Viewport);
-	TimeRulerTrack.Draw(DC, Viewport);
-
-	/*
-	static double TotalTime = 0.0f;
-	static uint32 NumCalls = 0;
-	const double StartTime = FPlatformTime::Seconds();
-
-	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-
-	// Rendering info.
-	const bool bEnabled = ShouldBeEnabled(bParentEnabled);
-	ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush("WhiteBrush");
-
-	const float Width = AllottedGeometry.GetLocalSize().X;
-	const float Height = AllottedGeometry.GetLocalSize().Y;
-
-	// Draw background.
-	const FSlateBrush* AreaBrush = FEditorStyle::GetBrush("Profiler.LineGraphArea");
-	FSlateDrawElement::MakeBox
-	(
-		OutDrawElements,
-		LayerId,
-		AllottedGeometry.ToPaintGeometry(FVector2D(0,0), FVector2D(Width, Height)),
-		AreaBrush,
-		DrawEffects,
-		AreaBrush->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
-	);
-	LayerId++;
-
-	// Draw a test graph...
-	static const int EventCount = 1000;
-	const FLinearColor LineColor(0.0f, 0.5f, 1.0f, 1.0f);
-	TArray<FVector2D> LinePoints;
-	FVector2D V1(0.0f, 0.0f);
-	FVector2D V2;
-	FRandomStream RandomStream(0);
-	for (int Index = 0; Index < EventCount; ++Index)
-	{
-		V2.X = FMath::TruncToFloat((Width / (float)EventCount) * (float)Index);
-		V2.Y = Height * RandomStream.GetFraction();
-		if ((V2 - V1).Size() > 1.0)
-		{
-			LinePoints.Add(V1);
-			LinePoints.Add(V2);
-			FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, DrawEffects, LineColor);
-			LinePoints.Empty();
-			V1 = V2;
-		}
-	}
-	*/
-
-	//double sec = FPlatformTime::GetSecondsPerCycle();
-
-	//FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
-	//const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont).Y;
-
-	/*
-	// Debug draw (slate fps)
-	++LayerId;
-	FSlateDrawElement::MakeBox(
-		OutDrawElements,
-		LayerId,
-		AllottedGeometry.ToPaintGeometry(FVector2D(8.0f, 8.0f), FVector2D(200.0, MaxFontCharHeight + 4.0)),
-		EventBrush,
-		DrawEffects,
-		FLinearColor(FColor(255, 255, 255))
-	);
-	static uint64 Time = 0;
-	const uint64 CurrentTime = FPlatformTime::Cycles64();
-	const uint64 Duration = CurrentTime - Time;
-	Time = CurrentTime;
-	static const int DurationCount = 64;
-	static uint64 Durations[DurationCount];
-	static uint64 DurationOffset = 0;
-	Durations[(DurationOffset++)% DurationCount] = Duration;
-	uint64 AvgDuration = 0;
-	for (int I = 0; I < DurationCount; ++I)
-		AvgDuration += Durations[I];
-	AvgDuration = AvgDuration / DurationCount;
-	const double AvgFps = AvgDuration > 0 ? 1.0 / (FPlatformTime::GetSecondsPerCycle64() * (double)AvgDuration) : 0.0;
-	const FString DebnugStatsStr = FString::Printf(TEXT("%d ms (%d ms) %.1f fps %d events"),
-		FMath::TruncToInt(AvgDuration * 1000 * FPlatformTime::GetSecondsPerCycle64()),
-		FMath::TruncToInt(Duration * 1000 * FPlatformTime::GetSecondsPerCycle64()),
-		AvgFps,
-		EventCount);
-	FSlateDrawElement::MakeText
-	(
-		OutDrawElements,
-		LayerId,
-		AllottedGeometry.ToOffsetPaintGeometry(FVector2D(10.0f, 10.0f)),
-		DebnugStatsStr,
-		SummaryFont,
-		DrawEffects,
-		FLinearColor::Red
-	);
-	*/
+	GraphTrack.Draw(DrawContext, Viewport);
+	TimeRulerTrack.Draw(DrawContext, Viewport);
 
 	return SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled && IsEnabled());
 }
-//PRAGMA_ENABLE_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

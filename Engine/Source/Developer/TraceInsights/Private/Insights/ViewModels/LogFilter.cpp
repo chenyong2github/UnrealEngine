@@ -144,7 +144,7 @@ bool FLogFilter::IsMessageAllowed(const FLogMessageRecord& Message)
 void FLogFilter::SyncAvailableCategories(const TSet<FName> Categories)
 {
 	// Remove obsolete categories.
-	int OldNumAvailableLogCategories = AvailableLogCategories.Num();
+	int32 OldNumAvailableLogCategories = AvailableLogCategories.Num();
 	for (int32 Index = OldNumAvailableLogCategories - 1; Index >= 0; --Index)
 	{
 		if (!Categories.Contains(AvailableLogCategories[Index]))
@@ -273,35 +273,22 @@ void FLogFilteringAsyncTask::DoWork()
 	if (Filter.IsFilterSetByText())
 	{
 		UE_LOG(TimingProfiler, Log, TEXT("[LogView] FLogFilteringAsyncTask::DoWork [%d to %d] by Text (\"%s\")"), StartIndex, EndIndex, *Filter.GetFilterText().ToString());
-
-		for (int Index = StartIndex; Index < EndIndex && !bCanceled; ++Index)
-		{
-			TSharedPtr<FLogMessageRecord> RecordPtr = LogView->GetCache().GetUncached(Index, true);
-
-			if (RecordPtr.IsValid() && Filter.IsMessageAllowed(*RecordPtr))
-			{
-				FilteredMessages.Add(Index);
-			}
-
-			bCanceled = LogView->IsFilteringAsyncTaskCancelRequested();
-		}
 	}
 	else
 	{
 		UE_LOG(TimingProfiler, Log, TEXT("[LogView] FLogFilteringAsyncTask::DoWork [%d to %d]"), StartIndex, EndIndex);
+	}
 
-		// If we do not filter by text, we use a faster way to read log messages (i.e. no message formatting is needed in this case).
-		for (int Index = StartIndex; Index < EndIndex && !bCanceled; ++Index)
+	for (int32 Index = StartIndex; Index < EndIndex && !bCanceled; ++Index)
+	{
+		TSharedPtr<FLogMessageRecord> RecordPtr = LogView->GetCache().GetUncached(Index);
+
+		if (RecordPtr.IsValid() && Filter.IsMessageAllowed(*RecordPtr))
 		{
-			TSharedPtr<FLogMessageRecord> RecordPtr = LogView->GetCache().GetUncached(Index, false);
-
-			if (RecordPtr.IsValid() && Filter.IsMessageAllowed(*RecordPtr))
-			{
-				FilteredMessages.Add(Index);
-			}
-
-			bCanceled = LogView->IsFilteringAsyncTaskCancelRequested();
+			FilteredMessages.Add(Index);
 		}
+
+		bCanceled = LogView->IsFilteringAsyncTaskCancelRequested();
 	}
 
 	if (bCanceled)

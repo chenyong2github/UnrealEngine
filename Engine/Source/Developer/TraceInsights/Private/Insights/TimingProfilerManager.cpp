@@ -14,6 +14,7 @@
 #include "Insights/Widgets/SFrameTrack.h"
 #include "Insights/Widgets/SGraphTrack.h"
 #include "Insights/Widgets/SLogView.h"
+#include "Insights/Widgets/SStatsView.h"
 #include "Insights/Widgets/STimersView.h"
 #include "Insights/Widgets/STimingView.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
@@ -39,8 +40,9 @@ FTimingProfilerManager::FTimingProfilerManager(TSharedRef<FUICommandList> InComm
 	, ProfilerWindow(nullptr)
 	, bIsFramesTrackVisible(true)
 	, bIsGraphTrackVisible(false)
-	, bIsTimingTrackVisible(true)
+	, bIsTimingViewVisible(true)
 	, bIsTimersViewVisible(true)
+	, bIsStatsCountersViewVisible(true)
 	, bIsLogViewVisible(true)
 {
 }
@@ -63,8 +65,9 @@ void FTimingProfilerManager::BindCommands()
 {
 	ActionManager.Map_ToggleFramesTrackVisibility_Global();
 	ActionManager.Map_ToggleGraphTrackVisibility_Global();
-	ActionManager.Map_ToggleTimingTrackVisibility_Global();
+	ActionManager.Map_ToggleTimingViewVisibility_Global();
 	ActionManager.Map_ToggleTimersViewVisibility_Global();
+	ActionManager.Map_ToggleStatsCountersViewVisibility_Global();
 	ActionManager.Map_ToggleLogViewVisibility_Global();
 }
 
@@ -122,11 +125,75 @@ void FTimingProfilerManager::OnSessionChanged()
 	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
 	if (Wnd.IsValid())
 	{
-		Wnd->FrameTrack->Reset();
-		Wnd->GraphTrack->Reset();
-		Wnd->TimingView->Reset();
-		Wnd->TimersView->RebuildTree();
-		Wnd->LogView->Reset();
+		if (Wnd->FrameTrack)
+		{
+			Wnd->FrameTrack->Reset();
+		}
+		if (Wnd->GraphTrack)
+		{
+			Wnd->GraphTrack->Reset();
+		}
+		if (Wnd->TimingView)
+		{
+			Wnd->TimingView->Reset();
+		}
+		if (Wnd->TimersView)
+		{
+			Wnd->TimersView->RebuildTree();
+		}
+		if (Wnd->StatsView)
+		{
+			Wnd->StatsView->RebuildTree();
+		}
+		if (Wnd->LogView)
+		{
+			Wnd->LogView->Reset();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingProfilerManager::SetFramesTrackVisible(const bool bFramesTrackVisibleState)
+{
+	bool bWasFramesTrackVisible = bIsFramesTrackVisible;
+
+	bIsFramesTrackVisible = bFramesTrackVisibleState;
+
+	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd.IsValid())
+	{
+		Wnd->ShowHideTab(FTimingProfilerTabs::FramesTrackID, bIsFramesTrackVisible);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingProfilerManager::SetGraphTrackVisible(const bool bGraphTrackVisibleState)
+{
+	bool bWasGraphTrackVisible = bIsGraphTrackVisible;
+
+	bIsGraphTrackVisible = bGraphTrackVisibleState;
+
+	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd.IsValid())
+	{
+		Wnd->ShowHideTab(FTimingProfilerTabs::GraphTrackID, bIsGraphTrackVisible);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingProfilerManager::SetTimingViewVisible(const bool bTimingViewVisibleState)
+{
+	bool bWasTimingViewVisible = bIsTimingViewVisible;
+
+	bIsTimingViewVisible = bTimingViewVisibleState;
+
+	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd.IsValid())
+	{
+		Wnd->ShowHideTab(FTimingProfilerTabs::TimingViewID, bIsTimingViewVisible);
 	}
 }
 
@@ -138,13 +205,40 @@ void FTimingProfilerManager::SetTimersViewVisible(const bool bTimersViewVisibleS
 
 	bIsTimersViewVisible = bTimersViewVisibleState;
 
-	if (bIsTimersViewVisible && !bWasTimersViewVisible && FInsightsManager::Get()->GetSession().IsValid())
+	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd.IsValid())
 	{
-		TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
-		if (Wnd.IsValid())
-		{
-			Wnd->TimersView->RebuildTree();
-		}
+		Wnd->ShowHideTab(FTimingProfilerTabs::TimersID, bIsTimersViewVisible);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingProfilerManager::SetStatsCountersViewVisible(const bool bStatsCountersViewVisibleState)
+{
+	bool bWasStatsCountersViewVisible = bIsStatsCountersViewVisible;
+
+	bIsStatsCountersViewVisible = bStatsCountersViewVisibleState;
+
+	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd.IsValid())
+	{
+		Wnd->ShowHideTab(FTimingProfilerTabs::StatsCountersID, bIsStatsCountersViewVisible);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingProfilerManager::SetLogViewVisible(const bool bLogViewVisibleState)
+{
+	bool bWasLogViewVisible = bIsLogViewVisible;
+
+	bIsLogViewVisible = bLogViewVisibleState;
+
+	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd.IsValid())
+	{
+		Wnd->ShowHideTab(FTimingProfilerTabs::LogViewID, bIsLogViewVisible);
 	}
 }
 

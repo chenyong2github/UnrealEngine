@@ -20,11 +20,6 @@ class FTimingTrackViewport;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static const float BookmarksTrackHeight = 14.0f;
-static const float TimeMarkersTrackHeight = 28.0f;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 struct FTimeMarkerBoxInfo
 {
 	float X;
@@ -58,7 +53,7 @@ public:
 	void ToggleCollapsed() { bIsCollapsed = !bIsCollapsed; }
 
 	bool IsBookmarksTrack() const { return bUseOnlyBookmarks; }
-	void SetIsBookmarksTrackFlag(bool bInUseOnlyBookmarks)
+	void SetBookmarksTrackFlag(bool bInUseOnlyBookmarks)
 	{
 		bUseOnlyBookmarks = bInUseOnlyBookmarks;
 		UpdateHeight();
@@ -69,31 +64,28 @@ public:
 	void ClearDirtyFlag() { bIsDirty = false; }
 
 	// Stats
-	int GetNumLogMessages() const { return NumLogMessages; }
-	int GetNumBoxes() const { return TimeMarkerBoxes.Num(); }
-	int GetNumTexts() const { return TimeMarkerTexts.Num(); }
+	int32 GetNumLogMessages() const { return NumLogMessages; }
+	int32 GetNumBoxes() const { return TimeMarkerBoxes.Num(); }
+	int32 GetNumTexts() const { return TimeMarkerTexts.Num(); }
 
-	virtual void UpdateHoveredState(float MX, float MY, const FTimingTrackViewport& Viewport) override;
-	virtual void Tick(const double InCurrentTime, const float InDeltaTime) override;
+	virtual void UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport) override;
+	virtual void Tick(const double CurrentTime, const float DeltaTime) override;
 	virtual void Update(const FTimingTrackViewport& Viewport) override;
 
-	void Draw(FDrawContext& DC, const FTimingTrackViewport& Viewport) const;
+	void Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
 
-protected:
+private:
 	void ResetCache()
 	{
 		TimeMarkerBoxes.Reset();
 		TimeMarkerTexts.Reset();
 	}
 
-	void UpdateHeight()
-	{
-		H = bUseOnlyBookmarks ? BookmarksTrackHeight : TimeMarkersTrackHeight;
-	}
+	void UpdateHeight();
 
-	void DrawHeader(FDrawContext& DC, bool bFirstDraw) const;
+	void DrawHeader(FDrawContext& DrawContext, bool bFirstDraw) const;
 
-protected:
+private:
 	TArray<FTimeMarkerBoxInfo> TimeMarkerBoxes;
 	TArray<FTimeMarkerTextInfo> TimeMarkerTexts;
 
@@ -105,9 +97,9 @@ protected:
 	float CurrentHoveredAnimPercent;
 
 	// Stats
-	int NumLogMessages;
-	mutable int NumDrawBoxes;
-	mutable int NumDrawTexts;
+	int32 NumLogMessages;
+	mutable int32 NumDrawBoxes;
+	mutable int32 NumDrawTexts;
 
 	// Slate resources
 	const FSlateBrush* WhiteBrush;
@@ -116,28 +108,31 @@ protected:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FTimeMarkerTrackBuilder : public FNoncopyable
+class FTimeMarkerTrackBuilder
 {
 public:
 	FTimeMarkerTrackBuilder(FMarkersTimingTrack& InTrack, const FTimingTrackViewport& InViewport);
-	//~FTimeMarkerTrackBuilder();
+
+	/**
+	 * Non-copyable
+	 */
+	FTimeMarkerTrackBuilder(const FTimeMarkerTrackBuilder&) = delete;
+	FTimeMarkerTrackBuilder& operator=(const FTimeMarkerTrackBuilder&) = delete;
 
 	const FTimingTrackViewport& GetViewport() { return Viewport; }
 
-	void Begin();
 	void BeginLog(const Trace::ILogProvider& LogProvider);
 	void AddLogMessage(const Trace::FLogMessage& Message);
 	void EndLog();
-	void End();
 
 	static FLinearColor GetColorByCategory(const TCHAR* const Category);
 	static FLinearColor GetColorByVerbosity(const ELogVerbosity::Type Verbosity);
 
 private:
 	void Flush(float AvailableTextW);
-	void AddTimeMarker(const float X, const TCHAR* const Category, const ELogVerbosity::Type Verbosity, const uint64 LogIndex);
+	void AddTimeMarker(const float X, const uint64 LogIndex, const ELogVerbosity::Type Verbosity, const TCHAR* const Category, const TCHAR* Message);
 
-public:
+private:
 	FMarkersTimingTrack& Track;
 	const FTimingTrackViewport& Viewport;
 
@@ -148,9 +143,10 @@ public:
 
 	float LastX1;
 	float LastX2;
-	const TCHAR* LastCategory;
-	ELogVerbosity::Type LastVerbosity;
 	uint64 LastLogIndex;
+	ELogVerbosity::Type LastVerbosity;
+	const TCHAR* LastCategory;
+	const TCHAR* LastMessage;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

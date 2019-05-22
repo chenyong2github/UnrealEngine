@@ -67,9 +67,9 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 	const float Alpha = 0.0f;//TimerNodePtr->_FramePct * 0.01f;
 	const FLinearColor ColorAndOpacity = FMath::Lerp(DefaultColor, ThreadColor,Alpha);
 
-	const FTimerStats& Stats = TimerNodePtr->GetStats();
+	const FTimerAggregatedStats& Stats = TimerNodePtr->GetAggregatedStats();
 
-	const int NumDigits = 5;
+	const int32 NumDigits = 5;
 
 	const FText TotalInclusiveTimeText = FText::FromString(TimeUtils::FormatTimeAuto(Stats.TotalInclusiveTime));
 	const FText MinInclusiveTimeText = FText::FromString(TimeUtils::FormatTimeMs(Stats.MinInclusiveTime, NumDigits, true));
@@ -261,10 +261,10 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 
 	int32 Row = 1;
 	AddStatsRow(GridPanel, Row, LOCTEXT("TT_TotalTime",   "Total Time:"),   TotalInclusiveTimeText, TotalExclusiveTimeText);
-	AddStatsRow(GridPanel, Row, LOCTEXT("TT_MinTime",     "Min Time:"),     MinInclusiveTimeText, MinExclusiveTimeText);
-	AddStatsRow(GridPanel, Row, LOCTEXT("TT_MaxTime",     "Max Time:"),     MaxInclusiveTimeText, MaxExclusiveTimeText);
-	AddStatsRow(GridPanel, Row, LOCTEXT("TT_AverageTime", "Average Time:"), AvgInclusiveTimeText, AvgExclusiveTimeText);
-	AddStatsRow(GridPanel, Row, LOCTEXT("TT_MedianTime",  "Median Time:"),  MedInclusiveTimeText, MedExclusiveTimeText);
+	AddStatsRow(GridPanel, Row, LOCTEXT("TT_MaxTime",     "Max Time:"),     MaxInclusiveTimeText,   MaxExclusiveTimeText);
+	AddStatsRow(GridPanel, Row, LOCTEXT("TT_AverageTime", "Average Time:"), AvgInclusiveTimeText,   AvgExclusiveTimeText);
+	AddStatsRow(GridPanel, Row, LOCTEXT("TT_MedianTime",  "Median Time:"),  MedInclusiveTimeText,   MedExclusiveTimeText);
+	AddStatsRow(GridPanel, Row, LOCTEXT("TT_MinTime",     "Min Time:"),     MinInclusiveTimeText,   MinExclusiveTimeText);
 
 	/*
 	//TODO: We need Stats hierarchy (not the grouping hierarchy)!
@@ -322,7 +322,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 		MinimalChildren.Sort(FCompareByFloatDescending());
 
 		FString ChildrenNames;
-		const int NumChildrenToDisplay = FMath::Min(MinimalChildren.Num(), 3);
+		const int32 NumChildrenToDisplay = FMath::Min(MinimalChildren.Num(), 3);
 		for(int32 SortedChildIndex = 0; SortedChildIndex < NumChildrenToDisplay; SortedChildIndex++)
 		{
 			const FEventNameAndPct& MinimalChild = MinimalChildren[SortedChildIndex];
@@ -362,7 +362,7 @@ TSharedRef<SToolTip> STimersViewTooltip::GetTooltip()
 	if (Session.IsValid())
 	{
 		const TSharedRef<SGridPanel> ToolTipGrid = SNew(SGridPanel);
-		int CurrentRowPos = 0;
+		int32 CurrentRowPos = 0;
 
 		AddHeader(ToolTipGrid, CurrentRowPos);
 		AddDescription(ToolTipGrid, CurrentRowPos);

@@ -92,7 +92,7 @@ struct TimerNodeSortingHelper
 
 	//////////////////////////////////////////////////
 	// Sorting by timer's meta group name.
-	// If meta group name is the same then sort by name.
+	// If meta group names are the same then sort by name.
 
 	struct ByMetaGroupNameAscending
 	{
@@ -128,7 +128,7 @@ struct TimerNodeSortingHelper
 
 	//////////////////////////////////////////////////
 	// Sorting by timer's type.
-	// If type is the same then sort by name.
+	// If types are the same then sort by name.
 
 	struct ByTypeAscending
 	{
@@ -169,16 +169,16 @@ struct TimerNodeSortingHelper
 	};
 
 	//////////////////////////////////////////////////
-	// Sorting by a timer's stats value.
-	// If stats value is the same then sort by name.
+	// Sorting by an aggregated stats value.
+	// If aggregated stats values are the same then sort by name.
 
-	#define SORT_BY_STATS_ASCENDING(Type, SortName, Stats) \
+	#define SORT_BY_STATS_ASCENDING(Type, SortName, AggregatedStatsMember) \
 		struct SortName \
 		{ \
 			FORCEINLINE_DEBUGGABLE bool operator()(const FTimerNodePtr& A, const FTimerNodePtr& B) const \
 			{ \
-				const Type ValueA = A->GetStats().Stats; \
-				const Type ValueB = B->GetStats().Stats; \
+				const Type ValueA = A->GetAggregatedStats().AggregatedStatsMember; \
+				const Type ValueB = B->GetAggregatedStats().AggregatedStatsMember; \
 				\
 				if (ValueA == ValueB) \
 				{ \
@@ -192,13 +192,13 @@ struct TimerNodeSortingHelper
 			} \
 		};
 
-	#define SORT_BY_STATS_DESCENDING(Type, SortName, Stats) \
+	#define SORT_BY_STATS_DESCENDING(Type, SortName, AggregatedStatsMember) \
 		struct SortName \
 		{ \
 			FORCEINLINE_DEBUGGABLE bool operator()(const FTimerNodePtr& A, const FTimerNodePtr& B) const \
 			{ \
-				const Type ValueA = A->GetStats().Stats; \
-				const Type ValueB = B->GetStats().Stats; \
+				const Type ValueA = A->GetAggregatedStats().AggregatedStatsMember; \
+				const Type ValueB = B->GetAggregatedStats().AggregatedStatsMember; \
 				\
 				if (ValueA == ValueB) \
 				{ \
@@ -212,9 +212,9 @@ struct TimerNodeSortingHelper
 			} \
 		};
 
-	#define SORT_BY_STATS(Type, SortName, Stats) \
-		SORT_BY_STATS_ASCENDING(Type, SortName##Ascending, Stats) \
-		SORT_BY_STATS_DESCENDING(Type, SortName##Descending, Stats)
+	#define SORT_BY_STATS(Type, SortName, AggregatedStatsMember) \
+		SORT_BY_STATS_ASCENDING(Type, SortName##Ascending, AggregatedStatsMember) \
+		SORT_BY_STATS_DESCENDING(Type, SortName##Descending, AggregatedStatsMember)
 
 	SORT_BY_STATS(uint64, ByInstanceCount, InstanceCount);
 

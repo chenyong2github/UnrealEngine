@@ -51,7 +51,7 @@ public:
 	void Reset();
 
 	FLogMessageRecord& Get(uint64 Index);
-	TSharedPtr<FLogMessageRecord> GetUncached(uint64 Index, bool bResolveFormatString) const;
+	TSharedPtr<FLogMessageRecord> GetUncached(uint64 Index) const;
 
 private:
 	FCriticalSection CriticalSection;

@@ -116,7 +116,7 @@ protected:
 	{
 		const FLinearColor TextColor =
 			TimerNodePtr->IsFiltered() ? FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
-			TimerNodePtr->GetStats().InstanceCount == 0 ? FLinearColor(1.0f, 1.0f, 1.0f, 0.6f) :
+			TimerNodePtr->GetAggregatedStats().InstanceCount == 0 ? FLinearColor(1.0f, 1.0f, 1.0f, 0.6f) :
 			FLinearColor::White;
 		return TextColor;
 	}

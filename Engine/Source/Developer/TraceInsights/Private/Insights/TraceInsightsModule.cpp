@@ -14,24 +14,25 @@
 //#include "WorkspaceMenuStructureModule.h"
 
 // Insights
-#include "Insights/IUnrealInsightsModule.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/IoProfilerManager.h"
+#include "Insights/IUnrealInsightsModule.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/Widgets/SIoProfilerWindow.h"
+#include "Insights/Widgets/SStartPageWindow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static const FName StartPageTabName("StartPage");
-static const FName TimingProfilerTabName("TimingProfiler");
-static const FName IoProfilerTabName("IoProfiler");
-//static const FName MemoryProfilerTabName("MemoryProfiler");
+static const FName StartPageTabName(TEXT("StartPage"));
+static const FName TimingProfilerTabName(TEXT("TimingProfiler"));
+static const FName IoProfilerTabName(TEXT("IoProfiler"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-///
-/// Implements the Trace Insights module (TimingProfiler, IoProfiler, etc.).
-///
+/**
+ * Implements the Trace Insights module (TimingProfiler, IoProfiler, etc.).
+ */
 class FTraceInsightsModule : public IUnrealInsightsModule
 {
 public:
@@ -47,22 +48,22 @@ public:
 	virtual void OnLayoutRestored(TSharedPtr<FTabManager> TabManager) override;
 
 protected:
-	/// Callback called when a major tab is closed.
+	/** Callback called when a major tab is closed. */
 	void OnTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
 
-	/// Callback called when the Timing Profiler major tab is closed.
+	/** Callback called when the Timing Profiler major tab is closed. */
 	void OnTimingProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
 
-	/// Callback called when the Io Profiler major tab is closed.
+	/** Callback called when the Io Profiler major tab is closed. */
 	void OnIoProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
 
-	/// Start Page
+	/** Start Page */
 	TSharedRef<SDockTab> SpawnStartPageTab(const FSpawnTabArgs& Args);
 
-	/// Timing Profiler
+	/** Timing Profiler */
 	TSharedRef<SDockTab> SpawnTimingProfilerTab(const FSpawnTabArgs& Args);
 
-	/// I/O Profiler
+	/** I/O Profiler */
 	TSharedRef<SDockTab> SpawnIoProfilerTab(const FSpawnTabArgs& Args);
 
 protected:
@@ -85,6 +86,8 @@ void FTraceInsightsModule::StartupModule()
 	TraceSessionService = TraceServicesModule.GetSessionService();
 	TraceSessionService->StartRecorderServer();
 
+	FInsightsStyle::Initialize();
+
 	FInsightsManager::Initialize(TraceAnalysisService.ToSharedRef(), TraceSessionService.ToSharedRef());
 	FTimingProfilerManager::Initialize();
 	FIoProfilerManager::Initialize();
@@ -93,15 +96,15 @@ void FTraceInsightsModule::StartupModule()
 	auto& StartPageTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterTabSpawner(StartPageTabName,
 		FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnStartPageTab))
 		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "StartPageTabTitle", "Start Page"))
-		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "StartPageTooltipText", "Open the Unreal Insights start page."));
-		//.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Tab")); //im:TODO
+		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "StartPageTooltipText", "Open the start page for Unreal Insights."))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "StartPage.Icon.Small"));
 
-	// Register tab spawner for the Timing Profiler.
+	// Register tab spawner for the Timing Insights.
 	auto& TimingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterTabSpawner(TimingProfilerTabName,
 		FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnTimingProfilerTab))
-		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "TimingProfilerTabTitle", "Timing Profiler"))
-		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "TimingProfilerTooltipText", "Open the Timing Profiler tab."));
-		//.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Tab")); //im:TODO
+		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "TimingProfilerTabTitle", "Timing Insights"))
+		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "TimingProfilerTooltipText", "Open the Timing Insights tab."))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingInsights.Icon.Small"));
 
 //#if WITH_EDITOR
 //	TimingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory());
@@ -109,12 +112,12 @@ void FTraceInsightsModule::StartupModule()
 //	TimingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
 //#endif
 
-	// Register tab spawner for the I/O Profiler.
+	// Register tab spawner for the Asset Loading Insights.
 	auto& IoProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterTabSpawner(IoProfilerTabName,
 		FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnIoProfilerTab))
-		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "IoProfilerTabTitle", "I/O Profiler"))
-		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "IoProfilerTooltipText", "Open the Timing Profiler tab."));
-		//.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Tab")); //im:TODO
+		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "IoProfilerTabTitle", "Asset Loading Insights"))
+		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "IoProfilerTooltipText", "Open the Asset Loading Insights tab."))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "AssetLoadingInsights.Icon.Small"));
 
 //#if WITH_EDITOR
 //	IoProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory());
@@ -184,14 +187,11 @@ void FTraceInsightsModule::OnLayoutRestored(TSharedPtr<FTabManager> TabManager)
 TSharedRef<SDockTab> FTraceInsightsModule::SpawnStartPageTab(const FSpawnTabArgs& Args)
 {
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
-		//.Icon(FEditorStyle::GetBrush("Launcher.TabIcon")) //TODO
 		.TabRole(ETabRole::NomadTab);
 
 	// Create the Start Page widget.
-	TSharedRef<STextBlock> ProfilerWindow = SNew(STextBlock)
-		.Text(NSLOCTEXT("FTraceInsightsModule", "StartPageContent", "TODO"))
-		.ColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
-	DockTab->SetContent(ProfilerWindow);
+	TSharedRef<SStartPageWindow> Window = SNew(SStartPageWindow);
+	DockTab->SetContent(Window);
 
 	return DockTab;
 }
@@ -201,16 +201,15 @@ TSharedRef<SDockTab> FTraceInsightsModule::SpawnStartPageTab(const FSpawnTabArgs
 TSharedRef<SDockTab> FTraceInsightsModule::SpawnTimingProfilerTab(const FSpawnTabArgs& Args)
 {
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
-		//.Icon(FEditorStyle::GetBrush("Profiler.Tab")) //TODO
 		.TabRole(ETabRole::NomadTab);
 
 	// Register OnTabClosed to handle Timing profiler manager shutdown.
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FTraceInsightsModule::OnTimingProfilerTabBeingClosed));
 
 	// Create the STimingProfilerWindow widget.
-	TSharedRef<STimingProfilerWindow> ProfilerWindow = SNew(STimingProfilerWindow);
-	FTimingProfilerManager::Get()->AssignProfilerWindow(ProfilerWindow);
-	DockTab->SetContent(ProfilerWindow);
+	TSharedRef<STimingProfilerWindow> Window = SNew(STimingProfilerWindow, DockTab, Args.GetOwnerWindow());
+	FTimingProfilerManager::Get()->AssignProfilerWindow(Window);
+	DockTab->SetContent(Window);
 
 	return DockTab;
 }
@@ -231,16 +230,15 @@ void FTraceInsightsModule::OnTimingProfilerTabBeingClosed(TSharedRef<SDockTab> T
 TSharedRef<SDockTab> FTraceInsightsModule::SpawnIoProfilerTab(const FSpawnTabArgs& Args)
 {
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
-		//.Icon(FEditorStyle::GetBrush("Profiler.Tab")) //TODO
 		.TabRole(ETabRole::NomadTab);
 
 	// Register OnTabClosed to handle I/O profiler manager shutdown.
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FTraceInsightsModule::OnIoProfilerTabBeingClosed));
 
 	// Create the SIoProfilerWindow widget.
-	TSharedRef<SIoProfilerWindow> ProfilerWindow = SNew(SIoProfilerWindow);
-	FIoProfilerManager::Get()->AssignProfilerWindow(ProfilerWindow);
-	DockTab->SetContent(ProfilerWindow);
+	TSharedRef<SIoProfilerWindow> Window = SNew(SIoProfilerWindow);
+	FIoProfilerManager::Get()->AssignProfilerWindow(Window);
+	DockTab->SetContent(Window);
 
 	return DockTab;
 }

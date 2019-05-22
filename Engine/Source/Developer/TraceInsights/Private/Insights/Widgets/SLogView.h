@@ -116,8 +116,8 @@ protected:
 	FLogFilter Filter;
 	uint64 FilterChangeNumber;
 
-	int FilteringStartIndex; // Start index (of the range of log messages to filter) currenly used by the async task
-	int FilteringEndIndex; // End index (of the range of log messages to filter) currenly used by the async task
+	int32 FilteringStartIndex; // Start index (of the range of log messages to filter) currenly used by the async task
+	int32 FilteringEndIndex; // End index (of the range of log messages to filter) currenly used by the async task
 	uint64 FilteringChangeNumber; // Change number of the filter currenly used by the async task
 	TUniquePtr<FAsyncTask<FLogFilteringAsyncTask>> FilteringAsyncTask; // The async task to filter log messages on a worker thread
 	mutable volatile bool bIsFilteringAsyncTaskCancelRequested; // true if we want the async task to finish asap
@@ -125,10 +125,10 @@ protected:
 	/** Stopwatch used to measure how long it takes to filter the message list. */
 	mutable FStopwatch FilteringStopwatch;
 
-	int TotalNumCategories;
+	int32 TotalNumCategories;
 
 	/** Total number of log messages processed, from the source Trace session. Used to detect when new log messages are added in the source Trace session. */
-	int TotalNumMessages;
+	int32 TotalNumMessages;
 
 	/** true if the list of messages is not yet updated (the filter has changed and/or the source trace messages have changed) */
 	bool bIsDirty;

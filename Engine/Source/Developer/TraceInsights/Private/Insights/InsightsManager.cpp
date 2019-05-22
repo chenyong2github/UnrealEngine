@@ -119,8 +119,9 @@ bool FInsightsManager::Tick(float DeltaTime)
 void FInsightsManager::ResetSession()
 {
 	Session = nullptr;
-	//TODO: SessionChangedEvent.Broadcast();
+
 	FTimingProfilerManager::Get()->OnSessionChanged();
+	SessionChangedEvent.Broadcast();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,8 +132,8 @@ void FInsightsManager::CreateMockSession()
 
 	Session = AnalysisService->MockAnalysis();
 
-	RequestTimersUpdateEvent.Broadcast();
-	//TODO: SessionChangedEvent.Broadcast();
+	FTimingProfilerManager::Get()->OnSessionChanged();
+	SessionChangedEvent.Broadcast();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -164,8 +165,8 @@ void FInsightsManager::CreateLiveSession()
 		Session = AnalysisService->StartAnalysis(TEXT("Latest session"), MoveTemp(DataStream));
 	}
 
-	RequestTimersUpdateEvent.Broadcast();
-	//TODO: SessionChangedEvent.Broadcast();
+	FTimingProfilerManager::Get()->OnSessionChanged();
+	SessionChangedEvent.Broadcast();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -179,8 +180,8 @@ void FInsightsManager::LoadTraceFile(const FString& TraceFilepath)
 
 	Session = AnalysisService->StartAnalysis(*TraceFilepath, MoveTemp(DataStream));
 
-	RequestTimersUpdateEvent.Broadcast();
-	//TODO: SessionChangedEvent.Broadcast();
+	FTimingProfilerManager::Get()->OnSessionChanged();
+	SessionChangedEvent.Broadcast();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

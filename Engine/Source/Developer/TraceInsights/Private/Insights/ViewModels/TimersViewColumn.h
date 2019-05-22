@@ -4,40 +4,39 @@
 
 #include "CoreMinimal.h"
 #include "Types/SlateEnums.h"
+#include "Misc/EnumClassFlags.h"
 
-class FTimerNode;
+class FTimerNode; // TODO: IInsightsTreeNode; generic formatter; see also StatsViewColumn.h
 
-/// Holds information about a column in the timer view widget.
+enum class ETimersViewColumnFlags : uint32
+{
+	None = 0,
+
+	CanBeHidden = (1 << 0),
+	CanBeSorted = (1 << 1),
+	CanBeFiltered = (1 << 2),
+};
+ENUM_CLASS_FLAGS(ETimersViewColumnFlags);
+
+/** Holds information about a column in the timer view widget. */
 class FTimersViewColumn
 {
 	friend struct FTimersViewColumnFactory;
 
 public:
-	enum EFlags : uint32
-	{
-		None = 0,
-
-		CanBeHidden = (1 << 0),
-		CanBeSorted = (1 << 1),
-		CanBeFiltered = (1 << 2),
-
-		NameColumnFlags = CanBeSorted | CanBeFiltered,
-		StatsColumnFlags = CanBeHidden | CanBeSorted | CanBeFiltered,
-	};
-
 	typedef TFunction<FText(const FTimersViewColumn& Column, const FTimerNode& TimerNode)> FGetFormattedValueFn;
 
 public:
-	/// Whether this column can be hidden.
-	bool bCanBeHidden() const { return ((uint32)Flags & (uint32)EFlags::CanBeHidden) != 0; }
+	/** Whether this column can be hidden. */
+	bool bCanBeHidden() const { return EnumHasAnyFlags(Flags, ETimersViewColumnFlags::CanBeHidden); }
 
-	/// Whether this column cab be used for sorting.
-	bool bCanBeSorted() const { return ((uint32)Flags & (uint32)EFlags::CanBeSorted) != 0; }
+	/** Whether this column cab be used for sorting. */
+	bool bCanBeSorted() const { return EnumHasAnyFlags(Flags, ETimersViewColumnFlags::CanBeSorted); }
 
-	/// Where this column can be used to filtering displayed results.
-	bool bCanBeFiltered() const { return ((uint32)Flags & (uint32)EFlags::CanBeFiltered) != 0; }
+	/** Where this column can be used to filtering displayed results. */
+	bool bCanBeFiltered() const { return EnumHasAnyFlags(Flags, ETimersViewColumnFlags::CanBeFiltered); }
 
-	/// If MinColumnWidth == MaxColumnWidth, this column has fixed width and cannot be resized.
+	/** If MinColumnWidth == MaxColumnWidth, this column has fixed width and cannot be resized. */
 	bool bIsFixedColumnWidth() const { return MinColumnWidth == MaxColumnWidth; }
 
 	FText GetFormattedValue(const FTimerNode& TimerNode) const
@@ -46,10 +45,10 @@ public:
 	}
 
 protected:
-	/// No default constructor.
+	/** No default constructor. */
 	FTimersViewColumn() = delete;
 
-	/// Initialization constructor, only used in FTimersViewColumnFactory.
+	/** Initialization constructor, only used in FStatsViewColumnFactory. */
 	FTimersViewColumn
 	(
 		int32 InOrder,
@@ -59,7 +58,7 @@ protected:
 		FText InTitleName,
 		FText InDescription,
 		bool bInIsVisible,
-		const EFlags InFlags,
+		const ETimersViewColumnFlags InFlags,
 		const EHorizontalAlignment InHorizontalAlignment,
 		const float InInitialColumnWidth,
 		const float InMinColumnWidth,
@@ -83,37 +82,37 @@ protected:
 	}
 
 public:
-	/// Order value, to sort columns in the tree view.
+	/** Order value, to sort columns in the tree view. */
 	int32 Order;
 
-	/// Name of the column, name of the property.
+	/** Name of the column, name of the property. */
 	FName Id;
 
-	/// Name of the column used by the searching system.
+	/** Name of the column used by the searching system. */
 	FName SearchId;
 
-	/// Short name of the column, displayed in the column header.
+	/** Short name of the column, displayed in the column header. */
 	FText ShortName;
 
-	/// Title name of the column, displayed as title in the column tooltip.
+	/** Title name of the column, displayed as title in the column tooltip. */
 	FText TitleName;
 
-	/// Long name of the column, displayed in the column tooltip.
+	/** Long name of the column, displayed in the column tooltip. */
 	FText Description;
 
-	/// Is this column visible?
+	/** Is this column visible? */
 	bool bIsVisible;
 
-	/// On/off switches.
-	EFlags Flags;
+	/** On/off switches. */
+	ETimersViewColumnFlags Flags;
 
-	/// Horizontal alignment of the content in this column.
+	/** Horizontal alignment of the content in this column. */
 	EHorizontalAlignment HorizontalAlignment;
 
-	float InitialColumnWidth; /// Initial column width.
-	float MinColumnWidth; /// Minimum column width.
-	float MaxColumnWidth; /// Maximum column width.
+	float InitialColumnWidth; /**< Initial column width. */
+	float MinColumnWidth; /**< Minimum column width. */
+	float MaxColumnWidth; /**< Maximum column width. */
 
-	/// Custom function used to format (as an FText) the value of the timer node to be displayed by this column.
+	/** Custom function used to format (as an FText) the value of the timer node to be displayed by this column. */
 	FGetFormattedValueFn GetFormattedValueFn;
 };

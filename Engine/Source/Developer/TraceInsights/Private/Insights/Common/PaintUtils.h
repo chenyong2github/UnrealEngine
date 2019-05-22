@@ -14,8 +14,10 @@ class WidgetStyle;
 enum class ESlateDrawEffect : uint8;
 class FSlateWindowElementList;
 
-/// Holds current state provided by OnPaint function, used to simplify drawing.
-struct FDrawContext : public FNoncopyable
+/**
+ * Holds current state provided by OnPaint function, used to simplify drawing.
+ */
+struct FDrawContext
 {
 	FDrawContext(const FGeometry& InGeometry,
 				 const FSlateRect& InCullingRect,
@@ -30,6 +32,12 @@ struct FDrawContext : public FNoncopyable
 		, ElementList(InOutElementList)
 		, LayerId(InOutLayerId)
 	{}
+
+	/**
+	 * Non-copyable
+	 */
+	FDrawContext(const FDrawContext&) = delete;
+	FDrawContext& operator=(const FDrawContext&) = delete;
 
 	inline void DrawBox(const float X, const float Y, const float W, const float H, const FSlateBrush* Brush, const FLinearColor& Color) const
 	{

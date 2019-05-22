@@ -3,10 +3,25 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/EnumClassFlags.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FTimingTrackViewport;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+enum class ETimingTrackFlags : uint32
+{
+	None = 0,
+	IsVisible = (1 << 0),
+	IsSelected = (1 << 1),
+	IsHovered = (1 << 2),
+	IsHeaderHovered = (1 << 3),
+};
+ENUM_CLASS_FLAGS(ETimingTrackFlags);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FBaseTimingTrack
 {
@@ -15,11 +30,9 @@ class FBaseTimingTrack
 protected:
 	FBaseTimingTrack(uint64 InId)
 		: Id(InId)
-		, Y(0.0f)
-		, H(0.0f)
-		, bIsVisible(true)
-		, bIsSelected(false)
-		, bIsHovered(false)
+		, PosY(0.0f)
+		, Height(0.0f)
+		, Flags(ETimingTrackFlags::IsVisible)
 	{}
 
 	virtual ~FBaseTimingTrack()
@@ -29,51 +42,49 @@ public:
 	virtual void Reset()
 	{
 		Id = 0;
-		Y = 0.0f;
-		H = 0.0f;
-		bIsVisible = true;
-		bIsSelected = false;
-		bIsHovered = false;
+		PosY = 0.0f;
+		Height = 0.0f;
+		Flags = ETimingTrackFlags::IsVisible;
 	}
 
 	uint64 GetId() const { return Id; }
 
-	float GetPosY() const { return Y; }
-	virtual void SetPosY(float InPosY) { Y = InPosY; }
+	float GetPosY() const { return PosY; }
+	virtual void SetPosY(float InPosY) { PosY = InPosY; }
 
-	float GetHeight() const { return H; }
-	virtual void SetHeight(float InHeight) { H = InHeight; }
+	float GetHeight() const { return Height; }
+	virtual void SetHeight(float InHeight) { Height = InHeight; }
 
-	bool IsVisible() const { return bIsVisible; }
-	void Show() { SetVisibilityFlag(true); }
-	void Hide() { SetVisibilityFlag(false); }
-	void ToggleVisibility() { SetVisibilityFlag(!IsVisible()); }
-	virtual void SetVisibilityFlag(bool bInIsVisible) { bIsVisible = bInIsVisible; }
+	bool IsVisible() const { return EnumHasAnyFlags(Flags, ETimingTrackFlags::IsVisible); }
+	void Show() { Flags |= ETimingTrackFlags::IsVisible; OnVisibilityChanged(); }
+	void Hide() { Flags &= ~ETimingTrackFlags::IsVisible; OnVisibilityChanged(); }
+	void ToggleVisibility() { Flags ^= ETimingTrackFlags::IsVisible; OnVisibilityChanged(); }
+	void SetVisibilityFlag(bool bIsVisible) { bIsVisible ? Show() : Hide(); }
+	virtual void OnVisibilityChanged() {}
 
-	bool IsSelected() const { return bIsSelected; }
-	void Select() { SetSelectedFlag(true); }
-	void Unselect() { SetSelectedFlag(false); }
-	virtual void SetSelectedFlag(bool bInIsSelected) { bIsSelected = bInIsSelected; }
+	bool IsSelected() const { return EnumHasAnyFlags(Flags, ETimingTrackFlags::IsSelected); }
+	void Select() { Flags |= ETimingTrackFlags::IsSelected; OnSelectedFlagChanged(); }
+	void Unselect() { Flags &= ~ETimingTrackFlags::IsSelected; OnSelectedFlagChanged(); }
+	void ToggleSelectedFlag() { Flags ^= ETimingTrackFlags::IsSelected; OnSelectedFlagChanged(); }
+	void SetSelectedFlag(bool bIsSelected) { bIsSelected ? Select() : Unselect(); }
+	virtual void OnSelectedFlagChanged() {}
 
-	bool IsHovered() const { return bIsHovered; }
-	void SetHoveredState(bool bInIsHovered) { bIsHovered = bInIsHovered; }
-	bool IsHeaderHovered() const { return bIsHovered && bIsHeaderHovered; }
-	void SetHeaderHoveredState(bool bInIsHeaderHovered) { bIsHeaderHovered = bInIsHeaderHovered; }
-	virtual void UpdateHoveredState(float MX, float MY, const FTimingTrackViewport& Viewport) = 0;
+	bool IsHovered() const { return EnumHasAnyFlags(Flags, ETimingTrackFlags::IsHovered); }
+	void SetHoveredState(bool bIsHovered) { bIsHovered ? Flags |= ETimingTrackFlags::IsHovered : Flags &= ~ETimingTrackFlags::IsHovered; }
+	bool IsHeaderHovered() const { return EnumHasAllFlags(Flags, ETimingTrackFlags::IsHovered | ETimingTrackFlags::IsHeaderHovered); }
+	void SetHeaderHoveredState(bool bIsHeaderHovered) { bIsHeaderHovered ? Flags |= ETimingTrackFlags::IsHeaderHovered : Flags &= ~ETimingTrackFlags::IsHeaderHovered; }
+	virtual void UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport) = 0;
 
-	virtual void Tick(const double InCurrentTime, const float InDeltaTime) {}
-	virtual void Update(const FTimingTrackViewport& InViewport) {}
+	virtual void Tick(const double CurrentTime, const float DeltaTime) {}
+	virtual void Update(const FTimingTrackViewport& Viewport) {}
 
-protected:
+private:
 	uint64 Id;
 
-	float Y; // y position, in Slate units
-	float H; // height, in Slate units
+	float PosY; // y position, in Slate units
+	float Height; // height, in Slate units
 
-	bool bIsVisible;
-	bool bIsSelected;
-	bool bIsHovered;
-	bool bIsHeaderHovered;
+	ETimingTrackFlags Flags;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -73,21 +73,21 @@ public:
 	FGraphTrack(uint64 InTrackId);
 	virtual ~FGraphTrack();
 
-	virtual void UpdateHoveredState(float MX, float MY, const FTimingTrackViewport& Viewport);
+	virtual void UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport);
 
 	virtual void Update(const FTimingTrackViewport& Viewport) override = 0;
 
-	void Draw(FDrawContext& DC, const FTimingTrackViewport& Viewport) const;
+	void Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
 
-	int GetNumAddedEvents() const { return NumAddedEvents; }
-	int GetNumDrawPoints() const { return NumDrawPoints; }
-	int GetNumDrawLines() const { return NumDrawLines; }
-	int GetNumDrawBoxes() const { return NumDrawBoxes; }
+	int32 GetNumAddedEvents() const { return NumAddedEvents; }
+	int32 GetNumDrawPoints() const { return NumDrawPoints; }
+	int32 GetNumDrawLines() const { return NumDrawLines; }
+	int32 GetNumDrawBoxes() const { return NumDrawBoxes; }
 
 protected:
 	void UpdateStats();
 
-	void DrawSeries(const FGraphTrackSeries& Series, FDrawContext& DC, const FTimingTrackViewport& Viewport) const;
+	void DrawSeries(const FGraphTrackSeries& Series, FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
 
 	float GetYForValue(double Value) const
 	{
@@ -113,10 +113,10 @@ protected:
 	double ScaleY; // scale between Value units and viewport units; in pixels (Slate units) / Value unit
 
 	// Stats
-	int NumAddedEvents;
-	int NumDrawPoints;
-	int NumDrawLines;
-	int NumDrawBoxes;
+	int32 NumAddedEvents;
+	int32 NumDrawPoints;
+	int32 NumDrawLines;
+	int32 NumDrawBoxes;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -130,7 +130,7 @@ public:
 	virtual void Update(const FTimingTrackViewport& Viewport) override;
 
 protected:
-	void GenerateSeries(FGraphTrackSeries& Series, const FTimingTrackViewport& Viewport, const int EventCount);
+	void GenerateSeries(FGraphTrackSeries& Series, const FTimingTrackViewport& Viewport, const int32 EventCount);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -149,9 +149,9 @@ protected:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FGraphTrackBuilder : public FNoncopyable
+class FGraphTrackBuilder
 {
-protected:
+private:
 	struct FPointInfo
 	{
 		bool bValid;
@@ -163,15 +163,21 @@ protected:
 
 public:
 	FGraphTrackBuilder(FGraphTrack& InTrack, FGraphTrackSeries& InSeries, const FTimingTrackViewport& InViewport);
-	//~FGraphTrackBuilder();
+	~FGraphTrackBuilder();
 
-	const FTimingTrackViewport& GetViewport() { return Viewport; }
+	/**
+	 * Non-copyable
+	 */
+	FGraphTrackBuilder(const FGraphTrackBuilder&) = delete;
+	FGraphTrackBuilder& operator=(const FGraphTrackBuilder&) = delete;
 
-	void Begin();
+	FGraphTrack& GetTrack() const { return Track; }
+	FGraphTrackSeries& GetSeries() const { return Series; }
+	const FTimingTrackViewport& GetViewport() const { return Viewport; }
+
 	void AddEvent(double Time, double Duration, double Value);
-	void End();
 
-protected:
+private:
 	void BeginPoints();
 	void AddPoint(double Time, double Value);
 	void FlushPoints();
@@ -184,9 +190,10 @@ protected:
 
 	void BeginBoxes();
 	void AddBox(double Time, double Duration, double Value);
+	void FlushBox();
 	void EndBoxes();
 
-protected:
+private:
 	FGraphTrack& Track;
 	FGraphTrackSeries& Series;
 	const FTimingTrackViewport& Viewport;

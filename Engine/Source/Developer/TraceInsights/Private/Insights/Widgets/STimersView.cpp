@@ -18,7 +18,6 @@
 // Insights
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
-//#include "Insights/ViewModels/TraceSession.h"
 #include "Insights/ViewModels/TimerNodeHelper.h"
 #include "Insights/ViewModels/TimersViewColumnFactory.h"
 #include "Insights/Widgets/STimersViewTooltip.h"
@@ -28,11 +27,16 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const EColumnSortMode::Type STimersView::DefaultColumnSortMode(EColumnSortMode::Descending);
+const FName STimersView::DefaultColumnBeingSorted(FTimersViewColumns::TotalInclusiveTimeColumnID);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 STimersView::STimersView()
 	: bExpansionSaved(false)
 	, GroupingMode(ETimerGroupingMode::ByType)
-	, ColumnSortMode(EColumnSortMode::Type::Descending)
-	, ColumnBeingSorted(FName(TEXT("TotalInclusiveTime")))
+	, ColumnSortMode(DefaultColumnSortMode)
+	, ColumnBeingSorted(DefaultColumnBeingSorted)
 {
 	FMemory::Memset(bTimerNodeIsVisible, 1);
 }
@@ -41,10 +45,10 @@ STimersView::STimersView()
 
 STimersView::~STimersView()
 {
-	// Remove ourselves from the profiler manager.
+	// Remove ourselves from the Insights manager.
 	if (FInsightsManager::Get().IsValid())
 	{
-		FInsightsManager::Get()->OnRequestTimersUpdate().RemoveAll(this);
+		FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
 	}
 }
 
@@ -130,12 +134,12 @@ void STimersView::Construct(const FArguments& InArgs)
 						GetToggleButtonForTimerType(ETimerNodeType::GpuScope)
 					]
 
-					+SHorizontalBox::Slot()
-					.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
-					.FillWidth(1.0f)
-					[
-						GetToggleButtonForTimerType(ETimerNodeType::ComputeScope)
-					]
+					//+SHorizontalBox::Slot()
+					//.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
+					//.FillWidth(1.0f)
+					//[
+					//	GetToggleButtonForTimerType(ETimerNodeType::ComputeScope)
+					//]
 
 					+SHorizontalBox::Slot()
 					.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
@@ -209,8 +213,8 @@ void STimersView::Construct(const FArguments& InArgs)
 
 	CreateGroupByOptionsSources();
 
-	// Register ourselves with the profiler manager.
-	FInsightsManager::Get()->OnRequestTimersUpdate().AddSP(this, &STimersView::ProfilerManager_OnRequestTimersUpdate);
+	// Register ourselves with the Insights manager.
+	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &STimersView::InsightsManager_OnSessionChanged);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -219,7 +223,7 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent() const
 {
 	const TArray<FTimerNodePtr> SelectedTimerNodes = TreeView->GetSelectedItems();
-	const int NumSelectedTimerNodes = SelectedTimerNodes.Num();
+	const int32 NumSelectedTimerNodes = SelectedTimerNodes.Num();
 	FTimerNodePtr SelectedTimerNode = NumSelectedTimerNodes ? SelectedTimerNodes[0] : nullptr;
 
 	const FTimersViewColumn* const * ColumnPtrPtr = FTimersViewColumnFactory::Get().ColumnIdToPtrMapping.Find(HoveredColumnId);
@@ -272,74 +276,9 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent() const
 	}
 	MenuBuilder.EndSection();
 
-	/*
-	// Culling/Filtering menu
-	MenuBuilder.BeginSection("Culling/Filtering", LOCTEXT("ContextMenu_Header_Root", "Root"));
-	{
-		// Culling menu
-		FText CullingDesc;
-
-		if (!Column.bCanBeCulled)
-		{
-			CullingDesc = LOCTEXT("ContextMenu_Culling_DescErrCol", "Culling not available, please select a different column");
-		}
-		else if (NumSelectedTimerNodes == 1)
-		{
-			CullingDesc = FText::Format(LOCTEXT("ContextMenu_Culling_DescFmt", "Cull events to '{0}' based on '{1}'"), PropertyValue, PropertyName);
-		}
-		else
-		{
-			CullingDesc = LOCTEXT("ContextMenu_Culling_DescErrEve", "Culling not available, please select one event");
-		}
-
-		MenuBuilder.AddMenuEntry
-		(
-			CullingDesc,
-			LOCTEXT("ContextMenu_Culling_Desc_TT", "Culls the event graph based on the property value of the selected event"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.CullEvents"), CullByProperty_Custom(SelectedTimerNode, HoveredColumnID, false), NAME_None, EUserInterfaceActionType::Button
-		);
-
-		// Filtering menu
-		FText FilteringDesc;
-
-		if (!Column.bCanBeFiltered)
-		{
-			FilteringDesc = LOCTEXT("ContextMenu_Filtering_DescErrCol", "Filtering not available, please select a different column");
-		}
-		else if (NumSelectedTimerNodes == 1)
-		{
-			FilteringDesc = FText::Format(LOCTEXT("ContextMenu_Filtering_DescFmt", "Filter events to '{0}' based on '{1}'"), PropertyValue, PropertyName);
-		}
-		else
-		{
-			FilteringDesc = LOCTEXT("ContextMenu_Filtering_DescErrEve", "Filtering not available, please select one event");
-		}
-
-		MenuBuilder.AddMenuEntry
-		(
-			FilteringDesc,
-			LOCTEXT("ContextMenu_Filtering_Desc_TT", "Filters the event graph based on the property value of the selected event"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.FilterEvents"), FilterOutByProperty_Custom(SelectedTimerNode, HoveredColumnID, false), NAME_None, EUserInterfaceActionType::Button
-		);
-
-		MenuBuilder.AddMenuSeparator();
-		MenuBuilder.AddMenuEntry
-		(
-			LOCTEXT("ContextMenu_ClearHistory", "Reset to default"),
-			LOCTEXT("ContextMenu_ClearHistory_Reset_Desc", "For the selected event graph resets root/culling/filter to the default state and clears the history"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.ResetToDefault"), ClearHistory_Custom(), NAME_None, EUserInterfaceActionType::Button
-		);
-	}
-	MenuBuilder.EndSection();
-	*/
-
-	/*
-		Event graph coloring based on inclusive time as a gradient from black to red?
-	*/
-
 	MenuBuilder.BeginSection("Misc", LOCTEXT("ContextMenu_Header_Misc", "Miscellaneous"));
 	{
-		/*
+		/*TODO
 		FUIAction Action_CopySelectedToClipboard
 		(
 			FExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_Execute),
@@ -421,7 +360,9 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent() const
 void STimersView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 {
 	// TODO: Refactor later @see TSharedPtr<SWidget> SCascadePreviewViewportToolBar::GenerateViewMenu() const
+
 	MenuBuilder.BeginSection("ColumnName", LOCTEXT("ContextMenu_Header_Misc_ColumnName", "Column Name"));
+
 	for (auto It = TreeViewHeaderColumns.CreateConstIterator(); It; ++It)
 	{
 		const FTimersViewColumn& Column = It.Value();
@@ -442,6 +383,7 @@ void STimersView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 			);
 		}
 	}
+
 	MenuBuilder.EndSection();
 
 	//-----------------------------------------------------------------------------
@@ -508,9 +450,6 @@ void STimersView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 
 void STimersView::InitializeAndShowHeaderColumns()
 {
-	//ColumnSortMode = EColumnSortMode::Ascending;
-	//ColumnBeingSorted = FTimersViewColumnFactory::Get().Collection[0]->Id;
-
 	const int32 NumColumns = FTimersViewColumnFactory::Get().Collection.Num();
 	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)
 	{
@@ -677,13 +616,13 @@ TSharedRef<SWidget> STimersView::TreeViewHeaderRow_GenerateColumnMenu(const FTim
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::ProfilerManager_OnRequestTimersUpdate()
+void STimersView::InsightsManager_OnSessionChanged()
 {
-	TSharedPtr<const Trace::IAnalysisSession> SessionLocal = FInsightsManager::Get()->GetSession();
+	TSharedPtr<const Trace::IAnalysisSession> NewSession = FInsightsManager::Get()->GetSession();
 
-	if (SessionLocal != Session)
+	if (NewSession != Session)
 	{
-		Session = SessionLocal;
+		Session = NewSession;
 		RebuildTree();
 	}
 	else
@@ -723,7 +662,7 @@ void STimersView::ApplyFiltering()
 		{
 			// Add a child.
 			const FTimerNodePtr& NodePtr = GroupChildren[Cx];
-			const bool bIsChildVisible = Filters->PassesAllFilters(NodePtr) && bTimerNodeIsVisible[NodePtr->GetType()];
+			const bool bIsChildVisible = Filters->PassesAllFilters(NodePtr) && bTimerNodeIsVisible[static_cast<int>(NodePtr->GetType())];
 			if (bIsChildVisible)
 			{
 				GroupPtr->AddFilteredChild(NodePtr);
@@ -822,7 +761,7 @@ TSharedRef<SWidget> STimersView::GetToggleButtonForTimerType(const ETimerNodeTyp
 
 void STimersView::FilterByTimerType_OnCheckStateChanged(ECheckBoxState NewRadioState, const ETimerNodeType InStatType)
 {
-	bTimerNodeIsVisible[InStatType] = NewRadioState == ECheckBoxState::Checked;
+	bTimerNodeIsVisible[static_cast<int>(InStatType)] = (NewRadioState == ECheckBoxState::Checked);
 	ApplyFiltering();
 }
 
@@ -830,7 +769,7 @@ void STimersView::FilterByTimerType_OnCheckStateChanged(ECheckBoxState NewRadioS
 
 ECheckBoxState STimersView::FilterByTimerType_IsChecked(const ETimerNodeType InStatType) const
 {
-	return bTimerNodeIsVisible[InStatType] ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return bTimerNodeIsVisible[static_cast<int>(InStatType)] ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1182,20 +1121,24 @@ void STimersView::SortTimers()
 			} \
 		}
 
-		 CHECK_AND_SORT_COLUMN(FName(TEXT("Name")), ByName)
-	else CHECK_AND_SORT_COLUMN(FName(TEXT("MetaGroupName")), ByMetaGroupName)
-	else CHECK_AND_SORT_COLUMN(FName(TEXT("Type")), ByType)
-	else CHECK_AND_SORT_COLUMN(FName(TEXT("InstanceCount")), ByInstanceCount)
-	else CHECK_AND_SORT_COLUMN(FName(TEXT("TotalInclusiveTime")), ByTotalInclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FName(TEXT("MinInclusiveTime")), ByMinInclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FName(TEXT("MaxInclusiveTime")), ByMaxInclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FName(TEXT("AvgInclusiveTime")), ByAverageInclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FName(TEXT("MedInclusiveTime")), ByMedianInclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FName(TEXT("TotalExclusiveTime")), ByTotalExclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FName(TEXT("MinExclusiveTime")), ByMinExclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FName(TEXT("MaxExclusiveTime")), ByMaxExclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FName(TEXT("AvgExclusiveTime")), ByAverageExclusiveTime)
-	else CHECK_AND_SORT_COLUMN(FName(TEXT("MedExclusiveTime")), ByMedianExclusiveTime)
+		 CHECK_AND_SORT_COLUMN(FTimersViewColumns::NameColumnID,          ByName)
+	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::MetaGroupNameColumnID, ByMetaGroupName)
+	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::TypeColumnID,          ByType)
+	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::InstanceCountColumnID, ByInstanceCount)
+	// Inclusive Time columns
+	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::TotalInclusiveTimeColumnID, ByTotalInclusiveTime)
+	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::MaxInclusiveTimeColumnID,     ByMaxInclusiveTime)
+	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::AverageInclusiveTimeColumnID, ByAverageInclusiveTime)
+	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::MedianInclusiveTimeColumnID,  ByMedianInclusiveTime)
+	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::MinInclusiveTimeColumnID,     ByMinInclusiveTime)
+	// Exclusive Time columns
+	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::TotalExclusiveTimeColumnID,   ByTotalExclusiveTime)
+	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::MaxExclusiveTimeColumnID,     ByMaxExclusiveTime)
+	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::AverageExclusiveTimeColumnID, ByAverageExclusiveTime)
+	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::MedianExclusiveTimeColumnID,  ByMedianExclusiveTime)
+	else CHECK_AND_SORT_COLUMN(FTimersViewColumns::MinExclusiveTimeColumnID,     ByMinExclusiveTime)
+
+	#undef CHECK_AND_SORT_COLUMN
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1210,6 +1153,8 @@ EColumnSortMode::Type STimersView::GetSortModeForColumn(const FName ColumnId) co
 	return ColumnSortMode;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimersView::SetSortModeForColumn(const FName& ColumnId, const EColumnSortMode::Type SortMode)
 {
 	ColumnBeingSorted = ColumnId;
@@ -1219,6 +1164,8 @@ void STimersView::SetSortModeForColumn(const FName& ColumnId, const EColumnSortM
 	SortTimers();
 	ApplyFiltering();
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimersView::OnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type SortMode)
 {
@@ -1235,6 +1182,8 @@ bool STimersView::HeaderMenu_SortMode_IsChecked(const FName ColumnId, const ECol
 	return ColumnBeingSorted == ColumnId && ColumnSortMode == InSortMode;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool STimersView::HeaderMenu_SortMode_CanExecute(const FName ColumnId, const EColumnSortMode::Type InSortMode) const
 {
 	const FTimersViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
@@ -1245,6 +1194,8 @@ bool STimersView::HeaderMenu_SortMode_CanExecute(const FName ColumnId, const ECo
 
 	return bCanExecute;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimersView::HeaderMenu_SortMode_Execute(const FName ColumnId, const EColumnSortMode::Type InSortMode)
 {
@@ -1261,10 +1212,14 @@ bool STimersView::ContextMenu_SortMode_IsChecked(const EColumnSortMode::Type InS
 	return ColumnSortMode == InSortMode;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool STimersView::ContextMenu_SortMode_CanExecute(const EColumnSortMode::Type InSortMode) const
 {
 	return ColumnSortMode != InSortMode;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimersView::ContextMenu_SortMode_Execute(const EColumnSortMode::Type InSortMode)
 {
@@ -1281,10 +1236,14 @@ bool STimersView::ContextMenu_SortByColumn_IsChecked(const FName ColumnId)
 	return ColumnId == ColumnBeingSorted;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool STimersView::ContextMenu_SortByColumn_CanExecute(const FName ColumnId) const
 {
 	return ColumnId != ColumnBeingSorted;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimersView::ContextMenu_SortByColumn_Execute(const FName ColumnId)
 {
@@ -1301,6 +1260,8 @@ bool STimersView::HeaderMenu_HideColumn_CanExecute(const FName ColumnId) const
 	const FTimersViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
 	return Column.bCanBeHidden();
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimersView::HeaderMenu_HideColumn_Execute(const FName ColumnId)
 {
@@ -1319,11 +1280,15 @@ bool STimersView::ContextMenu_ToggleColumn_IsChecked(const FName ColumnId)
 	return Column.bIsVisible;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool STimersView::ContextMenu_ToggleColumn_CanExecute(const FName ColumnId) const
 {
 	const FTimersViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
 	return Column.bCanBeHidden();
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimersView::ContextMenu_ToggleColumn_Execute(const FName ColumnId)
 {
@@ -1351,8 +1316,8 @@ bool STimersView::ContextMenu_ShowAllColumns_CanExecute() const
 
 void STimersView::ContextMenu_ShowAllColumns_Execute()
 {
-	ColumnSortMode = EColumnSortMode::Descending;
-	ColumnBeingSorted = FName(TEXT("TotalInclusiveTime"));
+	ColumnSortMode = DefaultColumnSortMode;
+	ColumnBeingSorted = DefaultColumnBeingSorted;
 
 	const int32 NumColumns = FTimersViewColumnFactory::Get().Collection.Num();
 	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)
@@ -1382,20 +1347,24 @@ void STimersView::ContextMenu_ShowMinMaxMedColumns_Execute()
 {
 	TSet<FName> Preset =
 	{
-		TEXT("Name"),
-		TEXT("InstanceCount"),
-		TEXT("TotalInclusiveTime"),
-		TEXT("MinInclusiveTime"),
-		TEXT("MaxInclusiveTime"),
-		TEXT("MedInclusiveTime"),
-		TEXT("TotalExclusiveTime"),
-		TEXT("MinExclusiveTime"),
-		TEXT("MaxExclusiveTime"),
-		TEXT("MedExclusiveTime"),
+		FTimersViewColumns::NameColumnID,
+		//FTimersViewColumns::MetaGroupNameColumnID,
+		//FTimersViewColumns::TypeColumnID,
+		FTimersViewColumns::InstanceCountColumnID,
+
+		FTimersViewColumns::TotalInclusiveTimeColumnID,
+		FTimersViewColumns::MaxInclusiveTimeColumnID,
+		FTimersViewColumns::MedianInclusiveTimeColumnID,
+		FTimersViewColumns::MinInclusiveTimeColumnID,
+
+		FTimersViewColumns::TotalExclusiveTimeColumnID,
+		FTimersViewColumns::MaxExclusiveTimeColumnID,
+		FTimersViewColumns::MedianExclusiveTimeColumnID,
+		FTimersViewColumns::MinExclusiveTimeColumnID,
 	};
 
 	ColumnSortMode = EColumnSortMode::Descending;
-	ColumnBeingSorted = FName(TEXT("TotalInclusiveTime"));
+	ColumnBeingSorted = FTimersViewColumns::TotalInclusiveTimeColumnID;
 
 	const int32 NumColumns = FTimersViewColumnFactory::Get().Collection.Num();
 	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)
@@ -1428,8 +1397,8 @@ bool STimersView::ContextMenu_ResetColumns_CanExecute() const
 
 void STimersView::ContextMenu_ResetColumns_Execute()
 {
-	ColumnSortMode = EColumnSortMode::Descending;
-	ColumnBeingSorted = FName(TEXT("TotalInclusiveTime"));
+	ColumnSortMode = DefaultColumnSortMode;
+	ColumnBeingSorted = DefaultColumnBeingSorted;
 
 	const int32 NumColumns = FTimersViewColumnFactory::Get().Collection.Num();
 	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)
@@ -1450,32 +1419,37 @@ void STimersView::ContextMenu_ResetColumns_Execute()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::RebuildTree(bool bRebuildEvenIfNotChanged)
+void STimersView::RebuildTree(bool bResync)
 {
-	bool bTimerNodesListChanged = false;
+	bool bListHasChanged = false;
 
-	if (bRebuildEvenIfNotChanged)
+	if (bResync)
 	{
 		TimerNodes.Empty(TimerNodes.Num());
 		//TimerNodesMap.Empty(TimerNodesMap.Num());
 		TimerNodesIdMap.Empty(TimerNodesIdMap.Num());
-
-		bTimerNodesListChanged = true;
+		bListHasChanged = true;
 	}
 
 	if (Session.IsValid())
 	{
-		Trace::FAnalysisSessionReadScope _(*Session.Get());
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		Session->ReadTimingProfilerProvider([this, bRebuildEvenIfNotChanged, &bTimerNodesListChanged](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
+		Session->ReadTimingProfilerProvider([this, &bResync, &bListHasChanged](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
 		{
-			TimingProfilerProvider.ReadTimers([this, bRebuildEvenIfNotChanged, &bTimerNodesListChanged](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
+			TimingProfilerProvider.ReadTimers([this, &bResync, &bListHasChanged](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
 			{
-				if (TimersCount != TimerNodes.Num() || bRebuildEvenIfNotChanged)
+				if (!bResync)
+				{
+					bResync = (TimersCount != TimerNodes.Num());
+				}
+
+				if (bResync)
 				{
 					TimerNodes.Empty(TimerNodes.Num());
 					//TimerNodesMap.Empty(TimerNodesMap.Num());
 					TimerNodesIdMap.Empty(TimerNodesIdMap.Num());
+					bListHasChanged = true;
 
 					for (uint64 TimerIndex = 0; TimerIndex < TimersCount; ++TimerIndex)
 					{
@@ -1489,14 +1463,12 @@ void STimersView::RebuildTree(bool bRebuildEvenIfNotChanged)
 						//TimerNodesMap.Add(Name, TimerNodePtr);
 						TimerNodesIdMap.Add(Timer.Id, TimerNodePtr);
 					}
-
-					bTimerNodesListChanged = true;
 				}
 			});
 		});
 	}
 
-	if (bTimerNodesListChanged)
+	if (bListHasChanged)
 	{
 		UpdateTree();
 		UpdateStats(StatsStartTime, StatsEndTime);
@@ -1567,11 +1539,13 @@ struct FTimeCalculationHelper
 	TMap<uint64, FTimerStatsEx>& StatsMap;
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimersView::UpdateStats(double StartTime, double EndTime)
 {
 	for (const FTimerNodePtr& TimerNodePtr : TimerNodes)
 	{
-		TimerNodePtr->ResetStats();
+		TimerNodePtr->ResetAggregatedStats();
 	}
 
 	if (Session.IsValid() &&
@@ -1592,9 +1566,10 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 		FTimeCalculationHelper CalculationHelper(Ctx.StartTime, Ctx.EndTime, Ctx.Map);
 
 		{
+			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
 			// Compute instance count and total/min/max inclusive/exclusive times for each timer.
 			// Iterate through all timing events (all thread timelines).
-			Trace::FAnalysisSessionReadScope _(*Session.Get());
 			Session->ReadTimingProfilerProvider([&CalculationHelper](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
 			{
 				TimingProfilerProvider.EnumerateTimelines([&CalculationHelper](const Trace::ITimingProfilerProvider::Timeline& Timeline)
@@ -1633,7 +1608,7 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 			FTimerNodePtr* TimerNodePtrPtr = TimerNodesIdMap.Find(KV.Key);
 			if (TimerNodePtrPtr != nullptr)
 			{
-				(*TimerNodePtrPtr)->SetStats(KV.Value.BaseStats);
+				(*TimerNodePtrPtr)->SetAggregatedStats(KV.Value.BaseStats);
 			}
 		}
 
@@ -1649,19 +1624,27 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 
 void STimersView::UpdateTotalMinMaxTimerStats(FTimerStatsEx& StatsEx, double InclTime, double ExclTime)
 {
-	FTimerStats& Stats = StatsEx.BaseStats;
+	FTimerAggregatedStats& Stats = StatsEx.BaseStats;
 
 	Stats.TotalInclusiveTime += InclTime;
 	if (InclTime < Stats.MinInclusiveTime)
+	{
 		Stats.MinInclusiveTime = InclTime;
+	}
 	if (InclTime > Stats.MaxInclusiveTime)
-	Stats.MaxInclusiveTime = InclTime;
+	{
+		Stats.MaxInclusiveTime = InclTime;
+	}
 
 	Stats.TotalExclusiveTime += ExclTime;
 	if (ExclTime < Stats.MinExclusiveTime)
+	{
 		Stats.MinExclusiveTime = ExclTime;
+	}
 	if (ExclTime > Stats.MaxExclusiveTime)
-	Stats.MaxExclusiveTime = ExclTime;
+	{
+		Stats.MaxExclusiveTime = ExclTime;
+	}
 
 	Stats.InstanceCount++;
 }
@@ -1670,54 +1653,62 @@ void STimersView::UpdateTotalMinMaxTimerStats(FTimerStatsEx& StatsEx, double Inc
 
 void STimersView::PreComputeHistogram(FTimerStatsEx& StatsEx)
 {
-	const FTimerStats& Stats = StatsEx.BaseStats;
+	const FTimerAggregatedStats& Stats = StatsEx.BaseStats;
 
 	// Each bucket (Histogram[i]) will be centered on a value.
 	// I.e. First bucket (bucket 0) is centered on Min value: [Min-DT/2, Min+DT/2)
 	// and last bucket (bucket N-1) is centered on Max value: [Max-DT/2, Max+DT/2).
 
-	constexpr double InvHistogramLen = 1.0 / static_cast<double>(HistogramLen - 1);
+	constexpr double InvHistogramLen = 1.0 / static_cast<double>(FTimerStatsEx::HistogramLen - 1);
 
 	if (Stats.MaxInclusiveTime == Stats.MinInclusiveTime)
+	{
 		StatsEx.InclDT = 1.0; // single large bucket
+	}
 	else
+	{
 		StatsEx.InclDT = (Stats.MaxInclusiveTime - Stats.MinInclusiveTime) * InvHistogramLen;
+	}
 
 	if (Stats.MaxExclusiveTime == Stats.MinExclusiveTime)
+	{
 		StatsEx.ExclDT = 1.0; // single large bucket
+	}
 	else
+	{
 		StatsEx.ExclDT = (Stats.MaxExclusiveTime - Stats.MinExclusiveTime) * InvHistogramLen;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimersView::UpdateHistogramForTimerStats(FTimerStatsEx& StatsEx, double InclTime, double ExclTime)
 {
-	const FTimerStats& Stats = StatsEx.BaseStats;
+	const FTimerAggregatedStats& Stats = StatsEx.BaseStats;
 
-	int InclIndex = static_cast<int>((InclTime - Stats.MinInclusiveTime + StatsEx.InclDT / 2) / StatsEx.InclDT);
+	int32 InclIndex = static_cast<int32>((InclTime - Stats.MinInclusiveTime + StatsEx.InclDT / 2) / StatsEx.InclDT);
 	ensure(InclIndex >= 0);
 	if (InclIndex < 0)
 	{
 		InclIndex = 0;
 	}
-	ensure(InclIndex < HistogramLen);
-	if (InclIndex >= HistogramLen)
+	ensure(InclIndex < FTimerStatsEx::HistogramLen);
+	if (InclIndex >= FTimerStatsEx::HistogramLen)
 	{
-		InclIndex = HistogramLen - 1;
+		InclIndex = FTimerStatsEx::HistogramLen - 1;
 	}
 	StatsEx.InclHistogram[InclIndex]++;
 
-	int ExclIndex = static_cast<int>((ExclTime - Stats.MinExclusiveTime + StatsEx.ExclDT / 2) / StatsEx.ExclDT);
+	int32 ExclIndex = static_cast<int32>((ExclTime - Stats.MinExclusiveTime + StatsEx.ExclDT / 2) / StatsEx.ExclDT);
 	ensure(ExclIndex >= 0);
 	if (ExclIndex < 0)
 	{
 		ExclIndex = 0;
 	}
-	ensure(ExclIndex < HistogramLen);
-	if (ExclIndex >= HistogramLen)
+	ensure(ExclIndex < FTimerStatsEx::HistogramLen);
+	if (ExclIndex >= FTimerStatsEx::HistogramLen)
 	{
-		ExclIndex = HistogramLen - 1;
+		ExclIndex = FTimerStatsEx::HistogramLen - 1;
 	}
 	StatsEx.ExclHistogram[ExclIndex]++;
 }
@@ -1726,7 +1717,7 @@ void STimersView::UpdateHistogramForTimerStats(FTimerStatsEx& StatsEx, double In
 
 void STimersView::PostProcessTimerStats(FTimerStatsEx& StatsEx, bool bComputeMedian)
 {
-	FTimerStats& Stats = StatsEx.BaseStats;
+	FTimerAggregatedStats& Stats = StatsEx.BaseStats;
 
 	// Compute average inclusive/exclusive times.
 	ensure(Stats.InstanceCount > 0);
@@ -1736,11 +1727,11 @@ void STimersView::PostProcessTimerStats(FTimerStatsEx& StatsEx, bool bComputeMed
 
 	if (bComputeMedian)
 	{
-		const int HalfCount = Stats.InstanceCount / 2;
+		const int32 HalfCount = Stats.InstanceCount / 2;
 
 		// Compute median inclusive time.
-		int InclCount = 0;
-		for (int HistogramIndex = 0; HistogramIndex < HistogramLen; HistogramIndex++)
+		int32 InclCount = 0;
+		for (int32 HistogramIndex = 0; HistogramIndex < FTimerStatsEx::HistogramLen; HistogramIndex++)
 		{
 			InclCount += StatsEx.InclHistogram[HistogramIndex];
 			if (InclCount > HalfCount)
@@ -1758,8 +1749,8 @@ void STimersView::PostProcessTimerStats(FTimerStatsEx& StatsEx, bool bComputeMed
 		}
 
 		// Compute median exclusive time.
-		int ExclCount = 0;
-		for (int HistogramIndex = 0; HistogramIndex < HistogramLen; HistogramIndex++)
+		int32 ExclCount = 0;
+		for (int32 HistogramIndex = 0; HistogramIndex < FTimerStatsEx::HistogramLen; HistogramIndex++)
 		{
 			ExclCount += StatsEx.InclHistogram[HistogramIndex];
 			if (ExclCount > HalfCount)
