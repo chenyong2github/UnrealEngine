@@ -3,12 +3,13 @@
 #include "EditorComponentSourceFactory.h"
 
 #include "Engine/StaticMesh.h"
+#include "Components/ActorComponent.h"
 #include "Components/StaticMeshComponent.h"
 
 
 
 
-TUniquePtr<IMeshDescriptionSource> FEditorComponentSourceFactory::MakeMeshDescriptionSource(UObject* Component)
+TUniquePtr<IMeshDescriptionSource> FEditorComponentSourceFactory::MakeMeshDescriptionSource(UActorComponent* Component)
 {
 	UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(Component);
 	if (StaticMeshComp != nullptr)
@@ -36,7 +37,7 @@ AActor* FStaticMeshComponentMeshDescriptionSource::GetOwnerActor() const
 	return Component->GetOwner();
 }
 
-UObject* FStaticMeshComponentMeshDescriptionSource::GetOwnerComponent() const
+UActorComponent* FStaticMeshComponentMeshDescriptionSource::GetOwnerComponent() const
 {
 	return Component;
 }
@@ -59,7 +60,8 @@ UMaterialInterface* FStaticMeshComponentMeshDescriptionSource::GetMaterial(int32
 
 FTransform FStaticMeshComponentMeshDescriptionSource::GetWorldTransform() const
 {
-	return Component->GetOwner()->GetActorTransform();
+	//return Component->GetOwner()->GetActorTransform();
+	return Component->GetComponentTransform();
 }
 
 

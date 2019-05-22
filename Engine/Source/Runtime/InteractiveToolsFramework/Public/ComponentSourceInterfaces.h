@@ -8,6 +8,7 @@
 
 // predeclarations
 class AActor;
+class UActorComponent;
 struct FMeshDescription;
 class UMaterialInterface;
 
@@ -31,7 +32,7 @@ public:
 	virtual AActor* GetOwnerActor() const = 0;
 
 	/** @return the Component this is a Source for */
-	virtual UObject* GetOwnerComponent() const = 0;
+	virtual UActorComponent* GetOwnerComponent() const = 0;
 
 	/** @return Pointer to the MeshDescription this Source is providing */
 	virtual FMeshDescription* GetMeshDescription() const = 0;
@@ -94,6 +95,6 @@ public:
 	 * @param Component A UObject that can provide a MeshDescription. Assumption is this is a Component of an Actor.
 	 * @return A MeshDescriptionSource instance. Must not return null.
 	 */
-	virtual TUniquePtr<IMeshDescriptionSource> MakeMeshDescriptionSource(UObject* Component) = 0;
+	virtual TUniquePtr<IMeshDescriptionSource> MakeMeshDescriptionSource(UActorComponent* Component) = 0;
 };
 

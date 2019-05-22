@@ -16,7 +16,7 @@ class EDITORINTERACTIVETOOLSFRAMEWORK_API FEditorComponentSourceFactory : public
 public:
 	virtual ~FEditorComponentSourceFactory() {}
 
-	virtual TUniquePtr<IMeshDescriptionSource> MakeMeshDescriptionSource(UObject* Component);
+	virtual TUniquePtr<IMeshDescriptionSource> MakeMeshDescriptionSource(UActorComponent* Component);
 };
 
 
@@ -40,7 +40,7 @@ public:
 	virtual ~FStaticMeshComponentMeshDescriptionSource() {}
 
 	virtual AActor* GetOwnerActor() const override;
-	virtual UObject* GetOwnerComponent() const override;
+	virtual UActorComponent* GetOwnerComponent() const override;
 	virtual FMeshDescription* GetMeshDescription() const override;
 	virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
 	virtual FTransform GetWorldTransform() const override;

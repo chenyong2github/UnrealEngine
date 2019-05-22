@@ -8,7 +8,7 @@
 
 
 
-bool ToolBuilderUtil::IsMeshDescriptionSourceComponent(UObject* ComponentObject)
+bool ToolBuilderUtil::IsMeshDescriptionSourceComponent(UActorComponent* ComponentObject)
 {
 	UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(ComponentObject);
 	if (StaticMeshComp != nullptr)
@@ -20,7 +20,7 @@ bool ToolBuilderUtil::IsMeshDescriptionSourceComponent(UObject* ComponentObject)
 
 
 
-int ToolBuilderUtil::CountComponents(const FToolBuilderState& InputState, const TFunction<bool(UObject*)>& Predicate)
+int ToolBuilderUtil::CountComponents(const FToolBuilderState& InputState, const TFunction<bool(UActorComponent*)>& Predicate)
 {
 	int nTypedComponents = 0;
 
@@ -28,9 +28,12 @@ int ToolBuilderUtil::CountComponents(const FToolBuilderState& InputState, const 
 	{
 		for (FSelectionIterator Iter(*InputState.SelectedComponents); Iter; ++Iter)
 		{
-			if (Predicate(*Iter))
+			if (UActorComponent* Component = Cast<UActorComponent>(*Iter))
 			{
-				nTypedComponents++;
+				if (Predicate(Component))
+				{
+					nTypedComponents++;
+				}
 			}
 		}
 	}
@@ -57,15 +60,18 @@ int ToolBuilderUtil::CountComponents(const FToolBuilderState& InputState, const 
 
 
 
-UObject* ToolBuilderUtil::FindFirstComponent(const FToolBuilderState& InputState, const TFunction<bool(UObject*)>& Predicate)
+UActorComponent* ToolBuilderUtil::FindFirstComponent(const FToolBuilderState& InputState, const TFunction<bool(UActorComponent*)>& Predicate)
 {
 	if (InputState.SelectedComponents != nullptr && InputState.SelectedComponents->Num() > 0)
 	{
 		for (FSelectionIterator Iter(*InputState.SelectedComponents); Iter; ++Iter)
 		{
-			if (Predicate(*Iter))
+			if (UActorComponent* Component = Cast<UActorComponent>(*Iter))
 			{
-				return *Iter;
+				if (Predicate(Component))
+				{
+					return Component;
+				}
 			}
 		}
 	}
@@ -92,17 +98,20 @@ UObject* ToolBuilderUtil::FindFirstComponent(const FToolBuilderState& InputState
 
 
 
-TArray<UObject*> ToolBuilderUtil::FindAllComponents(const FToolBuilderState& InputState, const TFunction<bool(UObject*)>& Predicate)
+TArray<UActorComponent*> ToolBuilderUtil::FindAllComponents(const FToolBuilderState& InputState, const TFunction<bool(UActorComponent*)>& Predicate)
 {
-	TArray<UObject*> Components;
+	TArray<UActorComponent*> Components;
 
 	if (InputState.SelectedComponents != nullptr && InputState.SelectedComponents->Num() > 0)
 	{
 		for (FSelectionIterator Iter(*InputState.SelectedComponents); Iter; ++Iter)
 		{
-			if (Predicate(*Iter))
+			if (UActorComponent* Component = Cast<UActorComponent>(*Iter))
 			{
-				Components.AddUnique(*Iter);
+				if (Predicate(Component))
+				{
+					Components.AddUnique(Component);
+				}
 			}
 		}
 	}

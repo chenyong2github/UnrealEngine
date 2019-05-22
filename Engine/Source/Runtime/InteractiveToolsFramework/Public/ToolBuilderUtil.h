@@ -14,19 +14,19 @@ namespace ToolBuilderUtil
 {
 	/** Returns true if this UObject can provide a FMeshDescription */
 	INTERACTIVETOOLSFRAMEWORK_API
-	bool IsMeshDescriptionSourceComponent(UObject* ComponentObject);
+	bool IsMeshDescriptionSourceComponent(UActorComponent* ComponentObject);
 	
 	/** Count number of selected components that pass predicate. If Component selection is not empty, returns that count, otherwise counts in all selected Actors */
 	INTERACTIVETOOLSFRAMEWORK_API
-	int CountComponents(const FToolBuilderState& InputState, const TFunction<bool(UObject*)>& Predicate);
+	int CountComponents(const FToolBuilderState& InputState, const TFunction<bool(UActorComponent*)>& Predicate);
 
 	/** First first available component that passes predicate. Searches Components selection list first, then all Actors */
 	INTERACTIVETOOLSFRAMEWORK_API
-	UObject* FindFirstComponent(const FToolBuilderState& InputState, const TFunction<bool(UObject*)>& Predicate);
+	UActorComponent* FindFirstComponent(const FToolBuilderState& InputState, const TFunction<bool(UActorComponent*)>& Predicate);
 
 	/** First all components that passes predicate. Searches Components selection list first, then all Actors */
 	INTERACTIVETOOLSFRAMEWORK_API
-	TArray<UObject*> FindAllComponents(const FToolBuilderState& InputState, const TFunction<bool(UObject*)>& Predicate);
+	TArray<UActorComponent*> FindAllComponents(const FToolBuilderState& InputState, const TFunction<bool(UActorComponent*)>& Predicate);
 
 	// @todo not sure that actors with multiple components are handled properly...
 	/** Count number of components of given type. If Component selection is not empty, returns that count, otherwise counts in all selected Actors */
