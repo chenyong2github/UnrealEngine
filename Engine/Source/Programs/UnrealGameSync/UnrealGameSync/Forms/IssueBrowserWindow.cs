@@ -18,6 +18,7 @@ namespace UnrealGameSync
 		IssueMonitor IssueMonitor;
 		string ServerAndPort;
 		string UserName;
+		TimeSpan? ServerTimeOffset;
 		TextWriter Log;
 		string CurrentStream;
 		int MaxResults = 0;
@@ -25,11 +26,12 @@ namespace UnrealGameSync
 		List<string> ProjectNames = new List<string>();
 		List<IssueData> Issues = new List<IssueData>();
 
-		public IssueBrowserWindow(IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TextWriter Log, string CurrentStream)
+		public IssueBrowserWindow(IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, TextWriter Log, string CurrentStream)
 		{
 			this.IssueMonitor = IssueMonitor;
 			this.ServerAndPort = ServerAndPort;
 			this.UserName = UserName;
+			this.ServerTimeOffset = ServerTimeOffset;
 			this.Log = Log;
 			this.CurrentStream = CurrentStream;
 
@@ -150,12 +152,12 @@ namespace UnrealGameSync
 
 		static List<IssueBrowserWindow> ExistingWindows = new List<IssueBrowserWindow>();
 
-		public static void Show(Form Owner, IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TextWriter Log, string CurrentStream)
+		public static void Show(Form Owner, IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, TextWriter Log, string CurrentStream)
 		{
 			IssueBrowserWindow Window = ExistingWindows.FirstOrDefault(x => x.IssueMonitor == IssueMonitor);
 			if(Window == null)
 			{
-				Window = new IssueBrowserWindow(IssueMonitor, ServerAndPort, UserName, Log, CurrentStream);
+				Window = new IssueBrowserWindow(IssueMonitor, ServerAndPort, UserName, ServerTimeOffset, Log, CurrentStream);
 				Window.Owner = Owner;
 				Window.StartPosition = FormStartPosition.Manual;
 				Window.Location = new Point(Owner.Location.X + (Owner.Width - Window.Width) / 2, Owner.Location.Y + (Owner.Height - Window.Height) / 2);
@@ -221,7 +223,7 @@ namespace UnrealGameSync
 		private void ShowIssue(IssueData Issue)
 		{
 			Issue.Builds = RESTApi.GET<List<IssueBuildData>>(IssueMonitor.ApiUrl, String.Format("issues/{0}/builds", Issue.Id));
-			IssueDetailsWindow.Show(Owner, IssueMonitor, ServerAndPort, UserName, Issue, Log, CurrentStream);
+			IssueDetailsWindow.Show(Owner, IssueMonitor, ServerAndPort, UserName, ServerTimeOffset, Issue, Log, CurrentStream);
 		}
 
 		private void IssueListView_DrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)

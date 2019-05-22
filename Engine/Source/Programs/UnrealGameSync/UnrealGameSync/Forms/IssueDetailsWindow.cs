@@ -242,6 +242,7 @@ namespace UnrealGameSync
 		IssueMonitor IssueMonitor;
 		IssueData Issue;
 		PerforceConnection Perforce;
+		TimeSpan? ServerTimeOffset;
 		PerforceWorkerThread PerforceWorker;
 		TextWriter Log;
 		SynchronizationContext MainThreadSynchronizationContext;
@@ -255,11 +256,12 @@ namespace UnrealGameSync
 		System.Windows.Forms.Timer UpdateTimer;
 		StatusElementResources StatusElementResources;
 
-		IssueDetailsWindow(IssueMonitor IssueMonitor, IssueData Issue, string ServerAndPort, string UserName, TextWriter Log, string CurrentStream)
+		IssueDetailsWindow(IssueMonitor IssueMonitor, IssueData Issue, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, TextWriter Log, string CurrentStream)
 		{
 			this.IssueMonitor = IssueMonitor;
 			this.Issue = Issue;
 			this.Perforce = new PerforceConnection(UserName, null, ServerAndPort);
+			this.ServerTimeOffset = ServerTimeOffset;
 			this.Log = Log;
 
 			IssueMonitor.AddRef();
@@ -737,13 +739,22 @@ namespace UnrealGameSync
 
 							ListViewItem Item = new ListViewItem("");
 							Item.Tag = Change;
-							Item.SubItems.Add(Change.Number.ToString());
 
 							StatusLineListViewWidget TypeWidget = new StatusLineListViewWidget(Item, StatusElementResources);
 							UpdateChangeTypeWidget(TypeWidget, Details);
 							Item.SubItems.Add(new ListViewItem.ListViewSubItem(Item, "") { Tag = TypeWidget });
 
+							Item.SubItems.Add(Change.Number.ToString());
+
+							DateTime DisplayTime = Change.Date;
+							if (ServerTimeOffset.HasValue)
+							{
+								DisplayTime = (DisplayTime - ServerTimeOffset.Value).ToLocalTime();
+							}
+							Item.SubItems.Add(DisplayTime.ToString("h\\.mmtt"));
+
 							Item.SubItems.Add(WorkspaceControl.FormatUserName(Change.User));
+
 							Item.SubItems.Add(Change.Description);
 							BuildListView.Items.Insert(NumNewItems++, Item);
 						}
@@ -775,6 +786,7 @@ namespace UnrealGameSync
 				*/
 				ListViewItem BuildItem = new ListViewItem("");
 				BuildItem.Tag = Range.BuildGroup;
+				BuildItem.SubItems.Add("");
 				BuildItem.SubItems.Add(Range.BuildGroup.Change.ToString());
 				BuildItem.SubItems.Add("");
 
@@ -970,7 +982,7 @@ namespace UnrealGameSync
 						PerforceChangeDetailsWithDescribeRecord Details;
 						PerforceWorker.TryGetChangeDetails(Change.Number, out Details);
 
-						StatusLineListViewWidget TypeWidget = (StatusLineListViewWidget)Item.SubItems[2].Tag;
+						StatusLineListViewWidget TypeWidget = (StatusLineListViewWidget)Item.SubItems[TypeHeader.Index].Tag;
 						UpdateChangeTypeWidget(TypeWidget, Details);
 
 						BuildListView.RedrawItems(Item.Index, Item.Index, true);
@@ -987,12 +999,12 @@ namespace UnrealGameSync
 
 		static List<IssueDetailsWindow> ExistingWindows = new List<IssueDetailsWindow>();
 
-		public static void Show(Form Owner, IssueMonitor IssueMonitor, string ServerAndPort, string UserName, IssueData Issue, TextWriter Log, string CurrentStream)
+		public static void Show(Form Owner, IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, IssueData Issue, TextWriter Log, string CurrentStream)
 		{
 			IssueDetailsWindow Window = ExistingWindows.FirstOrDefault(x => x.IssueMonitor == IssueMonitor && x.Issue.Id == Issue.Id);
 			if(Window == null)
 			{
-				Window = new IssueDetailsWindow(IssueMonitor, Issue, ServerAndPort, UserName, Log, CurrentStream);
+				Window = new IssueDetailsWindow(IssueMonitor, Issue, ServerAndPort, UserName, ServerTimeOffset, Log, CurrentStream);
 				Window.Owner = Owner;
 				Window.StartPosition = FormStartPosition.Manual;
 				Window.Location = new Point(Owner.Location.X + (Owner.Width - Window.Width) / 2, Owner.Location.Y + (Owner.Height - Window.Height) / 2);
@@ -1098,6 +1110,10 @@ namespace UnrealGameSync
 				else if(e.ColumnIndex == DescriptionHeader.Index)
 				{
 					TextRenderer.DrawText(e.Graphics, e.SubItem.Text, ChangeFont, e.Bounds, TextColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+				}
+				else if(e.ColumnIndex == TimeHeader.Index)
+				{
+					TextRenderer.DrawText(e.Graphics, e.SubItem.Text, ChangeFont, e.Bounds, TextColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 				}
 			}
 			else if(e.Item.Tag is IssueBuildData)

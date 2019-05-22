@@ -3166,14 +3166,24 @@ namespace UnrealGameSync
 			ShowIssueDetails(Issue);
 		}
 
+		private TimeSpan? GetServerTimeOffset()
+		{
+			TimeSpan? Offset = null;
+			if (Settings.bShowLocalTimes)
+			{
+				Offset = PerforceMonitor.ServerTimeZone;
+			}
+			return Offset;
+		}
+
 		public void ShowIssueDetails(IssueData Issue)
 		{
-			IssueDetailsWindow.Show(ParentForm, IssueMonitor, Workspace.Perforce.ServerAndPort, Workspace.Perforce.UserName, Issue, Log, StreamName);
+			IssueDetailsWindow.Show(ParentForm, IssueMonitor, Workspace.Perforce.ServerAndPort, Workspace.Perforce.UserName, GetServerTimeOffset(), Issue, Log, StreamName);
 		}
 
 		private void BuildHealthContextMenu_Browse_Click(object sender, EventArgs e)
 		{
-			IssueBrowserWindow.Show(ParentForm, IssueMonitor, Workspace.Perforce.ServerAndPort, Workspace.Perforce.UserName, Log, StreamName);
+			IssueBrowserWindow.Show(ParentForm, IssueMonitor, Workspace.Perforce.ServerAndPort, Workspace.Perforce.UserName, GetServerTimeOffset(), Log, StreamName);
 		}
 
 		private void BuildHealthContextMenu_Settings_Click(object sender, EventArgs e)

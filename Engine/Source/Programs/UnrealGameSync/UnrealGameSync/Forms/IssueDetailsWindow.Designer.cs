@@ -56,8 +56,9 @@ namespace UnrealGameSync
             this.FilterTextBox = new UnrealGameSync.TextBoxWithCueBanner();
             this.BuildListView = new UnrealGameSync.CustomListViewControl();
             this.IconHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.ChangeHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.TypeHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.ChangeHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.TimeHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.AuthorHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.DescriptionHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.BuildListContextMenu.SuspendLayout();
@@ -376,7 +377,7 @@ namespace UnrealGameSync
             this.ChangesTabPage.Location = new System.Drawing.Point(4, 24);
             this.ChangesTabPage.Name = "ChangesTabPage";
             this.ChangesTabPage.Padding = new System.Windows.Forms.Padding(8);
-            this.ChangesTabPage.Size = new System.Drawing.Size(1068, 338);
+            this.ChangesTabPage.Size = new System.Drawing.Size(1068, 413);
             this.ChangesTabPage.TabIndex = 1;
             this.ChangesTabPage.Text = "Changes";
             this.ChangesTabPage.UseVisualStyleBackColor = true;
@@ -396,7 +397,7 @@ namespace UnrealGameSync
             this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel2.Size = new System.Drawing.Size(1052, 324);
+            this.tableLayoutPanel2.Size = new System.Drawing.Size(1052, 397);
             this.tableLayoutPanel2.TabIndex = 4;
             // 
             // tableLayoutPanel3
@@ -408,7 +409,7 @@ namespace UnrealGameSync
             this.tableLayoutPanel3.Controls.Add(this.FilterTextBox, 0, 0);
             this.tableLayoutPanel3.Controls.Add(this.FilterTypeComboBox, 1, 0);
             this.tableLayoutPanel3.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tableLayoutPanel3.Location = new System.Drawing.Point(0, 295);
+            this.tableLayoutPanel3.Location = new System.Drawing.Point(0, 368);
             this.tableLayoutPanel3.Margin = new System.Windows.Forms.Padding(0);
             this.tableLayoutPanel3.Name = "tableLayoutPanel3";
             this.tableLayoutPanel3.RowCount = 1;
@@ -511,8 +512,9 @@ namespace UnrealGameSync
             this.BuildListView.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.BuildListView.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.IconHeader,
-            this.ChangeHeader,
             this.TypeHeader,
+            this.ChangeHeader,
+            this.TimeHeader,
             this.AuthorHeader,
             this.DescriptionHeader});
             this.BuildListView.FullRowSelect = true;
@@ -521,7 +523,7 @@ namespace UnrealGameSync
             this.BuildListView.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.BuildListView.Name = "BuildListView";
             this.BuildListView.OwnerDraw = true;
-            this.BuildListView.Size = new System.Drawing.Size(1046, 258);
+            this.BuildListView.Size = new System.Drawing.Size(1046, 331);
             this.BuildListView.TabIndex = 1;
             this.BuildListView.UseCompatibleStateImageBehavior = false;
             this.BuildListView.View = System.Windows.Forms.View.Details;
@@ -537,17 +539,23 @@ namespace UnrealGameSync
             this.IconHeader.Text = "";
             this.IconHeader.Width = 34;
             // 
-            // ChangeHeader
-            // 
-            this.ChangeHeader.Text = "Change";
-            this.ChangeHeader.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            this.ChangeHeader.Width = 75;
-            // 
             // TypeHeader
             // 
             this.TypeHeader.Text = "Type";
             this.TypeHeader.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            this.TypeHeader.Width = 99;
+            this.TypeHeader.Width = 100;
+            // 
+            // ChangeHeader
+            // 
+            this.ChangeHeader.Text = "Change";
+            this.ChangeHeader.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.ChangeHeader.Width = 100;
+            // 
+            // TimeHeader
+            // 
+            this.TimeHeader.Text = "Time";
+            this.TimeHeader.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.TimeHeader.Width = 100;
             // 
             // AuthorHeader
             // 
@@ -558,7 +566,7 @@ namespace UnrealGameSync
             // DescriptionHeader
             // 
             this.DescriptionHeader.Text = "Description";
-            this.DescriptionHeader.Width = 694;
+            this.DescriptionHeader.Width = 550;
             // 
             // IssueDetailsWindow
             // 
@@ -635,5 +643,6 @@ namespace UnrealGameSync
 		private System.Windows.Forms.Label SummaryTextBox;
 		private System.Windows.Forms.Label label6;
 		private System.Windows.Forms.LinkLabel BuildLinkLabel;
+		private System.Windows.Forms.ColumnHeader TimeHeader;
 	}
 }
