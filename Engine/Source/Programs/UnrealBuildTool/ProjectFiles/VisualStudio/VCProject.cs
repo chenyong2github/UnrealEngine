@@ -282,6 +282,7 @@ namespace UnrealBuildTool
 		bool bUsePerFileIntellisense;
 		bool bUsePrecompiled;
 		bool bEditorDependsOnShaderCompileWorker;
+		bool bBuildLiveCodingConsole;
 		string BuildToolOverride;
 
 		/// This is the platform name that Visual Studio is always guaranteed to support.  We'll use this as
@@ -305,8 +306,9 @@ namespace UnrealBuildTool
 		/// <param name="bUsePerFileIntellisense">If true, generates per-file intellisense data</param>
 		/// <param name="bUsePrecompiled">Whether to add the -UsePrecompiled argumemnt when building targets</param>
 		/// <param name="bEditorDependsOnShaderCompileWorker">Whether editor targets should also build ShaderCompileWorker</param>
+		/// <param name="bBuildLiveCodingConsole">Whether targets using live coding should also build LiveCodingConsole</param>
 		/// <param name="BuildToolOverride">Optional arguments to pass to UBT when building</param>
-		public VCProjectFile(FileReference InFilePath, FileReference InOnlyGameProject, VCProjectFileFormat InProjectFileFormat, bool bUseFastPDB, bool bUsePerFileIntellisense, bool bUsePrecompiled, bool bEditorDependsOnShaderCompileWorker, string BuildToolOverride)
+		public VCProjectFile(FileReference InFilePath, FileReference InOnlyGameProject, VCProjectFileFormat InProjectFileFormat, bool bUseFastPDB, bool bUsePerFileIntellisense, bool bUsePrecompiled, bool bEditorDependsOnShaderCompileWorker, bool bBuildLiveCodingConsole, string BuildToolOverride)
 			: base(InFilePath)
 		{
 			OnlyGameProject = InOnlyGameProject;
@@ -315,6 +317,7 @@ namespace UnrealBuildTool
 			this.bUsePerFileIntellisense = bUsePerFileIntellisense;
 			this.bUsePrecompiled = bUsePrecompiled;
 			this.bEditorDependsOnShaderCompileWorker = bEditorDependsOnShaderCompileWorker;
+			this.bBuildLiveCodingConsole = bBuildLiveCodingConsole;
 			this.BuildToolOverride = BuildToolOverride;
 		}
 
@@ -1394,15 +1397,33 @@ namespace UnrealBuildTool
 						BuildArguments.AppendFormat(" -Project={0}", UProjectPath);
 					}
 
+					List<string> ExtraTargets = new List<string>();
+					if (!bUsePrecompiled)
+					{
+						if (TargetRulesObject.Type == TargetType.Editor && bEditorDependsOnShaderCompileWorker && !UnrealBuildTool.IsEngineInstalled())
+						{
+							ExtraTargets.Add("ShaderCompileWorker Win64 Development");
+						}
+						if (TargetRulesObject.bWithLiveCoding && bBuildLiveCodingConsole && !UnrealBuildTool.IsEngineInstalled())
+						{
+							ExtraTargets.Add("LiveCodingConsole Win64 Development");
+						}
+					}
+
+					if(ExtraTargets.Count > 0)
+					{
+						BuildArguments.Replace("\"", "\\\"");
+						BuildArguments.Insert(0, "-Target=\"");
+						BuildArguments.Append("\"");
+						foreach(string ExtraTarget in ExtraTargets)
+						{
+							BuildArguments.AppendFormat(" -Target=\"{0}\"", ExtraTarget);
+						}
+					}
+
 					if (bUsePrecompiled)
 					{
 						BuildArguments.Append(" -UsePrecompiled");
-					}
-					else if(TargetRulesObject.Type == TargetType.Editor && bEditorDependsOnShaderCompileWorker && !UnrealBuildTool.IsEngineInstalled())
-					{
-						BuildArguments.Replace("\"", "\\\"");
-						BuildArguments.Insert(0, "-Target=\"ShaderCompileWorker Win64 Development\" -Target=\"");
-						BuildArguments.Append("\"");
 					}
 
 					// Always wait for the mutex between UBT invocations, so that building the whole solution doesn't fail.
