@@ -702,6 +702,8 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 
 	const double StartSeconds = FPlatformTime::Seconds();
 
+	FSlateApplication::Get().CancelDragDrop();
+
 	if (GetSelectedComponentCount() > 0)
 	{
 		TArray<UActorComponent*> SelectedEditableComponents;
