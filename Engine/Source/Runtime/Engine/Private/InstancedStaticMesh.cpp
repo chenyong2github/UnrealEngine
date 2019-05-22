@@ -31,6 +31,9 @@
 #endif // WITH_EDITOR
 #include "MeshMaterialShader.h"
 
+#if RHI_RAYTRACING
+#include "RayTracingInstance.h"
+#endif
 
 #include "Interfaces/ITargetPlatform.h"
 #if WITH_EDITOR
@@ -40,6 +43,11 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/EditorObjectVersion.h"
 
+
+static TAutoConsoleVariable<int32> CVarRayTracingRenderInstances(
+	TEXT("r.RayTracing.Instances"),
+	1,
+	TEXT("Include static mesh instances in the ray tracing acceleration structure"));
 
 const int32 InstancedStaticMeshMaxTexCoord = 8;
 
@@ -980,6 +988,51 @@ HHitProxy* FInstancedStaticMeshSceneProxy::CreateHitProxies(UPrimitiveComponent*
 
 	return FStaticMeshSceneProxy::CreateHitProxies(Component, OutHitProxies);
 }
+
+#if RHI_RAYTRACING
+void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
+{
+	if (!CVarRayTracingRenderInstances.GetValueOnRenderThread())
+	{
+		return;
+	}
+
+	//#dxr_todo: select the appropriate LOD depending on Context.View
+	//#dxr_todo: add culling logic for instances that are far away
+	uint32 LOD = 0;
+
+	const int32 InstanceCount = InstancedRenderData.Component->PerInstanceSMData.Num();
+
+	for (int32 InstanceIdx = 0; InstanceIdx < InstanceCount; ++InstanceIdx)
+	{
+		if (InstancedRenderData.Component->PerInstanceSMData.IsValidIndex(InstanceIdx))
+		{
+			const FInstancedStaticMeshInstanceData& InstanceData = InstancedRenderData.Component->PerInstanceSMData[InstanceIdx];
+			FMatrix LocalToWorld = InstancedRenderData.Component->GetComponentTransform().ToMatrixWithScale();
+			FMatrix InstanceTransform = InstanceData.Transform * LocalToWorld;
+
+			FRayTracingInstance RayTracingInstance;
+			RayTracingInstance.Geometry = &RenderData->LODResources[LOD].RayTracingGeometry;
+			RayTracingInstance.InstanceTransforms.Add(InstanceTransform);
+
+			int32 SectionCount = InstancedRenderData.LODModels[LOD].Sections.Num();
+
+			for (int32 SectionIdx = 0; SectionIdx < SectionCount; ++SectionIdx)
+			{
+				//#dxr_todo: so far we use the parent static mesh path to get material data
+				FMeshBatch MeshBatch;
+				FStaticMeshSceneProxy::GetMeshElement(LOD, 0, SectionIdx, 0, false, false, MeshBatch);
+
+				RayTracingInstance.Materials.Add(MeshBatch);
+			}
+
+			RayTracingInstance.BuildInstanceMaskAndFlags();
+			OutRayTracingInstances.Add(RayTracingInstance);
+		}
+	}
+}
+#endif
+
 
 /*-----------------------------------------------------------------------------
 	UInstancedStaticMeshComponent
