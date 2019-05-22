@@ -1444,7 +1444,7 @@ EMouseCursor::Type FEditorViewportClient::GetCursor(FViewport* InViewport,int32 
 		MouseCursor = EMouseCursor::CardinalCross;
 	}
 	//wyisyg mode
-	else if (IsUsingAbsoluteTranslation() && bHasMouseMovedSinceClick)
+	else if (IsUsingAbsoluteTranslation(true) && bHasMouseMovedSinceClick)
 	{
 		MouseCursor = EMouseCursor::CardinalCross;
 	}
@@ -2101,30 +2101,30 @@ void FEditorViewportClient::UpdateMouseDelta()
 			{
 				bWidgetAxisControlledByDrag = false;
 				Widget->SetCurrentAxis( EAxisList::None );
-				MouseDeltaTracker->ConvertMovementDeltaToDragRot(this, DragDelta, Drag, Rot, Scale);
+				MouseDeltaTracker->ConvertMovementDeltaToDragRot(DragStartView, this, DragDelta, Drag, Rot, Scale);
 				Widget->SetCurrentAxis( CurrentAxis );
 				CurrentAxis = EAxisList::None;
 			}
 			else
 			{
-				//if Absolute Translation, and not just moving the camera around
-				if (IsUsingAbsoluteTranslation())
+				if (DragStartView == nullptr)
 				{
-					if (DragStartView == nullptr)
-					{
-						// Compute a view.
-						DragStartViewFamily = new FSceneViewFamily(FSceneViewFamily::ConstructionValues(
-							Viewport,
-							GetScene(),
-							EngineShowFlags)
-							.SetRealtimeUpdate(IsRealtime()));
-						DragStartView = CalcSceneView(DragStartViewFamily);
-					}
+					// Compute a view.
+					DragStartViewFamily = new FSceneViewFamily(FSceneViewFamily::ConstructionValues(
+						Viewport,
+						GetScene(),
+						EngineShowFlags)
+						.SetRealtimeUpdate(IsRealtime()));
+					DragStartView = CalcSceneView(DragStartViewFamily);
+				}
+				//if Absolute Translation, and not just moving the camera around
+				if (IsUsingAbsoluteTranslation(false))
+				{ 
 					MouseDeltaTracker->AbsoluteTranslationConvertMouseToDragRot(DragStartView, this, Drag, Rot, Scale);
 				} 
 				else
 				{
-					MouseDeltaTracker->ConvertMovementDeltaToDragRot(this, DragDelta, Drag, Rot, Scale);
+					MouseDeltaTracker->ConvertMovementDeltaToDragRot(DragStartView, this, DragDelta, Drag, Rot, Scale);
 				}
 			}
 
@@ -2397,14 +2397,17 @@ void FEditorViewportClient::MarkMouseMovedSinceClick()
 }
 
 /** Determines whether this viewport is currently allowed to use Absolute Movement */
-bool FEditorViewportClient::IsUsingAbsoluteTranslation() const
+bool FEditorViewportClient::IsUsingAbsoluteTranslation(bool bAlsoCheckAbsoluteRotation) const
 {
 	bool bIsHotKeyAxisLocked = Viewport->KeyState(EKeys::LeftControl) || Viewport->KeyState(EKeys::RightControl);
 	bool bCameraLockedToWidget = !(Widget && Widget->GetCurrentAxis() & EAxisList::Screen) && (Viewport->KeyState(EKeys::LeftShift) || Viewport->KeyState(EKeys::RightShift));
 	// Screen-space movement must always use absolute translation
-	bool bScreenSpaceTransformation = Widget && (Widget->GetCurrentAxis() == EAxisList::Screen);
+	bool bScreenSpaceTransformation = Widget && (Widget->GetCurrentAxis() == EAxisList::Screen) && GetWidgetMode() != FWidget::WM_Rotate;
 	bool bAbsoluteMovementEnabled = GetDefault<ULevelEditorViewportSettings>()->bUseAbsoluteTranslation || bScreenSpaceTransformation;
-	bool bCurrentWidgetSupportsAbsoluteMovement = FWidget::AllowsAbsoluteTranslationMovement( GetWidgetMode() ) || bScreenSpaceTransformation;
+	bool bCurrentWidgetSupportsAbsoluteMovement = FWidget::AllowsAbsoluteTranslationMovement( GetWidgetMode()) || bScreenSpaceTransformation;
+	EAxisList::Type AxisType = Widget ? Widget->GetCurrentAxis() : EAxisList::None;
+
+	bool bCurrentWidgetSupportsAbsoluteRotation = bAlsoCheckAbsoluteRotation ? FWidget::AllowsAbsoluteRotationMovement(GetWidgetMode(), AxisType) : false;
 	bool bWidgetActivelyTrackingAbsoluteMovement = Widget && (Widget->GetCurrentAxis() != EAxisList::None);
 
 	const bool LeftMouseButtonDown = Viewport->KeyState(EKeys::LeftMouseButton);
@@ -2413,7 +2416,7 @@ bool FEditorViewportClient::IsUsingAbsoluteTranslation() const
 
 	const bool bAnyMouseButtonsDown = (LeftMouseButtonDown || MiddleMouseButtonDown || RightMouseButtonDown);
 
-	return (!bCameraLockedToWidget && !bIsHotKeyAxisLocked && bAbsoluteMovementEnabled && bCurrentWidgetSupportsAbsoluteMovement && bWidgetActivelyTrackingAbsoluteMovement && !IsOrtho() && bAnyMouseButtonsDown);
+	return (!bCameraLockedToWidget && !bIsHotKeyAxisLocked && bAbsoluteMovementEnabled && (bCurrentWidgetSupportsAbsoluteMovement || bCurrentWidgetSupportsAbsoluteRotation) && bWidgetActivelyTrackingAbsoluteMovement && !IsOrtho() && bAnyMouseButtonsDown);
 }
 
 void FEditorViewportClient::SetMatineeRecordingWindow (IMatineeBase* InInterpEd)
@@ -4627,8 +4630,8 @@ void FEditorViewportClient::UpdateRequiredCursorVisibility()
 		}
 	}
 
-	//if Absolute Translation and not just moving the camera around
-	if (IsUsingAbsoluteTranslation() && !MouseDeltaTracker->UsingDragTool() )
+	//if Absolute Translation or arc rotate and not just moving the camera around
+	if (IsUsingAbsoluteTranslation(true) && !MouseDeltaTracker->UsingDragTool())
 	{
 		//If we are dragging something we should hide the hardware cursor and show the s/w one
 		SetRequiredCursor(false, true);

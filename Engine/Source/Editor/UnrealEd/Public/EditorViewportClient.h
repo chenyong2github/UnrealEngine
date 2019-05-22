@@ -949,7 +949,7 @@ public:
 	void MarkMouseMovedSinceClick();
 
 	/** Determines whether this viewport is currently allowed to use Absolute Movement */
-	bool IsUsingAbsoluteTranslation() const;
+	bool IsUsingAbsoluteTranslation(bool bAlsoCheckAbsoluteRotation = false) const;
 
 	bool IsForcedRealtimeAudio() const { return bForceAudioRealtime; }
 
