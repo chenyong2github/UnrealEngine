@@ -155,7 +155,8 @@ public:
 			int j = (int)RefCounts.GetLength();
 			while (j < Index) 
 			{
-				RefCounts.Add(INVALID_REF_COUNT);
+				int InvalidCount = INVALID_REF_COUNT;	// required on older clang because a constexpr can't be passed by ref
+				RefCounts.Add(InvalidCount);
 				FreeIndices.Add(j);
 				++j;
 			}
@@ -198,7 +199,8 @@ public:
 			int j = (int)RefCounts.GetLength();
 			while (j < Index) 
 			{
-				RefCounts.Add(INVALID_REF_COUNT);
+				int InvalidCount = INVALID_REF_COUNT;	// required on older clang because a constexpr can't be passed by ref
+				RefCounts.Add(InvalidCount);
 				++j;
 			}
 			RefCounts.Add(1);
