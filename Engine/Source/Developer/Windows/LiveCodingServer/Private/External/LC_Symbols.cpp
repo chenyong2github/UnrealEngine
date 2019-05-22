@@ -2207,6 +2207,13 @@ namespace symbols
 	}
 
 
+	bool IsExceptionUnwindSymbolForDynamicInitializer(const ImmutableString& symbolName)
+	{
+		return (StartsWithPatterns(symbolName.c_str(), symbolPatterns::EXCEPTION_UNWIND_PATTERNS) &&
+			ContainsPatterns(symbolName.c_str(), symbolPatterns::DYNAMIC_INITIALIZER_PATTERNS));
+	}
+
+
 	bool IsRuntimeCheckRelatedSymbol(const ImmutableString& symbolName)
 	{
 		return ContainsPatterns(symbolName.c_str(), symbolPatterns::RTC_PATTERNS);

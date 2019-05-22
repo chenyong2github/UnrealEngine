@@ -17,6 +17,9 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/App.h"
 
+// JumpToSelf is an extern function coming from assembler source
+extern void JumpToSelf(void);
+
 namespace
 {
 	template <typename T>
@@ -60,7 +63,7 @@ ClientStartupThread::~ClientStartupThread(void)
 		// give the server a chance to deal with disconnected clients
 		if (m_pipeClient->IsValid())
 		{
-			m_pipeClient->SendCommandAndWaitForAck(commands::DisconnectClient{});
+			m_pipeClient->SendCommandAndWaitForAck(commands::DisconnectClient {}, nullptr, 0u);
 		}
 		m_pipeClient->Close();
 	}
@@ -108,13 +111,11 @@ ClientStartupThread::~ClientStartupThread(void)
 
 void ClientStartupThread::Start(const char* const groupName, RunMode::Enum runMode)
 {
-	// spawn a thread that does all the initialization work
-	ThreadContext* context = new ThreadContext;
-	context->thisInstance = this;
-	context->processGroupName = string::ToWideString(groupName);
-	context->runMode = runMode;
-
-	m_thread = thread::Create(128u * 1024u, &ThreadProxy, context);
+	// spawn a thread that does all the initialization work.
+	// in the context of mutexes, jobs, named shared memory, etc. object names behave similar to
+	// file names and are not allowed to contain certain characters.
+	std::wstring safeProcessGroupName = string::MakeSafeName(string::ToWideString(groupName));
+	m_thread = thread::Create("Live coding startup", 128u * 1024u, &ClientStartupThread::ThreadFunction, this, safeProcessGroupName, runMode);
 }
 
 
@@ -130,31 +131,63 @@ void ClientStartupThread::Join(void)
 
 void* ClientStartupThread::EnableModule(const wchar_t* const nameOfExeOrDll)
 {
-	return m_userCommandThread->EnableModule(nameOfExeOrDll);
+	// wait for the startup thread to finish initialization
+	Join();
+
+	if (m_userCommandThread)
+	{
+		return m_userCommandThread->EnableModule(nameOfExeOrDll);
+	}
+
+	return nullptr;
 }
 
 
 void* ClientStartupThread::EnableAllModules(const wchar_t* const nameOfExeOrDll)
 {
-	return m_userCommandThread->EnableAllModules(nameOfExeOrDll);
+	// wait for the startup thread to finish initialization
+	Join();
+
+	if (m_userCommandThread)
+	{
+		return m_userCommandThread->EnableAllModules(nameOfExeOrDll);
+	}
+
+	return nullptr;
 }
 
 
 void* ClientStartupThread::DisableModule(const wchar_t* const nameOfExeOrDll)
 {
-	return m_userCommandThread->DisableModule(nameOfExeOrDll);
+	// wait for the startup thread to finish initialization
+	Join();
+
+	if (m_userCommandThread)
+	{
+		return m_userCommandThread->DisableModule(nameOfExeOrDll);
+	}
+
+	return nullptr;
 }
 
 
 void* ClientStartupThread::DisableAllModules(const wchar_t* const nameOfExeOrDll)
 {
-	return m_userCommandThread->DisableAllModules(nameOfExeOrDll);
+	// wait for the startup thread to finish initialization
+	Join();
+
+	if (m_userCommandThread)
+	{
+		return m_userCommandThread->DisableAllModules(nameOfExeOrDll);
+	}
+
+	return nullptr;
 }
 
 
 void ClientStartupThread::WaitForToken(void* token)
 {
-	// we cannot wait for commands in the user command thread as long as startup hasn't finished
+	// wait for the startup thread to finish initialization
 	Join();
 
 	if (m_userCommandThread)
@@ -166,7 +199,7 @@ void ClientStartupThread::WaitForToken(void* token)
 
 void ClientStartupThread::TriggerRecompile(void)
 {
-	// we cannot wait for commands in the user command thread as long as startup hasn't finished
+	// wait for the startup thread to finish initialization
 	Join();
 
 	if (m_userCommandThread)
@@ -178,7 +211,7 @@ void ClientStartupThread::TriggerRecompile(void)
 
 void ClientStartupThread::BuildPatch(const wchar_t* moduleNames[], const wchar_t* objPaths[], const wchar_t* amalgamatedObjPaths[], unsigned int count)
 {
-	// we cannot wait for commands in the user command thread as long as startup hasn't finished
+	// wait for the startup thread to finish initialization
 	Join();
 
 	if (m_userCommandThread)
@@ -190,7 +223,7 @@ void ClientStartupThread::BuildPatch(const wchar_t* moduleNames[], const wchar_t
 
 void ClientStartupThread::InstallExceptionHandler(void)
 {
-	// we cannot wait for commands in the user command thread as long as startup hasn't finished
+	// wait for the startup thread to finish initialization
 	Join();
 
 	if (m_userCommandThread)
@@ -270,7 +303,7 @@ void ClientStartupThread::EnableLazyLoadedModule(const wchar_t* fileName, Window
 
 void ClientStartupThread::ApplySettingBool(const char* const settingName, int value)
 {
-	// we cannot wait for commands in the user command thread as long as startup hasn't finished
+	// wait for the startup thread to finish initialization
 	Join();
 
 	if (m_userCommandThread)
@@ -282,7 +315,7 @@ void ClientStartupThread::ApplySettingBool(const char* const settingName, int va
 
 void ClientStartupThread::ApplySettingInt(const char* const settingName, int value)
 {
-	// we cannot wait for commands in the user command thread as long as startup hasn't finished
+	// wait for the startup thread to finish initialization
 	Join();
 
 	if (m_userCommandThread)
@@ -294,30 +327,13 @@ void ClientStartupThread::ApplySettingInt(const char* const settingName, int val
 
 void ClientStartupThread::ApplySettingString(const char* const settingName, const wchar_t* const value)
 {
-	// we cannot wait for commands in the user command thread as long as startup hasn't finished
+	// wait for the startup thread to finish initialization
 	Join();
 
 	if (m_userCommandThread)
 	{
 		m_userCommandThread->ApplySettingString(settingName, value);
 	}
-}
-
-
-unsigned int __stdcall ClientStartupThread::ThreadProxy(void* context)
-{
-	thread::SetName("Live coding startup");
-
-	ThreadContext* realContext = static_cast<ThreadContext*>(context);
-
-	// in the context of mutexes, jobs, named shared memory, etc. object names behave similar to
-	// file names and are not allowed to contain certain characters.
-	const std::wstring& safeProcessGroupName = string::MakeSafeName(realContext->processGroupName);
-	const unsigned int exitCode = realContext->thisInstance->ThreadFunction(safeProcessGroupName, realContext->runMode);
-
-	delete realContext;
-
-	return exitCode;
 }
 
 
@@ -337,7 +353,7 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 	// the first one will spawn the Live++ process, all others will connect to the same process.
 	{
 		InterprocessMutex initProcessMutex(primitiveNames::StartupMutex(processGroupName).c_str());
-		initProcessMutex.Lock();
+		InterprocessMutex::ScopedLock mutexLock(&initProcessMutex);
 
 		m_sharedMemory = new NamedSharedMemory(primitiveNames::StartupNamedSharedMemory(processGroupName).c_str());
 		if (m_sharedMemory->IsOwnedByCallingProcess())
@@ -392,8 +408,6 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 				::AssignProcessToJobObject(m_job, m_processHandle);
 			}
 		}
-
-		initProcessMutex.Unlock();
 	}
 
 	if (!m_processHandle)
@@ -445,7 +459,7 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 	m_userCommandThread->Start(processGroupName, m_startEvent, m_pipeClientCS);
 
 	// register this process with Live++
-	m_pipeClient->SendCommandAndWaitForAck(commands::RegisterProcess { process::GetBase(), process::GetId(), commandThreadId });
+	m_pipeClient->SendCommandAndWaitForAck(commands::RegisterProcess { process::GetBase(), process::GetId(), commandThreadId, &JumpToSelf }, nullptr, 0u);
 
 	// handle commands until registration is finished
 	{

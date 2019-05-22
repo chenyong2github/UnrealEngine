@@ -64,14 +64,6 @@ public:
 	// END EPIC MOD
 
 private:
-	struct ThreadContext
-	{
-		ClientStartupThread* thisInstance;
-		std::wstring processGroupName;
-		RunMode::Enum runMode;
-	};
-
-	static unsigned int __stdcall ThreadProxy(void* context);
 	unsigned int ThreadFunction(const std::wstring& groupName, RunMode::Enum runMode);
 
 	HINSTANCE m_instance;

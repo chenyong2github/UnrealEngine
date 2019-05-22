@@ -20,8 +20,9 @@ namespace executable
 
 	struct Header
 	{
+		uint64_t sizeOnDisk;
 		IMAGE_FILE_HEADER imageHeader;
-		uint64_t size;
+		IMAGE_OPTIONAL_HEADER optionalHeader;
 	};
 
 	typedef file::MemoryFile Image;
@@ -39,6 +40,16 @@ namespace executable
 		std::vector<ImageSection> sections;
 	};
 
+	struct ImportModule
+	{
+		char path[MAX_PATH];
+	};
+
+	struct ImportModuleDB
+	{
+		std::vector<ImportModule> modules;
+	};
+
 
 	Image* OpenImage(const wchar_t* filename, file::OpenMode::Enum openMode);
 	void CloseImage(Image*& image);
@@ -46,8 +57,12 @@ namespace executable
 	void RebaseImage(Image* image, PreferredBase preferredBase);
 
 
-	ImageSectionDB* GatherSections(const Image* image);
+	ImageSectionDB* GatherImageSectionDB(const Image* image);
 	void DestroyImageSectionDB(ImageSectionDB* database);
+
+	ImportModuleDB* GatherImportModuleDB(const Image* image, const ImageSectionDB* imageSections);
+	void DestroyImportModuleDB(ImportModuleDB* database);
+
 
 
 
@@ -100,7 +115,10 @@ namespace std
 	{
 		inline std::size_t operator()(const executable::Header& header) const
 		{
-			return static_cast<uint32_t>(XXH32(&header.imageHeader, sizeof(executable::Header::imageHeader), 0u));
+			const uint32_t hash1 = XXH32(&header.imageHeader, sizeof(executable::Header::imageHeader), 0u);
+			const uint32_t hash2 = XXH32(&header.optionalHeader, sizeof(executable::Header::optionalHeader), hash1);
+
+			return hash2;
 		}
 	};
 
@@ -109,10 +127,23 @@ namespace std
 	{
 		inline bool operator()(const executable::Header& lhs, const executable::Header& rhs) const
 		{
-			if (lhs.size != rhs.size)
+			// comparing just the size on disk is fastest
+			if (lhs.sizeOnDisk != rhs.sizeOnDisk)
+			{
 				return false;
+			}
+			// comparing the image header is the second-best option
+			else if (::memcmp(&lhs.imageHeader, &rhs.imageHeader, sizeof(executable::Header::imageHeader)) != 0)
+			{
+				return false;
+			}
+			// comparing the optional header is slowest
+			else if (::memcmp(&lhs.optionalHeader, &rhs.optionalHeader, sizeof(executable::Header::optionalHeader)) != 0)
+			{
+				return false;
+			}
 
-			return (::memcmp(&lhs.imageHeader, &rhs.imageHeader, sizeof(executable::Header::imageHeader)) == 0);
+			return true;
 		}
 	};
 }

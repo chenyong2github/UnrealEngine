@@ -115,6 +115,13 @@ LPP_DLL_API void* __cdecl LppDisableAllModules(const wchar_t* const nameOfExeOrD
 
 LPP_DLL_API void __cdecl LppWaitForToken(void* token)
 {
+	if (!token)
+	{
+		// nullptr tokens are returned by Live++ when trying to enable modules which are not loaded into the host process.
+		// therefore, we need to handle this case gracefully.
+		return;
+	}
+
 	g_startupThread->WaitForToken(token);
 }
 

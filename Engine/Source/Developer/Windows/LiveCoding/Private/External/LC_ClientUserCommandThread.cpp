@@ -8,404 +8,150 @@
 #include "LC_Process.h"
 #include "LC_CriticalSection.h"
 #include "LC_StringUtil.h"
+#include "LC_Executable.h"
+#include "LC_MemoryStream.h"
+#include "LC_Logging.h"
 #include <deque>
-
-
-namespace userCommands
-{
-	struct Scope
-	{
-		enum Enum
-		{
-			NONE,
-			ENABLE_MODULES,
-			DISABLE_MODULES,
-		};
-	};
-
-	struct BaseCommand
-	{
-		explicit BaseCommand(Scope::Enum scope)
-			: m_scope(scope)
-		{
-		}
-
-		virtual ~BaseCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) = 0;
-		
-		inline Scope::Enum GetScope(void) const
-		{
-			return m_scope;
-		}
-
-	private:
-		Scope::Enum m_scope;
-	};
-
-	struct EnableModuleCommand : public BaseCommand
-	{
-		EnableModuleCommand(void)
-			: BaseCommand(Scope::ENABLE_MODULES)
-			, token(nullptr)
-			, moduleName()
-		{
-		}
-
-		virtual ~EnableModuleCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) override
-		{
-			commands::EnableModule serverCommand;
-			serverCommand.processId = process::GetId();
-			wcscpy_s(serverCommand.path, moduleName.c_str());
-			serverCommand.token = token;
-
-			pipe->SendCommandAndWaitForAck(serverCommand);
-		}
-
-		Event* token;
-		std::wstring moduleName;
-	};
-
-	struct EnableAllModulesCommand : public BaseCommand
-	{
-		EnableAllModulesCommand(void)
-			: BaseCommand(Scope::ENABLE_MODULES)
-			, token(nullptr)
-			, moduleName()
-		{
-		}
-
-		virtual ~EnableAllModulesCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) override
-		{
-			commands::EnableAllModules serverCommand;
-			serverCommand.processId = process::GetId();
-			wcscpy_s(serverCommand.path, moduleName.c_str());
-			serverCommand.token = token;
-
-			pipe->SendCommandAndWaitForAck(serverCommand);
-		}
-
-		Event* token;
-		std::wstring moduleName;
-	};
-
-	struct DisableModuleCommand : public BaseCommand
-	{
-		DisableModuleCommand(void)
-			: BaseCommand(Scope::DISABLE_MODULES)
-			, token(nullptr)
-			, moduleName()
-		{
-		}
-
-		virtual ~DisableModuleCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) override
-		{
-			commands::DisableModule serverCommand;
-			serverCommand.processId = process::GetId();
-			wcscpy_s(serverCommand.path, moduleName.c_str());
-			serverCommand.token = token;
-
-			pipe->SendCommandAndWaitForAck(serverCommand);
-		}
-
-		Event* token;
-		std::wstring moduleName;
-	};
-
-	struct DisableAllModulesCommand : public BaseCommand
-	{
-		DisableAllModulesCommand(void)
-			: BaseCommand(Scope::DISABLE_MODULES)
-			, token(nullptr)
-			, moduleName()
-		{
-		}
-
-		virtual ~DisableAllModulesCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) override
-		{
-			commands::DisableAllModules serverCommand;
-			serverCommand.processId = process::GetId();
-			wcscpy_s(serverCommand.path, moduleName.c_str());
-			serverCommand.token = token;
-
-			pipe->SendCommandAndWaitForAck(serverCommand);
-		}
-
-		Event* token;
-		std::wstring moduleName;
-	};
-
-	struct TriggerRecompileCommand : public BaseCommand
-	{
-		TriggerRecompileCommand(void)
-			: BaseCommand(Scope::NONE)
-		{
-		}
-
-		virtual ~TriggerRecompileCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) override
-		{
-			commands::TriggerRecompile serverCommand;
-			pipe->SendCommandAndWaitForAck(serverCommand);
-		}
-	};
-
-	// BEGIN EPIC MOD - Adding ShowConsole command
-	struct ShowConsoleCommand : public BaseCommand
-	{
-		ShowConsoleCommand(void)
-			: BaseCommand(Scope::NONE)
-		{
-		}
-
-		virtual ~ShowConsoleCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) override
-		{
-			commands::ShowConsole serverCommand;
-			pipe->SendCommandAndWaitForAck(serverCommand);
-		}
-	};
-	// END EPIC MOD
-
-	// BEGIN EPIC MOD - Adding SetVisible command
-	struct SetVisibleCommand : public BaseCommand
-	{
-		SetVisibleCommand(void)
-			: BaseCommand(Scope::NONE)
-		{
-		}
-
-		virtual ~SetVisibleCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) override
-		{
-			commands::SetVisible serverCommand;
-			serverCommand.visible = visible;
-			pipe->SendCommandAndWaitForAck(serverCommand);
-		}
-
-		bool visible;
-	};
-	// END EPIC MOD
-
-	// BEGIN EPIC MOD - Adding SetActive command
-	struct SetActiveCommand : public BaseCommand
-	{
-		SetActiveCommand(void)
-			: BaseCommand(Scope::NONE)
-		{
-		}
-
-		virtual ~SetActiveCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) override
-		{
-			commands::SetActive serverCommand;
-			serverCommand.active = active;
-			pipe->SendCommandAndWaitForAck(serverCommand);
-		}
-
-		bool active;
-	};
-	// END EPIC MOD
-
-	// BEGIN EPIC MOD - Adding SetActive command
-	struct SetBuildArgumentsCommand : public BaseCommand
-	{
-		SetBuildArgumentsCommand(void)
-			: BaseCommand(Scope::NONE)
-		{
-		}
-
-		virtual ~SetBuildArgumentsCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) override
-		{
-			commands::SetBuildArguments serverCommand;
-			serverCommand.processId = process::GetId();
-			wcscpy_s(serverCommand.arguments, arguments.c_str());
-			pipe->SendCommandAndWaitForAck(serverCommand);
-		}
-
-		std::wstring arguments;
-	};
-	// END EPIC MOD
-
-	// BEGIN EPIC MOD - Support for lazy-loading modules
-	struct EnableLazyLoadedModuleCommand : public BaseCommand
-	{
-		EnableLazyLoadedModuleCommand(void)
-			: BaseCommand(Scope::NONE)
-		{
-		}
-
-		virtual ~EnableLazyLoadedModuleCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) override
-		{
-			commands::EnableLazyLoadedModule serverCommand;
-			serverCommand.processId = process::GetId();
-			wcscpy_s(serverCommand.fileName, fileName.c_str());
-			serverCommand.moduleBase = moduleBase;
-			pipe->SendCommandAndWaitForAck(serverCommand);
-		}
-
-		std::wstring fileName;
-		Windows::HMODULE moduleBase;
-	};
-	// END EPIC MOD
-
-
-	struct BuildPatchCommand : public BaseCommand
-	{
-		BuildPatchCommand(void)
-			: BaseCommand(Scope::NONE)
-			, count(0u)
-			, moduleNames()
-			, objPaths()
-			, amalgamatedObjPaths()
-		{
-		}
-
-		virtual ~BuildPatchCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) override
-		{
-			commands::BuildPatch serverCommand;
-			serverCommand.count = count;
-			pipe->SendCommandAndWaitForAck(serverCommand);
-
-			for (unsigned int i = 0u; i < count; ++i)
-			{
-				commands::BuildPatchPacket packet;
-				wcscpy_s(packet.moduleName, moduleNames[i].c_str());
-				wcscpy_s(packet.objPath, objPaths[i].c_str());
-				wcscpy_s(packet.amalgamatedObjPath, amalgamatedObjPaths[i].c_str());
-
-				pipe->SendCommandAndWaitForAck(packet);
-			}
-		}
-
-		unsigned int count;
-		std::vector<std::wstring> moduleNames;
-		std::vector<std::wstring> objPaths;
-		std::vector<std::wstring> amalgamatedObjPaths;
-	};
-
-	struct ApplySettingBoolCommand : public BaseCommand
-	{
-		ApplySettingBoolCommand(void)
-			: BaseCommand(Scope::NONE)
-			, settingName()
-			, value(0)
-		{
-		}
-
-		virtual ~ApplySettingBoolCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) override
-		{
-			commands::ApplySettingBool serverCommand;
-			strcpy_s(serverCommand.settingName, settingName.c_str());
-			serverCommand.settingValue = value;
-			pipe->SendCommandAndWaitForAck(serverCommand);
-		}
-
-		std::string settingName;
-		int value;
-	};
-
-	struct ApplySettingIntCommand : public BaseCommand
-	{
-		ApplySettingIntCommand(void)
-			: BaseCommand(Scope::NONE)
-			, settingName()
-			, value(0)
-		{
-		}
-
-		virtual ~ApplySettingIntCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) override
-		{
-			commands::ApplySettingInt serverCommand;
-			strcpy_s(serverCommand.settingName, settingName.c_str());
-			serverCommand.settingValue = value;
-			pipe->SendCommandAndWaitForAck(serverCommand);
-		}
-
-		std::string settingName;
-		int value;
-	};
-
-	struct ApplySettingStringCommand : public BaseCommand
-	{
-		ApplySettingStringCommand(void)
-			: BaseCommand(Scope::NONE)
-			, settingName()
-			, value()
-		{
-		}
-
-		virtual ~ApplySettingStringCommand(void) {}
-
-		virtual void Execute(DuplexPipe* pipe) override
-		{
-			commands::ApplySettingString serverCommand;
-			strcpy_s(serverCommand.settingName, settingName.c_str());
-			wcscpy_s(serverCommand.settingValue, value.c_str());
-			pipe->SendCommandAndWaitForAck(serverCommand);
-		}
-
-		std::string settingName;
-		std::wstring value;
-	};
-}
+#include <unordered_set>
 
 
 namespace
 {
-	// queue for working on commands received by user code
-	static std::deque<userCommands::BaseCommand*> g_userCommandQueue;
-	static CriticalSection g_userCommandQueueCS;
+	template <typename T>
+	class ProxyCommand : public ClientUserCommandThread::BaseCommand
+	{
+	public:
+		ProxyCommand(bool expectResponse, size_t payloadSize)
+			: BaseCommand(expectResponse)
+			, m_command()
+			, m_payload(payloadSize)
+		{
+		}
+
+		virtual void Execute(DuplexPipe* pipe) override
+		{
+			pipe->SendCommandAndWaitForAck(m_command, m_payload.GetData(), m_payload.GetSize());
+		}
+
+		T m_command;
+		memoryStream::Writer m_payload;
+
+		LC_DISABLE_COPY(ProxyCommand);
+		LC_DISABLE_MOVE(ProxyCommand);
+		LC_DISABLE_ASSIGNMENT(ProxyCommand);
+		LC_DISABLE_MOVE_ASSIGNMENT(ProxyCommand);
+	};
+
+	// gathers module data for the given module, its import modules, the import's import modules, and so forth
+	static std::vector<commands::ModuleData> GatherImportModuleData(HMODULE mainModule)
+	{
+		std::vector<commands::ModuleData> moduleDatas;
+		moduleDatas.reserve(1024u);
+
+		std::unordered_set<std::wstring> loadedModules;
+		loadedModules.reserve(1024u);
+
+		std::vector<HMODULE> modules;
+		modules.reserve(1024u);
+
+		modules.push_back(mainModule);
+		while (!modules.empty())
+		{
+			const HMODULE module = modules.back();
+			modules.pop_back();
+
+			// get the absolute path of the module.
+			// this automatically takes care of API sets used by Windows 7 and later. in a nutshell, these API sets
+			// allow redirection of an API DLL to an underlying OS DLL, e.g. api-ms-win-core-apiquery-l1-1-0.dll redirects
+			// to ntdll.dll.
+			wchar_t fullPath[MAX_PATH];
+			::GetModuleFileNameW(module, fullPath, MAX_PATH);
+
+			// did we load the imports of this module already?
+			auto findIt = loadedModules.find(fullPath);
+			if (findIt == loadedModules.end())
+			{
+				loadedModules.insert(fullPath);
+
+				// add data for this module
+				{
+					commands::ModuleData moduleData = {};
+					moduleData.base = module;
+					wcscpy_s(moduleData.path, fullPath);
+					moduleDatas.emplace_back(moduleData);
+				}
+
+				executable::Image* image = executable::OpenImage(fullPath, file::OpenMode::READ_ONLY);
+				if (image)
+				{
+					executable::ImageSectionDB* imageSections = executable::GatherImageSectionDB(image);
+					if (imageSections)
+					{
+						executable::ImportModuleDB* importModules = executable::GatherImportModuleDB(image, imageSections);
+						if (importModules)
+						{
+							for (size_t i = 0; i < importModules->modules.size(); ++i)
+							{
+								const char* importModulePath = importModules->modules[i].path;
+
+								// only add the import module if it is loaded into the process
+								HMODULE importModule = ::GetModuleHandleA(importModulePath);
+								if (importModule)
+								{
+									modules.push_back(importModule);
+								}
+								else
+								{
+									LC_ERROR_USER("Cannot enable module %s because it is not loaded by this process.", importModulePath);
+								}
+							}
+
+							executable::DestroyImportModuleDB(importModules);
+						}
+
+						executable::DestroyImageSectionDB(imageSections);
+					}
+
+					executable::CloseImage(image);
+				}
+			}
+		}
+
+		return moduleDatas;
+	}
 }
 
-// BEGIN EPIC MOD - Allow manually batching commands
-void BeginCommandBatch()
+
+ClientUserCommandThread::BaseCommand::BaseCommand(bool expectResponse)
+	: m_expectResponse(expectResponse)
 {
-	g_userCommandQueueCS.Enter();
 }
 
-void EndCommandBatch()
+
+ClientUserCommandThread::BaseCommand::~BaseCommand(void)
 {
-	g_userCommandQueueCS.Leave();
 }
-// END EPIC MOD
 
+
+bool ClientUserCommandThread::BaseCommand::ExpectsResponse(void) const
+{
+	return m_expectResponse;
+}
 
 ClientUserCommandThread::ClientUserCommandThread(DuplexPipeClient* pipeClient, DuplexPipeClient* exceptionPipeClient)
 	: m_thread(INVALID_HANDLE_VALUE)
 	, m_processGroupName()
 	, m_pipe(pipeClient)
 	, m_exceptionPipe(exceptionPipeClient)
-	, m_itemInQueueEvent(new Event(nullptr, Event::Type::MANUAL_RESET))
+	, m_userCommandQueue()
+	, m_userCommandQueueCS()
+	, m_userCommandQueueSema(0, 65535u)
 {
 }
 
 
 ClientUserCommandThread::~ClientUserCommandThread(void)
 {
-	delete m_itemInQueueEvent;
 }
 
 
@@ -414,12 +160,7 @@ unsigned int ClientUserCommandThread::Start(const std::wstring& processGroupName
 	m_processGroupName = processGroupName;
 
 	// spawn a thread that does the work
-	ThreadContext* context = new ThreadContext;
-	context->thisInstance = this;
-	context->waitForStartEvent = waitForStartEvent;
-	context->pipeAccessCS = pipeAccessCS;
-
-	m_thread = thread::Create(128u * 1024u, &ThreadProxy, context);
+	m_thread = thread::Create("Live coding user commands", 128u * 1024u, &ClientUserCommandThread::ThreadFunction, this, waitForStartEvent, pipeAccessCS);
 
 	return thread::GetId(m_thread);
 }
@@ -437,69 +178,110 @@ void ClientUserCommandThread::Join(void)
 
 void* ClientUserCommandThread::EnableModule(const wchar_t* const nameOfExeOrDll)
 {
-	userCommands::EnableModuleCommand* command = new userCommands::EnableModuleCommand;
-	command->token = new Event(nullptr, Event::Type::AUTO_RESET);
-	command->moduleName = nameOfExeOrDll;
+	HMODULE module = ::GetModuleHandleW(nameOfExeOrDll);
+	if (!module)
 	{
-		CriticalSection::ScopedLock lock(&g_userCommandQueueCS);
-		g_userCommandQueue.push_front(command);
+		LC_ERROR_USER("Cannot enable module %S because it is not loaded by this process.", nameOfExeOrDll);
+		return nullptr;
 	}
 
-	// signal to the thread that a new item is in the queue
-	m_itemInQueueEvent->Signal();
+	ProxyCommand<commands::EnableModules>* proxy = new ProxyCommand<commands::EnableModules>(true, sizeof(commands::ModuleData)*1u);
+	proxy->m_command.processId = process::GetId();
+	proxy->m_command.moduleCount = 1u;
+	proxy->m_command.token = new Event(nullptr, Event::Type::AUTO_RESET);
 
-	return command->token;
+	commands::ModuleData moduleData = {};
+	moduleData.base = module;
+	::GetModuleFileNameW(module, moduleData.path, MAX_PATH);
+
+	proxy->m_payload.Write(moduleData);
+
+	PushUserCommand(proxy);
+
+	return proxy->m_command.token;
 }
-
 
 void* ClientUserCommandThread::EnableAllModules(const wchar_t* const nameOfExeOrDll)
 {
-	userCommands::EnableAllModulesCommand* command = new userCommands::EnableAllModulesCommand;
-	command->token = new Event(nullptr, Event::Type::AUTO_RESET);
-	command->moduleName = nameOfExeOrDll;
+	HMODULE module = ::GetModuleHandleW(nameOfExeOrDll);
+	if (!module)
 	{
-		CriticalSection::ScopedLock lock(&g_userCommandQueueCS);
-		g_userCommandQueue.push_front(command);
+		LC_ERROR_USER("Cannot enable module %S because it is not loaded by this process.", nameOfExeOrDll);
+		return nullptr;
 	}
 
-	// signal to the thread that a new item is in the queue
-	m_itemInQueueEvent->Signal();
+	const std::vector<commands::ModuleData>& allModuleData = GatherImportModuleData(module);
+	const size_t moduleCount = allModuleData.size();
 
-	return command->token;
+	ProxyCommand<commands::EnableModules>* proxy = new ProxyCommand<commands::EnableModules>(true, sizeof(commands::ModuleData) * moduleCount);
+	proxy->m_command.processId = process::GetId();
+	proxy->m_command.moduleCount = static_cast<unsigned int>(moduleCount);
+	proxy->m_command.token = new Event(nullptr, Event::Type::AUTO_RESET);
+
+	for (size_t i = 0u; i < moduleCount; ++i)
+	{
+		const commands::ModuleData& moduleData = allModuleData[i];
+		proxy->m_payload.Write(moduleData);
+	}
+
+	PushUserCommand(proxy);
+
+	return proxy->m_command.token;
 }
 
 
 void* ClientUserCommandThread::DisableModule(const wchar_t* const nameOfExeOrDll)
 {
-	userCommands::DisableModuleCommand* command = new userCommands::DisableModuleCommand;
-	command->token = new Event(nullptr, Event::Type::AUTO_RESET);
-	command->moduleName = nameOfExeOrDll;
+	HMODULE module = ::GetModuleHandleW(nameOfExeOrDll);
+	if (!module)
 	{
-		CriticalSection::ScopedLock lock(&g_userCommandQueueCS);
-		g_userCommandQueue.push_front(command);
+		LC_ERROR_USER("Cannot disable module %S because it is not loaded by this process.", nameOfExeOrDll);
+		return nullptr;
 	}
 
-	// signal to the thread that a new item is in the queue
-	m_itemInQueueEvent->Signal();
+	ProxyCommand<commands::DisableModules>* proxy = new ProxyCommand<commands::DisableModules>(true, sizeof(commands::ModuleData) * 1u);
+	proxy->m_command.processId = process::GetId();
+	proxy->m_command.moduleCount = 1u;
+	proxy->m_command.token = new Event(nullptr, Event::Type::AUTO_RESET);
 
-	return command->token;
+	commands::ModuleData moduleData = {};
+	moduleData.base = module;
+	::GetModuleFileNameW(module, moduleData.path, MAX_PATH);
+
+	proxy->m_payload.Write(moduleData);
+
+	PushUserCommand(proxy);
+
+	return proxy->m_command.token;
 }
 
 
 void* ClientUserCommandThread::DisableAllModules(const wchar_t* const nameOfExeOrDll)
 {
-	userCommands::DisableAllModulesCommand* command = new userCommands::DisableAllModulesCommand;
-	command->token = new Event(nullptr, Event::Type::AUTO_RESET);
-	command->moduleName = nameOfExeOrDll;
+	HMODULE module = ::GetModuleHandleW(nameOfExeOrDll);
+	if (!module)
 	{
-		CriticalSection::ScopedLock lock(&g_userCommandQueueCS);
-		g_userCommandQueue.push_front(command);
+		LC_ERROR_USER("Cannot disable module %S because it is not loaded by this process.", nameOfExeOrDll);
+		return nullptr;
 	}
 
-	// signal to the thread that a new item is in the queue
-	m_itemInQueueEvent->Signal();
+	const std::vector<commands::ModuleData>& allModuleData = GatherImportModuleData(module);
+	const size_t moduleCount = allModuleData.size();
 
-	return command->token;
+	ProxyCommand<commands::DisableModules>* proxy = new ProxyCommand<commands::DisableModules>(true, sizeof(commands::ModuleData) * moduleCount);
+	proxy->m_command.processId = process::GetId();
+	proxy->m_command.moduleCount = static_cast<unsigned int>(moduleCount);
+	proxy->m_command.token = new Event(nullptr, Event::Type::AUTO_RESET);
+
+	for (size_t i = 0u; i < moduleCount; ++i)
+	{
+		const commands::ModuleData& moduleData = allModuleData[i];
+		proxy->m_payload.Write(moduleData);
+	}
+
+	PushUserCommand(proxy);
+
+	return proxy->m_command.token;
 }
 
 
@@ -519,48 +301,117 @@ void ClientUserCommandThread::WaitForToken(void* token)
 
 void ClientUserCommandThread::TriggerRecompile(void)
 {
-	userCommands::TriggerRecompileCommand* command = new userCommands::TriggerRecompileCommand;
-	{
-		CriticalSection::ScopedLock lock(&g_userCommandQueueCS);
-		g_userCommandQueue.push_front(command);
-	}
+	ProxyCommand<commands::TriggerRecompile>* proxy = new ProxyCommand<commands::TriggerRecompile>(false, 0u);
 
-	// signal to the thread that a new item is in the queue
-	m_itemInQueueEvent->Signal();
+	PushUserCommand(proxy);
 }
 
 
 void ClientUserCommandThread::BuildPatch(const wchar_t* moduleNames[], const wchar_t* objPaths[], const wchar_t* amalgamatedObjPaths[], unsigned int count)
 {
-	userCommands::BuildPatchCommand* command = new userCommands::BuildPatchCommand;
-	command->count = count;
-	command->moduleNames.reserve(count);
-	command->objPaths.reserve(count);
-	command->amalgamatedObjPaths.reserve(count);
+	const size_t perFileSize = sizeof(wchar_t) * MAX_PATH * 3u;
+
+	ProxyCommand<commands::BuildPatch>* proxy = new ProxyCommand<commands::BuildPatch>(false, perFileSize*count);
+	proxy->m_command.fileCount = count;
 
 	for (unsigned int i = 0u; i < count; ++i)
 	{
-		command->moduleNames.push_back(moduleNames[i]);
-		command->objPaths.push_back(objPaths[i]);
+		commands::BuildPatch::PatchData patchData = {};
+		wcscpy_s(patchData.moduleName, moduleNames[i]);
+		wcscpy_s(patchData.objPath, objPaths[i]);
 
 		// the amalgamated object paths are optional
 		if (amalgamatedObjPaths && amalgamatedObjPaths[i])
 		{
-			command->amalgamatedObjPaths.push_back(amalgamatedObjPaths[i]);
+			wcscpy_s(patchData.amalgamatedObjPath, amalgamatedObjPaths[i]);
 		}
-		else
-		{
-			command->amalgamatedObjPaths.push_back(std::wstring());
-		}
-	}
-	{
-		CriticalSection::ScopedLock lock(&g_userCommandQueueCS);
-		g_userCommandQueue.push_front(command);
+
+		proxy->m_payload.Write(patchData);
 	}
 
-	// signal to the thread that a new item is in the queue
-	m_itemInQueueEvent->Signal();
+	PushUserCommand(proxy);
 }
+
+
+void ClientUserCommandThread::ApplySettingBool(const char* const settingName, int value)
+{
+	ProxyCommand<commands::ApplySettingBool>* proxy = new ProxyCommand<commands::ApplySettingBool>(false, 0u);
+	strcpy_s(proxy->m_command.settingName, settingName);
+	proxy->m_command.settingValue = value;
+
+	PushUserCommand(proxy);
+}
+
+
+void ClientUserCommandThread::ApplySettingInt(const char* const settingName, int value)
+{
+	ProxyCommand<commands::ApplySettingInt>* proxy = new ProxyCommand<commands::ApplySettingInt>(false, 0u);
+	strcpy_s(proxy->m_command.settingName, settingName);
+	proxy->m_command.settingValue = value;
+
+	PushUserCommand(proxy);
+}
+
+
+void ClientUserCommandThread::ApplySettingString(const char* const settingName, const wchar_t* const value)
+{
+	ProxyCommand<commands::ApplySettingString>* proxy = new ProxyCommand<commands::ApplySettingString>(false, 0u);
+	strcpy_s(proxy->m_command.settingName, settingName);
+	wcscpy_s(proxy->m_command.settingValue, value);
+
+	PushUserCommand(proxy);
+}
+
+// BEGIN EPIC MOD - Adding ShowConsole command
+void ClientUserCommandThread::ShowConsole()
+{
+	ProxyCommand<commands::ShowConsole>* proxy = new ProxyCommand<commands::ShowConsole>(false, 0u);
+	PushUserCommand(proxy);
+}
+// END EPIC MOD
+
+// BEGIN EPIC MOD - Adding SetVisible command
+void ClientUserCommandThread::SetVisible(bool visible)
+{
+	ProxyCommand<commands::SetVisible>* proxy = new ProxyCommand<commands::SetVisible>(false, 0u);
+	proxy->m_command.visible = visible;
+
+	PushUserCommand(proxy);
+}
+// END EPIC MOD
+
+// BEGIN EPIC MOD - Adding SetActive command
+void ClientUserCommandThread::SetActive(bool active)
+{
+	ProxyCommand<commands::SetActive>* proxy = new ProxyCommand<commands::SetActive>(false, 0u);
+	proxy->m_command.active = active;
+
+	PushUserCommand(proxy);
+}
+// END EPIC MOD
+
+// BEGIN EPIC MOD - Adding SetBuildArguments command
+void ClientUserCommandThread::SetBuildArguments(const wchar_t* arguments)
+{
+	ProxyCommand<commands::SetBuildArguments>* proxy = new ProxyCommand<commands::SetBuildArguments>(false, 0u);
+	proxy->m_command.processId = process::GetId();
+	wcscpy_s(proxy->m_command.arguments, arguments);
+
+	PushUserCommand(proxy);
+}
+// END EPIC MOD
+
+// BEGIN EPIC MOD - Adding support for lazy-loading modules
+void ClientUserCommandThread::EnableLazyLoadedModule(const wchar_t* fileName, Windows::HMODULE moduleBase)
+{
+	ProxyCommand<commands::EnableLazyLoadedModule>* proxy = new ProxyCommand<commands::EnableLazyLoadedModule>(false, 0u);
+	proxy->m_command.processId = process::GetId();
+	wcscpy_s(proxy->m_command.fileName, fileName);
+	proxy->m_command.moduleBase = moduleBase;
+
+	PushUserCommand(proxy);
+}
+// END EPIC MOD
 
 
 void ClientUserCommandThread::InstallExceptionHandler(void)
@@ -580,7 +431,7 @@ ClientUserCommandThread::ExceptionResult ClientUserCommandThread::HandleExceptio
 	serverCommand.context = *context;
 	serverCommand.clientContextPtr = context;
 
-	m_exceptionPipe->SendCommandAndWaitForAck(serverCommand);
+	m_exceptionPipe->SendCommandAndWaitForAck(serverCommand, nullptr, 0u);
 
 	ExceptionResult result = {};
 
@@ -595,142 +446,31 @@ ClientUserCommandThread::ExceptionResult ClientUserCommandThread::HandleExceptio
 void ClientUserCommandThread::End(void)
 {
 	// signal to the thread that a new item is in the queue to make it break out of its main loop
-	m_itemInQueueEvent->Reset();
-	m_itemInQueueEvent->Signal();
+	PushUserCommand(nullptr);
 }
 
 
-// BEGIN EPIC MOD - Adding ShowConsole command
-void ClientUserCommandThread::ShowConsole()
+void ClientUserCommandThread::PushUserCommand(BaseCommand* command)
 {
-	userCommands::ShowConsoleCommand* command = new userCommands::ShowConsoleCommand;
 	{
-		CriticalSection::ScopedLock lock(&g_userCommandQueueCS);
-		g_userCommandQueue.push_front(command);
+		CriticalSection::ScopedLock lock(&m_userCommandQueueCS);
+		m_userCommandQueue.push_front(command);
 	}
 
 	// signal to the thread that a new item is in the queue
-	m_itemInQueueEvent->Signal();
-}
-// END EPIC MOD
-
-// BEGIN EPIC MOD - Adding SetVisible command
-void ClientUserCommandThread::SetVisible(bool visible)
-{
-	userCommands::SetVisibleCommand* command = new userCommands::SetVisibleCommand;
-	command->visible = visible;
-	{
-		CriticalSection::ScopedLock lock(&g_userCommandQueueCS);
-		g_userCommandQueue.push_front(command);
-	}
-
-	// signal to the thread that a new item is in the queue
-	m_itemInQueueEvent->Signal();
-}
-// END EPIC MOD
-
-// BEGIN EPIC MOD - Adding SetActive command
-void ClientUserCommandThread::SetActive(bool active)
-{
-	userCommands::SetActiveCommand* command = new userCommands::SetActiveCommand;
-	command->active = active;
-	{
-		CriticalSection::ScopedLock lock(&g_userCommandQueueCS);
-		g_userCommandQueue.push_front(command);
-	}
-
-	// signal to the thread that a new item is in the queue
-	m_itemInQueueEvent->Signal();
-}
-// END EPIC MOD
-
-// BEGIN EPIC MOD - Adding SetBuildArguments command
-void ClientUserCommandThread::SetBuildArguments(const wchar_t* arguments)
-{
-	userCommands::SetBuildArgumentsCommand* command = new userCommands::SetBuildArgumentsCommand;
-	command->arguments = arguments;
-	{
-		CriticalSection::ScopedLock lock(&g_userCommandQueueCS);
-		g_userCommandQueue.push_front(command);
-	}
-
-	// signal to the thread that a new item is in the queue
-	m_itemInQueueEvent->Signal();
-}
-// END EPIC MOD
-
-// BEGIN EPIC MOD - Adding support for lazy-loading modules
-void ClientUserCommandThread::EnableLazyLoadedModule(const wchar_t* fileName, Windows::HMODULE moduleBase)
-{
-	userCommands::EnableLazyLoadedModuleCommand* command = new userCommands::EnableLazyLoadedModuleCommand;
-	command->fileName = fileName;
-	command->moduleBase = moduleBase;
-	{
-		CriticalSection::ScopedLock lock(&g_userCommandQueueCS);
-		g_userCommandQueue.push_front(command);
-	}
-
-	// signal to the thread that a new item is in the queue
-	m_itemInQueueEvent->Signal();
-}
-// END EPIC MOD
-
-
-void ClientUserCommandThread::ApplySettingBool(const char* const settingName, int value)
-{
-	userCommands::ApplySettingBoolCommand* command = new userCommands::ApplySettingBoolCommand;
-	command->settingName = settingName;
-	command->value = value;
-	{
-		CriticalSection::ScopedLock lock(&g_userCommandQueueCS);
-		g_userCommandQueue.push_front(command);
-	}
-
-	// signal to the thread that a new item is in the queue
-	m_itemInQueueEvent->Signal();
+	m_userCommandQueueSema.Signal();
 }
 
 
-void ClientUserCommandThread::ApplySettingInt(const char* const settingName, int value)
+ClientUserCommandThread::BaseCommand* ClientUserCommandThread::PopUserCommand(void)
 {
-	userCommands::ApplySettingIntCommand* command = new userCommands::ApplySettingIntCommand;
-	command->settingName = settingName;
-	command->value = value;
-	{
-		CriticalSection::ScopedLock lock(&g_userCommandQueueCS);
-		g_userCommandQueue.push_front(command);
-	}
+	m_userCommandQueueSema.Wait();
 
-	// signal to the thread that a new item is in the queue
-	m_itemInQueueEvent->Signal();
-}
+	CriticalSection::ScopedLock lock(&m_userCommandQueueCS);
+	BaseCommand* command = m_userCommandQueue.back();
+	m_userCommandQueue.pop_back();
 
-
-void ClientUserCommandThread::ApplySettingString(const char* const settingName, const wchar_t* const value)
-{
-	userCommands::ApplySettingStringCommand* command = new userCommands::ApplySettingStringCommand;
-	command->settingName = settingName;
-	command->value = value;
-	{
-		CriticalSection::ScopedLock lock(&g_userCommandQueueCS);
-		g_userCommandQueue.push_front(command);
-	}
-
-	// signal to the thread that a new item is in the queue
-	m_itemInQueueEvent->Signal();
-}
-
-
-unsigned int __stdcall ClientUserCommandThread::ThreadProxy(void* context)
-{
-	thread::SetName("Live coding user commands");
-
-	ThreadContext* realContext = static_cast<ThreadContext*>(context);
-	const unsigned int exitCode = realContext->thisInstance->ThreadFunction(realContext->waitForStartEvent, realContext->pipeAccessCS);
-
-	delete realContext;
-
-	return exitCode;
+	return command;
 }
 
 
@@ -782,11 +522,8 @@ unsigned int ClientUserCommandThread::ThreadFunction(Event* waitForStartEvent, C
 	waitForStartEvent->Wait();
 
 	CommandMap moduleCommandMap;
-	moduleCommandMap.RegisterAction<actions::GetModule>();
-	moduleCommandMap.RegisterAction<actions::EnableModuleFinished>();
-	moduleCommandMap.RegisterAction<actions::EnableAllModulesFinished>();
-	moduleCommandMap.RegisterAction<actions::DisableModuleFinished>();
-	moduleCommandMap.RegisterAction<actions::DisableAllModulesFinished>();
+	moduleCommandMap.RegisterAction<actions::EnableModulesFinished>();
+	moduleCommandMap.RegisterAction<actions::DisableModulesFinished>();
 
 	// those commands are needed when loading compiled patches into spawned executables
 	moduleCommandMap.RegisterAction<actions::LoadPatch>();
@@ -798,8 +535,16 @@ unsigned int ClientUserCommandThread::ThreadFunction(Event* waitForStartEvent, C
 
 	for (;;)
 	{
-		// wait for event that signals that something is in the queue
-		m_itemInQueueEvent->Wait();
+		// wait until a command becomes available in the queue
+		BaseCommand* command = PopUserCommand();
+		if (command == nullptr)
+		{
+			// BEGIN EPIC MOD - Using internal CrashReporter
+			// // no new item available, bail out
+			// exceptionHandler::Unregister();
+			// END EPIC MOD - Using internal CrashReporter
+			return 2u;
+		}
 
 		if (!m_pipe->IsValid())
 		{
@@ -812,118 +557,17 @@ unsigned int ClientUserCommandThread::ThreadFunction(Event* waitForStartEvent, C
 
 		// lock critical section for accessing the pipe.
 		// we need to make sure that other threads talking through the pipe don't use it at the same time.
-		CriticalSection::ScopedLock pipeLock(pipeAccessCS);
-
-		// lock critical section for accessing the queue.
-		// user code might be calling other exported functions in the mean time.
-		// BEGIN EPIC MOD - Rearrange lock scope to prevent hangs
-		LeaveableScopedLock queueLock(&g_userCommandQueueCS);
-		// END EPIC MOD
-
-		if (g_userCommandQueue.size() == 0u)
 		{
-			// BEGIN EPIC MOD - Using internal CrashReporter
-			// // no new item available, bail out
-			// exceptionHandler::Unregister();
-			// END EPIC MOD - Using internal CrashReporter
-			return 2u;
-		}
+			CriticalSection::ScopedLock pipeLock(pipeAccessCS);
 
-		// separate commands into three groups: ones that need to be scoped for enabling modules, the ones that
-		// need to be scoped for disabling modules, and the others that don't need to be scoped at all
-		std::vector<userCommands::BaseCommand*> enabledScopedCommands;
-		enabledScopedCommands.reserve(g_userCommandQueue.size());
-
-		std::vector<userCommands::BaseCommand*> disableScopedCommands;
-		disableScopedCommands.reserve(g_userCommandQueue.size());
-
-		std::vector<userCommands::BaseCommand*> commands;
-		commands.reserve(g_userCommandQueue.size());
-
-		while (g_userCommandQueue.size() > 0u)
-		{
-			userCommands::BaseCommand* command = g_userCommandQueue.back();
-			g_userCommandQueue.pop_back();
-
-			if (command->GetScope() == userCommands::Scope::NONE)
+			command->Execute(m_pipe);
+			if (command->ExpectsResponse())
 			{
-				commands.push_back(command);
-			}
-			else if (command->GetScope() == userCommands::Scope::ENABLE_MODULES)
-			{
-				enabledScopedCommands.push_back(command);
-			}
-			else if (command->GetScope() == userCommands::Scope::DISABLE_MODULES)
-			{
-				disableScopedCommands.push_back(command);
+				moduleCommandMap.HandleCommands(m_pipe, nullptr);
 			}
 		}
 
-		// BEGIN EPIC MOD - Temporarily release lock to prevent hangs
-		queueLock.Leave();
-		// BEGIN EPIC MOD - Pre
-
-		// send out scoped commands first
-		{
-			const size_t count = enabledScopedCommands.size();
-			if (count != 0u)
-			{
-				m_pipe->SendCommandAndWaitForAck(commands::EnableModuleBatchBegin {});
-
-				for (size_t i=0u; i < count; ++i)
-				{
-					userCommands::BaseCommand* command = enabledScopedCommands[i];
-					command->Execute(m_pipe);
-
-					moduleCommandMap.HandleCommands(m_pipe, nullptr);
-
-					delete command;
-				}
-
-				m_pipe->SendCommandAndWaitForAck(commands::EnableModuleBatchEnd {});
-			}
-		}
-		{
-			const size_t count = disableScopedCommands.size();
-			if (count != 0u)
-			{
-				m_pipe->SendCommandAndWaitForAck(commands::DisableModuleBatchBegin{});
-
-				for (size_t i = 0u; i < count; ++i)
-				{
-					userCommands::BaseCommand* command = disableScopedCommands[i];
-					command->Execute(m_pipe);
-
-					moduleCommandMap.HandleCommands(m_pipe, nullptr);
-
-					delete command;
-				}
-
-				m_pipe->SendCommandAndWaitForAck(commands::DisableModuleBatchEnd{});
-			}
-		}
-
-		// send out non-scoped commands second
-		{
-			const size_t count = commands.size();
-			for (size_t i = 0u; i < count; ++i)
-			{
-				userCommands::BaseCommand* command = commands[i];
-				command->Execute(m_pipe);
-
-				delete command;
-			}
-		}
-
-		// BEGIN EPIC MOD - Temporarily release lock to prevent hangs
-		queueLock.Enter();
-		if(g_userCommandQueue.size() > 0)
-		{
-			continue;
-		}
-		// BEGIN EPIC MOD
-
-		m_itemInQueueEvent->Reset();
+		delete command;
 	}
 
 	return 0u;

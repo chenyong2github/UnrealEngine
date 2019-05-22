@@ -263,9 +263,6 @@ void FLiveCodingModule::UpdateModules()
 	TArray<FModuleStatus> ModuleStatuses;
 	FModuleManager::Get().QueryModules(ModuleStatuses);
 
-	extern void BeginCommandBatch();
-	BeginCommandBatch();
-
 	for (const FModuleStatus& ModuleStatus : ModuleStatuses)
 	{
 		if (ModuleStatus.bIsLoaded)
@@ -274,9 +271,6 @@ void FLiveCodingModule::UpdateModules()
 			ConfigureModule(FName(*ModuleStatus.Name), FullFilePath);
 		}
 	}
-
-	extern void EndCommandBatch();
-	EndCommandBatch();
 #endif
 }
 

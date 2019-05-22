@@ -123,3 +123,16 @@ void file::Close(MemoryFile*& memoryFile)
 	delete memoryFile;
 	memoryFile = nullptr;
 }
+
+
+uint64_t file::GetSizeOnDisk(const MemoryFile* file)
+{
+	::BY_HANDLE_FILE_INFORMATION info = {};
+	::GetFileInformationByHandle(file->file, &info);
+
+	::ULARGE_INTEGER integer = {};
+	integer.LowPart = info.nFileSizeLow;
+	integer.HighPart = info.nFileSizeHigh;
+
+	return static_cast<uint64_t>(integer.QuadPart);
+}

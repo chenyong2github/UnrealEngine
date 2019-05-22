@@ -346,6 +346,7 @@ namespace symbols
 
 	bool IsExceptionRelatedSymbol(const ImmutableString& symbolName);
 	bool IsExceptionClauseSymbol(const ImmutableString& symbolName);
+	bool IsExceptionUnwindSymbolForDynamicInitializer(const ImmutableString& symbolName);
 
 	bool IsRuntimeCheckRelatedSymbol(const ImmutableString& symbolName);
 	bool IsSdlCheckRelatedSymbol(const ImmutableString& symbolName);

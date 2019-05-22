@@ -338,28 +338,17 @@ namespace
 
 			logging::LogNoFormat<logging::Channel::USER>(compilerOutput);
 
-			if (updateType != LiveModule::UpdateType::NO_CLIENT_COMMUNICATION)
+			const size_t outputLength = processContext->stdoutData.length();
+			if (outputLength != 0u)
 			{
-				for (size_t p = 0u; p < processCount; ++p)
+				if (updateType != LiveModule::UpdateType::NO_CLIENT_COMMUNICATION)
 				{
-					const DuplexPipe* pipe = processData[p].liveProcess->GetPipe();
-
-					size_t sentAlready = 0u;
-					for (;;)
+					for (size_t p = 0u; p < processCount; ++p)
 					{
-						const size_t remainingOutput = processContext->stdoutData.length() - sentAlready;
-						const size_t toSend = remainingOutput > (commands::LogOutput::BUFFER_SIZE - 1u) ? (commands::LogOutput::BUFFER_SIZE - 1u) : remainingOutput;
+						const DuplexPipe* pipe = processData[p].liveProcess->GetPipe();
 
-						commands::LogOutput cmd { toSend };
-						memcpy(cmd.buffer, compilerOutput + sentAlready, toSend * sizeof(wchar_t));
-						cmd.buffer[toSend] = L'\0';
-						pipe->SendCommandAndWaitForAck(cmd);
-
-						sentAlready += toSend;
-						if (sentAlready >= processContext->stdoutData.length())
-						{
-							break;
-						}
+						commands::LogOutput cmd {};
+						pipe->SendCommandAndWaitForAck(cmd, compilerOutput, (outputLength + 1u) * sizeof(wchar_t));
 					}
 				}
 			}
@@ -551,8 +540,22 @@ namespace
 			// this is a relocation to the symbol in question
 			if (!relocations::WouldPatchRelocation(relocation, coffDb, srcSymbolName, findData))
 			{
-				// this relocation to the symbol would not be patched by us, hence we
-				// absolutely need this symbol
+				// this relocation to the symbol would not be patched by us, hence we probably need this symbol.
+				// however, there are special cases where we want to strip symbols even though we might not patch
+				// all relocations to it.
+
+				// special case #1: a relocation from an exception-related unwind symbol (?dtor$) to a
+				// dynamic initializer (??__E), e.g. a relocation from ?dtor$0@?0???__ESomeGlobalVariable@@YAXXZ@4HA
+				// ("int `void __cdecl `dynamic initializer for 'SomeGlobalVariable''(void)'::`1'::dtor$0")
+				// in this case, the relocation is not patched, but the dynamic initializer refers to an already
+				// existing symbol. that dynamic initializer will be removed by us later on anyway, hence
+				// those relocations do not really need patching.
+				if (symbols::IsExceptionUnwindSymbolForDynamicInitializer(srcSymbolName))
+				{
+					LC_LOG_DEV("Ignoring unpatched relocation from symbol %s", srcSymbolName.c_str());
+					continue;
+				}
+
 				return nullptr;
 			}
 		}
@@ -822,7 +825,7 @@ namespace
 				const DuplexPipe* pipe = processData.pipe;
 
 				LC_LOG_USER("Calling compile start hooks (PID: %d)", pid);
-				pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) });
+				pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) }, nullptr, 0u);
 			}
 		}
 	}
@@ -849,7 +852,7 @@ namespace
 				const DuplexPipe* pipe = processData.pipe;
 
 				LC_LOG_USER("Calling compile success hooks (PID: %d)", pid);				
-				pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) });
+				pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) }, nullptr, 0u);
 			}
 		}
 	}
@@ -876,7 +879,7 @@ namespace
 				const DuplexPipe* pipe = processData.pipe;
 
 				LC_LOG_USER("Calling compile error hooks (PID: %d)", pid);
-				pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) });
+				pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) }, nullptr, 0u);
 			}
 		}
 	}
@@ -1248,7 +1251,7 @@ void LiveModule::Unload(void)
 			}
 
 			const DuplexPipe* clientPipe = process.pipe;
-			clientPipe->SendCommandAndWaitForAck(commands::UnloadPatch { static_cast<HMODULE>(process.moduleBase) });
+			clientPipe->SendCommandAndWaitForAck(commands::UnloadPatch { static_cast<HMODULE>(process.moduleBase) }, nullptr, 0u);
 		}
 	}
 }
@@ -2165,7 +2168,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 		if (count > 0u)
 		{
 			executable::Image* image = executable::OpenImage(m_moduleName.c_str(), file::OpenMode::READ_ONLY);
-			executable::ImageSectionDB* imageSections = executable::GatherSections(image);
+			executable::ImageSectionDB* imageSections = executable::GatherImageSectionDB(image);
 
 			// load and cache all .obj not in the cache yet concurrently
 			{
@@ -3031,28 +3034,17 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 	{
 		logging::LogNoFormat<logging::Channel::USER>(linkerOutput);
 
-		if (updateType != LiveModule::UpdateType::NO_CLIENT_COMMUNICATION)
+		const size_t outputLength = linkerProcessContext->stdoutData.length();
+		if (outputLength != 0u)
 		{
-			for (size_t p = 0u; p < processCount; ++p)
+			if (updateType != LiveModule::UpdateType::NO_CLIENT_COMMUNICATION)
 			{
-				const DuplexPipe* pipe = processData[p].liveProcess->GetPipe();
-
-				size_t sentAlready = 0u;
-				for (;;)
+				for (size_t p = 0u; p < processCount; ++p)
 				{
-					const size_t remainingOutput = linkerProcessContext->stdoutData.length() - sentAlready;
-					const size_t toSend = remainingOutput > (commands::LogOutput::BUFFER_SIZE - 1u) ? (commands::LogOutput::BUFFER_SIZE - 1u) : remainingOutput;
+					const DuplexPipe* pipe = processData[p].liveProcess->GetPipe();
 
-					commands::LogOutput cmd { toSend };
-					memcpy(cmd.buffer, linkerOutput + sentAlready, toSend * sizeof(wchar_t));
-					cmd.buffer[toSend] = L'\0';
-					pipe->SendCommandAndWaitForAck(cmd);
-
-					sentAlready += toSend;
-					if (sentAlready >= linkerProcessContext->stdoutData.length())
-					{
-						break;
-					}
+					commands::LogOutput cmd {};
+					pipe->SendCommandAndWaitForAck(cmd, linkerOutput, (outputLength + 1u) * sizeof(wchar_t));
 				}
 			}
 		}
@@ -3103,7 +3095,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 		return ErrorType::LOAD_PATCH_ERROR;
 	}
 
-	executable::ImageSectionDB* imageSections = executable::GatherSections(image);
+	executable::ImageSectionDB* imageSections = executable::GatherImageSectionDB(image);
 
 	// before loading the DLL, disable its entry point so we can load it without initializing anything.
 	// we first want to reconstruct symbol information and patch dynamic initializers, only then do
@@ -3179,11 +3171,11 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 			process::Resume(data.liveProcess->GetProcessHandle());
 #endif
 
-			data.liveProcess->GetPipe()->SendCommandAndWaitForAck(cmd);
+			data.liveProcess->GetPipe()->SendCommandAndWaitForAck(cmd, nullptr, 0u);
 
 			// receive command with patch info
 			CommandMap commandMap;
-			commandMap.RegisterAction<LoadPatchInfoAction>();
+			commandMap.RegisterAction<actions::LoadPatchInfo>();
 			commandMap.HandleCommands(data.liveProcess->GetPipe(), &loadedPatches);
 		}
 	}
@@ -3224,7 +3216,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 		for (size_t i = 0u; i < processCount; ++i)
 		{
 			const DuplexPipe* clientPipe = processData[i].liveProcess->GetPipe();
-			clientPipe->SendCommandAndWaitForAck(commands::UnloadPatch { static_cast<HMODULE>(loadedPatches[i]) });
+			clientPipe->SendCommandAndWaitForAck(commands::UnloadPatch { static_cast<HMODULE>(loadedPatches[i]) }, nullptr, 0u);
 		}
 
 		// clear the set for the next update
@@ -3244,7 +3236,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 		for (size_t p = 0u; p < processCount; ++p)
 		{
 			const PerProcessData& data = processData[p];
-			data.liveProcess->GetPipe()->SendCommandAndWaitForAck(commands::EnterSyncPoint{});
+			data.liveProcess->GetPipe()->SendCommandAndWaitForAck(commands::EnterSyncPoint {}, nullptr, 0u);
 		}
 	}
 
@@ -3409,7 +3401,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 			LC_LOG_INDENT_DEV;
 
 			executable::Image* originalImage = executable::OpenImage(m_moduleName.c_str(), file::OpenMode::READ_ONLY);
-			executable::ImageSectionDB* originalImageSections = executable::GatherSections(originalImage);
+			executable::ImageSectionDB* originalImageSections = executable::GatherImageSectionDB(originalImage);
 
 			types::StringSet noSymbolsToIgnore;
 
@@ -3455,7 +3447,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 
 	// reconstruct symbols for all compilands that are part of the new patch executable
 	executable::Image* patchImage = executable::OpenImage(exePath.c_str(), file::OpenMode::READ_ONLY);
-	executable::ImageSectionDB* patchImageSections = executable::GatherSections(patchImage);
+	executable::ImageSectionDB* patchImageSections = executable::GatherImageSectionDB(patchImage);
 
 	// gather the dynamic initializers and remaining symbols by walking the module
 	const symbols::DynamicInitializerDB initializerDb = symbols::GatherDynamicInitializers(patchSymbolProvider, patchImage, patchImageSections, patch_imageSectionDB, patch_contributionDB, patch_compilandDB, m_coffCache, patch_symbolDB);
@@ -3557,7 +3549,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 					const DuplexPipe* pipe = hookProcessData.pipe;
 
 					LC_LOG_USER("Calling pre-patch hooks (PID: %d)", pid);
-					pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) });
+					pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) }, nullptr, 0u);
 				}
 
 				compiledModulePatch->RegisterPrePatchHooks(hookData.data->index, hookData.firstRva, hookData.lastRva);
@@ -3771,7 +3763,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 		for (size_t p = 0u; p < processCount; ++p)
 		{
 			const PerProcessData& data = processData[p];
-			data.liveProcess->GetPipe()->SendCommandAndWaitForAck(commands::CallEntryPoint { loadedPatches[p], entryPointRva });
+			data.liveProcess->GetPipe()->SendCommandAndWaitForAck(commands::CallEntryPoint { loadedPatches[p], entryPointRva }, nullptr, 0u);
 		}
 
 		// disable entry point in all processes again.
@@ -4120,7 +4112,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 					const DuplexPipe* pipe = hookData.data->processes[p].pipe;
 
 					LC_LOG_USER("Calling post-patch hooks (PID: %d)", pid);
-					pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) });
+					pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(moduleBase, hookData.firstRva), hook::MakeFunction(moduleBase, hookData.lastRva) }, nullptr, 0u);
 				}
 
 				compiledModulePatch->RegisterPostPatchHooks(hookData.data->index, hookData.firstRva, hookData.lastRva);
@@ -4134,7 +4126,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 		for (size_t p = 0u; p < processCount; ++p)
 		{
 			const PerProcessData& data = processData[p];
-			data.liveProcess->GetPipe()->SendCommandAndWaitForAck(commands::LeaveSyncPoint {});
+			data.liveProcess->GetPipe()->SendCommandAndWaitForAck(commands::LeaveSyncPoint {}, nullptr, 0u);
 		}
 	}
 
@@ -4165,6 +4157,12 @@ bool LiveModule::InstallCompiledPatches(LiveProcess* liveProcess, void* original
 	if (!appSettings::g_installCompiledPatchesMultiProcess->GetValue())
 	{
 		// don't install any patches
+		return true;
+	}
+
+	if (m_compiledModulePatches.size() == 0u)
+	{
+		// nothing to install
 		return true;
 	}
 
@@ -4240,11 +4238,11 @@ bool LiveModule::InstallCompiledPatches(LiveProcess* liveProcess, void* original
 			process::Resume(processHandle);
 #endif
 
-			pipe->SendCommandAndWaitForAck(cmd);
+			pipe->SendCommandAndWaitForAck(cmd, nullptr, 0u);
 
 			// receive command with patch info
 			CommandMap commandMap;
-			commandMap.RegisterAction<LoadPatchInfoAction>();
+			commandMap.RegisterAction<actions::LoadPatchInfo>();
 			commandMap.HandleCommands(pipe, &loadedPatches);
 		}
 
@@ -4254,13 +4252,13 @@ bool LiveModule::InstallCompiledPatches(LiveProcess* liveProcess, void* original
 		{
 			LC_ERROR_USER("Patch could not be activated.");
 
-			pipe->SendCommandAndWaitForAck(commands::UnloadPatch { static_cast<HMODULE>(moduleBase) });
+			pipe->SendCommandAndWaitForAck(commands::UnloadPatch { static_cast<HMODULE>(moduleBase) }, nullptr, 0u);
 			return false;
 		}
 
 
 		// enter sync point
-		pipe->SendCommandAndWaitForAck(commands::EnterSyncPoint {});
+		pipe->SendCommandAndWaitForAck(commands::EnterSyncPoint {}, nullptr, 0u);
 
 
 		// store the new databases into the module cache
@@ -4272,7 +4270,7 @@ bool LiveModule::InstallCompiledPatches(LiveProcess* liveProcess, void* original
 		LC_LOG_DEV("Calling pre-patch hooks");
 		{
 			void* hookModule = processModuleBases[patchData.prePatchHookModuleIndex];
-			pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(hookModule, patchData.firstPrePatchHook), hook::MakeFunction(hookModule, patchData.lastPrePatchHook) });
+			pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(hookModule, patchData.firstPrePatchHook), hook::MakeFunction(hookModule, patchData.lastPrePatchHook) }, nullptr, 0u);
 		}
 
 
@@ -4316,7 +4314,7 @@ bool LiveModule::InstallCompiledPatches(LiveProcess* liveProcess, void* original
 
 			LC_LOG_DEV("Calling original entry point");
 
-			pipe->SendCommandAndWaitForAck(commands::CallEntryPoint { moduleBase, entryPointRva });
+			pipe->SendCommandAndWaitForAck(commands::CallEntryPoint { moduleBase, entryPointRva }, nullptr, 0u);
 
 			executablePatcher.DisableEntryPoint(processHandle, moduleBase, entryPointRva);
 		}
@@ -4357,15 +4355,15 @@ bool LiveModule::InstallCompiledPatches(LiveProcess* liveProcess, void* original
 		LC_LOG_DEV("Calling post-patch hooks");
 		{
 			void* hookModule = processModuleBases[patchData.postPatchHookModuleIndex];
-			pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(hookModule, patchData.firstPostPatchHook), hook::MakeFunction(hookModule, patchData.lastPostPatchHook) });
+			pipe->SendCommandAndWaitForAck(commands::CallHooks { hook::MakeFunction(hookModule, patchData.firstPostPatchHook), hook::MakeFunction(hookModule, patchData.lastPostPatchHook) }, nullptr, 0u);
 		}
 
 
 		// leave sync point
-		pipe->SendCommandAndWaitForAck(commands::LeaveSyncPoint {});
+		pipe->SendCommandAndWaitForAck(commands::LeaveSyncPoint {}, nullptr, 0u);
 	}
 
-	LC_SUCCESS_USER("Successfully installed patches (%.3fs)", wholeScope.ReadSeconds());
+	LC_SUCCESS_USER("Successfully installed %zu patches (%.3fs)", m_compiledModulePatches.size(), wholeScope.ReadSeconds());
 
 	return true;
 }
@@ -4401,7 +4399,7 @@ bool LiveModule::HasInstalledPatches(void) const
 }
 
 
-bool LiveModule::LoadPatchInfoAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
+bool LiveModule::actions::LoadPatchInfo::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
 	types::vector<void*>* loadedPatches = static_cast<types::vector<void*>*>(context);
 	loadedPatches->emplace_back(command->module);
