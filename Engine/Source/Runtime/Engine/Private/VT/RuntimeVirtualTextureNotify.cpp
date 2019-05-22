@@ -28,7 +28,7 @@ namespace RuntimeVirtualTexture
 	{
 		for (TObjectIterator<UPrimitiveComponent> It; It; ++It)
 		{
-			for (URuntimeVirtualTexture* ItVirtualTexture : It->RuntimeVirtualTextures)
+			for (URuntimeVirtualTexture* ItVirtualTexture : It->GetRuntimeVirtualTextures())
 			{
 				if (ItVirtualTexture == VirtualTexture)
 				{
@@ -37,24 +37,6 @@ namespace RuntimeVirtualTexture
 				}
 			}
 		}
-
-		/*
-		for (TObjectIterator<ULandscapeComponent> It; It; ++It)
-		{
-			ALandscape* Landscape = It->GetLandscapeActor();
-			if (Landscape != nullptr)
-			{
-				for (URuntimeVirtualTexture* ItVirtualTexture : Landscape->RuntimeVirtualTextures)
-				{
-					if (ItVirtualTexture == VirtualTexture)
-					{
-						It->MarkRenderStateDirty();
-						break;
-					}
-				}
-			}
-		}
-		*/
 	}
 
 #endif
@@ -66,6 +48,11 @@ namespace RuntimeVirtualTexture
 		// Can we pre-calculate the list of materials to touch during cook? But even then touching here them will be extra work...
 		// Is there a way to set up dependencies so that we load the materials _after_ the virtual texture is allocated?
 		// Or maybe we should consider serializing the WorldToUVTransform in the URuntimeVirtualTexture and not depending on a URuntimeVirtualTextureComponent at runtime?
+
+		if (VirtualTexture == nullptr)
+		{
+			return;
+		}
 
 		TSet<UMaterial*> BaseMaterialsThatUseThisTexture;
 		for (TObjectIterator<UMaterialInterface> It; It; ++It)

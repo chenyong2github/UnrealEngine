@@ -862,23 +862,6 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 
 	bSupportsHeightfieldRepresentation = true;
 
-	// Store the target runtime virtual texture information
-	if (UseVirtualTexturing(FeatureLevel))
-	{
-		//todo[vt]: Should the virtual texture settings be in the component overrides?
-		for (URuntimeVirtualTexture* VirtualTexture : InComponent->GetLandscapeProxy()->RuntimeVirtualTextures)
-		{
-			if (VirtualTexture != nullptr && VirtualTexture->GetEnabled())
-			{
-				RuntimeVirtualTextures.Add(VirtualTexture);
-				RuntimeVirtualTextureMaterialTypes.Add(VirtualTexture->GetMaterialType());
-
-				//todo[vt]: Only flush specific virtual textures
-				//todo[vt]: Only flush primitive bounds 
-				GetRendererModule().FlushVirtualTextureCache();
-			}
-		}
-	}
 #if WITH_EDITOR
 	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = InComponent->GetWeightmapLayerAllocations();
 	
@@ -5040,13 +5023,6 @@ FLandscapeMeshProxySceneProxy::~FLandscapeMeshProxySceneProxy()
 	for (FLandscapeNeighborInfo& Info : ProxyNeighborInfos)
 	{
 		Info.UnregisterNeighbors();
-	}
-
-	for (URuntimeVirtualTexture* VirtualTexture : RuntimeVirtualTextures)
-	{
-		//todo[vt]: Only flush specific virtual textures
-		//todo[vt]: Only flush primitive bounds 
-		GetRendererModule().FlushVirtualTextureCache();
 	}
 }
 

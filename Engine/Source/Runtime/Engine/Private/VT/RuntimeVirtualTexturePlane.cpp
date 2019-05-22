@@ -66,7 +66,7 @@ void URuntimeVirtualTextureComponent::DestroyRenderState_Concurrent()
 	Super::DestroyRenderState_Concurrent();
 }
 
-void URuntimeVirtualTextureComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void URuntimeVirtualTextureComponent::NotifyMaterials()
 {
 	if (bNotifyInNextTick)
 	{
@@ -75,6 +75,17 @@ void URuntimeVirtualTextureComponent::TickComponent(float DeltaTime, ELevelTick 
 		RuntimeVirtualTexture::NotifyMaterials(VirtualTexture);
 		bNotifyInNextTick = false;
 	}
+}
+
+void URuntimeVirtualTextureComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	NotifyMaterials();
+}
+
+void URuntimeVirtualTextureComponent::OnUnregister()
+{
+	NotifyMaterials();
+	Super::OnUnregister();
 }
 
 #if WITH_EDITOR

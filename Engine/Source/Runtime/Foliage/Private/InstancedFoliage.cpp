@@ -1354,13 +1354,11 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 		}
 		if (Component->RuntimeVirtualTextures != FoliageType->RuntimeVirtualTextures)
 		{
-			//todo[vt]: Trigger a virtual texture flush somewhere withing the update chain
 			Component->RuntimeVirtualTextures = FoliageType->RuntimeVirtualTextures;
 			bNeedsMarkRenderStateDirty = true;
 		}
 		if (Component->VirtualTextureRenderPassType != FoliageType->VirtualTextureRenderPassType)
 		{
-			//todo[vt]: Trigger a virtual texture flush somewhere withing the update chain
 			Component->VirtualTextureRenderPassType = FoliageType->VirtualTextureRenderPassType;
 			bNeedsMarkRenderStateDirty = true;
 		}

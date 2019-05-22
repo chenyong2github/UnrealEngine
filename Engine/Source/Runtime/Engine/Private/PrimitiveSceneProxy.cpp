@@ -209,15 +209,10 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 	bRequiresVisibleLevelToRender = (ComponentLevel && ComponentLevel->bRequireFullVisibilityToRender);
 	bIsComponentLevelVisible = (!ComponentLevel || ComponentLevel->bIsVisible);
 
-#if WITH_EDITOR
-	const bool bGetDebugMaterials = true;
-	InComponent->GetUsedMaterials(UsedMaterialsForVerification, bGetDebugMaterials);
-#endif
-
-	// Store the target runtime virtual texture information
+	// Setup the runtime virtual texture information and flush the virtual texture if necessary
 	if (UseVirtualTexturing(GetScene().GetFeatureLevel()))
 	{
-		for (URuntimeVirtualTexture* VirtualTexture : InComponent->RuntimeVirtualTextures)
+		for (URuntimeVirtualTexture* VirtualTexture : InComponent->GetRuntimeVirtualTextures())
 		{
 			if (VirtualTexture != nullptr && VirtualTexture->GetEnabled())
 			{
@@ -230,6 +225,21 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 			}
 		}
 	}
+
+	// Conditionally remove from the main render pass based on the runtime virtual texture setup
+	ERuntimeVirtualTextureMainPassType MainPassType = InComponent->GetVirtualTextureRenderPassType();
+	const bool bRequestVirtualTexture = InComponent->GetRuntimeVirtualTextures().Num() > 0;
+	const bool bUseVirtualTexture = RuntimeVirtualTextures.Num() > 0;
+	if ((MainPassType == ERuntimeVirtualTextureMainPassType::Never && bRequestVirtualTexture) ||
+		(MainPassType == ERuntimeVirtualTextureMainPassType::Exclusive && bUseVirtualTexture))
+	{
+		bRenderInMainPass = false;
+	}
+
+#if WITH_EDITOR
+	const bool bGetDebugMaterials = true;
+	InComponent->GetUsedMaterials(UsedMaterialsForVerification, bGetDebugMaterials);
+#endif
 }
 
 #if WITH_EDITOR

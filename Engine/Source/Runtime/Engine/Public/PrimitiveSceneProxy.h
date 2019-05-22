@@ -970,7 +970,7 @@ protected:
 
 	/** Array of virtual textures that this proxy should render to. */
 	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
-	TArray<ERuntimeVirtualTextureMaterialType> RuntimeVirtualTextureMaterialTypes;
+	TSet<ERuntimeVirtualTextureMaterialType> RuntimeVirtualTextureMaterialTypes;
 
 private:
 	/** The hierarchy of owners of this primitive.  These must not be dereferenced on the rendering thread, but the pointer values can be used for identification.  */

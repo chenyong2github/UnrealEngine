@@ -67,11 +67,15 @@ public:
 #endif
 
 protected:
+	/** Apply any deferred material notifications. */
+	void NotifyMaterials();
+
 	//~ Begin UActorComponent Interface
 	virtual void CreateRenderState_Concurrent() override;
 	virtual void SendRenderTransform_Concurrent() override;
 	virtual void DestroyRenderState_Concurrent() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	virtual void OnUnregister() override;
 	//~ End UActorComponent Interface
 
 public:
