@@ -177,6 +177,12 @@ void FRenderAssetUpdate::Tick(EThreadType InCurrentThread)
 		{
 			bIsLocked = CS.TryLock();
 		}
+		else if (InCurrentThread == TT_GameRunningAsync)
+		{
+			// When the GameThread tries to execute the async task, in GC, allow several attempts.
+			bIsLocked = CS.TryLock();
+			InCurrentThread = TT_Async;
+		}
 		else
 		{
 			CS.Lock();

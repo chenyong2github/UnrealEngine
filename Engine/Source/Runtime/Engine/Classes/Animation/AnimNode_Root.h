@@ -9,12 +9,20 @@
 
 // Root node of an animation tree (sink)
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_Root : public FAnimNode_Base
+struct ENGINE_API FAnimNode_Root : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Links)
 	FPoseLink Result;
+
+	/** The name of this root node, used to identify the output of this graph. Filled in by the compiler, propagated from the parent graph. */
+	UPROPERTY()
+	FName Name;
+
+	/** The group of this root node, used to group this output with others when used in a layer. */
+	UPROPERTY()
+	FName Group;
 
 public:	
 	FAnimNode_Root();

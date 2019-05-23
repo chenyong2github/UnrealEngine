@@ -73,120 +73,103 @@ void FPyReferenceCollector::PurgeUnrealObjectReferences(const TArrayView<const U
 
 void FPyReferenceCollector::PurgeUnrealGeneratedTypes()
 {
-	auto RunPurgeUnrealGeneratedTypes = [this](const bool bLogFailure) -> bool
+	FPurgingReferenceCollector PurgingReferenceCollector;
+	TArray<FWeakObjectPtr> WeakReferencesToPurgedObjects;
+
+	auto FlagObjectForPurge = [&PurgingReferenceCollector, &WeakReferencesToPurgedObjects](UObject* InObject, const bool bMarkPendingKill)
 	{
-		FPurgingReferenceCollector PurgingReferenceCollector;
-		TArray<FWeakObjectPtr> WeakReferencesToPurgedObjects;
+		check(!InObject->HasAnyInternalFlags(EInternalObjectFlags::Native));
 
-		auto FlagObjectForPurge = [&PurgingReferenceCollector, &WeakReferencesToPurgedObjects](UObject* InObject, const bool bMarkPendingKill)
+		if (InObject->IsRooted())
 		{
-			if (!InObject->HasAnyInternalFlags(EInternalObjectFlags::Native) && !InObject->HasAnyFlags(RF_ClassDefaultObject))
-			{
-				if (InObject->IsRooted())
-				{
-					InObject->RemoveFromRoot();
-				}
-				InObject->ClearFlags(RF_Public | RF_Standalone);
-				if (bMarkPendingKill)
-				{
-					InObject->MarkPendingKill();
-				}
+			InObject->RemoveFromRoot();
+		}
+		InObject->ClearFlags(RF_Public | RF_Standalone);
 
-				WeakReferencesToPurgedObjects.Add(InObject);
+		if (!InObject->HasAnyFlags(RF_ClassDefaultObject))
+		{
+			if (bMarkPendingKill)
+			{
+				InObject->MarkPendingKill();
 			}
-
-			PurgingReferenceCollector.AddObjectToPurge(InObject);
-		};
-
-		// Clean-up Python generated class types and instances
-		// The class types are instances of UPythonGeneratedClass
-		{
-			ForEachObjectOfClass(UPythonGeneratedClass::StaticClass(), [&FlagObjectForPurge](UObject* InObject)
-			{
-				UPythonGeneratedClass* PythonGeneratedClass = CastChecked<UPythonGeneratedClass>(InObject);
-				bool bMarkClassPendingKill = false; // Mark types as PendingKill if they have no instances left (excluding their CDO)
-
-				ForEachObjectOfClass(PythonGeneratedClass, [&bMarkClassPendingKill, &FlagObjectForPurge](UObject* InInnerObject)
-				{
-					bMarkClassPendingKill &= InInnerObject->HasAnyFlags(RF_ClassDefaultObject);
-					FlagObjectForPurge(InInnerObject, /*bMarkPendingKill*/true);
-				}, false);
-
-				FlagObjectForPurge(PythonGeneratedClass, bMarkClassPendingKill);
-			}, false);
+			WeakReferencesToPurgedObjects.Add(InObject);
 		}
 
-		// Clean-up Python generated struct types
-		// The struct types are instances of UPythonGeneratedStruct
-		{
-			ForEachObjectOfClass(UPythonGeneratedStruct::StaticClass(), [&FlagObjectForPurge](UObject* InObject)
-			{
-				FlagObjectForPurge(InObject, /*bMarkPendingKill*/false);
-			}, false);
-		}
-
-		// Clean-up Python generated enum types
-		// The enum types are instances of UPythonGeneratedEnum
-		{
-			ForEachObjectOfClass(UPythonGeneratedEnum::StaticClass(), [&FlagObjectForPurge](UObject* InObject)
-			{
-				FlagObjectForPurge(InObject, /*bMarkPendingKill*/false);
-			}, false);
-		}
-
-		// Clean-up Python callable types and instances
-		// The callable types all derive directly from UPythonCallableForDelegate
-		{
-			TArray<UClass*> PythonCallableClasses;
-			GetDerivedClasses(UPythonCallableForDelegate::StaticClass(), PythonCallableClasses, true);
-
-			for (UClass* PythonCallableClass : PythonCallableClasses)
-			{
-				bool bMarkClassPendingKill = false; // Mark types as PendingKill if they have no instances left (excluding their CDO)
-
-				ForEachObjectOfClass(PythonCallableClass, [&bMarkClassPendingKill, &FlagObjectForPurge](UObject* InObject)
-				{
-					bMarkClassPendingKill &= InObject->HasAnyFlags(RF_ClassDefaultObject);
-					FlagObjectForPurge(InObject, /*bMarkPendingKill*/true);
-				}, false);
-
-				FlagObjectForPurge(PythonCallableClass, bMarkClassPendingKill);
-			}
-		}
-
-		if (PurgingReferenceCollector.HasObjectToPurge())
-		{
-			AddReferencedObjects(PurgingReferenceCollector);
-			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-
-			bool bHasLeftoverObjects = false;
-			for (const FWeakObjectPtr& WeakReferencesToPurgedObject : WeakReferencesToPurgedObjects)
-			{
-				if (UObject* FailedToPurgeObject = WeakReferencesToPurgedObject.Get())
-				{
-					bHasLeftoverObjects = true;
-					if (bLogFailure)
-					{
-						UE_LOG(LogPython, Warning, TEXT("Object '%s' failed to purge when requested by PurgeUnrealGeneratedTypes. This may lead to crashes!"), *FailedToPurgeObject->GetPathName());
-					}
-					else if (bHasLeftoverObjects)
-					{
-						break;
-					}
-				}
-			}
-			return bHasLeftoverObjects;
-		}
-
-		return false;
+		PurgingReferenceCollector.AddObjectToPurge(InObject);
 	};
 
-	// We run two purge passes:
-	//  - Pass 1 will force purge any type instances, and any types that have no instances
-	//  - Pass 2 will purge any types that no longer have instances left after running pass 1
-	if (RunPurgeUnrealGeneratedTypes(/*bLogFailure*/false))
+	// Clean-up Python generated class types and instances
+	// The class types are instances of UPythonGeneratedClass
 	{
-		RunPurgeUnrealGeneratedTypes(/*bLogFailure*/false);
+		ForEachObjectOfClass(UPythonGeneratedClass::StaticClass(), [&FlagObjectForPurge](UObject* InObject)
+		{
+			FlagObjectForPurge(InObject, /*bMarkPendingKill*/false);
+
+			UPythonGeneratedClass* PythonGeneratedClass = CastChecked<UPythonGeneratedClass>(InObject);
+			ForEachObjectOfClass(PythonGeneratedClass, [&FlagObjectForPurge](UObject* InInnerObject)
+			{
+				FlagObjectForPurge(InInnerObject, /*bMarkPendingKill*/true);
+			}, false, RF_NoFlags, EInternalObjectFlags::Native);
+		}, false, RF_ClassDefaultObject, EInternalObjectFlags::Native);
+	}
+
+	// Clean-up Python generated struct types
+	// The struct types are instances of UPythonGeneratedStruct
+	{
+		ForEachObjectOfClass(UPythonGeneratedStruct::StaticClass(), [&FlagObjectForPurge](UObject* InObject)
+		{
+			FlagObjectForPurge(InObject, /*bMarkPendingKill*/false);
+		}, false, RF_ClassDefaultObject, EInternalObjectFlags::Native);
+	}
+
+	// Clean-up Python generated enum types
+	// The enum types are instances of UPythonGeneratedEnum
+	{
+		ForEachObjectOfClass(UPythonGeneratedEnum::StaticClass(), [&FlagObjectForPurge](UObject* InObject)
+		{
+			FlagObjectForPurge(InObject, /*bMarkPendingKill*/false);
+		}, false, RF_ClassDefaultObject, EInternalObjectFlags::Native);
+	}
+
+	// Clean-up Python callable types and instances
+	// The callable types all derive directly from UPythonCallableForDelegate
+	{
+		TArray<UClass*> PythonCallableClasses;
+		GetDerivedClasses(UPythonCallableForDelegate::StaticClass(), PythonCallableClasses, true);
+
+		for (UClass* PythonCallableClass : PythonCallableClasses)
+		{
+			// The classes themselves don't hold Python resources, so it's not imperative that 
+			// they are destroyed, but we don't need them anymore so attempt to let them die
+			PythonCallableClass->ClearFlags(RF_Public | RF_Standalone);
+
+			ForEachObjectOfClass(PythonCallableClass, [&FlagObjectForPurge](UObject* InObject)
+			{
+				FlagObjectForPurge(InObject, /*bMarkPendingKill*/true);
+			}, false, RF_NoFlags, EInternalObjectFlags::Native);
+		}
+	}
+
+	if (PurgingReferenceCollector.HasObjectToPurge())
+	{
+		AddReferencedObjects(PurgingReferenceCollector);
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+
+		for (const FWeakObjectPtr& WeakReferencesToPurgedObject : WeakReferencesToPurgedObjects)
+		{
+			if (UObject* FailedToPurgeObject = WeakReferencesToPurgedObject.Get())
+			{
+				if (IPythonResourceOwner* PythonResourceOwner = Cast<IPythonResourceOwner>(FailedToPurgeObject))
+				{
+					UE_LOG(LogPython, Display, TEXT("Object '%s' was externally referenced when shutting down Python. Forcibly releasing its Python resources!"), *FailedToPurgeObject->GetPathName());
+					PythonResourceOwner->ReleasePythonResources();
+				}
+				else
+				{
+					UE_LOG(LogPython, Warning, TEXT("Object '%s' was externally referenced when shutting down Python and could not gracefully cleaned-up. This may lead to crashes!"), *FailedToPurgeObject->GetPathName());
+				}
+			}
+		}
 	}
 }
 

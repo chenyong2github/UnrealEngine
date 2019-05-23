@@ -25,6 +25,8 @@ class UAnimGraphNode_SaveCachedPose;
 class UAnimGraphNode_UseCachedPose;
 class UAnimGraphNode_SubInput;
 class UAnimGraphNode_SubInstance;
+class UAnimGraphNode_SubInstanceBase;
+class UAnimGraphNode_Root;
 
 class UStructProperty;
 class UBlueprintGeneratedClass;
@@ -57,6 +59,8 @@ protected:
 	virtual void EnsureProperGeneratedClass(UClass*& TargetClass) override;
 	virtual void CleanAndSanitizeClass(UBlueprintGeneratedClass* ClassToClean, UObject*& InOldCDO) override;
 	virtual void FinishCompilingClass(UClass* Class) override;
+	virtual void PrecompileFunction(FKismetFunctionContext& Context, EInternalCompilerFlags InternalFlags) override;
+	virtual void SetCalculatedMetaDataAndFlags(UFunction* Function, UK2Node_FunctionEntry* EntryNode, const UEdGraphSchema_K2* Schema ) override;
 	// End of FKismetCompilerContext interface
 
 protected:
@@ -283,6 +287,9 @@ protected:
 	// Set of used handler function names
 	TSet<FName> HandlerFunctionNames;
 
+	// Stub graphs we generated for animation graph functions
+	TArray<UEdGraph*> GeneratedStubGraphs;
+
 	// True if any parent class is also generated from an animation blueprint
 	bool bIsDerivedAnimBlueprint;
 private:
@@ -310,11 +317,17 @@ private:
 	void ProcessCustomPropertyNode(UAnimGraphNode_CustomProperty* CustomPropNode);
 
 	// Compiles one sub instance node
-	void ProcessSubInstance(UAnimGraphNode_SubInstance* SubInstance, bool bCheckForCycles);
+	void ProcessSubInstance(UAnimGraphNode_SubInstanceBase* SubInstance, bool bCheckForCycles);
+
+	// Compiles one sub input
+	void ProcessSubInput(UAnimGraphNode_SubInput* InSubInput);
+
+	// Compiles one root node
+	void ProcessRoot(UAnimGraphNode_Root* Root);
 
 	// Traverses subinstance links looking for slot names and state machine names, returning their count in a name map
 	typedef TMap<FName, int32> NameToCountMap;
-	void GetDuplicatedSlotAndStateNames(UAnimGraphNode_SubInstance* InSubInstance, NameToCountMap& OutStateMachineNameToCountMap, NameToCountMap& OutSlotNameToCountMap);
+	void GetDuplicatedSlotAndStateNames(UAnimGraphNode_SubInstanceBase* InSubInstance, NameToCountMap& OutStateMachineNameToCountMap, NameToCountMap& OutSlotNameToCountMap);
 
 	// Compiles an entire animation graph
 	void ProcessAllAnimationNodes();
@@ -350,10 +363,13 @@ private:
 	//	 If supplied, will also return an array of all cloned nodes
 	int32 ExpandGraphAndProcessNodes(UEdGraph* SourceGraph, UAnimGraphNode_Base* SourceRootNode, UAnimStateTransitionNode* TransitionNode = NULL, TArray<UEdGraphNode*>* ClonedNodes = NULL);
 
-	// Dumps compiler diagnostic information
-	void DumpAnimDebugData();
-
 	// Returns the allocation index of the specified node, processing it if it was pending
 	int32 GetAllocationIndexOfNode(UAnimGraphNode_Base* VisualAnimNode);
+
+	// Create transient stub functions for each anim graph we are compiling
+	void CreateAnimGraphStubFunctions();
+
+	// Clean up transient stub functions
+	void DestroyAnimGraphStubFunctions();
 };
 

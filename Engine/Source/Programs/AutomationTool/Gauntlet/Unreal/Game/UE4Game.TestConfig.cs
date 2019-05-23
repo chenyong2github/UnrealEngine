@@ -29,7 +29,17 @@ namespace UE4Game
 		{
 			base.ApplyToConfig(AppConfig, ConfigRole, OtherRoles);
 
-			if (string.IsNullOrEmpty(Map) == false)
+			if (string.IsNullOrEmpty(ConfigRole.MapOverride) == false)
+			{
+				// If map is specified, pass it to the server, or just the client if there is no server
+				if (AppConfig.ProcessType.IsServer()
+				|| (AppConfig.ProcessType.IsClient() && RoleCount(UnrealTargetRole.Server) == 0))
+				{
+					// must be the first argument!
+					AppConfig.CommandLine = ConfigRole.MapOverride + " " + AppConfig.CommandLine;
+				}
+			}
+			else if (string.IsNullOrEmpty(Map) == false)
 			{
 				// If map is specified, pass it to the server, or just the client if there is no server
 				if (AppConfig.ProcessType.IsServer()

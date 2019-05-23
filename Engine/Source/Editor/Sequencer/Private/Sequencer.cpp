@@ -840,11 +840,19 @@ FGuid FSequencer::CreateBinding(UObject& InObject, const FString& InName)
 	UObject* ParentObject = OwnerSequence->GetParentObject(&InObject);
 	UObject* BindingContext = GetPlaybackContext();
 
+	AActor* ParentActorAdded = nullptr;
+	FGuid ParentGuid;
+
 	if (ParentObject)
 	{
 		// Ensure we have possessed the outer object, if necessary
-		FGuid ParentGuid = GetHandleToObject(ParentObject);
-		
+		ParentGuid = GetHandleToObject(ParentObject, false);
+		if (!ParentGuid.IsValid())
+		{
+			ParentGuid = GetHandleToObject(ParentObject);
+			ParentActorAdded = Cast<AActor>(ParentObject);
+		}
+
 		if (OwnerSequence->AreParentContextsSignificant())
 		{
 			BindingContext = ParentObject;
@@ -868,6 +876,12 @@ FGuid FSequencer::CreateBinding(UObject& InObject, const FString& InName)
 	}
 
 	OwnerSequence->BindPossessableObject(PossessableGuid, InObject, BindingContext);
+	
+	// Broadcast if a parent actor was added as a result of adding this object
+	if (ParentActorAdded && ParentGuid.IsValid())
+	{
+		OnActorAddedToSequencerEvent.Broadcast(ParentActorAdded, ParentGuid);
+	}
 
 	return PossessableGuid;
 }
@@ -2793,11 +2807,7 @@ FGuid FSequencer::GetHandleToObject( UObject* Object, bool bCreateHandleIfMissin
 
 		if (OwningActor)
 		{
-			FGuid ActorAddedGuid = GetHandleToObject(OwningActor);
-			if (ActorAddedGuid.IsValid())
-			{
-				OnActorAddedToSequencerEvent.Broadcast(OwningActor, ActorAddedGuid);
-			}
+			GetHandleToObject(OwningActor);
 		}
 
 		// Some sources that create object bindings may want to group all of these objects together for organizations sake.

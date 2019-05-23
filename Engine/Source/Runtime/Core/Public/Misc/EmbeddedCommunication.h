@@ -81,6 +81,11 @@ public:
 	static void KeepAwake(FName Requester, bool bNeedsRendering);
 	static void AllowSleep(FName Requester);
 	
+	static void UELogError(const TCHAR* String);
+	static void UELogWarning(const TCHAR* String);
+	static void UELogLog(const TCHAR* String);
+	static void UELogVerbose(const TCHAR* String);
+
 	static bool IsAwakeForTicking();
 	static bool IsAwakeForRendering();
 	

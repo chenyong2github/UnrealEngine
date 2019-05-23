@@ -4537,7 +4537,11 @@ void FLandscapeEditDataInterface::GetEditToolTextureData(const int32 X1, const i
 
 			FLandscapeTextureDataInfo* TexDataInfo = NULL;
 			uint8* SelectTextureData = NULL;
-			UTexture2D* EditToolTexture = Component ? GetComponentTexture(Component) : nullptr;
+			UTexture2D* EditToolTexture = nullptr;
+			if (Component)
+			{
+				EditToolTexture = GetComponentTexture(Component);
+			}
 			if (EditToolTexture)
 			{
 				TexDataInfo = GetTextureDataInfo(EditToolTexture);
@@ -5513,8 +5517,7 @@ const ALandscape* FLandscapeEditDataInterface::GetTargetLandscape() const
 
 bool FLandscapeEditDataInterface::CanHaveLandscapeLayersContent() const
 {
-	const ALandscape* Landscape = GetTargetLandscape();
-	return Landscape ? Landscape->CanHaveLayersContent() : false;
+	return LandscapeInfo ? LandscapeInfo->CanHaveLayersContent() : false;
 }
 
 bool FLandscapeEditDataInterface::HasLandscapeLayersContent() const

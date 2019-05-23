@@ -1091,6 +1091,7 @@ ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 	WeightmapScratchPackLayerTextureResource = nullptr;
 	bLandscapeLayersAreInitialized = false;
 	LandscapeEdMode = nullptr;	
+	bGrassUpdateEnabled = true;
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -1102,9 +1103,19 @@ ALandscapeStreamingProxy::ALandscapeStreamingProxy(const FObjectInitializer& Obj
 #endif // WITH_EDITORONLY_DATA
 }
 
+const ALandscape* ALandscape::GetLandscapeActor() const
+{
+	return this;
+}
+
 ALandscape* ALandscape::GetLandscapeActor()
 {
 	return this;
+}
+
+const ALandscape* ALandscapeStreamingProxy::GetLandscapeActor() const
+{
+	return LandscapeActor.Get();
 }
 
 ALandscape* ALandscapeStreamingProxy::GetLandscapeActor()
@@ -2269,13 +2280,6 @@ void ALandscapeProxy::PostLoad()
 		ULandscapeInfo* LandscapeInfo = CreateLandscapeInfo();
 
 		// Cache the value at this point as RegisterActor might create/destroy layers content if there was a mismatch between landscape & proxy
-		const bool bDeleteLayerContent = HasLayersContent() && !CanHaveLayersContent();
-		if (bDeleteLayerContent && LandscapeInfo->LandscapeActor.IsValid())
-		{
-			LandscapeInfo->LandscapeActor->DeleteLayers();
-			UE_LOG(LogLandscape, Warning, TEXT("Landscape layer data is being deleted because World Settings doesn't have layers enabled."));
-		}
-		
 		const bool bNeedOldDataMigration = !HasLayersContent() && CanHaveLayersContent();
 				
 		LandscapeInfo->RegisterActor(this, true);

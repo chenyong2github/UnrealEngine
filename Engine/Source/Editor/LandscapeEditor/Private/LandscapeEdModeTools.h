@@ -1156,6 +1156,7 @@ public:
 			{
 				Landscape->RequestLayersContentUpdate(GetBeginToolContentUpdateFlag());
 				Landscape->SetEditingLayer(this->EdMode->GetCurrentLayerGuid());
+				Landscape->SetGrassUpdateEnabled(false);
 			}
 		}
 
@@ -1234,6 +1235,7 @@ public:
 			{
 				Landscape->RequestLayersContentUpdate(GetEndToolContentUpdateFlag());
 				Landscape->SetEditingLayer();
+				Landscape->SetGrassUpdateEnabled(true);
 			}
 		}
 	}

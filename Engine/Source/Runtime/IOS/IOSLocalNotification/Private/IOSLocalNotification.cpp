@@ -190,11 +190,11 @@ void FIOSLocalNotificationService::ScheduleLocalNotificationAtTime(const FDateTi
         
         UNUserNotificationCenter *Center = [UNUserNotificationCenter currentNotificationCenter];
         
-        FString NotId = TitleCopy.ToString() + FString::FromInt(NotificationNumber);
+        FString NotId = TitleCopy.ToString() + FString::FromInt(NotificationNumber++);
         NSString* NotificationIdentifier = [NSString stringWithFString : NotId];
-        
+		
         UNNotificationRequest *Request = [UNNotificationRequest requestWithIdentifier:NotificationIdentifier content:Content trigger:Trigger];
-        
+
         [Center addNotificationRequest : Request withCompletionHandler : ^ (NSError * _Nullable error) {
             if (error != nil) {
                 UE_LOG(LogIOSLocalNotification, Warning, TEXT("Error scheduling notification: %s"), *NotId);
@@ -255,7 +255,7 @@ void FIOSLocalNotificationService::ScheduleLocalNotificationBadgeAtTime(const FD
 	
 	UNUserNotificationCenter *Center = [UNUserNotificationCenter currentNotificationCenter];
 	
-	FString NotId = FString(TEXT("Badge")) + FString::FromInt(NotificationNumber);
+	FString NotId = FString(TEXT("Badge")) + FString::FromInt(NotificationNumber++);
 	NSString* NotificationIdentifier = [NSString stringWithFString:NotId];
 	
 	UNNotificationRequest *Request = [UNNotificationRequest requestWithIdentifier:NotificationIdentifier content:Content trigger:Trigger];

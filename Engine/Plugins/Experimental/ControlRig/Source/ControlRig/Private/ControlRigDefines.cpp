@@ -12,14 +12,21 @@ FControlRigOperator FControlRigOperator::MakeUnresolvedCopy(const FControlRigOpe
 	return Op;
 }
 
-void FControlRigOperator::Resolve(UObject* OuterObject)
+bool FControlRigOperator::Resolve(UObject* OuterObject)
 {
 	if (CachedPropertyPath1.IsValid() && !CachedPropertyPath1.IsFullyResolved())
 	{
-		CachedPropertyPath1.Resolve(OuterObject);
+		if (!CachedPropertyPath1.Resolve(OuterObject))
+		{
+			return false;
+		}
 	}
 	if (CachedPropertyPath2.IsValid() && !CachedPropertyPath2.IsFullyResolved())
 	{
-		CachedPropertyPath2.Resolve(OuterObject);
+		if (!CachedPropertyPath2.Resolve(OuterObject))
+		{
+			return false;
+		}
 	}
+	return true;
 }

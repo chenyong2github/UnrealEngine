@@ -24,11 +24,11 @@ public:
 	virtual ~FXmppPresenceStrophe();
 
 	// XMPP Thread
-
-	void OnDisconnect();
 	bool ReceiveStanza(const FStropheStanza& IncomingStanza);
 
 	// Game Thread
+	void OnDisconnect();
+	void OnReconnect();
 
 	// IXmppPresence
 	virtual bool UpdatePresence(const FXmppUserPresence& NewPresence) override;

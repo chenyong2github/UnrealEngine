@@ -2213,7 +2213,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 
 
 	// helpers:
-	const auto AddFunctionForGraphs = [Schema, &MessageLog, ParentClass, Ret, BP, MakeFunction](const TCHAR* FunctionNamePostfix, const TArray<UEdGraph*>& Graphs, UField**& InCurrentFieldStorageLocation, bool bIsStaticFunction, bool bAreDelegateGraphs)
+	const auto AddFunctionForGraphs = [Schema, &MessageLog, ParentClass, Ret, BP, MakeFunction, &CompilerContext](const TCHAR* FunctionNamePostfix, const TArray<UEdGraph*>& Graphs, UField**& InCurrentFieldStorageLocation, bool bIsStaticFunction, bool bAreDelegateGraphs)
 	{
 		for( const UEdGraph* Graph : Graphs )
 		{
@@ -2224,10 +2224,11 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 				TArray<UK2Node_FunctionResult*> ReturnNodes;
 				Graph->GetNodesOfClass(ReturnNodes);
 				UK2Node_FunctionEntry* EntryNode = EntryNodes[0];
-				
+				FName NewFunctionName = (EntryNode->CustomGeneratedFunctionName != NAME_None) ? EntryNode->CustomGeneratedFunctionName : Graph->GetFName();
+
 				UField** CurrentParamStorageLocation = nullptr;
 				UFunction* NewFunction = MakeFunction(
-					FName(*(Graph->GetName() + FunctionNamePostfix)), 
+					FName(*(NewFunctionName.ToString() + FunctionNamePostfix)), 
 					InCurrentFieldStorageLocation, 
 					CurrentParamStorageLocation, 
 					(EFunctionFlags)(EntryNode->GetFunctionFlags() & ~FUNC_Native),
@@ -2274,7 +2275,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 						NewFunction->SetMetaData(FBlueprintMetadata::MD_WorldContext, TEXT("__WorldContext"));
 					}
 
-					FKismetCompilerContext::SetCalculatedMetaDataAndFlags(NewFunction, EntryNode, Schema);
+					CompilerContext.SetCalculatedMetaDataAndFlags(NewFunction, EntryNode, Schema);
 				}
 			}
 		}

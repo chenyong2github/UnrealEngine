@@ -100,7 +100,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, UWorld* InWor
 	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
 	if (ControlRigEditMode)
 	{
-		ControlRigEditMode->OnControlsSelected().AddSP(this, &SControlRigEditModeTools::OnSelectionSetChanged);
+		ControlRigEditMode->OnModified().AddSP(this, &SControlRigEditModeTools::HandleModelModified);
 	}	
 }
 
@@ -255,22 +255,41 @@ void SControlRigEditModeTools::OnManipulatorsPicked(const TArray<FString>& Manip
 	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
 	if (ControlRigEditMode)
 	{
-		bPickerChangingSelection = true;
-		ControlRigEditMode->ClearControlSelection();
-		ControlRigEditMode->SetControlSelection(Manipulators, true);
-		bPickerChangingSelection = false;
+		if (!bPickerChangingSelection)
+		{
+			TGuardValue<bool> SelectGuard(bPickerChangingSelection, true);
+			ControlRigEditMode->ClearControlSelection();
+			ControlRigEditMode->SetControlSelection(Manipulators, true);
+		}
 	}
 }
 
-void SControlRigEditModeTools::OnSelectionSetChanged(const TArray<FString>& SelectedManipulators)
+void SControlRigEditModeTools::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
 {
-/*
-	// Don't want to udpate picker selection set if its the picker causing the change
-	if (!bPickerChangingSelection)
+	if (bPickerChangingSelection)
 	{
-		ControlPicker->SetSelectedManipulators(SelectedManipulators);
+		return;
 	}
-*/
+
+	TGuardValue<bool> SelectGuard(bPickerChangingSelection, true);
+	switch (InType)
+	{
+		case EControlRigModelNotifType::NodeSelected:
+		case EControlRigModelNotifType::NodeDeselected:
+		{
+			const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload;
+			if (Node)
+			{
+				// those are not yet implemented yet
+				// ControlPicker->SelectManipulator(Node->Name, InType == EControlRigModelNotifType::NodeSelected);
+			}
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

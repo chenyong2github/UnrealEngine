@@ -398,6 +398,7 @@ namespace Gauntlet
 					// copy over relevant settings from test role
                     SessionRole.FilesToCopy = TestRole.FilesToCopy;
 					SessionRole.ConfigureDevice = TestRole.ConfigureDevice;
+					SessionRole.MapOverride = TestRole.MapOverride;
 
 					SessionRoles.Add(SessionRole);
 				}

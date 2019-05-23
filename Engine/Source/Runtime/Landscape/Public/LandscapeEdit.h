@@ -50,6 +50,7 @@ public:
 	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const = 0;
 	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const = 0;
 	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const = 0;
+	virtual void OnCanHaveLayersContentChanged() = 0;
 };
 
 struct FLandscapeTextureDataInfo
@@ -342,6 +343,11 @@ struct FHeightmapAccessor
 		LandscapeEdit->GetHeightDataFast(X1, Y1, X2, Y2, Data);
 	}
 
+	void GetDataFast(int32 X1, int32 Y1, int32 X2, int32 Y2, uint16* Data)
+	{
+		LandscapeEdit->GetHeightDataFast(X1, Y1, X2, Y2, Data, 0);
+	}
+
 	void SetData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint16* Data, ELandscapeLayerPaintingRestriction PaintingRestriction = ELandscapeLayerPaintingRestriction::None)
 	{
 		TSet<ULandscapeComponent*> Components;
@@ -505,6 +511,11 @@ struct FAlphamapAccessor
 	void GetDataFast(int32 X1, int32 Y1, int32 X2, int32 Y2, TMap<FIntPoint, uint8>& Data)
 	{
 		LandscapeEdit.GetWeightDataFast(LayerInfo, X1, Y1, X2, Y2, Data);
+	}
+
+	void GetDataFast(int32 X1, int32 Y1, int32 X2, int32 Y2, uint8* Data)
+	{
+		LandscapeEdit.GetWeightDataFast(LayerInfo, X1, Y1, X2, Y2, Data, 0);
 	}
 
 	void SetData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint8* Data, ELandscapeLayerPaintingRestriction PaintingRestriction)

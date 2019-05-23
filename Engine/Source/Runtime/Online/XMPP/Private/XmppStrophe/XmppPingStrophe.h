@@ -45,6 +45,7 @@ public:
 
 	/** Clear any caches on disconnect */
 	void OnDisconnect();
+	void OnReconnect();
 
 	/** Determine if an incoming stanza is a ping stanza */
 	bool ReceiveStanza(const FStropheStanza& IncomingStanza);

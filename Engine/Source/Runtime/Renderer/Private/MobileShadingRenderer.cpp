@@ -43,6 +43,7 @@
 #include "VisualizeTexturePresent.h"
 #include "RendererModule.h"
 #include "EngineModule.h"
+#include "GPUScene.h"
 #include "MaterialSceneTextureId.h"
 
 #include "VisualizeTexture.h"
@@ -69,6 +70,13 @@ static TAutoConsoleVariable<int32> CVarMobileMoveSubmissionHintAfterTranslucency
 	TEXT("0: Submission hint occurs after occlusion query.\n")
 	TEXT("1: Submission hint occurs after translucency. (Default)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarMobileAdrenoOcclusionMode(
+	TEXT("r.Mobile.AdrenoOcclusionMode"),
+	0,
+	TEXT("0: Render occlusion queries after the base pass (default).\n")
+	TEXT("1: Render occlusion queries after translucency and a flush, which can help Adreno devices in GL mode."),
+	ECVF_RenderThreadSafe);
 
 DECLARE_CYCLE_STAT(TEXT("SceneStart"), STAT_CLMM_SceneStart, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("SceneEnd"), STAT_CLMM_SceneEnd, STATGROUP_CommandListMarkers);
@@ -260,6 +268,13 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		// Create the directional light uniform buffers
 		CreateDirectionalLightUniformBuffers(Views[ViewIndex]);
 	}
+	
+	UpdateGPUScene(RHICmdList, *Scene);
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, Views[ViewIndex]);
+	}
+	
 
 	// update buffers used in cached mesh path
 	// in case there are multiple views, these buffers will be updated before rendering each view
@@ -275,6 +290,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		SetupMobileDistortionPassUniformBuffer(RHICmdList, View, DistortionPassParameters);
 		Scene->UniformBuffers.MobileDistortionPassUniformBuffer.UpdateUniformBufferImmediate(DistortionPassParameters);
 	}
+	UpdateSkyReflectionUniformBuffer();
 
 	// Now that the indirect lighting cache is updated, we can update the uniform buffers.
 	UpdatePrimitiveIndirectLightingCacheBuffers();
@@ -459,10 +475,14 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	RenderMobileBasePass(RHICmdList, ViewList);
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
-	// Issue occlusion queries
-	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
-	RenderOcclusion(RHICmdList);
-	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	const bool bAdrenoOcclusionMode = CVarMobileAdrenoOcclusionMode.GetValueOnRenderThread() != 0;
+	if (!bAdrenoOcclusionMode)
+	{
+	    // Issue occlusion queries
+	    RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
+	    RenderOcclusion(RHICmdList);
+	    RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	}
 
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ViewExtensionPostRenderBasePass);
@@ -546,6 +566,16 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderTranslucency(RHICmdList, ViewList, !bGammaSpace || bRenderToSceneColor);
 		FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	}
+
+	if (bAdrenoOcclusionMode)
+	{
+	    RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
+		// flush
+		RHICmdList.SubmitCommandsAndFlushGPU();
+		// Issue occlusion queries
+	    RenderOcclusion(RHICmdList);
+	    RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 	}
 
 	// Pre-tonemap before MSAA resolve (iOS only)
@@ -852,6 +882,21 @@ void FMobileSceneRenderer::UpdateDirectionalLightUniformBuffers(FRHICommandListI
 		SetupMobileDirectionalLightUniformParameters(*Scene, View, VisibleLightInfos, ChannelIdx, bDynamicShadows, Params);
 		Scene->UniformBuffers.MobileDirectionalLightUniformBuffers[ChannelIdx + 1].UpdateUniformBufferImmediate(Params);
 	}
+}
+
+void FMobileSceneRenderer::UpdateSkyReflectionUniformBuffer()
+{
+	FSkyLightSceneProxy* SkyLight = nullptr;
+	if (Scene->ReflectionSceneData.RegisteredReflectionCapturePositions.Num() == 0
+		&& Scene->SkyLight
+		&& Scene->SkyLight->ProcessedTexture->TextureRHI)
+	{
+		SkyLight = Scene->SkyLight;
+	}
+
+	FMobileReflectionCaptureShaderParameters Parameters;
+	SetupMobileSkyReflectionUniformParameters(SkyLight, Parameters);
+	Scene->UniformBuffers.MobileSkyReflectionUniformBuffer.UpdateUniformBufferImmediate(Parameters);
 }
 
 void FMobileSceneRenderer::CreateDirectionalLightUniformBuffers(FViewInfo& View)

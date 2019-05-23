@@ -23,13 +23,13 @@ public:
 	~FXmppMessagesStrophe();
 
 	// XMPP Thread
-	void OnDisconnect();
 	bool ReceiveStanza(const FStropheStanza& IncomingStanza);
-
 	bool HandleMessageStanza(const FStropheStanza& IncomingStanza);
 	bool HandleMessageErrorStanza(const FStropheStanza& ErrorStanza);
 
 	// Game Thread
+	void OnDisconnect();
+	void OnReconnect();
 
 	// IXmppMessages
 	virtual bool SendMessage(const FXmppUserJid& RecipientId, const FString& Type, const FString& Payload, bool bPayloadIsSerializedJson = false) override;

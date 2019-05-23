@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "AnimNodes/AnimNode_Root.h"
+#include "Animation/AnimNode_Root.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_Root

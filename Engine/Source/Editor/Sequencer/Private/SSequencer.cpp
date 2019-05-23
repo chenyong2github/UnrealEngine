@@ -797,12 +797,39 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 		// General 
 		if (SequencerPtr.Pin()->IsLevelEditorSequencer())
 		{
+			TAttribute<FSlateIcon> SaveIcon;
+			SaveIcon.Bind(TAttribute<FSlateIcon>::FGetter::CreateLambda([&] {
+
+				bool bAnyMovieSceneDirty = false;
+
+				TArray<UMovieScene*> MovieScenesToSave;
+				MovieSceneHelpers::GetDescendantMovieScenes(SequencerPtr.Pin()->GetRootMovieSceneSequence(), MovieScenesToSave);
+				for (auto MovieSceneToSave : MovieScenesToSave)
+				{
+					UPackage* MovieScenePackageToSave = MovieSceneToSave->GetOuter()->GetOutermost();
+					if (MovieScenePackageToSave->IsDirty())
+					{
+						bAnyMovieSceneDirty = true;
+						break;
+					}
+				}
+
+				if (bAnyMovieSceneDirty)
+				{
+					return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.SaveAsterisk");
+				}
+				else
+				{
+					return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Save");
+				}
+			}));
+
 			ToolBarBuilder.AddToolBarButton(
 				FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnSaveMovieSceneClicked)),
 				NAME_None,
 				LOCTEXT("SaveDirtyPackages", "Save"),
-				LOCTEXT("SaveDirtyPackagesTooltip", "Saves the current sequence"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Save")
+				LOCTEXT("SaveDirtyPackagesTooltip", "Saves the current sequence and any subsequences"),
+				SaveIcon
 			);
 
 			ToolBarBuilder.AddToolBarButton(
@@ -2201,15 +2228,35 @@ FText SSequencer::GetBreadcrumbTextForSection(TWeakObjectPtr<UMovieSceneSubSecti
 FText SSequencer::GetBreadcrumbTextForSequence(TWeakObjectPtr<UMovieSceneSequence> Sequence, bool bIsActive) const
 {
 	UMovieSceneSequence* SequencePtr = Sequence.Get();
+
+	bool bIsDirty = SequencePtr->GetMovieScene()->GetOuter()->GetOutermost()->IsDirty();
+
 	if (bIsActive)
 	{
-		return SequencePtr->GetDisplayName();
+		if (bIsDirty)
+		{
+			return FText::Format(LOCTEXT("DirtySequenceBreadcrumbFormat", "{0}*"), SequencePtr->GetDisplayName());
+		}
+		else
+		{
+			return SequencePtr->GetDisplayName();
+		}
 	}
 	else
 	{
-		return FText::Format(LOCTEXT("InactiveSequenceBreadcrumbFormat", "{0} [{1}]"),
-			SequencePtr->GetDisplayName(),
-			LOCTEXT("InactiveSequenceBreadcrumb", "Inactive"));
+		if (bIsDirty)
+		{
+			return FText::Format(LOCTEXT("DirtyInactiveSequenceBreadcrumbFormat", "{0}* [{1}]"),
+				SequencePtr->GetDisplayName(),
+				LOCTEXT("InactiveSequenceBreadcrumb", "Inactive"));
+
+		}
+		else
+		{
+			return FText::Format(LOCTEXT("InactiveSequenceBreadcrumbFormat", "{0} [{1}]"),
+				SequencePtr->GetDisplayName(),
+				LOCTEXT("InactiveSequenceBreadcrumb", "Inactive"));
+		}
 	}
 }
 

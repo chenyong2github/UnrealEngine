@@ -486,7 +486,7 @@ void TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>::GetShaderBindings
 			// If no reflection captures are available then attempt to use sky light's texture.
 			if (UseSkyReflectionCapture(Scene) && FeatureLevel > ERHIFeatureLevel::ES2) // not-supported on ES2 at the moment
 			{
-				RelfectionUB = Scene->SkyLight->MobileUniformBuffer;
+				RelfectionUB = Scene->UniformBuffers.MobileSkyReflectionUniformBuffer;
 			}
 			else
 			{

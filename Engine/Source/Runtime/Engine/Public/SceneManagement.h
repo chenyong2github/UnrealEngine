@@ -1009,9 +1009,6 @@ public:
 	float MinOcclusion;
 	FLinearColor OcclusionTint;
 	int32 SamplesPerPixel;
-	/** Used with mobile renderer */
-	TUniformBufferRef<FMobileReflectionCaptureShaderParameters> MobileUniformBuffer;
-
 
 #if RHI_RAYTRACING
 	bool IsDirtyImportanceSamplingData;
@@ -1044,7 +1041,6 @@ public:
 	}
 	FLinearColor GetEffectiveLightColor() const;
 
-	void UpdateMobileUniformBuffer();
 private:
 	FLinearColor LightColor;
 };
