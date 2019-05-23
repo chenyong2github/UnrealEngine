@@ -25,6 +25,7 @@
 #include "Misc/Optional.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/ArchiveProxy.h"
+#include "MaterialSceneTextureId.h"
 #include "VirtualTexturing.h"
 
 struct FExpressionInput;
@@ -117,7 +118,7 @@ enum EMaterialValueType
 	 * Any size float type by definition, but this is treated as a scalar which can auto convert (by replication) to any other size float vector.
 	 * Use this as the type for any scalar expressions.
 	 */
-	MCT_Float		          = 8|4|2|1,
+	MCT_Float                 = 8|4|2|1,
 	MCT_Texture2D	          = 1 << 4,
 	MCT_TextureCube	          = 1 << 5,
 	MCT_VolumeTexture         = 1 << 6,
@@ -532,79 +533,97 @@ public:
 	FMaterialCompilationOutput() :
 		UsedSceneTextures(0),
 #if WITH_EDITOR
-		NumUsedUVScalars(0),
-		NumUsedCustomInterpolatorScalars(0),
 		EstimatedNumTextureSamplesVS(0),
 		EstimatedNumTextureSamplesPS(0),
 		EstimatedNumVirtualTextureLookups(0),
+		NumUsedUVScalars(0),
+		NumUsedCustomInterpolatorScalars(0),
 #endif
-		bRequiresSceneColorCopy(false),
 		bNeedsSceneTextures(false),
 		bUsesEyeAdaptation(false),
 		bModifiesMeshPosition(false),
 		bUsesWorldPositionOffset(false),
-		bNeedsGBuffer(false),
 		bUsesGlobalDistanceField(false),
 		bUsesPixelDepthOffset(false),
-		bUsesSceneDepthLookup(false),
-		bUsesVelocitySceneTexture(false),
 		bUsesDistanceCullFade(false)
 	{}
 
 	ENGINE_API void Serialize(FArchive& Ar);
 
+	ENGINE_API bool IsSceneTextureUsed(ESceneTextureId TexId) const { return UsedSceneTextures & (1 << TexId); }
+	ENGINE_API void SetIsSceneTextureUsed(ESceneTextureId TexId) { UsedSceneTextures |= (1 << TexId); }
+
 	FUniformExpressionSet UniformExpressionSet;
 
 	/** Bitfield of the ESceneTextures used */
-	uint64 UsedSceneTextures;
+	uint32 UsedSceneTextures;
 
 #if WITH_EDITOR
+	/** Number of times SampleTexture is called, excludes custom nodes. */
+	uint16 EstimatedNumTextureSamplesVS;
+	uint16 EstimatedNumTextureSamplesPS;
+
+        /** Number of virtual texture lookups performed, excludes direct invocation in shaders (for example VT lightmaps) */
+	uint16 EstimatedNumVirtualTextureLookups;
+
 	/** Number of used custom UV scalars. */
 	uint8 NumUsedUVScalars;
 
 	/** Number of used custom vertex interpolation scalars. */
 	uint8 NumUsedCustomInterpolatorScalars;
-
-	/** Number of times SampleTexture is called, excludes custom nodes. */
-	uint16 EstimatedNumTextureSamplesVS;
-	uint16 EstimatedNumTextureSamplesPS;
-
-	/** Number of virtual texture lookups performed, excludes direct invocation in shaders (for example VT lightmaps) */
-	uint16 EstimatedNumVirtualTextureLookups;
 #endif // WITH_EDITOR
 
-	/** Indicates whether the material uses scene color. */
-	bool bRequiresSceneColorCopy;
-
 	/** true if the material needs the scenetexture lookups. */
-	bool bNeedsSceneTextures;
+	uint8 bNeedsSceneTextures : 1;
 
 	/** true if the material uses the EyeAdaptationLookup */
-	bool bUsesEyeAdaptation;
+	uint8 bUsesEyeAdaptation : 1;
 
 	/** true if the material modifies the the mesh position. */
-	bool bModifiesMeshPosition;
+	uint8 bModifiesMeshPosition : 1;
 
 	/** Whether the material uses world position offset. */
-	bool bUsesWorldPositionOffset;
-
-	/** true if the material uses any GBuffer textures */
-	bool bNeedsGBuffer;
+	uint8 bUsesWorldPositionOffset : 1;
 
 	/** true if material uses the global distance field */
-	bool bUsesGlobalDistanceField;
+	uint8 bUsesGlobalDistanceField : 1;
 
 	/** true if the material writes a pixel depth offset */
-	bool bUsesPixelDepthOffset;
-
-	/** true if the material uses the SceneDepth lookup */
-	bool bUsesSceneDepthLookup;
-
-	/** true if the material uses the Velocity SceneTexture lookup */
-	bool bUsesVelocitySceneTexture;
+	uint8 bUsesPixelDepthOffset : 1;
 
 	/** true if the material uses distance cull fade */
-	bool bUsesDistanceCullFade;
+	uint8 bUsesDistanceCullFade : 1;
+
+	/** Indicates whether the material uses scene color. */
+	ENGINE_API bool RequiresSceneColorCopy() const { return IsSceneTextureUsed(PPI_SceneColor); }
+
+	/** true if the material uses any GBuffer textures */
+	ENGINE_API bool NeedsGBuffer() const
+	{
+		return
+			IsSceneTextureUsed(PPI_DiffuseColor) ||
+			IsSceneTextureUsed(PPI_SpecularColor) ||
+			IsSceneTextureUsed(PPI_SubsurfaceColor) ||
+			IsSceneTextureUsed(PPI_BaseColor) ||
+			IsSceneTextureUsed(PPI_Specular) ||
+			IsSceneTextureUsed(PPI_Metallic) ||
+			IsSceneTextureUsed(PPI_WorldNormal) ||
+			IsSceneTextureUsed(PPI_Opacity) ||
+			IsSceneTextureUsed(PPI_Roughness) ||
+			IsSceneTextureUsed(PPI_MaterialAO) ||
+			IsSceneTextureUsed(PPI_DecalMask) ||
+			IsSceneTextureUsed(PPI_ShadingModelColor) ||
+			IsSceneTextureUsed(PPI_ShadingModelID) ||
+			IsSceneTextureUsed(PPI_StoredBaseColor) ||
+			IsSceneTextureUsed(PPI_StoredSpecular) ||
+			IsSceneTextureUsed(PPI_Velocity);
+	}
+
+	/** true if the material uses the SceneDepth lookup */
+	ENGINE_API bool UsesSceneDepthLookup() const { return IsSceneTextureUsed(PPI_SceneColor); }
+
+	/** true if the material uses the Velocity SceneTexture lookup */
+	ENGINE_API bool UsesVelocitySceneTexture() const { return IsSceneTextureUsed(PPI_Velocity); }
 };
 
 /** 
@@ -1048,16 +1067,16 @@ public:
 	const FString& GetFriendlyName() const { static FString T; return T; }
 	const FString& GetDebugDescription() const { static FString T; return T; }
 #endif
-	bool RequiresSceneColorCopy() const { return MaterialCompilationOutput.bRequiresSceneColorCopy; }
+	bool RequiresSceneColorCopy() const { return MaterialCompilationOutput.RequiresSceneColorCopy(); }
 	bool NeedsSceneTextures() const { return MaterialCompilationOutput.bNeedsSceneTextures; }
 	bool UsesGlobalDistanceField() const { return MaterialCompilationOutput.bUsesGlobalDistanceField; }
 	bool UsesWorldPositionOffset() const { return MaterialCompilationOutput.bUsesWorldPositionOffset; }
-	bool NeedsGBuffer() const { return MaterialCompilationOutput.bNeedsGBuffer; }
+	bool NeedsGBuffer() const { return MaterialCompilationOutput.NeedsGBuffer(); }
 	bool UsesEyeAdaptation() const { return MaterialCompilationOutput.bUsesEyeAdaptation; }
 	bool ModifiesMeshPosition() const { return MaterialCompilationOutput.bModifiesMeshPosition; }
 	bool UsesPixelDepthOffset() const { return MaterialCompilationOutput.bUsesPixelDepthOffset; }
-	bool UsesSceneDepthLookup() const { return MaterialCompilationOutput.bUsesSceneDepthLookup; }
-	bool UsesVelocitySceneTexture() const { return MaterialCompilationOutput.bUsesVelocitySceneTexture; }
+	bool UsesSceneDepthLookup() const { return MaterialCompilationOutput.UsesSceneDepthLookup(); }
+	bool UsesVelocitySceneTexture() const { return MaterialCompilationOutput.UsesVelocitySceneTexture(); }
 	bool UsesDistanceCullFade() const { return MaterialCompilationOutput.bUsesDistanceCullFade; }
 #if WITH_EDITOR
 	uint32 GetNumUsedUVScalars() const { return MaterialCompilationOutput.NumUsedUVScalars; }
