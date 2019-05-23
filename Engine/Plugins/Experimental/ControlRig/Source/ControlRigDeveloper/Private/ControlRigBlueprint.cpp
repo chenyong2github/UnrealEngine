@@ -210,9 +210,6 @@ void UControlRigBlueprint::PopulateModelFromGraph(const UControlRigGraph* InGrap
 			}
 		}
 	}
-
-	// now let's update everyone listening (including the graph)
-	ModelController->ResendAllNotifications();
 }
 
 void UControlRigBlueprint::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
