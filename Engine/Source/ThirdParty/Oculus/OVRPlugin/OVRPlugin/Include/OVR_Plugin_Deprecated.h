@@ -252,6 +252,21 @@ OVRP_EXPORT ovrpResult ovrp_EnqueueSubmitLayer(
     OVRP_CONSTREF(ovrpVector3f) scale,
     int layerIndex);
 
+OVRP_EXPORT ovrpResult ovrp_EnqueueSubmitLayer2(
+  unsigned int flags,
+  void* textureLeft,
+  void* textureRight,
+  int layerId,
+  int frameIndex,
+  OVRP_CONSTREF(ovrpPosef) pose,
+  OVRP_CONSTREF(ovrpVector3f) scale,
+  int layerIndex,
+  ovrpBool overrideTextureRectMatrix,
+  OVRP_CONSTREF(ovrpTextureRectMatrixf) textureRectMatrix,
+  ovrpBool overridePerLayerColorScaleAndOffset,
+  OVRP_CONSTREF(ovrpVector4f) colorScale,
+  OVRP_CONSTREF(ovrpVector4f) colorOffset);
+
 // Previously deprecated
 OVRP_EXPORT ovrpBool ovrp_Initialize(ovrpRenderAPIType apiType, void* platformArgs);
 OVRP_EXPORT ovrpBoundaryGeometry ovrp_GetBoundaryGeometry(ovrpBoundaryType boundaryType);

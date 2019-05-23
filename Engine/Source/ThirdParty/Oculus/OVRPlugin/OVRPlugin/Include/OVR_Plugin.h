@@ -145,7 +145,20 @@ OVRP_EXPORT ovrpResult ovrp_GetEyeFovLayerId(int* layerId);
 OVRP_EXPORT ovrpResult ovrp_GetLayerTextureStageCount(int layerId, int* layerTextureStageCount);
 
 /// Gets the texture handle for a specific layer stage and eye.
-OVRP_EXPORT ovrpResult ovrp_GetLayerTexture2(int layerId, int stage, ovrpEye eyeId, ovrpTextureHandle* textureHandle, ovrpTextureHandle* depthTextureHandle);
+OVRP_EXPORT ovrpResult ovrp_GetLayerTexture2(
+    int layerId,
+    int stage,
+    ovrpEye eyeId,
+    ovrpTextureHandle* textureHandle,
+    ovrpTextureHandle* depthTextureHandle);
+
+/// Gets the texture handle for a specific layer stage and eye.
+OVRP_EXPORT ovrpResult ovrp_GetLayerTextureFoveation(
+    int layerId,
+    int stage,
+    ovrpEye eyeId,
+    ovrpTextureHandle* foveationTextureHandle,
+    ovrpSizei* foveationResultSize);
 
 /// Gets the texture handle for a specific layer stage and eye.
 OVRP_EXPORT ovrpResult ovrp_GetLayerAndroidSurfaceObject(int layerId, void** surfaceObject);
