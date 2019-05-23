@@ -534,7 +534,7 @@ namespace UnrealBuildTool
 		{
 			base.ResetTarget(Target);
 
-			if(Target.Configuration != UnrealTargetConfiguration.Shipping)
+			if(Target.Platform == UnrealTargetPlatform.Win64 && Target.Configuration != UnrealTargetConfiguration.Shipping)
 			{
 				Target.bWithLiveCoding = true;
 				Target.WindowsPlatform.bCreateHotPatchableImage = true;
