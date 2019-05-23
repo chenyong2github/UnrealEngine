@@ -2379,9 +2379,6 @@ void FD3D12CommandContext::RHIUpdateAccelerationStructures(const TArrayView<cons
 	{
 		FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(P.Geometry.GetReference());
 		Geometry->SetDirty(GetGPUMask(), true);
-
-		const bool bIsUpdate = !GRayTracingDebugForceFullBuild;
-		Geometry->BuildAccelerationStructure(*this, bIsUpdate);
 	}
 }
 
