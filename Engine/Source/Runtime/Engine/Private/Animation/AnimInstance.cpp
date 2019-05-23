@@ -2560,10 +2560,13 @@ void UAnimInstance::SetLayerOverlay(TSubclassOf<UAnimInstance> InClass)
 					// Init after we link in the new graph segments, so propagation happens correctly
 					NewSubInstance->InitializeAnimation();
 
-					// Initialize the correct part of the sub instance
-					if(LayerPair.Value[0]->LinkedRoot)
+					// Initialize the correct parts of the sub instance
+					for(FAnimNode_Layer* LayerNode : LayerPair.Value)
 					{
-						NewSubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>().InitializeRootNode_WithRoot(LayerPair.Value[0]->LinkedRoot);
+						if(LayerNode->LinkedRoot)
+						{
+							NewSubInstance->GetProxyOnAnyThread<FAnimInstanceProxy>().InitializeRootNode_WithRoot(LayerNode->LinkedRoot);
+						}
 					}
 
 					MeshComp->SubInstances.Add(NewSubInstance);
