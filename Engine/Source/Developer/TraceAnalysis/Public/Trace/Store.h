@@ -16,7 +16,7 @@ typedef uint64 FSessionHandle;
 struct FSessionInfo
 {
 	const TCHAR* Name;
-	bool IsLive;
+	bool bIsLive;
 };
 
 class IStore

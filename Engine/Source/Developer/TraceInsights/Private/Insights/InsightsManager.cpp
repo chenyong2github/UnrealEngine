@@ -151,7 +151,7 @@ void FInsightsManager::CreateLiveSession()
 	{
 		Trace::FSessionInfo SessionInfo;
 		SessionService->GetSessionInfo(SessionHandle, SessionInfo);
-		if (SessionInfo.IsLive)
+		if (SessionInfo.bIsLive)
 		{
 			TUniquePtr<Trace::IInDataStream> DataStream(SessionService->OpenSessionStream(SessionHandle));
 			check(DataStream);

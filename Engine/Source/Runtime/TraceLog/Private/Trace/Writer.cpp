@@ -298,7 +298,7 @@ public:
 	void				Init();
 	void				Shutdown();
 	void				Write(const void* Data, uint32 Size);
-	bool				IsFull() const	{ return Full; }
+	bool				IsFull() const	{ return bFull; }
 	const uint8*		GetData() const { return Base; }
 	uint32				GetSize() const { return Used; }
 
@@ -309,7 +309,7 @@ private:
 	uint8*				Base;
 	int32				Used;
 	uint16				MappedPageCount;
-	bool				Full;
+	bool				bFull;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -318,7 +318,7 @@ void FHoldBuffer::Init()
 	Base = MemoryReserve(FHoldBuffer::PageSize * FHoldBuffer::MaxPages);
 	Used = 0;
 	MappedPageCount = 0;
-	Full = false;
+	bFull = false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -345,7 +345,7 @@ void FHoldBuffer::Write(const void* Data, uint32 Size)
 	{
 		if (HotPageCount >= FHoldBuffer::MaxPages)
 		{
-			Full = true;
+			bFull = true;
 			return;
 		}
 
@@ -437,8 +437,8 @@ static void Writer_UpdateData()
 		});
 
 		// Did we overflow? Enter partial mode.
-		bool Overflown = GHoldBuffer.IsFull();
-		if (Overflown && GDataState != EDataState::Partial)
+		bool bOverflown = GHoldBuffer.IsFull();
+		if (bOverflown && GDataState != EDataState::Partial)
 		{
 			/* TODO: turn off non-retail events */
 			GDataState = EDataState::Partial;

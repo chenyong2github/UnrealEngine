@@ -58,7 +58,7 @@ private:
 	{
 		FString Name;
 		FString Path;
-		bool IsLive;
+		bool bIsLive;
 	};
 
 	bool IsSessionLive(FSessionHandle Handle) const;
@@ -88,8 +88,8 @@ FFileStoreOutDataStream::~FFileStoreOutDataStream()
 
 void FFileStoreOutDataStream::Write(const void* Data, uint32 Size)
 {
-	bool Success = Inner->Write((const uint8*)Data, Size);
-	check(Success);
+	bool bSuccess = Inner->Write((const uint8*)Data, Size);
+	check(bSuccess);
 }
 
 FFileStoreInDataStream::FFileStoreInDataStream(FFileStore* InOwner, FSessionHandle InSessionHandle, const TCHAR* InFilePath)
@@ -173,7 +173,7 @@ bool FFileStore::GetSessionInfo(FSessionHandle Handle, FSessionInfo& OutInfo)
 	}
 	TSharedPtr<FSessionInfoInternal> Session = AvailableSessions[Handle];
 	OutInfo.Name = *Session->Name;
-	OutInfo.IsLive = Session->IsLive;
+	OutInfo.bIsLive = Session->bIsLive;
 	return true;
 }
 
@@ -190,7 +190,7 @@ IOutDataStream* FFileStore::CreateNewSession()
 	TSharedPtr<FSessionInfoInternal> Session = MakeShared<FSessionInfoInternal>();
 	Session->Name = TraceIdStr;
 	Session->Path = TracePath;
-	Session->IsLive = true;
+	Session->bIsLive = true;
 	AvailableSessions.Add(TraceId, Session);
 
 	return new FFileStoreOutDataStream(this, TraceId, *Session->Path);
@@ -210,13 +210,13 @@ IInDataStream* FFileStore::OpenSessionStream(FSessionHandle Handle)
 bool FFileStore::IsSessionLive(FSessionHandle Handle) const
 {
 	FScopeLock Lock(&SessionsCS);
-	return AvailableSessions[Handle]->IsLive;
+	return AvailableSessions[Handle]->bIsLive;
 }
 
 void FFileStore::CloseSessionStream(FSessionHandle Handle)
 {
 	FScopeLock Lock(&SessionsCS);
-	AvailableSessions[Handle]->IsLive = false;
+	AvailableSessions[Handle]->bIsLive = false;
 }
 
 TSharedPtr<IStore> Store_Create(const TCHAR* StoreDir)
