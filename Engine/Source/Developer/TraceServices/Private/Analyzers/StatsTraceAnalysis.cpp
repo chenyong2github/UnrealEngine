@@ -4,9 +4,9 @@
 #include "Common/Utils.h"
 #include "Model/Counters.h"
 
-FStatsAnalyzer::FStatsAnalyzer(TSharedRef<Trace::FAnalysisSession> InSession)
+FStatsAnalyzer::FStatsAnalyzer(Trace::FAnalysisSession& InSession)
 	: Session(InSession)
-	, CountersProvider(Session->EditCountersProvider())
+	, CounterProvider(Session.EditCounterProvider())
 {
 
 }
@@ -30,7 +30,7 @@ void FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	{
 	case RouteId_Spec:
 	{
-		Trace::FAnalysisSessionEditScope _(Session.Get());
+		Trace::FAnalysisSessionEditScope _(Session);
 		uint32 StatId = EventData.GetValue("Id").As<uint32>();
 		check(!CountersMap.Contains(StatId));
 		const ANSICHAR* Name = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
@@ -44,13 +44,13 @@ void FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		{
 			DisplayHint = Trace::CounterDisplayHint_Memory;
 		}
-		Trace::FCounterInternal* Counter = CountersProvider->CreateCounter(ANSI_TO_TCHAR(Name), Description, DisplayHint);
+		Trace::FCounterInternal* Counter = CounterProvider.CreateCounter(ANSI_TO_TCHAR(Name), Description, DisplayHint);
 		CountersMap.Add(StatId, Counter);
 		break;
 	}
 	case RouteId_EventBatch:
 	{
-		Trace::FAnalysisSessionEditScope _(Session.Get());
+		Trace::FAnalysisSessionEditScope _(Session);
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
 		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
 		uint64 BufferSize = EventData.GetAttachmentSize();
@@ -81,24 +81,24 @@ void FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 			{
 			case Increment:
 			{
-				CountersProvider->Add(Counter, Time, int64(1));
+				CounterProvider.Add(Counter, Time, int64(1));
 				break;
 			}
 			case Decrement:
 			{
-				CountersProvider->Add(Counter, Time, int64(-1));
+				CounterProvider.Add(Counter, Time, int64(-1));
 				break;
 			}
 			case AddInteger:
 			{
 				int64 Amount = FTraceAnalyzerUtils::DecodeZigZag(BufferPtr);
-				CountersProvider->Add(Counter, Time, Amount);
+				CounterProvider.Add(Counter, Time, Amount);
 				break;
 			}
 			case SetInteger:
 			{
 				int64 Value = FTraceAnalyzerUtils::DecodeZigZag(BufferPtr);
-				CountersProvider->Set(Counter, Time, Value);
+				CounterProvider.Set(Counter, Time, Value);
 				break;
 			}
 			case AddFloat:
@@ -106,7 +106,7 @@ void FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 				double Amount;
 				memcpy(&Amount, BufferPtr, sizeof(double));
 				BufferPtr += sizeof(double);
-				CountersProvider->Add(Counter, Time, Amount);
+				CounterProvider.Add(Counter, Time, Amount);
 				break;
 			}
 			case SetFloat:

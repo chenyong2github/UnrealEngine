@@ -186,31 +186,29 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-			Session->ReadFramesProvider([this](const Trace::IFrameProvider& FramesProvider)
+			const Trace::IFrameProvider& FramesProvider = Session->ReadFrameProvider();
+			for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 			{
-				for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
+				FFrameTrackTimeline& CachedTimeline = CachedTimelines.FindOrAdd(FrameType);
+				CachedTimeline.Id = FrameType;
+
+				int32 NumFrames = FramesProvider.GetFrameCount(ETraceFrameType(FrameType));
+				if (NumFrames > Viewport.MaxIndex)
 				{
-					FFrameTrackTimeline& CachedTimeline = CachedTimelines.FindOrAdd(FrameType);
-					CachedTimeline.Id = FrameType;
+					Viewport.SetMinMaxIndexInterval(0, NumFrames);
+					UpdateHorizontalScrollBar();
+					bIsStateDirty = true;
 
-					int32 NumFrames = FramesProvider.GetFrameCount(ETraceFrameType(FrameType));
-					if (NumFrames > Viewport.MaxIndex)
+					// Auto zoom out.
+					float SampleW = Viewport.GetSampleWidth();
+					int32 NumSamples = FMath::CeilToInt(Viewport.Width / SampleW);
+					if (NumFrames > NumSamples * Viewport.GetNumFramesPerSample())
 					{
-						Viewport.SetMinMaxIndexInterval(0, NumFrames);
-						UpdateHorizontalScrollBar();
-						bIsStateDirty = true;
-
-						// Auto zoom out.
-						float SampleW = Viewport.GetSampleWidth();
-						int32 NumSamples = FMath::CeilToInt(Viewport.Width / SampleW);
-						if (NumFrames > NumSamples * Viewport.GetNumFramesPerSample())
-						{
-							ZoomHorizontally(-0.1f, 0.0f);
-							Viewport.ScrollAtPosX(0.0f);
-						}
+						ZoomHorizontally(-0.1f, 0.0f);
+						Viewport.ScrollAtPosX(0.0f);
 					}
 				}
-			});
+			}
 		}
 	}
 
@@ -241,25 +239,23 @@ void SFrameTrack::UpdateState()
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		Session->ReadFramesProvider([this](const Trace::IFrameProvider& FramesProvider)
+		const Trace::IFrameProvider& FramesProvider = Session->ReadFrameProvider();
+		for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 		{
-			for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
+			FFrameTrackTimeline& Timeline = CachedTimelines.FindOrAdd(FrameType);
+			Timeline.Id = FrameType;
+
+			FFrameTrackTimelineBuilder Builder(Timeline, Viewport);
+
+			int32 StartIndex = FMath::Max(0, Viewport.GetIndexAtViewportX(0.0f));
+			int32 EndIndex = Viewport.GetIndexAtViewportX(Viewport.Width);
+			FramesProvider.EnumerateFrames(ETraceFrameType(FrameType), static_cast<uint64>(StartIndex), static_cast<uint64>(EndIndex), [&Builder](const Trace::FFrame& Frame)
 			{
-				FFrameTrackTimeline& Timeline = CachedTimelines.FindOrAdd(FrameType);
-				Timeline.Id = FrameType;
+				Builder.AddFrame(Frame);
+			});
 
-				FFrameTrackTimelineBuilder Builder(Timeline, Viewport);
-
-				int32 StartIndex = FMath::Max(0, Viewport.GetIndexAtViewportX(0.0f));
-				int32 EndIndex = Viewport.GetIndexAtViewportX(Viewport.Width);
-				FramesProvider.EnumerateFrames(ETraceFrameType(FrameType), static_cast<uint64>(StartIndex), static_cast<uint64>(EndIndex), [&Builder](const Trace::FFrame& Frame)
-				{
-					Builder.AddFrame(Frame);
-				});
-
-				NumUpdatedFrames += Builder.GetNumAddedFrames();
-			}
-		});
+			NumUpdatedFrames += Builder.GetNumAddedFrames();
+		}
 	}
 
 	Stopwatch.Stop();

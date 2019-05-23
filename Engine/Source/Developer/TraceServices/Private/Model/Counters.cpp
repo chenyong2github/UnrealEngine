@@ -94,14 +94,14 @@ void FCounterInternal::EnumerateFloatValues(double IntervalStart, double Interva
 	}
 }
 
-FCountersProvider::FCountersProvider(FSlabAllocator& InAllocator, FAnalysisSessionLock& InSessionLock)
+FCounterProvider::FCounterProvider(FSlabAllocator& InAllocator, FAnalysisSessionLock& InSessionLock)
 	: Allocator(InAllocator)
 	, SessionLock(InSessionLock)
 {
 
 }
 
-FCountersProvider::~FCountersProvider()
+FCounterProvider::~FCounterProvider()
 {
 	for (FCounterInternal* Counter : Counters)
 	{
@@ -109,7 +109,7 @@ FCountersProvider::~FCountersProvider()
 	}
 }
 
-void FCountersProvider::EnumerateCounters(TFunctionRef<void(const ICounter &)> Callback) const
+void FCounterProvider::EnumerateCounters(TFunctionRef<void(const ICounter &)> Callback) const
 {
 	uint32 Id = 0;
 	for (FCounterInternal* Counter : Counters)
@@ -118,7 +118,7 @@ void FCountersProvider::EnumerateCounters(TFunctionRef<void(const ICounter &)> C
 	}
 }
 
-FCounterInternal* FCountersProvider::CreateCounter(const TCHAR* Name, const TCHAR* Description, ECounterDisplayHint DisplayHint)
+FCounterInternal* FCounterProvider::CreateCounter(const TCHAR* Name, const TCHAR* Description, ECounterDisplayHint DisplayHint)
 {
 	FCounterInternal* Counter = new FCounterInternal(Allocator, Counters.Num(), Name, Description, DisplayHint);
 	Counters.Add(Counter);
@@ -164,22 +164,22 @@ static void InsertOp(FCounterInternal& Counter, double Time, ECounterOpType Type
 	}
 }
 
-void FCountersProvider::Add(FCounterInternal& Counter, double Time, int64 Value)
+void FCounterProvider::Add(FCounterInternal& Counter, double Time, int64 Value)
 {
 	InsertOp(Counter, Time, CounterOpType_Add, Value);
 }
 
-void FCountersProvider::Add(FCounterInternal& Counter, double Time, double Value)
+void FCounterProvider::Add(FCounterInternal& Counter, double Time, double Value)
 {
 	InsertOp(Counter, Time, CounterOpType_Add, Value);
 }
 
-void FCountersProvider::Set(FCounterInternal& Counter, double Time, int64 Value)
+void FCounterProvider::Set(FCounterInternal& Counter, double Time, int64 Value)
 {
 	InsertOp(Counter, Time, CounterOpType_Set, Value);
 }
 
-void FCountersProvider::Set(FCounterInternal& Counter, double Time, double Value)
+void FCounterProvider::Set(FCounterInternal& Counter, double Time, double Value)
 {
 	InsertOp(Counter, Time, CounterOpType_Set, Value);
 }

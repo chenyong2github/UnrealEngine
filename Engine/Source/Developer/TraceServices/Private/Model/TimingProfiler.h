@@ -23,8 +23,8 @@ public:
 	virtual ~FTimingProfilerProvider();
 	uint32 AddCpuTimer(const TCHAR* Name);
 	uint32 AddGpuTimer(const TCHAR* Name);
-	TSharedRef<TimelineInternal> EditCpuThreadTimeline(uint32 ThreadId);
-	TSharedRef<TimelineInternal> EditGpuTimeline();
+	TimelineInternal& EditCpuThreadTimeline(uint32 ThreadId);
+	TimelineInternal& EditGpuTimeline();
 	virtual bool GetCpuThreadTimelineIndex(uint32 ThreadId, uint32& OutTimelineIndex) const override;
 	virtual bool GetGpuTimelineIndex(uint32& OutTimelineIndex) const override;
 	virtual bool ReadTimeline(uint32 Index, TFunctionRef<void(const Timeline&)> Callback) const override;

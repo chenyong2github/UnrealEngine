@@ -6,14 +6,14 @@
 #include "Model/Bookmarks.h"
 #include "Model/Frames.h"
 
-FMiscTraceAnalyzer::FMiscTraceAnalyzer(TSharedRef<Trace::FAnalysisSession> InSession)
+FMiscTraceAnalyzer::FMiscTraceAnalyzer(Trace::FAnalysisSession& InSession)
 	: Session(InSession)
-	, ThreadProvider(InSession->EditThreadProvider())
-	, BookmarkProvider(InSession->EditBookmarkProvider())
-	, LogProvider(InSession->EditLogProvider())
-	, FrameProvider(InSession->EditFramesProvider())
+	, ThreadProvider(InSession.EditThreadProvider())
+	, BookmarkProvider(InSession.EditBookmarkProvider())
+	, LogProvider(InSession.EditLogProvider())
+	, FrameProvider(InSession.EditFrameProvider())
 {
-	Trace::FLogCategory& BookmarkLogCategory = LogProvider->GetCategory(Trace::FLogProvider::ReservedLogCategory_Bookmark);
+	Trace::FLogCategory& BookmarkLogCategory = LogProvider.GetCategory(Trace::FLogProvider::ReservedLogCategory_Bookmark);
 	BookmarkLogCategory.Name = TEXT("LogBookmark");
 	BookmarkLogCategory.DefaultVerbosity = ELogVerbosity::All;
 }
@@ -80,7 +80,7 @@ static ETraceThreadGroup GetThreadGroupFromName(const char* GroupName)
 
 void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
-	Trace::FAnalysisSessionEditScope _(Session.Get());
+	Trace::FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
@@ -88,19 +88,19 @@ void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	case RouteId_RegisterGameThread:
 	{
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
-		ThreadProvider->AddGameThread(ThreadId);
+		ThreadProvider.AddGameThread(ThreadId);
 		break;
 	}
 	case RouteId_CreateThread:
 	{
 		uint32 CreatedThreadId = EventData.GetValue("CreatedThreadId").As<uint32>();
 		EThreadPriority Priority = static_cast<EThreadPriority>(EventData.GetValue("Priority").As<uint32>());
-		ThreadProvider->AddThread(CreatedThreadId, reinterpret_cast<const TCHAR*>(EventData.GetAttachment()), Priority);
+		ThreadProvider.AddThread(CreatedThreadId, reinterpret_cast<const TCHAR*>(EventData.GetAttachment()), Priority);
 		uint32 CurrentThreadId = EventData.GetValue("CurrentThreadId").As<uint32>();
 		FThreadState* ThreadState = GetThreadState(CurrentThreadId);
 		if (ThreadState->ThreadGroupStack.Num())
 		{
-			ThreadProvider->SetThreadGroup(CreatedThreadId, ThreadState->ThreadGroupStack.Top());
+			ThreadProvider.SetThreadGroup(CreatedThreadId, ThreadState->ThreadGroupStack.Top());
 		}
 		break;
 	}
@@ -109,7 +109,7 @@ void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		const char* GroupName = reinterpret_cast<const char*>(EventData.GetAttachment());
 		ETraceThreadGroup ThreadGroup = GetThreadGroupFromName(GroupName);
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
-		ThreadProvider->SetThreadGroup(ThreadId, ThreadGroup);
+		ThreadProvider.SetThreadGroup(ThreadId, ThreadGroup);
 		break;
 	}
 	case RouteId_BeginThreadGroupScope:
@@ -131,14 +131,14 @@ void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	case RouteId_BookmarkSpec:
 	{
 		uint64 BookmarkPoint = EventData.GetValue("BookmarkPoint").As<uint64>();
-		Trace::FBookmarkSpec& Spec = BookmarkProvider->GetSpec(BookmarkPoint);
+		Trace::FBookmarkSpec& Spec = BookmarkProvider.GetSpec(BookmarkPoint);
 		Spec.Line = EventData.GetValue("Line").As<int32>();
 		const ANSICHAR* File = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
-		Spec.File = Session->StoreString(ANSI_TO_TCHAR(File));
-		Spec.FormatString = Session->StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + strlen(File) + 1));
+		Spec.File = Session.StoreString(ANSI_TO_TCHAR(File));
+		Spec.FormatString = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + strlen(File) + 1));
 
-		Trace::FLogMessageSpec& LogMessageSpec = LogProvider->GetMessageSpec(BookmarkPoint);
-		LogMessageSpec.Category = &LogProvider->GetCategory(Trace::FLogProvider::ReservedLogCategory_Bookmark);
+		Trace::FLogMessageSpec& LogMessageSpec = LogProvider.GetMessageSpec(BookmarkPoint);
+		LogMessageSpec.Category = &LogProvider.GetCategory(Trace::FLogProvider::ReservedLogCategory_Bookmark);
 		LogMessageSpec.Line = Spec.Line;
 		LogMessageSpec.File = Spec.File;
 		LogMessageSpec.FormatString = Spec.FormatString;
@@ -150,8 +150,8 @@ void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		uint64 BookmarkPoint = EventData.GetValue("BookmarkPoint").As<uint64>();
 		uint64 Cycle = EventData.GetValue("Cycle").As<uint64>();
 		double Timestamp = Context.SessionContext.TimestampFromCycle(Cycle);
-		BookmarkProvider->AppendBookmark(Timestamp, BookmarkPoint, EventData.GetAttachment());
-		LogProvider->AppendMessage(BookmarkPoint, Timestamp, EventData.GetAttachment());
+		BookmarkProvider.AppendBookmark(Timestamp, BookmarkPoint, EventData.GetAttachment());
+		LogProvider.AppendMessage(BookmarkPoint, Timestamp, EventData.GetAttachment());
 		break;
 	}
 	case RouteId_BeginFrame:
@@ -159,7 +159,7 @@ void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		uint64 Cycle = EventData.GetValue("Cycle").As<uint64>();
 		uint8 FrameType = EventData.GetValue("FrameType").As<uint8>();
 		check(FrameType < TraceFrameType_Count);
-		FrameProvider->BeginFrame(ETraceFrameType(FrameType), Context.SessionContext.TimestampFromCycle(Cycle));
+		FrameProvider.BeginFrame(ETraceFrameType(FrameType), Context.SessionContext.TimestampFromCycle(Cycle));
 		break;
 	}
 	case RouteId_EndFrame:
@@ -167,7 +167,7 @@ void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		uint64 Cycle = EventData.GetValue("Cycle").As<uint64>();
 		uint8 FrameType = EventData.GetValue("FrameType").As<uint8>();
 		check(FrameType < TraceFrameType_Count);
-		FrameProvider->EndFrame(ETraceFrameType(FrameType), Context.SessionContext.TimestampFromCycle(Cycle));
+		FrameProvider.EndFrame(ETraceFrameType(FrameType), Context.SessionContext.TimestampFromCycle(Cycle));
 		break;
 	}
 	}

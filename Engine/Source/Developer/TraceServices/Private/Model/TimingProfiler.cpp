@@ -51,7 +51,7 @@ FTimingProfilerTimer& FTimingProfilerProvider::AddTimerInternal(const TCHAR* Nam
 	return Timer;
 }
 
-TSharedRef<FTimingProfilerProvider::TimelineInternal> FTimingProfilerProvider::EditCpuThreadTimeline(uint32 ThreadId)
+FTimingProfilerProvider::TimelineInternal& FTimingProfilerProvider::EditCpuThreadTimeline(uint32 ThreadId)
 {
 	SessionLock.WriteAccessCheck();
 
@@ -61,20 +61,20 @@ TSharedRef<FTimingProfilerProvider::TimelineInternal> FTimingProfilerProvider::E
 		uint32 TimelineIndex = Timelines.Num();
 		CpuThreadTimelineIndexMap.Add(ThreadId, TimelineIndex);
 		Timelines.Add(Timeline);
-		return Timeline;
+		return Timeline.Get();
 	}
 	else
 	{
 		uint32 TimelineIndex = CpuThreadTimelineIndexMap[ThreadId];
-		return Timelines[TimelineIndex];
+		return Timelines[TimelineIndex].Get();
 	}
 }
 
-TSharedRef<FTimingProfilerProvider::TimelineInternal> FTimingProfilerProvider::EditGpuTimeline()
+FTimingProfilerProvider::TimelineInternal& FTimingProfilerProvider::EditGpuTimeline()
 {
 	SessionLock.WriteAccessCheck();
 
-	return Timelines[GpuTimelineIndex];
+	return Timelines[GpuTimelineIndex].Get();
 }
 
 bool FTimingProfilerProvider::GetCpuThreadTimelineIndex(uint32 ThreadId, uint32& OutTimelineIndex) const

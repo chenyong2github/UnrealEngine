@@ -4,7 +4,6 @@
 
 #include "Trace/Trace.h"
 #include "Trace/Analyzer.h"
-#include "Templates/SharedPointer.h"
 
 namespace Trace
 {
@@ -16,7 +15,7 @@ class FLogTraceAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FLogTraceAnalyzer(TSharedRef<Trace::FAnalysisSession> Session);
+	FLogTraceAnalyzer(Trace::FAnalysisSession& Session);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 	virtual void OnAnalysisEnd() override {};
@@ -29,6 +28,6 @@ private:
 		RouteId_LogMessage,
 	};
 
-	TSharedRef<Trace::FAnalysisSession> Session;
-	TSharedRef<Trace::FLogProvider> LogProvider;
+	Trace::FAnalysisSession& Session;
+	Trace::FLogProvider& LogProvider;
 };

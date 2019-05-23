@@ -1405,33 +1405,31 @@ void SStatsView::RebuildTree(bool bResync)
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		Session->ReadCountersProvider([this, &bResync, &bListHasChanged](const Trace::ICountersProvider& CountersProvider)
+		const Trace::ICounterProvider& CountersProvider = Session->ReadCounterProvider();
+		if (!bResync)
 		{
-			if (!bResync)
-			{
-				bResync = (CountersProvider.GetCounterCount() != StatsNodes.Num());
-			}
+			bResync = (CountersProvider.GetCounterCount() != StatsNodes.Num());
+		}
 
-			if (bResync)
-			{
-				StatsNodes.Empty(StatsNodes.Num());
-				//StatsNodesMap.Empty(StatsNodesMap.Num());
-				StatsNodesIdMap.Empty(StatsNodesIdMap.Num());
-				bListHasChanged = true;
+		if (bResync)
+		{
+			StatsNodes.Empty(StatsNodes.Num());
+			//StatsNodesMap.Empty(StatsNodesMap.Num());
+			StatsNodesIdMap.Empty(StatsNodesIdMap.Num());
+			bListHasChanged = true;
 
-				CountersProvider.EnumerateCounters([this](const Trace::ICounter& Counter)
-				{
-					FName Name(Counter.GetName());
-					FName Group(Counter.GetDisplayHint() == Trace::CounterDisplayHint_Memory ? TEXT("Memory") :
-								Counter.GetDisplayHint() == Trace::CounterDisplayHint_FloatingPoint ? TEXT("float") : TEXT("int64"));
-					EStatsNodeType Type = Counter.GetDisplayHint() == Trace::CounterDisplayHint_FloatingPoint ? EStatsNodeType::Float : EStatsNodeType::Int64;
-					FStatsNodePtr StatsNodePtr = MakeShareable(new FStatsNode(Counter.GetId(), Name, Group, Type));
-					StatsNodes.Add(StatsNodePtr);
-					//StatsNodesMap.Add(Name, StatsNodePtr);
-					StatsNodesIdMap.Add(Counter.GetId(), StatsNodePtr);
-				});
-			}
-		});
+			CountersProvider.EnumerateCounters([this](const Trace::ICounter& Counter)
+			{
+				FName Name(Counter.GetName());
+				FName Group(Counter.GetDisplayHint() == Trace::CounterDisplayHint_Memory ? TEXT("Memory") :
+							Counter.GetDisplayHint() == Trace::CounterDisplayHint_FloatingPoint ? TEXT("float") : TEXT("int64"));
+				EStatsNodeType Type = Counter.GetDisplayHint() == Trace::CounterDisplayHint_FloatingPoint ? EStatsNodeType::Float : EStatsNodeType::Int64;
+				FStatsNodePtr StatsNodePtr = MakeShareable(new FStatsNode(Counter.GetId(), Name, Group, Type));
+				StatsNodes.Add(StatsNodePtr);
+				//StatsNodesMap.Add(Name, StatsNodePtr);
+				StatsNodesIdMap.Add(Counter.GetId(), StatsNodePtr);
+			});
+		}
 	}
 
 	if (bListHasChanged)
@@ -1728,19 +1726,17 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 
 			// Compute instance count and total/min/max inclusive/exclusive times for each counter.
 			// Iterate through all counters.
-			Session->ReadCountersProvider([&CalculationHelperDbl, &CalculationHelperInt](const Trace::ICountersProvider& CountersProvider)
+			const Trace::ICounterProvider& CountersProvider = Session->ReadCounterProvider();
+			CountersProvider.EnumerateCounters([&CalculationHelperDbl, &CalculationHelperInt](const Trace::ICounter& Counter)
 			{
-				CountersProvider.EnumerateCounters([&CalculationHelperDbl, &CalculationHelperInt](const Trace::ICounter& Counter)
+				if (Counter.GetDisplayHint() == Trace::CounterDisplayHint_FloatingPoint)
 				{
-					if (Counter.GetDisplayHint() == Trace::CounterDisplayHint_FloatingPoint)
-					{
-						CalculationHelperDbl.Update(Counter);
-					}
-					else
-					{
-						CalculationHelperInt.Update(Counter);
-					}
-				});
+					CalculationHelperDbl.Update(Counter);
+				}
+				else
+				{
+					CalculationHelperInt.Update(Counter);
+				}
 			});
 
 			// Now, as we know min/max inclusive/exclusive times for counter, we can compute histogram and median values.
@@ -1752,19 +1748,17 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 
 				// Compute histogram.
 				// Iterate again through all counters.
-				Session->ReadCountersProvider([&CalculationHelperDbl, &CalculationHelperInt](const Trace::ICountersProvider& CountersProvider)
+				const Trace::ICounterProvider& CountersProvider = Session->ReadCounterProvider();
+				CountersProvider.EnumerateCounters([&CalculationHelperDbl, &CalculationHelperInt](const Trace::ICounter& Counter)
 				{
-					CountersProvider.EnumerateCounters([&CalculationHelperDbl, &CalculationHelperInt](const Trace::ICounter& Counter)
+					if (Counter.GetDisplayHint() == Trace::CounterDisplayHint_FloatingPoint)
 					{
-						if (Counter.GetDisplayHint() == Trace::CounterDisplayHint_FloatingPoint)
-						{
-							CalculationHelperDbl.UpdateHistograms(Counter);
-						}
-						else
-						{
-							CalculationHelperInt.UpdateHistograms(Counter);
-						}
-					});
+						CalculationHelperDbl.UpdateHistograms(Counter);
+					}
+					else
+					{
+						CalculationHelperInt.UpdateHistograms(Counter);
+					}
 				});
 			}
 		}

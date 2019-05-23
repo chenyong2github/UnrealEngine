@@ -23,7 +23,7 @@ inline bool operator!=(const Trace::FLoadTimeProfilerCpuEvent& Lhs, const Trace:
 class FAsyncLoadingTraceAnalyzer : public Trace::IAnalyzer
 {
 public:
-	FAsyncLoadingTraceAnalyzer(TSharedRef<Trace::FAnalysisSession> Session);
+	FAsyncLoadingTraceAnalyzer(Trace::FAnalysisSession& Session);
 	virtual ~FAsyncLoadingTraceAnalyzer();
 
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
@@ -198,8 +198,8 @@ private:
 		RouteId_ClassInfo,
 	};
 
-	TSharedRef<Trace::FAnalysisSession> Session;
-	TSharedRef<Trace::FLoadTimeProfilerProvider> LoadTimeProfilerProvider;
+	Trace::FAnalysisSession& Session;
+	Trace::FLoadTimeProfilerProvider& LoadTimeProfilerProvider;
 	//TSharedPtr<Trace::FMonotonicTimeline<uint64>> BlockingRequestsTimeline;
 
 	TArray<TSharedRef<FLoadMapState>> Maps;

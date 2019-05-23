@@ -3,9 +3,9 @@
 #include "AnalysisServicePrivate.h"
 #include "Model/FileActivity.h"
 
-FPlatformFileTraceAnalyzer::FPlatformFileTraceAnalyzer(TSharedRef<Trace::FAnalysisSession> InSession)
+FPlatformFileTraceAnalyzer::FPlatformFileTraceAnalyzer(Trace::FAnalysisSession& InSession)
 	: Session(InSession)
-	, FileActivityProvider(Session->EditFileActivityProvider())
+	, FileActivityProvider(Session.EditFileActivityProvider())
 {
 
 }
@@ -26,7 +26,7 @@ void FPlatformFileTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Conte
 
 void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
-	Trace::FAnalysisSessionEditScope _(Session.Get());
+	Trace::FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
@@ -37,9 +37,9 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		uint64 TempHandle = EventData.GetValue("TempHandle").As<uint64>();
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
 		check(!PendingOpenMap.Contains(TempHandle));
-		uint32 FileIndex = FileActivityProvider->GetFileIndex(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
+		uint32 FileIndex = FileActivityProvider.GetFileIndex(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
 		FPendingActivity& Open = PendingOpenMap.Add(TempHandle);
-		Open.ActivityIndex = FileActivityProvider->BeginActivity(FileIndex, Trace::FileActivityType_Open, 0, 0, Time);
+		Open.ActivityIndex = FileActivityProvider.BeginActivity(FileIndex, Trace::FileActivityType_Open, 0, 0, Time);
 		Open.FileIndex = FileIndex;
 		break;
 	}
@@ -52,13 +52,13 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		FPendingActivity& Open = PendingOpenMap[TempHandle];
 		if (FileHandle == uint64(-1)) // TODO: Portable invalid file handle?
 		{
-			FileActivityProvider->EndActivity(Open.FileIndex, Open.ActivityIndex, Time, true);
+			FileActivityProvider.EndActivity(Open.FileIndex, Open.ActivityIndex, Time, true);
 		}
 		else
 		{
 			check(!OpenFilesMap.Contains(FileHandle));
 			OpenFilesMap.Add(FileHandle, Open.FileIndex);
-			FileActivityProvider->EndActivity(Open.FileIndex, Open.ActivityIndex, Time, false);
+			FileActivityProvider.EndActivity(Open.FileIndex, Open.ActivityIndex, Time, false);
 		}
 		PendingOpenMap.Remove(TempHandle);
 		break;
@@ -74,7 +74,7 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		uint64 FileIndex = OpenFilesMap[FileHandle];
 		OpenFilesMap.Remove(FileHandle);
 		FPendingActivity& Close = PendingCloseMap.Add(TempHandle);
-		Close.ActivityIndex = FileActivityProvider->BeginActivity(FileIndex, Trace::FileActivityType_Close, 0, 0, Time);
+		Close.ActivityIndex = FileActivityProvider.BeginActivity(FileIndex, Trace::FileActivityType_Close, 0, 0, Time);
 		Close.FileIndex = FileIndex;
 		break;
 	}
@@ -84,7 +84,7 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		uint64 TempHandle = EventData.GetValue("TempHandle").As<uint64>();
 		check(PendingCloseMap.Contains(TempHandle));
 		FPendingActivity& Close = PendingCloseMap[TempHandle];
-		FileActivityProvider->EndActivity(Close.FileIndex, Close.ActivityIndex, Time, false);
+		FileActivityProvider.EndActivity(Close.FileIndex, Close.ActivityIndex, Time, false);
 		PendingCloseMap.Remove(TempHandle);
 		break;
 	}
@@ -98,7 +98,7 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
 		check(OpenFilesMap.Contains(FileHandle));
 		uint32 FileIndex = OpenFilesMap[FileHandle];
-		uint64 ReadIndex = FileActivityProvider->BeginActivity(FileIndex, Trace::FileActivityType_Read, Offset, Size, Time);
+		uint64 ReadIndex = FileActivityProvider.BeginActivity(FileIndex, Trace::FileActivityType_Read, Offset, Size, Time);
 		FPendingActivity& Read = ActiveReadsMap.Add(ReadHandle);
 		Read.FileIndex = FileIndex;
 		Read.ActivityIndex = ReadIndex;
@@ -112,7 +112,7 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
 		check(ActiveReadsMap.Contains(ReadHandle));
 		const FPendingActivity& Read = ActiveReadsMap[ReadHandle];
-		FileActivityProvider->EndActivity(Read.FileIndex, Read.ActivityIndex, Time, false);
+		FileActivityProvider.EndActivity(Read.FileIndex, Read.ActivityIndex, Time, false);
 		ActiveReadsMap.Remove(ReadHandle);
 		break;
 	}
@@ -126,7 +126,7 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
 		check(OpenFilesMap.Contains(FileHandle));
 		uint32 FileIndex = OpenFilesMap[FileHandle];
-		uint64 WriteIndex = FileActivityProvider->BeginActivity(FileIndex, Trace::FileActivityType_Write, Offset, Size, Time);
+		uint64 WriteIndex = FileActivityProvider.BeginActivity(FileIndex, Trace::FileActivityType_Write, Offset, Size, Time);
 		FPendingActivity& Write = ActiveWritesMap.Add(WriteHandle);
 		Write.FileIndex = FileIndex;
 		Write.ActivityIndex = WriteIndex;
@@ -140,7 +140,7 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
 		check(ActiveWritesMap.Contains(WriteHandle));
 		const FPendingActivity& Write = ActiveWritesMap[WriteHandle];
-		FileActivityProvider->EndActivity(Write.FileIndex, Write.ActivityIndex, Time, false);
+		FileActivityProvider.EndActivity(Write.FileIndex, Write.ActivityIndex, Time, false);
 		ActiveWritesMap.Remove(WriteHandle);
 		break;
 	}

@@ -8,19 +8,16 @@
 #include "Misc/ScopeLock.h"
 #include "Model/TimingProfiler.h"
 #include "Common/StringStore.h"
-
-struct FRandomStream;
+#include "Model/Bookmarks.h"
+#include "Model/Log.h"
+#include "Model/Threads.h"
+#include "Model/FileActivity.h"
+#include "Model/Frames.h"
+#include "Model/LoadTimeProfiler.h"
+#include "Model/Counters.h"
 
 namespace Trace
 {
-
-class FBookmarkProvider;
-class FLogProvider;
-class FThreadProvider;
-class FFileActivityProvider;
-class FFrameProvider;
-class FLoadTimeProfilerProvider;
-class FCountersProvider;
 
 class FAnalysisSessionLock
 {
@@ -53,29 +50,29 @@ public:
 	void UpdateDuration(double Seconds) { Lock.WriteAccessCheck(); DurationSeconds = Seconds > DurationSeconds ? Seconds : DurationSeconds; }
 	void SetComplete() { IsComplete = true; }
 
-	TSharedRef<FBookmarkProvider> EditBookmarkProvider() { return BookmarkProvider; }
-	virtual void ReadBookmarkProvider(TFunctionRef<void(const IBookmarkProvider&)> Callback) const override;
+	FBookmarkProvider& EditBookmarkProvider() { return BookmarkProvider; }
+	virtual const IBookmarkProvider& ReadBookmarkProvider() const override { return BookmarkProvider; }
 
-	TSharedRef<FLogProvider> EditLogProvider() { return LogProvider; }
-	virtual void ReadLogProvider(TFunctionRef<void(const ILogProvider&)> Callback) const override;
+	FLogProvider& EditLogProvider() { return LogProvider; }
+	virtual const ILogProvider& ReadLogProvider() const override { return LogProvider; }
 
-	TSharedRef<FThreadProvider> EditThreadProvider() { return ThreadProvider; }
-	virtual void ReadThreadProvider(TFunctionRef<void(const IThreadProvider&)> Callback) const override;
+	FThreadProvider& EditThreadProvider() { return ThreadProvider; }
+	virtual const IThreadProvider& ReadThreadProvider() const override { return ThreadProvider; }
 
-	TSharedRef<FFrameProvider> EditFramesProvider() { return FramesProvider; }
-	virtual void ReadFramesProvider(TFunctionRef<void(const IFrameProvider&)> Callback) const override;
+	FFrameProvider& EditFrameProvider() { return FrameProvider; }
+	virtual const IFrameProvider& ReadFrameProvider() const override { return FrameProvider; }
 
-	TSharedRef<FTimingProfilerProvider> EditTimingProfilerProvider() { return TimingProfilerProvider; }
-	virtual void ReadTimingProfilerProvider(TFunctionRef<void(const ITimingProfilerProvider&)> Callback) const override;
+	FTimingProfilerProvider& EditTimingProfilerProvider() { return TimingProfilerProvider; }
+	virtual const FTimingProfilerProvider& ReadTimingProfilerProvider() const override { return TimingProfilerProvider; }
 
-	TSharedRef<FFileActivityProvider> EditFileActivityProvider() { return FileActivityProvider; }
-	virtual void ReadFileActivityProvider(TFunctionRef<void(const IFileActivityProvider &)> Callback) const override;
+	FFileActivityProvider& EditFileActivityProvider() { return FileActivityProvider; }
+	virtual const FFileActivityProvider& ReadFileActivityProvider() const override { return FileActivityProvider; }
 
-	TSharedRef<FLoadTimeProfilerProvider> EditLoadTimeProfilerProvider() { return LoadTimeProfilerProvider; }
-	virtual void ReadLoadTimeProfilerProvider(TFunctionRef<void(const ILoadTimeProfilerProvider &)> Callback) const override;
+	FLoadTimeProfilerProvider& EditLoadTimeProfilerProvider() { return LoadTimeProfilerProvider; }
+	virtual const ILoadTimeProfilerProvider& ReadLoadTimeProfilerProvider() const override { return LoadTimeProfilerProvider; }
 
-	TSharedRef<FCountersProvider> EditCountersProvider() { return CountersProvider; }
-	virtual void ReadCountersProvider(TFunctionRef<void(const ICountersProvider &)> Callback) const override;
+	FCounterProvider& EditCounterProvider() { return CounterProvider; }
+	virtual const ICounterProvider& ReadCounterProvider() const override { return CounterProvider; }
 
 	const TCHAR* StoreString(const TCHAR* String) { return StringStore.Store(String); }
 
@@ -93,14 +90,14 @@ private:
 	double DurationSeconds = 0.0;
 	FSlabAllocator Allocator;
 	FStringStore StringStore;
-	TSharedRef<FBookmarkProvider> BookmarkProvider;
-	TSharedRef<FLogProvider> LogProvider;
-	TSharedRef<FThreadProvider> ThreadProvider;
-	TSharedRef<FFrameProvider> FramesProvider;
-	TSharedRef<FTimingProfilerProvider> TimingProfilerProvider;
-	TSharedRef<FFileActivityProvider> FileActivityProvider;
-	TSharedRef<FLoadTimeProfilerProvider> LoadTimeProfilerProvider;
-	TSharedRef<FCountersProvider> CountersProvider;
+	FBookmarkProvider BookmarkProvider;
+	FLogProvider LogProvider;
+	FThreadProvider ThreadProvider;
+	FFrameProvider FrameProvider;
+	FTimingProfilerProvider TimingProfilerProvider;
+	FFileActivityProvider FileActivityProvider;
+	FLoadTimeProfilerProvider LoadTimeProfilerProvider;
+	FCounterProvider CounterProvider;
 };
 
 struct FAnalysisSessionEditScope
@@ -127,7 +124,6 @@ public:
 	virtual ~FAnalysisService();
 	virtual TSharedPtr<const IAnalysisSession> Analyze(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& DataStream) override;
 	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& DataStream) override;
-	virtual TSharedPtr<const IAnalysisSession> MockAnalysis() override;
 	virtual FAnalysisStartedEvent& OnAnalysisStarted() override { return AnalysisStartedEvent; }
 	virtual FAnalysisFinishedEvent& OnAnalysisFinished() override { return AnalysisFinishedEvent; }
 
@@ -146,20 +142,6 @@ private:
 		FAnalysisService& Outer;
 		TUniquePtr<Trace::IInDataStream> DataStream;
 		TSharedPtr<FAnalysisSession> AnalysisSession;
-	};
-
-	class FMockGenerator
-	{
-	public:
-		FMockGenerator(TSharedRef<FAnalysisSession> InAnalysisSession);
-		void CreateMockData();
-
-	private:
-		void InitTimingEventHierarchy(FRandomStream& InRandomStream, TSharedRef<FTimingProfilerProvider::TimelineInternal> InTimeline, int& InOutEventCount, const double InStartTime, const double InDuration, const int32 InLevel);
-		
-		TSharedPtr<FAnalysisSession> AnalysisSession;
-		TArray<TSharedRef<FTimingProfilerProvider::TimelineInternal>> Timelines;
-		TArray<uint32> EventTypes;
 	};
 
 	void AnalyzeInternal(TSharedRef<FAnalysisSession> AnalysisSession, Trace::IInDataStream& DataStream);

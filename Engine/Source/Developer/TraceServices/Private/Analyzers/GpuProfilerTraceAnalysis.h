@@ -4,7 +4,6 @@
 
 #include "Trace/Trace.h"
 #include "Trace/Analyzer.h"
-#include "Templates/SharedPointer.h"
 #include "Model/TimingProfiler.h"
 
 namespace Trace
@@ -16,7 +15,7 @@ class FGpuProfilerAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FGpuProfilerAnalyzer(TSharedRef<Trace::FAnalysisSession> Session);
+	FGpuProfilerAnalyzer(Trace::FAnalysisSession& Session);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 	virtual void OnAnalysisEnd() override {};
@@ -30,9 +29,9 @@ private:
 
 	double GpuTimestampToSessionTime(uint64 GpuMicroseconds);
 
-	TSharedRef<Trace::FAnalysisSession> Session;
-	TSharedRef<Trace::FTimingProfilerProvider> TimingProfilerProvider;
-	TSharedRef<Trace::FTimingProfilerProvider::TimelineInternal> Timeline;
+	Trace::FAnalysisSession& Session;
+	Trace::FTimingProfilerProvider& TimingProfilerProvider;
+	Trace::FTimingProfilerProvider::TimelineInternal& Timeline;
 	TMap<uint64, uint32> EventTypeMap;
 	bool Calibrated;
 	uint64 GpuTimeOffset;

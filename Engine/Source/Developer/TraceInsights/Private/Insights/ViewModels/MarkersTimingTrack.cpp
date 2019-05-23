@@ -143,17 +143,15 @@ void FMarkersTimingTrack::Update(const FTimingTrackViewport& InViewport)
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		Session->ReadLogProvider([&Builder](const Trace::ILogProvider& LogProvider)
-		{
-			Builder.BeginLog(LogProvider);
+		const Trace::ILogProvider& LogProvider = Session->ReadLogProvider();
+		Builder.BeginLog(LogProvider);
 
-			LogProvider.EnumerateMessages(
-				Builder.GetViewport().StartTime,
-				Builder.GetViewport().EndTime,
-				[&Builder](const Trace::FLogMessage& Message) { Builder.AddLogMessage(Message); });
+		LogProvider.EnumerateMessages(
+			Builder.GetViewport().StartTime,
+			Builder.GetViewport().EndTime,
+			[&Builder](const Trace::FLogMessage& Message) { Builder.AddLogMessage(Message); });
 
-			Builder.EndLog();
-		});
+		Builder.EndLog();
 	}
 }
 

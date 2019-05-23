@@ -3,10 +3,10 @@
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
 
-FGpuProfilerAnalyzer::FGpuProfilerAnalyzer(TSharedRef<Trace::FAnalysisSession> InSession)
+FGpuProfilerAnalyzer::FGpuProfilerAnalyzer(Trace::FAnalysisSession& InSession)
 	: Session(InSession)
-	, TimingProfilerProvider(InSession->EditTimingProfilerProvider())
-	, Timeline(TimingProfilerProvider->EditGpuTimeline())
+	, TimingProfilerProvider(InSession.EditTimingProfilerProvider())
+	, Timeline(TimingProfilerProvider.EditGpuTimeline())
 	, Calibrated(false)
 {
 
@@ -22,7 +22,7 @@ void FGpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 void FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
-	Trace::FAnalysisSessionEditScope _(Session.Get());
+	Trace::FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
 
@@ -32,7 +32,7 @@ void FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	{
 		uint64 EventType = EventData.GetValue("EventType").As<uint64>();
 		FString EventName(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()), EventData.GetValue("NameLength").As<uint16>());
-		EventTypeMap.Add(EventType, TimingProfilerProvider->AddGpuTimer(*EventName));
+		EventTypeMap.Add(EventType, TimingProfilerProvider.AddGpuTimer(*EventName));
 		break;
 	}
 	case RouteId_Frame:
@@ -56,14 +56,14 @@ void FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 				check(EventTypeMap.Contains(EventType));
 				Trace::FTimingProfilerEvent Event;
 				Event.TimerIndex = EventTypeMap[EventType];
-				Timeline->AppendBeginEvent(GpuTimestampToSessionTime(ActualTimestamp), Event);
+				Timeline.AppendBeginEvent(GpuTimestampToSessionTime(ActualTimestamp), Event);
 				++CurrentDepth;
 			}
 			else
 			{
 				check(CurrentDepth > 0);
 				--CurrentDepth;
-				Timeline->AppendEndEvent(GpuTimestampToSessionTime(ActualTimestamp));
+				Timeline.AppendEndEvent(GpuTimestampToSessionTime(ActualTimestamp));
 			}
 		}
 		check(BufferPtr == BufferEnd);
@@ -78,7 +78,7 @@ double FGpuProfilerAnalyzer::GpuTimestampToSessionTime(uint64 GpuMicroseconds)
 {
 	if (!Calibrated)
 	{
-		uint64 SessionTimeMicroseconds = uint64(Session->GetDurationSeconds() * 1000000.0);
+		uint64 SessionTimeMicroseconds = uint64(Session.GetDurationSeconds() * 1000000.0);
 		GpuTimeOffset = GpuMicroseconds - SessionTimeMicroseconds;
 		Calibrated = true;
 	}

@@ -5,7 +5,6 @@
 #include "Trace/Trace.h"
 #include "Trace/Analyzer.h"
 #include "Containers/UnrealString.h"
-#include "Templates/SharedPointer.h"
 #include "Model/TimingProfiler.h"
 
 namespace Trace
@@ -18,7 +17,7 @@ class FCpuProfilerAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FCpuProfilerAnalyzer(TSharedRef<Trace::FAnalysisSession> Session);
+	FCpuProfilerAnalyzer(Trace::FAnalysisSession& Session);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 	virtual void OnAnalysisEnd() override {};
@@ -33,7 +32,7 @@ private:
 	struct FThreadState
 	{
 		TArray<EventScopeState> ScopeStack;
-		TSharedPtr<Trace::FTimingProfilerProvider::TimelineInternal> Timeline;
+		Trace::FTimingProfilerProvider::TimelineInternal* Timeline;
 		double LastCycle = 0.0;
 	};
 
@@ -45,9 +44,9 @@ private:
 		RouteId_EventBatch,
 	};
 
-	TSharedRef<Trace::FAnalysisSession> Session;
-	TSharedRef<Trace::FThreadProvider> ThreadProvider;
-	TSharedRef<Trace::FTimingProfilerProvider> TimingProfilerProvider;
+	Trace::FAnalysisSession& Session;
+	Trace::FThreadProvider& ThreadProvider;
+	Trace::FTimingProfilerProvider& TimingProfilerProvider;
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStatesMap;
 	TMap<uint16, uint32> ScopeIdToEventIdMap;
 };

@@ -704,49 +704,47 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 	if (Session.IsValid())
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		Session->ReadLogProvider([this, &NewMessageCount](const Trace::ILogProvider& LogProvider)
+		const Trace::ILogProvider& LogProvider = Session->ReadLogProvider();
+		NewMessageCount = static_cast<int32>(LogProvider.GetMessageCount());
+
+		//TODO: show only categories that are used in current trace
+		//TODO: cause of duplicates: a) runtime, b) case insensitive, c) stripped "Log" prefix
+		//TODO: FString vs. FText vs. FName ?
+
+		//TODO: int32 NumCategories = static_cast<int32>(LogProvider.GetCategoriesCount());
+		int32 NumCategories = 0;
+		LogProvider.EnumerateCategories([&NumCategories](const Trace::FLogCategory& Category)
 		{
-			NewMessageCount = static_cast<int32>(LogProvider.GetMessageCount());
-
-			//TODO: show only categories that are used in current trace
-			//TODO: cause of duplicates: a) runtime, b) case insensitive, c) stripped "Log" prefix
-			//TODO: FString vs. FText vs. FName ?
-
-			//TODO: int32 NumCategories = static_cast<int32>(LogProvider.GetCategoriesCount());
-			int32 NumCategories = 0;
-			LogProvider.EnumerateCategories([&NumCategories](const Trace::FLogCategory& Category)
-			{
-				NumCategories++;
-			});
-
-			if (NumCategories != TotalNumCategories)
-			{
-				TotalNumCategories = NumCategories;
-				UE_LOG(TimingProfiler, Log, TEXT("[LogView] Total Log Categories: %d"), TotalNumCategories);
-
-				TSet<FName> Categories;
-				LogProvider.EnumerateCategories([&Categories](const Trace::FLogCategory& Category)
-				{
-					FString CategoryStr(Category.Name);
-					if (CategoryStr.StartsWith(TEXT("Log")))
-						CategoryStr = CategoryStr.RightChop(3);
-					if (Categories.Contains(FName(*CategoryStr)))
-					{
-						UE_LOG(TimingProfiler, Log, TEXT("[LogView] Duplicated Log Category: \"%s\""), Category.Name);
-					}
-					Categories.Add(FName(*CategoryStr));
-				});
-				Filter.SyncAvailableCategories(Categories);
-				UE_LOG(TimingProfiler, Log, TEXT("[LogView] Unique Log Categories: %d"), Filter.GetAvailableLogCategories().Num());
-
-				//Cache.Reset();
-				Messages.Reset();
-				TotalNumMessages = 0;
-				//ListView->RebuildList();
-				bIsDirty = true;
-				DirtyStopwatch.Start();
-			}
+			NumCategories++;
 		});
+
+		if (NumCategories != TotalNumCategories)
+		{
+			TotalNumCategories = NumCategories;
+			UE_LOG(TimingProfiler, Log, TEXT("[LogView] Total Log Categories: %d"), TotalNumCategories);
+
+			TSet<FName> Categories;
+			LogProvider.EnumerateCategories([&Categories](const Trace::FLogCategory& Category)
+			{
+				FString CategoryStr(Category.Name);
+				if (CategoryStr.StartsWith(TEXT("Log")))
+					CategoryStr = CategoryStr.RightChop(3);
+				if (Categories.Contains(FName(*CategoryStr)))
+				{
+					UE_LOG(TimingProfiler, Log, TEXT("[LogView] Duplicated Log Category: \"%s\""), Category.Name);
+				}
+				Categories.Add(FName(*CategoryStr));
+			});
+			Filter.SyncAvailableCategories(Categories);
+			UE_LOG(TimingProfiler, Log, TEXT("[LogView] Unique Log Categories: %d"), Filter.GetAvailableLogCategories().Num());
+
+			//Cache.Reset();
+			Messages.Reset();
+			TotalNumMessages = 0;
+			//ListView->RebuildList();
+			bIsDirty = true;
+			DirtyStopwatch.Start();
+		}
 	}
 
 	if (NewMessageCount != TotalNumMessages)

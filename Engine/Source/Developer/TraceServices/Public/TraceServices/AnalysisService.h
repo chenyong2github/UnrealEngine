@@ -327,10 +327,10 @@ public:
 	virtual void EnumerateFloatValues(double IntervalStart, double IntervalEnd, TFunctionRef<void(double, double)> Callback) const = 0;
 };
 
-class ICountersProvider
+class ICounterProvider
 {
 public:
-	virtual ~ICountersProvider() = default;
+	virtual ~ICounterProvider() = default;
 	virtual uint64 GetCounterCount() const = 0;
 	virtual void EnumerateCounters(TFunctionRef<void(const ICounter&)> Callback) const = 0;
 };
@@ -346,14 +346,14 @@ public:
 
 	virtual void BeginRead() const = 0;
 	virtual void EndRead() const = 0;
-	virtual void ReadBookmarkProvider(TFunctionRef<void(const IBookmarkProvider&)> Callback) const = 0;
-	virtual void ReadLogProvider(TFunctionRef<void(const ILogProvider&)> Callback) const = 0;
-	virtual void ReadThreadProvider(TFunctionRef<void(const IThreadProvider&)> Callback) const = 0;
-	virtual void ReadFramesProvider(TFunctionRef<void(const IFrameProvider&)> Callback) const = 0;
-	virtual void ReadTimingProfilerProvider(TFunctionRef<void(const ITimingProfilerProvider&)> Callback) const = 0;
-	virtual void ReadFileActivityProvider(TFunctionRef<void(const IFileActivityProvider&)> Callback) const = 0;
-	virtual void ReadLoadTimeProfilerProvider(TFunctionRef<void(const ILoadTimeProfilerProvider&)> Callback) const = 0;
-	virtual void ReadCountersProvider(TFunctionRef<void(const ICountersProvider&)> Callback) const = 0;
+	virtual const IBookmarkProvider& ReadBookmarkProvider() const = 0;
+	virtual const ILogProvider& ReadLogProvider() const = 0;
+	virtual const IThreadProvider& ReadThreadProvider() const = 0;
+	virtual const IFrameProvider& ReadFrameProvider() const = 0;
+	virtual const ITimingProfilerProvider& ReadTimingProfilerProvider() const = 0;
+	virtual const IFileActivityProvider& ReadFileActivityProvider() const = 0;
+	virtual const ILoadTimeProfilerProvider& ReadLoadTimeProfilerProvider() const = 0;
+	virtual const ICounterProvider& ReadCounterProvider() const = 0;
 };
 
 struct FAnalysisSessionReadScope
@@ -378,7 +378,6 @@ class IAnalysisService
 public:
 	virtual TSharedPtr<const IAnalysisSession> Analyze(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& DataStream) = 0;
 	virtual TSharedPtr<const IAnalysisSession> StartAnalysis(const TCHAR* SessionName, TUniquePtr<Trace::IInDataStream>&& DataStream) = 0;
-	virtual TSharedPtr<const IAnalysisSession> MockAnalysis() = 0;
 
 	DECLARE_EVENT_OneParam(IAnalysisService, FAnalysisStartedEvent, TSharedRef<const IAnalysisSession>)
 	virtual FAnalysisStartedEvent& OnAnalysisStarted() = 0;

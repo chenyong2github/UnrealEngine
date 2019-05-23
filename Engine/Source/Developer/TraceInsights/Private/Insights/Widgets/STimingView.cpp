@@ -404,49 +404,45 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 		// Sync CachedTimelines and TimingEventsTracks with available timelines on analysis side.
 		// TODO: can we make this more efficient?
-		Session->ReadTimingProfilerProvider([this, &bIsTimingEventsTrackDirty, &Session](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
+		const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+		// Check if we have a GPU track.
+		uint32 GpuTimelineIndex;
+		if (TimingProfilerProvider.GetGpuTimelineIndex(GpuTimelineIndex))
 		{
-			// Check if we have a GPU track.
-			uint32 GpuTimelineIndex;
-			if (TimingProfilerProvider.GetGpuTimelineIndex(GpuTimelineIndex))
+			if (!CachedTimelines.Contains(GpuTimelineIndex))
 			{
-				if (!CachedTimelines.Contains(GpuTimelineIndex))
+				AddTimingEventsTrack(GpuTimelineIndex, ETimingEventsTrackType::Gpu, TEXT("GPU"), 0);
+				bIsTimingEventsTrackDirty = true;
+			}
+		}
+
+		// Check available CPU tracks.
+		const Trace::IThreadProvider& ThreadProvider = Session->ReadThreadProvider();
+		int32 Order = 1;
+		ThreadProvider.EnumerateThreads([this, &Order, &bIsTimingEventsTrackDirty, &TimingProfilerProvider](const Trace::FThreadInfo& ThreadInfo)
+		{
+			uint32 CpuTimelineIndex;
+			if (TimingProfilerProvider.GetCpuThreadTimelineIndex(ThreadInfo.Id, CpuTimelineIndex))
+			{
+				if (!CachedTimelines.Contains(CpuTimelineIndex))
 				{
-					AddTimingEventsTrack(GpuTimelineIndex, ETimingEventsTrackType::Gpu, TEXT("GPU"), 0);
+					FString TrackName(ThreadInfo.Name && *ThreadInfo.Name ? ThreadInfo.Name : FString::Printf(TEXT("Thread %u")));
+					AddTimingEventsTrack(CpuTimelineIndex, ETimingEventsTrackType::Cpu, TrackName, Order);
 					bIsTimingEventsTrackDirty = true;
 				}
-			}
-
-			// Check available CPU tracks.
-			Session->ReadThreadProvider([this, &bIsTimingEventsTrackDirty, &TimingProfilerProvider](const Trace::IThreadProvider& ThreadProvider)
-			{
-				int32 Order = 1;
-				ThreadProvider.EnumerateThreads([this, &Order, &bIsTimingEventsTrackDirty, &TimingProfilerProvider](const Trace::FThreadInfo& ThreadInfo)
+				else
 				{
-					uint32 CpuTimelineIndex;
-					if (TimingProfilerProvider.GetCpuThreadTimelineIndex(ThreadInfo.Id, CpuTimelineIndex))
+					FTimingEventsTrack* Track = CachedTimelines[CpuTimelineIndex];
+					if (Track->GetOrder() != Order)
 					{
-						if (!CachedTimelines.Contains(CpuTimelineIndex))
-						{
-							FString TrackName(ThreadInfo.Name && *ThreadInfo.Name ? ThreadInfo.Name : FString::Printf(TEXT("Thread %u")));
-							AddTimingEventsTrack(CpuTimelineIndex, ETimingEventsTrackType::Cpu, TrackName, Order);
-							bIsTimingEventsTrackDirty = true;
-						}
-						else
-						{
-							FTimingEventsTrack* Track = CachedTimelines[CpuTimelineIndex];
-							if (Track->GetOrder() != Order)
-							{
-								Track->SetOrder(Order);
-								bIsTimingEventsTrackDirty = true;
-							}
-						}
-						Order++;
+						Track->SetOrder(Order);
+						bIsTimingEventsTrackDirty = true;
 					}
-				});
-			});
+				}
+				Order++;
+			}
 		});
-
+		
 		if (IoActivityTrack == nullptr)
 		{
 			// Note: This track is hardcoded for now, as the I/O timelines are just prototypes for now (will be removed once the functionality is moved in analyzer).
@@ -1025,31 +1021,29 @@ void STimingView::DrawCpuGpuTimelineTrack(FTimingViewDrawHelper& Helper, FTiming
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-			Session->ReadTimingProfilerProvider([this, &Helper, &Track](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
+			const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+			TimingProfilerProvider.ReadTimers([this, &Helper, &Track, &TimingProfilerProvider](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
 			{
-				TimingProfilerProvider.ReadTimers([this, &Helper, &Track, &TimingProfilerProvider](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
+				TimingProfilerProvider.ReadTimeline(Track.GetId(), [this, &Helper, &Track, Timers](const Trace::ITimingProfilerProvider::Timeline& Timeline)
 				{
-					TimingProfilerProvider.ReadTimeline(Track.GetId(), [this, &Helper, &Track, Timers](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+					if (bUseDownSampling)
 					{
-						if (bUseDownSampling)
+						const double SecondsPerPixel = 1.0 / Helper.GetViewport().ScaleX;
+						Timeline.EnumerateEventsDownSampled(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, SecondsPerPixel, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
 						{
-							const double SecondsPerPixel = 1.0 / Helper.GetViewport().ScaleX;
-							Timeline.EnumerateEventsDownSampled(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, SecondsPerPixel, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
-							{
-								Helper.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name);
-							});
-						}
-						else
+							Helper.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name);
+						});
+					}
+					else
+					{
+						Timeline.EnumerateEvents(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
 						{
-							Timeline.EnumerateEvents(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
-							{
-								Helper.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name);
-							});
-						}
-					});
+							Helper.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name);
+						});
+					}
 				});
 			});
-
+		
 			Helper.EndTimeline(Track);
 		}
 	}
@@ -1172,28 +1166,26 @@ void STimingView::UpdateIo()
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-			Session->ReadFileActivityProvider([this](const Trace::IFileActivityProvider& FileActivityProvider)
+			const Trace::IFileActivityProvider& FileActivityProvider = Session->ReadFileActivityProvider();
+			// Enumerate all IO events and cache them.
+			FileActivityProvider.EnumerateFileActivity([this](const Trace::FFileInfo& FileInfo, const Trace::IFileActivityProvider::Timeline& Timeline)
 			{
-				// Enumerate all IO events and cache them.
-				FileActivityProvider.EnumerateFileActivity([this](const Trace::FFileInfo& FileInfo, const Trace::IFileActivityProvider::Timeline& Timeline)
+				Timeline.EnumerateEvents(-std::numeric_limits<double>::infinity(), +std::numeric_limits<double>::infinity(),
+					[this, &FileInfo, &Timeline](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FFileActivity& FileActivity)
 				{
-					Timeline.EnumerateEvents(-std::numeric_limits<double>::infinity(), +std::numeric_limits<double>::infinity(),
-						[this, &FileInfo, &Timeline](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FFileActivity& FileActivity)
+					if (bMergeIoLanes)
 					{
-						if (bMergeIoLanes)
-						{
-							EventDepth = static_cast<uint32>(FileInfo.Id); // used by MergeLanes algorithm
-						}
-						else
-						{
-							EventDepth = FileInfo.Id % 32; // simple layout
-						}
-						uint32 Type = ((uint32)FileActivity.ActivityType & 0x0F) | (FileActivity.Failed ? 0x80 : 0);
-						AllIoEvents.Add(FIoTimingEvent{ EventStartTime, EventEndTime, EventDepth, Type, FileInfo.Path });
-					});
-
-					return true;
+						EventDepth = static_cast<uint32>(FileInfo.Id); // used by MergeLanes algorithm
+					}
+					else
+					{
+						EventDepth = FileInfo.Id % 32; // simple layout
+					}
+					uint32 Type = ((uint32)FileActivity.ActivityType & 0x0F) | (FileActivity.Failed ? 0x80 : 0);
+					AllIoEvents.Add(FIoTimingEvent{ EventStartTime, EventEndTime, EventDepth, Type, FileInfo.Path });
 				});
+
+				return true;
 			});
 		}
 
@@ -2519,86 +2511,82 @@ bool STimingView::SearchTimingEvent(const double InStartTime,
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
 		//if (Ctx.TimingEvent.Track->GetType() == TrackType::Timing)
-		Session->ReadTimingProfilerProvider([&Ctx](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
+		const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+		TimingProfilerProvider.ReadTimeline(Ctx.TimingEvent.Track->GetId(), [&Ctx](const Trace::ITimingProfilerProvider::Timeline& Timeline)
 		{
-			TimingProfilerProvider.ReadTimeline(Ctx.TimingEvent.Track->GetId(), [&Ctx](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+			Timeline.EnumerateEvents(Ctx.StartTime, Ctx.EndTime, [&Ctx](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FTimingProfilerEvent& Event)
 			{
-				Timeline.EnumerateEvents(Ctx.StartTime, Ctx.EndTime, [&Ctx](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FTimingProfilerEvent& Event)
+				if (Ctx.bContinueSearching && Ctx.Predicate(EventStartTime, EventEndTime, EventDepth, Event.TimerIndex))
 				{
-					if (Ctx.bContinueSearching && Ctx.Predicate(EventStartTime, EventEndTime, EventDepth, Event.TimerIndex))
+					if (!Ctx.bSearchForLargestEvent || EventEndTime - EventStartTime > Ctx.LargestDuration)
 					{
-						if (!Ctx.bSearchForLargestEvent || EventEndTime - EventStartTime > Ctx.LargestDuration)
-						{
-							Ctx.LargestDuration = EventEndTime - EventStartTime;
+						Ctx.LargestDuration = EventEndTime - EventStartTime;
 
-							Ctx.TimingEvent.TypeId = Event.TimerIndex;
-							Ctx.TimingEvent.Depth = EventDepth;
-							Ctx.TimingEvent.StartTime = EventStartTime;
-							Ctx.TimingEvent.EndTime = EventEndTime;
+						Ctx.TimingEvent.TypeId = Event.TimerIndex;
+						Ctx.TimingEvent.Depth = EventDepth;
+						Ctx.TimingEvent.StartTime = EventStartTime;
+						Ctx.TimingEvent.EndTime = EventEndTime;
 
-							Ctx.bFound = true;
-							Ctx.bContinueSearching = !Ctx.bStopAtFirstMatch || Ctx.bSearchForLargestEvent;
-						}
+						Ctx.bFound = true;
+						Ctx.bContinueSearching = !Ctx.bStopAtFirstMatch || Ctx.bSearchForLargestEvent;
 					}
-				});
+				}
 			});
 		});
-
+	
 		if (Ctx.bFound)
 		{
-			Session->ReadTimingProfilerProvider([&Ctx](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
+			const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+			TimingProfilerProvider.ReadTimeline(Ctx.TimingEvent.Track->GetId(), [&Ctx](const Trace::ITimingProfilerProvider::Timeline& Timeline)
 			{
-				TimingProfilerProvider.ReadTimeline(Ctx.TimingEvent.Track->GetId(), [&Ctx](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+				struct FEnumerationState
 				{
-					struct FEnumerationState
+					double EventStartTime;
+					double EventEndTime;
+					uint64 EventDepth;
+
+					uint64 CurrentDepth;
+					double LastTime;
+					double ExclusiveTime;
+					bool IsInEventScope;
+				};
+				FEnumerationState State;
+
+				State.EventStartTime = Ctx.TimingEvent.StartTime;
+				State.EventEndTime = Ctx.TimingEvent.EndTime;
+				State.EventDepth = Ctx.TimingEvent.Depth;
+
+				State.CurrentDepth = 0;
+				State.LastTime = 0.0;
+				State.ExclusiveTime = 0.0;
+				State.IsInEventScope = false;
+
+				Timeline.EnumerateEvents(Ctx.TimingEvent.StartTime, Ctx.TimingEvent.EndTime, [&State](bool IsEnter, double Time, const Trace::FTimingProfilerEvent& Event)
+				{
+					if (IsEnter)
 					{
-						double EventStartTime;
-						double EventEndTime;
-						uint64 EventDepth;
-
-						uint64 CurrentDepth;
-						double LastTime;
-						double ExclusiveTime;
-						bool IsInEventScope;
-					};
-					FEnumerationState State;
-
-					State.EventStartTime = Ctx.TimingEvent.StartTime;
-					State.EventEndTime = Ctx.TimingEvent.EndTime;
-					State.EventDepth = Ctx.TimingEvent.Depth;
-
-					State.CurrentDepth = 0;
-					State.LastTime = 0.0;
-					State.ExclusiveTime = 0.0;
-					State.IsInEventScope = false;
-
-					Timeline.EnumerateEvents(Ctx.TimingEvent.StartTime, Ctx.TimingEvent.EndTime, [&State](bool IsEnter, double Time, const Trace::FTimingProfilerEvent& Event)
+						if (State.IsInEventScope && State.CurrentDepth == State.EventDepth + 1)
+						{
+							State.ExclusiveTime += Time - State.LastTime;
+						}
+						if (State.CurrentDepth == State.EventDepth && Time == State.EventStartTime)
+						{
+							State.IsInEventScope = true;
+						}
+						++State.CurrentDepth;
+					}
+					else
 					{
-						if (IsEnter)
+						--State.CurrentDepth;
+						if (State.CurrentDepth == State.EventDepth && Time == State.EventEndTime)
 						{
-							if (State.IsInEventScope && State.CurrentDepth == State.EventDepth + 1)
-							{
-								State.ExclusiveTime += Time - State.LastTime;
-							}
-							if (State.CurrentDepth == State.EventDepth && Time == State.EventStartTime)
-							{
-								State.IsInEventScope = true;
-							}
-							++State.CurrentDepth;
+							State.IsInEventScope = false;
+							State.ExclusiveTime += Time - State.LastTime;
 						}
-						else
-						{
-							--State.CurrentDepth;
-							if (State.CurrentDepth == State.EventDepth && Time == State.EventEndTime)
-							{
-								State.IsInEventScope = false;
-								State.ExclusiveTime += Time - State.LastTime;
-							}
-						}
-						State.LastTime = Time;
-					});
-					Ctx.TimingEvent.ExclusiveTime = State.ExclusiveTime;
+					}
+					State.LastTime = Time;
 				});
+				Ctx.TimingEvent.ExclusiveTime = State.ExclusiveTime;
 			});
 		}
 	}

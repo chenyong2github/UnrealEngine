@@ -373,14 +373,12 @@ void FFramesGraphTrack::UpdateSeries(FGraphTrackSeries& Series, const FTimingTra
 	if (Session.IsValid())
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		Session->ReadFramesProvider([this, &Builder, FrameType](const Trace::IFrameProvider& FramesProvider)
+		const Trace::IFrameProvider& FramesProvider = Session->ReadFrameProvider();
+		uint64 FrameCount = FramesProvider.GetFrameCount(FrameType);
+		FramesProvider.EnumerateFrames(FrameType, 0, FrameCount - 1, [&Builder](const Trace::FFrame& Frame)
 		{
-			uint64 FrameCount = FramesProvider.GetFrameCount(FrameType);
-			FramesProvider.EnumerateFrames(FrameType, 0, FrameCount - 1, [&Builder](const Trace::FFrame& Frame)
-			{
-				const double Duration = Frame.EndTime - Frame.StartTime;
-				Builder.AddEvent(Frame.StartTime, Duration, Duration);
-			});
+			const double Duration = Frame.EndTime - Frame.StartTime;
+			Builder.AddEvent(Frame.StartTime, Duration, Duration);
 		});
 	}
 }

@@ -48,12 +48,12 @@ private:
 	TPagedArray<double> DoubleOpArguments;
 };
 
-class FCountersProvider
-	: public ICountersProvider
+class FCounterProvider
+	: public ICounterProvider
 {
 public:
-	FCountersProvider(FSlabAllocator& Allocator, FAnalysisSessionLock& SessionLock);
-	virtual ~FCountersProvider();
+	FCounterProvider(FSlabAllocator& Allocator, FAnalysisSessionLock& SessionLock);
+	virtual ~FCounterProvider();
 	virtual uint64 GetCounterCount() const override { return Counters.Num(); }
 	virtual void EnumerateCounters(TFunctionRef<void(const ICounter&)> Callback) const override;
 

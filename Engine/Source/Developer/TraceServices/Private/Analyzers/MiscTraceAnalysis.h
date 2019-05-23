@@ -21,7 +21,7 @@ class FMiscTraceAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FMiscTraceAnalyzer(TSharedRef<Trace::FAnalysisSession> Session);
+	FMiscTraceAnalyzer(Trace::FAnalysisSession& Session);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 	virtual void OnAnalysisEnd() override {};
@@ -47,11 +47,11 @@ private:
 
 	FThreadState* GetThreadState(uint32 ThreadId);
 
-	TSharedRef<Trace::FAnalysisSession> Session;
-	TSharedRef<Trace::FThreadProvider> ThreadProvider;
-	TSharedRef<Trace::FBookmarkProvider> BookmarkProvider;
-	TSharedRef<Trace::FLogProvider> LogProvider;
-	TSharedRef<Trace::FFrameProvider> FrameProvider;
+	Trace::FAnalysisSession& Session;
+	Trace::FThreadProvider& ThreadProvider;
+	Trace::FBookmarkProvider& BookmarkProvider;
+	Trace::FLogProvider& LogProvider;
+	Trace::FFrameProvider& FrameProvider;
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStateMap;
 };
 

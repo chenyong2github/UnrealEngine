@@ -4,10 +4,10 @@
 #include "Common/Utils.h"
 #include "Model/Threads.h"
 
-FCpuProfilerAnalyzer::FCpuProfilerAnalyzer(TSharedRef<Trace::FAnalysisSession> InSession)
+FCpuProfilerAnalyzer::FCpuProfilerAnalyzer(Trace::FAnalysisSession& InSession)
 	: Session(InSession)
-	, ThreadProvider(InSession->EditThreadProvider())
-	, TimingProfilerProvider(InSession->EditTimingProfilerProvider())
+	, ThreadProvider(InSession.EditThreadProvider())
+	, TimingProfilerProvider(InSession.EditTimingProfilerProvider())
 {
 
 }
@@ -22,7 +22,7 @@ void FCpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 void FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
-	Trace::FAnalysisSessionEditScope _(Session.Get());
+	Trace::FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
@@ -30,7 +30,7 @@ void FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	case RouteId_EventSpec:
 	{
 		uint16 Id = EventData.GetValue("Id").As<uint16>();
-		ScopeIdToEventIdMap.Add(Id, TimingProfilerProvider->AddCpuTimer(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
+		ScopeIdToEventIdMap.Add(Id, TimingProfilerProvider.AddCpuTimer(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
 		break;
 	}
 	case RouteId_EventBatch:
@@ -66,7 +66,7 @@ void FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 		check(BufferPtr == BufferEnd);
 		if (LastCycle)
 		{
-			Session->UpdateDuration(Context.SessionContext.TimestampFromCycle(LastCycle));
+			Session.UpdateDuration(Context.SessionContext.TimestampFromCycle(LastCycle));
 		}
 		ThreadState->LastCycle = LastCycle;
 		break;
@@ -79,9 +79,9 @@ TSharedRef<FCpuProfilerAnalyzer::FThreadState> FCpuProfilerAnalyzer::GetThreadSt
 	if (!ThreadStatesMap.Contains(ThreadId))
 	{
 		TSharedRef<FThreadState> ThreadState = MakeShared<FThreadState>();
-		ThreadState->Timeline = TimingProfilerProvider->EditCpuThreadTimeline(ThreadId);
+		ThreadState->Timeline = &TimingProfilerProvider.EditCpuThreadTimeline(ThreadId);
 		ThreadStatesMap.Add(ThreadId, ThreadState);
-		ThreadProvider->EnsureThreadExists(ThreadId);
+		ThreadProvider.EnsureThreadExists(ThreadId);
 		return ThreadState;
 	}
 	else

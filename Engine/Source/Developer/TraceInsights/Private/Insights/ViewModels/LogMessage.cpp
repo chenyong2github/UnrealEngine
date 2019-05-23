@@ -145,18 +145,15 @@ FLogMessageRecord& FLogMessageCache::Get(uint64 Index)
 	if (Session.IsValid())
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		Session->ReadLogProvider(
-			[this, Index](const Trace::ILogProvider& LogProvider)
-			{
-				LogProvider.ReadMessage(
-					Index,
-					[this, Index](const Trace::FLogMessage& Message)
-					{
-						FScopeLock Lock(&CriticalSection);
-						FLogMessageRecord Entry(Message);
-						Map.Add(Index, Entry);
-					});
-			});
+		const Trace::ILogProvider& LogProvider = Session->ReadLogProvider();
+		LogProvider.ReadMessage(
+			Index,
+			[this, Index](const Trace::FLogMessage& Message)
+		{
+				FScopeLock Lock(&CriticalSection);
+				FLogMessageRecord Entry(Message);
+				Map.Add(Index, Entry);
+		});
 	}
 
 	{
@@ -179,16 +176,13 @@ TSharedPtr<FLogMessageRecord> FLogMessageCache::GetUncached(uint64 Index) const
 	if (Session.IsValid())
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		Session->ReadLogProvider(
-			[Index, &EntryPtr](const Trace::ILogProvider& LogProvider)
-			{
-				LogProvider.ReadMessage(
-					Index,
-					[&EntryPtr](const Trace::FLogMessage& Message)
-					{
-						EntryPtr = MakeShareable(new FLogMessageRecord(Message));
-					});
-			});
+		const Trace::ILogProvider& LogProvider = Session->ReadLogProvider();
+		LogProvider.ReadMessage(
+			Index,
+			[&EntryPtr](const Trace::FLogMessage& Message)
+		{
+				EntryPtr = MakeShareable(new FLogMessageRecord(Message));
+		});
 	}
 
 	return EntryPtr;

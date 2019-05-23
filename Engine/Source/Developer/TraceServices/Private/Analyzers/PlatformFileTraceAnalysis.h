@@ -4,7 +4,6 @@
 
 #include "Trace/Trace.h"
 #include "Trace/Analyzer.h"
-#include "Templates/SharedPointer.h"
 
 namespace Trace
 {
@@ -17,7 +16,7 @@ class FPlatformFileTraceAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FPlatformFileTraceAnalyzer(TSharedRef<Trace::FAnalysisSession> Session);
+	FPlatformFileTraceAnalyzer(Trace::FAnalysisSession& Session);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 	virtual void OnAnalysisEnd() override;
@@ -43,8 +42,8 @@ private:
 		uint32 FileIndex;
 	};
 
-	TSharedRef<Trace::FAnalysisSession> Session;
-	TSharedRef<Trace::FFileActivityProvider> FileActivityProvider;
+	Trace::FAnalysisSession& Session;
+	Trace::FFileActivityProvider& FileActivityProvider;
 	TMap<uint64, uint32> OpenFilesMap;
 	TMap<uint64, FPendingActivity> PendingOpenMap;
 	TMap<uint64, FPendingActivity> PendingCloseMap;

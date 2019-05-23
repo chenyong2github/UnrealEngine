@@ -1435,36 +1435,34 @@ void STimersView::RebuildTree(bool bResync)
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		Session->ReadTimingProfilerProvider([this, &bResync, &bListHasChanged](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
+		const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+		TimingProfilerProvider.ReadTimers([this, &bResync, &bListHasChanged](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
 		{
-			TimingProfilerProvider.ReadTimers([this, &bResync, &bListHasChanged](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
+			if (!bResync)
 			{
-				if (!bResync)
-				{
-					bResync = (TimersCount != TimerNodes.Num());
-				}
+				bResync = (TimersCount != TimerNodes.Num());
+			}
 
-				if (bResync)
-				{
-					TimerNodes.Empty(TimerNodes.Num());
-					//TimerNodesMap.Empty(TimerNodesMap.Num());
-					TimerNodesIdMap.Empty(TimerNodesIdMap.Num());
-					bListHasChanged = true;
+			if (bResync)
+			{
+				TimerNodes.Empty(TimerNodes.Num());
+				//TimerNodesMap.Empty(TimerNodesMap.Num());
+				TimerNodesIdMap.Empty(TimerNodesIdMap.Num());
+				bListHasChanged = true;
 
-					for (uint64 TimerIndex = 0; TimerIndex < TimersCount; ++TimerIndex)
-					{
-						const Trace::FTimingProfilerTimer& Timer = Timers[TimerIndex];
-						FName Name(Timer.Name);// +TEXT(" [GPU]")));
-						FName Group(Timer.IsGpuTimer ? TEXT("GPU") : TEXT("CPU"));
-						ETimerNodeType Type = Timer.IsGpuTimer ? ETimerNodeType::GpuScope : ETimerNodeType::CpuScope;
-						FTimerNode* TimerPtr = new FTimerNode(Timer.Id, Name, Group, Type);
-						FTimerNodePtr TimerNodePtr = MakeShareable(TimerPtr);
-						TimerNodes.Add(TimerNodePtr);
-						//TimerNodesMap.Add(Name, TimerNodePtr);
-						TimerNodesIdMap.Add(Timer.Id, TimerNodePtr);
-					}
+				for (uint64 TimerIndex = 0; TimerIndex < TimersCount; ++TimerIndex)
+				{
+					const Trace::FTimingProfilerTimer& Timer = Timers[TimerIndex];
+					FName Name(Timer.Name);// +TEXT(" [GPU]")));
+					FName Group(Timer.IsGpuTimer ? TEXT("GPU") : TEXT("CPU"));
+					ETimerNodeType Type = Timer.IsGpuTimer ? ETimerNodeType::GpuScope : ETimerNodeType::CpuScope;
+					FTimerNode* TimerPtr = new FTimerNode(Timer.Id, Name, Group, Type);
+					FTimerNodePtr TimerNodePtr = MakeShareable(TimerPtr);
+					TimerNodes.Add(TimerNodePtr);
+					//TimerNodesMap.Add(Name, TimerNodePtr);
+					TimerNodesIdMap.Add(Timer.Id, TimerNodePtr);
 				}
-			});
+			}
 		});
 	}
 
@@ -1487,17 +1485,17 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 	if (Session.IsValid() &&
 		StartTime < EndTime)
 	{
-		TUniquePtr<Trace::ITable<Trace::FTimingProfilerAggregatedStats>> AggregationResultTable;
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		Session->ReadTimingProfilerProvider([StartTime, EndTime, &AggregationResultTable](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
+		auto ThreadFilter = [](uint32 ThreadId)
 		{
-			auto ThreadFilter = [](uint32 ThreadId)
-			{
-				return true;
-			};
-			AggregationResultTable.Reset(TimingProfilerProvider.CreateAggregation(StartTime, EndTime, ThreadFilter, true));
-		});
+			return true;
+		};
 
+		TUniquePtr<Trace::ITable<Trace::FTimingProfilerAggregatedStats>> AggregationResultTable;
+		{
+			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+			const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+			AggregationResultTable.Reset(TimingProfilerProvider.CreateAggregation(StartTime, EndTime, ThreadFilter, true));
+		}
 		TUniquePtr<Trace::ITableReader<Trace::FTimingProfilerAggregatedStats>> AggregationResultTableReader(AggregationResultTable->CreateReader());
 		while (AggregationResultTableReader->IsValid())
 		{
