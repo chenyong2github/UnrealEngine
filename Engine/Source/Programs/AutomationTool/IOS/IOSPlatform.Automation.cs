@@ -1693,7 +1693,12 @@ public class IOSPlatform : Platform
 			MobileProvisionDir = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.LocalApplicationData), "Apple Computer", "MobileDevice", "Provisioning Profiles");
 		}
 
-		FileReference MobileProvisionFile = FileReference.Combine(MobileProvisionDir, Params.Provision);
+		FileReference MobileProvisionFile = null;
+		
+		if(MobileProvisionDir != null && Params.Provision != null)
+		{
+			MobileProvisionFile = FileReference.Combine(MobileProvisionDir, Params.Provision);
+		}
 
 		// distribution build
 		bool bForDistribution = Params.Distribution;
