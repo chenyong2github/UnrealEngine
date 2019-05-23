@@ -2074,6 +2074,22 @@ void UHierarchicalInstancedStaticMeshComponent::PostDuplicate(bool bDuplicateFor
 	}
 }
 
+void UHierarchicalInstancedStaticMeshComponent::PostLoad()
+{
+	// ConditionalPostLoad the level lightmap data since we expect it to be loaded before PostLoadPerInstanceData which is called from Super::PostLoad()
+	AActor* Owner = GetOwner();
+	if (Owner != nullptr)
+	{
+		ULevel* OwnerLevel = Owner->GetLevel();
+		if (OwnerLevel != nullptr && OwnerLevel->MapBuildData != nullptr)
+		{
+			OwnerLevel->MapBuildData->ConditionalPostLoad();
+		}
+	}
+
+	Super::PostLoad();
+}
+
 void UHierarchicalInstancedStaticMeshComponent::RemoveInstancesInternal(const int32* InstanceIndices, int32 Num)
 {
 	if (IsAsyncBuilding() && Num > 0)
