@@ -205,6 +205,9 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "LogView.Icon.Small"))
 		.SetGroup(AppMenuGroup);
 
+	TSharedPtr<FTimingProfilerManager> TimingProfilerManager = FTimingProfilerManager::Get();
+	ensure(TimingProfilerManager.IsValid());
+
 	// Create tab layout.
 	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("InsightsTimingProfilerLayout_v1.0")
 		->AddArea
@@ -232,36 +235,36 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.1f)
 						->SetHideTabWell(true)
-						->AddTab(FTimingProfilerTabs::FramesTrackID, FTimingProfilerManager::Get()->IsFramesTrackVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+						->AddTab(FTimingProfilerTabs::FramesTrackID, TimingProfilerManager->IsFramesTrackVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
 					)
 					->Split
 					(
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.2f)
 						->SetHideTabWell(true)
-						->AddTab(FTimingProfilerTabs::GraphTrackID, FTimingProfilerManager::Get()->IsGraphTrackVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+						->AddTab(FTimingProfilerTabs::GraphTrackID, TimingProfilerManager->IsGraphTrackVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
 					)
 					->Split
 					(
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.5f)
 						->SetHideTabWell(true)
-						->AddTab(FTimingProfilerTabs::TimingViewID, FTimingProfilerManager::Get()->IsTimingViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+						->AddTab(FTimingProfilerTabs::TimingViewID, TimingProfilerManager->IsTimingViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
 					)
 					->Split
 					(
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.2f)
 						->SetHideTabWell(true)
-						->AddTab(FTimingProfilerTabs::LogViewID, FTimingProfilerManager::Get()->IsLogViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+						->AddTab(FTimingProfilerTabs::LogViewID, TimingProfilerManager->IsLogViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
 					)
 				)
 				->Split
 				(
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.35f)
-					->AddTab(FTimingProfilerTabs::TimersID, FTimingProfilerManager::Get()->IsTimersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
-					->AddTab(FTimingProfilerTabs::StatsCountersID, FTimingProfilerManager::Get()->IsStatsCountersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+					->AddTab(FTimingProfilerTabs::TimersID, TimingProfilerManager->IsTimersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+					->AddTab(FTimingProfilerTabs::StatsCountersID, TimingProfilerManager->IsStatsCountersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
 					->SetForegroundTab(FTimingProfilerTabs::TimersID)
 				)
 			)

@@ -1656,6 +1656,7 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			else if (bIsSelecting)
 			{
 				//TODO: SelectionChangedEvent.Broadcast(SelectionStartTime, SelectionEndTime);
+
 				TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
 				if (Wnd)
 				{
@@ -1677,6 +1678,15 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 				// Select the hovered timing event (if any).
 				UpdateHoveredTimingEvent(MousePositionOnButtonUp.X, MousePositionOnButtonUp.Y);
 				SelectHoveredTimingEvent();
+
+				// When clicking on an empty space...
+				if (!SelectedTimingEvent.IsValid())
+				{
+					// ...reset selection.
+					SelectionEndTime = SelectionStartTime = 0.0;
+					LastSelectionType = ESelectionType::None;
+					//TODO: SelectionChangedEvent.Broadcast(SelectionStartTime, SelectionEndTime);
+				}
 			}
 
 			bIsDragging = false;
