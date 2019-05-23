@@ -24,12 +24,6 @@
 #include "Insights/Widgets/STimingProfilerWindow.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-static const FName StartPageTabName(TEXT("StartPage"));
-static const FName TimingProfilerTabName(TEXT("TimingProfiler"));
-static const FName IoProfilerTabName(TEXT("IoProfiler"));
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Implements the Trace Insights module (TimingProfiler, IoProfiler, etc.).
  */
@@ -93,14 +87,14 @@ void FTraceInsightsModule::StartupModule()
 	FIoProfilerManager::Initialize();
 
 	// Register tab spawner for the Start Page.
-	auto& StartPageTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterTabSpawner(StartPageTabName,
+	auto& StartPageTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterTabSpawner(FInsightsManagerTabs::StartPageTabId,
 		FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnStartPageTab))
 		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "StartPageTabTitle", "Unreal Insights"))
 		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "StartPageTooltipText", "Open the start page for Unreal Insights."))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "StartPage.Icon.Small"));
 
 	// Register tab spawner for the Timing Insights.
-	auto& TimingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterTabSpawner(TimingProfilerTabName,
+	auto& TimingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterTabSpawner(FInsightsManagerTabs::TimingProfilerTabId,
 		FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnTimingProfilerTab))
 		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "TimingProfilerTabTitle", "Timing Insights"))
 		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "TimingProfilerTooltipText", "Open the Timing Insights tab."))
@@ -113,7 +107,7 @@ void FTraceInsightsModule::StartupModule()
 //#endif
 
 	// Register tab spawner for the Asset Loading Insights.
-	auto& IoProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterTabSpawner(IoProfilerTabName,
+	auto& IoProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterTabSpawner(FInsightsManagerTabs::IoProfilerTabId,
 		FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnIoProfilerTab))
 		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "IoProfilerTabTitle", "Asset Loading Insights"))
 		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "IoProfilerTooltipText", "Open the Asset Loading Insights tab."))
@@ -132,9 +126,9 @@ void FTraceInsightsModule::ShutdownModule()
 {
 	TraceSessionService->StopRecorderServer();
 
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(StartPageTabName);
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TimingProfilerTabName);
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(IoProfilerTabName);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::StartPageTabId);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::TimingProfilerTabId);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::IoProfilerTabId);
 
 	if (FInsightsManager::Get().IsValid())
 	{
@@ -154,11 +148,11 @@ void FTraceInsightsModule::OnNewLayout(TSharedRef<FTabManager::FLayout> NewLayou
 		->Split
 		(
 			FTabManager::NewStack()
-			->AddTab(StartPageTabName, ETabState::OpenedTab)
-			->AddTab(TimingProfilerTabName, ETabState::ClosedTab)
-			->AddTab(IoProfilerTabName, ETabState::ClosedTab)
+			->AddTab(FInsightsManagerTabs::StartPageTabId, ETabState::OpenedTab)
+			->AddTab(FInsightsManagerTabs::TimingProfilerTabId, ETabState::ClosedTab)
+			->AddTab(FInsightsManagerTabs::IoProfilerTabId, ETabState::ClosedTab)
 			//->AddTab(FName("MemoryProfiler"), ETabState::ClosedTab)
-			->SetForegroundTab(FTabId(StartPageTabName))
+			->SetForegroundTab(FTabId(FInsightsManagerTabs::StartPageTabId))
 		)
 	);
 }

@@ -129,6 +129,7 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 					+ SVerticalBox::Slot()
 						.AutoHeight()
 						.HAlign(HAlign_Center)
+						.Padding(3.0f, 3.0f)
 						[
 							SNew(SBorder)
 							.Visibility(this, &SStartPageWindow::IsSessionOverlayVisible)
@@ -136,25 +137,39 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 							.Padding(8.0f)
 							[
 								SNew(STextBlock)
-								.Text(LOCTEXT("SelectTraceOverlayText", "Please select a trace."))
+								.Text(LOCTEXT("SelectTraceOverlayText", "Please select a trace..."))
 							]
 						]
 
 					+ SVerticalBox::Slot()
 						.AutoHeight()
+						.HAlign(HAlign_Center)
+						.Padding(3.0f, 3.0f)
 						[
-							SNew(SBox)
-							.HeightOverride(6.0f)
+							SNew(SBorder)
+							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+							.Padding(8.0f)
+							[
+								SNew(STextBlock)
+								.Text(LOCTEXT("SelectTraceHint", "\
+- Use \"Live\" button to start a live session.\n\
+   If no live session, it will load the last trace file from the Local Session Directory.\n\
+- Use \"Load\" button to load a trace file (*.utrace).\n\
+- Drag and drop a *.utrace file over this window."))
+								//.Justification(ETextJustify::Center)
+							]
 						]
 
 					+ SVerticalBox::Slot()
 						.AutoHeight()
 						.HAlign(HAlign_Center)
+						.Padding(3.0f, 3.0f)
 						[
 							SNew(SHorizontalBox)
 
 							+ SHorizontalBox::Slot()
 								.AutoWidth()
+								.Padding(3.0f, 0.0f)
 								[
 									SNew(SButton)
 									.OnClicked(this, &SStartPageWindow::Live_OnClicked)
@@ -188,13 +203,7 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 
 							+ SHorizontalBox::Slot()
 								.AutoWidth()
-								[
-									SNew(SBox)
-									.WidthOverride(6.0f)
-								]
-
-							+ SHorizontalBox::Slot()
-								.AutoWidth()
+								.Padding(3.0f, 0.0f)
 								[
 									SNew(SButton)
 									.OnClicked(this, &SStartPageWindow::Load_OnClicked)
@@ -204,14 +213,14 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 									[
 										SNew(SHorizontalBox)
 
-										+SHorizontalBox::Slot()
+										+ SHorizontalBox::Slot()
 											.AutoWidth()
 											[
 												SNew(SImage)
 												.Image(FInsightsStyle::GetBrush("Load.Icon.Large"))
 											]
 
-										+SHorizontalBox::Slot()
+										+ SHorizontalBox::Slot()
 											.AutoWidth()
 											.VAlign(VAlign_Center)
 											[
@@ -229,17 +238,10 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 
 					+ SVerticalBox::Slot()
 						.AutoHeight()
-						[
-							SNew(SBox)
-							.HeightOverride(6.0f)
-						]
-
-					+ SVerticalBox::Slot()
-						.AutoHeight()
 						.HAlign(HAlign_Center)
+						.Padding(3.0f, 3.0f)
 						[
 							SNew(SBorder)
-							.Visibility(this, &SStartPageWindow::IsSessionOverlayVisible)
 							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
 							.Padding(8.0f)
 							[
@@ -255,17 +257,99 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 										.ColorAndOpacity(FLinearColor::Gray)
 									]
 
-								+SVerticalBox::Slot()
+								+ SVerticalBox::Slot()
+									.AutoHeight()
+									.HAlign(HAlign_Center)
+									.Padding(0.0, 2.0f)
+									[
+										SNew(SHorizontalBox)
+
+										+ SHorizontalBox::Slot()
+											.AutoWidth()
+											.Padding(2.0f, 0.0f)
+											.VAlign(VAlign_Center)
+											[
+												SNew(STextBlock)
+												.Text(this, &SStartPageWindow::GetLocalSessionDirectory)
+											]
+
+										+ SHorizontalBox::Slot()
+											.AutoWidth()
+											.Padding(2.0f, 0.0f)
+											.VAlign(VAlign_Center)
+											[
+												SNew(SButton)
+												.Text(LOCTEXT("ExploreLocalSessionDirButton", "..."))
+												.ToolTipText(LOCTEXT("ExploreLocalSessionDirButtonToolTip", "Explore the Local Session Directory"))
+												.OnClicked(this, &SStartPageWindow::ExploreLocalSessionDirectory_OnClicked)
+											]
+									]
+							]
+						]
+
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.HAlign(HAlign_Center)
+						.Padding(3.0f, 3.0f)
+						[
+							SNew(SBorder)
+							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+							.Padding(8.0f)
+							[
+								SNew(SVerticalBox)
+
+								+ SVerticalBox::Slot()
 									.AutoHeight()
 									.HAlign(HAlign_Center)
 									.Padding(0.0, 2.0f)
 									[
 										SNew(STextBlock)
-										.Text(this, &SStartPageWindow::GetLocalSessionDirectory)
+										.Text(LOCTEXT("RecorderStatusTitle", "Trace Recorder Status:"))
+										.ColorAndOpacity(FLinearColor::Gray)
+									]
+
+								+ SVerticalBox::Slot()
+									.AutoHeight()
+									.HAlign(HAlign_Center)
+									.Padding(0.0, 2.0f)
+									[
+										SNew(SHorizontalBox)
+
+										+ SHorizontalBox::Slot()
+											.AutoWidth()
+											.Padding(2.0f, 0.0f)
+											.VAlign(VAlign_Center)
+											[
+												SNew(STextBlock)
+												.Text(this, &SStartPageWindow::GetRecorderStatusText)
+											]
+
+										+ SHorizontalBox::Slot()
+											.AutoWidth()
+											.Padding(2.0f, 0.0f)
+											.VAlign(VAlign_Center)
+											[
+												SNew(SButton)
+												.Text(LOCTEXT("StartRecorder", "Start"))
+												.ToolTipText(LOCTEXT("StartRecorderToolTip", "Start the Trace Recorder"))
+												.OnClicked(this, &SStartPageWindow::StartTraceRecorder_OnClicked)
+												.Visibility(this, &SStartPageWindow::StartTraceRecorder_Visibility)
+											]
+
+										+ SHorizontalBox::Slot()
+											.AutoWidth()
+											.Padding(2.0f, 0.0f)
+											.VAlign(VAlign_Center)
+											[
+												SNew(SButton)
+												.Text(LOCTEXT("StopRecorder", "Stop"))
+												.ToolTipText(LOCTEXT("StopRecorderToolTip", "Stop the Trace Recorder"))
+												.OnClicked(this, &SStartPageWindow::StopTraceRecorder_OnClicked)
+												.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
+											]
 									]
 							]
 						]
-
 				]
 
 			// Notification area overlay
@@ -505,8 +589,10 @@ FReply SStartPageWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEven
 				const FString DraggedFileExtension = FPaths::GetExtension(Files[0], true);
 				if (DraggedFileExtension == TEXT(".utrace"))
 				{
-					// Enqueue load operation.
+					SpawnAndActivateTabs();
+
 					FInsightsManager::Get()->LoadTraceFile(Files[0]);
+
 					return FReply::Handled();
 				}
 			}
@@ -520,47 +606,33 @@ FReply SStartPageWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEven
 
 void SStartPageWindow::SpawnAndActivateTabs()
 {
-	//TODO: expose those in FInsightsManager; see also TraceInsightsModule.cpp
-	static const FName StartPageTabName(TEXT("StartPage"));
-	static const FName TimingProfilerTabName(TEXT("TimingProfiler"));
-	static const FName IoProfilerTabName(TEXT("IoProfiler"));
-
 	// Open tabs for profilers.
-	if (FGlobalTabmanager::Get()->CanSpawnTab(TimingProfilerTabName))
+	if (FGlobalTabmanager::Get()->CanSpawnTab(FInsightsManagerTabs::TimingProfilerTabId))
 	{
-		FGlobalTabmanager::Get()->InvokeTab(TimingProfilerTabName);
+		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::TimingProfilerTabId);
 	}
-	if (FGlobalTabmanager::Get()->CanSpawnTab(IoProfilerTabName))
+	if (FGlobalTabmanager::Get()->CanSpawnTab(FInsightsManagerTabs::IoProfilerTabId))
 	{
-		FGlobalTabmanager::Get()->InvokeTab(IoProfilerTabName);
+		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::IoProfilerTabId);
 	}
 
-	// Ensure Timing Insights / Timing View is the active tab.
-	if (TSharedPtr<SDockTab> TimingInsightsTab = FGlobalTabmanager::Get()->FindExistingLiveTab(TimingProfilerTabName))
+	// Ensure Timing Insights / Timing View is the active tab / view.
+	if (TSharedPtr<SDockTab> TimingInsightsTab = FGlobalTabmanager::Get()->FindExistingLiveTab(FInsightsManagerTabs::TimingProfilerTabId))
 	{
-		//FGlobalTabmanager::Get()->SetActiveTab(TimingProfilerTabName); // doesn't really work :(
-		FGlobalTabmanager::Get()->InvokeTab(TimingProfilerTabName); // this activates the tab (brings the tab in foreground)
+		TimingInsightsTab->ActivateInParent(ETabActivationCause::SetDirectly);
 
 		TSharedPtr<class STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
 		if (Wnd)
 		{
 			TSharedPtr<FTabManager> TabManager = Wnd->GetTabManager();
+
 			if (TSharedPtr<SDockTab> TimingViewTab = TabManager->FindExistingLiveTab(FTimingProfilerTabs::TimingViewID))
 			{
-				TabManager->DrawAttention(TimingViewTab.ToSharedRef());
 				TimingViewTab->ActivateInParent(ETabActivationCause::SetDirectly);
 				FSlateApplication::Get().SetKeyboardFocus(TimingViewTab->GetContent());
 			}
 		}
 	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FText SStartPageWindow::GetLocalSessionDirectory() const
-{
-	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
-	return FText::FromString(FPaths::ConvertRelativePathToFull(SessionService->GetLocalSessionDirectory()));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -578,6 +650,73 @@ FReply SStartPageWindow::Load_OnClicked()
 {
 	SpawnAndActivateTabs();
 	FInsightsManager::Get()->GetCommandList()->ExecuteAction(FInsightsManager::GetCommands().InsightsManager_Load.ToSharedRef());
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SStartPageWindow::GetLocalSessionDirectory() const
+{
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	return FText::FromString(FPaths::ConvertRelativePathToFull(SessionService->GetLocalSessionDirectory()));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SStartPageWindow::ExploreLocalSessionDirectory_OnClicked()
+{
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	FString FullPath(FPaths::ConvertRelativePathToFull(SessionService->GetLocalSessionDirectory()));
+	FPlatformProcess::ExploreFolder(*FullPath);
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SStartPageWindow::GetRecorderStatusText() const
+{
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	if (SessionService->IsRecorderServerRunning())
+	{
+		return FText(LOCTEXT("RecorderServerRunning", "Running"));
+	}
+	else
+	{
+		return FText(LOCTEXT("RecorderServerRunning", "Stopped"));
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+EVisibility SStartPageWindow::StartTraceRecorder_Visibility() const
+{
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	return SessionService->IsRecorderServerRunning() ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+EVisibility SStartPageWindow::StopTraceRecorder_Visibility() const
+{
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	return SessionService->IsRecorderServerRunning() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SStartPageWindow::StartTraceRecorder_OnClicked()
+{
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	SessionService->StartRecorderServer();
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SStartPageWindow::StopTraceRecorder_OnClicked()
+{
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	SessionService->StopRecorderServer();
 	return FReply::Handled();
 }
 

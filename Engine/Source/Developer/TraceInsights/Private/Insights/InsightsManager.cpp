@@ -16,6 +16,10 @@
 
 #define LOCTEXT_NAMESPACE "InsightsManager"
 
+const FName FInsightsManagerTabs::StartPageTabId(TEXT("StartPage"));
+const FName FInsightsManagerTabs::TimingProfilerTabId(TEXT("TimingProfiler"));
+const FName FInsightsManagerTabs::IoProfilerTabId(TEXT("IoProfiler"));
+
 TSharedPtr<FInsightsManager> FInsightsManager::Instance = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

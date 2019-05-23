@@ -67,12 +67,19 @@ private:
 	void SendingServiceSideCapture_Cancel(const FString Filename);
 	void SendingServiceSideCapture_Load(const FString Filename);
 
-	FText GetLocalSessionDirectory() const;
-
 	void SpawnAndActivateTabs();
 
 	FReply Live_OnClicked();
 	FReply Load_OnClicked();
+
+	FText GetLocalSessionDirectory() const;
+	FReply ExploreLocalSessionDirectory_OnClicked();
+
+	FText GetRecorderStatusText() const;
+	EVisibility StartTraceRecorder_Visibility() const;
+	EVisibility StopTraceRecorder_Visibility() const;
+	FReply StartTraceRecorder_OnClicked();
+	FReply StopTraceRecorder_OnClicked();
 
 	/** Updates the amount of time the profiler has been active. */
 	EActiveTimerReturnType UpdateActiveDuration(double InCurrentTime, float InDeltaTime);
