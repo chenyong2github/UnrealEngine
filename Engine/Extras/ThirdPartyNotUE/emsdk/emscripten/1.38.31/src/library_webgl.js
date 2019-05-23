@@ -1624,6 +1624,9 @@ var LibraryGL = {
       // From spec: "glDeleteBuffers silently ignores 0's and names that do not
       // correspond to existing buffer objects."
       if (!buffer) continue;
+// EPIC EDIT start -- nick.shin 2019-02-06 -- UEMOB-255
+      if (!GLctx) continue;		// this check is needed when using OFFSCREEN_FRAMEBUFFER
+// EPIC EDIT end -- nick.shin 2019-02-06
 
       GLctx.deleteBuffer(buffer);
       buffer.name = 0;
