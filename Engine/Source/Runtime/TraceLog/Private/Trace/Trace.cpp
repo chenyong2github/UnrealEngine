@@ -15,7 +15,7 @@ namespace Private
 extern UPTRINT	GPendingDataHandle;
 void			Writer_Flush();
 bool			Writer_Connect(const ANSICHAR*);
-bool			Writer_ToggleEvent(const ANSICHAR*, const ANSICHAR*, bool);
+uint32			Writer_EventToggle(const ANSICHAR*, bool);
 
 } // namespace Private
 
@@ -45,14 +45,12 @@ bool Connect(const TCHAR* InHost)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool ToggleEvent(const TCHAR* LoggerName, const TCHAR* EventName, bool State)
+uint32 ToggleEvent(const TCHAR* Wildcard, bool bState)
 {
-	ANSICHAR LoggerNameA[64];
-	ANSICHAR EventNameA[64];
-	ToAnsiCheap(LoggerNameA, LoggerName);
-	ToAnsiCheap(EventNameA, EventName);
+	ANSICHAR WildcardA[64];
+	ToAnsiCheap(WildcardA, Wildcard);
 
-	return Private::Writer_ToggleEvent(LoggerNameA, EventNameA, State);
+	return Private::Writer_EventToggle(WildcardA, bState);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

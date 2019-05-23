@@ -68,7 +68,6 @@ public:
 	bool						bInitialized;
 	bool						bEnabled;
 	UE_TRACE_API static void	Create(FEvent* Target, const FLiteralName& LoggerName, const FLiteralName& EventName, const FFieldDesc* FieldDescs, uint32 FieldCount);
-	static FEvent*				Find(const ANSICHAR* LoggerName, const ANSICHAR* EventName);
 };
 
 } // namespace Trace
