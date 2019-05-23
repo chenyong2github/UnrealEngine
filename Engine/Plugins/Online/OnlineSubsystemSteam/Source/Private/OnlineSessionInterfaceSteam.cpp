@@ -1341,6 +1341,15 @@ FString FOnlineSessionSteam::GetCustomDedicatedServerName() const
 	return TEXT("");
 }
 
+TSharedPtr<const FUniqueNetId> FOnlineSessionSteam::CreateSessionIdFromString(const FString& SessionIdStr)
+{
+	if (!SessionIdStr.IsEmpty())
+	{
+		return MakeShared<FUniqueNetIdSteam>(SessionIdStr);
+	}
+	return nullptr;
+}
+
 FOnlineSessionSettings* FOnlineSessionSteam::GetSessionSettings(FName SessionName) 
 {
 	FNamedOnlineSession* Session = GetNamedSession(SessionName);
