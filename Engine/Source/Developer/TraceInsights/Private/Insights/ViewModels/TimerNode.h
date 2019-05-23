@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "TraceServices/AnalysisService.h"
 
 class FTimerNode;
 
@@ -34,58 +35,6 @@ enum class ETimerNodeType
 
 	/** Invalid enum type, may be used as a number of enumerations. */
 	InvalidOrMax,
-};
-
-struct FTimerAggregatedStats
-{
-	//FAggregatedStats InclusiveTime; /** Aggregated stats for inclusive time, in seconds. */
-	//FAggregatedStats ExclusiveTime; /** Aggregated stats for exclusive time, in seconds. */
-	////FAggregatedStats InstanceCountPerFrame; /** Aggregated stats for variation of number of instances per frame. */
-	//uint64 GetInstanceCount() { return InclusiveTime.Count; } /** Number of instances. */
-
-	double TotalInclusiveTime; /** Total inclusive time, in seconds. */
-	double MinInclusiveTime; /** Min inclusive time, in seconds. */
-	double MaxInclusiveTime; /** Max inclusive time, in seconds. */
-	double AverageInclusiveTime; /** Average inclusive time, in seconds. */
-	double MedianInclusiveTime; /** Median inclusive time, in seconds. */
-
-	double TotalExclusiveTime; /** Total exclusive time, in seconds. */
-	double MinExclusiveTime; /** Min exclusive time, in seconds. */
-	double MaxExclusiveTime; /** Max exclusive time, in seconds. */
-	double AverageExclusiveTime; /** Average exclusive time, in seconds. */
-	double MedianExclusiveTime; /** Median exclusive time, in seconds. */
-
-	uint64 InstanceCount; /** Number of instances. */
-
-	FTimerAggregatedStats()
-		: TotalInclusiveTime(0.0)
-		, MinInclusiveTime(DBL_MAX)
-		, MaxInclusiveTime(-DBL_MAX)
-		, AverageInclusiveTime(0.0)
-		, MedianInclusiveTime(0.0)
-		, TotalExclusiveTime(0.0)
-		, MinExclusiveTime(DBL_MAX)
-		, MaxExclusiveTime(-DBL_MAX)
-		, AverageExclusiveTime(0.0)
-		, MedianExclusiveTime(0.0)
-		, InstanceCount(0)
-	{
-	}
-
-	void Reset()
-	{
-		TotalInclusiveTime = 0.0;
-		MinInclusiveTime = DBL_MAX;
-		MaxInclusiveTime = -DBL_MAX;
-		AverageInclusiveTime = 0.0;
-		MedianInclusiveTime = 0.0;
-		TotalExclusiveTime = 0.0;
-		MinExclusiveTime = DBL_MAX;
-		MaxExclusiveTime = -DBL_MAX;
-		AverageExclusiveTime = 0.0;
-		MedianExclusiveTime = 0.0;
-		InstanceCount = 0;
-	}
 };
 
 /**
@@ -166,14 +115,14 @@ public:
 	/**
 	 * @return the aggregated stats for this timer.
 	 */
-	const FTimerAggregatedStats& GetAggregatedStats() const
+	const Trace::FAggregatedTimingStats& GetAggregatedStats() const
 	{
 		return AggregatedStats;
 	}
 
 	void ResetAggregatedStats();
 
-	void SetAggregatedStats(FTimerAggregatedStats& AggregatedStats);
+	void SetAggregatedStats(const Trace::FAggregatedTimingStats& AggregatedStats);
 
 	/**
 	 * @return a const reference to the child nodes of this group.
@@ -261,7 +210,7 @@ protected:
 	const ETimerNodeType Type;
 
 	/** Aggregated stats. */
-	FTimerAggregatedStats AggregatedStats;
+	Trace::FAggregatedTimingStats AggregatedStats;
 
 	/** Children of this node. */
 	TArray<FTimerNodePtr> Children;

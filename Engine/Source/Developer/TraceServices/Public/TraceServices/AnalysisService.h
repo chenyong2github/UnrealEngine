@@ -15,6 +15,65 @@
 namespace Trace
 {
 
+enum ETableColumnType
+{
+	TableColumnType_Invalid,
+	TableColumnType_Bool,
+	TableColumnType_Int,
+	TableColumnType_Float,
+	TableColumnType_Double,
+	TableColumnType_CString,
+};
+
+class ITableLayout
+{
+public:
+	virtual ~ITableLayout() = default;
+	virtual uint8 GetColumnCount() const = 0;
+	virtual const TCHAR* GetColumnName(uint8 ColumnIndex) const = 0;
+	virtual ETableColumnType GetColumnType(uint8 ColumnIndex) const = 0;
+};
+
+class IUntypedTableReader
+{
+public:
+	virtual ~IUntypedTableReader() = default;
+	virtual bool IsValid() const = 0;
+	virtual void NextRow() = 0;
+	virtual void SetRowIndex(uint64 RowIndex) = 0;
+	virtual bool GetValueBool(uint8 ColumnIndex) const = 0;
+	virtual int64 GetValueInt(uint8 ColumnIndex) const = 0;
+	virtual float GetValueFloat(uint8 ColumnIndex) const = 0;
+	virtual double GetValueDouble(uint8 ColumnIndex) const = 0;
+	virtual const TCHAR* GetValueCString(uint8 ColumnIndex) const = 0;
+};
+
+template<typename RowType>
+class ITableReader
+	: public IUntypedTableReader
+{
+public:
+	virtual const RowType* GetCurrentRow() const = 0;
+};
+
+class IUntypedTable
+{
+public:
+	virtual ~IUntypedTable() = default;
+	virtual const ITableLayout& GetLayout() const = 0;
+	virtual uint64 GetRowCount() const = 0;
+	virtual IUntypedTableReader* CreateReader() const = 0;
+};
+
+template<typename RowType>
+class ITable
+	: public IUntypedTable
+{
+public:
+	virtual ~ITable() = default;
+	virtual ITableReader<RowType>* CreateReader() const = 0;
+};
+
 struct FBookmark
 {
 	double Time;
@@ -56,6 +115,7 @@ public:
 	virtual bool ReadMessage(uint64 Index, TFunctionRef<void(const FLogMessage&)> Callback) const = 0;
 	virtual uint64 GetCategoryCount() const = 0;
 	virtual void EnumerateCategories(TFunctionRef<void(const FLogCategory&)> Callback) const = 0;
+	virtual const IUntypedTable& GetMessagesTable() const = 0;
 };
 
 struct FThreadInfo
@@ -73,10 +133,12 @@ public:
 	virtual void EnumerateThreads(TFunctionRef<void(const FThreadInfo&)> Callback) const = 0;
 };
 
-template<typename EventType>
+template<typename InEventType>
 class ITimeline
 {
 public:
+	typedef InEventType EventType;
+
 	virtual ~ITimeline() = default;
 	virtual uint64 GetModCount() const = 0;
 	virtual uint64 GetEventCount() const = 0;
@@ -99,6 +161,27 @@ struct FTimingProfilerEvent
 	uint32 TimerIndex;
 };
 
+struct FAggregatedTimingStats
+{
+	uint64 InstanceCount = 0;
+	double TotalInclusiveTime = 0.0;
+	double MinInclusiveTime = DBL_MAX;
+	double MaxInclusiveTime = -DBL_MAX;
+	double AverageInclusiveTime = 0.0;
+	double MedianInclusiveTime = 0.0;
+	double TotalExclusiveTime = 0.0;
+	double MinExclusiveTime = DBL_MAX;
+	double MaxExclusiveTime = -DBL_MAX;
+	double AverageExclusiveTime = 0.0;
+	double MedianExclusiveTime = 0.0;
+};
+
+struct FTimingProfilerAggregatedStats
+	: public FAggregatedTimingStats
+{
+	const FTimingProfilerTimer* Timer = nullptr;
+};
+
 class ITimingProfilerProvider
 {
 public:
@@ -111,6 +194,7 @@ public:
 	virtual uint64 GetTimelineCount() const = 0;
 	virtual void EnumerateTimelines(TFunctionRef<void(const Timeline&)> Callback) const = 0;
 	virtual void ReadTimers(TFunctionRef<void(const FTimingProfilerTimer*, uint64)> Callback) const = 0;
+	virtual ITable<FTimingProfilerAggregatedStats>* CreateAggregation(double IntervalStart, double IntervalEnd, TFunctionRef<bool(uint32)> CpuThreadFilter, bool IncludeGpu) const = 0;
 };
 
 struct FFileInfo
@@ -171,7 +255,7 @@ struct FPackageSummaryInfo
 
 struct FClassInfo
 {
-	FString Name;
+	const TCHAR* Name;
 };
 
 struct FPackageExportInfo
@@ -186,7 +270,7 @@ struct FPackageExportInfo
 struct FPackageInfo
 {
 	uint32 Id;
-	FString Name;
+	const TCHAR* Name = nullptr;
 	FPackageSummaryInfo Summary;
 	TArray<FPackageExportInfo*> Exports;
 };
@@ -195,8 +279,19 @@ struct FLoadTimeProfilerCpuEvent
 {
 	const FPackageInfo* Package = nullptr;
 	const FPackageExportInfo* Export = nullptr;
-	ELoadTimeProfilePackageEventType PackageEventType = LoadTimeProfilerPackageEventType_None;
+	ELoadTimeProfilerPackageEventType PackageEventType = LoadTimeProfilerPackageEventType_None;
 	ELoadTimeProfilerObjectEventType ExportEventType = LoadTimeProfilerObjectEventType_None;
+};
+
+struct FLoadTimeProfilerAggregatedStats
+{
+	const TCHAR* Name;
+	uint64 Count;
+	double Total;
+	double Min;
+	double Max;
+	double Average;
+	double Median;
 };
 
 class ILoadTimeProfilerProvider
@@ -209,6 +304,8 @@ public:
 	virtual void EnumeratePackages(TFunctionRef<void(const FPackageInfo&)> Callback) const = 0; 
 	virtual void ReadMainThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const = 0;
 	virtual void ReadAsyncLoadingThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const = 0;
+	virtual ITable<FLoadTimeProfilerAggregatedStats>* CreateEventAggregation(double IntervalStart, double IntervalEnd) const = 0;
+	virtual ITable<FLoadTimeProfilerAggregatedStats>* CreateObjectTypeAggregation(double IntervalStart, double IntervalEnd) const = 0;
 };
 
 enum ECounterDisplayHint

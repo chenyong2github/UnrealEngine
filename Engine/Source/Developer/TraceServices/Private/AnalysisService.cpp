@@ -71,25 +71,16 @@ FAnalysisSession::FAnalysisSession(const TCHAR* SessionName)
 	: DurationSeconds(0.0)
 	, Allocator(32 << 20)
 	, StringStore(Allocator)
-	, ClassInfos(Allocator, 4096)
 	, BookmarkProvider(MakeShared<FBookmarkProvider>(Lock, StringStore))
 	, LogProvider(MakeShared<FLogProvider>(Allocator, Lock, StringStore))
 	, ThreadProvider(MakeShared<FThreadProvider>(Lock, StringStore))
 	, FramesProvider(MakeShared<FFrameProvider>(Allocator, Lock))
 	, TimingProfilerProvider(MakeShared<FTimingProfilerProvider>(Allocator, Lock, StringStore))
 	, FileActivityProvider(MakeShared<FFileActivityProvider>(Allocator, Lock))
-	, LoadTimeProfilerProvider(MakeShared<FLoadTimeProfilerProvider>(Allocator, Lock))
+	, LoadTimeProfilerProvider(MakeShared<FLoadTimeProfilerProvider>(Allocator, Lock, StringStore))
 	, CountersProvider(MakeShared<FCountersProvider>(Allocator, Lock))
 {
 
-}
-
-const Trace::FClassInfo& FAnalysisSession::AddClassInfo(const TCHAR* ClassName)
-{
-	Lock.WriteAccessCheck();
-	FClassInfo& ClassInfo = ClassInfos.PushBack();
-	ClassInfo.Name = ClassName;
-	return ClassInfo;
 }
 
 void FAnalysisSession::ReadBookmarkProvider(TFunctionRef<void(const IBookmarkProvider&)> Callback) const

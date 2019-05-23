@@ -67,7 +67,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableCellTooltip(const TSharedPtr<FT
 	const float Alpha = 0.0f;//TimerNodePtr->_FramePct * 0.01f;
 	const FLinearColor ColorAndOpacity = FMath::Lerp(DefaultColor, ThreadColor,Alpha);
 
-	const FTimerAggregatedStats& Stats = TimerNodePtr->GetAggregatedStats();
+	const Trace::FAggregatedTimingStats& Stats = TimerNodePtr->GetAggregatedStats();
 
 	const int32 NumDigits = 5;
 

@@ -393,7 +393,7 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		TSharedRef<FAsyncPackageState> AsyncPackageState = ActiveAsyncPackagesMap[AsyncPackagePtr];
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
 		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
-		ELoadTimeProfilePackageEventType EventType = static_cast<ELoadTimeProfilePackageEventType>(EventData.GetValue("EventType").As<uint8>());
+		ELoadTimeProfilerPackageEventType EventType = static_cast<ELoadTimeProfilerPackageEventType>(EventData.GetValue("EventType").As<uint8>());
 		ThreadState->EnterPackageScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue("Cycle").As<uint64>()), AsyncPackageState->PackageInfo, EventType);
 		break;
 	}
@@ -433,8 +433,10 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	}
 	case RouteId_ClassInfo:
 	{
+		Trace::FAnalysisSessionEditScope _(Session.Get());
+
 		uint64 ClassPtr = EventData.GetValue("Class").As<uint64>();
-		const Trace::FClassInfo& ClassInfo = Session->AddClassInfo(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
+		const Trace::FClassInfo& ClassInfo = LoadTimeProfilerProvider->AddClassInfo(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
 		ClassInfosMap.Add(ClassPtr, &ClassInfo);
 		break;
 	}

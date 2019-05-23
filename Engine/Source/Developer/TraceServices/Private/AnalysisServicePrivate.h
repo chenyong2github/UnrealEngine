@@ -53,8 +53,6 @@ public:
 	void UpdateDuration(double Seconds) { Lock.WriteAccessCheck(); DurationSeconds = Seconds > DurationSeconds ? Seconds : DurationSeconds; }
 	void SetComplete() { IsComplete = true; }
 
-	const FClassInfo& AddClassInfo(const TCHAR* Name);
-
 	TSharedRef<FBookmarkProvider> EditBookmarkProvider() { return BookmarkProvider; }
 	virtual void ReadBookmarkProvider(TFunctionRef<void(const IBookmarkProvider&)> Callback) const override;
 
@@ -95,7 +93,6 @@ private:
 	double DurationSeconds = 0.0;
 	FSlabAllocator Allocator;
 	FStringStore StringStore;
-	TPagedArray<FClassInfo> ClassInfos;
 	TSharedRef<FBookmarkProvider> BookmarkProvider;
 	TSharedRef<FLogProvider> LogProvider;
 	TSharedRef<FThreadProvider> ThreadProvider;

@@ -13,6 +13,8 @@ FLogProvider::FLogProvider(FSlabAllocator& InAllocator, FAnalysisSessionLock& In
 	, StringStore(InStringStore)
 	, Categories(Allocator, 128)
 	, MessageSpecs(Allocator, 1024)
+	, Messages(Allocator, 1024)
+	, MessagesTable(Messages)
 {
 
 }
@@ -51,7 +53,7 @@ void FLogProvider::AppendMessage(uint64 LogPoint, double Time, const uint8* Form
 {
 	SessionLock.WriteAccessCheck();
 	check(SpecMap.Contains(LogPoint));
-	FLogMessageInternal& InternalMessage = Messages.AddDefaulted_GetRef();
+	FLogMessageInternal& InternalMessage = Messages.PushBack();
 	InternalMessage.Time = Time;
 	InternalMessage.Spec = SpecMap[LogPoint];
 	FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, InternalMessage.Spec->FormatString, FormatArgs);

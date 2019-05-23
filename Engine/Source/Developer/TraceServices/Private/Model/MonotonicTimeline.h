@@ -25,11 +25,13 @@ struct FMonotonicTimelineDefaultSettings
 	}
 };
 
-template<typename EventType, typename SettingsType = FMonotonicTimelineDefaultSettings>
+template<typename InEventType, typename SettingsType = FMonotonicTimelineDefaultSettings>
 class TMonotonicTimeline
-	: public ITimeline<EventType>
+	: public ITimeline<InEventType>
 {
 public:
+	using EventType = InEventType;
+
 	TMonotonicTimeline(FSlabAllocator& InAllocator)
 		: Allocator(InAllocator)
 	{

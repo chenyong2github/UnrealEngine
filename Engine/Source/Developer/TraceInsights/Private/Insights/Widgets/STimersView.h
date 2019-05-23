@@ -32,32 +32,6 @@ namespace Trace
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FTimerStatsEx
-{
-	static constexpr int32 HistogramLen = 100; // number of buckets per histogram
-
-	FTimerAggregatedStats BaseStats;
-
-	// Histogram for computing median inclusive time.
-	int32 InclHistogram[HistogramLen];
-	double InclDT; // bucket size
-
-	// Histogram for computing median exclusive time.
-	int32 ExclHistogram[HistogramLen];
-	double ExclDT; // bucket size
-
-	FTimerStatsEx()
-	{
-		FMemory::Memzero(InclHistogram, sizeof(int32) * HistogramLen);
-		InclDT = 1.0;
-
-		FMemory::Memzero(ExclHistogram, sizeof(int32) * HistogramLen);
-		ExclDT = 1.0;
-	}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /** The filter collection - used for updating the list of timer nodes. */
 typedef TFilterCollection<const FTimerNodePtr&> FTimerNodeFilterCollection;
 
@@ -102,11 +76,6 @@ public:
 protected:
 
 	void UpdateTree();
-
-	static void UpdateTotalMinMaxTimerStats(FTimerStatsEx& Stats, double InclTime, double ExclTime);
-	static void PreComputeHistogram(FTimerStatsEx& StatsEx);
-	static void UpdateHistogramForTimerStats(FTimerStatsEx& StatsEx, double InclTime, double ExclTime);
-	static void PostProcessTimerStats(FTimerStatsEx& StatsEx, bool bComputeMedian);
 
 	/** Called when the analysis session has changed. */
 	void InsightsManager_OnSessionChanged();

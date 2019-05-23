@@ -10,7 +10,7 @@
 #define LOADTIMEPROFILERTRACE_ENABLED 0
 #endif
 
-enum ELoadTimeProfilePackageEventType
+enum ELoadTimeProfilerPackageEventType
 {
 	LoadTimeProfilerPackageEventType_CreateLinker,
 	LoadTimeProfilerPackageEventType_FinishLinker,

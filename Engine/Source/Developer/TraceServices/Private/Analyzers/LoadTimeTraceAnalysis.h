@@ -90,7 +90,7 @@ private:
 		
 		TSharedPtr<Trace::FLoadTimeProfilerProvider::CpuTimelineInternal> CpuTimeline;
 
-		void EnterPackageScope(double Time, const Trace::FPackageInfo* PackageInfo, ELoadTimeProfilePackageEventType EventType)
+		void EnterPackageScope(double Time, const Trace::FPackageInfo* PackageInfo, ELoadTimeProfilerPackageEventType EventType)
 		{
 			FScopeStackEntry& StackEntry = CpuScopeStack[CpuScopeStackDepth++];
 			StackEntry.Event.Export = CurrentEvent.Export;

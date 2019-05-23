@@ -339,7 +339,7 @@ void FLoadTimeProfilerTracePrivate::OutputLinkerArchiveAssociation(const FLinker
 		<< LinkerArchiveAssociation.Archive(Archive);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputQueueEvent(const FAsyncPackage* AsyncPackage, ELoadTimeProfilePackageEventType EventType, TAsyncLoadPriority UserPriority, int32 PackageSerialNumber, int32 EventSystemPriority)
+void FLoadTimeProfilerTracePrivate::OutputQueueEvent(const FAsyncPackage* AsyncPackage, ELoadTimeProfilerPackageEventType EventType, TAsyncLoadPriority UserPriority, int32 PackageSerialNumber, int32 EventSystemPriority)
 {
 	UE_TRACE_LOG(LoadTime, QueueEvent)
 		<< QueueEvent.Cycle(FPlatformTime::Cycles64())
@@ -359,7 +359,7 @@ void FLoadTimeProfilerTracePrivate::OutputClassInfo(const UClass* Class, const T
 		<< ClassInfo.Attachment(Name, NameSize);
 }
 
-FLoadTimeProfilerTracePrivate::FAsyncPackageScope::FAsyncPackageScope(const FAsyncPackage* AsyncPackage, ELoadTimeProfilePackageEventType EventType)
+FLoadTimeProfilerTracePrivate::FAsyncPackageScope::FAsyncPackageScope(const FAsyncPackage* AsyncPackage, ELoadTimeProfilerPackageEventType EventType)
 {
 	UE_TRACE_LOG(LoadTime, BeginAsyncPackageScope)
 		<< BeginAsyncPackageScope.AsyncPackage(AsyncPackage)

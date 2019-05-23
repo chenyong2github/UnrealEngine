@@ -5,6 +5,7 @@
 #include "TraceServices/AnalysisService.h"
 #include "Common/SlabAllocator.h"
 #include "Model/MonotonicTimeline.h"
+#include "Model/Tables.h"
 
 namespace Trace
 {
@@ -30,6 +31,7 @@ public:
 	virtual uint64 GetTimelineCount() const override { return Timelines.Num(); }
 	virtual void EnumerateTimelines(TFunctionRef<void(const Timeline&)> Callback) const override;
 	virtual void ReadTimers(TFunctionRef<void(const FTimingProfilerTimer*, uint64)> Callback) const override;
+	virtual ITable<FTimingProfilerAggregatedStats>* CreateAggregation(double IntervalStart, double IntervalEnd, TFunctionRef<bool(uint32)> CpuThreadFilter, bool IncludeGpu) const override;
 
 private:
 	FTimingProfilerTimer& AddTimerInternal(const TCHAR* Name, bool IsGpuEvent);
@@ -41,6 +43,21 @@ private:
 	TArray<TSharedRef<TimelineInternal>> Timelines;
 	TMap<uint32, uint32> CpuThreadTimelineIndexMap;
 	uint32 GpuTimelineIndex = 0;
+
+	UE_TRACE_TABLE_LAYOUT_BEGIN(FAggregatedStatsTableLayout, FTimingProfilerAggregatedStats)
+		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_CString, TEXT("Name"), [](const FTimingProfilerAggregatedStats& Row) { return Row.Timer->Name; })
+		UE_TRACE_TABLE_COLUMN(InstanceCount, TEXT("Count"))
+		UE_TRACE_TABLE_COLUMN(TotalInclusiveTime, TEXT("Incl"))
+		UE_TRACE_TABLE_COLUMN(MinInclusiveTime, TEXT("I.Min"))
+		UE_TRACE_TABLE_COLUMN(MaxInclusiveTime, TEXT("I.Max"))
+		UE_TRACE_TABLE_COLUMN(AverageInclusiveTime, TEXT("I.Avg"))
+		UE_TRACE_TABLE_COLUMN(MedianInclusiveTime, TEXT("I.Med"))
+		UE_TRACE_TABLE_COLUMN(TotalExclusiveTime, TEXT("Excl"))
+		UE_TRACE_TABLE_COLUMN(MinExclusiveTime, TEXT("E.Min"))
+		UE_TRACE_TABLE_COLUMN(MaxExclusiveTime, TEXT("E.Max"))
+		UE_TRACE_TABLE_COLUMN(AverageExclusiveTime, TEXT("E.Avg"))
+		UE_TRACE_TABLE_COLUMN(MedianExclusiveTime, TEXT("E.Med"))
+	UE_TRACE_TABLE_LAYOUT_END()
 };
 
 }

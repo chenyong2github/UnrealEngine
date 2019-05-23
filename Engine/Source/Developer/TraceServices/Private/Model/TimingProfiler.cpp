@@ -3,6 +3,7 @@
 #include "Model/TimingProfiler.h"
 #include "AnalysisServicePrivate.h"
 #include "Common/StringStore.h"
+#include "Common/TimelineStatistics.h"
 
 namespace Trace
 {
@@ -126,6 +127,40 @@ void FTimingProfilerProvider::ReadTimers(TFunctionRef<void(const FTimingProfiler
 	SessionLock.ReadAccessCheck();
 
 	Callback(Timers.GetData(), Timers.Num());
+}
+
+ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregation(double IntervalStart, double IntervalEnd, TFunctionRef<bool(uint32)> CpuThreadFilter, bool IncludeGpu) const
+{
+	SessionLock.ReadAccessCheck();
+
+	TArray<const TimelineInternal*> IncludedTimelines;
+	if (IncludeGpu)
+	{
+		IncludedTimelines.Add(&Timelines[GpuTimelineIndex].Get());
+	}
+	for (const auto& KV : CpuThreadTimelineIndexMap)
+	{
+		if (CpuThreadFilter(KV.Key))
+		{
+			IncludedTimelines.Add(&Timelines[KV.Value].Get());
+		}
+	}
+
+	auto BucketMappingFunc = [this](const TimelineInternal::EventType& Event) -> const FTimingProfilerTimer*
+	{
+		return &Timers[Event.TimerIndex];
+	};
+
+	TMap<const FTimingProfilerTimer*, FAggregatedTimingStats> Aggregation;
+	FTimelineStatistics::CreateAggregation(IncludedTimelines, BucketMappingFunc, IntervalStart, IntervalEnd, Aggregation);
+	TTable<FAggregatedStatsTableLayout>* Table = new TTable<FAggregatedStatsTableLayout>();
+	for (const auto& KV : Aggregation)
+	{
+		FTimingProfilerAggregatedStats& Row = Table->AddRow();
+		*static_cast<FAggregatedTimingStats*>(&Row) = KV.Value;
+		Row.Timer = KV.Key;
+	}
+	return Table;
 }
 
 }

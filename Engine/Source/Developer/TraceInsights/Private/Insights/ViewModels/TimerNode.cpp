@@ -8,12 +8,12 @@
 
 void FTimerNode::ResetAggregatedStats()
 {
-	AggregatedStats.Reset();
+	AggregatedStats = Trace::FAggregatedTimingStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimerNode::SetAggregatedStats(FTimerAggregatedStats& InAggregatedStats)
+void FTimerNode::SetAggregatedStats(const Trace::FAggregatedTimingStats& InAggregatedStats)
 {
 	AggregatedStats = InAggregatedStats;
 }

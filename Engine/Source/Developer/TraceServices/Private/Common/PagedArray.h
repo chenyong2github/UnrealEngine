@@ -59,7 +59,7 @@ public:
 
 		const PageType* GetCurrentPage()
 		{
-			return CurrentPage;
+			return Outer.FirstPage + CurrentPageIndex;
 		}
 
 		const ItemType* GetCurrentItem()
@@ -74,10 +74,8 @@ public:
 				return nullptr;
 			}
 			--CurrentPageIndex;
-			CurrentPage = Outer.FirstPage + CurrentPageIndex;
-			CurrentPageBegin = CurrentPage->Items - 1;
-			CurrentPageEnd = CurrentPage->Items + CurrentPage->Count;
-			CurrentItem = CurrentPageEnd - 1;
+			OnCurrentPageChanged();
+			CurrentItem = CurrentPageLastItem;
 			return GetCurrentPage();
 		}
 
@@ -88,30 +86,58 @@ public:
 				return nullptr;
 			}
 			++CurrentPageIndex;
-			CurrentPage = Outer.FirstPage + CurrentPageIndex;
-			CurrentPageBegin = CurrentPage->Items - 1;
-			CurrentPageEnd = CurrentPage->Items + CurrentPage->Count;
-			CurrentItem = CurrentPage->Items;
+			OnCurrentPageChanged();
+			CurrentItem = CurrentPageFirstItem;
 			return GetCurrentPage();
 		}
 
 		const ItemType* NextItem()
 		{
-			++CurrentItem;
-			if (CurrentItem >= CurrentPageEnd && !NextPage())
+			if (CurrentItem == CurrentPageLastItem)
 			{
-				return nullptr;
+				if (!NextPage())
+				{
+					return nullptr;
+				}
+				else
+				{
+					return CurrentItem;
+				}
 			}
+			++CurrentItem;
 			return CurrentItem;
 		}
 
 		const ItemType* PrevItem()
 		{
-			--CurrentItem;
-			if (CurrentItem <= CurrentPageBegin && !PrevPage())
+			if (CurrentItem == CurrentPageFirstItem)
 			{
-				return nullptr;
+				if (!PrevPage())
+				{
+					return nullptr;
+				}
+				else
+				{
+					return CurrentItem;
+				}
 			}
+			--CurrentItem;
+			return CurrentItem;
+		}
+
+		const ItemType* SetPosition(uint64 Index)
+		{
+			uint64 PageIndex = Index / Outer.PageSize;
+			uint64 ItemIndexInPage = Index % Outer.PageSize;
+			if (PageIndex != CurrentPageIndex)
+			{
+				check(PageIndex < Outer.PagesArray.Num());
+				CurrentPageIndex = PageIndex;
+				OnCurrentPageChanged();
+			}
+			PageType* CurrentPage = Outer.FirstPage + CurrentPageIndex;
+			check(ItemIndexInPage < CurrentPage->Count);
+			CurrentItem = CurrentPage->Items + ItemIndexInPage;
 			return CurrentItem;
 		}
 
@@ -125,20 +151,32 @@ public:
 			{
 				check(InitialPageIndex < Outer.PagesArray.Num());
 				CurrentPageIndex = InitialPageIndex;
-				CurrentPage = Outer.FirstPage + InitialPageIndex;
-				CurrentPageBegin = CurrentPage->Items - 1;
-				CurrentPageEnd = CurrentPage->Items + CurrentPage->Count;
+				OnCurrentPageChanged();
+				PageType* CurrentPage = Outer.FirstPage + CurrentPageIndex;
 				check(InitialItemIndex < CurrentPage->Count);
 				CurrentItem = CurrentPage->Items + InitialItemIndex;
 			}
 		}
 
+		void OnCurrentPageChanged()
+		{
+			PageType* CurrentPage = Outer.FirstPage + CurrentPageIndex;
+			CurrentPageFirstItem = CurrentPage->Items;
+			if (CurrentPage->Items)
+			{
+				CurrentPageLastItem = CurrentPage->Items + CurrentPage->Count - 1;
+			}
+			else
+			{
+				CurrentPageLastItem = nullptr;
+			}
+		}
+
 		const TPagedArray& Outer;
-		const PageType* CurrentPage = nullptr;
 		uint64 CurrentPageIndex = 0;
 		const ItemType* CurrentItem = nullptr;
-		const ItemType* CurrentPageBegin = nullptr;
-		const ItemType* CurrentPageEnd = nullptr;
+		const ItemType* CurrentPageFirstItem = nullptr;
+		const ItemType* CurrentPageLastItem = nullptr;
 	};
 
 	TPagedArray(FSlabAllocator& InAllocator, uint64 InPageSize)

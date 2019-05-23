@@ -28,12 +28,12 @@ struct FLoadTimeProfilerTracePrivate
 	static void OutputAsyncPackageRequestAssociation(const FAsyncPackage* AsyncPackage, uint64 RequestId);
 	static void OutputAsyncPackageLinkerAssociation(const FAsyncPackage* AsyncPackage, const FLinkerLoad* Linker);
 	static void OutputLinkerArchiveAssociation(const FLinkerLoad* Linker, const FArchive* Archive);
-	static void OutputQueueEvent(const FAsyncPackage* AsyncPackage, ELoadTimeProfilePackageEventType EventType, TAsyncLoadPriority UserPriority, int32 PackageSerialNumber, int32 EventSystemPriority);
+	static void OutputQueueEvent(const FAsyncPackage* AsyncPackage, ELoadTimeProfilerPackageEventType EventType, TAsyncLoadPriority UserPriority, int32 PackageSerialNumber, int32 EventSystemPriority);
 	static void OutputClassInfo(const UClass* Class, const TCHAR* Name);
 
 	struct FAsyncPackageScope
 	{
-		FAsyncPackageScope(const FAsyncPackage* AsyncPackage, ELoadTimeProfilePackageEventType EventType);
+		FAsyncPackageScope(const FAsyncPackage* AsyncPackage, ELoadTimeProfilerPackageEventType EventType);
 		~FAsyncPackageScope();
 	};
 

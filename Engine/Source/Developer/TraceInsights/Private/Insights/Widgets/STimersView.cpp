@@ -1477,70 +1477,6 @@ void STimersView::RebuildTree(bool bResync)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FTimeCalculationHelper
-{
-	struct FStackEntry
-	{
-		double StartTime;
-		double AccumulatedTimeInChildren;
-		uint32 EventType;
-	};
-
-	FTimeCalculationHelper(double InIntervalStartTime, double InIntervalEndTime, TMap<uint64, FTimerStatsEx>& InStatsMap)
-		: IntervalStartTime(InIntervalStartTime)
-		, IntervalEndTime(InIntervalEndTime)
-		, StatsMap(InStatsMap)
-	{
-
-	}
-
-	template<typename CallbackType>
-	void UpdateStats(const Trace::ITimingProfilerProvider::Timeline& Timeline, CallbackType Callback)
-	{
-		EventStack.Empty(EventStack.Num());
-		Timeline.EnumerateEvents(IntervalStartTime, IntervalEndTime, [this, Callback](bool IsEnter, double Time, const Trace::FTimingProfilerEvent& Event)
-		{
-			if (IsEnter)
-			{
-				FStackEntry& StackEntry = EventStack.AddDefaulted_GetRef();
-				StackEntry.StartTime = FMath::Max(IntervalStartTime, Time);
-				StackEntry.AccumulatedTimeInChildren = 0.0;
-				StackEntry.EventType = Event.TimerIndex;
-			}
-			else
-			{
-				FStackEntry& StackEntry = EventStack.Last();
-				double EventInclusiveTime = FMath::Min(IntervalEndTime, Time) - StackEntry.StartTime;
-				check(EventInclusiveTime >= 0.0);
-				double EventExclusiveTime = EventInclusiveTime - StackEntry.AccumulatedTimeInChildren;
-				EventStack.Pop(false);
-				if (EventStack.Num())
-				{
-					EventStack.Last().AccumulatedTimeInChildren += EventInclusiveTime;
-				}
-
-				FTimerStatsEx& Stats = StatsMap.FindOrAdd(Event.TimerIndex);
-				double EventNonRecursiveInclusiveTime = EventInclusiveTime;
-				for (const FStackEntry& AncestorStackEntry : EventStack)
-				{
-					if (AncestorStackEntry.EventType == Event.TimerIndex)
-					{
-						EventNonRecursiveInclusiveTime = 0.0;
-					}
-				}
-				Callback(Stats, EventNonRecursiveInclusiveTime, EventExclusiveTime);
-			}
-		});
-	}
-
-	TArray<FStackEntry> EventStack;
-	double IntervalStartTime;
-	double IntervalEndTime;
-	TMap<uint64, FTimerStatsEx>& StatsMap;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void STimersView::UpdateStats(double StartTime, double EndTime)
 {
 	for (const FTimerNodePtr& TimerNodePtr : TimerNodes)
@@ -1551,221 +1487,34 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 	if (Session.IsValid() &&
 		StartTime < EndTime)
 	{
-		struct ComputeStatsContext
+		TUniquePtr<Trace::ITable<Trace::FTimingProfilerAggregatedStats>> AggregationResultTable;
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		Session->ReadTimingProfilerProvider([StartTime, EndTime, &AggregationResultTable](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
 		{
-			double StartTime;
-			double EndTime;
-			TMap<uint64, FTimerStatsEx> Map;
-		} Ctx;
-
-		Ctx.StartTime = StartTime;
-		Ctx.EndTime = EndTime;
-
-		const bool bComputeMedian = true;
-
-		FTimeCalculationHelper CalculationHelper(Ctx.StartTime, Ctx.EndTime, Ctx.Map);
-
-		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-			// Compute instance count and total/min/max inclusive/exclusive times for each timer.
-			// Iterate through all timing events (all thread timelines).
-			Session->ReadTimingProfilerProvider([&CalculationHelper](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
+			auto ThreadFilter = [](uint32 ThreadId)
 			{
-				TimingProfilerProvider.EnumerateTimelines([&CalculationHelper](const Trace::ITimingProfilerProvider::Timeline& Timeline)
-				{
-					CalculationHelper.UpdateStats(Timeline, UpdateTotalMinMaxTimerStats);
-				});
-			});
+				return true;
+			};
+			AggregationResultTable.Reset(TimingProfilerProvider.CreateAggregation(StartTime, EndTime, ThreadFilter, true));
+		});
 
-			// Now, as we know min/max inclusive/exclusive times for each timer, we can compute histogram and median values.
-			if (bComputeMedian)
-			{
-				// Update bucket size (DT) for computing histogram.
-				for (auto& KV : Ctx.Map)
-				{
-					PreComputeHistogram(KV.Value);
-				}
-
-				// Compute histogram.
-				// Iterate again through all timing events (all timelines).
-				Session->ReadTimingProfilerProvider([&CalculationHelper](const Trace::ITimingProfilerProvider& TimingProfilerProvider)
-				{
-					TimingProfilerProvider.EnumerateTimelines([&CalculationHelper](const Trace::ITimingProfilerProvider::Timeline& Timeline)
-					{
-						CalculationHelper.UpdateStats(Timeline, UpdateHistogramForTimerStats);
-					});
-				});
-			}
-		}
-
-		// Compute average and median inclusive/exclusive times.
-		for (auto& KV : Ctx.Map)
+		TUniquePtr<Trace::ITableReader<Trace::FTimingProfilerAggregatedStats>> AggregationResultTableReader(AggregationResultTable->CreateReader());
+		while (AggregationResultTableReader->IsValid())
 		{
-			PostProcessTimerStats(KV.Value, bComputeMedian);
-
-			// Update the CPU timer node.
-			FTimerNodePtr* TimerNodePtrPtr = TimerNodesIdMap.Find(KV.Key);
+			const Trace::FTimingProfilerAggregatedStats* Row = AggregationResultTableReader->GetCurrentRow();
+			FTimerNodePtr* TimerNodePtrPtr = TimerNodesIdMap.Find(Row->Timer->Id);
 			if (TimerNodePtrPtr != nullptr)
 			{
-				(*TimerNodePtrPtr)->SetAggregatedStats(KV.Value.BaseStats);
+				(*TimerNodePtrPtr)->SetAggregatedStats(*Row);
 			}
+			AggregationResultTableReader->NextRow();
 		}
 
-		StatsStartTime = Ctx.StartTime;
-		StatsEndTime = Ctx.EndTime;
+		StatsStartTime = StartTime;
+		StatsEndTime = EndTime;
 
 		UpdateTree();
 		TreeView->RebuildList();
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimersView::UpdateTotalMinMaxTimerStats(FTimerStatsEx& StatsEx, double InclTime, double ExclTime)
-{
-	FTimerAggregatedStats& Stats = StatsEx.BaseStats;
-
-	Stats.TotalInclusiveTime += InclTime;
-	if (InclTime < Stats.MinInclusiveTime)
-	{
-		Stats.MinInclusiveTime = InclTime;
-	}
-	if (InclTime > Stats.MaxInclusiveTime)
-	{
-		Stats.MaxInclusiveTime = InclTime;
-	}
-
-	Stats.TotalExclusiveTime += ExclTime;
-	if (ExclTime < Stats.MinExclusiveTime)
-	{
-		Stats.MinExclusiveTime = ExclTime;
-	}
-	if (ExclTime > Stats.MaxExclusiveTime)
-	{
-		Stats.MaxExclusiveTime = ExclTime;
-	}
-
-	Stats.InstanceCount++;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimersView::PreComputeHistogram(FTimerStatsEx& StatsEx)
-{
-	const FTimerAggregatedStats& Stats = StatsEx.BaseStats;
-
-	// Each bucket (Histogram[i]) will be centered on a value.
-	// I.e. First bucket (bucket 0) is centered on Min value: [Min-DT/2, Min+DT/2)
-	// and last bucket (bucket N-1) is centered on Max value: [Max-DT/2, Max+DT/2).
-
-	constexpr double InvHistogramLen = 1.0 / static_cast<double>(FTimerStatsEx::HistogramLen - 1);
-
-	if (Stats.MaxInclusiveTime == Stats.MinInclusiveTime)
-	{
-		StatsEx.InclDT = 1.0; // single large bucket
-	}
-	else
-	{
-		StatsEx.InclDT = (Stats.MaxInclusiveTime - Stats.MinInclusiveTime) * InvHistogramLen;
-	}
-
-	if (Stats.MaxExclusiveTime == Stats.MinExclusiveTime)
-	{
-		StatsEx.ExclDT = 1.0; // single large bucket
-	}
-	else
-	{
-		StatsEx.ExclDT = (Stats.MaxExclusiveTime - Stats.MinExclusiveTime) * InvHistogramLen;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimersView::UpdateHistogramForTimerStats(FTimerStatsEx& StatsEx, double InclTime, double ExclTime)
-{
-	const FTimerAggregatedStats& Stats = StatsEx.BaseStats;
-
-	int32 InclIndex = static_cast<int32>((InclTime - Stats.MinInclusiveTime + StatsEx.InclDT / 2) / StatsEx.InclDT);
-	ensure(InclIndex >= 0);
-	if (InclIndex < 0)
-	{
-		InclIndex = 0;
-	}
-	ensure(InclIndex < FTimerStatsEx::HistogramLen);
-	if (InclIndex >= FTimerStatsEx::HistogramLen)
-	{
-		InclIndex = FTimerStatsEx::HistogramLen - 1;
-	}
-	StatsEx.InclHistogram[InclIndex]++;
-
-	int32 ExclIndex = static_cast<int32>((ExclTime - Stats.MinExclusiveTime + StatsEx.ExclDT / 2) / StatsEx.ExclDT);
-	ensure(ExclIndex >= 0);
-	if (ExclIndex < 0)
-	{
-		ExclIndex = 0;
-	}
-	ensure(ExclIndex < FTimerStatsEx::HistogramLen);
-	if (ExclIndex >= FTimerStatsEx::HistogramLen)
-	{
-		ExclIndex = FTimerStatsEx::HistogramLen - 1;
-	}
-	StatsEx.ExclHistogram[ExclIndex]++;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimersView::PostProcessTimerStats(FTimerStatsEx& StatsEx, bool bComputeMedian)
-{
-	FTimerAggregatedStats& Stats = StatsEx.BaseStats;
-
-	// Compute average inclusive/exclusive times.
-	ensure(Stats.InstanceCount > 0);
-	double InvCount = 1.0f / static_cast<double>(Stats.InstanceCount);
-	Stats.AverageInclusiveTime = Stats.TotalInclusiveTime * InvCount;
-	Stats.AverageExclusiveTime = Stats.TotalExclusiveTime * InvCount;
-
-	if (bComputeMedian)
-	{
-		const int32 HalfCount = Stats.InstanceCount / 2;
-
-		// Compute median inclusive time.
-		int32 InclCount = 0;
-		for (int32 HistogramIndex = 0; HistogramIndex < FTimerStatsEx::HistogramLen; HistogramIndex++)
-		{
-			InclCount += StatsEx.InclHistogram[HistogramIndex];
-			if (InclCount > HalfCount)
-			{
-				Stats.MedianInclusiveTime = Stats.MinInclusiveTime + HistogramIndex * StatsEx.InclDT;
-				if (HistogramIndex > 0 &&
-					Stats.InstanceCount % 2 == 0 &&
-					InclCount - StatsEx.InclHistogram[HistogramIndex] == HalfCount)
-				{
-					const double PrevMedian = Stats.MinInclusiveTime + (HistogramIndex - 1) * StatsEx.InclDT;
-					Stats.MedianInclusiveTime = (Stats.MedianInclusiveTime + PrevMedian) / 2;
-				}
-				break;
-			}
-		}
-
-		// Compute median exclusive time.
-		int32 ExclCount = 0;
-		for (int32 HistogramIndex = 0; HistogramIndex < FTimerStatsEx::HistogramLen; HistogramIndex++)
-		{
-			ExclCount += StatsEx.InclHistogram[HistogramIndex];
-			if (ExclCount > HalfCount)
-			{
-				Stats.MedianExclusiveTime = Stats.MinExclusiveTime + HistogramIndex * StatsEx.ExclDT;
-				if (HistogramIndex > 0 &&
-					Stats.InstanceCount % 2 == 0 &&
-					ExclCount - StatsEx.ExclHistogram[HistogramIndex] == HalfCount)
-				{
-					const double PrevMedian = Stats.MinExclusiveTime + (HistogramIndex - 1) * StatsEx.ExclDT;
-					Stats.MedianExclusiveTime = (Stats.MedianExclusiveTime + PrevMedian) / 2;
-				}
-				break;
-			}
-		}
 	}
 }
 
