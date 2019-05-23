@@ -4596,7 +4596,7 @@ bool FEdModeLandscape::CanEditLayer(FText* Reason /*=nullptr*/, FLandscapeLayer*
 				}
 				return false;
 			}
-			else if ((TargetLayerIndex > 0) && (CurrentTool->GetToolName() == FName("Ramp") || CurrentTool->GetToolName() == FName("Flatten")))
+			else if ((TargetLayerIndex > 0) && (CurrentTool->GetToolName() == FName("Ramp")))
 			{
 				if (Reason)
 				{
