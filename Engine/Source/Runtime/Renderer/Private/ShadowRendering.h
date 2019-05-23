@@ -510,6 +510,12 @@ public:
 		return FShadowDepthType(bDirectionalLight, bOnePassPointLightShadow, bReflectiveShadowmap);
 	}
 
+	/**
+	* Setup uniformbuffers and update Primitive Shader Data
+	*/
+	void SetupShadowUniformBuffers(FRHICommandListImmediate& RHICmdList, FScene* Scene);
+
+
 private:
 	// 0 if Setup...() wasn't called yet
 	const FLightSceneInfo* LightSceneInfo;
