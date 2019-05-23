@@ -53,12 +53,7 @@ bool FGoogleARCoreXRTrackingSystem::IsHeadTrackingAllowed() const
 
 bool FGoogleARCoreXRTrackingSystem::GetCurrentPose(int32 DeviceId, FQuat& OutOrientation, FVector& OutPosition)
 {
-	if (OnGetARSessionStatus().Status != EARSessionStatus::Running)
-	{
-		return false;
-	}
-	
-	if (DeviceId == IXRTrackingSystem::HMDDeviceId)
+	if (DeviceId == IXRTrackingSystem::HMDDeviceId && ARCoreDeviceInstance->GetIsARCoreSessionRunning())
 	{
 		OutOrientation = CachedOrientation;
 		OutPosition = CachedPosition;
@@ -95,7 +90,7 @@ bool FGoogleARCoreXRTrackingSystem::OnStartGameFrame(FWorldContext& WorldContext
 	bHasValidPose = false;
 	if (ARCoreDeviceInstance->GetIsARCoreSessionRunning())
 	{
-		if (ARCoreDeviceInstance->GetTrackingState() == EGoogleARCoreTrackingState::Tracking)
+		if (ARCoreDeviceInstance->GetTrackingState() == EGoogleARCoreTrackingState::Tracking || ARCoreDeviceInstance->GetIsFrontCameraSession())
 		{
 			CurrentPose = ARCoreDeviceInstance->GetLatestPose();
 			CurrentPose *= GetARCompositionComponent()->GetAlignmentTransform();
@@ -328,7 +323,7 @@ TArray<FVector> FGoogleARCoreXRTrackingSystem::OnGetPointCloud() const
 {
 	TArray<FVector> PointCloudPoints;
 	UGoogleARCorePointCloud* LatestPointCloud = nullptr;
-	if (!(FGoogleARCoreDevice::GetInstance()->GetLatestPointCloud(LatestPointCloud) == EGoogleARCoreFunctionStatus::Success)) 
+	if (!(FGoogleARCoreDevice::GetInstance()->GetLatestPointCloud(LatestPointCloud) == EGoogleARCoreFunctionStatus::Success))
 	{
 		return PointCloudPoints;
 	}
@@ -375,7 +370,7 @@ bool FGoogleARCoreXRTrackingSystem::OnAddRuntimeCandidateImage(UARSessionConfig*
 				GrayscaleBuffer[i] = 0.2126 * R + 0.7152 * G + 0.0722 * B;
 			}
 		}
-		else
+		else if (PixelFormat == EPixelFormat::PF_G8)
 		{
 			ensureMsgf(RawImageData->GetBulkDataSize() == ImageWidth * ImageHeight,
 				TEXT("Unsupported texture data when adding runtime candidate image."));

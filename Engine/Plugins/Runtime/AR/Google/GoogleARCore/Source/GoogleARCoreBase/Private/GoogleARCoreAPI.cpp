@@ -45,8 +45,12 @@ namespace
 	FGoogleARCoreCameraConfig ToARCoreCameraConfig(const ArSession* SessionHandle, const ArCameraConfig* CameraConfigHandle)
 	{
 		FGoogleARCoreCameraConfig OutConfig;
-        ArCameraConfig_getImageDimensions(SessionHandle, CameraConfigHandle, &OutConfig.CameraImageResolution.X, &OutConfig.CameraImageResolution.Y);
-        ArCameraConfig_getTextureDimensions(SessionHandle, CameraConfigHandle, &OutConfig.CameraTextureResolution.X, &OutConfig.CameraTextureResolution.Y);
+		ArCameraConfig_getImageDimensions(SessionHandle, CameraConfigHandle, &OutConfig.CameraImageResolution.X, &OutConfig.CameraImageResolution.Y);
+		ArCameraConfig_getTextureDimensions(SessionHandle, CameraConfigHandle, &OutConfig.CameraTextureResolution.X, &OutConfig.CameraTextureResolution.Y);
+		char* CameraID = nullptr;
+		ArCameraConfig_getCameraId(SessionHandle, CameraConfigHandle, &CameraID);
+		OutConfig.CameraID = FString(ANSI_TO_TCHAR(CameraID));
+
 		return OutConfig;
 	}
 
@@ -104,6 +108,22 @@ namespace
 
 		DatabaseNativeHandle = AugmentedImageDb;
 		return Status;
+	}
+
+	ArCoordinates2dType ToArCoordinates2dType(EGoogleARCoreCoordinates2DType UnrealType)
+	{
+		switch (UnrealType)
+		{
+		case EGoogleARCoreCoordinates2DType::Image:
+			return AR_COORDINATES_2D_IMAGE_NORMALIZED;
+		case EGoogleARCoreCoordinates2DType::Texture:
+			return AR_COORDINATES_2D_TEXTURE_NORMALIZED;
+		case EGoogleARCoreCoordinates2DType::Viewport:
+			return AR_COORDINATES_2D_VIEW_NORMALIZED;
+		default:
+			UE_LOG(LogGoogleARCoreAPI, Error, TEXT("Unknown conversion from EGoogleARCoreCoordinates2DType to ArCoordinates2dType."));
+			return AR_COORDINATES_2D_VIEW_NORMALIZED;
+		}
 	}
 #endif
 
@@ -166,7 +186,7 @@ EGoogleARCoreAPIStatus FGoogleARCoreAPKManager::RequestInstall(bool bUserRequest
 /****************************************/
 /*         FGoogleARCoreSession         */
 /****************************************/
-FGoogleARCoreSession::FGoogleARCoreSession()
+FGoogleARCoreSession::FGoogleARCoreSession(bool bUseFrontCamera)
 	: SessionCreateStatus(EGoogleARCoreAPIStatus::AR_UNAVAILABLE_DEVICE_NOT_COMPATIBLE)
 	, SessionConfig(nullptr)
 	, LatestFrame(nullptr)
@@ -185,7 +205,15 @@ FGoogleARCoreSession::FGoogleARCoreSession()
 	check(Env);
 	check(ApplicationContext);
 
-	SessionCreateStatus = ToARCoreAPIStatus(ArSession_create(Env, ApplicationContext, &SessionHandle));
+	static ArSessionFeature FRONT_CAMERA_FEATURE[2] = { AR_SESSION_FEATURE_FRONT_CAMERA, AR_SESSION_FEATURE_END_OF_LIST };
+	if (bUseFrontCamera)
+	{
+		SessionCreateStatus = ToARCoreAPIStatus(ArSession_createWithFeatures(Env, ApplicationContext, FRONT_CAMERA_FEATURE, &SessionHandle));
+	}
+	else
+	{
+		SessionCreateStatus = ToARCoreAPIStatus(ArSession_create(Env, ApplicationContext, &SessionHandle));
+	}
 
 	if (SessionCreateStatus != EGoogleARCoreAPIStatus::AR_SUCCESS)
 	{
@@ -339,6 +367,23 @@ EGoogleARCoreAPIStatus FGoogleARCoreSession::ConfigSession(const UARSessionConfi
 		}
 		ArConfig_setAugmentedImageDatabase(SessionHandle, ConfigHandle, AugmentedImageDb);
 	}
+
+	// Config Augmented Face
+	ArAugmentedFaceMode FaceMode = AR_AUGMENTED_FACE_MODE_DISABLED;
+	if (GoogleConfig != nullptr)
+	{
+		switch (GoogleConfig->AugmentedFaceMode)
+		{
+		case EGoogleARCoreAugmentedFaceMode::PoseAndMesh:
+			FaceMode = AR_AUGMENTED_FACE_MODE_MESH3D;
+			break;
+		}
+	}
+	else if(Config.GetSessionType() == EARSessionType::Face)
+	{
+		FaceMode = AR_AUGMENTED_FACE_MODE_MESH3D;
+	}
+	ArConfig_setAugmentedFaceMode(SessionHandle, ConfigHandle, FaceMode);
 
 	ConfigStatus = ToARCoreAPIStatus(ArSession_configure(SessionHandle, ConfigHandle));
 #endif
@@ -728,6 +773,7 @@ FGoogleARCoreFrame::FGoogleARCoreFrame(FGoogleARCoreSession* InSession)
 	, LatestCameraPose(FTransform::Identity)
 	, LatestCameraTimestamp(0)
 	, LatestCameraTrackingState(EGoogleARCoreTrackingState::StoppedTracking)
+	, LatestCameraTrackingFailureReason(EGoogleARCoreTrackingFailureReason::None)
 	, LatestPointCloudStatus(EGoogleARCoreAPIStatus::AR_ERROR_SESSION_PAUSED)
 	, LatestImageMetadataStatus(EGoogleARCoreAPIStatus::AR_ERROR_SESSION_PAUSED)
 {
@@ -774,13 +820,19 @@ void FGoogleARCoreFrame::Update(float WorldToMeterScale)
 	ArTrackingState ARCoreTrackingState;
 	ArCamera_getTrackingState(SessionHandle, CameraHandle, &ARCoreTrackingState);
 	LatestCameraTrackingState = static_cast<EGoogleARCoreTrackingState>(ARCoreTrackingState);
+	LatestCameraPose = ARCorePoseToUnrealTransform(SketchPoseHandle, SessionHandle, WorldToMeterScale);
+
+	LatestCameraTrackingFailureReason = EGoogleARCoreTrackingFailureReason::None;
+	ArTrackingFailureReason TrackingFailureReason;
+	ArCamera_getTrackingFailureReason(SessionHandle, CameraHandle, &TrackingFailureReason);
+	LatestCameraTrackingFailureReason = static_cast<EGoogleARCoreTrackingFailureReason>(TrackingFailureReason);
+
+	int64_t FrameTimestamp = 0;
+	ArFrame_getTimestamp(SessionHandle, FrameHandle, &FrameTimestamp);
+	LatestCameraTimestamp = FrameTimestamp;
 
 	if (LatestCameraTrackingState == EGoogleARCoreTrackingState::Tracking)
 	{
-		int64_t FrameTimestamp = 0;
-		ArFrame_getTimestamp(SessionHandle, FrameHandle, &FrameTimestamp);
-		LatestCameraPose = ARCorePoseToUnrealTransform(SketchPoseHandle, SessionHandle, WorldToMeterScale);
-		LatestCameraTimestamp = FrameTimestamp;
 		// Update Point Cloud
 		UGoogleARCorePointCloud* LatestPointCloud = Session->GetUObjectManager()->LatestPointCloud;
 		LatestPointCloud->bIsUpdated = false;
@@ -822,6 +874,31 @@ void FGoogleARCoreFrame::Update(float WorldToMeterScale)
 
 		ArTrackable_release(TrackableHandle);
 	}
+
+	// Force update all face trackable here since getUpdateTrackables doesn't return faces.
+	ArSession_getAllTrackables(Session->GetHandle(), AR_TRACKABLE_FACE, TrackableListHandle);
+	ArTrackableList_getSize(Session->GetHandle(), TrackableListHandle, &TrackableListSize);
+	for (int i = 0; i < TrackableListSize; i++)
+	{
+		ArTrackable* TrackableHandle = nullptr;
+		ArTrackableList_acquireItem(Session->GetHandle(), TrackableListHandle, i, &TrackableHandle);
+		// Note that we only update trackables that is converted to Unreal type, this makes sure we only updated
+		// the trackable that user has reference to, which avoid holding reference for all trackable so that ARCore may
+		// have a chance to free it.
+		if (Session->GetUObjectManager()->TrackableHandleMap.Contains(TrackableHandle))
+		{
+			TWeakObjectPtr<UARTrackedGeometry> UETrackableObject = Session->GetUObjectManager()->TrackableHandleMap[TrackableHandle];
+			if (UETrackableObject.IsValid())
+			{
+				// Updated the cached tracked geometry when it is valid.
+				FGoogleARCoreTrackableResource* TrackableResource = reinterpret_cast<FGoogleARCoreTrackableResource*>(UETrackableObject->GetNativeResource());
+				TrackableResource->UpdateGeometryData();
+			}
+		}
+
+		ArTrackable_release(TrackableHandle);
+	}
+
 	ArTrackableList_destroy(TrackableListHandle);
 
 	// Update Image Metadata
@@ -883,6 +960,11 @@ EGoogleARCoreTrackingState FGoogleARCoreFrame::GetCameraTrackingState() const
 	return LatestCameraTrackingState;
 }
 
+EGoogleARCoreTrackingFailureReason FGoogleARCoreFrame::GetCameraTrackingFailureReason() const
+{
+	return LatestCameraTrackingFailureReason;
+}
+
 EGoogleARCoreAPIStatus FGoogleARCoreFrame::GetCameraImageIntrinsics(
 	UGoogleARCoreCameraIntrinsics *&OutCameraIntrinsics) const
 {
@@ -931,6 +1013,35 @@ EGoogleARCoreAPIStatus FGoogleARCoreFrame::GetCameraTextureIntrinsics(
 #endif
 
 	return ApiStatus;
+}
+
+void FGoogleARCoreFrame::TransformARCoordinates2D(EGoogleARCoreCoordinates2DType InputCoordinatesType, const TArray<FVector2D>& InputCoordinates, EGoogleARCoreCoordinates2DType OutputCoordinatesType, TArray<FVector2D>& OutputCoordinates) const
+{
+#if PLATFORM_ANDROID
+	ArCoordinates2dType InputType = ToArCoordinates2dType(InputCoordinatesType);
+	ArCoordinates2dType OutputType = ToArCoordinates2dType(OutputCoordinatesType);
+	int VertNumber = InputCoordinates.Num();
+
+	static TArray<float> InputBuffer;
+	static TArray<float> OutputBuffer;
+
+	InputBuffer.Reset(VertNumber * 2);
+
+	for (int i = 0; i < VertNumber; i++)
+	{
+		InputBuffer.Add(InputCoordinates[i].X);
+		InputBuffer.Add(InputCoordinates[i].Y);
+	}
+
+	OutputBuffer.SetNumZeroed(VertNumber * 2);
+	ArFrame_transformCoordinates2d(SessionHandle, FrameHandle, InputType, VertNumber, InputBuffer.GetData(), OutputType, OutputBuffer.GetData());
+
+	OutputCoordinates.Empty();
+	for (int i = 0; i < VertNumber; i++)
+	{
+		OutputCoordinates.Add(FVector2D(OutputBuffer[i*2], OutputBuffer[i*2 +1]));
+	}
+#endif
 }
 
 void FGoogleARCoreFrame::GetUpdatedAnchors(TArray<UARPin*>& OutUpdatedAnchors) const
@@ -1011,6 +1122,11 @@ FMatrix FGoogleARCoreFrame::GetProjectionMatrix() const
 
 	ArCamera_getProjectionMatrix(SessionHandle, CameraHandle, GNearClippingPlane, 100.0f, ProjectionMatrix.M[0]);
 
+	
+	// We need to multiple the center offset by -1 to get the correct projection matrix in Unreal.
+	ProjectionMatrix.M[2][0] = -1.0f * ProjectionMatrix.M[2][0];
+	ProjectionMatrix.M[2][1] = -1.0f * ProjectionMatrix.M[2][1];
+
 	// Unreal uses the infinite far plane project matrix.
 	ProjectionMatrix.M[2][2] = 0.0f;
 	ProjectionMatrix.M[2][3] = 1.0f;
@@ -1028,7 +1144,7 @@ void FGoogleARCoreFrame::TransformDisplayUvCoords(const TArray<float>& UvCoords,
 	}
 
 	OutUvCoords.SetNumZeroed(8);
-	ArFrame_transformDisplayUvCoords(SessionHandle, FrameHandle, 8, UvCoords.GetData(), OutUvCoords.GetData());
+	ArFrame_transformCoordinates2d(SessionHandle, FrameHandle, AR_COORDINATES_2D_VIEW_NORMALIZED,  8, UvCoords.GetData(), AR_COORDINATES_2D_TEXTURE_NORMALIZED, OutUvCoords.GetData());
 #endif
 }
 
@@ -1151,9 +1267,9 @@ EGoogleARCoreAPIStatus FGoogleARCoreFrame::GetCameraMetadata(const ACameraMetada
 }
 #endif
 
-TSharedPtr<FGoogleARCoreSession> FGoogleARCoreSession::CreateARCoreSession()
+TSharedPtr<FGoogleARCoreSession> FGoogleARCoreSession::CreateARCoreSession(bool bUseFrontCamera)
 {
-	TSharedPtr<FGoogleARCoreSession> NewSession = MakeShared<FGoogleARCoreSession>();
+	TSharedPtr<FGoogleARCoreSession> NewSession = MakeShared<FGoogleARCoreSession>(bUseFrontCamera);
 
 	UGoogleARCoreUObjectManager* UObjectManager = NewObject<UGoogleARCoreUObjectManager>();
 	UObjectManager->LatestPointCloud = NewObject<UGoogleARCorePointCloud>();
@@ -1461,6 +1577,106 @@ void FGoogleARCoreAugmentedImageResource::UpdateGeometryData()
 	ArString_release(ImageName);
 
 	AugmentedImage->SetDebugName(FName(TEXT("ARCoreAugmentedImage")));
+}
+
+void FGoogleARCoreAugmentedFaceResource::UpdateGeometryData()
+{
+	FGoogleARCoreTrackableResource::UpdateGeometryData();
+
+	ArAugmentedFace* FaceHandle = GetFaceHandle();
+	UGoogleARCoreAugmentedFace* AugmentedFace = CastChecked<UGoogleARCoreAugmentedFace>(TrackedGeometry);
+
+	if (!CheckIsSessionValid("ARCoreAugmentedFace", Session) || TrackedGeometry->GetTrackingState() == EARTrackingState::StoppedTracking)
+	{
+		return;
+	}
+
+	TSharedPtr<FGoogleARCoreSession> SessionPtr = Session.Pin();
+	double TimeStamp = static_cast<double>(SessionPtr->GetLatestFrame()->GetCameraTimestamp());
+
+	ArPose* ARPoseHandle = nullptr;
+	ArPose_create(SessionPtr->GetHandle(), nullptr, &ARPoseHandle);
+	ArAugmentedFace_getCenterPose(SessionPtr->GetHandle(), FaceHandle, ARPoseHandle);
+	FTransform LocalToTrackingTransform = ARCorePoseToUnrealTransform(ARPoseHandle, SessionPtr->GetHandle(), SessionPtr->GetWorldToMeterScale());
+
+	const float* VerticesHandle = nullptr;
+	const uint16* IndicesHandle = nullptr;
+	const float* UVHandle = nullptr;
+	int VerticesNumber = 0;
+	int IndicesNumber = 0;
+	int UVNumber = 0;
+
+	// Prepare vertex buffer
+	ArAugmentedFace_getMeshVertices(SessionPtr->GetHandle(), FaceHandle, &VerticesHandle, &VerticesNumber);
+	TArray<FVector> Vertices;
+	Vertices.AddUninitialized(VerticesNumber);
+	FMemory::Memcpy(reinterpret_cast<float*>(Vertices.GetData()), VerticesHandle, VerticesNumber * 3 * sizeof(float));
+
+	for (int i = 0; i < VerticesNumber; i++)
+	{
+		FVector Vert = Vertices[i];
+		Vertices[i].X = -Vert.Z;
+		Vertices[i].Y = Vert.X;
+		Vertices[i].Z = Vert.Y;
+		Vertices[i] = Vertices[i] * SessionPtr->GetWorldToMeterScale();
+	}
+
+	// Prepare index buffer
+	TArray<int32> Indices = AugmentedFace->GetIndexBuffer();
+	if(Indices.Num() == 0)
+	{
+		ArAugmentedFace_getMeshTriangleIndices(SessionPtr->GetHandle(), FaceHandle, &IndicesHandle, &IndicesNumber);
+		IndicesNumber *= 3;
+
+		// We need to convert index value to int32.
+		Indices.AddUninitialized(IndicesNumber);
+		for (int i = 0; i < IndicesNumber; i += 3)
+		{
+			Indices[i] = static_cast<int32>(IndicesHandle[i]);
+			Indices[i + 1] = static_cast<int32>(IndicesHandle[i + 1]);
+			Indices[i + 2] = static_cast<int32>(IndicesHandle[i + 2]);
+		}
+	}
+
+	// Prepare UVs
+	ArAugmentedFace_getMeshTextureCoordinates(SessionPtr->GetHandle(), FaceHandle, &UVHandle, &UVNumber);
+	TArray<FVector2D> UVs;
+	UVs.AddUninitialized(UVNumber);
+	FMemory::Memcpy(reinterpret_cast<float*>(UVs.GetData()), UVHandle, UVNumber * sizeof(float) * 2);
+	for (int i = 0; i < UVs.Num(); i++)
+	{
+		UVs[i].Y = -UVs[i].Y;
+	}
+
+	FARBlendShapeMap EmptyBlendShape;
+
+	AugmentedFace->UpdateFaceGeometry(SessionPtr->GetARSystem(), SessionPtr->GetFrameNum(), TimeStamp,
+		LocalToTrackingTransform, SessionPtr->GetARSystem()->GetAlignmentTransform(),
+		EmptyBlendShape, Vertices, Indices, UVs,
+		FTransform::Identity, FTransform::Identity, FVector::ForwardVector);
+
+	// Update augmented face region
+	TMap<EGoogleARCoreAugmentedFaceRegion, FTransform> RegionLocalToTrackingTransform;
+
+	FTransform RegionLocalToTracking;
+	// Nose
+	ArAugmentedFace_getRegionPose(SessionPtr->GetHandle(), FaceHandle, AR_AUGMENTED_FACE_REGION_NOSE_TIP, ARPoseHandle);
+	RegionLocalToTracking = ARCorePoseToUnrealTransform(ARPoseHandle, SessionPtr->GetHandle(), SessionPtr->GetWorldToMeterScale());
+	RegionLocalToTrackingTransform.Add(EGoogleARCoreAugmentedFaceRegion::NoseTip, RegionLocalToTracking);
+
+	// Forehead left
+	ArAugmentedFace_getRegionPose(SessionPtr->GetHandle(), FaceHandle, AR_AUGMENTED_FACE_REGION_FOREHEAD_LEFT, ARPoseHandle);
+	RegionLocalToTracking = ARCorePoseToUnrealTransform(ARPoseHandle, SessionPtr->GetHandle(), SessionPtr->GetWorldToMeterScale());
+	RegionLocalToTrackingTransform.Add(EGoogleARCoreAugmentedFaceRegion::ForeheadLeft, RegionLocalToTracking);
+
+	// Forehead right
+	ArAugmentedFace_getRegionPose(SessionPtr->GetHandle(), FaceHandle, AR_AUGMENTED_FACE_REGION_FOREHEAD_RIGHT, ARPoseHandle);
+	RegionLocalToTracking = ARCorePoseToUnrealTransform(ARPoseHandle, SessionPtr->GetHandle(), SessionPtr->GetWorldToMeterScale());
+	RegionLocalToTrackingTransform.Add(EGoogleARCoreAugmentedFaceRegion::ForeheadRight, RegionLocalToTracking);
+
+	AugmentedFace->UpdateRegionTransforms(RegionLocalToTrackingTransform);
+
+	ArPose_destroy(ARPoseHandle);
 }
 #endif
 
