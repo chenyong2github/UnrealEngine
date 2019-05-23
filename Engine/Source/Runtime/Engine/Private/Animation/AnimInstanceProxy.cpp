@@ -1216,11 +1216,20 @@ void FAnimInstanceProxy::CacheBones()
 	// If bone caches have been invalidated, have AnimNodes refresh those.
 	if (bBoneCachesInvalidated && RootNode)
 	{
-		bBoneCachesInvalidated = false;
+		CacheBonesRecursionCounter++;
 
 		CachedBonesCounter.Increment();
 		FAnimationCacheBonesContext Context(this);
 		RootNode->CacheBones_AnyThread(Context);
+
+		CacheBonesRecursionCounter--;
+
+		check(CacheBonesRecursionCounter >= 0);
+
+		if(CacheBonesRecursionCounter == 0)
+		{
+			bBoneCachesInvalidated = false;
+		}
 	}
 }
 
@@ -1229,11 +1238,20 @@ void FAnimInstanceProxy::CacheBones_WithRoot(FAnimNode_Base* InRootNode)
 	// If bone caches have been invalidated, have AnimNodes refresh those.
 	if (bBoneCachesInvalidated && InRootNode)
 	{
-		bBoneCachesInvalidated = false;
+		CacheBonesRecursionCounter++;
 
 		CachedBonesCounter.Increment();
 		FAnimationCacheBonesContext Context(this);
 		InRootNode->CacheBones_AnyThread(Context);
+
+		CacheBonesRecursionCounter--;
+
+		check(CacheBonesRecursionCounter >= 0);
+
+		if(CacheBonesRecursionCounter == 0)
+		{
+			bBoneCachesInvalidated = false;
+		}
 	}
 }
 
