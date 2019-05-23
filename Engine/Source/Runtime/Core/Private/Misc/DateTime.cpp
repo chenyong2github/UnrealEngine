@@ -664,7 +664,7 @@ bool FDateTime::ParseHttpDate(const FString& HttpDate, FDateTime& OutDateTime)
 bool FDateTime::ParseIso8601(const TCHAR* DateTimeString, FDateTime& OutDateTime)
 {
 	// DateOnly: YYYY-MM-DD
-	// DateTime: YYYY-mm-ddTHH:MM:SS(.ssss)(Z|+th:tm|-th:tm)
+	// DateTime: YYYY-mm-ddTHH:MM:SS(.sss)(Z|+hh:mm|+hhmm|-hh:mm|-hhmm)
 
 	const TCHAR* Ptr = DateTimeString;
 	TCHAR* Next = nullptr;
@@ -753,15 +753,24 @@ bool FDateTime::ParseIso8601(const TCHAR* DateTimeString, FDateTime& OutDateTime
 			// parse the timezone offset
 			TzHour = FCString::Strtoi(Ptr, &Next, 10);
 
-			if ((Next <= Ptr) || (*Next == TCHAR('\0')))
+			if (Next - Ptr == 3) // for "+/-hh:mm" and "+/-hh" cases
 			{
-				return false;
+				if (*Next != TCHAR('\0')) // "+/-hh:mm"
+				{
+					if (*Next != TCHAR(':'))
+					{
+						return false;
+					}
+					Ptr = Next + 1; // skip colon
+					TzMinute = FCString::Strtoi(Ptr, &Next, 10);
+				}
 			}
-
-			Ptr = Next + 1; // skip separator
-			TzMinute = FCString::Strtoi(Ptr, &Next, 10);
-
-			if (Next <= Ptr)
+			else if (Next - Ptr == 5) // for "+/-hhmm" case
+			{
+				TzMinute = TzHour % 100;
+				TzHour /= 100;
+			}
+			else
 			{
 				return false;
 			}
