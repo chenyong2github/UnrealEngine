@@ -333,7 +333,9 @@ protected:
 	std::string to_array_size(const SPIRType &type, uint32_t index);
 	uint32_t to_array_size_literal(const SPIRType &type, uint32_t index) const;
 	uint32_t to_array_size_literal(const SPIRType &type) const;
-	std::string variable_decl(const SPIRVariable &variable);
+	/* UE Change Begin: Threadgroup arrays can't have a wrapper type */
+	virtual std::string variable_decl(const SPIRVariable &variable);
+	/* UE Change End: Threadgroup arrays can't have a wrapper type */
 	std::string variable_decl_function_local(SPIRVariable &variable);
 
 	void add_local_variable_name(uint32_t id);

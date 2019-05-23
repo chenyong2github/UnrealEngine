@@ -415,6 +415,9 @@ protected:
 	/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
 	std::string type_to_array_glsl(const SPIRType &type) override;
 	/* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
+	/* UE Change Begin: Threadgroup arrays can't have a wrapper type */
+	std::string variable_decl(const SPIRVariable &variable) override;
+	/* UE Change End: Threadgroup arrays can't have a wrapper type */
 	std::string image_type_glsl(const SPIRType &type, uint32_t id = 0) override;
 	std::string sampler_type(const SPIRType &type);
 	std::string builtin_to_glsl(spv::BuiltIn builtin, spv::StorageClass storage) override;

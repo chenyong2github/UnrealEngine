@@ -3235,7 +3235,7 @@ void CompilerMSL::declare_undefined_values()
 	bool emitted = false;
 	ir.for_each_typed_id<SPIRUndef>([&](uint32_t, SPIRUndef &undef) {
 		auto &type = this->get<SPIRType>(undef.basetype);
-		statement("constant ", variable_decl(type, to_name(undef.self), undef.self), " = {};");
+		statement("constant ", CompilerGLSL::variable_decl(type, to_name(undef.self), undef.self), " = {};");
 		emitted = true;
 	});
 
@@ -3258,7 +3258,7 @@ void CompilerMSL::declare_constant_arrays()
 		if (!type.array.empty() && (is_scalar(type) || is_vector(type)))
 		{
 			auto name = to_name(c.self);
-			statement("constant ", variable_decl(type, name), " = ", constant_expression(c), ";");
+			statement("constant ", CompilerGLSL::variable_decl(type, name), " = ", constant_expression(c), ";");
 			emitted = true;
 		}
 	});
@@ -3281,7 +3281,7 @@ void CompilerMSL::declare_complex_constant_arrays()
 		if (!type.array.empty() && !(is_scalar(type) || is_vector(type)))
 		{
 			auto name = to_name(c.self);
-			statement("", variable_decl(type, name), " = ", constant_expression(c), ";");
+			statement("", CompilerGLSL::variable_decl(type, name), " = ", constant_expression(c), ";");
 			emitted = true;
 		}
 	});
@@ -3376,7 +3376,7 @@ void CompilerMSL::emit_specialization_constants_and_structs()
 			auto &c = id.get<SPIRConstantOp>();
 			auto &type = get<SPIRType>(c.basetype);
 			auto name = to_name(c.self);
-			statement("constant ", variable_decl(type, name), " = ", constant_op_expression(c), ";");
+			statement("constant ", CompilerGLSL::variable_decl(type, name), " = ", constant_op_expression(c), ";");
 			emitted = true;
 		}
 		else if (id.get_type() == TypeType)
@@ -3502,7 +3502,7 @@ bool CompilerMSL::emit_tessellation_access_chain(const uint32_t *ops, uint32_t l
 			if (is_matrix(*type) || is_array(*type) || type->basetype == SPIRType::Struct)
 			{
 				std::string temp_name = join(to_name(var->self), "_", ops[1]);
-				statement(variable_decl(*type, temp_name, var->self), ";");
+				statement(CompilerGLSL::variable_decl(*type, temp_name, var->self), ";");
 				// Set up the initializer for this temporary variable.
 				indices.push_back(const_mbr_id);
 				if (type->basetype == SPIRType::Struct)
@@ -4257,7 +4257,7 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 		uint32_t op1 = ops[3];
 		forced_temporaries.insert(result_id);
 		auto &type = get<SPIRType>(result_type);
-		statement(variable_decl(type, to_name(result_id)), ";");
+		statement(CompilerGLSL::variable_decl(type, to_name(result_id)), ";");
 		set<SPIRExpression>(result_id, to_name(result_id), result_type, true);
 
 		auto &res_type = get<SPIRType>(type.member_types[1]);
@@ -4289,7 +4289,7 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 		uint32_t op1 = ops[3];
 		forced_temporaries.insert(result_id);
 		auto &type = get<SPIRType>(result_type);
-		statement(variable_decl(type, to_name(result_id)), ";");
+		statement(CompilerGLSL::variable_decl(type, to_name(result_id)), ";");
 		set<SPIRExpression>(result_id, to_name(result_id), result_type, true);
 
 		statement(to_expression(result_id), ".", to_member_name(type, 0), " = ", to_enclosed_expression(op0), " * ",
@@ -4728,7 +4728,7 @@ void CompilerMSL::emit_atomic_func_op(uint32_t result_type, uint32_t result_id, 
 		// the CAS loop, otherwise it will loop infinitely, with the comparison test always failing.
 		// The function updates the comparitor value from the memory value, so the additional
 		// comparison test evaluates the memory value against the expected value.
-		statement(variable_decl(type, to_name(result_id)), ";");
+		statement(CompilerGLSL::variable_decl(type, to_name(result_id)), ";");
 		statement("do");
 		begin_scope();
 		statement(to_name(result_id), " = ", to_expression(op1), ";");
@@ -7493,6 +7493,22 @@ string CompilerMSL::type_to_array_glsl(const SPIRType &type)
 	/* UE Change End: Force the use of C style array declaration. */
 	/* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
 }
+
+/* UE Change Begin: Threadgroup arrays can't have a wrapper type */
+std::string CompilerMSL::variable_decl(const SPIRVariable &variable)
+{
+	if (variable.storage == StorageClassWorkgroup)
+	{
+		use_builtin_array = true;
+	}
+	std::string expr = CompilerGLSL::variable_decl(variable);
+	if (variable.storage == StorageClassWorkgroup)
+	{
+		use_builtin_array = false;
+	}
+	return expr;
+}
+/* UE Change End: Threadgroup arrays can't have a wrapper type */
 
 std::string CompilerMSL::sampler_type(const SPIRType &type)
 {
