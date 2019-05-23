@@ -18,6 +18,10 @@
 #include "ControlRig.h"
 #include "ControlRigBlueprint.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "ControlRigUnitNodeSpawner"
 
 UControlRigUnitNodeSpawner* UControlRigUnitNodeSpawner::CreateFromStruct(UStruct* InStruct, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
