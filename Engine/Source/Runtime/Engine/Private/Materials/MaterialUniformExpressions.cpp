@@ -855,6 +855,28 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 	}
 }
 
+uint32 FUniformExpressionSet::GetReferencedTexture2DRHIHash(const FMaterialRenderContext& MaterialRenderContext) const
+{
+	uint32 BaseHash = 0;
+
+	for (int32 ExpressionIndex = 0; ExpressionIndex < Uniform2DTextureExpressions.Num(); ExpressionIndex++)
+	{
+		const UTexture* Value;
+		Uniform2DTextureExpressions[ExpressionIndex]->GetTextureValue(MaterialRenderContext, MaterialRenderContext.Material, Value);
+
+		const uint32 ValidTextureTypes = MCT_Texture2D | MCT_TextureVirtual | MCT_TextureExternal;
+
+		FRHITexture* TexturePtr = nullptr;
+		if (Value && Value->Resource && Value->TextureReference.TextureReferenceRHI && (Value->GetMaterialType() & ValidTextureTypes) != 0u)
+		{
+			TexturePtr = Value->TextureReference.TextureReferenceRHI->GetReferencedTexture();
+		}
+		BaseHash = PointerHash(TexturePtr, BaseHash);
+	}
+
+	return BaseHash;
+}
+
 FMaterialUniformExpressionTexture::FMaterialUniformExpressionTexture() :
 	TextureIndex(INDEX_NONE),
 	LayerIndex(INDEX_NONE),

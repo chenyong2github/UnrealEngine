@@ -122,11 +122,18 @@ FAutoConsoleVariableRef CVarLandscapeDebugViewMode(
 #endif
 
 #if RHI_RAYTRACING
-int32 GLandscapeRayTracingGeometryLODsThatUpdateEveryFrame = 3;
+int32 GLandscapeRayTracingGeometryLODsThatUpdateEveryFrame = 0;
 static FAutoConsoleVariableRef CVarLandscapeRayTracingGeometryLODsThatUpdateEveryFrame(
 	TEXT("r.RayTracing.Landscape.LODsUpdateEveryFrame"),
 	GLandscapeRayTracingGeometryLODsThatUpdateEveryFrame,
-	TEXT("If on, LODs that are lower than the specified level will be updated every frame, which can be used to workaround some artifacts caused by texture streaming if you're using WPO on the landscape")
+	TEXT("If on, LODs that are lower than the specified level will be updated every frame, which can be used to workaround some artifacts caused by texture streaming if you're using WorldPositionOffset on the landscape")
+);
+
+int32 GLandscapeRayTracingGeometryDetectTextureStreaming = 1;
+static FAutoConsoleVariableRef CVarLandscapeRayTracingGeometryDetectTextureStreaming(
+	TEXT("r.RayTracing.Landscape.DetectTextureStreaming"),
+	GLandscapeRayTracingGeometryDetectTextureStreaming,
+	TEXT("If on, update ray tracing geometry when texture streaming state changes. Useful when WorldPositionOffset is used in the landscape material")
 );
 #endif
 
@@ -3175,6 +3182,28 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 					{
 						bNeedsRayTracingGeometryUpdate = true;
 						SectionRayTracingStates[SubSectionIdx].CurrentNeighborLOD = CurrentNeighborLOD;
+					}
+				}
+			}
+
+			if (GLandscapeRayTracingGeometryDetectTextureStreaming > 0)
+			{
+				const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
+				const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(((FSceneInterface*)Context.Scene)->GetFeatureLevel(), FallbackMaterialRenderProxyPtr);
+
+				if (Material.HasVertexPositionOffsetConnected())
+				{
+					const FMaterialRenderProxy* MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? FallbackMaterialRenderProxyPtr : MeshBatch.MaterialRenderProxy;
+
+					FMaterialRenderContext MaterialRenderContext(MaterialRenderProxy, Material, Context.ReferenceView);
+
+					const FUniformExpressionSet& UniformExpressionSet = Material.GetRenderingThreadShaderMap()->GetUniformExpressionSet();
+					const uint32 Hash = UniformExpressionSet.GetReferencedTexture2DRHIHash(MaterialRenderContext);
+
+					if (SectionRayTracingStates[SubSectionIdx].ReferencedTextureRHIHash != Hash)
+					{
+						bNeedsRayTracingGeometryUpdate = true;
+						SectionRayTracingStates[SubSectionIdx].ReferencedTextureRHIHash = Hash;
 					}
 				}
 			}

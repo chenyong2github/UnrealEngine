@@ -554,6 +554,7 @@ public:
 		FVector4 LODBias;
 		FVector4 SectionLOD;
 		FVector4 CurrentNeighborLOD;
+		uint32 ReferencedTextureRHIHash;
 
 		FRayTracingGeometry Geometry;
 		FRWBuffer RayTracingDynamicVertexBuffer;
@@ -563,7 +564,8 @@ public:
 			: CurrentLOD(-1)
 			, LODBias(-1000.0f, -1000.0f, -1000.0f, -1000.0f)
 			, SectionLOD(-1000.0f, -1000.0f, -1000.0f, -1000.0f)
-			, CurrentNeighborLOD(-1000.0f, -1000.0f, -1000.0f, -1000.0f) {}
+			, CurrentNeighborLOD(-1000.0f, -1000.0f, -1000.0f, -1000.0f)
+			, ReferencedTextureRHIHash(0) {}
 	};
 
 	TStaticArray<FLandscapeSectionRayTracingState, MAX_SUBSECTION_COUNT> SectionRayTracingStates;
