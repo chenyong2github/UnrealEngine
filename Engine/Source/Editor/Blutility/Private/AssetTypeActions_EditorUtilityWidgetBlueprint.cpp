@@ -18,6 +18,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/TabManager.h"
 #include "IBlutilityModule.h"
+#include "SBlueprintDiff.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
