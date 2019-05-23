@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "SSearchableComboBox.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Views/STreeView.h"
 
 //=====================================================================================

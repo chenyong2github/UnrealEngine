@@ -2,9 +2,8 @@
 
 
 #include "SVariableMappingWidget.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "SVariableMappingWidget"
 
