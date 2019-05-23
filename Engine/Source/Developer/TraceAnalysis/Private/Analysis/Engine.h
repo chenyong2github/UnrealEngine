@@ -53,6 +53,8 @@ private:
 		uint16			AnalyzerIndex;
 	};
 
+	struct				FEventDataImpl;
+
 	virtual void		OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void		OnAnalysisEnd() override;
 	virtual void		OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
@@ -70,6 +72,7 @@ private:
 	TArray<IAnalyzer*>	Analyzers;
 	TArray<FDispatch*>	Dispatches;
 	FTransportReader*	Transport = nullptr;
+	FEventDataImpl*		EventDataImpl;
 };
 
 } // namespace Trace
