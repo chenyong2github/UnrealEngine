@@ -321,6 +321,29 @@ struct FLandscapeProxyMaterialOverride
 
 	UPROPERTY(EditAnywhere, Category = Landscape)
 	UMaterialInterface* Material;
+
+	bool operator==(const FLandscapeProxyMaterialOverride& InOther) const
+	{
+		if (Material != InOther.Material)
+		{
+			return false;
+		}
+
+		if (LODIndex.Default != InOther.LODIndex.Default || LODIndex.PerPlatform.Num() != InOther.LODIndex.PerPlatform.Num())
+		{
+			return false;
+		}
+
+		for (auto& ItPair : LODIndex.PerPlatform)
+		{
+			if (!InOther.LODIndex.PerPlatform.Contains(ItPair.Key))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
 };
 
 class FLandscapeLayersTexture2DCPUReadBackResource : public FTextureResource
@@ -460,6 +483,20 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Landscape)
 	TArray<FLandscapeProxyMaterialOverride> LandscapeMaterialsOverride;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient)
+	UMaterialInterface* PreEditLandscapeMaterial;
+
+	UPROPERTY(Transient)
+	UMaterialInterface* PreEditLandscapeHoleMaterial;
+
+	UPROPERTY(Transient)
+	TArray<FLandscapeProxyMaterialOverride> PreEditLandscapeMaterialsOverride;
+
+	UPROPERTY(Transient)
+	bool bIsPerformingInteractiveActionOnLandscapeMaterialOverride;
+#endif
 
 	/** Allows overriding the landscape bounds. This is useful if you distort the landscape with world-position-offset, for example
 	 *  Extension value in the negative Z axis, positive value increases bound size

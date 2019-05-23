@@ -4138,6 +4138,15 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
+void ALandscape::PreEditChange(UProperty* PropertyThatWillChange)
+{
+	PreEditLandscapeMaterial = LandscapeMaterial;
+	PreEditLandscapeHoleMaterial = LandscapeHoleMaterial;
+	PreEditLandscapeMaterialsOverride = LandscapeMaterialsOverride;
+
+	Super::PreEditChange(PropertyThatWillChange);
+}
+
 void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
@@ -4151,16 +4160,42 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
-	if (PropertyName == FName(TEXT("LandscapeMaterial")) || PropertyName == FName(TEXT("LandscapeHoleMaterial")) || MemberPropertyName == FName(TEXT("LandscapeMaterialsOverride")))
+	if ((PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeMaterial) || PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeHoleMaterial) || MemberPropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeMaterialsOverride))
+		&& PropertyChangedEvent.ChangeType != EPropertyChangeType::ArrayAdd)
 	{
-		bool RecreateMaterialInstances = true;
+		bool HasMaterialChanged = false;
 
-		if (PropertyName == FName(TEXT("LandscapeMaterialsOverride")) && PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
+		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 		{
-			RecreateMaterialInstances = false;
-		}		
+			if (PreEditLandscapeMaterial != LandscapeMaterial || PreEditLandscapeHoleMaterial != LandscapeHoleMaterial || PreEditLandscapeMaterialsOverride.Num() != LandscapeMaterialsOverride.Num() || bIsPerformingInteractiveActionOnLandscapeMaterialOverride)
+			{
+				HasMaterialChanged = true;
+			}
 
-		if (Info != nullptr && RecreateMaterialInstances)
+			if (!HasMaterialChanged)
+			{
+				for (int32 i = 0; i < LandscapeMaterialsOverride.Num(); ++i)
+				{
+					const FLandscapeProxyMaterialOverride& NewMaterialOverride = LandscapeMaterialsOverride[i];
+					const FLandscapeProxyMaterialOverride& PreEditMaterialOverride = PreEditLandscapeMaterialsOverride[i];
+
+					if (!(PreEditMaterialOverride == NewMaterialOverride))
+					{
+						HasMaterialChanged = true;
+						break;
+					}
+				}
+			}
+
+			bIsPerformingInteractiveActionOnLandscapeMaterialOverride = false;
+		}
+		else
+		{
+			// We are probably using a slider or something similar in LandscapeMaterialsOverride
+			bIsPerformingInteractiveActionOnLandscapeMaterialOverride = MemberPropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeMaterialsOverride);
+		}
+
+		if (Info != nullptr && HasMaterialChanged)
 		{
 			FMaterialUpdateContext MaterialUpdateContext;
 			Info->UpdateLayerInfoMap(/*this*/);
@@ -4349,6 +4384,10 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			LandscapeMaterialChangedDelegate.Broadcast();
 		}
 	}
+
+	PreEditLandscapeMaterial = nullptr;
+	PreEditLandscapeHoleMaterial = nullptr;
+	PreEditLandscapeMaterialsOverride.Empty();
 }
 
 void ALandscapeProxy::ChangedPhysMaterial()
