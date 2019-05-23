@@ -45,6 +45,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Settings/LevelEditorMiscSettings.h"
+#include "Engine/LevelStreaming.h"
 #include "Engine/LevelBounds.h"
 #include "SourceControlHelpers.h"
 #include "Dialogs/Dialogs.h"

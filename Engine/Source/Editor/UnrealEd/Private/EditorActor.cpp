@@ -64,6 +64,7 @@
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "AssetSelection.h"
+#include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "UnrealEd.EditorActor"
 
