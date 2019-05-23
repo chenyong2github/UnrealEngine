@@ -1672,7 +1672,7 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 				bIsSelecting = false;
 			}
 
-			if (!bIsDragging && bIsValidForMouseClick)
+			if (bIsValidForMouseClick)
 			{
 				// Select the hovered timing event (if any).
 				UpdateHoveredTimingEvent(MousePositionOnButtonUp.X, MousePositionOnButtonUp.Y);
