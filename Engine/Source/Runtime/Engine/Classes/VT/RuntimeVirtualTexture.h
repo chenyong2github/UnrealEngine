@@ -3,39 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Delegates/DelegateCombinations.h"
-#include "RenderResource.h"
 #include "UObject/ObjectMacros.h"
 #include "VirtualTexturing.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
 #include "RuntimeVirtualTexture.generated.h"
-
-/** Runtime virtual texture FRenderResource */
-class FRuntimeVirtualTextureRenderResource : public FRenderResource
-{
-public:
-	FRuntimeVirtualTextureRenderResource(FVTProducerDescription const& InDesc, IVirtualTexture* InVirtualTextureProducer);
-
-	/** Getter for the virtual texture allocation */
-	IAllocatedVirtualTexture* GetAllocatedVirtualTexture() const { return AllocatedVirtualTexture; }
-
-protected:
-	//~ Begin FRenderResource Interface.
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
-	//~ End FRenderResource Interface.
-
-	/** Allocate in the global virtual texture system. */
-	IAllocatedVirtualTexture* AcquireAllocatedVirtualTexture();
-	/** Release our virtual texture allocations  */
-	void ReleaseAllocatedVirtualTexture();
-
-private:
-	const FVTProducerDescription ProducerDesc;
-	IVirtualTexture* Producer;
-	FVirtualTextureProducerHandle ProducerHandle;
-	IAllocatedVirtualTexture* AllocatedVirtualTexture;
-};
 
 /** Runtime virtual texture UObject */
 UCLASS(ClassGroup = Rendering)
@@ -109,20 +80,21 @@ public:
 	/** Release the resources for this object This will need to be called if our producer becomes stale and we aren't doing a full reinit with a new producer. */
 	void Release();
 
-	/** Getter for the associated virtual texture allocation. */
+	/** Getter for the associated virtual texture producer. Call on render thread only. */
+	FVirtualTextureProducerHandle GetProducerHandle() const;
+	/** Getter for the associated virtual texture allocation. Call on render thread only. */
 	IAllocatedVirtualTexture* GetAllocatedVirtualTexture() const;
 
 	/** Getter for the shader uniform parameters. */
 	FVector4 GetUniformParameter(int32 Index);
 
 protected:
-	/** Initialize the render resource. This kicks off render thread work. */
+	/** Initialize the render resources. This kicks off render thread work. */
 	void InitResource(IVirtualTexture* InProducer);
-	/** Release the render resource. This kicks off render thread work. */
-	void ReleaseResource();
+	/** Initialize the render resources with a null producer. This kicks off render thread work. */
+	void InitNullResource();
 
 	//~ Begin UObject Interface.
-	virtual void BeginDestroy() override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -130,8 +102,8 @@ protected:
 	//~ End UObject Interface.
 
 private:
-	/** Render thread resource container */
-	FRuntimeVirtualTextureRenderResource* Resource;
+	/** Render thread resource container. */
+	class FRuntimeVirtualTextureRenderResource* Resource;
 
 	/** Material uniform parameters to support transform from world to UV coordinates. */
 	FVector4 WorldToUVTransformParameters[3];

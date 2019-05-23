@@ -7,72 +7,172 @@
 #include "VT/RuntimeVirtualTextureNotify.h"
 
 
-FRuntimeVirtualTextureRenderResource::FRuntimeVirtualTextureRenderResource(FVTProducerDescription const& InProducerDesc, IVirtualTexture* InVirtualTextureProducer)
-	: ProducerDesc(InProducerDesc)
-	, Producer(InVirtualTextureProducer)
-	, AllocatedVirtualTexture(nullptr)
+namespace
 {
-	check(InVirtualTextureProducer != nullptr);
-}
-
-void FRuntimeVirtualTextureRenderResource::InitRHI()
-{
-	ProducerHandle = GetRendererModule().RegisterVirtualTextureProducer(ProducerDesc, Producer);
-
-	AcquireAllocatedVirtualTexture();
-}
-
-void FRuntimeVirtualTextureRenderResource::ReleaseRHI()
-{
-	ReleaseAllocatedVirtualTexture();
-
-	GetRendererModule().ReleaseVirtualTextureProducer(ProducerHandle);
-	ProducerHandle = FVirtualTextureProducerHandle();
-}
-
-IAllocatedVirtualTexture* FRuntimeVirtualTextureRenderResource::AcquireAllocatedVirtualTexture()
-{
-	check(IsInRenderingThread());
-	
-	if (AllocatedVirtualTexture == nullptr)
+	/** Null producer to use as placeholder when no producer has been set on a URuntimeVirtualTexture */
+	class FNullVirtualTextureProducer : public IVirtualTexture
 	{
-		FAllocatedVTDescription VTDesc;
-		VTDesc.Dimensions = ProducerDesc.Dimensions;
-		VTDesc.TileSize = ProducerDesc.TileSize;
-		VTDesc.TileBorderSize = ProducerDesc.TileBorderSize;
-		VTDesc.NumLayers = ProducerDesc.NumLayers;
-		VTDesc.bPrivateSpace = true; // Dedicated page table allocation for runtime VTs
-		
-		for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumLayers; ++LayerIndex)
+	public:
+		/** Get a producer description to use with the null producer. */
+		static void GetNullProducerDescription(FVTProducerDescription& OutDesc)
 		{
-			VTDesc.ProducerHandle[LayerIndex] = ProducerHandle;
-			VTDesc.LocalLayerToProduce[LayerIndex] = LayerIndex;
+			OutDesc.Dimensions = 2;
+			OutDesc.TileSize = 4;
+			OutDesc.TileBorderSize = 0;
+			OutDesc.BlockWidthInTiles = 1;
+			OutDesc.BlockHeightInTiles = 1;
+			OutDesc.MaxLevel = 1;
+			OutDesc.DepthInTiles = 1;
+			OutDesc.WidthInBlocks = 1;
+			OutDesc.HeightInBlocks = 1;
+			OutDesc.NumLayers = 0;
 		}
-		
-		AllocatedVirtualTexture = GetRendererModule().AllocateVirtualTexture(VTDesc);
-	}
 
-	return AllocatedVirtualTexture;
+		//~ Begin IVirtualTexture Interface.
+		virtual FVTRequestPageResult RequestPageData(
+			const FVirtualTextureProducerHandle& ProducerHandle,
+			uint8 LayerMask,
+			uint8 vLevel,
+			uint32 vAddress,
+			EVTRequestPagePriority Priority
+		) override
+		{
+			return FVTRequestPageResult();
+		}
+
+		virtual IVirtualTextureFinalizer* ProducePageData(
+			FRHICommandListImmediate& RHICmdList,
+			ERHIFeatureLevel::Type FeatureLevel,
+			EVTProducePageFlags Flags,
+			const FVirtualTextureProducerHandle& ProducerHandle,
+			uint8 LayerMask,
+			uint8 vLevel,
+			uint32 vAddress,
+			uint64 RequestHandle,
+			const FVTProduceTargetLayer* TargetLayers
+		) override 
+		{
+			return nullptr; 
+		}
+		//~ End IVirtualTexture Interface.
+	};
 }
 
-void FRuntimeVirtualTextureRenderResource::ReleaseAllocatedVirtualTexture()
+
+/** 
+ * Container for render thread resources created for a URuntimeVirtualTexture object. 
+ * Any access to the resources should be on the render thread only so that access is serialized with the Init()/Release() render thread tasks.
+ */
+class FRuntimeVirtualTextureRenderResource
 {
-	if (AllocatedVirtualTexture)
+public:
+	FRuntimeVirtualTextureRenderResource()
+		: AllocatedVirtualTexture(nullptr)
 	{
-		GetRendererModule().DestroyVirtualTexture(AllocatedVirtualTexture);
-		AllocatedVirtualTexture = nullptr;
 	}
-}
+
+	/** Getter for the virtual texture producer. */
+	FVirtualTextureProducerHandle GetProducerHandle() const
+	{
+		check(IsInRenderingThread());
+		return ProducerHandle;
+	}
+
+	/** Getter for the virtual texture allocation. */
+	IAllocatedVirtualTexture* GetAllocatedVirtualTexture() const 
+	{
+		check(IsInRenderingThread());
+		return AllocatedVirtualTexture;
+	}
+
+	/** Queues up render thread work to create resources and also releases any old resources. */
+	void Init(FVTProducerDescription const& InDesc, IVirtualTexture* InVirtualTextureProducer)
+	{
+		FRuntimeVirtualTextureRenderResource* Resource = this;
+		
+		ENQUEUE_RENDER_COMMAND(FRuntimeVirtualTextureRenderResource_Init)(
+			[Resource, InDesc, InVirtualTextureProducer](FRHICommandList& RHICmdList)
+		{
+			FVirtualTextureProducerHandle OldProducerHandle = Resource->ProducerHandle;
+			ReleaseVirtualTexture(Resource->AllocatedVirtualTexture);
+			Resource->ProducerHandle = GetRendererModule().RegisterVirtualTextureProducer(InDesc, InVirtualTextureProducer);
+			Resource->AllocatedVirtualTexture = AllocateVirtualTexture(InDesc, Resource->ProducerHandle);
+			// Release old producer after new one is created so that any destroy callbacks can access the new producer
+			GetRendererModule().ReleaseVirtualTextureProducer(OldProducerHandle);
+		});
+	}
+
+	/** Queues up render thread work to release resources. */
+	void Release()
+	{
+		FVirtualTextureProducerHandle ProducerHandleToRelease = ProducerHandle;
+		ProducerHandle = FVirtualTextureProducerHandle();
+		IAllocatedVirtualTexture* AllocatedVirtualTextureToRelease = AllocatedVirtualTexture;
+		AllocatedVirtualTexture = nullptr;
+
+		ENQUEUE_RENDER_COMMAND(FRuntimeVirtualTextureRenderResource_Release)(
+			[ProducerHandleToRelease, AllocatedVirtualTextureToRelease](FRHICommandList& RHICmdList)
+		{
+			ReleaseVirtualTexture(AllocatedVirtualTextureToRelease);
+			GetRendererModule().ReleaseVirtualTextureProducer(ProducerHandleToRelease);
+		});
+	}
+
+protected:
+	/** Allocate in the global virtual texture system. */
+	static IAllocatedVirtualTexture* AllocateVirtualTexture(FVTProducerDescription const& InDesc, FVirtualTextureProducerHandle const& InProducerHandle)
+	{
+		IAllocatedVirtualTexture* OutAllocatedVirtualTexture = nullptr;
+
+		// Check for NumLayers avoids allocating for the null producer
+		if (InDesc.NumLayers > 0)
+		{
+			FAllocatedVTDescription VTDesc;
+			VTDesc.Dimensions = InDesc.Dimensions;
+			VTDesc.TileSize = InDesc.TileSize;
+			VTDesc.TileBorderSize = InDesc.TileBorderSize;
+			VTDesc.NumLayers = InDesc.NumLayers;
+			VTDesc.bPrivateSpace = true; // Dedicated page table allocation for runtime VTs
+
+			for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumLayers; ++LayerIndex)
+			{
+				VTDesc.ProducerHandle[LayerIndex] = InProducerHandle;
+				VTDesc.LocalLayerToProduce[LayerIndex] = LayerIndex;
+			}
+
+			OutAllocatedVirtualTexture = GetRendererModule().AllocateVirtualTexture(VTDesc);
+		}
+
+		return OutAllocatedVirtualTexture;
+	}
+
+	/** Release our virtual texture allocations  */
+	static void ReleaseVirtualTexture(IAllocatedVirtualTexture* InAllocatedVirtualTexture)
+	{
+		if (InAllocatedVirtualTexture != nullptr)
+		{
+			GetRendererModule().DestroyVirtualTexture(InAllocatedVirtualTexture);
+		}
+	}
+
+private:
+	FVirtualTextureProducerHandle ProducerHandle;
+	IAllocatedVirtualTexture* AllocatedVirtualTexture;
+};
+
 
 URuntimeVirtualTexture::URuntimeVirtualTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, Resource(nullptr)
 {
+	// Initialize the RHI resources with a null producer
+	Resource = new FRuntimeVirtualTextureRenderResource;
+	InitNullResource();
 }
 
 URuntimeVirtualTexture::~URuntimeVirtualTexture()
 {
-	check(Resource == nullptr);
+	Resource->Release();
+	delete Resource;
 }
 
 void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutDesc) const
@@ -124,9 +224,14 @@ int32 URuntimeVirtualTexture::GetEstimatedPhysicalTextureMemoryKb() const
 	return 0;
 }
 
+FVirtualTextureProducerHandle URuntimeVirtualTexture::GetProducerHandle() const
+{
+	return Resource->GetProducerHandle();
+}
+
 IAllocatedVirtualTexture* URuntimeVirtualTexture::GetAllocatedVirtualTexture() const
 {
-	return (Resource != nullptr) ? Resource->GetAllocatedVirtualTexture() : nullptr;
+	return Resource->GetAllocatedVirtualTexture();
 }
 
 FVector4 URuntimeVirtualTexture::GetUniformParameter(int32 Index)
@@ -143,40 +248,27 @@ void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FTransform 
 	WorldToUVTransformParameters[1] = BoxToWorld.GetUnitAxis(EAxis::X) * 1.f / BoxToWorld.GetScale3D().X;
 	WorldToUVTransformParameters[2] = BoxToWorld.GetUnitAxis(EAxis::Y) * 1.f / BoxToWorld.GetScale3D().Y;
 
-	ReleaseResource();
 	InitResource(InProducer);
 }
 
 void URuntimeVirtualTexture::Release()
 {
-	ReleaseResource();
+	InitNullResource();
 }
 
 void URuntimeVirtualTexture::InitResource(IVirtualTexture* InProducer)
 {
-	check(Resource == nullptr);
-	if (Resource == nullptr && InProducer != nullptr)
-	{
-		FVTProducerDescription Desc;
-		GetProducerDescription(Desc);
-		Resource = new FRuntimeVirtualTextureRenderResource(Desc, InProducer);
-		BeginInitResource(Resource);
-	}
+	FVTProducerDescription Desc;
+	GetProducerDescription(Desc);
+	Resource->Init(Desc, InProducer);
 }
 
-void URuntimeVirtualTexture::ReleaseResource()
+void URuntimeVirtualTexture::InitNullResource()
 {
-	if (Resource != nullptr)
-	{
-		BeginReleaseResource(Resource);
-		Resource = nullptr;
-	}
-}
-
-void URuntimeVirtualTexture::BeginDestroy()
-{
-	ReleaseResource();
-	Super::BeginDestroy();
+	FVTProducerDescription Desc;
+	FNullVirtualTextureProducer::GetNullProducerDescription(Desc);
+	FNullVirtualTextureProducer* Producer = new FNullVirtualTextureProducer;
+	Resource->Init(Desc, Producer);
 }
 
 void URuntimeVirtualTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
