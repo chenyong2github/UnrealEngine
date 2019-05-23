@@ -1076,19 +1076,31 @@ class ir_gen_glsl_visitor : public ir_visitor
 			}
 			else if (var->type->is_image())
 			{
-				if (!strncmp(var->type->name, "RWStructuredBuffer<", 19) || !strncmp(var->type->name, "StructuredBuffer<", 17))
+				bool bIsStructuredBuffer = (!strncmp(var->type->name, "RWStructuredBuffer<", 19) || !strncmp(var->type->name, "StructuredBuffer<", 17));
+				if (bIsStructuredBuffer)
 				{
-					ralloc_asprintf_append(
-						buffer,
-						"buffer "
-					);
+					if (bGenerateLayoutLocations && var->explicit_location)
+					{
+						ralloc_asprintf_append(
+							buffer,
+							"layout(std430,binding=%d) buffer ",
+							var->location
+							);
+					}
+					else
+					{
+						ralloc_asprintf_append(
+							buffer,
+							"buffer "
+						);
+					}
 				}
 				else
 				{
 					const bool bSingleComp = (var->type->inner_type->vector_elements == 1);
 					const char * const coherent_str[] = { "", "coherent " };
 					const char * const writeonly_str[] = { "", "writeonly " };
-					const char * const type_str[] = { "32ui", "32i", "16f", (bIsES31 && !bSingleComp) ? "16f" : "32f" };
+					const char * const type_str[] = { "32ui", "32i", "16f", "32f" };
 					const char * const comp_str = bSingleComp ? "r" : "rgba";
 					const int writeonly = var->image_write && !(var->image_read);
 
@@ -1689,7 +1701,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 					ralloc_asprintf_append(buffer, ", ");
 					deref->image_index->accept(this);
 					ralloc_asprintf_append(buffer, ", ");
-
+					// avoid 'scalar swizzle'
 					if (/*src->as_constant() && */src_elements == 1)
 					{
 						// Add cast if missing and avoid swizzle
@@ -3342,7 +3354,7 @@ bool compiler_internal_AdjustIsFrontFacing(bool isFrontFacing)
 		char* Extensions = ralloc_asprintf(mem_ctx, "");
 		buffer = &Extensions;
 		print_extensions(state, bUsesFrameBufferFetch, bUsesDepthbufferFetch, CompileTarget == HCT_FeatureLevelES3_1Ext, bUsesExternalTexture);
-		if (state->bSeparateShaderObjects && !state->bGenerateES)
+		if (state->bSeparateShaderObjects && !(state->bGenerateES || CompileTarget == HCT_FeatureLevelES3_1))
 		{
 			switch (state->target)
 			{
@@ -5585,7 +5597,6 @@ void FGlslCodeBackend::GenShaderPatchConstantFunctionInputs(_mesa_glsl_parse_sta
 
 void FGlslLanguageSpec::SetupLanguageIntrinsics(_mesa_glsl_parse_state* State, exec_list* ir)
 {
-	const bool bIsES31 = State->language_version == 310;
 	if (bIsES2)
 	{
 		make_intrinsic_genType(ir, State, GET_HDR_32BPP_HDR_ENCODE_MODE_ES2, ir_invalid_opcode, IR_INTRINSIC_ALL_FLOATING, 0);

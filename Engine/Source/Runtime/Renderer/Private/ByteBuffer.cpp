@@ -16,7 +16,7 @@ class FMemsetBufferCS : public FGlobalShader
 	
 	static bool ShouldCompilePermutation( const FGlobalShaderPermutationParameters& Parameters )
 	{
-		return IsFeatureLevelSupported( Parameters.Platform, ERHIFeatureLevel::SM5 );
+		return RHISupportsComputeShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
@@ -85,7 +85,7 @@ class FMemcpyBufferCS : public FGlobalShader
 	
 	static bool ShouldCompilePermutation( const FGlobalShaderPermutationParameters& Parameters )
 	{
-		return IsFeatureLevelSupported( Parameters.Platform, ERHIFeatureLevel::SM5 );
+		return RHISupportsComputeShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
@@ -184,7 +184,7 @@ class FScatterCopyCS : public FGlobalShader
 	
 	static bool ShouldCompilePermutation( const FGlobalShaderPermutationParameters& Parameters )
 	{
-		return IsFeatureLevelSupported( Parameters.Platform, ERHIFeatureLevel::SM5 );
+		return RHISupportsComputeShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
