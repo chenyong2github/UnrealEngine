@@ -27,10 +27,10 @@
 
 #define LOCTEXT_NAMESPACE "AnimInstance"
 
-static const FName NAME_AnimBlueprintLog(TEXT("AnimBlueprintLog"));
-static const FName NAME_Evaluate(TEXT("Evaluate"));
-static const FName NAME_Update(TEXT("Update"));
-static const FName NAME_AnimGraph(TEXT("AnimGraph"));
+const FName NAME_AnimBlueprintLog(TEXT("AnimBlueprintLog"));
+const FName NAME_Evaluate(TEXT("Evaluate"));
+const FName NAME_Update(TEXT("Update"));
+const FName NAME_AnimGraph(TEXT("AnimGraph"));
 
 void FAnimInstanceProxy::UpdateAnimationNode(float DeltaSeconds)
 {
