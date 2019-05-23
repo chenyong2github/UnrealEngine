@@ -2980,9 +2980,10 @@ void UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 			ULevel* OwnerLevel = Owner->GetLevel();
 			UWorld* OwnerWorld = OwnerLevel ? OwnerLevel->OwningWorld : nullptr;
 
-			if (OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel)
+			//update the instance data if the lighting scenario isn't the owner level or if the reorder table do not match the per instance sm data
+			if (OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel
+				|| (PerInstanceSMData.Num() > 0 && PerInstanceSMData.Num() != InstanceReorderTable.Num()))
 			{
-				//update the instance data if the lighting scenario isn't the owner level
 				bForceTreeBuild = true;
 			}
 
