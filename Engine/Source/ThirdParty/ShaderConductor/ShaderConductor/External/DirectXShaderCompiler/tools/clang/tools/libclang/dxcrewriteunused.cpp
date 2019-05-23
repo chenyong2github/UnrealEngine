@@ -83,6 +83,12 @@ public:
     if (FunctionDecl* fnDecl = dyn_cast_or_null<FunctionDecl>(valueDecl)) {
       if (!m_visitedFunctions.count(fnDecl)) {
         m_pendingFunctions.push_back(fnDecl);
+		/* UE-Change-Begin: Traverse through called function definitions - some shaders declare prototypes that have no body */
+		const FunctionDecl *definitionFn = nullptr;
+		if (fnDecl->isDefined(definitionFn) && definitionFn && definitionFn != fnDecl && !m_visitedFunctions.count(const_cast<FunctionDecl*>(definitionFn))) {
+		  m_pendingFunctions.push_back(const_cast<FunctionDecl*>(definitionFn));
+		}
+		/* UE-Change-End: Traverse through called function definitions - some shaders declare prototypes that have no body */
       }
     }
     else if (VarDecl* varDecl = dyn_cast_or_null<VarDecl>(valueDecl)) {
