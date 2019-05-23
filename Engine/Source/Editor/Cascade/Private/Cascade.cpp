@@ -1670,14 +1670,6 @@ void FCascade::Tick(float DeltaTime)
 		}
 	}
 
-	if (CurveEditor.IsValid())
-	{
-		if (CurveEditor->GetNeedsRedraw())
-		{
-			CurveEditor->DrawViewport();
-		}
-	}
-
 	if (bCurrentlySoloing != bIsSoloing)
 	{
 		bIsSoloing = bCurrentlySoloing;
