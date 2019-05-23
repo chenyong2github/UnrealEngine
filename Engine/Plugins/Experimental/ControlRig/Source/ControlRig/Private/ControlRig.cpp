@@ -8,6 +8,7 @@
 #include "HelperUtil.h"
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "ControlRigObjectVersion.h"
+#include "ControlRigVariables.h"
 #if WITH_EDITOR
 #include "ControlRigModule.h"
 #include "Modules/ModuleManager.h"
@@ -35,6 +36,9 @@ const FName UControlRig::TitleColorMetaName("TitleColor");
 const FName UControlRig::NodeColorMetaName("NodeColor");
 const FName UControlRig::KeywordsMetaName("Keywords");
 const FName UControlRig::PrototypeNameMetaName("PrototypeName");
+
+const FName UControlRig::AnimationInputMetaName("AnimationInput");
+const FName UControlRig::AnimationOutputMetaName("AnimationOutput");
 
 UControlRig::UControlRig()
 	: DeltaTime(0.0f)
@@ -209,6 +213,8 @@ void UControlRig::Initialize(bool bInitRigUnits)
 
 	// should refresh mapping 
 	Hierarchy.BaseHierarchy.Initialize();
+	// resolve IO properties
+	ResolveInputOutputProperties();
 
 	if (bInitRigUnits)
 	{
@@ -280,7 +286,10 @@ void UControlRig::ResolvePropertyPaths()
 {
 	for (int32 Index = 0; Index < Operators.Num(); ++Index)
 	{
-		Operators[Index].Resolve(this);
+		if (!Operators[Index].Resolve(this))
+		{
+			UE_LOG(LogControlRig, Error, TEXT("Operator '%s' cannot be resolved."), *Operators[Index].ToString());
+		}
 	}
 }
 
@@ -404,6 +413,43 @@ void UControlRig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>
 	// we also supply input/output properties
 }
 
+void UControlRig::ResolveInputOutputProperties()
+{
+	for (auto Iter = InputProperties.CreateIterator(); Iter; ++Iter)
+	{
+		FCachedPropertyPath& PropPath = Iter.Value();
+		PropPath.Resolve(this);
+	}
+
+	for (auto Iter = OutputProperties.CreateIterator(); Iter; ++Iter)
+	{
+		FCachedPropertyPath& PropPath = Iter.Value();
+		PropPath.Resolve(this);
+	}
+}
+
+bool UControlRig::GetInOutPropertyPath(bool bInput, const FName& InPropertyPath, FCachedPropertyPath& OutCachedPath)
+{
+	// if root properties, use this
+	TMap<FName, FCachedPropertyPath>& Properties = (bInput) ? InputProperties: OutputProperties;
+
+	FCachedPropertyPath* CachedPath = Properties.Find(InPropertyPath);
+	if (CachedPath)
+	{
+		if (!CachedPath->IsResolved())
+		{
+			CachedPath->Resolve(this);
+		}
+
+		if (CachedPath->IsResolved())
+		{
+			OutCachedPath = *CachedPath;
+			return true;
+		}
+	}
+
+	return false;
+}
 #if WITH_EDITORONLY_DATA
 FName UControlRig::GetRigClassNameFromRigUnit(const FRigUnit* InRigUnit) const
 {
@@ -504,4 +550,27 @@ void UControlRig::Serialize(FArchive& Ar)
 	}
 }
 
+bool UControlRig::IsValidIOVariables(bool bInput, const FName& PropertyName) const
+{
+	const TMap<FName, FCachedPropertyPath>& Properties = (bInput) ? InputProperties : OutputProperties;
+	return Properties.Contains(PropertyName);
+}
+
+void UControlRig::QueryIOVariables(bool bInput, TArray<FControlRigIOVariable>& OutVars) const
+{
+	const TMap<FName, FCachedPropertyPath>& Properties = (bInput) ? InputProperties : OutputProperties;
+	OutVars.Reset(Properties.Num());
+
+	for (auto Iter = Properties.CreateConstIterator(); Iter; ++Iter)
+	{
+		const FCachedPropertyPath& PropPath = Iter.Value();
+		UProperty* Property = PropPath.GetUProperty();
+		FControlRigIOVariable NewVar;
+		NewVar.PropertyPath = PropPath.ToString();
+		NewVar.PropertyType = FControlRigIOHelper::GetFriendlyTypeName(Property);
+		NewVar.Size = Property->GetSize();
+
+		OutVars.Add(NewVar);
+	}
+}
 #undef LOCTEXT_NAMESPACE

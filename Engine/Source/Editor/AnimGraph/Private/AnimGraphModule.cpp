@@ -19,6 +19,10 @@
 #include "EditModes/SplineIKEditMode.h"
 #include "EditModes/LookAtEditMode.h"
 #include "EditModes/CCDIKEditMode.h"
+#include "AnimBlueprintPinInfoDetails.h"
+#include "BlueprintEditorModule.h"
+#include "AnimGraphDetails.h"
+#include "AnimationGraphSchema.h"
 
 IMPLEMENT_MODULE(FAnimGraphModule, AnimGraph);
 
@@ -42,6 +46,12 @@ void FAnimGraphModule::StartupModule()
 	// Register details customization
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout(UAnimGraphNode_PoseDriver::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FPoseDriverDetails::MakeInstance));
+
+	PropertyModule.RegisterCustomPropertyTypeLayout("AnimBlueprintFunctionPinInfo", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FAnimBlueprintFunctionPinInfoDetails::MakeInstance));
+
+	// Register BP-editor function customization
+	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
+	BlueprintEditorModule.RegisterGraphCustomization(GetDefault<UAnimationGraphSchema>(), FOnGetGraphCustomizationInstance::CreateStatic(&FAnimGraphDetails::MakeInstance));
 }
 
 void FAnimGraphModule::ShutdownModule()
@@ -64,6 +74,13 @@ void FAnimGraphModule::ShutdownModule()
 		if (PropertyModule)
 		{
 			PropertyModule->UnregisterCustomClassLayout(UAnimGraphNode_PoseDriver::StaticClass()->GetFName());
+			PropertyModule->UnregisterCustomPropertyTypeLayout("AnimBlueprintFunctionPinInfo");
+		}
+
+		FBlueprintEditorModule* BlueprintEditorModule = FModuleManager::GetModulePtr<FBlueprintEditorModule>("Kismet");
+		if(BlueprintEditorModule)
+		{
+			BlueprintEditorModule->UnregisterGraphCustomization(GetDefault<UAnimationGraphSchema>());
 		}
 	}
 }

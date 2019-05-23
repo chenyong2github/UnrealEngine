@@ -12,7 +12,7 @@ class UControlRigComponent;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FControlRigSignature, UControlRigComponent*, Component);
 
 /** A component that hosts an animation ControlRig, manages control components and marshals data between the two */
-UCLASS(Blueprintable, ClassGroup = "Animation", meta = (BlueprintSpawnableComponent))
+UCLASS(Blueprintable, ClassGroup = "Animation", Abstract, meta = (BlueprintSpawnableComponent))
 class CONTROLRIG_API UControlRigComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()

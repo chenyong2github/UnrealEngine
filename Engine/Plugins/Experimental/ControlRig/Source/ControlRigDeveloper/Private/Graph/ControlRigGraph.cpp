@@ -5,6 +5,7 @@
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "ControlRig.h"
+#include "ControlRigModel.h"
 #include "ControlRigObjectVersion.h"
 #include "Units/RigUnit.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
@@ -21,11 +22,14 @@
 
 UControlRigGraph::UControlRigGraph()
 {
+	bSuspendModelNotifications = false;
+	bIsTemporaryGraphForCopyPaste = false;
 }
 
 void UControlRigGraph::Initialize(UControlRigBlueprint* InBlueprint)
 {
-
+	InBlueprint->OnModified().RemoveAll(this);
+	InBlueprint->OnModified().AddUObject(this, &UControlRigGraph::HandleModelModified);
 }
 
 const UControlRigGraphSchema* UControlRigGraph::GetControlRigGraphSchema()
@@ -94,7 +98,8 @@ void UControlRigGraph::PostLoad()
 
 	Super::PostLoad();
 
-	if (Blueprint)
+	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
+	if (RigBlueprint)
 	{
 		if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RemovalOfHierarchyRefPins)
 		{
@@ -102,8 +107,10 @@ void UControlRigGraph::PostLoad()
 			{
 				Blueprint->OnCompiled().Remove(BlueprintOnCompiledHandle);
 			}
-			Blueprint->OnCompiled().AddUObject(this, &UControlRigGraph::OnBlueprintCompiledPostLoad);
+			BlueprintOnCompiledHandle = Blueprint->OnCompiled().AddUObject(this, &UControlRigGraph::OnBlueprintCompiledPostLoad);
 		}
+
+		RigBlueprint->PopulateModelFromGraph(this);
 	}
 }
 
@@ -222,6 +229,230 @@ void UControlRigGraph::CacheBoneNameList(const FRigHierarchy& Hierarchy)
 const TArray<TSharedPtr<FString>>& UControlRigGraph::GetBoneNameList() const
 {
 	return BoneNameList;
+}
+
+
+void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
+{
+	if (bSuspendModelNotifications)
+	{
+		return;
+	}
+
+	switch (InType)
+	{
+		case EControlRigModelNotifType::ModelCleared:
+		{
+			for (const FControlRigModelNode& Node : InModel->Nodes())
+			{
+				UControlRigGraphNode* RigNode = FindNodeFromPropertyName(Node.Name);
+				if (RigNode != nullptr)
+				{
+					RemoveNode(RigNode);
+				}
+			}
+			Modify();
+			break;
+		}
+		case EControlRigModelNotifType::NodeAdded:
+		{
+			const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload;
+			if (Node != nullptr)
+			{
+				FEdGraphPinType PinType;
+				if (Node->IsParameter())
+				{
+					PinType = Node->Pins[0].Type;
+				}
+				UEdGraphNode* EdNode = FControlRigBlueprintUtils::InstantiateGraphNodeForProperty(this, Node->Name, Node->Position, PinType);
+				if (EdNode != nullptr)
+				{
+					EdNode->CreateNewGuid();
+					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
+					{
+						RigNode->ParameterType = (int32)Node->ParameterType;
+					}
+				}
+			}
+			break;
+		}
+		case EControlRigModelNotifType::NodeRemoved:
+		{
+			const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload;
+			if (Node != nullptr)
+			{
+				UControlRigGraphNode* RigNode = FindNodeFromPropertyName(Node->Name);
+				if (RigNode != nullptr)
+				{
+					RemoveNode(RigNode);
+				}
+			}
+			break;
+		}
+		case EControlRigModelNotifType::NodeChanged:
+		{
+			const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload;
+			if (Node != nullptr)
+			{
+				UControlRigGraphNode* RigNode = FindNodeFromPropertyName(Node->Name);
+				if (RigNode != nullptr)
+				{
+					RigNode->NodePosX = (int32)Node->Position.X;
+					RigNode->NodePosY = (int32)Node->Position.Y;
+					RigNode->Modify();
+					RigNode->ParameterType = (int32)Node->ParameterType;
+				}
+			}
+			break;
+		}
+		case EControlRigModelNotifType::NodeRenamed:
+		{
+			const FControlRigModelNodeRenameInfo* Info = (const FControlRigModelNodeRenameInfo*)InPayload;
+			if (Info != nullptr)
+			{
+				UControlRigGraphNode* RigNode = FindNodeFromPropertyName(Info->OldName);
+				if (RigNode != nullptr)
+				{
+					RigNode->SetPropertyName(Info->NewName, true);
+					RigNode->InvalidateNodeTitle();
+					RigNode->Modify();
+				}
+			}
+			break;
+		}
+		case EControlRigModelNotifType::PinAdded:
+		case EControlRigModelNotifType::PinRemoved:
+		{
+			const FControlRigModelPin* Pin = (const FControlRigModelPin*)InPayload;
+			if (Pin!= nullptr)
+			{
+				const FControlRigModelNode& Node = InModel->Nodes()[Pin->Node];
+				UControlRigGraphNode* RigNode = FindNodeFromPropertyName(Node.Name);
+				if (RigNode != nullptr)
+				{
+					RigNode->ReconstructNode();
+				}
+			}
+			break;
+		}
+		case EControlRigModelNotifType::LinkAdded:
+		case EControlRigModelNotifType::LinkRemoved:
+		{
+			bool AddLink = InType == EControlRigModelNotifType::LinkAdded;
+
+			const FControlRigModelLink* Link = (const FControlRigModelLink*)InPayload;
+			if (Link != nullptr)
+			{
+				const FControlRigModelNode& SourceNode = InModel->Nodes()[Link->Source.Node];
+				const FControlRigModelPin& SourcePin = SourceNode.Pins[Link->Source.Pin];
+				const FControlRigModelNode& TargetNode = InModel->Nodes()[Link->Target.Node];
+				const FControlRigModelPin& TargetPin = TargetNode.Pins[Link->Target.Pin];
+
+				UControlRigGraphNode* SourceRigNode = FindNodeFromPropertyName(SourceNode.Name);
+				UControlRigGraphNode* TargetRigNode = FindNodeFromPropertyName(TargetNode.Name);
+
+				if (SourceRigNode != nullptr && TargetRigNode != nullptr)
+				{
+					FString SourcePinPath = InModel->GetPinPath(Link->Source, true);
+					FString TargetPinPath = InModel->GetPinPath(Link->Target, true);
+
+					UEdGraphPin* SourceRigPin = SourceRigNode->FindPin(*SourcePinPath, EGPD_Output);
+					UEdGraphPin* TargetRigPin = TargetRigNode->FindPin(*TargetPinPath, EGPD_Input);
+
+					if (SourceRigPin != nullptr && TargetRigPin != nullptr)
+					{
+						if (AddLink)
+						{
+							SourceRigPin->MakeLinkTo(TargetRigPin);
+							SourceRigPin->Modify();
+							TargetRigPin->Modify();
+						}
+						else
+						{
+							SourceRigPin->BreakLinkTo(TargetRigPin);
+							SourceRigPin->Modify();
+							TargetRigPin->Modify();
+						}
+					}
+				}
+
+			}
+			break;
+		}
+		case EControlRigModelNotifType::PinChanged:
+		{
+			const FControlRigModelPin* Pin = (const FControlRigModelPin*)InPayload;
+			if (Pin != nullptr)
+			{
+				const FControlRigModelNode& Node = InModel->Nodes()[Pin->Node];
+				UControlRigGraphNode* EdNode = Cast<UControlRigGraphNode>(FindNodeFromPropertyName(Node.Name));
+				if (EdNode != nullptr)
+				{
+					FString PinPath = InModel->GetPinPath(Pin->GetPair());
+					UEdGraphPin* EdPin = EdNode->FindPin(*PinPath, Pin->Direction);
+					if (EdPin)
+					{
+						bool bShouldExpand = EdNode->IsPinExpanded(PinPath) != Pin->bExpanded;
+						if (bShouldExpand)
+						{
+							// check if this is an input / output pin,
+							// and in that case: don't expand (since it is handled by the input variant)
+							if (Pin->Direction == EGPD_Output)
+							{
+								if (InModel->FindPinFromPath(PinPath, true /*input*/))
+								{
+									bShouldExpand = false;
+								}
+							}
+						}
+						if (bShouldExpand)
+						{
+							EdNode->SetPinExpansion(PinPath, Pin->bExpanded);
+						}
+						if (Pin->Direction == EGPD_Input)
+						{
+							if (!Pin->DefaultValue.IsEmpty())
+							{
+								if (Pin->Type.PinCategory == UEdGraphSchema_K2::PC_Object)
+								{
+									UClass* Class = Cast<UClass>(Pin->Type.PinSubCategoryObject);
+									if (Class)
+									{
+										EdPin->DefaultObject = StaticFindObject(Class, ANY_PACKAGE, *Pin->DefaultValue);
+									}
+								}
+
+								EdPin->DefaultValue = Pin->DefaultValue;
+							}
+						}
+						EdPin->Modify();
+					}
+				}
+			}
+			break;
+		}
+		default:
+		{
+			// todo... other cases
+			break;
+		}
+	}
+}
+
+UControlRigGraphNode* UControlRigGraph::FindNodeFromPropertyName(const FName& InPropertyName)
+{
+	for (UEdGraphNode* EdNode : Nodes)
+	{
+		UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode);
+		if (RigNode != nullptr)
+		{
+			if (RigNode->PropertyName == InPropertyName)
+			{
+				return RigNode;
+			}
+		}
+	}
+	return nullptr;
 }
 
 #endif

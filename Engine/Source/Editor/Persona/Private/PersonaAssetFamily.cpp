@@ -364,11 +364,14 @@ void FPersonaAssetFamily::FindCounterpartAssets(const UObject* InAsset, const US
 	{
 		const UAnimBlueprint* AnimBlueprint = CastChecked<const UAnimBlueprint>(InAsset);
 		OutSkeleton = AnimBlueprint->TargetSkeleton;
-		check(AnimBlueprint->TargetSkeleton);
-		OutMesh = AnimBlueprint->TargetSkeleton->GetPreviewMesh();
-		if(OutMesh == nullptr)
+		check(AnimBlueprint->BlueprintType == BPTYPE_Interface || AnimBlueprint->TargetSkeleton != nullptr);
+		if(AnimBlueprint->TargetSkeleton)
 		{
-			OutMesh = OutSkeleton->FindCompatibleMesh();
+			OutMesh = AnimBlueprint->TargetSkeleton->GetPreviewMesh();
+			if(OutMesh == nullptr)
+			{
+				OutMesh = AnimBlueprint->TargetSkeleton->FindCompatibleMesh();
+			}
 		}
 	}
 	else if (InAsset->IsA<UPhysicsAsset>())

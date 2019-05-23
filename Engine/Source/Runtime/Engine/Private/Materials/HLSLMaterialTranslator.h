@@ -3639,9 +3639,23 @@ protected:
 		return GetPrimitiveProperty(MCT_Float3, TEXT("ObjectBounds"), TEXT("ObjectBounds.xyz"));
 	}
 
-	virtual int32 PreSkinnedLocalBounds() override
+	virtual int32 PreSkinnedLocalBounds(int32 OutputIndex) override
 	{
-		return GetPrimitiveProperty(MCT_Float3, TEXT("PreSkinnedLocalBounds"), TEXT("PreSkinnedLocalBounds.xyz"));
+		switch (OutputIndex)
+		{
+		case 0: // Half extents
+			return AddInlinedCodeChunk(MCT_Float3, TEXT("((GetPrimitiveData(Parameters.PrimitiveId).PreSkinnedLocalBoundsMax - GetPrimitiveData(Parameters.PrimitiveId).PreSkinnedLocalBoundsMin) / 2.0f)"));
+		case 1: // Full extents
+			return AddInlinedCodeChunk(MCT_Float3, TEXT("(GetPrimitiveData(Parameters.PrimitiveId).PreSkinnedLocalBoundsMax - GetPrimitiveData(Parameters.PrimitiveId).PreSkinnedLocalBoundsMin)"));
+		case 2: // Min point
+			return GetPrimitiveProperty(MCT_Float3, TEXT("PreSkinnedLocalBounds"), TEXT("PreSkinnedLocalBoundsMin"));
+		case 3: // Max point
+			return GetPrimitiveProperty(MCT_Float3, TEXT("PreSkinnedLocalBounds"), TEXT("PreSkinnedLocalBoundsMax"));
+		default:
+			check(false);
+		}
+
+		return INDEX_NONE; 
 	}
 
 	virtual int32 DistanceCullFade() override
@@ -6295,7 +6309,7 @@ protected:
 			// Check if we are accessing inside the array, otherwise default to 0
 			if (CurrentOutputIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloats)
 			{
-				const int32 CustomDataIndex = CurrentOutputIndex / FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s;
+				const int32 CustomDataIndex = CurrentOutputIndex / 4;
 				const int32 ElementIndex = CurrentOutputIndex % 4; // Index x, y, z or w
 
 				HlslCode.Append(FString::Printf(TEXT("GetPrimitiveData(Parameters.PrimitiveId).CustomPrimitiveData[%d][%d]"), CustomDataIndex, ElementIndex));

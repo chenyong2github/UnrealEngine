@@ -124,9 +124,9 @@ SControlRigStackView::~SControlRigStackView()
 {
 	if (ControlRigEditor.IsValid())
 	{
-		if (OnGraphNodeSelectionChanged.IsValid())
+		if (OnModelModified.IsValid() && ControlRigEditor.Pin()->GetControlRigBlueprint())
 		{
-			ControlRigEditor.Pin()->OnGraphNodeSelectionChanged().Remove(OnGraphNodeSelectionChanged);
+			ControlRigEditor.Pin()->GetControlRigBlueprint()->OnModified().Remove(OnModelModified);
 		}
 		if (OnControlRigInitializedHandle.IsValid() && ControlRigEditor.Pin()->ControlRig)
 		{
@@ -145,9 +145,7 @@ void SControlRigStackView::Construct( const FArguments& InArgs, TSharedRef<FCont
 	ControlRigBlueprint = ControlRigEditor.Pin()->GetControlRigBlueprint();
 	Graph = Cast<UControlRigGraph>(ControlRigBlueprint->GetLastEditedUberGraph());
 	CommandList = MakeShared<FUICommandList>();
-	bSelecting = false;
-
-	OnGraphNodeSelectionChanged = InControlRigEditor->OnGraphNodeSelectionChanged().AddSP(this, &SControlRigStackView::HandleGraphSelectionChanged);
+	bSuspendModelNotifications = false;
 
 	BindCommands();
 
@@ -182,61 +180,17 @@ void SControlRigStackView::Construct( const FArguments& InArgs, TSharedRef<FCont
 			ControlRigBlueprint->OnCompiled().Remove(OnBlueprintCompiledHandle);
 		}
 		OnBlueprintCompiledHandle = ControlRigBlueprint->OnCompiled().AddSP(this, &SControlRigStackView::OnBlueprintCompiled);
-	}
-}
-
-void SControlRigStackView::HandleGraphSelectionChanged(const TSet<UObject*>& SelectedNodes)
-{
-	if (bSelecting)
-	{
-		return;
-	}
-
-	{
-		TGuardValue<bool> SelectingGuard(bSelecting, true);
-		TreeView->ClearSelection();
-	}
-
-	if (SelectedNodes.Num() > 0)
-	{
-		if (!ControlRigBlueprint.IsValid())
-		{
-			return;
-		}
-		UControlRigBlueprintGeneratedClass* GeneratedClass = ControlRigBlueprint->GetControlRigBlueprintGeneratedClass();
-		if (GeneratedClass == nullptr)
-		{
-			return;
-		}
-
-		TMap<FName, const UControlRigGraphNode*> SelectedNodeNameMap;
-		for (const UObject* SelectedNode : SelectedNodes)
-		{
-			const UControlRigGraphNode* RigNode = Cast<const UControlRigGraphNode>(SelectedNode);
-			if (RigNode)
-			{
-				SelectedNodeNameMap.Add(RigNode->GetPropertyName(), RigNode);
-			}
-		}
-
-
-		TGuardValue<bool> SelectingGuard(bSelecting, true);
-		for (const TSharedPtr<FRigStackEntry>& Entry : Operators)
-		{
-			if (SelectedNodeNameMap.Contains(Entry->Name))
-			{
-				TreeView->SetItemSelection(Entry, true, ESelectInfo::Direct);
-			}
-		}
+		OnModelModified = ControlRigBlueprint->OnModified().AddSP(this, &SControlRigStackView::HandleModelModified);
 	}
 }
 
 void SControlRigStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selection, ESelectInfo::Type SelectInfo)
 {
-	if (bSelecting)
+	if (bSuspendModelNotifications)
 	{
 		return;
 	}
+	TGuardValue<bool> SuspendNotifs(bSuspendModelNotifications, true);
 
 	TArray<TSharedPtr<FRigStackEntry>> SelectedItems = TreeView->GetSelectedItems();
 	if (SelectedItems.Num() > 0)
@@ -245,13 +199,14 @@ void SControlRigStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selecti
 		{
 			return;
 		}
+
 		UControlRigBlueprintGeneratedClass* GeneratedClass = ControlRigBlueprint->GetControlRigBlueprintGeneratedClass();
 		if (GeneratedClass == nullptr)
 		{
 			return;
 		}
 
-		TArray<FString> SelectedNodes;
+		TArray<FName> SelectedNodes;
 		for (TSharedPtr<FRigStackEntry>& Entry : SelectedItems)
 		{
 			if (Entry->OpIndex >= GeneratedClass->Operators.Num())
@@ -263,12 +218,11 @@ void SControlRigStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selecti
 			if (Operator.OpCode == EControlRigOpCode::Exec)
 			{
 				FString PropertyPath = Operator.CachedPropertyPath1.ToString();
-				SelectedNodes.Add(PropertyPath);
+				SelectedNodes.Add(*PropertyPath);
 			}
 		}
 
-		TGuardValue<bool> SelectingGuard(bSelecting, true);
-		ControlRigEditor.Pin()->SetSelectedNodes(SelectedNodes);
+		ControlRigBlueprint->ModelController->SetSelection(SelectedNodes);
 	}
 }
 
@@ -457,6 +411,51 @@ void SControlRigStackView::OnControlRigInitialized(UControlRig* ControlRig, ECon
 				TreeView->SetItemExpansion(Operator, true);
 				break;
 			}
+		}
+	}
+}
+
+void SControlRigStackView::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
+{
+	if (bSuspendModelNotifications)
+	{
+		return;
+	}
+
+	switch (InType)
+	{
+		case EControlRigModelNotifType::NodeSelected:
+		case EControlRigModelNotifType::NodeDeselected:
+		{
+			const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload;
+			if (Node != nullptr)
+			{
+				if (!ControlRigBlueprint.IsValid())
+				{
+					return;
+				}
+
+				UControlRigBlueprintGeneratedClass* GeneratedClass = ControlRigBlueprint->GetControlRigBlueprintGeneratedClass();
+				if (GeneratedClass == nullptr)
+				{
+					return;
+				}
+
+				TGuardValue<bool> SuspendNotifs(bSuspendModelNotifications, true);
+				for (const TSharedPtr<FRigStackEntry>& Entry : Operators)
+				{
+					if (Node->Name == Entry->Name)
+					{
+						TreeView->SetItemSelection(Entry, InType == EControlRigModelNotifType::NodeSelected, ESelectInfo::Direct);
+					}
+				}
+			}
+			break;
+		}
+		default:
+		{
+			// todo... other cases
+			break;
 		}
 	}
 }

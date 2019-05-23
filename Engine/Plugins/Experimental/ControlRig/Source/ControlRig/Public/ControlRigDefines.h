@@ -102,7 +102,7 @@ struct FControlRigOperator
 
 	static FControlRigOperator MakeUnresolvedCopy(const FControlRigOperator& ToCopy);
 
-	void Resolve(UObject* OuterObject);
+	bool Resolve(UObject* OuterObject);
 
 	FString ToString()
 	{

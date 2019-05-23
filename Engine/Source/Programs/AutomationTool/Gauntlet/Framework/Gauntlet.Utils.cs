@@ -550,7 +550,7 @@ namespace Gauntlet
 			public static IEnumerable<Type> GetTypesInNamespaces<BaseType>(IEnumerable<string> Namespaces)
 				where BaseType : class
 			{
-				var AllTypes = Assembly.GetExecutingAssembly().GetTypes().Where(T => typeof(BaseType).IsAssignableFrom(T));
+				var AllTypes = AppDomain.CurrentDomain.GetAssemblies().SelectMany(S => S.GetTypes()).Where(T => typeof(BaseType).IsAssignableFrom(T));
 
 				if (Namespaces.Count() > 0)
 				{

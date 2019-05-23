@@ -52,6 +52,7 @@
 #include "MaterialShaderQualitySettings.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "MaterialCompiler.h"
+#include "MaterialShaderType.h"
 #include "Materials/MaterialInstanceSupport.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -3073,11 +3074,8 @@ void UMaterial::UpdateMaterialShaderCacheAndTextureReferences()
 
 void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 {
-	
-#if WITH_EDITOR
 	// Always rebuild the shading model field on recompile
 	RebuildShadingModelField();
-#endif //WITH_EDITOR
 
 	if (bRegenerateId)
 	{
@@ -3528,7 +3526,7 @@ void UMaterial::Serialize(FArchive& Ar)
 		}
 	}
 #if WITH_EDITOR
-	if (Ar.IsSaving() && Ar.IsCooking() && Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && FShaderCodeLibrary::NeedsShaderStableKeys())
+	if (Ar.IsSaving() && Ar.IsCooking() && Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && FShaderCodeLibrary::NeedsShaderStableKeys(EShaderPlatform::SP_NumPlatforms))
 	{
 		SaveShaderStableKeys(Ar.CookingTarget());
 	}
@@ -4641,31 +4639,23 @@ void UMaterial::UpdateExpressionParameterName(UMaterialExpression* Expression)
 		}
 	}
 }
+#endif // WITH_EDITOR
 
 void UMaterial::RebuildShadingModelField()
 {
 	ShadingModels.ClearShadingModels();
-	// If using shading model from material expression, go through the expressions and look for the ShadingModel expression to figure out what shading models need to be supported in this material
+
+	// If using shading model from material expression, go through the expressions and look for the ShadingModel expression to figure out what shading models need to be supported in this material.
+	// This might not be the same as what is actually compiled in to the shader, since there might be feature switches, static switches etc. that skip certain shading models.
 	if (ShadingModel == MSM_FromMaterialExpression)
 	{
-		TArray<UMaterialExpression*> ShadingModelPropertyExpressions;
 
-		// Depending on if we use Material Attributes or not, we have to start at the right property
-		if (bUseMaterialAttributes)
-		{
-			GetExpressionsInPropertyChain(MP_MaterialAttributes, ShadingModelPropertyExpressions, nullptr);
-		}
-		else
-		{
-			GetExpressionsInPropertyChain(MP_ShadingModel, ShadingModelPropertyExpressions, nullptr);
-		}
+		TArray<UMaterialExpressionShadingModel*> ShadingModelExpressions;
+		GetAllExpressionsInMaterialAndFunctionsOfType(ShadingModelExpressions);
 
-		for (UMaterialExpression* MatExpr: ShadingModelPropertyExpressions)
-		{
-			if (UMaterialExpressionShadingModel* ShadingModelExpression = Cast<UMaterialExpressionShadingModel>(MatExpr))
+		for (UMaterialExpressionShadingModel* MatExpr : ShadingModelExpressions)
 			{
-				ShadingModels.AddShadingModel(ShadingModelExpression->ShadingModel);
-			}
+			ShadingModels.AddShadingModel(MatExpr->ShadingModel);
 		}
 
 		// If no expressions have been found, set a default
@@ -4679,8 +4669,17 @@ void UMaterial::RebuildShadingModelField()
 		// If a shading model has been selected directly for the material, set it here
 		ShadingModels.AddShadingModel(ShadingModel);
 	}
+
+#if WITH_EDITORONLY_DATA
+	// Build a string with all the shading models on this material. Used to display the used shading models in this material
+	auto ShadingModelToStringLambda = 
+	[](EMaterialShadingModel InShadingModel) -> FString
+	{ 
+		return StaticEnum<EMaterialShadingModel>()->GetDisplayNameTextByValue(InShadingModel).ToString();
+	};
+	UsedShadingModels = GetShadingModelFieldString(ShadingModels, FShadingModelToStringDelegate::CreateLambda(ShadingModelToStringLambda), " | ");
+#endif
 }
-#endif // WITH_EDITOR
 
 bool UMaterial::GetExpressionParameterName(const UMaterialExpression* Expression, FName& OutName)
 {

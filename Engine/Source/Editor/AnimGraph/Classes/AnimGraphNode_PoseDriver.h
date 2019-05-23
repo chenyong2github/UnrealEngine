@@ -27,6 +27,10 @@ class ANIMGRAPH_API UAnimGraphNode_PoseDriver : public UAnimGraphNode_PoseHandle
 	UPROPERTY(EditAnywhere, Category = Debugging, meta = (DefaultValue = "32", UIMin = "6", UIMax = "128"))
 	int32 ConeSubdivision;
 
+	/** If checked the cones will be drawn in 3d for debugging */
+	UPROPERTY(EditAnywhere, Category = Debugging, meta = (DefaultValue = "True"))
+	bool bDrawDebugCones;
+
 	/** Used to indicate selected target to edit mode drawing */
 	int32 SelectedTargetIndex;
 	/** Delegate to call when selection changes */

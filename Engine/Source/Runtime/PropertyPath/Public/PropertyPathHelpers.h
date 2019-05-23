@@ -80,7 +80,6 @@ struct PROPERTYPATH_API FCachedPropertyPath
 	FCachedPropertyPath(const FString& Path);
 
 	/** */
-	UE_DEPRECATED(4.23, "FCachedPropertyPath(const FString& Path)")
 	FCachedPropertyPath(const TArray<FString>& PropertyChain);
 
 	/** Check whether this property path is non-empty */
@@ -175,6 +174,8 @@ struct PROPERTYPATH_API FCachedPropertyPath
 	/** Trims this property path at the start */
 	void RemoveFromStart(int32 InNumSegments = 1);
 
+	/** Returns UProperty if valid. This can be UFunction */
+	UProperty* GetUProperty() const;
 private:
 	/** Path segments for this path */
 	UPROPERTY()

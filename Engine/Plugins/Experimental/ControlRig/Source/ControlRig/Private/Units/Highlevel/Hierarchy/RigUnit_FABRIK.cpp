@@ -113,10 +113,10 @@ void FRigUnit_FABRIK::Execute(const FRigUnitContext& Context)
 				for (int32 LinkIndex = 0; LinkIndex < NumChainLinks; LinkIndex++)
 				{
 					FABRIKChainLink const & LocalLink = Chain[LinkIndex];
-					Hierarchy->SetGlobalTransform(LocalLink.BoneIndex, Transforms[LocalLink.TransformIndex]);
+					Hierarchy->SetGlobalTransform(LocalLink.BoneIndex, Transforms[LocalLink.TransformIndex], bPropagateToChildren);
 				}
 
-				Hierarchy->SetGlobalTransform(EffectorIndex, EffectorTransform);
+				Hierarchy->SetGlobalTransform(EffectorIndex, EffectorTransform, bPropagateToChildren);
 			}
 		}
 	}

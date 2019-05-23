@@ -1117,7 +1117,7 @@ private:
 	/** needs to be called before each draw call */
 	void BindPendingFramebuffer( FOpenGLContextState& ContextState );
 	void BindPendingShaderState( FOpenGLContextState& ContextState );
-	void BindPendingComputeShaderState( FOpenGLContextState& ContextState, FComputeShaderRHIParamRef ComputeShaderRHI);
+	void BindPendingComputeShaderState( FOpenGLContextState& ContextState, FOpenGLComputeShader* ComputeShader );
 	void UpdateRasterizerStateInOpenGLContext( FOpenGLContextState& ContextState );
 	void UpdateDepthStencilStateInOpenGLContext( FOpenGLContextState& ContextState );
 	void UpdateScissorRectInOpenGLContext( FOpenGLContextState& ContextState );
@@ -1132,18 +1132,18 @@ private:
 		}
 	}
 	void CommitGraphicsResourceTablesInner();
-	void CommitComputeResourceTables(class FOpenGLComputeShader* ComputeShader);
+	void CommitComputeResourceTables(FOpenGLComputeShader* ComputeShader);
 	void CommitNonComputeShaderConstants();
 	void CommitNonComputeShaderConstantsSlowPath();
 	void CommitNonComputeShaderConstantsFastPath(FOpenGLLinkedProgram* LinkedProgram);
-	void CommitComputeShaderConstants(FComputeShaderRHIParamRef ComputeShaderRHI);
+	void CommitComputeShaderConstants(FOpenGLComputeShader* ComputeShader);
 	void SetPendingBlendStateForActiveRenderTargets( FOpenGLContextState& ContextState );
 	
 	void SetupTexturesForDraw( FOpenGLContextState& ContextState);
 	template <typename StateType>
 	void SetupTexturesForDraw( FOpenGLContextState& ContextState, const StateType& ShaderState, int32 MaxTexturesNeeded);
 
-	void SetupUAVsForDraw(FOpenGLContextState& ContextState, const TRefCountPtr<FOpenGLComputeShader> &ComputeShader, int32 MaxUAVsNeeded);
+	void SetupUAVsForDraw(FOpenGLContextState& ContextState, const FOpenGLComputeShader* ComputeShader, int32 MaxUAVsNeeded);
 
 	void RHIClearMRT(bool bClearColor, int32 NumClearColors, const FLinearColor* ColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil);
 

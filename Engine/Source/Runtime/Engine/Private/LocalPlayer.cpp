@@ -38,6 +38,10 @@
 
 #include "GameDelegates.h"
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#include "Engine/DebugCameraController.h"
+#endif
+
 DEFINE_LOG_CATEGORY(LogPlayerManagement);
 
 #if !UE_BUILD_SHIPPING
@@ -864,6 +868,14 @@ FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
 		{
 			PlayerController->PlayerCameraManager->UpdatePhotographyPostProcessing(View->FinalPostProcessSettings);
 		}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		ADebugCameraController* DebugCameraController = Cast<ADebugCameraController>(PlayerController);
+		if (DebugCameraController != nullptr)
+		{
+			DebugCameraController->UpdateVisualizeBufferPostProcessing(View->FinalPostProcessSettings);
+		}
+#endif
 
 		View->EndFinalPostprocessSettings(ViewInitOptions);
 	}

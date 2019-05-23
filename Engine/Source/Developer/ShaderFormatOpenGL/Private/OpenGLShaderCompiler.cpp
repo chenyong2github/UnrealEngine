@@ -1316,7 +1316,7 @@ void FOpenGLFrontend::SetupPerVersionCompilationEnvironment(GLSLVersion Version,
 		case GLSL_150_ES3_1:
 			AdditionalDefines.SetDefine(TEXT("COMPILER_GLSL"), 1);
 			AdditionalDefines.SetDefine(TEXT("ES3_1_PROFILE"), 1);
-			HlslCompilerTarget = HCT_FeatureLevelSM4;
+			HlslCompilerTarget = HCT_FeatureLevelES3_1;
 			AdditionalDefines.SetDefine(TEXT("row_major"), TEXT(""));
 			break;
 
@@ -1403,8 +1403,9 @@ FGlslLanguageSpec* FOpenGLFrontend::CreateLanguageSpec(GLSLVersion Version)
 					// For backwards compatibility when targeting WebGL 2 shaders,
 					// generate GLES2/WebGL 1 style shaders but with GLES3/WebGL 2
 					// constructs available.
+	bool bIsES31 = (Version == GLSL_150_ES3_1 || Version == GLSL_ES3_1_ANDROID);
 
-	return new FGlslLanguageSpec(bIsES2, bIsWebGL);
+	return new FGlslLanguageSpec(bIsES2, bIsWebGL, bIsES31);
 }
 
 /**

@@ -161,33 +161,6 @@ FLinearColor FSkyLightSceneProxy::GetEffectiveLightColor() const
 	return LightColor * GSkylightIntensityMultiplier;
 }
 
-void FSkyLightSceneProxy::UpdateMobileUniformBuffer()
-{
-	float InvBrightness = FMath::Max(FMath::Min(1.0f / AverageBrightness, 65504.f), -65504.f);
-	float SkyMaxMipIndex = 0.f;
-	FTexture* CaptureTexture = GBlackTextureCube;
-	if (ProcessedTexture)
-	{
-		check(ProcessedTexture->IsInitialized());
-		CaptureTexture = ProcessedTexture;
-		SkyMaxMipIndex = FMath::Log2(ProcessedTexture->GetSizeX());
-	}
-		
-	FMobileReflectionCaptureShaderParameters Parameters;
-	Parameters.Params = FVector4(InvBrightness, SkyMaxMipIndex, 0.f, 0.f);
-	Parameters.Texture = CaptureTexture->TextureRHI;
-	Parameters.TextureSampler = CaptureTexture->SamplerStateRHI;
-
-	if (MobileUniformBuffer.GetReference())
-	{
-		MobileUniformBuffer.UpdateUniformBufferImmediate(Parameters);
-	}
-	else
-	{
-		MobileUniformBuffer = TUniformBufferRef<FMobileReflectionCaptureShaderParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_MultiFrame);
-	}
-}
-
 FSkyLightSceneProxy::FSkyLightSceneProxy(const USkyLightComponent* InLightComponent)
 	: LightComponent(InLightComponent)
 	, ProcessedTexture(InLightComponent->ProcessedSkyTexture)

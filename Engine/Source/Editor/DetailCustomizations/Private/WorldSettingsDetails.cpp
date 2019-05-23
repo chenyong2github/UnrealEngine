@@ -52,11 +52,6 @@ void FWorldSettingsDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilde
 	AddLightmapCustomization(DetailBuilder);
 
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(AActor, bHidden), AActor::StaticClass());
-
-	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-	{
-		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(AWorldSettings, bEnableLandscapeLayers), AWorldSettings::StaticClass());
-	}
 }
 
 

@@ -28,6 +28,9 @@ ULandscapeEditorObject::ULandscapeEditorObject(const FObjectInitializer& ObjectI
 	, bUseFlattenTarget(false)
 	, FlattenTarget(0)
 	, bShowFlattenTargetPreview(true)
+	
+	, TerraceInterval(1.0f)
+	, TerraceSmooth(0.0001f)
 
 	, RampWidth(2000)
 	, RampSideFalloff(0.4f)

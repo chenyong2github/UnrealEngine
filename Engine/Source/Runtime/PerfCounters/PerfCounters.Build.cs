@@ -11,9 +11,8 @@ public class PerfCounters : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Json",
-				"Sockets",
-				"HTTP"
-			}
+                "HTTPServer"
+            }
         );
 	}
 }

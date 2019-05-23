@@ -3,51 +3,12 @@
 #pragma once
 
 #include "AnimNode_SkeletalControlBase.h"
+#include "CCDIK.h"
 #include "AnimNode_CCDIK.generated.h"
 
 /**
 *	Controller which implements the CCDIK IK approximation algorithm
 */
-
-/** Transient structure for CCDIK node evaluation */
-struct CCDIKChainLink
-{
-public:
-	/** Transform of bone in component space. */
-	FTransform Transform;
-
-	/** Transform of bone in local space. This is mutable as their component space changes or parents*/
-	FTransform LocalTransform;
-
-	/** Bone Index in SkeletalMesh */
-	FCompactPoseBoneIndex BoneIndex;
-
-	/** Transform Index that this control will output */
-	int32 TransformIndex;
-
-	/** Child bones which are overlapping this bone. 
-	 * They have a zero length distance, so they will inherit this bone's transformation. */
-	TArray<int32> ChildZeroLengthTransformIndices;
-
-	float CurrentAngleDelta;
-
-	CCDIKChainLink()
-		: BoneIndex(INDEX_NONE)
-		, TransformIndex(INDEX_NONE)
-		, CurrentAngleDelta(0.f)
-	{
-	}
-
-	CCDIKChainLink(const FTransform& InTransform, const FTransform& InLocalTransform,  const FCompactPoseBoneIndex& InBoneIndex, const int32& InTransformIndex)
-		: Transform(InTransform)
-		, LocalTransform(InLocalTransform)
-		, BoneIndex(InBoneIndex)
-		, TransformIndex(InTransformIndex)
-		, CurrentAngleDelta(0.f)
-	{
-	}
-};
-
 USTRUCT()
 struct ANIMGRAPHRUNTIME_API FAnimNode_CCDIK : public FAnimNode_SkeletalControlBase
 {
@@ -116,8 +77,6 @@ private:
 
 	static FTransform GetTargetTransform(const FTransform& InComponentTransform, FCSPose<FCompactPose>& MeshBases, FBoneSocketTarget& InTarget, EBoneControlSpace Space, const FVector& InOffset);
 
-	// return true if updated
-	bool UpdateChainLink(TArray<CCDIKChainLink>& Chain, int32 LinkIndex, const FVector& TargetPos) const;
 public:
 #if WITH_EDITOR
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

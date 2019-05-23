@@ -7,6 +7,7 @@
 #include "UnrealWidget.h"
 #include "EditorViewportClient.h"
 #include "Components.h"
+#include "Interfaces/Interface_CollisionDataProvider.h"
 
 class FAdvancedPreviewScene;
 class FCanvas;
@@ -153,6 +154,8 @@ private:
 
 	/** The static mesh being used in the editor. */
 	UStaticMesh* StaticMesh;
+
+	FTriMeshCollisionData CollisionMeshData;
 
 	/** Pointer back to the StaticMesh editor tool that owns us */
 	TWeakPtr<IStaticMeshEditor> StaticMeshEditorPtr;

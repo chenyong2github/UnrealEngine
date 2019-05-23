@@ -1527,6 +1527,8 @@ class FShaderCodeLibraryImpl
 	FEditorShaderCodeArchive* EditorShaderCodeArchive[EShaderPlatform::SP_NumPlatforms];
 	// At cook time, shader code collection for each shader platform
 	FEditorShaderStableInfo* EditorShaderStableInfo[EShaderPlatform::SP_NumPlatforms];
+	// Cached bit field for shader formats that require stable keys
+	uint64_t bShaderFormatsThatNeedStableKeys = 0;
 	// At cook time, shader stats for each shader platform
 	FShaderCodeStats EditorShaderCodeStats[EShaderPlatform::SP_NumPlatforms];
 	// At cook time, whether the shader archive supports pipelines (only OpenGL should)
@@ -1941,10 +1943,12 @@ public:
 		}
 	}
 
-	void CookShaderFormats(TArray<FName> const& ShaderFormats)
+	void CookShaderFormats(TArray<TTuple<FName,bool>> const& ShaderFormats)
 	{
-		for (FName const& Format : ShaderFormats)
+		for (auto Pair : ShaderFormats)
 		{
+			FName const& Format = Pair.Get<0>();
+
 			EShaderPlatform Platform = ShaderFormatToLegacyShaderPlatform(Format);
 			FName PossiblyAdjustedFormat = LegacyShaderPlatformToShaderFormat(Platform);	// Vulkan and GL switch between name variants depending on CVars (e.g. see r.Vulkan.UseRealUBs)
 			FEditorShaderCodeArchive* CodeArchive = EditorShaderCodeArchive[Platform];
@@ -1956,18 +1960,31 @@ public:
 			}
 			check(CodeArchive);
 		}
-		for (FName const& Format : ShaderFormats)
+		for (auto Pair : ShaderFormats)
 		{
+			FName const& Format = Pair.Get<0>();
+			bool bUseStableKeys = Pair.Get<1>();
+
 			EShaderPlatform Platform = ShaderFormatToLegacyShaderPlatform(Format);
 			FName PossiblyAdjustedFormat = LegacyShaderPlatformToShaderFormat(Platform);	// Vulkan and GL switch between name variants depending on CVars (e.g. see r.Vulkan.UseRealUBs)
 			FEditorShaderStableInfo* StableArchive = EditorShaderStableInfo[Platform];
-			if (!StableArchive)
+			if (!StableArchive && bUseStableKeys)
 			{
 				StableArchive = new FEditorShaderStableInfo(PossiblyAdjustedFormat);
 				EditorShaderStableInfo[Platform] = StableArchive;
+				bShaderFormatsThatNeedStableKeys |= (uint64_t(1u) << (uint32_t)Platform);
+				static_assert(SP_NumPlatforms < 64u, "ShaderPlatform will no longer fit into bitfield.");
 			}
-			check(StableArchive);
 		}
+	}
+
+	bool NeedsShaderStableKeys(EShaderPlatform Platform) 
+	{
+		if (Platform == EShaderPlatform::SP_NumPlatforms)
+		{
+			return bShaderFormatsThatNeedStableKeys != 0;
+		}
+		return (bShaderFormatsThatNeedStableKeys & (uint64_t(1u) << (uint32_t) Platform)) != 0;
 	}
 
 	void AddShaderCode(EShaderPlatform Platform, EShaderFrequency Frequency, const FSHAHash& Hash, const TArray<uint8>& InCode, uint32 const UncompressedSize)
@@ -1989,13 +2006,15 @@ public:
 
 	void AddShaderStableKeyValue(EShaderPlatform InShaderPlatform, FStableShaderKeyAndValue& StableKeyValue)
 	{
+		FEditorShaderStableInfo* StableArchive = EditorShaderStableInfo[InShaderPlatform];
+		if (!StableArchive)
+		{
+			return;
+		}
+
 		FScopeLock ScopeLock(&ShaderCodeCS);
 
 		StableKeyValue.ComputeKeyHash();
-
-		FEditorShaderStableInfo* StableArchive = EditorShaderStableInfo[InShaderPlatform];
-		check(StableArchive);
-
 		StableArchive->AddShader(StableKeyValue);
 	}
 
@@ -2430,7 +2449,7 @@ void FShaderCodeLibrary::CleanDirectories(TArray<FName> const& ShaderFormats)
 	}
 }
 
-void FShaderCodeLibrary::CookShaderFormats(TArray<FName> const& ShaderFormats)
+void FShaderCodeLibrary::CookShaderFormats(TArray<TTuple<FName,bool>> const& ShaderFormats)
 {
 	if (FShaderCodeLibraryImpl::Impl)
 	{
@@ -2451,12 +2470,12 @@ bool FShaderCodeLibrary::AddShaderCode(EShaderPlatform ShaderPlatform, EShaderFr
 	return false;
 }
 
-bool FShaderCodeLibrary::NeedsShaderStableKeys()
+bool FShaderCodeLibrary::NeedsShaderStableKeys(EShaderPlatform ShaderPlatform)
 {
 #if WITH_EDITOR
 	if (FShaderCodeLibraryImpl::Impl)
 	{
-		return true;
+		return FShaderCodeLibraryImpl::Impl->NeedsShaderStableKeys(ShaderPlatform);
 	}
 #endif// WITH_EDITOR
 	return false;

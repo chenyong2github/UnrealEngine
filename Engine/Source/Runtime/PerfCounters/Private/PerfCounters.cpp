@@ -6,15 +6,20 @@
 #include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
+#include "HAL/PlatformTime.h"
+#include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Serialization/JsonWriter.h"
+#include "Stats/Stats.h"
 #include "ZeroLoad.h"
-#include "SocketSubsystem.h"
-#include "IPAddress.h"
-#include "Sockets.h"
-#include "PlatformHttp.h"
-#include "Interfaces/IHttpResponse.h"
+
+#include "HttpServerModule.h"
+#include "IHttpRouter.h"
+#include "HttpServerRequest.h"
+#include "HttpServerResponse.h"
+#include "HttpRequestHandler.h"
+#include "HttpServerConstants.h"
 
 #define JSON_ARRAY_NAME					TEXT("PerfCounters")
 #define JSON_PERFCOUNTER_NAME			TEXT("Name")
@@ -23,10 +28,8 @@
 #define PERF_COUNTER_CONNECTION_TIMEOUT 5.0f
 
 FPerfCounters::FPerfCounters(const FString& InUniqueInstanceId)
-	: SocketSubsystem(nullptr)
-	, UniqueInstanceId(InUniqueInstanceId)
+	: UniqueInstanceId(InUniqueInstanceId)
 	, InternalCountersUpdateInterval(60)
-	, Socket(nullptr)
 	, ZeroLoadThread(nullptr)
 	, ZeroLoadRunnable(nullptr)
 {
@@ -34,14 +37,10 @@ FPerfCounters::FPerfCounters(const FString& InUniqueInstanceId)
 
 FPerfCounters::~FPerfCounters()
 {
-	if (Socket)
+	if (HttpRouter)
 	{
-		ISocketSubsystem* SocketSystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-		if (SocketSystem)
-		{
-			SocketSystem->DestroySocket(Socket);
-		}
-		Socket = nullptr;
+		HttpRouter->UnbindRoute(StatsRouteHandle);
+		HttpRouter->UnbindRoute(ExecRouteHandle);
 	}
 }
 
@@ -63,47 +62,43 @@ bool FPerfCounters::Initialize()
 		return true;
 	}
 
-	// get the socket subsystem
-	SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-	if (SocketSubsystem == nullptr)
+	// Get an IHttpRouter on the command-line designated port
+	HttpRouter = FHttpServerModule::Get().GetHttpRouter(StatsPort);
+	if (!HttpRouter)
 	{
-		UE_LOG(LogPerfCounters, Error, TEXT("FPerfCounters unable to get socket subsystem"));
+		UE_LOG(LogPerfCounters, Error, 
+			TEXT("FPerfCounters unable to bind to specified statsPort [%d]"), StatsPort);
 		return false;
 	}
 
-	ScratchIPAddr = SocketSubsystem->CreateInternetAddr();
-
-	// make our listen socket
-	Socket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("FPerfCounters"));
-	if (Socket == nullptr)
+	// Register a handler for /stats
+	TWeakPtr<FPerfCounters> WeakThisPtr(AsShared());
+    StatsRouteHandle = HttpRouter->BindRoute(FHttpPath("/stats"), EHttpServerRequestVerbs::VERB_GET,
+		[WeakThisPtr](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 	{
-		UE_LOG(LogPerfCounters, Error, TEXT("FPerfCounters unable to allocate stream socket"));
+		auto SharedThis = WeakThisPtr.Pin();
+		if (!SharedThis.IsValid()) { return false; }
+		return SharedThis->ProcessStatsRequest(Request, OnComplete);
+	});
+	if(!StatsRouteHandle.IsValid())
+	{
+		UE_LOG(LogPerfCounters, Error,
+			TEXT("FPerfCounters unable bind route: /stats"));
 		return false;
 	}
 
-	// make us non blocking
-	Socket->SetNonBlocking(true);
-
-	// create a localhost binding for the requested port
-	TSharedRef<FInternetAddr> LocalhostAddr = SocketSubsystem->CreateInternetAddr(0x7f000001 /* 127.0.0.1 */, StatsPort);
-	if (!Socket->Bind(*LocalhostAddr))
+	// Register a handler for /exec
+	ExecRouteHandle = HttpRouter->BindRoute(FHttpPath("/exec"), EHttpServerRequestVerbs::VERB_GET,
+		[WeakThisPtr] (const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 	{
-		UE_LOG(LogPerfCounters, Error, TEXT("FPerfCounters unable to bind to %s"), *LocalhostAddr->ToString(true));
-		return false;
-	}
-	StatsPort = Socket->GetPortNo();
-
-	// log the port
-	UE_LOG(LogPerfCounters, Display, TEXT("FPerfCounters listening on port %d"), StatsPort);
-
-	// for now, jack this up so we can send in one go
-	int32 NewSize;
-	Socket->SetSendBufferSize(512 * 1024, NewSize); // best effort 512k buffer to avoid not being able to send in one go
-
-	// listen on the port
-	if (!Socket->Listen(16))
+		auto SharedThis = WeakThisPtr.Pin();
+		if (!SharedThis.IsValid()) { return false; }
+		return SharedThis->ProcessExecRequest(Request, OnComplete);
+	});
+	if(!ExecRouteHandle.IsValid())
 	{
-		UE_LOG(LogPerfCounters, Error, TEXT("FPerfCounters unable to listen on socket"));
+		UE_LOG(LogPerfCounters, Error,
+			TEXT("FPerfCounters unable bind route: /exec"));
 		return false;
 	}
 
@@ -162,33 +157,9 @@ void FPerfCounters::ResetStatsForNextPeriod()
 	}
 };
 
-static bool SendAsUtf8(FSocket* Conn, const FString& Message)
-{
-	FTCHARToUTF8 ConvertToUtf8(*Message);
-	int32 BytesSent = 0;
-	const bool bSendSuccess = Conn->Send(reinterpret_cast<const uint8*>(ConvertToUtf8.Get()), ConvertToUtf8.Length(), BytesSent);
-	const bool bSendSizeSuccess = (BytesSent == ConvertToUtf8.Length());
-
-	if (!bSendSuccess)
-	{
-		UE_LOG(LogPerfCounters, Warning, TEXT("Failed to send buffer size: %d"), ConvertToUtf8.Length());
-	}
-	else if (!bSendSizeSuccess)
-	{
-		UE_LOG(LogPerfCounters, Warning, TEXT("Failed to send entire buffer size: %d sent: %d"), ConvertToUtf8.Length(), BytesSent);
-	}
-
-	return bSendSuccess && bSendSizeSuccess;
-}
-
 bool FPerfCounters::Tick(float DeltaTime)
 {
     QUICK_SCOPE_CYCLE_COUNTER(STAT_FPerfCounters_Tick);
-
-	if (LIKELY(Socket != nullptr))
-	{
-		TickSocket(DeltaTime);
-	}
 
 	if (LIKELY(ZeroLoadThread != nullptr))
 	{
@@ -215,117 +186,6 @@ void FPerfCounters::TickZeroLoad(float DeltaTime)
 	}
 }
 
-void FPerfCounters::TickSocket(float DeltaTime)
-{
-	checkf(Socket != nullptr, TEXT("FPerfCounters::TickSocket() called without a valid socket!"));
-
-	// accept any connections
-	static const FString PerfCounterRequest = TEXT("FPerfCounters Request");
-	FSocket* IncomingConnection = Socket->Accept(PerfCounterRequest);
-	if (IncomingConnection)
-	{
-		const bool bLogConnections = true;
-		if (bLogConnections)
-		{
-			IncomingConnection->GetPeerAddress(*ScratchIPAddr);
-			UE_LOG(LogPerfCounters, Verbose, TEXT("New connection from %s"), *ScratchIPAddr->ToString(true));
-		}
-
-		// make sure this is non-blocking
-		IncomingConnection->SetNonBlocking(true);
-
-		new (Connections) FPerfConnection(IncomingConnection);
-	}
-	else
-	{
-		ESocketErrors ErrorCode = SocketSubsystem->GetLastErrorCode();
-		if (ErrorCode != SE_EWOULDBLOCK &&
-			ErrorCode != SE_NO_ERROR)
-		{
-			const TCHAR* ErrorStr = SocketSubsystem->GetSocketError();
-			UE_LOG(LogPerfCounters, Warning, TEXT("Error accepting connection [%d] %s"), (int32)ErrorCode, ErrorStr);
-		}
-	}
-
-	TArray<FPerfConnection> ConnectionsToClose;
-	for (FPerfConnection& Connection : Connections)
-	{
-		FSocket* ExistingSocket = Connection.Connection;
-		if (ExistingSocket && ExistingSocket->Wait(ESocketWaitConditions::WaitForRead, FTimespan::Zero()))
-		{
-			// read any data that's ready
-			// NOTE: this is not a full HTTP implementation, just enough to be usable by curl
-			uint8 Buffer[2 * 1024] = { 0 };
-			int32 DataLen = 0;
-			if (ExistingSocket->Recv(Buffer, sizeof(Buffer) - 1, DataLen, ESocketReceiveFlags::None))
-			{
-				double StartTime = FPlatformTime::Seconds();
-
-				FResponse Response;
-				if (ProcessRequest(Buffer, DataLen, Response))
-				{
-					if (!EHttpResponseCodes::IsOk(Response.Code))
-					{
-						UE_LOG(LogPerfCounters, Warning, TEXT("Sending error response: [%d] %s"), Response.Code, *Response.Body);
-					}
-
-					if (SendAsUtf8(ExistingSocket, Response.Header))
-					{
-						if (!SendAsUtf8(ExistingSocket, Response.Body))
-						{
-							UE_LOG(LogPerfCounters, Warning, TEXT("Unable to send full HTTP response body size: %d"), Response.Body.Len());
-						}
-					}
-					else
-					{
-						UE_LOG(LogPerfCounters, Warning, TEXT("Unable to send HTTP response header: %s"), *Response.Header);
-					}
-				}
-				else
-				{
-					UE_LOG(LogPerfCounters, Warning, TEXT("Failed to process request"));
-				}
-
-				double EndTime = FPlatformTime::Seconds();
-				ExistingSocket->GetPeerAddress(*ScratchIPAddr);
-				UE_LOG(LogPerfCounters, Verbose, TEXT("Request for %s processed in %0.2f s"), *ScratchIPAddr->ToString(true), EndTime - StartTime);
-			}
-			else
-			{
-				UE_LOG(LogPerfCounters, Warning, TEXT("Unable to immediately receive request header"));
-			}
-
-			ConnectionsToClose.Add(Connection);
-		}
-		else if (Connection.ElapsedTime > PERF_COUNTER_CONNECTION_TIMEOUT)
-		{
-			UE_LOG(LogPerfCounters, Warning, TEXT("Closing connection due to timeout %d"), Connection.ElapsedTime);
-			ConnectionsToClose.Add(Connection);
-		}
-
-		Connection.ElapsedTime += DeltaTime;
-	}
-
-	for (FPerfConnection& Connection : ConnectionsToClose)
-	{
-		Connections.RemoveSingleSwap(Connection);
-
-		FSocket* ClosingSocket = Connection.Connection;
-		if (ClosingSocket)
-		{
-			const bool bLogConnectionClosure = true;
-			if (bLogConnectionClosure)
-			{
-				ClosingSocket->GetPeerAddress(*ScratchIPAddr);
-				UE_LOG(LogPerfCounters, Verbose, TEXT("Closed connection to %s."), *ScratchIPAddr->ToString(true));
-			}
-
-			// close the socket (whether we processed or not)
-			ClosingSocket->Close();
-			SocketSubsystem->DestroySocket(ClosingSocket);
-		}
-	}
-}
 
 void FPerfCounters::TickSystemCounters(float DeltaTime)
 {
@@ -373,77 +233,42 @@ bool FPerfCounters::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	return false;
 }
 
-bool FPerfCounters::ProcessRequest(uint8* Buffer, int32 BufferLen, FResponse& Response)
+bool FPerfCounters::ProcessStatsRequest(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	bool bSuccess = false;
+	auto ResponseBody = GetAllCountersAsJson();
+	auto Response = FHttpServerResponse::Create(ResponseBody, TEXT("application/json"));
+	OnComplete(MoveTemp(Response));
+	return true;
+}
 
-	// scan the buffer for a line
-	FUTF8ToTCHAR WideBuffer(reinterpret_cast<const ANSICHAR*>(Buffer));
-	const TCHAR* BufferEnd = FCString::Strstr(WideBuffer.Get(), TEXT("\r\n"));
-	if (BufferEnd != nullptr)
+bool FPerfCounters::ProcessExecRequest(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	FStringOutputDevice StringOutDevice;
+	bool bExecCommandSuccess = false;
+	const FString* ExecCmd = Request.QueryParams.Find(TEXT("C"));
+	if (ExecCmd)
 	{
-		// crack into pieces
-		FString MainLine(BufferEnd - WideBuffer.Get(), WideBuffer.Get());
-		TArray<FString> Tokens;
-		MainLine.ParseIntoArrayWS(Tokens);
-		if (Tokens.Num() >= 2)
+		StringOutDevice.SetAutoEmitLineTerminator(true);
+
+		if (ExecCmdCallback.IsBound())
 		{
-			FString ContentType(TEXT("application/json"));
-			Response.Code = EHttpResponseCodes::Ok;
-
-			// handle the request
-			if (Tokens[0] != TEXT("GET"))
-			{
-				Response.Body = FString::Printf(TEXT("{ \"error\": \"Method %s not allowed\" }"), *Tokens[0]);
-				Response.Code = EHttpResponseCodes::BadMethod;
-			}
-			else if (Tokens[1].StartsWith(TEXT("/stats")))
-			{
-				Response.Body = GetAllCountersAsJson();
-			}
-			else if (Tokens[1].StartsWith(TEXT("/exec?c=")))
-			{
-				FString ExecCmd = Tokens[1].Mid(8);
-				FString ExecCmdDecoded = FPlatformHttp::UrlDecode(ExecCmd);
-
-				FStringOutputDevice StringOutDevice;
-				StringOutDevice.SetAutoEmitLineTerminator(true);
-
-				bool bResult = false;
-				if (ExecCmdCallback.IsBound())
-				{
-					bResult = ExecCmdCallback.Execute(ExecCmdDecoded, StringOutDevice);
-					Response.Body = StringOutDevice;
-					ContentType = TEXT("text/text");
-				}
-				else
-				{
-					Response.Body = FString::Printf(TEXT("{ \"error\": \"exec handler not found\" }"));
-				}
-
-				Response.Code = bResult ? EHttpResponseCodes::Ok : EHttpResponseCodes::NotFound;
-			}
-			else
-			{
-				Response.Body = FString::Printf(TEXT("{ \"error\": \"%s not found\" }"), *Tokens[1]);
-				Response.Code = EHttpResponseCodes::NotFound;
-			}
-
-			// send the response headers
-			Response.Header = FString::Printf(TEXT("HTTP/1.0 %d\r\nContent-Length: %d\r\nContent-Type: %s\r\n\r\n"), Response.Code, Response.Body.Len(), *ContentType);
-			bSuccess = true;
+			bExecCommandSuccess = ExecCmdCallback.Execute(*ExecCmd, StringOutDevice);
 		}
-		else
-		{
-			UE_LOG(LogPerfCounters, Warning, TEXT("Unable to parse HTTP request header: %s"), *MainLine);
-		}
+	}
+
+	if (bExecCommandSuccess)
+	{
+		auto Response = FHttpServerResponse::Create(StringOutDevice, TEXT("text/text"));
+		OnComplete(MoveTemp(Response));
 	}
 	else
 	{
-		UE_LOG(LogPerfCounters, Warning, TEXT("ProcessRequest: request incomplete"));
+		auto Response = FHttpServerResponse::Error(EHttpServerResponseCodes::NotSupported, 
+			TEXT("exec handler not found"));
+		OnComplete(MoveTemp(Response));
 	}
 
-	return bSuccess;
+	return true;
 }
 
 double FPerfCounters::GetNumber(const FString& Name, double DefaultValue)

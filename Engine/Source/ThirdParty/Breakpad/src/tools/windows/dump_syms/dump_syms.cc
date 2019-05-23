@@ -30,6 +30,7 @@
 // Windows utility to dump the line number data from a pdb file to
 // a text-based format that we can use from the minidump processor.
 
+#include <io.h>
 #include <stdio.h>
 #include <wchar.h>
 
@@ -42,25 +43,64 @@
 using std::wstring;
 using google_breakpad::PDBSourceLineWriter;
 
+int usage(const wchar_t* self) {
+    fprintf(stderr, "Usage for PDB: %ws <file.[pdb|exe|dll]>\n", self);
+#ifdef DUMP_SYMS_WITH_EPIC_EXTENSIONS
+    fprintf(stderr, "Usage for ELF: %ws [Options] <Input> <Output>\n", self);
+    fprintf(stderr, "Options for ELF:\n");
+    fprintf(stderr, "  -m    Keep the C++ Mangled names\n");
+    fprintf(stderr, "  -v    Print all warnings to stderr\n");
+#endif
+    return 1;
+}
+
 int wmain(int argc, wchar_t **argv) {
   if (argc < 2) {
-    fprintf(stderr, "Usage: %ws <file.[pdb|exe|dll]>\n", argv[0]);
-    return 1;
+    return usage(argv[0]);
   }
+
+#ifdef DUMP_SYMS_WITH_EPIC_EXTENSIONS
+  int arg_index = 1;
+  bool log_to_stderr = false;
+
+  while (arg_index < argc && wcslen(argv[arg_index]) > 0 &&
+         argv[arg_index][0] == '-') {
+    if (wcscmp(L"-m", argv[arg_index]) == 0) {
+      extern bool g_mangle_names;
+      g_mangle_names = true;
+    } else if (wcscmp(L"-v", argv[arg_index]) == 0) {
+      log_to_stderr = true;
+    }
+    ++arg_index;
+  }
+
+  if (arg_index == argc) {
+    return usage(argv[0]);
+  }
+
+  FILE* saved_stderr = _fdopen(_dup(_fileno(stderr)), "w");
+  if (!log_to_stderr) {
+    if (freopen("nul", "w", stderr)) {
+      // If it fails, not a lot we can (or should) do.
+    }
+  }
+#endif
 
   PDBSourceLineWriter writer;
   // Disable CFI
   bool cfi = false;
   bool handle_inter_cu_refs = true;
-  if (!writer.Open(wstring(argv[1]), PDBSourceLineWriter::ANY_FILE)) {
+  if (!writer.Open(wstring(argv[arg_index]), PDBSourceLineWriter::ANY_FILE)) {
     std::vector<string> debug_dirs;
-    std::wstring s(argv[1]);
+    std::wstring s(argv[arg_index]);
 
     std::streambuf* os = std::cout.rdbuf();
     std::ofstream ofs;
-    if (argc > 2)
+
+    // Make sure we still have input and output args
+    if (arg_index + 1 < argc)
     {
-      std::wstring output(argv[2]);
+      std::wstring output(argv[arg_index + 1]);
       ofs.open(output, std::ofstream::out);
       if (ofs.is_open()) {
         os = ofs.rdbuf();
@@ -71,7 +111,7 @@ int wmain(int argc, wchar_t **argv) {
     SymbolData symbol_data = cfi ? ALL_SYMBOL_DATA : NO_CFI;
     google_breakpad::DumpOptions options(symbol_data, handle_inter_cu_refs);
     if (!WriteSymbolFile(std::string(s.begin(), s.end()), debug_dirs, options, out)) {
-      fprintf(stderr, "Failed to write symbol file.\n");
+      fprintf(saved_stderr, "Failed to write symbol file.\n");
       ofs.close();
       return 1;
     }
@@ -81,7 +121,7 @@ int wmain(int argc, wchar_t **argv) {
   }
 
   if (!writer.WriteMap(stdout)) {
-    fprintf(stderr, "WriteMap failed\n");
+    fprintf(saved_stderr, "WriteMap failed\n");
     return 1;
   }
 

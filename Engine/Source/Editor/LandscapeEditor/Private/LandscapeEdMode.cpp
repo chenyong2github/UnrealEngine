@@ -466,6 +466,11 @@ TSharedRef<FUICommandList> FEdModeLandscape::GetUICommandList() const
 	return Toolkit->GetToolkitCommands();
 }
 
+void FEdModeLandscape::OnCanHaveLayersContentChanged()
+{
+	RefreshDetailPanel();
+}
+
 ELandscapeToolTargetType::Type FEdModeLandscape::GetLandscapeToolTargetType() const
 {
 	if (CurrentToolMode)
@@ -525,31 +530,7 @@ void FEdModeLandscape::Enter()
 
 	OnLevelActorDeletedDelegateHandle = GEngine->OnLevelActorDeleted().AddSP(this, &FEdModeLandscape::OnLevelActorRemoved);
 	OnLevelActorAddedDelegateHandle = GEngine->OnLevelActorAdded().AddSP(this, &FEdModeLandscape::OnLevelActorAdded);
-
-	AWorldSettings* WorldSettings = GWorld != nullptr ? GWorld->GetWorldSettings() : nullptr;
-	
-	if (WorldSettings)
-	{
-		OnLandscapeLayerSystemFlagChangedDelegateHandle = WorldSettings->OnSettingChanged().AddLambda([this](const FName& InPropertyName)
-		{
-			if (InPropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, bEnableLandscapeLayers))
-			{
-				UpdateToolModes();
-
-				if (CurrentToolMode->ToolModeName == TEXT("ToolMode_Paint"))
-				{
-					SetCurrentTool("Paint");
-				}
-				else if (CurrentToolMode->ToolModeName == TEXT("ToolMode_Sculpt"))
-				{
-					SetCurrentTool("Sculpt");
-				}
-
-				RefreshDetailPanel();
-			}
-		});
-	}
-
+		
 	UpdateToolModes();
 
 	ALandscapeProxy* SelectedLandscape = GEditor->GetSelectedActors()->GetTop<ALandscapeProxy>();
@@ -763,14 +744,6 @@ void FEdModeLandscape::Exit()
 
 	GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedDelegateHandle);
 	GEngine->OnLevelActorAdded().Remove(OnLevelActorAddedDelegateHandle);
-	GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().Remove(OnLandscapeLayerSystemFlagChangedDelegateHandle);
-
-	AWorldSettings* WorldSettings = GWorld != nullptr ? GWorld->GetWorldSettings() : nullptr;
-
-	if (WorldSettings)
-	{
-		WorldSettings->OnSettingChanged().Remove(OnLandscapeLayerSystemFlagChangedDelegateHandle);
-	}
 	
 	FEditorSupportDelegates::WorldChange.Remove(OnWorldChangeDelegateHandle);
 	GetWorld()->OnLevelsChanged().Remove(OnLevelsChangedDelegateHandle);
@@ -2253,7 +2226,12 @@ void FEdModeLandscape::SetCurrentTool(int32 ToolIndex)
 				break;
 			}
 		}
-		check(bFoundValidMode);
+		
+		// default to first valid tool of current mode
+		if (!bFoundValidMode)
+		{
+			SetCurrentTool(CurrentToolMode->ValidTools[0]);
+		}
 	}
 
 	// Set target type appropriate for tool
@@ -4078,7 +4056,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 			FActorSpawnParameters SpawnParams;
 			SpawnParams.OverrideLevel = OldLandscape->GetLevel();
 			NewLandscape = OldLandscape->GetWorld()->SpawnActor<ALandscape>(Location, OldLandscape->GetActorRotation(), SpawnParams);
-
+			NewLandscape->bCanHaveLayersContent = OldLandscape->bCanHaveLayersContent;
 			const FVector OldScale = OldLandscape->GetActorScale();
 			NewLandscape->SetActorRelativeScale3D(FVector(OldScale.X * LandscapeScaleFactor, OldScale.Y * LandscapeScaleFactor, OldScale.Z));
 
@@ -4618,7 +4596,7 @@ bool FEdModeLandscape::CanEditLayer(FText* Reason /*=nullptr*/, FLandscapeLayer*
 				}
 				return false;
 			}
-			else if ((TargetLayerIndex > 0) && (CurrentTool->GetToolName() == FName("Ramp") || CurrentTool->GetToolName() == FName("Flatten")))
+			else if ((TargetLayerIndex > 0) && (CurrentTool->GetToolName() == FName("Ramp")))
 			{
 				if (Reason)
 				{

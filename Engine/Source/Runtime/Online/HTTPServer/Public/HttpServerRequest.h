@@ -12,7 +12,8 @@ enum class EHttpServerRequestVerbs : uint16
 	VERB_POST   = 1 << 1,
 	VERB_PUT    = 1 << 2,
 	VERB_PATCH  = 1 << 3,
-	VERB_DELETE = 1 << 4
+	VERB_DELETE = 1 << 4,
+	VERB_OPTIONS = 1 << 5
 };
 
 ENUM_CLASS_FLAGS(EHttpServerRequestVerbs);

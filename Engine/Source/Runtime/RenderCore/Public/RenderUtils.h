@@ -430,6 +430,8 @@ RENDERCORE_API bool PlatformSupportsSimpleForwardShading(EShaderPlatform Platfor
 
 RENDERCORE_API bool IsSimpleForwardShadingEnabled(EShaderPlatform Platform);
 
+RENDERCORE_API bool MobileSupportsGPUScene(EShaderPlatform Platform);
+
 RENDERCORE_API bool AllowPixelDepthOffset(EShaderPlatform Platform);
 
 /** Returns if ForwardShading is enabled. Only valid for the current platform (otherwise call ITargetPlatform::UsesForwardShading()). */
@@ -496,6 +498,11 @@ inline bool IsUsingPerPixelDBufferMask(EShaderPlatform Platform)
 
 inline bool UseGPUScene(EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel)
 {
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		return MobileSupportsGPUScene(Platform);
+	}
+	
 	// GPU Scene management uses compute shaders
 	return FeatureLevel >= ERHIFeatureLevel::SM5 
 		//@todo - support GPU Scene management compute shaders on these platforms to get dynamic instancing speedups on the Rendering Thread and RHI Thread

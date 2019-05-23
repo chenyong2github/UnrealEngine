@@ -1276,7 +1276,7 @@ class FGenerateVulkanVisitor : public ir_visitor
 					const bool bSingleComp = (var->type->inner_type->vector_elements == 1);
 					const char * const coherent_str[] ={"", "coherent "};
 					const char * const writeonly_str[] ={"", "writeonly "};
-					const char * const type_str[] ={"32ui", "32i", "16f", (bIsES31 && !bSingleComp) ? "16f" : "32f"};
+					const char * const type_str[] ={"32ui", "32i", "16f", "32f"};
 					const char * const comp_str = bSingleComp ? "r" : "rgba";
 					const int writeonly = var->image_write && !(var->image_read);
 
@@ -1940,7 +1940,8 @@ class FGenerateVulkanVisitor : public ir_visitor
 					ralloc_asprintf_append(buffer, ", %s(", GLSLIntCastTypes[deref->image_index->type->vector_elements]);
 					deref->image_index->accept(this);
 					ralloc_asprintf_append(buffer, "), ");
-					if (src->as_constant() && src_elements == 1)
+					// avoid 'scalar swizzle'
+					if (/*src->as_constant() && */src_elements == 1)
 					{
 						// Add cast if missing and avoid swizzle
 						if (deref->image->type->inner_type)
@@ -1962,12 +1963,6 @@ class FGenerateVulkanVisitor : public ir_visitor
 							}
 						}
 
-						src->accept(this);
-						ralloc_asprintf_append(buffer, ",");
-						src->accept(this);
-						ralloc_asprintf_append(buffer, ",");
-						src->accept(this);
-						ralloc_asprintf_append(buffer, ",");
 						src->accept(this);
 						ralloc_asprintf_append(buffer, "))");
 					}

@@ -1084,8 +1084,8 @@ inline bool RHISupportsSeparateMSAAAndResolveTextures(const EShaderPlatform Plat
 
 inline bool RHISupportsComputeShaders(const EShaderPlatform Platform)
 {
-	//@todo-rco: Add Metal & ES3.1 support
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) 
+		|| GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::ES3_1;
 }
 
 inline bool RHISupportsGeometryShaders(const EShaderPlatform Platform)
