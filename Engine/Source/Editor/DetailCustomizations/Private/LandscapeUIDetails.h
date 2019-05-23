@@ -25,7 +25,7 @@ public:
 
 private:
 	void OnEditorExperimentalSettingsChanged(FName PropertyName);
-	FReply ToggleCanHaveLayersContent(ALandscape* Landscape);
+	void ToggleCanHaveLayersContent(ALandscape* Landscape);
 
 	/** Use MakeInstance to create an instance of this class */
 	FLandscapeUIDetails();
