@@ -1538,7 +1538,7 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 	checkf( AttachedAr, TEXT( "Attempted to load bulk data without an attached archive. Most likely the bulk data was loaded twice on console, which is not supported" ) );
 
 	FArchive* BulkDataArchive = nullptr;
-	if (Linker && Linker->GetFArchiveAsync2Loader() && Linker->GetFArchiveAsync2Loader()->IsCookedForEDLInEditor() &&
+	if (Linker && Linker->GetAsyncLoader() && Linker->GetAsyncLoader()->IsCookedForEDLInEditor() &&
 		(BulkDataFlags & BULKDATA_PayloadInSeperateFile))
 	{
 		// The attached archive is a package cooked for EDL loaded in the editor so the actual bulk data sits in a separate ubulk file.

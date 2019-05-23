@@ -817,7 +817,7 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const TCHAR* InFilename, uint32 InL
 , TemplateForGetArchetypeFromLoader(nullptr)
 , bForceSimpleIndexToObject(false)
 , bLockoutLegacyOperations(false)
-, bLoaderIsFArchiveAsync2(false)
+, bIsAsyncLoader(false)
 , StructuredArchive(nullptr)
 , StructuredArchiveFormatter(nullptr)
 , Loader(nullptr)
@@ -1018,12 +1018,12 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 			else
 #endif
 			{
-				// If want to be able to load cooked data in the editor we need to use FArchiveAsync2 which supports EDL cooked packages,
+				// If want to be able to load cooked data in the editor we need to use FAsyncArchive which supports EDL cooked packages,
 				// otherwise the generic file reader is faster in the editor so use that
-				bool bCanUseFArchiveAsync2 = FPlatformProperties::RequiresCookedData() || GAllowCookedDataInEditorBuilds;
-				if (bCanUseFArchiveAsync2)
+				bool bCanUseAsyncLoader = FPlatformProperties::RequiresCookedData() || GAllowCookedDataInEditorBuilds;
+				if (bCanUseAsyncLoader)
 				{
-					Loader = new FArchiveAsync2(*Filename
+					Loader = new FAsyncArchive(*Filename
 							, GEventDrivenLoaderEnabled ? Forward<TFunction<void()>>(InSummaryReadyCallback) : TFunction<void()>([]() {})
 						);
 				}
@@ -1074,7 +1074,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 				}
 				else
 				{
-					bLoaderIsFArchiveAsync2 = bCanUseFArchiveAsync2;
+					bIsAsyncLoader = bCanUseAsyncLoader;
 				}
 			}
 		} 
@@ -1105,9 +1105,9 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 		bool bExecuteNextStep = true;
 		if( bHasSerializedPackageFileSummary == false )
 		{
-			if (bLoaderIsFArchiveAsync2)
+			if (bIsAsyncLoader)
 			{
-				bExecuteNextStep = GetFArchiveAsync2Loader()->ReadyToStartReadingHeader(bUseTimeLimit, bUseFullTimeLimit, TickStartTime, TimeLimit);
+				bExecuteNextStep = GetAsyncLoader()->ReadyToStartReadingHeader(bUseTimeLimit, bUseFullTimeLimit, TickStartTime, TimeLimit);
 			}
 			else
 			{
@@ -1150,9 +1150,9 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 			UE_LOG(LogLinker, Warning, TEXT("The file '%s' contains unrecognizable data, check that it is of the expected type."), *Filename);
 			return LINKER_Failed;
 		}
-		if (bLoaderIsFArchiveAsync2)
+		if (bIsAsyncLoader)
 		{
-			GetFArchiveAsync2Loader()->StartReadingHeader();
+			GetAsyncLoader()->StartReadingHeader();
 		}
 
 #if WITH_EDITOR
@@ -1417,9 +1417,9 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeNameMap()
 			bool bFinishedPrecaching = true;
 
 			// Precache name, import and export map.
-			if (bLoaderIsFArchiveAsync2)
+			if (bIsAsyncLoader)
 			{
-				bFinishedPrecaching = GetFArchiveAsync2Loader()->ReadyToStartReadingHeader(bUseTimeLimit, bUseFullTimeLimit, TickStartTime, TimeLimit);
+				bFinishedPrecaching = GetAsyncLoader()->ReadyToStartReadingHeader(bUseTimeLimit, bUseFullTimeLimit, TickStartTime, TimeLimit);
 				check(!GEventDrivenLoaderEnabled || bFinishedPrecaching || !EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME);
 			}
 			else
@@ -2086,9 +2086,9 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FinalizeCreation()
 			}
 		}
 
-		if (bLoaderIsFArchiveAsync2)
+		if (bIsAsyncLoader)
 		{
-			GetFArchiveAsync2Loader()->EndReadingHeader();
+			GetAsyncLoader()->EndReadingHeader();
 		}
 
 		if ( !(LoadFlags & LOAD_NoVerify) )
@@ -3515,14 +3515,14 @@ void FLinkerLoad::Preload( UObject* Object )
 				// is stored
 				Seek(Export.SerialOffset);
 
-				FArchiveAsync2* FAA2 = GetFArchiveAsync2Loader();
+				FAsyncArchive* AsyncLoader = GetAsyncLoader();
 
 				{
 					SCOPE_CYCLE_COUNTER(STAT_LinkerPrecache);
 					// tell the file reader to read the raw data from disk
-					if (FAA2)
+					if (AsyncLoader)
 					{
-						bool bReady = FAA2->Precache(Export.SerialOffset, Export.SerialSize, bUseTimeLimit, bUseFullTimeLimit, TickStartTime, TimeLimit);
+						bool bReady = AsyncLoader->PrecacheWithTimeLimit(Export.SerialOffset, Export.SerialSize, bUseTimeLimit, bUseFullTimeLimit, TickStartTime, TimeLimit);
 						UE_CLOG(!(bReady || !bUseTimeLimit || !FPlatformProperties::RequiresCookedData()), LogLinker, Warning, TEXT("Hitch on async loading of %s; this export was not properly precached."), *Object->GetFullName());
 					}
 					else

@@ -70,7 +70,7 @@ struct FScopedCreateImportCounter
 /**
  * Handles loading Unreal package files, including reading UObject data from disk.
  */
-class FArchiveAsync2;
+class FAsyncArchive;
 
 class FLinkerLoad 
 #if !WITH_EDITOR
@@ -127,11 +127,11 @@ public:
 	bool					bForceSimpleIndexToObject;
 	bool					bLockoutLegacyOperations;
 
-	/** True if Loader is FArchiveAsync2  */
-	bool					bLoaderIsFArchiveAsync2;
-	FORCEINLINE FArchiveAsync2* GetFArchiveAsync2Loader()
+	/** True if Loader is FAsyncArchive  */
+	bool					bIsAsyncLoader;
+	FORCEINLINE FAsyncArchive* GetAsyncLoader()
 	{
-		return bLoaderIsFArchiveAsync2 ? (FArchiveAsync2*)Loader : nullptr;
+		return bIsAsyncLoader ? (FAsyncArchive*)Loader : nullptr;
 	}
 
 private:
