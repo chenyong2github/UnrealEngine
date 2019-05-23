@@ -1952,6 +1952,11 @@ private:
 	/** Pointer to the currently registered game viewport widget if any */
 	TWeakPtr<SViewport> GameViewportWidget;
 
+#if WITH_EDITOR
+	/** List of all registered game viewports since the last time UnregisterGameViewport was called. */
+	TSet<TWeakPtr<SViewport>> AllGameViewports;
+#endif
+
 	TSharedPtr<ISlateSoundDevice> SlateSoundDevice;
 
 	/** The current cached absolute real time, right before we tick widgets */
@@ -2147,6 +2152,12 @@ private:
 
 	/** This factory function creates a navigation config for each slate user. */
 	TSharedRef<FNavigationConfig> NavigationConfig;
+
+#if WITH_EDITOR
+	/** When PIE runs, the game's navigation config will overwrite the editor's navigation config.
+	    This separate config allows editor navigation to work even when PIE is running. */
+	TSharedRef<FNavigationConfig> EditorNavigationConfig;
+#endif
 
 	/** The simulated gestures Slate Application will be in charge of. */
 	TBitArray<FDefaultBitArrayAllocator> SimulateGestures;
