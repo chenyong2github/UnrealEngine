@@ -2,6 +2,7 @@
 
 #include "SLogView.h"
 
+#include "Algo/BinarySearch.h"
 #include "Async/AsyncWork.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
@@ -805,7 +806,12 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 
 				const int32 NumAddedMessages = NewMessageCount - TotalNumMessages;
 				TotalNumMessages = NewMessageCount;
+				TSharedPtr<FLogMessage> SelectedLogMessage = GetSelectedLogMessage();
 				ListView->RebuildList();
+				if (SelectedLogMessage.IsValid())
+				{
+					SelectedLogMessageByLogIndex(SelectedLogMessage->GetIndex());
+				}
 				bIsDirty = false;
 				DirtyStopwatch.Reset();
 				UpdateStatsText();
@@ -861,7 +867,12 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 			}
 
 			TotalNumMessages = Task.GetEndIndex();
+			TSharedPtr<FLogMessage> SelectedLogMessage = GetSelectedLogMessage();
 			ListView->RebuildList();
+			if (SelectedLogMessage.IsValid())
+			{
+				SelectedLogMessageByLogIndex(SelectedLogMessage->GetIndex());
+			}
 			bIsDirty = false;
 			DirtyStopwatch.Reset();
 			UpdateStatsText();
@@ -889,6 +900,19 @@ TSharedPtr<FLogMessage> SLogView::GetSelectedLogMessage() const
 {
 	TArray<TSharedPtr<FLogMessage>> SelectedItems = ListView->GetSelectedItems();
 	return (SelectedItems.Num() == 1) ? SelectedItems[0] : nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SLogView::SelectedLogMessageByLogIndex(int32 LogIndex)
+{
+	// We are assuming the Messages list is sorted by log index...
+	int32 MessageIndex = Algo::BinarySearchBy(Messages, LogIndex, &FLogMessage::GetIndex);
+	if (MessageIndex != INDEX_NONE)
+	{
+		ListView->SetItemSelection(Messages[MessageIndex], true);
+		ListView->RequestScrollIntoView(Messages[MessageIndex]);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

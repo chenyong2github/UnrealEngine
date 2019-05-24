@@ -66,6 +66,7 @@ public:
 	FLogMessageCache& GetCache() { return Cache; }
 
 	TSharedPtr<FLogMessage> GetSelectedLogMessage() const;
+	void SelectedLogMessageByLogIndex(int32 LogIndex);
 
 	FText GetFilterText() const { return FilterTextBox->GetText(); }
 
