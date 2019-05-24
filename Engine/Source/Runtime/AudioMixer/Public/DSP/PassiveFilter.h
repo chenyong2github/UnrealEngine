@@ -9,6 +9,7 @@
 
 namespace Audio
 {
+
 	struct FPassiveFilterParams
 	{
 		enum class EClass
@@ -42,6 +43,9 @@ namespace Audio
 		{
 		}
 	};
+
+	UE_DEPRECATED(4.23, "PassiveFilterParams has been renamed to FPassiveFilterParams")
+	typedef FPassiveFilterParams PassiveFilterParams;
 
 	static float EvaluateChebyshevPolynomial(float FrequencyRatio, int32 Order)
 	{
