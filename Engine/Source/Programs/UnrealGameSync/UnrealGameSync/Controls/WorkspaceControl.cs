@@ -1252,7 +1252,8 @@ namespace UnrealGameSync
 			// Get the new text for each column
 			string[] Columns = new string[BuildList.Columns.Count];
 			Columns[ChangeColumn.Index] = String.Format("{0}", Change.Number);
-			Columns[TimeColumn.Index] = DisplayTime.ToString("h\\.mmtt");
+
+			Columns[TimeColumn.Index] = DisplayTime.ToShortTimeString();
 			Columns[AuthorColumn.Index] = FormatUserName(Change.User);
 			Columns[DescriptionColumn.Index] = Change.Description.Replace('\n', ' ');
 
