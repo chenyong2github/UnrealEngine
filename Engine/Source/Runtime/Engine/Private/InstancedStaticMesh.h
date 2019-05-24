@@ -544,11 +544,22 @@ public:
 	{
 		bVFRequiresPrimitiveUniformBuffer = true;
 		SetupProxy(InComponent);
+
+#if RHI_RAYTRACING
+		SetupRayTracingCullClusters();
+#endif
 	}
 
 	~FInstancedStaticMeshSceneProxy()
 	{
 		InstancedRenderData.ReleaseResources(&GetScene( ), StaticMesh);
+
+#if RHI_RAYTRACING
+		for (int32 i = 0; i < RayTracingCullClusterInstances.Num(); ++i)
+		{
+			delete RayTracingCullClusterInstances[i];
+		}
+#endif
 	}
 
 	// FPrimitiveSceneProxy interface.
@@ -577,6 +588,8 @@ public:
 	}
 
 	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) final override;
+	void SetupRayTracingCullClusters();
+
 #endif
 
 	virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override;
@@ -628,6 +641,12 @@ protected:
 	FInstancingUserData UserData_AllInstances;
 	FInstancingUserData UserData_SelectedInstances;
 	FInstancingUserData UserData_DeselectedInstances;
+
+#if RHI_RAYTRACING
+	TArray< FVector >						RayTracingCullClusterBoundsMin;
+	TArray< FVector >						RayTracingCullClusterBoundsMax;
+	TArray< TDoubleLinkedList< uint32 >* >	RayTracingCullClusterInstances;
+#endif
 
 	/** Common path for the Get*MeshElement functions */
 	void SetupInstancedMeshBatch(int32 LODIndex, int32 BatchIndex, FMeshBatch& OutMeshBatch) const;
