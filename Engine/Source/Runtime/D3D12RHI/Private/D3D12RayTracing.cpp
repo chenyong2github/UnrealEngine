@@ -312,7 +312,7 @@ static TRefCountPtr<ID3D12StateObject> CreateRayTracingStateObject(
 	return Result;
 }
 
-inline uint64 GetShaderHash64(FRayTracingShaderRHIParamRef ShaderRHI)
+inline uint64 GetShaderHash64(FRHIRayTracingShader* ShaderRHI)
 {
 	uint64 ShaderHash; // 64 bits from the shader SHA1
 	FMemory::Memcpy(&ShaderHash, ShaderRHI->GetHash().Hash, sizeof(ShaderHash));
@@ -326,7 +326,7 @@ inline FString GenerateShaderName(const TCHAR* Prefix, uint64 Hash)
 	return FString::Printf(TEXT("%s_%016llx"), Prefix, Hash);
 }
 
-inline FString GenerateShaderName(FRayTracingShaderRHIParamRef ShaderRHI)
+inline FString GenerateShaderName(FRHIRayTracingShader* ShaderRHI)
 {
 	const FD3D12RayTracingShader* Shader = FD3D12DynamicRHI::ResourceCast(ShaderRHI);
 	uint64 ShaderHash = GetShaderHash64(ShaderRHI);
@@ -1290,22 +1290,22 @@ public:
 
 		// Use hit and miss shaders from initializer or fall back to default ones if none were provided
 
-		FRayTracingShaderRHIParamRef DefaultHitShader = GetBuildInRayTracingShader<FDefaultMainCHS>();
-		FRayTracingShaderRHIParamRef DefaultHitGroupTable[] = { DefaultHitShader };
+		FRHIRayTracingShader* DefaultHitShader = GetBuildInRayTracingShader<FDefaultMainCHS>();
+		FRHIRayTracingShader* DefaultHitGroupTable[] = { DefaultHitShader };
 
-		TArrayView<const FRayTracingShaderRHIParamRef> InitializerHitGroups = Initializer.GetHitGroupTable().Num()
+		TArrayView<FRHIRayTracingShader*> InitializerHitGroups = Initializer.GetHitGroupTable().Num()
 			? Initializer.GetHitGroupTable()
 			: DefaultHitGroupTable;
 
-		FRayTracingShaderRHIParamRef DefaultMissShader = GetBuildInRayTracingShader<FDefaultMainMS>();
-		FRayTracingShaderRHIParamRef DefaultMissTable[] = { DefaultMissShader };
+		FRHIRayTracingShader* DefaultMissShader = GetBuildInRayTracingShader<FDefaultMainMS>();
+		FRHIRayTracingShader* DefaultMissTable[] = { DefaultMissShader };
 
-		TArrayView<const FRayTracingShaderRHIParamRef> InitializerMissShaders = Initializer.GetMissTable().Num()
+		TArrayView<FRHIRayTracingShader*> InitializerMissShaders = Initializer.GetMissTable().Num()
 			? Initializer.GetMissTable()
 			: DefaultMissTable;
 
-		TArrayView<const FRayTracingShaderRHIParamRef> InitializerRayGenShaders = Initializer.GetRayGenTable();
-		TArrayView<const FRayTracingShaderRHIParamRef> InitializerCallableShaders = Initializer.GetCallableTable();
+		TArrayView<FRHIRayTracingShader*> InitializerRayGenShaders = Initializer.GetRayGenTable();
+		TArrayView<FRHIRayTracingShader*> InitializerCallableShaders = Initializer.GetCallableTable();
 
 		const uint32 MaxTotalShaders = InitializerRayGenShaders.Num() + InitializerMissShaders.Num() + InitializerHitGroups.Num() + InitializerCallableShaders.Num();
 
@@ -1364,7 +1364,7 @@ public:
 		RayGenShaders.Reserve(InitializerRayGenShaders.Num());
 		RayGenShaderNames.Reserve(InitializerRayGenShaders.Num());
 
-		for (FRayTracingShaderRHIParamRef ShaderRHI : InitializerRayGenShaders)
+		for (FRHIRayTracingShader* ShaderRHI : InitializerRayGenShaders)
 		{
 			FD3D12RayTracingShader* Shader = FD3D12DynamicRHI::ResourceCast(ShaderRHI);
 			checkf(Shader->pRootSignature->GetRootSignature() == GlobalRootSignature, TEXT("All raygen and miss shaders must share the same root signature"));
@@ -1382,7 +1382,7 @@ public:
 		MissShaders.Reserve(InitializerMissShaders.Num());
 		MissShaderNames.Reserve(InitializerMissShaders.Num());
 
-		for (FRayTracingShaderRHIParamRef ShaderRHI : InitializerMissShaders)
+		for (FRHIRayTracingShader* ShaderRHI : InitializerMissShaders)
 		{
 			FD3D12RayTracingShader* Shader = FD3D12DynamicRHI::ResourceCast(ShaderRHI);
 			checkf(Shader->pRootSignature->GetRootSignature() == GlobalRootSignature, TEXT("All raygen and miss shaders must share the same root signature"));
@@ -1403,7 +1403,7 @@ public:
 		HitGroupShaders.Reserve(InitializerHitGroups.Num());
 		HitGroupNames.Reserve(InitializerHitGroups.Num());
 
-		for (const FRayTracingShaderRHIParamRef ShaderRHI : InitializerHitGroups)
+		for (FRHIRayTracingShader* ShaderRHI : InitializerHitGroups)
 		{
 			FD3D12RayTracingShader* Shader = FD3D12DynamicRHI::ResourceCast(ShaderRHI);
 
@@ -1426,7 +1426,7 @@ public:
 		CallableShaders.Reserve(InitializerCallableShaders.Num());
 		CallableShaderNames.Reserve(InitializerCallableShaders.Num());
 
-		for (FRayTracingShaderRHIParamRef ShaderRHI : InitializerCallableShaders)
+		for (FRHIRayTracingShader* ShaderRHI : InitializerCallableShaders)
 		{
 			FD3D12RayTracingShader* Shader = FD3D12DynamicRHI::ResourceCast(ShaderRHI);
 
@@ -1583,10 +1583,10 @@ public:
 		{
 			FRayTracingPipelineStateInitializer OcclusionInitializer;
 
-			FRayTracingShaderRHIParamRef OcclusionRGSTable[] = { GetBuildInRayTracingShader<FOcclusionMainRG>() };
+			FRHIRayTracingShader* OcclusionRGSTable[] = { GetBuildInRayTracingShader<FOcclusionMainRG>() };
 			OcclusionInitializer.SetRayGenShaderTable(OcclusionRGSTable);
 
-			FRayTracingShaderRHIParamRef OcclusionMSTable[] = { GetBuildInRayTracingShader<FOcclusionMainMS>() };
+			FRHIRayTracingShader* OcclusionMSTable[] = { GetBuildInRayTracingShader<FOcclusionMainMS>() };
 			OcclusionInitializer.SetMissShaderTable(OcclusionMSTable);
 
 			OcclusionInitializer.bAllowHitGroupIndexing = false;
@@ -1598,13 +1598,13 @@ public:
 		{
 			FRayTracingPipelineStateInitializer IntersectionInitializer;
 
-			FRayTracingShaderRHIParamRef IntersectionRGSTable[] = { GetBuildInRayTracingShader<FIntersectionMainRG>() };
+			FRHIRayTracingShader* IntersectionRGSTable[] = { GetBuildInRayTracingShader<FIntersectionMainRG>() };
 			IntersectionInitializer.SetRayGenShaderTable(IntersectionRGSTable);
 
-			FRayTracingShaderRHIParamRef IntersectionMSTable[] = { GetBuildInRayTracingShader<FIntersectionMainMS>() };
+			FRHIRayTracingShader* IntersectionMSTable[] = { GetBuildInRayTracingShader<FIntersectionMainMS>() };
 			IntersectionInitializer.SetMissShaderTable(IntersectionMSTable);
 
-			FRayTracingShaderRHIParamRef IntersectionHitTable[] = { GetBuildInRayTracingShader<FIntersectionMainCHS>() };
+			FRHIRayTracingShader* IntersectionHitTable[] = { GetBuildInRayTracingShader<FIntersectionMainCHS>() };
 			IntersectionInitializer.SetHitGroupTable(IntersectionHitTable);
 
 			IntersectionInitializer.bAllowHitGroupIndexing = false;
@@ -2954,7 +2954,7 @@ void FD3D12CommandContext::RHIRayTraceIntersection(FRayTracingSceneRHIParamRef I
 	DispatchRays(*this, Bindings, Pipeline, 0, nullptr, DispatchDesc);
 }
 
-void FD3D12CommandContext::RHIRayTraceDispatch(FRHIRayTracingPipelineState* InRayTracingPipelineState, FRayTracingShaderRHIParamRef RayGenShaderRHI,
+void FD3D12CommandContext::RHIRayTraceDispatch(FRHIRayTracingPipelineState* InRayTracingPipelineState, FRHIRayTracingShader* RayGenShaderRHI,
 	FRayTracingSceneRHIParamRef InScene,
 	const FRayTracingShaderBindings& GlobalResourceBindings,
 	uint32 Width, uint32 Height)

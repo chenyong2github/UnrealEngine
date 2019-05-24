@@ -371,7 +371,7 @@ public:
 	}
 
 #if RHI_RAYTRACING
-	inline const FRayTracingShaderRHIParamRef GetRayTracingShader()
+	inline FRHIRayTracingShader* GetRayTracingShader()
 	{
 		checkSlow(Target.Frequency == SF_RayGen
 			   || Target.Frequency == SF_RayMiss
@@ -396,10 +396,10 @@ public:
 		return RayTracingMaterialLibraryIndex;
 	}
 
-	RENDERCORE_API static void GetRayTracingMaterialLibrary(TArray<FRayTracingShaderRHIParamRef>& RayTracingMaterials, FRayTracingShaderRHIParamRef DefaultShader);
+	RENDERCORE_API static void GetRayTracingMaterialLibrary(TArray<FRHIRayTracingShader*>& RayTracingMaterials, FRHIRayTracingShader* DefaultShader);
 
 private:
-	RENDERCORE_API static uint32 AddToRayTracingLibrary(FRayTracingShaderRHIParamRef Shader);
+	RENDERCORE_API static uint32 AddToRayTracingLibrary(FRHIRayTracingShader* Shader);
 	RENDERCORE_API static void RemoveFromRayTracingLibrary(uint32 Index);
 
 	static TArray<uint32> GlobalUnusedIndicies;
@@ -936,7 +936,7 @@ public:
 	}
 
 #if RHI_RAYTRACING
-	inline const FRayTracingShaderRHIParamRef GetRayTracingShader() const
+	inline FRHIRayTracingShader* GetRayTracingShader() const
 	{
 		return Resource->GetRayTracingShader();
 	}

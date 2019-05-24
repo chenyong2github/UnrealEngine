@@ -1135,7 +1135,7 @@ void FVulkanCommandListContext::RHICopyToStagingBuffer(FVertexBufferRHIParamRef 
 	VulkanRHI::vkCmdCopyBuffer(CmdBuffer->GetHandle(), VertexBuffer->GetHandle(), StagingBuffer->StagingBuffer->GetHandle(), 1, &Region);
 }
 
-void FVulkanCommandListContext::RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI)
+void FVulkanCommandListContext::RHIWriteGPUFence(FRHIGPUFence* FenceRHI)
 {
 	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
 	FVulkanGPUFence* Fence = ResourceCast(FenceRHI);

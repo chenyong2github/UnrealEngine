@@ -1135,6 +1135,7 @@ typedef TRefCountPtr<FRHIGeometryShader> FGeometryShaderRHIRef;
 typedef FRHIComputeShader*              FComputeShaderRHIParamRef;
 typedef TRefCountPtr<FRHIComputeShader> FComputeShaderRHIRef;
 
+UE_DEPRECATED(4.23, "FRayTracingShaderRHIParamRef typedef is deprecated; please use FRHIRayTracingShader* directly instead.")
 typedef FRHIRayTracingShader*                       FRayTracingShaderRHIParamRef;
 typedef TRefCountPtr<FRHIRayTracingShader>          FRayTracingShaderRHIRef;
 
@@ -1177,12 +1178,13 @@ UE_DEPRECATED(4.23, "FTextureReferenceRHIParamRef typedef is deprecated; please 
 typedef FRHITextureReference*              FTextureReferenceRHIParamRef;
 typedef TRefCountPtr<FRHITextureReference> FTextureReferenceRHIRef;
 
+UE_DEPRECATED(4.23, "FRenderQueryRHIParamRef typedef is deprecated; please use FRHIRenderQuery* directly instead.")
 typedef FRHIRenderQuery*              FRenderQueryRHIParamRef;
 typedef TRefCountPtr<FRHIRenderQuery> FRenderQueryRHIRef;
 
-typedef FRHIRenderQueryPool*              FRenderQueryPoolRHIParamRef;
 typedef TRefCountPtr<FRHIRenderQueryPool> FRenderQueryPoolRHIRef;
 
+UE_DEPRECATED(4.23, "FGPUFenceRHIParamRef typedef is deprecated; please use FRHIGPUFence* directly instead.")
 typedef FRHIGPUFence*				FGPUFenceRHIParamRef;
 typedef TRefCountPtr<FRHIGPUFence>	FGPUFenceRHIRef;
 
@@ -2201,13 +2203,13 @@ public:
 
 	bool bAllowHitGroupIndexing = true;
 
-	const TArrayView<const FRayTracingShaderRHIParamRef>& GetRayGenTable()   const { return RayGenTable; }
-	const TArrayView<const FRayTracingShaderRHIParamRef>& GetMissTable()     const { return MissTable; }
-	const TArrayView<const FRayTracingShaderRHIParamRef>& GetHitGroupTable() const { return HitGroupTable; }
-	const TArrayView<const FRayTracingShaderRHIParamRef>& GetCallableTable() const { return CallableTable; }
+	const TArrayView<FRHIRayTracingShader*>& GetRayGenTable()   const { return RayGenTable; }
+	const TArrayView<FRHIRayTracingShader*>& GetMissTable()     const { return MissTable; }
+	const TArrayView<FRHIRayTracingShader*>& GetHitGroupTable() const { return HitGroupTable; }
+	const TArrayView<FRHIRayTracingShader*>& GetCallableTable() const { return CallableTable; }
 
 	// Shaders used as entry point to ray tracing work. At least one RayGen shader must be provided.
-	void SetRayGenShaderTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InRayGenShaders, uint64 Hash = 0)
+	void SetRayGenShaderTable(const TArrayView<FRHIRayTracingShader*>& InRayGenShaders, uint64 Hash = 0)
 	{
 		RayGenTable = InRayGenShaders;
 		RayGenHash = Hash ? Hash : ComputeShaderTableHash(InRayGenShaders);
@@ -2216,7 +2218,7 @@ public:
 	// Shaders that will be invoked if a ray misses all geometry.
 	// If this table is empty, then a built-in default miss shader will be used that sets HitT member of FDefaultPayload to -1.
 	// Desired miss shader can be selected by providing MissShaderIndex to TraceRay() function.
-	void SetMissShaderTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InMissShaders, uint64 Hash = 0)
+	void SetMissShaderTable(const TArrayView<FRHIRayTracingShader*>& InMissShaders, uint64 Hash = 0)
 	{
 		MissTable = InMissShaders;
 		MissHash = Hash ? Hash : ComputeShaderTableHash(InMissShaders);
@@ -2224,7 +2226,7 @@ public:
 
 	// Shaders that will be invoked when ray intersects geometry.
 	// If this table is empty, then a built-in default shader will be used for all geometry, using FDefaultPayload.
-	void SetHitGroupTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InHitGroups, uint64 Hash = 0)
+	void SetHitGroupTable(const TArrayView<FRHIRayTracingShader*>& InHitGroups, uint64 Hash = 0)
 	{
 		HitGroupTable = InHitGroups;
 		HitGroupHash = Hash ? Hash : ComputeShaderTableHash(HitGroupTable);
@@ -2232,7 +2234,7 @@ public:
 
 	// Shaders that can be explicitly invoked from RayGen shaders by their Shader Binding Table (SBT) index.
 	// SetRayTracingCallableShader() command must be used to fill SBT slots before a shader can be called.
-	void SetCallableTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InCallableShaders, uint64 Hash = 0)
+	void SetCallableTable(const TArrayView<FRHIRayTracingShader*>& InCallableShaders, uint64 Hash = 0)
 	{
 		CallableTable = InCallableShaders;
 		CallableHash = Hash ? Hash : ComputeShaderTableHash(CallableTable);
@@ -2245,10 +2247,10 @@ public:
 
 private:
 
-	uint64 ComputeShaderTableHash(const TArrayView<const FRayTracingShaderRHIParamRef>& ShaderTable, uint64 InitialHash = 5699878132332235837ull)
+	uint64 ComputeShaderTableHash(const TArrayView<FRHIRayTracingShader*>& ShaderTable, uint64 InitialHash = 5699878132332235837ull)
 	{
 		uint64 CombinedHash = InitialHash;
-		for (FRayTracingShaderRHIParamRef ShaderRHI : ShaderTable)
+		for (FRHIRayTracingShader* ShaderRHI : ShaderTable)
 		{
 			uint64 ShaderHash; // 64 bits from the shader SHA1
 			FMemory::Memcpy(&ShaderHash, ShaderRHI->GetHash().Hash, sizeof(ShaderHash));
@@ -2260,10 +2262,10 @@ private:
 		return CombinedHash;
 	}
 
-	TArrayView<const FRayTracingShaderRHIParamRef> RayGenTable;
-	TArrayView<const FRayTracingShaderRHIParamRef> MissTable;
-	TArrayView<const FRayTracingShaderRHIParamRef> HitGroupTable;
-	TArrayView<const FRayTracingShaderRHIParamRef> CallableTable;
+	TArrayView<FRHIRayTracingShader*> RayGenTable;
+	TArrayView<FRHIRayTracingShader*> MissTable;
+	TArrayView<FRHIRayTracingShader*> HitGroupTable;
+	TArrayView<FRHIRayTracingShader*> CallableTable;
 
 	uint64 RayGenHash = 0;
 	uint64 MissHash = 0;

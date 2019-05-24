@@ -20,10 +20,10 @@ static FAutoConsoleVariableRef CVarOpenGLPollRenderQueryResult(
 
 struct FQueryItem
 {
-	FRenderQueryRHIParamRef Query;
+	FRHIRenderQuery* Query;
 	int32 BeginSequence;
 
-	FQueryItem(FRenderQueryRHIParamRef InQueryRHI)
+	FQueryItem(FRHIRenderQuery* InQueryRHI)
 		: Query(InQueryRHI)
 	{
 		FOpenGLRenderQuery* InQuery = FOpenGLDynamicRHI::ResourceCast(InQueryRHI);
@@ -57,7 +57,7 @@ struct FGLQueryBatcher
 	{
 	}
 
-	void Add(FRenderQueryRHIParamRef Query)
+	void Add(FRHIRenderQuery* Query)
 	{
 		if (NewBatch && NewBatch->FrameNumberRenderThread)
 		{
@@ -72,7 +72,7 @@ struct FGLQueryBatcher
 			Batch->bHasFlushedSinceLastWait = false;
 		}
 	}
-	void Flush(FOpenGLDynamicRHI& RHI, FRenderQueryRHIParamRef TargetQueryRHI)
+	void Flush(FOpenGLDynamicRHI& RHI, FRHIRenderQuery* TargetQueryRHI)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FGLQueryBatcher_FlushScan);
 		bool bFoundQuery = false;
@@ -88,7 +88,7 @@ struct FGLQueryBatcher
 			for (int32 IndexInner = 0; IndexInner < Batch->BatchContents.Num(); IndexInner++)
 			{
 				FQueryItem& Item = Batch->BatchContents[IndexInner];
-				FRenderQueryRHIParamRef QueryRHI = Item.Query;
+				FRHIRenderQuery* QueryRHI = Item.Query;
 				FOpenGLRenderQuery* Query = FOpenGLDynamicRHI::ResourceCast(QueryRHI);
 				if (TargetQueryRHI == QueryRHI)
 				{
@@ -147,7 +147,7 @@ struct FGLQueryBatcher
 			for (int32 IndexInner = 0; IndexInner < Batch->BatchContents.Num(); IndexInner++)
 			{
 				FQueryItem& Item = Batch->BatchContents[IndexInner];
-				FRenderQueryRHIParamRef QueryRHI = Item.Query;
+				FRHIRenderQuery* QueryRHI = Item.Query;
 				FOpenGLRenderQuery* Query = FOpenGLDynamicRHI::ResourceCast(QueryRHI);
 
 				int32 Begins = Query->TotalBegins.GetValue();
@@ -253,7 +253,7 @@ FRenderQueryRHIRef FOpenGLDynamicRHI::RHICreateRenderQuery(ERenderQueryType Quer
 	return new FOpenGLRenderQuery(QueryType);
 }
 
-void FOpenGLDynamicRHI::RHIBeginRenderQuery(FRenderQueryRHIParamRef QueryRHI)
+void FOpenGLDynamicRHI::RHIBeginRenderQuery(FRHIRenderQuery* QueryRHI)
 {
 	VERIFY_GL_SCOPE();
 
@@ -266,7 +266,7 @@ void FOpenGLDynamicRHI::RHIBeginRenderQuery(FRenderQueryRHIParamRef QueryRHI)
 	}
 }
 
-void FOpenGLDynamicRHI::RHIEndRenderQuery(FRenderQueryRHIParamRef QueryRHI)
+void FOpenGLDynamicRHI::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 {
 	VERIFY_GL_SCOPE();
 
@@ -527,7 +527,7 @@ public:
 };
 
 
-bool FOpenGLDynamicRHI::RHIGetRenderQueryResult(FRenderQueryRHIParamRef QueryRHI,uint64& OutResult,bool bWait)
+bool FOpenGLDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI,uint64& OutResult,bool bWait)
 {
 	check(IsInRenderingThread() || IsInRHIThread());
 

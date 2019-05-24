@@ -2090,7 +2090,7 @@ void FD3D11DynamicRHI::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBuf
 	}
 }
 
-void FD3D11DynamicRHI::RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI)
+void FD3D11DynamicRHI::RHIWriteGPUFence(FRHIGPUFence* FenceRHI)
 {
 	// @todo-staging Implement real fences for D3D11
 	// D3D11 only has the generic fence for now.

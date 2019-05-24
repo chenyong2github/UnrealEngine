@@ -86,13 +86,13 @@ void FDeferredShadingSceneRenderer::RenderRayTracingBarycentrics(FRHICommandList
 
 	FRayTracingPipelineStateInitializer Initializer;
 
-	FRayTracingShaderRHIParamRef RayGenShaderTable[] = { RayGenShader->GetRayTracingShader() };
+	FRHIRayTracingShader* RayGenShaderTable[] = { RayGenShader->GetRayTracingShader() };
 	Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-	FRayTracingShaderRHIParamRef MissShaderTable[] = { MissShader->GetRayTracingShader() };
+	FRHIRayTracingShader* MissShaderTable[] = { MissShader->GetRayTracingShader() };
 	Initializer.SetMissShaderTable(MissShaderTable);
 
-	FRayTracingShaderRHIParamRef HitGroupTable[] = { ClosestHitShader->GetRayTracingShader() };
+	FRHIRayTracingShader* HitGroupTable[] = { ClosestHitShader->GetRayTracingShader() };
 	Initializer.SetHitGroupTable(HitGroupTable);
 	Initializer.bAllowHitGroupIndexing = false; // Use the same hit shader for all geometry in the scene by disabling SBT indexing.
 

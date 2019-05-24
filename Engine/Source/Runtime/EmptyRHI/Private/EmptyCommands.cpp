@@ -262,14 +262,14 @@ void FEmptyDynamicRHI::RHISetRenderTargetsAndClear(const FRHISetRenderTargetsInf
 }
 
 // Occlusion/Timer queries.
-void FEmptyDynamicRHI::RHIBeginRenderQuery(FRenderQueryRHIParamRef QueryRHI)
+void FEmptyDynamicRHI::RHIBeginRenderQuery(FRHIRenderQuery* QueryRHI)
 {
 	FEmptyRenderQuery* Query = ResourceCast(QueryRHI);
 
 	Query->Begin();
 }
 
-void FEmptyDynamicRHI::RHIEndRenderQuery(FRenderQueryRHIParamRef QueryRHI)
+void FEmptyDynamicRHI::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 {
 	FEmptyRenderQuery* Query = ResourceCast(QueryRHI);
 

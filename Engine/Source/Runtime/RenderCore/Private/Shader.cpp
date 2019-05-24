@@ -398,7 +398,7 @@ TArray<uint32> FShaderResource::GlobalUnusedIndicies;
 TArray<FRHIRayTracingShader*> FShaderResource::GlobalRayTracingMaterialLibrary;
 FCriticalSection FShaderResource::GlobalRayTracingMaterialLibraryCS;
 
-void FShaderResource::GetRayTracingMaterialLibrary(TArray<FRayTracingShaderRHIParamRef>& RayTracingMaterials, FRayTracingShaderRHIParamRef DefaultShader)
+void FShaderResource::GetRayTracingMaterialLibrary(TArray<FRHIRayTracingShader*>& RayTracingMaterials, FRHIRayTracingShader* DefaultShader)
 {
 	FScopeLock Lock(&GlobalRayTracingMaterialLibraryCS);
 	RayTracingMaterials = GlobalRayTracingMaterialLibrary;
@@ -409,7 +409,7 @@ void FShaderResource::GetRayTracingMaterialLibrary(TArray<FRayTracingShaderRHIPa
 	}
 }
 
-uint32 FShaderResource::AddToRayTracingLibrary(FRayTracingShaderRHIParamRef Shader)
+uint32 FShaderResource::AddToRayTracingLibrary(FRHIRayTracingShader* Shader)
 {
 	FScopeLock Lock(&GlobalRayTracingMaterialLibraryCS);
 

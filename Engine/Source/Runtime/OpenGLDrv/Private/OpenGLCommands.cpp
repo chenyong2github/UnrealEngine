@@ -3350,7 +3350,7 @@ void FOpenGLDynamicRHI::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBu
 #endif
 }
 
-void FOpenGLDynamicRHI::RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI)
+void FOpenGLDynamicRHI::RHIWriteGPUFence(FRHIGPUFence* FenceRHI)
 {
 	check(FenceRHI);
 	FOpenGLGPUFence* CopyFence = ResourceCast(FenceRHI);

@@ -253,9 +253,9 @@ public:
 	virtual void RHICopyTexture(FTextureRHIParamRef SourceTexture, FTextureRHIParamRef DestTexture, const FRHICopyTextureInfo& CopyInfo) final override;
 	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, FTextureRHIParamRef* InTextures, int32 NumTextures) final override;
 	virtual void RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBuffer, FStagingBufferRHIParamRef DestinationStagingBuffer, uint32 Offset, uint32 NumBytes) final override;
-	virtual void RHIWriteGPUFence(FGPUFenceRHIParamRef Fence) final override;
-	virtual void RHIBeginRenderQuery(FRenderQueryRHIParamRef RenderQuery) final override;
-	virtual void RHIEndRenderQuery(FRenderQueryRHIParamRef RenderQuery) final override;
+	virtual void RHIWriteGPUFence(FRHIGPUFence* Fence) final override;
+	virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) final override;
+	virtual void RHIEndRenderQuery(FRHIRenderQuery* RenderQuery) final override;
 	void RHIBeginOcclusionQueryBatch(uint32 NumQueriesInBatch);
 	void RHIEndOcclusionQueryBatch();
 	virtual void RHIBeginScene() final override;
@@ -346,7 +346,7 @@ public:
 		FRHIShaderResourceView* Rays,
 		FRHIUnorderedAccessView* Output,
 		uint32 NumRays) final override;
-	virtual void RHIRayTraceDispatch(FRHIRayTracingPipelineState* RayTracingPipelineState, FRayTracingShaderRHIParamRef RayGenShader,
+	virtual void RHIRayTraceDispatch(FRHIRayTracingPipelineState* RayTracingPipelineState, FRHIRayTracingShader* RayGenShader,
 		FRayTracingSceneRHIParamRef Scene,
 		const FRayTracingShaderBindings& GlobalResourceBindings,
 		uint32 Width, uint32 Height) final override;
@@ -466,7 +466,7 @@ public:
 	{
 		ContextRedirect(RHICopyToStagingBuffer(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes));
 	}
-	FORCEINLINE virtual void RHIWriteGPUFence(FGPUFenceRHIParamRef Fence) final override
+	FORCEINLINE virtual void RHIWriteGPUFence(FRHIGPUFence* Fence) final override
 	{
 		ContextRedirect(RHIWriteGPUFence(Fence));
 	}
@@ -536,11 +536,11 @@ public:
 	{
 		ContextRedirect(RHITransitionResources(TransitionType, InTextures, NumTextures));
 	}
-	FORCEINLINE virtual void RHIBeginRenderQuery(FRenderQueryRHIParamRef RenderQuery) final override
+	FORCEINLINE virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) final override
 	{
 		ContextRedirect(RHIBeginRenderQuery(RenderQuery));
 	}
-	FORCEINLINE virtual void RHIEndRenderQuery(FRenderQueryRHIParamRef RenderQuery) final override
+	FORCEINLINE virtual void RHIEndRenderQuery(FRHIRenderQuery* RenderQuery) final override
 	{
 		ContextRedirect(RHIEndRenderQuery(RenderQuery));
 	}
@@ -791,7 +791,7 @@ public:
 		ContextRedirect(RHIRayTraceIntersection(Scene, Rays, Output, NumRays));
 	}
 
-	virtual void RHIRayTraceDispatch(FRHIRayTracingPipelineState* RayTracingPipelineState, FRayTracingShaderRHIParamRef RayGenShader,
+	virtual void RHIRayTraceDispatch(FRHIRayTracingPipelineState* RayTracingPipelineState, FRHIRayTracingShader* RayGenShader,
 		FRayTracingSceneRHIParamRef Scene,
 		const FRayTracingShaderBindings& GlobalResourceBindings,
 		uint32 Width, uint32 Height) final override

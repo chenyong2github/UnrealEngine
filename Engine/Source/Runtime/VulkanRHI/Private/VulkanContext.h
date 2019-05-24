@@ -232,11 +232,11 @@ public:
 	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, FTextureRHIParamRef* InRenderTargets, int32 NumTextures) final override;
 	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence) final override;
 	virtual void RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBuffer, FStagingBufferRHIParamRef DestinationStagingBuffer, uint32 Offset, uint32 NumBytes) final override;
-	virtual void RHIWriteGPUFence(FGPUFenceRHIParamRef Fence) final override;
+	virtual void RHIWriteGPUFence(FRHIGPUFence* Fence) final override;
 
 	// Render time measurement
-	virtual void RHIBeginRenderQuery(FRenderQueryRHIParamRef RenderQuery) final override;
-	virtual void RHIEndRenderQuery(FRenderQueryRHIParamRef RenderQuery) final override;
+	virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) final override;
+	virtual void RHIEndRenderQuery(FRHIRenderQuery* RenderQuery) final override;
 
 	virtual void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FTextureRHIParamRef NewTexture) final override;
 

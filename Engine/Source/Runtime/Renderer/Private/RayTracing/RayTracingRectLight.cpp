@@ -269,7 +269,7 @@ public:
 	{
 		FRayTracingPipelineStateInitializer Initializer;
 
-		FRayTracingShaderRHIParamRef RayGenShaderTable[] = { GetRayTracingShader() };
+		FRHIRayTracingShader* RayGenShaderTable[] = { GetRayTracingShader() };
 		Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
 		FRayTracingPipelineState* Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
@@ -443,7 +443,7 @@ void FDeferredShadingSceneRenderer::VisualizeRectLightMipTree(
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, RectLightMipTree.UAV);
 }
 
-void FDeferredShadingSceneRenderer::PrepareRayTracingRectLight(const FViewInfo& View, TArray<FRayTracingShaderRHIParamRef>& OutRayGenShaders)
+void FDeferredShadingSceneRenderer::PrepareRayTracingRectLight(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 

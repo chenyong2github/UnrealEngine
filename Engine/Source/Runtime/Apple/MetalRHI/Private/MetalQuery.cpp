@@ -305,7 +305,7 @@ FRenderQueryRHIRef FMetalDynamicRHI::RHICreateRenderQuery(ERenderQueryType Query
 	}
 }
 
-bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRenderQueryRHIParamRef QueryRHI,uint64& OutNumPixels,bool bWait)
+bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI,uint64& OutNumPixels,bool bWait)
 {
 	@autoreleasepool {
 	check(IsInRenderingThread());
@@ -375,7 +375,7 @@ bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRenderQueryRHIParamRef QueryRHI,
 }
 
 // Occlusion/Timer queries.
-void FMetalRHICommandContext::RHIBeginRenderQuery(FRenderQueryRHIParamRef QueryRHI)
+void FMetalRHICommandContext::RHIBeginRenderQuery(FRHIRenderQuery* QueryRHI)
 {
 	@autoreleasepool {
 	FMetalRenderQuery* Query = ResourceCast(QueryRHI);
@@ -384,7 +384,7 @@ void FMetalRHICommandContext::RHIBeginRenderQuery(FRenderQueryRHIParamRef QueryR
 	}
 }
 
-void FMetalRHICommandContext::RHIEndRenderQuery(FRenderQueryRHIParamRef QueryRHI)
+void FMetalRHICommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 {
 	@autoreleasepool {
 	FMetalRenderQuery* Query = ResourceCast(QueryRHI);

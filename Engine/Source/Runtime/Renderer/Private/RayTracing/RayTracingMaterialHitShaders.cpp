@@ -440,9 +440,9 @@ void FRayTracingMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialPipeline(
 	FRHICommandList& RHICmdList,
 	const FViewInfo& View,
-	const TArrayView<const FRayTracingShaderRHIParamRef>& RayGenShaderTable,
-	FRayTracingShaderRHIParamRef MissShader,
-	FRayTracingShaderRHIParamRef DefaultClosestHitShader
+	const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable,
+	FRHIRayTracingShader* MissShader,
+	FRHIRayTracingShader* DefaultClosestHitShader
 )
 {
 	SCOPE_CYCLE_COUNTER(STAT_BindRayTracingPipeline);
@@ -456,12 +456,12 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 
 	Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-	FRayTracingShaderRHIParamRef MissShaderTable[] = { MissShader };
+	FRHIRayTracingShader* MissShaderTable[] = { MissShader };
 	Initializer.SetMissShaderTable(MissShaderTable);
 
 	const bool bEnableMaterials = GEnableRayTracingMaterials != 0;
 
-	TArray<FRayTracingShaderRHIParamRef> RayTracingMaterialLibrary;
+	TArray<FRHIRayTracingShader*> RayTracingMaterialLibrary;
 
 	if (bEnableMaterials)
 	{

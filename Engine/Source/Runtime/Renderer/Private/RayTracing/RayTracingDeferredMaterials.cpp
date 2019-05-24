@@ -40,24 +40,24 @@ class FRayTracingDeferredMaterialMS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredMaterialCHS, "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialCHS", SF_RayHitGroup);
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredMaterialMS,  "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialMS",  SF_RayMiss);
 
-FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingDeferredMaterialGatherPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, FRayTracingShaderRHIParamRef RayGenShader)
+FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingDeferredMaterialGatherPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, FRHIRayTracingShader* RayGenShader)
 {
 	SCOPE_CYCLE_COUNTER(STAT_BindRayTracingPipeline);
 
 	FRayTracingPipelineStateInitializer Initializer;
 
-	FRayTracingShaderRHIParamRef RayGenShaderTable[] = { RayGenShader };
+	FRHIRayTracingShader* RayGenShaderTable[] = { RayGenShader };
 	Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-	auto MissShader = View.ShaderMap->GetShader<FRayTracingDeferredMaterialMS>();
-	FRayTracingShaderRHIParamRef MissShaderTable[] = { MissShader->GetRayTracingShader() };
+	auto* MissShader = View.ShaderMap->GetShader<FRayTracingDeferredMaterialMS>();
+	FRHIRayTracingShader* MissShaderTable[] = { MissShader->GetRayTracingShader() };
 	Initializer.SetMissShaderTable(MissShaderTable);
 
 	Initializer.MaxPayloadSizeInBytes = 12; // sizeof FDeferredMaterialPayload
 
 	// Get the ray tracing materials
-	auto ClosestHitShader = View.ShaderMap->GetShader<FRayTracingDeferredMaterialCHS>();
-	FRayTracingShaderRHIParamRef HitShaderTable[] = { ClosestHitShader->GetRayTracingShader() };
+	auto* ClosestHitShader = View.ShaderMap->GetShader<FRayTracingDeferredMaterialCHS>();
+	FRHIRayTracingShader* HitShaderTable[] = { ClosestHitShader->GetRayTracingShader() };
 	Initializer.SetHitGroupTable(HitShaderTable);
 
 	FRayTracingPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);

@@ -963,33 +963,33 @@ public:
 
 private:
 
-	void AddRefShaders(TArray<FRayTracingShaderRHIParamRef>& ShaderTable)
+	void AddRefShaders(TArray<FRHIRayTracingShader*>& ShaderTable)
 	{
-		for (FRayTracingShaderRHIParamRef Ptr : ShaderTable)
+		for (FRHIRayTracingShader* Ptr : ShaderTable)
 		{
 			Ptr->AddRef();
 		}
 	}
 
-	void ReleaseShaders(TArray<FRayTracingShaderRHIParamRef>& ShaderTable)
+	void ReleaseShaders(TArray<FRHIRayTracingShader*>& ShaderTable)
 	{
-		for (FRayTracingShaderRHIParamRef Ptr : ShaderTable)
+		for (FRHIRayTracingShader* Ptr : ShaderTable)
 		{
 			Ptr->Release();
 		}
 	}
 
-	TArray<FRayTracingShaderRHIParamRef> CopyShaderTable(const TArrayView<const FRayTracingShaderRHIParamRef>& Source)
+	TArray<FRHIRayTracingShader*> CopyShaderTable(const TArrayView<FRHIRayTracingShader*>& Source)
 	{
-		TArray<FRayTracingShaderRHIParamRef> Result(Source.GetData(), Source.Num());
+		TArray<FRHIRayTracingShader*> Result(Source.GetData(), Source.Num());
 		AddRefShaders(Result);
 		return Result;
 	}
 
-	TArray<FRayTracingShaderRHIParamRef> RayGenTable;
-	TArray<FRayTracingShaderRHIParamRef> MissTable;
-	TArray<FRayTracingShaderRHIParamRef> HitGroupTable;
-	TArray<FRayTracingShaderRHIParamRef> CallableTable;
+	TArray<FRHIRayTracingShader*> RayGenTable;
+	TArray<FRHIRayTracingShader*> MissTable;
+	TArray<FRHIRayTracingShader*> HitGroupTable;
+	TArray<FRHIRayTracingShader*> CallableTable;
 };
 
 FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineState(FRHICommandList& RHICmdList, const FRayTracingPipelineStateInitializer& Initializer)

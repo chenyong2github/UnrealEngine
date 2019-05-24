@@ -1430,9 +1430,9 @@ struct FRHICommandCopyToStagingBuffer final : public FRHICommand<FRHICommandCopy
 template<ECmdList CmdListType>
 struct FRHICommandWriteGPUFence final : public FRHICommand<FRHICommandWriteGPUFence<CmdListType>>
 {
-	FGPUFenceRHIParamRef Fence;
+	FRHIGPUFence* Fence;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandWriteGPUFence(FGPUFenceRHIParamRef InFence)
+	FORCEINLINE_DEBUGGABLE FRHICommandWriteGPUFence(FRHIGPUFence* InFence)
 		: Fence(InFence)
 	{
 	}
@@ -1599,9 +1599,9 @@ struct FRHICommandSetLocalUniformBuffer final : public FRHICommand<FRHICommandSe
 
 struct FRHICommandBeginRenderQuery final : public FRHICommand<FRHICommandBeginRenderQuery>
 {
-	FRenderQueryRHIParamRef RenderQuery;
+	FRHIRenderQuery* RenderQuery;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandBeginRenderQuery(FRenderQueryRHIParamRef InRenderQuery)
+	FORCEINLINE_DEBUGGABLE FRHICommandBeginRenderQuery(FRHIRenderQuery* InRenderQuery)
 		: RenderQuery(InRenderQuery)
 	{
 	}
@@ -1610,9 +1610,9 @@ struct FRHICommandBeginRenderQuery final : public FRHICommand<FRHICommandBeginRe
 
 struct FRHICommandEndRenderQuery final : public FRHICommand<FRHICommandEndRenderQuery>
 {
-	FRenderQueryRHIParamRef RenderQuery;
+	FRHIRenderQuery* RenderQuery;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandEndRenderQuery(FRenderQueryRHIParamRef InRenderQuery)
+	FORCEINLINE_DEBUGGABLE FRHICommandEndRenderQuery(FRHIRenderQuery* InRenderQuery)
 		: RenderQuery(InRenderQuery)
 	{
 	}
@@ -1947,11 +1947,11 @@ struct FRHICommandRayTraceDispatch final : public FRHICommand<FRHICommandRayTrac
 	FRayTracingPipelineState* Pipeline;
 	FRayTracingSceneRHIParamRef Scene;
 	FRayTracingShaderBindings GlobalResourceBindings;
-	FRayTracingShaderRHIParamRef RayGenShader;
+	FRHIRayTracingShader* RayGenShader;
 	uint32 Width;
 	uint32 Height;
 
-	FRHICommandRayTraceDispatch(FRayTracingPipelineState* InPipeline, FRayTracingShaderRHIParamRef InRayGenShader, FRayTracingSceneRHIParamRef InScene, const FRayTracingShaderBindings& InGlobalResourceBindings, uint32 InWidth, uint32 InHeight)
+	FRHICommandRayTraceDispatch(FRayTracingPipelineState* InPipeline, FRHIRayTracingShader* InRayGenShader, FRayTracingSceneRHIParamRef InScene, const FRayTracingShaderBindings& InGlobalResourceBindings, uint32 InWidth, uint32 InHeight)
 		: Pipeline(InPipeline)
 		, Scene(InScene)
 		, GlobalResourceBindings(InGlobalResourceBindings)
@@ -2641,7 +2641,7 @@ public:
 		ALLOC_COMMAND(FRHICommandClearTinyUAV)(UnorderedAccessViewRHI, Values);
 	}
 
-	FORCEINLINE_DEBUGGABLE void BeginRenderQuery(FRenderQueryRHIParamRef RenderQuery)
+	FORCEINLINE_DEBUGGABLE void BeginRenderQuery(FRHIRenderQuery* RenderQuery)
 	{
 		if (Bypass())
 		{
@@ -2650,7 +2650,7 @@ public:
 		}
 		ALLOC_COMMAND(FRHICommandBeginRenderQuery)(RenderQuery);
 	}
-	FORCEINLINE_DEBUGGABLE void EndRenderQuery(FRenderQueryRHIParamRef RenderQuery)
+	FORCEINLINE_DEBUGGABLE void EndRenderQuery(FRHIRenderQuery* RenderQuery)
 	{
 		if (Bypass())
 		{
@@ -2788,7 +2788,7 @@ public:
 		ALLOC_COMMAND(FRHICommandCopyToStagingBuffer<ECmdList::EGfx>)(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes);
 	}
 
-	FORCEINLINE_DEBUGGABLE void WriteGPUFence(FGPUFenceRHIParamRef Fence)
+	FORCEINLINE_DEBUGGABLE void WriteGPUFence(FRHIGPUFence* Fence)
 	{
 		if (Bypass())
 		{
@@ -3072,7 +3072,7 @@ public:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void RayTraceDispatch(FRayTracingPipelineState* Pipeline, FRayTracingShaderRHIParamRef RayGenShader, FRayTracingSceneRHIParamRef Scene, const FRayTracingShaderBindings& GlobalResourceBindings, uint32 Width, uint32 Height)
+	FORCEINLINE_DEBUGGABLE void RayTraceDispatch(FRayTracingPipelineState* Pipeline, FRHIRayTracingShader* RayGenShader, FRayTracingSceneRHIParamRef Scene, const FRayTracingShaderBindings& GlobalResourceBindings, uint32 Width, uint32 Height)
 	{
 		if (Bypass())
 		{
@@ -3417,7 +3417,7 @@ public:
 		ALLOC_COMMAND(FRHICommandCopyToStagingBuffer<ECmdList::ECompute>)(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes);
 	}
 
-	FORCEINLINE_DEBUGGABLE void WriteGPUFence(FGPUFenceRHIParamRef Fence)
+	FORCEINLINE_DEBUGGABLE void WriteGPUFence(FRHIGPUFence* Fence)
 	{
 		if (Bypass())
 		{
@@ -4162,7 +4162,7 @@ public:
 		}
 	}
 
-	FORCEINLINE bool GetRenderQueryResult(FRenderQueryRHIParamRef RenderQuery, uint64& OutResult, bool bWait)
+	FORCEINLINE bool GetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& OutResult, bool bWait)
 	{
 		return RHIGetRenderQueryResult(RenderQuery, OutResult, bWait);
 	}

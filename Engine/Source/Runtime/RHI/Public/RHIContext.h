@@ -135,7 +135,7 @@ public:
 	 * Write the fence in the GPU timeline. The fence can then be tested on the CPU to know if the previous GPU commands are completed.
 	 * @param Fence 
 	 */
-	virtual void RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI)
+	virtual void RHIWriteGPUFence(FRHIGPUFence* FenceRHI)
 	{
 		check(false);
 	}
@@ -245,9 +245,9 @@ public:
 		RHITransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, nullptr);
 	}
 
-	virtual void RHIBeginRenderQuery(FRenderQueryRHIParamRef RenderQuery) = 0;
+	virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) = 0;
 
-	virtual void RHIEndRenderQuery(FRenderQueryRHIParamRef RenderQuery) = 0;
+	virtual void RHIEndRenderQuery(FRHIRenderQuery* RenderQuery) = 0;
 
 	// Used for OpenGL to check and see if any occlusion queries can be read back on the RHI thread. If they aren't ready when we need them, then we end up stalling.
 	virtual void RHIPollOcclusionQueries()
@@ -615,7 +615,7 @@ public:
 		checkNoEntry();
 	}
 
-	virtual void RHIRayTraceDispatch(FRHIRayTracingPipelineState* RayTracingPipelineState, FRayTracingShaderRHIParamRef RayGenShader,
+	virtual void RHIRayTraceDispatch(FRHIRayTracingPipelineState* RayTracingPipelineState, FRHIRayTracingShader* RayGenShader,
 		FRayTracingSceneRHIParamRef Scene, 
 		const FRayTracingShaderBindings& GlobalResourceBindings,
 		uint32 Width, uint32 Height)

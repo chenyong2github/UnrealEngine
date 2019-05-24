@@ -432,7 +432,7 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FVertexBufferRHIParamRef Sourc
 	}
 }
 
-void FD3D12CommandContext::RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI)
+void FD3D12CommandContext::RHIWriteGPUFence(FRHIGPUFence* FenceRHI)
 {
 	check(FenceRHI)
 
@@ -1153,7 +1153,7 @@ void FD3D12CommandContext::RHISetRenderTargetsAndClear(const FRHISetRenderTarget
 }
 
 // Occlusion/Timer queries.
-void FD3D12CommandContext::RHIBeginRenderQuery(FRenderQueryRHIParamRef QueryRHI)
+void FD3D12CommandContext::RHIBeginRenderQuery(FRHIRenderQuery* QueryRHI)
 {
 	FD3D12RenderQuery* Query = RetrieveObject<FD3D12RenderQuery>(QueryRHI);
 	check(IsDefaultContext());
@@ -1166,7 +1166,7 @@ void FD3D12CommandContext::RHIBeginRenderQuery(FRenderQueryRHIParamRef QueryRHI)
 #endif
 }
 
-void FD3D12CommandContext::RHIEndRenderQuery(FRenderQueryRHIParamRef QueryRHI)
+void FD3D12CommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 {
 	FD3D12RenderQuery* Query = RetrieveObject<FD3D12RenderQuery>(QueryRHI);
 	check(IsDefaultContext());

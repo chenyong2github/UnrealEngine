@@ -913,7 +913,7 @@ public:
 
 	// CAUTION: Even though this is marked as threadsafe, it is only valid to call from the render thread. It is need not be threadsafe on platforms that do not support or aren't using an RHIThread
 	// FlushType: Thread safe, but varies by RHI
-	virtual bool RHIGetRenderQueryResult(FRenderQueryRHIParamRef RenderQuery, uint64& OutResult, bool bWait) = 0;
+	virtual bool RHIGetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& OutResult, bool bWait) = 0;
 
 	// FlushType: Thread safe
 	virtual uint32 RHIGetViewportNextPresentGPUIndex(FViewportRHIParamRef Viewport)
@@ -1320,7 +1320,7 @@ FORCEINLINE void RHIBindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessV
 	GDynamicRHI->RHIBindDebugLabelName(UnorderedAccessViewRHI, Name);
 }
 
-FORCEINLINE bool RHIGetRenderQueryResult(FRenderQueryRHIParamRef RenderQuery, uint64& OutResult, bool bWait)
+FORCEINLINE bool RHIGetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& OutResult, bool bWait)
 {
 	return GDynamicRHI->RHIGetRenderQueryResult(RenderQuery, OutResult, bWait);
 }

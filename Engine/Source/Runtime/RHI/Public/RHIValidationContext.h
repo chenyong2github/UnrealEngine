@@ -147,7 +147,7 @@ public:
 		RHIContext->RHIPopEvent();
 	}
 
-	virtual void RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI) override final
+	virtual void RHIWriteGPUFence(FRHIGPUFence* FenceRHI) override final
 	{
 		RHIContext->RHIWriteGPUFence(FenceRHI);
 	}
@@ -278,12 +278,12 @@ public:
 		RHIContext->RHITransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, WriteComputeFence);
 	}
 
-	virtual void RHIBeginRenderQuery(FRenderQueryRHIParamRef RenderQuery) override final
+	virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) override final
 	{
 		RHIContext->RHIBeginRenderQuery(RenderQuery);
 	}
 
-	virtual void RHIEndRenderQuery(FRenderQueryRHIParamRef RenderQuery) override final
+	virtual void RHIEndRenderQuery(FRHIRenderQuery* RenderQuery) override final
 	{
 		RHIContext->RHIEndRenderQuery(RenderQuery);
 	}
@@ -787,7 +787,7 @@ public:
 		State.bInsideComputePass = false;
 	}
 
-	virtual void RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI) override final
+	virtual void RHIWriteGPUFence(FRHIGPUFence* FenceRHI) override final
 	{
 		RHIContext->RHIWriteGPUFence(FenceRHI);
 	}

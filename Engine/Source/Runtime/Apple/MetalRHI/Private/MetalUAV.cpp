@@ -806,7 +806,7 @@ void FMetalRHICommandContext::RHICopyToStagingBuffer(FVertexBufferRHIParamRef So
 	}
 }
 
-void FMetalRHICommandContext::RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI)
+void FMetalRHICommandContext::RHIWriteGPUFence(FRHIGPUFence* FenceRHI)
 {
 	@autoreleasepool {
 		check(FenceRHI);

@@ -422,17 +422,17 @@ public:
 		return new FRHIRenderQuery(); 
 	}
 
-	virtual void RHIBeginRenderQuery(FRenderQueryRHIParamRef RenderQuery) final override
+	virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) final override
 	{
 
 	}
-	virtual void RHIEndRenderQuery(FRenderQueryRHIParamRef RenderQuery) final override
+	virtual void RHIEndRenderQuery(FRHIRenderQuery* RenderQuery) final override
 	{
 
 	}
 
 
-	virtual bool RHIGetRenderQueryResult(FRenderQueryRHIParamRef RenderQuery, uint64& OutResult, bool bWait) final override
+	virtual bool RHIGetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& OutResult, bool bWait) final override
 	{ 
 		return true; 
 	}
