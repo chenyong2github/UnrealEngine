@@ -2930,7 +2930,8 @@ bool FSceneRenderer::ShouldCompositeEditorPrimitives(const FViewInfo& View)
 		    || View.TopViewMeshElements.Num() 
 		    || View.BatchedViewElements.HasPrimsToDraw() 
 		    || View.TopBatchedViewElements.HasPrimsToDraw() 
-		    || View.NumVisibleDynamicEditorPrimitives > 0)
+		    || View.NumVisibleDynamicEditorPrimitives > 0
+			|| IsMobileColorsRGB())
 	    {
 		    return true;
 	    }
