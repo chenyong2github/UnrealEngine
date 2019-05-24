@@ -742,3 +742,47 @@ FRay UEdModeInteractiveToolsContext::GetRayFromMousePos(FEditorViewportClient* V
 
 	return FRay(MouseViewportRay.GetOrigin(), MouseViewportRay.GetDirection(), true);
 }
+
+
+
+
+
+
+bool UEdModeInteractiveToolsContext::CanStartTool(const FString& ToolTypeIdentifier) const
+{
+	return (ToolManager->HasActiveTool(EToolSide::Mouse) == false) &&
+		(ToolManager->CanActivateTool(EToolSide::Mouse, ToolTypeIdentifier) == true);
+}
+bool UEdModeInteractiveToolsContext::ActiveToolHasAccept() const
+{
+	return ToolManager->HasActiveTool(EToolSide::Mouse) &&
+		ToolManager->GetActiveTool(EToolSide::Mouse)->HasAccept();
+}
+bool UEdModeInteractiveToolsContext::CanAcceptActiveTool() const
+{
+	return ToolManager->CanAcceptActiveTool(EToolSide::Mouse);
+}
+bool UEdModeInteractiveToolsContext::CanCancelActiveTool() const
+{
+	return ToolManager->CanCancelActiveTool(EToolSide::Mouse);
+}
+
+bool UEdModeInteractiveToolsContext::CanCompleteActiveTool() const
+{
+	return ToolManager->HasActiveTool(EToolSide::Mouse) && CanCancelActiveTool() == false;
+}
+void UEdModeInteractiveToolsContext::StartTool(const FString& ToolTypeIdentifier)
+{
+	if (ToolManager->SelectActiveToolType(EToolSide::Mouse, ToolTypeIdentifier) == false)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ToolManager: Unknown Tool Type %s"), *ToolTypeIdentifier);
+	}
+	else
+	{
+		ToolManager->ActivateTool(EToolSide::Mouse);
+	}
+}
+void UEdModeInteractiveToolsContext::EndTool(EToolShutdownType ShutdownType)
+{
+	ToolManager->DeactivateTool(EToolSide::Mouse, ShutdownType);
+}

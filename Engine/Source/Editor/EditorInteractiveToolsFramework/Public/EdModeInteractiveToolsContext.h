@@ -55,6 +55,19 @@ public:
 	virtual bool EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
 
 
+	//
+	// Utility functions useful for hooking up to UICommand/etc
+	//
+
+	virtual bool CanStartTool(const FString& ToolTypeIdentifier) const;
+	virtual bool ActiveToolHasAccept() const;
+	virtual bool CanAcceptActiveTool() const;
+	virtual bool CanCancelActiveTool() const;
+	virtual bool CanCompleteActiveTool() const;
+	virtual void StartTool(const FString& ToolTypeIdentifier);
+	virtual void EndTool(EToolShutdownType ShutdownType);
+
+
 protected:
 	// we hide these 
 	virtual void Initialize(IToolsContextQueriesAPI* QueriesAPI, IToolsContextTransactionsAPI* TransactionsAPI) override;
