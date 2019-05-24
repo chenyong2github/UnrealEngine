@@ -8,7 +8,7 @@
 #include "GameFramework/Actor.h"
 #include "GenericTeamAgentInterface.generated.h"
 
-UENUM()
+UENUM(BlueprintType)
 namespace ETeamAttitude
 {
 	enum Type
