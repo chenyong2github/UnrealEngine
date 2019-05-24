@@ -1131,8 +1131,8 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			SideTableIndex = FPlatformMath::CountTrailingZeros(BufferIndices);
 			char BufferIdx[3];
 			FCStringAnsi::Snprintf(BufferIdx, 3, "%d", SideTableIndex);
-			
-			ShaderConductor::MacroDefine Defines[6] = {{"texel_buffer_texture_width", "0"}, {"enforce_storge_buffer_bounds", "1"}, {"metadata_buffer_index", BufferIdx}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}};
+
+			ShaderConductor::MacroDefine Defines[7] = {{"texel_buffer_texture_width", "0"}, {"enforce_storge_buffer_bounds", "1"}, {"metadata_buffer_index", BufferIdx}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}};
 			TargetDesc.numOptions = 3;
 			TargetDesc.options = &Defines[0];
 			switch(Semantics)
@@ -1151,6 +1151,11 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					Defines[TargetDesc.numOptions++] = { "ios_use_framebuffer_fetch_subpasses", "1" };
 					TargetDesc.numOptions += 1;
 					break;
+			}
+			
+			if (Frequency == HSF_VertexShader && bUsingTessellation)
+			{
+				Defines[TargetDesc.numOptions++] = { "capture_output_to_buffer", "1" };
 			}
 			
 			switch (VersionEnum)
