@@ -917,7 +917,7 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLaye
 			MenuBuilder.AddMenuEntry(LOCTEXT("LayerContextMenu.Import", "Import from file"), FText(), FSlateIcon(), ImportAction);
 
 			// Reimport
-			const FString& ReimportPath = Target->ReimportFilePath();
+			const FString& ReimportPath = Target->GetReimportFilePath();
 
 			if (!ReimportPath.IsEmpty())
 			{
@@ -1015,7 +1015,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnExportLayer(const TShared
 				LandscapeInfo->ExportLayer(LayerInfoObj, SaveFilename);
 			}
 
-			Target->ReimportFilePath() = SaveFilename;
+			Target->SetReimportFilePath(SaveFilename);
 		}
 	}
 }
@@ -1070,7 +1070,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnImportLayer(const TShared
 			// Actually do the Import
 			LandscapeEdMode->ImportData(*Target, OpenFilename);
 
-			Target->ReimportFilePath() = OpenFilename;
+			Target->SetReimportFilePath(OpenFilename);
 		}
 	}
 }

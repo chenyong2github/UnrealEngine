@@ -3440,7 +3440,7 @@ void FEdModeLandscape::ForceRealTimeViewports(const bool bEnable, const bool bSt
 
 void FEdModeLandscape::ReimportData(const FLandscapeTargetListInfo& TargetInfo)
 {
-	const FString& SourceFilePath = TargetInfo.ReimportFilePath();
+	const FString& SourceFilePath = TargetInfo.GetReimportFilePath();
 	if (SourceFilePath.Len())
 	{
 		FScopedSetLandscapeEditingLayer Scope(GetLandscape(), GetCurrentLayerGuid(), [&] { RequestLayersContentUpdateForceAll(); });
