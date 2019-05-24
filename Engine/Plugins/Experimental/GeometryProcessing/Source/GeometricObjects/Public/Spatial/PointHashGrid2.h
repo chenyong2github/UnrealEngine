@@ -165,6 +165,11 @@ public:
 		TFunction<double(const PointDataType&)> DistanceSqFunc,
 		TFunction<bool(const PointDataType&)> IgnoreFunc = [](const PointDataType& data) { return false; }) const
 	{
+		if (!Hash.Num())
+		{
+			return TPair<PointDataType, double>(InvalidValue(), TNumericLimits<double>::Max());
+		}
+
 		FVector2i min_idx = Indexer.ToGrid(QueryPoint - Radius * FVector2d::One());
 		FVector2i max_idx = Indexer.ToGrid(QueryPoint + Radius * FVector2d::One());
 

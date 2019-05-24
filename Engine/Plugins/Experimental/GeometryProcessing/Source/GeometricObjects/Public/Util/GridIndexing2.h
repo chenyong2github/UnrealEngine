@@ -16,7 +16,10 @@ struct TScaleGridIndexer2
 	/** Real-valued size of an integer grid cell */
 	RealType CellSize;
 
-	TScaleGridIndexer2(RealType CellSize) : CellSize(CellSize) {}
+	TScaleGridIndexer2(RealType CellSize) : CellSize(CellSize)
+	{
+		ensure(CellSize >= TMathUtil<RealType>::ZeroTolerance);
+	}
 
 	/** Convert real-valued point to integer grid coordinates */
 	inline FVector2i ToGrid(const FVector2<RealType>& P) const
@@ -49,6 +52,7 @@ struct TShiftGridIndexer2
 	{
 		Origin = origin;
 		CellSize = cellSize;
+		ensure(CellSize >= TMathUtil<RealType>::ZeroTolerance);
 	}
 
 	/** Convert real-valued point to integer grid coordinates */
