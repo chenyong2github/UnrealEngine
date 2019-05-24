@@ -23,6 +23,7 @@
 #include "StaticMeshResources.h"
 #include "StaticMeshEditor.h"
 #include "PropertyCustomizationHelpers.h"
+#include "MaterialList.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "FbxMeshUtils.h"
 #include "Widgets/Input/SVectorInputBox.h"

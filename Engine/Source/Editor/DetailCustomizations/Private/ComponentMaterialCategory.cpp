@@ -15,7 +15,7 @@
 #include "Editor.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
-#include "PropertyCustomizationHelpers.h"
+#include "MaterialList.h"
 #include "IPropertyUtilities.h"
 
 #include "LandscapeProxy.h"

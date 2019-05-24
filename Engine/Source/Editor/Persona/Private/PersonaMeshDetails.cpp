@@ -32,6 +32,7 @@
 #include "EditorDirectories.h"
 #include "UnrealEdGlobals.h"
 #include "IDetailsView.h"
+#include "MaterialList.h"
 #include "PropertyCustomizationHelpers.h"
 #include "DesktopPlatformModule.h"
 #include "Interfaces/IMainFrameModule.h"
