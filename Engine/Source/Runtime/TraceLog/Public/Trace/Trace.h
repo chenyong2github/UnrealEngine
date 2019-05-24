@@ -20,7 +20,6 @@ UE_TRACE_API void	Flush() UE_TRACE_IMPL();
 #define UE_TRACE_EVENT_BEGIN_EXTERN(LoggerName, EventName)	TRACE_PRIVATE_EVENT_BEGIN_EXTERN(LoggerName, EventName)
 #define UE_TRACE_EVENT_FIELD(FieldType, FieldName)			TRACE_PRIVATE_EVENT_FIELD(FieldType, FieldName)
 #define UE_TRACE_EVENT_END()								TRACE_PRIVATE_EVENT_END()
-#define UE_TRACE_EVENT_SIZE(LoggerName, EventName)			TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName)
 #define UE_TRACE_LOG(LoggerName, EventName, ...)			TRACE_PRIVATE_LOG(LoggerName, EventName, __VA_ARGS__)
 
 #include "Private/Field.h"

@@ -177,7 +177,7 @@ static void Writer_RetireBuffer(void (*DataSink)(const uint8*, uint32))
 
 	if (true)
 	{
-		uint8 PerfEventBuffer[UE_TRACE_EVENT_SIZE($Trace, PerfWorker) + FEvent::HeaderSize];
+		uint8 PerfEventBuffer[TRACE_PRIVATE_EVENT_SIZE($Trace, PerfWorker) + FEvent::HeaderSize];
 		UE_TRACE_LOG($Trace, PerfWorker, PerfEventBuffer)
 			<< PerfWorker.Start(StartTsc)
 			<< PerfWorker.Acquire(uint32(AcquireTailTsc - StartTsc))
@@ -233,7 +233,7 @@ UE_TRACE_API void* Writer_NextBuffer(Private::FBuffer* Buffer, uint32 PrevUsed, 
 {
 	using namespace Private;
 
-	uint32 PerfEventSize = UE_TRACE_EVENT_SIZE($Trace, PerfNextBuffer) + FEvent::HeaderSize;
+	uint32 PerfEventSize = TRACE_PRIVATE_EVENT_SIZE($Trace, PerfNextBuffer) + FEvent::HeaderSize;
 	SizeAndRef += PerfEventSize;
 
 	uint64 StartTsc = Writer_GetTimestamp();
