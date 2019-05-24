@@ -3418,6 +3418,14 @@ namespace UnrealBuildTool
 			if(Rules.bWithLiveCoding)
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_LIVE_CODING=1");
+				if (Rules.LinkType == TargetLinkType.Monolithic)
+				{
+					GlobalCompileEnvironment.Definitions.Add(String.Format("UE_LIVE_CODING_ENGINE_DIR=\"{0}\"", UnrealBuildTool.EngineDirectory.FullName.Replace("\\", "\\\\")));
+					if(ProjectFile != null)
+					{
+						GlobalCompileEnvironment.Definitions.Add(String.Format("UE_LIVE_CODING_PROJECT=\"{0}\"", ProjectFile.FullName.Replace("\\", "\\\\")));
+					}
+				}
 			}
 			else
 			{

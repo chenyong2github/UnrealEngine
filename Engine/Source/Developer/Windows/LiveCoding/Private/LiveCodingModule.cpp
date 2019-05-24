@@ -23,6 +23,11 @@ bool GIsCompileActive = false;
 FString GLiveCodingConsolePath;
 FString GLiveCodingConsoleArguments;
 
+#if IS_MONOLITHIC
+extern const TCHAR* GLiveCodingEngineDir;
+extern const TCHAR* GLiveCodingProject;
+#endif
+
 FLiveCodingModule::FLiveCodingModule()
 	: bEnabledLastTick(false)
 	, bEnabledForSession(false)
@@ -47,16 +52,39 @@ void FLiveCodingModule::StartupModule()
 		ECVF_Cheat
 	);
 
+	CompileCommand = ConsoleManager.RegisterConsoleCommand(
+		TEXT("LiveCoding.Compile"),
+		TEXT("Initiates a live coding compile"),
+		FConsoleCommandDelegate::CreateRaw(this, &FLiveCodingModule::Compile),
+		ECVF_Cheat
+	);
+
+#if IS_MONOLITHIC
+	FString DefaultEngineDir = GLiveCodingEngineDir;
+#else
+	FString DefaultEngineDir = FPaths::EngineDir();
+#endif
 #if USE_DEBUG_LIVE_CODING_CONSOLE
 	static const TCHAR* DefaultConsolePath = TEXT("Binaries/Win64/LiveCodingConsole-Win64-Debug.exe");
 #else
 	static const TCHAR* DefaultConsolePath = TEXT("Binaries/Win64/LiveCodingConsole.exe");
 #endif 
-
 	ConsolePathVariable = ConsoleManager.RegisterConsoleVariable(
 		TEXT("LiveCoding.ConsolePath"),
-		FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / DefaultConsolePath),
+		FPaths::ConvertRelativePathToFull(DefaultEngineDir / DefaultConsolePath),
 		TEXT("Path to the live coding console application"),
+		ECVF_Cheat
+	);
+
+#if IS_MONOLITHIC
+	FString SourceProject = (GLiveCodingProject != nullptr)? GLiveCodingProject : TEXT("");
+#else
+	FString SourceProject = FPaths::IsProjectFilePathSet() ? FPaths::GetProjectFilePath() : TEXT("");
+#endif
+	SourceProjectVariable = ConsoleManager.RegisterConsoleVariable(
+		TEXT("LiveCoding.SourceProject"),
+		FPaths::ConvertRelativePathToFull(SourceProject),
+		TEXT("Path to the project that this target was built from"),
 		ECVF_Cheat
 	);
 
@@ -105,7 +133,9 @@ void FLiveCodingModule::ShutdownModule()
 	FCoreDelegates::OnEndFrame.Remove(EndFrameDelegateHandle);
 
 	IConsoleManager& ConsoleManager = IConsoleManager::Get();
+	ConsoleManager.UnregisterConsoleObject(SourceProjectVariable);
 	ConsoleManager.UnregisterConsoleObject(ConsolePathVariable);
+	ConsoleManager.UnregisterConsoleObject(CompileCommand);
 	ConsoleManager.UnregisterConsoleObject(EnableCommand);
 }
 
@@ -233,6 +263,14 @@ bool FLiveCodingModule::StartLiveCoding()
 			return false;
 		}
 
+		// Get the source project filename
+		FString SourceProject = SourceProjectVariable->GetString();
+		if (SourceProject.Len() > 0 && !FPaths::FileExists(SourceProject))
+		{
+			UE_LOG(LogLiveCoding, Error, TEXT("Unable to start live coding session. Unable to find source project file '%s'."), *SourceProject);
+			return false;
+		}
+
 		UE_LOG(LogLiveCoding, Display, TEXT("Starting LiveCoding"));
 
 		// Enable external build system
@@ -247,9 +285,9 @@ bool FLiveCodingModule::StartLiveCoding()
 		Arguments += FString::Printf(TEXT("%s"), FPlatformMisc::GetUBTPlatform());
 		Arguments += FString::Printf(TEXT(" %s"), EBuildConfigurations::ToString(FApp::GetBuildConfiguration()));
 		Arguments += FString::Printf(TEXT(" -TargetType=%s"), FPlatformMisc::GetUBTTarget());
-		if(FPaths::IsProjectFilePathSet())
+		if(SourceProject.Len() > 0)
 		{
-			Arguments += FString::Printf(TEXT(" -Project=\"%s\""), *FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()));
+			Arguments += FString::Printf(TEXT(" -Project=\"%s\""), *FPaths::ConvertRelativePathToFull(SourceProject));
 		}
 		LppSetBuildArguments(*Arguments);
 

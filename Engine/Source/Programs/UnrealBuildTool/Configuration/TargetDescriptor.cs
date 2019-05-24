@@ -59,12 +59,6 @@ namespace UnrealBuildTool
 		public List<FileReference> WriteActionFiles = new List<FileReference>();
 
 		/// <summary>
-		/// Path to the manifest for passing info about the output to live coding
-		/// </summary>
-		[CommandLine("-LiveCodingManifest=")]
-		public FileReference LiveCodingManifest = null;
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="ProjectFile">Path to the project file</param>

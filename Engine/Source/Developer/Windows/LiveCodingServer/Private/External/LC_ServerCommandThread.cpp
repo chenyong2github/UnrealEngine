@@ -641,11 +641,27 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 			std::wstring ModuleFileName = file::NormalizePath(*Pair.Key);
 			if(ValidModuleFileNames.find(ModuleFileName) == ValidModuleFileNames.end())
 			{
-				std::wstring ModuleName = file::GetFilename(ModuleFileName);
-				LC_ERROR_USER("Live coding is not enabled for %S.", ModuleName.c_str());
-				LC_ERROR_USER("Configure the list of enabled modules from the Live Coding section of the editor preferences window.");
-				GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, *FString::Printf(TEXT("Live coding not enabled for %s"), ModuleName.c_str()));
-				return;
+				// We couldn't find this exact module filename, but this could be a staged executable. See if we can just match the name.
+				std::wstring ModuleFileNameOnly = file::GetFilename(ModuleFileName);
+
+				bool bFoundNameMatch = false;
+				for (const LiveModule* liveModule : m_liveModules)
+				{
+					if (ModuleFileNameOnly == file::GetFilename(liveModule->GetModuleName()))
+					{
+						ModuleFileName = liveModule->GetModuleName();
+						bFoundNameMatch = true;
+						break;
+					}
+				}
+
+				if (!bFoundNameMatch)
+				{
+					LC_ERROR_USER("Live coding is not enabled for %S.", ModuleFileName.c_str());
+					LC_ERROR_USER("Configure the list of enabled modules from the Live Coding section of the editor preferences window.");
+					GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, *FString::Printf(TEXT("Live coding not enabled for %s"), ModuleFileName.c_str()));
+					return;
+				}
 			}
 
 			types::vector<LiveModule::ModifiedObjFile> ObjectFiles;

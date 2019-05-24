@@ -47,7 +47,9 @@ private:
 	const FString FullProjectPluginsDir;
 
 	IConsoleCommand* EnableCommand;
+	IConsoleCommand* CompileCommand;
 	IConsoleVariable* ConsolePathVariable;
+	IConsoleVariable* SourceProjectVariable;
 	FDelegateHandle EndFrameDelegateHandle;
 	FDelegateHandle ModulesChangedDelegateHandle;
 
