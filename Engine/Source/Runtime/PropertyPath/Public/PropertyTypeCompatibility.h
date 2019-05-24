@@ -156,6 +156,12 @@ inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FString>(UProperty* P
 	return Property->GetClass() == UStrProperty::StaticClass();
 }
 
+template<>
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FName>(UProperty* Property)
+{
+	return Property->GetClass() == UNameProperty::StaticClass();
+}
+
 template<typename T>
 inline bool IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct(UProperty* Property)
 {

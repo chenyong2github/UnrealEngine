@@ -743,6 +743,14 @@ void UGameUserSettings::GetResolutionScaleInformationEx(float& CurrentScaleNorma
 	CurrentScaleNormalized = ((float)CurrentScaleValue - (float)MinScaleValue) / (float)(MaxScaleValue - MinScaleValue);
 }
 
+float UGameUserSettings::GetResolutionScaleNormalized() const
+{
+	float CurrentScaleNormalized, CurrentScaleValue, MinScaleValue, MaxScaleValue;
+	GetResolutionScaleInformationEx(CurrentScaleNormalized, CurrentScaleValue, MinScaleValue, MaxScaleValue);
+
+	return CurrentScaleNormalized;
+}
+
 void UGameUserSettings::SetResolutionScaleValue(int32 NewScaleValue)
 {
 	SetResolutionScaleValueEx((float)NewScaleValue);
