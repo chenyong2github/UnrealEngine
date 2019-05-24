@@ -240,7 +240,7 @@ namespace UnrealGameSync
 			}
 
 			// Get the prefix for any local file
-			string LocalRootPrefix = RootFolderToClean.Directory.FullName + Path.DirectorySeparatorChar;
+			string LocalRootPrefix = RootFolderToClean.Directory.FullName.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
 
 			// Query the have table and build a separate tree from it
 			PerforceHaveFolder RootHaveFolder = new PerforceHaveFolder();

@@ -63,7 +63,7 @@ namespace UnrealBuildTool
 	class LuminPlatform : AndroidPlatform
 	{
 		public LuminPlatform(AndroidPlatformSDK InSDK)
-			: base(UnrealTargetPlatform.Lumin, CppPlatform.Lumin, InSDK)
+			: base(UnrealTargetPlatform.Lumin, InSDK)
 		{
 		}
 
@@ -241,7 +241,7 @@ namespace UnrealBuildTool
 				TegraDebuggerVersion[0] <= 2 && TegraDebuggerVersion[1] <= 1;
 		}
 
-		public override UEToolChain CreateToolChain(CppPlatform CppPlatform, ReadOnlyTargetRules Target)
+		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
 			bool bUseLdGold = Target.bUseUnityBuild;
 			return new LuminToolChain(Target.ProjectFile, false, null, Target.LuminPlatform.GPUArchitectures, true);

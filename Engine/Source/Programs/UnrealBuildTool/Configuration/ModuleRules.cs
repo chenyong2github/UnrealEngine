@@ -409,9 +409,20 @@ namespace UnrealBuildTool
 		internal DirectoryReference Directory;
 
 		/// <summary>
+		/// Additional directories that contribute to this module (likely in UnrealBuildTool.PlatformExtensionsDirectory). 
+		/// The dictionary tracks module subclasses 
+		/// </summary>
+		internal Dictionary<Type, DirectoryReference> DirectoriesForModuleSubClasses;
+
+		/// <summary>
 		/// Plugin containing this module
 		/// </summary>
 		internal PluginInfo Plugin;
+
+		/// <summary>
+		/// The rules context for this instance
+		/// </summary>
+		internal ModuleRulesContext Context;
 
 		/// <summary>
 		/// Rules for the target that this module belongs to
@@ -562,6 +573,13 @@ namespace UnrealBuildTool
 		public bool bUsePrecompiled;
 
 		/// <summary>
+		/// Whether this module can use PLATFORM_XXXX style defines, where XXXX is a confidential platform name. This is used to ensure engine or other 
+		/// shared code does not reveal confidential information inside an #if PLATFORM_XXXX block. Licensee game code may want to allow for them, however.
+		/// Note: this is future looking, and previous confidential platforms (like PS4) are unlikely to be restricted
+		/// </summary>
+		public bool bAllowConfidentialPlatformDefines = false;
+
+		/// <summary>
 		/// List of modules names (no path needed) with header files that our module's public headers needs access to, but we don't need to "import" or link against.
 		/// </summary>
 		public List<string> PublicIncludePathModuleNames = new List<string>();
@@ -674,6 +692,27 @@ namespace UnrealBuildTool
 		/// Public compiler definitions for this module
 		/// </summary>
 		public List<string> PublicDefinitions = new List<string>();
+
+		/// <summary>
+		/// Append (or create)
+		/// </summary>
+		/// <param name="Definition"></param>
+		/// <param name="Text"></param>
+		public void AppendStringToPublicDefinition(string Definition, string Text)
+		{
+			string WithEquals = Definition + "=";
+			for (int Index=0; Index < PublicDefinitions.Count; Index++)
+			{
+				if (PublicDefinitions[Index].StartsWith(WithEquals))
+				{
+					PublicDefinitions[Index] = PublicDefinitions[Index] + Text;
+					return;
+				}
+			}
+
+			// if we get here, we need to make a new entry
+			PublicDefinitions.Add(Definition + "=" + Text);
+		}
 
 		/// <summary>
 		/// Addition modules this module may require at run-time 
@@ -1004,6 +1043,35 @@ namespace UnrealBuildTool
 				}
 			}
 			return false;
+		}
+
+		/// <summary>
+		/// Returns the module directory for a given subclass of the module (platform extensions add subclasses of ModuleRules to add in platform-specific settings)
+		/// </summary>
+		/// <param name="Type">typeof the subclass</param>
+		/// <returns>Directory where the subclass's .Build.cs lives, or null if not found</returns>
+		public DirectoryReference GetModuleDirectoryForSubClass(Type Type)
+		{
+			if (DirectoriesForModuleSubClasses == null)
+			{
+				return null;
+			}
+
+			DirectoryReference Directory;
+			if (DirectoriesForModuleSubClasses.TryGetValue(Type, out Directory))
+			{
+				return Directory;
+			}
+			return null;
+		}
+
+		/// <summary>
+		/// Returns the directories for all subclasses of this module
+		/// </summary>
+		/// <returns>List of directories, or null if none were added</returns>
+		public DirectoryReference[] GetModuleDirectoriesForAllSubClasses()
+		{
+			return DirectoriesForModuleSubClasses == null ? null : DirectoriesForModuleSubClasses.Values.ToArray();
 		}
 	}
 }

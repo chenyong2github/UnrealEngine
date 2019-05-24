@@ -110,7 +110,7 @@ namespace UnrealBuildTool
 		MacToolChainOptions Options;
 
 		public MacToolChain(FileReference InProjectFile, MacToolChainOptions InOptions)
-			: base(CppPlatform.Mac, InProjectFile)
+			: base(InProjectFile)
 		{
 			this.Options = InOptions;
 		}
@@ -496,7 +496,6 @@ namespace UnrealBuildTool
 				{
 					if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 					{
-						CompileAction.bIsUsingPCH = true;
 						CompileAction.PrerequisiteItems.Add(CompileEnvironment.PrecompiledHeaderFile);
 					}
 					// Add the object file to the produced item list.

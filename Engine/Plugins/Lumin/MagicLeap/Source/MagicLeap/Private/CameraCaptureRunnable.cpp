@@ -40,7 +40,7 @@
 #include "AppFramework.h"
 #include "Lumin/LuminPlatformFile.h"
 #if PLATFORM_LUMIN
-#include "Lumin/LuminAffinity.h"
+#include "Lumin/LuminPlatformAffinity.h"
 #endif // PLATFORM_LUMIN
 #include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
 

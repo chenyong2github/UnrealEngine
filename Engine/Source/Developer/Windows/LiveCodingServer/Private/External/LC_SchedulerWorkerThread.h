@@ -18,7 +18,6 @@ namespace scheduler
 		~WorkerThread(void);
 
 	private:
-		static unsigned int __stdcall ThreadProxy(void* context);
 		unsigned int ThreadFunction(TaskQueue* queue);
 
 		thread::Handle m_thread;
