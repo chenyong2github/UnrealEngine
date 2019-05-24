@@ -212,5 +212,8 @@ private:
 
 	/** Timecode time at start of recording */
 	FTimecode StartRecordingTimecodeSource;
+
+	/** Last Timecode Frame Number, used to avoid recording same time twice*/
+	TOptional<FFrameNumber> LastTimecodeFrameNumber;
 };
 
