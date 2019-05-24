@@ -148,14 +148,10 @@ void FVirtualTextureProducerCollection::RemoveAllCallbacks(const void* Baton)
 		if (Callback.Baton == Baton)
 		{
 			check(Callback.DestroyedFunction);
-			FProducerEntry* Entry = GetEntry(Callback.OwnerHandle);
-			if (Entry)
-			{
-				Callback.DestroyedFunction = nullptr;
-				Callback.Baton = nullptr;
-				Callback.OwnerHandle = FVirtualTextureProducerHandle();
-				ReleaseCallback(CallbackIndex);
-			}
+			Callback.DestroyedFunction = nullptr;
+			Callback.Baton = nullptr;
+			Callback.OwnerHandle = FVirtualTextureProducerHandle();
+			ReleaseCallback(CallbackIndex);
 		}
 	}
 }
