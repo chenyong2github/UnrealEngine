@@ -4,6 +4,7 @@
 
 #include "Trace/Trace.h"
 #include "Trace/Analyzer.h"
+#include "Templates/SharedPointer.h"
 
 namespace Trace
 {
