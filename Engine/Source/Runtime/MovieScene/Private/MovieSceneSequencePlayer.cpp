@@ -39,6 +39,7 @@ UMovieSceneSequencePlayer::UMovieSceneSequencePlayer(const FObjectInitializer& I
 	, Status(EMovieScenePlayerStatus::Stopped)
 	, bReversePlayback(false)
 	, bIsEvaluating(false)
+	, bPendingOnStartedPlaying(false)
 	, Sequence(nullptr)
 	, StartTime(0)
 	, DurationFrames(0)
@@ -161,11 +162,10 @@ void UMovieSceneSequencePlayer::PlayInternal()
 			PreAnimatedState.EnableGlobalCapture();
 		}
 
+		bPendingOnStartedPlaying = true;
 		Status = EMovieScenePlayerStatus::Playing;
 		TimeController->StartPlaying(GetCurrentTime());
-
-		OnStartedPlaying();
-
+		
 		UMovieSceneSequence* MovieSceneSequence = RootTemplateInstance.GetSequence(MovieSceneSequenceID::Root);
 		UMovieScene*         MovieScene         = MovieSceneSequence ? MovieSceneSequence->GetMovieScene() : nullptr;
 
@@ -738,6 +738,12 @@ void UMovieSceneSequencePlayer::UpdateTimeCursorPosition_Internal(FFrameTime New
 		return;
 	}
 	
+	if (bPendingOnStartedPlaying)
+	{
+		OnStartedPlaying();
+		bPendingOnStartedPlaying = false;
+	}
+
 	if (Method == EUpdatePositionMethod::Play && ShouldStopOrLoop(NewPosition))
 	{
 		// The actual start time taking into account reverse playback
