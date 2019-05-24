@@ -2270,7 +2270,11 @@ bool FLandscapeComponentSceneProxy::CanUseMeshBatchForShadowCascade(int8 InLODIn
 	const FStaticMeshBatch* MeshBatch = nullptr;
 	const TArray<FStaticMeshBatch>& PrimitiveStaticMeshes = GetPrimitiveSceneInfo()->StaticMeshes;
 
-	check(PrimitiveStaticMeshes.IsValidIndex(InLODIndex));
+	if (!PrimitiveStaticMeshes.IsValidIndex(InLODIndex))
+	{
+		return false;
+	}
+
 	check(PrimitiveStaticMeshes[InLODIndex].CastShadow);
 	check(InLODIndex == PrimitiveStaticMeshes[InLODIndex].LODIndex);
 	MeshBatch = &PrimitiveStaticMeshes[InLODIndex];
