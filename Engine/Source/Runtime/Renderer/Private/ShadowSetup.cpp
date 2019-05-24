@@ -1612,7 +1612,7 @@ void FSceneRenderer::UpdatePreshadowCache(FSceneRenderTargets& SceneContext)
 		{
 			// Initialize the texture layout if necessary
 			const FIntPoint PreshadowCacheBufferSize = SceneContext.GetPreShadowCacheTextureResolution();
-			Scene->PreshadowCacheLayout = FTextureLayout(1, 1, PreshadowCacheBufferSize.X, PreshadowCacheBufferSize.Y, false, false, false);
+			Scene->PreshadowCacheLayout = FTextureLayout(1, 1, PreshadowCacheBufferSize.X, PreshadowCacheBufferSize.Y, false, ETextureLayoutAspectRatio::None, false);
 		}
 
 		// Iterate through the cached preshadows, removing those that are not going to be rendered this frame
@@ -3700,7 +3700,7 @@ void FSceneRenderer::AllocatePerObjectShadowDepthTargets(FRHICommandListImmediat
 
 		int32 OriginalNumAtlases = SortedShadowsForShadowDepthPass.ShadowMapAtlases.Num();
 
-		FTextureLayout CurrentShadowLayout(1, 1, ShadowBufferResolution.X, ShadowBufferResolution.Y, false, false, false);
+		FTextureLayout CurrentShadowLayout(1, 1, ShadowBufferResolution.X, ShadowBufferResolution.Y, false, ETextureLayoutAspectRatio::None, false);
 		FPooledRenderTargetDesc ShadowMapDesc2D = FPooledRenderTargetDesc::Create2DDesc(ShadowBufferResolution, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable, false);
 		ShadowMapDesc2D.Flags |= GFastVRamConfig.ShadowPerObject;
 
@@ -3742,7 +3742,7 @@ void FSceneRenderer::AllocatePerObjectShadowDepthTargets(FRHICommandListImmediat
 				}
 				else
 				{
-					CurrentShadowLayout = FTextureLayout(1, 1, ShadowBufferResolution.X, ShadowBufferResolution.Y, false, false, false);
+					CurrentShadowLayout = FTextureLayout(1, 1, ShadowBufferResolution.X, ShadowBufferResolution.Y, false, ETextureLayoutAspectRatio::None, false);
 					SortedShadowsForShadowDepthPass.ShadowMapAtlases.AddDefaulted();
 
 					if (CurrentShadowLayout.AddElement(
@@ -3823,7 +3823,7 @@ const TCHAR* GetCSMRenderTargetName(int32 ShadowMapIndex)
 struct FLayoutAndAssignedShadows
 {
 	FLayoutAndAssignedShadows(int32 MaxTextureSize) :
-		TextureLayout(1, 1, MaxTextureSize, MaxTextureSize, false, false, false)
+		TextureLayout(1, 1, MaxTextureSize, MaxTextureSize, false, ETextureLayoutAspectRatio::None, false)
 	{}
 
 	FTextureLayout TextureLayout;
@@ -3898,7 +3898,7 @@ void FSceneRenderer::AllocateRSMDepthTargets(FRHICommandListImmediate& RHICmdLis
 		&& FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		const int32 MaxTextureSize = 1 << (GMaxTextureMipCount - 1);
-		FTextureLayout ShadowLayout(1, 1, MaxTextureSize, MaxTextureSize, false, false, false);
+		FTextureLayout ShadowLayout(1, 1, MaxTextureSize, MaxTextureSize, false, ETextureLayoutAspectRatio::None, false);
 
 		for (int32 ShadowIndex = 0; ShadowIndex < RSMShadows.Num(); ShadowIndex++)
 		{
@@ -4031,7 +4031,7 @@ void FSceneRenderer::AllocateTranslucentShadowDepthTargets(FRHICommandListImmedi
 		// Start with an empty atlas for per-object shadows (don't allow packing object shadows into the CSM atlas atm)
 		SortedShadowsForShadowDepthPass.TranslucencyShadowMapAtlases.AddDefaulted();
 
-		FTextureLayout CurrentShadowLayout(1, 1, TranslucentShadowBufferResolution.X, TranslucentShadowBufferResolution.Y, false, false, false);
+		FTextureLayout CurrentShadowLayout(1, 1, TranslucentShadowBufferResolution.X, TranslucentShadowBufferResolution.Y, false, ETextureLayoutAspectRatio::None, false);
 
 		// Sort the projected shadows by resolution.
 		TranslucentShadows.Sort(FCompareFProjectedShadowInfoByResolution());
@@ -4054,7 +4054,7 @@ void FSceneRenderer::AllocateTranslucentShadowDepthTargets(FRHICommandListImmedi
 			}
 			else
 			{
-				CurrentShadowLayout = FTextureLayout(1, 1, TranslucentShadowBufferResolution.X, TranslucentShadowBufferResolution.Y, false, false, false);
+				CurrentShadowLayout = FTextureLayout(1, 1, TranslucentShadowBufferResolution.X, TranslucentShadowBufferResolution.Y, false, ETextureLayoutAspectRatio::None, false);
 				SortedShadowsForShadowDepthPass.TranslucencyShadowMapAtlases.AddDefaulted();
 
 				if (CurrentShadowLayout.AddElement(

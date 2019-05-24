@@ -1263,6 +1263,22 @@ void UTexture::GetLayerFormatSettings(int32 LayerIndex, FTextureFormatSettings& 
 	}
 }
 
+void UTexture::SetLayerFormatSettings(int32 LayerIndex, const FTextureFormatSettings& InSettings)
+{
+	check(LayerIndex >= 0);
+	if (LayerIndex >= LayerFormatSettings.Num())
+	{
+		FTextureFormatSettings DefaultSettings;
+		GetDefaultFormatSettings(DefaultSettings);
+		LayerFormatSettings.Reserve(LayerIndex + 1);
+		while (LayerIndex >= LayerFormatSettings.Num())
+		{
+			LayerFormatSettings.Add(DefaultSettings);
+		}
+	}
+	LayerFormatSettings[LayerIndex] = InSettings;
+}
+
 #endif // #if WITH_EDITOR
 
 FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const UTexture* Texture, int32 LayerIndex, const FConfigFile& EngineSettings, bool bSupportDX11TextureFormats, bool bSupportCompressedVolumeTexture, int32 BlockSize )
