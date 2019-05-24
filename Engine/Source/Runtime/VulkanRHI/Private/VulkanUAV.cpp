@@ -6,16 +6,11 @@
 FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHIResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat)
 	: VulkanRHI::FDeviceChild(Device)
 	, BufferViewFormat(InFormat)
-	, SRGBOverride(SRGBO_Default)
 	, SourceTexture(nullptr)
 	, SourceStructuredBuffer(nullptr)
-	, MipLevel(0)
-	, NumMips(-1)
 	, Size(InSize)
 	, SourceBuffer(InSourceBuffer)
 	, SourceRHIBuffer(InRHIBuffer)
-	, VolatileBufferHandle(VK_NULL_HANDLE)
-	, VolatileLockCounter(MAX_uint32)
 {
 	check(Device);
 	if(SourceBuffer)
