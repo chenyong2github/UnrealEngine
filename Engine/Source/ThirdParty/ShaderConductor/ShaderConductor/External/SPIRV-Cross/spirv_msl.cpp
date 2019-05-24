@@ -8643,6 +8643,7 @@ void CompilerMSL::OpCodePreprocessor::check_resource_write(uint32_t var_id)
 }
 
 /* UE Change Begin: Storage buffer robustness */
+/* UE Change Begin: Fix loads from tessellation control inputs not being forwarded to the gl_in structure array */
 std::string CompilerMSL::access_chain_internal(uint32_t base, const uint32_t *indices, uint32_t count, AccessChainFlags flags, AccessChainMeta *meta)
 {
 	std::string expr;
@@ -8687,7 +8688,17 @@ std::string CompilerMSL::access_chain_internal(uint32_t base, const uint32_t *in
 	bool pending_array_enclose = false;
 	bool dimension_flatten = false;
 	
+	auto* tess_var = maybe_get_backing_variable(base);
+	bool tess_control_input = (get_execution_model() == ExecutionModelTessellationControl && tess_var && tess_var->storage == StorageClassInput);
+	
 	const auto append_index = [&](uint32_t index) {
+		std::string name;
+		
+		if (tess_control_input) {
+			name = expr;
+			expr = "gl_in";
+		}
+		
 		expr += "[";
 		
 		if (ssbo)
@@ -8728,6 +8739,12 @@ std::string CompilerMSL::access_chain_internal(uint32_t base, const uint32_t *in
 		}
 		
 		expr += "]";
+		
+		if (tess_control_input) {
+			expr += ".";
+			expr += name;
+			tess_control_input = false;
+		}
 	};
 	
 	for (uint32_t i = 0; i < count; i++)
@@ -8980,6 +8997,7 @@ std::string CompilerMSL::access_chain_internal(uint32_t base, const uint32_t *in
 	
 	return expr;
 }
+/* UE Change End: Fix loads from tessellation control inputs not being forwarded to the gl_in structure array */
 /* UE Change End: Storage buffer robustness */
 
 // Returns an enumeration of a SPIR-V function that needs to be output for certain Op codes.
