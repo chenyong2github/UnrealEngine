@@ -8,8 +8,6 @@
 #include "AppleARKitConversion.h"
 #include "AppleARKitVideoOverlay.h"
 #include "AppleARKitFrame.h"
-#include "AppleARKitAnchor.h"
-#include "AppleARKitPlaneAnchor.h"
 #include "AppleARKitConversion.h"
 #include "GeneralProjectSettings.h"
 #include "ARSessionConfig.h"
@@ -1810,10 +1808,6 @@ void FAppleARKitSystem::SessionDidUpdateAnchors_Internal( TSharedRef<FAppleARKit
 				{
 					FaceGeo->UpdateFaceGeometry(ARComponent.ToSharedRef(), AnchorData->FrameNumber, AnchorData->Timestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), AnchorData->BlendShapes, AnchorData->FaceVerts, AnchorData->FaceIndices, TArray<FVector2D>(), AnchorData->LeftEyeTransform, AnchorData->RightEyeTransform, AnchorData->LookAtTarget);
 					FaceGeo->SetTrackingState(AnchorData->bIsTracked ? EARTrackingState::Tracking : EARTrackingState::NotTracking);
-					// @todo JoeG -- remove this in 4.22
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					FaceGeo->bIsTracked = AnchorData->bIsTracked;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					for (UARPin* Pin : PinsToUpdate)
 					{
 						const FTransform Pin_LocalToTrackingTransform_PostUpdate = Pin->GetLocalToTrackingTransform_NoAlignment() * AnchorDeltaTransform;
@@ -1831,10 +1825,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					FVector2D PhysicalSize((*CandidateImage)->GetPhysicalWidth(), (*CandidateImage)->GetPhysicalHeight());
 					ImageAnchor->UpdateTrackedGeometry(ARComponent.ToSharedRef(), AnchorData->FrameNumber, AnchorData->Timestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), PhysicalSize, *CandidateImage);
 					ImageAnchor->SetTrackingState(AnchorData->bIsTracked ? EARTrackingState::Tracking : EARTrackingState::NotTracking);
-					// @todo JoeG -- remove this in 4.22
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					ImageAnchor->bIsTracked = AnchorData->bIsTracked;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					for (UARPin* Pin : PinsToUpdate)
 					{
 						const FTransform Pin_LocalToTrackingTransform_PostUpdate = Pin->GetLocalToTrackingTransform_NoAlignment() * AnchorDeltaTransform;

@@ -189,11 +189,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Image Detection")
 	FVector2D GetEstimateSize();
 
-	UE_DEPRECATED(4.21, "This property is now deprecated, please use GetTrackingState() and check for EARTrackingState::Tracking or IsTracked() instead.")
-	/** Whether the image is currently being tracked by the AR system */
-	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality|Face Geometry")
-	bool bIsTracked;
-
 protected:
 	/** The candidate image that was detected in the scene */
 	UPROPERTY()

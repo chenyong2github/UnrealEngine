@@ -58,12 +58,6 @@ struct APPLEARKIT_API FAppleARKitHitTestResult
 
 #if SUPPORTS_ARKIT_1_0
 
-	/** 
-	 * This is a conversion copy-constructor that takes a raw ARHitTestResult and fills this 
-	 * structs members with the UE4-ified versions of ARHitTestResult's properties.
-	 */ 
-	FAppleARKitHitTestResult( ARHitTestResult* InARHitTestResult, class UDEPRECATED_AppleARKitAnchor* InAnchor = nullptr, float WorldToMetersScale = 100.0f );
-
 #endif
 
 	/**
@@ -84,12 +78,4 @@ struct APPLEARKIT_API FAppleARKitHitTestResult
 	 */
     UPROPERTY( BlueprintReadOnly, Category = "AppleARKitHitTestResult")
 	FTransform Transform;
-
-	/**
-	 * The anchor that the hit-test intersected.
-	 * 
-	 * An anchor will only be provided for existing plane result types.
-	 */
-	UPROPERTY()
-	class UDEPRECATED_AppleARKitAnchor* Anchor_DEPRECATED = nullptr;
 };
