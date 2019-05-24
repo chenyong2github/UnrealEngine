@@ -636,3 +636,5 @@ void FMaterialList::AddMaterialItem( FDetailWidgetRow& Row, int32 CurrentSlot, c
 		RightSideContent.ToSharedRef()
 	];
 }
+
+#undef LOCTEXT_NAMESPACE
