@@ -144,7 +144,7 @@ private:
 		TSharedPtr<FAnalysisSession> AnalysisSession;
 	};
 
-	void AnalyzeInternal(TSharedRef<FAnalysisSession> AnalysisSession, Trace::IInDataStream& DataStream);
+	void AnalyzeInternal(TSharedRef<FAnalysisSession> AnalysisSession, Trace::IInDataStream* DataStream);
 
 	FAnalysisStartedEvent AnalysisStartedEvent;
 	FAnalysisFinishedEvent AnalysisFinishedEvent;

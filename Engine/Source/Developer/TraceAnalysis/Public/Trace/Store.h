@@ -15,6 +15,7 @@ typedef uint64 FSessionHandle;
 
 struct FSessionInfo
 {
+	const TCHAR* Uri;
 	const TCHAR* Name;
 	bool bIsLive;
 };

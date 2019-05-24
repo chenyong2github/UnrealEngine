@@ -19,6 +19,10 @@ FFileStream::~FFileStream()
 
 int32 FFileStream::Read(void* Data, uint32 Size)
 {
+	if (!Inner)
+	{
+		return 0;
+	}
 	uint64 Remaining = End - Cursor;
 	if (Remaining == 0)
 	{
@@ -41,15 +45,20 @@ void FFileStream::UpdateFileSize()
 {
 	delete Inner;
 	OpenFileInternal();
-	Inner->Seek(Cursor);
+	if (Inner)
+	{
+		Inner->Seek(Cursor);
+	}
 }
 
 void FFileStream::OpenFileInternal()
 {
 	IPlatformFile& FileSystem = IPlatformFile::GetPlatformPhysical();
 	Inner = FileSystem.OpenRead(*FilePath, true);
-	check(Inner != nullptr);
-	End = Inner->Size();
+	if (Inner)
+	{
+		End = Inner->Size();
+	}
 }
 
 FStreamReader::FStreamReader(IInDataStream& InDataStream)
@@ -65,6 +74,11 @@ FStreamReader::~FStreamReader()
 
 IInDataStream* DataStream_ReadFile(const TCHAR* FilePath)
 {
+	IPlatformFile& FileSystem = IPlatformFile::GetPlatformPhysical();
+	if (!FileSystem.FileExists(FilePath))
+	{
+		return nullptr;
+	}
 	return new FFileStream(FilePath);
 }
 

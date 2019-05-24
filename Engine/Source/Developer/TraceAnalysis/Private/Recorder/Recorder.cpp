@@ -68,7 +68,11 @@ uint32 FRecorder::FSession::Run()
 			break;
 		}
 
-		StoreSession->Write(Buffer, RecvSize);
+		if (!StoreSession->Write(Buffer, RecvSize))
+		{
+			bDead = true;
+			break;
+		}
 	}
 	while (!bDead);
 
@@ -109,9 +113,14 @@ FRecorder::FSession* FRecorder::AcceptSession(FSocket& Socket)
 		return nullptr;
 	}
 
+	IOutDataStream* StoreSession = Store->CreateNewSession();
+	if (!StoreSession)
+	{
+		return nullptr;
+	}
 	FSession* Session = new FSession();
 	Session->Socket = &Socket;
-	Session->StoreSession = Store->CreateNewSession();
+	Session->StoreSession = StoreSession;
 	Session->Thread = FRunnableThread::Create(Session, TEXT("TraceRecSession"));
 	return Session;
 }

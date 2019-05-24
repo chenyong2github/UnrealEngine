@@ -18,7 +18,7 @@ class IOutDataStream
 {
 public:
 	virtual			~IOutDataStream() = default;
-	virtual void	Write(const void* Data, uint32 Size) = 0;
+	virtual bool	Write(const void* Data, uint32 Size) = 0;
 };
 
 TRACEANALYSIS_API IInDataStream* DataStream_ReadFile(const TCHAR* FilePath);

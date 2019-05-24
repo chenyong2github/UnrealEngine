@@ -61,7 +61,8 @@ void FAnalysisSessionLock::EndEdit()
 }
 
 FAnalysisSession::FAnalysisSession(const TCHAR* SessionName)
-	: DurationSeconds(0.0)
+	: Name(SessionName)
+	, DurationSeconds(0.0)
 	, Allocator(32 << 20)
 	, StringStore(Allocator)
 	, BookmarkProvider(Lock, StringStore)
@@ -89,7 +90,7 @@ FAnalysisService::FAnalysisWorker::FAnalysisWorker(FAnalysisService& InOuter, TU
 	
 }
 
-void FAnalysisService::AnalyzeInternal(TSharedRef<FAnalysisSession> AnalysisSession, Trace::IInDataStream& DataStream)
+void FAnalysisService::AnalyzeInternal(TSharedRef<FAnalysisSession> AnalysisSession, Trace::IInDataStream* DataStream)
 {
 	OnAnalysisStarted().Broadcast(AnalysisSession);
 
@@ -112,13 +113,15 @@ void FAnalysisService::AnalyzeInternal(TSharedRef<FAnalysisSession> AnalysisSess
 	}
 	Trace::FAnalysisProcessor Processor = Context.Process();
 
-	Processor.Start(DataStream);
+	Processor.Start(*DataStream);
 
 	for (Trace::IAnalyzer* Analyzer : Analyzers)
 	{
 		delete Analyzer;
 	}
 	Analyzers.Empty();
+
+	delete DataStream;
 
 	AnalysisSession->SetComplete();
 
@@ -127,7 +130,7 @@ void FAnalysisService::AnalyzeInternal(TSharedRef<FAnalysisSession> AnalysisSess
 
 void FAnalysisService::FAnalysisWorker::DoWork()
 {
-	Outer.AnalyzeInternal(AnalysisSession.ToSharedRef(), *DataStream.Get());
+	Outer.AnalyzeInternal(AnalysisSession.ToSharedRef(), DataStream.Release());
 	AnalysisSession = nullptr;
 }
 
@@ -143,7 +146,7 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::Analyze(const TCHAR* Sessio
 {
 	TSharedRef<FAnalysisSession> AnalysisSession = MakeShared<FAnalysisSession>(SessionName);
 	TUniquePtr<Trace::IInDataStream> DataStream = MoveTemp(InDataStream);
-	AnalyzeInternal(AnalysisSession, *DataStream.Get());
+	AnalyzeInternal(AnalysisSession, DataStream.Release());
 	return AnalysisSession;
 }
 

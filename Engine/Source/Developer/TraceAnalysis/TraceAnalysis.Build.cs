@@ -8,5 +8,6 @@ public class TraceAnalysis : ModuleRules
 	{
 		PrivateDependencyModuleNames.Add("Core");
 		PrivateDependencyModuleNames.Add("Sockets");
+		PrivateDependencyModuleNames.Add("DirectoryWatcher");
 	}
 }
