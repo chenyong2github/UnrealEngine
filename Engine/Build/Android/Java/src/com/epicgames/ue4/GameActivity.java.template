@@ -2652,6 +2652,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 						// remember down time and position
 						downTime = System.currentTimeMillis();
 						downX = event.getX();
+						consoleInputBox.requestFocus();
 						return true;
 					}
 					case MotionEvent.ACTION_UP: {
