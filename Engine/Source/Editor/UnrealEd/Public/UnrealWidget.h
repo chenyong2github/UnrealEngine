@@ -13,6 +13,7 @@ class FPrimitiveDrawInterface;
 class FSceneView;
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
+class FMaterialRenderProxy;
 
 /** Coordinate system identifiers. */
 enum ECoordSystem
