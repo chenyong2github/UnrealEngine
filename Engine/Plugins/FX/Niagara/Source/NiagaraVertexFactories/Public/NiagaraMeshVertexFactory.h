@@ -162,7 +162,7 @@ public:
 	
 	//uint8* LockPreviousTransformBuffer(uint32 ParticleCount);
 	//void UnlockPreviousTransformBuffer();
-	//FShaderResourceViewRHIParamRef GetPreviousTransformBufferSRV() const;
+	//FRHIShaderResourceView* GetPreviousTransformBufferSRV() const;
 
 	/**
 	* Copy the data from another vertex factory

@@ -122,10 +122,10 @@ public:
 		FIntVector VarianceDimensions,
 		const FRWBuffer& VarianceMipTree,
 		// Output
-		FUnorderedAccessViewRHIParamRef RadianceUAV,
-		FUnorderedAccessViewRHIParamRef SampleCountUAV,
-		FUnorderedAccessViewRHIParamRef PixelPositionUAV,
-		FUnorderedAccessViewRHIParamRef RayCountPerPixelUAV)
+		FRHIUnorderedAccessView* RadianceUAV,
+		FRHIUnorderedAccessView* SampleCountUAV,
+		FRHIUnorderedAccessView* PixelPositionUAV,
+		FRHIUnorderedAccessView* RayCountPerPixelUAV)
 	{
 
 		GlobalResources.Set(TLASParameter, RayTracingScene.RayTracingSceneRHI->GetShaderResourceView());

@@ -125,7 +125,7 @@ static void ClearQuadSetup( FRHICommandList& RHICmdList, bool bClearColor, int32
 	PixelShader->SetColors(RHICmdList, ClearColorArray, NumClearColors);
 }
 
-static void ClearUAVShader(FRHICommandList& RHICmdList, FUnorderedAccessViewRHIParamRef UnorderedAccessViewRHI, uint32 SizeInBytes, uint32 ClearValue)
+static void ClearUAVShader(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UnorderedAccessViewRHI, uint32 SizeInBytes, uint32 ClearValue)
 {
 	UE_CLOG((SizeInBytes & 0x3) != 0, LogClearQuad, Warning,
 		TEXT("Buffer size is not a multiple of DWORDs. Up to 3 bytes after buffer end will also be cleared"));
@@ -239,7 +239,7 @@ inline void ClearUAV_T(FRHICommandList& RHICmdList, FRHITexture* Texture, FRHIUn
 	}
 }
 
-void ClearTexture2DUAV(FRHICommandList& RHICmdList, FUnorderedAccessViewRHIParamRef UAV, int32 Width, int32 Height, const FLinearColor& ClearColor)
+void ClearTexture2DUAV(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, int32 Width, int32 Height, const FLinearColor& ClearColor)
 {
 	TShaderMapRef< FClearTexture2DReplacementCS<float> > ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 	FComputeShaderRHIParamRef ShaderRHI = ComputeShader->GetComputeShader();

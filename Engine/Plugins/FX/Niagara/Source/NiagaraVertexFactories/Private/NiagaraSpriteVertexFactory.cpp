@@ -91,7 +91,7 @@ public:
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraSpriteVFLooseParameters>(), SpriteVF->LooseParameterUniformBuffer);
 		
 		ShaderBindings.Add(NumCutoutVerticesPerFrame, SpriteVF->GetNumCutoutVerticesPerFrame());
-		FShaderResourceViewRHIParamRef NullSRV = GFNiagaraNullCutoutVertexBuffer.VertexBufferSRV;
+		FRHIShaderResourceView* NullSRV = GFNiagaraNullCutoutVertexBuffer.VertexBufferSRV;
 		ShaderBindings.Add(CutoutGeometry, SpriteVF->GetCutoutGeometrySRV() ? SpriteVF->GetCutoutGeometrySRV() : NullSRV);
 
 		ShaderBindings.Add(ParticleAlignmentMode, SpriteVF->GetAlignmentMode());

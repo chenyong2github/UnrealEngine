@@ -92,7 +92,7 @@ bool FNiagaraSortKeyGenCS::Serialize(FArchive& Ar)
 	return bShaderHasOutdatedParameters;
 }
 
-void FNiagaraSortKeyGenCS::SetOutput(FRHICommandList& RHICmdList, FUnorderedAccessViewRHIParamRef OutKeysUAV, FUnorderedAccessViewRHIParamRef OutIndicesUAV)
+void FNiagaraSortKeyGenCS::SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* OutKeysUAV, FRHIUnorderedAccessView* OutIndicesUAV)
 {
 	FComputeShaderRHIParamRef ComputeShaderRHI = GetComputeShader();
 	if (OutKeys.IsBound())
@@ -130,19 +130,19 @@ void FNiagaraSortKeyGenCS::UnbindBuffers(FRHICommandList& RHICmdList)
 	FComputeShaderRHIParamRef ComputeShaderRHI = GetComputeShader();
 	if (NiagaraParticleDataFloat.IsBound())
 	{
-		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, NiagaraParticleDataFloat.GetBaseIndex(), FShaderResourceViewRHIParamRef());
+		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, NiagaraParticleDataFloat.GetBaseIndex(), nullptr);
 	}
 	if (GPUParticleCountBuffer.IsBound())
 	{
-		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, GPUParticleCountBuffer.GetBaseIndex(), FShaderResourceViewRHIParamRef());
+		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, GPUParticleCountBuffer.GetBaseIndex(), nullptr);
 	}
 	if (OutKeys.IsBound())
 	{
-		RHICmdList.SetUAVParameter(ComputeShaderRHI, OutKeys.GetBaseIndex(), FUnorderedAccessViewRHIParamRef());
+		RHICmdList.SetUAVParameter(ComputeShaderRHI, OutKeys.GetBaseIndex(), nullptr);
 	}
 	if (OutParticleIndices.IsBound())
 	{
-		RHICmdList.SetUAVParameter(ComputeShaderRHI, OutParticleIndices.GetBaseIndex(), FUnorderedAccessViewRHIParamRef());
+		RHICmdList.SetUAVParameter(ComputeShaderRHI, OutParticleIndices.GetBaseIndex(), nullptr);
 	}
 }
 
@@ -173,8 +173,8 @@ bool FNiagaraCopyIntBufferRegionCS::Serialize(FArchive& Ar)
 
 void FNiagaraCopyIntBufferRegionCS::SetParameters(
 	FRHICommandList& RHICmdList,
-	const FShaderResourceViewRHIParamRef InSourceData,
-	const FUnorderedAccessViewRHIParamRef* InDestDatas,
+	FRHIShaderResourceView* InSourceData,
+	FRHIUnorderedAccessView* const* InDestDatas,
 	const int32* InUsedIndexCounts,
 	int32 StartingIndex,
 	int32 DestCount)
@@ -205,13 +205,13 @@ void FNiagaraCopyIntBufferRegionCS::UnbindBuffers(FRHICommandList& RHICmdList)
 	FComputeShaderRHIParamRef ComputeShaderRHI = GetComputeShader();
 	if (SourceData.IsBound())
 	{
-		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, SourceData.GetBaseIndex(), FShaderResourceViewRHIParamRef());
+		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, SourceData.GetBaseIndex(), nullptr);
 	}
 	for (int32 Index = 0; Index < NIAGARA_COPY_BUFFER_BUFFER_COUNT; ++Index)
 	{
 		if (DestData[Index].IsBound())
 		{
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, DestData[Index].GetBaseIndex(), FUnorderedAccessViewRHIParamRef());
+			RHICmdList.SetUAVParameter(ComputeShaderRHI, DestData[Index].GetBaseIndex(), nullptr);
 		}
 	}
 }

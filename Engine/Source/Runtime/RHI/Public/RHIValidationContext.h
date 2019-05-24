@@ -65,7 +65,7 @@ public:
 	* @param NumUAVs - number of UAVs to transition
 	* @param WriteComputeFence - Optional ComputeFence to write as part of this transition
 	*/
-	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence) override final
+	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence) override final
 	{
 		RHIContext->RHITransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, WriteComputeFence);
 	}
@@ -100,7 +100,7 @@ public:
 	* @param UAVIndex		The index of the UAVIndex.
 	* @param UAV			The new UAV.
 	*/
-	virtual void RHISetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FUnorderedAccessViewRHIParamRef UAV) override final
+	virtual void RHISetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV) override final
 	{
 		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
 		RHIContext->RHISetUAVParameter(Shader, UAVIndex, UAV);
@@ -113,13 +113,13 @@ public:
 	* @param UAV			The new UAV.
 	* @param InitialCount	The initial number of items in the UAV.
 	*/
-	virtual void RHISetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FUnorderedAccessViewRHIParamRef UAV, uint32 InitialCount) override final
+	virtual void RHISetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV, uint32 InitialCount) override final
 	{
 		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
 		RHIContext->RHISetUAVParameter(Shader, UAVIndex, UAV, InitialCount);
 	}
 
-	virtual void RHISetShaderResourceViewParameter(FComputeShaderRHIParamRef Shader, uint32 SamplerIndex, FShaderResourceViewRHIParamRef SRV) override final
+	virtual void RHISetShaderResourceViewParameter(FComputeShaderRHIParamRef Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
 	{
 		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
@@ -232,7 +232,7 @@ public:
 	}
 
 	/** Clears a UAV to the multi-component value provided. */
-	virtual void RHIClearTinyUAV(FUnorderedAccessViewRHIParamRef UnorderedAccessViewRHI, const uint32* Values) override final
+	virtual void RHIClearTinyUAV(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const uint32* Values) override final
 	{
 		RHIContext->RHIClearTinyUAV(UnorderedAccessViewRHI, Values);
 	}
@@ -273,7 +273,7 @@ public:
 	* @param NumUAVs - number of UAVs to transition
 	* @param WriteComputeFence - Optional ComputeFence to write as part of this transition
 	*/
-	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence) override final
+	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence) override final
 	{
 		RHIContext->RHITransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, WriteComputeFence);
 	}
@@ -364,12 +364,12 @@ public:
 		RHIContext->RHIEndUpdateMultiFrameResource(Texture);
 	}
 
-	virtual void RHIBeginUpdateMultiFrameResource(FUnorderedAccessViewRHIParamRef UAV) override final
+	virtual void RHIBeginUpdateMultiFrameResource(FRHIUnorderedAccessView* UAV) override final
 	{
 		RHIContext->RHIBeginUpdateMultiFrameResource(UAV);
 	}
 
-	virtual void RHIEndUpdateMultiFrameResource(FUnorderedAccessViewRHIParamRef UAV) override final
+	virtual void RHIEndUpdateMultiFrameResource(FRHIUnorderedAccessView* UAV) override final
 	{
 		RHIContext->RHIEndUpdateMultiFrameResource(UAV);
 	}
@@ -535,7 +535,7 @@ public:
 	* @param UAVIndex		The index of the UAVIndex.
 	* @param UAV			The new UAV.
 	*/
-	virtual void RHISetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FUnorderedAccessViewRHIParamRef UAV) override final
+	virtual void RHISetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV) override final
 	{
 		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
 		RHIContext->RHISetUAVParameter(Shader, UAVIndex, UAV);
@@ -548,43 +548,43 @@ public:
 	* @param UAV			The new UAV.
 	* @param InitialCount	The initial number of items in the UAV.
 	*/
-	virtual void RHISetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FUnorderedAccessViewRHIParamRef UAV, uint32 InitialCount) override final
+	virtual void RHISetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV, uint32 InitialCount) override final
 	{
 		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
 		RHIContext->RHISetUAVParameter(Shader, UAVIndex, UAV, InitialCount);
 	}
 
-	virtual void RHISetShaderResourceViewParameter(FPixelShaderRHIParamRef Shader, uint32 SamplerIndex, FShaderResourceViewRHIParamRef SRV) override final
+	virtual void RHISetShaderResourceViewParameter(FPixelShaderRHIParamRef Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
 	{
 		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
 	}
 
-	virtual void RHISetShaderResourceViewParameter(FVertexShaderRHIParamRef Shader, uint32 SamplerIndex, FShaderResourceViewRHIParamRef SRV) override final
+	virtual void RHISetShaderResourceViewParameter(FVertexShaderRHIParamRef Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
 	{
 		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
 	}
 
-	virtual void RHISetShaderResourceViewParameter(FComputeShaderRHIParamRef Shader, uint32 SamplerIndex, FShaderResourceViewRHIParamRef SRV) override final
+	virtual void RHISetShaderResourceViewParameter(FComputeShaderRHIParamRef Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
 	{
 		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
 	}
 
-	virtual void RHISetShaderResourceViewParameter(FHullShaderRHIParamRef Shader, uint32 SamplerIndex, FShaderResourceViewRHIParamRef SRV) override final
+	virtual void RHISetShaderResourceViewParameter(FHullShaderRHIParamRef Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
 	{
 		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
 	}
 
-	virtual void RHISetShaderResourceViewParameter(FDomainShaderRHIParamRef Shader, uint32 SamplerIndex, FShaderResourceViewRHIParamRef SRV) override final
+	virtual void RHISetShaderResourceViewParameter(FDomainShaderRHIParamRef Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
 	{
 		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
 	}
 
-	virtual void RHISetShaderResourceViewParameter(FGeometryShaderRHIParamRef Shader, uint32 SamplerIndex, FShaderResourceViewRHIParamRef SRV) override final
+	virtual void RHISetShaderResourceViewParameter(FGeometryShaderRHIParamRef Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
 	{
 		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
@@ -674,7 +674,7 @@ public:
 		RHIContext->RHISetBlendFactor(BlendFactor);
 	}
 
-	virtual void RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget, uint32 NumUAVs, const FUnorderedAccessViewRHIParamRef* UAVs) override final
+	virtual void RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget, uint32 NumUAVs, FRHIUnorderedAccessView* const* UAVs) override final
 	{
 		RHIContext->RHISetRenderTargets(NumSimultaneousRenderTargets, NewRenderTargets, NewDepthStencilTarget, NumUAVs, UAVs);
 	}
@@ -825,16 +825,16 @@ public:
 	}
 
 	virtual void RHIRayTraceOcclusion(FRayTracingSceneRHIParamRef Scene,
-		FShaderResourceViewRHIParamRef Rays,
-		FUnorderedAccessViewRHIParamRef Output,
+		FRHIShaderResourceView* Rays,
+		FRHIUnorderedAccessView* Output,
 		uint32 NumRays) override final
 	{
 		RHIContext->RHIRayTraceOcclusion(Scene, Rays, Output, NumRays);
 	}
 
 	virtual void RHIRayTraceIntersection(FRayTracingSceneRHIParamRef Scene,
-		FShaderResourceViewRHIParamRef Rays,
-		FUnorderedAccessViewRHIParamRef Output,
+		FRHIShaderResourceView* Rays,
+		FRHIUnorderedAccessView* Output,
 		uint32 NumRays) override final
 	{
 		RHIContext->RHIRayTraceIntersection(Scene, Rays, Output, NumRays);

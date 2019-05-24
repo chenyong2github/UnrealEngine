@@ -271,7 +271,7 @@ public:
 	}
 
 	template <typename TRHICmdList>
-	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, FUnorderedAccessViewRHIParamRef DestUAV, IPooledRenderTarget* LastEyeAdaptation)
+	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, FRHIUnorderedAccessView* DestUAV, IPooledRenderTarget* LastEyeAdaptation)
 	{
 		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 
@@ -416,7 +416,7 @@ void FRCPassPostProcessEyeAdaptation::Process(FRenderingCompositePassContext& Co
 }
 
 template <typename TRHICmdList>
-void FRCPassPostProcessEyeAdaptation::DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, FUnorderedAccessViewRHIParamRef DestUAV, IPooledRenderTarget* LastEyeAdaptation)
+void FRCPassPostProcessEyeAdaptation::DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, FRHIUnorderedAccessView* DestUAV, IPooledRenderTarget* LastEyeAdaptation)
 {
 	auto ShaderMap = Context.GetShaderMap();
 	TShaderMapRef<FPostProcessEyeAdaptationCS> ComputeShader(ShaderMap);
@@ -807,7 +807,7 @@ public:
 		OutComputeTex.UnsetUAV(Context.RHICmdList, ShaderRHI);
 	}
 
-	void SetParameters(const FRenderingCompositePassContext& Context, const FIntRect& SrcRect, IPooledRenderTarget* LastEyeAdaptation, FUnorderedAccessViewRHIParamRef DestUAV)
+	void SetParameters(const FRenderingCompositePassContext& Context, const FIntRect& SrcRect, IPooledRenderTarget* LastEyeAdaptation, FRHIUnorderedAccessView* DestUAV)
 	{
 		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 

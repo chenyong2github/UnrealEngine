@@ -1860,7 +1860,7 @@ void FOpenGLDynamicRHI::RHIGetResourceInfo(FTextureRHIParamRef Ref, FRHIResource
 FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FTextureRHIParamRef Texture, const FRHITextureSRVCreateInfo& CreateInfo)
 {
 #if 0
-	FOpenGLShaderResourceViewProxy *ViewProxy = new FOpenGLShaderResourceViewProxy([=](FShaderResourceViewRHIParamRef OwnerRHI)
+	FOpenGLShaderResourceViewProxy *ViewProxy = new FOpenGLShaderResourceViewProxy([=](FRHIShaderResourceView* OwnerRHI)
 	{
 		FOpenGLTexture2D* Texture2D = ResourceCast(Texture2DRHI);
 
@@ -1893,7 +1893,7 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FTextur
 #if 0
 FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FTexture2DRHIParamRef Texture2DRHI, uint8 MipLevel, uint8 NumMipLevels, uint8 Format)
 {
-	FOpenGLShaderResourceViewProxy *ViewProxy = new FOpenGLShaderResourceViewProxy([=](FShaderResourceViewRHIParamRef OwnerRHI)
+	FOpenGLShaderResourceViewProxy *ViewProxy = new FOpenGLShaderResourceViewProxy([=](FRHIShaderResourceView* OwnerRHI)
 	{
 		FOpenGLTexture2D* Texture2D = ResourceCast(Texture2DRHI);
 		FOpenGLShaderResourceView *View = 0;
@@ -2009,7 +2009,7 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FTextur
 
 FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FTexture3DRHIParamRef Texture3DRHI, uint8 MipLevel)
 {
-	FOpenGLShaderResourceViewProxy *ViewProxy = new FOpenGLShaderResourceViewProxy([=](FShaderResourceViewRHIParamRef OwnerRHI)
+	FOpenGLShaderResourceViewProxy *ViewProxy = new FOpenGLShaderResourceViewProxy([=](FRHIShaderResourceView* OwnerRHI)
 	{
 		FOpenGLTexture3D* Texture3D = ResourceCast(Texture3DRHI);
 
@@ -2040,7 +2040,7 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FTextur
 
 FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FTexture2DArrayRHIParamRef Texture2DArrayRHI, uint8 MipLevel)
 {
-	FOpenGLShaderResourceViewProxy *ViewProxy = new FOpenGLShaderResourceViewProxy([=](FShaderResourceViewRHIParamRef OwnerRHI)
+	FOpenGLShaderResourceViewProxy *ViewProxy = new FOpenGLShaderResourceViewProxy([=](FRHIShaderResourceView* OwnerRHI)
 	{
 		FOpenGLTexture2DArray* Texture2DArray = ResourceCast(Texture2DArrayRHI);
 		FOpenGLShaderResourceView *View = 0;
@@ -2071,7 +2071,7 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FTextur
 FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FTextureCubeRHIParamRef TextureCubeRHI, uint8 MipLevel)
 {
 
-	FOpenGLShaderResourceViewProxy *ViewProxy = new FOpenGLShaderResourceViewProxy([=](FShaderResourceViewRHIParamRef OwnerRHI)
+	FOpenGLShaderResourceViewProxy *ViewProxy = new FOpenGLShaderResourceViewProxy([=](FRHIShaderResourceView* OwnerRHI)
 	{
 		FOpenGLTextureCube* TextureCube = ResourceCast(TextureCubeRHI);
 		if (FOpenGL::SupportsTextureView())

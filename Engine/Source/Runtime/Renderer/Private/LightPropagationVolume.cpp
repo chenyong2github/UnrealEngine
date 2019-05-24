@@ -205,7 +205,7 @@ public:
 		SetUniformBufferParameter(RHICmdList, ShaderRHI, GetUniformBufferParameter<FLpvWriteUniformBufferParameters>(), Params.UniformBuffer );
 
 		TArray<int32> ResourceIndices;
-		TArray<FUnorderedAccessViewRHIParamRef> UAVs;
+		TArray<FRHIUnorderedAccessView*> UAVs;
 
 		for(int i  =0; i < 7; i++)
 		{
@@ -295,7 +295,7 @@ public:
 	void UnbindBuffers(FRHICommandList& RHICmdList, const FLpvBaseWriteShaderParams& Params)
 	{
 		TArray<int32> ResourceIndices;
-		TArray<FUnorderedAccessViewRHIParamRef> UAVs;
+		TArray<FRHIUnorderedAccessView*> UAVs;
 
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 		for ( int i = 0; i < 7; i++ )
@@ -312,7 +312,7 @@ public:
 	    }
 		if ( VplListHeadBufferSRV.IsBound() )
 		{
-			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, VplListHeadBufferSRV.GetBaseIndex(), FShaderResourceViewRHIParamRef() );
+			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, VplListHeadBufferSRV.GetBaseIndex(), nullptr );
 		}
 		if ( VplListHeadBufferUAV.IsBound() )
 		{
@@ -321,7 +321,7 @@ public:
 		}
 		if ( VplListBufferSRV.IsBound() )
 		{
-			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, VplListBufferSRV.GetBaseIndex(), FShaderResourceViewRHIParamRef() );
+			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, VplListBufferSRV.GetBaseIndex(), nullptr );
 		}
 		if ( VplListBufferUAV.IsBound() )
 		{
@@ -348,7 +348,7 @@ public:
 		}
 		if ( AOVolumeTextureSRV.IsBound() )
 		{
-			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, AOVolumeTextureSRV.GetBaseIndex(), FShaderResourceViewRHIParamRef() );
+			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, AOVolumeTextureSRV.GetBaseIndex(), nullptr );
 		}
 		if(GvListBufferUAV.IsBound())
 		{
@@ -362,16 +362,16 @@ public:
 		}
 		if ( GvListBufferSRV.IsBound() )
 		{
-			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, GvListBufferSRV.GetBaseIndex(), FShaderResourceViewRHIParamRef() );
+			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, GvListBufferSRV.GetBaseIndex(), nullptr );
 		}
 		if ( GvListHeadBufferSRV.IsBound() )
 		{
-			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, GvListHeadBufferSRV.GetBaseIndex(), FShaderResourceViewRHIParamRef() );
+			RHICmdList.SetShaderResourceViewParameter( ShaderRHI, GvListHeadBufferSRV.GetBaseIndex(), nullptr );
 		}
 
 		check(ResourceIndices.Num() == UAVs.Num());
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, UAVs.GetData(), UAVs.Num());
-		FUnorderedAccessViewRHIParamRef NullUAV = nullptr;
+		FRHIUnorderedAccessView* NullUAV = nullptr;
 		for (int32 i = 0; i < ResourceIndices.Num(); ++i)
 		{
 			RHICmdList.SetUAVParameter(ShaderRHI, ResourceIndices[i], NullUAV);
@@ -1055,7 +1055,7 @@ void FLightPropagationVolume::Clear(FRHICommandListImmediate& RHICmdList, FViewI
 
 	RHICmdList.SetUAVParameter( FComputeShaderRHIRef(), 7, mVplListBuffer->UAV, 0 );
 	RHICmdList.SetUAVParameter( FComputeShaderRHIRef(), 7, GvListBuffer->UAV, 0 );
-	RHICmdList.SetUAVParameter( FComputeShaderRHIRef(), 7, FUnorderedAccessViewRHIParamRef(), 0 );
+	RHICmdList.SetUAVParameter( FComputeShaderRHIRef(), 7, nullptr, 0 );
 }
 
 /**

@@ -43,7 +43,7 @@ class FShaderBindingState
 {
 public:
 	int32 MaxSRVUsed = -1;
-	FShaderResourceViewRHIParamRef SRVs[MAX_SRVs_PER_SHADER_STAGE] = {};
+	FRHIShaderResourceView* SRVs[MAX_SRVs_PER_SHADER_STAGE] = {};
 	int32 MaxUniformBufferUsed = -1;
 	FUniformBufferRHIParamRef UniformBuffers[MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE] = {};
 	int32 MaxTextureUsed = -1;
@@ -152,7 +152,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 
 		if (SRVType[TypeByteIndex] & (1 << TypeBitIndex))
 		{
-			FShaderResourceViewRHIParamRef SRV = (FShaderResourceViewRHIParamRef)SRVBindings[SRVIndex];
+			FRHIShaderResourceView* SRV = (FRHIShaderResourceView*)SRVBindings[SRVIndex];
 
 			if (SRV != ShaderBindingState.SRVs[Parameter.BaseIndex])
 			{
@@ -237,7 +237,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 
 		if (SRVType[TypeByteIndex] & (1 << TypeBitIndex))
 		{
-			FShaderResourceViewRHIParamRef SRV = (FShaderResourceViewRHIParamRef)SRVBindings[SRVIndex];
+			FRHIShaderResourceView* SRV = (FRHIShaderResourceView*)SRVBindings[SRVIndex];
 			RHICmdList.SetShaderResourceViewParameter(Shader, Parameter.BaseIndex, SRV);
 		}
 		else
@@ -652,7 +652,7 @@ void FMeshDrawShaderBindings::Finalize(const FMeshProcessorShaders* ShadersForDe
 
 			if (SRVType[TypeByteIndex] & (1 << TypeBitIndex))
 			{
-				FShaderResourceViewRHIParamRef SRV = (FShaderResourceViewRHIParamRef)SRVBindings[SRVIndex];
+				FRHIShaderResourceView* SRV = (FRHIShaderResourceView*)SRVBindings[SRVIndex];
 
 				ensureMsgf(SRV, TEXT("Shader %s with vertex factory %s never set SRV at BaseIndex %u.  This can cause GPU hangs, depending on how the shader uses it."), 
 					Shader->GetType()->GetName(), 

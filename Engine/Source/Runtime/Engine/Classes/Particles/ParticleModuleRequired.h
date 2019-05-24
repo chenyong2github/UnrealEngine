@@ -88,7 +88,7 @@ struct FParticleRequiredModule
 	uint32 NumBoundingTriangles;
 	float AlphaThreshold;
 	TArray<FVector2D> FrameData;
-	FShaderResourceViewRHIParamRef BoundingGeometryBufferSRV;
+	FRHIShaderResourceView* BoundingGeometryBufferSRV;
 };
 
 
@@ -424,7 +424,7 @@ class UParticleModuleRequired : public UParticleModule
 		return CutoutTexture != nullptr;
 	}
 
-	inline FShaderResourceViewRHIParamRef GetBoundingGeometrySRV() const
+	inline FRHIShaderResourceView* GetBoundingGeometrySRV() const
 	{
 		return BoundingGeometryBuffer->ShaderResourceView;
 	}

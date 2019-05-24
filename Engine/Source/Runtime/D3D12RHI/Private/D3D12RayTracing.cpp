@@ -2515,10 +2515,10 @@ static void SetRayTracingShaderResources(
 	FD3D12CommandContext& CommandContext,
 	const FD3D12RayTracingShader* Shader,
 	uint32 InNumTextures, const FTextureRHIParamRef* Textures,
-	uint32 InNumSRVs, const FShaderResourceViewRHIParamRef* SRVs,
+	uint32 InNumSRVs, FRHIShaderResourceView* const* SRVs,
 	uint32 InNumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
 	uint32 InNumSamplers, FRHISamplerState* const* Samplers,
-	uint32 InNumUAVs, const FUnorderedAccessViewRHIParamRef* UAVs,
+	uint32 InNumUAVs, FRHIUnorderedAccessView* const* UAVs,
 	uint32 InLooseParameterDataSize, const void* InLooseParameterData,
 	FD3D12RayTracingDescriptorCache& DescriptorCache,
 	ResourceBinderType& Binder)
@@ -2559,7 +2559,7 @@ static void SetRayTracingShaderResources(
 
 	for (uint32 SRVIndex = 0; SRVIndex < InNumSRVs; ++SRVIndex)
 	{
-		FShaderResourceViewRHIParamRef Resource = SRVs[SRVIndex];
+		FRHIShaderResourceView* Resource = SRVs[SRVIndex];
 		if (Resource)
 		{
 			FD3D12ShaderResourceView* SRV = CommandContext.RetrieveObject<FD3D12ShaderResourceView>(Resource);
@@ -2595,7 +2595,7 @@ static void SetRayTracingShaderResources(
 
 	for (uint32 UAVIndex = 0; UAVIndex < InNumUAVs; ++UAVIndex)
 	{
-		FUnorderedAccessViewRHIParamRef Resource = UAVs[UAVIndex];
+		FRHIUnorderedAccessView* Resource = UAVs[UAVIndex];
 		if (Resource)
 		{
 			FD3D12UnorderedAccessView* UAV = CommandContext.RetrieveObject<FD3D12UnorderedAccessView>(Resource);
@@ -2877,8 +2877,8 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 
 
 void FD3D12CommandContext::RHIRayTraceOcclusion(FRayTracingSceneRHIParamRef InScene,
-	FShaderResourceViewRHIParamRef Rays,
-	FUnorderedAccessViewRHIParamRef Output,
+	FRHIShaderResourceView* Rays,
+	FRHIUnorderedAccessView* Output,
 	uint32 NumRays)
 {
 	checkf(GetParentDevice()->GetBasicRayTracingPipeline(), TEXT("Ray tracing support is not initialized for this device. Ensure that InitRayTracing() is called before issuing any ray tracing work."));
@@ -2912,8 +2912,8 @@ void FD3D12CommandContext::RHIRayTraceOcclusion(FRayTracingSceneRHIParamRef InSc
 }
 
 void FD3D12CommandContext::RHIRayTraceIntersection(FRayTracingSceneRHIParamRef InScene,
-	FShaderResourceViewRHIParamRef InRays,
-	FUnorderedAccessViewRHIParamRef InOutput,
+	FRHIShaderResourceView* InRays,
+	FRHIUnorderedAccessView* InOutput,
 	uint32 NumRays)
 {
 	checkf(GetParentDevice()->GetBasicRayTracingPipeline(), TEXT("Ray tracing support is not initialized for this device. Ensure that InitRayTracing() is called before issuing any ray tracing work."));

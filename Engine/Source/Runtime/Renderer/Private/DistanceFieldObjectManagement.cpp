@@ -176,7 +176,7 @@ public:
 	{
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FScene* Scene, uint32 NumUploadOperationsValue, FShaderResourceViewRHIParamRef InUploadOperationIndices, FShaderResourceViewRHIParamRef InUploadOperationData)
+	void SetParameters(FRHICommandList& RHICmdList, const FScene* Scene, uint32 NumUploadOperationsValue, FRHIShaderResourceView* InUploadOperationIndices, FRHIShaderResourceView* InUploadOperationData)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 
@@ -194,7 +194,7 @@ public:
 		ObjectBufferParameters.UnsetParameters(RHICmdList, GetComputeShader(), *(Scene->DistanceFieldSceneData.ObjectBuffers), true);
 
 		const FDistanceFieldObjectBuffers& ObjectBuffers = *(Scene->DistanceFieldSceneData.ObjectBuffers);
-		FUnorderedAccessViewRHIParamRef OutUAVs[2];
+		FRHIUnorderedAccessView* OutUAVs[2];
 		OutUAVs[0] = ObjectBuffers.Bounds.UAV;
 		OutUAVs[1] = ObjectBuffers.Data.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
@@ -252,7 +252,7 @@ public:
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 
-		FUnorderedAccessViewRHIParamRef OutUAVs[2];
+		FRHIUnorderedAccessView* OutUAVs[2];
 		OutUAVs[0] = ObjectBuffersDest.Bounds.UAV;
 		OutUAVs[1] = ObjectBuffersDest.Data.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
@@ -269,7 +269,7 @@ public:
 		CopyObjectBounds.UnsetUAV(RHICmdList, GetComputeShader());
 		CopyObjectData.UnsetUAV(RHICmdList, GetComputeShader());
 
-		FUnorderedAccessViewRHIParamRef OutUAVs[2];
+		FRHIUnorderedAccessView* OutUAVs[2];
 		OutUAVs[0] = ObjectBuffersDest.Bounds.UAV;
 		OutUAVs[1] = ObjectBuffersDest.Data.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
@@ -326,7 +326,7 @@ public:
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 
-		FUnorderedAccessViewRHIParamRef OutUAVs[2];
+		FRHIUnorderedAccessView* OutUAVs[2];
 		OutUAVs[0] = SurfelBuffersDest.InterpolatedVertexData.UAV;
 		OutUAVs[1] = SurfelBuffersDest.Surfels.UAV;		
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
@@ -343,7 +343,7 @@ public:
 		CopyInterpolatedVertexData.UnsetUAV(RHICmdList, GetComputeShader());
 		CopySurfelData.UnsetUAV(RHICmdList, GetComputeShader());
 
-		FUnorderedAccessViewRHIParamRef OutUAVs[2];
+		FRHIUnorderedAccessView* OutUAVs[2];
 		OutUAVs[0] = SurfelBuffersDest.InterpolatedVertexData.UAV;
 		OutUAVs[1] = SurfelBuffersDest.Surfels.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
@@ -469,9 +469,9 @@ public:
 		FRHICommandList& RHICmdList, 
 		const FScene* Scene, 
 		uint32 NumRemoveOperationsValue, 
-		FShaderResourceViewRHIParamRef InRemoveOperationIndices, 
-		FShaderResourceViewRHIParamRef InObjectBounds2, 
-		FShaderResourceViewRHIParamRef InObjectData2)
+		FRHIShaderResourceView* InRemoveOperationIndices,
+		FRHIShaderResourceView* InObjectBounds2,
+		FRHIShaderResourceView* InObjectData2)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 

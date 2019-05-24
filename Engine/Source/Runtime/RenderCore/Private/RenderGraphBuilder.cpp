@@ -802,7 +802,7 @@ void FRDGBuilder::TransitionTexture(FRDGTexture* Texture, ERDGPassAccess PassAcc
 }
 
 void FRDGBuilder::TransitionUAV(
-	FUnorderedAccessViewRHIParamRef UAV,
+	FRHIUnorderedAccessView* UAV,
 	FRDGTrackedResource* UnderlyingResource,
 	ERDGPassAccess PassAccessAfter,
 	ERDGPassPipeline PassPipelineAfter) const
@@ -961,7 +961,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
 			{
 				FRDGTextureRef Texture = UAV->Desc.Texture;
-				FUnorderedAccessViewRHIParamRef UAVRHI = UAV->GetRHI();
+				FRHIUnorderedAccessView* UAVRHI = UAV->GetRHI();
 
 				if (PassPipeline == ERDGPassPipeline::Graphics)
 				{
@@ -994,7 +994,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				// TODO(RDG): super hacky, find the UAV and transition it. Hopefully there is one...
 				check(Buffer->PooledBuffer);
 				check(Buffer->PooledBuffer->UAVs.Num() == 1);
-				FUnorderedAccessViewRHIParamRef UAV = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
+				FRHIUnorderedAccessView* UAV = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
 
 				TransitionUAV(UAV, Buffer, ERDGPassAccess::Write, PassPipeline);
 			}
@@ -1017,7 +1017,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				// TODO(RDG): super hacky, find the UAV and transition it. Hopefully there is one...
 				check(Buffer->PooledBuffer);
 				check(Buffer->PooledBuffer->UAVs.Num() == 1);
-				FUnorderedAccessViewRHIParamRef UAV = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
+				FRHIUnorderedAccessView* UAV = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
 
 				AllocateRHIBufferSRVIfNeeded(SRV);
 				TransitionUAV(UAV, Buffer, ERDGPassAccess::Read, PassPipeline);
@@ -1029,7 +1029,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
 			{
 				FRDGBufferRef Buffer = UAV->Desc.Buffer;
-				FUnorderedAccessViewRHIParamRef UAVRHI = UAV->GetRHI();
+				FRHIUnorderedAccessView* UAVRHI = UAV->GetRHI();
 
 				if (PassPipeline == ERDGPassPipeline::Graphics)
 				{

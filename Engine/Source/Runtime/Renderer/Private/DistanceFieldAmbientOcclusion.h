@@ -155,7 +155,7 @@ public:
 		ObjectTilesIndirectArguments.SetBuffer(RHICmdList, ShaderRHI, TileIntersectionResources.ObjectTilesIndirectArguments);
 	}
 
-	void GetUAVs(FTileIntersectionResources& TileIntersectionResources, TArray<FUnorderedAccessViewRHIParamRef>& UAVs)
+	void GetUAVs(FTileIntersectionResources& TileIntersectionResources, TArray<FRHIUnorderedAccessView*>& UAVs)
 	{
 		uint32 MaxIndex = 0;
 		

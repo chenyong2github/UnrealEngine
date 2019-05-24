@@ -15,14 +15,14 @@
 struct FGPUSortBuffers
 {
 	/** Shader resource views for vertex buffers containing the keys. */
-	FShaderResourceViewRHIParamRef RemoteKeySRVs[2];
+	FRHIShaderResourceView* RemoteKeySRVs[2];
 	/** Unordered access views for vertex buffers containing the keys. */
-	FUnorderedAccessViewRHIParamRef RemoteKeyUAVs[2];
+	FRHIUnorderedAccessView* RemoteKeyUAVs[2];
 
 	/** Shader resource views for vertex buffers containing the values. */
-	FShaderResourceViewRHIParamRef RemoteValueSRVs[2];
+	FRHIShaderResourceView* RemoteValueSRVs[2];
 	/** Unordered access views for vertex buffers containing the values. */
-	FUnorderedAccessViewRHIParamRef RemoteValueUAVs[2];
+	FRHIUnorderedAccessView* RemoteValueUAVs[2];
 
 	/** Default constructor. */
 	FGPUSortBuffers()

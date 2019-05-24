@@ -136,7 +136,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FScene* Scene, const FSceneView& View, const FDistanceFieldAOParameters& Parameters)
 	{
-		FUnorderedAccessViewRHIParamRef OutUAVs[6];
+		FRHIUnorderedAccessView* OutUAVs[6];
 		OutUAVs[0] = GAOCulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV;
 		OutUAVs[1] = GAOCulledObjectBuffers.Buffers.Bounds.UAV;
 		OutUAVs[2] = GAOCulledObjectBuffers.Buffers.Data.UAV;
@@ -163,7 +163,7 @@ public:
 		ObjectBufferParameters.UnsetParameters(RHICmdList, GetComputeShader(), *(Scene->DistanceFieldSceneData.ObjectBuffers));
 		CulledObjectParameters.UnsetParameters(RHICmdList, GetComputeShader());
 
-		FUnorderedAccessViewRHIParamRef OutUAVs[6];
+		FRHIUnorderedAccessView* OutUAVs[6];
 		OutUAVs[0] = GAOCulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV;
 		OutUAVs[1] = GAOCulledObjectBuffers.Buffers.Bounds.UAV;
 		OutUAVs[2] = GAOCulledObjectBuffers.Buffers.Data.UAV;
@@ -271,7 +271,7 @@ public:
 
 		FTileIntersectionResources* TileIntersectionResources = ((FSceneViewState*)View.State)->AOTileIntersectionResources;
 
-		FUnorderedAccessViewRHIParamRef OutUAVs[2];
+		FRHIUnorderedAccessView* OutUAVs[2];
 		OutUAVs[0] = TileIntersectionResources->TileConeAxisAndCos.UAV;
 		OutUAVs[1] = TileIntersectionResources->TileConeDepthRanges.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
@@ -300,7 +300,7 @@ public:
 
 		FTileIntersectionResources* TileIntersectionResources = ((FSceneViewState*)View.State)->AOTileIntersectionResources;
 
-		FUnorderedAccessViewRHIParamRef OutUAVs[2];
+		FRHIUnorderedAccessView* OutUAVs[2];
 		OutUAVs[0] = TileIntersectionResources->TileConeAxisAndCos.UAV;
 		OutUAVs[1] = TileIntersectionResources->TileConeDepthRanges.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
@@ -440,7 +440,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, NumGroups, NumGroupsValue);
 	}
 
-	void GetUAVs(const FSceneView& View, TArray<FUnorderedAccessViewRHIParamRef>& UAVs)
+	void GetUAVs(const FSceneView& View, TArray<FRHIUnorderedAccessView*>& UAVs)
 	{
 		FTileIntersectionResources* TileIntersectionResources = ((FSceneViewState*)View.State)->AOTileIntersectionResources;
 		TileIntersectionParameters.GetUAVs(*TileIntersectionResources, UAVs);
@@ -513,7 +513,7 @@ public:
 
 		FTileIntersectionResources* TileIntersectionResources = ((FSceneViewState*)View.State)->AOTileIntersectionResources;
 		
-		TArray<FUnorderedAccessViewRHIParamRef> UAVs;
+		TArray<FRHIUnorderedAccessView*> UAVs;
 		TileIntersectionParameters.GetUAVs(*TileIntersectionResources, UAVs);
 
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, UAVs.GetData(), UAVs.Num());
@@ -527,7 +527,7 @@ public:
 
 		TileIntersectionParameters.UnsetParameters(RHICmdList, GetComputeShader());
 
-		TArray<FUnorderedAccessViewRHIParamRef> UAVs;
+		TArray<FRHIUnorderedAccessView*> UAVs;
 		TileIntersectionParameters.GetUAVs(*TileIntersectionResources, UAVs);
 
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, UAVs.GetData(), UAVs.Num());
@@ -555,7 +555,7 @@ void ScatterTilesToObjects(FRHICommandListImmediate& RHICmdList, const FViewInfo
 	TShaderMapRef<FObjectCullVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<TObjectCullPS<bCountingPass>> PixelShader(View.ShaderMap);
 
-	TArray<FUnorderedAccessViewRHIParamRef> UAVs;
+	TArray<FRHIUnorderedAccessView*> UAVs;
 	PixelShader->GetUAVs(View, UAVs);
 	RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, UAVs.GetData(), UAVs.Num());
 

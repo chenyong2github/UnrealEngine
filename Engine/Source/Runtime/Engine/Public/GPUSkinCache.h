@@ -195,7 +195,7 @@ public:
 			return WithTangents ? &Tangents : nullptr;
 		}
 
-		void RemoveAllFromTransitionArray(TArray<FUnorderedAccessViewRHIParamRef>& BuffersToTransition);
+		void RemoveAllFromTransitionArray(TArray<FRHIUnorderedAccessView*>& BuffersToTransition);
 
 	private:
 		// Output of the GPU skinning (ie Pos, Normals)
@@ -296,7 +296,7 @@ public:
 #endif // RHI_RAYTRACING
 
 protected:
-	TArray<FUnorderedAccessViewRHIParamRef> BuffersToTransition;
+	TArray<FRHIUnorderedAccessView*> BuffersToTransition;
 #if RHI_RAYTRACING
 	TSet<FRayTracingGeometry*> RayTracingGeometriesToUpdate;
 #endif // RHI_RAYTRACING

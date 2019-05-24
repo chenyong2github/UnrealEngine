@@ -339,7 +339,7 @@ FShaderResourceViewRHIRef FMetalDynamicRHI::RHICreateShaderResourceView(FIndexBu
 	}
 }
 
-void FMetalDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRVRHI, FVertexBufferRHIParamRef VertexBufferRHI, uint32 Stride, uint8 Format)
+void FMetalDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRVRHI, FVertexBufferRHIParamRef VertexBufferRHI, uint32 Stride, uint8 Format)
 {
 	check(SRVRHI);
 	FMetalShaderResourceView* SRV = ResourceCast(SRVRHI);
@@ -364,7 +364,7 @@ void FMetalDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRe
 	}
 }
 
-void FMetalDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRVRHI, FIndexBufferRHIParamRef IndexBufferRHI)
+void FMetalDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRVRHI, FIndexBufferRHIParamRef IndexBufferRHI)
 {
 	check(SRVRHI);
 	FMetalShaderResourceView* SRV = ResourceCast(SRVRHI);
@@ -389,7 +389,7 @@ void FMetalDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRe
 	}
 }
 
-void FMetalRHICommandContext::RHIClearTinyUAV(FUnorderedAccessViewRHIParamRef UnorderedAccessViewRHI, const uint32* Values)
+void FMetalRHICommandContext::RHIClearTinyUAV(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const uint32* Values)
 {
 	@autoreleasepool {
 	FMetalUnorderedAccessView* UnorderedAccessView = ResourceCast(UnorderedAccessViewRHI);
@@ -715,7 +715,7 @@ void FMetalComputeFence::Reset()
 	Fence = nullptr;
 }
 
-void FMetalRHICommandContext::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence)
+void FMetalRHICommandContext::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence)
 {
 	@autoreleasepool
 	{

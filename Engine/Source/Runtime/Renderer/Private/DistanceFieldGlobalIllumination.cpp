@@ -149,7 +149,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, LightDirectionAndTraceDistance, FVector4(LightSceneProxy->GetDirection(), GVPLDirectionalLightTraceDistance));
 		SetShaderValue(RHICmdList, ShaderRHI, LightColor, LightSceneProxy->GetColor() * LightSceneProxy->GetIndirectLightingScale());
 
-		FUnorderedAccessViewRHIParamRef OutUAVs[2];
+		FRHIUnorderedAccessView* OutUAVs[2];
 		OutUAVs[0] = GVPLResources.VPLParameterBuffer.UAV;
 		OutUAVs[1] = GVPLResources.VPLData.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
@@ -172,7 +172,7 @@ public:
 		VPLParameterBuffer.UnsetUAV(RHICmdList, GetComputeShader());
 		VPLData.UnsetUAV(RHICmdList, GetComputeShader());
 
-		FUnorderedAccessViewRHIParamRef OutUAVs[2];
+		FRHIUnorderedAccessView* OutUAVs[2];
 		OutUAVs[0] = GVPLResources.VPLParameterBuffer.UAV;
 		OutUAVs[1] = GVPLResources.VPLData.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
@@ -311,7 +311,7 @@ public:
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
-		FUnorderedAccessViewRHIParamRef OutUAVs[2];
+		FRHIUnorderedAccessView* OutUAVs[2];
 		OutUAVs[0] = GCulledVPLResources.VPLParameterBuffer.UAV;
 		OutUAVs[1] = GCulledVPLResources.VPLData.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));

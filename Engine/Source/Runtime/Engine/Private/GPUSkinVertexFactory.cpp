@@ -542,7 +542,7 @@ public:
 		{
 			if (BoneMatrices.IsBound())
 			{
-				FShaderResourceViewRHIParamRef CurrentData = ShaderData.GetBoneBufferForReading(false).VertexBufferSRV;
+				FRHIShaderResourceView* CurrentData = ShaderData.GetBoneBufferForReading(false).VertexBufferSRV;
 				ShaderBindings.Add(BoneMatrices, CurrentData);
 			}
 
@@ -551,7 +551,7 @@ public:
 				// todo: Maybe a check for PreviousData!=CurrentData would save some performance (when objects don't have velocty yet) but removing the bool also might save performance
 				bLocalPerBoneMotionBlur = true;
 
-				FShaderResourceViewRHIParamRef PreviousData = ShaderData.GetBoneBufferForReading(true).VertexBufferSRV;
+				FRHIShaderResourceView* PreviousData = ShaderData.GetBoneBufferForReading(true).VertexBufferSRV;
 				ShaderBindings.Add(PreviousBoneMatrices, PreviousData);
 			}
 		}

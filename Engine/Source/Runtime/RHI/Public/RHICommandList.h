@@ -113,10 +113,10 @@ extern RHI_API TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasks;
 struct FRayTracingShaderBindings
 {
 	FTextureRHIParamRef Textures[32] = {};
-	FShaderResourceViewRHIParamRef SRVs[32] = {};
+	FRHIShaderResourceView* SRVs[32] = {};
 	FUniformBufferRHIParamRef UniformBuffers[8] = {};
 	FRHISamplerState* Samplers[16] = {};
-	FUnorderedAccessViewRHIParamRef UAVs[8] = {};
+	FRHIUnorderedAccessView* UAVs[8] = {};
 };
 
 // C++ counter-part of FBasicRayData declared in RayTracingCommon.ush
@@ -701,8 +701,8 @@ struct  FRHICommandEndUpdateMultiFrameResource final : public FRHICommand<FRHICo
 
 struct  FRHICommandBeginUpdateMultiFrameUAV final : public FRHICommand<FRHICommandBeginUpdateMultiFrameResource>
 {
-	FUnorderedAccessViewRHIParamRef UAV;
-	FORCEINLINE_DEBUGGABLE FRHICommandBeginUpdateMultiFrameUAV(FUnorderedAccessViewRHIParamRef InUAV)
+	FRHIUnorderedAccessView* UAV;
+	FORCEINLINE_DEBUGGABLE FRHICommandBeginUpdateMultiFrameUAV(FRHIUnorderedAccessView* InUAV)
 		: UAV(InUAV)
 	{
 	}
@@ -711,8 +711,8 @@ struct  FRHICommandBeginUpdateMultiFrameUAV final : public FRHICommand<FRHIComma
 
 struct  FRHICommandEndUpdateMultiFrameUAV final : public FRHICommand<FRHICommandEndUpdateMultiFrameResource>
 {
-	FUnorderedAccessViewRHIParamRef UAV;
-	FORCEINLINE_DEBUGGABLE FRHICommandEndUpdateMultiFrameUAV(FUnorderedAccessViewRHIParamRef InUAV)
+	FRHIUnorderedAccessView* UAV;
+	FORCEINLINE_DEBUGGABLE FRHICommandEndUpdateMultiFrameUAV(FRHIUnorderedAccessView* InUAV)
 		: UAV(InUAV)
 	{
 	}
@@ -783,8 +783,8 @@ struct FRHICommandSetShaderResourceViewParameter final : public FRHICommand<FRHI
 {
 	TShaderRHIParamRef Shader;
 	uint32 SamplerIndex;
-	FShaderResourceViewRHIParamRef SRV;
-	FORCEINLINE_DEBUGGABLE FRHICommandSetShaderResourceViewParameter(TShaderRHIParamRef InShader, uint32 InSamplerIndex, FShaderResourceViewRHIParamRef InSRV)
+	FRHIShaderResourceView* SRV;
+	FORCEINLINE_DEBUGGABLE FRHICommandSetShaderResourceViewParameter(TShaderRHIParamRef InShader, uint32 InSamplerIndex, FRHIShaderResourceView* InSRV)
 		: Shader(InShader)
 		, SamplerIndex(InSamplerIndex)
 		, SRV(InSRV)
@@ -798,8 +798,8 @@ struct FRHICommandSetUAVParameter final : public FRHICommand<FRHICommandSetUAVPa
 {
 	TShaderRHIParamRef Shader;
 	uint32 UAVIndex;
-	FUnorderedAccessViewRHIParamRef UAV;
-	FORCEINLINE_DEBUGGABLE FRHICommandSetUAVParameter(TShaderRHIParamRef InShader, uint32 InUAVIndex, FUnorderedAccessViewRHIParamRef InUAV)
+	FRHIUnorderedAccessView* UAV;
+	FORCEINLINE_DEBUGGABLE FRHICommandSetUAVParameter(TShaderRHIParamRef InShader, uint32 InUAVIndex, FRHIUnorderedAccessView* InUAV)
 		: Shader(InShader)
 		, UAVIndex(InUAVIndex)
 		, UAV(InUAV)
@@ -813,9 +813,9 @@ struct FRHICommandSetUAVParameter_IntialCount final : public FRHICommand<FRHICom
 {
 	TShaderRHIParamRef Shader;
 	uint32 UAVIndex;
-	FUnorderedAccessViewRHIParamRef UAV;
+	FRHIUnorderedAccessView* UAV;
 	uint32 InitialCount;
-	FORCEINLINE_DEBUGGABLE FRHICommandSetUAVParameter_IntialCount(TShaderRHIParamRef InShader, uint32 InUAVIndex, FUnorderedAccessViewRHIParamRef InUAV, uint32 InInitialCount)
+	FORCEINLINE_DEBUGGABLE FRHICommandSetUAVParameter_IntialCount(TShaderRHIParamRef InShader, uint32 InUAVIndex, FRHIUnorderedAccessView* InUAV, uint32 InInitialCount)
 		: Shader(InShader)
 		, UAVIndex(InUAVIndex)
 		, UAV(InUAV)
@@ -972,14 +972,14 @@ struct FRHICommandSetRenderTargets final : public FRHICommand<FRHICommandSetRend
 	FRHIRenderTargetView NewRenderTargetsRHI[MaxSimultaneousRenderTargets];
 	FRHIDepthRenderTargetView NewDepthStencilTarget;
 	uint32 NewNumUAVs;
-	FUnorderedAccessViewRHIParamRef UAVs[MaxSimultaneousUAVs];
+	FRHIUnorderedAccessView* UAVs[MaxSimultaneousUAVs];
 
 	FORCEINLINE_DEBUGGABLE FRHICommandSetRenderTargets(
 		uint32 InNewNumSimultaneousRenderTargets,
 		const FRHIRenderTargetView* InNewRenderTargetsRHI,
 		const FRHIDepthRenderTargetView* InNewDepthStencilTargetRHI,
 		uint32 InNewNumUAVs,
-		const FUnorderedAccessViewRHIParamRef* InUAVs
+		FRHIUnorderedAccessView* const* InUAVs
 		)
 		: NewNumSimultaneousRenderTargets(InNewNumSimultaneousRenderTargets)
 		, NewNumUAVs(InNewNumUAVs)
@@ -1287,10 +1287,10 @@ struct FRHICommandSetDepthBounds final : public FRHICommand<FRHICommandSetDepthB
 
 struct FRHICommandClearTinyUAV final : public FRHICommand<FRHICommandClearTinyUAV>
 {
-	FUnorderedAccessViewRHIParamRef UnorderedAccessViewRHI;
+	FRHIUnorderedAccessView* UnorderedAccessViewRHI;
 	uint32 Values[4];
 
-	FORCEINLINE_DEBUGGABLE FRHICommandClearTinyUAV(FUnorderedAccessViewRHIParamRef InUnorderedAccessViewRHI, const uint32* InValues)
+	FORCEINLINE_DEBUGGABLE FRHICommandClearTinyUAV(FRHIUnorderedAccessView* InUnorderedAccessViewRHI, const uint32* InValues)
 		: UnorderedAccessViewRHI(InUnorderedAccessViewRHI)
 	{
 		Values[0] = InValues[0];
@@ -1369,12 +1369,12 @@ template<ECmdList CmdListType>
 struct FRHICommandTransitionUAVs final : public FRHICommand<FRHICommandTransitionUAVs<CmdListType>>
 {
 	int32 NumUAVs;
-	FUnorderedAccessViewRHIParamRef* UAVs; // Pointer to an array of UAVs, allocated inline with the command list
+	FRHIUnorderedAccessView** UAVs; // Pointer to an array of UAVs, allocated inline with the command list
 	EResourceTransitionAccess TransitionType;
 	EResourceTransitionPipeline TransitionPipeline;
 	FRHIComputeFence* WriteFence;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandTransitionUAVs(EResourceTransitionAccess InTransitionType, EResourceTransitionPipeline InTransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 InNumUAVs, FRHIComputeFence* InWriteFence)
+	FORCEINLINE_DEBUGGABLE FRHICommandTransitionUAVs(EResourceTransitionAccess InTransitionType, EResourceTransitionPipeline InTransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 InNumUAVs, FRHIComputeFence* InWriteFence)
 		: NumUAVs(InNumUAVs)
 		, UAVs(InUAVs)
 		, TransitionType(InTransitionType)
@@ -1769,7 +1769,7 @@ struct FRHICommandUpdateTextureReference final : public FRHICommand<FRHICommandU
 
 struct FRHIShaderResourceViewUpdateInfo_VB
 {
-	FShaderResourceViewRHIParamRef SRV;
+	FRHIShaderResourceView* SRV;
 	FVertexBufferRHIParamRef VertexBuffer;
 	uint32 Stride;
 	uint8 Format;
@@ -1905,13 +1905,13 @@ struct FRHICommandBuildAccelerationStructures final : public FRHICommand<FRHICom
 struct FRHICommandRayTraceOcclusion final : public FRHICommand<FRHICommandRayTraceOcclusion>
 {
 	FRayTracingSceneRHIParamRef Scene;
-	FShaderResourceViewRHIParamRef Rays;
-	FUnorderedAccessViewRHIParamRef Output;
+	FRHIShaderResourceView* Rays;
+	FRHIUnorderedAccessView* Output;
 	uint32 NumRays;
 
 	FRHICommandRayTraceOcclusion(FRayTracingSceneRHIParamRef InScene,
-		FShaderResourceViewRHIParamRef InRays,
-		FUnorderedAccessViewRHIParamRef InOutput,
+		FRHIShaderResourceView* InRays,
+		FRHIUnorderedAccessView* InOutput,
 		uint32 InNumRays)
 		: Scene(InScene)
 		, Rays(InRays)
@@ -1925,13 +1925,13 @@ struct FRHICommandRayTraceOcclusion final : public FRHICommand<FRHICommandRayTra
 struct FRHICommandRayTraceIntersection final : public FRHICommand<FRHICommandRayTraceIntersection>
 {
 	FRayTracingSceneRHIParamRef Scene;
-	FShaderResourceViewRHIParamRef Rays;
-	FUnorderedAccessViewRHIParamRef Output;
+	FRHIShaderResourceView* Rays;
+	FRHIUnorderedAccessView* Output;
 	uint32 NumRays;
 
 	FRHICommandRayTraceIntersection(FRayTracingSceneRHIParamRef InScene,
-		FShaderResourceViewRHIParamRef InRays,
-		FUnorderedAccessViewRHIParamRef InOutput,
+		FRHIShaderResourceView* InRays,
+		FRHIUnorderedAccessView* InOutput,
 		uint32 InNumRays)
 		: Scene(InScene)
 		, Rays(InRays)
@@ -2074,7 +2074,7 @@ public:
 		ALLOC_COMMAND(FRHICommandEndUpdateMultiFrameResource)(Texture);
 	}
 
-	FORCEINLINE_DEBUGGABLE void BeginUpdateMultiFrameResource(FUnorderedAccessViewRHIParamRef UAV)
+	FORCEINLINE_DEBUGGABLE void BeginUpdateMultiFrameResource(FRHIUnorderedAccessView* UAV)
 	{
 		//check(IsOutsideRenderPass());
 		if (Bypass())
@@ -2085,7 +2085,7 @@ public:
 		ALLOC_COMMAND(FRHICommandBeginUpdateMultiFrameUAV)(UAV);
 	}
 
-	FORCEINLINE_DEBUGGABLE void EndUpdateMultiFrameResource(FUnorderedAccessViewRHIParamRef UAV)
+	FORCEINLINE_DEBUGGABLE void EndUpdateMultiFrameResource(FRHIUnorderedAccessView* UAV)
 	{
 		//check(IsOutsideRenderPass());
 		if (Bypass())
@@ -2186,7 +2186,7 @@ public:
 	}
 
 	template <typename TShaderRHIParamRef>
-	FORCEINLINE_DEBUGGABLE void SetShaderResourceViewParameter(TShaderRHIParamRef Shader, uint32 SamplerIndex, FShaderResourceViewRHIParamRef SRV)
+	FORCEINLINE_DEBUGGABLE void SetShaderResourceViewParameter(TShaderRHIParamRef Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV)
 	{
 		//check(IsOutsideRenderPass());
 		if (Bypass())
@@ -2198,7 +2198,7 @@ public:
 	}
 
 	template <typename TShaderRHI>
-	FORCEINLINE_DEBUGGABLE void SetShaderResourceViewParameter(TRefCountPtr<TShaderRHI>& Shader, uint32 SamplerIndex, FShaderResourceViewRHIParamRef SRV)
+	FORCEINLINE_DEBUGGABLE void SetShaderResourceViewParameter(TRefCountPtr<TShaderRHI>& Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV)
 	{
 		SetShaderResourceViewParameter(Shader.GetReference(), SamplerIndex, SRV);
 	}
@@ -2229,7 +2229,7 @@ public:
 		SetShaderSampler(Shader.GetReference(), SamplerIndex, State);
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FUnorderedAccessViewRHIParamRef UAV)
+	FORCEINLINE_DEBUGGABLE void SetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV)
 	{
 		if (Bypass())
 		{
@@ -2239,12 +2239,12 @@ public:
 		ALLOC_COMMAND(FRHICommandSetUAVParameter<FComputeShaderRHIParamRef, ECmdList::EGfx>)(Shader, UAVIndex, UAV);
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetUAVParameter(TRefCountPtr<FRHIComputeShader>& Shader, uint32 UAVIndex, FUnorderedAccessViewRHIParamRef UAV)
+	FORCEINLINE_DEBUGGABLE void SetUAVParameter(TRefCountPtr<FRHIComputeShader>& Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV)
 	{
 		SetUAVParameter(Shader.GetReference(), UAVIndex, UAV);
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FUnorderedAccessViewRHIParamRef UAV, uint32 InitialCount)
+	FORCEINLINE_DEBUGGABLE void SetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV, uint32 InitialCount)
 	{
 		if (Bypass())
 		{
@@ -2254,7 +2254,7 @@ public:
 		ALLOC_COMMAND(FRHICommandSetUAVParameter_IntialCount<FComputeShaderRHIParamRef, ECmdList::EGfx>)(Shader, UAVIndex, UAV, InitialCount);
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetUAVParameter(TRefCountPtr<FRHIComputeShader>& Shader, uint32 UAVIndex, FUnorderedAccessViewRHIParamRef UAV, uint32 InitialCount)
+	FORCEINLINE_DEBUGGABLE void SetUAVParameter(TRefCountPtr<FRHIComputeShader>& Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV, uint32 InitialCount)
 	{
 		SetUAVParameter(Shader.GetReference(), UAVIndex, UAV, InitialCount);
 	}
@@ -2407,7 +2407,7 @@ public:
 		const FRHIRenderTargetView* NewRenderTargetsRHI,
 		const FRHIDepthRenderTargetView* NewDepthStencilTargetRHI,
 		uint32 NewNumUAVs,
-		const FUnorderedAccessViewRHIParamRef* UAVs
+		FRHIUnorderedAccessView* const* UAVs
 		)
 	{
 		check(IsOutsideRenderPass());
@@ -2630,7 +2630,7 @@ public:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void ClearTinyUAV(FUnorderedAccessViewRHIParamRef UnorderedAccessViewRHI, const uint32(&Values)[4])
+	FORCEINLINE_DEBUGGABLE void ClearTinyUAV(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const uint32(&Values)[4])
 	{
 		//check(IsOutsideRenderPass());
 		if (Bypass())
@@ -2724,10 +2724,10 @@ public:
 		ALLOC_COMMAND(FRHICommandTransitionTexturesArray)(TransitionType, InTextures);
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef InUAV, FRHIComputeFence* WriteFence)
+	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView* InUAV, FRHIComputeFence* WriteFence)
 	{
 		check(InUAV == nullptr || InUAV->IsCommitted());
-		FUnorderedAccessViewRHIParamRef UAV = InUAV;
+		FRHIUnorderedAccessView* UAV = InUAV;
 		if (Bypass())
 		{
 			GetContext().RHITransitionResources(TransitionType, TransitionPipeline, &UAV, 1, WriteFence);
@@ -2735,17 +2735,17 @@ public:
 		}
 
 		// Allocate space to hold the single UAV pointer inline in the command list itself.
-		FUnorderedAccessViewRHIParamRef* UAVArray = (FUnorderedAccessViewRHIParamRef*)Alloc(sizeof(FUnorderedAccessViewRHIParamRef), alignof(FUnorderedAccessViewRHIParamRef));
+		FRHIUnorderedAccessView** UAVArray = (FRHIUnorderedAccessView**)Alloc(sizeof(FRHIUnorderedAccessView*), alignof(FRHIUnorderedAccessView*));
 		UAVArray[0] = UAV;
 		ALLOC_COMMAND(FRHICommandTransitionUAVs<ECmdList::EGfx>)(TransitionType, TransitionPipeline, UAVArray, 1, WriteFence);
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef InUAV)
+	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView* InUAV)
 	{
 		TransitionResource(TransitionType, TransitionPipeline, InUAV, nullptr);
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FRHIComputeFence* WriteFence)
+	FORCEINLINE_DEBUGGABLE void TransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteFence)
 	{
 		if (Bypass())
 		{
@@ -2754,7 +2754,7 @@ public:
 		}
 
 		// Allocate space to hold the list UAV pointers inline in the command list itself.
-		FUnorderedAccessViewRHIParamRef* UAVArray = (FUnorderedAccessViewRHIParamRef*)Alloc(sizeof(FUnorderedAccessViewRHIParamRef) * NumUAVs, alignof(FUnorderedAccessViewRHIParamRef));
+		FRHIUnorderedAccessView** UAVArray = (FRHIUnorderedAccessView**)Alloc(sizeof(FRHIUnorderedAccessView*) * NumUAVs, alignof(FRHIUnorderedAccessView*));
 		for (int32 Index = 0; Index < NumUAVs; ++Index)
 		{
 			UAVArray[Index] = InUAVs[Index];
@@ -2763,7 +2763,7 @@ public:
 		ALLOC_COMMAND(FRHICommandTransitionUAVs<ECmdList::EGfx>)(TransitionType, TransitionPipeline, UAVArray, NumUAVs, WriteFence);
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs)
+	FORCEINLINE_DEBUGGABLE void TransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs)
 	{
 		TransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, nullptr);
 	}
@@ -3039,8 +3039,8 @@ public:
 	 * 0xFFFFFFFF is written if ray intersects any scene triangle, 0 otherwise.
 	 */
 	FORCEINLINE_DEBUGGABLE void RayTraceOcclusion(FRayTracingSceneRHIParamRef Scene,
-		FShaderResourceViewRHIParamRef Rays,
-		FUnorderedAccessViewRHIParamRef Output,
+		FRHIShaderResourceView* Rays,
+		FRHIUnorderedAccessView* Output,
 		uint32 NumRays)
 	{
 		if (Bypass())
@@ -3058,8 +3058,8 @@ public:
 	 * Primitive intersection results are written to output buffer as FBasicRayIntersectionData.
 	 */
 	FORCEINLINE_DEBUGGABLE void RayTraceIntersection(FRayTracingSceneRHIParamRef Scene,
-		FShaderResourceViewRHIParamRef Rays,
-		FUnorderedAccessViewRHIParamRef Output,
+		FRHIShaderResourceView* Rays,
+		FRHIUnorderedAccessView* Output,
 		uint32 NumRays)
 	{
 		if (Bypass())
@@ -3208,7 +3208,7 @@ public:
 		ALLOC_COMMAND(FRHICommandSetShaderTexture<FComputeShaderRHIParamRef, ECmdList::ECompute>)(Shader, TextureIndex, Texture);
 	}
 	
-	FORCEINLINE_DEBUGGABLE void SetShaderResourceViewParameter(FComputeShaderRHIParamRef Shader, uint32 SamplerIndex, FShaderResourceViewRHIParamRef SRV)
+	FORCEINLINE_DEBUGGABLE void SetShaderResourceViewParameter(FComputeShaderRHIParamRef Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV)
 	{
 		if (Bypass())
 		{
@@ -3235,7 +3235,7 @@ public:
 		ALLOC_COMMAND(FRHICommandSetShaderSampler<FComputeShaderRHIParamRef, ECmdList::ECompute>)(Shader, SamplerIndex, State);
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FUnorderedAccessViewRHIParamRef UAV)
+	FORCEINLINE_DEBUGGABLE void SetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV)
 	{
 		if (Bypass())
 		{
@@ -3245,7 +3245,7 @@ public:
 		ALLOC_COMMAND(FRHICommandSetUAVParameter<FComputeShaderRHIParamRef, ECmdList::ECompute>)(Shader, UAVIndex, UAV);
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FUnorderedAccessViewRHIParamRef UAV, uint32 InitialCount)
+	FORCEINLINE_DEBUGGABLE void SetUAVParameter(FComputeShaderRHIParamRef Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV, uint32 InitialCount)
 	{
 		if (Bypass())
 		{
@@ -3308,9 +3308,9 @@ public:
 		ALLOC_COMMAND(FRHICommandDispatchIndirectComputeShader<ECmdList::ECompute>)(ArgumentBuffer, ArgumentOffset);
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef InUAV, FRHIComputeFence* WriteFence)
+	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView* InUAV, FRHIComputeFence* WriteFence)
 	{
-		FUnorderedAccessViewRHIParamRef UAV = InUAV;
+		FRHIUnorderedAccessView* UAV = InUAV;
 		if (Bypass())
 		{
 			GetComputeContext().RHITransitionResources(TransitionType, TransitionPipeline, &UAV, 1, WriteFence);
@@ -3318,17 +3318,17 @@ public:
 		}
 
 		// Allocate space to hold the single UAV pointer inline in the command list itself.
-		FUnorderedAccessViewRHIParamRef* UAVArray = (FUnorderedAccessViewRHIParamRef*)Alloc(sizeof(FUnorderedAccessViewRHIParamRef), alignof(FUnorderedAccessViewRHIParamRef));
+		FRHIUnorderedAccessView** UAVArray = (FRHIUnorderedAccessView**)Alloc(sizeof(FRHIUnorderedAccessView*), alignof(FRHIUnorderedAccessView*));
 		UAVArray[0] = UAV;
 		ALLOC_COMMAND(FRHICommandTransitionUAVs<ECmdList::ECompute>)(TransitionType, TransitionPipeline, UAVArray, 1, WriteFence);
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef InUAV)
+	FORCEINLINE_DEBUGGABLE void TransitionResource(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView* InUAV)
 	{
 		TransitionResource(TransitionType, TransitionPipeline, InUAV, nullptr);
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FRHIComputeFence* WriteFence)
+	FORCEINLINE_DEBUGGABLE void TransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteFence)
 	{
 		if (Bypass())
 		{
@@ -3337,7 +3337,7 @@ public:
 		}
 
 		// Allocate space to hold the list UAV pointers inline in the command list itself.
-		FUnorderedAccessViewRHIParamRef* UAVArray = (FUnorderedAccessViewRHIParamRef*)Alloc(sizeof(FUnorderedAccessViewRHIParamRef) * NumUAVs, alignof(FUnorderedAccessViewRHIParamRef));
+		FRHIUnorderedAccessView** UAVArray = (FRHIUnorderedAccessView**)Alloc(sizeof(FRHIUnorderedAccessView*) * NumUAVs, alignof(FRHIUnorderedAccessView*));
 		for (int32 Index = 0; Index < NumUAVs; ++Index)
 		{
 			UAVArray[Index] = InUAVs[Index];
@@ -3346,7 +3346,7 @@ public:
 		ALLOC_COMMAND(FRHICommandTransitionUAVs<ECmdList::ECompute>)(TransitionType, TransitionPipeline, UAVArray, NumUAVs, WriteFence);
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs)
+	FORCEINLINE_DEBUGGABLE void TransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs)
 	{
 		TransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, nullptr);
 	}
@@ -4034,7 +4034,7 @@ public:
 		RHIBindDebugLabelName(Texture, Name);
 	}
 
-	FORCEINLINE void BindDebugLabelName(FUnorderedAccessViewRHIParamRef UnorderedAccessViewRHI, const TCHAR* Name)
+	FORCEINLINE void BindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const TCHAR* Name)
 	{
 		RHIBindDebugLabelName(UnorderedAccessViewRHI, Name);
 	}
@@ -4958,7 +4958,7 @@ struct TRHIResourceUpdateBatcher
 		}
 	}
 
-	void QueueUpdateRequest(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format)
+	void QueueUpdateRequest(FRHIShaderResourceView* SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format)
 	{
 		FRHIResourceUpdateInfo& UpdateInfo = GetNextUpdateInfo();
 		UpdateInfo.Type = FRHIResourceUpdateInfo::UT_VertexBufferSRV;
@@ -4970,7 +4970,7 @@ struct TRHIResourceUpdateBatcher
 		}
 	}
 
-	void QueueUpdateRequest(FShaderResourceViewRHIParamRef SRV, FIndexBufferRHIParamRef IndexBuffer)
+	void QueueUpdateRequest(FRHIShaderResourceView* SRV, FIndexBufferRHIParamRef IndexBuffer)
 	{
 		// TODO
 	}

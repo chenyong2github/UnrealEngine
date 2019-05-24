@@ -190,7 +190,7 @@ void FNiagaraMeshVertexFactory::UnlockPreviousTransformBuffer()
 	PrevTransformBuffer.Unlock();
 }
 
-FShaderResourceViewRHIParamRef FNiagaraMeshVertexFactory::GetPreviousTransformBufferSRV() const
+FRHIShaderResourceView* FNiagaraMeshVertexFactory::GetPreviousTransformBufferSRV() const
 {
 	return PrevTransformBuffer.SRV;
 }

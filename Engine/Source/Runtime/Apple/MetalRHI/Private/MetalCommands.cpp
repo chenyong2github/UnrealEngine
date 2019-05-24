@@ -246,7 +246,7 @@ void FMetalRHICommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineSt
 	}
 }
 
-void FMetalRHICommandContext::RHISetUAVParameter(FComputeShaderRHIParamRef ComputeShaderRHI, uint32 UAVIndex, FUnorderedAccessViewRHIParamRef UAVRHI)
+void FMetalRHICommandContext::RHISetUAVParameter(FComputeShaderRHIParamRef ComputeShaderRHI, uint32 UAVIndex, FRHIUnorderedAccessView* UAVRHI)
 {
 	@autoreleasepool {
 	FMetalUnorderedAccessView* UAV = ResourceCast(UAVRHI);
@@ -254,7 +254,7 @@ void FMetalRHICommandContext::RHISetUAVParameter(FComputeShaderRHIParamRef Compu
 	}
 }
 
-void FMetalRHICommandContext::RHISetUAVParameter(FComputeShaderRHIParamRef ComputeShaderRHI,uint32 UAVIndex,FUnorderedAccessViewRHIParamRef UAVRHI, uint32 InitialCount)
+void FMetalRHICommandContext::RHISetUAVParameter(FComputeShaderRHIParamRef ComputeShaderRHI,uint32 UAVIndex, FRHIUnorderedAccessView* UAVRHI, uint32 InitialCount)
 {
 	@autoreleasepool {
 		FMetalUnorderedAccessView* UAV = ResourceCast(UAVRHI);
@@ -389,7 +389,7 @@ void FMetalRHICommandContext::RHISetShaderTexture(FComputeShaderRHIParamRef Comp
 }
 
 
-void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FVertexShaderRHIParamRef VertexShaderRHI, uint32 TextureIndex, FShaderResourceViewRHIParamRef SRVRHI)
+void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FVertexShaderRHIParamRef VertexShaderRHI, uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
 {
 	@autoreleasepool {
 	FMetalShaderResourceView* SRV = ResourceCast(SRVRHI);
@@ -397,7 +397,7 @@ void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FVertexShaderRHI
 	}
 }
 
-void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FHullShaderRHIParamRef HullShaderRHI,uint32 TextureIndex,FShaderResourceViewRHIParamRef SRVRHI)
+void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FHullShaderRHIParamRef HullShaderRHI,uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
 {
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	@autoreleasepool {
@@ -407,7 +407,7 @@ void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FHullShaderRHIPa
 #endif
 }
 
-void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FDomainShaderRHIParamRef DomainShaderRHI,uint32 TextureIndex,FShaderResourceViewRHIParamRef SRVRHI)
+void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FDomainShaderRHIParamRef DomainShaderRHI,uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
 {
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	@autoreleasepool {
@@ -417,12 +417,12 @@ void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FDomainShaderRHI
 #endif
 }
 
-void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FGeometryShaderRHIParamRef GeometryShaderRHI,uint32 TextureIndex,FShaderResourceViewRHIParamRef SRVRHI)
+void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FGeometryShaderRHIParamRef GeometryShaderRHI,uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
 {
 	NOT_SUPPORTED("RHISetShaderResourceViewParameter");
 }
 
-void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FPixelShaderRHIParamRef PixelShaderRHI,uint32 TextureIndex,FShaderResourceViewRHIParamRef SRVRHI)
+void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FPixelShaderRHIParamRef PixelShaderRHI,uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
 {
 	@autoreleasepool {
 	FMetalShaderResourceView* SRV = ResourceCast(SRVRHI);
@@ -430,7 +430,7 @@ void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FPixelShaderRHIP
 	}
 }
 
-void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FComputeShaderRHIParamRef ComputeShaderRHI,uint32 TextureIndex,FShaderResourceViewRHIParamRef SRVRHI)
+void FMetalRHICommandContext::RHISetShaderResourceViewParameter(FComputeShaderRHIParamRef ComputeShaderRHI,uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
 {
 	@autoreleasepool {
 	FMetalShaderResourceView* SRV = ResourceCast(SRVRHI);
@@ -635,7 +635,7 @@ void FMetalRHICommandContext::RHISetBlendFactor(const FLinearColor& BlendFactor)
 }
 
 void FMetalRHICommandContext::RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets,
-	const FRHIDepthRenderTargetView* NewDepthStencilTargetRHI, uint32 NumUAVs, const FUnorderedAccessViewRHIParamRef* UAVs)
+	const FRHIDepthRenderTargetView* NewDepthStencilTargetRHI, uint32 NumUAVs, FRHIUnorderedAccessView* const* UAVs)
 {
 	@autoreleasepool {
 	FMetalContext* Manager = Context;

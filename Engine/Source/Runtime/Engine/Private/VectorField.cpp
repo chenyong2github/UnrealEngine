@@ -821,7 +821,7 @@ public:
 	/**
 	 * Set output buffer for this shader.
 	 */
-	void SetOutput(FRHICommandList& RHICmdList, FUnorderedAccessViewRHIParamRef VolumeTextureUAV)
+	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* VolumeTextureUAV)
 	{
 		FComputeShaderRHIParamRef ComputeShaderRHI = GetComputeShader();
 		if ( OutVolumeTexture.IsBound() )
@@ -838,7 +838,7 @@ public:
 		FComputeShaderRHIParamRef ComputeShaderRHI = GetComputeShader();
 		if ( OutVolumeTexture.IsBound() )
 		{
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutVolumeTexture.GetBaseIndex(), FUnorderedAccessViewRHIParamRef());
+			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutVolumeTexture.GetBaseIndex(), nullptr);
 		}
 	}
 

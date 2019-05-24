@@ -324,7 +324,7 @@ private:
 		int32& NumCapsuleShapes, 
 		int32& NumMeshesWithCapsules, 
 		int32& NumMeshDistanceFieldCasters,
-		FShaderResourceViewRHIParamRef& IndirectShadowLightDirectionSRV) const;
+		FRHIShaderResourceView*& IndirectShadowLightDirectionSRV) const;
 
 	/** Renders indirect shadows from capsules modulated onto scene color. */
 	void RenderIndirectCapsuleShadows(
@@ -548,7 +548,7 @@ private:
 	void VisualizeVarianceMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FRWBuffer& VarianceMipTree, FIntVector VarianceMipTreeDimensions);
 
 	void ComputePathCompaction(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FTextureRHIParamRef RadianceTexture, FTextureRHIParamRef SampleCountTexture, FTextureRHIParamRef PixelPositionTexture,
-		FUnorderedAccessViewRHIParamRef RadianceSortedRedUAV, FUnorderedAccessViewRHIParamRef RadianceSortedGreenUAV, FUnorderedAccessViewRHIParamRef RadianceSortedBlueUAV, FUnorderedAccessViewRHIParamRef RadianceSortedAlphaUAV, FUnorderedAccessViewRHIParamRef SampleCountSortedUAV);
+		FRHIUnorderedAccessView* RadianceSortedRedUAV, FRHIUnorderedAccessView* RadianceSortedGreenUAV, FRHIUnorderedAccessView* RadianceSortedBlueUAV, FRHIUnorderedAccessView* RadianceSortedAlphaUAV, FRHIUnorderedAccessView* SampleCountSortedUAV);
 
 	void BuildSkyLightCdf(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FTexture& SkyLightTextureCube, FRWBuffer& RowCdf, FRWBuffer& ColumnCdf, FRWBuffer& CubeFaceCdf);
 	void VisualizeSkyLightCdf(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FIntVector Dimensions, const FRWBuffer& RowCdf, const FRWBuffer& ColumnCdf, const FRWBuffer& CubeFaceCdf);

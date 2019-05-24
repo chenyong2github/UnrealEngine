@@ -74,7 +74,7 @@ private:
 	bool DoFastBlur() const;
 
 	template <typename TRHICmdList>
-	void DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FUnorderedAccessViewRHIParamRef DestUAV,
+	void DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV,
 		FTextureRHIParamRef FilterTextureRHI, FTextureRHIParamRef AdditiveTextureRHI, uint32 CombineMethodInt, FLinearColor* SampleWeightValues, FVector2D* SampleOffsetValues, uint32 NumSamples);
 
 	FComputeFenceRHIRef AsyncEndFence;

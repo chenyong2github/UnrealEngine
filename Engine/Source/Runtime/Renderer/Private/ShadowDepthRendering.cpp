@@ -1666,7 +1666,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 				RenderTargets[1] = ColorTarget1.TargetableTexture;
 
 				// Hook up the geometry volume UAVs
-				FUnorderedAccessViewRHIParamRef Uavs[4];
+				FRHIUnorderedAccessView* Uavs[4];
 				Uavs[0] = LightPropagationVolume->GetGvListBufferUav();
 				Uavs[1] = LightPropagationVolume->GetGvListHeadBufferUav();
 				Uavs[2] = LightPropagationVolume->GetVplListBufferUav();
@@ -1714,7 +1714,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 				RHICmdList.CopyToResolveTarget(ColorTarget0.TargetableTexture, ColorTarget0.ShaderResourceTexture, FResolveParams());
 				RHICmdList.CopyToResolveTarget(ColorTarget1.TargetableTexture, ColorTarget1.ShaderResourceTexture, FResolveParams());
 
-				FUnorderedAccessViewRHIParamRef UavsToReadable[2];
+				FRHIUnorderedAccessView* UavsToReadable[2];
 				UavsToReadable[0] = LightPropagationVolume->GetGvListBufferUav();
 				UavsToReadable[1] = LightPropagationVolume->GetGvListHeadBufferUav();
 				RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, UavsToReadable, ARRAY_COUNT(UavsToReadable));

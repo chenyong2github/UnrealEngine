@@ -103,7 +103,7 @@ inline void SetShaderUAVs(TRHICmdList& RHICmdList, const TShaderClass* Shader, F
 	// UAVs
 	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.UAVs)
 	{
-		auto ShaderParameterRef = *reinterpret_cast<const FUnorderedAccessViewRHIParamRef*>(Base + ParameterBinding.ByteOffset);
+		FRHIUnorderedAccessView* ShaderParameterRef = *(FRHIUnorderedAccessView**)(Base + ParameterBinding.ByteOffset);
 
 		if (DO_CHECK && !ShaderParameterRef)
 		{
@@ -192,7 +192,7 @@ inline void SetShaderParameters(TRHICmdList& RHICmdList, const TShaderClass* Sha
 	// SRVs
 	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.SRVs)
 	{
-		auto ShaderParameterRef = *reinterpret_cast<const FShaderResourceViewRHIParamRef*>(Base + ParameterBinding.ByteOffset);
+		FRHIShaderResourceView* ShaderParameterRef = *(FRHIShaderResourceView**)(Base + ParameterBinding.ByteOffset);
 
 		if (DO_CHECK && !ShaderParameterRef)
 		{
@@ -304,7 +304,7 @@ void SetShaderParameters(FRayTracingShaderBindingsWriter& RTBindingsWriter, cons
 	// SRVs
 	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.SRVs)
 	{
-		auto ShaderParameterRef = *reinterpret_cast<const FShaderResourceViewRHIParamRef*>(Base + ParameterBinding.ByteOffset);
+		FRHIShaderResourceView* ShaderParameterRef = *(FRHIShaderResourceView**)(Base + ParameterBinding.ByteOffset);
 
 		if (DO_CHECK && !ShaderParameterRef)
 		{
@@ -317,7 +317,7 @@ void SetShaderParameters(FRayTracingShaderBindingsWriter& RTBindingsWriter, cons
 	// UAVs
 	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.UAVs)
 	{
-		auto ShaderParameterRef = *reinterpret_cast<const FUnorderedAccessViewRHIParamRef*>(Base + ParameterBinding.ByteOffset);
+		FRHIUnorderedAccessView* ShaderParameterRef = *(FRHIUnorderedAccessView**)(Base + ParameterBinding.ByteOffset);
 
 		if (DO_CHECK && !ShaderParameterRef)
 		{

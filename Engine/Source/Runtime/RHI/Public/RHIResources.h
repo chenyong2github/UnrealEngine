@@ -1189,9 +1189,11 @@ typedef TRefCountPtr<FRHIGPUFence>	FGPUFenceRHIRef;
 typedef FRHIViewport*              FViewportRHIParamRef;
 typedef TRefCountPtr<FRHIViewport> FViewportRHIRef;
 
+UE_DEPRECATED(4.23, "FUnorderedAccessViewRHIParamRef typedef is deprecated; please use FRHIUnorderedAccessView* directly instead.")
 typedef FRHIUnorderedAccessView*              FUnorderedAccessViewRHIParamRef;
 typedef TRefCountPtr<FRHIUnorderedAccessView> FUnorderedAccessViewRHIRef;
 
+UE_DEPRECATED(4.23, "FShaderResourceViewRHIParamRef typedef is deprecated; please use FRHIShaderResourceView* directly instead.")
 typedef FRHIShaderResourceView*              FShaderResourceViewRHIParamRef;
 typedef TRefCountPtr<FRHIShaderResourceView> FShaderResourceViewRHIRef;
 
@@ -1218,7 +1220,7 @@ typedef TRefCountPtr<FRHIRayTracingGeometry>     FRayTracingGeometryRHIRef;
 class FRHIRayTracingScene : public FRHIResource
 {
 public:
-	FShaderResourceViewRHIParamRef GetShaderResourceView() { return ShaderResourceView; }
+	FRHIShaderResourceView* GetShaderResourceView() { return ShaderResourceView; }
 protected:
 	FShaderResourceViewRHIRef ShaderResourceView;
 };
@@ -2679,7 +2681,7 @@ struct FRHIRenderPassInfo
 		FMemory::Memzero(&ColorRenderTargets[1], sizeof(FColorEntry) * (MaxSimultaneousRenderTargets - 1));
 	}
 
-	explicit FRHIRenderPassInfo(int32 InNumUAVs, FUnorderedAccessViewRHIParamRef* InUAVs)
+	explicit FRHIRenderPassInfo(int32 InNumUAVs, FRHIUnorderedAccessView** InUAVs)
 	{
 		if (InNumUAVs > MaxSimultaneousUAVs)
 		{

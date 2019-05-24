@@ -37,7 +37,7 @@ private:
 	void SetShader(const FRenderingCompositePassContext& Context, const FPooledRenderTargetDesc* InputDesc, const FIntPoint& SrcSize, const FIntRect& SrcRect);
 
 	template <uint32 Method, typename TRHICmdList>
-	void DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntPoint& SrcSize, const FIntRect& DestRect, FUnorderedAccessViewRHIParamRef DestUAV);
+	void DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntPoint& SrcSize, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV);
 
 	FComputeFenceRHIRef AsyncEndFence;
 

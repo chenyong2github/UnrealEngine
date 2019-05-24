@@ -262,8 +262,8 @@ public:
 		FUniformBufferRHIParamRef ViewUniformBuffer,
 		FUniformBufferRHIParamRef SceneTexturesUniformBuffer,
 		FUniformBufferRHIParamRef RectLightUniformBuffer,
-		FUnorderedAccessViewRHIParamRef LuminanceUAV,
-		FUnorderedAccessViewRHIParamRef RayDistanceUAV,
+		FRHIUnorderedAccessView* LuminanceUAV,
+		FRHIUnorderedAccessView* RayDistanceUAV,
 		uint32 Width, uint32 Height
 	)
 	{

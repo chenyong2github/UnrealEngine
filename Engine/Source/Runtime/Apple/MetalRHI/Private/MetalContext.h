@@ -124,7 +124,7 @@ public:
 	void FinishFrame();
 
 	// Track Write->Read transitions for TBDR Fragment->Verex fencing
-	void TransitionResources(FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs);
+	void TransitionResources(FRHIUnorderedAccessView** InUAVs, int32 NumUAVs);
 	void TransitionResources(FTextureRHIParamRef* InTextures, int32 NumTextures);
 	
 protected:

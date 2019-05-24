@@ -801,8 +801,8 @@ void FGPUSpriteVertexFactoryShaderParametersVS::GetElementShaderBindings(
 	FRHISamplerState* SamplerStateLinear = TStaticSamplerState<SF_Bilinear>::GetRHI();
 	ShaderBindings.Add(Shader->GetUniformBufferParameter<FGPUSpriteEmitterUniformParameters>(), GPUVF->EmitterUniformBuffer);
 	ShaderBindings.Add(Shader->GetUniformBufferParameter<FGPUSpriteEmitterDynamicUniformParameters>(), GPUVF->EmitterDynamicUniformBuffer);
-	FShaderResourceViewRHIParamRef ParticleIndicesBuffer = GPUVF->ParticleIndicesBuffer->VertexBufferSRV;
-	ShaderBindings.Add(ParticleIndices, ParticleIndicesBuffer ? ParticleIndicesBuffer : (FShaderResourceViewRHIParamRef)GNullColorVertexBuffer.VertexBufferSRV);
+	FRHIShaderResourceView* ParticleIndicesBuffer = GPUVF->ParticleIndicesBuffer->VertexBufferSRV;
+	ShaderBindings.Add(ParticleIndices, ParticleIndicesBuffer ? ParticleIndicesBuffer : (FRHIShaderResourceView*)GNullColorVertexBuffer.VertexBufferSRV);
 	ShaderBindings.Add(ParticleIndicesOffset, GPUVF->ParticleIndicesOffset);
 
 	ShaderBindings.AddTexture(PositionTexture, PositionTextureSampler, SamplerStatePoint, GPUVF->PositionTextureRHI);
@@ -1216,7 +1216,7 @@ public:
 	void UnbindBuffers(FRHICommandList& RHICmdList)
 	{
 		FPixelShaderRHIParamRef PixelShaderRHI = GetPixelShader();
-		FShaderResourceViewRHIParamRef NullSRV = FShaderResourceViewRHIParamRef();
+		FRHIShaderResourceView* NullSRV = nullptr;
 		for (int32 i = 0; i < MAX_VECTOR_FIELDS; ++i)
 		{
 			if (VectorFieldTextures[i].IsBound())
@@ -2269,7 +2269,7 @@ public:
 	/**
 	 * Set output buffers for this shader.
 	 */
-	void SetOutput(FRHICommandList& RHICmdList, FUnorderedAccessViewRHIParamRef OutBoundsUAV )
+	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* OutBoundsUAV )
 	{
 		FComputeShaderRHIParamRef ComputeShaderRHI = GetComputeShader();
 		if ( OutBounds.IsBound() )
@@ -2284,7 +2284,7 @@ public:
 	void SetParameters(
 		FRHICommandList& RHICmdList,
 		FParticleBoundsUniformBufferRef& UniformBuffer,
-		FShaderResourceViewRHIParamRef InIndicesSRV,
+		FRHIShaderResourceView* InIndicesSRV,
 		FTexture2DRHIParamRef PositionTextureRHI
 		)
 	{
@@ -2311,11 +2311,11 @@ public:
 		FComputeShaderRHIParamRef ComputeShaderRHI = GetComputeShader();
 		if ( InParticleIndices.IsBound() )
 		{
-			RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, InParticleIndices.GetBaseIndex(), FShaderResourceViewRHIParamRef());
+			RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, InParticleIndices.GetBaseIndex(), nullptr);
 		}
 		if ( OutBounds.IsBound() )
 		{
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutBounds.GetBaseIndex(), FUnorderedAccessViewRHIParamRef());
+			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutBounds.GetBaseIndex(), nullptr);
 		}
 	}
 
@@ -2350,7 +2350,7 @@ static bool AreBoundsValid( const FVector& Mins, const FVector& Maxs )
  */
 static FBox ComputeParticleBounds(
 	FRHICommandListImmediate& RHICmdList,
-	FShaderResourceViewRHIParamRef VertexBufferSRV,
+	FRHIShaderResourceView* VertexBufferSRV,
 	FTexture2DRHIParamRef PositionTextureRHI,
 	int32 ParticleCount )
 {

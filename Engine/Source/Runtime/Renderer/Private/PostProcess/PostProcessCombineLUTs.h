@@ -43,7 +43,7 @@ public:
 
 private:
 	template <typename TRHICmdList>
-	void DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FUnorderedAccessViewRHIParamRef DestUAV, int32 BlendCount, FTexture* Textures[], float Weights[]);
+	void DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV, int32 BlendCount, FTexture* Textures[], float Weights[]);
 
 	FComputeFenceRHIRef AsyncEndFence;
 

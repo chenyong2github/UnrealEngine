@@ -139,7 +139,7 @@ public:
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 		SetTextureParameter(RHICmdList, ShaderRHI, InTexture, InTextureValue.GetRenderTargetItem().ShaderResourceTexture);
 
-		FUnorderedAccessViewRHIParamRef OutUAV = OutTextureValue.GetRenderTargetItem().UAV;
+		FRHIUnorderedAccessView* OutUAV = OutTextureValue.GetRenderTargetItem().UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, &OutUAV, 1);
 		OutTexture.SetTexture(RHICmdList, ShaderRHI, 0, OutUAV);
 
@@ -269,7 +269,7 @@ public:
 	{
 		OutTexture.UnsetUAV(RHICmdList, GetComputeShader());
 
-		FUnorderedAccessViewRHIParamRef OutUAV = OutTextureValue.GetRenderTargetItem().UAV;
+		FRHIUnorderedAccessView* OutUAV = OutTextureValue.GetRenderTargetItem().UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, &OutUAV, 1);
 	}
 

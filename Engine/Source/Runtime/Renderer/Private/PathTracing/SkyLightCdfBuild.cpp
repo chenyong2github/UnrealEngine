@@ -63,7 +63,7 @@ public:
 		bool IsBound = RowCdfParameter.IsUAVBound();
 		RowCdfParameter.SetBuffer(RHICmdList, ShaderRHI, RowCdf);
 
-		FUnorderedAccessViewRHIParamRef UAVs[] = {
+		FRHIUnorderedAccessView* UAVs[] = {
 			RowCdf.UAV
 		};
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, UAVs, 1);
@@ -75,7 +75,7 @@ public:
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 		RowCdfParameter.UnsetUAV(RHICmdList, ShaderRHI);
 
-		FUnorderedAccessViewRHIParamRef UAVs[] = {
+		FRHIUnorderedAccessView* UAVs[] = {
 			Buffer.UAV
 		};
 		RHICmdList.TransitionResources(TransitionAccess, TransitionPipeline, UAVs, 1, Fence);
@@ -150,7 +150,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, LevelParameter, Level);
 		ColumnCdfParameter.SetBuffer(RHICmdList, ShaderRHI, ColumnCdf);
 
-		FUnorderedAccessViewRHIParamRef UAVs[] = {
+		FRHIUnorderedAccessView* UAVs[] = {
 			ColumnCdf.UAV
 		};
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, UAVs, 1);
@@ -162,7 +162,7 @@ public:
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 		ColumnCdfParameter.UnsetUAV(RHICmdList, ShaderRHI);
 
-		FUnorderedAccessViewRHIParamRef UAVs[] = {
+		FRHIUnorderedAccessView* UAVs[] = {
 			ColumnCdf.UAV
 		};
 		RHICmdList.TransitionResources(TransitionAccess, TransitionPipeline, UAVs, 1, Fence);
@@ -229,7 +229,7 @@ public:
 		ColumnCdfParameter.SetBuffer(RHICmdList, ShaderRHI, ColumnCdf);
 		CubeFaceCdfParameter.SetBuffer(RHICmdList, ShaderRHI, CubeFaceCdf);
 
-		FUnorderedAccessViewRHIParamRef UAVs[] = {
+		FRHIUnorderedAccessView* UAVs[] = {
 			CubeFaceCdf.UAV
 		};
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, UAVs, 1);
@@ -241,7 +241,7 @@ public:
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 		CubeFaceCdfParameter.UnsetUAV(RHICmdList, ShaderRHI);
 
-		FUnorderedAccessViewRHIParamRef UAVs[] = {
+		FRHIUnorderedAccessView* UAVs[] = {
 			CubeFaceCdf.UAV
 		};
 		RHICmdList.TransitionResources(TransitionAccess, TransitionPipeline, UAVs, 1, Fence);

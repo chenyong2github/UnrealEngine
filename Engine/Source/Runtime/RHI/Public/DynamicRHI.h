@@ -519,9 +519,9 @@ public:
 
 	// Must be called on RHI thread timeline
 	// Make sure to call RHIThreadFence(true) afterwards so that parallel translation doesn't refer old resources
-	virtual void RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format);
+	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format);
 
-	virtual void RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FIndexBufferRHIParamRef IndexBuffer);
+	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FIndexBufferRHIParamRef IndexBuffer);
 
 	/**
 	* Computes the total size of a 2D texture with the specified parameters.
@@ -873,7 +873,7 @@ public:
 
 	// FlushType: Thread safe
 	virtual void RHIBindDebugLabelName(FTextureRHIParamRef Texture, const TCHAR* Name) = 0;
-	virtual void RHIBindDebugLabelName(FUnorderedAccessViewRHIParamRef UnorderedAccessViewRHI, const TCHAR* Name) {}
+	virtual void RHIBindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const TCHAR* Name) {}
 
 	/**
 	* Reads the contents of a texture to an output buffer (non MSAA and MSAA) and returns it as a FColor array.
@@ -1315,7 +1315,7 @@ FORCEINLINE void RHIBindDebugLabelName(FTextureRHIParamRef Texture, const TCHAR*
 	GDynamicRHI->RHIBindDebugLabelName(Texture, Name);
 }
 
-FORCEINLINE void RHIBindDebugLabelName(FUnorderedAccessViewRHIParamRef UnorderedAccessViewRHI, const TCHAR* Name)
+FORCEINLINE void RHIBindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const TCHAR* Name)
 {
 	GDynamicRHI->RHIBindDebugLabelName(UnorderedAccessViewRHI, Name);
 }

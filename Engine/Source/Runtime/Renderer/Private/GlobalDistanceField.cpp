@@ -186,7 +186,7 @@ public:
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		ObjectBufferParameters.Set(RHICmdList, ShaderRHI, *(Scene->DistanceFieldSceneData.ObjectBuffers), Scene->DistanceFieldSceneData.NumObjectsInBuffer);
 
-		FUnorderedAccessViewRHIParamRef OutUAVs[4];
+		FRHIUnorderedAccessView* OutUAVs[4];
 		OutUAVs[0] = GGlobalDistanceFieldCulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV;
 		OutUAVs[1] = GGlobalDistanceFieldCulledObjectBuffers.Buffers.Bounds.UAV;
 		OutUAVs[2] = GGlobalDistanceFieldCulledObjectBuffers.Buffers.Data.UAV;
@@ -221,7 +221,7 @@ public:
 		ObjectBufferParameters.UnsetParameters(RHICmdList, GetComputeShader(), *(Scene->DistanceFieldSceneData.ObjectBuffers));
 		CulledObjectParameters.UnsetParameters(RHICmdList, GetComputeShader());
 
-		TArray<FUnorderedAccessViewRHIParamRef> UAVs;
+		TArray<FRHIUnorderedAccessView*> UAVs;
 		CulledObjectParameters.GetUAVs(GGlobalDistanceFieldCulledObjectBuffers.Buffers, UAVs);
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, UAVs.GetData(), UAVs.Num());
 	}

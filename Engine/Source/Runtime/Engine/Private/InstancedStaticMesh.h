@@ -166,9 +166,9 @@ struct FInstancedStaticMeshDataType
 	/** The stream to read the Lightmap Bias and Random instance ID from. */
 	FVertexStreamComponent InstanceLightmapAndShadowMapUVBiasComponent;
 
-	FShaderResourceViewRHIParamRef InstanceOriginSRV = nullptr;
-	FShaderResourceViewRHIParamRef InstanceTransformSRV = nullptr;
-	FShaderResourceViewRHIParamRef InstanceLightmapSRV = nullptr;
+	FRHIShaderResourceView* InstanceOriginSRV = nullptr;
+	FRHIShaderResourceView* InstanceTransformSRV = nullptr;
+	FRHIShaderResourceView* InstanceLightmapSRV = nullptr;
 };
 
 /**
@@ -258,17 +258,17 @@ public:
 	virtual bool SupportsNullPixelShader() const override { return false; }
 #endif
 
-	inline const FShaderResourceViewRHIParamRef GetInstanceOriginSRV() const
+	inline FRHIShaderResourceView* GetInstanceOriginSRV() const
 	{
 		return Data.InstanceOriginSRV;
 	}
 
-	inline const FShaderResourceViewRHIParamRef GetInstanceTransformSRV() const
+	inline FRHIShaderResourceView* GetInstanceTransformSRV() const
 	{
 		return Data.InstanceTransformSRV;
 	}
 
-	inline const FShaderResourceViewRHIParamRef GetInstanceLightmapSRV() const
+	inline FRHIShaderResourceView* GetInstanceLightmapSRV() const
 	{
 		return Data.InstanceLightmapSRV;
 	}

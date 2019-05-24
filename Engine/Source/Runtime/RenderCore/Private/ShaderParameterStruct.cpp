@@ -410,7 +410,7 @@ void ValidateShaderParameters(const FShader* Shader, const FShaderParametersMeta
 	// SRVs
 	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.SRVs)
 	{
-		auto ShaderParameterRef = *reinterpret_cast<const FShaderResourceViewRHIParamRef*>(Base + ParameterBinding.ByteOffset);
+		FRHIShaderResourceView* ShaderParameterRef = *(FRHIShaderResourceView**)(Base + ParameterBinding.ByteOffset);
 		if (!ShaderParameterRef)
 		{
 			EmitNullShaderParameterFatalError(Shader, ParametersMetadata, ParameterBinding.ByteOffset);
@@ -420,7 +420,7 @@ void ValidateShaderParameters(const FShader* Shader, const FShaderParametersMeta
 	// Samplers
 	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.Samplers)
 	{
-		FRHISamplerState* ShaderParameterRef = (FRHISamplerState*)(Base + ParameterBinding.ByteOffset);
+		FRHISamplerState* ShaderParameterRef = *(FRHISamplerState**)(Base + ParameterBinding.ByteOffset);
 		if (!ShaderParameterRef)
 		{
 			EmitNullShaderParameterFatalError(Shader, ParametersMetadata, ParameterBinding.ByteOffset);

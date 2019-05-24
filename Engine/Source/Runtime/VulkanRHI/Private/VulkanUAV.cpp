@@ -322,7 +322,7 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FIndexB
 	return SRV;
 }
 
-void FVulkanDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format)
+void FVulkanDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format)
 {
 	FVulkanShaderResourceView* SRVVk = ResourceCast(SRV);
 	check(SRVVk && SRVVk->GetParent() == Device);
@@ -337,7 +337,7 @@ void FVulkanDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamR
 	}
 }
 
-void FVulkanDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FIndexBufferRHIParamRef IndexBuffer)
+void FVulkanDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FIndexBufferRHIParamRef IndexBuffer)
 {
 	FVulkanShaderResourceView* SRVVk = ResourceCast(SRV);
 	check(SRVVk && SRVVk->GetParent() == Device);
@@ -352,7 +352,7 @@ void FVulkanDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamR
 	}
 }
 
-void FVulkanCommandListContext::RHIClearTinyUAV(FUnorderedAccessViewRHIParamRef UnorderedAccessViewRHI, const uint32* Values)
+void FVulkanCommandListContext::RHIClearTinyUAV(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const uint32* Values)
 {
 	FVulkanUnorderedAccessView* UnorderedAccessView = ResourceCast(UnorderedAccessViewRHI);
 	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();

@@ -85,7 +85,7 @@ private:
 		TRHICmdList& RHICmdList,
 		const FRenderingCompositePassContext& Context,
 		const FIntRect& OutputRect,
-		FUnorderedAccessViewRHIParamRef OutUAV) const;
+		FRHIUnorderedAccessView* OutUAV) const;
 
 	const ESSAOType AOType;
 	const bool bDirectOutput;
@@ -116,7 +116,7 @@ private:
 	FShader* SetShaderTemplPS(const FRenderingCompositePassContext& Context, FGraphicsPipelineStateInitializer& GraphicsPSOInit);
 
 	template <uint32 bAOSetupAsInput, uint32 bDoUpsample, uint32 SampleSetQuality, typename TRHICmdList>
-	void DispatchCS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& TexSize, FUnorderedAccessViewRHIParamRef OutTextureUAV);
+	void DispatchCS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& TexSize, FRHIUnorderedAccessView* OutTextureUAV);
 	
 	const ESSAOType AOType;
 	const EPixelFormat IntermediateFormatOverride;

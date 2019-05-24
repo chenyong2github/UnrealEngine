@@ -522,7 +522,7 @@ public:
 		TRHICmdList& RHICmdList,
 		const FRenderingCompositePassContext& Context,
 		const FIntRect& OutputRect,
-		FUnorderedAccessViewRHIParamRef OutUAV)
+		FRHIUnorderedAccessView* OutUAV)
 	{
 		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 
@@ -574,7 +574,7 @@ void FRCPassPostProcessAmbientOcclusionSmooth::DispatchCS(
 	TRHICmdList& RHICmdList,
 	const FRenderingCompositePassContext& Context,
 	const FIntRect& OutputRect,
-	FUnorderedAccessViewRHIParamRef OutUAV) const
+	FRHIUnorderedAccessView* OutUAV) const
 {
 	TShaderMapRef<FPostProcessAmbientOcclusionSmoothCS> ComputeShader(Context.GetShaderMap());
 	RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
@@ -733,7 +733,7 @@ public:
 	}
 	
 	template <typename TRHICmdList>
-	void SetParametersCompute(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, FIntPoint InputTextureSize, FUnorderedAccessViewRHIParamRef OutUAV)
+	void SetParametersCompute(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, FIntPoint InputTextureSize, FRHIUnorderedAccessView* OutUAV)
 	{
 		const FViewInfo& View = Context.View;
 		const FVector4 HZBRemappingValue = GetHZBValue(View);				
@@ -753,7 +753,7 @@ public:
 	}
 
 	
-	void SetParametersGfx(FRHICommandList& RHICmdList, const FRenderingCompositePassContext& Context, FIntPoint InputTextureSize, FUnorderedAccessViewRHIParamRef OutUAV)
+	void SetParametersGfx(FRHICommandList& RHICmdList, const FRenderingCompositePassContext& Context, FIntPoint InputTextureSize, FRHIUnorderedAccessView* OutUAV)
 	{
 		const FViewInfo& View = Context.View;
 		const FVector4 HZBRemappingValue = GetHZBValue(View);
@@ -843,7 +843,7 @@ FShader* FRCPassPostProcessAmbientOcclusion::SetShaderTemplPS(const FRenderingCo
 
 
 template <uint32 bTAOSetupAsInput, uint32 bDoUpsample, uint32 ShaderQuality, typename TRHICmdList>
-void FRCPassPostProcessAmbientOcclusion::DispatchCS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& TexSize, FUnorderedAccessViewRHIParamRef OutUAV)
+void FRCPassPostProcessAmbientOcclusion::DispatchCS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& TexSize, FRHIUnorderedAccessView* OutUAV)
 {
 	TShaderMapRef<FPostProcessAmbientOcclusionPSandCS<bTAOSetupAsInput, bDoUpsample, ShaderQuality, true> > ComputeShader(Context.GetShaderMap());
 

@@ -318,7 +318,7 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FIndexBu
 	});
 }
 
-void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format)
+void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format)
 {
 	check(SRV);
 	if (VertexBuffer)
@@ -343,7 +343,7 @@ void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRe
 	}
 }
 
-void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FIndexBufferRHIParamRef IndexBuffer)
+void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FIndexBufferRHIParamRef IndexBuffer)
 {
 	check(SRV);
 	if (IndexBuffer)

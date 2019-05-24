@@ -1106,7 +1106,7 @@ void FMetalContext::FinishFrame()
 #endif
 }
 
-void FMetalContext::TransitionResources(FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs)
+void FMetalContext::TransitionResources(FRHIUnorderedAccessView** InUAVs, int32 NumUAVs)
 {
 	for (uint32 i = 0; i < NumUAVs; i++)
 	{

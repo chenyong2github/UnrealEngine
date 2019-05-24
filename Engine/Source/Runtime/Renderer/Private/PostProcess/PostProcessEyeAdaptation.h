@@ -63,7 +63,7 @@ public:
 
 private:
 	template <typename TRHICmdList>
-	void DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, FUnorderedAccessViewRHIParamRef DestUAV, IPooledRenderTarget* LastEyeAdaptation);
+	void DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, FRHIUnorderedAccessView* DestUAV, IPooledRenderTarget* LastEyeAdaptation);
 
 	FComputeFenceRHIRef AsyncEndFence;
 };

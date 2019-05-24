@@ -324,7 +324,7 @@ public:
 	virtual int32 GetResourceDataSize() const = 0;
 
 	// @param guaranteed only to be valid if the vertex buffer is valid and the buffer was created with the SRV flags
-	FShaderResourceViewRHIParamRef GetSRV() const
+	FRHIShaderResourceView* GetSRV() const
 	{
 		return SRVValue;
 	}

@@ -1932,7 +1932,7 @@ protected:
 class FOpenGLShaderResourceViewProxy : public TOpenGLResourceProxy<FRHIShaderResourceView, FOpenGLShaderResourceView>
 {
 public:
-	FOpenGLShaderResourceViewProxy(TFunction<FOpenGLShaderResourceView*(FShaderResourceViewRHIParamRef)> CreateFunc)
+	FOpenGLShaderResourceViewProxy(TFunction<FOpenGLShaderResourceView*(FRHIShaderResourceView*)> CreateFunc)
 		: TOpenGLResourceProxy<FRHIShaderResourceView, FOpenGLShaderResourceView>(CreateFunc)
 	{}
 

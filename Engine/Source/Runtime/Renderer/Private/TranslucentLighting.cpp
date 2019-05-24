@@ -957,7 +957,7 @@ public:
 
 	void SetParameters(
 		FRHIAsyncComputeCommandListImmediate& RHICmdList,
-		FUnorderedAccessViewRHIParamRef* VolumeUAVs,
+		FRHIUnorderedAccessView** VolumeUAVs,
 		int32 NumUAVs
 	)
 	{
@@ -1005,7 +1005,7 @@ void FDeferredShadingSceneRenderer::ClearTranslucentVolumeLightingAsyncCompute(F
 
 	for(int i = 0; i < Views.Num(); ++i)
 	{
-		FUnorderedAccessViewRHIParamRef VolumeUAVs[4] = {
+		FRHIUnorderedAccessView* VolumeUAVs[4] = {
 			SceneContext.TranslucencyLightingVolumeAmbient[(i * NumTranslucentVolumeRenderTargetSets)]->GetRenderTargetItem().UAV,
 			SceneContext.TranslucencyLightingVolumeDirectional[(i * NumTranslucentVolumeRenderTargetSets)]->GetRenderTargetItem().UAV,
 			SceneContext.TranslucencyLightingVolumeAmbient[(i * NumTranslucentVolumeRenderTargetSets) + 1]->GetRenderTargetItem().UAV,

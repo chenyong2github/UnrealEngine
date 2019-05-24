@@ -323,7 +323,7 @@ public:
 		FAOScreenGridResources* ScreenGridResources = View.ViewState->AOScreenGridResources;
 
 		int32 NumOutUAVs = 0;
-		FUnorderedAccessViewRHIParamRef OutUAVs[1];
+		FRHIUnorderedAccessView* OutUAVs[1];
 		OutUAVs[NumOutUAVs++] = ScreenGridResources->ScreenGridConeVisibility.UAV;
 
 		// Note: no transition, want to overlap object cone tracing and global DF cone tracing since both shaders use atomics to ScreenGridConeVisibility

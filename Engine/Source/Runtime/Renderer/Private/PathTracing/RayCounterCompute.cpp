@@ -51,7 +51,7 @@ public:
 		FRHICommandList& RHICmdList,
 		FTextureRHIParamRef RayCountPerPixelBuffer,
 		const FIntPoint& ViewSize,
-		FUnorderedAccessViewRHIParamRef TotalRayCountBuffer)
+		FRHIUnorderedAccessView* TotalRayCountBuffer)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 

@@ -2090,7 +2090,7 @@ void FVulkanDynamicRHI::RHIBindDebugLabelName(FTextureRHIParamRef TextureRHI, co
 	TextureRHI->SetName(DebugName);
 }
 
-void FVulkanDynamicRHI::RHIBindDebugLabelName(FUnorderedAccessViewRHIParamRef UnorderedAccessViewRHI, const TCHAR* Name)
+void FVulkanDynamicRHI::RHIBindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const TCHAR* Name)
 {
 #if VULKAN_ENABLE_DUMP_LAYER || VULKAN_ENABLE_API_DUMP
 	//if (Device->SupportsDebugMarkers())

@@ -240,9 +240,9 @@ class FRDGShaderResourceView
 {
 public:
 	/** Returns the allocated RHI SRV. */
-	FShaderResourceViewRHIParamRef GetRHI() const
+	FRHIShaderResourceView* GetRHI() const
 	{
-		return static_cast<FShaderResourceViewRHIParamRef>(FRDGResource::GetRHI());
+		return static_cast<FRHIShaderResourceView*>(FRDGResource::GetRHI());
 	}
 
 protected:
@@ -251,9 +251,9 @@ protected:
 	{}
 
 	/** Returns the allocated RHI SRV without access checks. */
-	FShaderResourceViewRHIParamRef GetRHIUnchecked() const
+	FRHIShaderResourceView* GetRHIUnchecked() const
 	{
-		return static_cast<FShaderResourceViewRHIParamRef>(FRDGResource::GetRHIUnchecked());
+		return static_cast<FRHIShaderResourceView*>(FRDGResource::GetRHIUnchecked());
 	}
 };
 
@@ -263,9 +263,9 @@ class FRDGUnorderedAccessView
 {
 public:
 	/** Returns the allocated RHI UAV. */
-	FUnorderedAccessViewRHIParamRef GetRHI() const
+	FRHIUnorderedAccessView* GetRHI() const
 	{
-		return static_cast<FUnorderedAccessViewRHIParamRef>(FRDGResource::GetRHI());
+		return static_cast<FRHIUnorderedAccessView*>(FRDGResource::GetRHI());
 	}
 
 protected:
@@ -274,9 +274,9 @@ protected:
 	{}
 
 	/** Returns the allocated RHI UAV without access checks. */
-	FUnorderedAccessViewRHIParamRef GetRHIUnchecked() const
+	FRHIUnorderedAccessView* GetRHIUnchecked() const
 	{
-		return static_cast<FUnorderedAccessViewRHIParamRef>(FRDGResource::GetRHIUnchecked());
+		return static_cast<FRHIUnorderedAccessView*>(FRDGResource::GetRHIUnchecked());
 	}
 };
 

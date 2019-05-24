@@ -56,7 +56,7 @@ public:
 ENGINE_API extern TGlobalResource<FParticleIndexBuffer> GParticleIndexBuffer;
 ENGINE_API extern TGlobalResource<FSixTriangleParticleIndexBuffer> GSixTriangleParticleIndexBuffer;
 
-typedef FShaderResourceViewRHIParamRef FParticleShaderParamRef;
+typedef FRHIShaderResourceView* FParticleShaderParamRef;
 typedef FVertexBufferRHIParamRef FParticleBufferParamRef;
 
 /**

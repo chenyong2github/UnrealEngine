@@ -207,7 +207,7 @@ public:
 	}
 
 	template <typename TRHICmdList>
-	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& SrcSize, FUnorderedAccessViewRHIParamRef DestUAV)
+	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& SrcSize, FRHIUnorderedAccessView* DestUAV)
 	{
 		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
@@ -434,7 +434,7 @@ void FRCPassPostProcessDownsample::Process(FRenderingCompositePassContext& Conte
 }
 
 template <uint32 Method, typename TRHICmdList>
-void FRCPassPostProcessDownsample::DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntPoint& SrcSize, const FIntRect& DestRect, FUnorderedAccessViewRHIParamRef DestUAV)
+void FRCPassPostProcessDownsample::DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntPoint& SrcSize, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV)
 {
 	auto ShaderMap = Context.GetShaderMap();
 	TShaderMapRef<FPostProcessDownsampleCS<Method>> ComputeShader(ShaderMap);

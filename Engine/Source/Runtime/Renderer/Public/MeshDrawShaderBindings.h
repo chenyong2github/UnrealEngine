@@ -45,7 +45,7 @@ public:
 			+ ParameterMapInfo.TextureSamplers.Num() 
 			+ ParameterMapInfo.SRVs.Num());
 
-		// Allocate a bit for each SRV tracking whether it is a FTextureRHIParamRef or FShaderResourceViewRHIParamRef
+		// Allocate a bit for each SRV tracking whether it is a FTextureRHIParamRef or FRHIShaderResourceView*
 		DataSize += FMath::DivideAndRoundUp(ParameterMapInfo.SRVs.Num(), 8);
 
 		for (int32 LooseBufferIndex = 0; LooseBufferIndex < ParameterMapInfo.LooseParameterBuffers.Num(); LooseBufferIndex++)
@@ -79,7 +79,7 @@ protected:
 	inline uint32 GetSRVTypeOffset() const
 	{
 		return GetSRVOffset() 
-			+ ParameterMapInfo.SRVs.Num() * sizeof(FShaderResourceViewRHIParamRef);
+			+ ParameterMapInfo.SRVs.Num() * sizeof(FRHIShaderResourceView*);
 	}
 
 	inline uint32 GetLooseDataOffset() const
@@ -138,7 +138,7 @@ public:
 		}
 	}
 
-	void Add(FShaderResourceParameter Parameter, FShaderResourceViewRHIParamRef Value)
+	void Add(FShaderResourceParameter Parameter, FRHIShaderResourceView* Value)
 	{
 		checkfSlow(Parameter.IsInitialized(), TEXT("Parameter was not serialized"));
 
@@ -303,7 +303,7 @@ private:
 		checkfSlow(FoundIndex >= 0, TEXT("Attempted to set a texture sampler at BaseIndex %u which was never in the shader's parameter map."), BaseIndex);
 	}
 
-	inline void WriteBindingSRV(FShaderResourceViewRHIParamRef Value, uint32 BaseIndex)
+	inline void WriteBindingSRV(FRHIShaderResourceView* Value, uint32 BaseIndex)
 	{
 		int32 FoundIndex = -1;
 

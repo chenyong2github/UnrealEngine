@@ -175,7 +175,7 @@ public:
 		FGPUSkinPassthroughVertexFactory* TargetVertexFactory = nullptr;
 
 		// triangle index buffer (input for the RecomputeSkinTangents, might need special index buffer unique to position and normal, not considering UV/vertex color)
-		FShaderResourceViewRHIParamRef IndexBuffer = nullptr;
+		FRHIShaderResourceView* IndexBuffer = nullptr;
 
 		const FSkelMeshRenderSection* Section = nullptr;
 
@@ -372,7 +372,7 @@ protected:
 	FSkeletalMeshObjectGPUSkin* GPUSkin;
 	uint32 InputWeightStride;
 	FShaderResourceViewRHIRef InputWeightStreamSRV;
-	FShaderResourceViewRHIParamRef MorphBuffer;
+	FRHIShaderResourceView* MorphBuffer;
 	FShaderResourceViewRHIRef ClothBuffer;
 	FShaderResourceViewRHIRef ClothPositionsAndNormalsBuffer;
 	int32 LOD;
@@ -422,7 +422,7 @@ public:
 	void SetParameters(FRHICommandListImmediate& RHICmdList, const FVertexBufferAndSRV& BoneBuffer,
 		FGPUSkinCacheEntry* Entry,
 		FGPUSkinCacheEntry::FSectionDispatchData& DispatchData,
-		FUnorderedAccessViewRHIParamRef PositionUAV, FUnorderedAccessViewRHIParamRef TangentUAV)
+		FRHIUnorderedAccessView* PositionUAV, FRHIUnorderedAccessView* TangentUAV)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 
@@ -631,7 +631,7 @@ void FGPUSkinCache::CommitRayTracingGeometryUpdates(FRHICommandList& RHICmdList)
 void FGPUSkinCache::TransitionToWriteable(FRHICommandList& RHICmdList)
 {
 	int32 BufferIndex = InternalUpdateCount % GPUSKINCACHE_FRAMES;
-	FUnorderedAccessViewRHIParamRef OutUAVs[] = { SkinCacheBuffer[BufferIndex].UAV };
+	FRHIUnorderedAccessView* OutUAVs[] = { SkinCacheBuffer[BufferIndex].UAV };
 	RHICmdList.TransitionResources(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EGfxToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
 }
 
@@ -639,7 +639,7 @@ void FGPUSkinCache::TransitionAllToWriteable(FRHICommandList& RHICmdList)
 {
 	if (bInitialized)
 	{
-		FUnorderedAccessViewRHIParamRef OutUAVs[GPUSKINCACHE_FRAMES];
+		FRHIUnorderedAccessView* OutUAVs[GPUSKINCACHE_FRAMES];
 
 		for (int32 Index = 0; Index < GPUSKINCACHE_FRAMES; ++Index)
 		{
@@ -1311,7 +1311,7 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 	check(DispatchData.PreviousPositionBuffer != DispatchData.PositionBuffer);
 }
 
-void FGPUSkinCache::FRWBuffersAllocation::RemoveAllFromTransitionArray(TArray<FUnorderedAccessViewRHIParamRef>& InBuffersToTransition)
+void FGPUSkinCache::FRWBuffersAllocation::RemoveAllFromTransitionArray(TArray<FRHIUnorderedAccessView*>& InBuffersToTransition)
 {
 	for (uint32 i = 0; i < NUM_BUFFERS; i++)
 	{

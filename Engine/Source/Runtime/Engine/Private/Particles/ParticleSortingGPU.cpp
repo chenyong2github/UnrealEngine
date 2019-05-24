@@ -91,7 +91,7 @@ public:
 	/**
 	 * Set output buffers for this shader.
 	 */
-	void SetOutput(FRHICommandList& RHICmdList, FUnorderedAccessViewRHIParamRef OutKeysUAV, FUnorderedAccessViewRHIParamRef OutIndicesUAV )
+	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* OutKeysUAV, FRHIUnorderedAccessView* OutIndicesUAV )
 	{
 		FComputeShaderRHIParamRef ComputeShaderRHI = GetComputeShader();
 		if ( OutKeys.IsBound() )
@@ -110,7 +110,7 @@ public:
 	void SetParameters(
 		FRHICommandList& RHICmdList,
 		FParticleKeyGenUniformBufferRef& UniformBuffer,
-		FShaderResourceViewRHIParamRef InIndicesSRV
+		FRHIShaderResourceView* InIndicesSRV
 		)
 	{
 		FComputeShaderRHIParamRef ComputeShaderRHI = GetComputeShader();
@@ -141,15 +141,15 @@ public:
 		FComputeShaderRHIParamRef ComputeShaderRHI = GetComputeShader();
 		if ( InParticleIndices.IsBound() )
 		{
-			RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, InParticleIndices.GetBaseIndex(), FShaderResourceViewRHIParamRef());
+			RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, InParticleIndices.GetBaseIndex(), nullptr);
 		}
 		if ( OutKeys.IsBound() )
 		{
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutKeys.GetBaseIndex(), FUnorderedAccessViewRHIParamRef());
+			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutKeys.GetBaseIndex(), nullptr);
 		}
 		if ( OutParticleIndices.IsBound() )
 		{
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutParticleIndices.GetBaseIndex(), FUnorderedAccessViewRHIParamRef());
+			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutParticleIndices.GetBaseIndex(), nullptr);
 		}
 	}
 
@@ -177,8 +177,8 @@ IMPLEMENT_SHADER_TYPE(,FParticleSortKeyGenCS,TEXT("/Engine/Private/ParticleSortK
  */
 static int32 GenerateParticleSortKeys(
 	FRHICommandListImmediate& RHICmdList,
-	FUnorderedAccessViewRHIParamRef KeyBufferUAV,
-	FUnorderedAccessViewRHIParamRef SortedVertexBufferUAV,
+	FRHIUnorderedAccessView* KeyBufferUAV,
+	FRHIUnorderedAccessView* SortedVertexBufferUAV,
 	FTexture2DRHIParamRef PositionTextureRHI,
 	const TArray<FParticleSimulationSortInfo>& SimulationsToSort,
 	ERHIFeatureLevel::Type FeatureLevel
@@ -192,7 +192,7 @@ static int32 GenerateParticleSortKeys(
 	const uint32 MaxGroupCount = 128;
 	int32 TotalParticleCount = 0;
 
-	FUnorderedAccessViewRHIParamRef OutputUAVs[2];
+	FRHIUnorderedAccessView* OutputUAVs[2];
 	OutputUAVs[0] = KeyBufferUAV;
 	OutputUAVs[1] = SortedVertexBufferUAV;
 

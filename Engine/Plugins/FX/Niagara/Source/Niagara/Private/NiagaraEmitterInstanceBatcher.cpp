@@ -239,7 +239,7 @@ void NiagaraEmitterInstanceBatcher::SortGPUParticles(FRHICommandListImmediate& R
 		SET_DWORD_STAT(STAT_NiagaraGPUSortedBuffers, ParticleSortBuffers.GetSize());
 
 		// Make sure our outputs are safe to write to.
-		FUnorderedAccessViewRHIParamRef OutputUAVs[2] = { ParticleSortBuffers.GetKeyBufferUAV(), ParticleSortBuffers.GetVertexBufferUAV() };
+		FRHIUnorderedAccessView* OutputUAVs[2] = { ParticleSortBuffers.GetKeyBufferUAV(), ParticleSortBuffers.GetVertexBufferUAV() };
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, OutputUAVs, 2);
 
 		{
@@ -335,7 +335,7 @@ void NiagaraEmitterInstanceBatcher::ResolveParticleSortBuffers(FRHICommandListIm
 
 	for (int32 Index = 0; Index < SortedVertexBuffers.Num(); Index += NIAGARA_COPY_BUFFER_BUFFER_COUNT)
 	{
-		FUnorderedAccessViewRHIParamRef UAVs[NIAGARA_COPY_BUFFER_BUFFER_COUNT] = {};
+		FRHIUnorderedAccessView* UAVs[NIAGARA_COPY_BUFFER_BUFFER_COUNT] = {};
 		int32 UsedIndexCounts[NIAGARA_COPY_BUFFER_BUFFER_COUNT] = {};
 
 		const int32 NumBuffers = FMath::Min<int32>(NIAGARA_COPY_BUFFER_BUFFER_COUNT, SortedVertexBuffers.Num() - Index);

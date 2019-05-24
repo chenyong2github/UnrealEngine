@@ -92,7 +92,7 @@ public:
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FParticleSpriteUniformParameters>(), SpriteVF->GetSpriteUniformBuffer() );
 		
 		ShaderBindings.Add(NumCutoutVerticesPerFrame, SpriteVF->GetNumCutoutVerticesPerFrame());
-		FShaderResourceViewRHIParamRef NullSRV = GFNullSubUVCutoutVertexBuffer.VertexBufferSRV;
+		FRHIShaderResourceView* NullSRV = GFNullSubUVCutoutVertexBuffer.VertexBufferSRV;
 		ShaderBindings.Add(CutoutGeometry, SpriteVF->GetCutoutGeometrySRV() ? SpriteVF->GetCutoutGeometrySRV() : NullSRV);
 	}
 

@@ -688,7 +688,7 @@ void FDeferredShadingSceneRenderer::ComputeLightGrid(FRHICommandListImmediate& R
 			const FIntVector NumGroups = FIntVector::DivideAndRoundUp(FIntVector(LightGridSizeXY.X, LightGridSizeXY.Y, GLightGridSizeZ), LightGridInjectionGroupSize);
 
 			// TODO: When external buffers and extract can be set up maybe use that to get these out instead.
-			TArray<FUnorderedAccessViewRHIParamRef, TInlineAllocator<2>> OutUAVs({
+			TArray<FRHIUnorderedAccessView*, TInlineAllocator<2>> OutUAVs({
 				View.ForwardLightingResources->NumCulledLightsGrid.UAV,
 				View.ForwardLightingResources->CulledLightDataGrid.UAV });
 

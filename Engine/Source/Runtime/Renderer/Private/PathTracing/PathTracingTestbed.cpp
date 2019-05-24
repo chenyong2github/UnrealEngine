@@ -51,8 +51,8 @@ public:
 		FRHICommandList& RHICmdList,
 		uint32 SamplesCount, 
 		uint32 BrdfType,
-		FUnorderedAccessViewRHIParamRef ResultsBuffer,
-		FUnorderedAccessViewRHIParamRef FloatResultsBuffer)
+		FRHIUnorderedAccessView* ResultsBuffer,
+		FRHIUnorderedAccessView* FloatResultsBuffer)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 		SetShaderValue(RHICmdList, ShaderRHI, SamplesCountParameter, SamplesCount);
@@ -137,7 +137,7 @@ public:
 		FVector Wo,
 		uint32 NumThetaSteps,
 		uint32 NumPhiSteps,
-		FUnorderedAccessViewRHIParamRef PdfsResultsBuffer)
+		FRHIUnorderedAccessView* PdfsResultsBuffer)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 		SetShaderValue(RHICmdList, ShaderRHI, BrdfTypeParameter, BrdfType);
@@ -225,7 +225,7 @@ public:
 		FVector Wo,
 		uint32 NumThetaSteps,
 		uint32 NumPhiSteps,
-		FUnorderedAccessViewRHIParamRef WisBinDistributionResultsBuffer)
+		FRHIUnorderedAccessView* WisBinDistributionResultsBuffer)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 		SetShaderValue(RHICmdList, ShaderRHI, BrdfTypeParameter, BrdfType);
@@ -314,7 +314,7 @@ public:
 		FVector Wo,
 		uint32 NumThetaSteps,
 		uint32 NumPhiSteps,
-		FUnorderedAccessViewRHIParamRef PdfsResultsBuffer)
+		FRHIUnorderedAccessView* PdfsResultsBuffer)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 		SetShaderValue(RHICmdList, ShaderRHI, BrdfTypeParameter, BrdfType);

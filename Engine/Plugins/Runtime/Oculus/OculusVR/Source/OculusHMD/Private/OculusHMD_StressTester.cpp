@@ -170,7 +170,7 @@ public:
 
 		if (TextureParameter.IsBound())
 		{
-			RHICmdList.SetShaderResourceViewParameter(PixelShaderRHI, TextureParameter.GetBaseIndex(), FShaderResourceViewRHIParamRef());
+			RHICmdList.SetShaderResourceViewParameter(PixelShaderRHI, TextureParameter.GetBaseIndex(), nullptr);
 		}
 	}
 

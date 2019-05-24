@@ -144,7 +144,7 @@ private:
 	FHeightfieldDescription Heightfield;
 };
 
-extern FShaderResourceViewRHIParamRef GetHeightfieldDescriptionsSRV();
+extern FRHIShaderResourceView* GetHeightfieldDescriptionsSRV();
 
 class FHeightfieldDescriptionParameters
 {
@@ -163,7 +163,7 @@ public:
 	}
 
 	template<typename ShaderRHIParamRef>
-	void Set(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, FShaderResourceViewRHIParamRef HeightfieldDescriptionsValue, int32 NumHeightfieldsValue)
+	void Set(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, FRHIShaderResourceView* HeightfieldDescriptionsValue, int32 NumHeightfieldsValue)
 	{
 		SetSRVParameter(RHICmdList, ShaderRHI, HeightfieldDescriptions, HeightfieldDescriptionsValue);
 		SetShaderValue(RHICmdList, ShaderRHI, NumHeightfields, NumHeightfieldsValue);

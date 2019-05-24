@@ -347,7 +347,7 @@ public:
 
 		const FScene* Scene = (const FScene*)View.Family->Scene;
 
-		FUnorderedAccessViewRHIParamRef UniformMeshUAVs[1];
+		FRHIUnorderedAccessView* UniformMeshUAVs[1];
 		UniformMeshUAVs[0] = Scene->DistanceFieldSceneData.SurfelBuffers->Surfels.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, UniformMeshUAVs, ARRAY_COUNT(UniformMeshUAVs));
 
@@ -365,7 +365,7 @@ public:
 		SurfelBufferParameters.UnsetParameters(RHICmdList, ShaderRHI);
 
 		const FScene* Scene = (const FScene*)View.Family->Scene;
-		FUnorderedAccessViewRHIParamRef UniformMeshUAVs[1];
+		FRHIUnorderedAccessView* UniformMeshUAVs[1];
 		UniformMeshUAVs[0] = Scene->DistanceFieldSceneData.SurfelBuffers->Surfels.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, UniformMeshUAVs, ARRAY_COUNT(UniformMeshUAVs));
 	}

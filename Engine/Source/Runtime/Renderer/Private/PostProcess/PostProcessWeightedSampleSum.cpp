@@ -399,7 +399,7 @@ public:
 	}
 
 	template <typename TRHICmdList>
-	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& DestSize, FUnorderedAccessViewRHIParamRef DestUAV,
+	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& DestSize, FRHIUnorderedAccessView* DestUAV,
 		FTextureRHIParamRef FilterTextureRHI, FTextureRHIParamRef AdditiveTextureRHI, FLinearColor* SampleWeightValues, FVector2D* SampleOffsetValues, uint32 NumSamples)
 	{
 		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
@@ -1082,7 +1082,7 @@ void FRCPassPostProcessWeightedSampleSum::Process(FRenderingCompositePassContext
 }
 
 template <uint32 CompileTimeNumSamples, uint32 CombineMethodInt, typename TRHICmdList>
-void DispatchCSTemplate(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FUnorderedAccessViewRHIParamRef DestUAV,
+void DispatchCSTemplate(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV,
 	FTextureRHIParamRef FilterTextureRHI, FTextureRHIParamRef AdditiveTextureRHI, FLinearColor* SampleWeightValues, FVector2D* SampleOffsetValues, uint32 NumSamples)
 {
 	auto ShaderMap = Context.GetShaderMap();
@@ -1102,7 +1102,7 @@ void DispatchCSTemplate(TRHICmdList& RHICmdList, FRenderingCompositePassContext&
 }
 
 template <typename TRHICmdList>
-void FRCPassPostProcessWeightedSampleSum::DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FUnorderedAccessViewRHIParamRef DestUAV,
+void FRCPassPostProcessWeightedSampleSum::DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV,
 	FTextureRHIParamRef FilterTextureRHI, FTextureRHIParamRef AdditiveTextureRHI, uint32 CombineMethodInt, FLinearColor* SampleWeightValues, FVector2D* SampleOffsetValues, uint32 NumSamples)
 {
 	// Helper macros

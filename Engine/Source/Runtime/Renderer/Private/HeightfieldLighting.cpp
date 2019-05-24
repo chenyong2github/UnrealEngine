@@ -590,7 +590,7 @@ public:
 
 TGlobalResource<FHeightfieldDescriptionsResource> GHeightfieldDescriptions;
 
-FShaderResourceViewRHIParamRef GetHeightfieldDescriptionsSRV()
+FRHIShaderResourceView* GetHeightfieldDescriptionsSRV()
 {
 	return GHeightfieldDescriptions.Data.BufferSRV;
 }

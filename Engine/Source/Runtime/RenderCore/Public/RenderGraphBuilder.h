@@ -203,7 +203,7 @@ private:
 		ERDGPassPipeline PassPipeline) const;
 
 	void TransitionUAV(
-		FUnorderedAccessViewRHIParamRef UAV,
+		FRHIUnorderedAccessView* UAV,
 		FRDGTrackedResource* UnderlyingResource,
 		ERDGPassAccess PassAccess,
 		ERDGPassPipeline PassPipeline) const;

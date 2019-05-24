@@ -160,7 +160,7 @@ public:
 	{
 		if (bBarrier)
 		{
-			FUnorderedAccessViewRHIParamRef OutUAVs[2];
+			FRHIUnorderedAccessView* OutUAVs[2];
 			OutUAVs[0] = ObjectBuffers.Bounds.UAV;
 			OutUAVs[1] = ObjectBuffers.Data.UAV;
 			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
@@ -194,7 +194,7 @@ public:
 
 		if (bBarrier)
 		{
-			FUnorderedAccessViewRHIParamRef OutUAVs[2];
+			FRHIUnorderedAccessView* OutUAVs[2];
 			OutUAVs[0] = ObjectBuffers.Bounds.UAV;
 			OutUAVs[1] = ObjectBuffers.Data.UAV;
 			RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
@@ -402,7 +402,7 @@ public:
 		CulledObjectBoxBounds.UnsetUAV(RHICmdList, ShaderRHI);
 	}
 
-	void GetUAVs(const FDistanceFieldCulledObjectBuffers& ObjectBuffers, TArray<FUnorderedAccessViewRHIParamRef>& UAVs)
+	void GetUAVs(const FDistanceFieldCulledObjectBuffers& ObjectBuffers, TArray<FRHIUnorderedAccessView*>& UAVs)
 	{
 		uint32 MaxIndex = 0;
 		MaxIndex = FMath::Max(MaxIndex, ObjectIndirectArguments.GetUAVIndex());
@@ -577,7 +577,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowAverageObjectsPerTile, GAverageObjectsPerShadowCullTile);
 	}
 
-	void GetUAVs(FLightTileIntersectionResources& TileIntersectionResources, TArray<FUnorderedAccessViewRHIParamRef>& UAVs)
+	void GetUAVs(FLightTileIntersectionResources& TileIntersectionResources, TArray<FRHIUnorderedAccessView*>& UAVs)
 	{
 		int32 MaxIndex = FMath::Max(
 			FMath::Max(ShadowTileNumCulledObjects.GetUAVIndex(), ShadowTileStartOffsets.GetUAVIndex()), 
