@@ -15,6 +15,7 @@ TGlobalResource<FScreenRectangleVertexBuffer> GScreenRectangleVertexBuffer;
 TGlobalResource<FScreenRectangleIndexBuffer> GScreenRectangleIndexBuffer;
 
 IMPLEMENT_GLOBAL_SHADER(FVisualizeTextureVS, "/Engine/Private/Tools/FullscreenVertexShader.usf", "MainVS", SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FCopyRectPS, "/Engine/Private/ScreenPass.usf", "CopyRectPS", SF_Pixel);
 
 
 void FScreenRectangleVertexBuffer::InitRHI()
