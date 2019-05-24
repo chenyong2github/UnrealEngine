@@ -4769,7 +4769,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 	}
 
-	/*
 	// Returns true only if the scheduled notification exists and gets destoyed successfully
 	public boolean AndroidThunkJava_LocalNotificationDestroyIfExists(int notificationId)
 	{
@@ -4784,7 +4783,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 		return false;
 	}
-	*/
 
 	// List of vendor/product ids
 	private static final DeviceInfoData[] DeviceInfoList = {

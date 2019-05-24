@@ -57,7 +57,7 @@ public:
 	static jmethodID AndroidThunkJava_LocalNotificationScheduleAtTime;
 	static jmethodID AndroidThunkJava_LocalNotificationClearAll;
 	static jmethodID AndroidThunkJava_LocalNotificationGetLaunchNotification;
-	//static jmethodID AndroidThunkJava_LocalNotificationDestroyIfExists; - This is not needed yet but will be soon so just leaving commented out for now
+	static jmethodID AndroidThunkJava_LocalNotificationDestroyIfExists;
 	static jmethodID AndroidThunkJava_GetNetworkConnectionType;
 	static jmethodID AndroidThunkJava_GetAndroidId;
 	static jmethodID AndroidThunkJava_ShareURL;
