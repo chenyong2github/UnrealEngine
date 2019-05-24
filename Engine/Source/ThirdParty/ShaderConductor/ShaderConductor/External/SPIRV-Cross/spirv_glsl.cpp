@@ -7022,18 +7022,20 @@ string CompilerGLSL::variable_decl_function_local(SPIRVariable &var)
 
 void CompilerGLSL::flush_variable_declaration(uint32_t id)
 {
+	/* UE Change Begin: Ensure that we declare phi-variable copies even if the original declaration isn't deferred */
 	auto *var = maybe_get<SPIRVariable>(id);
 	if (var && var->deferred_declaration)
 	{
 		statement(variable_decl_function_local(*var), ";");
-		if (var->allocate_temporary_copy)
-		{
-			auto &type = get<SPIRType>(var->basetype);
-			auto &flags = ir.meta[id].decoration.decoration_flags;
-			statement(flags_to_qualifiers_glsl(type, flags), variable_decl(type, join("_", id, "_copy")), ";");
-		}
 		var->deferred_declaration = false;
 	}
+	if (var && var->allocate_temporary_copy)
+	{
+		auto &type = get<SPIRType>(var->basetype);
+		auto &flags = ir.meta[id].decoration.decoration_flags;
+		statement(flags_to_qualifiers_glsl(type, flags), variable_decl(type, join("_", id, "_copy")), ";");
+	}
+	/* UE Change End: Ensure that we declare phi-variable copies even if the original declaration isn't deferred */
 }
 
 bool CompilerGLSL::remove_duplicate_swizzle(string &op)
