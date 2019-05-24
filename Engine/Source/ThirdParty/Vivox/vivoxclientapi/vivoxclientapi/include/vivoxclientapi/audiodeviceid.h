@@ -38,14 +38,14 @@ namespace VivoxClientApi {
         bool operator < (const AudioDeviceId &RHS) const;
         bool IsValid() const;
 
-        const char* const GetAudioDeviceId() const;
+        const char* GetAudioDeviceId() const;
 
         ///
         /// This is the value that is shown to the user.
         ///
-        const char* const GetAudioDeviceDisplayName() const;
+        const char* GetAudioDeviceDisplayName() const;
 
-        const char* const ToString() const { return GetAudioDeviceDisplayName(); }
+        const char* ToString() const { return GetAudioDeviceDisplayName(); }
     private:
         const char* m_deviceId;
         const char* m_displayName;
