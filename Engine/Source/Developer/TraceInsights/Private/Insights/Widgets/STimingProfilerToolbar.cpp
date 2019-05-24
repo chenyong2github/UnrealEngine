@@ -43,12 +43,12 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 	{
 		static void FillToolbar1(FToolBarBuilder& ToolbarBuilder)
 		{
-			ToolbarBuilder.BeginSection("Session");
-			{
-				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().InsightsManager_Live);
-				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().InsightsManager_Load);
-			}
-			ToolbarBuilder.EndSection();
+			//ToolbarBuilder.BeginSection("Session");
+			//{
+			//	ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().InsightsManager_Live);
+			//	ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().InsightsManager_Load);
+			//}
+			//ToolbarBuilder.EndSection();
 			ToolbarBuilder.BeginSection("View");
 			{
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleFramesTrackVisibility);

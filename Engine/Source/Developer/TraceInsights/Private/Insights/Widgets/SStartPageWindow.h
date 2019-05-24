@@ -67,10 +67,17 @@ private:
 	void SendingServiceSideCapture_Cancel(const FString Filename);
 	void SendingServiceSideCapture_Load(const FString Filename);
 
-	void SpawnAndActivateTabs();
+	bool Live_IsEnabled() const;
+	bool Last_IsEnabled() const;
 
 	FReply Live_OnClicked();
+	FReply Last_OnClicked();
 	FReply Load_OnClicked();
+
+	void LoadTraceFile(const TCHAR* TraceFile);
+	void LoadSession(Trace::FSessionHandle SessionHandle);
+
+	TSharedRef<SWidget> MakeSessionListMenu();
 
 	FText GetLocalSessionDirectory() const;
 	FReply ExploreLocalSessionDirectory_OnClicked();
@@ -91,7 +98,7 @@ private:
 	 * @param  InCurrentTime  Current absolute real time
 	 * @param  InDeltaTime  Real time passed since last tick
 	 */
-	//virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	/**
 	 * The system will use this event to notify a widget that the cursor has entered it. This event is NOT bubbled.
@@ -157,4 +164,10 @@ private:
 
 	/** Holds all widgets for the profiler window like menu bar, toolbar and tabs. */
 	TSharedPtr<SVerticalBox> MainContentPanel;
+
+	bool bIsAnyLiveSessionAvailable;
+	Trace::FSessionHandle LastLiveSessionHandle;
+
+	bool bIsAnySessionAvailable;
+	Trace::FSessionHandle LastSessionHandle;
 };

@@ -2,15 +2,15 @@
 
 #include "InsightsManager.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "Modules/ModuleManager.h"
 #include "Templates/ScopedPointer.h"
 #include "Templates/UniquePtr.h"
-#include "TraceServices/AnalysisService.h"
-#include "TraceServices/SessionService.h"
 
 // Insights
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/Widgets/SStartPageWindow.h"
+#include "Insights/Widgets/STimingProfilerWindow.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -121,8 +121,11 @@ bool FInsightsManager::Tick(float DeltaTime)
 
 void FInsightsManager::ResetSession()
 {
-	Session = nullptr;
-	OnSessionChanged();
+	if (Session.IsValid())
+	{
+		Session.Reset();
+		OnSessionChanged();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -140,34 +143,131 @@ void FInsightsManager::OnSessionChanged()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FInsightsManager::CreateLiveSession()
+void FInsightsManager::SpawnAndActivateTabs()
+{
+	// Open tabs for profilers.
+	if (FGlobalTabmanager::Get()->CanSpawnTab(FInsightsManagerTabs::TimingProfilerTabId))
+	{
+		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::TimingProfilerTabId);
+	}
+	if (FGlobalTabmanager::Get()->CanSpawnTab(FInsightsManagerTabs::IoProfilerTabId))
+	{
+		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::IoProfilerTabId);
+	}
+
+	// Ensure Timing Insights / Timing View is the active tab / view.
+	if (TSharedPtr<SDockTab> TimingInsightsTab = FGlobalTabmanager::Get()->FindExistingLiveTab(FInsightsManagerTabs::TimingProfilerTabId))
+	{
+		TimingInsightsTab->ActivateInParent(ETabActivationCause::SetDirectly);
+
+		//TOOD: FTimingProfilerManager::Get()->SpawnAndActivateTabs();
+		TSharedPtr<class STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (Wnd)
+		{
+			TSharedPtr<FTabManager> TabManager = Wnd->GetTabManager();
+
+			if (TSharedPtr<SDockTab> TimingViewTab = TabManager->FindExistingLiveTab(FTimingProfilerTabs::TimingViewID))
+			{
+				TimingViewTab->ActivateInParent(ETabActivationCause::SetDirectly);
+				FSlateApplication::Get().SetKeyboardFocus(TimingViewTab->GetContent());
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FInsightsManager::IsAnyLiveSessionAvailable(Trace::FSessionHandle& OutLastLiveSessionHandle) const
+{
+	TArray<Trace::FSessionHandle> AvailableSessions;
+	SessionService->GetAvailableSessions(AvailableSessions);
+
+	for (int32 SessionIndex = AvailableSessions.Num() - 1; SessionIndex >= 0; --SessionIndex)
+	{
+		Trace::FSessionInfo SessionInfo;
+		SessionService->GetSessionInfo(AvailableSessions[SessionIndex], SessionInfo);
+
+		if (SessionInfo.bIsLive)
+		{
+			OutLastLiveSessionHandle = AvailableSessions[SessionIndex];
+			return true;
+		}
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FInsightsManager::IsAnySessionAvailable(Trace::FSessionHandle& OutLastSessionHandle) const
+{
+	TArray<Trace::FSessionHandle> AvailableSessions;
+	SessionService->GetAvailableSessions(AvailableSessions);
+
+	if (AvailableSessions.Num() > 0)
+	{
+		OutLastSessionHandle = AvailableSessions.Last();
+		return true;
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::LoadLastLiveSession()
 {
 	ResetSession();
 
 	TArray<Trace::FSessionHandle> AvailableSessions;
 	SessionService->GetAvailableSessions(AvailableSessions);
 
-	for (Trace::FSessionHandle SessionHandle : AvailableSessions)
+	// Iterate in reverse order as we want the most recent live session first.
+	for (int32 SessionIndex = AvailableSessions.Num() - 1; SessionIndex >= 0; --SessionIndex)
 	{
+		Trace::FSessionHandle SessionHandle = AvailableSessions[SessionIndex];
+
 		Trace::FSessionInfo SessionInfo;
 		SessionService->GetSessionInfo(SessionHandle, SessionInfo);
+
 		if (SessionInfo.bIsLive)
 		{
-			TUniquePtr<Trace::IInDataStream> DataStream(SessionService->OpenSessionStream(SessionHandle));
-			check(DataStream);
-			Session = AnalysisService->StartAnalysis(TEXT("Live session"), MoveTemp(DataStream));
+			LoadSession(SessionHandle);
 			break;
 		}
 	}
+}
 
-	if (!Session && AvailableSessions.Num())
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::LoadLastSession()
+{
+	ResetSession();
+
+	TArray<Trace::FSessionHandle> AvailableSessions;
+	SessionService->GetAvailableSessions(AvailableSessions);
+
+	if (AvailableSessions.Num() > 0)
 	{
-		Trace::FSessionHandle SessionHandle = AvailableSessions.Last();
-		TUniquePtr<Trace::IInDataStream> DataStream(SessionService->OpenSessionStream(SessionHandle));
-		check(DataStream);
-		Session = AnalysisService->StartAnalysis(TEXT("Latest session"), MoveTemp(DataStream));
+		LoadSession(AvailableSessions.Last());
 	}
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::LoadSession(Trace::FSessionHandle SessionHandle)
+{
+	ResetSession();
+
+	Trace::FSessionInfo SessionInfo;
+	SessionService->GetSessionInfo(SessionHandle, SessionInfo);
+
+	TUniquePtr<Trace::IInDataStream> DataStream(SessionService->OpenSessionStream(SessionHandle));
+	check(DataStream);
+
+	Session = AnalysisService->StartAnalysis(SessionInfo.Name, MoveTemp(DataStream));
+
+	SpawnAndActivateTabs();
 	OnSessionChanged();
 }
 
@@ -182,6 +282,7 @@ void FInsightsManager::LoadTraceFile(const FString& TraceFilepath)
 
 	Session = AnalysisService->StartAnalysis(*TraceFilepath, MoveTemp(DataStream));
 
+	SpawnAndActivateTabs();
 	OnSessionChanged();
 }
 

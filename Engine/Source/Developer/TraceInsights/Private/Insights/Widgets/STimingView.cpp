@@ -22,6 +22,7 @@
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/SessionService.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SOverlay.h"
@@ -404,7 +405,9 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 		// Sync CachedTimelines and TimingEventsTracks with available timelines on analysis side.
 		// TODO: can we make this more efficient?
+
 		const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+
 		// Check if we have a GPU track.
 		uint32 GpuTimelineIndex;
 		if (TimingProfilerProvider.GetGpuTimelineIndex(GpuTimelineIndex))
@@ -417,8 +420,8 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		}
 
 		// Check available CPU tracks.
-		const Trace::IThreadProvider& ThreadProvider = Session->ReadThreadProvider();
 		int32 Order = 1;
+		const Trace::IThreadProvider& ThreadProvider = Session->ReadThreadProvider();
 		ThreadProvider.EnumerateThreads([this, &Order, &bIsTimingEventsTrackDirty, &TimingProfilerProvider](const Trace::FThreadInfo& ThreadInfo)
 		{
 			uint32 CpuTimelineIndex;
@@ -442,7 +445,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 				Order++;
 			}
 		});
-		
+
 		if (IoActivityTrack == nullptr)
 		{
 			// Note: This track is hardcoded for now, as the I/O timelines are just prototypes for now (will be removed once the functionality is moved in analyzer).
@@ -1022,6 +1025,7 @@ void STimingView::DrawCpuGpuTimelineTrack(FTimingViewDrawHelper& Helper, FTiming
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
 			const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+
 			TimingProfilerProvider.ReadTimers([this, &Helper, &Track, &TimingProfilerProvider](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
 			{
 				TimingProfilerProvider.ReadTimeline(Track.GetId(), [this, &Helper, &Track, Timers](const Trace::ITimingProfilerProvider::Timeline& Timeline)
@@ -1043,7 +1047,7 @@ void STimingView::DrawCpuGpuTimelineTrack(FTimingViewDrawHelper& Helper, FTiming
 					}
 				});
 			});
-		
+
 			Helper.EndTimeline(Track);
 		}
 	}
@@ -1167,6 +1171,7 @@ void STimingView::UpdateIo()
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
 			const Trace::IFileActivityProvider& FileActivityProvider = Session->ReadFileActivityProvider();
+
 			// Enumerate all IO events and cache them.
 			FileActivityProvider.EnumerateFileActivity([this](const Trace::FFileInfo& FileInfo, const Trace::IFileActivityProvider::Timeline& Timeline)
 			{
@@ -2510,8 +2515,8 @@ bool STimingView::SearchTimingEvent(const double InStartTime,
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		//if (Ctx.TimingEvent.Track->GetType() == TrackType::Timing)
 		const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+
 		TimingProfilerProvider.ReadTimeline(Ctx.TimingEvent.Track->GetId(), [&Ctx](const Trace::ITimingProfilerProvider::Timeline& Timeline)
 		{
 			Timeline.EnumerateEvents(Ctx.StartTime, Ctx.EndTime, [&Ctx](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FTimingProfilerEvent& Event)
@@ -2533,7 +2538,7 @@ bool STimingView::SearchTimingEvent(const double InStartTime,
 				}
 			});
 		});
-	
+
 		if (Ctx.bFound)
 		{
 			TimingProfilerProvider.ReadTimeline(Ctx.TimingEvent.Track->GetId(), [&Ctx](const Trace::ITimingProfilerProvider::Timeline& Timeline)
@@ -2826,7 +2831,7 @@ TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
 
-	MenuBuilder.BeginSection("TracksFilter", LOCTEXT("TracksFilterHeading", "Quick Filter"));
+	MenuBuilder.BeginSection("QuickFilter", LOCTEXT("TracksFilterHeading", "Quick Filter"));
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowAllGpuTracks", "Show/Hide All GPU Tracks (U)"),

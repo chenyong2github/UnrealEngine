@@ -36,7 +36,7 @@ FInsightsCommands::FInsightsCommands()
 PRAGMA_DISABLE_OPTIMIZATION
 void FInsightsCommands::RegisterCommands()
 {
-	UI_COMMAND(InsightsManager_Live, "Live", "Loads profiler data from a live trace session", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(InsightsManager_Live, "Live", "Loads profiler data from a live or last trace session", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(InsightsManager_Load, "Load...", "Loads profiler data from a trace file", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::L));
 	UI_COMMAND(ToggleDebugInfo, "Debug", "Toggles the display of debug info", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::D));
 	UI_COMMAND(OpenSettings, "Settings", "Opens the Unreal Insights settings", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::O));
@@ -95,7 +95,11 @@ void FInsightsActionManager::Map_InsightsManager_Live()
 
 void FInsightsActionManager::InsightsManager_Live_Execute()
 {
-	This->CreateLiveSession();
+	This->LoadLastLiveSession();
+	if (!This->GetSession().IsValid())
+	{
+		This->LoadLastSession();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -122,8 +126,11 @@ void FInsightsActionManager::Map_InsightsManager_Load()
 
 void FInsightsActionManager::InsightsManager_Load_Execute()
 {
+	//const FString ProfilingDirectory(FPaths::ConvertRelativePathToFull(*FPaths::ProfilingDir()));
+	TSharedRef<Trace::ISessionService> SessionService = This->GetSessionService();
+	const FString ProfilingDirectory(FPaths::ConvertRelativePathToFull(SessionService->GetLocalSessionDirectory()));
+
 	TArray<FString> OutFiles;
-	const FString ProfilingDirectory = *FPaths::ConvertRelativePathToFull(*FPaths::ProfilingDir());
 
 	bool bOpened = false;
 
@@ -135,10 +142,10 @@ void FInsightsActionManager::InsightsManager_Load_Execute()
 		bOpened = DesktopPlatform->OpenFileDialog
 		(
 			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
-			LOCTEXT("UnrealInsights_LoadTrace_FileDesc", "Open trace capture file...").ToString(),
+			LOCTEXT("LoadTrace_FileDesc", "Open trace file...").ToString(),
 			ProfilingDirectory,
 			TEXT(""),
-			LOCTEXT("UnrealInsights_LoadTrace_FileFilter", "Trace files (*.utrace)|*.utrace|All files (*.*)|*.*").ToString(),
+			LOCTEXT("LoadTrace_FileFilter", "Trace files (*.utrace)|*.utrace|All files (*.*)|*.*").ToString(),
 			EFileDialogFlags::None,
 			OutFiles
 		);

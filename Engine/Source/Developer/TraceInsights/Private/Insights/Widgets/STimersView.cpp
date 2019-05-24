@@ -1436,6 +1436,7 @@ void STimersView::RebuildTree(bool bResync)
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
 		const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+
 		TimingProfilerProvider.ReadTimers([this, &bResync, &bListHasChanged](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
 		{
 			if (!bResync)
@@ -1496,6 +1497,7 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 			const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
 			AggregationResultTable.Reset(TimingProfilerProvider.CreateAggregation(StartTime, EndTime, ThreadFilter, true));
 		}
+
 		TUniquePtr<Trace::ITableReader<Trace::FTimingProfilerAggregatedStats>> AggregationResultTableReader(AggregationResultTable->CreateReader());
 		while (AggregationResultTableReader->IsValid())
 		{

@@ -705,6 +705,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		const Trace::ILogProvider& LogProvider = Session->ReadLogProvider();
+
 		NewMessageCount = static_cast<int32>(LogProvider.GetMessageCount());
 
 		//TODO: show only categories that are used in current trace
@@ -728,7 +729,9 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 			{
 				FString CategoryStr(Category.Name);
 				if (CategoryStr.StartsWith(TEXT("Log")))
+				{
 					CategoryStr = CategoryStr.RightChop(3);
+				}
 				if (Categories.Contains(FName(*CategoryStr)))
 				{
 					UE_LOG(TimingProfiler, Log, TEXT("[LogView] Duplicated Log Category: \"%s\""), Category.Name);

@@ -146,13 +146,11 @@ FLogMessageRecord& FLogMessageCache::Get(uint64 Index)
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		const Trace::ILogProvider& LogProvider = Session->ReadLogProvider();
-		LogProvider.ReadMessage(
-			Index,
-			[this, Index](const Trace::FLogMessage& Message)
+		LogProvider.ReadMessage(Index, [this, Index](const Trace::FLogMessage& Message)
 		{
-				FScopeLock Lock(&CriticalSection);
-				FLogMessageRecord Entry(Message);
-				Map.Add(Index, Entry);
+			FScopeLock Lock(&CriticalSection);
+			FLogMessageRecord Entry(Message);
+			Map.Add(Index, Entry);
 		});
 	}
 
@@ -177,11 +175,9 @@ TSharedPtr<FLogMessageRecord> FLogMessageCache::GetUncached(uint64 Index) const
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		const Trace::ILogProvider& LogProvider = Session->ReadLogProvider();
-		LogProvider.ReadMessage(
-			Index,
-			[&EntryPtr](const Trace::FLogMessage& Message)
+		LogProvider.ReadMessage(Index, [&EntryPtr](const Trace::FLogMessage& Message)
 		{
-				EntryPtr = MakeShareable(new FLogMessageRecord(Message));
+			EntryPtr = MakeShareable(new FLogMessageRecord(Message));
 		});
 	}
 

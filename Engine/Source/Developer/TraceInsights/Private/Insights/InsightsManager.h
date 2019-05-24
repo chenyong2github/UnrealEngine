@@ -5,6 +5,8 @@
 #include "Containers/Ticker.h"
 #include "CoreMinimal.h"
 #include "Framework/Commands/UICommandList.h"
+#include "TraceServices/AnalysisService.h"
+#include "TraceServices/SessionService.h"
 
 // Insights
 #include "Insights/InsightsCommands.h"
@@ -13,13 +15,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class SStartPageWindow;
-
-namespace Trace
-{
-	class IAnalysisService;
-	class IAnalysisSession;
-	class ISessionService;
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -142,11 +137,23 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	/** Creates a new profiler session instance and loads a live trace. */
-	void CreateLiveSession();
+	bool IsAnyLiveSessionAvailable(Trace::FSessionHandle& OutLastLiveSessionHandle) const;
+	bool IsAnySessionAvailable(Trace::FSessionHandle& OutLastSessionHandle) const;
+
+	/** Creates a new analysis session instance and loads the latest available trace session that is live. */
+	void LoadLastLiveSession();
+
+	/** Creates a new analysis session instance and loads the latest available trace session. */
+	void LoadLastSession();
 
 	/**
-	 * Creates a new profiler session instance and loads a trace file from the specified location.
+	 * Creates a new analysis session instance using specified session handle.
+	 * @param SessionHandle - The handle for session to analyze
+	 */
+	void LoadSession(Trace::FSessionHandle SessionHandle);
+
+	/**
+	 * Creates a new analysis session instance and loads a trace file from the specified location.
 	 * @param TraceFilepath - The path to the trace file
 	 */
 	void LoadTraceFile(const FString& TraceFilepath);
@@ -181,6 +188,8 @@ private:
 	void ResetSession();
 
 	void OnSessionChanged();
+
+	void SpawnAndActivateTabs();
 
 private:
 	/** The delegate to be invoked when this manager ticks. */

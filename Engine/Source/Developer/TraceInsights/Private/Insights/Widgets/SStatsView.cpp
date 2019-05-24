@@ -1406,6 +1406,7 @@ void SStatsView::RebuildTree(bool bResync)
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
 		const Trace::ICounterProvider& CountersProvider = Session->ReadCounterProvider();
+
 		if (!bResync)
 		{
 			bResync = (CountersProvider.GetCounterCount() != StatsNodes.Num());
@@ -1724,9 +1725,10 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
+			const Trace::ICounterProvider& CountersProvider = Session->ReadCounterProvider();
+
 			// Compute instance count and total/min/max inclusive/exclusive times for each counter.
 			// Iterate through all counters.
-			const Trace::ICounterProvider& CountersProvider = Session->ReadCounterProvider();
 			CountersProvider.EnumerateCounters([&CalculationHelperDbl, &CalculationHelperInt](const Trace::ICounter& Counter)
 			{
 				if (Counter.GetDisplayHint() == Trace::CounterDisplayHint_FloatingPoint)

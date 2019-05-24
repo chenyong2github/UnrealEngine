@@ -2,9 +2,12 @@
 
 #include "SStartPageWindow.h"
 
+#include "DesktopPlatformModule.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/WorkspaceItem.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/FileManagerGeneric.h"
 #include "SlateOptMacros.h"
 #include "TraceServices/SessionService.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -16,6 +19,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
 //#include "WorkspaceMenuStructure.h"
 //#include "WorkspaceMenuStructureModule.h"
 
@@ -80,6 +84,10 @@ static FText GetTextForNotification(const EInsightsNotificationType NotificatonT
 
 SStartPageWindow::SStartPageWindow()
 	: DurationActive(0.0f)
+	, bIsAnyLiveSessionAvailable(false)
+	, LastLiveSessionHandle(static_cast<Trace::FSessionHandle>(0))
+	, bIsAnySessionAvailable(false)
+	, LastSessionHandle(static_cast<Trace::FSessionHandle>(0))
 {
 }
 
@@ -98,8 +106,6 @@ SStartPageWindow::~SStartPageWindow()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SStartPageWindow::Construct(const FArguments& InArgs)
 {
@@ -152,9 +158,10 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 							[
 								SNew(STextBlock)
 								.Text(LOCTEXT("SelectTraceHint", "\
-- Use \"Live\" button to start a live session.\n\
-   If no live session, it will load the last trace file from the Local Session Directory.\n\
+- Use \"Live\" button to start analysis for the latest available session that is live, if any.\n\
+- Use \"Latest\" button to start analysis for the latest available session, if any.\n\
 - Use \"Load\" button to load a trace file (*.utrace).\n\
+- Use the combo box to choose from available sessions.\n\
 - Drag and drop a *.utrace file over this window."))
 								//.Justification(ETextJustify::Center)
 							]
@@ -173,7 +180,8 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 								[
 									SNew(SButton)
 									.OnClicked(this, &SStartPageWindow::Live_OnClicked)
-									.ToolTipText(LOCTEXT("LiveButtonTooltip", "Start a live session or load the last trace file from the Local Session Directory."))
+									.IsEnabled(this, &SStartPageWindow::Live_IsEnabled)
+									.ToolTipText(LOCTEXT("LiveButtonTooltip", "Start analysis for the latest available session that is live, if any."))
 									.ContentPadding(8.0f)
 									.Content()
 									[
@@ -206,6 +214,41 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 								.Padding(3.0f, 0.0f)
 								[
 									SNew(SButton)
+									.OnClicked(this, &SStartPageWindow::Last_OnClicked)
+									.IsEnabled(this, &SStartPageWindow::Last_IsEnabled)
+									.ToolTipText(LOCTEXT("LastButtonTooltip", "Start analysis for the latest available session, if any."))
+									.ContentPadding(8.0f)
+									.Content()
+									[
+										SNew(SHorizontalBox)
+
+										+SHorizontalBox::Slot()
+											.AutoWidth()
+											[
+												SNew(SImage)
+												.Image(FInsightsStyle::GetBrush("Live.Icon.Large"))
+											]
+
+										+SHorizontalBox::Slot()
+											.AutoWidth()
+											.VAlign(VAlign_Center)
+											[
+												SNew(SBox)
+												.WidthOverride(100.0f)
+												[
+													SNew(STextBlock)
+													.Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
+													.Text(LOCTEXT("LastButtonText", "Latest"))
+												]
+											]
+									]
+								]
+
+							+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.Padding(3.0f, 0.0f, 0.0f, 0.0f)
+								[
+									SNew(SButton)
 									.OnClicked(this, &SStartPageWindow::Load_OnClicked)
 									.ToolTipText(LOCTEXT("LoadButtonTooltip", "Load a trace file."))
 									.ContentPadding(8.0f)
@@ -233,6 +276,17 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 												]
 											]
 									]
+								]
+
+							+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+								[
+									SNew(SComboButton)
+									.ToolTipText(LOCTEXT("SessionList_Tooltip", "Choose from Most Recently Used Sessions or from Available Sessions"))
+									.OnGetMenuContent(this, &SStartPageWindow::MakeSessionListMenu)
+									.HasDownArrow(true)
+									.ContentPadding(FMargin(1.0f, 1.0f, 1.0f, 1.0f))
 								]
 						]
 
@@ -370,6 +424,23 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStartPageWindow::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	// We need to check if there is any available session, but not too often.
+	static uint64 NextTimestamp = 0;
+	uint64 Time = FPlatformTime::Cycles64();
+	if (Time > NextTimestamp)
+	{
+		const uint64 WaitTime = static_cast<uint64>(0.5 / FPlatformTime::GetSecondsPerCycle64()); // 500ms
+		NextTimestamp = Time + WaitTime;
+
+		bIsAnySessionAvailable = FInsightsManager::Get()->IsAnySessionAvailable(LastSessionHandle);
+		bIsAnyLiveSessionAvailable = FInsightsManager::Get()->IsAnyLiveSessionAvailable(LastLiveSessionHandle);
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -589,10 +660,7 @@ FReply SStartPageWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEven
 				const FString DraggedFileExtension = FPaths::GetExtension(Files[0], true);
 				if (DraggedFileExtension == TEXT(".utrace"))
 				{
-					SpawnAndActivateTabs();
-
 					FInsightsManager::Get()->LoadTraceFile(Files[0]);
-
 					return FReply::Handled();
 				}
 			}
@@ -604,43 +672,31 @@ FReply SStartPageWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEven
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStartPageWindow::SpawnAndActivateTabs()
+bool SStartPageWindow::Live_IsEnabled() const
 {
-	// Open tabs for profilers.
-	if (FGlobalTabmanager::Get()->CanSpawnTab(FInsightsManagerTabs::TimingProfilerTabId))
-	{
-		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::TimingProfilerTabId);
-	}
-	if (FGlobalTabmanager::Get()->CanSpawnTab(FInsightsManagerTabs::IoProfilerTabId))
-	{
-		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::IoProfilerTabId);
-	}
+	return bIsAnyLiveSessionAvailable;
+}
 
-	// Ensure Timing Insights / Timing View is the active tab / view.
-	if (TSharedPtr<SDockTab> TimingInsightsTab = FGlobalTabmanager::Get()->FindExistingLiveTab(FInsightsManagerTabs::TimingProfilerTabId))
-	{
-		TimingInsightsTab->ActivateInParent(ETabActivationCause::SetDirectly);
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		TSharedPtr<class STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-		if (Wnd)
-		{
-			TSharedPtr<FTabManager> TabManager = Wnd->GetTabManager();
-
-			if (TSharedPtr<SDockTab> TimingViewTab = TabManager->FindExistingLiveTab(FTimingProfilerTabs::TimingViewID))
-			{
-				TimingViewTab->ActivateInParent(ETabActivationCause::SetDirectly);
-				FSlateApplication::Get().SetKeyboardFocus(TimingViewTab->GetContent());
-			}
-		}
-	}
+bool SStartPageWindow::Last_IsEnabled() const
+{
+	return bIsAnySessionAvailable;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FReply SStartPageWindow::Live_OnClicked()
 {
-	SpawnAndActivateTabs();
-	FInsightsManager::Get()->GetCommandList()->ExecuteAction(FInsightsManager::GetCommands().InsightsManager_Live.ToSharedRef());
+	FInsightsManager::Get()->LoadLastLiveSession();
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SStartPageWindow::Last_OnClicked()
+{
+	FInsightsManager::Get()->LoadLastSession();
 	return FReply::Handled();
 }
 
@@ -648,9 +704,100 @@ FReply SStartPageWindow::Live_OnClicked()
 
 FReply SStartPageWindow::Load_OnClicked()
 {
-	SpawnAndActivateTabs();
-	FInsightsManager::Get()->GetCommandList()->ExecuteAction(FInsightsManager::GetCommands().InsightsManager_Load.ToSharedRef());
+	//const FString ProfilingDirectory(FPaths::ConvertRelativePathToFull(*FPaths::ProfilingDir()));
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	const FString ProfilingDirectory(FPaths::ConvertRelativePathToFull(SessionService->GetLocalSessionDirectory()));
+
+	TArray<FString> OutFiles;
+	bool bOpened = false;
+
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (DesktopPlatform != nullptr)
+	{
+		FSlateApplication::Get().CloseToolTip();
+
+		bOpened = DesktopPlatform->OpenFileDialog
+		(
+			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+			LOCTEXT("LoadTrace_FileDesc", "Open trace file...").ToString(),
+			ProfilingDirectory,
+			TEXT(""),
+			LOCTEXT("LoadTrace_FileFilter", "Trace files (*.utrace)|*.utrace|All files (*.*)|*.*").ToString(),
+			EFileDialogFlags::None,
+			OutFiles
+		);
+	}
+
+	if (bOpened == true)
+	{
+		if (OutFiles.Num() == 1)
+		{
+			FInsightsManager::Get()->LoadTraceFile(OutFiles[0]);
+		}
+	}
+
 	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStartPageWindow::LoadTraceFile(const TCHAR* TraceFile)
+{
+	FInsightsManager::Get()->LoadTraceFile(FString(TraceFile));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStartPageWindow::LoadSession(Trace::FSessionHandle SessionHandle)
+{
+	FInsightsManager::Get()->LoadSession(SessionHandle);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SStartPageWindow::MakeSessionListMenu()
+{
+	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
+
+	MenuBuilder.BeginSection("MostRecentlyUsedSessions", LOCTEXT("MostRecentlyUsedSessionsHeading", "Most Recently Used Sessions"));
+	{
+		//TODO: MRU
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("AvailableSessions", LOCTEXT("AvailableSessionsHeading", "Available Sessions"));
+	{
+		TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+		TArray<Trace::FSessionHandle> AvailableSessions;
+		SessionService->GetAvailableSessions(AvailableSessions);
+
+		// Iterate in reverse order as we want most recent sessions first.
+		for (int32 SessionIndex = AvailableSessions.Num() - 1; SessionIndex >= 0; --SessionIndex)
+		{
+			Trace::FSessionHandle SessionHandle = AvailableSessions[SessionIndex];
+
+			Trace::FSessionInfo SessionInfo;
+			SessionService->GetSessionInfo(SessionHandle, SessionInfo);
+
+			FText Label = FText::FromString(SessionInfo.Name);
+			if (SessionInfo.bIsLive)
+			{
+				Label = FText::Format(LOCTEXT("LiveSessionTextFmt", "{0} (LIVE!)"), Label);
+			}
+
+			MenuBuilder.AddMenuEntry(
+				Label,
+				TAttribute<FText>(), // no tooltip
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &SStartPageWindow::LoadSession, SessionHandle)),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

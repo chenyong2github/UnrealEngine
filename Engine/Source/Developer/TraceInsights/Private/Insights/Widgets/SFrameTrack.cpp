@@ -187,12 +187,13 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
 			const Trace::IFrameProvider& FramesProvider = Session->ReadFrameProvider();
+
 			for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 			{
 				FFrameTrackTimeline& CachedTimeline = CachedTimelines.FindOrAdd(FrameType);
 				CachedTimeline.Id = FrameType;
 
-				int32 NumFrames = FramesProvider.GetFrameCount(ETraceFrameType(FrameType));
+				int32 NumFrames = FramesProvider.GetFrameCount(static_cast<ETraceFrameType>(FrameType));
 				if (NumFrames > Viewport.MaxIndex)
 				{
 					Viewport.SetMinMaxIndexInterval(0, NumFrames);
@@ -240,6 +241,7 @@ void SFrameTrack::UpdateState()
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
 		const Trace::IFrameProvider& FramesProvider = Session->ReadFrameProvider();
+
 		for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 		{
 			FFrameTrackTimeline& Timeline = CachedTimelines.FindOrAdd(FrameType);
@@ -247,9 +249,10 @@ void SFrameTrack::UpdateState()
 
 			FFrameTrackTimelineBuilder Builder(Timeline, Viewport);
 
-			int32 StartIndex = FMath::Max(0, Viewport.GetIndexAtViewportX(0.0f));
-			int32 EndIndex = Viewport.GetIndexAtViewportX(Viewport.Width);
-			FramesProvider.EnumerateFrames(ETraceFrameType(FrameType), static_cast<uint64>(StartIndex), static_cast<uint64>(EndIndex), [&Builder](const Trace::FFrame& Frame)
+			uint64 StartIndex = static_cast<uint64>(FMath::Max(0, Viewport.GetIndexAtViewportX(0.0f)));
+			uint64 EndIndex = static_cast<uint64>(Viewport.GetIndexAtViewportX(Viewport.Width));
+
+			FramesProvider.EnumerateFrames(static_cast<ETraceFrameType>(FrameType), StartIndex, EndIndex, [&Builder](const Trace::FFrame& Frame)
 			{
 				Builder.AddFrame(Frame);
 			});

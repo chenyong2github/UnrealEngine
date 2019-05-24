@@ -338,7 +338,7 @@ protected:
 
 	////////////////////////////////////////////////////////////
 
-	//enum FTimingTrackType
+	//TODO: enum class FTimingTrackType
 	//{
 	//	TimeRuler,
 	//	Markers,
