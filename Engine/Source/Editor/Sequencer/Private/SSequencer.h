@@ -367,6 +367,11 @@ private:
 	void OnTrackFilterClicked(TSharedRef<FSequencerTrackFilter> TrackFilter);
 	bool IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const;
 
+	void OnTrackLevelFilterClicked(const FString LevelName);
+	bool IsTrackLevelFilterActive(const FString LevelName) const;
+
+	void FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder);
+
 	/**
 	* Called when the time snap interval changes.
 	*

@@ -1146,6 +1146,16 @@ TSharedRef<SWidget> SSequencer::MakeFilterMenu()
 	}
 	MenuBuilder.EndSection();
 
+	UObject* PlaybackContext = Sequencer->GetPlaybackContext();
+	UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
+
+	if (World && World->GetLevels().Num() > 1)
+	{
+		MenuBuilder.BeginSection("TrackLevelFilters");
+		MenuBuilder.AddSubMenu(LOCTEXT("LevelFilters", "Level Filters"), LOCTEXT("LevelFiltersToolTip", "Filter object tracks by level"), FNewMenuDelegate::CreateRaw(this, &SSequencer::FillLevelFilterMenu));
+		MenuBuilder.EndSection();
+	}
+
 	MenuBuilder.BeginSection("TrackFilters");
 	
 	for (TSharedRef<FSequencerTrackFilter> TrackFilter : AllTrackFilters)
@@ -1171,6 +1181,33 @@ TSharedRef<SWidget> SSequencer::MakeFilterMenu()
 	return MenuBuilder.MakeWidget();
 }
 
+void SSequencer::FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder)
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	UObject* PlaybackContext = Sequencer->GetPlaybackContext();
+	UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
+
+	if (World)
+	{
+		const TArray<ULevel*> Levels = World->GetLevels();
+		for (ULevel* Level : Levels)
+		{
+			FString LevelName = FPackageName::GetShortName(Level->GetOutermost()->GetName());
+			InMenuBarBuilder.AddMenuEntry(
+				FText::FromString(LevelName),
+				FText::FromString(Level->GetOutermost()->GetName()),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SSequencer::OnTrackLevelFilterClicked, LevelName),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateSP(this, &SSequencer::IsTrackLevelFilterActive, LevelName)),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
+	}
+}
+
 void SSequencer::OnResetFilters()
 {
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
@@ -1194,6 +1231,25 @@ bool SSequencer::IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilt
 {
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	return Sequencer->GetNodeTree()->IsTrackFilterActive(TrackFilter);
+}
+
+void SSequencer::OnTrackLevelFilterClicked(const FString LevelName)
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	if (IsTrackLevelFilterActive(LevelName))
+	{
+		Sequencer->GetNodeTree()->RemoveLevelFilter(LevelName);
+	}
+	else
+	{
+		Sequencer->GetNodeTree()->AddLevelFilter(LevelName);
+	}
+}
+
+bool SSequencer::IsTrackLevelFilterActive(const FString LevelName) const
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	return Sequencer->GetNodeTree()->IsTrackLevelFilterActive(LevelName);
 }
 
 TSharedRef<SWidget> SSequencer::MakeGeneralMenu()

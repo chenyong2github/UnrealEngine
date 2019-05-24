@@ -15,6 +15,7 @@ class UMovieSceneTrack;
 struct FMovieSceneBinding;
 class FSequencerTrackFilter;
 class FSequencerTrackFilterCollection;
+class FSequencerTrackFilter_LevelFilter;
 
 /**
  * Represents a tree of sequencer display nodes, used to populate the Sequencer UI with MovieScene data
@@ -133,6 +134,10 @@ public:
 	void RemoveAllFilters();
 	bool IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const;
 
+	void AddLevelFilter(const FString& LevelName);
+	void RemoveLevelFilter(const FString& LevelName);
+	bool IsTrackLevelFilterActive(const FString& LevelName) const;
+
 private:
 
 	/**
@@ -200,6 +205,9 @@ private:
 
 	/** Active track filters */
 	TSharedPtr<FSequencerTrackFilterCollection> TrackFilters;
+	
+	/** Level based track filtering */
+	TSharedPtr<FSequencerTrackFilter_LevelFilter> TrackFilterLevelFilter;
 
 	bool bFilterUpdateRequested;
 };

@@ -21,6 +21,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Particles/ParticleSystem.h"
 
+class UWorld;
+
 #define LOCTEXT_NAMESPACE "Sequencer"
 
 class FSequencerTrackFilterCollection : public TFilterCollection<FTrackFilterType>
@@ -150,6 +152,35 @@ class FSequencerTrackFilter_LightObjects : public FSequencerTrackFilter_Componen
 	virtual FText GetDisplayName() const override { return LOCTEXT("SequencerTrackFilter_LightObjects", "Lights"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("SequencerTrackFilter_LightObjectsToolTip", "Show only Light objects."); }
 	virtual FSlateIcon GetIcon() const override { return FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Light"); }
+};
+
+class FSequencerTrackFilter_LevelFilter : public FSequencerTrackFilter
+{
+public:
+	~FSequencerTrackFilter_LevelFilter();
+
+	virtual bool PassesFilter(FTrackFilterType InItem) const override;
+
+	virtual FString GetName() const override { return TEXT("SequencerSubLevelFilter"); }
+	virtual FText GetDisplayName() const override { return FText::GetEmpty(); }
+	virtual FText GetToolTipText() const override { return FText::GetEmpty(); }
+
+	void UpdateWorld(UWorld* World);
+	void ResetFilter();
+
+	bool IsActive() const { return HiddenLevels.Num() > 0; }
+
+	bool IsLevelHidden(const FString& LevelName) const;
+	void HideLevel(const FString& LevelName);
+	void UnhideLevel(const FString& LevelName);
+
+private:
+	void HandleLevelsChanged();
+
+	// List of sublevels which should not pass filter
+	TArray<FString> HiddenLevels;
+
+	TWeakObjectPtr<UWorld> CachedWorld;
 };
 
 #undef LOCTEXT_NAMESPACE

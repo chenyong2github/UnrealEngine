@@ -26,12 +26,18 @@ FSequencerNodeTree::~FSequencerNodeTree()
 	{
 		TrackFilters->OnChanged().RemoveAll(this);
 	}
+	if (TrackFilterLevelFilter.IsValid())
+	{
+		TrackFilterLevelFilter->OnChanged().RemoveAll(this);
+	}
 }
 
 FSequencerNodeTree::FSequencerNodeTree(class FSequencer& InSequencer) : Sequencer(InSequencer), bFilterUpdateRequested(false)
 {
 	TrackFilters = MakeShared<FSequencerTrackFilterCollection>();
 	TrackFilters->OnChanged().AddRaw(this, &FSequencerNodeTree::RequestFilterUpdate);
+	TrackFilterLevelFilter = MakeShared< FSequencerTrackFilter_LevelFilter>();
+	TrackFilterLevelFilter->OnChanged().AddRaw(this, &FSequencerNodeTree::RequestFilterUpdate);
 }
 
 void FSequencerNodeTree::Empty()
@@ -319,7 +325,7 @@ const TArray<TSharedRef<FSequencerDisplayNode>>& FSequencerNodeTree::GetRootNode
 
 bool FSequencerNodeTree::HasActiveFilter() const
 {
-	return (!FilterString.IsEmpty() || TrackFilters->Num() > 0);
+	return (!FilterString.IsEmpty() || TrackFilters->Num() > 0 || TrackFilterLevelFilter->IsActive());
 }
 
 TSharedRef<FSequencerObjectBindingNode> FSequencerNodeTree::AddObjectBinding(const FString& ObjectName, const FGuid& ObjectBinding, TMap<FGuid, const FMovieSceneBinding*>& GuidToBindingMap, TArray<TSharedRef<FSequencerObjectBindingNode>>& OutNodeList)
@@ -568,12 +574,29 @@ int32 FSequencerNodeTree::RemoveFilter(TSharedRef<FSequencerTrackFilter> TrackFi
 void FSequencerNodeTree::RemoveAllFilters()
 {
 	TrackFilters->RemoveAll();
+	TrackFilterLevelFilter->ResetFilter();
 }
 
 bool FSequencerNodeTree::IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const
 {
 	return TrackFilters->Contains(TrackFilter);
 }
+
+void FSequencerNodeTree::AddLevelFilter(const FString& LevelName)
+{
+	TrackFilterLevelFilter->UnhideLevel(LevelName);
+}
+
+void FSequencerNodeTree::RemoveLevelFilter(const FString& LevelName)
+{
+	TrackFilterLevelFilter->HideLevel(LevelName);
+}
+
+bool FSequencerNodeTree::IsTrackLevelFilterActive(const FString& LevelName) const
+{
+	return !TrackFilterLevelFilter->IsLevelHidden(LevelName);
+}
+
 
 void FSequencerNodeTree::SaveExpansionState(const FSequencerDisplayNode& Node, bool bExpanded)
 {	
@@ -707,20 +730,49 @@ static void AddParentNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, T
  * @param OutFilteredNodes	The list of all filtered nodes
  */
 
-static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSequencerDisplayNode>& StartNode, TSharedPtr<FSequencerTrackFilterCollection> Filters, const TArray<FString>& FilterStrings, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes )
+static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSequencerDisplayNode>& StartNode, TSharedPtr<FSequencerTrackFilterCollection> Filters, const TArray<FString>& FilterStrings, TSharedPtr<FSequencerTrackFilter_LevelFilter> LevelTrackFilter, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes )
 {
 	for (TSharedRef<FSequencerDisplayNode> Node : StartNode->GetChildNodes())
 	{
-		FilterNodesRecursive(Sequencer, Node, Filters, FilterStrings, OutFilteredNodes);
+		FilterNodesRecursive(Sequencer, Node, Filters, FilterStrings, LevelTrackFilter, OutFilteredNodes);
 	}
 
 	bool bPasssedAnyFilters = false;
+
 	if (StartNode->GetType() == ESequencerNode::Track)
 	{
 		UMovieSceneTrack* Track = static_cast<const FSequencerTrackNode&>(StartNode.Get()).GetTrack();
-		if (Filters->PassesAnyFilters(Track))
+		if (Filters->Num() == 0 || Filters->PassesAnyFilters(Track))
 		{
 			bPasssedAnyFilters = true;
+
+			// Track nodes do not belong to a level, but might be a child of an objectbinding node that does
+			if (LevelTrackFilter->IsActive())
+			{
+				TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
+				while (ParentNode.IsValid())
+				{
+					if (ParentNode->GetType() == ESequencerNode::Object)
+					{
+						// The track belongs to an objectbinding node, start by assuming it doesn't match the level filter
+						bPasssedAnyFilters = false;
+
+						const FSequencerObjectBindingNode* ObjectNode = static_cast<const FSequencerObjectBindingNode*>(ParentNode.Get());
+						for (TWeakObjectPtr<>& Object : Sequencer.FindObjectsInCurrentSequence(ObjectNode->GetObjectBinding()))
+						{
+							if (LevelTrackFilter->PassesFilter(Object.Get()))
+							{
+								// If at least one of the objects on the objectbinding node pass the level filter, show the track
+								bPasssedAnyFilters = true;
+								break;
+							}
+						}
+
+						break;
+					}
+					ParentNode = ParentNode->GetParent();
+				}
+			}
 		}
 	}
 	else if (StartNode->GetType() == ESequencerNode::Object)
@@ -728,7 +780,8 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 		const FSequencerObjectBindingNode ObjectNode = static_cast<const FSequencerObjectBindingNode&>(StartNode.Get());
 		for (TWeakObjectPtr<>& Object : Sequencer.FindObjectsInCurrentSequence(ObjectNode.GetObjectBinding()))
 		{
-			if (Filters->PassesAnyFilters(Object.Get()))
+			if ((Filters->Num() == 0 || Filters->PassesAnyFilters(Object.Get()))
+				&& LevelTrackFilter->PassesFilter(Object.Get()))
 			{
 				bPasssedAnyFilters = true;
 				break;
@@ -736,7 +789,7 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 		}
 	}
 
-	if (Filters->Num() == 0 || bPasssedAnyFilters)
+	if (bPasssedAnyFilters)
 	{
 		// If we have a filter string, make sure we match
 		if (FilterStrings.Num() > 0)
@@ -792,7 +845,9 @@ void FSequencerNodeTree::UpdateFilters()
 
 	FilteredNodes.Empty();
 
-	if (TrackFilters->Num() > 0 || !FilterString.IsEmpty())
+	TrackFilterLevelFilter->UpdateWorld(Sequencer.GetPlaybackContext()->GetWorld());
+
+	if (TrackFilters->Num() > 0 || !FilterString.IsEmpty() || TrackFilterLevelFilter->IsActive())
 	{
 		// Build a list of strings that must be matched
 		TArray<FString> FilterStrings;
@@ -803,12 +858,12 @@ void FSequencerNodeTree::UpdateFilters()
 
 		for (auto It = ObjectBindingMap.CreateIterator(); It; ++It)
 		{
-			FilterNodesRecursive(Sequencer, It.Value().ToSharedRef(), TrackFilters, FilterStrings, FilteredNodes);
+			FilterNodesRecursive(Sequencer, It.Value().ToSharedRef(), TrackFilters, FilterStrings, TrackFilterLevelFilter, FilteredNodes);
 		}
 
 		for (auto It = RootNodes.CreateIterator(); It; ++It)
 		{
-			FilterNodesRecursive(Sequencer, *It, TrackFilters, FilterStrings, FilteredNodes);
+			FilterNodesRecursive(Sequencer, *It, TrackFilters, FilterStrings, TrackFilterLevelFilter, FilteredNodes);
 		}
 	}
 
