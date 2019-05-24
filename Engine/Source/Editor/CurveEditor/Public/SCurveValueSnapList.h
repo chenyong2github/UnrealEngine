@@ -21,7 +21,7 @@
 
 /** A widget which creates a list of pre-determined numbers and a spot to enter a custom number. Similar to SNumericList but without the dropdown menu. */
 template<typename NumericType>
-class SNumericList : public SCompoundWidget
+class SCurveValueSnapList : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam( FOnValueChanged, NumericType );
@@ -64,7 +64,7 @@ public:
 	};
 
 public:
-	SLATE_BEGIN_ARGS( SNumericList<NumericType> )
+	SLATE_BEGIN_ARGS( SCurveValueSnapList<NumericType> )
 		: _DropDownValues()
 		, _MinDesiredValueWidth( 40 )
 		, _bShowNamedValue(true)
@@ -113,8 +113,8 @@ public:
 				SNew(SEditableTextBox)
 				.RevertTextOnEscape(true)
 				.SelectAllTextWhenFocused(true)
-				.Text(this, &SNumericList<NumericType>::GetValueText)
-				.OnTextCommitted(this, &SNumericList<NumericType>::ValueTextCommitted)
+				.Text(this, &SCurveValueSnapList<NumericType>::GetValueText)
+				.OnTextCommitted(this, &SCurveValueSnapList<NumericType>::ValueTextCommitted)
 				.MinDesiredWidth(InArgs._MinDesiredValueWidth)
 			],
 			NSLOCTEXT("SNumericList", "CustomNumberDisplayLabel", "Custom")
@@ -134,9 +134,9 @@ private:
 			Info.GetDescription(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(this, &SNumericList<NumericType>::SetValue, Info.GetValue()),
+				FExecuteAction::CreateSP(this, &SCurveValueSnapList<NumericType>::SetValue, Info.GetValue()),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &SNumericList<NumericType>::IsSameValue, Info.GetValue())
+				FIsActionChecked::CreateSP(this, &SCurveValueSnapList<NumericType>::IsSameValue, Info.GetValue())
 			),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
