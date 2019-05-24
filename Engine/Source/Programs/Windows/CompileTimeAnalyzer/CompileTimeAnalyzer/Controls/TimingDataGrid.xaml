@@ -89,7 +89,7 @@
 									</Style>
 								</Button.Style>
 							</Button>
-							<CheckBox Grid.Column="1" IsChecked="{Binding IsExpanded, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding HasChildren, Converter={StaticResource BoolToVisibilityConverter}}" Style="{StaticResource Expander}" />
+							<CheckBox Grid.Column="1" IsChecked="{Binding IsExpanded, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding HasChildren, Converter={StaticResource BoolToVisibilityConverter}}" Style="{StaticResource Expander}" Margin="2"/>
 							<Line Grid.Column="1" X1="8" X2="8" Y2="{Binding ActualHeight, RelativeSource={RelativeSource Self}}" Stroke="#888" StrokeDashArray="2 2" StrokeDashOffset="1">
 								<Line.Visibility>
 									<MultiBinding Converter="{StaticResource MultiBoolToVisibilityConverter}" ConverterParameter="VisibleOnFalse">
@@ -98,15 +98,31 @@
 									</MultiBinding>
 								</Line.Visibility>
 							</Line>
-							<TextBlock Grid.Column="2" Text="{Binding Name}"/>
+							<TextBlock Grid.Column="2" Text="{Binding Name}" Margin="2"/>
 						</Grid>
 					</DataTemplate>
 				</DataGridTemplateColumn.CellTemplate>
 			</DataGridTemplateColumn>
 
-			<DataGridTextColumn x:Name="CountColumn" Header="Count" Binding="{Binding Count}" SortMemberPath="Count" />
+			<DataGridTextColumn x:Name="CountColumn" Header="Count" Binding="{Binding Count}" SortMemberPath="Count" Width="100">
+				<DataGridTextColumn.HeaderStyle>
+					<Style TargetType="DataGridColumnHeader">
+						<Setter Property="HorizontalContentAlignment" Value="Center" />
+					</Style>
+				</DataGridTextColumn.HeaderStyle>
+				<DataGridTextColumn.ElementStyle>
+					<Style TargetType="TextBlock">
+						<Setter Property="HorizontalAlignment" Value="Right" />
+					</Style>
+				</DataGridTextColumn.ElementStyle>
+			</DataGridTextColumn>
 
-			<DataGridTemplateColumn Header="Duration" CanUserSort="True" SortMemberPath="InclusiveDuration">
+			<DataGridTemplateColumn Header="Time (Inclusive)" CanUserSort="True" SortMemberPath="InclusiveDuration" Width="100">
+				<DataGridTemplateColumn.HeaderStyle>
+					<Style TargetType="DataGridColumnHeader">
+						<Setter Property="HorizontalContentAlignment" Value="Center" />
+					</Style>
+				</DataGridTemplateColumn.HeaderStyle>
 				<DataGridTemplateColumn.CellTemplate>
 					<DataTemplate>
 						<Grid>
@@ -114,7 +130,7 @@
 										 Margin="2,1,2,1" Foreground="CornflowerBlue" Background="Transparent" BorderThickness="0" />
 							<TextBlock TextAlignment="Right" Margin="4,0,4,0">
 								<TextBlock.Text>
-									<MultiBinding StringFormat="{}{0:0.###}s ({1:0.##}%)">
+									<MultiBinding StringFormat="{}{0:0.000}s ({1:0.00}%)">
 										<Binding Path="InclusiveDuration" />
 										<Binding Path="InclusivePercent" />
 									</MultiBinding>
@@ -125,7 +141,12 @@
 				</DataGridTemplateColumn.CellTemplate>
 			</DataGridTemplateColumn>
 
-			<DataGridTemplateColumn x:Name="ExclusiveDurationColumn" Header="Duration (Exclusive)" CanUserSort="True" SortMemberPath="ExclusiveDuration">
+			<DataGridTemplateColumn x:Name="ExclusiveDurationColumn" Header="Time (Exclusive)" CanUserSort="True" SortMemberPath="ExclusiveDuration" Width="100">
+				<DataGridTemplateColumn.HeaderStyle>
+					<Style TargetType="DataGridColumnHeader">
+						<Setter Property="HorizontalContentAlignment" Value="Center" />
+					</Style>
+				</DataGridTemplateColumn.HeaderStyle>
 				<DataGridTemplateColumn.CellTemplate>
 					<DataTemplate>
 						<Grid>
@@ -133,7 +154,7 @@
 										 Margin="2,1,2,1" Foreground="CornflowerBlue" Background="Transparent" BorderThickness="0" />
 							<TextBlock TextAlignment="Right" Margin="4,0,4,0">
 								<TextBlock.Text>
-									<MultiBinding StringFormat="{}{0:0.###}s ({1:0.##}%)">
+									<MultiBinding StringFormat="{}{0:0.000}s ({1:0.00}%)">
 										<Binding Path="ExclusiveDuration" />
 										<Binding Path="ExclusivePercent" />
 									</MultiBinding>
