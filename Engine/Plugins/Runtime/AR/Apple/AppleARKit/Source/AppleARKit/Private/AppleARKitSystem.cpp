@@ -1663,10 +1663,6 @@ void FAppleARKitSystem::SessionDidAddAnchors_Internal( TSharedRef<FAppleARKitAnc
 			UARFaceGeometry* NewGeo = NewObject<UARFaceGeometry>();
 			NewGeo->UpdateFaceGeometry(ARComponent.ToSharedRef(), AnchorData->FrameNumber, AnchorData->Timestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), AnchorData->BlendShapes, AnchorData->FaceVerts, AnchorData->FaceIndices, TArray<FVector2D>(), AnchorData->LeftEyeTransform, AnchorData->RightEyeTransform, AnchorData->LookAtTarget);
 			NewGeo->SetTrackingState(EARTrackingState::Tracking);
-			// @todo JoeG -- remove in 4.22
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			NewGeo->bIsTracked = true;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			NewGeometry = NewGeo;
 			break;
 		}
