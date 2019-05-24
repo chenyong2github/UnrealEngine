@@ -566,9 +566,6 @@ private:
 #endif
 
 private:
-	/** Gets module with given name from Modules or creates a new one. Doesn't modify Modules. */
-	ModuleInfoRef GetOrCreateModule(FName InModuleName);
-
 	/** Map of all modules.  Maps the case-insensitive module name to information about that module, loaded or not. */
 	FModuleMap Modules;
 
