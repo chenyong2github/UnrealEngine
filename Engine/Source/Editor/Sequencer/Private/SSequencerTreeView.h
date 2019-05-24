@@ -269,6 +269,9 @@ public:
 	/** Called to complete a drag and drop onto this drop. */
 	FReply OnAcceptDrop( const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, FDisplayNodeRef DisplayNode );
 
+	/** Gets the padding for this row based on whether it is a root node or not */
+	FMargin GetRowPadding() const;
+
 private:
 
 	/** Cached reference to a track lane that we relate to. This keeps the track lane alive (it's a weak widget) as long as we are in view. */

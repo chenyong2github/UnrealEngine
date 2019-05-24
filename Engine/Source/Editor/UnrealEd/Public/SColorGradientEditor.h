@@ -42,7 +42,7 @@ public:
 
 };
 
-class SColorGradientEditor : public SLeafWidget
+class UNREALED_API SColorGradientEditor : public SLeafWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SColorGradientEditor ) 

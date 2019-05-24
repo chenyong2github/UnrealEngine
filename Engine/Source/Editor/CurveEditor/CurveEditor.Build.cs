@@ -17,7 +17,10 @@ public class CurveEditor : ModuleRules
 				"SlateCore",
 				"TimeManagement",
 				"UnrealEd",
+				"SequencerWidgets",
 			}
 		);
+
+        PublicDependencyModuleNames.Add("SequencerWidgets");
 	}
 }

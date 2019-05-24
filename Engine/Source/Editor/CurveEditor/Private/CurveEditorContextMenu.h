@@ -11,5 +11,5 @@ class FMenuBuilder;
 
 struct FCurveEditorContextMenu
 {
-	static void BuildMenu(FMenuBuilder& MenuBuilder, TWeakPtr<FCurveEditor> WeakCurveEditor, TOptional<FCurvePointHandle> ClickedPoint, TOptional<FCurveModelID> HoveredCurve);
+	static void BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FCurveEditor> CurveEditor, TOptional<FCurvePointHandle> ClickedPoint, TOptional<FCurveModelID> HoveredCurve);
 };
