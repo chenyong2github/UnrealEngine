@@ -825,6 +825,12 @@ namespace ShaderConductor
 					mslOpts.metadata_buffer_index = (uint32_t)std::stoi(Define.value);
 				}
 				/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
+				/* UE Change Begin: Capture shader output to a buffer - used for vertex streaming to emulate GS & Tess */
+				if (!strcmp(Define.name, "capture_output_to_buffer"))
+				{
+					mslOpts.capture_output_to_buffer = (std::stoi(Define.value) != 0);
+				}
+				/* UE Change End: Capture shader output to a buffer - used for vertex streaming to emulate GS & Tess */
 			}
 			
 			mslCompiler->set_msl_options(mslOpts);
