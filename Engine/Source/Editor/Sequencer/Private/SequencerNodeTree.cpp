@@ -850,10 +850,7 @@ void FSequencerNodeTree::UpdateFilters()
 
 	UObject* PlaybackContext = Sequencer.GetPlaybackContext();
 	UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
-	if (World)
-	{
-		TrackFilterLevelFilter->UpdateWorld(World);
-	}
+	TrackFilterLevelFilter->UpdateWorld(World);
 
 	if (TrackFilters->Num() > 0 || !FilterString.IsEmpty() || TrackFilterLevelFilter->IsActive())
 	{
