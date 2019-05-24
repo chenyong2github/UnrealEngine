@@ -761,6 +761,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		UE_DEPRECATED(4.23, "CanSpawnTab has been replaced by HasTabSpawner")
 		bool CanSpawnTab(FName TabId) const;
 
+		/** @return true if the tab has a factory registered for it that allows it to be spawned. */
 		bool HasTabSpawner(FName TabId) const;
 
 		/** Returns the owner tab (if it exists) */

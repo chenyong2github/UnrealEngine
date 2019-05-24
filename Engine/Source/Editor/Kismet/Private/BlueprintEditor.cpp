@@ -8508,7 +8508,7 @@ bool FBlueprintEditor::IsFocusedGraphEditable() const
 
 void FBlueprintEditor::TryInvokingDetailsTab(bool bFlash)
 {
-	if ( TabManager->CanSpawnTab(FBlueprintEditorTabs::DetailsID) )
+	if ( TabManager->HasTabSpawner(FBlueprintEditorTabs::DetailsID) )
 	{
 		TSharedPtr<SDockTab> BlueprintTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(TabManager.ToSharedRef());
 
