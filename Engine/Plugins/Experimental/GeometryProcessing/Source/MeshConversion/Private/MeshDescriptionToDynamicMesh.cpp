@@ -206,6 +206,57 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 			int VertexID1 = MeshIn->GetVertexInstance(Triangle.VertexInstanceID1).VertexID.GetValue();
 			int VertexID2 = MeshIn->GetVertexInstance(Triangle.VertexInstanceID2).VertexID.GetValue();
 			int NewTriangleID = MeshOut.AppendTriangle(VertexID0, VertexID1, VertexID2, GroupID);
+			
+			// if append failed due to non-manifold, duplicate verts
+			if (NewTriangleID == FDynamicMesh3::NonManifoldID)
+			{
+				int e0 = MeshOut.FindEdge(VertexID0, VertexID1);
+				int e1 = MeshOut.FindEdge(VertexID1, VertexID2);
+				int e2 = MeshOut.FindEdge(VertexID2, VertexID0);
+
+				// determine which verts need to be duplicated
+				bool bDuplicate[3] = { false, false, false };
+				if (e0 != FDynamicMesh3::InvalidID && MeshOut.IsBoundaryEdge(e0) == false)
+				{
+					bDuplicate[0] = true;
+					bDuplicate[1] = true;
+				}
+				if (e1 != FDynamicMesh3::InvalidID && MeshOut.IsBoundaryEdge(e1) == false)
+				{
+					bDuplicate[1] = true;
+					bDuplicate[2] = true;
+				}
+				if (e2 != FDynamicMesh3::InvalidID && MeshOut.IsBoundaryEdge(e2) == false)
+				{
+					bDuplicate[2] = true;
+					bDuplicate[0] = true;
+				}
+				if (bDuplicate[0])
+				{
+					FVertexID VertexID = MeshIn->GetVertexInstance(Triangle.VertexInstanceID0).VertexID;
+					const FVector Position = VertexPositions.Get(VertexID);
+					int NewVertIdx = MeshOut.AppendVertex(Position);
+					VertexID0 = NewVertIdx;
+				}
+				if (bDuplicate[1])
+				{
+					FVertexID VertexID = MeshIn->GetVertexInstance(Triangle.VertexInstanceID1).VertexID;
+					const FVector Position = VertexPositions.Get(VertexID);
+					int NewVertIdx = MeshOut.AppendVertex(Position);
+					VertexID1 = NewVertIdx;
+				}
+				if (bDuplicate[2])
+				{
+					FVertexID VertexID = MeshIn->GetVertexInstance(Triangle.VertexInstanceID2).VertexID;
+					const FVector Position = VertexPositions.Get(VertexID);
+					int NewVertIdx = MeshOut.AppendVertex(Position);
+					VertexID2 = NewVertIdx;
+				}
+
+				NewTriangleID = MeshOut.AppendTriangle(VertexID0, VertexID1, VertexID2, GroupID);
+				checkSlow(NewTriangleID != FDynamicMesh3::NonManifoldID);
+			}
+
 			FIndex3i Tri(VertexID0, VertexID1, VertexID2);
 
 			if (bCalculateMaps)

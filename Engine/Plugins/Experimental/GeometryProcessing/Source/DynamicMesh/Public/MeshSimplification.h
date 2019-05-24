@@ -8,12 +8,30 @@
 #include "QuadricError.h"
 #include "Util/IndexPriorityQueue.h"
 
+#include "DynamicMeshAttributeSet.h"
+
+
+enum class ESimplificationResult
+{
+	Ok_Collapsed = 0,
+	Ignored_CannotCollapse = 1,
+	Ignored_EdgeIsFullyConstrained = 2,
+	Ignored_EdgeTooLong = 3,
+	Ignored_Constrained = 4,
+	Ignored_CreatesFlip = 5,
+	Failed_OpNotSuccessful = 6,
+	Failed_NotAnEdge = 7
+};
+
 /**
  * Implementation of Garland & Heckbert Quadric Error Metric (QEM) Triangle Mesh Simplification
  */
-class DYNAMICMESH_API FMeshSimplification : public FMeshRefinerBase
+template <typename QuadricErrorType>
+class TMeshSimplification : public FMeshRefinerBase
 {
 public:
+
+	typedef QuadricErrorType  FQuadricErrorType;
 
 	/**
 	 * If true, we try to find position for collapsed vertices that minimizes quadric error.
@@ -27,8 +45,13 @@ public:
 
 
 
-	FMeshSimplification(FDynamicMesh3* m) : FMeshRefinerBase(m)
+	TMeshSimplification(FDynamicMesh3* m) : FMeshRefinerBase(m)
 	{
+		NormalOverlay = nullptr;
+		if (m->Attributes())
+		{
+			NormalOverlay = m->Attributes()->PrimaryNormals();
+		}
 	}
 
 
@@ -64,7 +87,7 @@ public:
 
 protected:
 
-	FMeshSimplification()		// for subclasses that extend our behavior
+	TMeshSimplification()		// for subclasses that extend our behavior
 	{
 	}
 
@@ -112,20 +135,27 @@ protected:
 
 
 
-	TArray<FQuadricErrord> vertQuadrics;
+	TArray<FQuadricErrorType> vertQuadrics;
 	virtual void InitializeVertexQuadrics();
 
+	TArray<double> triAreas;
+	TArray<FQuadricErrorType> triQuadrics;
+	virtual void InitializeTriQuadrics();
 
+	FDynamicMeshNormalOverlay* NormalOverlay;
+
+	FQuadricErrorType ComputeFaceQuadric(const int tid, FVector3d& nface, FVector3d& c, double& Area) const;
+	
 	// internal class for priority queue
 	struct QEdge 
 	{
 		int eid;
-		FQuadricErrord q;
+		FQuadricErrorType q;
 		FVector3d collapse_pt;
 
 		QEdge() { eid = 0; }
 
-		QEdge(int edge_id, const FQuadricErrord& qin, const FVector3d& pt) 
+		QEdge(int edge_id, const FQuadricErrorType& qin, const FVector3d& pt) 
 		{
 			eid = edge_id;
 			q = qin;
@@ -149,7 +179,7 @@ protected:
 	virtual void InitializeQueue();
 
 	// return point that minimizes quadric error for edge [ea,eb]
-	FVector3d OptimalPoint(int eid, const FQuadricErrord& q, int ea, int eb);
+	FVector3d OptimalPoint(int eid, const FQuadricErrorType& q, int ea, int eb);
 	
 	FVector3d GetProjectedPoint(const FVector3d& pos)
 	{
@@ -162,7 +192,7 @@ protected:
 
 
 	// update queue weight for each edge in vertex one-ring
-	virtual void UpdateNeighbours(int vid);
+	virtual void UpdateNeighbours(int vid, FIndex2i removedTris, FIndex2i opposingVerts);
 
 
 	virtual void Reproject() 
@@ -192,18 +222,8 @@ protected:
 
 
 
-	enum class EProcessResult 
-	{
-		Ok_Collapsed = 0,
-		Ignored_CannotCollapse = 1,
-		Ignored_EdgeIsFullyConstrained = 2,
-		Ignored_EdgeTooLong = 3,
-		Ignored_Constrained = 4,
-		Ignored_CreatesFlip = 5,
-		Failed_OpNotSuccessful = 6,
-		Failed_NotAnEdge = 7
-	};
-	EProcessResult CollapseEdge(int edgeID, FVector3d vNewPos, int& collapseToV);
+
+	ESimplificationResult CollapseEdge(int edgeID, FVector3d vNewPos, int& collapseToV);
 
 
 
@@ -305,3 +325,9 @@ protected:
 
 
 };
+
+
+// The simplifier
+typedef TMeshSimplification< FAttrBasedQuadricErrord >  FAttrMeshSimplification;
+typedef TMeshSimplification < FVolPresQuadricErrord >   FVolPresMeshSimplification;
+typedef TMeshSimplification< FQuadricErrord >           FQEMSimplification;
