@@ -32,7 +32,6 @@ IMeshPainter::IMeshPainter() :
 	HoverVertexPointColor(0.3f, 1.0f, 0.3f),
 	PaintTransaction(nullptr)
 {
-	FMeshPainterCommands::Register();
 }
 
 IMeshPainter::~IMeshPainter()
