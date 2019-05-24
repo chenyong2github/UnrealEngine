@@ -2536,7 +2536,6 @@ bool STimingView::SearchTimingEvent(const double InStartTime,
 	
 		if (Ctx.bFound)
 		{
-			const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
 			TimingProfilerProvider.ReadTimeline(Ctx.TimingEvent.Track->GetId(), [&Ctx](const Trace::ITimingProfilerProvider::Timeline& Timeline)
 			{
 				struct FEnumerationState

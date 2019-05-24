@@ -1748,7 +1748,6 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 
 				// Compute histogram.
 				// Iterate again through all counters.
-				const Trace::ICounterProvider& CountersProvider = Session->ReadCounterProvider();
 				CountersProvider.EnumerateCounters([&CalculationHelperDbl, &CalculationHelperInt](const Trace::ICounter& Counter)
 				{
 					if (Counter.GetDisplayHint() == Trace::CounterDisplayHint_FloatingPoint)
