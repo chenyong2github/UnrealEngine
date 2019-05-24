@@ -861,17 +861,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 			// Leave original mip settings alone unless it's none at which point we will just generate them using a simple average
 			if (TBSettings.MipGenSettings == TMGS_NoMipmaps)
 			{
-				if (FMath::IsPowerOfTwo(SourceMips[0].SizeX) &&
-					FMath::IsPowerOfTwo(SourceMips[0].SizeY))
-				{
-					TBSettings.MipGenSettings = TMGS_SimpleAverage;
-				}
-				else
-				{
-					//checkf(false, TEXT("Non power of two textures cannot generate mips. Only existing mips can be used."));
-					TBSettings.MipGenSettings = TMGS_SimpleAverage;
-					TBSettings.PowerOfTwoMode = ETexturePowerOfTwoSetting::PadToPowerOfTwo;
-				}
+				TBSettings.MipGenSettings = TMGS_SimpleAverage;
 			}
 
 			// Use the texture compressor module to do all the hard work
