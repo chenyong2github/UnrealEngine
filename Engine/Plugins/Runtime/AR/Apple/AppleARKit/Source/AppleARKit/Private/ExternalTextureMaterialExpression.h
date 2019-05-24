@@ -17,8 +17,8 @@ enum EARKitTextureType
 /**
 * Implements a node sampling from the ARKit Passthrough external textures.
 */
-UCLASS(collapsecategories, hidecategories = Object)
-class UMaterialExpressionARKitPassthroughCamera : public UMaterialExpression
+UCLASS(collapsecategories, hidecategories = Object, Deprecated)
+class UDEPRECATED_MaterialExpressionARKitPassthroughCamera : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
