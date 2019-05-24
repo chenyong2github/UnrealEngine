@@ -991,17 +991,8 @@ void UNavigationSystemV1::Tick(float DeltaSeconds)
 
 			if (DirtyAreas.Num() > 0 && bCanRebuildNow)
 			{
-				for (int32 NavDataIndex = 0; NavDataIndex < NavDataSet.Num(); ++NavDataIndex)
-				{
-					ANavigationData* NavData = NavDataSet[NavDataIndex];
-					if (NavData)
-					{
-						NavData->RebuildDirtyAreas(DirtyAreas);
-					}
-				}
-
+				RebuildDirtyAreas();
 				DirtyAreasUpdateTime = 0;
-				DirtyAreas.Reset();
 			}
 		}
 
@@ -3588,6 +3579,20 @@ void UNavigationSystemV1::RebuildAll(bool bIsLoadTime)
 			NavData->RebuildAll();
 		}
 	}
+}
+
+void UNavigationSystemV1::RebuildDirtyAreas()
+{
+	for (int32 NavDataIndex = 0; NavDataIndex < NavDataSet.Num(); ++NavDataIndex)
+	{
+		ANavigationData* NavData = NavDataSet[NavDataIndex];
+		if (NavData)
+		{
+			NavData->RebuildDirtyAreas(DirtyAreas);
+		}
+	}
+
+	DirtyAreas.Reset();
 }
 
 bool UNavigationSystemV1::IsNavigationBuildInProgress(bool bCheckDirtyToo)
