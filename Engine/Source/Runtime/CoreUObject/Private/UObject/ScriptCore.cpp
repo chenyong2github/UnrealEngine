@@ -95,7 +95,7 @@ static struct F##inst##Registrar \
 	{ \
 		GNativeFuncNames[inst] = #inst; \
 	} \
-} ##inst##RegistrarInst;
+} inst##RegistrarInst;
 #else
 #define STORE_INSTRUCTION_NAME(inst)
 #endif//STORE_INSTRUCTION_NAMES
