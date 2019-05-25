@@ -5,6 +5,18 @@
 
 
 
+
+template<typename RealType, int ElementSize>
+void TDynamicMeshOverlay<RealType, ElementSize>::ClearElements()
+{
+	Elements.Clear();
+	ElementsRefCounts = FRefCountVector();
+	ParentVertices.Clear();
+	InitializeTriangles(ParentMesh->MaxTriangleID());
+}
+
+
+
 template<typename RealType, int ElementSize>
 int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(RealType ConstantValue, int SourceVertex)
 {

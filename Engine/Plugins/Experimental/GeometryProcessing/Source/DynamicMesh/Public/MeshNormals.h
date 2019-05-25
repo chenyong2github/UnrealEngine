@@ -79,14 +79,14 @@ public:
 	 * @warning assumes that the computed normals are vertex normals
 	 * @param bInvert if true, normals are flipped
 	 */
-	void CopyToVertexNormals(FDynamicMesh3* SetMesh, bool bInvert) const;
+	void CopyToVertexNormals(FDynamicMesh3* SetMesh, bool bInvert = false) const;
 
 	/**
 	 * Copy the current set of normals to the NormalOverlay attribute layer
 	 * @warning assumes that the computed normals are attribute normals
 	 * @param bInvert if true, normals are flipped
 	 */
-	void CopyToOverlay(FDynamicMeshNormalOverlay* NormalOverlay, bool bInvert) const;
+	void CopyToOverlay(FDynamicMeshNormalOverlay* NormalOverlay, bool bInvert = false) const;
 
 
 
@@ -94,7 +94,7 @@ public:
 	 * Compute per-vertex normals for the given Mesh
 	 * @param bInvert if true, normals are flipped
 	 */
-	static void QuickComputeVertexNormals(FDynamicMesh3& Mesh, bool bInvert);
+	static void QuickComputeVertexNormals(FDynamicMesh3& Mesh, bool bInvert = false);
 
 
 	/**

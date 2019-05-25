@@ -49,6 +49,12 @@ protected:
 	friend class FDynamicMeshAttributeSet;
 
 public:
+	/** Create an empty overlay */
+	TDynamicMeshOverlay()
+	{
+		ParentMesh = nullptr;
+	}
+
 	/** Create an overlay for the given parent mesh */
 	TDynamicMeshOverlay(FDynamicMesh3* ParentMeshIn)
 	{
@@ -68,6 +74,9 @@ public:
 		ParentVertices = Copy.ParentVertices;
 		ElementTriangles = Copy.ElementTriangles;
 	}
+
+	/** Discard current set of elements, but keep triangles */
+	void ClearElements();
 
 	/** @return the number of in-use Elements in the overlay */
 	int ElementCount() const { return (int)ElementsRefCounts.GetCount(); }
@@ -212,6 +221,11 @@ class TDynamicMeshVectorOverlay : public TDynamicMeshOverlay<RealType, ElementSi
 {
 public:
 	using BaseType = TDynamicMeshOverlay<RealType, ElementSize>;
+
+	TDynamicMeshVectorOverlay()
+		: TDynamicMeshOverlay<RealType, ElementSize>()
+	{
+	}
 
 	TDynamicMeshVectorOverlay(FDynamicMesh3* parentMesh) 
 		: TDynamicMeshOverlay<RealType, ElementSize>(parentMesh)
