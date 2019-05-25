@@ -1020,7 +1020,7 @@ TSharedPtr<SWidget> SSlateFileOpenDlg::OnGetCrumbDelimiterContent(const FString&
 						FText::FromString(Drive),
 						FText::GetEmpty(),
 						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateSP(this, &SSlateFileOpenDlg::OnPathMenuItemClicked, Drive + TEXT("/"))));
+						FUIAction(FExecuteAction::CreateSP(const_cast<SSlateFileOpenDlg*>(this), &SSlateFileOpenDlg::OnPathMenuItemClicked, Drive + TEXT("/"))));
 				}
 
 				DrivesMask >>= 1;
@@ -1051,7 +1051,7 @@ TSharedPtr<SWidget> SSlateFileOpenDlg::OnGetCrumbDelimiterContent(const FString&
 				FText::FromString(SubDir),
 				FText::GetEmpty(),
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &SSlateFileOpenDlg::OnPathMenuItemClicked, CrumbData + SubDir + TEXT("/"))));
+				FUIAction(FExecuteAction::CreateSP(const_cast<SSlateFileOpenDlg*>(this), &SSlateFileOpenDlg::OnPathMenuItemClicked, CrumbData + SubDir + TEXT("/"))));
 		}
 
 		Widget = 

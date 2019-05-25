@@ -909,7 +909,7 @@ TSharedRef<SWidget> SAnimTrackCurvePanel::CreateCurveContextMenu(USkeleton::Anim
 		{
 			FUIAction NewAction;
 
-			NewAction.ExecuteAction.BindSP(this, &SAnimTrackCurvePanel::DeleteTrack, CurveUid);
+			NewAction.ExecuteAction.BindSP(const_cast<SAnimTrackCurvePanel*>(this), &SAnimTrackCurvePanel::DeleteTrack, CurveUid);
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("RemoveTrack", "Remove Track"),
 				LOCTEXT("RemoveTrackTooltip", "Remove this track"),

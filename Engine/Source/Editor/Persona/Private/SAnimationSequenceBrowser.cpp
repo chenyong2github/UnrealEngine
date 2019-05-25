@@ -833,7 +833,7 @@ TSharedRef<SWidget> SAnimationSequenceBrowser::CreateHistoryMenu(bool bInBackHis
 
 				MenuBuilder.AddMenuEntry(DisplayName, Tooltip, FSlateIcon(), 
 					FUIAction(
-					FExecuteAction::CreateRaw(this, &SAnimationSequenceBrowser::GoToHistoryIndex, HistoryIdx)
+					FExecuteAction::CreateRaw(const_cast<SAnimationSequenceBrowser*>(this), &SAnimationSequenceBrowser::GoToHistoryIndex, HistoryIdx)
 					), 
 					NAME_None, EUserInterfaceActionType::Button);
 			}

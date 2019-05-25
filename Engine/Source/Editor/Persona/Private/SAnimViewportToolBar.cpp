@@ -690,7 +690,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateCharacterMenu() const
 				InMenuBuilder.AddSubMenu(
 					LOCTEXT("CharacterMenu_ClothingSubMenu", "Clothing"),
 					LOCTEXT("CharacterMenu_ClothingSubMenuToolTip", "Options relating to clothing"),
-					FNewMenuDelegate::CreateRaw(this, &SAnimViewportToolBar::FillCharacterClothingMenu));
+					FNewMenuDelegate::CreateRaw(const_cast<SAnimViewportToolBar*>(this), &SAnimViewportToolBar::FillCharacterClothingMenu));
 			}
 #endif // #if WITH_APEX_CLOTHING
 		}
@@ -711,7 +711,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateCharacterMenu() const
 		InMenuBuilder.AddSubMenu(
 			LOCTEXT("CharacterMenu_AdvancedSubMenu", "Advanced"),
 			LOCTEXT("CharacterMenu_AdvancedSubMenuToolTip", "Advanced options"),
-			FNewMenuDelegate::CreateRaw(this, &SAnimViewportToolBar::FillCharacterAdvancedMenu));
+			FNewMenuDelegate::CreateRaw(const_cast<SAnimViewportToolBar*>(this), &SAnimViewportToolBar::FillCharacterAdvancedMenu));
 
 		InMenuBuilder.EndSection();
 	}

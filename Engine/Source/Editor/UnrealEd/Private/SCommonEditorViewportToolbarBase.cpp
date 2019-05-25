@@ -429,7 +429,7 @@ TSharedPtr<FExtender> SCommonEditorViewportToolbarBase::GetViewMenuExtender() co
 		TEXT("ViewMode"),
 		EExtensionHook::After,
 		GetInfoProvider().GetViewportWidget()->GetCommandList(),
-		FMenuExtensionDelegate::CreateSP(this, &SCommonEditorViewportToolbarBase::CreateViewMenuExtensions));
+		FMenuExtensionDelegate::CreateSP(const_cast<SCommonEditorViewportToolbarBase*>(this), &SCommonEditorViewportToolbarBase::CreateViewMenuExtensions));
 
 	return GetCombinedExtenderList(ViewModeExtender);
 }
