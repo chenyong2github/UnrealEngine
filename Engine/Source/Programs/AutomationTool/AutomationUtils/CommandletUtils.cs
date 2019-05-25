@@ -419,7 +419,7 @@ namespace AutomationTool
 						ExitCodeDesc = String.Format(" (signal {0})", RunResult.ExitCode - 128);
 					}
 				}
-				throw new CommandletException(DestLogFile, RunResult.ExitCode, "Editor terminated with exit code {0}{1} while running {2}{3}; see log {4}", RunResult.ExitCode, ExitCodeDesc, Commandlet, (ProjectName == null)? "" : String.Format(" for {0}", ProjectName), DestLogFile);
+				throw new CommandletException(DestLogFile, RunResult.ExitCode, "Editor terminated with exit code {0}{1} while running {2}{3}; see log {4}", RunResult.ExitCode, ExitCodeDesc, Commandlet, (ProjectName == null)? "" : String.Format(" for {0}", ProjectName), DestLogFile) { OutputFormat = AutomationExceptionOutputFormat.Minimal };
 			}
 		}
 		
@@ -431,17 +431,19 @@ namespace AutomationTool
 		/// <returns>Path to the editor executable</returns>
 		public static string GetEditorCommandletExe(string BuildRoot, UnrealBuildTool.UnrealTargetPlatform HostPlatform)
 		{
-			switch(HostPlatform)
+			if (HostPlatform == UnrealBuildTool.UnrealTargetPlatform.Mac)
 			{
-				case UnrealBuildTool.UnrealTargetPlatform.Mac:
-					return CommandUtils.CombinePaths(BuildRoot, "Engine/Binaries/Mac/UE4Editor.app/Contents/MacOS/UE4Editor");
-				case UnrealBuildTool.UnrealTargetPlatform.Win64:
-					return CommandUtils.CombinePaths(BuildRoot, "Engine/Binaries/Win64/UE4Editor-Cmd.exe");
-				case UnrealBuildTool.UnrealTargetPlatform.Linux:
-					return CommandUtils.CombinePaths(BuildRoot, "Engine/Binaries/Linux/UE4Editor");
-				default:
-					throw new AutomationException("EditorCommandlet is not supported for platform {0}", HostPlatform);
+				return CommandUtils.CombinePaths(BuildRoot, "Engine/Binaries/Mac/UE4Editor.app/Contents/MacOS/UE4Editor");
 			}
+			if (HostPlatform == UnrealBuildTool.UnrealTargetPlatform.Win64)
+			{
+				return CommandUtils.CombinePaths(BuildRoot, "Engine/Binaries/Win64/UE4Editor-Cmd.exe");
+			}
+			if (HostPlatform == UnrealBuildTool.UnrealTargetPlatform.Linux)
+			{
+				return CommandUtils.CombinePaths(BuildRoot, "Engine/Binaries/Linux/UE4Editor");
+			}
+			throw new AutomationException("EditorCommandlet is not supported for platform {0}", HostPlatform);
 		}
 
 		/// <summary>

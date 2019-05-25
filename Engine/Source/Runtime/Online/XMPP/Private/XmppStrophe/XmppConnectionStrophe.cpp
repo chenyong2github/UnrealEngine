@@ -63,7 +63,12 @@ void FXmppConnectionStrophe::Login(const FString& UserId, const FString& Auth)
 		}
 		else if (LoginStatus == EXmppLoginStatus::LoggedIn)
 		{
-			ErrorStr = TEXT("Already logged in");
+			UE_LOG(LogXmpp, Log, TEXT("Reusing existing connection for Jid=%s"), *GetUserJid().ToDebugString());
+
+			OnLoginComplete().Broadcast(GetUserJid(), true, FString());
+			OnLoginChanged().Broadcast(GetUserJid(), EXmppLoginStatus::LoggedIn);
+			ReconnectLogin();
+			return;
 		}
 		else
 		{
@@ -93,6 +98,16 @@ void FXmppConnectionStrophe::Login(const FString& UserId, const FString& Auth)
 		UE_LOG(LogXmpp, Warning, TEXT("Login failed. %s"), *ErrorStr);
 		OnLoginComplete().Broadcast(GetUserJid(), false, ErrorStr);
 	}
+}
+
+void FXmppConnectionStrophe::ReconnectLogin()
+{
+	MessagesStrophe->OnReconnect();
+	MultiUserChatStrophe->OnReconnect();
+	PingStrophe->OnReconnect();
+	PresenceStrophe->OnReconnect();
+	PrivateChatStrophe->OnReconnect();
+	PubSubStrophe->OnReconnect();
 }
 
 void FXmppConnectionStrophe::Logout()
@@ -368,6 +383,11 @@ void FXmppConnectionStrophe::ProcessLoginStatusChange(EXmppLoginStatus::Type New
 			}
 		}
 	}
+}
+
+void FXmppConnectionStrophe::DumpState() const
+{
+	UE_LOG(LogXmpp, Warning, TEXT("JID=%s Status=%s"), *GetUserJid().ToDebugString(), EXmppLoginStatus::ToString(GetLoginStatus()));
 }
 
 #endif

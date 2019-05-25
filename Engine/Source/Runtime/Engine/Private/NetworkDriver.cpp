@@ -2025,6 +2025,8 @@ void UNetDriver::ProcessRemoteFunctionForChannel(UActorChannel* Ch, const FClass
 		}
 		else
 		{
+			Ch->PrepareForRemoteFunction(TargetObj);
+
 			FNetBitWriter TempBlockWriter( Bunch.PackageMap, 0 );
 			Ch->WriteFieldHeaderAndPayload( TempBlockWriter, ClassCache, FieldCache, NetFieldExportGroup, TempWriter );
 			ParameterBits = TempBlockWriter.GetNumBits();
@@ -3170,6 +3172,11 @@ void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 	for (FConnectionMap::TIterator It(This->MappedClientConnections); It; ++It)
 	{
 		Collector.AddReferencedObject(It.Value(), This);
+	}
+
+	if (This->GuidCache.IsValid())
+	{
+		This->GuidCache->CollectReferences(Collector);
 	}
 }
 

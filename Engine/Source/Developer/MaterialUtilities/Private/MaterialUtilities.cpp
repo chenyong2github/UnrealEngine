@@ -282,9 +282,9 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->ObjectBounds();
 	}
 
-	virtual int32 PreSkinnedLocalBounds() override
+	virtual int32 PreSkinnedLocalBounds(int32 OutputIndex) override
 	{
-		return Compiler->PreSkinnedLocalBounds();
+		return Compiler->PreSkinnedLocalBounds(OutputIndex);
 	}
 
 	virtual int32 CameraVector() override
@@ -564,6 +564,8 @@ public:
 							Compiler->Constant(0.5f)); // [-0.5,0.5] + 0.5
 				}
 				break;
+			case MP_ShadingModel:
+				return MaterialInterface->CompileProperty(&ProxyCompiler, MP_ShadingModel);
 			default:
 				return Compiler->Constant(1.0f);
 			}
@@ -579,6 +581,10 @@ public:
 		{
 			// Pass through customized UVs
 			return MaterialInterface->CompileProperty(Compiler, Property);
+		}
+		else if (Property == MP_ShadingModel)
+		{
+			return MaterialInterface->CompileProperty(Compiler, MP_ShadingModel);
 		}
 		else
 		{

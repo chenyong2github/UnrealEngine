@@ -88,6 +88,10 @@ namespace symbols
 		bool isPartOfLibrary;
 		bool wasRecompiled;
 
+		// BEGIN EPIC MOD - Allow mapping from object files to their unity object file
+		uint32_t amalgamatedUniqueId = ~(uint32_t)0;
+		// END EPIC MOD
+
 		LC_DISABLE_ASSIGNMENT(Compiland);
 		LC_DISABLE_COPY(Compiland);
 	};
@@ -183,6 +187,7 @@ namespace symbols
 		IDiaDataSource* diaDataSource;
 		IDiaSession* diaSession;
 		IDiaSymbol* globalScope;
+		TimeStamp lastModificationTime;
 	};
 
 	struct DynamicInitializerDB
@@ -245,7 +250,7 @@ namespace symbols
 	};
 
 	// CACHE: stored only ONCE, after initial load, cannot change
-	CompilandDB* GatherCompilands(Provider* provider, const DiaCompilandDB* diaCompilandDb, unsigned int splitAmalgamatedFilesThreshold, uint32_t compilandOptions);
+	CompilandDB* GatherCompilands(const Provider* provider, const DiaCompilandDB* diaCompilandDb, unsigned int splitAmalgamatedFilesThreshold, uint32_t compilandOptions);
 
 	// CACHE: stored only ONCE, after initial load, cannot change
 	LibraryDB* GatherLibraries(const DiaCompilandDB* diaCompilandDb);
@@ -342,6 +347,7 @@ namespace symbols
 
 	bool IsExceptionRelatedSymbol(const ImmutableString& symbolName);
 	bool IsExceptionClauseSymbol(const ImmutableString& symbolName);
+	bool IsExceptionUnwindSymbolForDynamicInitializer(const ImmutableString& symbolName);
 
 	bool IsRuntimeCheckRelatedSymbol(const ImmutableString& symbolName);
 	bool IsSdlCheckRelatedSymbol(const ImmutableString& symbolName);

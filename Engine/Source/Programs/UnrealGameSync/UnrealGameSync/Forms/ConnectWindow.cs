@@ -17,10 +17,13 @@ namespace UnrealGameSync
 	{
 		string ServerAndPort;
 		string UserName;
+		TextWriter Log;
 
-		public ConnectWindow(string ServerAndPort, string UserName)
+		public ConnectWindow(string ServerAndPort, string UserName, TextWriter Log)
 		{
 			InitializeComponent();
+
+			this.Log = Log;
 
 			if(String.IsNullOrEmpty(ServerAndPort))
 			{
@@ -44,9 +47,9 @@ namespace UnrealGameSync
 			UpdateEnabledControls();
 		}
 
-		public static bool ShowModal(IWin32Window Owner, string ServerAndPort, string UserName, out string NewServerAndPort, out string NewUserName)
+		public static bool ShowModal(IWin32Window Owner, string ServerAndPort, string UserName, TextWriter Log, out string NewServerAndPort, out string NewUserName)
 		{
-			ConnectWindow Connect = new ConnectWindow(ServerAndPort, UserName);
+			ConnectWindow Connect = new ConnectWindow(ServerAndPort, UserName, Log);
 			if(Connect.ShowDialog() == DialogResult.OK)
 			{
 				NewServerAndPort = Connect.ServerAndPort;
@@ -107,6 +110,15 @@ namespace UnrealGameSync
 
 			UserNameLabel.Enabled = !bUseDefaultSettings;
 			UserNameTextBox.Enabled = !bUseDefaultSettings;
+		}
+
+		private void BrowseUserBtn_Click(object sender, EventArgs e)
+		{
+			string NewUserName;
+			if(SelectUserWindow.ShowModal(this, ServerAndPortTextBox.Text, UserNameTextBox.Text, Log, out NewUserName))
+			{
+				UserNameTextBox.Text = NewUserName;
+			}
 		}
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved
  
 #pragma once
 
@@ -45,10 +45,11 @@ struct FItemInfo
 	{		
 	}
 
-	FItemInfo(TBitArray<> InNeedsVerticalWire, bool InHasChildren, bool InIsLastChild )
+	FItemInfo(TBitArray<> InNeedsVerticalWire, bool InHasChildren, bool InIsLastChild, int32 InParentIndex )
 	: NeedsVerticalWire(InNeedsVerticalWire)
 	, bHasChildren( InHasChildren )
 	, bIsLastChild( InIsLastChild )
+	, ParentIndex( InParentIndex )
 	{
 	}
 
@@ -66,6 +67,9 @@ struct FItemInfo
 
 	/** Is this the last child of its parent? If so, it gets a special kind of wire/connector. */
 	uint32 bIsLastChild : 1;
+
+	/** Index into the linearized tree of the parent for this item, if any, otherwise INDEX_NONE. */
+	int32 ParentIndex;
 };
 
 
@@ -84,20 +88,25 @@ class STreeView : public SListView< ItemType >
 {
 public:
 
-	typedef typename TListTypeTraits< ItemType >::NullableType NullableItemType;
+	using NullableItemType  = typename TListTypeTraits< ItemType >::NullableType;
+	using MapKeyFuncs       = typename TListTypeTraits< ItemType >::MapKeyFuncs;
+	using MapKeyFuncsSparse = typename TListTypeTraits< ItemType >::MapKeyFuncsSparse;
 
-	typedef typename TSlateDelegates< ItemType >::FOnGetChildren FOnGetChildren;
-	typedef typename TSlateDelegates< ItemType >::FOnGenerateRow FOnGenerateRow;
-	typedef typename TSlateDelegates< ItemType >::FOnSetExpansionRecursive FOnSetExpansionRecursive;
-	typedef typename TSlateDelegates< ItemType >::FOnItemScrolledIntoView FOnItemScrolledIntoView;
-	typedef typename TSlateDelegates< NullableItemType >::FOnSelectionChanged FOnSelectionChanged;
-	typedef typename TSlateDelegates< ItemType >::FOnMouseButtonClick FOnMouseButtonClick;
-	typedef typename TSlateDelegates< ItemType >::FOnMouseButtonDoubleClick FOnMouseButtonDoubleClick;
-	typedef typename TSlateDelegates< ItemType >::FOnExpansionChanged FOnExpansionChanged;
+	using TSparseItemMap    = TMap< ItemType, FSparseItemInfo, FDefaultSetAllocator, MapKeyFuncsSparse >;
+	using TItemSet          = TSet< ItemType, typename TListTypeTraits< ItemType >::SetKeyFuncs >;
 
-	typedef typename TSlateDelegates< ItemType >::FOnItemToString_Debug FOnItemToString_Debug; 
+	using FOnGetChildren            = typename TSlateDelegates< ItemType >::FOnGetChildren;
+	using FOnGenerateRow            = typename TSlateDelegates< ItemType >::FOnGenerateRow;
+	using FOnSetExpansionRecursive  = typename TSlateDelegates< ItemType >::FOnSetExpansionRecursive;
+	using FOnItemScrolledIntoView   = typename TSlateDelegates< ItemType >::FOnItemScrolledIntoView;
+	using FOnSelectionChanged       = typename TSlateDelegates< NullableItemType >::FOnSelectionChanged;
+	using FOnMouseButtonClick       = typename TSlateDelegates< ItemType >::FOnMouseButtonClick;
+	using FOnMouseButtonDoubleClick = typename TSlateDelegates< ItemType >::FOnMouseButtonDoubleClick;
+	using FOnExpansionChanged       = typename TSlateDelegates< ItemType >::FOnExpansionChanged;
 
-	using FOnWidgetToBeRemoved = typename SListView<ItemType>::FOnWidgetToBeRemoved;
+	using FOnItemToString_Debug     = typename TSlateDelegates< ItemType >::FOnItemToString_Debug; 
+
+	using FOnWidgetToBeRemoved      = typename SListView< ItemType >::FOnWidgetToBeRemoved;
 
 public:
 	
@@ -124,6 +133,7 @@ public:
 		, _HandleGamepadEvents(true)
 		, _HandleDirectionalNavigation(true)
 		, _AllowInvisibleItemSelection(false)
+		, _HighlightParentNodesForSelection(false)
 		{
 			//_Clipping = EWidgetClipping::ClipToBounds;
 		}
@@ -181,6 +191,7 @@ public:
 
 		SLATE_ARGUMENT(bool, AllowInvisibleItemSelection);
 
+		SLATE_ARGUMENT(bool, HighlightParentNodesForSelection);
 
 	SLATE_END_ARGS()
 
@@ -220,6 +231,7 @@ public:
 		this->bHandleGamepadEvents = InArgs._HandleGamepadEvents;
 		this->bHandleDirectionalNavigation = InArgs._HandleDirectionalNavigation;
 		this->bAllowInvisibleItemSelection = InArgs._AllowInvisibleItemSelection;
+		this->bHighlightParentNodesForSelection = InArgs._HighlightParentNodesForSelection;
 
 		// Check for any parameters that the coder forgot to specify.
 		FString ErrorString;
@@ -428,7 +440,47 @@ private:
 			: false;
 	}
 
+	/**
+	 * This clears the highlight state from all nodes and then traverses the parents of each selected node to add it to the highlighted set.
+	 */
+	virtual void Private_UpdateParentHighlights()
+	{
+		this->Private_ClearHighlightedItems();
+		
+		for( typename TItemSet::TConstIterator SelectedItemIt(this->SelectedItems); SelectedItemIt; ++SelectedItemIt )
+		{
+			// Sometimes selection events can come through before the Linearized List is built, so the item may not exist yet.
+			int32 ItemIndex = LinearizedItems.Find(*SelectedItemIt);
+			if (ItemIndex == INDEX_NONE)
+			{
+				continue;
+			}
+
+			const FItemInfo& ItemInfo = DenseItemInfos[ItemIndex];
+			int32 ParentIndex = ItemInfo.ParentIndex;
+			while (ParentIndex != INDEX_NONE)
+			{
+				const ItemType& ParentItem = this->LinearizedItems[ParentIndex];
+				this->Private_SetItemHighlighted(ParentItem, true);
+
+				const FItemInfo& ParentItemInfo = DenseItemInfos[ParentIndex];
+				ParentIndex = ParentItemInfo.ParentIndex;
+			}
+		}
+	}
+
 public:
+	virtual void Private_SignalSelectionChanged(ESelectInfo::Type SelectInfo) override
+	{
+		SListView< ItemType >::Private_SignalSelectionChanged(SelectInfo);
+		
+		if (bHighlightParentNodesForSelection)
+		{
+			this->Private_UpdateParentHighlights();
+		}
+	}
+
+
 
 	/**
 	 * See SWidget::Tick()
@@ -451,13 +503,13 @@ public:
 				{
 					// We make copies of the old expansion and selection sets so that we can remove
 					// any items that are no longer seen by the tree.
-					TSet< ItemType > TempSelectedItemsMap;
-					TMap< ItemType, FSparseItemInfo > TempSparseItemInfo;
+					TItemSet TempSelectedItemsMap;
+					TSparseItemMap TempSparseItemInfo;
 					TArray<FItemInfo> TempDenseItemInfos;
 					
 					// Rebuild the linearized view of the tree data.
 					LinearizedItems.Empty();
-					PopulateLinearizedItems( *TreeItemsSource, LinearizedItems, TempDenseItemInfos, TBitArray<>(), TempSelectedItemsMap, TempSparseItemInfo, true );
+					PopulateLinearizedItems( *TreeItemsSource, LinearizedItems, TempDenseItemInfos, TBitArray<>(), TempSelectedItemsMap, TempSparseItemInfo, true, INDEX_NONE );
 
 					if( !bAllowInvisibleItemSelection &&
 						(this->SelectedItems.Num() != TempSelectedItemsMap.Num() ||
@@ -487,6 +539,12 @@ public:
 					// and could be invalid)
 					SparseItemInfos = TempSparseItemInfo;
 					DenseItemInfos  = TempDenseItemInfos;
+
+					// Once the selection changed events have gone through we can update the parent highlight statuses, which are based on your current selection.
+					if (bHighlightParentNodesForSelection)
+					{
+						this->Private_UpdateParentHighlights();
+					}
 				}
 			}
 		}
@@ -498,7 +556,7 @@ public:
 		
 	/** 
 	 * Given: an array of items (ItemsSource) each of which potentially has a child.
-	 * Task: populate the LinearezedItems array with a flattened version of the visible data items.
+	 * Task: populate the LinearizedItems array with a flattened version of the visible data items.
 	 *       In the process, remove any items that are not visible while maintaining any collapsed
 	 *       items that may have expanded children.
 	 *
@@ -509,6 +567,7 @@ public:
 	 * @param OutNewSelectedItems  Selected items minus any items that are no longer observed by the list.
 	 * @param NewSparseItemInfo    Expanded items and items that have expanded children minus any items that are no longer observed by the list.
 	 * @param bAddingItems         Are we adding encountered items to the linearized items list or just testing them for existence.
+	 * @param ParentIndex		   The index in the resulting linearized item list of the parent node for the currently processed level.
 	 *
 	 * @return true if we encountered expanded children; false otherwise.
 	 */
@@ -517,9 +576,10 @@ public:
 		TArray< ItemType >& InLinearizedItems,
 		TArray< FItemInfo >& NewDenseItemInfos,
 		TBitArray<> NeedsParentWire,
-		TSet< ItemType >& OutNewSelectedItems,
-		TMap< ItemType, FSparseItemInfo >& NewSparseItemInfo,
-		bool bAddingItems )
+		TItemSet& OutNewSelectedItems,
+		TSparseItemMap& NewSparseItemInfo,
+		bool bAddingItems,
+		int32 ParentIndex)
 	{
 
 		NeedsParentWire.Add(false);
@@ -551,7 +611,7 @@ public:
 			{
 				InLinearizedItems.Add( CurItem );
 
-				NewDenseItemInfos.Add( FItemInfo(NeedsParentWire, bHasChildren, bIsLastChild) );
+				NewDenseItemInfos.Add( FItemInfo(NeedsParentWire, bHasChildren, bIsLastChild, ParentIndex) );
 
 				const bool bIsSelected = this->IsItemSelected( CurItem );
 				if (bIsSelected)
@@ -565,7 +625,7 @@ public:
 				// If this item is expanded, we should process all of its children at the next indentation level.
 				// If it is collapsed, process its children but do not add them to the linearized list.
 				const bool bAddChildItems = bAddingItems && bIsExpanded;
-				bHasExpandedChildren = PopulateLinearizedItems( ChildItems, InLinearizedItems, NewDenseItemInfos, NeedsParentWire, OutNewSelectedItems, NewSparseItemInfo, bAddChildItems );
+				bHasExpandedChildren = PopulateLinearizedItems( ChildItems, InLinearizedItems, NewDenseItemInfos, NeedsParentWire, OutNewSelectedItems, NewSparseItemInfo, bAddChildItems, InLinearizedItems.Num() - 1);
 			}
 
 			if ( bIsExpanded || bHasExpandedChildren )
@@ -673,9 +733,9 @@ public:
 	 *
 	 * @param ExpandedItems	The generated set of expanded items.
 	 */
-	void GetExpandedItems( TSet< ItemType >& ExpandedItems ) const
+	void GetExpandedItems( TItemSet& ExpandedItems ) const
 	{
-		for( typename TMap<ItemType, FSparseItemInfo>::TConstIterator InfoIterator(SparseItemInfos); InfoIterator; ++InfoIterator )
+		for( typename TSparseItemMap::TConstIterator InfoIterator(SparseItemInfos); InfoIterator; ++InfoIterator )
 		{
 			if ( InfoIterator.Value().bIsExpanded )
 			{
@@ -703,7 +763,7 @@ protected:
 	const TArray<ItemType>* TreeItemsSource;		
 		
 	/** Info needed by a small fraction of tree items; some of these are not visible to the user. */
-	TMap<ItemType, FSparseItemInfo> SparseItemInfos;
+	TSparseItemMap SparseItemInfos;
 
 	/** Info needed by every item in the linearized version of the tree. */
 	TArray<FItemInfo> DenseItemInfos;
@@ -724,4 +784,7 @@ private:
 
 	/** true if we allow invisible items to stay selected. */
 	bool bAllowInvisibleItemSelection = false;
+
+	/** true if we should highlight all parents for each of the currently selected items */
+	bool bHighlightParentNodesForSelection = false;
 };

@@ -387,6 +387,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Components|StaticMesh")
 	void GetLocalBounds(FVector& Min, FVector& Max) const;
 
+	/** Set custom primitive data at index DataIndex. */
+	UFUNCTION(BlueprintCallable, Category="Components|StaticMesh")
+	void SetCustomPrimitiveDataFloat(int32 DataIndex, float Value);
+
+	/** Set custom primitive data, two floats at once, from index DataIndex to index DataIndex + 2. */
+	UFUNCTION(BlueprintCallable, Category="Components|StaticMesh")
+	void SetCustomPrimitiveDataVector2(int32 DataIndex, FVector2D Value);
+
+	/** Set custom primitive data, three floats at once, from index DataIndex to index DataIndex + 3. */
+	UFUNCTION(BlueprintCallable, Category="Components|StaticMesh")
+	void SetCustomPrimitiveDataVector3(int32 DataIndex, FVector Value);
+
+	/** Set custom primitive data, four floats at once, from index DataIndex to index DataIndex + 4. */
+	UFUNCTION(BlueprintCallable, Category="Components|StaticMesh")
+	void SetCustomPrimitiveDataVector4(int32 DataIndex, FVector4 Value);
+
 	/** 
 	 * Set forced reverse culling
 	 */
@@ -443,6 +459,7 @@ protected:
 	virtual void CreateRenderState_Concurrent() override;
 	virtual void OnCreatePhysicsState() override;
 	virtual void OnDestroyPhysicsState() override;
+	virtual void SendRenderDynamicData_Concurrent() override;
 public:
 	virtual void InvalidateLightingCacheDetailed(bool bInvalidateBuildEnqueuedLighting, bool bTranslationOnly) override;
 	virtual UObject const* AdditionalStatObject() const override;
@@ -624,6 +641,8 @@ private:
 	/** Update the vertex override colors */
 	void PrivateFixupOverrideColors();
 
+	/** Insert an array of floats into the CustomPrimitiveData, starting at the given index */
+	void SetCustomPrimitiveDataInternal(int32 DataIndex, const TArray<float>& Values);
 protected:
 
 	/** Whether the component type supports static lighting. */

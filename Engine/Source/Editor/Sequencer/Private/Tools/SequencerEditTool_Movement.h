@@ -53,7 +53,9 @@ private:
 		FDelayedDrag_Hotspot(FVector2D InInitialPosition, FKey InApplicableKey, TSharedPtr<ISequencerHotspot> InHotspot)
 			: FDelayedDrag(InInitialPosition, InApplicableKey)
 			, Hotspot(MoveTemp(InHotspot))
-		{ }
+		{
+			SetTriggerScaleFactor(0.1f);
+		}
 
 		TSharedPtr<ISequencerHotspot> Hotspot;
 	};

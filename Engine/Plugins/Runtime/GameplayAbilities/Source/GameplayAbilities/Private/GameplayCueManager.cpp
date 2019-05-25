@@ -129,6 +129,10 @@ void UGameplayCueManager::HandleGameplayCues(AActor* TargetActor, const FGamepla
 
 void UGameplayCueManager::HandleGameplayCue(AActor* TargetActor, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters, EGameplayCueExecutionOptions Options)
 {
+#if WITH_SERVER_CODE
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_GameplayCueManager_HandleGameplayCue);
+#endif
+
 #if WITH_EDITOR
 	if (GIsEditor && TargetActor == nullptr && UGameplayCueManager::PreviewComponent)
 	{
@@ -171,6 +175,10 @@ bool UGameplayCueManager::ShouldSuppressGameplayCues(AActor* TargetActor)
 
 void UGameplayCueManager::RouteGameplayCue(AActor* TargetActor, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters, EGameplayCueExecutionOptions Options)
 {
+#if WITH_SERVER_CODE
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_GameplayCueManager_RouteGameplayCue);
+#endif
+
 	// If we want to ignore interfaces, set the pointer to null
 	IGameplayCueInterface* GameplayCueInterface = !(Options & EGameplayCueExecutionOptions::IgnoreInterfaces) ? Cast<IGameplayCueInterface>(TargetActor) : nullptr;
 	bool bAcceptsCue = true;
@@ -224,6 +232,10 @@ void UGameplayCueManager::RouteGameplayCue(AActor* TargetActor, FGameplayTag Gam
 
 void UGameplayCueManager::TranslateGameplayCue(FGameplayTag& Tag, AActor* TargetActor, const FGameplayCueParameters& Parameters)
 {
+#if WITH_SERVER_CODE
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_GameplayCueManager_TranslateGameplayCue);
+#endif
+
 	TranslationManager.TranslateTag(Tag, TargetActor, Parameters);
 }
 

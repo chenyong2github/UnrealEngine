@@ -1,0 +1,380 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "SkinWeightProfileHelpers.h"
+
+#include "SSkinWeightProfileImportOptions.h"
+#include "HAL/UnrealMemory.h"
+#include "Engine/SkeletalMesh.h"
+#include "Widgets/SWindow.h"
+#include "Modules/ModuleManager.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Interfaces/IMainFrameModule.h"
+#include "Rendering/SkeletalMeshModel.h"
+#include "LODUtilities.h"
+#include "IMeshReductionInterfaces.h"
+#include "ComponentReregisterContext.h"
+#include "Components/SkinnedMeshComponent.h"
+#include "EditorFramework/AssetImportData.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
+
+#define LOCTEXT_NAMESPACE "SkinWeightProfileHelpers"
+
+void FSkinWeightProfileHelpers::ImportSkinWeightProfile(USkeletalMesh* InSkeletalMesh)
+{
+	if (InSkeletalMesh)
+	{
+		const int32 LOD0Index = 0;
+		FString PickedFileName = FLODUtilities::PickSkinWeightFBXPath(LOD0Index);
+
+		bool bShouldImport = false;
+		USkinWeightImportOptions* ImportSettings = GetMutableDefault<USkinWeightImportOptions>();		
+
+		// Show settings dialog, for user to provide name for the new profile
+		if (FPaths::FileExists(PickedFileName))
+		{
+			TSharedRef<SWindow> Window = SNew(SWindow)
+				.Title(LOCTEXT("WindowTitle", "Skin Weight Profile Import Options"))
+				.SizingRule(ESizingRule::Autosized);
+
+			TSharedPtr<SSkinWeightProfileImportOptions> OptionsWidget;
+			ImportSettings->FilePath = PickedFileName;
+			ImportSettings->SourceMesh = nullptr;
+			ImportSettings->LODIndex = 0;
+			Window->SetContent
+			(
+				SAssignNew(OptionsWidget, SSkinWeightProfileImportOptions).WidgetWindow(Window)
+				.ImportSettings(ImportSettings)
+				.WidgetWindow(Window)
+				.SkeletalMesh(InSkeletalMesh)
+			);
+
+			TSharedPtr<SWindow> ParentWindow;
+
+			if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
+			{
+				IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+				ParentWindow = MainFrame.GetParentWindow();
+			}
+
+			FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
+
+			// Poll the result of the window interaction, user could have cancelled operation
+			bShouldImport = OptionsWidget->ShouldImport();
+		}
+		
+		if (bShouldImport)
+		{
+			const FName ProfileName(*ImportSettings->ProfileName);
+			if (ImportSettings->SourceMesh == nullptr)
+			{
+				// Try and import the skin weight profile from the provided FBX file path
+				const bool bReregisterComponent = true;
+				const bool bResult = FLODUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PickedFileName, ImportSettings->LODIndex, ProfileName, bReregisterComponent);
+				if (bResult)
+				{
+					FNotificationInfo NotificationInfo(FText::GetEmpty());
+					NotificationInfo.Text = LOCTEXT("ImportSuccessful", "Skin Weights imported successfully!");
+					NotificationInfo.ExpireDuration = 2.5f;
+					FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+				}
+				else
+				{
+					FNotificationInfo NotificationInfo(FText::GetEmpty());
+					NotificationInfo.Text = LOCTEXT("ImportFailed", "Failed to import Skin Weights!");
+					NotificationInfo.ExpireDuration = 2.5f;
+					FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+				}
+			}
+			else
+			{
+				if (USkeletalMesh* Mesh = ImportSettings->SourceMesh)
+				{
+					if (CopySkinWeightsToProfile(Mesh, InSkeletalMesh, LOD0Index, ProfileName))
+					{
+						// Add a new profile entry
+						FSkinWeightProfileInfo SkeletalMeshProfile;
+						SkeletalMeshProfile.DefaultProfile = (InSkeletalMesh->GetNumSkinWeightProfiles() == 0);
+						SkeletalMeshProfile.DefaultProfileFromLODIndex = LOD0Index;
+						SkeletalMeshProfile.Name = ProfileName;
+						InSkeletalMesh->AddSkinWeightProfile(SkeletalMeshProfile);
+
+						// Enforce a post-edit call to ensure the mesh data is cached
+						FPropertyChangedEvent PropertyChangeEvent(nullptr);
+						InSkeletalMesh->PostEditChangeProperty(PropertyChangeEvent);
+					}
+				}				
+			}
+			FLODUtilities::RegenerateDependentLODs(InSkeletalMesh, 0);
+		}
+	}
+}
+
+bool FSkinWeightProfileHelpers::CopySkinWeightsToProfile(USkeletalMesh* SourceMesh, USkeletalMesh* TargetMesh, const int32 LODIndex, const FName ProfileName)
+{
+	bool bCopied = false;
+	const FSkeletalMeshModel* SourceModel = SourceMesh->GetImportedModel();
+	FSkeletalMeshModel* TargetModel = TargetMesh->GetImportedModel();
+	if (SourceModel && TargetModel)
+	{
+		if (SourceModel->LODModels.IsValidIndex(LODIndex) && TargetModel->LODModels.IsValidIndex(LODIndex))
+		{
+			const FSkeletalMeshLODModel& SourceLODModel = SourceModel->LODModels[LODIndex];
+			FSkeletalMeshLODModel& TargetLODModel = TargetModel->LODModels[LODIndex];
+			if (SourceLODModel.NumVertices == TargetLODModel.NumVertices)
+			{
+				// Copy actual per-lod data into profile entry
+				TArray<FSoftSkinVertex> SourceVertices;
+				SourceLODModel.GetVertices(SourceVertices);
+
+				// Add a new imported skin weight data entry
+				FImportedSkinWeightProfileData& ProfileData = TargetLODModel.SkinWeightProfiles.Add(ProfileName);
+				TArray<FRawSkinWeight>& SkinWeights = ProfileData.SkinWeights;
+				SkinWeights.Reserve(SourceVertices.Num());
+				for (const FSoftSkinVertex& Vertex : SourceVertices)
+				{
+					FRawSkinWeight& SkinWeight = SkinWeights.AddDefaulted_GetRef();
+					FMemory::Memcpy(SkinWeight.InfluenceBones, Vertex.InfluenceBones);
+					FMemory::Memcpy(SkinWeight.InfluenceWeights, Vertex.InfluenceWeights);
+				}
+
+				bCopied = true;
+			}
+		}
+	}
+
+	return bCopied;
+}
+
+void FSkinWeightProfileHelpers::ImportSkinWeightProfileLOD(USkeletalMesh* InSkeletalMesh, FName ProfileName, int32 LODIndex)
+{
+	if (InSkeletalMesh)
+	{
+		// Pick a FBX file to import the weights from 
+		const FString PickedFileName = FLODUtilities::PickSkinWeightFBXPath(LODIndex);
+		
+		// Try and import skin weights for a specific mesh LOD
+		const bool bResult = FLODUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PickedFileName, LODIndex, ProfileName, true);
+		if (bResult)
+		{
+			FLODUtilities::RegenerateDependentLODs(InSkeletalMesh, LODIndex);
+
+			FNotificationInfo NotificationInfo(FText::GetEmpty());
+			NotificationInfo.Text = FText::Format(LOCTEXT("LODImportSuccessful", "Skin Weights for LOD {0} imported successfully!"), FText::AsNumber(LODIndex));
+			NotificationInfo.ExpireDuration = 2.5f;
+			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+		}
+		else
+		{
+			FNotificationInfo NotificationInfo(FText::GetEmpty());
+			NotificationInfo.Text = FText::Format(LOCTEXT("LODImportFailed", "Failed to import Skin Weights for LOD {0}!"), FText::AsNumber(LODIndex));
+			NotificationInfo.ExpireDuration = 2.5f;
+			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+		}
+	}
+}
+
+void FSkinWeightProfileHelpers::CopySkinWeightProfile(USkeletalMesh* InSkeletalMesh)
+{
+	if (InSkeletalMesh)
+	{
+		bool bShouldImport = false;
+		USkinWeightImportOptions* ImportSettings = GetMutableDefault<USkinWeightImportOptions>();
+
+		// Show settings dialog	
+		TSharedRef<SWindow> Window = SNew(SWindow)
+			.Title(LOCTEXT("WindowTitle", "Skin Weight Profile Import Options"))
+			.SizingRule(ESizingRule::Autosized);
+
+		TSharedPtr<SSkinWeightProfileImportOptions> OptionsWidget;
+		ImportSettings->FilePath.Empty();
+		ImportSettings->SourceMesh = nullptr;
+		Window->SetContent
+		(
+			SAssignNew(OptionsWidget, SSkinWeightProfileImportOptions).WidgetWindow(Window)
+			.ImportSettings(ImportSettings)
+			.WidgetWindow(Window)
+			.SkeletalMesh(InSkeletalMesh)
+		);
+
+		TSharedPtr<SWindow> ParentWindow;
+
+		if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
+		{
+			IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+			ParentWindow = MainFrame.GetParentWindow();
+		}
+
+		FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
+
+		// Poll the result of the window interaction, user could have cancelled operation
+		bShouldImport = OptionsWidget->ShouldImport();
+
+		if (bShouldImport)
+		{
+			const int32 LOD0Index = 0;
+			const FName ProfileName(*ImportSettings->ProfileName);
+			if (USkeletalMesh* Mesh = ImportSettings->SourceMesh)
+			{				
+				if (CopySkinWeightsToProfile(Mesh, InSkeletalMesh, LOD0Index, ProfileName))
+				{
+					// Add a new profile entry
+					FSkinWeightProfileInfo SkeletalMeshProfile;
+					SkeletalMeshProfile.DefaultProfile = (InSkeletalMesh->GetNumSkinWeightProfiles() == 0);
+					SkeletalMeshProfile.DefaultProfileFromLODIndex = LOD0Index;
+					SkeletalMeshProfile.Name = ProfileName;
+					InSkeletalMesh->AddSkinWeightProfile(SkeletalMeshProfile);
+
+					// Enforce a post-edit call to ensure the mesh data is cached
+					FPropertyChangedEvent PropertyChangeEvent(nullptr);
+					InSkeletalMesh->PostEditChangeProperty(PropertyChangeEvent);
+
+					// Make sure we regenerate any LOD data that is based off the now re imported LOD
+					FLODUtilities::RegenerateDependentLODs(InSkeletalMesh, LOD0Index);
+				}
+			}
+		}
+	}
+}
+
+void FSkinWeightProfileHelpers::ReimportSkinWeightProfileLOD(USkeletalMesh* InSkeletalMesh, const FName& InProfileName, const int32 LODIndex)
+{
+	const FSkinWeightProfileInfo* Profile = InSkeletalMesh->GetSkinWeightProfiles().FindByPredicate([InProfileName](FSkinWeightProfileInfo Profile) { return Profile.Name == InProfileName; });
+	if (Profile)
+	{
+		if (const FString* PathNamePtr = Profile->PerLODSourceFiles.Find(LODIndex))
+		{
+			bool bResult = false;
+			const FString& PathName = UAssetImportData::ResolveImportFilename(*PathNamePtr, InSkeletalMesh->GetOutermost());
+			
+			// Check to see if the source file is still valid
+			if (FPaths::FileExists(PathName))
+			{
+				bResult = FLODUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PathName, LODIndex, InProfileName, true);
+			}
+			else
+			{
+				// Otherwise let the user pick a new path
+				const FString PickedFileName = FLODUtilities::PickSkinWeightFBXPath(LODIndex);
+				bResult = FLODUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PickedFileName, LODIndex, InProfileName, true);
+			}
+
+			if (bResult)
+			{
+				// Make sure we regenerate any LOD data that is based off the now re imported LOD
+				FLODUtilities::RegenerateDependentLODs(InSkeletalMesh, LODIndex);
+
+				FNotificationInfo NotificationInfo(FText::GetEmpty());
+				NotificationInfo.Text = FText::Format(LOCTEXT("ReimportedSkinWeightsForLOD", "Reimported Skin Weights for LOD {0} succesfully!"), FText::AsNumber(LODIndex));
+				NotificationInfo.ExpireDuration = 2.5f;
+				FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+			}
+			else
+			{
+				FNotificationInfo NotificationInfo(FText::GetEmpty());
+				NotificationInfo.Text = FText::Format(LOCTEXT("ReimportSkinWeightsForLODFailed", "Reimporting Skin Weights for LOD {0} failed!"), FText::AsNumber(LODIndex));
+				NotificationInfo.ExpireDuration = 2.5f;
+				FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+			}
+		}
+	}
+}
+
+void FSkinWeightProfileHelpers::RemoveSkinWeightProfile(USkeletalMesh* InSkeletalMesh, const FName& InProfileName)
+{
+	const int32 NumRemoved = InSkeletalMesh->GetSkinWeightProfiles().RemoveAll([InProfileName](FSkinWeightProfileInfo Profile)
+	{
+		return Profile.Name == InProfileName;
+	});
+
+	// Check whether or not we actually removed a profile
+	if (NumRemoved)
+	{
+		FSkeletalMeshUpdateContext UpdateContext;
+		UpdateContext.SkeletalMesh = InSkeletalMesh;
+		
+		FSkeletalMeshModel* ImportModel = InSkeletalMesh->GetImportedModel();		
+		for (int32 LODIndex = 0; LODIndex < ImportModel->LODModels.Num(); ++LODIndex)
+		{
+			FSkeletalMeshLODModel& LODModel = ImportModel->LODModels[LODIndex];
+			const FSkeletalMeshLODInfo* LODInfo = InSkeletalMesh->GetLODInfo(LODIndex);
+			if (LODInfo && LODInfo->bHasBeenSimplified)
+			{
+				// Delete the alternate influences data
+				LODModel.SkinWeightProfiles.Remove(InProfileName);
+				// Regenerate this generated LOD
+				FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex, true);
+				
+				// Goto next LOD
+				continue;
+			}
+			
+			// Make sure we actually removed the profile data
+			if (!FLODUtilities::RemoveSkinnedWeightProfileData(InSkeletalMesh, InProfileName, LODIndex))
+			{
+				FNotificationInfo NotificationInfo(FText::GetEmpty());
+				NotificationInfo.Text = FText::Format(LOCTEXT("FailedToRemoveLODWeights", "Failed to remove Skin Weights for LOD {0}!"), FText::AsNumber(LODIndex));
+				NotificationInfo.ExpireDuration = 2.5f;
+				FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+			}
+			LODModel.SkinWeightProfiles.Remove(InProfileName);
+		}
+	}
+}
+
+void FSkinWeightProfileHelpers::RemoveSkinWeightProfileLOD(USkeletalMesh* InSkeletalMesh, const FName& InProfileName, const int32 LODIndex)
+{
+	FSkinWeightProfileInfo* Profile = InSkeletalMesh->GetSkinWeightProfiles().FindByPredicate([InProfileName](FSkinWeightProfileInfo Profile) { return Profile.Name == InProfileName; });
+	if (Profile)
+	{
+		// Remove source path
+		Profile->PerLODSourceFiles.Remove(LODIndex);		
+
+		FSkeletalMeshModel* ImportModel = InSkeletalMesh->GetImportedModel();			
+		const FSkeletalMeshLODInfo* LODInfo = InSkeletalMesh->GetLODInfo(LODIndex);
+		if (LODInfo && LODInfo->bHasBeenSimplified)
+		{
+			//We cannot remove alternate skin weights profile for a generated LOD
+			//It will be remove when the base LOD use to reduce will get his skin weights profile remove
+			return;
+		}
+		
+		if (FLODUtilities::RemoveSkinnedWeightProfileData(InSkeletalMesh, InProfileName, LODIndex))
+		{
+			FSkinWeightProfileHelpers::ClearSkinWeightProfileInstanceOverrides(InSkeletalMesh, InProfileName);
+
+			//Regenerate dependent LODs if we remove the LOD successfully
+			FLODUtilities::RegenerateDependentLODs(InSkeletalMesh, LODIndex);
+
+			FNotificationInfo NotificationInfo(FText::GetEmpty());
+			NotificationInfo.Text = FText::Format(LOCTEXT("RemovedLODWeights", "Removed Skin Weights for LOD {0}!"), FText::AsNumber(LODIndex));
+			NotificationInfo.ExpireDuration = 2.5f;
+			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+		}
+		else
+		{
+			FNotificationInfo NotificationInfo(FText::GetEmpty());
+			NotificationInfo.Text = FText::Format(LOCTEXT("FailedToRemoveLODWeights", "Failed to remove Skin Weights for LOD {0}!"), FText::AsNumber(LODIndex));
+			NotificationInfo.ExpireDuration = 2.5f;
+			FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+		}
+	}
+}
+
+void FSkinWeightProfileHelpers::ClearSkinWeightProfileInstanceOverrides(USkeletalMesh* InSkeletalMesh, FName InProfileName)
+{
+	for (TObjectIterator<USkinnedMeshComponent> It; It; ++It)
+	{
+		if (It->SkeletalMesh == InSkeletalMesh)
+		{
+			checkf(!It->IsUnreachable(), TEXT("%s"), *It->GetFullName());
+
+			if (It->GetCurrentSkinWeightProfileName() == InProfileName)
+			{
+				It->ClearSkinWeightProfile();
+			}
+		}
+	}
+}
+
+#undef LOCTEXT_NAMESPACE

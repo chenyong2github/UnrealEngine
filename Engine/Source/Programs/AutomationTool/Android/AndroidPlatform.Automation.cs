@@ -235,20 +235,13 @@ public class AndroidPlatform : Platform
 	private static string GetFinalBatchName(string ApkName, DeploymentContext SC, string Architecture, string GPUArchitecture, bool bNoOBBInstall, EBatchType BatchType, UnrealTargetPlatform Target)
 	{
 		string Extension = ".bat";
-		switch (Target)
+		if (Target == UnrealTargetPlatform.Linux)
 		{
-			default:
-			case UnrealTargetPlatform.Win64:
-				Extension = ".bat";
-				break;
-
-			case UnrealTargetPlatform.Linux:
-				Extension = ".sh";
-				break;
-
-			case UnrealTargetPlatform.Mac:
-				Extension = ".command";
-				break;
+			Extension = ".sh";
+		}
+		else if (Target == UnrealTargetPlatform.Mac)
+		{
+			Extension = ".command";
 		}
 
 		// Get the name of the APK to use for batch file
@@ -525,7 +518,7 @@ public class AndroidPlatform : Platform
 				}
 				
 				TargetReceipt Receipt = SC.StageTargets[0].Receipt;
-			              
+				              
 				// when we make an embedded executable, all we do is output to libUE4.so - we don't need to make an APK at all
 				// however, we still let package go through to make the .obb file
 				string CookFlavor = SC.FinalCookPlatform.IndexOf("_") > 0 ? SC.FinalCookPlatform.Substring(SC.FinalCookPlatform.IndexOf("_")) : "";
@@ -549,7 +542,7 @@ public class AndroidPlatform : Platform
 							Type = TargetType.Server;
 						}
 						LogInformation("SavePackageInfo");
-						Deploy.SavePackageInfo(Params.ShortProjectName, SC.ProjectRoot.FullName, Type);
+						Deploy.SavePackageInfo(Params.ShortProjectName, SC.ProjectRoot.FullName, Type, true);
 					}
 					Deploy.PrepForUATPackageOrDeploy(Params.RawProjectPath, Params.ShortProjectName, SC.ProjectRoot, SOName, SC.LocalRoot + "/Engine", Params.Distribution, CookFlavor, SC.StageTargets[0].Receipt.Configuration, false, bShouldCompileAsDll);
 				}

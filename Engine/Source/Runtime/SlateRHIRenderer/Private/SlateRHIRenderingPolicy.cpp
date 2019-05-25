@@ -72,6 +72,7 @@ FSlateRHIRenderingPolicy::FSlateRHIRenderingPolicy(TSharedRef<FSlateFontServices
 	, PostProcessor(new FSlatePostProcessor)
 	, ResourceManager(InResourceManager)
 	, bGammaCorrect(true)
+	, bApplyColorDeficiencyCorrection(true)
 	, InitialBufferSizeOverride(InitialBufferSize)
 	, LastDeviceProfile(nullptr)
 {
@@ -291,8 +292,10 @@ static FSceneView* CreateSceneView( FSceneViewFamilyContext* ViewFamilyContext, 
 
 	ERHIFeatureLevel::Type RHIFeatureLevel = View->GetFeatureLevel();
 
-	ViewUniformShaderParameters.MobilePreviewMode = IsSimulatedPlatform(View->GetShaderPlatform()) ? 1.0f : 0.0f;
-
+	ViewUniformShaderParameters.MobilePreviewMode =
+		(GIsEditor &&
+		(RHIFeatureLevel == ERHIFeatureLevel::ES2 || RHIFeatureLevel == ERHIFeatureLevel::ES3_1) &&
+		GMaxRHIFeatureLevel > ERHIFeatureLevel::ES3_1) ? 1.0f : 0.0f;
 
 	UpdateNoiseTextureParameters(ViewUniformShaderParameters);
 
@@ -1285,7 +1288,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 	// Don't do color correction on iOS or Android, we don't have the GPU overhead for it.
 #if !(PLATFORM_IOS || PLATFORM_ANDROID)
-	if (GSlateColorDeficiencyType != EColorVisionDeficiency::NormalVision && GSlateColorDeficiencySeverity > 0)
+	if (bApplyColorDeficiencyCorrection && GSlateColorDeficiencyType != EColorVisionDeficiency::NormalVision && GSlateColorDeficiencySeverity > 0)
 	{
 		RHICmdList.EndRenderPass();
 

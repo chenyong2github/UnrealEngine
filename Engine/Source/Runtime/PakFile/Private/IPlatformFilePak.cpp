@@ -168,6 +168,12 @@ FFilenameSecurityDelegate& FPakPlatformFile::GetFilenameSecurityDelegate()
 	return Delegate;
 }
 
+FPakCustomEncryptionDelegate& FPakPlatformFile::GetPakCustomEncryptionDelegate()
+{
+	static FPakCustomEncryptionDelegate Delegate;
+	return Delegate;
+}
+
 FPakChunkSignatureCheckFailedHandler& FPakPlatformFile::GetPakChunkSignatureCheckFailedHandler()
 {
 	static FPakChunkSignatureCheckFailedHandler Delegate;
@@ -288,11 +294,18 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("PakCache Async Decrypts (Uncompressed Path)
 
 void DecryptData(uint8* InData, uint32 InDataSize, FGuid InEncryptionKeyGuid)
 {
-	SCOPE_SECONDS_ACCUMULATOR(STAT_PakCache_DecryptTime);
-	FAES::FAESKey Key;
-	FPakPlatformFile::GetPakEncryptionKey(Key, InEncryptionKeyGuid);
-	check(Key.IsValid());
-	FAES::DecryptData(InData, InDataSize, Key);
+	if (FPakPlatformFile::GetPakCustomEncryptionDelegate().IsBound())
+	{
+		FPakPlatformFile::GetPakCustomEncryptionDelegate().Execute(InData, InDataSize, InEncryptionKeyGuid);
+	}
+	else
+	{
+		SCOPE_SECONDS_ACCUMULATOR(STAT_PakCache_DecryptTime);
+		FAES::FAESKey Key;
+		FPakPlatformFile::GetPakEncryptionKey(Key, InEncryptionKeyGuid);
+		check(Key.IsValid());
+		FAES::DecryptData(InData, InDataSize, Key);
+	}
 }
 
 #if USE_PAK_PRECACHE
@@ -3476,7 +3489,7 @@ public:
 
 			if( !FCompression::UncompressMemory(CompressionMethod, Output, Block.ProcessedSize, Block.Raw, Block.DecompressionRawSize) )
 			{
-				UE_LOG( LogPakFile, Fatal, TEXT("Pak Decompression failed. PakFile: %s. EntryOffset: %lld, EntrySize: %lld, CompressionMethod:%s Output:%p  ProcessedSize:%d  Buf:%p  Block.DecompressionRawSize:%d "), *PakFile.ToString(), FileEntry.Offset, FileEntry.Size, *CompressionMethod.ToString(), Output, Block.ProcessedSize, Block.Raw, Block.DecompressionRawSize );
+				UE_LOG( LogPakFile, Fatal, TEXT("Pak Decompression failed. PakFile: %s. EntryOffset: %lld, EntrySize: %lld, CompressionMethod:%s Output:%p  ProcessedSize:%d  Buf:%p  Block.DecompressionRawSize:%d  Crc32:%u"), *PakFile.ToString(), FileEntry.Offset, FileEntry.Size, *CompressionMethod.ToString(), Output, Block.ProcessedSize, Block.Raw, Block.DecompressionRawSize, FCrc::MemCrc32( Block.Raw, Block.DecompressionRawSize ) );
 			}
 			FMemory::Free(Block.Raw);
 			Block.Raw = nullptr;
@@ -5388,6 +5401,7 @@ FPakPlatformFile::FPakPlatformFile()
 
 FPakPlatformFile::~FPakPlatformFile()
 {
+	FCoreDelegates::GetRegisterEncryptionKeyDelegate().Unbind();
 	FCoreDelegates::OnMountPak.Unbind();
 	FCoreDelegates::OnUnmountPak.Unbind();
 

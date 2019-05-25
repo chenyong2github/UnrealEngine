@@ -38,6 +38,10 @@
 
 #include "GameDelegates.h"
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#include "Engine/DebugCameraController.h"
+#endif
+
 DEFINE_LOG_CATEGORY(LogPlayerManagement);
 
 #if !UE_BUILD_SHIPPING
@@ -865,6 +869,14 @@ FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
 			PlayerController->PlayerCameraManager->UpdatePhotographyPostProcessing(View->FinalPostProcessSettings);
 		}
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		ADebugCameraController* DebugCameraController = Cast<ADebugCameraController>(PlayerController);
+		if (DebugCameraController != nullptr)
+		{
+			DebugCameraController->UpdateVisualizeBufferPostProcessing(View->FinalPostProcessSettings);
+		}
+#endif
+
 		View->EndFinalPostprocessSettings(ViewInitOptions);
 	}
 
@@ -1227,7 +1239,7 @@ bool ULocalPlayer::HandleListSkelMeshesCommand( const TCHAR* Cmd, FOutputDevice&
 				check(SkeletalMeshComponent);
 				UWorld* World = SkeletalMeshComponent->GetWorld();
 				check(World);
-				float TimeSinceLastRender = World->GetTimeSeconds() - SkeletalMeshComponent->LastRenderTime;
+				float TimeSinceLastRender = World->GetTimeSeconds() - SkeletalMeshComponent->GetLastRenderTime();
 
 				UE_LOG(LogPlayerManagement, Log, TEXT("%s%2i  Component    : %s"),
 					(TimeSinceLastRender > 0.5) ? TEXT(" ") : TEXT("*"),

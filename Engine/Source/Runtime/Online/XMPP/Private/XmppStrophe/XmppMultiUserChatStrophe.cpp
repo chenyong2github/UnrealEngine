@@ -34,6 +34,11 @@ void FXmppMultiUserChatStrophe::OnDisconnect()
 	PendingRoomCreateConfigs.Empty();
 }
 
+void FXmppMultiUserChatStrophe::OnReconnect()
+{
+
+}
+
 bool FXmppMultiUserChatStrophe::ReceiveStanza(const FStropheStanza& IncomingStanza)
 {
 	// MUC presence are from our MUC domain

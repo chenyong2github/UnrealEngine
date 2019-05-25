@@ -99,11 +99,20 @@ private:
 	void OnCompiledFile(const symbols::ObjPath& objPath, symbols::Compiland* compiland, const CompileResult& compileResult, double compileTime, bool forceAmalgamationPartsLinkage);
 
 	// actions
-	struct LoadPatchInfoAction
+	struct actions
 	{
-		typedef commands::LoadPatchInfo CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
+		#define DECLARE_ACTION(_name)																													\
+			struct _name																																\
+			{																																			\
+				typedef ::commands::_name CommandType;																									\
+				static bool Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void* payload, size_t payloadSize);		\
+			}
+
+		DECLARE_ACTION(LoadPatchInfo);
+
+		#undef DECLARE_ACTION
 	};
+
 
 	std::wstring m_moduleName;
 	executable::Header m_imageHeader;
@@ -140,4 +149,8 @@ private:
 
 	// all patches loaded so far along with recorded data how to load them into other processes
 	types::vector<ModulePatch*> m_compiledModulePatches;
+
+	// BEGIN EPIC MOD - Allow mapping from object files to their unity object file
+	types::StringMap<uint32_t> m_objFileToCompilandId;
+	// END EPIC MOD
 };

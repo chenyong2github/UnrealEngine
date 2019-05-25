@@ -17,7 +17,7 @@ class UBlueprintFunctionLibrary : public UObject
 	GENERATED_UCLASS_BODY()
 
 	// UObject interface
-	ENGINE_API virtual int32 GetFunctionCallspace(UFunction* Function, void* Parms, FFrame* Stack) override;
+	ENGINE_API virtual int32 GetFunctionCallspace(UFunction* Function, FFrame* Stack) override;
 	// End of UObject interface
 
 protected:

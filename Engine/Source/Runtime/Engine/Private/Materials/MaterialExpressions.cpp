@@ -72,7 +72,6 @@
 #include "Materials/MaterialExpressionCosine.h"
 #include "Materials/MaterialExpressionCrossProduct.h"
 #include "Materials/MaterialExpressionCustom.h"
-#include "Materials/MaterialExpressionCustomPrimitiveData.h"
 #include "Materials/MaterialExpressionDDX.h"
 #include "Materials/MaterialExpressionDDY.h"
 #include "Materials/MaterialExpressionDecalDerivative.h"
@@ -712,7 +711,7 @@ void UMaterialExpression::PostInitProperties()
 
 	UpdateParameterGuid(false, false);
 	
-	UpdateMaterialExpressionGuid(false, true);
+	UpdateMaterialExpressionGuid(false, false);
 }
 
 void UMaterialExpression::PostLoad()
@@ -4589,6 +4588,18 @@ void UMaterialExpressionMakeMaterialAttributes::GetCaption(TArray<FString>& OutC
 {
 	OutCaptions.Add(TEXT("MakeMaterialAttributes"));
 }
+
+uint32 UMaterialExpressionMakeMaterialAttributes::GetInputType(int32 InputIndex)
+{
+	if (GetInputName(InputIndex).IsEqual("ShadingModel"))
+	{
+		return MCT_ShadingModel;
+	}
+	else
+	{
+		return UMaterialExpression::GetInputType(InputIndex);
+	}
+}
 #endif // WITH_EDITOR
 
 // -----
@@ -4644,7 +4655,7 @@ UMaterialExpressionBreakMaterialAttributes::UMaterialExpressionBreakMaterialAttr
 	}
 
 	Outputs.Add(FExpressionOutput(TEXT("PixelDepthOffset"), 1, 1, 0, 0, 0));
-	Outputs.Add(FExpressionOutput(TEXT("ShadingModel"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("ShadingModel"), 0, 0, 0, 0, 0));
 #endif
 }
 
@@ -4684,15 +4695,16 @@ void UMaterialExpressionBreakMaterialAttributes::Serialize(FStructuredArchive::F
 		}
 
 		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); ++OutputIndex;// PixelDepthOffset
-		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); // ShadingModelFromMaterialExpression
+		Outputs[OutputIndex].SetMask(0, 0, 0, 0, 0); // ShadingModelFromMaterialExpression
 	}
 #endif // WITH_EDITOR
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionBreakMaterialAttributes::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+static TMap<EMaterialProperty, int32> PropertyToIOIndexMap;
+
+static void BuildPropertyToIOIndexMap()
 {
-	static TMap<EMaterialProperty, int32> PropertyToIOIndexMap;
 	if (PropertyToIOIndexMap.Num() == 0)
 	{
 		PropertyToIOIndexMap.Add(MP_BaseColor, 0);
@@ -4722,6 +4734,11 @@ int32 UMaterialExpressionBreakMaterialAttributes::Compile(class FMaterialCompile
 		PropertyToIOIndexMap.Add(MP_PixelDepthOffset, 24);
 		PropertyToIOIndexMap.Add(MP_ShadingModel, 25);
 	}
+}
+
+int32 UMaterialExpressionBreakMaterialAttributes::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	BuildPropertyToIOIndexMap();
 
 	// Here we don't care about any multiplex index coming in.
 	// We pass through our output index as the multiplex index so the MakeMaterialAttriubtes node at the other end can send us the right data.
@@ -4772,6 +4789,22 @@ FName UMaterialExpressionBreakMaterialAttributes::GetInputName(int32 InputIndex)
 bool UMaterialExpressionBreakMaterialAttributes::IsInputConnectionRequired(int32 InputIndex) const
 {
 	return true;
+}
+
+uint32 UMaterialExpressionBreakMaterialAttributes::GetOutputType(int32 OutputIndex)
+{
+	BuildPropertyToIOIndexMap();
+
+	const EMaterialProperty* Property = PropertyToIOIndexMap.FindKey(OutputIndex);
+
+	if (Property && *Property == EMaterialProperty::MP_ShadingModel)
+	{
+		return MCT_ShadingModel;
+	}
+	else
+	{
+		return UMaterialExpression::GetOutputType(OutputIndex);
+	}
 }
 #endif // WITH_EDITOR
 
@@ -6319,17 +6352,48 @@ UMaterialExpressionVectorParameter::UMaterialExpressionVectorParameter(const FOb
 #if WITH_EDITOR
 int32 UMaterialExpressionVectorParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compiler->VectorParameter(ParameterName,DefaultValue);
+	if (bUseCustomPrimitiveData)
+	{
+		return Compiler->CustomPrimitiveData(PrimitiveDataIndex, MCT_Float4);
+	}
+	else
+	{
+		return Compiler->VectorParameter(ParameterName,DefaultValue);
+	}
 }
 
 void UMaterialExpressionVectorParameter::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(FString::Printf(
-		 TEXT("Param (%.3g,%.3g,%.3g,%.3g)"),
-		 DefaultValue.R,
-		 DefaultValue.G,
-		 DefaultValue.B,
-		 DefaultValue.A ));
+	if (bUseCustomPrimitiveData)
+	{
+		FString IndexString = FString::Printf(TEXT("Index %d"), PrimitiveDataIndex);
+
+		// Add info about remaining 3 components
+		for (int i = 1; i < 4; i++)
+		{
+			// Append index if it's valid, otherwise append N/A
+			if(PrimitiveDataIndex+i < FCustomPrimitiveData::NumCustomPrimitiveDataFloats)
+			{
+				IndexString.Append(FString::Printf(TEXT(", %d"), PrimitiveDataIndex+i));
+			}
+			else
+			{
+				IndexString.Append(FString::Printf(TEXT(", N/A")));
+			}
+		}
+
+		OutCaptions.Add(IndexString); 
+		OutCaptions.Add(FString::Printf(TEXT("Custom Primitive Data"))); 
+	}
+	else
+	{
+		OutCaptions.Add(FString::Printf(
+			 TEXT("Param (%.3g,%.3g,%.3g,%.3g)"),
+			 DefaultValue.R,
+			 DefaultValue.G,
+			 DefaultValue.B,
+			 DefaultValue.A ));
+	}
 
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString())); 
 }
@@ -6344,6 +6408,14 @@ bool UMaterialExpressionVectorParameter::IsNamedParameter(const FMaterialParamet
 	}
 
 	return false;
+}
+
+void UMaterialExpressionVectorParameter::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
+{
+	if (!bUseCustomPrimitiveData)
+	{
+		Super::GetAllParameterInfo(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
+	}
 }
 
 #if WITH_EDITOR
@@ -6366,6 +6438,12 @@ void UMaterialExpressionVectorParameter::PostEditChangeProperty(FPropertyChanged
 	{
 		// Callback into the editor
 		FEditorSupportDelegates::VectorParameterDefaultChanged.Broadcast(this, ParameterName, DefaultValue);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, PrimitiveDataIndex))
+	{
+		// Clamp value
+		const int32 PrimDataIndex = PrimitiveDataIndex;
+		PrimitiveDataIndex = (uint8)FMath::Clamp(PrimDataIndex, 0, FCustomPrimitiveData::NumCustomPrimitiveDataFloats-1);
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -6586,15 +6664,29 @@ UMaterialExpressionScalarParameter::UMaterialExpressionScalarParameter(const FOb
 #if WITH_EDITOR
 int32 UMaterialExpressionScalarParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compiler->ScalarParameter(ParameterName,DefaultValue);
+	if (bUseCustomPrimitiveData)
+	{
+		return Compiler->CustomPrimitiveData(PrimitiveDataIndex, MCT_Float);
+	}
+	else
+	{
+		return Compiler->ScalarParameter(ParameterName,DefaultValue);
+	}
 }
 
 void UMaterialExpressionScalarParameter::GetCaption(TArray<FString>& OutCaptions) const
 {
-	 OutCaptions.Add(FString::Printf(
-		 TEXT("Param (%.4g)"),
-		 DefaultValue )); 
-
+	if (bUseCustomPrimitiveData)
+	{
+		OutCaptions.Add(FString::Printf(TEXT("Index %d"), PrimitiveDataIndex)); 
+		OutCaptions.Add(FString::Printf(TEXT("Custom Primitive Data"))); 
+	}
+	else
+	{
+		OutCaptions.Add(FString::Printf(
+			 TEXT("Param (%.4g)"),
+			DefaultValue )); 
+	}
 	 OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString())); 
 }
 #endif // WITH_EDITOR
@@ -6608,6 +6700,14 @@ bool UMaterialExpressionScalarParameter::IsNamedParameter(const FMaterialParamet
 	}
 
 	return false;
+}
+
+void UMaterialExpressionScalarParameter::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
+{
+	if (!bUseCustomPrimitiveData)
+	{
+		Super::GetAllParameterInfo(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
+	}
 }
 
 #if WITH_EDITOR
@@ -6631,7 +6731,12 @@ void UMaterialExpressionScalarParameter::PostEditChangeProperty(FPropertyChanged
 		// Callback into the editor
 		FEditorSupportDelegates::ScalarParameterDefaultChanged.Broadcast(this, ParameterName, DefaultValue);
 	}
-
+	else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionScalarParameter, PrimitiveDataIndex))
+	{
+		// Clamp value
+		const int32 PrimDataIndex = PrimitiveDataIndex;
+		PrimitiveDataIndex = (uint8)FMath::Clamp(PrimDataIndex, 0, FCustomPrimitiveData::NumCustomPrimitiveDataFloats-1);
+	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
@@ -9545,6 +9650,17 @@ UMaterialExpressionPreSkinnedLocalBounds::UMaterialExpressionPreSkinnedLocalBoun
 	MenuCategories.Add(ConstructorStatics.NAME_Vectors);
 
 	bShaderInputData = true;
+	bShowOutputNameOnPin = true;
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Half Extents"), 1, 1, 1, 1, 0));
+	OutputToolTips.Add("Half the extent (width, depth and height) of the pre-skinned bounding box. In local space.");
+	Outputs.Add(FExpressionOutput(TEXT("Extents"), 1, 1, 1, 1, 0));
+	OutputToolTips.Add("Full extent (width, depth and height) of the pre-skinned bounding box. Same as 2x Half Extents. In local space.");
+	Outputs.Add(FExpressionOutput(TEXT("Min"), 1, 1, 1, 1, 0));
+	OutputToolTips.Add("Minimum 3D point of the pre-skinned bounding box. In local space.");
+	Outputs.Add(FExpressionOutput(TEXT("Max"), 1, 1, 1, 1, 0));
+	OutputToolTips.Add("Maximum 3D point of the pre-skinned bounding box. In local space.");
 #endif
 }
 
@@ -9556,12 +9672,30 @@ int32 UMaterialExpressionPreSkinnedLocalBounds::Compile(class FMaterialCompiler*
 		return CompilerError(Compiler, TEXT("Expression not available in the deferred decal material domain."));
 	}
 
-	return Compiler->PreSkinnedLocalBounds();
+	return Compiler->PreSkinnedLocalBounds(OutputIndex);
 }
 
 void UMaterialExpressionPreSkinnedLocalBounds::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("Pre-Skinned Local Bounds"));
+}
+
+void UMaterialExpressionPreSkinnedLocalBounds::GetConnectorToolTip(int32 InputIndex, int32 OutputIndex, TArray<FString>& OutToolTip) 
+{
+#if WITH_EDITORONLY_DATA
+	if (OutputIndex >= 0 && OutputIndex < OutputToolTips.Num())
+	{
+		ConvertToMultilineToolTip(OutputToolTips[OutputIndex], 40, OutToolTip);
+	}
+#endif // WITH_EDITORONLY_DATA
+}
+
+void UMaterialExpressionPreSkinnedLocalBounds::GetExpressionToolTip(TArray<FString>& OutToolTip) 
+{
+	ConvertToMultilineToolTip(TEXT("Returns various info about the pre-skinned local bounding box for skeletal meshes."
+		"Will return the regular local space bounding box for static meshes."
+		"Usable in vertex or pixel shader (no need to pipe this through vertex interpolators)."
+		"Hover the output pins for more information."), 40, OutToolTip);
 }
 #endif // WITH_EDITOR
 
@@ -15282,95 +15416,6 @@ void UMaterialExpressionCurveAtlasRowParameter::PostEditChangeProperty(FProperty
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
-
-//
-// UMaterialExpressionCustomPrimitiveData
-//
-UMaterialExpressionCustomPrimitiveData::UMaterialExpressionCustomPrimitiveData(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-#if WITH_EDITORONLY_DATA
-	// Structure to hold one-time initialization
-	struct FConstructorStatics
-	{
-		FText NAME_Vectors;
-		FConstructorStatics()
-			: NAME_Vectors(LOCTEXT("Custom", "Custom"))
-		{
-		}
-	};
-	static FConstructorStatics ConstructorStatics;
-
-	MenuCategories.Add(ConstructorStatics.NAME_Vectors);
-
-	bShaderInputData = true;
-	bShowOutputNameOnPin = true;
-
-	Outputs.Reset();
-#endif
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionCustomPrimitiveData::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	if (Material && Material->MaterialDomain == MD_DeferredDecal)
-	{
-		return CompilerError(Compiler, TEXT("Expression not available in the deferred decal material domain."));
-	}
-
-	return Compiler->CustomPrimitiveData(CustomIndices[OutputIndex].PrimitiveDataIndex);
-}
-
-void UMaterialExpressionCustomPrimitiveData::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("Custom Primitive Data"));
-}
-
-void UMaterialExpressionCustomPrimitiveData::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-#if WITH_EDITORONLY_DATA
-	
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FPrimitiveDataIndex, CustomDesc) ||
-		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterialExpressionCustomPrimitiveData, CustomIndices))
-	{
-		// If more than the supported number of custom floats have been added, remove the overflow
-		if (CustomIndices.Num() > FCustomPrimitiveData::NumCustomPrimitiveDataFloats)
-		{
-			CustomIndices.SetNum(FCustomPrimitiveData::NumCustomPrimitiveDataFloats);
-		}
-
-		// Match the number of pins to the number of descriptions
-		Outputs.SetNumZeroed(CustomIndices.Num());
-
-		// Update the names of the pins
-		for (int i = 0; i < Outputs.Num(); i++)
-		{
-			Outputs[i].OutputName = *(CustomIndices[i].CustomDesc);
-		}
-
-		// Reconstruct the node to get the new names applied to the pins
-		GraphNode->ReconstructNode();
-
-		// No need to update preview if we only change output descriptions
-		bNeedToUpdatePreview = false;
-
-		// Done here (skip calling base class)
-		return;
-	}
-	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FPrimitiveDataIndex, PrimitiveDataIndex))
-	{
-		// Clamp indices
-		for (int i = 0; i < CustomIndices.Num(); i++)
-		{
-			const int32 PrimDataIndex = CustomIndices[i].PrimitiveDataIndex;
-			CustomIndices[i].PrimitiveDataIndex = FMath::Clamp(PrimDataIndex, 0, FCustomPrimitiveData::NumCustomPrimitiveDataFloats-1);
-		}
-	}
-#endif
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-#endif // WITH_EDITOR
 
 //
 //	UMaterialExpressionShadingModel

@@ -211,6 +211,12 @@ namespace UnrealBuildTool
 		public bool bClangTimeTrace = false;
 
 		/// <summary>
+		/// Outputs compile timing information so that it can be analyzed.
+		/// </summary>
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		public bool bCompilerTrace = false;
+
+		/// <summary>
 		/// Bundle a working version of dbghelp.dll with the application, and use this to generate minidumps. This works around a bug with the Windows 10 Fall Creators Update (1709)
 		/// where rich PE headers larger than a certain size would result in corrupt minidumps.
 		/// </summary>
@@ -401,6 +407,11 @@ namespace UnrealBuildTool
 			get { return Inner.bClangTimeTrace; }
 		}
 
+		public bool bCompilerTrace
+		{
+			get { return Inner.bCompilerTrace; }
+		}
+
 		public string GetVisualStudioCompilerVersionName()
 		{
 			return Inner.GetVisualStudioCompilerVersionName();
@@ -447,7 +458,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The default compiler version to be used, if installed. 
 		/// </summary>
-		static readonly VersionNumber DefaultClangToolChainVersion = VersionNumber.Parse("7.0.1");
+		static readonly VersionNumber DefaultClangToolChainVersion = VersionNumber.Parse("8.0.0");
 
 		/// <summary>
 		/// The default compiler version to be used, if installed. 
@@ -500,9 +511,9 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		/// <param name="InPlatform">Creates a windows platform with the given enum value</param>
-		/// <param name="InDefaultCppPlatform">The default C++ platform to compile for</param>
 		/// <param name="InSDK">The installed Windows SDK</param>
-		public WindowsPlatform(UnrealTargetPlatform InPlatform, CppPlatform InDefaultCppPlatform, WindowsPlatformSDK InSDK) : base(InPlatform, InDefaultCppPlatform)
+		public WindowsPlatform(UnrealTargetPlatform InPlatform, WindowsPlatformSDK InSDK)
+			: base(InPlatform)
 		{
 			SDK = InSDK;
 		}
@@ -523,7 +534,7 @@ namespace UnrealBuildTool
 		{
 			base.ResetTarget(Target);
 
-			if(Target.Configuration != UnrealTargetConfiguration.Shipping)
+			if(Target.Platform == UnrealTargetPlatform.Win64 && Target.Configuration != UnrealTargetConfiguration.Shipping && Target.Type != TargetType.Program)
 			{
 				Target.bWithLiveCoding = true;
 				Target.WindowsPlatform.bCreateHotPatchableImage = true;
@@ -559,15 +570,6 @@ namespace UnrealBuildTool
 			}
 
 			// Override PCH settings
-			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
-			{
-				// @todo clang: Shared PCHs don't work on clang yet because the PCH will have definitions assigned to different values
-				// than the consuming translation unit.  Unlike the warning in MSVC, this is a compile in Clang error which cannot be suppressed
-				Target.bUseSharedPCHs = false;
-
-				// @todo clang: PCH files aren't supported by "clang-cl" yet (no /Yc support, and "-x c++-header" cannot be specified)
-				Target.bUsePCHFiles = false;
-			}
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Intel)
 			{
 				Target.NumIncludedBytesPerUnityCPP = Math.Min(Target.NumIncludedBytesPerUnityCPP, 256 * 1024);
@@ -594,7 +596,7 @@ namespace UnrealBuildTool
 			}
 
 			// Initialize the VC environment for the target, and set all the version numbers to the concrete values we chose.
-			VCEnvironment Environment = VCEnvironment.Create(Target.WindowsPlatform.Compiler, DefaultCppPlatform, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.WindowsSdkVersion);
+			VCEnvironment Environment = VCEnvironment.Create(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.WindowsSdkVersion);
 			Target.WindowsPlatform.Environment = Environment;
 			Target.WindowsPlatform.Compiler = Environment.Compiler;
 			Target.WindowsPlatform.CompilerVersion = Environment.CompilerVersion.ToString();
@@ -1488,6 +1490,14 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Gets the platform name that should be used.
+		/// </summary>
+		public override string GetPlatformName()
+		{
+			return "Windows";
+		}
+
+		/// <summary>
 		/// If this platform can be compiled with SN-DBS
 		/// </summary>
 		public override bool CanUseSNDBS()
@@ -1680,6 +1690,9 @@ namespace UnrealBuildTool
 			CompileEnvironment.Definitions.Add(String.Format("_WIN32_WINNT=0x{0:X4}", Target.WindowsPlatform.TargetWindowsVersion));
 			CompileEnvironment.Definitions.Add(String.Format("WINVER=0x{0:X4}", Target.WindowsPlatform.TargetWindowsVersion));
 			CompileEnvironment.Definitions.Add("PLATFORM_WINDOWS=1");
+			
+			// both Win32 and Win64 use Windows headers, so we enforce that here
+			CompileEnvironment.Definitions.Add(String.Format("OVERRIDE_PLATFORM_HEADER_NAME={0}", GetPlatformName()));
 
 			FileReference MorpheusShaderPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Shaders", "Private", "Platform", "PS4", "PostProcessHMDMorpheus.usf");
 			if (FileReference.Exists(MorpheusShaderPath))
@@ -1872,18 +1885,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Creates a toolchain instance for the given platform.
 		/// </summary>
-		/// <param name="CppPlatform">The platform to create a toolchain for</param>
 		/// <param name="Target">The target being built</param>
 		/// <returns>New toolchain instance.</returns>
-		public override UEToolChain CreateToolChain(CppPlatform CppPlatform, ReadOnlyTargetRules Target)
+		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
 			if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio)
 			{
-				return new PVSToolChain(CppPlatform, Target);
+				return new PVSToolChain(Target);
 			}
 			else
 			{
-				return new VCToolChain(CppPlatform, Target);
+				return new VCToolChain(Target);
 			}
 		}
 
@@ -1936,12 +1948,12 @@ namespace UnrealBuildTool
 
 			// Register this build platform for both Win64 and Win32
 			Log.TraceVerbose("        Registering for {0}", UnrealTargetPlatform.Win64.ToString());
-			UEBuildPlatform.RegisterBuildPlatform(new WindowsPlatform(UnrealTargetPlatform.Win64, CppPlatform.Win64, SDK));
+			UEBuildPlatform.RegisterBuildPlatform(new WindowsPlatform(UnrealTargetPlatform.Win64, SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Win64, UnrealPlatformGroup.Windows);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Win64, UnrealPlatformGroup.Microsoft);
 
 			Log.TraceVerbose("        Registering for {0}", UnrealTargetPlatform.Win32.ToString());
-			UEBuildPlatform.RegisterBuildPlatform(new WindowsPlatform(UnrealTargetPlatform.Win32, CppPlatform.Win32, SDK));
+			UEBuildPlatform.RegisterBuildPlatform(new WindowsPlatform(UnrealTargetPlatform.Win32, SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Win32, UnrealPlatformGroup.Windows);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Win32, UnrealPlatformGroup.Microsoft);
 		}

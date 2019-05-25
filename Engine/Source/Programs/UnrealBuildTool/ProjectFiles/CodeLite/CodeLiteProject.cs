@@ -236,295 +236,288 @@ namespace UnrealBuildTool
 					XAttribute CodeLiteConfigurationName = new XAttribute("Name", CurConf.ToString());
 					CodeLiteConfiguration.Add(CodeLiteConfigurationName);
 
-						//
-						// Create Configuration General part. 
-						//
-						XElement CodeLiteConfigurationGeneral = new XElement("General");
+					//
+					// Create Configuration General part. 
+					//
+					XElement CodeLiteConfigurationGeneral = new XElement("General");
 						
-						//
-						// Create the executable filename.
-						//
-						string ExecutableToRun = "";
-						string PlatformConfiguration = "-" + ProjectPlatformName + "-" + CurConf.ToString ();
-						switch (BuildHostPlatform.Current.Platform) 
+					//
+					// Create the executable filename.
+					//
+					string ExecutableToRun = "";
+					string PlatformConfiguration = "-" + ProjectPlatformName + "-" + CurConf.ToString ();
+					if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
+					{
+						ExecutableToRun = "./" + TargetName;
+						if ((ProjectTargetType == TargetType.Game) || 
+							(ProjectTargetType == TargetType.Program))
 						{
-							case UnrealTargetPlatform.Linux:
+							if (CurConf != UnrealTargetConfiguration.Development)
 							{
-								ExecutableToRun = "./" + TargetName;
-								if ((ProjectTargetType == TargetType.Game) || 
-									(ProjectTargetType == TargetType.Program))
-								{
-									if (CurConf != UnrealTargetConfiguration.Development)
-									{
-										ExecutableToRun += PlatformConfiguration;
-									}
-								}
-								else if (ProjectTargetType == TargetType.Editor)
-								{
-									ExecutableToRun = "./UE4Editor";
-									if ((CurConf == UnrealTargetConfiguration.Debug) || 
-										(CurConf == UnrealTargetConfiguration.Shipping) || 
-										(CurConf == UnrealTargetConfiguration.Test))
-									{
-										ExecutableToRun += PlatformConfiguration;
-									}
-								}
-
+								ExecutableToRun += PlatformConfiguration;
 							}
-							break;
-
-							case UnrealTargetPlatform.Mac:
+						}
+						else if (ProjectTargetType == TargetType.Editor)
+						{
+							ExecutableToRun = "./UE4Editor";
+							if ((CurConf == UnrealTargetConfiguration.Debug) || 
+								(CurConf == UnrealTargetConfiguration.Shipping) || 
+								(CurConf == UnrealTargetConfiguration.Test))
 							{
-								ExecutableToRun = "./" + TargetName;
-								if ((ProjectTargetType == TargetType.Game) || (ProjectTargetType == TargetType.Program))
-								{			
-									if (CurConf != UnrealTargetConfiguration.Development)
-									{
-										ExecutableToRun += PlatformConfiguration;
-									}
-									ExecutableToRun += ".app/Contents/MacOS/" + TargetName;
-									if (CurConf != UnrealTargetConfiguration.Development)
-									{
-										ExecutableToRun += PlatformConfiguration;
-									}
+								ExecutableToRun += PlatformConfiguration;
+							}
+						}
 
-								}
-								else if (ProjectTargetType == TargetType.Editor)
-								{
-									ExecutableToRun = "./UE4Editor";
-									if ((CurConf == UnrealTargetConfiguration.Debug) || 
-										(CurConf == UnrealTargetConfiguration.Shipping) || 
-										(CurConf == UnrealTargetConfiguration.Test))
-									{
-										ExecutableToRun += PlatformConfiguration;
-									}
-									ExecutableToRun += ".app/Contents/MacOS/UE4Editor";
-									if ((CurConf != UnrealTargetConfiguration.Development) && (CurConf != UnrealTargetConfiguration.DebugGame))
-									{
-										ExecutableToRun += PlatformConfiguration;
-									}
-								}
-
-							} 
-							break;
-
-							case UnrealTargetPlatform.Win64:
-							case UnrealTargetPlatform.Win32:
+					}
+					else if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+					{
+						ExecutableToRun = "./" + TargetName;
+						if ((ProjectTargetType == TargetType.Game) || (ProjectTargetType == TargetType.Program))
+						{			
+							if (CurConf != UnrealTargetConfiguration.Development)
 							{
-								ExecutableToRun = TargetName;
-								if ((ProjectTargetType == TargetType.Game) || (ProjectTargetType == TargetType.Program))
-								{
-									if (CurConf != UnrealTargetConfiguration.Development)
-									{
-										ExecutableToRun += PlatformConfiguration;
-									}
-								}
-								else if (ProjectTargetType == TargetType.Editor)
-								{
-									ExecutableToRun = "UE4Editor";
-									if ((CurConf == UnrealTargetConfiguration.Debug) || 
-										(CurConf == UnrealTargetConfiguration.Shipping) || 
-										(CurConf == UnrealTargetConfiguration.Test))
-									{
-										ExecutableToRun += PlatformConfiguration;
-									}
-								}
+								ExecutableToRun += PlatformConfiguration;
+							}
+							ExecutableToRun += ".app/Contents/MacOS/" + TargetName;
+							if (CurConf != UnrealTargetConfiguration.Development)
+							{
+								ExecutableToRun += PlatformConfiguration;
+							}
 
-								ExecutableToRun += ".exe";
+						}
+						else if (ProjectTargetType == TargetType.Editor)
+						{
+							ExecutableToRun = "./UE4Editor";
+							if ((CurConf == UnrealTargetConfiguration.Debug) || 
+								(CurConf == UnrealTargetConfiguration.Shipping) || 
+								(CurConf == UnrealTargetConfiguration.Test))
+							{
+								ExecutableToRun += PlatformConfiguration;
+							}
+							ExecutableToRun += ".app/Contents/MacOS/UE4Editor";
+							if ((CurConf != UnrealTargetConfiguration.Development) && (CurConf != UnrealTargetConfiguration.DebugGame))
+							{
+								ExecutableToRun += PlatformConfiguration;
+							}
+						}
+
+					} 
+					else if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 ||
+							 BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32)
+					{
+						ExecutableToRun = TargetName;
+						if ((ProjectTargetType == TargetType.Game) || (ProjectTargetType == TargetType.Program))
+						{
+							if (CurConf != UnrealTargetConfiguration.Development)
+							{
+								ExecutableToRun += PlatformConfiguration;
+							}
+						}
+						else if (ProjectTargetType == TargetType.Editor)
+						{
+							ExecutableToRun = "UE4Editor";
+							if ((CurConf == UnrealTargetConfiguration.Debug) || 
+								(CurConf == UnrealTargetConfiguration.Shipping) || 
+								(CurConf == UnrealTargetConfiguration.Test))
+							{
+								ExecutableToRun += PlatformConfiguration;
+							}
+						}
+
+						ExecutableToRun += ".exe";
 								
-							}
-							break;
-
-							default:
-								throw new BuildException("Unsupported platform.");
-						}
+					}
+					else
+					{ 
+							throw new BuildException("Unsupported platform.");
+					}
 						
 						
-						// Is this project a Game type?
-						XAttribute GeneralExecutableToRun = new XAttribute("Command", ExecutableToRun);
-						if (ProjectTargetType == TargetType.Game) 
+					// Is this project a Game type?
+					XAttribute GeneralExecutableToRun = new XAttribute("Command", ExecutableToRun);
+					if (ProjectTargetType == TargetType.Game) 
+					{
+						if (CurConf.ToString ().Contains ("Debug")) 
 						{
-							if (CurConf.ToString ().Contains ("Debug")) 
-							{
-								string commandArguments = " -debug";
-								XAttribute GeneralExecutableToRunArguments = new XAttribute("CommandArguments", commandArguments);
-								CodeLiteConfigurationGeneral.Add(GeneralExecutableToRunArguments);
-							}
-						if (TargetName.Equals ("UE4Game")) {
-								XAttribute GeneralExecutableWorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
-								CodeLiteConfigurationGeneral.Add(GeneralExecutableWorkingDirectory);
-							} else {
-								XAttribute GeneralExecutableWorkingDirectory = new XAttribute("WorkingDirectory", GameWorkingDirectory);
-								CodeLiteConfigurationGeneral.Add(GeneralExecutableWorkingDirectory);
-							}
-						} 
-						else if (ProjectTargetType == TargetType.Editor) 
-						{
-							if (TargetName != "UE4Editor" && GameProjectFile != "")
-							{
-								string commandArguments = "\"" + GameProjectFile + "\"" + " -game";
-								XAttribute CommandArguments = new XAttribute("CommandArguments", commandArguments);
-								CodeLiteConfigurationGeneral.Add(CommandArguments);
-							}
-							XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
-							CodeLiteConfigurationGeneral.Add(WorkingDirectory);
-						} 
-						else if (ProjectTargetType == TargetType.Program) 
-						{
-							XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
-							CodeLiteConfigurationGeneral.Add(WorkingDirectory);
-						} 
-						else if (ProjectTargetType == TargetType.Client) 
-						{
-							XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
-							CodeLiteConfigurationGeneral.Add(WorkingDirectory);
+							string commandArguments = " -debug";
+							XAttribute GeneralExecutableToRunArguments = new XAttribute("CommandArguments", commandArguments);
+							CodeLiteConfigurationGeneral.Add(GeneralExecutableToRunArguments);
 						}
-						else if (ProjectTargetType == TargetType.Server) 
-						{
-							XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
-							CodeLiteConfigurationGeneral.Add(WorkingDirectory);
+					if (TargetName.Equals ("UE4Game")) {
+							XAttribute GeneralExecutableWorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
+							CodeLiteConfigurationGeneral.Add(GeneralExecutableWorkingDirectory);
+						} else {
+							XAttribute GeneralExecutableWorkingDirectory = new XAttribute("WorkingDirectory", GameWorkingDirectory);
+							CodeLiteConfigurationGeneral.Add(GeneralExecutableWorkingDirectory);
 						}
-						CodeLiteConfigurationGeneral.Add(GeneralExecutableToRun);
+					} 
+					else if (ProjectTargetType == TargetType.Editor) 
+					{
+						if (TargetName != "UE4Editor" && GameProjectFile != "")
+						{
+							string commandArguments = "\"" + GameProjectFile + "\"" + " -game";
+							XAttribute CommandArguments = new XAttribute("CommandArguments", commandArguments);
+							CodeLiteConfigurationGeneral.Add(CommandArguments);
+						}
+						XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
+						CodeLiteConfigurationGeneral.Add(WorkingDirectory);
+					} 
+					else if (ProjectTargetType == TargetType.Program) 
+					{
+						XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
+						CodeLiteConfigurationGeneral.Add(WorkingDirectory);
+					} 
+					else if (ProjectTargetType == TargetType.Client) 
+					{
+						XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
+						CodeLiteConfigurationGeneral.Add(WorkingDirectory);
+					}
+					else if (ProjectTargetType == TargetType.Server) 
+					{
+						XAttribute WorkingDirectory = new XAttribute("WorkingDirectory", UE4EditorWorkingDirectory);
+						CodeLiteConfigurationGeneral.Add(WorkingDirectory);
+					}
+					CodeLiteConfigurationGeneral.Add(GeneralExecutableToRun);
 
-						CodeLiteConfiguration.Add(CodeLiteConfigurationGeneral);
+					CodeLiteConfiguration.Add(CodeLiteConfigurationGeneral);
 
-						//
-						// End of Create Configuration General part. 
-						//
+					//
+					// End of Create Configuration General part. 
+					//
 
-						//
-						// Create Configuration Custom Build part. 
-						//
-						XElement CodeLiteConfigurationCustomBuild = new XElement("CustomBuild");
-						CodeLiteConfiguration.Add(CodeLiteConfigurationGeneral);
-						XAttribute CodeLiteConfigurationCustomBuildEnabled = new XAttribute("Enabled", "yes");
-						CodeLiteConfigurationCustomBuild.Add(CodeLiteConfigurationCustomBuildEnabled);
+					//
+					// Create Configuration Custom Build part. 
+					//
+					XElement CodeLiteConfigurationCustomBuild = new XElement("CustomBuild");
+					CodeLiteConfiguration.Add(CodeLiteConfigurationGeneral);
+					XAttribute CodeLiteConfigurationCustomBuildEnabled = new XAttribute("Enabled", "yes");
+					CodeLiteConfigurationCustomBuild.Add(CodeLiteConfigurationCustomBuildEnabled);
 						
-						//
-						// Add the working directory for the custom build commands.
-						//
-						XElement CustomBuildWorkingDirectory = new XElement("WorkingDirectory");
-						XText CustuomBuildWorkingDirectory = new XText(UnrealBuildTool.GetUBTPath().Directory.FullName);
-						CustomBuildWorkingDirectory.Add(CustuomBuildWorkingDirectory);
-						CodeLiteConfigurationCustomBuild.Add(CustomBuildWorkingDirectory);
+					//
+					// Add the working directory for the custom build commands.
+					//
+					XElement CustomBuildWorkingDirectory = new XElement("WorkingDirectory");
+					XText CustuomBuildWorkingDirectory = new XText(UnrealBuildTool.GetUBTPath().Directory.FullName);
+					CustomBuildWorkingDirectory.Add(CustuomBuildWorkingDirectory);
+					CodeLiteConfigurationCustomBuild.Add(CustomBuildWorkingDirectory);
 
-						//
-						// End of Add the working directory for the custom build commands.
-						//
+					//
+					// End of Add the working directory for the custom build commands.
+					//
 
 
 
-						//
-						// Make Build Target.
-						//
-						XElement CustomBuildCommand = new XElement("BuildCommand");
-						CodeLiteConfigurationCustomBuild.Add(CustomBuildCommand);
+					//
+					// Make Build Target.
+					//
+					XElement CustomBuildCommand = new XElement("BuildCommand");
+					CodeLiteConfigurationCustomBuild.Add(CustomBuildCommand);
 
-						string BuildTarget = UnrealBuildTool.GetUBTPath().GetFileName() + " " + TargetName + " " + ProjectPlatformName + " " + CurConf.ToString();
-						if( (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win64) &&
-							(BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win32))
+					string BuildTarget = UnrealBuildTool.GetUBTPath().GetFileName() + " " + TargetName + " " + ProjectPlatformName + " " + CurConf.ToString();
+					if( (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win64) &&
+						(BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win32))
+					{
+						BuildTarget = "mono " + BuildTarget;
+					}
+
+					if (GameProjectFile.Length > 0) 
+					{
+						BuildTarget += " -project=" + "\"" + GameProjectFile + "\"";
+					}
+
+					XText commandLine = new XText(BuildTarget);
+					CustomBuildCommand.Add(commandLine);
+
+					//
+					// End of Make Build Target
+					//
+
+					//
+					// Clean Build Target.
+					//
+					XElement CustomCleanCommand = new XElement("CleanCommand");
+					CodeLiteConfigurationCustomBuild.Add(CustomCleanCommand);
+
+					string CleanTarget = BuildTarget + " -clean";
+					XText CleanCommandLine = new XText(CleanTarget);
+
+					CustomCleanCommand.Add(CleanCommandLine);
+
+
+					//
+					// End of Clean Build Target.
+					//
+
+					//
+					// Rebuild Build Target.
+					//
+					XElement CustomRebuildCommand = new XElement("RebuildCommand");
+					CodeLiteConfigurationCustomBuild.Add(CustomRebuildCommand);
+
+					string RebuildTarget = CleanTarget + "\n" + BuildTarget;
+					XText RebuildCommandLine = new XText(RebuildTarget);
+
+					CustomRebuildCommand.Add(RebuildCommandLine);
+
+					//
+					// End of Clean Build Target.
+					//
+
+
+					//
+					// Some other fun Custom Targets.
+					//
+					if (ProjectTargetType == TargetType.Game) 
+					{
+						string CookGameCommandLine = "mono AutomationTool.exe BuildCookRun ";
+
+						// Projects filename
+						if (OnlyGameProject != null)
 						{
-							BuildTarget = "mono " + BuildTarget;
+							CookGameCommandLine += "-project=\"" + OnlyGameProject.FullName + "\" ";
 						}
 
-						if (GameProjectFile.Length > 0) 
-						{
-							BuildTarget += " -project=" + "\"" + GameProjectFile + "\"";
-						}
-
-						XText commandLine = new XText(BuildTarget);
-						CustomBuildCommand.Add(commandLine);
-
-						//
-						// End of Make Build Target
-						//
-
-						//
-						// Clean Build Target.
-						//
-						XElement CustomCleanCommand = new XElement("CleanCommand");
-						CodeLiteConfigurationCustomBuild.Add(CustomCleanCommand);
-
-						string CleanTarget = BuildTarget + " -clean";
-						XText CleanCommandLine = new XText(CleanTarget);
-
-						CustomCleanCommand.Add(CleanCommandLine);
-
-
-						//
-						// End of Clean Build Target.
-						//
-
-						//
-						// Rebuild Build Target.
-						//
-						XElement CustomRebuildCommand = new XElement("RebuildCommand");
-						CodeLiteConfigurationCustomBuild.Add(CustomRebuildCommand);
-
-						string RebuildTarget = CleanTarget + "\n" + BuildTarget;
-						XText RebuildCommandLine = new XText(RebuildTarget);
-
-						CustomRebuildCommand.Add(RebuildCommandLine);
-
-						//
-						// End of Clean Build Target.
-						//
-
-
-						//
-						// Some other fun Custom Targets.
-						//
-						if (ProjectTargetType == TargetType.Game) 
-						{
-							string CookGameCommandLine = "mono AutomationTool.exe BuildCookRun ";
-
-							// Projects filename
-							if (OnlyGameProject != null)
-							{
-								CookGameCommandLine += "-project=\"" + OnlyGameProject.FullName + "\" ";
-							}
-
-							// Disables Perforce functionality 
-							CookGameCommandLine += "-noP4 ";
+						// Disables Perforce functionality 
+						CookGameCommandLine += "-noP4 ";
 							
-							// Do not kill any spawned processes on exit
-							CookGameCommandLine += "-nokill ";
-							CookGameCommandLine += "-clientconfig=" + CurConf.ToString() + " ";
-							CookGameCommandLine += "-serverconfig=" + CurConf.ToString() + " ";
-							CookGameCommandLine += "-platform=" + ProjectPlatformName + " ";
-							CookGameCommandLine += "-targetplatform=" + ProjectPlatformName + " "; // TODO Maybe I can add all the supported one.
-							CookGameCommandLine += "-nocompile ";
-							CookGameCommandLine += "-compressed -stage -deploy";
+						// Do not kill any spawned processes on exit
+						CookGameCommandLine += "-nokill ";
+						CookGameCommandLine += "-clientconfig=" + CurConf.ToString() + " ";
+						CookGameCommandLine += "-serverconfig=" + CurConf.ToString() + " ";
+						CookGameCommandLine += "-platform=" + ProjectPlatformName + " ";
+						CookGameCommandLine += "-targetplatform=" + ProjectPlatformName + " "; // TODO Maybe I can add all the supported one.
+						CookGameCommandLine += "-nocompile ";
+						CookGameCommandLine += "-compressed -stage -deploy";
 							
-							//
-							// Cook Game.
-							//
-							XElement CookGame = new XElement("Target");
-							XAttribute CookGameName = new XAttribute("Name", "Cook Game");
-							XText CookGameCommand = new XText(CookGameCommandLine + " -cook");
-							CookGame.Add(CookGameName);
-							CookGame.Add(CookGameCommand);
-							CodeLiteConfigurationCustomBuild.Add(CookGame);
-
-							XElement CookGameOnTheFly = new XElement("Target");
-							XAttribute CookGameNameOnTheFlyName = new XAttribute("Name", "Cook Game on the fly");
-							XText CookGameOnTheFlyCommand = new XText(CookGameCommandLine + " -cookonthefly");
-							CookGameOnTheFly.Add(CookGameNameOnTheFlyName);
-							CookGameOnTheFly.Add(CookGameOnTheFlyCommand);
-							CodeLiteConfigurationCustomBuild.Add(CookGameOnTheFly);
-
-							XElement SkipCook = new XElement("Target");
-							XAttribute SkipCookName = new XAttribute("Name", "Skip Cook Game");
-							XText SkipCookCommand = new XText(CookGameCommandLine + " -skipcook");
-							SkipCook.Add(SkipCookName);
-							SkipCook.Add(SkipCookCommand);
-							CodeLiteConfigurationCustomBuild.Add(SkipCook);
-
-						}
 						//
-						// End of Some other fun Custom Targets.
+						// Cook Game.
 						//
-						CodeLiteConfiguration.Add(CodeLiteConfigurationCustomBuild);
+						XElement CookGame = new XElement("Target");
+						XAttribute CookGameName = new XAttribute("Name", "Cook Game");
+						XText CookGameCommand = new XText(CookGameCommandLine + " -cook");
+						CookGame.Add(CookGameName);
+						CookGame.Add(CookGameCommand);
+						CodeLiteConfigurationCustomBuild.Add(CookGame);
+
+						XElement CookGameOnTheFly = new XElement("Target");
+						XAttribute CookGameNameOnTheFlyName = new XAttribute("Name", "Cook Game on the fly");
+						XText CookGameOnTheFlyCommand = new XText(CookGameCommandLine + " -cookonthefly");
+						CookGameOnTheFly.Add(CookGameNameOnTheFlyName);
+						CookGameOnTheFly.Add(CookGameOnTheFlyCommand);
+						CodeLiteConfigurationCustomBuild.Add(CookGameOnTheFly);
+
+						XElement SkipCook = new XElement("Target");
+						XAttribute SkipCookName = new XAttribute("Name", "Skip Cook Game");
+						XText SkipCookCommand = new XText(CookGameCommandLine + " -skipcook");
+						SkipCook.Add(SkipCookName);
+						SkipCook.Add(SkipCookCommand);
+						CodeLiteConfigurationCustomBuild.Add(SkipCook);
+
+					}
+					//
+					// End of Some other fun Custom Targets.
+					//
+					CodeLiteConfiguration.Add(CodeLiteConfigurationCustomBuild);
 
 					//
 					// End of Create Configuration Custom Build part. 

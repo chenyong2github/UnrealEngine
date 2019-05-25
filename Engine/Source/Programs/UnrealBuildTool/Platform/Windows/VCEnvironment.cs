@@ -99,7 +99,7 @@ namespace UnrealBuildTool
 		/// <param name="ToolChainVersion">Version of the toolchain</param>
 		/// <param name="WindowsSdkDir">Root directory containing the Windows Sdk</param>
 		/// <param name="WindowsSdkVersion">Version of the Windows Sdk</param>
-		public VCEnvironment(CppPlatform Platform, WindowsCompiler Compiler, DirectoryReference CompilerDir, VersionNumber CompilerVersion, WindowsCompiler ToolChain, DirectoryReference ToolChainDir, VersionNumber ToolChainVersion, DirectoryReference WindowsSdkDir, VersionNumber WindowsSdkVersion)
+		public VCEnvironment(UnrealTargetPlatform Platform, WindowsCompiler Compiler, DirectoryReference CompilerDir, VersionNumber CompilerVersion, WindowsCompiler ToolChain, DirectoryReference ToolChainDir, VersionNumber ToolChainVersion, DirectoryReference WindowsSdkDir, VersionNumber WindowsSdkVersion)
 		{
 			this.Compiler = Compiler;
 			this.CompilerDir = CompilerDir;
@@ -117,6 +117,10 @@ namespace UnrealBuildTool
             // Compile using 64 bit tools for 64 bit targets, and 32 for 32.
 			CompilerPath = GetCompilerToolPath(Platform, Compiler, CompilerDir);
 
+			// Add the compiler path and directory as environment variables for the process so they may be used elsewhere.
+			Environment.SetEnvironmentVariable("VC_COMPILER_PATH", CompilerPath.FullName, EnvironmentVariableTarget.Process);
+			Environment.SetEnvironmentVariable("VC_COMPILER_DIR", CompilerPath.Directory.FullName, EnvironmentVariableTarget.Process);
+
 			// Regardless of the target, if we're linking on a 64 bit machine, we want to use the 64 bit linker (it's faster than the 32 bit linker and can handle large linking jobs)
 			DirectoryReference DefaultLinkerDir = VCToolPath64;
 			LinkerPath = GetLinkerToolPath(Platform, Compiler, DefaultLinkerDir);
@@ -127,12 +131,12 @@ namespace UnrealBuildTool
 
 			// Add both toolchain paths to the PATH environment variable. There are some support DLLs which are only added to one of the paths, but which the toolchain in the other directory
 			// needs to run (eg. mspdbcore.dll).
-			if(Platform == CppPlatform.Win64)
+			if(Platform == UnrealTargetPlatform.Win64)
 			{
 				AddDirectoryToPath(VCToolPath64);
 				AddDirectoryToPath(VCToolPath32);
 			}
-			if(Platform == CppPlatform.Win32)
+			if(Platform == UnrealTargetPlatform.Win32)
 			{
 				AddDirectoryToPath(VCToolPath32);
 				AddDirectoryToPath(VCToolPath64);
@@ -240,7 +244,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the path to the compiler.
 		/// </summary>
-		static FileReference GetCompilerToolPath(CppPlatform Platform, WindowsCompiler Compiler, DirectoryReference CompilerDir)
+		static FileReference GetCompilerToolPath(UnrealTargetPlatform Platform, WindowsCompiler Compiler, DirectoryReference CompilerDir)
 		{
 			if (Compiler == WindowsCompiler.Clang)
 			{
@@ -248,7 +252,7 @@ namespace UnrealBuildTool
 			}
 			else if(Compiler == WindowsCompiler.Intel)
 			{
-				if(Platform == CppPlatform.Win32)
+				if(Platform == UnrealTargetPlatform.Win32)
 				{
 					return FileReference.Combine(CompilerDir, "bin", "ia32", "icl.exe");
 				}
@@ -259,7 +263,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				if(Platform == CppPlatform.Win32)
+				if(Platform == UnrealTargetPlatform.Win32)
 				{
 					return FileReference.Combine(GetVCToolPath32(Compiler, CompilerDir), "cl.exe");
 				}
@@ -273,7 +277,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the path to the linker.
 		/// </summary>
-		static FileReference GetLinkerToolPath(CppPlatform Platform, WindowsCompiler Compiler, DirectoryReference DefaultLinkerDir)
+		static FileReference GetLinkerToolPath(UnrealTargetPlatform Platform, WindowsCompiler Compiler, DirectoryReference DefaultLinkerDir)
 		{
 			// If we were asked to use Clang, then we'll redirect the path to the compiler to the LLVM installation directory
 			if (Compiler == WindowsCompiler.Clang && WindowsPlatform.bAllowClangLinker)
@@ -294,7 +298,7 @@ namespace UnrealBuildTool
 			}
 			else if(Compiler == WindowsCompiler.Intel && WindowsPlatform.bAllowICLLinker)
 			{
-				FileReference LinkerPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "IntelSWTools", "compilers_and_libraries", "windows", "bin", (Platform == CppPlatform.Win32)? "ia32" : "intel64", "xilink.exe");
+				FileReference LinkerPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "IntelSWTools", "compilers_and_libraries", "windows", "bin", (Platform == UnrealTargetPlatform.Win32)? "ia32" : "intel64", "xilink.exe");
 				if (FileReference.Exists(LinkerPath))
 				{
 					return LinkerPath;
@@ -311,12 +315,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the path to the library linker.
 		/// </summary>
-		static FileReference GetLibraryLinkerToolPath(CppPlatform Platform, WindowsCompiler Compiler, DirectoryReference DefaultLinkerDir)
+		static FileReference GetLibraryLinkerToolPath(UnrealTargetPlatform Platform, WindowsCompiler Compiler, DirectoryReference DefaultLinkerDir)
 		{
 			// Regardless of the target, if we're linking on a 64 bit machine, we want to use the 64 bit linker (it's faster than the 32 bit linker)
 			if (Compiler == WindowsCompiler.Intel && WindowsPlatform.bAllowICLLinker)
 			{
-				FileReference LibPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "IntelSWTools", "compilers_and_libraries", "windows", "bin", Platform == CppPlatform.Win32 ? "ia32" : "intel64", "xilib.exe");
+				FileReference LibPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "IntelSWTools", "compilers_and_libraries", "windows", "bin", Platform == UnrealTargetPlatform.Win32 ? "ia32" : "intel64", "xilib.exe");
 				if (FileReference.Exists(LibPath))
 				{
 					return LibPath;
@@ -333,10 +337,10 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the path to the resource compiler's rc.exe for the specified platform.
 		/// </summary>
-		static FileReference GetResourceCompilerToolPath(CppPlatform Platform, DirectoryReference WindowsSdkDir, VersionNumber WindowsSdkVersion)
+		static FileReference GetResourceCompilerToolPath(UnrealTargetPlatform Platform, DirectoryReference WindowsSdkDir, VersionNumber WindowsSdkVersion)
 		{
 			// 64 bit -- we can use the 32 bit version to target 64 bit on 32 bit OS.
-			if (Platform == CppPlatform.Win64)
+			if (Platform == UnrealTargetPlatform.Win64)
 			{
 				FileReference ResourceCompilerPath = FileReference.Combine(WindowsSdkDir, "bin", WindowsSdkVersion.ToString(), "x64", "rc.exe");
 				if(FileReference.Exists(ResourceCompilerPath))
@@ -370,7 +374,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Sets up the standard compile environment for the toolchain
 		/// </summary>
-		private void SetupEnvironment(CppPlatform Platform)
+		private void SetupEnvironment(UnrealTargetPlatform Platform)
 		{
 			// Add the standard Visual C++ include paths
 			IncludePaths.Add(DirectoryReference.Combine(ToolChainDir, "INCLUDE"));
@@ -378,7 +382,7 @@ namespace UnrealBuildTool
 			// Add the standard Visual C++ library paths
 			if (ToolChain >= WindowsCompiler.VisualStudio2017)
 			{
-				if (Platform == CppPlatform.Win32)
+				if (Platform == UnrealTargetPlatform.Win32)
 				{
 					LibraryPaths.Add(DirectoryReference.Combine(ToolChainDir, "lib", "x86"));
 				}
@@ -389,7 +393,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				if (Platform == CppPlatform.Win32)
+				if (Platform == UnrealTargetPlatform.Win32)
 				{
 					LibraryPaths.Add(DirectoryReference.Combine(ToolChainDir, "LIB"));
 				}
@@ -412,7 +416,7 @@ namespace UnrealBuildTool
 				IncludePaths.Add(DirectoryReference.Combine(IncludeRootDir, "ucrt"));
 
 				DirectoryReference LibraryRootDir = DirectoryReference.Combine(Pair.Value, "lib", Pair.Key.ToString());
-				if(Platform == CppPlatform.Win64)
+				if(Platform == UnrealTargetPlatform.Win64)
 				{
 					LibraryPaths.Add(DirectoryReference.Combine(LibraryRootDir, "ucrt", "x64"));
 				}
@@ -427,7 +431,7 @@ namespace UnrealBuildTool
 			if(WindowsPlatform.TryGetNetFxSdkInstallDir(out NetFxSdkDir))
 			{
 				IncludePaths.Add(DirectoryReference.Combine(NetFxSdkDir, "include", "um"));
-				if (Platform == CppPlatform.Win32)
+				if (Platform == UnrealTargetPlatform.Win32)
 				{
 					LibraryPaths.Add(DirectoryReference.Combine(NetFxSdkDir, "lib", "um", "x86"));
 				}
@@ -447,7 +451,7 @@ namespace UnrealBuildTool
 				IncludePaths.Add(DirectoryReference.Combine(IncludeRootDir, "winrt"));
 
 				DirectoryReference LibraryRootDir = DirectoryReference.Combine(WindowsSdkDir, "lib", WindowsSdkVersion.ToString());
-				if(Platform == CppPlatform.Win64)
+				if(Platform == UnrealTargetPlatform.Win64)
 				{
 					LibraryPaths.Add(DirectoryReference.Combine(LibraryRootDir, "ucrt", "x64"));
 					LibraryPaths.Add(DirectoryReference.Combine(LibraryRootDir, "um", "x64"));
@@ -466,7 +470,7 @@ namespace UnrealBuildTool
 				IncludePaths.Add(DirectoryReference.Combine(IncludeRootDir, "winrt"));
 
 				DirectoryReference LibraryRootDir = DirectoryReference.Combine(WindowsSdkDir, "lib", "winv6.3");
-				if(Platform == CppPlatform.Win64)
+				if(Platform == UnrealTargetPlatform.Win64)
 				{
 					LibraryPaths.Add(DirectoryReference.Combine(LibraryRootDir, "um", "x64"));
 				}
@@ -485,7 +489,7 @@ namespace UnrealBuildTool
 		/// <param name="CompilerVersion">The specific toolchain version to use</param>
 		/// <param name="WindowsSdkVersion">Version of the Windows SDK to use</param>
 		/// <returns>New environment object with paths for the given settings</returns>
-		public static VCEnvironment Create(WindowsCompiler Compiler, CppPlatform Platform, string CompilerVersion, string WindowsSdkVersion)
+		public static VCEnvironment Create(WindowsCompiler Compiler, UnrealTargetPlatform Platform, string CompilerVersion, string WindowsSdkVersion)
 		{
 			// Get the compiler version info
 			VersionNumber SelectedCompilerVersion;

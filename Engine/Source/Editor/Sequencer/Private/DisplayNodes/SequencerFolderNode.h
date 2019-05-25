@@ -16,7 +16,7 @@ enum class EItemDropZone;
 class FSequencerFolderNode : public FSequencerDisplayNode
 {
 public:
-	FSequencerFolderNode( UMovieSceneFolder& InMovieSceneFolder, TSharedPtr<FSequencerDisplayNode> InParentNode, FSequencerNodeTree& InParentTree );
+	FSequencerFolderNode( UMovieSceneFolder& InMovieSceneFolder, FSequencerNodeTree& InParentTree );
 
 	// FSequencerDisplayNode interface
 	virtual ESequencerNode::Type GetType() const override;
@@ -39,9 +39,6 @@ public:
 
 	/** Removes a node from it's old parent and makes it a child of this node. */
 	void MoveDisplayNodeToFolder(TSharedRef<FSequencerDisplayNode>& Node);
-
-	/** Adds a child node to this folder node. */
-	void AddChildNode( TSharedRef<FSequencerDisplayNode> ChildNode );
 
 	/** Gets the folder data for this display node. */
 	UMovieSceneFolder& GetFolder() const;

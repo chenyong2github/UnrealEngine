@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Android/AndroidApplicationMisc.h"
+#include "Android/AndroidPlatformApplicationMisc.h"
 
 struct APPLICATIONCORE_API FLuminPlatformApplicationMisc : public FAndroidApplicationMisc
 {

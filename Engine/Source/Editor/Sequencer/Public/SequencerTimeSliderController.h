@@ -15,41 +15,6 @@ struct FSlateBrush;
 class FSequencer;
 class IPropertyTypeCustomization;
 
-struct FPaintPlaybackRangeArgs
-{
-	FPaintPlaybackRangeArgs()
-		: StartBrush(nullptr), EndBrush(nullptr), BrushWidth(0.f), SolidFillOpacity(0.f)
-	{}
-
-	FPaintPlaybackRangeArgs(const FSlateBrush* InStartBrush, const FSlateBrush* InEndBrush, float InBrushWidth)
-		: StartBrush(InStartBrush), EndBrush(InEndBrush), BrushWidth(InBrushWidth)
-	{}
-	/** Brush to use for the start bound */
-	const FSlateBrush* StartBrush;
-	/** Brush to use for the end bound */
-	const FSlateBrush* EndBrush;
-	/** The width of the above brushes, in slate units */
-	float BrushWidth;
-	/** level of opacity for the fill color between the range markers */
-	float SolidFillOpacity;
-};
-
-struct FPaintSectionAreaViewArgs
-{
-	FPaintSectionAreaViewArgs()
-		: bDisplayTickLines(false), bDisplayScrubPosition(false), bDisplayMarkedFrames(false)
-	{}
-
-	/** Whether to display tick lines */
-	bool bDisplayTickLines;
-	/** Whether to display the scrub position */
-	bool bDisplayScrubPosition;
-	/** Whether to display the marked frames */
-	bool bDisplayMarkedFrames;
-	/** Optional Paint args for the playback range*/
-	TOptional<FPaintPlaybackRangeArgs> PlaybackRangeArgs;
-};
-
 /**
  * A time slider controller for sequencer
  * Draws and manages time data for a Sequencer
@@ -94,13 +59,19 @@ public:
 	/** Get the current play range for this controller */
 	virtual TRange<FFrameNumber> GetPlayRange() const override { return TimeSliderArgs.PlaybackRange.Get(TRange<FFrameNumber>()); }
 
+	/** Get the current time for the Scrub handle which indicates what range is being evaluated. */
+	virtual FFrameTime GetScrubPosition() const override { return TimeSliderArgs.ScrubPosition.Get(FFrameTime()); }
+
+	/** Get the current time for the Scrub handle which indicates what range is being evaluated. */
+	virtual void SetScrubPosition(FFrameTime InTime) override { CommitScrubPosition(InTime, false); } 
+
 	/**
 	 * Clamp the given range to the clamp range 
 	 *
 	 * @param NewRangeMin		The new lower bound of the range
 	 * @param NewRangeMax		The new upper bound of the range
 	 */	
-	void ClampViewRange(double& NewRangeMin, double& NewRangeMax);
+	virtual void ClampViewRange(double& NewRangeMin, double& NewRangeMax);
 
 	/**
 	 * Set a new range based on a min, max and an interpolation mode
@@ -145,7 +116,9 @@ public:
 	/**
 	 * Draws major tick lines in the section view                                                              
 	 */
-	int32 OnPaintSectionView( const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, bool bEnabled, const FPaintSectionAreaViewArgs& Args ) const;
+	int32 OnPaintViewArea( const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, bool bEnabled, const FPaintViewAreaArgs& Args ) const;
+
+
 
 public:
 

@@ -88,6 +88,16 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 		]
 	];
 
+	TSharedRef<IPropertyHandle> PropertyHandle_CanHaveLayersContent = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, bCanHaveLayersContent));
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		NewLandscapeCategory.AddProperty(PropertyHandle_CanHaveLayersContent);
+	}
+	else
+	{
+		DetailBuilder.HideProperty(PropertyHandle_CanHaveLayersContent);
+	}
+
 	TSharedRef<IPropertyHandle> PropertyHandle_HeightmapFilename = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ImportLandscape_HeightmapFilename));
 	TSharedRef<IPropertyHandle> PropertyHandle_HeightmapImportResult = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ImportLandscape_HeightmapImportResult));
 	TSharedRef<IPropertyHandle> PropertyHandle_HeightmapErrorMessage = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ImportLandscape_HeightmapErrorMessage));
@@ -785,37 +795,34 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		LandscapeEdMode->GetWorld() != nullptr && 
 		LandscapeEdMode->GetWorld()->GetCurrentLevel()->bIsVisible)
 	{
-		const int32 ComponentCountX = LandscapeEdMode->UISettings->NewLandscape_ComponentCount.X;
-		const int32 ComponentCountY = LandscapeEdMode->UISettings->NewLandscape_ComponentCount.Y;
-		const int32 QuadsPerComponent = LandscapeEdMode->UISettings->NewLandscape_SectionsPerComponent * LandscapeEdMode->UISettings->NewLandscape_QuadsPerSection;
+		ULandscapeEditorObject* UISettings = LandscapeEdMode->UISettings;
+		const int32 ComponentCountX = UISettings->NewLandscape_ComponentCount.X;
+		const int32 ComponentCountY = UISettings->NewLandscape_ComponentCount.Y;
+		const int32 QuadsPerComponent = UISettings->NewLandscape_SectionsPerComponent * UISettings->NewLandscape_QuadsPerSection;
 		const int32 SizeX = ComponentCountX * QuadsPerComponent + 1;
 		const int32 SizeY = ComponentCountY * QuadsPerComponent + 1;
 
-		TOptional< TArray< FLandscapeImportLayerInfo > > ImportLayers = FNewLandscapeUtils::CreateImportLayersInfo( LandscapeEdMode->UISettings, LandscapeEdMode->NewLandscapePreviewMode );
+		TOptional< TArray< FLandscapeImportLayerInfo > > MaterialImportLayers = FNewLandscapeUtils::CreateImportLayersInfo(UISettings, LandscapeEdMode->NewLandscapePreviewMode );
 
-		if ( !ImportLayers )
+		if ( !MaterialImportLayers)
 		{
 			return FReply::Handled();
 		}
 
-		TArray<uint16> Data = FNewLandscapeUtils::ComputeHeightData( LandscapeEdMode->UISettings, ImportLayers.GetValue(), LandscapeEdMode->NewLandscapePreviewMode );
+		TMap<FGuid, TArray<uint16>> HeightDataPerLayers;
+		TMap<FGuid, TArray<FLandscapeImportLayerInfo>> MaterialLayerDataPerLayers;
+
+		MaterialLayerDataPerLayers.Add(FGuid(), MaterialImportLayers.GetValue());
+		HeightDataPerLayers.Add(FGuid(), FNewLandscapeUtils::ComputeHeightData(UISettings, MaterialImportLayers.GetValue(), LandscapeEdMode->NewLandscapePreviewMode));
 
 		FScopedTransaction Transaction(LOCTEXT("Undo", "Creating New Landscape"));
 
-		const FVector Offset = FTransform(LandscapeEdMode->UISettings->NewLandscape_Rotation, FVector::ZeroVector,
-			LandscapeEdMode->UISettings->NewLandscape_Scale).TransformVector(FVector(-ComponentCountX * QuadsPerComponent / 2, -ComponentCountY * QuadsPerComponent / 2, 0));
+		const FVector Offset = FTransform(UISettings->NewLandscape_Rotation, FVector::ZeroVector, UISettings->NewLandscape_Scale).TransformVector(FVector(-ComponentCountX * QuadsPerComponent / 2, -ComponentCountY * QuadsPerComponent / 2, 0));
 		
-		ALandscape* Landscape = LandscapeEdMode->GetWorld()->SpawnActor<ALandscape>(LandscapeEdMode->UISettings->NewLandscape_Location + Offset, LandscapeEdMode->UISettings->NewLandscape_Rotation);
-		Landscape->LandscapeMaterial = LandscapeEdMode->UISettings->NewLandscape_Material.Get();
-		Landscape->SetActorRelativeScale3D(LandscapeEdMode->UISettings->NewLandscape_Scale);
-
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			Landscape->PreviousExperimentalLandscapeLayers = true;
-		}
-
-		Landscape->Import(FGuid::NewGuid(), 0, 0, SizeX-1, SizeY-1, LandscapeEdMode->UISettings->NewLandscape_SectionsPerComponent, LandscapeEdMode->UISettings->NewLandscape_QuadsPerSection, Data.GetData(),
-			nullptr, ImportLayers.GetValue(), LandscapeEdMode->UISettings->ImportLandscape_AlphamapType);
+		ALandscape* Landscape = LandscapeEdMode->GetWorld()->SpawnActor<ALandscape>(UISettings->NewLandscape_Location + Offset, UISettings->NewLandscape_Rotation);
+		Landscape->bCanHaveLayersContent = UISettings->bCanHaveLayersContent;
+		Landscape->LandscapeMaterial = UISettings->NewLandscape_Material.Get();
+		Landscape->SetActorRelativeScale3D(UISettings->NewLandscape_Scale);
 
 		// automatically calculate a lighting LOD that won't crash lightmass (hopefully)
 		// < 2048x2048 -> LOD0
@@ -826,14 +833,18 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 
 		if (LandscapeEdMode->NewLandscapePreviewMode == ENewLandscapePreviewMode::ImportLandscape)
 		{
-			Landscape->ReimportHeightmapFilePath = LandscapeEdMode->UISettings->ImportLandscape_HeightmapFilename;
+			Landscape->ReimportHeightmapFilePath = UISettings->ImportLandscape_HeightmapFilename;
 		}
 
-		ULandscapeInfo* LandscapeInfo = Landscape->CreateLandscapeInfo();
+		Landscape->Import(FGuid::NewGuid(), 0, 0, SizeX - 1, SizeY - 1, UISettings->NewLandscape_SectionsPerComponent, UISettings->NewLandscape_QuadsPerSection, HeightDataPerLayers, nullptr, MaterialLayerDataPerLayers, UISettings->ImportLandscape_AlphamapType);
+
+		ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
+		check(LandscapeInfo);
+
 		LandscapeInfo->UpdateLayerInfoMap(Landscape);
 
 		// Import doesn't fill in the LayerInfo for layers with no data, do that now
-		const TArray<FLandscapeImportLayer>& ImportLandscapeLayersList = LandscapeEdMode->UISettings->ImportLandscape_Layers;
+		const TArray<FLandscapeImportLayer>& ImportLandscapeLayersList = UISettings->ImportLandscape_Layers;
 		for (int32 i = 0; i < ImportLandscapeLayersList.Num(); i++)
 		{
 			if (ImportLandscapeLayersList[i].LayerInfo != nullptr)
@@ -857,7 +868,7 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		}
 
 		LandscapeEdMode->UpdateLandscapeList();
-		LandscapeEdMode->CurrentToolTarget.LandscapeInfo = LandscapeInfo;
+		LandscapeEdMode->SetLandscapeInfo(LandscapeInfo);
 		LandscapeEdMode->CurrentToolTarget.TargetType = ELandscapeToolTargetType::Heightmap;
 		LandscapeEdMode->CurrentToolTarget.LayerInfo = nullptr;
 		LandscapeEdMode->CurrentToolTarget.LayerName = NAME_None;

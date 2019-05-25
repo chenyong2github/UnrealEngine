@@ -15,6 +15,10 @@ class FViewInfo;
 // return Depth of Field Scale if Gaussian DoF mode is active. 0.0f otherwise.
 float GetMobileDepthOfFieldScale(const FViewInfo& View);
 
+// Used to indicate the final PP stage which needs to be flipped on platforms that 'RHINeedsToSwitchVerticalAxis'
+void SetMobilePassFlipVerticalAxis(const FRenderingCompositePass* FlipPass);
+bool ShouldMobilePassFlipVerticalAxis(const FRenderingCompositePass* ShouldFlipPass);
+
 class FRCPassPostProcessBloomSetupES2 : public TRenderingCompositePassBase<1, 1>
 {
 public:

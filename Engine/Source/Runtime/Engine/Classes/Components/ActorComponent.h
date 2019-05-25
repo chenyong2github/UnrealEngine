@@ -238,6 +238,9 @@ private:
 #if WITH_EDITOR
 	/** During undo/redo it isn't safe to cache owner */
 	uint8 bCanUseCachedOwner:1;
+
+	/** Invalidates this component as an export once the linker is set. Used to clean up old native default subobjects that were removed from code */
+	uint8 bInvalidateExportWhenLinkerIsSet : 1;
 #endif
 
 	/** True if this component was owned by a net startup actor during level load. */
@@ -781,7 +784,7 @@ public:
 	virtual bool IsNameStableForNetworking() const override;
 	virtual bool IsSupportedForNetworking() const override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-	virtual int32 GetFunctionCallspace( UFunction* Function, void* Parameters, FFrame* Stack ) override;
+	virtual int32 GetFunctionCallspace( UFunction* Function, FFrame* Stack ) override;
 	virtual bool CallRemoteFunction( UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack ) override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
@@ -789,6 +792,7 @@ public:
 	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
+	virtual void PostLinkerChange() override;
 	virtual bool Modify( bool bAlwaysMarkDirty = true ) override;
 	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

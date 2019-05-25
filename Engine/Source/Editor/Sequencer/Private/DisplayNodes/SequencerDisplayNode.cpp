@@ -8,7 +8,10 @@
 #include "Widgets/SLeafWidget.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EditorStyleSet.h"
 #include "DisplayNodes/SequencerObjectBindingNode.h"
@@ -22,8 +25,10 @@
 #include "SSequencerSectionAreaView.h"
 #include "CommonMovieSceneTools.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "Tree/SCurveEditorTreePin.h"
 #include "ScopedTransaction.h"
 #include "SequencerKeyTimeCache.h"
+#include "SequencerNodeSortingMethods.h"
 #include "SequencerKeyCollection.h"
 
 #define LOCTEXT_NAMESPACE "SequencerDisplayNode"
@@ -35,6 +40,61 @@ namespace SequencerNodeConstants
 	const float CommonPadding = 4.f;
 
 	static const FVector2D KeyMarkSize = FVector2D(3.f, 21.f);
+
+	static const uint8 DefaultSortBias[(__underlying_type(EDisplayNodeSortType))EDisplayNodeSortType::NUM] = {
+		2, // Folders
+		3, // Tracks
+		4, // ObjectBindings
+		1, // CameraCuts
+		0, // Shots
+		5, // Anything else
+	};
+
+	static const uint8 ObjectBindingSortBias[(__underlying_type(EDisplayNodeSortType))EDisplayNodeSortType::NUM] = {
+		2, // Folders            - shouldn't exist inside object bindings
+		1, // Tracks
+		0, // ObjectBindings
+		3, // CameraCuts         - shouldn't exist inside object bindings
+		4, // Shots              - shouldn't exist inside object bindings
+		5, // Anything else
+	};
+
+	static_assert(ARRAY_COUNT(DefaultSortBias) == (__underlying_type(EDisplayNodeSortType))EDisplayNodeSortType::NUM, "Mismatched type/bias count");
+	static_assert(ARRAY_COUNT(ObjectBindingSortBias) == (__underlying_type(EDisplayNodeSortType))EDisplayNodeSortType::NUM, "Mismatched type/bias count");
+
+	inline bool SortChildrenWithBias(const TSharedRef<FSequencerDisplayNode>& A, const TSharedRef<FSequencerDisplayNode>& B, const uint8* SortBias)
+	{
+		const uint8 BiasA = SortBias[(__underlying_type(EDisplayNodeSortType))A->GetSortType()];
+		const uint8 BiasB = SortBias[(__underlying_type(EDisplayNodeSortType))B->GetSortType()];
+
+		// For nodes of the same bias, sort by name
+		if (BiasA == BiasB)
+		{
+			return A->GetDisplayName().CompareToCaseIgnored(B->GetDisplayName()) < 0;
+		}
+		return BiasA < BiasB;
+	}
+
+	inline bool SortObjectBindingChildren(const TSharedRef<FSequencerDisplayNode>& A, const TSharedRef<FSequencerDisplayNode>& B)
+	{
+		return SortChildrenWithBias(A, B, SequencerNodeConstants::ObjectBindingSortBias);
+	}
+
+	static bool SortChildrenDefault(const TSharedRef<FSequencerDisplayNode>& A, const TSharedRef<FSequencerDisplayNode>& B)
+	{
+		const int32 SortA = A->GetSortingOrder();
+		const int32 SortB = B->GetSortingOrder();
+
+		if (SortA >= 0 && SortB >= 0)
+		{
+			// Both nodes have persistent sort orders, use those
+			return SortA < SortB;
+		}
+
+		// When either or neither node has a persistent sort order, we use the default ordering between the two nodes to ensure that 
+		// New nodes get added to the correctly sorted position by default
+		return SortChildrenWithBias(A, B, SequencerNodeConstants::DefaultSortBias);
+	}
 }
 
 struct FNameAndSignature
@@ -294,31 +354,119 @@ void SSequencerCombinedKeysTrack::GenerateCachedKeyPositions(const FGeometry& Al
 }
 
 
-FSequencerDisplayNode::FSequencerDisplayNode( FName InNodeName, TSharedPtr<FSequencerDisplayNode> InParentNode, FSequencerNodeTree& InParentTree )
-	: VirtualTop( 0.f )
+FSequencerDisplayNode::FSequencerDisplayNode( FName InNodeName, FSequencerNodeTree& InParentTree )
+	: TreeSerialNumber(0)
+	, VirtualTop( 0.f )
 	, VirtualBottom( 0.f )
-	, ParentNode( InParentNode )
 	, ParentTree( InParentTree )
 	, NodeName( InNodeName )
 	, bExpanded( false )
+	, bHasBeenInitialized( false )
 {
+	SortType = EDisplayNodeSortType::Undefined;
 }
 
-
-void FSequencerDisplayNode::Initialize(float InVirtualTop, float InVirtualBottom)
+bool FSequencerDisplayNode::IsParentStillRelevant(uint32 SerialNumber) const
 {
-	bExpanded = ParentTree.GetSavedExpansionState( *this );
+	TSharedPtr<FSequencerDisplayNode> ExistingParent = GetParent();
+	return ExistingParent.IsValid() && ExistingParent->TreeSerialNumber == SerialNumber;
+}
+
+bool FSequencerDisplayNode::IsRootNode() const
+{
+	return ParentNode == ParentTree.GetRootNode();
+}
+
+void FSequencerDisplayNode::SetParentDirectly(TSharedPtr<FSequencerDisplayNode> InParent)
+{
+	ParentNode = InParent;
+}
+
+void FSequencerDisplayNode::SetParent(TSharedPtr<FSequencerDisplayNode> InParent)
+{
+	TSharedPtr<FSequencerDisplayNode> CurrentParent = ParentNode.Pin();
+	if (CurrentParent != InParent)
+	{
+		TSharedRef<FSequencerDisplayNode> ThisNode = AsShared();
+		if (CurrentParent)
+		{
+			// Remove from parent
+			CurrentParent->ChildNodes.Remove(ThisNode);
+		}
+
+		if (InParent)
+		{
+			// Add to new parent
+			InParent->ChildNodes.Add(ThisNode);
+			bExpanded = ParentTree.GetSavedExpansionState( *this );
+		}
+	}
+
+	ParentNode = InParent;
+}
+
+FSequencer& FSequencerDisplayNode::GetSequencer() const
+{
+	return ParentTree.GetSequencer();
+}
+
+void FSequencerDisplayNode::OnTreeRefreshed(float InVirtualTop, float InVirtualBottom)
+{
+	if (!bHasBeenInitialized)
+	{
+		// Assign the saved expansion state when this node is initialized for the first time
+		bExpanded = ParentTree.GetSavedExpansionState( *this );
+	}
 
 	VirtualTop = InVirtualTop;
 	VirtualBottom = InVirtualBottom;
+
+	SortImmediateChildren();
+
+	bHasBeenInitialized = true;
 }
 
-
-void FSequencerDisplayNode::AddObjectBindingNode(TSharedRef<FSequencerObjectBindingNode> ObjectBindingNode)
+void FSequencerDisplayNode::SortImmediateChildren()
 {
-	AddChildAndSetParent( ObjectBindingNode );
+	const ESequencerNode::Type NodeType = GetType();
+	if (ChildNodes.Num() == 0 || NodeType == ESequencerNode::Category || NodeType == ESequencerNode::Track)
+	{
+		return;
+	}
+
+	if (NodeType == ESequencerNode::Object)
+	{
+		// Objects never use their serialized sort order
+		Algo::Sort(ChildNodes, SequencerNodeConstants::SortObjectBindingChildren);
+	}
+	else
+	{
+		Algo::Sort(ChildNodes, SequencerNodeConstants::SortChildrenDefault);
+	}
+
+	if (NodeType != ESequencerNode::Track || static_cast<FSequencerTrackNode*>(this)->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::None)
+	{
+		// Set persistent sort orders
+		for (int32 Index = 0; Index < ChildNodes.Num(); ++Index)
+		{
+			ChildNodes[Index]->SetSortingOrder(Index);
+		}
+	}
 }
 
+void FSequencerDisplayNode::ResortImmediateChildren()
+{
+	if (ChildNodes.Num() > 0)
+	{
+		// Unset persistent sort orders
+		for (TSharedRef<FSequencerDisplayNode> Child : ChildNodes)
+		{
+			Child->SetSortingOrder(-1);
+		}
+
+		SortImmediateChildren();
+	}
+}
 
 TSharedPtr<FSequencerObjectBindingNode> FSequencerDisplayNode::FindParentObjectBindingNode() const
 {
@@ -326,13 +474,9 @@ TSharedPtr<FSequencerObjectBindingNode> FSequencerDisplayNode::FindParentObjectB
 
 	while (CurrentParentNode.IsValid())
 	{
-		if (CurrentParentNode.Get()->GetType() == ESequencerNode::Object)
+		if (CurrentParentNode->GetType() == ESequencerNode::Object)
 		{
-			TSharedPtr<FSequencerObjectBindingNode> ObjectNode = StaticCastSharedPtr<FSequencerObjectBindingNode>(CurrentParentNode);
-			if (ObjectNode.IsValid())
-			{
-				return ObjectNode;
-			}
+			return StaticCastSharedPtr<FSequencerObjectBindingNode>(CurrentParentNode);
 		}
 		CurrentParentNode = CurrentParentNode->GetParent();
 	}
@@ -340,6 +484,11 @@ TSharedPtr<FSequencerObjectBindingNode> FSequencerDisplayNode::FindParentObjectB
 	return nullptr;
 }
 
+FGuid FSequencerDisplayNode::GetObjectGuid() const
+{
+	TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = FindParentObjectBindingNode();
+	return ObjectBindingNode ? ObjectBindingNode->GetObjectGuid() : FGuid();
+}
 
 bool FSequencerDisplayNode::Traverse_ChildFirst(const TFunctionRef<bool(FSequencerDisplayNode&)>& InPredicate, bool bIncludeThisNode)
 {
@@ -418,53 +567,6 @@ bool FSequencerDisplayNode::TraverseVisible_ParentFirst(const TFunctionRef<bool(
 	}
 
 	return true;
-}
-
-TSharedRef<FSequencerSectionCategoryNode> FSequencerDisplayNode::AddCategoryNode( FName CategoryName, const FText& DisplayLabel )
-{
-	TSharedPtr<FSequencerSectionCategoryNode> CategoryNode;
-
-	// See if there is an already existing category node to use
-	for (const TSharedRef<FSequencerDisplayNode>& Node : ChildNodes)
-	{
-		if ((Node->GetNodeName() == CategoryName) && (Node->GetType() == ESequencerNode::Category))
-		{
-			CategoryNode = StaticCastSharedRef<FSequencerSectionCategoryNode>(Node);
-		}
-	}
-
-	if (!CategoryNode.IsValid())
-	{
-		// No existing category found, make a new one
-		CategoryNode = MakeShareable(new FSequencerSectionCategoryNode(CategoryName, DisplayLabel, SharedThis(this), ParentTree));
-		ChildNodes.Add(CategoryNode.ToSharedRef());
-	}
-
-	return CategoryNode.ToSharedRef();
-}
-
-
-void FSequencerDisplayNode::AddKeyAreaNode(FName KeyAreaName, const FText& DisplayName, TSharedRef<IKeyArea> KeyArea)
-{
-	TSharedPtr<FSequencerSectionKeyAreaNode> KeyAreaNode;
-
-	// See if there is an already existing key area node to use
-	for (const TSharedRef<FSequencerDisplayNode>& Node : ChildNodes)
-	{
-		if ((Node->GetNodeName() == KeyAreaName) && (Node->GetType() == ESequencerNode::KeyArea))
-		{
-			KeyAreaNode = StaticCastSharedRef<FSequencerSectionKeyAreaNode>(Node);
-		}
-	}
-
-	if (!KeyAreaNode.IsValid())
-	{
-		// No existing node found make a new one
-		KeyAreaNode = MakeShareable( new FSequencerSectionKeyAreaNode( KeyAreaName, DisplayName, SharedThis( this ), ParentTree ) );
-		ChildNodes.Add(KeyAreaNode.ToSharedRef());
-	}
-
-	KeyAreaNode->AddKeyArea(KeyArea);
 }
 
 FLinearColor FSequencerDisplayNode::GetDisplayNameColor() const
@@ -633,10 +735,11 @@ FString FSequencerDisplayNode::GetPathName() const
 	// First get our parent's path
 	FString PathName;
 
-	if (ParentNode.IsValid())
+	TSharedPtr<FSequencerDisplayNode> Parent = GetParent();
+	if (Parent.IsValid())
 	{
-		ensure(ParentNode != SharedThis(this));
-		PathName = ParentNode.Pin()->GetPathName() + TEXT(".");
+		ensure(Parent != SharedThis(this));
+		PathName = Parent->GetPathName() + TEXT(".");
 	}
 
 	//then append our path
@@ -919,6 +1022,12 @@ bool FSequencerDisplayNode::IsHidden() const
 }
 
 
+bool FSequencerDisplayNode::IsVisible() const
+{
+	return !ParentTree.HasActiveFilter() || ParentTree.IsNodeFiltered(AsShared());
+}
+
+
 bool FSequencerDisplayNode::IsHovered() const
 {
 	return ParentTree.GetHoveredNode().Get() == this;
@@ -937,10 +1046,60 @@ bool FSequencerDisplayNode::HandleContextMenuRenameNodeCanExecute() const
 }
 
 
-void FSequencerDisplayNode::AddChildAndSetParent( TSharedRef<FSequencerDisplayNode> InChild )
+TSharedPtr<SWidget> FSequencerDisplayNode::GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID)
 {
-	ChildNodes.Add( InChild );
-	InChild->ParentNode = SharedThis( this );
+	if (InColumnName == ColumnNames.Label)
+	{
+		return SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(0.f, 0.f, 4.f, 0.f))
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SOverlay)
+
+				+ SOverlay::Slot()
+				[
+					SNew(SImage)
+					.Image(this, &FSequencerDisplayNode::GetIconBrush)
+					.ColorAndOpacity(this, &FSequencerDisplayNode::GetIconColor)
+				]
+
+				+ SOverlay::Slot()
+				.VAlign(VAlign_Top)
+				.HAlign(HAlign_Right)
+				[
+					SNew(SImage)
+					.Image(this, &FSequencerDisplayNode::GetIconOverlayBrush)
+				]
+
+				+ SOverlay::Slot()
+				[
+					SNew(SSpacer)
+					.Visibility(EVisibility::Visible)
+					.ToolTipText(this, &FSequencerDisplayNode::GetIconToolTipText)
+				]
+			]
+
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(this, &FSequencerDisplayNode::GetDisplayName)
+				.ToolTipText(this, &FSequencerDisplayNode::GetDisplayNameToolTipText)
+			];
+	}
+	else if (InColumnName == ColumnNames.PinHeader)
+	{
+		return SNew(SCurveEditorTreePin, InCurveEditor, InTreeItemID);
+	}
+
+	return nullptr;
+}
+
+void FSequencerDisplayNode::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels)
+{
 }
 
 

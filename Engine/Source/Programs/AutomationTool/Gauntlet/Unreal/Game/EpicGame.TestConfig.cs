@@ -233,6 +233,13 @@ namespace EpicGame
 					Account UserAccount = AccountPool.Instance.ReserveAccount();
 					UserAccount.ApplyToConfig(AppConfig);
 				}
+
+				// turn off voice chat, otherwise will open blocking permission requests on mobile
+				if (ConfigRole.Platform == UnrealTargetPlatform.IOS)
+				{
+					AppConfig.CommandLine += " -ini:Engine:[VoiceChat.Vivox]:bEnabled=false";
+				}
+
 			}
 		}
 		

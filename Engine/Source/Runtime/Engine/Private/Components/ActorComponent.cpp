@@ -192,8 +192,19 @@ void UActorComponent::PostInitProperties()
 			{
 				// else: this is a natively created component that thinks its archetype is the CDO of
 				// this class, rather than a template component and this isn't the template component.
-				// Delete this stale component:
-				MarkPendingKill();
+				// Delete this stale component
+#if WITH_EDITOR
+				if (HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading))
+				{
+					// Async loading components cannot be pending kill, or the async loading code will assert when trying to postload them.
+					// Instead, wait until the linker is set and invalidate the export so it does not proceed to load
+					bInvalidateExportWhenLinkerIsSet = true;
+				}
+				else
+#endif // WITH_EDITOR
+				{
+					MarkPendingKill();
+				}
 			}
 		}
 		else
@@ -507,10 +518,10 @@ bool UActorComponent::NeedsLoadForEditorGame() const
 	return !IsEditorOnly() && Super::NeedsLoadForEditorGame();
 }
 
-int32 UActorComponent::GetFunctionCallspace( UFunction* Function, void* Parameters, FFrame* Stack )
+int32 UActorComponent::GetFunctionCallspace( UFunction* Function, FFrame* Stack )
 {
 	AActor* MyOwner = GetOwner();
-	return (MyOwner ? MyOwner->GetFunctionCallspace(Function, Parameters, Stack) : FunctionCallspace::Local);
+	return (MyOwner ? MyOwner->GetFunctionCallspace(Function, Stack) : FunctionCallspace::Local);
 }
 
 bool UActorComponent::CallRemoteFunction( UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack )
@@ -540,6 +551,17 @@ bool UActorComponent::CallRemoteFunction( UFunction* Function, void* Parameters,
 
 /** FComponentReregisterContexts for components which have had PreEditChange called but not PostEditChange. */
 static TMap<TWeakObjectPtr<UActorComponent>,FComponentReregisterContext*> EditReregisterContexts;
+
+void UActorComponent::PostLinkerChange()
+{
+	Super::PostLinkerChange();
+
+	if (bInvalidateExportWhenLinkerIsSet)
+	{
+		FLinkerLoad::InvalidateExport(this);
+		bInvalidateExportWhenLinkerIsSet = false;
+	}
+}
 
 bool UActorComponent::Modify( bool bAlwaysMarkDirty/*=true*/ )
 {

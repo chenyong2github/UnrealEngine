@@ -27,7 +27,7 @@ class UMovieSceneEventSectionBase;
  *         - Objects provided by the playback context.
  *     - Will only trigger if the specified object is of the same type as the parameter (or interface)
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct MOVIESCENETRACKS_API FMovieSceneEvent
 {
 	GENERATED_BODY()
@@ -54,7 +54,7 @@ struct MOVIESCENETRACKS_API FMovieSceneEvent
 	 * The function that should be called to invoke this event.
 	 * Functions must have either no parameters, or a single, pass-by-value object/interface parameter, with no return parameter.
 	 */
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, Category="Sequencer")
 	FName FunctionName;
 
 #if WITH_EDITORONLY_DATA

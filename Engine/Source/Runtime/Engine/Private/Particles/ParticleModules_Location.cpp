@@ -3016,7 +3016,7 @@ bool UParticleModuleLocationSkelVertSurface::VertInfluencedByActiveBone(FParticl
 			}
 		}
 
-		return LODData.SkinWeightVertexBuffer.HasExtraBoneInfluences()
+		return LODData.GetSkinWeightVertexBuffer()->HasExtraBoneInfluences()
 			? VertInfluencedByActiveBoneTyped<true>(LODData, 0, Section, VertIndex, InSkelMeshComponent, InstancePayload, OutBoneIndex)
 			: VertInfluencedByActiveBoneTyped<false>(LODData, 0, Section, VertIndex, InSkelMeshComponent, InstancePayload, OutBoneIndex);
 	}

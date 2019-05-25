@@ -30,10 +30,11 @@ class SSequencerTrackOutliner;
 class SSequencerTransformBox;
 class SSequencerStretchBox;
 class SSequencerTreeView;
+class SCurveEditorPanel;
+class SDockTab;
 class USequencerSettings;
 class FSequencerTrackFilter;
 struct FPaintPlaybackRangeArgs;
-struct FSectionHandle;
 
 namespace SequencerLayoutConstants
 {
@@ -240,7 +241,7 @@ public:
 	void OnSaveMovieSceneAsClicked();
 
 	/** Called when the curve editor is shown or hidden */
-	void OnCurveEditorVisibilityChanged();
+	void OnCurveEditorVisibilityChanged(bool bShouldBeVisible);
 
 	/** Access the tree view for this sequencer */
 	TSharedPtr<SSequencerTreeView> GetTreeView() const;
@@ -250,9 +251,6 @@ public:
 
 	/** Access this widget's track area widget */
 	TSharedPtr<SSequencerTrackArea> GetTrackAreaWidget() const { return TrackArea; }
-
-	/** Get an array of section handles for the given set of movie scene sections */
-	TArray<FSectionHandle> GetSectionHandles(const TSet<TWeakObjectPtr<UMovieSceneSection>>& DesiredSections) const;
 
 	/** @return a numeric type interface that will parse and display numbers as frames and times correctly */
 	TSharedRef<INumericTypeInterface<double>> GetNumericTypeInterface() const;
@@ -354,7 +352,6 @@ public:
 	void FillTimeDisplayFormatMenu(FMenuBuilder& MenuBuilder);
 
 public:	
-
 	/** Makes a time range widget with the specified inner content */
 	TSharedRef<SWidget> MakeTimeRange(const TSharedRef<SWidget>& InnerContent, bool bShowWorkingRange, bool bShowViewRange, bool bShowPlaybackRange);
 
@@ -404,15 +401,6 @@ private:
 		return ColumnFillCoefficients[ColumnIndex];
 	}
 
-	/** Get the amount of space that the outliner spacer should fill */
-	float GetOutlinerSpacerFill() const;
-
-	/** Get the visibility of the curve area */
-	EVisibility GetCurveEditorVisibility() const;
-
-	/** Get the visibility of the track area */
-	EVisibility GetTrackAreaVisibility() const;
-
 	/**
 	 * Called when one or more assets are dropped into the widget
 	 *
@@ -446,8 +434,7 @@ private:
 	/** Gets whether or not the breadcrumb trail should be visible. */
 	EVisibility GetBreadcrumbTrailVisibility() const;
 
-	/** Gets whether or not the curve editor toolbar should be visible. */
-	EVisibility GetCurveEditorToolBarVisibility() const;
+
 
 	/** Gets whether or not the bottom time slider should be visible. */
 	EVisibility GetBottomTimeSliderVisibility() const;
@@ -478,6 +465,8 @@ private:
 	bool GetIsSequenceReadOnly() const;
 	void OnSetSequenceReadOnly(ECheckBoxState CheckBoxState);
 
+	/** Returns whether or not the Curve Editor is enabled. Allows us to bind to the Slate Enabled attribute. */
+	bool GetIsCurveEditorEnabled() const { return !GetIsSequenceReadOnly(); }
 public:
 	/** On Paste Command */
 	void OnPaste();
@@ -534,6 +523,9 @@ private:
 
 	/** The top time slider widget */
 	TSharedPtr<ITimeSlider> TopTimeSlider;
+
+	/** The curve editor panel. This is created and updated even if it is not currently visible. */
+	TSharedPtr<SWidget> CurveEditorPanel;
 
 	/** Cached settings provided to the sequencer itself on creation */
 	USequencerSettings* Settings;
@@ -600,4 +592,8 @@ private:
 
 	/** All possible track filter objects */
 	TArray< TSharedRef<FSequencerTrackFilter> > AllTrackFilters;
+
+public:
+	static const FName CurveEditorTabName;
+
 };

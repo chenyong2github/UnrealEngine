@@ -5,10 +5,11 @@
 #include "LC_CodeCave.h"
 
 
-LiveProcess::LiveProcess(process::Handle processHandle, unsigned int processId, unsigned int commandThreadId, const DuplexPipe* pipe)
+LiveProcess::LiveProcess(process::Handle processHandle, unsigned int processId, unsigned int commandThreadId, const void* jumpToSelf, const DuplexPipe* pipe)
 	: m_processHandle(processHandle)
 	, m_processId(processId)
 	, m_commandThreadId(commandThreadId)
+	, m_jumpToSelf(jumpToSelf)
 	, m_pipe(pipe)
 	, m_imagesTriedToLoad()
 	, m_heartBeatDelta(0ull)
@@ -41,7 +42,7 @@ bool LiveProcess::MadeProgress(void) const
 
 void LiveProcess::InstallCodeCave(void)
 {
-	m_codeCave = new CodeCave(m_processHandle, m_processId, m_commandThreadId);
+	m_codeCave = new CodeCave(m_processHandle, m_processId, m_commandThreadId, m_jumpToSelf);
 	m_codeCave->Install();
 }
 

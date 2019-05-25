@@ -73,6 +73,15 @@ public:
 	virtual bool Private_IsItemSelected( const ItemType& TheItem ) const = 0;
 
 	/**
+	* Test if the current item should be highlighted. This is separate from hover highlights.
+	*
+	* @param TheItem The item to test.
+	*
+	* @return true if the item is marked as highlighted in this list; false otherwise.
+	*/
+	virtual bool Private_IsItemHighlighted(const ItemType& TheItem) const = 0;
+	
+	/**
 	 * Set the selection state of an item. Does not cause an OnSelectionChanged()!
 	 *
 	 * @param InItem			The Item whose selection state to modify
@@ -143,6 +152,19 @@ public:
 	
 	/** @return the number of items that are selected */
 	virtual int32 Private_GetNumSelectedItems() const = 0;
+
+	/**
+	* Enable a soft highlight on the element. This is useful for explaining parent/child relationships without actually modifying selection. Unrelated to any hover highlights.
+	*
+	* @param TheItem         		The item whose highlighted state to change.
+	* @param bShouldBeHighlighted   Enables a highlight on this item if true, otherwise disables the highlight.
+	*/
+	virtual void Private_SetItemHighlighted(ItemType TheItem, bool bShouldBeHighlighted) = 0;
+
+	/**
+	* Empty the set of highlighted items.
+	*/
+	virtual void Private_ClearHighlightedItems() = 0;
 
 	/**
 	 * @param ItemIndexInList  The index of the data item in the linearized array.

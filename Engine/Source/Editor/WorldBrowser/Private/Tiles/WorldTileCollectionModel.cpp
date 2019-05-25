@@ -1471,10 +1471,9 @@ void FWorldTileCollectionModel::AddLandscapeProxy_Executed(FWorldTileModel::EWor
 		Levels.Add(NewLevelModel);
 
 		ALandscapeProxy* SourceLandscape = LandscapeTileModel->GetLandscape();
-		FIntVector SourceTileOffset = LandscapeTileModel->GetAbsoluteLevelPosition();
-
+	
 		NewLevelModel->SetVisible(false);
-		NewLevelModel->CreateAdjacentLandscapeProxy(SourceLandscape, SourceTileOffset, InWhere);
+		NewLevelModel->CreateAdjacentLandscapeProxy(SourceLandscape, InWhere);
 		ShowLevels(Levels);
 	}
 }
@@ -1630,6 +1629,7 @@ void FWorldTileCollectionModel::ImportTiledLandscape_Executed()
 			SetupLandscapeImportLayers(ImportSettings, GetWorld()->GetOutermost()->GetName(), INDEX_NONE, ImportLayers);
 
 			// Set landscape configuration
+			Landscape->bCanHaveLayersContent = false; 
 			Landscape->LandscapeMaterial	= ImportSettings.LandscapeMaterial.Get();
 			Landscape->ComponentSizeQuads	= ImportSettings.QuadsPerSection*ImportSettings.SectionsPerComponent;
 			Landscape->NumSubsections		= ImportSettings.SectionsPerComponent;

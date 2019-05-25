@@ -31,7 +31,7 @@ struct ENGINE_API FAudioPlatformSettings
 		: SampleRate(48000)
 		, CallbackBufferFrameSize(1024)
 		, NumBuffers(2)
-		, MaxChannels(0)
+		, MaxChannels(32)
 		, NumSourceWorkers(0)
 	{
 	}
@@ -63,7 +63,7 @@ enum class EMonoChannelUpmixMethod : int8
 {
 	// The mono channel is split 0.5 left/right
 	Linear,
-	
+
 	// The mono channel is split 0.707 left/right
 	EqualPower,
 
@@ -118,7 +118,7 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	/** The SoundMix to use as base when no other system has speciicefied a Base SoundMix */
 	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="SoundMix"))
 	FSoftObjectPath DefaultBaseSoundMix;
-	
+
 	/** Sound class to be used for the VOIP audio component */
 	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="SoundClass", DisplayName = "VOIP Sound Class"))
 	FSoftObjectPath VoiPSoundClass;
@@ -166,13 +166,9 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = "Quality", AdvancedDisplay)
 	uint32 bAllowCenterChannel3DPanning : 1;
 
-	/** The max number of active sounds allowed. Used to cull numbers of active sounds, which reduces CPU cost of audio thread. */
-	UPROPERTY(config, EditAnywhere, Category = "Quality", AdvancedDisplay)
-	uint32 MaxWaveInstances;
-
-	/** 
+	/**
 	 * The max number of sources to reserve for "stopping" sounds. A "stopping" sound applies a fast fade in the DSP
-	 * render to prevent discontinuities when stopping sources.  
+	 * render to prevent discontinuities when stopping sources.
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Quality", AdvancedDisplay)
 	uint32 NumStoppingSources;
@@ -203,7 +199,7 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 
 	const FAudioQualitySettings& GetQualityLevelSettings(int32 QualityLevel) const;
 
-	// Sets whether audio mixer is enabled. Set once an audio mixer platform modu le is loaded.
+	// Sets whether audio mixer is enabled. Set once an audio mixer platform module is loaded.
 	void SetAudioMixerEnabled(const bool bInAudioMixerEnabled);
 
 	// Returns if the audio mixer is currently enabled

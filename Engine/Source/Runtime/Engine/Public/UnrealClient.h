@@ -196,6 +196,9 @@ private:
 	static TArray<FColor> HighresScreenshotMaskColorArray;
 };
 
+// @param bAutoType true: automatically choose GB/MB/KB/... false: always use MB for easier comparisons
+ENGINE_API FString GetMemoryString( const double Value, const bool bAutoType = true );
+
 /** Data needed to display perframe stat tracking when STAT UNIT is enabled */
 struct FStatUnitData
 {

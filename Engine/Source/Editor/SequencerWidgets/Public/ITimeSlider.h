@@ -179,11 +179,51 @@ struct FTimeSliderArgs
 	TSharedPtr<INumericTypeInterface<double>> NumericTypeInterface;
 };
 
+struct FPaintPlaybackRangeArgs
+{
+	FPaintPlaybackRangeArgs()
+		: StartBrush(nullptr), EndBrush(nullptr), BrushWidth(0.f), SolidFillOpacity(0.f)
+	{}
+
+	FPaintPlaybackRangeArgs(const FSlateBrush* InStartBrush, const FSlateBrush* InEndBrush, float InBrushWidth)
+		: StartBrush(InStartBrush), EndBrush(InEndBrush), BrushWidth(InBrushWidth)
+	{}
+	/** Brush to use for the start bound */
+	const FSlateBrush* StartBrush;
+	/** Brush to use for the end bound */
+	const FSlateBrush* EndBrush;
+	/** The width of the above brushes, in slate units */
+	float BrushWidth;
+	/** level of opacity for the fill color between the range markers */
+	float SolidFillOpacity;
+};
+
+struct FPaintViewAreaArgs
+{
+	FPaintViewAreaArgs()
+		: bDisplayTickLines(false), bDisplayScrubPosition(false), bDisplayMarkedFrames(false)
+	{}
+
+	/** Whether to display tick lines */
+	bool bDisplayTickLines;
+	/** Whether to display the scrub position */
+	bool bDisplayScrubPosition;
+	/** Whether to display the marked frames */
+	bool bDisplayMarkedFrames;
+	/** Optional Paint args for the playback range*/
+	TOptional<FPaintPlaybackRangeArgs> PlaybackRangeArgs;
+};
+
+
 class ITimeSliderController : public ISequencerInputHandler
 {
 public:
 	virtual ~ITimeSliderController(){}
+
 	virtual int32 OnPaintTimeSlider( bool bMirrorLabels, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const = 0;
+
+	virtual int32 OnPaintViewArea( const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, bool bEnabled, const FPaintViewAreaArgs& Args ) const = 0;
+
 	virtual FCursorReply OnCursorQuery( TSharedRef<const SWidget> WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const = 0;
 
 	/** Get the current play rate for this controller */
@@ -200,6 +240,12 @@ public:
 
 	/** Get the current play range for this controller */
 	virtual TRange<FFrameNumber> GetPlayRange() const { return TRange<FFrameNumber>(); }
+
+	/** Get the current time for the Scrub handle which indicates what range is being evaluated. */
+	virtual FFrameTime GetScrubPosition() const { return FFrameTime(); }
+
+	/** Set the current time for the Scrub handle which indicates what range is being evaluated. */
+	virtual void SetScrubPosition(FFrameTime InTime) {}
 
 	/**
 	 * Set a new range based on a min, max and an interpolation mode

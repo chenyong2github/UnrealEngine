@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayNodes/SequencerTrackNode.h"
+#include "Algo/Copy.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -23,8 +24,11 @@
 #include "SequencerNodeSortingMethods.h"
 #include "SequencerNodeTree.h"
 #include "DisplayNodes/SequencerFolderNode.h"
+#include "SequencerSectionLayoutBuilder.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
+#include "Tracks/MovieSceneCinematicShotTrack.h"
+#include "Tracks/MovieSceneCameraCutTrack.h"
 #include "MovieSceneFolder.h"
 #include "Tracks/MovieScenePropertyTrack.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
@@ -50,35 +54,203 @@ bool ContainsKeyableArea(TSharedRef<FSequencerSectionKeyAreaNode> InKeyAreaNode)
 	return false;
 }
 
-/* FTrackNode structors
- *****************************************************************************/
-
-FSequencerTrackNode::FSequencerTrackNode(UMovieSceneTrack& InAssociatedTrack, ISequencerTrackEditor& InAssociatedEditor, bool bInCanBeDragged, TSharedPtr<FSequencerDisplayNode> InParentNode, FSequencerNodeTree& InParentTree)
-	: FSequencerDisplayNode(InAssociatedTrack.GetFName(), InParentNode, InParentTree)
+FSequencerTrackNode::FSequencerTrackNode(UMovieSceneTrack* InAssociatedTrack, ISequencerTrackEditor& InAssociatedEditor, bool bInCanBeDragged, FSequencerNodeTree& InParentTree)
+	: FSequencerDisplayNode(InAssociatedTrack->GetFName(), InParentTree)
 	, AssociatedEditor(InAssociatedEditor)
-	, AssociatedTrack(&InAssociatedTrack)
+	, AssociatedTrack(InAssociatedTrack)
 	, bCanBeDragged(bInCanBeDragged)
 	, SubTrackMode(ESubTrackMode::None)
-{ }
-
-
-/* FTrackNode interface
- *****************************************************************************/
-
-void FSequencerTrackNode::SetSectionAsKeyArea(TSharedRef<IKeyArea>& KeyArea)
 {
-	if( !TopLevelKeyNode.IsValid() )
+	if (Cast<UMovieSceneCinematicShotTrack>(InAssociatedTrack))
 	{
-		bool bTopLevel = true;
-		TopLevelKeyNode = MakeShareable( new FSequencerSectionKeyAreaNode( GetNodeName(), FText::GetEmpty(), SharedThis(this), ParentTree, bTopLevel ) );
+		SortType = EDisplayNodeSortType::Shots;
 	}
-
-	TopLevelKeyNode->AddKeyArea( KeyArea );
+	else if (Cast<UMovieSceneCameraCutTrack>(InAssociatedTrack))
+	{
+		SortType = EDisplayNodeSortType::CameraCuts;
+	}
+	else
+	{
+		SortType = EDisplayNodeSortType::Tracks;
+	}
 }
 
-void FSequencerTrackNode::AddKey(const FGuid& ObjectGuid)
+void FSequencerTrackNode::UpdateInnerHierarchy()
 {
-	AssociatedEditor.AddKey(ObjectGuid);
+	UMovieSceneTrack* Track = GetTrack();
+	if (!Track)
+	{
+		ClearChildren();
+		Sections.Empty();
+		return;
+	}
+
+	const int32 MaxRowIndex = Track->GetMaxRowIndex();
+	if (MaxRowIndex == 0)
+	{
+		// Single row, perhaps with a top level key area
+		if (SubTrackMode != ESubTrackMode::None)
+		{
+			RequestReinitialize();
+			SubTrackMode = ESubTrackMode::None;
+			ClearChildren();
+		}
+
+		UpdateSections();
+	}
+	else
+	{
+		if (SubTrackMode != ESubTrackMode::ParentTrack)
+		{
+			// Change of type, so clear everything
+			TopLevelKeyNode = nullptr;
+			Sections.Empty();
+			ClearChildren();
+			SubTrackMode = ESubTrackMode::ParentTrack;
+			RequestReinitialize();
+		}
+
+		// Set bits for any row index that has a section on it. We then unset bits for existing tracks with that row index
+		TBitArray<> RowsWithSections;
+		RowsWithSections.Add(false, MaxRowIndex+1);
+		for (UMovieSceneSection* Section : Track->GetAllSections())
+		{
+			RowsWithSections[Section->GetRowIndex()] = true;
+		}
+
+		// Ensure we have one sub track node for each row index with at least one section on it
+		TArray<TSharedRef<FSequencerTrackNode>, TInlineAllocator<8>> SubTracks;
+
+		for (int32 Index = ChildNodes.Num()-1; Index >= 0; --Index)
+		{
+			TSharedRef<FSequencerDisplayNode> Child = ChildNodes[Index];
+			if (Child->GetType() == ESequencerNode::Track)
+			{
+				TSharedRef<FSequencerTrackNode> SubTrack = StaticCastSharedRef<FSequencerTrackNode>(Child);
+				ensure(SubTrack->GetSubTrackMode() == ESubTrackMode::SubTrack);
+
+				const int32 ThisTrackRow = SubTrack->GetRowIndex();
+				const bool bIsRelevant = RowsWithSections.IsValidIndex(ThisTrackRow) && RowsWithSections[ThisTrackRow] == true;
+
+				if (bIsRelevant)
+				{
+					// Keep this track
+					SubTrack->TreeSerialNumber = TreeSerialNumber;
+					SubTrack->UpdateSections();
+
+					// Unset the bit to indicate that we now have a track for this row
+					RowsWithSections[ThisTrackRow] = false;
+				}
+				else
+				{
+					// Remove this track node since it is no longer relevant
+					// Use SetParentDirectly to ensure that we do not modify ChildNodes while iterating
+					Child->SetParentDirectly(nullptr);
+					ChildNodes.RemoveAt(Index, 1, false);
+				}
+			}
+		}
+
+		bool bRequiresSort = false;
+
+		// Add new sub tracks for any remaining relevant tracks
+		for (TConstSetBitIterator<> It(RowsWithSections); It; ++It)
+		{
+			TSharedRef<FSequencerTrackNode> NewSubTrack = MakeShared<FSequencerTrackNode>(Track, AssociatedEditor, false, GetParentTree());
+			NewSubTrack->SetSubTrackMode(ESubTrackMode::SubTrack);
+			NewSubTrack->SetRowIndex(It.GetIndex());
+			// SetParent adds the track to our ChildNodes
+			NewSubTrack->SetParent(AsShared());
+
+			NewSubTrack->SetExpansionState(IsExpanded());
+
+			NewSubTrack->TreeSerialNumber = TreeSerialNumber;
+			NewSubTrack->UpdateSections();
+
+			bRequiresSort = true;
+		}
+
+		if (bRequiresSort)
+		{
+			auto SortByRowIndex = [](TSharedRef<FSequencerDisplayNode> A, TSharedRef<FSequencerDisplayNode> B)
+			{
+				const bool bBothTracks = (A->GetType() == ESequencerNode::Track) && (B->GetType() == ESequencerNode::Track);
+				return bBothTracks && StaticCastSharedRef<FSequencerTrackNode>(A)->GetRowIndex() < StaticCastSharedRef<FSequencerTrackNode>(B)->GetRowIndex();
+			};
+
+			Algo::Sort(ChildNodes, SortByRowIndex);
+		}
+	}
+}
+
+void FSequencerTrackNode::UpdateSections()
+{
+	UMovieSceneTrack* Track = AssociatedTrack.Get();
+	if (!Track)
+	{
+		Sections.Empty();
+		TreeSerialNumber = 0;
+		ClearChildren();
+		return;
+	}
+
+	FGuid ObjectBinding;
+	if (TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = FindParentObjectBindingNode())
+	{
+		ObjectBinding = ObjectBindingNode->GetObjectBinding();
+	}
+
+	TArray<UMovieSceneSection*, TInlineAllocator<4>> CurrentSections;
+
+	// ParentTracks never contain sections
+	if (SubTrackMode == ESubTrackMode::SubTrack)
+	{
+		Algo::CopyIf(Track->GetAllSections(), CurrentSections, [this](UMovieSceneSection* In) { return In->GetRowIndex() == this->RowIndex; });
+	}
+	else if (SubTrackMode == ESubTrackMode::None)
+	{
+		CurrentSections = Track->GetAllSections();
+	}
+
+	if (Sections.Num() != CurrentSections.Num())
+	{
+		Sections.Empty();
+	}
+
+	for (int32 Index = 0; Index < CurrentSections.Num(); ++Index)
+	{
+		UMovieSceneSection* ThisSection     = CurrentSections[Index];
+		UMovieSceneSection* ExistingSection = Index < Sections.Num() ? Sections[Index]->GetSectionObject() : nullptr;
+
+		// Add a new section interface if there isn't one, or it doesn't correspond to the same section
+		if ( !ExistingSection || ExistingSection != ThisSection )
+		{
+			TSharedRef<ISequencerSection> SectionInterface = AssociatedEditor.MakeSectionInterface(*ThisSection, *Track, ObjectBinding);
+			Sections.Insert(SectionInterface, Index);
+		}
+
+		// Ask the section to generate its inner layout
+		FSequencerSectionLayoutBuilder LayoutBuilder(SharedThis(this), ThisSection);
+		Sections[Index]->GenerateSectionLayout(LayoutBuilder);
+	}
+
+	// Crop the section array at the new length
+	const int32 NumToRemove = Sections.Num() - CurrentSections.Num();
+	if (NumToRemove > 0)
+	{
+		Sections.RemoveAt(Sections.Num()-1-NumToRemove, NumToRemove, true);
+	}
+}
+
+void FSequencerTrackNode::ClearChildren()
+{
+	TArray<TSharedRef<FSequencerDisplayNode>> OldChildren;
+	Swap(ChildNodes, OldChildren);
+
+	for (TSharedRef<FSequencerDisplayNode> Child : OldChildren)
+	{
+		Child->SetParent(nullptr);
+	}
 }
 
 FSequencerTrackNode::ESubTrackMode FSequencerTrackNode::GetSubTrackMode() const
@@ -93,6 +265,7 @@ void FSequencerTrackNode::SetSubTrackMode(FSequencerTrackNode::ESubTrackMode InS
 
 int32 FSequencerTrackNode::GetRowIndex() const
 {
+	check(SubTrackMode == ESubTrackMode::SubTrack);
 	return RowIndex;
 }
 
@@ -704,4 +877,15 @@ void FSequencerTrackNode::ModifyAndSetSortingOrder(const int32 InSortingOrder)
 		SetSortingOrder(InSortingOrder);
 	}
 }
+
+void FSequencerTrackNode::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels)
+{
+	TSharedPtr<FSequencerSectionKeyAreaNode> KeyAreaNode = GetTopLevelKeyNode();
+	if (KeyAreaNode.IsValid())
+	{
+		KeyAreaNode->CreateCurveModels(OutCurveModels);
+	}
+}
+
+
 #undef LOCTEXT_NAMESPACE

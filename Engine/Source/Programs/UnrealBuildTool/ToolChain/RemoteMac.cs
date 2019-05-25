@@ -640,7 +640,7 @@ namespace UnrealBuildTool
 		/// <param name="Platform">The target platform</param>
 		/// <param name="InputDir">Input directory containing assets</param>
 		/// <param name="OutputFile">Path to the Assets.car file to produce</param>
-		public void RunAssetCatalogTool(CppPlatform Platform, DirectoryReference InputDir, FileReference OutputFile)
+		public void RunAssetCatalogTool(UnrealTargetPlatform Platform, DirectoryReference InputDir, FileReference OutputFile)
 		{
 			Log.TraceInformation("Running asset catalog tool for {0}: {1} -> {2}", Platform, InputDir, OutputFile);
 
@@ -909,6 +909,11 @@ namespace UnrealBuildTool
 				Log.TraceInformation("[Remote] Uploading project files...");
 				UploadDirectory(ProjectDir, GetRemotePath(ProjectDir), ProjectFilters);
 			}
+
+			Execute("/", String.Format("rm -rf {0}/Intermediate/IOS/*.plist", GetRemotePath(UnrealBuildTool.EngineDirectory)));
+			Execute("/", String.Format("rm -rf {0}/Intermediate/IOS/*.plist", GetRemotePath(ProjectFile.Directory)));
+			Execute("/", String.Format("rm -rf {0}/Intermediate/TVOS/*.plist", GetRemotePath(UnrealBuildTool.EngineDirectory)));
+			Execute("/", String.Format("rm -rf {0}/Intermediate/TVOS/*.plist", GetRemotePath(ProjectFile.Directory)));
 
 			// Fixup permissions on any shell scripts
 			Execute(RemoteBaseDir, String.Format("chmod +x {0}/Build/BatchFiles/Mac/*.sh", EscapeShellArgument(GetRemotePath(UnrealBuildTool.EngineDirectory))));

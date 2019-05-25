@@ -324,12 +324,19 @@ namespace Audio
 
 	FName FMixerPlatformSDL::GetRuntimeFormat(USoundWave* InSoundWave)
 	{
+		static FName NAME_OGG(TEXT("OGG"));
+		static FName NAME_OPUS(TEXT("OPUS"));
+		static FName NAME_ADPCM(TEXT("ADPCM"));
+
 		if (InSoundWave->IsStreaming())
 		{
-			return FName(TEXT("OPUS"));
-		}
+			if (InSoundWave->IsSeekableStreaming())
+			{
+				return NAME_ADPCM;
+			}
 
-		static FName NAME_OGG(TEXT("OGG"));
+			return NAME_OPUS;
+		}
 		return NAME_OGG;
 	}
 
@@ -344,6 +351,11 @@ namespace Audio
 
 		if (InSoundWave->IsStreaming())
 		{
+			if (InSoundWave->IsSeekableStreaming())
+			{
+				return new FADPCMAudioInfo();
+			}
+
 			return new FOpusAudioInfo();
 		}
 
@@ -388,12 +400,7 @@ namespace Audio
 		return FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/LinuxTargetPlatform.LinuxTargetSettings"));
 #else
 		// On HTML5 and Windows, use default parameters.
-		FAudioPlatformSettings Settings;
-		Settings.SampleRate = 48000;
-		Settings.MaxChannels = 0;
-		Settings.NumBuffers = 2;
-		Settings.CallbackBufferFrameSize = 1024;
-		return Settings;
+		return FAudioPlatformSettings();
 #endif
 	}
 }

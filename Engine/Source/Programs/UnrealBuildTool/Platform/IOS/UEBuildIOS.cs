@@ -15,7 +15,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// IOS-specific target settings
 	/// </summary>
-	public class IOSTargetRules
+	public partial class IOSTargetRules
 	{
 		/// <summary>
 		/// Whether to strip iOS symbols or not (implied by Shipping config)
@@ -75,7 +75,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Read-only wrapper for IOS-specific target settings
 	/// </summary>
-	public class ReadOnlyIOSTargetRules
+	public partial class ReadOnlyIOSTargetRules
 	{
 		/// <summary>
 		/// The private mutable settings object
@@ -680,12 +680,12 @@ namespace UnrealBuildTool
 		public static string IOSArchitecture = "";
 
 		public IOSPlatform(IOSPlatformSDK InSDK)
-			: this(InSDK, UnrealTargetPlatform.IOS, CppPlatform.IOS)
+			: this(InSDK, UnrealTargetPlatform.IOS)
 		{
 		}
 
-		protected IOSPlatform(IOSPlatformSDK InSDK, UnrealTargetPlatform TargetPlatform, CppPlatform CPPPlatform)
-			: base(TargetPlatform, CPPPlatform)
+		protected IOSPlatform(IOSPlatformSDK InSDK, UnrealTargetPlatform TargetPlatform)
+			: base(TargetPlatform)
 		{
 			SDK = InSDK;
 		}
@@ -1100,10 +1100,9 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Creates a toolchain instance for the given platform.
 		/// </summary>
-		/// <param name="CppPlatform">The platform to create a toolchain for</param>
 		/// <param name="Target">The target being built</param>
 		/// <returns>New toolchain instance.</returns>
-		public override UEToolChain CreateToolChain(CppPlatform CppPlatform, ReadOnlyTargetRules Target)
+		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
 			IOSProjectSettings ProjectSettings = ReadProjectSettings(Target.ProjectFile);
 			return new IOSToolChain(Target, ProjectSettings);

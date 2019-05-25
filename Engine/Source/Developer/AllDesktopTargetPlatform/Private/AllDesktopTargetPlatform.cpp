@@ -11,7 +11,7 @@
 #endif
 
 
- 
+
 
 /* FAllDesktopTargetPlatform structors
  *****************************************************************************/
@@ -45,9 +45,9 @@ void FAllDesktopTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutF
 	static FName NAME_PCD3D_SM4(TEXT("PCD3D_SM4"));
 	static FName NAME_GLSL_150(TEXT("GLSL_150"));
 	static FName NAME_GLSL_430(TEXT("GLSL_430"));
-	
+
 #if PLATFORM_WINDOWS
-	// right now, only windows can properly compile D3D shaders (this won't corrupt the DDC, but it will 
+	// right now, only windows can properly compile D3D shaders (this won't corrupt the DDC, but it will
 	// make it so that packages cooked on Mac/Linux will only run on Windows with -opengl)
 	OutFormats.AddUnique(NAME_PCD3D_SM5);
 	OutFormats.AddUnique(NAME_PCD3D_SM4);
@@ -78,24 +78,33 @@ FName FAllDesktopTargetPlatform::GetWaveFormat( const class USoundWave* Wave ) c
 {
 	static FName NAME_OGG(TEXT("OGG"));
 	static FName NAME_OPUS(TEXT("OPUS"));
-	
-	if (Wave->IsStreaming())
+	static FName NAME_ADPCM(TEXT("ADPCM"));
+
+	// Seekable streams need to pick a codec which allows fixed-sized frames so we can compute stream chunk index to load
+	if (Wave->IsSeekableStreaming())
 	{
-		// @todo desktop platform: Does Linux support OPUS?
-		return NAME_OPUS;
+		return NAME_ADPCM;
 	}
-	
+	else if (Wave->IsStreaming())
+	{
+#if !USE_VORBIS_FOR_STREAMING
+		return NAME_OPUS;
+#endif
+	}
+
 	return NAME_OGG;
 }
 
 
 void FAllDesktopTargetPlatform::GetAllWaveFormats(TArray<FName>& OutFormats) const
 {
+	static FName NAME_ADPCM(TEXT("ADPCM"));
 	static FName NAME_OGG(TEXT("OGG"));
 	static FName NAME_OPUS(TEXT("OPUS"));
+
+	OutFormats.Add(NAME_ADPCM);
 	OutFormats.Add(NAME_OGG);
 	OutFormats.Add(NAME_OPUS);
-
 }
 
 #endif // WITH_ENGINE

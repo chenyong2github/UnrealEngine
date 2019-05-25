@@ -486,13 +486,17 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprint(UClass* ParentClass, UObject
 	if (UAnimBlueprint* AnimBP = Cast<UAnimBlueprint>(NewBP))
 	{
 		UAnimBlueprint* RootAnimBP = UAnimBlueprint::FindRootAnimBlueprint(AnimBP);
-		if (RootAnimBP == NULL)
+		if (RootAnimBP == nullptr)
 		{
-			// Only allow an anim graph if there isn't one in a parent blueprint
-			UEdGraph* NewGraph = FBlueprintEditorUtils::CreateNewGraph(AnimBP, UEdGraphSchema_K2::GN_AnimGraph, UAnimationGraph::StaticClass(), UAnimationGraphSchema::StaticClass());
-			FBlueprintEditorUtils::AddDomainSpecificGraph(NewBP, NewGraph);
-			NewBP->LastEditedDocuments.Add(NewGraph);
-			NewGraph->bAllowDeletion = false;
+			// Interfaces dont have default graphs, only 'function' anim graphs
+			if(AnimBP->BlueprintType != BPTYPE_Interface)
+			{
+				// Only allow an anim graph if there isn't one in a parent blueprint
+				UEdGraph* NewGraph = FBlueprintEditorUtils::CreateNewGraph(AnimBP, UEdGraphSchema_K2::GN_AnimGraph, UAnimationGraph::StaticClass(), UAnimationGraphSchema::StaticClass());
+				FBlueprintEditorUtils::AddDomainSpecificGraph(NewBP, NewGraph);
+				NewBP->LastEditedDocuments.Add(NewGraph);
+				NewGraph->bAllowDeletion = false;
+			}
 		}
 		else
 		{
@@ -1114,6 +1118,12 @@ static void ConformComponentsUtils::ConformRemovedNativeComponents(UObject* BpCd
 		// else, the component has been removed from our native super class
 
 		Component->DestroyComponent(/*bPromoteChildren =*/false);
+		if (Component->HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading))
+		{
+			// Async loading components cannot be pending kill, or the async loading code will assert when trying to postload them.
+			Component->ClearPendingKill();
+			FLinkerLoad::InvalidateExport(Component);
+		}
 		DestroyedComponents.Add(Component);
 
 		// The DestroyComponent() call above will clear the RootComponent value in this case.

@@ -473,6 +473,7 @@ public:
 	virtual UClass* GetClassMetaData(const FName& Key) const override;
 	virtual void SetInstanceMetaData(const FName& Key, const FString& Value) override;
 	virtual const FString* GetInstanceMetaData(const FName& Key) const override;
+	virtual const TMap<FName, FString>* GetInstanceMetaDataMap() const override;	
 	virtual FText GetToolTipText() const override;
 	virtual void SetToolTipText(const FText& ToolTip) override;
 	virtual bool HasDocumentation() override { return false; }

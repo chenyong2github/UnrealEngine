@@ -366,7 +366,9 @@ struct FBroadphaseSettings
 	FBroadphaseSettings()
 		: bUseMBPOnClient(false)
 		, bUseMBPOnServer(false)
+		, bUseMBPOuterBounds(false)
 		, MBPBounds(EForceInit::ForceInitToZero)
+		, MBPOuterBounds(EForceInit::ForceInitToZero)
 		, MBPNumSubdivs(2)
 	{
 
@@ -379,9 +381,17 @@ struct FBroadphaseSettings
 	UPROPERTY(EditAnywhere, Category = Broadphase)
 	bool bUseMBPOnServer;
 
+	/** Whether to have MBP grid over concentrated inner bounds with loose outer bounds */
+	UPROPERTY(EditAnywhere, Category = Broadphase)
+	bool bUseMBPOuterBounds;
+
 	/** Total bounds for MBP, must cover the game world or collisions are disabled for out of bounds actors */
 	UPROPERTY(EditAnywhere, Category = Broadphase, meta = (EditCondition = bUseMBP))
 	FBox MBPBounds;
+
+	/** Total bounds for MBP, should cover absolute maximum bounds of the game world where physics is required */
+	UPROPERTY(EditAnywhere, Category = Broadphase, meta = (EditCondition = bUseMBP))
+	FBox MBPOuterBounds;
 
 	/** Number of times to subdivide the MBP bounds, final number of regions is MBPNumSubdivs^2 */
 	UPROPERTY(EditAnywhere, Category = Broadphase, meta = (EditCondition = bUseMBP, ClampMin=1, ClampMax=16))
@@ -453,7 +463,7 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World)
 	uint8 bEnableWorldComposition:1;
-
+		
 	/**
 	 * Enables client-side streaming volumes instead of server-side.
 	 * Expected usage scenario: server has all streaming levels always loaded, clients independently stream levels in/out based on streaming volumes.
@@ -704,7 +714,6 @@ public:
 	UPROPERTY()
 	TArray<UAssetUserData*> AssetUserData;
 
-private:
 	// If paused, PlayerState of person pausing the game.
 	UPROPERTY(transient, replicated)
 	class APlayerState* PauserPlayerState;

@@ -50,6 +50,9 @@ class MOVIESCENE_API UMovieSceneFolder : public UObject
 	/** Removes a guid for an object binding from this folder. */
 	void RemoveChildObjectBinding( const FGuid& InObjectBinding );
 
+	/** Called after this object has been deserialized */
+	virtual void PostLoad() override;
+
 	/** Searches for a guid in this folder and it's child folders, if found returns the folder containing the guid. */
 	UMovieSceneFolder* FindFolderContaining(const FGuid& InObjectBinding);
 

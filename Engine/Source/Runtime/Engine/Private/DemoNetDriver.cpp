@@ -821,6 +821,7 @@ void UDemoNetDriver::ResetDemoState()
 	bIsLoadingCheckpoint = false;
 	bIsWaitingForHeaderDownload = false;
 	bIsWaitingForStream = false;
+	bIsFinalizingFastForward = false;
 
 	ExternalDataToObjectMap.Empty();
 	PlaybackPackets.Empty();
@@ -2362,6 +2363,22 @@ void UDemoNetDriver::RequestEventDataForActiveReplay(const FString& EventID, con
 	if (ReplayStreamer.IsValid())
 	{
 		ReplayStreamer->RequestEventData(ActiveReplayName, EventID, UserIndex, Delegate);
+	}
+}
+
+void UDemoNetDriver::RequestEventGroupDataForActiveReplay(const FString& Group, const FRequestEventGroupDataCallback& Delegate)
+{
+	if (ReplayStreamer.IsValid())
+	{
+		ReplayStreamer->RequestEventGroupData(ActiveReplayName, Group, Delegate);
+	}
+}
+
+void UDemoNetDriver::RequestEventGroupDataForActiveReplay(const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate)
+{
+	if (ReplayStreamer.IsValid())
+	{
+		ReplayStreamer->RequestEventGroupData(ActiveReplayName, Group, UserIndex, Delegate);
 	}
 }
 
@@ -3928,6 +3945,8 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 void UDemoNetDriver::FinalizeFastForward(const double StartTime)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Demo_FinalizeFastForward"), Demo_FinalizeFastForward, STATGROUP_Net);
+
+	TGuardValue<bool> FinalizingFastForward(bIsFinalizingFastForward, true);
 
 	// This must be set before we CallRepNotifies or they might be skipped again
 	bIsFastForwarding = false;

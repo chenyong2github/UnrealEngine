@@ -118,10 +118,9 @@ struct PropertyMenuData
 
 
 
-FSequencerObjectBindingNode::FSequencerObjectBindingNode(FName NodeName, const FText& InDisplayName, const FGuid& InObjectBinding, TSharedPtr<FSequencerDisplayNode> InParentNode, FSequencerNodeTree& InParentTree)
-	: FSequencerDisplayNode(NodeName, InParentNode, InParentTree)
+FSequencerObjectBindingNode::FSequencerObjectBindingNode(FName NodeName, const FGuid& InObjectBinding, FSequencerNodeTree& InParentTree)
+	: FSequencerDisplayNode(NodeName, InParentTree)
 	, ObjectBinding(InObjectBinding)
-	, DefaultDisplayName(InDisplayName)
 {
 	UMovieScene* MovieScene = GetSequencer().GetFocusedMovieSceneSequence()->GetMovieScene();
 
@@ -137,11 +136,8 @@ FSequencerObjectBindingNode::FSequencerObjectBindingNode(FName NodeName, const F
 	{
 		BindingType = EObjectBindingType::Unknown;
 	}
-}
 
-void FSequencerObjectBindingNode::AddTrackNode( TSharedRef<FSequencerTrackNode> NewChild )
-{
-	AddChildAndSetParent( NewChild );
+	SortType = EDisplayNodeSortType::ObjectBindings;
 }
 
 /* FSequencerDisplayNode interface
@@ -453,7 +449,7 @@ FText FSequencerObjectBindingNode::GetDisplayName() const
 		return MovieScene->GetObjectDisplayName(ObjectBinding);
 	}
 
-	return DefaultDisplayName;
+	return FText();
 }
 
 FLinearColor FSequencerObjectBindingNode::GetDisplayNameColor() const

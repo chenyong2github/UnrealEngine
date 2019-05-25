@@ -335,7 +335,10 @@ namespace Sequencer
 		Section->SetRange(NewRange);
 	}
 
-
+	/**
+	 * Whether the specified channel handle supports curve models or not
+	 */
+	SEQUENCER_API bool SupportsCurveEditorModels(const FMovieSceneChannelHandle& ChannelHandle);
 
 	/**
 	 * Create a new model for the specified channel that can be used on the curve editor interface

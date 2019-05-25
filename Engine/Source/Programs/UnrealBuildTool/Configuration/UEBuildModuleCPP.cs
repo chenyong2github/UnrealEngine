@@ -168,33 +168,36 @@ namespace UnrealBuildTool
 		private void AddDefaultIncludePaths()
 		{
 			// Add the module's parent directory to the public include paths, so other modules may include headers from it explicitly.
-			PublicIncludePaths.Add(ModuleDirectory.ParentDirectory);
-
-			// Add the base directory to the legacy include paths.
-			LegacyPublicIncludePaths.Add(ModuleDirectory);
-
-			// Add the 'classes' directory, if it exists
-			DirectoryReference ClassesDirectory = DirectoryReference.Combine(ModuleDirectory, "Classes");
-			if (DirectoryLookupCache.DirectoryExists(ClassesDirectory))
+			foreach (DirectoryReference ModuleDir in ModuleDirectories)
 			{
-				PublicIncludePaths.Add(ClassesDirectory);
-			}
+				PublicIncludePaths.Add(ModuleDir.ParentDirectory);
 
-			// Add all the public directories
-			DirectoryReference PublicDirectory = DirectoryReference.Combine(ModuleDirectory, "Public");
-			if (DirectoryLookupCache.DirectoryExists(PublicDirectory))
-			{
-				PublicIncludePaths.Add(PublicDirectory);
+				// Add the base directory to the legacy include paths.
+				LegacyPublicIncludePaths.Add(ModuleDir);
 
-				ReadOnlyHashSet<string> ExcludeNames = UEBuildPlatform.GetBuildPlatform(Rules.Target.Platform).GetExcludedFolderNames();
-				EnumerateLegacyIncludePaths(DirectoryItem.GetItemByDirectoryReference(PublicDirectory), ExcludeNames, LegacyPublicIncludePaths);
-			}
+				// Add the 'classes' directory, if it exists
+				DirectoryReference ClassesDirectory = DirectoryReference.Combine(ModuleDir, "Classes");
+				if (DirectoryLookupCache.DirectoryExists(ClassesDirectory))
+				{
+					PublicIncludePaths.Add(ClassesDirectory);
+				}
 
-			// Add the base private directory for this module
-			DirectoryReference PrivateDirectory = DirectoryReference.Combine(ModuleDirectory, "Private");
-			if(DirectoryLookupCache.DirectoryExists(PrivateDirectory))
-			{
-				PrivateIncludePaths.Add(PrivateDirectory);
+				// Add all the public directories
+				DirectoryReference PublicDirectory = DirectoryReference.Combine(ModuleDir, "Public");
+				if (DirectoryLookupCache.DirectoryExists(PublicDirectory))
+				{
+					PublicIncludePaths.Add(PublicDirectory);
+
+					ReadOnlyHashSet<string> ExcludeNames = UEBuildPlatform.GetBuildPlatform(Rules.Target.Platform).GetExcludedFolderNames();
+					EnumerateLegacyIncludePaths(DirectoryItem.GetItemByDirectoryReference(PublicDirectory), ExcludeNames, LegacyPublicIncludePaths);
+				}
+
+				// Add the base private directory for this module
+				DirectoryReference PrivateDirectory = DirectoryReference.Combine(ModuleDir, "Private");
+				if (DirectoryLookupCache.DirectoryExists(PrivateDirectory))
+				{
+					PrivateIncludePaths.Add(PrivateDirectory);
+				}
 			}
 		}
 
@@ -249,7 +252,7 @@ namespace UnrealBuildTool
 		// UEBuildModule interface.
 		public override List<FileItem> Compile(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment BinaryCompileEnvironment, ISourceFileWorkingSet WorkingSet, TargetMakefile Makefile)
 		{
-			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatformForCPPTargetPlatform(BinaryCompileEnvironment.Platform);
+			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(BinaryCompileEnvironment.Platform);
 
 			List<FileItem> LinkInputFiles = new List<FileItem>();
 
@@ -412,11 +415,14 @@ namespace UnrealBuildTool
 			// Write all the definitions to a separate file
 			CreateHeaderForDefinitions(CompileEnvironment, IntermediateDirectory, null);
 
+			// Mapping of source file to unity file. We output this to intermediate directories for other tools (eg. live coding) to use.
+			Dictionary<FileItem, FileItem> SourceFileToUnityFile = new Dictionary<FileItem, FileItem>();
+
 			// Compile CPP files
 			List<FileItem> CPPFilesToCompile = InputFiles.CPPFiles;
 			if (bModuleUsesUnityBuild)
 			{
-				CPPFilesToCompile = Unity.GenerateUnityCPPs(Target, CPPFilesToCompile, CompileEnvironment, WorkingSet, Rules.ShortName ?? Name, IntermediateDirectory, Makefile);
+				CPPFilesToCompile = Unity.GenerateUnityCPPs(Target, CPPFilesToCompile, CompileEnvironment, WorkingSet, Rules.ShortName ?? Name, IntermediateDirectory, Makefile, SourceFileToUnityFile);
 				LinkInputFiles.AddRange(CompileUnityFilesWithToolChain(Target, ToolChain, CompileEnvironment, ModuleCompileEnvironment, CPPFilesToCompile, Makefile.Actions).ObjectFiles);
 			}
 			else
@@ -463,7 +469,7 @@ namespace UnrealBuildTool
 
 					if (bModuleUsesUnityBuild)
 					{
-						GeneratedFileItems = Unity.GenerateUnityCPPs(Target, GeneratedFileItems, GeneratedCPPCompileEnvironment, WorkingSet, (Rules.ShortName ?? Name) + ".gen", IntermediateDirectory, Makefile);
+						GeneratedFileItems = Unity.GenerateUnityCPPs(Target, GeneratedFileItems, GeneratedCPPCompileEnvironment, WorkingSet, (Rules.ShortName ?? Name) + ".gen", IntermediateDirectory, Makefile, SourceFileToUnityFile);
 						LinkInputFiles.AddRange(CompileUnityFilesWithToolChain(Target, ToolChain, GeneratedCPPCompileEnvironment, ModuleCompileEnvironment, GeneratedFileItems, Makefile.Actions).ObjectFiles);
 					}
 					else
@@ -513,6 +519,28 @@ namespace UnrealBuildTool
 				PrecompiledManifest Manifest = new PrecompiledManifest();
 				Manifest.OutputFiles.AddRange(LinkInputFiles.Select(x => x.Location));
 				Manifest.WriteIfModified(PrecompiledManifestLocation);
+			}
+
+			// Write a mapping of unity object file to standalone object file for live coding
+			if(Rules.Target.bWithLiveCoding)
+			{
+				FileReference UnityManifestFile = FileReference.Combine(IntermediateDirectory, "LiveCodingInfo.json");
+				using (JsonWriter Writer = new JsonWriter(UnityManifestFile))
+				{
+					Writer.WriteObjectStart();
+					Writer.WriteObjectStart("RemapUnityFiles");
+					foreach (IGrouping<FileItem, KeyValuePair<FileItem, FileItem>> UnityGroup in SourceFileToUnityFile.GroupBy(x => x.Value))
+					{
+						Writer.WriteArrayStart(UnityGroup.Key.Location.GetFileName() + ".obj");
+						foreach (FileItem SourceFile in UnityGroup.Select(x => x.Key))
+						{
+							Writer.WriteValue(SourceFile.Location.GetFileName() + ".obj");
+						}
+						Writer.WriteArrayEnd();
+					}
+					Writer.WriteObjectEnd();
+					Writer.WriteObjectEnd();
+				}
 			}
 
 			return LinkInputFiles;
@@ -805,6 +833,9 @@ namespace UnrealBuildTool
 
 		static CPPOutput CompileAdaptiveNonUnityFiles(UEToolChain ToolChain, CppCompileEnvironment CompileEnvironment, List<FileItem> Files, DirectoryReference IntermediateDirectory, string ModuleName, List<Action> Actions)
 		{
+			// Write all the definitions out to a separate file
+			CreateHeaderForDefinitions(CompileEnvironment, IntermediateDirectory, "Adaptive");
+
 			// Compile the files
 			return ToolChain.CompileCPPFiles(CompileEnvironment, Files, IntermediateDirectory, ModuleName, Actions);
 		}
@@ -1018,8 +1049,6 @@ namespace UnrealBuildTool
 				case "MetalRHI":
 				case "PS4RHI":
                 case "Gnmx":
-				case "OnlineSubsystemIOS":
-				case "OnlineSubsystemLive":
 					return true;
 			}
 			return false;
@@ -1206,10 +1235,13 @@ namespace UnrealBuildTool
 			ReadOnlyHashSet<string> ExcludedNames = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
 
 			InputFileCollection InputFiles = new InputFileCollection();
-			DirectoryItem ModuleDirectoryItem = DirectoryItem.GetItemByDirectoryReference(ModuleDirectory);
 
 			SourceDirectories = new HashSet<DirectoryReference>();
-			FindInputFilesFromDirectoryRecursive(ModuleDirectoryItem, ExcludedNames, SourceDirectories, Makefile.DirectoryToSourceFiles, InputFiles);
+			foreach (DirectoryReference Dir in ModuleDirectories)
+			{
+				DirectoryItem ModuleDirectoryItem = DirectoryItem.GetItemByDirectoryReference(Dir);
+				FindInputFilesFromDirectoryRecursive(ModuleDirectoryItem, ExcludedNames, SourceDirectories, Makefile.DirectoryToSourceFiles, InputFiles);
+			}
 
 			return InputFiles;
 		}

@@ -91,12 +91,11 @@ namespace Gauntlet
 	{
 		public static UnrealTargetPlatform GetPlatformFromString(string PlatformName)
 		{
-			UnrealTargetPlatform UnrealPlatform = UnrealTargetPlatform.Unknown;
-
-			if (Enum.TryParse<UnrealTargetPlatform>(PlatformName, true, out UnrealPlatform))
-			{
-				return UnrealPlatform;
-			}
+			UnrealTargetPlatform UnrealPlatform;
+			if (UnrealTargetPlatform.TryParse(PlatformName, out UnrealPlatform))
+            {
+	            return UnrealPlatform;
+            }
 			
 			throw new AutomationException("Unable convert platform {0} into a valid Unreal Platform", PlatformName);
 		}
@@ -229,14 +228,13 @@ namespace Gauntlet
 		internal class ConfigInfo
 		{
 			public UnrealTargetRole 				RoleType;
-			public UnrealTargetPlatform 		Platform;
+			public UnrealTargetPlatform? 		Platform;
 			public UnrealTargetConfiguration 	Configuration;
 			public bool							SharedBuild;
 
 			public ConfigInfo()
 			{
 				RoleType = UnrealTargetRole.Unknown;
-				Platform = UnrealTargetPlatform.Unknown;
 				Configuration = UnrealTargetConfiguration.Unknown;
 			}
 		}
@@ -298,16 +296,11 @@ namespace Gauntlet
 					Config.Configuration = UnrealTargetConfiguration.Development;   // Development has no string
 				}
 
-				if (PlatformName.Length > 0)
+				UnrealTargetPlatform Platform;
+				if (ConfigType.Length > 0 && UnrealTargetPlatform.TryParse(ConfigType, out Platform))
 				{
-					Enum.TryParse(ConfigType, true, out Config.Platform);
+					Config.Platform = Platform;
 				}
-				else
-				{
-					Config.Platform = UnrealTargetPlatform.Unknown;
-				}
-
-				
 			}
 
 			return Config;
@@ -370,4 +363,43 @@ namespace Gauntlet
 			return "";
 		}
 	}
+
+	/// <summary>
+	/// Automatically maps root drive to proper platform specific path
+	/// </summary>
+	public class EpicRoot
+	{
+		string PlatformPath;
+
+		public EpicRoot(string Path)
+		{
+			PlatformPath = Path;
+
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+			{
+				if (!Path.Contains("P:"))
+				{
+					PlatformPath = Regex.Replace(Path, @"\\\\epicgames.net\\root", "/Volumes/epicgames.net/root", RegexOptions.IgnoreCase);
+				}
+				else 
+				{
+					PlatformPath = Regex.Replace(Path, "P:", "/Volumes/epicgames.net/root", RegexOptions.IgnoreCase);					
+				}				
+				
+				PlatformPath = PlatformPath.Replace(@"\", "/");
+			}
+
+		}
+
+		public static implicit operator string(EpicRoot Path)
+		{
+			return Path.PlatformPath;
+		}
+		public static implicit operator EpicRoot(string Path)
+		{
+			return new EpicRoot(Path);
+		}
+
+	}
+
 }

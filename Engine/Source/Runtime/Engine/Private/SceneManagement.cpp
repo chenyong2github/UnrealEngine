@@ -733,17 +733,8 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	PreIntegratedBRDF = GWhiteTexture->TextureRHI;
 	PreIntegratedBRDFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
-	{
-		PrimitiveSceneData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
-		LightmapSceneData = GIdentityPrimitiveBuffer.LightmapSceneDataBufferSRV;
-	}
-	else
-	{
-		// these are not used on < SM5, set it to something to pass UB validation
-		PrimitiveSceneData = GNullColorVertexBuffer.VertexBufferSRV;
-		LightmapSceneData = GNullColorVertexBuffer.VertexBufferSRV;
-	}
+	PrimitiveSceneData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
+	LightmapSceneData = GIdentityPrimitiveBuffer.LightmapSceneDataBufferSRV;
 }
 
 FInstancedViewUniformShaderParameters::FInstancedViewUniformShaderParameters()

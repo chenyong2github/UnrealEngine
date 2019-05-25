@@ -1535,31 +1535,14 @@ bool AActor::WasRecentlyRendered(float Tolerance) const
 		const float RenderTimeThreshold = FMath::Max(Tolerance, World->DeltaTimeSeconds + KINDA_SMALL_NUMBER);
 
 		// If the current cached value is less than the tolerance then we don't need to go look at the components
-		if (World->TimeSince(CachedLastRenderTime) <= RenderTimeThreshold)
-		{
-			return true;
-		}
-
-		CachedLastRenderTime = GetLastRenderTime(); // Store this off as an overriden version of GetLastRenderTime will not have set it directly internally
-
-		return (World->TimeSince(CachedLastRenderTime) <= RenderTimeThreshold);
+		return World->TimeSince(GetLastRenderTime()) <= RenderTimeThreshold;
 	}
 	return false;
 }
 
 float AActor::GetLastRenderTime() const
 {
-	// return most recent of Components' LastRenderTime
-	for (const UActorComponent* ActorComponent : GetComponents())
-	{
-		const UPrimitiveComponent* PrimComp = Cast<const UPrimitiveComponent>(ActorComponent);
-		if (PrimComp && PrimComp->IsRegistered())
-		{
-			CachedLastRenderTime = FMath::Max(CachedLastRenderTime, PrimComp->LastRenderTime);
-		}
-	}
-
-	return CachedLastRenderTime;
+	return LastRenderTime;
 }
 
 void AActor::SetOwner(AActor* NewOwner)
@@ -3919,7 +3902,7 @@ void AActor::SetNetDriverName(FName NewNetDriverName)
 //
 // Return whether a function should be executed remotely.
 //
-int32 AActor::GetFunctionCallspace( UFunction* Function, void* Parameters, FFrame* Stack )
+int32 AActor::GetFunctionCallspace( UFunction* Function, FFrame* Stack )
 {
 	// Quick reject 1.
 	if ((Function->FunctionFlags & FUNC_Static))

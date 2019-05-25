@@ -1667,8 +1667,8 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 		UE_LOG(LogReplicationGraph, Display, TEXT("UReplicationGraph::ReplicateSingleActor: %s. NetConnection: %s"), *Actor->GetName(), *NetConnection->Describe());
 	}
 
-	if (!ensureMsgf(IsActorValidForReplication(Actor), TEXT("Actor not valid for replication (BeingDestroyed:%d) (PendingKill:%d) (Unreachable:%d)! Actor = %s, Channel = %s"),
-					Actor->IsActorBeingDestroyed(), Actor->IsPendingKill(), Actor->IsUnreachable(),
+	if (!ensureMsgf(IsActorValidForReplication(Actor), TEXT("Actor not valid for replication (BeingDestroyed:%d) (PendingKill:%d) (Unreachable:%d) (TearOff:%d)! Actor = %s, Channel = %s"),
+					Actor->IsActorBeingDestroyed(), Actor->IsPendingKill(), Actor->IsUnreachable(), Actor->GetTearOff(),
 					*Actor->GetFullName(), *DescribeSafe(ActorInfo.Channel)))
 	{
 		return 0;
@@ -1787,6 +1787,14 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 			DependentActorConnectionInfo.ActorChannelCloseFrameNum = FMath::Max<uint32>(CloseFrameNum, DependentActorConnectionInfo.ActorChannelCloseFrameNum);
 
 			if (!ReadyForNextReplication(DependentActorConnectionInfo, DependentActorGlobalData, FrameNum))
+			{
+				continue;
+			}
+
+			if (!ensureMsgf(IsActorValidForReplication(DependentActor), TEXT("DependentActor %s (Owner: %s) not valid for replication (BeingDestroyed:%d) (PendingKill:%d) (Unreachable:%d) (TearOff:%d)! Channel = %s"),
+							*DependentActor->GetFullName(), *Actor->GetFullName(),
+							DependentActor->IsActorBeingDestroyed(), DependentActor->IsPendingKill(), DependentActor->IsUnreachable(), DependentActor->GetTearOff(),
+							*DescribeSafe(DependentActorConnectionInfo.Channel)))
 			{
 				continue;
 			}
@@ -4827,7 +4835,7 @@ struct FPlayerGridCellInformation
 
 void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params)
 {
-	TArray<FLastLocationGatherInfo, FReplicationGraphConnectionsAllocator>& LastLocationArray = Params.ConnectionManager.LastGatherLocations;
+	TArray<FLastLocationGatherInfo>& LastLocationArray = Params.ConnectionManager.LastGatherLocations;
 	TArray<FVector2D, FReplicationGraphConnectionsAllocator> UniqueCurrentLocations;
 
 	// Consider all users that are in cells for this connection. 

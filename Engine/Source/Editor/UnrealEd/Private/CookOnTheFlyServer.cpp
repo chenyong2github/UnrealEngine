@@ -4970,8 +4970,13 @@ bool UCookOnTheFlyServer::SaveCurrentIniSettings(const ITargetPlatform* TargetPl
 
 }
 
-FName UCookOnTheFlyServer::ConvertCookedPathToUncookedPath(const FString& SandboxPath, const FString& CookedPath) const
+FName UCookOnTheFlyServer::ConvertCookedPathToUncookedPath(
+	const FString& SandboxRootDir, const FString& RelativeRootDir,
+	const FString& SandboxProjectDir, const FString& RelativeProjectDir,
+	const FString& CookedPath, FString& OutUncookedPath) const
 {
+	OutUncookedPath.Reset();
+
 	// Check for remapped plugins' cooked content
 	if (PluginsToRemap.Num() > 0 && CookedPath.Contains(REMAPPED_PLUGGINS))
 	{
@@ -4980,52 +4985,81 @@ FName UCookOnTheFlyServer::ConvertCookedPathToUncookedPath(const FString& Sandbo
 		static uint32 RemappedPluginStrLen = FCString::Strlen(REMAPPED_PLUGGINS);
 		// Snip everything up through the RemappedPlugins/ off so we can find the plugin it corresponds to
 		FString PluginPath = CookedPath.RightChop(RemappedIndex + RemappedPluginStrLen + 1);
-		FString FullUncookedPath;
 		// Find the plugin that owns this content
 		for (TSharedRef<IPlugin> Plugin : PluginsToRemap)
 		{
 			if (PluginPath.StartsWith(Plugin->GetName()))
 			{
-				FullUncookedPath = Plugin->GetContentDir();
+				OutUncookedPath = Plugin->GetContentDir();
 				static uint32 ContentStrLen = FCString::Strlen(TEXT("Content/"));
 				// Chop off the pluginName/Content since it's part of the full path
-				FullUncookedPath /= PluginPath.RightChop(Plugin->GetName().Len() + ContentStrLen);
+				OutUncookedPath /= PluginPath.RightChop(Plugin->GetName().Len() + ContentStrLen);
 				break;
 			}
 		}
 
-		if (FullUncookedPath.Len() > 0)
+		if (OutUncookedPath.Len() > 0)
 		{
-			return FName(*FullUncookedPath);
+			return FName(*OutUncookedPath);
 		}
 		// Otherwise fall through to sandbox handling
 	}
 
-	FString UncookedPath;
-
-	if (CookedPath.StartsWith(SandboxPath))
+	auto BuildUncookedPath = 
+		[&OutUncookedPath](const FString& CookedPath, const FString& CookedRoot, const FString& UncookedRoot)
 	{
-		UncookedPath = CookedPath.Replace(*SandboxPath, *FPaths::GetRelativePathToRoot());
+		OutUncookedPath.AppendChars(*UncookedRoot, UncookedRoot.Len());
+		OutUncookedPath.AppendChars(*CookedPath + CookedRoot.Len(), CookedPath.Len() - CookedRoot.Len());
+	};
+
+	if (CookedPath.StartsWith(SandboxRootDir))
+	{
+		// Optimized CookedPath.StartsWith(SandboxProjectDir) that does not compare all of SandboxRootDir again
+		if (CookedPath.Len() >= SandboxProjectDir.Len() && 
+			0 == FCString::Strnicmp(
+				*CookedPath + SandboxRootDir.Len(),
+				*SandboxProjectDir + SandboxRootDir.Len(),
+				SandboxProjectDir.Len() - SandboxRootDir.Len()))
+		{
+			BuildUncookedPath(CookedPath, SandboxProjectDir, RelativeProjectDir);
+		}
+		else
+		{
+			BuildUncookedPath(CookedPath, SandboxRootDir, RelativeRootDir);
+		}
 	}
 	else
 	{
 		FString FullCookedFilename = FPaths::ConvertRelativePathToFull(CookedPath);
-		UncookedPath = FullCookedFilename.Replace(*SandboxPath, *FPaths::GetRelativePathToRoot());
+		BuildUncookedPath(FullCookedFilename, SandboxRootDir, RelativeRootDir);
 	}
 
-	return FName(*UncookedPath);
+	return FName(*OutUncookedPath);
 }
 
-void UCookOnTheFlyServer::GetAllCookedFiles(TMap<FName, FName>& UncookedPathToCookedPath, const FString& SandboxPath)
+void UCookOnTheFlyServer::GetAllCookedFiles(TMap<FName, FName>& UncookedPathToCookedPath, const FString& SandboxRootDir)
 {
-	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	TArray<FString> CookedFiles;
-	FPackageSearchVisitor PackageSearch(CookedFiles);
-	PlatformFile.IterateDirectoryRecursively(*SandboxPath, PackageSearch);
+	{
+		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+		FPackageSearchVisitor PackageSearch(CookedFiles);
+		PlatformFile.IterateDirectoryRecursively(*SandboxRootDir, PackageSearch);
+	}
+
+	const FString SandboxProjectDir = FPaths::Combine(*SandboxRootDir, FApp::GetProjectName()) + TEXT("/");
+	const FString RelativeRootDir = FPaths::GetRelativePathToRoot();
+	const FString RelativeProjectDir = FPaths::ProjectDir();
+	FString UncookedFilename;
+	UncookedFilename.Reserve(1024);
+
 	for (const FString& CookedFile : CookedFiles)
 	{
 		const FName CookedFName(*CookedFile);
-		const FName UncookedFName = ConvertCookedPathToUncookedPath(SandboxPath, CookedFile);
+		const FName UncookedFName = ConvertCookedPathToUncookedPath(
+			SandboxRootDir, RelativeRootDir,
+			SandboxProjectDir, RelativeProjectDir,
+			CookedFile, UncookedFilename);
+
 		UncookedPathToCookedPath.Add(UncookedFName, CookedFName);
 	}
 }
@@ -5160,6 +5194,8 @@ void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPla
 		uint32 NumMarkedFailedSaveKept = 0;
 		uint32 NumPackagesRemoved = 0;
 
+		TArray<FName> KeptPackages;
+
 		for (const auto& CookedPaths : UncookedPathToCookedPath)
 		{
 			const FName CookedFile = CookedPaths.Value;
@@ -5205,6 +5241,7 @@ void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPla
 				if (IdenticalCookedPackages.Contains(SourcePackageName))
 				{
 					PackageTracker->CookedPackages.Add(FFilePlatformCookedPackage(UncookedFilename, MoveTemp(PlatformNames), MoveTemp(Succeeded)));
+					KeptPackages.Add(SourcePackageName);
 					++NumPackagesKept;
 				}
 			}
@@ -5243,8 +5280,11 @@ void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPla
 			ensure(PackageTracker->CookedPackages.Exists(UncookedFilename, PlatformNames, false) == false);
 
 			PackageTracker->CookedPackages.Add(FFilePlatformCookedPackage(UncookedFilename, MoveTemp(PlatformNames)));
+			KeptPackages.Add(UncookedPackage);
 			++NumMarkedFailedSaveKept;
 		}
+
+		PlatformAssetRegistry->UpdateKeptPackages(KeptPackages);
 
 		UE_LOG(LogCook, Display, TEXT("Iterative cooking summary for %s, \nConsidered: %d, \nFile Hash missmatch: %d, \nPackages Kept: %d, \nPackages failed save kept: %d, \nMissing Cooked Info(expected 0): %d"),
 			*Target->PlatformName(),
@@ -6012,16 +6052,28 @@ void UCookOnTheFlyServer::InitShaderCodeLibrary(void)
         {
             FString TargetPlatformNameString = TargetPlatformName.ToString();
             const ITargetPlatform* TargetPlatform = TPM.FindTargetPlatform(TargetPlatformNameString);
+
+			// Find out if this platform requires stable shader keys, by reading the platform setting file.
+			bool bNeedShaderStableKeys = false;
+			FConfigFile PlatformIniFile;
+			FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
+			PlatformIniFile.GetBool(TEXT("DevOptions.Shaders"), TEXT("NeedsShaderStableKeys"), bNeedShaderStableKeys);
             
             TArray<FName> ShaderFormats;
             TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
+			TArray<TPair<FName, bool>> ShaderFormatsWithStableKeys;
+			for (FName& Format : ShaderFormats)
+			{
+				ShaderFormatsWithStableKeys.Push(MakeTuple(Format, bNeedShaderStableKeys));
+			}
+
             if (ShaderFormats.Num() > 0)
 			{
 				if (!IsCookFlagSet(ECookInitializationFlags::Iterative))
 				{
 					FShaderCodeLibrary::CleanDirectories(ShaderFormats);
 				}
-				FShaderCodeLibrary::CookShaderFormats(ShaderFormats);
+				FShaderCodeLibrary::CookShaderFormats(ShaderFormatsWithStableKeys);
 			}
         }
     }

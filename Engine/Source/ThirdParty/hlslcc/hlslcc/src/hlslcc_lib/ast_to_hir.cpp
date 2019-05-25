@@ -2302,8 +2302,12 @@ static const glsl_type * process_array_type(YYLTYPE *loc, const glsl_type *base,
 const glsl_type* ast_type_specifier::glsl_type(const char **name, _mesa_glsl_parse_state *state) const
 {
 	const struct glsl_type *type = nullptr;
+	const bool bStructuredBuffer = !strcmp(this->type_name, "StructuredBuffer");
+	const bool bRWStructuredBuffer = !strcmp(this->type_name + 2, "StructuredBuffer");
 
-	if (!strcmp(this->type_name, "StructuredBuffer") || !strcmp(this->type_name + 2, "StructuredBuffer"))
+	YYLTYPE loc = this->get_location();
+
+	if (bStructuredBuffer || bRWStructuredBuffer)
 	{
 		const struct glsl_type* InnerType = nullptr;
 		if (this->InnerStructure)
@@ -2314,8 +2318,28 @@ const glsl_type* ast_type_specifier::glsl_type(const char **name, _mesa_glsl_par
 		{
 			InnerType = state->symbols->get_type(this->inner_type);
 		}
-		type = glsl_type::GetStructuredBufferInstance(this->type_name, InnerType);
-		*name = type->name;
+
+		// Emulate structured buffer with a typed buffer if platform does not properly support them. Only for vec4 atm
+		// Android devices with MALI GPUs do not support SSBO in vertex shaders (OpenGL)
+		if (state->LanguageSpec->EmulateStructuredWithTypedBuffers())
+		{
+			if (InnerType == glsl_type::vec4_type)
+			{
+				const char* emulated_type_name = bRWStructuredBuffer ? "RWBuffer" : "Buffer";
+				type = glsl_type::get_templated_instance(InnerType, emulated_type_name, this->texture_ms_num_samples, this->patch_size);
+				check(type != NULL);
+				*name = emulated_type_name;
+			}
+			else
+			{
+				_mesa_glsl_error(&loc, state, "structured buffers support only vec4 type");
+			}
+		}
+		else
+		{
+			type = glsl_type::GetStructuredBufferInstance(this->type_name, InnerType);
+			*name = type->name;
+		}
 	}
 	else if (!strcmp(this->type_name, "ByteAddressBuffer") || !strcmp(this->type_name + 2, "ByteAddressBuffer"))
 	{
@@ -2342,7 +2366,6 @@ const glsl_type* ast_type_specifier::glsl_type(const char **name, _mesa_glsl_par
 
 	if (this->is_array)
 	{
-		YYLTYPE loc = this->get_location();
 		type = process_array_type(&loc, type, this->array_size, state);
 	}
 

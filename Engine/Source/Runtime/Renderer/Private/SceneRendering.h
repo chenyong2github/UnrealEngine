@@ -1649,6 +1649,7 @@ protected:
 	void UpdateOpaqueBasePassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 	void UpdateTranslucentBasePassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 	void UpdateDirectionalLightUniformBuffers(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+	void UpdateSkyReflectionUniformBuffer();
 	
 private:
 	bool bModulatedShadowsInUse;

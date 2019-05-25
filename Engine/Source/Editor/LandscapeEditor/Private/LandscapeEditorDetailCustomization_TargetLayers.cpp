@@ -42,7 +42,6 @@
 #include "IDetailGroup.h"
 #include "Widgets/SBoxPanel.h"
 #include "Editor/EditorStyle/Private/SlateEditorStyle.h"
-#include "Settings/EditorExperimentalSettings.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.TargetLayers"
 
@@ -1094,7 +1093,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnFillLayer(const TSharedRe
 		FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 		if (LandscapeEdMode)
 		{
-			FScopedSetLandscapeEditingLayer Scope(LandscapeEdMode->GetLandscape(), LandscapeEdMode->GetCurrentLayerGuid(), [&] { LandscapeEdMode->RequestLayersContentUpdate(true); });
+			FScopedSetLandscapeEditingLayer Scope(LandscapeEdMode->GetLandscape(), LandscapeEdMode->GetCurrentLayerGuid(), [&] { LandscapeEdMode->RequestLayersContentUpdateForceAll(); });
 			LandscapeEdit.FillLayer(Target->LayerInfoObj.Get());
 		}
 	}
@@ -1106,8 +1105,8 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::FillEmptyLayers(ULandscapeI
 	if (LandscapeEdMode)
 	{
 		FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
-		
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+
+		if (LandscapeEdMode->CanHaveLandscapeLayersContent())
 		{
 			if (LandscapeEdMode->NeedToFillEmptyMaterialLayers())
 			{
@@ -1132,7 +1131,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnClearLayer(const TSharedR
 		FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 		if (LandscapeEdMode)
 		{
-			FScopedSetLandscapeEditingLayer Scope(LandscapeEdMode->GetLandscape(), LandscapeEdMode->GetCurrentLayerGuid(), [&] { LandscapeEdMode->RequestLayersContentUpdate(true); });
+			FScopedSetLandscapeEditingLayer Scope(LandscapeEdMode->GetLandscape(), LandscapeEdMode->GetCurrentLayerGuid(), [&] { LandscapeEdMode->RequestLayersContentUpdateForceAll(); });
 			FLandscapeEditDataInterface LandscapeEdit(Target->LandscapeInfo.Get());
 			LandscapeEdit.DeleteLayer(Target->LayerInfoObj.Get());
 		}
@@ -1202,15 +1201,13 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLayerSetObject(cons
 					Target->LandscapeInfo->CreateLayerEditorSettingsFor(SelectedLayerInfo);
 				}
 			}
-
+						
 			FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 			if (LandscapeEdMode)
 			{
-				if (LandscapeEdMode->CurrentToolTarget.LayerName == Target->LayerName
-					&& LandscapeEdMode->CurrentToolTarget.LayerInfo == Target->LayerInfoObj)
-				{
-					LandscapeEdMode->CurrentToolTarget.LayerInfo = SelectedLayerInfo;
-				}
+				LandscapeEdMode->CurrentToolTarget.LayerName = Target->LayerName;
+				LandscapeEdMode->CurrentToolTarget.TargetType = Target->TargetType;
+				LandscapeEdMode->CurrentToolTarget.LayerInfo = SelectedLayerInfo;
 				LandscapeEdMode->UpdateTargetList();
 			}
 
@@ -1427,7 +1424,8 @@ EVisibility FLandscapeEditorCustomNodeBuilder_TargetLayers::GetDebugModeLayerUsa
 
 EVisibility FLandscapeEditorCustomNodeBuilder_TargetLayers::GetLayersSubstractiveBlendVisibility(const TSharedRef<FLandscapeTargetListInfo> Target)
 {
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && Target->TargetType != ELandscapeToolTargetType::Heightmap && Target->LayerInfoObj.IsValid())
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode != nullptr && LandscapeEdMode->CanHaveLandscapeLayersContent() && Target->TargetType != ELandscapeToolTargetType::Heightmap && Target->LayerInfoObj.IsValid())
 	{
 		return EVisibility::Visible;
 	}
@@ -1545,15 +1543,15 @@ FReply SLandscapeEditorSelectableBorder::OnMouseButtonUp(const FGeometry& MyGeom
 		}
 		else if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton &&
 			OnContextMenuOpening.IsBound())
-		{
-			TSharedPtr<SWidget> Content = OnContextMenuOpening.Execute();
-			if (Content.IsValid())
 			{
-				FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
+				TSharedPtr<SWidget> Content = OnContextMenuOpening.Execute();
+				if (Content.IsValid())
+				{
+					FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
 
-				FSlateApplication::Get().PushMenu(SharedThis(this), WidgetPath, Content.ToSharedRef(), MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
-			}
-
+					FSlateApplication::Get().PushMenu(SharedThis(this), WidgetPath, Content.ToSharedRef(), MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
+				}
+			
 			return FReply::Handled().ReleaseMouseCapture();
 		}
 	}

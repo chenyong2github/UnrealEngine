@@ -20,7 +20,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version number to write
 		/// </summary>
-		public const int CurrentVersion = 12;
+		public const int CurrentVersion = 13;
 
 		/// <summary>
 		/// The time at which the makefile was created
@@ -114,11 +114,6 @@ namespace UnrealBuildTool
 		public HashSet<FileItem> CandidatesForWorkingSet = new HashSet<FileItem>();
 
 		/// <summary>
-		/// Mapping from source file to the unity file that contains it. Used for Live Coding. Note that this mapping includes files that are part of the working set, even if they are now a separate compiland.
-		/// </summary>
-		public Dictionary<FileItem, FileItem> SourceFileToUnityFile = new Dictionary<FileItem, FileItem>();
-
-		/// <summary>
 		/// Maps each target to a list of UObject module info structures
 		/// </summary>
 		public List<UHTModuleInfo> UObjectModules;
@@ -195,7 +190,6 @@ namespace UnrealBuildTool
 			DirectoryToSourceFiles = Reader.ReadDictionary(() => Reader.ReadDirectoryItem(), () => Reader.ReadArray(() => Reader.ReadFileItem()));
 			WorkingSet = Reader.ReadHashSet(() => Reader.ReadFileItem());
 			CandidatesForWorkingSet = Reader.ReadHashSet(() => Reader.ReadFileItem());
-			SourceFileToUnityFile = Reader.ReadDictionary(() => Reader.ReadFileItem(), () => Reader.ReadFileItem());
 			UObjectModules = Reader.ReadList(() => new UHTModuleInfo(Reader));
 			UObjectModuleHeaders = Reader.ReadList(() => new UHTModuleHeaderInfo(Reader));
 			PluginFiles = Reader.ReadHashSet(() => Reader.ReadFileItem());
@@ -226,7 +220,6 @@ namespace UnrealBuildTool
 			Writer.WriteDictionary(DirectoryToSourceFiles, k => Writer.WriteDirectoryItem(k), v => Writer.WriteArray(v, e => Writer.WriteFileItem(e)));
 			Writer.WriteHashSet(WorkingSet, x => Writer.WriteFileItem(x));
 			Writer.WriteHashSet(CandidatesForWorkingSet, x => Writer.WriteFileItem(x));
-			Writer.WriteDictionary(SourceFileToUnityFile, k => Writer.WriteFileItem(k), v => Writer.WriteFileItem(v));
 			Writer.WriteList(UObjectModules, e => e.Write(Writer));
 			Writer.WriteList(UObjectModuleHeaders, x => x.Write(Writer));
 			Writer.WriteHashSet(PluginFiles, x => Writer.WriteFileItem(x));
@@ -421,13 +414,17 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Makefile">The makefile that has been loaded</param>
 		/// <param name="ProjectFile">Path to the project file</param>
+		/// <param name="Platform">The platform being built</param>
 		/// <param name="WorkingSet">The current working set of source files</param>
 		/// <param name="ReasonNotLoaded">If the makefile is not valid, is set to a message describing why</param>
 		/// <returns>True if the makefile is valid, false otherwise</returns>
-		public static bool IsValidForSourceFiles(TargetMakefile Makefile, FileReference ProjectFile, ISourceFileWorkingSet WorkingSet, out string ReasonNotLoaded)
+		public static bool IsValidForSourceFiles(TargetMakefile Makefile, FileReference ProjectFile, UnrealTargetPlatform Platform, ISourceFileWorkingSet WorkingSet, out string ReasonNotLoaded)
 		{
 			using(Timeline.ScopeEvent("TargetMakefile.IsValidForSourceFiles()"))
 			{
+				// Get the list of excluded folder names for this platform
+				ReadOnlyHashSet<string> ExcludedFolderNames = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
+
 				// Check if any source files have been added or removed
 				foreach(KeyValuePair<DirectoryItem, FileItem[]> Pair in Makefile.DirectoryToSourceFiles)
 				{
@@ -449,6 +446,15 @@ namespace UnrealBuildTool
 						{
 							ReasonNotLoaded = "source file modified";
 							return false;
+						}
+
+						foreach(DirectoryItem Directory in InputDirectory.EnumerateDirectories())
+						{
+							if(!Makefile.DirectoryToSourceFiles.ContainsKey(Directory) && ContainsSourceFiles(Directory, ExcludedFolderNames))
+							{
+								ReasonNotLoaded = "directory added";
+								return false;
+							}
 						}
 					}
 				}
@@ -561,6 +567,36 @@ namespace UnrealBuildTool
 
 			ReasonNotLoaded = null;
 			return true;
+		}
+
+		/// <summary>
+		/// Determines if a directory, or any subdirectory of it, contains new source files
+		/// </summary>
+		/// <param name="Directory">Directory to search through</param>
+		/// <param name="ExcludedFolderNames">Set of directory names to exclude</param>
+		/// <returns>True if the directory contains any source files</returns>
+		static bool ContainsSourceFiles(DirectoryItem Directory, ReadOnlyHashSet<string> ExcludedFolderNames)
+		{
+			// Check this directory isn't ignored
+			if(!ExcludedFolderNames.Contains(Directory.Name))
+			{
+				// Check for any source files in this actual directory
+				FileItem[] SourceFiles = UEBuildModuleCPP.GetSourceFiles(Directory);
+				if(SourceFiles.Length > 0)
+				{
+					return true;
+				}
+
+				// Check for any source files in a subdirectory
+				foreach(DirectoryItem SubDirectory in Directory.EnumerateDirectories())
+				{
+					if(ContainsSourceFiles(SubDirectory, ExcludedFolderNames))
+					{
+						return true;
+					}
+				}
+			}
+			return false;
 		}
 
 		/// <summary>

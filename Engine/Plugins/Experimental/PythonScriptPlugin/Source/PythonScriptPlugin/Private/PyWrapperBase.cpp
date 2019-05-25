@@ -144,3 +144,8 @@ FPyWrapperBaseMetaData* FPyWrapperBaseMetaData::GetMetaData(FPyWrapperBase* Inst
 }
 
 #endif	// WITH_PYTHON
+
+UPythonResourceOwner::UPythonResourceOwner(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}

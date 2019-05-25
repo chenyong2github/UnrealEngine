@@ -12,10 +12,6 @@
 #include "LandscapeInfoMap.h"
 #include "Materials/MaterialInstance.h"
 
-#if WITH_EDITOR
-#include "Settings/EditorExperimentalSettings.h"
-#endif
-
 #include "LandscapeProxy.h"
 #include "Landscape.h"
 #include "Engine/Texture2D.h"

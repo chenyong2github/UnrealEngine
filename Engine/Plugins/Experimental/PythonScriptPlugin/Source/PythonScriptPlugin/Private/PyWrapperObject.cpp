@@ -1687,6 +1687,15 @@ void UPythonGeneratedClass::PostInitInstance(UObject* InObj)
 	}
 }
 
+void UPythonGeneratedClass::ReleasePythonResources()
+{
+	PyType.Reset();
+	PyPostInitFunction.Reset();
+	PropertyDefs.Reset();
+	FunctionDefs.Reset();
+	PyMetaData = FPyWrapperObjectMetaData();
+}
+
 UPythonGeneratedClass* UPythonGeneratedClass::GenerateClass(PyTypeObject* InPyType)
 {
 	// Get the correct super class from the parent type in Python

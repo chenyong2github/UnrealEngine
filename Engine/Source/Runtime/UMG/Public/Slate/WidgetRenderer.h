@@ -19,6 +19,7 @@ class FSlateDrawBuffer;
 class ISlate3DRenderer;
 class STooltipPresenter;
 class UTextureRenderTarget2D;
+class FRenderTarget;
 
 /**
  * 
@@ -40,6 +41,8 @@ public:
 	bool GetUseGammaCorrection() const { return bUseGammaSpace; }
 	void SetUseGammaCorrection(bool bInUseGammaSpace);
 
+	void SetApplyColorDeficiencyCorrection(bool bInApplyColorCorrection);
+
 	ISlate3DRenderer* GetSlateRenderer();
 
 	static UTextureRenderTarget2D* CreateTargetFor(FVector2D DrawSize, TextureFilter InFilter, bool bUseGammaCorrection);
@@ -47,8 +50,40 @@ public:
 	UTextureRenderTarget2D* DrawWidget(const TSharedRef<SWidget>& Widget, FVector2D DrawSize);
 
 	void DrawWidget(
+		FRenderTarget* RenderTarget,
+		const TSharedRef<SWidget>& Widget,
+		FVector2D DrawSize,
+		float DeltaTime,
+		bool bDeferRenderTargetUpdate = false);
+
+	void DrawWidget(
 		UTextureRenderTarget2D* RenderTarget,
 		const TSharedRef<SWidget>& Widget,
+		FVector2D DrawSize,
+		float DeltaTime,
+		bool bDeferRenderTargetUpdate = false);
+
+	void DrawWidget(
+		FRenderTarget* RenderTarget,
+		const TSharedRef<SWidget>& Widget,
+		float Scale,
+		FVector2D DrawSize,
+		float DeltaTime,
+		bool bDeferRenderTargetUpdate = false);
+
+	void DrawWidget(
+		UTextureRenderTarget2D* RenderTarget,
+		const TSharedRef<SWidget>& Widget,
+		float Scale,
+		FVector2D DrawSize,
+		float DeltaTime,
+		bool bDeferRenderTargetUpdate = false);
+
+	void DrawWindow(
+		FRenderTarget* RenderTarget,
+		TSharedRef<FHittestGrid> HitTestGrid,
+		TSharedRef<SWindow> Window,
+		float Scale,
 		FVector2D DrawSize,
 		float DeltaTime,
 		bool bDeferRenderTargetUpdate = false);
@@ -63,8 +98,26 @@ public:
 		bool bDeferRenderTargetUpdate = false);
 
 	void DrawWindow(
+		FRenderTarget* RenderTarget,
+		TSharedRef<FHittestGrid> HitTestGrid,
+		TSharedRef<SWindow> Window,
+		FGeometry WindowGeometry,
+		FSlateRect WindowClipRect,
+		float DeltaTime,
+		bool bDeferRenderTargetUpdate = false);
+
+	void DrawWindow(
 		UTextureRenderTarget2D* RenderTarget,
 		TSharedRef<FHittestGrid> HitTestGrid,
+		TSharedRef<SWindow> Window,
+		FGeometry WindowGeometry,
+		FSlateRect WindowClipRect,
+		float DeltaTime,
+		bool bDeferRenderTargetUpdate = false);
+
+	void DrawWindow(
+		const FPaintArgs& PaintArgs,
+		FRenderTarget* RenderTarget,
 		TSharedRef<SWindow> Window,
 		FGeometry WindowGeometry,
 		FSlateRect WindowClipRect,

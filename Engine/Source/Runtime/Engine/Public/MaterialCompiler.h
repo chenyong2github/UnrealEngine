@@ -140,7 +140,7 @@ public:
 	virtual int32 ObjectWorldPosition() = 0;
 	virtual int32 ObjectRadius() = 0;
 	virtual int32 ObjectBounds() = 0;
-	virtual int32 PreSkinnedLocalBounds() = 0;
+	virtual int32 PreSkinnedLocalBounds(int32 OutputIndex) = 0;
 	virtual int32 DistanceCullFade() = 0;
 	virtual int32 ActorWorldPosition() = 0;
 	virtual int32 ParticleMacroUV() = 0;
@@ -293,7 +293,7 @@ public:
 	virtual int32 EyeAdaptation() = 0;
 	virtual int32 AtmosphericLightVector() = 0;
 	virtual int32 AtmosphericLightColor() = 0;
-	virtual int32 CustomPrimitiveData(int32 OutputIndex) = 0;
+	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) = 0;
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) = 0;
 
 	// The compiler can run in a different state and this affects caching of sub expression, Expressions are different (e.g. View.PrevWorldViewOrigin) when using previous frame's values
@@ -395,7 +395,7 @@ public:
 	virtual int32 ObjectWorldPosition() override { return Compiler->ObjectWorldPosition(); }
 	virtual int32 ObjectRadius() override { return Compiler->ObjectRadius(); }
 	virtual int32 ObjectBounds() override { return Compiler->ObjectBounds(); }
-	virtual int32 PreSkinnedLocalBounds() override { return Compiler->PreSkinnedLocalBounds(); }
+	virtual int32 PreSkinnedLocalBounds(int32 OutputIndex) override { return Compiler->PreSkinnedLocalBounds(OutputIndex); }
 	virtual int32 DistanceCullFade() override { return Compiler->DistanceCullFade(); }
 	virtual int32 ActorWorldPosition() override { return Compiler->ActorWorldPosition(); }
 	virtual int32 ParticleMacroUV() override { return Compiler->ParticleMacroUV(); }
@@ -552,9 +552,9 @@ public:
 		return Compiler->AtmosphericLightColor();
 	}
 	
-	virtual int32 CustomPrimitiveData(int32 OutputIndex) override
+	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) override
 	{
-		return Compiler->CustomPrimitiveData(OutputIndex);
+		return Compiler->CustomPrimitiveData(OutputIndex, Type);
 	}
 
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) override

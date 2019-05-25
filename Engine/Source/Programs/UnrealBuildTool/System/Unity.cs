@@ -158,6 +158,7 @@ namespace UnrealBuildTool
 		/// <param name="BaseName">Base name to use for the Unity files</param>
 		/// <param name="IntermediateDirectory">Intermediate directory for unity cpp files</param>
 		/// <param name="Makefile">The makefile being built</param>
+		/// <param name="SourceFileToUnityFile">Receives a mapping of source file to unity file</param>
 		/// <returns>The "unity" C++ files.</returns>
 		public static List<FileItem> GenerateUnityCPPs(
 			ReadOnlyTargetRules Target,
@@ -166,12 +167,13 @@ namespace UnrealBuildTool
 			ISourceFileWorkingSet WorkingSet,
 			string BaseName,
 			DirectoryReference IntermediateDirectory,
-			TargetMakefile Makefile
+			TargetMakefile Makefile,
+			Dictionary<FileItem, FileItem> SourceFileToUnityFile
 			)
 		{
 			List<FileItem> NewCPPFiles = new List<FileItem>();
 
-			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatformForCPPTargetPlatform(CompileEnvironment.Platform);
+			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform);
 
 			// Figure out size of all input files combined. We use this to determine whether to use larger unity threshold or not.
 			long TotalBytesInCPPFiles = CPPFiles.Sum(F => F.Length);
@@ -341,11 +343,11 @@ namespace UnrealBuildTool
 				// Store the mapping of source files to unity files in the makefile
 				foreach(FileItem SourceFile in UnityFile.Files)
 				{
-					Makefile.SourceFileToUnityFile[SourceFile] = UnityCPPFile;
+					SourceFileToUnityFile[SourceFile] = UnityCPPFile;
 				}
 				foreach (FileItem SourceFile in UnityFile.VirtualFiles)
 				{
-					Makefile.SourceFileToUnityFile[SourceFile] = UnityCPPFile;
+					SourceFileToUnityFile[SourceFile] = UnityCPPFile;
 				}
 			}
 

@@ -25,6 +25,43 @@ struct MOVIESCENE_API FMovieSceneChannelHandle
 	 */
 	FMovieSceneChannelHandle(TWeakPtr<FMovieSceneChannelProxy> InWeakChannelProxy, FName InChannelTypeName, int32 InChannelIndex);
 
+public:
+
+	/**
+	 * Compare this channel handle for equality against another. Will return false for a handle that is to a different proxy even if it might have pointed to the same data (ie, one handle has expired)
+	 */
+	friend bool operator==(const FMovieSceneChannelHandle& A, const FMovieSceneChannelHandle& B)
+	{
+		if (A.ChannelIndex == B.ChannelIndex && A.ChannelTypeName == B.ChannelTypeName)
+		{
+			FMovieSceneChannelProxy* ProxyA = A.WeakChannelProxy.Pin().Get();
+			FMovieSceneChannelProxy* ProxyB = B.WeakChannelProxy.Pin().Get();
+
+			// Cannot be equal if either handle is expired
+			return ProxyA && ProxyA == ProxyB;
+		}
+		return false;
+	}
+
+	/**
+	 * Compare this channel handle for inequality against another. Will return true for a handle that is to a different proxy even if it might have pointed to the same data (ie, one handle has expired)
+	 */
+	friend bool operator!=(const FMovieSceneChannelHandle& A, const FMovieSceneChannelHandle& B)
+	{
+		if (A.ChannelIndex != B.ChannelIndex || A.ChannelTypeName != B.ChannelTypeName)
+		{
+			return false;
+		}
+
+		FMovieSceneChannelProxy* ProxyA = A.WeakChannelProxy.Pin().Get();
+		FMovieSceneChannelProxy* ProxyB = B.WeakChannelProxy.Pin().Get();
+
+		// Expired channel handles always compare falsey
+		return !ProxyA || !ProxyB || ProxyA != ProxyB;
+	}
+
+public:
+
 	/**
 	 * Cast this handle to a handle of a related type. Callee is responsible for ensuring that the type's are compatible.
 	 */

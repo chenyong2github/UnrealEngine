@@ -61,6 +61,7 @@ struct FPakChunkSignatureCheckFailedData
 };
 /** Delegate for allowing a game to restrict the accessing of non-pak files */
 DECLARE_DELEGATE_RetVal_OneParam(bool, FFilenameSecurityDelegate, const TCHAR* /*InFilename*/);
+DECLARE_DELEGATE_ThreeParams(FPakCustomEncryptionDelegate, uint8* /*InData*/, uint32 /*InDataSize*/, FGuid /*InEncryptionKeyGuid*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPakChunkSignatureCheckFailedHandler, const FPakChunkSignatureCheckFailedData&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPakMasterSignatureTableCheckFailureHandler, const FString&);
 
@@ -2346,6 +2347,9 @@ public:
 
 	// Access static delegate for loose file security
 	static FFilenameSecurityDelegate& GetFilenameSecurityDelegate();
+
+	// Access static delegate for custom encryption
+	static FPakCustomEncryptionDelegate& GetPakCustomEncryptionDelegate();
 
 	// Access static delegate for handling a pak signature check failure
 	static FPakChunkSignatureCheckFailedHandler& GetPakChunkSignatureCheckFailedHandler();

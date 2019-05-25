@@ -23,7 +23,6 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
-#include "Streaming/RenderAssetUpdate.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
@@ -149,6 +148,8 @@ FRenderAssetStreamingManager::~FRenderAssetStreamingManager()
 void FRenderAssetStreamingManager::OnPreGarbageCollect()
 {
 	FScopeLock ScopeLock(&CriticalSection);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRenderAssetStreamingManager_OnPreGarbageCollect);
+
 	FRemovedRenderAssetArray RemovedRenderAssets;
 
 	// Check all levels for pending kills.
@@ -1478,6 +1479,8 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 int32 FRenderAssetStreamingManager::BlockTillAllRequestsFinished( float TimeLimit /*= 0.0f*/, bool bLogResults /*= false*/ )
 {
 	FScopeLock ScopeLock(&CriticalSection);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRenderAssetStreamingManager_BlockTillAllRequestsFinished);
+
 	double StartTime = FPlatformTime::Seconds();
 
 	while (ensure(!IsAssetStreamingSuspended()))
@@ -1514,6 +1517,7 @@ int32 FRenderAssetStreamingManager::BlockTillAllRequestsFinished( float TimeLimi
 void FRenderAssetStreamingManager::GetObjectReferenceBounds(const UObject* RefObject, TArray<FBox>& AssetBoxes)
 {
 	FScopeLock ScopeLock(&CriticalSection);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRenderAssetStreamingManager_GetObjectReferenceBounds);
 
 	const UStreamableRenderAsset* RenderAsset = Cast<const UStreamableRenderAsset>(RefObject);
 	if (RenderAsset)
@@ -1549,6 +1553,7 @@ void FRenderAssetStreamingManager::GetObjectReferenceBounds(const UObject* RefOb
 void FRenderAssetStreamingManager::PropagateLightingScenarioChange()
 {
 	FScopeLock ScopeLock(&CriticalSection);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRenderAssetStreamingManager_PropagateLightingScenarioChange);
 
 	// Note that dynamic components don't need to be handled because their renderstates are updated, which triggers and update.
 	

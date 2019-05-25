@@ -75,29 +75,8 @@
 #endif
 
 // Platform specific compiler pre-setup.
-#if PLATFORM_WINDOWS
-	#include "Windows/WindowsPlatformCompilerPreSetup.h"
-#elif PLATFORM_PS4
-	#include "PS4/PS4PlatformCompilerPreSetup.h"
-#elif PLATFORM_XBOXONE
-	#include "XboxOne/XboxOnePlatformCompilerPreSetup.h"
-#elif PLATFORM_MAC
-	#include "Mac/MacPlatformCompilerPreSetup.h"
-#elif PLATFORM_IOS
-	#include "IOS/IOSPlatformCompilerPreSetup.h"
-#elif PLATFORM_ANDROID
-	#include "Android/AndroidPlatformCompilerPreSetup.h"
-#elif PLATFORM_HTML5
-	#include "HTML5/HTML5PlatformCompilerPreSetup.h"
-#elif PLATFORM_LINUX
-	#include "Linux/LinuxPlatformCompilerPreSetup.h"
-#elif PLATFORM_QUAIL
-	#include "Quail/QuailPlatformCompilerPreSetup.h"
-#elif PLATFORM_SWITCH
-	#include "Switch/SwitchPlatformCompilerPreSetup.h"
-#else
-	#error Unknown Compiler
-#endif
+#include "PreprocessorHelpers.h"
+#include COMPILED_PLATFORM_HEADER(PlatformCompilerPreSetup.h)
 
 // Generic compiler pre-setup.
 #include "GenericPlatform/GenericPlatformCompilerPreSetup.h"
@@ -148,33 +127,10 @@
 #endif
 
 //---------------------------------------------------------
-// Identify the current platform and include that header
+// Include main platform setup header (XXX/XXXPlatform.h)
 //---------------------------------------------------------
 
-//@port Identify the platform here and include the platform header to setup the platform types, etc
-#if PLATFORM_WINDOWS
-	#include "Windows/WIndowsPlatform.h"	// this is the actual filename on disk, alas cannot be easily renamed in source control
-#elif PLATFORM_PS4
-	#include "PS4/PS4Platform.h"
-#elif PLATFORM_XBOXONE
-	#include "XboxOne/XboxOnePlatform.h"
-#elif PLATFORM_MAC
-	#include "Mac/MacPlatform.h"
-#elif PLATFORM_IOS
-	#include "IOS/IOSPlatform.h"
-#elif PLATFORM_ANDROID
-	#include "Android/AndroidPlatform.h"
-#elif PLATFORM_HTML5
-	#include "HTML5/HTML5Platform.h"
-#elif PLATFORM_LINUX
-	#include "Linux/LinuxPlatform.h"
-#elif PLATFORM_QUAIL
-	#include "Quail/QuailPlatform.h"
-#elif PLATFORM_SWITCH
-	#include "Switch/SwitchPlatform.h"
-#else
-	#error Unknown platform
-#endif
+#include COMPILED_PLATFORM_HEADER(Platform.h)
 
 //------------------------------------------------------------------
 // Finalize define setup
@@ -468,6 +424,55 @@
 #ifndef PLATFORM_SUPPORTS_FLIP_TRACKING
 	#define PLATFORM_SUPPORTS_FLIP_TRACKING 0
 #endif
+
+#ifndef PLATFORM_USE_FULL_TASK_GRAPH
+	#define PLATFORM_USE_FULL_TASK_GRAPH						1
+#endif
+
+#ifndef PLATFORM_USE_ANSI_POSIX_MALLOC
+	#define PLATFORM_USE_ANSI_POSIX_MALLOC						0
+#endif
+
+#ifndef PLATFORM_USE_ANSI_MEMALIGN
+	#define PLATFORM_USE_ANSI_MEMALIGN							0
+#endif
+
+#ifndef PLATFORM_USE_ANSI_POSIX_MALLOC
+	#define PLATFORM_USE_ANSI_POSIX_MALLOC						0
+#endif
+
+#ifndef PLATFORM_IS_ANSI_MALLOC_THREADSAFE
+	#define PLATFORM_IS_ANSI_MALLOC_THREADSAFE					0
+#endif
+
+#ifndef PLATFORM_SUPPORTS_OPUS_CODEC
+	#define PLATFORM_SUPPORTS_OPUS_CODEC						1
+#endif
+
+#ifndef PLATFORM_SUPPORTS_VORBIS_CODEC
+	#define PLATFORM_SUPPORTS_VORBIS_CODEC						1
+#endif
+
+#ifndef PLATFORM_USE_MINIMAL_HANG_DETECTION
+	#define PLATFORM_USE_MINIMAL_HANG_DETECTION					0
+#endif
+
+#ifndef PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION
+	#define PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION			1
+#endif
+
+#ifndef PLATFORM_SUPPORTS_LLM
+	#define PLATFORM_SUPPORTS_LLM								1
+#endif
+
+#ifndef PLATFORM_ALLOW_ALLOCATIONS_IN_FASYNCWRITER_SERIALIZEBUFFERTOARCHIVE
+	#define	PLATFORM_ALLOW_ALLOCATIONS_IN_FASYNCWRITER_SERIALIZEBUFFERTOARCHIVE 1
+#endif
+
+#ifndef PLATFORM_HAS_FPlatformVirtualMemoryBlock
+	#define	PLATFORM_HAS_FPlatformVirtualMemoryBlock 1
+#endif
+
 
 // deprecated, do not use
 #define PLATFORM_HAS_THREADSAFE_RHIGetRenderQueryResult	#
@@ -897,29 +902,8 @@ namespace TypeTests
 }
 
 // Platform specific compiler setup.
-#if PLATFORM_WINDOWS
-	#include "Windows/WindowsPlatformCompilerSetup.h"
-#elif PLATFORM_PS4
-	#include "PS4/PS4CompilerSetup.h"
-#elif PLATFORM_XBOXONE
-	#include "XboxOne/XboxOneCompilerSetup.h"
-#elif PLATFORM_MAC
-	#include "Mac/MacPlatformCompilerSetup.h"
-#elif PLATFORM_IOS
-	#include "IOS/IOSPlatformCompilerSetup.h"
-#elif PLATFORM_ANDROID
-	#include "Android/AndroidCompilerSetup.h"
-#elif PLATFORM_HTML5
-	#include "HTML5/HTML5PlatformCompilerSetup.h"
-#elif PLATFORM_LINUX
-	#include "Linux/LinuxPlatformCompilerSetup.h"
-#elif PLATFORM_QUAIL
-	#include "Quail/QuailPlatformCompilerSetup.h"
-#elif PLATFORM_SWITCH
-	#include "Switch/SwitchPlatformCompilerSetup.h"
-#else
-	#error Unknown Compiler
-#endif
+#include COMPILED_PLATFORM_HEADER(PlatformCompilerSetup.h)
+
 
 // If we don't have a platform-specific define for the TEXT macro, define it now.
 #if !defined(TEXT) && !UE_BUILD_DOCS

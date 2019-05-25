@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-
-#include "OnlineSubsystemIOSPrivatePCH.h"
+#include "OnlineFriendsInterfaceIOS.h"
+#include "OnlineSubsystemIOS.h"
 
 // FOnlineFriendIOS
 

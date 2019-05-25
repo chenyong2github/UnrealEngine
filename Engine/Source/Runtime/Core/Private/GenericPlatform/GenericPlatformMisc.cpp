@@ -573,6 +573,12 @@ void FGenericPlatformMisc::RequestExit( bool Force )
 	}
 }
 
+bool FGenericPlatformMisc::RestartApplication()
+{
+	UE_LOG(LogInit, Display, TEXT("Restart application is not supported or implemented in current platform"));
+	return false;
+}
+
 void FGenericPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode)
 {
 	// Generic implementation will ignore the return code - this may be important, so warn.

@@ -24,6 +24,7 @@
 #include "MeshDescription.h"
 #include "MeshAttributes.h"
 #include "MeshAttributeArray.h"
+#include "RenderAssetUpdate.h"
 
 #include "StaticMesh.generated.h"
 
@@ -787,7 +788,7 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = StaticMesh)
 	TArray<UAssetUserData*> AssetUserData;
 
-	FStaticMeshUpdate* PendingUpdate;
+	TRefCountPtr<FRenderAssetUpdate> PendingUpdate;
 
 	friend struct FStaticMeshUpdateContext;
 	friend class FStaticMeshUpdate;
@@ -798,6 +799,8 @@ public:
 	UPROPERTY(Instanced, VisibleAnywhere, Category = EditableMesh)
 	class UObject* EditableMesh;
 
+	UPROPERTY(EditAnywhere, Category = Collision)
+	class UStaticMesh* ComplexCollisionMesh;
 	/**
 	 * Registers the mesh attributes required by the mesh description for a static mesh.
 	 */

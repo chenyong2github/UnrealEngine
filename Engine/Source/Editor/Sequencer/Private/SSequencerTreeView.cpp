@@ -3,6 +3,8 @@
 #include "SSequencerTreeView.h"
 #include "SSequencerTrackLane.h"
 #include "EditorStyleSet.h"
+#include "Algo/BinarySearch.h"
+#include "Algo/Copy.h"
 #include "SequencerDisplayNodeDragDropOp.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -10,40 +12,10 @@
 
 static FName TrackAreaName = "TrackArea";
 
-namespace Utils
-{
-	enum class ESearchState { Before, After, Found };
-
-	template<typename T, typename F>
-	const T* BinarySearch(const TArray<T>& InContainer, const F& InPredicate)
-	{
-		int32 Min = 0;
-		int32 Max = InContainer.Num();
-
-		ESearchState State = ESearchState::Before;
-
-		for ( ; Min != Max ; )
-		{
-			int32 SearchIndex = Min + (Max - Min) / 2;
-
-			auto& Item = InContainer[SearchIndex];
-			State = InPredicate(Item);
-			switch (State)
-			{
-				case ESearchState::Before:	Max = SearchIndex; break;
-				case ESearchState::After:	Min = SearchIndex + 1; break;
-				case ESearchState::Found: 	return &Item;
-			}
-		}
-
-		return nullptr;
-	}
-}
-
 SSequencerTreeViewRow::~SSequencerTreeViewRow()
 {
-	auto TreeView = StaticCastSharedPtr<SSequencerTreeView>(OwnerTablePtr.Pin());
-	auto PinnedNode = Node.Pin();
+	const TSharedPtr<SSequencerTreeView>& TreeView = StaticCastSharedPtr<SSequencerTreeView>(OwnerTablePtr.Pin());
+	TSharedPtr<FSequencerDisplayNode> PinnedNode = Node.Pin();
 	if (TreeView.IsValid() && PinnedNode.IsValid())
 	{
 		TreeView->OnChildRowRemoved(PinnedNode.ToSharedRef());
@@ -62,13 +34,26 @@ void SSequencerTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef
 			.OnDragDetected(this, &SSequencerTreeViewRow::OnDragDetected)
 			.OnCanAcceptDrop(this, &SSequencerTreeViewRow::OnCanAcceptDrop)
 			.OnAcceptDrop(this, &SSequencerTreeViewRow::OnAcceptDrop)
-			.ShowSelection(bIsSelectable),
+			.ShowSelection(bIsSelectable)
+			.Padding(this, &SSequencerTreeViewRow::GetRowPadding),
 		OwnerTableView);
+}
+
+FMargin SSequencerTreeViewRow::GetRowPadding() const
+{
+	TSharedPtr<FSequencerDisplayNode> PinnedNode = Node.Pin();
+	TSharedPtr<FSequencerDisplayNode> ParentNode = PinnedNode ? PinnedNode->GetParentOrRoot() : nullptr;
+
+	if (ParentNode->GetType() == ESequencerNode::Root && ParentNode->GetChildNodes()[0] != PinnedNode)
+	{
+		return FMargin(0.f, 1.f, 0.f, 0.f);
+	}
+	return FMargin(0.f, 0.f, 0.f, 0.f);
 }
 
 TSharedRef<SWidget> SSequencerTreeViewRow::GenerateWidgetForColumn(const FName& ColumnId)
 {
-	auto PinnedNode = Node.Pin();
+	TSharedPtr<FSequencerDisplayNode> PinnedNode = Node.Pin();
 	if (PinnedNode.IsValid())
 	{
 		return OnGenerateWidgetForColumn.Execute(PinnedNode.ToSharedRef(), ColumnId, SharedThis(this));
@@ -184,6 +169,7 @@ void SSequencerTreeView::Construct(const FArguments& InArgs, const TSharedRef<FS
 		.AllowOverscroll(EAllowOverscroll::No)
 		.OnContextMenuOpening( this, &SSequencerTreeView::OnContextMenuOpening )
 		.OnSetExpansionRecursive(this, &SSequencerTreeView::SetItemExpansionRecursive)
+		.HighlightParentNodesForSelection(true)
 	);
 }
 
@@ -218,10 +204,6 @@ void SSequencerTreeView::Tick(const FGeometry& AllottedGeometry, const double In
 	if (SequencerNodeTree->GetHoveredNode().IsValid())
 	{
 		TSharedRef<FSequencerDisplayNode> OutermostParent = SequencerNodeTree->GetHoveredNode()->GetOutermostParent();
-		if (OutermostParent->GetType() == ESequencerNode::Spacer)
-		{
-			return;
-		}
 
 		TOptional<float> PhysicalTop = ComputeNodePosition(OutermostParent);
 
@@ -298,9 +280,9 @@ TOptional<float> SSequencerTreeView::ComputeNodePosition(const FDisplayNodeRef& 
 	TOptional<float> Top;
 	
 	// Iterate parent first until we find a tree view row we can use for the offset height
-	auto Iter = [&](FSequencerDisplayNode& InDisplayNode){
-		
-		TOptional<FCachedGeometry> ChildRowGeometry = GetPhysicalGeometryForNode(InDisplayNode.AsShared());
+	auto Iter = [this, &NegativeOffset, &Top](FSequencerDisplayNode& InDisplayNode)
+	{
+		TOptional<FCachedGeometry> ChildRowGeometry = this->GetPhysicalGeometryForNode(InDisplayNode.AsShared());
 		if (ChildRowGeometry.IsSet())
 		{
 			Top = ChildRowGeometry->PhysicalTop;
@@ -344,58 +326,29 @@ void SSequencerTreeView::OnChildRowRemoved(const FDisplayNodeRef& InNode)
 
 TSharedPtr<FSequencerDisplayNode> SSequencerTreeView::HitTestNode(float InPhysical) const
 {
-	auto* Found = Utils::BinarySearch<FCachedGeometry>(PhysicalNodes, [&](const FCachedGeometry& In){
-
-		if (InPhysical < In.PhysicalTop)
-		{
-			return Utils::ESearchState::Before;
-		}
-		else if (InPhysical > In.PhysicalTop + In.PhysicalHeight)
-		{
-			return Utils::ESearchState::After;
-		}
-
-		return Utils::ESearchState::Found;
-
-	});
-
-	if (Found)
+	// Find the first node with a top after the specified value - the hit node must be the one preceeding this
+	const int32 FoundIndex = Algo::UpperBoundBy(PhysicalNodes, InPhysical, &FCachedGeometry::PhysicalTop) - 1;
+	if (FoundIndex >= 0)
 	{
-		return Found->Node;
+		return PhysicalNodes[FoundIndex].Node;
 	}
-	
 	return nullptr;
 }
 
 float SSequencerTreeView::PhysicalToVirtual(float InPhysical) const
 {
-	int32 SearchIndex = PhysicalNodes.Num() / 2;
-
-	auto* Found = Utils::BinarySearch<FCachedGeometry>(PhysicalNodes, [&](const FCachedGeometry& In){
-
-		if (InPhysical < In.PhysicalTop)
-		{
-			return Utils::ESearchState::Before;
-		}
-		else if (InPhysical > In.PhysicalTop + In.PhysicalHeight)
-		{
-			return Utils::ESearchState::After;
-		}
-
-		return Utils::ESearchState::Found;
-
-	});
-
-
-	if (Found)
+	// Find the first node with a top after the specified value - the hit node must be the one preceeding this
+	const int32 FoundIndex = Algo::UpperBoundBy(PhysicalNodes, InPhysical, &FCachedGeometry::PhysicalTop) - 1;
+	if (FoundIndex >= 0)
 	{
-		const float FractionalHeight = (InPhysical - Found->PhysicalTop) / Found->PhysicalHeight;
-		return Found->Node->GetVirtualTop() + (Found->Node->GetVirtualBottom() - Found->Node->GetVirtualTop()) * FractionalHeight;
+		const FCachedGeometry& Found = PhysicalNodes[FoundIndex];
+		const float FractionalHeight = (InPhysical - Found.PhysicalTop) / Found.PhysicalHeight;
+		return Found.Node->GetVirtualTop() + (Found.Node->GetVirtualBottom() - Found.Node->GetVirtualTop()) * FractionalHeight;
 	}
 
 	if (PhysicalNodes.Num())
 	{
-		auto& Last = PhysicalNodes.Last();
+		const FCachedGeometry& Last = PhysicalNodes.Last();
 		return Last.Node->GetVirtualTop() + (InPhysical - Last.PhysicalTop);
 	}
 
@@ -404,30 +357,23 @@ float SSequencerTreeView::PhysicalToVirtual(float InPhysical) const
 
 float SSequencerTreeView::VirtualToPhysical(float InVirtual) const
 {
-	auto* Found = Utils::BinarySearch(PhysicalNodes, [&](const FCachedGeometry& In){
-
-		if (InVirtual < In.Node->GetVirtualTop())
-		{
-			return Utils::ESearchState::Before;
-		}
-		else if (InVirtual > In.Node->GetVirtualBottom())
-		{
-			return Utils::ESearchState::After;
-		}
-
-		return Utils::ESearchState::Found;
-
-	});
-
-	if (Found)
+	auto GetVirtualTop = [](const FCachedGeometry& In)
 	{
-		const float FractionalHeight = (InVirtual - Found->Node->GetVirtualTop()) / (Found->Node->GetVirtualBottom() - Found->Node->GetVirtualTop());
-		return Found->PhysicalTop + Found->PhysicalHeight * FractionalHeight;
+		return In.Node->GetVirtualTop();
+	};
+	// Find the first node with a top after the specified value - the hit node must be the one preceeding this
+	const int32 FoundIndex = Algo::UpperBoundBy(PhysicalNodes, InVirtual, GetVirtualTop) - 1;
+	if (FoundIndex >= 0)
+	{
+		const FCachedGeometry& Found = PhysicalNodes[FoundIndex];
+
+		const float FractionalHeight = (InVirtual - Found.Node->GetVirtualTop()) / (Found.Node->GetVirtualBottom() - Found.Node->GetVirtualTop());
+		return Found.PhysicalTop + Found.PhysicalHeight * FractionalHeight;
 	}
-	
+
 	if (PhysicalNodes.Num())
 	{
-		auto Last = PhysicalNodes.Last();
+		const FCachedGeometry& Last = PhysicalNodes.Last();
 		return Last.PhysicalTop + (InVirtual - Last.Node->GetVirtualTop());
 	}
 
@@ -439,7 +385,7 @@ void SSequencerTreeView::SetupColumns(const FArguments& InArgs)
 	FSequencer& Sequencer = SequencerNodeTree->GetSequencer();
 
 	// Define a column for the Outliner
-	auto GenerateOutliner = [=](const FDisplayNodeRef& InNode, const TSharedRef<SSequencerTreeViewRow>& InRow)
+	auto GenerateOutliner = [](const FDisplayNodeRef& InNode, const TSharedRef<SSequencerTreeViewRow>& InRow)
 	{
 		return InNode->GenerateContainerWidgetForOutliner(InRow);
 	};
@@ -447,9 +393,9 @@ void SSequencerTreeView::SetupColumns(const FArguments& InArgs)
 	Columns.Add("Outliner", FSequencerTreeViewColumn(GenerateOutliner, 1.f));
 
 	// Now populate the header row with the columns
-	for (auto& Pair : Columns)
+	for (TTuple<FName, FSequencerTreeViewColumn>& Pair : Columns)
 	{
-		if (Pair.Key != TrackAreaName || !Sequencer.GetShowCurveEditor())
+		if (Pair.Key != TrackAreaName)
 		{
 			HeaderRow->AddColumn(
 				SHeaderRow::Column(Pair.Key)
@@ -464,11 +410,7 @@ void SSequencerTreeView::UpdateTrackArea()
 	FSequencer& Sequencer = SequencerNodeTree->GetSequencer();
 
 	// Add or remove the column
-	if (Sequencer.GetShowCurveEditor())
-	{
-		HeaderRow->RemoveColumn(TrackAreaName);
-	}
-	else if (const auto* Column = Columns.Find(TrackAreaName))
+	if (const FSequencerTreeViewColumn* Column = Columns.Find(TrackAreaName))
 	{
 		HeaderRow->AddColumn(
 			SHeaderRow::Column(TrackAreaName)
@@ -681,7 +623,7 @@ void SSequencerTreeView::SynchronizeTreeSelectionWithSequencerSelection()
 			Private_ClearSelection();
 
 			FSequencer& Sequencer = SequencerNodeTree->GetSequencer();
-			for ( auto& Node : Sequencer.GetSelection().GetSelectedOutlinerNodes() )
+			for ( const TSharedRef<FSequencerDisplayNode>& Node : Sequencer.GetSelection().GetSelectedOutlinerNodes() )
 			{
 				if (Node->IsSelectable())
 				{
@@ -779,7 +721,7 @@ bool SSequencerTreeView::SynchronizeSequencerSelectionWithTreeSelection()
 		FSequencer& Sequencer = SequencerNodeTree->GetSequencer();
 		FSequencerSelection& Selection = Sequencer.GetSelection();
 		Selection.EmptySelectedOutlinerNodes();
-		for ( auto& Item : GetSelectedItems() )
+		for ( const TSharedRef<FSequencerDisplayNode>& Item : GetSelectedItems() )
 		{
 			Selection.AddToSelection( Item );
 		}
@@ -790,11 +732,14 @@ bool SSequencerTreeView::SynchronizeSequencerSelectionWithTreeSelection()
 
 TSharedPtr<SWidget> SSequencerTreeView::OnContextMenuOpening()
 {
-	const TSet<TSharedRef<FSequencerDisplayNode>> SelectedNodes = SequencerNodeTree->GetSequencer().GetSelection().GetSelectedOutlinerNodes();
-	auto SelectedNodesArray = SelectedNodes.Array();
-	if (SelectedNodes.Num() > 0 && SelectedNodesArray[0]->IsSelectable())
+	// Open a context menu for the first selected item if it is selectable
+	for (TSharedRef<FSequencerDisplayNode> SelectedNode : SequencerNodeTree->GetSequencer().GetSelection().GetSelectedOutlinerNodes())
 	{
-		return SelectedNodesArray[0]->OnSummonContextMenu();
+		if (SelectedNode->IsSelectable())
+		{
+			return SelectedNode->OnSummonContextMenu();
+		}
+		break;
 	}
 
 	// Otherwise, add a general menu for options
@@ -812,19 +757,23 @@ TSharedPtr<SWidget> SSequencerTreeView::OnContextMenuOpening()
 
 void SSequencerTreeView::Refresh()
 {
-	RootNodes.Reset(SequencerNodeTree->GetRootNodes().Num());
+	RootNodes.Reset();
+	Algo::CopyIf(SequencerNodeTree->GetRootNodes(), RootNodes, &FSequencerDisplayNode::IsVisible);
 
-	for (const auto& RootNode : SequencerNodeTree->GetRootNodes())
+	// Reset item expansion since we don't know if any expansion states may have changed in-between refreshes
 	{
-		if (RootNode->IsExpanded())
-		{
-			SetItemExpansion(RootNode, true);
-		}
+		STreeView::OnExpansionChanged.Unbind();
 
-		if (!RootNode->IsHidden())
+		ClearExpandedItems();
+		auto Traverse_SetExpansionStates = [this](FSequencerDisplayNode& InNode)
 		{
-			RootNodes.Add(RootNode);
-		}
+			this->SetItemExpansion(InNode.AsShared(), InNode.IsExpanded());
+			return true;
+		};
+		const bool bIncludeRootNode = false;
+		SequencerNodeTree->GetRootNode()->Traverse_ParentFirst(Traverse_SetExpansionStates, bIncludeRootNode);
+
+		STreeView::OnExpansionChanged.BindSP(this, &SSequencerTreeView::OnExpansionChanged);
 	}
 
 	// Force synchronization of selected tree view items here since the tree nodes may have been rebuilt
@@ -833,7 +782,7 @@ void SSequencerTreeView::Refresh()
 	SynchronizeTreeSelectionWithSequencerSelection();
 	bUpdatingTreeSelection = false;
 
-	RequestTreeRefresh();
+	RebuildList();
 }
 
 void SSequencerTreeView::ScrollByDelta(float DeltaInSlateUnits)
@@ -928,9 +877,9 @@ void SSequencerTreeView::ExpandCollapseNode(const FDisplayNodeRef& InNode, bool 
 void SSequencerTreeView::OnExpansionChanged(FDisplayNodeRef InItem, bool bIsExpanded)
 {
 	InItem->SetExpansionState(bIsExpanded);
-	
+
 	// Expand any children that are also expanded
-	for (auto& Child : InItem->GetChildNodes())
+	for (const FDisplayNodeRef& Child : InItem->GetChildNodes())
 	{
 		if (Child->IsExpanded())
 		{

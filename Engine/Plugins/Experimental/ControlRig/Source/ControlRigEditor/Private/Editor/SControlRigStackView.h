@@ -65,9 +65,6 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<FControlRigEditor> InControlRigEditor);
 
-	/** Sync up selection with the graph */
-	void HandleGraphSelectionChanged(const TSet<UObject*>& SelectedJoints);
-
 	/** Set Selection Changed */
 	void OnSelectionChanged(TSharedPtr<FRigStackEntry> Selection, ESelectInfo::Type SelectInfo);
 
@@ -96,6 +93,9 @@ private:
 
 	void OnControlRigInitialized(UControlRig* ControlRig, EControlRigState State);
 
+	bool bSuspendModelNotifications;
+	void HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload);
+
 	TSharedPtr<STreeView<TSharedPtr<FRigStackEntry>>> TreeView;
 
 	/** Command list we bind to */
@@ -107,9 +107,7 @@ private:
 
 	TArray<TSharedPtr<FRigStackEntry>> Operators;
 
-	bool bSelecting;
-
-	FDelegateHandle OnGraphNodeSelectionChanged;
+	FDelegateHandle OnModelModified;
 	FDelegateHandle OnBlueprintCompiledHandle;
 	FDelegateHandle OnControlRigInitializedHandle;
 };

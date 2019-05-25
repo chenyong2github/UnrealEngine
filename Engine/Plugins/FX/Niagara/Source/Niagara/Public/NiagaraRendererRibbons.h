@@ -85,6 +85,16 @@ private:
 	int32 MaterialParamOffset1;
 	int32 MaterialParamOffset2;
 	int32 MaterialParamOffset3;
+
+	// Average curvature of the segments.
+	float TessellationAngle = 0;
+	// Average angle of the curvature of the segments (in radian).
+	float TessellationCurvature = 0;
+
+	// Average twist of the segments.
+	float TessellationTwistAngle = 0;
+	// Average twist curvature of the segments.
+	float TessellationTwistCurvature = 0;
 };
 
 

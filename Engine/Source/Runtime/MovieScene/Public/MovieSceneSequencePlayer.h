@@ -551,7 +551,7 @@ protected:
 	/*~ Begin UObject interface */
 	virtual void BeginDestroy() override;
 	virtual bool IsSupportedForNetworking() const { return true; }
-	virtual int32 GetFunctionCallspace(UFunction* Function, void* Parameters, FFrame* Stack) override;
+	virtual int32 GetFunctionCallspace(UFunction* Function, FFrame* Stack) override;
 	virtual bool CallRemoteFunction(UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack) override;
 	virtual void PostNetReceive() override;
 	/*~ End UObject interface */

@@ -2598,12 +2598,33 @@ UClass* FPropertyHandleBase::GetClassMetaData(const FName& Key) const
 
 void FPropertyHandleBase::SetInstanceMetaData(const FName& Key, const FString& Value)
 {
-	GetPropertyNode()->SetInstanceMetaData(Key, Value);
+	TSharedPtr<FPropertyNode> PropertyNode = Implementation->GetPropertyNode();
+	if (PropertyNode.IsValid())
+	{
+		PropertyNode->SetInstanceMetaData(Key, Value);
+	}
 }
 
 const FString* FPropertyHandleBase::GetInstanceMetaData(const FName& Key) const
 {
-	return GetPropertyNode()->GetInstanceMetaData(Key);
+	TSharedPtr<FPropertyNode> PropertyNode = Implementation->GetPropertyNode();
+	if (PropertyNode.IsValid())
+	{
+		return PropertyNode->GetInstanceMetaData(Key);
+	}
+
+	return nullptr;
+}
+
+const TMap<FName, FString>* FPropertyHandleBase::GetInstanceMetaDataMap() const
+{
+	TSharedPtr<FPropertyNode> PropertyNode = Implementation->GetPropertyNode();
+	if (PropertyNode.IsValid())
+	{
+		return PropertyNode->GetInstanceMetaDataMap();
+	}
+
+	return nullptr;
 }
 
 FText FPropertyHandleBase::GetToolTipText() const

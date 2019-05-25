@@ -17,6 +17,25 @@ namespace UnrealGameSync
 		public string Description;
 		public bool bContainsCode;
 		public bool bContainsContent;
+
+		public PerforceChangeDetails(PerforceDescribeRecord DescribeRecord)
+		{
+			Description = DescribeRecord.Description;
+
+			// Check whether the files are code or content
+			string[] CodeExtensions = { ".cs", ".h", ".cpp", ".inl", ".usf", ".ush", ".uproject", ".uplugin" };
+			foreach(PerforceDescribeFileRecord File in DescribeRecord.Files)
+			{
+				if(CodeExtensions.Any(Extension => File.DepotFile.EndsWith(Extension, StringComparison.InvariantCultureIgnoreCase)))
+				{
+					bContainsCode = true;
+				}
+				else
+				{
+					bContainsContent = true;
+				}
+			}
+		}
 	}
 
 	class PerforceMonitor : IDisposable
@@ -362,10 +381,8 @@ namespace UnrealGameSync
 			// Update them in batches
 			foreach(int QueryChangeNumber in QueryChangeNumbers)
 			{
-				string[] CodeExtensions = { ".cs", ".h", ".cpp", ".inl", ".usf", ".ush", ".uproject", ".uplugin" };
-
 				// Skip this stuff if the user wants us to query for more changes
-				if(PendingMaxChanges > CurrentMaxChanges)
+				if(PendingMaxChanges != CurrentMaxChanges)
 				{
 					break;
 				}
@@ -375,23 +392,7 @@ namespace UnrealGameSync
 				if(Perforce.Describe(QueryChangeNumber, out DescribeRecord, LogWriter))
 				{
 					// Create the details object
-					PerforceChangeDetails Details = new PerforceChangeDetails();
-					Details.Description = DescribeRecord.Description;
-
-					// Check whether the files are code or content
-					foreach(PerforceDescribeFileRecord File in DescribeRecord.Files)
-					{
-						if(CodeExtensions.Any(Extension => File.DepotFile.EndsWith(Extension, StringComparison.InvariantCultureIgnoreCase)))
-						{
-							Details.bContainsCode = true;
-						}
-						else
-						{
-							Details.bContainsContent = true;
-						}
-					}
-
-					// Update the type of this change
+					PerforceChangeDetails Details = new PerforceChangeDetails(DescribeRecord);
 					lock(this)
 					{
 						if(!ChangeDetails.ContainsKey(QueryChangeNumber))

@@ -159,7 +159,7 @@ namespace Gauntlet
 
 	public class IOSDeviceFactory : IDeviceFactory
 	{
-		public bool CanSupportPlatform(UnrealTargetPlatform Platform)
+		public bool CanSupportPlatform(UnrealTargetPlatform? Platform)
 		{
 			return Platform == UnrealTargetPlatform.IOS;
 		}
@@ -601,7 +601,7 @@ namespace Gauntlet
         }
 
 
-		public UnrealTargetPlatform Platform { get { return UnrealTargetPlatform.IOS; } }
+		public UnrealTargetPlatform? Platform { get { return UnrealTargetPlatform.IOS; } }
 
 		/// <summary>
 		/// Temp path we use to push/pull things from the device
@@ -766,7 +766,13 @@ namespace Gauntlet
 		}
 		
 		// Gauntlet cache folder for tracking device/ipa state
-		string GauntletAppCache { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), ".gauntletappcache");} }
+		string GauntletAppCache
+		{
+			get
+			{	
+				return Path.Combine(Globals.TempDir, string.Format("IOSAppCache{0}", Globals.WorkerID == -1 ? "" : Globals.WorkerID.ToString()));
+			}
+		}
 
 		// path to locally extracted (and possibly resigned) app bundle
 		// Note: ios-deploy works with app bundles, which requires the IPA be unzipped for deployment (this will allow us to resign in the future as well)

@@ -888,6 +888,20 @@ void UMovieScene::PostLoad()
 		}
 	}
 
+#if WITH_EDITORONLY_DATA
+	for (int32 RootFolderIndex = 0; RootFolderIndex < RootFolders.Num();)
+	{
+		if (RootFolders[RootFolderIndex] == nullptr)
+		{
+			RootFolders.RemoveAt(RootFolderIndex);
+		}
+		else 
+		{
+			++RootFolderIndex;
+		}
+	}
+#endif
+
 	UpgradeTimeRanges();
 
 	for (FMovieSceneSpawnable& Spawnable : Spawnables)

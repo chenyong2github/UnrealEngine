@@ -665,7 +665,10 @@ MBP_Pair* MBP_PairManager::addPair(PxU32 id0, PxU32 id1, const BpHandle* PX_REST
 {
 	PX_ASSERT(id0!=INVALID_ID);
 	PX_ASSERT(id1!=INVALID_ID);
-
+	if (id0 == INVALID_ID || id1 == INVALID_ID)
+	{
+		return NULL;
+	}
 	if(groups)
 	{
 		const MBP_ObjectIndex index0 = decodeHandle_Index(id0);

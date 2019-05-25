@@ -35,6 +35,7 @@ public:
 		, SelectionColor_LinearRef(MakeShareable(new FLinearColor(0.728f, 0.364f, 0.003f)))
 		, SelectionColor_Inactive_LinearRef(MakeShareable(new FLinearColor(0.25f, 0.25f, 0.25f)))
 		, SelectionColor_Pressed_LinearRef(MakeShareable(new FLinearColor(0.701f, 0.225f, 0.003f)))
+		, HighlightColor_LinearRef(MakeShareable(new FLinearColor(0.068f, 0.068f, 0.068f)))
 	{
 	}
 
@@ -53,6 +54,7 @@ public:
 	const TSharedRef<FLinearColor> SelectionColor_LinearRef;
 	const TSharedRef<FLinearColor> SelectionColor_Inactive_LinearRef;
 	const TSharedRef<FLinearColor> SelectionColor_Pressed_LinearRef;
+	const TSharedRef<FLinearColor> HighlightColor_LinearRef;
 };
 
 
@@ -174,6 +176,7 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 	const FSlateColor SelectionColor( Style->SelectionColor_LinearRef );
 	const FSlateColor SelectionColor_Inactive( Style->SelectionColor_Inactive_LinearRef );
 	const FSlateColor SelectionColor_Pressed( Style->SelectionColor_Pressed_LinearRef );
+	const FSlateColor HighlightColor( Style->HighlightColor_LinearRef );
 
 	Style->Set("DefaultAppIcon", new IMAGE_BRUSH("Icons/DefaultAppIcon", Icon24x24));
 
@@ -260,6 +263,8 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 		.SetPressed(FSlateNoResource())
 		.SetNormalPadding(FMargin(0.0f, 0.0f, 0.0f, 1.0f))
 		.SetPressedPadding(FMargin(0.0f, 1.0f, 0.0f, 0.0f));
+
+	// Convenient transparent/invisible elements
 	{
 		Style->Set("NoBrush", new FSlateNoResource());
 		Style->Set("NoBorder", new FSlateNoResource());
@@ -757,6 +762,9 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 			.SetActiveHoveredBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
 			.SetInactiveBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
 			.SetInactiveHoveredBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+			.SetActiveHighlightedBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, HighlightColor))
+			.SetInactiveHighlightedBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FSlateColor(FLinearColor(.1f, .1f, .1f))))
+
 			.SetTextColor(DefaultForeground)
 			.SetSelectedTextColor(InvertedForeground)
 			.SetDropIndicator_Above(BOX_BRUSH("Common/DropZoneIndicator_Above", FMargin(10.0f / 16.0f, 10.0f / 16.0f, 0, 0), SelectionColor))

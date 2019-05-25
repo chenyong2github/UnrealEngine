@@ -4,15 +4,24 @@
 
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
+#include "UObject/ObjectKey.h"
+#include "Tree/CurveEditorTree.h"
+#include "DisplayNodes/SequencerDisplayNode.h"
+#include "SectionHandle.h"
 
 class FSequencer;
+class FCurveEditor;
 class FSequencerDisplayNode;
 class FSequencerObjectBindingNode;
+class FSequencerSectionKeyAreaNode;
 class FSequencerTrackNode;
+class FSequencerFolderNode;
 class ISequencerTrackEditor;
 class UMovieSceneFolder;
 class UMovieSceneTrack;
+class UMovieScene;
 struct FMovieSceneBinding;
+struct FCurveEditorTreeItemID;
 class FSequencerTrackFilter;
 class FSequencerTrackFilterCollection;
 class FSequencerTrackFilter_LevelFilter;
@@ -26,19 +35,20 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnUpdated);
 
 public:
-	FSequencerNodeTree(class FSequencer& InSequencer);
+
+	FSequencerNodeTree(FSequencer& InSequencer);
 	
 	~FSequencerNodeTree();
-	
-	/**
-	 * Empties the entire tree
-	 */
-	void Empty();
 
 	/**
 	 * Updates the tree with sections from a MovieScene
 	 */
 	void Update();
+
+	/**
+	 * Access this tree's symbolic root node
+	 */
+	TSharedRef<FSequencerDisplayNode> GetRootNode() const;
 
 	/**
 	 * @return The root nodes of the tree
@@ -114,9 +124,9 @@ public:
 	const TSharedPtr<FSequencerDisplayNode>& GetHoveredNode() const;
 
 	/*
-	 * Get the object binding map from guid to object binding nodes
+	 * Find the object binding node with the specified GUID
 	 */
-	const TMap< FGuid, TSharedPtr<FSequencerObjectBindingNode> >& GetObjectBindingMap() const { return ObjectBindingMap; }
+	TSharedPtr<FSequencerObjectBindingNode> FindObjectBindingNode(const FGuid& BindingID) const;
 
 	/*
 	 * Gets a multicast delegate which is called whenever the node tree has been updated.
@@ -129,6 +139,13 @@ public:
 	/** Sorts all nodes and their descendants by category then alphabetically.*/
 	void SortAllNodesAndDescendants();
 
+public:
+
+	/**
+	 * Finds the section handle relating to the specified section object, or Null if one was not found (perhaps, if it's filtered away)
+	 */
+	TOptional<FSectionHandle> GetSectionHandle(const UMovieSceneSection* Section) const;
+
 	void AddFilter(TSharedRef<FSequencerTrackFilter> TrackFilter);
 	int32 RemoveFilter(TSharedRef<FSequencerTrackFilter> TrackFilter);
 	void RemoveAllFilters();
@@ -137,6 +154,22 @@ public:
 	void AddLevelFilter(const FString& LevelName);
 	void RemoveLevelFilter(const FString& LevelName);
 	bool IsTrackLevelFilterActive(const FString& LevelName) const;
+
+private:
+
+	/** Population algorithm utilities */
+	void RefreshNodes(UMovieScene* MovieScene);
+
+	enum class ETrackType { Master, Object };
+
+	TSharedPtr<FSequencerTrackNode> CreateOrUpdateTrack(UMovieSceneTrack* Track, ETrackType TrackType);
+	TSharedRef<FSequencerFolderNode> CreateOrUpdateFolder(UMovieSceneFolder* Folder, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, const UMovieScene* InMovieScene);
+	TSharedPtr<FSequencerObjectBindingNode> CreateOrUpdateObjectBinding(const FGuid& BindingID, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, const UMovieScene* InMovieScene);
+
+	/**
+	 * Creates section handles for all the sections contained in the specified track
+	 */
+	void UpdateSectionHandles(TSharedRef<FSequencerTrackNode> TrackNode);
 
 private:
 
@@ -152,46 +185,42 @@ private:
 	 * @param Track	The type to find an editor for
 	 * @return The editor for the type
 	 */
-	TSharedRef<ISequencerTrackEditor> FindOrAddTypeEditor( UMovieSceneTrack& Track );
-
-	/* 
-	 * Makes sub-track nodes and section interfaces for a track node.
-	 * @param The track node to create sub-tracks and section interfaces for.
-	 * @return A new parent for the supplied track, or the track itself
-	 */
-	TSharedRef<FSequencerTrackNode> MakeSubTracksAndSectionInterfaces(TSharedRef<FSequencerTrackNode> TrackNode, const FGuid& ObjectBinding = FGuid());
+	TSharedRef<ISequencerTrackEditor> FindOrAddTypeEditor( UMovieSceneTrack* Track );
 
 	/**
-	 * Makes section interfaces for all sections in a track
-	 *
-	 * @param SectionAreaNode	The section area which section interfaces belong to
-	 * @param ObjectBinding Object binding ID that the track operates on
+	 * Update the curve editor tree to include anything of relevance from this tree
 	 */
-	void MakeSectionInterfaces( TSharedRef<FSequencerTrackNode> TrackNode, const FGuid& ObjectBinding );
-
-	/*
-	 * Helper function that creates object binding nodes along with their tracks. 
-	 */
-	void AddObjectBindingAndTracks(const FMovieSceneBinding& ObjectBinding, TMap<FGuid, const FMovieSceneBinding*>& GuidToBindingMap, TArray< TSharedRef<FSequencerObjectBindingNode> >& OutNodeList);
+	void UpdateCurveEditorTree();
 
 	/**
-	 * Creates a new object binding node and any parent binding nodes.
+	 * Add the specified node to the curve editor, including all its parents if necessary
 	 */
-	TSharedRef<FSequencerObjectBindingNode> AddObjectBinding( const FString& ObjectName, const FGuid& ObjectBinding, TMap<FGuid, const FMovieSceneBinding*>& GuidToBindingMap, TArray< TSharedRef<FSequencerObjectBindingNode> >& OutNodeList );
+	FCurveEditorTreeItemID AddToCurveEditor(TSharedRef<FSequencerDisplayNode> Node, FCurveEditor* CurveEditor);
 
 	/**
-	 * Creates the tree of folder nodes and populates it with object and track nodes. 
+	 * Checks whether the specified key area node contains key areas that can create curve models
 	 */
-	void CreateAndPopulateFolderNodes( TArray<TSharedRef<FSequencerTrackNode>>& MasterTrackNodes, TArray<TSharedRef<FSequencerObjectBindingNode>>& ObjectNodes,
-		TArray<UMovieSceneFolder*>& MovieSceneFolders, TArray<TSharedRef<FSequencerDisplayNode>>& FolderAndObjectNodes, TArray<TSharedRef<FSequencerDisplayNode>>& MasterTrackNodesNotInFolders );
+	bool KeyAreaHasCurves(const FSequencerSectionKeyAreaNode& KeyAreaNode) const;
 
 private:
+
+	/** Symbolic root node that contains the actual displayed root nodes as children */
+	TSharedRef<FSequencerDisplayNode> RootNode;
+
+	/** A serially incrementing integer that is increased each time the tree is refreshed to track node relevance */
+	uint32 SerialNumber;
+	/** Map from FMovieSceneBinding::GetObjectGuid to display node */
+	TMap<FGuid,      TSharedPtr<FSequencerObjectBindingNode>> ObjectBindingToNode;
+	/** Map from UMovieSceneTrack object key to display node for any track (object tracks or master tracks) */
+	TMap<FObjectKey, TSharedPtr<FSequencerTrackNode>>         TrackToNode;
+	/** Map from UMovieSceneFolder object key to display node for any folder (root or child folder) */
+	TMap<FObjectKey, TSharedPtr<FSequencerFolderNode>>        FolderToNode;
+
+	/** Map from UMovieSceneSection* to its UI handle */
+	TMap<FObjectKey, FSectionHandle> SectionToHandle;
+
 	/** Tools for building movie scene section layouts.  One tool for each track */
 	TMap< UMovieSceneTrack*, TSharedPtr<ISequencerTrackEditor> > EditorMap;
-	/** Root nodes */
-	TArray< TSharedRef<FSequencerDisplayNode> > RootNodes;
-	/** Mapping of object binding guids to their node (for fast lookup) */
-	TMap< FGuid, TSharedPtr<FSequencerObjectBindingNode> > ObjectBindingMap;
 	/** Set of all filtered nodes */
 	TSet< TSharedRef<FSequencerDisplayNode> > FilteredNodes;
 	/** Cardinal hovered node */
@@ -200,6 +229,8 @@ private:
 	FString FilterString;
 	/** Sequencer interface */
 	FSequencer& Sequencer;
+	/** Display node -> curve editor tree item ID mapping */
+	TMap<TWeakPtr<FSequencerDisplayNode>, FCurveEditorTreeItemID> CurveEditorTreeItemIDs;
 	/** A multicast delegate which is called whenever the node tree has been updated. */
 	FOnUpdated OnUpdatedDelegate;
 

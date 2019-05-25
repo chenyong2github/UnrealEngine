@@ -48,7 +48,6 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "LandscapeEditorCommands.h"
-#include "Settings/EditorExperimentalSettings.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.Layers"
 
@@ -269,9 +268,11 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::GenerateRow(int32 
 				[
 					SNew(SNumericEntryBox<float>)
 					.AllowSpin(true)
-					.MinValue(0.0f)
-					.MaxValue(100.0f)
-					.MaxSliderValue(100.0f)
+					.MinValue(-1.0f)
+					.MaxValue(1.0f)
+					.MinSliderValue(-1.0f)
+					.MaxSliderValue(1.0f)
+					.Delta(0.01f)
 					.MinDesiredValueWidth(60.0f)
 					.IsEnabled(this, &FLandscapeEditorCustomNodeBuilder_Layers::IsLayerEditionEnabled, InLayerIndex)
 					.Visibility(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetLayerAlphaVisibility, InLayerIndex)
@@ -354,6 +355,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::SetLayerName(const FText& InText,
 	{
 		const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Rename", "Rename Layer"));
 		LandscapeEdMode->SetLayerName(InLayerIndex, *InText.ToString());
+		OnLayerSelectionChanged(InLayerIndex);
 	}
 }
 
@@ -369,9 +371,10 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::OnLayerContextMenu
 		MenuBuilder.BeginSection("LandscapeEditorLayerActions", LOCTEXT("LandscapeEditorLayerActions.Heading", "Layers"));
 		{
 			// Create Layer
-			FUIAction CreateLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis] { SharedThis->CreateLayer(); }));
-			MenuBuilder.AddMenuEntry(LOCTEXT("CreateLayer", "Create"), LOCTEXT("CreateLayerTooltip", "Create Layer"), FSlateIcon(), CreateLayerAction);
-
+			FUIAction CreateLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis] { SharedThis->CreateLayer(); }), FCanExecuteAction::CreateLambda([Landscape] { return !Landscape->IsMaxLayersReached(); }));
+			TAttribute<FText> CreateLayerText(Landscape->IsMaxLayersReached() ? LOCTEXT("MaxLayersReached", "Create (Max layers reached)") : LOCTEXT("CreateLayer", "Create"));
+			MenuBuilder.AddMenuEntry(CreateLayerText, LOCTEXT("CreateLayerTooltip", "Create Layer"), FSlateIcon(), CreateLayerAction);
+	
 			if (Layer)
 			{
 				// Rename Layer
@@ -384,12 +387,10 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::OnLayerContextMenu
 					FUIAction ClearLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->ClearLayer(InLayerIndex); }));
 					MenuBuilder.AddMenuEntry(LOCTEXT("ClearLayer", "Clear..."), LOCTEXT("ClearLayerTooltip", "Clear Layer"), FSlateIcon(), ClearLayerAction);
 
-					if (Landscape->LandscapeLayers.Num() > 1)
-					{
-						// Delete Layer
-						FUIAction DeleteLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->DeleteLayer(InLayerIndex); } ));
-						MenuBuilder.AddMenuEntry(LOCTEXT("DeleteLayer", "Delete..."), LOCTEXT("DeleteLayerTooltip", "Delete Layer"), FSlateIcon(), DeleteLayerAction);
-					}
+					// Delete Layer
+					FUIAction DeleteLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->DeleteLayer(InLayerIndex); }), FCanExecuteAction::CreateLambda([Landscape] { return Landscape->LandscapeLayers.Num() > 1; }));
+					TAttribute<FText> DeleteLayerText(Landscape->LandscapeLayers.Num() == 1 ? LOCTEXT("CantDeleteLastLayer", "Delete (Last layer)") : LOCTEXT("DeleteLayer", "Delete..."));
+					MenuBuilder.AddMenuEntry(DeleteLayerText, LOCTEXT("DeleteLayerTooltip", "Delete Layer"), FSlateIcon(), DeleteLayerAction);
 				}
 
 				if (Landscape->GetLandscapeSplinesReservedLayer() != Landscape->GetLayer(InLayerIndex))
@@ -466,6 +467,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::SetLandscapeSplinesReservedLayer(
 				Landscape->SetLandscapeSplinesReservedLayer(InLayerIndex);
 				LandscapeEdMode->RefreshDetailPanel();
 				LandscapeEdMode->AutoUpdateDirtyLandscapeSplines();
+				OnLayerSelectionChanged(InLayerIndex);
 			}
 		}
 	}
@@ -493,6 +495,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::ClearLayer(int32 InLayerIndex)
 			{
 				const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Clean", "Clear Layer"));
 				Landscape->ClearLayer(InLayerIndex);
+				OnLayerSelectionChanged(InLayerIndex);
 			}
 		}
 	}
@@ -528,6 +531,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::ShowOnlySelectedLayer(int32 InLay
 	{
 		const FScopedTransaction Transaction(LOCTEXT("ShowOnlySelectedLayer", "Show Only Selected Layer"));
 		Landscape->ShowOnlySelectedLayer(InLayerIndex);
+		OnLayerSelectionChanged(InLayerIndex);
 	}
 }
 
@@ -544,22 +548,23 @@ void FLandscapeEditorCustomNodeBuilder_Layers::ShowAllLayers()
 
 void FLandscapeEditorCustomNodeBuilder_Layers::CreateLayer()
 {
-	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
-	if (Landscape)
+FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+if (Landscape)
+{
 	{
-		{
-			const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Create", "Create Layer"));
-			Landscape->CreateLayer();
-		}
-		LandscapeEdMode->RefreshDetailPanel();
+		const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Create", "Create Layer"));
+		Landscape->CreateLayer();
+		OnLayerSelectionChanged(Landscape->GetLayerCount() - 1);
 	}
+	LandscapeEdMode->RefreshDetailPanel();
+}
 }
 
 void FLandscapeEditorCustomNodeBuilder_Layers::OnLayerSelectionChanged(int32 InLayerIndex)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	if (LandscapeEdMode)
+	if (LandscapeEdMode && LandscapeEdMode->GetCurrentLayerIndex() != InLayerIndex)
 	{
 		FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_SetCurrentLayer", "Set Current Layer"));
 		LandscapeEdMode->SetCurrentLayer(InLayerIndex);
@@ -585,7 +590,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::SetLayerAlpha(float InAlpha, int3
 	if (LandscapeEdMode)
 	{
 		// We get multiple commits when editing through the text box
-		if (LandscapeEdMode->GetLayerAlpha(InLayerIndex) == InAlpha)
+		if (LandscapeEdMode->GetLayerAlpha(InLayerIndex) == LandscapeEdMode->GetClampedLayerAlpha(InAlpha))
 		{
 			return;
 		}
@@ -603,6 +608,10 @@ FReply FLandscapeEditorCustomNodeBuilder_Layers::OnToggleVisibility(int32 InLaye
 	{
 		const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_SetVisibility", "Set Layer Visibility"));
 		LandscapeEdMode->SetLayerVisibility(!LandscapeEdMode->IsLayerVisible(InLayerIndex), InLayerIndex);
+		if (LandscapeEdMode->IsLayerVisible(InLayerIndex))
+		{
+			OnLayerSelectionChanged(InLayerIndex);
+		}
 	}
 	return FReply::Handled();
 }
@@ -693,7 +702,7 @@ FReply FLandscapeEditorCustomNodeBuilder_Layers::HandleAcceptDrop(FDragDropEvent
 			{
 				LandscapeEdMode->SetCurrentLayer(DestinationLayerIndex);
 				LandscapeEdMode->RefreshDetailPanel();
-				LandscapeEdMode->RequestLayersContentUpdate();
+				LandscapeEdMode->RequestLayersContentUpdateForceAll();
 				return FReply::Handled();
 			}
 		}

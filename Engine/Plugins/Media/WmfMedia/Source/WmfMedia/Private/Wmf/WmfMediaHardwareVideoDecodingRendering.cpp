@@ -42,6 +42,7 @@ struct FRHICommandCopyResource final : public FRHICommand<FRHICommandCopyResourc
 
 	void Execute(FRHICommandListBase& CmdList)
 	{
+		LLM_SCOPE(ELLMTag::VideoStreaming);
 		ID3D11Device* D3D11Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
 		ID3D11DeviceContext* D3D11DeviceContext = nullptr;
 
@@ -103,6 +104,7 @@ struct FRHICommandCopyResource final : public FRHICommand<FRHICommandCopyResourc
 
 bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread(FWmfMediaHardwareVideoDecodingTextureSample* InSample, FTexture2DRHIRef InDstTexture)
 {
+	LLM_SCOPE(ELLMTag::VideoStreaming);
 	if (InSample == nullptr || !InDstTexture.IsValid())
 	{
 		return false;

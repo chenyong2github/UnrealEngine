@@ -116,7 +116,7 @@ struct FLightmassMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->Constant3(0,0,0);
 	}
 
-	virtual int32 PreSkinnedLocalBounds() override
+	virtual int32 PreSkinnedLocalBounds(int32 OutputIndex) override
 	{
 		return Compiler->Constant3(0, 0, 0);
 	}
@@ -436,6 +436,8 @@ public:
 					return Compiler->Lerp(Compiler->Constant3(1.0f, 1.0f, 1.0f), ColoredOpacity, Compiler->Saturate(MaterialInterface->CompileProperty(&ProxyCompiler,MP_Opacity,MFCF_ForceCast)));
 				}
 				break;
+			case MP_ShadingModel:
+				return MaterialInterface->CompileProperty(&ProxyCompiler, MP_ShadingModel);
 			default:
 				return Compiler->Constant(1.0f);
 			}
@@ -451,6 +453,10 @@ public:
 		{
 			// Pass through customized UVs
 			return MaterialInterface->CompileProperty(Compiler, Property);
+		}
+		else if (Property == MP_ShadingModel)
+		{
+			return MaterialInterface->CompileProperty(Compiler, MP_ShadingModel);
 		}
 		else
 		{

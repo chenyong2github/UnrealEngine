@@ -788,8 +788,16 @@ bool UTexture2D::UpdateStreamingStatus( bool bWaitForMipFading /*= false*/ )
 			PendingUpdate->Abort();
 		}
 
-		// When the renderthread is the gamethread, allow the Tick to execute rendercommands.
-		PendingUpdate->Tick(this, GIsThreadedRendering ? FTexture2DUpdate::TT_None : FTexture2DUpdate::TT_Render);
+		// When there is no renderthread, allow the gamethread to tick as the renderthread.
+		FRenderAssetUpdate::EThreadType TickThread = GIsThreadedRendering ? FRenderAssetUpdate::TT_None : FRenderAssetUpdate::TT_Render;
+		if (HasAnyFlags(RF_BeginDestroyed) && PendingUpdate->GetRelevantThread() == FRenderAssetUpdate::TT_Async)
+		{
+			// To avoid async tasks from timing out the GC, we tick as Async to force completion if this is relevant.
+			// This could lead the asset from releasing the PendingUpdate, which will be deleted once the async task completes.
+			TickThread = FRenderAssetUpdate::TT_GameRunningAsync;
+		}
+		PendingUpdate->Tick(TickThread);
+
 		if (!PendingUpdate->IsCompleted())
 		{
 			return true;
@@ -799,8 +807,8 @@ bool UTexture2D::UpdateStreamingStatus( bool bWaitForMipFading /*= false*/ )
 		const bool bRebuildPlatformData = PendingUpdate->DDCIsInvalid() && !IsPendingKillOrUnreachable();
 #endif
 
-		delete PendingUpdate;
-		PendingUpdate = nullptr;
+		PendingUpdate.SafeRelease();
+
 
 #if WITH_EDITOR
 		if (GIsEditor)
@@ -1777,9 +1785,6 @@ bool UTexture2D::StreamIn(int32 NewMipCount, bool bHighPrio)
 				PendingUpdate = new FTexture2DStreamIn_IO_AsyncReallocate(this, NewMipCount, bHighPrio);
 			}
 		}
-
-		// The object starts in the locked state while it is being initialized.
-		PendingUpdate->DoUnlock();
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;
@@ -1804,10 +1809,6 @@ bool UTexture2D::StreamOut(int32 NewMipCount)
 		{
 			PendingUpdate = new FTexture2DStreamOut_AsyncReallocate(this, NewMipCount);
 		}
-
-		// The object starts in the locked state while it is being initialized.
-		PendingUpdate->DoUnlock();
-
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;

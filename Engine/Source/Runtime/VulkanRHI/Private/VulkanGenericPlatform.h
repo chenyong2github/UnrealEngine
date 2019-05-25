@@ -89,7 +89,7 @@ public:
 	static bool SupportParallelRenderingTasks() { return true; }
 
 	// Allow platforms to add extension features to the DeviceInfo pNext chain
-	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo) {};
+	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo) {}
 
 	static bool RequiresSwapchainGeneralInitialLayout() { return false; }
 	
@@ -100,5 +100,8 @@ public:
 	static bool RequiresWaitingForFrameCompletionEvent() { return true; }
 
 	// Blocks until hardware window is available
-	static void BlockUntilWindowIsAwailable() {};
+	static void BlockUntilWindowIsAvailable() {}
+
+	// Does the platform allow a nullptr Pixelshader on the pipeline
+	static bool SupportsNullPixelShader() { return true; }
 };

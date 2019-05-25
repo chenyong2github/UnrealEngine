@@ -796,6 +796,39 @@ void FStreamableManager::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 }
 
+bool FStreamableManager::GetReferencerPropertyName(UObject* Object, FString& OutPropertyName) const
+{
+	if (Object)
+	{
+		// Report the first handle
+		for (TStreamableMap::TConstIterator It(StreamableItems); It; ++It)
+		{
+			const FStreamable* Existing = It.Value();
+			check(Existing);
+			if (Existing->Target == Object)
+			{
+				for (const TWeakPtr<FStreamableHandle>& WeakHandle : Existing->ActiveHandles)
+				{
+					TSharedPtr<FStreamableHandle> Handle = WeakHandle.Pin();
+					if (Handle.IsValid())
+					{
+						OutPropertyName = Handle->GetDebugName();
+						return true;
+					}
+				}
+
+				if (Existing->LoadingHandles.Num() > 0)
+				{
+					OutPropertyName = Existing->LoadingHandles[0]->GetDebugName();
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 FStreamable* FStreamableManager::FindStreamable(const FSoftObjectPath& Target) const
 {
 	FStreamable* Existing = StreamableItems.FindRef(Target);

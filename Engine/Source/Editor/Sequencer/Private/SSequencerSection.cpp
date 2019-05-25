@@ -361,7 +361,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 		float EaseInScale = 0.f, EaseOutScale = 0.f;
 		if (bEaseInHandle || bEaseOutHandle)
 		{
-			if (static_cast<const FSectionEasingHandleHotspot*>(Hotspot)->Section == Handle)
+			if (static_cast<const FSectionEasingHandleHotspot*>(Hotspot)->WeakSection.Get() == Handle.GetSectionObject())
 			{
 				if (bEaseInHandle)
 				{
@@ -377,7 +377,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 		{
 			for (const FEasingAreaHandle& Easing : static_cast<const FSectionEasingAreaHotspot*>(Hotspot)->Easings)
 			{
-				if (Easing.Section == Handle)
+				if (Easing.WeakSection.Get() == Handle.GetSectionObject())
 				{
 					if (Easing.EasingType == ESequencerEasingType::In)
 					{
@@ -871,7 +871,7 @@ bool SSequencerSection::CheckForEasingHandleInteraction( const FPointerEvent& Mo
 
 	// Gather all underlapping sections
 	TArray<FSectionHandle> AllUnderlappingSections;
-	AllUnderlappingSections.Add(FSectionHandle(ParentSectionArea, SectionIndex));
+	AllUnderlappingSections.Add(FSectionHandle(ParentSectionArea.ToSharedRef(), SectionIndex));
 	for (const FSequencerOverlapRange& Segment : UnderlappingSegments)
 	{
 		for (FSectionHandle Section : Segment.Sections)
@@ -882,7 +882,7 @@ bool SSequencerSection::CheckForEasingHandleInteraction( const FPointerEvent& Mo
 
 	for (FSectionHandle Handle : AllUnderlappingSections)
 	{
-		TSharedRef<ISequencerSection> EasingSection    =  Handle.TrackNode->GetSections()[Handle.SectionIndex];
+		TSharedRef<ISequencerSection> EasingSection    =  Handle.GetSectionInterface();
 		UMovieSceneSection*           EasingSectionObj = EasingSection->GetSectionObject();
 
 		if (EasingSectionObj->HasStartFrame())
@@ -892,7 +892,7 @@ bool SSequencerSection::CheckForEasingHandleInteraction( const FPointerEvent& Mo
 
 			if (FMath::IsNearlyEqual(MouseTime, HandlePositionIn, HalfHandleSizeX))
 			{
-				GetSequencer().SetHotspot(MakeShared<FSectionEasingHandleHotspot>(ESequencerEasingType::In, Handle));
+				GetSequencer().SetHotspot(MakeShared<FSectionEasingHandleHotspot>(ESequencerEasingType::In, EasingSectionObj));
 				return true;
 			}
 		}
@@ -904,7 +904,7 @@ bool SSequencerSection::CheckForEasingHandleInteraction( const FPointerEvent& Mo
 
 			if (FMath::IsNearlyEqual(MouseTime, HandlePositionOut, HalfHandleSizeX))
 			{
-				GetSequencer().SetHotspot(MakeShared<FSectionEasingHandleHotspot>(ESequencerEasingType::Out, Handle));
+				GetSequencer().SetHotspot(MakeShared<FSectionEasingHandleHotspot>(ESequencerEasingType::Out, EasingSectionObj));
 				return true;
 			}
 		}
@@ -923,7 +923,7 @@ bool SSequencerSection::CheckForEdgeInteraction( const FPointerEvent& MouseEvent
 	}
 
 	TArray<FSectionHandle> AllUnderlappingSections;
-	AllUnderlappingSections.Add(FSectionHandle(ParentSectionArea, SectionIndex));
+	AllUnderlappingSections.Add(FSectionHandle(ParentSectionArea.ToSharedRef(), SectionIndex));
 	for (const FSequencerOverlapRange& Segment : UnderlappingSegments)
 	{
 		for (FSectionHandle Section : Segment.Sections)
@@ -937,7 +937,7 @@ bool SSequencerSection::CheckForEdgeInteraction( const FPointerEvent& MouseEvent
 
 	for (FSectionHandle Handle : AllUnderlappingSections)
 	{
-		TSharedRef<ISequencerSection> UnderlappingSection =  Handle.TrackNode->GetSections()[Handle.SectionIndex];
+		TSharedRef<ISequencerSection> UnderlappingSection =  Handle.GetSectionInterface();
 		UMovieSceneSection* UnderlappingSectionObj = UnderlappingSection->GetSectionObject();
 		if (!UnderlappingSection->SectionIsResizable())
 		{
@@ -957,7 +957,7 @@ bool SSequencerSection::CheckForEdgeInteraction( const FPointerEvent& MouseEvent
 
 			if( SectionRectLeft.IsUnderLocation( MouseEvent.GetScreenSpacePosition() ) )
 			{
-				GetSequencer().SetHotspot(MakeShareable( new FSectionResizeHotspot(FSectionResizeHotspot::Left, Handle)) );
+				GetSequencer().SetHotspot(MakeShareable( new FSectionResizeHotspot(FSectionResizeHotspot::Left, UnderlappingSectionObj)) );
 				return true;
 			}
 		}
@@ -971,7 +971,7 @@ bool SSequencerSection::CheckForEdgeInteraction( const FPointerEvent& MouseEvent
 
 			if( SectionRectRight.IsUnderLocation( MouseEvent.GetScreenSpacePosition() ) )
 			{
-				GetSequencer().SetHotspot(MakeShareable( new FSectionResizeHotspot(FSectionResizeHotspot::Right, Handle)) );
+				GetSequencer().SetHotspot(MakeShareable( new FSectionResizeHotspot(FSectionResizeHotspot::Right, UnderlappingSectionObj)) );
 				return true;
 			}
 		}
@@ -1004,17 +1004,17 @@ bool SSequencerSection::CheckForEasingAreaInteraction( const FPointerEvent& Mous
 			UMovieSceneSection* Section = Handle.GetSectionObject();
 			if (Section->GetEaseInRange().Contains(MouseTime))
 			{
-				EasingAreas.Add(FEasingAreaHandle{ Handle, ESequencerEasingType::In });
+				EasingAreas.Add(FEasingAreaHandle{ Section, ESequencerEasingType::In });
 			}
 			if (Section->GetEaseOutRange().Contains(MouseTime))
 			{
-				EasingAreas.Add(FEasingAreaHandle{ Handle, ESequencerEasingType::Out });
+				EasingAreas.Add(FEasingAreaHandle{ Section, ESequencerEasingType::Out });
 			}
 		}
 
 		if (EasingAreas.Num())
 		{
-			GetSequencer().SetHotspot(MakeShared<FSectionEasingAreaHotspot>(EasingAreas, FSectionHandle(ParentSectionArea, SectionIndex)));
+			GetSequencer().SetHotspot(MakeShared<FSectionEasingAreaHotspot>(EasingAreas, ThisSection));
 			return true;
 		}
 	}
@@ -1029,7 +1029,7 @@ FSequencer& SSequencerSection::GetSequencer() const
 
 int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
 {
-	UMovieSceneSection& SectionObject = *SectionInterface->GetSectionObject();
+	UMovieSceneSection* SectionObject = SectionInterface->GetSectionObject();
 
 	const ISequencerEditTool* EditTool = GetSequencer().GetEditTool();
 	const ISequencerHotspot* Hotspot = EditTool ? EditTool->GetDragHotspot() : nullptr;
@@ -1038,13 +1038,13 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 		Hotspot = GetSequencer().GetHotspot().Get();
 	}
 
-	const bool bEnabled = bParentEnabled && SectionObject.IsActive();
-	const bool bLocked = SectionObject.IsLocked();
-	UMovieScenePropertyTrack* Track = SectionObject.GetTypedOuter<UMovieScenePropertyTrack>();
+	const bool bEnabled = bParentEnabled && SectionObject->IsActive();
+	const bool bLocked = SectionObject->IsLocked();
+	UMovieScenePropertyTrack* Track = SectionObject->GetTypedOuter<UMovieScenePropertyTrack>();
 	bool bSetSectionToKey = false;
 	if (Track)
 	{
-		if (Track->GetSectionToKey() == &SectionObject)
+		if (Track->GetSectionToKey() == SectionObject)
 		{
 			bSetSectionToKey = true;
 		}
@@ -1055,7 +1055,7 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 
 	FGeometry SectionGeometry = MakeSectionGeometryWithoutHandles( AllottedGeometry, SectionInterface );
 
-	FSequencerSectionPainterImpl Painter(ParentSectionArea->GetSequencer(), SectionObject, OutDrawElements, SectionGeometry, *this);
+	FSequencerSectionPainterImpl Painter(ParentSectionArea->GetSequencer(), *SectionObject, OutDrawElements, SectionGeometry, *this);
 
 	FGeometry PaintSpaceParentGeometry = ParentGeometry;
 	PaintSpaceParentGeometry.AppendTransform(FSlateLayoutTransform(Inverse(Args.GetWindowToDesktopTransform())));
@@ -1070,9 +1070,9 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 
 	Painter.LayerId = LayerId;
 	Painter.bParentEnabled = bEnabled;
-	Painter.bIsHighlighted = IsSectionHighlighted(FSectionHandle(ParentSectionArea, SectionIndex), Hotspot);
+	Painter.bIsHighlighted = IsSectionHighlighted(SectionObject, Hotspot);
 	auto& Selection = ParentSectionArea->GetSequencer().GetSelection();
-	Painter.bIsSelected = Selection.IsSelected(&SectionObject);
+	Painter.bIsSelected = Selection.IsSelected(SectionObject);
 
 	FSlateClippingZone ClippingZone(Painter.SectionClippingRect);
 	OutDrawElements.PushClip(ClippingZone);
@@ -1121,7 +1121,7 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 	FText SectionTitle = SectionInterface->GetSectionTitle();
 	FMargin ContentPadding = SectionInterface->GetContentPadding();
 
-	const int32 EaseInAmount = SectionObject.Easing.GetEaseInDuration();
+	const int32 EaseInAmount = SectionObject->Easing.GetEaseInDuration();
 	if (EaseInAmount > 0)
 	{
 		ContentPadding.Left += Painter.GetTimeConverter().FrameToPixel(EaseInAmount) - Painter.GetTimeConverter().FrameToPixel(0);
@@ -1600,16 +1600,16 @@ void SSequencerSection::PaintEasingHandles( FSequencerSectionPainter& InPainter,
 	}
 
 	TArray<FSectionHandle> AllUnderlappingSections;
-	if (IsSectionHighlighted(FSectionHandle(ParentSectionArea, SectionIndex), Hotspot))
+	if (IsSectionHighlighted(SectionInterface->GetSectionObject(), Hotspot))
 	{
-		AllUnderlappingSections.Add(FSectionHandle(ParentSectionArea, SectionIndex));
+		AllUnderlappingSections.Add(FSectionHandle(ParentSectionArea.ToSharedRef(), SectionIndex));
 	}
 
 	for (const FSequencerOverlapRange& Segment : UnderlappingSegments)
 	{
 		for (FSectionHandle Section : Segment.Sections)
 		{
-			if (IsSectionHighlighted(Section, Hotspot) && !AllUnderlappingSections.Contains(Section))
+			if (IsSectionHighlighted(Section.GetSectionObject(), Hotspot) && !AllUnderlappingSections.Contains(Section))
 			{
 				AllUnderlappingSections.Add(Section);
 			}
@@ -1636,7 +1636,7 @@ void SSequencerSection::PaintEasingHandles( FSequencerSectionPainter& InPainter,
 			{
 				const FSectionEasingHandleHotspot* EasingHotspot = static_cast<const FSectionEasingHandleHotspot*>(Hotspot);
 
-				bDrawThisSectionsHandles = EasingHotspot->Section == Handle;
+				bDrawThisSectionsHandles = (EasingHotspot->WeakSection == Handle.GetSectionObject());
 				bLeftHandleActive = Hotspot->GetType() == ESequencerHotspot::EaseInHandle;
 				bRightHandleActive = Hotspot->GetType() == ESequencerHotspot::EaseOutHandle;
 			}
@@ -1645,7 +1645,7 @@ void SSequencerSection::PaintEasingHandles( FSequencerSectionPainter& InPainter,
 				const FSectionEasingAreaHotspot* EasingAreaHotspot = static_cast<const FSectionEasingAreaHotspot*>(Hotspot);
 				for (const FEasingAreaHandle& Easing : EasingAreaHotspot->Easings)
 				{
-					if (Easing.Section == Handle)
+					if (Easing.WeakSection == Handle.GetSectionObject())
 					{
 						if (Easing.EasingType == ESequencerEasingType::In)
 						{
@@ -1736,7 +1736,7 @@ void SSequencerSection::DrawSectionHandles( const FGeometry& AllottedGeometry, F
 	OutDrawElements.PushClip(FSlateClippingZone(AllottedGeometry.GetLayoutBoundingRect()));
 
 	TArray<FSectionHandle> AllUnderlappingSections;
-	AllUnderlappingSections.Add(FSectionHandle(ParentSectionArea, SectionIndex));
+	AllUnderlappingSections.Add(FSectionHandle(ParentSectionArea.ToSharedRef(), SectionIndex));
 	for (const FSequencerOverlapRange& Segment : UnderlappingSegments)
 	{
 		for (FSectionHandle Section : Segment.Sections)
@@ -1750,14 +1750,14 @@ void SSequencerSection::DrawSectionHandles( const FGeometry& AllottedGeometry, F
 
 	for (FSectionHandle Handle : AllUnderlappingSections)
 	{
-		TSharedRef<ISequencerSection> UnderlappingSection =  Handle.TrackNode->GetSections()[Handle.SectionIndex];
+		TSharedRef<ISequencerSection> UnderlappingSection =  Handle.GetSectionInterface();
 		UMovieSceneSection* UnderlappingSectionObj = UnderlappingSection->GetSectionObject();
 		if (!UnderlappingSection->SectionIsResizable() || UnderlappingSectionObj->GetRange() == TRange<FFrameNumber>::All())
 		{
 			continue;
 		}
 
-		bool bDrawThisSectionsHandles = (UnderlappingSectionObj == ThisSection && HandleOffsetPx != 0) || IsSectionHighlighted(Handle, Hotspot);
+		bool bDrawThisSectionsHandles = (UnderlappingSectionObj == ThisSection && HandleOffsetPx != 0) || IsSectionHighlighted(UnderlappingSectionObj, Hotspot);
 		bool bLeftHandleActive = false;
 		bool bRightHandleActive = false;
 
@@ -1767,7 +1767,7 @@ void SSequencerSection::DrawSectionHandles( const FGeometry& AllottedGeometry, F
 			Hotspot->GetType() == ESequencerHotspot::SectionResize_R))
 		{
 			const FSectionResizeHotspot* ResizeHotspot = static_cast<const FSectionResizeHotspot*>(Hotspot);
-			if (ResizeHotspot->Section == Handle)
+			if (ResizeHotspot->WeakSection == Handle.GetSectionObject())
 			{
 				bDrawThisSectionsHandles = true;
 				bLeftHandleActive = Hotspot->GetType() == ESequencerHotspot::SectionResize_L;
@@ -2027,8 +2027,9 @@ FReply SSequencerSection::OnMouseMove( const FGeometry& MyGeometry, const FPoint
 		!CheckForEdgeInteraction(MouseEvent, MyGeometry) &&
 		!CheckForEasingAreaInteraction(MouseEvent, MyGeometry))
 	{
+		UMovieSceneSection* ThisSection = SectionInterface->GetSectionObject();
 		// If nothing was hit, we just hit the section
-		GetSequencer().SetHotspot( MakeShareable( new FSectionHotspot(FSectionHandle(ParentSectionArea, SectionIndex))) );
+		GetSequencer().SetHotspot( MakeShareable( new FSectionHotspot(ThisSection)) );
 	}
 
 	return FReply::Unhandled();
@@ -2094,7 +2095,7 @@ float SSequencerSection::GetKeySelectionThrobValue()
 	return 0.f;
 }
 
-bool SSequencerSection::IsSectionHighlighted(FSectionHandle InSectionHandle, const ISequencerHotspot* Hotspot)
+bool SSequencerSection::IsSectionHighlighted(UMovieSceneSection* InSection, const ISequencerHotspot* Hotspot)
 {
 	if (!Hotspot)
 	{
@@ -2104,21 +2105,21 @@ bool SSequencerSection::IsSectionHighlighted(FSectionHandle InSectionHandle, con
 	switch(Hotspot->GetType())
 	{
 	case ESequencerHotspot::Key:
-		return static_cast<const FKeyHotspot*>(Hotspot)->Keys.ContainsByPredicate([InSectionHandle](const FSequencerSelectedKey& Key){ return Key.Section == InSectionHandle.GetSectionObject(); });
+		return static_cast<const FKeyHotspot*>(Hotspot)->Keys.ContainsByPredicate([InSection](const FSequencerSelectedKey& Key){ return Key.Section == InSection; });
 
 	case ESequencerHotspot::Section:
-		return static_cast<const FSectionHotspot*>(Hotspot)->Section == InSectionHandle;
+		return static_cast<const FSectionHotspot*>(Hotspot)->WeakSection == InSection;
 
 	case ESequencerHotspot::SectionResize_L:
 	case ESequencerHotspot::SectionResize_R:
-		return static_cast<const FSectionResizeHotspot*>(Hotspot)->Section == InSectionHandle;
+		return static_cast<const FSectionResizeHotspot*>(Hotspot)->WeakSection == InSection;
 
 	case ESequencerHotspot::EaseInHandle:
 	case ESequencerHotspot::EaseOutHandle:
-		return static_cast<const FSectionEasingHandleHotspot*>(Hotspot)->Section == InSectionHandle;
+		return static_cast<const FSectionEasingHandleHotspot*>(Hotspot)->WeakSection == InSection;
 
 	case ESequencerHotspot::EasingArea:
-		return static_cast<const FSectionEasingAreaHotspot*>(Hotspot)->Contains(InSectionHandle);
+		return static_cast<const FSectionEasingAreaHotspot*>(Hotspot)->Contains(InSection);
 
 	default:
 		return false;

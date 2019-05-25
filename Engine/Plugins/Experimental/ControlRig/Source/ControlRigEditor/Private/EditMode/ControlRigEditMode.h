@@ -7,6 +7,7 @@
 #include "IPersonaEditMode.h"
 #include "ControlRigTrajectoryCache.h"
 #include "ControlUnitProxy.h"
+#include "ControlRigModel.h"
 
 class FEditorViewportClient;
 class FViewport;
@@ -24,7 +25,6 @@ class IMovieScenePlayer;
 struct FRigUnit_Control;
 
 /** Delegate fired when controls are selected */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnControlsSelected, const TArray<FString>& /*SelectedControlPropertyPaths*/);
 DECLARE_DELEGATE_RetVal_TwoParams(FTransform, FOnGetBoneTransform, const FName& /*BoneName*/, bool /*bLocal*/);
 DECLARE_DELEGATE_TwoParams(FOnSetBoneTransform, const FName& /*BoneName*/, const FTransform& /*Transform*/);
 
@@ -95,6 +95,9 @@ public:
 	/** Get the number of selected controls */
 	int32 GetNumSelectedControls() const;
 
+	/** returns all property paths for all selected controls */
+	TArray<FString> GetSelectedControls() const;
+
 	/** Set a control's enabled state */
 	void SetControlEnabled(const FString& InControlPropertyPath, bool bEnabled);
 
@@ -118,9 +121,6 @@ public:
 	/** Refresh our internal object list (they may have changed) */
 	void RefreshObjects();
 
-	/** Delegate fired when controls are selected */
-	FOnControlsSelected& OnControlsSelected() { return OnControlsSelectedDelegate; }
-
 	/** Refresh our trajectory cache */
 	void RefreshTrajectoryCache();
 
@@ -140,6 +140,10 @@ public:
 	void SelectBone(const FName& InBone);
 	FOnGetBoneTransform& OnGetBoneTransform() { return OnGetBoneTransformDelegate; }
 	FOnSetBoneTransform& OnSetBoneTransform() { return OnSetBoneTransformDelegate; }
+
+	UControlRigModel::FModifiedEvent& OnModified();
+	void HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload);
+
 protected:
 	/** Helper function: set ControlRigs array to the details panel */
 	void SetObjects_Internal();
@@ -199,9 +203,6 @@ protected:
 	/** As we cannot cycle widget mode during tracking, we defer cycling until after a click with this flag */
 	bool bSelectedBone;
 
-	/** Delegate fired when controls are selected */
-	FOnControlsSelected OnControlsSelectedDelegate;
-
 	/** Guard value for selection */
 	bool bSelecting;
 
@@ -226,4 +227,6 @@ protected:
 	bool AreBoneSelected() const;
 
 	bool AreBoneSelectedAndMovable() const;
+
+	UControlRigModel::FModifiedEvent _ModifiedEvent;
 };

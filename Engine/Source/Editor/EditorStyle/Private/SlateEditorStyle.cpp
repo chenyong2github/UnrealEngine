@@ -70,6 +70,7 @@ FSlateEditorStyle::FStyle::FStyle( const TWeakObjectPtr< UEditorStyleSettings >&
 	, SelectionColor_Subdued_LinearRef( MakeShareable( new FLinearColor( 0.807f, 0.596f, 0.388f ) ) )
 	, SelectionColor_Inactive_LinearRef( MakeShareable( new FLinearColor( 0.25f, 0.25f, 0.25f ) ) )
 	, SelectionColor_Pressed_LinearRef( MakeShareable( new FLinearColor( 0.701f, 0.225f, 0.003f ) ) )
+	, HighlightColor_LinearRef( MakeShareable( new FLinearColor(0.068f, 0.068f, 0.068f) ) ) 
 
 	, LogColor_Background_LinearRef(MakeShareable(new FLinearColor(FColor(0x040404FF))))
 	, LogColor_SelectionBackground_LinearRef(MakeShareable(new FLinearColor(FColor(0x020202FF))))
@@ -86,6 +87,7 @@ FSlateEditorStyle::FStyle::FStyle( const TWeakObjectPtr< UEditorStyleSettings >&
 	, SelectionColor_Subdued( SelectionColor_Subdued_LinearRef )
 	, SelectionColor_Inactive( SelectionColor_Inactive_LinearRef )
 	, SelectionColor_Pressed( SelectionColor_Pressed_LinearRef )
+	, HighlightColor( HighlightColor_LinearRef )
 
 	, LogColor_Background( LogColor_Background_LinearRef )
 	, LogColor_SelectionBackground( LogColor_SelectionBackground_LinearRef )
@@ -233,6 +235,8 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 		.SetActiveHoveredBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, SelectionColor ) )
 		.SetInactiveBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, SelectionColor_Inactive ) )
 		.SetInactiveHoveredBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, SelectionColor_Inactive ) )
+		.SetActiveHighlightedBrush( IMAGE_BRUSH("Common/Selection", Icon8x8, HighlightColor ) )
+		.SetInactiveHighlightedBrush( IMAGE_BRUSH("Common/Selection", Icon8x8, HighlightColor ) )
 		.SetTextColor( DefaultForeground )
 		.SetSelectedTextColor(InvertedForeground)
 		.SetDropIndicator_Above(BOX_BRUSH("Common/DropZoneIndicator_Above", FMargin(10.0f / 16.0f, 10.0f / 16.0f, 0, 0), SelectionColor))
@@ -1845,10 +1849,12 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 
 		Set( "Sequencer.NotificationImage_AddedPlayMovieSceneEvent", new IMAGE_BRUSH( "Old/Checkbox_checked", Icon16x16 ) );
 
-		Set( "Sequencer.Save", new IMAGE_BRUSH( "Sequencer/Main_Icons/Icon_Sequencer_Save_24x", Icon48x48 ) );
-		Set( "Sequencer.Save.Small", new IMAGE_BRUSH( "Sequencer/Main_Icons/Icon_Sequencer_Save_24x", Icon24x24 ) );
-		Set( "Sequencer.SaveAs", new IMAGE_BRUSH( "Sequencer/Main_Icons/Icon_Sequencer_Save_As_24x", Icon48x48 ) );
-		Set( "Sequencer.SaveAs.Small", new IMAGE_BRUSH( "Sequencer/Main_Icons/Icon_Sequencer_Save_As_24x", Icon24x24 ) );
+		Set( "Sequencer.Save", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_Save_48x", Icon48x48) );
+		Set( "Sequencer.Save.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_Save_48x", Icon24x24) );
+		Set( "Sequencer.SaveAsterisk", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_SaveAsterisk_48x", Icon48x48) );
+		Set( "Sequencer.SaveAsterisk.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_SaveAsterisk_48x", Icon24x24) );
+		Set( "Sequencer.SaveAs", new IMAGE_BRUSH( "Sequencer/Main_Icons/Icon_Sequencer_SaveAs_48x", Icon48x48 ) );
+		Set( "Sequencer.SaveAs.Small", new IMAGE_BRUSH( "Sequencer/Main_Icons/Icon_Sequencer_SaveAs_48x", Icon24x24 ) );
 		Set( "Sequencer.DiscardChanges", new IMAGE_BRUSH( "Sequencer/Main_Icons/Icon_Sequencer_Revert_24x", Icon48x48 ) );
 		Set( "Sequencer.DiscardChanges.Small", new IMAGE_BRUSH( "Sequencer/Main_Icons/Icon_Sequencer_Revert_24x", Icon24x24 ) );
 		Set( "Sequencer.RestoreAnimatedState", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_RestoreAnimatedState_24x", Icon48x48 ) );
@@ -1917,8 +1923,8 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "Sequencer.SetKeyChanged.Small", new IMAGE_BRUSH( "Sequencer/Main_Icons/Icon_Sequencer_Key_Part_24x", Icon24x24 ) );
 		Set( "Sequencer.ToggleIsSnapEnabled", new IMAGE_BRUSH( "Sequencer/Main_Icons/Icon_Sequencer_Snap_24x", Icon48x48 ) );
 		Set( "Sequencer.ToggleIsSnapEnabled.Small", new IMAGE_BRUSH( "Sequencer/Main_Icons/Icon_Sequencer_Snap_24x", Icon24x24 ) );
-		Set( "Sequencer.ToggleShowCurveEditor", new IMAGE_BRUSH("Icons/SequencerIcons/icon_Sequencer_CurveEditor_24x", Icon48x48) );
-		Set( "Sequencer.ToggleShowCurveEditor.Small", new IMAGE_BRUSH("Icons/SequencerIcons/icon_Sequencer_CurveEditor_24x", Icon24x24) );
+		Set( "Sequencer.ToggleShowCurveEditor", new IMAGE_BRUSH("GenericCurveEditor/Icons/GenericCurveEditor_48x", Icon48x48) );
+		Set( "Sequencer.ToggleShowCurveEditor.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/GenericCurveEditor_48x", Icon24x24) );
 		Set( "Sequencer.ToggleAutoScroll", new IMAGE_BRUSH( "Icons/icon_Sequencer_ToggleAutoScroll_40x", Icon48x48 ) );
 		Set( "Sequencer.ToggleAutoScroll.Small", new IMAGE_BRUSH( "Icons/icon_Sequencer_ToggleAutoScroll_16x", Icon16x16 ) );
 		Set( "Sequencer.MoveTool.Small", new IMAGE_BRUSH( "Icons/SequencerIcons/icon_Sequencer_Move_24x", Icon16x16 ) );
@@ -6193,7 +6199,9 @@ void FSlateEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			TEXT("AIPerceptionComponent"),
 			TEXT("AnimationModifier"),		
 			TEXT("AnimBlueprint"),
+			TEXT("AnimLayerInterface"),
 			TEXT("AnimComposite"),
+			TEXT("AnimInstance"),
 			TEXT("AnimMontage"),
 			TEXT("AnimSequence"),
 			TEXT("AnimationSharingSetup"),
@@ -6596,6 +6604,7 @@ void FSlateEditorStyle::FStyle::SetupLandscapeEditorStyle()
 		Set("LandscapeEditor.ResizeLandscape.Small", new IMAGE_BRUSH("Icons/icon_Landscape_Tool_Copy_20x", Icon20x20));
 
 		Set("LandscapeEditor.SculptTool",       new IMAGE_BRUSH("Icons/icon_Landscape_Tool_Sculpt_40x",           Icon40x40));
+		Set("LandscapeEditor.EraseTool",		new IMAGE_BRUSH("Icons/icon_Landscape_Tool_Erase_40x", Icon40x40));
 		Set("LandscapeEditor.PaintTool",        new IMAGE_BRUSH("Icons/icon_Landscape_Tool_Paint_40x",            Icon40x40));
 		Set("LandscapeEditor.SmoothTool",       new IMAGE_BRUSH("Icons/icon_Landscape_Tool_Smooth_40x",           Icon40x40));
 		Set("LandscapeEditor.FlattenTool",      new IMAGE_BRUSH("Icons/icon_Landscape_Tool_Flatten_40x",          Icon40x40));
@@ -6607,6 +6616,7 @@ void FSlateEditorStyle::FStyle::SetupLandscapeEditorStyle()
 		Set("LandscapeEditor.VisibilityTool",   new IMAGE_BRUSH("Icons/icon_Landscape_Tool_Visibility_40x",       Icon40x40));
 		Set("LandscapeEditor.BPCustomTool", new IMAGE_BRUSH("Icons/icon_Landscape_Tool_Visibility_40x", Icon40x40));// TODO: change icon
 		Set("LandscapeEditor.SculptTool.Small",       new IMAGE_BRUSH("Icons/icon_Landscape_Tool_Sculpt_20x",           Icon20x20));
+		Set("LandscapeEditor.EraseTool.Small", new IMAGE_BRUSH("Icons/icon_Landscape_Tool_Erase_20x", Icon20x20));
 		Set("LandscapeEditor.PaintTool.Small",        new IMAGE_BRUSH("Icons/icon_Landscape_Tool_Paint_20x",            Icon20x20));
 		Set("LandscapeEditor.SmoothTool.Small",       new IMAGE_BRUSH("Icons/icon_Landscape_Tool_Smooth_20x",           Icon20x20));
 		Set("LandscapeEditor.FlattenTool.Small",      new IMAGE_BRUSH("Icons/icon_Landscape_Tool_Flatten_20x",          Icon20x20));
@@ -7061,37 +7071,120 @@ void FSlateEditorStyle::FStyle::SetupToolkitStyles()
 		Set("CurveEditor.Gradient.HandleUp", new BOX_BRUSH("Sequencer/ScrubHandleUp", FMargin(6.f / 13.f, 8 / 12.f, 6 / 13.f, 5 / 12.f)));
 	}
 
-	// Curve Editor
+	// New Curve Editor 
 	{
-		Set("GenericCurveEditor.ZoomToFitHorizontal", new IMAGE_BRUSH("Icons/icon_CurveEditor_Horizontal_40x", Icon40x40));
-		Set("GenericCurveEditor.ZoomToFitHorizontal.Small", new IMAGE_BRUSH("Icons/icon_CurveEditor_Horizontal_40x", Icon20x20));
-		Set("GenericCurveEditor.ZoomToFitVertical", new IMAGE_BRUSH("Icons/icon_CurveEditor_Vertical_40x", Icon40x40));
-		Set("GenericCurveEditor.ZoomToFitVertical.Small", new IMAGE_BRUSH("Icons/icon_CurveEditor_Vertical_40x", Icon20x20));
-		Set("GenericCurveEditor.ZoomToFit", new IMAGE_BRUSH("Icons/icon_CurveEditor_ZoomToFit_40x", Icon40x40));
-		Set("GenericCurveEditor.ZoomToFit.Small", new IMAGE_BRUSH("Icons/icon_CurveEditor_ZoomToFit_40x", Icon20x20));
+		// Tab
+		Set("GenericCurveEditor.TabIcon", new IMAGE_BRUSH("GenericCurveEditor/Icons/CurveEditor_32x", Icon16x16, FLinearColor(1.f, 1.f, 1.f, 0.8f)));
 
-		Set("GenericCurveEditor.ToggleInputSnapping", new IMAGE_BRUSH("Icons/icon_CurveEditor_ToggleInputSnap_40x", Icon40x40));
-		Set("GenericCurveEditor.ToggleInputSnapping.Small", new IMAGE_BRUSH("Icons/icon_CurveEditor_ToggleInputSnap_40x", Icon20x20));
-		Set("GenericCurveEditor.ToggleOutputSnapping", new IMAGE_BRUSH("Icons/icon_CurveEditor_ToggleOutputSnap_40x", Icon40x40));
-		Set("GenericCurveEditor.ToggleOutputSnapping.Small", new IMAGE_BRUSH("Icons/icon_CurveEditor_ToggleOutputSnap_40x", Icon20x20));
+		// Zoom / Framing
+		Set("GenericCurveEditor.ZoomToFit", new IMAGE_BRUSH("GenericCurveEditor/Icons/FramingSelected_48x", Icon48x48));
+		Set("GenericCurveEditor.ZoomToFit.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/FramingSelected_48x", Icon24x24));
 
-		Set("GenericCurveEditor.InterpolationCubicAuto", new IMAGE_BRUSH("Icons/icon_CurveEditor_Auto_40x", Icon40x40));
-		Set("GenericCurveEditor.InterpolationCubicAuto.Small", new IMAGE_BRUSH("Icons/icon_CurveEditor_Auto_40x", Icon20x20));
-		Set("GenericCurveEditor.InterpolationCubicUser", new IMAGE_BRUSH("Icons/icon_CurveEditor_User_40x", Icon40x40));
-		Set("GenericCurveEditor.InterpolationCubicUser.Small", new IMAGE_BRUSH("Icons/icon_CurveEditor_User_40x", Icon20x20));
-		Set("GenericCurveEditor.InterpolationCubicBreak", new IMAGE_BRUSH("Icons/icon_CurveEditor_Break_40x", Icon40x40));
-		Set("GenericCurveEditor.InterpolationCubicBreak.Small", new IMAGE_BRUSH("Icons/icon_CurveEditor_Break_40x", Icon20x20));
-		Set("GenericCurveEditor.InterpolationToggleWeighted", new IMAGE_BRUSH("Icons/icon_CurveEditor_WeightedTangents_40x", Icon40x40));
-		Set("GenericCurveEditor.InterpolationToggleWeighted.Small", new IMAGE_BRUSH("Icons/icon_CurveEditor_WeightedTangents_40x", Icon20x20));
-		Set("GenericCurveEditor.InterpolationLinear", new IMAGE_BRUSH("Icons/icon_CurveEditor_Linear_40x", Icon40x40));
-		Set("GenericCurveEditor.InterpolationLinear.Small", new IMAGE_BRUSH("Icons/icon_CurveEditor_Linear_40x", Icon20x20));
-		Set("GenericCurveEditor.InterpolationConstant", new IMAGE_BRUSH("Icons/icon_CurveEditor_Constant_40x", Icon40x40));
-		Set("GenericCurveEditor.InterpolationConstant.Small", new IMAGE_BRUSH("Icons/icon_CurveEditor_Constant_40x", Icon20x20));
+		// Time/Value Snapping
+		Set("GenericCurveEditor.ToggleInputSnapping", new IMAGE_BRUSH("GenericCurveEditor/Icons/AdjustKeySnapFrame_48x", Icon48x48));
+		Set("GenericCurveEditor.ToggleInputSnapping.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/AdjustKeySnapFrame_48x", Icon24x24));
+		Set("GenericCurveEditor.ToggleOutputSnapping", new IMAGE_BRUSH("GenericCurveEditor/Icons/AdjustKeySnapValue_48x", Icon48x48));
+		Set("GenericCurveEditor.ToggleOutputSnapping.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/AdjustKeySnapValue_48x", Icon24x24));
 
-		Set("GenericCurveEditor.FlattenTangents", new IMAGE_BRUSH("Icons/icon_CurveEditor_Flatten_40x", Icon40x40));
-		Set("GenericCurveEditor.FlattenTangents.Small", new IMAGE_BRUSH("Icons/icon_CurveEditor_Flatten_40x", Icon20x20));
-		Set("GenericCurveEditor.StraightenTangents", new IMAGE_BRUSH("Icons/icon_CurveEditor_Straighten_40x", Icon40x40));
-		Set("GenericCurveEditor.StraightenTangents.Small", new IMAGE_BRUSH("Icons/icon_CurveEditor_Straighten_40x", Icon20x20));
+		// Tangent Types
+		Set("GenericCurveEditor.InterpolationCubicAuto", new IMAGE_BRUSH("GenericCurveEditor/Icons/CubicTangentAuto_48x", Icon48x48));
+		Set("GenericCurveEditor.InterpolationCubicAuto.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/CubicTangentAuto_48x", Icon24x24));
+		Set("GenericCurveEditor.InterpolationCubicUser", new IMAGE_BRUSH("GenericCurveEditor/Icons/TangentsCubic_48x", Icon48x48));
+		Set("GenericCurveEditor.InterpolationCubicUser.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/TangentsCubic_48x", Icon24x24));
+		Set("GenericCurveEditor.InterpolationCubicBreak", new IMAGE_BRUSH("GenericCurveEditor/Icons/CubicTangentBroken_48x", Icon48x48));
+		Set("GenericCurveEditor.InterpolationCubicBreak.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/CubicTangentBroken_48x", Icon24x24));
+		Set("GenericCurveEditor.InterpolationToggleWeighted", new IMAGE_BRUSH("GenericCurveEditor/Icons/CubicTangentWeighted_48x", Icon48x48));
+		Set("GenericCurveEditor.InterpolationToggleWeighted.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/CubicTangentWeighted_48x", Icon24x24));
+		Set("GenericCurveEditor.InterpolationLinear", new IMAGE_BRUSH("GenericCurveEditor/Icons/TangentsLinear_48x", Icon48x48));
+		Set("GenericCurveEditor.InterpolationLinear.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/TangentsLinear_48x", Icon24x24));
+		Set("GenericCurveEditor.InterpolationConstant", new IMAGE_BRUSH("GenericCurveEditor/Icons/TangentsConstant_48x", Icon48x48));
+		Set("GenericCurveEditor.InterpolationConstant.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/TangentsConstant_48x", Icon24x24));
+
+		// Tangent Modifications
+		Set("GenericCurveEditor.FlattenTangents", new IMAGE_BRUSH("GenericCurveEditor/Icons/MiscFlatten_48x", Icon48x48));
+		Set("GenericCurveEditor.FlattenTangents.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/MiscFlatten_48x", Icon24x24));
+		Set("GenericCurveEditor.StraightenTangents", new IMAGE_BRUSH("GenericCurveEditor/Icons/MiscStraighten_48x", Icon48x48));
+		Set("GenericCurveEditor.StraightenTangents.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/MiscStraighten_48x", Icon24x24));
+
+		// View Modes
+		Set("GenericCurveEditor.SetViewModeAbsolute", new IMAGE_BRUSH("GenericCurveEditor/Icons/GraphViewAbsolute_48x", Icon48x48));
+		Set("GenericCurveEditor.SetViewModeAbsolute.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/GraphViewAbsolute_48x", Icon24x24));
+		Set("GenericCurveEditor.SetViewModeStacked", new IMAGE_BRUSH("GenericCurveEditor/Icons/GraphViewStack_48x", Icon48x48));
+		Set("GenericCurveEditor.SetViewModeStacked.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/GraphViewStack_48x", Icon24x24));
+		Set("GenericCurveEditor.SetViewModeNormalized", new IMAGE_BRUSH("GenericCurveEditor/Icons/GraphViewNormalized_48x", Icon48x48));
+		Set("GenericCurveEditor.SetViewModeNormalized.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/GraphViewNormalized_48x", Icon24x24));
+
+		// Axis Snapping
+		Set("GenericCurveEditor.SetAxisSnappingNone", new IMAGE_BRUSH("GenericCurveEditor/Icons/AdjustKeyMoveFree_48x", Icon48x48));
+		Set("GenericCurveEditor.SetAxisSnappingNone.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/AdjustKeyMoveFree_48x", Icon24x24));
+		Set("GenericCurveEditor.SetAxisSnappingHorizontal", new IMAGE_BRUSH("GenericCurveEditor/Icons/AdjustKeyLockValue_48x", Icon48x48));
+		Set("GenericCurveEditor.SetAxisSnappingHorizontal.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/AdjustKeyLockValue_48x", Icon24x24));
+		Set("GenericCurveEditor.SetAxisSnappingVertical", new IMAGE_BRUSH("GenericCurveEditor/Icons/AdjustKeyLockFrame_48x", Icon48x48));
+		Set("GenericCurveEditor.SetAxisSnappingVertical.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/AdjustKeyLockFrame_48x", Icon24x24));
+
+		// Deactivate Tool
+		Set("GenericCurveEditor.DeactivateCurrentTool", new IMAGE_BRUSH("GenericCurveEditor/Icons/GeneralPointer_48x", Icon48x48));
+		Set("GenericCurveEditor.DeactivateCurrentTool.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/GeneralPointer_48x", Icon24x24));
+
+		// Filters
+		Set("GenericCurveEditor.OpenUserImplementableFilterWindow", new IMAGE_BRUSH("GenericCurveEditor/Icons/MiscFilters_48x", Icon48x48));
+		Set("GenericCurveEditor.OpenUserImplementableFilterWindow.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/MiscFilters_48x", Icon24x24));
+
+		// Key Types
+		Set("GenericCurveEditor.Key", new IMAGE_BRUSH("GenericCurveEditor/Keys/Diamond_Filled", FVector2D(11.0f, 11.0f))); 
+		Set("GenericCurveEditor.ConstantKey", new IMAGE_BRUSH("GenericCurveEditor/Keys/Square_Filled", FVector2D(11.0f, 11.0f))); 
+		Set("GenericCurveEditor.LinearKey", new IMAGE_BRUSH("GenericCurveEditor/Keys/Triangle_Filled", FVector2D(11.0f, 11.0f)));
+		Set("GenericCurveEditor.CubicKey", new IMAGE_BRUSH("GenericCurveEditor/Keys/Diamond_Filled", FVector2D(11.0f, 11.0f)));
+		Set("GenericCurveEditor.TangentHandle", new IMAGE_BRUSH("GenericCurveEditor/Keys/TangentHandle", FVector2D(8.0f, 8.0f)));
+
+		// Pre-Infinity
+		Set("GenericCurveEditor.SetPreInfinityExtrapConstant", new IMAGE_BRUSH("GenericCurveEditor/Icons/PreInfinityConstant_48x", Icon48x48));
+		Set("GenericCurveEditor.SetPreInfinityExtrapConstant.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/PreInfinityConstant_48x", Icon24x24));
+		Set("GenericCurveEditor.SetPreInfinityExtrapCycle", new IMAGE_BRUSH("GenericCurveEditor/Icons/PreInfinityCycle_48x", Icon48x48));
+		Set("GenericCurveEditor.SetPreInfinityExtrapCycle.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/PreInfinityCycle_48x", Icon24x24));
+		Set("GenericCurveEditor.SetPreInfinityExtrapCycleWithOffset", new IMAGE_BRUSH("GenericCurveEditor/Icons/PreInfinityOffset_48x", Icon48x48));
+		Set("GenericCurveEditor.SetPreInfinityExtrapCycleWithOffset.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/PreInfinityOffset_48x", Icon24x24));
+		Set("GenericCurveEditor.SetPreInfinityExtrapLinear", new IMAGE_BRUSH("GenericCurveEditor/Icons/PreInfinityLinear_48x", Icon48x48));
+		Set("GenericCurveEditor.SetPreInfinityExtrapLinear.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/PreInfinityLinear_48x", Icon24x24));
+		Set("GenericCurveEditor.SetPreInfinityExtrapOscillate", new IMAGE_BRUSH("GenericCurveEditor/Icons/PreInfinityOscillate_48x", Icon48x48));
+		Set("GenericCurveEditor.SetPreInfinityExtrapOscillate.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/PreInfinityOscillate_48x", Icon24x24));
+		Set("GenericCurveEditor.PreInfinityMixed", new IMAGE_BRUSH("GenericCurveEditor/Icons/PreInfinityMultipleSelected_48x", Icon48x48));
+		Set("GenericCurveEditor.PreInfinityMixed.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/PreInfinityMultipleSelected_48x", Icon24x24));
+
+
+		// Post-Infinity
+		Set("GenericCurveEditor.SetPostInfinityExtrapConstant", new IMAGE_BRUSH("GenericCurveEditor/Icons/PostInfinityConstant_48x", Icon48x48));
+		Set("GenericCurveEditor.SetPostInfinityExtrapConstant.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/PostInfinityConstant_48x", Icon24x24));
+		Set("GenericCurveEditor.SetPostInfinityExtrapCycle", new IMAGE_BRUSH("GenericCurveEditor/Icons/PostInfinityCycle_48x", Icon48x48));
+		Set("GenericCurveEditor.SetPostInfinityExtrapCycle.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/PostInfinityCycle_48x", Icon24x24));
+		Set("GenericCurveEditor.SetPostInfinityExtrapCycleWithOffset", new IMAGE_BRUSH("GenericCurveEditor/Icons/PostInfinityOffset_48x", Icon48x48));
+		Set("GenericCurveEditor.SetPostInfinityExtrapCycleWithOffset.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/PostInfinityOffset_48x", Icon24x24));
+		Set("GenericCurveEditor.SetPostInfinityExtrapLinear", new IMAGE_BRUSH("GenericCurveEditor/Icons/PostInfinityLinear_48x", Icon48x48));
+		Set("GenericCurveEditor.SetPostInfinityExtrapLinear.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/PostInfinityLinear_48x", Icon24x24));
+		Set("GenericCurveEditor.SetPostInfinityExtrapOscillate", new IMAGE_BRUSH("GenericCurveEditor/Icons/PostInfinityOscillate_48x", Icon48x48));
+		Set("GenericCurveEditor.SetPostInfinityExtrapOscillate.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/PostInfinityOscillate_48x", Icon24x24));
+		Set("GenericCurveEditor.PostInfinityMixed", new IMAGE_BRUSH("GenericCurveEditor/Icons/PostInfinityMultipleSelected_48x", Icon48x48));
+		Set("GenericCurveEditor.PostInfinityMixed.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/PostInfinityMultipleSelected_48x", Icon24x24));
+
+		// Misc
+		Set("GenericCurveEditor.VisibilityOptions", new IMAGE_BRUSH("GenericCurveEditor/Icons/SettingsVisibility_48x", Icon48x48));
+		Set("GenericCurveEditor.VisibilityOptions.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/SettingsVisibility_48x", Icon24x24));
+
+		Set("GenericCurveEditor.Pin_Active", new IMAGE_BRUSH("Common/PushPin_Down", Icon16x16));
+		Set("GenericCurveEditor.Pin_Inactive", new IMAGE_BRUSH("Common/PushPin_Up", Icon16x16));
+	}
+
+	// Generic Curve Editor Tools
+	{
+		Set("CurveEditorTools.SetFocusPlaybackTime", new IMAGE_BRUSH("GenericCurveEditor/Icons/FramingPlayback_48x", Icon48x48));
+		Set("CurveEditorTools.SetFocusPlaybackTime.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/FramingPlayback_48x", Icon24x24));
+		Set("CurveEditorTools.SetFocusPlaybackRange", new IMAGE_BRUSH("GenericCurveEditor/Icons/FramingTimeRange_48x", Icon48x48));
+		Set("CurveEditorTools.SetFocusPlaybackRange.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/FramingTimeRange_48x", Icon24x24));
+
+		Set("CurveEditorTools.ActivateTransformTool", new IMAGE_BRUSH("GenericCurveEditor/Icons/ToolsTransform_48x", Icon48x48));
+		Set("CurveEditorTools.ActivateTransformTool.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/ToolsTransform_48x", Icon24x24));
+		Set("CurveEditorTools.ActivateRetimeTool", new IMAGE_BRUSH("GenericCurveEditor/Icons/ToolsRetime_48x", Icon48x48));
+		Set("CurveEditorTools.ActivateRetimeTool.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/ToolsRetime_48x", Icon24x24));
 	}
 
 	// PhysicsAssetEditor
@@ -7538,11 +7631,25 @@ void FSlateEditorStyle::FStyle::SetupAutomationStyles()
 		Set( "Launcher.Platform.AllPlatforms.Large", new IMAGE_BRUSH( "Launcher/All_Platforms_128x", Icon64x64) );
 		Set( "Launcher.Platform.AllPlatforms.XLarge", new IMAGE_BRUSH( "Launcher/All_Platforms_128x", Icon128x128) );
 
-		for(const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::EnumeratePlatformInfoArray())
+		for(const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 		{
-			Set( PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal), new IMAGE_BRUSH( *PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::Normal), Icon24x24 ) );
-			Set( PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Large),  new IMAGE_BRUSH( *PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::Large),  Icon64x64 ) );
-			Set( PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::XLarge), new IMAGE_BRUSH( *PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::XLarge), Icon128x128 ) );
+			// @todo platplug: Add in .Small icons
+
+			// some platforms may specify a "rooted" path in the platform extensions directory, so look for that case here, and use a different path for the brush
+			FString NormalIconPath = PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::Normal);
+			if (NormalIconPath.StartsWith(TEXT("/Platforms/")))
+			{
+				#define PLATFORM_IMAGE_BRUSH( PlatformPath, ... ) FSlateImageBrush( PlatformPath.Replace(TEXT("/Platforms/"), *FPaths::PlatformExtensionsDir()) + TEXT(".png") , __VA_ARGS__ )
+				Set(PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal), new PLATFORM_IMAGE_BRUSH(NormalIconPath, Icon24x24));
+				Set(PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Large), new PLATFORM_IMAGE_BRUSH(PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::Large), Icon64x64));
+				Set(PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::XLarge), new PLATFORM_IMAGE_BRUSH(PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::XLarge), Icon128x128));
+			}
+			else
+			{
+				Set(PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal), new IMAGE_BRUSH(*NormalIconPath, Icon24x24));
+				Set(PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Large), new IMAGE_BRUSH(*PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::Large), Icon64x64));
+				Set(PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::XLarge), new IMAGE_BRUSH(*PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::XLarge), Icon128x128));
+			}
 		}
 #endif
 

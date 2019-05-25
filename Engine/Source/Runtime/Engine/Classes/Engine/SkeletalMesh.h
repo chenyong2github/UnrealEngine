@@ -24,6 +24,7 @@
 #include "PerPlatformProperties.h"
 #include "SkeletalMeshLODSettings.h"
 #include "Animation/NodeMappingProviderInterface.h"
+#include "Animation/SkinWeightProfile.h"
 
 #include "SkeletalMesh.generated.h"
 
@@ -42,6 +43,7 @@ class FSkeletalMeshModel;
 class FSkeletalMeshLODModel;
 class FSkeletalMeshLODRenderData;
 class FSkinWeightVertexBuffer;
+struct FSkinWeightProfileInfo;
 
 #if WITH_APEX_CLOTHING
 
@@ -920,6 +922,10 @@ public:
 #if WITH_EDITOR
 	/** Calculate the required bones for a Skeletal Mesh LOD, including possible extra influences */
 	static void CalculateRequiredBones(FSkeletalMeshLODModel& LODModel, const struct FReferenceSkeleton& RefSkeleton, const TMap<FBoneIndexType, FBoneIndexType> * BonesToRemove);
+
+	/** Recalculate Retarget Base Pose BoneTransform */
+	void ReallocateRetargetBasePose();
+
 #endif // WITH_EDITOR
 
 	/** 
@@ -1222,8 +1228,24 @@ public:
 	 * Returns total number of LOD
 	 */
 	int32 GetLODNum() const { return LODInfo.Num();  }
-};
 
+public:
+	const TArray<FSkinWeightProfileInfo>& GetSkinWeightProfiles() const { return SkinWeightProfiles; }
+
+#if WITH_EDITOR
+	TArray<FSkinWeightProfileInfo>& GetSkinWeightProfiles() { return SkinWeightProfiles; }	
+	void AddSkinWeightProfile(const FSkinWeightProfileInfo& Profile) { SkinWeightProfiles.Add(Profile); }
+	int32 GetNumSkinWeightProfiles() const { return SkinWeightProfiles.Num(); }
+#endif
+
+	/** Releases all allocated Skin Weight Profile resources, assumes none are currently in use */
+	void ReleaseSkinWeightProfileResources();
+
+protected:
+	/** Set of skin weight profiles associated with this mesh */
+	UPROPERTY(EditAnywhere, Category = SkinWeights, EditFixedSize, Meta=(NoResetToDefault))
+	TArray<FSkinWeightProfileInfo> SkinWeightProfiles;
+};
 
 /**
  * Refresh Physics Asset Change

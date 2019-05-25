@@ -7,19 +7,20 @@
 #include "ControlRig.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "ControlRigBlueprint.h"
+#include "Kismet2/Kismet2NameValidators.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigBlueprintUtils"
 
-FName FControlRigBlueprintUtils::GetNewUnitMemberName(UBlueprint* InBlueprint, UStruct* InStructTemplate)
+FName FControlRigBlueprintUtils::GetNewUnitMemberName(UBlueprint* InBlueprint, const UStruct* InStructTemplate)
 {
 	FString VariableBaseName = InStructTemplate->GetName();
 	VariableBaseName.RemoveFromStart(TEXT("RigUnit_"));
 	return FBlueprintEditorUtils::FindUniqueKismetName(InBlueprint, VariableBaseName);
 }
 
-FName FControlRigBlueprintUtils::AddUnitMember(UBlueprint* InBlueprint, UStruct* InStructTemplate)
+FName FControlRigBlueprintUtils::AddUnitMember(UBlueprint* InBlueprint, const UStruct* InStructTemplate, const FName& InName)
 {
-	FName VarName = FControlRigBlueprintUtils::GetNewUnitMemberName(InBlueprint, InStructTemplate);
+	FName VarName = InName == NAME_None ? FControlRigBlueprintUtils::GetNewUnitMemberName(InBlueprint, InStructTemplate) : InName;
 
 	UScriptStruct* ScriptStruct = FindObjectChecked<UScriptStruct>(ANY_PACKAGE, *InStructTemplate->GetName());
 	UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
@@ -38,21 +39,70 @@ FName FControlRigBlueprintUtils::AddUnitMember(UBlueprint* InBlueprint, UStruct*
 
 FName FControlRigBlueprintUtils::GetNewPropertyMemberName(UBlueprint* InBlueprint, const FString& InVariableDesc)
 {
-	FString VariableBaseName(TEXT("New"));
-	VariableBaseName += InVariableDesc;
-	
-	return FBlueprintEditorUtils::FindUniqueKismetName(InBlueprint, VariableBaseName);
+	return FBlueprintEditorUtils::FindUniqueKismetName(InBlueprint, InVariableDesc);
 }
 
 FName FControlRigBlueprintUtils::AddPropertyMember(UBlueprint* InBlueprint, const FEdGraphPinType& InPinType, const FString& InVariableDesc)
 {
-	FName VarName = GetNewPropertyMemberName(InBlueprint, InVariableDesc);
-	if(FBlueprintEditorUtils::AddMemberVariable(InBlueprint, VarName, InPinType))
+	if(FBlueprintEditorUtils::AddMemberVariable(InBlueprint, *InVariableDesc, InPinType))
 	{
 		return InBlueprint->NewVariables.Last().VarName;
 	}
-
 	return NAME_None;
+}
+
+FName FControlRigBlueprintUtils::ValidateName(UBlueprint* InBlueprint, const FString& InName)
+{
+	FString Name = InName;
+	if (Name.StartsWith(TEXT("RigUnit_")))
+	{
+		Name = Name.RightChop(8);
+	}
+
+	TSharedPtr<FKismetNameValidator> NameValidator;
+	NameValidator = MakeShareable(new FKismetNameValidator(InBlueprint));
+
+	// Clean up BaseName to not contain any invalid characters, which will mean we can never find a legal name no matter how many numbers we add
+	if (NameValidator->IsValid(Name) == EValidatorResult::ContainsInvalidCharacters)
+	{
+		for (TCHAR& TestChar : Name)
+		{
+			for (TCHAR BadChar : UE_BLUEPRINT_INVALID_NAME_CHARACTERS)
+			{
+				if (TestChar == BadChar)
+				{
+					TestChar = TEXT('_');
+					break;
+				}
+			}
+		}
+	}
+
+	if (UClass* ParentClass = InBlueprint->ParentClass)
+	{
+		if (UField* ExisingField = FindField<UField>(ParentClass, *Name))
+		{
+			Name = FString::Printf(TEXT("%s_%d"), *Name, 0);
+		}
+	}
+
+	int32 Count = 0;
+	FString BaseName = Name;
+	while (NameValidator->IsValid(Name) != EValidatorResult::Ok)
+	{
+		// Calculate the number of digits in the number, adding 2 (1 extra to correctly count digits, another to account for the '_' that will be added to the name
+		int32 CountLength = Count > 0 ? (int32)log((double)Count) + 2 : 2;
+
+		// If the length of the final string will be too long, cut off the end so we can fit the number
+		if (CountLength + BaseName.Len() > NameValidator->GetMaximumNameLength())
+		{
+			BaseName = BaseName.Left(NameValidator->GetMaximumNameLength() - CountLength);
+		}
+		Name = FString::Printf(TEXT("%s_%d"), *BaseName, Count);
+		Count++;
+	}
+
+	return *Name;
 }
 
 UControlRigGraphNode* FControlRigBlueprintUtils::InstantiateGraphNodeForProperty(UEdGraph* InGraph, const FName& InPropertyName, const FVector2D& InLocation, const FEdGraphPinType& InPinType)
@@ -64,6 +114,31 @@ UControlRigGraphNode* FControlRigBlueprintUtils::InstantiateGraphNodeForProperty
 	UControlRigGraphNode* NewNode = NewObject<UControlRigGraphNode>(InGraph);
 	NewNode->SetPropertyName(InPropertyName);
 	NewNode->PinType = InPinType;
+
+	InGraph->AddNode(NewNode, true);
+
+	NewNode->CreateNewGuid();
+	NewNode->PostPlacedNewNode();
+	NewNode->AllocateDefaultPins();
+
+	NewNode->NodePosX = InLocation.X;
+	NewNode->NodePosY = InLocation.Y;
+
+	NewNode->SetFlags(RF_Transactional);
+	NewNode->UpdateNodeColorFromMetadata();
+
+	return NewNode;
+}
+
+UControlRigGraphNode* FControlRigBlueprintUtils::InstantiateGraphNodeForStructPath(UEdGraph* InGraph, const FName& InPropertyName, const FVector2D& InLocation, const FString& InStructPath)
+{
+	check(InGraph);
+
+	InGraph->Modify();
+
+	UControlRigGraphNode* NewNode = NewObject<UControlRigGraphNode>(InGraph);
+	NewNode->SetPropertyName(InPropertyName);
+	NewNode->StructPath = InStructPath;
 
 	InGraph->AddNode(NewNode, true);
 
@@ -112,13 +187,13 @@ void FControlRigBlueprintUtils::HandleReconstructAllNodes(UBlueprint* InBlueprin
 {
 	if(InBlueprint->IsA<UControlRigBlueprint>())
 	{
-		TArray<UControlRigGraphNode*> AllNodes;
-		FBlueprintEditorUtils::GetAllNodesOfClass(InBlueprint, AllNodes);
+		// TArray<UControlRigGraphNode*> AllNodes;
+		// FBlueprintEditorUtils::GetAllNodesOfClass(InBlueprint, AllNodes);
 
-		for(UControlRigGraphNode* Node : AllNodes)
-		{
-			Node->ReconstructNode();
-		}
+		// for(UControlRigGraphNode* Node : AllNodes)
+		// {
+		// 	Node->ReconstructNode();
+		// }
 	}
 }
 
@@ -138,14 +213,11 @@ void FControlRigBlueprintUtils::HandleRefreshAllNodes(UBlueprint* InBlueprint)
 
 void FControlRigBlueprintUtils::HandleRenameVariableReferencesEvent(UBlueprint* InBlueprint, UClass* InVariableClass, const FName& InOldVarName, const FName& InNewVarName)
 {
-	if(InBlueprint->IsA<UControlRigBlueprint>())
+	if(UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(InBlueprint))
 	{
-		TArray<UControlRigGraphNode*> AllNodes;
-		FBlueprintEditorUtils::GetAllNodesOfClass(InBlueprint, AllNodes);
-
-		for(UControlRigGraphNode* Node : AllNodes)
+		if (RigBlueprint->ModelController)
 		{
-			Node->HandleVariableRenamed(InBlueprint, InVariableClass, Node->GetGraph(), InOldVarName, InNewVarName);
+			RigBlueprint->ModelController->RenameNode(InOldVarName, InNewVarName);
 		}
 	}
 }

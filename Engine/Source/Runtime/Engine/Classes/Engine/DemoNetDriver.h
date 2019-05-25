@@ -523,6 +523,7 @@ private:
 	bool bIsFastForwardingForCheckpoint;
 	bool bWasStartStreamingSuccessful;
 	bool bIsLoadingCheckpoint;
+	bool bIsFinalizingFastForward;
 
 	TArray<FNetworkGUID> NonQueuedGUIDsForScrubbing;
 
@@ -825,7 +826,12 @@ public:
 	void RequestEventDataForActiveReplay(const FString& EventID, const FRequestEventDataCallback& Delegate);
 	void RequestEventDataForActiveReplay(const FString& EventID, const int32 UserIndex, const FRequestEventDataCallback& Delegate);
 
+	/** Retrieve data for all events matching the requested group, and call the passed in delegate on completion. */
+	void RequestEventGroupDataForActiveReplay(const FString& Group, const FRequestEventGroupDataCallback& Delegate);
+	void RequestEventGroupDataForActiveReplay(const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate);
+
 	bool IsFastForwarding() const { return bIsFastForwarding; }
+	bool IsFinalizingFastForward() const { return bIsFinalizingFastForward; }
 
 	FReplayExternalDataArray* GetExternalDataArrayForObject(UObject* Object);
 

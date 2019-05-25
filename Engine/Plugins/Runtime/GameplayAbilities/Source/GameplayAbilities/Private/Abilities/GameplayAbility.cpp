@@ -87,14 +87,14 @@ UWorld* UGameplayAbility::GetWorld() const
 	return GetOuter()->GetWorld();
 }
 
-int32 UGameplayAbility::GetFunctionCallspace(UFunction* Function, void* Parameters, FFrame* Stack)
+int32 UGameplayAbility::GetFunctionCallspace(UFunction* Function, FFrame* Stack)
 {
 	if (HasAnyFlags(RF_ClassDefaultObject) || !IsSupportedForNetworking())
 	{
 		return FunctionCallspace::Local;
 	}
 	check(GetOuter() != nullptr);
-	return GetOuter()->GetFunctionCallspace(Function, Parameters, Stack);
+	return GetOuter()->GetFunctionCallspace(Function, Stack);
 }
 
 bool UGameplayAbility::CallRemoteFunction(UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack)
@@ -750,7 +750,6 @@ void UGameplayAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, cons
 	SetCurrentInfo(Handle, ActorInfo, ActivationInfo);
 
 	Comp->HandleChangeAbilityCanBeCanceled(AbilityTags, this, true);
-	Comp->ApplyAbilityBlockAndCancelTags(AbilityTags, this, true, BlockAbilitiesWithTag, true, CancelAbilitiesWithTag);
 	Comp->AddLooseGameplayTags(ActivationOwnedTags);
 
 	if (OnGameplayAbilityEndedDelegate)
@@ -759,6 +758,8 @@ void UGameplayAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, cons
 	}
 
 	Comp->NotifyAbilityActivated(Handle, this);
+
+	Comp->ApplyAbilityBlockAndCancelTags(AbilityTags, this, true, BlockAbilitiesWithTag, true, CancelAbilitiesWithTag);
 }
 
 void UGameplayAbility::CallActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate, const FGameplayEventData* TriggerEventData)

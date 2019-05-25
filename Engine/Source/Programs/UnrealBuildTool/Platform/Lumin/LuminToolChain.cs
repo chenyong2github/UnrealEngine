@@ -49,7 +49,7 @@ namespace UnrealBuildTool
 		[CommandLine("-GpuArchitectures=", ListSeparator = '+')]
 		public List<string> GPUArchitectureArg = new List<string>();
 		public LuminToolChain(FileReference InProjectFile, bool bInUseLdGold = true, IReadOnlyList<string> InAdditionalArches = null, IReadOnlyList<string> InAdditionalGPUArches = null, bool bAllowMissingNDK = true)
-			: base(CppPlatform.Lumin, InProjectFile,
+			: base(InProjectFile,
 				  // @todo Lumin: ld gold?
 				  true, null, null, true)
 

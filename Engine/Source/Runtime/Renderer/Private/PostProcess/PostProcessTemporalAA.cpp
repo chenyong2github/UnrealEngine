@@ -612,9 +612,14 @@ class FPostProcessTemporalAACS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FPostProcessTemporalAACS, "/Engine/Private/PostProcessTemporalAA.usf", "MainCS", SF_Compute);
 
+static FPostProcessTonemapVS::FPermutationDomain GetVertexShaderPermutationVector()
+{
+	return FPostProcessTonemapVS::BuildPermutationVector(true/*bDoEyeAdaptation*/, false/*bNeedsToSwitchVerticalAxis*/);
+}
+
 static inline void TransitionPixelPassResources(FRenderingCompositePassContext& Context)
 {
-	TShaderMapRef< FPostProcessTonemapVS > VertexShader(Context.GetShaderMap());
+	TShaderMapRef< FPostProcessTonemapVS > VertexShader(Context.GetShaderMap(), GetVertexShaderPermutationVector());
 	VertexShader->TransitionResources(Context);
 }
 
@@ -634,7 +639,8 @@ void DrawPixelPassTemplate(
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 	GraphicsPSOInit.DepthStencilState = DepthStencilState;
 
-	TShaderMapRef< FPostProcessTonemapVS > VertexShader(Context.GetShaderMap());
+	auto VertexShaderPermutationVector = GetVertexShaderPermutationVector();
+	TShaderMapRef< FPostProcessTonemapVS > VertexShader(Context.GetShaderMap(), VertexShaderPermutationVector);
 	TShaderMapRef< FPostProcessTemporalAAPS > PixelShader(Context.GetShaderMap(), PermutationVector);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
@@ -643,7 +649,7 @@ void DrawPixelPassTemplate(
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-	VertexShader->SetVS(Context);
+	VertexShader->SetVS(Context, VertexShaderPermutationVector);
 	PixelShader->SetParameters(Context.RHICmdList, Context, InputHistory, PassParameters, bUseDither, SrcSize);
 
 	DrawRectangle(

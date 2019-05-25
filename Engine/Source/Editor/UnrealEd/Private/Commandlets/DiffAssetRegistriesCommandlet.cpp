@@ -191,6 +191,11 @@ int32 UDiffAssetRegistriesCommandlet::Main(const FString& FullCommandLine)
 	{
 		FindAssetRegistryPath(*OldPathVal, OldPath);
 	}
+	else
+	{
+		UE_LOG(LogDiffAssets, Error, TEXT("No old path specified \"-oldpath=<>\", use full path to asset registry or build version."));
+		return -1;
+	}
 
 	const FString* NewPathVal = Params.Find(FString(TEXT("NewPath")));
 	if (NewPathVal)
@@ -207,6 +212,11 @@ int32 UDiffAssetRegistriesCommandlet::Main(const FString& FullCommandLine)
 				CL = CLMatcher.GetCaptureGroup(2);
 			}
 		}
+	}
+	else
+	{
+		UE_LOG(LogDiffAssets, Error, TEXT("No new path specified \"-newpath=<>\", use full path to asset registry or build version."));
+		return -1;
 	}
 
 	bMatchChangelists = false;
@@ -230,12 +240,12 @@ int32 UDiffAssetRegistriesCommandlet::Main(const FString& FullCommandLine)
 
 	if (OldPath.IsEmpty())
 	{
-		UE_LOG(LogDiffAssets, Error, TEXT("No old path specified \"-oldpath=<>\", use full path to asset registry or build version."));
+		UE_LOG(LogDiffAssets, Error, TEXT("Unable to locate AssetRegistry.bin for supplied oldpath (%s), use full path to asset registry or build version."), **OldPathVal);
 		return -1;
 	}
 	if (NewPath.IsEmpty())
 	{
-		UE_LOG(LogDiffAssets, Error, TEXT("No new path specified \"-newpath=<>\", use full path to asset registry or build version."));
+		UE_LOG(LogDiffAssets, Error, TEXT("Unable to locate AssetRegistry.bin for supplied newpath (%s), use full path to asset registry or build version."), **NewPathVal);
 		return -1;
 	}
 
@@ -248,13 +258,10 @@ int32 UDiffAssetRegistriesCommandlet::Main(const FString& FullCommandLine)
 		FString NewPlatformDir = NewPath.Left(NewPath.Find(AssetRegistrySubPath));
 		FString PlatformPath = FPaths::GetCleanFilename(NewPlatformDir);
 
-		int32 NumPlatforms;
-		const PlatformInfo::FPlatformInfo* PlatformInfoArray = PlatformInfo::GetPlatformInfoArray(NumPlatforms);
-		for (int32 i = 0; i < NumPlatforms; ++i)
+		for (const FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 		{
-			const PlatformInfo::FPlatformInfo& PlatformInfo = PlatformInfoArray[i];
 			if (PlatformPath == PlatformInfo.TargetPlatformName.ToString())
-			{		
+			{
 				TargetPlatform = PlatformPath;
 				break;
 			}

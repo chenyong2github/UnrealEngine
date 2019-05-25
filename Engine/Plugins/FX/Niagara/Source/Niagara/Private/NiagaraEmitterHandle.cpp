@@ -55,7 +55,10 @@ FNiagaraEmitterHandle::FNiagaraEmitterHandle(const FNiagaraEmitterHandle& InHand
 	Instance->ClearFlags(RF_Standalone | RF_Public);
 	Instance->SetUniqueEmitterName(Name.ToString());
 	Instance->GraphSource->MarkNotSynchronized(InitialNotSynchronizedReason);
-	LastMergedSource->ClearFlags(RF_Standalone | RF_Public);
+	if (LastMergedSource != nullptr)
+	{
+		LastMergedSource->ClearFlags(RF_Standalone | RF_Public);
+	}
 }
 #endif
 
@@ -149,9 +152,15 @@ FString FNiagaraEmitterHandle::GetUniqueInstanceName()const
 
 bool FNiagaraEmitterHandle::IsSynchronizedWithSource() const
 {
+	if (Source == nullptr && LastMergedSource == nullptr)
+	{
+		// If the emitter has no source and no last merged source than it is synchronized by default.
+		return true;
+	}
+
 	if (Source == nullptr || LastMergedSource == nullptr)
 	{
-		// If either the source or last merged sources is missing, then we're not synchronized.  The
+		// If either only the source or only the last merged sources is missing, then we're not synchronized.  The
 		// merge logic will detect this and print an appropriate message to the log.
 		return false;
 	}

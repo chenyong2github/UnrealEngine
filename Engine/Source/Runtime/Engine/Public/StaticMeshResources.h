@@ -795,6 +795,9 @@ public:
 	virtual int32 GetLightMapResolution() const override { return LightMapResolution; }
 #endif
 
+	/** The custom data for this Scene Proxy */
+	FCustomPrimitiveData CustomPrimitiveData;
+
 protected:
 	/** Information used by the proxy about a single LOD of the mesh. */
 	class FLODInfo : public FLightCacheInterface
@@ -883,9 +886,6 @@ protected:
 
 	/** The view relevance for all the static mesh's materials. */
 	FMaterialRelevance MaterialRelevance;
-
-	/** The custom data for this Scene Proxy */
-	FCustomPrimitiveData CustomPrimitiveData;
 
 #if WITH_EDITORONLY_DATA
 	/** The component streaming distance multiplier */

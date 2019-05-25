@@ -104,6 +104,34 @@ bool FTimespanTest::RunTest(const FString& Parameters)
 		//TestFalse(TEXT("Parsing invalid strings must fail (04:005)"), FTimespan::Parse(TEXT("04:005"), ts7_1));
 	}
 
+	// `From*` converters must return correct value
+	// test normal and edge cases for polar conversions (FromMicroseconds() and FromDay()) and just normal case for all others
+	{
+		TestEqual(TEXT("FromMicroseconds(0) results in correct value"), FTimespan::FromMicroseconds(0), FTimespan(0));
+		TestEqual(TEXT("FromMicroseconds(1) results in correct value"), FTimespan::FromMicroseconds(1), FTimespan(1 * ETimespan::TicksPerMicrosecond));
+		TestEqual(TEXT("FromMicroseconds(1.1) results in correct value"), FTimespan::FromMicroseconds(1.1), FTimespan(1 * ETimespan::TicksPerMicrosecond + 1));
+		TestEqual(TEXT("FromMicroseconds(1.5) results in correct value"), FTimespan::FromMicroseconds(1.5), FTimespan(1 * ETimespan::TicksPerMicrosecond + 5));
+		TestEqual(TEXT("FromMicroseconds(1.499999999999997) results in 1.5 microsecs of ticks"), FTimespan::FromMicroseconds(1.499999999999997), FTimespan(1 * ETimespan::TicksPerMicrosecond + 5));
+		TestEqual(TEXT("FromMicroseconds(1.50000001) results in  in 1.5 microsecs of ticks"), FTimespan::FromMicroseconds(1.50000001), FTimespan(1 * ETimespan::TicksPerMicrosecond + 5));
+		TestEqual(TEXT("FromMicroseconds(-1) results in correct value"), FTimespan::FromMicroseconds(-1), FTimespan(-1 * ETimespan::TicksPerMicrosecond));
+		TestEqual(TEXT("FromMicroseconds(-1.1) results in correct value"), FTimespan::FromMicroseconds(-1.1), FTimespan(-1 * ETimespan::TicksPerMicrosecond - 1));
+		TestEqual(TEXT("FromMicroseconds(-1.5) results in correct value"), FTimespan::FromMicroseconds(-1.5), FTimespan(-1 * ETimespan::TicksPerMicrosecond - 5));
+
+		TestEqual(TEXT("FromMilliseconds(1) results in correct value"), FTimespan::FromMilliseconds(1), FTimespan(1 * ETimespan::TicksPerMillisecond));
+		TestEqual(TEXT("FromSeconds(1) results in correct value"), FTimespan::FromSeconds(1), FTimespan(1 * ETimespan::TicksPerSecond));
+		TestEqual(TEXT("FromMinutes(1) results in correct value"), FTimespan::FromMinutes(1), FTimespan(1 * ETimespan::TicksPerMinute));
+		TestEqual(TEXT("FromHours(1) results in correct value"), FTimespan::FromHours(1), FTimespan(1 * ETimespan::TicksPerHour));
+
+		TestEqual(TEXT("FromDays(0) results in correct value"), FTimespan::FromDays(0), FTimespan(0));
+		TestEqual(TEXT("FromDays(1) results in correct value"), FTimespan::FromDays(1), FTimespan(1 * ETimespan::TicksPerDay));
+		TestEqual(TEXT("FromDays(1.25) results in correct value (1 day and 6 hours of ticks)"), FTimespan::FromDays(1.25), FTimespan(1 * ETimespan::TicksPerDay + 6 * ETimespan::TicksPerHour));
+		TestEqual(TEXT("FromDays(1.5) results in correct value (1 day and 12 hours of ticks)"), FTimespan::FromDays(1.5), FTimespan(1 * ETimespan::TicksPerDay + 12 * ETimespan::TicksPerHour));
+		TestEqual(TEXT("FromDays(1.499999999999997) results in correct value (1 day and 12 hours of ticks)"), FTimespan::FromDays(1.499999999999997), FTimespan(1 * ETimespan::TicksPerDay + 12 * ETimespan::TicksPerHour));
+		TestEqual(TEXT("FromDays(-1) results in correct value"), FTimespan::FromDays(-1), FTimespan(-1 * ETimespan::TicksPerDay));
+		TestEqual(TEXT("FromDays(-1.25) results in correct value (minus 1 day and 6 hours of ticks)"), FTimespan::FromDays(-1.25), FTimespan(-1 * ETimespan::TicksPerDay - 6 * ETimespan::TicksPerHour));
+		TestEqual(TEXT("FromDays(-1.5) results in correct value (minus 1 day and 12 hours of ticks)"), FTimespan::FromDays(-1.5), FTimespan(-1 * ETimespan::TicksPerDay - 12 * ETimespan::TicksPerHour));
+	}
+
 	return true;
 }
 

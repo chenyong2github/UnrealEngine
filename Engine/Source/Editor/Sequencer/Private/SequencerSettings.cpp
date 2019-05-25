@@ -48,7 +48,6 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bVisualizePreAndPostRoll = true;
 	TrajectoryPathCap = 250;
 	bShowOutlinerInfoColumn = true;
-	CurveVisibility = ECurveEditorCurveVisibility::SelectedCurves;
 	FrameNumberDisplayFormat = EFrameNumberDisplayFormats::Seconds;
 }
 
@@ -641,26 +640,6 @@ void USequencerSettings::SetShowOutlinerInfoColumn(bool bInShowOutlinerInfoColum
 		bShowOutlinerInfoColumn = bInShowOutlinerInfoColumn;
 		SaveConfig();
 	}
-}
-
-ECurveEditorCurveVisibility USequencerSettings::GetCurveVisibility() const
-{
-	return CurveVisibility;
-}
-
-void USequencerSettings::SetCurveVisibility(ECurveEditorCurveVisibility InCurveVisibility)
-{
-	if (CurveVisibility != InCurveVisibility)
-	{
-		CurveVisibility = InCurveVisibility;
-		OnCurveEditorCurveVisibilityChanged.Broadcast();
-		SaveConfig();
-	}
-}
-
-USequencerSettings::FOnCurveEditorCurveVisibilityChanged& USequencerSettings::GetOnCurveEditorCurveVisibilityChanged()
-{
-	return OnCurveEditorCurveVisibilityChanged;
 }
 
 USequencerSettings::FOnLoopStateChanged& USequencerSettings::GetOnLoopStateChanged()

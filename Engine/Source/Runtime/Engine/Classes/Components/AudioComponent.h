@@ -425,6 +425,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetSubmixSend(USoundSubmix* Submix, float SendLevel);
 
+	/** Sets how much audio the sound should send to the given Source Bus (PRE Source Effects).
+		if the Bus Send doesn't already exist, it will be added to the overrides on the active sound */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
+	void SetSourceBusSendPreEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
+
+	/** Sets how much audio the sound should send to the given Source Bus (POST Source Effects).
+		if the Bus Send doesn't already exist, it will be added to the overrides on the active sound */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
+	void SetSourceBusSendPostEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
+
 	/** Sets whether or not the low pass filter is enabled on the audio component. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetLowPassFilterEnabled(bool InLowPassFilterEnabled);
