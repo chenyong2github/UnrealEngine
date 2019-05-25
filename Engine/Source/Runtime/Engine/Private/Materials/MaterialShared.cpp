@@ -2301,10 +2301,9 @@ static void OnVirtualTextureDestroyed(const FVirtualTextureProducerHandle& InHan
 	MaterialProxy->CacheUniformExpressions(false);
 }
 
-static IAllocatedVirtualTexture* AllocateVTStack(const FMaterialRenderProxy* MaterialProxy, const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack)
+IAllocatedVirtualTexture* FMaterialRenderProxy::AllocateVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack) const
 {
-	check(!VTStack.IsPreallocatedStack())
-
+	check(!VTStack.IsPreallocatedStack());
 	const uint32 NumLayers = VTStack.GetNumLayers();
 	if (NumLayers == 0u)
 	{
@@ -2333,13 +2332,14 @@ static IAllocatedVirtualTexture* AllocateVTStack(const FMaterialRenderProxy* Mat
 			const FVirtualTextureProducerHandle& ProducerHandle = VirtualTextureResourceForLayer->GetProducerHandle();
 			VTDesc.ProducerHandle[LayerIndex] = ProducerHandle;
 			VTDesc.LocalLayerToProduce[LayerIndex] = 0u;
-			GetRendererModule().AddVirtualTextureProducerDestroyedCallback(ProducerHandle, &OnVirtualTextureDestroyed, const_cast<FMaterialRenderProxy*>(MaterialProxy));
+			GetRendererModule().AddVirtualTextureProducerDestroyedCallback(ProducerHandle, &OnVirtualTextureDestroyed, const_cast<FMaterialRenderProxy*>(this));
 			bFoundValidLayer = true;
 		}
 	}
 
 	if (bFoundValidLayer)
 	{
+		HasVirtualTextureCallbacks = true;
 		return GetRendererModule().AllocateVirtualTexture(VTDesc);
 	}
 	return nullptr;
@@ -2375,6 +2375,8 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 	OutUniformExpressionCache.ResetAllocatedVTs();
 	OutUniformExpressionCache.AllocatedVTs.Empty(UniformExpressionSet.VTStacks.Num());
 	OutUniformExpressionCache.OwnedAllocatedVTs.Empty(UniformExpressionSet.VTStacks.Num());
+	check(!HasVirtualTextureCallbacks);
+
 	for (int32 i = 0; i < UniformExpressionSet.VTStacks.Num(); ++i)
 	{
 		const FMaterialVirtualTextureStack& VTStack = UniformExpressionSet.VTStacks[i];
@@ -2385,7 +2387,7 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 		}
 		else
 		{
-			AllocatedVT = AllocateVTStack(this, Context, UniformExpressionSet, VTStack);
+			AllocatedVT = AllocateVTStack(Context, UniformExpressionSet, VTStack);
 			if (AllocatedVT != nullptr)
 			{
 				OutUniformExpressionCache.OwnedAllocatedVTs.Add(AllocatedVT);
@@ -2446,10 +2448,7 @@ void FMaterialRenderProxy::CacheUniformExpressions(bool bRecreateUniformBuffer)
 	}
 	DeferredUniformExpressionCacheRequests.Add(this);
 
-	UMaterialInterface::IterateOverActiveFeatureLevels([&](ERHIFeatureLevel::Type InFeatureLevel)
-	{
-		InvalidateUniformExpressionCache(bRecreateUniformBuffer);
-	});
+	InvalidateUniformExpressionCache(bRecreateUniformBuffer);
 
 	if (!GDeferUniformExpressionCaching)
 	{
@@ -2473,13 +2472,18 @@ void FMaterialRenderProxy::CacheUniformExpressions_GameThread(bool bRecreateUnif
 void FMaterialRenderProxy::InvalidateUniformExpressionCache(bool bRecreateUniformBuffer)
 {
 	check(IsInRenderingThread());
+
+	if (HasVirtualTextureCallbacks)
+	{
+		GetRendererModule().RemoveAllVirtualTextureProducerDestroyedCallbacks(this);
+		HasVirtualTextureCallbacks = false;
+	}
+
 	for (int32 i = 0; i < ERHIFeatureLevel::Num; ++i)
 	{
 		UniformExpressionCache[i].bUpToDate = false;
 		UniformExpressionCache[i].CachedUniformExpressionShaderMap = nullptr;
 		UniformExpressionCache[i].ResetAllocatedVTs();
-
-		GetRendererModule().RemoveAllVirtualTextureProducerDestroyedCallbacks(this);
 
 		if (bRecreateUniformBuffer)
 		{
@@ -2512,6 +2516,7 @@ FMaterialRenderProxy::FMaterialRenderProxy()
 	: SubsurfaceProfileRT(0)
 	, MarkedForGarbageCollection(0)
 	, DeletedFlag(0)
+	, HasVirtualTextureCallbacks(0)
 {
 }
 
@@ -2522,6 +2527,8 @@ FMaterialRenderProxy::~FMaterialRenderProxy()
 		check(IsInRenderingThread());
 		ReleaseResource();
 	}
+
+	check(!HasVirtualTextureCallbacks);
 
 	DeletedFlag = 1;
 }
@@ -2547,6 +2554,17 @@ void FMaterialRenderProxy::ReleaseDynamicRHI()
 	InvalidateUniformExpressionCache(true);
 
 	FExternalTextureRegistry::Get().RemoveMaterialRenderProxyReference(this);
+}
+
+void FMaterialRenderProxy::ReleaseResource()
+{
+	ReleaseResourceFlag = true;
+	FRenderResource::ReleaseResource();
+	if (HasVirtualTextureCallbacks)
+	{
+		GetRendererModule().RemoveAllVirtualTextureProducerDestroyedCallbacks(this);
+		HasVirtualTextureCallbacks = false;
+	}
 }
 
 void FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions()

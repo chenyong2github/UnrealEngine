@@ -3509,9 +3509,9 @@ void FRendererModule::AddVirtualTextureProducerDestroyedCallback(const FVirtualT
 	FVirtualTextureSystem::Get().AddProducerDestroyedCallback(Handle, Function, Baton);
 }
 
-void FRendererModule::RemoveAllVirtualTextureProducerDestroyedCallbacks(const void* Baton)
+uint32 FRendererModule::RemoveAllVirtualTextureProducerDestroyedCallbacks(const void* Baton)
 {
-	FVirtualTextureSystem::Get().RemoveAllProducerDestroyedCallbacks(Baton);
+	return FVirtualTextureSystem::Get().RemoveAllProducerDestroyedCallbacks(Baton);
 }
 
 void FRendererModule::RequestVirtualTextureTilesForRegion(IAllocatedVirtualTexture* AllocatedVT, const FVector2D& InScreenSpaceSize, const FIntRect& InTextureRegion, int32 InMipLevel)

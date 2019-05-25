@@ -137,12 +137,13 @@ void FVirtualTextureProducerCollection::AddDestroyedCallback(const FVirtualTextu
 	}
 }
 
-void FVirtualTextureProducerCollection::RemoveAllCallbacks(const void* Baton)
+uint32 FVirtualTextureProducerCollection::RemoveAllCallbacks(const void* Baton)
 {
 	check(IsInRenderingThread());
 	check(Baton);
 
-	for (int32 CallbackIndex = 0u; CallbackIndex < Callbacks.Num(); ++CallbackIndex)
+	uint32 NumRemoved = 0u;
+	for (int32 CallbackIndex = CallbackList_Count; CallbackIndex < Callbacks.Num(); ++CallbackIndex)
 	{
 		FCallbackEntry& Callback = Callbacks[CallbackIndex];
 		if (Callback.Baton == Baton)
@@ -152,8 +153,10 @@ void FVirtualTextureProducerCollection::RemoveAllCallbacks(const void* Baton)
 			Callback.Baton = nullptr;
 			Callback.OwnerHandle = FVirtualTextureProducerHandle();
 			ReleaseCallback(CallbackIndex);
+			++NumRemoved;
 		}
 	}
+	return NumRemoved;
 }
 
 FVirtualTextureProducer* FVirtualTextureProducerCollection::FindProducer(const FVirtualTextureProducerHandle& Handle)

@@ -1946,6 +1946,7 @@ public:
 	// FRenderResource interface.
 	ENGINE_API virtual void InitDynamicRHI() override;
 	ENGINE_API virtual void ReleaseDynamicRHI() override;
+	ENGINE_API virtual void ReleaseResource() override;
 
 	ENGINE_API static const TSet<FMaterialRenderProxy*>& GetMaterialRenderProxyMap() 
 	{
@@ -1964,6 +1965,7 @@ public:
 	}
 
 private:
+	IAllocatedVirtualTexture* AllocateVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack) const;
 
 	/** 0 if not set, game thread pointer, do not dereference, only for comparison */
 	const USubsurfaceProfile* SubsurfaceProfileRT;
@@ -1971,6 +1973,9 @@ private:
 	/** For tracking down a bug accessing a deleted proxy. */
 	mutable int8 MarkedForGarbageCollection : 1;
 	mutable int8 DeletedFlag : 1;
+	mutable int8 ReleaseResourceFlag : 1;
+	/** If any VT producer destroyed callbacks have been registered */
+	mutable int8 HasVirtualTextureCallbacks : 1;
 
 	/** 
 	 * Tracks all material render proxies in all scenes, can only be accessed on the rendering thread.

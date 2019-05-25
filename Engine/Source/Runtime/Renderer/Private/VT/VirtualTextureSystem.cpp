@@ -481,9 +481,9 @@ void FVirtualTextureSystem::AddProducerDestroyedCallback(const FVirtualTexturePr
 	Producers.AddDestroyedCallback(Handle, Function, Baton);
 }
 
-void FVirtualTextureSystem::RemoveAllProducerDestroyedCallbacks(const void* Baton)
+uint32 FVirtualTextureSystem::RemoveAllProducerDestroyedCallbacks(const void* Baton)
 {
-	Producers.RemoveAllCallbacks(Baton);
+	return Producers.RemoveAllCallbacks(Baton);
 }
 
 FVirtualTextureProducer* FVirtualTextureSystem::FindProducer(const FVirtualTextureProducerHandle& Handle)

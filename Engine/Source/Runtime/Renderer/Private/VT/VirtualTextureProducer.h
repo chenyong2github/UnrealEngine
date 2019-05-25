@@ -44,7 +44,7 @@ public:
 	void ReleaseProducer(FVirtualTextureSystem* System, const FVirtualTextureProducerHandle& Handle);
 	
 	void AddDestroyedCallback(const FVirtualTextureProducerHandle& Handle, FVTProducerDestroyedFunction* Function, void* Baton);
-	void RemoveAllCallbacks(const void* Baton);
+	uint32 RemoveAllCallbacks(const void* Baton);
 	void CallPendingCallbacks();
 
 	/**
