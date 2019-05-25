@@ -168,10 +168,10 @@ float3 ComputeBentNormal(float3 RecordWorldNormal, uint RelativeRecordIndex)
 
 float2 AOBufferBilinearUVMax;
 
-float3 UpsampleDFAO(float4 UVAndScreenPos)
+float3 UpsampleDFAO(float2 BufferUV, float SceneDepth)
 {
 	// Distance field AO was computed at 0,0 regardless of viewrect min
-	float2 DistanceFieldUVs = UVAndScreenPos.xy - View.ViewRectMin.xy * View.BufferSizeAndInvSize.zw;
+	float2 DistanceFieldUVs = BufferUV - View.ViewRectMin.xy * View.BufferSizeAndInvSize.zw;
 	DistanceFieldUVs = min(DistanceFieldUVs, AOBufferBilinearUVMax);
 
 #define BILATERAL_UPSAMPLE 1
@@ -195,7 +195,6 @@ float3 UpsampleDFAO(float4 UVAndScreenPos)
 	float Epsilon = .0001f;
 
 	float4 CornerDepths = float4(TextureValues00.w, TextureValues10.w, TextureValues01.w, TextureValues11.w);
-	float SceneDepth = CalcSceneDepth(UVAndScreenPos.xy);
 	float4 DepthWeights = 1.0f / (abs(CornerDepths - SceneDepth.xxxx) + Epsilon);
 	float4 FinalWeights = CornerWeights * DepthWeights;
 

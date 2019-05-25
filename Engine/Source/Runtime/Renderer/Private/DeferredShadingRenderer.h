@@ -440,7 +440,7 @@ private:
 	/** Render image based reflections (SSR, Env, SkyLight) without compute shaders */
 	void RenderStandardDeferredImageBasedReflections(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, bool bReflectionEnv, const TRefCountPtr<IPooledRenderTarget>& DynamicBentNormalAO, TRefCountPtr<IPooledRenderTarget>& VelocityRT);
 
-	bool RenderDeferredPlanarReflections(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, bool bLightAccumulationIsInUse, TRefCountPtr<IPooledRenderTarget>& Output);
+	void RenderDeferredPlanarReflections(FRDGBuilder& GraphBuilder, const FSceneViewFamilyBlackboard& SceneTextures, const FViewInfo& View, FRDGTextureRef& ReflectionsOutput);
 
 	bool ShouldDoReflectionEnvironment() const;
 	
