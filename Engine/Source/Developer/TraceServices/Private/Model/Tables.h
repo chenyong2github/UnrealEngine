@@ -21,7 +21,9 @@
 		template<uint8 IndexValue> \
 		::Trace::FColumnValueContainer GetColumnValueInternal(const RowType& Row) const { return 0; } \
 		::Trace::TColumnDeclaration<0, RowType
-		
+
+#if PLATFORM_WINDOWS
+
 #define UE_TRACE_TABLE_COLUMN(Name, DisplayName) \
 		> PREPROCESSOR_JOIN(__Column__, __LINE__); \
 		template<> \
@@ -42,6 +44,18 @@
 		template<> \
 		::Trace::FColumnValueContainer GetColumnValueInternal<decltype(PREPROCESSOR_JOIN(__Column__, __LINE__))::Index>(const RowType& Row) const { return PREPROCESSOR_JOIN(__ColumnProjector__, __LINE__)(Row); } \
 		::Trace::TColumnDeclaration<decltype(PREPROCESSOR_JOIN(__Column__, __LINE__))::Index + 1, RowType
+
+#else
+
+#define UE_TRACE_TABLE_COLUMN(Name, DisplayName) \
+		> PREPROCESSOR_JOIN(__Column__, __LINE__); \
+		::Trace::TColumnDeclaration<decltype(PREPROCESSOR_JOIN(__Column__, __LINE__))::Index + 1, RowType
+
+#define UE_TRACE_TABLE_PROJECTED_COLUMN(ColumnType, DisplayName, ProjectionFunc) \
+		> PREPROCESSOR_JOIN(__Column__, __LINE__); \
+		::Trace::TColumnDeclaration<decltype(PREPROCESSOR_JOIN(__Column__, __LINE__))::Index + 1, RowType
+
+#endif
 
 #define UE_TRACE_TABLE_LAYOUT_END() \
 		> LastColumn;\
