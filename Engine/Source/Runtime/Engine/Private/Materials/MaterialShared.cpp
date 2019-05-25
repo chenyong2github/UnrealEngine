@@ -2528,7 +2528,12 @@ FMaterialRenderProxy::~FMaterialRenderProxy()
 		ReleaseResource();
 	}
 
-	check(!HasVirtualTextureCallbacks);
+	if (HasVirtualTextureCallbacks)
+	{
+		check(IsInRenderingThread());
+		GetRendererModule().RemoveAllVirtualTextureProducerDestroyedCallbacks(this);
+		HasVirtualTextureCallbacks = false;
+	}
 
 	DeletedFlag = 1;
 }
