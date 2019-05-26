@@ -43,20 +43,6 @@ FAnimNode_Base* FControlRigSequencerAnimInstanceProxy::GetCustomRootNode()
 	return &SequencerRootNode;
 }
 
-void FControlRigSequencerAnimInstanceProxy::CacheBones()
-{
-	// As we dont use the RootNode (this is not using anim blueprint), 
-	// we just cache the nodes we know about
-	if (bBoneCachesInvalidated)
-	{
-		bBoneCachesInvalidated = false;
-
-		CachedBonesCounter.Increment();
-		FAnimationCacheBonesContext Context(this);
-		SequencerRootNode.CacheBones_AnyThread(Context);
-	}
-}
-
 void FControlRigSequencerAnimInstanceProxy::ResetNodes()
 {
 	FAnimSequencerInstanceProxy::ResetNodes();

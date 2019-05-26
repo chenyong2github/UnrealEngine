@@ -114,6 +114,7 @@ struct CONTROLRIGDEVELOPER_API FControlRigModelLink
 struct CONTROLRIGDEVELOPER_API FControlRigModelPin
 {
 	FName Name;
+	FText DisplayNameText;
 	int32 Node;
 	int32 Index;
 	int32 ParentIndex;
@@ -129,6 +130,7 @@ struct CONTROLRIGDEVELOPER_API FControlRigModelPin
 
 	FControlRigModelPin()
 		: Name(NAME_None)
+		, DisplayNameText(FText())
 		, Node(INDEX_NONE)
 		, Index(INDEX_NONE)
 		, ParentIndex(INDEX_NONE)

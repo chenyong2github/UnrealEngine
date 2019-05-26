@@ -212,6 +212,14 @@ void UControlRigBlueprint::PopulateModelFromGraph(const UControlRigGraph* InGrap
 	}
 }
 
+void UControlRigBlueprint::RebuildGraphFromModel()
+{
+	TGuardValue<bool> SelfGuard(bSuspendModelNotificationsForSelf, true);
+	check(ModelController);
+	ModelController->ResendAllNotifications();
+}
+
+
 void UControlRigBlueprint::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
 {
 	if (!bSuspendModelNotificationsForSelf)

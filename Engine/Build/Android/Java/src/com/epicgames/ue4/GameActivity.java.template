@@ -4613,9 +4613,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			}
 			editor.putString("notificationIDs", notificationIDs + "-" + idToReturn);
 		}
-
-		notificationIDs = preferences.getString("notificationIDs", "");
-
 		editor.commit();
 
 		return idToReturn;
@@ -4640,11 +4637,30 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return iParts;
 	}
 
+	private boolean LocalNotificationIDExists(int notificationID)
+	{
+		if (notificationID == -1)
+		{
+			return false;
+		}
+
+		ArrayList<Integer> notificationIDs = LocalNotificationGetIDList();
+
+		for(int id : notificationIDs)
+		{
+			if (id == notificationID)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private void LocalNotificationRemoveID(int notificationID)
 	{
 		SharedPreferences preferences = getApplicationContext().getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
 		SharedPreferences.Editor editor = preferences.edit();
-		String notificationIDs = preferences.getString("notificationIDs", null);
+		String notificationIDs = preferences.getString("notificationIDs", "");
 
 		ArrayList<String> iParts = new ArrayList<String>();
 
@@ -4682,7 +4698,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		editor.commit();
 	}
 
-	public void AndroidThunkJava_LocalNotificationScheduleAtTime(String targetDateTime, boolean localTime, String title, String body, String action, String activationEvent) 
+	public int AndroidThunkJava_LocalNotificationScheduleAtTime(String targetDateTime, boolean localTime, String title, String body, String action, String activationEvent) 
 	{
 		int notificationID = LocalNotificationGetID(this);
 
@@ -4719,7 +4735,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		catch (ParseException e) 
 		{
 			e.printStackTrace();
-			return;
+			LocalNotificationRemoveID(notificationID);
+			return -1;
 		}
 
 		Date currentDate = new Date();
@@ -4728,7 +4745,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		if(msDiff < 0)
 		{
-			return;
+			LocalNotificationRemoveID(notificationID);
+			return -1;
 		}
 
 		long futureTimeInMillis = SystemClock.elapsedRealtime() + msDiff;//Calculate the time to run the callback
@@ -4736,6 +4754,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		//Schedule the operation by using AlarmService
 		alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, futureTimeInMillis, pendingIntent);
+
+		return notificationID;
 	}
 
 	public class LaunchNotification {
@@ -4767,24 +4787,35 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			pendingIntent.cancel();
 			alarmManager.cancel(pendingIntent);
 		}
+
+		// clear them all
+		SharedPreferences preferences = getApplicationContext().getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
+		SharedPreferences.Editor editor = preferences.edit();
+		editor.putString("notificationIDs", "");
+		editor.commit();
 	}
 
-	/*
+	public boolean AndroidThunkJava_LocalNotificationExists(int notificationId)
+	{
+		return LocalNotificationIDExists(notificationId);
+	}
+
 	// Returns true only if the scheduled notification exists and gets destoyed successfully
 	public boolean AndroidThunkJava_LocalNotificationDestroyIfExists(int notificationId)
 	{
-		if (AndroidThunkJava_ScheduledNotificationExists(notificationId))
+		if (AndroidThunkJava_LocalNotificationExists(notificationId))
 		{
+			LocalNotificationRemoveID(notificationId);
+
 			//Cancel the intent itself as well as from the alarm manager
 			AlarmManager alarmManager = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
-			PendingIntent pendingIntent = PendingIntent.getBroadcast(this, notificationId, new Intent(this, ScheduledNotificationReceiver.class), PendingIntent.FLAG_UPDATE_CURRENT);
+			PendingIntent pendingIntent = PendingIntent.getBroadcast(this, notificationId, new Intent(this, LocalNotificationReceiver.class), PendingIntent.FLAG_UPDATE_CURRENT);
 			pendingIntent.cancel();
 			alarmManager.cancel(pendingIntent);
 			return true;
 		}
 		return false;
 	}
-	*/
 
 	// List of vendor/product ids
 	private static final DeviceInfoData[] DeviceInfoList = {

@@ -2,12 +2,12 @@
 
 #include "CurveEditorSettings.h"
 
-UCurveEditorSettings::UCurveEditorSettings( const FObjectInitializer& ObjectInitializer )
-	: Super( ObjectInitializer )
+UCurveEditorSettings::UCurveEditorSettings()
 {
 	bAutoFrameCurveEditor = true;
 	bShowCurveEditorCurveToolTips = true;
 	TangentVisibility = ECurveEditorTangentVisibility::SelectedKeys;
+	ZoomPosition = ECurveEditorZoomPosition::CurrentTime;
 }
 
 bool UCurveEditorSettings::GetAutoFrameCurveEditor() const
@@ -38,12 +38,12 @@ void UCurveEditorSettings::SetShowCurveEditorCurveToolTips(bool InbShowCurveEdit
 	}
 }
 
-ECurveEditorTangentVisibility::Type UCurveEditorSettings::GetTangentVisibility() const
+ECurveEditorTangentVisibility UCurveEditorSettings::GetTangentVisibility() const
 {
 	return TangentVisibility;
 }
 
-void UCurveEditorSettings::SetTangentVisibility(ECurveEditorTangentVisibility::Type InTangentVisibility)
+void UCurveEditorSettings::SetTangentVisibility(ECurveEditorTangentVisibility InTangentVisibility)
 {
 	if (TangentVisibility != InTangentVisibility)
 	{
@@ -51,3 +51,18 @@ void UCurveEditorSettings::SetTangentVisibility(ECurveEditorTangentVisibility::T
 		SaveConfig();
 	}
 }
+
+ECurveEditorZoomPosition UCurveEditorSettings::GetZoomPosition() const
+{
+	return ZoomPosition;
+}
+
+void UCurveEditorSettings::SetZoomPosition(ECurveEditorZoomPosition InZoomPosition)
+{
+	if (ZoomPosition != InZoomPosition)
+	{
+		ZoomPosition = InZoomPosition;
+		SaveConfig();
+	}
+}
+

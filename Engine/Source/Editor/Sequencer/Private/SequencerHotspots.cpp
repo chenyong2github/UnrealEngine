@@ -17,15 +17,6 @@
 
 #define LOCTEXT_NAMESPACE "SequencerHotspots"
 
-TSharedRef<ISequencerSection> FSectionHandle::GetSectionInterface() const
-{
-	return TrackNode->GetSections()[SectionIndex];
-}
-
-UMovieSceneSection* FSectionHandle::GetSectionObject() const
-{
-	return GetSectionInterface()->GetSectionObject();
-}
 
 void FKeyHotspot::UpdateOnHover(SSequencerTrackArea& InTrackArea, ISequencer& InSequencer) const
 {
@@ -55,19 +46,19 @@ bool FKeyHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& InS
 
 TOptional<FFrameNumber> FSectionHotspot::GetTime() const
 {
-	UMovieSceneSection* ThisSection = Section.GetSectionObject();
+	UMovieSceneSection* ThisSection = WeakSection.Get();
 	return ThisSection && ThisSection->HasStartFrame() ? ThisSection->GetInclusiveStartFrame() : TOptional<FFrameNumber>();
 }
 
 TOptional<FFrameTime> FSectionHotspot::GetOffsetTime() const
 {
-	UMovieSceneSection* ThisSection = Section.GetSectionObject();
+	UMovieSceneSection* ThisSection = WeakSection.Get();
 	return ThisSection ? ThisSection->GetOffsetTime() : TOptional<FFrameTime>();
 }
 
 void FSectionHotspot::UpdateOnHover(SSequencerTrackArea& InTrackArea, ISequencer& InSequencer) const
 {
-	UMovieSceneSection* ThisSection = Section.GetSectionObject();
+	UMovieSceneSection* ThisSection = WeakSection.Get();
 
 	// Move sections if they are selected
 	if (InSequencer.GetSelection().IsSelected(ThisSection))
@@ -103,30 +94,26 @@ void FSectionHotspot::UpdateOnHover(SSequencerTrackArea& InTrackArea, ISequencer
 
 bool FSectionHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& InSequencer, FFrameTime MouseDownTime)
 {
-	FSequencer& Sequencer = static_cast<FSequencer&>(InSequencer);
-
-	TSharedPtr<ISequencerSection> SectionInterface = Section.TrackNode->GetSections()[Section.SectionIndex];
-
-	FGuid ObjectBinding;
-	if (Section.TrackNode.IsValid())
+	UMovieSceneSection* ThisSection = WeakSection.Get();
+	if (ThisSection)
 	{
-		TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = Section.TrackNode->FindParentObjectBindingNode();
-		if (ObjectBindingNode.IsValid())
+		FSequencer& Sequencer = static_cast<FSequencer&>(InSequencer);
+		FSectionContextMenu::BuildMenu(MenuBuilder, Sequencer, MouseDownTime);
+
+		TOptional<FSectionHandle> SectionHandle = Sequencer.GetNodeTree()->GetSectionHandle(ThisSection);
+		if (SectionHandle.IsSet())
 		{
-			ObjectBinding = ObjectBindingNode->GetObjectBinding();
+			FGuid ObjectBinding = SectionHandle->GetTrackNode()->GetObjectGuid();
+			SectionHandle->GetSectionInterface()->BuildSectionContextMenu(MenuBuilder, ObjectBinding);
 		}
 	}
-
-	FSectionContextMenu::BuildMenu(MenuBuilder, Sequencer, MouseDownTime);
-
-	SectionInterface->BuildSectionContextMenu(MenuBuilder, ObjectBinding);
 
 	return true;
 }
 
 TOptional<FFrameNumber> FSectionResizeHotspot::GetTime() const
 {
-	UMovieSceneSection* ThisSection = Section.GetSectionObject();
+	UMovieSceneSection* ThisSection = WeakSection.Get();
 	if (!ThisSection)
 	{
 		return TOptional<FFrameNumber>();
@@ -141,25 +128,22 @@ void FSectionResizeHotspot::UpdateOnHover(SSequencerTrackArea& InTrackArea, ISeq
 
 TSharedPtr<ISequencerEditToolDragOperation> FSectionResizeHotspot::InitiateDrag(ISequencer& Sequencer)
 {
-	const auto& SelectedSections = Sequencer.GetSelection().GetSelectedSections();
-	auto SectionHandles = StaticCastSharedRef<SSequencer>(Sequencer.GetSequencerWidget())->GetSectionHandles(SelectedSections);
-	
-	if (!SelectedSections.Contains(Section.GetSectionObject()))
+	UMovieSceneSection* ThisSection = WeakSection.Get();
+
+	if (ThisSection && !Sequencer.GetSelection().GetSelectedSections().Contains(ThisSection))
 	{
 		Sequencer.GetSelection().Empty();
-		Sequencer.GetSelection().AddToSelection(Section.GetSectionObject());
+		Sequencer.GetSelection().AddToSelection(ThisSection);
 		SequencerHelpers::UpdateHoveredNodeFromSelectedSections(static_cast<FSequencer&>(Sequencer));
-
-		SectionHandles.Empty();
-		SectionHandles.Add(Section);
 	}
+
 	const bool bIsSlipping = false;
-	return MakeShareable( new FResizeSection(static_cast<FSequencer&>(Sequencer), SectionHandles, HandleType == Right, bIsSlipping) );
+	return MakeShareable( new FResizeSection(static_cast<FSequencer&>(Sequencer), Sequencer.GetSelection().GetSelectedSections(), HandleType == Right, bIsSlipping) );
 }
 
 TOptional<FFrameNumber> FSectionEasingHandleHotspot::GetTime() const
 {
-	UMovieSceneSection* ThisSection = Section.GetSectionObject();
+	UMovieSceneSection* ThisSection = WeakSection.Get();
 	if (ThisSection)
 	{
 		if (HandleType == ESequencerEasingType::In && !ThisSection->GetEaseInRange().IsEmpty())
@@ -181,32 +165,30 @@ void FSectionEasingHandleHotspot::UpdateOnHover(SSequencerTrackArea& InTrackArea
 
 bool FSectionEasingHandleHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& Sequencer, FFrameTime MouseDownTime)
 {
-	FEasingContextMenu::BuildMenu(MenuBuilder, { FEasingAreaHandle{Section, HandleType} }, static_cast<FSequencer&>(Sequencer), MouseDownTime);
+	FEasingContextMenu::BuildMenu(MenuBuilder, { FEasingAreaHandle{WeakSection, HandleType} }, static_cast<FSequencer&>(Sequencer), MouseDownTime);
 	return true;
 }
 
 TSharedPtr<ISequencerEditToolDragOperation> FSectionEasingHandleHotspot::InitiateDrag(ISequencer& Sequencer)
 {
-	return MakeShareable( new FManipulateSectionEasing(static_cast<FSequencer&>(Sequencer), Section, HandleType == ESequencerEasingType::In) );
+	return MakeShareable( new FManipulateSectionEasing(static_cast<FSequencer&>(Sequencer), WeakSection, HandleType == ESequencerEasingType::In) );
 }
 
-bool FSectionEasingAreaHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& Sequencer, FFrameTime MouseDownTime)
+bool FSectionEasingAreaHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& InSequencer, FFrameTime MouseDownTime)
 {
-	FEasingContextMenu::BuildMenu(MenuBuilder, Easings, static_cast<FSequencer&>(Sequencer), MouseDownTime);
+	FSequencer& Sequencer = static_cast<FSequencer&>(InSequencer);
+	FEasingContextMenu::BuildMenu(MenuBuilder, Easings, Sequencer, MouseDownTime);
 
-	TSharedPtr<ISequencerSection> SectionInterface = Section.TrackNode->GetSections()[Section.SectionIndex];
-
-	FGuid ObjectBinding;
-	if (Section.TrackNode.IsValid())
+	UMovieSceneSection* ThisSection = WeakSection.Get();
+	if (ThisSection)
 	{
-		TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = Section.TrackNode->FindParentObjectBindingNode();
-		if (ObjectBindingNode.IsValid())
+		TOptional<FSectionHandle> SectionHandle = Sequencer.GetNodeTree()->GetSectionHandle(ThisSection);
+		if (SectionHandle.IsSet())
 		{
-			ObjectBinding = ObjectBindingNode->GetObjectBinding();
+			FGuid ObjectBinding = SectionHandle->GetTrackNode()->GetObjectGuid();
+			SectionHandle->GetSectionInterface()->BuildSectionContextMenu(MenuBuilder, ObjectBinding);
 		}
 	}
-
-	SectionInterface->BuildSectionContextMenu(MenuBuilder, ObjectBinding);
 
 	return true;
 }

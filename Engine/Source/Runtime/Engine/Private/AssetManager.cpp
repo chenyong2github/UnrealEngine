@@ -811,7 +811,21 @@ void UAssetManager::SetPrimaryAssetTypeRules(FPrimaryAssetType PrimaryAssetType,
 
 void UAssetManager::SetPrimaryAssetRules(FPrimaryAssetId PrimaryAssetId, const FPrimaryAssetRules& Rules)
 {
-	if (Rules.IsDefault())
+	static FPrimaryAssetRules DefaultRules;
+
+	FPrimaryAssetRulesExplicitOverride ExplicitRules;
+	ExplicitRules.Rules = Rules;
+	ExplicitRules.bOverridePriority = (Rules.Priority != DefaultRules.Priority);
+	ExplicitRules.bOverrideApplyRecursively = (Rules.bApplyRecursively != DefaultRules.bApplyRecursively);
+	ExplicitRules.bOverrideChunkId = (Rules.ChunkId != DefaultRules.ChunkId);
+	ExplicitRules.bOverrideCookRule = (Rules.CookRule != DefaultRules.CookRule);
+	
+	SetPrimaryAssetRulesExplicitly(PrimaryAssetId, ExplicitRules);
+}
+
+void UAssetManager::SetPrimaryAssetRulesExplicitly(FPrimaryAssetId PrimaryAssetId, const FPrimaryAssetRulesExplicitOverride& ExplicitRules)
+{
+	if (!ExplicitRules.HasAnyOverride())
 	{
 		AssetRuleOverrides.Remove(PrimaryAssetId);
 	}
@@ -822,7 +836,7 @@ void UAssetManager::SetPrimaryAssetRules(FPrimaryAssetId PrimaryAssetId, const F
 			UE_LOG(LogAssetManager, Error, TEXT("Duplicate Rule overrides found for asset %s!"), *PrimaryAssetId.ToString());
 		}
 
-		AssetRuleOverrides.Add(PrimaryAssetId, Rules);
+		AssetRuleOverrides.Add(PrimaryAssetId, ExplicitRules);
 	}
 
 	bIsManagementDatabaseCurrent = false;
@@ -840,11 +854,11 @@ FPrimaryAssetRules UAssetManager::GetPrimaryAssetRules(FPrimaryAssetId PrimaryAs
 		Result = (*FoundType)->Info.Rules;
 
 		// Selectively override
-		const FPrimaryAssetRules* FoundRules = AssetRuleOverrides.Find(PrimaryAssetId);
+		const FPrimaryAssetRulesExplicitOverride* FoundRulesOverride = AssetRuleOverrides.Find(PrimaryAssetId);
 
-		if (FoundRules)
+		if (FoundRulesOverride)
 		{
-			Result.OverrideRules(*FoundRules);
+			FoundRulesOverride->OverrideRulesExplicitly(Result);
 		}
 
 		if (Result.Priority < 0)

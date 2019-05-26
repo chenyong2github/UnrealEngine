@@ -85,15 +85,6 @@ void UControlRigGraphNode::ReconstructNode()
 		}
 	}
 
-#if WITH_EDITORONLY_DATA
-	// store the nodes connected to outputs of hierarchy refs.
-	// this is done for backwards compatibility
-	if (HasAnyFlags(RF_NeedPostLoad))
-	{
-		CacheHierarchyRefConnectionsOnPostLoad();
-	}
-#endif
-
 	Modify();
 
 	// Clear previously set messages
@@ -580,6 +571,7 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 TSharedPtr<FControlRigField> UControlRigGraphNode::CreateControlRigField(const FControlRigModelPin* InPin, const FString& InPinPath, int32 InArrayIndex) const
 {
 	TSharedPtr<FControlRigField> NewField = MakeShareable(new FControlRigPin(InPin, InPinPath, InArrayIndex));
+	NewField->DisplayNameText = InPin->DisplayNameText;
 	NewField->TooltipText = InPin->TooltipText;
 	NewField->InputPin = FindPin(InPinPath, EGPD_Input);
 	NewField->OutputPin = FindPin(InPinPath, EGPD_Output);

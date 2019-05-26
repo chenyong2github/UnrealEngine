@@ -1137,7 +1137,7 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 	}
 }
 
-int32 UMovieSceneSequencePlayer::GetFunctionCallspace(UFunction* Function, void* Parameters, FFrame* Stack)
+int32 UMovieSceneSequencePlayer::GetFunctionCallspace(UFunction* Function, FFrame* Stack)
 {
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -1145,7 +1145,7 @@ int32 UMovieSceneSequencePlayer::GetFunctionCallspace(UFunction* Function, void*
 	}
 
 	check(GetOuter());
-	return GetOuter()->GetFunctionCallspace(Function, Parameters, Stack);
+	return GetOuter()->GetFunctionCallspace(Function, Stack);
 }
 
 bool UMovieSceneSequencePlayer::CallRemoteFunction(UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack)

@@ -22,11 +22,13 @@
 #include <sstream>
 #include <set>
 #if defined(_XBOX_ONE) || defined(WIN32)
+#define NOMINMAX
 #include <Windows.h>
 #else
 #include <sys/time.h>
 #include <unistd.h>
 #endif
+#include <algorithm>
 #include <string>
 #include <map>
 #include <vector>
@@ -1821,16 +1823,14 @@ namespace VivoxClientApi {
             m_multiLogin = multiLogin;
 
             vx_sdk_config_t config;
+			int retval = vx_get_default_config3(&config, sizeof(config));
+			if (retval != 0) {
+				return VCSStatus(retval);
+			}
+
 			if (configHints)
 			{
-				memcpy(&config, configHints, configSize);
-			}
-			else
-			{
-				int retval = vx_get_default_config3(&config, sizeof(config));
-				if (retval != 0) {
-					return VCSStatus(retval);
-				}
+				memcpy(&config, configHints, std::min(configSize, sizeof(config)));
 			}
 
             m_loglevel = level;
@@ -1853,7 +1853,7 @@ namespace VivoxClientApi {
 			config.pf_on_audio_unit_before_capture_audio_sent = &sOnAudioUnitBeforeCaptureAudioSent;
 			config.pf_on_audio_unit_before_recv_audio_rendered = &sOnAudioUnitBeforeRecvAudioRendered;
 
-            int retval = vx_initialize3(&config, sizeof(config));
+            retval = vx_initialize3(&config, sizeof(config));
             if(retval != 0) {
                 return VCSStatus(retval);
             }
@@ -3383,6 +3383,10 @@ namespace VivoxClientApi {
             m_audioInputDeviceList.clear();
             m_audioInputDeviceListPopulated = false;
             m_audioOutputDeviceListPopulated = false;
+            m_currentAudioInputDevicePolicy = AudioDevicePolicy();
+            m_currentAudioOutputDevicePolicy = AudioDevicePolicy();
+            m_desiredAudioInputDevicePolicy = AudioDevicePolicy();
+            m_desiredAudioOutputDevicePolicy = AudioDevicePolicy();
             m_masterAudioInputDeviceVolume = 50;
 			m_masterAudioOutputDeviceVolume = 50;
 			m_masterVadSensitivity = 43;

@@ -5,15 +5,21 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-#include "CurveEditorScreenSpace.h"
-#include "ICurveEditorDragOperation.h"
 #include "CurveDrawInfo.h"
 #include "CurveEditor.h"
 #include "CurveEditorTypes.h"
+#include "Textures/SlateIcon.h"
 
 struct FCurveEditorEditObjectContainer;
 
 class IDetailsView;
+class IGraphEditorView;
+class ITimeSliderController;
+class SScrollBox;
+class SCurveEditorView;
+class SCurveEditorViewContainer;
+class FTabManager;
+class UCurveEditorFilterBase;
 
 /**
  * Curve editor widget that reflects the state of an FCurveEditor
@@ -27,6 +33,18 @@ class CURVEEDITOR_API SCurveEditorPanel : public SCompoundWidget
 		/** Color to draw grid lines */
 		SLATE_ATTRIBUTE(FLinearColor, GridLineTint)
 
+		/** Tab Manager which owns this panel. */
+		SLATE_ARGUMENT(TSharedPtr<FTabManager>, TabManager)
+
+		/** Optional Time Slider Controller which allows us to synchronize with an externally controlled Time Slider */
+		SLATE_ARGUMENT(TSharedPtr<ITimeSliderController>, ExternalTimeSliderController)
+
+		/** If specified, causes the time snap adjustment UI controls to be disabled and specifies the tooltip to be used. Can be used to disable time snap controls when externally controlled. */
+		SLATE_ATTRIBUTE(FText, DisabledTimeSnapTooltip)
+
+		/** Widget slot for the tree content */
+		SLATE_NAMED_SLOT(FArguments, TreeContent)
+
 	SLATE_END_ARGS()
 
 	SCurveEditorPanel();
@@ -36,14 +54,6 @@ class CURVEEDITOR_API SCurveEditorPanel : public SCompoundWidget
 	 * Construct a new curve editor panel widget
 	 */
 	void Construct(const FArguments& InArgs, TSharedRef<FCurveEditor> InCurveEditor);
-
-	/**
-	 * Access the draw parameters that this curve editor has cached for this frame
-	 */
-	const TArray<FCurveDrawParams>& GetCachedDrawParams() const
-	{
-		return CachedDrawParams;
-	}
 
 	/**
 	 * Access the combined command list for this curve editor and panel widget
@@ -56,28 +66,73 @@ class CURVEEDITOR_API SCurveEditorPanel : public SCompoundWidget
 	/**
 	 * Access the details view used for editing selected keys
 	 */
-	TSharedPtr<IDetailsView> GetKeyDetailsView() const
+	TSharedPtr<class SCurveKeyDetailPanel> GetKeyDetailsView() const
 	{
 		return KeyDetailsView;
 	}
 
+	void AddView(TSharedRef<SCurveEditorView> ViewToAdd);
+
+	void RemoveView(TSharedRef<SCurveEditorView> ViewToRemove);
+
+	/** This returns an extender which is pre-configured with the standard set of Toolbar Icons. Implementers of SCurveEditorPanel should use this
+	* to generate the icons and then add any additional context-specific icons (such as save buttons in the Asset Editor) to ensure that the Curve
+	* Editor has a consistent set (and order) of icons across all usages.
+	*/
+	TSharedPtr<FExtender> GetToolbarExtender();
+
+	/** Access the cached geometry of the outer scroll panel that contains this panel's views */
+	const FGeometry& GetScrollPanelGeometry() const;
+
+	/** Access the cached geometry of container housing all this panel's views */
+	const FGeometry& GetViewContainerGeometry() const;
+
+	/** Get all the views stored in this panel. */
+	TArrayView<const TSharedPtr<SCurveEditorView>> GetViews() const;
+
+	/** Get the grid line tint to be used for views on panel */
+	FLinearColor GetGridLineTint() const { return GridLineTintAttribute.Get(); }
+
+	/** Scroll this panel's view scroll box vertically by the specified amount */
+	void ScrollBy(float Amount);
+
+	/**
+	 * Find all the views that the specified curve is being displayed on
+	 * @note: Returns an in-place iterator to this curve's view mapping. Adding or removing curves from views *will* invalidate this iterator.
+	 *
+	 * @param InCurveID The identifier of the curve to find views for
+	 * @return An iterator to all the views that this cuvrve is displayed within.
+	 */
+	TMultiMap<FCurveModelID, TSharedRef<SCurveEditorView>>::TConstKeyIterator FindViews(FCurveModelID InCurveID)
+	{
+		return CurveViews.CreateConstKeyIterator(InCurveID);
+	}
+
+	/**
+	 * Remove the specified curve from all views it is currently displayed on.
+	 */
+	void RemoveCurveFromViews(FCurveModelID InCurveID);
+
+	/** Get the last set View Mode for this UI. Utility function for the UI. */
+	ECurveEditorViewID GetViewMode() const { return DefaultViewID; }
+
 private:
-
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	// SWidget Interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-
-	/*~ Mouse interaction */
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual void OnFocusLost(const FFocusEvent& InFocusEvent) override;
-	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
+	// ~SWidget Interface
 
 	/*~ Keyboard interaction */
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
+	TSharedRef<SWidget> MakeTimeSnapMenu();
+	FText GetTimeSnapMenuTooltip() const;
+	TSharedRef<SWidget> MakeValueSnapMenu();
+	TSharedRef<SWidget> MakeAxisSnapMenu();
+	TSharedRef<SWidget> MakeViewModeMenu();
+
+	bool IsInlineEditPanelEditable() const;
+	EVisibility ShouldInstructionOverlayBeVisible() const;
 
 private:
 
@@ -86,21 +141,18 @@ private:
 	 */
 	EVisibility GetSplitterVisibility() const;
 
-	/**
-	 * Get the currently hovered curve ID
-	 */
-	TOptional<FCurveModelID> GetHoveredCurve() const;
-
-	/**
-	 * Hit test for a point on the curve editor using a mouse position in slate units
-	 */
-	TOptional<FCurvePointHandle> HitPoint(FVector2D MousePixel) const;
-
 	/*~ Event bindings */
 	void UpdateEditBox();
 	void UpdateCommonCurveInfo();
-	void UpdateToolTip(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
-	void UpdateCurveProximities(FVector2D MousePixel);
+
+	/** Creates the drop-down list you see when changing Curve View options. */
+	TSharedRef<SWidget> MakeCurveEditorCurveViewOptionsMenu();
+	TSharedRef<SWidget> MakeCurveExtrapolationMenu(const bool bInPostExtrapolation);
+	FSlateIcon GetCurveExtrapolationPreIcon() const;
+	FSlateIcon GetCurveExtrapolationPostIcon() const;
+
+	/** Creates the Curve Editor Filter UI and pre-populates it with the specified class. */
+	void ShowCurveFilterUI(TSubclassOf<UCurveEditorFilterBase> FilterClass);
 
 private:
 
@@ -108,16 +160,6 @@ private:
 	 * Bind command mappings for this widget
 	 */
 	void BindCommands();
-
-	/**
-	 * Rebind contextual command mappings that rely on the mouse position
-	 */
-	void RebindContextualActions(FVector2D MousePosition);
-
-	/*~ Command binding callbacks */
-	void OnAddKey(FVector2D MousePixel);
-	void OnAddKeyHere(FVector2D MousePixel);
-	void OnAddKey(FCurveModelID CurveToAdd, FVector2D MousePixel);
 
 	/**
 	 * Assign new attributes to the currently selected keys
@@ -170,50 +212,41 @@ private:
 	bool CanToggleWeightedTangents() const;
 
 	/**
-	*  Brings up Dialog to specify Tolerance before doing the key reduction.
-	*/
-	void OnSimplifySelection();
-
-	/**
-	*  Callback for when the curve is simplified.
-	*/
-	void OnSimplifySelectionCommited(const FText& InText, ETextCommit::Type CommitInfo);
-
-	/**
-	*  Create popup menu
-	*/
-	void GenericTextEntryModeless(const FText& DialogText, const FText& DefaultText, FOnTextCommitted OnTextComitted);
-
-
-	/**
-	*  Close popup menu
-	*/
-	void CloseEntryPopupMenu();
-public:
-
-	/**
-	 * Draw grid lines
+	 * Check whether or not we can set a key interpolation on the current selection. If no keys are selected, you can't set an interpolation!
 	 */
-	int32 DrawGridLines(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId, ESlateDrawEffect DrawEffects) const;
+	bool CanSetKeyInterpolation() const;
+
+	/** Sets the axis snapping to the specified value. Only supports X, Y and None. */
+	void SetAxisSnapping(EAxisList::Type InAxis);
+
+	/** Get a reference to the curve editor this panel represents. */
+	TSharedPtr<FCurveEditor> GetCurveEditor() const { return CurveEditor; }
+
+private:
 
 	/**
-	 * Draw curve data
+	 * Create a new view for a model of the specified type, and add the curve to the view
+	 *
+	 * @param CurveModelID The ID of the curve we're creating a view for
+	 * @param ViewTypeID   The ID of the view we'd like to create
+	 * @param bPinned      Whether the view should be pinned or not
+	 * @return A new view or nullptr if one could not be created
 	 */
-	int32 DrawCurves(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, ESlateDrawEffect DrawEffects) const;
+	TSharedPtr<SCurveEditorView> CreateViewOfType(FCurveModelID CurveModelID, ECurveEditorViewID ViewTypeID, bool bPinned);
 
 private:
 
 	/** The curve editor pointer */
 	TSharedPtr<FCurveEditor> CurveEditor;
 
-	/** Array of curve proximities in slate units that's updated on mouse move */
-	TArray<TTuple<FCurveModelID, float>> CurveProximities;
+	/** Map from curve model ID to the views that it is on */
+	TMultiMap<FCurveModelID, TSharedRef<SCurveEditorView>> CurveViews;
+
+	/** Set of externally added views */
+	TSet<TSharedRef<SCurveEditorView>> ExternalViews;
 
 	/** (Optional) the current drag operation */
 	TOptional<FCurveEditorDelayedDrag> DragOperation;
-
-	/** Curve draw parameters that are re-generated on tick */
-	TArray<FCurveDrawParams> CachedDrawParams;
 
 	/** Cached curve attributes that are common to all visible curves */
 	FCurveAttributes CachedCommonCurveAttributes;
@@ -227,8 +260,11 @@ private:
 	/** Attribute used for retrieving the desired grid line color */
 	TAttribute<FLinearColor> GridLineTintAttribute;
 
+	/** Attribute used for retrieving the tooltip for when the Time Snap control is disabled. Specifying this causes the Time Snap Adjustment to be disabled. */
+	TAttribute<FText> DisabledTimeSnapTooltipAttribute;
+
 	/** Edit panel */
-	TSharedPtr<IDetailsView> KeyDetailsView;
+	TSharedPtr<SCurveKeyDetailPanel> KeyDetailsView;
 
 	/** Map of edit UI widgets for each curve in the current selection set */
 	TMap<FCurveModelID, TSharedPtr<SWidget>> CurveToEditUI;
@@ -241,28 +277,39 @@ private:
 
 private:
 
-	/*~ Cached tooltip data */
-	bool  IsToolTipEnabled() const;
-	FText GetToolTipCurveName() const;
-	FText GetToolTipTimeText() const;
-	FText GetToolTipValueText() const;
+	/** Sets the View Mode for the UI to the specified mode. This will destroy and re-create all views, but leave additional pinned views unmodified. */
+	void SetViewMode(const ECurveEditorViewID NewViewMode);
 
-	struct FCachedToolTipData
-	{
-		FCachedToolTipData() {}
+	/** Compare if our current view mode matches the specified one. Utility function for the UI. */
+	bool CompareViewMode(const ECurveEditorViewID InViewMode) const;
 
-		FText Text;
-		FText EvaluatedValue;
-		FText EvaluatedTime;
-	};
-	TOptional<FCachedToolTipData> CachedToolTipData;
+	/** Rebuild the Curve Views layout to match the currently specified View Mode. */
+	void RebuildCurveViews();
 
-	/** The tolerance to use when reducing curves */
-	float ReduceTolerance;
+	/** The last set View Mode for this UI. */
+	ECurveEditorViewID DefaultViewID;
 
-	/** Generic Popup Entry */
-	TWeakPtr<IMenu> EntryPopupMenu;
+	TMultiMap<ECurveEditorViewID, TSharedRef<SCurveEditorView>> FreeViewsByType;
+
+	/** The scrool box that all curve views live inside */
+	TSharedPtr<SScrollBox> ScrollBox;
+
+	/** The container for all our vertically laid out curve views. */
+	TSharedPtr<SCurveEditorViewContainer> CurveViewsContainer;
+
+private:
+
+	/** Whether to explicitly refresh the views for this panel */
+	bool bNeedsRefresh;
+
+	/** Serial number cached from FCurveEditor::GetActiveCurvesSerialNumber() on tick */
+	uint32 CachedActiveCurvesSerialNumber;
+
+	/** A copy of the View Geometry used to represent the View portion of the Curve Editor. */
+	FGeometry CachedViewGeometry;
 
 	/** Container of objects that are being used to edit keys on the curve editor */
 	TUniquePtr<FCurveEditorEditObjectContainer> EditObjects;
+
+	TWeakPtr<FTabManager> WeakTabManager;
 };
