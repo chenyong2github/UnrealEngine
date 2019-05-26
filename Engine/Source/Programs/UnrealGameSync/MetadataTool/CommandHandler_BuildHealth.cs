@@ -23,7 +23,8 @@ namespace MetadataTool
 		static readonly List<PatternMatcher> Matchers = new List<PatternMatcher>()
 		{ 
 			new CompilePatternMatcher(),
-			new UndefinedSymbolPatternMatcher()
+			new UndefinedSymbolPatternMatcher(),
+			new CopyrightNoticeMatcher()
 		};
 
 		static readonly Dictionary<string, PatternMatcher> CategoryToMatcher = Matchers.ToDictionary(x => x.Category, x => x);
