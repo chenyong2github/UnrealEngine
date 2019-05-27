@@ -7,6 +7,31 @@
 #define LIGHT_TYPE_RECT				3 
 #define LIGHT_TYPE_MAX				4 
 
+//Must match definition in RayTracingLighting.h
+struct FRTLightingData
+{
+	uint Type;
+	uint LightProfileIndex;
+	uint RectLightTextureIndex;
+	uint Pad;
+	float3 LightPosition;
+	float InvRadius;
+	float3 Direction;
+	float FalloffExponent;
+	float3 LightColor;
+	float SpecularScale;
+	float3 Tangent;
+	float SourceRadius;
+	float2 SpotAngles;
+	float SourceLength;
+	float SoftSourceRadius;
+	float2 DistanceFadeMAD;
+	float RectLightBarnCosAngle;
+	float RectLightBarnLength;
+	float4 Dummy;
+};
+
+StructuredBuffer<FRTLightingData> LightDataBuffer;
 
 float GetRoughnessFade(float Roughness, float MaxRoughness)
 {
@@ -200,24 +225,25 @@ uint2 CullDirectLighting(
 	{
 		FDeferredLightData LightData = (FDeferredLightData)0;
 		uint Lit = 1;
+		FRTLightingData LightingData = LightDataBuffer[DirIndex];
 
-		uint LightType = RaytracingLightsDataPacked.Type_LightProfileIndex_RectLightTextureIndex[DirIndex].x;
-		LightData.Position = RaytracingLightsDataPacked.LightPosition_InvRadius[DirIndex].xyz;
-		LightData.InvRadius = RaytracingLightsDataPacked.LightPosition_InvRadius[DirIndex].w;
-		LightData.Color = RaytracingLightsDataPacked.LightColor_SpecularScale[DirIndex].xyz;
-		LightData.FalloffExponent = RaytracingLightsDataPacked.Direction_FalloffExponent[DirIndex].w;
-		LightData.Direction = RaytracingLightsDataPacked.Direction_FalloffExponent[DirIndex].xyz;
-		LightData.Tangent = RaytracingLightsDataPacked.Tangent_SourceRadius[DirIndex].xyz;
-		LightData.SpotAngles = RaytracingLightsDataPacked.SpotAngles_SourceLength_SoftSourceRadius[DirIndex].xy;
-		LightData.SourceRadius = RaytracingLightsDataPacked.Tangent_SourceRadius[DirIndex].w;
-		LightData.SourceLength = RaytracingLightsDataPacked.SpotAngles_SourceLength_SoftSourceRadius[DirIndex].z;
-		LightData.SoftSourceRadius = RaytracingLightsDataPacked.SpotAngles_SourceLength_SoftSourceRadius[DirIndex].w;
-		LightData.SpecularScale = RaytracingLightsDataPacked.LightColor_SpecularScale[DirIndex].w;
-		LightData.RectLightBarnCosAngle = RaytracingLightsDataPacked.DistanceFadeMAD_RectLightBarnCosAngle_RectLightBarnLength[DirIndex].z;
-		LightData.RectLightBarnLength = RaytracingLightsDataPacked.DistanceFadeMAD_RectLightBarnCosAngle_RectLightBarnLength[DirIndex].w;
+		uint LightType = LightingData.Type;
+		LightData.Position = LightingData.LightPosition;
+		LightData.InvRadius = LightingData.InvRadius;
+		LightData.Color = LightingData.LightColor;
+		LightData.FalloffExponent = LightingData.FalloffExponent;
+		LightData.Direction = LightingData.Direction;
+		LightData.Tangent = LightingData.Tangent;
+		LightData.SpotAngles = LightingData.SpotAngles;
+		LightData.SourceRadius = LightingData.SourceRadius;
+		LightData.SourceLength = LightingData.SourceLength;
+		LightData.SoftSourceRadius = LightingData.SoftSourceRadius;
+		LightData.SpecularScale = LightingData.SpecularScale;
+		LightData.RectLightBarnCosAngle = LightingData.RectLightBarnCosAngle;
+		LightData.RectLightBarnLength = LightingData.RectLightBarnLength;
 		LightData.ContactShadowLength = 0.0;
-		LightData.DistanceFadeMAD = RaytracingLightsDataPacked.DistanceFadeMAD_RectLightBarnCosAngle_RectLightBarnLength[DirIndex].xy;
-		const uint LightProfileIndex = RaytracingLightsDataPacked.Type_LightProfileIndex_RectLightTextureIndex[DirIndex].y;
+		LightData.DistanceFadeMAD = LightingData.DistanceFadeMAD;
+		const uint LightProfileIndex = LightingData.LightProfileIndex;
 
 
 		LightData.ShadowMapChannelMask = float4(0, 0, 0, 0); 
@@ -355,29 +381,32 @@ float3 ComputeDirectLightingCulled(
 		}
 
 		FDeferredLightData LightData = (FDeferredLightData)0;
-		uint LightType = RaytracingLightsDataPacked.Type_LightProfileIndex_RectLightTextureIndex[DirIndex].x;
-		LightData.Position = RaytracingLightsDataPacked.LightPosition_InvRadius[DirIndex].xyz;
-		LightData.InvRadius = RaytracingLightsDataPacked.LightPosition_InvRadius[DirIndex].w;
-		LightData.Color = RaytracingLightsDataPacked.LightColor_SpecularScale[DirIndex].xyz;
-		LightData.FalloffExponent = RaytracingLightsDataPacked.Direction_FalloffExponent[DirIndex].w;
-		LightData.Direction = RaytracingLightsDataPacked.Direction_FalloffExponent[DirIndex].xyz;
-		LightData.Tangent = RaytracingLightsDataPacked.Tangent_SourceRadius[DirIndex].xyz;
-		LightData.SpotAngles = RaytracingLightsDataPacked.SpotAngles_SourceLength_SoftSourceRadius[DirIndex].xy;
-		LightData.SourceRadius = RaytracingLightsDataPacked.Tangent_SourceRadius[DirIndex].w;
-		LightData.SourceLength = RaytracingLightsDataPacked.SpotAngles_SourceLength_SoftSourceRadius[DirIndex].z;
-		LightData.SoftSourceRadius = RaytracingLightsDataPacked.SpotAngles_SourceLength_SoftSourceRadius[DirIndex].w;
-		LightData.SpecularScale = RaytracingLightsDataPacked.LightColor_SpecularScale[DirIndex].w;
-		LightData.RectLightBarnCosAngle = RaytracingLightsDataPacked.DistanceFadeMAD_RectLightBarnCosAngle_RectLightBarnLength[DirIndex].z;
-		LightData.RectLightBarnLength = RaytracingLightsDataPacked.DistanceFadeMAD_RectLightBarnCosAngle_RectLightBarnLength[DirIndex].w;
+		FRTLightingData LightingData = LightDataBuffer[DirIndex];
+
+		uint LightType = LightingData.Type;
+		LightData.Position = LightingData.LightPosition;
+		LightData.InvRadius = LightingData.InvRadius;
+		LightData.Color = LightingData.LightColor;
+		LightData.FalloffExponent = LightingData.FalloffExponent;
+		LightData.Direction = LightingData.Direction;
+		LightData.Tangent = LightingData.Tangent;
+		LightData.SpotAngles = LightingData.SpotAngles;
+		LightData.SourceRadius = LightingData.SourceRadius;
+		LightData.SourceLength = LightingData.SourceLength;
+		LightData.SoftSourceRadius = LightingData.SoftSourceRadius;
+		LightData.SpecularScale = LightingData.SpecularScale;
+		LightData.RectLightBarnCosAngle = LightingData.RectLightBarnCosAngle;
+		LightData.RectLightBarnLength = LightingData.RectLightBarnLength;
 		LightData.ContactShadowLength = 0.0;
-		LightData.DistanceFadeMAD = RaytracingLightsDataPacked.DistanceFadeMAD_RectLightBarnCosAngle_RectLightBarnLength[DirIndex].xy;
+		LightData.DistanceFadeMAD = LightingData.DistanceFadeMAD;
 
-	#if USE_SOURCE_TEXTURE_ARRAY 
-		RectTexture.SourceTextureIndex = RaytracingLightsDataPacked.Type_LightProfileIndex_RectLightTextureIndex[DirIndex].z;
-	#endif
-		uint LightProfileIndex = RaytracingLightsDataPacked.Type_LightProfileIndex_RectLightTextureIndex[DirIndex].y;
+#if USE_SOURCE_TEXTURE_ARRAY 
+		RectTexture.SourceTextureIndex = LightingData.RectLightTextureIndex;
+#endif
 
-		LightData.ShadowMapChannelMask = float4(0, 0, 0, 0); 
+		const uint LightProfileIndex = LightingData.LightProfileIndex;
+
+		LightData.ShadowMapChannelMask = float4(0, 0, 0, 0);
 		LightData.ShadowedBits = 0; // Not lit dynamic shadows 
 		LightData.ContactShadowLengthInWS = false;
 
