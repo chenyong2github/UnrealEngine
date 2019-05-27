@@ -270,7 +270,7 @@ namespace RuntimeVirtualTexture
 
 
 	/** Collect meshes and draw. */
-	void DrawMeshes(FRHICommandListImmediate& RHICmdList, FScene const* Scene, FViewInfo const* View, ERuntimeVirtualTextureMaterialType MaterialType)
+	void DrawMeshes(FRHICommandListImmediate& RHICmdList, FScene const* Scene, FViewInfo const* View, ERuntimeVirtualTextureMaterialType MaterialType, uint32 RuntimeVirtualTextureMask)
 	{
 		// Cached draw command collectors
 		const FCachedPassMeshDrawList& SceneDrawList = Scene->CachedDrawLists[EMeshPass::VirtualTexture];
@@ -287,24 +287,19 @@ namespace RuntimeVirtualTexture
 		//todo: Consider a broad phase (quad tree etc?) here. (But only if running over PrimitiveFlagsCompact shows up as a bottleneck.)
 		for (int32 PrimitiveIndex = 0; PrimitiveIndex < Scene->Primitives.Num(); ++PrimitiveIndex)
 		{
-			if (Scene->PrimitiveFlagsCompact[PrimitiveIndex].bRenderToVirtualTexture)
+			if (Scene->PrimitiveFlagsCompact[PrimitiveIndex].RuntimeVirtualTextureMask & RuntimeVirtualTextureMask)
 			{
 				//todo[vt]: Use quicker/more accurate 2d test here since we can pre-calculate 2d bounds in VT space.
 				FBoxSphereBounds const& Bounds = Scene->PrimitiveBounds[PrimitiveIndex].BoxSphereBounds;
 				if (View->ViewFrustum.IntersectSphere(Bounds.GetSphere().Center, Bounds.GetSphere().W))
 				{
 					FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene->Primitives[PrimitiveIndex];
-
 					for (int32 MeshIndex = 0; MeshIndex < PrimitiveSceneInfo->StaticMeshes.Num(); ++MeshIndex)
 					{
 						FStaticMeshBatchRelevance const& StaticMeshRelevance = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
-						FStaticMeshBatch const& MeshBatch = PrimitiveSceneInfo->StaticMeshes[MeshIndex];
-
-						//todo[vt]: 
-						// Filter for currently rendered VT, not MaterialType (currently we would end up with multiple or unwanted draws)
-						// Also better if we can do that without having to read from MeshBatch data (to save mem cache)
-						if (StaticMeshRelevance.bRenderToVirtualTexture && MeshBatch.RuntimeVirtualTextureMaterialType == (uint32)MaterialType)
+						if (StaticMeshRelevance.bRenderToVirtualTexture && StaticMeshRelevance.RuntimeVirtualTextureMaterialType == (uint32)MaterialType)
 						{
+							bool bCachedDraw = false;
 							if (StaticMeshRelevance.bSupportsCachingMeshDrawCommands)
 							{
 								// Use cached draw command
@@ -328,13 +323,15 @@ namespace RuntimeVirtualTexture
 										CachedMeshDrawCommand.SortKey);
 
 									CachedDrawCommands.Add(NewVisibleMeshDrawCommand);
+									bCachedDraw = true;
 								}
 							}
-							else
+
+							if (!bCachedDraw)
 							{
-								// No cached draw command available. Render static mesh.
+								// No cached draw command was available. Process the mesh batch.
 								uint64 BatchElementMask = ~0ull;
-								MeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, Scene->PrimitiveSceneProxies[PrimitiveIndex]);
+								MeshProcessor.AddMeshBatch(PrimitiveSceneInfo->StaticMeshes[MeshIndex], BatchElementMask, Scene->PrimitiveSceneProxies[PrimitiveIndex]);
 							}
 						}
 					}
@@ -544,6 +541,7 @@ namespace RuntimeVirtualTexture
 	void RenderPage(
 		FRHICommandListImmediate& RHICmdList,
 		FScene* Scene,
+		uint32 RuntimeVirtualTextureMask,
 		ERuntimeVirtualTextureMaterialType MaterialType,
 		FRHITexture2D* OutputTexture0,
 		FBox2D const& DestBox0,
@@ -619,9 +617,9 @@ namespace RuntimeVirtualTexture
 				RDG_EVENT_NAME("VirtualTextureDraw"),
 				PassParameters,
 				ERenderGraphPassFlags::None,
-				[Scene, View, MaterialType](FRHICommandListImmediate& RHICmdListImmediate)
+				[Scene, View, MaterialType, RuntimeVirtualTextureMask](FRHICommandListImmediate& RHICmdListImmediate)
 			{
-				DrawMeshes(RHICmdListImmediate, Scene, View, MaterialType);
+				DrawMeshes(RHICmdListImmediate, Scene, View, MaterialType, RuntimeVirtualTextureMask);
 			});
 		}
 
@@ -675,7 +673,7 @@ namespace RuntimeVirtualTexture
 		GraphBuilder.Execute();
 
 		// Copy to final destination
-		if (GraphSetup.OutputAlias0 != nullptr)
+		if (GraphSetup.OutputAlias0 != nullptr && OutputTexture0 != nullptr)
 		{
 			FRHICopyTextureInfo Info;
 			Info.Size = GraphOutputSize0;
@@ -684,7 +682,7 @@ namespace RuntimeVirtualTexture
 			RHICmdList.CopyTexture(GraphOutputTexture0->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), OutputTexture0->GetTexture2D(), Info);
 		}
 
-		if (GraphSetup.OutputAlias1 != nullptr)
+		if (GraphSetup.OutputAlias1 != nullptr && OutputTexture1 != nullptr)
 		{
 			FRHICopyTextureInfo Info;
 			Info.Size = GraphOutputSize1;

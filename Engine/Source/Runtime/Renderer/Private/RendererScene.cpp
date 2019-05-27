@@ -2405,14 +2405,134 @@ void FScene::RemovePrecomputedVolumetricLightmap(const FPrecomputedVolumetricLig
 
 void FScene::AddRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component)
 {
-	delete Component->SceneProxy;
-	Component->SceneProxy = new FRuntimeVirtualTextureSceneProxy(Component);
+	if (Component->SceneProxy == nullptr)
+	{
+		Component->SceneProxy = new FRuntimeVirtualTextureSceneProxy(Component);
+
+		FScene* Scene = this;
+		FRuntimeVirtualTextureSceneProxy* SceneProxy = Component->SceneProxy;
+
+		ENQUEUE_RENDER_COMMAND(AddRuntimeVirtualTextureCommand)(
+			[Scene, SceneProxy](FRHICommandListImmediate& RHICmdList)
+		{
+			Scene->AddRuntimeVirtualTexture_RenderThread(SceneProxy);
+			Scene->UpdateRuntimeVirtualTextureForAllPrimitives_RenderThread();
+		});
+	}
+	else
+	{
+		// This is a component update.
+		// Store the new FRuntimeVirtualTextureSceneProxy at the same index as the old (to avoid needing to update any associated primitives).
+		// Defer old proxy deletion to the render thread.
+		FRuntimeVirtualTextureSceneProxy* SceneProxyToReplace = Component->SceneProxy;
+		Component->SceneProxy = new FRuntimeVirtualTextureSceneProxy(Component);
+
+		FScene* Scene = this;
+		FRuntimeVirtualTextureSceneProxy* SceneProxy = Component->SceneProxy;
+
+		ENQUEUE_RENDER_COMMAND(AddRuntimeVirtualTextureCommand)(
+			[Scene, SceneProxy, SceneProxyToReplace](FRHICommandListImmediate& RHICmdList)
+		{
+			const bool bUpdatePrimitives = SceneProxy->VirtualTexture != SceneProxyToReplace->VirtualTexture;
+			Scene->UpdateRuntimeVirtualTexture_RenderThread(SceneProxy, SceneProxyToReplace);
+			if (bUpdatePrimitives)
+			{
+				Scene->UpdateRuntimeVirtualTextureForAllPrimitives_RenderThread();
+			}
+		});
+	}
 }
 
 void FScene::RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component)
 {
-	delete Component->SceneProxy;
-	Component->SceneProxy = nullptr;
+	FRuntimeVirtualTextureSceneProxy* SceneProxy = Component->SceneProxy;
+	if (SceneProxy != nullptr)
+	{
+		// Release now but defer any deletion to the render thread
+		Component->SceneProxy->Release();
+		Component->SceneProxy = nullptr;
+
+		FScene* Scene = this;
+		ENQUEUE_RENDER_COMMAND(RemoveRuntimeVirtualTextureCommand)(
+			[Scene, SceneProxy](FRHICommandListImmediate& RHICmdList)
+		{
+			Scene->RemoveRuntimeVirtualTexture_RenderThread(SceneProxy);
+			Scene->UpdateRuntimeVirtualTextureForAllPrimitives_RenderThread();
+		});
+	}
+}
+
+void FScene::AddRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy)
+{
+	SceneProxy->SceneIndex = RuntimeVirtualTextures.Add(SceneProxy);
+}
+
+void FScene::UpdateRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy, FRuntimeVirtualTextureSceneProxy* SceneProxyToReplace)
+{
+	for (int32 SceneIndex = 0; SceneIndex < RuntimeVirtualTextures.Num(); ++SceneIndex)
+	{
+		if (RuntimeVirtualTextures.IsValidIndex(SceneIndex) && RuntimeVirtualTextures[SceneIndex] == SceneProxyToReplace)
+		{
+			SceneProxy->SceneIndex = SceneIndex;
+			RuntimeVirtualTextures[SceneIndex] = SceneProxy;
+			delete SceneProxyToReplace;
+			return;
+		}
+	}
+	// If we get here then we didn't find the object to replace!
+	check(false);
+}
+
+void FScene::RemoveRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy)
+{
+	RuntimeVirtualTextures.RemoveAt(SceneProxy->SceneIndex);
+	delete SceneProxy;
+}
+
+void FScene::UpdateRuntimeVirtualTextureForAllPrimitives_RenderThread()
+{
+	for (int32 Index = 0; Index < Primitives.Num(); ++Index)
+	{
+		if (PrimitiveFlagsCompact[Index].bRenderToVirtualTexture)
+		{
+			PrimitiveFlagsCompact[Index].RuntimeVirtualTextureMask = GetRuntimeVirtualTextureMask(PrimitiveSceneProxies[Index]);
+		}
+	}
+}
+
+uint32 FScene::GetRuntimeVirtualTextureSceneIndex(uint32 ProducerId)
+{
+	checkSlow(IsInRenderingThread());
+	for (FRuntimeVirtualTextureSceneProxy const* Proxy : RuntimeVirtualTextures)
+	{
+		if (Proxy->ProducerId == ProducerId)
+		{
+			return Proxy->SceneIndex;
+		}
+	}
+	// Should not get here
+	check(false);
+	return 0;
+}
+
+uint32 FScene::GetRuntimeVirtualTextureMask(FPrimitiveSceneProxy const* Proxy)
+{
+	uint32 Mask = 0;
+	for (int32 i = 0; i < FPrimitiveFlagsCompact::RuntimeVirtualTexture_BitCount && i < RuntimeVirtualTextures.Num(); ++i)
+	{
+		if (RuntimeVirtualTextures.IsValidIndex(i))
+		{
+			URuntimeVirtualTexture* SceneVirtualTexture = RuntimeVirtualTextures[i]->VirtualTexture;
+			for (URuntimeVirtualTexture* PrimitiveVirtualTexture : Proxy->RuntimeVirtualTextures)
+			{
+				if (SceneVirtualTexture == PrimitiveVirtualTexture)
+				{
+					Mask |= 1 << i;
+				}
+			}
+		}
+	}
+	return Mask;
 }
 
 bool FScene::GetPreviousLocalToWorld(const FPrimitiveSceneInfo* PrimitiveSceneInfo, FMatrix& OutPreviousLocalToWorld) const

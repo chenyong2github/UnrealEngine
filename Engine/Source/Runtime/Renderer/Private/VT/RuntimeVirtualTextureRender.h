@@ -16,6 +16,7 @@ namespace RuntimeVirtualTexture
 	void RenderPage(
 		FRHICommandListImmediate& RHICmdList, 
 		FScene* Scene,
+		uint32 RuntimeVirtualTextureMask,
 		ERuntimeVirtualTextureMaterialType MaterialType,
 		FRHITexture2D* Texture0, FBox2D const& DestBox0,
 		FRHITexture2D* Texture1, FBox2D const& DestBox1, 

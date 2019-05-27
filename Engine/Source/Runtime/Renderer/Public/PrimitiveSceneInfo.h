@@ -140,17 +140,22 @@ public:
 	}
 };
 
-/** Flags needed for shadow culling.  These are pulled out of the FPrimitiveSceneProxy so we can do rough culling before dereferencing the proxy. */
+/** Flags needed for early culling of some passes. These are pulled out of the FPrimitiveSceneProxy so we can do rough culling before dereferencing the proxy. */
 struct FPrimitiveFlagsCompact
 {
 	/** True if the primitive casts dynamic shadows. */
-	uint32 bCastDynamicShadow : 1;
+	uint16 bCastDynamicShadow : 1;
 	/** True if the primitive will cache static lighting. */
-	uint32 bStaticLighting : 1;
+	uint16 bStaticLighting : 1;
 	/** True if the primitive casts static shadows. */
-	uint32 bCastStaticShadow : 1;
+	uint16 bCastStaticShadow : 1;
 	/** True if renders to virtual texture */
-	uint32 bRenderToVirtualTexture : 1;
+	uint16 bRenderToVirtualTexture : 1;
+	
+	/** Number of bits to reserve for the RuntimeVirtualTextureMask. If we use more than this number of runtime virtual textures in a scene we will trigger a slower path in rendering the VT pages. */
+	enum { RuntimeVirtualTexture_BitCount = 8 };
+	/** Mask of the allocated runtime virtual textures in the scene to render to. */
+	uint16 RuntimeVirtualTextureMask : RuntimeVirtualTexture_BitCount;
 
 	FPrimitiveFlagsCompact(const FPrimitiveSceneProxy* Proxy);
 };

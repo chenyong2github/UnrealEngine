@@ -74,14 +74,14 @@ public:
 	/** Getter for the virtual texture producer. */
 	FVirtualTextureProducerHandle GetProducerHandle() const
 	{
-		check(IsInRenderingThread());
+		checkSlow(IsInRenderingThread());
 		return ProducerHandle;
 	}
 
 	/** Getter for the virtual texture allocation. */
 	IAllocatedVirtualTexture* GetAllocatedVirtualTexture() const 
 	{
-		check(IsInRenderingThread());
+		checkSlow(IsInRenderingThread());
 		return AllocatedVirtualTexture;
 	}
 

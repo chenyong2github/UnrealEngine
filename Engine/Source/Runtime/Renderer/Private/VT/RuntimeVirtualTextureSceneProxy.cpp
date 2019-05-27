@@ -6,30 +6,43 @@
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureProducer.h"
 
+int32 FRuntimeVirtualTextureSceneProxy::ProducerIdGenerator = 1;
 
 FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtualTextureComponent* InComponent)
-	: VirtualTexture(InComponent->GetVirtualTexture())
+	: ProducerId(0)
+	, VirtualTexture(InComponent->GetVirtualTexture())
 {
 	if (VirtualTexture != nullptr)
 	{
-		// The Producer object created here will be passed into the Virtual Texture system which will take ownership
 		FVTProducerDescription Desc;
 		VirtualTexture->GetProducerDescription(Desc);
+
+		// We store a ProducerId here so that we will be able to find our SceneIndex from the Producer during rendering.
+		// We will need the SceneIndex to determine which primitives should render to this Producer.
+		ProducerId = ProducerIdGenerator++;
 
 		const ERuntimeVirtualTextureMaterialType MaterialType = VirtualTexture->GetMaterialType();
 
 		// Transform is based on bottom left of the URuntimeVirtualTextureComponent unit box (which is centered on the origin)
 		FTransform Transform = FTransform(FVector(-0.5f, -0.5f, 0.f)) * InComponent->GetComponentTransform();
 
-		FRuntimeVirtualTextureProducer* Producer = new FRuntimeVirtualTextureProducer(Desc, MaterialType, InComponent->GetScene(), Transform);
+		// The Producer object created here will be passed into the Virtual Texture system which will take ownership.
+		// The Initialize() call will allocate the VT by spawning work on the render thread.
+		FRuntimeVirtualTextureProducer* Producer = new FRuntimeVirtualTextureProducer(Desc, ProducerId, MaterialType, InComponent->GetScene(), Transform);
 		VirtualTexture->Initialize(Producer, Transform);
 	}
 }
 
 FRuntimeVirtualTextureSceneProxy::~FRuntimeVirtualTextureSceneProxy()
 {
+	checkSlow(IsInRenderingThread());
+}
+
+void FRuntimeVirtualTextureSceneProxy::Release()
+{
 	if (VirtualTexture != nullptr)
 	{
 		VirtualTexture->Release();
+		VirtualTexture = nullptr;
 	}
 }

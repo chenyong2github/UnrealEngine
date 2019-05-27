@@ -6,8 +6,10 @@
 #include "RuntimeVirtualTextureRender.h"
 #include "ScenePrivate.h"
 
-FRuntimeVirtualTextureFinalizer::FRuntimeVirtualTextureFinalizer(FVTProducerDescription const& InDesc, ERuntimeVirtualTextureMaterialType InMaterialType, FSceneInterface* InScene, FTransform const& InUVToWorld)
+FRuntimeVirtualTextureFinalizer::FRuntimeVirtualTextureFinalizer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, FSceneInterface* InScene, FTransform const& InUVToWorld)
 	: Desc(InDesc)
+	, ProducerId(InProducerId)
+	, RuntimeVirtualTextureMask(0)
 	, MaterialType(InMaterialType)
 	, Scene(InScene)
 	, UVToWorld(InUVToWorld)
@@ -28,6 +30,20 @@ void FRuntimeVirtualTextureFinalizer::AddTile(FTileEntry& Tile)
 
 void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdList)
 {
+	if (RuntimeVirtualTextureMask == 0)
+	{
+		// Initialize the RuntimeVirtualTextureMask by matching this producer with those registered in the scene's runtime virtual textures.
+		// We only need to do this once. If the associated scene proxy is removed this finalizer will also be destroyed.
+		const uint32 VirtualTextureSceneIndex = Scene->GetRenderScene()->GetRuntimeVirtualTextureSceneIndex(ProducerId);
+		RuntimeVirtualTextureMask = 1 << VirtualTextureSceneIndex;
+	
+		//todo[vt]: 
+		// Add a slow render path inside RenderPage() when this check fails. 
+		// It will need to iterate the virtual textures on each primitive instead of using the RuntimeVirtualTextureMask.
+		// Currently nothing will render for this finalizer when the check fails.
+		checkSlow(VirtualTextureSceneIndex < FPrimitiveFlagsCompact::RuntimeVirtualTexture_BitCount);
+	}
+
 	for (auto Entry : Tiles)
 	{
 		const int32 TileSize = Desc.TileSize + 2 * Desc.TileBorderSize;
@@ -49,8 +65,9 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 		const FBox2D UVRange(UV - UVBorder, UV + UVSize + UVBorder);
 
 		RuntimeVirtualTexture::RenderPage(
-			RHICmdList, 
+			RHICmdList,
 			Scene->GetRenderScene(),
+			RuntimeVirtualTextureMask,
 			MaterialType,
 			Entry.Texture0, 
 			DestinationBox0, 
@@ -63,8 +80,8 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 	Tiles.SetNumUnsafeInternal(0);
 }
 
-FRuntimeVirtualTextureProducer::FRuntimeVirtualTextureProducer(FVTProducerDescription const& InDesc, ERuntimeVirtualTextureMaterialType InMaterialType, FSceneInterface* InScene, FTransform const& InUVToWorld)
-	: Finalizer(InDesc, InMaterialType, InScene, InUVToWorld)
+FRuntimeVirtualTextureProducer::FRuntimeVirtualTextureProducer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, FSceneInterface* InScene, FTransform const& InUVToWorld)
+	: Finalizer(InDesc, InProducerId, InMaterialType, InScene, InUVToWorld)
 {
 }
 

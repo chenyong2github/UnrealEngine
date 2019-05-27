@@ -94,6 +94,7 @@ FPrimitiveFlagsCompact::FPrimitiveFlagsCompact(const FPrimitiveSceneProxy* Proxy
 	, bStaticLighting(Proxy->HasStaticLighting())
 	, bCastStaticShadow(Proxy->CastsStaticShadow())
 	, bRenderToVirtualTexture(Proxy->WritesVirtualTexture())
+	, RuntimeVirtualTextureMask(0)
 {}
 
 FPrimitiveSceneInfoCompact::FPrimitiveSceneInfoCompact(FPrimitiveSceneInfo* InPrimitiveSceneInfo) :
@@ -574,6 +575,10 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool 
 	PrimitiveBounds.MaxCullDistance = PrimitiveBounds.MaxDrawDistance;
 
 	Scene->PrimitiveFlagsCompact[PackedIndex] = FPrimitiveFlagsCompact(Proxy);
+	if (Scene->PrimitiveFlagsCompact[PackedIndex].bRenderToVirtualTexture)
+	{
+		Scene->PrimitiveFlagsCompact[PackedIndex].RuntimeVirtualTextureMask = Scene->GetRuntimeVirtualTextureMask(Proxy);
+	}
 
 	// Store precomputed visibility ID.
 	int32 VisibilityBitIndex = Proxy->GetVisibilityId();

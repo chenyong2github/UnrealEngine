@@ -77,6 +77,7 @@ class UTextureCube;
 class UWindDirectionalSourceComponent;
 class FRHIGPUBufferReadback;
 class FRHIGPUTextureReadback;
+class FRuntimeVirtualTextureSceneProxy;
 
 /** Holds information about a single primitive's occlusion. */
 class FPrimitiveOcclusionHistory
@@ -2572,6 +2573,9 @@ public:
 	/** LOD Tree Holder for massive LOD system */
 	FLODSceneTree SceneLODHierarchy;
 
+	/** The runtime virtual textures in the scene. */
+	TSparseArray<FRuntimeVirtualTextureSceneProxy*> RuntimeVirtualTextures;
+
 	float DefaultMaxDistanceFieldOcclusionDistance;
 
 	float GlobalDistanceFieldViewDistance;
@@ -2798,6 +2802,11 @@ public:
 		return PrimitiveComponentIds;
 	}
 
+	/** Get the scene index of the FRuntimeVirtualTextureSceneProxy associated with the producer. */
+	uint32 GetRuntimeVirtualTextureSceneIndex(uint32 ProducerId);
+	/** Build the mask used for filtering this Proxy against all of the runtime virtual textures in the scene. */
+	uint32 GetRuntimeVirtualTextureMask(FPrimitiveSceneProxy const* Proxy);
+
 #if WITH_EDITOR
 	virtual bool InitializePixelInspector(FRenderTarget* BufferFinalColor, FRenderTarget* BufferSceneColor, FRenderTarget* BufferDepth, FRenderTarget* BufferHDR, FRenderTarget* BufferA, FRenderTarget* BufferBCDE, int32 BufferIndex) override;
 
@@ -2891,6 +2900,15 @@ private:
 
 	/** Updates all static draw lists. */
 	void UpdateStaticDrawLists_RenderThread(FRHICommandListImmediate& RHICmdList);
+
+	/** Add a runtime virtual texture proxy to the scene. Called in the rendering thread by AddRuntimeVirtualTexture. */
+	void AddRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy);
+	/** Update a runtime virtual texture proxy to the scene. Called in the rendering thread by AddRuntimeVirtualTexture. */
+	void UpdateRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy, FRuntimeVirtualTextureSceneProxy* SceneProxyToReplace);
+	/** Remove a runtime virtual texture proxy from the scene. Called in the rendering thread by RemoveRuntimeVirtualTexture. */
+	void RemoveRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy);
+	/** Update the scene primitive data after completing operations that add or remove runtime virtual textures. This can be slow and should be called rarely. */
+	void UpdateRuntimeVirtualTextureForAllPrimitives_RenderThread();
 
 	/**
 	 * Shifts scene data by provided delta
