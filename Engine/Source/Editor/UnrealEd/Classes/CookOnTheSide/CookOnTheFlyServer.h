@@ -685,6 +685,13 @@ private:
 	void InitializeTargetPlatforms();
 
 	/**
+	* Some content plugins does not support all target platforms.
+	* Build up a map of unsupported packages per platform that can be checked before saving.
+	*/
+	void DiscoverPlatformSpecificNeverCookPackages(
+		const TArray<FName>& TargetPlatformNames, const TArray<FString>& TargetPlatformStrings);
+
+	/**
 	* Clean up the sandbox
 	*/
 	void TermSandbox();
