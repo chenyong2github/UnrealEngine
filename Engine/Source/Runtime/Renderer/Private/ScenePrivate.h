@@ -2416,6 +2416,8 @@ public:
 	TArray<FBoxSphereBounds> PrimitiveOcclusionBounds;
 	/** Packed array of primitive components associated with the primitive. */
 	TArray<FPrimitiveComponentId> PrimitiveComponentIds;
+	/** Packed array of runtime virtual texture flags. */
+	TArray<FPrimitiveVirtualTextureFlags> PrimitiveVirtualTextureFlags;
 
 	TBitArray<> PrimitivesNeedingStaticMeshUpdate;
 	TSet<FPrimitiveSceneInfo*> PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck;

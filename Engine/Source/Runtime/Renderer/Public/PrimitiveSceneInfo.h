@@ -140,22 +140,15 @@ public:
 	}
 };
 
-/** Flags needed for early culling of some passes. These are pulled out of the FPrimitiveSceneProxy so we can do rough culling before dereferencing the proxy. */
+/** Flags needed for shadow culling.  These are pulled out of the FPrimitiveSceneProxy so we can do rough culling before dereferencing the proxy. */
 struct FPrimitiveFlagsCompact
 {
 	/** True if the primitive casts dynamic shadows. */
-	uint16 bCastDynamicShadow : 1;
+	uint8 bCastDynamicShadow : 1;
 	/** True if the primitive will cache static lighting. */
-	uint16 bStaticLighting : 1;
+	uint8 bStaticLighting : 1;
 	/** True if the primitive casts static shadows. */
-	uint16 bCastStaticShadow : 1;
-	/** True if renders to virtual texture */
-	uint16 bRenderToVirtualTexture : 1;
-	
-	/** Number of bits to reserve for the RuntimeVirtualTextureMask. If we use more than this number of runtime virtual textures in a scene we will trigger a slower path in rendering the VT pages. */
-	enum { RuntimeVirtualTexture_BitCount = 8 };
-	/** Mask of the allocated runtime virtual textures in the scene to render to. */
-	uint16 RuntimeVirtualTextureMask : RuntimeVirtualTexture_BitCount;
+	uint8 bCastStaticShadow : 1;
 
 	FPrimitiveFlagsCompact(const FPrimitiveSceneProxy* Proxy);
 };
@@ -175,6 +168,18 @@ public:
 
 	/** Initialization constructor. */
 	FPrimitiveSceneInfoCompact(FPrimitiveSceneInfo* InPrimitiveSceneInfo);
+};
+
+/** Flags needed for broad phase culling of runtime virtual texture page rendering. */
+struct FPrimitiveVirtualTextureFlags
+{
+	/** True if the primitive can render to virtual texture */
+	uint8 bRenderToVirtualTexture : 1;
+
+	/** Number of bits to reserve for the RuntimeVirtualTextureMask. If we use more than this number of runtime virtual textures in a scene we will trigger a slower path in rendering the VT pages. */
+	enum { RuntimeVirtualTexture_BitCount = 7 };
+	/** Mask of the allocated runtime virtual textures in the scene to render to. */
+	uint8 RuntimeVirtualTextureMask : RuntimeVirtualTexture_BitCount;
 };
 
 /** The type of the octree used by FScene to find primitives. */

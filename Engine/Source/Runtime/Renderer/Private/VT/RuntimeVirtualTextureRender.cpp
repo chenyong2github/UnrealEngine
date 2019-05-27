@@ -284,10 +284,10 @@ namespace RuntimeVirtualTexture
 		FRuntimeVirtualTextureMeshProcessor MeshProcessor(Scene, View, &DynamicMeshPassContext);
 
 		// Iterate over scene and collect visible virtual texture draw commands for this view
-		//todo: Consider a broad phase (quad tree etc?) here. (But only if running over PrimitiveFlagsCompact shows up as a bottleneck.)
+		//todo: Consider a broad phase (quad tree etc?) here. (But only if running over PrimitiveVirtualTextureFlags shows up as a bottleneck.)
 		for (int32 PrimitiveIndex = 0; PrimitiveIndex < Scene->Primitives.Num(); ++PrimitiveIndex)
 		{
-			if (Scene->PrimitiveFlagsCompact[PrimitiveIndex].RuntimeVirtualTextureMask & RuntimeVirtualTextureMask)
+			if (Scene->PrimitiveVirtualTextureFlags[PrimitiveIndex].RuntimeVirtualTextureMask & RuntimeVirtualTextureMask)
 			{
 				//todo[vt]: Use quicker/more accurate 2d test here since we can pre-calculate 2d bounds in VT space.
 				FBoxSphereBounds const& Bounds = Scene->PrimitiveBounds[PrimitiveIndex].BoxSphereBounds;

@@ -41,7 +41,7 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 		// Add a slow render path inside RenderPage() when this check fails. 
 		// It will need to iterate the virtual textures on each primitive instead of using the RuntimeVirtualTextureMask.
 		// Currently nothing will render for this finalizer when the check fails.
-		checkSlow(VirtualTextureSceneIndex < FPrimitiveFlagsCompact::RuntimeVirtualTexture_BitCount);
+		checkSlow(VirtualTextureSceneIndex < FPrimitiveVirtualTextureFlags::RuntimeVirtualTexture_BitCount);
 	}
 
 	for (auto Entry : Tiles)

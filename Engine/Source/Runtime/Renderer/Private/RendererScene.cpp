@@ -552,6 +552,7 @@ void FScene::CheckPrimitiveArrays()
 	check(Primitives.Num() == PrimitiveVisibilityIds.Num());
 	check(Primitives.Num() == PrimitiveOcclusionFlags.Num());
 	check(Primitives.Num() == PrimitiveComponentIds.Num());
+	check(Primitives.Num() == PrimitiveVirtualTextureFlags.Num());
 	check(Primitives.Num() == PrimitiveOcclusionBounds.Num());
 	check(Primitives.Num() == PrimitivesNeedingStaticMeshUpdate.Num());
 }
@@ -771,6 +772,7 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 	PrimitiveVisibilityIds.AddUninitialized();
 	PrimitiveOcclusionFlags.AddUninitialized();
 	PrimitiveComponentIds.AddUninitialized();
+	PrimitiveVirtualTextureFlags.AddUninitialized();
 	PrimitiveOcclusionBounds.AddUninitialized();
 	PrimitivesNeedingStaticMeshUpdate.Add(false);
 	
@@ -839,6 +841,7 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 				TArraySwapElements(PrimitiveVisibilityIds, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveOcclusionFlags, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveComponentIds, DestIndex, SourceIndex);
+				TArraySwapElements(PrimitiveVirtualTextureFlags, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveOcclusionBounds, DestIndex, SourceIndex);
 				TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 
@@ -1557,6 +1560,7 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 				TArraySwapElements(PrimitiveVisibilityIds, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveOcclusionFlags, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveComponentIds, DestIndex, SourceIndex);
+				TArraySwapElements(PrimitiveVirtualTextureFlags, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveOcclusionBounds, DestIndex, SourceIndex);
 				TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 				SourceIndex = DestIndex;
@@ -1588,6 +1592,7 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 		PrimitiveVisibilityIds.Pop();
 		PrimitiveOcclusionFlags.Pop();
 		PrimitiveComponentIds.Pop();
+		PrimitiveVirtualTextureFlags.Pop();
 		PrimitiveOcclusionBounds.Pop();
 		PrimitivesNeedingStaticMeshUpdate.RemoveAt(PrimitivesNeedingStaticMeshUpdate.Num()-1);
 	}
@@ -2493,9 +2498,9 @@ void FScene::UpdateRuntimeVirtualTextureForAllPrimitives_RenderThread()
 {
 	for (int32 Index = 0; Index < Primitives.Num(); ++Index)
 	{
-		if (PrimitiveFlagsCompact[Index].bRenderToVirtualTexture)
+		if (PrimitiveVirtualTextureFlags[Index].bRenderToVirtualTexture)
 		{
-			PrimitiveFlagsCompact[Index].RuntimeVirtualTextureMask = GetRuntimeVirtualTextureMask(PrimitiveSceneProxies[Index]);
+			PrimitiveVirtualTextureFlags[Index].RuntimeVirtualTextureMask = GetRuntimeVirtualTextureMask(PrimitiveSceneProxies[Index]);
 		}
 	}
 }
@@ -2518,7 +2523,7 @@ uint32 FScene::GetRuntimeVirtualTextureSceneIndex(uint32 ProducerId)
 uint32 FScene::GetRuntimeVirtualTextureMask(FPrimitiveSceneProxy const* Proxy)
 {
 	uint32 Mask = 0;
-	for (int32 i = 0; i < FPrimitiveFlagsCompact::RuntimeVirtualTexture_BitCount && i < RuntimeVirtualTextures.Num(); ++i)
+	for (int32 i = 0; i < FPrimitiveVirtualTextureFlags::RuntimeVirtualTexture_BitCount && i < RuntimeVirtualTextures.Num(); ++i)
 	{
 		if (RuntimeVirtualTextures.IsValidIndex(i))
 		{
