@@ -21,10 +21,4 @@ namespace RuntimeVirtualTexture
 	 */
 	void NotifyPrimitives(URuntimeVirtualTexture const* VirtualTexture);
 #endif
-
-	/**
-	 * Find materials referencing this virtual texture and re-cache the uniforms.
-	 * We need to do this after any operation that reallocates the virtual texture since the material caches info about the VT allocation in it's uniform buffer.
-	 */
-	void NotifyMaterials(URuntimeVirtualTexture const* VirtualTexture);
 }
