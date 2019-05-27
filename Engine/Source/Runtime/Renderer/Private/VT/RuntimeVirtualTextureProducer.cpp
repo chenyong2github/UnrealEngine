@@ -17,9 +17,8 @@ FRuntimeVirtualTextureFinalizer::FRuntimeVirtualTextureFinalizer(FVTProducerDesc
 bool FRuntimeVirtualTextureFinalizer::IsReady()
 {
 	//todo[vt]: 
-	// Test if we have everything we need to render (shaders loaded etc).
-	// Current test for GPUScene.PrimitiveBuffer is a nasty thing to prevent a checkf triggering if no PrimitiveBuffer is bound. It feels like it requires too much knowledge of the renderer internals...
-	return Scene != nullptr && Scene->GetRenderScene() != nullptr && Scene->GetRenderScene()->GPUScene.PrimitiveBuffer.Buffer != nullptr;
+	// Test if we have everything we need to render (mips loaded, shaders loaded etc).
+	return Scene != nullptr && Scene->GetRenderScene() != nullptr;
 }
 
 void FRuntimeVirtualTextureFinalizer::AddTile(FTileEntry& Tile)

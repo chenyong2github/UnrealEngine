@@ -73,6 +73,8 @@ public:
 
 	/** Get virtual texture description based on the properties of this object. */
 	void GetProducerDescription(FVTProducerDescription& OutDesc) const;
+	/** Return true if the virtual texture layer should be sampled as sRGB */
+	bool IsLayerSRGB(int32 LayerIndex) const;
 
 	/** (Re)Initialize this object. Call this whenever we modify the producer or transform. */
 	void Initialize(IVirtualTexture* InProducer, FTransform const& BoxToWorld);

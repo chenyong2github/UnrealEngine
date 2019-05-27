@@ -261,10 +261,10 @@ public:
 		ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
 
 		// If we render to a runtime virtual texture then we need to flush here
-		//todo[vt]: This logic doesn't cover material overrides etc.
 		if (Landscape != nullptr && Landscape->RuntimeVirtualTextures.Num() > 0)
 		{
 			//todo[vt]: Only flush Bounds 
+			//todo[vt]: Only flush specific virtual textures
 			GetRendererModule().FlushVirtualTextureCache();
 		}
 	}

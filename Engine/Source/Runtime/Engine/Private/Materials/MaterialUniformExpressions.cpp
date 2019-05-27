@@ -822,11 +822,11 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 					if (AllocatedVT != nullptr)
 					{
 						const int32 LayerIndex = UniformVirtualTextureExpressions[ExpressionIndex]->GetLayerIndex();
-						FRHIShaderResourceView* PhysicalViewRHI = AllocatedVT->GetPhysicalTextureView(LayerIndex, LayerIndex == 0); // todo need sRGB flag!
+						FRHIShaderResourceView* PhysicalViewRHI = AllocatedVT->GetPhysicalTextureView(LayerIndex, Texture->IsLayerSRGB(LayerIndex));
 						if (PhysicalViewRHI != nullptr)
 						{
 							*ResourceTablePhysicalTexturePtr = PhysicalViewRHI;
-							*ResourceTablePhysicalSamplerPtr = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 8>::GetRHI(); // todo deal with sampler state
+							*ResourceTablePhysicalSamplerPtr = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 8>::GetRHI();
 							bValidResources = true;
 						}
 					}
@@ -836,7 +836,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			if (!bValidResources)
 			{
 				*ResourceTablePhysicalTexturePtr = GWhiteTextureWithSRV->ShaderResourceViewRHI;
-				*ResourceTablePhysicalSamplerPtr = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 8>::GetRHI();
+				*ResourceTablePhysicalSamplerPtr = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 8>::GetRHI();
 			}
 		}
 

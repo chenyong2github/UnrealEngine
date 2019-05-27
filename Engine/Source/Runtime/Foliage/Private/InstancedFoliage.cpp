@@ -1364,7 +1364,6 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 		}
 		if (Component->TranslucencySortPriority != FoliageType->TranslucencySortPriority)
 		{
-			//todo[vt]: Trigger a virtual texture flush somewhere withing the update chain
 			Component->TranslucencySortPriority = FoliageType->TranslucencySortPriority;
 			bNeedsMarkRenderStateDirty = true;
 		}

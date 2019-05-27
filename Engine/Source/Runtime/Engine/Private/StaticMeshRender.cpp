@@ -1057,7 +1057,7 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 		for (ERuntimeVirtualTextureMaterialType MaterialType : RuntimeVirtualTextureMaterialTypes)
 		{
 			// Use the minimal LOD which is usually (always?) what we would want.
-			//todo[vt]: Add user control for to allow use of a specific LOD in the virtual texture.
+			//todo[vt]: Add user control to allow use of a specific LOD in the virtual texture.
 			// Note that ComputeStaticMeshLOD() checks *all* mesh batches for LOD calculation (including these VT ones) and assumes that they are stored in LOD order.
 			// Adding another set of last LODs here should be OK but if we want to use a different LOD they would need adding in the mesh batches in the above loop to preserve LOD order.
 			const int32 LODIndex = NumLODs - 1;

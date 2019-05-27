@@ -597,6 +597,7 @@ void ULandscapeComponent::PostEditUndo()
 
 	if (GetLandscapeProxy()->RuntimeVirtualTextures.Num() > 0)
 	{
+		//todo[vt]: Only flush this specific virtual textures
 		//todo[vt]: Only flush Bounds 
 		GetRendererModule().FlushVirtualTextureCache();
 	}

@@ -219,7 +219,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 				RuntimeVirtualTextures.Add(VirtualTexture);
 				RuntimeVirtualTextureMaterialTypes.Add(VirtualTexture->GetMaterialType());
 			
-				//todo[vt]: Only flush this specific virtual textures
+				//todo[vt]: Only flush this specific virtual texture
 				//todo[vt]: Only flush primitive bounds 
 				GetRendererModule().FlushVirtualTextureCache();
 			}

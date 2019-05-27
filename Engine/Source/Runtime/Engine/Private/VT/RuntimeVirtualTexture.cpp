@@ -212,6 +212,23 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 	}
 }
 
+bool URuntimeVirtualTexture::IsLayerSRGB(int32 LayerIndex) const
+{
+	switch (MaterialType)
+	{
+	case ERuntimeVirtualTextureMaterialType::BaseColor:
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal:
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
+		// Only BaseColor layer is sRGB
+		return LayerIndex == 0;
+	default:
+		// Implement logic for any missing material types
+		check(false);
+	}
+
+	return false;
+}
+
 int32 URuntimeVirtualTexture::GetEstimatedPageTableTextureMemoryKb() const
 {
 	//todo[vt]: Estimate memory usage
