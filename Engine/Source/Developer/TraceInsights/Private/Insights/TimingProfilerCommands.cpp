@@ -72,7 +72,7 @@ PRAGMA_ENABLE_OPTIMIZATION
 		This->CommandList->MapAction(This->GetCommands().CmdName, CmdName##_Custom());\
 	}\
 	\
-	const FUIAction FTimingProfilerActionManager::CmdName##_Custom() const\
+	const FUIAction FTimingProfilerActionManager::CmdName##_Custom() \
 	{\
 		FUIAction UIAction;\
 		UIAction.ExecuteAction = FExecuteAction::CreateRaw(this, &FTimingProfilerActionManager::CmdName##_Execute);\

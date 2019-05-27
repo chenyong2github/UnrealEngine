@@ -220,7 +220,7 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent() const
+TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 {
 	const TArray<FTimerNodePtr> SelectedTimerNodes = TreeView->GetSelectedItems();
 	const int32 NumSelectedTimerNodes = SelectedTimerNodes.Num();

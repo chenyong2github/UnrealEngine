@@ -78,7 +78,7 @@ protected:
 
 public:
 	void Map_ToggleDebugInfo_Global(); /**< Maps UI command info ToggleDebugInfo with the specified UI command list. */
-	const FUIAction ToggleDebugInfo_Custom() const; /**< UI action for ToggleDebugInfo command. */
+	const FUIAction ToggleDebugInfo_Custom(); /**< UI action for ToggleDebugInfo command. */
 protected:
 	void ToggleDebugInfo_Execute(); /**< Handles FExecuteAction for ToggleDebugInfo. */
 	bool ToggleDebugInfo_CanExecute() const; /**< Handles FCanExecuteAction for ToggleDebugInfo. */
@@ -89,7 +89,7 @@ protected:
 
 public:
 	void Map_OpenSettings_Global(); /**< Maps UI command info OpenSettings with the specified UI command list. */
-	const FUIAction OpenSettings_Custom() const; /**< UI action for OpenSettings command. */
+	const FUIAction OpenSettings_Custom(); /**< UI action for OpenSettings command. */
 protected:
 	void OpenSettings_Execute(); /**< Handles FExecuteAction for OpenSettings. */
 	bool OpenSettings_CanExecute() const; /**< Handles FCanExecuteAction for OpenSettings. */

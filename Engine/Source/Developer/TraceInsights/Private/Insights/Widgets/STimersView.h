@@ -92,7 +92,7 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Context Menu
 
-	TSharedPtr<SWidget> TreeView_GetMenuContent() const;
+	TSharedPtr<SWidget> TreeView_GetMenuContent();
 	void TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder);
 	void TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder);
 

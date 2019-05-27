@@ -213,7 +213,7 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent() const
+TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 {
 	const TArray<FStatsNodePtr> SelectedStatsNodes = TreeView->GetSelectedItems();
 	const int32 NumSelectedStatsNodes = SelectedStatsNodes.Num();

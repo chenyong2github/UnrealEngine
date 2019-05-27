@@ -67,7 +67,7 @@ PRAGMA_ENABLE_OPTIMIZATION
 		This->CommandList->MapAction(This->GetCommands().CmdName, CmdName##_Custom());\
 	}\
 	\
-	const FUIAction FIoProfilerActionManager::CmdName##_Custom() const\
+	const FUIAction FIoProfilerActionManager::CmdName##_Custom() \
 	{\
 		FUIAction UIAction;\
 		UIAction.ExecuteAction = FExecuteAction::CreateRaw(this, &FIoProfilerActionManager::CmdName##_Execute);\

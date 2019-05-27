@@ -91,7 +91,7 @@ private:
 #define DECLARE_TOGGLE_COMMAND(CmdName)\
 public:\
 	void Map_##CmdName##_Global(); /**< Maps UI command info CmdName with the specified UI command list. */\
-	const FUIAction CmdName##_Custom() const; /**< UI action for CmdName command. */\
+	const FUIAction CmdName##_Custom(); /**< UI action for CmdName command. */\
 protected:\
 	void CmdName##_Execute(); /**< Handles FExecuteAction for CmdName. */\
 	bool CmdName##_CanExecute() const; /**< Handles FCanExecuteAction for CmdName. */\

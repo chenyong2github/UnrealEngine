@@ -52,7 +52,7 @@ void FInsightsActionManager::Map_ToggleDebugInfo_Global()
 	This->CommandList->MapAction(This->GetCommands().ToggleDebugInfo, ToggleDebugInfo_Custom());
 }
 
-const FUIAction FInsightsActionManager::ToggleDebugInfo_Custom() const
+const FUIAction FInsightsActionManager::ToggleDebugInfo_Custom()
 {
 	FUIAction UIAction;
 	UIAction.ExecuteAction = FExecuteAction::CreateRaw(this, &FInsightsActionManager::ToggleDebugInfo_Execute);
@@ -178,7 +178,7 @@ void FInsightsActionManager::Map_OpenSettings_Global()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FUIAction FInsightsActionManager::OpenSettings_Custom() const
+const FUIAction FInsightsActionManager::OpenSettings_Custom()
 {
 	FUIAction UIAction;
 	UIAction.ExecuteAction = FExecuteAction::CreateRaw(this, &FInsightsActionManager::OpenSettings_Execute);
