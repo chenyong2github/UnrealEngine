@@ -346,63 +346,23 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 						.HAlign(HAlign_Center)
 						.Padding(3.0f, 3.0f)
 						[
-							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-							.Padding(8.0f)
-							[
-								SNew(SVerticalBox)
+							SNew(SHorizontalBox)
 
-								+ SVerticalBox::Slot()
-									.AutoHeight()
-									.HAlign(HAlign_Center)
-									.Padding(0.0, 2.0f)
-									[
-										SNew(STextBlock)
-										.Text(LOCTEXT("RecorderStatusTitle", "Trace Recorder Status:"))
-										.ColorAndOpacity(FLinearColor::Gray)
-									]
+							+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Top)
+								.Padding(3.0f, 0.0f)
+								[
+									ConstructRecorderStatus()
+								]
 
-								+ SVerticalBox::Slot()
-									.AutoHeight()
-									.HAlign(HAlign_Center)
-									.Padding(0.0, 2.0f)
-									[
-										SNew(SHorizontalBox)
-
-										+ SHorizontalBox::Slot()
-											.AutoWidth()
-											.Padding(2.0f, 0.0f)
-											.VAlign(VAlign_Center)
-											[
-												SNew(STextBlock)
-												.Text(this, &SStartPageWindow::GetRecorderStatusText)
-											]
-
-										+ SHorizontalBox::Slot()
-											.AutoWidth()
-											.Padding(2.0f, 0.0f)
-											.VAlign(VAlign_Center)
-											[
-												SNew(SButton)
-												.Text(LOCTEXT("StartRecorder", "Start"))
-												.ToolTipText(LOCTEXT("StartRecorderToolTip", "Start the Trace Recorder"))
-												.OnClicked(this, &SStartPageWindow::StartTraceRecorder_OnClicked)
-												.Visibility(this, &SStartPageWindow::StartTraceRecorder_Visibility)
-											]
-
-										+ SHorizontalBox::Slot()
-											.AutoWidth()
-											.Padding(2.0f, 0.0f)
-											.VAlign(VAlign_Center)
-											[
-												SNew(SButton)
-												.Text(LOCTEXT("StopRecorder", "Stop"))
-												.ToolTipText(LOCTEXT("StopRecorderToolTip", "Stop the Trace Recorder"))
-												.OnClicked(this, &SStartPageWindow::StopTraceRecorder_OnClicked)
-												.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
-											]
-									]
-							]
+							+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Top)
+								.Padding(3.0f, 0.0f)
+								[
+									ConstructModuleList()
+								]
 						]
 				]
 
@@ -423,7 +383,172 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 		];
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SStartPageWindow::ConstructRecorderStatus()
+{
+	TSharedRef<SWidget> BorderWidget =
+		SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+		.Padding(8.0f)
+		[
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Center)
+				.Padding(0.0, 2.0f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("RecorderStatusTitle", "Trace Recorder Status:"))
+					.ColorAndOpacity(FLinearColor::Gray)
+				]
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Center)
+				.Padding(0.0, 2.0f)
+				[
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(2.0f, 0.0f)
+						.VAlign(VAlign_Center)
+						[
+							SNew(STextBlock)
+							.Text(this, &SStartPageWindow::GetRecorderStatusText)
+						]
+
+					+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(2.0f, 0.0f)
+						.VAlign(VAlign_Center)
+						[
+							SNew(SButton)
+							.Text(LOCTEXT("StartRecorder", "Start"))
+							.ToolTipText(LOCTEXT("StartRecorderToolTip", "Start the Trace Recorder"))
+							.OnClicked(this, &SStartPageWindow::StartTraceRecorder_OnClicked)
+							.Visibility(this, &SStartPageWindow::StartTraceRecorder_Visibility)
+						]
+
+					+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(2.0f, 0.0f)
+						.VAlign(VAlign_Center)
+						[
+							SNew(SButton)
+							.Text(LOCTEXT("StopRecorder", "Stop"))
+							.ToolTipText(LOCTEXT("StopRecorderToolTip", "Stop the Trace Recorder"))
+							.OnClicked(this, &SStartPageWindow::StopTraceRecorder_OnClicked)
+							.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
+						]
+				]
+		];
+
+	return BorderWidget;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SStartPageWindow::ConstructModuleList()
+{
+	TSharedPtr<SVerticalBox> VerticalBox;
+
+	TSharedRef<SWidget> BorderWidget =
+		SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+		.Padding(8.0f)
+		[
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Center)
+				.Padding(0.0, 2.0f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ModulesTitle", "Modules:"))
+					.ColorAndOpacity(FLinearColor::Gray)
+				]
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Center)
+				.Padding(0.0, 2.0f)
+				[
+					SAssignNew(VerticalBox, SVerticalBox)
+				]
+		];
+
+	TSharedRef<Trace::IModuleService> ModuleService = FInsightsManager::Get()->GetModuleService();
+	ModuleService->GetAvailableModules(AvailableModules);
+
+	const bool bDefaultIsModuleEnabledState = true;
+	AvailableModulesEnabledState.Reset();
+
+	for (int32 ModuleIndex = 0; ModuleIndex < AvailableModules.Num(); ++ModuleIndex)
+	{
+		const Trace::FModuleInfo& Module = AvailableModules[ModuleIndex];
+
+		AvailableModulesEnabledState.Add(bDefaultIsModuleEnabledState);
+		ModuleService->SetModuleEnabled(Module.Name, bDefaultIsModuleEnabledState);
+
+		VerticalBox->AddSlot()
+			.AutoHeight()
+			.Padding(0.0f, 1.0f)
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &SStartPageWindow::Module_IsChecked, ModuleIndex)
+				.OnCheckStateChanged(this, &SStartPageWindow::Module_OnCheckStateChanged, ModuleIndex)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(Module.DisplayName))
+				]
+			];
+	}
+
+	return BorderWidget;
+}
+
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ECheckBoxState SStartPageWindow::Module_IsChecked(int32 ModuleIndex) const
+{
+	if (ModuleIndex >= 0 && ModuleIndex < AvailableModules.Num())
+	{
+		//const Trace::FModuleInfo& Module = AvailableModules[ModuleIndex];
+		//const bool bIsEnabled = Module.bIsEnabled;
+
+		ensure(AvailableModulesEnabledState.Num() == AvailableModules.Num());
+		const bool bIsEnabled = AvailableModulesEnabledState[ModuleIndex];
+
+		return bIsEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+	else
+	{
+		return ECheckBoxState::Undetermined;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStartPageWindow::Module_OnCheckStateChanged(ECheckBoxState NewRadioState, int32 ModuleIndex)
+{
+	if (ModuleIndex >= 0 && ModuleIndex < AvailableModules.Num())
+	{
+		bool bIsEnabled = NewRadioState == ECheckBoxState::Checked;
+
+		ensure(AvailableModulesEnabledState.Num() == AvailableModules.Num());
+		AvailableModulesEnabledState[ModuleIndex] = bIsEnabled;
+
+		TSharedRef<Trace::IModuleService> ModuleService = FInsightsManager::Get()->GetModuleService();
+		Trace::FModuleInfo& Module = AvailableModules[ModuleIndex];
+		ModuleService->SetModuleEnabled(Module.Name, bIsEnabled);
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

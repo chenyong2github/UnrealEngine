@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Framework/Commands/UICommandList.h"
 #include "TraceServices/AnalysisService.h"
+#include "TraceServices/ModuleService.h"
 #include "TraceServices/SessionService.h"
 
 // Insights
@@ -64,7 +65,9 @@ class FInsightsManager
 
 public:
 	/** Creates the main manager, only one instance can exist. */
-	FInsightsManager(TSharedRef<Trace::IAnalysisService> TraceAnalysisService, TSharedRef<Trace::ISessionService> SessionService);
+	FInsightsManager(TSharedRef<Trace::IAnalysisService> TraceAnalysisService,
+					 TSharedRef<Trace::ISessionService> SessionService,
+					 TSharedRef<Trace::IModuleService> TraceModuleService);
 
 	/** Virtual destructor. */
 	virtual ~FInsightsManager();
@@ -73,15 +76,18 @@ public:
 	 * Creates an instance of the main manager and initializes global instance with the previously created instance of the manager.
 	 * @param TraceAnalysisService The trace analysis service
 	 * @param TraceSessionService  The trace session service
+	 * @param TraceModuleService   The trace module service
 	 */
-	static TSharedPtr<FInsightsManager> Initialize(TSharedRef<Trace::IAnalysisService> TraceAnalysisService, TSharedRef<Trace::ISessionService> TraceSessionService)
+	static TSharedPtr<FInsightsManager> Initialize(TSharedRef<Trace::IAnalysisService> TraceAnalysisService,
+												   TSharedRef<Trace::ISessionService> TraceSessionService,
+												   TSharedRef<Trace::IModuleService> TraceModuleService)
 	{
 		if (FInsightsManager::Instance.IsValid())
 		{
 			FInsightsManager::Instance.Reset();
 		}
 
-		FInsightsManager::Instance = MakeShareable(new FInsightsManager(TraceAnalysisService, TraceSessionService));
+		FInsightsManager::Instance = MakeShareable(new FInsightsManager(TraceAnalysisService, TraceSessionService, TraceModuleService));
 		FInsightsManager::Instance->PostConstructor();
 
 		return FInsightsManager::Instance;
@@ -98,6 +104,7 @@ public:
 
 	TSharedRef<Trace::IAnalysisService> GetAnalysisService() const { return AnalysisService; }
 	TSharedRef<Trace::ISessionService> GetSessionService() const { return SessionService; }
+	TSharedRef<Trace::IModuleService> GetModuleService() const { return ModuleService; }
 
 	/** @return an instance of the trace analysis session. */
 	TSharedPtr<const Trace::IAnalysisSession> GetSession() const;
@@ -200,6 +207,7 @@ private:
 
 	TSharedRef<Trace::IAnalysisService> AnalysisService;
 	TSharedRef<Trace::ISessionService> SessionService;
+	TSharedRef<Trace::IModuleService> ModuleService;
 
 	/** The trace analysis session. */
 	TSharedPtr<const Trace::IAnalysisSession> Session;

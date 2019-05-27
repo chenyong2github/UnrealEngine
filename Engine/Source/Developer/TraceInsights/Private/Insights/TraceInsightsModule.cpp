@@ -63,6 +63,7 @@ protected:
 protected:
 	TSharedPtr<Trace::IAnalysisService> TraceAnalysisService;
 	TSharedPtr<Trace::ISessionService> TraceSessionService;
+	TSharedPtr<Trace::IModuleService> TraceModuleService;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -78,11 +79,14 @@ void FTraceInsightsModule::StartupModule()
 	ITraceServicesModule& TraceServicesModule = FModuleManager::LoadModuleChecked<ITraceServicesModule>("TraceServices");
 	TraceAnalysisService = TraceServicesModule.GetAnalysisService();
 	TraceSessionService = TraceServicesModule.GetSessionService();
+	TraceModuleService = TraceServicesModule.GetModuleService();
+
+	// Starts the Trace Recorder service.
 	TraceSessionService->StartRecorderServer();
 
 	FInsightsStyle::Initialize();
 
-	FInsightsManager::Initialize(TraceAnalysisService.ToSharedRef(), TraceSessionService.ToSharedRef());
+	FInsightsManager::Initialize(TraceAnalysisService.ToSharedRef(), TraceSessionService.ToSharedRef(), TraceModuleService.ToSharedRef());
 	FTimingProfilerManager::Initialize();
 	FIoProfilerManager::Initialize();
 

@@ -24,9 +24,12 @@ TSharedPtr<FInsightsManager> FInsightsManager::Instance = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FInsightsManager::FInsightsManager(TSharedRef<Trace::IAnalysisService> InTraceAnalysisService, TSharedRef<Trace::ISessionService> InSessionService)
+FInsightsManager::FInsightsManager(TSharedRef<Trace::IAnalysisService> InTraceAnalysisService,
+								   TSharedRef<Trace::ISessionService> InTraceSessionService,
+								   TSharedRef<Trace::IModuleService> InTraceModuleService)
 	: AnalysisService(InTraceAnalysisService)
-	, SessionService(InSessionService)
+	, SessionService(InTraceSessionService)
+	, ModuleService(InTraceModuleService)
 	, CommandList(new FUICommandList())
 	, ActionManager(this)
 	, Settings()
@@ -267,8 +270,8 @@ void FInsightsManager::LoadSession(Trace::FSessionHandle SessionHandle)
 	{
 		Session = AnalysisService->StartAnalysis(SessionInfo.Name, MoveTemp(DataStream));
 		SpawnAndActivateTabs();
+		OnSessionChanged();
 	}
-	OnSessionChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -282,8 +285,8 @@ void FInsightsManager::LoadTraceFile(const FString& TraceFilepath)
 	{
 		Session = AnalysisService->StartAnalysis(*TraceFilepath, MoveTemp(DataStream));
 		SpawnAndActivateTabs();
+		OnSessionChanged();
 	}
-	OnSessionChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

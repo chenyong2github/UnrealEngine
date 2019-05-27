@@ -56,10 +56,11 @@ public:
 	void OpenSettings();
 	void CloseSettings();
 
-	void ShowHideTab(const FName& TabID, bool bIsVisible);
-
 private:
-	/** Callback for determining the visibility of the 'Select a session' overlay. */
+	TSharedRef<SWidget> ConstructRecorderStatus();
+	TSharedRef<SWidget> ConstructModuleList();
+
+	/** Callback for determining the visibility of the 'Please select a trace' overlay. */
 	EVisibility IsSessionOverlayVisible() const;
 
 	bool IsSessionValid() const;
@@ -87,6 +88,9 @@ private:
 	EVisibility StopTraceRecorder_Visibility() const;
 	FReply StartTraceRecorder_OnClicked();
 	FReply StopTraceRecorder_OnClicked();
+
+	ECheckBoxState Module_IsChecked(int32 ModuleIndex) const;
+	void Module_OnCheckStateChanged(ECheckBoxState NewRadioState, int32 ModuleIndex);
 
 	/** Updates the amount of time the profiler has been active. */
 	EActiveTimerReturnType UpdateActiveDuration(double InCurrentTime, float InDeltaTime);
@@ -170,4 +174,7 @@ private:
 
 	bool bIsAnySessionAvailable;
 	Trace::FSessionHandle LastSessionHandle;
+
+	TArray<Trace::FModuleInfo> AvailableModules;
+	TArray<bool> AvailableModulesEnabledState;
 };
