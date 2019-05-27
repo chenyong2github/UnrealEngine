@@ -3,9 +3,9 @@
 #include "VT/RuntimeVirtualTextureNotify.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "Components/RuntimeVirtualTextureComponent.h"
 #include "UObject/UObjectIterator.h"
 #include "VT/RuntimeVirtualTexture.h"
-#include "VT/RuntimeVirtualTexturePlane.h"
 
 namespace RuntimeVirtualTexture
 {

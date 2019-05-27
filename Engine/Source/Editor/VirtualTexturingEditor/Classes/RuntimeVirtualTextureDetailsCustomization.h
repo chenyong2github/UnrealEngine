@@ -37,7 +37,7 @@ private:
 };
 
 
-/** UI customization for ARuntimeVirtualTexturePlane */
+/** UI customization for URuntimeVirtualTextureComponent */
 class FRuntimeVirtualTextureComponentDetailsCustomization : public IDetailCustomization
 {
 public:

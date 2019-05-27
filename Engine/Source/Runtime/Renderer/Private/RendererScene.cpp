@@ -29,6 +29,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Components/DecalComponent.h"
 #include "Components/ReflectionCaptureComponent.h"
+#include "Components/RuntimeVirtualTextureComponent.h"
 #include "ScenePrivateBase.h"
 #include "SceneCore.h"
 #include "PrimitiveSceneInfo.h"
@@ -54,7 +55,6 @@
 #include "DynamicShadowMapChannelBindingHelper.h"
 #include "GPUScene.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "VT/RuntimeVirtualTexturePlane.h"
 #include "VT/RuntimeVirtualTextureSceneProxy.h"
 #if RHI_RAYTRACING
 #include "RayTracingDynamicGeometryCollection.h"

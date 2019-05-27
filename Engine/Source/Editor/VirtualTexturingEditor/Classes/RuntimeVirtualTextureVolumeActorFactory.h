@@ -4,11 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "ActorFactories/ActorFactory.h"
-#include "RuntimeVirtualTexturePlaneActorFactory.generated.h"
+#include "RuntimeVirtualTextureVolumeActorFactory.generated.h"
 
-/** Actor factory for ARuntimeVirtualTexturePlane */
+/** Actor factory for ARuntimeVirtualTextureVolume */
 UCLASS(MinimalAPI, config=Editor, collapsecategories, hidecategories=Object)
-class URuntimeVirtualTexturePlaneActorFactory : public UActorFactory
+class URuntimeVirtualTextureVolumeActorFactory : public UActorFactory
 {
 	GENERATED_UCLASS_BODY()
 

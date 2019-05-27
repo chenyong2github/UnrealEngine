@@ -2,12 +2,12 @@
 
 #include "RuntimeVirtualTextureDetailsCustomization.h"
 
+#include "Components/RuntimeVirtualTextureComponent.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "SResetToDefaultMenu.h"
 #include "VT/RuntimeVirtualTexture.h"
-#include "VT/RuntimeVirtualTexturePlane.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SWrapBox.h"

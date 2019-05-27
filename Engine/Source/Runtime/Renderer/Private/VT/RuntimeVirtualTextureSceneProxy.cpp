@@ -2,8 +2,8 @@
 
 #include "VT/RuntimeVirtualTextureSceneProxy.h"
 
+#include "Components/RuntimeVirtualTextureComponent.h"
 #include "VT/RuntimeVirtualTexture.h"
-#include "VT/RuntimeVirtualTexturePlane.h"
 #include "VT/RuntimeVirtualTextureProducer.h"
 
 

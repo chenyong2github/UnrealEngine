@@ -3,38 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
-#include "RuntimeVirtualTexturePlane.generated.h"
+#include "SceneComponent.h"
+#include "RuntimeVirtualTextureComponent.generated.h"
 
-class UMaterialInterface;
 class URuntimeVirtualTexture;
-class URuntimeVirtualTextureComponent;
-
-/** Actor used to place a URuntimeVirtualTexture in the world. */
-UCLASS(hidecategories=(Actor, Collision, Cooking, Input, LOD, Replication), MinimalAPI)
-class ARuntimeVirtualTexturePlane : public AActor
-{
-	GENERATED_UCLASS_BODY()
-
-private:
-	/** Component that owns the runtime virtual texture. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (AllowPrivateAccess = "true"))
-	class URuntimeVirtualTextureComponent* VirtualTextureComponent;
-
-#if WITH_EDITORONLY_DATA
-	/** Box for visualizing virtual texture extents. */
-	UPROPERTY(Transient)
-	class UBoxComponent* Box = nullptr;
-#endif // WITH_EDITORONLY_DATA
-
-protected:
-	//~ Begin UObject Interface.
-	virtual bool NeedsLoadForServer() const override { return false; }
-	//~ End UObject Interface.
-	//~ Begin AActor Interface.
-	virtual bool IsLevelBoundsRelevant() const override { return false; }
-	//~ End AActor Interface
-};
 
 /** Component used to place a URuntimeVirtualTexture in the world. */
 UCLASS(ClassGroup = Rendering, collapsecategories, hidecategories = (Activation, Collision, Cooking, Mobility, LOD, Object, Physics, Rendering), editinlinenew)
