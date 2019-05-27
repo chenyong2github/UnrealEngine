@@ -117,12 +117,20 @@ namespace UnrealGameSync
 
 			Issue = NewIssue;
 
-			if(NewIssue.Summary != SummaryLabel.Text || OwnerText != OwnerLabel.Text || Reason != NewReason || bIsWarning != bNewIsWarning || bStrongAlert != bNewStrongAlert)
+			string Summary = NewIssue.Summary;
+
+			int MaxLength = 128;
+			if(Summary.Length > MaxLength)
+			{
+				Summary = Summary.Substring(0, MaxLength).TrimEnd() + "...";
+			}
+
+			if(Summary != SummaryLabel.Text || OwnerText != OwnerLabel.Text || Reason != NewReason || bIsWarning != bNewIsWarning || bStrongAlert != bNewStrongAlert)
 			{
 				Rectangle PrevBounds = Bounds;
 				SuspendLayout();
 
-				SummaryLabel.Text = NewIssue.Summary;
+				SummaryLabel.Text = Summary;
 				OwnerLabel.Text = OwnerText;
 
 				bool bForceUpdateButtons = false;
