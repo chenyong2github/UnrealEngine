@@ -10,9 +10,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(TAsciiSetTest, "System.Core.Misc.AsciiSet", EAu
 bool TAsciiSetTest::RunTest(const FString& Parameters)
 {
 	constexpr FAsciiSet Whitespaces(" \v\f\t\r\n");
-	TestTrue(TEXT("Contains"), Whitespaces.Test(' '));
-	TestTrue(TEXT("Contains"), Whitespaces.Test('\n'));
-	TestFalse(TEXT("Contains"), Whitespaces.Test('a'));
+	TestTrue(TEXT("Contains"), Whitespaces.Contains(' '));
+	TestTrue(TEXT("Contains"), Whitespaces.Contains('\n'));
+	TestFalse(TEXT("Contains"), Whitespaces.Contains('a'));
 
 	constexpr FAsciiSet NonWhitespaces = ~Whitespaces;
 	uint32 WhitespaceNum = 0;
@@ -50,11 +50,11 @@ bool TAsciiSetTest::RunTest(const FString& Parameters)
 
 	constexpr FAsciiSet Abc("abc");
 	constexpr FAsciiSet Abcd = Abc + 'd';
-	TestTrue(TEXT("Add"), Abcd.Test('a'));
-	TestTrue(TEXT("Add"), Abcd.Test('b'));
-	TestTrue(TEXT("Add"), Abcd.Test('c'));
-	TestTrue(TEXT("Add"), Abcd.Test('d'));
-	TestFalse(TEXT("Add"), Abcd.Test('e'));
+	TestTrue(TEXT("Add"), Abcd.Contains('a'));
+	TestTrue(TEXT("Add"), Abcd.Contains('b'));
+	TestTrue(TEXT("Add"), Abcd.Contains('c'));
+	TestTrue(TEXT("Add"), Abcd.Contains('d'));
+	TestFalse(TEXT("Add"), Abcd.Contains('e'));
 
 	return true;
 }

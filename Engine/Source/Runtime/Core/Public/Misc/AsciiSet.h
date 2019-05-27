@@ -34,7 +34,14 @@ public:
 		: FAsciiSet(StringToBitset(Chars))
 	{}
 
-	/** Returns non-zero if a character is part of the set */
+	/** Returns true if a character is part of the set */
+	template<typename CharType>
+	constexpr FORCEINLINE bool Contains(CharType Char) const
+	{
+		return !!TestImpl(TChar<CharType>::ToUnsigned(Char));
+	}
+
+	/** Returns non-zero if a character is part of the set. Prefer Contains() to avoid VS2019 conversion warnings. */
 	template<typename CharType>
 	constexpr FORCEINLINE uint64 Test(CharType Char) const
 	{
