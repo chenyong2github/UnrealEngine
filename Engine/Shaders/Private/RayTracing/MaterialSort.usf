@@ -21,7 +21,7 @@
 	#error Unknown sorting size
 #endif
 
-#define NUM_BINS  64
+#define NUM_BINS  128
 
 groupshared uint Bins[NUM_BINS];
 groupshared uint Offsets[NUM_BINS];
