@@ -2,8 +2,8 @@
 
 #include "Components/RuntimeVirtualTextureComponent.h"
 
+#include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
-#include "PrimitiveComponent.h"
 #include "SceneInterface.h"
 
 URuntimeVirtualTextureComponent::URuntimeVirtualTextureComponent(const FObjectInitializer& ObjectInitializer)
