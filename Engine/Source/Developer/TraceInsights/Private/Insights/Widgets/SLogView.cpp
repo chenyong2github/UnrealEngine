@@ -705,7 +705,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 	if (Session.IsValid())
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::ILogProvider& LogProvider = Session->ReadLogProvider();
+		const Trace::ILogProvider& LogProvider = Trace::ReadLogProvider(*Session.Get());
 
 		NewMessageCount = static_cast<int32>(LogProvider.GetMessageCount());
 

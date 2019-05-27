@@ -1401,11 +1401,11 @@ void SStatsView::RebuildTree(bool bResync)
 		bListHasChanged = true;
 	}
 
-	if (Session.IsValid())
+	if (Session.IsValid() && Trace::ReadCounterProvider(*Session.Get()))
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ICounterProvider& CountersProvider = Session->ReadCounterProvider();
+		const Trace::ICounterProvider& CountersProvider = *Trace::ReadCounterProvider(*Session.Get());
 
 		if (!bResync)
 		{
@@ -1715,7 +1715,7 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 		StatsNodePtr->ResetAggregatedStats();
 	}
 
-	if (Session.IsValid() && StartTime < EndTime)
+	if (Session.IsValid() && StartTime < EndTime && Trace::ReadCounterProvider(*Session.Get()))
 	{
 		const bool bComputeMedian = true;
 
@@ -1725,7 +1725,7 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-			const Trace::ICounterProvider& CountersProvider = Session->ReadCounterProvider();
+			const Trace::ICounterProvider& CountersProvider = *Trace::ReadCounterProvider(*Session.Get());
 
 			// Compute instance count and total/min/max inclusive/exclusive times for each counter.
 			// Iterate through all counters.

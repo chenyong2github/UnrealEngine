@@ -4,8 +4,10 @@
 
 #include "HAL/UnrealMemory.h"
 #include "Containers/Array.h"
+#include "TraceServices/Containers/Allocators.h"
 
 class FSlabAllocator
+	: public Trace::ILinearAllocator
 {
 public:
 	FSlabAllocator(uint64 InSlabSize)
@@ -22,10 +24,9 @@ public:
 		}
 	}
 
-	template<typename T>
-	T* Allocate(uint64 Count)
+	virtual void* Allocate(uint64 Size) override
 	{
-		uint64 AllocationSize = Count * sizeof(T) + (16 - 1) / 16;
+		uint64 AllocationSize = Size + (16 - 1) / 16;
 		if (!CurrentSlab || CurrentSlabAllocatedSize + AllocationSize > SlabSize)
 		{
 			TotalAllocatedSize += SlabSize;
@@ -34,9 +35,8 @@ public:
 			CurrentSlabAllocatedSize = 0;
 			Slabs.Add(CurrentSlab);
 		}
-		T* Allocation = reinterpret_cast<T*>(CurrentSlab + CurrentSlabAllocatedSize);
+		void* Allocation = CurrentSlab + CurrentSlabAllocatedSize;
 		CurrentSlabAllocatedSize += AllocationSize;
-		TotalItemCount += Count;
 		return Allocation;
 	}
 
@@ -45,6 +45,5 @@ private:
 	uint8* CurrentSlab = nullptr;
 	const uint64 SlabSize;
 	uint64 CurrentSlabAllocatedSize = 0;
-	uint64 TotalItemCount = 0;
 	uint64 TotalAllocatedSize = 0;
 };

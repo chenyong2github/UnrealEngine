@@ -4,7 +4,7 @@
 
 #include "Trace/Trace.h"
 #include "Trace/Analyzer.h"
-#include "Model/TimingProfiler.h"
+#include "Model/TimingProfilerPrivate.h"
 
 namespace Trace
 {
@@ -15,7 +15,7 @@ class FGpuProfilerAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FGpuProfilerAnalyzer(Trace::FAnalysisSession& Session);
+	FGpuProfilerAnalyzer(Trace::FAnalysisSession& Session, Trace::FTimingProfilerProvider& TimingProfilerProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 	virtual void OnAnalysisEnd() override {};

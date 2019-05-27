@@ -2,21 +2,21 @@
 
 #pragma once
 
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/AnalysisSession.h"
 #include "ProfilingDebugging/MiscTrace.h"
+#include "HAL/PlatformAffinity.h"
+#include "Containers/Map.h"
 
 namespace Trace
 {
-class FAnalysisSessionLock;
-class FStringStore;
 
 class FThreadProvider
 	: public IThreadProvider
 {
 public:
-	FThreadProvider(const FAnalysisSessionLock& SessionLock, FStringStore& StringStore);
+	static const FName ProviderName;
+	FThreadProvider(IAnalysisSession& Session);
 	~FThreadProvider();
-	void EnsureThreadExists(uint32 Id);
 	void AddGameThread(uint32 Id);
 	void AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Priority);
 	void SetThreadPriority(uint32 Id, EThreadPriority Priority);
@@ -42,8 +42,7 @@ private:
 	static uint32 GetPrioritySortOrder(EThreadPriority ThreadPriority);
 	static uint32 GetGroupSortOrder(ETraceThreadGroup ThreadGroup);
 
-	const FAnalysisSessionLock& SessionLock;
-	FStringStore& StringStore;
+	IAnalysisSession& Session;
 	uint64 ModCount = 0;
 	TMap<uint32, FThreadInfoInternal*> ThreadMap;
 	TArray<FThreadInfoInternal*> SortedThreads;

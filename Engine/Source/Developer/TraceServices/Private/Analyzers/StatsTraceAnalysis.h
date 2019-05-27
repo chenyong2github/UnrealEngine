@@ -17,7 +17,7 @@ class FStatsAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FStatsAnalyzer(Trace::FAnalysisSession& Session);
+	FStatsAnalyzer(Trace::FAnalysisSession& Session, Trace::FCounterProvider& CounterProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 	virtual void OnAnalysisEnd() override;

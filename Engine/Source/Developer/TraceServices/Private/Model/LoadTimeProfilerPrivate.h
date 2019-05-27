@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "TraceServices/Model/LoadTimeProfiler.h"
 #include "TraceServices/AnalysisService.h"
 #include "Common/SlabAllocator.h"
 #include "Common/PagedArray.h"
@@ -20,7 +21,7 @@ class FLoadTimeProfilerProvider
 public:
 	typedef TMonotonicTimeline<FLoadTimeProfilerCpuEvent> CpuTimelineInternal;
 
-	FLoadTimeProfilerProvider(FSlabAllocator& Allocator, FAnalysisSessionLock& InSessionLock, FStringStore& StringStore);
+	FLoadTimeProfilerProvider(IAnalysisSession& Session);
 	virtual uint64 GetPackageCount() const override { return Packages.Num(); }
 	virtual void EnumeratePackages(TFunctionRef<void(const FPackageInfo&)> Callback) const override;
 	virtual void ReadMainThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const override;
@@ -34,9 +35,7 @@ public:
 	TSharedRef<CpuTimelineInternal> EditAsyncLoadingThreadCpuTimeline() { return AsyncLoadingThreadCpuTimeline; }
 
 private:
-	FSlabAllocator& Allocator;
-	FAnalysisSessionLock& SessionLock;
-	FStringStore& StringStore;
+	IAnalysisSession& Session;
 	TPagedArray<FClassInfo> ClassInfos;
 	TPagedArray<FPackageInfo> Packages;
 	TPagedArray<FPackageExportInfo> Exports;

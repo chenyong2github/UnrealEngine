@@ -1,28 +1,27 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Model/LoadTimeProfiler.h"
+#include "TraceServices/Model/LoadTimeProfiler.h"
+#include "Model/LoadTimeProfilerPrivate.h"
 #include "AnalysisServicePrivate.h"
 #include "Common/TimelineStatistics.h"
 
 namespace Trace
 {
 
-FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(FSlabAllocator& InAllocator, FAnalysisSessionLock& InSessionLock, FStringStore& InStringStore)
-	: Allocator(InAllocator)
-	, SessionLock(InSessionLock)
-	, StringStore(InStringStore)
-	, ClassInfos(Allocator, 4096)
-	, Packages(Allocator, 4096)
-	, Exports(Allocator, 4090)
-	, MainThreadCpuTimeline(MakeShared<CpuTimelineInternal>(Allocator))
-	, AsyncLoadingThreadCpuTimeline(MakeShared<CpuTimelineInternal>(Allocator))
+FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession)
+	: Session(InSession)
+	, ClassInfos(Session.GetLinearAllocator(), 4096)
+	, Packages(Session.GetLinearAllocator(), 4096)
+	, Exports(Session.GetLinearAllocator(), 4090)
+	, MainThreadCpuTimeline(MakeShared<CpuTimelineInternal>(Session.GetLinearAllocator()))
+	, AsyncLoadingThreadCpuTimeline(MakeShared<CpuTimelineInternal>(Session.GetLinearAllocator()))
 {
 	
 }
 
 void FLoadTimeProfilerProvider::EnumeratePackages(TFunctionRef<void(const FPackageInfo&)> Callback) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 
 	auto Iterator = Packages.GetIteratorFromItem(0);
 	const FPackageInfo* Package = Iterator.GetCurrentItem();
@@ -35,13 +34,13 @@ void FLoadTimeProfilerProvider::EnumeratePackages(TFunctionRef<void(const FPacka
 
 void FLoadTimeProfilerProvider::ReadMainThreadCpuTimeline(TFunctionRef<void(const CpuTimeline &)> Callback) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 	Callback(*MainThreadCpuTimeline);
 }
 
 void FLoadTimeProfilerProvider::ReadAsyncLoadingThreadCpuTimeline(TFunctionRef<void(const CpuTimeline &)> Callback) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 	Callback(*AsyncLoadingThreadCpuTimeline);
 }
 
@@ -142,27 +141,27 @@ ITable<FLoadTimeProfilerAggregatedStats>* FLoadTimeProfilerProvider::CreateObjec
 
 const Trace::FClassInfo& FLoadTimeProfilerProvider::AddClassInfo(const TCHAR* ClassName)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 
 	FClassInfo& ClassInfo = ClassInfos.PushBack();
-	ClassInfo.Name = StringStore.Store(ClassName);
+	ClassInfo.Name = Session.StoreString(ClassName);
 	return ClassInfo;
 }
 
 Trace::FPackageInfo& FLoadTimeProfilerProvider::CreatePackage(const TCHAR* PackageName)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 
 	uint32 PackageId = Packages.Num();
 	FPackageInfo& Package = Packages.PushBack();
 	Package.Id = PackageId;
-	Package.Name = StringStore.Store(PackageName);
+	Package.Name = Session.StoreString(PackageName);
 	return Package;
 }
 
 Trace::FPackageExportInfo& FLoadTimeProfilerProvider::CreateExport()
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 
 	uint32 ExportId = Exports.Num();
 	FPackageExportInfo& Export = Exports.PushBack();

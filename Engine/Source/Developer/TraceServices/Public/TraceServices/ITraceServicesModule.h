@@ -11,6 +11,7 @@ namespace Trace
 
 class IAnalysisService;
 class ISessionService;
+class IModuleService;
 
 }
 
@@ -20,6 +21,7 @@ class ITraceServicesModule
 public:
 	virtual TSharedPtr<Trace::ISessionService> GetSessionService() = 0;
 	virtual TSharedPtr<Trace::IAnalysisService> GetAnalysisService() = 0;
+	virtual TSharedPtr<Trace::IModuleService> GetModuleService() = 0;
 
-	virtual ~ITraceServicesModule() { }
+	virtual ~ITraceServicesModule() = default;
 };

@@ -370,7 +370,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	UpdateIo();
 
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session)
+	if (Session && Trace::ReadTimingProfilerProvider(*Session.Get()))
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
@@ -406,7 +406,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		// Sync CachedTimelines and TimingEventsTracks with available timelines on analysis side.
 		// TODO: can we make this more efficient?
 
-		const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
 
 		// Check if we have a GPU track.
 		uint32 GpuTimelineIndex;
@@ -421,7 +421,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 		// Check available CPU tracks.
 		int32 Order = 1;
-		const Trace::IThreadProvider& ThreadProvider = Session->ReadThreadProvider();
+		const Trace::IThreadProvider& ThreadProvider = Trace::ReadThreadProvider(*Session.Get());
 		ThreadProvider.EnumerateThreads([this, &Order, &bIsTimingEventsTrackDirty, &TimingProfilerProvider](const Trace::FThreadInfo& ThreadInfo)
 		{
 			uint32 CpuTimelineIndex;
@@ -1020,11 +1020,11 @@ void STimingView::DrawCpuGpuTimelineTrack(FTimingViewDrawHelper& Helper, FTiming
 	if (Helper.BeginTimeline(Track))
 	{
 		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid())
+		if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-			const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
 
 			TimingProfilerProvider.ReadTimers([this, &Helper, &Track, &TimingProfilerProvider](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
 			{
@@ -1166,11 +1166,11 @@ void STimingView::UpdateIo()
 		AllIoEvents.Reset();
 
 		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid())
+		if (Session.IsValid() && Trace::ReadFileActivityProvider(*Session.Get()))
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-			const Trace::IFileActivityProvider& FileActivityProvider = Session->ReadFileActivityProvider();
+			const Trace::IFileActivityProvider& FileActivityProvider = *Trace::ReadFileActivityProvider(*Session.Get());
 
 			// Enumerate all IO events and cache them.
 			FileActivityProvider.EnumerateFileActivity([this](const Trace::FFileInfo& FileInfo, const Trace::IFileActivityProvider::Timeline& Timeline)
@@ -2511,11 +2511,11 @@ bool STimingView::SearchTimingEvent(const double InStartTime,
 	FSearchTimingEventContext Ctx(InStartTime, InEndTime, InPredicate, InOutTimingEvent, bInStopAtFirstMatch, bInSearchForLargestEvent);
 
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid())
+	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
 
 		TimingProfilerProvider.ReadTimeline(Ctx.TimingEvent.Track->GetId(), [&Ctx](const Trace::ITimingProfilerProvider::Timeline& Timeline)
 		{

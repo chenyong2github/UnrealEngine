@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/TimingProfiler.h"
 #include "Common/SlabAllocator.h"
 #include "Model/MonotonicTimeline.h"
 #include "Model/Tables.h"
@@ -19,7 +19,7 @@ class FTimingProfilerProvider
 public:
 	typedef TMonotonicTimeline<FTimingProfilerEvent> TimelineInternal;
 
-	FTimingProfilerProvider(FSlabAllocator& Allocator, FAnalysisSessionLock& InSessionLock, FStringStore& StringStore);
+	FTimingProfilerProvider(IAnalysisSession& InSession);
 	virtual ~FTimingProfilerProvider();
 	uint32 AddCpuTimer(const TCHAR* Name);
 	uint32 AddGpuTimer(const TCHAR* Name);
@@ -36,9 +36,7 @@ public:
 private:
 	FTimingProfilerTimer& AddTimerInternal(const TCHAR* Name, bool IsGpuEvent);
 
-	FSlabAllocator& Allocator;
-	FAnalysisSessionLock& SessionLock;
-	FStringStore& StringStore;
+	IAnalysisSession& Session;
 	TArray<FTimingProfilerTimer> Timers;
 	TArray<TSharedRef<TimelineInternal>> Timelines;
 	TMap<uint32, uint32> CpuThreadTimelineIndexMap;

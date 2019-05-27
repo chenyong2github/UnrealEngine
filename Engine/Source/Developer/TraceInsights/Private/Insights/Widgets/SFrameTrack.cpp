@@ -186,7 +186,7 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-			const Trace::IFrameProvider& FramesProvider = Session->ReadFrameProvider();
+			const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(*Session.Get());
 
 			for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 			{
@@ -240,7 +240,7 @@ void SFrameTrack::UpdateState()
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::IFrameProvider& FramesProvider = Session->ReadFrameProvider();
+		const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(*Session.Get());
 
 		for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 		{

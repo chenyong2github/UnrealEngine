@@ -2,11 +2,11 @@
 #include "LogTraceAnalysis.h"
 #include "AnalysisServicePrivate.h"
 #include "Logging/LogTrace.h"
-#include "Model/Log.h"
+#include "Model/LogPrivate.h"
 
-FLogTraceAnalyzer::FLogTraceAnalyzer(Trace::FAnalysisSession& InSession)
+FLogTraceAnalyzer::FLogTraceAnalyzer(Trace::IAnalysisSession& InSession, Trace::FLogProvider& InLogProvider)
 	: Session(InSession)
-	, LogProvider(InSession.EditLogProvider())
+	, LogProvider(InLogProvider)
 {
 
 }

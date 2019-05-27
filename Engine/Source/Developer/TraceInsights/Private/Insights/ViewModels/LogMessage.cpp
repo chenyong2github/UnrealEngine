@@ -145,7 +145,7 @@ FLogMessageRecord& FLogMessageCache::Get(uint64 Index)
 	if (Session.IsValid())
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::ILogProvider& LogProvider = Session->ReadLogProvider();
+		const Trace::ILogProvider& LogProvider = Trace::ReadLogProvider(*Session.Get());
 		LogProvider.ReadMessage(Index, [this, Index](const Trace::FLogMessage& Message)
 		{
 			FScopeLock Lock(&CriticalSection);
@@ -174,7 +174,7 @@ TSharedPtr<FLogMessageRecord> FLogMessageCache::GetUncached(uint64 Index) const
 	if (Session.IsValid())
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::ILogProvider& LogProvider = Session->ReadLogProvider();
+		const Trace::ILogProvider& LogProvider = Trace::ReadLogProvider(*Session.Get());
 		LogProvider.ReadMessage(Index, [&EntryPtr](const Trace::FLogMessage& Message)
 		{
 			EntryPtr = MakeShareable(new FLogMessageRecord(Message));

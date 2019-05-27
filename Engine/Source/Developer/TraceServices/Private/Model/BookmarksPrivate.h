@@ -28,7 +28,9 @@ class FBookmarkProvider
 	: public IBookmarkProvider
 {
 public:
-	FBookmarkProvider(const FAnalysisSessionLock& SessionLock, FStringStore& StringStore);
+	static const FName ProviderName;
+
+	FBookmarkProvider(IAnalysisSession& Session);
 
 	FBookmarkSpec& GetSpec(uint64 BookmarkPoint);
 	virtual uint64 GetBookmarkCount() const override { return Bookmarks.Num(); }
@@ -41,8 +43,7 @@ private:
 		FormatBufferSize = 65536
 	};
 
-	const FAnalysisSessionLock& SessionLock;
-	FStringStore& StringStore;
+	IAnalysisSession& Session;
 	TMap<uint64, TSharedPtr<FBookmarkSpec>> SpecMap;
 	TArray<TSharedRef<FBookmarkInternal>> Bookmarks;
 	TCHAR FormatBuffer[FormatBufferSize];

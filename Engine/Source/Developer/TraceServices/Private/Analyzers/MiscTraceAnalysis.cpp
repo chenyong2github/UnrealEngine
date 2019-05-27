@@ -1,17 +1,21 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "MiscTraceAnalysis.h"
-#include "AnalysisServicePrivate.h"
-#include "Model/Log.h"
-#include "Model/Threads.h"
-#include "Model/Bookmarks.h"
-#include "Model/Frames.h"
+#include "TraceServices/Model/AnalysisSession.h"
+#include "Model/LogPrivate.h"
+#include "Model/ThreadsPrivate.h"
+#include "Model/BookmarksPrivate.h"
+#include "Model/FramesPrivate.h"
 
-FMiscTraceAnalyzer::FMiscTraceAnalyzer(Trace::FAnalysisSession& InSession)
+FMiscTraceAnalyzer::FMiscTraceAnalyzer(Trace::IAnalysisSession& InSession,
+									   Trace::FThreadProvider& InThreadProvider,
+									   Trace::FBookmarkProvider& InBookmarkProvider,
+									   Trace::FLogProvider& InLogProvider,
+									   Trace::FFrameProvider& InFrameProvider)
 	: Session(InSession)
-	, ThreadProvider(InSession.EditThreadProvider())
-	, BookmarkProvider(InSession.EditBookmarkProvider())
-	, LogProvider(InSession.EditLogProvider())
-	, FrameProvider(InSession.EditFrameProvider())
+	, ThreadProvider(InThreadProvider)
+	, BookmarkProvider(InBookmarkProvider)
+	, LogProvider(InLogProvider)
+	, FrameProvider(InFrameProvider)
 {
 	Trace::FLogCategory& BookmarkLogCategory = LogProvider.GetCategory(Trace::FLogProvider::ReservedLogCategory_Bookmark);
 	BookmarkLogCategory.Name = TEXT("LogBookmark");

@@ -6,15 +6,15 @@
 namespace Trace
 {
 
-FCounterInternal::FCounterInternal(FSlabAllocator& InAllocator, uint32 InId, const TCHAR* InName, const TCHAR* InDescription, ECounterDisplayHint InDisplayHint)
+FCounterInternal::FCounterInternal(ILinearAllocator& Allocator, uint32 InId, const TCHAR* InName, const TCHAR* InDescription, ECounterDisplayHint InDisplayHint)
 	: Name(InName)
 	, Description(InDescription)
 	, Id(InId)
 	, DisplayHint(InDisplayHint)
-	, Timestamps(InAllocator, 1024)
-	, Ops(InAllocator, 1024)
-	, IntOpArguments(InAllocator, 1024)
-	, DoubleOpArguments(InAllocator, 1024)
+	, Timestamps(Allocator, 1024)
+	, Ops(Allocator, 1024)
+	, IntOpArguments(Allocator, 1024)
+	, DoubleOpArguments(Allocator, 1024)
 {
 
 }
@@ -94,9 +94,8 @@ void FCounterInternal::EnumerateFloatValues(double IntervalStart, double Interva
 	}
 }
 
-FCounterProvider::FCounterProvider(FSlabAllocator& InAllocator, FAnalysisSessionLock& InSessionLock)
-	: Allocator(InAllocator)
-	, SessionLock(InSessionLock)
+FCounterProvider::FCounterProvider(IAnalysisSession& InSession)
+	: Session(InSession)
 {
 
 }
@@ -120,7 +119,7 @@ void FCounterProvider::EnumerateCounters(TFunctionRef<void(const ICounter &)> Ca
 
 FCounterInternal* FCounterProvider::CreateCounter(const TCHAR* Name, const TCHAR* Description, ECounterDisplayHint DisplayHint)
 {
-	FCounterInternal* Counter = new FCounterInternal(Allocator, Counters.Num(), Name, Description, DisplayHint);
+	FCounterInternal* Counter = new FCounterInternal(Session.GetLinearAllocator(), Counters.Num(), Name, Description, DisplayHint);
 	Counters.Add(Counter);
 	return Counter;
 }

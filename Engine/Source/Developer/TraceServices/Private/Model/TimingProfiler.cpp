@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Model/TimingProfiler.h"
+#include "TraceServices/Model/TimingProfiler.h"
+#include "Model/TimingProfilerPrivate.h"
 #include "AnalysisServicePrivate.h"
 #include "Common/StringStore.h"
 #include "Common/TimelineStatistics.h"
@@ -8,12 +9,10 @@
 namespace Trace
 {
 
-FTimingProfilerProvider::FTimingProfilerProvider(FSlabAllocator& InAllocator, FAnalysisSessionLock& InSessionLock, FStringStore& InStringStore)
-	: Allocator(InAllocator)
-	, SessionLock(InSessionLock)
-	, StringStore(InStringStore)
+FTimingProfilerProvider::FTimingProfilerProvider(IAnalysisSession& InSession)
+	: Session(InSession)
 {
-	Timelines.Add(MakeShared<TimelineInternal>(Allocator));
+	Timelines.Add(MakeShared<TimelineInternal>(Session.GetLinearAllocator()));
 }
 
 FTimingProfilerProvider::~FTimingProfilerProvider()
@@ -22,7 +21,7 @@ FTimingProfilerProvider::~FTimingProfilerProvider()
 
 uint32 FTimingProfilerProvider::AddCpuTimer(const TCHAR* Name)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 
 	FTimingProfilerTimer& Timer = AddTimerInternal(Name, false);
 	return Timer.Id;
@@ -30,7 +29,7 @@ uint32 FTimingProfilerProvider::AddCpuTimer(const TCHAR* Name)
 
 uint32 FTimingProfilerProvider::AddGpuTimer(const TCHAR* Name)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 
 	FTimingProfilerTimer& Timer = AddTimerInternal(Name, true);
 	return Timer.Id;
@@ -40,7 +39,7 @@ FTimingProfilerTimer& FTimingProfilerProvider::AddTimerInternal(const TCHAR* Nam
 {
 	FTimingProfilerTimer& Timer = Timers.AddDefaulted_GetRef();
 	Timer.Id = Timers.Num() - 1;
-	Timer.Name = StringStore.Store(Name);
+	Timer.Name = Session.StoreString(Name);
 	uint32 NameHash = 0;
 	for (const TCHAR* c = Name; *c; ++c)
 	{
@@ -53,11 +52,11 @@ FTimingProfilerTimer& FTimingProfilerProvider::AddTimerInternal(const TCHAR* Nam
 
 FTimingProfilerProvider::TimelineInternal& FTimingProfilerProvider::EditCpuThreadTimeline(uint32 ThreadId)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 
 	if (!CpuThreadTimelineIndexMap.Contains(ThreadId))
 	{
-		TSharedRef<TimelineInternal> Timeline = MakeShared<TimelineInternal>(Allocator);
+		TSharedRef<TimelineInternal> Timeline = MakeShared<TimelineInternal>(Session.GetLinearAllocator());
 		uint32 TimelineIndex = Timelines.Num();
 		CpuThreadTimelineIndexMap.Add(ThreadId, TimelineIndex);
 		Timelines.Add(Timeline);
@@ -72,14 +71,14 @@ FTimingProfilerProvider::TimelineInternal& FTimingProfilerProvider::EditCpuThrea
 
 FTimingProfilerProvider::TimelineInternal& FTimingProfilerProvider::EditGpuTimeline()
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 
 	return Timelines[GpuTimelineIndex].Get();
 }
 
 bool FTimingProfilerProvider::GetCpuThreadTimelineIndex(uint32 ThreadId, uint32& OutTimelineIndex) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 
 	if (CpuThreadTimelineIndexMap.Contains(ThreadId))
 	{
@@ -91,7 +90,7 @@ bool FTimingProfilerProvider::GetCpuThreadTimelineIndex(uint32 ThreadId, uint32&
 
 bool FTimingProfilerProvider::GetGpuTimelineIndex(uint32& OutTimelineIndex) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 
 	OutTimelineIndex = GpuTimelineIndex;
 	return true;
@@ -99,7 +98,7 @@ bool FTimingProfilerProvider::GetGpuTimelineIndex(uint32& OutTimelineIndex) cons
 
 bool FTimingProfilerProvider::ReadTimeline(uint32 Index, TFunctionRef<void(const Timeline &)> Callback) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 
 	if (Index < uint32(Timelines.Num()))
 	{
@@ -114,7 +113,7 @@ bool FTimingProfilerProvider::ReadTimeline(uint32 Index, TFunctionRef<void(const
 
 void FTimingProfilerProvider::EnumerateTimelines(TFunctionRef<void(const Timeline&)> Callback) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 
 	for (const auto& Timeline : Timelines)
 	{
@@ -124,14 +123,14 @@ void FTimingProfilerProvider::EnumerateTimelines(TFunctionRef<void(const Timelin
 
 void FTimingProfilerProvider::ReadTimers(TFunctionRef<void(const FTimingProfilerTimer*, uint64)> Callback) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 
 	Callback(Timers.GetData(), Timers.Num());
 }
 
 ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregation(double IntervalStart, double IntervalEnd, TFunctionRef<bool(uint32)> CpuThreadFilter, bool IncludeGpu) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 
 	TArray<const TimelineInternal*> IncludedTimelines;
 	if (IncludeGpu)

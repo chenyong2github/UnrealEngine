@@ -4,12 +4,12 @@
 #include "HAL/FileManager.h"
 #include "Serialization/LoadTimeTrace.h"
 #include "Trace/Trace.h"
-#include "Model/LoadTimeProfiler.h"
+#include "Model/LoadTimeProfilerPrivate.h"
 #include "Analyzers/MiscTraceAnalysis.h"
 
-FAsyncLoadingTraceAnalyzer::FAsyncLoadingTraceAnalyzer(Trace::FAnalysisSession& InSession)
+FAsyncLoadingTraceAnalyzer::FAsyncLoadingTraceAnalyzer(Trace::IAnalysisSession& InSession, Trace::FLoadTimeProfilerProvider& InLoadTimeProfilerProvider)
 	: Session(InSession)
-	, LoadTimeProfilerProvider(Session.EditLoadTimeProfilerProvider())
+	, LoadTimeProfilerProvider(InLoadTimeProfilerProvider)
 {
 }
 

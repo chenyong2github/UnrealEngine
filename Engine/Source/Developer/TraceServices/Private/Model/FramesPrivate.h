@@ -9,13 +9,13 @@
 namespace Trace
 {
 
-class FAnalysisSessionLock;
-
 class FFrameProvider
 	: public IFrameProvider
 {
 public:
-	FFrameProvider(FSlabAllocator& Allocator, FAnalysisSessionLock& SessionLock);
+	static const FName ProviderName;
+
+	FFrameProvider(IAnalysisSession& Session);
 
 	virtual uint64 GetFrameCount(ETraceFrameType FrameType) const override;
 	virtual void EnumerateFrames(ETraceFrameType FrameType, uint64 Start, uint64 End, TFunctionRef<void(const FFrame&)> Callback) const override;
@@ -23,8 +23,7 @@ public:
 	void EndFrame(ETraceFrameType FrameType, double Time);
 
 private:
-	FSlabAllocator& Allocator;
-	FAnalysisSessionLock& SessionLock;
+	IAnalysisSession& Session;
 	TArray<TPagedArray<FFrame>> Frames;
 };
 

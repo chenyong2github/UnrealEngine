@@ -1,22 +1,24 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Model/Bookmarks.h"
+#include "TraceServices/Model/Bookmarks.h"
+#include "Model/BookmarksPrivate.h"
 #include "AnalysisServicePrivate.h"
 #include "Common/FormatArgs.h"
 
 namespace Trace
 {
 
-FBookmarkProvider::FBookmarkProvider(const FAnalysisSessionLock& InSessionLock, FStringStore& InStringStore)
-	: SessionLock(InSessionLock)
-	, StringStore(InStringStore)
+const FName FBookmarkProvider::ProviderName("BookmarkProvider");
+
+FBookmarkProvider::FBookmarkProvider(IAnalysisSession& InSession)
+	: Session(InSession)
 {
 
 }
 
 FBookmarkSpec& FBookmarkProvider::GetSpec(uint64 BookmarkPoint)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 	if (SpecMap.Contains(BookmarkPoint))
 	{
 		return *SpecMap[BookmarkPoint].Get();
@@ -31,18 +33,18 @@ FBookmarkSpec& FBookmarkProvider::GetSpec(uint64 BookmarkPoint)
 
 void FBookmarkProvider::AppendBookmark(double Time, uint64 BookmarkPoint, const uint8* FormatArgs)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 	FBookmarkSpec& Spec = GetSpec(BookmarkPoint);
 	TSharedRef<FBookmarkInternal> Bookmark = MakeShared<FBookmarkInternal>();
 	Bookmark->Time = Time;
 	FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, Spec.FormatString, FormatArgs);
-	Bookmark->Text = StringStore.Store(FormatBuffer);
+	Bookmark->Text = Session.StoreString(FormatBuffer);
 	Bookmarks.Add(Bookmark);
 }
 
 void FBookmarkProvider::EnumerateBookmarks(double IntervalStart, double IntervalEnd, TFunctionRef<void(const FBookmark &)> Callback) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 	if (IntervalStart > IntervalEnd)
 	{
 		return;

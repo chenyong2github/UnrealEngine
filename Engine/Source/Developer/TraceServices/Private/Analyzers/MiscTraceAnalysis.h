@@ -10,7 +10,7 @@
 
 namespace Trace
 {
-	class FAnalysisSession;
+	class IAnalysisSession;
 	class FThreadProvider;
 	class FBookmarkProvider;
 	class FLogProvider;
@@ -21,7 +21,11 @@ class FMiscTraceAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FMiscTraceAnalyzer(Trace::FAnalysisSession& Session);
+	FMiscTraceAnalyzer(Trace::IAnalysisSession& Session,
+					   Trace::FThreadProvider& ThreadProvider,
+					   Trace::FBookmarkProvider& BookmarkProvider,
+					   Trace::FLogProvider& LogProvider,
+					   Trace::FFrameProvider& FrameProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 	virtual void OnAnalysisEnd() override {};
@@ -47,7 +51,7 @@ private:
 
 	FThreadState* GetThreadState(uint32 ThreadId);
 
-	Trace::FAnalysisSession& Session;
+	Trace::IAnalysisSession& Session;
 	Trace::FThreadProvider& ThreadProvider;
 	Trace::FBookmarkProvider& BookmarkProvider;
 	Trace::FLogProvider& LogProvider;

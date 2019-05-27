@@ -6,6 +6,7 @@
 #include "TraceServices/AnalysisService.h"
 #include "Templates/Function.h"
 #include "Common/PagedArray.h"
+#include "Common/SlabAllocator.h"
 
 #define UE_TRACE_TABLE_LAYOUT_BEGIN(Name, InRowType) \
 	class Name \

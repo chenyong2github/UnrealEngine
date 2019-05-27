@@ -1431,11 +1431,11 @@ void STimersView::RebuildTree(bool bResync)
 		bListHasChanged = true;
 	}
 
-	if (Session.IsValid())
+	if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+		const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
 
 		TimingProfilerProvider.ReadTimers([this, &bResync, &bListHasChanged](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
 		{
@@ -1483,8 +1483,7 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 		TimerNodePtr->ResetAggregatedStats();
 	}
 
-	if (Session.IsValid() &&
-		StartTime < EndTime)
+	if (Session.IsValid() && StartTime < EndTime && Trace::ReadTimingProfilerProvider(*Session.Get()))
 	{
 		auto ThreadFilter = [](uint32 ThreadId)
 		{
@@ -1494,7 +1493,7 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 		TUniquePtr<Trace::ITable<Trace::FTimingProfilerAggregatedStats>> AggregationResultTable;
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const Trace::ITimingProfilerProvider& TimingProfilerProvider = Session->ReadTimingProfilerProvider();
+			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
 			AggregationResultTable.Reset(TimingProfilerProvider.CreateAggregation(StartTime, EndTime, ThreadFilter, true));
 		}
 

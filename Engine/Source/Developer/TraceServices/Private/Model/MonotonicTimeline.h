@@ -32,7 +32,7 @@ class TMonotonicTimeline
 public:
 	using EventType = InEventType;
 
-	TMonotonicTimeline(FSlabAllocator& InAllocator)
+	TMonotonicTimeline(ILinearAllocator& InAllocator)
 		: Allocator(InAllocator)
 	{
 		
@@ -362,7 +362,7 @@ private:
 
 	struct FDetailLevel
 	{
-		FDetailLevel(FSlabAllocator& Allocator, double InResolution)
+		FDetailLevel(ILinearAllocator& Allocator, double InResolution)
 			: Resolution(InResolution)
 			, ScopeEntries(Allocator, SettingsType::ScopeEntriesPageSize)
 			, Events(Allocator, SettingsType::EventsPageSize)
@@ -418,7 +418,7 @@ private:
 			LastPage->InitialStackCount = DetailLevel.InsertionState.CurrentDepth;
 			if (LastPage->InitialStackCount)
 			{
-				LastPage->InitialStack = Allocator.Allocate<FEventStackEntry>(LastPage->InitialStackCount);
+				LastPage->InitialStack = reinterpret_cast<FEventStackEntry*>(Allocator.Allocate(LastPage->InitialStackCount * sizeof(FEventStackEntry)));
 				memcpy(LastPage->InitialStack, DetailLevel.InsertionState.EventStack, LastPage->InitialStackCount * sizeof(FEventStackEntry));
 			}
 		}
@@ -464,7 +464,7 @@ private:
 		return DetailLevel.Events[Index];
 	}
 
-	FSlabAllocator& Allocator;
+	ILinearAllocator& Allocator;
 	TArray<FDetailLevel> DetailLevels;
 	uint64 ModCount = 0;
 };

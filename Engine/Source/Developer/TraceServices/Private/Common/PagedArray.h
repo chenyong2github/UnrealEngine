@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "Common/SlabAllocator.h"
+#include "TraceServices/Containers/Allocators.h"
+#include "Containers/Array.h"
 
 template<typename ItemType>
 struct TPagedArrayPage
@@ -179,7 +180,7 @@ public:
 		const ItemType* CurrentPageLastItem = nullptr;
 	};
 
-	TPagedArray(FSlabAllocator& InAllocator, uint64 InPageSize)
+	TPagedArray(Trace::ILinearAllocator& InAllocator, uint64 InPageSize)
 		: Allocator(InAllocator)
 		, PageSize(InPageSize)
 	{
@@ -219,7 +220,7 @@ public:
 		{
 			LastPage = &PagesArray.AddDefaulted_GetRef();
 			FirstPage = PagesArray.GetData();
-			LastPage->Items = Allocator.Allocate<ItemType>(PageSize);
+			LastPage->Items = reinterpret_cast<ItemType*>(Allocator.Allocate(PageSize * sizeof(ItemType)));
 		}
 		++TotalItemCount;
 		ItemType* ItemPtr = LastPage->Items + LastPage->Count;
@@ -297,7 +298,7 @@ public:
 	}
 
 private:
-	FSlabAllocator& Allocator;
+	Trace::ILinearAllocator& Allocator;
 	TArray<PageType> PagesArray;
 	PageType* FirstPage = nullptr;
 	PageType* LastPage = nullptr;

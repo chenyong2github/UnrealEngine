@@ -23,7 +23,7 @@ const TCHAR* FStringStore::Store(const TCHAR* String)
 	int32 StringLength = FCString::Strlen(String) + 1;
 	if (BufferLeft < StringLength)
 	{
-		BufferPtr = Allocator.Allocate<TCHAR>(BlockSize);
+		BufferPtr = reinterpret_cast<TCHAR*>(Allocator.Allocate(BlockSize * sizeof(TCHAR)));
 		++BlockCount;
 		BufferLeft = BlockSize;
 	}

@@ -373,7 +373,7 @@ void FFramesGraphTrack::UpdateSeries(FGraphTrackSeries& Series, const FTimingTra
 	if (Session.IsValid())
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const Trace::IFrameProvider& FramesProvider = Session->ReadFrameProvider();
+		const Trace::IFrameProvider& FramesProvider = ReadFrameProvider(*Session.Get());
 		uint64 FrameCount = FramesProvider.GetFrameCount(FrameType);
 		FramesProvider.EnumerateFrames(FrameType, 0, FrameCount - 1, [&Builder](const Trace::FFrame& Frame)
 		{

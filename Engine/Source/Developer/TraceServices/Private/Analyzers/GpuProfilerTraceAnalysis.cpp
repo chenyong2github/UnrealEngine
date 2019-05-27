@@ -3,9 +3,9 @@
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
 
-FGpuProfilerAnalyzer::FGpuProfilerAnalyzer(Trace::FAnalysisSession& InSession)
+FGpuProfilerAnalyzer::FGpuProfilerAnalyzer(Trace::FAnalysisSession& InSession, Trace::FTimingProfilerProvider& InTimingProfilerProvider)
 	: Session(InSession)
-	, TimingProfilerProvider(InSession.EditTimingProfilerProvider())
+	, TimingProfilerProvider(InTimingProfilerProvider)
 	, Timeline(TimingProfilerProvider.EditGpuTimeline())
 	, Calibrated(false)
 {

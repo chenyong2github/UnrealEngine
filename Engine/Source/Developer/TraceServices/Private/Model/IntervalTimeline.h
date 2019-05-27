@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Containers/Timelines.h"
 #include "Common/PagedArray.h"
+#include "TraceServices/Containers/Allocators.h"
 #include <limits>
 
 namespace Trace
@@ -22,7 +23,7 @@ class TIntervalTimeline
 	: public ITimeline<EventType>
 {
 public:
-	TIntervalTimeline(FSlabAllocator& Allocator)
+	TIntervalTimeline(ILinearAllocator& Allocator)
 		: Events(Allocator, SettingsType::EventsPerPage)
 	{
 	}

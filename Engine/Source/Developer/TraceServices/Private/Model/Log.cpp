@@ -1,19 +1,20 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Model/Log.h"
+#include "TraceServices/Model/Log.h"
+#include "Model/LogPrivate.h"
 #include "AnalysisServicePrivate.h"
 #include "Common/FormatArgs.h"
 
 namespace Trace
 {
 
-FLogProvider::FLogProvider(FSlabAllocator& InAllocator, FAnalysisSessionLock& InSessionLock, FStringStore& InStringStore)
-	: Allocator(InAllocator)
-	, SessionLock(InSessionLock)
-	, StringStore(InStringStore)
-	, Categories(Allocator, 128)
-	, MessageSpecs(Allocator, 1024)
-	, Messages(Allocator, 1024)
+const FName FLogProvider::ProviderName("LogProvider");
+
+FLogProvider::FLogProvider(IAnalysisSession& InSession)
+	: Session(InSession)
+	, Categories(InSession.GetLinearAllocator(), 128)
+	, MessageSpecs(InSession.GetLinearAllocator(), 1024)
+	, Messages(InSession.GetLinearAllocator(), 1024)
 	, MessagesTable(Messages)
 {
 
@@ -21,7 +22,7 @@ FLogProvider::FLogProvider(FSlabAllocator& InAllocator, FAnalysisSessionLock& In
 
 FLogCategory& FLogProvider::GetCategory(uint64 CategoryPointer)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 	if (CategoryMap.Contains(CategoryPointer))
 	{
 		return *CategoryMap[CategoryPointer];
@@ -36,7 +37,7 @@ FLogCategory& FLogProvider::GetCategory(uint64 CategoryPointer)
 
 FLogMessageSpec& FLogProvider::GetMessageSpec(uint64 LogPoint)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 	if (SpecMap.Contains(LogPoint))
 	{
 		return *SpecMap[LogPoint];
@@ -51,24 +52,24 @@ FLogMessageSpec& FLogProvider::GetMessageSpec(uint64 LogPoint)
 
 void FLogProvider::AppendMessage(uint64 LogPoint, double Time, const uint8* FormatArgs)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 	check(SpecMap.Contains(LogPoint));
 	FLogMessageInternal& InternalMessage = Messages.PushBack();
 	InternalMessage.Time = Time;
 	InternalMessage.Spec = SpecMap[LogPoint];
 	FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, InternalMessage.Spec->FormatString, FormatArgs);
-	InternalMessage.Message = StringStore.Store(FormatBuffer);
+	InternalMessage.Message = Session.StoreString(FormatBuffer);
 }
 
 uint64 FLogProvider::GetMessageCount() const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 	return Messages.Num();
 }
 
 bool FLogProvider::ReadMessage(uint64 Index, TFunctionRef<void(const FLogMessage &)> Callback) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 	if (Index >= Messages.Num())
 	{
 		return false;
@@ -79,7 +80,7 @@ bool FLogProvider::ReadMessage(uint64 Index, TFunctionRef<void(const FLogMessage
 
 void FLogProvider::EnumerateMessages(double IntervalStart, double IntervalEnd, TFunctionRef<void(const FLogMessage&)> Callback) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 	if (IntervalStart > IntervalEnd)
 	{
 		return;
@@ -97,7 +98,7 @@ void FLogProvider::EnumerateMessages(double IntervalStart, double IntervalEnd, T
 
 void FLogProvider::EnumerateMessagesByIndex(uint64 Start, uint64 End, TFunctionRef<void(const FLogMessage &)> Callback) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 	uint64 Count = Messages.Num();
 	if (Start >= Count)
 	{
@@ -133,6 +134,7 @@ void FLogProvider::ConstructMessage(uint64 Index, TFunctionRef<void(const FLogMe
 
 void FLogProvider::EnumerateCategories(TFunctionRef<void(const FLogCategory &)> Callback) const
 {
+	Session.ReadAccessCheck();
 	auto Iterator = Categories.GetIteratorFromItem(0);
 	const FLogCategory* Category = Iterator.GetCurrentItem();
 	while (Category)
@@ -140,6 +142,11 @@ void FLogProvider::EnumerateCategories(TFunctionRef<void(const FLogCategory &)> 
 		Callback(*Category);
 		Category = Iterator.NextItem();
 	}
+}
+
+const ILogProvider& ReadLogProvider(const IAnalysisSession& Session)
+{
+	return *Session.ReadProvider<ILogProvider>(FLogProvider::ProviderName);
 }
 
 }

@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/AnalysisSession.h"
 #include "Templates/SharedPointer.h"
 #include "Common/PagedArray.h"
+#include "TraceServices/Model/Stats.h"
 
 namespace Trace
 {
@@ -21,7 +22,7 @@ class FCounterInternal
 	: public ICounter
 {
 public:
-	FCounterInternal(FSlabAllocator& InAllocator, uint32 Id, const TCHAR* Name, const TCHAR* Description, ECounterDisplayHint DisplayHint);
+	FCounterInternal(ILinearAllocator& Allocator, uint32 Id, const TCHAR* Name, const TCHAR* Description, ECounterDisplayHint DisplayHint);
 	virtual const TCHAR* GetName() const override { return *Name; }
 	virtual uint32 GetId() const override { return Id; }
 	virtual ECounterDisplayHint GetDisplayHint() const { return DisplayHint; }
@@ -52,7 +53,7 @@ class FCounterProvider
 	: public ICounterProvider
 {
 public:
-	FCounterProvider(FSlabAllocator& Allocator, FAnalysisSessionLock& SessionLock);
+	FCounterProvider(IAnalysisSession& Session);
 	virtual ~FCounterProvider();
 	virtual uint64 GetCounterCount() const override { return Counters.Num(); }
 	virtual void EnumerateCounters(TFunctionRef<void(const ICounter&)> Callback) const override;
@@ -64,8 +65,7 @@ public:
 	void Set(FCounterInternal& Counter, double Time, double Value);
 
 private:
-	FSlabAllocator& Allocator;
-	FAnalysisSessionLock& SessionLock;
+	IAnalysisSession& Session;
 	TArray<FCounterInternal*> Counters;
 };
 

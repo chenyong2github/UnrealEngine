@@ -2,12 +2,11 @@
 #include "CpuProfilerTraceAnalysis.h"
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
-#include "Model/Threads.h"
+#include "TraceServices/Model/Threads.h"
 
-FCpuProfilerAnalyzer::FCpuProfilerAnalyzer(Trace::FAnalysisSession& InSession)
+FCpuProfilerAnalyzer::FCpuProfilerAnalyzer(Trace::IAnalysisSession& InSession, Trace::FTimingProfilerProvider& InTimingProfilerProvider)
 	: Session(InSession)
-	, ThreadProvider(InSession.EditThreadProvider())
-	, TimingProfilerProvider(InSession.EditTimingProfilerProvider())
+	, TimingProfilerProvider(InTimingProfilerProvider)
 {
 
 }
@@ -66,7 +65,7 @@ void FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 		check(BufferPtr == BufferEnd);
 		if (LastCycle)
 		{
-			Session.UpdateDuration(Context.SessionContext.TimestampFromCycle(LastCycle));
+			Session.UpdateDurationSeconds(Context.SessionContext.TimestampFromCycle(LastCycle));
 		}
 		ThreadState->LastCycle = LastCycle;
 		break;
@@ -81,7 +80,6 @@ TSharedRef<FCpuProfilerAnalyzer::FThreadState> FCpuProfilerAnalyzer::GetThreadSt
 		TSharedRef<FThreadState> ThreadState = MakeShared<FThreadState>();
 		ThreadState->Timeline = &TimingProfilerProvider.EditCpuThreadTimeline(ThreadId);
 		ThreadStatesMap.Add(ThreadId, ThreadState);
-		ThreadProvider.EnsureThreadExists(ThreadId);
 		return ThreadState;
 	}
 	else

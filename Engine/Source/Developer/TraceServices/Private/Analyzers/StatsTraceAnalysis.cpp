@@ -4,9 +4,9 @@
 #include "Common/Utils.h"
 #include "Model/Counters.h"
 
-FStatsAnalyzer::FStatsAnalyzer(Trace::FAnalysisSession& InSession)
+FStatsAnalyzer::FStatsAnalyzer(Trace::FAnalysisSession& InSession, Trace::FCounterProvider& InCounterProvider)
 	: Session(InSession)
-	, CounterProvider(Session.EditCounterProvider())
+	, CounterProvider(InCounterProvider)
 {
 
 }

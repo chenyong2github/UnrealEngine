@@ -1,31 +1,33 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Model/Frames.h"
+#include "TraceServices/Model/Frames.h"
+#include "Model/FramesPrivate.h"
 #include "AnalysisServicePrivate.h"
 #include <limits>
 
 namespace Trace
 {
 
-FFrameProvider::FFrameProvider(FSlabAllocator& InAllocator, FAnalysisSessionLock& InSessionLock)
-	: Allocator(InAllocator)
-	, SessionLock(InSessionLock)
+const FName FFrameProvider::ProviderName("FrameProvider");
+
+FFrameProvider::FFrameProvider(IAnalysisSession& InSession)
+	: Session(InSession)
 {
 	for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 	{
-		Frames.Emplace(Allocator, 65536);
+		Frames.Emplace(Session.GetLinearAllocator(), 65536);
 	}
 }
 
 uint64 FFrameProvider::GetFrameCount(ETraceFrameType FrameType) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 	return Frames[FrameType].Num();
 }
 
 void FFrameProvider::EnumerateFrames(ETraceFrameType FrameType, uint64 Start, uint64 End, TFunctionRef<void(const FFrame&)> Callback) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 
 	End = FMath::Min(End, Frames[FrameType].Num());
 	if (Start >= End)
@@ -43,7 +45,7 @@ void FFrameProvider::EnumerateFrames(ETraceFrameType FrameType, uint64 Start, ui
 
 void FFrameProvider::BeginFrame(ETraceFrameType FrameType, double Time)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 	
 	uint64 Index = Frames[FrameType].Num();
 	FFrame& Frame = Frames[FrameType].PushBack();
@@ -54,9 +56,14 @@ void FFrameProvider::BeginFrame(ETraceFrameType FrameType, double Time)
 
 void FFrameProvider::EndFrame(ETraceFrameType FrameType, double Time)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 	FFrame& Frame = Frames[FrameType][Frames[FrameType].Num() - 1];
 	Frame.EndTime = Time;
+}
+
+const IFrameProvider& ReadFrameProvider(const IAnalysisSession& Session)
+{
+	return *Session.ReadProvider<IFrameProvider>(FFrameProvider::ProviderName);
 }
 
 }

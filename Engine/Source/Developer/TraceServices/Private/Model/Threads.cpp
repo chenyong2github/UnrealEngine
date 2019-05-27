@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Model/Threads.h"
+#include "TraceServices/Model/Threads.h"
+#include "Model/ThreadsPrivate.h"
 #include "Misc/ScopeLock.h"
 #include "AnalysisServicePrivate.h"
 #include "Common/StringStore.h"
@@ -8,9 +9,10 @@
 namespace Trace
 {
 
-FThreadProvider::FThreadProvider(const FAnalysisSessionLock& InSessionLock, FStringStore& InStringStore)
-	: SessionLock(InSessionLock)
-	, StringStore(InStringStore)
+const FName FThreadProvider::ProviderName = "ThreadProvider";
+
+FThreadProvider::FThreadProvider(IAnalysisSession& InSession)
+	: Session(InSession)
 {
 
 }
@@ -23,31 +25,15 @@ FThreadProvider::~FThreadProvider()
 	}
 }
 
-void FThreadProvider::EnsureThreadExists(uint32 Id)
-{
-	SessionLock.WriteAccessCheck();
-
-	if (!ThreadMap.Contains(Id))
-	{
-		FThreadInfoInternal* ThreadInfo = new FThreadInfoInternal();
-		ThreadInfo->Id = Id;
-		ThreadInfo->FallbackSortOrder = SortedThreads.Num();
-		SortedThreads.Add(ThreadInfo);
-		ThreadMap.Add(Id, ThreadInfo);
-		SortThreads();
-		++ModCount;
-	}
-}
-
 void FThreadProvider::AddGameThread(uint32 Id)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 
 	check(!ThreadMap.Contains(Id));
 	FThreadInfoInternal* ThreadInfo = new FThreadInfoInternal();
 	ThreadInfo->Id = Id;
 	ThreadInfo->PrioritySortOrder = GetPrioritySortOrder(TPri_Normal);
-	ThreadInfo->Name = StringStore.Store(*FName(NAME_GameThread).GetPlainNameString());
+	ThreadInfo->Name = Session.StoreString(*FName(NAME_GameThread).GetPlainNameString());
 	ThreadInfo->FallbackSortOrder = SortedThreads.Num();
 	ThreadInfo->IsGameThread = true;
 	SortedThreads.Add(ThreadInfo);
@@ -57,7 +43,7 @@ void FThreadProvider::AddGameThread(uint32 Id)
 
 void FThreadProvider::AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Priority)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 
 	FThreadInfoInternal* ThreadInfo;
 	if (!ThreadMap.Contains(Id))
@@ -73,14 +59,14 @@ void FThreadProvider::AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Pr
 		ThreadInfo = ThreadMap[Id];
 	}
 	ThreadInfo->PrioritySortOrder = GetPrioritySortOrder(Priority);
-	ThreadInfo->Name = StringStore.Store(Name);
+	ThreadInfo->Name = Session.StoreString(Name);
 	SortThreads();
 	++ModCount;
 }
 
 void FThreadProvider::SetThreadPriority(uint32 Id, EThreadPriority Priority)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 
 	check(ThreadMap.Contains(Id));
 	FThreadInfoInternal* ThreadInfo = ThreadMap[Id];
@@ -91,7 +77,7 @@ void FThreadProvider::SetThreadPriority(uint32 Id, EThreadPriority Priority)
 
 void FThreadProvider::SetThreadGroup(uint32 Id, ETraceThreadGroup Group)
 {
-	SessionLock.WriteAccessCheck();
+	Session.WriteAccessCheck();
 
 	check(ThreadMap.Contains(Id));
 	FThreadInfoInternal* ThreadInfo = ThreadMap[Id];
@@ -129,7 +115,7 @@ void FThreadProvider::SetThreadGroup(uint32 Id, ETraceThreadGroup Group)
 
 void FThreadProvider::EnumerateThreads(TFunctionRef<void(const FThreadInfo &)> Callback) const
 {
-	SessionLock.ReadAccessCheck();
+	Session.ReadAccessCheck();
 
 	for (const FThreadInfoInternal* Thread : SortedThreads)
 	{
@@ -192,6 +178,11 @@ bool FThreadProvider::FThreadInfoInternal::operator<(const FThreadInfoInternal& 
 		return GroupSortOrder < Other.GroupSortOrder;
 	}
 	return IsGameThread;
+}
+
+const IThreadProvider& ReadThreadProvider(const IAnalysisSession& Session)
+{
+	return *Session.ReadProvider<IThreadProvider>(FThreadProvider::ProviderName);
 }
 
 }

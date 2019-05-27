@@ -5,7 +5,7 @@
 #include "Templates/SharedPointer.h"
 #include "Trace/Analyzer.h"
 #include "AnalysisServicePrivate.h"
-#include "Model/LoadTimeProfiler.h"
+#include "Model/LoadTimeProfilerPrivate.h"
 
 namespace Trace
 {
@@ -23,7 +23,7 @@ inline bool operator!=(const Trace::FLoadTimeProfilerCpuEvent& Lhs, const Trace:
 class FAsyncLoadingTraceAnalyzer : public Trace::IAnalyzer
 {
 public:
-	FAsyncLoadingTraceAnalyzer(Trace::FAnalysisSession& Session);
+	FAsyncLoadingTraceAnalyzer(Trace::IAnalysisSession& Session, Trace::FLoadTimeProfilerProvider& LoadTimeProfilerProvider);
 	virtual ~FAsyncLoadingTraceAnalyzer();
 
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
@@ -198,7 +198,7 @@ private:
 		RouteId_ClassInfo,
 	};
 
-	Trace::FAnalysisSession& Session;
+	Trace::IAnalysisSession& Session;
 	Trace::FLoadTimeProfilerProvider& LoadTimeProfilerProvider;
 	//TSharedPtr<Trace::FMonotonicTimeline<uint64>> BlockingRequestsTimeline;
 

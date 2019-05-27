@@ -5,19 +5,18 @@
 #include "Trace/Trace.h"
 #include "Trace/Analyzer.h"
 #include "Containers/UnrealString.h"
-#include "Model/TimingProfiler.h"
+#include "Model/TimingProfilerPrivate.h"
 
 namespace Trace
 {
-	class FThreadProvider;
-	class FAnalysisSession;
+	class IAnalysisSession;
 }
 
 class FCpuProfilerAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FCpuProfilerAnalyzer(Trace::FAnalysisSession& Session);
+	FCpuProfilerAnalyzer(Trace::IAnalysisSession& Session, Trace::FTimingProfilerProvider& TimingProfilerProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 	virtual void OnAnalysisEnd() override {};
@@ -44,8 +43,7 @@ private:
 		RouteId_EventBatch,
 	};
 
-	Trace::FAnalysisSession& Session;
-	Trace::FThreadProvider& ThreadProvider;
+	Trace::IAnalysisSession& Session;
 	Trace::FTimingProfilerProvider& TimingProfilerProvider;
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStatesMap;
 	TMap<uint16, uint32> ScopeIdToEventIdMap;

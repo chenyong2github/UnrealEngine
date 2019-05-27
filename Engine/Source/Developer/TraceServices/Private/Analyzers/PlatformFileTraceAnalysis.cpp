@@ -3,9 +3,9 @@
 #include "AnalysisServicePrivate.h"
 #include "Model/FileActivity.h"
 
-FPlatformFileTraceAnalyzer::FPlatformFileTraceAnalyzer(Trace::FAnalysisSession& InSession)
+FPlatformFileTraceAnalyzer::FPlatformFileTraceAnalyzer(Trace::IAnalysisSession& InSession, Trace::FFileActivityProvider& InFileActivityProvider)
 	: Session(InSession)
-	, FileActivityProvider(Session.EditFileActivityProvider())
+	, FileActivityProvider(InFileActivityProvider)
 {
 
 }

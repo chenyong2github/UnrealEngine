@@ -7,10 +7,9 @@
 namespace Trace
 {
 
-FFileActivityProvider::FFileActivityProvider(FSlabAllocator& InAllocator, FAnalysisSessionLock& InSessionLock)
-	: Allocator(InAllocator)
-	, SessionLock(InSessionLock)
-	, Files(Allocator, 1024)
+FFileActivityProvider::FFileActivityProvider(IAnalysisSession& InSession)
+	: Session(InSession)
+	, Files(InSession.GetLinearAllocator(), 1024)
 {
 }
 
@@ -34,7 +33,7 @@ uint32 FFileActivityProvider::GetFileIndex(const TCHAR* Path)
 	uint32 FileIndex = Files.Num();
 	FFileInfoInternal& FileInfo = Files.PushBack();
 	FileInfo.Path = Path;
-	FileInfo.ActivityTimeline = MakeShared<TimelineInternal>(Allocator);
+	FileInfo.ActivityTimeline = MakeShared<TimelineInternal>(Session.GetLinearAllocator());
 	return FileIndex;
 }
 

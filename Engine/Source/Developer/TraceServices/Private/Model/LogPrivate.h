@@ -38,8 +38,10 @@ public:
 	{
 		ReservedLogCategory_Bookmark = 0
 	};
-	
-	FLogProvider(FSlabAllocator& Allocator, FAnalysisSessionLock& SessionLock, FStringStore& StringStore);
+
+	static const FName ProviderName;
+
+	FLogProvider(IAnalysisSession& Session);
 
 	FLogCategory& GetCategory(uint64 CategoryPointer);
 	FLogMessageSpec& GetMessageSpec(uint64 LogPoint);
@@ -70,9 +72,7 @@ private:
 		FormatBufferSize = 65536
 	};
 
-	FSlabAllocator& Allocator;
-	FAnalysisSessionLock& SessionLock;
-	FStringStore& StringStore;
+	IAnalysisSession& Session;
 	TMap<uint64, FLogCategory*> CategoryMap;
 	TMap<uint64, FLogMessageSpec*> SpecMap;
 	TPagedArray<FLogCategory> Categories;

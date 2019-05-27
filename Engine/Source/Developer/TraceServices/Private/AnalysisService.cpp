@@ -6,14 +6,14 @@
 #include "Trace/Analysis.h"
 #include "Trace/DataStream.h"
 #include "HAL/PlatformFile.h"
-#include "Analyzers/LoadTimeTraceAnalysis.h"
-#include "Analyzers/CpuProfilerTraceAnalysis.h"
 #include "Analyzers/MiscTraceAnalysis.h"
 #include "Analyzers/LogTraceAnalysis.h"
-#include "Analyzers/GpuProfilerTraceAnalysis.h"
-#include "Analyzers/PlatformFileTraceAnalysis.h"
-#include "Analyzers/StatsTraceAnalysis.h"
 #include "Math/RandomStream.h"
+#include "ModuleServicePrivate.h"
+#include "Model/LogPrivate.h"
+#include "Model/FramesPrivate.h"
+#include "Model/BookmarksPrivate.h"
+#include "Model/ThreadsPrivate.h"
 
 namespace Trace
 {
@@ -65,19 +65,39 @@ FAnalysisSession::FAnalysisSession(const TCHAR* SessionName)
 	, DurationSeconds(0.0)
 	, Allocator(32 << 20)
 	, StringStore(Allocator)
-	, BookmarkProvider(Lock, StringStore)
-	, LogProvider(Allocator, Lock, StringStore)
-	, ThreadProvider(Lock, StringStore)
-	, FrameProvider(Allocator, Lock)
-	, TimingProfilerProvider(Allocator, Lock, StringStore)
-	, FileActivityProvider(Allocator, Lock)
-	, LoadTimeProfilerProvider(Allocator, Lock, StringStore)
-	, CounterProvider(Allocator, Lock)
 {
 
 }
 
-FAnalysisService::FAnalysisService()
+FAnalysisSession::~FAnalysisSession()
+{
+	for (auto& KV : Providers)
+	{
+		IProvider* Provider = KV.Value;
+		delete Provider;
+	}
+}
+
+void FAnalysisSession::AddProvider(const FName& InName, IProvider* Provider)
+{
+	Providers.Add(InName, Provider);
+}
+
+const IProvider* FAnalysisSession::ReadProviderPrivate(const FName& InName) const
+{
+	IProvider* const* FindIt = Providers.Find(InName);
+	if (FindIt)
+	{
+		return *FindIt;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+FAnalysisService::FAnalysisService(FModuleService& InModuleService)
+	: ModuleService(InModuleService)
 {
 
 }
@@ -96,16 +116,21 @@ void FAnalysisService::AnalyzeInternal(TSharedRef<FAnalysisSession> AnalysisSess
 
 	TArray<IAnalyzer*> Analyzers;
 	{
-		Trace::FAnalysisSessionEditScope _(AnalysisSession.Get());
-		Analyzers.Add(new FMiscTraceAnalyzer(AnalysisSession.Get()));
-		Analyzers.Add(new FAsyncLoadingTraceAnalyzer(AnalysisSession.Get()));
-		Analyzers.Add(new FCpuProfilerAnalyzer(AnalysisSession.Get()));
-		Analyzers.Add(new FLogTraceAnalyzer(AnalysisSession.Get()));
-		Analyzers.Add(new FGpuProfilerAnalyzer(AnalysisSession.Get()));
-		Analyzers.Add(new FPlatformFileTraceAnalyzer(AnalysisSession.Get()));
-		Analyzers.Add(new FStatsAnalyzer(AnalysisSession.Get()));
+		IAnalysisSession& Session = AnalysisSession.Get();
+		Trace::FAnalysisSessionEditScope _(Session);
+		FBookmarkProvider* BookmarkProvider = new FBookmarkProvider(Session);
+		Session.AddProvider(FBookmarkProvider::ProviderName, BookmarkProvider);
+		FLogProvider* LogProvider = new FLogProvider(Session);
+		Session.AddProvider(FLogProvider::ProviderName, LogProvider);
+		FThreadProvider* ThreadProvider = new FThreadProvider(Session);
+		Session.AddProvider(FThreadProvider::ProviderName, ThreadProvider);
+		FFrameProvider* FrameProvider = new FFrameProvider(Session);
+		Session.AddProvider(FFrameProvider::ProviderName, FrameProvider);
+		Analyzers.Add(new FMiscTraceAnalyzer(Session, *ThreadProvider, *BookmarkProvider, *LogProvider, *FrameProvider));
+		Analyzers.Add(new FLogTraceAnalyzer(Session, *LogProvider));
+		ModuleService.OnAnalysisBegin(Session, Analyzers);
 	}
-
+	
 	FAnalysisContext Context;
 	for (Trace::IAnalyzer* Analyzer : Analyzers)
 	{

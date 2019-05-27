@@ -7,7 +7,7 @@
 
 namespace Trace
 {
-	class FAnalysisSession;
+	class IAnalysisSession;
 	class FLogProvider;
 }
 
@@ -15,7 +15,7 @@ class FLogTraceAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FLogTraceAnalyzer(Trace::FAnalysisSession& Session);
+	FLogTraceAnalyzer(Trace::IAnalysisSession& Session, Trace::FLogProvider& LogProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 	virtual void OnAnalysisEnd() override {};
@@ -28,6 +28,6 @@ private:
 		RouteId_LogMessage,
 	};
 
-	Trace::FAnalysisSession& Session;
+	Trace::IAnalysisSession& Session;
 	Trace::FLogProvider& LogProvider;
 };
