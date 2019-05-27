@@ -474,7 +474,7 @@ public:
 		SetResource(Resource);
 		SetSize(BufferSize);
 
-		if (!IsCPUInaccessible(Resource->GetHeapType()))
+		if (IsCPUWritable(Resource->GetHeapType()))
 		{
 			SetMappedBaseAddress(Resource->Map());
 		}
@@ -916,10 +916,29 @@ public:
 		Barrier.UAV.pResource = nullptr;	// Ignore the resource ptr for now. HW doesn't do anything with it.
 	}
 
-	// Add a transition resource barrier to the batch.
-	void AddTransition(ID3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource)
+	// Add a transition resource barrier to the batch. Returns the number of barriers added, which may be negative if an existing barrier was cancelled.
+	int32 AddTransition(ID3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource)
 	{
 		check(Before != After);
+
+		if (Barriers.Num())
+		{
+			// Check if we are simply reverting the last transition. In that case, we can just remove both transitions.
+			// This happens fairly frequently due to resource pooling since different RHI buffers can point to the same underlying D3D buffer.
+			// Instead of ping-ponging that underlying resource between COPY_DEST and GENERIC_READ, several copies can happen without a ResourceBarrier() in between.
+			// Doing this check also eliminates a D3D debug layer warning about multiple transitions of the same subresource.
+			const D3D12_RESOURCE_BARRIER& Last = Barriers.Last();
+			if (pResource == Last.Transition.pResource &&
+				Subresource == Last.Transition.Subresource &&
+				Before == Last.Transition.StateAfter &&
+				After  == Last.Transition.StateBefore &&
+				Last.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION)
+			{
+				Barriers.RemoveAt(Barriers.Num() - 1);
+				return -1;
+			}
+		}
+
 		Barriers.AddUninitialized();
 		D3D12_RESOURCE_BARRIER& Barrier = Barriers.Last();
 		Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -928,6 +947,7 @@ public:
 		Barrier.Transition.StateAfter = After;
 		Barrier.Transition.Subresource = Subresource;
 		Barrier.Transition.pResource = pResource;
+		return 1;
 	}
 
 	void AddAliasingBarrier(ID3D12Resource* pResource)

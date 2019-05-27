@@ -785,16 +785,17 @@ void FD3D12DynamicRHI::ReadSurfaceDataNoMSAARaw(FTextureRHIParamRef TextureRHI, 
 	OutData.Empty();
 	OutData.AddUninitialized(SizeX * SizeY * BytesPerPixel);
 
+	uint32 BytesPerLine = BytesPerPixel * InRect.Width();
+	const uint32 XBytesAligned = Align((uint32)readBackHeapDesc.Footprint.Width * BytesPerPixel, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	uint32 SrcStart = StagingRect.Min.X * BytesPerPixel + StagingRect.Min.Y * XBytesAligned;
+
 	// Lock the staging resource.
 	void* pData;
-	VERIFYD3D12RESULT(TempTexture2D->GetResource()->Map(0, nullptr, &pData));
-
-	uint32 BytesPerLine = BytesPerPixel * InRect.Width();
-
-	const uint32 XBytesAligned = Align((uint32)readBackHeapDesc.Footprint.Width * BytesPerPixel, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	D3D12_RANGE ReadRange = { SrcStart, SrcStart + XBytesAligned * (SizeY - 1) + BytesPerLine };
+	VERIFYD3D12RESULT(TempTexture2D->GetResource()->Map(0, &ReadRange, &pData));
 
 	uint8* DestPtr = OutData.GetData();
-	uint8* SrcPtr = (uint8*)pData + StagingRect.Min.X * BytesPerPixel + StagingRect.Min.Y * XBytesAligned;
+	uint8* SrcPtr = (uint8*)pData + SrcStart;
 	for (uint32 Y = 0; Y < SizeY; Y++)
 	{
 		memcpy(DestPtr, SrcPtr, BytesPerLine);
@@ -1334,7 +1335,8 @@ void FD3D12DynamicRHI::RHIMapStagingSurface(FTextureRHIParamRef TextureRHI, void
 		GetRHIDevice()->GetCommandListManager().WaitForCompletion(SyncPoint);
 
 	void* pData;
-	HRESULT Result = Texture->GetResource()->Map(0, nullptr, &pData);
+	D3D12_RANGE ReadRange = { 0, Texture->GetDesc().Width };
+	HRESULT Result = Texture->GetResource()->Map(0, &ReadRange, &pData);
 	if (Result == DXGI_ERROR_DEVICE_REMOVED)
 	{
 		// When reading back to the CPU, we have to watch out for DXGI_ERROR_DEVICE_REMOVED
@@ -1479,7 +1481,8 @@ void FD3D12DynamicRHI::RHIReadSurfaceFloatData(FTextureRHIParamRef TextureRHI, F
 
 	// Lock the staging resource.
 	void* pData;
-	VERIFYD3D12RESULT(TempTexture2D->GetResource()->Map(0, nullptr, &pData));
+	D3D12_RANGE Range = { 0, MipBytesAligned };
+	VERIFYD3D12RESULT(TempTexture2D->GetResource()->Map(0, &Range, &pData));
 
 	// Presize the array
 	int32 TotalCount = SizeX * SizeY;
