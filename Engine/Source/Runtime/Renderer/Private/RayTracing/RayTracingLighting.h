@@ -8,6 +8,7 @@
 #include "SceneRendering.h"
 #include "LightSceneInfo.h"
 #include "RayTracingDefinitions.h"
+#include "Containers/DynamicRHIResourceArray.h"
 
 #if RHI_RAYTRACING
 
