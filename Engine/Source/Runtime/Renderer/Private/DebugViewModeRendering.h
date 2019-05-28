@@ -86,9 +86,9 @@ protected:
 
 public:
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return AllowDebugViewVSDSHS(Platform) && Material->GetFriendlyName().Contains(TEXT("DebugViewMode"));
+		return AllowDebugViewVSDSHS(Parameters.Platform) && Parameters.Material->GetFriendlyName().Contains(TEXT("DebugViewMode"));
 	}
 
 	void GetShaderBindings(
@@ -104,10 +104,10 @@ public:
 		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
 	}
 
-	static void SetCommonDefinitions(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	static void SetCommonDefinitions(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		// SM4 has less input interpolants. Also instanced meshes use more interpolants.
-		if (Material->IsDefaultMaterial() || (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && !Material->IsUsedWithInstancedStaticMeshes()))
+		if (Parameters.Material->IsDefaultMaterial() || (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !Parameters.Material->IsUsedWithInstancedStaticMeshes()))
 		{	// Force the default material to pass enough texcoords to the pixel shaders (even though not using them).
 			// This is required to allow material shaders to have access to the sampled coords.
 			OutEnvironment.SetDefine(TEXT("MIN_MATERIAL_TEXCOORDS"), (uint32)4);
@@ -119,10 +119,10 @@ public:
 
 	}
 
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		SetCommonDefinitions(Platform, Material, OutEnvironment);
-		FMeshMaterialShader::ModifyCompilationEnvironment(Platform, OutEnvironment);
+		SetCommonDefinitions(Parameters, OutEnvironment);
+		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 };
 
@@ -134,15 +134,15 @@ class FDebugViewModeHS : public FBaseHS
 	DECLARE_SHADER_TYPE(FDebugViewModeHS,MeshMaterial);
 public:
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return FBaseHS::ShouldCompilePermutation(Platform, Material, VertexFactoryType) && FDebugViewModeVS::ShouldCompilePermutation(Platform,Material,VertexFactoryType);
+		return FBaseHS::ShouldCompilePermutation(Parameters) && FDebugViewModeVS::ShouldCompilePermutation(Parameters);
 	}
 
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FDebugViewModeVS::SetCommonDefinitions(Platform, Material, OutEnvironment);
-		FBaseHS::ModifyCompilationEnvironment(Platform, OutEnvironment);
+		FDebugViewModeVS::SetCommonDefinitions(Parameters, OutEnvironment);
+		FBaseHS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
 
@@ -158,15 +158,15 @@ class FDebugViewModeDS : public FBaseDS
 	DECLARE_SHADER_TYPE(FDebugViewModeDS,MeshMaterial);
 public:
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return FBaseDS::ShouldCompilePermutation(Platform, Material, VertexFactoryType) && FDebugViewModeVS::ShouldCompilePermutation(Platform,Material,VertexFactoryType);		
+		return FBaseDS::ShouldCompilePermutation(Parameters) && FDebugViewModeVS::ShouldCompilePermutation(Parameters);		
 	}
 
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FDebugViewModeVS::SetCommonDefinitions(Platform, Material, OutEnvironment);
-		FBaseDS::ModifyCompilationEnvironment(Platform, OutEnvironment);
+		FDebugViewModeVS::SetCommonDefinitions(Parameters, OutEnvironment);
+		FBaseDS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
 	FDebugViewModeDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer): FBaseDS(Initializer) {}

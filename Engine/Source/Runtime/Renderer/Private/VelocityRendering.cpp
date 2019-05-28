@@ -71,8 +71,11 @@ public:
 			true;
 	}
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
+		const EShaderPlatform Platform = Parameters.Platform;
+		const FMaterial* Material = Parameters.Material;
+
 		//Only compile the velocity shaders for the default material or if it's masked,
 		return ((Material->IsSpecialEngineMaterial() || !Material->WritesEveryPixel() 
 			//or if the material is opaque and two-sided,
@@ -80,7 +83,7 @@ public:
 			// or if the material modifies meshes
 			|| Material->MaterialMayModifyMeshPosition()))
 			&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) 
-			&& !FVelocityRendering::VertexFactoryOnlyOutputsVelocityInBasePass(Platform, VertexFactoryType->SupportsStaticLighting());
+			&& !FVelocityRendering::VertexFactoryOnlyOutputsVelocityInBasePass(Platform, Parameters.VertexFactoryType->SupportsStaticLighting());
 	}
 
 protected:
@@ -132,10 +135,10 @@ protected:
 
 	FVelocityHS() {}
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return FBaseHS::ShouldCompilePermutation(Platform, Material, VertexFactoryType) &&
-				FVelocityVS::ShouldCompilePermutation(Platform, Material, VertexFactoryType); // same rules as VS
+		return FBaseHS::ShouldCompilePermutation(Parameters) &&
+				FVelocityVS::ShouldCompilePermutation(Parameters); // same rules as VS
 	}
 };
 
@@ -152,10 +155,10 @@ protected:
 
 	FVelocityDS() {}
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material, const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return FBaseDS::ShouldCompilePermutation(Platform, Material, VertexFactoryType) &&
-				FVelocityVS::ShouldCompilePermutation(Platform, Material, VertexFactoryType); // same rules as VS
+		return FBaseDS::ShouldCompilePermutation(Parameters) &&
+				FVelocityVS::ShouldCompilePermutation(Parameters); // same rules as VS
 	}
 };
 
@@ -169,8 +172,11 @@ class FVelocityPS : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(FVelocityPS,MeshMaterial);
 public:
-	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
+		const EShaderPlatform Platform = Parameters.Platform;
+		const FMaterial* Material = Parameters.Material;
+
 		//Only compile the velocity shaders for the default material or if it's masked,
 		return ((Material->IsSpecialEngineMaterial() || !Material->WritesEveryPixel() 
 			//or if the material is opaque and two-sided,
@@ -178,12 +184,12 @@ public:
 			// or if the material modifies meshes
 			|| Material->MaterialMayModifyMeshPosition()))
 			&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) && 
-			!FVelocityRendering::VertexFactoryOnlyOutputsVelocityInBasePass(Platform, VertexFactoryType->SupportsStaticLighting());
+			!FVelocityRendering::VertexFactoryOnlyOutputsVelocityInBasePass(Platform, Parameters.VertexFactoryType->SupportsStaticLighting());
 	}
 
-	static void ModifyCompilationEnvironment( EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment )
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 	{
-		FMaterialShader::ModifyCompilationEnvironment(Platform, Material, OutEnvironment);
+		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetRenderTargetOutputFormat(0, PF_G16R16);
 	}
 

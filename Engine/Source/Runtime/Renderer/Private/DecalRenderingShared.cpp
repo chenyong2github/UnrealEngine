@@ -106,15 +106,15 @@ public:
 	  * as 'UsedAsDeferredDecal' in the Material Editor gets compiled into
 	  * the shader cache.
 	  */
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material)
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		return Material->IsDeferredDecal();
+		return Parameters.Material->IsDeferredDecal();
 	}
 
-	static void ModifyCompilationEnvironment( EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment )
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 	{
-		FMaterialShader::ModifyCompilationEnvironment(Platform, Material, OutEnvironment);
-		FDecalRendering::SetDecalCompilationEnvironment(Platform, Material, OutEnvironment);
+		FMaterialShader::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
+		FDecalRendering::SetDecalCompilationEnvironment(Parameters.Platform, Parameters.Material, OutEnvironment);
 	}
 
 	FDeferredDecalPS() {}
@@ -214,16 +214,16 @@ class FDeferredDecalEmissivePS : public FDeferredDecalPS
 {
 	DECLARE_SHADER_TYPE(FDeferredDecalEmissivePS, Material);
 public:
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material)
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		return FDeferredDecalPS::ShouldCompilePermutation(Platform, Material)
-			&& Material->HasEmissiveColorConnected()
-			&& IsDBufferDecalBlendMode(FDecalRenderingCommon::ComputeFinalDecalBlendMode(Platform, Material));
+		return FDeferredDecalPS::ShouldCompilePermutation(Parameters)
+			&& Parameters.Material->HasEmissiveColorConnected()
+			&& IsDBufferDecalBlendMode(FDecalRenderingCommon::ComputeFinalDecalBlendMode(Parameters.Platform, Parameters.Material));
 	}
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FDeferredDecalPS::ModifyCompilationEnvironment(Platform, Material, OutEnvironment);
-		FDecalRendering::SetEmissiveDBufferDecalCompilationEnvironment(Platform, Material, OutEnvironment);
+		FDeferredDecalPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FDecalRendering::SetEmissiveDBufferDecalCompilationEnvironment(Parameters.Platform, Parameters.Material, OutEnvironment);
 	}
 
 	FDeferredDecalEmissivePS() {}

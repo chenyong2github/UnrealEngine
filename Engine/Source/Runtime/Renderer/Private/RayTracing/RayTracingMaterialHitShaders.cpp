@@ -110,20 +110,20 @@ public:
 
 	TMaterialCHS() {}
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material, const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsSupportedVertexFactoryType(VertexFactoryType)
-			&& (Material->IsMasked() == UseAnyHitShader)
-			&& LightMapPolicyType::ShouldCompilePermutation(Platform, Material, VertexFactoryType)
-			&& ShouldCompileRayTracingShadersForProject(Platform);
+		return IsSupportedVertexFactoryType(Parameters.VertexFactoryType)
+			&& (Parameters.Material->IsMasked() == UseAnyHitShader)
+			&& LightMapPolicyType::ShouldCompilePermutation(Parameters)
+			&& ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		OutEnvironment.SetDefine(TEXT("USE_RAYTRACED_TEXTURE_RAYCONE_LOD"), UseRayConeTextureLod ? 1 : 0);
 		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1);
-		LightMapPolicyType::ModifyCompilationEnvironment(Platform, Material, OutEnvironment);
-		FMeshMaterialShader::ModifyCompilationEnvironment(Platform, Material, OutEnvironment);
+		LightMapPolicyType::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
 	static bool ValidateCompiledResult(EShaderPlatform Platform, const TArray<FMaterial*>& Materials, const FVertexFactoryType* VertexFactoryType, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError)

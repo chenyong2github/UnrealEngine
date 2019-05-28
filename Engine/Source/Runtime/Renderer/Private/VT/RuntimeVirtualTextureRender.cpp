@@ -24,15 +24,15 @@ namespace RuntimeVirtualTexture
 	public:
 		typedef FRenderTargetParameters FParameters;
 
-		static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material, const FVertexFactoryType* VertexFactoryType)
+		static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 		{
-			return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) && (Material->GetMaterialDomain() == MD_RuntimeVirtualTexture || Material->HasRuntimeVirtualTextureOutput());
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4) && (Parameters.Material->GetMaterialDomain() == MD_RuntimeVirtualTexture || Parameters.Material->HasRuntimeVirtualTextureOutput());
 		}
 
-		static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+		static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 		{
-			FMeshMaterialShader::ModifyCompilationEnvironment(Platform, Material, OutEnvironment);
-			if (Material->HasRuntimeVirtualTextureOutput())
+			FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+			if (Parameters.Material->HasRuntimeVirtualTextureOutput())
 			{
 				OutEnvironment.SetDefine(TEXT("VIRTUAL_TEXTURE_OUTPUT"), 1);
 			}
@@ -128,9 +128,9 @@ namespace RuntimeVirtualTexture
 			: FShader_VirtualTextureMaterialDraw(Initializer)
 		{}
 
-		static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+		static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 		{
-			FShader_VirtualTextureMaterialDraw::ModifyCompilationEnvironment(Platform, Material, OutEnvironment);
+			FShader_VirtualTextureMaterialDraw::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 			MaterialPolicy::ModifyCompilationEnvironment(OutEnvironment);
 		}
 	};
@@ -149,9 +149,9 @@ namespace RuntimeVirtualTexture
 			: FShader_VirtualTextureMaterialDraw(Initializer)
 		{}
 
-		static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+		static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 		{
-			FShader_VirtualTextureMaterialDraw::ModifyCompilationEnvironment(Platform, Material, OutEnvironment);
+			FShader_VirtualTextureMaterialDraw::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 			MaterialPolicy::ModifyCompilationEnvironment(OutEnvironment);
 		}
 	};

@@ -61,16 +61,20 @@ protected:
 
 public:
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		// Only the local vertex factory supports the position-only stream
 		if (bUsePositionOnlyStream)
 		{
-			return VertexFactoryType->SupportsPositionOnly() && Material->IsSpecialEngineMaterial();
+			return Parameters.VertexFactoryType->SupportsPositionOnly() && Parameters.Material->IsSpecialEngineMaterial();
 		}
 
 		// Only compile for the default material and masked materials
-		return (Material->IsSpecialEngineMaterial() || !Material->WritesEveryPixel() || Material->MaterialMayModifyMeshPosition() || Material->IsTranslucencyWritingCustomDepth());
+		return (
+			Parameters.Material->IsSpecialEngineMaterial() ||
+			!Parameters.Material->WritesEveryPixel() ||
+			Parameters.Material->MaterialMayModifyMeshPosition() ||
+			Parameters.Material->IsTranslucencyWritingCustomDepth());
 	}
 
 	void GetShaderBindings(
@@ -95,10 +99,10 @@ class FDepthOnlyHS : public FBaseHS
 	DECLARE_SHADER_TYPE(FDepthOnlyHS,MeshMaterial);
 public:
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return FBaseHS::ShouldCompilePermutation(Platform, Material, VertexFactoryType)
-			&& TDepthOnlyVS<false>::ShouldCompilePermutation(Platform,Material,VertexFactoryType);
+		return FBaseHS::ShouldCompilePermutation(Parameters)
+			&& TDepthOnlyVS<false>::ShouldCompilePermutation(Parameters);
 	}
 
 	FDepthOnlyHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
@@ -116,10 +120,10 @@ class FDepthOnlyDS : public FBaseDS
 	DECLARE_SHADER_TYPE(FDepthOnlyDS,MeshMaterial);
 public:
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return FBaseDS::ShouldCompilePermutation(Platform, Material, VertexFactoryType)
-			&& TDepthOnlyVS<false>::ShouldCompilePermutation(Platform,Material,VertexFactoryType);		
+		return FBaseDS::ShouldCompilePermutation(Parameters)
+			&& TDepthOnlyVS<false>::ShouldCompilePermutation(Parameters);		
 	}
 
 	FDepthOnlyDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
@@ -137,13 +141,13 @@ class FDepthOnlyPS : public FMeshMaterialShader
 	DECLARE_SHADER_TYPE(FDepthOnlyPS,MeshMaterial);
 public:
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform,const FMaterial* Material,const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return 
 			// Compile for materials that are masked.
-			(!Material->WritesEveryPixel() || Material->HasPixelDepthOffsetConnected() || Material->IsTranslucencyWritingCustomDepth()) 
+			(!Parameters.Material->WritesEveryPixel() || Parameters.Material->HasPixelDepthOffsetConnected() || Parameters.Material->IsTranslucencyWritingCustomDepth()) 
 			// Mobile uses material pixel shader to write custom stencil to color target
-			|| (IsMobilePlatform(Platform) && (Material->IsDefaultMaterial() || Material->MaterialMayModifyMeshPosition()));
+			|| (IsMobilePlatform(Parameters.Platform) && (Parameters.Material->IsDefaultMaterial() || Parameters.Material->MaterialMayModifyMeshPosition()));
 	}
 
 	FDepthOnlyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
