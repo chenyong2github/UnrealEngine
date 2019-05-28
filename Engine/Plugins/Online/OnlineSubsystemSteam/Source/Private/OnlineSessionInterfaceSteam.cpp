@@ -1228,35 +1228,27 @@ static bool GetConnectStringFromSessionInfo(TSharedPtr<FOnlineSessionInfoSteam>&
 
 	if (SessionInfo.IsValid())
 	{
-		if (SessionInfo->SessionType == ESteamSession::LobbySession ||
-			SessionInfo->SessionType == ESteamSession::AdvertisedSessionHost ||
-			SessionInfo->SessionType == ESteamSession::AdvertisedSessionClient)
+		if (SessionInfo->SteamP2PAddr.IsValid() && SessionInfo->SteamP2PAddr->IsValid())
 		{
-			if (SessionInfo->SteamP2PAddr.IsValid() && SessionInfo->SteamP2PAddr->IsValid())
+			int32 SteamPort = SessionInfo->SteamP2PAddr->GetPort();
+			if (PortOverride > 0)
 			{
-				int32 SteamPort = SessionInfo->SteamP2PAddr->GetPort();
-				if (PortOverride > 0)
-				{
-					SteamPort = PortOverride;
-				}
-
-				ConnectInfo = FString::Printf(STEAM_URL_PREFIX TEXT("%s:%d"), *SessionInfo->SteamP2PAddr->ToString(false), SteamPort);
-				bSuccess = true;
+				SteamPort = PortOverride;
 			}
+
+			ConnectInfo = FString::Printf(STEAM_URL_PREFIX TEXT("%s:%d"), *SessionInfo->SteamP2PAddr->ToString(false), SteamPort);
+			bSuccess = true;
 		}
-		else
+		else if (SessionInfo->HostAddr.IsValid() && SessionInfo->HostAddr->IsValid())
 		{
-			if (SessionInfo->HostAddr.IsValid() && SessionInfo->HostAddr->IsValid())
+			int32 HostPort = SessionInfo->HostAddr->GetPort();
+			if (PortOverride > 0)
 			{
-				int32 HostPort = SessionInfo->HostAddr->GetPort();
-				if (PortOverride > 0)
-				{
-					HostPort = PortOverride;
-				}
-
-				ConnectInfo = FString::Printf(TEXT("%s:%d"), *SessionInfo->HostAddr->ToString(false), HostPort);
-				bSuccess = true;
+				HostPort = PortOverride;
 			}
+
+			ConnectInfo = FString::Printf(TEXT("%s:%d"), *SessionInfo->HostAddr->ToString(false), HostPort);
+			bSuccess = true;
 		}
 	}
 
