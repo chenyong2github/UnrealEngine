@@ -14,7 +14,7 @@ class CodeCave;
 class LiveProcess
 {
 public:
-	LiveProcess(process::Handle processHandle, unsigned int processId, unsigned int commandThreadId, const DuplexPipe* pipe);
+	LiveProcess(process::Handle processHandle, unsigned int processId, unsigned int commandThreadId, const void* jumpToSelf, const DuplexPipe* pipe);
 
 
 	void ReadHeartBeatDelta(const wchar_t* const processGroupName);
@@ -47,6 +47,11 @@ public:
 		return m_commandThreadId;
 	}
 
+	inline const void* GetJumpToSelf(void) const
+	{
+		return m_jumpToSelf;
+	}
+
 	inline const DuplexPipe* GetPipe(void) const
 	{
 		return m_pipe;
@@ -75,6 +80,7 @@ private:
 	process::Handle m_processHandle;
 	unsigned int m_processId;
 	unsigned int m_commandThreadId;
+	const void* m_jumpToSelf;
 	const DuplexPipe* m_pipe;
 
 	// BEGIN EPIC MOD - Add build arguments

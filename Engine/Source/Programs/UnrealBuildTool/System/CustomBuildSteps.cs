@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -23,10 +23,10 @@ namespace UnrealBuildTool
 		{
 			foreach(string HostPlatformName in RawObject.KeyNames)
 			{
-				UnrealTargetPlatform HostPlatform;
-				if(Enum.TryParse(HostPlatformName, true, out HostPlatform))
+				UnrealTargetPlatform Platform;
+				if (UnrealTargetPlatform.TryParse(HostPlatformName, out Platform))
 				{
-					HostPlatformToCommands.Add(HostPlatform, RawObject.GetStringArrayField(HostPlatformName));
+					HostPlatformToCommands.Add(Platform, RawObject.GetStringArrayField(HostPlatformName));
 				}
 			}
 		}

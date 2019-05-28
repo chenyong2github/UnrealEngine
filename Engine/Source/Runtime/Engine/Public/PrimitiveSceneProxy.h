@@ -734,7 +734,7 @@ public:
 	 * Get the custom primitive data for this scene proxy.
 	 * @return The payload of custom data that will be set on the primitive and accessible in the material through a material expression.
 	 */
-	ENGINE_API virtual const FCustomPrimitiveData* GetCustomPrimitiveData() const { return nullptr; }
+	ENGINE_API const FCustomPrimitiveData* GetCustomPrimitiveData() const { return &CustomPrimitiveData; }
 
 protected:
 
@@ -756,6 +756,9 @@ private:
 #endif
 
 	friend class FScene;
+
+	/** Custom primitive data */
+	FCustomPrimitiveData CustomPrimitiveData;
 
 	/** The translucency sort priority */
 	int16 TranslucencySortPriority;

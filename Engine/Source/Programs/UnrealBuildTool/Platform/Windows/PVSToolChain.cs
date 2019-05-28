@@ -135,9 +135,11 @@ namespace UnrealBuildTool
 		FileReference AnalyzerFile;
 		FileReference LicenseFile;
 		PVSApplicationSettings ApplicationSettings;
+		UnrealTargetPlatform Platform;
 
-		public PVSToolChain(CppPlatform Platform, ReadOnlyTargetRules Target) : base(Platform)
+		public PVSToolChain(ReadOnlyTargetRules Target)
 		{
+			Platform = Target.Platform;
 			EnvVars = Target.WindowsPlatform.Environment;
 
 			AnalyzerFile = FileReference.Combine(new DirectoryReference(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)), "PVS-Studio", "x64", "PVS-Studio.exe");
@@ -278,11 +280,11 @@ namespace UnrealBuildTool
 						}
 					}
 				}
-				if (CppPlatform == CppPlatform.Win64)
+				if (Platform == UnrealTargetPlatform.Win64)
 				{
 					ConfigFileContents.Append("platform=x64\n");
 				}
-				else if(CppPlatform == CppPlatform.Win32)
+				else if(Platform == UnrealTargetPlatform.Win32)
 				{
 					ConfigFileContents.Append("platform=Win32\n");
 				}

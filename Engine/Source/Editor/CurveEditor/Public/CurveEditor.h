@@ -13,19 +13,34 @@
 #include "CurveEditorTypes.h"
 #include "CurveDataAbstraction.h"
 #include "CurveModel.h"
+#include "Tree/CurveEditorTree.h"
 #include "ICurveEditorBounds.h"
 #include "CurveEditorSelection.h"
 #include "ICurveEditorDragOperation.h"
+#include "ICurveEditorModule.h"
+#include "ICurveEditorToolExtension.h"
+#include "EditorUndoClient.h"
+#include "CurveEditorScreenSpace.h"
+#include "ITimeSlider.h"
 
 class UCurveEditorSettings;
 class FUICommandList;
+class FCurveEditor;
+class SCurveEditorPanel;
+
 struct FGeometry;
 struct FCurveEditorSnapMetrics;
-struct FCurveEditorScreenSpace;
+class ICurveEditorExtension;
+class ICurveEditorToolExtension;
 
 DECLARE_DELEGATE_OneParam(FOnSetBoolean, bool)
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnCurveArrayChanged, FCurveModelID)
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnActiveToolChanged, FCurveEditorToolID)
 
-class CURVEEDITOR_API FCurveEditor : public TSharedFromThis<FCurveEditor>
+
+class CURVEEDITOR_API FCurveEditor 
+	: public FEditorUndoClient
+	, public TSharedFromThis<FCurveEditor>
 {
 public:
 
@@ -35,6 +50,16 @@ public:
 	FCurveEditorSelection Selection;
 
 	
+protected:
+	struct FBufferedCurve
+	{
+		/** Cached Positions from original curve. */
+		TArray<FKeyPosition>	KeyPositions;
+		/** Cached Attributes from original curve. */
+		TArray<FKeyAttributes>	KeyAttributes;
+		/** The original intention of the type of curve. Can be empty. Used to try and match when pasting multiple curves. */
+		FString					IntentionName;
+	};
 
 public:
 
@@ -59,6 +84,12 @@ public:
 	/** Attribute used for determining default attributes to apply to a newly create key */
 	TAttribute<FKeyAttributes> DefaultKeyAttributes;
 
+	/** Grid line label text format strings for the X and Y axis */
+	TAttribute<FText> GridLineLabelFormatXAttribute, GridLineLabelFormatYAttribute;
+
+
+	/** Delegate that is invoked when a tool becomes active. Also fired when the tool goes inactive. */
+	FOnActiveToolChanged OnActiveToolChangedDelegate;
 public:
 
 	/**
@@ -74,19 +105,85 @@ public:
 
 	virtual ~FCurveEditor() {}
 
-public:
-
-	/**
-	 * Generate a utility struct for converting between screen (slate unit) space and the underlying input/output axes
-	 */
-	FCurveEditorScreenSpace GetScreenSpace() const;
-
-	/**
-	 * Generate a utility struct for snapping values
-	 */
-	FCurveEditorSnapMetrics GetSnapMetrics() const;
+	void InitCurveEditor(const FCurveEditorInitParams& InInitParams);
 
 public:
+
+	void SetPanel(TSharedPtr<SCurveEditorPanel> InPanel);
+
+	TSharedPtr<SCurveEditorPanel> GetPanel() const;
+
+	FCurveEditorScreenSpaceH GetPanelInputSpace() const;
+
+public:
+	/**
+	 * Zoom the curve editor to fit all the currently visible curves
+	 *
+	 * @param Axes         (Optional) Axes to lock the zoom to
+	 */
+	void ZoomToFit(EAxisList::Type Axes = EAxisList::All);
+	/**
+	 * Zoom the curve editor to fit the requested curves.
+	 *
+	 * @param CurveModelIDs The curve IDs to zoom to fit.
+	 * @param Axes         (Optional) Axes to lock the zoom to
+	 */
+	void ZoomToFitCurves(TArrayView<const FCurveModelID> CurveModelIDs, EAxisList::Type Axes = EAxisList::All);
+	/**
+	 * Zoom the curve editor to fit all the current key selection. Zooms to fit all if less than 2 keys are selected.
+	 *
+	 * @param Axes         (Optional) Axes to lock the zoom to
+	 */
+	void ZoomToFitSelection(EAxisList::Type Axes = EAxisList::All);
+	/**
+	* Assign a new bounds container to this curve editor
+	*/
+	void SetBounds(TUniquePtr<ICurveEditorBounds>&& InBounds);
+	/**
+	 * Retrieve the current curve editor bounds implementation
+	 */
+	const ICurveEditorBounds& GetBounds() const { return *Bounds.Get(); }
+	/**
+	 * Retrieve the current curve editor bounds implementation
+	 */
+	ICurveEditorBounds& GetBounds() { return *Bounds.Get();	}
+	/*
+	 * Sets a Time Slider controller for this Curve Editor to be sync'd against. Can be null.
+	 */
+	void SetTimeSliderController(TSharedPtr<ITimeSliderController> InTimeSliderController) { WeakTimeSliderController = InTimeSliderController; }
+	/**
+	 * Retrieve the optional Time Slider Controller that this Curve Editor may be sync'd with.
+	 */
+	TSharedPtr<ITimeSliderController> GetTimeSliderController() const { return WeakTimeSliderController.Pin(); }
+	/**
+	* Retrieve this curve editor's command list
+	*/
+	TSharedPtr<FUICommandList> GetCommands() const { return CommandList; }
+	/**
+	* Returns true of the specified tool is currently active.
+	*/
+	bool IsToolActive(const FCurveEditorToolID InToolID) const;
+	/**
+	* Attempts to make the specified tool the active tool. This will cancel the current tool if there is one.
+	*/
+	void MakeToolActive(const FCurveEditorToolID InToolID);
+	/**
+	* Attempts to get the currently active tool. Will return nullptr if there is no active tool.
+	* Do not store a reference to this returned pointer, instead only store FCurveEditorToolIDs!
+	*/
+	ICurveEditorToolExtension* GetCurrentTool() const;
+
+	FCurveEditorToolID AddTool(TUniquePtr<ICurveEditorToolExtension>&& InTool);
+
+	/** Step to next or previous key from the current time */
+	void StepToNextKey();
+	void StepToPreviousKey();
+
+	/** Step forward/backward, jump to start/end */
+	void StepForward();
+	void StepBackward();
+	void JumpToStart();
+	void JumpToEnd();
 
 	/**
 	 * Find a curve by its ID
@@ -94,53 +191,134 @@ public:
 	 * @return a ptr to the curve if found, nullptr otherwise
 	 */
 	FCurveModel* FindCurve(FCurveModelID CurveID) const;
-
 	/**
-	 * Access all the curves currently being shown on this editor
-	 */
-	const TMap<FCurveModelID, TUniquePtr<FCurveModel>>& GetCurves() const;
-
-	/**
-	 * Add a new curve to this editor
-	 */
+	* Add a new curve to this editor
+	*/
 	FCurveModelID AddCurve(TUniquePtr<FCurveModel>&& InCurve);
+	FCurveModelID AddCurveForTreeItem(TUniquePtr<FCurveModel>&& InCurve, FCurveEditorTreeItemID TreeItemID);
 
 	/**
-	 * Remove a curve from this editor
-	 */
+	* Remove a curve from this editor.
+	*/
 	void RemoveCurve(FCurveModelID InCurveID);
 
-	/**
-	 * Retrieve this curve editor's command list
-	 */
-	FORCEINLINE TSharedPtr<FUICommandList> GetCommands() const { return CommandList; }
+	bool IsCurvePinned(FCurveModelID InCurveID) const;
+
+	void PinCurve(FCurveModelID InCurveID);
+
+	void UnpinCurve(FCurveModelID InCurveID);
+
+	const TSet<FCurveModelID>& GetPinnedCurves() const
+	{
+		return PinnedCurves;
+	}
+
+	const SCurveEditorView* FindFirstInteractiveView(FCurveModelID InCurveID) const;
 
 	/**
 	 * Retrieve this curve editor's settings
 	 */
-	FORCEINLINE UCurveEditorSettings* GetSettings() const { return Settings; }
+	UCurveEditorSettings* GetSettings() const { return Settings; }
+	/**
+	* Access all the curves currently contained in the Curve Editor regardless of visibility.
+	*/
+	const TMap<FCurveModelID, TUniquePtr<FCurveModel>>& GetCurves() const;
+
+	FCurveEditorSelection& GetSelection() { return Selection; }
+	/**
+	 * Generate a utility struct for snapping values
+	 */
+	FCurveEditorSnapMetrics GetSnapMetrics() const;
+	/**
+	 * Returned the cached struct for snapping editing movement to a specific axis based on user preferences.
+	 */
+	FCurveEditorAxisSnap GetAxisSnap() const { return AxisSnapMetrics; }
+	void SetAxisSnap(const FCurveEditorAxisSnap& InAxisSnap) { AxisSnapMetrics = InAxisSnap; }
+	TAttribute<FText> GetGridLineLabelFormatXAttribute() const { return GridLineLabelFormatXAttribute; }
+	TAttribute<FText> GetGridLineLabelFormatYAttribute() const { return GridLineLabelFormatYAttribute; }
+	TAttribute<FKeyAttributes> GetDefaultKeyAttributes() const { return DefaultKeyAttributes; }
+
+	void SuppressBoundTransformUpdates(bool bSuppress) { bBoundTransformUpdatesSuppressed = bSuppress; }
+	bool AreBoundTransformUpdatesSuppressed() const { return bBoundTransformUpdatesSuppressed; }
+
+	TSet<FCurveModelID> GetEditedCurves() const;
+	/** Attribute used for determining default attributes to apply to a newly create key */
+	TAttribute<FKeyAttributes> GetDefaultKeyAttribute() const { return DefaultKeyAttributes; }
+	/** Create a copy of the specified set of curves. */
+	void SetBufferedCurves(const TSet<FCurveModelID>& InCurves);
+	/** Attempts to apply the buffered curve to the passed in curve set. Returns true on success. */
+	bool ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToApplyTo);
+	/** Return the number of stored Buffered Curves. */
+	int32 GetNumBufferedCurves() const { return BufferedCurves.Num(); }
+	// ~FCurveEditor
+
+	// FEditorUndoClient
+	virtual void PostUndo(bool bSuccess);
+	// ~FEditorUndoClient
+
+	const TArray<TSharedRef<ICurveEditorExtension>> GetEditorExtensions() const
+	{
+		return EditorExtensions;
+	}
+
+	const TMap<FCurveEditorToolID, TUniquePtr<ICurveEditorToolExtension>>& GetToolExtensions() const
+	{
+		return ToolExtensions;
+	}
 
 public:
 
 	/**
-	 * Assign a new bounds container to this curve editor
+	 * Retrieve a tree item from its ID
 	 */
-	void SetBounds(TUniquePtr<ICurveEditorBounds>&& InBounds);
+	FCurveEditorTreeItem& GetTreeItem(FCurveEditorTreeItemID ItemID);
 
 	/**
-	 * Retrieve the current curve editor bounds implementation
+	 * Retrieve a tree item from its ID
 	 */
-	const ICurveEditorBounds& GetBounds() const
-	{
-		return *Bounds.Get();
-	}
+	const FCurveEditorTreeItem& GetTreeItem(FCurveEditorTreeItemID ItemID) const;
 
 	/**
-	 * Retrieve the current curve editor bounds implementation
+	 * Get const access to the entire set of root tree items
 	 */
-	ICurveEditorBounds& GetBounds()
+	const TArray<FCurveEditorTreeItemID>& GetRootTreeItems() const;
+
+	/**
+	 * Add a new tree item to this curve editor
+	 */
+	FCurveEditorTreeItem* AddTreeItem(FCurveEditorTreeItemID ParentID);
+
+	/**
+	 * Remove a tree item from the curve editor
+	 */
+	void RemoveTreeItem(FCurveEditorTreeItemID ItemID);
+
+	/**
+	 * Retrieve an event that is broadcast any time the tree changes
+	 */
+	FSimpleMulticastDelegate& OnTreeChanged();
+
+	/**
+	 * Set the current tree selection
+	 */
+	void SetDirectTreeSelection(TArray<FCurveEditorTreeItemID>&& TreeItems);
+
+	/**
+	 * Check whether this tree item is selected
+	 */
+	ECurveEditorTreeSelectionState GetTreeSelectionState(FCurveEditorTreeItemID TreeItemID) const;
+
+	/**
+	 * Retrieve the current tree selection
+	 */
+	const TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& GetTreeSelection() const;
+
+	/**
+	 * Retrieve a serial number that is incremented any time a curve is added or removed
+	 */
+	uint32 GetActiveCurvesSerialNumber() const
 	{
-		return *Bounds.Get();
+		return ActiveCurvesSerialNumber;
 	}
 
 public:
@@ -149,45 +327,6 @@ public:
 	 * Check whether this curve editor can automatically zoom to the current selection
 	 */
 	bool ShouldAutoFrame() const;
-
-	/**
-	 * Zoom the curve editor in or out around the center point
-	 *
-	 * @param Amount       The amount to zoom by as a factor of the current size
-	 */
-	void Zoom(float Amount);
-
-	/**
-	 * Zoom the curve editor in or out around the specified point
-	 *
-	 * @param Amount       The amount to zoom by as a factor of the current size
-	 * @param TimeOrigin   The time origin to zoom around
-	 * @param ValueOrigin  The value origin to zoom around
-	 */
-	void ZoomAround(float Amount, double TimeOrigin, double ValueOrigin);
-
-	/**
-	 * Zoom the curve editor to fit all the currently visible curves
-	 *
-	 * @param Axes         (Optional) Axes to lock the zoom to
-	 */
-	void ZoomToFit(EAxisList::Type Axes = EAxisList::All);
-
-	/**
-	 * Zoom the curve editor to fit the requested curves.
-	 *
-	 * @param CurveModelIDs The curve IDs to zoom to fit.
-	 * @param Axes         (Optional) Axes to lock the zoom to
-	 */
-	void ZoomToFitCurves(TArrayView<const FCurveModelID> CurveModelIDs, EAxisList::Type Axes = EAxisList::All);
-
-	/**
-	 * Zoom the curve editor to fit all the current key selection. Zooms to fit all if less than 2 keys are selected.
-	 *
-	 * @param Axes         (Optional) Axes to lock the zoom to
-	 */
-	void ZoomToFitSelection(EAxisList::Type Axes = EAxisList::All);
-
 public:
 
 	/**
@@ -220,25 +359,11 @@ public:
 	void StraightenSelection();
 
 	/**
-	 * Bake curves between selected keys by adding points at every frame of the display rate
-	 */
-	void BakeSelection();
-
-	/**
-	 * Simplify curves between the selected keys by removing redundant keys
-	 * @param Tolerance   Threshold at which to remove keys
-	 */
-	void SimplifySelection(float Tolerance= 0.1);
+	* Do we currently have keys to flatten or straighten?
+	*/
+	bool CanFlattenOrStraightenSelection() const;
 
 public:
-
-	/**
-	 * Populate the specified array with curve painting parameters
-	 *
-	 * @param OutDrawParams    An array to populate with curve painting parameters, one per visible curve
-	 */
-	void GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParams) const;
-
 	/**
 	 * Called by SCurveEditorPanel to update the allocated geometry for this curve editor.
 	 */
@@ -247,7 +372,10 @@ public:
 public:
 
 	/**
-	 * Called by SCurveEditorPanel to determine where to draw grid lines along the X-axis
+	 * Called by SCurveEditorPanel to determine where to draw grid lines along the X-axis. This allows
+	 * synchronization with an external data source (such as Sequencer's Timeline ticker). A similar
+	 * function for the Y grid lines is not provided due to the Curve Editor's ability to have multiple
+	 * views with repeated gridlines and values.
 	 */
 	virtual void GetGridLinesX(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const
 	{
@@ -255,34 +383,9 @@ public:
 	}
 
 	/**
-	 * Called by SCurveEditorPanel to determine where to draw grid lines along the Y-axis
-	 */
-	virtual void GetGridLinesY(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const
-	{
-		ConstructYGridLines(MajorGridLines, MinorGridLines, MajorGridLabels, 4);
-	}
-
-	/**
 	 * Bind UI commands that this curve editor responds to
 	 */
 	void BindCommands();
-
-public:
-	/**
-	* Get A Vector for the given slope, usually a tangent, and length. Used to draw the tangent.
-	*/
-	static FVector2D GetVectorFromSlopeAndLength(float Slope, float Length);
-
-public:
-	/**
-	* Given the position of a tangent in screen space get it's position in normal time/value space.
-	*/
-	FVector2D GetTangentPositionInScreenSpace(const FVector2D &StartPos, float Tangent, float Weight) const;
-
-	/**
-	* Given point and tangent position in screen space, get the tangent and it's weight value in normal time/value space.
-	*/
-	void GetTangentAndWeightFromScreenPosition(const FVector2D &StartPos, const  FVector2D &TangentPos, float &Tangent, float &Weight) const;
 
 protected:
 
@@ -292,22 +395,39 @@ protected:
 	void ConstructXGridLines(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const;
 
 	/**
-	 * Construct grid lines for the current visible value range
+	 * Internal zoom to fit implementation
+	 *
+	 * @param Axes        The axes to zoom (only X or Y supported)
+	 * @param CurveKeySet Map from curve ID to keys that should be considered for zoom. Empty key sets will cause the entire curve range to be zoomed.
 	 */
-	void ConstructYGridLines(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels, uint8 MinorDivisions) const;
+	void ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveModelID, FKeyHandleSet>& CurveKeySet);
 
 	/**
-	 * Internal zoom to fit implementation
-	 */
-	void ZoomToFitInternal(EAxisList::Type Axes, double InputMin, double InputMax, double OutputMin, double OutputMax);
+	*	Apply a specific buffered curve to a specific target curve.
+	*/
+	void ApplyBufferedCurveToTarget(const FBufferedCurve& BufferedCurve, FCurveModel* TargetCurve);
+
 
 protected:
 
 	/** Curve editor bounds implementation */
 	TUniquePtr<ICurveEditorBounds> Bounds;
 
-	/** Map of all the currently visible curve models */
+	/** Map from curve model ID to the actual curve model */
 	TMap<FCurveModelID, TUniquePtr<FCurveModel>> CurveData;
+	/** Map from curve model ID to its originating tree item */
+	TMap<FCurveModelID, FCurveEditorTreeItemID> TreeIDByCurveID;
+
+	/** Set of pinned curve models */
+	TSet<FCurveModelID> PinnedCurves;
+
+	TWeakPtr<SCurveEditorPanel> WeakPanel;
+
+	/** Hierarchical information pertaining to curve data */
+	FCurveEditorTree Tree;
+
+	/** The currently active tool if any. If unset then no tool is currently active and the next selection will default to the first tool. */
+	TOptional<FCurveEditorToolID> ActiveTool;
 
 	/** UI command list of actions mapped to this curve editor */
 	TSharedPtr<FUICommandList> CommandList;
@@ -315,8 +435,35 @@ protected:
 	/** Curve editor settings object */
 	UCurveEditorSettings* Settings;
 
+	/** List of editor extensions we have initialized. */
+	TArray<TSharedRef<ICurveEditorExtension>> EditorExtensions;
+
+	/** List of tool extensions we have initialized. */
+	TMap<FCurveEditorToolID, TUniquePtr<ICurveEditorToolExtension>> ToolExtensions;
+
+	/** Optional external Time Slider controller to sync with. Enables some additional functionality. */
+	TWeakPtr<ITimeSliderController> WeakTimeSliderController;
+
+	/** 
+	* Should attempts to update the bounds of each curve be ignored? This allows tools to keep the bounds from being automatically updated each frame 
+	* which allows Normalized views to push past their boundaries without the normalization ratio changing per-frame as you drag.
+	*/
+	bool bBoundTransformUpdatesSuppressed;
+	
+	/** Track which axis UI movements should be snapped to (where applicable) based on limitations imposed by the UI. */
+	FCurveEditorAxisSnap AxisSnapMetrics;
+
+
+
+	/** Buffered Curves. When a curve is buffered it is copied and the new copy is uniquely owned by the Curve Editor. */
+	TArray<FBufferedCurve> BufferedCurves;
+
+	/** A serial number that is incremented any time the currently active set of curves are changed */
+	uint32 ActiveCurvesSerialNumber;
+
 private:
 
 	/** Cached physical size of the panel representing this editor */
 	FVector2D CachedPhysicalSize;
+
 };

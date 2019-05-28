@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -23,9 +23,18 @@ namespace UnrealBuildTool
 		/// Initialize the attribute with a list of platforms
 		/// </summary>
 		/// <param name="Platforms">Variable-length array of platform arguments</param>
-		public SupportedPlatformsAttribute(params UnrealTargetPlatform[] Platforms)
+		public SupportedPlatformsAttribute(params string[] Platforms)
 		{
-			this.Platforms = Platforms;
+			try
+			{
+				this.Platforms = Array.ConvertAll(Platforms, x => UnrealTargetPlatform.Parse(x));
+			}
+			catch (BuildException Ex)
+			{
+				Tools.DotNETCommon.ExceptionUtils.AddContext(Ex, "while parsing a SupportedPlatforms attribute");
+				throw;
+			}
+
 		}
 
 		/// <summary>

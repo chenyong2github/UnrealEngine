@@ -437,8 +437,8 @@ RENDERCORE_API bool AllowPixelDepthOffset(EShaderPlatform Platform);
 /** Returns if ForwardShading is enabled. Only valid for the current platform (otherwise call ITargetPlatform::UsesForwardShading()). */
 inline bool IsForwardShadingEnabled(EShaderPlatform Platform)
 {
-	extern RENDERCORE_API uint32 GForwardShadingPlatformMask;
-	return !!(GForwardShadingPlatformMask & (1u << Platform))
+	extern RENDERCORE_API uint64 GForwardShadingPlatformMask;
+	return !!(GForwardShadingPlatformMask & (1ull << Platform))
 		// Culling uses compute shader
 		&& GetMaxSupportedFeatureLevel(Platform) >= ERHIFeatureLevel::SM5;
 }
@@ -458,29 +458,29 @@ inline bool IsUsingGBuffers(EShaderPlatform Platform)
 /** Returns whether DBuffer decals are enabled for a given shader platform */
 inline bool IsUsingDBuffers(EShaderPlatform Platform)
 {
-	extern RENDERCORE_API uint32 GDBufferPlatformMask;
-	return !!(GDBufferPlatformMask & (1u << Platform));
+	extern RENDERCORE_API uint64 GDBufferPlatformMask;
+	return !!(GDBufferPlatformMask & (1ull << Platform));
 }
 
 /** Returns whether the base pass should output to the velocity buffer is enabled for a given shader platform */
 inline bool IsUsingBasePassVelocity(EShaderPlatform Platform)
 {
-	extern RENDERCORE_API uint32 GBasePassVelocityPlatformMask;
-	return !!(GBasePassVelocityPlatformMask & (1u << Platform));
+	extern RENDERCORE_API uint64 GBasePassVelocityPlatformMask;
+	return !!(GBasePassVelocityPlatformMask & (1ull << Platform));
 }
 
 /** Returns whether the base pass should use selective outputs for a given shader platform */
 inline bool IsUsingSelectiveBasePassOutputs(EShaderPlatform Platform)
 {
-	extern RENDERCORE_API uint32 GSelectiveBasePassOutputsPlatformMask;
-	return !!(GSelectiveBasePassOutputsPlatformMask & (1u << Platform));
+	extern RENDERCORE_API uint64 GSelectiveBasePassOutputsPlatformMask;
+	return !!(GSelectiveBasePassOutputsPlatformMask & (1ull << Platform));
 }
 
 /** Returns whether distance fields are enabled for a given shader platform */
 inline bool IsUsingDistanceFields(EShaderPlatform Platform)
 {
-	extern RENDERCORE_API uint32 GDistanceFieldsPlatformMask;
-	return !!(GDistanceFieldsPlatformMask & (1u << Platform));
+	extern RENDERCORE_API uint64 GDistanceFieldsPlatformMask;
+	return !!(GDistanceFieldsPlatformMask & (1ull << Platform));
 }
 
 inline bool IsUsingPerPixelDBufferMask(EShaderPlatform Platform)

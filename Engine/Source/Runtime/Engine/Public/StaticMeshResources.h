@@ -794,7 +794,6 @@ public:
 	virtual void GetMeshDescription(int32 LODIndex, TArray<FMeshBatch>& OutMeshElements) const override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
-	virtual const FCustomPrimitiveData* GetCustomPrimitiveData() const override { return &CustomPrimitiveData; }
 
 #if RHI_RAYTRACING
 	virtual bool IsRayTracingRelevant() const override { return true; }
@@ -816,9 +815,6 @@ public:
 #if STATICMESH_ENABLE_DEBUG_RENDERING
 	virtual int32 GetLightMapResolution() const override { return LightMapResolution; }
 #endif
-
-	/** The custom data for this Scene Proxy */
-	FCustomPrimitiveData CustomPrimitiveData;
 
 protected:
 	/** Information used by the proxy about a single LOD of the mesh. */

@@ -4595,8 +4595,18 @@ bool ALandscapeProxy::RemoveObsoleteLayers(const TSet<FGuid>& InExistingLayers)
 	{
 		if (!InExistingLayers.Contains(LayerGuid))
 		{
+			UE_LOG(LogLandscape, Warning, TEXT("Layer '%s' was removed from LandscapeProxy '%s' because it doesn't match any of the LandscapeActor Layers. Possible loss of data."), 
+				*LayerGuid.ToString(EGuidFormats::HexValuesInBraces), *GetPathName());
 			DeleteLayer(LayerGuid);
 			bModified = true;
+		}
+	}
+
+	if (bModified)
+	{
+		if (ALandscape* LandscapeActor = GetLandscapeActor())
+		{
+			LandscapeActor->RequestLayersContentUpdateForceAll();
 		}
 	}
 

@@ -1163,6 +1163,10 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 #endif // PLATFORM_WINDOWS
 
 #if BUILD_EMBEDDED_APP
+#ifdef EMBEDDED_LINKER_GAME_HELPER_FUNCTION
+	extern void EMBEDDED_LINKER_GAME_HELPER_FUNCTION();
+	EMBEDDED_LINKER_GAME_HELPER_FUNCTION();
+#endif
 	FEmbeddedCommunication::Init();
 	FEmbeddedCommunication::KeepAwake(TEXT("Startup"), false);
 #endif

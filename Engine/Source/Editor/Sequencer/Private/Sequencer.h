@@ -141,7 +141,7 @@ public:
 	/**
 	 * Compute a major grid interval and number of minor divisions to display
 	 */
-	bool GetGridMetrics(float PhysicalWidth, double& OutMajorInterval, int32& OutMinorDivisions) const;
+	bool GetGridMetrics(const float PhysicalWidth, const double InViewStart, const double InViewEnd, double& OutMajorInterval, int32& OutMinorDivisions) const;
 
 public:
 
@@ -451,7 +451,8 @@ public:
 
 	/** @return Whether to show the curve editor or not */
 	void SetShowCurveEditor(bool bInShowCurveEditor);
-	bool GetShowCurveEditor() const { return bShowCurveEditor; }
+	/** @return If the curve editor is currently visible. */
+	bool GetCurveEditorIsVisible() const;
 
 	/** Called to save the current movie scene */
 	void SaveCurrentMovieScene();
@@ -527,8 +528,6 @@ public:
 	bool IsTrackVisible(const UMovieSceneTrack* InTrack);
 
 	void OnSelectedNodesOnlyChanged();
-
-	void SyncCurveEditorToSelection(bool bOutlinerSelectionChanged);
 
 	TSharedPtr<FCurveEditor> GetCurveEditor() const
 	{
@@ -1108,8 +1107,6 @@ private:
 
 	/** True if this sequencer is being edited within the level editor */
 	bool bIsEditingWithinLevelEditor;
-
-	bool bShowCurveEditor;
 
 	/** Whether the sequence should be editable or read only */
 	bool bReadOnly;

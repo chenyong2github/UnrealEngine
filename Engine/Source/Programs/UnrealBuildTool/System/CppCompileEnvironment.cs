@@ -10,25 +10,6 @@ using Tools.DotNETCommon;
 
 namespace UnrealBuildTool
 {
-	/// <summary>
-	/// The platforms that may be compilation targets for C++ files.
-	/// </summary>
-	enum CppPlatform
-	{
-		Win32,
-		Win64,
-		Mac,
-		XboxOne,
-		PS4,
-		Android,
-		IOS,
-		HTML5,
-		Linux,
-		TVOS,
-		Switch,
-		Quail,
-		Lumin,
-	}
 
 	/// <summary>
 	/// Compiler configuration. This controls whether to use define debug macros and other compiler settings. Note that optimization level should be based on the bOptimizeCode variable rather than
@@ -104,7 +85,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The platform to be compiled/linked for.
 		/// </summary>
-		public readonly CppPlatform Platform;
+		public readonly UnrealTargetPlatform Platform;
 
 		/// <summary>
 		/// The configuration to be compiled/linked for.
@@ -371,7 +352,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Default constructor.
 		/// </summary>
-        public CppCompileEnvironment(CppPlatform Platform, CppConfiguration Configuration, string Architecture, SourceFileMetadataCache MetadataCache)
+        public CppCompileEnvironment(UnrealTargetPlatform Platform, CppConfiguration Configuration, string Architecture, SourceFileMetadataCache MetadataCache)
 		{
 			this.Platform = Platform;
 			this.Configuration = Configuration;

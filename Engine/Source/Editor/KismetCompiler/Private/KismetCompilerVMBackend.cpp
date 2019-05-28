@@ -1189,10 +1189,14 @@ public:
 
 		const bool bFinalFunction = FunctionToCall->HasAnyFunctionFlags(FUNC_Final) || Statement.bIsParentContext;
 		const bool bMathCall = bFinalFunction
-			&& FunctionToCall->HasAllFunctionFlags(FUNC_Static | FUNC_BlueprintPure | FUNC_Final | FUNC_Native)
-			&& !FunctionToCall->HasAnyFunctionFlags(FUNC_BlueprintAuthorityOnly | FUNC_BlueprintCosmetic)
+			&& FunctionToCall->HasAllFunctionFlags(FUNC_Static | FUNC_Final | FUNC_Native)
+			&& !FunctionToCall->HasAnyFunctionFlags(FUNC_BlueprintAuthorityOnly | FUNC_BlueprintCosmetic | FUNC_NetFuncFlags)
 			&& !FunctionToCall->GetOuterUClass()->IsChildOf(UInterface::StaticClass())
-			&& FunctionToCall->GetOwnerClass()->GetName() == TEXT("KismetMathLibrary");
+			// If the function has wildcard parameters (e.g. UKismetArrayLibrary) we assume that it
+			// is doing things with reflection data at runtime and will therefore benefit from
+			// the safety of a 'context' based function call (e.g. if context is invalid or
+			// 'bArrayContextFailed' we can skip the function call):
+			&& !UEdGraphSchema_K2::HasWildcardParams(FunctionToCall);
 
 		const bool bLocalScriptFunction = 
 			!FunctionToCall->HasAnyFunctionFlags(FUNC_Native|FUNC_NetFuncFlags);

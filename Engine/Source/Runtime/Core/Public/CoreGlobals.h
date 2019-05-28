@@ -17,15 +17,6 @@ class FOutputDeviceRedirector;
 class ITransaction;
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogHAL, Log, All);
-CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogMac, Log, All);
-CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogLinux, Log, All);
-CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIOS, Log, All);
-CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogAndroid, Log, All);
-CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogPS4, Log, All);
-CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogXboxOne, Log, All);
-CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogWindows, Log, All);
-CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogSwitch, Log, All);
-CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogQuail, Log, All);
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogSerialization, Log, All);
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogUnrealMath, Log, All);
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogUnrealMatrix, Log, All);
@@ -51,6 +42,17 @@ CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogLoad, Log, All);
 
 // Temporary log category, generally you should not check things in that use this
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogTemp, Log, All);
+
+// Platform specific logs, set here to make it easier to use them from anywhere
+// need another layer of macro to help using a define in a define
+#define DECLARE_LOG_CATEGORY_EXTERN_HELPER(A,B,C) DECLARE_LOG_CATEGORY_EXTERN(A,B,C)
+#ifdef PLATFORM_GLOBAL_LOG_CATEGORY
+	CORE_API DECLARE_LOG_CATEGORY_EXTERN_HELPER(PLATFORM_GLOBAL_LOG_CATEGORY, Log, All);
+#endif
+#ifdef PLATFORM_GLOBAL_LOG_CATEGORY_ALT
+	CORE_API DECLARE_LOG_CATEGORY_EXTERN_HELPER(PLATFORM_GLOBAL_LOG_CATEGORY_ALT, Log, All);
+#endif
+
 
 CORE_API FOutputDeviceRedirector* GetGlobalLogSingleton();
 

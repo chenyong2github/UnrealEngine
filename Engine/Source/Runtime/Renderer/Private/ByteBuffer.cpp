@@ -16,7 +16,9 @@ class FMemsetBufferCS : public FGlobalShader
 	
 	static bool ShouldCompilePermutation( const FGlobalShaderPermutationParameters& Parameters )
 	{
-		return RHISupportsComputeShaders(Parameters.Platform);
+		return RHISupportsComputeShaders(Parameters.Platform)
+			// @todo platplug can we remove ths property now that we are just checking SM5 instead of platforms (and all uses below)?
+			|| FDataDrivenShaderPlatformInfo::GetInfo(Parameters.Platform).bSupportsByteBufferComputeShaders;
 	}
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
@@ -85,7 +87,8 @@ class FMemcpyBufferCS : public FGlobalShader
 	
 	static bool ShouldCompilePermutation( const FGlobalShaderPermutationParameters& Parameters )
 	{
-		return RHISupportsComputeShaders(Parameters.Platform);
+		return RHISupportsComputeShaders(Parameters.Platform)
+			|| FDataDrivenShaderPlatformInfo::GetInfo(Parameters.Platform).bSupportsByteBufferComputeShaders;
 	}
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
@@ -184,7 +187,8 @@ class FScatterCopyCS : public FGlobalShader
 	
 	static bool ShouldCompilePermutation( const FGlobalShaderPermutationParameters& Parameters )
 	{
-		return RHISupportsComputeShaders(Parameters.Platform);
+		return RHISupportsComputeShaders(Parameters.Platform)
+			|| FDataDrivenShaderPlatformInfo::GetInfo(Parameters.Platform).bSupportsByteBufferComputeShaders;
 	}
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
@@ -268,14 +272,14 @@ void FScatterUploadBuilder::UploadTo(FRHICommandList& RHICmdList, FRWBufferStruc
 {
 	RHIUnlockVertexBuffer(ScatterBuffer.Buffer);
 	RHIUnlockVertexBuffer(UploadBuffer.Buffer);
-	
+
 	ScatterData = nullptr;
 	UploadData = nullptr;
 
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
 	TShaderMapRef<FScatterCopyCS> ComputeShader(ShaderMap);
-		
+
 	const FComputeShaderRHIParamRef ShaderRHI = ComputeShader->GetComputeShader();
 	RHICmdList.SetComputeShader(ShaderRHI);
 
@@ -300,7 +304,7 @@ void FScatterUploadBuilder::UploadTo_Flush(FRHICommandList& RHICmdList, FRWBuffe
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
 	TShaderMapRef<FScatterCopyCS> ComputeShader(ShaderMap);
-
+		
 	const FComputeShaderRHIParamRef ShaderRHI = ComputeShader->GetComputeShader();
 	RHICmdList.SetComputeShader(ShaderRHI);
 

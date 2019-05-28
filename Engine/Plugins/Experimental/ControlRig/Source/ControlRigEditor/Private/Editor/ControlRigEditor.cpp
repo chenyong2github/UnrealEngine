@@ -221,6 +221,10 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 					Controller->AddNode(FRigUnit_BeginExecution::StaticStruct()->GetFName());
 				}
 			}
+			else
+			{
+				InControlRigBlueprint->RebuildGraphFromModel();
+			}
 		}
 	}
 

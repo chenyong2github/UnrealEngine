@@ -140,6 +140,15 @@ struct TSequencerChannelInterfaceCommon : ISequencerChannelInterface
 	}
 
 	/**
+	 * Whether this channel supports curve models
+	 */
+	virtual bool SupportsCurveEditorModels_Raw(const FMovieSceneChannelHandle& InChannel) const override
+	{
+		using namespace Sequencer;
+		return SupportsCurveEditorModels(InChannel.Cast<ChannelType>());
+	}
+
+	/**
 	 * Create a new model for this channel that can be used on the curve editor interface
 	 *
 	 * @return (Optional) A new model to be added to a curve editor

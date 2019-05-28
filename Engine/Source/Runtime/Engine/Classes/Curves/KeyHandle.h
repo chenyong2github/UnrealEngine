@@ -31,6 +31,11 @@ struct FKeyHandle
 		return A.Index < B.Index;
 	}
 
+	friend bool operator>(FKeyHandle A, FKeyHandle B)
+	{
+		return A.Index > B.Index;
+	}
+
 	friend uint32 GetTypeHash(const FKeyHandle& Handle)
 	{
 		return GetTypeHash(Handle.Index);

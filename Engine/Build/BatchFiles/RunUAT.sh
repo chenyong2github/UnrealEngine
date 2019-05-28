@@ -73,6 +73,9 @@ if [ "$UATCompileArg" = "-compile" ]; then
 	else
 		echo Compiling AutomationTool with xbuild
 
+		# make sure the UBT project has references to auto-discovered platform extension source files
+		"${SCRIPT_DIR}/FindPlatformExtensionSources.sh"
+
 		ARGS="/p:Configuration=Development /p:Platform=AnyCPU /verbosity:quiet /nologo"
 		ARGS="${ARGS} /p:TargetFrameworkProfile="
 

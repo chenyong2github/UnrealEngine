@@ -37,7 +37,7 @@ void FLuminPlatformMisc::InitLifecycle()
 
 void FLuminPlatformMisc::RequestExit(bool Force)
 {
-	UE_LOG(LogWindows, Log, TEXT("FLuminPlatformMisc::RequestExit(%i)"), Force);
+	UE_LOG(LogLumin, Log, TEXT("FLuminPlatformMisc::RequestExit(%i)"), Force);
 	if (Force)
 	{
 		_exit(1);

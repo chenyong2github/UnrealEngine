@@ -281,7 +281,7 @@ namespace Gauntlet
 
 	public class DefaultAndroidDevices : IDefaultDeviceSource
 	{
-		public bool CanSupportPlatform(UnrealTargetPlatform Platform)
+		public bool CanSupportPlatform(UnrealTargetPlatform? Platform)
 		{
 			return Platform == UnrealTargetPlatform.Android;
 		}
@@ -294,7 +294,7 @@ namespace Gauntlet
 
 	public class AndroidDeviceFactory : IDeviceFactory
 	{
-		public bool CanSupportPlatform(UnrealTargetPlatform Platform)
+		public bool CanSupportPlatform(UnrealTargetPlatform? Platform)
 		{
 			return Platform == UnrealTargetPlatform.Android;
 		}
@@ -330,7 +330,7 @@ namespace Gauntlet
 		/// <summary>
 		/// Platform type.
 		/// </summary>
-		public UnrealTargetPlatform Platform { get { return UnrealTargetPlatform.Android; } }
+		public UnrealTargetPlatform? Platform { get { return UnrealTargetPlatform.Android; } }
 
 		/// <summary>
 		/// Options for executing commands
@@ -661,7 +661,7 @@ namespace Gauntlet
 			return AdbResult.ExitCode == 0;
 		}
 
-		protected bool CopyFileToDevice(string PackageName, string SourcePath, string DestPath, bool IgnoreDependencies = false)
+		public bool CopyFileToDevice(string PackageName, string SourcePath, string DestPath, bool IgnoreDependencies = false)
 		{
 			bool IsAPK = string.Equals(Path.GetExtension(SourcePath), ".apk", StringComparison.OrdinalIgnoreCase);
 
@@ -933,7 +933,7 @@ namespace Gauntlet
 					string DestFile = Path.GetFileName(DestPath);
 
 					// If we installed a new APK we need to change the package version
-					Match OBBMatch = Regex.Match(DestFile, @"main\.(\d+)\.com.*\.obb");
+					Match OBBMatch = Regex.Match(DestFile, @"\.(\d+)\.com.*\.obb");
 					if (OBBMatch.Success)
 					{
 						string NewFileName = DestFile.Replace(OBBMatch.Groups[1].ToString(), PackageVersion);

@@ -232,17 +232,31 @@ void FMaterialInstanceParameterDetails::CustomizeDetails(IDetailLayoutBuilder& D
 		}
 
 		{
-			IDetailPropertyRow& PropertyRow = DefaultCategory.AddProperty("bOverrideSubsurfaceProfile");
-			PropertyRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::ShouldShowSubsurfaceProfile)));
-		}
+			// Add the material property override group
+			static FName GroupName(TEXT("MaterialPropertyOverrideGroup"));
+			IDetailGroup& MaterialPropertyOverrideGroup = DefaultCategory.AddGroup(GroupName, LOCTEXT("MaterialPropertyOverrideGroup", "Material Property Overrides"), false, false);
+			
+			// Hide the originals, these will be recreated manually
+			DetailLayout.HideProperty("bOverrideSubsurfaceProfile");
+			DetailLayout.HideProperty("SubsurfaceProfile");
+			DetailLayout.HideProperty("BasePropertyOverrides");
 
-		{
-			IDetailPropertyRow& PropertyRow = DefaultCategory.AddProperty("SubsurfaceProfile");
-			PropertyRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::ShouldShowSubsurfaceProfile)));
-		}
+			// Set up the override logic for the subsurface profile
+			TAttribute<bool> IsParamEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([this](){ return (bool)MaterialEditorInstance->bOverrideSubsurfaceProfile; }));
 
-		DetailLayout.HideProperty("BasePropertyOverrides");
-		CreateBasePropertyOverrideWidgets(DetailLayout);
+			IDetailPropertyRow& PropertyRow = MaterialPropertyOverrideGroup.AddPropertyRow(DetailLayout.GetProperty("SubsurfaceProfile"));
+			PropertyRow
+				.EditCondition(IsParamEnabled, 
+					FOnBooleanValueChanged::CreateLambda([this](bool NewValue) {
+						MaterialEditorInstance->bOverrideSubsurfaceProfile = (uint32)NewValue;
+						MaterialEditorInstance->PostEditChange();
+						FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+				}))
+				.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::ShouldShowSubsurfaceProfile)));
+			
+			// Append the base property overrides to the Material Property Override Group
+			CreateBasePropertyOverrideWidgets(DetailLayout, MaterialPropertyOverrideGroup);
+		}
 	}
 
 	// Add the preview mesh property directly from the material instance 
@@ -898,12 +912,9 @@ void FMaterialInstanceParameterDetails::CreateLightmassOverrideWidgets(IDetailLa
 		.OverrideResetToDefault(ResetExportResolutionScalePropertyOverride);
 }
 
-void FMaterialInstanceParameterDetails::CreateBasePropertyOverrideWidgets(IDetailLayoutBuilder& DetailLayout)
+void FMaterialInstanceParameterDetails::CreateBasePropertyOverrideWidgets(IDetailLayoutBuilder& DetailLayout, IDetailGroup& MaterialPropertyOverrideGroup)
 {
-	IDetailCategoryBuilder& DetailCategory = DetailLayout.EditCategory(NAME_None);
-	
-	static FName GroupName(TEXT("BasePropertyOverrideGroup"));
-	IDetailGroup& BasePropertyOverrideGroup = DetailCategory.AddGroup(GroupName, LOCTEXT("BasePropertyOverrideGroup", "Material Property Overrides"), false, false);
+	IDetailGroup& BasePropertyOverrideGroup = MaterialPropertyOverrideGroup;
 
 	TAttribute<bool> IsOverrideOpacityClipMaskValueEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::OverrideOpacityClipMaskValueEnabled));
 	TAttribute<bool> IsOverrideBlendModeEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::OverrideBlendModeEnabled));

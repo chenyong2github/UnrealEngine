@@ -8,15 +8,14 @@
 #include "IKeyArea.h"
 #include "SKeyNavigationButtons.h"
 #include "SKeyAreaEditorSwitcher.h"
+#include "CurveModel.h"
 
 
 /* FSectionKeyAreaNode interface
  *****************************************************************************/
 
-FSequencerSectionKeyAreaNode::FSequencerSectionKeyAreaNode(FName NodeName, const FText& InDisplayName, TSharedPtr<FSequencerDisplayNode> InParentNode, FSequencerNodeTree& InParentTree, bool bInTopLevel)
-	: FSequencerDisplayNode(NodeName, InParentNode, InParentTree)
-	, DisplayName(InDisplayName)
-	, bTopLevel(bInTopLevel)
+FSequencerSectionKeyAreaNode::FSequencerSectionKeyAreaNode(FName NodeName, FSequencerNodeTree& InParentTree)
+	: FSequencerDisplayNode(NodeName, InParentTree)
 {
 }
 
@@ -112,4 +111,18 @@ ESequencerNode::Type FSequencerSectionKeyAreaNode::GetType() const
 void FSequencerSectionKeyAreaNode::SetDisplayName(const FText& NewDisplayName)
 {
 	check(false);
+}
+
+void FSequencerSectionKeyAreaNode::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels)
+{
+	TSharedRef<ISequencer> Sequencer = GetSequencer().AsShared();
+
+	for (const TSharedRef<IKeyArea>& KeyArea : KeyAreas)
+	{
+		TUniquePtr<FCurveModel> NewCurve = KeyArea->CreateCurveEditorModel(Sequencer);
+		if (NewCurve.IsValid())
+		{
+			OutCurveModels.Add(MoveTemp(NewCurve));
+		}
+	}
 }

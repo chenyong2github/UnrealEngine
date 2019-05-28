@@ -126,7 +126,7 @@ DECLARE_DELEGATE_RetVal_OneParam(FReply, FOnTableRowDrop, FDragDropEvent const&)
 
 /**
  * The ListView is populated by Selectable widgets.
- * A Selectable widget is away of the ListView containing it (OwnerWidget) and holds arbitrary Content (Content).
+ * A Selectable widget is a way of the ListView containing it (OwnerWidget) and holds arbitrary Content (Content).
  * A Selectable works with its corresponding ListView to provide selection functionality.
  */
 template<typename ItemType>
@@ -839,6 +839,10 @@ public:
 		check(MyItem);
 
 		const bool bIsSelected = OwnerWidget->Private_IsItemSelected( *MyItem );
+		const bool bIsHighlighted = OwnerWidget->Private_IsItemHighlighted( *MyItem );
+
+		const bool bAllowSelection = GetSelectionMode() != ESelectionMode::None;
+		const bool bEvenEntryIndex = (IndexInList % 2 == 0);
 
 		if (bIsSelected && bShowSelection)
 		{
@@ -855,11 +859,25 @@ public:
 					: &Style->InactiveBrush;
 			}
 		}
+		else if (!bIsSelected && bIsHighlighted)
+		{
+			if (bIsActive)
+			{
+				return IsHovered()
+					? (bEvenEntryIndex ? &Style->EvenRowBackgroundHoveredBrush : &Style->OddRowBackgroundHoveredBrush)
+					: &Style->ActiveHighlightedBrush;
+			}
+			else
+			{
+				return IsHovered()
+					? (bEvenEntryIndex ? &Style->EvenRowBackgroundHoveredBrush : &Style->OddRowBackgroundHoveredBrush)
+					: &Style->InactiveHighlightedBrush;
+			}
+		}
 		else
 		{
 			// Add a slightly lighter background for even rows
-			const bool bAllowSelection = GetSelectionMode() != ESelectionMode::None;
-			if( IndexInList % 2 == 0 )
+			if(bEvenEntryIndex)
 			{
 				return ( IsHovered() && bAllowSelection )
 					? &Style->EvenRowBackgroundHoveredBrush

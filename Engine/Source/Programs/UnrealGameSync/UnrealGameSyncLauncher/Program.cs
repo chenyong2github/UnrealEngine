@@ -80,15 +80,16 @@ namespace UnrealGameSyncLauncher
 				else
 				{
 					// Try to do a sync with the current settings first
-					SyncAndRunModalTask SyncApplication = new SyncAndRunModalTask(ServerAndPort, UserName, (Perforce, LogWriter) => SyncAndRun(Perforce, DepotPath, bUnstable, Args, InstanceMutex, LogWriter));
+					StringWriter Log = new StringWriter();
+					SyncAndRunPerforceTask SyncApplication = new SyncAndRunPerforceTask((Perforce, LogWriter) => SyncAndRun(Perforce, DepotPath, bUnstable, Args, InstanceMutex, LogWriter));
 
 					string ErrorMessage;
-					if(ModalTask.Execute(null, SyncApplication, "Updating", "Checking for updates, please wait...", out ErrorMessage) == ModalTaskResult.Succeeded)
+					if(PerforceModalTask.Execute(null, null, ServerAndPort, UserName, SyncApplication, "Updating", "Checking for updates, please wait...", Log, out ErrorMessage) == ModalTaskResult.Succeeded)
 					{
 						return 0;
 					}
 
-					SettingsWindow UpdateError = new SettingsWindow("Unable to update UnrealGameSync from Perforce. Verify that your connection settings are correct.", SyncApplication.LogWriter.ToString(), SyncApplication.ServerAndPort, SyncApplication.UserName, DepotPath, bUnstable, (Perforce, DepotParam, bUnstableParam, LogWriter) => SyncAndRun(Perforce, DepotParam, bUnstableParam, Args, InstanceMutex, LogWriter));
+					SettingsWindow UpdateError = new SettingsWindow("Unable to update UnrealGameSync from Perforce. Verify that your connection settings are correct.", Log.ToString(), ServerAndPort, UserName, DepotPath, bUnstable, (Perforce, DepotParam, bUnstableParam, LogWriter) => SyncAndRun(Perforce, DepotParam, bUnstableParam, Args, InstanceMutex, LogWriter));
 					if(UpdateError.ShowDialog() == DialogResult.OK)
 					{
 						return 0;

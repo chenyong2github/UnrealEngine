@@ -42,6 +42,7 @@ namespace UnrealGameSync
 		void SetupScheduledSync();
 		void UpdateProgress();
 		void ModifyApplicationSettings();
+		void UpdateAlertWindows();
 	}
 
 	delegate void WorkspaceStartupCallback(WorkspaceControl Workspace, bool bCancel);
@@ -113,10 +114,31 @@ namespace UnrealGameSync
 			public Dictionary<string, List<BadgeInfo>> CustomBadges;
 		}
 
-		static Rectangle GoodBuildIcon = new Rectangle(0, 0, 16, 16);
-		static Rectangle MixedBuildIcon = new Rectangle(16, 0, 16, 16);
-		static Rectangle BadBuildIcon = new Rectangle(32, 0, 16, 16);
-		static Rectangle DefaultBuildIcon = new Rectangle(48, 0, 16, 16);
+		class BuildListItemComparer : System.Collections.IComparer
+		{
+			public int Compare(object A, object B)
+			{
+				PerforceChangeSummary ChangeA = ((ListViewItem)A).Tag as PerforceChangeSummary;
+				PerforceChangeSummary ChangeB = ((ListViewItem)B).Tag as PerforceChangeSummary;
+				if(ChangeA == null)
+				{
+					return +1;
+				}
+				else if(ChangeB == null)
+				{
+					return -1;
+				}
+				else
+				{
+					return ChangeB.Number - ChangeA.Number;
+				}
+			}
+		}
+
+		public static Rectangle GoodBuildIcon = new Rectangle(0, 0, 16, 16);
+		public static Rectangle MixedBuildIcon = new Rectangle(16, 0, 16, 16);
+		public static Rectangle BadBuildIcon = new Rectangle(32, 0, 16, 16);
+		public static Rectangle DefaultBuildIcon = new Rectangle(48, 0, 16, 16);
 		static Rectangle PromotedBuildIcon = new Rectangle(64, 0, 16, 16);
 		static Rectangle DetailsIcon = new Rectangle(80, 0, 16, 16);
 		static Rectangle InfoIcon = new Rectangle(96, 0, 16, 16);
@@ -148,6 +170,8 @@ namespace UnrealGameSync
 		UserSettings Settings;
 		UserWorkspaceSettings WorkspaceSettings;
 		UserProjectSettings ProjectSettings;
+
+		bool bUserHasOpenIssues = false;
 
 		public UserSelectedProjectSettings SelectedProject
 		{
@@ -189,6 +213,7 @@ namespace UnrealGameSync
 		bool bIsEnterpriseProject;
 		PerforceMonitor PerforceMonitor;
 		Workspace Workspace;
+		IssueMonitor IssueMonitor;
 		EventMonitor EventMonitor;
 		System.Windows.Forms.Timer UpdateTimer;
 		HashSet<int> PromotedChangeNumbers = new HashSet<int>();
@@ -244,7 +269,7 @@ namespace UnrealGameSync
 		System.Threading.Timer StartupTimer;
 		List<WorkspaceStartupCallback> StartupCallbacks;
 
-		public WorkspaceControl(IWorkspaceControlOwner InOwner, string InApiUrl, string InOriginalExecutableFileName, bool bInUnstable, DetectProjectSettingsTask DetectSettings, LineBasedTextWriter InLog, UserSettings InSettings)
+		public WorkspaceControl(IWorkspaceControlOwner InOwner, string InApiUrl, string InOriginalExecutableFileName, bool bInUnstable, DetectProjectSettingsTask DetectSettings, IssueMonitor InIssueMonitor, LineBasedTextWriter InLog, UserSettings InSettings)
 		{
 			InitializeComponent();
 
@@ -255,6 +280,7 @@ namespace UnrealGameSync
 			DataFolder = DetectSettings.DataFolder;
 			OriginalExecutableFileName = InOriginalExecutableFileName;
 			bUnstable = bInUnstable;
+			IssueMonitor = InIssueMonitor;
 			Log = InLog;
 			Settings = InSettings;
 			WorkspaceSettings = InSettings.FindOrAddWorkspace(DetectSettings.BranchClientPath);
@@ -269,6 +295,7 @@ namespace UnrealGameSync
 			BuildList.SmallImageList = new ImageList(){ ImageSize = new Size(1, 20) };
 			BuildList_FontChanged(null, null);
 			BuildList.OnScroll += BuildList_OnScroll;
+			BuildList.ListViewItemSorter = new BuildListItemComparer();
 
 			Splitter.OnVisibilityChanged += Splitter_OnVisibilityChanged;
 
@@ -342,6 +369,34 @@ namespace UnrealGameSync
 
 			StartupTimer = new System.Threading.Timer(x => MainThreadSynchronizationContext.Post((o) => { if(!IsDisposed){ StartupTimerElapsed(false); } }, null), null, TimeSpan.FromSeconds(20.0), TimeSpan.FromMilliseconds(-1.0));
 			StartupCallbacks = new List<WorkspaceStartupCallback>();
+
+			IssueMonitor.OnIssuesChanged += IssueMonitor_OnIssuesChangedAsync;
+		}
+
+		public void IssueMonitor_OnIssuesChangedAsync()
+		{
+			MainThreadSynchronizationContext.Post((o) => { if(IssueMonitor != null){ IssueMonitor_OnIssuesChanged(); } }, null);
+		}
+
+		public List<IssueData> GetOpenIssuesForUser()
+		{
+			return IssueMonitor.GetIssues().Where(x => x.FixChange <= 0 && String.Compare(x.Owner, Workspace.Perforce.UserName, StringComparison.OrdinalIgnoreCase) == 0).ToList();
+		}
+
+		public void IssueMonitor_OnIssuesChanged()
+		{
+			bool bPrevUserHasOpenIssues = bUserHasOpenIssues;
+			bUserHasOpenIssues = GetOpenIssuesForUser().Count > 0;
+			if(bUserHasOpenIssues != bPrevUserHasOpenIssues)
+			{
+				UpdateStatusPanel();
+				StatusPanel.Invalidate();
+			}
+		}
+
+		public IssueMonitor GetIssueMonitor()
+		{
+			return IssueMonitor;
 		}
 
 		private void CheckForStartupComplete()
@@ -579,6 +634,11 @@ namespace UnrealGameSync
 				StartupCallbacks = null;
 			}
 
+			if(IssueMonitor != null)
+			{
+				IssueMonitor.OnIssuesChanged -= IssueMonitor_OnIssuesChangedAsync;
+				IssueMonitor = null;
+			}
 			if(StartupTimer != null)
 			{
 				StartupTimer.Dispose();
@@ -734,7 +794,11 @@ namespace UnrealGameSync
 				}
 
 				// Get the max number of changes to ensure this
-				int NewPendingMaxChanges = ListIndexToChangeIndex[LastVisibleIndex];
+				int NewPendingMaxChanges = 0;
+				if(LastVisibleIndex >= 0)
+				{
+					NewPendingMaxChanges = ListIndexToChangeIndex[LastVisibleIndex];
+				}
 				NewPendingMaxChanges = PerforceMonitor.InitialMaxChangesValue + ((Math.Max(NewPendingMaxChanges - PerforceMonitor.InitialMaxChangesValue, 0) + BuildListExpandCount - 1) / BuildListExpandCount) * BuildListExpandCount;
 
 				// Shrink the number of changes retained by the PerforceMonitor class
@@ -1015,30 +1079,8 @@ namespace UnrealGameSync
 		{
 			if(SelectedFileName != null)
 			{
-				List<int> SelectedChanges = new List<int>();
-				foreach(ListViewItem SelectedItem in BuildList.SelectedItems)
-				{
-					PerforceChangeSummary Change = (PerforceChangeSummary)SelectedItem.Tag;
-					if(Change != null)
-					{
-						SelectedChanges.Add(Change.Number);
-					}
-				}
-
 				ChangeNumberToArchivePath.Clear();
 				ChangeNumberToLayoutInfo.Clear();
-
-				ExpandItem = null;
-
-				BuildList.BeginUpdate();
-
-				foreach(ListViewGroup Group in BuildList.Groups)
-				{
-					Group.Name = "xxx " + Group.Name;
-				}
-
-				int RemoveItems = BuildList.Items.Count;
-				int RemoveGroups = BuildList.Groups.Count;
 
 				List<PerforceChangeSummary> Changes = PerforceMonitor.GetChanges();
 				EventMonitor.FilterChanges(Changes.Select(x => x.Number));
@@ -1062,6 +1104,7 @@ namespace UnrealGameSync
 				ListIndexToChangeIndex = new List<int>();
 				SortedChangeNumbers = new List<int>();
 				
+				List<PerforceChangeSummary> FilteredChanges = new List<PerforceChangeSummary>();
 				for(int ChangeIdx = 0; ChangeIdx < Changes.Count; ChangeIdx++)
 				{
 					PerforceChangeSummary Change = Changes[ChangeIdx];
@@ -1073,55 +1116,8 @@ namespace UnrealGameSync
 						{
 							bFirstChange = false;
 
-							ListViewGroup Group;
-
-							DateTime DisplayTime = Change.Date;
-							if(Settings.bShowLocalTimes)
-							{
-								DisplayTime = (DisplayTime - PerforceMonitor.ServerTimeZone).ToLocalTime();
-							}
-
-							string GroupName = DisplayTime.ToString("D");//"dddd\\,\\ h\\.mmtt");
-							for(int Idx = 0;;Idx++)
-							{
-								if(Idx == BuildList.Groups.Count)
-								{
-									Group = new ListViewGroup(GroupName);
-									Group.Name = GroupName;
-									BuildList.Groups.Add(Group);
-									break;
-								}
-								else if(BuildList.Groups[Idx].Name == GroupName)
-								{
-									Group = BuildList.Groups[Idx];
-									break;
-								}
-							}
-
-							string[] SubItemLabels = new string[BuildList.Columns.Count];
-							SubItemLabels[ChangeColumn.Index] = String.Format("{0}", Change.Number);
-							SubItemLabels[TimeColumn.Index] = DisplayTime.ToString("h\\.mmtt");
-							SubItemLabels[AuthorColumn.Index] = FormatUserName(Change.User);
-							SubItemLabels[DescriptionColumn.Index] = Change.Description.Replace('\n', ' ');
-
-							ListViewItem Item = new ListViewItem(Group);
-							Item.Tag = Change;
-							Item.Selected = SelectedChanges.Contains(Change.Number);
-							for(int ColumnIdx = 1; ColumnIdx < BuildList.Columns.Count; ColumnIdx++)
-							{
-								Item.SubItems.Add(new ListViewItem.ListViewSubItem(Item, SubItemLabels[ColumnIdx] ?? ""));
-							}
-
-							// Insert it at the right position within the group
-							int GroupInsertIdx = 0;
-							while(GroupInsertIdx < Group.Items.Count && Change.Number < ((PerforceChangeSummary)Group.Items[GroupInsertIdx].Tag).Number)
-							{
-								GroupInsertIdx++;
-							}
-							Group.Items.Insert(GroupInsertIdx, Item);
-
-							// Insert it at the right place in the list
-							BuildList.Items.Add(Item);
+							// Add the new change
+							FilteredChanges.Add(Change);
 
 							// Store off the list index for this change
 							ListIndexToChangeIndex.Add(ChangeIdx);
@@ -1129,39 +1125,17 @@ namespace UnrealGameSync
 					}
 				}
 
+				UpdateBuildListInternal(FilteredChanges, Changes.Count > 0);
+
 				SortedChangeNumbers.Sort();
 
-				for(int Idx = 0; Idx < RemoveItems; Idx++)
-				{
-					BuildList.Items.RemoveAt(0);
-				}
-				for(int Idx = 0; Idx < RemoveGroups; Idx++)
-				{
-					BuildList.Groups.RemoveAt(0);
-				}
-
-				if(Changes.Count > 0)
-				{
-					ExpandItem = new ListViewItem((BuildList.Groups.Count > 0)? BuildList.Groups[BuildList.Groups.Count - 1] : null);
-					ExpandItem.Tag = null;
-					ExpandItem.Selected = false;
-					ExpandItem.Text = "";
-					for(int ColumnIdx = 1; ColumnIdx < BuildList.Columns.Count; ColumnIdx++)
-					{
-						ExpandItem.SubItems.Add(new ListViewItem.ListViewSubItem(ExpandItem, ""));
-					}
-					BuildList.Items.Add(ExpandItem);
-				}
-
-				BuildList.EndUpdate();
-
-				if(PendingSelectedChangeNumber != -1)
+				if (PendingSelectedChangeNumber != -1)
 				{
 					SelectChange(PendingSelectedChangeNumber);
 				}
 			}
 
-			if(BuildList.HoverItem > BuildList.Items.Count)
+			if (BuildList.HoverItem > BuildList.Items.Count)
 			{
 				BuildList.HoverItem = -1;
 			}
@@ -1170,6 +1144,160 @@ namespace UnrealGameSync
 
 			UpdateBuildSteps();
 			UpdateSyncActionCheckboxes();
+		}
+
+		void UpdateBuildListInternal(List<PerforceChangeSummary> Changes, bool bShowExpandItem)
+		{
+			BuildList.BeginUpdate();
+
+			// Remove any changes that no longer exist, and update the rest
+			Dictionary<int, PerforceChangeSummary> ChangeNumberToSummary = Changes.ToDictionary(x => x.Number, x => x);
+			for(int Idx = BuildList.Items.Count - 1; Idx >= 0; Idx--)
+			{
+				PerforceChangeSummary Change = BuildList.Items[Idx].Tag as PerforceChangeSummary;
+				if (Change != null)
+				{
+					PerforceChangeSummary Summary;
+					if(ChangeNumberToSummary.TryGetValue(Change.Number, out Summary))
+					{
+						// Update
+						BuildList.Items[Idx].SubItems[DescriptionColumn.Index].Text = Change.Description.Replace('\n', ' ');
+						ChangeNumberToSummary.Remove(Change.Number);
+					}
+					else
+					{
+						// Delete
+						BuildList.Items.RemoveAt(Idx);
+					}
+				}
+			}
+
+			// Add everything left over
+			foreach(PerforceChangeSummary Change in ChangeNumberToSummary.Values)
+			{
+				BuildList_AddItem(Change);
+			}
+
+			// Figure out which group the expand item should be in
+			ListViewGroup NewExpandItemGroup = null;
+			for (int Idx = BuildList.Items.Count - 1; Idx >= 0; Idx--)
+			{
+				ListViewItem Item = BuildList.Items[Idx];
+				if(Item != ExpandItem)
+				{
+					NewExpandItemGroup = Item.Group;
+					break;
+				}
+			}
+
+			// Remove the expand row if it's in the wrong place
+			if (ExpandItem != null)
+			{
+				if(!bShowExpandItem || ExpandItem.Group != NewExpandItemGroup)
+				{
+					BuildList.Items.Remove(ExpandItem);
+					ExpandItem = null;
+				}
+			}
+
+			// Remove any empty groups
+			for (int Idx = BuildList.Groups.Count - 1; Idx >= 0; Idx--)
+			{
+				if (BuildList.Groups[Idx].Items.Count == 0)
+				{
+					BuildList.Groups.RemoveAt(Idx);
+				}
+			}
+
+			// Add the expand row back in
+			if (bShowExpandItem && ExpandItem == null)
+			{
+				ExpandItem = new ListViewItem(NewExpandItemGroup);
+				ExpandItem.Tag = null;
+				ExpandItem.Selected = false;
+				ExpandItem.Text = "";
+				for (int ColumnIdx = 1; ColumnIdx < BuildList.Columns.Count; ColumnIdx++)
+				{
+					ExpandItem.SubItems.Add(new ListViewItem.ListViewSubItem(ExpandItem, ""));
+				}
+				BuildList.Items.Add(ExpandItem);
+			}
+
+			BuildList.EndUpdate();
+		}
+
+		ListViewGroup BuildList_FindOrAddGroup(PerforceChangeSummary Change, string GroupName)
+		{
+			// Find or add the new group
+			int GroupIndex = 0;
+			for (; GroupIndex < BuildList.Groups.Count; GroupIndex++)
+			{
+				ListViewGroup NextGroup = BuildList.Groups[GroupIndex];
+				if (NextGroup.Header == GroupName)
+				{
+					return NextGroup;
+				}
+
+				PerforceChangeSummary LastChange = null;
+				for(int Idx = NextGroup.Items.Count - 1; Idx >= 0 && LastChange == null; Idx--)
+				{
+					LastChange = NextGroup.Items[Idx].Tag as PerforceChangeSummary;
+				}
+				if (LastChange == null || Change.Number > LastChange.Number)
+				{
+					break;
+				}
+			}
+
+			// Create the new group
+			ListViewGroup Group = new ListViewGroup(GroupName);
+			BuildList.Groups.Insert(GroupIndex, Group);
+			return Group;
+		}
+
+		void BuildList_AddItem(PerforceChangeSummary Change)
+		{
+			// Get the display time for this item
+			DateTime DisplayTime = Change.Date;
+			if (Settings.bShowLocalTimes)
+			{
+				DisplayTime = (DisplayTime - PerforceMonitor.ServerTimeZone).ToLocalTime();
+			}
+
+			// Find or add the new group
+			ListViewGroup Group = BuildList_FindOrAddGroup(Change, DisplayTime.ToString("D"));
+
+			// Create the new item
+			ListViewItem Item = new ListViewItem();
+			Item.Tag = Change;
+
+			// Get the new text for each column
+			string[] Columns = new string[BuildList.Columns.Count];
+			Columns[ChangeColumn.Index] = String.Format("{0}", Change.Number);
+
+			Columns[TimeColumn.Index] = DisplayTime.ToShortTimeString();
+			Columns[AuthorColumn.Index] = FormatUserName(Change.User);
+			Columns[DescriptionColumn.Index] = Change.Description.Replace('\n', ' ');
+
+			for (int ColumnIdx = 1; ColumnIdx < BuildList.Columns.Count; ColumnIdx++)
+			{
+				Item.SubItems.Add(new ListViewItem.ListViewSubItem(Item, Columns[ColumnIdx] ?? ""));
+			}
+
+			// Insert it at the right position within the group
+			int GroupInsertIdx = 0;
+			for(; GroupInsertIdx < Group.Items.Count; GroupInsertIdx++)
+			{
+				PerforceChangeSummary OtherChange = Group.Items[GroupInsertIdx].Tag as PerforceChangeSummary;
+				if(OtherChange == null || Change.Number >= OtherChange.Number)
+				{
+					break;
+				}
+			}
+			Group.Items.Insert(GroupInsertIdx, Item);
+
+			// Insert it into the build list
+			BuildList.Items.Add(Item);
 		}
 
 		bool ShouldShowChange(PerforceChangeSummary Change, string[] ExcludeChanges)
@@ -1410,6 +1538,13 @@ namespace UnrealGameSync
 
 		void UpdateBuildFailureNotification()
 		{
+			// Ignore this if we're using the new build health system
+			string BuildHealthProject;
+			if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "BuildHealthProject", out BuildHealthProject))
+			{
+				return;
+			}
+
 			int LastChangeByCurrentUser = PerforceMonitor.LastChangeByCurrentUser;
 			int LastCodeChangeByCurrentUser = PerforceMonitor.LastCodeChangeByCurrentUser;
 
@@ -1531,7 +1666,7 @@ namespace UnrealGameSync
 			public Rectangle LinkRect;
 		}
 
-		private ExpandRowLayout LayoutExpandRow(Graphics Graphics, Rectangle Bounds)
+		ExpandRowLayout LayoutExpandRow(Graphics Graphics, Rectangle Bounds)
 		{
 			ExpandRowLayout Layout = new ExpandRowLayout();
 
@@ -1601,7 +1736,7 @@ namespace UnrealGameSync
 				ExpandRowLayout ExpandLayout = LayoutExpandRow(e.Graphics, e.Bounds);
 				DrawExpandRow(e.Graphics, ExpandLayout);
 			}
-			else
+			else if(Workspace != null)
 			{
 				if(e.State.HasFlag(ListViewItemStates.Selected))
 				{
@@ -1724,7 +1859,7 @@ namespace UnrealGameSync
 			Color TextColor = (bAllowSync || Change.Number == Workspace.PendingChangeNumber || Change.Number == Workspace.CurrentChangeNumber || (WorkspaceSettings != null && WorkspaceSettings.AdditionalChangeNumbers.Contains(Change.Number)))? SystemColors.WindowText : Blend(SystemColors.Window, SystemColors.WindowText, 0.25f);
 
 			const int FadeRange = 6;
-			if(e.ItemIndex >= BuildList.Items.Count - FadeRange && NumChanges >= PerforceMonitor.CurrentMaxChanges)
+			if(e.ItemIndex >= BuildList.Items.Count - FadeRange && NumChanges >= PerforceMonitor.CurrentMaxChanges && !IsBisectModeEnabled())
 			{
 				float Opacity = (float)(BuildList.Items.Count - e.ItemIndex - 0.9f) / FadeRange;
 				BadgeAlpha = (int)(BadgeAlpha * Opacity);
@@ -2411,25 +2546,9 @@ namespace UnrealGameSync
 			}
 		}
 
-		private static string FormatUserName(string UserName)
+		public static string FormatUserName(string UserName)
 		{
-			StringBuilder NormalUserName = new StringBuilder();
-			for(int Idx = 0; Idx < UserName.Length; Idx++)
-			{
-				if(Idx == 0 || UserName[Idx - 1] == '.')
-				{
-					NormalUserName.Append(Char.ToUpper(UserName[Idx]));
-				}
-				else if(UserName[Idx] == '.')
-				{
-					NormalUserName.Append(' ');
-				}
-				else
-				{
-					NormalUserName.Append(UserName[Idx]);
-				}
-			}
-			return NormalUserName.ToString();
+			return Utility.FormatUserName(UserName);
 		}
 
 		private static void AppendUserList(StringBuilder Builder, string Separator, string Format, IEnumerable<EventData> Reviews)
@@ -2845,6 +2964,20 @@ namespace UnrealGameSync
 				ProgramsLine.AddText("  |  ");
 				ProgramsLine.AddLink("Windows Explorer", FontStyle.Regular, () => { Process.Start("explorer.exe", String.Format("\"{0}\"", Path.GetDirectoryName(SelectedFileName))); });
 
+				string BuildHealthProject;
+				if(TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "BuildHealthProject", out BuildHealthProject))
+				{
+					ProgramsLine.AddText("  |  ");
+					if(bUserHasOpenIssues)
+					{
+						ProgramsLine.AddBadge("Build Health", GetBuildBadgeColor(BadgeResult.Failure), (P, R) => ShowBuildHealthMenu(R, BuildHealthProject));
+					}
+					else
+					{
+						ProgramsLine.AddLink("Build Health", FontStyle.Regular, (P, R) => { ShowBuildHealthMenu(R, BuildHealthProject); });
+					}
+				}
+
 				foreach(KeyValuePair<string, BadgeData> ServiceBadge in ServiceBadges)
 				{
 					ProgramsLine.AddText("  |  ");
@@ -2854,7 +2987,7 @@ namespace UnrealGameSync
 					}
 					else
 					{
-						ProgramsLine.AddBadge(ServiceBadge.Key, GetBuildBadgeColor(ServiceBadge.Value.Result), () => { Process.Start(ServiceBadge.Value.Url); });
+						ProgramsLine.AddBadge(ServiceBadge.Key, GetBuildBadgeColor(ServiceBadge.Value.Result), (P, R) => { Process.Start(ServiceBadge.Value.Url); });
 					}
 				}
 				ProgramsLine.AddText("  |  ");
@@ -2944,6 +3077,116 @@ namespace UnrealGameSync
 			}
 
 			StatusPanel.Set(Lines, Caption, Alert, TintColor);
+		}
+
+		private void ShowBuildHealthMenu(Rectangle Bounds, string BuildHealthProject)
+		{
+			int MinSeparatorIdx = BuildHealthContextMenu.Items.IndexOf(BuildHealthContextMenu_MinSeparator);
+
+			while(BuildHealthContextMenu.Items[MinSeparatorIdx + 1] != BuildHealthContextMenu_MaxSeparator)
+			{
+				BuildHealthContextMenu.Items.RemoveAt(MinSeparatorIdx + 1);
+			}
+
+			List<IssueData> Issues = new List<IssueData>();
+			bool bHasOtherAssignedIssue = false;
+			foreach(IssueData Issue in IssueMonitor.GetIssues())
+			{
+				if(Issue.Project == BuildHealthProject)
+				{
+					Issues.Add(Issue);
+				}
+				else if(Issue.FixChange == 0 && Issue.Owner != null && String.Compare(Issue.Owner, Workspace.Perforce.UserName, StringComparison.OrdinalIgnoreCase) == 0)
+				{
+					bHasOtherAssignedIssue = true;
+				}
+			}
+			
+			BuildHealthContextMenu_Browse.Font = new Font(BuildHealthContextMenu_Browse.Font, bHasOtherAssignedIssue? FontStyle.Bold : FontStyle.Regular);
+
+			if(Issues.Count == 0)
+			{
+				BuildHealthContextMenu_MaxSeparator.Visible = false;
+			}
+			else
+			{
+				BuildHealthContextMenu_MaxSeparator.Visible = true;
+				for(int Idx = 0; Idx < Issues.Count; Idx++)
+				{
+					IssueData Issue = Issues[Idx];
+
+					string Summary = Issue.Summary;
+					if(Summary.Length > 100)
+					{
+						Summary = Summary.Substring(0, 100).TrimEnd() + "...";
+					}
+
+					StringBuilder Description = new StringBuilder();
+					Description.AppendFormat("{0}: {1}", Issue.Id, Summary);
+					if(Issue.Owner == null)
+					{
+						Description.AppendFormat(" - Unassigned");
+					}
+					else
+					{
+						Description.AppendFormat(" - {0}", FormatUserName(Issue.Owner));
+						if(!Issue.AcknowledgedAt.HasValue)
+						{
+							Description.Append(" (?)");
+						}
+					}
+
+					Description.AppendFormat(" ({0})", Utility.FormatDurationMinutes((int)((Issue.RetrievedAt - Issue.CreatedAt).TotalMinutes + 1)));
+
+					ToolStripMenuItem Item = new ToolStripMenuItem(Description.ToString());
+					if(Issue.FixChange > 0)
+					{
+						Item.ForeColor = SystemColors.GrayText;
+					}
+					else if(Issue.Owner != null && String.Compare(Issue.Owner, Workspace.Perforce.UserName, StringComparison.OrdinalIgnoreCase) == 0)
+					{
+						Item.Font = new Font(Item.Font, FontStyle.Bold);
+					}
+					Item.Click += (s, e) => { BuildHealthContextMenu_Issue_Click(Issue); };
+					BuildHealthContextMenu.Items.Insert(MinSeparatorIdx + Idx + 1, Item);
+				}
+			}
+
+			BuildHealthContextMenu.Show(StatusPanel, new Point(Bounds.Right, Bounds.Bottom), ToolStripDropDownDirection.BelowLeft);
+		}
+
+		private void BuildHealthContextMenu_Issue_Click(IssueData Issue)
+		{
+			ShowIssueDetails(Issue);
+		}
+
+		private TimeSpan? GetServerTimeOffset()
+		{
+			TimeSpan? Offset = null;
+			if (Settings.bShowLocalTimes)
+			{
+				Offset = PerforceMonitor.ServerTimeZone;
+			}
+			return Offset;
+		}
+
+		public void ShowIssueDetails(IssueData Issue)
+		{
+			IssueDetailsWindow.Show(ParentForm, IssueMonitor, Workspace.Perforce.ServerAndPort, Workspace.Perforce.UserName, GetServerTimeOffset(), Issue, Log, StreamName);
+		}
+
+		private void BuildHealthContextMenu_Browse_Click(object sender, EventArgs e)
+		{
+			IssueBrowserWindow.Show(ParentForm, IssueMonitor, Workspace.Perforce.ServerAndPort, Workspace.Perforce.UserName, GetServerTimeOffset(), Log, StreamName);
+		}
+
+		private void BuildHealthContextMenu_Settings_Click(object sender, EventArgs e)
+		{
+			IssueSettingsWindow IssueSettings = new IssueSettingsWindow(Settings);
+			if(IssueSettings.ShowDialog(this) == DialogResult.OK)
+			{
+				Owner.UpdateAlertWindows();
+			}
 		}
 
 		private void ShowRequiredSdkInfo()
@@ -4115,6 +4358,7 @@ namespace UnrealGameSync
 		{
 			Settings.bShowLocalTimes = false;
 			Settings.Save();
+			BuildList.Items.Clear(); // Need to clear list to rebuild groups, populate time column again
 			UpdateBuildList();
 		}
 
@@ -4122,6 +4366,7 @@ namespace UnrealGameSync
 		{
 			Settings.bShowLocalTimes = true;
 			Settings.Save();
+			BuildList.Items.Clear(); // Need to clear list to rebuild groups, populate time column again
 			UpdateBuildList();
 		}
 

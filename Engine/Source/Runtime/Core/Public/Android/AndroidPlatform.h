@@ -61,6 +61,8 @@ typedef FAndroidTypes FPlatformTypes;
 
 #define PLATFORM_CODE_SECTION(Name)					__attribute__((section(Name)))
 
+#define PLATFORM_GLOBAL_LOG_CATEGORY				LogAndroid
+
 #if defined(EXPERIMENTAL_OPENGL_RHITHREAD) && EXPERIMENTAL_OPENGL_RHITHREAD
 	#define PLATFORM_RHITHREAD_DEFAULT_BYPASS			0
 #else

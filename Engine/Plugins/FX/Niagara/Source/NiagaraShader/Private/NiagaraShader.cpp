@@ -792,7 +792,7 @@ void FNiagaraShaderMap::Compile(
 				}
 				else if (ShaderType)
 				{
-					UE_LOG(LogWindows, Display, TEXT("Skipping compilation of %s as it isn't supported on this target type."), *Script->SourceName);
+					UE_LOG(LogShaders, Display, TEXT("Skipping compilation of %s as it isn't supported on this target type."), *Script->SourceName);
 					Script->RemoveOutstandingCompileId(CompilingId);
 					Script->NotifyCompilationFinished();
 				}

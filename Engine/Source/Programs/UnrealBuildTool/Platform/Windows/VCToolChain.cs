@@ -24,8 +24,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected VCEnvironment EnvVars;
 
-		public VCToolChain(CppPlatform Platform, ReadOnlyTargetRules Target)
-			: base(Platform)
+		public VCToolChain(ReadOnlyTargetRules Target)
 		{
 			this.Target = Target;
 			this.EnvVars = Target.WindowsPlatform.Environment;
@@ -177,7 +176,7 @@ namespace UnrealBuildTool
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
 			{
 				// Tell the Clang compiler whether we want to generate 32-bit code or 64-bit code
-				if (CompileEnvironment.Platform == CppPlatform.Win64)
+				if (CompileEnvironment.Platform == UnrealTargetPlatform.Win64)
 				{
 					Arguments.Add("--target=x86_64-pc-windows-msvc");
 				}
@@ -283,8 +282,8 @@ namespace UnrealBuildTool
 					Arguments.Add("/Ob2");
 				}
 
-				if ((CompileEnvironment.Platform == CppPlatform.Win32) ||
-					(CompileEnvironment.Platform == CppPlatform.Win64))
+				if ((CompileEnvironment.Platform == UnrealTargetPlatform.Win32) ||
+					(CompileEnvironment.Platform == UnrealTargetPlatform.Win64))
 				{
 					Arguments.Add("/RTCs");
 				}
@@ -312,8 +311,8 @@ namespace UnrealBuildTool
 
 					// Only omit frame pointers on the PC (which is implied by /Ox) if wanted.
 					if (CompileEnvironment.bOmitFramePointers == false
-					&& ((CompileEnvironment.Platform == CppPlatform.Win32) ||
-						(CompileEnvironment.Platform == CppPlatform.Win64)))
+					&& ((CompileEnvironment.Platform == UnrealTargetPlatform.Win32) ||
+						(CompileEnvironment.Platform == UnrealTargetPlatform.Win64)))
 					{
 						Arguments.Add("/Oy-");
 					}
@@ -335,8 +334,8 @@ namespace UnrealBuildTool
 			//
 			//	PC
 			//
-			if ((CompileEnvironment.Platform == CppPlatform.Win32) ||
-				(CompileEnvironment.Platform == CppPlatform.Win64))
+			if ((CompileEnvironment.Platform == UnrealTargetPlatform.Win32) ||
+				(CompileEnvironment.Platform == UnrealTargetPlatform.Win64))
 			{
 				if (CompileEnvironment.bUseAVX)
 				{
@@ -345,7 +344,7 @@ namespace UnrealBuildTool
 				}
 				// SSE options are not allowed when using the 64 bit toolchain
 				// (enables SSE2 automatically)
-				else if (CompileEnvironment.Platform != CppPlatform.Win64)
+				else if (CompileEnvironment.Platform != UnrealTargetPlatform.Win64)
 				{
 					// Allow the compiler to generate SSE2 instructions.
 					Arguments.Add("/arch:SSE2");
@@ -369,7 +368,7 @@ namespace UnrealBuildTool
 					CompileEnvironment.Definitions.Add("_HAS_EXCEPTIONS=0");
 				}
 			}
-			else if (CompileEnvironment.Platform == CppPlatform.HTML5)
+			else if (CompileEnvironment.Platform == UnrealTargetPlatform.HTML5)
 			{
 				Arguments.Add("/EHsc");
 			}
@@ -457,7 +456,7 @@ namespace UnrealBuildTool
 				Arguments.Add("/Zo");
 			}
 
-			if (CompileEnvironment.Platform == CppPlatform.Win64)
+			if (CompileEnvironment.Platform == UnrealTargetPlatform.Win64)
 			{
 				// Pack struct members on 8-byte boundaries.
 				Arguments.Add("/Zp8");
@@ -472,11 +471,17 @@ namespace UnrealBuildTool
 			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED)
 			{
 				// Disable shadow variable warnings
-				if (CompileEnvironment.bEnableShadowVariableWarnings == false)
+				if (!CompileEnvironment.bEnableShadowVariableWarnings)
 				{
 					Arguments.Add("/wd4456"); // 4456 - declaration of 'LocalVariable' hides previous local declaration
 					Arguments.Add("/wd4458"); // 4458 - declaration of 'parameter' hides class member
 					Arguments.Add("/wd4459"); // 4459 - declaration of 'LocalVariable' hides global declaration
+				}
+				else if (CompileEnvironment.bShadowVariableWarningsAsErrors)
+				{
+					Arguments.Add("/we4456"); // 4456 - declaration of 'LocalVariable' hides previous local declaration
+					Arguments.Add("/we4458"); // 4458 - declaration of 'parameter' hides class member
+					Arguments.Add("/we4459"); // 4459 - declaration of 'LocalVariable' hides global declaration
 				}
 
 				Arguments.Add("/wd4463"); // 4463 - overflow; assigning 1 to bit-field that can only hold values from -1 to 0
@@ -695,11 +700,11 @@ namespace UnrealBuildTool
 			//
 			//	PC
 			//
-			if ((LinkEnvironment.Platform == CppPlatform.Win32) ||
-				(LinkEnvironment.Platform == CppPlatform.Win64))
+			if ((LinkEnvironment.Platform == UnrealTargetPlatform.Win32) ||
+				(LinkEnvironment.Platform == UnrealTargetPlatform.Win64))
 			{
 				// Set machine type/ architecture to be 64 bit.
-				if (LinkEnvironment.Platform == CppPlatform.Win64)
+				if (LinkEnvironment.Platform == UnrealTargetPlatform.Win64)
 				{
 					Arguments.Add("/MACHINE:x64");
 				}
@@ -730,7 +735,7 @@ namespace UnrealBuildTool
 				Arguments.Add("/FIXED:No");
 
 				// Option is only relevant with 32 bit toolchain.
-				if ((LinkEnvironment.Platform == CppPlatform.Win32) && Target.WindowsPlatform.bBuildLargeAddressAwareBinary)
+				if ((LinkEnvironment.Platform == UnrealTargetPlatform.Win32) && Target.WindowsPlatform.bBuildLargeAddressAwareBinary)
 				{
 					// Disables the 2GB address space limit on 64-bit Windows and 32-bit Windows with /3GB specified in boot.ini
 					Arguments.Add("/LARGEADDRESSAWARE");
@@ -751,7 +756,7 @@ namespace UnrealBuildTool
 
 				// E&C can't use /SAFESEH.  Also, /SAFESEH isn't compatible with 64-bit linking
 				if (!LinkEnvironment.bSupportEditAndContinue &&
-					LinkEnvironment.Platform != CppPlatform.Win64)
+					LinkEnvironment.Platform != UnrealTargetPlatform.Win64)
 				{
 					// Generates a table of Safe Exception Handlers.  Documentation isn't clear whether they actually mean
 					// Structured Exception Handlers.
@@ -842,10 +847,10 @@ namespace UnrealBuildTool
 			//
 			//	PC
 			//
-			if (LinkEnvironment.Platform == CppPlatform.Win32 || LinkEnvironment.Platform == CppPlatform.Win64)
+			if (LinkEnvironment.Platform == UnrealTargetPlatform.Win32 || LinkEnvironment.Platform == UnrealTargetPlatform.Win64)
 			{
 				// Set machine type/ architecture to be 64 bit.
-				if (LinkEnvironment.Platform == CppPlatform.Win64)
+				if (LinkEnvironment.Platform == UnrealTargetPlatform.Win64)
 				{
 					Arguments.Add("/MACHINE:x64");
 				}
@@ -898,11 +903,15 @@ namespace UnrealBuildTool
 				AddSystemIncludePath(SharedArguments, IncludePath);
 			}
 
-			if (CompileEnvironment.bPrintTimingInfo)
+			if (CompileEnvironment.bPrintTimingInfo || Target.WindowsPlatform.bCompilerTrace)
 			{
 				if(Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED || Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2017)
 				{
-					SharedArguments.Add("/Bt+ /d2cgsummary");
+					if (CompileEnvironment.bPrintTimingInfo)
+					{
+						SharedArguments.Add("/Bt+ /d2cgsummary");
+					}
+
 					if(EnvVars.ToolChainVersion >= VersionNumber.Parse("14.14.26316"))
 					{
 						SharedArguments.Add("/d1reportTime");
@@ -985,7 +994,6 @@ namespace UnrealBuildTool
 				{
 					if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 					{
-						CompileAction.bIsUsingPCH = true;
 						CompileAction.PrerequisiteItems.Add(CompileEnvironment.PrecompiledHeaderFile);
 
 						if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
@@ -1117,10 +1125,7 @@ namespace UnrealBuildTool
 
 				if(CompileEnvironment.bGenerateDependenciesFile)
 				{
-					CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, SourceFile.Location.GetFileName() + ".txt"));
-					CompileAction.CommandArguments = String.Format("{0} -- {1} {2} /showIncludes", Utils.MakePathSafeToUseWithCommandLine(CompileAction.DependencyListFile.Location), Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath), CompileAction.CommandArguments);
-					CompileAction.CommandPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");
-					CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
+					GenerateDependenciesFile(Target, OutputDir, Result, SourceFile, Actions, CompileAction);
 				}
 
 				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
@@ -1144,6 +1149,7 @@ namespace UnrealBuildTool
 				}
 
 				// When compiling with SN-DBS, modules that contain a #import must be built locally
+				CompileAction.bCanExecuteRemotelyWithSNDBS = CompileAction.bCanExecuteRemotely;
 				if (CompileEnvironment.bBuildLocallyWithSNDBS == true)
 				{
 					CompileAction.bCanExecuteRemotelyWithSNDBS = false;
@@ -1151,7 +1157,87 @@ namespace UnrealBuildTool
 
 				Actions.Add(CompileAction);
 			}
+
 			return Result;
+		}
+
+		private Action GenerateParseTimingInfoAction(FileItem SourceFile, Action CompileAction, CPPOutput Result)
+		{
+			FileItem TimingJsonFile = FileItem.GetItemByPath(Path.ChangeExtension(CompileAction.TimingFile.AbsolutePath, ".timing.bin"));
+			Result.DebugDataFiles.Add(TimingJsonFile);
+			Result.DebugDataFiles.Add(CompileAction.TimingFile);
+
+			string ParseTimingArguments = String.Format("-TimingFile=\"{0}\"", CompileAction.TimingFile);
+			if (Target.bParseTimingInfoForTracing)
+			{
+				ParseTimingArguments += " -Tracing";
+			}
+
+			Action ParseTimingInfoAction = Action.CreateRecursiveAction<ParseMsvcTimingInfoMode>(ActionType.ParseTimingInfo, ParseTimingArguments);
+			ParseTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+			ParseTimingInfoAction.StatusDescription = Path.GetFileName(CompileAction.TimingFile.AbsolutePath);
+			ParseTimingInfoAction.bCanExecuteRemotely = true;
+			ParseTimingInfoAction.bCanExecuteRemotelyWithSNDBS = true;
+			ParseTimingInfoAction.PrerequisiteItems.Add(SourceFile);
+			ParseTimingInfoAction.PrerequisiteItems.Add(CompileAction.TimingFile);
+			ParseTimingInfoAction.ProducedItems.Add(TimingJsonFile);
+			return ParseTimingInfoAction;
+		}
+
+		private void GenerateDependenciesFile(ReadOnlyTargetRules Target, DirectoryReference OutputDir, CPPOutput Result, FileItem SourceFile, List<Action> Actions, Action CompileAction)
+		{
+			List<string> CommandArguments = new List<string>();
+			CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.txt", SourceFile.Location.GetFileName())));
+			CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
+			CommandArguments.Add(String.Format("-dependencies={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.DependencyListFile.Location)));
+
+			if (Target.bPrintToolChainTimingInfo || Target.WindowsPlatform.bCompilerTrace)
+			{
+				CompileAction.TimingFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.timing.txt", SourceFile.Location.GetFileName())));
+				CompileAction.ProducedItems.Add(CompileAction.TimingFile);
+				Action ParseTimingInfoAction = GenerateParseTimingInfoAction(SourceFile, CompileAction, Result);
+				Actions.Add(ParseTimingInfoAction);
+				CommandArguments.Add(string.Format("-timing={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.TimingFile.Location)));
+			}
+
+			CommandArguments.Add(String.Format("-compiler={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath)));
+			CommandArguments.Add("--");
+			CommandArguments.Add(Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath));
+			CommandArguments.Add(CompileAction.CommandArguments);
+			CommandArguments.Add("/showIncludes");
+			CompileAction.CommandArguments = string.Join(" ", CommandArguments);
+			CompileAction.CommandPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");	
+		}
+
+		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefile Makefile)
+		{
+			if (Target.bPrintToolChainTimingInfo || Target.WindowsPlatform.bCompilerTrace)
+			{
+				List<Action> ParseTimingActions = Makefile.Actions.Where(x => x.ActionType == ActionType.ParseTimingInfo).ToList();
+				List<FileItem> TimingJsonFiles = ParseTimingActions.SelectMany(a => a.ProducedItems.Where(i => i.HasExtension(".timing.bin"))).ToList();
+				Makefile.OutputItems.AddRange(TimingJsonFiles);
+
+				// Handing generating aggregate timing information if we compiled more than one file.
+				if (TimingJsonFiles.Count > 1)
+				{
+					// Generate the file manifest for the aggregator.
+					FileReference ManifestFile = FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}TimingManifest.txt");
+					File.WriteAllLines(ManifestFile.FullName, TimingJsonFiles.Select(f => f.AbsolutePath));
+
+					Action AggregateTimingInfoAction = Action.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, $"-Name={Target.Name} -ManifestFile=\"{ManifestFile.FullName}\"");
+					AggregateTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+					AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
+					AggregateTimingInfoAction.bCanExecuteRemotely = false;
+					AggregateTimingInfoAction.bCanExecuteRemotelyWithSNDBS = false;
+					AggregateTimingInfoAction.PrerequisiteItems.AddRange(ParseTimingActions.SelectMany(a => a.PrerequisiteItems));
+					AggregateTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
+
+					FileItem AggregateOutputFile = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.timing.bin"));
+					AggregateTimingInfoAction.ProducedItems.Add(AggregateOutputFile);
+					Makefile.OutputItems.Add(AggregateOutputFile);
+					Makefile.Actions.Add(AggregateTimingInfoAction);
+				}
+			}
 		}
 
 		public override CPPOutput CompileRCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
@@ -1177,7 +1263,7 @@ namespace UnrealBuildTool
 
 				// If we're compiling for 64-bit Windows, also add the _WIN64 definition to the resource
 				// compiler so that we can switch on that in the .rc file using #ifdef.
-				if (CompileEnvironment.Platform == CppPlatform.Win64)
+				if (CompileEnvironment.Platform == UnrealTargetPlatform.Win64)
 				{
 					AddDefinition(Arguments, "_WIN64");
 				}
@@ -1384,12 +1470,18 @@ namespace UnrealBuildTool
 			// file is not needed for our builds, but there is no way to prevent MSVC from generating it when
 			// linking targets that have exports.  We don't want this to clobber our LIB file and invalidate the
 			// existing timstamp, so instead we simply emit it with a different name
-			FileReference ImportLibraryFilePath = FileReference.Combine(LinkEnvironment.IntermediateDirectory,
-														 LinkEnvironment.OutputFilePath.GetFileNameWithoutExtension() + ".lib");
-
+			FileReference ImportLibraryFilePath;
 			if (LinkEnvironment.bIsCrossReferenced && !bBuildImportLibraryOnly)
 			{
-				ImportLibraryFilePath = ImportLibraryFilePath.ChangeExtension(".suppressed" + ImportLibraryFilePath.GetExtension());
+				ImportLibraryFilePath = FileReference.Combine(LinkEnvironment.IntermediateDirectory, LinkEnvironment.OutputFilePath.GetFileNameWithoutExtension() + ".suppressed.lib");
+			}
+			else if(Target.bShouldCompileAsDLL)
+			{
+				ImportLibraryFilePath = FileReference.Combine(LinkEnvironment.OutputDirectory, LinkEnvironment.OutputFilePath.GetFileNameWithoutExtension() + ".lib");
+			}
+			else
+			{
+				ImportLibraryFilePath = FileReference.Combine(LinkEnvironment.IntermediateDirectory, LinkEnvironment.OutputFilePath.GetFileNameWithoutExtension() + ".lib");
 			}
 
 			FileItem OutputFile;
@@ -1413,16 +1505,6 @@ namespace UnrealBuildTool
 			{
 				InputFileNames.Add(string.Format("\"{0}\"", InputFile.AbsolutePath));
 				PrerequisiteItems.Add(InputFile);
-			}
-
-			if (!bBuildImportLibraryOnly)
-			{
-				// Add input libraries as prerequisites, too!
-				foreach (FileItem InputLibrary in LinkEnvironment.InputLibraries)
-				{
-					InputFileNames.Add(string.Format("\"{0}\"", InputLibrary.AbsolutePath));
-					PrerequisiteItems.Add(InputLibrary);
-				}
 			}
 
 			if (!bIsBuildingLibraryOrImportLibrary)
@@ -1505,7 +1587,7 @@ namespace UnrealBuildTool
 			// Add any forced references to functions
 			foreach(string IncludeFunction in LinkEnvironment.IncludeFunctions)
 			{
-				if(CppPlatform == CppPlatform.Win32)
+				if(LinkEnvironment.Platform == UnrealTargetPlatform.Win32)
 				{
 					Arguments.Add(String.Format("/INCLUDE:_{0}", IncludeFunction)); // Assume decorated cdecl name
 				}
@@ -1573,10 +1655,6 @@ namespace UnrealBuildTool
 			{
 				ObjectFileDirectories.Add(InputFile.Location.Directory);
 			}
-			foreach(FileItem InputLibrary in LinkEnvironment.InputLibraries)
-			{
-				ObjectFileDirectories.Add(InputLibrary.Location.Directory);
-			}
 			foreach(string AdditionalLibrary in LinkEnvironment.AdditionalLibraries)
 			{
 				// Need to handle import libraries that are about to be built (but may not exist yet), third party libraries with relative paths in the UE4 tree, and system libraries in the system path
@@ -1605,9 +1683,9 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the default include paths for the given platform.
 		/// </summary>
-		public static string GetVCIncludePaths(CppPlatform Platform, WindowsCompiler Compiler, string CompilerVersion)
+		public static string GetVCIncludePaths(UnrealTargetPlatform Platform, WindowsCompiler Compiler, string CompilerVersion)
 		{
-			Debug.Assert(Platform == CppPlatform.Win32 || Platform == CppPlatform.Win64);
+			Debug.Assert(Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.Win64);
 
 			// Make sure we've got the environment variables set up for this target
 			VCEnvironment EnvVars = VCEnvironment.Create(Compiler, Platform, CompilerVersion, null);
@@ -1628,7 +1706,14 @@ namespace UnrealBuildTool
 		{
 			if (Binary.Type == UEBuildBinaryType.DynamicLinkLibrary)
 			{
-				BuildProducts.Add(FileReference.Combine(Binary.IntermediateDirectory, Binary.OutputFilePath.GetFileNameWithoutExtension() + ".lib"), BuildProductType.BuildResource);
+				if(Target.bShouldCompileAsDLL)
+				{
+					BuildProducts.Add(FileReference.Combine(Binary.OutputDir, Binary.OutputFilePath.GetFileNameWithoutExtension() + ".lib"), BuildProductType.BuildResource);
+				}
+				else
+				{
+					BuildProducts.Add(FileReference.Combine(Binary.IntermediateDirectory, Binary.OutputFilePath.GetFileNameWithoutExtension() + ".lib"), BuildProductType.BuildResource);
+				}
 			}
 			if(Binary.Type == UEBuildBinaryType.Executable && Target.bCreateMapFile)
 			{

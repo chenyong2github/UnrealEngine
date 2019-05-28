@@ -2,7 +2,7 @@
 
 #include "Android/AndroidStats.h"
 #include "CoreMinimal.h"
-#include "Android/AndroidMisc.h"
+#include "Android/AndroidPlatformMisc.h"
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
 

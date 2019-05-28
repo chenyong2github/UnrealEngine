@@ -6,6 +6,7 @@ using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -423,6 +424,82 @@ namespace UnrealGameSync
 					}
 				}
 			}
+		}
+
+		public static Color Blend(Color First, Color Second, float T)
+		{
+			return Color.FromArgb((int)(First.R + (Second.R - First.R) * T), (int)(First.G + (Second.G - First.G) * T), (int)(First.B + (Second.B - First.B) * T));
+		}
+
+		public static string FormatRecentDateTime(DateTime Date)
+		{
+			DateTime Now = DateTime.Now;
+
+			DateTime Midnight = new DateTime(Now.Year, Now.Month, Now.Day);
+			DateTime MidnightTonight = Midnight + TimeSpan.FromDays(1.0);
+
+			if(Date > MidnightTonight)
+			{
+				return String.Format("{0} at {1}", Date.ToLongDateString(), Date.ToShortTimeString());
+			}
+			else if(Date >= Midnight)
+			{
+				return String.Format("today at {0}", Date.ToShortTimeString());
+			}
+			else if(Date >= Midnight - TimeSpan.FromDays(1.0))
+			{
+				return String.Format("yesterday at {0}", Date.ToShortTimeString());
+			}
+			else if(Date >= Midnight - TimeSpan.FromDays(5.0))
+			{
+				return String.Format("{0:dddd} at {1}", Date, Date.ToShortTimeString());
+			}
+			else
+			{
+				return String.Format("{0} at {1}", Date.ToLongDateString(), Date.ToShortTimeString());
+			}
+		}
+
+		public static string FormatDurationMinutes(TimeSpan Duration)
+		{
+			return FormatDurationMinutes((int)(Duration.TotalMinutes + 1));
+		}
+
+		public static string FormatDurationMinutes(int TotalMinutes)
+		{
+			if(TotalMinutes > 24 * 60)
+			{
+				return String.Format("{0}d {1}h", TotalMinutes / (24 * 60), (TotalMinutes / 60) % 24);
+			}
+			else if(TotalMinutes > 60)
+			{
+				return String.Format("{0}h {1}m", TotalMinutes / 60, TotalMinutes % 60);
+			}
+			else
+			{
+				return String.Format("{0}m", TotalMinutes);
+			}
+		}
+
+		public static string FormatUserName(string UserName)
+		{
+			StringBuilder NormalUserName = new StringBuilder();
+			for(int Idx = 0; Idx < UserName.Length; Idx++)
+			{
+				if(Idx == 0 || UserName[Idx - 1] == '.')
+				{
+					NormalUserName.Append(Char.ToUpper(UserName[Idx]));
+				}
+				else if(UserName[Idx] == '.')
+				{
+					NormalUserName.Append(' ');
+				}
+				else
+				{
+					NormalUserName.Append(Char.ToLower(UserName[Idx]));
+				}
+			}
+			return NormalUserName.ToString();
 		}
 	}
 }
