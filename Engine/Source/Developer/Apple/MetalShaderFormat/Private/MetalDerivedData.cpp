@@ -1132,7 +1132,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			char BufferIdx[3];
 			FCStringAnsi::Snprintf(BufferIdx, 3, "%d", SideTableIndex);
 
-			ShaderConductor::MacroDefine Defines[7] = {{"texel_buffer_texture_width", "0"}, {"enforce_storge_buffer_bounds", "1"}, {"metadata_buffer_index", BufferIdx}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}};
+			ShaderConductor::MacroDefine Defines[7] = {{"texel_buffer_texture_width", "0"}, {"enforce_storge_buffer_bounds", "1"}, {"buffer_size_buffer_index", BufferIdx}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}};
 			TargetDesc.numOptions = 3;
 			TargetDesc.options = &Defines[0];
 			switch(Semantics)
@@ -1201,9 +1201,9 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		Result = (Results.hasError) ? 0 : 1;
 		if (!Results.hasError && Results.target)
 		{
-			if(strstr((const char*)Results.target->Data(), "spvBufferSizes"))
+			if(strstr((const char*)Results.target->Data(), "spvBufferSizeConstants"))
 			{
-				MetaData += FString::Printf(TEXT("// @SideTable: spvBufferSizes(%d)\n"), SideTableIndex);
+				MetaData += FString::Printf(TEXT("// @SideTable: spvBufferSizeConstants(%d)\n"), SideTableIndex);
 			}
 			MetaData += FString::Printf(TEXT("\n\n"));
 			

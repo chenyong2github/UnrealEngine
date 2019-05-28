@@ -543,7 +543,7 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 			case MTLArgumentTypeBuffer:
 			{
 				checkf(Arg.index < ML_MaxBuffers, TEXT("Metal buffer index exceeded!"));
-				if (FString(Arg.name) != TEXT("BufferSizes") && FString(Arg.name) != TEXT("spvBufferSizes"))
+				if (FString(Arg.name) != TEXT("BufferSizes") && FString(Arg.name) != TEXT("spvBufferSizeConstants"))
 				{
 					ResourceMask[Frequency].BufferMask |= (1 << Arg.index);
 				
@@ -1296,14 +1296,14 @@ static void ReleaseMTLRenderPipeline(FMetalShaderPipeline* Pipeline)
 bool FMetalGraphicsPipelineState::Compile()
 {
 	FMemory::Memzero(PipelineStates);
-	for (uint32 i = 0; i < EMetalIndexType_Num; i++)
-	{
-		PipelineStates[i] = [GetMTLRenderPipeline(true, this, Initializer, (EMetalIndexType)i) retain];
-		if(!PipelineStates[i])
+		for (uint32 i = 0; i < EMetalIndexType_Num; i++)
 		{
-			return false;
+			PipelineStates[i] = [GetMTLRenderPipeline(true, this, Initializer, (EMetalIndexType)i) retain];
+			if(!PipelineStates[i])
+			{
+				return false;
+			}
 		}
-	}
 	
 	return true;
 }
@@ -1321,13 +1321,13 @@ FMetalShaderPipeline* FMetalGraphicsPipelineState::GetPipeline(EMetalIndexType I
 {
 	check(IndexType < EMetalIndexType_Num);
 
-	if(!PipelineStates[IndexType])
-	{
-		PipelineStates[IndexType] = [GetMTLRenderPipeline(true, this, Initializer, IndexType) retain];
-	}
+		if(!PipelineStates[IndexType])
+		{
+			PipelineStates[IndexType] = [GetMTLRenderPipeline(true, this, Initializer, IndexType) retain];
+		}
 	FMetalShaderPipeline* Pipe = PipelineStates[IndexType];
 
-	check(Pipe);
+		check(Pipe);
     return Pipe;
 }
 
