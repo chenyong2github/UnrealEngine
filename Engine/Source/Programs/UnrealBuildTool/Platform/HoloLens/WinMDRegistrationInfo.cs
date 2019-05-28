@@ -3,7 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+#if !__MonoCS__
 using Windows.Foundation.Metadata;
+#endif
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Reflection;
 using Tools.DotNETCommon;
@@ -28,7 +30,9 @@ namespace UnrealBuildTool
 			public ActivatableType(string InTypeName, object InThreadingModel)
 			{
 				TypeName = InTypeName;
+#if !__MonoCS__
 				ThreadingModelName = ((ThreadingModel)InThreadingModel).ToString().ToLowerInvariant();
+#endif
 			}
 			
 			/// <summary>
@@ -52,6 +56,7 @@ namespace UnrealBuildTool
 			PackageRelativeDllPath = InPackageRelativeDllPath;
 			ResolveSearchPaths.Add(InWindMDSourcePath.Directory.FullName);
 
+#if !__MonoCS__
 			ActivatableTypesList = new List<ActivatableType>();
 			var DependsOn = Assembly.ReflectionOnlyLoadFrom(InWindMDSourcePath.FullName);
 			foreach (var WinMDType in DependsOn.GetExportedTypes())
@@ -75,6 +80,7 @@ namespace UnrealBuildTool
 					ActivatableTypesList.Add(new ActivatableType(WinMDType.FullName, ThreadingModel));
 				}
 			}
+#endif
 		}
 
 		/// <summary>
@@ -95,6 +101,7 @@ namespace UnrealBuildTool
 
 		static WinMDRegistrationInfo()
 		{
+#if !__MonoCS__
 			AppDomain.CurrentDomain.ReflectionOnlyAssemblyResolve += (Sender, EventArgs) => Assembly.ReflectionOnlyLoad(EventArgs.Name);
 			WindowsRuntimeMetadata.ReflectionOnlyNamespaceResolve += (Sender, EventArgs) =>
 			{
@@ -105,6 +112,7 @@ namespace UnrealBuildTool
 				}
 				EventArgs.ResolvedAssemblies.Add(Assembly.ReflectionOnlyLoadFrom(Path));
 			};
+#endif
 		}
 
 		private static List<string> ResolveSearchPaths = new List<string>();
