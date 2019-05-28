@@ -52,7 +52,6 @@ namespace PrimitiveComponentStatics
 	static const FText MobilityWarnText = LOCTEXT("InvalidMove", "move");
 }
 
-typedef TArray<FOverlapInfo, TInlineAllocator<3>> TInlineOverlapInfoArray;
 typedef TArray<const FOverlapInfo*, TInlineAllocator<8>> TInlineOverlapPointerArray;
 
 DEFINE_LOG_CATEGORY_STATIC(LogPrimitiveComponent, Log, All);
@@ -255,9 +254,33 @@ FORCEINLINE_DEBUGGABLE static void GetPointersToArrayData(TArray<const ElementTy
 	}
 }
 
+template <class ElementType, class AllocatorType1>
+FORCEINLINE_DEBUGGABLE static void GetPointersToArrayData(TArray<const ElementType*, AllocatorType1>& Pointers, const TArrayView<const ElementType>& DataArray)
+{
+	const int32 NumItems = DataArray.Num();
+	Pointers.SetNumUninitialized(NumItems);
+	for (int32 i=0; i < NumItems; i++)
+	{
+		Pointers[i] = &(DataArray[i]);
+	}
+}
+
 // Helper to initialize an array to point to data members in another array which satisfy a predicate.
 template <class ElementType, class AllocatorType1, class AllocatorType2, typename PredicateT>
 FORCEINLINE_DEBUGGABLE static void GetPointersToArrayDataByPredicate(TArray<const ElementType*, AllocatorType1>& Pointers, const TArray<ElementType, AllocatorType2>& DataArray, PredicateT Predicate)
+{
+	Pointers.Reserve(Pointers.Num() + DataArray.Num());
+	for (const ElementType& Item : DataArray)
+	{
+		if (Invoke(Predicate, Item))
+		{
+			Pointers.Add(&Item);
+		}
+	}
+}
+
+template <class ElementType, class AllocatorType1, typename PredicateT>
+FORCEINLINE_DEBUGGABLE static void GetPointersToArrayDataByPredicate(TArray<const ElementType*, AllocatorType1>& Pointers, const TArrayView<const ElementType>& DataArray, PredicateT Predicate)
 {
 	Pointers.Reserve(Pointers.Num() + DataArray.Num());
 	for (const ElementType& Item : DataArray)
@@ -1919,7 +1942,7 @@ bool UPrimitiveComponent::MoveComponentImpl( const FVector& Delta, const FQuat& 
 	bool bMoved = false;
 	bool bIncludesOverlapsAtEnd = false;
 	bool bRotationOnly = false;
-	TArray<FOverlapInfo> PendingOverlaps;
+	TInlineOverlapInfoArray PendingOverlaps;
 	AActor* const Actor = GetOwner();
 
 	if ( !bSweep )
@@ -2125,21 +2148,24 @@ bool UPrimitiveComponent::MoveComponentImpl( const FVector& Delta, const FQuat& 
 		{
 			if (bIncludesOverlapsAtEnd)
 			{
-				TArray<FOverlapInfo> OverlapsAtEndLocation;
-				const TArray<FOverlapInfo>* OverlapsAtEndLocationPtr = nullptr; // When non-null, used as optimization to avoid work in UpdateOverlaps.
+				TInlineOverlapInfoArray OverlapsAtEndLocation;
+				bool bHasEndOverlaps = false;
 				if (bRotationOnly)
 				{
-					OverlapsAtEndLocationPtr = ConvertRotationOverlapsToCurrentOverlaps(OverlapsAtEndLocation, GetOverlapInfos());
+					bHasEndOverlaps = ConvertRotationOverlapsToCurrentOverlaps(OverlapsAtEndLocation, OverlappingComponents);
 				}
 				else
 				{
-					OverlapsAtEndLocationPtr = ConvertSweptOverlapsToCurrentOverlaps(OverlapsAtEndLocation, PendingOverlaps, 0, GetComponentLocation(), GetComponentQuat());
+					bHasEndOverlaps = ConvertSweptOverlapsToCurrentOverlaps(OverlapsAtEndLocation, PendingOverlaps, 0, GetComponentLocation(), GetComponentQuat());
 				}
-				UpdateOverlaps(&PendingOverlaps, true, OverlapsAtEndLocationPtr);
+				TOverlapArrayView PendingOverlapsView(PendingOverlaps);
+				TOverlapArrayView OverlapsAtEndView(OverlapsAtEndLocation);
+				UpdateOverlaps(&PendingOverlapsView, true, bHasEndOverlaps ? &OverlapsAtEndView : nullptr);
 			}
 			else
 			{
-				UpdateOverlaps(&PendingOverlaps, true, nullptr);
+				TOverlapArrayView PendingOverlapsView(PendingOverlaps);
+				UpdateOverlaps(&PendingOverlapsView, true, nullptr);
 			}
 		}
 	}
@@ -2369,7 +2395,8 @@ bool UPrimitiveComponent::IsOverlappingActor(const AActor* Other) const
 	return false;
 }
 
-bool UPrimitiveComponent::GetOverlapsWithActor(const AActor* Actor, TArray<FOverlapInfo>& OutOverlaps) const
+template<typename AllocatorType>
+bool UPrimitiveComponent::GetOverlapsWithActor_Template(const AActor* Actor, TArray<FOverlapInfo, AllocatorType>& OutOverlaps) const
 {
 	const int32 InitialCount = OutOverlaps.Num();
 	if (Actor)
@@ -2385,6 +2412,11 @@ bool UPrimitiveComponent::GetOverlapsWithActor(const AActor* Actor, TArray<FOver
 	}
 
 	return InitialCount != OutOverlaps.Num();
+}
+
+bool UPrimitiveComponent::GetOverlapsWithActor(const AActor* Actor, TArray<FOverlapInfo>& OutOverlaps) const
+{
+	return GetOverlapsWithActor_Template(Actor, OutOverlaps);
 }
 
 #if WITH_EDITOR
@@ -2675,13 +2707,14 @@ void UPrimitiveComponent::GetOverlappingComponents(TSet<UPrimitiveComponent*>& O
 	}
 }
 
-const TArray<FOverlapInfo>* UPrimitiveComponent::ConvertSweptOverlapsToCurrentOverlaps(
-	TArray<FOverlapInfo>& OverlapsAtEndLocation, const TArray<FOverlapInfo>& SweptOverlaps, int32 SweptOverlapsIndex,
+template<typename AllocatorType>
+bool UPrimitiveComponent::ConvertSweptOverlapsToCurrentOverlaps(
+	TArray<FOverlapInfo, AllocatorType>& OverlapsAtEndLocation, const TOverlapArrayView& SweptOverlaps, int32 SweptOverlapsIndex,
 	const FVector& EndLocation, const FQuat& EndRotationQuat)
 {
 	checkSlow(SweptOverlapsIndex >= 0);
 
-	const TArray<FOverlapInfo>* Result = nullptr;
+	bool bResult = false;
 	const bool bForceGatherOverlaps = !ShouldCheckOverlapFlagToQueueOverlaps(*this);
 	if ((GetGenerateOverlapEvents() || bForceGatherOverlaps) && bAllowCachedOverlapsCVar)
 	{
@@ -2706,12 +2739,12 @@ const TArray<FOverlapInfo>* UPrimitiveComponent::ConvertSweptOverlapsToCurrentOv
 						if (OtherPrimitive->bMultiBodyOverlap)
 						{
 							// Not handled yet. We could do it by checking every body explicitly and track each body index in the overlap test, but this seems like a rare need.
-							return nullptr;
+							return false;
 						}
 						else if (Cast<USkeletalMeshComponent>(OtherPrimitive) || Cast<USkeletalMeshComponent>(this))
 						{
 							// SkeletalMeshComponent does not support this operation, and would return false in the test when an actual query could return true.
-							return nullptr;
+							return false;
 						}
 						else if (OtherPrimitive->ComponentOverlapComponent(this, EndLocation, EndRotationQuat, UnusedQueryParams))
 						{
@@ -2725,27 +2758,27 @@ const TArray<FOverlapInfo>* UPrimitiveComponent::ConvertSweptOverlapsToCurrentOv
 				checkfSlow(OverlapsAtEndLocation.FindByPredicate(FPredicateOverlapHasSameActor(*Actor)) == nullptr,
 					TEXT("Child overlaps should not be included in the SweptOverlaps() array in UPrimitiveComponent::ConvertSweptOverlapsToCurrentOverlaps()."));
 
-				Result = &OverlapsAtEndLocation;
+				bResult = true;
 			}
 			else
 			{
 				if (SweptOverlaps.Num() == 0 && AreAllCollideableDescendantsRelative())
 				{
 					// Add overlaps with components in this actor.
-					GetOverlapsWithActor(Actor, OverlapsAtEndLocation);
-					Result = &OverlapsAtEndLocation;
+					GetOverlapsWithActor_Template(Actor, OverlapsAtEndLocation);
+					bResult = true;
 				}
 			}
 		}
 	}
 
-	return Result;
+	return bResult;
 }
 
-
-const TArray<FOverlapInfo>* UPrimitiveComponent::ConvertRotationOverlapsToCurrentOverlaps(TArray<FOverlapInfo>& OverlapsAtEndLocation, const TArray<FOverlapInfo>& CurrentOverlaps)
+template<typename AllocatorType>
+bool UPrimitiveComponent::ConvertRotationOverlapsToCurrentOverlaps(TArray<FOverlapInfo, AllocatorType>& OutOverlapsAtEndLocation, const TOverlapArrayView& CurrentOverlaps)
 {
-	const TArray<FOverlapInfo>* Result = nullptr;
+	bool bResult = false;
 	const bool bForceGatherOverlaps = !ShouldCheckOverlapFlagToQueueOverlaps(*this);
 	if ((GetGenerateOverlapEvents() || bForceGatherOverlaps) && bAllowCachedOverlapsCVar)
 	{
@@ -2755,14 +2788,14 @@ const TArray<FOverlapInfo>* UPrimitiveComponent::ConvertRotationOverlapsToCurren
 			if (bEnableFastOverlapCheck)
 			{
 				// Add all current overlaps that are not children. Children test for their own overlaps after we update our own, and we ignore children in our own update.
-				OverlapsAtEndLocation.Reserve(OverlapsAtEndLocation.Num() + CurrentOverlaps.Num());
-				Algo::CopyIf(CurrentOverlaps, OverlapsAtEndLocation, FPredicateOverlapHasDifferentActor(*Actor));
-				Result = &OverlapsAtEndLocation;
+				OutOverlapsAtEndLocation.Reserve(OutOverlapsAtEndLocation.Num() + CurrentOverlaps.Num());
+				Algo::CopyIf(CurrentOverlaps, OutOverlapsAtEndLocation, FPredicateOverlapHasDifferentActor(*Actor));
+				bResult = true;
 			}
 		}
 	}
 
-	return Result;
+	return bResult;
 }
 
 
@@ -2898,7 +2931,7 @@ TArray<UPrimitiveComponent*> UPrimitiveComponent::CopyArrayOfMoveIgnoreComponent
 	return MoveIgnoreComponents;
 }
 
-bool UPrimitiveComponent::UpdateOverlapsImpl(const TArray<FOverlapInfo>* NewPendingOverlaps, bool bDoNotifies, const TArray<FOverlapInfo>* OverlapsAtEndLocation)
+bool UPrimitiveComponent::UpdateOverlapsImpl(const TOverlapArrayView* NewPendingOverlaps, bool bDoNotifies, const TOverlapArrayView* OverlapsAtEndLocation)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateOverlaps); 
 	SCOPE_CYCLE_UOBJECT(ComponentScope, this);
