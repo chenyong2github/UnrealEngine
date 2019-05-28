@@ -2,6 +2,7 @@
 
 #include "CoreTypes.h"
 #include "Features/IModularFeatures.h"
+#include "Containers/ArrayView.h"
 
 typedef void* FRSAKeyHandle;
 static const FRSAKeyHandle InvalidRSAKeyHandle = nullptr;

@@ -2,6 +2,7 @@
 
 #include "RSA.h"
 #include "Features/IModularFeatures.h"
+#include "Modules/ModuleManager.h"
 
 static FCriticalSection GLock;
 
