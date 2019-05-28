@@ -1,0 +1,399 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "VectorTypes.h"
+#include "SegmentTypes.h"
+#include "LineTypes.h"
+#include "RayTypes.h"
+
+/**
+ * TPolyline3 represents a 3D polyline stored as a list of Vertices.
+ *
+ * @todo move operators
+ */
+template<typename T>
+class TPolyline3
+{
+protected:
+	/** The list of vertices of the polyline */
+	TArray<FVector3<T>> Vertices;
+
+	/** A counter that is incremented every time the polyline vertices are modified */
+	int Timestamp;
+
+public:
+
+
+	TPolyline3() : Timestamp(0)
+	{
+	}
+
+	/**
+	 * Construct polyline that is a copy of another polyline
+	 */
+	TPolyline3(const TPolyline3& Copy) : Vertices(Copy.Vertices), Timestamp(Copy.Timestamp)
+	{
+	}
+
+	/**
+	 * Construct polyline with given list of vertices
+	 */
+	TPolyline3(const TArray<FVector3<T>>& VertexList) : Vertices(VertexList), Timestamp(0)
+	{
+	}
+
+	/** @return the Timestamp for the polyline, which is updated every time the polyline is modified */
+	int GetTimestamp() const
+	{
+		return Timestamp;
+	}
+
+	/** Explicitly increment the Timestamp */
+	void IncrementTimestamp()
+	{
+		Timestamp++;
+	}
+
+	/**
+	 * Get the vertex at a given index
+	 */
+	const FVector3<T>& operator[](int Index) const
+	{
+		return Vertices[Index];
+	}
+
+	/**
+	 * Get the vertex at a given index
+	 * @warning changing the vertex via this operator does not update Timestamp!
+	 */
+	FVector3<T>& operator[](int Index)
+	{
+		return Vertices[Index];
+	}
+
+
+	/**
+	 * @return first vertex of polyline
+	 */
+	const FVector3<T>& Start() const
+	{
+		return Vertices[0];
+	}
+
+	/**
+	 * @return last vertex of polyline
+	 */
+	const FVector3<T>& End() const
+	{
+		return Vertices[Vertices.Num()-1];
+	}
+
+
+	/**
+	 * @return list of Vertices of polyline
+	 */
+	const TArray<FVector3<T>>& GetVertices() const
+	{
+		return Vertices;
+	}
+
+	/**
+	 * @return number of Vertices in polyline
+	 */
+	int VertexCount() const
+	{
+		return Vertices.Num();
+	}
+
+	/**
+	 * @return number of segments in polyline
+	 */
+	int SegmentCount() const
+	{
+		return Vertices.Num()-1;
+	}
+
+
+	/**
+	 * Add a vertex to the polyline
+	 */
+	void AppendVertex(const FVector3<T>& Position)
+	{
+		Vertices.Add(Position);
+		Timestamp++;
+	}
+
+	/**
+	 * Add a list of Vertices to the polyline
+	 */
+	void AppendVertices(const TArray<FVector3<T>>& NewVertices)
+	{
+		Vertices.Append(NewVertices);
+		Timestamp++;
+	}
+
+	/**
+	 * Set vertex at given index to a new Position
+	 */
+	void Set(int VertexIndex, const FVector3<T>& Position)
+	{
+		Vertices[VertexIndex] = Position;
+		Timestamp++;
+	}
+
+	/**
+	 * Remove a vertex of the polyline (existing Vertices are shifted)
+	 */
+	void RemoveVertex(int VertexIndex)
+	{
+		Vertices.RemoveAt(VertexIndex);
+		Timestamp++;
+	}
+
+	/**
+	 * Replace the list of Vertices with a new list
+	 */
+	void SetVertices(const TArray<FVector3<T>>& NewVertices)
+	{
+		int NumVerts = NewVertices.Num();
+		Vertices.SetNum(NumVerts, false);
+		for (int k = 0; k < NumVerts; ++k)
+		{
+			Vertices[k] = NewVertices[k];
+		}
+		Timestamp++;
+	}
+
+
+	/**
+	 * Reverse the order of the Vertices in the polyline (ie switch between Clockwise and CounterClockwise)
+	 */
+	void Reverse()
+	{
+		int32 j = Vertices.Num() - 1;
+		for (int32 VertexIndex = 0; VertexIndex < j; VertexIndex++, j--)
+		{
+			Swap(Vertices[VertexIndex], Vertices[j]);
+		}
+		Timestamp++;
+	}
+
+
+	/**
+	 * Get the tangent vector at a vertex of the polyline, which is the normalized
+	 * vector from the previous vertex to the next vertex
+	 */
+	FVector3<T> GetTangent(int VertexIndex) const
+	{
+		if (VertexIndex == 0)
+		{
+			return (Vertices[1] - Vertices[0]).Normalized();
+		} 
+		int NumVerts = Vertices.Num();
+		if (VertexIndex == NumVerts - 1)
+		{
+			return (Vertices[NumVerts-1] - Vertices[NumVerts-2]).Normalized();
+		}
+		return (Vertices[VertexIndex+1] - Vertices[VertexIndex-1]).Normalized()
+	}
+
+
+
+	/**
+	 * @return edge of the poyline starting at vertex SegmentIndex
+	 */
+	FSegment3<T> GetSegment(int SegmentIndex) const
+	{
+		return FSegment3<T>(Vertices[SegmentIndex], Vertices[SegmentIndex+1]);
+	}
+
+
+	/**
+	 * @param SegmentIndex index of first vertex of the edge
+	 * @param SegmentParam parameter in range [0,1] along segment
+	 * @return point on the segment at the given parameter value
+	 */
+	FVector3<T> PointAt(int SegmentIndex, double SegmentParam) const
+	{
+		FSegment3<T> seg(Vertices[SegmentIndex], Vertices[SegmentIndex + 1]);
+		return seg.PointAt(SegmentParam);
+	}
+
+
+
+
+	/**
+	 * @return the bounding box of the polyline Vertices
+	 */
+	FAxisAlignedBox3<T> GetBounds() const
+	{
+		FAxisAlignedBox3<T> box = FAxisAlignedBox3<T>::Empty();
+		int NumVertices = Vertices.Num();
+		for (int k = 0; k < NumVertices; ++k)
+		{
+			box.Contain(Vertices[k]);
+		}
+		return box;
+	}
+
+
+
+	/**
+	 * @return the total perimeter length of the Polygon
+	 */
+	double Length() const
+	{
+		double length = 0;
+		int N = SegmentCount();
+		for (int i = 0; i < N; ++i)
+		{
+			length += Vertices[i].Distance(Vertices[i+1]);
+		}
+		return length;
+	}
+
+
+
+	/**
+	 * SegmentIterator is used to iterate over the FSegment3<T> segments of the polyline
+	 */
+	class SegmentIterator
+	{
+	public:
+		inline bool operator!()
+		{
+			return i < SegmentCount();
+		}
+		inline FSegment3<T> operator*() const
+		{
+			check(Polyline != nullptr && i < SegmentCount());
+			return FSegment3<T>(Polyline->Vertices[i], Polyline->Vertices[i+1]);
+		}
+		//inline FSegment3<T> & operator*();
+		inline SegmentIterator & operator++() 		// prefix
+		{
+			i++;
+			return *this;
+		}
+		inline SegmentIterator operator++(int) 		// postfix
+		{
+			SegmentIterator copy(*this);
+			i++;
+			return copy;
+		}
+		inline bool operator==(const SegmentIterator & i3) { return i3.Polyline == Polyline && i3.i == i; }
+		inline bool operator!=(const SegmentIterator & i3) { return i3.Polyline != Polyline || i3.i != i; }
+	protected:
+		const TPolyline3 * Polyline;
+		int i;
+		inline SegmentIterator(const TPolyline3 * p, int iCur) : Polyline(p), i(iCur) {}
+		friend class TPolyline3;
+	};
+	friend class SegmentIterator;
+
+	SegmentIterator SegmentItr() const
+	{
+		return SegmentIterator(this, 0);
+	}
+
+	/**
+	 * Wrapper around SegmentIterator that has begin() and end() suitable for range-based for loop
+	 */
+	class SegmentEnumerable
+	{
+	public:
+		const TPolyline3<T>* Polyline;
+		SegmentEnumerable() : Polyline(nullptr) {}
+		SegmentEnumerable(const TPolyline3<T> * p) : Polyline(p) {}
+		SegmentIterator begin() { return Polyline->SegmentItr(); }
+		SegmentIterator end() { return SegmentIterator(Polyline, SegmentCount()); }
+	};
+
+	/**
+	 * @return an object that can be used in a range-based for loop to iterate over the Segments of the Polyline
+	 */
+	SegmentEnumerable Segments() const
+	{
+		return SegmentEnumerable(this);
+	}
+
+
+
+
+
+
+	/**
+	 * Calculate the squared distance from a point to the polyline
+	 * @param QueryPoint the query point
+	 * @param NearestSegIndexOut The index of the nearest segment
+	 * @param NearestSegParamOut the parameter value of the nearest point on the segment
+	 * @return squared distance to the polyline
+	 */
+	double DistanceSquared(const FVector3<T>& QueryPoint, int& NearestSegIndexOut, double& NearestSegParamOut) const
+	{
+		NearestSegIndexOut = -1;
+		NearestSegParamOut = TNumericLimits<double>::Max();
+		double dist = TNumericLimits<double>::Max();
+		int N = SegmentCount();
+		for (int vi = 0; vi < N; ++vi)
+		{
+			// @todo can't we just use segment function here now?
+			FSegment3<T> seg = FSegment3<T>(Vertices[vi], Vertices[vi+1]);
+			double t = (QueryPoint - seg.Center).Dot(seg.Direction);
+			double d = TNumericLimits<double>::Max();
+			if (t >= seg.Extent)
+			{
+				d = seg.EndPoint().DistanceSquared(QueryPoint);
+			}
+			else if (t <= -seg.Extent)
+			{
+				d = seg.StartPoint().DistanceSquared(QueryPoint);
+			}
+			else
+			{
+				d = (seg.PointAt(t) - QueryPoint).SquaredLength();
+			}
+			if (d < dist)
+			{
+				dist = d;
+				NearestSegIndexOut = vi;
+				NearestSegParamOut = t;
+			}
+		}
+		return dist;
+	}
+
+
+
+	/**
+	 * Calculate the squared distance from a point to the polyline
+	 * @param QueryPoint the query point
+	 * @return squared distance to the polyline
+	 */
+	double DistanceSquared(const FVector3<T>& QueryPoint) const
+	{
+		int seg; double segt;
+		return DistanceSquared(QueryPoint, seg, segt);
+	}
+
+
+
+
+	/**
+	 * @return average edge length of all the edges of the Polygon
+	 */
+	double AverageEdgeLength() const
+	{
+		double avg = 0; int N = Vertices.Num();
+		for (int i = 1; i < N; ++i) {
+			avg += Vertices[i].Distance(Vertices[i - 1]);
+		}
+		return avg / (double)(N-1);
+	}
+
+
+};
+
+typedef TPolyline3<double> FPolyline3d;
+typedef TPolyline3<float> FPolyline3f;

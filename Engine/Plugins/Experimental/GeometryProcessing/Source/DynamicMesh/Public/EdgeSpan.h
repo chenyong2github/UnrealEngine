@@ -6,6 +6,7 @@
 
 #include "DynamicMesh3.h"
 #include "Util/IndexUtil.h"
+#include "Polyline3.h"
 
 
 /**
@@ -141,6 +142,11 @@ public:
 	 */
 	FAxisAlignedBox3d GetBounds() const;
 
+
+	/**
+	 * Extract Polyline from Mesh based on vertex list
+	 */
+	void GetPolyline(FPolyline3d& PolylineOut) const;
 
 	/**
 	 * If any edges if the span are on a mesh boundary, we can check that the span is

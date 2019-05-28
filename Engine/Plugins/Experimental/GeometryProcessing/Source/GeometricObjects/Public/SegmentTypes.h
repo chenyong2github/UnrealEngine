@@ -170,6 +170,18 @@ public:
 
 
 	/**
+	 * @return scalar projection of QueryPoint onto line of Segment, mapped to [0,1] range along segment
+	 */
+	inline T ProjectUnitRange(const FVector2<T>& QueryPoint) const
+	{
+		T ProjT = (QueryPoint - Center).Dot(Direction);
+		T Alpha = ((ProjT / Extent) + (T)1) * (T)0.5;
+		return TMathUtil<T>::Clamp(Alpha, (T)0, (T)1);
+	}
+
+
+
+	/**
 	 * Determine which side of the segment the query point lies on
 	 * @param QueryPoint test point
 	 * @param Tolerance tolerance band in which we return 0
@@ -467,6 +479,16 @@ public:
 		return (QueryPoint - Center).Dot(Direction);
 	}
 
+
+	/**
+	 * @return scalar projection of QueryPoint onto line of Segment, mapped to [0,1] range along segment
+	 */
+	inline T ProjectUnitRange(const FVector3<T>& QueryPoint) const
+	{
+		T ProjT = (QueryPoint - Center).Dot(Direction);
+		T Alpha = ((ProjT / Extent) + (T)1) * (T)0.5;
+		return TMathUtil<T>::Clamp(Alpha, (T)0, (T)1);
+	}
 
 
 protected:

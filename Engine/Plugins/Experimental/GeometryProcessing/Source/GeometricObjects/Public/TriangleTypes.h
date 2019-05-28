@@ -157,6 +157,15 @@ struct FTriangle3
 			(V[0].Z + V[1].Z + V[2].Z) * f
 		);
 	}
+
+	/** grow the triangle around the centroid */
+	void Expand(RealType Delta)
+	{
+		FVector3<RealType> Centroid(Centroid());
+		V[0] += Delta * ((V[0] - Centroid).Normalized());
+		V[1] += Delta * ((V[1] - Centroid).Normalized());
+		V[2] += Delta * ((V[2] - Centroid).Normalized());
+	}
 };
 
 typedef FTriangle3<float> FTriangle3f;

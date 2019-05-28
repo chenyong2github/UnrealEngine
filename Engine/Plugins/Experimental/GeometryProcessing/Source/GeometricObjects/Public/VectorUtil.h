@@ -155,6 +155,22 @@ namespace VectorUtil
 		return EpsilonEqual(V0.X, V1.X, Epsilon) && EpsilonEqual(V0.Y, V1.Y, Epsilon) && EpsilonEqual(V0.Z, V1.Z, Epsilon);
 	}
 
+
+	/** @return 0/1/2 index of smallest value in Vector3 */
+	template <typename ValueVecType>
+	inline int Min3Index(const ValueVecType& Vector3)
+	{
+		if (Vector3[0] <= Vector3[1])
+		{
+			return Vector3[0] <= Vector3[2] ? 0 : 2;
+		}
+		else
+		{
+			return (Vector3[1] <= Vector3[2]) ? 1 : 2;
+		}
+	}
+
+
 	/**
 	 * Calculates two vectors perpendicular to input Normal, as efficiently as possible.
 	 */
