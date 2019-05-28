@@ -6,8 +6,7 @@
 #include "../ShadingModels.ush"
 #include "SkyLightMipTreeCommon.ush"
 #include "RayTracingCommon.ush"
-#include "RayTracingDirectionalLight.ush"
-#include "RayTracingRectLight.ush"
+#include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
 
 RaytracingAccelerationStructure TLAS;
 RWTexture2D<float4> RWOcclusionMaskUAV;
@@ -23,6 +22,7 @@ float3 EvalSkyLight(float3 Direction)
 }
 
 float PdfSkyLightOcclusionRay(
+	float FaceCdf[7],
 	float3 WorldNormal,
 	float3 WorldDirection
 )
@@ -34,7 +34,7 @@ float PdfSkyLightOcclusionRay(
 	uint3 TextureCoord = GetTextureCubeCoordinate(WorldDirection, TextureRes);
 	float2 TextureUV = TextureCoord.xy / (float2)TextureRes;
 	uint2 MipCoord = TextureUV * SkyLight.MipDimensions.xy;
-	float FacePdf = PdfFace(MipCount, TextureCoord.z);
+	float FacePdf = PdfFace(FaceCdf, TextureCoord.z);
 
 	uint StopLevel = min(SkyLight.SamplingStopLevel, MipCount);
 #if USE_MIP_PDF_TEXTURE
@@ -93,6 +93,7 @@ float PdfSkyLightOcclusionRay(
 }
 
 bool GenerateSkyLightOcclusionRay(
+	float FaceCdf[7],
 	float3 WorldPosition,
 	float3 WorldNormal,
 	float4 RandSample,
@@ -106,7 +107,7 @@ bool GenerateSkyLightOcclusionRay(
 	// Determine the appropriate face to use
 	uint MipCount = log2(SkyLight.MipDimensions.x);
 	float FacePdf = 0.0;
-	uint FaceIndex = SampleFace(MipCount, RandSample.x, FacePdf);
+	uint FaceIndex = SampleFace(FaceCdf, RandSample.x, FacePdf);
 
 	uint2 MipPixel = 0;
 	float MipPdf = 1.0;
@@ -267,6 +268,11 @@ void SkyLightRGS()
 		SamplesPerPixel = 0.0;
 	}
 
+	// Cache Cubeface CDF
+	uint MipCount = log2(SkyLight.MipDimensions.x);
+	float FaceCdf[7];
+	BuildFaceCdf(MipCount, FaceCdf);
+
 	float3 ExitantRadiance = 0.0;
 	float3 DiffuseExitantRadiance = 0.0;
 	for (uint SampleIndex = 0; SampleIndex < SamplesPerPixel; ++SampleIndex)
@@ -287,13 +293,13 @@ void SkyLightRGS()
 		if (RandSample.x < SkyLightSamplingStrategyPdf)
 		{
 			RandSample.x /= SkyLightSamplingStrategyPdf;
-			GenerateSkyLightOcclusionRay(WorldPosition, WorldNormal, RandSample, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
+			GenerateSkyLightOcclusionRay(FaceCdf, WorldPosition, WorldNormal, RandSample, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 			MisWeight = RayPdf / (SkyLightSamplingStrategyPdf * RayPdf + (1.0 - SkyLightSamplingStrategyPdf) * PdfLambertOcclusionRay(WorldNormal, Ray.Direction));
 		}
 		else
 		{
 			GenerateLambertOcclusionRay(WorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
-			MisWeight = RayPdf / ((1.0 - SkyLightSamplingStrategyPdf) * RayPdf + SkyLightSamplingStrategyPdf * PdfSkyLightOcclusionRay(WorldNormal, Ray.Direction));
+			MisWeight = RayPdf / ((1.0 - SkyLightSamplingStrategyPdf) * RayPdf + SkyLightSamplingStrategyPdf * PdfSkyLightOcclusionRay(FaceCdf, WorldNormal, Ray.Direction));
 		}
 
 		ApplyPositionBias(Ray, WorldNormal, SkyLight.MaxNormalBias);
