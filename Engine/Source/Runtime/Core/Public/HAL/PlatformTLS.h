@@ -23,6 +23,10 @@
 #include "Unix/UnixPlatformTLS.h"
 #elif PLATFORM_SWITCH
 #include "Switch/SwitchPlatformTLS.h"
+// @ATG_CHANGE : BEGIN HoloLens support
+#elif PLATFORM_HOLOLENS
+#include "HoloLens/HoloLensTLS.h"
+// @ATG_CHANGE : END
 #else
 #error Unknown platform
 #endif

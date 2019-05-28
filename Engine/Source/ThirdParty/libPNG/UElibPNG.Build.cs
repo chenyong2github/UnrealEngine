@@ -10,22 +10,32 @@ public class UElibPNG : ModuleRules
 
 		string libPNGPath = Target.UEThirdPartySourceDirectory + "libPNG/libPNG-1.5.2";
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			string LibPath = libPNGPath + "/lib/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(LibPath);
+        if ((Target.Platform == UnrealTargetPlatform.Win64) ||
+            (Target.Platform == UnrealTargetPlatform.Win32) ||
+            (Target.Platform == UnrealTargetPlatform.HoloLens))
+        {
+            string PlatformSubpath = Target.Platform.ToString();
+            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+            {
+                PublicLibraryPaths.Add(System.String.Format("{0}/lib/{1}/VS{2}/{3}/", libPNGPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath()));
+            }
+            else
+            {
+                PublicLibraryPaths.Add(System.String.Format("{0}/lib/{1}/VS{2}/", libPNGPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
+            }
 
-			string LibFileName = "libpng" + (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "d" : "") + "_64.lib";
-			PublicAdditionalLibraries.Add(LibFileName);
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			libPNGPath = libPNGPath + "/lib/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(libPNGPath);
-
-			string LibFileName = "libpng" + (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "d" : "") + ".lib";
-			PublicAdditionalLibraries.Add(LibFileName);
-		}
+            string LibFileName = "libpng";
+			if(Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+            {
+                LibFileName += "d";
+            }
+            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+            {
+                LibFileName += "_64";
+            }
+            PublicAdditionalLibraries.Add(LibFileName + ".lib");
+        }
+		// @ATG_CHANGE : END
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			PublicAdditionalLibraries.Add(libPNGPath + "/lib/Mac/libpng.a");

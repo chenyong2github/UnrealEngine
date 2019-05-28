@@ -1,4 +1,4 @@
-﻿/*
+/*
 ******************************************************************************
 *
 *   Copyright (C) 1999-2013, International Business Machines
@@ -72,6 +72,9 @@ U_CAPI void U_EXPORT2
     typedef HANDLE MemoryMap;
 
 #   define IS_MAP(map) ((map)!=NULL)
+#if PLATFORM_UWP
+#include <fileapi.h>
+#endif
 #elif MAP_IMPLEMENTATION==MAP_POSIX || MAP_IMPLEMENTATION==MAP_390DLL
     typedef size_t MemoryMap;
 
@@ -156,11 +159,38 @@ U_CAPI void U_EXPORT2
 		else {
         HANDLE map;
         HANDLE file;
+		UDataMemory_init(pData); /* Clear the output struct.        */
+#if PLATFORM_UWP
+		WCHAR widePath[MAX_PATH] = L"\0";
+        DWORD chars = MultiByteToWideChar(1252, 0, path, -1, widePath, ARRAYSIZE(widePath));
+        if (chars <= 0){
+                return FALSE;
+        }
+        CREATEFILE2_EXTENDED_PARAMETERS params = {0};
+        params.dwSize = sizeof(CREATEFILE2_EXTENDED_PARAMETERS);
+        params.dwFileAttributes = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
+        file = CreateFile2(widePath, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, &params);
+        if (file == INVALID_HANDLE_VALUE) {
+                return FALSE;
+        }
+        map=CreateFileMappingFromApp(file, NULL, PAGE_READONLY, 0, NULL);
+        CloseHandle(file);
+        if(map==NULL) {
+            return FALSE;
+        }
+
+        /* map a view of the file into our address space */
+        pData->pHeader=(const DataHeader *)MapViewOfFileFromApp(map, FILE_MAP_READ, 0, 0);
+        if(pData->pHeader==NULL) {
+            CloseHandle(map);
+            return FALSE;
+        }
+        pData->map=map;
+#else
         SECURITY_ATTRIBUTES mappingAttributes;
         SECURITY_ATTRIBUTES *mappingAttributesPtr = NULL;
         SECURITY_DESCRIPTOR securityDesc;
 
-        UDataMemory_init(pData); /* Clear the output struct.        */
 
         /* open the input file */
         file=CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL,
@@ -200,6 +230,7 @@ U_CAPI void U_EXPORT2
             return FALSE;
         }
         pData->map=map;
+#endif
         return TRUE;
     }
 	}

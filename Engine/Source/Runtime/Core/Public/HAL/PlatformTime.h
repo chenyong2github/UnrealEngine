@@ -22,6 +22,10 @@
 #include "Unix/UnixPlatformTime.h"
 #elif PLATFORM_SWITCH
 #include "Switch/SwitchPlatformTime.h"
+// @ATG_CHANGE : BEGIN HoloLens support
+#elif PLATFORM_HOLOLENS
+#include "HoloLens/HoloLensTime.h"
+// @ATG_CHANGE : END
 #else
 #error Unknown platform
 #endif

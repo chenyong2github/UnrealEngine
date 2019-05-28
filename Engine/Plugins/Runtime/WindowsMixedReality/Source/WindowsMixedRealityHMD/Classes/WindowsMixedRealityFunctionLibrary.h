@@ -7,12 +7,22 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #if WITH_WINDOWS_MIXED_REALITY
-#include "Windows/AllowWindowsPlatformTypes.h"
 #include "MixedRealityInterop.h"
-#include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
 #include "WindowsMixedRealityFunctionLibrary.Generated.h"
+
+UENUM()
+enum class EHMDSpatialLocatability : uint8 
+{
+	Unavailable = 0,
+	OrientationOnly = 1,
+	PositionalTrackingActivating = 2,
+	PositionalTrackingActive = 3,
+	PositionalTrackingInhibited = 4,
+};
+
+DECLARE_DYNAMIC_DELEGATE_OneParam(FTrackingChangeCallback, EHMDSpatialLocatability, locatability);
 
 /**
 * Windows Mixed Reality Extensions Function Library
@@ -44,6 +54,12 @@ public:
 	static bool IsCurrentlyImmersive();
 
 	/**
+	* Returns true if running on a WMR VR device, false if running on HoloLens.
+	*/
+	UFUNCTION(BlueprintPure, Category = "WindowsMixedRealityHMD")
+	static bool IsDisplayOpaque();
+
+	/**
 	* Locks the mouse cursor to the center of the screen if the hmd is worn.
 	* Default is true to help guarantee mouse focus when the hmd is worn.
 	* Set this to false to override the default behavior if your application requires free mouse movement.
@@ -51,4 +67,11 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD")
 	static void LockMouseToCenter(bool locked);
+
+	
+	/**
+	 * Returns true if a WMR VR device or HoloLens are tracking the environment.
+	 */
+	UFUNCTION(BlueprintPure, Category = "WindowsMixedRealityHMD")
+	static bool IsTrackingAvailable();
 };

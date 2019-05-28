@@ -28,7 +28,8 @@
 				"HTML5",
 				"TVOS",
 				"Switch",
-				"Lumin"
+				"Lumin",
+				"HoloLens"
 			],
 			"BlacklistTargets" :
 			[

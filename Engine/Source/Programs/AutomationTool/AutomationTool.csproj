@@ -10,7 +10,9 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AutomationTool</RootNamespace>
     <AssemblyName>AutomationTool</AssemblyName>
+    <!-- ATG_CHANGE : BEGIN - Upping version to allow use of  pre-built WDPWrapper -->
     <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <!-- ATG_CHANGE : END -->
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
     <FileAlignment>512</FileAlignment>

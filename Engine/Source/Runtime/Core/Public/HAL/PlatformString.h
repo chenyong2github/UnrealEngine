@@ -21,6 +21,10 @@
 #include "Unix/UnixPlatformString.h"
 #elif PLATFORM_SWITCH
 #include "Switch/SwitchPlatformString.h"
+// @ATG_CHANGE : BEGIN HoloLens support
+#elif PLATFORM_HOLOLENS
+#include "HoloLens/HoloLensString.h"
+// @ATG_CHANGE : END
 #else
 #error Unknown platform
 #endif

@@ -20,8 +20,9 @@
 #include "BoundingBox.h"
 #include "Simd4i.h"
 
-#if defined(_MSC_VER) && _MSC_VER >= 1600 && PX_WINDOWS_FAMILY
-#define PX_AVX 1
+#define PX_AVX (NV_SIMD_SIMD&&(PX_WIN32 || PX_WIN64) && PX_VC >= 10 && !PX_HOLOLENS)
+
+#if PX_AVX
 
 namespace avx
 {
@@ -320,7 +321,7 @@ void solveConstraints(float* __restrict posIt, const float* __restrict rIt, cons
 	}
 }
 
-#if PX_WINDOWS_FAMILY
+#if PX_WINDOWS
 #include "sse2/SwSolveConstraints.h"
 #endif
 

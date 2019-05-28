@@ -73,9 +73,16 @@
 #if !defined(PLATFORM_UNIX)
 	#define PLATFORM_UNIX 0
 #endif
+// @ATG_CHANGE : BEGIN HoloLens support
+#if !defined(PLATFORM_HOLOLENS)
+#define PLATFORM_HOLOLENS 0
+#endif
+// @ATG_CHANGE : END
 
 // Platform specific compiler pre-setup.
-#if PLATFORM_WINDOWS
+// @ATG_CHANGE : BEGIN HoloLens support
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+// @ATG_CHANGE : END
 	#include "Windows/WindowsPlatformCompilerPreSetup.h"
 #elif PLATFORM_PS4
 	#include "PS4/PS4PlatformCompilerPreSetup.h"
@@ -172,6 +179,10 @@
 	#include "Quail/QuailPlatform.h"
 #elif PLATFORM_SWITCH
 	#include "Switch/SwitchPlatform.h"
+// @ATG_CHANGE : BEGIN HoloLens support
+#elif PLATFORM_HOLOLENS
+#include "HoloLens/HoloLensPlatform.h"
+// @ATG_CHANGE : END
 #else
 	#error Unknown platform
 #endif
@@ -917,6 +928,10 @@ namespace TypeTests
 	#include "Quail/QuailPlatformCompilerSetup.h"
 #elif PLATFORM_SWITCH
 	#include "Switch/SwitchPlatformCompilerSetup.h"
+// @ATG_CHANGE : BEGIN HoloLens support
+#elif PLATFORM_HOLOLENS
+#include "HoloLens/HoloLensCompilerSetup.h"
+// @ATG_CHANGE : END	
 #else
 	#error Unknown Compiler
 #endif

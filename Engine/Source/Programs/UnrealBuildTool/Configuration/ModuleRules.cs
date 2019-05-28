@@ -675,6 +675,23 @@ namespace UnrealBuildTool
 		/// </summary>
 		public List<string> PublicDefinitions = new List<string>();
 
+		// @ATG_CHANGE : BEGIN winmd support
+		/// <summary>
+		/// Force enable /ZW for this module
+		/// </summary>
+		public bool bEnableWinRTComponentExtensions = false;
+
+		/// <summary>
+		/// /ZW modules only: The winmds referenced by the module and exposed over its interface.
+		/// </summary>
+		public List<string> PublicWinMDReferences = new List<string>();
+
+		/// <summary>
+		/// /ZW modules only: The winmds referenced by the module's private implementation.
+		/// </summary>
+		public List<string> PrivateWinMDReferences = new List<string>();
+		// @ATG_CHANGE : END
+
 		/// <summary>
 		/// Addition modules this module may require at run-time 
 		/// </summary>
@@ -895,9 +912,21 @@ namespace UnrealBuildTool
 					}
 					PrivateDependencyModuleNames.Add("APEX");
 					PublicDefinitions.Add("WITH_APEX=1");
+
+// @MIXEDREALITY_CHANGE : BEGIN - Do not use Apex Cloth for HoloLens.  TODO: can we enable this in the future?
+				if (Target.Platform == UnrealTargetPlatform.HoloLens)
+				{
+					PublicDefinitions.Add("WITH_APEX_CLOTHING=0");
+					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=0");
+				}
+				else
+				{
 					PublicDefinitions.Add("WITH_APEX_CLOTHING=1");
 					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=1");
-					PublicDefinitions.Add("WITH_PHYSX_COOKING=1");  // APEX currently relies on cooking even at runtime
+				}
+// @MIXEDREALITY_CHANGE : END
+
+				PublicDefinitions.Add("WITH_PHYSX_COOKING=1");  // APEX currently relies on cooking even at runtime
 
 				}
 				else

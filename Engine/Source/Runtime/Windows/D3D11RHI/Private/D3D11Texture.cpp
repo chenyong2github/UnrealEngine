@@ -6,7 +6,7 @@
 
 #include "D3D11RHIPrivate.h"
 
-#if PLATFORM_DESKTOP
+#if PLATFORM_DESKTOP && !PLATFORM_HOLOLENS
 // For Depth Bounds Test interface
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "nvapi.h"
@@ -436,7 +436,10 @@ void ReturnPooledTexture2D(int32 MipCount, EPixelFormat PixelFormat, ID3D11Textu
 #endif // #if USE_TEXTURE_POOLING
 }
 
-#if WITH_D3DX_LIBS
+// @ATG_CHANGE : BEGIN HoloLens support
+// (this shouldn't have been conditional on d3dx, causes a break when a windows platform exists that doesn't have d3dx)
+//#if WITH_D3DX_LIBS
+// @ATG_CHANGE : END
 DXGI_FORMAT FD3D11DynamicRHI::GetPlatformTextureResourceFormat(DXGI_FORMAT InFormat, uint32 InFlags)
 {
 	// DX 11 Shared textures must be B8G8R8A8_UNORM
@@ -446,7 +449,9 @@ DXGI_FORMAT FD3D11DynamicRHI::GetPlatformTextureResourceFormat(DXGI_FORMAT InFor
 	}
 	return InFormat;
 }
-#endif	//WITH_D3DX_LIBS
+// @ATG_CHANGE : BEGIN HoloLens support
+//#endif	//WITH_D3DX_LIBS
+// @ATG_CHANGE : END
 
 /** If true, guard texture creates with SEH to log more information about a driver crash we are seeing during texture streaming. */
 #define GUARDED_TEXTURE_CREATES (PLATFORM_WINDOWS && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
@@ -611,6 +616,8 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 	// Todo: add support for SRVs of underneath luminance & chrominance textures.
 	if (Format == PF_NV12)
 	{
+		// JoeG - I moved this to below the bind flags because it is valid to bind R8 or B8G8 to this
+		// And creating a SRV afterward would fail because of the missing bind flags
 		bCreateShaderResource = false;
 	}
 
@@ -928,6 +935,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 
 	D3D11TextureAllocated(*Texture2D);
 	
+#if !PLATFORM_HOLOLENS
 	if (IsRHIDeviceNVIDIA() && (Flags & TexCreate_AFRManual))
 	{
 		// get a resource handle for this texture
@@ -939,7 +947,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 		NvU32 ManualAFR = 1;
 		NvAPI_D3D_SetResourceHint(Direct3DDevice, (NVDX_ObjectHandle)IHVHandle, NVAPI_D3D_SRH_CATEGORY_SLI, NVAPI_D3D_SRH_SLI_APP_CONTROLLED_INTERFRAME_CONTENT_SYNC, &ManualAFR);
 	}
-
+#endif
 	if (CreateInfo.BulkData)
 	{
 		CreateInfo.BulkData->Discard();
@@ -1081,7 +1089,7 @@ FD3D11Texture3D* FD3D11DynamicRHI::CreateD3D11Texture3D(uint32 SizeX,uint32 Size
 	}
 
 	D3D11TextureAllocated(*Texture3D);
-
+#if !PLATFORM_HOLOLENS
 	if (IsRHIDeviceNVIDIA() && (Flags & TexCreate_AFRManual))
 	{
 		// get a resource handle for this texture
@@ -1093,7 +1101,7 @@ FD3D11Texture3D* FD3D11DynamicRHI::CreateD3D11Texture3D(uint32 SizeX,uint32 Size
 		NvU32 ManualAFR = 1;
 		NvAPI_D3D_SetResourceHint(Direct3DDevice, (NVDX_ObjectHandle)IHVHandle, NVAPI_D3D_SRH_CATEGORY_SLI, NVAPI_D3D_SRH_SLI_APP_CONTROLLED_INTERFRAME_CONTENT_SYNC, &ManualAFR);
 	}
-
+#endif
 	if (CreateInfo.BulkData)
 	{
 		CreateInfo.BulkData->Discard();
@@ -2150,12 +2158,12 @@ void FD3D11DynamicRHI::RHICopySubTextureRegion(FTexture2DRHIParamRef SourceTextu
 		SourceBox.Max.Y -= Delta;
 	}
 
-	int32 DestinationOffsetX = 0;
-	int32 DestinationOffsetY = 0;
-	int32 SourceStartX = SourceBox.Min.X;
-	int32 SourceEndX = SourceBox.Max.X;
-	int32 SourceStartY = SourceBox.Min.Y;
-	int32 SourceEndY = SourceBox.Max.Y;
+	uint32 DestinationOffsetX = 0;
+	uint32 DestinationOffsetY = 0;
+	uint32 SourceStartX = SourceBox.Min.X;
+	uint32 SourceEndX = SourceBox.Max.X;
+	uint32 SourceStartY = SourceBox.Min.Y;
+	uint32 SourceEndY = SourceBox.Max.Y;
 	//If the source box is not fitting on the left bottom side, offset the result so the destination pixel match the expectation
 	if (SourceStartX < 0)
 	{

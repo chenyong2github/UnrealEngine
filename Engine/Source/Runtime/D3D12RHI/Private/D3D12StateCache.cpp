@@ -7,7 +7,9 @@
 //	Include Files
 //-----------------------------------------------------------------------------
 #include "D3D12RHIPrivate.h"
+#if !PLATFORM_HOLOLENS
 #include <emmintrin.h>
+#endif
 
 // This value defines how many descriptors will be in the device local view heap which
 // This should be tweaked for each title as heaps require VRAM. The default value of 512k takes up ~16MB

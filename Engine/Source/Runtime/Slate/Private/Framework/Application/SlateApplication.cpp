@@ -43,7 +43,7 @@
 	#define SLATE_HAS_WIDGET_REFLECTOR !(UE_BUILD_TEST || UE_BUILD_SHIPPING) && PLATFORM_DESKTOP
 #endif
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/WindowsHWrapper.h"
 #endif
 #include "Debugging/SlateDebugging.h"
@@ -3662,6 +3662,8 @@ void FSlateApplication::ProcessCursorReply(const FCursorReply& CursorReply)
 	if (CursorReply.IsEventHandled())
 	{
 		CursorWidgetPtr = CursorReply.GetCursorWidget();
+// @ATG_CHANGE : BEGIN HoloLens support (temp change, HoloLens doesn't support custom cursors in this fashion)
+#if !PLATFORM_HOLOLENS
 		if (CursorReply.GetCursorWidget().IsValid())
 		{
 			CursorReply.GetCursorWidget()->SetVisibility(EVisibility::HitTestInvisible);
@@ -3672,6 +3674,8 @@ void FSlateApplication::ProcessCursorReply(const FCursorReply& CursorReply)
 			}
 		}
 		else
+#endif
+// @ATG_CHANGE : END
 		{
 			CursorWindowPtr.Reset();
 			PlatformApplication->Cursor->SetType(CursorReply.GetCursorType());

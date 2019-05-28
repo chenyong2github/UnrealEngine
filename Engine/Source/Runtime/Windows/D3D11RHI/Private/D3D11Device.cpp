@@ -10,7 +10,9 @@
 #include "Modules/ModuleManager.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 	#include <delayimp.h>
+	#if !PLATFORM_HOLOLENS
 	#include "amd_ags.h"
+	#endif
 #include "Windows/HideWindowsPlatformTypes.h"
 
 
@@ -552,6 +554,8 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 		ReleaseCachedQueries();
 
 
+// @ATG_CHANGE : BEGIN - driver extensions not available for HoloLens
+#if !PLATFORM_HOLOLENS
 		// Clean up the AMD extensions and shut down the AMD AGS utility library
 		if (AmdAgsContext != NULL)
 		{
@@ -570,6 +574,8 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 		}
 #endif // INTEL_METRICSDISCOVERY
 
+#endif
+// @ATG_CHANGE : END
 		// When running with D3D debug, clear state and flush the device to get rid of spurious live objects in D3D11's report.
 		if (D3D11RHI_ShouldCreateWithD3DDebug())
 		{

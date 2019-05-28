@@ -340,6 +340,12 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 			{
 				Platforms += TEXT("+IOS");
 			}
+			// @ATG_CHANGE : BEGIN HoloLens packaging & F5 support
+			else if (PlatformInfo->TargetPlatformName == FName("HoloLens"))
+			{
+				Platforms += TEXT("+HoloLens");
+			}
+			// @ATG_CHANGE : END
 			else
 			{
 				Platforms += TEXT("+");

@@ -23,4 +23,8 @@
 #include "Unix/UnixPlatformOutputDevices.h"
 #elif PLATFORM_SWITCH
 #include "Switch/SwitchPlatformOutputDevices.h"
+// @ATG_CHANGE : BEGIN HoloLens support
+#elif PLATFORM_HOLOLENS
+#include "HoloLens/HoloLensOutputDevices.h"
+// @ATG_CHANGE : END
 #endif

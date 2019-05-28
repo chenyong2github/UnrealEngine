@@ -482,7 +482,7 @@ Normalizer::nextNormalize() {
     while(text->hasNext()) {
         UChar32 c;
         if(fNorm2->hasBoundaryBefore(c=text->next32PostInc())) {
-            text->move32(-1, CharacterIterator::kCurrent);
+            text->HACK_ICU_MOVE32_FIX(-1, CharacterIterator::kCurrent);
             break;
         }
         segment.append(c);

@@ -5,6 +5,8 @@
 #include "Engine/Engine.h"
 #include "WindowsMixedRealityHMD.h"
 
+#include <functional>
+
 UWindowsMixedRealityFunctionLibrary::UWindowsMixedRealityFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -53,6 +55,17 @@ bool UWindowsMixedRealityFunctionLibrary::IsCurrentlyImmersive()
 	return hmd->IsCurrentlyImmersive();
 }
 
+bool UWindowsMixedRealityFunctionLibrary::IsDisplayOpaque()
+{
+	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
+	if (hmd == nullptr)
+	{
+		return true;
+	}
+
+	return hmd->IsDisplayOpaque();
+}
+
 void UWindowsMixedRealityFunctionLibrary::LockMouseToCenter(bool locked)
 {
 	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
@@ -62,4 +75,19 @@ void UWindowsMixedRealityFunctionLibrary::LockMouseToCenter(bool locked)
 	}
 
 	hmd->LockMouseToCenter(locked);
+}
+
+bool UWindowsMixedRealityFunctionLibrary::IsTrackingAvailable()
+{
+#if WITH_WINDOWS_MIXED_REALITY
+	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
+	if (hmd == nullptr)
+	{
+		return false;
+	}
+
+	return hmd->IsTrackingAvailable();
+#else
+	return false;
+#endif
 }

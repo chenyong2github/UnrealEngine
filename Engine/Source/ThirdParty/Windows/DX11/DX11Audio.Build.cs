@@ -7,7 +7,11 @@ public class DX11Audio : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
+        // @ATG_CHANGE : BEGIN HoloLens Support
+		string DirectXSDKDir = Target.WindowsPlatform.bUseWindowsSDK10 ?
+			Target.UEThirdPartySourceDirectory + "Windows/DirectXLegacy" :
+			Target.UEThirdPartySourceDirectory + "Windows/DirectX";        
+        // @ATG_CHANGE : END
 
 		PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
@@ -20,17 +24,25 @@ public class DX11Audio : ModuleRules
 			PublicLibraryPaths.Add(DirectXSDKDir + "/Lib/x86");
 		}
 
+		// @ATG_CHANGE : BEGIN HoloLens Support
+		PublicAdditionalLibraries.AddRange(
+			new string[]
+			{
+				"dxguid.lib",
+				"xapobase.lib"
+			}
+			);
+
 		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicAdditionalLibraries.AddRange(
 				new string[] {
-				"dxguid.lib",
 				"X3DAudio.lib",
-				"xapobase.lib",
 				"XAPOFX.lib"
 				}
 				);
 		}
+		// @ATG_CHANGE : END
 	}
 }
 

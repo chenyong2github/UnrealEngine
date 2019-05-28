@@ -680,7 +680,12 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 			bTargetPlatformCanUseCrashReporter = false;
 		}
 	}
-
+// @ATG_CHANGE : BEGIN HoloLens packaging & F5 support
+	if (PlatformInfo->TargetPlatformName == FName("HoloLens"))
+	{
+		bTargetPlatformCanUseCrashReporter = false;
+	}
+// @ATG_CHANGE : END
 	// Append any extra UAT flags specified for this platform flavor
 	if (!PlatformInfo->UATCommandLine.IsEmpty())
 	{

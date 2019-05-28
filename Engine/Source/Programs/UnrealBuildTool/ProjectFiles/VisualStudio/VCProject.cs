@@ -353,7 +353,17 @@ namespace UnrealBuildTool
 				// a project configuration that has the platform name in that configuration as a suffix,
 				// and then using "Win32" as the actual VS platform name
 				ProjectConfigurationName = Platform.ToString() + "_" + Configuration.ToString();
-				ProjectPlatformName = DefaultPlatformName;
+				// @ATG_CHANGE : BEGIN HoloLens support - VS remote debugging needs our fake platform to have the right processor architecture
+				if (Platform == UnrealTargetPlatform.HoloLens)
+				{
+					// Needed so that VS understands that we're 64bit for remote debugger purposes.
+					ProjectPlatformName = "x64";
+				}
+				else
+				{
+					ProjectPlatformName =  DefaultPlatformName;
+				}
+				// @ATG_CHANGE : END HoloLens support
 			}
 
 			if(TargetConfigurationName != TargetType.Game)
@@ -682,7 +692,13 @@ namespace UnrealBuildTool
 				{
 					VCIncludeSearchPaths.Append(CurPath + ";");
 				}
-				if (InPlatforms.Contains(UnrealTargetPlatform.Win64))
+				// @ATG_CHANGE : BEGIN HoloLens support
+				if (InPlatforms.Contains(UnrealTargetPlatform.HoloLens))
+				{
+					VCIncludeSearchPaths.Append(HoloLensToolChain.GetVCIncludePaths(CppPlatform.HoloLens, GetCompilerForIntellisense()) + ";");
+				}
+				else if (InPlatforms.Contains(UnrealTargetPlatform.Win64))
+				// @ATG_CHANGE : END
 				{
 					VCIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(CppPlatform.Win64, GetCompilerForIntellisense(), null) + ";");
 				}
@@ -701,6 +717,22 @@ namespace UnrealBuildTool
 				}
 				VCPreprocessorDefinitions.Append(CurDef);
 			}
+
+			// @ATG_CHANGE : BEGIN winmd support
+			// Ensure custom winmds are pulled in for Intellisense purposes.  Needs to be here because
+			// the list is owned by the VCProjectFile instance (same as other Intellisense collections).
+			// Also note that file locations may be platform-specific, but the list was formed based
+			// on Win64 only.
+			StringBuilder VCWinMDReferences = new StringBuilder();
+			foreach (var CurDef in IntelliSenseWinMDReferences)
+			{
+				if (VCWinMDReferences.Length > 0)
+				{
+					VCWinMDReferences.Append(';');
+				}
+				VCWinMDReferences.Append(CurDef.Replace(UnrealTargetPlatform.Win64.ToString(), UnrealTargetPlatform.HoloLens.ToString()));
+			}
+			// @ATG_CHANGE : END
 
 			// Setup VC project file content
 			StringBuilder VCProjectFileContent = new StringBuilder();
@@ -823,10 +855,13 @@ namespace UnrealBuildTool
 			}
 
 			// Write each project configuration PreDefaultProps section
-			foreach (Tuple<string, UnrealTargetConfiguration> ConfigurationTuple in ProjectConfigurationNameAndConfigurations)
+			// @ATG_CHANGE : BEGIN - HoloLens packaging & F5 support
+			// do this only for valid combinations, which conveniently provides access to the true UnrealTargetPlatform (i.e. accounts for
+			// HoloLens, WinRT, and any others that don't map to VS platforms).
+			foreach (ProjectConfigAndTargetCombination Combination in ProjectConfigAndTargetCombinations)
 			{
-				string ProjectConfigurationName = ConfigurationTuple.Item1;
-				UnrealTargetConfiguration TargetConfiguration = ConfigurationTuple.Item2;
+				string ProjectConfigurationName = Combination.ProjectConfigurationName;
+				UnrealTargetConfiguration TargetConfiguration = Combination.Configuration;
 				foreach (Tuple<string, UnrealTargetPlatform> PlatformTuple in ProjectPlatformNameAndPlatforms)
 				{
 					string ProjectPlatformName = PlatformTuple.Item1;
@@ -834,6 +869,7 @@ namespace UnrealBuildTool
 					WritePreDefaultPropsConfiguration(TargetPlatform, TargetConfiguration, ProjectPlatformName, ProjectConfigurationName, PlatformProjectGenerators, VCProjectFileContent);
 				}
 			}
+			// @ATG_CHANGE : END
 
 			VCProjectFileContent.AppendLine("  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.Default.props\" />");
 
@@ -988,7 +1024,7 @@ namespace UnrealBuildTool
 				VCProjectFileContent.AppendLine("    <NMakeIncludeSearchPath>$(NMakeIncludeSearchPath){0}</NMakeIncludeSearchPath>", (VCIncludeSearchPaths.Length > 0 ? (";" + VCIncludeSearchPaths) : ""));
 				VCProjectFileContent.AppendLine("    <NMakeForcedIncludes>$(NMakeForcedIncludes)</NMakeForcedIncludes>");
 				VCProjectFileContent.AppendLine("    <NMakeAssemblySearchPath>$(NMakeAssemblySearchPath)</NMakeAssemblySearchPath>");
-				VCProjectFileContent.AppendLine("    <NMakeForcedUsingAssemblies>$(NMakeForcedUsingAssemblies)</NMakeForcedUsingAssemblies>");
+				VCProjectFileContent.AppendLine("    <NMakeForcedUsingAssemblies>$(NMakeForcedUsingAssemblies);{0}</NMakeForcedUsingAssemblies>", (VCWinMDReferences.Length > 0 ? (";" + VCWinMDReferences) : ""));
 				VCProjectFileContent.AppendLine("  </PropertyGroup>");
 			}
 
@@ -1443,7 +1479,9 @@ namespace UnrealBuildTool
 				{
 					TargetRules TargetRulesObject = Combination.ProjectTarget.TargetRules;
 
-					if ((Platform == UnrealTargetPlatform.Win32) || (Platform == UnrealTargetPlatform.Win64))
+					// @ATG_CHANGE : BEGIN - HoloLens support
+					if ((Platform == UnrealTargetPlatform.Win32) || (Platform == UnrealTargetPlatform.Win64) || (Platform == UnrealTargetPlatform.HoloLens))
+					// @ATG_CHANGE : END
 					{
 						VCUserFileContent.AppendLine("  <PropertyGroup {0}>", ConditionString);
 						if (TargetRulesObject.Type != TargetType.Game)
@@ -1462,7 +1500,7 @@ namespace UnrealBuildTool
 
 							VCUserFileContent.AppendLine("    <LocalDebuggerCommandArguments>{0}</LocalDebuggerCommandArguments>", DebugOptions);
 						}
-						VCUserFileContent.AppendLine("    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>");
+						VCUserFileContent.AppendLine("    <DebuggerFlavor>{0}</DebuggerFlavor>", Platform == UnrealTargetPlatform.HoloLens ? "AppHostLocalDebugger " : "WindowsLocalDebugger");
 						VCUserFileContent.AppendLine("  </PropertyGroup>");
 					}
 

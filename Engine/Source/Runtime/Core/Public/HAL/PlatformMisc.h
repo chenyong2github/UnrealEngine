@@ -26,6 +26,10 @@
 #include "Linux/LinuxPlatformMisc.h"
 #elif PLATFORM_SWITCH
 #include "Switch/SwitchPlatformMisc.h"
+// @ATG_CHANGE : BEGIN HoloLens support
+#elif PLATFORM_HOLOLENS
+#include "HoloLens/HoloLensMisc.h"
+// @ATG_CHANGE : END
 #endif
 
 #ifndef UE_DEBUG_BREAK

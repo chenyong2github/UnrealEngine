@@ -516,6 +516,7 @@ struct INPUTCORE_API EKeys
 	static void AddKey(const FKeyDetails& KeyDetails);
 	static void GetAllKeys(TArray<FKey>& OutKeys);
 	static TSharedPtr<FKeyDetails> GetKeyDetails(const FKey Key);
+	static void RemoveKeysWithCategory(const FName InCategory);
 
 	// These exist for backwards compatibility reasons only
 	static bool IsModifierKey(FKey Key) { return Key.IsModifierKey(); }

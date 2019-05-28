@@ -103,6 +103,7 @@ class ENGINE_API UInputSettings
 	UPROPERTY(config, EditAnywhere, Category="MouseProperties", AdvancedDisplay)
 	float DoubleClickTime;
 
+private:
 	/** List of Action Mappings */
 	UPROPERTY(config, EditAnywhere, Category="Bindings")
 	TArray<struct FInputActionKeyMapping> ActionMappings;
@@ -111,6 +112,10 @@ class ENGINE_API UInputSettings
 	UPROPERTY(config, EditAnywhere, Category="Bindings")
 	TArray<struct FInputAxisKeyMapping> AxisMappings;
 
+	/** List of Axis Mappings */
+	UPROPERTY(config, EditAnywhere, Category = "Bindings")
+	TArray<struct FInputActionSpeechMapping> SpeechMappings;
+public:
 	/** The default on-screen touch input interface for the game (can be null to disable the onscreen interface) */
 	UPROPERTY(config, EditAnywhere, Category="Mobile", meta=(AllowedClasses="TouchInterface"))
 	FSoftObjectPath DefaultTouchInterface;
@@ -174,6 +179,38 @@ class ENGINE_API UInputSettings
 	/** When changes are made to the default mappings, push those changes out to PlayerInput key maps */
 	UFUNCTION(BlueprintCallable, Category = Settings)
 	void ForceRebuildKeymaps();
+
+	/** Finds unique action name based on existing action names */
+	FName GetUniqueActionName(const FName BaseActionMappingName);
+	/** Finds unique axis name based on existing action names */
+	FName GetUniqueAxisName(const FName BaseAxisMappingName);
+
+	/** Append new mapping to existing list */
+	void AddActionMapping(FInputActionKeyMapping& NewMapping);
+	/** Append new mapping to existing list */
+	void AddAxisMapping(FInputAxisKeyMapping& NewMapping);
+
+	/** Ask for all the action mappings */
+	const TArray <FInputActionKeyMapping>& GetActionMappings() const;
+	/** Ask for all the axis mappings */
+	const TArray <FInputAxisKeyMapping>& GetAxisMappings() const;
+	/** Ask for all the speech mappings */
+	const TArray <FInputActionSpeechMapping>& GetSpeechMappings() const;
+
+	/** Finds unique action name based on existing action names */
+	bool DoesActionExist(const FName InActionName);
+	/** Finds unique axis name based on existing action names */
+	bool DoesAxisExist(const FName InAxisName);
+	/** Finds unique speech name based on existing speech names */
+	bool DoesSpeechExist(const FName InSpeechName);
+
+
+	/** Get the member name for the details panel */
+	static const FName GetActionMappingsPropertyName();
+	/** Get the member name for the details panel */
+	static const FName GetAxisMappingsPropertyName();
+
+
 
 private:
 	void PopulateAxisConfigs();

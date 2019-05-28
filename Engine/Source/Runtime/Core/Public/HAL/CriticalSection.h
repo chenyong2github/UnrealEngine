@@ -22,6 +22,8 @@
 	#include "Unix/UnixCriticalSection.h"
 #elif PLATFORM_SWITCH
 	#include "Switch/SwitchCriticalSection.h"
+#elif PLATFORM_HOLOLENS
+	#include "HoloLens/HoloLensCriticalSection.h"
 #else
 	#error Unknown platform
 #endif

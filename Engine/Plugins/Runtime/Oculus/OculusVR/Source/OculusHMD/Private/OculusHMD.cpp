@@ -352,7 +352,7 @@ namespace OculusHMD
 	}
 
 
-	EHMDTrackingOrigin::Type FOculusHMD::GetTrackingOrigin()
+	EHMDTrackingOrigin::Type FOculusHMD::GetTrackingOrigin() const
 	{
 		EHMDTrackingOrigin::Type rv = EHMDTrackingOrigin::Eye;
 		ovrpTrackingOrigin ovrpOrigin = ovrpTrackingOrigin_EyeLevel;
@@ -371,7 +371,7 @@ namespace OculusHMD
 				rv = EHMDTrackingOrigin::Stage;
 				break;
 			default:
-				UE_LOG(LogHMD, Error, TEXT("Unsupported ovr tracking origin type %d"), int(TrackingOrigin));
+				UE_LOG(LogHMD, Error, TEXT("Unsupported ovr tracking origin type %d"), int(ovrpOrigin));
 				break;
 			}
 		}

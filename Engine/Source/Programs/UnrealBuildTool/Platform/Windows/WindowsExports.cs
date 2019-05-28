@@ -33,5 +33,34 @@ namespace UnrealBuildTool
 		{
 			return WindowsPlatform.GetMsBuildToolPath().FullName;
 		}
+
+		/// <summary>
+		/// Returns the common name of the current architecture
+		/// </summary>
+		/// <param name="arch">The architecture enum</param>
+		/// <returns>String with the name</returns>
+		public static string GetArchitectureSubpath(WindowsArchitecture arch)
+		{
+			return WindowsPlatform.GetArchitectureSubpath(arch);
+		}
+
+		/// <summary>
+		/// Tries to get the directory for an installed Windows SDK
+		/// </summary>
+		/// <param name="DesiredVersion">Receives the desired version on success</param>
+		/// <param name="OutSdkVersion">Version of SDK</param>
+		/// <param name="OutSdkDir">Path to SDK root folder</param>
+		/// <returns>String with the name</returns>
+		public static bool TryGetWindowsSdkDir(string DesiredVersion, out Version OutSdkVersion, out DirectoryReference OutSdkDir)
+		{
+			VersionNumber vn;
+			if(WindowsPlatform.TryGetWindowsSdkDir(DesiredVersion, out vn, out OutSdkDir))
+			{
+				OutSdkVersion = new Version(vn.ToString());
+				return true;
+			}
+			OutSdkVersion = new Version();
+			return false;
+		}
 	}
 }

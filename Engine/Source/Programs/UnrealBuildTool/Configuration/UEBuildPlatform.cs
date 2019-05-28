@@ -472,6 +472,9 @@ namespace UnrealBuildTool
 			{
 				case CppPlatform.Win32:			return UnrealTargetPlatform.Win32;
 				case CppPlatform.Win64:			return UnrealTargetPlatform.Win64;
+				// @ATG_CHANGE : BEGIN HoloLens support
+				case CppPlatform.HoloLens:			return UnrealTargetPlatform.HoloLens;
+				// @ATG_CHANGE : END HoloLens support
 				case CppPlatform.Mac:			return UnrealTargetPlatform.Mac;
 				case CppPlatform.XboxOne:		return UnrealTargetPlatform.XboxOne;
 				case CppPlatform.PS4:			return UnrealTargetPlatform.PS4;
@@ -535,6 +538,9 @@ namespace UnrealBuildTool
 					return ":";
 				case UnrealTargetPlatform.Win32:
 				case UnrealTargetPlatform.Win64:
+// @ATG_CHANGE : BEGIN HoloLens support
+				case UnrealTargetPlatform.HoloLens:
+// @ATG_CHANGE : END
 					return ";";
 				default:
 					Log.TraceWarning("PATH variable delimiter unknown for platform " + BuildHostPlatform.Current.Platform.ToString() + " using ';'");

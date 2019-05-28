@@ -37,4 +37,9 @@ typedef FLinuxPlatformProperties<WITH_EDITORONLY_DATA, UE_SERVER, !WITH_SERVER_C
 #elif PLATFORM_SWITCH
 #include "Switch/SwitchPlatformProperties.h"
 typedef FSwitchPlatformProperties FPlatformProperties;
+// @ATG_CHANGE : BEGIN HoloLens support
+#elif PLATFORM_HOLOLENS
+#include "HoloLens/HoloLensProperties.h"
+typedef FHoloLensPlatformProperties FPlatformProperties;
+// @ATG_CHANGE : END
 #endif

@@ -1,0 +1,34 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "MicrosoftSpatialSound",
+	"Description": "Audio spatialization plugin using Microsoft's SASAPI service.",
+	"Category": "Audio",
+	"CreatedBy": "Epic Games",
+	"CreatedByURL": "epicgames.com",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"SupportedTargetPlatforms": [
+		//"Win32",
+		"Win64",
+		"XboxOne"
+	],
+	"Modules": [
+		{
+			"Name": "MicrosoftSpatialSound",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault",
+			"WhitelistPlatforms" :
+			[
+				//"Win32",
+				"Win64",
+				"XboxOne"
+			]
+		}
+	]
+}

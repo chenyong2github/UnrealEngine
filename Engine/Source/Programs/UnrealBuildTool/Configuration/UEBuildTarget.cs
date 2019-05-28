@@ -34,6 +34,13 @@ namespace UnrealBuildTool
 		/// </summary>
 		Win64,
 
+		// @ATG_CHANGE : BEGIN HoloLens support
+		/// <summary>
+		/// HoloLens
+		/// </summary>
+		HoloLens,
+		// @ATG_CHANGE : END
+
 		/// <summary>
 		/// Mac
 		/// </summary>
@@ -104,6 +111,13 @@ namespace UnrealBuildTool
 		/// this group is just to lump Win32 and Win64 into Windows directories, removing the special Windows logic in MakeListOfUnsupportedPlatforms
 		/// </summary>
 		Windows,
+
+		// @ATG_CHANGE : BEGIN HoloLens support
+		/// <summary>
+		/// this group is just to lump HoloLens32 and HoloLens64 into HoloLens directories
+		/// </summary>
+		HoloLens,
+		// @ATG_CHANGE : END
 
 		/// <summary>
 		/// Microsoft platforms
@@ -980,7 +994,7 @@ namespace UnrealBuildTool
 			}
 
 			// Create the receipt
-			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version);
+			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version, Architecture);
 
 			if (!Rules.bShouldCompileAsDLL)
 			{
@@ -1242,7 +1256,9 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					IsCurrentPlatform = Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Win32;
+					// @ATG_CHANGE : BEGIN HoloLens support
+					IsCurrentPlatform = Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.HoloLens;
+					// @ATG_CHANGE : END
 				}
 
 				if (IsCurrentPlatform)
@@ -1765,7 +1781,7 @@ namespace UnrealBuildTool
 			List<string> Definitions = new List<string>(GlobalCompileEnvironment.Definitions);
 			foreach(UEBuildModule Module in Binary.Modules)
 			{
-				Module.AddModuleToCompileEnvironment(null, new HashSet<DirectoryReference>(), new HashSet<DirectoryReference>(), Definitions, new List<UEBuildFramework>(), false);
+				Module.AddModuleToCompileEnvironment(null, new HashSet<DirectoryReference>(), new HashSet<DirectoryReference>(), Definitions, new List<UEBuildFramework>(), false, GlobalCompileEnvironment.WinMDReferences);
 			}
 
 			// Write the header
@@ -3195,8 +3211,8 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_MODULE_MANIFEST_DEBUGGAME=\"{0}\"", ModuleManifest.GetStandardFileName(AppName, Platform, UnrealTargetConfiguration.DebugGame, Architecture, true)));
 
 			// tell the compiled code the name of the UBT platform (this affects folder on disk, etc that the game may need to know)
-			GlobalCompileEnvironment.Definitions.Add("UBT_COMPILED_PLATFORM=" + Platform.ToString());
-			GlobalCompileEnvironment.Definitions.Add("UBT_COMPILED_TARGET=" + TargetType.ToString());
+			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_COMPILED_PLATFORM=\"{0}\"", Platform.ToString()));
+			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_COMPILED_TARGET=\"{0}\"", TargetType.ToString()));
 
 			// Set the global app name
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UE_APP_NAME=\"{0}\"", AppName));

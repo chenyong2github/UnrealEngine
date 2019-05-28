@@ -26,6 +26,7 @@ public class ICU : ModuleRules
 
 		string PlatformFolderName = Target.Platform.ToString();
 
+// @ATG_CHANGE : BEGIN HoloLens support
 		string TargetSpecificPath = ICURootPath + PlatformFolderName + "/";
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
@@ -39,11 +40,17 @@ public class ICU : ModuleRules
 		}
 
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32))
+			(Target.Platform == UnrealTargetPlatform.Win32) ||
+			(Target.Platform == UnrealTargetPlatform.HoloLens))
+// @ATG_CHANGE : END
 		{
 			string VSVersionFolderName = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 			TargetSpecificPath += VSVersionFolderName + "/";
 
+			if(Target.Platform == UnrealTargetPlatform.HoloLens)
+            {
+                TargetSpecificPath += Target.WindowsPlatform.GetArchitectureSubpath() + "/";
+            }
 			string[] LibraryNameStems =
 			{
 				"dt",   // Data
@@ -82,9 +89,17 @@ public class ICU : ModuleRules
 					PublicDelayLoadDLLs.Add(LibraryName);
 				}
 
-				if(Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+// @ATG_CHANGE : BEGIN HoloLens support
+				if(Target.Platform == UnrealTargetPlatform.Win64 || 
+					Target.Platform == UnrealTargetPlatform.Win32 ||
+                    Target.Platform == UnrealTargetPlatform.HoloLens)
+// @ATG_CHANGE : END
 				{
-					string BinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/ICU/{0}/{1}/VS{2}/", ICUVersion, Target.Platform.ToString(), Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+					string BinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/ICU/{0}/{1}/VS{2}/", ICUVersion, PlatformFolderName, Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+					if(Target.Platform == UnrealTargetPlatform.HoloLens)
+					{
+                            BinariesDir += Target.WindowsPlatform.GetArchitectureSubpath() + "/";
+					}
 					foreach(string Stem in LibraryNameStems)
 					{
 						string LibraryName = BinariesDir + String.Format("icu{0}{1}53.dll", Stem, LibraryNamePostfix);

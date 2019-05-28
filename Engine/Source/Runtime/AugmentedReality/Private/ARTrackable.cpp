@@ -88,6 +88,8 @@ void UARTrackedGeometry::UpdateTrackedGeometry(const TSharedRef<FARSupportInterf
 	LastUpdateFrameNumber = FrameNumber;
 	LastUpdateTimestamp = Timestamp;
 	UpdateAlignmentTransform(InAlignmentTransform);
+	// We were updated, so we're clearly being tracked ;)
+	SetTrackingState(EARTrackingState::Tracking);
 }
 
 void UARTrackedGeometry::UpdateTrackingState( EARTrackingState NewTrackingState )

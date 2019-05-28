@@ -578,7 +578,7 @@ namespace Audio
 		}
 
 		// Get number of samples that can be popped off of the buffer.
-		uint32 Num()
+		uint32 Num() const
 		{
 			const uint32 ReadIndex = ReadCounter.GetValue();
 			const uint32 WriteIndex = WriteCounter.GetValue();

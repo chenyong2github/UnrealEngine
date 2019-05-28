@@ -163,8 +163,9 @@ namespace UnrealBuildTool
 		/// <param name="Platform">Platform being built</param>
 		/// <param name="Configuration">Configuration being built</param>
 		/// <param name="TargetType">The target type</param>
+		/// <param name="Architecture">The target architecture</param>
 		/// <returns>Dependency cache hierarchy for the given project</returns>
-		public static CppDependencyCache CreateHierarchy(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType)
+		public static CppDependencyCache CreateHierarchy(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, string Architecture)
 		{
 			CppDependencyCache Cache = null;
 
@@ -180,13 +181,13 @@ namespace UnrealBuildTool
 					AppName = UEBuildTarget.GetAppNameForTargetType(TargetType);
 				}
 
-				FileReference EngineCacheLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", Platform.ToString(), AppName, Configuration.ToString(), "DependencyCache.bin");
+				FileReference EngineCacheLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), AppName, Configuration.ToString(), "DependencyCache.bin");
 				Cache = FindOrAddCache(EngineCacheLocation, UnrealBuildTool.EngineDirectory, Cache);
 			}
 
 			if(ProjectFile != null)
 			{
-				FileReference ProjectCacheLocation = FileReference.Combine(ProjectFile.Directory, "Intermediate", "Build", Platform.ToString(), TargetName, Configuration.ToString(), "DependencyCache.bin");
+				FileReference ProjectCacheLocation = FileReference.Combine(ProjectFile.Directory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), TargetName, Configuration.ToString(), "DependencyCache.bin");
 				Cache = FindOrAddCache(ProjectCacheLocation, ProjectFile.Directory, Cache);
 			}
 

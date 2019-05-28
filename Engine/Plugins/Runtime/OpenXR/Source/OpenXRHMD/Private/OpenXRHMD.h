@@ -91,7 +91,7 @@ public:
 		TrackingSpaceType = (NewOrigin == EHMDTrackingOrigin::Floor && StageSpace != XR_NULL_HANDLE) ? XR_REFERENCE_SPACE_TYPE_STAGE : XR_REFERENCE_SPACE_TYPE_LOCAL;
 	}
 
-	virtual EHMDTrackingOrigin::Type GetTrackingOrigin() override
+	virtual EHMDTrackingOrigin::Type GetTrackingOrigin() const override
 	{
 		return (TrackingSpaceType == XR_REFERENCE_SPACE_TYPE_STAGE) ? EHMDTrackingOrigin::Floor : EHMDTrackingOrigin::Eye;
 	}

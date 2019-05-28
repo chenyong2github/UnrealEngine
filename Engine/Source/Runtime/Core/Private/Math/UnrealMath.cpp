@@ -452,7 +452,9 @@ FQuat FRotator::Quaternion() const
 	RotationQuat.W =  CR*CP*CY + SR*SP*SY;
 #endif // PLATFORM_ENABLE_VECTORINTRINSICS
 
-#if ENABLE_NAN_DIAGNOSTIC || DO_CHECK
+	// @MIXEDREALITY_CHANGE : BEGIN - This check is blocking HoloLens apps from launching in Development mode.
+#if (ENABLE_NAN_DIAGNOSTIC || DO_CHECK) && !PLATFORM_HOLOLENS
+	// @MIXEDREALITY_CHANGE : END
 	// Very large inputs can cause NaN's. Want to catch this here
 	if (RotationQuat.ContainsNaN())
 	{

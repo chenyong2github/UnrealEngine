@@ -14,7 +14,9 @@
 #include "MfMediaTracks.h"
 #include "MfMediaUtils.h"
 
-#if PLATFORM_WINDOWS
+// @ATG_CHANGE : BEGIN - Enable MFMedia for HoloLens
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+// @ATG_CHANGE : END
 	#include "Windows/WindowsHWrapper.h"
 	#include "Windows/AllowWindowsPlatformTypes.h"
 #else
@@ -763,7 +765,9 @@ void FMfMediaPlayer::ReceiveSourceReaderSample(IMFSample* Sample, HRESULT Status
 
 #undef LOCTEXT_NAMESPACE
 
-#if PLATFORM_WINDOWS
+// @ATG_CHANGE : BEGIN - Enable MFMedia for HoloLens
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+// @ATG_CHANGE : END
 	#include "Windows/HideWindowsPlatformTypes.h"
 #else
 	#include "XboxOne/XboxOneHidePlatformTypes.h"

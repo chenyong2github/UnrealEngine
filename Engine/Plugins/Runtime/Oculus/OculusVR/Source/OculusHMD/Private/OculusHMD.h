@@ -86,7 +86,7 @@ public:
 	virtual bool GetRelativeEyePose(int32 InDeviceId, EStereoscopicPass InEye, FQuat& OutOrientation, FVector& OutPosition) override;
 	virtual bool GetTrackingSensorProperties(int32 InDeviceId, FQuat& OutOrientation, FVector& OutPosition, FXRSensorProperties& OutSensorProperties) override;
 	virtual void SetTrackingOrigin(EHMDTrackingOrigin::Type NewOrigin) override;
-	virtual EHMDTrackingOrigin::Type GetTrackingOrigin() override;
+	virtual EHMDTrackingOrigin::Type GetTrackingOrigin() const override;
 	virtual bool GetFloorToEyeTrackingTransform(FTransform& OutFloorToEye) const override;
 	//virtual FVector GetAudioListenerOffset(int32 InDeviceId = HMDDeviceId) const override;
 	virtual void ResetOrientationAndPosition(float Yaw = 0.f) override;

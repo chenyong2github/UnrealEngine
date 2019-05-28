@@ -165,14 +165,14 @@ FORCEINLINE bool appLineCheckTriangle(const FVector4& Start, const FVector4& End
 }
 
 /** ( -0.0001f, -0.0001f, -0.0001f, -0.0001f ) */
-static const VectorRegister GSmallNegativeNumber = { -0.0001f, -0.0001f, -0.0001f, -0.0001f };
+static const VectorRegister GSmallNegativeNumber = DECLARE_VECTOR_REGISTER(-0.0001f, -0.0001f, -0.0001f, -0.0001f);
 //extern const VectorRegister GSmallNegativeNumber;
 
 /** ( 0.0001f, 0.0001f, 0.0001f, 0.0001f ) */
-static const VectorRegister GSmallNumber = { 0.0001f, 0.0001f, 0.0001f, 0.0001f };
+static const VectorRegister GSmallNumber = DECLARE_VECTOR_REGISTER(0.0001f, 0.0001f, 0.0001f, 0.0001f);
 //extern const VectorRegister GSmallNumber;
 
-static const VectorRegister GZeroVectorRegister = { 0, 0, 0, 0 };
+static const VectorRegister GZeroVectorRegister = DECLARE_VECTOR_REGISTER(0.0f, 0.0f, 0.0f, 0.0f);
 
 static const VectorRegister VectorNegativeOne = MakeVectorRegister( -1.0f, -1.0f, -1.0f, -1.0f );
 
@@ -201,7 +201,7 @@ static int32 appLineCheckTriangleSOA(const FVector3SOA& Start, const FVector3SOA
 	EndDist = VectorMultiplyAdd( Triangle4.Normals.Z, End.Z, EndDist );
 
 	// Are both end-points of the line on the same side of the triangle (or parallel to the triangle plane)?
-	TriangleMask = VectorMask_LE( VectorMultiply( StartDist, EndDist ), GSmallNegativeNumber );
+	TriangleMask = VectorCompareLE(VectorMultiply(StartDist, EndDist), GSmallNegativeNumber);
 	if ( VectorMaskBits(TriangleMask) == 0 )
 	{
 		return -1;
@@ -212,8 +212,8 @@ static int32 appLineCheckTriangleSOA(const FVector3SOA& Start, const FVector3SOA
 
 	// If this triangle is not closer than the previous hit, reject it
 	VectorRegister IntersectionTime = VectorLoadFloat1( &InOutIntersectionTime );
-	TriangleMask = VectorBitwiseAnd( TriangleMask, VectorMask_GE( Time, VectorZero() ) );
-	TriangleMask = VectorBitwiseAnd( TriangleMask, VectorMask_LT( Time, IntersectionTime ) );
+	TriangleMask = VectorBitwiseAnd( TriangleMask, VectorCompareGE( Time, VectorZero() ) );
+	TriangleMask = VectorBitwiseAnd( TriangleMask, VectorCompareLT( Time, IntersectionTime ) );
 	if ( VectorMaskBits(TriangleMask) == 0 )
 	{
 		return -1;
@@ -241,7 +241,7 @@ static int32 appLineCheckTriangleSOA(const FVector3SOA& Start, const FVector3SOA
 		DotW = VectorMultiply( SideDirectionX, IntersectionX );
 		DotW = VectorMultiplyAdd( SideDirectionY, IntersectionY, DotW );
 		DotW = VectorMultiplyAdd( SideDirectionZ, IntersectionZ, DotW );
-		TriangleMask = VectorBitwiseAnd( TriangleMask, VectorMask_LT( VectorSubtract(DotW, SideW), GSmallNumber ) );
+		TriangleMask = VectorBitwiseAnd( TriangleMask, VectorCompareLT( VectorSubtract(DotW, SideW), GSmallNumber ) );
 		if ( VectorMaskBits(TriangleMask) == 0 )
 		{
 			return -1;
@@ -258,7 +258,7 @@ static int32 appLineCheckTriangleSOA(const FVector3SOA& Start, const FVector3SOA
 
 	// Get the triangle index that corresponds to the best time.
 	// NOTE: This will pick the first triangle, in case there are multiple hits at the same spot.
-	int32 SubIndex = VectorMaskBits( VectorMask_EQ( Time, IntersectionTime ) );
+	int32 SubIndex = VectorMaskBits( VectorCompareEQ( Time, IntersectionTime ) );
 	SubIndex = appCountTrailingZeros( SubIndex );
 
 	// Return results.

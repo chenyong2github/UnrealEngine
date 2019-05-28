@@ -305,6 +305,91 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Runs a local process and pipes the output to a file
+		/// </summary>
+		public static int RunLocalProcessAndPrintfOutput(ProcessStartInfo StartInfo)
+		{
+			string AppName = Path.GetFileNameWithoutExtension(StartInfo.FileName);
+			string LogFilenameBase = string.Format("{0}_{1}", AppName, DateTime.Now.ToString("yyyy.MM.dd-HH.mm.ss"));
+			string LogDir = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Programs", "AutomationTool", "Saved", "Logs");
+			string LogFilename = "";
+			for (int Attempt = 1; Attempt < 100; ++Attempt)
+			{
+				try
+				{
+					if (!Directory.Exists(LogDir))
+					{
+						string IniPath = UnrealBuildTool.GetRemoteIniPath();
+						if(string.IsNullOrEmpty(IniPath))
+						{
+							break;
+						}
+
+						LogDir = Path.Combine(IniPath, "Saved", "Logs");
+						if(!Directory.Exists(LogDir) && !Directory.CreateDirectory(LogDir).Exists)
+						{
+							break;
+						}
+					}
+
+					string LogFilenameBaseToCreate = LogFilenameBase;
+					if (Attempt > 1)
+					{
+						LogFilenameBaseToCreate += "_" + Attempt;
+					}
+					LogFilenameBaseToCreate += ".txt";
+					string LogFilenameToCreate = Path.Combine(LogDir, LogFilenameBaseToCreate);
+					if (File.Exists(LogFilenameToCreate))
+					{
+						continue;
+					}
+					File.CreateText(LogFilenameToCreate).Close();
+					LogFilename = LogFilenameToCreate;
+					break;
+				}
+				catch (IOException)
+				{
+					//fatal error, let report to console
+					break;
+				}
+			}
+
+
+			DataReceivedEventHandler Output = (object sender, DataReceivedEventArgs Args) =>
+			{
+				if (Args != null && Args.Data != null)
+				{
+					string data = Args.Data.TrimEnd();
+					if(string.IsNullOrEmpty(data))
+					{
+						return;
+					}
+
+					if (!string.IsNullOrEmpty(LogFilename))
+					{
+						File.AppendAllLines(LogFilename, data.Split('\n'));
+					}
+					else
+					{
+						Log.TraceInformation(data);
+					}
+				}
+			};
+			Process LocalProcess = new Process();
+			LocalProcess.StartInfo = StartInfo;
+			LocalProcess.OutputDataReceived += Output;
+			LocalProcess.ErrorDataReceived += Output;
+			var ExitCode = RunLocalProcess(LocalProcess);
+			if(ExitCode != 0 && !string.IsNullOrEmpty(LogFilename))
+			{
+				Log.TraceError("Process \'{0}\' failed. Details are in \'{1}\'", AppName, LogFilename);
+			}
+
+			return ExitCode;
+		}
+
+
+		/// <summary>
 		/// Runs a local process and pipes the output to the log
 		/// </summary>
 		public static int RunLocalProcessAndLogOutput(string Command, string Args)

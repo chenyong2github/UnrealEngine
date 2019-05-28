@@ -725,7 +725,9 @@ public:
 	virtual ~FD3D12UniformBuffer();
 };
 
-#if PLATFORM_WINDOWS
+// @ATG_CHANGE : BEGIN HoloLens support
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+// @ATG_CHANGE : END
 class FD3D12TransientResource
 {
 	// Nothing special for fast ram

@@ -783,7 +783,7 @@ void FSteamVRHMD::SetTrackingOrigin(EHMDTrackingOrigin::Type NewOrigin)
 	}
 }
 
-EHMDTrackingOrigin::Type FSteamVRHMD::GetTrackingOrigin()
+EHMDTrackingOrigin::Type FSteamVRHMD::GetTrackingOrigin() const
 {
 	if(VRCompositor)
 	{

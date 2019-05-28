@@ -112,51 +112,57 @@ public class PhysX : ModuleRules
 			);
 
 		// Libraries and DLLs for windows platform
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+// @ATG_CHANGE : BEGIN HoloLens support
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens
+			|| Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			PhysXLibDir += "Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PxSharedLibDir += "Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+            string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
+
+            PhysXLibDir += Target.Platform.ToString() + "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+			PxSharedLibDir += Target.Platform.ToString() + "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+// @ATG_CHANGE : END
 			PublicLibraryPaths.Add(PhysXLibDir);
 			PublicLibraryPaths.Add(PxSharedLibDir);
 
-			string[] StaticLibrariesX64 = new string[] {
-				"PhysX3{0}_x64.lib",
-				"PhysX3Extensions{0}_x64.lib",
-				"PhysX3Cooking{0}_x64.lib",
-				"PhysX3Common{0}_x64.lib",
-				"PsFastXml{0}_x64.lib",
-				"PxFoundation{0}_x64.lib",
-				"PxPvdSDK{0}_x64.lib",
-				"PxTask{0}_x64.lib",
+			string[] StaticLibraries = new string[] {
+				"PhysX3{0}_{1}.lib",
+                "PhysX3Extensions{0}_{1}.lib",
+                "PhysX3Cooking{0}_{1}.lib",
+                "PhysX3Common{0}_{1}.lib",
+                "PsFastXml{0}_{1}.lib",
+                "PxFoundation{0}_{1}.lib",
+                "PxPvdSDK{0}_{1}.lib",
+                "PxTask{0}_{1}.lib",
 			};
 
-			string[] DelayLoadDLLsX64 = new string[] {
-				"PxFoundation{0}_x64.dll",
-				"PxPvdSDK{0}_x64.dll",
-				"PhysX3{0}_x64.dll",
-				"PhysX3Cooking{0}_x64.dll",
-				"PhysX3Common{0}_x64.dll",
+			string[] DelayLoadDLLs = new string[] {
+                "PxFoundation{0}_{1}.dll",
+                "PxPvdSDK{0}_{1}.dll",
+                "PhysX3{0}_{1}.dll",
+                "PhysX3Cooking{0}_{1}.dll",
+                "PhysX3Common{0}_{1}.dll",
 			};
 
-			string[] PxSharedRuntimeDependenciesX64 = new string[] {
-				"PxFoundation{0}_x64.dll",
-				"PxPvdSDK{0}_x64.dll",
+			string[] PxSharedRuntimeDependencies = new string[] {
+                "PxFoundation{0}_{1}.dll",
+                "PxPvdSDK{0}_{1}.dll",
 			};
 
-			foreach (string Lib in StaticLibrariesX64)
+			foreach (string Lib in StaticLibraries)
 			{
-				PublicAdditionalLibraries.Add(String.Format(Lib, LibrarySuffix));
+				PublicAdditionalLibraries.Add(String.Format(Lib, LibrarySuffix, Arch));
 			}
 
-			foreach (string DLL in DelayLoadDLLsX64)
+			foreach (string DLL in DelayLoadDLLs)
 			{
-				PublicDelayLoadDLLs.Add(String.Format(DLL, LibrarySuffix));
+				PublicDelayLoadDLLs.Add(String.Format(DLL, LibrarySuffix, Arch));
 			}
-
-			string PhysXBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/Win64/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			foreach (string DLL in DelayLoadDLLsX64)
+// @ATG_CHANGE : BEGIN HoloLens support
+			string PhysXBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/{1}/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.Platform.ToString());
+// @ATG_CHANGE : END
+			foreach (string DLL in DelayLoadDLLs)
 			{
-				string FileName = PhysXBinariesDir + String.Format(DLL, LibrarySuffix);
+				string FileName = PhysXBinariesDir + String.Format(DLL, LibrarySuffix, Arch);
 				RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
 				RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
 			}
@@ -166,61 +172,13 @@ public class PhysX : ModuleRules
 				PublicDefinitions.Add("UE_PHYSX_SUFFIX=" + LibrarySuffix);
 			}
 
-			string PxSharedBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/Win64/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			foreach (string DLL in PxSharedRuntimeDependenciesX64)
+			// @ATG_CHANGE : BEGIN HoloLens support
+			string PxSharedBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/{1}/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.Platform.ToString());
+			// @ATG_CHANGE : END
+			foreach (string DLL in PxSharedRuntimeDependencies)
 			{
-				RuntimeDependencies.Add(PxSharedBinariesDir + String.Format(DLL, LibrarySuffix));
+				RuntimeDependencies.Add(PxSharedBinariesDir + String.Format(DLL, LibrarySuffix, Arch));
 			}
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			PhysXLibDir += "Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PxSharedLibDir += "Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(PhysXLibDir);
-			PublicLibraryPaths.Add(PxSharedLibDir);
-
-			string[] StaticLibrariesX86 = new string[] {
-				"PhysX3{0}_x86.lib",
-				"PhysX3Extensions{0}_x86.lib",
-				"PhysX3Cooking{0}_x86.lib",
-				"PhysX3Common{0}_x86.lib",
-				"PsFastXml{0}_x86.lib",
-				"PxFoundation{0}_x86.lib",
-				"PxPvdSDK{0}_x86.lib",
-				"PxTask{0}_x86.lib",
-			};
-
-			string[] DelayLoadDLLsX86 = new string[] {
-                "PxFoundation{0}_x86.dll",
-                "PxPvdSDK{0}_x86.dll",
-                "PhysX3{0}_x86.dll",
-				"PhysX3Cooking{0}_x86.dll",
-				"PhysX3Common{0}_x86.dll"
-			};
-
-			foreach (string Lib in StaticLibrariesX86)
-			{
-				PublicAdditionalLibraries.Add(String.Format(Lib, LibrarySuffix));
-			}
-
-			foreach (string DLL in DelayLoadDLLsX86)
-			{
-				PublicDelayLoadDLLs.Add(String.Format(DLL, LibrarySuffix));
-			}
-
-			string PhysXBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/Win32/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			foreach (string DLL in DelayLoadDLLsX86)
-			{
-				string FileName = PhysXBinariesDir + String.Format(DLL, LibrarySuffix);
-				RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
-				RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
-			}
-
-			if (LibrarySuffix != "")
-			{
-				PublicDefinitions.Add("UE_PHYSX_SUFFIX=" + LibrarySuffix);
-			}
-
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

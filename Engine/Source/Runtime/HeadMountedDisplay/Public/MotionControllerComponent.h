@@ -123,6 +123,9 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Motion Controller Update")
 	float GetParameterValue(FName InName, bool& bValueFound);
 
+	UFUNCTION(BlueprintCallable, Category = "Motion Controller Update")
+	FVector GetHandJointPosition(int jointIndex, bool& bValueFound);
+
 private:
 
 	/** Whether or not this component had a valid tracked controller associated with it this frame*/

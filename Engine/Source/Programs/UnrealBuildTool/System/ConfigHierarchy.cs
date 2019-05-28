@@ -903,6 +903,12 @@ namespace UnrealBuildTool
 			{
 				return "Windows";
 			}
+			// @ATG_CHANGE : BEGIN HoloLens support
+			else if (TargetPlatform == UnrealTargetPlatform.HoloLens)
+			{
+				return "HoloLens";
+			}
+			// @ATG_CHANGE : END
 			else
 			{
 				return Enum.GetName(typeof(UnrealTargetPlatform), TargetPlatform);

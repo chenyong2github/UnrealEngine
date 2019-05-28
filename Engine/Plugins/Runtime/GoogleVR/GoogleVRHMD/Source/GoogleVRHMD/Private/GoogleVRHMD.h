@@ -763,7 +763,7 @@ public:
 #endif
 
 	virtual void SetTrackingOrigin(EHMDTrackingOrigin::Type) override;
-	virtual EHMDTrackingOrigin::Type GetTrackingOrigin() override;
+	virtual EHMDTrackingOrigin::Type GetTrackingOrigin() const override;
 
 
 #if GOOGLEVRHMD_SUPPORTED_INSTANT_PREVIEW_PLATFORMS

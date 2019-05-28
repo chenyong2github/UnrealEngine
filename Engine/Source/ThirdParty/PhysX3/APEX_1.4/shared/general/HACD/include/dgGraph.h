@@ -42,7 +42,7 @@ class dgGraph: public dgList<dgGraphNode<dgNodeData, dgEdgeData> >
 	~dgGraph ();
 
 
-	typename dgGraph<dgNodeData, dgEdgeData>::dgListNode* AddNode ();
+	dgListNode* AddNode ();
 	void DeleteNode (typename dgGraph<dgNodeData, dgEdgeData>::dgListNode* const node);
 
 	void Trace () const;
@@ -55,7 +55,7 @@ class dgGraphNode: public dgList<dgGraphEdge<dgNodeData, dgEdgeData> >
 	dgGraphNode ();
 	~dgGraphNode ();
 
-	typename dgGraphNode<dgNodeData, dgEdgeData>::dgListNode* AddEdge(typename dgGraph<dgNodeData, dgEdgeData>::dgListNode* const node);
+	dgListNode* AddEdge(typename dgGraph<dgNodeData, dgEdgeData>::dgListNode* const node);
 	void DeleteHalfEdge(typename dgGraphNode<dgNodeData, dgEdgeData>::dgListNode* const edge);
 	void DeleteEdge(typename dgGraphNode<dgNodeData, dgEdgeData>::dgListNode* const edge);
 

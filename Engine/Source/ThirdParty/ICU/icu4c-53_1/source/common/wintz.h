@@ -14,7 +14,7 @@
 
 #include "unicode/utypes.h"
 
-#if U_PLATFORM_HAS_WIN32_API
+#if U_PLATFORM_HAS_WIN32_API && !PLATFORM_HOLOLENS
 
 /**
  * \file 
@@ -30,5 +30,10 @@ U_CFUNC const char* U_EXPORT2
 uprv_detectWindowsTimeZone();
 
 #endif /* U_PLATFORM_HAS_WIN32_API */
+
+#if PLATFORM_HOLOLENS
+U_CFUNC const char* U_EXPORT2
+uprv_detectWindowsTimeZoneUAP();
+#endif
 
 #endif /* __WINTZ */

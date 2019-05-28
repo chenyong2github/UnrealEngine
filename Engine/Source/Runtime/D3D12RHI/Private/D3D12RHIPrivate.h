@@ -44,6 +44,8 @@ DECLARE_LOG_CATEGORY_EXTERN(LogD3D12RHI, Log, All);
 
 #if PLATFORM_WINDOWS
 #include "Windows/D3D12RHIBasePrivate.h"
+#elif PLATFORM_HOLOLENS
+#include "HoloLens/D3D12RHIBasePrivate.h"
 #else
 #include "XboxOne/D3D12RHIBasePrivate.h"
 #endif

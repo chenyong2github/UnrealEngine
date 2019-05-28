@@ -5,7 +5,9 @@
 =============================================================================*/
 
 #include "D3D11RHIPrivate.h"
-#include "Windows/D3D11RHIPrivateUtil.h"
+// @ATG_CHANGE : BEGIN HoloLens support
+#include "D3D11RHIPrivateUtil.h"
+// @ATG_CHANGE : END
 #include "StaticBoundShaderState.h"
 #include "GlobalShader.h"
 #include "OneColorShader.h"
@@ -15,7 +17,9 @@
 #include "SceneUtils.h"
 #include "EngineGlobals.h"
 
-#if PLATFORM_DESKTOP
+// @ATG_CHANGE : BEGIN HoloLens support
+#if PLATFORM_DESKTOP && !PLATFORM_HOLOLENS
+// @ATG_CHANGE : END
 // For Depth Bounds Test interface
 #include "Windows/AllowWindowsPlatformTypes.h"
 	#include "nvapi.h"
@@ -72,6 +76,7 @@ void FD3D11BaseShaderResource::SetDirty(bool bInDirty, uint32 CurrentFrame)
 	ensureMsgf((GEnableDX11TransitionChecks == 0) || !(CurrentGPUAccess == EResourceTransitionAccess::EReadable && bDirty), TEXT("ShaderResource is dirty, but set to Readable."));
 }
 
+#if !PLATFORM_HOLOLENS
 //MultiGPU
 void FD3D11DynamicRHI::RHIBeginUpdateMultiFrameResource(FTextureRHIParamRef RHITexture)
 {
@@ -152,6 +157,7 @@ void FD3D11DynamicRHI::RHIEndUpdateMultiFrameResource(FUnorderedAccessViewRHIPar
 	NvAPI_D3D_EndResourceRendering(Direct3DDevice, (NVDX_ObjectHandle)UAV->IHVResourceHandle, 0);
 	RHIPopEvent();
 }
+#endif
 
 // Vertex state.
 void FD3D11DynamicRHI::RHISetStreamSource(uint32 StreamIndex, FVertexBufferRHIParamRef VertexBufferRHI, uint32 Offset)
@@ -1909,7 +1915,9 @@ void FD3D11DynamicRHI::RHIExecuteCommandList(FRHICommandList* CmdList)
 // NVIDIA Depth Bounds Test interface
 void FD3D11DynamicRHI::EnableDepthBoundsTest(bool bEnable,float MinDepth,float MaxDepth)
 {
-#if PLATFORM_DESKTOP
+	// @ATG_CHANGE : BEGIN HoloLens support
+#if PLATFORM_DESKTOP && !PLATFORM_HOLOLENS
+	// @ATG_CHANGE : END
 	if(MinDepth > MaxDepth)
 	{
 		UE_LOG(LogD3D11RHI, Error,TEXT("RHIEnableDepthBoundsTest(%i,%f, %f) MinDepth > MaxDepth, cannot set DBT."),bEnable,MinDepth,MaxDepth);
@@ -2084,6 +2092,7 @@ static bool IsUAVOverlapSupported()
 
 void FD3D11DynamicRHI::BeginUAVOverlap()
 {
+#if !PLATFORM_HOLOLENS
 	if (!GOverlapUAVOBegin)
 	{
 		if (IsRHIDeviceNVIDIA())
@@ -2098,9 +2107,11 @@ void FD3D11DynamicRHI::BeginUAVOverlap()
 
 		GOverlapUAVOBegin = true;
 	}
+#endif	
 }
 void FD3D11DynamicRHI::EndUAVOverlap()
 {
+#if !PLATFORM_HOLOLENS
 	if (GOverlapUAVOBegin)
 	{
 		if (IsRHIDeviceNVIDIA())
@@ -2115,6 +2126,7 @@ void FD3D11DynamicRHI::EndUAVOverlap()
 
 		GOverlapUAVOBegin = false;
 	}
+#endif
 }
 
 

@@ -156,6 +156,7 @@ static const FPlatformInfo AllPlatformInfoArray[] = {
 
 	BuildPlatformInfo(TEXT("Quail"),					TEXT("Quail"),				LOCTEXT("Quail", "Quail"),										EPlatformType::Game,	EPlatformFlags::None,			FPlatformIconPaths(TEXT("Launcher/Quail/Platform_Quail_24x"), TEXT("Launcher/Quail/Platform_Quail_128x")),							TEXT(""),											TEXT(""),			EPlatformSDKStatus::Unknown,	TEXT(""),																								IsAvailableOnWindows,											TEXT("Quail"),		TEXT("Quail"),		false,					false,					true,			TEXT("Quail"),		TEXT("")),
 	BuildPlatformInfo(TEXT("QuailClient"),				TEXT("QuailClient"),		LOCTEXT("QuailClient", "Quail (Client-only)"),					EPlatformType::Client,	EPlatformFlags::None,			FPlatformIconPaths(TEXT("Launcher/Quail/Platform_Quail_24x"), TEXT("Launcher/Quail/Platform_Quail_128x")),							TEXT("-client -targetplatform=Quail"),				TEXT(""),			EPlatformSDKStatus::Unknown,	TEXT(""),																								IsAvailableOnWindows,											TEXT("Quail"),		TEXT("Quail"),		false,					false,					true,			TEXT("Quail"),		TEXT("")),
+	BuildPlatformInfo(TEXT("HoloLens"),					TEXT("HoloLens"),			LOCTEXT("HoloLens", "HoloLens"),								EPlatformType::Game,	EPlatformFlags::None,			FPlatformIconPaths(TEXT("Launcher/Windows/Platform_Windows_24x"), TEXT("Launcher/Windows/Platform_Windows_128x")),					TEXT(""),											TEXT(""),		EPlatformSDKStatus::Unknown,	TEXT("/Engine/Tutorial/Installation/InstallingVisualStudioTutorial.InstallingVisualStudioTutorial"),	IsAvailableOnWindows,											TEXT("HoloLens"),		TEXT("HoloLens"),		IsAvailableOnWindows,	false,					false,			TEXT("HoloLens"),		TEXT("Mobile")),
 
 	// Note: For "AllDesktop" bEnabledForUse value, see SProjectTargetPlatformSettings::Construct !!!! IsAvailableOnWindows || IsAvailableOnMac || IsAvailableOnLinux
 };
@@ -170,6 +171,13 @@ const FPlatformInfo* FindPlatformInfo(const FName& InPlatformName)
 		{
 			return &PlatformInfo;
 		}
+
+		// @ATG_CHANGE : BEGIN - HoloLens packaging & F5 support
+		if (PlatformInfo.TargetPlatformName == InPlatformName)
+		{
+			return &PlatformInfo;
+		}
+		// @ATG_CHANGE : END - HoloLens packaging & F5 support
 	}
 	return nullptr;
 }

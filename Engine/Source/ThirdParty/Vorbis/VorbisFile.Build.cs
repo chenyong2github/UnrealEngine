@@ -8,23 +8,43 @@ public class VorbisFile : ModuleRules
 		Type = ModuleType.External;
 
 		string VorbisPath = Target.UEThirdPartySourceDirectory + "Vorbis/libvorbis-1.3.2/";
-		PublicIncludePaths.Add(VorbisPath + "include");
-		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			string VorbisLibPath = VorbisPath + "Lib/win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
-			PublicLibraryPaths.Add(VorbisLibPath);
-			PublicAdditionalLibraries.Add("libvorbisfile_64.lib");
-			PublicDelayLoadDLLs.Add("libvorbisfile_64.dll");
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Vorbis/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libvorbisfile_64.dll");
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32 )
-		{
-			string VorbisLibPath = VorbisPath + "Lib/win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
-			PublicLibraryPaths.Add(VorbisLibPath);
-			PublicAdditionalLibraries.Add("libvorbisfile.lib");
-			PublicDelayLoadDLLs.Add("libvorbisfile.dll");
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Vorbis/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libvorbisfile.dll");
-		}
+        PublicIncludePaths.Add(VorbisPath + "include");
+        // @ATG_CHANGE : BEGIN HoloLens support
+        if ((Target.Platform == UnrealTargetPlatform.Win64) ||
+            (Target.Platform == UnrealTargetPlatform.Win32) ||
+            (Target.Platform == UnrealTargetPlatform.HoloLens))
+        {
+			string PlatformSubpath = Target.Platform.ToString();
+            string LibFileName = "libvorbisfile";
+            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+            {
+                LibFileName += "_64";
+            }
+
+            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+            {
+                PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/VS{2}/{3}/", VorbisPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath()));
+                RuntimeDependencies.Add(
+                    System.String.Format("$(EngineDir)/Binaries/ThirdParty/Vorbis/{0}/VS{1}/{2}/{3}.dll",
+                        Target.Platform,
+                        Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
+                        Target.WindowsPlatform.GetArchitectureSubpath(),
+                        LibFileName));
+            }
+            else
+            {
+                PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/VS{2}/", VorbisPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
+                RuntimeDependencies.Add(
+                    System.String.Format("$(EngineDir)/Binaries/ThirdParty/Vorbis/{0}/VS{1}/{2}.dll",
+                        Target.Platform,
+                        Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
+                        LibFileName));
+            }
+
+            PublicAdditionalLibraries.Add(LibFileName + ".lib");
+            PublicDelayLoadDLLs.Add(LibFileName + ".dll");
+        }
+		// @ATG_CHANGE : END
 		else if (Target.Platform == UnrealTargetPlatform.HTML5)
 		{
 			string VorbisLibPath = VorbisPath + "lib/HTML5/";

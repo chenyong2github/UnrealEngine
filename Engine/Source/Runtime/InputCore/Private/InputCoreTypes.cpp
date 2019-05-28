@@ -729,6 +729,18 @@ void EKeys::GetAllKeys(TArray<FKey>& OutKeys)
 	InputKeys.GetKeys(OutKeys);
 }
 
+void EKeys::RemoveKeysWithCategory(const FName InCategory)
+{
+	for (TMap<FKey, TSharedPtr<FKeyDetails> >::TConstIterator It(InputKeys); It; ++It)
+	{
+		FName KeyCategory = It.Key().GetMenuCategory();
+		if (KeyCategory.IsEqual(InCategory))
+		{
+			InputKeys.Remove(It.Key());
+		}
+	}
+}
+
 TSharedPtr<FKeyDetails> EKeys::GetKeyDetails(const FKey Key)
 {
 	TSharedPtr<FKeyDetails>* KeyDetails = InputKeys.Find(Key);

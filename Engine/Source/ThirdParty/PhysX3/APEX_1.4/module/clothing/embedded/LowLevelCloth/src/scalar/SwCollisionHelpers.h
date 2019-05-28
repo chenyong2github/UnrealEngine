@@ -30,6 +30,7 @@ uint32_t findBitSet(uint32_t mask)
 
 inline Scalar4i intFloor(const Scalar4f& v)
 {
+	using physx::shdfnd::floor;
 	return Scalar4i(int(floor(v.f4[0])), int(floor(v.f4[1])), int(floor(v.f4[2])), int(floor(v.f4[3])));
 }
 
@@ -50,7 +51,7 @@ struct Gather<Scalar4i>
 
 Gather<Scalar4i>::Gather(const Scalar4i& index)
 {
-	uint32_t mask = physx::cloth::SwCollision<Scalar4i>::sGridSize - 1;
+	uint32_t mask = nvidia::cloth::SwCollision<Scalar4i>::sGridSize - 1;
 
 	mIndex.u4[0] = index.u4[0] & mask;
 	mIndex.u4[1] = index.u4[1] & mask;

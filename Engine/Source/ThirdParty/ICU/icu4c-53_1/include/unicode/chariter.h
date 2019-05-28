@@ -258,7 +258,7 @@ protected:
  * \code
  *  void random(CharacterIterator &it) {
  *      // set to the third code point from the beginning
- *      it.move32(3, CharacterIterator::kStart);
+ *      it.HACK_ICU_MOVE32_FIX(3, CharacterIterator::kStart);
  *      // get a code point from here without moving the position
  *      UChar32 c=it.current32();
  *      // get the position
@@ -356,7 +356,7 @@ protected:
 class U_COMMON_API CharacterIterator : public ForwardCharacterIterator {
 public:
     /**
-     * Origin enumeration for the move() and move32() functions.
+     * Origin enumeration for the move() and HACK_ICU_MOVE32_FIX() functions.
      * @stable ICU 2.0
      */
     enum EOrigin { kStart, kCurrent, kEnd };
@@ -605,7 +605,12 @@ public:
      * @return the new position
      * @stable ICU 2.0
      */
-    virtual int32_t      move32(int32_t delta, EOrigin origin) = 0;
+#if defined(_MSC_VER) && (defined(_M_ARM) || defined(_M_ARM64))
+#define HACK_ICU_MOVE32_FIX movePosition32
+#else
+#define HACK_ICU_MOVE32_FIX move32
+#endif 
+	virtual int32_t      HACK_ICU_MOVE32_FIX(int32_t delta, EOrigin origin) = 0;
 
     /**
      * Copies the text under iteration into the UnicodeString

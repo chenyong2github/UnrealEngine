@@ -1,0 +1,39 @@
+{
+	"FileVersion" : 3,
+	"Version" : 1,
+	"VersionName" : "1.0",
+	"FriendlyName" : "HoloLens",
+	"Description" : "HoloLens Support",
+	"Category" : "Augmented Reality",
+	"CreatedBy" : "Epic Games, Inc. and Microsoft",
+	"CreatedByURL" : "http://epicgames.com",
+	"DocsURL" : "",
+	"MarketplaceURL" : "",
+	"SupportURL" : "",
+	"EnabledByDefault" : true,
+	"CanContainContent" : true,
+	"IsBetaVersion" : true,
+	"Installed" : false,
+	"Modules": [
+		{
+			"Name": "HoloLensAR",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit"
+		},
+		{
+			"Name": "HoloLensPlatformEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "HoloLensDeviceDetector",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "HoloLensTargetPlatform",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}

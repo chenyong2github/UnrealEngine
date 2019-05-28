@@ -5,6 +5,10 @@
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformHttp.h"
+// @ATG_CHANGE : BEGIN HoloLens support
+#elif PLATFORM_HOLOLENS
+#include "HoloLens/HoloLensHttp.h"
+// @ATG_CHANGE : END
 #elif PLATFORM_PS4
 #include "PS4/PS4PlatformHttp.h"
 #elif PLATFORM_XBOXONE

@@ -61,7 +61,12 @@ physx::PhysXIndicator::PhysXIndicator(bool isGpu)
 	
 	char configName[128];
 
-#if _MSC_VER >= 1800
+// @ATG_CHANGE : BEGIN HoloLens support
+// API not available in HoloLens, but we're guaranteed > Vista
+#if PX_HOLOLENS
+	if (false)
+#elif _MSC_VER >= 1800
+// @ATG_CHANGE : END
 	if (!IsWindowsVistaOrGreater())
 #else
 	OSVERSIONINFOEX windowsVersionInfo;
@@ -73,10 +78,22 @@ physx::PhysXIndicator::PhysXIndicator(bool isGpu)
 		NvPhysXToDrv_Build_SectionNameXP(GetCurrentProcessId(), configName);
 	else
 		NvPhysXToDrv_Build_SectionName(GetCurrentProcessId(), configName);
+// @ATG_CHANGE : BEGIN HoloLens support
+// Only CreateFileMappingW availabledel
+#if PX_HOLOLENS
+	WCHAR configNameWide[_countof(configName)];
+	if (MultiByteToWideChar(CP_ACP, 0, configName, -1, configNameWide, _countof(configNameWide)) > 0)
+	{
+		mFileHandle = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL,
+			PAGE_READWRITE, 0, sizeof(NvPhysXToDrv_Data_V1), configNameWide);
+	}
+#else
 	
 	mFileHandle = CreateFileMapping(INVALID_HANDLE_VALUE, NULL,
 		PAGE_READWRITE, 0, sizeof(NvPhysXToDrv_Data_V1), configName);
 
+#endif
+// @ATG_CHANGE : END
 	if (!mFileHandle || mFileHandle == INVALID_HANDLE_VALUE)
 		return;
 

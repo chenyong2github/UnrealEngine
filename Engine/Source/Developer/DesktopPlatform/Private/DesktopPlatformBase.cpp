@@ -619,6 +619,11 @@ bool FDesktopPlatformBase::GenerateProjectFiles(const FString& RootDir, const FS
 	{
 		Arguments += FString::Printf(TEXT(" -log=\"%s\""), *LogFilePath);
 	}
+	// @ATG_CHANGE : BEGIN - if the editor was built with 2017 then we should probably generate a project for use with 2017
+#if defined(_MSC_VER) && _MSC_VER >= 1910
+	Arguments += TEXT(" -2017");
+#endif
+	// @ATG_CHANGE : END
 
 	// Compile UnrealBuildTool if it doesn't exist. This can happen if we're just copying source from somewhere.
 	bool bRes = true;

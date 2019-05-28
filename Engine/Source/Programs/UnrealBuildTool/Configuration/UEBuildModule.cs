@@ -115,6 +115,10 @@ namespace UnrealBuildTool
 		/// 
 		/// </summary>
 		protected readonly HashSet<UEBuildBundleResource> PublicAdditionalBundleResources;
+		// @ATG_CHANGE : BEGIN - winmd support
+		protected readonly HashSet<string> PublicWinMDReferences;
+		protected readonly HashSet<string> PrivateWinMDReferences;
+		// @ATG_CHANGE : END
 
 		/// <summary>
 		/// Names of modules with header files that this module's public interface needs access to.
@@ -197,6 +201,10 @@ namespace UnrealBuildTool
 			{
 				PrivateIncludePaths = CreateDirectoryHashSet(Rules.PrivateIncludePaths);
 			}
+			// @ATG_CHANGE : BEGIN - winmd support
+			PublicWinMDReferences = HashSetFromOptionalEnumerableStringParameter(Rules.PublicWinMDReferences);
+			PrivateWinMDReferences = HashSetFromOptionalEnumerableStringParameter(Rules.PrivateWinMDReferences);
+			// @ATG_CHANGE : END - winmd support
 			IsRedistributableOverride = Rules.IsRedistributableOverride;
 
 			WhitelistRestrictedFolders = new HashSet<DirectoryReference>(Rules.WhitelistRestrictedFolders.Select(x => DirectoryReference.Combine(ModuleDirectory, x)));
@@ -454,13 +462,19 @@ namespace UnrealBuildTool
 			HashSet<DirectoryReference> SystemIncludePaths,
 			List<string> Definitions,
 			List<UEBuildFramework> AdditionalFrameworks,
-			bool bLegacyPublicIncludePaths
+			bool bLegacyPublicIncludePaths,
+			// @ATG_CHANGE : BEGIN - winmd support
+			List<string> WinMDFiles
+			// @ATG_CHANGE : END - winmd support
 			)
 		{
 			// Add the module's parent directory to the include path, so we can root #includes from generated source files to it
 			IncludePaths.Add(ModuleDirectory.ParentDirectory);
 
 			// Add this module's public include paths and definitions.
+			// @ATG_CHANGE : BEGIN - winmd support
+			WinMDFiles.AddRange(PublicWinMDReferences);
+			// @ATG_CHANGE : END - winmd support
 			AddIncludePaths(IncludePaths, PublicIncludePaths);
 			if(bLegacyPublicIncludePaths)
 			{
@@ -509,7 +523,10 @@ namespace UnrealBuildTool
 			HashSet<DirectoryReference> SystemIncludePaths,
 			List<string> Definitions,
 			List<UEBuildFramework> AdditionalFrameworks,
-			bool bWithLegacyPublicIncludePaths
+			bool bWithLegacyPublicIncludePaths,
+			// @ATG_CHANGE : BEGIN - winmd support
+			List<string> WinMDFiles
+			// @ATG_CHANGE : END - winmd support
 			)
 		{
 			if (!Rules.bTreatAsEngineModule)
@@ -521,6 +538,9 @@ namespace UnrealBuildTool
 			// Add this module's private include paths and definitions.
 			IncludePaths.UnionWith(PrivateIncludePaths);
 
+			// @ATG_CHANGE : BEGIN - winmd support
+			WinMDFiles.AddRange(PrivateWinMDReferences);
+			// @ATG_CHANGE : END - winmd support
 			// Find all the modules that are part of the public compile environment for this module.
 			Dictionary<UEBuildModule, bool> ModuleToIncludePathsOnlyFlag = new Dictionary<UEBuildModule, bool>();
 			FindModulesInPrivateCompileEnvironment(ModuleToIncludePathsOnlyFlag);
@@ -528,7 +548,9 @@ namespace UnrealBuildTool
 			// Now set up the compile environment for the modules in the original order that we encountered them
 			foreach (UEBuildModule Module in ModuleToIncludePathsOnlyFlag.Keys)
 			{
-				Module.AddModuleToCompileEnvironment(Binary, IncludePaths, SystemIncludePaths, Definitions, AdditionalFrameworks, bWithLegacyPublicIncludePaths);
+			// @ATG_CHANGE : BEGIN - winmd support
+				Module.AddModuleToCompileEnvironment(Binary, IncludePaths, SystemIncludePaths, Definitions, AdditionalFrameworks, bWithLegacyPublicIncludePaths, WinMDFiles);
+			// @ATG_CHANGE : END - winmd support				
 			}
 		}
 

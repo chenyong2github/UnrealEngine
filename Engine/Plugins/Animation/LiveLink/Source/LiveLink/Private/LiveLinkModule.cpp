@@ -110,6 +110,8 @@ public:
 		return LiveLinkMotionControllerName;
 	}
 
+	virtual bool GetHandJointPosition(const FName MotionSource, int jointIndex, FVector& OutPosition) const override { return false; }
+
 	// Builds cached source data for passing to motion controller system
 	void BuildSourceData()
 	{

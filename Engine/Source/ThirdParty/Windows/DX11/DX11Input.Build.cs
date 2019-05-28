@@ -7,7 +7,10 @@ public class DX11Input : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
+        // @ATG_CHANGE : BEGIN HoloLens support
+        string DirectXSDKDir = Target.WindowsPlatform.bUseWindowsSDK10 ?
+            Target.UEThirdPartySourceDirectory + "Windows/DirectXLegacy" :
+			Target.UEThirdPartySourceDirectory + "Windows/DirectX";
 
 		PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
@@ -19,7 +22,7 @@ public class DX11Input : ModuleRules
 		{
 			PublicLibraryPaths.Add(DirectXSDKDir + "/Lib/x86");
 		}
-
+		// @ATG_CHANGE : END
 		PublicAdditionalLibraries.AddRange(
 			new string[] {
 				"dxguid.lib",

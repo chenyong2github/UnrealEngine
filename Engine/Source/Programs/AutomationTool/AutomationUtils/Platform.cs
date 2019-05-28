@@ -437,6 +437,13 @@ namespace AutomationTool
 			return "";
 		}
 
+		// @ATG_CHANGE : BEGIN - HoloLens packaging & F5 support
+		public virtual string UFEPlatformName
+		{
+			get { return PlatformType.ToString(); }
+		}
+		// @ATG_CHANGE : END
+
 		/// <summary>
 		/// True if this platform can write to the abslog path that's on the host desktop.
 		/// </summary>
@@ -558,7 +565,7 @@ namespace AutomationTool
 
 		#region Hooks
 
-		public virtual void PreBuildAgenda(UE4Build Build, UE4Build.BuildAgenda Agenda)
+		public virtual void PreBuildAgenda(UE4Build Build, UE4Build.BuildAgenda Agenda, ProjectParams Params)
 		{
 
 		}
@@ -638,6 +645,9 @@ namespace AutomationTool
 			{
 				case UnrealTargetPlatform.Win32:
 				case UnrealTargetPlatform.Win64:
+				// @ATG_CHANGE : BEGIN HoloLens packaging & F5 support
+				case UnrealTargetPlatform.HoloLens:
+				// @ATG_CHANGE : END
 				case UnrealTargetPlatform.XboxOne:
 					return ".exe";
 				case UnrealTargetPlatform.PS4:

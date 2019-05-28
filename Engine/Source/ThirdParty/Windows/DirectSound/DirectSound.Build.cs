@@ -7,7 +7,12 @@ public class DirectSound : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
+		// @ATG_CHANGE : BEGIN HoloLens support
+        string DirectXSDKDir = Target.WindowsPlatform.bUseWindowsSDK10 ?
+            Target.UEThirdPartySourceDirectory + "Windows/DirectXLegacy" :
+			Target.UEThirdPartySourceDirectory + "Windows/DirectX";   
+		// @ATG_CHANGE : END
+
 		PublicSystemIncludePaths.Add( DirectXSDKDir + "/include");
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)

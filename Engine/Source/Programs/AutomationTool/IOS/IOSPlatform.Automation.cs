@@ -1714,7 +1714,7 @@ public class IOSPlatform : Platform
 
 	#region Hooks
 
-	public override void PreBuildAgenda(UE4Build Build, UE4Build.BuildAgenda Agenda)
+	public override void PreBuildAgenda(UE4Build Build, UE4Build.BuildAgenda Agenda, ProjectParams Params)
 	{
 		if (UnrealBuildTool.BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac && !CommandUtils.IsEngineInstalled())
 		{

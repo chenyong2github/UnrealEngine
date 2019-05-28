@@ -317,7 +317,7 @@ UCharCharacterIterator::move(int32_t delta, CharacterIterator::EOrigin origin) {
 }
 
 int32_t
-UCharCharacterIterator::move32(int32_t delta, CharacterIterator::EOrigin origin) {
+UCharCharacterIterator::HACK_ICU_MOVE32_FIX(int32_t delta, CharacterIterator::EOrigin origin) {
     // this implementation relies on the "safe" version of the UTF macros
     // (or the trustworthiness of the caller)
     switch(origin) {

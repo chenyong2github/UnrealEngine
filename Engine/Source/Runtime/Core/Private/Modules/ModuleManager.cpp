@@ -69,7 +69,9 @@ FModuleManager& FModuleManager::Get()
 			ModuleManager = new FModuleManager();
 
 			//temp workaround for IPlatformFile being used for FPaths::DirectoryExists before main() sets up the commandline.
-#if PLATFORM_DESKTOP && !IS_MONOLITHIC
+// @ATG_CHANGE : BEGIN HoloLens packaging & F5 support
+#if PLATFORM_DESKTOP && !IS_MONOLITHIC && !PLATFORM_HOLOLENS
+// @ATG_CHANGE : END
 		// Ensure that dependency dlls can be found in restricted sub directories
 			const TCHAR* RestrictedFolderNames[] = { TEXT("NoRedist"), TEXT("NotForLicensees"), TEXT("CarefullyRedist"), TEXT("Switch") };
 			FString ModuleDir = FPlatformProcess::GetModulesDirectory();

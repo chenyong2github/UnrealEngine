@@ -63,7 +63,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		static void AddDefinition(List<string> Arguments, string Definition)
+		static public void AddDefinition(List<string> Arguments, string Definition)
 		{
 			// Split the definition into name and value
 			int ValueIdx = Definition.IndexOf('=');
@@ -77,7 +77,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		static void AddDefinition(List<string> Arguments, string Variable, string Value)
+		static public void AddDefinition(List<string> Arguments, string Variable, string Value)
 		{
 			// If the value has a space in it and isn't wrapped in quotes, do that now
 			if (Value != null && !Value.StartsWith("\"") && (Value.Contains(" ") || Value.Contains("$")))
@@ -96,11 +96,11 @@ namespace UnrealBuildTool
 		}
 
 
-		void AddIncludePath(List<string> Arguments, DirectoryReference IncludePath)
+		public static void AddIncludePath(List<string> Arguments, DirectoryReference IncludePath, WindowsCompiler Compiler)
 		{
 			// If the value has a space in it and isn't wrapped in quotes, do that now. Make sure it doesn't include a trailing slash, because that will escape the closing quote.
 			string IncludePathString;
-			if(IncludePath.IsUnderDirectory(UnrealBuildTool.RootDirectory) && Target.WindowsPlatform.Compiler != WindowsCompiler.Clang)
+			if(IncludePath.IsUnderDirectory(UnrealBuildTool.RootDirectory) && Compiler != WindowsCompiler.Clang)
 			{
 				IncludePathString = IncludePath.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
 			}
@@ -117,9 +117,9 @@ namespace UnrealBuildTool
 			Arguments.Add("/I " + IncludePathString);
 		}
 
-		void AddSystemIncludePath(List<string> Arguments, DirectoryReference IncludePath)
+		public static void AddSystemIncludePath(List<string> Arguments, DirectoryReference IncludePath, WindowsCompiler Compiler)
 		{
-			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+			if (Compiler == WindowsCompiler.Clang)
 			{
 				// Clang has special treatment for system headers; only system include directories are searched when include directives use angle brackets,
 				// and warnings are disabled to allow compiler toolchains to be upgraded separately.
@@ -127,7 +127,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				AddIncludePath(Arguments, IncludePath);
+				AddIncludePath(Arguments, IncludePath, Compiler);
 			}
 		}
 
@@ -229,7 +229,7 @@ namespace UnrealBuildTool
 				Arguments.Add("/Zc:strictStrings-"); // Have to disable strict const char* semantics due to Windows headers not being compliant.
 			}
 
-			// @todo UWP: UE4 is non-compliant when it comes to use of %s and %S
+			// @todo HoloLens: UE4 is non-compliant when it comes to use of %s and %S
 			// Previously %s meant "the current character set" and %S meant "the other one".
 			// Now %s means multibyte and %S means wide. %Ts means "natural width".
 			// Reverting this behaviour until the UE4 source catches up.
@@ -238,7 +238,7 @@ namespace UnrealBuildTool
 				AddDefinition(Arguments, "_CRT_STDIO_LEGACY_WIDE_SPECIFIERS=1");
 			}
 
-			// @todo UWP: Silence the hash_map deprecation errors for now. This should be replaced with unordered_map for the real fix.
+			// @todo HoloLens: Silence the hash_map deprecation errors for now. This should be replaced with unordered_map for the real fix.
 			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED || Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
 			{
 				AddDefinition(Arguments, "_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS=1");
@@ -345,7 +345,7 @@ namespace UnrealBuildTool
 				}
 				// SSE options are not allowed when using the 64 bit toolchain
 				// (enables SSE2 automatically)
-				else if (CompileEnvironment.Platform != CppPlatform.Win64)
+				else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x86)
 				{
 					// Allow the compiler to generate SSE2 instructions.
 					Arguments.Add("/arch:SSE2");
@@ -698,16 +698,7 @@ namespace UnrealBuildTool
 			if ((LinkEnvironment.Platform == CppPlatform.Win32) ||
 				(LinkEnvironment.Platform == CppPlatform.Win64))
 			{
-				// Set machine type/ architecture to be 64 bit.
-				if (LinkEnvironment.Platform == CppPlatform.Win64)
-				{
-					Arguments.Add("/MACHINE:x64");
-				}
-				// 32 bit executable/ target.
-				else
-				{
-					Arguments.Add("/MACHINE:x86");
-				}
+				Arguments.Add(string.Format("/MACHINE:{0}", WindowsExports.GetArchitectureSubpath(Target.WindowsPlatform.Architecture)));
 
 				{
 					if (LinkEnvironment.bIsBuildingConsoleApplication)
@@ -844,16 +835,7 @@ namespace UnrealBuildTool
 			//
 			if (LinkEnvironment.Platform == CppPlatform.Win32 || LinkEnvironment.Platform == CppPlatform.Win64)
 			{
-				// Set machine type/ architecture to be 64 bit.
-				if (LinkEnvironment.Platform == CppPlatform.Win64)
-				{
-					Arguments.Add("/MACHINE:x64");
-				}
-				// 32 bit executable/ target.
-				else
-				{
-					Arguments.Add("/MACHINE:x86");
-				}
+				Arguments.Add(string.Format("/MACHINE:{0}", WindowsExports.GetArchitectureSubpath(Target.WindowsPlatform.Architecture)));
 
 				{
 					if (LinkEnvironment.bIsBuildingConsoleApplication)
@@ -885,17 +867,17 @@ namespace UnrealBuildTool
 			// Add include paths to the argument list.
 			foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
 			{
-				AddIncludePath(SharedArguments, IncludePath);
+				AddIncludePath(SharedArguments, IncludePath, Target.WindowsPlatform.Compiler);
 			}
 
 			foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
 			{
-				AddSystemIncludePath(SharedArguments, IncludePath);
+				AddSystemIncludePath(SharedArguments, IncludePath, Target.WindowsPlatform.Compiler);
 			}
 
 			foreach (DirectoryReference IncludePath in EnvVars.IncludePaths)
 			{
-				AddSystemIncludePath(SharedArguments, IncludePath);
+				AddSystemIncludePath(SharedArguments, IncludePath, Target.WindowsPlatform.Compiler);
 			}
 
 			if (CompileEnvironment.bPrintTimingInfo)
@@ -949,7 +931,7 @@ namespace UnrealBuildTool
 
 					// Make sure the original source directory the PCH header file existed in is added as an include
 					// path -- it might be a private PCH header and we need to make sure that its found!
-					AddIncludePath(FileArguments, SourceFile.Location.Directory);
+					AddIncludePath(FileArguments, SourceFile.Location.Directory, Target.WindowsPlatform.Compiler);
 
 					// Add the precompiled header file to the produced items list.
 					FileItem PrecompiledHeaderFile = FileItem.GetItemByFileReference(
@@ -1177,7 +1159,7 @@ namespace UnrealBuildTool
 
 				// If we're compiling for 64-bit Windows, also add the _WIN64 definition to the resource
 				// compiler so that we can switch on that in the .rc file using #ifdef.
-				if (CompileEnvironment.Platform == CppPlatform.Win64)
+				if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
 				{
 					AddDefinition(Arguments, "_WIN64");
 				}
@@ -1610,7 +1592,7 @@ namespace UnrealBuildTool
 			Debug.Assert(Platform == CppPlatform.Win32 || Platform == CppPlatform.Win64);
 
 			// Make sure we've got the environment variables set up for this target
-			VCEnvironment EnvVars = VCEnvironment.Create(Compiler, Platform, CompilerVersion, null);
+			VCEnvironment EnvVars = VCEnvironment.Create(Compiler, Platform, WindowsArchitecture.x64, CompilerVersion, null);
 
 			// Also add any include paths from the INCLUDE environment variable.  MSVC is not necessarily running with an environment that
 			// matches what UBT extracted from the vcvars*.bat using SetEnvironmentVariablesFromBatchFile().  We'll use the variables we

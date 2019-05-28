@@ -17,6 +17,9 @@ public class FreeType2 : ModuleRules
 		{
 			case UnrealTargetPlatform.Win32:
 			case UnrealTargetPlatform.Win64:
+// @ATG_CHANGE : BEGIN HoloLens support
+			case UnrealTargetPlatform.HoloLens:
+// @ATG_CHANGE : END
 			case UnrealTargetPlatform.XboxOne:
 			case UnrealTargetPlatform.Switch:
 			case UnrealTargetPlatform.PS4:
@@ -43,14 +46,26 @@ public class FreeType2 : ModuleRules
 		FreeType2LibPath = FreeType2Path + "Lib/";
 
 		if (Target.Platform == UnrealTargetPlatform.Win32 ||
-			Target.Platform == UnrealTargetPlatform.Win64)
+			Target.Platform == UnrealTargetPlatform.Win64 ||
+// @ATG_CHANGE : BEGIN  HoloLens support
+			Target.Platform == UnrealTargetPlatform.HoloLens)
+// @ATG_CHANGE : END
 		{
 
-			FreeType2LibPath += (Target.Platform == UnrealTargetPlatform.Win64) ? "Win64/" : "Win32/";
-			FreeType2LibPath += "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+            // @ATG_CHANGE : BEGIN HoloLens support
+            string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
 
-			PublicLibraryPaths.Add(FreeType2LibPath);
-			PublicAdditionalLibraries.Add("freetype26MT.lib");
+            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+            {
+                PublicLibraryPaths.Add(System.String.Format("{0}Lib/{1}/VS{2}/{3}/", FreeType2Path, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath()));
+            }
+			else
+            {
+                PublicLibraryPaths.Add(System.String.Format("{0}Lib/{1}/VS{2}/", FreeType2Path, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
+            }
+
+            // @ATG_CHANGE : END
+            PublicAdditionalLibraries.Add("freetype26MT.lib");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

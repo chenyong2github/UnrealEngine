@@ -21,4 +21,8 @@
 #include "Unix/UnixPlatformSurvey.h"
 #elif PLATFORM_SWITCH
 #include "Switch/SwitchPlatformSurvey.h"
+// @ATG_CHANGE : BEGIN HoloLens support
+#elif PLATFORM_HOLOLENS
+#include "HoloLens/HoloLensSurvey.h"
+// @ATG_CHANGE : END
 #endif

@@ -156,13 +156,19 @@ bool FApp::IsInstalled()
 
 	if (InstalledState == -1)
 	{
-#if UE_BUILD_SHIPPING && PLATFORM_DESKTOP && !UE_SERVER
+#if UE_BUILD_SHIPPING && PLATFORM_DESKTOP && !UE_SERVER && !PLATFORM_HOLOLENS
 		bool bIsInstalled = true;
+// @ATG_CHANGE : BEGIN writeable locations to appdata for HoloLens
+#elif PLATFORM_HOLOLENS
+		// This primarily governs write access to the game's current folder.  In HoloLens this is blocked
+		// even in development mode, so makes sense to always run the 'installed' behavior.
+		static bool bIsInstalled = true;
+// @ATG_CHANGE : END	
 #else
 		bool bIsInstalled = false;
 #endif
 
-#if PLATFORM_DESKTOP
+#if PLATFORM_DESKTOP && !PLATFORM_HOLOLENS
 		FString InstalledProjectBuildFile = FPaths::RootDir() / TEXT("Engine/Build/InstalledProjectBuild.txt");
 		FPaths::NormalizeFilename(InstalledProjectBuildFile);
 		bIsInstalled |= IFileManager::Get().FileExists(*InstalledProjectBuildFile);

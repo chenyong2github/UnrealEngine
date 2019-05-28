@@ -13,7 +13,9 @@
 #include "MfMediaByteStream.h"
 #include "MfMediaPrivate.h"
 
-#if PLATFORM_WINDOWS
+// @ATG_CHANGE : BEGIN - Enable MFMedia for HoloLens
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+// @ATG_CHANGE : END
 	#include "Windows/AllowWindowsPlatformTypes.h"
 #else
 	#include "XboxOne/XboxOneAllowPlatformTypes.h"
@@ -142,7 +144,9 @@ namespace MfMedia
 					return NULL;
 				}
 			}
-
+// @ATG_CHANGE : BEGIN - Enable MFMedia for HoloLens
+#if !PLATFORM_HOLOLENS
+// @ATG_CHANGE : END
 			if ((SubType == MFVideoFormat_H264) || (SubType == MFVideoFormat_H264_ES))
 			{
 				if (!FWindowsPlatformMisc::VerifyWindowsVersion(6, 1) /*Win7*/)
@@ -165,6 +169,10 @@ namespace MfMedia
 					UE_LOG(LogMfMedia, Warning, TEXT("HEVC video type requires Windows 10 or newer (your version is %s), and game must be manifested for Windows 10"), *FPlatformMisc::GetOSVersion());
 				}
 			}
+// @ATG_CHANGE : BEGIN - Enable MFMedia for HoloLens
+#endif // PLATFORM_HOLOLENS
+// @ATG_CHANGE : END
+
 #endif //PLATFORM_XBOXONE
 
 			// configure video output
@@ -888,7 +896,9 @@ namespace MfMedia
 }
 
 
-#if PLATFORM_WINDOWS
+// @ATG_CHANGE : BEGIN - Enable MFMedia for HoloLens
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+// @ATG_CHANGE : END
 	#include "Windows/HideWindowsPlatformTypes.h"
 #else
 	#include "XboxOne/XboxOneHidePlatformTypes.h"

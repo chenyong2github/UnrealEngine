@@ -26,4 +26,8 @@
 #include "Linux/LinuxPlatformInput.h"
 #elif PLATFORM_SWITCH
 #include "Switch/SwitchPlatformInput.h"
+// @ATG_CHANGE : BEGIN HoloLens support
+#elif PLATFORM_HOLOLENS
+#include "HoloLens/HoloLensPlatformInput.h"
+// @ATG_CHANGE : END
 #endif

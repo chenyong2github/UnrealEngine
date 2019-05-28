@@ -21,6 +21,10 @@
 #include "Unix/UnixPlatformStackWalk.h"
 #elif PLATFORM_SWITCH
 #include "Switch/SwitchPlatformStackWalk.h"
+// @ATG_CHANGE : BEGIN HoloLens support
+#elif PLATFORM_HOLOLENS
+#include "HoloLens/HoloLensStackWalk.h"
+// @ATG_CHANGE : END
 #else
 #error Unknown platform
 #endif
