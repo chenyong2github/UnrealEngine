@@ -34,7 +34,7 @@ public:
 		Height = 0.0f;
 
 		MinValidTime = 0.0;
-		MaxValidTime = 60.0; // 1m
+		MaxValidTime = 0.0; // 1m
 		StartTime = 0.0;
 		EndTime = 0.0;
 		MinScaleX = (5 * 20) / 3600.0; // 1h between major tick marks

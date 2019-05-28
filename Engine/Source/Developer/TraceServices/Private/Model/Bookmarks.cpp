@@ -40,6 +40,7 @@ void FBookmarkProvider::AppendBookmark(double Time, uint64 BookmarkPoint, const 
 	FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, Spec.FormatString, FormatArgs);
 	Bookmark->Text = Session.StoreString(FormatBuffer);
 	Bookmarks.Add(Bookmark);
+	Session.UpdateDurationSeconds(Time);
 }
 
 void FBookmarkProvider::EnumerateBookmarks(double IntervalStart, double IntervalEnd, TFunctionRef<void(const FBookmark &)> Callback) const
@@ -75,6 +76,11 @@ void FBookmarkProvider::EnumerateBookmarks(double IntervalStart, double Interval
 		Bookmark.Text = InternalBookmark.Text;
 		Callback(Bookmark);
 	}
+}
+
+const IBookmarkProvider& ReadBookmarkProvider(const IAnalysisSession& Session)
+{
+	return *Session.ReadProvider<IBookmarkProvider>(FBookmarkProvider::ProviderName);
 }
 
 }

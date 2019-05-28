@@ -20,7 +20,7 @@ namespace Trace
 
 void FAnalysisSessionLock::ReadAccessCheck() const
 {
-	checkf(IsReadOnly, TEXT("Trying to read from session while not in read only mode"));
+	checkf(IsReadOnly || FPlatformTLS::GetCurrentThreadId() == OwnerThread, TEXT("Trying to read from session while someone else is writing"));
 }
 
 void FAnalysisSessionLock::WriteAccessCheck() const

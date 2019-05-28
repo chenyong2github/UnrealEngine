@@ -44,11 +44,13 @@ void FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 		uint32 CurrentDepth = 0;
 
 		uint64 LastTimestamp = EventData.GetValue("TimestampBase").As<uint64>();
+		double LastTime = 0.0;
 		while (BufferPtr < BufferEnd)
 		{
 			uint64 DecodedTimestamp = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
 			uint64 ActualTimestamp = (DecodedTimestamp >> 1) + LastTimestamp;
 			LastTimestamp = ActualTimestamp;
+			LastTime = GpuTimestampToSessionTime(ActualTimestamp);
 			if (DecodedTimestamp & 1ull)
 			{
 				uint64 EventType = *reinterpret_cast<const uint64*>(BufferPtr);
@@ -56,16 +58,17 @@ void FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 				check(EventTypeMap.Contains(EventType));
 				Trace::FTimingProfilerEvent Event;
 				Event.TimerIndex = EventTypeMap[EventType];
-				Timeline.AppendBeginEvent(GpuTimestampToSessionTime(ActualTimestamp), Event);
+				Timeline.AppendBeginEvent(LastTime, Event);
 				++CurrentDepth;
 			}
 			else
 			{
 				check(CurrentDepth > 0);
 				--CurrentDepth;
-				Timeline.AppendEndEvent(GpuTimestampToSessionTime(ActualTimestamp));
+				Timeline.AppendEndEvent(LastTime);
 			}
 		}
+		Session.UpdateDurationSeconds(LastTime);
 		check(BufferPtr == BufferEnd);
 		check(CurrentDepth == 0);
 		break;

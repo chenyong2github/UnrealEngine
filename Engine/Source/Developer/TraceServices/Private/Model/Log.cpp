@@ -59,6 +59,7 @@ void FLogProvider::AppendMessage(uint64 LogPoint, double Time, const uint8* Form
 	InternalMessage.Spec = SpecMap[LogPoint];
 	FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, InternalMessage.Spec->FormatString, FormatArgs);
 	InternalMessage.Message = Session.StoreString(FormatBuffer);
+	Session.UpdateDurationSeconds(Time);
 }
 
 uint64 FLogProvider::GetMessageCount() const
