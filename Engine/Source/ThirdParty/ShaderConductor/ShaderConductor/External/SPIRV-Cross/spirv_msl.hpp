@@ -156,6 +156,10 @@ static const uint32_t kPushConstBinding = 0;
 // element to indicate the buffer binding for swizzle buffers.
 static const uint32_t kSwizzleBufferBinding = ~(1u);
 
+// Special constant used in a MSLResourceBinding binding
+// element to indicate the buffer binding for buffer size buffers to support OpArrayLength.
+static const uint32_t kBufferSizeBufferBinding = ~(2u);
+
 static const uint32_t kMaxArgumentBuffers = 8;
 
 // Decompiles SPIR-V to Metal Shading Language
@@ -183,9 +187,7 @@ public:
 		uint32_t shader_output_buffer_index = 28;
 		uint32_t shader_patch_output_buffer_index = 27;
 		uint32_t shader_tess_factor_buffer_index = 26;
-		/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
-		uint32_t metadata_buffer_index = 25;
-		/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
+		uint32_t buffer_size_buffer_index = 25;
 		uint32_t shader_input_wg_index = 0;
 		bool enable_point_size_builtin = true;
 		bool disable_rasterization = false;
@@ -210,7 +212,7 @@ public:
 		/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
 		bool enforce_storge_buffer_bounds = false;
 		/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
-		
+
 		// Requires MSL 2.1, use the native support for texel buffers.
 		bool texture_buffer_native = false;
 
@@ -274,6 +276,13 @@ public:
 		return used_swizzle_buffer;
 	}
 
+	// Provide feedback to calling API to allow it to pass a buffer
+	// containing STORAGE_BUFFER buffer sizes to support OpArrayLength.
+	bool needs_buffer_size_buffer() const
+	{
+		return !buffers_requiring_array_length.empty();
+	}
+
 	// Provide feedback to calling API to allow it to pass an output
 	// buffer if the shader needs it.
 	bool needs_output_buffer() const
@@ -294,15 +303,6 @@ public:
 	{
 		return capture_output_to_buffer && stage_in_var_id != 0;
 	}
-	
-	/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
-	// Provide feedback to calling API to allow it to pass an auxiliary
-	// metadata buffer if the shader needs it.
-	bool needs_metadata_buffer() const
-	{
-		return used_metadata_buffer;
-	}
-	/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
 
 	explicit CompilerMSL(std::vector<uint32_t> spirv);
 	CompilerMSL(const uint32_t *ir, size_t word_count);
@@ -505,6 +505,7 @@ protected:
 	std::string ensure_valid_name(std::string name, std::string pfx);
 	std::string to_sampler_expression(uint32_t id);
 	std::string to_swizzle_expression(uint32_t id);
+	std::string to_buffer_size_expression(uint32_t id);
 	std::string builtin_qualifier(spv::BuiltIn builtin);
 	std::string builtin_type_decl(spv::BuiltIn builtin);
 	std::string built_in_func_arg(spv::BuiltIn builtin, bool prefix_comma);
@@ -534,6 +535,7 @@ protected:
 	void emit_barrier(uint32_t id_exe_scope, uint32_t id_mem_scope, uint32_t id_mem_sem);
 	void emit_array_copy(const std::string &lhs, uint32_t rhs_id) override;
 	void build_implicit_builtins();
+	uint32_t build_constant_uint_array_pointer();
 	void emit_entry_point_declarations() override;
 	uint32_t builtin_frag_coord_id = 0;
 	uint32_t builtin_sample_id_id = 0;
@@ -546,9 +548,7 @@ protected:
 	uint32_t builtin_subgroup_invocation_id_id = 0;
 	uint32_t builtin_subgroup_size_id = 0;
 	uint32_t swizzle_buffer_id = 0;
-	/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
-	uint32_t metadata_buffer_id = 0;
-	/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
+	uint32_t buffer_size_buffer_id = 0;
 
 	void bitcast_to_builtin_store(uint32_t target_id, std::string &expr, const SPIRType &expr_type) override;
 	void bitcast_from_builtin_load(uint32_t source_id, std::string &expr, const SPIRType &expr_type) override;
@@ -600,10 +600,6 @@ protected:
 	bool used_swizzle_buffer = false;
 	bool added_builtin_tess_level = false;
 	bool needs_subgroup_invocation_id = false;
-	/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
-	bool needs_metadata_buffer_def = false;
-	bool used_metadata_buffer = false;
-	/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
 	std::string qual_pos_var_name;
 	std::string stage_in_var_name = "in";
 	std::string stage_out_var_name = "out";
@@ -611,16 +607,15 @@ protected:
 	std::string patch_stage_out_var_name = "patchOut";
 	std::string sampler_name_suffix = "Smplr";
 	std::string swizzle_name_suffix = "Swzl";
+	std::string buffer_size_name_suffix = "BufferSize";
 	std::string input_wg_var_name = "gl_in";
 	std::string output_buffer_var_name = "spvOut";
 	std::string patch_output_buffer_var_name = "spvPatchOut";
 	std::string tess_factor_buffer_var_name = "spvTessLevel";
-	/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
-	std::string metadata_name_suffix = "Meta";
-	/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
 	spv::Op previous_instruction_opcode = spv::OpNop;
 
 	std::unordered_map<uint32_t, MSLConstexprSampler> constexpr_samplers;
+	std::unordered_set<uint32_t> buffers_requiring_array_length;
 	SmallVector<uint32_t> buffer_arrays;
     /* UE Change Begin: Emulate texture2D atomic operations */
     std::set<SPIRVariable *> atomic_vars;
