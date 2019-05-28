@@ -330,11 +330,8 @@ public:
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
 	{
 		ALandscapeProxy* Proxy = InTarget.LandscapeInfo->GetLandscapeProxy();
-		UMaterialInterface* HoleMaterial = Proxy->GetLandscapeHoleMaterial();
-		if (!HoleMaterial)
-		{
-			HoleMaterial = Proxy->GetLandscapeMaterial();
-		}
+		UMaterialInterface* HoleMaterial = Proxy->GetLandscapeMaterial();
+
 		if (!HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>())
 		{
 			FMessageDialog::Open(EAppMsgType::Ok,
