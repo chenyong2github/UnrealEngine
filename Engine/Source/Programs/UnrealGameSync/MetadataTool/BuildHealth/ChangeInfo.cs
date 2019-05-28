@@ -16,5 +16,6 @@ namespace MetadataTool
 	{
 		public ChangesRecord Record;
 		public List<int> SourceChanges = new List<int>();
+		public DescribeRecord CachedDescribeRecord;
 	}
 }

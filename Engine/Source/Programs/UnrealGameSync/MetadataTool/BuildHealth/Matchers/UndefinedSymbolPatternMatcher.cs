@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace MetadataTool
 {
-	class UndefinedSymbolPatternMatcher : PatternMatcher
+	class UndefinedSymbolPatternMatcher : GenericCodePatternMatcher
 	{
 		public override string Category => "UndefinedSymbol";
 

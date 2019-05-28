@@ -105,20 +105,23 @@ namespace MetadataTool
 		/// Filters all the likely causers from the list of changes since an issue was created
 		/// </summary>
 		/// <param name="Perforce">The perforce connection</param>
-		/// <param name="Fingerprint">Fingerprint for the issue</param>
+		/// <param name="Issue">The build issue</param>
 		/// <param name="Changes">List of changes since the issue first occurred.</param>
 		/// <returns>List of changes which are causers for the issue</returns>
 		public virtual List<ChangeInfo> FindCausers(PerforceConnection Perforce, BuildHealthIssue Issue, IReadOnlyList<ChangeInfo> Changes)
 		{
-			SortedSet<string> FileNamesWithoutPath = GetFileNamesWithoutPath(Issue.FileNames);
-
 			List<ChangeInfo> Causers = new List<ChangeInfo>();
-			foreach (ChangeInfo Change in Changes)
+
+			SortedSet<string> FileNamesWithoutPath = GetFileNamesWithoutPath(Issue.FileNames);
+			if (FileNamesWithoutPath.Count > 0)
 			{
-				DescribeRecord Description = Perforce.Describe(Change.Record.Number).Data;
-				if (ContainsFileNames(Description, FileNamesWithoutPath))
+				foreach (ChangeInfo Change in Changes)
 				{
-					Causers.Add(Change);
+					DescribeRecord DescribeRecord = GetDescribeRecord(Perforce, Change);
+					if (ContainsFileNames(DescribeRecord, FileNamesWithoutPath))
+					{
+						Causers.Add(Change);
+					}
 				}
 			}
 
@@ -130,6 +133,42 @@ namespace MetadataTool
 			{
 				return new List<ChangeInfo>(Changes);
 			}
+		}
+
+		/// <summary>
+		/// Utility method to get the describe record for a change. Caches it on the ChangeInfo object as necessary.
+		/// </summary>
+		/// <param name="Perforce">The Perforce connection</param>
+		/// <param name="Change">The change to query</param>
+		public DescribeRecord GetDescribeRecord(PerforceConnection Perforce, ChangeInfo Change)
+		{
+			if(Change.CachedDescribeRecord == null)
+			{
+				Change.CachedDescribeRecord = Perforce.Describe(Change.Record.Number).Data;
+			}
+			return Change.CachedDescribeRecord;
+		}
+
+		/// <summary>
+		/// Tests whether a change is a code change
+		/// </summary>
+		/// <param name="Perforce">The Perforce connection</param>
+		/// <param name="Change">The change to query</param>
+		/// <returns>True if the change is a code change</returns>
+		public bool ContainsAnyFileWithExtension(PerforceConnection Perforce, ChangeInfo Change, string[] Extensions)
+		{
+			DescribeRecord Record = GetDescribeRecord(Perforce, Change);
+			foreach(DescribeFileRecord File in Record.Files)
+			{
+				foreach(string Extension in Extensions)
+				{
+					if(File.DepotFile.EndsWith(Extension, StringComparison.OrdinalIgnoreCase))
+					{
+						return true;
+					}
+				}
+			}
+			return false;
 		}
 
 		/// <summary>

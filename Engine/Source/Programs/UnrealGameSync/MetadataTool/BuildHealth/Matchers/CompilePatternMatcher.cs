@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace MetadataTool
 {
-	class CompilePatternMatcher : PatternMatcher
+	class CompilePatternMatcher : GenericCodePatternMatcher
 	{
 		static string[] SourceFileExtensions =
 		{

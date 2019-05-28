@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace MetadataTool
 {
-	class CopyrightNoticeMatcher : PatternMatcher
+	class CopyrightNoticeMatcher : GenericCodePatternMatcher
 	{
 		public override string Category => "Copyright";
 
