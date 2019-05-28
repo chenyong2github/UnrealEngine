@@ -46,7 +46,7 @@ private:
 
 	struct FThreadState
 	{
-		TArray<ETraceThreadGroup> ThreadGroupStack;
+		TArray<const TCHAR*> ThreadGroupStack;
 	};
 
 	FThreadState* GetThreadState(uint32 ThreadId);

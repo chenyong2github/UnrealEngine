@@ -75,40 +75,14 @@ void FThreadProvider::SetThreadPriority(uint32 Id, EThreadPriority Priority)
 	++ModCount;
 }
 
-void FThreadProvider::SetThreadGroup(uint32 Id, ETraceThreadGroup Group)
+void FThreadProvider::SetThreadGroup(uint32 Id, const TCHAR* GroupName)
 {
 	Session.WriteAccessCheck();
 
 	check(ThreadMap.Contains(Id));
 	FThreadInfoInternal* ThreadInfo = ThreadMap[Id];
-	ThreadInfo->GroupSortOrder = GetGroupSortOrder(Group);
-	switch (Group)
-	{
-	case TraceThreadGroup_Render:
-		ThreadInfo->GroupName = TEXT("Render");
-		break;
-	case TraceThreadGroup_TaskGraphHigh:
-		ThreadInfo->GroupName = TEXT("TaskGraph (High Priority)");
-		break;
-	case TraceThreadGroup_TaskGraphNormal:
-		ThreadInfo->GroupName = TEXT("TaskGraph (Normal Priority)");
-		break;
-	case TraceThreadGroup_TaskGraphLow:
-		ThreadInfo->GroupName = TEXT("TaskGraph (Low Priority)");
-		break;
-	case TraceThreadGroup_ThreadPool:
-		ThreadInfo->GroupName = TEXT("ThreadPool");
-		break;
-	case TraceThreadGroup_BackgroundThreadPool:
-		ThreadInfo->GroupName = TEXT("ThreadPool (Background)");
-		break;
-	case TraceThreadGroup_LargeThreadPool:
-		ThreadInfo->GroupName = TEXT("ThreadPool (Large)");
-		break;
-	case TraceThreadGroup_IOThreadPool:
-		ThreadInfo->GroupName = TEXT("ThreadPool (IO)");
-		break;
-	}
+	ThreadInfo->GroupName = GroupName;
+	ThreadInfo->GroupSortOrder = GetGroupSortOrder(GroupName);
 	SortThreads();
 	++ModCount;
 }
@@ -135,9 +109,52 @@ void FThreadProvider::SortThreads()
 	});
 }
 
-uint32 FThreadProvider::GetGroupSortOrder(ETraceThreadGroup ThreadGroup)
+uint32 FThreadProvider::GetGroupSortOrder(const TCHAR* GroupName)
 {
-	return uint32(ThreadGroup);
+	if (!GroupName)
+	{
+		return uint32(-1);
+	}
+	else if (!FCString::Strcmp(GroupName, TEXT("Render")))
+	{
+		return 0;
+	}
+	else if (!FCString::Strcmp(GroupName, TEXT("AsyncLoading")))
+	{
+		return 1;
+	}
+	else if (!FCString::Strcmp(GroupName, TEXT("TaskGraphHigh")))
+	{
+		return 2;
+	}
+	else if (!FCString::Strcmp(GroupName, TEXT("TaskGraphNormal")))
+	{
+		return 3;
+	}
+	else if (!FCString::Strcmp(GroupName, TEXT("TaskGraphLow")))
+	{
+		return 4;
+	}
+	else if (!FCString::Strcmp(GroupName, TEXT("LargeThreadPool")))
+	{
+		return 5;
+	}
+	else if (!FCString::Strcmp(GroupName, TEXT("ThreadPool")))
+	{
+		return 6;
+	}
+	else if (!FCString::Strcmp(GroupName, TEXT("BackgroundThreadPool")))
+	{
+		return 7;
+	}
+	else if (!FCString::Strcmp(GroupName, TEXT("IOThreadPool")))
+	{
+		return 8;
+	}
+	else
+	{
+		return GetTypeHash(GroupName);
+	}
 }
 
 uint32 FThreadProvider::GetPrioritySortOrder(EThreadPriority ThreadPriority)

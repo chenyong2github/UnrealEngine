@@ -1775,7 +1775,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 
 		{
-			TRACE_THREAD_GROUP_SCOPE(TraceThreadGroup_ThreadPool);
+			TRACE_THREAD_GROUP_SCOPE("ThreadPool");
 			GThreadPool = FQueuedThreadPool::Allocate();
 			int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
 
@@ -1787,7 +1787,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			verify(GThreadPool->Create(NumThreadsInThreadPool, StackSize * 1024, TPri_SlightlyBelowNormal));
 		}
 		{
-			TRACE_THREAD_GROUP_SCOPE(TraceThreadGroup_BackgroundThreadPool);
+			TRACE_THREAD_GROUP_SCOPE("BackgroundThreadPool");
 			GBackgroundPriorityThreadPool = FQueuedThreadPool::Allocate();
 			int32 NumThreadsInThreadPool = 2;
 			if (FPlatformProperties::IsServerOnly())
@@ -1800,7 +1800,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 #if WITH_EDITOR
 		{
-			TRACE_THREAD_GROUP_SCOPE(TraceThreadGroup_LargeThreadPool);
+			TRACE_THREAD_GROUP_SCOPE("LargeThreadPool");
 			// when we are in the editor we like to do things like build lighting and such
 			// this thread pool can be used for those purposes
 			GLargeThreadPool = FQueuedThreadPool::Allocate();
@@ -1857,7 +1857,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	if (FPlatformProcess::SupportsMultithreading())
 	{
 		{
-			TRACE_THREAD_GROUP_SCOPE(TraceThreadGroup_IOThreadPool);
+			TRACE_THREAD_GROUP_SCOPE("IOThreadPool");
 			SCOPED_BOOT_TIMING("GIOThreadPool->Create");
 			GIOThreadPool = FQueuedThreadPool::Allocate();
 			int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfIOWorkerThreadsToSpawn();

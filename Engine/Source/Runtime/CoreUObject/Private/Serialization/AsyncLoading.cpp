@@ -5214,7 +5214,7 @@ void FAsyncLoadingThread::StartThread()
 		Thread = FRunnableThread::Create(this, TEXT("FAsyncLoadingThread"), 0, TPri_Normal);
 		if (Thread)
 		{
-			TRACE_SET_THREAD_GROUP(Thread->GetThreadID(), TraceThreadGroup_AsyncLoading);
+			TRACE_SET_THREAD_GROUP(Thread->GetThreadID(), "AsyncLoading");
 		}
 	}
 }

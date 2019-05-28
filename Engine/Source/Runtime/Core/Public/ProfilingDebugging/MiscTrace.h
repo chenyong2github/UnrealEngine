@@ -10,21 +10,6 @@
 #define MISCTRACE_ENABLED 0
 #endif
 
-enum ETraceThreadGroup
-{
-	TraceThreadGroup_Render,
-	TraceThreadGroup_AsyncLoading,
-	TraceThreadGroup_TaskGraphHigh,
-	TraceThreadGroup_TaskGraphNormal,
-	TraceThreadGroup_TaskGraphLow,
-	TraceThreadGroup_LargeThreadPool,
-	TraceThreadGroup_ThreadPool,
-	TraceThreadGroup_BackgroundThreadPool,
-	TraceThreadGroup_IOThreadPool,
-
-	TraceThreadGroup_Count
-};
-
 enum ETraceFrameType
 {
 	TraceFrameType_Game,
@@ -61,8 +46,8 @@ struct FMiscTrace
 {
 	CORE_API static void OutputRegisterGameThread(uint32 Id);
 	CORE_API static void OutputCreateThread(uint32 Id, const TCHAR* Name, uint32 Priority);
-	CORE_API static void OutputSetThreadGroup(uint32 Id, ETraceThreadGroup Group);
-	CORE_API static void OutputBeginThreadGroupScope(ETraceThreadGroup Group);
+	CORE_API static void OutputSetThreadGroup(uint32 Id, const ANSICHAR* GroupName);
+	CORE_API static void OutputBeginThreadGroupScope(const ANSICHAR* GroupName);
 	CORE_API static void OutputEndThreadGroupScope();
 	CORE_API static void OutputBookmarkSpec(const void* BookmarkPoint, const ANSICHAR* File, int32 Line, const TCHAR* Format);
 	template <typename... Types>
@@ -81,9 +66,9 @@ struct FMiscTrace
 
 	struct FThreadGroupScope
 	{
-		FThreadGroupScope(ETraceThreadGroup Group)
+		FThreadGroupScope(const ANSICHAR* GroupName)
 		{
-			FMiscTrace::OutputBeginThreadGroupScope(Group);
+			FMiscTrace::OutputBeginThreadGroupScope(GroupName);
 		}
 
 		~FThreadGroupScope()

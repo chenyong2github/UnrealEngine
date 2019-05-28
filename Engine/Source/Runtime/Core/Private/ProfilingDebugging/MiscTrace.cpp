@@ -67,45 +67,16 @@ void FMiscTrace::OutputCreateThread(uint32 Id, const TCHAR* Name, uint32 Priorit
 		<< CreateThread.Attachment(Name, NameSize);
 }
 
-static const char* GetThreadGroupName(ETraceThreadGroup Group)
+void FMiscTrace::OutputSetThreadGroup(uint32 Id, const ANSICHAR* GroupName)
 {
-	switch (Group)
-	{
-	case TraceThreadGroup_Render:
-		return "Render";
-	case TraceThreadGroup_TaskGraphHigh:
-		return "TaskGraphHigh";
-	case TraceThreadGroup_TaskGraphNormal:
-		return "TaskGraphNormal";
-	case TraceThreadGroup_TaskGraphLow:
-		return "TaskGraphLow";
-	case TraceThreadGroup_ThreadPool:
-		return "ThreadPool";
-	case TraceThreadGroup_BackgroundThreadPool:
-		return "BackgroundThreadPool";
-	case TraceThreadGroup_LargeThreadPool:
-		return "LargeThreadPool";
-	case TraceThreadGroup_AsyncLoading:
-		return "AsyncLoading";
-	case TraceThreadGroup_IOThreadPool:
-		return "IOThreadPool";
-	}
-	check(false);
-	return nullptr;
-}
-
-void FMiscTrace::OutputSetThreadGroup(uint32 Id, ETraceThreadGroup Group)
-{
-	const char* GroupName = GetThreadGroupName(Group);
 	uint16 NameSize = strlen(GroupName) + 1;
 	UE_TRACE_LOG(Misc, SetThreadGroup, NameSize)
 		<< SetThreadGroup.ThreadId(Id)
 		<< SetThreadGroup.Attachment(GroupName, NameSize);
 }
 
-void FMiscTrace::OutputBeginThreadGroupScope(ETraceThreadGroup Group)
+void FMiscTrace::OutputBeginThreadGroupScope(const ANSICHAR* GroupName)
 {
-	const char* GroupName = GetThreadGroupName(Group);
 	uint16 NameSize = strlen(GroupName) + 1;
 	UE_TRACE_LOG(Misc, BeginThreadGroupScope, NameSize)
 		<< BeginThreadGroupScope.CurrentThreadId(FPlatformTLS::GetCurrentThreadId())

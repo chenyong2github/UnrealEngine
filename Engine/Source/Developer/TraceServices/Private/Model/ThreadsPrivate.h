@@ -20,7 +20,7 @@ public:
 	void AddGameThread(uint32 Id);
 	void AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Priority);
 	void SetThreadPriority(uint32 Id, EThreadPriority Priority);
-	void SetThreadGroup(uint32 Id, ETraceThreadGroup Group);
+	void SetThreadGroup(uint32 Id, const TCHAR* GroupName);
 	virtual uint64 GetModCount() const override { return ModCount; }
 	virtual void EnumerateThreads(TFunctionRef<void(const FThreadInfo&)> Callback) const override;
 
@@ -40,7 +40,7 @@ private:
 
 	void SortThreads();
 	static uint32 GetPrioritySortOrder(EThreadPriority ThreadPriority);
-	static uint32 GetGroupSortOrder(ETraceThreadGroup ThreadGroup);
+	static uint32 GetGroupSortOrder(const TCHAR* GroupName);
 
 	IAnalysisSession& Session;
 	uint64 ModCount = 0;

@@ -37,51 +37,6 @@ void FMiscTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_EndFrame, "Misc", "EndFrame");
 }
 
-static ETraceThreadGroup GetThreadGroupFromName(const char* GroupName)
-{
-	if (!strcmp(GroupName, "Render"))
-	{
-		return TraceThreadGroup_Render;
-	}
-	else if (!strcmp(GroupName, "AsyncLoading"))
-	{
-		return TraceThreadGroup_AsyncLoading;
-	}
-	else if (!strcmp(GroupName, "TaskGraphHigh"))
-	{
-		return TraceThreadGroup_TaskGraphHigh;
-	}
-	else if (!strcmp(GroupName, "TaskGraphNormal"))
-	{
-		return TraceThreadGroup_TaskGraphNormal;
-	}
-	else if (!strcmp(GroupName, "TaskGraphLow"))
-	{
-		return TraceThreadGroup_TaskGraphLow;
-	}
-	else if (!strcmp(GroupName, "ThreadPool"))
-	{
-		return TraceThreadGroup_ThreadPool;
-	}
-	else if (!strcmp(GroupName, "BackgroundThreadPool"))
-	{
-		return TraceThreadGroup_BackgroundThreadPool;
-	}
-	else if (!strcmp(GroupName, "LargeThreadPool"))
-	{
-		return TraceThreadGroup_LargeThreadPool;
-	}
-	else if (!strcmp(GroupName, "IOThreadPool"))
-	{
-		return TraceThreadGroup_IOThreadPool;
-	}
-	else
-	{
-		check(false);
-		return ETraceThreadGroup(0);
-	}
-}
-
 void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
@@ -110,19 +65,17 @@ void FMiscTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	}
 	case RouteId_SetThreadGroup:
 	{
-		const char* GroupName = reinterpret_cast<const char*>(EventData.GetAttachment());
-		ETraceThreadGroup ThreadGroup = GetThreadGroupFromName(GroupName);
+		const TCHAR* GroupName = Session.StoreString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(EventData.GetAttachment())));
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
-		ThreadProvider.SetThreadGroup(ThreadId, ThreadGroup);
+		ThreadProvider.SetThreadGroup(ThreadId, GroupName);
 		break;
 	}
 	case RouteId_BeginThreadGroupScope:
 	{
-		const char* GroupName = reinterpret_cast<const char*>(EventData.GetAttachment());
-		ETraceThreadGroup ThreadGroup = GetThreadGroupFromName(GroupName);
+		const TCHAR* GroupName = Session.StoreString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(EventData.GetAttachment())));
 		uint32 CurrentThreadId = EventData.GetValue("CurrentThreadId").As<uint32>();
 		FThreadState* ThreadState = GetThreadState(CurrentThreadId);
-		ThreadState->ThreadGroupStack.Push(ThreadGroup);
+		ThreadState->ThreadGroupStack.Push(GroupName);
 		break;
 	}
 	case RouteId_EndThreadGroupScope:
