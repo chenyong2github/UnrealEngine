@@ -67,23 +67,23 @@ public:
 	/**
 	  * Only compile these shaders for post processing domain materials
 	  */
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material)
-	{		
-		return ShouldCachePostProcessMaterial(MaterialTarget, Platform, Material)
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
+	{
+		return ShouldCachePostProcessMaterial(MaterialTarget, Parameters.Platform, Parameters.Material)
 			// compile mobile axis switched versions only for after tonemapper passes
-			&& (bSwitchVerticalAxis == false || (RHINeedsToSwitchVerticalAxis(Platform) && Material->GetBlendableLocation() == BL_AfterTonemapping));
+			&& (bSwitchVerticalAxis == false || (RHINeedsToSwitchVerticalAxis(Parameters.Platform) && Parameters.Material->GetBlendableLocation() == BL_AfterTonemapping));
 	}
 
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const class FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FMaterialShader::ModifyCompilationEnvironment(Platform, OutEnvironment);
+		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
 		OutEnvironment.SetDefine(TEXT("NEEDTOSWITCHVERTICLEAXIS"), bSwitchVerticalAxis);
 
 		if (MaterialTarget == EPostProcessMaterialTarget::Mobile)
 		{
-			OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
+			OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Parameters.Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
 		}
 	}
 	
@@ -133,21 +133,21 @@ public:
 	/**
 	  * Only compile these shaders for post processing domain materials
 	  */
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material)
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		return ShouldCachePostProcessMaterial(MaterialTarget, Platform, Material)
+		return ShouldCachePostProcessMaterial(MaterialTarget, Parameters.Platform, Parameters.Material)
 			// compile mobile axis switched versions only for after tonemapper passes
-			&& (bSwitchVerticalAxis == false || (RHINeedsToSwitchVerticalAxis(Platform) && Material->GetBlendableLocation() == BL_AfterTonemapping));
+			&& (bSwitchVerticalAxis == false || (RHINeedsToSwitchVerticalAxis(Parameters.Platform) && Parameters.Material->GetBlendableLocation() == BL_AfterTonemapping));
 	}
 
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const class FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FMaterialShader::ModifyCompilationEnvironment(Platform, OutEnvironment);
+		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_UV_POLICY"), UVPolicy);
 
-		EBlendableLocation Location = EBlendableLocation(Material->GetBlendableLocation());
+		EBlendableLocation Location = EBlendableLocation(Parameters.Material->GetBlendableLocation());
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_AFTER_TAA_UPSAMPLE"), (Location == BL_AfterTonemapping || Location == BL_ReplacingTonemapper) ? 1 : 0);
 
 		OutEnvironment.SetDefine(TEXT("NEEDTOSWITCHVERTICLEAXIS"), bSwitchVerticalAxis);

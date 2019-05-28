@@ -3752,7 +3752,7 @@ void FGlobalShaderTypeCompiler::BeginCompileShaderPipeline(EShaderPlatform Platf
 	for (int32 Index = 0; Index < ShaderStages.Num(); ++Index)
 	{
 		auto* ShaderStage = ShaderStages[Index];
-		BeginCompileShader(ShaderStage, /** PermutationId = */ 0, Platform, ShaderPipeline, NewPipelineJob->StageJobs);
+		BeginCompileShader(ShaderStage, kUniqueShaderPermutationId, Platform, ShaderPipeline, NewPipelineJob->StageJobs);
 	}
 
 	NewJobs.Add(NewPipelineJob);
@@ -3915,7 +3915,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
 				for (int32 Index = 0; Index < StageTypes.Num(); ++Index)
 				{
 					FGlobalShaderType* GlobalShaderType = ((FShaderType*)(StageTypes[Index]))->GetGlobalShaderType();
-					if (GlobalShaderType->ShouldCompilePermutation(Platform, /** PermutationId = */ 0))
+					if (GlobalShaderType->ShouldCompilePermutation(Platform, kUniqueShaderPermutationId))
 					{
 						ShaderStages.Add(GlobalShaderType);
 					}
@@ -3947,7 +3947,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
 						// If sharing shaders amongst pipelines, add this pipeline as a dependency of an existing individual job
 						for (const FShaderType* ShaderType : StageTypes)
 						{
-							TShaderTypePermutation<const FShaderType> ShaderTypePermutation(ShaderType, /* PermutationId = */ 0);
+							TShaderTypePermutation<const FShaderType> ShaderTypePermutation(ShaderType, kUniqueShaderPermutationId);
 
 							FShaderCompileJob** Job = SharedShaderJobs.Find(ShaderTypePermutation);
 							checkf(Job, TEXT("Couldn't find existing shared job for global shader %s on pipeline %s!"), ShaderType->GetName(), Pipeline->GetName());
@@ -4158,7 +4158,7 @@ bool IsGlobalShaderMapComplete(const TCHAR* TypeNameSubstring)
 					for (const FShaderType* Shader : Stages)
 					{
 						const FGlobalShaderType* GlobalShaderType = Shader->GetGlobalShaderType();
-						if (ShouldCacheGlobalShaderTypeName(GlobalShaderType, /* PermutationId = */ 0, TypeNameSubstring, Platform))
+						if (ShouldCacheGlobalShaderTypeName(GlobalShaderType, kUniqueShaderPermutationId, TypeNameSubstring, Platform))
 						{
 							++NumStagesNeeded;
 						}
@@ -4641,9 +4641,9 @@ void ProcessCompiledGlobalShaders(const TArray<FShaderCommonCompileJob*>& Compil
 					for (int32 Index = 0; Index < StageTypes.Num(); ++Index)
 					{
 						FGlobalShaderType* GlobalShaderType = ((FShaderType*)(StageTypes[Index]))->GetGlobalShaderType();
-						if (GlobalShaderType->ShouldCompilePermutation(Platform, /** PermutationId = */ 0))
+						if (GlobalShaderType->ShouldCompilePermutation(Platform, kUniqueShaderPermutationId))
 						{
-							FShader* Shader = GlobalShaderMap->GetShader(GlobalShaderType, /** PermutationId = */ 0);
+							FShader* Shader = GlobalShaderMap->GetShader(GlobalShaderType, kUniqueShaderPermutationId);
 							check(Shader);
 							ShaderStages.Add(Shader);
 						}

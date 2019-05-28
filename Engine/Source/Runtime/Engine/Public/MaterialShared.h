@@ -810,7 +810,7 @@ public:
 	void AppendKeyString(FString& KeyString) const;
 
 	/** Returns true if the requested shader type is a dependency of this shader map Id. */
-	bool ContainsShaderType(const FShaderType* ShaderType) const;
+	bool ContainsShaderType(const FShaderType* ShaderType, int32 PermutationId) const;
 
 	/** Returns true if the requested shader type is a dependency of this shader map Id. */
 	bool ContainsShaderPipelineType(const FShaderPipelineType* ShaderPipelineType) const;
@@ -861,8 +861,7 @@ public:
 		EShaderPlatform Platform,
 		const FMaterial* Material,
 		FVertexFactoryType* InVertexFactoryType,
-		bool bSilent
-		);
+		bool bSilent);
 
 #if WITH_EDITOR
 	void LoadMissingShadersFromMemory(
@@ -890,7 +889,15 @@ private:
 	/** The vertex factory type these shaders are for. */
 	FVertexFactoryType* VertexFactoryType;
 
-	static bool IsMeshShaderComplete(const FMeshMaterialShaderMap* MeshShaderMap, EShaderPlatform Platform, const FMaterial* Material, const FMeshMaterialShaderType* ShaderType, const FShaderPipelineType* Pipeline, FVertexFactoryType* InVertexFactoryType, bool bSilent);
+	static bool IsMeshShaderComplete(
+		const FMeshMaterialShaderMap* MeshShaderMap,
+		EShaderPlatform Platform,
+		const FMaterial* Material,
+		const FMeshMaterialShaderType* ShaderType,
+		const FShaderPipelineType* Pipeline,
+		FVertexFactoryType* InVertexFactoryType,
+		int32 PermutationId,
+		bool bSilent);
 };
 
 /**
@@ -1193,7 +1200,12 @@ private:
 
 	FShader* ProcessCompilationResultsForSingleJob(class FShaderCompileJob* SingleJob, const FShaderPipelineType* ShaderPipeline, const FSHAHash& MaterialShaderMapHash);
 
-	bool IsMaterialShaderComplete(const FMaterial* Material, const FMaterialShaderType* ShaderType, const FShaderPipelineType* Pipeline, bool bSilent);
+	bool IsMaterialShaderComplete(
+		const FMaterial* Material,
+		const FMaterialShaderType* ShaderType,
+		const FShaderPipelineType* Pipeline,
+		int32 PermutationId,
+		bool bSilent) const;
 
 	/** Initializes OrderedMeshShaderMaps from the contents of MeshShaderMaps. */
 	void InitOrderedMeshShaderMaps();
@@ -1622,9 +1634,15 @@ public:
 	 * Note - Only implemented for FMeshMaterialShaderTypes
 	 */
 	template<typename ShaderType>
-	ShaderType* GetShader(FVertexFactoryType* VertexFactoryType, bool bFatalIfMissing = true) const
+	ShaderType* GetShader(FVertexFactoryType* VertexFactoryType, const typename ShaderType::FPermutationDomain& PermutationVector, bool bFatalIfMissing = true) const
 	{
-		return (ShaderType*)GetShader(&ShaderType::StaticType, VertexFactoryType, bFatalIfMissing);
+		return GetShader<ShaderType>(VertexFactoryType, PermutationVector.ToDimensionValueId(), bFatalIfMissing);
+	}
+
+	template <typename ShaderType>
+	ShaderType* GetShader(FVertexFactoryType* VertexFactoryType, int32 PermutationId = 0, bool bFatalIfMissing = true) const
+	{
+		return (ShaderType*)GetShader(&ShaderType::StaticType, VertexFactoryType, PermutationId, bFatalIfMissing);
 	}
 
 	ENGINE_API FShaderPipeline* GetShaderPipeline(class FShaderPipelineType* ShaderPipelineType, FVertexFactoryType* VertexFactoryType, bool bFatalIfNotFound = true) const;
@@ -1815,7 +1833,7 @@ private:
 	/**
 	 * Finds the shader matching the template type and the passed in vertex factory, asserts if not found.
 	 */
-	ENGINE_API FShader* GetShader(class FMeshMaterialShaderType* ShaderType, FVertexFactoryType* VertexFactoryType, bool bFatalIfMissing = true) const;
+	ENGINE_API FShader* GetShader(class FMeshMaterialShaderType* ShaderType, FVertexFactoryType* VertexFactoryType, int32 PermutationId, bool bFatalIfMissing = true) const;
 
 	void GetReferencedTexturesHash(EShaderPlatform Platform, FSHAHash& OutHash) const;
 

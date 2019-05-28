@@ -65,6 +65,8 @@ struct TShaderTypePermutation
 
 using FShaderPermutation = TShaderTypePermutation<FShaderType>;
 
+const int32 kUniqueShaderPermutationId = 0;
+
 template<typename MetaShaderType>
 FORCEINLINE uint32 GetTypeHash(const TShaderTypePermutation<MetaShaderType>& Var)
 {

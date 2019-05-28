@@ -1500,6 +1500,14 @@ FShaderPipelineType::FShaderPipelineType(
 	Stages.Add(InVertexShader);
 	AllStages[SF_Vertex] = InVertexShader;
 
+	for (uint32 FrequencyIndex = 0; FrequencyIndex < SF_NumStandardFrequencies; ++FrequencyIndex)
+	{
+		if (const FShaderType* ShaderType = AllStages[FrequencyIndex])
+		{
+			checkf(ShaderType->GetPermutationCount() == 1, TEXT("Shader '%s' has multiple shader permutations. Shader pipelines only support a single permutation."), ShaderType->GetName())
+		}
+	}
+
 	static uint32 TypeHashCounter = 0;
 	++TypeHashCounter;
 	HashIndex = TypeHashCounter;
