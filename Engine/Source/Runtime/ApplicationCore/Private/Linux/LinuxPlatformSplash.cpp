@@ -272,9 +272,16 @@ void FLinuxSplashState::RenderStrings()
 	const int SplashWidth = SplashSurface->w;
 	const int SplashHeight =  SplashSurface->h;
 	const int SplashBPP = SplashSurface->format->BytesPerPixel;
+	unsigned char *SplashPixels = reinterpret_cast<unsigned char *>(SplashSurface->pixels);
 
 	// clear the rendering scratch pad.
-	FMemory::Memcpy(ScratchSpace, SplashSurface->pixels, SplashWidth*SplashHeight*SplashBPP);
+	for (int y = 0; y < SplashHeight; ++y)
+	{
+		unsigned char *Src = SplashPixels + y * SplashSurface->pitch;
+		unsigned char *Dst = ScratchSpace + y * SplashWidth * SplashBPP;
+
+		FMemory::Memcpy(Dst, Src, SplashWidth * SplashBPP);
+	}
 
 	// draw each type of string
 	for (int CurTypeIndex=0; CurTypeIndex<SplashTextType::NumTextTypes; CurTypeIndex++)
