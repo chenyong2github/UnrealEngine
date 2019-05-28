@@ -1188,6 +1188,7 @@ UE_DEPRECATED(4.23, "FGPUFenceRHIParamRef typedef is deprecated; please use FRHI
 typedef FRHIGPUFence*				FGPUFenceRHIParamRef;
 typedef TRefCountPtr<FRHIGPUFence>	FGPUFenceRHIRef;
 
+UE_DEPRECATED(4.23, "FViewportRHIParamRef typedef is deprecated; please use FRHIViewport* directly instead.")
 typedef FRHIViewport*              FViewportRHIParamRef;
 typedef TRefCountPtr<FRHIViewport> FViewportRHIRef;
 
@@ -1215,6 +1216,7 @@ typedef TRefCountPtr<FRHIRayTracingPipelineState> FRayTracingPipelineStateRHIRef
 /** Bottom level ray tracing acceleration structure (contains triangles). */
 class FRHIRayTracingGeometry : public FRHIResource {};
 
+UE_DEPRECATED(4.23, "FRayTracingGeometryRHIParamRef typedef is deprecated; please use FRHIRayTracingGeometry* directly instead.")
 typedef FRHIRayTracingGeometry*                  FRayTracingGeometryRHIParamRef;
 typedef TRefCountPtr<FRHIRayTracingGeometry>     FRayTracingGeometryRHIRef;
 
@@ -1227,6 +1229,7 @@ protected:
 	FShaderResourceViewRHIRef ShaderResourceView;
 };
 
+UE_DEPRECATED(4.23, "FRayTracingSceneRHIParamRef typedef is deprecated; please use FRHIRayTracingScene* directly instead.")
 typedef FRHIRayTracingScene*                     FRayTracingSceneRHIParamRef;
 typedef TRefCountPtr<FRHIRayTracingScene>        FRayTracingSceneRHIRef;
 
@@ -1264,6 +1267,7 @@ public:
 	uint32 Offset;
 };
 
+UE_DEPRECATED(4.23, "FStagingBufferRHIParamRef typedef is deprecated; please use FRHIStagingBuffer* directly instead.")
 typedef FRHIStagingBuffer*				FStagingBufferRHIParamRef;
 typedef TRefCountPtr<FRHIStagingBuffer>	FStagingBufferRHIRef;
 

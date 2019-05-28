@@ -509,7 +509,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 		RayCountPerPixelRT->GetRenderTargetItem().UAV
 	);
 
-	FRayTracingSceneRHIParamRef RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+	FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
 	RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, View.ViewRect.Size().X, View.ViewRect.Size().Y);
 
 	// Save RayTracingIndirect for compositing

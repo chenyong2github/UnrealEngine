@@ -1413,11 +1413,11 @@ template<ECmdList CmdListType>
 struct FRHICommandCopyToStagingBuffer final : public FRHICommand<FRHICommandCopyToStagingBuffer<CmdListType>>
 {
 	FVertexBufferRHIParamRef SourceBuffer;
-	FStagingBufferRHIParamRef DestinationStagingBuffer;
+	FRHIStagingBuffer* DestinationStagingBuffer;
 	uint32 Offset;
 	uint32 NumBytes;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandCopyToStagingBuffer(FVertexBufferRHIParamRef InSourceBuffer, FStagingBufferRHIParamRef InDestinationStagingBuffer, uint32 InOffset, uint32 InNumBytes)
+	FORCEINLINE_DEBUGGABLE FRHICommandCopyToStagingBuffer(FVertexBufferRHIParamRef InSourceBuffer, FRHIStagingBuffer* InDestinationStagingBuffer, uint32 InOffset, uint32 InNumBytes)
 		: SourceBuffer(InSourceBuffer)
 		, DestinationStagingBuffer(InDestinationStagingBuffer)
 		, Offset(InOffset)
@@ -1667,10 +1667,10 @@ struct FRHICommandEndFrame final : public FRHICommand<FRHICommandEndFrame>
 
 struct FRHICommandBeginDrawingViewport final : public FRHICommand<FRHICommandBeginDrawingViewport>
 {
-	FViewportRHIParamRef Viewport;
+	FRHIViewport* Viewport;
 	FTextureRHIParamRef RenderTargetRHI;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandBeginDrawingViewport(FViewportRHIParamRef InViewport, FTextureRHIParamRef InRenderTargetRHI)
+	FORCEINLINE_DEBUGGABLE FRHICommandBeginDrawingViewport(FRHIViewport* InViewport, FTextureRHIParamRef InRenderTargetRHI)
 		: Viewport(InViewport)
 		, RenderTargetRHI(InRenderTargetRHI)
 	{
@@ -1680,11 +1680,11 @@ struct FRHICommandBeginDrawingViewport final : public FRHICommand<FRHICommandBeg
 
 struct FRHICommandEndDrawingViewport final : public FRHICommand<FRHICommandEndDrawingViewport>
 {
-	FViewportRHIParamRef Viewport;
+	FRHIViewport* Viewport;
 	bool bPresent;
 	bool bLockToVsync;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandEndDrawingViewport(FViewportRHIParamRef InViewport, bool InbPresent, bool InbLockToVsync)
+	FORCEINLINE_DEBUGGABLE FRHICommandEndDrawingViewport(FRHIViewport* InViewport, bool InbPresent, bool InbLockToVsync)
 		: Viewport(InViewport)
 		, bPresent(InbPresent)
 		, bLockToVsync(InbLockToVsync)
@@ -1864,15 +1864,15 @@ struct FRHICommandCopyBufferRegions final : public FRHICommand<FRHICommandCopyBu
 
 struct FRHICommandBuildAccelerationStructure final : public FRHICommand<FRHICommandBuildAccelerationStructure>
 {
-	FRayTracingGeometryRHIParamRef Geometry;
-	FRayTracingSceneRHIParamRef Scene;
+	FRHIRayTracingGeometry* Geometry;
+	FRHIRayTracingScene* Scene;
 
-	explicit FRHICommandBuildAccelerationStructure(FRayTracingGeometryRHIParamRef InGeometry)
+	explicit FRHICommandBuildAccelerationStructure(FRHIRayTracingGeometry* InGeometry)
 		: Geometry(InGeometry)
 		, Scene(nullptr)
 	{}
 
-	explicit FRHICommandBuildAccelerationStructure(FRayTracingSceneRHIParamRef InScene)
+	explicit FRHICommandBuildAccelerationStructure(FRHIRayTracingScene* InScene)
 		: Geometry(nullptr)
 		, Scene(InScene)
 	{}
@@ -1904,12 +1904,12 @@ struct FRHICommandBuildAccelerationStructures final : public FRHICommand<FRHICom
 
 struct FRHICommandRayTraceOcclusion final : public FRHICommand<FRHICommandRayTraceOcclusion>
 {
-	FRayTracingSceneRHIParamRef Scene;
+	FRHIRayTracingScene* Scene;
 	FRHIShaderResourceView* Rays;
 	FRHIUnorderedAccessView* Output;
 	uint32 NumRays;
 
-	FRHICommandRayTraceOcclusion(FRayTracingSceneRHIParamRef InScene,
+	FRHICommandRayTraceOcclusion(FRHIRayTracingScene* InScene,
 		FRHIShaderResourceView* InRays,
 		FRHIUnorderedAccessView* InOutput,
 		uint32 InNumRays)
@@ -1924,12 +1924,12 @@ struct FRHICommandRayTraceOcclusion final : public FRHICommand<FRHICommandRayTra
 
 struct FRHICommandRayTraceIntersection final : public FRHICommand<FRHICommandRayTraceIntersection>
 {
-	FRayTracingSceneRHIParamRef Scene;
+	FRHIRayTracingScene* Scene;
 	FRHIShaderResourceView* Rays;
 	FRHIUnorderedAccessView* Output;
 	uint32 NumRays;
 
-	FRHICommandRayTraceIntersection(FRayTracingSceneRHIParamRef InScene,
+	FRHICommandRayTraceIntersection(FRHIRayTracingScene* InScene,
 		FRHIShaderResourceView* InRays,
 		FRHIUnorderedAccessView* InOutput,
 		uint32 InNumRays)
@@ -1945,13 +1945,13 @@ struct FRHICommandRayTraceIntersection final : public FRHICommand<FRHICommandRay
 struct FRHICommandRayTraceDispatch final : public FRHICommand<FRHICommandRayTraceDispatch>
 {
 	FRayTracingPipelineState* Pipeline;
-	FRayTracingSceneRHIParamRef Scene;
+	FRHIRayTracingScene* Scene;
 	FRayTracingShaderBindings GlobalResourceBindings;
 	FRHIRayTracingShader* RayGenShader;
 	uint32 Width;
 	uint32 Height;
 
-	FRHICommandRayTraceDispatch(FRayTracingPipelineState* InPipeline, FRHIRayTracingShader* InRayGenShader, FRayTracingSceneRHIParamRef InScene, const FRayTracingShaderBindings& InGlobalResourceBindings, uint32 InWidth, uint32 InHeight)
+	FRHICommandRayTraceDispatch(FRayTracingPipelineState* InPipeline, FRHIRayTracingShader* InRayGenShader, FRHIRayTracingScene* InScene, const FRayTracingShaderBindings& InGlobalResourceBindings, uint32 InWidth, uint32 InHeight)
 		: Pipeline(InPipeline)
 		, Scene(InScene)
 		, GlobalResourceBindings(InGlobalResourceBindings)
@@ -1971,7 +1971,7 @@ struct FRHICommandSetRayTracingBindings final : public FRHICommand<FRHICommandSe
 		EBindingType_CallableShader,
 	};
 
-	FRayTracingSceneRHIParamRef Scene;
+	FRHIRayTracingScene* Scene;
 	uint32 InstanceIndex;
 	uint32 SegmentIndex;
 	uint32 ShaderSlot;
@@ -1985,7 +1985,7 @@ struct FRHICommandSetRayTracingBindings final : public FRHICommand<FRHICommandSe
 	EBindingType BindingType;
 
 	// Hit group bindings
-	FRHICommandSetRayTracingBindings(FRayTracingSceneRHIParamRef InScene, uint32 InInstanceIndex, uint32 InSegmentIndex, uint32 InShaderSlot,
+	FRHICommandSetRayTracingBindings(FRHIRayTracingScene* InScene, uint32 InInstanceIndex, uint32 InSegmentIndex, uint32 InShaderSlot,
 		FRayTracingPipelineState* InPipeline, uint32 InHitGroupIndex, uint32 InNumUniformBuffers, const FUniformBufferRHIParamRef* InUniformBuffers,
 		uint32 InLooseParameterDataSize, const void* InLooseParameterData,
 		uint32 InUserData)
@@ -2005,7 +2005,7 @@ struct FRHICommandSetRayTracingBindings final : public FRHICommand<FRHICommandSe
 	}
 
 	// Callable shader bindings
-	FRHICommandSetRayTracingBindings(FRayTracingSceneRHIParamRef InScene, uint32 InShaderSlot,
+	FRHICommandSetRayTracingBindings(FRHIRayTracingScene* InScene, uint32 InShaderSlot,
 		FRayTracingPipelineState* InPipeline, uint32 InShaderIndex,
 		uint32 InNumUniformBuffers, const FUniformBufferRHIParamRef* InUniformBuffers,
 		uint32 InUserData)
@@ -2778,7 +2778,7 @@ public:
 		ALLOC_COMMAND(FRHICommandWaitComputeFence<ECmdList::EGfx>)(WaitFence);
 	}
 
-	FORCEINLINE_DEBUGGABLE void CopyToStagingBuffer(FVertexBufferRHIParamRef SourceBuffer, FStagingBufferRHIParamRef DestinationStagingBuffer, uint32 Offset, uint32 NumBytes)
+	FORCEINLINE_DEBUGGABLE void CopyToStagingBuffer(FVertexBufferRHIParamRef SourceBuffer, FRHIStagingBuffer* DestinationStagingBuffer, uint32 Offset, uint32 NumBytes)
 	{
 		if (Bypass())
 		{
@@ -2892,8 +2892,8 @@ public:
 	// These 6 are special in that they must be called on the immediate command list and they force a flush only when we are not doing RHI thread
 	void BeginScene();
 	void EndScene();
-	void BeginDrawingViewport(FViewportRHIParamRef Viewport, FTextureRHIParamRef RenderTargetRHI);
-	void EndDrawingViewport(FViewportRHIParamRef Viewport, bool bPresent, bool bLockToVsync);
+	void BeginDrawingViewport(FRHIViewport* Viewport, FTextureRHIParamRef RenderTargetRHI);
+	void EndDrawingViewport(FRHIViewport* Viewport, bool bPresent, bool bLockToVsync);
 	void BeginFrame();
 	void EndFrame();
 
@@ -2985,7 +2985,7 @@ public:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(FRayTracingGeometryRHIParamRef Geometry)
+	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
 	{
 		if (Bypass())
 		{
@@ -3021,7 +3021,7 @@ public:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(FRayTracingSceneRHIParamRef Scene)
+	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(FRHIRayTracingScene* Scene)
 	{
 		if (Bypass())
 		{
@@ -3038,7 +3038,7 @@ public:
 	 * Binary intersection results are written to output buffer as R32_UINTs.
 	 * 0xFFFFFFFF is written if ray intersects any scene triangle, 0 otherwise.
 	 */
-	FORCEINLINE_DEBUGGABLE void RayTraceOcclusion(FRayTracingSceneRHIParamRef Scene,
+	FORCEINLINE_DEBUGGABLE void RayTraceOcclusion(FRHIRayTracingScene* Scene,
 		FRHIShaderResourceView* Rays,
 		FRHIUnorderedAccessView* Output,
 		uint32 NumRays)
@@ -3057,7 +3057,7 @@ public:
 	 * Trace rays from an input buffer of FBasicRayData.
 	 * Primitive intersection results are written to output buffer as FBasicRayIntersectionData.
 	 */
-	FORCEINLINE_DEBUGGABLE void RayTraceIntersection(FRayTracingSceneRHIParamRef Scene,
+	FORCEINLINE_DEBUGGABLE void RayTraceIntersection(FRHIRayTracingScene* Scene,
 		FRHIShaderResourceView* Rays,
 		FRHIUnorderedAccessView* Output,
 		uint32 NumRays)
@@ -3072,7 +3072,7 @@ public:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void RayTraceDispatch(FRayTracingPipelineState* Pipeline, FRHIRayTracingShader* RayGenShader, FRayTracingSceneRHIParamRef Scene, const FRayTracingShaderBindings& GlobalResourceBindings, uint32 Width, uint32 Height)
+	FORCEINLINE_DEBUGGABLE void RayTraceDispatch(FRayTracingPipelineState* Pipeline, FRHIRayTracingShader* RayGenShader, FRHIRayTracingScene* Scene, const FRayTracingShaderBindings& GlobalResourceBindings, uint32 Width, uint32 Height)
 	{
 		if (Bypass())
 		{
@@ -3086,7 +3086,7 @@ public:
 	}
 
 	FORCEINLINE_DEBUGGABLE void SetRayTracingHitGroup(
-		FRayTracingSceneRHIParamRef Scene, uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot,
+		FRHIRayTracingScene* Scene, uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot,
 		FRayTracingPipelineState* Pipeline, uint32 HitGroupIndex,
 		uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
 		uint32 LooseParameterDataSize, const void* LooseParameterData,
@@ -3127,7 +3127,7 @@ public:
 	}
 
 	FORCEINLINE_DEBUGGABLE void SetRayTracingCallableShader(
-		FRayTracingSceneRHIParamRef Scene, uint32 ShaderSlotInScene,
+		FRHIRayTracingScene* Scene, uint32 ShaderSlotInScene,
 		FRayTracingPipelineState* Pipeline, uint32 ShaderIndexInPipeline,
 		uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
 		uint32 UserData)
@@ -3407,7 +3407,7 @@ public:
 		ALLOC_COMMAND(FRHICommandWaitComputeFence<ECmdList::ECompute>)(WaitFence);
 	}
 
-	FORCEINLINE_DEBUGGABLE void CopyToStagingBuffer(FVertexBufferRHIParamRef SourceBuffer, FStagingBufferRHIParamRef DestinationStagingBuffer, uint32 Offset, uint32 NumBytes)
+	FORCEINLINE_DEBUGGABLE void CopyToStagingBuffer(FVertexBufferRHIParamRef SourceBuffer, FRHIStagingBuffer* DestinationStagingBuffer, uint32 Offset, uint32 NumBytes)
 	{
 		if (Bypass())
 		{
@@ -3686,12 +3686,12 @@ public:
 		GDynamicRHI->UnlockIndexBuffer_RenderThread(*this, IndexBuffer);
 	}
 	
-	FORCEINLINE void* LockStagingBuffer(FStagingBufferRHIParamRef StagingBuffer, uint32 Offset, uint32 SizeRHI)
+	FORCEINLINE void* LockStagingBuffer(FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI)
 	{
 		return GDynamicRHI->LockStagingBuffer_RenderThread(*this, StagingBuffer, Offset, SizeRHI);
 	}
 	
-	FORCEINLINE void UnlockStagingBuffer(FStagingBufferRHIParamRef StagingBuffer)
+	FORCEINLINE void UnlockStagingBuffer(FRHIStagingBuffer* StagingBuffer)
 	{
 		GDynamicRHI->UnlockStagingBuffer_RenderThread(*this, StagingBuffer);
 	}
@@ -4167,17 +4167,17 @@ public:
 		return RHIGetRenderQueryResult(RenderQuery, OutResult, bWait);
 	}
 	
-	FORCEINLINE uint32 GetViewportNextPresentGPUIndex(FViewportRHIParamRef Viewport)
+	FORCEINLINE uint32 GetViewportNextPresentGPUIndex(FRHIViewport* Viewport)
 	{
 		return GDynamicRHI->RHIGetViewportNextPresentGPUIndex(Viewport);
 	}
 
-	FORCEINLINE FTexture2DRHIRef GetViewportBackBuffer(FViewportRHIParamRef Viewport)
+	FORCEINLINE FTexture2DRHIRef GetViewportBackBuffer(FRHIViewport* Viewport)
 	{
 		return RHIGetViewportBackBuffer(Viewport);
 	}
 	
-	FORCEINLINE void AdvanceFrameForGetViewportBackBuffer(FViewportRHIParamRef Viewport)
+	FORCEINLINE void AdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport)
 	{
 		return RHIAdvanceFrameForGetViewportBackBuffer(Viewport);
 	}
@@ -4217,7 +4217,7 @@ public:
 		return RHICreateViewport(WindowHandle, SizeX, SizeY, bIsFullscreen, PreferredPixelFormat);
 	}
 	
-	FORCEINLINE void ResizeViewport(FViewportRHIParamRef Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat)
+	FORCEINLINE void ResizeViewport(FRHIViewport* Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat)
 	{
 		LLM_SCOPE(ELLMTag::RenderTargets);
 		RHIResizeViewport(Viewport, SizeX, SizeY, bIsFullscreen, PreferredPixelFormat);
@@ -4900,12 +4900,12 @@ FORCEINLINE FRHIShaderLibraryRef RHICreateShaderLibrary(EShaderPlatform Platform
     return GDynamicRHI->RHICreateShaderLibrary(Platform, FilePath, Name);
 }
 
-FORCEINLINE void* RHILockStagingBuffer(FStagingBufferRHIParamRef StagingBuffer, uint32 Offset, uint32 Size)
+FORCEINLINE void* RHILockStagingBuffer(FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 Size)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().LockStagingBuffer(StagingBuffer, Offset, Size);
 }
 
-FORCEINLINE void RHIUnlockStagingBuffer(FStagingBufferRHIParamRef StagingBuffer)
+FORCEINLINE void RHIUnlockStagingBuffer(FRHIStagingBuffer* StagingBuffer)
 {
 	 FRHICommandListExecutor::GetImmediateCommandList().UnlockStagingBuffer(StagingBuffer);
 }

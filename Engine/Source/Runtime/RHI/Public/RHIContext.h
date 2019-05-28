@@ -126,7 +126,7 @@ public:
 	 * @param Offset The start of the data in 'SourceBuffer'
 	 * @param NumBytes The number of bytes to copy out of 'SourceBuffer'
 	 */
-	virtual void RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes)
+	virtual void RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FRHIStagingBuffer* DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes)
 	{
 		check(false);
 	}
@@ -259,10 +259,10 @@ public:
 	virtual void RHIDiscardRenderTargets(bool Depth, bool Stencil, uint32 ColorBitMask) {}
 
 	// This method is queued with an RHIThread, otherwise it will flush after it is queued; without an RHI thread there is no benefit to queuing this frame advance commands
-	virtual void RHIBeginDrawingViewport(FViewportRHIParamRef Viewport, FTextureRHIParamRef RenderTargetRHI) = 0;
+	virtual void RHIBeginDrawingViewport(FRHIViewport* Viewport, FTextureRHIParamRef RenderTargetRHI) = 0;
 
 	// This method is queued with an RHIThread, otherwise it will flush after it is queued; without an RHI thread there is no benefit to queuing this frame advance commands
-	virtual void RHIEndDrawingViewport(FViewportRHIParamRef Viewport, bool bPresent, bool bLockToVsync) = 0;
+	virtual void RHIEndDrawingViewport(FRHIViewport* Viewport, bool bPresent, bool bLockToVsync) = 0;
 
 	// This method is queued with an RHIThread, otherwise it will flush after it is queued; without an RHI thread there is no benefit to queuing this frame advance commands
 	virtual void RHIBeginFrame() = 0;
@@ -579,7 +579,7 @@ public:
 		checkNoEntry();
 	}
 #endif
-	virtual void RHIBuildAccelerationStructure(FRayTracingGeometryRHIParamRef Geometry)
+	virtual void RHIBuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
 	{
 		checkNoEntry();
 	}
@@ -594,12 +594,12 @@ public:
 		checkNoEntry();
 	}
 
-	virtual void RHIBuildAccelerationStructure(FRayTracingSceneRHIParamRef Scene)
+	virtual void RHIBuildAccelerationStructure(FRHIRayTracingScene* Scene)
 	{
 		checkNoEntry();
 	}
 
-	virtual void RHIRayTraceOcclusion(FRayTracingSceneRHIParamRef Scene,
+	virtual void RHIRayTraceOcclusion(FRHIRayTracingScene* Scene,
 		FRHIShaderResourceView* Rays,
 		FRHIUnorderedAccessView* Output,
 		uint32 NumRays)
@@ -607,7 +607,7 @@ public:
 		checkNoEntry();
 	}
 
-	virtual void RHIRayTraceIntersection(FRayTracingSceneRHIParamRef Scene,
+	virtual void RHIRayTraceIntersection(FRHIRayTracingScene* Scene,
 		FRHIShaderResourceView* Rays,
 		FRHIUnorderedAccessView* Output,
 		uint32 NumRays)
@@ -616,7 +616,7 @@ public:
 	}
 
 	virtual void RHIRayTraceDispatch(FRHIRayTracingPipelineState* RayTracingPipelineState, FRHIRayTracingShader* RayGenShader,
-		FRayTracingSceneRHIParamRef Scene, 
+		FRHIRayTracingScene* Scene,
 		const FRayTracingShaderBindings& GlobalResourceBindings,
 		uint32 Width, uint32 Height)
 	{
@@ -624,7 +624,7 @@ public:
 	}
 
 	virtual void RHISetRayTracingHitGroup(
-		FRayTracingSceneRHIParamRef Scene, uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot,
+		FRHIRayTracingScene* Scene, uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot,
 		FRHIRayTracingPipelineState* Pipeline, uint32 HitGroupIndex,
 		uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
 		uint32 LooseParameterDataSize, const void* LooseParameterData,
@@ -634,7 +634,7 @@ public:
 	}
 
 	virtual void RHISetRayTracingCallableShader(
-		FRayTracingSceneRHIParamRef Scene, uint32 ShaderSlotInScene,
+		FRHIRayTracingScene* Scene, uint32 ShaderSlotInScene,
 		FRHIRayTracingPipelineState* Pipeline, uint32 ShaderIndexInPipeline,
 		uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
 		uint32 UserData)

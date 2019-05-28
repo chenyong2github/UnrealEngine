@@ -269,7 +269,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 #if RHI_RAYTRACING
 void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 	FRHICommandList& RHICmdList, 
-	FRayTracingSceneRHIParamRef Scene, 
+	FRHIRayTracingScene* Scene,
 	uint32 InstanceIndex, 
 	uint32 SegmentIndex,
 	FRayTracingPipelineState* PipelineState,

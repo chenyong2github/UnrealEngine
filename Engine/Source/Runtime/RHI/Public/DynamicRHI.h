@@ -78,7 +78,7 @@ struct FRHIFlipDetails
 
 struct FRayTracingGeometryInstance
 {
-	FRayTracingGeometryRHIParamRef GeometryRHI = nullptr;
+	FRHIRayTracingGeometry* GeometryRHI = nullptr;
 	FMatrix Transform = FMatrix(EForceInit::ForceInitToZero);
 	uint32 UserData = 0;
 	uint8 Mask = 0xFF;
@@ -355,13 +355,13 @@ public:
 	 * @param SizeRHI The length of the region in the buffer to lock.
 	 * @returns A pointer to the data starting at 'Offset' and of length 'SizeRHI' from 'StagingBuffer', or nullptr when there is an error.
 	 */
-	virtual void* RHILockStagingBuffer(FStagingBufferRHIParamRef StagingBuffer, uint32 Offset, uint32 SizeRHI);
+	virtual void* RHILockStagingBuffer(FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI);
 
 	/**
 	 * Unlock a staging buffer previously locked with RHILockStagingBuffer.
 	 * @param StagingBuffer The buffer that was previously locked.
 	 */
-	virtual void RHIUnlockStagingBuffer(FStagingBufferRHIParamRef StagingBuffer);
+	virtual void RHIUnlockStagingBuffer(FRHIStagingBuffer* StagingBuffer);
 
 	/**
 	 * Lock a staging buffer to read contents on the CPU that were written by the GPU, without having to stall.
@@ -372,14 +372,14 @@ public:
 	 * @param SizeRHI The length of the region in the buffer to lock.
 	 * @returns A pointer to the data starting at 'Offset' and of length 'SizeRHI' from 'StagingBuffer', or nullptr when there is an error.
 	 */
-	virtual void* LockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FStagingBufferRHIParamRef StagingBuffer, uint32 Offset, uint32 SizeRHI);
+	virtual void* LockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI);
 
 	/**
 	 * Unlock a staging buffer previously locked with LockStagingBuffer_RenderThread.
 	 * @param RHICmdList The command-list to execute on or synchronize with.
 	 * @param StagingBuffer The buffer what was previously locked.
 	 */
-	virtual void UnlockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FStagingBufferRHIParamRef StagingBuffer);
+	virtual void UnlockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStagingBuffer* StagingBuffer);
 
 	/**
 	* Creates a bound shader state instance which encapsulates a decl, vertex shader, hull shader, domain shader and pixel shader
@@ -916,16 +916,16 @@ public:
 	virtual bool RHIGetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& OutResult, bool bWait) = 0;
 
 	// FlushType: Thread safe
-	virtual uint32 RHIGetViewportNextPresentGPUIndex(FViewportRHIParamRef Viewport)
+	virtual uint32 RHIGetViewportNextPresentGPUIndex(FRHIViewport* Viewport)
 	{
 		return 0; // By default, viewport need to be rendered on GPU0.
 	}
 
 	// With RHI thread, this is the current backbuffer from the perspective of the render thread.
 	// FlushType: Thread safe
-	virtual FTexture2DRHIRef RHIGetViewportBackBuffer(FViewportRHIParamRef Viewport) = 0;
+	virtual FTexture2DRHIRef RHIGetViewportBackBuffer(FRHIViewport* Viewport) = 0;
 
-	virtual FUnorderedAccessViewRHIRef RHIGetViewportBackBufferUAV(FViewportRHIParamRef ViewportRHI)
+	virtual FUnorderedAccessViewRHIRef RHIGetViewportBackBufferUAV(FRHIViewport* ViewportRHI)
 	{
 		return FUnorderedAccessViewRHIRef();
 	}
@@ -937,7 +937,7 @@ public:
 
 	// Only relevant with an RHI thread, this advances the backbuffer for the purpose of GetViewportBackBuffer
 	// FlushType: Thread safe
-	virtual void RHIAdvanceFrameForGetViewportBackBuffer(FViewportRHIParamRef Viewport) = 0;
+	virtual void RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport) = 0;
 
 	/*
 	* Acquires or releases ownership of the platform-specific rendering context for the calling thread
@@ -964,9 +964,9 @@ public:
 
 	//  must be called from the main thread.
 	// FlushType: Thread safe
-	virtual void RHIResizeViewport(FViewportRHIParamRef Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen) = 0;
+	virtual void RHIResizeViewport(FRHIViewport* Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen) = 0;
 
-	virtual void RHIResizeViewport(FViewportRHIParamRef Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat)
+	virtual void RHIResizeViewport(FRHIViewport* Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat)
 	{
 		// Default implementation for RHIs that cannot change formats on the fly
 		RHIResizeViewport(Viewport, SizeX, SizeY, bIsFullscreen);
@@ -1325,12 +1325,12 @@ FORCEINLINE bool RHIGetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& O
 	return GDynamicRHI->RHIGetRenderQueryResult(RenderQuery, OutResult, bWait);
 }
 
-FORCEINLINE uint32 RHIGetViewportNextPresentGPUIndex(FViewportRHIParamRef Viewport)
+FORCEINLINE uint32 RHIGetViewportNextPresentGPUIndex(FRHIViewport* Viewport)
 {
 	return GDynamicRHI->RHIGetViewportNextPresentGPUIndex(Viewport);
 }
 
-FORCEINLINE FTexture2DRHIRef RHIGetViewportBackBuffer(FViewportRHIParamRef Viewport)
+FORCEINLINE FTexture2DRHIRef RHIGetViewportBackBuffer(FRHIViewport* Viewport)
 {
 	return GDynamicRHI->RHIGetViewportBackBuffer(Viewport);
 }
@@ -1340,7 +1340,7 @@ FORCEINLINE FTexture2DRHIRef RHIGetFMaskTexture(FTextureRHIParamRef SourceTextur
 	return GDynamicRHI->RHIGetFMaskTexture(SourceTextureRHI);
 }
 
-FORCEINLINE void RHIAdvanceFrameForGetViewportBackBuffer(FViewportRHIParamRef Viewport)
+FORCEINLINE void RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport)
 {
 	return GDynamicRHI->RHIAdvanceFrameForGetViewportBackBuffer(Viewport);
 }
@@ -1355,7 +1355,7 @@ FORCEINLINE FViewportRHIRef RHICreateViewport(void* WindowHandle, uint32 SizeX, 
 	return GDynamicRHI->RHICreateViewport(WindowHandle, SizeX, SizeY, bIsFullscreen, PreferredPixelFormat);
 }
 
-FORCEINLINE void RHIResizeViewport(FViewportRHIParamRef Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat)
+FORCEINLINE void RHIResizeViewport(FRHIViewport* Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat)
 {
 	GDynamicRHI->RHIResizeViewport(Viewport, SizeX, SizeY, bIsFullscreen, PreferredPixelFormat);
 }

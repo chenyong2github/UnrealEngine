@@ -2477,7 +2477,7 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 	return CreatedShaderTable;
 }
 
-void FD3D12CommandContext::RHIBuildAccelerationStructure(FRayTracingGeometryRHIParamRef InGeometry)
+void FD3D12CommandContext::RHIBuildAccelerationStructure(FRHIRayTracingGeometry* InGeometry)
 {
 	FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(InGeometry);
 	Geometry->TransitionBuffers(*this);
@@ -2531,7 +2531,7 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 	}
 }
 
-void FD3D12CommandContext::RHIBuildAccelerationStructure(FRayTracingSceneRHIParamRef InScene)
+void FD3D12CommandContext::RHIBuildAccelerationStructure(FRHIRayTracingScene* InScene)
 {
 	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(InScene);
 	Scene->BuildAccelerationStructure(*this, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
@@ -3003,7 +3003,7 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 }
 
 
-void FD3D12CommandContext::RHIRayTraceOcclusion(FRayTracingSceneRHIParamRef InScene,
+void FD3D12CommandContext::RHIRayTraceOcclusion(FRHIRayTracingScene* InScene,
 	FRHIShaderResourceView* Rays,
 	FRHIUnorderedAccessView* Output,
 	uint32 NumRays)
@@ -3038,7 +3038,7 @@ void FD3D12CommandContext::RHIRayTraceOcclusion(FRayTracingSceneRHIParamRef InSc
 	DispatchRays(*this, Bindings, Pipeline, 0, nullptr, DispatchDesc);
 }
 
-void FD3D12CommandContext::RHIRayTraceIntersection(FRayTracingSceneRHIParamRef InScene,
+void FD3D12CommandContext::RHIRayTraceIntersection(FRHIRayTracingScene* InScene,
 	FRHIShaderResourceView* InRays,
 	FRHIUnorderedAccessView* InOutput,
 	uint32 NumRays)
@@ -3079,7 +3079,7 @@ void FD3D12CommandContext::RHIRayTraceIntersection(FRayTracingSceneRHIParamRef I
 }
 
 void FD3D12CommandContext::RHIRayTraceDispatch(FRHIRayTracingPipelineState* InRayTracingPipelineState, FRHIRayTracingShader* RayGenShaderRHI,
-	FRayTracingSceneRHIParamRef InScene,
+	FRHIRayTracingScene* InScene,
 	const FRayTracingShaderBindings& GlobalResourceBindings,
 	uint32 Width, uint32 Height)
 {
@@ -3111,7 +3111,7 @@ void FD3D12CommandContext::RHIRayTraceDispatch(FRHIRayTracingPipelineState* InRa
 }
 
 void FD3D12CommandContext::RHISetRayTracingHitGroup(
-	FRayTracingSceneRHIParamRef InScene, uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot,
+	FRHIRayTracingScene* InScene, uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot,
 	FRHIRayTracingPipelineState* InPipeline, uint32 HitGroupIndex,
 	uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
 	uint32 LooseParameterDataSize, const void* LooseParameterData,
@@ -3148,7 +3148,7 @@ void FD3D12CommandContext::RHISetRayTracingHitGroup(
 
 
 void FD3D12CommandContext::RHISetRayTracingCallableShader(
-	FRayTracingSceneRHIParamRef InScene, uint32 ShaderSlotInScene,
+	FRHIRayTracingScene* InScene, uint32 ShaderSlotInScene,
 	FRHIRayTracingPipelineState* InPipeline, uint32 ShaderIndexInPipeline,
 	uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
 	uint32 UserData)
