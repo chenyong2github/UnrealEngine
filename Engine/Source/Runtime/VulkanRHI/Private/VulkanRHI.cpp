@@ -196,6 +196,9 @@ FVulkanDynamicRHI::FVulkanDynamicRHI()
 
 void FVulkanDynamicRHI::Init()
 {
+	// Setup the validation requests ready before we load dlls
+	SetupValidationRequests();
+
 	if (!FVulkanPlatform::LoadVulkanLibrary())
 	{
 #if PLATFORM_LINUX
