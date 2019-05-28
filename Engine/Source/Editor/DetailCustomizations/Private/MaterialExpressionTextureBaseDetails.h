@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
 #include "IDetailCustomization.h"
+#include "PropertyRestriction.h"
 
 class IPropertyHandle;
 class IDetailLayoutBuilder;
@@ -12,17 +13,18 @@ class SObjectPropertyEntryBox;
 struct FAssetData;
 class UMaterialExpressionTextureBase;
 
-class FMaterialExpressionTextureBaseCustomization : public IDetailCustomization
+class FMaterialExpressionTextureBaseDetails : public IDetailCustomization
 {
 public:
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IDetailCustomization> MakeInstance();
 
-private:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailLayout ) override;
 
-	bool OnShouldFilterTexture(const FAssetData& AssetData);
-
+	TSharedPtr<FPropertyRestriction> EnumRestriction;
 	TWeakObjectPtr<UMaterialExpressionTextureBase> Expression;
+
+	void OnTextureChanged();
 };
+
