@@ -72,8 +72,8 @@ void FMarkersTimingTrack::Reset()
 
 void FMarkersTimingTrack::UpdateHeight()
 {
-	static const float BookmarksTrackHeight = 14.0f;
-	static const float TimeMarkersTrackHeight = 28.0f;
+	constexpr float BookmarksTrackHeight = 14.0f;
+	constexpr float TimeMarkersTrackHeight = 28.0f;
 
 	if (bUseOnlyBookmarks)
 	{
@@ -89,8 +89,8 @@ void FMarkersTimingTrack::UpdateHeight()
 
 void FMarkersTimingTrack::UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport)
 {
-	static const float HeaderWidth = 80.0f;
-	static const float HeaderHeight = 14.0f;
+	constexpr float HeaderWidth = 80.0f;
+	constexpr float HeaderHeight = 14.0f;
 
 	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
 	{
@@ -415,7 +415,7 @@ void FTimeMarkerTrackBuilder::Flush(float AvailableTextW)
 			Box.X = LastX1;
 			Box.W = LastX2 - LastX1;
 			Box.Color = Color;
-			Box.Color.A = 0.5f;
+			Box.Color.A = 0.25f;
 		}
 
 		if (AvailableTextW > 6.0f)

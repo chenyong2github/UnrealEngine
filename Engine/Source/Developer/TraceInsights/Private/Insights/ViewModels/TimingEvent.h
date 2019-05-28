@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "TraceServices/Model/LoadTimeProfiler.h"
+
 
 // Insights
 #include "Insights/ViewModels/TimerNode.h"
@@ -17,6 +19,7 @@ struct FTimingEvent
 	double StartTime;
 	double EndTime;
 	double ExclusiveTime;
+	Trace::FLoadTimeProfilerCpuEvent LoadingInfo;
 
 	void Reset()
 	{
@@ -26,6 +29,10 @@ struct FTimingEvent
 		StartTime = 0.0;
 		EndTime = 0.0;
 		ExclusiveTime = 0.0;
+		LoadingInfo.Package = nullptr;
+		LoadingInfo.Export = nullptr;
+		LoadingInfo.PackageEventType = LoadTimeProfilerPackageEventType_None;
+		LoadingInfo.ExportEventType = LoadTimeProfilerObjectEventType_None;
 	}
 
 	bool IsValidTrack() const { return Track != nullptr; }

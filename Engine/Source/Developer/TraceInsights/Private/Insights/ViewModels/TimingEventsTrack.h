@@ -45,7 +45,8 @@ enum class ETimingEventsTrackType
 {
 	Cpu,
 	Gpu,
-	Io
+	Loading,
+	Io,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -53,11 +54,13 @@ enum class ETimingEventsTrackType
 class FTimingEventsTrack : public FBaseTimingTrack
 {
 public:
-	FTimingEventsTrack(uint64 InTrackId, ETimingEventsTrackType InType, const FString& InName);
+	FTimingEventsTrack(uint64 InTrackId, ETimingEventsTrackType InType, const FString& InName, const TCHAR* InGroupName);
 	virtual ~FTimingEventsTrack();
 
 	ETimingEventsTrackType GetType() const { return Type; }
 	const FString& GetName() const { return Name; }
+
+	const TCHAR* GetGroupName() const { return GroupName; };
 
 	void SetOrder(int32 InOrder) { Order = InOrder; }
 	int32 GetOrder() const { return Order; }
@@ -71,6 +74,7 @@ public:
 public:
 	ETimingEventsTrackType Type;
 	FString Name;
+	const TCHAR* GroupName;
 	int32 Order;
 
 	int32 Depth; // number of lanes == Depth + 1

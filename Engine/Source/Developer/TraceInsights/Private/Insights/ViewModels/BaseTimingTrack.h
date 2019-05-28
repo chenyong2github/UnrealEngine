@@ -78,6 +78,8 @@ public:
 	virtual void Tick(const double CurrentTime, const float DeltaTime) {}
 	virtual void Update(const FTimingTrackViewport& Viewport) {}
 
+	static uint64 GenerateId() { return IdGenerator++; }
+
 private:
 	uint64 Id;
 
@@ -85,6 +87,8 @@ private:
 	float Height; // height, in Slate units
 
 	ETimingTrackFlags Flags;
+
+	static uint64 IdGenerator;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

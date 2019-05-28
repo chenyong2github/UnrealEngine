@@ -35,9 +35,15 @@ DECLARE_DELEGATE_RetVal(int32, FHoveredEventChangedDelegate);
 /** The delegate to be invoked when the selected timing event has changed. Returns id of timing event or -1 (if no event is hovered). */
 DECLARE_DELEGATE_RetVal(int32, FSelectedEventChangedDelegate);
 
+/** Defines FLoadingTrackGetEventNameDelegate delegate interface. Returns the name for a timing event in a Loading track. */
+DECLARE_DELEGATE_RetVal_TwoParams(const TCHAR*, FLoadingTrackGetEventNameDelegate, uint32 /*Depth*/, const Trace::FLoadTimeProfilerCpuEvent& /*Event*/);
+
 /** A custom widget used to display timing events. */
 class STimingView : public SCompoundWidget
 {
+private:
+	static constexpr float MinTooltipWidth = 110.0f;
+
 public:
 	/** Default constructor. */
 	STimingView();
@@ -66,6 +72,7 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	TSharedRef<SWidget> MakeTracksFilterMenu();
+	void CreateThreadGroupsMenu(FMenuBuilder& MenuBuilder);
 	void CreateTracksMenu(FMenuBuilder& MenuBuilder);
 
 	bool ShowHideAllCpuTracks_IsChecked() const;
@@ -73,6 +80,9 @@ public:
 
 	bool ShowHideAllGpuTracks_IsChecked() const;
 	void ShowHideAllGpuTracks_Execute();
+
+	bool ShowHideAllLoadingTracks_IsChecked() const;
+	void ShowHideAllLoadingTracks_Execute();
 
 	bool ShowHideAllIoTracks_IsChecked() const;
 	void ShowHideAllIoTracks_Execute();
@@ -82,6 +92,9 @@ public:
 
 	bool ToggleTrackVisibility_IsChecked(uint64 InTrackId) const;
 	void ToggleTrackVisibility_Execute(uint64 InTrackId);
+
+	bool ToggleTrackVisibilityByGroup_IsChecked(const TCHAR* InGroupName) const;
+	void ToggleTrackVisibilityByGroup_Execute(const TCHAR* InGroupName);
 
 	/** Resets internal widget's data to the default one. */
 	void Reset();
@@ -245,9 +258,16 @@ protected:
 		return FVector2D(16.0f, 16.0f);
 	}
 
-	FTimingEventsTrack* AddTimingEventsTrack(uint32 TrackId, ETimingEventsTrackType TrackType, const FString& TrackName, int32 Order);
+	FTimingEventsTrack* AddTimingEventsTrack(uint64 TrackId, ETimingEventsTrackType TrackType, const FString& TrackName, const TCHAR* GroupName, int32 Order);
 
-	void DrawCpuGpuTimelineTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
+	void DrawTimingProfilerTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
+
+	const TCHAR* GetLoadTimeProfilerEventNameByPackageEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
+	const TCHAR* GetLoadTimeProfilerEventNameByExportEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
+	const TCHAR* GetLoadTimeProfilerEventNameByPackageName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
+	const TCHAR* GetLoadTimeProfilerEventNameByExportClassName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
+	const TCHAR* GetLoadTimeProfilerEventName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
+	void DrawLoadTimeProfilerTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
 
 	void UpdateIo();
 	void DrawIoOverviewTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
@@ -282,12 +302,12 @@ protected:
 
 	void UpdateHoveredTimingEvent(float MX, float MY);
 
-	static bool SearchTimingEvent(const double InStartTime,
-								  const double InEndTime,
-								  TFunctionRef<bool(double, double, uint32, uint32)> InPredicate,
-								  FTimingEvent& InOutTimingEvent,
-								  bool bInStopAtFirstMatch,
-								  bool bInSearchForLargestEvent);
+	bool SearchTimingEvent(const double InStartTime,
+						   const double InEndTime,
+						   TFunctionRef<bool(double, double, uint32, uint32)> InPredicate,
+						   FTimingEvent& InOutTimingEvent,
+						   bool bInStopAtFirstMatch,
+						   bool bInSearchForLargestEvent) const;
 
 	void OnSelectedTimingEventChanged();
 	void SelectHoveredTimingEvent();
@@ -326,6 +346,7 @@ protected:
 protected:
 	bool bShowHideAllGpuTracks;
 	bool bShowHideAllCpuTracks;
+	bool bShowHideAllLoadingTracks;
 	bool bShowHideAllIoTracks;
 
 	////////////////////////////////////////////////////////////
@@ -338,18 +359,16 @@ protected:
 
 	////////////////////////////////////////////////////////////
 
-	//TODO: enum class FTimingTrackType
-	//{
-	//	TimeRuler,
-	//	Markers,
-	//	CpuEvents,
-	//	GpuEvents,
-	//	IoEvents,
-	//	Graph,
-	//	Other
-	//};
+	struct FThreadGroup
+	{
+		const TCHAR* Name;
+		bool bIsVisible;
+		uint32 NumTimelines;
+	};
 
-	mutable TMap<uint32, FTimingEventsTrack*> CachedTimelines; /**< all tracks */
+	mutable TMap<const TCHAR*, FThreadGroup> ThreadGroups; /**< thread groups */
+
+	mutable TMap<uint64, FTimingEventsTrack*> CachedTimelines; /**< all tracks */
 
 	//TODO: TArray<FBaseTimingTrack*> TopTracks; /**< tracks docked on top, in order to be displayed (top to bottom) */
 	//TODO: TArray<FBaseTimingTrack*> ScrollableTracks; /**< tracks in scrollable area, in order to be displayed (top to bottom) */
@@ -366,7 +385,15 @@ protected:
 	bool bUseDownSampling;
 
 	////////////////////////////////////////////////////////////
-	// IO
+	// Load time
+
+	FTimingEventsTrack* LoadingMainThreadTrack;
+	FTimingEventsTrack* LoadingAsyncThreadTrack;
+
+	FLoadingTrackGetEventNameDelegate LoadingGetEventNameFn;
+
+	////////////////////////////////////////////////////////////
+	// File activity (I/O)
 
 	FTimingEventsTrack* IoOverviewTrack;
 	FTimingEventsTrack* IoActivityTrack;

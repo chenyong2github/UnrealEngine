@@ -22,15 +22,15 @@ double is a 64 bit IEEE 754 double precision Floating Point Number
 
 namespace TimeUtils
 {
-	static const double Picosecond = 0.000000000001;
-	static const double Nanosecond = 0.000000001;
-	static const double Microsecond = 0.000001;
-	static const double Milisecond = 0.001;
-	static const double Second = 1.0;
-	static const double Minute = 60.0;
-	static const double Hour = 3600.0;
-	static const double Day = 86400.0;
-	static const double Week = 604800.0;
+	static constexpr double Picosecond = 0.000000000001;
+	static constexpr double Nanosecond = 0.000000001;
+	static constexpr double Microsecond = 0.000001;
+	static constexpr double Milisecond = 0.001;
+	static constexpr double Second = 1.0;
+	static constexpr double Minute = 60.0;
+	static constexpr double Hour = 3600.0;
+	static constexpr double Day = 86400.0;
+	static constexpr double Week = 604800.0;
 
 	struct FTimeSplit
 	{

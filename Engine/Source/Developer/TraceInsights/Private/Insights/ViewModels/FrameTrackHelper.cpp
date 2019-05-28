@@ -281,10 +281,10 @@ void FFrameTrackDrawHelper::DrawHighlightedInterval(const FFrameTrackTimeline& T
 		float X1 = Index1 * SampleW;
 		float X2 = Index2 * SampleW;
 
-		const float Y1 = 10.0f; // allows 10px for the horizontal scrollbar (one displayed on top of the track)
+		constexpr float Y1 = 12.0f; // allows 12px for the horizontal scrollbar (one displayed on top of the track)
 		const float Y2 = Viewport.Height;
-		const float D = 2.0f; // line thickness (for both horizontal and vertical lines)
-		const float H = 10.0f; // height of corner lines
+		constexpr float D = 2.0f; // line thickness (for both horizontal and vertical lines)
+		constexpr float H = 10.0f; // height of corner lines
 
 		const FLinearColor Color(1.0f, 1.0f, 1.0f, 1.0f);
 

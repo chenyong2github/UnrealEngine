@@ -74,8 +74,8 @@ FGraphTrack::~FGraphTrack()
 
 void FGraphTrack::UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport)
 {
-	static const float HeaderWidth = 100.0f;
-	static const float HeaderHeight = 14.0f;
+	constexpr float HeaderWidth = 100.0f;
+	constexpr float HeaderHeight = 14.0f;
 
 	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
 	{
@@ -159,9 +159,9 @@ void FGraphTrack::DrawSeries(const FGraphTrackSeries& Series, FDrawContext& Draw
 			for (int32 Index = 0; Index < NumPoints; ++Index)
 			{
 				const FVector2D& Pt = Series.Points[Index];
-				const float PtX = Pt.X - GraphTrackPointVisualSize / 2.0f - 1.0f;
-				const float PtY = GetPosY() + Pt.Y - GraphTrackPointVisualSize / 2.0f - 1.0f;
-				DrawContext.DrawBox(PtX, PtY, GraphTrackPointVisualSize + 2.0f, GraphTrackPointVisualSize + 2.0f, PointBrush, Series.BorderColor);
+				const float PtX = Pt.X - PointVisualSize / 2.0f - 1.0f;
+				const float PtY = GetPosY() + Pt.Y - PointVisualSize / 2.0f - 1.0f;
+				DrawContext.DrawBox(PtX, PtY, PointVisualSize + 2.0f, PointVisualSize + 2.0f, PointBrush, Series.BorderColor);
 			}
 			DrawContext.LayerId++;
 		}
@@ -170,9 +170,9 @@ void FGraphTrack::DrawSeries(const FGraphTrackSeries& Series, FDrawContext& Draw
 		for (int32 Index = 0; Index < NumPoints; ++Index)
 		{
 			const FVector2D& Pt = Series.Points[Index];
-			const float PtX = Pt.X - GraphTrackPointVisualSize / 2.0f;
-			const float PtY = GetPosY() + Pt.Y - GraphTrackPointVisualSize / 2.0f;
-			DrawContext.DrawBox(PtX, PtY, GraphTrackPointVisualSize, GraphTrackPointVisualSize, PointBrush, Series.Color);
+			const float PtX = Pt.X - PointVisualSize / 2.0f;
+			const float PtY = GetPosY() + Pt.Y - PointVisualSize / 2.0f;
+			DrawContext.DrawBox(PtX, PtY, PointVisualSize, PointVisualSize, PointBrush, Series.Color);
 		}
 		DrawContext.LayerId++;
 
@@ -183,7 +183,7 @@ void FGraphTrack::DrawSeries(const FGraphTrackSeries& Series, FDrawContext& Draw
 		if (bDrawPointsWithBorder)
 		{
 			// Draw borders.
-			const float BorderPtSize = GraphTrackPointVisualSize;
+			const float BorderPtSize = PointVisualSize;
 			//FVector2D BorderRotationPoint(BorderPtSize / 2.0f, BorderPtSize / 2.0f);
 			for (int32 Index = 0; Index < NumPoints; ++Index)
 			{
@@ -197,7 +197,7 @@ void FGraphTrack::DrawSeries(const FGraphTrackSeries& Series, FDrawContext& Draw
 		}
 
 		// Draw points as rectangles.
-		const float PtSize = GraphTrackPointVisualSize - 2.0f;
+		const float PtSize = PointVisualSize - 2.0f;
 		//FVector2D RotationPoint(PtSize / 2.0f, PtSize / 2.0f);
 		for (int32 Index = 0; Index < NumPoints; ++Index)
 		{
@@ -260,8 +260,8 @@ void FRandomGraphTrack::GenerateSeries(FGraphTrackSeries& Series, const FTimingT
 	//////////////////////////////////////////////////
 	// Generate random events.
 
-	static const double MinDeltaTime = 0.0000001; // 100ns
-	static const double MaxDeltaTime = 0.01; // 100ms
+	constexpr double MinDeltaTime = 0.0000001; // 100ns
+	constexpr double MaxDeltaTime = 0.01; // 100ms
 	const float MinValue = 0;
 	const float MaxValue = GetHeight();
 
@@ -444,7 +444,7 @@ void FGraphTrackBuilder::BeginPoints()
 	PointsCurrentX = -DBL_MAX;
 
 	PointsAtCurrentX.Reset();
-	int32 MaxPointsPerLineScan = FMath::CeilToInt(Track.GetHeight() / GraphTrackPointDY);
+	int32 MaxPointsPerLineScan = FMath::CeilToInt(Track.GetHeight() / FGraphTrack::PointSizeY);
 	if (MaxPointsPerLineScan > 0)
 	{
 		PointsAtCurrentX.AddDefaulted(MaxPointsPerLineScan);
@@ -456,15 +456,15 @@ void FGraphTrackBuilder::BeginPoints()
 void FGraphTrackBuilder::AddPoint(double Time, double Value)
 {
 	const float X = Viewport.TimeToSlateUnitsRounded(Time);
-	if (X < -GraphTrackPointVisualSize / 2.0f || X >= Viewport.Width + GraphTrackPointVisualSize / 2.0f)
+	if (X < -FGraphTrack::PointVisualSize / 2.0f || X >= Viewport.Width + FGraphTrack::PointVisualSize / 2.0f)
 	{
 		return;
 	}
 
 	// Align the X with a grid of GraphTrackPointDX pixels in size, in the global space (i.e. scroll independent).
-	const double AlignedX = FMath::RoundToDouble(Time * Viewport.ScaleX / GraphTrackPointDX) * GraphTrackPointDX;
+	const double AlignedX = FMath::RoundToDouble(Time * Viewport.ScaleX / FGraphTrack::PointSizeX) * FGraphTrack::PointSizeX;
 
-	if (AlignedX > PointsCurrentX + GraphTrackPointDX - 0.5)
+	if (AlignedX > PointsCurrentX + FGraphTrack::PointSizeX - 0.5)
 	{
 		FlushPoints();
 		PointsCurrentX = AlignedX;
@@ -472,7 +472,7 @@ void FGraphTrackBuilder::AddPoint(double Time, double Value)
 
 	const float Y = Track.GetYForValue(Value);
 
-	int32 Index = FMath::RoundToInt(Y / GraphTrackPointDY);
+	int32 Index = FMath::RoundToInt(Y / FGraphTrack::PointSizeY);
 	if (Index >= 0 && Index < PointsAtCurrentX.Num())
 	{
 		FPointInfo& Pt = PointsAtCurrentX[Index];

@@ -28,6 +28,18 @@ public:
 	};
 
 private:
+	enum class EDrawLayer : int32
+	{
+		EventBorder,
+		EventFill,
+		EventText,
+		TimelineHeader,
+		TimelineText,
+
+		Count,
+	};
+	static int32 ToInt32(EDrawLayer Layer) { return static_cast<int32>(Layer); }
+
 	struct FBoxData
 	{
 		float X1;

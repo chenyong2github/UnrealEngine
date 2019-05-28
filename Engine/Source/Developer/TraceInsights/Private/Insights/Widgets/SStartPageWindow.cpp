@@ -484,15 +484,15 @@ TSharedRef<SWidget> SStartPageWindow::ConstructModuleList()
 	TSharedRef<Trace::IModuleService> ModuleService = FInsightsManager::Get()->GetModuleService();
 	ModuleService->GetAvailableModules(AvailableModules);
 
-	const bool bDefaultIsModuleEnabledState = true;
+	constexpr bool bDefaultModuleEnableState = false;
 	AvailableModulesEnabledState.Reset();
 
 	for (int32 ModuleIndex = 0; ModuleIndex < AvailableModules.Num(); ++ModuleIndex)
 	{
 		const Trace::FModuleInfo& Module = AvailableModules[ModuleIndex];
 
-		AvailableModulesEnabledState.Add(bDefaultIsModuleEnabledState);
-		ModuleService->SetModuleEnabled(Module.Name, bDefaultIsModuleEnabledState);
+		AvailableModulesEnabledState.Add(bDefaultModuleEnableState);
+		ModuleService->SetModuleEnabled(Module.Name, bDefaultModuleEnableState);
 
 		VerticalBox->AddSlot()
 			.AutoHeight()

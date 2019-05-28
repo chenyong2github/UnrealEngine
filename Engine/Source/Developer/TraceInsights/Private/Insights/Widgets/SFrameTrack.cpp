@@ -108,8 +108,8 @@ void SFrameTrack::Construct(const FArguments& InArgs)
 			.Orientation(Orient_Horizontal)
 			.AlwaysShowScrollbar(false)
 			.Visibility(EVisibility::Visible)
-			.Thickness(FVector2D(4.0f, 4.0f))
-			.RenderOpacity(0.5)
+			.Thickness(FVector2D(5.0f, 5.0f))
+			.RenderOpacity(0.75)
 			.OnUserScrolled(this, &SFrameTrack::HorizontalScrollBar_OnUserScrolled)
 		]
 	];
@@ -700,7 +700,7 @@ FReply SFrameTrack::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 	{
 		// Zoom in/out vertically.
 		const float Delta = MouseEvent.GetWheelDelta();
-		static const float ZoomStep = 0.25f; // as percent
+		constexpr float ZoomStep = 0.25f; // as percent
 		float ScaleY;
 
 		if (Delta > 0)
@@ -729,7 +729,7 @@ FReply SFrameTrack::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 
 void SFrameTrack::ZoomHorizontally(const float Delta, const float X)
 {
-	static const float ZoomStep = 0.25f; // as percent
+	constexpr float ZoomStep = 0.25f; // as percent
 	float ScaleX;
 
 	if (Delta > 0)

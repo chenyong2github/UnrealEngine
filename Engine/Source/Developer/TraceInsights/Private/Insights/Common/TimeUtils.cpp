@@ -764,7 +764,7 @@ PRAGMA_ENABLE_OPTIMIZATION
 PRAGMA_DISABLE_OPTIMIZATION
 void TestOptimizationIssue()
 {
-	static const double Ns = 0.000000001;
+	constexpr double Ns = 0.000000001;
 	int32 D1 = GetNumDigits(Ns);
 	int32 D2 = GetNumDigitsOptDisabled(Ns);
 	//UE_LOG(TimingProfiler, Log, TEXT("D1 = %d, D2 = %d"), D1, D2);

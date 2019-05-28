@@ -29,6 +29,9 @@ public:
 				const double SelectionStartTime = 0.0,
 				const double SelectionEndTime = 0.0) const;
 
+private:
+	void DrawBackground(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
+
 public:
 	// Slate resources
 	const FSlateBrush* WhiteBrush;

@@ -34,41 +34,58 @@ void FTimingEventsTrackLayout::ForceCompactMode()
 
 void FTimingEventsTrackLayout::Update()
 {
-	const float LayoutTransitionSpeed = 0.25f;
+	constexpr float LayoutTransitionSpeed = 0.25f;
 
 	if (bIsCompactMode)
 	{
 		if (EventH > CompactLayoutEventH)
+		{
 			EventH -= LayoutTransitionSpeed;
+		}
 		if (EventDY > CompactLayoutEventDY)
+		{
 			EventDY -= LayoutTransitionSpeed;
+		}
 		if (TimelineDY > CompactLayoutTimelineDY)
+		{
 			TimelineDY -= LayoutTransitionSpeed;
+		}
 	}
 	else
 	{
 		if (EventH < NormalLayoutEventH)
+		{
 			EventH += LayoutTransitionSpeed;
+		}
 		if (EventDY < NormalLayoutEventDY)
+		{
 			EventDY += LayoutTransitionSpeed;
+		}
 		if (TimelineDY < NormalLayoutTimelineDY)
+		{
 			TimelineDY += LayoutTransitionSpeed;
+		}
 	}
 
 	if (MinTimelineH > TargetMinTimelineH)
+	{
 		MinTimelineH -= LayoutTransitionSpeed;
+	}
 	else if (MinTimelineH < TargetMinTimelineH)
+	{
 		MinTimelineH += LayoutTransitionSpeed;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FTimingEventsTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTimingEventsTrack::FTimingEventsTrack(uint64 InTrackId, ETimingEventsTrackType InType, const FString& InName)
+FTimingEventsTrack::FTimingEventsTrack(uint64 InTrackId, ETimingEventsTrackType InType, const FString& InName, const TCHAR* InGroupName)
 	: FBaseTimingTrack(InTrackId)
 	, Type(InType)
 	, Name(InName)
+	, GroupName(InGroupName)
 	, Depth(-1)
 	, bIsCollapsed(false)
 {
@@ -94,8 +111,8 @@ void FTimingEventsTrack::Reset()
 
 void FTimingEventsTrack::UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport)
 {
-	static const float HeaderWidth = 100.0f;
-	static const float HeaderHeight = 14.0f;
+	constexpr float HeaderWidth = 100.0f;
+	constexpr float HeaderHeight = 14.0f;
 
 	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
 	{

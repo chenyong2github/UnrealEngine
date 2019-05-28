@@ -14,17 +14,6 @@ class FTimingTrackViewport;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static const float DefaultGraphTrackH = 100.0f; // in pixels (Slate units)
-
-// Visual size of points (in pixels).
-static const float GraphTrackPointVisualSize = 7.0f;
-
-// Size of points (in pixels) used in reduction algorithm.
-static const double GraphTrackPointDX = 3.0f;
-static const float GraphTrackPointDY = 3.0f;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 struct FGraphBox
 {
 	float X;
@@ -68,6 +57,14 @@ protected:
 class FGraphTrack : public FBaseTimingTrack
 {
 	friend class FGraphTrackBuilder;
+
+private:
+	// Visual size of points (in pixels).
+	static constexpr float PointVisualSize = 7.0f;
+
+	// Size of points (in pixels) used in reduction algorithm.
+	static constexpr double PointSizeX = 3.0f;
+	static constexpr float PointSizeY = 3.0f;
 
 public:
 	FGraphTrack(uint64 InTrackId);
