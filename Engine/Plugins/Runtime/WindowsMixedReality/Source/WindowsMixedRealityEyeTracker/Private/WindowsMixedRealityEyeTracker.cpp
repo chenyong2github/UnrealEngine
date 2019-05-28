@@ -2,6 +2,7 @@
 #include "EyeTrackerTypes.h"
 #include "IEyeTracker.h"
 #include "Modules/ModuleManager.h"
+#include "GameFramework/WorldSettings.h"
 #include "Engine/World.h"
 
 #if WITH_WINDOWS_MIXED_REALITY
