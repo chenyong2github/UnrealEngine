@@ -138,9 +138,15 @@ bool UAnimGraphNode_UseCachedPose::IsActionFilteredOut(class FBlueprintActionFil
 		{
 			// Get layer we are in (i.e. the last outer that is a graph)
 			UEdGraph* OuterLayer = Graph;
-			while(UEdGraph* TestGraphOuter = Cast<UEdGraph>(OuterLayer->GetOuter()))
+			UObject* TestGraphOuter = OuterLayer->GetOuter();
+			while (TestGraphOuter)
 			{
-				OuterLayer = TestGraphOuter;
+				if (UEdGraph* EdGraph = Cast<UEdGraph>(TestGraphOuter))
+				{
+					OuterLayer = EdGraph;
+				}
+
+				TestGraphOuter = TestGraphOuter->GetOuter();
 			}
 
 			// Check if the save cached pose node has the layer in its outer chain
