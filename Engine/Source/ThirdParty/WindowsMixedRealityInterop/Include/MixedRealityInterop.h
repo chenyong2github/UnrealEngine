@@ -21,7 +21,7 @@
 #pragma warning(disable:4005)  
 
 //wrap for non-windows platforms
-#if PLATFORM_HOLOLENS || PLATFORM_WINDOWS
+#if !__UNREAL__ || (PLATFORM_HOLOLENS || PLATFORM_WINDOWS)
 #include <Windows.h>
 #include <string>
 
@@ -70,6 +70,28 @@ struct MIXEDREALITYINTEROP_API MeshUpdate
 	int NumIndices = 0;
 	/** The indices for the mesh */
 	void* Indices = nullptr;
+};
+
+// QR code data structure to pass data back to UE4
+struct MIXEDREALITYINTEROP_API QRCodeData
+{
+	GUID				Id;
+
+	/** Location of this QR code in UE4 world space */
+	float Translation[3] = { 0.f, 0.f, 0.f };
+	/** Quaternion rotation of this QR code - requires normalization on the UE4 side before use */
+	float Rotation[4] = { 0.f, 0.f, 0.f, 1.f };
+
+	/** Version number of the QR code */
+	int32				Version;
+	/** Physical width and height of the QR code in meters (all QR codes are square) */
+	float				SizeInMeters;
+	/** Timestamp in seconds of the last time this QR code was seen */
+	float				LastSeenTimestamp;
+	/** Size in wchar_t's of the QR code's data string */
+	uint32				DataSize;
+	/** Data string embedded in the QR code */
+	wchar_t*			Data;
 };
 
 namespace WindowsMixedReality
@@ -409,7 +431,7 @@ namespace WindowsMixedReality
 		WindowsMixedReality::HMDSpatialLocatability GetTrackingState();
 
 		// QR code tracking
-		void StartQRCodeTracking(void(*AddedFunctionPointer)(), void(*UpdatedFunctionPointer)(), void(*RemovedFunctionPointer)());
+		void StartQRCodeTracking(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*));
 		void StopQRCodeTracking();
 
 #if PLATFORM_HOLOLENS
@@ -420,6 +442,8 @@ namespace WindowsMixedReality
 #endif
 	};
 }
+
+
 
 /** Singleton that provides access to the camera images as they come in */
 class MIXEDREALITYINTEROP_API CameraImageCapture

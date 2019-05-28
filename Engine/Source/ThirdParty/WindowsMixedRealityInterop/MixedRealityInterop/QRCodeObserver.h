@@ -21,10 +21,12 @@ public:
 	/** To route logging messages back to the UE_LOG() macros */
 	void SetOnLog(void(*FunctionPointer)(const wchar_t* LogMsg));
 
-	void StartQRCodeObserver(void(*AddedFunctionPointer)(), void(*UpdatedFunctionPointer)(), void(*RemovedFunctionPointer)());
+	void StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*));
+	void UpdateCoordinateSystem(Windows::Perception::Spatial::SpatialCoordinateSystem^ InCoordinateSystem);
 	void StopQRCodeObserver();
 
 	void Log(const wchar_t* LogMsg);
+	void Log(std::wstringstream& stream);
 
 private:
 	QRCodeUpdateObserver();
@@ -33,11 +35,11 @@ private:
 	/** Function pointer for logging */
 	void(*OnLog)(const wchar_t*);
 	/** Function pointer for telling UE4 a new code has been found */
-	void(*OnAddedQRCode)();
+	void(*OnAddedQRCode)(QRCodeData*);
 	/** Function pointer for telling UE4 a code has been updated */
-	void(*OnUpdatedQRCode)();
+	void(*OnUpdatedQRCode)(QRCodeData*);
 	/** Function pointer for telling UE4 a code has been removed */
-	void(*OnRemovedQRCode)();
+	void(*OnRemovedQRCode)(QRCodeData*);
 
 	static QRCodeUpdateObserver* ObserverInstance;
 

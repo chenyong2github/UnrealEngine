@@ -712,22 +712,22 @@ void FHoloLensARSystem::ReconcileKnownMeshes(const TArray<FGuid>& KnownMeshes)
 }
 
 // QR code tracking
-void FHoloLensARSystem::QRCodeAdded_Raw()
+void FHoloLensARSystem::QRCodeAdded_Raw(QRCodeData* code)
 {
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
-	HoloLensARThis->QRCodeAdded();
+	HoloLensARThis->QRCodeAdded(code);
 }
 
-void FHoloLensARSystem::QRCodeUpdated_Raw()
+void FHoloLensARSystem::QRCodeUpdated_Raw(QRCodeData* code)
 {
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
-	HoloLensARThis->QRCodeUpdated();
+	HoloLensARThis->QRCodeUpdated(code);
 }
 
-void FHoloLensARSystem::QRCodeRemoved_Raw()
+void FHoloLensARSystem::QRCodeRemoved_Raw(QRCodeData* code)
 {
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
-	HoloLensARThis->QRCodeRemoved();
+	HoloLensARThis->QRCodeRemoved(code);
 }
 
 void FHoloLensARSystem::SetupQRCodeTracking()
@@ -738,19 +738,67 @@ void FHoloLensARSystem::SetupQRCodeTracking()
 	UE_LOG(LogHoloLensAR, Log, TEXT("FHoloLensARSystem::SetupQRCodeTracking() called"));
 }
 
-void FHoloLensARSystem::QRCodeAdded()
+static void DebugDumpQRData(QRCodeData* code)
+{
+	FGuid g(code->Id.Data1, code->Id.Data2, code->Id.Data3, *((uint32*)code->Id.Data4));
+	UE_LOG(LogHoloLensAR, Log, TEXT("  Id = %s"), *(g.ToString(EGuidFormats::DigitsWithHyphensInBraces)));
+	UE_LOG(LogHoloLensAR, Log, TEXT("  Version = %d"), code->Version);
+	UE_LOG(LogHoloLensAR, Log, TEXT("  SizeM = %0.3f"), code->SizeInMeters);
+	UE_LOG(LogHoloLensAR, Log, TEXT("  Timestamp = %0.6f"), code->LastSeenTimestamp);
+	UE_LOG(LogHoloLensAR, Log, TEXT("  DataSize = %d"), code->DataSize);
+	if ((code->DataSize > 0) && (code->Data != nullptr))
+	{
+		UE_LOG(LogHoloLensAR, Log, TEXT("  Data = %s"), code->Data);
+	}
+
+	FVector Translation = WindowsMixedReality::WMRUtility::FromMixedRealityVector(DirectX::XMFLOAT3(code->Translation[0], code->Translation[1], code->Translation[2])) * 100.0f;
+	FQuat Orientation = WindowsMixedReality::WMRUtility::FromMixedRealityQuaternion(DirectX::XMFLOAT4(code->Rotation[0], code->Rotation[1], code->Rotation[2], code->Rotation[3]));
+	Orientation.Normalize();
+	UE_LOG(LogHoloLensAR, Log, TEXT("  Location = %s"), *Translation.ToString());
+	UE_LOG(LogHoloLensAR, Log, TEXT("  Orientation = %s"), *Orientation.ToString());
+}
+
+//
+// Currently, only relatively large sized codes can be tracked (at least 4 inches on a side but even that seems barely usable even at very close range (<30cm or so))
+// Codes also seem to update at randomly slow intervals when moved in the environment...testing seemed to show less than 1 update per second even if you are looking directly at it and moving it around
+// Sometimes it would update faster and sometimes super slowly
+// Codes would sometimes trigger an Added or Updated event even if they weren't visible at all
+//
+// @todo: Once the MS-provided library is more stable and consistent, do the following:
+// - add each new code to a list along with it's needed data
+// - update already found codes with new data
+// - remove dead/very old/unseen codes (however, MS says the Removed event is not currently implemented, so this is unclear right now when codes 'expire')
+// - provide Blueprint functionality to get the transform and data content of a code by name so content can be pinned to it
+// - Text-type codes can have an arbitrary string in them which can be used for naming or other metadata
+//
+void FHoloLensARSystem::QRCodeAdded(QRCodeData* code)
 {
 	UE_LOG(LogHoloLensAR, Log, TEXT("FHoloLensARSystem::QRCodeAdded() called"));
+
+	if (code != nullptr)
+	{
+//		DebugDumpQRData(code);
+	}
 }
 
-void FHoloLensARSystem::QRCodeUpdated()
+void FHoloLensARSystem::QRCodeUpdated(QRCodeData* code)
 {
 	UE_LOG(LogHoloLensAR, Log, TEXT("FHoloLensARSystem::QRCodeUpdated() called"));
+
+	if (code != nullptr)
+	{
+//		DebugDumpQRData(code);
+	}
 }
 
-void FHoloLensARSystem::QRCodeRemoved()
+void FHoloLensARSystem::QRCodeRemoved(QRCodeData* code)
 {
 	UE_LOG(LogHoloLensAR, Log, TEXT("FHoloLensARSystem::QRCodeRemoved() called"));
+
+	if (code != nullptr)
+	{
+//		DebugDumpQRData(code);
+	}
 }
 
 #endif

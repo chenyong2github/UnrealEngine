@@ -96,7 +96,8 @@ namespace WindowsMixedReality
 	void UpdateMeshObserverBoundingVolume(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem, winrt::Windows::Foundation::Numerics::float3 Position);
 	void StopMeshObserver();
 
-	void StartQRCodeObserver(void(*AddedFunctionPointer)(), void(*UpdatedFunctionPointer)(), void(*RemovedFunctionPointer)());
+	void StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*));
+	void UpdateQRCodeObserverCoordinateSystem(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem);
 	void StopQRCodeObserver();
 
 	bool bInitialized = false;
@@ -376,14 +377,14 @@ namespace WindowsMixedReality
 			{
 				locatorAttachedCoordinateSystem = AttachedReferenceFrame.GetStationaryCoordinateSystemAtTimestamp(Prediction.Timestamp());
 
-				// CNN - Not sure if this pointerPose needs to be here...
 				SpatialPointerPose pointerPose = SpatialPointerPose::TryGetAtTimestamp(StationaryReferenceFrame.CoordinateSystem(), Prediction.Timestamp());
 
 				if (pointerPose != nullptr)
 				{
 					AttachedReferenceFrame.RelativePosition(pointerPose.Head().Position());
-					// Let the mesh observer update its transform
+					// Let the mesh observer and the QR code observer update their transforms
 					UpdateMeshObserverBoundingVolume(CoordinateSystem, pointerPose.Head().Position());
+					UpdateQRCodeObserverCoordinateSystem(CoordinateSystem);
 				}
 
 				orientationOnlyTransform = Pose.TryGetViewTransform(locatorAttachedCoordinateSystem);
@@ -3098,7 +3099,7 @@ namespace WindowsMixedReality
 		StopMeshObserver();
 	}
 
-	void MixedRealityInterop::StartQRCodeTracking(void(*AddedFunctionPointer)(), void(*UpdatedFunctionPointer)(), void(*RemovedFunctionPointer)())
+	void MixedRealityInterop::StartQRCodeTracking(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*))
 	{
 		StartQRCodeObserver(AddedFunctionPointer, UpdatedFunctionPointer, RemovedFunctionPointer);
 	}
@@ -3165,7 +3166,7 @@ namespace WindowsMixedReality
 
 namespace WindowsMixedReality
 {
-	void StartQRCodeObserver(void(*AddedFunctionPointer)(), void(*UpdatedFunctionPointer)(), void(*RemovedFunctionPointer)())
+	void StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*))
 	{
 #if PLATFORM_HOLOLENS
 		QRCodeUpdateObserver& Instance = QRCodeUpdateObserver::Get();
@@ -3175,7 +3176,15 @@ namespace WindowsMixedReality
 #endif
 	}
 
-	void StopQRCodeObserver()
+	void UpdateQRCodeObserverCoordinateSystem(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem)
+	{
+#if PLATFORM_HOLOLENS
+		QRCodeUpdateObserver& Instance = QRCodeUpdateObserver::Get();
+		Instance.UpdateCoordinateSystem(to_cx<Windows::Perception::Spatial::SpatialCoordinateSystem>(InCoordinateSystem));
+#endif
+	}
+
+void StopQRCodeObserver()
 	{
 #if PLATFORM_HOLOLENS
 		QRCodeUpdateObserver& Instance = QRCodeUpdateObserver::Get();

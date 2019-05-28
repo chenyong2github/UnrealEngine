@@ -26,12 +26,17 @@ using namespace Windows::Foundation::Numerics;
 using namespace Windows::UI::Input::Spatial;
 using namespace std::placeholders;
 
+using namespace DirectX;
+
 /** Controls access to our references */
 std::mutex QRCodeRefsLock;
 
 Windows::Foundation::EventRegistrationToken OnAddedEventToken;
 Windows::Foundation::EventRegistrationToken OnUpdatedEventToken;
 Windows::Foundation::EventRegistrationToken OnRemovedEventToken;
+
+static double QPCSecondsPerTick = 0.0f;
+static Windows::Perception::Spatial::SpatialCoordinateSystem^ LastCoordinateSystem = nullptr;
 
 QRCodeUpdateObserver* QRCodeUpdateObserver::ObserverInstance = nullptr;
 
@@ -41,6 +46,9 @@ QRCodeUpdateObserver::QRCodeUpdateObserver()
 	, OnUpdatedQRCode(nullptr)
 	, OnRemovedQRCode(nullptr)
 {
+	LARGE_INTEGER QPCFreq;
+	QueryPerformanceFrequency(&QPCFreq);
+	QPCSecondsPerTick = 1.0f / QPCFreq.QuadPart;
 }
 
 QRCodeUpdateObserver::~QRCodeUpdateObserver()
@@ -79,42 +87,123 @@ void QRCodeUpdateObserver::Log(const wchar_t* LogMsg)
 	}
 }
 
-std::vector<float3> CreateRectangle(float width, float height)
+void QRCodeUpdateObserver::Log(std::wstringstream& stream)
 {
-	std::vector<float3> vertices(4);
-
-	vertices[0] = { 0, 0, 0 };
-	vertices[1] = { width, 0, 0 };
-	vertices[2] = { width, height, 0 };
-	vertices[3] = { 0, height, 0 };
-
-	return vertices;
+	if (OnLog != nullptr)
+	{
+		OnLog(stream.str().c_str());
+	}
 }
 
+static void CopyQRCodeDataManually(QRCodeData* code, Guid InId, int32 InVersion, float InPhysicalSize, long long InQPCTicks, uint32 InDataSize, String^ InData)
+{
+	code->Id = InId;
+	code->Version = InVersion;
+	code->SizeInMeters = InPhysicalSize;
+	code->LastSeenTimestamp = (float)(QPCSecondsPerTick * (double)InQPCTicks);
+	code->DataSize = InDataSize;
+	code->Data = nullptr;
+	if (code->DataSize > 0)
+	{
+		code->Data = new wchar_t[code->DataSize + 1];
+		if (code->Data != nullptr)
+		{
+			memcpy(code->Data, InData->Data(), code->DataSize * sizeof(wchar_t));
+			code->Data[code->DataSize] = 0;
+		}
+	}
+
+	code->Translation[0] = 0.0f;
+	code->Translation[1] = 0.0f;
+	code->Translation[2] = 0.0f;
+	code->Rotation[0] = 0.0f;
+	code->Rotation[1] = 0.0f;
+	code->Rotation[2] = 0.0f;
+	code->Rotation[3] = 1.0f;
+	if (LastCoordinateSystem != nullptr)
+	{
+		Windows::Perception::Spatial::SpatialCoordinateSystem^ qrCoordinateSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(InId);
+		auto CodeTransform = qrCoordinateSystem->TryGetTransformTo(LastCoordinateSystem);
+		if (CodeTransform != nullptr)
+		{
+			XMMATRIX ConvertTransform = XMLoadFloat4x4(&CodeTransform->Value);
+			XMVECTOR Scale, Rot, Trans;
+			if (XMMatrixDecompose(&Scale, &Rot, &Trans, ConvertTransform))
+			{
+				XMFLOAT3 OutTrans;
+				XMFLOAT4 OutRot;
+				XMStoreFloat4(&OutRot, Rot);
+				XMStoreFloat3(&OutTrans, Trans);
+				code->Translation[0] = OutTrans.x;
+				code->Translation[1] = OutTrans.y;
+				code->Translation[2] = OutTrans.z;
+				code->Rotation[0] = OutRot.x;
+				code->Rotation[1] = OutRot.y;
+				code->Rotation[2] = OutRot.z;
+				code->Rotation[3] = OutRot.w;
+			}
+		}
+	}
+}
+
+#pragma warning(disable:4691)
+
+// Why are all of these *EventArgs different even though they seem to have the same data?
 void QRCodeUpdateObserver::OnAdded(QRCodesTrackerPlugin::QRCodeAddedEventArgs ^args)
 {
- 	std::vector<float3> qrVertices = CreateRectangle(args->Code->PhysicalSizeMeters, args->Code->PhysicalSizeMeters);
-	std::vector<uint16> qrCodeIndices{ 0, 1, 2, 0, 2, 3 };
-	Windows::Perception::Spatial::SpatialCoordinateSystem^ qrCoordinateSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(args->Code->Id);
-
-	// @todo: CNN add QR struct to pass data back to UE4 to add to list; probably need alloc cb
-	// Tell UE4
-	ObserverInstance->OnAddedQRCode();
+	if ((args != nullptr) && (args->Code != nullptr))
+	{
+		QRCodeData* code = new QRCodeData;
+		if (code != nullptr)
+		{
+			CopyQRCodeDataManually(code, args->Code->Id, args->Code->Version, args->Code->PhysicalSizeMeters, args->Code->LastDetectedQPCTicks, args->Code->Code->Length(), args->Code->Code);
+			ObserverInstance->OnAddedQRCode(code);
+			if (code->Data != nullptr)
+			{
+				delete[] code->Data;
+			}
+			delete code;
+		}
+	}
 }
 
 void QRCodeUpdateObserver::OnUpdated(QRCodesTrackerPlugin::QRCodeUpdatedEventArgs ^args)
 {
-	// Tell UE4
-	ObserverInstance->OnUpdatedQRCode();
+	if ((args != nullptr) && (args->Code != nullptr))
+	{
+		QRCodeData* code = new QRCodeData;
+		if (code != nullptr)
+		{
+			CopyQRCodeDataManually(code, args->Code->Id, args->Code->Version, args->Code->PhysicalSizeMeters, args->Code->LastDetectedQPCTicks, args->Code->Code->Length(), args->Code->Code);
+			ObserverInstance->OnUpdatedQRCode(code);
+			if (code->Data != nullptr)
+			{
+				delete[] code->Data;
+			}
+			delete code;
+		}
+	}
 }
 
 void QRCodeUpdateObserver::OnRemoved(QRCodesTrackerPlugin::QRCodeRemovedEventArgs ^args)
 {
-	// Tell UE4
-	ObserverInstance->OnRemovedQRCode();
+	if ((args != nullptr) && (args->Code != nullptr))
+	{
+		QRCodeData* code = new QRCodeData;
+		if (code != nullptr)
+		{
+			CopyQRCodeDataManually(code, args->Code->Id, args->Code->Version, args->Code->PhysicalSizeMeters, args->Code->LastDetectedQPCTicks, args->Code->Code->Length(), args->Code->Code);
+			ObserverInstance->OnRemovedQRCode(code);
+			if (code->Data != nullptr)
+			{
+				delete[] code->Data;
+			}
+			delete code;
+		}
+	}
 }
 
-void QRCodeUpdateObserver::StartQRCodeObserver(void(*AddedFunctionPointer)(), void(*UpdatedFunctionPointer)(), void(*RemovedFunctionPointer)())
+void QRCodeUpdateObserver::StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*))
 {
 	OnAddedQRCode = AddedFunctionPointer;
 	if (OnAddedQRCode == nullptr)
@@ -150,7 +239,7 @@ void QRCodeUpdateObserver::StartQRCodeObserver(void(*AddedFunctionPointer)(), vo
 		QRCodesTrackerPlugin::QRTrackerStartResult ret = QRTrackerInstance->Start();
 		if (ret != QRCodesTrackerPlugin::QRTrackerStartResult::Success)
 		{
-			{ std::wstringstream string; string << L"QRCodesTrackerPlugin failed to start! Aborting with error code " << static_cast<int32>(ret); Log(string.str().c_str()); }
+			{ std::wstringstream string; string << L"QRCodesTrackerPlugin failed to start! Aborting with error code " << static_cast<int32>(ret); Log(string); }
 			QRTrackerInstance->Stop();
 			QRTrackerInstance = nullptr;
 
@@ -159,6 +248,22 @@ void QRCodeUpdateObserver::StartQRCodeObserver(void(*AddedFunctionPointer)(), vo
 
 		Log(L"Interop: StartQRCodeObserver() success!");
 	}
+	else
+	{
+		Log(L"Interop: StartQRCodeObserver() already called!");
+	}
+}
+
+#pragma warning(default:4691)
+
+void QRCodeUpdateObserver::UpdateCoordinateSystem(Windows::Perception::Spatial::SpatialCoordinateSystem^ InCoordinateSystem)
+{
+	if (InCoordinateSystem == nullptr)
+	{
+		return;
+	}
+
+	LastCoordinateSystem = InCoordinateSystem;
 }
 
 void QRCodeUpdateObserver::StopQRCodeObserver()
