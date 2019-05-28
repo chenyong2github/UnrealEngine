@@ -8775,10 +8775,11 @@ std::string CompilerMSL::access_chain_internal(uint32_t base, const uint32_t *in
 	
 	auto* tess_var = maybe_get_backing_variable(base);
 	bool tess_control_input = (get_execution_model() == ExecutionModelTessellationControl && tess_var && tess_var->storage == StorageClassInput);
-	bool tess_eval_input = (get_execution_model() == ExecutionModelTessellationEvaluation && tess_var && tess_var->storage == StorageClassInput);
+	bool tess_eval_input = (get_execution_model() == ExecutionModelTessellationEvaluation && tess_var && tess_var->storage == StorageClassInput && expr.find("gl_in") == string::npos);
 	bool tess_eval_input_array = (get_execution_model() == ExecutionModelTessellationEvaluation && access_chain_is_arrayed && expr.find("gl_in[") != string::npos);
     /* UE Change Begin: Workaround SPIRV losing an array indirection in tessellation shaders - not the best solution but enough to keep things progressing. */
-	bool tess_control_input_array = (get_execution_model() == ExecutionModelTessellationControl && type->array.size() == 2 && type->array[0] == 1);
+	bool tess_control_input_array = (get_execution_model() == ExecutionModelTessellationControl && type->array.size() == 2 && type->array[0] >= 1);
+	uint32_t tess_control_input_array_num = type->array[0];
 	
 	const auto append_index = [&](uint32_t index) {
 		std::string name;
@@ -8787,7 +8788,7 @@ std::string CompilerMSL::access_chain_internal(uint32_t base, const uint32_t *in
 			name = expr;
 			expr = "gl_in";
 		}
-		else if (tess_eval_input) {
+		else if (tess_eval_input && !tess_eval_input_array) {
 			name = expr;
 			expr = to_expression(patch_stage_in_var_id) + ".gl_in";
 		}
@@ -8864,7 +8865,17 @@ std::string CompilerMSL::access_chain_internal(uint32_t base, const uint32_t *in
 			
 			if (tess_control_input_array)
 			{
-				expr += "_0";
+				name = expr;
+				expr = "{ ";
+				for (uint32_t i = 0; i < tess_control_input_array_num; i++) {
+					if (i > 0)
+						expr += ", ";
+						
+					expr += name;
+					expr += "_";
+					expr += convert_to_string(i);
+				}
+				expr += " }";
 			}
 		}
 	};
