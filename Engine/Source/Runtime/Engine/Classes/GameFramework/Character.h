@@ -732,7 +732,8 @@ public:
 	virtual void UnCrouch(bool bClientSimulation = false);
 
 	/** @return true if this character is currently able to crouch (and is not currently crouched) */
-	virtual bool CanCrouch();
+	UFUNCTION(BlueprintCallable, Category=Character)
+	virtual bool CanCrouch() const;
 
 	/** 
 	 * Called when Character stops crouching. Called on non-owned Characters through bIsCrouched replication.
