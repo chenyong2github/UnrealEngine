@@ -104,6 +104,7 @@ FAxisAlignedBox3d FEdgeSpan::GetBounds() const
 
 void FEdgeSpan::GetPolyline(FPolyline3d& PolylineOut) const
 {
+	PolylineOut.Clear();
 	for (int i = 0; i < Vertices.Num(); ++i)
 	{
 		PolylineOut.AppendVertex(Mesh->GetVertex(Vertices[i]));

@@ -115,6 +115,13 @@ public:
 	}
 
 
+	/** Discard all vertices of polyline */
+	void Clear()
+	{
+		Vertices.Reset();
+		Timestamp++;
+	}
+
 	/**
 	 * Add a vertex to the polyline
 	 */
@@ -214,7 +221,7 @@ public:
 	 * @param SegmentParam parameter in range [0,1] along segment
 	 * @return point on the segment at the given parameter value
 	 */
-	FVector3<T> PointAt(int SegmentIndex, double SegmentParam) const
+	FVector3<T> PointAt(int SegmentIndex, T SegmentParam) const
 	{
 		FSegment3<T> seg(Vertices[SegmentIndex], Vertices[SegmentIndex + 1]);
 		return seg.PointAt(SegmentParam);
@@ -242,9 +249,9 @@ public:
 	/**
 	 * @return the total perimeter length of the Polygon
 	 */
-	double Length() const
+	T Length() const
 	{
-		double length = 0;
+		T length = 0;
 		int N = SegmentCount();
 		for (int i = 0; i < N; ++i)
 		{
@@ -270,7 +277,6 @@ public:
 			check(Polyline != nullptr && i < SegmentCount());
 			return FSegment3<T>(Polyline->Vertices[i], Polyline->Vertices[i+1]);
 		}
-		//inline FSegment3<T> & operator*();
 		inline SegmentIterator & operator++() 		// prefix
 		{
 			i++;
@@ -330,18 +336,18 @@ public:
 	 * @param NearestSegParamOut the parameter value of the nearest point on the segment
 	 * @return squared distance to the polyline
 	 */
-	double DistanceSquared(const FVector3<T>& QueryPoint, int& NearestSegIndexOut, double& NearestSegParamOut) const
+	T DistanceSquared(const FVector3<T>& QueryPoint, int& NearestSegIndexOut, T& NearestSegParamOut) const
 	{
 		NearestSegIndexOut = -1;
-		NearestSegParamOut = TNumericLimits<double>::Max();
-		double dist = TNumericLimits<double>::Max();
+		NearestSegParamOut = TNumericLimits<T>::Max();
+		T dist = TNumericLimits<T>::Max();
 		int N = SegmentCount();
 		for (int vi = 0; vi < N; ++vi)
 		{
 			// @todo can't we just use segment function here now?
 			FSegment3<T> seg = FSegment3<T>(Vertices[vi], Vertices[vi+1]);
-			double t = (QueryPoint - seg.Center).Dot(seg.Direction);
-			double d = TNumericLimits<double>::Max();
+			T t = (QueryPoint - seg.Center).Dot(seg.Direction);
+			T d = TNumericLimits<T>::Max();
 			if (t >= seg.Extent)
 			{
 				d = seg.EndPoint().DistanceSquared(QueryPoint);
@@ -358,7 +364,7 @@ public:
 			{
 				dist = d;
 				NearestSegIndexOut = vi;
-				NearestSegParamOut = t;
+				NearestSegParamOut = TMathUtil<T>::Clamp(t, -seg.Extent, seg.Extent);
 			}
 		}
 		return dist;
@@ -371,9 +377,9 @@ public:
 	 * @param QueryPoint the query point
 	 * @return squared distance to the polyline
 	 */
-	double DistanceSquared(const FVector3<T>& QueryPoint) const
+	T DistanceSquared(const FVector3<T>& QueryPoint) const
 	{
-		int seg; double segt;
+		int seg; T segt;
 		return DistanceSquared(QueryPoint, seg, segt);
 	}
 
@@ -383,13 +389,13 @@ public:
 	/**
 	 * @return average edge length of all the edges of the Polygon
 	 */
-	double AverageEdgeLength() const
+	T AverageEdgeLength() const
 	{
-		double avg = 0; int N = Vertices.Num();
+		T avg = 0; int N = Vertices.Num();
 		for (int i = 1; i < N; ++i) {
 			avg += Vertices[i].Distance(Vertices[i - 1]);
 		}
-		return avg / (double)(N-1);
+		return avg / (T)(N-1);
 	}
 
 
