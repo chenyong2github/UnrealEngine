@@ -563,6 +563,10 @@ namespace
 			/* UE Change Begin: Specify SPIRV reflection so that we retain semantic strings! */
 			dxcArgStrings.push_back(L"-fspv-reflect");
 			/* UE Change End: Specify SPIRV reflection so that we retain semantic strings! */
+			/* UE Change Begin: Emit SPIRV debug info when asked to */
+			if (options.enableDebugInfo)
+				dxcArgStrings.push_back(L"-fspv-debug=line");
+			/* UE Change End: Emit SPIRV debug info when asked to */
             break;
 
         default:
