@@ -855,7 +855,7 @@ namespace ClassViewer
 			FString GeneratedClassPathString = InOriginalRootNode->ClassPath.ToString();
 			if (InAllowedDeveloperType == EClassViewerDeveloperType::CVDT_None)
 			{
-				bPassesDeveloperFilter = GeneratedClassPathString.StartsWith(DeveloperPathWithSlash);
+				bPassesDeveloperFilter = !GeneratedClassPathString.StartsWith(DeveloperPathWithSlash);
 			}
 			else if (InAllowedDeveloperType == EClassViewerDeveloperType::CVDT_CurrentUser)
 			{
