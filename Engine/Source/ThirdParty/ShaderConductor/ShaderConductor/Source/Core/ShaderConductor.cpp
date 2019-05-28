@@ -820,9 +820,9 @@ namespace ShaderConductor
 				{
 					mslOpts.enforce_storge_buffer_bounds = (std::stoi(Define.value) != 0);
 				}
-				if (!strcmp(Define.name, "metadata_buffer_index"))
+				if (!strcmp(Define.name, "buffer_size_buffer_index"))
 				{
-					mslOpts.metadata_buffer_index = (uint32_t)std::stoi(Define.value);
+					mslOpts.buffer_size_buffer_index = (uint32_t)std::stoi(Define.value);
 				}
 				/* UE Change End: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
 				/* UE Change Begin: Capture shader output to a buffer - used for vertex streaming to emulate GS & Tess */
