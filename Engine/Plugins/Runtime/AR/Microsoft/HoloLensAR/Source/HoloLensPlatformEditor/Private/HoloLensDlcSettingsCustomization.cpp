@@ -11,7 +11,7 @@
 #include "IDetailGroup.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Interfaces/IPluginManager.h"
-#include "Widgets/STooltip.h"
+#include "Widgets/SToolTip.h"
 #include "Settings/ProjectPackagingSettings.h"
 #include "HoloLensLocalizedResourcesCustomization.h"
 
