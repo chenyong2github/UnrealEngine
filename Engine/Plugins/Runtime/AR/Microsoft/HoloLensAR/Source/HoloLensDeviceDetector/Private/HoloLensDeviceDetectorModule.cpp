@@ -6,7 +6,9 @@
 #include "Interfaces/IHttpResponse.h"
 #include "Misc/ScopeLock.h"
 
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/AllowWindowsPlatformTypes.h"
+#endif
 
 #if USE_WINRT_DEVICE_WATCHER
 #include <vccorlib.h>

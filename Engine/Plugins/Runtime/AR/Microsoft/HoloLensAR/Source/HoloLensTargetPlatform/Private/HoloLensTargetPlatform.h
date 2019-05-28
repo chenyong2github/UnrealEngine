@@ -13,7 +13,9 @@
 #include "Misc/ScopeLock.h"
 #include "IHoloLensDeviceDetectorModule.h"
 
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/AllowWindowsPlatformTypes.h"
+#endif
 
 #if WITH_ENGINE
 #include "StaticMeshResources.h"

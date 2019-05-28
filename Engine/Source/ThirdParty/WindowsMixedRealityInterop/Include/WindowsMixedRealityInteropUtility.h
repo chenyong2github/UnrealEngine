@@ -5,7 +5,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/WindowsHWrapper.h"
+#endif
 #include "HeadMountedDisplayTypes.h"
 
 #include "MixedRealityInterop.h"

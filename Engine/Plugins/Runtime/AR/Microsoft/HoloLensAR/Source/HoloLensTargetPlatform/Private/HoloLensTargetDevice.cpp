@@ -4,7 +4,9 @@
 
 #include "Misc/Paths.h"
 
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/AllowWindowsPlatformTypes.h"
+#endif
 
 //#include <wrl/client.h>
 //#include <wrl/wrappers/corewrappers.h>

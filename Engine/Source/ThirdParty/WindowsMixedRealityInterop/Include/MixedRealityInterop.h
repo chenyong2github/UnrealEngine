@@ -20,6 +20,8 @@
 #pragma warning(disable:4668)
 #pragma warning(disable:4005)  
 
+//wrap for non-windows platforms
+#if PLATFORM_HOLOLENS || PLATFORM_WINDOWS
 #include <Windows.h>
 #include <string>
 
@@ -28,6 +30,8 @@
 #include <DirectXMath.h>
 
 #include <functional>
+#endif
+
 #pragma warning(default:4005)
 #pragma warning(default:4668)
 
