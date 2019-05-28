@@ -1668,7 +1668,7 @@ public:
 			FRWScopeLock(LibraryMutex, SLT_Write);
 			for (uint32 i = ShaderCodeArchiveStack.Num(); i > 0; i--)
 			{
-				FRHIShaderLibraryParamRef ShaderCodeArchive = ShaderCodeArchiveStack[i - 1];
+				FRHIShaderLibrary* ShaderCodeArchive = ShaderCodeArchiveStack[i - 1];
 				if (ShaderCodeArchive->GetName() == Name)
 				{
 					ShaderCodeArchiveStack.RemoveAt(i - 1);
@@ -1754,7 +1754,7 @@ public:
 		checkSlow(Platform == GetRuntimeShaderPlatform());
 
 		FVertexShaderRHIRef Result;
-		FRHIShaderLibraryParamRef ShaderCodeArchive = FindShaderLibrary(Hash);
+		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
 		if (ShaderCodeArchive)
 		{
 			if (bNativeFormat || GRHILazyShaderCodeLoading)
@@ -1770,7 +1770,7 @@ public:
 		checkSlow(Platform == GetRuntimeShaderPlatform());
 
 		FPixelShaderRHIRef Result;
-		FRHIShaderLibraryParamRef ShaderCodeArchive = FindShaderLibrary(Hash);
+		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
 		if (ShaderCodeArchive)
 		{
 			if (bNativeFormat || GRHILazyShaderCodeLoading)
@@ -1786,7 +1786,7 @@ public:
 		checkSlow(Platform == GetRuntimeShaderPlatform());
 
 		FGeometryShaderRHIRef Result;
-		FRHIShaderLibraryParamRef ShaderCodeArchive = FindShaderLibrary(Hash);
+		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
 		if (ShaderCodeArchive)
 		{
 			if (bNativeFormat || GRHILazyShaderCodeLoading)
@@ -1802,7 +1802,7 @@ public:
 		checkSlow(Platform == GetRuntimeShaderPlatform());
 
 		FGeometryShaderRHIRef Result;
-		FRHIShaderLibraryParamRef ShaderCodeArchive = FindShaderLibrary(Hash);
+		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
 		if (ShaderCodeArchive)
 		{
 			if (bNativeFormat || GRHILazyShaderCodeLoading)
@@ -1818,7 +1818,7 @@ public:
 		checkSlow(Platform == GetRuntimeShaderPlatform());
 
 		FHullShaderRHIRef Result;
-		FRHIShaderLibraryParamRef ShaderCodeArchive = FindShaderLibrary(Hash);
+		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
 		if (ShaderCodeArchive)
 		{
 			if (bNativeFormat || GRHILazyShaderCodeLoading)
@@ -1834,7 +1834,7 @@ public:
 		checkSlow(Platform == GetRuntimeShaderPlatform());
 
 		FDomainShaderRHIRef Result;
-		FRHIShaderLibraryParamRef ShaderCodeArchive = FindShaderLibrary(Hash);
+		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
 		if (ShaderCodeArchive)
 		{
 			if (bNativeFormat || GRHILazyShaderCodeLoading)
@@ -1850,7 +1850,7 @@ public:
 		checkSlow(Platform == GetRuntimeShaderPlatform());
 
 		FComputeShaderRHIRef Result;
-		FRHIShaderLibraryParamRef ShaderCodeArchive = FindShaderLibrary(Hash);
+		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
 		if (ShaderCodeArchive)
 		{
 			if (bNativeFormat || GRHILazyShaderCodeLoading)
@@ -1887,15 +1887,15 @@ public:
 		return nullptr;
 	}
 
-	FRHIShaderLibraryParamRef FindShaderLibrary(const FSHAHash& Hash)
+	FRHIShaderLibrary* FindShaderLibrary(const FSHAHash& Hash)
 	{
 		FRWScopeLock(LibraryMutex, SLT_ReadOnly);
-		FRHIShaderLibraryParamRef Result = nullptr;
+		FRHIShaderLibrary* Result = nullptr;
 
 		// Search in library opened order
 		for (int32 i = 0; i < ShaderCodeArchiveStack.Num(); ++i)
 		{
-			FRHIShaderLibraryParamRef ShaderCodeArchive = ShaderCodeArchiveStack[i];
+			FRHIShaderLibrary* ShaderCodeArchive = ShaderCodeArchiveStack[i];
 			if (ShaderCodeArchive->ContainsEntry(Hash))
 			{
 				Result = ShaderCodeArchive;
@@ -1907,7 +1907,7 @@ public:
 
 	bool ContainsShaderCode(const FSHAHash& Hash)
 	{
-		FRHIShaderLibraryParamRef ShaderCodeArchive = FindShaderLibrary(Hash);
+		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
 		if (ShaderCodeArchive)
 			return true;
 		else
@@ -1916,7 +1916,7 @@ public:
 
 	bool RequestShaderCode(const FSHAHash& Hash, FArchive* Ar)
 	{
-		FRHIShaderLibraryParamRef ShaderCodeArchive = FindShaderLibrary(Hash);
+		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
 		if (ShaderCodeArchive)
 			return ShaderCodeArchive->RequestEntry(Hash, Ar);
 		else
@@ -1927,7 +1927,7 @@ public:
 	{
 		if (!bNativeFormat)
 		{
-			FRHIShaderLibraryParamRef ShaderCodeArchive = FindShaderLibrary(Hash);
+			FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
 			if (ShaderCodeArchive)
 				((FShaderCodeArchive*)ShaderCodeArchive)->ReleaseShaderCode(Hash);
 		}

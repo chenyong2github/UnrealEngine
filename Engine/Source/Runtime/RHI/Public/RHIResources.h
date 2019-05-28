@@ -1732,6 +1732,7 @@ public:
 };
 
 
+UE_DEPRECATED(4.23, "FCustomPresentRHIParamRef typedef is deprecated; please use FRHICustomPresent* directly instead.")
 typedef FRHICustomPresent*              FCustomPresentRHIParamRef;
 typedef TRefCountPtr<FRHICustomPresent> FCustomPresentRHIRef;
 
@@ -2377,6 +2378,7 @@ protected:
 	uint32 LibraryId;
 };
 
+UE_DEPRECATED(4.23, "FRHIShaderLibraryParamRef typedef is deprecated; please use FRHIShaderLibrary* directly instead.")
 typedef FRHIShaderLibrary*				FRHIShaderLibraryParamRef;
 typedef TRefCountPtr<FRHIShaderLibrary>	FRHIShaderLibraryRef;
 
@@ -2391,6 +2393,8 @@ public:
 protected:
 	EShaderPlatform Platform;
 };
+
+UE_DEPRECATED(4.23, "FRHIPipelineBinaryLibraryParamRef typedef is deprecated; please use FRHIPipelineBinaryLibrary* directly instead.")
 typedef FRHIPipelineBinaryLibrary*				FRHIPipelineBinaryLibraryParamRef;
 typedef TRefCountPtr<FRHIPipelineBinaryLibrary>	FRHIPipelineBinaryLibraryRef;
 
