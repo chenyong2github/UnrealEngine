@@ -43,7 +43,7 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 		DynamicRHI = DynamicRHIModule->CreateRHI();
 	}
 
-#if PLATFORM_CPU_ARM_FAMILY
+#if PLATFORM_HOLOLENS
 	GMaxRHIFeatureLevel = ERHIFeatureLevel::ES3_1;
 	GMaxRHIShaderPlatform = SP_PCD3D_ES3_1;
 #endif

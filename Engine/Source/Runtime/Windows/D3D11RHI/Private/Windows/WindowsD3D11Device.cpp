@@ -920,7 +920,7 @@ void FD3D11DynamicRHIModule::FindAdapter()
 
 FDynamicRHI* FD3D11DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 {
-#if PLATFORM_CPU_ARM_FAMILY
+#if PLATFORM_HOLOLENS
 	GMaxRHIFeatureLevel = ERHIFeatureLevel::ES3_1;
 	GMaxRHIShaderPlatform = SP_PCD3D_ES3_1;
 #endif

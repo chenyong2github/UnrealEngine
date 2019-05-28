@@ -21,13 +21,10 @@
     <ClInclude Include="targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SpatialMapping.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="SpeechRecognizer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-	<ClInclude Include="GestureRecognizer.h">
+    <ClInclude Include="GestureRecognizer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SpatialAnchorHelper.h">

@@ -1485,8 +1485,11 @@ namespace WindowsMixedReality
 		// We do not have a current frame, create a new one.
 		if (currentFrame == nullptr)
 		{
+#if !PLATFORM_HOLOLENS || (PLATFORM_HOLOLENS && !_WIN64)
 			// Wait for a frame to be ready before creating one.
+			// Do not wait for a frame if we are running on the emulator.r
 			holographicSpace.WaitForNextFrameReady();
+#endif
 			
 			HolographicFrame frame = holographicSpace.CreateNextFrame();
 			if (frame == nullptr) { return false; }
@@ -1823,7 +1826,11 @@ namespace WindowsMixedReality
 			}
 		}
 
+#if !PLATFORM_HOLOLENS || (PLATFORM_HOLOLENS && !_WIN64)
 		HolographicFramePresentResult presentResult = currentFrame->Frame.PresentUsingCurrentPrediction(HolographicFramePresentWaitBehavior::DoNotWaitForFrameToFinish);
+#else
+		HolographicFramePresentResult presentResult = currentFrame->Frame.PresentUsingCurrentPrediction();
+#endif
 
 		// Reset the frame pointer to allow for a new frame to be created.
 		CurrentFrameResources = nullptr;

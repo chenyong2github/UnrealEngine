@@ -34,7 +34,7 @@ public class HoloLensAR : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
             PublicDelayLoadDLLs.Add("QRCodesTrackerPlugin.dll");
-            RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Windows/HoloLens/ARM64/QRCodesTrackerPlugin.dll");
+            RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "QRCodesTrackerPlugin.dll"));
         }
 
         AddEngineThirdPartyPrivateStaticDependencies(Target, "WindowsMixedRealityInterop");

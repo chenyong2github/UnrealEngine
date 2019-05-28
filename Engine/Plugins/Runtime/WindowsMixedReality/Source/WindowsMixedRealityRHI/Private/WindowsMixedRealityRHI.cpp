@@ -123,12 +123,10 @@ FDynamicRHI* FWindowsMixedRealityRHIModule::CreateRHI(ERHIFeatureLevel::Type Req
 {
 	FWindowsMixedRealityDynamicRHI * RHI = new FWindowsMixedRealityDynamicRHI(DXGIFactory1.Get(), ChosenAdapter.MaxSupportedFeatureLevel, ChosenAdapter.AdapterIndex, ChosenDescription);
 
-#if PLATFORM_CPU_ARM_FAMILY
+#if PLATFORM_HOLOLENS
 	GMaxRHIFeatureLevel = ERHIFeatureLevel::ES3_1;
 	GMaxRHIShaderPlatform = SP_PCD3D_ES3_1;
-#endif
 
-#if PLATFORM_HOLOLENS
 	RHI->SetHolographicSpace(HoloSpace);
 #endif
 
