@@ -22,22 +22,38 @@
 		{
 			"Name": "HoloLensAR",
 			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit"
+			"LoadingPhase": "PostConfigInit",
+			"WhitelistPlatforms": [
+				"HoloLens",
+				"Win64"
+			]
 		},
 		{
 			"Name": "HoloLensPlatformEditor",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"HoloLens",
+				"Win64"
+			]
 		},
 		{
 			"Name": "HoloLensDeviceDetector",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"HoloLens",
+				"Win64"
+			]
 		},
 		{
 			"Name": "HoloLensTargetPlatform",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"HoloLens",
+				"Win64"
+			]
 		}
 	]
 }
