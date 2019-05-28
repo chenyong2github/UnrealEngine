@@ -3177,7 +3177,9 @@ namespace UnrealGameSync
 
 		private void BuildHealthContextMenu_Browse_Click(object sender, EventArgs e)
 		{
-			IssueBrowserWindow.Show(ParentForm, IssueMonitor, Workspace.Perforce.ServerAndPort, Workspace.Perforce.UserName, GetServerTimeOffset(), Log, StreamName);
+			string BuildHealthProject;
+			TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "BuildHealthProject", out BuildHealthProject);
+			IssueBrowserWindow.Show(ParentForm, IssueMonitor, Workspace.Perforce.ServerAndPort, Workspace.Perforce.UserName, GetServerTimeOffset(), Log, StreamName, BuildHealthProject);
 		}
 
 		private void BuildHealthContextMenu_Settings_Click(object sender, EventArgs e)
