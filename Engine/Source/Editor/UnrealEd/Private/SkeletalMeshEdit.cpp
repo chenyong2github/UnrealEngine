@@ -1687,10 +1687,6 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 
 		GWarn->EndSlowTask();
 	}
-	else
-	{
-		DestSeq->RecycleAnimSequence();
-	}
 
 	// compress animation
 	{
