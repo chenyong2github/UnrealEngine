@@ -893,7 +893,6 @@ public:
 		return this;
 	}
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FORCEINLINE bool IsLoading() const
 	{
 		return ArIsLoading;
@@ -935,7 +934,6 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	{
 		return ArIsPersistent;
 	}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FORCEINLINE bool IsError() const
 	{
