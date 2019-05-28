@@ -2,6 +2,7 @@
 
 #include "UnrealInsightsMain.h"
 #include "HAL/ExceptionHandling.h"
+#include "LaunchEngineLoop.h"
 #include "Mac/CocoaThread.h"
 
 
