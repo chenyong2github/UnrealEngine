@@ -192,6 +192,23 @@ struct FAxisAlignedBox3
 		this->Min = Min;
 		this->Max = Max;
 	}
+	FAxisAlignedBox3(const FAxisAlignedBox3& Box, const TFunction<FVector3<RealType>(const FVector3<RealType>&)> TransformF)
+	{
+		if (TransformF == nullptr)
+		{
+			Min = Box.Min;
+			Max = Box.Max;
+			return;
+		}
+
+		FVector3<RealType> C0 = TransformF(Box.GetCorner(0));
+		Min = C0;
+		Max = C0;
+		for (int i = 1; i < 8; ++i)
+		{
+			Contain(TransformF(Box.GetCorner(i)));
+		}
+	}
 
 	operator FBox() const
 	{
@@ -203,6 +220,19 @@ struct FAxisAlignedBox3
 	{
 		Min = Box.Min;
 		Max = Box.Max;
+	}
+
+	/**
+	* @param Index corner index in range 0-7
+	* @return Corner point on the box identified by the given index. See diagram in OrientedBoxTypes.h for index/corner mapping.
+	*/
+	FVector3<RealType> GetCorner(int Index) const
+	{
+		check(Index >= 0 && Index <= 7);
+		double X = (((Index & 1) != 0) ^ ((Index & 2) != 0)) ? (Max.X) : (Min.X);
+		double Y = ((Index / 2) % 2 == 0) ? (Min.Y) : (Max.Y);
+		double Z = (Index < 4) ? (Min.Z) : (Max.Z);
+		return FVector3<RealType>(X, Y, Z);
 	}
 
 	static FAxisAlignedBox3<RealType> Empty()
@@ -291,6 +321,30 @@ struct FAxisAlignedBox3
 		RealType dy = (V.Y < Min.Y) ? Min.Y - V.Y : (V.Y > Max.Y ? V.Y - Max.Y : 0);
 		RealType dz = (V.Z < Min.Z) ? Min.Z - V.Z : (V.Z > Max.Z ? V.Z - Max.Z : 0);
 		return dx * dx + dy * dy + dz * dz;
+	}
+
+	RealType DistanceSquared(const FAxisAlignedBox3<RealType>& Box)
+	{
+		// compute lensqr( max(0, abs(center1-center2) - (extent1+extent2)) )
+		RealType delta_x = TMathUtil<RealType>::Abs((Box.Min.X + Box.Max.X) - (Min.X + Max.X))
+			- ((Max.X - Min.X) + (Box.Max.X - Box.Min.X));
+		if (delta_x < 0)
+		{
+			delta_x = 0;
+		}
+		RealType delta_y = TMathUtil<RealType>::Abs((Box.Min.Y + Box.Max.Y) - (Min.Y + Max.Y))
+			- ((Max.Y - Min.Y) + (Box.Max.Y - Box.Min.Y));
+		if (delta_y < 0)
+		{
+			delta_y = 0;
+		}
+		RealType delta_z = TMathUtil<RealType>::Abs((Box.Min.Z + Box.Max.Z) - (Min.Z + Max.Z))
+			- ((Max.Z - Min.Z) + (Box.Max.Z - Box.Min.Z));
+		if (delta_z < 0)
+		{
+			delta_z = 0;
+		}
+		return (RealType)0.25 * (delta_x * delta_x + delta_y * delta_y + delta_z * delta_z);
 	}
 
 	RealType Width() const
