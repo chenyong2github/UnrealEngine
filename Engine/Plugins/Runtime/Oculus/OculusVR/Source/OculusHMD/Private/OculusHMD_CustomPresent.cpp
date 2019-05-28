@@ -293,7 +293,7 @@ FXRSwapChainPtr FCustomPresent::CreateSwapChain_RenderThread(uint32 InSizeX, uin
 		}
 	}
 
-	return MakeShareable(new FXRSwapChain(RHITexture, RHITextureSwapChain));
+	return MakeShareable(new FXRSwapChain(RHITexture, MoveTemp(RHITextureSwapChain)));
 }
 
 

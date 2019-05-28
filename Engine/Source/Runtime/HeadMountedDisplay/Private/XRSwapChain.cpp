@@ -60,7 +60,7 @@ FORCEINLINE void CheckInRHIThread()
 #endif
 }
 
-FXRSwapChain::FXRSwapChain(FTextureRHIParamRef InRHITexture, const TArray<FTextureRHIRef>& InRHITextureSwapChain)
+FXRSwapChain::FXRSwapChain(FTextureRHIParamRef InRHITexture, TArray<FTextureRHIRef>&& InRHITextureSwapChain)
 	: RHITexture(InRHITexture)
 	, RHITextureSwapChain(InRHITextureSwapChain)
 	, SwapChainIndex_RHIThread(0)
@@ -70,15 +70,23 @@ FXRSwapChain::FXRSwapChain(FTextureRHIParamRef InRHITexture, const TArray<FTextu
 
 FXRSwapChain::~FXRSwapChain()
 {
-	// @todo: The assertion below fires on exit (even though we're on a valid thread) I'm guessing because everything's getting torn 
-	// down and our thread checking isn't valid. Not sure whether to remove the assert here, or figure out a more correct way to 
-	// perform the check.
-//	CheckInRHIThread();
-
-	ExecuteOnRHIThread([this]()
+	if (IsInGameThread())
 	{
-		ReleaseResources_RHIThread();
-	});
+		ExecuteOnRenderThread([this]()
+		{
+			ExecuteOnRHIThread([this]()
+			{
+				ReleaseResources_RHIThread();
+			});
+		});
+	}
+	else
+	{
+		ExecuteOnRHIThread([this]()
+		{
+			ReleaseResources_RHIThread();
+		});
+	}
 }
 
 
