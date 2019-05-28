@@ -73,6 +73,15 @@ private:
 		FVirtualTextureProducerHandle OwnerHandle;
 		uint32 NextIndex = 0u;
 		uint32 PrevIndex = 0u;
+		union
+		{
+			uint32 PackedFlags = 0u;
+			struct
+			{
+				uint32 bPending : 1;
+				uint32 Pad : 31;
+			};
+		};
 	};
 
 	enum ECallbackListType
@@ -178,4 +187,5 @@ private:
 
 	TArray<FProducerEntry> Producers;
 	TArray<FCallbackEntry> Callbacks;
+	uint32 NumPendingCallbacks;
 };
