@@ -5,6 +5,7 @@
 
 #include "MeshObserver.h"
 #include "FastConversion.h"
+#include "CxDataFromBuffer.h"
 
 #include <streambuf>
 #include <robuffer.h>
@@ -33,38 +34,11 @@ using namespace Windows::Foundation::Numerics;
 using namespace Windows::UI::Input::Spatial;
 using namespace Windows::Graphics::DirectX;
 using namespace Windows::Graphics::DirectX::Direct3D11;
-using namespace Windows::Storage::Streams;
 
 using namespace std::placeholders;
 using namespace concurrency;
 
 using namespace DirectX;
-
-template <typename T = byte>
-T* GetDataFromIBuffer(Windows::Storage::Streams::IBuffer^ InBuffer)
-{
-	if (InBuffer == nullptr)
-	{
-		return nullptr;
-	}
-
-	ComPtr<IUnknown> Unknown = reinterpret_cast<IUnknown*>(InBuffer);
-	ComPtr<IBufferByteAccess> ByteAccess;
-	HRESULT hr = Unknown.As(&ByteAccess);
-	if (FAILED(hr))
-	{
-		return nullptr;
-	}
-
-	byte* RawData = nullptr;
-	hr = ByteAccess->Buffer(&RawData);
-	if (FAILED(hr))
-	{
-		return nullptr;
-	}
-
-	return reinterpret_cast<T*>(RawData);
-}
 
 // Winrt guid needs a comparison function to use in a std::map
 struct GUIDComparer
