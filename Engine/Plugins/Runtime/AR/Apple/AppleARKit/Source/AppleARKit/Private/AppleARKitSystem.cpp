@@ -1249,20 +1249,6 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 				ClearTrackedGeometries();
 			}
 		}
-
-		// Create MetalTextureCache
-		if (IsMetalPlatform(GMaxRHIShaderPlatform))
-		{
-			id<MTLDevice> Device = (id<MTLDevice>)GDynamicRHI->RHIGetNativeDevice();
-			check(Device);
-
-			CVReturn Return = CVMetalTextureCacheCreate(nullptr, nullptr, Device, nullptr, &MetalTextureCache);
-			check(Return == kCVReturnSuccess);
-			check(MetalTextureCache);
-
-			// Pass to session delegate to use for Metal texture creation
-			[Delegate setMetalTextureCache : MetalTextureCache];
-		}
 		
 #if PLATFORM_IOS && !PLATFORM_TVOS
 		// Check if we need to adjust the priorities to allow ARKit to have more CPU time
@@ -1319,16 +1305,6 @@ bool FAppleARKitSystem::Pause()
 	{
 		// Suspend the session
 		[Session pause];
-	
-		// Release MetalTextureCache created in Start
-		if (MetalTextureCache)
-		{
-			// Tell delegate to release it
-			[Delegate setMetalTextureCache:nullptr];
-		
-			CFRelease(MetalTextureCache);
-			MetalTextureCache = nullptr;
-		}
 	}
 	
 #if PLATFORM_IOS && !PLATFORM_TVOS

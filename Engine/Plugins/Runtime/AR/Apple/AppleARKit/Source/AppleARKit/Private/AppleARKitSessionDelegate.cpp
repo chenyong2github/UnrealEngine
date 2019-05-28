@@ -11,7 +11,6 @@
 @implementation FAppleARKitSessionDelegate
 {
 	FAppleARKitSystem* _AppleARKitSystem;
-	CVMetalTextureCacheRef _metalTextureCache;
 }
 
 
@@ -23,38 +22,16 @@
 	{
 		UE_LOG(LogAppleARKit, Log, TEXT("Delegate created with session: %p"), InAppleARKitSystem);
 		_AppleARKitSystem = InAppleARKitSystem;
-		_metalTextureCache = NULL;	
 	}
 	return self;
 }
 
-- (void)setMetalTextureCache:(CVMetalTextureCacheRef)InMetalTextureCache
-{
-	// Release current?
-	if ( _metalTextureCache != nullptr )
-	{
-		CFRelease( _metalTextureCache );
-	}
-	// Set new & retain
-	_metalTextureCache = InMetalTextureCache;
-	if ( _metalTextureCache != nullptr )
-	{
-		CFRetain( _metalTextureCache );
-	}
-}
 #pragma mark - ARSessionDelegate Methods
 
 - (void)session:(ARSession *)session didUpdateFrame:(ARFrame *)frame 
 {
-	// check if we get an update when the session is not initialized.
-	if (!_metalTextureCache)
-	{
-		UE_LOG(LogAppleARKit, Log, TEXT("Delegate didUpdateFrame with no valid _metalTextureCache (ignoring)"));
-		return;
-	}
-
 	// Bundle results into FAppleARKitFrame
-	TSharedPtr< FAppleARKitFrame, ESPMode::ThreadSafe > AppleARKitFrame( new FAppleARKitFrame( frame, _metalTextureCache ) );
+	TSharedPtr< FAppleARKitFrame, ESPMode::ThreadSafe > AppleARKitFrame( new FAppleARKitFrame( frame ) );
 	
 	// Pass result to session
 	_AppleARKitSystem->SessionDidUpdateFrame_DelegateThread( AppleARKitFrame );

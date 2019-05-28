@@ -163,9 +163,6 @@ private:
 	
 	// ARKit Session Delegate
 	FAppleARKitSessionDelegate* Delegate = nullptr;
-	
-	/** The Metal texture cache for unbuffered texture uploads. */
-	CVMetalTextureCacheRef MetalTextureCache = nullptr;
 
 	/** Cache of images that we've converted previously to prevent repeated conversion */
 	TMap< FString, CGImage* > ConvertedCandidateImages;
