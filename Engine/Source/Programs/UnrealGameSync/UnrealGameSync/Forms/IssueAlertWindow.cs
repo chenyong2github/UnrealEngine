@@ -107,6 +107,10 @@ namespace UnrealGameSync
 					{
 						OwnerTextBuilder.AppendFormat(" by {0}", Utility.FormatUserName(NewIssue.NominatedBy));
 					}
+					if(!NewIssue.AcknowledgedAt.HasValue && (NewReason & IssueAlertReason.UnacknowledgedTimer) != 0)
+					{
+						OwnerTextBuilder.Append(" (not acknowledged)");
+					}
 					OwnerTextBuilder.Append(".");
 				}
 			}

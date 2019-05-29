@@ -1248,7 +1248,7 @@ namespace UnrealGameSync
 				foreach(IssueData Issue in Issues)
 				{
 					IssueAlertReason Reason = 0;
-					if(Issue.FixChange <= 0)
+					if(Issue.FixChange <= 0 && !Issue.ResolvedAt.HasValue)
 					{
 						if(Issue.Owner == null)
 						{
@@ -1261,11 +1261,15 @@ namespace UnrealGameSync
 								Reason |= IssueAlertReason.UnassignedTimer;
 							}
 						}
-						else
+						else if(!Issue.AcknowledgedAt.HasValue)
 						{
-							if(String.Compare(Issue.Owner, IssueMonitor.UserName, StringComparison.OrdinalIgnoreCase) == 0 && !Issue.AcknowledgedAt.HasValue)
+							if(String.Compare(Issue.Owner, IssueMonitor.UserName, StringComparison.OrdinalIgnoreCase) == 0)
 							{
 								Reason |= IssueAlertReason.Owner;
+							}
+							else if(Settings.NotifyUnacknowledgedMinutes >= 0 && Issue.RetrievedAt - Issue.CreatedAt >= TimeSpan.FromMinutes(Settings.NotifyUnacknowledgedMinutes))
+							{
+								Reason |= IssueAlertReason.UnacknowledgedTimer;
 							}
 						}
 						if(Settings.NotifyUnresolvedMinutes >= 0 && Issue.RetrievedAt - Issue.CreatedAt >= TimeSpan.FromMinutes(Settings.NotifyUnresolvedMinutes))

@@ -64,7 +64,8 @@ namespace UnrealGameSync
 		Normal = 1,
 		Owner = 2,
 		UnassignedTimer = 4,
-		UnresolvedTimer = 8,
+		UnacknowledgedTimer = 8,
+		UnresolvedTimer = 16,
 	}
 
 	class IssueMonitor : IDisposable

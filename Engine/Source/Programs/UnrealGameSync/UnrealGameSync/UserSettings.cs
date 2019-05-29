@@ -231,6 +231,7 @@ namespace UnrealGameSync
 
 		// Notification settings
 		public int NotifyUnassignedMinutes;
+		public int NotifyUnacknowledgedMinutes;
 		public int NotifyUnresolvedMinutes;
 
 		// Project settings
@@ -378,6 +379,7 @@ namespace UnrealGameSync
 
 			// Notification settings
 			NotifyUnassignedMinutes = ConfigFile.GetValue("Notifications.NotifyUnassignedMinutes", -1);
+			NotifyUnacknowledgedMinutes = ConfigFile.GetValue("Notifications.NotifyUnacknowledgedMinutes", -1);
 			NotifyUnresolvedMinutes = ConfigFile.GetValue("Notifications.NotifyUnresolvedMinutes", -1);
 
 			// Perforce settings
@@ -633,11 +635,15 @@ namespace UnrealGameSync
 			// Notification settings
 			ConfigSection NotificationSection = ConfigFile.FindOrAddSection("Notifications");
 			NotificationSection.Clear();
-			if(NotifyUnassignedMinutes != -1)
+			if (NotifyUnassignedMinutes != -1)
 			{
 				NotificationSection.SetValue("NotifyUnassignedMinutes", NotifyUnassignedMinutes);
 			}
-			if(NotifyUnresolvedMinutes != -1)
+			if (NotifyUnacknowledgedMinutes != -1)
+			{
+				NotificationSection.SetValue("NotifyUnacknowledgedMinutes", NotifyUnacknowledgedMinutes);
+			}
+			if (NotifyUnresolvedMinutes != -1)
 			{
 				NotificationSection.SetValue("NotifyUnresolvedMinutes", NotifyUnresolvedMinutes);
 			}
