@@ -9145,15 +9145,20 @@ CompilerMSL::SPVFuncImpl CompilerMSL::OpCodePreprocessor::get_spv_func_impl(Op o
 	case OpAccessChain:
 	case OpPtrAccessChain:
 	{
-		auto &var = compiler.get<SPIRVariable>(args[2]);
-		auto &type = compiler.get<SPIRType>(var.basetype);
-		bool ssbo = compiler.has_decoration(type.self, DecorationBufferBlock);
-		if (compiler.msl_options.enforce_storge_buffer_bounds && (var.storage == StorageClassStorageBuffer || (type.basetype == SPIRType::Struct && var.storage == StorageClassUniform && ssbo)))
+		if (compiler.msl_options.enforce_storge_buffer_bounds)
 		{
-            compiler.buffers_requiring_array_length.insert(var.self);
-			return SPVFuncImplStorageBufferCoords;
+			auto *var = compiler.maybe_get<SPIRVariable>(args[2]);
+			if (var)
+			{
+				auto &type = compiler.get<SPIRType>(var->basetype);
+				bool ssbo = compiler.has_decoration(type.self, DecorationBufferBlock);
+				if ((var->storage == StorageClassStorageBuffer || (type.basetype == SPIRType::Struct && var->storage == StorageClassUniform && ssbo)))
+				{
+					compiler.buffers_requiring_array_length.insert(var->self);
+					return SPVFuncImplStorageBufferCoords;
+				}
+			}
 		}
-		
 		break;
 	}
 	/* UE Change End: Storage buffer robustness */
