@@ -1125,17 +1125,9 @@ public:
 		const FCanvas::FTransformEntry& InTransform = FCanvas::FTransformEntry(FMatrix::Identity),
 		bool bInFreezeTime = false)
 		// this data is deleted after rendering has completed
-		: Data(new FRenderData(InFeatureLevel, InMaterialRenderProxy, InTransform))
+		: Data(MakeShared<FRenderData>(InFeatureLevel, InMaterialRenderProxy, InTransform))
 		, bFreezeTime(bInFreezeTime)
 	{}
-
-	/**
-	* Destructor to delete data in case nothing rendered
-	*/
-	virtual ~FCanvasTriangleRendererItem()
-	{
-		delete Data;
-	}
 
 	/**
 	 * FCanvasTriangleRendererItem instance accessor
@@ -1213,22 +1205,20 @@ private:
 	class FTriangleVertexFactory : public FLocalVertexFactory
 	{
 	public:
-		/** Default constructor. */
-		FTriangleVertexFactory(ERHIFeatureLevel::Type InFeatureLevel);
+		FTriangleVertexFactory(const FStaticMeshVertexBuffers* VertexBuffers, ERHIFeatureLevel::Type InFeatureLevel);
+		void InitResource() override;
+
+	private:
+		const FStaticMeshVertexBuffers* VertexBuffers;
 	};
 
-	/**
-	* Mesh used to render triangles.
-	*/
 	class FTriangleMesh : public FRenderResource
 	{
 	public:
 		FTriangleMesh(const FRawIndexBuffer* IndexBuffer, const FTriangleVertexFactory* VertexFactory);
 
-		/** The mesh element. */
-		FMeshBatch TriMeshElement;
+		FMeshBatch MeshBatch;
 		virtual void InitRHI() override;
-		virtual void ReleaseRHI() override;
 	private:
 		const FRawIndexBuffer* IndexBuffer;
 		const FTriangleVertexFactory* VertexFactory;
@@ -1236,35 +1226,15 @@ private:
 
 	class FRenderData
 	{
-		friend class FCanvasTriangleRendererItem;
-
-	private:
-		const FMaterialRenderProxy* MaterialRenderProxy;
-		FCanvas::FTransformEntry Transform;
-
-		/** The buffer containing vertex data. */
-		FRawIndexBuffer IndexBuffer;
-		FStaticMeshVertexBuffers StaticMeshVertexBuffers;
-		FTriangleVertexFactory VertexFactory;
-		FTriangleMesh TriMesh;
-
-		struct FTriangleInst
-		{
-			FCanvasUVTri Tri;
-			FHitProxyId HitProxyId;
-		};
-		TArray<FTriangleInst> Triangles;
-
 	public:
 		FRenderData(ERHIFeatureLevel::Type InFeatureLevel,
-			const FMaterialRenderProxy* InMaterialRenderProxy = NULL,
-			const FCanvas::FTransformEntry& InTransform = FCanvas::FTransformEntry(FMatrix::Identity))
+			const FMaterialRenderProxy* InMaterialRenderProxy,
+			const FCanvas::FTransformEntry& InTransform)
 			: MaterialRenderProxy(InMaterialRenderProxy)
 			, Transform(InTransform)
-			, VertexFactory(InFeatureLevel)
+			, VertexFactory(&StaticMeshVertexBuffers, InFeatureLevel)
 			, TriMesh(&IndexBuffer, &VertexFactory)
-		{
-		}
+		{}
 
 		FORCEINLINE int32 AddTriangle(const FCanvasUVTri& Tri, FHitProxyId HitProxyId)
 		{
@@ -1281,17 +1251,41 @@ private:
 		{
 			Triangles.Reserve(NumTriangles);
 		}
+
+		void RenderTriangles(
+			FRHICommandListImmediate& RHICmdList,
+			FMeshPassProcessorRenderState& DrawRenderState,
+			const FSceneView& View,
+			bool bIsHitTesting,
+			bool bNeedsToSwitchVerticalAxis);
+
+		const FMaterialRenderProxy* const MaterialRenderProxy;
+		const FCanvas::FTransformEntry Transform;
+
+	private:
+		void InitTriangleMesh(const FSceneView& View, bool bNeedsToSwitchVerticalAxis);
+		void ReleaseTriangleMesh();
+
+		FRawIndexBuffer IndexBuffer;
+		FStaticMeshVertexBuffers StaticMeshVertexBuffers;
+		FTriangleVertexFactory VertexFactory;
+		FTriangleMesh TriMesh;
+
+		struct FTriangleInst
+		{
+			FCanvasUVTri Tri;
+			FHitProxyId HitProxyId;
+		};
+		TArray<FTriangleInst> Triangles;
 	};
+
 	/**
-	* Render data which is allocated when a new FCanvasTriangleRendererItem is added for rendering.
-	* This data is only freed on the rendering thread once the item has finished rendering
-	*/
-	FRenderData* Data;
+	 * Render data which is allocated when a new FCanvasTriangleRendererItem is added for rendering.
+	 * This data is only freed on the rendering thread once the item has finished rendering
+	 */
+	TSharedPtr<FRenderData> Data;
 
 	const bool bFreezeTime;
-
-	typedef FRenderData::FTriangleInst FTriangleInst;
-	void InitTriangleBuffers(FLocalVertexFactory* VertexFactory, TArray<FTriangleInst>& Triangles, const FSceneView& View, bool bNeedsToSwitchVerticalAxis);
 };
 
 /**
