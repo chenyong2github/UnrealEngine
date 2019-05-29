@@ -243,7 +243,7 @@ struct FNameSlot
 	
 	bool operator==(FNameSlot Rhs) const { return IdAndHash == Rhs.IdAndHash; }
 
-	bool Used() const { return IdAndHash;  }
+	bool Used() const { return !!IdAndHash;  }
 private:
 	uint32 IdAndHash = 0;
 };
