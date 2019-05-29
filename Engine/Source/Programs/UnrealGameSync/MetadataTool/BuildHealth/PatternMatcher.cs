@@ -99,6 +99,7 @@ namespace MetadataTool
 
 			Target.FileNames.UnionWith(Source.FileNames);
 			Target.Identifiers.UnionWith(Source.Identifiers);
+			Target.References.UnionWith(Source.References);
 		}
 
 		/// <summary>

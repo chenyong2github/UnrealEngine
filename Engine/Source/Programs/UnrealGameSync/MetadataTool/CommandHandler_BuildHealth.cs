@@ -25,6 +25,7 @@ namespace MetadataTool
 			new CompilePatternMatcher(),
 			new UndefinedSymbolPatternMatcher(),
 			new CopyrightNoticeMatcher(),
+			new ContentPatternMatcher(),
 			new DefaultPatternMatcher(),
 		};
 

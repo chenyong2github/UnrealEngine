@@ -30,11 +30,6 @@ namespace MetadataTool
 			return new List<ChangeInfo>();
 		}
 
-		public override bool CanMerge(BuildHealthIssue Source, BuildHealthIssue Target)
-		{
-			return Source.Category == Target.Category && Source.Identifiers.Any(x => Target.Identifiers.Contains(x));
-		}
-
 		public override string GetSummary(BuildHealthIssue Issue)
 		{
 			string Message = Issue.Diagnostics[0].Message;

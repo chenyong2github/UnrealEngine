@@ -98,6 +98,12 @@ namespace MetadataTool
 		public SortedSet<string> Identifiers = new SortedSet<string>();
 
 		/// <summary>
+		/// Other arbitrary references to assets or files
+		/// </summary>
+		[DataMember(Order = 7)]
+		public SortedSet<string> References = new SortedSet<string>();
+
+		/// <summary>
 		/// The last posted issue summary. Will be updated if it changes.
 		/// </summary>
 		[DataMember(Order = 20)]
