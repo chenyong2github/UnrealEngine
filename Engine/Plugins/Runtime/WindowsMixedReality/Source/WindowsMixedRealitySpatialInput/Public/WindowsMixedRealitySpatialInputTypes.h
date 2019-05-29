@@ -5,6 +5,16 @@
 #pragma once
 
 UENUM()
+enum class ESpatialInputAxisGestureType : uint8
+{
+	None = 0,
+	Manipulation = 1,
+	Navigation = 2,
+	NavigationRails = 3
+};
+
+
+UENUM()
 enum class ESpatialInputSourceKind
 {
 	Other = 0,
@@ -20,5 +30,8 @@ enum class EGestureType : uint8
 	HoldGesture = 1 << 1,
 	ManipulationGesture = 1 << 2,
 	NavigationGesture = 1 << 3,
-	NavigationRailsGesture = 1 << 4
+	NavigationRailsGesture = 1 << 4,
+	NavigationGestureX = 1 << 5,
+	NavigationGestureY = 1 << 6,
+	NavigationGestureZ = 1 << 7
 };

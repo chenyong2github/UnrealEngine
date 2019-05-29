@@ -352,6 +352,8 @@ namespace WindowsMixedReality
 		}
 		if (CapturingSet & (uint32)EGestureType::ManipulationGesture)
 		{
+			check(!(CapturingSet & (uint32)EGestureType::NavigationGesture || CapturingSet & (uint32)EGestureType::NavigationRailsGesture));
+
 			if (!gestureRecognizer->SubscribeManipulation(std::bind(&FWindowsMixedRealitySpatialInput::ManipulationCallback, this, _1, _2, _3)))
 			{
 				errorMsg = (TEXT("WindowsMixedRealitySpatialInput couldn't subscribe to Manipulation event"));
@@ -360,8 +362,28 @@ namespace WindowsMixedReality
 		}
 		if (CapturingSet & (uint32)EGestureType::NavigationGesture)
 		{
+			check(!(CapturingSet & (uint32)EGestureType::ManipulationGesture || CapturingSet & (uint32)EGestureType::NavigationRailsGesture));
+
+			unsigned int Axes = 0;
+			if (CapturingSet & (uint32)EGestureType::NavigationGestureX)
+			{
+				Axes |= GestureRecognizerInterop::NavigationY;
+			}
+			if (CapturingSet & (uint32)EGestureType::NavigationGestureY)
+			{
+				Axes |= GestureRecognizerInterop::NavigationZ;
+			}
+			if (CapturingSet & (uint32)EGestureType::NavigationGestureZ)
+			{
+				Axes |= GestureRecognizerInterop::NavigationX;
+			}
+			if (Axes == 0)
+			{
+				UE_LOG(LogCore, Warning, TEXT("CaptureGestures is set to capture Navigation, but no axis.  This will work, but it's wierd enough that it is probably a mistake."));
+			}
+
 			if (!gestureRecognizer->SubscribeNavigation(std::bind(&FWindowsMixedRealitySpatialInput::NavigationCallback, this, _1, _2, _3),
-				GestureRecognizerInterop::NavigationX | GestureRecognizerInterop::NavigationY | GestureRecognizerInterop::NavigationZ))
+				Axes))
 			{
 				errorMsg = (TEXT("WindowsMixedRealitySpatialInput couldn't subscribe to Navigation event"));
 				return false;
@@ -369,8 +391,29 @@ namespace WindowsMixedReality
 		}
 		if (CapturingSet & (uint32)EGestureType::NavigationRailsGesture)
 		{
-			if (!gestureRecognizer->SubscribeNavigation(std::bind(&FWindowsMixedRealitySpatialInput::NavigationRailsCallback, this, _1, _2, _3),
-				GestureRecognizerInterop::NavigationRailsX | GestureRecognizerInterop::NavigationRailsY | GestureRecognizerInterop::NavigationRailsZ))
+			check(!(CapturingSet & (uint32)EGestureType::NavigationGesture || CapturingSet & (uint32)EGestureType::ManipulationGesture));
+
+			// Convert unreal axis to WMR axes
+			unsigned int Axes = 0;
+			if (CapturingSet & (uint32)EGestureType::NavigationGestureX)
+			{
+				Axes |= GestureRecognizerInterop::NavigationRailsY;
+			}
+			if (CapturingSet & (uint32)EGestureType::NavigationGestureY)
+			{
+				Axes |= GestureRecognizerInterop::NavigationRailsZ;
+			}
+			if (CapturingSet & (uint32)EGestureType::NavigationGestureZ)
+			{
+				Axes |= GestureRecognizerInterop::NavigationRailsX;
+			}
+			if (Axes == 0)
+			{
+				UE_LOG(LogCore, Warning, TEXT("CaptureGestures is set to capture NavigationRails, but no axis.  This will work, but it's wierd enough that it is probably a mistake."));
+			}
+
+			if (!gestureRecognizer->SubscribeNavigation(std::bind(&FWindowsMixedRealitySpatialInput::NavigationCallback, this, _1, _2, _3),
+				Axes))
 			{
 				errorMsg = (TEXT("WindowsMixedRealitySpatialInput couldn't subscribe to NavigationRails event"));
 				return false;
@@ -390,10 +433,12 @@ namespace WindowsMixedReality
 			if (desc.Count == 1)
 			{
 				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::TapGesture, HMDInputPressState::Released);
+				SendControllerButtonEvent(MessageHandler, 0, desc.Hand == HMDHand::Left ? FSpatialInputKeys::LeftTapGesture : FSpatialInputKeys::RightTapGesture, HMDInputPressState::Released);
 			}
 			else if (desc.Count == 2)
 			{
 				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::DoubleTapGesture, HMDInputPressState::Released);
+				SendControllerButtonEvent(MessageHandler, 0, desc.Hand == HMDHand::Left ? FSpatialInputKeys::LeftDoubleTapGesture : FSpatialInputKeys::RightDoubleTapGesture, HMDInputPressState::Released);
 			}
 		}
 	}
@@ -403,15 +448,18 @@ namespace WindowsMixedReality
 		if (stage == GestureStage::Started)
 		{
 			SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::HoldGesture, HMDInputPressState::Pressed);
+			SendControllerButtonEvent(MessageHandler, 0, desc.Hand == HMDHand::Left ? FSpatialInputKeys::LeftHoldGesture : FSpatialInputKeys::RightHoldGesture, HMDInputPressState::Pressed);
 		}
 		else if (stage == GestureStage::Completed || stage == GestureStage::Canceled)
 		{
 			SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::HoldGesture, HMDInputPressState::Released);
+			SendControllerButtonEvent(MessageHandler, 0, desc.Hand == HMDHand::Left ? FSpatialInputKeys::LeftHoldGesture : FSpatialInputKeys::RightHoldGesture, HMDInputPressState::Released);
 		}
 	}
 
 	void FWindowsMixedRealitySpatialInput::ManipulationCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Manipulation& desc)
 	{
+		UE_LOG(LogTemp, Log, TEXT("ManipulationCallback %f %f %f"), desc.Delta.x, desc.Delta.y, desc.Delta.z);
 		FVector Delta = WMRUtility::FromMixedRealityVector(desc.Delta);
 
 		if (desc.Hand == HMDHand::Left)
@@ -482,45 +530,6 @@ namespace WindowsMixedReality
 			if (stage == GestureStage::Completed || stage == GestureStage::Canceled)
 			{
 				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::RightNavigationGesture, HMDInputPressState::Released);
-			}
-		}
-	}
-
-
-	void FWindowsMixedRealitySpatialInput::NavigationRailsCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Navigation& desc)
-	{
-		FVector NormalizedOffset = WMRUtility::FromMixedRealityVector(desc.NormalizedOffset);
-
-		if (desc.Hand == HMDHand::Left)
-		{
-			if (stage == GestureStage::Started)
-			{
-				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::LeftNavigationRailsGesture, HMDInputPressState::Pressed);
-			}
-
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::LeftNavigationRailsXGesture, NormalizedOffset.X);
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::LeftNavigationRailsYGesture, NormalizedOffset.Y);
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::LeftNavigationRailsZGesture, NormalizedOffset.Z);
-
-			if (stage == GestureStage::Completed || stage == GestureStage::Canceled)
-			{
-				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::LeftNavigationRailsGesture, HMDInputPressState::Released);
-			}
-		}
-		else if (desc.Hand == HMDHand::Right)
-		{
-			if (stage == GestureStage::Started)
-			{
-				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::RightNavigationRailsGesture, HMDInputPressState::Pressed);
-			}
-
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::RightNavigationRailsXGesture, NormalizedOffset.X);
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::RightNavigationRailsYGesture, NormalizedOffset.Y);
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::RightNavigationRailsZGesture, NormalizedOffset.Z);
-
-			if (stage == GestureStage::Completed || stage == GestureStage::Canceled)
-			{
-				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::RightNavigationRailsGesture, HMDInputPressState::Released);
 			}
 		}
 	}
@@ -690,6 +699,14 @@ namespace WindowsMixedReality
 		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::DoubleTapGesture, LOCTEXT(DoubleTapGestureName, "Windows Spatial Input Double Tap Gesture"), FKeyDetails::GamepadKey));
 		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::HoldGesture, LOCTEXT(HoldGestureName, "Windows Spatial Input Hold Gesture"), FKeyDetails::GamepadKey));
 
+		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::LeftTapGesture, LOCTEXT(LeftTapGestureName, "Windows Spatial Input Left Tap Gesture"), FKeyDetails::GamepadKey));
+		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::LeftDoubleTapGesture, LOCTEXT(LeftDoubleTapGestureName, "Windows Spatial Input Left Double Tap Gesture"), FKeyDetails::GamepadKey));
+		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::LeftHoldGesture, LOCTEXT(LeftHoldGestureName, "Windows Spatial Input Left Hold Gesture"), FKeyDetails::GamepadKey));
+
+		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::RightTapGesture, LOCTEXT(RightTapGestureName, "Windows Spatial Input Right Tap Gesture"), FKeyDetails::GamepadKey));
+		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::RightDoubleTapGesture, LOCTEXT(RightDoubleTapGestureName, "Windows Spatial Input Right Double Tap Gesture"), FKeyDetails::GamepadKey));
+		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::RightHoldGesture, LOCTEXT(RightHoldGestureName, "Windows Spatial Input Right Hold Gesture"), FKeyDetails::GamepadKey));
+
 		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::LeftManipulationGesture, LOCTEXT(LeftManipulationGestureName, "Windows Spatial Input Left Manipulation Gesture"), FKeyDetails::GamepadKey));
 		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::LeftManipulationXGesture, LOCTEXT(LeftManipulationXGestureName, "Windows Spatial Input Left Manipulation X Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
 		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::LeftManipulationYGesture, LOCTEXT(LeftManipulationYGestureName, "Windows Spatial Input Left Manipulation Y Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
@@ -700,11 +717,6 @@ namespace WindowsMixedReality
 		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::LeftNavigationYGesture, LOCTEXT(LeftNavigationYGestureName, "Windows Spatial Input Left Navigation Y Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
 		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::LeftNavigationZGesture, LOCTEXT(LeftNavigationZGestureName, "Windows Spatial Input Left Navigation Z Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
 
-		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::LeftNavigationRailsGesture, LOCTEXT(LeftNavigationGestureName, "Windows Spatial Input Left Navigation Rails Gesture"), FKeyDetails::GamepadKey));
-		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::LeftNavigationRailsXGesture, LOCTEXT(LeftNavigationXGestureName, "Windows Spatial Input Left Navigation Rails X Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
-		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::LeftNavigationRailsYGesture, LOCTEXT(LeftNavigationYGestureName, "Windows Spatial Input Left Navigation Rails Y Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
-		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::LeftNavigationRailsZGesture, LOCTEXT(LeftNavigationZGestureName, "Windows Spatial Input Left Navigation Rails Z Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
-
 		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::RightManipulationGesture, LOCTEXT(RightManipulationGestureName, "Windows Spatial Input Right Manipulation Gesture"), FKeyDetails::GamepadKey));
 		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::RightManipulationXGesture, LOCTEXT(RightManipulationXGestureName, "Windows Spatial Input Right Manipulation X Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
 		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::RightManipulationYGesture, LOCTEXT(RightManipulationYGestureName, "Windows Spatial Input Right Manipulation Y Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
@@ -714,11 +726,6 @@ namespace WindowsMixedReality
 		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::RightNavigationXGesture, LOCTEXT(RightNavigationXGestureName, "Windows Spatial Input Right Navigation X Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
 		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::RightNavigationYGesture, LOCTEXT(RightNavigationYGestureName, "Windows Spatial Input Right Navigation Y Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
 		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::RightNavigationZGesture, LOCTEXT(RightNavigationZGestureName, "Windows Spatial Input Right Navigation Z Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
-
-		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::RightNavigationRailsGesture, LOCTEXT(RightNavigationGestureName, "Windows Spatial Input Right Navigation Rails Gesture"), FKeyDetails::GamepadKey));
-		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::RightNavigationRailsXGesture, LOCTEXT(RightNavigationXGestureName, "Windows Spatial Input Right Navigation Rails X Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
-		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::RightNavigationRailsYGesture, LOCTEXT(RightNavigationYGestureName, "Windows Spatial Input Right Navigation Rails Y Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
-		EKeys::AddKey(FKeyDetails(FSpatialInputKeys::RightNavigationRailsZGesture, LOCTEXT(RightNavigationZGestureName, "Windows Spatial Input Right Navigation Rails Z Gesture"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis));
 	}
 
 	void FWindowsMixedRealitySpatialInput::InitializeSpatialInput() noexcept

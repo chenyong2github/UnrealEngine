@@ -74,7 +74,6 @@ namespace WindowsMixedReality
 		void HoldCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Hold& desc);
 		void ManipulationCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Manipulation& desc);
 		void NavigationCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Navigation& desc);
-		void NavigationRailsCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Navigation& desc);
 #endif
 
 		bool isLeftTouchpadTouched = false;

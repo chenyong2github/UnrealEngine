@@ -38,8 +38,15 @@
 
 #define TapGestureName "WindowsSpatialInput_TapGesture"	
 #define DoubleTapGestureName "WindowsSpatialInput_DoubleTapGesture"	
-
 #define HoldGestureName "WindowsSpatialInput_HoldGesture"	
+
+#define LeftTapGestureName "WindowsSpatialInput_LeftTapGesture"	
+#define LeftDoubleTapGestureName "WindowsSpatialInput_LeftDoubleTapGesture"	
+#define LeftHoldGestureName "WindowsSpatialInput_LeftHoldGesture"	
+
+#define RightTapGestureName "WindowsSpatialInput_RightTapGesture"	
+#define RightDoubleTapGestureName "WindowsSpatialInput_RightDoubleTapGesture"	
+#define RightHoldGestureName "WindowsSpatialInput_RightHoldGesture"	
 
 #define LeftManipulationGestureName "WindowsSpatialInput_LeftManipulationGesture"	
 #define LeftManipulationXGestureName "WindowsSpatialInput_LeftManipulationXGesture"	
@@ -51,11 +58,6 @@
 #define LeftNavigationYGestureName "WindowsSpatialInput_LeftNavigationYGesture"	
 #define LeftNavigationZGestureName "WindowsSpatialInput_LeftNavigationZGesture"	
 
-#define LeftNavigationRailsGestureName "WindowsSpatialInput_LeftNavigationRailsGesture"	
-#define LeftNavigationRailsXGestureName "WindowsSpatialInput_LeftNavigationRailsXGesture"	
-#define LeftNavigationRailsYGestureName "WindowsSpatialInput_LeftNavigationRailsYGesture"	
-#define LeftNavigationRailsZGestureName "WindowsSpatialInput_LeftNavigationRailsZGesture"	
-
 
 #define RightManipulationGestureName "WindowsSpatialInput_RightManipulationGesture"	
 #define RightManipulationXGestureName "WindowsSpatialInput_RightManipulationXGesture"	
@@ -66,11 +68,6 @@
 #define RightNavigationXGestureName "WindowsSpatialInput_RightNavigationXGesture"	
 #define RightNavigationYGestureName "WindowsSpatialInput_RightNavigationYGesture"	
 #define RightNavigationZGestureName "WindowsSpatialInput_RightNavigationZGesture"	
-
-#define RightNavigationRailsGestureName "WindowsSpatialInput_RightNavigationRailsGesture"	
-#define RightNavigationRailsXGestureName "WindowsSpatialInput_RightNavigationRailsXGesture"	
-#define RightNavigationRailsYGestureName "WindowsSpatialInput_RightNavigationRailsYGesture"	
-#define RightNavigationRailsZGestureName "WindowsSpatialInput_RightNavigationRailsZGesture"	
 
 /*
 * Keys struct
@@ -101,6 +98,16 @@ struct FSpatialInputKeys
 
 	static const FKey HoldGesture;
 
+
+	static const FKey LeftTapGesture;
+	static const FKey LeftDoubleTapGesture;
+	static const FKey LeftHoldGesture;
+
+	static const FKey RightTapGesture;
+	static const FKey RightDoubleTapGesture;
+	static const FKey RightHoldGesture;
+
+
 	static const FKey LeftManipulationGesture;
 	static const FKey LeftManipulationXGesture;
 	static const FKey LeftManipulationYGesture;
@@ -110,11 +117,6 @@ struct FSpatialInputKeys
 	static const FKey LeftNavigationXGesture;
 	static const FKey LeftNavigationYGesture;
 	static const FKey LeftNavigationZGesture;
-
-	static const FKey LeftNavigationRailsGesture;
-	static const FKey LeftNavigationRailsXGesture;
-	static const FKey LeftNavigationRailsYGesture;
-	static const FKey LeftNavigationRailsZGesture;
 
 
 	static const FKey RightManipulationGesture;
@@ -126,9 +128,4 @@ struct FSpatialInputKeys
 	static const FKey RightNavigationXGesture;
 	static const FKey RightNavigationYGesture;
 	static const FKey RightNavigationZGesture;
-
-	static const FKey RightNavigationRailsGesture;
-	static const FKey RightNavigationRailsXGesture;
-	static const FKey RightNavigationRailsYGesture;
-	static const FKey RightNavigationRailsZGesture;
 };

@@ -11,6 +11,7 @@
 #include "MixedRealityInterop.h"
 #endif
 
+#include "WindowsMixedRealitySpatialInputTypes.h"
 #include "WindowsMixedRealitySpatialInputFunctionLibrary.Generated.h"
 
 
@@ -27,7 +28,7 @@ public:
 	/**
 	* Beginning and ending of the gestures capturing. 
 	*/
-	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealitySpatialInput")
-	static bool CaptureGestures(bool Tap = false, bool Hold = false, bool Manipulation = false, bool Navigation = false, bool NavigationRails = false);
+	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealitySpatialInput", meta = (ToolTip = "Specify which gestures to capture."))
+	static bool CaptureGestures(bool Tap = false, bool Hold = false, ESpatialInputAxisGestureType AxisGesture = ESpatialInputAxisGestureType::None, bool NavigationAxisX = true, bool NavigationAxisY = true, bool NavigationAxisZ = true);
 
 };

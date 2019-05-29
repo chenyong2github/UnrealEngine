@@ -998,6 +998,13 @@ namespace WindowsMixedReality
 		if (StationaryReferenceFrame == nullptr)
 		{
 			StationaryReferenceFrame = Locator.CreateStationaryFrameOfReferenceAtCurrentLocation();
+			for (auto p : gestureRecognizerMap)
+			{
+				if (p.second)
+				{
+					p.second->UpdateFrame(StationaryReferenceFrame);
+				}
+			}
 		}
 		if (StationaryReferenceFrame == nullptr)
 		{
