@@ -8,6 +8,7 @@
 #include "PropertyNode.h"
 #include "IDetailsView.h"
 
+class FEditConditionParser;
 class FNotifyHook;
 class IDetailPropertyExtensionHandler;
 class IDetailRootObjectCustomization;
@@ -128,4 +129,6 @@ public:
 	* Restores the expansion state of property nodes for the selected object set
 	*/
 	virtual void RestoreExpandedItems(TSharedRef<FPropertyNode> StartNode) = 0;
+
+	virtual TSharedPtr<FEditConditionParser> GetEditConditionParser() const = 0;
 };

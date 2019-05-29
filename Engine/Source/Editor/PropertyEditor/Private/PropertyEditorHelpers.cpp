@@ -362,7 +362,7 @@ void SEditConditionWidget::OnEditConditionCheckChanged( ECheckBoxState CheckStat
 
 	if( PropertyEditor.IsValid() && PropertyEditor->HasEditCondition() && PropertyEditor->SupportsEditConditionToggle() )
 	{
-		PropertyEditor->SetEditConditionState( CheckState == ECheckBoxState::Checked );
+		PropertyEditor->ToggleEditConditionState();
 	}
 	else
 	{
