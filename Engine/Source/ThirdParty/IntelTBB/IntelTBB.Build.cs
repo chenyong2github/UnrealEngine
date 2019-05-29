@@ -15,17 +15,14 @@ public class IntelTBB : ModuleRules
             string IntelTBBPath = Target.UEThirdPartySourceDirectory + "IntelTBB/IntelTBB-4.4u3/";
             PublicSystemIncludePaths.Add(IntelTBBPath + "Include");
 
-            if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED)
+            string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
+            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
             {
-                string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
-                if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
-                {
-                    PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/vc14/{2}/", IntelTBBPath, PlatformSubpath, Target.WindowsPlatform.GetArchitectureSubpath()));
-                }
-                else
-                {
-                    PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/vc14/", IntelTBBPath, PlatformSubpath));
-                }
+                PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/vc14/{2}/", IntelTBBPath, PlatformSubpath, Target.WindowsPlatform.GetArchitectureSubpath()));
+            }
+            else
+            {
+                PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/vc14/", IntelTBBPath, PlatformSubpath));
             }
 
             // Disable the #pragma comment(lib, ...) used by default in MallocTBB...
