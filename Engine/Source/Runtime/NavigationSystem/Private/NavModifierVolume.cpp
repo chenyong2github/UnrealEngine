@@ -59,6 +59,10 @@ void ANavModifierVolume::PostEditUndo()
 {
 	Super::PostEditUndo();
 
+	if (GetBrushComponent())
+	{
+		GetBrushComponent()->BuildSimpleBrushCollision();
+	}
 	FNavigationSystem::UpdateActorData(*this);
 }
 

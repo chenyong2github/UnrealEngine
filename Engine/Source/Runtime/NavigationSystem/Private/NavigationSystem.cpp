@@ -3784,9 +3784,13 @@ void UNavigationSystemV1::OnPostLoadMap(UWorld*)
 #if WITH_EDITOR
 void UNavigationSystemV1::OnActorMoved(AActor* Actor)
 {
-	if (Cast<ANavMeshBoundsVolume>(Actor) != NULL)
+	if (Cast<ANavMeshBoundsVolume>(Actor))
 	{
 		OnNavigationBoundsUpdated((ANavMeshBoundsVolume*)Actor);
+	}
+	else if (Actor)
+	{
+		UpdateActorAndComponentsInNavOctree(*Actor, /*bUpdateAttachedActors=*/true);
 	}
 }
 #endif // WITH_EDITOR
