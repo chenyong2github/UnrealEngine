@@ -17,7 +17,7 @@ UBlueprintFunctionLibrary::UBlueprintFunctionLibrary(const FObjectInitializer& O
 {
 }
 
-int32 UBlueprintFunctionLibrary::GetFunctionCallspace(UFunction* Function, void* Parameters, FFrame* Stack)
+int32 UBlueprintFunctionLibrary::GetFunctionCallspace(UFunction* Function, FFrame* Stack)
 {
 	const bool bIsAuthoritativeFunc = Function->HasAnyFunctionFlags(FUNC_BlueprintAuthorityOnly);
 	const bool bIsCosmeticFunc      = Function->HasAnyFunctionFlags(FUNC_BlueprintCosmetic);

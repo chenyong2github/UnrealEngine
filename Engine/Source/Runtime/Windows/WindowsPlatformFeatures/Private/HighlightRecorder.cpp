@@ -116,6 +116,12 @@ void FHighlightRecorder::Stop()
 	FGameplayMediaEncoder::Get()->UnregisterListener(this);
 	State = EState::Stopped;
 
+	if (BackgroundSaving)
+	{
+		BackgroundSaving->Join();
+		BackgroundSaving.Reset();
+	}
+
 	UE_LOG(HighlightRecorder, Log, TEXT("recording stopped"));
 }
 
@@ -178,7 +184,7 @@ bool FHighlightRecorder::SaveHighlight(const TCHAR* Filename, FDoneCallback InDo
 
 	{
 		CSV_SCOPED_TIMING_STAT(WindowsVideoRecordingSystem, HighlightRecorder_SaveThreadCreation);
-		BackgroundProcessor.Reset(new FThread(TEXT("Highlight Saving"), [this, LocalFilename, MaxDurationSecs]()
+		BackgroundSaving.Reset(new FThread(TEXT("Highlight Saving"), [this, LocalFilename, MaxDurationSecs]()
 		{
 			SaveHighlightInBackground(LocalFilename, MaxDurationSecs);
 		}));
@@ -186,6 +192,7 @@ bool FHighlightRecorder::SaveHighlight(const TCHAR* Filename, FDoneCallback InDo
 
 	return true;
 }
+
 
 // the bool result is solely for convenience (CHECK_HR) and is ignored as it's a thread function and
 // nobody checks it's result. Actual result is notified by the callback.
@@ -195,69 +202,80 @@ bool FHighlightRecorder::SaveHighlightInBackground(const FString& Filename, doub
 
 	double T0 = FPlatformTime::Seconds();
 
-	bool bRes = true;
-
-	TArray<FGameplayMediaEncoderSample> Samples = RingBuffer.GetCopy();
-
-	do // once
-	{
-		if (!InitialiseMp4Writer(Filename))
-		{
-			bRes = false;
-			break;
-		}
-
-		int SampleIndex;
-		FTimespan StartTime;
-		if (!GetSavingStart(Samples, FTimespan::FromSeconds(MaxDurationSecs), SampleIndex, StartTime))
-		{
-			bRes = false;
-			break;
-		}
-
-		checkf(Samples[SampleIndex].IsVideoKeyFrame(), TEXT("t %.3f d %.3f"), Samples[SampleIndex].GetTime().GetTotalSeconds(), Samples[SampleIndex].GetDuration().GetTotalSeconds());
-
-		if (SampleIndex == Samples.Num())
-		{
-			UE_LOG(HighlightRecorder, Error, TEXT("no samples to save to .mp4"));
-			bRes = false;
-			break;
-		}
-
-		UE_LOG(HighlightRecorder, Verbose, TEXT("writting %d samples to .mp4, %.3f s, starting from %.3f s, index %d"), Samples.Num() - SampleIndex, (Samples.Last().GetTime() - StartTime + Samples.Last().GetDuration()).GetTotalSeconds(), StartTime.GetTotalSeconds(), SampleIndex);
-
-		// get samples starting from `StartTime` and push them into Mp4Writer
-		for (; SampleIndex != Samples.Num() && !bStopSaving; ++SampleIndex)
-		{
-			FGameplayMediaEncoderSample& Sample = Samples[SampleIndex];
-			Sample.SetTime(Sample.GetTime() - StartTime);
-			if (!Mp4Writer->Write(Sample))
-			{
-				bRes = false;
-				break;
-			}
-		}
-	} while (false);
-
-	if (bRes)
-	{
-		if (!Mp4Writer->Finalize())
-		{
-			bRes = false;
-		}
-	}
+	bool bRes = SaveHighlightInBackgroundImpl(Filename, MaxDurationSecs);
 
 	double PassedSecs = FPlatformTime::Seconds() - T0;
-	UE_LOG(HighlightRecorder, Log, TEXT("saving to %s %s, took %.3f msecs"), *Filename, bRes ? TEXT("succeeded") : TEXT("failed"), PassedSecs);
-
-	bSaving = false;
+	UE_LOG(HighlightRecorder, Log, TEXT("saving to %s %s, took %.3f secs"), *Filename, bRes ? TEXT("succeeded") : TEXT("failed"), PassedSecs);
 
 	DoneCallback(bRes);
+	bSaving = false;
 
 	return bRes;
 }
 
-bool FHighlightRecorder::InitialiseMp4Writer(const FString& Filename)
+bool FHighlightRecorder::SaveHighlightInBackgroundImpl(const FString& Filename, double MaxDurationSecs)
+{
+	TArray<FGameplayMediaEncoderSample> Samples = RingBuffer.GetCopy();
+
+	if (Samples.Num()==0)
+	{
+		UE_LOG(HighlightRecorder, Error, TEXT("no samples to save to .mp4"));
+		return false;
+	}
+
+	int FirstSampleIndex;
+	FTimespan StartTime;
+	if (!GetSavingStart(Samples, FTimespan::FromSeconds(MaxDurationSecs), FirstSampleIndex, StartTime))
+	{
+		return false;
+	}
+
+	// Check if we have audio, so that if we don't, we don't create an audio track
+	bool bHasAudio = false;
+	for (int Idx = FirstSampleIndex; Idx != Samples.Num(); ++Idx)
+	{
+		if (Samples[Idx].GetType() == EMediaType::Audio)
+		{
+			bHasAudio = true;
+			break;
+		}
+	}
+
+	if (!InitialiseMp4Writer(Filename, bHasAudio))
+	{
+		return false;
+	}
+
+	checkf(Samples[FirstSampleIndex].IsVideoKeyFrame(), TEXT("t %.3f d %.3f"), Samples[FirstSampleIndex].GetTime().GetTotalSeconds(), Samples[FirstSampleIndex].GetDuration().GetTotalSeconds());
+
+	if (FirstSampleIndex == Samples.Num())
+	{
+		UE_LOG(HighlightRecorder, Error, TEXT("no samples to save to .mp4"));
+		return false;
+	}
+
+	UE_LOG(HighlightRecorder, Verbose, TEXT("writting %d samples to .mp4, %.3f s, starting from %.3f s, index %d"), Samples.Num() - FirstSampleIndex, (Samples.Last().GetTime() - StartTime + Samples.Last().GetDuration()).GetTotalSeconds(), StartTime.GetTotalSeconds(), FirstSampleIndex);
+
+	// get samples starting from `StartTime` and push them into Mp4Writer
+	for (int Idx = FirstSampleIndex; Idx != Samples.Num(); ++Idx)
+	{
+		FGameplayMediaEncoderSample& Sample = Samples[Idx];
+		Sample.SetTime(Sample.GetTime() - StartTime);
+		if (!Mp4Writer->Write(Sample, (Sample.GetType()==EMediaType::Video && bHasAudio) ? 1 : 0))
+		{
+			return false;
+		}
+	}
+
+	if (!Mp4Writer->Finalize())
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool FHighlightRecorder::InitialiseMp4Writer(const FString& Filename, bool bHasAudio)
 {
 	FString VideoCaptureDir = FPaths::VideoCaptureDir();
 	auto& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
@@ -287,15 +305,12 @@ bool FHighlightRecorder::InitialiseMp4Writer(const FString& Filename)
 	}
 
 	DWORD StreamIndex;
-	if (!Mp4Writer->CreateStream(AudioType, StreamIndex))
+	if (bHasAudio)
 	{
-		return false;
-	}
-
-	if (StreamIndex != static_cast<decltype(StreamIndex)>(EMediaType::Audio))
-	{
-		UE_LOG(HighlightRecorder, Error, TEXT("Invalid audio stream index: %d"), StreamIndex);
-		return false;
+		if (!Mp4Writer->CreateStream(AudioType, StreamIndex))
+		{
+			return false;
+		}
 	}
 
 	TRefCountPtr<IMFMediaType> VideoType;
@@ -306,12 +321,6 @@ bool FHighlightRecorder::InitialiseMp4Writer(const FString& Filename)
 
 	if (!Mp4Writer->CreateStream(VideoType, StreamIndex))
 	{
-		return false;
-	}
-
-	if (StreamIndex != static_cast<decltype(StreamIndex)>(EMediaType::Video))
-	{
-		UE_LOG(HighlightRecorder, Error, TEXT("Invalid video stream index: %d"), StreamIndex);
 		return false;
 	}
 

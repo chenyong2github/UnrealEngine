@@ -8,6 +8,7 @@
 #include "Containers/ArrayView.h"
 #include "Curves/RichCurve.h"
 #include "CurveEditorTypes.h"
+#include "Math/TransformCalculus2D.h"
 
 struct FKeyHandle;
 struct FKeyDrawInfo;
@@ -16,24 +17,26 @@ struct FKeyPosition;
 struct FKeyAttributes;
 struct FCurveAttributes;
 struct FCurveEditorScreenSpace;
+struct FCurveModelID;
 
 class FName;
 class SWidget;
 class FCurveEditor;
 class UObject;
+class SCurveEditorView;
 
 enum class ECurvePointType : uint8;
-
 
 /**
  * Class that models an underlying curve data structure through a generic abstraction that the curve editor understands.
  */
-class FCurveModel
+class CURVEEDITOR_API FCurveModel
 {
 public:
 
 	FCurveModel()
 		: Color(FLinearColor::White)
+		, SupportedViews(ECurveEditorViewID::ANY_BUILT_IN)
 	{}
 
 	virtual ~FCurveModel()
@@ -53,9 +56,10 @@ public:
 	 * Draw the curve for the specified curve editor by populating an array with points on the curve between which lines should be drawn
 	 *
 	 * @param CurveEditor             Reference to the curve editor that is drawing the curve. Can be used to cull the interpolating points to the visible region.
+	 * @param ScreenSpace			  A transform which indicates the use case for the drawn curve. This lets you simplify curves based on their screenspace representation.
 	 * @param OutInterpolatingPoints  Array to populate with points (time, value) that lie on the curve.
 	 */
-	virtual void DrawCurve(const FCurveEditor& CurveEditor, TArray<TTuple<double, double>>& InterpolatingPoints) const = 0;
+	virtual void DrawCurve(const FCurveEditor& CurveEditor, const FCurveEditorScreenSpace& ScreenSpace, TArray<TTuple<double, double>>& InterpolatingPoints) const = 0;
 
 	/**
 	 * Retrieve all keys that lie in the specified time and value range
@@ -105,9 +109,10 @@ public:
 	 * Populate the specified draw info structure with data describing how to draw the specified point type
 	 *
 	 * @param PointType              The type of point to be drawn
+	 * @param InKeyHandle			 The specific key (if possible, otherwise FKeyHandle::Invalid()) to get the info for.
 	 * @param OutDrawInfo            Data structure to be populated with draw info for this type of point
 	 */
-	virtual void GetKeyDrawInfo(ECurvePointType PointType, FKeyDrawInfo& OutDrawInfo) const = 0;
+	virtual void GetKeyDrawInfo(ECurvePointType PointType, const FKeyHandle InKeyHandle, FKeyDrawInfo& OutDrawInfo) const = 0;
 
 	/** Get range of input time.
 	* @param MinTime Minimum Time
@@ -121,6 +126,19 @@ public:
 	* @param MaxValue Minimum Value
 	*/
 	virtual void GetValueRange(double& MinValue, double& MaxValue) const = 0;
+
+	/** Get the number of keys
+	* @param The number of keys
+	*/
+	virtual int32 GetNumKeys() const = 0;
+
+	/** Get neighboring keys given the key handle
+	 *
+	 * @param InKeyHandle The key handle to get neighboring keys for
+	 * @param OutPreviousKeyHandle The previous key handle
+     * @param OutNextKeyHandle The next key handle
+	 */
+	virtual void GetNeighboringKeys(const FKeyHandle InKeyHandle, TOptional<FKeyHandle>& OutPreviousKeyHandle, TOptional<FKeyHandle>& OutNextKeyHandle) const = 0;
 
 	/**
 	 * Evaluate this curve at the specified time
@@ -184,34 +202,84 @@ public:
 	virtual void CreateKeyProxies(TArrayView<const FKeyHandle> InKeyHandles, TArrayView<UObject*> OutObjects)
 	{}
 
-public:
-
 	/**
 	 * Helper function for assigning a the same attributes to a number of keys
 	 */
-	CURVEEDITOR_API void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, const FKeyAttributes& InAttributes);
+	void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, const FKeyAttributes& InAttributes);
 
 	/**
 	 * Helper function for adding a single key to this curve
 	 */
-	CURVEEDITOR_API TOptional<FKeyHandle> AddKey(const FKeyPosition& NewKeyPosition, const FKeyAttributes& InAttributes);
+	TOptional<FKeyHandle> AddKey(const FKeyPosition& NewKeyPosition, const FKeyAttributes& InAttributes);
 
 public:
 
 	/**
-	 * Access this curve's display name
+	 * Access this curve's short display name. This is useful when there are other UI elements which describe
+	 * enough context about the curve that a long name is not needed (ie: Showing just "X" because other
+	 * UI elements give the object/group context).
 	 */
-	FORCEINLINE FText GetDisplayName() const
+	FORCEINLINE FText GetShortDisplayName() const
 	{
-		return DisplayName;
+		return ShortDisplayName;
 	}
 
 	/**
-	 * Assign a display name for this curve
+	 * Assign a short display name for this curve
 	 */
-	FORCEINLINE void SetDisplayName(FText InDisplayName)
+	FORCEINLINE void SetShortDisplayName(const FText& InDisplayName)
 	{
-		DisplayName = InDisplayName;
+		ShortDisplayName = InDisplayName;
+	}
+
+	/**
+	 * Access this curve's long display name. This is useful when you want more context about
+	 * the curve, such as the object it belongs to, or the group (ie: "Floor.Transform.X") instead
+	 * of just "X" or "Transform.X"
+	 */
+	FORCEINLINE FText GetLongDisplayName() const
+	{
+		// For convenience fall back to the short display name if they fail to specify a long one.
+		if (LongDisplayName.IsEmptyOrWhitespace())
+		{
+			return GetShortDisplayName();
+		}
+
+		return LongDisplayName;
+	}
+
+	/**
+	 * Assign a long display name for this curve used in contexts where additional context is useful.
+	 */
+	FORCEINLINE void SetLongDisplayName(const FText& InLongDisplayName)
+	{
+		LongDisplayName = InLongDisplayName;
+	}
+
+	/**
+	 * This is an internal name used to try to match different curves with each other. When saving
+	 * and later restoring curves on a different set of curves we need a name that gives enough context
+	 * to match them up by intention, and not long or short name. For example, a curve might have a short
+	 * name of "X", and a long name of "Floor.Transform.Location.X". If you wanted to copy a set of transform
+	 * curves and paste them onto another transform, we use this context to match the names together to ensure
+	 * your Transform.X gets applied to the other Transform.X - in this example the intention is
+	 * for the curve to represent a "Location.X" (so it should be pasteable on any other curve which says
+	 * their context is a "Location.X" as well). This is more reliable and more flexible than relying on
+	 * short display names (not enough context in the case of seeing Location.X, and Scale.X) and better
+	 * than relying on long display names (too much context and no reliable way to substring them).
+	 */
+	FORCEINLINE FString GetIntentionName() const
+	{
+		return IntentionName;
+	}
+
+	/**
+	 * Assign an intention name for this curve which is used internally when applying one curve to another in situations where
+	 * multiple curves are visible.
+	 */
+	FORCEINLINE void SetIntentionName(const FString& InIntentionName)
+	{
+		IntentionName = InIntentionName;
 	}
 
 	/**
@@ -230,11 +298,28 @@ public:
 		Color = InColor;
 	}
 
+	/**
+	 * Retrieve this curve's supported views
+	 */
+	ECurveEditorViewID GetSupportedViews() const
+	{
+		return SupportedViews;
+	}
+
 protected:
 
-	/** This curve's display name */
-	FText DisplayName;
+	/** This curve's short display name. Used in situations where other mechanisms provide enough context about what the curve is (such as "X") */
+	FText ShortDisplayName;
+
+	/** This curve's long display name. Used in situations where the UI doesn't provide enough context about what the curve is otherwise (such as "Floor.Transform.X") */
+	FText LongDisplayName;
+
+	/** This curve's intention (such as Transform.X or Scale.X). Used internally to match up curves when saving/restoring curves between different objects. */
+	FString IntentionName;
 
 	/** This curve's display color */
 	FLinearColor Color;
+
+	/** A set of views supported by this curve */
+	ECurveEditorViewID SupportedViews;
 };

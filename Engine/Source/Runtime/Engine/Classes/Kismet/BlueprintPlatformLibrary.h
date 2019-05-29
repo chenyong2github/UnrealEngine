@@ -182,7 +182,7 @@ public:
 	 * @param ActivationEvent A string that is passed in the delegate callback when the app is brought into the foreground from the user activating the notification
 	*/
 	UFUNCTION(BlueprintCallable, Category="Platform|LocalNotification")
-	static void ScheduleLocalNotificationAtTime(const FDateTime& FireDateTime, bool LocalTime, const FText& Title, const FText& Body, const FText& Action, const FString& ActivationEvent);
+	static int32 ScheduleLocalNotificationAtTime(const FDateTime& FireDateTime, bool LocalTime, const FText& Title, const FText& Body, const FText& Action, const FString& ActivationEvent);
 
 	/** Schedule a local notification to fire inSecondsFromNow from now 
 	 * @param inSecondsFromNow The seconds until the notification should fire
@@ -193,7 +193,7 @@ public:
 	 * @param ActivationEvent A string that is passed in the delegate callback when the app is brought into the foreground from the user activating the notification
 	*/
 	UFUNCTION(BlueprintCallable, Category="Platform|LocalNotification")
-	static void ScheduleLocalNotificationFromNow(int32 inSecondsFromNow, const FText& Title, const FText& Body, const FText& Action, const FString& ActivationEvent);
+	static int32 ScheduleLocalNotificationFromNow(int32 inSecondsFromNow, const FText& Title, const FText& Body, const FText& Action, const FString& ActivationEvent);
 
 	/** Schedule a local notification badge at a specific time, inLocalTime specifies the current local time or if UTC time should be used
 	 * @param FireDateTime The time at which to fire the local notification
@@ -201,7 +201,7 @@ public:
 	 * @param ActivationEvent A string that is passed in the delegate callback when the app is brought into the foreground from the user activating the notification
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Platform|LocalNotification")
-	static void ScheduleLocalNotificationBadgeAtTime(const FDateTime& FireDateTime, bool LocalTime, const FString& ActivationEvent);
+	static int32 ScheduleLocalNotificationBadgeAtTime(const FDateTime& FireDateTime, bool LocalTime, const FString& ActivationEvent);
 	
 	/** Schedule a local notification badge to fire inSecondsFromNow from now
 	 * @param inSecondsFromNow The seconds until the notification should fire
@@ -215,6 +215,12 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category="Platform|LocalNotification")
 	static void CancelLocalNotification(const FString& ActivationEvent);
+
+	/** Cancel a local notification given the ActivationEvent
+	 * @param NotificationId The Id returned from one of the ScheduleLocalNotification* functions
+	 */
+	UFUNCTION(BlueprintCallable, Category="Platform|LocalNotification")
+	static void CancelLocalNotificationById(int32 NotificationId);
 
 	/** Get the local notification that was used to launch the app
 	 * @param NotificationLaunchedApp Return true if a notification was used to launch the app

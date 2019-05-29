@@ -178,6 +178,8 @@ const FName FBlueprintMetadata::MD_BitmaskEnum(TEXT("BitmaskEnum"));
 const FName FBlueprintMetadata::MD_Bitflags(TEXT("Bitflags"));
 const FName FBlueprintMetadata::MD_UseEnumValuesAsMaskValuesInEditor(TEXT("UseEnumValuesAsMaskValuesInEditor"));
 
+const FName FBlueprintMetadata::MD_AnimBlueprintFunction(TEXT("AnimBlueprintFunction"));
+
 //////////////////////////////////////////////////////////////////////////
 
 #define LOCTEXT_NAMESPACE "KismetSchema"
@@ -3581,6 +3583,21 @@ bool UEdGraphSchema_K2::ConvertPropertyToPinType(const UProperty* Property, /*ou
 	return true;
 }
 
+bool UEdGraphSchema_K2::HasWildcardParams(const UFunction* Function)
+{
+	bool bResult = false;
+	for (TFieldIterator<const UProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm) && !bResult; ++PropIt)
+	{
+		const UProperty* FuncParamProperty = *PropIt;
+
+		if (IsWildcardProperty(FuncParamProperty))
+		{
+			bResult = true;
+		}
+	}
+	return bResult;
+}
+
 bool UEdGraphSchema_K2::IsWildcardProperty(const UProperty* Property)
 {
 	UFunction* Function = Cast<UFunction>(Property->GetOuter());
@@ -5349,13 +5366,6 @@ void UEdGraphSchema_K2::GetGraphDisplayInformation(const UEdGraph& Graph, /*out*
 		DisplayInfo.Tooltip = (MetaData && !MetaData->ToolTip.IsEmpty()) ? MetaData->ToolTip : FText::FromString(Graph.GetName());
 
 		DisplayInfo.DocExcerptName = TEXT("MacroGraph");
-	}
-	else if (GraphType == GT_Animation)
-	{
-		DisplayInfo.PlainName = LOCTEXT("GraphDisplayName_AnimGraph", "AnimGraph");
-
-		DisplayInfo.Tooltip = LOCTEXT("GraphTooltip_AnimGraph", "Graph used to blend together different animations.");
-		DisplayInfo.DocExcerptName = TEXT("AnimGraph");
 	}
 	else if (GraphType == GT_StateMachine)
 	{

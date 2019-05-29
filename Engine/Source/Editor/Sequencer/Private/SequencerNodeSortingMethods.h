@@ -3,6 +3,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "DisplayNodes/SequencerDisplayNode.h"
+#include "Widgets/Views/STableRow.h"
 
 /**
 * This sorting delegate sorts based on the vertical position of the node represented by where it falls
@@ -17,108 +18,6 @@ struct FDisplayNodeTreePositionSorter
 	}
 };
 
-/**
-* This sorting delegate sorts based on category and then alphabetically after that. This replicates
-* existing behavior where all folders come first, then all tracks, and finally all object bindings.
-* Within each category these are sorted by display name alphabetically.
-*
-* This does not respect the user-defined sorting order.
-*/
-struct FDisplayNodeCategoricalSorter
-{
-	int32 NodeTypeToFolderSortId(ESequencerNode::Type NodeType) const
-	{
-		switch (NodeType)
-		{
-		case ESequencerNode::Folder:
-			return 0;
-		case ESequencerNode::Track:
-			return 1;
-		case ESequencerNode::Object:
-			return 2;
-		default:
-			return 3;
-		}
-	};
-
-	int32 NodeTypeToObjectSortId(ESequencerNode::Type NodeType) const
-	{
-		switch (NodeType)
-		{
-		case ESequencerNode::Object:
-			return 0;
-		case ESequencerNode::Track:
-			return 1;
-		default:
-			return 2;
-		}
-	};
-
-	bool operator()(const TSharedRef<FSequencerDisplayNode>& A, const TSharedRef<FSequencerDisplayNode>& B) const
-	{
-		TSharedPtr<FSequencerDisplayNode> ParentNode = A->GetParent();
-
-		// If the nodes are root nodes, or in folders and they are the same type, sort by name.
-		if ((ParentNode.IsValid() == false || ParentNode->GetType() == ESequencerNode::Folder) && A->GetType() == B->GetType())
-		{
-			return A->GetDisplayName().ToString() < B->GetDisplayName().ToString();
-		}
-
-		int32 SortIdA;
-		int32 SortIdB;
-
-		// Otherwise if they are root nodes or in folders use the folder sort id.
-		if (ParentNode.IsValid() == false || ParentNode->GetType() == ESequencerNode::Folder)
-		{
-			SortIdA = NodeTypeToFolderSortId(A->GetType());
-			SortIdB = NodeTypeToFolderSortId(B->GetType());
-		}
-		// Otherwise if they are in an object node use the object node sort id.
-		else if (ParentNode->GetType() == ESequencerNode::Object)
-		{
-			SortIdA = NodeTypeToObjectSortId(A->GetType());
-			SortIdB = NodeTypeToObjectSortId(B->GetType());
-		}
-		// Otherwise they are equal, and in a stable sort shouldn't change position.
-		else
-		{
-			SortIdA = 0;
-			SortIdB = 0;
-		}
-
-		return SortIdA < SortIdB;
-	}
-};
-
-
-/**
-* This sorting delegate sorts based on the sorting order specified by the node. This sorter falls back to the 
-* FDisplayNodeCategoricalSorter for Object nodes because Object nodes do not support sorting order for child nodes.
-*/
-struct FDisplayNodeSortingOrderSorter
-{
-	bool operator()(const TSharedRef<FSequencerDisplayNode>& A, const TSharedRef<FSequencerDisplayNode>& B) const
-	{
-		// If the parent of the object is a Object Binding then we use legacy sorting as we don't allow the user
-		// to reorder tracks within object binding nodes. 
-		TSharedPtr<FSequencerDisplayNode> ParentNode = A->GetParent();
-		if (ParentNode.IsValid() && ParentNode->GetType() == ESequencerNode::Object)
-		{
-			FDisplayNodeCategoricalSorter CategoricalSorter;
-			return CategoricalSorter(A, B);
-		}
-		
-		// If both nodes have been sorted before we just compare their sorting orders.
-		if (A->GetSortingOrder() >= 0 && B->GetSortingOrder() >= 0)
-		{
-			return A->GetSortingOrder() < B->GetSortingOrder();
-		}
-
-		// Otherwise if one of them has not placed before, we want the lower number higher so that
-		// the unsorted node shows up at the end of the list.
-		return A->GetSortingOrder() > B->GetSortingOrder();
-	}
-};
 
 /**
 * Sorts the supplied unsorted nodes and inserts them into the existing sorted nodes before assigning

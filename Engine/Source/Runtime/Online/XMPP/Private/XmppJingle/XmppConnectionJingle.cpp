@@ -721,7 +721,13 @@ void FXmppConnectionJingle::Login(const FString& UserId, const FString& Password
 		}
 		else if (LoginState == EXmppLoginStatus::LoggedIn)
 		{
-			ErrorStr = TEXT("Already logged in");
+			UE_LOG(LogXmpp, Log, TEXT("Reusing existing connection for Jid=%s"), *GetUserJid().ToDebugString());
+
+			OnLoginComplete().Broadcast(GetUserJid(), true, FString());
+			OnLoginChanged().Broadcast(GetUserJid(), EXmppLoginStatus::LoggedIn);
+			//@todo - rebroadcast presence after login triggered on already logged in connection
+			//ReconnectLogin();
+			return;
 		}
 		else
 		{
@@ -796,5 +802,11 @@ const FXmppUserJid& FXmppConnectionJingle::GetUserJid() const
 {
 	return UserJid;
 }
+
+void FXmppConnectionJingle::DumpState() const
+{
+	UE_LOG(LogXmpp, Warning, TEXT("JID=%s Status=%s"), *GetUserJid().ToDebugString(), EXmppLoginStatus::ToString(GetLoginStatus()));
+}
+
 
 #endif //WITH_XMPP_JINGLE

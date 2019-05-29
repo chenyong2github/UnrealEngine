@@ -368,7 +368,7 @@ typedef TPyPtr<FPyWrapperStruct> FPyWrapperStructPtr;
 
 /** An Unreal struct that was generated from a Python type */
 UCLASS()
-class UPythonGeneratedStruct : public UScriptStruct
+class UPythonGeneratedStruct : public UScriptStruct, public IPythonResourceOwner
 {
 	GENERATED_BODY()
 
@@ -380,6 +380,9 @@ public:
 
 	//~ UStruct interface
 	virtual void InitializeStruct(void* Dest, int32 ArrayDim = 1) const override;
+
+	//~ IPythonResourceOwner interface
+	virtual void ReleasePythonResources() override;
 
 	/** Generate an Unreal struct from the given Python type */
 	static UPythonGeneratedStruct* GenerateStruct(PyTypeObject* InPyType);
@@ -398,6 +401,12 @@ private:
 	FPyWrapperStructMetaData PyMetaData;
 
 	friend class FPythonGeneratedStructBuilder;
+
+#else	// WITH_PYTHON
+
+public:
+	//~ IPythonResourceOwner interface
+	virtual void ReleasePythonResources() override {}
 
 #endif	// WITH_PYTHON
 };

@@ -215,6 +215,17 @@ namespace Tools.DotNETCommon
 			WriteValueInternal(Name, Value ? "true" : "false");
 		}
 
+		/// <summary>
+		/// Write a field name and enum value
+		/// </summary>
+		/// <typeparam name="T">The enum type</typeparam>
+		/// <param name="Name">Name of the field</param>
+		/// <param name="Value">Value for the field</param>
+		public void WriteEnumValue<T>(string Name, T Value) where T : struct
+		{
+			WriteValue(Name, Value.ToString());
+		}
+
 		void WriteCommaNewline()
 		{
 			if (bRequiresComma)

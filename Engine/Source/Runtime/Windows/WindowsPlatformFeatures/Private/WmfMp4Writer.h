@@ -13,7 +13,7 @@ public:
 	bool Initialize(const TCHAR* Filename);
 	bool CreateStream(IMFMediaType* StreamType, DWORD& StreamIndex);
 	bool Start();
-	bool Write(const FGameplayMediaEncoderSample& Sample);
+	bool Write(const FGameplayMediaEncoderSample& Sample, DWORD StreamIndex);
 	bool Finalize();
 
 private:

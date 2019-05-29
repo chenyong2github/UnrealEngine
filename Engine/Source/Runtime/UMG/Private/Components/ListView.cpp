@@ -84,25 +84,10 @@ void UListView::ClearListItems()
 
 void UListView::SetSelectionMode(TEnumAsByte<ESelectionMode::Type> InSelectionMode)
 {
-	if (InSelectionMode != SelectionMode)
+	SelectionMode = InSelectionMode;
+	if (MyListView)
 	{
-		SelectionMode = InSelectionMode;
-
-		if (InSelectionMode == ESelectionMode::None)
-		{
-			ClearSelection();
-		}
-		else if (InSelectionMode == ESelectionMode::Single || InSelectionMode == ESelectionMode::SingleToggle)
-		{
-			// Try to preserve the last selected item.
-			TArray<UObject*> CurrentlySelectedItems;
-			GetSelectedItems(CurrentlySelectedItems);
-			UObject* const LastSelectedItem = CurrentlySelectedItems.Num() > 0 ? CurrentlySelectedItems.Last(0) : nullptr;
-			if (LastSelectedItem)
-			{
-				SetSelectedItem(LastSelectedItem);
-			}
-		}
+		MyListView->SetSelectionMode(InSelectionMode);
 	}
 }
 
@@ -220,19 +205,19 @@ TSharedRef<STableViewBase> UListView::RebuildListWidget()
 
 void UListView::HandleListEntryHovered(UUserWidget& EntryWidget)
 {
-	if (UObject* ListItem = IUserObjectListEntry::GetListItem(EntryWidget))
+	if (UObject* const* ListItem = ItemFromEntryWidget(EntryWidget))
 	{
-		OnItemIsHoveredChanged().Broadcast(ListItem, true);
-		BP_OnItemIsHoveredChanged.Broadcast(ListItem, true);
+		OnItemIsHoveredChanged().Broadcast(*ListItem, true);
+		BP_OnItemIsHoveredChanged.Broadcast(*ListItem, true);
 	}
 }
 
 void UListView::HandleListEntryUnhovered(UUserWidget& EntryWidget)
 {
-	if (UObject* ListItem = IUserObjectListEntry::GetListItem(EntryWidget))
+	if (UObject* const* ListItem = ItemFromEntryWidget(EntryWidget))
 	{
-		OnItemIsHoveredChanged().Broadcast(ListItem, false);
-		BP_OnItemIsHoveredChanged.Broadcast(ListItem, false);
+		OnItemIsHoveredChanged().Broadcast(*ListItem, false);
+		BP_OnItemIsHoveredChanged.Broadcast(*ListItem, false);
 	}
 }
 

@@ -288,21 +288,24 @@ bool FGameplayMediaEncoder::Start()
 	//
 	// subscribe to engine delegates for audio output and back buffer
 	//
-	if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+	if (UEngine* Engine = GEngine)
 	{
-		FAudioDevice* AudioDevice = GameEngine->GetMainAudioDevice();
+		FAudioDevice* AudioDevice = Engine->GetMainAudioDevice();
 		if (AudioDevice)
 		{
 			AudioDevice->RegisterSubmixBufferListener(this);
 		}
 
 		VideoEncoder->Start();
-		FSlateRenderer::FOnBackBufferReadyToPresent OnBackBufferReadyDelegate;
-		OnBackBufferReadyDelegate.AddRaw(this, &FGameplayMediaEncoder::OnBackBufferReady);
-		FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent() = OnBackBufferReadyDelegate;
-	}
+		FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().AddRaw(this, &FGameplayMediaEncoder::OnBackBufferReady);
 
-	return true;
+		return true;
+	}
+	else
+	{
+		UE_LOG(GameplayMediaEncoder, Error, TEXT("Failed to register audio and/or video callbacks"));
+		return false;
+	}
 }
 
 void FGameplayMediaEncoder::Stop()

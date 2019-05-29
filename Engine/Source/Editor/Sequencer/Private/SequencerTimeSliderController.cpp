@@ -206,7 +206,7 @@ void FSequencerTimeSliderController::DrawTicks( FSlateWindowElementList& OutDraw
 
 	double MajorGridStep  = 0.0;
 	int32  MinorDivisions = 0;
-	if (!Sequencer->GetGridMetrics(InArgs.AllottedGeometry.Size.X, MajorGridStep, MinorDivisions))
+	if (!Sequencer->GetGridMetrics(InArgs.AllottedGeometry.Size.X, ViewRange.GetLowerBoundValue(), ViewRange.GetUpperBoundValue(), MajorGridStep, MinorDivisions))
 	{
 		return;
 	}
@@ -387,7 +387,7 @@ int32 FSequencerTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, con
 	const bool bEnabled = bParentEnabled;
 	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 
-	TRange<double> LocalViewRange      = TimeSliderArgs.ViewRange.Get();
+	TRange<double> LocalViewRange      = GetViewRange();
 	const float    LocalViewRangeMin   = LocalViewRange.GetLowerBoundValue();
 	const float    LocalViewRangeMax   = LocalViewRange.GetUpperBoundValue();
 	const float    LocalSequenceLength = LocalViewRangeMax-LocalViewRangeMin;
@@ -493,7 +493,7 @@ int32 FSequencerTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, con
 			FFrameRate Resolution = GetTickResolution();
 			FFrameTime MouseDownTime[2];
 
-			FScrubRangeToScreen MouseDownRange(TimeSliderArgs.ViewRange.Get(), MouseDownGeometry.Size);
+			FScrubRangeToScreen MouseDownRange(GetViewRange(), MouseDownGeometry.Size);
 			MouseDownTime[0] = ComputeFrameTimeFromMouse(MouseDownGeometry, MouseDownPosition[0], MouseDownRange);
 			MouseDownTime[1] = ComputeFrameTimeFromMouse(MouseDownGeometry, MouseDownPosition[1], MouseDownRange);
 
@@ -731,7 +731,7 @@ FReply FSequencerTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, co
 	bool bHandleLeftMouseButton  = MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton  && WidgetOwner.HasMouseCapture();
 	bool bHandleRightMouseButton = MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && WidgetOwner.HasMouseCapture() && TimeSliderArgs.AllowZoom ;
 
-	FScrubRangeToScreen RangeToScreen = FScrubRangeToScreen(TimeSliderArgs.ViewRange.Get(), MyGeometry.Size);
+	FScrubRangeToScreen RangeToScreen = FScrubRangeToScreen(GetViewRange(), MyGeometry.Size);
 	FFrameTime          MouseTime     = ComputeFrameTimeFromMouse(MyGeometry, MouseEvent.GetScreenSpacePosition(), RangeToScreen);
 
 	if ( bHandleRightMouseButton )
@@ -791,7 +791,7 @@ FReply FSequencerTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, co
 			const bool bCanZoomOut = ViewRangeStack.Num() > 0;
 			if (bCanZoomIn || bCanZoomOut)
 			{
-				TRange<double> ViewRange = TimeSliderArgs.ViewRange.Get();
+				TRange<double> ViewRange = GetViewRange();
 				if (!bCanZoomIn)
 				{
 					ViewRange = ViewRangeStack.Pop();
@@ -865,7 +865,7 @@ FReply FSequencerTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const 
 		}
 		else
 		{
-			TRange<double> LocalViewRange = TimeSliderArgs.ViewRange.Get();
+			TRange<double> LocalViewRange = GetViewRange();
 			double LocalViewRangeMin = LocalViewRange.GetLowerBoundValue();
 			double LocalViewRangeMax = LocalViewRange.GetUpperBoundValue();
 
@@ -883,7 +883,7 @@ FReply FSequencerTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const 
 	}
 	else if (bHandleLeftMouseButton)
 	{
-		TRange<double> LocalViewRange = TimeSliderArgs.ViewRange.Get();
+		TRange<double> LocalViewRange = GetViewRange();
 		FScrubRangeToScreen RangeToScreen(LocalViewRange, MyGeometry.Size);
 		DistanceDragged += FMath::Abs( MouseEvent.GetCursorDelta().X );
 
@@ -985,6 +985,27 @@ FReply FSequencerTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const 
 
 void FSequencerTimeSliderController::CommitScrubPosition( FFrameTime NewValue, bool bIsScrubbing )
 {
+	// The user can scrub past the viewing range of the time slider controller, so we clamp it to the view range.
+	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
+	if(Sequencer.IsValid())
+	{
+		FAnimatedRange ViewRange = GetViewRange();
+		
+		FFrameRate DisplayRate = Sequencer->GetFocusedDisplayRate();
+		FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+
+		FFrameTime LowerBound = (ViewRange.GetLowerBoundValue() * TickResolution).CeilToFrame();
+		FFrameTime UpperBound = (ViewRange.GetUpperBoundValue() * TickResolution).FloorToFrame();
+
+		if (Sequencer->GetSequencerSettings()->GetIsSnapEnabled() && Sequencer->GetSequencerSettings()->GetSnapPlayTimeToInterval())
+		{
+			LowerBound = FFrameRate::Snap(LowerBound, TickResolution, DisplayRate);
+			UpperBound = FFrameRate::Snap(UpperBound, TickResolution, DisplayRate);
+		}
+
+		NewValue = FMath::Clamp(NewValue, LowerBound, UpperBound);
+	}
+
 	// Manage the scrub position ourselves if its not bound to a delegate
 	if ( !TimeSliderArgs.ScrubPosition.IsBound() )
 	{
@@ -1006,9 +1027,9 @@ FReply FSequencerTimeSliderController::OnMouseWheel( SWidget& WidgetOwner, const
 		if (TimeSliderArgs.Settings->GetZoomPosition() == ESequencerZoomPosition::SZP_CurrentTime)
 		{
 			const double ScrubPosition = TimeSliderArgs.ScrubPosition.Get() / GetTickResolution();
-			if (TimeSliderArgs.ViewRange.Get().Contains(ScrubPosition))
+			if (GetViewRange().Contains(ScrubPosition))
 			{
-				FScrubRangeToScreen RangeToScreen(TimeSliderArgs.ViewRange.Get(), MyGeometry.Size);
+				FScrubRangeToScreen RangeToScreen(GetViewRange(), MyGeometry.Size);
 				float TimePosition = RangeToScreen.InputToLocalX(ScrubPosition);
 				MouseFractionX = TimePosition / MyGeometry.GetLocalSize().X;
 			}
@@ -1037,7 +1058,7 @@ FCursorReply FSequencerTimeSliderController::OnCursorQuery( TSharedRef<const SWi
 		return FCursorReply::Unhandled();
 	}
 
-	FScrubRangeToScreen RangeToScreen(TimeSliderArgs.ViewRange.Get(), MyGeometry.Size);
+	FScrubRangeToScreen RangeToScreen(GetViewRange(), MyGeometry.Size);
 
 	const FFrameRate TickResolution   = GetTickResolution();
 	const bool       bLockedPlayRange = TimeSliderArgs.IsPlaybackRangeLocked.Get();
@@ -1068,7 +1089,7 @@ FCursorReply FSequencerTimeSliderController::OnCursorQuery( TSharedRef<const SWi
 	return FCursorReply::Unhandled();
 }
 
-int32 FSequencerTimeSliderController::OnPaintSectionView( const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, bool bEnabled, const FPaintSectionAreaViewArgs& Args ) const
+int32 FSequencerTimeSliderController::OnPaintViewArea( const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, bool bEnabled, const FPaintViewAreaArgs& Args ) const
 {
 	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
 	if (!Sequencer.IsValid())
@@ -1078,7 +1099,7 @@ int32 FSequencerTimeSliderController::OnPaintSectionView( const FGeometry& Allot
 
 	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 
-	TRange<double> LocalViewRange = TimeSliderArgs.ViewRange.Get();
+	TRange<double> LocalViewRange = GetViewRange();
 	FScrubRangeToScreen RangeToScreen( LocalViewRange, AllottedGeometry.Size );
 
 	if (Args.PlaybackRangeArgs.IsSet())
@@ -1344,7 +1365,7 @@ void FSequencerTimeSliderController::SetViewRange( double NewRangeMin, double Ne
 {
 	// Clamp to a minimum size to avoid zero-sized or negative visible ranges
 	double MinVisibleTimeRange = FFrameNumber(1) / GetTickResolution();
-	TRange<double> ExistingViewRange  = TimeSliderArgs.ViewRange.Get();
+	TRange<double> ExistingViewRange  = GetViewRange();
 	TRange<double> ExistingClampRange = TimeSliderArgs.ClampRange.Get();
 
 	if (NewRangeMax == ExistingViewRange.GetUpperBoundValue())
@@ -1400,7 +1421,7 @@ void FSequencerTimeSliderController::SetPlayRange( FFrameNumber RangeStart, int3
 
 bool FSequencerTimeSliderController::ZoomByDelta( float InDelta, float MousePositionFraction )
 {
-	TRange<double> LocalViewRange = TimeSliderArgs.ViewRange.Get().GetAnimationTarget();
+	TRange<double> LocalViewRange = GetViewRange().GetAnimationTarget();
 	double LocalViewRangeMax = LocalViewRange.GetUpperBoundValue();
 	double LocalViewRangeMin = LocalViewRange.GetLowerBoundValue();
 	const double OutputViewSize = LocalViewRangeMax - LocalViewRangeMin;
@@ -1421,7 +1442,7 @@ bool FSequencerTimeSliderController::ZoomByDelta( float InDelta, float MousePosi
 
 void FSequencerTimeSliderController::PanByDelta( float InDelta )
 {
-	TRange<double> LocalViewRange = TimeSliderArgs.ViewRange.Get().GetAnimationTarget();
+	TRange<double> LocalViewRange = GetViewRange().GetAnimationTarget();
 
 	double CurrentMin = LocalViewRange.GetLowerBoundValue();
 	double CurrentMax = LocalViewRange.GetUpperBoundValue();

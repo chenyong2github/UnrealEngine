@@ -195,11 +195,6 @@ private:
 	class UStaticMesh* StaticMesh;
 
 public:
-
-	/** Custom data that can be read by a material through a material expression */
-	UPROPERTY()
-	FCustomPrimitiveData CustomPrimitiveData;
-
 	/** Helper function to get the FName of the private static mesh member */
 	static const FName GetMemberNameChecked_StaticMesh() { return GET_MEMBER_NAME_CHECKED(UStaticMeshComponent, StaticMesh); }
 
@@ -623,7 +618,6 @@ private:
 
 	/** Update the vertex override colors */
 	void PrivateFixupOverrideColors();
-
 protected:
 
 	/** Whether the component type supports static lighting. */

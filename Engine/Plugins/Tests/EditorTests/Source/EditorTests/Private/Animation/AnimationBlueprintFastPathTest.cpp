@@ -6,7 +6,7 @@
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimInstance.h"
-#include "AnimNodes/AnimNode_Root.h"
+#include "Animation/AnimNode_Root.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAnimBlueprintFastPathTests, Log, All);
 

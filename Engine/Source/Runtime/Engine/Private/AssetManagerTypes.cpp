@@ -100,6 +100,29 @@ void FPrimaryAssetRules::OverrideRules(const FPrimaryAssetRules& OverrideRules)
 	}
 }
 
+void FPrimaryAssetRulesExplicitOverride::OverrideRulesExplicitly(FPrimaryAssetRules& RulesToOverride) const
+{
+	if (bOverridePriority)
+	{
+		RulesToOverride.Priority = Rules.Priority;
+	}
+
+	if (bOverrideApplyRecursively)
+	{
+		RulesToOverride.bApplyRecursively = Rules.bApplyRecursively;
+	}
+
+	if (bOverrideChunkId)
+	{
+		RulesToOverride.ChunkId = Rules.ChunkId;
+	}
+
+	if (bOverrideCookRule)
+	{
+		RulesToOverride.CookRule = Rules.CookRule;
+	}
+}
+
 void FPrimaryAssetRules::PropagateCookRules(const FPrimaryAssetRules& ParentRules)
 {
 	static FPrimaryAssetRules DefaultRules;

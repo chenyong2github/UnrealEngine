@@ -18,6 +18,12 @@ class UMaterialExpressionScalarParameter : public UMaterialExpressionParameter
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionScalarParameter)
 	float DefaultValue;
 
+	UPROPERTY(EditAnywhere, Category=CustomPrimitiveData)
+	bool bUseCustomPrimitiveData = false;
+
+	UPROPERTY(EditAnywhere, Category=CustomPrimitiveData, meta=(ClampMin="0"))
+	uint8 PrimitiveDataIndex = 0;
+
 #if WITH_EDITORONLY_DATA
 	/** 
 	 * Sets the lower bound for the slider on this parameter in the material instance editor. 
@@ -53,6 +59,8 @@ class UMaterialExpressionScalarParameter : public UMaterialExpressionParameter
 #endif
 
 	virtual bool IsUsedAsAtlasPosition() const { return false; }
+
+	virtual void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const override;
 };
 
 

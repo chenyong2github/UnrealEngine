@@ -199,5 +199,29 @@ class ANIMGRAPHRUNTIME_API UKismetAnimationLibrary : public UBlueprintFunctionLi
 		const FRuntimeFloatCurve& CustomCurve
 		);
 
+	/**
+	 *	This function starts measuring the time for a profiling bracket
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Utilities|Animation", meta = (DisplayName = "Start Profiling Timer"))
+	static void K2_StartProfilingTimer();
+
+	/**
+	 *	This function ends measuring a profiling bracket and optionally logs the result
+	 *
+	 *  @param bLog If set to true the result is logged to the OutputLog
+	 *  @param LogPrefix A prefix to use for the log
+	 *  @result The time spent in milliseconds
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Utilities|Animation", meta = (DisplayName = "End Profiling Timer"))
+	static float K2_EndProfilingTimer(bool bLog = true, const FString& LogPrefix = "");
+
+private:
+
+	struct FK2ProfilingTimer
+	{
+		double LastTime;
+		double AccummulatedTime;
+	};
+	static TArray<FK2ProfilingTimer> sProfilingTimers;
 };
 

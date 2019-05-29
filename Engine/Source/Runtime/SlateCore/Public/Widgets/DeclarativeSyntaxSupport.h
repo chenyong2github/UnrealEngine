@@ -313,6 +313,18 @@ template<typename WidgetType> struct TSlateBaseNamedArgs;
 			return this->Me(); \
 		}
 
+/**
+ * Like SLATE_ARGUMENT, but support a default value. e.g.
+ * 
+ * SLATE_ARGUMENT_DEFAULT(float, WheelScrollMultiplier) { 1.0f };
+ */
+#define SLATE_ARGUMENT_DEFAULT( ArgType, ArgName ) \
+		WidgetArgsType& ArgName( ArgType InArg ) \
+		{ \
+			_##ArgName = InArg; \
+			return this->Me(); \
+		}\
+		ArgType _##ArgName
 
 /**
  * Use this macro to declare a slate argument.

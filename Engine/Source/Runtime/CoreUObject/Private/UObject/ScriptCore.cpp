@@ -857,12 +857,12 @@ void UObject::CallFunction( FFrame& Stack, RESULT_DECL, UFunction* Function )
 
 	if (Function->FunctionFlags & FUNC_Native)
 	{
-		uint8* Buffer = (uint8*)FMemory_Alloca(Function->ParmsSize);
-		int32 FunctionCallspace = GetFunctionCallspace( Function, Buffer, &Stack );
+		int32 FunctionCallspace = GetFunctionCallspace( Function, &Stack );
 		uint8* SavedCode = NULL;
 		if (FunctionCallspace & FunctionCallspace::Remote)
 		{
 			// Call native networkable function.
+			uint8* Buffer = (uint8*)FMemory_Alloca(Function->ParmsSize);
 
 			SavedCode = Stack.Code; // Since this is native, we need to rollback the stack if we are calling both remotely and locally
 
@@ -1047,7 +1047,7 @@ DEFINE_FUNCTION(UObject::ProcessInternal)
 #endif
 
 	UFunction* Function = (UFunction*)Stack.Node;
-	int32 FunctionCallspace = P_THIS->GetFunctionCallspace(Function, Stack.Locals, NULL);
+	int32 FunctionCallspace = P_THIS->GetFunctionCallspace(Function, NULL);
 	if (FunctionCallspace & FunctionCallspace::Remote)
 	{
 		P_THIS->CallRemoteFunction(Function, Stack.Locals, Stack.OutParms, NULL);
@@ -1339,7 +1339,7 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 
 	if ((Function->FunctionFlags & FUNC_Native) != 0)
 	{
-		int32 FunctionCallspace = GetFunctionCallspace(Function, Parms, NULL);
+		int32 FunctionCallspace = GetFunctionCallspace(Function, NULL);
 		if (FunctionCallspace & FunctionCallspace::Remote)
 		{
 			CallRemoteFunction(Function, Parms, NULL, NULL);

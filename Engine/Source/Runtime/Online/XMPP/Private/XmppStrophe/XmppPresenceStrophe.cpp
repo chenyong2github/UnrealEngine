@@ -31,6 +31,17 @@ void FXmppPresenceStrophe::OnDisconnect()
 	CleanupMessages();
 }
 
+void FXmppPresenceStrophe::OnReconnect()
+{
+	// Triggered by login request when already connected
+	// re-broadcast all cached presence entries
+	for (const auto& Pair : RosterMembers)
+	{
+		const TSharedRef<FXmppUserPresence>& Presence = Pair.Value;
+		OnXmppPresenceReceivedDelegate.Broadcast(ConnectionManager.AsShared(), Presence->UserJid, Presence);
+	}
+}
+
 bool FXmppPresenceStrophe::ReceiveStanza(const FStropheStanza& IncomingStanza)
 {
 	if (IncomingStanza.GetName() != Strophe::SN_PRESENCE)

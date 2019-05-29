@@ -69,6 +69,12 @@ public:
 	virtual void UpdatePrimitiveTransform(UPrimitiveComponent* Primitive) = 0;
 	/** Updates primitive attachment state. */
 	virtual void UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive) = 0;
+	/** 
+	 * Updates the custom primitive data of a primitive component which has already been added to the scene. 
+	 * 
+	 * @param Primitive - Primitive component to update
+	 */
+	virtual void UpdateCustomPrimitiveData(UPrimitiveComponent* Primitive) = 0;
 	/**
 	 * Updates distance field scene data (transforms, uv scale, self-shadow bias, etc.) but doesn't change allocation in the atlas
 	 */

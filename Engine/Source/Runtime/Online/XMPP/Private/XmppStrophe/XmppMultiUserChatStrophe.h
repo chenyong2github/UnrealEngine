@@ -147,17 +147,18 @@ public:
 	FXmppMultiUserChatStrophe(class FXmppConnectionStrophe& InConnectionManager);
 	virtual ~FXmppMultiUserChatStrophe();
 
-	void OnDisconnect();
+	// XMPP Thread
 	bool ReceiveStanza(const FStropheStanza& IncomingStanza);
-
 	bool HandlePresenceStanza(const FStropheStanza& IncomingStanza);
 	bool HandlePresenceErrorStanza(const FStropheStanza& IncomingStanza);
-
 	bool HandleGroupChatStanza(const FStropheStanza& IncomingStanza);
 	bool HandleGroupChatErrorStanza(const FStropheStanza& IncomingStanza);
-
 	bool HandleRoomConfigStanza(const FStropheStanza& IncomingStanza);
 	bool HandleRoomConfigErrorStanza(const FStropheStanza& IncomingStanza);
+
+	// Game Thread
+	void OnDisconnect();
+	void OnReconnect();
 
 	// IXmppMultiUserChat
 	virtual bool CreateRoom(const FXmppRoomId& RoomId, const FString& Nickname, const FXmppRoomConfig& RoomConfig) override;

@@ -279,6 +279,29 @@ void FReferenceChainSearch::DumpChain(FReferenceChain* Chain)
 	}
 }
 
+void FReferenceChainSearch::WriteChain(FReferenceChain* Chain, FString& OutString)
+{
+	if (Chain->Num())
+	{
+		// Roots are at the end so iterate from the last to the first node
+		for (int32 NodeIndex = Chain->Num() - 1; NodeIndex >= 0; --NodeIndex)
+		{
+			UObject* Object = Chain->GetNode(NodeIndex)->Object;
+			const FNodeReferenceInfo& ReferenceInfo = Chain->GetReferenceInfo(NodeIndex);
+
+			if (NodeIndex != Chain->Num() - 1)
+			{
+				OutString.Append(LINE_TERMINATOR);
+				OutString.Append(FCString::Spc(Chain->Num() - NodeIndex - 1));
+			}
+
+			OutString.Append(*GetObjectFlags(Object));
+			OutString.Append(*Object->GetFullName());
+			OutString.Append(*ReferenceInfo.ToString());
+		}
+	}
+}
+
 void FReferenceChainSearch::FReferenceChain::FillReferenceInfo()
 {
 	// The first entry is the object we were looking for references to so add an empty entry for it
@@ -350,15 +373,14 @@ public:
 			else
 			{
 				RefInfo.Type = FReferenceChainSearch::EReferenceType::AddReferencedObjects;
-				if (ReferencingObject == FGCObject::GGCObjectReferencer)
+				if (FGCObject::GGCObjectReferencer && (!ReferencingObject || ReferencingObject == FGCObject::GGCObjectReferencer))
 				{
 					FString RefName;
-					if (FGCObject::GGCObjectReferencer->GetReferencerName(Object, RefName))
+					if (FGCObject::GGCObjectReferencer->GetReferencerName(Object, RefName, true))
 					{
-						RefInfo.Type = FReferenceChainSearch::EReferenceType::Property;
 						RefInfo.ReferencerName = FName(*RefName);
 					}
-					else
+					else if (ReferencingObject)
 					{
 						RefInfo.ReferencerName = ReferencingObject->GetFName();
 					}
@@ -447,7 +469,7 @@ void FReferenceChainSearch::FindDirectReferencesForObjects()
 	}
 }
 
-void FReferenceChainSearch::PrintResults(bool bDumpAllChains /*= false*/)
+void FReferenceChainSearch::PrintResults(bool bDumpAllChains /*= false*/) const
 {
 	if (ReferenceChains.Num())
 	{
@@ -474,6 +496,25 @@ void FReferenceChainSearch::PrintResults(bool bDumpAllChains /*= false*/)
 	{
 		check(ObjectToFindReferencesTo);
 		UE_LOG(LogReferenceChain, Log, TEXT("%s%s is not currently reachable."),
+			*GetObjectFlags(ObjectToFindReferencesTo),
+			*ObjectToFindReferencesTo->GetFullName()
+		);
+	}
+}
+
+FString FReferenceChainSearch::GetRootPath() const
+{
+	if (ReferenceChains.Num())
+	{
+		FReferenceChain* Chain = ReferenceChains[0];
+		FString OutString;
+
+		WriteChain(Chain, OutString);
+		return OutString;
+	}
+	else
+	{
+		return FString::Printf(TEXT("%s%s is not currently reachable."),
 			*GetObjectFlags(ObjectToFindReferencesTo),
 			*ObjectToFindReferencesTo->GetFullName()
 		);

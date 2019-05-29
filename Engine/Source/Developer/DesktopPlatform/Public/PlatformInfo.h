@@ -246,61 +246,6 @@ namespace PlatformInfo
 		TArray<const FPlatformInfo*> PlatformFlavors;
 	};
 
-	/** Simple wrapper class to allow range-based-for enumeration from a call to EnumeratePlatforms */
-	class FPlatformEnumerator
-	{
-	public:
-		FPlatformEnumerator(const FPlatformInfo* InPlatformsArray, const int32 InNumPlatforms)
-			: PlatformsArray(InPlatformsArray)
-			, CurrentPlatform(InPlatformsArray)
-			, NumPlatforms(InNumPlatforms)
-		{
-		}
-
-		FORCEINLINE const FPlatformInfo* begin() const
-		{
-			return PlatformsArray;
-		}
-
-		FORCEINLINE const FPlatformInfo* end() const
-		{
-			return PlatformsArray + NumPlatforms;
-		}
-
-		FORCEINLINE const FPlatformInfo* operator->() const
-		{
-			return CurrentPlatform;
-		}
-
-		FORCEINLINE const FPlatformInfo& operator*() const
-		{
-			return *CurrentPlatform;
-		}
-
-		FORCEINLINE FPlatformEnumerator& operator++()
-		{
-			++CurrentPlatform;
-			return *this;
-		}
-
-		FORCEINLINE FPlatformEnumerator operator++(int)
-		{
-			FPlatformEnumerator Copy(*this);
-			++CurrentPlatform;
-			return Copy;
-		}
-
-		FORCEINLINE operator bool() const
-		{
-			return CurrentPlatform < end();
-		}
-
-	private:
-		const FPlatformInfo* PlatformsArray;
-		const FPlatformInfo* CurrentPlatform;
-		int32 NumPlatforms;
-	};
-
 	/**
 	 * Try and find the information for the given platform
 	 * @param InPlatformName - The name of the platform to find
@@ -317,35 +262,24 @@ namespace PlatformInfo
 
 	/**
 	 * Get an array of all the platforms we know about
-	 * @param OutNumPlatforms - The number of platforms in the array
 	 * @return The pointer to the start of the platform array
 	 */
-	DESKTOPPLATFORM_API const FPlatformInfo* GetPlatformInfoArray(int32& OutNumPlatforms);
-
-	/**
-	 * Convenience function to enumerate all the platforms we know about (compatible with range-based-for)
-	 *
-	 * @param bAccessiblePlatformsOnly	If true, only the accessible platforms(installed, or could be installed) will be returned
-	 * @return An enumerator for the platforms (see FPlatformEnumerator)
-	 */
-	DESKTOPPLATFORM_API FPlatformEnumerator EnumeratePlatformInfoArray(bool bAccessiblePlatformsOnly = true);
+	DESKTOPPLATFORM_API const TArray<FPlatformInfo>& GetPlatformInfoArray();
 
 	/**
 	 * Build a hierarchy mapping vanilla platforms to their flavors
 	 * @param InFilter - Flags to control which kinds of flavors you want to include
-	 * @param bAccessiblePlatformsOnly	If true, only the accessible platforms(installed, or could be installed) will be returned
 	 * @return An array of vanilla platforms, potentially containing flavors
 	 */
-	DESKTOPPLATFORM_API TArray<FVanillaPlatformEntry> BuildPlatformHierarchy(const EPlatformFilter InFilter, bool bAccessiblePlatformsOnly = true);
+	DESKTOPPLATFORM_API TArray<FVanillaPlatformEntry> BuildPlatformHierarchy(const EPlatformFilter InFilter);
 
 	/**
 	* Build a hierarchy mapping for specified vanilla platform to it flavors
 	* @param InPlatformName - Platform name to build hierarchy for, could be vanilla or flavor name
 	* @param InFilter - Flags to control which kinds of flavors you want to include
-	* @param bAccessiblePlatformsOnly	If true, only the accessible platforms(installed, or could be installed) will be returned
 	* @return Vanilla platform potentially containing flavors
 	*/
-	DESKTOPPLATFORM_API FVanillaPlatformEntry BuildPlatformHierarchy(const FName& InPlatformName, const EPlatformFilter InFilter, bool bAccessiblePlatformsOnly = true);
+	DESKTOPPLATFORM_API FVanillaPlatformEntry BuildPlatformHierarchy(const FName& InPlatformName, const EPlatformFilter InFilter);
 
 	/**
 	 * Get an array of all the platforms we know about

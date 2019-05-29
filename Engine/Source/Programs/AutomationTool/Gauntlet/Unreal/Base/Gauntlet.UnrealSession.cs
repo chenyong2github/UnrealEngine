@@ -37,7 +37,7 @@ namespace Gauntlet
 		/// <summary>
 		/// Platform this role uses
 		/// </summary>
-		public UnrealTargetPlatform Platform;
+		public UnrealTargetPlatform? Platform;
 
 		/// <summary>
 		/// Configuration this role runs in
@@ -58,6 +58,11 @@ namespace Gauntlet
 		/// Command line that this role will use
 		/// </summary>
 		public string CommandLine;
+
+		/// <summary>
+		/// Map override to use on a server in case we don't want them all running the same map.
+		/// </summary>
+		public string MapOverride;
 
 		/// <summary>
 		/// List of files to copy to the device.
@@ -97,7 +102,7 @@ namespace Gauntlet
 		/// <param name="InPlatform"></param>
 		/// <param name="InConfiguration"></param>
 		/// <param name="InOptions"></param>
-		public UnrealSessionRole(UnrealTargetRole InType, UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, IConfigOption<UnrealAppConfig> InOptions)
+		public UnrealSessionRole(UnrealTargetRole InType, UnrealTargetPlatform? InPlatform, UnrealTargetConfiguration InConfiguration, IConfigOption<UnrealAppConfig> InOptions)
 			: this(InType, InPlatform, InConfiguration, null, InOptions)
 		{
 		}
@@ -110,16 +115,17 @@ namespace Gauntlet
 		/// <param name="InConfiguration"></param>
 		/// <param name="InCommandLine"></param>
 		/// <param name="InOptions"></param>
-		public UnrealSessionRole(UnrealTargetRole InType, UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, string InCommandLine = null, IConfigOption<UnrealAppConfig> InOptions = null)
+		public UnrealSessionRole(UnrealTargetRole InType, UnrealTargetPlatform? InPlatform, UnrealTargetConfiguration InConfiguration, string InCommandLine = null, IConfigOption<UnrealAppConfig> InOptions = null)
 		{
 			RoleType = InType;
 
 			Platform = InPlatform;
 			Configuration = InConfiguration;
+			MapOverride = string.Empty;
 
 			if (string.IsNullOrEmpty(InCommandLine))
 			{
-				CommandLine = "";
+				CommandLine = string.Empty;
 			}
 			else
 			{
@@ -513,7 +519,10 @@ namespace Gauntlet
 			// report device has a problem to the pool
 			DevicePool.Instance.ReportDeviceError(Device, "MarkProblemDevice");
 
-			ProblemDevices.Add(new ProblemDevice(Device.Name, Device.Platform));
+			if (Device.Platform != null)
+			{
+				ProblemDevices.Add(new ProblemDevice(Device.Name, Device.Platform.Value));
+			}
 		}
 
 		/// <summary>
@@ -594,7 +603,7 @@ namespace Gauntlet
 			foreach (var PlatformReqKP in RequiredDeviceTypes)
 			{
 				UnrealTargetConstraint Constraint = PlatformReqKP.Key;
-				UnrealTargetPlatform Platform = Constraint.Platform;
+				UnrealTargetPlatform? Platform = Constraint.Platform;
 
 				int NeedOfThisType = RequiredDeviceTypes[Constraint];
 
@@ -976,7 +985,7 @@ namespace Gauntlet
 
 			bool IsServer = InRunningRole.Role.RoleType.IsServer();
 			string RoleName = (InRunningRole.Role.IsDummy() ? "Dummy" : "") + InRunningRole.Role.RoleType.ToString();
-			UnrealTargetPlatform Platform = InRunningRole.Role.Platform;
+			UnrealTargetPlatform? Platform = InRunningRole.Role.Platform;
 			string RoleConfig = InRunningRole.Role.Configuration.ToString();
 
 			Directory.CreateDirectory(InDestArtifactPath);

@@ -1905,6 +1905,10 @@ void FActiveGameplayEffectsContainer::RegisterWithOwner(UAbilitySystemComponent*
 /** This is the main function that executes a GameplayEffect on Attributes and ActiveGameplayEffects */
 void FActiveGameplayEffectsContainer::ExecuteActiveEffectsFrom(FGameplayEffectSpec &Spec, FPredictionKey PredictionKey)
 {
+#if WITH_SERVER_CODE
+	SCOPE_CYCLE_COUNTER(STAT_ExecuteActiveEffectsFrom);
+#endif
+
 	FGameplayEffectSpec& SpecToUse = Spec;
 
 	// Capture our own tags.
@@ -2627,6 +2631,8 @@ float FActiveGameplayEffectsContainer::GetEffectContribution(const FAggregatorEv
 
 bool FActiveGameplayEffectsContainer::InternalExecuteMod(FGameplayEffectSpec& Spec, FGameplayModifierEvaluatedData& ModEvalData)
 {
+	SCOPE_CYCLE_COUNTER(STAT_InternalExecuteMod);
+
 	check(Owner);
 
 	bool bExecuted = false;
@@ -2659,8 +2665,11 @@ bool FActiveGameplayEffectsContainer::InternalExecuteMod(FGameplayEffectSpec& Sp
 			}
 			ModifiedAttribute->TotalMagnitude += ModEvalData.Magnitude;
 
-			/** This should apply 'gamewide' rules. Such as clamping Health to MaxHealth or granting +3 health for every point of strength, etc */
-			AttributeSet->PostGameplayEffectExecute(ExecuteData);
+			{
+				SCOPE_CYCLE_COUNTER(STAT_PostGameplayEffectExecute);
+				/** This should apply 'gamewide' rules. Such as clamping Health to MaxHealth or granting +3 health for every point of strength, etc */
+				AttributeSet->PostGameplayEffectExecute(ExecuteData);
+			}
 
 #if ENABLE_VISUAL_LOG
 			DebugExecutedGameplayEffectData DebugData;

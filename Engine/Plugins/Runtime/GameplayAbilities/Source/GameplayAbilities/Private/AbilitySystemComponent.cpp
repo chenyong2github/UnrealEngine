@@ -19,6 +19,12 @@
 DEFINE_LOG_CATEGORY(LogAbilitySystemComponent);
 
 DECLARE_CYCLE_STAT(TEXT("AbilitySystemComp ApplyGameplayEffectSpecToTarget"), STAT_AbilitySystemComp_ApplyGameplayEffectSpecToTarget, STATGROUP_AbilitySystem);
+DECLARE_CYCLE_STAT(TEXT("AbilitySystemComp ApplyGameplayEffectSpecToSelf"), STAT_AbilitySystemComp_ApplyGameplayEffectSpecToSelf, STATGROUP_AbilitySystem);
+DECLARE_CYCLE_STAT(TEXT("AbilitySystemComp OnImmunityBlockGameplayEffect"), STAT_AbilitySystemComp_OnImmunityBlockGameplayEffect, STATGROUP_AbilitySystem);
+DECLARE_CYCLE_STAT(TEXT("AbilitySystemComp InvokeGameplayCueEvent"), STAT_AbilitySystemComp_InvokeGameplayCueEvent, STATGROUP_AbilitySystem);
+DECLARE_CYCLE_STAT(TEXT("AbilitySystemComp OnGameplayEffectAppliedToSelf"), STAT_AbilitySystemComp_OnGameplayEffectAppliedToSelf, STATGROUP_AbilitySystem);
+DECLARE_CYCLE_STAT(TEXT("AbilitySystemComp OnGameplayEffectAppliedToTarget"), STAT_AbilitySystemComp_OnGameplayEffectAppliedToTarget, STATGROUP_AbilitySystem);
+DECLARE_CYCLE_STAT(TEXT("AbilitySystemComp ExecuteGameplayEffect"), STAT_AbilitySystemComp_ExecuteGameplayEffect, STATGROUP_AbilitySystem);
 
 #define LOCTEXT_NAMESPACE "AbilitySystemComponent"
 
@@ -568,6 +574,10 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToTa
 
 FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSelf(const FGameplayEffectSpec &Spec, FPredictionKey PredictionKey)
 {
+#if WITH_SERVER_CODE
+	SCOPE_CYCLE_COUNTER(STAT_AbilitySystemComp_ApplyGameplayEffectSpecToSelf);
+#endif
+
 	// Scope lock the container after the addition has taken place to prevent the new effect from potentially getting mangled during the remainder
 	// of the add operation
 	FScopedActiveGameplayEffectLock ScopeLock(ActiveGameplayEffects);
@@ -842,6 +852,10 @@ void UAbilitySystemComponent::ExecutePeriodicEffect(FActiveGameplayEffectHandle	
 
 void UAbilitySystemComponent::ExecuteGameplayEffect(FGameplayEffectSpec &Spec, FPredictionKey PredictionKey)
 {
+#if WITH_SERVER_CODE
+	SCOPE_CYCLE_COUNTER(STAT_AbilitySystemComp_ExecuteGameplayEffect);
+#endif
+
 	// Should only ever execute effects that are instant application or periodic application
 	// Effects with no period and that aren't instant application should never be executed
 	check( (Spec.GetDuration() == UGameplayEffect::INSTANT_APPLICATION || Spec.GetPeriod() != UGameplayEffect::NO_PERIOD) );
@@ -1000,6 +1014,9 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::FindActiveGameplayEffectHan
 
 void UAbilitySystemComponent::OnImmunityBlockGameplayEffect(const FGameplayEffectSpec& Spec, const FActiveGameplayEffect* ImmunityGE)
 {
+#if WITH_SERVER_CODE
+	SCOPE_CYCLE_COUNTER(STAT_AbilitySystemComp_OnImmunityBlockGameplayEffect);
+#endif
 	OnImmunityBlockGameplayEffectDelegate.Broadcast(Spec, ImmunityGE);
 }
 
@@ -1022,6 +1039,10 @@ bool UAbilitySystemComponent::IsReadyForGameplayCues()
 
 void UAbilitySystemComponent::InvokeGameplayCueEvent(const FGameplayEffectSpecForRPC &Spec, EGameplayCueEvent::Type EventType)
 {
+#if WITH_SERVER_CODE
+	SCOPE_CYCLE_COUNTER(STAT_AbilitySystemComp_InvokeGameplayCueEvent);
+#endif
+
 	AActor* ActorAvatar = AbilityActorInfo->AvatarActor.Get();
 	if (ActorAvatar == nullptr || bSuppressGameplayCues)
 	{
@@ -1578,12 +1599,18 @@ void UAbilitySystemComponent::OnGameplayEffectDurationChange(struct FActiveGamep
 
 void UAbilitySystemComponent::OnGameplayEffectAppliedToTarget(UAbilitySystemComponent* Target, const FGameplayEffectSpec& SpecApplied, FActiveGameplayEffectHandle ActiveHandle)
 {
+#if WITH_SERVER_CODE
+	SCOPE_CYCLE_COUNTER(STAT_AbilitySystemComp_OnGameplayEffectAppliedToTarget);
+#endif
 	OnGameplayEffectAppliedDelegateToTarget.Broadcast(Target, SpecApplied, ActiveHandle);
 	ActiveGameplayEffects.ApplyStackingLogicPostApplyAsSource(Target, SpecApplied, ActiveHandle);
 }
 
 void UAbilitySystemComponent::OnGameplayEffectAppliedToSelf(UAbilitySystemComponent* Source, const FGameplayEffectSpec& SpecApplied, FActiveGameplayEffectHandle ActiveHandle)
 {
+#if WITH_SERVER_CODE
+	SCOPE_CYCLE_COUNTER(STAT_AbilitySystemComp_OnGameplayEffectAppliedToSelf);
+#endif
 	OnGameplayEffectAppliedDelegateToSelf.Broadcast(Source, SpecApplied, ActiveHandle);
 }
 

@@ -23,9 +23,13 @@ public class CrashReportCore : ModuleRules
            }
         );
 
+		if (Target.Type != TargetType.Editor)
+        {
+            PrecompileForTargets = PrecompileTargetsType.None;
+        }
+
         if (Target.Type == TargetType.Game || Target.Type == TargetType.Client || Target.Type == TargetType.Program)
         {
-			PrecompileForTargets = PrecompileTargetsType.None;
 			PublicDependencyModuleNames.Add("CrashDebugHelper");
 			PublicDefinitions.Add("WITH_CRASHREPORTER=1");
 

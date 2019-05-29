@@ -346,10 +346,10 @@ namespace Gauntlet
 				foreach (UnrealTestRole TestRole in TypesToRoles.Value)
 				{
 					// If a config has overriden a platform then we can't use the context constraints from the commandline
-					bool UseContextConstraint = TestRole.Type == UnrealTargetRole.Client && TestRole.PlatformOverride == UnrealTargetPlatform.Unknown;
+					bool UseContextConstraint = TestRole.Type == UnrealTargetRole.Client && TestRole.PlatformOverride == null;
 
 					// important, use the type from the ContextRolke because Server may have been mapped to EditorServer etc
-					UnrealTargetPlatform SessionPlatform = TestRole.PlatformOverride != UnrealTargetPlatform.Unknown ? TestRole.PlatformOverride : RoleContext.Platform;
+					UnrealTargetPlatform SessionPlatform = TestRole.PlatformOverride ?? RoleContext.Platform;
 
 					UnrealSessionRole SessionRole = new UnrealSessionRole(RoleContext.Type, SessionPlatform, RoleContext.Configuration, TestRole.CommandLine);
 
@@ -398,6 +398,7 @@ namespace Gauntlet
 					// copy over relevant settings from test role
                     SessionRole.FilesToCopy = TestRole.FilesToCopy;
 					SessionRole.ConfigureDevice = TestRole.ConfigureDevice;
+					SessionRole.MapOverride = TestRole.MapOverride;
 
 					SessionRoles.Add(SessionRole);
 				}

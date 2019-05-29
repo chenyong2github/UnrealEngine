@@ -48,3 +48,11 @@ void FRigUnit_MathTransformTransformVector::Execute(const FRigUnitContext& Conte
 {
 	Result = Transform.TransformPosition(Location);
 }
+
+void FRigUnit_MathTransformFromSRT::Execute(const FRigUnitContext& Context)
+{
+	Transform.SetLocation(Location);
+	Transform.SetRotation(FControlRigMathLibrary::QuatFromEuler(Rotation, RotationOrder));
+	Transform.SetScale3D(Scale);
+	EulerTransform.FromFTransform(Transform);
+}

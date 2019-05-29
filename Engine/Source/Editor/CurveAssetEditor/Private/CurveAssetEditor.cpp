@@ -8,20 +8,85 @@
 #include "EditorStyleSet.h"
 #include "Curves/CurveBase.h"
 #include "CurveAssetEditorModule.h"
-
-#include "SCurveEditor.h"
+#include "CurveEditor.h"
+#include "SCurveEditorPanel.h"
+#include "RichCurveEditorModel.h"
 #include "CurveEditorCommands.h"
-//#include "Toolkits/IToolkitHost.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SNumericDropDown.h"
 #include "Curves/CurveLinearColor.h"
 #include "IDetailsView.h"
 #include "PropertyEditorModule.h"
+#include "Widgets/SFrameRatePicker.h"
+#include "SColorGradientCurveEditorView.h"
+#include "SColorGradientEditor.h"
+#include "CommonFrameRates.h"
+#include "Tree/ICurveEditorTreeItem.h"
+#include "Tree/SCurveEditorTree.h"
+#include "Tree/SCurveEditorTreePin.h"
 
 #define LOCTEXT_NAMESPACE "CurveAssetEditor"
 
 const FName FCurveAssetEditor::CurveTabId( TEXT( "CurveAssetEditor_Curve" ) );
 const FName FCurveAssetEditor::ColorCurveEditorTabId(TEXT("CurveAssetEditor_ColorCurveEditor"));
+
+struct FCurveAssetEditorTreeItem : public ICurveEditorTreeItem
+{
+	FCurveAssetEditorTreeItem(TWeakObjectPtr<UCurveBase> InCurveOwner, const FRichCurveEditInfo& InEditInfo)
+		: CurveOwner(InCurveOwner)
+		, EditInfo(InEditInfo)
+	{
+		if (CurveOwner.IsValid())
+		{
+			CurveName = FText::FromName(EditInfo.CurveName);
+			CurveColor = CurveOwner->GetCurveColor(EditInfo);
+		}
+	}
+
+	virtual TSharedPtr<SWidget> GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID) override
+	{
+		if (InColumnName == ColumnNames.Label)
+		{
+			return SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(0.f, 0.f, 4.f, 0.f))
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(CurveName)
+				.ColorAndOpacity(FSlateColor(CurveColor))
+			];
+		}
+		else if (InColumnName == ColumnNames.PinHeader)
+		{
+			return SNew(SCurveEditorTreePin, InCurveEditor, InTreeItemID);
+		}
+
+		return nullptr;
+	}
+
+	virtual void CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels) override
+	{
+		if (!CurveOwner.IsValid())
+		{
+			return;
+		}
+
+		TUniquePtr<FRichCurveEditorModel> NewCurve = MakeUnique<FRichCurveEditorModel>(static_cast<FRichCurve*>(EditInfo.CurveToEdit), CurveOwner.Get());
+		NewCurve->SetShortDisplayName(CurveName);
+		NewCurve->SetColor(CurveColor);
+		OutCurveModels.Add(MoveTemp(NewCurve));
+	}
+	
+private:
+	TWeakObjectPtr<UCurveBase> CurveOwner;
+	FRichCurveEditInfo EditInfo;
+	FText CurveName;
+	FLinearColor CurveColor;
+};
 
 void FCurveAssetEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
@@ -117,7 +182,9 @@ void FCurveAssetEditor::InitCurveAssetEditor( const EToolkitMode::Type Mode, con
 	}
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
-	FAssetEditorToolkit::InitAssetEditor( Mode, InitToolkitHost, FCurveAssetEditorModule::CurveAssetEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, CurveToEdit );
+	const bool bToolbarFocusable = false;
+	const bool bUseSmallIcons = true;
+	FAssetEditorToolkit::InitAssetEditor( Mode, InitToolkitHost, FCurveAssetEditorModule::CurveAssetEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, CurveToEdit, bToolbarFocusable, bUseSmallIcons);
 	
 	FCurveAssetEditorModule& CurveAssetEditorModule = FModuleManager::LoadModuleChecked<FCurveAssetEditorModule>( "CurveAssetEditor" );
 	AddMenuExtender(CurveAssetEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
@@ -131,7 +198,7 @@ void FCurveAssetEditor::InitCurveAssetEditor( const EToolkitMode::Type Mode, con
 		SpawnToolkitTab( CurveTabId, TabInitializationPayload, EToolkitTabSpot::Details );
 	}*/
 
-	if (TrackWidget.IsValid())
+	if (CurveEditor.IsValid())
 	{
 		RegenerateMenusAndToolbars();
 	}
@@ -166,45 +233,79 @@ TSharedRef<SDockTab> FCurveAssetEditor::SpawnTab_CurveAsset( const FSpawnTabArgs
 {
 	check( Args.GetTabId().TabType == CurveTabId );
 
-	ViewMinInput=0.f;
-	ViewMaxInput=5.f;
 
-	InputSnap = 0.1f;
-	OutputSnap = 0.05f;
+	CurveEditor = MakeShared<FCurveEditor>();
+	FCurveEditorInitParams InitParams;
+	CurveEditor->InitCurveEditor(InitParams);
+	CurveEditor->GridLineLabelFormatXAttribute = LOCTEXT("GridXLabelFormat", "{0}");
+
+	// Initialize our bounds at slightly larger than default to avoid clipping the tabs on the color widget.
+	TUniquePtr<ICurveEditorBounds> EditorBounds = MakeUnique<FStaticCurveEditorBounds>();
+	EditorBounds->SetInputBounds(-1.05, 1.05);
+	CurveEditor->SetBounds(MoveTemp(EditorBounds));
+
+	CurveEditorPanel = SNew(SCurveEditorPanel, CurveEditor.ToSharedRef())
+		.TreeContent()
+		[
+			SNew(SCurveEditorTree, CurveEditor)
+		];
 
 	UCurveBase* Curve = Cast<UCurveBase>(GetEditingObject());
+	if (Curve)
+	{
+		check(CurveEditor.IsValid());
+		if (Curve->HasRichCurves())
+		{
+			for (const FRichCurveEditInfo& CurveData : Curve->GetCurves())
+			{		
+				TSharedPtr<FCurveAssetEditorTreeItem> TreeItem = MakeShared<FCurveAssetEditorTreeItem>(Curve, CurveData);
+
+				// Add the channel to the tree-item and let it manage the lifecycle of the tree item.
+				FCurveEditorTreeItem* NewItem = CurveEditor->AddTreeItem(FCurveEditorTreeItemID::Invalid());
+				NewItem->SetStrongItem(TreeItem);
+				
+				// Pin all of the created curves by default for now so that they're visible when you open the
+				// editor. Since there's only ever up to 4 channels we don't have to worry about overwhelming
+				// amounts of curves.
+				for (const FCurveModelID CurveModel : NewItem->GetOrCreateCurves(CurveEditor.Get()))
+				{
+					CurveEditor->PinCurve(CurveModel);
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("Non-rich curves are not supported in the Curve Asset editor at this time."));
+		}
+	}
+
+	
 
 	TSharedRef<SDockTab> NewDockTab = SNew(SDockTab)
-		.Icon( FEditorStyle::GetBrush("CurveAssetEditor.Tabs.Properties") )
-		.Label( FText::Format(LOCTEXT("CurveAssetEditorTitle", "{0} Curve Asset"), FText::FromString(GetTabPrefix())))
-		.TabColorScale( GetTabColorScale() )
+		.Icon(FEditorStyle::GetBrush("CurveAssetEditor.Tabs.Properties"))
+		.Label(FText::Format(LOCTEXT("CurveAssetEditorTitle", "{0} Curve Asset"), FText::FromString(GetTabPrefix())))
+		.TabColorScale(GetTabColorScale())
 		[
 			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(0.0f)
 			[
-				SAssignNew(TrackWidget, SCurveEditor)
-				.ViewMinInput(this, &FCurveAssetEditor::GetViewMinInput)
-				.ViewMaxInput(this, &FCurveAssetEditor::GetViewMaxInput)
-				.InputSnap(this, &FCurveAssetEditor::GetInputSnap)
-				.OutputSnap(this, &FCurveAssetEditor::GetOutputSnap)
-				.TimelineLength(this, &FCurveAssetEditor::GetTimelineLength)
-				.OnSetInputViewRange(this, &FCurveAssetEditor::SetInputViewRange)
-				.HideUI(false)
-				.AlwaysDisplayColorCurves(true)
-				.ShowZoomButtons(false)
+				CurveEditorPanel.ToSharedRef()
 			]
 		];
 
-
-
-	FCurveOwnerInterface* CurveOwner = Curve;
-	
-	if (CurveOwner != NULL)
+	// Insert a widget for editing the curve as a Color Gradient if it's a color curve we're editing.
+	UCurveLinearColor* ColorCurve = Cast<UCurveLinearColor>(GetEditingObject());
+	if (ColorCurve)
 	{
-		check(TrackWidget.IsValid());
-		// Set this curve as the SCurveEditor's selected curve
-		TrackWidget->SetCurveOwner(CurveOwner);
+		// We want to register an additional color editing view. This is effectively a "pinned" view who's visibility is controlled by the editor.
+		TSharedRef<SColorGradientCurveEditorView> ColorGradientView = SNew(SColorGradientCurveEditorView, CurveEditor.ToSharedRef())
+			.ViewMinInput(this, &FCurveAssetEditor::GetColorGradientViewMin)
+			.ViewMaxInput(this, &FCurveAssetEditor::GetColorGradientViewMax)
+			.IsEditingEnabled(true);
+
+		ColorGradientView->GetGradientEditor()->SetCurveOwner(ColorCurve);
+		CurveEditorPanel->AddView(ColorGradientView);
 	}
 
 	return NewDockTab;
@@ -226,114 +327,10 @@ TSharedRef<SDockTab> FCurveAssetEditor::SpawnTab_ColorCurveEditor(const FSpawnTa
 	return NewDockTab;
 }
 
-float FCurveAssetEditor::GetInputSnap() const
-{
-	return InputSnap;
-}
-
-void FCurveAssetEditor::SetInputSnap(float value)
-{
-	InputSnap = value;
-}
-
-float FCurveAssetEditor::GetOutputSnap() const
-{
-	return OutputSnap;
-}
-
-void FCurveAssetEditor::SetOutputSnap(float value)
-{
-	OutputSnap = value;
-}
-
-float FCurveAssetEditor::GetTimelineLength() const
-{
-	return 0.f;
-}
-
-void FCurveAssetEditor::SetInputViewRange(float InViewMinInput, float InViewMaxInput)
-{
-	ViewMaxInput = InViewMaxInput;
-	ViewMinInput = InViewMinInput;
-}
-
 TSharedPtr<FExtender> FCurveAssetEditor::GetToolbarExtender()
 {
-	struct Local
-	{
-		static void FillToolbar(FToolBarBuilder& ToolbarBuilder, TSharedRef<SWidget> InputSnapWidget, TSharedRef<SWidget> OutputSnapWidget, FCurveAssetEditor* CurveAssetEditor)
-		{
-			ToolbarBuilder.BeginSection("Curve");
-			{
-				ToolbarBuilder.AddToolBarButton(FCurveEditorCommands::Get().ZoomToFitHorizontal);
-				ToolbarBuilder.AddToolBarButton(FCurveEditorCommands::Get().ZoomToFitVertical);
-				ToolbarBuilder.AddToolBarButton(FCurveEditorCommands::Get().ZoomToFit);
-			}
-			ToolbarBuilder.EndSection();
-
-			ToolbarBuilder.BeginSection("Interpolation");
-			{
-				ToolbarBuilder.AddToolBarButton(FCurveEditorCommands::Get().InterpolationCubicAuto);
-				ToolbarBuilder.AddToolBarButton(FCurveEditorCommands::Get().InterpolationCubicUser);
-				ToolbarBuilder.AddToolBarButton(FCurveEditorCommands::Get().InterpolationCubicBreak);
-				ToolbarBuilder.AddToolBarButton(FCurveEditorCommands::Get().InterpolationLinear);
-				ToolbarBuilder.AddToolBarButton(FCurveEditorCommands::Get().InterpolationConstant);
-			}
-			ToolbarBuilder.EndSection();
-
-			ToolbarBuilder.AddComboButton(
-				FUIAction(),
-				FOnGetContent::CreateSP( CurveAssetEditor, &FCurveAssetEditor::MakeCurveEditorCurveOptionsMenu ),
-				LOCTEXT( "CurveEditorCurveOptions", "Curves Options" ),
-				LOCTEXT( "CurveEditorCurveOptionsToolTip", "Curve Options" ),
-				TAttribute<FSlateIcon>(),
-				true );
-
-			ToolbarBuilder.BeginSection("Snap");
-			{
-				ToolbarBuilder.AddToolBarButton(FCurveEditorCommands::Get().ToggleInputSnapping);
-				ToolbarBuilder.AddWidget(InputSnapWidget);
-				ToolbarBuilder.AddToolBarButton(FCurveEditorCommands::Get().ToggleOutputSnapping);
-				ToolbarBuilder.AddWidget(OutputSnapWidget);
-			}
-			ToolbarBuilder.EndSection();
-		}
-	};
-
-	TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
-
-	TArray<SNumericDropDown<float>::FNamedValue> SnapValues;
-	SnapValues.Add( SNumericDropDown<float>::FNamedValue( 0.001f, LOCTEXT( "Snap_OneThousandth", "0.001" ), LOCTEXT( "SnapDescription_OneThousandth", "Set snap to 1/1000th" ) ) );
-	SnapValues.Add( SNumericDropDown<float>::FNamedValue( 0.01f, LOCTEXT( "Snap_OneHundredth", "0.01" ), LOCTEXT( "SnapDescription_OneHundredth", "Set snap to 1/100th" ) ) );
-	SnapValues.Add( SNumericDropDown<float>::FNamedValue( 0.1f, LOCTEXT( "Snap_OneTenth", "0.1" ), LOCTEXT( "SnapDescription_OneTenth", "Set snap to 1/10th" ) ) );
-	SnapValues.Add( SNumericDropDown<float>::FNamedValue( 1.0f, LOCTEXT( "Snap_One", "1" ), LOCTEXT( "SnapDescription_One", "Set snap to 1" ) ) );
-	SnapValues.Add( SNumericDropDown<float>::FNamedValue( 10.0f, LOCTEXT( "Snap_Ten", "10" ), LOCTEXT( "SnapDescription_Ten", "Set snap to 10" ) ) );
-	SnapValues.Add( SNumericDropDown<float>::FNamedValue( 100.0f, LOCTEXT( "Snap_OneHundred", "100" ), LOCTEXT( "SnapDescription_OneHundred", "Set snap to 100" ) ) );
-
-	TSharedRef<SWidget> InputSnapWidget =
-		SNew( SNumericDropDown<float> )
-		.DropDownValues( SnapValues )
-		.LabelText( LOCTEXT("InputSnapLabel", "Input Snap"))
-		.Value( this, &FCurveAssetEditor::GetInputSnap )
-		.OnValueChanged( this, &FCurveAssetEditor::SetInputSnap )
-		.Orientation( this, &FCurveAssetEditor::GetSnapLabelOrientation );
-
-	TSharedRef<SWidget> OutputSnapWidget =
-		SNew( SNumericDropDown<float> )
-		.DropDownValues( SnapValues )
-		.LabelText( LOCTEXT( "OutputSnapLabel", "Output Snap" ) )
-		.Value( this, &FCurveAssetEditor::GetOutputSnap )
-		.OnValueChanged( this, &FCurveAssetEditor::SetOutputSnap )
-		.Orientation( this, &FCurveAssetEditor::GetSnapLabelOrientation );
-
-	ToolbarExtender->AddToolBarExtension(
-		"Asset",
-		EExtensionHook::After,
-		TrackWidget->GetCommands(),
-		FToolBarExtensionDelegate::CreateStatic(&Local::FillToolbar, InputSnapWidget, OutputSnapWidget, this)
-		);
-
-	return ToolbarExtender;
+	// Use the Curve Editor Panel's extenders which already has all of the icons listed in the right order.
+	return CurveEditorPanel->GetToolbarExtender();
 }
 
 EOrientation FCurveAssetEditor::GetSnapLabelOrientation() const
@@ -374,7 +371,7 @@ TSharedRef<SWidget> FCurveAssetEditor::MakeCurveEditorCurveOptionsMenu()
 		}
 	};
 
-	FMenuBuilder MenuBuilder( true, TrackWidget->GetCommands());
+	FMenuBuilder MenuBuilder( true, CurveEditor->GetCommands());
 
 	MenuBuilder.AddMenuEntry( FCurveEditorCommands::Get().BakeCurve);
 	MenuBuilder.AddMenuEntry( FCurveEditorCommands::Get().ReduceCurve);
@@ -390,6 +387,22 @@ TSharedRef<SWidget> FCurveAssetEditor::MakeCurveEditorCurveOptionsMenu()
 		FNewMenuDelegate::CreateStatic( &FExtrapolationMenus::MakePostInfinityExtrapSubMenu ) );
 	
 	return MenuBuilder.MakeWidget();
+}
+
+float FCurveAssetEditor::GetColorGradientViewMin() const
+{
+	double MinBounds, MaxBounds;
+	CurveEditor->GetBounds().GetInputBounds(MinBounds, MaxBounds);
+
+	return MinBounds;
+}
+
+float FCurveAssetEditor::GetColorGradientViewMax() const
+{
+	double MinBounds, MaxBounds;
+	CurveEditor->GetBounds().GetInputBounds(MinBounds, MaxBounds);
+
+	return MaxBounds;
 }
 
 #undef LOCTEXT_NAMESPACE

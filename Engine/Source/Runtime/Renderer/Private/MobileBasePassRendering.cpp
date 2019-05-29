@@ -221,6 +221,25 @@ void SetupMobileDirectionalLightUniformParameters(
 	}
 }
 
+void SetupMobileSkyReflectionUniformParameters(FSkyLightSceneProxy* SkyLight, FMobileReflectionCaptureShaderParameters& Parameters)
+{
+	float InvBrightness = 1.f;
+	float SkyMaxMipIndex = 0.f;
+	FTexture* CaptureTexture = GBlackTextureCube;
+
+	if (SkyLight && SkyLight->ProcessedTexture)
+	{
+		check(SkyLight->ProcessedTexture->IsInitialized());
+		CaptureTexture = SkyLight->ProcessedTexture;
+		SkyMaxMipIndex = FMath::Log2(CaptureTexture->GetSizeX());
+		InvBrightness = FMath::Max(FMath::Min(1.0f / SkyLight->AverageBrightness, 65504.f), -65504.f);
+	}
+		
+	Parameters.Params = FVector4(InvBrightness, SkyMaxMipIndex, 0.f, 0.f);
+	Parameters.Texture = CaptureTexture->TextureRHI;
+	Parameters.TextureSampler = CaptureTexture->SamplerStateRHI;
+}
+
 void FMobileSceneRenderer::RenderMobileBasePass(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderBasePass);

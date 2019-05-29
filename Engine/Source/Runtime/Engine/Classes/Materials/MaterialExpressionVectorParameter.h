@@ -17,6 +17,12 @@ class UMaterialExpressionVectorParameter : public UMaterialExpressionParameter
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionVectorParameter)
 	FLinearColor DefaultValue;
 
+	UPROPERTY(EditAnywhere, Category=CustomPrimitiveData)
+	bool bUseCustomPrimitiveData = false;
+
+	UPROPERTY(EditAnywhere, Category=CustomPrimitiveData, meta=(ClampMin="0"))
+	uint8 PrimitiveDataIndex = 0;
+
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
@@ -37,5 +43,7 @@ class UMaterialExpressionVectorParameter : public UMaterialExpressionParameter
 #endif
 
 	virtual bool IsUsedAsChannelMask() const {return false;}
+
+	virtual void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const override;
 };
 

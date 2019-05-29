@@ -120,7 +120,7 @@ void* FLuminPlatformProcess::GetDllHandle(const TCHAR* Filename)
 	void *Handle = dlopen(TCHAR_TO_UTF8(*AbsolutePath), DlOpenMode);
 	if (!Handle)
 	{
-		UE_LOG(LogLinux, Warning, TEXT("dlopen failed: %s"), UTF8_TO_TCHAR(dlerror()));
+		UE_LOG(LogLumin, Warning, TEXT("dlopen failed: %s"), UTF8_TO_TCHAR(dlerror()));
 	}
 	return Handle;
 }

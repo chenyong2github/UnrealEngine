@@ -4,24 +4,4 @@
 
 #include "CoreTypes.h"
 
-#if PLATFORM_WINDOWS
-	#include "Windows/WindowsCriticalSection.h"
-#elif PLATFORM_PS4
-	#include "PS4/PS4CriticalSection.h"
-#elif PLATFORM_XBOXONE
-	#include "XboxOne/XboxOneCriticalSection.h"
-#elif PLATFORM_MAC
-	#include "Mac/MacCriticalSection.h"
-#elif PLATFORM_IOS
-	#include "IOS/IOSCriticalSection.h"
-#elif PLATFORM_ANDROID
-	#include "Android/AndroidCriticalSection.h"
-#elif PLATFORM_HTML5
-	#include "HTML5/HTML5CriticalSection.h"
-#elif PLATFORM_UNIX
-	#include "Unix/UnixCriticalSection.h"
-#elif PLATFORM_SWITCH
-	#include "Switch/SwitchCriticalSection.h"
-#else
-	#error Unknown platform
-#endif
+#include COMPILED_PLATFORM_HEADER(CriticalSection.h)

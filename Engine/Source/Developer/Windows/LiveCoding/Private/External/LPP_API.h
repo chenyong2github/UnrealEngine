@@ -15,11 +15,12 @@
 #define LPP_IDENTIFIER(_identifier)					LPP_CONCATENATE(_identifier, __LINE__)
 
 // custom section names for hooks
-#define LPP_PREPATCH_SECTION			".lc_prepatch_hooks"
-#define LPP_POSTPATCH_SECTION			".lc_postpatch_hooks"
-#define LPP_COMPILE_START_SECTION		".lc_compile_start_hooks"
-#define LPP_COMPILE_SUCCESS_SECTION		".lc_compile_success_hooks"
-#define LPP_COMPILE_ERROR_SECTION		".lc_compile_error_hooks"
+#define LPP_PREPATCH_SECTION					".lpp_prepatch_hooks"
+#define LPP_POSTPATCH_SECTION					".lpp_postpatch_hooks"
+#define LPP_COMPILE_START_SECTION				".lpp_compile_start_hooks"
+#define LPP_COMPILE_SUCCESS_SECTION				".lpp_compile_success_hooks"
+#define LPP_COMPILE_ERROR_SECTION				".lpp_compile_error_hooks"
+#define LPP_COMPILE_ERROR_MESSAGE_SECTION		".lpp_compile_error_message_hooks"
 
 // register a pre-patch hook in a custom section
 #define LPP_PREPATCH_HOOK(_function)																							\
@@ -42,6 +43,12 @@
 	__declspec(allocate(LPP_COMPILE_SUCCESS_SECTION)) extern void (*LPP_IDENTIFIER(lpp_compile_success_hook_function))(void) = &_function
 
 // register a compile error hook in a custom section
-#define LPP_COMPILE_ERROR_HOOK(_function)																								\
-	__pragma(section(LPP_COMPILE_ERROR_SECTION, read))																					\
+#define LPP_COMPILE_ERROR_HOOK(_function)																										\
+	__pragma(section(LPP_COMPILE_ERROR_SECTION, read))																							\
 	__declspec(allocate(LPP_COMPILE_ERROR_SECTION)) extern void (*LPP_IDENTIFIER(lpp_compile_error_hook_function))(void) = &_function
+
+// register a compile error message hook in a custom section
+#define LPP_COMPILE_ERROR_MESSAGE_HOOK(_function)																												\
+	__pragma(section(LPP_COMPILE_ERROR_MESSAGE_SECTION, read))																									\
+	__declspec(allocate(LPP_COMPILE_ERROR_MESSAGE_SECTION)) extern void (*LPP_IDENTIFIER(lpp_compile_error_message_hook_function))(const wchar_t*) = &_function
+

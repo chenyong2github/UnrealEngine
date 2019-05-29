@@ -3,7 +3,7 @@
 #include "AndroidCameraPlayer.h"
 #include "AndroidCameraPrivate.h"
 
-#include "Android/AndroidFile.h"
+#include "Android/AndroidPlatformFile.h"
 #include "AndroidCameraSettings.h"
 #include "IMediaEventSink.h"
 #include "MediaSamples.h"

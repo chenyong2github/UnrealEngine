@@ -43,6 +43,7 @@
 #pragma warning(disable : 4820)
 #define XXH_FORCE_MEMORY_ACCESS 2
 #define XXH_FORCE_ALIGN_CHECK 0
+#define XXH_CPU_LITTLE_ENDIAN 1
 
 
 /* *************************************

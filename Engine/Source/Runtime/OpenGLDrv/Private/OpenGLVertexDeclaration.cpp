@@ -351,6 +351,11 @@ bool FOpenGLVertexDeclaration::GetInitializer(FVertexDeclarationElementList& Ini
 				Element.Type = VET_URGB10A2N;
 				break;
 			}
+			case GL_UNSIGNED_INT:
+			{
+				Element.Type = VET_UInt;
+				break;
+			}
 			default:
 				checkf(false, TEXT("Unknown GLEnum 0x%x"), (int32)GLElement.Type);
 				break;

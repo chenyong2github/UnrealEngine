@@ -11,23 +11,23 @@ class DuplexPipe;
 class CommandMap
 {
 	template <class T>
-	static bool ReceiveAndCallAction(const DuplexPipe* pipe, void* context)
+	static bool ReceiveAndCallAction(const DuplexPipe* pipe, void* context, void* payload, size_t payloadSize)
 	{
 		// receive command and call user action
 		typename T::CommandType command = {};
-		const bool success = pipe->ReceiveCommand(&command);
+		const bool success = pipe->ReceiveCommand(&command, payload, payloadSize);
 		if (!success)
 		{
 			pipe->SendAck();
 			return false;
 		}
 
-		return T::Execute(&command, pipe, context);
+		return T::Execute(&command, pipe, context, payload, payloadSize);
 	}
 
 public:
 	// an action returns whether execution should continue
-	typedef bool (*Action)(const DuplexPipe*, void*);
+	typedef bool (*Action)(const DuplexPipe*, void*, void*, size_t);
 
 	CommandMap(void);
 	~CommandMap(void);
