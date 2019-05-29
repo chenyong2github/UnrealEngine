@@ -79,7 +79,7 @@ struct CORE_API FApplePlatformMisc : public FGenericPlatformMisc
 		__sync_synchronize();
 	}
 
-	static void LowLevelOutputDebugString(const TCHAR *Message);
+	static void LocalPrint(const TCHAR* Message);
 	static const TCHAR* GetSystemErrorMessage(TCHAR* OutBuffer, int32 BufferCount, int32 Error);
 	static int32 NumberOfCores();
 	

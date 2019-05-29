@@ -42,6 +42,8 @@ bool FIOSVivoxVoiceChat::Initialize()
 		}
 	}
 
+	vx_set_platform_aec_enabled(1);
+
 	bInBackground = false;
 	bShouldReconnect = false;
 	bIsRecording = false;
@@ -125,6 +127,11 @@ void FIOSVivoxVoiceChat::OnVoiceChatDisconnectComplete(const FVoiceChatResult& R
 		[App endBackgroundTask:BGTask];
 		BGTask = UIBackgroundTaskInvalid;
 	}
+}
+
+void FIOSVivoxVoiceChat::SetVivoxSdkConfigHints(vx_sdk_config_t &Hints)
+{
+	Hints.dynamic_voice_processing_switching = 0;
 }
 
 void FIOSVivoxVoiceChat::HandleApplicationWillEnterBackground()

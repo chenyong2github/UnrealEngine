@@ -265,7 +265,16 @@ void FAnimNode_LayeredBoneBlend::Evaluate_AnyThread(FPoseContext& Output)
 			}
 		}
 
-		FAnimationRuntime::BlendPosesPerBoneFilter(BasePoseContext.Pose, TargetBlendPoses, BasePoseContext.Curve, TargetBlendCurves, Output.Pose, Output.Curve, CurrentBoneBlendWeights, bMeshSpaceRotationBlend, CurveBlendOption);
+		FAnimationRuntime::EBlendPosesPerBoneFilterFlags blendFlags = FAnimationRuntime::EBlendPosesPerBoneFilterFlags::None;
+		if (bMeshSpaceRotationBlend)
+		{
+			blendFlags |= FAnimationRuntime::EBlendPosesPerBoneFilterFlags::MeshSpaceRotation;
+		}
+		if (bMeshSpaceScaleBlend)
+		{
+			blendFlags |= FAnimationRuntime::EBlendPosesPerBoneFilterFlags::MeshSpaceScale;
+		}
+		FAnimationRuntime::BlendPosesPerBoneFilter(BasePoseContext.Pose, TargetBlendPoses, BasePoseContext.Curve, TargetBlendCurves, Output.Pose, Output.Curve, CurrentBoneBlendWeights, blendFlags, CurveBlendOption);
 	}
 }
 

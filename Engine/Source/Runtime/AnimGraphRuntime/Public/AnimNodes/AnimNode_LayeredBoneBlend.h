@@ -38,6 +38,10 @@ public:
 	/** Whether to blend bone rotations in mesh space or in local space */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Config)
 	bool bMeshSpaceRotationBlend;
+
+	/** Whether to blend bone scales in mesh space or in local space */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Config)
+	bool bMeshSpaceScaleBlend;
 	
 	/** How to blend the layers together */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Config)
@@ -82,11 +86,12 @@ protected:
 public:	
 	FAnimNode_LayeredBoneBlend()
 		: bMeshSpaceRotationBlend(false)
+		, bMeshSpaceScaleBlend(false)
 		, CurveBlendOption(ECurveBlendOption::MaxWeight)
+		, bBlendRootMotionBasedOnRootBone(true)
 		, bHasRelevantPoses(false)
 		, LODThreshold(INDEX_NONE)
 	{
-		bBlendRootMotionBasedOnRootBone = true;
 	}
 
 	// FAnimNode_Base interface

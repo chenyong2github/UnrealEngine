@@ -1887,11 +1887,17 @@ namespace UnrealBuildTool
 				bool IsThirdPartyModule = CurModuleFile.ContainsName("ThirdParty", UnrealBuildTool.RootDirectory);
 
 				// check for engine, or platform extension engine folders
-				if( !bIncludeEngineSource && (CurModuleFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory) ||
-					CurModuleFile.ContainsName("Engine", UnrealBuildTool.PlatformExtensionsDirectory)) )
+				if( !bIncludeEngineSource )
 				{
-					// We were asked to exclude engine modules from the generated projects
-					WantProjectFileForModule = false;
+					foreach (DirectoryReference EngineDirectory in UnrealBuildTool.GetAllEngineDirectories())
+					{
+						if (CurModuleFile.IsUnderDirectory(EngineDirectory))
+						{
+							// We were asked to exclude engine modules from the generated projects
+							WantProjectFileForModule = false;
+							break;
+						}
+					}
 				}
 
 				if( CurModuleFile.IsUnderDirectory(UnrealBuildTool.EnterpriseDirectory) && !bIncludeEnterpriseSource )
@@ -1994,11 +2000,15 @@ namespace UnrealBuildTool
 			string PossibleProgramTargetName = CurModuleFile.GetFileNameWithoutAnyExtensions();
 
 			// check for engine, or platform extension engine folders
-			if( CurModuleFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory) ||
-				CurModuleFile.ContainsName("Engine", UnrealBuildTool.PlatformExtensionsDirectory) )
+			if( CurModuleFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
 			{
 				ProjectFileNameBase = EngineProjectFileNameBase;
 				BaseFolder = UnrealBuildTool.EngineDirectory;
+			}
+			else if (CurModuleFile.IsUnderDirectory(UnrealBuildTool.PlatformExtensionsDirectory))
+			{
+				ProjectFileNameBase = EngineProjectFileNameBase;
+				BaseFolder = UnrealBuildTool.RootDirectory;
 			}
 			else if( CurModuleFile.IsUnderDirectory(UnrealBuildTool.EnterpriseSourceDirectory) ||
 				CurModuleFile.IsUnderDirectory(DirectoryReference.Combine(UnrealBuildTool.EnterpriseDirectory, "Plugins")) )
@@ -2071,16 +2081,16 @@ namespace UnrealBuildTool
 				bool IsEngineTarget = false;
 				bool IsEnterpriseTarget = false;
 				bool WantProjectFileForTarget = true;
-				if(TargetFilePath.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
+				if(UnrealBuildTool.GetAllEngineDirectories().Any(x => TargetFilePath.IsUnderDirectory(x)))
 				{
 					// This is an engine target
 					IsEngineTarget = true;
 
-					if(TargetFilePath.IsUnderDirectory(EngineSourceProgramsDirectory))
+					if(UnrealBuildTool.GetAllEngineDirectories("Source/Programs").Any(x => TargetFilePath.IsUnderDirectory(x)))
 					{
 						WantProjectFileForTarget = IncludeEnginePrograms;
 					}
-					else if(TargetFilePath.IsUnderDirectory(UnrealBuildTool.EngineSourceDirectory))
+					else if(UnrealBuildTool.GetAllEngineDirectories("Source").Any(x => TargetFilePath.IsUnderDirectory(x)))
 					{
 						WantProjectFileForTarget = bIncludeEngineSource;
 					}
