@@ -36,7 +36,7 @@
 #include "windows/PsWindowsTrigConstants.h"
 #include "windows/PsWindowsInlineAoS.h"
 // @MIXEDREALITY_CHANGE : BEGIN ARM
-#elif(PX_UNIX_FAMILY || PX_PS4 || PX_SWITCH || PX_HoloLens)
+#elif(PX_UNIX_FAMILY || PX_PS4 || PX_SWITCH || PX_HOLOLENS)
 // @MIXEDREALITY_CHANGE : END
 #include "unix/PsUnixTrigConstants.h"
 #include "unix/PsUnixInlineAoS.h"

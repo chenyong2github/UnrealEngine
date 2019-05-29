@@ -35,7 +35,7 @@
 #if PX_WINDOWS && !PX_NEON
 #include "windows/PsWindowsAoS.h"
 // @MIXEDREALITY_CHANGE : BEGIN ARM Support
-#elif(PX_UNIX_FAMILY || PX_PS4 || PX_SWITCH || (PX_HoloLens && PX_NEON))
+#elif(PX_UNIX_FAMILY || PX_PS4 || PX_SWITCH || (PX_HOLOLENS && PX_NEON))
 // @MIXEDREALITY_CHANGE : END 
 #include "unix/PsUnixAoS.h"
 #elif PX_XBOXONE

@@ -43,7 +43,7 @@
 // We only support >= Windows XP, and we need this for critical section and
 // @ATG_CHANGE : BEGIN HoloLens support
 // Setting this hides some important APIs (e.g. LoadPackagedLibrary), so don't do it
-#if !PX_HoloLens
+#if !PX_HOLOLENS
 #define _WIN32_WINNT 0x0501
 #endif
 // @ATG_CHANGE : END
@@ -87,7 +87,7 @@
 #define WIN32_LEAN_AND_MEAN
 // @ATG_CHANGE : BEGIN HoloLens support
 // We need a slightly wider API surface for e.g. MultiByteToWideChar
-#if !PX_HoloLens
+#if !PX_HOLOLENS
 #define NOUSER
 #define NONLS
 #define NOMSG

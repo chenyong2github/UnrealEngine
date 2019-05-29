@@ -135,7 +135,7 @@ SIMD defines
 
 // @ATG_CHANGE : BEGIN HoloLens support
 #if WINAPI_FAMILY == WINAPI_FAMILY_APP && PX_ARM_FAMILY
-#define PX_HoloLens 1
+#define PX_HOLOLENS 1
 #endif
 // @ATG_CHANGE : END
 
@@ -203,8 +203,8 @@ define anything not defined on this platform to 0
 #define PX_VMX 0
 #endif
 // @ATG_CHANGE : BEGIN HoloLens support
-#ifndef PX_HoloLens
-#define PX_HoloLens 0
+#ifndef PX_HOLOLENS
+#define PX_HOLOLENS 0
 #endif
 // @ATG_CHANGE : END
 

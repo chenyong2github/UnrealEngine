@@ -36,7 +36,7 @@
 #include "foundation/windows/PxWindowsFoundationDelayLoadHook.h"
 
 // @ATG_CHANGE : BEGIN HoloLens support
-#if PX_HoloLens
+#if PX_HOLOLENS
 inline HMODULE LoadLibraryA(const char* libraryName)
 {
 	WCHAR libraryNameW[MAX_PATH];
