@@ -16,14 +16,23 @@ namespace MetadataTool
 
 		public override bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<BuildHealthIssue> Issues)
 		{
-			BuildHealthIssue Issue = new BuildHealthIssue(Job.Project, Category, Job.Url, new BuildHealthDiagnostic(JobStep.Name, Diagnostic.Message, Diagnostic.Url));
+			string DefaultProject = String.Format("{0} (Unmatched)", Job.Project);
+
+			BuildHealthIssue Issue = new BuildHealthIssue(DefaultProject, Category, Job.Url, new BuildHealthDiagnostic(JobStep.Name, Diagnostic.Message, Diagnostic.Url));
+			Issue.Identifiers.Add(Diagnostic.Message);
 			Issues.Add(Issue);
+			
 			return true;
 		}
 
 		public override List<ChangeInfo> FindCausers(PerforceConnection Perforce, BuildHealthIssue Issue, IReadOnlyList<ChangeInfo> Changes)
 		{
 			return new List<ChangeInfo>();
+		}
+
+		public override bool CanMerge(BuildHealthIssue Source, BuildHealthIssue Target)
+		{
+			return Source.Category == Target.Category && Source.Identifiers.Any(x => Target.Identifiers.Contains(x));
 		}
 
 		public override string GetSummary(BuildHealthIssue Issue)
