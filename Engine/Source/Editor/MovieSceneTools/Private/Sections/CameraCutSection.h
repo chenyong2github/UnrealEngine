@@ -45,7 +45,9 @@ private:
 	/** Get a representative camera for the given time */
 	AActor* GetCameraForFrame(FFrameNumber Time) const;
 
+	/** Callback for executing a "Select Camera" menu entry in the context menu. */
+	void HandleSelectCameraMenuEntryExecute(AActor* InCamera);
+
 	/** Callback for executing a "Set Camera" menu entry in the context menu. */
 	void HandleSetCameraMenuEntryExecute(AActor* InCamera);
-
 };
