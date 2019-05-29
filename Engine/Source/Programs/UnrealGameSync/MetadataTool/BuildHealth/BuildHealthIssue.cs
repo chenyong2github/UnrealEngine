@@ -62,15 +62,21 @@ namespace MetadataTool
 		public long Id = -1;
 
 		/// <summary>
-		/// Type common to all diagnostics within this issue.
+		/// Project that this belongs to
 		/// </summary>
 		[DataMember(Order = 1, IsRequired = true)]
+		public string Project;
+
+		/// <summary>
+		/// Type common to all diagnostics within this issue.
+		/// </summary>
+		[DataMember(Order = 2, IsRequired = true)]
 		public string Category;
 
 		/// <summary>
 		/// The initial job that this error was seen on. Allows other issues from the same job to be merged.
 		/// </summary>
-		[DataMember(Order = 2, IsRequired = true)]
+		[DataMember(Order = 3, IsRequired = true)]
 		public string InitialJobUrl;
 
 		/// <summary>
@@ -145,8 +151,9 @@ namespace MetadataTool
 		/// <param name="Category">Category of this issue</param>
 		/// <param name="InitialJobUrl">Url of the initial job that this error was seen with</param>
 		/// <param name="ErrorUrl"></param>
-		public BuildHealthIssue(string Category, string InitialJobUrl, BuildHealthDiagnostic Diagnostic)
+		public BuildHealthIssue(string Project, string Category, string InitialJobUrl, BuildHealthDiagnostic Diagnostic)
 		{
+			this.Project = Project;
 			this.Category = Category;
 			this.InitialJobUrl = InitialJobUrl;
 			this.Diagnostics.Add(Diagnostic);

@@ -54,6 +54,7 @@
     <Compile Include="BuildHealth\ChangeInfo.cs" />
     <Compile Include="BuildHealth\Matchers\CompilePatternMatcher.cs" />
     <Compile Include="BuildHealth\Matchers\CopyrightNoticeMatcher.cs" />
+    <Compile Include="BuildHealth\Matchers\DefaultPatternMatcher.cs" />
     <Compile Include="BuildHealth\Matchers\GenericCodePatternMatcher.cs" />
     <Compile Include="BuildHealth\Matchers\UndefinedSymbolPatternMatcher.cs" />
     <Compile Include="BuildHealth\PatternMatcher.cs" />

@@ -83,7 +83,7 @@ namespace MetadataTool
 			// If we found any symbol names, create a fingerprint for them
 			if (SymbolNames.Count > 0)
 			{
-				BuildHealthIssue Issue = new BuildHealthIssue(Category, Job.Url, new BuildHealthDiagnostic(JobStep.Name, Diagnostic.Message, Diagnostic.Url));
+				BuildHealthIssue Issue = new BuildHealthIssue(Job.Project, Category, Job.Url, new BuildHealthDiagnostic(JobStep.Name, Diagnostic.Message, Diagnostic.Url));
 				Issue.Identifiers.UnionWith(SymbolNames);
 				Issues.Add(Issue);
 				return true;

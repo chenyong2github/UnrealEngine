@@ -24,7 +24,8 @@ namespace MetadataTool
 		{ 
 			new CompilePatternMatcher(),
 			new UndefinedSymbolPatternMatcher(),
-			new CopyrightNoticeMatcher()
+			new CopyrightNoticeMatcher(),
+			new DefaultPatternMatcher(),
 		};
 
 		static readonly Dictionary<string, PatternMatcher> CategoryToMatcher = Matchers.ToDictionary(x => x.Category, x => x);
@@ -229,7 +230,7 @@ namespace MetadataTool
 						}
 
 						CommandTypes.AddIssue IssueBody = new CommandTypes.AddIssue();
-						IssueBody.Project = "Fortnite";
+						IssueBody.Project = Issue.Project;
 						IssueBody.Summary = Summary;
 						IssueBody.Details = Details;
 
