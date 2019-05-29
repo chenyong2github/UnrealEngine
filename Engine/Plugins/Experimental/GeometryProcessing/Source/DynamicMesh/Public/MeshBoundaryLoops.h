@@ -99,7 +99,7 @@ public:
 	int GetMaxVerticesLoopIndex() const;
 
 	/**
-	 * @return pair (LoopIndex,VertexIndexInLoop) of VertexID in EdgeLoops, or FIndex2i::Max if not found
+	 * @return pair (LoopIndex,VertexIndexInLoop) of VertexID in EdgeLoops, or FIndex2i::Invalid if not found
 	 */
 	FIndex2i FindVertexInLoop(int VertexID) const;
 

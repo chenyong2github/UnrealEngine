@@ -30,7 +30,7 @@ FIndex2i FMeshBoundaryLoops::FindVertexInLoop(int VertexID) const
 			return FIndex2i(li, idx);
 		}
 	}
-	return FIndex2i::Max();
+	return FIndex2i::Invalid();
 }
 
 
