@@ -8818,7 +8818,7 @@ std::string CompilerMSL::access_chain_internal(uint32_t base, const uint32_t *in
             
             expr += "spvBufferSizeConstants";
             expr += ", ";
-			const auto &innertype = get<SPIRType>(type->parent_type);
+			const SPIRType &innertype = this->get<SPIRType>(type->parent_type);
 			expr += type_to_glsl(innertype);
 			expr += ", ";
 		}
