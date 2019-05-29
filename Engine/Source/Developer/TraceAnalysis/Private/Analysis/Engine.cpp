@@ -467,7 +467,7 @@ void FAnalysisEngine::OnNewEvent(const FOnEventContext& Context)
 {
 	const auto& NewEvent = *(FNewEventEvent*)Context.EventData.GetData();
 
-	FDispatch& Dispatch = AddDispatch(NewEvent.Uid, NewEvent.FieldCount);
+	FDispatch& Dispatch = AddDispatch(NewEvent.EventUid, NewEvent.FieldCount);
 
 	if (NewEvent.FieldCount)
 	{
