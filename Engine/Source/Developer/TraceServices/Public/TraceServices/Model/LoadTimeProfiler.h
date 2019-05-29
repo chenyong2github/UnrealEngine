@@ -102,8 +102,10 @@ public:
 
 	virtual ~ILoadTimeProfilerProvider() = default;
 	virtual uint64 GetPackageCount() const = 0;
-	virtual void EnumeratePackages(TFunctionRef<void(const FPackageInfo&)> Callback) const = 0; 
+	virtual void EnumeratePackages(TFunctionRef<void(const FPackageInfo&)> Callback) const = 0;
+	virtual uint32 GetMainThreadId() const = 0;
 	virtual void ReadMainThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const = 0;
+	virtual uint32 GetAsyncLoadingThreadId() const = 0;
 	virtual void ReadAsyncLoadingThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const = 0;
 	virtual ITable<FLoadTimeProfilerAggregatedStats>* CreateEventAggregation(double IntervalStart, double IntervalEnd) const = 0;
 	virtual ITable<FLoadTimeProfilerAggregatedStats>* CreateObjectTypeAggregation(double IntervalStart, double IntervalEnd) const = 0;

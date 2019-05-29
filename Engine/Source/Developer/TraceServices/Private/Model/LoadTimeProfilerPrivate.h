@@ -33,6 +33,10 @@ public:
 	FPackageExportInfo& CreateExport();
 	TSharedRef<CpuTimelineInternal> EditMainThreadCpuTimeline() { return MainThreadCpuTimeline; }
 	TSharedRef<CpuTimelineInternal> EditAsyncLoadingThreadCpuTimeline() { return AsyncLoadingThreadCpuTimeline; }
+	virtual uint32 GetMainThreadId() const override { return MainThreadId; }
+	void SetMainThreadId(uint32 ThreadId) { MainThreadId = ThreadId; }
+	virtual uint32 GetAsyncLoadingThreadId() const override { return AsyncLoadingThreadId; }
+	void SetAsyncLoadingThreadId(uint32 ThreadId) { AsyncLoadingThreadId = ThreadId; }
 
 private:
 	IAnalysisSession& Session;
@@ -41,6 +45,8 @@ private:
 	TPagedArray<FPackageExportInfo> Exports;
 	TSharedRef<CpuTimelineInternal> MainThreadCpuTimeline;
 	TSharedRef<CpuTimelineInternal> AsyncLoadingThreadCpuTimeline;
+	uint32 MainThreadId = uint32(-1);
+	uint32 AsyncLoadingThreadId = uint32(-1);
 
 	UE_TRACE_TABLE_LAYOUT_BEGIN(FAggregatedStatsTableLayout, FLoadTimeProfilerAggregatedStats)
 		UE_TRACE_TABLE_COLUMN(Name, TEXT("Name"))

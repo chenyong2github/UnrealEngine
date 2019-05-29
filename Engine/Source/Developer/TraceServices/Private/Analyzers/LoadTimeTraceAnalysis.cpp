@@ -27,6 +27,7 @@ TSharedRef<FAsyncLoadingTraceAnalyzer::FThreadState> FAsyncLoadingTraceAnalyzer:
 		if (MainThreadId == -1)
 		{
 			MainThreadId = ThreadId;
+			LoadTimeProfilerProvider.SetMainThreadId(MainThreadId);
 			ThreadState->CpuTimeline = LoadTimeProfilerProvider.EditMainThreadCpuTimeline();
 		}
 		else if (ThreadId == AsyncLoadingThreadId)
@@ -103,7 +104,9 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	{
 	case RouteId_StartAsyncLoading:
 	{
+		Trace::FAnalysisSessionEditScope _(Session);
 		AsyncLoadingThreadId = EventData.GetValue("ThreadId").As<uint32>();
+		LoadTimeProfilerProvider.SetAsyncLoadingThreadId(AsyncLoadingThreadId);
 		break;
 	}
 	case RouteId_NewLinker:
