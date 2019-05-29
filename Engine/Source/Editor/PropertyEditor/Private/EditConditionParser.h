@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "CoreTypes.h"
 #include "Misc/ExpressionParserTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 namespace EditConditionParserNamespace
 {

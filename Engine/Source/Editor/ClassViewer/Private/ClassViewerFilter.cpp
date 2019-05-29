@@ -1,7 +1,10 @@
 #include "ClassViewerFilter.h"
 
 #include "UnloadedBlueprintData.h"
+#include "Engine/Brush.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Misc/PackageName.h"
+#include "Misc/Paths.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
 
 EFilterReturn::Type FClassViewerFilterFuncs::IfInChildOfClassesSet(TSet< const UClass* >& InSet, const UClass* InClass)
