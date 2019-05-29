@@ -564,8 +564,8 @@ static void DoLazyStaticMeshUpdateCVarSinkFunction()
 		return;
 	}
 
-	static bool CachedDoLazyStaticMeshUpdate = CVarDoLazyStaticMeshUpdate.GetValueOnGameThread();
-	bool DoLazyStaticMeshUpdate = CVarDoLazyStaticMeshUpdate.GetValueOnGameThread();
+	static bool CachedDoLazyStaticMeshUpdate = !!CVarDoLazyStaticMeshUpdate.GetValueOnGameThread();
+	bool DoLazyStaticMeshUpdate = !!CVarDoLazyStaticMeshUpdate.GetValueOnGameThread();
 
 	if (DoLazyStaticMeshUpdate != CachedDoLazyStaticMeshUpdate)
 	{
