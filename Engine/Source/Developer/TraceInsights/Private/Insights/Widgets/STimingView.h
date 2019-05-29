@@ -252,6 +252,9 @@ public:
 
 	void SetGraphTrackVisible(bool bOnOff) { GraphTrack.SetVisibilityFlag(bOnOff); }
 
+	bool IsGpuTrackVisible() const;
+	bool IsCpuTrackVisible(uint32 ThreadId) const;
+
 protected:
 	virtual FVector2D ComputeDesiredSize(float) const override
 	{
@@ -359,16 +362,10 @@ protected:
 
 	////////////////////////////////////////////////////////////
 
-	struct FThreadGroup
-	{
-		const TCHAR* Name;
-		bool bIsVisible;
-		uint32 NumTimelines;
-	};
-
-	mutable TMap<const TCHAR*, FThreadGroup> ThreadGroups; /**< thread groups */
-
-	mutable TMap<uint64, FTimingEventsTrack*> CachedTimelines; /**< all tracks */
+	/** All created tracks.
+	  * Maps track id to track pointer.
+	  */
+	TMap<uint64, FTimingEventsTrack*> CachedTimelines;
 
 	//TODO: TArray<FBaseTimingTrack*> TopTracks; /**< tracks docked on top, in order to be displayed (top to bottom) */
 	//TODO: TArray<FBaseTimingTrack*> ScrollableTracks; /**< tracks in scrollable area, in order to be displayed (top to bottom) */
@@ -376,16 +373,30 @@ protected:
 	//TODO: TArray<FBaseTimingTrack*> ForegorundTracks; /**< tracks to draw over top/scrollable/bottom tracks (can use entire area), in order to be displayed (back to front) */
 
 	////////////////////////////////////////////////////////////
-	// Timing Events Tracks (GPU, CPU, IO)
 
-	TArray<FTimingEventsTrack*> TimingEventsTracks; /**< timing events tracks in order to be displayed */
+	TArray<FTimingEventsTrack*> TimingEventsTracks; /**< all timing events tracks in order to be displayed */
 
 	bool bAreTimingEventsTracksDirty;
 
 	bool bUseDownSampling;
 
 	////////////////////////////////////////////////////////////
-	// Load time
+	// Cpu/Gpu
+
+	FTimingEventsTrack* GpuTrack;
+	TMap<uint32, FTimingEventsTrack*> CpuTracks; /**< maps thread id to track pointer */
+
+	struct FThreadGroup
+	{
+		const TCHAR* Name; /**< the thread group name; pointer to string owned by ThreadProvider */
+		bool bIsVisible;
+		uint32 NumTimelines;
+	};
+
+	TMap<const TCHAR*, FThreadGroup> ThreadGroups; /**< maps thread group name to thread group info */
+
+	////////////////////////////////////////////////////////////
+	// Asset Loading
 
 	FTimingEventsTrack* LoadingMainThreadTrack;
 	FTimingEventsTrack* LoadingAsyncThreadTrack;

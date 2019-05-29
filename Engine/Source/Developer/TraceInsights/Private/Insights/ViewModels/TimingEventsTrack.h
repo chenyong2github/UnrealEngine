@@ -62,6 +62,9 @@ public:
 
 	const TCHAR* GetGroupName() const { return GroupName; };
 
+	void SetThreadId(uint32 InThreadId) { ThreadId = InThreadId; }
+	uint32 GetThreadId() const { return ThreadId; }
+
 	void SetOrder(int32 InOrder) { Order = InOrder; }
 	int32 GetOrder() const { return Order; }
 
@@ -75,8 +78,8 @@ public:
 	ETimingEventsTrackType Type;
 	FString Name;
 	const TCHAR* GroupName;
+	uint32 ThreadId;
 	int32 Order;
-
 	int32 Depth; // number of lanes == Depth + 1
 	bool bIsCollapsed;
 

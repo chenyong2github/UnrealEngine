@@ -57,9 +57,9 @@ const TCHAR* GetName(ELoadTimeProfilerObjectEventType Type);
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 STimingView::STimingView()
-	: TimeRulerTrack(0xFFFF0001)
-	, MarkersTrack(0xFFFF0002)
-	, GraphTrack(0xFFFF0003)
+	: TimeRulerTrack(FBaseTimingTrack::GenerateId())
+	, MarkersTrack(FBaseTimingTrack::GenerateId())
+	, GraphTrack(FBaseTimingTrack::GenerateId())
 	, TooltipWidth(MinTooltipWidth)
 	, TooltipAlpha(0.0f)
 	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
@@ -181,17 +181,16 @@ void STimingView::Reset()
 
 	//////////////////////////////////////////////////
 
-	ThreadGroups.Reset();
-
 	for (const auto& KV : CachedTimelines)
 	{
 		delete KV.Value;
 	}
 	CachedTimelines.Reset();
 
-	//TopTracks.Reset();
-	//ScrollableTracks.Reset();
-	//BottomTracks.Reset();
+	//TODO: TopTracks.Reset();
+	//TODO: ScrollableTracks.Reset();
+	//TODO: BottomTracks.Reset();
+	//TODO: ForegroundTracks.Reset();
 
 	//////////////////////////////////////////////////
 
@@ -200,6 +199,13 @@ void STimingView::Reset()
 	bAreTimingEventsTracksDirty = true;
 
 	bUseDownSampling = true;
+
+	//////////////////////////////////////////////////
+
+	GpuTrack = nullptr;
+	CpuTracks.Reset();
+
+	ThreadGroups.Reset();
 
 	//////////////////////////////////////////////////
 
@@ -444,7 +450,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			const uint64 TrackId = static_cast<uint64>(GpuTimelineIndex);
 			if (!CachedTimelines.Contains(TrackId))
 			{
-				AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Gpu, TEXT("GPU"), nullptr, 0);
+				GpuTrack = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Gpu, TEXT("GPU"), nullptr, 0);
 				bIsTimingEventsTrackDirty = true;
 			}
 		}
@@ -483,6 +489,8 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 				{
 					FString TrackName(ThreadInfo.Name && *ThreadInfo.Name ? ThreadInfo.Name : FString::Printf(TEXT("Thread %u")));
 					Track = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Cpu, TrackName, GroupName, Order);
+					Track->SetThreadId(ThreadInfo.Id);
+					CpuTracks.Add(ThreadInfo.Id, Track);
 					bIsTimingEventsTrackDirty = true;
 				}
 				else
@@ -1201,6 +1209,20 @@ FTimingEventsTrack* STimingView::AddTimingEventsTrack(uint64 TrackId, ETimingEve
 	TimingEventsTracks.Add(Track);
 
 	return Track;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::IsGpuTrackVisible() const
+{
+	return GpuTrack != nullptr && GpuTrack->IsVisible();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::IsCpuTrackVisible(uint32 ThreadId) const
+{
+	return CpuTracks.Contains(ThreadId) && CpuTracks[ThreadId]->IsVisible();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

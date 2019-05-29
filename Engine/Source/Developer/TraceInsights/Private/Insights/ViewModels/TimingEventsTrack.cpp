@@ -86,6 +86,8 @@ FTimingEventsTrack::FTimingEventsTrack(uint64 InTrackId, ETimingEventsTrackType 
 	, Type(InType)
 	, Name(InName)
 	, GroupName(InGroupName)
+	, ThreadId(0)
+	, Order(0)
 	, Depth(-1)
 	, bIsCollapsed(false)
 {
