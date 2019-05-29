@@ -61,6 +61,7 @@ public:
 	 * @param ResultOut populated with information about successful nearest point result
 	 * @param PointWithinToleranceTest should return true if two 3D points are "close enough" to be considered a hit
 	 * @return true if the nearest point on Ray to some point in the set passed the PointWithinToleranceTest.
+	 * @warning PointWithinToleranceTest is called in parallel and hence must be thread-safe/re-entrant!
 	 */
 	bool FindNearestPointToRay(const FRay3d& Ray, FNearest& ResultOut,
 		TFunction<bool(const FVector3d&, const FVector3d&)> PointWithinToleranceTest) const;
@@ -70,6 +71,7 @@ public:
 	 * @param ResultOut populated with information about successful nearest point result
 	 * @param PointWithinToleranceTest should return true if two 3D points are "close enough" to be considered a hit
 	 * @return true if the nearest point on Ray to some curve in the set passed the PointWithinToleranceTest.
+	 * @warning PointWithinToleranceTest is called in parallel and hence must be thread-safe/re-entrant!
 	 */
 	bool FindNearestCurveToRay(const FRay3d& Ray, FNearest& ResultOut,
 		TFunction<bool(const FVector3d&, const FVector3d&)> PointWithinToleranceTest) const;

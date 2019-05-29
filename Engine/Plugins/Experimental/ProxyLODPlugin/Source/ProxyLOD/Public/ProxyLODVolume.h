@@ -65,6 +65,8 @@ class PROXYLODMESHREDUCTION_API IVoxelBasedCSG
 public :
 	static TUniquePtr<IVoxelBasedCSG> CreateCSGTool(float VoxelSize);
 
+	virtual ~IVoxelBasedCSG() {}
+
 	class FPlacedMesh
 	{
 	public:

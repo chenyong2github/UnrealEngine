@@ -67,12 +67,12 @@ void FGroupTopology::RebuildTopology()
 	}
 
 	// precompute junction vertices set
-	JunctionVertices.Init(false, Mesh->MaxVertexID());
+	CornerVerticesFlags.Init(false, Mesh->MaxVertexID());
 	for (int vid : Mesh->VertexIndicesItr())
 	{
-		if (IsJunctionVertex(vid))
+		if (IsCornerVertex(vid))
 		{
-			JunctionVertices[vid] = true;
+			CornerVerticesFlags[vid] = true;
 			FCorner Corner = { vid };
 			Corners.Add(Corner);
 		}
@@ -86,8 +86,10 @@ void FGroupTopology::RebuildTopology()
 	// construct boundary loops
 	for (FGroup& Group : Groups)
 	{
+		// finds FGroupEdges and uses to populate Group.Boundaries
 		ExtractGroupEdges(Group);
 
+		// collect up .NeighbourGroupIDs and set .bIsOnBoundary
 		for (FGroupBoundary& Boundary : Group.Boundaries)
 		{
 			Boundary.bIsOnBoundary = false;
@@ -120,8 +122,7 @@ void FGroupTopology::RebuildTopology()
 }
 
 
-/** @return true if given mesh vertex is a Corner vertex */
-bool FGroupTopology::IsJunctionVertex(int VertexID) const
+bool FGroupTopology::IsCornerVertex(int VertexID) const
 {
 	FIndex3i UniqueGroups;
 	int UniqueCount = 0;
@@ -376,18 +377,18 @@ void FGroupTopology::ExtractGroupEdges(FGroup& Group)
 		FGroupBoundary& Boundary = Group.Boundaries[li];
 
 		// find indices of corners of group polygon
-		TArray<int> JunctionIndices;
+		TArray<int> CornerIndices;
 		int NumV = Loop.Vertices.Num();
 		for (int i = 0; i < NumV; ++i)
 		{
-			if (JunctionVertices[Loop.Vertices[i]])
+			if (CornerVerticesFlags[Loop.Vertices[i]])
 			{
-				JunctionIndices.Add(i);
+				CornerIndices.Add(i);
 			}
 		}
 
 		// if we had no indices then this is like the cap of a cylinder, just one single long edge
-		if ( JunctionIndices.Num() == 0 )
+		if ( CornerIndices.Num() == 0 )
 		{ 
 			FIndex2i EdgeID = MakeEdgeID(Loop.Edges[0]);
 			int OtherGroupID = (EdgeID.A == Group.GroupID) ? EdgeID.B : EdgeID.A;
@@ -403,15 +404,15 @@ void FGroupTopology::ExtractGroupEdges(FGroup& Group)
 			continue;
 		}
 
-		// duplicate first junction vertex so that we can just loop back around to it w/ modulo count
-		int NumSpans = JunctionIndices.Num();
-		int FirstIdx = JunctionIndices[0];
-		JunctionIndices.Add(FirstIdx);
+		// duplicate first corner vertex so that we can just loop back around to it w/ modulo count
+		int NumSpans = CornerIndices.Num();
+		int FirstIdx = CornerIndices[0];
+		CornerIndices.Add(FirstIdx);
 
 		// add each span
 		for (int k = 0; k < NumSpans; ++k)
 		{
-			int i0 = JunctionIndices[k];
+			int i0 = CornerIndices[k];
 
 			FIndex2i EdgeID = MakeEdgeID(Loop.Edges[i0]);
 			int OtherGroupID = (EdgeID.A == Group.GroupID) ? EdgeID.B : EdgeID.A;
@@ -425,7 +426,7 @@ void FGroupTopology::ExtractGroupEdges(FGroup& Group)
 
 			FGroupEdge Edge = { EdgeID };
 
-			int i1 = JunctionIndices[k+1];
+			int i1 = CornerIndices[k+1];
 			check(i0 != i1);	// this case will happen on a cylinder w/ a cut side, I think...
 								// (but that case won't exist because that's wouldn't be a group boundary edge!)
 			TArray<int> SpanVertices;
@@ -458,13 +459,16 @@ int FGroupTopology::FindExistingGroupEdge(int GroupID, int OtherGroupID, int Fir
 
 	FGroup& OtherGroup = Groups[GroupIDToGroupIndexMap[OtherGroupID]];
 	FIndex2i EdgeID = MakeEdgeID(GroupID, OtherGroupID);
-
+	
 	for (FGroupBoundary& Boundary : OtherGroup.Boundaries)
 	{
 		for (int EdgeIndex : Boundary.GroupEdges)
 		{
 			if (Edges[EdgeIndex].Groups == EdgeID)
 			{
+				// same EdgeID pair may occur multiple times in the same boundary loop! 
+				// need to check that at least one endpoint is the same vertex
+
 				TArray<int>& Vertices = Edges[EdgeIndex].Span.Vertices;
 				if (Vertices[0] == FirstVertexID || Vertices[Vertices.Num() - 1] == FirstVertexID)
 				{

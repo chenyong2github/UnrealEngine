@@ -202,7 +202,7 @@ public:
 		{
 			return (Vertices[NumVerts-1] - Vertices[NumVerts-2]).Normalized();
 		}
-		return (Vertices[VertexIndex+1] - Vertices[VertexIndex-1]).Normalized()
+		return (Vertices[VertexIndex+1] - Vertices[VertexIndex-1]).Normalized();
 	}
 
 
@@ -270,11 +270,11 @@ public:
 	public:
 		inline bool operator!()
 		{
-			return i < SegmentCount();
+			return i < Polyline->SegmentCount();
 		}
 		inline FSegment3<T> operator*() const
 		{
-			check(Polyline != nullptr && i < SegmentCount());
+			check(Polyline != nullptr && i < Polyline->SegmentCount());
 			return FSegment3<T>(Polyline->Vertices[i], Polyline->Vertices[i+1]);
 		}
 		inline SegmentIterator & operator++() 		// prefix
@@ -313,7 +313,7 @@ public:
 		SegmentEnumerable() : Polyline(nullptr) {}
 		SegmentEnumerable(const TPolyline3<T> * p) : Polyline(p) {}
 		SegmentIterator begin() { return Polyline->SegmentItr(); }
-		SegmentIterator end() { return SegmentIterator(Polyline, SegmentCount()); }
+		SegmentIterator end() { return SegmentIterator(Polyline, Polyline->SegmentCount()); }
 	};
 
 	/**

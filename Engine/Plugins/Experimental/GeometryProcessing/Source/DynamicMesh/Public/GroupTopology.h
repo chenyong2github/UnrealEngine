@@ -168,11 +168,11 @@ protected:
 	const FDynamicMesh3* Mesh = nullptr;
 
 	TArray<int> GroupIDToGroupIndexMap;		// allow fast lookup of index in .Groups, given GroupID
-	TBitArray<> JunctionVertices;		// bit array of corners for fast testing in ExtractGroupEdges
+	TBitArray<> CornerVerticesFlags;		// bit array of corners for fast testing in ExtractGroupEdges
 	TArray<int> EmptyArray;
 
 	/** @return true if given mesh vertex is a Corner vertex */
-	virtual bool IsJunctionVertex(int VertexID) const;
+	virtual bool IsCornerVertex(int VertexID) const;
 
 	void ExtractGroupEdges(FGroup& Group);
 

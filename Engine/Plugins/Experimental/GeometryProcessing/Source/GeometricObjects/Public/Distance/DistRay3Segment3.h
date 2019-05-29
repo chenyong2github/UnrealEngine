@@ -54,7 +54,7 @@ public:
 		double b0 = diff.Dot(Ray.Direction);
 		double b1 = -diff.Dot(Segment.Direction);
 		double c = diff.SquaredLength();
-		double det = TMathUtil::Abs(1 - a01 * a01);
+		double det = TMathUtil<Real>::Abs(1 - a01 * a01);
 		double s0, s1, sqrDist, extDet;
 
 		if (det >= TMathUtil<Real>::ZeroTolerance ) 
