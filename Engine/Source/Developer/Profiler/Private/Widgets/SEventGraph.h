@@ -384,7 +384,7 @@ public:
 	const FUIAction SetRoot_Custom() const
 	{
 		FUIAction UIAction;
-		UIAction.ExecuteAction = FExecuteAction::CreateSP( this, &SEventGraph::SetRoot_Execute );
+		UIAction.ExecuteAction = FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::SetRoot_Execute );
 		UIAction.CanExecuteAction = FCanExecuteAction::CreateSP( this, &SEventGraph::SetRoot_CanExecute );
 		return UIAction;
 	}
@@ -405,7 +405,7 @@ public:
 	const FUIAction ClearHistory_Custom() const
 	{
 		FUIAction UIAction;
-		UIAction.ExecuteAction = FExecuteAction::CreateSP( this, &SEventGraph::ClearHistory_Execute );
+		UIAction.ExecuteAction = FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::ClearHistory_Execute );
 		UIAction.CanExecuteAction = FCanExecuteAction::CreateSP( this, &SEventGraph::ClearHistory_CanExecute );
 		return UIAction;
 	}
@@ -469,7 +469,7 @@ public:
 	const FUIAction CullByProperty_Custom( const FEventGraphSamplePtr EventPtr, const FName PropertyName, const bool bReset ) const
 	{
 		FUIAction UIAction;
-		UIAction.ExecuteAction = FExecuteAction::CreateSP( this, &SEventGraph::CullByProperty_Execute, EventPtr, PropertyName, bReset );
+		UIAction.ExecuteAction = FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::CullByProperty_Execute, EventPtr, PropertyName, bReset );
 		UIAction.CanExecuteAction = FCanExecuteAction::CreateSP( this, &SEventGraph::CullByProperty_CanExecute, EventPtr, PropertyName, bReset );
 		return UIAction;
 	}

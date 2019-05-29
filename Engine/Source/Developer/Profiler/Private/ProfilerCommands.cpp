@@ -284,7 +284,7 @@ void FProfilerActionManager::Map_ToggleDataCapture_Global()
 const FUIAction FProfilerActionManager::ToggleDataCapture_Custom( const FGuid SessionInstanceID ) const
 {
 	FUIAction UIAction;
-	UIAction.ExecuteAction = FExecuteAction::CreateRaw( this, &FProfilerActionManager::ToggleDataCapture_Execute, SessionInstanceID );
+	UIAction.ExecuteAction = FExecuteAction::CreateRaw( const_cast<FProfilerActionManager*>(this), &FProfilerActionManager::ToggleDataCapture_Execute, SessionInstanceID );
 	UIAction.CanExecuteAction = FCanExecuteAction::CreateRaw( this, &FProfilerActionManager::ToggleDataCapture_CanExecute, SessionInstanceID );
 	UIAction.GetActionCheckState = FGetActionCheckState::CreateRaw( this, &FProfilerActionManager::ToggleDataCapture_GetCheckState, SessionInstanceID );
 	return UIAction;

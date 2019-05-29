@@ -375,7 +375,7 @@ void FStreamingLevelCollectionModel::CustomizeFileMainMenu(FMenuBuilder& InMenuB
 		InMenuBuilder.AddSubMenu( 
 			LOCTEXT("LevelsStreamingMethod", "Default Streaming Method"),
 			LOCTEXT("LevelsStreamingMethod_Tooltip", "Changes the default streaming method for a new levels"),
-			FNewMenuDelegate::CreateRaw(this, &FStreamingLevelCollectionModel::FillDefaultStreamingMethodSubMenu ) );
+			FNewMenuDelegate::CreateRaw(const_cast<FStreamingLevelCollectionModel*>(this), &FStreamingLevelCollectionModel::FillDefaultStreamingMethodSubMenu ) );
 		
 		InMenuBuilder.AddMenuEntry( Commands.World_CreateNewLevel );
 		InMenuBuilder.AddMenuEntry( Commands.World_AddExistingLevel );

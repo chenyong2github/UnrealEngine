@@ -1152,7 +1152,7 @@ TSharedRef<SWidget> SLevelViewportToolBar::GenerateFarViewPlaneMenu() const
 				.MaxValue(100000.0f)
 				.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
 				.Value(this, &SLevelViewportToolBar::OnGetFarViewPlaneValue)
-				.OnValueChanged(this, &SLevelViewportToolBar::OnFarViewPlaneValueChanged)
+				.OnValueChanged(const_cast<SLevelViewportToolBar*>(this), &SLevelViewportToolBar::OnFarViewPlaneValueChanged)
 			]
 		];
 }
