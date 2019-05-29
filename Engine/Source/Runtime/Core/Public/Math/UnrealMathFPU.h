@@ -510,8 +510,8 @@ FORCEINLINE int VectorCompareZero(const VectorRegister& Mask)
 #define VectorMask_GE( Vec1, Vec2 )			VectorCompareGE(Vec1, Vec2)
 #define VectorMask_EQ( Vec1, Vec2 )			VectorCompareEQ(Vec1, Vec2)
 #define VectorMask_NE( Vec1, Vec2 )			VectorCompareNE(Vec1, Vec2)
-#endif
 #define VectorMaskBits( VecMask )			VectorCompareZero( VecMask )
+#endif
 
 /**
  * Does a bitwise vector selection based on a mask (e.g., created from VectorCompareXX)
