@@ -43,6 +43,11 @@ struct FArrangement2d
 	{
 	}
 
+	FArrangement2d(double PointHashCellSize)
+		: PointHash(PointHashCellSize, -1)
+	{
+	}
+
 	/**
 	 * Attempts to triangulates the arrangement with a constrained delaunay triangulation
 	 * NOTE: Not robust; generates invalid triangulations and fails to insert edges sometimes, even if the arrangement has no self-intersections
