@@ -231,8 +231,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 	int32 DenoiserMode = CVarUseAODenoiser.GetValueOnRenderThread();
 	if (DenoiserMode != 0)
 	{
-		FSceneTextureParameters SceneTextures;
-		SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
+		FSceneTextureParameters SceneTextureParams;
+		SetupSceneTextureParameters(GraphBuilder, &SceneTextureParams);
 
 		const IScreenSpaceDenoiser* DefaultDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
 		const IScreenSpaceDenoiser* DenoiserToUse = DenoiserMode == 1 ? DefaultDenoiser : GScreenSpaceDenoiser;
@@ -253,7 +253,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 				GraphBuilder,
 				View,
 				&View.PrevViewInfo,
-				SceneTextures,
+				SceneTextureParams,
 				DenoiserInputs,
 				RayTracingConfig);
 
