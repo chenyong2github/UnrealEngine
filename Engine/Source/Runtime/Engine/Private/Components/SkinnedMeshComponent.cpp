@@ -688,6 +688,15 @@ void USkinnedMeshComponent::ClearMotionVector()
 	}
 }
 
+void USkinnedMeshComponent::ForceMotionVector()
+{
+	if (MeshObject)
+	{
+		++CurrentBoneTransformRevisionNumber;
+		MeshObject->Update(PredictedLODLevel, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None);
+	}
+}
+
 #if WITH_EDITOR
 
 bool USkinnedMeshComponent::CanEditChange(const UProperty* InProperty) const

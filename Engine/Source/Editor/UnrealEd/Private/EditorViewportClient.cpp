@@ -1057,6 +1057,8 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 
 	if (bUseControllingActorViewInfo)
 	{
+		// Pass on the previous view transform of the controlling actor to the view
+		View->PreviousViewTransform = ControllingActorViewInfo.PreviousViewTransform;
 		View->OverridePostProcessSettings(ControllingActorViewInfo.PostProcessSettings, ControllingActorViewInfo.PostProcessBlendWeight);
 
 		for (int32 ExtraPPBlendIdx = 0; ExtraPPBlendIdx < ControllingActorExtraPostProcessBlends.Num(); ++ExtraPPBlendIdx)

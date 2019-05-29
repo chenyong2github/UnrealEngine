@@ -2228,6 +2228,19 @@ public:
 		}
 	}
 
+	/** 
+	 * Overrides a primitive's previous LocalToWorld matrix for this frame only
+	 */
+	void OverridePreviousTransform(FPrimitiveComponentId PrimitiveComponentId, const FMatrix& PreviousLocalToWorld)
+	{
+		FComponentVelocityData* VelocityData = ComponentData.Find(PrimitiveComponentId);
+		if (VelocityData)
+		{
+			VelocityData->PreviousLocalToWorld = PreviousLocalToWorld;
+			VelocityData->bPreviousLocalToWorldValid = true;
+		}
+	}
+
 	void ApplyOffset(FVector Offset)
 	{
 		for (TMap<FPrimitiveComponentId, FComponentVelocityData>::TIterator It(ComponentData); It; ++It)

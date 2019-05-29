@@ -3223,6 +3223,13 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				ViewState->PrevFrameViewInfo = NewPrevViewInfo;
 			}
 
+			// If the view has a previous view transform, then overwrite the previous view info for the _current_ frame.
+			if (View.PreviousViewTransform.IsSet())
+			{
+				// Note that we must ensure this transform ends up in ViewState->PrevFrameViewInfo else it will be used to calculate the next frame's motion vectors as well
+				View.PrevViewInfo.ViewMatrices.UpdateViewMatrix(View.PreviousViewTransform->GetTranslation(), View.PreviousViewTransform->GetRotation().Rotator());
+			}
+
 			// detect conditions where we should reset occlusion queries
 			if (bFirstFrameOrTimeWasReset || 
 				ViewState->LastRenderTime + GEngine->PrimitiveProbablyVisibleTime < View.Family->CurrentRealTime ||
