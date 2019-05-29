@@ -1687,6 +1687,12 @@ void UPythonGeneratedClass::PostInitInstance(UObject* InObj)
 	}
 }
 
+bool UPythonGeneratedClass::IsFunctionImplementedInBlueprint(FName InFunctionName) const
+{
+	UFunction* Function = FindFunctionByName(InFunctionName);
+	return Function && Function->GetOuter() && Function->GetOuter()->IsA(UPythonGeneratedClass::StaticClass());
+}
+
 UPythonGeneratedClass* UPythonGeneratedClass::GenerateClass(PyTypeObject* InPyType)
 {
 	// Get the correct super class from the parent type in Python
