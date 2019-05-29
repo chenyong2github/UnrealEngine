@@ -89,7 +89,7 @@ void Writer_InitializeTiming()
 {
 	GStartCycle = TimeGetTimestamp();
 
-	UE_TRACE_EVENT_BEGIN($Trace, Timing)
+	UE_TRACE_EVENT_BEGIN($Trace, Timing, Always)
 		UE_TRACE_EVENT_FIELD(uint64, StartCycle)
 		UE_TRACE_EVENT_FIELD(uint64, CycleFrequency)
 	UE_TRACE_EVENT_END()
@@ -766,7 +766,7 @@ static bool GInitialized = false;
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_LogHeader()
 {
-	UE_TRACE_EVENT_BEGIN($Trace, NewTrace)
+	UE_TRACE_EVENT_BEGIN($Trace, NewTrace, Always)
 		UE_TRACE_EVENT_FIELD(uint16, Endian)
 		UE_TRACE_EVENT_FIELD(uint8, Version)
 		UE_TRACE_EVENT_FIELD(uint8, PointerSize)
@@ -899,7 +899,8 @@ void Writer_EventCreate(
 	const FLiteralName& LoggerName,
 	const FLiteralName& EventName,
 	const FFieldDesc* FieldDescs,
-	uint32 FieldCount)
+	uint32 FieldCount,
+	uint32 Flags)
 {
 	Writer_Initialize();
 
@@ -909,7 +910,8 @@ void Writer_EventCreate(
 
 	if (Uid >= uint32(EKnownEventUids::Max))
 	{
-		Target->bEnabled = false;
+		Target->Enabled.bOptedIn = false;
+		Target->Enabled.Internal = 0;
 		Target->bInitialized = true;
 		return;
 	}
@@ -921,7 +923,8 @@ void Writer_EventCreate(
  	Target->Uid = uint16(Uid);
 	Target->LoggerHash = LoggerHash;
 	Target->Hash = Writer_EventGetHash(LoggerHash, NameHash);
-	Target->bEnabled = true;
+	Target->Enabled.Internal = !!(Flags & FEvent::Flag_Always);
+	Target->Enabled.bOptedIn = false;
 	Target->bInitialized = true;
 
 	// Calculate the number of fields and size of name data.
@@ -1001,7 +1004,7 @@ uint32 Writer_EventToggle(const ANSICHAR* Wildcard, bool bState)
 		{
 			if (Event->LoggerHash == LoggerHash)
 			{
-				Event->bEnabled = bState;
+				Event->Enabled.bOptedIn = bState;
 				++ToggleCount;
 			}
 		}
@@ -1018,7 +1021,7 @@ uint32 Writer_EventToggle(const ANSICHAR* Wildcard, bool bState)
 	{
 		if (Event->Hash == EventHash)
 		{
-			Event->bEnabled = bState;
+			Event->Enabled.bOptedIn = bState;
 			++ToggleCount;
 		}
 	}

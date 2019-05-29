@@ -31,25 +31,27 @@
 #define TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName) \
 	Trace::FEvent LoggerName##EventName##Event;
 
-#define TRACE_PRIVATE_EVENT_BEGIN(LoggerName, EventName) \
-	TRACE_PRIVATE_EVENT_BEGIN_IMPL(static, LoggerName, EventName)
+#define TRACE_PRIVATE_EVENT_BEGIN(LoggerName, EventName, ...) \
+	TRACE_PRIVATE_EVENT_BEGIN_IMPL(static, LoggerName, EventName, ##__VA_ARGS__)
 
-#define TRACE_PRIVATE_EVENT_BEGIN_EXTERN(LoggerName, EventName) \
-	TRACE_PRIVATE_EVENT_BEGIN_IMPL(extern, LoggerName, EventName)
+#define TRACE_PRIVATE_EVENT_BEGIN_EXTERN(LoggerName, EventName, ...) \
+	TRACE_PRIVATE_EVENT_BEGIN_IMPL(extern, LoggerName, EventName, ##__VA_ARGS__)
 
-#define TRACE_PRIVATE_EVENT_BEGIN_IMPL(LinkageType, LoggerName, EventName) \
+#define TRACE_PRIVATE_EVENT_BEGIN_IMPL(LinkageType, LoggerName, EventName, ...) \
 	LinkageType TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName) \
 	struct F##LoggerName##EventName##Fields \
 	{ \
 		static bool FORCENOINLINE Initialize() \
 		{ \
 			static const bool bOnceOnly = [] () { \
+				const uint32 Always = Trace::FEvent::Flag_Always; \
+				const uint32 Flags = (0, ##__VA_ARGS__); \
 				F##LoggerName##EventName##Fields Fields; \
 				const auto* Descs = (Trace::FFieldDesc*)(&Fields); \
 				uint32 DescCount = uint32(sizeof(Fields) / sizeof(*Descs)); \
 				const auto& LoggerLiteral = Trace::FLiteralName(#LoggerName); \
 				const auto& EventLiteral = Trace::FLiteralName(#EventName); \
-				Trace::FEvent::Create(&LoggerName##EventName##Event, LoggerLiteral, EventLiteral, Descs, DescCount); \
+				Trace::FEvent::Create(&LoggerName##EventName##Event, LoggerLiteral, EventLiteral, Descs, DescCount, Flags); \
 				return true; \
 			}(); \
 			return true; \
@@ -69,7 +71,7 @@
 #define TRACE_PRIVATE_EVENT_IS_ENABLED(LoggerName, EventName) \
 	( \
 		(LoggerName##EventName##Event.bInitialized || F##LoggerName##EventName##Fields::Initialize()) \
-		&& (LoggerName##EventName##Event.bEnabled) \
+		&& (LoggerName##EventName##Event.Enabled.Test) \
 	)
 
 #define TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName) \

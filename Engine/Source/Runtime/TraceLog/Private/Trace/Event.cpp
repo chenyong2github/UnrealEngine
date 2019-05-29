@@ -14,7 +14,7 @@ namespace Trace
 namespace Private
 {
 
-void Writer_EventCreate(FEvent*, const FLiteralName&, const FLiteralName&, const FFieldDesc*, uint32);
+void Writer_EventCreate(FEvent*, const FLiteralName&, const FLiteralName&, const FFieldDesc*, uint32, uint32);
 
 } // namespace Private
 
@@ -26,9 +26,10 @@ void FEvent::Create(
 	const FLiteralName& LoggerName,
 	const FLiteralName& EventName,
 	const FFieldDesc* FieldDescs,
-	uint32 FieldCount)
+	uint32 FieldCount,
+	uint32 Flags)
 {
-	Private::Writer_EventCreate(Target, LoggerName, EventName, FieldDescs, FieldCount);
+	Private::Writer_EventCreate(Target, LoggerName, EventName, FieldDescs, FieldCount, Flags);
 }
 
 } // namespace Trace
