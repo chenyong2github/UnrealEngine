@@ -1,11 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Tracks/MovieSceneCameraCutTrack.h"
+#include "Tracks/MovieSceneSpawnTrack.h"
 #include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Sections/MovieSceneCameraCutSection.h"
 #include "Evaluation/MovieSceneCameraCutTemplate.h"
+#include "Evaluation/MovieSceneEvaluationTrack.h"
+#include "IMovieSceneTracksModule.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneCameraCutTrack"
 
@@ -20,6 +23,12 @@ UMovieSceneCameraCutTrack::UMovieSceneCameraCutTrack( const FObjectInitializer& 
 
 	// By default, don't evaluate camera cuts in pre and postroll
 	EvalOptions.bEvaluateInPreroll = EvalOptions.bEvaluateInPostroll = false;
+}
+
+void UMovieSceneCameraCutTrack::PostCompile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const
+{
+	// Evaluate camera cuts in the same flush group as spawnables, this ensures cameras are set before anything else happens (so tracks can check whether a camera cut has happened)
+	OutTrack.SetEvaluationGroup(IMovieSceneTracksModule::GetEvaluationGroupName(EBuiltInEvaluationGroup::SpawnObjects));
 }
 
 
