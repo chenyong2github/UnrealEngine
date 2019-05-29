@@ -341,10 +341,10 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 	// Always remove the source information from the emitter handle when editing an emitter asset because inheritance is not valid in this case.
 	System->GetEmitterHandle(0).RemoveSource();
 
-	// We set this to the copy's change id here instead of the original emitter's change id because the copy's change id may have been
-	// updated from the original as part of post load and we use this id to detect if the editable emitter has been changed.
+	// Adding the emitter to the system has made a copy of it and we set this to the copy's change id here instead of the original emitter's change 
+	// id because the copy's change id may have been updated from the original as part of post load and we use this id to detect if the editable 
+	// emitter has been changed.
 	LastSyncedEmitterChangeId = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel()->GetEmitter()->GetChangeId();
-	SystemViewModel->GetSystemScriptViewModel()->RebuildEmitterNodes();
 	SystemToolkitMode = ESystemToolkitMode::Emitter;
 
 	if (GbLogNiagaraSystemChanges > 0)
@@ -615,10 +615,13 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemParameters(const FSpa
 		ObjectSelection->SetSelectedObject(System);
 	}
 
+	TArray<TSharedRef<FNiagaraObjectSelection>> Array;
+	Array.Push(ObjectSelection);
+
 	TSharedRef<SDockTab> SpawnedTab =
 		SNew(SDockTab)
 		[
-			SAssignNew(ParameterMapView, SNiagaraParameterMapView, ObjectSelection, SNiagaraParameterMapView::EToolkitType::SYSTEM, GetToolkitCommands())
+			SAssignNew(ParameterMapView, SNiagaraParameterMapView, Array, SNiagaraParameterMapView::EToolkitType::SYSTEM, GetToolkitCommands())
 		];
 
 	return SpawnedTab;
@@ -1095,30 +1098,6 @@ void FNiagaraSystemToolkit::OnToggleBoundsSetFixedBounds()
 
 	SystemViewModel->UpdateEmitterFixedBounds();
 
-	/*
-	// Force the component to update its bounds.
-	ParticleSystemComponent->ForceUpdateBounds();
-
-	// Grab the current bounds of the PSysComp & set it on the PSystem itself
-	ParticleSystem->Modify();
-	ParticleSystem->FixedRelativeBoundingBox.Min = ParticleSystemComponent->Bounds.GetBoxExtrema(0);
-	ParticleSystem->FixedRelativeBoundingBox.Max = ParticleSystemComponent->Bounds.GetBoxExtrema(1);
-	ParticleSystem->FixedRelativeBoundingBox.IsValid = true;
-	ParticleSystem->bUseFixedRelativeBoundingBox = true;
-
-	ParticleSystem->MarkPackageDirty();
-
-	EndTransaction(Transaction);
-
-	if ((SelectedModule == NULL) && (SelectedEmitter == NULL))
-	{
-		TArray<UObject*> NewSelection;
-		NewSelection.Add(ParticleSystem);
-		SetSelection(NewSelection);
-	}
-
-	ReassociateParticleSystem();
-	*/
 }
 
 void FNiagaraSystemToolkit::UpdateOriginalEmitter()

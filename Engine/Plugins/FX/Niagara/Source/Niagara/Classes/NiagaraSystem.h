@@ -146,7 +146,7 @@ public:
 	bool ReferencesInstanceEmitter(UNiagaraEmitter& Emitter);
 
 	/** Updates all handles which use this emitter as their source. */
-	void UpdateFromEmitterChanges(UNiagaraEmitter& ChangedSourceEmitter);
+	void UpdateFromEmitterChanges(UNiagaraEmitter& ChangedSourceEmitter, bool bRecompileOnChange = true);
 
 	/** Updates the system's rapid iteration parameters from a specific emitter. */
 	void RefreshSystemParametersFromEmitter(const FNiagaraEmitterHandle& EmitterHandle);
@@ -234,6 +234,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "System", meta = (InlineEditConditionToggle))
 		uint32 bFixedBounds : 1;
 
+	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
+
 private:
 #if WITH_EDITORONLY_DATA
 	INiagaraModule::FMergeEmitterResults MergeChangesForEmitterHandle(FNiagaraEmitterHandle& EmitterHandle);
@@ -313,4 +315,12 @@ protected:
 
 	UPROPERTY()
 	TArray<FName> UserDINamesReadInSystemScripts;
+
+	void GenerateStatID();
+#if STATS
+	TStatId StatID_GT;
+	TStatId StatID_GT_CNC;
+	TStatId StatID_RT;
+	TStatId StatID_RT_CNC;
+#endif
 };

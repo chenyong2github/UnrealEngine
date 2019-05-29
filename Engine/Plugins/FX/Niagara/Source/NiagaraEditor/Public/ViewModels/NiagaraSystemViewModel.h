@@ -96,6 +96,16 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnPinnedCurvesChanged);
 
 public:
+	struct FEmitterHandleToDuplicate
+	{
+		FString SystemPath;
+		FGuid EmitterHandleId;
+		bool operator==(const FEmitterHandleToDuplicate& Other) const
+		{
+			return SystemPath == Other.SystemPath && EmitterHandleId == Other.EmitterHandleId;
+		}
+	};
+	
 	/** Defines different multi-system reset modes for this system view model */
 	enum class EMultiResetMode
 	{
@@ -122,8 +132,6 @@ public:
 		/** Reset this system (do not pull in changes) */
 		ResetSystem,
 	};
-
-public:
 	/** Creates a new view model with the supplied System and System instance. */
 	FNiagaraSystemViewModel(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions);
 
@@ -386,7 +394,7 @@ private:
 	void SystemInstanceReset();
 
 	/** Duplicates a set of emitters and refreshes everything.*/
-	void DuplicateEmitters(TSet<FGuid> EmitterHandleIdsToDuplicate);
+	void DuplicateEmitters(TArray<FEmitterHandleToDuplicate> EmitterHandlesToDuplicate);
 
 	/** Adds event handler for the system's scripts. */
 	void AddSystemEventHandlers();

@@ -178,6 +178,7 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 				.ForegroundColor(FSlateColor::UseForeground())
 				.OnGetMenuContent(this, &SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu)
 				.ContentPadding(FMargin(2))
+				.Visibility(this, &SNiagaraStackFunctionInputValue::GetDropdownButtonVisibility)
 				.MenuPlacement(MenuPlacement_BelowRightAnchor)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
@@ -693,6 +694,11 @@ void SNiagaraStackFunctionInputValue::ParameterHandleSelected(FNiagaraParameterH
 EVisibility SNiagaraStackFunctionInputValue::GetResetButtonVisibility() const
 {
 	return FunctionInput->CanReset() ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+EVisibility SNiagaraStackFunctionInputValue::GetDropdownButtonVisibility() const
+{
+	return FunctionInput->IsStaticParameter() ? EVisibility::Hidden : EVisibility::Visible;
 }
 
 FReply SNiagaraStackFunctionInputValue::ResetButtonPressed() const

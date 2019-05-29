@@ -3,10 +3,30 @@
 #include "NiagaraRibbonRendererProperties.h"
 #include "NiagaraRendererRibbons.h"
 #include "NiagaraConstants.h"
+#include "NiagaraBoundsCalculatorHelper.h"
 
-NiagaraRenderer* UNiagaraRibbonRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel)
+UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
+	: Material(nullptr)
+	, FacingMode(ENiagaraRibbonFacingMode::Screen)
+	, UV0TilingDistance(0.0f)
+	, UV0Scale(FVector2D(1.0f, 1.0f))
+	, UV0AgeOffsetMode(ENiagaraRibbonAgeOffsetMode::Scale)
+	, UV1TilingDistance(0.0f)
+	, UV1Scale(FVector2D(1.0f, 1.0f))
+	, UV1AgeOffsetMode(ENiagaraRibbonAgeOffsetMode::Scale)
 {
-	return new NiagaraRendererRibbons(FeatureLevel, this);
+}
+
+FNiagaraRenderer* UNiagaraRibbonRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
+{
+	FNiagaraRenderer* NewRenderer = new FNiagaraRendererRibbons(FeatureLevel, this, Emitter);
+	NewRenderer->Initialize(FeatureLevel, this, Emitter);
+	return NewRenderer;
+}
+
+FNiagaraBoundsCalculator* UNiagaraRibbonRendererProperties::CreateBoundsCalculator()
+{
+	return new FNiagaraBoundsCalculatorHelper<false, false, true>();
 }
 
 void UNiagaraRibbonRendererProperties::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials) const
@@ -17,7 +37,6 @@ void UNiagaraRibbonRendererProperties::GetUsedMaterials(TArray<UMaterialInterfac
 void UNiagaraRibbonRendererProperties::PostInitProperties()
 {
 	Super::PostInitProperties();
-	SyncId = 0;
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
 		InitBindings();
@@ -56,10 +75,6 @@ void UNiagaraRibbonRendererProperties::InitBindings()
 void UNiagaraRibbonRendererProperties::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	if (PropertyChangedEvent.GetPropertyName() != TEXT("SyncId"))
-	{
-		SyncId++;
-	}
 }
 
 const TArray<FNiagaraVariable>& UNiagaraRibbonRendererProperties::GetRequiredAttributes()

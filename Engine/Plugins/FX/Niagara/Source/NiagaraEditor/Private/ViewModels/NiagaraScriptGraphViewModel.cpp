@@ -21,7 +21,7 @@ FNiagaraScriptGraphViewModel::FNiagaraScriptGraphViewModel(UNiagaraScriptSource*
 	: ScriptSource(InScriptSrc)
 	, DisplayName(InDisplayName)
 	, Commands(MakeShareable(new FUICommandList()))
-	, Selection(MakeShareable(new FNiagaraObjectSelection()))
+	, NodeSelection(MakeShareable(new FNiagaraObjectSelection()))
 {
 	SetupCommands();
 	GEditor->RegisterForUndo(this);
@@ -35,7 +35,7 @@ FNiagaraScriptGraphViewModel::~FNiagaraScriptGraphViewModel()
 
 void FNiagaraScriptGraphViewModel::SetScriptSource(UNiagaraScriptSource* InScriptSrc)
 {
-	Selection->ClearSelectedObjects();
+	NodeSelection->ClearSelectedObjects();
 	ScriptSource = InScriptSrc;
 	OnGraphChangedDelegate.Broadcast();
 }
@@ -64,9 +64,9 @@ TSharedRef<FUICommandList> FNiagaraScriptGraphViewModel::GetCommands()
 	return Commands;
 }
 
-TSharedRef<FNiagaraObjectSelection> FNiagaraScriptGraphViewModel::GetSelection()
+TSharedRef<FNiagaraObjectSelection> FNiagaraScriptGraphViewModel::GetNodeSelection()
 {
-	return Selection;
+	return NodeSelection;
 }
 
 FNiagaraScriptGraphViewModel::FOnNodesPasted& FNiagaraScriptGraphViewModel::OnNodesPasted()
@@ -156,7 +156,7 @@ void FNiagaraScriptGraphViewModel::SelectAllNodes()
 		Graph->GetNodesOfClass<UObject>(AllNodes);
 		TSet<UObject*> AllNodeSet;
 		AllNodeSet.Append(AllNodes);
-		Selection->SetSelectedObjects(AllNodeSet);
+		NodeSelection->SetSelectedObjects(AllNodeSet);
 	}
 }
 
@@ -168,8 +168,8 @@ void FNiagaraScriptGraphViewModel::DeleteSelectedNodes()
 		const FScopedTransaction Transaction(FGenericCommands::Get().Delete->GetDescription());
 		Graph->Modify();
 
-		TArray<UObject*> NodesToDelete = Selection->GetSelectedObjects().Array();
-		Selection->ClearSelectedObjects();
+		TArray<UObject*> NodesToDelete = NodeSelection->GetSelectedObjects().Array();
+		NodeSelection->ClearSelectedObjects();
 
 		for (UObject* NodeToDelete : NodesToDelete)
 		{
@@ -188,7 +188,7 @@ bool FNiagaraScriptGraphViewModel::CanDeleteNodes() const
 	UNiagaraGraph* Graph = GetGraph();
 	if (Graph != nullptr)
 	{
-		for (UObject* SelectedNode : Selection->GetSelectedObjects())
+		for (UObject* SelectedNode : NodeSelection->GetSelectedObjects())
 		{
 			UEdGraphNode* SelectedGraphNode = Cast<UEdGraphNode>(SelectedNode);
 			if (SelectedGraphNode != nullptr && SelectedGraphNode->CanUserDeleteNode())
@@ -205,7 +205,7 @@ void FNiagaraScriptGraphViewModel::CutSelectedNodes()
 	// Collect nodes which can not be delete or duplicated so they can be reselected.
 	TSet<UObject*> CanBeDuplicatedAndDeleted;
 	TSet<UObject*> CanNotBeDuplicatedAndDeleted;
-	for (UObject* SelectedNode : Selection->GetSelectedObjects())
+	for (UObject* SelectedNode : NodeSelection->GetSelectedObjects())
 	{
 		UEdGraphNode* SelectedGraphNode = Cast<UEdGraphNode>(SelectedNode);
 		if (SelectedGraphNode != nullptr)
@@ -222,10 +222,10 @@ void FNiagaraScriptGraphViewModel::CutSelectedNodes()
 	}
 
 	// Select the nodes which can be copied and deleted, copy and delete them, and then restore the ones which couldn't be copied or deleted.
-	Selection->SetSelectedObjects(CanBeDuplicatedAndDeleted);
+	NodeSelection->SetSelectedObjects(CanBeDuplicatedAndDeleted);
 	CopySelectedNodes();
 	DeleteSelectedNodes();
-	Selection->SetSelectedObjects(CanNotBeDuplicatedAndDeleted);
+	NodeSelection->SetSelectedObjects(CanNotBeDuplicatedAndDeleted);
 }
 
 bool FNiagaraScriptGraphViewModel::CanCutNodes() const
@@ -236,7 +236,7 @@ bool FNiagaraScriptGraphViewModel::CanCutNodes() const
 void FNiagaraScriptGraphViewModel::CopySelectedNodes()
 {
 	TSet<UObject*> NodesToCopy;
-	for (UObject* SelectedNode : Selection->GetSelectedObjects())
+	for (UObject* SelectedNode : NodeSelection->GetSelectedObjects())
 	{
 		UEdGraphNode* SelectedGraphNode = Cast<UEdGraphNode>(SelectedNode);
 		if (SelectedGraphNode != nullptr)
@@ -259,7 +259,7 @@ bool FNiagaraScriptGraphViewModel::CanCopyNodes() const
 	UNiagaraGraph* Graph = GetGraph();
 	if (Graph != nullptr)
 	{
-		for (UObject* SelectedNode : Selection->GetSelectedObjects())
+		for (UObject* SelectedNode : NodeSelection->GetSelectedObjects())
 		{
 			UEdGraphNode* SelectedGraphNode = Cast<UEdGraphNode>(SelectedNode);
 			if (SelectedGraphNode != nullptr && SelectedGraphNode->CanDuplicateNode())
@@ -280,7 +280,7 @@ void FNiagaraScriptGraphViewModel::PasteNodes()
 		const FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());;
 		Graph->Modify();
 
-		Selection->ClearSelectedObjects();
+		NodeSelection->ClearSelectedObjects();
 
 		// Grab the text to paste from the clipboard.
 		FString TextToImport;
@@ -308,7 +308,7 @@ void FNiagaraScriptGraphViewModel::PasteNodes()
 			PastedObjects.Add(PastedNode);
 		}
 
-		Selection->SetSelectedObjects(PastedObjects);
+		NodeSelection->SetSelectedObjects(PastedObjects);
 		CastChecked<UNiagaraGraph>(Graph)->NotifyGraphNeedsRecompile();
 	}
 }

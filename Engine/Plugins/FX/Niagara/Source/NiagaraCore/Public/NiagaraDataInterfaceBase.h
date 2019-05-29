@@ -13,6 +13,17 @@ class FNiagaraShader;
 struct FNiagaraDataInterfaceParamRef;
 class FRHICommandList;
 
+struct FNiagaraDataInterfaceProxy;
+class NiagaraEmitterInstanceBatcher;
+
+struct FNiagaraDataInterfaceSetArgs
+{
+	FNiagaraShader* Shader;
+	FNiagaraDataInterfaceProxy* DataInterface;
+	FGuid SystemInstance;
+	const NiagaraEmitterInstanceBatcher* Batcher;
+};
+
 /**
 * An interface to the parameter bindings for the data interface used by a Niagara compute shader.
 */
@@ -21,8 +32,8 @@ struct FNiagaraDataInterfaceParametersCS
 	virtual ~FNiagaraDataInterfaceParametersCS() {}
 	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) {}
 	virtual void Serialize(FArchive& Ar) { }
-	virtual void Set(FRHICommandList& RHICmdList, FNiagaraShader* Shader, class UNiagaraDataInterface* DataInterface, void* PerInstanceData) const {}
-	virtual void Unset(FRHICommandList& RHICmdList, FNiagaraShader* Shader, class UNiagaraDataInterface* DataInterface, void* PerInstanceData) const {}
+	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const {}
+	virtual void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const {}
 
 };
 
@@ -42,4 +53,5 @@ public:
 		return nullptr;
 	}
 };
+
 

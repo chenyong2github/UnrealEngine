@@ -12,10 +12,9 @@
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters,"NiagaraMeshVF");
 
-class FNiagaraMeshVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
+class FNiagaraMeshVertexFactoryShaderParametersVS : public FVertexFactoryShaderParameters
 {
 public:
-
 	virtual void Bind(const FShaderParameterMap& ParameterMap) override
 	{
 		//PrevTransformBuffer.Bind(ParameterMap, TEXT("PrevTransformBuffer"));
@@ -90,9 +89,34 @@ private:
 	FShaderParameter MeshFacingMode;
 	FShaderResourceParameter SortedIndices;
 	FShaderParameter SortedIndicesOffset;
-
 };
 
+class FNiagaraMeshVertexFactoryShaderParametersPS : public FVertexFactoryShaderParameters
+{
+public:
+	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	{
+	}
+
+	virtual void Serialize(FArchive& Ar) override
+	{
+	}
+
+	virtual void GetElementShaderBindings(
+		const FSceneInterface* Scene,
+		const FSceneView* View,
+		const FMeshMaterialShader* Shader,
+		bool bShaderRequiresPositionOnlyStream,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory,
+		const FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) const override
+	{
+		FNiagaraMeshVertexFactory* NiagaraMeshVF = (FNiagaraMeshVertexFactory*)VertexFactory;
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraMeshUniformParameters>(), NiagaraMeshVF->GetUniformBuffer());
+	}
+};
 
 void FNiagaraMeshVertexFactory::InitRHI()
 {
@@ -211,9 +235,17 @@ void FNiagaraMeshVertexFactory::SetData(const FStaticMeshDataType& InData)
 
 FVertexFactoryShaderParameters* FNiagaraMeshVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
 {
-	return ShaderFrequency == SF_Vertex ? new FNiagaraMeshVertexFactoryShaderParameters() : NULL;
+	if (ShaderFrequency == SF_Vertex)
+	{
+		return new FNiagaraMeshVertexFactoryShaderParametersVS();
+	}
+	else if (ShaderFrequency == SF_Pixel)
+	{
+		return new FNiagaraMeshVertexFactoryShaderParametersPS();
+	}
+	return nullptr;
 }
 
-IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactory, "/Engine/Private/NiagaraMeshVertexFactory.ush", true, false, true, false, false);
-IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactoryEmulatedInstancing, "/Engine/Private/NiagaraMeshVertexFactory.ush", true, false, true, false, false);
+IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactory, "/Plugin/FX/Niagara/Private/NiagaraMeshVertexFactory.ush", true, false, true, false, false);
+IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactoryEmulatedInstancing, "/Plugin/FX/Niagara/Private/NiagaraMeshVertexFactory.ush", true, false, true, false, false);
 

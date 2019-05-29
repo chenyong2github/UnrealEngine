@@ -10,6 +10,7 @@
 #include "NiagaraScriptInputCollectionViewModel.h"
 #include "NiagaraScriptOutputCollectionViewModel.h"
 #include "NiagaraScriptViewModel.h"
+#include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraParameterViewModel.h"
 #include "NiagaraEditorStyle.h"
 #include "IDetailChildrenBuilder.h"
@@ -24,12 +25,8 @@
 #include "NiagaraScript.h"
 #include "NiagaraParameterCollectionCustomNodeBuilder.h"
 #include "NiagaraMetaDataCustomNodeBuilder.h"
-#include "NiagaraMetaDataCollectionViewModel.h"
-
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptDetails"
-
-
 
 class SAddParameterButton : public SCompoundWidget
 {	
@@ -134,13 +131,11 @@ void FNiagaraScriptDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder
 	bool bAddParameters = false;
 	TSharedPtr<INiagaraParameterCollectionViewModel> InputCollectionViewModel;
 	TSharedPtr<INiagaraParameterCollectionViewModel> OutputCollectionViewModel;
-	TSharedPtr<FNiagaraMetaDataCollectionViewModel> MetadataCollectionViewModel;
 
 	if (StandaloneScript)
 	{
 		InputCollectionViewModel = ScriptViewModel->GetInputCollectionViewModel();
 		OutputCollectionViewModel = ScriptViewModel->GetOutputCollectionViewModel();
-		MetadataCollectionViewModel = ScriptViewModel->GetMetadataCollectionViewModel();
 		bAddParameters = true;
 	}
 
@@ -164,37 +159,43 @@ void FNiagaraScriptDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder
 		OutputParamCategory.AddCustomBuilder(MakeShared<FNiagaraParameterCollectionCustomNodeBuilder>(OutputCollectionViewModel.ToSharedRef()));
 	}
 	
-	if (MetadataCollectionViewModel.IsValid())
-	{
-		IDetailCategoryBuilder& MetadataDetailCategory = DetailBuilder.EditCategory(MetadataCategoryName, LOCTEXT("MetadataParamCategoryName", "Variable Metadata"));
-		MetadataDetailCategory.HeaderContent(
-			// Checkbox for showing in curve editor
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(5, 0, 5, 0)
-			.HAlign(EHorizontalAlignment::HAlign_Right)
+	// Disable the metadata header in Script Details panel
+	// TODO: Delete when it isn't useful anymore (when the parameters rework is done)
+	/*
+	IDetailCategoryBuilder& MetadataDetailCategory = DetailBuilder.EditCategory(MetadataCategoryName, LOCTEXT("MetadataParamCategoryName", "Variable Metadata"));
+	MetadataDetailCategory.HeaderContent(
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.Padding(5, 0, 5, 0)
+		.HAlign(EHorizontalAlignment::HAlign_Right)
+		[
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.ContentPadding(1)
+			.ToolTipText(LOCTEXT("RefreshMetadataToolTip", "Refresh the view according to the latest Editor Sort Priority values"))
+			.OnClicked(this, &FNiagaraScriptDetails::OnRefreshMetadata)
+			.Content()
 			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Center)
-				.ContentPadding(1)
-				.ToolTipText(LOCTEXT("RefreshMetadataToolTip", "Refresh the view according to the latest Editor Sort Priority values"))
-				.OnClicked(this, &FNiagaraScriptDetails::OnRefreshMetadata)
-				.Content()
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.Refresh"))
-				]
+				SNew(SImage)
+				.Image(FEditorStyle::GetBrush("Icons.Refresh"))
 			]
-		);
-		MetadataDetailCategory.AddCustomBuilder(MakeShared<FNiagaraMetaDataCustomNodeBuilder>(MetadataCollectionViewModel.ToSharedRef()));
-	}	
+		]
+	);
+
+	MetaDataBuilder = MakeShared<FNiagaraMetaDataCustomNodeBuilder>();
+	MetaDataBuilder->Initialize(ScriptViewModel->GetGraphViewModel()->GetGraph());
+	MetadataDetailCategory.AddCustomBuilder(MetaDataBuilder.ToSharedRef());
+	*/
 }
 
 FReply FNiagaraScriptDetails::OnRefreshMetadata()
 {
-	ScriptViewModel->GetMetadataCollectionViewModel()->RequestRefresh();
+	if (MetaDataBuilder.IsValid())
+	{
+		MetaDataBuilder->Rebuild();
+	}
     return FReply::Handled();
 }
 
