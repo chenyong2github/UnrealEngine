@@ -27,7 +27,8 @@ namespace MetadataTool
 			{
 				if (FileMatch.Success)
 				{
-					SourceFileNames.Add(FileMatch.Groups[1].Value);
+					string SourceFileName = FileMatch.Groups[1].Value.Replace('\\', '/');
+					SourceFileNames.Add(SourceFileName);
 				}
 			}
 
