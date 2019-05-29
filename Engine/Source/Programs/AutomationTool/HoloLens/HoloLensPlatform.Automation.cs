@@ -1101,7 +1101,7 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 #if !__MonoCS__
             if (Utils.IsRunningOnMono)
             {
-                return;
+                return null;
             }
 
             string Name;
@@ -1160,7 +1160,7 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 #if !__MonoCS__
             if (Utils.IsRunningOnMono)
             {
-                return;
+                return null;
             }
 
             string Name;
