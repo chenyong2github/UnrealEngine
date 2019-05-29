@@ -894,7 +894,7 @@ TSharedRef<SWidget> SAnimTrackCurvePanel::CreateCurveContextMenu(USkeleton::Anim
 			MenuBuilder.AddWidget(
 				SNew(SCheckBox)
 				.IsChecked(this, &SAnimTrackCurvePanel::GetCurveFlagAsCheckboxState, CurveUid, AACF_Disabled)
-				.OnCheckStateChanged(this, &SAnimTrackCurvePanel::SetCurveFlagFromCheckboxState, CurveUid, AACF_Disabled)
+				.OnCheckStateChanged(const_cast<SAnimTrackCurvePanel*>(this), &SAnimTrackCurvePanel::SetCurveFlagFromCheckboxState, CurveUid, AACF_Disabled)
 				.ToolTipText(LOCTEXT("DisableCurveTooltip", "Disable Track"))
 				[
 					SNew(STextBlock)

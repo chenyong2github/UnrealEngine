@@ -103,7 +103,7 @@ void FProfilerActionManager::Map_ToggleDataPreview_Global()
 const FUIAction FProfilerActionManager::ToggleDataPreview_Custom( const FGuid SessionInstanceID ) const
 {
 	FUIAction UIAction;
-	UIAction.ExecuteAction = FExecuteAction::CreateRaw( this, &FProfilerActionManager::ToggleDataPreview_Execute, SessionInstanceID );
+	UIAction.ExecuteAction = FExecuteAction::CreateRaw( const_cast<FProfilerActionManager*>(this), &FProfilerActionManager::ToggleDataPreview_Execute, SessionInstanceID );
 	UIAction.CanExecuteAction = FCanExecuteAction::CreateRaw( this, &FProfilerActionManager::ToggleDataPreview_CanExecute, SessionInstanceID );
 	UIAction.GetActionCheckState = FGetActionCheckState::CreateRaw( this, &FProfilerActionManager::ToggleDataPreview_GetCheckState, SessionInstanceID );
 	return UIAction;
@@ -338,7 +338,7 @@ void FProfilerActionManager::Map_OpenSettings_Global()
 const FUIAction FProfilerActionManager::OpenSettings_Custom() const
 {
 	FUIAction UIAction;
-	UIAction.ExecuteAction = FExecuteAction::CreateRaw( this, &FProfilerActionManager::OpenSettings_Execute );
+	UIAction.ExecuteAction = FExecuteAction::CreateRaw( const_cast<FProfilerActionManager*>(this), &FProfilerActionManager::OpenSettings_Execute );
 	UIAction.CanExecuteAction = FCanExecuteAction::CreateRaw( this, &FProfilerActionManager::OpenSettings_CanExecute );
 	return UIAction;
 }

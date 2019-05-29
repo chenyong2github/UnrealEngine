@@ -1840,7 +1840,7 @@ TSharedPtr<SWidget> SEventGraph::EventGraph_GetMenuContent() const
 		( 
 			LOCTEXT("ContextMenu_Header_Misc_Sort", "Sort By"), 
 			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Sort by column"), 
-			FNewMenuDelegate::CreateSP( this, &SEventGraph::EventGraph_BuildSortByMenu ),
+			FNewMenuDelegate::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::EventGraph_BuildSortByMenu ),
 			false, 
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortBy")
 		);

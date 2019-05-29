@@ -396,10 +396,10 @@ void SProjectBrowser::ConstructCategory( const TSharedRef<SVerticalBox>& InCateg
 		.SelectionMode(ESelectionMode::Single)
 		.ClearSelectionOnClick(false)
 		.AllowOverscroll(EAllowOverscroll::No)
-		.OnGenerateTile(this, &SProjectBrowser::MakeProjectViewWidget)
+		.OnGenerateTile(const_cast<SProjectBrowser*>(this), &SProjectBrowser::MakeProjectViewWidget)
 		.OnContextMenuOpening(this, &SProjectBrowser::OnGetContextMenuContent)
-		.OnMouseButtonDoubleClick(this, &SProjectBrowser::HandleProjectItemDoubleClick)
-		.OnSelectionChanged(this, &SProjectBrowser::HandleProjectViewSelectionChanged, Category->CategoryName)
+		.OnMouseButtonDoubleClick(const_cast<SProjectBrowser*>(this), &SProjectBrowser::HandleProjectItemDoubleClick)
+		.OnSelectionChanged(const_cast<SProjectBrowser*>(this), &SProjectBrowser::HandleProjectViewSelectionChanged, Category->CategoryName)
 		.ItemHeight(ThumbnailSize + ThumbnailBorderPadding + 32)
 		.ItemWidth(ThumbnailSize + ThumbnailBorderPadding)
 	];

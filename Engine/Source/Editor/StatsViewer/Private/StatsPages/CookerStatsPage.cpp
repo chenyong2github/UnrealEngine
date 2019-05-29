@@ -180,7 +180,7 @@ TSharedRef<SWidget> FCookerStatsPage::HandleFilterComboButtonGetMenuContent( ) c
 					FText::FromString(PlatformName),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateRaw(&CookerStatsPage, &FCookerStatsPage::HandleFilterMenuEntryExecute, PlatformName),
+						FExecuteAction::CreateRaw(const_cast<FCookerStatsPage*>(&CookerStatsPage), &FCookerStatsPage::HandleFilterMenuEntryExecute, PlatformName),
 						FCanExecuteAction(),
 						FIsActionChecked::CreateRaw(&CookerStatsPage, &FCookerStatsPage::HandleFilterMenuEntryIsChecked, PlatformName)
 					),

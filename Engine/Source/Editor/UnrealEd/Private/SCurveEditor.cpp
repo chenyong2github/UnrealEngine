@@ -611,7 +611,7 @@ TSharedRef<SWidget> SCurveEditor::CreateCurveSelectionWidget() const
 				[
 					SNew(SCheckBox)
 					.IsChecked(this, &SCurveEditor::IsCurveVisible, CurveViewModel)
-					.OnCheckStateChanged(this, &SCurveEditor::OnCurveIsVisibleChanged, CurveViewModel)
+					.OnCheckStateChanged(const_cast<SCurveEditor*>(this), &SCurveEditor::OnCurveIsVisibleChanged, CurveViewModel)
 					.ToolTipText(this, &SCurveEditor::GetIsCurveVisibleToolTip, CurveViewModel)
 					.CheckedImage(FEditorStyle::GetBrush("CurveEd.Visible"))
 					.CheckedHoveredImage(FEditorStyle::GetBrush("CurveEd.VisibleHighlight"))
@@ -628,7 +628,7 @@ TSharedRef<SWidget> SCurveEditor::CreateCurveSelectionWidget() const
 				[
 					SNew(SCheckBox)
 					.IsChecked(this, &SCurveEditor::IsCurveLocked, CurveViewModel)
-					.OnCheckStateChanged(this, &SCurveEditor::OnCurveIsLockedChanged, CurveViewModel)
+					.OnCheckStateChanged(const_cast<SCurveEditor*>(this), &SCurveEditor::OnCurveIsLockedChanged, CurveViewModel)
 					.ToolTipText(this, &SCurveEditor::GetIsCurveLockedToolTip, CurveViewModel)
 					.CheckedImage(FEditorStyle::GetBrush("CurveEd.Locked"))
 					.CheckedHoveredImage(FEditorStyle::GetBrush("CurveEd.LockedHighlight"))
