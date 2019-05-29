@@ -110,6 +110,7 @@ public:
 
 	FMatrix GetCustomDrawingCoordinateSystem();
 	FMatrix GetCustomInputCoordinateSystem();
+	FMatrix GetLocalCoordinateSystem();
 	
 	/** 
 	 * Returns true if the passed in editor mode is active 

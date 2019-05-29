@@ -3439,6 +3439,11 @@ FMatrix FEditorViewportClient::GetWidgetCoordSystem() const
 	return ModeTools->GetCustomInputCoordinateSystem();
 }
 
+FMatrix FEditorViewportClient::GetLocalCoordinateSystem() const
+{
+	return ModeTools->GetLocalCoordinateSystem();
+}
+
 void FEditorViewportClient::SetWidgetCoordSystemSpace(ECoordSystem NewCoordSystem)
 {
 	ModeTools->SetCoordSystem(NewCoordSystem);

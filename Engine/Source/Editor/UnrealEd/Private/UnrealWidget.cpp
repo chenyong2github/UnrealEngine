@@ -21,7 +21,7 @@ static const float INNER_AXIS_CIRCLE_RADIUS = 48.0f;
 static const float OUTER_AXIS_CIRCLE_RADIUS = 56.0f;
 static const float ROTATION_TEXT_RADIUS = 75.0f;
 static const int32 AXIS_CIRCLE_SIDES = 24;
-
+static const float ARCALL_RELATIVE_INNER_SIZE = 0.9f;
 /*
  *  Simple struct used to create and group data related to the current window's / viewport's space,
  *  orientation, and scale.
@@ -741,7 +741,16 @@ void FWidget::Render_Rotate( const FSceneView* View,FPrimitiveDrawInterface* PDI
 	FVector YAxis = CustomCoordSystem.TransformVector(FVector(0, 1, 0));
 	FVector ZAxis = CustomCoordSystem.TransformVector(FVector(0, 0, 1));
 
-	EAxisList::Type DrawAxis = GetAxisToDraw( ViewportClient->GetWidgetMode() );
+	EAxisList::Type DrawAxis = GetAxisToDraw(ViewportClient->GetWidgetMode());
+
+	//if drawing arcball, and dragging make sure axis is showing local
+	if (DrawAxis&EAxisList::XYZ  && CurrentAxis == EAxisList::XYZ && bDragging)
+	{
+		FMatrix LocalCoordinate = ViewportClient->GetLocalCoordinateSystem();
+		XAxis = LocalCoordinate.TransformVector(FVector(1, 0, 0));
+		YAxis = LocalCoordinate.TransformVector(FVector(0, 1, 0));
+		ZAxis = LocalCoordinate.TransformVector(FVector(0, 0, 1));
+	}
 
 	FVector DirectionToWidget = View->IsPerspectiveProjection() ? (InLocation - View->ViewMatrices.GetViewOrigin()) : -View->GetViewDirection();
 	DirectionToWidget.Normalize();
@@ -770,7 +779,7 @@ void FWidget::Render_Rotate( const FSceneView* View,FPrimitiveDrawInterface* PDI
 		{
 			FVector Center = InLocation;
 			FRotator Orientation = FRotator::ZeroRotator;
-			const float InnerDistance = (INNER_AXIS_CIRCLE_RADIUS *0.925f * Scale) + GetDefault<ULevelEditorViewportSettings>()->TransformWidgetSizeAdjustment;
+			const float InnerDistance = (INNER_AXIS_CIRCLE_RADIUS * ARCALL_RELATIVE_INNER_SIZE * Scale) + GetDefault<ULevelEditorViewportSettings>()->TransformWidgetSizeAdjustment;
 			FVector Radii(InnerDistance, InnerDistance, InnerDistance);
 			const bool bDisabled = IsWidgetDisabled();
 			FColor ArcColor = ArcBallColor;
@@ -1256,7 +1265,7 @@ void FWidget::ConvertMouseMovementToAxisMovement(FSceneView* InView, FEditorView
 						FVector2D PixelLocation;
 						InView->ScreenToPixel(ScreenLocation, PixelLocation);
 						float Distance = FVector2D::Distance(PixelLocation, MousePosition);
-						const float MaxDiff = 2.0f * INNER_AXIS_CIRCLE_RADIUS;
+						const float MaxDiff = 2.0f * (INNER_AXIS_CIRCLE_RADIUS);
 						//If outside radius, do screen rotate instead, like other DCC's
 
 						if (Distance > MaxDiff)
