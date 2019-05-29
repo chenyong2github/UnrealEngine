@@ -214,7 +214,7 @@ private:
 	virtual uint32 GetTypeSize() const override { return sizeof(*this); } \
 	\
 	static void ModifyCompilationEnvironmentImpl( \
-		const FGlobalShaderPermutationParameters& Parameters, \
+		const FMaterialShaderPermutationParameters& Parameters, \
 		FShaderCompilerEnvironment& OutEnvironment) \
 	{ \
 		FPermutationDomain PermutationVector(Parameters.PermutationId); \
@@ -234,6 +234,5 @@ private:
 		ShaderClass::ModifyCompilationEnvironmentImpl, \
 		ShaderClass::ShouldCompilePermutation, \
 		ShaderClass::ValidateCompiledResult, \
-		ShaderClass::GetStreamOutElements, \
-		ShaderClass::GetRootParametersMetadata() \
+		ShaderClass::GetStreamOutElements \
 		)

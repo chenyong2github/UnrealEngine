@@ -32,6 +32,7 @@ public:
 /** Base class of all shaders that need material and vertex factory parameters. */
 class RENDERER_API FMeshMaterialShader : public FMaterialShader
 {
+	DECLARE_SHADER_TYPE(FMeshMaterialShader, MeshMaterial);
 public:
 	FMeshMaterialShader() {}
 

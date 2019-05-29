@@ -100,6 +100,7 @@ inline FArchive& operator<<(FArchive& Ar, FDebugUniformExpressionSet& DebugExpre
 /** Base class of all shaders that need material parameters. */
 class RENDERER_API FMaterialShader : public FShader
 {
+	DECLARE_SHADER_TYPE(FMaterialShader, Material);
 public:
 	static FName UniformBufferLayoutName;
 
