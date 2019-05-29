@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Misc/ExpressionParserTypes.h"
+
 namespace EditConditionParserNamespace
 {
 	struct FPropertyToken 
