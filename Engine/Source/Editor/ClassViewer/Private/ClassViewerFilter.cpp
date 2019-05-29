@@ -402,8 +402,6 @@ bool FClassViewerFilter::IsNodeAllowed(const FClassViewerInitializationOptions& 
 	return false;
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 bool FClassViewerFilter::IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef<class FClassViewerFilterFuncs> InFilterFuncs)
 {
 	if (InInitOptions.bIsActorsOnly && !InClass->IsChildOf(AActor::StaticClass()))
