@@ -45,6 +45,12 @@ namespace MetadataServer.Controllers
 			long IssueId = SqlConnector.AddIssue(Issue);
 			return new { Id = IssueId };
 		}
+
+		[HttpDelete]
+		public void Delete(long id)
+		{
+			SqlConnector.DeleteIssue(id);
+		}
 	}
 
 	public class IssueBuildsSubController : ApiController

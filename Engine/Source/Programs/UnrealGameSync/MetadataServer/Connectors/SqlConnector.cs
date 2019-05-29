@@ -592,6 +592,36 @@ namespace MetadataServer.Connectors
 			return Text;
 		}
 
+		public static void DeleteIssue(long IssueId)
+		{
+			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+
+				using (SQLiteTransaction Transaction = Connection.BeginTransaction())
+				{
+					using (SQLiteCommand Command = new SQLiteCommand(Connection))
+					{
+						Command.Transaction = Transaction;
+
+						Command.CommandText = "DELETE FROM [IssueWatchers] WHERE IssueId = @IssueId";
+						Command.Parameters.AddWithValue("@IssueId", IssueId);
+						Command.ExecuteNonQuery();
+
+						Command.CommandText = "DELETE FROM [IssueBuilds] WHERE IssueId = @IssueId";
+						Command.Parameters.AddWithValue("@IssueId", IssueId);
+						Command.ExecuteNonQuery();
+
+						Command.CommandText = "DELETE FROM [Issues] WHERE Id = @IssueId";
+						Command.Parameters.AddWithValue("@IssueId", IssueId);
+						Command.ExecuteNonQuery();
+
+						Transaction.Commit();
+					}
+				}
+			}
+		}
+
 		public static void AddWatcher(long IssueId, string UserName)
 		{
 			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
