@@ -172,7 +172,7 @@ bool FMultiBlock::GetSearchable() const
  * @param	InType	Type of MultiBox
  * @param	bInShouldCloseWindowAfterMenuSelection	Sets whether or not the window that contains this multibox should be destroyed after the user clicks on a menu item in this box
  */
-FMultiBox::FMultiBox( const EMultiBoxType::Type InType, FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection )
+FMultiBox::FMultiBox( const EMultiBoxType InType, FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection )
 	: CustomizationData( new FMultiBoxCustomizationData( InCustomization.GetCustomizationName() ) )
 	, CommandLists()
 	, Blocks()
@@ -187,7 +187,7 @@ FMultiBox::~FMultiBox()
 {
 }
 
-TSharedRef<FMultiBox> FMultiBox::Create( const EMultiBoxType::Type InType, FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection )
+TSharedRef<FMultiBox> FMultiBox::Create( const EMultiBoxType InType, FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection )
 {
 	TSharedRef<FMultiBox> NewBox = MakeShareable( new FMultiBox( InType, InCustomization, bInShouldCloseWindowAfterMenuSelection ) );
 
