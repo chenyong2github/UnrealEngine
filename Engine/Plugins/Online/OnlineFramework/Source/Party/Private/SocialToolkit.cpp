@@ -307,7 +307,8 @@ void USocialToolkit::QueueUserDependentActionInternal(const FUniqueNetIdRepl& Su
 	}
 	
 	USocialUser* User = FindUser(SubsystemId);
-	if (!User)
+
+	if (!User && ensureMsgf(USocialToolkit::IsOwnerLoggedIn(), TEXT("Cannot QueueUserDependentAction while local user is logged out! Toolkit [%d], ID [%s], Subsystem [%s]"), GetLocalUserNum(), *SubsystemId.ToDebugString(), ToString(SubsystemType)))
 	{
 		if (SubsystemType == ESocialSubsystem::Primary)
 		{

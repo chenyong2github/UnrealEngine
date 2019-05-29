@@ -30,6 +30,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category=Animation)
 	FSoftObjectPath LevelSequenceAsset;
 
+	/** Optional shot name to render. The frame range to render will be set to the shot frame range. */
+	UPROPERTY(BlueprintReadWrite, Category=Animation)
+	FString ShotName;
+
 	/** When enabled, the StartFrame setting will override the default starting frame number */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=Animation, AdvancedDisplay)
 	bool bUseCustomStartFrame;

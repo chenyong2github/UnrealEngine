@@ -2808,6 +2808,68 @@ typedef enum {
 
 VIVOXSDK_DLLEXPORT char *vx_get_path(unsigned int path_id);
 
+/**
+ * Gets current value of dynamic voice processing switching enabled setting
+ *
+ * @return               -  0 if disabled, 1 if enabled.
+ */
+VIVOXSDK_DLLEXPORT int vx_get_dynamic_voice_processing_switching_enabled();
+
+/**
+ * Enables and disables dynamic voice processing switching
+ *
+ * @param enabled - 0 to disable, 1 to enable dynamic voice processing switching
+ * @return    -  0 if successful, non-zero if failed (SDK not initialized).
+ */
+VIVOXSDK_DLLEXPORT int vx_set_dynamic_voice_processing_switching_enabled(int enabled);
+
+/**
+ * Returns whether platform-provided AEC is being used.
+ *
+ * @return               -  0 if disabled, 1 if enabled.
+ */
+VIVOXSDK_DLLEXPORT int vx_get_platform_aec_enabled();
+
+/**
+ * Enables and disables platform-provided AEC
+ * This function is only effective if dynamic voice processing switching is off.
+ *
+ * @param enabled - 0 to disable, 1 to enable platform AEC
+ * @return    -  0 if successful, non-zero if failed (SDK not initialized).
+ */
+VIVOXSDK_DLLEXPORT int vx_set_platform_aec_enabled(int enabled);
+
+/**
+ * Enable/disable SDK's internal AEC. Enabling does not force AEC usage, but alows SDK to use
+ * the AEC when it is required.
+ *
+ * @return 0 if successful, non-zero if failed (SDK not initialized, internal AEC is not supported).
+ */
+VIVOXSDK_DLLEXPORT int vx_set_vivox_aec_enabled(int enabled);
+
+/**
+ * Get the internal AEC enabled/disabled state. Enabling does not force AEC usage, but alows SDK to use
+ * the AEC when it is required.
+ *
+ * @return 0 if successful, non-zero if failed (SDK not initialized, internal AEC is not supported).
+ */
+VIVOXSDK_DLLEXPORT int vx_get_vivox_aec_enabled(int *enabled);
+
+/**
+ * Enable/disable SDK's internal AGC. Enabling does not force AGC usage, but alows SDK to use
+ * the AGC when it is required.
+ *
+ * @return 0 if successful, non-zero if failed (SDK not initialized, internal AGC is not supported).
+ */
+VIVOXSDK_DLLEXPORT int vx_set_agc_enabled(int enabled);
+
+/**
+ * Get the internal AGC enabled/disabled state. Enabling does not force AGC usage, but alows SDK to use
+ * the AGC when it is required.
+ *
+ * @return 0 if successful, non-zero if failed (SDK not initialized, internal AGC is not supported).
+ */
+VIVOXSDK_DLLEXPORT int vx_get_agc_enabled(int *enabled);
 
 #ifdef __cplusplus
 }

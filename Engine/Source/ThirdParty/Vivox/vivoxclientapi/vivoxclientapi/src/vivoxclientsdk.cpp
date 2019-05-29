@@ -1335,7 +1335,7 @@ namespace VivoxClientApi {
             const AccountName &name,
             const char *captureDevice,
             const char *renderDevice,
-            bool multichannel) : m_app(app), m_sg(app), m_serial(0)
+            bool multichannel) : m_serial(0), m_app(app), m_sg(app)
         {
             CHECK(!connectorHandle.empty());
             CHECK(name.IsValid());
@@ -1806,7 +1806,7 @@ namespace VivoxClientApi {
             Uninitialize();
         }
 
-        VCSStatus Initialize(IClientApiEventHandler *app, IClientApiEventHandler::LogLevel level, bool multiChannel, bool multiLogin, vx_sdk_config_t *configHints, size_t configSize)
+        VCSStatus Initialize(IClientApiEventHandler *app, IClientApiEventHandler::LogLevel level, bool multiChannel, bool multiLogin, vx_sdk_config_t *configHints, size_t configHintsSize)
         {
             if(app == NULL) {
                 return VCSStatus(VX_E_INVALID_ARGUMENT);
@@ -1814,46 +1814,53 @@ namespace VivoxClientApi {
             if(m_app != NULL) {
                 return VCSStatus(VX_E_ALREADY_INITIALIZED);
             }
-			if (configHints && configSize != sizeof(vx_sdk_config_t))
-			{
-				return VCSStatus(VX_E_INVALID_ARGUMENT);
-			}
 
             m_multiChannel = multiChannel;
             m_multiLogin = multiLogin;
 
-            vx_sdk_config_t config;
-			int retval = vx_get_default_config3(&config, sizeof(config));
+            vx_sdk_config_t defaultConfig;
+			size_t defaultConfigSize = sizeof(defaultConfig);
+			int retval = vx_get_default_config3(&defaultConfig, defaultConfigSize);
 			if (retval != 0) {
 				return VCSStatus(retval);
 			}
 
+			vx_sdk_config_t* config = &defaultConfig;
+			size_t configSize = defaultConfigSize;
 			if (configHints)
 			{
-				memcpy(&config, configHints, std::min(configSize, sizeof(config)));
+				if (configHintsSize < defaultConfigSize)
+				{
+					memcpy(config, configHints, configHintsSize);
+				}
+				else
+				{
+					config = configHints;
+					configSize = configHintsSize;
+				}
 			}
 
             m_loglevel = level;
-            config.callback_handle = this;
-            config.pf_sdk_message_callback = &sOnResponseOrEventFromSdk;
-            config.pf_logging_callback = &sOnLogMessageFromSdk;
-            config.initial_log_level = (vx_log_level)m_loglevel;
-            config.allow_shared_capture_devices = 1;
+            config->callback_handle = this;
+            config->pf_sdk_message_callback = &sOnResponseOrEventFromSdk;
+            config->pf_logging_callback = &sOnLogMessageFromSdk;
+            config->initial_log_level = (vx_log_level)m_loglevel;
+            config->allow_shared_capture_devices = 1;
 #ifdef USE_ACCESS_TOKENS
-			config.use_access_tokens = 1;  //Access Token setting
+			config->use_access_tokens = 1;  //Access Token setting
 #endif
 #ifdef VIVOX_SDK_HAS_ADVANCED_AUDIO_LEVELS
-            config.enable_advanced_auto_levels = 1;
+            config->enable_advanced_auto_levels = 1;
 #endif
-			config.use_os_proxy_settings = 1;
+			config->use_os_proxy_settings = 1;
 
-			config.pf_on_audio_unit_started = &sOnAudioUnitStarted;
-			config.pf_on_audio_unit_stopped = &sOnAudioUnitStopped;
-			config.pf_on_audio_unit_after_capture_audio_read = &sOnAudioUnitAfterCaptureAudioRead;
-			config.pf_on_audio_unit_before_capture_audio_sent = &sOnAudioUnitBeforeCaptureAudioSent;
-			config.pf_on_audio_unit_before_recv_audio_rendered = &sOnAudioUnitBeforeRecvAudioRendered;
+			config->pf_on_audio_unit_started = &sOnAudioUnitStarted;
+			config->pf_on_audio_unit_stopped = &sOnAudioUnitStopped;
+			config->pf_on_audio_unit_after_capture_audio_read = &sOnAudioUnitAfterCaptureAudioRead;
+			config->pf_on_audio_unit_before_capture_audio_sent = &sOnAudioUnitBeforeCaptureAudioSent;
+			config->pf_on_audio_unit_before_recv_audio_rendered = &sOnAudioUnitBeforeRecvAudioRendered;
 
-            retval = vx_initialize3(&config, sizeof(config));
+            retval = vx_initialize3(config, configSize);
             if(retval != 0) {
                 return VCSStatus(retval);
             }
@@ -3383,6 +3390,10 @@ namespace VivoxClientApi {
             m_audioInputDeviceList.clear();
             m_audioInputDeviceListPopulated = false;
             m_audioOutputDeviceListPopulated = false;
+            m_currentAudioInputDevicePolicy = AudioDevicePolicy();
+            m_currentAudioOutputDevicePolicy = AudioDevicePolicy();
+            m_desiredAudioInputDevicePolicy = AudioDevicePolicy();
+            m_desiredAudioOutputDevicePolicy = AudioDevicePolicy();
             m_masterAudioInputDeviceVolume = 50;
 			m_masterAudioOutputDeviceVolume = 50;
 			m_masterVadSensitivity = 43;
