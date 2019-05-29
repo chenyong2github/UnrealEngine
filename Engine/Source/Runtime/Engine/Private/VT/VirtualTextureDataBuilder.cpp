@@ -506,6 +506,10 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 	{
 		TextureFormatName = *BaseTextureFormatName.Replace(TEXT("XBOXONE_"), TEXT(""));
 	}
+	else if (BaseTextureFormatName.StartsWith("SWITCH_"))
+	{
+		TextureFormatName = *BaseTextureFormatName.Replace(TEXT("SWITCH_"), TEXT(""));
+	}
 
 	// We handle AutoDXT specially here since otherwise the texture format compressor would choose a DXT format for every tile
 	// individually. Causing tiles in the same VT to use different formats which we don't allow.

@@ -79,6 +79,8 @@ void FVirtualTexturePhysicalSpace::InitRHI()
 void FVirtualTexturePhysicalSpace::ReleaseRHI()
 {
 	GRenderTargetPool.FreeUnusedResource(PooledRenderTarget);
+	TextureView->Release();
+	TextureView->Release();
 }
 
 uint32 FVirtualTexturePhysicalSpace::GetSizeInBytes() const
