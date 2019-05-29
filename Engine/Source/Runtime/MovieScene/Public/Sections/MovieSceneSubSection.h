@@ -132,6 +132,8 @@ public:
 		ActorToRecord = InActorToRecord;
 	}
 
+	FFrameNumber MapTimeToSectionFrame(FFrameTime InPosition) const;
+
 public:
 
 	//~ UMovieSceneSection interface
