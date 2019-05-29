@@ -3,6 +3,7 @@
 #include "UnloadedBlueprintData.h"
 #include "Engine/Brush.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Misc/TextFilterExpressionEvaluator.h"

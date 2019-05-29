@@ -1,6 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "EditConditionParser.h"
+
+#include "Math/BasicMathExpressionEvaluator.h"
 #include "Misc/ExpressionParser.h"
 
 #include "PropertyNode.h"
