@@ -1806,7 +1806,7 @@ void FSceneRenderTargets::ResolveDepthTexture(FRHICommandList& RHICmdList, const
 	TShaderMapRef<FResolveDepth8XPS> ResolvePixelShader8X(ShaderMap);
 
 	int32 TextureIndex = -1;
-	FPixelShaderRHIParamRef ResolvePixelShader;
+	FRHIPixelShader* ResolvePixelShader;
 	switch (SourceTexture->GetNumSamples())
 	{
 	case 2:

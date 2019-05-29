@@ -36,9 +36,9 @@ public:
 	 */
 	FRHIBoundShaderState* GetInitializedRHI(
 		FRHIVertexDeclaration* VertexDeclaration,
-		FVertexShaderRHIParamRef VertexShader, 
-		FPixelShaderRHIParamRef PixelShader,
-		FGeometryShaderRHIParamRef GeometryShader
+		FRHIVertexShader* VertexShader,
+		FRHIPixelShader* PixelShader,
+		FRHIGeometryShader* GeometryShader
 		);
 
 	/**
@@ -60,9 +60,9 @@ private:
 
 #if DO_CHECK
 	FRHIVertexDeclaration* BoundVertexDeclaration;
-	FVertexShaderRHIParamRef BoundVertexShader;
-	FPixelShaderRHIParamRef BoundPixelShader;
-	FGeometryShaderRHIParamRef BoundGeometryShader;
+	FRHIVertexShader* BoundVertexShader;
+	FRHIPixelShader* BoundPixelShader;
+	FRHIGeometryShader* BoundGeometryShader;
 #endif 
 };
 

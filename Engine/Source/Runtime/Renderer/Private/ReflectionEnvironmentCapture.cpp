@@ -217,7 +217,7 @@ void CreateCubeMips( FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Typ
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 			{
-				const FPixelShaderRHIParamRef ShaderRHI = PixelShader->GetPixelShader();
+				FRHIPixelShader* ShaderRHI = PixelShader->GetPixelShader();
 
 				SetShaderValue(RHICmdList, ShaderRHI, PixelShader->CubeFace, CubeFace);
 				SetShaderValue(RHICmdList, ShaderRHI, PixelShader->MipIndex, MipIndex);
@@ -433,7 +433,7 @@ void FilterReflectionEnvironment(FRHICommandListImmediate& RHICmdList, ERHIFeatu
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 				{
-					const FPixelShaderRHIParamRef ShaderRHI = PixelShader->GetPixelShader();
+					FRHIPixelShader* ShaderRHI = PixelShader->GetPixelShader();
 
 					SetShaderValue( RHICmdList, ShaderRHI, PixelShader->CubeFace, CubeFace );
 					SetShaderValue( RHICmdList, ShaderRHI, PixelShader->MipIndex, MipIndex );
@@ -533,7 +533,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, bool bCapturingForSkyLight, bool bLowerHemisphereIsBlack, const FLinearColor& LowerHemisphereColorValue)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
@@ -616,7 +616,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* SourceCubemap, uint32 CubeFaceValue, bool bIsSkyLight, bool bLowerHemisphereIsBlack, float SourceCubemapRotation, const FLinearColor& LowerHemisphereColorValue)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 		SetShaderValue(RHICmdList, ShaderRHI, CubeFace, CubeFaceValue);
 

@@ -55,7 +55,7 @@ public:
 		uint32 MipLevel,
 		FRWBuffer& VarianceMipTree)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		SetShaderValue(RHICmdList, ShaderRHI, ViewSizeParameter, ViewSize);
 		SetShaderValue(RHICmdList, ShaderRHI, VarianceMapDimensionsParameter, VarianceMapDimensions);
@@ -73,7 +73,7 @@ public:
 		FRWBuffer& VarianceMap,
 		FRHIComputeFence* Fence)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		VarianceMipTreeParameter.UnsetUAV(RHICmdList, ShaderRHI);
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, VarianceMap.UAV, Fence);
@@ -173,7 +173,7 @@ public:
 		const FIntVector Dimensions,
 		const FRWBuffer& MipTree)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);

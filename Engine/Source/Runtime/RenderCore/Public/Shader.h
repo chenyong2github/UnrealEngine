@@ -312,7 +312,7 @@ public:
 	RENDERCORE_API void Register();
 
 	/** @return the shader's vertex shader */
-	FORCEINLINE const FVertexShaderRHIParamRef GetVertexShader()
+	FORCEINLINE FRHIVertexShader* GetVertexShader()
 	{
 		checkSlow(Target.Frequency == SF_Vertex);
 		if (!IsInitialized())
@@ -322,7 +322,7 @@ public:
 		return (FRHIVertexShader*)Shader.GetReference();
 	}
 	/** @return the shader's pixel shader */
-	FORCEINLINE const FPixelShaderRHIParamRef GetPixelShader()
+	FORCEINLINE FRHIPixelShader* GetPixelShader()
 	{
 		checkSlow(Target.Frequency == SF_Pixel);
 		if (!IsInitialized())
@@ -332,7 +332,7 @@ public:
 		return (FRHIPixelShader*)Shader.GetReference();
 	}
 	/** @return the shader's hull shader */
-	FORCEINLINE const FHullShaderRHIParamRef GetHullShader()
+	FORCEINLINE FRHIHullShader* GetHullShader()
 	{
 		checkSlow(Target.Frequency == SF_Hull);
 		if (!IsInitialized())
@@ -342,7 +342,7 @@ public:
 		return (FRHIHullShader*)Shader.GetReference();
 	}
 	/** @return the shader's domain shader */
-	FORCEINLINE const FDomainShaderRHIParamRef GetDomainShader()
+	FORCEINLINE FRHIDomainShader* GetDomainShader()
 	{
 		checkSlow(Target.Frequency == SF_Domain);
 		if (!IsInitialized())
@@ -352,7 +352,7 @@ public:
 		return (FRHIDomainShader*)Shader.GetReference();
 	}
 	/** @return the shader's geometry shader */
-	FORCEINLINE const FGeometryShaderRHIParamRef GetGeometryShader()
+	FORCEINLINE FRHIGeometryShader* GetGeometryShader()
 	{
 		checkSlow(Target.Frequency == SF_Geometry);
 		if (!IsInitialized())
@@ -362,7 +362,7 @@ public:
 		return (FRHIGeometryShader*)Shader.GetReference();
 	}
 	/** @return the shader's compute shader */
-	FORCEINLINE const FComputeShaderRHIParamRef GetComputeShader()
+	FORCEINLINE FRHIComputeShader* GetComputeShader()
 	{
 		checkSlow(Target.Frequency == SF_Compute);
 		if (!IsInitialized())
@@ -907,32 +907,32 @@ public:
 	virtual const FVertexFactoryParameterRef* GetVertexFactoryParameterRef() const { return NULL; }
 
 	/** @return the shader's vertex shader */
-	inline const FVertexShaderRHIParamRef GetVertexShader() const
+	inline FRHIVertexShader* GetVertexShader() const
 	{
 		return Resource->GetVertexShader();
 	}
 	/** @return the shader's pixel shader */
-	inline const FPixelShaderRHIParamRef GetPixelShader() const
+	inline FRHIPixelShader* GetPixelShader() const
 	{
 		return Resource->GetPixelShader();
 	}
 	/** @return the shader's hull shader */
-	inline const FHullShaderRHIParamRef GetHullShader() const
+	inline FRHIHullShader* GetHullShader() const
 	{
 		return Resource->GetHullShader();
 	}
 	/** @return the shader's domain shader */
-	inline const FDomainShaderRHIParamRef GetDomainShader() const
+	inline FRHIDomainShader* GetDomainShader() const
 	{
 		return Resource->GetDomainShader();
 	}
 	/** @return the shader's geometry shader */
-	inline const FGeometryShaderRHIParamRef GetGeometryShader() const
+	inline FRHIGeometryShader* GetGeometryShader() const
 	{
 		return Resource->GetGeometryShader();
 	}
 	/** @return the shader's compute shader */
-	inline const FComputeShaderRHIParamRef GetComputeShader() const
+	inline FRHIComputeShader* GetComputeShader() const
 	{
 		return Resource->GetComputeShader();
 	}

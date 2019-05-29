@@ -174,7 +174,7 @@ void DrawScreenPass(
 	const typename TPixelShaderType::FParameters& PixelShaderParameters)
 {
 	const FIntPoint OutputSize = OutputRect.Size();
-	const FPixelShaderRHIParamRef PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader);
+	FRHIPixelShader* PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader);
 	FScreenPassVS* VertexShader = *(ScreenPassView.ScreenPassVS);
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;

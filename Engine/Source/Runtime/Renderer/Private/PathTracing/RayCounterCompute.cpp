@@ -53,7 +53,7 @@ public:
 		const FIntPoint& ViewSize,
 		FRHIUnorderedAccessView* TotalRayCountBuffer)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		SetTextureParameter(RHICmdList, ShaderRHI, RayCountPerPixelParameter, RayCountPerPixelBuffer);
 		SetShaderValue(RHICmdList, ShaderRHI, ViewSizeParameter, ViewSize);
@@ -67,7 +67,7 @@ public:
 		FRWBuffer& TotalRayCountBuffer,
 		FRHIComputeFence* Fence)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, TotalRayCountBuffer.UAV, Fence);
 	}

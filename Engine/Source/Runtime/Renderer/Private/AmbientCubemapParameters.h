@@ -19,8 +19,8 @@ public:
 
 	void Bind(const FShaderParameterMap& ParameterMap);
 
-	void SetParameters(FRHICommandList& RHICmdList, const FPixelShaderRHIParamRef ShaderRHI, const FFinalPostProcessSettings::FCubemapEntry& Entry) const;
-	void SetParameters(FRHICommandList& RHICmdList, const FComputeShaderRHIParamRef ShaderRHI, const FFinalPostProcessSettings::FCubemapEntry& Entry) const;
+	void SetParameters(FRHICommandList& RHICmdList, FRHIPixelShader* ShaderRHI, const FFinalPostProcessSettings::FCubemapEntry& Entry) const;
+	void SetParameters(FRHICommandList& RHICmdList, FRHIComputeShader* ShaderRHI, const FFinalPostProcessSettings::FCubemapEntry& Entry) const;
 
 	friend FArchive& operator<<(FArchive& Ar, FCubemapShaderParameters& P);
 
@@ -30,7 +30,7 @@ private:
 	FShaderResourceParameter AmbientCubemap;
 	FShaderResourceParameter AmbientCubemapSampler;
 
-	template<typename TShaderRHIRef>
-	void SetParametersTemplate(FRHICommandList& RHICmdList, const TShaderRHIRef& ShaderRHI, const FFinalPostProcessSettings::FCubemapEntry& Entry) const;
+	template<typename TRHIShader>
+	void SetParametersTemplate(FRHICommandList& RHICmdList, TRHIShader* ShaderRHI, const FFinalPostProcessSettings::FCubemapEntry& Entry) const;
 };
 

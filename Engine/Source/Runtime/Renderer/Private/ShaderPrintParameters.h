@@ -47,12 +47,12 @@ namespace ShaderPrint
 		void Bind(FShaderParameterMap const& ParameterMap);
 
 		// Call to set parameters
-		void SetParameters(FRHICommandListImmediate& RHICmdList, FVertexShaderRHIParamRef const& ShaderRHI, FViewInfo const& View);
-		void SetParameters(FRHICommandListImmediate& RHICmdList, FPixelShaderRHIParamRef const& ShaderRHI, FViewInfo const& View);
-		void SetParameters(FRHICommandListImmediate& RHICmdList, FComputeShaderRHIParamRef const& ShaderRHI, FViewInfo const& View);
+		void SetParameters(FRHICommandListImmediate& RHICmdList, FRHIVertexShader* ShaderRHI, FViewInfo const& View);
+		void SetParameters(FRHICommandListImmediate& RHICmdList, FRHIPixelShader* ShaderRHI, FViewInfo const& View);
+		void SetParameters(FRHICommandListImmediate& RHICmdList, FRHIComputeShader* ShaderRHI, FViewInfo const& View);
 
 		// Call to unbind the UAV
-		void UnsetUAV(FRHICommandListImmediate& RHICmdList, FComputeShaderRHIParamRef const& ShaderRHI);
+		void UnsetUAV(FRHICommandListImmediate& RHICmdList, FRHIComputeShader* ShaderRHI);
 
 		// Serializer
 		friend FArchive& operator<<(FArchive& Ar, FShaderParametersLegacy& P);

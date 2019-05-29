@@ -377,7 +377,7 @@ struct FNiagaraDataInterfaceParametersCS_Texture : public FNiagaraDataInterfaceP
 	{
 		check(IsInRenderingThread());
 
-		FComputeShaderRHIParamRef ComputeShaderRHI = Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Shader->GetComputeShader();
 		UNiagaraDataInterfaceTexture* TextureDI = CastChecked<UNiagaraDataInterfaceTexture>(DataInterface);
 		UTexture *Texture = TextureDI->Texture;
 		float TexDims[2];

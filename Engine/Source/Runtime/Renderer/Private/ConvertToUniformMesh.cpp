@@ -340,7 +340,7 @@ public:
 		const FMatrix& Instance0Transform
 		)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialProxy->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::None);
 
 		SetUniformBufferParameter(RHICmdList, ShaderRHI,GetUniformBufferParameter<FPrimitiveUniformShaderParameters>(),PrimitiveUniformBuffer);
@@ -361,7 +361,7 @@ public:
 
 	void UnsetParameters(FRHICommandList& RHICmdList, FViewInfo& View)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		SurfelBufferParameters.UnsetParameters(RHICmdList, ShaderRHI);
 
 		const FScene* Scene = (const FScene*)View.Family->Scene;

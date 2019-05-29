@@ -37,8 +37,8 @@ class FAtmosphereShaderTextureParameters
 public:
 	void Bind(const FShaderParameterMap& ParameterMap);
 
-	template< typename ShaderRHIParamRef >
-	FORCEINLINE_DEBUGGABLE void Set(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FSceneView& View) const
+	template< typename TRHIShader >
+	FORCEINLINE_DEBUGGABLE void Set(FRHICommandList& RHICmdList, TRHIShader* ShaderRHI, const FSceneView& View) const
 	{
 		if (TransmittanceTexture.IsBound() || IrradianceTexture.IsBound() || InscatterTexture.IsBound())
 		{
@@ -72,15 +72,15 @@ void FAtmosphereShaderTextureParameters::Bind(const FShaderParameterMap& Paramet
 	InscatterTextureSampler.Bind(ParameterMap, TEXT("AtmosphereInscatterTextureSampler"));
 }
 
-#define IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET( ShaderRHIParamRef ) \
-	template void FAtmosphereShaderTextureParameters::Set< ShaderRHIParamRef >( FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FSceneView& View ) const;
+#define IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET( TRHIShader ) \
+	template void FAtmosphereShaderTextureParameters::Set< TRHIShader >( FRHICommandList& RHICmdList, TRHIShader* ShaderRHI, const FSceneView& View ) const;
 
-IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FVertexShaderRHIParamRef);
-IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FHullShaderRHIParamRef);
-IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FDomainShaderRHIParamRef);
-IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FGeometryShaderRHIParamRef);
-IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FPixelShaderRHIParamRef);
-IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FComputeShaderRHIParamRef);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIVertexShader);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIHullShader);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIDomainShader);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIGeometryShader);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIPixelShader);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIComputeShader);
 
 FArchive& operator<<(FArchive& Ar, FAtmosphereShaderTextureParameters& Parameters)
 {

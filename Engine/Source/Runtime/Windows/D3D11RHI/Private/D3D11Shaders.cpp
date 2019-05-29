@@ -266,11 +266,11 @@ void FD3D11DynamicRHI::RHISetMultipleViewports(uint32 Count, const FViewportBoun
 
 FD3D11BoundShaderState::FD3D11BoundShaderState(
 	FRHIVertexDeclaration* InVertexDeclarationRHI,
-	FVertexShaderRHIParamRef InVertexShaderRHI,
-	FPixelShaderRHIParamRef InPixelShaderRHI,
-	FHullShaderRHIParamRef InHullShaderRHI,
-	FDomainShaderRHIParamRef InDomainShaderRHI,
-	FGeometryShaderRHIParamRef InGeometryShaderRHI,
+	FRHIVertexShader* InVertexShaderRHI,
+	FRHIPixelShader* InPixelShaderRHI,
+	FRHIHullShader* InHullShaderRHI,
+	FRHIDomainShader* InDomainShaderRHI,
+	FRHIGeometryShader* InGeometryShaderRHI,
 	ID3D11Device* Direct3DDevice
 	):
 	CacheLink(InVertexDeclarationRHI,InVertexShaderRHI,InPixelShaderRHI,InHullShaderRHI,InDomainShaderRHI,InGeometryShaderRHI,this)
@@ -345,11 +345,11 @@ FD3D11BoundShaderState::~FD3D11BoundShaderState()
 */
 FBoundShaderStateRHIRef FD3D11DynamicRHI::RHICreateBoundShaderState(
 	FRHIVertexDeclaration* VertexDeclarationRHI,
-	FVertexShaderRHIParamRef VertexShaderRHI, 
-	FHullShaderRHIParamRef HullShaderRHI, 
-	FDomainShaderRHIParamRef DomainShaderRHI, 
-	FPixelShaderRHIParamRef PixelShaderRHI,
-	FGeometryShaderRHIParamRef GeometryShaderRHI
+	FRHIVertexShader* VertexShaderRHI,
+	FRHIHullShader* HullShaderRHI,
+	FRHIDomainShader* DomainShaderRHI,
+	FRHIPixelShader* PixelShaderRHI,
+	FRHIGeometryShader* GeometryShaderRHI
 	)
 {
 	check(IsInRenderingThread() || IsInRHIThread());

@@ -52,9 +52,9 @@ FGlobalBoundShaderStateResource::~FGlobalBoundShaderStateResource()
  */
 FRHIBoundShaderState* FGlobalBoundShaderStateResource::GetInitializedRHI(
 	FRHIVertexDeclaration* VertexDeclaration,
-	FVertexShaderRHIParamRef VertexShader, 
-	FPixelShaderRHIParamRef PixelShader,
-	FGeometryShaderRHIParamRef GeometryShader
+	FRHIVertexShader* VertexShader,
+	FRHIPixelShader* PixelShader,
+	FRHIGeometryShader* GeometryShader
 	)
 {
 	check(IsInitialized());

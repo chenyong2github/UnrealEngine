@@ -239,7 +239,7 @@ public:
 		uint32 MipLevel,
 		FRWBuffer& MipTree)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
 		SetShaderValue(RHICmdList, ShaderRHI, FaceIndexParameter, FaceIndex);
@@ -256,7 +256,7 @@ public:
 		EResourceTransitionPipeline TransitionPipeline,
 		FRWBuffer& MipTree)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		MipTreeParameter.UnsetUAV(RHICmdList, ShaderRHI);
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, MipTree.UAV);
@@ -387,7 +387,7 @@ public:
 		FRWBuffer& SolidAnglePdf
 	)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		SetShaderValue(RHICmdList, ShaderRHI, MipLevelParameter, MipLevel);
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
@@ -403,7 +403,7 @@ public:
 		FRHIComputeFence* Fence
 	)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		SolidAnglePdfParameter.UnsetUAV(RHICmdList, ShaderRHI);
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, MipTreePdf.UAV, Fence);
@@ -493,7 +493,7 @@ public:
 		uint32 MipLevel,
 		FRWBuffer& MipTreePdf)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		SetSRVParameter(RHICmdList, ShaderRHI, MipTreeParameter, MipTree.SRV);
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
@@ -509,7 +509,7 @@ public:
 		EResourceTransitionPipeline TransitionPipeline,
 		FRWBuffer& MipTreePdf)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		MipTreePdfParameter.UnsetUAV(RHICmdList, ShaderRHI);
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, MipTreePdf.UAV);
@@ -646,7 +646,7 @@ public:
 		const FRWBuffer& MipTreePosZ,
 		const FRWBuffer& MipTreeNegZ)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);

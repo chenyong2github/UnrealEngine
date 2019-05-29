@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-
 #pragma once
 
 #include "CoreTypes.h"
@@ -1117,21 +1116,27 @@ UE_DEPRECATED(4.23, "FVertexDeclarationRHIParamRef typedef is deprecated; please
 typedef FRHIVertexDeclaration*              FVertexDeclarationRHIParamRef;
 typedef TRefCountPtr<FRHIVertexDeclaration> FVertexDeclarationRHIRef;
 
+UE_DEPRECATED(4.23, "FVertexShaderRHIParamRef typedef is deprecated; please use FRHIVertexShader* directly instead.")
 typedef FRHIVertexShader*              FVertexShaderRHIParamRef;
 typedef TRefCountPtr<FRHIVertexShader> FVertexShaderRHIRef;
 
+UE_DEPRECATED(4.23, "FHullShaderRHIParamRef typedef is deprecated; please use FRHIHullShader* directly instead.")
 typedef FRHIHullShader*              FHullShaderRHIParamRef;
 typedef TRefCountPtr<FRHIHullShader> FHullShaderRHIRef;
 
+UE_DEPRECATED(4.23, "FDomainShaderRHIParamRef typedef is deprecated; please use FRHIDomainShader* directly instead.")
 typedef FRHIDomainShader*              FDomainShaderRHIParamRef;
 typedef TRefCountPtr<FRHIDomainShader> FDomainShaderRHIRef;
 
+UE_DEPRECATED(4.23, "FPixelShaderRHIParamRef typedef is deprecated; please use FRHIPixelShader* directly instead.")
 typedef FRHIPixelShader*              FPixelShaderRHIParamRef;
 typedef TRefCountPtr<FRHIPixelShader> FPixelShaderRHIRef;
 
+UE_DEPRECATED(4.23, "FGeometryShaderRHIParamRef typedef is deprecated; please use FRHIGeometryShader* directly instead.")
 typedef FRHIGeometryShader*              FGeometryShaderRHIParamRef;
 typedef TRefCountPtr<FRHIGeometryShader> FGeometryShaderRHIRef;
 
+UE_DEPRECATED(4.23, "FComputeShaderRHIParamRef typedef is deprecated; please use FRHIComputeShader* directly instead.")
 typedef FRHIComputeShader*              FComputeShaderRHIParamRef;
 typedef TRefCountPtr<FRHIComputeShader> FComputeShaderRHIRef;
 
@@ -1738,18 +1743,18 @@ typedef TRefCountPtr<FRHICustomPresent> FCustomPresentRHIRef;
 
 // Template magic to convert an FRHI*Shader to its enum
 template<typename TRHIShader> struct TRHIShaderToEnum {};
-template<> struct TRHIShaderToEnum<FRHIVertexShader>	{ enum { ShaderFrequency = SF_Vertex }; };
-template<> struct TRHIShaderToEnum<FRHIHullShader>		{ enum { ShaderFrequency = SF_Hull }; };
-template<> struct TRHIShaderToEnum<FRHIDomainShader>	{ enum { ShaderFrequency = SF_Domain }; };
-template<> struct TRHIShaderToEnum<FRHIPixelShader>		{ enum { ShaderFrequency = SF_Pixel }; };
-template<> struct TRHIShaderToEnum<FRHIGeometryShader>	{ enum { ShaderFrequency = SF_Geometry }; };
-template<> struct TRHIShaderToEnum<FRHIComputeShader>	{ enum { ShaderFrequency = SF_Compute }; };
-template<> struct TRHIShaderToEnum<FVertexShaderRHIParamRef>	{ enum { ShaderFrequency = SF_Vertex }; };
-template<> struct TRHIShaderToEnum<FHullShaderRHIParamRef>		{ enum { ShaderFrequency = SF_Hull }; };
-template<> struct TRHIShaderToEnum<FDomainShaderRHIParamRef>	{ enum { ShaderFrequency = SF_Domain }; };
-template<> struct TRHIShaderToEnum<FPixelShaderRHIParamRef>		{ enum { ShaderFrequency = SF_Pixel }; };
-template<> struct TRHIShaderToEnum<FGeometryShaderRHIParamRef>	{ enum { ShaderFrequency = SF_Geometry }; };
-template<> struct TRHIShaderToEnum<FComputeShaderRHIParamRef>	{ enum { ShaderFrequency = SF_Compute }; };
+template<> struct TRHIShaderToEnum<FRHIVertexShader>		{ enum { ShaderFrequency = SF_Vertex }; };
+template<> struct TRHIShaderToEnum<FRHIHullShader>			{ enum { ShaderFrequency = SF_Hull }; };
+template<> struct TRHIShaderToEnum<FRHIDomainShader>		{ enum { ShaderFrequency = SF_Domain }; };
+template<> struct TRHIShaderToEnum<FRHIPixelShader>			{ enum { ShaderFrequency = SF_Pixel }; };
+template<> struct TRHIShaderToEnum<FRHIGeometryShader>		{ enum { ShaderFrequency = SF_Geometry }; };
+template<> struct TRHIShaderToEnum<FRHIComputeShader>		{ enum { ShaderFrequency = SF_Compute }; };
+template<> struct TRHIShaderToEnum<FRHIVertexShader*>		{ enum { ShaderFrequency = SF_Vertex }; };
+template<> struct TRHIShaderToEnum<FRHIHullShader*>			{ enum { ShaderFrequency = SF_Hull }; };
+template<> struct TRHIShaderToEnum<FRHIDomainShader*>		{ enum { ShaderFrequency = SF_Domain }; };
+template<> struct TRHIShaderToEnum<FRHIPixelShader*>		{ enum { ShaderFrequency = SF_Pixel }; };
+template<> struct TRHIShaderToEnum<FRHIGeometryShader*>		{ enum { ShaderFrequency = SF_Geometry }; };
+template<> struct TRHIShaderToEnum<FRHIComputeShader*>		{ enum { ShaderFrequency = SF_Compute }; };
 template<> struct TRHIShaderToEnum<FVertexShaderRHIRef>		{ enum { ShaderFrequency = SF_Vertex }; };
 template<> struct TRHIShaderToEnum<FHullShaderRHIRef>		{ enum { ShaderFrequency = SF_Hull }; };
 template<> struct TRHIShaderToEnum<FDomainShaderRHIRef>		{ enum { ShaderFrequency = SF_Domain }; };
@@ -1764,14 +1769,14 @@ struct FBoundShaderStateInput
 	inline FBoundShaderStateInput
 	(
 		FRHIVertexDeclaration* InVertexDeclarationRHI
-		, FVertexShaderRHIParamRef InVertexShaderRHI
+		, FRHIVertexShader* InVertexShaderRHI
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		, FHullShaderRHIParamRef InHullShaderRHI
-		, FDomainShaderRHIParamRef InDomainShaderRHI
+		, FRHIHullShader* InHullShaderRHI
+		, FRHIDomainShader* InDomainShaderRHI
 #endif
-		, FPixelShaderRHIParamRef InPixelShaderRHI
+		, FRHIPixelShader* InPixelShaderRHI
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-		, FGeometryShaderRHIParamRef InGeometryShaderRHI
+		, FRHIGeometryShader* InGeometryShaderRHI
 #endif
 	)
 		: VertexDeclarationRHI(InVertexDeclarationRHI)
@@ -1788,11 +1793,11 @@ struct FBoundShaderStateInput
 	}
 
 	FRHIVertexDeclaration* VertexDeclarationRHI = nullptr;
-	FVertexShaderRHIParamRef VertexShaderRHI = nullptr;
-	FHullShaderRHIParamRef HullShaderRHI = nullptr;
-	FDomainShaderRHIParamRef DomainShaderRHI = nullptr;
-	FPixelShaderRHIParamRef PixelShaderRHI = nullptr;
-	FGeometryShaderRHIParamRef GeometryShaderRHI = nullptr;
+	FRHIVertexShader* VertexShaderRHI = nullptr;
+	FRHIHullShader* HullShaderRHI = nullptr;
+	FRHIDomainShader* DomainShaderRHI = nullptr;
+	FRHIPixelShader* PixelShaderRHI = nullptr;
+	FRHIGeometryShader* GeometryShaderRHI = nullptr;
 };
 
 struct FImmutableSamplerState

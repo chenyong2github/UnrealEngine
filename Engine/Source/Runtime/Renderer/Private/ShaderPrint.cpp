@@ -111,28 +111,28 @@ namespace ShaderPrint
 	}
 
 	template<typename TShaderRHIParamRef>
-	void SetShaderParameters(FShaderParametersLegacy const* P, FRHICommandListImmediate& RHICmdList, TShaderRHIParamRef const& ShaderRHI, FViewInfo const& View)
+	void SetShaderParameters(FShaderParametersLegacy const* P, FRHICommandListImmediate& RHICmdList, TShaderRHIParamRef ShaderRHI, FViewInfo const& View)
 	{
 		SetUniformBufferParameter(RHICmdList, ShaderRHI, P->UniformBufferParameter, CreateUniformBuffer(View));
 		P->ValuesBufferParameter.SetBuffer(RHICmdList, ShaderRHI, View.ShaderPrintValueBuffer);
 	}
 
-	void FShaderParametersLegacy::SetParameters(FRHICommandListImmediate& RHICmdList, FVertexShaderRHIParamRef const& ShaderRHI, FViewInfo const& View)
+	void FShaderParametersLegacy::SetParameters(FRHICommandListImmediate& RHICmdList, FRHIVertexShader* ShaderRHI, FViewInfo const& View)
 	{
 		SetShaderParameters(this, RHICmdList, ShaderRHI, View);
 	}
 
-	void FShaderParametersLegacy::SetParameters(FRHICommandListImmediate& RHICmdList, FPixelShaderRHIParamRef const& ShaderRHI, FViewInfo const& View)
+	void FShaderParametersLegacy::SetParameters(FRHICommandListImmediate& RHICmdList, FRHIPixelShader* ShaderRHI, FViewInfo const& View)
 	{
 		SetShaderParameters(this, RHICmdList, ShaderRHI, View);
 	}
 
-	void FShaderParametersLegacy::SetParameters(FRHICommandListImmediate& RHICmdList, FComputeShaderRHIParamRef const& ShaderRHI, FViewInfo const& View)
+	void FShaderParametersLegacy::SetParameters(FRHICommandListImmediate& RHICmdList, FRHIComputeShader* ShaderRHI, FViewInfo const& View)
 	{
 		SetShaderParameters(this, RHICmdList, ShaderRHI, View);
 	}
 
-	void FShaderParametersLegacy::UnsetUAV(FRHICommandListImmediate& RHICmdList, FComputeShaderRHIParamRef const& ShaderRHI)
+	void FShaderParametersLegacy::UnsetUAV(FRHICommandListImmediate& RHICmdList, FRHIComputeShader* ShaderRHI)
 	{
 		ValuesBufferParameter.UnsetUAV(RHICmdList, ShaderRHI);
 	}

@@ -216,14 +216,14 @@ private:
 
 struct FMeshProcessorShaders
 {
-	FMeshMaterialShader* VertexShader;
-	FMeshMaterialShader* HullShader;
-	FMeshMaterialShader* DomainShader;
-	FMeshMaterialShader* PixelShader;
-	FMeshMaterialShader* GeometryShader;
-	FMeshMaterialShader* ComputeShader;
+	mutable FMeshMaterialShader* VertexShader;
+	mutable FMeshMaterialShader* HullShader;
+	mutable FMeshMaterialShader* DomainShader;
+	mutable FMeshMaterialShader* PixelShader;
+	mutable FMeshMaterialShader* GeometryShader;
+	mutable FMeshMaterialShader* ComputeShader;
 #if RHI_RAYTRACING
-	FMeshMaterialShader* RayHitGroupShader;
+	mutable FMeshMaterialShader* RayHitGroupShader;
 #endif
 
 	FMeshMaterialShader* GetShader(EShaderFrequency Frequency) const
@@ -334,7 +334,7 @@ public:
 	/** Set shader bindings on the commandlist, filtered by state cache. */
 	void SetOnCommandList(FRHICommandList& RHICmdList, FBoundShaderStateInput Shaders, class FShaderBindingState* StateCacheShaderBindings) const;
 
-	void SetOnCommandListForCompute(FRHICommandList& RHICmdList, FComputeShaderRHIParamRef Shader) const;
+	void SetOnCommandListForCompute(FRHICommandList& RHICmdList, FRHIComputeShader* Shader) const;
 
 #if RHI_RAYTRACING
 	void SetRayTracingShaderBindingsForHitGroup(FRHICommandList& RHICmdList, FRHIRayTracingScene* Scene, uint32 InstanceIndex, uint32 SegmentIndex, FRayTracingPipelineState* Pipeline, uint32 HitGroupIndex, uint32 ShaderSlot) const;

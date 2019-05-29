@@ -780,7 +780,7 @@ public:
 
 	void Set(FRHICommandList& RHICmdList, FShader* Shader, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = Shader->GetPixelShader();
+		FRHIPixelShader* ShaderRHI = Shader->GetPixelShader();
 
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 
@@ -960,7 +960,7 @@ public:
 		const FProjectedShadowInfo* ShadowInfo
 		) override
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 		FShadowProjectionPixelShaderInterface::SetParameters(RHICmdList, ViewIndex,View,ShadowInfo);
 
@@ -1059,7 +1059,7 @@ public:
 		const FProjectedShadowInfo* ShadowInfo) override
 	{
 		TShadowProjectionPS<Quality, false, true>::SetParameters(RHICmdList, ViewIndex, View, ShadowInfo);
-		const FPixelShaderRHIParamRef ShaderRHI = this->GetPixelShader();
+		FRHIPixelShader* ShaderRHI = this->GetPixelShader();
 		SetShaderValue(RHICmdList, ShaderRHI, ModulatedShadowColorParameter, ShadowInfo->GetLightSceneInfo().Proxy->GetModulatedShadowColor());
 	}
 
@@ -1306,7 +1306,7 @@ public:
 		const FProjectedShadowInfo* ShadowInfo
 		)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI,View.ViewUniformBuffer);
 
@@ -1436,7 +1436,7 @@ public:
 	{
 		TShadowProjectionPS<Quality, bUseFadePlane>::SetParameters(RHICmdList, ViewIndex, View, ShadowInfo);
 
-		const FPixelShaderRHIParamRef ShaderRHI = this->GetPixelShader();
+		FRHIPixelShader* ShaderRHI = this->GetPixelShader();
 
 		// GetLightSourceAngle returns the full angle.
 		float TanLightSourceAngle = FMath::Tan(0.5 * FMath::DegreesToRadians(ShadowInfo->GetLightSceneInfo().Proxy->GetLightSourceAngle()));
@@ -1505,7 +1505,7 @@ public:
 
 		TShadowProjectionPS<Quality, bUseFadePlane>::SetParameters(RHICmdList, ViewIndex, View, ShadowInfo);
 
-		const FPixelShaderRHIParamRef ShaderRHI = this->GetPixelShader();
+		FRHIPixelShader* ShaderRHI = this->GetPixelShader();
 
 		static IConsoleVariable* CVarMaxSoftShadowKernelSize = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.MaxSoftKernelSize"));
 		check(CVarMaxSoftShadowKernelSize);

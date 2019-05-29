@@ -146,19 +146,19 @@ public:
 	{ }
 
 	/** Sets pixel parameters that are material specific but not FMeshBatch specific. */
-	template< typename ShaderRHIParamRef >
+	template< typename TRHIShader >
 	void SetParametersInner(
 		FRHICommandList& RHICmdList,
-		const ShaderRHIParamRef ShaderRHI, 
+		TRHIShader* ShaderRHI,
 		const FMaterialRenderProxy* MaterialRenderProxy, 
 		const FMaterial& Material,
 		const FSceneView& View);
 
 	/** Sets pixel parameters that are material specific but not FMeshBatch specific. */
-	template< typename ShaderRHIParamRef >
+	template< typename TRHIShader >
 	void SetParameters(
 		FRHICommandList& RHICmdList,
-		const ShaderRHIParamRef ShaderRHI, 
+		TRHIShader* ShaderRHI,
 		const FMaterialRenderProxy* MaterialRenderProxy, 
 		const FMaterial& Material,
 		const FSceneView& View, 

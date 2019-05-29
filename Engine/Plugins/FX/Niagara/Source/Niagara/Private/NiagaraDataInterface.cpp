@@ -191,7 +191,7 @@ struct FNiagaraDataInterfaceParametersCS_Curve : public FNiagaraDataInterfacePar
 	{
 		check(IsInRenderingThread());
 
-		const FComputeShaderRHIParamRef ComputeShaderRHI = Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Shader->GetComputeShader();
 		UNiagaraDataInterfaceCurveBase* CurveDI = CastChecked<UNiagaraDataInterfaceCurveBase>(DataInterface);
 		FReadBuffer& CurveLUTBuffer = CurveDI->GetCurveLUTGPUBuffer();
 

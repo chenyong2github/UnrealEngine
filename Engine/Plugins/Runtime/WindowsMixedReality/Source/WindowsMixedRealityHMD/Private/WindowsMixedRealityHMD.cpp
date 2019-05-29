@@ -51,7 +51,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, float farPlaneDistanceValue, FTextureRHIParamRef DepthTexture)
 	{
-		FPixelShaderRHIParamRef PixelShaderRHI = GetPixelShader();
+		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
 
 		SetShaderValue(RHICmdList, PixelShaderRHI, FarPlaneDistance, farPlaneDistanceValue);
 

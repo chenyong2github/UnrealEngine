@@ -67,10 +67,10 @@ public:
 	FColorRemapShaderParameters(const FShaderParameterMap& ParameterMap);
 
 	// Explicit declarations here because templates unresolved when used in other files
-	void Set(FRHICommandList& RHICmdList, const FPixelShaderRHIParamRef ShaderRHI);
+	void Set(FRHICommandList& RHICmdList, FRHIPixelShader* ShaderRHI);
 
 	template <typename TRHICmdList>
-	void Set(TRHICmdList& RHICmdList, const FComputeShaderRHIParamRef ShaderRHI);
+	void Set(TRHICmdList& RHICmdList, FRHIComputeShader* ShaderRHI);
 
 	friend FArchive& operator<<(FArchive& Ar,FColorRemapShaderParameters& P);
 

@@ -201,7 +201,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FLpvBaseWriteShaderParams& Params )
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		SetUniformBufferParameter(RHICmdList, ShaderRHI, GetUniformBufferParameter<FLpvWriteUniformBufferParameters>(), Params.UniformBuffer );
 
 		TArray<int32> ResourceIndices;
@@ -297,7 +297,7 @@ public:
 		TArray<int32> ResourceIndices;
 		TArray<FRHIUnorderedAccessView*> UAVs;
 
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		for ( int i = 0; i < 7; i++ )
 		{
 			if ( LpvBufferSRVParameters[i].IsBound() )
@@ -483,7 +483,7 @@ public:
 		FTextureRHIParamRef RsmNormalTextureRHI,
 		FTextureRHIParamRef RsmDepthTextureRHI )
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		FLpvWriteShaderCSBase::SetParameters(RHICmdList, BaseParams );
 
 		FRHISamplerState* SamplerStateLinear  = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
@@ -569,7 +569,6 @@ public:
 		FLpvBaseWriteShaderParams& BaseParams )
 	{
 		FLpvWriteShaderCSBase::SetParameters( RHICmdList, BaseParams );
-		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 	}
 };
 IMPLEMENT_SHADER_TYPE(,FLpvDirectionalOcclusionCS,TEXT("/Engine/Private/LPVDirectionalOcclusion.usf"),TEXT("CSDirectionalOcclusion"),SF_Compute);
@@ -603,7 +602,6 @@ public:
 		FLpvBaseWriteShaderParams& BaseParams )
 	{	
 		FLpvWriteShaderCSBase::SetParameters( RHICmdList, BaseParams );
-		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 	}
 };
 IMPLEMENT_SHADER_TYPE(,FLpvCopyAOVolumeCS,TEXT("/Engine/Private/LPVDirectionalOcclusion.usf"),TEXT("CSCopyAOVolume"),SF_Compute);
@@ -716,7 +714,7 @@ public:
 		FDirectLightInjectBufferRef& InjectUniformBuffer )
 	{
 		FLpvWriteShaderCSBase::SetParameters(RHICmdList, BaseParams );
-		FComputeShaderRHIParamRef ComputeShaderRHI = GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
 		SetUniformBufferParameter(RHICmdList, ComputeShaderRHI, GetUniformBufferParameter<FLpvDirectLightInjectParameters>(), InjectUniformBuffer );
 	}
 

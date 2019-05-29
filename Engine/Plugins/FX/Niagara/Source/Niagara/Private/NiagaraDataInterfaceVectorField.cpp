@@ -354,7 +354,7 @@ struct FNiagaraDataInterfaceParametersCS_VectorField : public FNiagaraDataInterf
 		}
 
 		// Get shader and DI
-		const FComputeShaderRHIParamRef ComputeShaderRHI = Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Shader->GetComputeShader();
 		UNiagaraDataInterfaceVectorField* VFDI = CastChecked<UNiagaraDataInterfaceVectorField>(DataInterface);
 		
 		// Note: There is a flush in PreEditChange to make sure everything is synced up at this point 

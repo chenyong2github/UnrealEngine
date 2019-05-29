@@ -31,11 +31,11 @@ static FCriticalSection BoundShaderStateCacheLock;
 
 FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
 	FRHIVertexDeclaration* VertexDeclaration,
-	FVertexShaderRHIParamRef VertexShader,
-	FPixelShaderRHIParamRef PixelShader,
-	FHullShaderRHIParamRef HullShader,
-	FDomainShaderRHIParamRef DomainShader,
-	FGeometryShaderRHIParamRef GeometryShader,
+	FRHIVertexShader* VertexShader,
+	FRHIPixelShader* PixelShader,
+	FRHIHullShader* HullShader,
+	FRHIDomainShader* DomainShader,
+	FRHIGeometryShader* GeometryShader,
 	FRHIBoundShaderState* InBoundShaderState,
 	bool bAddToSingleThreadedCache
 	):
@@ -51,8 +51,8 @@ FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
 
 FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
 	FRHIVertexDeclaration* VertexDeclaration,
-	FVertexShaderRHIParamRef VertexShader,
-	FPixelShaderRHIParamRef PixelShader,
+	FRHIVertexShader* VertexShader,
+	FRHIPixelShader* PixelShader,
 	FRHIBoundShaderState* InBoundShaderState,
 	bool bAddToSingleThreadedCache
 	):
@@ -77,11 +77,11 @@ FCachedBoundShaderStateLink::~FCachedBoundShaderStateLink()
 
 FCachedBoundShaderStateLink* GetCachedBoundShaderState(
 	FRHIVertexDeclaration* VertexDeclaration,
-	FVertexShaderRHIParamRef VertexShader,
-	FPixelShaderRHIParamRef PixelShader,
-	FHullShaderRHIParamRef HullShader,
-	FDomainShaderRHIParamRef DomainShader,
-	FGeometryShaderRHIParamRef GeometryShader
+	FRHIVertexShader* VertexShader,
+	FRHIPixelShader* PixelShader,
+	FRHIHullShader* HullShader,
+	FRHIDomainShader* DomainShader,
+	FRHIGeometryShader* GeometryShader
 	)
 {
 	// Find the existing bound shader state in the cache.
@@ -105,11 +105,11 @@ void FCachedBoundShaderStateLink_Threadsafe::RemoveFromCache()
 
 FBoundShaderStateRHIRef GetCachedBoundShaderState_Threadsafe(
 	FRHIVertexDeclaration* VertexDeclaration,
-	FVertexShaderRHIParamRef VertexShader,
-	FPixelShaderRHIParamRef PixelShader,
-	FHullShaderRHIParamRef HullShader,
-	FDomainShaderRHIParamRef DomainShader,
-	FGeometryShaderRHIParamRef GeometryShader
+	FRHIVertexShader* VertexShader,
+	FRHIPixelShader* PixelShader,
+	FRHIHullShader* HullShader,
+	FRHIDomainShader* DomainShader,
+	FRHIGeometryShader* GeometryShader
 	)
 {
 	FScopeLock Lock(&BoundShaderStateCacheLock);

@@ -65,7 +65,7 @@ void MemsetBuffer(FRHICommandList& RHICmdList, const FRWBufferStructured& DstBuf
 
 	TShaderMapRef< FMemsetBufferCS > ComputeShader( ShaderMap );
 
-	const FComputeShaderRHIParamRef ShaderRHI = ComputeShader->GetComputeShader();
+	FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 	RHICmdList.SetComputeShader( ShaderRHI );
 
 	SetShaderValue( RHICmdList, ShaderRHI, ComputeShader->Value, Value );
@@ -136,7 +136,7 @@ void MemcpyBuffer(FRHICommandList& RHICmdList, const FRWBufferStructured& SrcBuf
 
 	TShaderMapRef< FMemcpyBufferCS > ComputeShader( ShaderMap );
 		
-	const FComputeShaderRHIParamRef ShaderRHI = ComputeShader->GetComputeShader();
+	FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 	RHICmdList.SetComputeShader( ShaderRHI );
 
 	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DstBuffer.UAV);
@@ -280,7 +280,7 @@ void FScatterUploadBuilder::UploadTo(FRHICommandList& RHICmdList, FRWBufferStruc
 
 	TShaderMapRef<FScatterCopyCS> ComputeShader(ShaderMap);
 
-	const FComputeShaderRHIParamRef ShaderRHI = ComputeShader->GetComputeShader();
+	FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 	RHICmdList.SetComputeShader(ShaderRHI);
 
 	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->NumScatters, NumScatters);
@@ -305,7 +305,7 @@ void FScatterUploadBuilder::UploadTo_Flush(FRHICommandList& RHICmdList, FRWBuffe
 
 	TShaderMapRef<FScatterCopyCS> ComputeShader(ShaderMap);
 		
-	const FComputeShaderRHIParamRef ShaderRHI = ComputeShader->GetComputeShader();
+	FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 	RHICmdList.SetComputeShader(ShaderRHI);
 
 	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->NumScatters, NumScatters);

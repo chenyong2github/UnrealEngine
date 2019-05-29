@@ -111,7 +111,7 @@ namespace MeshPaintRendering
 
 		void SetParameters(FRHICommandList& RHICmdList, const float InGamma, const FMeshPaintShaderParameters& InShaderParams )
 		{
-			const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+			FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 			SetTextureParameter(
 				RHICmdList, 
@@ -274,7 +274,7 @@ namespace MeshPaintRendering
 
 		void SetParameters(FRHICommandList& RHICmdList, const float InGamma, const FMeshPaintDilateShaderParameters& InShaderParams )
 		{
-			const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+			FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 			SetTextureParameter(
 				RHICmdList, 

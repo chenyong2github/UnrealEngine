@@ -102,7 +102,7 @@ void FMetalRHIComputeContext::RHISetAsyncComputeBudget(EAsyncComputeBudget Budge
 	FMetalRHICommandContext::RHISetAsyncComputeBudget(Budget);
 }
 
-void FMetalRHIComputeContext::RHISetComputeShader(FComputeShaderRHIParamRef ComputeShader)
+void FMetalRHIComputeContext::RHISetComputeShader(FRHIComputeShader* ComputeShader)
 {
 	if (!Context->GetCurrentCommandBuffer())
 	{

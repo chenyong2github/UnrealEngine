@@ -468,7 +468,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 				{
-					const FVertexShaderRHIParamRef ShaderRHI = VertexShader->GetVertexShader();
+					FRHIVertexShader* ShaderRHI = VertexShader->GetVertexShader();
 					SetShaderValue(RHICmdList, ShaderRHI, VertexShader->PageTableSize, PageTableSize);
 					SetShaderValue(RHICmdList, ShaderRHI, VertexShader->FirstUpdate, FirstUpdate);
 					SetShaderValue(RHICmdList, ShaderRHI, VertexShader->NumUpdates, NumUpdates);

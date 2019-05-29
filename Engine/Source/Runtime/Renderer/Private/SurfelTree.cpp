@@ -73,7 +73,7 @@ public:
 		const FUniformMeshBuffers& UniformMeshBuffers
 		)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
 		SetShaderValue(RHICmdList, ShaderRHI, NumTriangles, NumTrianglesValue);
@@ -84,7 +84,7 @@ public:
 
 	void UnsetParameters(FRHICommandList& RHICmdList)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		TriangleAreas.UnsetUAV(RHICmdList, ShaderRHI);
 		// RHISetStreamOutTargets doesn't unbind existing uses like render targets do 
 		SetSRVParameter(RHICmdList, ShaderRHI, TriangleVertexData, NULL);
@@ -145,7 +145,7 @@ public:
 		const FUniformMeshBuffers& UniformMeshBuffers
 		)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
 		SetShaderValue(RHICmdList, ShaderRHI, NumTriangles, NumTrianglesValue);
@@ -156,7 +156,7 @@ public:
 
 	void UnsetParameters(FRHICommandList& RHICmdList)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		TriangleCDFs.UnsetUAV(RHICmdList, ShaderRHI);
 	}
 
@@ -220,7 +220,7 @@ public:
 		const FUniformMeshBuffers& UniformMeshBuffers
 		)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
 		const FScene* Scene = (const FScene*)View.Family->Scene;
@@ -241,7 +241,7 @@ public:
 
 	void UnsetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		const FScene* Scene = (const FScene*)View.Family->Scene;
 		SurfelBufferParameters.UnsetParameters(RHICmdList, ShaderRHI);
