@@ -16,7 +16,7 @@
 
 
 class FViewInfo;
-class FSceneViewFamilyBlackboard;
+class FSceneTextureParameters;
 struct FTemporalAAHistory;
 
 
@@ -139,7 +139,7 @@ inline bool IsSupported(EShaderPlatform ShaderPlatform)
 /** Wire all DOF's passes according to view settings and cvars to convolve the scene color. */
 RENDERER_API FRDGTextureRef AddPasses(
 	FRDGBuilder& GraphBuilder,
-	const FSceneViewFamilyBlackboard& SceneBlackboard,
+	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	FRDGTextureRef InputSceneColor,
 	FRDGTextureRef SeparateTranslucency);

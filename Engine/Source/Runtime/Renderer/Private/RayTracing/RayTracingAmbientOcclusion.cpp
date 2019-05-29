@@ -14,7 +14,7 @@
 #include "RHI/Public/PipelineStateCache.h"
 #include "Raytracing/RaytracingOptions.h"
 #include "RayTracingMaterialHitShaders.h"
-#include "SceneViewFamilyBlackboard.h"
+#include "SceneTextureParameters.h"
 
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
@@ -231,8 +231,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 	int32 DenoiserMode = CVarUseAODenoiser.GetValueOnRenderThread();
 	if (DenoiserMode != 0)
 	{
-		FSceneViewFamilyBlackboard SceneBlackboard;
-		SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+		FSceneTextureParameters SceneTextures;
+		SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
 		const IScreenSpaceDenoiser* DefaultDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
 		const IScreenSpaceDenoiser* DenoiserToUse = DenoiserMode == 1 ? DefaultDenoiser : GScreenSpaceDenoiser;
@@ -253,7 +253,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 				GraphBuilder,
 				View,
 				&View.PrevViewInfo,
-				SceneBlackboard,
+				SceneTextures,
 				DenoiserInputs,
 				RayTracingConfig);
 

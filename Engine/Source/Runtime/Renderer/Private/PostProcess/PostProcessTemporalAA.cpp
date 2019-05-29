@@ -20,7 +20,7 @@
 
 
 #include "RenderGraph.h"
-#include "SceneViewFamilyBlackboard.h"
+#include "SceneTextureParameters.h"
 #include "PixelShaderUtils.h"
 
 
@@ -88,7 +88,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTAAShaderParameters,)
 	SHADER_PARAMETER(FVector4, HistoryBufferUVMinMax)
 	SHADER_PARAMETER(FVector4, ScreenPosToHistoryBufferUV)
 	
-	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneViewFamilyBlackboard, SceneBlackboard)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 	
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
 
@@ -433,7 +433,7 @@ bool FTAAPassParameters::Validate() const
 
 FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 	FRDGBuilder& GraphBuilder,
-	const FSceneViewFamilyBlackboard& SceneBlackboard,
+	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	const FTemporalAAHistory& InputHistory,
 	FTemporalAAHistory* OutputHistory) const
@@ -475,7 +475,7 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 		CommonShaderParameters.CurrentFrameWeight = CVarTemporalAACurrentFrameWeight.GetValueOnRenderThread();
 		CommonShaderParameters.bCameraCut = bCameraCut;
 
-		CommonShaderParameters.SceneBlackboard = SceneBlackboard;
+		CommonShaderParameters.SceneTextures = SceneTextures;
 		CommonShaderParameters.SceneDepthBufferSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		CommonShaderParameters.SceneVelocityBufferSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
@@ -708,7 +708,7 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 		if (bUseResponsiveStencilTest)
 		{
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-				SceneBlackboard.SceneDepthBuffer,
+				SceneTextures.SceneDepthBuffer,
 				ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction,
 				ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore,
 				FExclusiveDepthStencil::DepthRead_StencilWrite);
@@ -818,13 +818,13 @@ void FRCPassPostProcessTemporalAA::Process(FRenderingCompositePassContext& Conte
 	FRDGBuilder GraphBuilder(Context.RHICmdList);
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-	FSceneViewFamilyBlackboard SceneBlackboard;
-	SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+	FSceneTextureParameters SceneTextures;
+	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
 	// FPostProcessing::Process() does a AdjustGBufferRefCount(RHICmdList, -1), therefore need to pass down reference on velocity buffer manually.
 	if (FRDGTextureRef SceneVelocityBuffer = CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input2, TEXT("SceneVelocity")))
 	{
-		SceneBlackboard.SceneVelocityBuffer = SceneVelocityBuffer;
+		SceneTextures.SceneVelocityBuffer = SceneVelocityBuffer;
 	}
 
 	FTAAPassParameters Parameters = SavedParameters;
@@ -833,7 +833,7 @@ void FRCPassPostProcessTemporalAA::Process(FRenderingCompositePassContext& Conte
 
 	FTAAOutputs Outputs = Parameters.AddTemporalAAPass(
 		GraphBuilder,
-		SceneBlackboard, Context.View,
+		SceneTextures, Context.View,
 		InputHistory, /* out */ OutputHistory);
 		
 	ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, Outputs.SceneColor);

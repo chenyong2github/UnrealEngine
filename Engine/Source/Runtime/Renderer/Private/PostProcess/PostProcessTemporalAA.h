@@ -15,7 +15,7 @@
 
 
 class FViewInfo;
-class FSceneViewFamilyBlackboard;
+class FSceneTextureParameters;
 struct FTemporalAAHistory;
 
 
@@ -148,7 +148,7 @@ struct FTAAPassParameters
 	/** Apply a temporal AA pass. */
 	FTAAOutputs AddTemporalAAPass(
 		FRDGBuilder& GraphBuilder,
-		const FSceneViewFamilyBlackboard& SceneBlackboard,
+		const FSceneTextureParameters& SceneTextures,
 		const FViewInfo& View,
 		const FTemporalAAHistory& InputHistory,
 		FTemporalAAHistory* OutputHistory) const;

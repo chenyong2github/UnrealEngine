@@ -15,7 +15,7 @@
 #include "VisualizeTexture.h"
 #include "LightRendering.h"
 #include "SystemTextures.h"
-#include "SceneViewFamilyBlackboard.h"
+#include "SceneTextureParameters.h"
 #include "ScreenSpaceDenoise.h"
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
@@ -268,8 +268,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRHICommandList
 		FRDGBuilder GraphBuilder(RHICmdList); 
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
-		FSceneViewFamilyBlackboard SceneBlackboard;
-		SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+		FSceneTextureParameters SceneTextures;
+		SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
 		//#dxr_todo: UE-72581 do not use reflections denoiser structs but separated ones
 		IScreenSpaceDenoiser::FReflectionsInputs DenoiserInputs;

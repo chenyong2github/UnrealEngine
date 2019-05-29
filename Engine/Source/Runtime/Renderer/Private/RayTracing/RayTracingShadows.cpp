@@ -18,7 +18,7 @@
 #include "BuiltInRayTracingShaders.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "Containers/DynamicRHIResourceArray.h"
-#include "SceneViewFamilyBlackboard.h"
+#include "SceneTextureParameters.h"
 
 static float GRayTracingMaxNormalBias = 0.1f;
 static FAutoConsoleVariableRef CVarRayTracingNormalBias(
@@ -64,7 +64,7 @@ class FOcclusionRGS : public FGlobalShader
 		SHADER_PARAMETER(FIntRect, LightScissor)
 
 		SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneViewFamilyBlackboard, SceneBlackboard)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWOcclusionMaskUAV)
@@ -111,7 +111,7 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingShadows(const FViewInfo& Vi
 
 void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	FRDGBuilder& GraphBuilder,
-	const FSceneViewFamilyBlackboard& SceneBlackboard,
+	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	const FLightSceneInfo& LightSceneInfo,
 	const IScreenSpaceDenoiser::FShadowRayTracingConfig& RayTracingConfig,
@@ -127,7 +127,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	FRDGTextureRef ScreenShadowMaskTexture;
 	{
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-			SceneBlackboard.SceneDepthBuffer->Desc.Extent,
+			SceneTextures.SceneDepthBuffer->Desc.Extent,
 			PF_FloatRGBA,
 			FClearValueBinding::Black,
 			TexCreate_None,
@@ -139,7 +139,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	FRDGTextureRef RayDistanceTexture;
 	{
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-			SceneBlackboard.SceneDepthBuffer->Desc.Extent,
+			SceneTextures.SceneDepthBuffer->Desc.Extent,
 			PF_R16F,
 			FClearValueBinding::Black,
 			TexCreate_None,
@@ -172,7 +172,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		LightSceneProxy->GetLightShaderParameters(PassParameters->Light);
 		PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-		PassParameters->SceneBlackboard = SceneBlackboard;
+		PassParameters->SceneTextures = SceneTextures;
 		PassParameters->LightScissor = ScissorRect;
 		
 		FOcclusionRGS::FPermutationDomain PermutationVector;

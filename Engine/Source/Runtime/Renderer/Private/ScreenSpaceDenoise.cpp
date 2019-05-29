@@ -12,7 +12,7 @@
 #include "ScenePrivate.h"
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
-#include "SceneViewFamilyBlackboard.h"
+#include "SceneTextureParameters.h"
 #include "BlueNoise.h"
 #include "Halton.h"
 
@@ -452,7 +452,7 @@ bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlat
 
 /** Shader parameter structure used for all shaders. */
 BEGIN_SHADER_PARAMETER_STRUCT(FSSDCommonParameters, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneViewFamilyBlackboard, SceneBlackboard)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TileClassificationTexture)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -776,7 +776,7 @@ static FSSDSignalTextures CopyAndBackfillSignalInput(const FSSDSignalTextures& S
 static void DenoiseSignalAtConstantPixelDensity(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FSceneViewFamilyBlackboard& SceneBlackboard,
+	const FSceneTextureParameters& SceneTextures,
 	const FSSDSignalTextures& InputSignal,
 	FSSDConstantPixelDensitySettings Settings,
 	TStaticArray<FScreenSpaceFilteringHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevFilteringHistory,
@@ -824,7 +824,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		};
 
 		FRDGTextureDesc RefDesc = FRDGTextureDesc::Create2DDesc(
-			SceneBlackboard.SceneDepthBuffer->Desc.Extent,
+			SceneTextures.SceneDepthBuffer->Desc.Extent,
 			PF_Unknown,
 			FClearValueBinding::Black,
 			/* InFlags = */ TexCreate_None,
@@ -911,7 +911,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 	// Setup common shader parameters.
 	FSSDCommonParameters CommonParameters;
 	{
-		CommonParameters.SceneBlackboard = SceneBlackboard;
+		CommonParameters.SceneTextures = SceneTextures;
 		CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 		CommonParameters.EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
 	}
@@ -1249,20 +1249,20 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 		// Keep depth buffer and GBuffer around for next frame.
 		{
-			GraphBuilder.QueueTextureExtraction(SceneBlackboard.SceneDepthBuffer, &View.ViewState->PrevFrameViewInfo.DepthBuffer);
+			GraphBuilder.QueueTextureExtraction(SceneTextures.SceneDepthBuffer, &View.ViewState->PrevFrameViewInfo.DepthBuffer);
 
 			// Requires the normal that are in GBuffer A.
 			if (Settings.SignalProcessing == ESignalProcessing::Reflections ||
 				Settings.SignalProcessing == ESignalProcessing::AmbientOcclusion ||
 				Settings.SignalProcessing == ESignalProcessing::DiffuseIndirect)
 			{
-				GraphBuilder.QueueTextureExtraction(SceneBlackboard.SceneGBufferA, &View.ViewState->PrevFrameViewInfo.GBufferA);
+				GraphBuilder.QueueTextureExtraction(SceneTextures.SceneGBufferA, &View.ViewState->PrevFrameViewInfo.GBufferA);
 			}
 
 			// Reflections requires the roughness that is in GBuffer B.
 			if (Settings.SignalProcessing == ESignalProcessing::Reflections)
 			{
-				GraphBuilder.QueueTextureExtraction(SceneBlackboard.SceneGBufferB, &View.ViewState->PrevFrameViewInfo.GBufferB);
+				GraphBuilder.QueueTextureExtraction(SceneTextures.SceneGBufferB, &View.ViewState->PrevFrameViewInfo.GBufferB);
 			}
 		}
 
@@ -1367,7 +1367,7 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
-		const FSceneViewFamilyBlackboard& SceneBlackboard,
+		const FSceneTextureParameters& SceneTextures,
 		const TStaticArray<FShadowParameters, IScreenSpaceDenoiser::kMaxBatchSize>& InputParameters,
 		const int32 InputParameterCount,
 		TStaticArray<FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize>& Outputs) const override
@@ -1421,7 +1421,7 @@ public:
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
-			GraphBuilder, View, SceneBlackboard,
+			GraphBuilder, View, SceneTextures,
 			InputSignal, Settings,
 			PrevHistories,
 			NewHistories,
@@ -1438,7 +1438,7 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
-		const FSceneViewFamilyBlackboard& SceneBlackboard,
+		const FSceneTextureParameters& SceneTextures,
 		const FReflectionsInputs& ReflectionInputs,
 		const FReflectionsRayTracingConfig RayTracingConfig) const override
 	{
@@ -1463,7 +1463,7 @@ public:
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
-			GraphBuilder, View, SceneBlackboard,
+			GraphBuilder, View, SceneTextures,
 			InputSignal, Settings,
 			PrevHistories,
 			NewHistories,
@@ -1478,7 +1478,7 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
-		const FSceneViewFamilyBlackboard& SceneBlackboard,
+		const FSceneTextureParameters& SceneTextures,
 		const FAmbientOcclusionInputs& ReflectionInputs,
 		const FAmbientOcclusionRayTracingConfig RayTracingConfig) const override
 	{
@@ -1504,7 +1504,7 @@ public:
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
-			GraphBuilder, View, SceneBlackboard,
+			GraphBuilder, View, SceneTextures,
 			InputSignal, Settings,
 			PrevHistories,
 			NewHistories,
@@ -1519,7 +1519,7 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
-		const FSceneViewFamilyBlackboard& SceneBlackboard,
+		const FSceneTextureParameters& SceneTextures,
 		const FDiffuseIndirectInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const override
 	{
@@ -1546,7 +1546,7 @@ public:
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
-			GraphBuilder, View, SceneBlackboard,
+			GraphBuilder, View, SceneTextures,
 			InputSignal, Settings,
 			PrevHistories,
 			NewHistories,
@@ -1561,7 +1561,7 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
-		const FSceneViewFamilyBlackboard& SceneBlackboard,
+		const FSceneTextureParameters& SceneTextures,
 		const FDiffuseIndirectInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const override
 	{
@@ -1588,7 +1588,7 @@ public:
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
-			GraphBuilder, View, SceneBlackboard,
+			GraphBuilder, View, SceneTextures,
 			InputSignal, Settings,
 			PrevHistories,
 			NewHistories,

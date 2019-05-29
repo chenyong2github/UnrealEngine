@@ -14,8 +14,8 @@ class FViewInfo;
 
 /** Contains reference on all available buffer for a given scene. */
 // TODO: rename to FSceneTextureParemeters
-BEGIN_SHADER_PARAMETER_STRUCT(FSceneViewFamilyBlackboard, )
-	// FSceneViewFamilyBlackboard::SceneLightingChannels needs to be accessed with SceneLightingChannels.Load(), so a shader accessing
+BEGIN_SHADER_PARAMETER_STRUCT(FSceneTextureParameters, )
+	// FSceneTextureParameters::SceneLightingChannels needs to be accessed with SceneLightingChannels.Load(), so a shader accessing
 	// needs to know when it not valid since SceneLightingChannels could end up being a dummy system texture.
 	SHADER_PARAMETER(uint32, bIsSceneLightingChannelsValid)
 
@@ -30,7 +30,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSceneViewFamilyBlackboard, )
 END_SHADER_PARAMETER_STRUCT()
 
 
-/** Contains reference on all samplers for FSceneViewFamilyBlackboard for platforms not supporting shared samplers. */
+/** Contains reference on all samplers for FSceneTextureParameters for platforms not supporting shared samplers. */
 BEGIN_SHADER_PARAMETER_STRUCT(FSceneTextureSamplerParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthBufferSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneVelocityBufferSampler)
@@ -46,9 +46,9 @@ END_SHADER_PARAMETER_STRUCT()
  *
  * Note: Once the entire renderer is built with a single render graph, would no longer need this function.
  */
-void SetupSceneViewFamilyBlackboard(
+void SetupSceneTextureParameters(
 	FRDGBuilder& GraphBuilder,
-	FSceneViewFamilyBlackboard* OutBlackboard);
+	FSceneTextureParameters* OutTextures);
 
 /** Sets up all the samplers. */
 void SetupSceneTextureSamplers(FSceneTextureSamplerParameters* OutSamplers);

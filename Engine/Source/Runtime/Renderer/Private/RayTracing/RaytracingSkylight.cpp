@@ -21,7 +21,7 @@ static int32 GRayTracingSkyLight = 0;
 #include "RenderTargetPool.h"
 #include "VisualizeTexture.h"
 #include "RayGenShaderUtils.h"
-#include "SceneViewFamilyBlackboard.h"
+#include "SceneTextureParameters.h"
 #include "ScreenSpaceDenoise.h"
 
 #include "Raytracing/RaytracingOptions.h"
@@ -808,8 +808,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	}
 
 	FRDGBuilder GraphBuilder(RHICmdList);
-	FSceneViewFamilyBlackboard SceneBlackboard;
-	SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+	FSceneTextureParameters SceneTextures;
+	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
 	// Define RDG targets
 	FRDGTextureRef SkyLightTexture;
@@ -835,8 +835,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	SkyLightData.MaxRayDistance = GRayTracingSkyLightMaxRayDistance;
 	SkyLightData.SamplingStopLevel = GRayTracingSkyLightSamplingStopLevel;
 
-	FSceneTexturesUniformParameters SceneTextures;
-	SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, SceneTextures);
+	FSceneTexturesUniformParameters SceneUniformTextures;
+	SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, SceneUniformTextures);
 
 	TRefCountPtr<IPooledRenderTarget> SubsurfaceProfileRT((IPooledRenderTarget*)GetSubsufaceProfileTexture_RT(RHICmdList));
 	if (!SubsurfaceProfileRT)
@@ -848,7 +848,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	FRayTracingSkyLightRGS::FParameters *PassParameters = GraphBuilder.AllocParameters<FRayTracingSkyLightRGS::FParameters>();
 	PassParameters->RWOcclusionMaskUAV = GraphBuilder.CreateUAV(SkyLightTexture);
 	PassParameters->RWRayDistanceUAV = GraphBuilder.CreateUAV(RayDistanceTexture);
-	PassParameters->SceneTexturesStruct = CreateUniformBufferImmediate(SceneTextures, EUniformBufferUsage::UniformBuffer_SingleDraw);
+	PassParameters->SceneTexturesStruct = CreateUniformBufferImmediate(SceneUniformTextures, EUniformBufferUsage::UniformBuffer_SingleDraw);
 	PassParameters->SkyLightData = CreateUniformBufferImmediate(SkyLightData, EUniformBufferUsage::UniformBuffer_SingleDraw);
 	PassParameters->SSProfilesTexture = GraphBuilder.RegisterExternalTexture(SubsurfaceProfileRT);
 	PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -921,7 +921,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 					GraphBuilder,
 					View,
 					&View.PrevViewInfo,
-					SceneBlackboard,
+					SceneTextures,
 					DenoiserInputs,
 					RayTracingConfig);
 

@@ -8,7 +8,7 @@
 class FViewInfo;
 struct FPreviousViewInfo;
 class FLightSceneInfo;
-class FSceneViewFamilyBlackboard;
+class FSceneTextureParameters;
 
 
 /** Interface for denoiser to have all hook in the renderer. */
@@ -108,7 +108,7 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
-		const FSceneViewFamilyBlackboard& SceneBlackboard,
+		const FSceneTextureParameters& SceneTextures,
 		const TStaticArray<FShadowParameters, IScreenSpaceDenoiser::kMaxBatchSize>& InputParameters,
 		const int32 InputParameterCount,
 		TStaticArray<FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize>& Outputs) const = 0;
@@ -130,7 +130,7 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
-		const FSceneViewFamilyBlackboard& SceneBlackboard,
+		const FSceneTextureParameters& SceneTextures,
 		const FReflectionsInputs& ReflectionInputs,
 		const FReflectionsRayTracingConfig RayTracingConfig) const = 0;
 	
@@ -152,7 +152,7 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
-		const FSceneViewFamilyBlackboard& SceneBlackboard,
+		const FSceneTextureParameters& SceneTextures,
 		const FAmbientOcclusionInputs& ReflectionInputs,
 		const FAmbientOcclusionRayTracingConfig RayTracingConfig) const = 0;
 
@@ -174,7 +174,7 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
-		const FSceneViewFamilyBlackboard& SceneBlackboard,
+		const FSceneTextureParameters& SceneTextures,
 		const FDiffuseIndirectInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const = 0;
 
@@ -183,7 +183,7 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
-		const FSceneViewFamilyBlackboard& SceneBlackboard,
+		const FSceneTextureParameters& SceneTextures,
 		const FDiffuseIndirectInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const = 0;
 

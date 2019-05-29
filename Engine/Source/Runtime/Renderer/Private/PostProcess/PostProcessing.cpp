@@ -55,7 +55,7 @@
 #include "DeferredShadingRenderer.h"
 #include "MobileSeparateTranslucencyPass.h"
 #include "MobileDistortionPass.h"
-#include "SceneViewFamilyBlackboard.h"
+#include "SceneTextureParameters.h"
 #include "PixelShaderUtils.h"
 
 /** The global center for all post processing activities. */
@@ -1410,8 +1410,8 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 				{
 					FRDGBuilder GraphBuilder(InContext.RHICmdList);
 
-					FSceneViewFamilyBlackboard SceneBlackboard;
-					SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+					FSceneTextureParameters SceneTextures;
+					SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 	
 					FRDGTextureRef SceneColor = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
 					FRDGTextureRef LocalSeparateTranslucency = Pass->CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"));
@@ -1419,7 +1419,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					// FPostProcessing::Process() does a AdjustGBufferRefCount(RHICmdList, -1), therefore need to pass down reference on velocity buffer manually.
 					if (FRDGTextureRef SceneVelocityBuffer = Pass->CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input2, TEXT("SceneVelocity")))
 					{
-						SceneBlackboard.SceneVelocityBuffer = SceneVelocityBuffer;
+						SceneTextures.SceneVelocityBuffer = SceneVelocityBuffer;
 					}
 
 					FRDGTextureRef NewSceneColor = SceneColor;
@@ -1428,7 +1428,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					{
 						NewSceneColor = DiaphragmDOF::AddPasses(
 							GraphBuilder,
-							SceneBlackboard, InContext.View,
+							SceneTextures, InContext.View,
 							SceneColor, LocalSeparateTranslucency);
 					}
 
@@ -1800,8 +1800,8 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 				{
 					FRDGBuilder GraphBuilder(InContext.RHICmdList);
 
-					FSceneViewFamilyBlackboard SceneBlackboard;
-					SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+					FSceneTextureParameters SceneTextures;
+					SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 	
 					FRDGTextureRef SceneColor = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
 					FRDGTextureRef LocalSeparateTranslucency = Pass->CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"));

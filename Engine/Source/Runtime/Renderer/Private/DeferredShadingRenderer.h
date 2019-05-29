@@ -16,7 +16,7 @@
 #include "DepthRendering.h"
 #include "ScreenSpaceDenoise.h"
 
-class FSceneViewFamilyBlackboard;
+class FSceneTextureParameters;
 
 class FDistanceFieldAOParameters;
 class UStaticMeshComponent;
@@ -440,7 +440,7 @@ private:
 	/** Render image based reflections (SSR, Env, SkyLight) without compute shaders */
 	void RenderStandardDeferredImageBasedReflections(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, bool bReflectionEnv, const TRefCountPtr<IPooledRenderTarget>& DynamicBentNormalAO, TRefCountPtr<IPooledRenderTarget>& VelocityRT);
 
-	void RenderDeferredPlanarReflections(FRDGBuilder& GraphBuilder, const FSceneViewFamilyBlackboard& SceneTextures, const FViewInfo& View, FRDGTextureRef& ReflectionsOutput);
+	void RenderDeferredPlanarReflections(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTextures, const FViewInfo& View, FRDGTextureRef& ReflectionsOutput);
 
 	bool ShouldDoReflectionEnvironment() const;
 	
@@ -472,7 +472,7 @@ private:
 
 	void RenderRayTracingShadows(
 		FRDGBuilder& GraphBuilder,
-		const FSceneViewFamilyBlackboard& SceneBlackboard,
+		const FSceneTextureParameters& SceneTextures,
 		const FViewInfo& View,
 		const FLightSceneInfo& LightSceneInfo,
 		const IScreenSpaceDenoiser::FShadowRayTracingConfig& RayTracingConfig,

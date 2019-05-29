@@ -6,7 +6,7 @@
 #include "ScreenSpaceDenoise.h"
 
 class FViewInfo;
-class FSceneViewFamilyBlackboard;
+class FSceneTextureParameters;
 
 enum class ESSRQuality
 {
@@ -28,7 +28,7 @@ bool IsSSRTemporalPassRequired(const FViewInfo& View);
 
 void RenderScreenSpaceReflections(
 	FRDGBuilder& GraphBuilder,
-	const FSceneViewFamilyBlackboard& SceneBlackboard,
+	const FSceneTextureParameters& SceneTextures,
 	const FRDGTextureRef CurrentSceneColor,
 	const FViewInfo& View,
 	ESSRQuality SSRQuality,

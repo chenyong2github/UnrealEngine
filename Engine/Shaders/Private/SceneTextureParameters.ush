@@ -1,9 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	SceneViewFamilyBlackboard.ush: 
-=============================================================================*/
-
 #pragma once
 
 #include "SceneTexturesCommon.ush"
@@ -11,7 +7,7 @@
 
 uint bIsSceneLightingChannelsValid;
 
-// Matches FSceneViewFamilyBlackboard
+// Matches FSceneTextureParameters
 Texture2D SceneDepthBuffer;
 Texture2D SceneVelocityBuffer;
 Texture2D SceneGBufferA;
@@ -44,7 +40,7 @@ SamplerState SceneGBufferESampler;
 
 // @param UV - UV space in the GBuffer textures (BufferSize resolution)
 // TOOD: need to find a way to make this more convenient.
-FGBufferData GetGBufferDataFromSceneBlackboard(float2 UV, bool bGetNormalizedNormal = true)
+FGBufferData GetGBufferDataFromSceneTextures(float2 UV, bool bGetNormalizedNormal = true)
 {
 	float4 GBufferA = SceneGBufferA.SampleLevel(SceneGBufferASampler, UV, 0);
 	float4 GBufferB = SceneGBufferB.SampleLevel(SceneGBufferBSampler, UV, 0);

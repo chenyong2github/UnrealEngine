@@ -4,7 +4,7 @@
 #include "../MonteCarlo.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../LightShaderParameters.ush"
-#include "../SceneViewFamilyBlackboard.ush"
+#include "../SceneTextureParameters.ush"
 #include "../ScreenSpaceDenoise/SSDPublic.ush"
 #include "../SobolRandom.ush"
 #include "RayTracingCommon.ush"
@@ -133,7 +133,7 @@ void OcclusionRGS()
 		// Get G-Buffer surface data
 		float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 		float2 BufferUV = (float2(PixelCoord) + 0.5) * InvBufferSize;
-		FGBufferData GBufferData = GetGBufferDataFromSceneBlackboard(BufferUV);
+		FGBufferData GBufferData = GetGBufferDataFromSceneTextures(BufferUV);
 		float Depth = GBufferData.Depth;
 		float3 WorldPosition = ReconstructWorldPositionFromDepth(BufferUV, Depth);
 		float3 WorldNormal = GBufferData.WorldNormal;

@@ -13,7 +13,7 @@
 #include "UniformBuffer.h"
 #include "RayGenShaderUtils.h"
 #include "PathTracingUniformBuffers.h"
-#include "SceneViewFamilyBlackboard.h"
+#include "SceneTextureParameters.h"
 #include "ScreenSpaceDenoise.h"
 #include "ClearQuad.h"
 #include "PostProcess/PostProcessing.h"
@@ -512,8 +512,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 
 	if (GRayTracingGlobalIlluminationDenoiser != 0)
 	{
-		FSceneViewFamilyBlackboard SceneBlackboard;
-		SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+		FSceneTextureParameters SceneTextures;
+		SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
 		const IScreenSpaceDenoiser* DefaultDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
 		const IScreenSpaceDenoiser* DenoiserToUse = GRayTracingGlobalIlluminationDenoiser == 1 ? DefaultDenoiser : GScreenSpaceDenoiser;
@@ -532,7 +532,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 				GraphBuilder,
 				View,
 				&View.PrevViewInfo,
-				SceneBlackboard,
+				SceneTextures,
 				DenoiserInputs,
 				RayTracingConfig);
 

@@ -18,7 +18,7 @@
 #include "ClearQuad.h"
 #include "SpriteIndexBuffer.h"
 #include "PostProcessTemporalAA.h"
-#include "SceneViewFamilyBlackboard.h"
+#include "SceneTextureParameters.h"
 
 
 void AddPass_ClearUAV(
@@ -1252,7 +1252,7 @@ IMPLEMENT_GLOBAL_SHADER(FDiaphragmDOFRecombineCS,        "/Engine/Private/Diaphr
 
 FRDGTextureRef DiaphragmDOF::AddPasses(
 	FRDGBuilder& GraphBuilder,
-	const FSceneViewFamilyBlackboard& SceneBlackboard,
+	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	FRDGTextureRef InputSceneColor,
 	FRDGTextureRef SceneSeparateTranslucency)
@@ -1506,7 +1506,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->ViewportRect = FVector4(0, 0, PassViewSize.X, PassViewSize.Y);
 			PassParameters->CocRadiusBasis = FVector2D(GatheringViewSize.X, PreprocessViewSize.X);
 			PassParameters->SceneColorTexture = InputSceneColor;
-			PassParameters->SceneDepthTexture = SceneBlackboard.SceneDepthBuffer;
+			PassParameters->SceneDepthTexture = SceneTextures.SceneDepthBuffer;
 		
 			if (!bOutputFullResolution)
 			{
@@ -1557,7 +1557,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		TAAParameters.SceneMetadataInput = HalfResGatherInputTextures.SeparateCoc;
 
 		FTAAOutputs TAAOutputs = TAAParameters.AddTemporalAAPass(
-			GraphBuilder, SceneBlackboard, View,
+			GraphBuilder, SceneTextures, View,
 			View.PrevViewInfo.DOFSetupHistory,
 			&ViewState->PrevFrameViewInfo.DOFSetupHistory);
 		
@@ -2420,7 +2420,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			(GatheringViewSize.Y - 0.5f) / float(RefBufferSize.Y));
 		
 		PassParameters->SceneColorInput = FullResGatherInputTextures.SceneColor;
-		PassParameters->SceneDepthTexture = SceneBlackboard.SceneDepthBuffer;
+		PassParameters->SceneDepthTexture = SceneTextures.SceneDepthBuffer;
 		PassParameters->SceneSeparateCoc = FullResGatherInputTextures.SeparateCoc; // TODO looks useless.
 		PassParameters->SceneSeparateTranslucency = SceneSeparateTranslucency ? SceneSeparateTranslucency : GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackAlphaOneDummy);
 		

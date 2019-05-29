@@ -16,7 +16,7 @@
 #include "ShowFlags.h"
 #include "VisualizeTexture.h"
 #include "RayTracing/RaytracingOptions.h"
-#include "SceneViewFamilyBlackboard.h"
+#include "SceneTextureParameters.h"
 
 // ENABLE_DEBUG_DISCARD_PROP is used to test the lighting code by allowing to discard lights to see how performance scales
 // It ought never to be enabled in a shipping build, and is probably only really useful when woring on the shading code.
@@ -948,8 +948,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 
 				FRDGBuilder GraphBuilder(RHICmdList);
 
-				FSceneViewFamilyBlackboard SceneBlackboard;
-				SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+				FSceneTextureParameters SceneTextures;
+				SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
 				FViewInfo& View = Views[0];
 
@@ -999,7 +999,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 							GraphBuilder,
 							View,
 							&View.PrevViewInfo,
-							SceneBlackboard,
+							SceneTextures,
 							DenoisingQueue,
 							InputParameterCount,
 							Outputs);
@@ -1061,7 +1061,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 
 							RenderRayTracingShadows(
 								GraphBuilder,
-								SceneBlackboard,
+								SceneTextures,
 								View,
 								LightSceneInfo,
 								RayTracingConfig,
@@ -1159,14 +1159,14 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 
 						FRDGBuilder GraphBuilder(RHICmdList);
 
-						FSceneViewFamilyBlackboard SceneBlackboard;
-						SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+						FSceneTextureParameters SceneTextures;
+						SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
 						FRDGTextureRef ShadowMask;
 						FRDGTextureRef RayHitDistance;
 							RenderRayTracingShadows(
 								GraphBuilder,
-								SceneBlackboard,
+								SceneTextures,
 								View,
 								LightSceneInfo,
 								RayTracingConfig,
@@ -1196,7 +1196,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 									GraphBuilder,
 									View,
 									&View.PrevViewInfo,
-									SceneBlackboard,
+									SceneTextures,
 									InputParameters,
 									InputParameterCount,
 									Outputs);

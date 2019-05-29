@@ -7,7 +7,7 @@
 #include "Common.ush"
 #include "DeferredShadingCommon.ush"
 #include "PlanarReflectionShared.ush"
-#include "SceneViewFamilyBlackboard.ush"
+#include "SceneTextureParameters.ush"
 
 Texture2D SceneColorInputTexture;
 SamplerState SceneColorInputSampler;
@@ -133,7 +133,7 @@ void PlanarReflectionPS(
 	ResolvedView = ResolveView();
 	OutColor = 0;
 
-	FGBufferData GBuffer = GetGBufferDataFromSceneBlackboard(BufferUV);
+	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 
 	float3 WorldPosition = ScreenVector * GBuffer.Depth + View.WorldCameraOrigin;
 

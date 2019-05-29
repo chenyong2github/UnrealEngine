@@ -4,42 +4,42 @@
 	DeferredShadingRenderer.h: Scene rendering definitions.
 =============================================================================*/
 
-#include "SceneViewFamilyBlackboard.h"
+#include "SceneTextureParameters.h"
 #include "SceneRendering.h"
 #include "SceneRenderTargets.h"
 #include "SystemTextures.h"
 
 
-void SetupSceneViewFamilyBlackboard(
+void SetupSceneTextureParameters(
 	FRDGBuilder& GraphBuilder,
-	FSceneViewFamilyBlackboard* OutBlackboard)
+	FSceneTextureParameters* OutTextures)
 {
 	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
-	*OutBlackboard = FSceneViewFamilyBlackboard();
+	*OutTextures = FSceneTextureParameters();
 
 	// Should always have a depth buffer around allocated, since early z-pass is first.
-	OutBlackboard->SceneDepthBuffer = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ);
+	OutTextures->SceneDepthBuffer = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ);
 
 	// Registers all the scene texture from the scene context. No fallback is provided to catch mistake at shader parameter validation time
 	// when a pass is trying to access a resource before any other pass actually created it.
-	OutBlackboard->SceneVelocityBuffer = SceneContext.SceneVelocity ? GraphBuilder.RegisterExternalTexture(SceneContext.SceneVelocity) : nullptr;
-	OutBlackboard->SceneGBufferA = SceneContext.GBufferA ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferA) : nullptr;
-	OutBlackboard->SceneGBufferB = SceneContext.GBufferB ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferB) : nullptr;
-	OutBlackboard->SceneGBufferC = SceneContext.GBufferC ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferC) : nullptr;
-	OutBlackboard->SceneGBufferD = SceneContext.GBufferD ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferD) : nullptr;
-	OutBlackboard->SceneGBufferE = SceneContext.GBufferE ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferE) : nullptr;
+	OutTextures->SceneVelocityBuffer = SceneContext.SceneVelocity ? GraphBuilder.RegisterExternalTexture(SceneContext.SceneVelocity) : nullptr;
+	OutTextures->SceneGBufferA = SceneContext.GBufferA ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferA) : nullptr;
+	OutTextures->SceneGBufferB = SceneContext.GBufferB ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferB) : nullptr;
+	OutTextures->SceneGBufferC = SceneContext.GBufferC ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferC) : nullptr;
+	OutTextures->SceneGBufferD = SceneContext.GBufferD ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferD) : nullptr;
+	OutTextures->SceneGBufferE = SceneContext.GBufferE ? GraphBuilder.RegisterExternalTexture(SceneContext.GBufferE) : nullptr;
 
 	// Ligthing channels might be disabled when all lights are on the same channel.
 	if (SceneContext.LightingChannels)
 	{
-		OutBlackboard->SceneLightingChannels = GraphBuilder.RegisterExternalTexture(SceneContext.LightingChannels, TEXT("LightingChannels"));
-		OutBlackboard->bIsSceneLightingChannelsValid = true;
+		OutTextures->SceneLightingChannels = GraphBuilder.RegisterExternalTexture(SceneContext.LightingChannels, TEXT("LightingChannels"));
+		OutTextures->bIsSceneLightingChannelsValid = true;
 	}
 	else
 	{
-		OutBlackboard->SceneLightingChannels = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy, TEXT("LightingChannels"));
-		OutBlackboard->bIsSceneLightingChannelsValid = false;
+		OutTextures->SceneLightingChannels = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy, TEXT("LightingChannels"));
+		OutTextures->bIsSceneLightingChannelsValid = false;
 	}
 }
 

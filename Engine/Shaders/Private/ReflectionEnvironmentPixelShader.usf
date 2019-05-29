@@ -12,7 +12,7 @@
 #include "DistanceFieldAOShared.ush"
 #include "ShadingModels.ush"
 #include "LightGridCommon.ush"
-#include "SceneViewFamilyBlackboard.ush"
+#include "SceneTextureParameters.ush"
 
 #define REFLECTION_COMPOSITE_USE_BLENDED_REFLECTION_CAPTURES 1
 #define REFLECTION_COMPOSITE_SUPPORT_SKYLIGHT_BLEND 1
@@ -303,7 +303,7 @@ void ReflectionEnvironmentSkyLighting(
 	float2 ScreenPosition = SvPositionToScreenPosition(SvPosition).xy;
 
 	// Sample scene textures.
-	FGBufferData GBuffer = GetGBufferDataFromSceneBlackboard(BufferUV);
+	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 
 	// Sample the ambient occlusion that is dynamically generated every frame.
 	float AmbientOcclusion = AmbientOcclusionTexture.SampleLevel(AmbientOcclusionSampler, BufferUV, 0).r;

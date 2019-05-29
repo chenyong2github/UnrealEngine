@@ -5,7 +5,7 @@
 #include "PixelShaderUtils.h"
 #include "ScreenPass.h"
 #include "ScenePrivate.h"
-#include "SceneViewFamilyBlackboard.h"
+#include "SceneTextureParameters.h"
 
 
 static TAutoConsoleVariable<int32> CVarSSRQuality(
@@ -154,7 +154,7 @@ FLinearColor ComputeSSRParams(const FViewInfo& View, ESSRQuality SSRQuality, boo
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSSRCommonParameters, )
 	SHADER_PARAMETER(FLinearColor, SSRParams)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneViewFamilyBlackboard, SceneTextures)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 END_SHADER_PARAMETER_STRUCT()
@@ -322,7 +322,7 @@ void GetSSRQualityForView(const FViewInfo& View, ESSRQuality* OutQuality, IScree
 
 void RenderScreenSpaceReflections(
 	FRDGBuilder& GraphBuilder,
-	const FSceneViewFamilyBlackboard& SceneTextures,
+	const FSceneTextureParameters& SceneTextures,
 	const FRDGTextureRef CurrentSceneColor,
 	const FViewInfo& View,
 	ESSRQuality SSRQuality,

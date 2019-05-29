@@ -4,7 +4,7 @@
 #include "../Random.ush"
 #include "../BRDF.ush"
 #include "../MonteCarlo.ush"
-#include "../SceneViewFamilyBlackboard.ush"
+#include "../SceneTextureParameters.ush"
 #include "../ScreenSpaceDenoise/SSDPublic.ush"
 
 // Generate vector truncation warnings to errors.
@@ -74,7 +74,7 @@ void ScreenSpaceReflectionsStencilPS(
 {
 	float2 UV = SvPosition.xy * View.BufferSizeAndInvSize.zw;
 	
-	FGBufferData GBuffer = GetGBufferDataFromSceneBlackboard(UV);
+	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(UV);
 	
 	const float Roughness = GetRoughness(GBuffer);
 	const float RoughnessFade = GetRoughnessFade(Roughness);
@@ -113,7 +113,7 @@ void ScreenSpaceReflectionsPS(
 		OutClosestHitDistance = -2.0;
 	#endif
 
-	FGBufferData GBuffer = GetGBufferDataFromSceneBlackboard(UV);
+	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(UV);
 	
 	float Roughness = GetRoughness(GBuffer);
 	float RoughnessFade = GetRoughnessFade(Roughness);

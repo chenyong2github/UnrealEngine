@@ -11,7 +11,7 @@
 #endif
 
 #include "../Common.ush"
-#include "../SceneViewFamilyBlackboard.ush"
+#include "../SceneTextureParameters.ush"
 #include "../ColorSpace.ush"
 #include "../SphericalGaussian.ush"
 
@@ -122,7 +122,7 @@ FSSDSampleSceneInfos InitSampleSceneInfos(
 
 FSSDSampleSceneInfos FetchCurrentSceneInfos(float2 ScreenPosition, float2 BufferUV)
 {
-	FGBufferData GBufferData = GetGBufferDataFromSceneBlackboard(BufferUV);
+	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(BufferUV);
 	return InitSampleSceneInfos(
 		View.ScreenToTranslatedWorld,
 		ScreenPosition, GBufferData.Depth, GBufferData.WorldNormal, GBufferData.Roughness);
