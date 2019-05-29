@@ -88,6 +88,15 @@ namespace MetadataTool
 				State = new BuildHealthState();
 			}
 
+			// Fixup any issues loaded from disk
+			foreach(BuildHealthIssue Issue in State.Issues)
+			{
+				if(Issue.References == null)
+				{
+					Issue.References = new SortedSet<string>();
+				}
+			}
+
 			// Create the Perforce connection
 			PerforceConnection Perforce = new PerforceConnection(PerforcePort, PerforceUser, null);
 
