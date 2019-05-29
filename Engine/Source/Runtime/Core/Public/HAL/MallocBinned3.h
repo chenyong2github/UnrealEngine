@@ -1,10 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreTypes.h"
 
-#if PLATFORM_64BITS
+#if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
+#include "HAL/MallocBinnedCommon.h"
 #include "Misc/AssertionMacros.h"
 #include "HAL/MemoryBase.h"
 #include "HAL/UnrealMemory.h"
@@ -17,18 +18,19 @@
 #include "HAL/PlatformMath.h"
 #include "HAL/LowLevelMemTracker.h"
 
+#define USE_CACHED_PAGE_ALLOCATOR_FOR_LARGE_ALLOCS (0)
+
+
 #define BINNED3_BASE_PAGE_SIZE				4096			// Minimum "page size" for binned3
-#define BINNED3_MAX_PAGE_SIZE				16384			// Maximum "page size" for binned3
 #define BINNED3_MINIMUM_ALIGNMENT_SHIFT		4				// Alignment of blocks, expressed as a shift
 #define BINNED3_MINIMUM_ALIGNMENT			16				// Alignment of blocks
-#define BINNED3_MAX_LISTED_SMALL_POOL_SIZE	28672			// Maximum block size in GMallocBinned3SmallBlockSizes
-#define BINNED3_MAX_SMALL_POOL_SIZE			(128 * 1024)		// Maximum medium block size
-#define BINNED3_SMALL_POOL_COUNT			(49 + (BINNED3_MAX_SMALL_POOL_SIZE - BINNED3_MAX_LISTED_SMALL_POOL_SIZE) / BINNED3_BASE_PAGE_SIZE)
-#if PLATFORM_SWITCH
-	#define MAX_MEMORY_PER_BLOCK_SIZE_SHIFT (29) // maximum of 512MB per block size
+#if USE_CACHED_PAGE_ALLOCATOR_FOR_LARGE_ALLOCS
+#define BINNED3_MAX_SMALL_POOL_SIZE			(BINNEDCOMMON_MAX_LISTED_SMALL_POOL_SIZE)	// Maximum medium block size
 #else
-	#define MAX_MEMORY_PER_BLOCK_SIZE_SHIFT (30) // maximum of 1GB per block size
+#define BINNED3_MAX_SMALL_POOL_SIZE			(128 * 1024)	// Maximum medium block size
 #endif
+#define BINNED3_SMALL_POOL_COUNT			(BINNEDCOMMON_NUM_LISTED_SMALL_POOLS + (BINNED3_MAX_SMALL_POOL_SIZE - BINNEDCOMMON_MAX_LISTED_SMALL_POOL_SIZE) / BINNED3_BASE_PAGE_SIZE)
+#define MAX_MEMORY_PER_BLOCK_SIZE_SHIFT (29) // maximum of 512MB per block size
 #define MAX_MEMORY_PER_BLOCK_SIZE (1ull << MAX_MEMORY_PER_BLOCK_SIZE_SHIFT) 
 
 // This choice depends on how efficient the OS is with sparse commits in large VM blocks
@@ -39,7 +41,6 @@
 #endif
 
 #define DEFAULT_GMallocBinned3PerThreadCaches 1
-#define DEFAULT_GMallocBinned3LockFreeCaches 0
 #define DEFAULT_GMallocBinned3BundleCount 64
 #define DEFAULT_GMallocBinned3AllocExtra 32
 #define BINNED3_MAX_GMallocBinned3MaxBundlesBeforeRecycle 8
@@ -88,30 +89,6 @@
 #else
 	#define BINNED3_ALLOCATOR_PER_BIN_STATS 0
 #endif
-
-class FBitTree
-{
-	uint64* Bits; // one bits in middle layers mean "all allocated"
-	uint32 Capacity; // rounded up to a power of two
-	uint32 DesiredCapacity;
-	uint32 Rows;
-	uint32 OffsetOfLastRow;
-	uint32 AllocationSize;
-
-public:
-	FBitTree()
-		: Bits(nullptr)
-	{
-	}
-
-	void FBitTreeInit(uint32 InDesiredCapacity, uint32 OsAllocationGranularity, bool InitialValue);
-	uint32 AllocBit();
-	void AllocBit(uint32 Index);
-	uint32 NextAllocBit();
-	void FreeBit(uint32 Index);
-	uint32 CountOnes(uint32 UpTo);
-	static void Test();
-};
 
 //
 // Optimized virtual memory allocator.
@@ -414,7 +391,7 @@ class CORE_API FMallocBinned3 final : public FMalloc
 #if BINNED3_ALLOCATOR_STATS
 	public:
 		int64 AllocatedMemory;
-		static int64 ConsolidatedMemory;
+		static TAtomic<int64> ConsolidatedMemory;
 #endif
 	private:
 		FFreeBlockList FreeLists[BINNED3_SMALL_POOL_COUNT];
@@ -700,13 +677,14 @@ public:
 	static FMallocBinned3* MallocBinned3;
 	static uint32 Binned3TlsSlot;
 	static uint32 OsAllocationGranularity;
-	static uint32 MaxAlignmentForMemoryRangeReserve;
 #if !BINNED3_USE_SEPARATE_VM_PER_POOL
 	static uint8* Binned3BaseVMPtr;
+	FPlatformMemory::FPlatformVirtualMemoryBlock Binned3BaseVMBlock;
 #else
 	static uint64 PoolSearchDiv; // if this is zero, the VM turned out to be contiguous anyway so we use a simple subtract and shift
 	static uint8* HighestPoolBaseVMPtr; // this is a duplicate of PoolBaseVMPtr[BINNED3_SMALL_POOL_COUNT - 1]
 	static uint8* PoolBaseVMPtr[BINNED3_SMALL_POOL_COUNT];
+	FPlatformMemory::FPlatformVirtualMemoryBlock PoolBaseVMBlock[BINNED3_SMALL_POOL_COUNT];
 #endif
 	// Mapping of sizes to small table indices
 	static uint8 MemSizeToIndex[1 + (BINNED3_MAX_SMALL_POOL_SIZE >> BINNED3_MINIMUM_ALIGNMENT_SHIFT)];
@@ -723,6 +701,11 @@ public:
 	{
 		return uint32(SmallBlockSizesReversedShifted[BINNED3_SMALL_POOL_COUNT - PoolIndex - 1]) << BINNED3_MINIMUM_ALIGNMENT_SHIFT;
 	}
+
+	void Commit(uint32 InPoolIndex, void *Ptr, SIZE_T Size);
+	void Decommit(uint32 InPoolIndex, void *Ptr, SIZE_T Size);
+
+	static void* AllocateMetaDataMemory(SIZE_T Size);
 };
 
 #define BINNED3_INLINE (1)

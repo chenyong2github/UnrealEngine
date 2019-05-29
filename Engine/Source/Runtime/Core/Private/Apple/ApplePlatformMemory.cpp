@@ -343,38 +343,277 @@ bool FApplePlatformMemory::PageProtect(void* const Ptr, const SIZE_T Size, const
 	return mprotect(Ptr, Size, static_cast<int32>(ProtectMode)) == 0;
 }
 
-void* FApplePlatformMemory::BinnedAllocFromOS( SIZE_T Size )
+#ifndef MALLOC_LEAKDETECTION
+	#define MALLOC_LEAKDETECTION 0
+#endif
+#define UE4_PLATFORM_REDUCE_NUMBER_OF_MAPS 0
+
+// check bookkeeping info against the passed in parameters in Debug and Development (the latter only in games and servers. also, only if leak detection is disabled, otherwise things are very slow)
+#define UE4_PLATFORM_SANITY_CHECK_OS_ALLOCATIONS			(UE_BUILD_DEBUG || (UE_BUILD_DEVELOPMENT && (UE_GAME || UE_SERVER) && !MALLOC_LEAKDETECTION))
+
+/** This structure is stored in the page after each OS allocation and checks that its properties are valid on Free. Should be less than the page size (4096 on all platforms we support) */
+struct FOSAllocationDescriptor
 {
-// Binned2 requires allocations to be BinnedPageSize-aligned. Simple mmap() does not guarantee this for recommended BinnedPageSize (64KB).
+	enum class MagicType : uint64
+	{
+		Marker = 0xd0c233ccf493dfb0
+	};
+
+	/** Magic that makes sure that we are not passed a pointer somewhere into the middle of the allocation (and/or the structure wasn't stomped). */
+	MagicType	Magic;
+
+	/** This should include the descriptor itself. */
+	void*		PointerToUnmap;
+
+	/** This should include the total size of allocation, so after unmapping it everything is gone, including the descriptor */
+	SIZE_T		SizeToUnmap;
+
+	/** Debug info that makes sure that the correct size is preserved. */
+	SIZE_T		OriginalSizeAsPassed;
+};
+
+void* _Nullable FApplePlatformMemory::BinnedAllocFromOS(SIZE_T Size)
+{
+	// Binned2 requires allocations to be BinnedPageSize-aligned. Simple mmap() does not guarantee this for recommended BinnedPageSize (64KB).
 #if USE_MALLOC_BINNED2
-    return FGenericPlatformMemory::BinnedAllocFromOS(Size);
+	static SIZE_T OSPageSize = FPlatformMemory::GetConstants().PageSize;
+	// guard against someone not passing size in whole pages
+	SIZE_T SizeInWholePages = (Size % OSPageSize) ? (Size + OSPageSize - (Size % OSPageSize)) : Size;
+	void* Pointer = nullptr;
+
+	// Binned expects OS allocations to be BinnedPageSize-aligned, and that page is at least 64KB. mmap() alone cannot do this, so carve out the needed chunks.
+	const SIZE_T ExpectedAlignment = FPlatformMemory::GetConstants().BinnedPageSize;
+	// Descriptor is only used if we're sanity checking. However, #ifdef'ing its use would make the code more fragile. Size needs to be at least one page.
+	const SIZE_T DescriptorSize = (UE4_PLATFORM_SANITY_CHECK_OS_ALLOCATIONS != 0) ? OSPageSize : 0;
+
+	SIZE_T ActualSizeMapped = SizeInWholePages + ExpectedAlignment;
+
+	// the remainder of the map will be used for the descriptor, if any.
+	// we always allocate at least one page more than needed
+	void* PointerWeGotFromMMap = mmap(nullptr, ActualSizeMapped, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+	// store these values, to unmap later
+
+	Pointer = PointerWeGotFromMMap;
+	if (Pointer == MAP_FAILED)
+	{
+		FPlatformMemory::OnOutOfMemory(ActualSizeMapped, ExpectedAlignment);
+		// unreachable
+		return nullptr;
+	}
+
+	SIZE_T Offset = (reinterpret_cast<SIZE_T>(Pointer) % ExpectedAlignment);
+
+	// See if we need to unmap anything in the front. If the pointer happened to be aligned, we don't need to unmap anything.
+	if (LIKELY(Offset != 0))
+	{
+		// figure out how much to unmap before the alignment.
+		SIZE_T SizeToNextAlignedPointer = ExpectedAlignment - Offset;
+		void* AlignedPointer = reinterpret_cast<void*>(reinterpret_cast<SIZE_T>(Pointer) + SizeToNextAlignedPointer);
+
+		// do not unmap if we're trying to reduce the number of distinct maps, since holes prevent the Linux kernel from coalescing two adjoining mmap()s into a single VMA
+		if (!UE4_PLATFORM_REDUCE_NUMBER_OF_MAPS)
+		{
+			// unmap the part before
+			if (munmap(Pointer, SizeToNextAlignedPointer) != 0)
+			{
+				FPlatformMemory::OnOutOfMemory(SizeToNextAlignedPointer, ExpectedAlignment);
+				// unreachable
+				return nullptr;
+			}
+
+			// account for reduced mmaped size
+			ActualSizeMapped -= SizeToNextAlignedPointer;
+		}
+
+		// now, make it appear as if we initially got the allocation right
+		Pointer = AlignedPointer;
+	}
+
+	// at this point, Pointer is aligned at the expected alignment - either we lucked out on the initial allocation
+	// or we already got rid of the extra memory that was allocated in the front.
+	checkf((reinterpret_cast<SIZE_T>(Pointer) % ExpectedAlignment) == 0, TEXT("BinnedAllocFromOS(): Internal error: did not align the pointer as expected."));
+
+	// do not unmap if we're trying to reduce the number of distinct maps, since holes prevent the Linux kernel from coalescing two adjoining mmap()s into a single VMA
+	if (!UE4_PLATFORM_REDUCE_NUMBER_OF_MAPS)
+	{
+		// Now unmap the tail only, if any, but leave just enough space for the descriptor
+		void* TailPtr = reinterpret_cast<void*>(reinterpret_cast<SIZE_T>(Pointer) + SizeInWholePages + DescriptorSize);
+		SIZE_T TailSize = ActualSizeMapped - SizeInWholePages - DescriptorSize;
+
+		if (LIKELY(TailSize > 0))
+		{
+			if (munmap(TailPtr, TailSize) != 0)
+			{
+				FPlatformMemory::OnOutOfMemory(TailSize, ExpectedAlignment);
+				// unreachable
+				return nullptr;
+			}
+		}
+	}
+
+	// we're done with this allocation, fill in the descriptor with the info
+	if (LIKELY(DescriptorSize > 0))
+	{
+		FOSAllocationDescriptor* AllocDescriptor = reinterpret_cast<FOSAllocationDescriptor*>(reinterpret_cast<SIZE_T>(Pointer) + Size);
+		AllocDescriptor->Magic = FOSAllocationDescriptor::MagicType::Marker;
+		if (!UE4_PLATFORM_REDUCE_NUMBER_OF_MAPS)
+		{
+			AllocDescriptor->PointerToUnmap = Pointer;
+			AllocDescriptor->SizeToUnmap = SizeInWholePages + DescriptorSize;
+		}
+		else
+		{
+			AllocDescriptor->PointerToUnmap = PointerWeGotFromMMap;
+			AllocDescriptor->SizeToUnmap = ActualSizeMapped;
+		}
+		AllocDescriptor->OriginalSizeAsPassed = Size;
+	}
+
+	LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Platform, Pointer, Size));
+	return Pointer;
 #else
-    void* Ptr = mmap(nullptr, Size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
-    if (Ptr == (void*)-1)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("mmap failure allocating %d, error code: %d"), Size, errno);
-        Ptr = nullptr;
-    }
-    LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Platform, Ptr, Size));
-    return Ptr;
+	void* Ptr = mmap(nullptr, Size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+	if (Ptr == (void*)-1)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("mmap failure allocating %d, error code: %d"), Size, errno);
+		Ptr = nullptr;
+	}
+	LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Platform, Ptr, Size));
+	return Ptr;
 #endif // USE_MALLOC_BINNED2
 }
 
-void FApplePlatformMemory::BinnedFreeToOS( void* Ptr, SIZE_T Size )
+void FApplePlatformMemory::BinnedFreeToOS(void* Ptr, SIZE_T Size)
 {
-// Binned2 requires allocations to be BinnedPageSize-aligned. Simple mmap() does not guarantee this for recommended BinnedPageSize (64KB).
+	// Binned2 requires allocations to be BinnedPageSize-aligned. Simple mmap() does not guarantee this for recommended BinnedPageSize (64KB).
 #if USE_MALLOC_BINNED2
-    return FGenericPlatformMemory::BinnedFreeToOS(Ptr, Size);
+	LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, Ptr));
+	// guard against someone not passing size in whole pages
+	static SIZE_T OSPageSize = FPlatformMemory::GetConstants().PageSize;
+	SIZE_T SizeInWholePages = (Size % OSPageSize) ? (Size + OSPageSize - (Size % OSPageSize)) : Size;
+
+	if (UE4_PLATFORM_SANITY_CHECK_OS_ALLOCATIONS)
+	{
+		const SIZE_T DescriptorSize = OSPageSize;
+
+		FOSAllocationDescriptor* AllocDescriptor = reinterpret_cast<FOSAllocationDescriptor*>(reinterpret_cast<SIZE_T>(Ptr) + Size);
+		if (UNLIKELY(AllocDescriptor->Magic != FOSAllocationDescriptor::MagicType::Marker))
+		{
+			UE_LOG(LogHAL, Fatal, TEXT("BinnedFreeToOS() has been passed an address %p (size %llu) not allocated through it."), Ptr, (uint64)Size);
+			// unreachable
+			return;
+		}
+
+		void* PointerToUnmap = AllocDescriptor->PointerToUnmap;
+		SIZE_T SizeToUnmap = AllocDescriptor->SizeToUnmap;
+
+		// do checks, from most to least serious
+		if (UE4_PLATFORM_SANITY_CHECK_OS_ALLOCATIONS != 0)
+		{
+			// this check only makes sense when we're not reducing number of maps, since the pointer will have to be different.
+			if (UNLIKELY(PointerToUnmap != Ptr || SizeToUnmap != SizeInWholePages + DescriptorSize))
+			{
+				UE_LOG(LogHAL, Fatal, TEXT("BinnedFreeToOS(): info mismatch: descriptor ptr: %p, size %llu, but our pointer is %p and size %llu."), PointerToUnmap, SizeToUnmap, AllocDescriptor, (uint64)(SizeInWholePages + DescriptorSize));
+				// unreachable
+				return;
+			}
+
+			if (UNLIKELY(AllocDescriptor->OriginalSizeAsPassed != Size))
+			{
+				UE_LOG(LogHAL, Fatal, TEXT("BinnedFreeToOS(): info mismatch: descriptor original size %llu, our size is %llu for pointer %p"), AllocDescriptor->OriginalSizeAsPassed, Size, Ptr);
+				// unreachable
+				return;
+			}
+		}
+
+		AllocDescriptor = nullptr;	// just so no one touches it
+
+		if (UNLIKELY(munmap(PointerToUnmap, SizeToUnmap) != 0))
+		{
+			FPlatformMemory::OnOutOfMemory(SizeToUnmap, 0);
+			// unreachable
+		}
+	}
+	else
+	{
+		if (UNLIKELY(munmap(Ptr, SizeInWholePages) != 0))
+		{
+			FPlatformMemory::OnOutOfMemory(SizeInWholePages, 0);
+			// unreachable
+		}
+	}
 #else
-    LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, Ptr));
-    if (munmap(Ptr, Size) != 0)
-    {
-        const int ErrNo = errno;
-        UE_LOG(LogHAL, Fatal, TEXT("munmap(addr=%p, len=%llu) failed with errno = %d (%s)"), Ptr, Size,
-               ErrNo, StringCast< TCHAR >(strerror(ErrNo)).Get());
-    }
+	LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, Ptr));
+	if (munmap(Ptr, Size) != 0)
+	{
+		const int ErrNo = errno;
+		UE_LOG(LogHAL, Fatal, TEXT("munmap(addr=%p, len=%llu) failed with errno = %d (%s)"), Ptr, Size,
+			ErrNo, StringCast< TCHAR >(strerror(ErrNo)).Get());
+	}
 #endif // USE_MALLOC_BINNED2
 }
+
+size_t FApplePlatformMemory::FPlatformVirtualMemoryBlock::GetVirtualSizeAlignment()
+{
+	static SIZE_T OSPageSize = FPlatformMemory::GetConstants().PageSize;
+	return OSPageSize;
+}
+
+size_t FApplePlatformMemory::FPlatformVirtualMemoryBlock::GetCommitAlignment()
+{
+	static SIZE_T OSPageSize = FPlatformMemory::GetConstants().PageSize;
+	return OSPageSize;
+}
+
+FApplePlatformMemory::FPlatformVirtualMemoryBlock FApplePlatformMemory::FPlatformVirtualMemoryBlock::AllocateVirtual(size_t InSize, size_t InAlignment)
+{
+	FPlatformVirtualMemoryBlock Result;
+	InSize = Align(InSize, GetVirtualSizeAlignment());
+	Result.VMSizeDivVirtualSizeAlignment = InSize / GetVirtualSizeAlignment();
+	size_t Alignment = FMath::Max(InAlignment, GetVirtualSizeAlignment());
+	check(Alignment <= GetVirtualSizeAlignment());
+
+	Result.Ptr = mmap(nullptr, Result.GetActualSize(), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+	if (!LIKELY(Result.Ptr != MAP_FAILED))
+	{
+		FPlatformMemory::OnOutOfMemory(Result.GetActualSize(), InAlignment);
+	}
+	check(Result.Ptr && IsAligned(Result.Ptr, Alignment));
+	return Result;
+}
+
+
+
+void FApplePlatformMemory::FPlatformVirtualMemoryBlock::FreeVirtual()
+{
+	if (Ptr)
+	{
+		check(GetActualSize() > 0);
+		if (munmap(Ptr, GetActualSize()) != 0)
+		{
+			// we can ran out of VMAs here
+			FPlatformMemory::OnOutOfMemory(GetActualSize(), 0);
+			// unreachable
+		}
+		Ptr = nullptr;
+		VMSizeDivVirtualSizeAlignment = 0;
+	}
+}
+
+void FApplePlatformMemory::FPlatformVirtualMemoryBlock::Commit(size_t InOffset, size_t InSize)
+{
+	check(IsAligned(InOffset, GetCommitAlignment()) && IsAligned(InSize, GetCommitAlignment()));
+	check(InOffset >= 0 && InSize >= 0 && InOffset + InSize <= GetActualSize() && Ptr);
+}
+
+void FApplePlatformMemory::FPlatformVirtualMemoryBlock::Decommit(size_t InOffset, size_t InSize)
+{
+	check(IsAligned(InOffset, GetCommitAlignment()) && IsAligned(InSize, GetCommitAlignment()));
+	check(InOffset >= 0 && InSize >= 0 && InOffset + InSize <= GetActualSize() && Ptr);
+	madvise(((uint8*)Ptr) + InOffset, InSize, MADV_DONTNEED);
+}
+
+
 
 /**
  * LLM uses these low level functions (LLMAlloc and LLMFree) to allocate memory. It grabs
