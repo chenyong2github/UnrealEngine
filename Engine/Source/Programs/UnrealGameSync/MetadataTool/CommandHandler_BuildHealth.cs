@@ -140,7 +140,7 @@ namespace MetadataTool
 				if(SaveUnmatchedDir != null && InputJobs.Count > 0)
 				{
 					DirectoryReference.CreateDirectory(SaveUnmatchedDir);
-					FileReference.Copy(StateFile, FileReference.Combine(SaveUnmatchedDir, "State.json"));
+					FileReference.Copy(StateFile, FileReference.Combine(SaveUnmatchedDir, "State.json"), true);
 					SerializeJson(FileReference.Combine(SaveUnmatchedDir, "Input.json"), InputData);
 				}
 
