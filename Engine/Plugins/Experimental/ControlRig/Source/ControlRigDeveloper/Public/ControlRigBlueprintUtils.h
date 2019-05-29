@@ -21,7 +21,7 @@ struct CONTROLRIGDEVELOPER_API FControlRigBlueprintUtils
  * @param	InStructTemplate	The struct template we want to use
  * @return the name of the new member
  */
-static FName GetNewUnitMemberName(UBlueprint* InBlueprint, UStruct* InStructTemplate);
+static FName GetNewUnitMemberName(UBlueprint* InBlueprint, const UStruct* InStructTemplate);
 
 /** 
  * Adds a new unit member struct. 
@@ -29,7 +29,7 @@ static FName GetNewUnitMemberName(UBlueprint* InBlueprint, UStruct* InStructTemp
  * @param	InStructTemplate	The struct template we want to use
  * @return the name of the new member, or NAME_None if the member was not created
  */
-static FName AddUnitMember(UBlueprint* InBlueprint, UStruct* InStructTemplate);
+static FName AddUnitMember(UBlueprint* InBlueprint, const UStruct* InStructTemplate, const FName& InName= NAME_None);
 
 /** 
  * Gets a new name for a member
@@ -56,6 +56,7 @@ static FName AddPropertyMember(UBlueprint* InBlueprint, const FEdGraphPinType& I
  * @return the new graph node
  */
 static UControlRigGraphNode* InstantiateGraphNodeForProperty(UEdGraph* InGraph, const FName& InPropertyName, const FVector2D& InLocation = FVector2D::ZeroVector, const FEdGraphPinType& InPinType = FEdGraphPinType());
+static UControlRigGraphNode* InstantiateGraphNodeForStructPath(UEdGraph* InGraph, const FName& InPropertyName, const FVector2D& InLocation, const FString& InStructPath);
 
 /**
  * Check whether we can instantiate a node in the specified graph for the specified property
@@ -80,4 +81,6 @@ static void HandleRenameVariableReferencesEvent(UBlueprint* InBlueprint, UClass*
 
 /** remove the variable if not used by anybody else but ToBeDeleted*/
 static void RemoveMemberVariableIfNotUsed(UBlueprint* Blueprint, const FName VarName, UControlRigGraphNode* ToBeDeleted);
+
+static FName ValidateName(UBlueprint* InBlueprint, const FString& InName);
 };

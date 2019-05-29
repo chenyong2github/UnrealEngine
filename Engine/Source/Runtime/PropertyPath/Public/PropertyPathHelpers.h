@@ -80,8 +80,10 @@ struct PROPERTYPATH_API FCachedPropertyPath
 	FCachedPropertyPath(const FString& Path);
 
 	/** */
-	UE_DEPRECATED(4.23, "FCachedPropertyPath(const FString& Path)")
-	FCachedPropertyPath(const TArray<FString>& PropertyChain);
+	FCachedPropertyPath(const FPropertyPathSegment& Segment);
+
+	/** */
+	FCachedPropertyPath(const TArray<FString>& PathSegments);
 
 	/** Check whether this property path is non-empty */
 	bool IsValid() const { return Segments.Num() > 0; }
@@ -91,9 +93,6 @@ struct PROPERTYPATH_API FCachedPropertyPath
 
 	/** Make a copy which is unresolved */
 	static FCachedPropertyPath MakeUnresolvedCopy(const FCachedPropertyPath& ToCopy);
-
-	/** Make a new property path from a leaf property and an outer class */
-	void MakeFromPropertyAndOuterClass(UProperty* InProperty, UClass* InClass);
 
 	/** @return Get the number of segments in this path */
 	int32 GetNumSegments() const;
@@ -175,6 +174,8 @@ struct PROPERTYPATH_API FCachedPropertyPath
 	/** Trims this property path at the start */
 	void RemoveFromStart(int32 InNumSegments = 1);
 
+	/** Returns UProperty if valid. This can be UFunction */
+	UProperty* GetUProperty() const;
 private:
 	/** Path segments for this path */
 	UPROPERTY()
@@ -289,7 +290,6 @@ namespace PropertyPathHelpers
 	 * @return true if the property value was successfully copied
 	 */
 	PROPERTYPATH_API bool SetPropertyValueFromString(UObject* InContainer, const FCachedPropertyPath& InPropertyPath, const FString& InValue);
-
 
 	/** 
 	 * Set the value represented by this property path from a string 
@@ -837,6 +837,10 @@ namespace PropertyPathHelpersInternal
 						}
 					}
 				}
+			}
+			else
+			{
+				//LOG ERROR
 			}
 
 			return false;

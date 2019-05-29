@@ -2543,7 +2543,10 @@ FString UObject::GetDefaultConfigFilename() const
 	FString OverridePlatform = GetFinalOverridePlatform(this);
 	if (OverridePlatform.Len())
 	{
-		return FString::Printf(TEXT("%s%s/%s%s.ini"), *FPaths::SourceConfigDir(), *OverridePlatform, *OverridePlatform, *GetClass()->ClassConfigName.ToString());
+		// use platform extension path if it exists
+		FString PlatformExtPath = FString::Printf(TEXT("%s%s/Config/%s%s.ini"), *FPaths::PlatformExtensionsDir(), FApp::GetProjectName(), *OverridePlatform, *GetClass()->ClassConfigName.ToString());
+		return FPaths::FileExists(*PlatformExtPath) ? PlatformExtPath : 
+			FString::Printf(TEXT("%s%s/%s%s.ini"), *FPaths::SourceConfigDir(), *OverridePlatform, *OverridePlatform, *GetClass()->ClassConfigName.ToString());
 	}
 	return FString::Printf(TEXT("%sDefault%s.ini"), *FPaths::SourceConfigDir(), *GetClass()->ClassConfigName.ToString());
 }

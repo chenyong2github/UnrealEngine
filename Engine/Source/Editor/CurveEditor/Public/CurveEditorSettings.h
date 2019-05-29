@@ -9,25 +9,37 @@
 
 /** Defines visibility states for the tangents in the curve editor. */
 UENUM()
-namespace ECurveEditorTangentVisibility
+enum class ECurveEditorTangentVisibility : uint8
 {
-	enum Type
-	{
-		/** All tangents should be visible. */
-		AllTangents,
-		/** Only tangents from selected keys should be visible. */
-		SelectedKeys,
-		/** Don't display tangents. */
-		NoTangents
-	};
-}
+	/** All tangents should be visible. */
+	AllTangents,
+	/** Only tangents from selected keys should be visible. */
+	SelectedKeys,
+	/** Don't display tangents. */
+	NoTangents
+};
+
+/** Defines the position to center the zoom about in the curve editor. */
+UENUM()
+enum class ECurveEditorZoomPosition : uint8
+{
+	/** Current Time. */
+	CurrentTime,
+
+	/** Mouse Position. */
+	MousePosition,
+};
 
 /** Serializable options for curve editor. */
 UCLASS(config=EditorPerProjectUserSettings)
 class CURVEEDITOR_API UCurveEditorSettings : public UObject
 {
 public:
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+
+	DECLARE_MULTICAST_DELEGATE(FOnCurveEditorCurveVisibilityChanged);
+
+	UCurveEditorSettings();
 
 	/** Gets whether or not the curve editor auto frames the selected curves. */
 	bool GetAutoFrameCurveEditor() const;
@@ -40,9 +52,14 @@ public:
 	void SetShowCurveEditorCurveToolTips(bool InbShowCurveEditorCurveToolTips);
 
 	/** Gets the current tangent visibility. */
-	ECurveEditorTangentVisibility::Type GetTangentVisibility() const;
+	ECurveEditorTangentVisibility GetTangentVisibility() const;
 	/** Sets the current tangent visibility. */
-	void SetTangentVisibility(ECurveEditorTangentVisibility::Type InTangentVisibility);
+	void SetTangentVisibility(ECurveEditorTangentVisibility InTangentVisibility);
+
+	/** Get zoom in/out position (mouse position or current time). */
+	ECurveEditorZoomPosition GetZoomPosition() const;
+	/** Set zoom in/out position (mouse position or current time). */
+	void SetZoomPosition(ECurveEditorZoomPosition InZoomPosition);
 
 protected:
 	UPROPERTY( config, EditAnywhere, Category="Curve Editor" )
@@ -52,5 +69,11 @@ protected:
 	bool bShowCurveEditorCurveToolTips;
 
 	UPROPERTY( config, EditAnywhere, Category="Curve Editor" )
-	TEnumAsByte<ECurveEditorTangentVisibility::Type> TangentVisibility;
+	ECurveEditorTangentVisibility TangentVisibility;
+
+	UPROPERTY( config, EditAnywhere, Category="Curve Editor")
+	ECurveEditorZoomPosition ZoomPosition;
+
+	/** Callback for when the Curve Editor Visibility setting changes. */
+	FOnCurveEditorCurveVisibilityChanged OnCurveEditorCurveVisibilityChanged;
 };

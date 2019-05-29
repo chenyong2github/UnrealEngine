@@ -301,7 +301,9 @@ namespace
 			return nullptr;
 		}
 
-		symbols::Provider* provider = new symbols::Provider { diaDataSource, diaSession, globalScope };
+		const file::Attributes& attributes = file::GetAttributes(filename);
+		const uint64_t lastModification = file::GetLastModificationTime(attributes);
+		symbols::Provider* provider = new symbols::Provider { diaDataSource, diaSession, globalScope, lastModification };
 		return provider;
 	}
 
@@ -613,7 +615,7 @@ namespace symbols
 	}
 
 
-	CompilandDB* GatherCompilands(Provider* provider, const DiaCompilandDB* diaCompilandDb, unsigned int splitAmalgamatedFilesThreshold, uint32_t compilandOptions)
+	CompilandDB* GatherCompilands(const Provider* provider, const DiaCompilandDB* diaCompilandDb, unsigned int splitAmalgamatedFilesThreshold, uint32_t compilandOptions)
 	{
 		telemetry::Scope telemetryScope("Gathering compilands");
 
@@ -839,6 +841,14 @@ namespace symbols
 						}
 
 						compilandPath = testPath;
+					}
+
+					// ignore compilands that are newer than the module itself.
+					// we cannot use those for reconstructing symbol information, because they weren't linked into the executable.
+					if (cacheData.lastModificationTime > provider->lastModificationTime)
+					{
+						LC_WARNING_USER("Ignoring compiland %S because it is newer than the module it belongs to.", compilandPath.c_str());
+						continue;
 					}
 				}
 
@@ -2204,6 +2214,13 @@ namespace symbols
 	bool IsExceptionClauseSymbol(const ImmutableString& symbolName)
 	{
 		return StartsWithPatterns(symbolName.c_str(), symbolPatterns::EXCEPTION_CLAUSE_PATTERNS);
+	}
+
+
+	bool IsExceptionUnwindSymbolForDynamicInitializer(const ImmutableString& symbolName)
+	{
+		return (StartsWithPatterns(symbolName.c_str(), symbolPatterns::EXCEPTION_UNWIND_PATTERNS) &&
+			ContainsPatterns(symbolName.c_str(), symbolPatterns::DYNAMIC_INITIALIZER_PATTERNS));
 	}
 
 

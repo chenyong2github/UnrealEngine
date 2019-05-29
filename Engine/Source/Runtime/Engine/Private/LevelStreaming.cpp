@@ -999,6 +999,7 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 		if (FPackageName::DoesPackageExist(PackageNameToLoadFrom))
 		{
 			CurrentState = ECurrentState::Loading;
+			FWorldNotifyStreamingLevelLoading::Started(PersistentWorld);
 			
 			ULevel::StreamedLevelsOwningWorld.Add(DesiredPackageName, PersistentWorld);
 			UWorld::WorldTypePreLoadMap.FindOrAdd(DesiredPackageName) = PersistentWorld->WorldType;
@@ -1034,6 +1035,13 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 void ULevelStreaming::AsyncLevelLoadComplete(const FName& InPackageName, UPackage* InLoadedPackage, EAsyncLoadingResult::Type Result)
 {
 	CurrentState = ECurrentState::LoadedNotVisible;
+	if (UWorld* World = GetWorld())
+	{
+		if (World->GetStreamingLevels().Contains(this))
+		{
+			FWorldNotifyStreamingLevelLoading::Finished(World);
+		}
+	}
 
 	if (InLoadedPackage)
 	{

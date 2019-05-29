@@ -100,7 +100,8 @@ void SSCSEditorDragDropTree::Construct( const FArguments& InArgs )
 			.HeaderRow( InArgs._HeaderRow )
 			.ClearSelectionOnClick( InArgs._ClearSelectionOnClick )
 			.ExternalScrollbar( InArgs._ExternalScrollbar )
-			.OnEnteredBadState( InArgs._OnTableViewBadState );
+			.OnEnteredBadState( InArgs._OnTableViewBadState )
+			.HighlightParentNodesForSelection(true);
 
 	STreeView<FSCSEditorTreeNodePtrType>::Construct( BaseArgs );
 }

@@ -72,6 +72,14 @@ namespace UnrealGameSync
 		}
 	}
 
+	[DebuggerDisplay("{Name}")]
+	class PerforceUserRecord
+	{
+		public string Name;
+		public string FullName;
+		public string Email;
+	}
+
 	[DebuggerDisplay("{DepotFile}")]
 	class PerforceDescribeFileRecord
 	{
@@ -149,7 +157,6 @@ namespace UnrealGameSync
 		}
 	}
 
-	[DebuggerDisplay("{ServerAddress}")]
 	class PerforceInfoRecord
 	{
 		public string UserName;
@@ -157,14 +164,14 @@ namespace UnrealGameSync
 		public string ClientAddress;
 		public TimeSpan ServerTimeZone;
 
-		public PerforceInfoRecord(Dictionary<string, string> Tags)
+		public PerforceInfoRecord(List<Dictionary<string, string>> TagRecords)
 		{
-			Tags.TryGetValue("userName", out UserName);
-			Tags.TryGetValue("clientHost", out HostName);
-			Tags.TryGetValue("clientAddress", out ClientAddress);
+			TryGetValue(TagRecords, "userName", out UserName);
+			TryGetValue(TagRecords, "clientHost", out HostName);
+			TryGetValue(TagRecords, "clientAddress", out ClientAddress);
 
 			string ServerDateTime;
-			if(Tags.TryGetValue("serverDate", out ServerDateTime))
+			if(TryGetValue(TagRecords, "serverDate", out ServerDateTime))
 			{
 				string[] Fields = ServerDateTime.Split(new char[]{ ' ' }, StringSplitOptions.RemoveEmptyEntries);
 				if(Fields.Length >= 3)
@@ -176,6 +183,22 @@ namespace UnrealGameSync
 					}
 				}
 			}
+		}
+
+		static bool TryGetValue(List<Dictionary<string, string>> TagRecords, string Key, out string Value)
+		{
+			foreach(Dictionary<string, string> TagRecord in TagRecords)
+			{
+				string TagValue;
+				if(TagRecord.TryGetValue(Key, out TagValue))
+				{
+					Value = TagValue;
+					return true;
+				}
+			}
+
+			Value = null;
+			return false;
 		}
 	}
 
@@ -560,14 +583,14 @@ namespace UnrealGameSync
 		public bool Info(out PerforceInfoRecord Info, TextWriter Log)
 		{
 			List<Dictionary<string, string>> TagRecords;
-			if(!RunCommand("info -s", out TagRecords, CommandOptions.NoClient, Log) || TagRecords.Count != 1)
+			if(!RunCommand("info -s", out TagRecords, CommandOptions.NoClient, Log) || TagRecords.Count == 0)
 			{
 				Info = null;
 				return false;
 			}
 			else
 			{
-				Info = new PerforceInfoRecord(TagRecords[0]);
+				Info = new PerforceInfoRecord(TagRecords);
 				return true;
 			}
 		}
@@ -696,6 +719,26 @@ namespace UnrealGameSync
 			}
 			return bResult;
 		}
+		public bool FindUsers(out List<PerforceUserRecord> UserRecords, TextWriter Log)
+		{
+			List<Dictionary<string, string>> TagRecords;
+			if(!RunCommand("users", out TagRecords, CommandOptions.None, Log))
+			{
+				UserRecords = null;
+				return false;
+			}
+
+			UserRecords = new List<PerforceUserRecord>();
+			foreach(Dictionary<string, string> TagRecord in TagRecords)
+			{
+				PerforceUserRecord UserRecord = new PerforceUserRecord();
+				if(TagRecord.TryGetValue("User", out UserRecord.Name) && TagRecord.TryGetValue("FullName", out UserRecord.FullName) && TagRecord.TryGetValue("Email", out UserRecord.Email))
+				{
+					UserRecords.Add(UserRecord);
+				}
+			}
+			return true;
+		}
 
 		public bool Print(string DepotPath, out List<string> Lines, TextWriter Log)
 		{
@@ -759,10 +802,19 @@ namespace UnrealGameSync
 
 		public bool FindChanges(IEnumerable<string> Filters, int MaxResults, out List<PerforceChangeSummary> Changes, TextWriter Log)
 		{
+			return FindChanges(Filters, null, MaxResults, out Changes, Log);
+		}
+
+		public bool FindChanges(IEnumerable<string> Filters, string ByUser, int MaxResults, out List<PerforceChangeSummary> Changes, TextWriter Log)
+		{
 			string Arguments = "changes -s submitted -t -L";
 			if(MaxResults > 0)
 			{
 				Arguments += String.Format(" -m {0}", MaxResults);
+			}
+			if(ByUser != null)
+			{
+				Arguments += String.Format(" -u \"{0}\"", ByUser);
 			}
 			foreach(string Filter in Filters)
 			{
@@ -770,7 +822,7 @@ namespace UnrealGameSync
 			}
 
 			List<string> Lines;
-			if(!RunCommand(Arguments, out Lines, CommandOptions.None, Log))
+			if(!RunCommand(Arguments, out Lines, CommandOptions.IgnoreFilesNotInClientViewError, Log))
 			{
 				Changes = null;
 				return false;
@@ -1048,6 +1100,34 @@ namespace UnrealGameSync
 			return true;
 		}
 
+		public bool DescribeMultiple(IEnumerable<int> ChangeNumbers, out List<PerforceDescribeRecord> OutRecords, TextWriter Log)
+		{
+			string CommandLine = String.Format("describe -s {0}", String.Join(" ", ChangeNumbers.Select(x => x.ToString())));
+
+			List<Dictionary<string, string>> RawRecords = new List<Dictionary<string,string>>();
+			if(!RunCommandWithBinaryOutput(CommandLine, RawRecords, CommandOptions.None, Log))
+			{
+				OutRecords = null;
+				return false;
+			}
+
+			List<PerforceDescribeRecord> Records = new List<PerforceDescribeRecord>();
+			foreach(Dictionary<string, string> RawRecord in RawRecords)
+			{
+				string Code;
+				if(!RawRecords[0].TryGetValue("code", out Code) || Code != "stat")
+				{
+					Log.WriteLine("Unexpected response from p4 {0}: {1}", CommandLine, String.Join(", ", RawRecords[0].Select(x => String.Format("( \"{0}\", \"{1}\" )", x.Key, x.Value))));
+					OutRecords = null;
+					return false;
+				}
+				Records.Add(new PerforceDescribeRecord(RawRecord));
+			}
+
+			OutRecords = Records;
+			return true;
+		}
+
 		public bool Where(string Filter, out PerforceWhereRecord WhereRecord, TextWriter Log)
 		{
 			List<PerforceFileRecord> FileRecords;
@@ -1081,12 +1161,21 @@ namespace UnrealGameSync
 
 		public bool Have(string Filter, out List<PerforceFileRecord> FileRecords, TextWriter Log)
 		{
-			return RunCommand(String.Format("have \"{0}\"", Filter), out FileRecords, CommandOptions.IgnoreFilesNotOnClientError, Log);
+			return RunCommand(String.Format("have \"{0}\"", Filter), out FileRecords, CommandOptions.IgnoreFilesNotOnClientError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
+		}
+
+		public bool Have(string Filter, Action<PerforceFileRecord> HaveOutput, TextWriter Log)
+		{
+			using(PerforceTagRecordParser Parser = new PerforceTagRecordParser(x => HaveOutput(new PerforceFileRecord(x))))
+			{
+				string CommandLine = String.Format("-ztag have \"{0}\"", Filter);
+				return RunCommand(CommandLine.ToString(), null, Line => FilterTaggedOutput(Line, Parser, Log), CommandOptions.IgnoreFilesNotOnClientError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
+			}
 		}
 
 		public bool Stat(string Filter, out List<PerforceFileRecord> FileRecords, TextWriter Log)
 		{
-			return RunCommand(String.Format("fstat \"{0}\"", Filter), out FileRecords, CommandOptions.IgnoreFilesNotOnClientError | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreProtectedNamespaceError, Log);
+			return RunCommand(String.Format("fstat \"{0}\"", Filter), out FileRecords, CommandOptions.IgnoreFilesNotOnClientError | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreProtectedNamespaceError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
 		}
 
 		public bool Stat(string Options, List<string> Files, out List<PerforceFileRecord> FileRecords, TextWriter Log)
@@ -1100,7 +1189,7 @@ namespace UnrealGameSync
 			{
 				Arguments.AppendFormat(" \"{0}\"", File);
 			}
-			return RunCommand(Arguments.ToString(), out FileRecords, CommandOptions.IgnoreFilesNotOnClientError | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreProtectedNamespaceError, Log);
+			return RunCommand(Arguments.ToString(), out FileRecords, CommandOptions.IgnoreFilesNotOnClientError | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreProtectedNamespaceError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
 		}
 
 		public bool Sync(string Filter, TextWriter Log)
@@ -1157,6 +1246,20 @@ namespace UnrealGameSync
 			}
 		}
 
+		private static bool FilterTaggedOutput(PerforceOutputLine Line, PerforceTagRecordParser Parser, TextWriter Log)
+		{
+			if(Line.Channel == PerforceOutputChannel.TaggedInfo)
+			{
+				Parser.OutputLine(Line.Text);
+				return true;
+			}
+			else
+			{
+				Log.WriteLine(Line.Text);
+				return Line.Channel != PerforceOutputChannel.Error;
+			}
+		}
+
 		private static bool FilterSyncOutput(PerforceOutputLine Line, PerforceTagRecordParser Parser, List<string> TamperedFiles, TextWriter Log)
 		{
 			if(Line.Channel == PerforceOutputChannel.TaggedInfo)
@@ -1191,6 +1294,15 @@ namespace UnrealGameSync
 			return RunCommand(String.Format("sync -n {0}@{1}{2}", Filter, bOnlyFilesInThisChange? "=" : "", ChangeNumber), out FileRecords, CommandOptions.IgnoreFilesUpToDateError | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
 		}
 
+		public bool SyncPreview(string Filter, int ChangeNumber, bool bOnlyFilesInThisChange, Action<PerforceFileRecord> SyncOutput, TextWriter Log)
+		{
+			using(PerforceTagRecordParser Parser = new PerforceTagRecordParser(x => SyncOutput(new PerforceFileRecord(x))))
+			{
+				string CommandLine = String.Format("-ztag sync -n {0}@{1}{2}", Filter, bOnlyFilesInThisChange? "=" : "", ChangeNumber);
+				return RunCommand(CommandLine.ToString(), null, Line => FilterTaggedOutput(Line, Parser, Log), CommandOptions.NoFailOnErrors | CommandOptions.IgnoreFilesUpToDateError | CommandOptions.IgnoreExitCode | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
+			}
+		}
+
 		public bool ForceSync(string Filter, TextWriter Log)
 		{
 			return RunCommand(String.Format("sync -f \"{0}\"", Filter), CommandOptions.IgnoreFilesUpToDateError, Log);
@@ -1208,7 +1320,7 @@ namespace UnrealGameSync
 
 		public bool GetUnresolvedFiles(string Filter, out List<PerforceFileRecord> FileRecords, TextWriter Log)
 		{
-			return RunCommand(String.Format("fstat -Ru \"{0}\"", Filter), out FileRecords, CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreFilesNotOpenedOnThisClientError, Log);
+			return RunCommand(String.Format("fstat -Ru \"{0}\"", Filter), out FileRecords, CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreFilesNotOpenedOnThisClientError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
 		}
 
 		public bool AutoResolveFile(string File, TextWriter Log)

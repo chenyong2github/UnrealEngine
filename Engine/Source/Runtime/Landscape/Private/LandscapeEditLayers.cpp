@@ -1424,6 +1424,28 @@ void ALandscape::CreateLayersRenderingResource()
 	InitializeLayersWeightmapResources();
 }
 
+void ALandscape::ToggleCanHaveLayersContent()
+{
+	bCanHaveLayersContent = !bCanHaveLayersContent;
+
+	if (!bCanHaveLayersContent)
+	{
+		ReleaseLayersRenderingResource();
+		DeleteLayers();
+	}
+	else
+	{
+		check(GetLayerCount() == 0);
+		CreateDefaultLayer();
+		CopyOldDataToDefaultLayer();
+	}
+
+	if (LandscapeEdMode)
+	{
+		LandscapeEdMode->OnCanHaveLayersContentChanged();
+	}
+}
+
 void ALandscape::ReleaseLayersRenderingResource()
 {
 	check(!CanHaveLayersContent());
@@ -3878,7 +3900,7 @@ void ALandscape::UpdateLayersMaterialInstances()
 			const int8 MaterialLOD = ItPair.Value;
 
 			// Find or set a matching MIC in the Landscape's map.
-			UMaterialInstanceConstant* CombinationMaterialInstance = Component->GetCombinationMaterial(nullptr, WeightmapBaseLayerAllocation, MaterialLOD, false);
+			UMaterialInstanceConstant* CombinationMaterialInstance = Component->GetCombinationMaterial(&MaterialUpdateContext.GetValue(), WeightmapBaseLayerAllocation, MaterialLOD, false);
 
 			if (CombinationMaterialInstance != nullptr)
 			{
@@ -4407,91 +4429,6 @@ bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& I
 	return bAllClientsUpdated;
 }
 
-bool ALandscape::ChangeLandscapeLayersState(UWorld* InWorld, bool bInEnable)
-{
-	if (bInEnable)
-	{
-		auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(InWorld);
-
-		for (auto& ItPair : LandscapeInfoMap.Map)
-		{
-			ULandscapeInfo* Info = ItPair.Value;
-			
-			if (Info->LandscapeActor.IsValid())
-			{
-				ALandscape* Landscape = Info->LandscapeActor.Get();
-
-				if (Landscape->GetLayerCount() == 0)
-				{
-					Landscape->CreateDefaultLayer();
-				}
-
-				Landscape->CopyOldDataToDefaultLayer();
-			}
-		}
-
-		return true;
-	}
-	else
-	{
-		bool HasHiddenLayers = false;
-
-		auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(InWorld);
-
-		for (auto& ItPair : LandscapeInfoMap.Map)
-		{
-			ULandscapeInfo* Info = ItPair.Value;
-			ALandscape* Landscape = Info->LandscapeActor.Get();
-
-			if (Landscape != nullptr)
-			{
-				for (int32 i = 0; i < Landscape->GetLayerCount(); ++i)
-				{
-					const FLandscapeLayer* Layer = Landscape->GetLayer(i);
-					check(Layer != nullptr);
-
-					if (!Layer->bVisible)
-					{
-						HasHiddenLayers = true;
-						break;
-					}
-				}
-			}
-		}
-
-		FText Reason;
-
-		if (HasHiddenLayers)
-		{
-			Reason = NSLOCTEXT("UnrealEd", "LandscapeDisableLayers_HiddenLayers", "Are you sure you want to disable the layers system?\n\nDoing so, will result in losing the data stored for each layers, but the current visual output will be kept. Be aware that some layers are currently hidden, continuing will result in their data being lost.");
-		}
-		else
-		{
-			Reason = NSLOCTEXT("UnrealEd", "LandscapeDisableLayers", "Are you sure you want to disable the layers system?\n\nDoing so, will result in losing the data stored for each layers, but the current visual output will be kept.");
-		}
-
-		if (FMessageDialog::Open(EAppMsgType::YesNo, Reason) == EAppReturnType::Yes)
-		{
-			for (auto& ItPair : LandscapeInfoMap.Map)
-			{
-				ULandscapeInfo* Info = ItPair.Value;
-				ALandscape* Landscape = Info->LandscapeActor.Get();
-
-				// Only clean up data if the Landscape actor is loaded
-				if (Landscape != nullptr)
-				{
-					Landscape->ReleaseLayersRenderingResource();
-					Landscape->DeleteLayers();
-				}			
-			}
-
-			return true;
-		}
-	}
-
-	return false;
-}
-
 void ALandscape::InitializeLayers()
 {
 	check(HasLayersContent());
@@ -4504,6 +4441,11 @@ void ALandscape::InitializeLayers()
 }
 
 void ALandscape::OnPreSave()
+{
+	ForceUpdateLayersContent();
+}
+
+void ALandscape::ForceUpdateLayersContent()
 {
 	const bool bWaitForStreaming = true;
 	UpdateLayersContent(bWaitForStreaming);
@@ -4607,9 +4549,17 @@ void ALandscapeProxy::FinishDestroy()
 #if WITH_EDITOR
 bool ALandscapeProxy::CanHaveLayersContent() const
 {
-	UWorld* World = GetWorld();
-	AWorldSettings* WorldSettings = World != nullptr ? World->GetWorldSettings() : nullptr;
-	return WorldSettings != nullptr ? WorldSettings->bEnableLandscapeLayers : false;
+	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	{
+		return false;
+	}
+
+	if (const ALandscape* LandscapeActor = GetLandscapeActor())
+	{
+		return LandscapeActor->bCanHaveLayersContent;
+	}
+
+	return false;
 }
 
 bool ALandscapeProxy::HasLayersContent() const
@@ -4645,8 +4595,18 @@ bool ALandscapeProxy::RemoveObsoleteLayers(const TSet<FGuid>& InExistingLayers)
 	{
 		if (!InExistingLayers.Contains(LayerGuid))
 		{
+			UE_LOG(LogLandscape, Warning, TEXT("Layer '%s' was removed from LandscapeProxy '%s' because it doesn't match any of the LandscapeActor Layers. Possible loss of data."), 
+				*LayerGuid.ToString(EGuidFormats::HexValuesInBraces), *GetPathName());
 			DeleteLayer(LayerGuid);
 			bModified = true;
+		}
+	}
+
+	if (bModified)
+	{
+		if (ALandscape* LandscapeActor = GetLandscapeActor())
+		{
+			LandscapeActor->RequestLayersContentUpdateForceAll();
 		}
 	}
 
@@ -5207,6 +5167,13 @@ void ALandscape::SetEditingLayer(const FGuid& InLayerGuid)
 	EditingLayer = InLayerGuid;
 }
 
+void ALandscape::SetGrassUpdateEnabled(bool bInGrassUpdateEnabled)
+{
+#ifdef WITH_EDITORONLY_DATA
+	bGrassUpdateEnabled = bInGrassUpdateEnabled;
+#endif
+}
+
 const FGuid& ALandscape::GetEditingLayer() const
 {
 	return EditingLayer;
@@ -5608,18 +5575,6 @@ TArray<ALandscapeBlueprintCustomBrush*> ALandscape::GetBrushesForLayer(int32 InL
 	}
 
 	return Brushes;
-}
-
-FChangeLandscapeLayersState ALandscape::ChangeLandscapeLayersStateEvent;
-
-void ALandscape::RegisterChangeLandscapeLayersStateDelegate()
-{
-	ALandscape::ChangeLandscapeLayersStateEvent.BindStatic(&ALandscape::ChangeLandscapeLayersState);
-}
-
-void ALandscape::UnregisterChangeLandscapeLayersStateDelegate()
-{
-	ALandscape::ChangeLandscapeLayersStateEvent.Unbind();	
 }
 
 #endif // WITH_EDITOR

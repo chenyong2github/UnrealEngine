@@ -48,7 +48,7 @@ FString FApplePlatformMisc::GetEnvironmentVariable(const TCHAR* VariableName)
 	}
 }
 
-void FApplePlatformMisc::LowLevelOutputDebugString( const TCHAR *Message )
+void FApplePlatformMisc::LocalPrint(const TCHAR* Message)
 {
 	//NsLog will out to all iOS output consoles, instead of just the Xcode console.
 	NSLog(@"[UE4] %s", TCHAR_TO_UTF8(Message));

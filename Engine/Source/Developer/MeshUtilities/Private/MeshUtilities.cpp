@@ -5836,14 +5836,17 @@ TSharedRef<FExtender> FMeshUtilities::GetAnimationBlueprintEditorToolbarExtender
 {
 	TSharedRef<FExtender> Extender = MakeShareable(new FExtender);
 
-	UMeshComponent* MeshComponent = InAnimationBlueprintEditor->GetPersonaToolkit()->GetPreviewMeshComponent();
+	if(InAnimationBlueprintEditor->GetBlueprintObj() && InAnimationBlueprintEditor->GetBlueprintObj()->BlueprintType != BPTYPE_Interface)
+	{
+		UMeshComponent* MeshComponent = InAnimationBlueprintEditor->GetPersonaToolkit()->GetPreviewMeshComponent();
 
-	Extender->AddToolBarExtension(
-		"Asset",
-		EExtensionHook::After,
-		CommandList,
-		FToolBarExtensionDelegate::CreateRaw(this, &FMeshUtilities::HandleAddSkeletalMeshActionExtenderToToolbar, MeshComponent)
-	);
+		Extender->AddToolBarExtension(
+			"Asset",
+			EExtensionHook::After,
+			CommandList,
+			FToolBarExtensionDelegate::CreateRaw(this, &FMeshUtilities::HandleAddSkeletalMeshActionExtenderToToolbar, MeshComponent)
+		);
+	}
 
 	return Extender;
 }

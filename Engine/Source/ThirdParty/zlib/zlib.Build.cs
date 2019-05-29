@@ -5,14 +5,19 @@ using System.IO;
 
 public class zlib : ModuleRules
 {
+	protected string CurrentZlibVersion;
+	protected string OldZlibVersion;
+
 	public zlib(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 
-		string zlibPath = Target.UEThirdPartySourceDirectory + "zlib/v1.2.8";
+		CurrentZlibVersion = "v1.2.8";
+		OldZlibVersion = "zlib-1.2.5";
 
+		string zlibPath = Target.UEThirdPartySourceDirectory + "zlib/" + CurrentZlibVersion;
 		// TODO: recompile for consoles and mobile platforms
-		string OldzlibPath = Target.UEThirdPartySourceDirectory + "zlib/zlib-1.2.5";
+		string OldzlibPath = Target.UEThirdPartySourceDirectory + "zlib/" + OldZlibVersion;
 
 		string ConfigPath = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" :"Release";
 

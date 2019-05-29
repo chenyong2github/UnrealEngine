@@ -29,6 +29,7 @@ class USCS_Node;
 class UTimelineTemplate;
 struct FBlueprintCookedComponentInstancingData;
 struct FComponentKey;
+class UAnimGraphNode_Root;
 
 /** 
   * Flags describing how to handle graph removal
@@ -1077,6 +1078,23 @@ public:
 	 */
 	static void SetBlueprintFunctionOrMacroCategory(UEdGraph* Graph, const FText& NewCategory, bool bDontRecompile=false);
 
+	/** 
+	 * Helper function to grab the root node from an anim graph. 
+	 * Asserts if anything other than 1 node is found in an anim graph.
+	 * @param	InGraph		The graph to check
+	 * @return the one and only root, if this is an anim graph, or null otherwise
+	 */
+	static UAnimGraphNode_Root* GetAnimGraphRoot(UEdGraph* InGraph);
+
+	/**
+	 * Sets the layer group on the anim graph
+	 * @note: Will not change the category for functions defined via native classes.
+	 *
+	 * @param	InGraph				Graph associated with the layer
+	 * @param	InGroupName			The new value of the group for the layer
+	 */
+	static void SetAnimationGraphLayerGroup(UEdGraph* InGraph, const FText& InGroupName);
+
 	/** Finds the index of the specified graph (function or macro) in the parent (if it is not reorderable, then we will return INDEX_NONE) */
 	static int32 FindIndexOfGraphInParent(UEdGraph* Graph);
 
@@ -1217,6 +1235,14 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	// Interface
+
+	/** 
+	 * Find the interface Guid for a graph if it exists.
+	 * 
+	 * @param	GraphName		The graph name to find a GUID for.
+	 * @param	InterfaceClass	The interface's generated class.
+	 */
+	static FGuid FindInterfaceGraphGuid(const FName& GraphName, const UClass* InterfaceClass);
 
 	/** 
 	 * Find the interface Guid for a function if it exists.
@@ -1433,6 +1459,13 @@ public:
 	 * @return					If valid a pointer to the user declared function meta data structure otherwise nullptr.
 	 */
 	static FKismetUserDeclaredFunctionMetadata* GetGraphFunctionMetaData(const UEdGraph* InGraph);
+
+	/**
+	 * Modifies the graph entry node that contains the function metadata block, used in metadata transactions.
+	 *
+	 * @param InGraph			The graph to modify
+	 */
+	static void ModifyFunctionMetaData(const UEdGraph* InGraph);
 
 	/**
 	 * Returns the description of the graph from the metadata

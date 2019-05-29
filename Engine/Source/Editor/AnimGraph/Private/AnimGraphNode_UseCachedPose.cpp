@@ -71,7 +71,7 @@ void UAnimGraphNode_UseCachedPose::EarlyValidation(class FCompilerResultsLog& Me
 
 FText UAnimGraphNode_UseCachedPose::GetTooltipText() const
 {
-	return LOCTEXT("AnimGraphNode_UseCachedPose_Tooltip", "References an animation tree elsewhere in the blueprint, which will be evaluated at most once per frame.");
+	return LOCTEXT("AnimGraphNode_UseCachedPose_Tooltip", "References an animation tree elsewhere in the blueprint, which will be evaluated at most once per frame.\nCannot reference poses in other layers.");
 }
 
 FText UAnimGraphNode_UseCachedPose::GetNodeTitle(ENodeTitleType::Type TitleType) const
@@ -108,11 +108,11 @@ void UAnimGraphNode_UseCachedPose::GetMenuActions(FBlueprintActionDatabaseRegist
 		TArray<UAnimGraphNode_SaveCachedPose*> CachedPoseNodes;
 		FBlueprintEditorUtils::GetAllNodesOfClass<UAnimGraphNode_SaveCachedPose>(Blueprint, /*out*/ CachedPoseNodes);
 
-		// Offer a use node for each of them
-		for (auto NodeIt = CachedPoseNodes.CreateIterator(); NodeIt; ++NodeIt)
+		// Offer a use node for each of them with our layer in its outer chain
+		for (UAnimGraphNode_SaveCachedPose* CachedPoseNode : CachedPoseNodes)
 		{
 			UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(GetClass());
-			NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(PostSpawnSetupLambda, (*NodeIt)->CacheName, *NodeIt);
+			NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(PostSpawnSetupLambda, CachedPoseNode->CacheName, CachedPoseNode);
 
 			ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 		}
@@ -128,6 +128,45 @@ bool UAnimGraphNode_UseCachedPose::IsActionFilteredOut(class FBlueprintActionFil
 		for(UBlueprint* Blueprint : FilterContext.Blueprints)
 		{
 			if(SaveCachedPoseNode->GetBlueprint() != Blueprint)
+			{
+				bIsFilteredOut = true;
+				break;
+			}
+		}
+
+		for(UEdGraph* Graph : FilterContext.Graphs)
+		{
+			// Get layer we are in (i.e. the last outer that is a graph)
+			UEdGraph* OuterLayer = Graph;
+			UObject* TestGraphOuter = OuterLayer->GetOuter();
+			while (TestGraphOuter)
+			{
+				if (UEdGraph* EdGraph = Cast<UEdGraph>(TestGraphOuter))
+				{
+					OuterLayer = EdGraph;
+				}
+
+				TestGraphOuter = TestGraphOuter->GetOuter();
+			}
+
+			// Check if the save cached pose node has the layer in its outer chain
+			auto HasOuterLayerInOuterChain = [OuterLayer](UAnimGraphNode_SaveCachedPose* InCachedPoseNode)
+			{
+				UObject* OuterObject = InCachedPoseNode;
+				while(UObject* TestOuterObject = OuterObject->GetOuter())
+				{
+					OuterObject = TestOuterObject;
+
+					if(OuterObject == OuterLayer)
+					{
+						return true;
+					}
+				}
+
+				return false;
+			};
+
+			if(!HasOuterLayerInOuterChain(SaveCachedPoseNode.Get()))
 			{
 				bIsFilteredOut = true;
 				break;

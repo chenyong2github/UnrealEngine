@@ -25,7 +25,8 @@
 			"LoadingPhase": "Default"
 		}
 	],
-	"Plugins": [
+	"Plugins":
+	[
 		{
 			"Name": "ScreenshotTools",
 			"Enabled": true

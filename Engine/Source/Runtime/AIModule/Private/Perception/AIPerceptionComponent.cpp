@@ -131,6 +131,11 @@ void UAIPerceptionComponent::ConfigureSense(UAISenseConfig& Config)
 	// else the sense will be auto-configured during OnRegister
 }
 
+UAIPerceptionComponent::TAISenseConfigConstIterator UAIPerceptionComponent::GetSensesConfigIterator() const
+{
+	return SensesConfig.CreateConstIterator();
+}
+
 void UAIPerceptionComponent::SetMaxStimulusAge(int32 ConfigIndex, float MaxAge)
 {
 	if (MaxActiveAge.IsValidIndex(ConfigIndex) == false)

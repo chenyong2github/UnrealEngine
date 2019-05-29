@@ -922,6 +922,10 @@ public:
 #if WITH_EDITOR
 	/** Calculate the required bones for a Skeletal Mesh LOD, including possible extra influences */
 	static void CalculateRequiredBones(FSkeletalMeshLODModel& LODModel, const struct FReferenceSkeleton& RefSkeleton, const TMap<FBoneIndexType, FBoneIndexType> * BonesToRemove);
+
+	/** Recalculate Retarget Base Pose BoneTransform */
+	void ReallocateRetargetBasePose();
+
 #endif // WITH_EDITOR
 
 	/** 

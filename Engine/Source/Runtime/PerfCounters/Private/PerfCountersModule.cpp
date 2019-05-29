@@ -9,21 +9,17 @@ class FPerfCountersModule : public IPerfCountersModule
 private:
 
 	/** All created perf counter instances from this module */
-	FPerfCounters* PerfCountersSingleton;
+	TSharedPtr<FPerfCounters> PerfCountersSingleton = nullptr;
 
 public:
 
-	FPerfCountersModule() : 
-		PerfCountersSingleton(NULL)
-	{}
-
-	void ShutdownModule()
+	FPerfCountersModule() 
 	{
-		if (PerfCountersSingleton)
-		{
-			delete PerfCountersSingleton;
-			PerfCountersSingleton = nullptr;
-		}
+	}
+
+	virtual void ShutdownModule() override
+	{
+		PerfCountersSingleton.Reset();
 	}
 
 	virtual bool SupportsDynamicReloading() override
@@ -38,7 +34,7 @@ public:
 
 	IPerfCounters* GetPerformanceCounters() const
 	{
-		return PerfCountersSingleton;
+		return PerfCountersSingleton.Get();
 	}
 
 	IPerfCounters* CreatePerformanceCounters(const FString& UniqueInstanceId) override
@@ -46,7 +42,7 @@ public:
 		if (PerfCountersSingleton)
 		{
 			UE_LOG(LogPerfCounters, Display, TEXT("CreatePerformanceCounters: instance already exists, new instance not created."));
-			return PerfCountersSingleton;
+			return PerfCountersSingleton.Get();
 		}
 
 		FString InstanceUID = UniqueInstanceId;
@@ -54,17 +50,15 @@ public:
 		{
 			InstanceUID = FString::Printf(TEXT("perfcounters-of-pid-%d"), FPlatformProcess::GetCurrentProcessId());
 		}
-
-		FPerfCounters* PerfCounters = new FPerfCounters(InstanceUID);
-		if (!PerfCounters->Initialize())
+ 
+		PerfCountersSingleton = MakeShared<FPerfCounters>(InstanceUID);
+		if (!PerfCountersSingleton->Initialize())
 		{
 			UE_LOG(LogPerfCounters, Warning, TEXT("CreatePerformanceCounters: could not create perfcounters"));
-			delete PerfCounters;
 			return nullptr;
 		}
 
-		PerfCountersSingleton = PerfCounters;
-		return PerfCounters;
+		return PerfCountersSingleton.Get();
 	}
 };
 

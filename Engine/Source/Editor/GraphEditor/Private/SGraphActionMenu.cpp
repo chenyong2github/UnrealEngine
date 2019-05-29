@@ -294,7 +294,8 @@ void SGraphActionMenu::Construct( const FArguments& InArgs, bool bIsReadOnly/* =
 		.OnGetChildren(this, &SGraphActionMenu::OnGetChildrenForCategory)
 		.SelectionMode(ESelectionMode::Single)
 		.OnItemScrolledIntoView(this, &SGraphActionMenu::OnItemScrolledIntoView)
-		.OnSetExpansionRecursive(this, &SGraphActionMenu::OnSetExpansionRecursive);
+		.OnSetExpansionRecursive(this, &SGraphActionMenu::OnSetExpansionRecursive)
+		.HighlightParentNodesForSelection(true);
 
 
 	this->ChildSlot

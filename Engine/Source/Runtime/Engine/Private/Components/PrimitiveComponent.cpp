@@ -1614,6 +1614,57 @@ UMaterialInstanceDynamic* UPrimitiveComponent::CreateDynamicMaterialInstance(int
 	return MID;
 }
 
+void UPrimitiveComponent::SetCustomPrimitiveDataInternal(int32 DataIndex, const TArray<float>& Values)
+{
+	// Can only set data on valid indices and only if there's actually any data to set
+	if (DataIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloats && Values.Num() > 0)
+	{
+		// Number of floats needed in the custom primitive data array
+		const int32 NeededFloats = FMath::Min(DataIndex + Values.Num(), FCustomPrimitiveData::NumCustomPrimitiveDataFloats);
+
+		// Number of value to copy into the custom primitive data array at index DataIndex. Capped to not overflow
+		const int32 NumValuesToSet = FMath::Min(Values.Num(), FCustomPrimitiveData::NumCustomPrimitiveDataFloats - DataIndex);
+
+		// If trying to set data on an index which doesn't exist yet, allocate up to it
+		if (NeededFloats > CustomPrimitiveData.Data.Num())
+		{
+			CustomPrimitiveData.Data.SetNumZeroed(NeededFloats);
+		}
+
+		// Only update data if it has changed
+		if (FMemory::Memcmp(&CustomPrimitiveData.Data[DataIndex], Values.GetData(), NumValuesToSet * sizeof(float)) != 0)
+		{
+			FMemory::Memcpy(&CustomPrimitiveData.Data[DataIndex], Values.GetData(), NumValuesToSet * sizeof(float));
+
+			UWorld* World = GetWorld();
+			if (World && World->Scene)
+			{
+				World->Scene->UpdateCustomPrimitiveData(this);
+			}
+		}
+	}
+}
+
+void UPrimitiveComponent::SetCustomPrimitiveDataFloat(int32 DataIndex, float Value)
+{
+	SetCustomPrimitiveDataInternal(DataIndex, {Value});
+}
+
+void UPrimitiveComponent::SetCustomPrimitiveDataVector2(int32 DataIndex, FVector2D Value)
+{
+	SetCustomPrimitiveDataInternal(DataIndex, {Value.X, Value.Y});
+}
+
+void UPrimitiveComponent::SetCustomPrimitiveDataVector3(int32 DataIndex, FVector Value)
+{
+	SetCustomPrimitiveDataInternal(DataIndex, {Value.X, Value.Y, Value.Z});
+}
+
+void UPrimitiveComponent::SetCustomPrimitiveDataVector4(int32 DataIndex, FVector4 Value)
+{
+	SetCustomPrimitiveDataInternal(DataIndex, {Value.X, Value.Y, Value.Z, Value.W});
+}
+
 UMaterialInterface* UPrimitiveComponent::GetMaterialFromCollisionFaceIndex(int32 FaceIndex, int32& SectionIndex) const
 {
 	//This function should be overriden

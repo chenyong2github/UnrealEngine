@@ -233,6 +233,7 @@ static void GetSubGraphIcon(FEdGraphSchemaAction_K2Graph const* const ActionIn, 
 	case EEdGraphSchemaAction_K2Graph::Interface:
 		{
 			IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.InterfaceFunction_16x"));
+
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("InterfaceName"), FText::FromName(ActionIn->FuncName));
 			ToolTipOut = FText::Format(LOCTEXT("FunctionFromInterface_Tooltip", "Function (from Interface '{InterfaceName}')"), Args);

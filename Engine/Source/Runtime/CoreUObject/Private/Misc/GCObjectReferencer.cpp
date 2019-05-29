@@ -31,7 +31,7 @@ void UGCObjectReferencer::AddReferencedObjects(UObject* InThis, FReferenceCollec
 		Object->AddReferencedObjects(Collector);
 	}
 	This->CurrentlySerializingObject = nullptr;
-	Super::AddReferencedObjects( This, Collector );
+	Super::AddReferencedObjects(This, Collector);
 	This->bIsAddingReferencedObjects = false;
 }
 

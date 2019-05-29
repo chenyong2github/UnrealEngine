@@ -216,26 +216,26 @@ bool AndroidJavaEnv::CheckJavaException()
 
 FString FJavaHelper::FStringFromLocalRef(JNIEnv* Env, jstring JavaString)
 {
-	auto ReturnString = FStringFromParam(Env, JavaString);
+	FString ReturnString = FStringFromParam(Env, JavaString);
 	
 	if (Env && JavaString)
 	{
 		Env->DeleteLocalRef(JavaString);
 	}
 	
-	return MoveTemp(ReturnString);
+	return ReturnString;
 }
 
 FString FJavaHelper::FStringFromGlobalRef(JNIEnv* Env, jstring JavaString)
 {
-	auto ReturnString = FStringFromParam(Env, JavaString);
+	FString ReturnString = FStringFromParam(Env, JavaString);
 	
 	if (Env && JavaString)
 	{
 		Env->DeleteGlobalRef(JavaString);
 	}
 	
-	return MoveTemp(ReturnString);
+	return ReturnString;
 }
 
 FString FJavaHelper::FStringFromParam(JNIEnv* Env, jstring JavaString)
@@ -248,7 +248,7 @@ FString FJavaHelper::FStringFromParam(JNIEnv* Env, jstring JavaString)
 	const auto chars = Env->GetStringUTFChars(JavaString, 0);
 	FString ReturnString(UTF8_TO_TCHAR(chars));
 	Env->ReleaseStringUTFChars(JavaString, chars);
-	return MoveTemp(ReturnString);
+	return ReturnString;
 }
 
 FScopedJavaObject<jstring> FJavaHelper::ToJavaString(JNIEnv* Env, const FString& UnrealString)

@@ -319,6 +319,7 @@ public:
 
 	/** Changes the management rules for a specific asset, this overrides the type rules. If passed in Rules is default, delete override */
 	virtual void SetPrimaryAssetRules(FPrimaryAssetId PrimaryAssetId, const FPrimaryAssetRules& Rules);
+	virtual void SetPrimaryAssetRulesExplicitly(FPrimaryAssetId PrimaryAssetId, const FPrimaryAssetRulesExplicitOverride& ExplicitRules);
 
 	/** Gets the management rules for a specific asset, this will merge the type and individual values */
 	virtual FPrimaryAssetRules GetPrimaryAssetRules(FPrimaryAssetId PrimaryAssetId) const;
@@ -600,7 +601,7 @@ protected:
 	TMap<FName, FPrimaryAssetId> AssetPathMap;
 
 	/** Overridden asset management data for specific types */
-	TMap<FPrimaryAssetId, FPrimaryAssetRules> AssetRuleOverrides;
+	TMap<FPrimaryAssetId, FPrimaryAssetRulesExplicitOverride> AssetRuleOverrides;
 
 	/** Map from PrimaryAssetId to list of PrimaryAssetIds that are the parent of this one, for determining chunking/cooking */
 	TMap<FPrimaryAssetId, TArray<FPrimaryAssetId>> ManagementParentMap;

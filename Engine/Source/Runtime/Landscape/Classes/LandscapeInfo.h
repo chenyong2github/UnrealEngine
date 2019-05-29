@@ -251,5 +251,8 @@ public:
 
 	/** Postpones landscape textures baking, usually used during landscape painting to avoid hitches */
 	LANDSCAPE_API void PostponeTextureBaking();
+
+	/** Will tell if the landscape actor can have some content related to the layer system */
+	LANDSCAPE_API bool CanHaveLayersContent() const;
 #endif
 };

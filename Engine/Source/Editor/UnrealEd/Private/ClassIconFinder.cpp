@@ -112,7 +112,7 @@ const UClass* FClassIconFinder::GetIconClassForAssetData(const FAssetData& InAss
 		return FindObject<UClass>(ANY_PACKAGE, *InAssetData.AssetName.ToString());
 	}
 	
-	if ( AssetClass == UBlueprint::StaticClass() )
+	if ( AssetClass->IsChildOf<UBlueprint>() )
 	{
 		if ( bOutIsClassType )
 		{

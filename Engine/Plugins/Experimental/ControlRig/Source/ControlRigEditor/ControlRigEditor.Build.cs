@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
                     "ControlRigDeveloper",
                     "Kismet",
                     "EditorStyle",
+                    "ApplicationCore",
                     "AnimationCore",
                     "PropertyEditor",
                     "AnimGraph",

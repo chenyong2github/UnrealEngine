@@ -1177,7 +1177,7 @@ void ULandscapeComponent::UpdateDominantLayerBuffer(int32 InComponentX1, int32 I
 {
 	const int32 MipSizeU = InWeightmapSizeU >> InCollisionMipLevel;
 
-	FCollisionSize CollisionSize = FCollisionSize::Create(NumSubsections, SubsectionSizeQuads, CollisionMipLevel);
+	FCollisionSize CollisionSize = FCollisionSize::Create(NumSubsections, SubsectionSizeQuads, InCollisionMipLevel);
 	
 	// Ratio to convert update region coordinate to collision mip coordinates
 	const float CollisionQuadRatio = (float)CollisionSize.SubsectionSizeQuads / (float)SubsectionSizeQuads;
@@ -3834,6 +3834,15 @@ void ULandscapeInfo::PostponeTextureBaking()
 	{
 		Proxy->UpdateBakedTexturesCountdown = PostponeValue;
 	});
+}
+
+bool ULandscapeInfo::CanHaveLayersContent() const
+{
+	if (ALandscape* Landscape = LandscapeActor.Get())
+	{
+		return Landscape->CanHaveLayersContent();
+	}
+	return false;
 }
 
 namespace

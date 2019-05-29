@@ -346,8 +346,8 @@ void FBlueprintComponentsApplicationMode::PostActivateMode()
 
 ////////////////////////////////////////
 //
-FBlueprintInterfaceApplicationMode::FBlueprintInterfaceApplicationMode(TSharedPtr<class FBlueprintEditor> InBlueprintEditor)
-	: FApplicationMode(FBlueprintEditorApplicationModes::BlueprintInterfaceMode, FBlueprintEditorApplicationModes::GetLocalizedMode)
+FBlueprintInterfaceApplicationMode::FBlueprintInterfaceApplicationMode(TSharedPtr<class FBlueprintEditor> InBlueprintEditor, FName InModeName, FText(*GetLocalizedMode)(const FName))
+	: FApplicationMode(InModeName, GetLocalizedMode)
 {
 	MyBlueprintEditor = InBlueprintEditor;
 	

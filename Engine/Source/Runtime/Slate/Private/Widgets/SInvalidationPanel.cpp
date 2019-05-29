@@ -73,7 +73,23 @@ static int32 InvalidationLayerPadding = 10;
 static FAutoConsoleVariableRef CVarInvalidationLayerPadding(
 	TEXT("Slate.InvalidationLayerPadding"),
 	InvalidationLayerPadding,
-	TEXT("The invalidation panel adds this much padding to the layer id to avoid re-invalidating if it flucuates in a volatiel child widget."));
+	TEXT("The invalidation panel adds this much padding to the layer id to avoid re-invalidating if it fluctuates in a volatile child widget."));
+
+#if SLATE_VERBOSE_NAMED_EVENTS
+
+static int32 ExcessiveInvalidationFrameStreak = 10;
+static FAutoConsoleVariableRef CVarExcessiveInvalidationFrameStreak(
+	TEXT("Slate.ExcessiveInvalidationFrameStreak"),
+	ExcessiveInvalidationFrameStreak,
+	TEXT("."));
+
+static int32 LogExcessiveInvalidation = 1;
+static FAutoConsoleVariableRef CVarLogExcessiveInvalidation(
+	TEXT("Slate.LogExcessiveInvalidation"),
+	LogExcessiveInvalidation,
+	TEXT("."));
+
+#endif
 
 static bool ShouldCacheRenderData()
 {
@@ -103,6 +119,7 @@ void SInvalidationPanel::Construct( const FArguments& InArgs )
 	LastUsedCachedNodeIndex = 0;
 	LastHitTestIndex = 0;
 	MaximumLayerIdCachedAt = 0;
+	NumberOfFramesInARowWeInvalidated = 0;
 	LastClippingIntersectionSize = FVector2D::ZeroVector;
 
 	bCacheRelativeTransforms = InArgs._CacheRelativeTransforms;
@@ -298,6 +315,16 @@ void SInvalidationPanel::InvalidateWidget(SWidget* InvalidateWidget)
 {
 	bNeedsCaching = true;
 
+#if SLATE_VERBOSE_NAMED_EVENTS
+	if (LogExcessiveInvalidation && NumberOfFramesInARowWeInvalidated > 0 && (NumberOfFramesInARowWeInvalidated % ExcessiveInvalidationFrameStreak) == 0)
+	{
+		const FString InvalidationCause = FReflectionMetaData::GetWidgetDebugInfo(InvalidateWidget);
+		const FString InvalidationRoot = FReflectionMetaData::GetWidgetDebugInfo(this);
+
+		UE_LOG(LogSlate, Warning, TEXT("SInvalidationPanel(%s): Excessive Invalidation Detected: %s"), *InvalidationRoot, *InvalidationCause);
+	}
+#endif
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if ( InvalidateWidget != nullptr && IsInvalidationDebuggingEnabled() )
 	{
@@ -351,6 +378,7 @@ int32 SInvalidationPanel::OnPaint( const FPaintArgs& Args, const FGeometry& Allo
 				// Always set the caching flag to false first, during the paint / tick pass we may change something
 				// to volatile and need to re-cache.
 				bNeedsCaching = false;
+				NumberOfFramesInARowWeInvalidated++;
 
 				bNeedsCachePrepass = true;
 
@@ -448,6 +476,8 @@ int32 SInvalidationPanel::OnPaint( const FPaintArgs& Args, const FGeometry& Allo
 			}
 		else
 		{
+			NumberOfFramesInARowWeInvalidated = 0;
+
 			// The full clipping state is stored on the render batches when we cache the render data,
 			// so there's no need to merge clipping states on frames where the data has been cached successfully.
 			if (CacheRenderData == 0)

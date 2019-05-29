@@ -518,10 +518,10 @@ bool UActorComponent::NeedsLoadForEditorGame() const
 	return !IsEditorOnly() && Super::NeedsLoadForEditorGame();
 }
 
-int32 UActorComponent::GetFunctionCallspace( UFunction* Function, void* Parameters, FFrame* Stack )
+int32 UActorComponent::GetFunctionCallspace( UFunction* Function, FFrame* Stack )
 {
 	AActor* MyOwner = GetOwner();
-	return (MyOwner ? MyOwner->GetFunctionCallspace(Function, Parameters, Stack) : FunctionCallspace::Local);
+	return (MyOwner ? MyOwner->GetFunctionCallspace(Function, Stack) : FunctionCallspace::Local);
 }
 
 bool UActorComponent::CallRemoteFunction( UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack )

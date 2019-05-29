@@ -10,10 +10,12 @@
 #include "ControlRigDefines.h"
 #include "Hierarchy.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
+#include "ControlRigController.h"
 #include "ControlRigBlueprint.generated.h"
 
 class UControlRigBlueprintGeneratedClass;
 class USkeletalMesh;
+class UControlRigGraph;
 
 /** 
   * Source data used by the FControlRigBlueprintCompiler, can't be an editor plugin
@@ -104,6 +106,8 @@ class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public UBlueprint, public I
 public:
 	UControlRigBlueprint();
 
+	void InitializeModel();
+
 	/** Get the (full) generated class for this control rig blueprint */
 	UControlRigBlueprintGeneratedClass* GetControlRigBlueprintGeneratedClass() const;
 
@@ -127,6 +131,21 @@ public:
 	virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
 	virtual USkeletalMesh* GetPreviewMesh() const override;
 
+	UPROPERTY(transient)
+	UControlRigModel* Model;
+
+	UPROPERTY(transient)
+	UControlRigController* ModelController;
+
+	bool bSuspendModelNotificationsForSelf;
+	bool bSuspendModelNotificationsForOthers;
+	FName LastNameFromNotification;
+
+	void PopulateModelFromGraph(const UControlRigGraph* InGraph);
+	void RebuildGraphFromModel();
+
+	UControlRigModel::FModifiedEvent& OnModified();
+
 private:
 	/** Links between the various properties we have */
 	UPROPERTY()
@@ -147,6 +166,11 @@ private:
 	/** The default skeletal mesh to use when previewing this asset */
 	UPROPERTY(DuplicateTransient, AssetRegistrySearchable)
 	TSoftObjectPtr<USkeletalMesh> PreviewSkeletalMesh;
+
+	UControlRigModel::FModifiedEvent _ModifiedEvent;
+	void HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload);
+	bool UpdateParametersOnControlRig(UControlRig* InRig = nullptr);
+	bool PerformArrayOperation(const FString& InPropertyPath, TFunctionRef<bool(FScriptArrayHelper&, int32)> InOperation, bool bCallModify, bool bPropagateToInstances);
 
 	friend class FControlRigBlueprintCompilerContext;
 	friend class SRigHierarchy;

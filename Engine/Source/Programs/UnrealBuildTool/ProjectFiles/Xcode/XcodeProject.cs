@@ -219,7 +219,7 @@ namespace UnrealBuildTool
 
 			if (IsSourceCode(FileExtension))
 			{
-				foreach (string PlatformName in Enum.GetNames(typeof(UnrealTargetPlatform)))
+				foreach (string PlatformName in UnrealTargetPlatform.GetValidPlatformNames())
 				{
 					string AltName = PlatformName == "Win32" || PlatformName == "Win64" ? "windows" : PlatformName.ToLower();
 					if ((SourceFile.Reference.FullName.ToLower().Contains("/" + PlatformName.ToLower() + "/") || SourceFile.Reference.FullName.ToLower().Contains("/" + AltName + "/"))
@@ -992,7 +992,7 @@ namespace UnrealBuildTool
 				string TVOS_BUNDLE = "";
 				if (bSupportIOS && InstalledPlatformInfo.IsValidPlatform(UnrealTargetPlatform.IOS, EProjectType.Code))
                 {
-					IOSPlatform IOSPlatform = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.IOS));
+ 					IOSPlatform IOSPlatform = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.IOS));
 					IOSProjectSettings ProjectSettings = IOSPlatform.ReadProjectSettings(ProjectFile);
 					IOSProvisioningData ProvisioningData = IOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 					IOSRunTimeVersion = ProjectSettings.RuntimeVersion;
@@ -1051,7 +1051,7 @@ namespace UnrealBuildTool
 					{
 						Content.Append("\t\t\t\t\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\" = \"" + UUID_IOS + "\";" + ProjectFileGenerator.NewLine);
 					}
-					Content.Append("\t\t\t\t\"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]\" = " + IOS_BUNDLE + ";");
+					Content.Append("\t\t\t\t\"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]\" = " + IOS_BUNDLE + ";" + ProjectFileGenerator.NewLine);
 				}
                 if (TVOSRunTimeVersion != null)
 				{
@@ -1068,7 +1068,7 @@ namespace UnrealBuildTool
 					{
 						Content.Append("\t\t\t\t\"PROVISIONING_PROFILE_SPECIFIER[sdk=appletvos*]\" = \"" + UUID_TVOS + "\";" + ProjectFileGenerator.NewLine);
 					}
-					Content.Append("\t\t\t\t\"PRODUCT_BUNDLE_IDENTIFIER[sdk=appletvos*]\" = " + TVOS_BUNDLE + ";");
+					Content.Append("\t\t\t\t\"PRODUCT_BUNDLE_IDENTIFIER[sdk=appletvos*]\" = " + TVOS_BUNDLE + ";" + ProjectFileGenerator.NewLine);
 				}
 				if (bSupportMac)
 				{

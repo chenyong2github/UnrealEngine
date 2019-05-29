@@ -183,23 +183,32 @@ struct FSequencerTemplateStore : IMovieSceneSequenceTemplateStore
 struct FSequencerCurveEditorBounds : ICurveEditorBounds
 {
 	FSequencerCurveEditorBounds(TSharedRef<FSequencer> InSequencer)
-		: OutputMin(0), OutputMax(1), WeakSequencer(InSequencer)
-	{}
+		: WeakSequencer(InSequencer)
+	{
+		TRange<double> Bounds = InSequencer->GetViewRange();
+		InputMin = Bounds.GetLowerBoundValue();
+		InputMax = Bounds.GetUpperBoundValue();
+	}
 
 	virtual void GetInputBounds(double& OutMin, double& OutMax) const override
 	{
 		TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
 		if (Sequencer.IsValid())
 		{
-			TRange<double> Bounds = Sequencer->GetViewRange();
-			OutMin = Bounds.GetLowerBoundValue();
-			OutMax = Bounds.GetUpperBoundValue();
+			const bool bLinkTimeRange = Sequencer->GetSequencerSettings()->GetLinkCurveEditorTimeRange();
+			if (bLinkTimeRange)
+			{
+				TRange<double> Bounds = Sequencer->GetViewRange();
+				OutMin = Bounds.GetLowerBoundValue();
+				OutMax = Bounds.GetUpperBoundValue();
+			}
+			else
+			{
+				// If they don't want to link the time range with Sequencer we return the cached value.
+				OutMin = InputMin;
+				OutMax = InputMax;
+			}
 		}
-	}
-	virtual void GetOutputBounds(double& OutMin, double& OutMax) const override
-	{
-		OutMin = OutputMin;
-		OutMax = OutputMax;
 	}
 
 	virtual void SetInputBounds(double InMin, double InMax) override
@@ -207,24 +216,26 @@ struct FSequencerCurveEditorBounds : ICurveEditorBounds
 		TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
 		if (Sequencer.IsValid())
 		{
-			FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
-
-			if (InMin * TickResolution > TNumericLimits<int32>::Lowest() && InMax * TickResolution < TNumericLimits<int32>::Max())
+			const bool bLinkTimeRange = Sequencer->GetSequencerSettings()->GetLinkCurveEditorTimeRange();
+			if (bLinkTimeRange)
 			{
-				Sequencer->SetViewRange(TRange<double>(InMin, InMax), EViewRangeInterpolation::Immediate);
+				FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+
+				if (InMin * TickResolution > TNumericLimits<int32>::Lowest() && InMax * TickResolution < TNumericLimits<int32>::Max())
+				{
+					Sequencer->SetViewRange(TRange<double>(InMin, InMax), EViewRangeInterpolation::Immediate);
+				}
 			}
-		}
-	}
-	virtual void SetOutputBounds(double InMin, double InMax) override
-	{
-		if (InMax - InMin < TNumericLimits<float>::Max())
-		{
-			OutputMin = InMin;
-			OutputMax = InMax;
+			
+			// We update these even if you are linked to the Sequencer Timeline so that when you turn off the link setting
+			// you don't pop to your last values, instead your view stays as is and just stops moving when Sequencer moves.
+			InputMin = InMin;
+			InputMax = InMax;
 		}
 	}
 
-	double OutputMin, OutputMax;
+	/** The min/max values for the viewing range. Only used if Curve Editor/Sequencer aren't linked ranges. */
+	double InputMin, InputMax;
 	TWeakPtr<FSequencer> WeakSequencer;
 };
 
@@ -240,25 +251,23 @@ public:
 	virtual void GetGridLinesX(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const override
 	{
 		TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
-
-		FCurveEditorScreenSpace ScreenSpace = GetScreenSpace();
+		FCurveEditorScreenSpaceH PanelInputSpace = GetPanelInputSpace();
 
 		double MajorGridStep  = 0.0;
 		int32  MinorDivisions = 0;
 
-		if (Sequencer.IsValid() && Sequencer->GetGridMetrics(ScreenSpace.GetPhysicalWidth(), MajorGridStep, MinorDivisions))
+		if (Sequencer.IsValid() && Sequencer->GetGridMetrics(PanelInputSpace.GetPhysicalWidth(), PanelInputSpace.GetInputMin(), PanelInputSpace.GetInputMax(), MajorGridStep, MinorDivisions))
 		{
-			const double FirstMajorLine = FMath::FloorToDouble(ScreenSpace.GetInputMin() / MajorGridStep) * MajorGridStep;
-			const double LastMajorLine  = FMath::CeilToDouble(ScreenSpace.GetInputMax() / MajorGridStep) * MajorGridStep;
+			const double FirstMajorLine = FMath::FloorToDouble(PanelInputSpace.GetInputMin() / MajorGridStep) * MajorGridStep;
+			const double LastMajorLine  = FMath::CeilToDouble(PanelInputSpace.GetInputMax() / MajorGridStep) * MajorGridStep;
 
 			for (double CurrentMajorLine = FirstMajorLine; CurrentMajorLine < LastMajorLine; CurrentMajorLine += MajorGridStep)
 			{
-				MajorGridLines.Add( ScreenSpace.SecondsToScreen(CurrentMajorLine) );
-				MajorGridLabels.Add(FText());
-				 
+				MajorGridLines.Add( PanelInputSpace.SecondsToScreen(CurrentMajorLine) );
+ 
 				for (int32 Step = 1; Step < MinorDivisions; ++Step)
 				{
-					MinorGridLines.Add( ScreenSpace.SecondsToScreen(CurrentMajorLine + Step*MajorGridStep/MinorDivisions) );
+					MinorGridLines.Add( PanelInputSpace.SecondsToScreen(CurrentMajorLine + Step*MajorGridStep/MinorDivisions) );
 				}
 			}
 		}
@@ -302,11 +311,15 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 
 	Settings->GetOnEvaluateSubSequencesInIsolationChanged().AddSP(this, &FSequencer::RestorePreAnimatedState);
 	Settings->GetOnShowSelectedNodesOnlyChanged().AddSP(this, &FSequencer::OnSelectedNodesOnlyChanged);
-	Settings->GetOnCurveEditorCurveVisibilityChanged().AddSP(this, &FSequencer::SyncCurveEditorToSelection, false);
 
+	FCurveEditorInitParams CurveEditorInitParams;
+	{
+	}
+	
 	{
 		CurveEditorModel = MakeShared<FSequencerCurveEditor>(SharedThis(this));
 		CurveEditorModel->SetBounds(MakeUnique<FSequencerCurveEditorBounds>(SharedThis(this)));
+		CurveEditorModel->InitCurveEditor(CurveEditorInitParams);
 
 		CurveEditorModel->InputSnapEnabledAttribute   = MakeAttributeLambda([this]{ return Settings->GetIsSnapEnabled(); });
 		CurveEditorModel->OnInputSnapEnabledChanged   = FOnSetBoolean::CreateLambda([this](bool NewValue){ Settings->SetIsSnapEnabled(NewValue); });
@@ -446,7 +459,6 @@ FSequencer::FSequencer()
 	, bPerspectiveViewportPossessionEnabled( true )
 	, bPerspectiveViewportCameraCutEnabled( false )
 	, bIsEditingWithinLevelEditor( false )
-	, bShowCurveEditor( false )
 	, bNeedTreeRefresh( false )
 	, StoredPlaybackState( EMovieScenePlayerStatus::Stopped )
 	, NodeTree( MakeShareable( new FSequencerNodeTree( *this ) ) )
@@ -840,11 +852,19 @@ FGuid FSequencer::CreateBinding(UObject& InObject, const FString& InName)
 	UObject* ParentObject = OwnerSequence->GetParentObject(&InObject);
 	UObject* BindingContext = GetPlaybackContext();
 
+	AActor* ParentActorAdded = nullptr;
+	FGuid ParentGuid;
+
 	if (ParentObject)
 	{
 		// Ensure we have possessed the outer object, if necessary
-		FGuid ParentGuid = GetHandleToObject(ParentObject);
-		
+		ParentGuid = GetHandleToObject(ParentObject, false);
+		if (!ParentGuid.IsValid())
+		{
+			ParentGuid = GetHandleToObject(ParentObject);
+			ParentActorAdded = Cast<AActor>(ParentObject);
+		}
+
 		if (OwnerSequence->AreParentContextsSignificant())
 		{
 			BindingContext = ParentObject;
@@ -868,6 +888,12 @@ FGuid FSequencer::CreateBinding(UObject& InObject, const FString& InName)
 	}
 
 	OwnerSequence->BindPossessableObject(PossessableGuid, InObject, BindingContext);
+	
+	// Broadcast if a parent actor was added as a result of adding this object
+	if (ParentActorAdded && ParentGuid.IsValid())
+	{
+		OnActorAddedToSequencerEvent.Broadcast(ParentActorAdded, ParentGuid);
+	}
 
 	return PossessableGuid;
 }
@@ -2793,11 +2819,7 @@ FGuid FSequencer::GetHandleToObject( UObject* Object, bool bCreateHandleIfMissin
 
 		if (OwningActor)
 		{
-			FGuid ActorAddedGuid = GetHandleToObject(OwningActor);
-			if (ActorAddedGuid.IsValid())
-			{
-				OnActorAddedToSequencerEvent.Broadcast(OwningActor, ActorAddedGuid);
-			}
+			GetHandleToObject(OwningActor);
 		}
 
 		// Some sources that create object bindings may want to group all of these objects together for organizations sake.
@@ -3992,8 +4014,6 @@ FFrameNumber FSequencer::OnGetNearestKey(FFrameTime InTime, bool bSearchAllTrack
 
 void FSequencer::OnScrubPositionChanged( FFrameTime NewScrubPosition, bool bScrubbing )
 {
-	bool bClampToViewRange = true;
-
 	if (PlaybackState == EMovieScenePlayerStatus::Scrubbing)
 	{
 		if (!bScrubbing)
@@ -4002,9 +4022,6 @@ void FSequencer::OnScrubPositionChanged( FFrameTime NewScrubPosition, bool bScru
 		}
 		else if (IsAutoScrollEnabled())
 		{
-			// Clamp to the view range when not auto-scrolling
-			bClampToViewRange = false;
-	
 			UpdateAutoScroll(NewScrubPosition / GetFocusedTickResolution());
 			
 			// When scrubbing, we animate auto-scrolled scrub position in Tick()
@@ -4013,23 +4030,6 @@ void FSequencer::OnScrubPositionChanged( FFrameTime NewScrubPosition, bool bScru
 				return;
 			}
 		}
-	}
-
-	if (bClampToViewRange)
-	{
-		FFrameRate DisplayRate    = GetFocusedDisplayRate();
-		FFrameRate TickResolution = GetFocusedTickResolution();
-
-		FFrameTime LowerBound = (TargetViewRange.GetLowerBoundValue() * TickResolution).CeilToFrame();
-		FFrameTime UpperBound = (TargetViewRange.GetUpperBoundValue() * TickResolution).FloorToFrame();
-
-		if (Settings->GetIsSnapEnabled() && Settings->GetSnapPlayTimeToInterval())
-		{
-			LowerBound = FFrameRate::Snap(LowerBound, TickResolution, DisplayRate);
-			UpperBound = FFrameRate::Snap(UpperBound, TickResolution, DisplayRate);
-		}
-
-		NewScrubPosition = FMath::Clamp(NewScrubPosition, LowerBound, UpperBound);
 	}
 
 	if (!bScrubbing && FSlateApplication::Get().GetModifierKeys().IsShiftDown())
@@ -4486,7 +4486,7 @@ void FSequencer::PostUndo(bool bSuccess)
 {
 	NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::Unknown );
 	SynchronizeSequencerSelectionWithExternalSelection();
-	SyncCurveEditorToSelection(false);
+
 	OnActivateSequenceEvent.Broadcast(ActiveTemplateIDs.Top());
 }
 
@@ -4737,8 +4737,14 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 
 void FSequencer::SetShowCurveEditor(bool bInShowCurveEditor)
 {
-	bShowCurveEditor = bInShowCurveEditor; 
-	SequencerWidget->OnCurveEditorVisibilityChanged();
+	SequencerWidget->OnCurveEditorVisibilityChanged(bInShowCurveEditor);
+}
+
+bool FSequencer::GetCurveEditorIsVisible() const
+{
+	// We always want to retrieve this directly from the UI instead of mirroring it to a local bool as there are
+	// a lot of ways the UI could get out of sync with a local bool (such as previously restored tab layouts)
+	return GetToolkitHost()->GetTabManager()->FindExistingLiveTab(FTabId(SSequencer::CurveEditorTabName)).IsValid();
 }
 
 void FSequencer::SaveCurrentMovieScene()
@@ -4959,7 +4965,6 @@ TArray<FGuid> FSequencer::AddActors(const TArray<TWeakObjectPtr<AActor> >& InAct
 void FSequencer::OnSelectedOutlinerNodesChanged()
 {
 	SynchronizeExternalSelectionWithSequencerSelection();
-	SyncCurveEditorToSelection(true);
 
 	FSequencerEdMode* SequencerEdMode = (FSequencerEdMode*)(GLevelEditorModeTools().GetActiveMode(FSequencerEdMode::EM_SequencerMode));
 	if (SequencerEdMode != nullptr)
@@ -5116,7 +5121,8 @@ void GetRootObjectBindingNodes(const TArray<TSharedRef<FSequencerDisplayNode>>& 
 
 void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 {
-	if ( bUpdatingExternalSelection || !IsLevelEditorSequencer() || ExactCast<ULevelSequence>(GetFocusedMovieSceneSequence()) == nullptr)
+	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
+	if ( bUpdatingExternalSelection || !IsLevelEditorSequencer() || ExactCast<ULevelSequence>(Sequence) == nullptr)
 	{
 		return;
 	}
@@ -5135,69 +5141,63 @@ void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 	ActorSelection->GetSelectedObjects<ASequencerKeyActor>(SelectedSequencerKeyActors);
 
 	TSet<TSharedRef<FSequencerDisplayNode>> NodesToSelect;
-	for (auto ObjectBinding : NodeTree->GetObjectBindingMap() )
+	for (const FMovieSceneBinding& Binding : Sequence->GetMovieScene()->GetBindings())
 	{
-		if (!ObjectBinding.Value.IsValid())
+		TSharedPtr<FSequencerObjectBindingNode> NodePtr = NodeTree->FindObjectBindingNode(Binding.GetObjectGuid());
+		if (!NodePtr)
 		{
 			continue;
 		}
 
-		TSharedRef<FSequencerObjectBindingNode> ObjectBindingNode = ObjectBinding.Value.ToSharedRef();
-		for ( TWeakObjectPtr<UObject> RuntimeObjectPtr : FindBoundObjects(ObjectBindingNode->GetObjectBinding(), ActiveTemplateIDs.Top()) )
+		TSharedRef<FSequencerObjectBindingNode> ObjectBindingNode = NodePtr.ToSharedRef();
+		for ( TWeakObjectPtr<> WeakObject : FindBoundObjects(Binding.GetObjectGuid(), ActiveTemplateIDs.Top()) )
 		{
-			UObject* RuntimeObject = RuntimeObjectPtr.Get();
-			if ( RuntimeObject != nullptr)
+			UObject* RuntimeObject = WeakObject.Get();
+			if (RuntimeObject == nullptr)
 			{
-				for (ASequencerKeyActor* KeyActor : SelectedSequencerKeyActors)
+				continue;
+			}
+
+			for (ASequencerKeyActor* KeyActor : SelectedSequencerKeyActors)
+			{
+				if (KeyActor->IsEditorOnly())
 				{
-					if (KeyActor->IsEditorOnly())
+					AActor* TrailActor = KeyActor->GetAssociatedActor();
+					if (TrailActor != nullptr && RuntimeObject == TrailActor)
 					{
-						AActor* TrailActor = KeyActor->GetAssociatedActor();
-						if (TrailActor != nullptr && RuntimeObject == TrailActor)
-						{
-							NodesToSelect.Add(ObjectBindingNode);
-							bAllAlreadySelected = false;
-							break;
-						}
+						NodesToSelect.Add(ObjectBindingNode);
+						bAllAlreadySelected = false;
+						break;
 					}
 				}
+			}
 
-				bool bActorSelected = ActorSelection->IsSelected( RuntimeObject );
-				bool bComponentSelected = GEditor->GetSelectedComponents()->IsSelected( RuntimeObject);
+			const bool bActorSelected = ActorSelection->IsSelected( RuntimeObject );
+			const bool bComponentSelected = GEditor->GetSelectedComponents()->IsSelected( RuntimeObject);
 
-				if (bActorSelected || bComponentSelected)
+			if (bActorSelected || bComponentSelected)
+			{
+				NodesToSelect.Add( ObjectBindingNode );
+
+				if (bAllAlreadySelected && !Selection.IsSelected(ObjectBindingNode))
 				{
-					NodesToSelect.Add( ObjectBindingNode );
-
-					if (bAllAlreadySelected)
+					// Traversal callback will exit prematurely if there are any selected children
+					auto Traverse_IsSelected = [this](FSequencerDisplayNode& InNode)
 					{
-						bool bAlreadySelected = Selection.IsSelected(ObjectBindingNode);
+						TSharedRef<FSequencerDisplayNode> SharedNode = InNode.AsShared();
+						return !this->Selection.IsSelected(SharedNode) && !this->Selection.NodeHasSelectedKeysOrSections(SharedNode);
+					};
 
-						if (!bAlreadySelected)
-						{
-							TSet<TSharedRef<FSequencerDisplayNode> > DescendantNodes;
-							SequencerHelpers::GetDescendantNodes(ObjectBindingNode, DescendantNodes);
-
-							for (auto DescendantNode : DescendantNodes)
-							{
-								if (Selection.IsSelected(DescendantNode) || Selection.NodeHasSelectedKeysOrSections(DescendantNode))
-								{
-									bAlreadySelected = true;
-									break;
-								}
-							}
-						}
-
-						if (!bAlreadySelected)
-						{
-							bAllAlreadySelected = false;
-						}
+					const bool bNoChildrenSelected = ObjectBindingNode->Traverse_ParentFirst(Traverse_IsSelected, false);
+					if (bNoChildrenSelected)
+					{
+						bAllAlreadySelected = false;
 					}
 				}
-				else if (Selection.IsSelected(ObjectBindingNode))
-				{
-					bAllAlreadySelected = false;
-				}
+			}
+			else if (Selection.IsSelected(ObjectBindingNode))
+			{
+				bAllAlreadySelected = false;
 			}
 		}
 	}
@@ -5240,161 +5240,6 @@ void FSequencer::OnSelectedNodesOnlyChanged()
 	RefreshTree();
 	
 	SynchronizeSequencerSelectionWithExternalSelection();
-}
-
-void GatherKeyAreas(const TSet<TSharedRef<FSequencerDisplayNode>>& Selection, ECurveEditorCurveVisibility CurveVisibility, bool bAddChildren, TSharedRef<FSequencerDisplayNode> InNode, TSet<TSharedPtr<IKeyArea>>& OutKeyAreasToShow)
-{
-	// If we're only adding selected curves, and we've encountered a selected node, add all its child key areas
-	if (CurveVisibility == ECurveEditorCurveVisibility::SelectedCurves && Selection.Contains(InNode))
-	{
-		bAddChildren = true;
-	}
-
-	if (bAddChildren)
-	{
-		TSharedPtr<FSequencerSectionKeyAreaNode> KeyAreaNode;
-		if (InNode->GetType() == ESequencerNode::Track)
-		{
-			KeyAreaNode = StaticCastSharedRef<FSequencerTrackNode>(InNode)->GetTopLevelKeyNode();
-		}
-		else if (InNode->GetType() == ESequencerNode::KeyArea)
-		{
-			KeyAreaNode = StaticCastSharedRef<FSequencerSectionKeyAreaNode>(InNode);
-		}
-
-		if (KeyAreaNode.IsValid())
-		{
-			for (TSharedPtr<IKeyArea> KeyArea : KeyAreaNode->GetAllKeyAreas())
-			{
-				OutKeyAreasToShow.Add(KeyArea);
-			}
-		}
-	}
-
-	for (TSharedRef<FSequencerDisplayNode> Child : InNode->GetChildNodes())
-	{
-		GatherKeyAreas(Selection, CurveVisibility, bAddChildren, Child, OutKeyAreasToShow);
-	}
-}
-
-void FSequencer::SyncCurveEditorToSelection(bool bOutlinerSelectionChanged)
-{
-	if (!GetShowCurveEditor())
-	{
-		return;
-	}
-
-	ECurveEditorCurveVisibility CurveVisibility = Settings->GetCurveVisibility();
-	const TSet<TSharedRef<FSequencerDisplayNode>>& OutlinerSelection = Selection.GetSelectedOutlinerNodes();
-
-	// Traverse the tree to gather key areas
-	TSet<TSharedPtr<IKeyArea>> KeyAreasToShow;
-	for (const TSharedRef<FSequencerDisplayNode>& Node : NodeTree->GetRootNodes())
-	{
-		bool bAddChildren = CurveVisibility != ECurveEditorCurveVisibility::SelectedCurves;
-		GatherKeyAreas(OutlinerSelection, CurveVisibility, bAddChildren, Node, KeyAreasToShow);
-	}
-
-	// Remove unanimated curves if necessary
-	if (CurveVisibility == ECurveEditorCurveVisibility::AnimatedCurves)
-	{
-		TArray<TSharedPtr<IKeyArea>> UnanimatedCurves;
-		for (TSharedPtr<IKeyArea> KeyArea : KeyAreasToShow)
-		{
-			const FMovieSceneChannel* Channel = KeyArea->ResolveChannel();
-			if (Channel && Channel->GetNumKeys() == 0)
-			{
-				UnanimatedCurves.Add(KeyArea);
-			}
-		}
-
-		for (TSharedPtr<IKeyArea> Unanimated : UnanimatedCurves)
-		{
-			KeyAreasToShow.Remove(Unanimated);
-		}
-	}
-
-	// Cache the curve editor's current selection
-	TMap<const void*, FCurveModelID> ExistingCurveIDs;
-	for (const TTuple<FCurveModelID, TUniquePtr<FCurveModel>>& Pair : CurveEditorModel->GetCurves())
-	{
-		if (const void* Ptr = Pair.Value->GetCurve())
-		{
-			ExistingCurveIDs.Add(Ptr, Pair.Key);
-		}
-	}
-
-	bool bAnythingChanged = false;
-
-	// Add newly selected curves to the curve editor
-	for (TSharedPtr<IKeyArea> KeyArea : KeyAreasToShow)
-	{
-		const FMovieSceneChannel* Channel = KeyArea->ResolveChannel();
-		if (!Channel)
-		{
-			continue;
-		}
-		if (KeyArea->GetOwningSection()->ShowCurveForChannel(Channel))
-		{
-			if (ExistingCurveIDs.Contains(Channel))
-			{
-				ExistingCurveIDs.Remove(Channel);
-				continue;
-			}
-			else
-			{
-				TUniquePtr<FCurveModel> NewCurve = KeyArea->CreateCurveEditorModel(AsShared());
-				if (NewCurve.IsValid())
-				{
-					bAnythingChanged = true;
-					CurveEditorModel->AddCurve(MoveTemp(NewCurve));
-				}
-			}
-		}
-	}
-
-	// Remove anything that's no longer selected or shown
-	for (const TTuple<const void*, FCurveModelID>& Pair : ExistingCurveIDs)
-	{
-		bAnythingChanged = true;
-		CurveEditorModel->RemoveCurve(Pair.Value);
-	}
-
-	if (bAnythingChanged && CurveEditorModel->ShouldAutoFrame())
-	{
-		CurveEditorModel->ZoomToFit();
-	}
-	else if (bOutlinerSelectionChanged && CurveEditorModel->ShouldAutoFrame())
-	{
-		// If outliner selection changes, zoom to fit only the selected curves
-		TSet<TSharedPtr<IKeyArea>> SelectedKeyAreasToShow;
-		for (const TSharedRef<FSequencerDisplayNode>& Node : NodeTree->GetRootNodes())
-		{
-			GatherKeyAreas(OutlinerSelection, ECurveEditorCurveVisibility::SelectedCurves, false, Node, SelectedKeyAreasToShow);
-		}
-	
-		TArray<FCurveModelID> CurveModelIDs;
-		for (const TTuple<FCurveModelID, TUniquePtr<FCurveModel>>& Pair : CurveEditorModel->GetCurves())
-		{
-			if (const void* Ptr = Pair.Value->GetCurve())
-			{
-				for (TSharedPtr<IKeyArea> KeyArea : SelectedKeyAreasToShow)
-				{
-					const FMovieSceneChannel* Channel = KeyArea->ResolveChannel();
-					if (Channel && Ptr == Channel)
-					{
-						CurveModelIDs.Add(Pair.Key);
-						break;
-					}
-				}
-			}
-		}
-
-		if (CurveModelIDs.Num())
-		{
-			CurveEditorModel->ZoomToFitCurves(MakeArrayView(CurveModelIDs.GetData(), CurveModelIDs.Num()));
-		}
-	}
 }
 
 void FSequencer::ZoomToSelectedSections()
@@ -5474,11 +5319,11 @@ void FSequencer::GetSelectedSections(TArray<UMovieSceneSection*>& OutSelectedSec
 
 void FSequencer::SelectObject(FGuid ObjectBinding)
 {
-	const TSharedPtr<FSequencerObjectBindingNode>* Node = NodeTree->GetObjectBindingMap().Find(ObjectBinding);
-	if (Node != nullptr && Node->IsValid())
+	TSharedPtr<FSequencerObjectBindingNode> Node = NodeTree->FindObjectBindingNode(ObjectBinding);
+	if (Node.IsValid())
 	{
 		GetSelection().Empty();
-		GetSelection().AddToSelection(Node->ToSharedRef());
+		GetSelection().AddToSelection(Node.ToSharedRef());
 	}
 }
 
@@ -7895,13 +7740,9 @@ void FSequencer::SetKey()
 	{
 		if (OutlinerNode->GetType() == ESequencerNode::Track)
 		{
-			TSharedRef<FSequencerTrackNode> TrackNode = StaticCastSharedRef<FSequencerTrackNode>(OutlinerNode);
-
-			TSharedRef<FSequencerDisplayNode> ObjectBindingNode = OutlinerNode;
-			if (SequencerHelpers::FindObjectBindingNode(TrackNode, ObjectBindingNode))
+			if (TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = OutlinerNode->FindParentObjectBindingNode())
 			{
-				FGuid ObjectGuid = StaticCastSharedRef<FSequencerObjectBindingNode>(ObjectBindingNode)->GetObjectBinding();
-				TrackNode->AddKey(ObjectGuid);
+				StaticCastSharedRef<FSequencerTrackNode>(OutlinerNode)->GetTrackEditor().AddKey(ObjectBindingNode->GetObjectBinding());
 			}
 		}
 	}
@@ -9452,9 +9293,9 @@ void FSequencer::BindCommands()
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleShowCurveEditor,
-		FExecuteAction::CreateLambda( [this]{ SetShowCurveEditor(!GetShowCurveEditor()); } ),
+		FExecuteAction::CreateLambda( [this]{ SetShowCurveEditor(!GetCurveEditorIsVisible()); } ),
 		FCanExecuteAction::CreateLambda( [this]{ return !IsReadOnly(); } ),
-		FIsActionChecked::CreateLambda( [this]{ return GetShowCurveEditor(); } ) );
+		FIsActionChecked::CreateLambda( [this]{ return GetCurveEditorIsVisible(); } ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleLinkCurveEditorTimeRange,
@@ -9830,22 +9671,6 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateSP( this, &FSequencer::SetPlaybackRangeToAllShots ),
 		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingMasterSequence ) );
 
-	// Curve Visibility
-	SequencerCommandBindings->MapAction(Commands.SetAllCurveVisibility,
-		FExecuteAction::CreateLambda( [this]{ Settings->SetCurveVisibility( ECurveEditorCurveVisibility::AllCurves ); } ),
-		FCanExecuteAction::CreateLambda( []{ return true; } ),
-		FIsActionChecked::CreateLambda( [this]{ return Settings->GetCurveVisibility() == ECurveEditorCurveVisibility::AllCurves; } ) );
-
-	SequencerCommandBindings->MapAction(Commands.SetSelectedCurveVisibility,
-		FExecuteAction::CreateLambda( [this]{ Settings->SetCurveVisibility( ECurveEditorCurveVisibility::SelectedCurves ); } ),
-		FCanExecuteAction::CreateLambda( []{ return true; } ),
-		FIsActionChecked::CreateLambda( [this]{ return Settings->GetCurveVisibility() == ECurveEditorCurveVisibility::SelectedCurves; } ) );
-
-	SequencerCommandBindings->MapAction(Commands.SetAnimatedCurveVisibility,
-		FExecuteAction::CreateLambda( [this]{ Settings->SetCurveVisibility( ECurveEditorCurveVisibility::AnimatedCurves ); } ),
-		FCanExecuteAction::CreateLambda( []{ return true; } ),
-		FIsActionChecked::CreateLambda( [this]{ return Settings->GetCurveVisibility() == ECurveEditorCurveVisibility::AnimatedCurves; } ) );
-
 	// bind widget specific commands
 	SequencerWidget->BindCommands(SequencerCommandBindings);
 }
@@ -9958,13 +9783,13 @@ FKeyAttributes FSequencer::GetDefaultKeyAttributes() const
 	}
 }
 
-bool FSequencer::GetGridMetrics(float PhysicalWidth, double& OutMajorInterval, int32& OutMinorDivisions) const
+bool FSequencer::GetGridMetrics(const float PhysicalWidth, const double InViewStart, const double InViewEnd, double& OutMajorInterval, int32& OutMinorDivisions) const
 {
 	FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
 	TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
-	double BiggestTime = GetViewRange().GetUpperBoundValue();
-	FString TickString = GetNumericTypeInterface()->ToString((BiggestTime * GetFocusedDisplayRate()).FrameNumber.Value);
+	// Use the end of the view as the longest number
+	FString TickString = GetNumericTypeInterface()->ToString((InViewEnd * GetFocusedDisplayRate()).FrameNumber.Value);
 	FVector2D MaxTextSize = FontMeasureService->Measure(TickString, SmallLayoutFont);
 
 	static float MajorTickMultiplier = 2.f;
@@ -9975,7 +9800,7 @@ bool FSequencer::GetGridMetrics(float PhysicalWidth, double& OutMajorInterval, i
 	if (PhysicalWidth > 0)
 	{
 		return GetFocusedDisplayRate().ComputeGridSpacing(
-			PhysicalWidth / GetViewRange().Size<double>(),
+			PhysicalWidth / (InViewEnd - InViewStart),
 			OutMajorInterval,
 			OutMinorDivisions,
 			MinTickPx,
@@ -10022,5 +9847,4 @@ void FSequencer::RecompileDirtyDirectors()
 		}
 	}
 }
-
 #undef LOCTEXT_NAMESPACE

@@ -121,7 +121,7 @@ void SGraphPinCurveFloat::OnCurveChanged(const TArray<FRichCurveEditInfo>& Chang
 		{
 			Pin->DefaultValue.Empty();
 			FRuntimeFloatCurve::StaticStruct()->ExportText(Pin->DefaultValue, &Curve, nullptr, nullptr, EPropertyPortFlags::PPF_None, nullptr, true);
-			Node->CopyPinDefaultsToProperties(Pin, true, true);
+			Node->CopyPinDefaultsToModel(Pin);
 		}
 	}
 	ModifyOwner();

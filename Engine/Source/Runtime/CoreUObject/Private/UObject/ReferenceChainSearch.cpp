@@ -294,7 +294,7 @@ void FReferenceChainSearch::WriteChain(FReferenceChain* Chain, FString& OutStrin
 				OutString.Append(LINE_TERMINATOR);
 				OutString.Append(FCString::Spc(Chain->Num() - NodeIndex - 1));
 			}
-			
+
 			OutString.Append(*GetObjectFlags(Object));
 			OutString.Append(*Object->GetFullName());
 			OutString.Append(*ReferenceInfo.ToString());

@@ -581,6 +581,20 @@ public:
 		return TArray< TSharedRef<ChildType> >::Add(Child);
 	}
 
+	void Reset(int32 NewSize = 0)
+	{
+		for (int ChildIndex = 0; ChildIndex < TArray< TSharedRef<ChildType> >::Num(); ChildIndex++)
+		{
+			TSharedRef<SWidget> Child = GetChildAt(ChildIndex);
+			if (Child != SNullWidget::NullWidget)
+			{
+				Child->ConditionallyDetatchParentWidget(Owner);
+			}
+		}
+
+		TArray< TSharedRef<ChildType> >::Reset(NewSize);
+	}
+
 	void Empty()
 	{
 		for (int ChildIndex = 0; ChildIndex < TArray< TSharedRef<ChildType> >::Num(); ChildIndex++)

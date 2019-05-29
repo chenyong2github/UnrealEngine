@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 // SK includes
 #import <StoreKit/SKRequest.h>
 #import <StoreKit/SKError.h>
@@ -11,6 +13,7 @@
 #import <StoreKit/SKPaymentQueue.h>
 
 #include "OnlineSubsystemTypes.h"
+#include "OnlineStoreIOS.h"
 
 /**
  * Holds in a common format the data that comes out of an SKPaymentTransaction

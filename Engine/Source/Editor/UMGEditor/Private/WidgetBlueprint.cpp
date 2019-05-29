@@ -386,28 +386,20 @@ FText FEditorPropertyPath::GetDisplayText() const
 
 FDynamicPropertyPath FEditorPropertyPath::ToPropertyPath() const
 {
-	FString PropertyPath;
-
+	TArray<FString> PropertyChain;
 	for (const FEditorPropertyPathSegment& Segment : Segments)
 	{
 		FName SegmentName = Segment.GetMemberName();
 		if (SegmentName != NAME_None)
 		{
-			if (PropertyPath.IsEmpty())
-			{
-				PropertyPath = SegmentName.ToString();
-			}
-			else
-			{
-				PropertyPath = PropertyPath + TEXT(".") + SegmentName.ToString();
-			}
+			PropertyChain.Add(SegmentName.ToString());
 		}
 		else
 		{
 			return FDynamicPropertyPath();
 		}
 	}
-	return FDynamicPropertyPath(PropertyPath);
+	return FDynamicPropertyPath(PropertyChain);
 }
 
 bool FDelegateEditorBinding::IsAttributePropertyBinding(UWidgetBlueprint* Blueprint) const

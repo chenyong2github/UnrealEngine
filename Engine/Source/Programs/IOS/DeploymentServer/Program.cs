@@ -311,6 +311,12 @@ namespace DeploymentServer
 								Writer.Flush();
 								break;
 
+							case "copyfileout":
+								Console.SetOut(Writer);
+								LastResult = DeploymentProxy.Deployer.CopyFileFromDevice(Bundle, FileList[0], FileList[1]);
+								Writer.Flush();
+								break;
+
 							case "install":
 								Console.SetOut(Writer);
 								LastResult = DeploymentProxy.Deployer.InstallIPAOnDevice(IpaPath);
@@ -1109,31 +1115,32 @@ namespace DeploymentServer
 			}
 			else
 			{
-				LocalLog("Deployment Server usage: ");
-				LocalLog("DeploymentServer.exe <command> [<parameter> [<value>] ...]");
-				LocalLog("Valid Commands:");
-				LocalLog("\t stop");
-				LocalLog("\t backup");
-				LocalLog("\t deploy");
-				LocalLog("\t copyfile");
-				LocalLog("\t install");
-				LocalLog("\t enumerate");
-				LocalLog("\t listdevices");
-				LocalLog("\t listentodevice");
-				LocalLog("\t command");
-				LocalLog("\t forward");
-				LocalLog("\t -iphonepackager");
-				LocalLog("\t server");
-				LocalLog("Valid Parameters:");
-				LocalLog("\t -file <filename>");
-				LocalLog("\t -bundle <bundle name>");
-				LocalLog("\t -manifest <manifest file>");
-				LocalLog("\t -ipa <ipa path>");
-				LocalLog("\t -device <device ID>");
-				LocalLog("\t -nokeepalive");
-				LocalLog("\t -timeout <miliseconds>");
-				LocalLog("\t -param <string parameter to be used for command>");
-				LocalLog("");
+				Console.WriteLine("Deployment Server usage: ");
+				Console.WriteLine("DeploymentServer.exe <command> [<parameter> [<value>] ...]");
+				Console.WriteLine("Valid Commands:");
+				Console.WriteLine("\t stop");
+				Console.WriteLine("\t backup");
+				Console.WriteLine("\t deploy");
+				Console.WriteLine("\t copyfile");
+				Console.WriteLine("\t copyfileout");
+				Console.WriteLine("\t install");
+				Console.WriteLine("\t enumerate");
+				Console.WriteLine("\t listdevices");
+				Console.WriteLine("\t listentodevice");
+				Console.WriteLine("\t command");
+				Console.WriteLine("\t forward");
+				Console.WriteLine("\t -iphonepackager");
+				Console.WriteLine("\t server");
+				Console.WriteLine("Valid Parameters:");
+				Console.WriteLine("\t -file <filename>");
+				Console.WriteLine("\t -bundle <bundle name>");
+				Console.WriteLine("\t -manifest <manifest file>");
+				Console.WriteLine("\t -ipa <ipa path>");
+				Console.WriteLine("\t -device <device ID>");
+				Console.WriteLine("\t -nokeepalive");
+				Console.WriteLine("\t -timeout <miliseconds>");
+				Console.WriteLine("\t -param <string parameter to be used for command>");
+				Console.WriteLine("");
 
 				return 0;
 			}

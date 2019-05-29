@@ -401,6 +401,13 @@ typedef struct vx_sdk_config {
      * Currently this function is called only on specific platforms. Please contact Vivox for more information.
      */
     int (*pf_request_permission_for_network)(void);
+
+    /**
+     * Enable Dynamic Voice Processing Switching. Default value is 1.
+     * If enabled, the SDK will automatically switch between hardware and software AECs.
+     * To disable set value to 0.
+     */
+    int dynamic_voice_processing_switching;
 } vx_sdk_config_t;
 
 #ifdef __cplusplus

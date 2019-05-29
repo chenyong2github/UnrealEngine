@@ -215,5 +215,44 @@ float UKismetAnimationLibrary::K2_CalculateVelocityFromSockets(
 	return VelocityMin;
 }
 
+
+TArray<UKismetAnimationLibrary::FK2ProfilingTimer> UKismetAnimationLibrary::sProfilingTimers;
+
+void UKismetAnimationLibrary::K2_StartProfilingTimer()
+{
+	FK2ProfilingTimer Timer;
+	Timer.LastTime = FPlatformTime::Seconds() * 1000.0;
+	Timer.AccummulatedTime = 0.0;
+	sProfilingTimers.Add(Timer);
+}
+
+float UKismetAnimationLibrary::K2_EndProfilingTimer(bool bLog, const FString& LogPrefix)
+{
+	if (sProfilingTimers.Num() == 0)
+	{
+		UE_LOG(LogAnimation, Warning, TEXT("Unbalanced use of Start & End Profiling Timer nodes."));
+		return 0.f;
+	}
+
+	FK2ProfilingTimer Timer = sProfilingTimers.Pop();
+	double CurrentTimer = FPlatformTime::Seconds() * 1000.0;
+	Timer.AccummulatedTime = CurrentTimer - Timer.LastTime;
+
+	float Delta = (float)Timer.AccummulatedTime;
+	if (bLog)
+	{
+		if (LogPrefix.IsEmpty())
+		{
+			UE_LOG(LogAnimation, Warning, TEXT("%.03f ms"), Delta);
+		}
+		else
+		{
+			UE_LOG(LogAnimation, Warning, TEXT("[%s] %.03f ms"), *LogPrefix, Delta);
+		}
+	}
+
+	return Delta;
+}
+
 #undef LOCTEXT_NAMESPACE
 

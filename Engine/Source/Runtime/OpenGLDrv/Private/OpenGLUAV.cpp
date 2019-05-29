@@ -110,6 +110,18 @@ FOpenGLShaderResourceView::~FOpenGLShaderResourceView()
 FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(FStructuredBufferRHIParamRef StructuredBufferRHI, bool bUseUAVCounter, bool bAppendBuffer)
 {
 	FOpenGLStructuredBuffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
+	// emulate structured buffer of specific size as typed buffer
+	if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		// ES3.1 cross-compiler converts StructuredBuffer<float4> into Buffer<float4> 
+		// only float4 atm
+		check(StructuredBuffer->GetStride() == 16);
+		if (StructuredBuffer->GetStride() == 16)
+		{
+			return new FOpenGLStructuredBufferUnorderedAccessView(this, StructuredBufferRHI, PF_A32B32G32R32F);
+		}
+	}
+	
 	UE_LOG(LogRHI, Fatal,TEXT("%s not implemented yet"),ANSI_TO_TCHAR(__FUNCTION__)); 
 	return new FOpenGLUnorderedAccessView();
 }
@@ -230,4 +242,43 @@ void FOpenGLDynamicRHI::RHIClearTinyUAV(FUnorderedAccessViewRHIParamRef Unordere
 #else
 	UE_LOG(LogRHI, Fatal, TEXT("Only OpenGL4 supports RHIClearUAV."));
 #endif
+}
+
+FOpenGLStructuredBufferUnorderedAccessView::FOpenGLStructuredBufferUnorderedAccessView(FOpenGLDynamicRHI* InOpenGLRHI, FStructuredBufferRHIParamRef InStructuredBufferRHI, uint8 InFormat)
+	: StructuredBufferRHI(InStructuredBufferRHI)
+	, OpenGLRHI(InOpenGLRHI)
+{
+	VERIFY_GL_SCOPE();
+	FOpenGLStructuredBuffer* InStructuredBuffer = FOpenGLDynamicRHI::ResourceCast(InStructuredBufferRHI);
+	const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[InFormat];
+
+	GLuint TextureID = 0;
+	FOpenGL::GenTextures(1,&TextureID);
+
+	// Use a texture stage that's not likely to be used for draws, to avoid waiting
+	OpenGLRHI->CachedSetupTextureStage(OpenGLRHI->GetContextStateForCurrentContext(), FOpenGL::GetMaxCombinedTextureImageUnits() - 1, GL_TEXTURE_BUFFER, TextureID, -1, 1);
+	FOpenGL::TexBuffer(GL_TEXTURE_BUFFER, GLFormat.InternalFormat[0], InStructuredBuffer->Resource);
+
+	// No need to restore texture stage; leave it like this,
+	// and the next draw will take care of cleaning it up; or
+	// next operation that needs the stage will switch something else in on it.
+
+	this->Resource = TextureID;
+	this->BufferResource = InStructuredBuffer->Resource;
+	this->Format = GLFormat.InternalFormat[0];
+}
+
+uint32 FOpenGLStructuredBufferUnorderedAccessView::GetBufferSize()
+{
+	FOpenGLStructuredBuffer* StructuredBuffer = FOpenGLDynamicRHI::ResourceCast(StructuredBufferRHI.GetReference());
+	return StructuredBuffer->GetSize();
+}
+
+FOpenGLStructuredBufferUnorderedAccessView::~FOpenGLStructuredBufferUnorderedAccessView()
+{
+	if (Resource)
+	{
+		OpenGLRHI->InvalidateTextureResourceInCache( Resource );
+		FOpenGL::DeleteTextures(1, &Resource);
+	}
 }

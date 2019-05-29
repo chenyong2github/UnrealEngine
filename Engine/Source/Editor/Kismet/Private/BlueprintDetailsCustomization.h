@@ -659,6 +659,9 @@ private:
 	/** Widgets for the categories */
 	TWeakPtr<SComboButton> CategoryComboButton;
 	TWeakPtr<SListView<TSharedPtr<FText>>> CategoryListView;
+
+	/** External detail customizations */
+	TArray<TSharedPtr<IDetailCustomization>> ExternalDetailCustomizations;
 };
 
 /** Blueprint Interface List Details */

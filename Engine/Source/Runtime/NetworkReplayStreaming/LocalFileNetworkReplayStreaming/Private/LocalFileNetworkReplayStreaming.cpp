@@ -1298,6 +1298,67 @@ void FLocalFileNetworkReplayStreamer::RequestEventData_Internal(const FString& R
 		});
 }
 
+void FLocalFileNetworkReplayStreamer::RequestEventGroupData(const FString& Group, const FRequestEventGroupDataCallback& Delegate)
+{
+	RequestEventGroupData(CurrentStreamName, Group, Delegate);
+}
+
+void FLocalFileNetworkReplayStreamer::RequestEventGroupData(const FString& ReplayName, const FString& Group, const FRequestEventGroupDataCallback& Delegate)
+{
+	RequestEventGroupData(ReplayName, Group, INDEX_NONE, Delegate);
+}
+
+void FLocalFileNetworkReplayStreamer::RequestEventGroupData(const FString& ReplayName, const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate)
+{
+	AddDelegateFileRequestToQueue<FRequestEventGroupDataCallback, FRequestEventGroupDataResult>(EQueuedLocalFileRequestType::RequestingEvent, Delegate,
+		[this, ReplayName, Group](TLocalFileRequestCommonData<FRequestEventGroupDataResult>& RequestData)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_LocalReplay_ReadEvent);
+
+			const FString FullDemoFilename = GetDemoFullFilename(ReplayName);
+			if (!FPaths::FileExists(FullDemoFilename))
+			{
+				RequestData.DelegateResult.Result = EStreamingOperationResult::ReplayNotFound;
+			}
+			else
+			{
+				// Read stored info for this replay
+				FLocalFileReplayInfo StoredReplayInfo;
+				if (ReadReplayInfo(ReplayName, StoredReplayInfo))
+				{
+					TSharedPtr<FArchive> LocalFileAr = CreateLocalFileReader(FullDemoFilename);
+					if (LocalFileAr.IsValid())
+					{
+						for (const FLocalFileEventInfo& EventInfo : StoredReplayInfo.Events)
+						{
+							if (EventInfo.Group == Group)
+							{
+								LocalFileAr->Seek(EventInfo.EventDataOffset);
+
+								RequestData.DelegateResult.Result = EStreamingOperationResult::Success;
+								
+								FReplayEventListItem& EventItem = RequestData.DelegateResult.ReplayEventListItems.AddDefaulted_GetRef();
+								EventItem.ID = EventInfo.Id;
+								EventItem.Group = EventInfo.Group;
+								EventItem.Metadata = EventInfo.Metadata;
+								EventItem.Time1 = EventInfo.Time1;
+								EventItem.Time2 = EventInfo.Time2;
+
+								FRequestEventDataResult& EventDataResult = RequestData.DelegateResult.ReplayEventListResults.AddDefaulted_GetRef();
+								EventDataResult.Result = EStreamingOperationResult::Success;
+								EventDataResult.ReplayEventListItem.AddUninitialized(EventInfo.SizeInBytes);
+							
+								LocalFileAr->Serialize(EventDataResult.ReplayEventListItem.GetData(), EventDataResult.ReplayEventListItem.Num());
+							}
+						}
+
+						LocalFileAr = nullptr;
+					}
+				}
+			}
+		});
+}
+
 void FLocalFileNetworkReplayStreamer::SearchEvents(const FString& EventGroup, const FSearchEventsCallback& Delegate)
 {
 	UE_LOG(LogLocalFileReplay, Log, TEXT("FLocalFileNetworkReplayStreamer::SearchEvents is currently unsupported."));

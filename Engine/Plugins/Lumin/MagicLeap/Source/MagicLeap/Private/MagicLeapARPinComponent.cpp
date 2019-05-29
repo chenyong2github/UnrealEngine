@@ -46,7 +46,7 @@
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "MagicLeapSecureStorage.h"
 #if PLATFORM_LUMIN
-#include "Lumin/LuminAffinity.h"
+#include "Lumin/LuminPlatformAffinity.h"
 #endif // PLATFORM_LUMIN
 
 #if WITH_MLSDK

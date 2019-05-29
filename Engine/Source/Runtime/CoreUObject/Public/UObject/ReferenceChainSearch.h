@@ -195,8 +195,8 @@ public:
 	/** Destructor */
 	COREUOBJECT_API ~FReferenceChainSearch();
 
-	/** 
-	 * Dumps results to log 
+	/**
+	 * Dumps results to log
 	 * @param bDumpAllChains - if set to false, the output will be trimmed to the first 100 reference chains
 	 */
 	COREUOBJECT_API void PrintResults(bool bDumpAllChains = false) const;

@@ -389,7 +389,7 @@ void FShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment&
 	GeneratedUniformBuffersInclude.Append(UniformBufferIncludes);
 
 	ERHIFeatureLevel::Type MaxFeatureLevel = GetMaxSupportedFeatureLevel(Platform);
-	if (MaxFeatureLevel >= ERHIFeatureLevel::SM4)
+	if (MaxFeatureLevel >= ERHIFeatureLevel::ES3_1)
 	{
 		OutEnvironment.SetDefine(TEXT("PLATFORM_SUPPORTS_SRV_UB"), TEXT("1"));
 	}
@@ -509,7 +509,7 @@ void FVertexFactoryType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvir
 	GeneratedUniformBuffersInclude.Append(UniformBufferIncludes);
 
 	ERHIFeatureLevel::Type MaxFeatureLevel = GetMaxSupportedFeatureLevel(Platform);
-	if (MaxFeatureLevel >= ERHIFeatureLevel::SM4)
+	if (MaxFeatureLevel >= ERHIFeatureLevel::ES3_1)
 	{
 		OutEnvironment.SetDefine(TEXT("PLATFORM_SUPPORTS_SRV_UB"), TEXT("1"));
 	}

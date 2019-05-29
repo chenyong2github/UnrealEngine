@@ -155,6 +155,10 @@ namespace UnrealGameSync
 				else if(Task.LoginResult == LoginResult.MissingPassword)
 				{
 					PasswordWindow PasswordWindow = new PasswordWindow(String.Format("Enter the password for user '{0}' on server '{1}'.", Task.UserName, Task.ServerAndPort), Task.Password);
+					if(Owner == null)
+					{
+						PasswordWindow.StartPosition = FormStartPosition.CenterScreen;
+					}
 					if(PasswordWindow.ShowDialog() != DialogResult.OK)
 					{
 						ErrorMessage = null;
@@ -165,7 +169,11 @@ namespace UnrealGameSync
 				else if(Task.LoginResult == LoginResult.IncorrectPassword)
 				{
 					PasswordWindow PasswordWindow = new PasswordWindow(String.Format("Authentication failed. Enter the password for user '{0}' on server '{1}'.", Task.UserName, Task.ServerAndPort), Task.Password);
-					if(PasswordWindow.ShowDialog() != DialogResult.OK)
+					if (Owner == null)
+					{
+						PasswordWindow.StartPosition = FormStartPosition.CenterScreen;
+					}
+					if (PasswordWindow.ShowDialog() != DialogResult.OK)
 					{
 						ErrorMessage = null;
 						return ModalTaskResult.Aborted;

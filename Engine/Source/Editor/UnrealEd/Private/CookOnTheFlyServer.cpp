@@ -6052,16 +6052,28 @@ void UCookOnTheFlyServer::InitShaderCodeLibrary(void)
         {
             FString TargetPlatformNameString = TargetPlatformName.ToString();
             const ITargetPlatform* TargetPlatform = TPM.FindTargetPlatform(TargetPlatformNameString);
+
+			// Find out if this platform requires stable shader keys, by reading the platform setting file.
+			bool bNeedShaderStableKeys = false;
+			FConfigFile PlatformIniFile;
+			FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
+			PlatformIniFile.GetBool(TEXT("DevOptions.Shaders"), TEXT("NeedsShaderStableKeys"), bNeedShaderStableKeys);
             
             TArray<FName> ShaderFormats;
             TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
+			TArray<TPair<FName, bool>> ShaderFormatsWithStableKeys;
+			for (FName& Format : ShaderFormats)
+			{
+				ShaderFormatsWithStableKeys.Push(MakeTuple(Format, bNeedShaderStableKeys));
+			}
+
             if (ShaderFormats.Num() > 0)
 			{
 				if (!IsCookFlagSet(ECookInitializationFlags::Iterative))
 				{
 					FShaderCodeLibrary::CleanDirectories(ShaderFormats);
 				}
-				FShaderCodeLibrary::CookShaderFormats(ShaderFormats);
+				FShaderCodeLibrary::CookShaderFormats(ShaderFormatsWithStableKeys);
 			}
         }
     }

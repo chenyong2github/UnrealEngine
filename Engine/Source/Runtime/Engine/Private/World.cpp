@@ -3217,6 +3217,10 @@ bool UWorld::RemoveStreamingLevelAt(const int32 IndexToRemove)
 	if (IndexToRemove >= 0 && IndexToRemove < StreamingLevels.Num())
 	{
 		ULevelStreaming* StreamingLevel = StreamingLevels[IndexToRemove];
+		if (StreamingLevel && StreamingLevel->GetCurrentState() == ULevelStreaming::ECurrentState::Loading)
+		{
+			--NumStreamingLevelsBeingLoaded;
+		}
 		StreamingLevels.RemoveAt(IndexToRemove);
 		StreamingLevelsToConsider.Remove(StreamingLevel);
 		FStreamingLevelPrivateAccessor::OnLevelRemoved(StreamingLevel);
@@ -3250,10 +3254,12 @@ void UWorld::ClearStreamingLevels()
 {
 	StreamingLevels.Reset();
 	StreamingLevelsToConsider.Reset();
+	NumStreamingLevelsBeingLoaded = 0;
 }
 
 void UWorld::PopulateStreamingLevelsToConsider()
 {
+	NumStreamingLevelsBeingLoaded = 0;
 	StreamingLevelsToConsider.Reset();
 	for (ULevelStreaming* StreamingLevel : StreamingLevels)
 	{
@@ -3261,6 +3267,10 @@ void UWorld::PopulateStreamingLevelsToConsider()
 		if (StreamingLevel->GetCurrentState() == ULevelStreaming::ECurrentState::Removed)
 		{
 			FStreamingLevelPrivateAccessor::OnLevelAdded(StreamingLevel);
+		}
+		else if (StreamingLevel->GetCurrentState() == ULevelStreaming::ECurrentState::Loading)
+		{
+			++NumStreamingLevelsBeingLoaded;
 		}
 
 		if (FStreamingLevelPrivateAccessor::DetermineTargetState(StreamingLevel))
@@ -3453,21 +3463,9 @@ bool UWorld::AllowLevelLoadRequests()
 		}
 
 		// Don't allow requesting new levels if we're playing in game and already busy loading a maximum number of them.
-		if (GLevelStreamingMaxLevelRequestsAtOnceWhileInMatch > 0 && bIsPlaying)
+		if (bIsPlaying && GLevelStreamingMaxLevelRequestsAtOnceWhileInMatch > 0 && NumStreamingLevelsBeingLoaded >= GLevelStreamingMaxLevelRequestsAtOnceWhileInMatch)
 		{
-			int32 NumLoadingLevels = 0;
-			for (ULevelStreaming* LevelStreaming : StreamingLevels)
-			{
-				if (LevelStreaming && LevelStreaming->HasLoadRequestPending())
-				{
-					++NumLoadingLevels;
-				}
-			}
-
-			if (NumLoadingLevels >= GLevelStreamingMaxLevelRequestsAtOnceWhileInMatch)
-			{
-				return false;
-			}
+			return false;
 		}
 	}
 

@@ -52,6 +52,7 @@
 #include "MaterialShaderQualitySettings.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "MaterialCompiler.h"
+#include "MaterialShaderType.h"
 #include "Materials/MaterialInstanceSupport.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -1269,287 +1270,33 @@ bool UMaterial::IsCompilingOrHadCompileError(ERHIFeatureLevel::Type InFeatureLev
 #if WITH_EDITOR
 bool UMaterial::SetVectorParameterValueEditorOnly(FName ParameterName, FLinearColor InValue)
 {
-	bool bSetNewValue = false;
-	UMaterialExpressionVectorParameter* Parameter = nullptr;
-	for (UMaterialExpression* Expression : Expressions)
-	{
-		Parameter = Cast<UMaterialExpressionVectorParameter>(Expression);
-		if (Parameter && Parameter->SetParameterValue(ParameterName, InValue))
-		{
-			bSetNewValue = true;
-			break;
-			// Warning: in the case of duplicate parameters with different default values, this will find the first in the expression array, not necessarily the one that's used for rendering
-		}
-		else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
-		{
-			if (FunctionCall->MaterialFunction)
-			{
-				TArray<UMaterialFunctionInterface*> Functions;
-				Functions.Add(FunctionCall->MaterialFunction);
-				FunctionCall->MaterialFunction->GetDependentFunctions(Functions);
-
-				for (UMaterialFunctionInterface* Function : Functions)
-				{
-					const TArray<UMaterialExpression*>* FunctionExpressions = Function->GetFunctionExpressions();
-					if(FunctionExpressions)
-					{
-						for (UMaterialExpression* FunctionExpression : *FunctionExpressions)
-						{
-							if (UMaterialExpressionVectorParameter* FunctionExpressionParameter = Cast<UMaterialExpressionVectorParameter>(FunctionExpression))
-							{
-								if (FunctionExpressionParameter->SetParameterValue(ParameterName, InValue))
-								{
-									bSetNewValue = true;
-									break;
-								}
-							}
-						}
-					}
-					if (bSetNewValue)
-					{
-						break;
-					}
-				}
-			}
-		}
-	}
-	if (bSetNewValue)
-	{
-		UProperty* ParamProperty = FindField<UProperty>(UMaterialExpressionVectorParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, DefaultValue));
-		FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
-		Parameter->PostEditChangeProperty(PropertyChangedEvent);
-	}
-	return bSetNewValue;
+	return SetParameterValueEditorOnly<UMaterialExpressionVectorParameter>(ParameterName, InValue);
 }
 
 bool UMaterial::SetScalarParameterValueEditorOnly(FName ParameterName, float InValue)
 {
-	bool bSetNewValue = false;
-	UMaterialExpressionScalarParameter* Parameter = nullptr;
-	for (UMaterialExpression* Expression : Expressions)
-	{
-		Parameter = Cast<UMaterialExpressionScalarParameter>(Expression);
-		if (Parameter && Parameter->SetParameterValue(ParameterName, InValue))
-		{
-			bSetNewValue = true;
-			break;
-			// Warning: in the case of duplicate parameters with different default values, this will find the first in the expression array, not necessarily the one that's used for rendering
-		}
-		else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
-		{
-			if (FunctionCall->MaterialFunction)
-			{
-				TArray<UMaterialFunctionInterface*> Functions;
-				Functions.Add(FunctionCall->MaterialFunction);
-				FunctionCall->MaterialFunction->GetDependentFunctions(Functions);
-
-				for (UMaterialFunctionInterface* Function : Functions)
-				{
-					const TArray<UMaterialExpression*>* ExpressionPtr = Function->GetFunctionExpressions();
-					if (ExpressionPtr)
-					{
-						for (UMaterialExpression* FunctionExpression : *ExpressionPtr)
-						{
-							Parameter = Cast<UMaterialExpressionScalarParameter>(FunctionExpression);
-							if (!bSetNewValue && Parameter)
-							{
-								if (Parameter->SetParameterValue(ParameterName, InValue))
-								{
-									bSetNewValue = true;
-									break;
-								}
-							}
-						}
-					}
-					if (bSetNewValue)
-					{
-						break;
-					}
-				}
-			}
-		}
-	}
-	if (bSetNewValue)
-	{
-		UProperty* ParamProperty = FindField<UProperty>(UMaterialExpressionScalarParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionScalarParameter, DefaultValue));
-		FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
-		Parameter->PostEditChangeProperty(PropertyChangedEvent);
-	}
-
-	return bSetNewValue;
-};
+	return SetParameterValueEditorOnly<UMaterialExpressionScalarParameter>(ParameterName, InValue);
+}
 
 bool UMaterial::SetTextureParameterValueEditorOnly(FName ParameterName, class UTexture* InValue)
 {
-	for (UMaterialExpression* Expression : Expressions)
-	{
-		if (UMaterialExpressionTextureSampleParameter* Parameter = Cast<UMaterialExpressionTextureSampleParameter>(Expression))
-		{
-			if (Parameter->SetParameterValue(ParameterName, InValue))
-			{
-				return true;
-				// Warning: in the case of duplicate parameters with different default values, this will find the first in the expression array, not necessarily the one that's used for rendering
-			}
-		}
-		else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
-		{
-			if (FunctionCall->MaterialFunction)
-			{
-				TArray<UMaterialFunctionInterface*> Functions;
-				Functions.Add(FunctionCall->MaterialFunction);
-				FunctionCall->MaterialFunction->GetDependentFunctions(Functions);
-
-				for (UMaterialFunctionInterface* Function : Functions)
-				{
-					const TArray<UMaterialExpression*>* ExpressionPtr = Function->GetFunctionExpressions();
-					if (ExpressionPtr)
-					{
-						for (UMaterialExpression* FunctionExpression : *ExpressionPtr)
-						{
-							if (UMaterialExpressionTextureSampleParameter* FunctionExpressionParameter = Cast<UMaterialExpressionTextureSampleParameter>(FunctionExpression))
-							{
-								if (FunctionExpressionParameter->SetParameterValue(ParameterName, InValue))
-								{
-									return true;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return false;
-};
+	return SetParameterValueEditorOnly<UMaterialExpressionTextureSampleParameter>(ParameterName, InValue);
+}
 
 bool UMaterial::SetFontParameterValueEditorOnly(FName ParameterName, class UFont* InFontValue, int32 InFontPage)
 {
-	for (UMaterialExpression* Expression : Expressions)
-	{
-		if (UMaterialExpressionFontSampleParameter* Parameter = Cast<UMaterialExpressionFontSampleParameter>(Expression))
-		{
-			if (Parameter->SetParameterValue(ParameterName, InFontValue, InFontPage))
-			{
-				return true;
-				// Warning: in the case of duplicate parameters with different default values, this will find the first in the expression array, not necessarily the one that's used for rendering
-			}
-		}
-		else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
-		{
-			if (FunctionCall->MaterialFunction)
-			{
-				TArray<UMaterialFunctionInterface*> Functions;
-				Functions.Add(FunctionCall->MaterialFunction);
-				FunctionCall->MaterialFunction->GetDependentFunctions(Functions);
+	return SetParameterValueEditorOnly<UMaterialExpressionFontSampleParameter>(ParameterName, InFontValue, InFontPage);
+}
 
-				for (UMaterialFunctionInterface* Function : Functions)
-				{
-					const TArray<UMaterialExpression*>* ExpressionPtr = Function->GetFunctionExpressions();
-					if (ExpressionPtr)
-					{
-						for (UMaterialExpression* FunctionExpression : *ExpressionPtr)
-						{
-							if (UMaterialExpressionFontSampleParameter* FunctionExpressionParameter = Cast<UMaterialExpressionFontSampleParameter>(FunctionExpression))
-							{
-								if (FunctionExpressionParameter->SetParameterValue(ParameterName, InFontValue, InFontPage))
-								{
-									return true;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return false;
-};
-
-bool UMaterial::SetStaticSwitchParameterValueEditorOnly(FName ParameterName, bool OutValue, FGuid OutExpressionGuid)
+bool UMaterial::SetStaticSwitchParameterValueEditorOnly(FName ParameterName, bool InValue, FGuid InExpressionGuid)
 {
-	for (UMaterialExpression* Expression : Expressions)
-	{
-		if (UMaterialExpressionStaticSwitchParameter* Parameter = Cast<UMaterialExpressionStaticSwitchParameter>(Expression))
-		{
-			if (Parameter->SetParameterValue(ParameterName, OutValue, OutExpressionGuid))
-			{
-				return true;
-				// Warning: in the case of duplicate parameters with different default values, this will find the first in the expression array, not necessarily the one that's used for rendering
-			}
-		}
-		else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
-		{
-			if (FunctionCall->MaterialFunction)
-			{
-				TArray<UMaterialFunctionInterface*> Functions;
-				Functions.Add(FunctionCall->MaterialFunction);
-				FunctionCall->MaterialFunction->GetDependentFunctions(Functions);
+	return SetParameterValueEditorOnly<UMaterialExpressionStaticSwitchParameter>(ParameterName, InValue, InExpressionGuid);
+}
 
-				for (UMaterialFunctionInterface* Function : Functions)
-				{
-					const TArray<UMaterialExpression*>* ExpressionPtr = Function->GetFunctionExpressions();
-					if (ExpressionPtr)
-					{
-						for (UMaterialExpression* FunctionExpression : *ExpressionPtr)
-						{
-							if (UMaterialExpressionStaticSwitchParameter* FunctionExpressionParameter = Cast<UMaterialExpressionStaticSwitchParameter>(FunctionExpression))
-							{
-								if (FunctionExpressionParameter->SetParameterValue(ParameterName, OutValue, OutExpressionGuid))
-								{
-									return true;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return false;
-};
-
-bool UMaterial::SetStaticComponentMaskParameterValueEditorOnly(FName ParameterName, bool R, bool G, bool B, bool A, FGuid OutExpressionGuid)
+bool UMaterial::SetStaticComponentMaskParameterValueEditorOnly(FName ParameterName, bool R, bool G, bool B, bool A, FGuid InExpressionGuid)
 {
-	for (UMaterialExpression* Expression : Expressions)
-	{
-		if (UMaterialExpressionStaticComponentMaskParameter* Parameter = Cast<UMaterialExpressionStaticComponentMaskParameter>(Expression))
-		{
-			if (Parameter->SetParameterValue(ParameterName, R, G, B, A, OutExpressionGuid))
-			{
-				return true;
-				// Warning: in the case of duplicate parameters with different default values, this will find the first in the expression array, not necessarily the one that's used for rendering
-			}
-		}
-		else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
-		{
-			if (FunctionCall->MaterialFunction)
-			{
-				TArray<UMaterialFunctionInterface*> Functions;
-				Functions.Add(FunctionCall->MaterialFunction);
-				FunctionCall->MaterialFunction->GetDependentFunctions(Functions);
-
-				for (UMaterialFunctionInterface* Function : Functions)
-				{
-					const TArray<UMaterialExpression*>* ExpressionPtr = Function->GetFunctionExpressions();
-					if (ExpressionPtr)
-					{
-						for (UMaterialExpression* FunctionExpression : *ExpressionPtr)
-						{
-							if (UMaterialExpressionStaticComponentMaskParameter* FunctionExpressionParameter = Cast<UMaterialExpressionStaticComponentMaskParameter>(FunctionExpression))
-							{
-								if (FunctionExpressionParameter->SetParameterValue(ParameterName, R, G, B, A, OutExpressionGuid))
-								{
-									return true;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return false;
-};
+	return SetParameterValueEditorOnly<UMaterialExpressionStaticComponentMaskParameter>(ParameterName, R, G, B, A, InExpressionGuid);
+}
 #endif
 
 void UMaterial::MarkUsageFlagDirty(EMaterialUsage Usage, bool CurrentValue, bool NewValue)
@@ -3059,11 +2806,8 @@ void UMaterial::UpdateMaterialShaderCacheAndTextureReferences()
 
 void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 {
-	
-#if WITH_EDITOR
 	// Always rebuild the shading model field on recompile
 	RebuildShadingModelField();
-#endif //WITH_EDITOR
 
 	if (bRegenerateId)
 	{
@@ -3514,7 +3258,7 @@ void UMaterial::Serialize(FArchive& Ar)
 		}
 	}
 #if WITH_EDITOR
-	if (Ar.IsSaving() && Ar.IsCooking() && Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && FShaderCodeLibrary::NeedsShaderStableKeys())
+	if (Ar.IsSaving() && Ar.IsCooking() && Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && FShaderCodeLibrary::NeedsShaderStableKeys(EShaderPlatform::SP_NumPlatforms))
 	{
 		SaveShaderStableKeys(Ar.CookingTarget());
 	}
@@ -4626,31 +4370,23 @@ void UMaterial::UpdateExpressionParameterName(UMaterialExpression* Expression)
 		}
 	}
 }
+#endif // WITH_EDITOR
 
 void UMaterial::RebuildShadingModelField()
 {
 	ShadingModels.ClearShadingModels();
-	// If using shading model from material expression, go through the expressions and look for the ShadingModel expression to figure out what shading models need to be supported in this material
+
+	// If using shading model from material expression, go through the expressions and look for the ShadingModel expression to figure out what shading models need to be supported in this material.
+	// This might not be the same as what is actually compiled in to the shader, since there might be feature switches, static switches etc. that skip certain shading models.
 	if (ShadingModel == MSM_FromMaterialExpression)
 	{
-		TArray<UMaterialExpression*> ShadingModelPropertyExpressions;
 
-		// Depending on if we use Material Attributes or not, we have to start at the right property
-		if (bUseMaterialAttributes)
-		{
-			GetExpressionsInPropertyChain(MP_MaterialAttributes, ShadingModelPropertyExpressions, nullptr);
-		}
-		else
-		{
-			GetExpressionsInPropertyChain(MP_ShadingModel, ShadingModelPropertyExpressions, nullptr);
-		}
+		TArray<UMaterialExpressionShadingModel*> ShadingModelExpressions;
+		GetAllExpressionsInMaterialAndFunctionsOfType(ShadingModelExpressions);
 
-		for (UMaterialExpression* MatExpr: ShadingModelPropertyExpressions)
-		{
-			if (UMaterialExpressionShadingModel* ShadingModelExpression = Cast<UMaterialExpressionShadingModel>(MatExpr))
+		for (UMaterialExpressionShadingModel* MatExpr : ShadingModelExpressions)
 			{
-				ShadingModels.AddShadingModel(ShadingModelExpression->ShadingModel);
-			}
+			ShadingModels.AddShadingModel(MatExpr->ShadingModel);
 		}
 
 		// If no expressions have been found, set a default
@@ -4664,8 +4400,17 @@ void UMaterial::RebuildShadingModelField()
 		// If a shading model has been selected directly for the material, set it here
 		ShadingModels.AddShadingModel(ShadingModel);
 	}
+
+#if WITH_EDITORONLY_DATA
+	// Build a string with all the shading models on this material. Used to display the used shading models in this material
+	auto ShadingModelToStringLambda = 
+	[](EMaterialShadingModel InShadingModel) -> FString
+	{ 
+		return StaticEnum<EMaterialShadingModel>()->GetDisplayNameTextByValue(InShadingModel).ToString();
+	};
+	UsedShadingModels = GetShadingModelFieldString(ShadingModels, FShadingModelToStringDelegate::CreateLambda(ShadingModelToStringLambda), " | ");
+#endif
 }
-#endif // WITH_EDITOR
 
 bool UMaterial::GetExpressionParameterName(const UMaterialExpression* Expression, FName& OutName)
 {

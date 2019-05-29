@@ -89,6 +89,18 @@ bool FDateTimeTest::RunTest(const FString& Parameters)
 	FDateTime ParsedDateTime;
 
 	TestFalse(TEXT("Parsing an empty ISO string must fail"), FDateTime::ParseIso8601(TEXT(""), ParsedDateTime));
+	
+	FDateTime::ParseIso8601(TEXT("2019-05-22"), ParsedDateTime);
+	TestEqual(TEXT("Testing ISO 8601 date"), ParsedDateTime, FDateTime{2019, 5, 22});
+
+	FDateTime::ParseIso8601(TEXT("2019-05-20T19:41:38+01:30"), ParsedDateTime);
+	TestEqual(TEXT("Testing ISO 8601 with +hh:mm timezone info"), ParsedDateTime, FDateTime{ 2019, 5, 20, 18, 11, 38 });
+	FDateTime::ParseIso8601(TEXT("2019-05-20T19:41:38-01:30"), ParsedDateTime);
+	TestEqual(TEXT("Testing ISO 8601 with -hh:mm timezone info"), ParsedDateTime, FDateTime{ 2019, 5, 20, 21, 11, 38 });
+	FDateTime::ParseIso8601(TEXT("2019-05-20T19:41:38+0030"), ParsedDateTime);
+	TestEqual(TEXT("Testing ISO 8601 with +hhmm timezone info"), ParsedDateTime, FDateTime{ 2019, 5, 20, 19, 11, 38 });
+	FDateTime::ParseIso8601(TEXT("2019-05-20T19:41:38-01"), ParsedDateTime);
+	TestEqual(TEXT("Testing ISO 8601 with -hh timezone info"), ParsedDateTime, FDateTime{ 2019, 5, 20, 20, 41, 38 });
 
 	return true;
 }

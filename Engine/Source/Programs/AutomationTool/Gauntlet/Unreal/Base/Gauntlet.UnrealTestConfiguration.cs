@@ -62,12 +62,13 @@ namespace Gauntlet
 		/// the configuration class and take care to append properties.
 		/// </summary>
 		/// <param name="InType"></param>
-		public UnrealTestRole(UnrealTargetRole InType, UnrealTargetPlatform InPlatformOverride)
+		public UnrealTestRole(UnrealTargetRole InType, UnrealTargetPlatform? InPlatformOverride)
 		{
 			Type = InType;
             PlatformOverride = InPlatformOverride;
-			CommandLine = "";
-			ExplicitClientCommandLine = "";
+			CommandLine = string.Empty;
+			MapOverride = string.Empty;
+			ExplicitClientCommandLine = string.Empty;
 			Controllers = new List<string>();
             FilesToCopy = new List<UnrealFileToCopy>();
             RoleType = ERoleModifier.None;
@@ -83,7 +84,7 @@ namespace Gauntlet
 		/// <summary>
 		/// Override for what platform this role is on
 		/// </summary>
-		public UnrealTargetPlatform PlatformOverride { get; protected set; }
+		public UnrealTargetPlatform? PlatformOverride { get; protected set; }
 
 		/// <summary>
 		/// Command line or this role
@@ -102,6 +103,11 @@ namespace Gauntlet
 		public string ExplicitClientCommandLine { get; set; }
 
         public List<UnrealFileToCopy> FilesToCopy { get; set; }
+
+		/// <summary>
+		/// A map value passed in per server in case a test needs multiple servers on different maps.
+		/// </summary>
+		public string MapOverride { get; set; }
 
 		/// <summary>
 		/// Role device configuration 
@@ -274,10 +280,10 @@ namespace Gauntlet
 		/// <returns></returns>
 		public IEnumerable<UnrealTestRole> RequireRoles(UnrealTargetRole InRole, int Count)
 		{
-			return RequireRoles(InRole, UnrealTargetPlatform.Unknown, Count);
+			return RequireRoles(InRole, null, Count);
 		}
 
-		public IEnumerable<UnrealTestRole> RequireRoles(UnrealTargetRole InRole, UnrealTargetPlatform PlatformOverride, int Count, ERoleModifier roleType = ERoleModifier.None)
+		public IEnumerable<UnrealTestRole> RequireRoles(UnrealTargetRole InRole, UnrealTargetPlatform? PlatformOverride, int Count, ERoleModifier roleType = ERoleModifier.None)
 		{
 			if (RequiredRoles.ContainsKey(InRole) == false)
 			{
