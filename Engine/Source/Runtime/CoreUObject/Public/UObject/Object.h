@@ -929,7 +929,43 @@ public:
 	 * @param	PackageFilename full path to the package that this object is being saved to on disk
 	 * @param	TargetPlatform	target platform to cook additional files for
 	 */
-	virtual void CookAdditionalFiles( const TCHAR* PackageFilename, const ITargetPlatform* TargetPlatform ) { }
+	UE_DEPRECATED(4.23, "Use the new CookAdditionalFilesOverride that provides a function to write the files")
+	virtual void CookAdditionalFiles(const TCHAR* PackageFilename, const ITargetPlatform* TargetPlatform) { }
+
+	/**
+	 * Called during cook to allow objects to generate additional cooked files alongside their cooked package.
+	 * @note Implement CookAdditionalFilesOverride to define sub class behavior.
+	 *
+	 * @param	PackageFilename full path to the package that this object is being saved to on disk
+	 * @param	TargetPlatform	target platform to cook additional files for
+	 * @param	WriteAdditionalFile function for writing the additional files
+	 */
+	void CookAdditionalFiles(const TCHAR* PackageFilename, const ITargetPlatform* TargetPlatform,
+		TFunctionRef<void(const TCHAR* Filename, void* Data, int64 Size)> WriteAdditionalFile)
+	{
+		CookAdditionalFilesOverride(PackageFilename, TargetPlatform, WriteAdditionalFile);
+	}
+
+private:
+	/**
+	 * Called during cook to allow objects to generate additional cooked files alongside their cooked package.
+	 * Files written using the provided function will be handled as part of the saved cooked package
+	 * and contribute to package total file size, and package hash when enabled.
+	 * @note These should typically match the name of the package, but with a different extension.
+	 *
+	 * @param	PackageFilename full path to the package that this object is being saved to on disk
+	 * @param	TargetPlatform	target platform to cook additional files for
+	 * @param	WriteAdditionalFile function for writing the additional files
+	 */
+	virtual void CookAdditionalFilesOverride(const TCHAR* PackageFilename, const ITargetPlatform* TargetPlatform,
+		TFunctionRef<void(const TCHAR* Filename, void* Data, int64 Size)> WriteAdditionalFile)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+		CookAdditionalFiles(PackageFilename, TargetPlatform);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	}
+
+public:
 #endif
 	/**
 	 * Determine if this object has SomeObject in its archetype chain.

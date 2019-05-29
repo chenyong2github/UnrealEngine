@@ -5461,6 +5461,9 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					Linker->StartScriptSHAGeneration();
 				}
 
+#if WITH_EDITOR
+				TArray<FLargeMemoryWriter, TInlineAllocator<4>> AdditionalFilesFromExports;
+#endif
 				{
 					COOK_STAT(FScopedDurationTimer SaveTimer(SavePackageStats::SerializeExportsTimeSec));
 #if WITH_EDITOR
@@ -5529,9 +5532,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								}
 
 #if WITH_EDITOR
-								if (Linker->IsCooking())
+								if (bIsCooking)
 								{
-									Export.Object->CookAdditionalFiles(Filename, Linker->CookingTarget());
+									Export.Object->CookAdditionalFiles(Filename, TargetPlatform,
+										[&AdditionalFilesFromExports](const TCHAR* Filename, void* Data, int64 Size)
+									{
+										FLargeMemoryWriter& Writer = AdditionalFilesFromExports.Emplace_GetRef(0, true, Filename);
+										Writer.Serialize(Data, Size);
+									});
 								}
 #endif
 							}
@@ -5776,6 +5784,30 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 
 				Linker->BulkDataToAppend.Empty();
+
+#if WITH_EDITOR
+				if (bIsCooking && AdditionalFilesFromExports.Num() > 0)
+				{
+					const bool bWriteFileToDisk = !bDiffing;
+					for (FLargeMemoryWriter& Writer : AdditionalFilesFromExports)
+					{
+						const int64 Size = Writer.TotalSize();
+						TotalPackageSizeUncompressed += Size;
+						if (bComputeHash)
+						{
+							CookedPackageHash.Update(Writer.GetData(), Size);
+						}
+						if (bWriteFileToDisk)
+						{
+							FLargeMemoryPtr DataPtr(Writer.GetData());
+							Writer.ReleaseOwnership();
+							AsyncWriteFile(MoveTemp(DataPtr), Size, *Writer.GetArchiveName(), FDateTime::MinValue(), false);
+						}
+					}
+					AdditionalFilesFromExports.Empty();
+				}
+#endif
+
 			
 				// write the package post tag
 				if (!bTextFormat)
