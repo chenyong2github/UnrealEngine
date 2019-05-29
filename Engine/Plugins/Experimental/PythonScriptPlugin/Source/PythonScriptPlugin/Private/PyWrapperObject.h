@@ -193,7 +193,7 @@ public:
 	//~ UClass interface
 	virtual void PostInitInstance(UObject* InObj) override;
 
-	virtual bool IsFunctionImplementedInBlueprint(FName InFunctionName) const override;
+	virtual bool IsFunctionImplementedInScript(FName InFunctionName) const override;
 
 	/** Generate an Unreal class from the given Python type */
 	static UPythonGeneratedClass* GenerateClass(PyTypeObject* InPyType);

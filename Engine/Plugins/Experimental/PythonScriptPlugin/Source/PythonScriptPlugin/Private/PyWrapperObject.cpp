@@ -1687,7 +1687,7 @@ void UPythonGeneratedClass::PostInitInstance(UObject* InObj)
 	}
 }
 
-bool UPythonGeneratedClass::IsFunctionImplementedInBlueprint(FName InFunctionName) const
+bool UPythonGeneratedClass::IsFunctionImplementedInScript(FName InFunctionName) const
 {
 	UFunction* Function = FindFunctionByName(InFunctionName);
 	return Function && Function->GetOuter() && Function->GetOuter()->IsA(UPythonGeneratedClass::StaticClass());

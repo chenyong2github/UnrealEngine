@@ -2725,7 +2725,10 @@ public:
 	 * @param InFunctionName	The name of the function to test
 	 * @return					True if the specified function exists and is implemented in a blueprint generated class
 	 */
-	virtual bool IsFunctionImplementedInBlueprint(FName InFunctionName) const;
+	virtual bool IsFunctionImplementedInScript(FName InFunctionName) const;
+
+	UE_DEPRECATED(4.23, "IsFunctionImplementedInBlueprint is deprecated, call IsFunctionImplementedInScript instead")
+	bool IsFunctionImplementedInBlueprint(FName InFunctionName) const { return IsFunctionImplementedInScript(InFunctionName); }
 
 	/**
 	 * Checks if the property exists on this class or a parent class.
