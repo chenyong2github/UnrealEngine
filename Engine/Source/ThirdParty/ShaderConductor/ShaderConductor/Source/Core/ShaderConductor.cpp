@@ -113,6 +113,9 @@ namespace
             {
                 m_compiler.Detach();
                 m_library.Detach();
+				/* UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals */
+				m_rewriter.Detach();
+				/* UE Change End: Add functionality to rewrite HLSL to remove unused code and globals */
 
                 m_createInstanceFunc = nullptr;
 
