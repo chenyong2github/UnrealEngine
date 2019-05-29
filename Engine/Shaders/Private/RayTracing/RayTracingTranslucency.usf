@@ -149,7 +149,7 @@ void RayTracingTranslucencyRGS()
 		//
 		// Handle no hit condition
 		//
-		if (!IsHit(Ray, Payload))
+		if (Payload.IsMiss())
 		{
 			if (bHasScattered && bAllowSkySampling)
 			{
@@ -158,7 +158,7 @@ void RayTracingTranslucencyRGS()
 			}
 			break;
 		}
-		float3 HitPoint = Ray.Origin + Ray.Direction * GetHitT(Payload);
+		float3 HitPoint = Ray.Origin + Ray.Direction * Payload.HitT;
 
 		//
 		// Handle surface lighting
@@ -196,7 +196,7 @@ void RayTracingTranslucencyRGS()
 			FMaterialClosestHitPayload ReflectionPayload = TraceRayAndAccumulateResults(ReflectionRay, TLAS, RandSequence, RayFlags, MaxNormalBias, RAY_TRACING_MASK_ALL, ReflectedShadowsType, ShouldDoDirectLighting, ShouldDoEmissiveAndIndirectLighting, RayCone, ReflectionRadiance);
 
 			// If we have not hit anything, sample the distance sky radiance.
-			if (!IsHit(ReflectionRay, ReflectionPayload))
+			if (ReflectionPayload.IsMiss())
 			{
 				ReflectionRadiance = GetSkyRadiance(ReflectionRay.Direction, LastRoughness);
 			}
@@ -265,13 +265,6 @@ void RayTracingTranslucencyRGS()
 	PathRadiance = ClampToHalfFloatRange(PathRadiance);
 	ColorOutput[DispatchThreadId] = float4(PathRadiance, 0.0f);
 	RayHitDistanceOutput[DispatchThreadId] = HitDistance;
-}
-
-
-[shader("miss")]
-void RayTracingTranslucencyMainMS(inout FPackedMaterialClosestHitPayload PackedPayload)
-{
-	PackedPayload.HitT = -1;
 }
 
 

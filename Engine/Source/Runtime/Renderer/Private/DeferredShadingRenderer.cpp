@@ -792,11 +792,9 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 		if (RayGenShaders.Num())
 		{
 			auto DefaultHitShader = View.ShaderMap->GetShader<FOpaqueShadowHitGroup>()->GetRayTracingShader();
-			auto DefaultMissShader = View.ShaderMap->GetShader<FDefaultMaterialMS>()->GetRayTracingShader();
 
 			View.RayTracingMaterialPipeline = BindRayTracingMaterialPipeline(RHICmdList, View,
 				RayGenShaders,
-				DefaultMissShader,
 				DefaultHitShader
 			);
 		}

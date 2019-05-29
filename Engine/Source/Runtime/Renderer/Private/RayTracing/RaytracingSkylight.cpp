@@ -886,9 +886,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 				FRHIRayTracingShader* RayGenShaderTable[] = { RayGenerationShader->GetRayTracingShader() };
 				Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-				FRHIRayTracingShader* MissShaderTable[] = { View.ShaderMap->GetShader<FDefaultMaterialMS>()->GetRayTracingShader() };
-				Initializer.SetMissShaderTable(MissShaderTable);
-
 				FRHIRayTracingShader* HitGroupTable[] = { View.ShaderMap->GetShader<FOpaqueShadowHitGroup>()->GetRayTracingShader() };
 				Initializer.SetHitGroupTable(HitGroupTable);
 				Initializer.bAllowHitGroupIndexing = false; // Use the same hit shader for all geometry in the scene by disabling SBT indexing.

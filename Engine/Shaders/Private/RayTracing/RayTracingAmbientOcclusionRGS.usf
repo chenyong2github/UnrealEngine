@@ -108,8 +108,8 @@ void AmbientOcclusionRGS()
 		);
 		
 		RayCount += 1;
-		Visibility += Payload.HitT < 0 ? 1.0 : 1.0 - IntensityLocal;
-		if (Payload.HitT >= 0.0)
+		Visibility += Payload.IsMiss() ? 1.0 : 1.0 - IntensityLocal;
+		if (Payload.IsHit())
 		{
 			ClosestRayHitDistance = min(ClosestRayHitDistance, Payload.HitT);
 		}

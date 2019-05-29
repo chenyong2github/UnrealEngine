@@ -24,21 +24,7 @@ class FRayTracingDeferredMaterialCHS : public FGlobalShader
 	using FParameters = FEmptyShaderParameters;
 };
 
-class FRayTracingDeferredMaterialMS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FRayTracingDeferredMaterialMS)
-	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingDeferredMaterialMS, FGlobalShader)
-
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	using FParameters = FEmptyShaderParameters;
-};
-
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredMaterialCHS, "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialCHS", SF_RayHitGroup);
-IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredMaterialMS,  "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialMS",  SF_RayMiss);
 
 FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingDeferredMaterialGatherPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, FRHIRayTracingShader* RayGenShader)
 {
@@ -48,10 +34,6 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingDeferredM
 
 	FRHIRayTracingShader* RayGenShaderTable[] = { RayGenShader };
 	Initializer.SetRayGenShaderTable(RayGenShaderTable);
-
-	auto* MissShader = View.ShaderMap->GetShader<FRayTracingDeferredMaterialMS>();
-	FRHIRayTracingShader* MissShaderTable[] = { MissShader->GetRayTracingShader() };
-	Initializer.SetMissShaderTable(MissShaderTable);
 
 	Initializer.MaxPayloadSizeInBytes = 12; // sizeof FDeferredMaterialPayload
 

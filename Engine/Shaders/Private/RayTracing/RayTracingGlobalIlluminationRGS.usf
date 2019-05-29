@@ -164,7 +164,7 @@ void GlobalIlluminationRGS()
 			);
 
 			// Environment hit
-			if (!IsHit(Ray, Payload))
+			if (Payload.IsMiss())
 			{
 				// Optional multi-bounce SkyLight contribution
 				if (EvalSkyLight && Bounce > 0)
@@ -245,7 +245,7 @@ void GlobalIlluminationRGS()
 					);
 
 					// No hit indicates successful next-event connection
-					if (!IsHit(LightRay, NeePayload))
+					if (NeePayload.IsMiss())
 					{
 						// Evaluate radiance
 						float3 Radiance;
@@ -347,13 +347,6 @@ void GlobalIlluminationRGS()
 	// For AO denoiser..
 	//RWRayDistanceUAV[DispatchThreadId] = float2(Luminance(Irradiance), HitDistance);
 }
-
-[shader("miss")]
-void RayTracingGlobalIlluminationMS(inout FPackedMaterialClosestHitPayload PackedPayload)
-{
-	PackedPayload.HitT = -1;
-}
-
 
 [shader("closesthit")]
 void RayTracingGlobalIlluminationCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefaultAttributes Attributes)

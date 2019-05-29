@@ -548,9 +548,8 @@ void AccumulateResults(
 	inout FRayCone RayCone,
 	inout float3 Radiance)
 {
-	if (IsHit(Ray, Payload))
+	if (Payload.IsHit())
 	{
-
 		Payload.DiffuseColor = Payload.BaseColor - Payload.BaseColor * Payload.Metallic;
 		Payload.SpecularColor = ComputeF0(Payload.Specular, Payload.BaseColor, Payload.Metallic);
 

@@ -2204,7 +2204,7 @@ public:
 			GetTypeHash(Initializer.GetCallableHash());
 	}
 
-	uint32 MaxPayloadSizeInBytes = 32; // sizeof FDefaultPayload declared in RayTracingCommon.ush
+	uint32 MaxPayloadSizeInBytes = 24; // sizeof FDefaultPayload declared in RayTracingCommon.ush
 
 	bool bAllowHitGroupIndexing = true;
 
@@ -2221,7 +2221,7 @@ public:
 	}
 
 	// Shaders that will be invoked if a ray misses all geometry.
-	// If this table is empty, then a built-in default miss shader will be used that sets HitT member of FDefaultPayload to -1.
+	// If this table is empty, then a built-in default miss shader will be used that sets HitT member of FMinimalPayload to -1.
 	// Desired miss shader can be selected by providing MissShaderIndex to TraceRay() function.
 	void SetMissShaderTable(const TArrayView<FRHIRayTracingShader*>& InMissShaders, uint64 Hash = 0)
 	{

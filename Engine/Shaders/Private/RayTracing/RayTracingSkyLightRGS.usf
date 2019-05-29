@@ -331,7 +331,7 @@ void SkyLightRGS()
 			Payload    // Payload
 		);
 
-		if (Payload.HitT >= 0.0)
+		if (Payload.IsHit())
 		{
 			RayDistance += Payload.HitT;
 			HitCount += 1.0;

@@ -34,25 +34,6 @@ class FRayTracingDebugRGS : public FGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugRGS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugMainRGS", SF_RayGen);
 
-class FRayTracingDebugMS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FRayTracingDebugMS, Global);
-
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	FRayTracingDebugMS() = default;
-	FRayTracingDebugMS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{}
-};
-IMPLEMENT_SHADER_TYPE(, FRayTracingDebugMS, TEXT("/Engine/Private/RayTracing/RayTracingDebug.usf"), TEXT("RayTracingDebugMainMS"), SF_RayMiss);
-
-
 class FRayTracingDebugCHS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FRayTracingDebugCHS, Global);
@@ -122,7 +103,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 
 	auto RayGenShader = ShaderMap->GetShader<FRayTracingDebugRGS>();
 	auto ClosestHitShader = ShaderMap->GetShader<FRayTracingDebugCHS>();
-	auto MissShader = ShaderMap->GetShader<FRayTracingDebugMS>();
 
 	FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
 

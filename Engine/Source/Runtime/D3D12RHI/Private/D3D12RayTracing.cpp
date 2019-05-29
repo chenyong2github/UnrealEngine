@@ -1710,7 +1710,7 @@ public:
 			FRHIRayTracingShader* OcclusionRGSTable[] = { GetBuildInRayTracingShader<FOcclusionMainRG>() };
 			OcclusionInitializer.SetRayGenShaderTable(OcclusionRGSTable);
 
-			FRHIRayTracingShader* OcclusionMSTable[] = { GetBuildInRayTracingShader<FOcclusionMainMS>() };
+			FRHIRayTracingShader* OcclusionMSTable[] = { GetBuildInRayTracingShader<FDefaultMainMS>() };
 			OcclusionInitializer.SetMissShaderTable(OcclusionMSTable);
 
 			OcclusionInitializer.bAllowHitGroupIndexing = false;
@@ -1725,7 +1725,7 @@ public:
 			FRHIRayTracingShader* IntersectionRGSTable[] = { GetBuildInRayTracingShader<FIntersectionMainRG>() };
 			IntersectionInitializer.SetRayGenShaderTable(IntersectionRGSTable);
 
-			FRHIRayTracingShader* IntersectionMSTable[] = { GetBuildInRayTracingShader<FIntersectionMainMS>() };
+			FRHIRayTracingShader* IntersectionMSTable[] = { GetBuildInRayTracingShader<FDefaultMainMS>() };
 			IntersectionInitializer.SetMissShaderTable(IntersectionMSTable);
 
 			FRHIRayTracingShader* IntersectionHitTable[] = { GetBuildInRayTracingShader<FIntersectionMainCHS>() };

@@ -19,9 +19,3 @@ void HiddenMaterialAHS(inout FPackedMaterialClosestHitPayload PackedPayload, in 
 {
 	IgnoreHit();
 }  
-
-[shader("miss")]
-void DefaultMaterialMS(inout FPackedMaterialClosestHitPayload PackedPayload)
-{
-	PackedPayload.HitT = -1;
-}

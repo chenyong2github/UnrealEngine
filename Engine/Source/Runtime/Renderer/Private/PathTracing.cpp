@@ -304,48 +304,6 @@ public:
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingRG, TEXT("/Engine/Private/PathTracing/PathTracing.usf"), TEXT("PathTracingMainRG"), SF_RayGen);
 
-class FPathTracingCHS : public FGlobalShader
-{
-public:
-	DECLARE_SHADER_TYPE(FPathTracingCHS, Global);
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	FPathTracingCHS() {}
-	virtual ~FPathTracingCHS() {}
-
-	FPathTracingCHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{}
-};
-
-IMPLEMENT_SHADER_TYPE(, FPathTracingCHS, TEXT("/Engine/Private/PathTracing/PathTracingCHS.usf"), TEXT("PathTracingMainCHS"), SF_RayHitGroup);
-
-class FPathTracingMS : public FGlobalShader
-{
-public:
-	DECLARE_SHADER_TYPE(FPathTracingMS, Global);
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	FPathTracingMS() {}
-	virtual ~FPathTracingMS() {}
-
-	FPathTracingMS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{}
-};
-
-IMPLEMENT_SHADER_TYPE(, FPathTracingMS, TEXT("/Engine/Private/PathTracing/PathTracingMS.usf"), TEXT("PathTracingMainMS"), SF_RayMiss);
-
 DECLARE_GPU_STAT_NAMED(Stat_GPU_PathTracing, TEXT("Reference Path Tracing"));
 DECLARE_GPU_STAT_NAMED(Stat_GPU_PathTracingBuildSkyLightCDF, TEXT("Path Tracing: Build Sky Light CDF"));
 DECLARE_GPU_STAT_NAMED(Stat_GPU_PathTracingBuildVarianceMipTree, TEXT("Path Tracing: Build Variance Map Tree"));
@@ -485,8 +443,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	ClearUAV(RHICmdList, RayCountPerPixelRT->GetRenderTargetItem(), FLinearColor::Black);
 
 	auto RayGenShader = GetGlobalShaderMap(FeatureLevel)->GetShader<FPathTracingRG>();
-	auto MissShader = GetGlobalShaderMap(FeatureLevel)->GetShader<FPathTracingMS>();
-	auto ClosestHitShader = GetGlobalShaderMap(FeatureLevel)->GetShader<FPathTracingCHS>();
 
 	FRayTracingShaderBindingsWriter GlobalResources;
 

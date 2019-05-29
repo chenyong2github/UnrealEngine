@@ -89,7 +89,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 
 	{
 		FRHIResourceCreateInfo CreateInfo;
-		IntersectionResultBuffer = RHICreateVertexBuffer(sizeof(FBasicRayIntersectionData)*NumRays, BUF_Static | BUF_UnorderedAccess, CreateInfo);
+		IntersectionResultBuffer = RHICreateVertexBuffer(sizeof(FIntersectionPayload)*NumRays, BUF_Static | BUF_UnorderedAccess, CreateInfo);
 		IntersectionResultBufferView = RHICreateUnorderedAccessView(IntersectionResultBuffer, PF_R32_UINT);
 	}
 
@@ -151,23 +151,24 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 		// Read back and validate intersection trace results
 
 		{
-			auto MappedResults = (const FBasicRayIntersectionData*)RHILockVertexBuffer(IntersectionResultBuffer, 0, sizeof(FBasicRayIntersectionData)*NumRays, RLM_ReadOnly);
+			auto MappedResults = (const FIntersectionPayload*)RHILockVertexBuffer(IntersectionResultBuffer, 0, sizeof(FIntersectionPayload)*NumRays, RLM_ReadOnly);
 
 			check(MappedResults);
 
 			// expect hit primitive 0, instance 0, barycentrics {0.5, 0.125}
+			check(MappedResults[0].HitT >= 0);
 			check(MappedResults[0].PrimitiveIndex == 0);
 			check(MappedResults[0].InstanceIndex == 0);
 			check(FMath::IsNearlyEqual(MappedResults[0].Barycentrics[0], 0.5f));
 			check(FMath::IsNearlyEqual(MappedResults[0].Barycentrics[1], 0.125f));
 
-			check(MappedResults[1].PrimitiveIndex == ~0u); // expect miss
-			check(MappedResults[2].PrimitiveIndex == ~0u); // expect miss
-			check(MappedResults[3].PrimitiveIndex == ~0u); // expect miss
+			check(MappedResults[1].HitT < 0); // expect miss
+			check(MappedResults[2].HitT < 0); // expect miss
+			check(MappedResults[3].HitT < 0); // expect miss
 
 			RHIUnlockVertexBuffer(IntersectionResultBuffer);
 
-			bIntersectionTestOK = (MappedResults[1].PrimitiveIndex == ~0u) && (MappedResults[2].PrimitiveIndex == ~0u) && (MappedResults[3].PrimitiveIndex == ~0u);
+			bIntersectionTestOK = (MappedResults[0].HitT >= 0) && (MappedResults[1].HitT < 0) && (MappedResults[2].HitT < 0) && (MappedResults[3].HitT < 0);
 		}
 	}
 

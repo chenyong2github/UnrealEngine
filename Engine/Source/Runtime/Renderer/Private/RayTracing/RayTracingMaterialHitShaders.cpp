@@ -157,7 +157,6 @@ IMPLEMENT_MATERIALCHS_TYPE(TUniformLightMapPolicy<LMP_DISTANCE_FIELD_SHADOWS_AND
 
 IMPLEMENT_GLOBAL_SHADER(FHiddenMaterialHitGroup, "/Engine/Private/RayTracing/RayTracingMaterialDefaultHitShaders.usf", "closesthit=HiddenMaterialCHS anyhit=HiddenMaterialAHS", SF_RayHitGroup);
 IMPLEMENT_GLOBAL_SHADER(FOpaqueShadowHitGroup, "/Engine/Private/RayTracing/RayTracingMaterialDefaultHitShaders.usf", "closesthit=OpaqueShadowCHS", SF_RayHitGroup);
-IMPLEMENT_GLOBAL_SHADER(FDefaultMaterialMS, "/Engine/Private/RayTracing/RayTracingMaterialDefaultHitShaders.usf", "DefaultMaterialMS", SF_RayMiss);
 
 template<typename LightMapPolicyType>
 static FMaterialCHS* GetMaterialHitShader(const FMaterial& RESTRICT MaterialResource, const FVertexFactory* VertexFactory, bool UseTextureLod)
@@ -441,7 +440,6 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 	FRHICommandList& RHICmdList,
 	const FViewInfo& View,
 	const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable,
-	FRHIRayTracingShader* MissShader,
 	FRHIRayTracingShader* DefaultClosestHitShader
 )
 {
@@ -455,9 +453,6 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 	Initializer.bAllowHitGroupIndexing = true;
 
 	Initializer.SetRayGenShaderTable(RayGenShaderTable);
-
-	FRHIRayTracingShader* MissShaderTable[] = { MissShader };
-	Initializer.SetMissShaderTable(MissShaderTable);
 
 	const bool bEnableMaterials = GEnableRayTracingMaterials != 0;
 

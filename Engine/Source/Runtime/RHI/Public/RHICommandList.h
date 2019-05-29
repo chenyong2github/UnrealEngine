@@ -128,13 +128,13 @@ struct FBasicRayData
 	float TFar;
 };
 
-// C++ counter-part of FBasicRayIntersectionData declared in RayTracingCommon.ush
-struct FBasicRayIntersectionData
+// C++ counter-part of FIntersectionPayload declared in RayTracingCommon.ush
+struct FIntersectionPayload
 {
-	float  Distance;
-	uint32 PrimitiveIndex; // 0xFFFFFFFF if no intersection if found
-	uint32 InstanceIndex;  // 0xFFFFFFFF if no intersection if found
-	float  Barycentrics[2];
+	float  HitT;            // Distance from ray origin to the intersection point in the ray direction. Negative on miss.
+	uint32 PrimitiveIndex;  // Index of the primitive within the geometry inside the bottom-level acceleration structure instance. Undefined on miss.
+	uint32 InstanceIndex;   // Index of the current instance in the top-level structure. Undefined on miss.
+	float  Barycentrics[2]; // Primitive barycentric coordinates of the intersection point. Undefined on miss.
 };
 #endif // RHI_RAYTRACING
 
@@ -3055,7 +3055,7 @@ public:
 
 	/**
 	 * Trace rays from an input buffer of FBasicRayData.
-	 * Primitive intersection results are written to output buffer as FBasicRayIntersectionData.
+	 * Primitive intersection results are written to output buffer as FIntersectionPayload.
 	 */
 	FORCEINLINE_DEBUGGABLE void RayTraceIntersection(FRHIRayTracingScene* Scene,
 		FRHIShaderResourceView* Rays,

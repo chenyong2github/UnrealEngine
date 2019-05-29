@@ -270,6 +270,7 @@ void RayTracingReflectionsRGS()
 					if (DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_GATHER)
 					{
 						uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+						DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
 						TraceRay(
 							TLAS,								// AccelerationStructure
 							RayFlags,
@@ -306,13 +307,13 @@ void RayTracingReflectionsRGS()
 				FMaterialClosestHitPayload Payload;
 				const uint RayFlags = 0;					
 				Payload = TraceRayAndAccumulateResults(TopLayerRay, TLAS, RandSequence, RayFlags, ReflectionMaxNormalBias, RAY_TRACING_MASK_OPAQUE, ReflectedShadowsType, ShouldDoDirectLighting, ShouldDoEmissiveAndIndirectLighting, RayCone, TopLayerRadiance);
-				bool isTopLayerRayValid = Payload.HitT >= 0 || (bAllowSkySampling && ReflectionStruct.SkyLightParameters.y > 0);
+				bool isTopLayerRayValid = Payload.IsHit() || (bAllowSkySampling && ReflectionStruct.SkyLightParameters.y > 0);
 
 
 				// Compute some flags and values
 				bool bApplyHeightFog = false;
 				float3 OriginToCollider = 0.0f;
-				if (Payload.HitT >= 0)
+				if (Payload.IsHit())
 				{
 					bIsValidSample = true;
 					if (BounceIndex == 0)
@@ -377,7 +378,7 @@ void RayTracingReflectionsRGS()
 					// Distance and sky: similar processing to main ray.
 					float BottomLayerHitDistance = -1;
 					bool IsBottomSampleValid = false;
-					if (BottomLayerPayload.HitT >= 0)
+					if (BottomLayerPayload.IsHit())
 					{
 						IsBottomSampleValid = true;
 						BottomLayerHitDistance = BottomLayerPayload.HitT;
@@ -575,31 +576,5 @@ void RayTracingReflectionsRGS()
 			RayImaginaryDepthOutput[DispatchThreadId] = ImaginarySVDepth;
 		}
 	}
-}
-
-
-[shader("miss")]
-void RayTracingReflectionsMainMS(inout FPackedMaterialClosestHitPayload PackedPayload)
-{
-	PackedPayload.HitT = -1;
-}
-
-
-[shader("closesthit")]
-void RayTracingReflectionsMainCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefaultAttributes Attributes)
-{
-	FMaterialClosestHitPayload Payload = (FMaterialClosestHitPayload)0;
-
-	Payload.HitT = RayTCurrent();
-	Payload.BaseColor = float3(0.2, 0.3, 0.4);
-
-	FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(PrimitiveIndex());
-	float3 Edge0 = Triangle.LocalPositions[2] - Triangle.LocalPositions[0];
-	float3 Edge1 = Triangle.LocalPositions[1] - Triangle.LocalPositions[0];
-	float3x3 WorldToLocal = (float3x3)WorldToObject();
-	float3x3 LocalToWorldNormal = transpose(WorldToLocal);
-	Payload.WorldNormal = normalize(mul(LocalToWorldNormal, cross(Edge0, Edge1)));
-
-	PackedPayload = PackRayTracingPayload(Payload, PackedPayload.RayCone);
 }
 

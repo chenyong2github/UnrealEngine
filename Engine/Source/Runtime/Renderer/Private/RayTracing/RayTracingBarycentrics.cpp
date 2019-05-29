@@ -28,26 +28,6 @@ class FRayTracingBarycentricsRGS : public FGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FRayTracingBarycentricsRGS, "/Engine/Private/RayTracing/RayTracingBarycentrics.usf", "RayTracingBarycentricsMainRGS", SF_RayGen);
 
-// Example ray miss shader
-class FRayTracingBarycentricsMS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FRayTracingBarycentricsMS, Global);
-
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	FRayTracingBarycentricsMS() = default;
-	FRayTracingBarycentricsMS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{}
-};
-IMPLEMENT_SHADER_TYPE(, FRayTracingBarycentricsMS, TEXT("/Engine/Private/RayTracing/RayTracingBarycentrics.usf"), TEXT("RayTracingBarycentricsMainMS"), SF_RayMiss);
-
-
 // Example closest hit shader
 class FRayTracingBarycentricsCHS : public FGlobalShader
 {
@@ -82,15 +62,11 @@ void FDeferredShadingSceneRenderer::RenderRayTracingBarycentrics(FRHICommandList
 
 	auto RayGenShader = ShaderMap->GetShader<FRayTracingBarycentricsRGS>();
 	auto ClosestHitShader = ShaderMap->GetShader<FRayTracingBarycentricsCHS>();
-	auto MissShader = ShaderMap->GetShader<FRayTracingBarycentricsMS>();
 
 	FRayTracingPipelineStateInitializer Initializer;
 
 	FRHIRayTracingShader* RayGenShaderTable[] = { RayGenShader->GetRayTracingShader() };
 	Initializer.SetRayGenShaderTable(RayGenShaderTable);
-
-	FRHIRayTracingShader* MissShaderTable[] = { MissShader->GetRayTracingShader() };
-	Initializer.SetMissShaderTable(MissShaderTable);
 
 	FRHIRayTracingShader* HitGroupTable[] = { ClosestHitShader->GetRayTracingShader() };
 	Initializer.SetHitGroupTable(HitGroupTable);

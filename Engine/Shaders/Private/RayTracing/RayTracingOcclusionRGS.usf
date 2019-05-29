@@ -235,8 +235,8 @@ void OcclusionRGS()
 			);
 
 			RayCount += 1.0;
-			Visibility += Payload.HitT < 0 ? 1.0 : 0.0;
-			if (Payload.HitT >= 0.0)
+			Visibility += Payload.IsMiss() ? 1.0 : 0.0;
+			if (Payload.IsHit())
 			{
 				ClosestRayDistance = ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE || Payload.HitT < ClosestRayDistance ? Payload.HitT : ClosestRayDistance;
 				SumRayDistance += Payload.HitT;

@@ -172,23 +172,8 @@ class FRayTracingTranslucencyCHS : public FGlobalShader
 	using FParameters = FEmptyShaderParameters;
 };
 
-class FRayTracingTranslucencyMS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FRayTracingTranslucencyMS);
-	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingTranslucencyMS, FGlobalShader)
-
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	using FParameters = FEmptyShaderParameters;
-};
-
 IMPLEMENT_GLOBAL_SHADER(FRayTracingTranslucencyRGS, "/Engine/Private/RayTracing/RayTracingTranslucency.usf", "RayTracingTranslucencyRGS", SF_RayGen);
 IMPLEMENT_GLOBAL_SHADER(FRayTracingTranslucencyCHS, "/Engine/Private/RayTracing/RayTracingTranslucency.usf", "RayTracingTranslucencyMainCHS", SF_RayHitGroup);
-IMPLEMENT_GLOBAL_SHADER(FRayTracingTranslucencyMS, "/Engine/Private/RayTracing/RayTracingTranslucency.usf", "RayTracingTranslucencyMainMS", SF_RayMiss);
-
 
 //#dxr-todo: should we unify it with the composition happening in the non raytraced translucency pass? In that case it should use FCopySceneColorPS
 // Probably, but the architecture depends on the denoiser -> discuss

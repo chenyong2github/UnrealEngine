@@ -44,7 +44,7 @@ void RayTracingDebugMainRGS()
 
 	float4 Result = float4(0, 0, 0, 1);
 
-	if (Payload.HitT > 0)
+	if (Payload.IsHit())
 	{
 		switch (VisualizationMode)
 		{
@@ -108,13 +108,6 @@ void RayTracingDebugMainRGS()
 
 	Output[PixelCoord] = Result * View.PreExposure;
 }
-
-[shader("miss")]
-void RayTracingDebugMainMS(inout FPackedMaterialClosestHitPayload PackedPayload)
-{
-	PackedPayload.HitT = -1;
-}
-
 
 [shader("closesthit")]
 void RayTracingDebugMainCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefaultAttributes Attributes)

@@ -88,7 +88,7 @@ void PathTracingMainRG()
 		while (Bounces < PathTracingData.MaxBounces)
 		{
 			// Environment contribution
-			if (!IsHit(Ray, Payload))
+			if (Payload.IsMiss())
 			{
 				// WARNING: Until ray payload encodes NEE LightId, the execution depends on this ordering!
 				uint SkyLightId = 0;
@@ -150,7 +150,7 @@ void PathTracingMainRG()
 
 			Bounces = Bounces + 1;
 			// Update origin
-			Ray.Origin = Ray.Origin + Ray.Direction * GetHitT(Payload);
+			Ray.Origin = Ray.Origin + Ray.Direction * Payload.HitT;
 			FMaterialClosestHitPayload RayHitInfo = Payload; 
 
 			// Perform next-event estimation
@@ -187,7 +187,7 @@ void PathTracingMainRG()
 					);
 					RayCounter++;
 
-					if (!IsHit(LightRay, NeePayload))
+					if (NeePayload.IsMiss())
 					{
 						FMaterialClosestHitPayload RayHitInfo = Payload; 
 #if 0
