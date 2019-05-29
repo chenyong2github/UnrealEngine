@@ -763,13 +763,18 @@ namespace UnrealBuildTool
 
 		static HoloLensPlatformSDK()
 		{
+#if !__MonoCS__
+			if (Utils.IsRunningOnMono)
+			{
+				return;
+			}
+
 			string Version = "v10.0";
 			string[] possibleRegLocations =
 			{
 				@"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\",
 				@"HKEY_CURRENT_USER\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\"
 			};
-#if !__MonoCS__
 			foreach (string regLocation in possibleRegLocations)
 			{
 				object Result = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\" + Version, "InstallationFolder", null);
@@ -787,7 +792,7 @@ namespace UnrealBuildTool
 
 		protected override SDKStatus HasRequiredManualSDKInternal()
 		{
-			return bIsInstalled ? SDKStatus.Valid : SDKStatus.Invalid;
+			return (!Utils.IsRunningOnMono && bIsInstalled) ? SDKStatus.Valid : SDKStatus.Invalid;
 		}
 	}
 
