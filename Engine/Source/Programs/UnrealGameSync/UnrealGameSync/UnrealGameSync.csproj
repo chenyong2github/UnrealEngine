@@ -115,9 +115,13 @@
     <Compile Include="AutomationServer.cs" />
     <Compile Include="BuildStep.cs" />
     <Compile Include="ChildProcess.cs" />
-    <Compile Include="Controls\CustomListViewControl.cs">
+    <Compile Include="Controls\AlertButtonControl.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="Controls\AlertImageControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\CustomListViewControl.cs" />
     <Compile Include="Controls\ErrorPanel.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -166,6 +170,36 @@
     <Compile Include="Forms\AutomatedSyncWindow.Designer.cs">
       <DependentUpon>AutomatedSyncWindow.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\IssueAlertWindow.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\IssueAlertWindow.Designer.cs">
+      <DependentUpon>IssueAlertWindow.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\IssueFixedWindow.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\IssueFixedWindow.Designer.cs">
+      <DependentUpon>IssueFixedWindow.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\IssueBrowserWindow.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\IssueBrowserWindow.Designer.cs">
+      <DependentUpon>IssueBrowserWindow.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\IssueSettingsWindow.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\IssueSettingsWindow.Designer.cs">
+      <DependentUpon>IssueSettingsWindow.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\SelectUserWindow.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\SelectUserWindow.Designer.cs">
+      <DependentUpon>SelectUserWindow.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\CleanWorkspaceWindow.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -183,6 +217,12 @@
     </Compile>
     <Compile Include="Forms\ConnectWindow.Designer.cs">
       <DependentUpon>ConnectWindow.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\IssueDetailsWindow.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\IssueDetailsWindow.Designer.cs">
+      <DependentUpon>IssueDetailsWindow.cs</DependentUpon>
     </Compile>
     <Compile Include="Forms\NewWorkspaceWindow.cs">
       <SubType>Form</SubType>
@@ -330,6 +370,7 @@
     <Compile Include="Forms\SyncFilter.Designer.cs">
       <DependentUpon>SyncFilter.cs</DependentUpon>
     </Compile>
+    <Compile Include="IssueMonitor.cs" />
     <Compile Include="ModalTask.cs" />
     <Compile Include="PerforceModalTask.cs" />
     <Compile Include="PerforceMonitor.cs" />
@@ -362,6 +403,21 @@
     <EmbeddedResource Include="Forms\AutomatedSyncWindow.resx">
       <DependentUpon>AutomatedSyncWindow.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Forms\IssueAlertWindow.resx">
+      <DependentUpon>IssueAlertWindow.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\IssueFixedWindow.resx">
+      <DependentUpon>IssueFixedWindow.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\IssueBrowserWindow.resx">
+      <DependentUpon>IssueBrowserWindow.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\IssueSettingsWindow.resx">
+      <DependentUpon>IssueSettingsWindow.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\SelectUserWindow.resx">
+      <DependentUpon>SelectUserWindow.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Forms\CleanWorkspaceWindow.resx">
       <DependentUpon>CleanWorkspaceWindow.cs</DependentUpon>
     </EmbeddedResource>
@@ -370,6 +426,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\ConnectWindow.resx">
       <DependentUpon>ConnectWindow.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\IssueDetailsWindow.resx">
+      <DependentUpon>IssueDetailsWindow.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\NewWorkspaceWindow.resx">
       <DependentUpon>NewWorkspaceWindow.cs</DependentUpon>
@@ -465,7 +524,7 @@
       <ItemGroup>
         <Compile Include="NotForLicensees\DeploymentSettingsInternal.cs" />
       </ItemGroup>
-	</When>
+    </When>
   </Choose>
   <ItemGroup>
     <EmbeddedResource Include="Resources\Icons.png" />
@@ -497,6 +556,8 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Resources\AlertErrorIcon.png" />
+    <None Include="Resources\AlertWarningIcon.png" />
     <Content Include="Resources\Perforce.png" />
     <None Include="Resources\DefaultErrorLogo.png" />
     <Content Include="Resources\DefaultProjectLogo.png" />

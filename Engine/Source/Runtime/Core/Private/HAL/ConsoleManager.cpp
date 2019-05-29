@@ -2060,6 +2060,13 @@ static TAutoConsoleVariable<int32> CVarMobileAllowPixelDepthOffset(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarMobileSupportGPUScene(
+	TEXT("r.Mobile.SupportGPUScene"),
+	0,
+	TEXT("Whether to support GPU scene, required for auto-instancing (only ES3.1 feature level)"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarSetClearSceneMethod(
 	TEXT("r.ClearSceneMethod"),
 	1,

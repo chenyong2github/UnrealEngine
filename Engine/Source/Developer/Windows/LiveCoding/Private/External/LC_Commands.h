@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "../../../LiveCodingServer/Private/External/LC_Hook.h"
 #include "Windows/WindowsHWrapper.h"
 
 namespace hook
@@ -12,6 +13,18 @@ namespace hook
 
 namespace commands
 {
+	struct Header
+	{
+		uint32_t commandId;
+		uint32_t payloadSize;
+	};
+
+	struct ModuleData
+	{
+		void* base;
+		wchar_t path[WINDOWS_MAX_PATH];
+	};
+
 	// acknowledge that a command has been received
 	struct Acknowledge
 	{
@@ -26,6 +39,7 @@ namespace commands
 		void* processBase;
 		unsigned int processId;
 		unsigned int threadId;		// thread ID of Live++ thread running in host
+		const void* jumpToSelf;		// address of jump-to-self instruction in host
 	};
 
 	// tell the DLL that registration has finished
@@ -36,96 +50,42 @@ namespace commands
 		bool success;
 	};
 
-	// tell Live++ that a new batch of modules is going to be loaded
-	struct EnableModuleBatchBegin
+	// tell Live++ to enable modules for live coding
+	struct EnableModules
 	{
 		static const uint32_t ID = RegisterProcessFinished::ID + 1u;
-	};
-	struct EnableModuleBatchEnd
-	{
-		static const uint32_t ID = EnableModuleBatchBegin::ID + 1u;
-	};
-
-
-	// tell Live++ that a new batch of modules is going to be unloaded
-	struct DisableModuleBatchBegin
-	{
-		static const uint32_t ID = EnableModuleBatchEnd::ID + 1u;
-	};
-	struct DisableModuleBatchEnd
-	{
-		static const uint32_t ID = DisableModuleBatchBegin::ID + 1u;
-	};
-
-
-	// tell Live++ to enable a module for live coding
-	struct EnableModule
-	{
-		static const uint32_t ID = DisableModuleBatchEnd::ID + 1u;
 
 		unsigned int processId;
-		wchar_t path[WINDOWS_MAX_PATH];
+		unsigned int moduleCount;
+		void* token;
+
+		// this command always contains an array of 'ModuleData x moduleCount' as payload
+	};
+
+	// tell the DLL that enabling modules has finished
+	struct EnableModulesFinished
+	{
+		static const uint32_t ID = EnableModules::ID + 1u;
+
 		void* token;
 	};
 
-	// tell the DLL that enabling a module has finished
-	struct EnableModuleFinished
+	// tell Live++ to disable modules for live coding
+	struct DisableModules
 	{
-		static const uint32_t ID = EnableModule::ID + 1u;
-
-		void* token;
-	};
-
-	// tell Live++ to disable a module for live coding
-	struct DisableModule
-	{
-		static const uint32_t ID = EnableModuleFinished::ID + 1u;
+		static const uint32_t ID = EnableModulesFinished::ID + 1u;
 
 		unsigned int processId;
-		wchar_t path[WINDOWS_MAX_PATH];
+		unsigned int moduleCount;
 		void* token;
+
+		// this command always contains an array of 'ModuleData x moduleCount' as payload
 	};
 
 	// tell the DLL that disabling a module has finished
-	struct DisableModuleFinished
+	struct DisableModulesFinished
 	{
-		static const uint32_t ID = DisableModule::ID + 1u;
-
-		void* token;
-	};
-
-	// tell Live++ to enable a module and all its imports for live coding
-	struct EnableAllModules
-	{
-		static const uint32_t ID = DisableModuleFinished::ID + 1u;
-
-		unsigned int processId;
-		wchar_t path[WINDOWS_MAX_PATH];
-		void* token;
-	};
-
-	// tell the DLL that enabling all modules has finished
-	struct EnableAllModulesFinished
-	{
-		static const uint32_t ID = EnableAllModules::ID + 1u;
-
-		void* token;
-	};
-
-	// tell Live++ to disable a module and all its imports for live coding
-	struct DisableAllModules
-	{
-		static const uint32_t ID = EnableAllModulesFinished::ID + 1u;
-
-		unsigned int processId;
-		wchar_t path[WINDOWS_MAX_PATH];
-		void* token;
-	};
-
-	// tell the DLL that disabling all modules has finished
-	struct DisableAllModulesFinished
-	{
-		static const uint32_t ID = DisableAllModules::ID + 1u;
+		static const uint32_t ID = DisableModules::ID + 1u;
 
 		void* token;
 	};
@@ -133,7 +93,7 @@ namespace commands
 	// tell the DLL to enter the synchronization point
 	struct EnterSyncPoint
 	{
-		static const uint32_t ID = DisableAllModulesFinished::ID + 1u;
+		static const uint32_t ID = DisableModulesFinished::ID + 1u;
 	};
 
 	// tell the DLL to leave the synchronization point
@@ -147,36 +107,15 @@ namespace commands
 	{
 		static const uint32_t ID = LeaveSyncPoint::ID + 1u;
 
-		const hook::Function* first;
-		const hook::Function* last;
-	};
-
-	// tell the DLL to give us information about a module
-	struct GetModule
-	{
-		static const uint32_t ID = CallHooks::ID + 1u;
-
-		bool loadImports;
-		void* taskContext;
-		wchar_t path[WINDOWS_MAX_PATH];
-	};
-
-	// returns module info to Live++
-	struct GetModuleInfo
-	{
-		static const uint32_t ID = GetModule::ID + 1u;
-
-		Windows::HMODULE moduleBase;
-		unsigned int processId;
-		bool loadImports;
-		void* taskContext;
-		wchar_t path[WINDOWS_MAX_PATH];
+		hook::Type::Enum type;
+		const void* rangeBegin;
+		const void* rangeEnd;
 	};
 
 	// tell the DLL to load a DLL
 	struct LoadPatch
 	{
-		static const uint32_t ID = GetModuleInfo::ID + 1u;
+		static const uint32_t ID = CallHooks::ID + 1u;
 
 		wchar_t path[WINDOWS_MAX_PATH];
 	};
@@ -210,11 +149,6 @@ namespace commands
 	struct LogOutput
 	{
 		static const uint32_t ID = CallEntryPoint::ID + 1u;
-
-		static const size_t BUFFER_SIZE = 1024u;
-
-		size_t size;
-		wchar_t buffer[BUFFER_SIZE];
 	};
 
 	// tell Live++ server we're ready for compilation
@@ -246,23 +180,21 @@ namespace commands
 	{
 		static const uint32_t ID = TriggerRecompile::ID + 1u;
 
-		// number of BuildPatchPackets to follow this command
-		unsigned int count;
-	};
+		unsigned int fileCount;
 
-	struct BuildPatchPacket
-	{
-		static const uint32_t ID = BuildPatch::ID + 1u;
-
-		wchar_t moduleName[MAX_PATH];
-		wchar_t objPath[MAX_PATH];
-		wchar_t amalgamatedObjPath[MAX_PATH];
+		// this command always contains an array of 'PatchData x fileCount' as payload
+		struct PatchData
+		{
+			wchar_t moduleName[MAX_PATH];
+			wchar_t objPath[MAX_PATH];
+			wchar_t amalgamatedObjPath[MAX_PATH];
+		};
 	};
 
 	// tell Live++ to handle an exception
 	struct HandleException
 	{
-		static const uint32_t ID = BuildPatchPacket::ID + 1u;
+		static const uint32_t ID = BuildPatch::ID + 1u;
 
 		unsigned int processId;
 		unsigned int threadId;

@@ -50,8 +50,13 @@
 #include "AnimationEditorUtils.h"
 
 #include "AnimBlueprintPostCompileValidation.h" 
+#include "AnimGraphNode_SubInput.h"
+#include "K2Node_FunctionEntry.h"
+#include "K2Node_FunctionResult.h"
 
 #define LOCTEXT_NAMESPACE "AnimBlueprintCompiler"
+
+#define ANIM_FUNC_DECORATOR	TEXT("__AnimFunc")
 
 //
 // Forward declarations.
@@ -66,7 +71,7 @@ bool FAnimBlueprintCompilerContext::FEffectiveConstantRecord::Apply(UObject* Obj
 	uint8* StructPtr = nullptr;
 	uint8* PropertyPtr = nullptr;
 	
-	if(NodeVariableProperty->Struct == FAnimNode_SubInstance::StaticStruct())
+	if(NodeVariableProperty->Struct->IsChildOf(FAnimNode_SubInstance::StaticStruct()))
 	{
 		PropertyPtr = ConstantProperty->ContainerPtrToValuePtr<uint8>(Object);
 	}
@@ -172,10 +177,15 @@ FAnimBlueprintCompilerContext::FAnimBlueprintCompilerContext(UAnimBlueprint* Sou
 
 	// Determine if there is an anim blueprint in the ancestry of this class
 	bIsDerivedAnimBlueprint = UAnimBlueprint::FindRootAnimBlueprint(AnimBlueprint) != NULL;
+
+	// Regenerate temporary stub functions
+	// We do this here to catch the standard and 'fast' (compilation manager) compilation paths
+	CreateAnimGraphStubFunctions();
 }
 
 FAnimBlueprintCompilerContext::~FAnimBlueprintCompilerContext()
 {
+	DestroyAnimGraphStubFunctions();
 }
 
 void FAnimBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
@@ -184,34 +194,55 @@ void FAnimBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 
 	if(bGenerateSubInstanceVariables)
 	{	
-		for (UEdGraph* It : Blueprint->UbergraphPages)
-		{
-			TArray<UAnimGraphNode_CustomProperty*> CustomPropertyNodes;
-			It->GetNodesOfClass(CustomPropertyNodes);
-			for(UAnimGraphNode_CustomProperty* CustomPropNode : CustomPropertyNodes )
-			{
-				ProcessCustomPropertyNode(CustomPropNode);
-			}
-		}
-		
 		if(!bIsDerivedAnimBlueprint)
 		{
-			for (UEdGraph* It : Blueprint->FunctionGraphs)
+			auto ProcessAllSubGraphs = [this](UEdGraph* InGraph)
 			{
-				// Need to extract subgraphs to catch state machine states
-				TArray<UEdGraph*> AllGraphs;
-				AllGraphs.Add(It);
-
-				It->GetAllChildrenGraphs(AllGraphs);
-
-				for(UEdGraph* CurrGraph : AllGraphs)
+				auto ProcessGraph = [this](UEdGraph* InGraph)
 				{
 					TArray<UAnimGraphNode_CustomProperty*> CustomPropertyNodes;
-					CurrGraph->GetNodesOfClass(CustomPropertyNodes);
+					InGraph->GetNodesOfClass(CustomPropertyNodes);
 					for(UAnimGraphNode_CustomProperty* CustomPropNode : CustomPropertyNodes)
 					{
 						ProcessCustomPropertyNode(CustomPropNode);
 					}
+
+					TArray<UAnimGraphNode_SubInstanceBase*> SubInstanceNodes;
+					InGraph->GetNodesOfClass(SubInstanceNodes);
+					for(UAnimGraphNode_SubInstanceBase* SubInstance : SubInstanceNodes)
+					{
+						ProcessSubInstance(SubInstance, false);
+					}
+
+					TArray<UAnimGraphNode_SubInput*> SubInputNodes;
+					InGraph->GetNodesOfClass(SubInputNodes);
+					for(UAnimGraphNode_SubInput* SubInput : SubInputNodes)
+					{
+						ProcessSubInput(SubInput);
+					}
+				};
+
+				// Need to extract subgraphs to catch state machine states
+				TArray<UEdGraph*> AllGraphs;
+				AllGraphs.Add(InGraph);
+				InGraph->GetAllChildrenGraphs(AllGraphs);
+
+				for(UEdGraph* CurrGraph : AllGraphs)
+				{
+					ProcessGraph(CurrGraph);
+				}
+			};
+
+			for (UEdGraph* Graph : Blueprint->FunctionGraphs)
+			{
+				ProcessAllSubGraphs(Graph);
+			}
+
+			for(FBPInterfaceDescription& InterfaceDesc : Blueprint->ImplementedInterfaces)
+			{
+				for(UEdGraph* Graph : InterfaceDesc.Graphs)
+				{
+					ProcessAllSubGraphs(Graph);
 				}
 			}
 		}
@@ -522,9 +553,19 @@ void FAnimBlueprintCompilerContext::ProcessAnimationNode(UAnimGraphNode_Base* Vi
 		// Handle a save/use cached pose linkage
 		ProcessUseCachedPose(UseCachedPose);
 	}
-	else if(UAnimGraphNode_SubInstance* SubInstanceNode = Cast<UAnimGraphNode_SubInstance>(VisualAnimNode))
+	else if(UAnimGraphNode_SubInstanceBase* SubInstanceNode = Cast<UAnimGraphNode_SubInstanceBase>(VisualAnimNode))
 	{
 		ProcessSubInstance(SubInstanceNode, true);
+	}
+	else if (UAnimGraphNode_SubInput* SubInputNode = Cast<UAnimGraphNode_SubInput>(VisualAnimNode))
+	{
+		// Process sub-input nodes (input)
+		ProcessSubInput(SubInputNode);
+	}
+	else if(UAnimGraphNode_Root* RootNode = Cast<UAnimGraphNode_Root>(VisualAnimNode))
+	{
+		// Process root nodes
+		ProcessRoot(RootNode);
 	}
 
 	// should we do this earlier? @Tom should we split this to create anim instance vars vs linking to sub anim instance node?
@@ -560,14 +601,14 @@ void FAnimBlueprintCompilerContext::ProcessAnimationNode(UAnimGraphNode_Base* Vi
 			int32 SourceArrayIndex = INDEX_NONE;
 
 			// We have special handling below if we're targeting a subinstance instead of our own instance properties
-			UAnimGraphNode_SubInstance* SubInstanceNode = Cast<UAnimGraphNode_SubInstance>(VisualAnimNode);
+			UAnimGraphNode_CustomProperty* CustomPropertyNode = Cast<UAnimGraphNode_CustomProperty>(VisualAnimNode);
 
 			// Does this pin have an associated evaluation handler?
-			if(SubInstanceNode)
+			if(CustomPropertyNode)
 			{
-				// Subinstance nodes use instance properties not node properties as they aren't UObjects
+				// Custom property nodes use instance properties not node properties as they aren't UObjects
 				// and we can't store non-native properties there
-				SubInstanceNode->GetInstancePinProperty(NewAnimBlueprintClass, SourcePin, SourcePinProperty);
+				CustomPropertyNode->GetInstancePinProperty(NewAnimBlueprintClass, SourcePin, SourcePinProperty);
 			}
 			else
 			{
@@ -601,7 +642,7 @@ void FAnimBlueprintCompilerContext::ProcessAnimationNode(UAnimGraphNode_Base* Vi
 					EvalHandler.NodeVariableProperty = NewProperty;
 					EvalHandler.RegisterPin(SourcePin, SourcePinProperty, SourceArrayIndex);
 
-					if(SubInstanceNode)
+					if(CustomPropertyNode)
 					{
 						EvalHandler.bServicesInstanceProperties = true;
 
@@ -672,6 +713,13 @@ void FAnimBlueprintCompilerContext::ProcessAnimationNode(UAnimGraphNode_Base* Vi
 	}
 }
 
+void FAnimBlueprintCompilerContext::ProcessRoot(UAnimGraphNode_Root* Root)
+{
+	UAnimGraphNode_Root* TrueNode = MessageLog.FindSourceObjectTypeChecked<UAnimGraphNode_Root>(Root);
+
+	Root->Node.Name = TrueNode->GetGraph()->GetFName();
+}
+
 void FAnimBlueprintCompilerContext::ProcessUseCachedPose(UAnimGraphNode_UseCachedPose* UseCachedPose)
 {
 	bool bSuccessful = false;
@@ -717,9 +765,11 @@ void FAnimBlueprintCompilerContext::ProcessCustomPropertyNode(UAnimGraphNode_Cus
 		return;
 	}
 
+	const UAnimationGraphSchema* AnimGraphSchema = GetDefault<UAnimationGraphSchema>();
+
 	for (UEdGraphPin* Pin : CustomPropNode->Pins)
 	{
-		if (!Pin->bOrphanedPin && CustomPropNode->IsValidPropertyPin(Pin->PinName))
+		if (!Pin->bOrphanedPin && !AnimGraphSchema->IsPosePin(Pin->PinType))
 		{
 			// Add prefix to avoid collisions
 			FString PrefixedName = CustomPropNode->GetPinTargetVariableName(Pin);
@@ -733,8 +783,7 @@ void FAnimBlueprintCompilerContext::ProcessCustomPropertyNode(UAnimGraphNode_Cus
 				// Add mappings to the node
 				if (!bGenerateSubInstanceVariables)
 				{
-					UClass* InstClass = CustomPropNode->GetTargetClass();
-
+					UClass* InstClass = CustomPropNode->GetTargetSkeletonClass();
 					if (UProperty* FoundProperty = FindField<UProperty>(InstClass, Pin->PinName))
 					{
 						CustomPropNode->AddSourceTargetProperties(NewProperty->GetFName(), FoundProperty->GetFName());
@@ -745,11 +794,36 @@ void FAnimBlueprintCompilerContext::ProcessCustomPropertyNode(UAnimGraphNode_Cus
 	}
 }
 
-void FAnimBlueprintCompilerContext::ProcessSubInstance(UAnimGraphNode_SubInstance* SubInstance, bool bCheckForCycles)
+void FAnimBlueprintCompilerContext::ProcessSubInstance(UAnimGraphNode_SubInstanceBase* SubInstance, bool bCheckForCycles)
 {
 	if(!SubInstance)
 	{
 		return;
+	}
+
+	FAnimNode_SubInstance& RuntimeNode = *SubInstance->GetSubInstanceNode();
+
+	if(!bGenerateSubInstanceVariables)
+	{
+		RuntimeNode.InputPoses.Empty();
+		RuntimeNode.InputPoseNames.Empty();
+	}
+	for(UEdGraphPin* Pin : SubInstance->Pins)
+	{
+		if(!Pin->bOrphanedPin)
+		{
+			if (UAnimationGraphSchema::IsPosePin(Pin->PinType))
+			{
+				if(Pin->Direction == EGPD_Input)
+				{
+					if(!bGenerateSubInstanceVariables)
+					{
+						RuntimeNode.InputPoses.AddDefaulted();
+						RuntimeNode.InputPoseNames.Add(Pin->GetFName());
+					}
+				}
+			}
+		}
 	}
 
 	if(bCheckForCycles)
@@ -784,7 +858,7 @@ void FAnimBlueprintCompilerContext::ProcessSubInstance(UAnimGraphNode_SubInstanc
 	}
 }
 
-void FAnimBlueprintCompilerContext::GetDuplicatedSlotAndStateNames(UAnimGraphNode_SubInstance* InSubInstance, NameToCountMap& OutStateMachineNameToCountMap, NameToCountMap& OutSlotNameToCountMap)
+void FAnimBlueprintCompilerContext::GetDuplicatedSlotAndStateNames(UAnimGraphNode_SubInstanceBase* InSubInstance, NameToCountMap& OutStateMachineNameToCountMap, NameToCountMap& OutSlotNameToCountMap)
 {
 	if(!InSubInstance)
 	{
@@ -792,7 +866,7 @@ void FAnimBlueprintCompilerContext::GetDuplicatedSlotAndStateNames(UAnimGraphNod
 		return;
 	}
 
-	if(UClass* InstanceClass = *InSubInstance->Node.InstanceClass)
+	if(UClass* InstanceClass = InSubInstance->GetTargetClass())
 	{
 		UBlueprint* ClassBP = UBlueprint::GetBlueprintFromClass(InstanceClass);
 
@@ -886,7 +960,9 @@ void FAnimBlueprintCompilerContext::PruneIsolatedAnimationNodes(const TArray<UAn
 	for (int32 NodeIndex = 0; NodeIndex < GraphNodes.Num(); ++NodeIndex)
 	{
 		UAnimGraphNode_Base* Node = GraphNodes[NodeIndex];
-		if (!Visitor.VisitedNodes.Contains(Node) && !IsNodePure(Node))
+
+		// We cant prune sub-inputs as even if they are not linked to the root, they are needed for the dynamic link phase at runtime
+		if (!Visitor.VisitedNodes.Contains(Node) && !IsNodePure(Node) && !Node->IsA<UAnimGraphNode_SubInput>())
 		{
 			Node->BreakAllNodeLinks();
 			GraphNodes.RemoveAtSwap(NodeIndex);
@@ -918,52 +994,48 @@ void FAnimBlueprintCompilerContext::BuildCachedPoseNodeUpdateOrder()
 	TArray<UAnimGraphNode_Root*> RootNodes;
 	ConsolidatedEventGraph->GetNodesOfClass<UAnimGraphNode_Root>(RootNodes);
 
-	TArray<UAnimGraphNode_SaveCachedPose*> OrderedSavePoseNodes;
-
-	// State results are also "root" nodes, need to find the true root
-	UAnimGraphNode_Root* ActualRootNode = nullptr;
-	for(UAnimGraphNode_Root* PossibleRootNode : RootNodes)
+	// State results are also "root" nodes, need to find the true roots
+	RootNodes.RemoveAll([](UAnimGraphNode_Root* InPossibleRootNode)
 	{
-		if(PossibleRootNode->GetClass() == UAnimGraphNode_Root::StaticClass())
-		{
-			ActualRootNode = PossibleRootNode;
-			break;
-		}
-	}
+		return InPossibleRootNode->GetClass() != UAnimGraphNode_Root::StaticClass();
+	});
 
 	const bool bEnableDebug = (CVarAnimDebugCachePoseNodeUpdateOrder.GetValueOnAnyThread() == 1);
 
-	// Should only have one root node
-	if(ActualRootNode)
+	for(UAnimGraphNode_Root* RootNode : RootNodes)
 	{
+		TArray<UAnimGraphNode_SaveCachedPose*> OrderedSavePoseNodes;
+
 		TArray<UAnimGraphNode_Base*> VisitedRootNodes;
 	
 		UE_CLOG(bEnableDebug, LogAnimation, Display, TEXT("CachePoseNodeOrdering BEGIN")); 
 
-		CachePoseNodeOrdering_StartNewTraversal(ActualRootNode, OrderedSavePoseNodes, VisitedRootNodes);
+		CachePoseNodeOrdering_StartNewTraversal(RootNode, OrderedSavePoseNodes, VisitedRootNodes);
 
 		UE_CLOG(bEnableDebug, LogAnimation, Display, TEXT("CachePoseNodeOrdering END"));
-	}
 
-	if (bEnableDebug)
-	{
-		UE_LOG(LogAnimation, Display, TEXT("Ordered Save Pose Node List:"));
-		for (UAnimGraphNode_SaveCachedPose* SavedPoseNode : OrderedSavePoseNodes)
+		if (bEnableDebug)
 		{
-			UE_LOG(LogAnimation, Display, TEXT("\t%s"), *SavedPoseNode->Node.CachePoseName.ToString())
+			UE_LOG(LogAnimation, Display, TEXT("Ordered Save Pose Node List:"));
+			for (UAnimGraphNode_SaveCachedPose* SavedPoseNode : OrderedSavePoseNodes)
+			{
+				UE_LOG(LogAnimation, Display, TEXT("\t%s"), *SavedPoseNode->Node.CachePoseName.ToString())
+			}
+			UE_LOG(LogAnimation, Display, TEXT("End List"));
 		}
-		UE_LOG(LogAnimation, Display, TEXT("End List"));
-	}
 
-	for(UAnimGraphNode_SaveCachedPose* PoseNode : OrderedSavePoseNodes)
-	{
-		if(int32* NodeIndex = AllocatedAnimNodeIndices.Find(PoseNode))
+		FCachedPoseIndices& OrderedSavedPoseIndices = NewAnimBlueprintClass->OrderedSavedPoseIndicesMap.FindOrAdd(RootNode->Node.Name);
+
+		for(UAnimGraphNode_SaveCachedPose* PoseNode : OrderedSavePoseNodes)
 		{
-			NewAnimBlueprintClass->OrderedSavedPoseIndices.Add(*NodeIndex);
-		}
-		else
-		{
-			MessageLog.Error(TEXT("Failed to find index for a saved pose node while building ordered pose list."));
+			if(int32* NodeIndex = AllocatedAnimNodeIndices.Find(PoseNode))
+			{
+				OrderedSavedPoseIndices.OrderedSavedPoseNodeIndices.Add(*NodeIndex);
+			}
+			else
+			{
+				MessageLog.Error(TEXT("Failed to find index for a saved pose node while building ordered pose list."));
+			}
 		}
 	}
 }
@@ -1142,7 +1214,6 @@ void FAnimBlueprintCompilerContext::ProcessAllAnimationNodes()
 	ConsolidatedEventGraph->GetNodesOfClass<UK2Node_AnimGetter>(RootGraphAnimGetters);
 
 	// Find the root node
-	UAnimGraphNode_Root* PrePhysicsRoot = NULL;
 	TArray<UAnimGraphNode_Base*> RootSet;
 
 	AllocateNodeIndexCounter = 0;
@@ -1157,16 +1228,7 @@ void FAnimBlueprintCompilerContext::ProcessAllAnimationNodes()
 		{
 			if (UAnimGraphNode_Root* Root = ExactCast<UAnimGraphNode_Root>(PossibleRoot))
 			{
-				if (PrePhysicsRoot != NULL)
-				{
-					MessageLog.Error(*LOCTEXT("ExpectedOneFunctionEntry_Error", "Expected only one animation root, but found both @@ and @@").ToString(),
-						PrePhysicsRoot, Root);
-				}
-				else
-				{
-					RootSet.Add(Root);
-					PrePhysicsRoot = Root;
-				}
+				RootSet.Add(Root);
 			}
 		}
 		else if (UAnimGraphNode_SaveCachedPose* SavePoseRoot = Cast<UAnimGraphNode_SaveCachedPose>(SourceNode))
@@ -1177,7 +1239,7 @@ void FAnimBlueprintCompilerContext::ProcessAllAnimationNodes()
 		}
 	}
 
-	if (PrePhysicsRoot != NULL)
+	if (RootSet.Num() > 0)
 	{
 		// Process the animation nodes
 		ProcessAnimationNodesGivenRoot(AnimNodeList, RootSet);
@@ -1185,7 +1247,7 @@ void FAnimBlueprintCompilerContext::ProcessAllAnimationNodes()
 		// Process the getter nodes in the graph if there were any
 		for (auto GetterIt = Getters.CreateIterator(); GetterIt; ++GetterIt)
 		{
-			ProcessTransitionGetter(*GetterIt, NULL); // transition nodes should not appear at top-level
+			ProcessTransitionGetter(*GetterIt, nullptr); // transition nodes should not appear at top-level
 		}
 
 		// Wire root getters
@@ -1202,7 +1264,7 @@ void FAnimBlueprintCompilerContext::ProcessAllAnimationNodes()
 	}
 	else
 	{
-		MessageLog.Error(*LOCTEXT("ExpectedAFunctionEntry_Error", "Expected an animation root, but did not find one").ToString());
+		MessageLog.Error(*LOCTEXT("ExpectedAFunctionEntry_Error", "Expected at least one animation root, but did not find any").ToString());
 	}
 
 	if(CompileOptions.CompileType != EKismetCompileType::SkeletonOnly)
@@ -1649,7 +1711,9 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 {
 	Super::CopyTermDefaultsToDefaultObject(DefaultObject);
 
-	if (bIsDerivedAnimBlueprint)
+	UAnimInstance* DefaultAnimInstance = Cast<UAnimInstance>(DefaultObject);
+
+	if (bIsDerivedAnimBlueprint && DefaultAnimInstance)
 	{
 		// If we are a derived animation graph; apply any stored overrides.
 		// Restore values from the root class to catch values where the override has been removed.
@@ -1671,7 +1735,7 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 					UStructProperty* ChildStructProp = FindField<UStructProperty>(NewAnimBlueprintClass, *RootStructProp->GetName());
 					check(ChildStructProp);
 					uint8* SourcePtr = RootStructProp->ContainerPtrToValuePtr<uint8>(RootDefaultObject);
-					uint8* DestPtr = ChildStructProp->ContainerPtrToValuePtr<uint8>(DefaultObject);
+					uint8* DestPtr = ChildStructProp->ContainerPtrToValuePtr<uint8>(DefaultAnimInstance);
 					check(SourcePtr && DestPtr);
 					RootStructProp->CopyCompleteValue(DestPtr, SourcePtr);
 				}
@@ -1680,9 +1744,12 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 	}
 
 	// Give game-specific logic a chance to replace animations
-	CastChecked<UAnimInstance>(DefaultObject)->ApplyAnimOverridesToCDO(MessageLog);
+	if(DefaultAnimInstance)
+	{
+		DefaultAnimInstance->ApplyAnimOverridesToCDO(MessageLog);
+	}
 
-	if (bIsDerivedAnimBlueprint)
+	if (bIsDerivedAnimBlueprint && DefaultAnimInstance)
 	{
 		// Patch the overridden values into the CDO
 		TArray<FAnimParentNodeAssetOverride*> AssetOverrides;
@@ -1691,7 +1758,7 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 		{
 			if (Override->NewAsset)
 			{
-				FAnimNode_Base* BaseNode = NewAnimBlueprintClass->GetPropertyInstance<FAnimNode_Base>(DefaultObject, Override->ParentNodeGuid, EPropertySearchMode::Hierarchy);
+				FAnimNode_Base* BaseNode = NewAnimBlueprintClass->GetPropertyInstance<FAnimNode_Base>(DefaultAnimInstance, Override->ParentNodeGuid, EPropertySearchMode::Hierarchy);
 				if (BaseNode)
 				{
 					BaseNode->OverrideAsset(Override->NewAsset);
@@ -1702,198 +1769,217 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 		return;
 	}
 
-	int32 LinkIndexCount = 0;
-	TMap<UAnimGraphNode_Base*, int32> LinkIndexMap;
-	TMap<UAnimGraphNode_Base*, uint8*> NodeBaseAddresses;
-
-	// Initialize animation nodes from their templates
-	for (TFieldIterator<UProperty> It(DefaultObject->GetClass(), EFieldIteratorFlags::ExcludeSuper); It; ++It)
+	if(DefaultAnimInstance)
 	{
-		UProperty* TargetProperty = *It;
+		int32 LinkIndexCount = 0;
+		TMap<UAnimGraphNode_Base*, int32> LinkIndexMap;
+		TMap<UAnimGraphNode_Base*, uint8*> NodeBaseAddresses;
 
-		if (UAnimGraphNode_Base* VisualAnimNode = AllocatedNodePropertiesToNodes.FindRef(TargetProperty))
+		// Initialize animation nodes from their templates
+		for (TFieldIterator<UProperty> It(DefaultAnimInstance->GetClass(), EFieldIteratorFlags::ExcludeSuper); It; ++It)
 		{
-			const UStructProperty* SourceNodeProperty = VisualAnimNode->GetFNodeProperty();
-			check(SourceNodeProperty != NULL);
-			check(CastChecked<UStructProperty>(TargetProperty)->Struct == SourceNodeProperty->Struct);
+			UProperty* TargetProperty = *It;
 
-			uint8* DestinationPtr = TargetProperty->ContainerPtrToValuePtr<uint8>(DefaultObject);
-			uint8* SourcePtr = SourceNodeProperty->ContainerPtrToValuePtr<uint8>(VisualAnimNode);
-			TargetProperty->CopyCompleteValue(DestinationPtr, SourcePtr);
-
-			LinkIndexMap.Add(VisualAnimNode, LinkIndexCount);
-			NodeBaseAddresses.Add(VisualAnimNode, DestinationPtr);
-			++LinkIndexCount;
-		}
-	}
-
-	// And wire up node links
-	for (auto PoseLinkIt = ValidPoseLinkList.CreateIterator(); PoseLinkIt; ++PoseLinkIt)
-	{
-		FPoseLinkMappingRecord& Record = *PoseLinkIt;
-
-		UAnimGraphNode_Base* LinkingNode = Record.GetLinkingNode();
-		UAnimGraphNode_Base* LinkedNode = Record.GetLinkedNode();
-		
-		// @TODO this is quick solution for crash - if there were previous errors and some nodes were not added, they could still end here -
-		// this check avoids that and since there are already errors, compilation won't be successful.
-		// but I'd prefer stoping compilation earlier to avoid getting here in first place
-		if (LinkIndexMap.Contains(LinkingNode) && LinkIndexMap.Contains(LinkedNode))
-		{
-			const int32 SourceNodeIndex = LinkIndexMap.FindChecked(LinkingNode);
-			const int32 LinkedNodeIndex = LinkIndexMap.FindChecked(LinkedNode);
-			uint8* DestinationPtr = NodeBaseAddresses.FindChecked(LinkingNode);
-
-			Record.PatchLinkIndex(DestinationPtr, LinkedNodeIndex, SourceNodeIndex);
-		}
-	}   
-
-	// And patch evaluation function entry names
-	for (auto EvalLinkIt = ValidEvaluationHandlerList.CreateIterator(); EvalLinkIt; ++EvalLinkIt)
-	{
-		FEvaluationHandlerRecord& Record = *EvalLinkIt;
-
-		// validate fast path copy records before patching
-		Record.ValidateFastPath(DefaultObject->GetClass());
-
-		// patch either fast-path copy records or generated function names into the CDO
-		Record.PatchFunctionNameAndCopyRecordsInto(NewAnimBlueprintClass->EvaluateGraphExposedInputs[ Record.EvaluationHandlerIdx ]);
-	}
-
-	// And patch in constant values that don't need to be re-evaluated every frame
-	for (auto LiteralLinkIt = ValidAnimNodePinConstants.CreateIterator(); LiteralLinkIt; ++LiteralLinkIt)
-	{
-		FEffectiveConstantRecord& ConstantRecord = *LiteralLinkIt;
-
-		//const FString ArrayClause = (ConstantRecord.ArrayIndex != INDEX_NONE) ? FString::Printf(TEXT("[%d]"), ConstantRecord.ArrayIndex) : FString();
-		//const FString ValueClause = ConstantRecord.LiteralSourcePin->GetDefaultAsString();
-		//MessageLog.Note(*FString::Printf(TEXT("Want to set %s.%s%s to %s"), *ConstantRecord.NodeVariableProperty->GetName(), *ConstantRecord.ConstantProperty->GetName(), *ArrayClause, *ValueClause));
-
-		if (!ConstantRecord.Apply(DefaultObject))
-		{
-			MessageLog.Error(TEXT("ICE: Failed to push literal value from @@ into CDO"), ConstantRecord.LiteralSourcePin);
-		}
-	}
-
-	UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = CastChecked<UAnimBlueprintGeneratedClass>(NewClass);
-
-	UAnimInstance* DefaultAnimInstance = CastChecked<UAnimInstance>(AnimBlueprintGeneratedClass->GetDefaultObject());
-
-	// copy threaded update flag to CDO
-	DefaultAnimInstance->bUseMultiThreadedAnimationUpdate = AnimBlueprint->bUseMultiThreadedAnimationUpdate;
-
-	// Verify thread-safety
-	if(GetDefault<UEngine>()->bAllowMultiThreadedAnimationUpdate && DefaultAnimInstance->bUseMultiThreadedAnimationUpdate)
-	{
-		// If we are a child anim BP, check parent classes & their CDOs
-		if (UAnimBlueprintGeneratedClass* ParentClass = Cast<UAnimBlueprintGeneratedClass>(AnimBlueprintGeneratedClass->GetSuperClass()))
-		{
-			UAnimBlueprint* ParentAnimBlueprint = Cast<UAnimBlueprint>(ParentClass->ClassGeneratedBy);
-			if (ParentAnimBlueprint && !ParentAnimBlueprint->bUseMultiThreadedAnimationUpdate)
+			if (UAnimGraphNode_Base* VisualAnimNode = AllocatedNodePropertiesToNodes.FindRef(TargetProperty))
 			{
-				DefaultAnimInstance->bUseMultiThreadedAnimationUpdate = false;
-			}
+				const UStructProperty* SourceNodeProperty = VisualAnimNode->GetFNodeProperty();
+				check(SourceNodeProperty != NULL);
+				check(CastChecked<UStructProperty>(TargetProperty)->Struct == SourceNodeProperty->Struct);
 
-			UAnimInstance* ParentDefaultObject = Cast<UAnimInstance>(ParentClass->GetDefaultObject(false));
-			if (ParentDefaultObject && !ParentDefaultObject->bUseMultiThreadedAnimationUpdate)
-			{
-				DefaultAnimInstance->bUseMultiThreadedAnimationUpdate = false;
-			}
-		}
+				uint8* DestinationPtr = TargetProperty->ContainerPtrToValuePtr<uint8>(DefaultAnimInstance);
+				uint8* SourcePtr = SourceNodeProperty->ContainerPtrToValuePtr<uint8>(VisualAnimNode);
 
-		// iterate all properties to determine validity
-		for (UStructProperty* Property : TFieldRange<UStructProperty>(AnimBlueprintGeneratedClass, EFieldIteratorFlags::IncludeSuper))
-		{
-			if(Property->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
-			{
-				FAnimNode_Base* AnimNode = Property->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultAnimInstance);
-				if(!AnimNode->CanUpdateInWorkerThread())
+				if(UAnimGraphNode_Root* RootNode = ExactCast<UAnimGraphNode_Root>(VisualAnimNode))
 				{
-					MessageLog.Warning(*FText::Format(LOCTEXT("HasIncompatibleNode", "Found incompatible node \"{0}\" in blend graph. Disable threaded update or use member variable access."), FText::FromName(Property->Struct->GetFName())).ToString())
-						->AddToken(FDocumentationToken::Create(TEXT("Engine/Animation/AnimBlueprints/AnimGraph")));;
+					// patch graph name into root nodes
+					FAnimNode_Root NewRoot = *reinterpret_cast<FAnimNode_Root*>(SourcePtr);
+					NewRoot.Name = Cast<UAnimGraphNode_Root>(MessageLog.FindSourceObject(RootNode))->GetGraph()->GetFName();
+					TargetProperty->CopyCompleteValue(DestinationPtr, &NewRoot);
+				}
+				else if(UAnimGraphNode_SubInput* SubInputNode = ExactCast<UAnimGraphNode_SubInput>(VisualAnimNode))
+				{
+					// patch graph name into sub input nodes
+					FAnimNode_SubInput NewSubInput = *reinterpret_cast<FAnimNode_SubInput*>(SourcePtr);
+					NewSubInput.Graph = Cast<UAnimGraphNode_SubInput>(MessageLog.FindSourceObject(SubInputNode))->GetGraph()->GetFName();
+					TargetProperty->CopyCompleteValue(DestinationPtr, &NewSubInput);
+				}
+				else
+				{
+					TargetProperty->CopyCompleteValue(DestinationPtr, SourcePtr);
+				}
 
+				LinkIndexMap.Add(VisualAnimNode, LinkIndexCount);
+				NodeBaseAddresses.Add(VisualAnimNode, DestinationPtr);
+				++LinkIndexCount;
+			}
+		}
+
+		// And wire up node links
+		for (auto PoseLinkIt = ValidPoseLinkList.CreateIterator(); PoseLinkIt; ++PoseLinkIt)
+		{
+			FPoseLinkMappingRecord& Record = *PoseLinkIt;
+
+			UAnimGraphNode_Base* LinkingNode = Record.GetLinkingNode();
+			UAnimGraphNode_Base* LinkedNode = Record.GetLinkedNode();
+		
+			// @TODO this is quick solution for crash - if there were previous errors and some nodes were not added, they could still end here -
+			// this check avoids that and since there are already errors, compilation won't be successful.
+			// but I'd prefer stoping compilation earlier to avoid getting here in first place
+			if (LinkIndexMap.Contains(LinkingNode) && LinkIndexMap.Contains(LinkedNode))
+			{
+				const int32 SourceNodeIndex = LinkIndexMap.FindChecked(LinkingNode);
+				const int32 LinkedNodeIndex = LinkIndexMap.FindChecked(LinkedNode);
+				uint8* DestinationPtr = NodeBaseAddresses.FindChecked(LinkingNode);
+
+				Record.PatchLinkIndex(DestinationPtr, LinkedNodeIndex, SourceNodeIndex);
+			}
+		}   
+
+		// And patch evaluation function entry names
+		for (auto EvalLinkIt = ValidEvaluationHandlerList.CreateIterator(); EvalLinkIt; ++EvalLinkIt)
+		{
+			FEvaluationHandlerRecord& Record = *EvalLinkIt;
+
+			// validate fast path copy records before patching
+			Record.ValidateFastPath(DefaultAnimInstance->GetClass());
+
+			// patch either fast-path copy records or generated function names into the CDO
+			Record.PatchFunctionNameAndCopyRecordsInto(NewAnimBlueprintClass->EvaluateGraphExposedInputs[ Record.EvaluationHandlerIdx ]);
+		}
+
+		// And patch in constant values that don't need to be re-evaluated every frame
+		for (auto LiteralLinkIt = ValidAnimNodePinConstants.CreateIterator(); LiteralLinkIt; ++LiteralLinkIt)
+		{
+			FEffectiveConstantRecord& ConstantRecord = *LiteralLinkIt;
+
+			//const FString ArrayClause = (ConstantRecord.ArrayIndex != INDEX_NONE) ? FString::Printf(TEXT("[%d]"), ConstantRecord.ArrayIndex) : FString();
+			//const FString ValueClause = ConstantRecord.LiteralSourcePin->GetDefaultAsString();
+			//MessageLog.Note(*FString::Printf(TEXT("Want to set %s.%s%s to %s"), *ConstantRecord.NodeVariableProperty->GetName(), *ConstantRecord.ConstantProperty->GetName(), *ArrayClause, *ValueClause));
+
+			if (!ConstantRecord.Apply(DefaultAnimInstance))
+			{
+				MessageLog.Error(TEXT("ICE: Failed to push literal value from @@ into CDO"), ConstantRecord.LiteralSourcePin);
+			}
+		}
+
+		UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = CastChecked<UAnimBlueprintGeneratedClass>(NewClass);
+
+		// copy threaded update flag to CDO
+		DefaultAnimInstance->bUseMultiThreadedAnimationUpdate = AnimBlueprint->bUseMultiThreadedAnimationUpdate;
+
+		// Verify thread-safety
+		if(GetDefault<UEngine>()->bAllowMultiThreadedAnimationUpdate && DefaultAnimInstance->bUseMultiThreadedAnimationUpdate)
+		{
+			// If we are a child anim BP, check parent classes & their CDOs
+			if (UAnimBlueprintGeneratedClass* ParentClass = Cast<UAnimBlueprintGeneratedClass>(AnimBlueprintGeneratedClass->GetSuperClass()))
+			{
+				UAnimBlueprint* ParentAnimBlueprint = Cast<UAnimBlueprint>(ParentClass->ClassGeneratedBy);
+				if (ParentAnimBlueprint && !ParentAnimBlueprint->bUseMultiThreadedAnimationUpdate)
+				{
+					DefaultAnimInstance->bUseMultiThreadedAnimationUpdate = false;
+				}
+
+				UAnimInstance* ParentDefaultObject = Cast<UAnimInstance>(ParentClass->GetDefaultObject(false));
+				if (ParentDefaultObject && !ParentDefaultObject->bUseMultiThreadedAnimationUpdate)
+				{
 					DefaultAnimInstance->bUseMultiThreadedAnimationUpdate = false;
 				}
 			}
-		}
 
-		if (FunctionList.Num() > 0)
-		{
-			// find the ubergraph in the function list
-			FKismetFunctionContext* UbergraphFunctionContext = nullptr;
-			for (FKismetFunctionContext& FunctionContext : FunctionList)
+			// iterate all properties to determine validity
+			for (UStructProperty* Property : TFieldRange<UStructProperty>(AnimBlueprintGeneratedClass, EFieldIteratorFlags::IncludeSuper))
 			{
-				if (FunctionList[0].Function->GetName().StartsWith(TEXT("ExecuteUbergraph")))
+				if(Property->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
 				{
-					UbergraphFunctionContext = &FunctionContext;
-					break;
+					FAnimNode_Base* AnimNode = Property->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultAnimInstance);
+					if(!AnimNode->CanUpdateInWorkerThread())
+					{
+						MessageLog.Warning(*FText::Format(LOCTEXT("HasIncompatibleNode", "Found incompatible node \"{0}\" in blend graph. Disable threaded update or use member variable access."), FText::FromName(Property->Struct->GetFName())).ToString())
+							->AddToken(FDocumentationToken::Create(TEXT("Engine/Animation/AnimBlueprints/AnimGraph")));;
+
+						DefaultAnimInstance->bUseMultiThreadedAnimationUpdate = false;
+					}
 				}
 			}
 
-			if (UbergraphFunctionContext)
+			if (FunctionList.Num() > 0)
 			{
-				// run through the per-node compiled statements looking for struct-sets used by anim nodes
-				for (auto& StatementPair : UbergraphFunctionContext->StatementsPerNode)
+				// find the ubergraph in the function list
+				FKismetFunctionContext* UbergraphFunctionContext = nullptr;
+				for (FKismetFunctionContext& FunctionContext : FunctionList)
 				{
-					if (UK2Node_StructMemberSet* StructMemberSetNode = Cast<UK2Node_StructMemberSet>(StatementPair.Key))
+					if (FunctionList[0].Function->GetName().StartsWith(TEXT("ExecuteUbergraph")))
 					{
-						UObject* SourceNode = MessageLog.FindSourceObject(StructMemberSetNode);
+						UbergraphFunctionContext = &FunctionContext;
+						break;
+					}
+				}
 
-						if (SourceNode && StructMemberSetNode->StructType->IsChildOf(FAnimNode_Base::StaticStruct()))
+				if (UbergraphFunctionContext)
+				{
+					// run through the per-node compiled statements looking for struct-sets used by anim nodes
+					for (auto& StatementPair : UbergraphFunctionContext->StatementsPerNode)
+					{
+						if (UK2Node_StructMemberSet* StructMemberSetNode = Cast<UK2Node_StructMemberSet>(StatementPair.Key))
 						{
-							for (FBlueprintCompiledStatement* Statement : StatementPair.Value)
+							UObject* SourceNode = MessageLog.FindSourceObject(StructMemberSetNode);
+
+							if (SourceNode && StructMemberSetNode->StructType->IsChildOf(FAnimNode_Base::StaticStruct()))
 							{
-								if (Statement->Type == KCST_CallFunction && Statement->FunctionToCall)
+								for (FBlueprintCompiledStatement* Statement : StatementPair.Value)
 								{
-									// pure function?
-									const bool bPureFunctionCall = Statement->FunctionToCall->HasAnyFunctionFlags(FUNC_BlueprintPure);
-
-									// function called on something other than function library or anim instance?
-									UClass* FunctionClass = CastChecked<UClass>(Statement->FunctionToCall->GetOuter());
-									const bool bFunctionLibraryCall = FunctionClass->IsChildOf<UBlueprintFunctionLibrary>();
-									const bool bAnimInstanceCall = FunctionClass->IsChildOf<UAnimInstance>();
-
-									// Whitelisted/blacklisted? Some functions are not really 'pure', so we give people the opportunity to mark them up.
-									// Mark up the class if it is generally thread safe, then unsafe functions can be marked up individually. We assume
-									// that classes are unsafe by default, as well as if they are marked up NotBlueprintThreadSafe.
-									const bool bClassThreadSafe = FunctionClass->HasMetaData(TEXT("BlueprintThreadSafe"));
-									const bool bClassNotThreadSafe = FunctionClass->HasMetaData(TEXT("NotBlueprintThreadSafe")) || !FunctionClass->HasMetaData(TEXT("BlueprintThreadSafe"));
-									const bool bFunctionThreadSafe = Statement->FunctionToCall->HasMetaData(TEXT("BlueprintThreadSafe"));
-									const bool bFunctionNotThreadSafe = Statement->FunctionToCall->HasMetaData(TEXT("NotBlueprintThreadSafe"));
-
-									const bool bThreadSafe = (bClassThreadSafe && !bFunctionNotThreadSafe) || (bClassNotThreadSafe && bFunctionThreadSafe);
-
-									const bool bValidForUsage = bPureFunctionCall && bThreadSafe && (bFunctionLibraryCall || bAnimInstanceCall);
-
-									if (!bValidForUsage)
+									if (Statement->Type == KCST_CallFunction && Statement->FunctionToCall)
 									{
-										UEdGraphNode* FunctionNode = nullptr;
-										if (Statement->FunctionContext && Statement->FunctionContext->SourcePin)
-										{
-											FunctionNode = Statement->FunctionContext->SourcePin->GetOwningNode();
-										}
-										else if (Statement->LHS && Statement->LHS->SourcePin)
-										{
-											FunctionNode = Statement->LHS->SourcePin->GetOwningNode();
-										}
+										// pure function?
+										const bool bPureFunctionCall = Statement->FunctionToCall->HasAnyFunctionFlags(FUNC_BlueprintPure);
 
-										if (FunctionNode)
-										{
-											MessageLog.Warning(*LOCTEXT("NotThreadSafeWarningNodeContext", "Node @@ uses potentially thread-unsafe call @@. Disable threaded update or use a thread-safe call. Function may need BlueprintThreadSafe metadata adding.").ToString(), SourceNode, FunctionNode)
-												->AddToken(FDocumentationToken::Create(TEXT("Engine/Animation/AnimBlueprints/AnimGraph")));
-										}
-										else if (Statement->FunctionToCall)
-										{
-											MessageLog.Warning(*FText::Format(LOCTEXT("NotThreadSafeWarningFunctionContext", "Node @@ uses potentially thread-unsafe call {0}. Disable threaded update or use a thread-safe call. Function may need BlueprintThreadSafe metadata adding."), Statement->FunctionToCall->GetDisplayNameText()).ToString(), SourceNode)
-												->AddToken(FDocumentationToken::Create(TEXT("Engine/Animation/AnimBlueprints/AnimGraph")));
-										}
-										else
-										{
-											MessageLog.Warning(*LOCTEXT("NotThreadSafeWarningUnknownContext", "Node @@ uses potentially thread-unsafe call. Disable threaded update or use a thread-safe call.").ToString(), SourceNode)
-												->AddToken(FDocumentationToken::Create(TEXT("Engine/Animation/AnimBlueprints/AnimGraph")));
-										}
+										// function called on something other than function library or anim instance?
+										UClass* FunctionClass = CastChecked<UClass>(Statement->FunctionToCall->GetOuter());
+										const bool bFunctionLibraryCall = FunctionClass->IsChildOf<UBlueprintFunctionLibrary>();
+										const bool bAnimInstanceCall = FunctionClass->IsChildOf<UAnimInstance>();
 
-										DefaultAnimInstance->bUseMultiThreadedAnimationUpdate = false;
+										// Whitelisted/blacklisted? Some functions are not really 'pure', so we give people the opportunity to mark them up.
+										// Mark up the class if it is generally thread safe, then unsafe functions can be marked up individually. We assume
+										// that classes are unsafe by default, as well as if they are marked up NotBlueprintThreadSafe.
+										const bool bClassThreadSafe = FunctionClass->HasMetaData(TEXT("BlueprintThreadSafe"));
+										const bool bClassNotThreadSafe = FunctionClass->HasMetaData(TEXT("NotBlueprintThreadSafe")) || !FunctionClass->HasMetaData(TEXT("BlueprintThreadSafe"));
+										const bool bFunctionThreadSafe = Statement->FunctionToCall->HasMetaData(TEXT("BlueprintThreadSafe"));
+										const bool bFunctionNotThreadSafe = Statement->FunctionToCall->HasMetaData(TEXT("NotBlueprintThreadSafe"));
+
+										const bool bThreadSafe = (bClassThreadSafe && !bFunctionNotThreadSafe) || (bClassNotThreadSafe && bFunctionThreadSafe);
+
+										const bool bValidForUsage = bPureFunctionCall && bThreadSafe && (bFunctionLibraryCall || bAnimInstanceCall);
+
+										if (!bValidForUsage)
+										{
+											UEdGraphNode* FunctionNode = nullptr;
+											if (Statement->FunctionContext && Statement->FunctionContext->SourcePin)
+											{
+												FunctionNode = Statement->FunctionContext->SourcePin->GetOwningNode();
+											}
+											else if (Statement->LHS && Statement->LHS->SourcePin)
+											{
+												FunctionNode = Statement->LHS->SourcePin->GetOwningNode();
+											}
+
+											if (FunctionNode)
+											{
+												MessageLog.Warning(*LOCTEXT("NotThreadSafeWarningNodeContext", "Node @@ uses potentially thread-unsafe call @@. Disable threaded update or use a thread-safe call. Function may need BlueprintThreadSafe metadata adding.").ToString(), SourceNode, FunctionNode)
+													->AddToken(FDocumentationToken::Create(TEXT("Engine/Animation/AnimBlueprints/AnimGraph")));
+											}
+											else if (Statement->FunctionToCall)
+											{
+												MessageLog.Warning(*FText::Format(LOCTEXT("NotThreadSafeWarningFunctionContext", "Node @@ uses potentially thread-unsafe call {0}. Disable threaded update or use a thread-safe call. Function may need BlueprintThreadSafe metadata adding."), Statement->FunctionToCall->GetDisplayNameText()).ToString(), SourceNode)
+													->AddToken(FDocumentationToken::Create(TEXT("Engine/Animation/AnimBlueprints/AnimGraph")));
+											}
+											else
+											{
+												MessageLog.Warning(*LOCTEXT("NotThreadSafeWarningUnknownContext", "Node @@ uses potentially thread-unsafe call. Disable threaded update or use a thread-safe call.").ToString(), SourceNode)
+													->AddToken(FDocumentationToken::Create(TEXT("Engine/Animation/AnimBlueprints/AnimGraph")));
+											}
+
+											DefaultAnimInstance->bUseMultiThreadedAnimationUpdate = false;
+										}
 									}
 								}
 							}
@@ -1902,45 +1988,45 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 				}
 			}
 		}
-	}
 
-	for (const FEffectiveConstantRecord& ConstantRecord : ValidAnimNodePinConstants)
-	{
-		UAnimGraphNode_Base* Node = CastChecked<UAnimGraphNode_Base>(ConstantRecord.LiteralSourcePin->GetOwningNode());
-		UAnimGraphNode_Base* TrueNode = MessageLog.FindSourceObjectTypeChecked<UAnimGraphNode_Base>(Node);
-		TrueNode->BlueprintUsage = EBlueprintUsage::DoesNotUseBlueprint;
-	}
-
-	for(const FEvaluationHandlerRecord& EvaluationHandler : ValidEvaluationHandlerList)
-	{
-		if(EvaluationHandler.ServicedProperties.Num() > 0)
+		for (const FEffectiveConstantRecord& ConstantRecord : ValidAnimNodePinConstants)
 		{
-			const FAnimNodeSinglePropertyHandler& Handler = EvaluationHandler.ServicedProperties.CreateConstIterator()->Value;
-			check(Handler.CopyRecords.Num() > 0);
-			check(Handler.CopyRecords[0].DestPin != nullptr);
-			UAnimGraphNode_Base* Node = CastChecked<UAnimGraphNode_Base>(Handler.CopyRecords[0].DestPin->GetOwningNode());
-			UAnimGraphNode_Base* TrueNode = MessageLog.FindSourceObjectTypeChecked<UAnimGraphNode_Base>(Node);	
+			UAnimGraphNode_Base* Node = CastChecked<UAnimGraphNode_Base>(ConstantRecord.LiteralSourcePin->GetOwningNode());
+			UAnimGraphNode_Base* TrueNode = MessageLog.FindSourceObjectTypeChecked<UAnimGraphNode_Base>(Node);
+			TrueNode->BlueprintUsage = EBlueprintUsage::DoesNotUseBlueprint;
+		}
 
-			FExposedValueHandler* HandlerPtr = &NewAnimBlueprintClass->EvaluateGraphExposedInputs[ EvaluationHandler.EvaluationHandlerIdx ];
-			TrueNode->BlueprintUsage = HandlerPtr->BoundFunction != NAME_None ? EBlueprintUsage::UsesBlueprint : EBlueprintUsage::DoesNotUseBlueprint; 
+		for(const FEvaluationHandlerRecord& EvaluationHandler : ValidEvaluationHandlerList)
+		{
+			if(EvaluationHandler.ServicedProperties.Num() > 0)
+			{
+				const FAnimNodeSinglePropertyHandler& Handler = EvaluationHandler.ServicedProperties.CreateConstIterator()->Value;
+				check(Handler.CopyRecords.Num() > 0);
+				check(Handler.CopyRecords[0].DestPin != nullptr);
+				UAnimGraphNode_Base* Node = CastChecked<UAnimGraphNode_Base>(Handler.CopyRecords[0].DestPin->GetOwningNode());
+				UAnimGraphNode_Base* TrueNode = MessageLog.FindSourceObjectTypeChecked<UAnimGraphNode_Base>(Node);	
+
+				FExposedValueHandler* HandlerPtr = &NewAnimBlueprintClass->EvaluateGraphExposedInputs[ EvaluationHandler.EvaluationHandlerIdx ];
+				TrueNode->BlueprintUsage = HandlerPtr->BoundFunction != NAME_None ? EBlueprintUsage::UsesBlueprint : EBlueprintUsage::DoesNotUseBlueprint; 
 
 #if WITH_EDITORONLY_DATA // ANIMINST_PostCompileValidation
-			const bool bWarnAboutBlueprintUsage = AnimBlueprint->bWarnAboutBlueprintUsage || DefaultAnimInstance->PCV_ShouldWarnAboutNodesNotUsingFastPath();
-			const bool bNotifyAboutBlueprintUsage = DefaultAnimInstance->PCV_ShouldNotifyAboutNodesNotUsingFastPath();
+				const bool bWarnAboutBlueprintUsage = AnimBlueprint->bWarnAboutBlueprintUsage || DefaultAnimInstance->PCV_ShouldWarnAboutNodesNotUsingFastPath();
+				const bool bNotifyAboutBlueprintUsage = DefaultAnimInstance->PCV_ShouldNotifyAboutNodesNotUsingFastPath();
 #else
-			const bool bWarnAboutBlueprintUsage = AnimBlueprint->bWarnAboutBlueprintUsage;
-			const bool bNotifyAboutBlueprintUsage = false;
+				const bool bWarnAboutBlueprintUsage = AnimBlueprint->bWarnAboutBlueprintUsage;
+				const bool bNotifyAboutBlueprintUsage = false;
 #endif
-			if ((TrueNode->BlueprintUsage == EBlueprintUsage::UsesBlueprint) && (bWarnAboutBlueprintUsage || bNotifyAboutBlueprintUsage))
-			{
-				const FString MessageString = LOCTEXT("BlueprintUsageWarning", "Node @@ uses Blueprint to update its values, access member variables directly or use a constant value for better performance.").ToString();
-				if (bWarnAboutBlueprintUsage)
+				if ((TrueNode->BlueprintUsage == EBlueprintUsage::UsesBlueprint) && (bWarnAboutBlueprintUsage || bNotifyAboutBlueprintUsage))
 				{
-					MessageLog.Warning(*MessageString, Node);
-				}
-				else
-				{
-					MessageLog.Note(*MessageString, Node);
+					const FString MessageString = LOCTEXT("BlueprintUsageWarning", "Node @@ uses Blueprint to update its values, access member variables directly or use a constant value for better performance.").ToString();
+					if (bWarnAboutBlueprintUsage)
+					{
+						MessageLog.Warning(*MessageString, Node);
+					}
+					else
+					{
+						MessageLog.Note(*MessageString, Node);
+					}
 				}
 			}
 		}
@@ -1959,17 +2045,28 @@ void FAnimBlueprintCompilerContext::MergeUbergraphPagesIn(UEdGraph* Ubergraph)
 	else
 	{
 		// Move all animation graph nodes and associated pure logic chains into the consolidated event graph
-		for (int32 i = 0; i < Blueprint->FunctionGraphs.Num(); ++i)
+		auto MoveGraph = [this](UEdGraph* InGraph)
 		{
-			UEdGraph* SourceGraph = Blueprint->FunctionGraphs[i];
-
-			if (SourceGraph->Schema->IsChildOf(UAnimationGraphSchema::StaticClass()))
+			if (InGraph->Schema->IsChildOf(UAnimationGraphSchema::StaticClass()))
 			{
 				// Merge all the animation nodes, contents, etc... into the ubergraph
-				UEdGraph* ClonedGraph = FEdGraphUtilities::CloneGraph(SourceGraph, NULL, &MessageLog, true);
+				UEdGraph* ClonedGraph = FEdGraphUtilities::CloneGraph(InGraph, NULL, &MessageLog, true);
 				const bool bIsLoading = Blueprint->bIsRegeneratingOnLoad || IsAsyncLoading();
 				const bool bIsCompiling = Blueprint->bBeingCompiled;
 				ClonedGraph->MoveNodesToAnotherGraph(ConsolidatedEventGraph, bIsLoading, bIsCompiling);
+			}
+		};
+
+		for (UEdGraph* Graph : Blueprint->FunctionGraphs)
+		{
+			MoveGraph(Graph);
+		}
+
+		for(FBPInterfaceDescription& InterfaceDesc : Blueprint->ImplementedInterfaces)
+		{
+			for(UEdGraph* Graph : InterfaceDesc.Graphs)
+			{
+				MoveGraph(Graph);
 			}
 		}
 
@@ -2020,6 +2117,55 @@ void FAnimBlueprintCompilerContext::ProcessOneFunctionGraph(UEdGraph* SourceGrap
 	}
 }
 
+void FAnimBlueprintCompilerContext::ProcessSubInput(UAnimGraphNode_SubInput* InSubInput)
+{
+	InSubInput->IterateFunctionParameters([this, InSubInput](const FName& InName, FEdGraphPinType InPinType)
+	{
+		if(!UAnimationGraphSchema::IsPosePin(InPinType))
+		{
+			// create properties for 'local' sub-input pins
+			UProperty* NewSubInputProperty = CreateVariable(InName, InPinType);
+			if(NewSubInputProperty)
+			{
+				if(bIsFullCompile)
+				{
+					UEdGraphPin* Pin = InSubInput->FindPin(InName, EGPD_Output);
+					if(Pin)
+					{
+						// Create new node for property access
+						UK2Node_VariableGet* VariableGetNode = SpawnIntermediateNode<UK2Node_VariableGet>(InSubInput, InSubInput->GetGraph());
+						VariableGetNode->SetFromProperty(NewSubInputProperty, true);
+						VariableGetNode->AllocateDefaultPins();
+
+						// Add pin to generated variable association, used for pin watching
+						UEdGraphPin* TrueSourcePin = MessageLog.FindSourcePin(Pin);
+						if (TrueSourcePin)
+						{
+							NewClass->GetDebugData().RegisterClassPropertyAssociation(TrueSourcePin, NewSubInputProperty);
+						}
+
+						// link up to new node - note that this is not a FindPinChecked because if an interface changes without the
+						// implementing class being loaded, then its graphs will not be conformed until AFTER the skeleton class
+						// has been compiled, so the variable cannot be created. This also doesnt matter, as there wont be anything connected
+						// to the pin yet anyways.
+						UEdGraphPin* VariablePin = VariableGetNode->FindPin(NewSubInputProperty->GetFName());
+						if(VariablePin)
+						{
+							TArray<UEdGraphPin*> Links = Pin->LinkedTo;
+							Pin->BreakAllPinLinks();
+
+							for(UEdGraphPin* LinkPin : Links)
+							{
+								VariablePin->MakeLinkTo(LinkPin);
+							}
+						}
+					}
+				}
+			}
+		}
+	});
+}
+
 void FAnimBlueprintCompilerContext::EnsureProperGeneratedClass(UClass*& TargetUClass)
 {
 	if( TargetUClass && !((UObject*)TargetUClass)->IsA(UAnimBlueprintGeneratedClass::StaticClass()) )
@@ -2050,6 +2196,8 @@ void FAnimBlueprintCompilerContext::OnPostCDOCompiled()
 	for (UAnimBlueprintGeneratedClass* ClassWithInputHandlers = NewAnimBlueprintClass; ClassWithInputHandlers != nullptr; ClassWithInputHandlers = Cast<UAnimBlueprintGeneratedClass>(ClassWithInputHandlers->GetSuperClass()))
 	{
 		FExposedValueHandler::Initialize(ClassWithInputHandlers->EvaluateGraphExposedInputs, NewAnimBlueprintClass->ClassDefaultObject);
+
+		ClassWithInputHandlers->LinkFunctionsToDefaultObjectNodes(NewAnimBlueprintClass->ClassDefaultObject);
 	}
 }
 
@@ -2071,9 +2219,11 @@ void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedCla
 	//@TODO: Move this into PurgeClass
 	NewAnimBlueprintClass->BakedStateMachines.Empty();
 	NewAnimBlueprintClass->AnimNotifies.Empty();
-	NewAnimBlueprintClass->RootAnimNodeProperty = NULL;
-	NewAnimBlueprintClass->OrderedSavedPoseIndices.Empty();
+	NewAnimBlueprintClass->AnimBlueprintFunctions.Empty();
+	NewAnimBlueprintClass->OrderedSavedPoseIndicesMap.Empty();
 	NewAnimBlueprintClass->AnimNodeProperties.Empty();
+	NewAnimBlueprintClass->SubInstanceNodeProperties.Empty();
+	NewAnimBlueprintClass->LayerNodeProperties.Empty();
 	NewAnimBlueprintClass->EvaluateGraphExposedInputs.Empty();
 
 	// Copy over runtime data from the blueprint to the class
@@ -2089,7 +2239,7 @@ void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedCla
 
 		NewAnimBlueprintClass->BakedStateMachines.Append(RootAnimClass->BakedStateMachines);
 		NewAnimBlueprintClass->AnimNotifies.Append(RootAnimClass->AnimNotifies);
-		NewAnimBlueprintClass->OrderedSavedPoseIndices = RootAnimClass->OrderedSavedPoseIndices;
+		NewAnimBlueprintClass->OrderedSavedPoseIndicesMap = RootAnimClass->OrderedSavedPoseIndicesMap;
 	}
 }
 
@@ -2112,23 +2262,23 @@ void FAnimBlueprintCompilerContext::PostCompile()
 {
 	Super::PostCompile();
 
-	UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = CastChecked<UAnimBlueprintGeneratedClass>(NewClass);
-
-	UAnimInstance* DefaultAnimInstance = CastChecked<UAnimInstance>(AnimBlueprintGeneratedClass->GetDefaultObject());
-
 	for (UPoseWatch* PoseWatch : AnimBlueprint->PoseWatches)
 	{
 		AnimationEditorUtils::SetPoseWatch(PoseWatch, AnimBlueprint);
 	}
 
-	// iterate all anim node and call PostCompile
-	const USkeleton* CurrentSkeleton = AnimBlueprint->TargetSkeleton;
-	for (UStructProperty* Property : TFieldRange<UStructProperty>(AnimBlueprintGeneratedClass, EFieldIteratorFlags::IncludeSuper))
+	UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = CastChecked<UAnimBlueprintGeneratedClass>(NewClass);
+	if(UAnimInstance* DefaultAnimInstance = Cast<UAnimInstance>(AnimBlueprintGeneratedClass->GetDefaultObject()))
 	{
-		if (Property->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
+		// iterate all anim node and call PostCompile
+		const USkeleton* CurrentSkeleton = AnimBlueprint->TargetSkeleton;
+		for (UStructProperty* Property : TFieldRange<UStructProperty>(AnimBlueprintGeneratedClass, EFieldIteratorFlags::IncludeSuper))
 		{
-			FAnimNode_Base* AnimNode = Property->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultAnimInstance);
-			AnimNode->PostCompile(CurrentSkeleton);
+			if (Property->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
+			{
+				FAnimNode_Base* AnimNode = Property->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultAnimInstance);
+				AnimNode->PostCompile(CurrentSkeleton);
+			}
 		}
 	}
 }
@@ -2497,7 +2647,7 @@ void FAnimBlueprintCompilerContext::PostCompileDiagnostics()
 #if WITH_EDITORONLY_DATA // ANIMINST_PostCompileValidation
 	// See if AnimInstance implements a PostCompileValidation Class. 
 	// If so, instantiate it, and let it perform Validation of our newly compiled AnimBlueprint.
-	if (const UAnimInstance* const DefaultAnimInstance = CastChecked<UAnimInstance>(NewAnimBlueprintClass->GetDefaultObject()))
+	if (const UAnimInstance* const DefaultAnimInstance = Cast<UAnimInstance>(NewAnimBlueprintClass->GetDefaultObject()))
 	{
 		if (DefaultAnimInstance->PostCompileValidationClassName.IsValid())
 		{
@@ -2530,111 +2680,9 @@ void FAnimBlueprintCompilerContext::PostCompileDiagnostics()
 		}
 
 		// Update CDO
-		if (UAnimInstance* const DefaultAnimInstance = CastChecked<UAnimInstance>(NewAnimBlueprintClass->GetDefaultObject()))
+		if (UAnimInstance* const DefaultAnimInstance = Cast<UAnimInstance>(NewAnimBlueprintClass->GetDefaultObject()))
 		{
 			DefaultAnimInstance->bUsingCopyPoseFromMesh = bUsingCopyPoseFromMesh;
-		}
-
-		//
-		bool bDisplayAnimDebug = false;
-		if (!Blueprint->bIsRegeneratingOnLoad)
-		{
-			GConfig->GetBool(TEXT("Kismet"), TEXT("CompileDisplaysAnimBlueprintBackend"), /*out*/ bDisplayAnimDebug, GEngineIni);
-
-			if (bDisplayAnimDebug)
-			{
-				DumpAnimDebugData();
-			}
-		}
-	}
-}
-
-void FAnimBlueprintCompilerContext::DumpAnimDebugData()
-{
-	// List all compiled-down nodes and their sources
-	if (NewAnimBlueprintClass->RootAnimNodeProperty == NULL)
-	{
-		return;
-	}
-
-	int32 RootIndex = INDEX_NONE;
-	NewAnimBlueprintClass->AnimNodeProperties.Find(NewAnimBlueprintClass->RootAnimNodeProperty, /*out*/ RootIndex);
-	
-	uint8* CDOBase = (uint8*)NewAnimBlueprintClass->ClassDefaultObject;
-
-	MessageLog.Note(*FString::Printf(TEXT("Anim Root is #%d"), RootIndex));
-	for (int32 Index = 0; Index < NewAnimBlueprintClass->AnimNodeProperties.Num(); ++Index)
-	{
-		UStructProperty* NodeProperty = NewAnimBlueprintClass->AnimNodeProperties[Index];
-		FString PropertyName = NodeProperty->GetName();
-		FString PropertyType = NodeProperty->Struct->GetName();
-		FString RootSuffix = (Index == RootIndex) ? TEXT(" <--- ROOT") : TEXT("");
-
-		// Print out the node
-		MessageLog.Note(*FString::Printf(TEXT("[%d] @@ [prop %s]%s"), Index, *PropertyName, *RootSuffix), AllocatedNodePropertiesToNodes.FindRef(NodeProperty));
-
-		// Print out all the node links
-		for (TFieldIterator<UProperty> PropIt(NodeProperty->Struct, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
-		{
-			UProperty* ChildProp = *PropIt;
-			if (UStructProperty* ChildStructProp = Cast<UStructProperty>(ChildProp))
-			{
-				if (ChildStructProp->Struct->IsChildOf(FPoseLinkBase::StaticStruct()))
-				{
-					uint8* ChildPropertyPtr =  ChildStructProp->ContainerPtrToValuePtr<uint8>(NodeProperty->ContainerPtrToValuePtr<uint8>(CDOBase));
-					FPoseLinkBase* ChildPoseLink = (FPoseLinkBase*)ChildPropertyPtr;
-
-					if (ChildPoseLink->LinkID != INDEX_NONE)
-					{
-						UStructProperty* LinkedProperty = NewAnimBlueprintClass->AnimNodeProperties[ChildPoseLink->LinkID];
-						MessageLog.Note(*FString::Printf(TEXT("   Linked via %s to [#%d] @@"), *ChildStructProp->GetName(), ChildPoseLink->LinkID), AllocatedNodePropertiesToNodes.FindRef(LinkedProperty));
-					}
-					else
-					{
-						MessageLog.Note(*FString::Printf(TEXT("   Linked via %s to <no connection>"), *ChildStructProp->GetName()));
-					}
-				}
-			}
-		}
-	}
-
-	const int32 foo = NewAnimBlueprintClass->AnimNodeProperties.Num() - 1;
-
-	MessageLog.Note(TEXT("State machine info:"));
-	for (int32 MachineIndex = 0; MachineIndex < NewAnimBlueprintClass->BakedStateMachines.Num(); ++MachineIndex)
-	{
-		FBakedAnimationStateMachine& Machine = NewAnimBlueprintClass->BakedStateMachines[MachineIndex];
-	
-		MessageLog.Note(*FString::Printf(TEXT("Machine %s starts at state #%d (%s) and has %d states, %d transitions"),
-			*(Machine.MachineName.ToString()),
-			Machine.InitialState,
-			*(Machine.States[Machine.InitialState].StateName.ToString()),
-			Machine.States.Num(),
-			Machine.Transitions.Num()));
-
-		for (int32 StateIndex = 0; StateIndex < Machine.States.Num(); ++StateIndex)
-		{
-			FBakedAnimationState& SingleState = Machine.States[StateIndex];
-			
-			MessageLog.Note(*FString::Printf(TEXT("  State #%d is named %s, with %d exit transitions; linked to graph #%d"),
-				StateIndex,
-				*(SingleState.StateName.ToString()),
-				SingleState.Transitions.Num(),
-				foo - SingleState.StateRootNodeIndex));
-
-			for (int32 RuleIndex = 0; RuleIndex < SingleState.Transitions.Num(); ++RuleIndex)
-			{
-				FBakedStateExitTransition& ExitTransition = SingleState.Transitions[RuleIndex];
-
-				int32 TargetStateIndex = Machine.Transitions[ExitTransition.TransitionIndex].NextState;
-
-				MessageLog.Note(*FString::Printf(TEXT("    Exit trans #%d to %s uses global trans %d, wanting %s, linked to delegate #%d "),
-					RuleIndex,
-					*Machine.States[TargetStateIndex].StateName.ToString(),
-					ExitTransition.TransitionIndex,
-					ExitTransition.bDesiredTransitionReturnValue ? TEXT("TRUE") : TEXT("FALSE"),
-					foo - ExitTransition.CanTakeDelegateIndex));
-			}
 		}
 	}
 }
@@ -3093,6 +3141,216 @@ void FAnimBlueprintCompilerContext::FPropertyCopyRecord::ValidateFastPath(UClass
 			InvalidateFastPath();
 			return;
 		}
+	}
+}
+
+void FAnimBlueprintCompilerContext::CreateAnimGraphStubFunctions()
+{
+	TArray<UEdGraph*> NewGraphs;
+
+	auto CreateStubForGraph = [this, &NewGraphs](UEdGraph* InGraph)
+	{
+		if(InGraph->Schema->IsChildOf(UAnimationGraphSchema::StaticClass()))
+		{
+			// Check to see if we are implementing an interface, and if so, use the signature from that graph instead
+			// as we may not have yet been conformed to it (it happens later in compilation)
+			UEdGraph* GraphToUseforSignature = InGraph;
+			for(const FBPInterfaceDescription& InterfaceDesc : Blueprint->ImplementedInterfaces)
+			{
+				UClass* InterfaceClass = InterfaceDesc.Interface;
+				if(InterfaceClass)
+				{
+					if(UAnimBlueprint* InterfaceAnimBlueprint = Cast<UAnimBlueprint>(InterfaceClass->ClassGeneratedBy))
+					{
+						TArray<UEdGraph*> AllGraphs;
+						InterfaceAnimBlueprint->GetAllGraphs(AllGraphs);
+						UEdGraph** FoundSourceGraph = AllGraphs.FindByPredicate([InGraph](UEdGraph* InGraphToCheck){ return InGraphToCheck->GetFName() == InGraph->GetFName(); });
+						if(FoundSourceGraph)
+						{
+							GraphToUseforSignature = *FoundSourceGraph;
+							break;
+						}
+					}
+				}
+			}
+
+			// Find the root and sub-input nodes
+			TArray<UAnimGraphNode_Root*> Roots;
+			GraphToUseforSignature->GetNodesOfClass(Roots);
+
+			TArray<UAnimGraphNode_SubInput*> SubInputs;
+			GraphToUseforSignature->GetNodesOfClass(SubInputs);
+
+			if(Roots.Num() > 0)
+			{
+				UAnimGraphNode_Root* RootNode = Roots[0];
+
+				// Make sure there was only one root node
+				for (int32 RootIndex = 1; RootIndex < Roots.Num(); ++RootIndex)
+				{
+					MessageLog.Error(
+						*LOCTEXT("ExpectedOneRoot_Error", "Expected only one root node in graph @@, but found both @@ and @@").ToString(),
+						InGraph,
+						RootNode,
+						Roots[RootIndex]
+					);
+				}
+
+				// Verify no duplicate inputs
+				for(UAnimGraphNode_SubInput* SubInput0 : SubInputs)
+				{
+					for(UAnimGraphNode_SubInput* SubInput1 : SubInputs)	
+					{
+						if(SubInput0 != SubInput1)
+						{
+							if(SubInput0->Node.Name == SubInput1->Node.Name)
+							{
+								MessageLog.Error(
+									*LOCTEXT("DuplicateInputNode_Error", "Found duplicate input node @@ in graph @@").ToString(),
+									SubInput1,
+									InGraph
+								);
+							}
+						}
+					}
+				}
+
+				// Create a simple generated graph for our anim 'function'. Decorate it to avoid naming conflicts with the original graph.
+				FName NewGraphName(*(GraphToUseforSignature->GetName() + ANIM_FUNC_DECORATOR));
+
+				UEdGraph* StubGraph = NewObject<UEdGraph>(Blueprint, NewGraphName);
+				NewGraphs.Add(StubGraph);
+				StubGraph->Schema = UEdGraphSchema_K2::StaticClass();
+				StubGraph->SetFlags(RF_Transient);
+
+				// Add an entry node
+				UK2Node_FunctionEntry* EntryNode = SpawnIntermediateNode<UK2Node_FunctionEntry>(RootNode, StubGraph);
+				EntryNode->NodePosX = -200;
+				EntryNode->CustomGeneratedFunctionName = GraphToUseforSignature->GetFName();	// Note that the function generated from this temporary graph is undecorated
+				EntryNode->MetaData.Category = RootNode->Node.Group == NAME_None ? FText::GetEmpty() : FText::FromName(RootNode->Node.Group);
+
+				// Add sub-inputs as parameters
+				for(UAnimGraphNode_SubInput* SubInput : SubInputs)
+				{
+					// Add user defined pins for each sub-input pose
+					TSharedPtr<FUserPinInfo> PosePinInfo = MakeShared<FUserPinInfo>();
+					PosePinInfo->PinType = UAnimationGraphSchema::MakeLocalSpacePosePin();
+					PosePinInfo->PinName = SubInput->Node.Name;
+					PosePinInfo->DesiredPinDirection = EGPD_Output;
+					EntryNode->UserDefinedPins.Add(PosePinInfo);
+
+					// Add user defined pins for each sub-input parameter
+					for(UEdGraphPin* SubInputPin : SubInput->Pins)
+					{
+						if(!SubInputPin->bOrphanedPin && SubInputPin->Direction == EGPD_Output && !UAnimationGraphSchema::IsPosePin(SubInputPin->PinType))
+						{
+							TSharedPtr<FUserPinInfo> ParameterPinInfo = MakeShared<FUserPinInfo>();
+							ParameterPinInfo->PinType = SubInputPin->PinType;
+							ParameterPinInfo->PinName = SubInputPin->PinName;
+							ParameterPinInfo->DesiredPinDirection = EGPD_Output;
+							EntryNode->UserDefinedPins.Add(ParameterPinInfo);
+						}
+					}
+				}
+				EntryNode->AllocateDefaultPins();
+
+				UEdGraphPin* EntryExecPin = EntryNode->FindPinChecked(UEdGraphSchema_K2::PN_Then, EGPD_Output);
+
+				UK2Node_FunctionResult* ResultNode = SpawnIntermediateNode<UK2Node_FunctionResult>(RootNode, StubGraph);
+				ResultNode->NodePosX = 200;
+
+				// Add root as the 'return value'
+				TSharedPtr<FUserPinInfo> PinInfo = MakeShared<FUserPinInfo>();
+				PinInfo->PinType = UAnimationGraphSchema::MakeLocalSpacePosePin();
+				PinInfo->PinName = GraphToUseforSignature->GetFName();
+				PinInfo->DesiredPinDirection = EGPD_Input;
+				ResultNode->UserDefinedPins.Add(PinInfo);
+	
+				ResultNode->AllocateDefaultPins();
+
+				UEdGraphPin* ResultExecPin = ResultNode->FindPinChecked(UEdGraphSchema_K2::PN_Execute, EGPD_Input);
+
+				// Link up entry to exit
+				EntryExecPin->MakeLinkTo(ResultExecPin);
+			}
+			else
+			{
+				MessageLog.Error(*LOCTEXT("NoRootNodeFound_Error", "Could not find a root node for the graph @@").ToString(), InGraph);
+			}
+		}	
+	};
+
+	for(UEdGraph* Graph : Blueprint->FunctionGraphs)
+	{
+		CreateStubForGraph(Graph);
+	}
+
+	for(FBPInterfaceDescription& InterfaceDesc : Blueprint->ImplementedInterfaces)
+	{
+		for(UEdGraph* Graph : InterfaceDesc.Graphs)
+		{
+			CreateStubForGraph(Graph);
+		}
+	}
+
+	Blueprint->FunctionGraphs.Append(NewGraphs);
+	GeneratedStubGraphs.Append(NewGraphs);
+}
+
+void FAnimBlueprintCompilerContext::DestroyAnimGraphStubFunctions()
+{
+	Blueprint->FunctionGraphs.RemoveAll([this](UEdGraph* InGraph)
+	{
+		return GeneratedStubGraphs.Contains(InGraph);
+	});
+
+	GeneratedStubGraphs.Empty();
+}
+
+void FAnimBlueprintCompilerContext::PrecompileFunction(FKismetFunctionContext& Context, EInternalCompilerFlags InternalFlags)
+{
+	Super::PrecompileFunction(Context, InternalFlags);
+
+	auto CompareEntryPointName =
+	[Function = Context.Function](UEdGraph* InGraph)
+	{
+		TArray<UK2Node_FunctionEntry*> EntryPoints;
+		InGraph->GetNodesOfClass<UK2Node_FunctionEntry>(EntryPoints);
+		if(EntryPoints.Num() == 1)
+		{
+			return EntryPoints[0]->CustomGeneratedFunctionName == Function->GetFName(); 
+		}
+		return true;
+	};
+
+	if(GeneratedStubGraphs.ContainsByPredicate(CompareEntryPointName))
+	{
+		Context.Function->SetMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly, TEXT("true"));
+		Context.Function->SetMetaData(FBlueprintMetadata::MD_AnimBlueprintFunction, TEXT("true"));
+	}
+}
+
+void FAnimBlueprintCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Function, UK2Node_FunctionEntry* EntryNode, const UEdGraphSchema_K2* K2Schema)
+{
+	Super::SetCalculatedMetaDataAndFlags(Function, EntryNode, K2Schema);
+
+	auto CompareEntryPointName =
+	[Function](UEdGraph* InGraph)
+	{
+		TArray<UK2Node_FunctionEntry*> EntryPoints;
+		InGraph->GetNodesOfClass<UK2Node_FunctionEntry>(EntryPoints);
+		if(EntryPoints.Num() == 1)
+		{
+			return EntryPoints[0]->CustomGeneratedFunctionName == Function->GetFName(); 
+		}
+		return true;
+	};
+
+	// Match by name to generated graph's entry points
+	if(GeneratedStubGraphs.ContainsByPredicate(CompareEntryPointName))
+	{
+		Function->SetMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly, TEXT("true"));
+		Function->SetMetaData(FBlueprintMetadata::MD_AnimBlueprintFunction, TEXT("true"));
 	}
 }
 

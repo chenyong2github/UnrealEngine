@@ -4042,7 +4042,7 @@ FString SaveGlobalShaderFile(EShaderPlatform Platform, FString SavePath, class I
 		UE_LOG(LogShaders, Fatal, TEXT("Could not save global shader file to '%s'"), *FullPath);
 	}
 #if WITH_EDITOR
-	if (FShaderCodeLibrary::NeedsShaderStableKeys())
+	if (FShaderCodeLibrary::NeedsShaderStableKeys(Platform))
 	{
 		for (TLinkedList<FShaderType*>::TIterator ShaderTypeIt(FShaderType::GetTypeList()); ShaderTypeIt; ShaderTypeIt.Next())
 		{

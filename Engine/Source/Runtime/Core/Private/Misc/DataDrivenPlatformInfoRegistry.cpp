@@ -1,38 +1,104 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
-#include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 
 
-const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos()
+
+static const TArray<FString>& GetDataDrivenIniFilenames()
+{
+	static bool bHasSearchedForFiles = false;
+	static TArray<FString> DataDrivenIniFilenames;
+
+	if (bHasSearchedForFiles == false)
+	{
+		bHasSearchedForFiles = true;
+
+		// look for the special files in any congfig subdirectories
+		IFileManager::Get().FindFilesRecursive(DataDrivenIniFilenames, *FPaths::EngineConfigDir(), TEXT("DataDrivenPlatformInfo.ini"), true, false);
+		IFileManager::Get().FindFilesRecursive(DataDrivenIniFilenames, *FPaths::PlatformExtensionsDir(), TEXT("DataDrivenPlatformInfo.ini"), true, false, false);
+	}
+
+	return DataDrivenIniFilenames;
+}
+
+int32 FDataDrivenPlatformInfoRegistry::GetNumDataDrivenIniFiles()
+{
+	return GetDataDrivenIniFilenames().Num();
+}
+
+bool FDataDrivenPlatformInfoRegistry::LoadDataDrivenIniFile(int32 Index, FConfigFile& IniFile, FString& PlatformName)
+{
+	const TArray<FString>& IniFilenames = GetDataDrivenIniFilenames();
+	if (Index < 0 || Index >= IniFilenames.Num())
+	{
+		return false;
+	}
+
+	FConfigCacheIni::LoadExternalIniFile(IniFile, *FPaths::GetBaseFilename(IniFilenames[Index]), nullptr, *FPaths::GetPath(IniFilenames[Index]), false);
+
+	// platform extension paths are different (platform/engine/config, not engine/config/platform)
+	if (IniFilenames[Index].StartsWith(FPaths::PlatformExtensionsDir()))
+	{
+		PlatformName = FPaths::GetCleanFilename(FPaths::GetPath(FPaths::GetPath(FPaths::GetPath(IniFilenames[Index]))));
+	}
+	else
+	{
+		// this could be 'Engine' for a shared DataDrivenPlatformInfo file
+		PlatformName = FPaths::GetCleanFilename(FPaths::GetPath(IniFilenames[Index]));
+	}
+
+	return true;
+}
+
+/**
+* Get the global set of data driven platform information
+*/
+static const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& GetAllPlatformInfos()
 {
 	static bool bHasSearchedForPlatforms = false;
-	static TMap<FString, FPlatformInfo> DataDrivenPlatforms;
+	static TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo> DataDrivenPlatforms;
 
 	// look on disk for special files
 	if (bHasSearchedForPlatforms == false)
 	{
-		TArray<FString> FoundFiles;
+		bHasSearchedForPlatforms = true;
 
-		// look for the special files in any congfig subdirectories
-		IFileManager::Get().FindFilesRecursive(FoundFiles, *FPaths::EngineConfigDir(), TEXT("DataDrivenPlatformInfo.ini"), true, false);
+		int32 NumFiles = FDataDrivenPlatformInfoRegistry::GetNumDataDrivenIniFiles();
 
-		for (int32 PlatformIndex = 0; PlatformIndex < FoundFiles.Num(); PlatformIndex++)
+		TMap<FString, FString> IniParents;
+		for (int32 Index = 0; Index < NumFiles; Index++)
 		{
 			// load the .ini file
-			FConfigFile PlatformIni;
-			FConfigCacheIni::LoadExternalIniFile(PlatformIni, *FPaths::GetBaseFilename(FoundFiles[PlatformIndex]), nullptr, *FPaths::GetPath(FoundFiles[PlatformIndex]), false);
+			FConfigFile IniFile;
+			FString PlatformName;
+			FDataDrivenPlatformInfoRegistry::LoadDataDrivenIniFile(Index, IniFile, PlatformName);
 
-			// cache info
-			FString PlatformName = FPaths::GetCleanFilename(FPaths::GetPath(FoundFiles[PlatformIndex]));
-			FPlatformInfo& Info = DataDrivenPlatforms.Add(PlatformName, FPlatformInfo());
-			PlatformIni.GetBool(TEXT("DataDrivenPlatformInfo"), TEXT("bIsConfidential"), Info.bIsConfidential);
-			PlatformIni.GetString(TEXT("DataDrivenPlatformInfo"), TEXT("IniParent"), Info.IniParent);
+			// platform info is registered by the platform name
+			if (IniFile.Contains(TEXT("DataDrivenPlatformInfo")))
+			{
+				// cache info
+				FDataDrivenPlatformInfoRegistry::FPlatformInfo& Info = DataDrivenPlatforms.Add(PlatformName, FDataDrivenPlatformInfoRegistry::FPlatformInfo());
+				IniFile.GetBool(TEXT("DataDrivenPlatformInfo"), TEXT("bIsConfidential"), Info.bIsConfidential);
+
+				// get the parent to build list later
+				FString IniParent;
+				IniFile.GetString(TEXT("DataDrivenPlatformInfo"), TEXT("IniParent"), IniParent);
+				IniParents.Add(PlatformName, IniParent);
+			}
 		}
 
-		bHasSearchedForPlatforms = true;
+		// now that all are read in, calculate the ini parent chain, starting with parent-most
+		for (auto& It : DataDrivenPlatforms)
+		{
+			// walk up the chain and build up the ini chain of parents
+			for (FString CurrentPlatform = IniParents.FindRef(It.Key); CurrentPlatform != TEXT(""); CurrentPlatform = IniParents.FindRef(CurrentPlatform))
+			{
+				// insert at 0 to reverse the order
+				It.Value.IniParentChain.Insert(CurrentPlatform, 0);
+			}
+		}
 	}
 
 	return DataDrivenPlatforms;

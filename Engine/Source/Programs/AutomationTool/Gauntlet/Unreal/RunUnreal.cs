@@ -118,7 +118,7 @@ namespace Gauntlet
 			// Default platform to the current os
 			UnrealTargetPlatform DefaultPlatform = BuildHostPlatform.Current.Platform;
 			UnrealTargetConfiguration DefaultConfiguration = UnrealTargetConfiguration.Development;
-
+					
 			// todo, pass this in as a BuildSource and remove the COntextOption params specific to finding builds
 			UnrealBuildSource BuildInfo = (UnrealBuildSource)Activator.CreateInstance(ContextOptions.BuildSourceType, new object[] { ContextOptions.Project, ContextOptions.UsesSharedBuildType, Environment.CurrentDirectory, ContextOptions.Build, ContextOptions.SearchPaths });
 
@@ -139,12 +139,7 @@ namespace Gauntlet
 				// combine global and platform-specific params
 				Params CombinedParams = new Params(ContextOptions.Params.AllArguments.Concat(PlatformWithParams.AllArguments).ToArray());
 
-				UnrealTargetPlatform PlatformType;
-
-				if (!Enum.TryParse<UnrealTargetPlatform>(PlatformString, true, out PlatformType))
-				{
-					throw new AutomationException("Unable to convert platform '{0}' into an UnrealTargetPlatform", PlatformString);
-				}
+				UnrealTargetPlatform PlatformType = UnrealTargetPlatform.Parse(PlatformString);
 
 				if (!InitializedDevices)
 				{
@@ -174,7 +169,7 @@ namespace Gauntlet
 
 					if (string.IsNullOrEmpty(PlatformRoleString) == false)
 					{
-						RequestedPlatform = (UnrealTargetPlatform)Enum.Parse(typeof(UnrealTargetPlatform), PlatformRoleString, true);
+						RequestedPlatform = UnrealTargetPlatform.Parse(PlatformRoleString);
 					}
 
 					if (string.IsNullOrEmpty(ConfigString) == false)
@@ -318,11 +313,7 @@ namespace Gauntlet
 			
 			List<string> BuildIssues = new List<string>();
 
-			UnrealTargetPlatform UnrealPlatform = UnrealTargetPlatform.Unknown;
-			if (!Enum.TryParse(PlatformParams.Argument, true, out UnrealPlatform))
-			{
-				throw new AutomationException("Could not convert platform {0} to a valid UnrealTargetPlatform", PlatformParams.Argument);
-			}
+			UnrealTargetPlatform UnrealPlatform = UnrealTargetPlatform.Parse(PlatformParams.Argument);
 
 			//List<string> Platforms = Globals.Params.ParseValue("platform")
 
@@ -412,7 +403,7 @@ namespace Gauntlet
 				// see if one of the params is a platform
 				foreach (var Param in DeviceWithParams.AllArguments)
 				{
-					if (Enum.TryParse(Param, true, out Platform))
+					if (UnrealTargetPlatform.TryParse(Param, out Platform))
 					{
 						break;
 					}

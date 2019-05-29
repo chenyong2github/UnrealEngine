@@ -9,6 +9,8 @@
 #include "PyConversionResult.h"
 #include "Misc/Guid.h"
 #include "UObject/GCObject.h"
+#include "UObject/Interface.h"
+#include "PyWrapperBase.generated.h"
 
 #if WITH_PYTHON
 
@@ -85,3 +87,21 @@ struct FPyWrapperBaseMetaData
 typedef TPyPtr<FPyWrapperBase> FPyWrapperBasePtr;
 
 #endif	// WITH_PYTHON
+
+UINTERFACE(MinimalApi)
+class UPythonResourceOwner : public UInterface
+{
+	GENERATED_UINTERFACE_BODY()
+};
+
+class IPythonResourceOwner
+{
+	GENERATED_IINTERFACE_BODY()
+
+public:
+	/**
+	 * Release all Python resources owned by this object.
+	 * Called during Python shutdown to free resources from lingering UObject-based instances.
+	 */
+	virtual void ReleasePythonResources() = 0;
+};

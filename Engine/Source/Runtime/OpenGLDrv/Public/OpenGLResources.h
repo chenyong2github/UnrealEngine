@@ -359,6 +359,8 @@ typedef TOpenGLResourceProxy<FRHIPixelShader, FOpenGLPixelShader> FOpenGLPixelSh
 typedef TOpenGLResourceProxy<FRHIGeometryShader, FOpenGLGeometryShader> FOpenGLGeometryShaderProxy;
 typedef TOpenGLResourceProxy<FRHIHullShader, FOpenGLHullShader> FOpenGLHullShaderProxy;
 typedef TOpenGLResourceProxy<FRHIDomainShader, FOpenGLDomainShader> FOpenGLDomainShaderProxy;
+typedef TOpenGLResourceProxy<FRHIComputeShader, FOpenGLComputeShader> FOpenGLComputeShaderProxy;
+
 
 template <typename T>
 struct TIsGLProxyObject
@@ -1839,6 +1841,22 @@ public:
 	virtual uint32 GetBufferSize() override;
 };
 
+class FOpenGLStructuredBufferUnorderedAccessView : public FOpenGLUnorderedAccessView
+{
+public:
+	FOpenGLStructuredBufferUnorderedAccessView();
+
+	FOpenGLStructuredBufferUnorderedAccessView(	FOpenGLDynamicRHI* InOpenGLRHI, FStructuredBufferRHIParamRef InBuffer, uint8 Format);
+
+	virtual ~FOpenGLStructuredBufferUnorderedAccessView();
+
+	FStructuredBufferRHIRef StructuredBufferRHI; // to keep the stuctured buffer alive
+
+	FOpenGLDynamicRHI* OpenGLRHI;
+
+	virtual uint32 GetBufferSize() override;
+};
+
 class FOpenGLShaderResourceView : public FRefCountedObject
 {
 	// In OpenGL 3.2, the only view that actually works is a Buffer<type> kind of view from D3D10,
@@ -2105,7 +2123,7 @@ struct TOpenGLResourceTraits<FRHIPixelShader>
 template<>
 struct TOpenGLResourceTraits<FRHIComputeShader>
 {
-	typedef FOpenGLComputeShader TConcreteType;
+	typedef FOpenGLComputeShaderProxy TConcreteType;
 };
 template<>
 struct TOpenGLResourceTraits<FRHIBoundShaderState>

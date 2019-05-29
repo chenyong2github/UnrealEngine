@@ -197,6 +197,12 @@ public:
 		return SubtypeValuePointer;
 	}
 
+	/** @return The index corresponding to the type currently stored in this union; useful for writing switches and indexing into tables. */
+	uint8 GetCurrentSubtypeIndex() const
+	{
+		return CurrentSubtypeIndex;
+	}
+
 	/** Sets the union's value to NULL. */
 	void Reset()
 	{

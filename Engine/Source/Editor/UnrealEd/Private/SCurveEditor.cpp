@@ -289,91 +289,153 @@ void SCurveEditor::Construct(const FArguments& InArgs)
 	InputFrameAxisName = InArgs._XAxisName.IsSet() ? FText::FromString(InArgs._XAxisName.GetValue()) : LOCTEXT("Frame", "Frame");
 	OutputAxisName = InArgs._YAxisName.IsSet() ? FText::FromString(InArgs._YAxisName.GetValue()) : LOCTEXT("Value", "Value");
 
-	this->ChildSlot
+	ChildSlot
 	[
 		SNew( SHorizontalBox )
 
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
 		[
-		SNew( SVerticalBox )
+			SNew( SVerticalBox )
 
-		+ SVerticalBox::Slot()
-		.FillHeight(1.0f)
-		[
-			SNew(SHorizontalBox)
-			.Visibility( this, &SCurveEditor::GetCurveAreaVisibility )
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(FMargin(30, 12, 0, 0))
+			+ SVerticalBox::Slot()
+			.FillHeight(1.0f)
 			[
-				CurveSelector
-			]
+				SNew(SHorizontalBox)
+				.Visibility( this, &SCurveEditor::GetCurveAreaVisibility )
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SBorder)
-				.VAlign(VAlign_Top)
-				.HAlign(HAlign_Left)
-				.BorderImage( FEditorStyle::GetBrush("NoBorder") )
-				.DesiredSizeScale(FVector2D(256.0f,32.0f))
-				.Padding(FMargin(2, 12, 0, 0))
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(FMargin(30, 12, 0, 0))
 				[
-					SNew(SHorizontalBox)
+					CurveSelector
+				]
 
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SBorder)
+					.VAlign(VAlign_Top)
+					.HAlign(HAlign_Left)
+					.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+					.DesiredSizeScale(FVector2D(256.0f,32.0f))
+					.Padding(FMargin(2, 12, 0, 0))
 					[
-						SNew(SButton)
-						.ToolTipText(LOCTEXT("ZoomToFitHorizontal", "Zoom To Fit Horizontal"))
-						.Visibility(this, &SCurveEditor::GetZoomButtonVisibility)
-						.OnClicked(this, &SCurveEditor::ZoomToFitHorizontalClicked)
-						.ContentPadding(1)
+						SNew(SHorizontalBox)
+
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
 						[
-							SNew(SImage) 
-							.Image( FEditorStyle::GetBrush("CurveEd.FitHorizontal") ) 
-							.ColorAndOpacity( FSlateColor::UseForeground() ) 
+							SNew(SButton)
+							.ToolTipText(LOCTEXT("ZoomToFitHorizontal", "Zoom To Fit Horizontal"))
+							.Visibility(this, &SCurveEditor::GetZoomButtonVisibility)
+							.OnClicked(this, &SCurveEditor::ZoomToFitHorizontalClicked)
+							.ContentPadding(1)
+							[
+								SNew(SImage) 
+								.Image( FEditorStyle::GetBrush("CurveEd.FitHorizontal") ) 
+								.ColorAndOpacity( FSlateColor::UseForeground() ) 
+							]
 						]
-					]
-					
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SButton)
-						.ToolTipText(LOCTEXT("ZoomToFitVertical", "Zoom To Fit Vertical"))
-						.Visibility(this, &SCurveEditor::GetZoomButtonVisibility)
-						.OnClicked(this, &SCurveEditor::ZoomToFitVerticalClicked)
-						.ContentPadding(1)
+						
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
 						[
-							SNew(SImage) 
-							.Image( FEditorStyle::GetBrush("CurveEd.FitVertical") ) 
-							.ColorAndOpacity( FSlateColor::UseForeground() ) 
+							SNew(SButton)
+							.ToolTipText(LOCTEXT("ZoomToFitVertical", "Zoom To Fit Vertical"))
+							.Visibility(this, &SCurveEditor::GetZoomButtonVisibility)
+							.OnClicked(this, &SCurveEditor::ZoomToFitVerticalClicked)
+							.ContentPadding(1)
+							[
+								SNew(SImage) 
+								.Image( FEditorStyle::GetBrush("CurveEd.FitVertical") ) 
+								.ColorAndOpacity( FSlateColor::UseForeground() ) 
+							]
 						]
-					]
 
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-						.Visibility(this, &SCurveEditor::GetEditVisibility)
-						.VAlign(VAlign_Center)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
 						[
-							SNew(SHorizontalBox)
+							SNew(SBorder)
+							.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+							.Visibility(this, &SCurveEditor::GetEditVisibility)
+							.VAlign(VAlign_Center)
+							[
+								SNew(SHorizontalBox)
 
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								[
+									SNew(SNumericEntryBox<float>)
+									.IsEnabled(this, &SCurveEditor::GetInputEditEnabled)
+									.Font(FEditorStyle::GetFontStyle("CurveEd.InfoFont"))
+									.Value(this, &SCurveEditor::OnGetTime)
+									.UndeterminedString(LOCTEXT("MultipleValues", "Multiple Values"))
+									.OnValueCommitted(this, &SCurveEditor::OnTimeComitted)
+									.OnValueChanged(this, &SCurveEditor::OnTimeChanged)
+									.OnBeginSliderMovement(this, &SCurveEditor::OnBeginSliderMovement, LOCTEXT("SetTime", "Set New Time"))
+									.OnEndSliderMovement(this, &SCurveEditor::OnEndSliderMovement)
+									.LabelVAlign(VAlign_Center)
+									.AllowSpin(true)
+									.MinValue(TOptional<float>())
+									.MaxValue(TOptional<float>())
+									.MaxSliderValue(TOptional<float>())
+									.MinSliderValue(TOptional<float>())
+									.Delta(this, &SCurveEditor::GetInputNumericEntryBoxDelta)
+									.MinDesiredValueWidth(60.0f)
+									.Visibility(this, &SCurveEditor::GetTimeEditVisibility)
+									.Label()
+									[
+										SNew(STextBlock)
+										.Text(this, &SCurveEditor::GetInputAxisName)
+									]
+								]
+
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								[
+									SNew(SNumericEntryBox<int32>)
+									.IsEnabled(this, &SCurveEditor::GetInputEditEnabled)
+									.Font(FEditorStyle::GetFontStyle("CurveEd.InfoFont"))
+									.Value(this, &SCurveEditor::OnGetTimeInFrames)
+									.UndeterminedString(LOCTEXT("MultipleValues", "Multiple Values"))
+									.OnValueCommitted(this, &SCurveEditor::OnTimeInFramesComitted)
+									.OnValueChanged(this, &SCurveEditor::OnTimeInFramesChanged)
+									.OnBeginSliderMovement(this, &SCurveEditor::OnBeginSliderMovement, LOCTEXT("SetFrame", "Set New Frame"))
+									.OnEndSliderMovement(this, &SCurveEditor::OnEndSliderMovement)
+									.LabelVAlign(VAlign_Center)
+									.AllowSpin(true)
+									.MinValue(TOptional<int32>())
+									.MaxValue(TOptional<int32>())
+									.MaxSliderValue(TOptional<int32>())
+									.MinSliderValue(TOptional<int32>())
+									.Delta(1)
+									.MinDesiredValueWidth(60.0f)
+									.Visibility(this, &SCurveEditor::GetFrameEditVisibility)
+									.Label()
+									[
+										SNew(STextBlock)
+										.Text(this, &SCurveEditor::GetInputAxisName)
+									]
+								]
+							]
+						]
+						
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(SBorder)
+							.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+							.Visibility(this, &SCurveEditor::GetEditVisibility)
+							.VAlign(VAlign_Center)
 							[
 								SNew(SNumericEntryBox<float>)
-								.IsEnabled(this, &SCurveEditor::GetInputEditEnabled)
 								.Font(FEditorStyle::GetFontStyle("CurveEd.InfoFont"))
-								.Value(this, &SCurveEditor::OnGetTime)
+								.Value(this, &SCurveEditor::OnGetValue)
 								.UndeterminedString(LOCTEXT("MultipleValues", "Multiple Values"))
-								.OnValueCommitted(this, &SCurveEditor::OnTimeComitted)
-								.OnValueChanged(this, &SCurveEditor::OnTimeChanged)
-								.OnBeginSliderMovement(this, &SCurveEditor::OnBeginSliderMovement, LOCTEXT("SetTime", "Set New Time"))
+								.OnValueCommitted(this, &SCurveEditor::OnValueComitted)
+								.OnValueChanged(this, &SCurveEditor::OnValueChanged)
+								.OnBeginSliderMovement(this, &SCurveEditor::OnBeginSliderMovement, LOCTEXT("SetValue", "Set New Value"))
 								.OnEndSliderMovement(this, &SCurveEditor::OnEndSliderMovement)
 								.LabelVAlign(VAlign_Center)
 								.AllowSpin(true)
@@ -381,98 +443,36 @@ void SCurveEditor::Construct(const FArguments& InArgs)
 								.MaxValue(TOptional<float>())
 								.MaxSliderValue(TOptional<float>())
 								.MinSliderValue(TOptional<float>())
-								.Delta(this, &SCurveEditor::GetInputNumericEntryBoxDelta)
+								.Delta(this, &SCurveEditor::GetOutputNumericEntryBoxDelta)
 								.MinDesiredValueWidth(60.0f)
-								.Visibility(this, &SCurveEditor::GetTimeEditVisibility)
 								.Label()
 								[
 									SNew(STextBlock)
-									.Text(this, &SCurveEditor::GetInputAxisName)
+									.Text(OutputAxisName)
 								]
-							]
-
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							[
-								SNew(SNumericEntryBox<int32>)
-								.IsEnabled(this, &SCurveEditor::GetInputEditEnabled)
-								.Font(FEditorStyle::GetFontStyle("CurveEd.InfoFont"))
-								.Value(this, &SCurveEditor::OnGetTimeInFrames)
-								.UndeterminedString(LOCTEXT("MultipleValues", "Multiple Values"))
-								.OnValueCommitted(this, &SCurveEditor::OnTimeInFramesComitted)
-								.OnValueChanged(this, &SCurveEditor::OnTimeInFramesChanged)
-								.OnBeginSliderMovement(this, &SCurveEditor::OnBeginSliderMovement, LOCTEXT("SetFrame", "Set New Frame"))
-								.OnEndSliderMovement(this, &SCurveEditor::OnEndSliderMovement)
-								.LabelVAlign(VAlign_Center)
-								.AllowSpin(true)
-								.MinValue(TOptional<int32>())
-								.MaxValue(TOptional<int32>())
-								.MaxSliderValue(TOptional<int32>())
-								.MinSliderValue(TOptional<int32>())
-								.Delta(1)
-								.MinDesiredValueWidth(60.0f)
-								.Visibility(this, &SCurveEditor::GetFrameEditVisibility)
-								.Label()
-								[
-									SNew(STextBlock)
-									.Text(this, &SCurveEditor::GetInputAxisName)
-								]
-							]
-						]
-					]
-					
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SBorder)
-						.BorderImage( FEditorStyle::GetBrush("NoBorder") )
-						.Visibility(this, &SCurveEditor::GetEditVisibility)
-						.VAlign(VAlign_Center)
-						[
-							SNew(SNumericEntryBox<float>)
-							.Font(FEditorStyle::GetFontStyle("CurveEd.InfoFont"))
-							.Value(this, &SCurveEditor::OnGetValue)
-							.UndeterminedString(LOCTEXT("MultipleValues", "Multiple Values"))
-							.OnValueCommitted(this, &SCurveEditor::OnValueComitted)
-							.OnValueChanged(this, &SCurveEditor::OnValueChanged)
-							.OnBeginSliderMovement(this, &SCurveEditor::OnBeginSliderMovement, LOCTEXT("SetValue", "Set New Value"))
-							.OnEndSliderMovement(this, &SCurveEditor::OnEndSliderMovement)
-							.LabelVAlign(VAlign_Center)
-							.AllowSpin(true)
-							.MinValue(TOptional<float>())
-							.MaxValue(TOptional<float>())
-							.MaxSliderValue(TOptional<float>())
-							.MinSliderValue(TOptional<float>())
-							.Delta(this, &SCurveEditor::GetOutputNumericEntryBoxDelta)
-							.MinDesiredValueWidth(60.0f)
-							.Label()
-							[
-								SNew(STextBlock)
-								.Text(OutputAxisName)
 							]
 						]
 					]
 				]
 			]
-		]
 
 
-		+ SVerticalBox::Slot()
-		.VAlign(VAlign_Bottom)
-		.FillHeight(.75f)
-		[
-			SNew( SBorder )
-			.Visibility( this, &SCurveEditor::GetColorGradientVisibility )
-			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
-			.BorderBackgroundColor( FLinearColor( .8f, .8f, .8f, .60f ) )
-			.Padding(1.0f)
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Bottom)
+			.FillHeight(.75f)
 			[
-				SAssignNew( GradientViewer, SColorGradientEditor )
-				.ViewMinInput( ViewMinInput )
-				.ViewMaxInput( ViewMaxInput )
-				.IsEditingEnabled( this, &SCurveEditor::IsEditingEnabled )
+				SNew( SBorder )
+				.Visibility( this, &SCurveEditor::GetColorGradientVisibility )
+				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+				.BorderBackgroundColor( FLinearColor( .8f, .8f, .8f, .60f ) )
+				.Padding(1.0f)
+				[
+					SAssignNew( GradientViewer, SColorGradientEditor )
+					.ViewMinInput( ViewMinInput )
+					.ViewMaxInput( ViewMaxInput )
+					.IsEditingEnabled( this, &SCurveEditor::IsEditingEnabled )
+				]
 			]
-		]
 		]
 	];
 

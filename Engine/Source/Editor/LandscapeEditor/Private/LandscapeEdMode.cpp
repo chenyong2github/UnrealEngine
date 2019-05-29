@@ -290,6 +290,13 @@ namespace LandscapeTool
 /** Constructor */
 FEdModeLandscape::FEdModeLandscape()
 	: FEdMode()
+	, UISettings(nullptr)
+	, CurrentToolMode(nullptr)
+	, CurrentTool(nullptr)
+	, CurrentBrush(nullptr)
+	, GizmoBrush(nullptr)
+	, CurrentToolIndex(INDEX_NONE)
+	, CurrentBrushSetIndex(0)
 	, NewLandscapePreviewMode(ENewLandscapePreviewMode::None)
 	, DraggingEdge(ELandscapeEdge::None)
 	, DraggingEdge_Remainder(0)
@@ -309,12 +316,10 @@ FEdModeLandscape::FEdModeLandscape()
 	GColorMaskRegionMaterial = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/ColorMaskBrushMaterial_MaskedRegion.ColorMaskBrushMaterial_MaskedRegion")));
 	GLandscapeBlackTexture   = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/Black.Black"));
 	GLandscapeLayerUsageMaterial = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorLandscapeResources/LandscapeLayerUsageMaterial.LandscapeLayerUsageMaterial")));
-
-
+	
 	// Initialize modes
 	UpdateToolModes();
-	CurrentToolMode = nullptr;
-
+	
 	// Initialize tools.
 	InitializeTool_Paint();
 	InitializeTool_Smooth();
@@ -337,15 +342,11 @@ FEdModeLandscape::FEdModeLandscape()
 	InitializeTool_Mirror();
 	InitializeTool_BPCustom();
 
-	CurrentTool = nullptr;
-	CurrentToolIndex = INDEX_NONE;
-
 	// Initialize brushes
 	InitializeBrushes();
 
 	CurrentBrush = LandscapeBrushSets[0].Brushes[0];
-	CurrentBrushSetIndex = 0;
-
+	
 	CurrentToolTarget.LandscapeInfo = nullptr;
 	CurrentToolTarget.TargetType = ELandscapeToolTargetType::Heightmap;
 	CurrentToolTarget.LayerInfo = nullptr;
@@ -453,6 +454,12 @@ void FEdModeLandscape::UpdateToolModes()
 	{
 		ToolMode_Paint->ValidTools.Add(TEXT("BPCustom"));
 	}
+
+	// Since available tools might have changed try and reset the current tool
+	if (CurrentToolMode && CurrentToolIndex != INDEX_NONE)
+	{
+		SetCurrentTool(CurrentToolIndex);
+	}
 }
 
 bool FEdModeLandscape::UsesToolkits() const
@@ -464,6 +471,12 @@ TSharedRef<FUICommandList> FEdModeLandscape::GetUICommandList() const
 {
 	check(Toolkit.IsValid());
 	return Toolkit->GetToolkitCommands();
+}
+
+void FEdModeLandscape::OnCanHaveLayersContentChanged()
+{
+	RefreshDetailPanel();
+	UpdateToolModes();
 }
 
 ELandscapeToolTargetType::Type FEdModeLandscape::GetLandscapeToolTargetType() const
@@ -525,31 +538,7 @@ void FEdModeLandscape::Enter()
 
 	OnLevelActorDeletedDelegateHandle = GEngine->OnLevelActorDeleted().AddSP(this, &FEdModeLandscape::OnLevelActorRemoved);
 	OnLevelActorAddedDelegateHandle = GEngine->OnLevelActorAdded().AddSP(this, &FEdModeLandscape::OnLevelActorAdded);
-
-	AWorldSettings* WorldSettings = GWorld != nullptr ? GWorld->GetWorldSettings() : nullptr;
-	
-	if (WorldSettings)
-	{
-		OnLandscapeLayerSystemFlagChangedDelegateHandle = WorldSettings->OnSettingChanged().AddLambda([this](const FName& InPropertyName)
-		{
-			if (InPropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, bEnableLandscapeLayers))
-			{
-				UpdateToolModes();
-
-				if (CurrentToolMode->ToolModeName == TEXT("ToolMode_Paint"))
-				{
-					SetCurrentTool("Paint");
-				}
-				else if (CurrentToolMode->ToolModeName == TEXT("ToolMode_Sculpt"))
-				{
-					SetCurrentTool("Sculpt");
-				}
-
-				RefreshDetailPanel();
-			}
-		});
-	}
-
+		
 	UpdateToolModes();
 
 	ALandscapeProxy* SelectedLandscape = GEditor->GetSelectedActors()->GetTop<ALandscapeProxy>();
@@ -763,14 +752,6 @@ void FEdModeLandscape::Exit()
 
 	GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedDelegateHandle);
 	GEngine->OnLevelActorAdded().Remove(OnLevelActorAddedDelegateHandle);
-	GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().Remove(OnLandscapeLayerSystemFlagChangedDelegateHandle);
-
-	AWorldSettings* WorldSettings = GWorld != nullptr ? GWorld->GetWorldSettings() : nullptr;
-
-	if (WorldSettings)
-	{
-		WorldSettings->OnSettingChanged().Remove(OnLandscapeLayerSystemFlagChangedDelegateHandle);
-	}
 	
 	FEditorSupportDelegates::WorldChange.Remove(OnWorldChangeDelegateHandle);
 	GetWorld()->OnLevelsChanged().Remove(OnLevelsChangedDelegateHandle);
@@ -2236,25 +2217,35 @@ void FEdModeLandscape::SetCurrentTool(int32 ToolIndex)
 	{
 		CurrentTool->PreviousBrushIndex = CurrentBrushSetIndex;
 		CurrentTool->ExitTool();
+		CurrentTool = nullptr;
 	}
 	CurrentToolIndex = LandscapeTools.IsValidIndex(ToolIndex) ? ToolIndex : 0;
-	CurrentTool = LandscapeTools[CurrentToolIndex].Get();
-	if (!CurrentToolMode->ValidTools.Contains(CurrentTool->GetToolName()))
+	FLandscapeTool* NewTool = LandscapeTools[CurrentToolIndex].Get();
+	if (!CurrentToolMode->ValidTools.Contains(NewTool->GetToolName()))
 	{
 		// if tool isn't valid for this mode then automatically switch modes
 		// this mostly happens with shortcut keys
 		bool bFoundValidMode = false;
 		for (int32 i = 0; i < LandscapeToolModes.Num(); ++i)
 		{
-			if (LandscapeToolModes[i].ValidTools.Contains(CurrentTool->GetToolName()))
+			if (LandscapeToolModes[i].ValidTools.Contains(NewTool->GetToolName()))
 			{
 				SetCurrentToolMode(LandscapeToolModes[i].ToolModeName, false);
 				bFoundValidMode = true;
 				break;
 			}
 		}
-		check(bFoundValidMode);
+		
+		// default to first valid tool of current mode
+		if (!bFoundValidMode)
+		{		
+			SetCurrentTool(CurrentToolMode->ValidTools[0]);
+			return;
+		}
 	}
+
+	// Assign 
+	CurrentTool = NewTool;
 
 	// Set target type appropriate for tool
 	if (CurrentTool->GetSupportedTargetTypes() == ELandscapeToolTargetTypeMask::NA)
@@ -2463,11 +2454,7 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 	{
 		if (LandscapeList.Num() > 0)
 		{
-			if (CurrentTool != nullptr)
-			{
-				CurrentBrush->LeaveBrush();
-				CurrentTool->ExitTool();
-			}
+			FName CurrentToolName = CurrentTool != nullptr ? CurrentTool->GetToolName() : FName();
 			SetLandscapeInfo(LandscapeList[0].Info);
 			CurrentIndex = 0;
 
@@ -2483,11 +2470,10 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 
 			UpdateTargetList();
 			UpdateShownLayerList();
-
-			if (CurrentTool != nullptr)
+						
+			if (!CurrentToolName.IsNone())
 			{
-				CurrentTool->EnterTool();
-				CurrentBrush->EnterBrush();
+				SetCurrentTool(CurrentToolName);
 			}
 		}
 		else
@@ -2555,10 +2541,14 @@ bool FEdModeLandscape::CanEditCurrentTarget(FText* Reason) const
 	}
 
 	// Landscape Layer Editing not available without a loaded Landscape Actor
-	if (CanHaveLandscapeLayersContent() && !CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid())
+	if (GetLandscape() == nullptr)
 	{
-		LocalReason = NSLOCTEXT("UnrealEd", "LandscapeActorNotLoaded", "Landscape actor is not loaded. It is needed to do layer editing.");
-		return false;
+		ALandscapeProxy* Proxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
+		if (Proxy->HasLayersContent())
+		{
+			LocalReason = NSLOCTEXT("UnrealEd", "LandscapeActorNotLoaded", "Landscape actor is not loaded. It is needed to do layer editing.");
+			return false;
+		}
 	}
 
 	return true;
@@ -4078,7 +4068,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 			FActorSpawnParameters SpawnParams;
 			SpawnParams.OverrideLevel = OldLandscape->GetLevel();
 			NewLandscape = OldLandscape->GetWorld()->SpawnActor<ALandscape>(Location, OldLandscape->GetActorRotation(), SpawnParams);
-
+			NewLandscape->bCanHaveLayersContent = OldLandscape->bCanHaveLayersContent;
 			const FVector OldScale = OldLandscape->GetActorScale();
 			NewLandscape->SetActorRelativeScale3D(FVector(OldScale.X * LandscapeScaleFactor, OldScale.Y * LandscapeScaleFactor, OldScale.Z));
 
@@ -4618,7 +4608,7 @@ bool FEdModeLandscape::CanEditLayer(FText* Reason /*=nullptr*/, FLandscapeLayer*
 				}
 				return false;
 			}
-			else if ((TargetLayerIndex > 0) && (CurrentTool->GetToolName() == FName("Ramp") || CurrentTool->GetToolName() == FName("Flatten")))
+			else if ((TargetLayerIndex > 0) && (CurrentTool->GetToolName() == FName("Ramp")))
 			{
 				if (Reason)
 				{

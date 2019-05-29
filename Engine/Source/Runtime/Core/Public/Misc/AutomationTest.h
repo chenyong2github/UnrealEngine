@@ -3082,7 +3082,7 @@ public:
 
 	virtual bool Update() override
 	{
-		float NewTime = FPlatformTime::Seconds();
+		double NewTime = FPlatformTime::Seconds();
 		if ( NewTime - StartTime >= Delay )
 		{
 			Callback();

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "AnimGraphNode_Base.h"
-#include "AnimNodes/AnimNode_Root.h"
+#include "Animation/AnimNode_Root.h"
 #include "AnimGraphNode_Root.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;

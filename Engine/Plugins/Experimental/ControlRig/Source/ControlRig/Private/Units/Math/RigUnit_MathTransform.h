@@ -4,6 +4,7 @@
 
 #include "EulerTransform.h"
 #include "Units/Math/RigUnit_MathBase.h"
+#include "Math/ControlRigMathLibrary.h"
 #include "RigUnit_MathTransform.generated.h"
 
 USTRUCT(meta=(Abstract, Category="Math|Transform", MenuDescSuffix="(Transform)"))
@@ -248,4 +249,43 @@ struct FRigUnit_MathTransformTransformVector : public FRigUnit_MathTransformBase
 
 	UPROPERTY(meta=(Output))
 	FVector Result;
+};
+
+/**
+ * Composes a Transform (and Euler Transform) from its components.
+ */
+USTRUCT(meta=(DisplayName="Transform from SRT", PrototypeName="EulerTransform,Scale,Rotation,Orientation,Translation,Location"))
+struct FRigUnit_MathTransformFromSRT : public FRigUnit_MathTransformBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathTransformFromSRT()
+	{
+		Location = FVector::ZeroVector;
+		Rotation = FVector::ZeroVector;
+		RotationOrder = EControlRigRotationOrder::XYZ;
+		Scale = FVector::OneVector;
+		Transform = FTransform::Identity;
+		EulerTransform = FEulerTransform::Identity;
+	}
+	
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	FVector Location;
+
+	UPROPERTY(meta=(Input))
+	FVector Rotation;
+
+	UPROPERTY(meta=(Input))
+	EControlRigRotationOrder RotationOrder;
+
+	UPROPERTY(meta=(Input))
+	FVector Scale;
+
+	UPROPERTY(meta=(Output))
+	FTransform Transform;
+
+	UPROPERTY(meta=(Output))
+	FEulerTransform EulerTransform;
 };

@@ -274,6 +274,7 @@ private:
 
 	void	SetLastUpdateTime();
 	void	UpdateStats();
+	void	UpdateCSVOnlyStats();
 	void	LogViewLocationChange();
 
 	void	IncrementalUpdate( float Percentage, bool bUpdateDynamicComponents);

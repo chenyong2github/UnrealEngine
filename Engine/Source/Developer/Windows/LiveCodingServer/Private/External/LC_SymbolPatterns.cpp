@@ -151,6 +151,15 @@ namespace symbolPatterns
 #endif
 	};
 
+	extern const char* const EXCEPTION_UNWIND_PATTERNS[1] =
+	{
+#if LC_64_BIT
+		"?dtor$",
+#else
+		"__unwindfunclet$",
+#endif
+	};
+
 	extern const char* const EXCEPTION_CLAUSE_PATTERNS[1] =
 	{
 		"__catch$"

@@ -199,16 +199,12 @@ public class Core : ModuleRules
         bool bWithMallocStomp = false;
         if (Target.Configuration != UnrealTargetConfiguration.Shipping)
         {
-            switch (Target.Platform)
-            {
-                case UnrealTargetPlatform.Mac:
-                case UnrealTargetPlatform.Linux:
-                //case UnrealTargetPlatform.Win32: // 32-bit windows can technically be supported, but will likely run out of virtual memory space quickly
-                //case UnrealTargetPlatform.XboxOne: // XboxOne could be supported, as it's similar enough to Win64
-                case UnrealTargetPlatform.Win64:
-                    bWithMallocStomp = true;
-                break;
-            }
+			if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Mac)
+			// Target.Platform == UnrealTargetPlatform.Win32: // 32-bit windows can technically be supported, but will likely run out of virtual memory space quickly
+			// Target.Platform == UnrealTargetPlatform.XboxOne: // XboxOne could be supported, as it's similar enough to Win64
+			{
+				bWithMallocStomp = true;
+			}
         }
 
         PublicDefinitions.Add("WITH_MALLOC_STOMP=" + (bWithMallocStomp ? "1" : "0"));

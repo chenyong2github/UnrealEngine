@@ -188,8 +188,6 @@ struct FLandscapeLayer
 	TMap<ULandscapeLayerInfoObject*, bool> WeightmapLayerAllocationBlend; // True -> Substractive, False -> Additive
 };
 
-DECLARE_DELEGATE_RetVal_TwoParams(bool, FChangeLandscapeLayersState, UWorld*, bool);
-
 UCLASS(MinimalAPI, showcategories=(Display, Movement, Collision, Lighting, LOD, Input), hidecategories=(Mobility))
 class ALandscape : public ALandscapeProxy
 {
@@ -202,6 +200,7 @@ public:
 
 	//~ Begin ALandscapeProxy Interface
 	LANDSCAPE_API virtual ALandscape* GetLandscapeActor() override;
+	LANDSCAPE_API virtual const ALandscape* GetLandscapeActor() const override;
 #if WITH_EDITOR
 	//~ End ALandscapeProxy Interface
 
@@ -269,6 +268,7 @@ public:
 	LANDSCAPE_API void DeleteLayer(int32 InLayerIndex);
 	LANDSCAPE_API void DeleteLayers();
 	LANDSCAPE_API void SetEditingLayer(const FGuid& InLayerGuid = FGuid());
+	LANDSCAPE_API void SetGrassUpdateEnabled(bool bInGrassUpdateEnabled);
 	LANDSCAPE_API const FGuid& GetEditingLayer() const;
 	LANDSCAPE_API bool IsMaxLayersReached() const;
 	LANDSCAPE_API void ShowOnlySelectedLayer(int32 InLayerIndex);
@@ -293,9 +293,9 @@ public:
 	LANDSCAPE_API void OnPreSave();
 
 	void ReleaseLayersRenderingResource();
-
-	LANDSCAPE_API static void RegisterChangeLandscapeLayersStateDelegate();
-	LANDSCAPE_API static void UnregisterChangeLandscapeLayersStateDelegate();
+	
+	LANDSCAPE_API void ToggleCanHaveLayersContent();
+	LANDSCAPE_API void ForceUpdateLayersContent();
 
 private:
 	void TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
@@ -355,19 +355,23 @@ private:
 	void PrintLayersDebugTextureResource(const FString& InContext, FTextureResource* InTextureResource, uint8 InMipRender = 0, bool InOutputHeight = true, bool InOutputNormals = false) const;
 	void PrintLayersDebugHeightData(const FString& InContext, const TArray<FColor>& InHeightmapData, const FIntPoint& InDataSize, uint8 InMipRender, bool InOutputNormals = false) const;
 	void PrintLayersDebugWeightData(const FString& InContext, const TArray<FColor>& InWeightmapData, const FIntPoint& InDataSize, uint8 InMipRender) const;
-
-	LANDSCAPE_API static bool ChangeLandscapeLayersState(UWorld* InWorld, bool bInEnable);
 #endif
 
 public:
 
 #if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category=Experimental, AdvancedDisplay)
+	bool bCanHaveLayersContent = false;
+
 	/** Target Landscape Layer for Landscape Splines */
 	UPROPERTY()
 	FGuid LandscapeSplinesTargetLayerGuid;
 	
 	/** Current Editing Landscape Layer*/
 	FGuid EditingLayer;
+
+	/** Used to temporarily disable Grass Update in Editor */
+	bool bGrassUpdateEnabled;
 
 	UPROPERTY(TextExportTransient)
 	TArray<FLandscapeLayer> LandscapeLayers;
@@ -377,9 +381,6 @@ public:
 
 	UPROPERTY(Transient)
 	TArray<UTextureRenderTarget2D*> WeightmapRTList;
-
-	/** Event that will be triggered if the Landscape Layers settings from the WorldSettings is changed*/
-	LANDSCAPE_API static FChangeLandscapeLayersState ChangeLandscapeLayersStateEvent;
 
 private:
 	/** Provides information from LandscapeEdMode */

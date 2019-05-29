@@ -6,6 +6,8 @@
 
 class IKeyArea;
 
+struct FMovieSceneChannelHandle;
+
 /**
  * Builds an inner layout for a section
  */
@@ -24,18 +26,16 @@ public:
 	
 	/**
 	 * Sets the section as a key area itself
-	 * @param KeyArea		Interface for accessing and drawing keys
+	 * @param Channel		The channel that is to be assigned as the top level channel for this section
 	 */
-	virtual void SetSectionAsKeyArea( TSharedRef<IKeyArea> KeyArea ) = 0;
+	virtual void SetTopLevelChannel( const FMovieSceneChannelHandle& Channel ) = 0;
 
 	/**
-	 * Adds a key area onto the layout.  If a category is pushed, the key area will appear as a child of the current category
+	 * Adds a channel onto the layout. If a category is pushed, the key area will appear as a child of the current category
 	 *
-	 * @param KeyAreaName	The name of the key area
-	 * @param DisplayLabel	The localized display label for the key area
-	 * @param KeyArea		Interface for accessing and drawing keys
+	 * @param Channel		A handle to the channel to be added to the layout
 	 */
-	virtual void AddKeyArea( FName KeyAreaName, const FText& DisplayLabel, TSharedRef<IKeyArea> KeyArea ) = 0;
+	virtual void AddChannel( const FMovieSceneChannelHandle& Channel ) = 0;
 
 	/**
 	 * Pops a category off the stack

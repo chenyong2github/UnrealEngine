@@ -137,6 +137,34 @@ struct FFrameNumberInterface : public INumericTypeInterface<double>
 				return TOptional<double>(FrameResult.GetValue().GetFrame().Value);
 			}
 
+			static FBasicMathExpressionEvaluator Parser;
+
+			// If not parsed, try the math expression evaluator
+			if (FallbackFormat == EFrameNumberDisplayFormats::Seconds)
+			{
+				double TimeInSeconds = DestinationFrameRate.AsSeconds(FFrameTime::FromDecimal(InExistingValue));
+
+				TValueOrError<double, FExpressionError> Result = Parser.Evaluate(*InString, TimeInSeconds);
+				if (Result.IsValid())
+				{
+					FFrameTime ResultTime = DestinationFrameRate.AsFrameTime(Result.GetValue());
+
+					return TOptional<double>(ResultTime.GetFrame().Value);
+				}
+			}
+			else if (FallbackFormat == EFrameNumberDisplayFormats::Frames)
+			{
+				FFrameTime ExistingTime = FFrameRate::TransformTime(FFrameTime::FromDecimal(InExistingValue), DestinationFrameRate, SourceFrameRate);
+
+				TValueOrError<double, FExpressionError> Result = Parser.Evaluate(*InString, (double)(ExistingTime.GetFrame().Value));
+				if (Result.IsValid())
+				{
+					FFrameTime ResultTime = FFrameRate::TransformTime(FFrameTime::FromDecimal(Result.GetValue()), SourceFrameRate, DestinationFrameRate);
+
+					return TOptional<double>(ResultTime.GetFrame().Value);
+				}
+			}
+
 			// Whatever they entered wasn't understood by any of our parsers, so it was probably malformed or had letters, etc.
 			return TOptional<double>();
 		}

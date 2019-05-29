@@ -13,31 +13,25 @@ public class FreeType2 : ModuleRules
 		string FreeType2Path;
 		string FreeType2LibPath;
 
-		switch (Target.Platform)
+		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.XboxOne ||
+			Target.Platform == UnrealTargetPlatform.Switch || Target.Platform == UnrealTargetPlatform.PS4 || Target.Platform == UnrealTargetPlatform.Linux ||
+			Target.Platform == UnrealTargetPlatform.HTML5)
 		{
-			case UnrealTargetPlatform.Win32:
-			case UnrealTargetPlatform.Win64:
-			case UnrealTargetPlatform.XboxOne:
-			case UnrealTargetPlatform.Switch:
-			case UnrealTargetPlatform.PS4:
-			case UnrealTargetPlatform.Linux:
-			case UnrealTargetPlatform.HTML5:
+			FreeType2Path = Target.UEThirdPartySourceDirectory + "FreeType2/FreeType2-2.6/";
+			PublicSystemIncludePaths.Add(FreeType2Path + "Include");
+		}
+		else
+		{
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+			{
 				FreeType2Path = Target.UEThirdPartySourceDirectory + "FreeType2/FreeType2-2.6/";
 				PublicSystemIncludePaths.Add(FreeType2Path + "Include");
-				break;
-
-			default:
-				if(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
-				{
-					FreeType2Path = Target.UEThirdPartySourceDirectory + "FreeType2/FreeType2-2.6/";
-					PublicSystemIncludePaths.Add(FreeType2Path + "Include");
-				}
-				else
-				{
-					FreeType2Path = Target.UEThirdPartySourceDirectory + "FreeType2/FreeType2-2.4.12/";
-					PublicSystemIncludePaths.Add(FreeType2Path + "include");
-				}
-				break;
+			}
+			else
+			{
+				FreeType2Path = Target.UEThirdPartySourceDirectory + "FreeType2/FreeType2-2.4.12/";
+				PublicSystemIncludePaths.Add(FreeType2Path + "include");
+			}
 		}
 		
 		FreeType2LibPath = FreeType2Path + "Lib/";

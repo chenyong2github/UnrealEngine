@@ -146,12 +146,11 @@ namespace UnrealBuildTool
 		protected bool bEnableGcSections = true;
 
 		public AndroidToolChain(FileReference InProjectFile, bool bInUseLdGold, IReadOnlyList<string> InAdditionalArches, IReadOnlyList<string> InAdditionalGPUArches)
-			: this(CppPlatform.Android, InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false)
+			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false)
 		{
 		}
 
-		protected AndroidToolChain(CppPlatform InCppPlatform, FileReference InProjectFile, bool bInUseLdGold, IReadOnlyList<string> InAdditionalArches, IReadOnlyList<string> InAdditionalGPUArches, bool bAllowMissingNDK)
-			: base(InCppPlatform)
+		protected AndroidToolChain(FileReference InProjectFile, bool bInUseLdGold, IReadOnlyList<string> InAdditionalArches, IReadOnlyList<string> InAdditionalGPUArches, bool bAllowMissingNDK)
 		{
 			ProjectFile = InProjectFile;
 			bUseLdGold = bInUseLdGold;
@@ -1275,7 +1274,7 @@ namespace UnrealBuildTool
 			//string NDKRoot = Environment.GetEnvironmentVariable("NDKROOT").Replace("\\", "/");
 
 			string BasePCHName = "";
-			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(UEBuildPlatform.CPPTargetPlatformToUnrealTargetPlatform(CompileEnvironment.Platform));
+			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform);
 			string PCHExtension = ".gch";
 			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 			{
@@ -1409,7 +1408,6 @@ namespace UnrealBuildTool
 						{
 							if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 							{
-								CompileAction.bIsUsingPCH = true;
 								FileItem ArchPrecompiledHeaderFile = FileItem.GetItemByPath(InlineArchName(BasePCHName, Arch, GPUArchitecture) + PCHExtension);
 								CompileAction.PrerequisiteItems.Add(ArchPrecompiledHeaderFile);
 							}
@@ -1809,10 +1807,6 @@ namespace UnrealBuildTool
 			foreach (FileItem InputFile in LinkEnvironment.InputFiles)
 			{
 				ObjectFileDirectories.Add(InputFile.Location.Directory);
-			}
-			foreach (FileItem InputLibrary in LinkEnvironment.InputLibraries)
-			{
-				ObjectFileDirectories.Add(InputLibrary.Location.Directory);
 			}
 			foreach (string AdditionalLibrary in LinkEnvironment.AdditionalLibraries.Where(x => Path.IsPathRooted(x)))
 			{

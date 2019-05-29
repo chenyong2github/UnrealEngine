@@ -226,6 +226,26 @@ void FPoseLinkBase::SetLinkNode(struct FAnimNode_Base* NewLinkNode)
 	LinkedNode = NewLinkNode;
 }
 
+void FPoseLinkBase::SetDynamicLinkNode(struct FPoseLinkBase* InPoseLink)
+{
+	if(InPoseLink)
+	{
+		LinkedNode = InPoseLink->LinkedNode;
+#if WITH_EDITORONLY_DATA
+		SourceLinkID = InPoseLink->SourceLinkID;
+#endif
+		LinkID = InPoseLink->LinkID;
+	}
+	else
+	{
+		LinkedNode = nullptr;
+#if WITH_EDITORONLY_DATA
+		SourceLinkID = INDEX_NONE;
+#endif
+		LinkID = INDEX_NONE;
+	}
+}
+
 FAnimNode_Base* FPoseLinkBase::GetLinkNode()
 {
 	return LinkedNode;

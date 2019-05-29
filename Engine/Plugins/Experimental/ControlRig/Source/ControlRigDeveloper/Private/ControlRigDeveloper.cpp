@@ -4,6 +4,9 @@
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintCompiler.h"
 #include "Modules/ModuleManager.h"
+#include "Developer/MessageLog/Public/MessageLogModule.h"
+
+#define LOCTEXT_NAMESPACE "ControlRigDeveloperModule"
 
 class FControlRigDeveloperModule : public IControlRigDeveloperModule
 {
@@ -25,6 +28,12 @@ void FControlRigDeveloperModule::StartupModule()
 	IKismetCompilerInterface& KismetCompilerModule = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>("KismetCompiler");
 	KismetCompilerModule.GetCompilers().Add(&ControlRigBlueprintCompiler);
 
+	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+	FMessageLogInitializationOptions InitOptions;
+	InitOptions.bShowFilters = true;
+	InitOptions.bShowPages = false;
+	InitOptions.bAllowClear = true;
+	MessageLogModule.RegisterLogListing("ControlRigLog", LOCTEXT("ControlRigLog", "Control Rig Log"), InitOptions);
 }
 
 void FControlRigDeveloperModule::ShutdownModule()
@@ -34,6 +43,9 @@ void FControlRigDeveloperModule::ShutdownModule()
 	{
 		KismetCompilerModule->GetCompilers().Remove(&ControlRigBlueprintCompiler);
 	}
+
+	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+	MessageLogModule.UnregisterLogListing("ControlRigLog");
 }
 
 TSharedPtr<FKismetCompilerContext> FControlRigDeveloperModule::GetControlRigCompiler(UBlueprint* BP, FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompileOptions)
@@ -43,3 +55,5 @@ TSharedPtr<FKismetCompilerContext> FControlRigDeveloperModule::GetControlRigComp
 
 
 IMPLEMENT_MODULE(FControlRigDeveloperModule, ControlRigDeveloper)
+
+#undef LOCTEXT_NAMESPACE

@@ -164,6 +164,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Settings, meta=(DisplayName="GetResolutionScaleInformation"))
 	void GetResolutionScaleInformationEx(float& CurrentScaleNormalized, float& CurrentScaleValue, float& MinScaleValue, float& MaxScaleValue) const;
 
+	// Gets the current resolution scale as a normalized 0..1 value between MinScaleValue and MaxScaleValue
+	UFUNCTION(BlueprintCallable, Category = Settings)
+	float GetResolutionScaleNormalized() const;
+
 	// Sets the current resolution scale
 	UE_DEPRECATED(4.12, "Please call SetResolutionScaleValueEx")
 	UFUNCTION(BlueprintCallable, Category=Settings, meta=(DeprecatedFunction, DisplayName="SetResolutionScaleValue_Deprecated"))

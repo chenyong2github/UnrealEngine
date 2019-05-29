@@ -37,9 +37,9 @@ bool FWmfMp4Writer::Start()
 	return true;
 }
 
-bool FWmfMp4Writer::Write(const FGameplayMediaEncoderSample& Sample)
+bool FWmfMp4Writer::Write(const FGameplayMediaEncoderSample& Sample, DWORD StreamIndex)
 {
-	CHECK_HR(Writer->WriteSample(static_cast<DWORD>(Sample.GetType()), const_cast<IMFSample*>(Sample.GetSample())));
+	CHECK_HR(Writer->WriteSample(StreamIndex, const_cast<IMFSample*>(Sample.GetSample())));
 
 	UE_LOG(MP4, VeryVerbose, TEXT("stream #%d: time %.3f, duration %.3f%s"), static_cast<int>(Sample.GetType()), Sample.GetTime().GetTotalSeconds(), Sample.GetDuration().GetTotalSeconds(), Sample.IsVideoKeyFrame() ? TEXT(", key-frame") : TEXT(""));
 

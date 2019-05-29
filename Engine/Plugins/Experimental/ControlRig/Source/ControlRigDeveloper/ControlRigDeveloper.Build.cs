@@ -6,6 +6,7 @@ namespace UnrealBuildTool.Rules
     {
         public ControlRigDeveloper(ReadOnlyTargetRules Target) : base(Target)
         {
+            PrivateIncludePaths.Add("ControlRig/Private");
             PrivateIncludePaths.Add("ControlRigDeveloper/Private");
 
             // Copying some these from ControlRig.build.cs, our deps are likely leaner
@@ -14,6 +15,7 @@ namespace UnrealBuildTool.Rules
                 new string[]
                 {
                     "AnimGraphRuntime",
+                    "AnimationCore",
                     "ControlRig",
                     "Core",
                     "CoreUObject",
@@ -24,7 +26,17 @@ namespace UnrealBuildTool.Rules
                     "PropertyPath",
                     "Slate",
                     "SlateCore",
-					"TimeManagement"
+                    "InputCore",
+                    "TimeManagement",
+					"Persona",
+					"MessageLog",
+                }
+            );
+
+            PublicDependencyModuleNames.AddRange(
+                new string[]
+                {
+                    "AnimationCore",
                 }
             );
 

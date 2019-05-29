@@ -159,7 +159,7 @@ namespace Gauntlet
 
 	public class IOSDeviceFactory : IDeviceFactory
 	{
-		public bool CanSupportPlatform(UnrealTargetPlatform Platform)
+		public bool CanSupportPlatform(UnrealTargetPlatform? Platform)
 		{
 			return Platform == UnrealTargetPlatform.IOS;
 		}
@@ -601,7 +601,7 @@ namespace Gauntlet
         }
 
 
-		public UnrealTargetPlatform Platform { get { return UnrealTargetPlatform.IOS; } }
+		public UnrealTargetPlatform? Platform { get { return UnrealTargetPlatform.IOS; } }
 
 		/// <summary>
 		/// Temp path we use to push/pull things from the device

@@ -15,7 +15,7 @@
 #include "Containers/Ticker.h"
 #include "Misc/ScopeLock.h"
 #include "Common/TargetPlatformBase.h"
-#include "Android/AndroidProperties.h"
+#include "Android/AndroidPlatformProperties.h"
 #include "AndroidTargetPlatform.h"
 
 #if WITH_ENGINE

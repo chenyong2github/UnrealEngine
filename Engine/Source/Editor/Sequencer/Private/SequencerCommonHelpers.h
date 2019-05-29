@@ -39,11 +39,6 @@ public:
 	static void GetAllSections(TSharedRef<FSequencerDisplayNode> DisplayNode, TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections);
 
 	/**
-	 * Find object binding node from the given display node
-	 */
-	static bool FindObjectBindingNode(TSharedRef<FSequencerDisplayNode> DisplayNode, TSharedRef<FSequencerDisplayNode>& ObjectBindingNode);
-
-	/**
 	 * Validate that the nodes with selected keys or sections actually are true
 	 */
 

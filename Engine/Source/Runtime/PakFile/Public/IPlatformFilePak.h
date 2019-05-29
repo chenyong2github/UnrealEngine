@@ -1576,6 +1576,8 @@ public:
 	virtual bool Initialize(IPlatformFile* Inner, const TCHAR* CommandLineParam) override;
 	virtual void InitializeNewAsyncIO() override;
 
+	void OptimizeMemoryUsageForMountedPaks();
+
 	virtual IPlatformFile* GetLowerLevel() override
 	{
 		return LowerLevel;

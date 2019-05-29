@@ -48,6 +48,8 @@ typedef FIOSPlatformTypes FPlatformTypes;
 #define PLATFORM_ENABLE_VECTORINTRINSICS_NEON			PLATFORM_64BITS // disable vector intrinsics to make it compatible with 32-bit in Xcode 8.3
 #define PLATFORM_SUPPORTS_STACK_SYMBOLS					1
 #define PLATFORM_SUPPORTS_EARLY_MOVIE_PLAYBACK			1 // movies will start before engine is initalized
+#define PLATFORM_USE_FULL_TASK_GRAPH					0 // @todo platplug: not platplug, but should investigate soon anyway
+#define PLATFORM_IS_ANSI_MALLOC_THREADSAFE				1
 
 // on iOS we now perform offline symbolication as it's significantly faster. Requires bGenerateCrashReportSymbols=true in the ini file.
 #define	PLATFORM_RUNTIME_MALLOCPROFILER_SYMBOLICATION	0	
@@ -55,6 +57,8 @@ typedef FIOSPlatformTypes FPlatformTypes;
 #if PLATFORM_TVOS
 #define PLATFORM_USES_ES2								0
 #define PLATFORM_HAS_TOUCH_MAIN_SCREEN					0
+#define	PLATFORM_SUPPORTS_OPUS_CODEC					0
+#define PLATFORM_SUPPORTS_VORBIS_CODEC					0
 #else
 #define PLATFORM_USES_ES2								1
 #define PLATFORM_HAS_TOUCH_MAIN_SCREEN					1
@@ -66,6 +70,8 @@ typedef FIOSPlatformTypes FPlatformTypes;
 #define PLATFORM_NEEDS_RHIRESOURCELIST					0
 #define PLATFORM_SUPPORTS_GEOMETRY_SHADERS				0
 #define PLATFORM_SUPPORTS_TESSELLATION_SHADERS			0
+
+#define PLATFORM_GLOBAL_LOG_CATEGORY					LogIOS
 
 #define PLATFORM_BREAK()                                __builtin_trap()
 

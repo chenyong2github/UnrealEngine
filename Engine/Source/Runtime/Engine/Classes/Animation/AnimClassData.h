@@ -29,21 +29,26 @@ public:
 	/** A list of anim notifies that state machines (or anything else) may reference */
 	UPROPERTY()
 	TArray<FAnimNotifyEvent> AnimNotifies;
-
-	// The index of the root node in the animation tree
-	UPROPERTY()
-	int32 RootAnimNodeIndex;
 	
 	// Indices for each of the saved pose nodes that require updating, in the order they need to get updates.
 	UPROPERTY()
-	TArray<int32> OrderedSavedPoseIndices;
+	TMap<FName, FCachedPoseIndices> OrderedSavedPoseIndicesMap;
 
+	// All of the functions that this anim class provides
 	UPROPERTY()
-	UStructProperty* RootAnimNodeProperty;
+	TArray<FAnimBlueprintFunction> AnimBlueprintFunctions;
 
 	// The array of anim nodes
 	UPROPERTY()
 	TArray<UStructProperty*> AnimNodeProperties;
+
+	// The array of sub instance nodes
+	UPROPERTY()
+	TArray<UStructProperty*> SubInstanceNodeProperties;
+
+	// The array of layer nodes
+	UPROPERTY()
+	TArray<UStructProperty*> LayerNodeProperties;
 
 	// Array of sync group names in the order that they are requested during compile
 	UPROPERTY()
@@ -54,25 +59,17 @@ public:
 	TArray<FExposedValueHandler> EvaluateGraphExposedInputs;
 
 public:
-
+	// IAnimClassInterface interface
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines() const override { return BakedStateMachines; }
-
 	virtual USkeleton* GetTargetSkeleton() const override { return TargetSkeleton; }
-
 	virtual const TArray<FAnimNotifyEvent>& GetAnimNotifies() const override { return AnimNotifies; }
-
-	virtual int32 GetRootAnimNodeIndex() const override { return RootAnimNodeIndex; }
-
-	virtual UStructProperty* GetRootAnimNodeProperty() const override { return RootAnimNodeProperty; }
-
-	virtual const TArray<int32>& GetOrderedSavedPoseNodeIndices() const override { return OrderedSavedPoseIndices; }
-
+	virtual const TArray<FAnimBlueprintFunction>& GetAnimBlueprintFunctions() const override { return AnimBlueprintFunctions; }
+	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const override { return OrderedSavedPoseIndicesMap; }
 	virtual const TArray<UStructProperty*>& GetAnimNodeProperties() const override { return AnimNodeProperties; }
-
+	virtual const TArray<UStructProperty*>& GetSubInstanceNodeProperties() const override { return SubInstanceNodeProperties; }
+	virtual const TArray<UStructProperty*>& GetLayerNodeProperties() const override { return LayerNodeProperties; }
 	virtual const TArray<FName>& GetSyncGroupNames() const override { return SyncGroupNames; }
-
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const override { return SyncGroupNames.IndexOfByKey(SyncGroupName); }
-	
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const { return EvaluateGraphExposedInputs; }
 	
 	void InitGraphExposedInputs(UObject* ForObj)
@@ -87,10 +84,11 @@ public:
 		BakedStateMachines = AnimClass->GetBakedStateMachines();
 		TargetSkeleton = AnimClass->GetTargetSkeleton();
 		AnimNotifies = AnimClass->GetAnimNotifies();
-		RootAnimNodeIndex = AnimClass->GetRootAnimNodeIndex();
-		RootAnimNodeProperty = AnimClass->GetRootAnimNodeProperty();
-		OrderedSavedPoseIndices = AnimClass->GetOrderedSavedPoseNodeIndices();
+		AnimBlueprintFunctions = AnimClass->GetAnimBlueprintFunctions();
+		OrderedSavedPoseIndicesMap = AnimClass->GetOrderedSavedPoseNodeIndicesMap();
 		AnimNodeProperties = AnimClass->GetAnimNodeProperties();
+		SubInstanceNodeProperties = AnimClass->GetSubInstanceNodeProperties();
+		LayerNodeProperties = AnimClass->GetLayerNodeProperties();
 		SyncGroupNames = AnimClass->GetSyncGroupNames();
 		EvaluateGraphExposedInputs = AnimClass->GetExposedValueHandlers();
 	}

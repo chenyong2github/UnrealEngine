@@ -792,7 +792,7 @@ void FStreamableManager::AddReferencedObjects(FReferenceCollector& Collector)
 		FStreamable* Existing = It.Value();
 		if (Existing->Target)
 		{
-			Collector.AddReferencedObject(Existing->Target, FGCObject::GGCObjectReferencer);
+			Collector.AddReferencedObject(Existing->Target);
 		}
 	}
 
@@ -801,7 +801,7 @@ void FStreamableManager::AddReferencedObjects(FReferenceCollector& Collector)
 		FRedirectedPath& Existing = It.Value();
 		if (Existing.LoadedRedirector)
 		{
-			Collector.AddReferencedObject(Existing.LoadedRedirector, FGCObject::GGCObjectReferencer);
+			Collector.AddReferencedObject(Existing.LoadedRedirector);
 		}
 	}
 }

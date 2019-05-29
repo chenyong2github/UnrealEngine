@@ -135,7 +135,7 @@ TSharedRef<SWidget> FBaseMediaSourceCustomization::MakePlatformPlayerNamesValueW
 	// get available platforms
 	TArray<const PlatformInfo::FPlatformInfo*> AvailablePlatforms;
 
-	for (const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::EnumeratePlatformInfoArray())
+	for (const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 	{
 		if (PlatformInfo.IsVanilla() && (PlatformInfo.PlatformType == PlatformInfo::EPlatformType::Game) && (PlatformInfo.PlatformInfoName != TEXT("AllDesktop")))
 		{

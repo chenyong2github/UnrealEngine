@@ -33,6 +33,8 @@
 #include "IControlRigObjectBinding.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Drawing/ControlRigDrawInterface.h"
+#include "ControlRigBlueprint.h"
+#include "ControlRigController.h"
 
 FName FControlRigEditMode::ModeName("EditMode.ControlRig");
 
@@ -59,8 +61,6 @@ FControlRigEditMode::FControlRigEditMode()
 	, PivotTransform(FTransform::Identity)
 {
 	Settings = NewObject<UControlRigEditModeSettings>(GetTransientPackage(), TEXT("Settings"));
-
-	OnControlsSelectedDelegate.AddRaw(this, &FControlRigEditMode::HandleSelectionChanged);
 
 	CommandBindings = MakeShareable(new FUICommandList);
 	BindCommands();
@@ -918,10 +918,27 @@ void FControlRigEditMode::ClearControlSelection()
 		for(FControlUnitProxy& UnitProxy : ControlUnits)
 		{
 			UnitProxy.SetSelected(false);
+
+			if (UControlRig* ControlRig = WeakControlRig.Get())
+			{
+				if (UControlRigBlueprintGeneratedClass* Class = Cast<UControlRigBlueprintGeneratedClass>(ControlRig->GetClass()))
+				{
+					if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Class->ClassGeneratedBy))
+					{
+						if (RigBlueprint)
+						{
+							if (RigBlueprint->ModelController)
+							{
+								RigBlueprint->ModelController->DeselectNode(*UnitProxy.PropertyPath.ToString());
+							}
+						}
+					}
+				}
+			}
 		}
 
 		bSelectedBone = true;
-		OnControlsSelectedDelegate.Broadcast(TArray<FString>());
+		HandleSelectionChanged(TArray<FString>());
 	}
 }
 
@@ -938,11 +955,31 @@ void FControlRigEditMode::SetControlSelection(const FString& InControlPropertyPa
 			{
 				UnitProxy.SetSelected(bSelected);
 				SelectedPropertyPaths.Add(UnitProxy.TransformPropertyPathString);
+
+				if (UControlRig* ControlRig = WeakControlRig.Get())
+				{
+					if (UControlRigBlueprintGeneratedClass* Class = Cast<UControlRigBlueprintGeneratedClass>(ControlRig->GetClass()))
+					{
+						if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Class->ClassGeneratedBy))
+						{
+							if (RigBlueprint)
+							{
+								if (RigBlueprint->ModelController)
+								{
+									TArray<FName> NodeNames;
+									NodeNames.Add(*UnitProxy.PropertyPath.ToString());
+									RigBlueprint->ModelController->SetSelection(NodeNames);
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 
 		bSelectedBone = true;
-		OnControlsSelectedDelegate.Broadcast(SelectedPropertyPaths);
+
+		HandleSelectionChanged(SelectedPropertyPaths);
 	}
 }
 
@@ -961,13 +998,33 @@ void FControlRigEditMode::SetControlSelection(const TArray<FString>& InControlPr
 				{
 					UnitProxy.SetSelected(bSelected);
 					SelectedPropertyPaths.Add(UnitProxy.TransformPropertyPathString);
+
+					if (UControlRig* ControlRig = WeakControlRig.Get())
+					{
+						if (UControlRigBlueprintGeneratedClass* Class = Cast<UControlRigBlueprintGeneratedClass>(ControlRig->GetClass()))
+						{
+							if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Class->ClassGeneratedBy))
+							{
+								if (RigBlueprint)
+								{
+									if (RigBlueprint->ModelController)
+									{
+										TArray<FName> NodeNames;
+										NodeNames.Add(*UnitProxy.PropertyPath.ToString());
+										RigBlueprint->ModelController->SetSelection(NodeNames);
+									}
+								}
+							}
+						}
+					}
+
 					break;
 				}
 			}
 		}
 
 		bSelectedBone = true;
-		OnControlsSelectedDelegate.Broadcast(SelectedPropertyPaths);
+		HandleSelectionChanged(SelectedPropertyPaths);
 	}
 }
 
@@ -1015,6 +1072,23 @@ int32 FControlRigEditMode::GetNumSelectedControls() const
 	}
 
 	return NumSelected;
+}
+
+TArray<FString> FControlRigEditMode::GetSelectedControls() const
+{
+	TArray<FString> Paths;
+	if (UControlRig* ControlRig = WeakControlRig.Get())
+	{
+		for (const FControlUnitProxy& UnitProxy : ControlUnits)
+		{
+			if (UnitProxy.IsSelected())
+			{
+				Paths.Add(UnitProxy.PropertyPath.ToString());
+			}
+		}
+	}
+
+	return Paths;
 }
 
 void FControlRigEditMode::SetControlEnabled(const FString& InControlPropertyPath, bool bEnabled)
@@ -1172,12 +1246,6 @@ void FControlRigEditMode::RecalcPivotTransform()
 
 void FControlRigEditMode::HandleSelectionChanged(const TArray<FString>& InSelectedPropertyPaths)
 {
-	if(!bSelecting)
-	{
-		ClearControlSelection();
-		SetControlSelection(InSelectedPropertyPaths, true);
-	}
-
 	if (WeakSequencer.IsValid())
 	{
 		if (InSelectedPropertyPaths.Num() > 0)
@@ -1348,6 +1416,8 @@ void FControlRigEditMode::RefreshControlProxies()
 			}
 		}
 	}
+
+	HandleSelectionChanged(SelectedPropertyPaths);
 }
 
 FControlRigEditMode* FControlRigEditMode::GetEditModeFromWorldContext(UWorld* InWorldContext)
@@ -1431,4 +1501,41 @@ void FControlRigEditMode::SelectBone(const FName& InBone)
 		SelectedBones.Add(InBone);
 	}
 }
+
+void FControlRigEditMode::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
+{
+	switch (InType)
+	{
+		case EControlRigModelNotifType::NodeSelected:
+		{
+			const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload;
+			if (Node)
+			{
+				SetControlSelection(*Node->Name.ToString(), true);
+			}
+			break;
+		}
+		case EControlRigModelNotifType::NodeDeselected:
+		{
+			const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload;
+			if (Node)
+			{
+				SetControlSelection(*Node->Name.ToString(), false);
+			}
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+
+	_ModifiedEvent.Broadcast(InModel, InType, InPayload);
+}
+
+UControlRigModel::FModifiedEvent& FControlRigEditMode::OnModified()
+{
+	return _ModifiedEvent;
+}
+
 #undef LOCTEXT_NAMESPACE

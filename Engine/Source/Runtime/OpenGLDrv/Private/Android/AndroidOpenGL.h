@@ -157,6 +157,12 @@ extern PFNGLBINDSAMPLERPROC				glBindSampler;
 
 extern PFNGLPROGRAMPARAMETERIPROC		glProgramParameteri;
 
+extern PFNGLMEMORYBARRIERPROC			glMemoryBarrier;
+extern PFNGLDISPATCHCOMPUTEPROC			glDispatchCompute;
+extern PFNGLDISPATCHCOMPUTEINDIRECTPROC	glDispatchComputeIndirect;
+extern PFNGLBINDIMAGETEXTUREPROC		glBindImageTexture;
+
+
 #include "OpenGLES2.h"
 
 typedef khronos_stime_nanoseconds_t EGLnsecsANDROID;
@@ -551,6 +557,26 @@ struct FAndroidOpenGL : public FOpenGLES2
 		glBindSampler(Unit, Sampler);
 	}
 
+	static FORCEINLINE void MemoryBarrier(GLbitfield Barriers)
+	{
+		glMemoryBarrier(Barriers);
+	}
+	
+	static FORCEINLINE void DispatchCompute(GLuint NumGroupsX, GLuint NumGroupsY, GLuint NumGroupsZ)
+	{
+		glDispatchCompute(NumGroupsX, NumGroupsY, NumGroupsZ);
+	}
+
+	static FORCEINLINE void DispatchComputeIndirect(GLintptr Offset)
+	{
+		glDispatchComputeIndirect(Offset);
+	}
+
+	static FORCEINLINE void BindImageTexture(GLuint Unit, GLuint Texture, GLint Level, GLboolean Layered, GLint Layer, GLenum Access, GLenum Format)
+	{
+		glBindImageTexture(Unit, Texture, Level, Layered, Layer, Access, Format);
+	}
+	
 	// Adreno doesn't support HALF_FLOAT
 	static FORCEINLINE int32 GetReadHalfFloatPixelsEnum()				{ return GL_FLOAT; }
 
@@ -591,7 +617,8 @@ struct FAndroidOpenGL : public FOpenGLES2
 	
 	static FORCEINLINE bool SupportsBlitFramebuffer() { return FOpenGLES2::SupportsBlitFramebuffer() || IsES31Usable(); }
 
-	static FORCEINLINE bool SupportsComputeShaders() { return bES31Support && RHISupportsComputeShaders(GetShaderPlatform()); }
+	static FORCEINLINE bool SupportsComputeShaders() { return bES31Support; }
+	static FORCEINLINE bool SupportsStructuredBuffers()	{ return bES31Support; }
 
 	enum class EImageExternalType : uint8
 	{
@@ -611,6 +638,9 @@ struct FAndroidOpenGL : public FOpenGLES2
 
 	static FORCEINLINE GLint GetMaxMSAASamplesTileMem() { return MaxMSAASamplesTileMem; }
 
+	static FORCEINLINE GLint GetMaxComputeTextureImageUnits() { check(MaxComputeTextureImageUnits != -1); return MaxComputeTextureImageUnits; }
+	static FORCEINLINE GLint GetMaxComputeUniformComponents() { check(MaxComputeUniformComponents != -1); return MaxComputeUniformComponents; }
+	
 	static void ProcessExtensions(const FString& ExtensionsString);
 
 	// whether to use ES 3.0 function glTexStorage2D to allocate storage for GL_HALF_FLOAT_OES render target textures
@@ -660,6 +690,9 @@ struct FAndroidOpenGL : public FOpenGLES2
 	/** supported OpenGL ES version queried from the system */
 	static int32 GLMajorVerion;
 	static int32 GLMinorVersion;
+
+	static GLint MaxComputeTextureImageUnits;
+	static GLint MaxComputeUniformComponents;
 };
 
 typedef FAndroidOpenGL FOpenGL;

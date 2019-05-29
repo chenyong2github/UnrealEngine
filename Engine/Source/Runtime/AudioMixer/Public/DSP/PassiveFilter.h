@@ -5,10 +5,12 @@
 #include "CoreMinimal.h"
 #include "DSP/AudioFFT.h"
 #include "Async/ParallelFor.h"
+#include "Audio.h"
 
 namespace Audio
 {
-	struct PassiveFilterParams
+
+	struct FPassiveFilterParams
 	{
 		enum class EClass
 		{
@@ -31,7 +33,7 @@ namespace Audio
 
 		bool bRemoveDC;
 
-		PassiveFilterParams()
+		FPassiveFilterParams()
 			: Class(EClass::Butterworth)
 			, Type(EType::Lowpass)
 			, Order(4)
@@ -41,6 +43,9 @@ namespace Audio
 		{
 		}
 	};
+
+	UE_DEPRECATED(4.23, "PassiveFilterParams has been renamed to FPassiveFilterParams")
+	typedef FPassiveFilterParams PassiveFilterParams;
 
 	static float EvaluateChebyshevPolynomial(float FrequencyRatio, int32 Order)
 	{
@@ -87,20 +92,20 @@ namespace Audio
 		}
 	}
 
-	static float GetGainForFrequency(float NormalizedFreq, const PassiveFilterParams& InParams)
+	static float GetGainForFrequency(float NormalizedFreq, const FPassiveFilterParams& InParams)
 	{
-		const float FrequencyRatio = (InParams.Type == PassiveFilterParams::EType::Lowpass) ? (NormalizedFreq / InParams.NormalizedCutoffFrequency) : (InParams.NormalizedCutoffFrequency / NormalizedFreq);
+		const float FrequencyRatio = (InParams.Type == FPassiveFilterParams::EType::Lowpass) ? (NormalizedFreq / InParams.NormalizedCutoffFrequency) : (InParams.NormalizedCutoffFrequency / NormalizedFreq);
 
 		switch (InParams.Class)
 		{
-		case PassiveFilterParams::EClass::Chebyshev:
+		case FPassiveFilterParams::EClass::Chebyshev:
 		{
 			const float ChebyshevPolynomial = EvaluateChebyshevPolynomial(FrequencyRatio, InParams.Order);
 			return InParams.UnitGain / (FMath::Sqrt(1.0f + ChebyshevPolynomial * ChebyshevPolynomial));
 			break;
 		}
 		default:
-		case PassiveFilterParams::EClass::Butterworth:
+		case FPassiveFilterParams::EClass::Butterworth:
 		{
 			const float Denominator = FMath::Sqrt((1 + FMath::Pow(FrequencyRatio, InParams.Order * 2.0f)));
 			return InParams.UnitGain / Denominator;
@@ -112,7 +117,7 @@ namespace Audio
 	/**
 	* This can be called on any TArrayView<float> whose length is a power of 2.
 	*/
-	static void Filter(TArrayView<float>& Signal, const PassiveFilterParams& InParams)
+	static void Filter(TArrayView<float>& Signal, const FPassiveFilterParams& InParams)
 	{
 		if (!FMath::IsPowerOfTwo(Signal.Num()))
 		{
@@ -165,7 +170,7 @@ namespace Audio
 	/**
 	* Static function for applying a filter to any time series.
 	*/
-	static void Filter(TArray<float>& Signal, const PassiveFilterParams& InParams)
+	static void Filter(TArray<float>& Signal, const FPassiveFilterParams& InParams)
 	{
 		if (FMath::IsPowerOfTwo(Signal.Num()))
 		{

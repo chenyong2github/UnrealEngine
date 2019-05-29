@@ -1435,7 +1435,8 @@ void FShader::DumpDebugInfo()
 void FShader::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, const FStableShaderKeyAndValue& InSaveKeyVal)
 {
 #if WITH_EDITOR
-	if (TargetShaderPlatform == EShaderPlatform::SP_NumPlatforms || EShaderPlatform(Target.Platform) == TargetShaderPlatform)
+	if ((TargetShaderPlatform == EShaderPlatform::SP_NumPlatforms || EShaderPlatform(Target.Platform) == TargetShaderPlatform) 
+		&& FShaderCodeLibrary::NeedsShaderStableKeys(TargetShaderPlatform))
 	{
 		FStableShaderKeyAndValue SaveKeyVal(InSaveKeyVal);
 		SaveKeyVal.TargetFrequency = FName(GetShaderFrequencyString((EShaderFrequency)Target.Frequency));
@@ -2214,6 +2215,12 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		{
 			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.UseHWsRGBEncoding"));
 			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_HWsRGB") : TEXT("");
+		}
+		
+		{
+			// make it per shader platform ?
+			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.SupportGPUScene"));
+			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_MobGPUSc") : TEXT("");
 		}
 		
 	}

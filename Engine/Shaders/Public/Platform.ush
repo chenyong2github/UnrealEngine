@@ -8,6 +8,14 @@
 
 #include "FP16Math.ush"
 
+// Values of FEATURE_LEVEL.
+#define FEATURE_LEVEL_ES2	1
+#define FEATURE_LEVEL_ES3_1	2
+#define FEATURE_LEVEL_SM3	3
+#define FEATURE_LEVEL_SM4	4
+#define FEATURE_LEVEL_SM5	5
+#define FEATURE_LEVEL_MAX	6
+
 // ---------------------------------------------------- Profile or compiler specific includes
 // TODO: Have shader compiler including these platform specific USF files, that needs to work
 // with ShaderCore.cpp's GetShaderIncludes().
@@ -15,25 +23,18 @@
 #if PS4_PROFILE  
 	// always #include PS4Common.usf so it can #define override anything in any other included file.
 	#include "Platform/PS4/PS4Common.ush"
-#endif
- 
-#if XBOXONE_PROFILE
+#elif XBOXONE_PROFILE
 	#include "Platform/XboxOne/XboxOneCommon.ush"
-#endif
-
-#if SWITCH_PROFILE || SWITCH_PROFILE_FORWARD
+#elif SWITCH_PROFILE || SWITCH_PROFILE_FORWARD
 	#include "Platform/Switch/SwitchCommon.ush"
-#endif
-
-#if COMPILER_METAL
+#elif COMPILER_METAL
 	// Helps with iteration when changing Metal shader code generation backend.
 	#include "Platform/Metal/MetalCommon.ush"
-#endif
-
-#if COMPILER_VULKAN
+#elif COMPILER_VULKAN
 	// Helps with iteration when changing Vulkan shader code generation backend.
 	#include "Platform/Vulkan/VulkanCommon.ush"
 #endif
+// @todo platplug: Inject a platform's XXXCommon.ush externally, somehow
 
 
 // ---------------------------------------------------- DDC invalidation
@@ -193,13 +194,6 @@
 
 // ---------------------------------------------------- Profile config
 
-// Values of FEATURE_LEVEL.
-#define FEATURE_LEVEL_ES2	1
-#define FEATURE_LEVEL_ES3_1	2
-#define FEATURE_LEVEL_SM3	3
-#define FEATURE_LEVEL_SM4	4
-#define FEATURE_LEVEL_SM5	5
-#define FEATURE_LEVEL_MAX	6
 
 #if PS4_PROFILE
 	#define FEATURE_LEVEL FEATURE_LEVEL_SM5
@@ -318,10 +312,10 @@
 			#define A8_SAMPLE_MASK .r
 		#endif
 	#endif
+#endif
 
-#else
-
-	#error Add your platform here
+#ifndef FEATURE_LEVEL
+	#error FEATURE_LEVEL has not been defined for this platform. Add it to Platform.ush or in the Common.ush file for this platform
 
 	#define FEATURE_LEVEL FEATURE_LEVEL_MAX
 
@@ -368,14 +362,18 @@
 
 // Whether the platform supports a global clip plane through SV_ClipDistance
 // Ideally this would just be enabled for all SM4 and above feature level platforms, but not tested everywhere yet
+#ifndef PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE
 #define PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE (PS4_PROFILE || SM5_PROFILE || SM4_PROFILE || METAL_PROFILE || METAL_MRT_PROFILE || METAL_SM5_NOTESS_PROFILE || METAL_SM5_PROFILE || GL4_PROFILE || GL3_PROFILE || VULKAN_PROFILE_SM4 || VULKAN_PROFILE_SM5)
+#endif
 
 // Whether the platform support pixel coverage on MSAA targets (SV_Coverage).
 #define SUPPORTS_PIXEL_COVERAGE (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && !COMPILER_GLSL && !MOBILE_EMULATION)
 
 // Must match C++ RHISupports4ComponentUAVReadWrite
 // D3D11 does not support multi-component loads from a UAV: "error X3676: typed UAV loads are only allowed for single-component 32-bit element types"
+#ifndef PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE
 #define PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE (PS4_PROFILE || XBOXONE_PROFILE || COMPILER_METAL)
+#endif
 
 
 // ---------------------------------------------------- Compiler specific defaults and fallbacks
@@ -669,10 +667,12 @@ float4 max3( float4 a, float4 b, float4 c )
 	#define uint4	int4
 #endif
 
+#ifndef SNORM
 #if COMPILER_HLSLCC || PS4_PROFILE
 	#define SNORM 
 	#define UNORM
 #else
 	#define SNORM snorm
 	#define UNORM unorm
+#endif
 #endif

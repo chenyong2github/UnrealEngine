@@ -69,6 +69,11 @@ void FXmppPingStrophe::OnDisconnect()
 	ResetPongTimer();
 }
 
+void FXmppPingStrophe::OnReconnect()
+{
+
+}
+
 bool FXmppPingStrophe::ReceiveStanza(const FStropheStanza& IncomingStanza)
 {
 	// All ping stanzas are IQ

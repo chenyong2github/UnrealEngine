@@ -772,7 +772,6 @@ public:
 	virtual void GetMeshDescription(int32 LODIndex, TArray<FMeshBatch>& OutMeshElements) const override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
-	virtual const FCustomPrimitiveData* GetCustomPrimitiveData() const override { return &CustomPrimitiveData; }
 
 #if RHI_RAYTRACING
 	virtual bool IsRayTracingRelevant() const override { return true; }
@@ -883,9 +882,6 @@ protected:
 
 	/** The view relevance for all the static mesh's materials. */
 	FMaterialRelevance MaterialRelevance;
-
-	/** The custom data for this Scene Proxy */
-	FCustomPrimitiveData CustomPrimitiveData;
 
 #if WITH_EDITORONLY_DATA
 	/** The component streaming distance multiplier */

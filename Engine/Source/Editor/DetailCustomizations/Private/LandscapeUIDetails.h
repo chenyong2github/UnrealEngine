@@ -6,8 +6,10 @@
 #include "UObject/WeakObjectPtr.h"
 #include "Types/SlateEnums.h"
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
 
 class IDetailLayoutBuilder;
+class ALandscape;
 
 class FLandscapeUIDetails : public IDetailCustomization
 {
@@ -22,7 +24,11 @@ public:
 	/** End IDetailCustomization interface */
 
 private:
+	void OnEditorExperimentalSettingsChanged(FName PropertyName);
+	void ToggleCanHaveLayersContent(ALandscape* Landscape);
 
 	/** Use MakeInstance to create an instance of this class */
 	FLandscapeUIDetails();
+
+	IDetailLayoutBuilder* DetailLayoutBuilder = nullptr;
 };

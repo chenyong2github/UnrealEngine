@@ -343,10 +343,6 @@ public:
 	/** Toggle whether we should evaluate sub sequences in isolation */
 	TSharedPtr< FUICommandInfo > ToggleEvaluateSubSequencesInIsolation;
 
-	TSharedPtr<FUICommandInfo> SetAllCurveVisibility;
-	TSharedPtr<FUICommandInfo> SetSelectedCurveVisibility;
-	TSharedPtr<FUICommandInfo> SetAnimatedCurveVisibility;
-
 	/**
 	 * Initialize commands
 	 */

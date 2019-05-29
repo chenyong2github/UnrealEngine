@@ -71,8 +71,7 @@ public:
 			true,
 			300
 			);
-		ALandscape::RegisterChangeLandscapeLayersStateDelegate();
-
+	
 		// register customizations
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomClassLayout("LandscapeEditorObject", FOnGetDetailCustomizationInstance::CreateStatic(&FLandscapeEditorDetails::MakeInstance));
@@ -119,7 +118,6 @@ public:
 	 */
 	virtual void ShutdownModule() override
 	{
-		ALandscape::UnregisterChangeLandscapeLayersStateDelegate();
 		FLandscapeEditorCommands::Unregister();
 
 		FEditorDelegates::PreSaveWorld.Remove(PreSaveWorldHandle);

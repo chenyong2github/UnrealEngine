@@ -129,6 +129,7 @@ private:
 	mutable bool bNeedsCachePrepass;
 	mutable bool bPerformingCachePrepass;
 	mutable bool bIsInvalidating;
+	mutable int32 NumberOfFramesInARowWeInvalidated;
 	bool bCanCache;
 
 	bool bCacheRelativeTransforms;

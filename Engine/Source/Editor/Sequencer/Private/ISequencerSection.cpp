@@ -15,14 +15,6 @@ struct FChannelData
 
 	/** The channel's editor meta data */
 	const FMovieSceneChannelMetaData& MetaData;
-
-	/**
-	 * Make a key area out of this data
-	 */
-	TSharedRef<IKeyArea> MakeKeyArea(UMovieSceneSection& InSection) const
-	{
-		return MakeShared<IKeyArea>(InSection, Channel);
-	}
 };
 
 /** Data pertaining to a group of channels */
@@ -104,7 +96,7 @@ void ISequencerSection::GenerateSectionLayout( ISectionLayoutBuilder& LayoutBuil
 		const TTuple<FName, FGroupData>& Pair = *GroupToChannelsMap.CreateIterator();
 		if (Pair.Value.Channels.Num() == 1 && Pair.Value.Channels[0].MetaData.bCanCollapseToTrack)
 		{
-			LayoutBuilder.SetSectionAsKeyArea(Pair.Value.Channels[0].MakeKeyArea(*Section));
+			LayoutBuilder.SetTopLevelChannel(Pair.Value.Channels[0].Channel);
 			return;
 		}
 	}
@@ -155,8 +147,7 @@ void ISequencerSection::GenerateSectionLayout( ISectionLayoutBuilder& LayoutBuil
 
 		for (const FChannelData& ChannelAndData : ChannelData.Channels)
 		{
-			TSharedRef<IKeyArea> KeyArea = ChannelAndData.MakeKeyArea(*Section);
-			LayoutBuilder.AddKeyArea(ChannelAndData.MetaData.Name, ChannelAndData.MetaData.DisplayText, KeyArea);
+			LayoutBuilder.AddChannel(ChannelAndData.Channel);
 		}
 
 		if (!GroupName.IsNone())

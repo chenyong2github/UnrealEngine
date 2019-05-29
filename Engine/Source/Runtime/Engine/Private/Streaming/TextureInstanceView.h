@@ -208,7 +208,7 @@ public:
 	// FORT-159677
 	FORCEINLINE void VerifyElementIdx_DebuggingOnly(int32 Idx, int32 IterationCount, TMap<const UPrimitiveComponent*, int32>* ComponentMapPtr = nullptr, TArray<int32>* FreeIndicesPtr = nullptr) const
 	{
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS && 0 // TEMPORARILY DISABLED
 		const bool bInRange = Idx >= 0 && Idx < Elements.Num();
 		if (!bInRange)
 		{

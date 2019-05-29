@@ -372,6 +372,16 @@ static FORCEINLINE FRequestEventDataCallback UpgradeRequestEventDelegate(const F
 }
 /** End RequestEventData Types */
 
+/** Start RequestEventGroupData Types */
+struct FRequestEventGroupDataResult : public FStreamingResultBase
+{
+	TArray<FReplayEventListItem> ReplayEventListItems;
+	TArray<FRequestEventDataResult> ReplayEventListResults;
+};
+
+DECLARE_DELEGATE_OneParam(FRequestEventGroupDataCallback, const FRequestEventGroupDataResult&);
+/** End RequestEventGroupData Types */
+
 /** Start DownloadHeader Types */
 struct FDownloadHeaderResult : public FStreamingResultBase
 {
@@ -503,6 +513,10 @@ public:
 	virtual void RequestEventData(const FString& EventID, const FRequestEventDataCallback& Delegate) = 0;
 	virtual void RequestEventData(const FString& ReplayName, const FString& EventID, const FRequestEventDataCallback& Delegate) = 0;
 	virtual void RequestEventData(const FString& ReplayName, const FString& EventId, const int32 UserIndex, const FRequestEventDataCallback& Delegate) = 0;
+
+	virtual void RequestEventGroupData(const FString& Group, const FRequestEventGroupDataCallback& Delegate) = 0;
+	virtual void RequestEventGroupData(const FString& ReplayName, const FString& Group, const FRequestEventGroupDataCallback& Delegate) = 0;
+	virtual void RequestEventGroupData(const FString& ReplayName, const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate) = 0;
 
 	virtual void SearchEvents(const FString& EventGroup, const FSearchEventsCallback& Delegate) = 0;
 	virtual void RefreshHeader() = 0;

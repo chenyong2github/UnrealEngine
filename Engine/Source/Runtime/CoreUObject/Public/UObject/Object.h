@@ -1147,11 +1147,10 @@ public:
 	 * be called locally, remotely, or simply absorbed under the given conditions
 	 *
 	 * @param Function function to call
-	 * @param Parameters arguments to the function call
 	 * @param Stack stack frame for the function call
 	 * @return bitmask representing all callspaces that apply to this UFunction in the given context
 	 */
-	virtual int32 GetFunctionCallspace( UFunction* Function, void* Parameters, FFrame* Stack )
+	virtual int32 GetFunctionCallspace( UFunction* Function, FFrame* Stack )
 	{
 		return FunctionCallspace::Local;
 	}

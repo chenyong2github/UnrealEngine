@@ -84,16 +84,17 @@ struct SLATECORE_API FFontOutlineSettings
 
 	inline bool IsIdenticalTo(const FFontOutlineSettings& Other) const
 	{
-		return OutlineSize == Other.OutlineSize
-			&& bSeparateFillAlpha == Other.bSeparateFillAlpha
-			&& OutlineMaterial == Other.OutlineMaterial
-			&& OutlineColor == Other.OutlineColor
-			&& bApplyOutlineToDropShadows == Other.bApplyOutlineToDropShadows;
+		return
+			// Ignore OutlineMaterial && OutlineColor because they do not affect the cached glyph.
+			OutlineSize == Other.OutlineSize &&
+			bSeparateFillAlpha == Other.bSeparateFillAlpha;
+			
 	}
 
 	friend inline uint32 GetTypeHash(const FFontOutlineSettings& OutlineSettings)
 	{
 		uint32 Hash = 0;
+		// Ignore OutlineMaterial && OutlineColor because they do not affect the cached glyph.
 		Hash = HashCombine(Hash, GetTypeHash(OutlineSettings.OutlineSize));
 		Hash = HashCombine(Hash, GetTypeHash(OutlineSettings.bSeparateFillAlpha));
 

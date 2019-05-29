@@ -45,6 +45,29 @@ class UUserDefinedEnum;
 class UUserDefinedStruct;
 struct Rect;
 
+/* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
+namespace NodeSectionID
+{
+	enum Type
+	{
+		NONE = 0,
+		GRAPH,					// Graph
+		ANIMGRAPH,				// Anim Graph
+		ANIMLAYER,				// Anim Layer
+		FUNCTION,				// Functions
+		FUNCTION_OVERRIDABLE,	// Overridable functions
+		INTERFACE,				// Interface
+		MACRO,					// Macros
+		VARIABLE,				// Variables
+		COMPONENT,				// Components
+		DELEGATE,				// Delegate/Event
+		USER_ENUM,				// User defined enums
+		LOCAL_VARIABLE,			// Local variables
+		USER_STRUCT,			// User defined structs
+		USER_SORTED				// User sorted categories
+	};
+};
+
 /////////////////////////////////////////////////////
 // FCustomDebugObjectEntry - Used to pass a custom debug object override around
 
@@ -185,6 +208,8 @@ public:
 
 	//~ Begin IBlueprintEditor Interface
 	virtual void RefreshEditors(ERefreshBlueprintEditorReason::Type Reason = ERefreshBlueprintEditorReason::UnknownReason) override;
+	virtual void RefreshMyBlueprint();
+	virtual void RefreshInspector();
 	virtual void AddToSelection(UEdGraphNode* InNode) override;
 	virtual void JumpToHyperlink(const UObject* ObjectReference, bool bRequestRename = false) override;
 	virtual void JumpToPin(const class UEdGraphPin* Pin) override;
@@ -460,7 +485,7 @@ public:
 		CGT_NewVariable,
 		CGT_NewFunctionGraph,
 		CGT_NewMacroGraph,
-		CGT_NewAnimationGraph,
+		CGT_NewAnimationLayer,
 		CGT_NewEventGraph,
 		CGT_NewLocalVariable
 	};
@@ -474,7 +499,8 @@ public:
 	bool AddNewDelegateIsVisible() const;
 
 	// Called to see if the new document menu items is visible for this type
-	bool NewDocument_IsVisibleForType(ECreatedDocumentType GraphType) const;
+	virtual bool IsSectionVisible(NodeSectionID::Type InSectionID) const { return true; }
+	virtual bool NewDocument_IsVisibleForType(ECreatedDocumentType GraphType) const;
 	EVisibility NewDocument_GetVisibilityForType(ECreatedDocumentType GraphType) const
 	{
 		return NewDocument_IsVisibleForType(GraphType) ? EVisibility::Visible : EVisibility::Collapsed;
@@ -796,7 +822,7 @@ protected:
 	void SelectAllNodes();
 	bool CanSelectAllNodes() const;
 
-	void DeleteSelectedNodes();
+	virtual void DeleteSelectedNodes();
 	bool CanDeleteNodes() const;
 
 	void DeleteSelectedDuplicatableNodes();

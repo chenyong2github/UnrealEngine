@@ -74,6 +74,26 @@ struct FPrimaryAssetRules
 	ENGINE_API void PropagateCookRules(const FPrimaryAssetRules& ParentRules);
 };
 
+/** Structure defining overrides to rules */
+struct FPrimaryAssetRulesExplicitOverride
+{
+	FPrimaryAssetRules Rules;
+	uint8 bOverridePriority:1;
+	uint8 bOverrideApplyRecursively:1;
+	uint8 bOverrideChunkId:1;
+	uint8 bOverrideCookRule:1;
+
+	FPrimaryAssetRulesExplicitOverride()
+		: bOverridePriority(false), bOverrideApplyRecursively(false), bOverrideChunkId(false), bOverrideCookRule(false)
+	{
+	}
+
+	bool HasAnyOverride() const { return bOverridePriority || bOverrideApplyRecursively || bOverrideChunkId || bOverrideCookRule; }
+
+	/** Override non-default rules from an override struct. */
+	ENGINE_API void OverrideRulesExplicitly(FPrimaryAssetRules& RulesToOverride) const;
+};
+
 /** Structure with publicly exposed information about an asset type. These can be loaded out of a config file. */
 USTRUCT()
 struct FPrimaryAssetTypeInfo

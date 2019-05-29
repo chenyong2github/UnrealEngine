@@ -24,6 +24,7 @@ struct FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
 		Precision = 1.f;
 		MaxIterations = 10;
 		EffectorTransform = FTransform::Identity;
+		bPropagateToChildren = false;
 	}
 
 	/**
@@ -49,6 +50,14 @@ struct FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
 	 */
 	UPROPERTY(meta = (Input, Constant))
 	float Precision;
+
+	/**
+	 * If set to true all of the global transforms of the children
+	 * of this bone will be recalculated based on their local transforms.
+	 * Note: This is computationally more expensive than turning it off.
+	 */
+	UPROPERTY(meta = (Input))
+	bool bPropagateToChildren;
 
 	/**
 	 * The maximum number of iterations. Values between 4 and 16 are common.

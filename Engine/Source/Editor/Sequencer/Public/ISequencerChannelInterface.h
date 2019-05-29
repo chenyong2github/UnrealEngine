@@ -142,6 +142,11 @@ struct ISequencerChannelInterface
 	virtual void DrawKeys_Raw(FMovieSceneChannel* Channel, TArrayView<const FKeyHandle> InKeyHandles, TArrayView<FKeyDrawParams> OutKeyDrawParams) const = 0;
 
 	/**
+	 * Whether this channel supports curve models
+	 */
+	virtual bool SupportsCurveEditorModels_Raw(const FMovieSceneChannelHandle& InChannel) const = 0;
+
+	/**
 	 * Create a new model for this channel that can be used on the curve editor interface
 	 *
 	 * @return (Optional) A new model to be added to a curve editor
