@@ -110,7 +110,11 @@ void FObjectDetails::AddCallInEditorMethods(IDetailLayoutBuilder& DetailBuilder)
 				}
 			}
 
-			CallInEditorFunctions.Add(*FunctionIter);
+			const FName FunctionName = TestFunction->GetFName();
+			if (!CallInEditorFunctions.FindByPredicate([&FunctionName](const UFunction* Func) { return Func->GetFName() == FunctionName; }))
+			{
+				CallInEditorFunctions.Add(*FunctionIter);
+			}
 		}
 	}
 
