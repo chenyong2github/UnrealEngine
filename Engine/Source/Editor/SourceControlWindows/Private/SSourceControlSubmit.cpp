@@ -391,6 +391,9 @@ void SSourceControlSubmitWidget::OnToggleSelectedCheckBox(ECheckBoxState InNewSt
 void SSourceControlSubmitWidget::FillChangeListDescription(FChangeListDescription& OutDesc)
 {
 	OutDesc.Description = ChangeListDescriptionTextCtrl->GetText();
+
+	ChangeListDescriptionTextCtrl->SetText(FText()); // Don't save description on Submit
+
 	OutDesc.FilesForAdd.Empty();
 	OutDesc.FilesForSubmit.Empty();
 
@@ -421,8 +424,6 @@ FReply SSourceControlSubmitWidget::OKClicked()
 {
 	DialogResult = ESubmitResults::SUBMIT_ACCEPTED;
 	ParentFrame.Pin()->RequestDestroyWindow();
-
-	ChangeListDescriptionTextCtrl->SetText(FText()); // Don't save description on Submit
 
 	return FReply::Handled();
 }
