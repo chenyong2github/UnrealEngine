@@ -8,17 +8,11 @@ namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-enum class EKnownEventUids : uint16
-{
-	NewEvent,
-	User,
-	Max			= 1 << 14, // ...leaves two MSB bits for other uses.
-};
-
-////////////////////////////////////////////////////////////////////////////////
 struct FNewEventEvent
 {
-	uint16		Uid;
+	enum : uint16 { Uid = 0 };
+
+	uint16		EventUid;
 	uint16		FieldCount;
 	uint8		LoggerNameSize;
 	uint8		EventNameSize;

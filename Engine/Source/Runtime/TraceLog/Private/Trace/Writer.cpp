@@ -874,6 +874,14 @@ static TLateAtomic<uint32>	GEventUidCounter;	// = 0;
 static TLateAtomic<FEvent*>	GHeadEvent;			// = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////
+enum class EKnownEventUids : uint16
+{
+	NewEvent		= FNewEventEvent::Uid,
+	User,
+	Max				= 1 << 14, // ...leaves two MSB bits for other uses.
+};
+
+////////////////////////////////////////////////////////////////////////////////
 template <typename ElementType>
 static uint32 Writer_EventGetHash(const ElementType* Input, int32 Length=-1)
 {
@@ -941,7 +949,7 @@ void Writer_EventCreate(
 	auto& Event = *(FNewEventEvent*)Writer_BeginLog(uint16(EKnownEventUids::NewEvent), EventSize);
 
 	// Write event's main properties.
-	Event.Uid = Target->Uid;
+	Event.EventUid = Target->Uid;
 	Event.LoggerNameSize = LoggerName.Length;
 	Event.EventNameSize = EventName.Length;
 

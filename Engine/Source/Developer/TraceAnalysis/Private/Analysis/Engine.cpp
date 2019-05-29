@@ -300,8 +300,9 @@ FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
 	uint16 SelfIndex = Analyzers.Num();
 	Analyzers.Add(this);
 
-	// Manually event routing for known events, and those we don't quite know yet
-	FDispatch& NewEventDispatch = AddDispatch(uint16(EKnownEventUids::NewEvent), 0);
+	// Manually add event routing for known events, and those we don't quite know
+	// yet but are expecting.
+	FDispatch& NewEventDispatch = AddDispatch(uint16(FNewEventEvent::Uid), 0);
 	NewEventDispatch.FirstRoute = 0;
 	AddRoute(SelfIndex, RouteId_NewEvent, 0);
 	AddRoute(SelfIndex, RouteId_NewTrace, "$Trace", "NewTrace");
