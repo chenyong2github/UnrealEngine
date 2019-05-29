@@ -1,4 +1,6 @@
-// Copyright 1998-2017 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
 
 #include "UObject/ObjectKey.h"
 #include "Evaluation/IMovieSceneMotionVectorSimulation.h"
