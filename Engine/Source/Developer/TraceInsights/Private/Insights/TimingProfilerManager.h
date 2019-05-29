@@ -99,27 +99,33 @@ public:
 
 	/** @return true, if Frames Track is visible */
 	const bool IsFramesTrackVisible() const { return bIsFramesTrackVisible; }
-	void SetFramesTrackVisible(const bool bFramesTrackVisibleState);
+	void SetFramesTrackVisible(const bool bFramesTrackVisibleState) { bIsFramesTrackVisible = bFramesTrackVisibleState; }
+	void ShowHideFramesTrack(const bool bFramesTrackVisibleState);
 
 	/** @return true, if Graph Track is visible */
 	const bool IsGraphTrackVisible() const { return bIsGraphTrackVisible; }
-	void SetGraphTrackVisible(const bool bGraphTrackVisibleState);
+	void SetGraphTrackVisible(const bool bGraphTrackVisibleState) { bIsGraphTrackVisible = bGraphTrackVisibleState; }
+	void ShowHideGraphTrack(const bool bGraphTrackVisibleState);
 
 	/** @return true, if Timing View is visible */
 	const bool IsTimingViewVisible() const { return bIsTimingViewVisible; }
-	void SetTimingViewVisible(const bool bTimingViewVisibleState);
+	void SetTimingViewVisible(const bool bTimingViewVisibleState) { bIsTimingViewVisible = bTimingViewVisibleState; }
+	void ShowHideTimingView(const bool bTimingViewVisibleState);
 
 	/** @return true, if Timers View is visible */
 	const bool IsTimersViewVisible() const { return bIsTimersViewVisible; }
-	void SetTimersViewVisible(const bool bTimersViewVisibleState);
+	void SetTimersViewVisible(const bool bTimersViewVisibleState) { bIsTimersViewVisible = bTimersViewVisibleState; }
+	void ShowHideTimersView(const bool bTimersViewVisibleState);
 
 	/** @return true, if Stats Counters View is visible */
 	const bool IsStatsCountersViewVisible() const { return bIsStatsCountersViewVisible; }
-	void SetStatsCountersViewVisible(const bool bStatsCountersViewVisibleState);
+	void SetStatsCountersViewVisible(const bool bStatsCountersViewVisibleState) { bIsStatsCountersViewVisible = bStatsCountersViewVisibleState; }
+	void ShowHideStatsCountersView(const bool bStatsCountersViewVisibleState);
 
 	/** @return true, if Log View is visible */
 	const bool IsLogViewVisible() const { return bIsLogViewVisible; }
-	void SetLogViewVisible(const bool bLogViewVisibleState);
+	void SetLogViewVisible(const bool bLogViewVisibleState) { bIsLogViewVisible = bLogViewVisibleState; }
+	void ShowHideLogView(const bool bLogViewVisibleState);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 

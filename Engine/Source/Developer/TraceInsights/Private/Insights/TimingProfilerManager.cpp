@@ -154,7 +154,7 @@ void FTimingProfilerManager::OnSessionChanged()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingProfilerManager::SetFramesTrackVisible(const bool bFramesTrackVisibleState)
+void FTimingProfilerManager::ShowHideFramesTrack(const bool bFramesTrackVisibleState)
 {
 	bool bWasFramesTrackVisible = bIsFramesTrackVisible;
 
@@ -169,7 +169,7 @@ void FTimingProfilerManager::SetFramesTrackVisible(const bool bFramesTrackVisibl
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingProfilerManager::SetGraphTrackVisible(const bool bGraphTrackVisibleState)
+void FTimingProfilerManager::ShowHideGraphTrack(const bool bGraphTrackVisibleState)
 {
 	bool bWasGraphTrackVisible = bIsGraphTrackVisible;
 
@@ -184,7 +184,7 @@ void FTimingProfilerManager::SetGraphTrackVisible(const bool bGraphTrackVisibleS
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingProfilerManager::SetTimingViewVisible(const bool bTimingViewVisibleState)
+void FTimingProfilerManager::ShowHideTimingView(const bool bTimingViewVisibleState)
 {
 	bool bWasTimingViewVisible = bIsTimingViewVisible;
 
@@ -199,7 +199,7 @@ void FTimingProfilerManager::SetTimingViewVisible(const bool bTimingViewVisibleS
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingProfilerManager::SetTimersViewVisible(const bool bTimersViewVisibleState)
+void FTimingProfilerManager::ShowHideTimersView(const bool bTimersViewVisibleState)
 {
 	bool bWasTimersViewVisible = bIsTimersViewVisible;
 
@@ -214,7 +214,7 @@ void FTimingProfilerManager::SetTimersViewVisible(const bool bTimersViewVisibleS
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingProfilerManager::SetStatsCountersViewVisible(const bool bStatsCountersViewVisibleState)
+void FTimingProfilerManager::ShowHideStatsCountersView(const bool bStatsCountersViewVisibleState)
 {
 	bool bWasStatsCountersViewVisible = bIsStatsCountersViewVisible;
 
@@ -229,7 +229,7 @@ void FTimingProfilerManager::SetStatsCountersViewVisible(const bool bStatsCounte
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingProfilerManager::SetLogViewVisible(const bool bLogViewVisibleState)
+void FTimingProfilerManager::ShowHideLogView(const bool bLogViewVisibleState)
 {
 	bool bWasLogViewVisible = bIsLogViewVisible;
 
