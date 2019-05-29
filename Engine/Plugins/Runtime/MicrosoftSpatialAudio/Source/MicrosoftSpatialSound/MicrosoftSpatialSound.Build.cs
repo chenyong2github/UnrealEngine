@@ -23,7 +23,8 @@ public class MicrosoftSpatialSound : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core"
+				"Core",
+				"MixedRealityInteropLibrary",
 			}
 			);
 			
@@ -36,5 +37,8 @@ public class MicrosoftSpatialSound : ModuleRules
 			}
 			);
         PrivateIncludePathModuleNames.Add("TargetPlatform");
+        AddEngineThirdPartyPrivateStaticDependencies(Target, "WindowsMixedRealityInterop");
+
+        PublicDefinitions.Add("WITH_WINDOWS_MIXED_REALITY=1");
     }
 }

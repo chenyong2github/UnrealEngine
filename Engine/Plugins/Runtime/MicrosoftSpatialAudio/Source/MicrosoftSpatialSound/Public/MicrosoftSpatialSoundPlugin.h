@@ -9,10 +9,7 @@
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include <mmdeviceapi.h>
-#include <spatialaudioclient.h>
-#include "Windows/HideWindowsPlatformTypes.h"
+#include "MixedRealityInterop.h"
 
 // Struct to hold dynamic object data for Microsoft Spatial Sound API
 struct FSpatialSoundSourceObjectData
@@ -66,7 +63,6 @@ public:
 	virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, USpatializationPluginSourceSettingsBase* InSettings) override;
 	virtual void OnReleaseSource(const uint32 SourceId) override;
 	virtual void ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData);
-	virtual void OnAllSourcesProcessed() override;
 	/** End of IAudioSpatialization interface */
 
 	/** Begin FRunnable */
@@ -75,22 +71,7 @@ public:
 
 private:
 
-	void SpatialAudioCommand(TFunction<void()> Command)
-	{
-		CommandQueue.Enqueue(MoveTemp(Command));
-	}
-
-	void PumpSpatialAudioCommandQueue()
-	{
-		TFunction<void()> Command;
-		while (CommandQueue.Dequeue(Command))
-		{
-			Command();
-		}
-	}
-
-// 	// Check if we're ready to update audio objects
-// 	bool ReadyToUpdateAudioObjects() const;
+	void FreeResources();
 
 	FAudioPluginInitializationParams InitializationParams;
 
@@ -100,23 +81,11 @@ private:
 	// The minimum amount of frames which need to be queued before processing audio objects
 	uint32 MinFramesRequiredPerObjectUpdate;
 
-	// Object which is used to enumerate audio devices
-	IMMDeviceEnumerator* DeviceEnumerator;
-
-	// The default device we will use for rendering spatial audio objects
-	IMMDevice* DefaultDevice;
-
-	// The spatial audio client we are using to render spatial audio
-	ISpatialAudioClient* SpatialAudioClient;
-
-	// The stream we're rendering audio to
-	ISpatialAudioObjectRenderStream* SpatialAudioStream;
-
-	// A buffer completion event
-	HANDLE BufferCompletionEvent;
-
 	// Array of spatial sound source objects
 	TArray<FSpatialSoundSourceObjectData> Objects;
+
+	// The max dynamic objects
+	uint32 MaxDynamicObjects;
 
 	// The spatial audio render thread
 	FRunnableThread* SpatialAudioRenderThread;
@@ -127,8 +96,7 @@ private:
 	// If the spatial audio render thread is running
 	FThreadSafeBool bIsRendering;
 
-	// An event to flag that we're shut down
-	FEvent* ShutdownEvent;
+	WindowsMixedReality::SpatialAudioClient* SAC;
 
 	bool bIsInitialized;
 

@@ -3,12 +3,11 @@
 #include "MicrosoftSpatialSoundPlugin.h"
 #include "Features/IModularFeatures.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 DEFINE_LOG_CATEGORY_STATIC(LogMicrosoftSpatialSound, Verbose, All);
 
-static const float DefaultObjectGain = 1.0f;
-static const float UnrealUnitsToMeters = 1.0f;
+PRAGMA_DISABLE_OPTIMIZATION
+
+static const float UnrealUnitsToMeters = 0.01f;
 
 static void LogMicrosoftSpatialAudioError(HRESULT Result, int32 LineNumber)
 {
@@ -97,6 +96,34 @@ static void LogMicrosoftSpatialAudioError(HRESULT Result, int32 LineNumber)
 			ErrorString = TEXT("SPTLAUDCLNT_E_INTERNAL");
 			break;
 
+		case AUDCLNT_E_BUFFER_ERROR:
+			ErrorString = TEXT("AUDCLNT_E_BUFFER_ERROR");
+			break;
+
+		case AUDCLNT_E_BUFFER_TOO_LARGE:
+			ErrorString = TEXT("AUDCLNT_E_BUFFER_TOO_LARGE");
+			break;
+
+		case AUDCLNT_E_BUFFER_SIZE_ERROR:
+			ErrorString = TEXT("AUDCLNT_E_BUFFER_SIZE_ERROR");
+			break;
+
+		case AUDCLNT_E_OUT_OF_ORDER:
+			ErrorString = TEXT("AUDCLNT_E_OUT_OF_ORDER");
+			break;
+
+		case AUDCLNT_E_DEVICE_INVALIDATED:
+			ErrorString = TEXT("AUDCLNT_E_DEVICE_INVALIDATED");
+			break;
+
+		case AUDCLNT_E_BUFFER_OPERATION_PENDING:
+			ErrorString = TEXT("AUDCLNT_E_BUFFER_OPERATION_PENDING");
+			break;
+
+		case AUDCLNT_E_SERVICE_NOT_RUNNING:
+			ErrorString = TEXT("AUDCLNT_E_SERVICE_NOT_RUNNING");
+			break;
+
 		default: 
 			ErrorString= FString::Printf(TEXT("UKNOWN (HRESULT=%d)"), (int32)Result);
 			break;
@@ -116,12 +143,6 @@ static void LogMicrosoftSpatialAudioError(HRESULT Result, int32 LineNumber)
 		return;													\
 	}
 
-#define MS_SPATIAL_AUDIO_CLEANUP_ON_FAIL(Result)				\
-	if (FAILED(Result))											\
-	{															\
-		LogMicrosoftSpatialAudioError(Result, __LINE__);		\
-		goto Cleanup;											\
-	}
 
 #define MS_SPATIAL_AUDIO_LOG_ON_FAIL(Result)					\
 	if (FAILED(Result))											\
@@ -137,12 +158,9 @@ static FORCEINLINE FVector UnrealToMicrosoftSpatialSoundCoordinates(const FVecto
 
 FMicrosoftSpatialSound::FMicrosoftSpatialSound()
 	: MinFramesRequiredPerObjectUpdate(0)
-	, DeviceEnumerator(nullptr)
-	, DefaultDevice(nullptr)
-	, SpatialAudioClient(nullptr)
-	, SpatialAudioStream(nullptr)
-	, BufferCompletionEvent(0)
+	, MaxDynamicObjects(0)
 	, SpatialAudioRenderThread(nullptr)
+	, SAC(nullptr)
 	, bIsInitialized(false)
 {
 }
@@ -152,11 +170,46 @@ FMicrosoftSpatialSound::~FMicrosoftSpatialSound()
 	Shutdown();
 }
 
+
+void FMicrosoftSpatialSound::FreeResources()
+{
+	if (SAC)
+	{
+		SAC->Release();
+		SAC = nullptr;
+	}
+}
+
 void FMicrosoftSpatialSound::Initialize(const FAudioPluginInitializationParams InitParams)
 {
 	InitializationParams = InitParams;
 
-	SpatialAudioRenderThread = FRunnableThread::Create(this, TEXT("MicrosoftSpatialAudioThread"), 0, TPri_TimeCritical, FPlatformAffinity::GetAudioThreadMask());
+	// Spatial sound processes 1% of the frames per callback
+	MinFramesRequiredPerObjectUpdate = InitParams.SampleRate / 100;
+
+	SAC = WindowsMixedReality::SpatialAudioClient::CreateSpatialAudioClient();
+
+	if (SAC)
+	{
+		bool bSuccess = SAC->Start(InitParams.NumSources, InitParams.SampleRate);
+
+		if (bSuccess)
+		{
+			// Prepare our own record keeping for the number of spatial sources we expect to render
+			Objects.Reset();
+			Objects.AddDefaulted(InitializationParams.NumSources);
+
+			// Flag that we're rendering
+			bIsRendering = true;
+			bIsInitialized = true;
+
+			SpatialAudioRenderThread = FRunnableThread::Create(this, TEXT("MicrosoftSpatialAudioThread"), 0, TPri_TimeCritical, FPlatformAffinity::GetAudioThreadMask());
+		}
+		else
+		{
+			FreeResources();
+		}
+	}
 }
 
 void FMicrosoftSpatialSound::Shutdown()
@@ -169,11 +222,11 @@ void FMicrosoftSpatialSound::Shutdown()
 		check(SpatialAudioRenderThread != nullptr);
 
 		SpatialAudioRenderThread->Kill(true);
-
 		delete SpatialAudioRenderThread;
 		SpatialAudioRenderThread = nullptr;
 	}
 
+	FreeResources();
 	bIsInitialized = false;
 }
 
@@ -200,6 +253,7 @@ void FMicrosoftSpatialSound::OnReleaseSource(const uint32 SourceId)
 	FScopeLock ScopeLock(&Objects[SourceId].ObjectCritSect);
 
 	Objects[SourceId].bActive = false;
+	Objects[SourceId].bBuffering = false;
 }
 
 void FMicrosoftSpatialSound::ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData)
@@ -217,8 +271,11 @@ void FMicrosoftSpatialSound::ProcessAudio(const FAudioPluginSourceInputData& Inp
 
 	int32 NumSamplesToPush = InputData.AudioBuffer->Num();
 	int32 SamplesWritten = ObjectData.AudioBuffer.Push(InputData.AudioBuffer->GetData(), NumSamplesToPush);
-	checkf(SamplesWritten == NumSamplesToPush, TEXT("Source circular buffers should be bigger!"));
-	check(InputData.SpatializationParams != nullptr);
+
+	if (SamplesWritten != NumSamplesToPush)
+	{
+		UE_LOG(LogMicrosoftSpatialSound, Warning, TEXT("Source circular buffers should be bigger!"));
+	}
 
 	FVector NewPosition = UnrealToMicrosoftSpatialSoundCoordinates(InputData.SpatializationParams->EmitterPosition);
 
@@ -234,10 +291,8 @@ void FMicrosoftSpatialSound::ProcessAudio(const FAudioPluginSourceInputData& Inp
 		ObjectData.bActive = true;
 		ObjectData.ObjectHandle = nullptr;
 
-		HRESULT Result = SpatialAudioStream->ActivateSpatialAudioObject(AudioObjectType::AudioObjectType_Dynamic, &ObjectData.ObjectHandle);
-		MS_SPATIAL_AUDIO_LOG_ON_FAIL(Result);
+		ObjectData.ObjectHandle = SAC->ActivatDynamicSpatialAudioObject();
 	}
-
 
 	if (bIsFirstPosition || !FMath::IsNearlyEqual(ObjectData.TargetPosition.X, NewPosition.X) || !FMath::IsNearlyEqual(ObjectData.TargetPosition.Y, NewPosition.Y) || !FMath::IsNearlyEqual(ObjectData.TargetPosition.Z, NewPosition.Z))
 	{
@@ -255,118 +310,29 @@ void FMicrosoftSpatialSound::ProcessAudio(const FAudioPluginSourceInputData& Inp
 	}
 }
 
-// bool FMicrosoftSpatialSound::ReadyToUpdateAudioObjects() const
-// {
-// 	for (const FSpatialSoundSourceObjectData& Object : Objects)
-// 	{
-// 		if (Object.bActive)
-// 		{
-// 			return Object.AudioBuffer.Num() >= MinFramesRequiredPerObjectUpdate;
-// 		}
-// 	}
-// 	return false;
-// }
-
-void FMicrosoftSpatialSound::OnAllSourcesProcessed()
-{
-}
-
 uint32 FMicrosoftSpatialSound::Run()
 {
-	HRESULT Result = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&DeviceEnumerator);
-	MS_SPATIAL_AUDIO_CLEANUP_ON_FAIL(Result);
+	HRESULT Result = S_OK;
 
-	Result = DeviceEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &DefaultDevice);
-	MS_SPATIAL_AUDIO_CLEANUP_ON_FAIL(Result);
-
-	Result = DefaultDevice->Activate(__uuidof(ISpatialAudioClient), CLSCTX_INPROC_SERVER, nullptr, (void**)&SpatialAudioClient);
-	MS_SPATIAL_AUDIO_CLEANUP_ON_FAIL(Result);
-
-	WAVEFORMATEX Format;
-	Format.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
-	Format.wBitsPerSample = 32;
-	Format.nChannels = 1;
-	Format.nSamplesPerSec = InitializationParams.SampleRate;
-	Format.nBlockAlign = (Format.wBitsPerSample >> 3) * Format.nChannels;
-	Format.nAvgBytesPerSec = Format.nBlockAlign * Format.nSamplesPerSec;
-	Format.cbSize = 0;
-
-	Result = SpatialAudioClient->IsAudioObjectFormatSupported(&Format);
-	MS_SPATIAL_AUDIO_CLEANUP_ON_FAIL(Result);
-
-	uint32 MaxObjects;
-	Result = SpatialAudioClient->GetMaxDynamicObjectCount(&MaxObjects);
-	MS_SPATIAL_AUDIO_CLEANUP_ON_FAIL(Result);
-
-	if (MaxObjects < InitializationParams.NumSources)
+	// Wait until the SAC is active
+	while (!SAC->IsActive() && bIsRendering)
 	{
-		UE_LOG(LogMicrosoftSpatialSound, Error, TEXT("Trying to use more spatial audio sources than is allowed by the device."));
-		goto Cleanup;
+		FPlatformProcess::Sleep(0.01f);
 	}
-
-	// Spatial sound processes 1% of the frames per callback
-	MinFramesRequiredPerObjectUpdate = Format.nSamplesPerSec / 100;
-
-	// Event used to signal spatial audio buffer completion (to signal that it's time to render more audio)
-	BufferCompletionEvent = CreateEvent(nullptr, 0, 0, nullptr);
-
-	// Set the maximum number of dynamic audio objects that will be used
-	SpatialAudioObjectRenderStreamActivationParams StreamActivationParams;
-	StreamActivationParams.ObjectFormat = &Format;
-	StreamActivationParams.StaticObjectTypeMask = AudioObjectType_None;
-	StreamActivationParams.MinDynamicObjectCount = 0;
-	StreamActivationParams.MaxDynamicObjectCount = InitializationParams.NumSources;
-	StreamActivationParams.Category = AudioCategory_GameEffects;
-	StreamActivationParams.EventHandle = BufferCompletionEvent;
-	StreamActivationParams.NotifyObject = nullptr;
-
-	// Create a property to set the format for the stream 
-	PROPVARIANT SpatialAudioStreamProperty;
-	PropVariantInit(&SpatialAudioStreamProperty);
-	SpatialAudioStreamProperty.vt = VT_BLOB;
-	SpatialAudioStreamProperty.blob.cbSize = sizeof(StreamActivationParams);
-	SpatialAudioStreamProperty.blob.pBlobData = (BYTE *)&StreamActivationParams;
-
-	// Activate the spatial audio stream
-	Result = SpatialAudioClient->ActivateSpatialAudioStream(&SpatialAudioStreamProperty, __uuidof(SpatialAudioStream), (void**)&SpatialAudioStream);
-	MS_SPATIAL_AUDIO_CLEANUP_ON_FAIL(Result);
-
-	// Prepare our own record keeping for the number of spatial sources we expect to render
-	Objects.Reset();
-	Objects.AddDefaulted(InitializationParams.NumSources);
-
-	Result = SpatialAudioStream->Start();
-	MS_SPATIAL_AUDIO_CLEANUP_ON_FAIL(Result);
-
-	// Flag that we're rendering
-	bIsRendering = true;
-	bIsInitialized = true;
 
 	// The render loop
 	while (bIsRendering)
 	{
-		// Wait for a signal from the audio-engine to start the next processing pass
-		if (WaitForSingleObject(BufferCompletionEvent, 100) != WAIT_OBJECT_0)
+		if (SAC->WaitTillBufferCompletionEvent())
 		{
 			UE_LOG(LogMicrosoftSpatialSound, Warning, TEXT("Microsoft Spatial Sound buffer completion event timed out."));
-
-			Result = SpatialAudioStream->Reset();
-
-			if (Result != S_OK)
-			{
-				MS_SPATIAL_AUDIO_LOG_ON_FAIL(Result);
-				break;
-			}
 		}
 
-		PumpSpatialAudioCommandQueue();
-
 		// We need to lock while updating the spatial renderer		
-	 	uint32 FrameCount = 0;
-	 	uint32 AvailableObjects = 0;
+		uint32 FrameCount = 0;
+		uint32 AvailableObjects = 0;
 
-		Result = SpatialAudioStream->BeginUpdatingAudioObjects(&AvailableObjects, &FrameCount);
-		MS_SPATIAL_AUDIO_CLEANUP_ON_FAIL(Result);
+		SAC->BeginUpdating(&AvailableObjects, &FrameCount);
 
 		for (FSpatialSoundSourceObjectData& Object : Objects)
 		{
@@ -409,34 +375,10 @@ uint32 FMicrosoftSpatialSound::Run()
 			}
 		}
 
-		Result = SpatialAudioStream->EndUpdatingAudioObjects();
-		MS_SPATIAL_AUDIO_CLEANUP_ON_FAIL(Result);
+		SAC->EndUpdating();
 	}
 
-Cleanup:
-
-	// Shutting down
-	if (SpatialAudioStream)
-	{
-		Result = SpatialAudioStream->Stop();
-		check(SUCCEEDED(Result));
-
-		Result = SpatialAudioStream->Reset();
-		check(SUCCEEDED(Result));
-
-		SAFE_RELEASE(SpatialAudioStream);
-	}
-
-	SAFE_RELEASE(SpatialAudioClient);
-	SAFE_RELEASE(DefaultDevice);
-	SAFE_RELEASE(DeviceEnumerator);
-
-	if (BufferCompletionEvent)
-	{
-		CloseHandle(BufferCompletionEvent);
-		BufferCompletionEvent = 0;
-	}
-
+	FreeResources();
 	return 0;
 }
 

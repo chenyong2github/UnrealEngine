@@ -48,11 +48,9 @@
 
 namespace Audio
 {
-// @ATG_CHANGE: BEGIN HoloLens support
 #if PLATFORM_HOLOLENS
 	static Windows::Devices::Enumeration::DeviceInformationCollection^ AllAudioDevices = nullptr;
 #endif
-// @ATG_CHANGE: END
 
 	void FXAudio2VoiceCallback::OnBufferEnd(void* BufferContext)
 	{
@@ -173,7 +171,7 @@ namespace Audio
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 		bIsComInitialized = FPlatformMisc::CoInitialize();
-#if PLATFORM_64BITS
+#if PLATFORM_64BITS && !PLATFORM_HOLOLENS
 		// Work around the fact the x64 version of XAudio2_7.dll does not properly ref count
 		// by forcing it to be always loaded
 
@@ -189,7 +187,7 @@ namespace Audio
 			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("Audio", "XAudio2Missing", "XAudio2.7 is not installed. Make sure you have XAudio 2.7 installed. XAudio 2.7 is available in the DirectX End-User Runtime (June 2010)."));
 			return false;
 		}
-#endif // #if PLATFORM_64BITS
+#endif // #if PLATFORM_64BITS && !PLATFORM_HOLOLENS
 #endif // #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
 		uint32 Flags = 0;
@@ -205,7 +203,6 @@ namespace Audio
 			return false;
 		}
 
-// @ATG_CHANGE: BEGIN HoloLens support
 #if PLATFORM_HOLOLENS
 		using namespace Windows::Foundation;
 		using namespace Windows::Devices::Enumeration;
@@ -220,8 +217,6 @@ namespace Audio
 			AllAudioDevices = EnumerationOp->GetResults();
 		}
 #endif
-// @ATG_CHANGE: END
-
 
 #if WITH_XMA2
 		//Initialize our XMA2 decoder context
@@ -249,9 +244,9 @@ namespace Audio
 		FXMAAudioInfo::Shutdown();
 #endif
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
-#if PLATFORM_64BITS
+#if PLATFORM_64BITS && !PLATFORM_HOLOLENS
 		if (XAudio2Dll != nullptr && GIsRequestingExit)
 		{
 			if (!FreeLibrary(XAudio2Dll))
@@ -265,9 +260,7 @@ namespace Audio
 
 		if (bIsComInitialized)
 		{
-			// @ATG_CHANGE: BEGIN HoloLens support
 			FPlatformMisc::CoUninitialize();
-			// @ATG_CHANGE: END
 		}
 #endif
 
@@ -291,7 +284,6 @@ namespace Audio
 			return false;
 		}
 
-		// @ATG_CHANGE : BEGIN HoloLens support
 		// XAudio2 for HoloLens doesn't have GetDeviceCount, use Windows::Devices::Enumeration instead
 		// See https://blogs.msdn.microsoft.com/chuckw/2012/04/02/xaudio2-and-windows-8/
 #if PLATFORM_HOLOLENS
@@ -301,7 +293,7 @@ namespace Audio
 		}
 		OutNumOutputDevices = AllAudioDevices->Size;
 #elif PLATFORM_WINDOWS
-		// @ATG_CHANGE : END
+
 		check(XAudio2System);
 		XAUDIO2_RETURN_ON_FAIL(XAudio2System->GetDeviceCount(&OutNumOutputDevices));
 #else
@@ -318,7 +310,6 @@ namespace Audio
 			return false;
 		}
 
-		// @ATG_CHANGE : BEGIN HoloLens support
 		// XAudio2 for HoloLens doesn't have GetDeviceDetails, use Windows::Devices::Enumeration instead
 		// See https://blogs.msdn.microsoft.com/chuckw/2012/04/02/xaudio2-and-windows-8/
 #if PLATFORM_HOLOLENS
@@ -383,7 +374,6 @@ namespace Audio
 		const WAVEFORMATEX& WaveFormatEx = DeviceDetails.OutputFormat.Format;
 #endif
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-		// @ATG_CHANGE : END
 		OutInfo.SampleRate = WaveFormatEx.nSamplesPerSec;
 
 		OutInfo.NumChannels = FMath::Clamp((int32)WaveFormatEx.nChannels, 2, 8);
@@ -577,7 +567,6 @@ namespace Audio
 #elif PLATFORM_XBOXONE
 			Result = XAudio2System->CreateMasteringVoice(&OutputAudioStreamMasteringVoice, AudioStreamInfo.DeviceInfo.NumChannels, AudioStreamInfo.DeviceInfo.SampleRate, 0, nullptr, nullptr);
 #elif PLATFORM_HOLOLENS
-		// @ATG_CHANGE : BEGIN HoloLens support
 		// XAudio2 for HoloLens has different parameters to CreateMasteringVoice
 		// See https://blogs.msdn.microsoft.com/chuckw/2012/04/02/xaudio2-and-windows-8/
 		Result = XAudio2System->CreateMasteringVoice(&OutputAudioStreamMasteringVoice, AudioStreamInfo.DeviceInfo.NumChannels, AudioStreamInfo.DeviceInfo.SampleRate, 0, AllAudioDevices->GetAt(AudioStreamInfo.OutputDeviceIndex)->Id->Data(), nullptr);
@@ -739,13 +728,11 @@ namespace Audio
 #if PLATFORM_WINDOWS
 
 		uint32 NumDevices = 0;
-		// @ATG_CHANGE : BEGIN HoloLens support
 		// XAudio2 for HoloLens doesn't have GetDeviceCount, use local wrapper instead
 		if (!GetNumOutputDevices(NumDevices))
 		{
 			return false;
 		}
-		// @ATG_CHANGE : END HoloLens support
 
 		// If we're running the null device, This function is called every second or so.
 		// Because of this, we early exit from this function if we're running the null device
@@ -814,7 +801,6 @@ namespace Audio
 			uint32 DeviceIndex = 0;
 			if (!InNewDeviceId.IsEmpty())
 			{
-				// @ATG_CHANGE : BEGIN HoloLens support
 				// XAudio2 for HoloLens doesn't have GetDeviceDetails, use local wrapper instead
 				FAudioPlatformDeviceInfo DeviceDetails;
 				for (uint32 i = 0; i < NumDevices; ++i)
@@ -826,7 +812,6 @@ namespace Audio
 						break;
 					}
 				}
-			// @ATG_CHANGE : END HoloLens support
 			}
 
 			// Update the audio stream info to the new device info
@@ -835,7 +820,6 @@ namespace Audio
 			GetOutputDeviceInfo(AudioStreamInfo.OutputDeviceIndex, AudioStreamInfo.DeviceInfo);
 
 			// Create a new master voice
-			// @ATG_CHANGE : BEGIN HoloLens support
 			// XAudio2 for HoloLens has different parameters to CreateMasteringVoice
 			// See https://blogs.msdn.microsoft.com/chuckw/2012/04/02/xaudio2-and-windows-8/
 #if PLATFORM_HOLOLENS
@@ -843,7 +827,6 @@ namespace Audio
 #else
 			XAUDIO2_RETURN_ON_FAIL(XAudio2System->CreateMasteringVoice(&OutputAudioStreamMasteringVoice, AudioStreamInfo.DeviceInfo.NumChannels, AudioStreamInfo.DeviceInfo.SampleRate, 0, AudioStreamInfo.OutputDeviceIndex, nullptr));
 #endif
-			// @ATG_CHANGE : END
 
 			// Setup the format of the output source voice
 			WAVEFORMATEX Format = { 0 };

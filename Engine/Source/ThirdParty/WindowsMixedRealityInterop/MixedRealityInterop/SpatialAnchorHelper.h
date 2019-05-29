@@ -10,7 +10,7 @@
 
 //#include <sstream>
 #include <map>
-
+#include <functional>
 #include "winrt/base.h"
 #include "winrt/Windows.Perception.Spatial.h"
 

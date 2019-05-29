@@ -6,6 +6,7 @@
 #include "IDetailCustomization.h"
 #include "DetailLayoutBuilder.h"
 #include "IDetailGroup.h"
+#include "TargetPlatformAudioCustomization.h"
 
 class SErrorHint;
 
@@ -46,4 +47,6 @@ private:
 	FString SigningCertificateSubjectName;
 	TSharedPtr<SErrorHint> SigningCertificateError;
 	TSharedPtr<STextComboBox> WindowsSDKSelector;
+
+	FAudioPluginWidgetManager AudioPluginManager;
 };

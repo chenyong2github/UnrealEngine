@@ -25,6 +25,7 @@ enum class EAudioPlatform : uint8
 	Switch,
 	HTML5,
 	Lumin,
+	HoloLens,
 	Unknown
 };
 

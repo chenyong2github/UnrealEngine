@@ -26,6 +26,7 @@ public class HoloLensPlatformEditor : ModuleRules
 				"EngineSettings",
 				"Projects",
 				"gltfToolkit",
+				"AudioSettingsEditor",
 			}
 		);
 

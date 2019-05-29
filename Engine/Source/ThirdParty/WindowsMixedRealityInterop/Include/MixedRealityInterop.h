@@ -29,6 +29,8 @@
 
 #include <DirectXMath.h>
 
+#include <spatialaudioclient.h>
+
 #include <functional>
 #endif
 
@@ -440,6 +442,47 @@ namespace WindowsMixedReality
 #else
 		bool CreateHolographicSpace(HWND hwnd);
 #endif
+	};
+
+	class SpatialAudioClientRenderer;
+
+	/** Singleton that performs spatial audio rendering */
+	class MIXEDREALITYINTEROP_API SpatialAudioClient
+	{
+	public:
+		static SpatialAudioClient* CreateSpatialAudioClient()
+		{
+			return new SpatialAudioClient();
+		}
+		
+		void Release();
+
+		// Starts the spatial audio client rendering
+		bool Start(UINT32 InNumSources, UINT32 InSampleRate);
+
+		// Stops the spatial audio client rendering
+		bool Stop();
+
+		// Returns whether or not the spatial audio client is active
+		bool IsActive();
+
+		// Activates and returns a dynamic object handle
+		ISpatialAudioObject* ActivatDynamicSpatialAudioObject();
+
+		// Begins the update loop
+		bool BeginUpdating(UINT32* OutAvailableDynamicObjectCount, UINT32* OutFrameCountPerBuffer);
+
+		// Ends the update loop
+		bool EndUpdating();
+
+		// Pause the thread until buffer completion event
+		bool WaitTillBufferCompletionEvent();
+
+	private:
+		SpatialAudioClient();
+		~SpatialAudioClient();
+
+		int32 sacId;
 	};
 }
 

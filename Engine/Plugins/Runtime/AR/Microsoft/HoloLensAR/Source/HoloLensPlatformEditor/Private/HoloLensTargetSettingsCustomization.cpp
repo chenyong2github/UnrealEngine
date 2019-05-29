@@ -253,6 +253,8 @@ void FHoloLensTargetSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder
 		SetDefaultCapabilitiesProperty->SetValue(false);
 		SetDefaultCapabilitiesProperty->NotifyPostChange();
 	}
+
+	AudioPluginManager.BuildAudioCategory(DetailBuilder, EAudioPlatform::XboxOne);
 }
 
 void FHoloLensTargetSettingsCustomization::OnCertificatePicked(const FString& PickedPath)
