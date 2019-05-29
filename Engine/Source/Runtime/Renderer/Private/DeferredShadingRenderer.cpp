@@ -1882,12 +1882,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_AfterTranslucency));
 		}
 	}
-	
-	if (bUseVirtualTexturing)
-	{
-		// No pass after this can make VT page requests
-		SceneContext.VirtualTextureFeedback.TransferGPUToCPU(RHICmdList, Views[0].ViewRect);
-	}
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
@@ -1897,6 +1891,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_LightShaftBloom));
 		RenderLightShaftBloom(RHICmdList);
 		ServiceLocalQueue();
+	}
+
+	if (bUseVirtualTexturing)
+	{
+		// No pass after this can make VT page requests
+		SceneContext.VirtualTextureFeedback.TransferGPUToCPU(RHICmdList, Views[0].ViewRect);
 	}
 
 #if RHI_RAYTRACING
