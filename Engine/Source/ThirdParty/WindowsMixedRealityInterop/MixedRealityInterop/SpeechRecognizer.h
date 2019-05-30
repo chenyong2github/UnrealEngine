@@ -35,7 +35,7 @@ namespace WindowsMixedReality
 			keywordMap.clear();
 		}
 
-		void AddKeyword(winrt::hstring keyword, void(*CallbackPointer)())
+		void AddKeyword(winrt::hstring keyword, std::function<void()> callback)
 		{
 			auto it = keywordMap.find(keyword);
 			if (it != keywordMap.end())
@@ -43,7 +43,7 @@ namespace WindowsMixedReality
 				keywordMap.erase(it);
 			}
 
-			keywordMap[keyword] = CallbackPointer;
+			keywordMap[keyword] = callback;
 		}
 
 		void StartSpeechRecognizer()
@@ -52,7 +52,7 @@ namespace WindowsMixedReality
 
 			// Isolate keywords from keyword map for recognizer.
 			std::vector<winrt::hstring> keywords;
-			for (std::pair<winrt::hstring, void(*)()> pair : keywordMap)
+			for (std::pair<winrt::hstring, std::function<void()>> pair : keywordMap)
 			{
 				keywords.push_back(pair.first);
 			}
@@ -80,7 +80,7 @@ namespace WindowsMixedReality
 	private:
 		winrt::Windows::Media::SpeechRecognition::SpeechRecognizer m_SpeechRecognizer;
 		winrt::event_token resultsGeneratedToken;
-		std::map<winrt::hstring, void(*)()> keywordMap;
+		std::map<winrt::hstring, std::function<void()>> keywordMap;
 
 		void InitializeSpeechRecognizer()
 		{

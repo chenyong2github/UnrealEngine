@@ -227,7 +227,7 @@ namespace WindowsMixedReality
 			StopSpeechRecognition();
 		}
 
-		void AddKeyword(const wchar_t* keyword, void(*CallbackPointer)());
+		void AddKeyword(const wchar_t* keyword, std::function<void()> callback);
 		void StartSpeechRecognition();
 		void StopSpeechRecognition();
 	};
