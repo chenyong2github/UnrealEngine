@@ -67,9 +67,9 @@ protected:
 	// if bClearParentTables is false then the row map will be cleared but the parent table array won't be changed
 	void EmptyCompositeTable(bool bClearParentTables);
 
-	void UpdateCachedRowMap();
+	void UpdateCachedRowMap(bool bWarnOnInvalidChildren = true);
 
-	void OnParentTablesUpdated();
+	void OnParentTablesUpdated(EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified);
 
 	// true if this asset is currently being loaded; false otherwise
 	uint8 bIsLoading : 1;
