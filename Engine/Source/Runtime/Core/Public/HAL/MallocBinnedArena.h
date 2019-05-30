@@ -500,7 +500,7 @@ public:
 				{
 					// Reallocate to a smaller/bigger pool if necessary
 					BlockSize = PoolIndexToBlockSize(PoolIndex);
-					if ((!!NewSize) & (NewSize <= BlockSize) & IsAligned(BlockSize, Alignment) & ((!PoolIndex) | (NewSize > PoolIndexToBlockSize(PoolIndex - 1))))
+					if ((!!NewSize) & (NewSize <= BlockSize) & IsAligned(BlockSize, Alignment) & ((!PoolIndex) | (NewSize > PoolIndexToBlockSize(PoolIndex - 1)))) //-V792
 					{
 						return Ptr;
 					}
