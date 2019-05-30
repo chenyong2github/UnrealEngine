@@ -125,7 +125,6 @@ public:
 		checkf(FPaths::GetExtension(InSourceFilename) == TEXT("usf"),
 			TEXT("Incorrect virtual shader path extension for material shader '%s': Only .usf files should be compiled."),
 			InSourceFilename);
-		check(InTotalPermutationCount == 1);
 	}
 
 	/**

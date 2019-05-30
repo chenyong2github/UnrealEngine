@@ -215,7 +215,7 @@ uint32 FMeshMaterialShaderMap::BeginCompile(
 				// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
 #if WITH_EDITOR
 				check(InShaderMapId.ContainsVertexFactoryType(VertexFactoryType));
-				check(InShaderMapId.ContainsShaderType(ShaderType, PermutationId));
+				check(InShaderMapId.ContainsShaderType(ShaderType, kUniqueShaderPermutationId));
 #endif
 
 				NumShadersPerVF++;

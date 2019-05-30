@@ -1595,7 +1595,7 @@ void FMaterialShaderMap::Compile(
 			}
   
 			// Iterate over all material shader types.
-			TMap<FShaderType*, FShaderCompileJob*> SharedShaderJobs;
+			TMap<TShaderTypePermutation<const FShaderType>, FShaderCompileJob*> SharedShaderJobs;
 			for(TLinkedList<FShaderType*>::TIterator ShaderTypeIt(FShaderType::GetTypeList());ShaderTypeIt;ShaderTypeIt.Next())
 			{
 				FMaterialShaderType* ShaderType = ShaderTypeIt->GetMaterialShaderType();
@@ -1606,7 +1606,7 @@ void FMaterialShaderMap::Compile(
 					{
 #if WITH_EDITOR
 						// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
-						check(InShaderMapId.ContainsShaderType(ShaderType, PermutationId));
+						check(InShaderMapId.ContainsShaderType(ShaderType, kUniqueShaderPermutationId));
 #endif
 						// Compile this material shader for this material.
 						TArray<FString> ShaderErrors;
@@ -1624,8 +1624,10 @@ void FMaterialShaderMap::Compile(
 								NewJobs,
 								DebugDescription, DebugExtension
 							);
-							check(!SharedShaderJobs.Find(ShaderType));
-							SharedShaderJobs.Add(ShaderType, Job);
+
+							TShaderTypePermutation<const FShaderType> ShaderTypePermutation(ShaderType, PermutationId);
+							check(!SharedShaderJobs.Find(ShaderTypePermutation));
+							SharedShaderJobs.Add(ShaderTypePermutation, Job);
 						}
 						NumShaders++;
 					}
@@ -1673,7 +1675,8 @@ void FMaterialShaderMap::Compile(
 							// If sharing shaders amongst pipelines, add this pipeline as a dependency of an existing job
 							for (const FShaderType* ShaderType : StageTypes)
 							{
-								FShaderCompileJob** Job = SharedShaderJobs.Find(ShaderType);
+								TShaderTypePermutation<const FShaderType> ShaderTypePermutation(ShaderType, kUniqueShaderPermutationId);
+								FShaderCompileJob** Job = SharedShaderJobs.Find(ShaderTypePermutation);
 								checkf(Job, TEXT("Couldn't find existing shared job for material shader %s on pipeline %s!"), ShaderType->GetName(), Pipeline->GetName());
 								auto* SingleJob = (*Job)->GetSingleShaderJob();
 								auto& PipelinesToShare = SingleJob->SharingPipelines.FindOrAdd(nullptr);
