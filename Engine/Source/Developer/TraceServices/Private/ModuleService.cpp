@@ -54,6 +54,11 @@ void FModuleService::SetModuleEnabled(const FName& ModuleName, bool bEnabled)
 	{
 		return;
 	}
+	bool bWasEnabled = EnabledModules.Find(*FindIt);
+	if (bEnabled == bWasEnabled)
+	{
+		return;
+	}
 	if (bEnabled)
 	{
 		EnabledModules.Add(*FindIt);
@@ -73,6 +78,19 @@ void FModuleService::OnAnalysisBegin(IAnalysisSession& Session, TArray<IAnalyzer
 		IModule* Module = KV.Value;
 		Module->OnAnalysisBegin(Session, EnabledModules.Contains(Module), OutAnalyzers);
 	}
+}
+
+bool FModuleService::GetModuleLoggers(const FName& ModuleName, TArray<const TCHAR *>& OutLoggers)
+{
+	FScopeLock Lock(&CriticalSection);
+	Initialize();
+	IModule** FindIt = ModulesMap.Find(ModuleName);
+	if (!FindIt)
+	{
+		return false;
+	}
+	(*FindIt)->GetLoggers(OutLoggers);
+	return true;
 }
 
 }

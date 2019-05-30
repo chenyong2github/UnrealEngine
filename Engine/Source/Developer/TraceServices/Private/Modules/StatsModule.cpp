@@ -27,6 +27,11 @@ void FStatsModule::OnAnalysisBegin(IAnalysisSession& InSession, bool bIsEnabled,
 	OutAnalyzers.Add(new FStatsAnalyzer(Session, *CounterProvider));
 }
 
+void FStatsModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
+{
+	OutLoggers.Add(TEXT("Stats"));
+}
+
 const ICounterProvider* ReadCounterProvider(const IAnalysisSession& Session)
 {
 	return Session.ReadProvider<ICounterProvider>(CounterProviderName);

@@ -30,6 +30,12 @@ void FLoadTimeProfilerModule::OnAnalysisBegin(IAnalysisSession& Session, bool bI
 	OutAnalyzers.Add(new FPlatformFileTraceAnalyzer(Session, *FileActivityProvider));
 }
 
+void FLoadTimeProfilerModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
+{
+	OutLoggers.Add(TEXT("LoadTime"));
+	OutLoggers.Add(TEXT("PlatformFile"));
+}
+
 const ILoadTimeProfilerProvider* ReadLoadTimeProfilerProvider(const IAnalysisSession& Session)
 {
 	return Session.ReadProvider<ILoadTimeProfilerProvider>(LoadTimeProfilerProviderName);

@@ -10,6 +10,7 @@ public class TraceServices : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"Sockets",
 				"TraceAnalysis",
 			});
 

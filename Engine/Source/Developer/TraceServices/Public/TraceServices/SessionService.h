@@ -32,6 +32,9 @@ public:
 	virtual bool GetSessionInfo(FSessionHandle SessionHandle, FSessionInfo& OutSessionInfo) const = 0;
 	virtual Trace::IInDataStream* OpenSessionStream(FSessionHandle SessionHandle) = 0;
 	virtual Trace::IInDataStream* OpenSessionFromFile(const TCHAR* FilePath) = 0;
+	virtual void SetModuleEnabled(Trace::FSessionHandle SessionHandle, const FName& ModuleName, bool bState) = 0;
+	virtual bool IsModuleEnabled(Trace::FSessionHandle SessionHandle, const FName& ModuleName) const = 0;
+	virtual bool ConnectSession(const TCHAR* ControlClientAddress) = 0;
 };
 
 }

@@ -5,12 +5,15 @@
 #include "Trace/DataStream.h"
 #include "Misc/Paths.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "SocketSubsystem.h"
 #include "Trace/ControlClient.h"
+#include "IPAddress.h"
 
 namespace Trace
 {
 
-FSessionService::FSessionService()
+FSessionService::FSessionService(FModuleService& InModuleService)
+	: ModuleService(InModuleService)
 {
 	LocalSessionDirectory = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
 	TraceStore = Store_Create(*LocalSessionDirectory);
@@ -89,6 +92,101 @@ Trace::IInDataStream* FSessionService::OpenSessionStream(FSessionHandle SessionH
 Trace::IInDataStream* FSessionService::OpenSessionFromFile(const TCHAR* FilePath)
 {
 	return Trace::DataStream_ReadFile(FilePath);
+}
+
+void FSessionService::SetModuleEnabled(FSessionHandle SessionHandle, const FName& ModuleName, bool bState)
+{
+	FScopeLock Lock(&SessionsCS);
+	FSessionInfoInternal* FindIt = Sessions.Find(SessionHandle);
+	if (!FindIt)
+	{
+		return;
+	}
+	if (bState)
+	{
+		TArray<const TCHAR*> Loggers;
+		if (!ModuleService.GetModuleLoggers(ModuleName, Loggers))
+		{
+			return;
+		}
+		TSet<FString>& EnabledLoggers = FindIt->EnabledModuleLoggersMap.FindOrAdd(ModuleName);
+		for (const TCHAR* Logger : Loggers)
+		{
+			EnabledLoggers.Add(Logger);
+		}
+		if (FindIt->RecorderSessionHandle)
+		{
+			for (const FString& Logger : EnabledLoggers)
+			{
+				TraceRecorder->ToggleEvent(FindIt->RecorderSessionHandle, *Logger, true);
+			}
+		}
+	}
+	else
+	{
+		TSet<FString>* EnabledLoggers = FindIt->EnabledModuleLoggersMap.Find(ModuleName);
+		if (EnabledLoggers)
+		{
+			if (FindIt->RecorderSessionHandle)
+			{
+				for (const FString& Logger : *EnabledLoggers)
+				{
+					TraceRecorder->ToggleEvent(FindIt->RecorderSessionHandle, *Logger, false);
+				}
+			}
+			FindIt->EnabledModuleLoggersMap.Remove(ModuleName);
+		}
+	}
+}
+
+bool FSessionService::IsModuleEnabled(Trace::FSessionHandle SessionHandle, const FName& ModuleName) const
+{
+	FScopeLock Lock(&SessionsCS);
+	const FSessionInfoInternal* FindIt = Sessions.Find(SessionHandle);
+	if (!FindIt)
+	{
+		return false;
+	}
+	return FindIt->EnabledModuleLoggersMap.Contains(ModuleName);
+}
+
+bool FSessionService::ConnectSession(const TCHAR* ControlClientAddress)
+{
+	ISocketSubsystem* Sockets = ISocketSubsystem::Get();
+	if (!Sockets)
+	{
+		return false;
+	}
+	bool bCanBindAll = false;
+	TSharedPtr<FInternetAddr> RecorderAddr = Sockets->GetLocalHostAddr(*GLog, bCanBindAll);
+	if (!RecorderAddr.IsValid())
+	{
+		return false;
+	}
+	uint16 Port = 1985;
+	FString AddressString = ControlClientAddress;
+	const int32 LastColonIndex = AddressString.Find(":", ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+	if (INDEX_NONE != LastColonIndex)
+	{
+		FString PortString = AddressString.RightChop(LastColonIndex + 1);
+		Port = FCString::Atoi(*PortString);
+		AddressString = AddressString.Left(LastColonIndex);
+	}
+	TSharedPtr<FInternetAddr> ClientAddr = Sockets->CreateInternetAddr();
+	ESocketErrors SocketErrors = Sockets->GetHostByName(TCHAR_TO_ANSI(*AddressString), *ClientAddr);
+	if (SocketErrors != SE_NO_ERROR)
+	{
+		return false;
+	}
+	ClientAddr->SetPort(Port);
+	FControlClient ControlClient;
+	if (!ControlClient.Connect(*ClientAddr))
+	{
+		return false;
+	}
+	ControlClient.SendConnect(*RecorderAddr->ToString(false));
+	ControlClient.Disconnect();
+	return true;
 }
 
 bool FSessionService::Tick(float DeltaTime)

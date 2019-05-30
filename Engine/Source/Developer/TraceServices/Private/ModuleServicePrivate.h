@@ -20,6 +20,7 @@ public:
 	virtual void GetAvailableModules(TArray<FModuleInfo>& OutModules) override;
 	virtual void SetModuleEnabled(const FName& ModuleName, bool bEnabled) override;
 	void OnAnalysisBegin(IAnalysisSession& Session, TArray<IAnalyzer*>& OutAnalyzers);
+	bool GetModuleLoggers(const FName& ModuleName, TArray<const TCHAR*>& OutLoggers);
 
 private:
 	void Initialize();

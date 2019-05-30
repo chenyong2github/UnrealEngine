@@ -29,6 +29,12 @@ void FTimingProfilerModule::OnAnalysisBegin(IAnalysisSession& InSession, bool bI
 	OutAnalyzers.Add(new FGpuProfilerAnalyzer(Session, *TimingProfilerProvider));
 }
 
+void FTimingProfilerModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
+{
+	OutLoggers.Add(TEXT("CpuProfiler"));
+	OutLoggers.Add(TEXT("GpuProfiler"));
+}
+
 const ITimingProfilerProvider* ReadTimingProfilerProvider(const IAnalysisSession& Session)
 {
 	return Session.ReadProvider<ITimingProfilerProvider>(TimingProfilerProviderName);

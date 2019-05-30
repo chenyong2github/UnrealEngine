@@ -14,6 +14,7 @@ class FTimingProfilerModule
 public:
 	virtual void GetModuleInfo(FModuleInfo& OutModuleInfo) override;
 	virtual void OnAnalysisBegin(IAnalysisSession& Session, bool bIsEnabled, TArray<IAnalyzer*>& OutAnalyzers) override;
+	virtual void GetLoggers(TArray<const TCHAR *>& OutLoggers) override;
 
 private:
 	static FName ModuleName;
