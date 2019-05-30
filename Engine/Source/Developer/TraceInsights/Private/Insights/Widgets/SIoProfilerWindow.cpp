@@ -102,7 +102,7 @@ void SIoProfilerWindow::Construct(const FArguments& InArgs)
 				]
 		];
 
-	TimingView->SetGraphTrackVisible(true);
+	TimingView->EnableAssetLoadingMode();
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

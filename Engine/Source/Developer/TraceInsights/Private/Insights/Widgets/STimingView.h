@@ -54,14 +54,14 @@ public:
 	SLATE_BEGIN_ARGS(STimingView)
 		: _OnSelectionChanged()
 		, _OnHoveredEventChanged()
-		, _SelectedEventChanged()
+		, _OnSelectedEventChanged()
 		{
 			_Clipping = EWidgetClipping::ClipToBounds;
 		}
 
 		SLATE_EVENT(FSelectionChangedDelegate, OnSelectionChanged)
 		SLATE_EVENT(FHoveredEventChangedDelegate, OnHoveredEventChanged)
-		SLATE_EVENT(FSelectedEventChangedDelegate, SelectedEventChanged)
+		SLATE_EVENT(FSelectedEventChangedDelegate, OnSelectedEventChanged)
 	SLATE_END_ARGS()
 
 	/**
@@ -95,6 +95,8 @@ public:
 
 	bool ToggleTrackVisibilityByGroup_IsChecked(const TCHAR* InGroupName) const;
 	void ToggleTrackVisibilityByGroup_Execute(const TCHAR* InGroupName);
+
+	void EnableAssetLoadingMode();
 
 	/** Resets internal widget's data to the default one. */
 	void Reset();
@@ -250,8 +252,6 @@ public:
 	bool IsDrawOnlyBookmarksEnabled() { return MarkersTrack.IsBookmarksTrack(); }
 	void SetDrawOnlyBookmarks(bool bOnOff);
 
-	void SetGraphTrackVisible(bool bOnOff) { GraphTrack.SetVisibilityFlag(bOnOff); }
-
 	bool IsGpuTrackVisible() const;
 	bool IsCpuTrackVisible(uint32 ThreadId) const;
 
@@ -302,6 +302,8 @@ protected:
 	void UpdateVerticalScrollBar();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void UpdateAggregatedStats();
 
 	void UpdateHoveredTimingEvent(float MX, float MY);
 
@@ -401,7 +403,12 @@ protected:
 	FTimingEventsTrack* LoadingMainThreadTrack;
 	FTimingEventsTrack* LoadingAsyncThreadTrack;
 
+	uint32 LoadingMainThreadId;
+	uint32 LoadingAsyncThreadId;
+
 	FLoadingTrackGetEventNameDelegate LoadingGetEventNameFn;
+
+	bool bAssetLoadingMode;
 
 	////////////////////////////////////////////////////////////
 	// File activity (I/O)
@@ -409,7 +416,7 @@ protected:
 	FTimingEventsTrack* IoOverviewTrack;
 	FTimingEventsTrack* IoActivityTrack;
 
-	mutable bool bForceIoEventsUpdate;
+	bool bForceIoEventsUpdate;
 
 	bool bMergeIoLanes;
 
@@ -423,7 +430,7 @@ protected:
 	};
 
 	/** All IO events, cached. */
-	mutable TArray<FIoTimingEvent> AllIoEvents;
+	TArray<FIoTimingEvent> AllIoEvents;
 
 	////////////////////////////////////////////////////////////
 
@@ -531,5 +538,5 @@ protected:
 
 	FSelectionChangedDelegate OnSelectionChanged;
 	FHoveredEventChangedDelegate OnHoveredEventChanged;
-	FSelectedEventChangedDelegate SelectedEventChanged;
+	FSelectedEventChangedDelegate OnSelectedEventChanged;
 };
