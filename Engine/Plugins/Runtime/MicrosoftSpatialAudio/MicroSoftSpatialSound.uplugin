@@ -14,16 +14,15 @@
 	"IsBetaVersion": false,
 	"Installed": false,
 	"SupportedTargetPlatforms": [
-		"XboxOne"
+		"HoloLens"
 	],
 	"Modules": [
 		{
 			"Name": "MicrosoftSpatialSound",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
-			"WhitelistPlatforms" :
-			[
-				"XboxOne"
+			"WhitelistPlatforms": [
+				"HoloLens"
 			]
 		}
 	]
