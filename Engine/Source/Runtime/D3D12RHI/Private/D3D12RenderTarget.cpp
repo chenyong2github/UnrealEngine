@@ -719,7 +719,11 @@ TRefCountPtr<FD3D12Resource> FD3D12DynamicRHI::GetStagingTexture(FTextureRHIPara
 	if (InTexture2D->IsCubemap())
 	{
 		uint32 D3DFace = GetD3D12CubeFace(InFlags.GetCubeFace());
-		Subresource = CalcSubresource(0, D3DFace, 1);
+		Subresource = CalcSubresource(InFlags.GetMip(), D3DFace, TextureRHI->GetNumMips());
+	}
+	else
+	{
+		Subresource = CalcSubresource(InFlags.GetMip(), 0, TextureRHI->GetNumMips());
 	}
 
 	D3D12_BOX* RectPtr = nullptr; // API prefers NULL for entire texture.
@@ -789,10 +793,13 @@ void FD3D12DynamicRHI::ReadSurfaceDataNoMSAARaw(FTextureRHIParamRef TextureRHI, 
 	const uint32 XBytesAligned = Align((uint32)readBackHeapDesc.Footprint.Width * BytesPerPixel, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 	uint32 SrcStart = StagingRect.Min.X * BytesPerPixel + StagingRect.Min.Y * XBytesAligned;
 
+	// Determine the subresource index.
+	uint32 Subresource = CalcSubresource(InFlags.GetMip(), 0, TextureRHI->GetNumMips());
+
 	// Lock the staging resource.
 	void* pData;
 	D3D12_RANGE ReadRange = { SrcStart, SrcStart + XBytesAligned * (SizeY - 1) + BytesPerLine };
-	VERIFYD3D12RESULT(TempTexture2D->GetResource()->Map(0, &ReadRange, &pData));
+	VERIFYD3D12RESULT(TempTexture2D->GetResource()->Map(Subresource, &ReadRange, &pData));
 
 	uint8* DestPtr = OutData.GetData();
 	uint8* SrcPtr = (uint8*)pData + SrcStart;
@@ -1236,7 +1243,11 @@ void FD3D12DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous
 	if (InTexture2D->IsCubemap())
 	{
 		uint32 D3DFace = GetD3D12CubeFace(InFlags.GetCubeFace());
-		Subresource = CalcSubresource(0, D3DFace, 1);
+		Subresource = CalcSubresource(InFlags.GetMip(), D3DFace, TextureRHI->GetNumMips());
+	}
+	else
+	{
+		Subresource = CalcSubresource(InFlags.GetMip(), 0, TextureRHI->GetNumMips());
 	}
 
 	// Setup the descriptions for the copy to the readback heap.

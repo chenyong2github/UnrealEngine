@@ -783,12 +783,12 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI, FIntR
 	{
 		VkBufferImageCopy CopyRegion;
 		FMemory::Memzero(CopyRegion);
-		//Region.bufferOffset = 0;
+		//CopyRegion.bufferOffset = 0;
 		CopyRegion.bufferRowLength = TextureRHI2D->GetSizeX();
 		CopyRegion.bufferImageHeight = TextureRHI2D->GetSizeY();
 		CopyRegion.imageSubresource.aspectMask = Texture2D->Surface.GetFullAspectMask();
-		//Region.imageSubresource.mipLevel = 0;
-		//Region.imageSubresource.baseArrayLayer = 0;
+		CopyRegion.imageSubresource.mipLevel = InFlags.GetMip();
+		//CopyRegion.imageSubresource.baseArrayLayer = 0;
 		CopyRegion.imageSubresource.layerCount = 1;
 		CopyRegion.imageExtent.width = TextureRHI2D->GetSizeX();
 		CopyRegion.imageExtent.height = TextureRHI2D->GetSizeY();
