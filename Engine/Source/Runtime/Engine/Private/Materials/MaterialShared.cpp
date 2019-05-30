@@ -970,7 +970,7 @@ void FMaterial::SerializeInlineShaderMap(FArchive& Ar)
 			{
 				TRefCountPtr<FMaterialShaderMap> LoadedShaderMap = new FMaterialShaderMap();
 				LoadedShaderMap->Serialize(Ar, true, bCooked && Ar.IsLoading());
-				GameThreadShaderMap = LoadedShaderMap;
+				SetGameThreadShaderMap(LoadedShaderMap);
 			}
 		}
 	}
@@ -1039,9 +1039,9 @@ void FMaterial::ReleaseShaderMap()
 		
 		FMaterial* Material = this;
 		ENQUEUE_RENDER_COMMAND(ReleaseShaderMap)(
-			[Material](FRHICommandList& RHICmdList)
+		[Material](FRHICommandList& RHICmdList)
 		{
-			Material->SetRenderingThreadShaderMap(nullptr);
+			Material->RenderingThreadShaderMap = nullptr;
 		});
 	}
 }
@@ -1767,18 +1767,18 @@ void FMaterial::SetupMaterialEnvironment(
  * Caches the material shaders for this material with no static parameters on the given platform.
  * This is used by material resources of UMaterials.
  */
-bool FMaterial::CacheShaders(EShaderPlatform Platform, bool bApplyCompletedShaderMapForRendering, const ITargetPlatform* TargetPlatform)
+bool FMaterial::CacheShaders(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform)
 {
 	FMaterialShaderMapId NoStaticParametersId;
 	GetShaderMapId(Platform, NoStaticParametersId);
-	return CacheShaders(NoStaticParametersId, Platform, bApplyCompletedShaderMapForRendering, TargetPlatform);
+	return CacheShaders(NoStaticParametersId, Platform, TargetPlatform);
 }
 
 /**
  * Caches the material shaders for the given static parameter set and platform.
  * This is used by material resources of UMaterialInstances.
  */
-bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, bool bApplyCompletedShaderMapForRendering, const ITargetPlatform* TargetPlatform)
+bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, const ITargetPlatform* TargetPlatform)
 {
 	bool bSucceeded = false;
 	UE_CLOG(!ShaderMapId.IsValid(), LogMaterial, Warning, TEXT("Invalid shader map ID caching shaders for '%s', will use default material."), *GetFriendlyName());
@@ -1798,7 +1798,7 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 		// Re-use an identical shader map in memory if possible, removing the reference to the inlined shader map
 		if (ExistingShaderMap)
 		{
-			GameThreadShaderMap = ExistingShaderMap;
+			SetGameThreadShaderMap(ExistingShaderMap);
 		}
 		else if (GameThreadShaderMap)
 		{
@@ -1809,19 +1809,20 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 	else
 	{
 #if WITH_EDITOR
-		// Find the material's cached shader map.
-		GameThreadShaderMap = FMaterialShaderMap::FindId(ShaderMapId, Platform);
+		TRefCountPtr<FMaterialShaderMap> ShaderMap = FMaterialShaderMap::FindId(ShaderMapId, Platform);
 
 		// On-the-fly view shaders are not using ddc currently, as their shadermap is not persistent.
 		// See FMaterialShaderMap::ProcessCompilationResults().
 		if  (GetMaterialShaderMapUsage() != EMaterialShaderMapUsage::DebugViewMode)
 		{
 			// Attempt to load from the derived data cache if we are uncooked
-			if ((!GameThreadShaderMap || !GameThreadShaderMap->IsComplete(this, true)) && !FPlatformProperties::RequiresCookedData())
+			if ((!ShaderMap || !ShaderMap->IsComplete(this, true)) && !FPlatformProperties::RequiresCookedData())
 			{
-				FMaterialShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, GameThreadShaderMap);
+				FMaterialShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, ShaderMap);
 			}
 		}
+
+		SetGameThreadShaderMap(ShaderMap);
 #endif // WITH_EDITOR
 	}
 
@@ -1849,7 +1850,7 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 		OutstandingCompileShaderMapIds.AddUnique(GameThreadShaderMap->GetCompilingId());
 #endif // WITH_EDITOR
 		// Reset the shader map so the default material will be used until the compile finishes.
-		GameThreadShaderMap = nullptr;
+		SetGameThreadShaderMap(nullptr);
 		bSucceeded = true;
 	}
 	else if (!GameThreadShaderMap || !(bAssumeShaderMapIsComplete || GameThreadShaderMap->IsComplete(this, !bLogShaderMapFailInfo)))
@@ -1880,7 +1881,7 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 			}
 
 			// Reset the shader map so the default material will be used.
-			GameThreadShaderMap = nullptr;
+			SetGameThreadShaderMap(nullptr);
 		}
 		else
 		{
@@ -1895,14 +1896,16 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 			}
 			UE_LOG(LogMaterial, Display, TEXT("%s cached shader map for material %s, compiling. %s"),ShaderMapCondition,*GetFriendlyName(), IsSpecialEngineMaterial() ? TEXT("Is special engine material.") : TEXT("") );
 
+			TRefCountPtr<FMaterialShaderMap> ShaderMap;
+
 			// If there's no cached shader map for this material, compile a new one.
 			// This is just kicking off the async compile, GameThreadShaderMap will not be complete yet
-			bSucceeded = BeginCompileShaderMap(ShaderMapId, Platform, GameThreadShaderMap, bApplyCompletedShaderMapForRendering, TargetPlatform);
+			bSucceeded = BeginCompileShaderMap(ShaderMapId, Platform, ShaderMap, TargetPlatform);
 
 			if (!bSucceeded)
 			{
 				// If it failed to compile the material, reset the shader map so the material isn't used.
-				GameThreadShaderMap = nullptr;
+				SetGameThreadShaderMap(nullptr);
 
 #if WITH_EDITOR
 				if (IsDefaultMaterial())
@@ -1918,6 +1921,10 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 				}
 #endif // WITH_EDITOR
 			}
+			else
+			{
+				SetGameThreadShaderMap(ShaderMap);
+			}
 		}
 	}
 	else
@@ -1929,15 +1936,6 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 		CompileErrors.Empty();
 #endif // WITH_EDITOR
 	}
-
-	// Enqueue the final shader map update
-	FMaterial* Material = this;
-	ENQUEUE_RENDER_COMMAND(UpdateRenderThreadShaderMap)(
-		[Material](FRHICommandListImmediate& RHICmdList)
-		{	
-			Material->RenderingThreadShaderMap = Material->GameThreadShaderMap;
-		}
-	);
 
 	return bSucceeded;
 }
@@ -1953,8 +1951,7 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 bool FMaterial::BeginCompileShaderMap(
 	const FMaterialShaderMapId& ShaderMapId, 
 	EShaderPlatform Platform, 
-	TRefCountPtr<FMaterialShaderMap>& OutShaderMap, 
-	bool bApplyCompletedShaderMapForRendering,
+	TRefCountPtr<FMaterialShaderMap>& OutShaderMap,
 	const ITargetPlatform* TargetPlatform)
 {
 #if WITH_EDITORONLY_DATA
@@ -1983,7 +1980,7 @@ bool FMaterial::BeginCompileShaderMap(
 		MaterialEnvironment->IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/Material.ush"), MaterialShaderCode);
 
 		// Compile the shaders for the material.
-		NewShaderMap->Compile(this, ShaderMapId, MaterialEnvironment, NewCompilationOutput, Platform, bSynchronousCompile, bApplyCompletedShaderMapForRendering);
+		NewShaderMap->Compile(this, ShaderMapId, MaterialEnvironment, NewCompilationOutput, Platform, bSynchronousCompile);
 
 		if (bSynchronousCompile)
 		{
@@ -3010,7 +3007,7 @@ void FMaterial::UpdateEditorLoadedMaterialResources(EShaderPlatform InShaderPlat
 		FMaterial* CurrentMaterial = *It;
 		if (!CurrentMaterial->GetGameThreadShaderMap() || !CurrentMaterial->GetGameThreadShaderMap()->IsComplete(CurrentMaterial, true))
 		{
-			CurrentMaterial->CacheShaders(InShaderPlatform, true);
+			CurrentMaterial->CacheShaders(InShaderPlatform);
 		}
 	}
 }
@@ -3954,8 +3951,6 @@ void SetShaderMapsOnMaterialResources_RenderThread(FRHICommandListImmediate& RHI
 
 				if (Material && MaterialsToUpdate.Contains(Material))
 				{
-					// Materials used as async fallbacks can't be updated through this mechanism and should have been updated synchronously earlier
-					check(!Material->RequiresSynchronousCompilation());
 					MaterialProxy->CacheUniformExpressions(true);
 					bFoundAnyInitializedMaterials = true;
 
@@ -3974,16 +3969,9 @@ void SetShaderMapsOnMaterialResources_RenderThread(FRHICommandListImmediate& RHI
 
 void SetShaderMapsOnMaterialResources(const TMap<FMaterial*, FMaterialShaderMap*>& MaterialsToUpdate)
 {
-	for (TMap<FMaterial*, FMaterialShaderMap*>::TConstIterator It(MaterialsToUpdate); It; ++It)
-	{
-		FMaterial* Material = It.Key();
-		check(!Material->RequiresSynchronousCompilation());
-	}
-
-	FMaterialsToUpdateMap InMaterialsToUpdate = MaterialsToUpdate;
 	ENQUEUE_RENDER_COMMAND(FSetShaderMapOnMaterialResources)(
-		[InMaterialsToUpdate](FRHICommandListImmediate& RHICmdList)
-		{
-			SetShaderMapsOnMaterialResources_RenderThread(RHICmdList, InMaterialsToUpdate);
-		});
+	[InMaterialsToUpdate = MaterialsToUpdate](FRHICommandListImmediate& RHICmdList)
+	{
+		SetShaderMapsOnMaterialResources_RenderThread(RHICmdList, InMaterialsToUpdate);
+	});
 }

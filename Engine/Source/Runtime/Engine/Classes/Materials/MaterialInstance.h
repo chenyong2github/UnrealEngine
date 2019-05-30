@@ -673,7 +673,7 @@ protected:
 	void CacheResourceShadersForRendering();
 
 	/** Caches shader maps for an array of material resources. */
-	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, bool bApplyCompletedShaderMapForRendering, const ITargetPlatform* TargetPlatform = nullptr);
+	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, const ITargetPlatform* TargetPlatform = nullptr);
 
 	/** 
 	 * Copies over material instance parameters from the base material given a material interface.

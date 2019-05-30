@@ -1680,7 +1680,7 @@ bool FShaderCompilingManager::GetDumpShaderDebugInfo() const
 	return GDumpShaderDebugInfo != 0;
 }
 
-void FShaderCompilingManager::AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs, bool bApplyCompletedShaderMapForRendering, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion)
+void FShaderCompilingManager::AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion)
 {
 	check(!FPlatformProperties::RequiresCookedData());
 
@@ -1721,7 +1721,6 @@ void FShaderCompilingManager::AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs,
 	{
 		NewJobs[JobIndex]->bOptimizeForLowLatency = bOptimizeForLowLatency;
 		FShaderMapCompileResults& ShaderMapInfo = ShaderMapJobs.FindOrAdd(NewJobs[JobIndex]->Id);
-		ShaderMapInfo.bApplyCompletedShaderMapForRendering = bApplyCompletedShaderMapForRendering;
 		ShaderMapInfo.bRecreateComponentRenderStateOnCompletion = bRecreateComponentRenderStateOnCompletion;
 		auto* PipelineJob = NewJobs[JobIndex]->GetShaderPipelineJob();
 		if (PipelineJob)
@@ -1965,7 +1964,6 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 	// Keeps shader maps alive as they are passed from the shader compiler and applied to the owning FMaterial
 	TArray<TRefCountPtr<FMaterialShaderMap> > LocalShaderMapReferences;
 	TMap<FMaterial*, FMaterialShaderMap*> MaterialsToUpdate;
-	TMap<FMaterial*, FMaterialShaderMap*> MaterialsToApplyToScene;
 
 	// Process compiled shader maps in FIFO order, in case a shader map has been enqueued multiple times,
 	// Which can happen if a material is edited while a background compile is going on
@@ -2088,11 +2086,6 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 							if (CompletedShaderMap->IsComplete(Material, true))
 							{
 								MaterialsToUpdate.Add(Material, CompletedShaderMap);
-								// Note: if !CompileResults.bApplyCompletedShaderMapForRendering, RenderingThreadShaderMap must be set elsewhere to match up with the new value of GameThreadShaderMap
-								if (CompileResults.bApplyCompletedShaderMapForRendering)
-								{
-									MaterialsToApplyToScene.Add(Material, CompletedShaderMap);
-								}
 							}
 
 							if (GShowShaderWarnings && Errors.Num() > 0)
@@ -2145,18 +2138,16 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 
 	if (MaterialsToUpdate.Num() > 0)
 	{
+		SetShaderMapsOnMaterialResources(MaterialsToUpdate);
+
 		for (TMap<FMaterial*, FMaterialShaderMap*>::TConstIterator It(MaterialsToUpdate); It; ++It)
 		{
 			FMaterial* Material = It.Key();
 			FMaterialShaderMap* ShaderMap = It.Value();
 			check(!ShaderMap || ShaderMap->IsValidForRendering());
 
-			Material->SetGameThreadShaderMap(It.Value());
+			Material->GameThreadShaderMap = It.Value();
 		}
-
-		const TSet<FSceneInterface*>& AllocatedScenes = GetRendererModule().GetAllocatedScenes();
-
-		SetShaderMapsOnMaterialResources(MaterialsToApplyToScene);
 
 		for (TMap<FMaterial*, FMaterialShaderMap*>::TIterator It(MaterialsToUpdate); It; ++It)
 		{
@@ -2418,7 +2409,7 @@ bool FShaderCompilingManager::HandlePotentialRetryOnError(TMap<int32, FShaderMap
 				}
 
 				// Send all the shaders from this shader map through the compiler again
-				AddJobs(Results.FinishedJobs, Results.bApplyCompletedShaderMapForRendering, true, Results.bRecreateComponentRenderStateOnCompletion);
+				AddJobs(Results.FinishedJobs, true, Results.bRecreateComponentRenderStateOnCompletion);
 			}
 		}
 
@@ -3965,7 +3956,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
 
 	if (GlobalShaderJobs.Num() > 0)
 	{
-		GShaderCompilingManager->AddJobs(GlobalShaderJobs, true, true, false);
+		GShaderCompilingManager->AddJobs(GlobalShaderJobs, true, false);
 
 		const bool bAllowAsynchronousGlobalShaderCompiling =
 			// OpenGL requires that global shader maps are compiled before attaching

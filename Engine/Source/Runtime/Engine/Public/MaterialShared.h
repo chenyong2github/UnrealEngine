@@ -951,8 +951,7 @@ public:
 		TRefCountPtr<FShaderCompilerEnvironment> MaterialEnvironment,
 		const FMaterialCompilationOutput& InMaterialCompilationOutput,
 		EShaderPlatform Platform,
-		bool bSynchronousCompile,
-		bool bApplyCompletedShaderMapForRendering
+		bool bSynchronousCompile
 		);
 
 #if WITH_EDITOR
@@ -1367,13 +1366,13 @@ public:
 	 * Caches the material shaders for this material with no static parameters on the given platform.
 	 * This is used by material resources of UMaterials.
 	 */
-	ENGINE_API bool CacheShaders(EShaderPlatform Platform, bool bApplyCompletedShaderMapForRendering, const ITargetPlatform* TargetPlatform = nullptr);
+	ENGINE_API bool CacheShaders(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform = nullptr);
 
 	/**
 	 * Caches the material shaders for the given static parameter set and platform.
 	 * This is used by material resources of UMaterialInstances.
 	 */
-	ENGINE_API bool CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, bool bApplyCompletedShaderMapForRendering, const ITargetPlatform* TargetPlatform = nullptr);
+	ENGINE_API bool CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, const ITargetPlatform* TargetPlatform = nullptr);
 
 	/**
 	 * Should the shader for this material with the given platform, shader type and vertex 
@@ -1598,11 +1597,16 @@ public:
 		return GameThreadShaderMap; 
 	}
 
-	/** Note: SetRenderingThreadShaderMap must also be called with the same value, but from the rendering thread. */
 	void SetGameThreadShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 	{
 		checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
 		GameThreadShaderMap = InMaterialShaderMap;
+
+		FMaterial* Material = this;
+		ENQUEUE_RENDER_COMMAND(SetGameThreadShaderMap)([Material](FRHICommandListImmediate& RHICmdList)
+		{
+			Material->RenderingThreadShaderMap = Material->GameThreadShaderMap;
+		});
 	}
 
 	void SetInlineShaderMap(FMaterialShaderMap* InMaterialShaderMap)
@@ -1611,6 +1615,12 @@ public:
 		GameThreadShaderMap = InMaterialShaderMap;
 		bContainsInlineShaders = true;
 		bLoadedCookedShaderMapId = true;
+
+		FMaterial* Material = this;
+		ENQUEUE_RENDER_COMMAND(SetInlineShaderMap)([Material](FRHICommandListImmediate& RHICmdList)
+		{
+			Material->RenderingThreadShaderMap = Material->GameThreadShaderMap;
+		});
 	}
 
 	ENGINE_API class FMaterialShaderMap* GetRenderingThreadShaderMap() const;
@@ -1820,7 +1830,6 @@ private:
 		const FMaterialShaderMapId& ShaderMapId,
 		EShaderPlatform Platform, 
 		TRefCountPtr<class FMaterialShaderMap>& OutShaderMap, 
-		bool bApplyCompletedShaderMapForRendering, 
 		const ITargetPlatform* TargetPlatform = nullptr);
 
 	/** Populates OutEnvironment with defines needed to compile shaders for this material. */

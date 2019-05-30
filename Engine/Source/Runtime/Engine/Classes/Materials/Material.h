@@ -1483,7 +1483,7 @@ private:
 	void CacheResourceShadersForCooking(EShaderPlatform Platform, TArray<FMaterialResource*>& OutCachedMaterialResources, const ITargetPlatform* TargetPlatform = nullptr);
 
 	/** Caches shader maps for an array of material resources. */
-	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, bool bApplyCompletedShaderMapForRendering, const ITargetPlatform* TargetPlatform = nullptr);
+	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, const ITargetPlatform* TargetPlatform = nullptr);
 
 	/**
 	 * If there is some texture reference used by a TextureProperty node in any expressions, this function

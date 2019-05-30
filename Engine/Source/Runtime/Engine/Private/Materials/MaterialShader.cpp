@@ -1402,12 +1402,6 @@ void FMaterialShaderMap::LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform Sh
 
 							MaterialResource->SetGameThreadShaderMap(LoadedShaderMap);
 							MaterialResource->RegisterInlineShaderMap(false);
-
-							ENQUEUE_RENDER_COMMAND(FSetShaderMapOnMaterialResources)(
-								[MaterialResource, LoadedShaderMap](FRHICommandListImmediate& RHICmdList)
-								{
-									MaterialResource->SetRenderingThreadShaderMap(LoadedShaderMap);
-								});
 						}
 					}
 				}
@@ -1432,8 +1426,7 @@ void FMaterialShaderMap::Compile(
 	TRefCountPtr<FShaderCompilerEnvironment> MaterialEnvironment,
 	const FMaterialCompilationOutput& InMaterialCompilationOutput,
 	EShaderPlatform InPlatform,
-	bool bSynchronousCompile,
-	bool bApplyCompletedShaderMapForRendering)
+	bool bSynchronousCompile)
 {
 	if (FPlatformProperties::RequiresCookedData())
 	{
@@ -1703,7 +1696,7 @@ void FMaterialShaderMap::Compile(
 			const bool bRecreateComponentRenderStateOnCompletion = Material->IsPersistent();
 
 			// Note: using Material->IsPersistent() to detect whether this is a preview material which should have higher priority over background compiling
-			GShaderCompilingManager->AddJobs(NewJobs, bApplyCompletedShaderMapForRendering && !bSynchronousCompile, bSynchronousCompile || !Material->IsPersistent(), bRecreateComponentRenderStateOnCompletion);
+			GShaderCompilingManager->AddJobs(NewJobs, bSynchronousCompile || !Material->IsPersistent(), bRecreateComponentRenderStateOnCompletion);
   
 			// Compile the shaders for this shader map now if the material is not deferring and deferred compiles are not enabled globally
 			if (bSynchronousCompile)

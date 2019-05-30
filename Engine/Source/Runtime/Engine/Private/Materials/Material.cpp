@@ -2867,7 +2867,7 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 			ResourcesToCache.Reset();
 			check(MaterialResources[LocalActiveQL][FeatureLevel]);
 			ResourcesToCache.Add(MaterialResources[LocalActiveQL][FeatureLevel]);
-			CacheShadersForResources(ShaderPlatform, ResourcesToCache, true);
+			CacheShadersForResources(ShaderPlatform, ResourcesToCache);
 		}
 
 		FString AdditionalFormatToCache = GCompileMaterialsForShaderFormatCVar->GetString();
@@ -2929,7 +2929,7 @@ void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, T
 		}
 	}
 
-	CacheShadersForResources(ShaderPlatform, ResourcesToCache, false, TargetPlatform);
+	CacheShadersForResources(ShaderPlatform, ResourcesToCache, TargetPlatform);
 
 	for (int32 ResourceIndex = 0; ResourceIndex < ResourcesToCache.Num(); ResourceIndex++)
 	{
@@ -2937,14 +2937,14 @@ void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, T
 	}
 }
 
-void UMaterial::CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, bool bApplyCompletedShaderMapForRendering, const ITargetPlatform* TargetPlatform)
+void UMaterial::CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, const ITargetPlatform* TargetPlatform)
 {
 	RebuildExpressionTextureReferences();
 
 	for (int32 ResourceIndex = 0; ResourceIndex < ResourcesToCache.Num(); ResourceIndex++)
 	{
 		FMaterialResource* CurrentResource = ResourcesToCache[ResourceIndex];
-		const bool bSuccess = CurrentResource->CacheShaders(ShaderPlatform, bApplyCompletedShaderMapForRendering, TargetPlatform);
+		const bool bSuccess = CurrentResource->CacheShaders(ShaderPlatform, TargetPlatform);
 
 		if (!bSuccess)
 		{

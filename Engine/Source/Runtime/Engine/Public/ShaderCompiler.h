@@ -349,13 +349,11 @@ struct FShaderMapCompileResults
 	FShaderMapCompileResults() :
 		NumJobsQueued(0),
 		bAllJobsSucceeded(true),
-		bApplyCompletedShaderMapForRendering(true),
 		bRecreateComponentRenderStateOnCompletion(false)
 	{}
 
 	int32 NumJobsQueued;
 	bool bAllJobsSucceeded;
-	bool bApplyCompletedShaderMapForRendering;
 	bool bRecreateComponentRenderStateOnCompletion;
 	TArray<FShaderCommonCompileJob*> FinishedJobs;
 };
@@ -554,7 +552,7 @@ public:
 	 * Adds shader jobs to be asynchronously compiled. 
 	 * FinishCompilation or ProcessAsyncResults must be used to get the results.
 	 */
-	ENGINE_API void AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs, bool bApplyCompletedShaderMapForRendering, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion);
+	ENGINE_API void AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion);
 
 	/**
 	* Removes all outstanding compile jobs for the passed shader maps.
