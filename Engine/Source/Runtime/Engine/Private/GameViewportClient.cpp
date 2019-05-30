@@ -55,9 +55,11 @@
 #include "Slate/SGameLayerManager.h"
 #include "ActorEditorUtils.h"
 #include "ComponentRecreateRenderStateContext.h"
-#include "Framework/Application/HardwareCursor.h"
 #include "DynamicResolutionState.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "IImageWrapper.h"
+#include "IImageWrapperModule.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 CSV_DEFINE_CATEGORY(View, true);
 
@@ -759,7 +761,7 @@ void UGameViewportClient::MouseEnter(FViewport* InViewport, int32 x, int32 y)
 	{
 		for ( auto& Entry : HardwareCursors )
 		{
-			Cursor->SetTypeShape(Entry.Key, Entry.Value->GetHandle());
+			Cursor->SetTypeShape(Entry.Key, Entry.Value);
 		}
 	}
 
@@ -3764,13 +3766,33 @@ void UGameViewportClient::HandleWindowDPIScaleChanged(TSharedRef<SWindow> InWind
 
 bool UGameViewportClient::SetHardwareCursor(EMouseCursor::Type CursorShape, FName GameContentPath, FVector2D HotSpot)
 {
-	TSharedPtr<FHardwareCursor> HardwareCursor = HardwareCursorCache.FindRef(GameContentPath);
-	if ( HardwareCursor.IsValid() == false )
+	TSharedPtr<ICursor> PlatformCursor = FSlateApplication::Get().GetPlatformCursor();
+	if (!PlatformCursor)
 	{
-		HardwareCursor = MakeShared<FHardwareCursor>(FPaths::ProjectContentDir() / GameContentPath.ToString(), HotSpot);
-		if ( HardwareCursor->GetHandle() == nullptr )
+		return false;
+	}
+
+	void* HardwareCursor = HardwareCursorCache.FindRef(GameContentPath);
+	if ( !HardwareCursor )
+	{
+		// Validate hot spot
+		ensure(HotSpot.X >= 0.0f && HotSpot.X <= 1.0f);
+		ensure(HotSpot.Y >= 0.0f && HotSpot.Y <= 1.0f);
+		HotSpot.X = FMath::Clamp(HotSpot.X, 0.0f, 1.0f);
+		HotSpot.Y = FMath::Clamp(HotSpot.Y, 0.0f, 1.0f);
+
+		// Try to create cursor from file directly
+		FString CursorPath = FPaths::ProjectContentDir() / GameContentPath.ToString();
+		HardwareCursor = PlatformCursor->CreateCursorFromFile(CursorPath, HotSpot);
+		if ( !HardwareCursor )
 		{
-			return false;
+			// Try to load from PNG
+			HardwareCursor = LoadCursorFromPngs(*PlatformCursor, CursorPath, HotSpot);
+			if ( !HardwareCursor )
+			{
+				UE_LOG(LogInit, Error, TEXT("Failed to load cursor '%s'"), *CursorPath);
+				return false;
+			}
 		}
 
 		HardwareCursorCache.Add(GameContentPath, HardwareCursor);
@@ -3780,11 +3802,7 @@ bool UGameViewportClient::SetHardwareCursor(EMouseCursor::Type CursorShape, FNam
 
 	if ( bIsMouseOverClient )
 	{
-		TSharedPtr<ICursor> PlatformCursor = FSlateApplication::Get().GetPlatformCursor();
-		if ( ICursor* Cursor = PlatformCursor.Get() )
-		{
-			Cursor->SetTypeShape(CursorShape, HardwareCursor->GetHandle());
-		}
+		PlatformCursor->SetTypeShape(CursorShape, HardwareCursor);
 	}
 	
 	return true;
@@ -3811,6 +3829,101 @@ bool UGameViewportClient::GetUseMouseForTouch() const
 #else
 	return GetDefault<UInputSettings>()->bUseMouseForTouch;
 #endif
+}
+
+void* UGameViewportClient::LoadCursorFromPngs(ICursor& PlatformCursor, const FString& InPathToCursorWithoutExtension, FVector2D InHotSpot)
+{
+	TArray<TSharedPtr<FPngFileData>> CursorPngFiles;
+	if (!LoadAvailableCursorPngs(CursorPngFiles, InPathToCursorWithoutExtension))
+	{
+		return nullptr;
+	}
+
+	check(CursorPngFiles.Num() > 0);
+	TSharedPtr<FPngFileData> NearestCursor = CursorPngFiles[0];
+	float PlatformScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(0, 0);
+	for (TSharedPtr<FPngFileData>& FileData : CursorPngFiles)
+	{
+		const float NewDelta = FMath::Abs(FileData->ScaleFactor - PlatformScaleFactor);
+		if (NewDelta < FMath::Abs(NearestCursor->ScaleFactor - PlatformScaleFactor))
+		{
+			NearestCursor = FileData;
+		}
+	}
+
+	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+	TSharedPtr<IImageWrapper>PngImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+
+	if (PngImageWrapper.IsValid() && PngImageWrapper->SetCompressed(NearestCursor->FileData.GetData(), NearestCursor->FileData.Num()))
+	{
+		const TArray<uint8>* RawImageData = nullptr;
+		if (PngImageWrapper->GetRaw(ERGBFormat::RGBA, 8, RawImageData))
+		{
+			const int32 Width = PngImageWrapper->GetWidth();
+			const int32 Height = PngImageWrapper->GetHeight();
+
+			return PlatformCursor.CreateCursorFromRGBABuffer((FColor*) RawImageData->GetData(), Width, Height, InHotSpot);
+		}
+	}
+
+	return nullptr;
+}
+
+bool UGameViewportClient::LoadAvailableCursorPngs(TArray< TSharedPtr<FPngFileData> >& Results, const FString& InPathToCursorWithoutExtension)
+{
+	FString CursorsWithSizeSearch = FPaths::GetCleanFilename(InPathToCursorWithoutExtension) + TEXT("*.png");
+
+	TArray<FString> PngCursorFiles;
+	IFileManager::Get().FindFilesRecursive(PngCursorFiles, *FPaths::GetPath(InPathToCursorWithoutExtension), *CursorsWithSizeSearch, true, false, false);
+
+	bool bFoundCursor = false;
+
+	for (const FString& FullCursorPath : PngCursorFiles)
+	{
+		FString CursorFile = FPaths::GetBaseFilename(FullCursorPath);
+
+		FString Dummy;
+		FString ScaleFactorSection;
+		FString ScaleFactor;
+
+		if (CursorFile.Split(TEXT("@"), &Dummy, &ScaleFactorSection, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
+		{
+			if (ScaleFactorSection.Split(TEXT("x"), &ScaleFactor, &Dummy) == false)
+			{
+				ScaleFactor = ScaleFactorSection;
+			}
+		}
+		else
+		{
+			ScaleFactor = TEXT("1");
+		}
+
+		if (FCString::IsNumeric(*ScaleFactor) == false)
+		{
+			UE_LOG(LogInit, Error, TEXT("Failed to load cursor '%s', non-numeric characters in the scale factor."), *FullCursorPath);
+			continue;
+		}
+
+		TSharedPtr<FPngFileData> PngFileData = MakeShared<FPngFileData>();
+		PngFileData->FileName = FullCursorPath;
+		PngFileData->ScaleFactor = FCString::Atof(*ScaleFactor);
+
+		if (FFileHelper::LoadFileToArray(PngFileData->FileData, *FullCursorPath, FILEREAD_Silent))
+		{
+			UE_LOG(LogInit, Log, TEXT("Loading Cursor '%s'."), *FullCursorPath);
+		}
+
+		Results.Add(PngFileData);
+
+		bFoundCursor = true;
+	}
+
+	Results.StableSort([](const TSharedPtr<FPngFileData>& InFirst, const TSharedPtr<FPngFileData>& InSecond) -> bool
+	{
+		return InFirst->ScaleFactor < InSecond->ScaleFactor;
+	});
+
+	return bFoundCursor;
 }
 
 #undef LOCTEXT_NAMESPACE
