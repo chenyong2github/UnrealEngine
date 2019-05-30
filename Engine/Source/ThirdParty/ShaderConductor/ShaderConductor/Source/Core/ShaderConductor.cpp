@@ -837,7 +837,29 @@ namespace ShaderConductor
 				{
 					mslOpts.capture_output_to_buffer = (std::stoi(Define.value) != 0);
 				}
+				if (!strcmp(Define.name, "shader_output_buffer_index"))
+				{
+					mslOpts.shader_output_buffer_index = (uint32_t)std::stoi(Define.value);
+				}
 				/* UE Change End: Capture shader output to a buffer - used for vertex streaming to emulate GS & Tess */
+				/* UE Change Begin: Allow the caller to specify the various auxiliary Metal buffer indices */
+				if (!strcmp(Define.name, "indirect_params_buffer_index"))
+				{
+					mslOpts.indirect_params_buffer_index = (uint32_t)std::stoi(Define.value);
+				}
+				if (!strcmp(Define.name, "shader_patch_output_buffer_index"))
+				{
+					mslOpts.shader_patch_output_buffer_index = (uint32_t)std::stoi(Define.value);
+				}
+				if (!strcmp(Define.name, "shader_tess_factor_buffer_index"))
+				{
+					mslOpts.shader_tess_factor_buffer_index = (uint32_t)std::stoi(Define.value);
+				}
+				if (!strcmp(Define.name, "shader_input_wg_index"))
+				{
+					mslOpts.shader_input_wg_index = (uint32_t)std::stoi(Define.value);
+				}
+				/* UE Change End: Allow the caller to specify the various auxiliary Metal buffer indices */
 			}
 			
 			mslCompiler->set_msl_options(mslOpts);
