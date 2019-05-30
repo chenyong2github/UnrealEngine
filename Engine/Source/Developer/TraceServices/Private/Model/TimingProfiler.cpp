@@ -27,6 +27,20 @@ uint32 FTimingProfilerProvider::AddCpuTimer(const TCHAR* Name)
 	return Timer.Id;
 }
 
+void FTimingProfilerProvider::SetTimerName(uint32 TimerId, const TCHAR* Name)
+{
+	Session.WriteAccessCheck();
+	
+	FTimingProfilerTimer& Timer = Timers[TimerId];
+	Timer.Name = Session.StoreString(Name);
+	uint32 NameHash = 0;
+	for (const TCHAR* c = Name; *c; ++c)
+	{
+		NameHash = (NameHash + *c) * 0x2c2c57ed;
+	}
+	Timer.NameHash = NameHash;
+}
+
 uint32 FTimingProfilerProvider::AddGpuTimer(const TCHAR* Name)
 {
 	Session.WriteAccessCheck();

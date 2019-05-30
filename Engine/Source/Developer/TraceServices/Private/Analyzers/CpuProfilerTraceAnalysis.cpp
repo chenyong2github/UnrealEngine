@@ -17,6 +17,11 @@ void FCpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 	Builder.RouteEvent(RouteId_EventSpec, "CpuProfiler", "EventSpec");
 	Builder.RouteEvent(RouteId_EventBatch, "CpuProfiler", "EventBatch");
+	Builder.RouteEvent(RouteId_EndCapture, "CpuProfiler", "EndCapture");
+}
+
+void FCpuProfilerAnalyzer::OnAnalysisEnd()
+{
 }
 
 void FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
@@ -29,11 +34,20 @@ void FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	case RouteId_EventSpec:
 	{
 		uint16 Id = EventData.GetValue("Id").As<uint16>();
-		ScopeIdToEventIdMap.Add(Id, TimingProfilerProvider.AddCpuTimer(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
+		if (ScopeIdToEventIdMap.Contains(Id))
+		{
+			TimingProfilerProvider.SetTimerName(ScopeIdToEventIdMap[Id], reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
+		}
+		else
+		{
+			ScopeIdToEventIdMap.Add(Id, TimingProfilerProvider.AddCpuTimer(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
+		}
 		break;
 	}
 	case RouteId_EventBatch:
+	case RouteId_EndCapture:
 	{
+		TotalEventSize += EventData.GetTotalSize();
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
 		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
 		uint64 LastCycle = ThreadState->LastCycle;
@@ -50,14 +64,22 @@ void FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 				EventScopeState& ScopeState = ThreadState->ScopeStack.AddDefaulted_GetRef();
 				ScopeState.StartCycle = ActualCycle;
 				uint16 SpecId = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
-				ScopeState.EventTypeId = ScopeIdToEventIdMap[SpecId];
+				uint32* FindIt = ScopeIdToEventIdMap.Find(SpecId);
+				if (!FindIt)
+				{
+					ScopeState.EventTypeId = ScopeIdToEventIdMap.Add(SpecId, TimingProfilerProvider.AddCpuTimer(TEXT("<unknown>")));
+				}
+				else
+				{
+					ScopeState.EventTypeId = *FindIt;
+				}
 				Trace::FTimingProfilerEvent Event;
 				Event.TimerIndex = ScopeState.EventTypeId;
 				ThreadState->Timeline->AppendBeginEvent(Context.SessionContext.TimestampFromCycle(ScopeState.StartCycle), Event);
+				++TotalScopeCount;
 			}
-			else
+			else if (ThreadState->ScopeStack.Num())
 			{
-				check(ThreadState->ScopeStack.Num());
 				ThreadState->ScopeStack.Pop();
 				ThreadState->Timeline->AppendEndEvent(Context.SessionContext.TimestampFromCycle(ActualCycle));
 			}
@@ -65,9 +87,20 @@ void FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 		check(BufferPtr == BufferEnd);
 		if (LastCycle)
 		{
-			Session.UpdateDurationSeconds(Context.SessionContext.TimestampFromCycle(LastCycle));
+			double LastTimestamp = Context.SessionContext.TimestampFromCycle(LastCycle);
+			Session.UpdateDurationSeconds(LastTimestamp);
+			if (RouteId == RouteId_EndCapture)
+			{
+
+				while (ThreadState->ScopeStack.Num())
+				{
+					ThreadState->ScopeStack.Pop();
+					ThreadState->Timeline->AppendEndEvent(LastTimestamp);
+				}
+			}
 		}
 		ThreadState->LastCycle = LastCycle;
+		BytesPerScope = double(TotalEventSize) / double(TotalScopeCount);
 		break;
 	}
 	}

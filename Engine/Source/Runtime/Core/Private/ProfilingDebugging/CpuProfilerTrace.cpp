@@ -1,20 +1,22 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#include "Templates/UnrealTemplate.h"
 #include "Trace/Trace.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
-#include "Containers/Map.h"
 #include "ProfilingDebugging/MiscTrace.h"
 
 #if CPUPROFILERTRACE_ENABLED
 
-UE_TRACE_EVENT_BEGIN(CpuProfiler, EventSpec)
+UE_TRACE_EVENT_BEGIN(CpuProfiler, EventSpec, Always)
 	UE_TRACE_EVENT_FIELD(uint16, Id)
 	UE_TRACE_EVENT_FIELD(uint16, Group)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CpuProfiler, EventBatch)
+	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(CpuProfiler, EndCapture, Always)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
@@ -30,18 +32,18 @@ public:
 
 	struct FThreadState
 	{
-		uint64 CycleBase;
-		uint64 LastCycle;
+		uint64 LastCycle = 0;
 		uint32 ThreadId;
-		uint32 BufferSize;
+		uint16 Depth = 0;
+		uint16 BufferSize = 0;
+		bool bEnabled = false;
 		uint8 Buffer[MaxBufferSize];
 	};
 
-	static FThreadState* GetThreadState() { return ThreadLocalThreadState; }
 	FORCENOINLINE static FThreadState* InitThreadState();
 	FORCENOINLINE static void FlushThreadBuffer(FThreadState* ThreadState);
+	FORCENOINLINE static void EndCapture(FThreadState* ThreadState);
 
-private:
 	static thread_local FThreadState* ThreadLocalThreadState;
 };
 
@@ -50,9 +52,7 @@ thread_local FCpuProfilerTraceInternal::FThreadState* FCpuProfilerTraceInternal:
 FCpuProfilerTraceInternal::FThreadState* FCpuProfilerTraceInternal::InitThreadState()
 {
 	ThreadLocalThreadState = new FThreadState();
-	ThreadLocalThreadState->BufferSize = 0;
 	ThreadLocalThreadState->ThreadId = FPlatformTLS::GetCurrentThreadId();
-	ThreadLocalThreadState->LastCycle = 0;
 	return ThreadLocalThreadState;
 }
 
@@ -64,20 +64,40 @@ void FCpuProfilerTraceInternal::FlushThreadBuffer(FThreadState* ThreadState)
 	ThreadState->BufferSize = 0;
 }
 
+void FCpuProfilerTraceInternal::EndCapture(FThreadState* ThreadState)
+{
+	UE_TRACE_LOG(CpuProfiler, EndCapture, ThreadState->BufferSize)
+		<< EndCapture.ThreadId(ThreadState->ThreadId)
+		<< EndCapture.Attachment(ThreadState->Buffer, ThreadState->BufferSize);
+	ThreadState->BufferSize = 0;
+}
+
 void FCpuProfilerTrace::OutputBeginEvent(uint16 SpecId)
 {
-	uint64 Cycle = FPlatformTime::Cycles64();
-	FCpuProfilerTraceInternal::FThreadState* ThreadState = FCpuProfilerTraceInternal::GetThreadState();
+	FCpuProfilerTraceInternal::FThreadState* ThreadState = FCpuProfilerTraceInternal::ThreadLocalThreadState;
 	if (!ThreadState)
 	{
 		ThreadState = FCpuProfilerTraceInternal::InitThreadState();
 	}
-	uint64 CycleDiff = Cycle - ThreadState->LastCycle;
-	ThreadState->LastCycle = Cycle;
+	++ThreadState->Depth;
+	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(CpuProfiler, EventBatch);
+	if (!bEventEnabled & (bEventEnabled == ThreadState->bEnabled))
+	{
+		return;
+	}
+	ThreadState->bEnabled = bEventEnabled;
+	if (!bEventEnabled)
+	{
+		FCpuProfilerTraceInternal::EndCapture(ThreadState);
+		return;
+	}
 	if (ThreadState->BufferSize >= FCpuProfilerTraceInternal::FullBufferThreshold)
 	{
 		FCpuProfilerTraceInternal::FlushThreadBuffer(ThreadState);
 	}
+	uint64 Cycle = FPlatformTime::Cycles64();
+	uint64 CycleDiff = Cycle - ThreadState->LastCycle;
+	ThreadState->LastCycle = Cycle;
 	uint8* BufferPtr = ThreadState->Buffer + ThreadState->BufferSize;
 	FTraceUtils::Encode7bit((CycleDiff << 1) | 1ull, BufferPtr);
 	FTraceUtils::Encode7bit(SpecId, BufferPtr);
@@ -86,14 +106,26 @@ void FCpuProfilerTrace::OutputBeginEvent(uint16 SpecId)
 
 void FCpuProfilerTrace::OutputEndEvent()
 {
-	uint64 Cycle = FPlatformTime::Cycles64();
-	FCpuProfilerTraceInternal::FThreadState* ThreadState = FCpuProfilerTraceInternal::GetThreadState();
-	uint64 CycleDiff = Cycle - ThreadState->LastCycle;
-	ThreadState->LastCycle = Cycle;
-	if (ThreadState->BufferSize >= FCpuProfilerTraceInternal::FullBufferThreshold)
+	FCpuProfilerTraceInternal::FThreadState* ThreadState = FCpuProfilerTraceInternal::ThreadLocalThreadState;
+	--ThreadState->Depth;
+	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(CpuProfiler, EventBatch);
+	if (!bEventEnabled & (bEventEnabled == ThreadState->bEnabled))
+	{
+		return;
+	}
+	ThreadState->bEnabled = bEventEnabled;
+	if (!bEventEnabled)
+	{
+		FCpuProfilerTraceInternal::EndCapture(ThreadState);
+		return;
+	}
+	if ((ThreadState->Depth == 0) | (ThreadState->BufferSize >= FCpuProfilerTraceInternal::FullBufferThreshold))
 	{
 		FCpuProfilerTraceInternal::FlushThreadBuffer(ThreadState);
 	}
+	uint64 Cycle = FPlatformTime::Cycles64();
+	uint64 CycleDiff = Cycle - ThreadState->LastCycle;
+	ThreadState->LastCycle = Cycle;
 	uint8* BufferPtr = ThreadState->Buffer + ThreadState->BufferSize;
 	FTraceUtils::Encode7bit(CycleDiff << 1, BufferPtr);
 	ThreadState->BufferSize = BufferPtr - ThreadState->Buffer;
@@ -113,5 +145,13 @@ uint16 FCpuProfilerTrace::OutputEventType(const TCHAR* Name, ECpuProfilerGroup G
 	return Id;
 }
 
+void FCpuProfilerTrace::Init(bool bStartEnabled)
+{
+	if (bStartEnabled)
+	{
+		UE_TRACE_EVENT_IS_ENABLED(CpuProfiler, EventBatch);
+		Trace::ToggleEvent(TEXT("CpuProfiler.EventBatch"), true);
+	}
+}
 
 #endif

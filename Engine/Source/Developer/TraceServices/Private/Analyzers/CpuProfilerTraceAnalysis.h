@@ -19,7 +19,7 @@ public:
 	FCpuProfilerAnalyzer(Trace::IAnalysisSession& Session, Trace::FTimingProfilerProvider& TimingProfilerProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
-	virtual void OnAnalysisEnd() override {};
+	virtual void OnAnalysisEnd() override;
 
 private:
 	struct EventScopeState
@@ -41,10 +41,14 @@ private:
 	{
 		RouteId_EventSpec,
 		RouteId_EventBatch,
+		RouteId_EndCapture,
 	};
 
 	Trace::IAnalysisSession& Session;
 	Trace::FTimingProfilerProvider& TimingProfilerProvider;
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStatesMap;
 	TMap<uint16, uint32> ScopeIdToEventIdMap;
+	uint64 TotalEventSize = 0;
+	uint64 TotalScopeCount = 0;
+	double BytesPerScope = 0.0;
 };

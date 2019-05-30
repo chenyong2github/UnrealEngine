@@ -4,8 +4,8 @@
 
 #include "CoreTypes.h"
 
-#if !IS_PROGRAM && !UE_BUILD_SHIPPING
-#define CPUPROFILERTRACE_ENABLED 0
+#if !IS_PROGRAM && !UE_BUILD_SHIPPING && (PLATFORM_WINDOWS || PLATFORM_PS4 || PLATFORM_XBOXONE)
+#define CPUPROFILERTRACE_ENABLED 1
 #else
 #define CPUPROFILERTRACE_ENABLED 0
 #endif
@@ -22,6 +22,7 @@ enum ECpuProfilerGroup
 
 struct FCpuProfilerTrace
 {
+	CORE_API static void Init(bool bStartEnabled);
 	CORE_API static uint16 OutputEventType(const TCHAR* Name, ECpuProfilerGroup Group);
 	CORE_API static void OutputBeginEvent(uint16 SpecId);
 	CORE_API static void OutputEndEvent();
