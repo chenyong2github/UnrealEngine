@@ -74,6 +74,7 @@ void FMorphVertexBuffer::InitDynamicRHI()
 	FRHIResourceCreateInfo CreateInfo;
 
 	const bool bUseGPUMorphTargets = UseGPUMorphTargets(GMaxRHIShaderPlatform);
+	bUsesComputeShader = bUseGPUMorphTargets;
 
 #if PLATFORM_PS4
 	// PS4 requires non-static buffers in order to be updated on the GPU while the CPU is writing into it
