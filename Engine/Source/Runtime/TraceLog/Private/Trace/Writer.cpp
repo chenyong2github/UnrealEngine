@@ -313,7 +313,7 @@ public:
 private:
 	static const uint32	PageShift = 16;
 	static const uint32	PageSize = 1 << PageShift;
-	static const uint32	MaxPages = (4 * 1024 * 1024) >> PageShift;
+	static const uint32	MaxPages = (64 * 1024) >> PageShift;
 	uint8*				Base;
 	int32				Used;
 	uint16				MappedPageCount;
