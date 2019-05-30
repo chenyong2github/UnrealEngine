@@ -9,9 +9,9 @@
  */
 struct FMeshTriInfoCache
 {
-	FDynamicVector<FVector3d> Centroids;
-	FDynamicVector<FVector3d> Normals;
-	FDynamicVector<double> Areas;
+	TDynamicVector<FVector3d> Centroids;
+	TDynamicVector<FVector3d> Normals;
+	TDynamicVector<double> Areas;
 
 	void GetTriInfo(int TriangleID, FVector3d& NormalOut, double& AreaOut, FVector3d& CentroidOut) const
 	{

@@ -5,7 +5,7 @@
 
 
 template<typename RealType>
-void FMeshTangents<RealType>::SetTangentCount(int Count, bool bClearToZero)
+void TMeshTangents<RealType>::SetTangentCount(int Count, bool bClearToZero)
 {
 	if (Tangents.Num() < Count)
 	{
@@ -28,7 +28,7 @@ void FMeshTangents<RealType>::SetTangentCount(int Count, bool bClearToZero)
 
 
 template<typename RealType>
-void FMeshTangents<RealType>::Internal_ComputePerTriangleTangents(const FDynamicMeshNormalOverlay* NormalOverlay, const FDynamicMeshUVOverlay* UVOverlay)
+void TMeshTangents<RealType>::Internal_ComputePerTriangleTangents(const FDynamicMeshNormalOverlay* NormalOverlay, const FDynamicMeshUVOverlay* UVOverlay)
 {
 	int MaxTriangleID = Mesh->MaxTriangleID();
 	InitializePerTriangleTangents(false);
@@ -68,8 +68,8 @@ void FMeshTangents<RealType>::Internal_ComputePerTriangleTangents(const FDynamic
 }
 
 
-template class DYNAMICMESH_API FMeshTangents<float>;
-template class DYNAMICMESH_API FMeshTangents<double>;
+template class DYNAMICMESH_API TMeshTangents<float>;
+template class DYNAMICMESH_API TMeshTangents<double>;
 
 
 

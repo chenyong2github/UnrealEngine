@@ -13,7 +13,7 @@
  * Compute intersection between 3D ray and 3D axis-aligned box
  */
 template <typename RealType>
-class FIntrRay3AxisAlignedBox3
+class TIntrRay3AxisAlignedBox3
 {
 public:
 
@@ -28,7 +28,7 @@ public:
 	 * @param ExpandExtents box is expanded by this amount in each direction, useful for dealing with float imprecision
 	 * @return true if ray intersects box
 	 */
-	static bool TestIntersection(const FRay3<RealType>& Ray, const FAxisAlignedBox3<RealType>& Box, RealType ExpandExtents = 0)
+	static bool TestIntersection(const TRay3<RealType>& Ray, const TAxisAlignedBox3<RealType>& Box, RealType ExpandExtents = 0)
 	{
 		FVector3<RealType> WdU = FVector3<RealType>::Zero();
 		FVector3<RealType> AWdU = FVector3<RealType>::Zero();
@@ -102,7 +102,7 @@ public:
 	 * @param RayParamOut ray intersect T-value, or TNumericLimits::Max()
 	 * @return true if ray intersects box
 	 */
-	static bool FindIntersection(const FRay3<RealType>& Ray, const FAxisAlignedBox3<RealType>& Box, RealType& RayParamOut)
+	static bool FindIntersection(const TRay3<RealType>& Ray, const TAxisAlignedBox3<RealType>& Box, RealType& RayParamOut)
 	{
 		RealType RayParam0 = 0.0;
 		RealType RayParam1 = TNumericLimits<RealType>::Max();
@@ -134,7 +134,7 @@ protected:
 
 	static bool DoClipping(RealType t0, RealType t1,
 		const FVector3<RealType>& RayOrigin, const FVector3<RealType>& RayDirection,
-		const FAxisAlignedBox3<RealType>& Box, bool solid, 
+		const TAxisAlignedBox3<RealType>& Box, bool solid, 
 		int& quantity, FVector3<RealType>& Point0, FVector3<RealType>& Point1, EIntersectionType& intrType)
 	{
 		FVector3<RealType> BOrigin = RayOrigin - Box.Center();
@@ -216,5 +216,5 @@ protected:
 
 };
 
-typedef FIntrRay3AxisAlignedBox3<float> FIntrRay3AxisAlignedBox3f;
-typedef FIntrRay3AxisAlignedBox3<double> FIntrRay3AxisAlignedBox3d;
+typedef TIntrRay3AxisAlignedBox3<float> FIntrRay3AxisAlignedBox3f;
+typedef TIntrRay3AxisAlignedBox3<double> FIntrRay3AxisAlignedBox3d;

@@ -9,14 +9,14 @@
 #include "Quaternion.h"
 
 /**
- * FFrame3 is an object that represents an oriented 3D coordinate frame, ie orthogonal X/Y/Z axes at a point in space.
+ * TFrame3 is an object that represents an oriented 3D coordinate frame, ie orthogonal X/Y/Z axes at a point in space.
  * One can think of this Frame as a local coordinate space measured along these axes.
  * Functions are provided to map geometric objects to/from the Frame coordinate space.
  * 
  * Internally the representation is the same as an FTransform, except a Frame has no Scale.
  */
 template<typename RealType>
-struct FFrame3
+struct TFrame3
 {
 	/**
 	 * Origin of the frame
@@ -26,30 +26,30 @@ struct FFrame3
 	/**
 	 * Rotation of the frame. Think of this as the rotation of the unit X/Y/Z axes to the 3D frame axes.
 	 */
-	FQuaternion<RealType> Rotation;
+	TQuaternion<RealType> Rotation;
 
 	/**
 	 * Construct a frame positioned at (0,0,0) aligned to the unit axes
 	 */
-	FFrame3()
+	TFrame3()
 	{
 		Origin = FVector3<RealType>::Zero();
-		Rotation = FQuaternion<RealType>::Identity();
+		Rotation = TQuaternion<RealType>::Identity();
 	}
 
 	/**
 	 * Construct a frame at the given Origin aligned to the unit axes
 	 */
-	FFrame3(const FVector3<RealType>& OriginIn)
+	TFrame3(const FVector3<RealType>& OriginIn)
 	{
 		Origin = OriginIn;
-		Rotation = FQuaternion<RealType>::Identity();
+		Rotation = TQuaternion<RealType>::Identity();
 	}
 
 	/**
 	 * Construct a Frame from the given Origin and Rotation
 	 */
-	FFrame3(const FVector3<RealType>& OriginIn, const FQuaternion<RealType> RotationIn)
+	TFrame3(const FVector3<RealType>& OriginIn, const TQuaternion<RealType> RotationIn)
 	{
 		Origin = OriginIn;
 		Rotation = RotationIn;
@@ -60,7 +60,7 @@ struct FFrame3
 	 * @param OriginIn origin of frame
 	 * @param SetZ target Z axis
 	 */
-	FFrame3(const FVector3<RealType>& OriginIn, const FVector3<RealType>& SetZ)
+	TFrame3(const FVector3<RealType>& OriginIn, const FVector3<RealType>& SetZ)
 	{
 		Origin = OriginIn;
 		Rotation.SetFromTo(FVector3<RealType>::UnitZ(), SetZ);
@@ -73,14 +73,14 @@ struct FFrame3
 	 * @param Y desired Y axis of frame
 	 * @param Z desired Z axis of frame
 	 */
-	FFrame3(const FVector3<RealType>& OriginIn, const FVector3<RealType>& X, const FVector3<RealType>& Y, const FVector3<RealType>& Z)
+	TFrame3(const FVector3<RealType>& OriginIn, const FVector3<RealType>& X, const FVector3<RealType>& Y, const FVector3<RealType>& Z)
 	{
 		Origin = OriginIn;
-		Rotation = FQuaternion<RealType>( FMatrix3<RealType>(X, Y, Z, false) );
+		Rotation = TQuaternion<RealType>( TMatrix3<RealType>(X, Y, Z, false) );
 	}
 
 	/** Construct a Frame from an FTransform */
-	FFrame3(const FTransform& Transform)
+	TFrame3(const FTransform& Transform)
 	{
 		Origin = Transform.GetTranslation();
 		Rotation = Transform.GetRotation();
@@ -169,38 +169,38 @@ struct FFrame3
 
 
 	/** @return input Quaternion transformed into local coordinate system of Frame */
-	FQuaternion<RealType> ToFrame(const FQuaternion<RealType>& Quat) const
+	TQuaternion<RealType> ToFrame(const TQuaternion<RealType>& Quat) const
 	{
 		return Rotation.Inverse() * Quat;
 	}
 	/** @return input Quaternion transformed from local coordinate system of Frame into "World" coordinate system */
-	FQuaternion<RealType> FromFrame(const FQuaternion<RealType>& Quat) const
+	TQuaternion<RealType> FromFrame(const TQuaternion<RealType>& Quat) const
 	{
 		return Rotation * Quat;
 	}
 
 
 	/** @return input Ray transformed into local coordinate system of Frame */
-	FRay3<RealType> ToFrame(const FRay3<RealType>& Ray) const
+	TRay3<RealType> ToFrame(const TRay3<RealType>& Ray) const
 	{
-		return FRay3<RealType>(ToFramePoint(Ray.Origin), ToFrameVector(Ray.Direction));
+		return TRay3<RealType>(ToFramePoint(Ray.Origin), ToFrameVector(Ray.Direction));
 	}
 	/** @return input Ray transformed from local coordinate system of Frame into "World" coordinate system */
-	FRay3<RealType> FromFrame(const FRay3<RealType>& Ray) const
+	TRay3<RealType> FromFrame(const TRay3<RealType>& Ray) const
 	{
-		return FRay3<RealType>(ToFramePoint(Ray.Origin), ToFrameVector(Ray.Direction));
+		return TRay3<RealType>(ToFramePoint(Ray.Origin), ToFrameVector(Ray.Direction));
 	}
 
 
 	/** @return input Frame transformed into local coordinate system of this Frame */
-	FFrame3<RealType> ToFrame(const FFrame3<RealType>& Frame) const
+	TFrame3<RealType> ToFrame(const TFrame3<RealType>& Frame) const
 	{
-		return FFrame3<RealType>(ToFramePoint(Frame.Origin), ToFrame(Frame.Rotation));
+		return TFrame3<RealType>(ToFramePoint(Frame.Origin), ToFrame(Frame.Rotation));
 	}
 	/** @return input Frame transformed from local coordinate system of this Frame into "World" coordinate system */
-	FFrame3<RealType> FromFrame(const FFrame3<RealType>& Frame) const
+	TFrame3<RealType> FromFrame(const TFrame3<RealType>& Frame) const
 	{
-		return FFrame3<RealType>(ToFramePoint(Frame.Origin), FromFrame(Frame.Rotation));
+		return TFrame3<RealType>(ToFramePoint(Frame.Origin), FromFrame(Frame.Rotation));
 	}
 
 
@@ -273,7 +273,7 @@ struct FFrame3
 	/**
 	 * Rotate this frame by given quaternion
 	 */
-	void Rotate(const FQuaternion<RealType>& Quat)
+	void Rotate(const TQuaternion<RealType>& Quat)
 	{
 		Rotation = Quat * Rotation;
 	}
@@ -285,7 +285,7 @@ struct FFrame3
 	void Transform(const FTransform& XForm)
 	{
 		Origin = (FVector3<RealType>)XForm.TransformPosition((FVector3f)Origin);
-		Rotation = FQuaternion<RealType>(XForm.GetRotation()) * Rotation;
+		Rotation = TQuaternion<RealType>(XForm.GetRotation()) * Rotation;
 	}
 
 
@@ -296,7 +296,7 @@ struct FFrame3
 	 */
 	void AlignAxis(int AxisIndex, const FVector3<RealType>& ToDirection)
 	{
-		FQuaternion<RealType> RelRotation(GetAxis(AxisIndex), ToDirection);
+		TQuaternion<RealType> RelRotation(GetAxis(AxisIndex), ToDirection);
 		Rotate(RelRotation);
 	}
 
@@ -312,7 +312,7 @@ struct FFrame3
 		//@todo PlaneAngleSigned does acos() and then SetAxisAngleD() does cos/sin...can we optimize this?
 		FVector3<RealType> AxisVec = GetAxis(AxisIndex);
 		RealType AngleDeg = VectorUtil::PlaneAngleSignedD(AxisVec, ToDirection, AroundVector);
-		FQuaternion<RealType> RelRotation;
+		TQuaternion<RealType> RelRotation;
 		RelRotation.SetAxisAngleD(AroundVector, AngleDeg);
 		Rotate(RelRotation);
 	}
@@ -372,6 +372,6 @@ struct FFrame3
 
 };
 
-typedef FFrame3<float> FFrame3f;
-typedef FFrame3<double> FFrame3d;
+typedef TFrame3<float> FFrame3f;
+typedef TFrame3<double> FFrame3d;
 

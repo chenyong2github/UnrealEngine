@@ -7,21 +7,21 @@ const int32 FSmallListSet::NullValue = -1;
 
 FSmallListSet::FSmallListSet()
 {
-	ListHeads = FDynamicVector<int32>();
-	LinkedListElements = FDynamicVector<int32>();
+	ListHeads = TDynamicVector<int32>();
+	LinkedListElements = TDynamicVector<int32>();
 	FreeHeadIndex = NullValue;
-	ListBlocks = FDynamicVector<int32>();
-	FreeBlocks = FDynamicVector<int32>();
+	ListBlocks = TDynamicVector<int32>();
+	FreeBlocks = TDynamicVector<int32>();
 }
 
 
 FSmallListSet::FSmallListSet(const FSmallListSet& copy)
 {
-	LinkedListElements = FDynamicVector<int32>(copy.LinkedListElements);
+	LinkedListElements = TDynamicVector<int32>(copy.LinkedListElements);
 	FreeHeadIndex = copy.FreeHeadIndex;
-	ListHeads = FDynamicVector<int32>(copy.ListHeads);
-	ListBlocks = FDynamicVector<int32>(copy.ListBlocks);
-	FreeBlocks = FDynamicVector<int32>(copy.FreeBlocks);
+	ListHeads = TDynamicVector<int32>(copy.ListHeads);
+	ListBlocks = TDynamicVector<int32>(copy.ListBlocks);
+	FreeBlocks = TDynamicVector<int32>(copy.FreeBlocks);
 }
 
 

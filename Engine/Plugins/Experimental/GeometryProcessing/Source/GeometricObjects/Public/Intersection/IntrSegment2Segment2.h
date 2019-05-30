@@ -46,12 +46,12 @@
  * Calculate intersection between two 2D line segments
  */
 template<typename RealType>
-class FIntrSegment2Segment2
+class TIntrSegment2Segment2
 {
 protected:
 	// inputs
-	FSegment2<RealType> Segment1;
-	FSegment2<RealType> Segment2;
+	TSegment2<RealType> Segment1;
+	TSegment2<RealType> Segment2;
 	RealType IntervalThreshold = 0;
 	RealType DotThreshold = TMathUtil<RealType>::ZeroTolerance;
 
@@ -69,29 +69,29 @@ public:
 
 
 
-	FIntrSegment2Segment2(const FSegment2<RealType>& Segment1In, const FSegment2<RealType>& Segment2In)
+	TIntrSegment2Segment2(const TSegment2<RealType>& Segment1In, const TSegment2<RealType>& Segment2In)
 		: Segment1(Segment1In), Segment2(Segment2In)
 	{
 	}
 
 
-	const FSegment2<RealType>& GetSegment1() const
+	const TSegment2<RealType>& GetSegment1() const
 	{
 		return Segment1;
 	}
 
-	void SetSegment1(const FSegment2<RealType>& Value)
+	void SetSegment1(const TSegment2<RealType>& Value)
 	{
 		Segment1 = Value;
 		Result = EIntersectionResult::NotComputed;
 	}
 
-	const FSegment2<RealType>& GetSegment2() const
+	const TSegment2<RealType>& GetSegment2() const
 	{
 		return Segment2;
 	}
 
-	void SetSegment2(const FSegment2<RealType>& Value)
+	void SetSegment2(const TSegment2<RealType>& Value)
 	{
 		Segment2 = Value;
 		Result = EIntersectionResult::NotComputed;
@@ -125,7 +125,7 @@ public:
 	}
 
 
-	FIntrSegment2Segment2& Compute()
+	TIntrSegment2Segment2& Compute()
 	{
 		Find();
 		return *this;
@@ -150,7 +150,7 @@ public:
 
 
 		FVector2<RealType> s = FVector2<RealType>::Zero();
-		Type = FIntrLine2Line2<RealType>::Classify(Segment1.Center, Segment1.Direction,
+		Type = TIntrLine2Line2<RealType>::Classify(Segment1.Center, Segment1.Direction,
 			Segment2.Center, Segment2.Direction,
 			DotThreshold, s);
 
@@ -177,7 +177,7 @@ public:
 			RealType t1 = Segment1.Direction.Dot(diff);
 			RealType tmin = t1 - Segment2.Extent;
 			RealType tmax = t1 + Segment2.Extent;
-			FIntersector1<RealType> calc(-Segment1.Extent, Segment1.Extent, tmin, tmax);
+			TIntersector1<RealType> calc(-Segment1.Extent, Segment1.Extent, tmin, tmax);
 			calc.Find();
 			Quantity = calc.NumIntersections;
 			if (Quantity == 2) 
@@ -242,5 +242,5 @@ protected:
 	}
 };
 
-typedef FIntrSegment2Segment2<double> FIntrSegment2Segment2d;
-typedef FIntrSegment2Segment2<float> FIntrSegment2Segment2f;
+typedef TIntrSegment2Segment2<double> FIntrSegment2Segment2d;
+typedef TIntrSegment2Segment2<float> FIntrSegment2Segment2f;

@@ -39,22 +39,22 @@ FDynamicMesh3::~FDynamicMesh3()
 
 FDynamicMesh3::FDynamicMesh3(bool bWantNormals, bool bWantColors, bool bWantUVs, bool bWantTriGroups)
 {
-	Vertices = FDynamicVector<double>();
-	VertexNormals = (bWantNormals) ? new FDynamicVector<float>() : nullptr;
-	VertexColors = (bWantColors) ? new FDynamicVector<float>() : nullptr;
-	VertexUVs = (bWantUVs) ? new FDynamicVector<float>() : nullptr;
+	Vertices = TDynamicVector<double>();
+	VertexNormals = (bWantNormals) ? new TDynamicVector<float>() : nullptr;
+	VertexColors = (bWantColors) ? new TDynamicVector<float>() : nullptr;
+	VertexUVs = (bWantUVs) ? new TDynamicVector<float>() : nullptr;
 
 	VertexEdgeLists = FSmallListSet();
 
 	VertexRefCounts = FRefCountVector();
 
-	Triangles = FDynamicVector<int>();
-	TriangleEdges = FDynamicVector<int>();
+	Triangles = TDynamicVector<int>();
+	TriangleEdges = TDynamicVector<int>();
 	TriangleRefCounts = FRefCountVector();
-	TriangleGroups = (bWantTriGroups) ? new FDynamicVector<int>() : nullptr;
+	TriangleGroups = (bWantTriGroups) ? new TDynamicVector<int>() : nullptr;
 	GroupIDCounter = 0;
 
-	Edges = FDynamicVector<int>();
+	Edges = TDynamicVector<int>();
 	EdgeRefCounts = FRefCountVector();
 
 	AttributeSet = nullptr;
@@ -106,15 +106,15 @@ void FDynamicMesh3::Copy(const FMeshShapeGenerator* Generator)
 {
 	Clear();
 
-	Vertices = FDynamicVector<double>();
+	Vertices = TDynamicVector<double>();
 	VertexEdgeLists = FSmallListSet();
 	VertexRefCounts = FRefCountVector();
-	Triangles = FDynamicVector<int>();
-	TriangleEdges = FDynamicVector<int>();
+	Triangles = TDynamicVector<int>();
+	TriangleEdges = TDynamicVector<int>();
 	TriangleRefCounts = FRefCountVector();
-	TriangleGroups = new FDynamicVector<int>();
+	TriangleGroups = new TDynamicVector<int>();
 	GroupIDCounter = 0;
-	Edges = FDynamicVector<int>();
+	Edges = TDynamicVector<int>();
 	EdgeRefCounts = FRefCountVector();
 
 	EnableAttributes();
@@ -160,23 +160,23 @@ void FDynamicMesh3::Copy(const FDynamicMesh3& copy, bool bNormals, bool bColors,
 	DiscardTriangleGroups();
 	DiscardAttributes();
 
-	Vertices = FDynamicVector<double>(copy.Vertices);
+	Vertices = TDynamicVector<double>(copy.Vertices);
 
-	VertexNormals = (bNormals && copy.HasVertexNormals()) ? new FDynamicVector<float>(*copy.VertexNormals) : nullptr;
-	VertexColors = (bColors && copy.HasVertexColors()) ? new FDynamicVector<float>(*copy.VertexColors) : nullptr;
-	VertexUVs = (bUVs && copy.HasVertexUVs()) ? new FDynamicVector<float>(*copy.VertexUVs) : nullptr;
+	VertexNormals = (bNormals && copy.HasVertexNormals()) ? new TDynamicVector<float>(*copy.VertexNormals) : nullptr;
+	VertexColors = (bColors && copy.HasVertexColors()) ? new TDynamicVector<float>(*copy.VertexColors) : nullptr;
+	VertexUVs = (bUVs && copy.HasVertexUVs()) ? new TDynamicVector<float>(*copy.VertexUVs) : nullptr;
 
 	VertexRefCounts = FRefCountVector(copy.VertexRefCounts);
 
 	VertexEdgeLists = FSmallListSet(copy.VertexEdgeLists);
 
-	Triangles = FDynamicVector<int>(copy.Triangles);
-	TriangleEdges = FDynamicVector<int>(copy.TriangleEdges);
+	Triangles = TDynamicVector<int>(copy.Triangles);
+	TriangleEdges = TDynamicVector<int>(copy.TriangleEdges);
 	TriangleRefCounts = FRefCountVector(copy.TriangleRefCounts);
-	TriangleGroups = (copy.HasTriangleGroups()) ? new FDynamicVector<int>(*copy.TriangleGroups) : nullptr;
+	TriangleGroups = (copy.HasTriangleGroups()) ? new TDynamicVector<int>(*copy.TriangleGroups) : nullptr;
 	GroupIDCounter = copy.GroupIDCounter;
 
-	Edges = FDynamicVector<int>(copy.Edges);
+	Edges = TDynamicVector<int>(copy.Edges);
 	EdgeRefCounts = FRefCountVector(copy.EdgeRefCounts);
 
 	if (bAttributes && copy.HasAttributes())
@@ -212,17 +212,17 @@ void FDynamicMesh3::CompactCopy(const FDynamicMesh3& copy, bool bNormals, bool b
 	DiscardVertexUVs();
 	DiscardTriangleGroups();
 
-	Vertices = FDynamicVector<double>();
+	Vertices = TDynamicVector<double>();
 	VertexEdgeLists = FSmallListSet();
 	VertexRefCounts = FRefCountVector();
-	Triangles = FDynamicVector<int>();
-	TriangleEdges = FDynamicVector<int>();
+	Triangles = TDynamicVector<int>();
+	TriangleEdges = TDynamicVector<int>();
 	TriangleRefCounts = FRefCountVector();
-	Edges = FDynamicVector<int>();
+	Edges = TDynamicVector<int>();
 	EdgeRefCounts = FRefCountVector();
 	GroupIDCounter = 0;
 
-	TriangleGroups = (copy.HasTriangleGroups()) ? new FDynamicVector<int>(*copy.TriangleGroups) : nullptr;
+	TriangleGroups = (copy.HasTriangleGroups()) ? new TDynamicVector<int>(*copy.TriangleGroups) : nullptr;
 
 	// [TODO] if we knew some of these were dense we could copy directly...
 
@@ -327,7 +327,7 @@ void FDynamicMesh3::EnableVertexNormals(const FVector3f& InitialNormal)
 	{
 		return;
 	}
-	VertexNormals = new FDynamicVector<float>();
+	VertexNormals = new TDynamicVector<float>();
 	int NV = MaxVertexID();
 	VertexNormals->Resize(3 * NV);
 	for (int i = 0; i < NV; ++i)
@@ -358,7 +358,7 @@ void FDynamicMesh3::EnableVertexColors(const FVector3f& InitialColor)
 	{
 		return;
 	}
-	VertexColors = new FDynamicVector<float>();
+	VertexColors = new TDynamicVector<float>();
 	int NV = MaxVertexID();
 	VertexColors->Resize(3 * NV);
 	for (int i = 0; i < NV; ++i)
@@ -388,7 +388,7 @@ void FDynamicMesh3::EnableVertexUVs(const FVector2f& InitialUV)
 	{
 		return;
 	}
-	VertexUVs = new FDynamicVector<float>();
+	VertexUVs = new TDynamicVector<float>();
 	int NV = MaxVertexID();
 	VertexUVs->Resize(2 * NV);
 	for (int i = 0; i < NV; ++i)
@@ -416,7 +416,7 @@ void FDynamicMesh3::EnableTriangleGroups(int InitialGroup)
 	{
 		return;
 	}
-	TriangleGroups = new FDynamicVector<int>();
+	TriangleGroups = new TDynamicVector<int>();
 	int NT = MaxTriangleID();
 	TriangleGroups->Resize(NT);
 	for (int i = 0; i < NT; ++i)

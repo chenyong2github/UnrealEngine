@@ -14,12 +14,12 @@
 * Compute unsigned distance between 3D line and 3D segment
 */
 template <typename Real>
-class FDistLine3Segment3
+class TDistLine3Segment3
 {
 public:
 	// Input
-	FLine3<Real> Line;
-	FSegment3<Real> Segment;
+	TLine3<Real> Line;
+	TSegment3<Real> Segment;
 
 	// Output
 	Real DistanceSquared = -1.0;
@@ -27,7 +27,7 @@ public:
 	FVector3<Real> LineClosest, SegmentClosest;
 
 
-	FDistLine3Segment3(const FLine3<Real>& LineIn, const FSegment3<Real>& SegmentIn) : Line(LineIn), Segment(SegmentIn)
+	TDistLine3Segment3(const TLine3<Real>& LineIn, const TSegment3<Real>& SegmentIn) : Line(LineIn), Segment(SegmentIn)
 	{
 	}
 
@@ -117,6 +117,6 @@ public:
 	}
 };
 
-typedef FDistLine3Segment3<float> FDistLine3Segment3f;
-typedef FDistLine3Segment3<double> FDistLine3Segment3d;
+typedef TDistLine3Segment3<float> FDistLine3Segment3f;
+typedef TDistLine3Segment3<double> FDistLine3Segment3d;
 

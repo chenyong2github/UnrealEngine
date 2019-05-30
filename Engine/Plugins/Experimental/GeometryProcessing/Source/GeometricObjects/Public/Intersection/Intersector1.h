@@ -11,22 +11,22 @@
 #include "BoxTypes.h"
 
 /**
- * FIntersector1 computes the intersection of one-dimensional intervals [u0,u1] and [v0,v1].
+ * TIntersector1 computes the intersection of one-dimensional intervals [u0,u1] and [v0,v1].
  * The end points of the input intervals must be ordered u0 <= u1 and v0 <= v1.
  * Infinite and degenerate intervals are allowed.
  */
 template<typename RealType>
-class FIntersector1
+class TIntersector1
 {
 private:
 	/** intersection point/interval, access via GetIntersection */
-	FInterval1<RealType> Intersections;
+	TInterval1<RealType> Intersections;
 
 public:
 	/** First interval */
-	FInterval1<RealType> U;
+	TInterval1<RealType> U;
 	/** Second interval */
-	FInterval1<RealType> V;
+	TInterval1<RealType> V;
 
 	/**
 	 * Number of intersections found.
@@ -36,13 +36,13 @@ public:
 	 */
 	int NumIntersections = 0;
 
-	FIntersector1(RealType u0, RealType u1, RealType v0, RealType v1) : Intersections(0,0), U(u0, u1), V(v0, v1)
+	TIntersector1(RealType u0, RealType u1, RealType v0, RealType v1) : Intersections(0,0), U(u0, u1), V(v0, v1)
 	{
 		check(u0 <= u1);
 		check(v0 <= v1);
 	}
 
-	FIntersector1(const FInterval1<RealType>& u, const FInterval1<RealType>& v) : Intersections(0, 0), U(u), V(v)
+	TIntersector1(const TInterval1<RealType>& u, const TInterval1<RealType>& v) : Intersections(0, 0), U(u), V(v)
 	{
 	}
 
@@ -104,5 +104,5 @@ public:
 
 };
 
-typedef FIntersector1<double> FIntersector1d;
-typedef FIntersector1<float> FIntersector1f;
+typedef TIntersector1<double> FIntersector1d;
+typedef TIntersector1<float> FIntersector1f;

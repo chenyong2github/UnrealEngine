@@ -11,7 +11,7 @@
  * Integer IDs must be provided by the user to identify unique nodes.
  * Internally an array is used to keep track of the mapping from ids to internal indices, so the max ID must also be provided.
  *
- * @todo based on C# code where FDynamicVector could not return a reference to internal element. In C++ we can and code could be updated to be more efficient in many places.
+ * @todo based on C# code where TDynamicVector could not return a reference to internal element. In C++ we can and code could be updated to be more efficient in many places.
  * @todo id_to_index could be sparse in many situations...
  */
 class FIndexPriorityQueue
@@ -29,7 +29,7 @@ public:
 	};
 
 	/** tree of allocated nodes, stored linearly. active up to num_nodes (allocated may be larger) */
-	FDynamicVector<FQueueNode> nodes;
+	TDynamicVector<FQueueNode> nodes;
 	/** count of active nodes */
 	int num_nodes;
 	/** mapping from external ids to internal node indices */

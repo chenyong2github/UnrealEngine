@@ -18,10 +18,10 @@
 template <typename T>
 class FDynamicGraph2 : public FDynamicGraph
 {
-	FAxisAlignedBox2<T> cached_bounds;
+	TAxisAlignedBox2<T> cached_bounds;
 	int cached_bounds_timestamp = -1;
 
-	FDynamicVectorN<T, 2> vertices;
+	TDynamicVectorN<T, 2> vertices;
 
 public:
 	static FVector2<T> InvalidVertex()
@@ -56,11 +56,11 @@ public:
 		return false;
 	}
 
-	FSegment2<T> GetEdgeSegment(int EID) const
+	TSegment2<T> GetEdgeSegment(int EID) const
 	{
 		checkf(edges_refcount.IsValid(EID), TEXT("FDynamicGraph2.GetEdgeSegment: invalid segment with id %d"), EID);
 		const FEdge& e = edges[EID];
-		return FSegment2<T>(
+		return TSegment2<T>(
 			vertices.AsVector2(e.A),
 			vertices.AsVector2(e.B));
 	}
@@ -162,7 +162,7 @@ public:
 	// compute vertex bounding box
 	FAxisAlignedBox2d GetBounds() const
 	{
-		FAxisAlignedBox2<T> AABB;
+		TAxisAlignedBox2<T> AABB;
 		for (const FVector2<T>& V : Vertices())
 		{
 			AABB.Contain(V);
@@ -171,7 +171,7 @@ public:
 	}
 
 	//! cached bounding box, lazily re-computed on access if mesh has changed
-	FAxisAlignedBox2<T> CachedBounds()
+	TAxisAlignedBox2<T> CachedBounds()
 	{
 		if (cached_bounds_timestamp != Timestamp())
 		{

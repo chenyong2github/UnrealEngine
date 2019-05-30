@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-// Port of WildMagic DistPoint3FTriangle3
+// Port of WildMagic DistPoint3TTriangle3
 
 #pragma once
 
@@ -27,20 +27,20 @@ namespace TriangleUtil
 
 
 template<typename RealType>
-struct FTriangle2
+struct TTriangle2
 {
 	FVector2<RealType> V[3];
 
-	FTriangle2() {}
+	TTriangle2() {}
 
-	FTriangle2(const FVector2<RealType>& V0, const FVector2<RealType>& V1, const FVector2<RealType>& V2)
+	TTriangle2(const FVector2<RealType>& V0, const FVector2<RealType>& V1, const FVector2<RealType>& V2)
 	{
 		V[0] = V0;
 		V[1] = V1;
 		V[2] = V2;
 	}
 
-	FTriangle2(const FVector2<RealType> VIn[3])
+	TTriangle2(const FVector2<RealType> VIn[3])
 	{
 		V[0] = VIn[0];
 		V[1] = VIn[1];
@@ -100,9 +100,9 @@ struct FTriangle2
 
 };
 
-typedef FTriangle2<float> FTriangle2f;
-typedef FTriangle2<double> FTriangle2d;
-typedef FTriangle2<int> FTriangle2i;
+typedef TTriangle2<float> FTriangle2f;
+typedef TTriangle2<double> FTriangle2d;
+typedef TTriangle2<int> FTriangle2i;
 
 
 
@@ -110,20 +110,20 @@ typedef FTriangle2<int> FTriangle2i;
 
 
 template<typename RealType>
-struct FTriangle3
+struct TTriangle3
 {
 	FVector3<RealType> V[3];
 
-	FTriangle3() {}
+	TTriangle3() {}
 
-	FTriangle3(const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2)
+	TTriangle3(const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2)
 	{
 		V[0] = V0;
 		V[1] = V1;
 		V[2] = V2;
 	}
 
-	FTriangle3(const FVector3<RealType> VIn[3])
+	TTriangle3(const FVector3<RealType> VIn[3])
 	{
 		V[0] = VIn[0];
 		V[1] = VIn[1];
@@ -168,7 +168,7 @@ struct FTriangle3
 	}
 };
 
-typedef FTriangle3<float> FTriangle3f;
-typedef FTriangle3<double> FTriangle3d;
-typedef FTriangle3<int> FTriangle3i;
+typedef TTriangle3<float> FTriangle3f;
+typedef TTriangle3<double> FTriangle3d;
+typedef TTriangle3<int> FTriangle3i;
 

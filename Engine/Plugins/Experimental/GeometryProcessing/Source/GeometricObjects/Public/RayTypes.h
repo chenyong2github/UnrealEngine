@@ -12,7 +12,7 @@
  * 3D Ray stored as Origin point and normalized Direction vector
  */
 template<typename RealType>
-class FRay3
+class TRay3
 {
 public:
 	/** Origin point */
@@ -21,7 +21,7 @@ public:
 	FVector3<RealType> Direction;
 
 	/** Construct ray at origin pointed down Z axis */
-	FRay3()
+	TRay3()
 	{
 		Origin = FVector3<RealType>::Zero();
 		Direction = FVector3<RealType>::UnitZ();
@@ -33,7 +33,7 @@ public:
 	 * @param Direction direction vector. Must be normalized if bIsNormalized=true
 	 * @param bIsNormalized if true, Direction will not be re-normalized
 	 */
-	FRay3(const FVector3<RealType>& Origin, const FVector3<RealType>& Direction, bool bIsNormalized = false)
+	TRay3(const FVector3<RealType>& Origin, const FVector3<RealType>& Direction, bool bIsNormalized = false)
 	{
 		this->Origin = Origin;
 		this->Direction = Direction;
@@ -102,7 +102,7 @@ public:
 	{
 		return FRay((FVector)Origin, (FVector)Direction);
 	}
-	inline FRay3(const FRay & RayIn)
+	inline TRay3(const FRay & RayIn)
 	{
 		Origin = (FVector3<RealType>)RayIn.Origin;
 		Direction = (FVector3<RealType>)RayIn.Direction;
@@ -110,6 +110,6 @@ public:
 
 
 };
-typedef FRay3<float> FRay3f;
-typedef FRay3<double> FRay3d;
+typedef TRay3<float> FRay3f;
+typedef TRay3<double> FRay3d;
 

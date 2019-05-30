@@ -16,11 +16,11 @@
 * Compute unsigned distance between 3D segment and 3D triangle
 */
 template <typename Real>
-class FDistTriangle3Triangle3
+class TDistTriangle3Triangle3
 {
 public:
 	// Input
-	FTriangle3<Real> Triangle[2];
+	TTriangle3<Real> Triangle[2];
 
 	// Output
 	Real DistanceSquared = -1.0;
@@ -28,10 +28,10 @@ public:
 	FVector3<Real> TriangleBaryCoords[2];
 
 
-	FDistTriangle3Triangle3()
+	TDistTriangle3Triangle3()
 	{
 	}
-	FDistTriangle3Triangle3(const FTriangle3<Real>& TriangleA, const FTriangle3<Real>& TriangleB)
+	TDistTriangle3Triangle3(const TTriangle3<Real>& TriangleA, const TTriangle3<Real>& TriangleB)
 	{
 		Triangle[0] = TriangleA;
 		Triangle[1] = TriangleB;
@@ -60,9 +60,9 @@ public:
 		int i0, i1;
 		for (i0 = 2, i1 = 0; i1 < 3; i0 = i1++)
 		{
-			FSegment3<Real> edge(Triangle[0].V[i0], Triangle[0].V[i1]);
+			TSegment3<Real> edge(Triangle[0].V[i0], Triangle[0].V[i1]);
 
-			FDistSegment3Triangle3<Real> queryST(edge, Triangle[1]);
+			TDistSegment3Triangle3<Real> queryST(edge, Triangle[1]);
 			sqrDistTmp = queryST.GetSquared();
 			if (sqrDistTmp < sqrDist)
 			{
@@ -87,9 +87,9 @@ public:
 		// Compare edges of Triangle[1] to the interior of Triangle[0].
 		for (i0 = 2, i1 = 0; i1 < 3; i0 = i1++)
 		{
-			FSegment3<Real> edge(Triangle[1].V[i0], Triangle[1].V[i1]);
+			TSegment3<Real> edge(Triangle[1].V[i0], Triangle[1].V[i1]);
 
-			FDistSegment3Triangle3<Real> queryST(edge, Triangle[0]);
+			TDistSegment3Triangle3<Real> queryST(edge, Triangle[0]);
 			sqrDistTmp = queryST.GetSquared();
 			if (sqrDistTmp < sqrDist)
 			{
@@ -117,6 +117,6 @@ public:
 	}
 };
 
-typedef FDistTriangle3Triangle3<float> FDistTriangle3Triangle3f;
-typedef FDistTriangle3Triangle3<double> FDistTriangle3Triangle3d;
+typedef TDistTriangle3Triangle3<float> FDistTriangle3Triangle3f;
+typedef TDistTriangle3Triangle3<double> FDistTriangle3Triangle3d;
 

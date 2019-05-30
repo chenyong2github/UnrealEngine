@@ -25,7 +25,7 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<FVector2<T>>& V
 	{
 		static inline bool IsTriangleFlipped(T OrientationSign, const FVector2<T>& VertexPositionA, const FVector2<T>& VertexPositionB, const FVector2<T>& VertexPositionC)
 		{
-			T TriSignedArea = FTriangle2<T>::SignedArea(VertexPositionA, VertexPositionB, VertexPositionC);
+			T TriSignedArea = TTriangle2<T>::SignedArea(VertexPositionA, VertexPositionB, VertexPositionC);
 			return TriSignedArea * OrientationSign < 0;
 		}
 	};
@@ -102,7 +102,7 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<FVector2<T>>& V
 					// Test every other remaining vertex to make sure that it doesn't lie inside our potential ear
 					// triangle.  If we find a vertex that's inside the triangle, then it cannot actually be an ear.
 					const FVector2<T>& TestVertexPosition = VertexPositions[TestVertexNumber];
-					if (FTriangle2<T>::IsInside(PrevVertexPosition, EarVertexPosition, NextVertexPosition, TestVertexPosition))
+					if (TTriangle2<T>::IsInside(PrevVertexPosition, EarVertexPosition, NextVertexPosition, TestVertexPosition))
 					{
 						bIsEar = false;
 						break;

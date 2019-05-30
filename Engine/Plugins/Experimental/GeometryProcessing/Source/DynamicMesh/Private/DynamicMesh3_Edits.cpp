@@ -316,7 +316,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 		iCurV++;
 	}
 
-	FDynamicVector<short> &vref = VertexRefCounts.GetRawRefCountsUnsafe();
+	TDynamicVector<short> &vref = VertexRefCounts.GetRawRefCountsUnsafe();
 
 	while (iCurV < iLastV)
 	{
@@ -411,7 +411,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 		iCurT++;
 	}
 
-	FDynamicVector<short> &tref = TriangleRefCounts.GetRawRefCountsUnsafe();
+	TDynamicVector<short> &tref = TriangleRefCounts.GetRawRefCountsUnsafe();
 
 	while (iCurT < iLastT)
 	{
@@ -473,7 +473,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 		iCurE++;
 	}
 
-	FDynamicVector<short> &eref = EdgeRefCounts.GetRawRefCountsUnsafe();
+	TDynamicVector<short> &eref = EdgeRefCounts.GetRawRefCountsUnsafe();
 
 	while (iCurE < iLastE) 
 	{

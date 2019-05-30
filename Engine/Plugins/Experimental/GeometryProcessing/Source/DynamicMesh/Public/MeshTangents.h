@@ -6,11 +6,11 @@
 #include "DynamicMeshAttributeSet.h"
 
 /**
- * FMeshTangents is a utility class that can calculate and store various types of
+ * TMeshTangents is a utility class that can calculate and store various types of
  * tangent vectors for a FDynamicMesh.
  */
 template<typename RealType>
-class DYNAMICMESH_API FMeshTangents
+class DYNAMICMESH_API TMeshTangents
 {
 protected:
 	/** Target Mesh */
@@ -21,12 +21,12 @@ protected:
 	TArray<FVector3<RealType>> Bitangents;
 
 public:
-	FMeshTangents()
+	TMeshTangents()
 	{
 		Mesh = nullptr;
 	}
 
-	FMeshTangents(const FDynamicMesh3* Mesh)
+	TMeshTangents(const FDynamicMesh3* Mesh)
 	{
 		SetMesh(Mesh);
 	}
@@ -99,5 +99,5 @@ protected:
 	void Internal_ComputePerTriangleTangents(const FDynamicMeshNormalOverlay* NormalOverlay, const FDynamicMeshUVOverlay* UVOverlay);
 };
 
-typedef FMeshTangents<float> FMeshTangentsf;
-typedef FMeshTangents<double> FMeshTangentsd;
+typedef TMeshTangents<float> FMeshTangentsf;
+typedef TMeshTangents<double> FMeshTangentsd;

@@ -12,19 +12,19 @@
  * Compute unsigned distance between 3D point and 3D triangle
  */
 template <typename Real>
-class FDistPoint3Triangle3
+class TDistPoint3Triangle3
 {
 public:
 	// Input
 	FVector3<Real> Point;
-	FTriangle3<Real> Triangle;
+	TTriangle3<Real> Triangle;
 
 	// Results
 	FVector3<Real> TriangleBaryCoords;
 	FVector3<Real> ClosestTrianglePoint;  // do we need this just use Triangle.BarycentricPoint
 
 
-	FDistPoint3Triangle3(const FVector3<Real>& PointIn, const FTriangle3<Real>& TriangleIn)
+	TDistPoint3Triangle3(const FVector3<Real>& PointIn, const TTriangle3<Real>& TriangleIn)
 	{
 		Point = PointIn;
 		Triangle = TriangleIn;
@@ -270,6 +270,6 @@ public:
 
 };
 
-typedef FDistPoint3Triangle3<float> FDistPoint3Triangle3f;
-typedef FDistPoint3Triangle3<double> FDistPoint3Triangle3d;
+typedef TDistPoint3Triangle3<float> FDistPoint3Triangle3f;
+typedef TDistPoint3Triangle3<double> FDistPoint3Triangle3d;
 

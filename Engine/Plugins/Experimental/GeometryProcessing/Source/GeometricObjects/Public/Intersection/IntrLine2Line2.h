@@ -12,12 +12,12 @@
  * Compute intersection between two 2D lines
  */
 template<typename RealType>
-class FIntrLine2Line2
+class TIntrLine2Line2
 {
 protected:
 	// input data
-	FLine2<RealType> Line1;
-	FLine2<RealType> Line2;
+	TLine2<RealType> Line1;
+	TLine2<RealType> Line2;
 	RealType dotThresh = TMathUtil<RealType>::ZeroTolerance;
 	
 public:
@@ -31,29 +31,29 @@ public:
 
 
 
-	FIntrLine2Line2(const FLine2<RealType>& Line1In, const FLine2<RealType>& Line2In) 
+	TIntrLine2Line2(const TLine2<RealType>& Line1In, const TLine2<RealType>& Line2In)
 		: Line1(Line1In), Line2(Line2In)
 	{
 	}
 
 
-	const FLine2<RealType>& GetLine1() const
+	const TLine2<RealType>& GetLine1() const
 	{
 		return Line1;
 	}
 
-	void SetLine1(const FLine2<RealType>& Value)
+	void SetLine1(const TLine2<RealType>& Value)
 	{
 		Line1 = Value;
 		Result = EIntersectionResult::NotComputed;
 	}
 
-	const FLine2<RealType>& GetLine2() const
+	const TLine2<RealType>& GetLine2() const
 	{
 		return Line2;
 	}
 
-	void SetLine2(FLine2<RealType>& Value)
+	void SetLine2(TLine2<RealType>& Value)
 	{
 		Line2 = Value;
 		Result = EIntersectionResult::NotComputed;
@@ -77,7 +77,7 @@ public:
 	}
 
 
-	FIntrLine2Line2& Compute()
+	TIntrLine2Line2& Compute()
 	{
 		Find();
 		return *this;
@@ -171,5 +171,5 @@ public:
 
 };
 
-typedef FIntrLine2Line2<double> FIntrLine2FLine2d;
-typedef FIntrLine2Line2<float> FIntrLine2Line2f;
+typedef TIntrLine2Line2<double> FIntrLine2TLine2d;
+typedef TIntrLine2Line2<float> FIntrLine2Line2f;

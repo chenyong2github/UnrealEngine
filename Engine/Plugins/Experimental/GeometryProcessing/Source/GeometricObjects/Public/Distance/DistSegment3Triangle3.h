@@ -15,19 +15,19 @@
 * Compute unsigned distance between 3D segment and 3D triangle
 */
 template <typename Real>
-class FDistSegment3Triangle3
+class TDistSegment3Triangle3
 {
 public:
 	// Input
-	FSegment3<Real> Segment;
-	FTriangle3<Real> Triangle;
+	TSegment3<Real> Segment;
+	TTriangle3<Real> Triangle;
 
 	// Output
 	Real DistanceSquared = -1.0;
 	Real SegmentParameter;
 	FVector3<Real> TriangleClosest, TriangleBaryCoords, SegmentClosest;
 	
-	FDistSegment3Triangle3(const FSegment3<Real>& SegmentIn, const FTriangle3<Real>& TriangleIn) : Segment(SegmentIn), Triangle(TriangleIn)
+	TDistSegment3Triangle3(const TSegment3<Real>& SegmentIn, const TTriangle3<Real>& TriangleIn) : Segment(SegmentIn), Triangle(TriangleIn)
 	{
 	}
 
@@ -47,8 +47,8 @@ public:
 			return DistanceSquared;
 		}
 
-		FLine3<Real> line(Segment.Center, Segment.Direction);
-		FDistLine3Triangle3<Real> queryLT(line, Triangle);
+		TLine3<Real> line(Segment.Center, Segment.Direction);
+		TDistLine3Triangle3<Real> queryLT(line, Triangle);
 		double sqrDist = queryLT.GetSquared();
 		SegmentParameter = queryLT.LineParam;
 
@@ -60,7 +60,7 @@ public:
 			}
 			else {
 				SegmentClosest = Segment.EndPoint();
-				FDistPoint3Triangle3<Real> queryPT(SegmentClosest, Triangle);
+				TDistPoint3Triangle3<Real> queryPT(SegmentClosest, Triangle);
 				sqrDist = queryPT.GetSquared();
 				TriangleClosest = queryPT.ClosestTrianglePoint;
 				SegmentParameter = Segment.Extent;
@@ -69,7 +69,7 @@ public:
 		}
 		else {
 			SegmentClosest = Segment.StartPoint();
-			FDistPoint3Triangle3<Real> queryPT(SegmentClosest, Triangle);
+			TDistPoint3Triangle3<Real> queryPT(SegmentClosest, Triangle);
 			sqrDist = queryPT.GetSquared();
 			TriangleClosest = queryPT.ClosestTrianglePoint;
 			SegmentParameter = -Segment.Extent;
@@ -81,6 +81,6 @@ public:
 	}
 };
 
-typedef FDistSegment3Triangle3<float> FDistSegment3Triangle3f;
-typedef FDistSegment3Triangle3<double> FDistSegment3Triangle3d;
+typedef TDistSegment3Triangle3<float> FDistSegment3Triangle3f;
+typedef TDistSegment3Triangle3<double> FDistSegment3Triangle3d;
 

@@ -38,12 +38,12 @@ protected:
 	/** Reference counts of element indices. Iterate over this to find out which elements are valid. */
 	FRefCountVector ElementsRefCounts;
 	/** List of element values */
-	FDynamicVector<RealType> Elements;
+	TDynamicVector<RealType> Elements;
 	/** List of parent vertex indices, one per element */
-	FDynamicVector<int> ParentVertices;
+	TDynamicVector<int> ParentVertices;
 
 	/** List of triangle element-index triplets [Elem0 Elem1 Elem2]*/
-	FDynamicVector<int> ElementTriangles;
+	TDynamicVector<int> ElementTriangles;
 
 	friend class FDynamicMesh3;
 	friend class FDynamicMeshAttributeSet;

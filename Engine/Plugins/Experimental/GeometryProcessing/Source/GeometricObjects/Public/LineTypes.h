@@ -8,11 +8,11 @@
 #include "VectorTypes.h"
 
 /**
- * FLine2 is a two-dimensional infinite line.
+ * TLine2 is a two-dimensional infinite line.
  * The line is stored in (Center,Direction) form.
  */
 template<typename T>
-struct FLine2
+struct TLine2
 {
 	/** Origin / Center Point of Line */
 	FVector2<T> Origin;
@@ -23,7 +23,7 @@ struct FLine2
 	/**
 	 * Construct default line along X axis
 	 */
-	FLine2()
+	TLine2()
 	{
 		Origin = FVector2<T>::Zero();
 		Direction = FVector2<T>::UnitX();
@@ -32,7 +32,7 @@ struct FLine2
 	/**
 	 * Construct line with given Origin and Direction
 	 */
-	FLine2(const FVector2<T>& OriginIn, const FVector2<T>& DirectionIn)
+	TLine2(const FVector2<T>& OriginIn, const FVector2<T>& DirectionIn)
 		: Origin(OriginIn), Direction(DirectionIn)
 	{
 	}
@@ -41,9 +41,9 @@ struct FLine2
 	/**
 	 * @return line between two points
 	 */
-	static FLine2<T> FromPoints(const FVector2<T>& Point0, const FVector2<T>& Point1)
+	static TLine2<T> FromPoints(const FVector2<T>& Point0, const FVector2<T>& Point1)
 	{
-		return FLine2<T>(Point0, (Point1 - Point0).Normalized());
+		return TLine2<T>(Point0, (Point1 - Point0).Normalized());
 	}
 
 
@@ -105,12 +105,12 @@ struct FLine2
 	 * @param ParallelDotTolerance tolerance used to determine if lines are parallel (and hence cannot intersect)
 	 * @return true if lines intersect and IntersectionPointOut was computed
 	 */
-	bool IntersectionPoint(const FLine2<T>& OtherLine, FVector2<T>& IntersectionPointOut, T ParallelDotTolerance = TMathUtil<T>::ZeroTolerance) const
+	bool IntersectionPoint(const TLine2<T>& OtherLine, FVector2<T>& IntersectionPointOut, T ParallelDotTolerance = TMathUtil<T>::ZeroTolerance) const
 	{
-		// see IntrFLine2FLine2 for more detailed explanation
+		// see IntrTLine2TLine2 for more detailed explanation
 		FVector2<T> diff = OtherLine.Origin - Origin;
 		T D0DotPerpD1 = Direction.DotPerp(OtherLine.Direction);
-		if (TMathUtil<T>::Abs(D0DotPerpD1) > ParallelDotTolerance)                     // FLines intersect in a single point.
+		if (TMathUtil<T>::Abs(D0DotPerpD1) > ParallelDotTolerance)                     // TLines intersect in a single point.
 		{
 			T invD0DotPerpD1 = ((T)1) / D0DotPerpD1;
 			T diffDotPerpD1 = diff.DotPerp(OtherLine.Direction);
@@ -118,14 +118,14 @@ struct FLine2
 			IntersectionPointOut = Origin + s * Direction;
 			return true;
 		}
-		// FLines are parallel.
+		// TLines are parallel.
 		return false;
 	}
 };
 
 
-typedef FLine2<double> FLine2d;
-typedef FLine2<float> FLine2f;
+typedef TLine2<double> FLine2d;
+typedef TLine2<float> FLine2f;
 
 
 
@@ -133,11 +133,11 @@ typedef FLine2<float> FLine2f;
 
 
 /**
- * FLine3 is a three-dimensional infinite line.
+ * TLine3 is a three-dimensional infinite line.
  * The line is stored in (Center,Direction) form.
  */
 template<typename T>
-struct FLine3
+struct TLine3
 {
 	/** Origin / Center Point of Line */
 	FVector3<T> Origin;
@@ -148,7 +148,7 @@ struct FLine3
 	/**
 	 * Construct default line along X axis
 	 */
-	FLine3()
+	TLine3()
 	{
 		Origin = FVector3<T>::Zero();
 		Direction = FVector3<T>::UnitX();
@@ -157,7 +157,7 @@ struct FLine3
 	/**
 	 * Construct line with given Origin and Direction
 	 */
-	FLine3(const FVector3<T>& OriginIn, const FVector3<T>& DirectionIn)
+	TLine3(const FVector3<T>& OriginIn, const FVector3<T>& DirectionIn)
 		: Origin(OriginIn), Direction(DirectionIn)
 	{
 	}
@@ -166,9 +166,9 @@ struct FLine3
 	/**
 	 * @return line between two points
 	 */
-	static FLine3<T> FromPoints(const FVector3<T>& Point0, const FVector3<T>& Point1)
+	static TLine3<T> FromPoints(const FVector3<T>& Point0, const FVector3<T>& Point1)
 	{
-		return FLine3<T>(Point0, (Point1 - Point0).Normalized());
+		return TLine3<T>(Point0, (Point1 - Point0).Normalized());
 	}
 
 
@@ -211,5 +211,5 @@ struct FLine3
 
 };
 
-typedef FLine3<double> FLine3d;
-typedef FLine3<float> FLine3f;
+typedef TLine3<double> FLine3d;
+typedef TLine3<float> FLine3f;

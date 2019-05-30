@@ -17,30 +17,30 @@
  * Iterator functions suitable for use with range-based for are provided
  */
 template <class Type>
-class FDynamicVector
+class TDynamicVector
 {
 public:
-	FDynamicVector()
+	TDynamicVector()
 	{
 		CurBlock = 0;
 		CurBlockUsed = 0;
 		Blocks.Emplace();
 	}
 
-	FDynamicVector(const FDynamicVector& Copy)
+	TDynamicVector(const TDynamicVector& Copy)
 	{
 		*this = Copy;
 	}
 
-	FDynamicVector(FDynamicVector&& Moved)
+	TDynamicVector(TDynamicVector&& Moved)
 	{
 		*this = MoveTemp(Moved);
 	}
 
-	~FDynamicVector() {}
+	~TDynamicVector() {}
 
-	const FDynamicVector& operator=(const FDynamicVector& Copy);
-	const FDynamicVector& operator=(FDynamicVector&& Moved);
+	const TDynamicVector& operator=(const TDynamicVector& Copy);
+	const TDynamicVector& operator=(TDynamicVector&& Moved);
 
 	inline void Clear();
 	inline void Fill(const Type& Value);
@@ -55,7 +55,7 @@ public:
 	inline size_t GetByteCount() const { return Blocks.Num() * BlockSize * sizeof(Type); }
 
 	inline void Add(const Type& Data);
-	inline void Add(const FDynamicVector<Type>& Data);
+	inline void Add(const TDynamicVector<Type>& Data);
 	inline void PopBack();
 
 	inline void InsertAt(const Type& Data, unsigned int Index);
@@ -128,14 +128,14 @@ public:
 		}
 
 	protected:
-		FDynamicVector<Type>* DVector;
+		TDynamicVector<Type>* DVector;
 		int Idx;
-		inline FIterator(FDynamicVector<Type>* Parent, int ICur)
+		inline FIterator(TDynamicVector<Type>* Parent, int ICur)
 		{
 			DVector = Parent;
 			Idx = ICur;
 		}
-		friend class FDynamicVector<Type>;
+		friend class TDynamicVector<Type>;
 	};
 
 	/** @return iterator at beginning of vector */
@@ -156,30 +156,30 @@ public:
 
 
 template <class Type, int N>
-class FDynamicVectorN
+class TDynamicVectorN
 {
 public:
-	FDynamicVectorN()
+	TDynamicVectorN()
 	{
 	}
-	FDynamicVectorN(const FDynamicVectorN& Copy)
+	TDynamicVectorN(const TDynamicVectorN& Copy)
 		: Data(Copy.Data)
 	{
 	}
-	FDynamicVectorN(FDynamicVectorN&& Moved)
+	TDynamicVectorN(TDynamicVectorN&& Moved)
 		: Data(MoveTemp(Moved.Data))
 	{
 	}
-	~FDynamicVectorN()
+	~TDynamicVectorN()
 	{
 	}
 
-	const FDynamicVectorN& operator=(const FDynamicVectorN& Copy)
+	const TDynamicVectorN& operator=(const TDynamicVectorN& Copy)
 	{
 		Data = Copy.Data;
 		return *this;
 	}
-	const FDynamicVectorN& operator=(FDynamicVectorN&& Moved)
+	const TDynamicVectorN& operator=(TDynamicVectorN&& Moved)
 	{
 		Data = MoveTemp(Moved.Data);
 		return *this;
@@ -308,26 +308,26 @@ public:
 	}
 
 protected:
-	FDynamicVector<Type> Data;
+	TDynamicVector<Type> Data;
 
 	friend class FIterator;
 };
 
-template class FDynamicVectorN<double, 2>;
+template class TDynamicVectorN<double, 2>;
 
-typedef FDynamicVectorN<float, 3> FDynamicVector3f;
-typedef FDynamicVectorN<float, 2> FDynamicVector2f;
-typedef FDynamicVectorN<double, 3> FDynamicVector3d;
-typedef FDynamicVectorN<double, 2> FDynamicVector2d;
-typedef FDynamicVectorN<int, 3> FDynamicVector3i;
-typedef FDynamicVectorN<int, 2> FDynamicVector2i;
+typedef TDynamicVectorN<float, 3> TDynamicVector3f;
+typedef TDynamicVectorN<float, 2> TDynamicVector2f;
+typedef TDynamicVectorN<double, 3> TDynamicVector3d;
+typedef TDynamicVectorN<double, 2> TDynamicVector2d;
+typedef TDynamicVectorN<int, 3> TDynamicVector3i;
+typedef TDynamicVectorN<int, 2> TDynamicVector2i;
 
 
 
 
 
 template <class Type>
-const FDynamicVector<Type>& FDynamicVector<Type>::operator=(const FDynamicVector& Copy)
+const TDynamicVector<Type>& TDynamicVector<Type>::operator=(const TDynamicVector& Copy)
 {
 	Blocks = Copy.Blocks;
 	CurBlock = Copy.CurBlock;
@@ -336,7 +336,7 @@ const FDynamicVector<Type>& FDynamicVector<Type>::operator=(const FDynamicVector
 }
 
 template <class Type>
-const FDynamicVector<Type>& FDynamicVector<Type>::operator=(FDynamicVector&& Moved)
+const TDynamicVector<Type>& TDynamicVector<Type>::operator=(TDynamicVector&& Moved)
 {
 	Blocks = MoveTemp(Moved.Blocks);
 	CurBlock = Moved.CurBlock;
@@ -345,7 +345,7 @@ const FDynamicVector<Type>& FDynamicVector<Type>::operator=(FDynamicVector&& Mov
 }
 
 template <class Type>
-void FDynamicVector<Type>::Clear()
+void TDynamicVector<Type>::Clear()
 {
 	Blocks.Empty();
 	CurBlock = 0;
@@ -354,7 +354,7 @@ void FDynamicVector<Type>::Clear()
 }
 
 template <class Type>
-void FDynamicVector<Type>::Fill(const Type& Value)
+void TDynamicVector<Type>::Fill(const Type& Value)
 {
 	size_t Count = Blocks.Num();
 	for (unsigned int i = 0; i < Count; ++i)
@@ -364,7 +364,7 @@ void FDynamicVector<Type>::Fill(const Type& Value)
 }
 
 template <class Type>
-void FDynamicVector<Type>::Resize(size_t Count)
+void TDynamicVector<Type>::Resize(size_t Count)
 {
 	if (GetLength() == Count)
 	{
@@ -403,7 +403,7 @@ void FDynamicVector<Type>::Resize(size_t Count)
 }
 
 template <class Type>
-void FDynamicVector<Type>::Resize(size_t Count, const Type& InitValue)
+void TDynamicVector<Type>::Resize(size_t Count, const Type& InitValue)
 {
 	size_t nCurSize = GetLength();
 	Resize(Count);
@@ -414,7 +414,7 @@ void FDynamicVector<Type>::Resize(size_t Count, const Type& InitValue)
 }
 
 template <class Type>
-void FDynamicVector<Type>::Add(const Type& Value)
+void TDynamicVector<Type>::Add(const Type& Value)
 {
 	if (CurBlockUsed == BlockSize)
 	{
@@ -431,7 +431,7 @@ void FDynamicVector<Type>::Add(const Type& Value)
 
 
 template <class Type>
-void FDynamicVector<Type>::Add(const FDynamicVector<Type>& AddData)
+void TDynamicVector<Type>::Add(const TDynamicVector<Type>& AddData)
 {
 	// @todo it could be more efficient to use memcopies here...
 	size_t nSize = AddData.Num();
@@ -442,7 +442,7 @@ void FDynamicVector<Type>::Add(const FDynamicVector<Type>& AddData)
 }
 
 template <class Type>
-void FDynamicVector<Type>::PopBack()
+void TDynamicVector<Type>::PopBack()
 {
 	if (CurBlockUsed > 0)
 	{
@@ -457,7 +457,7 @@ void FDynamicVector<Type>::PopBack()
 }
 
 template <class Type>
-void FDynamicVector<Type>::InsertAt(const Type& AddData, unsigned int Index)
+void TDynamicVector<Type>::InsertAt(const Type& AddData, unsigned int Index)
 {
 	size_t s = GetLength();
 	if (Index == s)
@@ -477,7 +477,7 @@ void FDynamicVector<Type>::InsertAt(const Type& AddData, unsigned int Index)
 
 template <typename Type>
 template <typename Func>
-void FDynamicVector<Type>::Apply(const Func& f)
+void TDynamicVector<Type>::Apply(const Func& applyF)
 {
 	for (int bi = 0; bi < CurBlock; ++bi)
 	{

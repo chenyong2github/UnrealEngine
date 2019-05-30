@@ -13,12 +13,12 @@
  * Compute intersection between 3D ray and 3D triangle
  */
 template <typename Real>
-class FIntrRay3Triangle3
+class TIntrRay3Triangle3
 {
 public:
 	// Input
-	FRay3<Real> Ray;
-	FTriangle3<Real> Triangle;
+	TRay3<Real> Ray;
+	TTriangle3<Real> Triangle;
 
 	// Output
 	Real RayParameter;
@@ -26,7 +26,7 @@ public:
 	EIntersectionType IntersectionType;
 
 
-	FIntrRay3Triangle3(const FRay3<Real>& RayIn, const FTriangle3<Real>& TriangleIn)
+	TIntrRay3Triangle3(const TRay3<Real>& RayIn, const TTriangle3<Real>& TriangleIn)
 	{
 		Ray = RayIn;
 		Triangle = TriangleIn;
@@ -168,5 +168,5 @@ public:
 
 };
 
-typedef FIntrRay3Triangle3<float> FIntrRay3Triangle3f;
-typedef FIntrRay3Triangle3<double> FIntrRay3Triangle3d;
+typedef TIntrRay3Triangle3<float> FIntrRay3Triangle3f;
+typedef TIntrRay3Triangle3<double> FIntrRay3Triangle3d;

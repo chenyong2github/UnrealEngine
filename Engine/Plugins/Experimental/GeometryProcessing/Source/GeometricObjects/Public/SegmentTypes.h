@@ -12,7 +12,7 @@
  * 2D Line Segmented stored as Center point, normalized Direction vector, and scalar Extent
  */
 template<typename T>
-struct FSegment2
+struct TSegment2
 {
 public:
 	/** Center point of segment */
@@ -25,7 +25,7 @@ public:
 	/**
 	 * Construct a Segment from two Points
 	 */
-	FSegment2(const FVector2<T>& Point0, const FVector2<T>& Point1)
+	TSegment2(const FVector2<T>& Point0, const FVector2<T>& Point1)
 	{
 		// set from endpoints 
 		Center = T(.5) * (Point0 + Point1);
@@ -36,7 +36,7 @@ public:
 	/**
 	 * Construct a segment from a Center Point, normalized Direction, and scalar Extent
 	 */
-	FSegment2(const FVector2<T>& CenterIn, const FVector2<T>& DirectionIn, T ExtentIn)
+	TSegment2(const FVector2<T>& CenterIn, const FVector2<T>& DirectionIn, T ExtentIn)
 	{
 		Center = CenterIn;
 		Direction = DirectionIn; 
@@ -204,7 +204,7 @@ public:
 	 * @param IntervalThresh distance tolerance used to allow slighly-not-touching segments to be considered overlapping
 	 * @return true if segments intersect
 	 */
-	bool Intersects(const FSegment2<T>& OtherSegment, T DotThresh = TMathUtil<T>::Epsilon, T IntervalThresh = 0) const
+	bool Intersects(const TSegment2<T>& OtherSegment, T DotThresh = TMathUtil<T>::Epsilon, T IntervalThresh = 0) const
 	{
 		// see IntrLine2Line2 and IntrSegment2Segment2 for details on this code
 
@@ -231,8 +231,8 @@ public:
 			T t1 = Direction.Dot(diff);
 			T tmin = t1 - OtherSegment.Extent;
 			T tmax = t1 + OtherSegment.Extent;
-			FInterval1<T> extents(-Extent, Extent);
-			if (extents.Overlaps(FInterval1<T>(tmin, tmax)))
+			TInterval1<T> extents(-Extent, Extent);
+			if (extents.Overlaps(TInterval1<T>(tmin, tmax)))
 			{
 				return true;
 			}
@@ -309,8 +309,8 @@ protected:
 	}
 
 };
-typedef FSegment2<float> FSegment2f;
-typedef FSegment2<double> FSegment2d;
+typedef TSegment2<float> FSegment2f;
+typedef TSegment2<double> FSegment2d;
 
 
 
@@ -323,7 +323,7 @@ typedef FSegment2<double> FSegment2d;
  * 3D Line Segmented stored as Center point, normalized Direction vector, and scalar Extent
  */
 template<typename T>
-struct FSegment3
+struct TSegment3
 {
 public:
 	/** Center point of segment */
@@ -336,7 +336,7 @@ public:
 	/**
 	 * Construct a Segment from two Points
 	 */
-	FSegment3(const FVector3<T>& Point0, const FVector3<T>& Point1)
+	TSegment3(const FVector3<T>& Point0, const FVector3<T>& Point1)
 	{
 		// set from endpoints 
 		Center = T(.5) * (Point0 + Point1);
@@ -347,7 +347,7 @@ public:
 	/**
 	 * Construct a segment from a Center Point, normalized Direction, and scalar Extent
 	 */
-	FSegment3(const FVector3<T>& CenterIn, const FVector3<T>& DirectionIn, T ExtentIn)
+	TSegment3(const FVector3<T>& CenterIn, const FVector3<T>& DirectionIn, T ExtentIn)
 	{
 		Center = CenterIn;
 		Direction = DirectionIn;
@@ -502,5 +502,5 @@ protected:
 	}
 
 };
-typedef FSegment3<float> FSegment3f;
-typedef FSegment3<double> FSegment3d;
+typedef TSegment3<float> FSegment3f;
+typedef TSegment3<double> FSegment3d;

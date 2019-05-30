@@ -12,12 +12,12 @@
  * Compute distance between 3D line and 3D ray
  */
 template <typename Real>
-class FDistLine3Ray3
+class TDistLine3Ray3
 {
 public:
 	// Input
-	FLine3<Real> Line;
-	FRay3<Real> Ray;
+	TLine3<Real> Line;
+	TRay3<Real> Ray;
 
 	// Results
 	Real DistanceSquared = -1.0;
@@ -28,7 +28,7 @@ public:
 	Real RayParameter;
 
 
-	FDistLine3Ray3(const FLine3<Real>& LineIn, const FRay3<Real>& RayIn)
+	TDistLine3Ray3(const TLine3<Real>& LineIn, const TRay3<Real>& RayIn)
 	{
 		Line = LineIn;
 		Ray = RayIn;
@@ -103,5 +103,5 @@ public:
 	}
 };
 
-typedef FDistLine3Ray3<float> FDistLine3Ray3f;
-typedef FDistLine3Ray3<double> FDistLine3Ray3d;
+typedef TDistLine3Ray3<float> FDistLine3Ray3f;
+typedef TDistLine3Ray3<double> FDistLine3Ray3d;

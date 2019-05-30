@@ -9,7 +9,7 @@
 // ported from geometry3Sharp Quaternion
 
 template<typename RealType>
-struct FQuaternion
+struct TQuaternion
 {
 	// note: in Wm5 version, this is a 4-element arraY stored in order (w,x,y,z).
 	RealType X;
@@ -17,28 +17,28 @@ struct FQuaternion
 	RealType Z;
 	RealType W;
 
-	FQuaternion();
-	FQuaternion(RealType X, RealType Y, RealType Z, RealType W);
-	FQuaternion(const RealType* Values);
-	FQuaternion(const FQuaternion& Copy);
-	FQuaternion(const FVector3<RealType>& Axis, RealType Angle, bool bAngleIsDegrees);
-	FQuaternion(const FVector3<RealType>& From, const FVector3<RealType>& To);
-	FQuaternion(const FQuaternion<RealType>& From, const FQuaternion<RealType>& To, RealType InterpT);
-	FQuaternion(const FMatrix3<RealType>& RotationMatrix);
+	TQuaternion();
+	TQuaternion(RealType X, RealType Y, RealType Z, RealType W);
+	TQuaternion(const RealType* Values);
+	TQuaternion(const TQuaternion& Copy);
+	TQuaternion(const FVector3<RealType>& Axis, RealType Angle, bool bAngleIsDegrees);
+	TQuaternion(const FVector3<RealType>& From, const FVector3<RealType>& To);
+	TQuaternion(const TQuaternion<RealType>& From, const TQuaternion<RealType>& To, RealType InterpT);
+	TQuaternion(const TMatrix3<RealType>& RotationMatrix);
 
 	void SetAxisAngleD(const FVector3<RealType>& Axis, RealType AngleDeg);
 	void SetAxisAngleR(const FVector3<RealType>& Axis, RealType AngleRad);
 	void SetFromTo(const FVector3<RealType>& From, const FVector3<RealType>& To);
-	void SetToSlerp(const FQuaternion<RealType>& From, const FQuaternion<RealType>& To, RealType InterpT);
-	void SetFromRotationMatrix(const FMatrix3<RealType>& RotationMatrix);
+	void SetToSlerp(const TQuaternion<RealType>& From, const TQuaternion<RealType>& To, RealType InterpT);
+	void SetFromRotationMatrix(const TMatrix3<RealType>& RotationMatrix);
 
-	static FQuaternion<RealType> Zero() { return FQuaternion<RealType>((RealType)0, (RealType)0, (RealType)0, (RealType)0); }
-	static FQuaternion<RealType> Identity() { return FQuaternion<RealType>((RealType)0, (RealType)0, (RealType)0, (RealType)1); }
+	static TQuaternion<RealType> Zero() { return TQuaternion<RealType>((RealType)0, (RealType)0, (RealType)0, (RealType)0); }
+	static TQuaternion<RealType> Identity() { return TQuaternion<RealType>((RealType)0, (RealType)0, (RealType)0, (RealType)1); }
 
 	RealType & operator[](int i) { return (&X)[i]; }
 	const RealType & operator[](int i) const { return (&X)[i]; }
 
-	bool EpsilonEqual(const FQuaternion<RealType>& Other, RealType Epsilon) const;
+	bool EpsilonEqual(const TQuaternion<RealType>& Other, RealType Epsilon) const;
 
 	RealType Length() const { return (RealType)sqrt(X*X + Y*Y + Z*Z + W*W); }
 	RealType SquaredLength() const { return X*X + Y*Y + Z*Z + W*W; }
@@ -48,14 +48,14 @@ struct FQuaternion
 	FVector3<RealType> AxisZ() const;
 
 	RealType Normalize(const RealType epsilon = 0);
-	FQuaternion<RealType> Normalized(const RealType epsilon = 0) const;
+	TQuaternion<RealType> Normalized(const RealType epsilon = 0) const;
 
-	RealType Dot(const FQuaternion<RealType>& Other) const;
+	RealType Dot(const TQuaternion<RealType>& Other) const;
 
-	FQuaternion<RealType> Inverse() const;
+	TQuaternion<RealType> Inverse() const;
 	FVector3<RealType> InverseMultiply(const FVector3<RealType>& Other) const;
 
-	FMatrix3<RealType> ToRotationMatrix() const;
+	TMatrix3<RealType> ToRotationMatrix() const;
 
 
 	// available for porting:
@@ -71,7 +71,7 @@ struct FQuaternion
 		Quat.W = (float)W;
 		return Quat;
 	}
-	inline FQuaternion(const FQuat& Quat)
+	inline TQuaternion(const FQuat& Quat)
 	{
 		X = (RealType)Quat.X;
 		Y = (RealType)Quat.Y;
@@ -83,20 +83,20 @@ struct FQuaternion
 
 
 
-typedef FQuaternion<float> FQuaternionf;
-typedef FQuaternion<double> FQuaterniond;
+typedef TQuaternion<float> FQuaternionf;
+typedef TQuaternion<double> FQuaterniond;
 
 
 
 
 template<typename RealType>
-FQuaternion<RealType>::FQuaternion()
+TQuaternion<RealType>::TQuaternion()
 {
 	X = Y = Z = 0; W = 1;
 }
 
 template<typename RealType>
-FQuaternion<RealType>::FQuaternion(RealType x, RealType y, RealType z, RealType w)
+TQuaternion<RealType>::TQuaternion(RealType x, RealType y, RealType z, RealType w)
 {
 	X = x;
 	Y = y;
@@ -105,7 +105,7 @@ FQuaternion<RealType>::FQuaternion(RealType x, RealType y, RealType z, RealType 
 }
 
 template<typename RealType>
-FQuaternion<RealType>::FQuaternion(const RealType* Values)
+TQuaternion<RealType>::TQuaternion(const RealType* Values)
 {
 	X = Values[0];
 	Y = Values[1];
@@ -114,7 +114,7 @@ FQuaternion<RealType>::FQuaternion(const RealType* Values)
 }
 
 template<typename RealType>
-FQuaternion<RealType>::FQuaternion(const FQuaternion& Copy)
+TQuaternion<RealType>::TQuaternion(const TQuaternion& Copy)
 {
 	X = Copy.X;
 	Y = Copy.Y;
@@ -123,28 +123,28 @@ FQuaternion<RealType>::FQuaternion(const FQuaternion& Copy)
 }
 
 template<typename RealType>
-FQuaternion<RealType>::FQuaternion(const FVector3<RealType>& Axis, RealType Angle, bool bAngleIsDegrees)
+TQuaternion<RealType>::TQuaternion(const FVector3<RealType>& Axis, RealType Angle, bool bAngleIsDegrees)
 {
 	X = Y = Z = 0; W = 1;
 	SetAxisAngleR(Axis, Angle * (bAngleIsDegrees ? TMathUtil<RealType>::DegToRad : (RealType)1));
 }
 
 template<typename RealType>
-FQuaternion<RealType>::FQuaternion(const FVector3<RealType>& From, const FVector3<RealType>& To)
+TQuaternion<RealType>::TQuaternion(const FVector3<RealType>& From, const FVector3<RealType>& To)
 {
 	X = Y = Z = 0; W = 1;
 	SetFromTo(From, To);
 }
 
 template<typename RealType>
-FQuaternion<RealType>::FQuaternion(const FQuaternion<RealType>& From, const FQuaternion<RealType>& To, RealType InterpT)
+TQuaternion<RealType>::TQuaternion(const TQuaternion<RealType>& From, const TQuaternion<RealType>& To, RealType InterpT)
 {
 	X = Y = Z = 0; W = 1;
 	SetToSlerp(From, To, InterpT);
 }
 
 template<typename RealType>
-FQuaternion<RealType>::FQuaternion(const FMatrix3<RealType>& RotationMatrix)
+TQuaternion<RealType>::TQuaternion(const TMatrix3<RealType>& RotationMatrix)
 {
 	X = Y = Z = 0; W = 1;
 	SetFromRotationMatrix(RotationMatrix);
@@ -155,7 +155,7 @@ FQuaternion<RealType>::FQuaternion(const FMatrix3<RealType>& RotationMatrix)
 
 
 template<typename RealType>
-RealType FQuaternion<RealType>::Normalize(const RealType Epsilon)
+RealType TQuaternion<RealType>::Normalize(const RealType Epsilon)
 {
 	RealType length = Length();
 	if (length > Epsilon)
@@ -172,42 +172,42 @@ RealType FQuaternion<RealType>::Normalize(const RealType Epsilon)
 }
 
 template<typename RealType>
-FQuaternion<RealType> FQuaternion<RealType>::Normalized(const RealType Epsilon) const
+TQuaternion<RealType> TQuaternion<RealType>::Normalized(const RealType Epsilon) const
 {
 	RealType length = Length();
 	if (length > Epsilon)
 	{
 		RealType invLength = ((RealType)1) / length;
-		return FQuaternion<RealType>(X*invLength, Y*invLength, Z*invLength, W*invLength);
+		return TQuaternion<RealType>(X*invLength, Y*invLength, Z*invLength, W*invLength);
 	}
 	return Zero();
 }
 
 template<typename RealType>
-RealType FQuaternion<RealType>::Dot(const FQuaternion<RealType>& Other) const
+RealType TQuaternion<RealType>::Dot(const TQuaternion<RealType>& Other) const
 {
 	return X * Other.X + Y * Other.Y + Z * Other.Z + W * Other.W;
 }
 
 
 template<typename RealType>
-FQuaternion<RealType> operator*(const FQuaternion<RealType>& A, const FQuaternion<RealType>& B) 
+TQuaternion<RealType> operator*(const TQuaternion<RealType>& A, const TQuaternion<RealType>& B) 
 {
 	RealType W = A.W * B.W - A.X * B.X - A.Y * B.Y - A.Z * B.Z;
 	RealType X = A.W * B.X + A.X * B.W + A.Y * B.Z - A.Z * B.Y;
 	RealType Y = A.W * B.Y + A.Y * B.W + A.Z * B.X - A.X * B.Z;
 	RealType Z = A.W * B.Z + A.Z * B.W + A.X * B.Y - A.Y * B.X;
-	return FQuaternion<RealType>(X, Y, Z, W);
+	return TQuaternion<RealType>(X, Y, Z, W);
 }
 
 template<typename RealType>
-FQuaternion<RealType> operator -(const FQuaternion<RealType>& A, const FQuaternion<RealType>& B) 
+TQuaternion<RealType> operator -(const TQuaternion<RealType>& A, const TQuaternion<RealType>& B) 
 {
-	return FQuaternion<RealType>(A.X - B.X, A.Y - B.Y, A.Z - B.Z, A.W - B.W);
+	return TQuaternion<RealType>(A.X - B.X, A.Y - B.Y, A.Z - B.Z, A.W - B.W);
 }
 
 template<typename RealType>
-FVector3<RealType> operator*(const FQuaternion<RealType>& Q, const FVector3<RealType>& V) 
+FVector3<RealType> operator*(const TQuaternion<RealType>& Q, const FVector3<RealType>& V) 
 {
 	//return q.ToRotationMatrix() * v;
 	// inline-expansion of above:
@@ -223,7 +223,7 @@ FVector3<RealType> operator*(const FQuaternion<RealType>& Q, const FVector3<Real
 
 
 template<typename RealType>
-FVector3<RealType> FQuaternion<RealType>::InverseMultiply(const FVector3<RealType>& V) const
+FVector3<RealType> TQuaternion<RealType>::InverseMultiply(const FVector3<RealType>& V) const
 {
 	RealType norm = SquaredLength();
 	if (norm > 0) 
@@ -244,7 +244,7 @@ FVector3<RealType> FQuaternion<RealType>::InverseMultiply(const FVector3<RealTyp
 
 
 template<typename RealType>
-FVector3<RealType> FQuaternion<RealType>::AxisX() const
+FVector3<RealType> TQuaternion<RealType>::AxisX() const
 {
 	RealType twoY = (RealType)2 * Y; RealType twoZ = (RealType)2 * Z;
 	RealType twoWY = twoY * W; RealType twoWZ = twoZ * W;
@@ -254,7 +254,7 @@ FVector3<RealType> FQuaternion<RealType>::AxisX() const
 }
 
 template<typename RealType>
-FVector3<RealType> FQuaternion<RealType>::AxisY() const
+FVector3<RealType> TQuaternion<RealType>::AxisY() const
 {
 	RealType twoX = (RealType)2 * X; RealType twoY = (RealType)2 * Y; RealType twoZ = (RealType)2 * Z;
 	RealType twoWX = twoX * W; RealType twoWZ = twoZ * W; RealType twoXX = twoX * X;
@@ -263,7 +263,7 @@ FVector3<RealType> FQuaternion<RealType>::AxisY() const
 }
 
 template<typename RealType>
-FVector3<RealType> FQuaternion<RealType>::AxisZ() const
+FVector3<RealType> TQuaternion<RealType>::AxisZ() const
 {
 	RealType twoX = (RealType)2 * X; RealType twoY = (RealType)2 * Y; RealType twoZ = (RealType)2 * Z;
 	RealType twoWX = twoX * W; RealType twoWY = twoY * W; RealType twoXX = twoX * X;
@@ -272,27 +272,27 @@ FVector3<RealType> FQuaternion<RealType>::AxisZ() const
 }
 
 template<typename RealType>
-FQuaternion<RealType> FQuaternion<RealType>::Inverse() const
+TQuaternion<RealType> TQuaternion<RealType>::Inverse() const
 {
 	RealType norm = SquaredLength();
 	if (norm > (RealType)0) 
 	{
 		RealType invNorm = (RealType)1 / norm;
-		return FQuaternion<RealType>(
+		return TQuaternion<RealType>(
 			-X * invNorm, -Y * invNorm, -Z * invNorm, W * invNorm);
 	}
-	return FQuaternion<RealType>::Zero();
+	return TQuaternion<RealType>::Zero();
 }
 
 
 template<typename RealType>
-void FQuaternion<RealType>::SetAxisAngleD(const FVector3<RealType>& Axis, RealType AngleDeg) 
+void TQuaternion<RealType>::SetAxisAngleD(const FVector3<RealType>& Axis, RealType AngleDeg) 
 {
 	SetAxisAngleR(Axis, TMathUtil<RealType>::DegToRad * AngleDeg);
 }
 
 template<typename RealType>
-void FQuaternion<RealType>::SetAxisAngleR(const FVector3<RealType>& Axis, RealType AngleRad)
+void TQuaternion<RealType>::SetAxisAngleR(const FVector3<RealType>& Axis, RealType AngleRad)
 {
 	RealType halfAngle = (RealType)0.5 * AngleRad;
 	RealType sn = (RealType)sin(halfAngle);
@@ -306,13 +306,13 @@ void FQuaternion<RealType>::SetAxisAngleR(const FVector3<RealType>& Axis, RealTy
 
 // this function can take non-normalized vectors vFrom and vTo (normalizes internally)
 template<typename RealType>
-void FQuaternion<RealType>::SetFromTo(const FVector3<RealType>& From, const FVector3<RealType>& To)
+void TQuaternion<RealType>::SetFromTo(const FVector3<RealType>& From, const FVector3<RealType>& To)
 {
 	// [TODO] this page seems to have optimized version:
 	//    http://lolengine.net/blog/2013/09/18/beautiful-maths-quaternion-from-vectors
 
 	// [RMS] not ideal to explicitly normalize here, but if we don't,
-	//   output FQuaternion is not normalized and this causes problems,
+	//   output TQuaternion is not normalized and this causes problems,
 	//   eg like drift if we do repeated SetFromTo()
 	FVector3<RealType> from = From.Normalized(), to = To.Normalized();
 	FVector3<RealType> bisector = (from + to).Normalized();
@@ -350,7 +350,7 @@ void FQuaternion<RealType>::SetFromTo(const FVector3<RealType>& From, const FVec
 
 
 template<typename RealType>
-void FQuaternion<RealType>::SetToSlerp( const FQuaternion<RealType>& From, const FQuaternion<RealType>& To, RealType InterpT)
+void TQuaternion<RealType>::SetToSlerp( const TQuaternion<RealType>& From, const TQuaternion<RealType>& To, RealType InterpT)
 {
 	RealType cs = From.Dot(To);
 	RealType angle = (RealType)acos(cs);
@@ -378,10 +378,10 @@ void FQuaternion<RealType>::SetToSlerp( const FQuaternion<RealType>& From, const
 
 
 template<typename RealType>
-void FQuaternion<RealType>::SetFromRotationMatrix(const FMatrix3<RealType>& RotationMatrix)
+void TQuaternion<RealType>::SetFromRotationMatrix(const TMatrix3<RealType>& RotationMatrix)
 {
 	// Algorithm in Ken Shoemake's article in 1987 SIGGRAPH course notes
-	// article "FQuaternion Calculus and Fast Animation".
+	// article "TQuaternion Calculus and Fast Animation".
 	FIndex3i next(1, 2, 0);
 
 	RealType trace = RotationMatrix(0,0) + RotationMatrix(1,1) + RotationMatrix(2, 2);
@@ -423,20 +423,20 @@ void FQuaternion<RealType>::SetFromRotationMatrix(const FMatrix3<RealType>& Rota
 		X = quat.X; Y = quat.Y; Z = quat.Z;
 	}
 
-	Normalize();   // we prefer normalized FQuaternions...
+	Normalize();   // we prefer normalized TQuaternions...
 }
 
 
 
 
 template<typename RealType>
-FMatrix3<RealType> FQuaternion<RealType>::ToRotationMatrix() const
+TMatrix3<RealType> TQuaternion<RealType>::ToRotationMatrix() const
 {
 	RealType twoX = 2 * X; RealType twoY = 2 * Y; RealType twoZ = 2 * Z;
 	RealType twoWX = twoX * W; RealType twoWY = twoY * W; RealType twoWZ = twoZ * W;
 	RealType twoXX = twoX * X; RealType twoXY = twoY * X; RealType twoXZ = twoZ * X;
 	RealType twoYY = twoY * Y; RealType twoYZ = twoZ * Y; RealType twoZZ = twoZ * Z;
-	FMatrix3<RealType> m = FMatrix3<RealType>::Zero();
+	TMatrix3<RealType> m = TMatrix3<RealType>::Zero();
 	m.Row0 = FVector3<RealType>(1 - (twoYY + twoZZ), twoXY - twoWZ, twoXZ + twoWY);
 	m.Row1 = FVector3<RealType>(twoXY + twoWZ, 1 - (twoXX + twoZZ), twoYZ - twoWX);
 	m.Row2 = FVector3<RealType>(twoXZ - twoWY, twoYZ + twoWX, 1 - (twoXX + twoYY));
@@ -446,7 +446,7 @@ FMatrix3<RealType> FQuaternion<RealType>::ToRotationMatrix() const
 
 
 template<typename RealType>
-bool FQuaternion<RealType>::EpsilonEqual(const FQuaternion<RealType>& Other, RealType Epsilon) const
+bool TQuaternion<RealType>::EpsilonEqual(const TQuaternion<RealType>& Other, RealType Epsilon) const
 {
 	return (RealType)fabs(X - Other.X) <= Epsilon &&
 		(RealType)fabs(Y - Other.Y) <= Epsilon &&

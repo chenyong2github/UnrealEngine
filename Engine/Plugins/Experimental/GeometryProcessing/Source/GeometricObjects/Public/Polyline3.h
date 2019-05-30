@@ -210,9 +210,9 @@ public:
 	/**
 	 * @return edge of the poyline starting at vertex SegmentIndex
 	 */
-	FSegment3<T> GetSegment(int SegmentIndex) const
+	TSegment3<T> GetSegment(int SegmentIndex) const
 	{
-		return FSegment3<T>(Vertices[SegmentIndex], Vertices[SegmentIndex+1]);
+		return TSegment3<T>(Vertices[SegmentIndex], Vertices[SegmentIndex+1]);
 	}
 
 
@@ -223,7 +223,7 @@ public:
 	 */
 	FVector3<T> PointAt(int SegmentIndex, T SegmentParam) const
 	{
-		FSegment3<T> seg(Vertices[SegmentIndex], Vertices[SegmentIndex + 1]);
+		TSegment3<T> seg(Vertices[SegmentIndex], Vertices[SegmentIndex + 1]);
 		return seg.PointAt(SegmentParam);
 	}
 
@@ -233,9 +233,9 @@ public:
 	/**
 	 * @return the bounding box of the polyline Vertices
 	 */
-	FAxisAlignedBox3<T> GetBounds() const
+	TAxisAlignedBox3<T> GetBounds() const
 	{
-		FAxisAlignedBox3<T> box = FAxisAlignedBox3<T>::Empty();
+		TAxisAlignedBox3<T> box = TAxisAlignedBox3<T>::Empty();
 		int NumVertices = Vertices.Num();
 		for (int k = 0; k < NumVertices; ++k)
 		{
@@ -263,7 +263,7 @@ public:
 
 
 	/**
-	 * SegmentIterator is used to iterate over the FSegment3<T> segments of the polyline
+	 * SegmentIterator is used to iterate over the TSegment3<T> segments of the polyline
 	 */
 	class SegmentIterator
 	{
@@ -272,10 +272,10 @@ public:
 		{
 			return i < Polyline->SegmentCount();
 		}
-		inline FSegment3<T> operator*() const
+		inline TSegment3<T> operator*() const
 		{
 			check(Polyline != nullptr && i < Polyline->SegmentCount());
-			return FSegment3<T>(Polyline->Vertices[i], Polyline->Vertices[i+1]);
+			return TSegment3<T>(Polyline->Vertices[i], Polyline->Vertices[i+1]);
 		}
 		inline SegmentIterator & operator++() 		// prefix
 		{
@@ -345,7 +345,7 @@ public:
 		for (int vi = 0; vi < N; ++vi)
 		{
 			// @todo can't we just use segment function here now?
-			FSegment3<T> seg = FSegment3<T>(Vertices[vi], Vertices[vi+1]);
+			TSegment3<T> seg = TSegment3<T>(Vertices[vi], Vertices[vi+1]);
 			T t = (QueryPoint - seg.Center).Dot(seg.Direction);
 			T d = TNumericLimits<T>::Max();
 			if (t >= seg.Extent)

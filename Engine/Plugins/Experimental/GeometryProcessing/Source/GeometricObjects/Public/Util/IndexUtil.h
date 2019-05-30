@@ -114,7 +114,7 @@ namespace IndexUtil
 	 * @return vertex id of other vertex, or InvalidID if not found
 	 */
 	template<typename T>
-	inline int FindTriOtherVtx(T VertexID1, T VertexID2, const FDynamicVector<T> & TriIndexArray, T TriangleIndex)
+	inline int FindTriOtherVtx(T VertexID1, T VertexID2, const TDynamicVector<T> & TriIndexArray, T TriangleIndex)
 	{
 		int i = 3 * TriangleIndex;
 		for (int j = 0; j < 3; ++j) 

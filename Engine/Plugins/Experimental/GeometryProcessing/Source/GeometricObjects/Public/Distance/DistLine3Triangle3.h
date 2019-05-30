@@ -15,12 +15,12 @@
 * Compute unsigned distance between 3D line and 3D triangle
 */
 template <typename Real>
-class FDistLine3Triangle3
+class TDistLine3Triangle3
 {
 public:
 	// Input
-	FLine3<Real> Line;
-	FTriangle3<Real> Triangle;
+	TLine3<Real> Line;
+	TTriangle3<Real> Triangle;
 
 	// Output
 	Real DistanceSquared = -1.0;
@@ -28,7 +28,7 @@ public:
 	FVector3<Real> LineClosest, TriangleClosest, TriangleBaryCoords;
 
 
-	FDistLine3Triangle3(const FLine3<Real>& LineIn, const FTriangle3<Real>& TriangleIn) : Line(LineIn), Triangle(TriangleIn)
+	TDistLine3Triangle3(const TLine3<Real>& LineIn, const TTriangle3<Real>& TriangleIn) : Line(LineIn), Triangle(TriangleIn)
 	{
 	}
 
@@ -101,8 +101,8 @@ public:
 		Real sqrDist = TMathUtil<Real>::MaxReal;
 		for (int i0 = 2, i1 = 0; i1 < 3; i0 = i1++)
 		{
-			FSegment3<Real> segment(Triangle.V[i0], Triangle.V[i1]);
-			FDistLine3Segment3<Real> queryLS(Line, segment);
+			TSegment3<Real> segment(Triangle.V[i0], Triangle.V[i1]);
+			TDistLine3Segment3<Real> queryLS(Line, segment);
 			Real sqrDistTmp = queryLS.GetSquared();
 			if (sqrDistTmp < sqrDist)
 			{
@@ -122,6 +122,6 @@ public:
 	}
 };
 
-typedef FDistLine3Triangle3<float> FDistLine3Triangle3f;
-typedef FDistLine3Triangle3<double> FDistLine3Triangle3d;
+typedef TDistLine3Triangle3<float> FDistLine3Triangle3f;
+typedef TDistLine3Triangle3<double> FDistLine3Triangle3d;
 

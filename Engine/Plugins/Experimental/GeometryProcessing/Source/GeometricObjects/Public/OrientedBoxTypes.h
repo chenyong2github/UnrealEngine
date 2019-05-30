@@ -9,26 +9,26 @@
 #include "FrameTypes.h"
 
 /**
- * FOrientedBox3 is a non-axis-aligned 3D box defined by a 3D frame and extents along the axes of that frame
+ * TOrientedBox3 is a non-axis-aligned 3D box defined by a 3D frame and extents along the axes of that frame
  * The frame is at the center of the box.
  */
 template<typename RealType>
-struct FOrientedBox3
+struct TOrientedBox3
 {
 	// available for porting: ContainPoint, MergeBoxes()
 
 
 	/** 3D position (center) and orientation (axes) of the box */
-	FFrame3<RealType> Frame;
+	TFrame3<RealType> Frame;
 	/** Half-dimensions of box measured along the three axes */
 	FVector3<RealType> Extents;
 
-	FOrientedBox3() : Extents(1,1,1) {}
+	TOrientedBox3() : Extents(1,1,1) {}
 
 	/**
 	 * Create axis-aligned box with given Origin and Extents
 	 */
-	FOrientedBox3(const FVector3<RealType>& Origin, const FVector3<RealType> & ExtentsIn)
+	TOrientedBox3(const FVector3<RealType>& Origin, const FVector3<RealType> & ExtentsIn)
 		: Frame(Origin), Extents(ExtentsIn)
 	{
 	}
@@ -36,7 +36,7 @@ struct FOrientedBox3
 	/**
 	 * Create oriented box with given Frame and Extents
 	 */
-	FOrientedBox3(const FFrame3<RealType>& FrameIn, const FVector3<RealType> & ExtentsIn)
+	TOrientedBox3(const TFrame3<RealType>& FrameIn, const FVector3<RealType> & ExtentsIn)
 		: Frame(FrameIn), Extents(ExtentsIn)
 	{
 	}
@@ -44,17 +44,17 @@ struct FOrientedBox3
 	/**
 	 * Create oriented box from axis-aligned box
 	 */
-	FOrientedBox3(const FAxisAlignedBox3<RealType>& AxisBox)
+	TOrientedBox3(const TAxisAlignedBox3<RealType>& AxisBox)
 		: Frame(AxisBox.Center()), Extents((RealType)0.5 * AxisBox.Diagonal())
 	{
 	}
 
 
 	/** @return box with unit dimensions centered at origin */
-	static FOrientedBox3<RealType> UnitZeroCentered() { return FOrientedBox3<RealType>(FVector3<RealType>::Zero(), (RealType)0.5*FVector3<RealType>::One()); }
+	static TOrientedBox3<RealType> UnitZeroCentered() { return TOrientedBox3<RealType>(FVector3<RealType>::Zero(), (RealType)0.5*FVector3<RealType>::One()); }
 
 	/** @return box with unit dimensions where minimum corner is at origin */
-	static FOrientedBox3<RealType> UnitPositive() { return FOrientedBox3<RealType>((RealType)0.5*FVector3<RealType>::One(), (RealType)0.5*FVector3<RealType>::One()); }
+	static TOrientedBox3<RealType> UnitPositive() { return TOrientedBox3<RealType>((RealType)0.5*FVector3<RealType>::One(), (RealType)0.5*FVector3<RealType>::One()); }
 
 
 	/** @return center of the box */
@@ -218,5 +218,5 @@ struct FOrientedBox3
 
 
 
-typedef FOrientedBox3<float> FOrientedBox3f;
-typedef FOrientedBox3<double> FOrientedBox3d;
+typedef TOrientedBox3<float> FOrientedBox3f;
+typedef TOrientedBox3<double> FOrientedBox3d;

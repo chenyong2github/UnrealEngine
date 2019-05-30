@@ -678,7 +678,7 @@ FVector3d FDynamicMesh3::GetTriBaryNormal(int tID, double bary0, double bary1, d
 	int ai = 3 * Triangles[3 * tID],
 		bi = 3 * Triangles[3 * tID + 1],
 		ci = 3 * Triangles[3 * tID + 2];
-	const FDynamicVector<float>& normalsR = *(this->VertexNormals);
+	const TDynamicVector<float>& normalsR = *(this->VertexNormals);
 	FVector3d n = FVector3d(
 		(bary0*normalsR[ai] + bary1 * normalsR[bi] + bary2 * normalsR[ci]),
 		(bary0*normalsR[ai + 1] + bary1 * normalsR[bi + 1] + bary2 * normalsR[ci + 1]),
@@ -713,7 +713,7 @@ void FDynamicMesh3::GetTriBaryPoint(int tID, double bary0, double bary1, double 
 	vinfo.bHaveN = HasVertexNormals();
 	if (vinfo.bHaveN) 
 	{
-		FDynamicVector<float>& normalsR = *(this->VertexNormals);
+		TDynamicVector<float>& normalsR = *(this->VertexNormals);
 		vinfo.Normal = FVector3f(
 			(float)(bary0 * normalsR[ai] + bary1 * normalsR[bi] + bary2 * normalsR[ci]),
 			(float)(bary0 * normalsR[ai + 1] + bary1 * normalsR[bi + 1] + bary2 * normalsR[ci + 1]),
@@ -723,7 +723,7 @@ void FDynamicMesh3::GetTriBaryPoint(int tID, double bary0, double bary1, double 
 	vinfo.bHaveC = HasVertexColors();
 	if (vinfo.bHaveC) 
 	{
-		FDynamicVector<float>& colorsR = *(this->VertexColors);
+		TDynamicVector<float>& colorsR = *(this->VertexColors);
 		vinfo.Color = FVector3f(
 			(float)(bary0 * colorsR[ai] + bary1 * colorsR[bi] + bary2 * colorsR[ci]),
 			(float)(bary0 * colorsR[ai + 1] + bary1 * colorsR[bi + 1] + bary2 * colorsR[ci + 1]),
@@ -732,7 +732,7 @@ void FDynamicMesh3::GetTriBaryPoint(int tID, double bary0, double bary1, double 
 	vinfo.bHaveUV = HasVertexUVs();
 	if (vinfo.bHaveUV) 
 	{
-		FDynamicVector<float>& uvR = *(this->VertexUVs);
+		TDynamicVector<float>& uvR = *(this->VertexUVs);
 		ai = 2 * Triangles[3 * tID];
 		bi = 2 * Triangles[3 * tID + 1];
 		ci = 2 * Triangles[3 * tID + 2];

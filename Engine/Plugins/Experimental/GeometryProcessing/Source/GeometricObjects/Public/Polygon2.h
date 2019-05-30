@@ -15,12 +15,12 @@
 #include "Util/DynamicVector.h"
 
 /**
- * FPolygon2 is a 2D polygon represented as a list of Vertices.
+ * TPolygon2 is a 2D polygon represented as a list of Vertices.
  * 
  * @todo move operators
  */
 template<typename T>
-class FPolygon2
+class TPolygon2
 {
 protected:
 	/** The list of vertices/corners of the polygon */
@@ -31,21 +31,21 @@ protected:
 
 public:
 
-	FPolygon2() : Timestamp(0)
+	TPolygon2() : Timestamp(0)
 	{
 	}
 
 	/**
 	 * Construct polygon that is a copy of another polygon
 	 */
-	FPolygon2(const FPolygon2& Copy) : Vertices(Copy.Vertices), Timestamp(Copy.Timestamp)
+	TPolygon2(const TPolygon2& Copy) : Vertices(Copy.Vertices), Timestamp(Copy.Timestamp)
 	{
 	}
 
 	/**
 	 * Construct polygon with given list of vertices
 	 */
-	FPolygon2(const TArray<FVector2<T>>& VertexList) : Vertices(VertexList), Timestamp(0)
+	TPolygon2(const TArray<FVector2<T>>& VertexList) : Vertices(VertexList), Timestamp(0)
 	{
 	}
 
@@ -207,16 +207,16 @@ public:
 	/**
 	 * @return the bounding box of the Polygon Vertices
 	 */
-	FAxisAlignedBox2<T> Bounds() const
+	TAxisAlignedBox2<T> Bounds() const
 	{
-		FAxisAlignedBox2<T> box = FAxisAlignedBox2<T>::Empty();
+		TAxisAlignedBox2<T> box = TAxisAlignedBox2<T>::Empty();
 		box.Contain(Vertices);
 		return box;
 	}
 
 	
 	/**
-	 * SegmentIterator is used to iterate over the FSegment2<T> segments of the polygon
+	 * SegmentIterator is used to iterate over the TSegment2<T> segments of the polygon
 	 */
 	class SegmentIterator 
 	{
@@ -225,12 +225,12 @@ public:
 		{
 			return i < polygon->VertexCount();
 		}
-		inline FSegment2<T> operator*() const
+		inline TSegment2<T> operator*() const
 		{
 			check(polygon != nullptr && i < polygon->VertexCount());
-			return FSegment2<T>(polygon->Vertices[i], polygon->Vertices[i+1 % polygon->VertexCount()]);
+			return TSegment2<T>(polygon->Vertices[i], polygon->Vertices[i+1 % polygon->VertexCount()]);
 		}
-		//inline FSegment2<T> & operator*();
+		//inline TSegment2<T> & operator*();
 		inline SegmentIterator & operator++() 		// prefix
 		{
 			i++;
@@ -245,10 +245,10 @@ public:
 		inline bool operator==(const SegmentIterator & i2) { return i2.polygon == polygon && i2.i == i; }
 		inline bool operator!=(const SegmentIterator & i2) { return i2.polygon != polygon || i2.i != i; }
 	protected:
-		const FPolygon2 * polygon;
+		const TPolygon2 * polygon;
 		int i;
-		inline SegmentIterator(const FPolygon2 * p, int iCur) : polygon(p), i(iCur) {}
-		friend class FPolygon2;
+		inline SegmentIterator(const TPolygon2 * p, int iCur) : polygon(p), i(iCur) {}
+		friend class TPolygon2;
 	};
 	friend class SegmentIterator;
 
@@ -263,9 +263,9 @@ public:
 	class SegmentEnumerable
 	{
 	public:
-		const FPolygon2<T>* polygon;
+		const TPolygon2<T>* polygon;
 		SegmentEnumerable() : polygon(nullptr) {}
-		SegmentEnumerable(const FPolygon2<T> * p) : polygon(p) {}
+		SegmentEnumerable(const TPolygon2<T> * p) : polygon(p) {}
 		SegmentIterator begin() { return polygon->SegmentItr(); }
 		SegmentIterator end() { return SegmentIterator(polygon, polygon->VertexCount()); }
 	};
@@ -426,7 +426,7 @@ public:
 	/**
 	 * @return true if the Polygon fully contains the OtherPolygon
 	 */
-	bool Contains(const FPolygon2<T>& OtherPoly) const
+	bool Contains(const TPolygon2<T>& OtherPoly) const
 	{
 		// @todo fast bbox check?
 
@@ -451,7 +451,7 @@ public:
 	/**
 	 * @return true if the Segment is fully contained inside the Polygon
 	 */
-	bool Contains(const FSegment2<T>& Segment) const
+	bool Contains(const TSegment2<T>& Segment) const
 	{
 		// [TODO] Add bbox check
 		if (Contains(Segment.StartPoint()) == false || Contains(Segment.EndPoint()) == false)
@@ -459,7 +459,7 @@ public:
 			return false;
 		}
 
-		for (FSegment2<T> seg : Segments())
+		for (TSegment2<T> seg : Segments())
 		{
 			if (seg.Intersects(Segment))
 			{
@@ -473,16 +473,16 @@ public:
 	/**
 	 * @return true if at least one edge of the OtherPolygon intersects the Polygon
 	 */
-	bool Intersects(const FPolygon2<T>& OtherPoly) const
+	bool Intersects(const TPolygon2<T>& OtherPoly) const
 	{
 		if (!Bounds().Intersects(OtherPoly.Bounds()))
 		{
 			return false;
 		}
 
-		for (FSegment2<T> seg : Segments()) 
+		for (TSegment2<T> seg : Segments()) 
 		{
-			for (FSegment2<T> oseg : OtherPoly.Segments()) 
+			for (TSegment2<T> oseg : OtherPoly.Segments()) 
 			{
 				if (seg.Intersects(oseg))
 				{
@@ -497,7 +497,7 @@ public:
 	/**
 	 * @return true if the Segment intersects an edge of the Polygon
 	 */
-	bool Intersects(const FSegment2<T>& Segment) const
+	bool Intersects(const TSegment2<T>& Segment) const
 	{
 		// [TODO] Add bbox check
 		if (Contains(Segment.StartPoint()) == true || Contains(Segment.EndPoint()) == true)
@@ -506,7 +506,7 @@ public:
 		}
 
 		// [TODO] Add bbox check
-		for (FSegment2<T> seg : Segments())
+		for (TSegment2<T> seg : Segments())
 		{
 			if (seg.Intersects(Segment))
 			{
@@ -523,7 +523,7 @@ public:
 	 * @param OutArray intersection points are stored here
 	 * @return true if any intersections were found
 	 */
-	bool FindIntersections(const FPolygon2<T>& OtherPoly, TArray<FVector2<T>>& OutArray) const
+	bool FindIntersections(const TPolygon2<T>& OtherPoly, TArray<FVector2<T>>& OutArray) const
 	{
 		if (!Bounds().Intersects(OtherPoly.Bounds()))
 		{
@@ -531,16 +531,16 @@ public:
 		}
 
 		bool bFoundIntersections = false;
-		for (FSegment2<T> seg : Segments()) 
+		for (TSegment2<T> seg : Segments()) 
 		{
-			for (FSegment2<T> oseg : OtherPoly.Segments())
+			for (TSegment2<T> oseg : OtherPoly.Segments())
 			{
 				// this computes test twice for intersections, but seg.intersects doesn't
 				// create any new objects so it should be much faster for majority of segments (should profile!)
 				if (seg.Intersects(oseg)) 
 				{
 					//@todo can we replace with something like seg.intersects?
-					FIntrSegment2Segment2<T> intr(seg, oseg);
+					TIntrSegment2Segment2<T> intr(seg, oseg);
 					if (intr.Find()) 
 					{
 						bFoundIntersections = true;
@@ -561,9 +561,9 @@ public:
 	/**
 	 * @return edge of the polygon starting at vertex SegmentIndex
 	 */
-	FSegment2<T> Segment(int SegmentIndex) const
+	TSegment2<T> Segment(int SegmentIndex) const
 	{
-		return FSegment2<T>(Vertices[SegmentIndex], Vertices[(SegmentIndex + 1) % Vertices.Num()]);
+		return TSegment2<T>(Vertices[SegmentIndex], Vertices[(SegmentIndex + 1) % Vertices.Num()]);
 	}
 
 	/**
@@ -573,7 +573,7 @@ public:
 	 */
 	FVector2<T> PointAt(int SegmentIndex, T SegmentParam) const
 	{
-		FSegment2<T> seg(Vertices[SegmentIndex], Vertices[(SegmentIndex + 1) % Vertices.Num()]);
+		TSegment2<T> seg(Vertices[SegmentIndex], Vertices[(SegmentIndex + 1) % Vertices.Num()]);
 		return seg.PointAt(SegmentParam);
 	}
 
@@ -585,7 +585,7 @@ public:
 	 */
 	FVector2<T> GetNormal(int iSeg, T SegmentParam) const
 	{
-		FSegment2<T> seg(Vertices[iSeg], Vertices[(iSeg + 1) % Vertices.Num()]);
+		TSegment2<T> seg(Vertices[iSeg], Vertices[(iSeg + 1) % Vertices.Num()]);
 		T t = ((SegmentParam / seg.Extent) + 1.0) / 2.0;
 
 		FVector2<T> n0 = GetNormal(iSeg);
@@ -611,7 +611,7 @@ public:
 		for (int vi = 0; vi < N; ++vi) 
 		{
 			// @todo can't we just use segment function here now?
-			FSegment2<T> seg = FSegment2<T>(Vertices[vi], Vertices[(vi + 1) % N]);
+			TSegment2<T> seg = TSegment2<T>(Vertices[vi], Vertices[(vi + 1) % N]);
 			T t = (QueryPoint - seg.Center).Dot(seg.Direction);
 			T d = TNumericLimits<T>::Max();
 			if (t >= seg.Extent)
@@ -667,7 +667,7 @@ public:
 	 * Translate the polygon
 	 * @returns the Polygon, so that you can chain calls like Translate().Scale()
 	 */
-	FPolygon2<T>& Translate(const FVector2<T>& Translate) 
+	TPolygon2<T>& Translate(const FVector2<T>& Translate) 
 	{
 		int N = Vertices.Num();
 		for (int i = 0; i < N; ++i)
@@ -682,7 +682,7 @@ public:
 	 * Scale the Polygon relative to a given point
 	 * @returns the Polygon, so that you can chain calls like Translate().Scale()
 	 */
-	FPolygon2<T>& Scale(const FVector2<T>& Scale, const FVector2<T>& Origin)
+	TPolygon2<T>& Scale(const FVector2<T>& Scale, const FVector2<T>& Origin)
 	{
 		int N = Vertices.Num();
 		for (int i = 0; i < N; ++i)
@@ -698,7 +698,7 @@ public:
 	 * Apply an arbitrary transformation to the Polygon
 	 * @returns the Polygon, so that you can chain calls like Translate().Scale()
 	 */
-	FPolygon2<T>& Transform(const TFunction<FVector2<T> (const FVector2<T>&)>& TransformFunc)
+	TPolygon2<T>& Transform(const TFunction<FVector2<T> (const FVector2<T>&)>& TransformFunc)
 	{
 		int N = Vertices.Num();
 		for (int i = 0; i < N; ++i) 
@@ -761,8 +761,8 @@ public:
 			FVector2<T> prev = Vertices[k == 0 ? Vertices.Num() - 1 : k - 1];
 			FVector2<T> dn = (next - v).Normalized();
 			FVector2<T> dp = (prev - v).Normalized();
-			FLine2<T> ln(v + OffsetDistance * dn.Perp(), dn);
-			FLine2<T> lp(v - OffsetDistance * dp.Perp(), dp);
+			TLine2<T> ln(v + OffsetDistance * dn.Perp(), dn);
+			TLine2<T> lp(v - OffsetDistance * dp.Perp(), dp);
 
 			bool bIntersectsAtPoint = ln.IntersectionPoint(lp, NewVertices[k]);
 			if (!bIntersectsAtPoint)  // lines were parallel
@@ -800,7 +800,7 @@ private:
 		int maxi = j;          // index of vertex farthest from S
 		T maxd2 = 0;         // distance squared of farthest vertex
 		T tol2 = Tolerance * Tolerance;  // tolerance squared
-		FSegment2<T> S = FSegment2<T>(Vertices[j], Vertices[k]);    // segment from v[j] to v[k]
+		TSegment2<T> S = TSegment2<T>(Vertices[j], Vertices[k]);    // segment from v[j] to v[k]
 
 		// test each vertex v[i] for max distance from S
 		// Note: this works in any dimension (2D, 3D, ...)
@@ -1010,9 +1010,9 @@ public:
 	/**
 	 * Construct a four-vertex rectangle Polygon
 	 */
-	static FPolygon2<T> MakeRectangle(const FVector2<T>& Center, T Width, T Height)
+	static TPolygon2<T> MakeRectangle(const FVector2<T>& Center, T Width, T Height)
 	{
-		FPolygon2<T> Rectangle;
+		TPolygon2<T> Rectangle;
 		Rectangle.Vertices.SetNumUninitialized(4);
 		Rectangle.Set(0, FVector2<T>(Center.X - Width / 2, Center.Y - Height / 2));
 		Rectangle.Set(1, FVector2<T>(Center.X + Width / 2, Center.Y - Height / 2));
@@ -1025,9 +1025,9 @@ public:
 	/**
 	 * Construct a circular Polygon
 	 */
-	static FPolygon2<T> MakeCircle(T Radius, int Steps, T AngleShiftRadians = 0)
+	static TPolygon2<T> MakeCircle(T Radius, int Steps, T AngleShiftRadians = 0)
 	{
-		FPolygon2<T> Circle;
+		TPolygon2<T> Circle;
 		Circle.Vertices.SetNumUninitialized(Steps);
 
 		for (int i = 0; i < Steps; ++i)
@@ -1041,5 +1041,5 @@ public:
 	}
 };
 
-typedef FPolygon2<double> FPolygon2d;
-typedef FPolygon2<float> FPolygon2f;
+typedef TPolygon2<double> FPolygon2d;
+typedef TPolygon2<float> FPolygon2f;

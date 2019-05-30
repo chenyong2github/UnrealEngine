@@ -413,7 +413,7 @@ public:
 		*
 		* For this quadric, each component of the normal is treated as separate attribute.
 		*/
-		FMatrix3<RealType> Matrix(P0, P1, P2, true); // row-based matrix constructor.
+		TMatrix3<RealType> Matrix(P0, P1, P2, true); // row-based matrix constructor.
 
 		bool bSolved = false;
 		double det = Matrix.Determinant();

@@ -7,23 +7,23 @@
 #include "VectorTypes.h"
 
 template <typename RealType>
-struct FInterval1
+struct TInterval1
 {
 	RealType Min;
 	RealType Max;
 
-	FInterval1()
+	TInterval1()
 	{
 	}
-	FInterval1(const RealType& Min, const RealType& Max)
+	TInterval1(const RealType& Min, const RealType& Max)
 	{
 		this->Min = Min;
 		this->Max = Max;
 	}
 
-	static FInterval1<RealType> Empty()
+	static TInterval1<RealType> Empty()
 	{
-		return FInterval1(TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max());
+		return TInterval1(TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max());
 	}
 
 	RealType Center() const
@@ -57,12 +57,12 @@ struct FInterval1
 		return D >= Min && D <= Max;
 	}
 
-	bool Overlaps(const FInterval1<RealType>& O) const
+	bool Overlaps(const TInterval1<RealType>& O) const
 	{
 		return !(O.Min > Max || O.Max < Min);
 	}
 
-	RealType SquaredDist(const FInterval1<RealType>& O) const
+	RealType SquaredDist(const TInterval1<RealType>& O) const
 	{
 		if (Max < O.Min)
 		{
@@ -77,7 +77,7 @@ struct FInterval1
 			return 0;
 		}
 	}
-	RealType Dist(const FInterval1<RealType>& O) const
+	RealType Dist(const TInterval1<RealType>& O) const
 	{
 		if (Max < O.Min)
 		{
@@ -93,13 +93,13 @@ struct FInterval1
 		}
 	}
 
-	FInterval1<RealType> IntersectionWith(const FInterval1<RealType>& O) const
+	TInterval1<RealType> IntersectionWith(const TInterval1<RealType>& O) const
 	{
 		if (O.Min > Max || O.Max < Min)
 		{
-			return FInterval1<RealType>::Empty();
+			return TInterval1<RealType>::Empty();
 		}
-		return FInterval1<RealType>(TMathUtil<RealType>::Max(Min, O.Min), TMathUtil<RealType>::Min(Max, O.Max));
+		return TInterval1<RealType>(TMathUtil<RealType>::Max(Min, O.Min), TMathUtil<RealType>::Min(Max, O.Max));
 	}
 
 	/**
@@ -141,7 +141,7 @@ struct FInterval1
 		}
 	}
 
-	void Set(FInterval1 O)
+	void Set(TInterval1 O)
 	{
 		Min = O.Min;
 		Max = O.Max;
@@ -153,46 +153,48 @@ struct FInterval1
 		Max = B;
 	}
 
-	FInterval1 operator-(FInterval1 V) const
+	TInterval1 operator-(TInterval1 V) const
 	{
-		return FInterval1(-V.Min, -V.Max);
+		return TInterval1(-V.Min, -V.Max);
 	}
 
-	FInterval1 operator+(RealType f) const
+	TInterval1 operator+(RealType f) const
 	{
-		return FInterval1(Min + f, Max + f);
+		return TInterval1(Min + f, Max + f);
 	}
 
-	FInterval1 operator-(RealType f) const
+	TInterval1 operator-(RealType f) const
 	{
-		return FInterval1(Min - f, Max - f);
+		return TInterval1(Min - f, Max - f);
 	}
 
-	FInterval1 operator*(RealType f) const
+	TInterval1 operator*(RealType f) const
 	{
-		return FInterval1(Min * f, Max * f);
+		return TInterval1(Min * f, Max * f);
 	}
 };
 
-typedef FInterval1<float> FInterval1f;
-typedef FInterval1<double> FInterval1d;
-typedef FInterval1<int> FInterval1i;
+typedef TInterval1<float> FInterval1f;
+typedef TInterval1<double> FInterval1d;
+typedef TInterval1<int> FInterval1i;
+
+
 
 template <typename RealType>
-struct FAxisAlignedBox3
+struct TAxisAlignedBox3
 {
 	FVector3<RealType> Min;
 	FVector3<RealType> Max;
 
-	FAxisAlignedBox3()
+	TAxisAlignedBox3()
 	{
 	}
-	FAxisAlignedBox3(const FVector3<RealType>& Min, const FVector3<RealType>& Max)
+	TAxisAlignedBox3(const FVector3<RealType>& Min, const FVector3<RealType>& Max)
 	{
 		this->Min = Min;
 		this->Max = Max;
 	}
-	FAxisAlignedBox3(const FAxisAlignedBox3& Box, const TFunction<FVector3<RealType>(const FVector3<RealType>&)> TransformF)
+	TAxisAlignedBox3(const TAxisAlignedBox3& Box, const TFunction<FVector3<RealType>(const FVector3<RealType>&)> TransformF)
 	{
 		if (TransformF == nullptr)
 		{
@@ -216,7 +218,7 @@ struct FAxisAlignedBox3
 		FVector MaxV((float)Max.X, (float)Max.Y, (float)Max.Z);
 		return FBox(MinV, MaxV);
 	}
-	FAxisAlignedBox3(const FBox& Box)
+	TAxisAlignedBox3(const FBox& Box)
 	{
 		Min = Box.Min;
 		Max = Box.Max;
@@ -235,9 +237,9 @@ struct FAxisAlignedBox3
 		return FVector3<RealType>(X, Y, Z);
 	}
 
-	static FAxisAlignedBox3<RealType> Empty()
+	static TAxisAlignedBox3<RealType> Empty()
 	{
-		return FAxisAlignedBox3(
+		return TAxisAlignedBox3(
 			FVector3<RealType>(TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max()),
 			FVector3<RealType>(-TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max()));
 	}
@@ -283,7 +285,7 @@ struct FAxisAlignedBox3
 		}
 	}
 
-	void Contain(const FAxisAlignedBox3<RealType>& Other)
+	void Contain(const TAxisAlignedBox3<RealType>& Other)
 	{
 		// todo: can be optimized
 		Contain(Other.Min);
@@ -295,14 +297,14 @@ struct FAxisAlignedBox3
 		return (Min.X <= V.X) && (Min.Y <= V.Y) && (Min.Z <= V.Z) && (Max.X >= V.X) && (Max.Y >= V.Y) && (Max.Z >= V.Z);
 	}
 
-	FAxisAlignedBox3<RealType> Intersect(const FAxisAlignedBox3<RealType>& Box) const
+	TAxisAlignedBox3<RealType> Intersect(const TAxisAlignedBox3<RealType>& Box) const
 	{
-		FAxisAlignedBox3<RealType> Intersection(
+		TAxisAlignedBox3<RealType> Intersection(
 			FVector3<RealType>(TMathUtil<RealType>::Max(Min.X, Box.Min.X), TMathUtil<RealType>::Max(Min.Y, Box.Min.Y), TMathUtil<RealType>::Max(Min.Z, Box.Min.Z)),
 			FVector3<RealType>(TMathUtil<RealType>::Min(Max.X, Box.Max.X), TMathUtil<RealType>::Min(Max.Y, Box.Max.Y), TMathUtil<RealType>::Min(Max.Z, Box.Max.Z)));
 		if (Intersection.Height() <= 0 || Intersection.Width() <= 0 || Intersection.Depth() <= 0)
 		{
-			return FAxisAlignedBox3<RealType>::Empty();
+			return TAxisAlignedBox3<RealType>::Empty();
 		}
 		else
 		{
@@ -310,7 +312,7 @@ struct FAxisAlignedBox3
 		}
 	}
 
-	bool Intersects(FAxisAlignedBox3 Box) const
+	bool Intersects(TAxisAlignedBox3 Box) const
 	{
 		return !((Box.Max.X <= Min.X) || (Box.Min.X >= Max.X) || (Box.Max.Y <= Min.Y) || (Box.Min.Y >= Max.Y) || (Box.Max.Z <= Min.Z) || (Box.Min.Z >= Max.Z));
 	}
@@ -323,7 +325,7 @@ struct FAxisAlignedBox3
 		return dx * dx + dy * dy + dz * dz;
 	}
 
-	RealType DistanceSquared(const FAxisAlignedBox3<RealType>& Box)
+	RealType DistanceSquared(const TAxisAlignedBox3<RealType>& Box)
 	{
 		// compute lensqr( max(0, abs(center1-center2) - (extent1+extent2)) )
 		RealType delta_x = TMathUtil<RealType>::Abs((Box.Min.X + Box.Max.X) - (Min.X + Max.X))
@@ -384,23 +386,23 @@ struct FAxisAlignedBox3
 };
 
 template <typename RealType>
-struct FAxisAlignedBox2
+struct TAxisAlignedBox2
 {
 	FVector2<RealType> Min;
 	FVector2<RealType> Max;
 
-	FAxisAlignedBox2()
+	TAxisAlignedBox2()
 	{
 	}
-	FAxisAlignedBox2(const FVector2<RealType>& Min, const FVector2<RealType>& Max)
+	TAxisAlignedBox2(const FVector2<RealType>& Min, const FVector2<RealType>& Max)
 		: Min(Min), Max(Max)
 	{
 	}
-	FAxisAlignedBox2(RealType SquareSize)
+	TAxisAlignedBox2(RealType SquareSize)
 		: Min((RealType)0, (RealType)0), Max(SquareSize, SquareSize)
 	{
 	}
-	FAxisAlignedBox2(RealType Width, RealType Height)
+	TAxisAlignedBox2(RealType Width, RealType Height)
 		: Min((RealType)0, (RealType)0), Max(Width, Height)
 	{
 	}
@@ -411,15 +413,15 @@ struct FAxisAlignedBox2
 		FVector2D MaxV((float)Max.X, (float)Max.Y);
 		return FBox2D(MinV, MaxV);
 	}
-	FAxisAlignedBox2(const FBox2D& Box)
+	TAxisAlignedBox2(const FBox2D& Box)
 	{
 		Min = Box.Min;
 		Max = Box.Max;
 	}
 
-	static FAxisAlignedBox2<RealType> Empty()
+	static TAxisAlignedBox2<RealType> Empty()
 	{
-		return FAxisAlignedBox2(
+		return TAxisAlignedBox2(
 			FVector2<RealType>(TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max()),
 			FVector2<RealType>(-TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max()));
 	}
@@ -456,7 +458,7 @@ struct FAxisAlignedBox2
 		}
 	}
 
-	inline void Contain(const FAxisAlignedBox2<RealType>& Other)
+	inline void Contain(const TAxisAlignedBox2<RealType>& Other)
 	{
 		// todo: can be optimized
 		Contain(Other.Min);
@@ -476,19 +478,19 @@ struct FAxisAlignedBox2
 		return (Min.X <= V.X) && (Min.Y <= V.Y) && (Max.X >= V.X) && (Max.Y >= V.Y);
 	}
 
-	bool Intersects(const FAxisAlignedBox2<RealType>& Box) const
+	bool Intersects(const TAxisAlignedBox2<RealType>& Box) const
 	{
 		return !((Box.Max.X < Min.X) || (Box.Min.X > Max.X) || (Box.Max.Y < Min.Y) || (Box.Min.Y > Max.Y));
 	}
 
-	FAxisAlignedBox2<RealType> Intersect(const FAxisAlignedBox2<RealType> &Box) const
+	TAxisAlignedBox2<RealType> Intersect(const TAxisAlignedBox2<RealType> &Box) const
 	{
-		FAxisAlignedBox2<RealType> Intersection(
+		TAxisAlignedBox2<RealType> Intersection(
 			FVector2<RealType>(TMathUtil<RealType>::Max(Min.X, Box.Min.X), TMathUtil<RealType>::Max(Min.Y, Box.Min.Y)),
 			FVector2<RealType>(TMathUtil<RealType>::Min(Max.X, Box.Max.X), TMathUtil<RealType>::Min(Max.Y, Box.Max.Y)));
 		if (Intersection.Height() <= 0 || Intersection.Width() <= 0)
 		{
-			return FAxisAlignedBox2<RealType>::Empty();
+			return TAxisAlignedBox2<RealType>::Empty();
 		}
 		else
 		{
@@ -534,9 +536,9 @@ struct FAxisAlignedBox2
 	}
 };
 
-typedef FAxisAlignedBox2<float> FAxisAlignedBox2f;
-typedef FAxisAlignedBox2<double> FAxisAlignedBox2d;
-typedef FAxisAlignedBox2<int> FAxisAlignedBox2i;
-typedef FAxisAlignedBox3<float> FAxisAlignedBox3f;
-typedef FAxisAlignedBox3<double> FAxisAlignedBox3d;
-typedef FAxisAlignedBox3<int> FAxisAlignedBox3i;
+typedef TAxisAlignedBox2<float> FAxisAlignedBox2f;
+typedef TAxisAlignedBox2<double> FAxisAlignedBox2d;
+typedef TAxisAlignedBox2<int> FAxisAlignedBox2i;
+typedef TAxisAlignedBox3<float> FAxisAlignedBox3f;
+typedef TAxisAlignedBox3<double> FAxisAlignedBox3d;
+typedef TAxisAlignedBox3<int> FAxisAlignedBox3i;

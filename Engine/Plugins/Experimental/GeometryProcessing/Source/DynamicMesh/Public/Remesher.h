@@ -218,7 +218,7 @@ protected:
 
 
 
-	FDynamicVector<FVector3d> TempPosBuffer;	// this is a temporary buffer used by smoothing and projection
+	TDynamicVector<FVector3d> TempPosBuffer;	// this is a temporary buffer used by smoothing and projection
 	TArray<bool> TempFlagBuffer;				// list of which indices in TempPosBuffer were modified
 
 	virtual void InitializeVertexBufferForPass();

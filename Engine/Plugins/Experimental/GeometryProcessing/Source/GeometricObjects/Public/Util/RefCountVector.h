@@ -22,21 +22,21 @@ class FRefCountVector
 public:
 	static constexpr short INVALID_REF_COUNT = -1;
 
-	FDynamicVector<short> RefCounts;
-	FDynamicVector<int> FreeIndices;
+	TDynamicVector<short> RefCounts;
+	TDynamicVector<int> FreeIndices;
 	int UsedCount;
 
 	FRefCountVector()
 	{
-		RefCounts = FDynamicVector<short>();
-		FreeIndices = FDynamicVector<int>();
+		RefCounts = TDynamicVector<short>();
+		FreeIndices = TDynamicVector<int>();
 		UsedCount = 0;
 	}
 
 	FRefCountVector(const FRefCountVector& Copy)
 	{
-		RefCounts = FDynamicVector<short>(Copy.RefCounts);
-		FreeIndices = FDynamicVector<int>(Copy.FreeIndices);
+		RefCounts = TDynamicVector<short>(Copy.RefCounts);
+		FreeIndices = TDynamicVector<int>(Copy.FreeIndices);
 		UsedCount = Copy.UsedCount;
 	}
 
@@ -222,7 +222,7 @@ public:
 
 
 
-	const FDynamicVector<short>& GetRawRefCounts() const
+	const TDynamicVector<short>& GetRawRefCounts() const
 	{
 		return RefCounts;
 	}
@@ -230,7 +230,7 @@ public:
 	/**
 	 * @warning you should not use this!
 	 */
-	FDynamicVector<short>& GetRawRefCountsUnsafe()
+	TDynamicVector<short>& GetRawRefCountsUnsafe()
 	{
 		return RefCounts;
 	}
@@ -250,7 +250,7 @@ public:
 
 	void RebuildFreeList()
 	{
-		FreeIndices = FDynamicVector<int>();
+		FreeIndices = TDynamicVector<int>();
 		UsedCount = 0;
 
 		int N = (int)RefCounts.GetLength();
@@ -271,7 +271,7 @@ public:
 
 	void Trim(int maxIndex)
 	{
-		FreeIndices = FDynamicVector<int>();
+		FreeIndices = TDynamicVector<int>();
 		RefCounts.Resize(maxIndex);
 		UsedCount = maxIndex;
 	}

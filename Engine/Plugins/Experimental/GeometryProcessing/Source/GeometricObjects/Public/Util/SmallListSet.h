@@ -8,11 +8,11 @@
 
 /**
  * FSmallListSet stores a set of short integer-valued variable-size lists.
- * The lists are encoded into a few large FDynamicVector buffers, with internal pooling,
+ * The lists are encoded into a few large TDynamicVector buffers, with internal pooling,
  * so adding/removing lists usually does not involve any or delete ops.
  * 
  * The lists are stored in two parts. The first N elements are stored in a linear
- * subset of a FDynamicVector. If the list spills past these N elements, the extra elements
+ * subset of a TDynamicVector. If the list spills past these N elements, the extra elements
  * are stored in a linked list (which is also stored in a flat array).
  * 
  * Each list stores its count, so list-size operations are constant time.
@@ -32,16 +32,16 @@ protected:
 	static constexpr int32 BLOCK_LIST_OFFSET = BLOCKSIZE + 1;
 
 	/** mapping from list index to offset into block_store that contains list data */
-	FDynamicVector<int32> ListHeads;
+	TDynamicVector<int32> ListHeads;
 
 	/** 
 	 * flat buffer used to store per-list linear-memory blocks. 
 	 * blocks are BLOCKSIZE+2 long, elements are [CurrentCount, item0...itemN, LinkedListPtr]
 	 */
-	FDynamicVector<int32> ListBlocks; 
+	TDynamicVector<int32> ListBlocks; 
 
 	/** list of free blocks as indices/offsets into block_store */
-	FDynamicVector<int32> FreeBlocks;
+	TDynamicVector<int32> FreeBlocks;
 
 	/** number of allocated lists */
 	int32 AllocatedCount = 0;
@@ -50,7 +50,7 @@ protected:
 	 * flat buffer used to store linked-list "spill" elements
 	 * each element is [value, next_ptr]
 	 */
-	FDynamicVector<int32> LinkedListElements;
+	TDynamicVector<int32> LinkedListElements;
 
 	/** index of first free element in linked_store */
 	int32 FreeHeadIndex;

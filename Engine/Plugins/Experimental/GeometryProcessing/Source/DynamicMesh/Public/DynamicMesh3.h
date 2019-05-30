@@ -89,7 +89,7 @@ struct FVertexInfo
 *
 * internally, all data is stored in POD-type buffers, except for the vertex->edge
 * links, which are stored as List<int>'s. The arrays of POD data are stored in
-* FDynamicVector's, so they grow in chunks, which is relatively efficient. The actual
+* TDynamicVector's, so they grow in chunks, which is relatively efficient. The actual
 * blocks are arrays, so they can be efficiently mem-copied into larger buffers
 * if necessary.
 *
@@ -130,7 +130,7 @@ struct FVertexInfo
 *  - additional Topology timestamp?
 *  - CompactInPlace() does not compact VertexEdgeLists
 *  - CompactCopy does not support per-vertex or extended attributes
-*  ? FDynamicVector w/ 'stride' option, so that we can guarantee that tuples are in single block.
+*  ? TDynamicVector w/ 'stride' option, so that we can guarantee that tuples are in single block.
 *    The can have custom accessor that looks up entire tuple
 */
 class DYNAMICMESH_API FDynamicMesh3
@@ -160,13 +160,13 @@ protected:
 	/** Reference counts of vertex indices. Iterate over this to find out which vertex indices are valid. */
 	FRefCountVector VertexRefCounts;
 	/** List of vertex positions */
-	FDynamicVector<double> Vertices;
+	TDynamicVector<double> Vertices;
 	/** (optional) List of per-vertex normals */
-	FDynamicVector<float>* VertexNormals = nullptr;
+	TDynamicVector<float>* VertexNormals = nullptr;
 	/** (optional) List of per-vertex colors */
-	FDynamicVector<float>* VertexColors = nullptr;
+	TDynamicVector<float>* VertexColors = nullptr;
 	/** (optional) List of per-vertex uvs */
-	FDynamicVector<float>* VertexUVs = nullptr;
+	TDynamicVector<float>* VertexUVs = nullptr;
 
 	/** List of per-vertex edge one-rings */
 	FSmallListSet VertexEdgeLists;
@@ -174,16 +174,16 @@ protected:
 	/** Reference counts of triangle indices. Iterate over this to find out which triangle indices are valid. */
 	FRefCountVector TriangleRefCounts;
 	/** List of triangle vertex-index triplets [Vert0 Vert1 Vert2]*/
-	FDynamicVector<int> Triangles;
+	TDynamicVector<int> Triangles;
 	/** List of triangle edge triplets [Edge0 Edge1 Edge2] */
-	FDynamicVector<int> TriangleEdges;
+	TDynamicVector<int> TriangleEdges;
 	/** (optional) List of per-triangle group identifiers */
-	FDynamicVector<int>* TriangleGroups = nullptr;
+	TDynamicVector<int>* TriangleGroups = nullptr;
 
 	/** Reference counts of edge indices. Iterate over this to find out which edge indices are valid. */
 	FRefCountVector EdgeRefCounts;
 	/** List of edge elements. An edge is four elements [VertA, VertB, Tri0, Tri1], where VertA < VertB, and Tri1 may be InvalidID (if the edge is a boundary edge) */
-	FDynamicVector<int> Edges;
+	TDynamicVector<int> Edges;
 
 	FDynamicMeshAttributeSet* AttributeSet = nullptr;
 
@@ -967,7 +967,7 @@ public:
 	// direct buffer access
 	//
 public:
-	const FDynamicVector<double>& GetVerticesBuffer()
+	const TDynamicVector<double>& GetVerticesBuffer()
 	{
 		return Vertices;
 	}
@@ -975,20 +975,20 @@ public:
 	{
 		return VertexRefCounts;
 	}
-	const FDynamicVector<float>* GetNormalsBuffer()
+	const TDynamicVector<float>* GetNormalsBuffer()
 	{
 		return VertexNormals;
 	}
-	const FDynamicVector<float>* GetColorsBuffer()
+	const TDynamicVector<float>* GetColorsBuffer()
 	{
 		return VertexColors;
 	}
-	const FDynamicVector<float>* GetUVBuffer()
+	const TDynamicVector<float>* GetUVBuffer()
 	{
 		return VertexUVs;
 	}
 
-	const FDynamicVector<int>& GetTrianglesBuffer()
+	const TDynamicVector<int>& GetTrianglesBuffer()
 	{
 		return Triangles;
 	}
@@ -996,12 +996,12 @@ public:
 	{
 		return TriangleRefCounts;
 	}
-	const FDynamicVector<int>* GetTriangleGroupsBuffer()
+	const TDynamicVector<int>* GetTriangleGroupsBuffer()
 	{
 		return TriangleGroups;
 	}
 
-	const FDynamicVector<int>& GetEdgesBuffer()
+	const TDynamicVector<int>& GetEdgesBuffer()
 	{
 		return Edges;
 	}

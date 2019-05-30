@@ -16,8 +16,8 @@ class TDistRay3Segment3
 {
 public:
 	// Input
-	FRay3<Real> Ray;
-	FSegment3<Real> Segment;
+	TRay3<Real> Ray;
+	TSegment3<Real> Segment;
 
 	// Results
 	Real DistanceSquared = -1.0;
@@ -28,7 +28,7 @@ public:
 	Real SegmentParameter;
 
 
-	TDistRay3Segment3(const FRay3<Real>& RayIn, const FSegment3<Real>& SegmentIn)
+	TDistRay3Segment3(const TRay3<Real>& RayIn, const TSegment3<Real>& SegmentIn)
 	{
 		Ray = RayIn;
 		Segment = SegmentIn;
@@ -216,7 +216,7 @@ public:
 
 
 
-	static double SquaredDistance(const FRay3<Real>& Ray, const FSegment3<Real>& Segment,
+	static double SquaredDistance(const TRay3<Real>& Ray, const TSegment3<Real>& Segment,
 		Real& RayParam, Real& SegParam)
 	{
 		FVector3<Real> diff = Ray.Origin - Segment.Center;

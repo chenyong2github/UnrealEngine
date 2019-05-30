@@ -41,7 +41,7 @@ protected:
 	FSmallListSet vertex_edges;
 
 	FRefCountVector edges_refcount;
-	FDynamicVector<FEdge> edges; // each edge is a tuple (v0,v0,GroupID)
+	TDynamicVector<FEdge> edges; // each edge is a tuple (v0,v0,GroupID)
 
 	int timestamp = 0;
 	int shape_timestamp = 0;

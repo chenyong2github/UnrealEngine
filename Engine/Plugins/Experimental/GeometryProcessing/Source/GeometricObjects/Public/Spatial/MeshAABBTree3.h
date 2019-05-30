@@ -414,9 +414,9 @@ protected:
 	// storage for Box Nodes.
 	//   - BoxToIndex is a pointer into IndexList
 	//   - BoxCenters and BoxExtents are the Centers/extents of the bounding boxes
-	FDynamicVector<int> BoxToIndex;
-	FDynamicVector<FVector3d> BoxCenters;
-	FDynamicVector<FVector3d> BoxExtents;
+	TDynamicVector<int> BoxToIndex;
+	TDynamicVector<FVector3d> BoxCenters;
+	TDynamicVector<FVector3d> BoxExtents;
 
 	// list of indices for a given Box. There is *no* marker/sentinel between
 	// boxes, you have to get the starting index from BoxToIndex[]
@@ -428,7 +428,7 @@ protected:
 	//       internal Box, with index (-IndexList[i])-1     (shift-by-one in case actual value is 0!)
 	//   - if i > TrianglesEnd and IndexList[i] > 0, this is a two-child
 	//       internal Box, with indices IndexList[i]-1 and IndexList[i+1]-1
-	FDynamicVector<int> IndexList;
+	TDynamicVector<int> IndexList;
 
 	// IndexList[i] for i < TrianglesEnd is a triangle-index list, otherwise Box-index pair/single
 	int TrianglesEnd = -1;
@@ -438,10 +438,10 @@ protected:
 
 	struct FBoxesSet
 	{
-		FDynamicVector<int> BoxToIndex;
-		FDynamicVector<FVector3d> BoxCenters;
-		FDynamicVector<FVector3d> BoxExtents;
-		FDynamicVector<int> IndexList;
+		TDynamicVector<int> BoxToIndex;
+		TDynamicVector<FVector3d> BoxCenters;
+		TDynamicVector<FVector3d> BoxExtents;
+		TDynamicVector<int> IndexList;
 		int IBoxCur;
 		int IIndicesCur;
 		FBoxesSet()
