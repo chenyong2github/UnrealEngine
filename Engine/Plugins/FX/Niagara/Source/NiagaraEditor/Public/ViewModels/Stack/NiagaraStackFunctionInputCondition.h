@@ -31,7 +31,7 @@ public:
 
 	FNiagaraTypeDefinition GetConditionInputType() const;
 
-	FNiagaraVariableMetaData* GetConditionInputMetaData() const;
+	TOptional<FNiagaraVariableMetaData> GetConditionInputMetaData() const;
 
 private:
 	UNiagaraScript* Script;

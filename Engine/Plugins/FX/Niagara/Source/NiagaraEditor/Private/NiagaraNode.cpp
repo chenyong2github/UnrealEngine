@@ -29,7 +29,7 @@ void UNiagaraNode::PostLoad()
 	}
 }
 
-bool UNiagaraNode::ReallocatePins()
+bool UNiagaraNode::ReallocatePins(bool bMarkNeedsResynchronizeOnChange)
 {
 	Modify();
 
@@ -109,7 +109,7 @@ bool UNiagaraNode::ReallocatePins()
 	}
 
 	//GetGraph()->NotifyGraphChanged();
-	if (!bAllSame)
+	if (bMarkNeedsResynchronizeOnChange && !bAllSame)
 	{
 		MarkNodeRequiresSynchronization(__FUNCTION__, true);
 	}
@@ -354,7 +354,7 @@ bool UNiagaraNode::CanAddToGraph(UNiagaraGraph* TargetGraph, FString& OutErrorMs
 	return true;
 }
 
-void UNiagaraNode::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive)
+void UNiagaraNode::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive) const
 {
 	if (bRecursive)
 	{
@@ -362,7 +362,8 @@ void UNiagaraNode::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& 
 	}
 }
 
-void UNiagaraNode::GetInputPins(TArray<class UEdGraphPin*>& OutInputPins) const
+template<typename PinType>
+void GetInputPinsInternal(const TArray<UEdGraphPin*>& Pins, TArray<PinType*>& OutInputPins)
 {
 	OutInputPins.Empty();
 
@@ -373,6 +374,16 @@ void UNiagaraNode::GetInputPins(TArray<class UEdGraphPin*>& OutInputPins) const
 			OutInputPins.Add(Pins[PinIndex]);
 		}
 	}
+}
+
+void UNiagaraNode::GetInputPins(TArray<class UEdGraphPin*>& OutInputPins) const
+{
+	GetInputPinsInternal<class UEdGraphPin>(Pins, OutInputPins);
+}
+
+void UNiagaraNode::GetInputPins(TArray<const class UEdGraphPin*>& OutInputPins) const
+{
+	GetInputPinsInternal<const class UEdGraphPin>(Pins, OutInputPins);
 }
 
 UEdGraphPin* UNiagaraNode::GetOutputPin(int32 OutputIndex) const
@@ -395,7 +406,8 @@ UEdGraphPin* UNiagaraNode::GetOutputPin(int32 OutputIndex) const
 	return NULL;
 }
 
-void UNiagaraNode::GetOutputPins(TArray<class UEdGraphPin*>& OutOutputPins) const
+template<typename PinType>
+void GetOutputPinsInternal(const TArray<UEdGraphPin*>& Pins, TArray<PinType*>& OutOutputPins)
 {
 	OutOutputPins.Empty();
 
@@ -406,6 +418,16 @@ void UNiagaraNode::GetOutputPins(TArray<class UEdGraphPin*>& OutOutputPins) cons
 			OutOutputPins.Add(Pins[PinIndex]);
 		}
 	}
+}
+
+void UNiagaraNode::GetOutputPins(TArray<class UEdGraphPin*>& OutOutputPins) const
+{
+	return GetOutputPinsInternal<class UEdGraphPin>(Pins, OutOutputPins);
+}
+
+void UNiagaraNode::GetOutputPins(TArray<const class UEdGraphPin*>& OutOutputPins) const
+{
+	return GetOutputPinsInternal<const class UEdGraphPin>(Pins, OutOutputPins);
 }
 
 UEdGraphPin* UNiagaraNode::GetPinByPersistentGuid(const FGuid& InPersistentGuid) const
@@ -534,7 +556,12 @@ UEdGraphPin* UNiagaraNode::TraceOutputPin(UEdGraphPin* LocallyOwnedOutputPin)
 	return LinkedNode->GetTracedOutputPin(LocallyOwnedOutputPin);
 }
 
-void UNiagaraNode::RouteParameterMapAroundMe(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive)
+bool UNiagaraNode::SubstituteCompiledPin(FHlslNiagaraTranslator* Translator, UEdGraphPin** LocallyOwnedPin)
+{
+	return false;
+}
+
+void UNiagaraNode::RouteParameterMapAroundMe(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive) const
 {
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 

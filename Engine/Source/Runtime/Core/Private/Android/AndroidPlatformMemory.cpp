@@ -399,10 +399,67 @@ void FAndroidPlatformMemory::BinnedFreeToOS(void* Ptr, SIZE_T Size)
 	}
 }
 
-bool FAndroidPlatformMemory::MemoryRangeDecommit(void* Ptr, SIZE_T Size)
+size_t FAndroidPlatformMemory::FPlatformVirtualMemoryBlock::GetVirtualSizeAlignment()
 {
-	return madvise(Ptr, Size, MADV_DONTNEED) == 0;
+	static SIZE_T OSPageSize = FPlatformMemory::GetConstants().PageSize;
+	return OSPageSize;
 }
+
+size_t FAndroidPlatformMemory::FPlatformVirtualMemoryBlock::GetCommitAlignment()
+{
+	static SIZE_T OSPageSize = FPlatformMemory::GetConstants().PageSize;
+	return OSPageSize;
+}
+
+FAndroidPlatformMemory::FPlatformVirtualMemoryBlock FAndroidPlatformMemory::FPlatformVirtualMemoryBlock::AllocateVirtual(size_t InSize, size_t InAlignment)
+{
+	FPlatformVirtualMemoryBlock Result;
+	InSize = Align(InSize, GetVirtualSizeAlignment());
+	Result.VMSizeDivVirtualSizeAlignment = InSize / GetVirtualSizeAlignment();
+
+	size_t Alignment = FMath::Max(InAlignment, GetVirtualSizeAlignment());
+	check(Alignment <= GetVirtualSizeAlignment());
+
+	Result.Ptr = mmap(nullptr, Result.GetActualSize(), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+	if (!LIKELY(Result.Ptr != MAP_FAILED))
+	{
+		FPlatformMemory::OnOutOfMemory(Result.GetActualSize(), InAlignment);
+	}
+	check(Result.Ptr && IsAligned(Result.Ptr, Alignment));
+	return Result;
+}
+
+
+
+void FAndroidPlatformMemory::FPlatformVirtualMemoryBlock::FreeVirtual()
+{
+	if (Ptr)
+	{
+		check(VMSizeDivVirtualSizeAlignment > 0);
+		if (munmap(Ptr, GetActualSize()) != 0)
+		{
+			// we can ran out of VMAs here
+			FPlatformMemory::OnOutOfMemory(GetActualSize(), 0);
+			// unreachable
+		}
+		Ptr = nullptr;
+		VMSizeDivVirtualSizeAlignment = 0;
+	}
+}
+
+void FAndroidPlatformMemory::FPlatformVirtualMemoryBlock::Commit(size_t InOffset, size_t InSize)
+{
+	check(IsAligned(InOffset, GetCommitAlignment()) && IsAligned(InSize, GetCommitAlignment()));
+	check(InOffset >= 0 && InSize >= 0 && InOffset + InSize <= GetActualSize() && Ptr);
+}
+
+void FAndroidPlatformMemory::FPlatformVirtualMemoryBlock::Decommit(size_t InOffset, size_t InSize)
+{
+	check(IsAligned(InOffset, GetCommitAlignment()) && IsAligned(InSize, GetCommitAlignment()));
+	check(InOffset >= 0 && InSize >= 0 && InOffset + InSize <= GetActualSize() && Ptr);
+	madvise(((uint8*)Ptr) + InOffset, InSize, MADV_DONTNEED);
+}
+
 
 /**
 * LLM uses these low level functions (LLMAlloc and LLMFree) to allocate memory. It grabs

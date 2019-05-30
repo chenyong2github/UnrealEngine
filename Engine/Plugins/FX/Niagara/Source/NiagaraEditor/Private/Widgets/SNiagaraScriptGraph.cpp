@@ -25,7 +25,7 @@
 void SNiagaraScriptGraph::Construct(const FArguments& InArgs, TSharedRef<FNiagaraScriptGraphViewModel> InViewModel)
 {
 	ViewModel = InViewModel;
-	ViewModel->GetSelection()->OnSelectedObjectsChanged().AddSP(this, &SNiagaraScriptGraph::ViewModelSelectedNodesChanged);
+	ViewModel->GetNodeSelection()->OnSelectedObjectsChanged().AddSP(this, &SNiagaraScriptGraph::ViewModelSelectedNodesChanged);
 	ViewModel->OnNodesPasted().AddSP(this, &SNiagaraScriptGraph::NodesPasted);
 	ViewModel->OnGraphChanged().AddSP(this, &SNiagaraScriptGraph::GraphChanged);
 	bUpdatingGraphSelectionFromViewModel = false;
@@ -93,11 +93,11 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 
 void SNiagaraScriptGraph::ViewModelSelectedNodesChanged()
 {
-	if (FNiagaraEditorUtilities::SetsMatch(GraphEditor->GetSelectedNodes(), ViewModel->GetSelection()->GetSelectedObjects()) == false)
+	if (FNiagaraEditorUtilities::SetsMatch(GraphEditor->GetSelectedNodes(), ViewModel->GetNodeSelection()->GetSelectedObjects()) == false)
 	{
 		bUpdatingGraphSelectionFromViewModel = true;
 		GraphEditor->ClearSelectionSet();
-		for (UObject* SelectedNode : ViewModel->GetSelection()->GetSelectedObjects())
+		for (UObject* SelectedNode : ViewModel->GetNodeSelection()->GetSelectedObjects())
 		{
 			UEdGraphNode* GraphNode = Cast<UEdGraphNode>(SelectedNode);
 			if (GraphNode != nullptr)
@@ -113,7 +113,14 @@ void SNiagaraScriptGraph::GraphEditorSelectedNodesChanged(const TSet<UObject*>& 
 {
 	if (bUpdatingGraphSelectionFromViewModel == false)
 	{
-		ViewModel->GetSelection()->SetSelectedObjects(SelectedNodes);
+		if (SelectedNodes.Num() == 0)
+		{
+			ViewModel->GetNodeSelection()->ClearSelectedObjects();
+		} 
+		else 
+		{
+			ViewModel->GetNodeSelection()->SetSelectedObjects(SelectedNodes);
+		}
 	}
 }
 

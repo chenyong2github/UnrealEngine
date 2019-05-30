@@ -708,6 +708,13 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = StaticMesh)
 	uint8 bAllowCPUAccess:1;
 
+	/**
+	 * If true, a GPU buffer containing required data for uniform mesh surface sampling will be created at load time.
+	 * It is created from the cpu data so bSupportUniformlyDistributedSampling is also required to be true.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = StaticMesh)
+	uint8 bSupportGpuUniformlyDistributedSampling : 1;
+
 	/** A fence which is used to keep track of the rendering thread releasing the static mesh resources. */
 	FRenderCommandFence ReleaseResourcesFence;
 

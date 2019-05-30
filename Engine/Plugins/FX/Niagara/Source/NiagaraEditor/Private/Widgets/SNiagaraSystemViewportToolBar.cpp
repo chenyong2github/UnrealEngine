@@ -34,6 +34,7 @@ TSharedRef<SWidget> SNiagaraSystemViewportToolBar::GenerateShowMenu() const
 		ShowMenuBuilder.AddMenuSeparator();
 
 		ShowMenuBuilder.AddMenuEntry(Commands.TogglePreviewGrid);
+		ShowMenuBuilder.AddMenuEntry(Commands.ToggleInstructionCounts);
 		//ShowMenuBuilder.AddMenuEntry(Commands.TogglePreviewBackground);
 	}
 

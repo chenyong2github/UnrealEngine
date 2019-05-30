@@ -340,7 +340,12 @@ public:
 	FORCEINLINE_DEBUGGABLE void SetParameterData(const uint8* Data, int32 Offset, int32 Size)
 	{
 		checkSlow(Data != nullptr);
-		FMemory::Memcpy(GetParameterData_Internal(Offset), Data, Size);
+		checkSlow((Offset + Size) <= ParameterData.Num());
+		uint8* Dest = GetParameterData_Internal(Offset);
+		if (Dest != Data)
+		{
+			FMemory::Memcpy(Dest, Data, Size);
+		}
 		OnParameterChange();
 	}
 
@@ -351,7 +356,11 @@ public:
 		if (Offset != INDEX_NONE)
 		{
 			checkSlow(!Param.IsDataInterface());
-			FMemory::Memcpy(GetParameterData_Internal(Offset), Data, Param.GetSizeInBytes());
+			uint8* Dest = GetParameterData_Internal(Offset);
+			if (Dest != Data)
+			{
+				FMemory::Memcpy(Dest, Data, Param.GetSizeInBytes());
+			}
 			OnParameterChange();
 			return true;
 		}
@@ -364,7 +373,11 @@ public:
 				AddParameter(Param, bInitInterfaces, bTriggerRebind);
 				Offset = IndexOf(Param);
 				check(Offset != INDEX_NONE);
-				FMemory::Memcpy(GetParameterData_Internal(Offset), Data, Param.GetSizeInBytes());
+				uint8* Dest = GetParameterData_Internal(Offset);
+				if (Dest != Data)
+				{
+					FMemory::Memcpy(Dest, Data, Param.GetSizeInBytes());
+				}
 				OnLayoutChange();
 				return true;
 			}
@@ -382,7 +395,12 @@ public:
 		int32 Offset = IndexOf(Param);
 		if (Offset != INDEX_NONE)
 		{
-			FMemory::Memcpy(GetParameterData_Internal(Offset), Param.GetData(), Param.GetSizeInBytes());
+			uint8* Dest = GetParameterData_Internal(Offset);
+			const uint8* Src = Param.GetData();
+			if (Dest != Src)
+			{
+				FMemory::Memcpy(Dest, Src, Param.GetSizeInBytes());
+			}
 			OnParameterChange();
 		}
 	}

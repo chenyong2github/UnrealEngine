@@ -53,6 +53,8 @@ public:
 	static const FName PrototypeNameMetaName;
 	static const FName AnimationInputMetaName;
 	static const FName AnimationOutputMetaName;
+	static const FName ExpandPinByDefaultMetaName;
+	static const FName DefaultArraySizeMetaName;
 
 private:
 	/** Current delta time */

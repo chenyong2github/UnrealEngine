@@ -4,7 +4,7 @@
 	MeshParticleVertexFactory.usf: Mesh particle vertex factory shader code.
 =============================================================================*/
 
-#include "VertexFactoryCommon.ush"
+#include "/Engine/Private/VertexFactoryCommon.ush"
 #include "NiagaraVFParticleAccess.usf"
 
 // These are only enabled for SM5 due to limited interpolators elsewhere
@@ -245,6 +245,9 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.Particle.Color = Interpolants.ParticleColor;
 #endif
 
+#if (DYNAMIC_PARAMETERS_MASK != 0)
+	Result.Particle.DynamicParameterValidMask = NiagaraMeshVF.MaterialParamValidMask;
+#endif
 #if (DYNAMIC_PARAMETERS_MASK & 1)
 	Result.Particle.DynamicParameter = Interpolants.DynamicParameter;
 #endif
@@ -325,6 +328,9 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 
 	Result.Particle.Color = Intermediates.ParticleColor;
 
+#if (DYNAMIC_PARAMETERS_MASK != 0)
+	Result.Particle.DynamicParameterValidMask = NiagaraMeshVF.MaterialParamValidMask;
+#endif
 #if (DYNAMIC_PARAMETERS_MASK & 1)
 	Result.Particle.DynamicParameter = Intermediates.DynamicParameter;
 #endif
@@ -386,7 +392,16 @@ float4 CalcPrevWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermedia
 #endif
 	// if we don't have a full previous transform, we can at least calculate the position to get some motion blur
 	{
-		return CalcWorldPosition(Input, Intermediates)- float4(Intermediates.ParticleVelocity.xyz*NiagaraMeshVF.DeltaSeconds, 0.0);
+		float3 WorldPosition = CalcWorldPosition(Input, Intermediates).xyz;
+
+		// ParticleVelocity.xyz - normalized direction vector
+		// ParticleVelocity.w - velocity magnitude
+		float3 WorldDisplacement = -(Intermediates.ParticleVelocity.xyz * (Intermediates.ParticleVelocity.w * NiagaraMeshVF.DeltaSeconds));
+
+		float3 PrevWorldPosition = WorldPosition - ResolvedView.PreViewTranslation;
+		PrevWorldPosition += WorldDisplacement + ResolvedView.PrevPreViewTranslation;
+
+		return float4(PrevWorldPosition.xyz, Input.Position.w);
 	}
 }
 
@@ -478,10 +493,13 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 {
 	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
 
-	if(SortedIndicesOffset != 0xFFFFFFFF)
+#if !SHADOW_DEPTH_SHADER && !SPHERICAL_OPACITY_FOR_SHADOW_DEPTHS
+	// Don't use sort buffer in the shadow because they are only valid after opaque.
+	if (SortedIndicesOffset != 0xFFFFFFFF)
 	{
 		Input.InstanceId = SortedIndices[SortedIndicesOffset + Input.InstanceId];
 	}
+#endif
 
 	if (NiagaraMeshVF.PositionDataOffset == -1)
 	{
@@ -512,16 +530,16 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 
 #if (DYNAMIC_PARAMETERS_MASK & 1)
-	Intermediates.DynamicParameter  = NiagaraMeshVF.MaterialParamDataOffset != -1 ? GetVec4(NiagaraMeshVF.MaterialParamDataOffset, Input.InstanceId) : float4(1,1,1,1);
+	Intermediates.DynamicParameter = NiagaraMeshVF.MaterialParamDataOffset != -1 ? GetVec4(NiagaraMeshVF.MaterialParamDataOffset, Input.InstanceId) : float4(1, 1, 1, 1);
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 2)
-	Intermediates.DynamicParameter1  = NiagaraMeshVF.MaterialParam1DataOffset != -1 ? GetVec4(NiagaraMeshVF.MaterialParam1DataOffset, Input.InstanceId) : float4(1,1,1,1);
+	Intermediates.DynamicParameter1 = NiagaraMeshVF.MaterialParam1DataOffset != -1 ? GetVec4(NiagaraMeshVF.MaterialParam1DataOffset, Input.InstanceId) : float4(1, 1, 1, 1);
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 4)
-	Intermediates.DynamicParameter2  = NiagaraMeshVF.MaterialParam2DataOffset != -1 ? GetVec4(NiagaraMeshVF.MaterialParam2DataOffset, Input.InstanceId) : float4(1,1,1,1);
+	Intermediates.DynamicParameter2 = NiagaraMeshVF.MaterialParam2DataOffset != -1 ? GetVec4(NiagaraMeshVF.MaterialParam2DataOffset, Input.InstanceId) : float4(1, 1, 1, 1);
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 8)
-	Intermediates.DynamicParameter3  = NiagaraMeshVF.MaterialParam3DataOffset != -1 ? GetVec4(NiagaraMeshVF.MaterialParam3DataOffset, Input.InstanceId) : float4(1,1,1,1);
+	Intermediates.DynamicParameter3 = NiagaraMeshVF.MaterialParam3DataOffset != -1 ? GetVec4(NiagaraMeshVF.MaterialParam3DataOffset, Input.InstanceId) : float4(1, 1, 1, 1);
 #endif
 
 #if USE_PARTICLE_TIME
@@ -547,8 +565,10 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #endif
 
 #if USE_PARTICLE_VELOCITY
-	Intermediates.ParticleVelocity.xyz = normalize(ParticleVelocity);
-	Intermediates.ParticleVelocity.w = length(ParticleVelocity);
+	float ParticleVelocityMagnitude = length(ParticleVelocity);
+
+	Intermediates.ParticleVelocity.xyz = (ParticleVelocityMagnitude > 0) ? normalize(ParticleVelocity) : float3(0.0f, 0.0f, 0.0f);
+	Intermediates.ParticleVelocity.w = ParticleVelocityMagnitude;
 #endif
 
 	float4 Transform1 = float4(1.0f, 0.0f, 0.0f, Intermediates.ParticlePosition.x);
@@ -582,7 +602,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	// World position and localtoworld transform.
 	float4x4 LocalToWorldMat = float4x4(Transform1, Transform2, Transform3, float4(0.0f, 0.0f, 0.0f, 1.0f));
 
-	Intermediates.ParticleTranslatedWorldPosition = Intermediates.ParticlePosition + ResolvedView.PreViewTranslation.xyz;
+	Intermediates.ParticleTranslatedWorldPosition = Intermediates.ParticlePosition.xyz + ResolvedView.PreViewTranslation.xyz;
 
 	//LocalToWorldMat = mul(ScaleMatrix, LocalToWorldMat);
 

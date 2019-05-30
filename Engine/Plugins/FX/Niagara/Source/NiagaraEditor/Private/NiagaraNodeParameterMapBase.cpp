@@ -48,7 +48,7 @@ TArray<FNiagaraParameterMapHistory> UNiagaraNodeParameterMapBase::GetParameterMa
 
 }
 
-TArray<FNiagaraParameterMapHistory> UNiagaraNodeParameterMapBase::GetParameterMaps(UNiagaraGraph* InGraph, FString EmitterNameOverride, const TArray<FNiagaraVariable>& EncounterableVariables)
+TArray<FNiagaraParameterMapHistory> UNiagaraNodeParameterMapBase::GetParameterMaps(const UNiagaraGraph* InGraph, FString EmitterNameOverride, const TArray<FNiagaraVariable>& EncounterableVariables)
 {
 	TArray<UNiagaraNodeOutput*> OutputNodes;
 	InGraph->FindOutputNodes(OutputNodes);
@@ -62,7 +62,7 @@ TArray<FNiagaraParameterMapHistory> UNiagaraNodeParameterMapBase::GetParameterMa
 	return OutputParameterMapHistories;
 }
 
-TArray<FNiagaraParameterMapHistory> UNiagaraNodeParameterMapBase::GetParameterMaps(UNiagaraNodeOutput* InGraphEnd, bool bLimitToOutputScriptType, FString EmitterNameOverride, const TArray<FNiagaraVariable>& EncounterableVariables)
+TArray<FNiagaraParameterMapHistory> UNiagaraNodeParameterMapBase::GetParameterMaps(const UNiagaraNodeOutput* InGraphEnd, bool bLimitToOutputScriptType, FString EmitterNameOverride, const TArray<FNiagaraVariable>& EncounterableVariables)
 {
 	const UEdGraphSchema_Niagara* Schema = Cast<UEdGraphSchema_Niagara>(InGraphEnd->GetSchema());
 
@@ -100,11 +100,10 @@ FText UNiagaraNodeParameterMapBase::GetPinDescriptionText(UEdGraphPin* Pin) cons
 	FNiagaraVariable Var = CastChecked<UEdGraphSchema_Niagara>(GetSchema())->PinToNiagaraVariable(Pin);
 
 	const UNiagaraGraph* Graph = GetNiagaraGraph();
-	const FNiagaraVariableMetaData* OldMetaData = Graph->GetMetaData(Var);
-	if (OldMetaData)
+	TOptional<FNiagaraVariableMetaData> MetaData = Graph->GetMetaData(Var);
+	if (MetaData.IsSet())
 	{
-		ensure(OldMetaData->ReferencerNodes.Contains(MakeWeakObjectPtr<UObject>(const_cast<UNiagaraNodeParameterMapBase*>(this))));
-		return OldMetaData->Description;
+		return MetaData->Description;
 	}
 	return FText::GetEmpty();
 }
@@ -119,30 +118,18 @@ void UNiagaraNodeParameterMapBase::PinDescriptionTextCommitted(const FText& Text
 		UE_LOG(LogNiagaraEditor, Error, TEXT("You cannot set the description for a Niagara internal constant \"%s\""),*Var.GetName().ToString());
 		return;
 	}
-	FNiagaraVariableMetaData* OldMetaData = Graph->GetMetaData(Var);
-	bool bSet = !Text.IsEmptyOrWhitespace();
-	if (OldMetaData && !OldMetaData->Description.IsEmptyOrWhitespace())
+
+	TOptional<FNiagaraVariableMetaData> OldMetaData = Graph->GetMetaData(Var);
+	FNiagaraVariableMetaData NewMetaData;
+	if (OldMetaData.IsSet())
 	{
-		bSet = true;
+		NewMetaData = OldMetaData.GetValue();
 	}
 
 	FScopedTransaction AddNewPinTransaction(LOCTEXT("Rename Pin Desc", "Changed variable description"));
-	Modify();
-	Pin->Modify();
-
-	if (OldMetaData)
-	{
-		ensure(OldMetaData->ReferencerNodes.Contains(TWeakObjectPtr<UObject>(this)));
-		Graph->Modify();
-		OldMetaData->Description = Text;
-	}
-	else
-	{
-		Graph->Modify();
-		FNiagaraVariableMetaData& NewMetaData = Graph->FindOrAddMetaData(Var);
-		NewMetaData.Description = Text;
-		NewMetaData.ReferencerNodes.Add(TWeakObjectPtr<UObject>(this));
-	}
+	NewMetaData.Description = Text;
+	Graph->Modify();
+	Graph->SetMetaData(Var, NewMetaData);
 }
 
 void UNiagaraNodeParameterMapBase::CollectAddPinActions(FGraphActionListBuilderBase& OutActions, bool& bOutCreateRemainingActions, UEdGraphPin* Pin)
@@ -186,8 +173,8 @@ void UNiagaraNodeParameterMapBase::GetPinHoverText(const UEdGraphPin& Pin, FStri
 			}
 
 			FNiagaraVariable Var = FNiagaraVariable(TypeDef, Pin.PinName);
-			const FNiagaraVariableMetaData* Metadata = NiagaraGraph->GetMetaData(Var);
-			if (Metadata)
+			TOptional<FNiagaraVariableMetaData> Metadata = NiagaraGraph->GetMetaData(Var);
+			if (Metadata.IsSet())
 			{
 				FText Desc = FText::Format(LOCTEXT("GetVarTooltip", "Name: \"{0}\"\nType: {1}\nDesc: {2}"), FText::FromName(Pin.PinName),
 					TypeDef.GetNameText(), Metadata->Description);
@@ -231,7 +218,7 @@ void UNiagaraNodeParameterMapBase::OnPinRenamed(UEdGraphPin* RenamedPin, const F
 	FNiagaraVariable Var(VarType, *OldName);
 
 	UNiagaraGraph* Graph = GetNiagaraGraph();
-	Graph->RenameParameter(Var, NewUniqueName, false /*bInNotifyGraphChanged*/); // Notify graph changed in child.
+	Graph->RenameParameter(Var, NewUniqueName);
 
 	if (RenamedPin == PinPendingRename)
 	{

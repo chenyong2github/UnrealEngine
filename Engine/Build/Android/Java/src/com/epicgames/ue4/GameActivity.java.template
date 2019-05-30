@@ -223,6 +223,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 //$${gameActivityImplementsAdditions}$$
 															ComponentCallbacks2
 {
+	public int VersionCode = 0;
 	private boolean bAllowIMU = true;
 	private SensorManager sensorManager;
 	private Sensor accelerometer;
@@ -2605,9 +2606,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		try
 		{
-			int Version = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+			VersionCode = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
 			int PatchVersion = 0;
-			nativeSetObbInfo(ProjectName, getApplicationContext().getPackageName(), Version, PatchVersion, AppType);
+			nativeSetObbInfo(ProjectName, getApplicationContext().getPackageName(), VersionCode, PatchVersion, AppType);
 		}
 		catch (Exception e)
 		{
@@ -2652,6 +2653,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 						// remember down time and position
 						downTime = System.currentTimeMillis();
 						downX = event.getX();
+						consoleInputBox.requestFocus();
 						return true;
 					}
 					case MotionEvent.ACTION_UP: {
@@ -2795,7 +2797,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		// check for OBB file present if we don't have all the files and don't need to verify
 		if (!HasAllFiles && !VerifyOBBOnStartUp)
 		{
-			HasAllFiles = DownloadShim.expansionFilesDelivered(this);
+			HasAllFiles = DownloadShim.expansionFilesDelivered(this, VersionCode);
 		}
 
 		containerFrameLayout = new FrameLayout(_activity);

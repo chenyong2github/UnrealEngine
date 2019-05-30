@@ -191,7 +191,7 @@ FText UNiagaraNodeParameterMapSet::GetNodeTitle(ENodeTitleType::Type TitleType) 
 }
 
 
-void UNiagaraNodeParameterMapSet::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive)
+void UNiagaraNodeParameterMapSet::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive) const
 {
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 	TArray<UEdGraphPin*> InputPins;

@@ -32,6 +32,8 @@ UNiagaraDataInterfaceVectorField::UNiagaraDataInterfaceVectorField(FObjectInitia
 	, bTileY(false)
 	, bTileZ(false)
 {
+	Proxy = MakeShared<FNiagaraDataInterfaceProxyVectorField, ESPMode::ThreadSafe>();
+	PushToRenderThread();
 }
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
@@ -45,12 +47,13 @@ void UNiagaraDataInterfaceVectorField::PreEditChange(UProperty* PropertyAboutToC
 	// Flush the rendering thread before making any changes to make sure the 
 	// data read by the compute shader isn't subject to a race condition.
 	// TODO(mv): Solve properly using something like a RT Proxy.
-	FlushRenderingCommands();
+	//FlushRenderingCommands();
 }
 
 void UNiagaraDataInterfaceVectorField::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+	PushToRenderThread();
 }
 #endif //WITH_EDITOR
 
@@ -62,6 +65,8 @@ void UNiagaraDataInterfaceVectorField::PostLoad()
 	{
 		Field->ConditionalPostLoad();
 	}
+
+	PushToRenderThread();
 }
 
 void UNiagaraDataInterfaceVectorField::PostInitProperties()
@@ -331,7 +336,7 @@ struct FNiagaraDataInterfaceParametersCS_VectorField : public FNiagaraDataInterf
 		Ar << MaxBounds;
 	}
 
-	virtual void Set(FRHICommandList& RHICmdList, FNiagaraShader* Shader, class UNiagaraDataInterface* DataInterface, void* PerInstanceData) const override
+	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
 	{
 		check(IsInRenderingThread());
 
@@ -354,15 +359,13 @@ struct FNiagaraDataInterfaceParametersCS_VectorField : public FNiagaraDataInterf
 		}
 
 		// Get shader and DI
-		const FComputeShaderRHIParamRef ComputeShaderRHI = Shader->GetComputeShader();
-		UNiagaraDataInterfaceVectorField* VFDI = CastChecked<UNiagaraDataInterfaceVectorField>(DataInterface);
+		const FComputeShaderRHIParamRef ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FNiagaraDataInterfaceProxyVectorField* VFDI = static_cast<FNiagaraDataInterfaceProxyVectorField*>(Context.DataInterface);
 		
 		// Note: There is a flush in PreEditChange to make sure everything is synced up at this point 
 
 		// Get and set 3D texture handle from the currently bound vector field.
-		UVectorFieldStatic* StaticVectorField = Cast<UVectorFieldStatic>(VFDI->Field); 
-		FRHITexture* VolumeTextureRHI = StaticVectorField ? (FRHITexture*)StaticVectorField->GetVolumeTextureRef() : (FRHITexture*)GBlackVolumeTexture->TextureRHI;
-		SetTextureParameter(RHICmdList, ComputeShaderRHI, VectorFieldTexture, VolumeTextureRHI); 
+		SetTextureParameter(RHICmdList, ComputeShaderRHI, VectorFieldTexture, VFDI->TextureRHI); 
 		
 		// Get and set sampler state
 		FSamplerStateRHIParamRef SamplerState = SamplerStates[int(VFDI->bTileX) + 2 * int(VFDI->bTileY) + 4 * int(VFDI->bTileZ)];
@@ -370,9 +373,9 @@ struct FNiagaraDataInterfaceParametersCS_VectorField : public FNiagaraDataInterf
 
 		//
 		SetShaderValue(RHICmdList, ComputeShaderRHI, TilingAxes, VFDI->GetTilingAxes());
-		SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, VFDI->GetDimensions());
-		SetShaderValue(RHICmdList, ComputeShaderRHI, MinBounds, VFDI->GetMinBounds());
-		SetShaderValue(RHICmdList, ComputeShaderRHI, MaxBounds, VFDI->GetMaxBounds());
+		SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, VFDI->Dimensions);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, MinBounds, VFDI->MinBounds);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, MaxBounds, VFDI->MaxBounds);
 	}
 
 private:
@@ -668,6 +671,34 @@ bool UNiagaraDataInterfaceVectorField::CopyToInternal(UNiagaraDataInterface* Des
 	OtherTyped->bTileY = bTileY;
 	OtherTyped->bTileZ = bTileZ;
 	return true;
+}
+
+void UNiagaraDataInterfaceVectorField::PushToRenderThread()
+{
+	FNiagaraDataInterfaceProxyVectorField* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyVectorField>();
+
+	FVector RT_Dimensions = GetDimensions();
+	FVector RT_MinBounds = GetMinBounds();
+	FVector RT_MaxBounds = GetMaxBounds();
+	bool RT_bTileX = bTileX;
+	bool RT_bTileY = bTileY;
+	bool RT_bTileZ = bTileZ;
+
+	// @todo-threadsafety. This would be a race but I'm taking a ref here. Not ideal in the long term.
+	FTextureRHIRef VolumeTextureRHI = Field ? ((UVectorFieldStatic*)Field)->GetVolumeTextureRef() : (FRHITexture*)GBlackVolumeTexture->TextureRHI;
+
+	// Push Updates to Proxy.
+	ENQUEUE_RENDER_COMMAND(FUpdateDIColorCurve)(
+		[RT_Proxy, RT_Dimensions, RT_MinBounds, RT_MaxBounds, RT_bTileX, RT_bTileY, RT_bTileZ, VolumeTextureRHI](FRHICommandListImmediate& RHICmdList)
+	{
+		RT_Proxy->bTileX = RT_bTileX;
+		RT_Proxy->bTileY = RT_bTileY;
+		RT_Proxy->bTileZ = RT_bTileZ;
+		RT_Proxy->Dimensions = RT_Dimensions;
+		RT_Proxy->MinBounds = RT_MinBounds;
+		RT_Proxy->MaxBounds = RT_MaxBounds;
+		RT_Proxy->TextureRHI = VolumeTextureRHI;
+	});
 }
 
 #undef LOCTEXT_NAMESPACE

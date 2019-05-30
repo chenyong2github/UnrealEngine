@@ -583,6 +583,10 @@ void FEdModeLandscape::Enter()
 
 		if(Landscape && Landscape->HasLayersContent())
 		{
+			if (Landscape->GetLandscapeSplinesReservedLayer())
+			{
+				Landscape->UpdateLandscapeSplines();
+			}
 			Landscape->RequestLayersContentUpdateForceAll();
 		}
 	}
@@ -2419,7 +2423,12 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 		{
 			ULandscapeInfo* LandscapeInfo = It.Value();
 			if (LandscapeInfo && !LandscapeInfo->IsPendingKill())
-			{				
+			{
+				if (ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get())
+				{
+					Landscape->RegisterLandscapeEdMode(this);
+				}
+
 				ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
 				if (LandscapeProxy)
 				{

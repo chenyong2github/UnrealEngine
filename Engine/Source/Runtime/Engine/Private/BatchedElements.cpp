@@ -1252,4 +1252,5 @@ void FBatchedElements::Clear()
 	Sprites.Empty();
 	MeshElements.Empty();
 	ThickLines.Empty();
+	MeshVertices.Empty();
 }

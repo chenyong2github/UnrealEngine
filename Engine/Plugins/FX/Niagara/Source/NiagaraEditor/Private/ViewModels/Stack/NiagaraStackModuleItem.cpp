@@ -32,6 +32,7 @@
 #include "Widgets/SWidget.h"
 
 #include "ScopedTransaction.h"
+#include "NiagaraScriptVariable.h"
 
 // TODO: Remove these
 #include "Widgets/Notifications/SNotificationList.h"
@@ -180,11 +181,11 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 		{
 			UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(FunctionCallNode->FunctionScript->GetSource());
 			UNiagaraGraph* Graph = CastChecked<UNiagaraGraph>(Source->NodeGraph);
-			const TMap<FNiagaraVariable, FNiagaraVariableMetaData>& MetaDataMap = Graph->GetAllMetaData();
+			const TMap<FNiagaraVariable, UNiagaraScriptVariable*>& MetaDataMap = Graph->GetAllMetaData();
 			auto Iter = MetaDataMap.CreateConstIterator();
 			while (Iter)
 			{
-				auto PropertyIter = Iter.Value().PropertyMetaData.CreateConstIterator();
+				auto PropertyIter = Iter.Value()->Metadata.PropertyMetaData.CreateConstIterator();
 				while (PropertyIter)
 				{
 					if (PropertyIter.Key() == (TEXT("DisplayNameArg0")))

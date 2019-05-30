@@ -181,7 +181,7 @@ namespace UnrealBuildTool
 					BuildProducts.Add(AssetFile, BuildProductType.RequiredResource);
 				}
 			}
-            if (Target.IOSPlatform.bGeneratedSYM && (ProjectSettings.bGenerateCrashReportSymbols || Target.bUseMallocProfiler) && Binary.Type == UEBuildBinaryType.Executable)
+            if (Target.IOSPlatform.bGeneratedSYM && (ProjectSettings.bGenerateCrashReportSymbols || Target.bUseMallocProfiler) && Binary.Type == UEBuildBinaryType.StaticLibrary)
             {
                 FileReference DebugFile = FileReference.Combine(Binary.OutputFilePath.Directory, Binary.OutputFilePath.GetFileNameWithoutExtension() + ".udebugsymbols");
                 BuildProducts.Add(DebugFile, BuildProductType.SymbolFile);
@@ -873,6 +873,22 @@ namespace UnrealBuildTool
 				LinkCommandArguments += string.Format(" @\"{0}\"", ResponsePath.FullName);
 			}
 
+			// if we are making an LTO build, write the lto file next to build so dsymutil can find it
+			if (LinkEnvironment.bAllowLTCG)
+			{
+				string LtoObjectFile;
+				if (Target.bShouldCompileAsDLL)
+				{
+					// go up a directory so we don't put this big file into the framework
+					LtoObjectFile = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(OutputFile.AbsolutePath)), Path.GetFileName(OutputFile.AbsolutePath) + ".lto.o");
+				}
+				else
+				{
+					LtoObjectFile = OutputFile.AbsolutePath + ".lto.o";
+				}
+				LinkCommandArguments += string.Format(" -flto -Xlinker -object_path_lto -Xlinker \"{0}\"", LtoObjectFile);
+			}
+
 			// Add the output file to the command-line.
 			LinkCommandArguments += string.Format(" -o \"{0}\"", OutputFile.AbsolutePath);
 
@@ -991,12 +1007,13 @@ namespace UnrealBuildTool
 			return Path.Combine(Path.GetDirectoryName(ExecutablePath), Path.GetFileName(ExecutablePath) + ".dSYM");
 		}
 
-        /// <summary>
-        /// Generates debug info for a given executable
-        /// </summary>
-        /// <param name="Executable">FileItem describing the executable to generate debug info for</param>
+		/// <summary>
+		/// Generates debug info for a given executable
+		/// </summary>
+		/// <param name="Executable">FileItem describing the executable to generate debug info for</param>
 		/// <param name="Actions">List of actions to be executed. Additional actions will be added to this list.</param>
-        public List<FileItem> GenerateDebugInfo(FileItem Executable, List<Action> Actions)
+		/// <param name="bIsForLTOBuild">Was this build made with LTO enabled?</param>
+		private List<FileItem> GenerateDebugInfo(FileItem Executable, List<Action> Actions, bool bIsForLTOBuild)
 		{
             // Make a file item for the source and destination files
 			string FullDestPathRoot = GetdSYMPath(Executable);
@@ -1009,23 +1026,26 @@ namespace UnrealBuildTool
 
 			GenDebugAction.WorkingDirectory = GetMacDevSrcRoot();
 			GenDebugAction.CommandPath = BuildHostPlatform.Current.Shell;
-			string DsymutilPath = GetDsymutilPath();
+			string ExtraOptions;
+			string DsymutilPath = GetDsymutilPath(out ExtraOptions, bIsForLTOBuild:bIsForLTOBuild);
 			if(ProjectSettings.bGeneratedSYMBundle)
 			{
-				GenDebugAction.CommandArguments = string.Format("-c 'rm -rf \"{2}\"; \"{0}\" \"{1}\" -o \"{2}\"; cd \"{2}/..\"; zip -r -y -1 {3}.zip {3}'",
+				GenDebugAction.CommandArguments = string.Format("-c 'rm -rf \"{2}\"; \"{0}\" \"{1}\" {4} -o \"{2}\"; cd \"{2}/..\"; zip -r -y -1 {3}.zip {3}'",
                     DsymutilPath,
 					Executable.AbsolutePath,
                     OutputFile.AbsolutePath,
-					Path.GetFileName(FullDestPathRoot));
+					Path.GetFileName(FullDestPathRoot),
+					ExtraOptions);
                 GenDebugAction.ProducedItems.Add(ZipOutputFile);
                 Log.TraceInformation("Zip file: " + ZipOutputFile.AbsolutePath);
             }
             else
 			{
-				GenDebugAction.CommandArguments = string.Format("-c 'rm -rf \"{2}\"; \"{0}\" \"{1}\" -f -o \"{2}\"'",
+				GenDebugAction.CommandArguments = string.Format("-c 'rm -rf \"{2}\"; \"{0}\" \"{1}\" {3} -f -o \"{2}\"'",
 						DsymutilPath,
 						Executable.AbsolutePath,
-						OutputFile.AbsolutePath);
+						OutputFile.AbsolutePath,
+						ExtraOptions);
 			}
 			GenDebugAction.PrerequisiteItems.Add(Executable);
             GenDebugAction.ProducedItems.Add(OutputFile);
@@ -1380,7 +1400,7 @@ namespace UnrealBuildTool
             // For IOS/tvOS, generate the dSYM file if needed or requested
 			if (Target.IOSPlatform.bGeneratedSYM)
             {
- 				List<FileItem> Files = GenerateDebugInfo(Executable, Actions);
+ 				List<FileItem> Files = GenerateDebugInfo(Executable, Actions, BinaryLinkEnvironment.bAllowLTCG);
 				foreach (FileItem item in Files)
 				{
 					OutputFiles.Add(item);
@@ -1546,7 +1566,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private static void GenerateCrashlyticsData(string ExecutableDirectory, string ExecutableName, string ProjectDir, string ProjectName)
+		private static void GenerateCrashlyticsData(string DsymZip, string ProjectDir, string ProjectName)
         {
 			Log.TraceInformation("Generating and uploading Crashlytics Data");
             string FabricPath = UnrealBuildTool.EngineDirectory + "/Intermediate/UnzippedFrameworks/Crashlytics/Fabric.embeddedframework";
@@ -1554,11 +1574,11 @@ namespace UnrealBuildTool
             {
 				string PlistFile = ProjectDir + "/Intermediate/IOS/" + ProjectName + "-Info.plist";
                 Process FabricProcess = new Process();
-                FabricProcess.StartInfo.WorkingDirectory = ExecutableDirectory;
+                FabricProcess.StartInfo.WorkingDirectory = Path.GetDirectoryName(DsymZip);
                 FabricProcess.StartInfo.FileName = "/bin/sh";
 				FabricProcess.StartInfo.Arguments = string.Format("-c 'chmod 777 \"{0}/Fabric.framework/upload-symbols\"; \"{0}/Fabric.framework/upload-symbols\" -a 7a4cebd0324af21696e5e321802c5e26ba541cad -p ios {1}'",
                     FabricPath,
-					ExecutableDirectory + "/" + ExecutableName + ".dSYM.zip");
+					DsymZip);
 
 				ProcessOutput Output = new ProcessOutput();
 
@@ -1624,13 +1644,15 @@ namespace UnrealBuildTool
 
 	
         public static void PostBuildSync(IOSPostBuildSyncTarget Target)
-			{
+        {
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, Target.ProjectFile == null ? DirectoryReference.FromString(UnrealBuildTool.GetRemoteIniPath()): DirectoryReference.FromFile(Target.ProjectFile), UnrealTargetPlatform.IOS);
 			string BundleID;
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleID);
 
 			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
 
+			bool bPerformFullAppCreation = true;
+			string PathToDsymZip = Target.OutputPath.FullName + ".dSYM.zip";
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 			{
 				if (IsCompiledAsFramework(Target.OutputPath.FullName))
@@ -1650,24 +1672,30 @@ namespace UnrealBuildTool
 
 					FileReference.Copy(PlistSrcLocation, PlistDstLocation, true);
 
-					// and do nothing else
-					return;
+					// do not perform any of the .app creation below
+					bPerformFullAppCreation = false;
+					PathToDsymZip = Path.Combine(Target.OutputPath.Directory.ParentDirectory.FullName, Target.OutputPath.GetFileName() + ".dSYM.zip");
 				}
 			}
 
 			string AppName = Target.TargetName;
 
-			string RemoteShadowDirectoryMac = Target.OutputPath.Directory.FullName;
-			FileReference StagedExecutablePath = GetStagedExecutablePath(Target.OutputPath, Target.TargetName);
+			if (!Target.bSkipCrashlytics && !IsCompiledAsFramework(Target.OutputPath.FullName))
+			{
+				GenerateCrashlyticsData(PathToDsymZip, Target.ProjectDirectory.FullName, AppName);
+			}
 
+			// only make the app if needed
+			if (!bPerformFullAppCreation)
+			{
+				return;
+			}
+			
 			// copy the executable
+			FileReference StagedExecutablePath = GetStagedExecutablePath(Target.OutputPath, Target.TargetName);
 			DirectoryReference.CreateDirectory(StagedExecutablePath.Directory);
 			FileReference.Copy(Target.OutputPath, StagedExecutablePath, true);
-
-			if (!Target.bSkipCrashlytics)
-			{
-				GenerateCrashlyticsData(RemoteShadowDirectoryMac, Path.GetFileName(Target.OutputPath.FullName), Target.ProjectDirectory.FullName, AppName);
-			}
+			string RemoteShadowDirectoryMac = Target.OutputPath.Directory.FullName;
 
 			if (Target.bCreateStubIPA)
 			{
