@@ -6,6 +6,7 @@
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "IPAddress.h"
+#include "Misc/ScopeLock.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 #include "Trace/DataStream.h"
