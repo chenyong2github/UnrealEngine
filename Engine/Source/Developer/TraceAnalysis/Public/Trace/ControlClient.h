@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 
 class FSocket;
+class FInternetAddr;
 
 namespace Trace
 {
@@ -15,6 +16,7 @@ class TRACEANALYSIS_API FControlClient
 public:
                 ~FControlClient();
     bool        Connect(const TCHAR* Host, uint16 Port=1985);
+	bool        Connect(const FInternetAddr& Address);
     void        Disconnect();
     bool        IsConnected() const;
     void        SendConnect(const TCHAR* Path);

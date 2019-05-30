@@ -24,6 +24,30 @@ bool FControlClient::Connect(const TCHAR* Host, uint16 Port)
     }
 
 	ISocketSubsystem& Sockets = *(ISocketSubsystem::Get());
+	TSharedPtr<FInternetAddr> Addr = Sockets.CreateInternetAddr();
+	bool bIsHostValid = false;
+	Addr->SetIp(Host, bIsHostValid);
+	if (!bIsHostValid)
+	{
+		ESocketErrors SocketErrors = Sockets.GetHostByName(TCHAR_TO_ANSI(Host), *Addr);
+		if (SocketErrors != SE_NO_ERROR)
+		{
+			return false;
+		}
+	}
+	Addr->SetPort(Port);
+	return Connect(*Addr);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FControlClient::Connect(const FInternetAddr& Address)
+{
+	if (IsConnected())
+	{
+		return false;
+	}
+
+	ISocketSubsystem& Sockets = *(ISocketSubsystem::Get());
 
 	FSocket* ClientSocket = Sockets.CreateSocket(NAME_Stream, TEXT("TraceControlClient"));
 	if (ClientSocket == nullptr)
@@ -31,15 +55,11 @@ bool FControlClient::Connect(const TCHAR* Host, uint16 Port)
 		return false;
 	}
 
-	bool bIsHostValid = false;
-	TSharedPtr<FInternetAddr> Addr = Sockets.CreateInternetAddr();
-	Addr->SetIp(Host, bIsHostValid);
-	Addr->SetPort(Port);
-    if (!bIsHostValid || !ClientSocket->Connect(*Addr))
-    {
-        Sockets.DestroySocket(ClientSocket);
-        return false;
-    }
+	if (!ClientSocket->Connect(Address))
+	{
+		Sockets.DestroySocket(ClientSocket);
+		return false;
+	}
 
 	ClientSocket->SetLinger();
 

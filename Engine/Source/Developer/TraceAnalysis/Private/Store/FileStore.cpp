@@ -21,12 +21,12 @@ class FFileStoreInDataStream
 	: public IInDataStream
 {
 public:
-	FFileStoreInDataStream(FFileStore* Owner, FSessionHandle SessionHandle, FFileStream* File);
+	FFileStoreInDataStream(FFileStore* Owner, FStoreSessionHandle SessionHandle, FFileStream* File);
 	virtual int32 Read(void* Data, uint32 Size) override;
 
 private:
 	FFileStore* Owner;
-	FSessionHandle SessionHandle;
+	FStoreSessionHandle SessionHandle;
 	TUniquePtr<FFileStream> Inner;
 };
 
@@ -34,13 +34,13 @@ class FFileStoreOutDataStream
 	: public IOutDataStream
 {
 public:
-	FFileStoreOutDataStream(FFileStore* Owner, FSessionHandle SessionHandle, IFileHandle* File);
+	FFileStoreOutDataStream(FFileStore* Owner, FStoreSessionHandle SessionHandle, IFileHandle* File);
 	virtual ~FFileStoreOutDataStream();
 	virtual bool Write(const void* Data, uint32 Size) override;
 
 private:
 	FFileStore* Owner;
-	FSessionHandle SessionHandle;
+	FStoreSessionHandle SessionHandle;
 	TUniquePtr<IFileHandle> Inner;
 };
 
@@ -51,10 +51,9 @@ public:
 	FFileStore(const TCHAR* StoreDir);
 	~FFileStore();
 
-	virtual void GetAvailableSessions(TArray<FSessionHandle>& OutTraces) override;
-	virtual bool GetSessionInfo(FSessionHandle Handle, FSessionInfo& OutInfo) override;
-	virtual IOutDataStream* CreateNewSession() override;
-	virtual IInDataStream* OpenSessionStream(FSessionHandle Handle) override;
+	virtual void GetAvailableSessions(TArray<FStoreSessionInfo>& OutSessions) const override;
+	virtual TTuple<FStoreSessionHandle, IOutDataStream*> CreateNewSession() override;
+	virtual IInDataStream* OpenSessionStream(FStoreSessionHandle Handle) override;
 
 private:
 	friend class FFileStoreInDataStream;
@@ -62,7 +61,7 @@ private:
 
 	struct FSessionInfoInternal
 	{
-		FSessionHandle Handle;
+		FStoreSessionHandle Handle;
 		FString Name;
 		FString Path;
 		bool bIsLive;
@@ -70,24 +69,24 @@ private:
 	};
 
 	FSessionInfoInternal* AddSession(const FString& Path);
-	void RemoveSession(FSessionHandle Handle);
-	FSessionInfoInternal* GetSession(FSessionHandle Handle) const;
+	void RemoveSession(FStoreSessionHandle Handle);
+	FSessionInfoInternal* GetSession(FStoreSessionHandle Handle) const;
 	bool Tick(float DeltaTime);
 	void OnDirectoryChanged(const TArray<FFileChangeData>& FileChanges);
-	bool IsSessionLive(FSessionHandle Handle) const;
-	void CloseSessionStream(FSessionHandle Handle);
+	bool IsSessionLive(FStoreSessionHandle Handle) const;
+	void CloseSessionStream(FStoreSessionHandle Handle);
 
 	mutable FCriticalSection SessionsCS;
 	FString StoreDir;
 	IDirectoryWatcher* DirectoryWatcher;
 	FDelegateHandle DirectoryWatcherHandle;
 	FDelegateHandle TickHandle;
-	FSessionHandle NextSessionHandle = 1;
+	FStoreSessionHandle NextSessionHandle = 1;
 	TArray<FSessionInfoInternal*> Sessions;
 	TMap<FString, FSessionInfoInternal*> SessionsByPathMap;
 };
 
-FFileStoreOutDataStream::FFileStoreOutDataStream(FFileStore* InOwner, FSessionHandle InSessionHandle, IFileHandle* InFile)
+FFileStoreOutDataStream::FFileStoreOutDataStream(FFileStore* InOwner, FStoreSessionHandle InSessionHandle, IFileHandle* InFile)
 	: Owner(InOwner)
 	, SessionHandle(InSessionHandle)
 {
@@ -106,7 +105,7 @@ bool FFileStoreOutDataStream::Write(const void* Data, uint32 Size)
 	return Inner->Write((const uint8*)Data, Size);
 }
 
-FFileStoreInDataStream::FFileStoreInDataStream(FFileStore* InOwner, FSessionHandle InSessionHandle, FFileStream* InFileStream)
+FFileStoreInDataStream::FFileStoreInDataStream(FFileStore* InOwner, FStoreSessionHandle InSessionHandle, FFileStream* InFileStream)
 	: Owner(InOwner)
 	, SessionHandle(InSessionHandle)
 	, Inner(InFileStream)
@@ -192,13 +191,14 @@ FFileStore::FSessionInfoInternal* FFileStore::AddSession(const FString& Path)
 	Session->Name = FPaths::GetBaseFilename(Path);
 	Session->Path = Path;
 	Session->bIsValid = true;
+	Session->bIsLive = false;
 	Sessions.Add(Session);
 	SessionsByPathMap.Add(Path, Session);
 
 	return Session;
 }
 
-void FFileStore::RemoveSession(FSessionHandle Handle)
+void FFileStore::RemoveSession(FStoreSessionHandle Handle)
 {
 	FScopeLock Lock(&SessionsCS);
 
@@ -207,7 +207,7 @@ void FFileStore::RemoveSession(FSessionHandle Handle)
 	Sessions[Handle - 1]->bIsValid = false;
 }
 
-FFileStore::FSessionInfoInternal* FFileStore::GetSession(FSessionHandle Handle) const
+FFileStore::FSessionInfoInternal* FFileStore::GetSession(FStoreSessionHandle Handle) const
 {
 	FScopeLock Lock(&SessionsCS);
 	if (Handle - 1 >= Sessions.Num())
@@ -222,35 +222,24 @@ FFileStore::FSessionInfoInternal* FFileStore::GetSession(FSessionHandle Handle) 
 	return Session;
 }
 
-void FFileStore::GetAvailableSessions(TArray<FSessionHandle>& OutTraces)
+void FFileStore::GetAvailableSessions(TArray<FStoreSessionInfo>& OutSessions) const
 {
 	FScopeLock Lock(&SessionsCS);
-	OutTraces.Empty(Sessions.Num());
+	OutSessions.Reserve(OutSessions.Num() + Sessions.Num());
 	for (const FSessionInfoInternal* Session : Sessions)
 	{
 		if (Session->bIsValid)
 		{
-			OutTraces.Add(Session->Handle);
+			FStoreSessionInfo& SessionInfo = OutSessions.AddDefaulted_GetRef();
+			SessionInfo.Handle = Session->Handle;
+			SessionInfo.Uri = *Session->Path;
+			SessionInfo.Name = *Session->Name;
+			SessionInfo.bIsLive = Session->bIsLive;
 		}
 	}
 }
 
-bool FFileStore::GetSessionInfo(FSessionHandle Handle, FSessionInfo& OutInfo)
-{
-	FScopeLock Lock(&SessionsCS);
-	
-	FSessionInfoInternal* Session = GetSession(Handle);
-	if (!Session)
-	{
-		return false;
-	}
-	OutInfo.Uri = *Session->Path;
-	OutInfo.Name = *Session->Name;
-	OutInfo.bIsLive = Session->bIsLive;
-	return true;
-}
-
-IOutDataStream* FFileStore::CreateNewSession()
+TTuple<FStoreSessionHandle, IOutDataStream*> FFileStore::CreateNewSession()
 {
 	FScopeLock Lock(&SessionsCS);
 
@@ -266,16 +255,15 @@ IOutDataStream* FFileStore::CreateNewSession()
 	IFileHandle* File = FileSystem.OpenWrite(*TracePath, true, true);
 	if (!File)
 	{
-		return nullptr;
+		return MakeTuple(FStoreSessionHandle(0), (IOutDataStream*)nullptr);
 	}
 
 	FSessionInfoInternal* Session = AddSession(TracePath);
 	Session->bIsLive = true;
-
-	return new FFileStoreOutDataStream(this, Session->Handle, File);
+	return MakeTuple(Session->Handle, static_cast<IOutDataStream*>(new FFileStoreOutDataStream(this, Session->Handle, File)));
 }
 
-IInDataStream* FFileStore::OpenSessionStream(FSessionHandle Handle)
+IInDataStream* FFileStore::OpenSessionStream(FStoreSessionHandle Handle)
 {
 	FScopeLock Lock(&SessionsCS);
 	
@@ -326,7 +314,7 @@ void FFileStore::OnDirectoryChanged(const TArray<FFileChangeData>& FileChanges)
 	}
 }
 
-bool FFileStore::IsSessionLive(FSessionHandle Handle) const
+bool FFileStore::IsSessionLive(FStoreSessionHandle Handle) const
 {
 	FScopeLock Lock(&SessionsCS);
 	
@@ -338,7 +326,7 @@ bool FFileStore::IsSessionLive(FSessionHandle Handle) const
 	return Session->bIsLive;
 }
 
-void FFileStore::CloseSessionStream(FSessionHandle Handle)
+void FFileStore::CloseSessionStream(FStoreSessionHandle Handle)
 {
 	FScopeLock Lock(&SessionsCS);
 	

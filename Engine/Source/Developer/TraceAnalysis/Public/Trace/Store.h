@@ -11,10 +11,11 @@ namespace Trace
 
 class IInDataStream;
 class IOutDataStream;
-typedef uint64 FSessionHandle;
+typedef uint64 FStoreSessionHandle;
 
-struct FSessionInfo
+struct FStoreSessionInfo
 {
+	FStoreSessionHandle Handle;
 	const TCHAR* Uri;
 	const TCHAR* Name;
 	bool bIsLive;
@@ -24,10 +25,9 @@ class IStore
 {
 public:
 	virtual ~IStore() = default;
-	virtual void GetAvailableSessions(TArray<FSessionHandle>& OutSessions) = 0;
-	virtual bool GetSessionInfo(FSessionHandle Handle, FSessionInfo& OutInfo) = 0;
-	virtual IOutDataStream* CreateNewSession() = 0;
-	virtual IInDataStream* OpenSessionStream(FSessionHandle Handle) = 0;
+	virtual void GetAvailableSessions(TArray<FStoreSessionInfo>& OutSessions) const = 0;
+	virtual TTuple<FStoreSessionHandle, IOutDataStream*> CreateNewSession() = 0;
+	virtual IInDataStream* OpenSessionStream(FStoreSessionHandle Handle) = 0;
 };
 
 TRACEANALYSIS_API TSharedPtr<IStore> Store_Create(const TCHAR* StoreDir);

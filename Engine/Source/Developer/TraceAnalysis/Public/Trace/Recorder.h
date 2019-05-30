@@ -8,6 +8,14 @@ namespace Trace
 {
 
 class IStore;
+typedef uint64 FStoreSessionHandle;
+typedef uint64 FRecorderSessionHandle;
+
+struct FRecorderSessionInfo
+{
+	FRecorderSessionHandle Handle;
+	FStoreSessionHandle StoreSessionHandle;
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 class IRecorder
@@ -26,6 +34,12 @@ public:
 
 	/** Returns the number of current in-bound sessions. */
 	virtual uint32 GetSessionCount() const = 0;
+
+	/** Return information about the current in-bound sessions */
+	virtual void GetActiveSessions(TArray<FRecorderSessionInfo>& OutSessions) const = 0;
+
+	/** Toggles an event logger widlcard on or off for an active recording session */
+	virtual bool ToggleEvent(FRecorderSessionHandle RecordingHandle, const TCHAR* LoggerWildcard, bool bState) = 0;
 };
 
 TRACEANALYSIS_API TSharedPtr<IRecorder> Recorder_Create(TSharedRef<IStore> Store);

@@ -10,6 +10,15 @@
 namespace Trace
 {
 
+typedef uint64 FSessionHandle;
+
+struct FSessionInfo
+{
+	const TCHAR* Uri;
+	const TCHAR* Name;
+	bool bIsLive;
+};
+
 class ISessionService
 {
 public:
@@ -18,9 +27,10 @@ public:
 	virtual bool IsRecorderServerRunning() const = 0;
 	virtual void StopRecorderServer() = 0;
 	virtual const TCHAR* GetLocalSessionDirectory() const = 0;
-	virtual void GetAvailableSessions(TArray<Trace::FSessionHandle>& OutSessions) = 0;
-	virtual bool GetSessionInfo(Trace::FSessionHandle SessionHandle, Trace::FSessionInfo& OutSessionInfo) = 0;
-	virtual Trace::IInDataStream* OpenSessionStream(Trace::FSessionHandle SessionHandle) = 0;
+	virtual void GetAvailableSessions(TArray<FSessionHandle>& OutSessions) const = 0;
+	virtual void GetLiveSessions(TArray<FSessionHandle>& OutSessions) const = 0;
+	virtual bool GetSessionInfo(FSessionHandle SessionHandle, FSessionInfo& OutSessionInfo) const = 0;
+	virtual Trace::IInDataStream* OpenSessionStream(FSessionHandle SessionHandle) = 0;
 	virtual Trace::IInDataStream* OpenSessionFromFile(const TCHAR* FilePath) = 0;
 };
 

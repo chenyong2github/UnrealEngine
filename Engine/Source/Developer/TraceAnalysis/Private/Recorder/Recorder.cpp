@@ -10,6 +10,7 @@
 #include "SocketSubsystem.h"
 #include "Trace/DataStream.h"
 #include "Trace/Store.h"
+#include "Trace/ControlClient.h"
 
 namespace Trace
 {
@@ -30,13 +31,17 @@ private:
 	virtual bool		StartRecording() override;
 	virtual void		StopRecording() override;
 	virtual uint32		GetSessionCount() const override;
+	virtual void		GetActiveSessions(TArray<FRecorderSessionInfo>& OutSessions) const override;
+	virtual bool		ToggleEvent(FRecorderSessionHandle RecordingHandle, const TCHAR* LoggerWildcard, bool bState) override;
 	FSession*			AcceptSession(FSocket& Socket);
 	void				CloseSession(FSession& Session);
 	void				ReapDeadSessions();
 	TSharedRef<IStore>	Store;
-	TArray<FSession*>	Sessions;
+	mutable FCriticalSection SessionsCS;
+	TMap<FRecorderSessionHandle, FSession*> Sessions;
 	FRunnableThread*	Thread = nullptr;
 	FSocket*			ListenSocket = nullptr;
+	FRecorderSessionHandle	NextSessionHandle = 1;
 	volatile bool		bStopRequested;
 };
 
@@ -48,8 +53,10 @@ struct FRecorder::FSession
 {
 	virtual uint32		Run() override;
 	FSocket*			Socket;
-	IOutDataStream*		StoreSession;
+	FStoreSessionHandle	StoreSessionHandle;
+	IOutDataStream*		StoreSessionStream;
 	FRunnableThread*	Thread;
+	TSharedPtr<FInternetAddr> ControlClientAddress;
 	volatile bool		bDead = false;
 };
 
@@ -68,7 +75,7 @@ uint32 FRecorder::FSession::Run()
 			break;
 		}
 
-		if (!StoreSession->Write(Buffer, RecvSize))
+		if (!StoreSessionStream->Write(Buffer, RecvSize))
 		{
 			bDead = true;
 			break;
@@ -113,14 +120,18 @@ FRecorder::FSession* FRecorder::AcceptSession(FSocket& Socket)
 		return nullptr;
 	}
 
-	IOutDataStream* StoreSession = Store->CreateNewSession();
-	if (!StoreSession)
+	TTuple<FStoreSessionHandle, IOutDataStream*> StoreSession = Store->CreateNewSession();
+	if (!StoreSession.Get<1>())
 	{
 		return nullptr;
 	}
 	FSession* Session = new FSession();
+	Session->ControlClientAddress = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+	Socket.GetPeerAddress(*Session->ControlClientAddress);
+	Session->ControlClientAddress->SetPort(1985);
 	Session->Socket = &Socket;
-	Session->StoreSession = StoreSession;
+	Session->StoreSessionHandle = StoreSession.Get<0>();
+	Session->StoreSessionStream = StoreSession.Get<1>();
 	Session->Thread = FRunnableThread::Create(Session, TEXT("TraceRecSession"));
 	return Session;
 }
@@ -137,7 +148,7 @@ void FRecorder::CloseSession(FSession& Session)
 	Sockets.DestroySocket(Session.Socket);
 
 	delete Session.Thread;
-	delete Session.StoreSession;
+	delete Session.StoreSessionStream;
 	delete &Session;
 }
 
@@ -145,21 +156,24 @@ void FRecorder::CloseSession(FSession& Session)
 void FRecorder::ReapDeadSessions()
 {
 	// Reap dead sessions
-	int SessionCount = Sessions.Num();
-	for (int i = 0; i < SessionCount; ++i)
+	TArray<FSession*> SessionsToClose;
 	{
-		FSession* Session = Sessions[i];
-		if (!Session->bDead)
+		FScopeLock Lock(&SessionsCS);
+		for (auto It = Sessions.CreateIterator(); It; ++It)
 		{
-			continue;
+			FSession* Session = It->Value;
+			if (Session->bDead)
+			{
+				SessionsToClose.Add(Session);
+				It.RemoveCurrent();
+			}
 		}
-
-		CloseSession(*Session);
-
-		--SessionCount;
-		Sessions[i] = Sessions[SessionCount];
 	}
-	Sessions.SetNumUnsafeInternal(SessionCount);
+	
+	for (FSession* Session : SessionsToClose)
+	{
+		CloseSession(*Session);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -186,7 +200,8 @@ uint32 FRecorder::Run()
 
 			if (FSession* Session = AcceptSession(*Socket))
 			{
-				Sessions.Add(Session);
+				FScopeLock Lock(&SessionsCS);
+				Sessions.Add(NextSessionHandle++, Session);
 			}
 			else
 			{
@@ -197,7 +212,16 @@ uint32 FRecorder::Run()
 		ReapDeadSessions();
 	}
 
-	for (FSession* Session : Sessions)
+	TArray<FSession*> SessionsToClose;
+	{
+		FScopeLock Lock(&SessionsCS);
+		for (auto& KV : Sessions)
+		{
+			SessionsToClose.Add(KV.Value);
+		}
+		Sessions.Empty();
+	}
+	for (FSession* Session : SessionsToClose)
 	{
 		CloseSession(*Session);
 	}
@@ -276,10 +300,46 @@ void FRecorder::StopRecording()
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FRecorder::GetSessionCount() const
 {
+	FScopeLock Lock(&SessionsCS);
 	return Sessions.Num();
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
+void FRecorder::GetActiveSessions(TArray<FRecorderSessionInfo>& OutSessions) const
+{
+	FScopeLock Lock(&SessionsCS);
+	OutSessions.Reserve(OutSessions.Num() + Sessions.Num());
+	for (const auto& KV : Sessions)
+	{
+		FRecorderSessionInfo& SessionInfo = OutSessions.AddDefaulted_GetRef();
+		SessionInfo.Handle = KV.Key;
+		SessionInfo.StoreSessionHandle = KV.Value->StoreSessionHandle;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FRecorder::ToggleEvent(FRecorderSessionHandle SessionHandle, const TCHAR* LoggerWildcard, bool bState)
+{
+	TSharedPtr<FInternetAddr> ControlClientAddress;
+	{
+		FScopeLock Lock(&SessionsCS);
+		FSession** FindIt = Sessions.Find(SessionHandle);
+		if (!FindIt)
+		{
+			return false;
+		}
+		ControlClientAddress = (*FindIt)->ControlClientAddress;
+	}
+	FControlClient ControlClient;
+	if (!ControlClient.Connect(*ControlClientAddress))
+	{
+		return false;
+	}
+	ControlClient.SendToggleEvent(LoggerWildcard, bState);
+	ControlClient.Disconnect();
+	return true;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 TSharedPtr<IRecorder> Recorder_Create(TSharedRef<IStore> Store)
