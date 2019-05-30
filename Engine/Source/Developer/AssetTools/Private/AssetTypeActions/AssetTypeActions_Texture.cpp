@@ -659,14 +659,22 @@ private:
 
 		for (UMaterial *RootMat : Worker.Materials)
 		{
-			AssetList.Add(RootMat);
-			AssetStatus.Add(FConversionStatus());
+			// Don't want to show anything from the transient package, this may include preview materials from any currently active material editor
+			// We patch these up so material editor remains valid, but not useful to display this to user
+			if (RootMat->GetOutermost() != GetTransientPackage())
+			{
+				AssetList.Add(RootMat);
+				AssetStatus.Add(FConversionStatus());
+			}
 		}
 
 		for (UMaterialFunctionInterface *Func : Worker.Functions)
 		{
-			AssetList.Add(Func);
-			AssetStatus.Add(FConversionStatus());
+			if (Func->GetOutermost() != GetTransientPackage())
+			{
+				AssetList.Add(Func);
+				AssetStatus.Add(FConversionStatus());
+			}
 		}
 
 		check(AssetList.Num() == AssetStatus.Num());
