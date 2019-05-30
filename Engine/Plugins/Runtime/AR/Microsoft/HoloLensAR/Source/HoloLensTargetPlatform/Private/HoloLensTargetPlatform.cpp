@@ -88,6 +88,12 @@ bool FHoloLensTargetPlatform::SupportsFeature(ETargetPlatformFeatures Feature) c
 
 #if WITH_ENGINE
 
+void FHoloLensTargetPlatform::GetReflectionCaptureFormats(TArray<FName>& OutFormats) const
+{
+	OutFormats.Add(FName(TEXT("FullHDR")));
+	OutFormats.Add(FName(TEXT("EncodedHDR")));
+}
+
 const FPlatformAudioCookOverrides* FHoloLensTargetPlatform::GetAudioCompressionSettings() const
 {
 	return nullptr;

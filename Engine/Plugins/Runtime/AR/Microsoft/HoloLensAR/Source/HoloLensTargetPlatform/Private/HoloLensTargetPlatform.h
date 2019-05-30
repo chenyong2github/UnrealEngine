@@ -66,6 +66,8 @@ public:
 	virtual bool SupportsBuildTarget(EBuildTargets::Type BuildTarget) const override;
 
 #if WITH_ENGINE
+	virtual void GetReflectionCaptureFormats(TArray<FName>& OutFormats) const override;
+
 	virtual const FPlatformAudioCookOverrides* GetAudioCompressionSettings() const override;
 
 	virtual const class FStaticMeshLODSettings& GetStaticMeshLODSettings() const override { return StaticMeshLODSettings; }
