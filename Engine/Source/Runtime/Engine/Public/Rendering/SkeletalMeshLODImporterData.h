@@ -357,6 +357,9 @@ struct FReductionBaseSkeletalMeshBulkData
 	/** Internally store bulk data as bytes. */
 	FByteBulkData BulkData;
 
+	//The custom version when this was load
+	FCustomVersionContainer SerializeLoadingCustomVersionContainer;
+	bool bUseSerializeLoadingCustomVersion = false;
 public:
 	/** Default constructor. */
 	ENGINE_API FReductionBaseSkeletalMeshBulkData();
