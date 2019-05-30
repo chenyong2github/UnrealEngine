@@ -396,7 +396,7 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 			PerViewUniformParameters.FacingDataOffset = FacingMode == ENiagaraRibbonFacingMode::Custom ? FacingDataOffset : -1;
 			PerViewUniformParameters.NormalizedAgeDataOffset = NormalizedAgeDataOffset;
 			PerViewUniformParameters.MaterialRandomDataOffset = MaterialRandomDataOffset;
-			PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
+			//PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
 			PerViewUniformParameters.MaterialParamDataOffset = MaterialParamOffset;
 			PerViewUniformParameters.MaterialParam1DataOffset = MaterialParamOffset1;
 			PerViewUniformParameters.MaterialParam2DataOffset = MaterialParamOffset2;
