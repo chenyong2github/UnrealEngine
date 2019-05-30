@@ -1214,15 +1214,22 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	}
 
 	{
-		const TCHAR* TraceHostPtr = TEXT("127.0.0.1");
-
 		FString TraceHost;
 		if (FParse::Value(CmdLine, TEXT("tracehost"), TraceHost))
 		{
-			TraceHostPtr = *TraceHost;
+			Trace::Connect(*TraceHost);
 		}
 
-		Trace::Connect(TraceHostPtr);
+#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
+		else
+		{
+			if (FPlatformProcess::FSemaphore* Mutex = FPlatformProcess::NewInterprocessSynchObject("UnrealInsightsRecorder", false))
+			{
+				Trace::Connect(TEXT("127.0.0.1"));
+				FPlatformProcess::DeleteInterprocessSynchObject(Mutex);
+			}
+		}
+#endif // PLATFORM_WINDOWS
 	}
 
 #if WITH_ENGINE

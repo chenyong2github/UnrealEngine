@@ -34,7 +34,12 @@ FSessionService::~FSessionService()
 
 bool FSessionService::StartRecorderServer()
 {
-	return TraceRecorder->StartRecording();
+	bool bOk = TraceRecorder->StartRecording();
+	if (bOk && RecorderMutex == nullptr)
+	{
+		RecorderMutex = FPlatformProcess::NewInterprocessSynchObject("UnrealInsightsRecorder", true);
+	}
+	return bOk;
 }
 
 bool FSessionService::IsRecorderServerRunning() const
@@ -44,6 +49,11 @@ bool FSessionService::IsRecorderServerRunning() const
 
 void FSessionService::StopRecorderServer()
 {
+	if (RecorderMutex != nullptr)
+	{
+		FPlatformProcess::DeleteInterprocessSynchObject(RecorderMutex);
+		RecorderMutex = nullptr;
+	}
 	TraceRecorder->StopRecording();
 }
 
