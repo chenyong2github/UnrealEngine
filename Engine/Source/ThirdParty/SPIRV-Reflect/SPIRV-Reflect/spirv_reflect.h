@@ -344,6 +344,7 @@ typedef struct SpvReflectDescriptorSet {
  
  */
 typedef struct SpvReflectExecutionMode {
+	uint32_t			id;
 	SpvExecutionMode	mode;
 	uint32_t			operands_count;
 	uint32_t*			operands;
@@ -404,6 +405,11 @@ typedef struct SpvReflectShaderModule {
   SpvReflectInterfaceVariable*      output_variables;
   uint32_t                          push_constant_block_count;
   SpvReflectBlockVariable*          push_constant_blocks;
+	
+  /* UE Change Begin: Parse execution mode parameters into the EntryPoint descriptor. */
+  uint32_t							execution_modes_count;
+  SpvReflectExecutionMode*			execution_modes;
+  /* UE Change End: Parse execution mode parameters into the EntryPoint descriptor. */
 
   struct Internal {
     size_t                          spirv_size;
@@ -684,6 +690,59 @@ SpvReflectResult spvReflectEnumerateEntryPointOutputVariables(
   uint32_t*                     p_count,
   SpvReflectInterfaceVariable** pp_variables
 );
+
+/* UE Change Begin: Parse execution mode parameters into the EntryPoint descriptor. */
+/*! @fn spvReflectEnumerateExecutionModes
+ @brief  Note: If the module contains multiple entry points, this will only get
+         the execution modes for the first one.
+ @param  p_module      Pointer to an instance of SpvReflectShaderModule.
+ @param  p_count       If pp_mode is NULL, the module's execution mode
+                       count will be stored here.
+                       If pp_mode is not NULL, *p_count must contain
+                       the module's output variable count.
+ @param  pp_modes  If NULL, the module's execution mode count will be
+                       written to *p_count.
+                       If non-NULL, pp_mode must point to an array with
+                       *p_count entries, where pointers to the module's
+                       execution modes will be written. The caller must not
+                       free the interface variables written to this array.
+ @return               If successful, returns SPV_REFLECT_RESULT_SUCCESS.
+                       Otherwise, the error code indicates the cause of the
+                       failure.
+
+*/
+SpvReflectResult spvReflectEnumerateExecutionModes(
+  const SpvReflectShaderModule* p_module,
+  uint32_t*                     p_count,
+  SpvReflectExecutionMode** 	pp_modes
+);
+
+/*! @fn spvReflectEnumerateEntryPointExecutionModes
+ @brief  Enumerate the execution modes for a given entry point.
+ @param  p_module      Pointer to an instance of SpvReflectShaderModule.
+ @param  entry_point   The name of the entry point to get the output variables for.
+ @param  p_count       If pp_mode is NULL, the entry point's execution mode
+                       count will be stored here.
+                       If pp_mode is not NULL, *p_count must contain
+                       the entry point's execution mode count.
+ @param  pp_modes  If NULL, the entry point's execution mode count will be
+                       written to *p_count.
+                       If non-NULL, pp_mode must point to an array with
+                       *p_count entries, where pointers to the entry point's
+                       execution modes will be written. The caller must not
+                       free the interface variables written to this array.
+ @return               If successful, returns SPV_REFLECT_RESULT_SUCCESS.
+                       Otherwise, the error code indicates the cause of the
+                       failure.
+
+*/
+SpvReflectResult spvReflectEnumerateEntryPointExecutionModes(
+  const SpvReflectShaderModule* p_module,
+  const char*                   entry_point,
+  uint32_t*                     p_count,
+  SpvReflectExecutionMode** 	pp_modes
+);
+/* UE Change End: Parse execution mode parameters into the EntryPoint descriptor. */
 
 
 /*! @fn spvReflectEnumeratePushConstantBlocks
@@ -1314,6 +1373,10 @@ public:
   SpvReflectResult  EnumerateEntryPointInputVariables(const char* entry_point, uint32_t* p_count,SpvReflectInterfaceVariable** pp_variables) const;
   SpvReflectResult  EnumerateOutputVariables(uint32_t* p_count,SpvReflectInterfaceVariable** pp_variables) const;
   SpvReflectResult  EnumerateEntryPointOutputVariables(const char* entry_point, uint32_t* p_count,SpvReflectInterfaceVariable** pp_variables) const;
+  /* UE Change Begin: Parse execution mode parameters into the EntryPoint descriptor. */
+  SpvReflectResult  EnumerateExecutionModes(uint32_t* p_count,SpvReflectExecutionMode** pp_modes) const;
+  SpvReflectResult  EnumerateEntryPointExecutionModes(const char* entry_point, uint32_t* p_count,SpvReflectExecutionMode** pp_modes) const;
+  /* UE Change End: Parse execution mode parameters into the EntryPoint descriptor. */
   SpvReflectResult  EnumeratePushConstantBlocks(uint32_t* p_count, SpvReflectBlockVariable** pp_blocks) const;
   SpvReflectResult  EnumerateEntryPointPushConstantBlocks(const char* entry_point, uint32_t* p_count, SpvReflectBlockVariable** pp_blocks) const;
   SPV_REFLECT_DEPRECATED("Renamed to EnumeratePushConstantBlocks")
@@ -1666,6 +1729,49 @@ inline SpvReflectResult ShaderModule::EnumerateEntryPointOutputVariables(
       pp_variables);
   return m_result;
 }
+
+
+/* UE Change Begin: Parse execution mode parameters into the EntryPoint descriptor. */
+/*! @fn EnumerateExecutionModes
+
+  @param  count
+  @param  pp_modes
+  @return
+
+*/
+inline SpvReflectResult ShaderModule::EnumerateExecutionModes(
+  uint32_t*                     p_count,
+  SpvReflectExecutionMode** 	pp_modes
+) const
+{
+  m_result = spvReflectEnumerateExecutionModes(&m_module,
+                                                p_count,
+                                                pp_modes);
+  return m_result;
+}
+
+/*! @fn EnumerateEntryPointExecutionModes
+
+  @param  entry_point
+  @param  count
+  @param  pp_variables
+  @return
+
+*/
+inline SpvReflectResult ShaderModule::EnumerateEntryPointExecutionModes(
+  const char*                   entry_point,
+  uint32_t*                     p_count,
+  SpvReflectExecutionMode** 	pp_modes
+) const
+{
+  m_result = spvReflectEnumerateEntryPointExecutionModes(
+      &m_module,
+      entry_point,
+      p_count,
+      pp_modes);
+  return m_result;
+}
+/* UE Change End: Parse execution mode parameters into the EntryPoint descriptor. */
 
 
 /*! @fn EnumeratePushConstantBlocks

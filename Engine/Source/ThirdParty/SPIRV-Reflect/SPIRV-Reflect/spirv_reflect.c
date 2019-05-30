@@ -1601,7 +1601,7 @@ static int SortCompareDescriptorBinding(const void* a, const void* b)
 }
 	
 /* UE Change Begin: Parse execution mode parameters into the EntryPoint descriptor. */
-static SpvReflectResult ParseExecutionMode(Parser* p_parser, SpvReflectShaderModule* p_module, SpvReflectEntryPoint*   p_entry)
+static SpvReflectResult ParseExecutionMode(Parser* p_parser, SpvReflectShaderModule* p_module, SpvReflectEntryPoint* p_entry)
 {
 	p_entry->execution_modes_count = 0;
 	for (size_t i = 0; i < p_parser->node_count; ++i) {
@@ -1639,6 +1639,7 @@ static SpvReflectResult ParseExecutionMode(Parser* p_parser, SpvReflectShaderMod
 			
 			if (id == p_entry->id)
 			{
+				p_entry->execution_modes[execution_mode_index].id = id;
 				p_entry->execution_modes[execution_mode_index].operands_count = 0;
 				
 				CHECKED_READU32_CAST(p_parser, p_node->word_offset + 2, SpvExecutionMode, p_entry->execution_modes[execution_mode_index].mode);
@@ -3063,6 +3064,10 @@ SpvReflectResult spvReflectCreateShaderModule(
     p_module->input_variables = p_entry->input_variables;
     p_module->output_variable_count = p_entry->output_variable_count;
     p_module->output_variables = p_entry->output_variables;
+    /* UE Change Begin: Parse execution mode parameters into the EntryPoint descriptor. */
+	p_module->execution_modes_count = p_entry->execution_modes_count;
+	p_module->execution_modes = p_entry->execution_modes;
+    /* UE Change End: Parse execution mode parameters into the EntryPoint descriptor. */
   }
   if (result == SPV_REFLECT_RESULT_SUCCESS) {
     result = DisambiguateStorageBufferSrvUav(p_module);
@@ -3182,7 +3187,7 @@ void spvReflectDestroyShaderModule(SpvReflectShaderModule* p_module)
     SafeFreeBlockVariables(&p_module->push_constant_blocks[i]);
   }
   SafeFree(p_module->push_constant_blocks);
-
+	
   // Type infos
   for (size_t i = 0; i < p_module->_internal->type_description_count; ++i) {
     SpvReflectTypeDescription* p_type = &p_module->_internal->type_descriptions[i];
@@ -3508,6 +3513,75 @@ SpvReflectResult spvReflectEnumerateEntryPointOutputVariables(
 
   return SPV_REFLECT_RESULT_SUCCESS;
 }
+	
+/* UE Change Begin: Parse execution mode parameters into the EntryPoint descriptor. */
+SpvReflectResult spvReflectEnumerateExecutionModes(
+  const SpvReflectShaderModule* p_module,
+  uint32_t*                     p_count,
+  SpvReflectExecutionMode** 	pp_modes
+)
+{
+  if (IsNull(p_module)) {
+    return SPV_REFLECT_RESULT_ERROR_NULL_POINTER;
+  }
+  if (IsNull(p_count)) {
+    return SPV_REFLECT_RESULT_ERROR_NULL_POINTER;
+  }
+
+  if (IsNotNull(pp_modes)) {
+    if (*p_count != p_module->execution_modes_count) {
+      return SPV_REFLECT_RESULT_ERROR_COUNT_MISMATCH;
+    }
+
+    for (uint32_t index = 0; index < *p_count; ++index) {
+      SpvReflectExecutionMode* p_var = (SpvReflectExecutionMode*)&p_module->execution_modes[index];
+      pp_modes[index] = p_var;
+    }
+  }
+  else {
+    *p_count = p_module->output_variable_count;
+  }
+
+  return SPV_REFLECT_RESULT_SUCCESS;
+}
+
+SpvReflectResult spvReflectEnumerateEntryPointExecutionModes(
+  const SpvReflectShaderModule* p_module,
+  const char*                   entry_point,
+  uint32_t*                     p_count,
+  SpvReflectExecutionMode** 	pp_modes
+)
+{
+  if (IsNull(p_module)) {
+    return SPV_REFLECT_RESULT_ERROR_NULL_POINTER;
+  }
+  if (IsNull(p_count)) {
+    return SPV_REFLECT_RESULT_ERROR_NULL_POINTER;
+  }
+
+  const SpvReflectEntryPoint* p_entry =
+      spvReflectGetEntryPoint(p_module, entry_point);
+  if (IsNull(p_entry)) {
+    return SPV_REFLECT_RESULT_ERROR_ELEMENT_NOT_FOUND;
+  }
+
+  if (IsNotNull(pp_modes)) {
+    if (*p_count != p_entry->execution_modes_count) {
+      return SPV_REFLECT_RESULT_ERROR_COUNT_MISMATCH;
+    }
+
+    for (uint32_t index = 0; index < *p_count; ++index) {
+      SpvReflectExecutionMode* p_var = (SpvReflectExecutionMode*)&p_entry->execution_modes[index];
+      pp_modes[index] = p_var;
+    }
+  }
+  else {
+    *p_count = p_entry->execution_modes_count;
+  }
+
+  return SPV_REFLECT_RESULT_SUCCESS;
+}
+/* UE Change End: Parse execution mode parameters into the EntryPoint descriptor. */
 
 SpvReflectResult spvReflectEnumeratePushConstantBlocks(
   const SpvReflectShaderModule* p_module,
