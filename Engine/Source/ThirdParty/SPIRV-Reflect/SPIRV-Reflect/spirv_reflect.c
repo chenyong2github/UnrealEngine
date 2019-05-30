@@ -1599,6 +1599,84 @@ static int SortCompareDescriptorBinding(const void* a, const void* b)
   }
   return value;
 }
+	
+/* UE Change Begin: Parse execution mode parameters into the EntryPoint descriptor. */
+static SpvReflectResult ParseExecutionMode(Parser* p_parser, SpvReflectShaderModule* p_module, SpvReflectEntryPoint*   p_entry)
+{
+	p_entry->execution_modes_count = 0;
+	for (size_t i = 0; i < p_parser->node_count; ++i) {
+		Node* p_node = &(p_parser->nodes[i]);
+		if (p_node->op == SpvOpExecutionMode)
+		{
+			uint32_t id;
+			CHECKED_READU32(p_parser, p_node->word_offset + 1, id);
+			
+			if (id == p_entry->id)
+			{
+				p_entry->execution_modes_count++;
+			}
+			
+			continue;
+		}
+	}
+	
+	if (p_entry->execution_modes_count == 0) {
+		return SPV_REFLECT_RESULT_SUCCESS;
+	}
+	
+	p_entry->execution_modes = (SpvReflectExecutionMode*)calloc(p_entry->execution_modes_count, sizeof(SpvReflectExecutionMode));
+	if (IsNull(p_entry->execution_modes)) {
+		return SPV_REFLECT_RESULT_ERROR_ALLOC_FAILED;
+	}
+	
+	uint32_t execution_mode_index = 0;
+	for (size_t i = 0; i < p_parser->node_count; ++i) {
+		Node* p_node = &(p_parser->nodes[i]);
+		if (p_node->op == SpvOpExecutionMode)
+		{
+			uint32_t id;
+			CHECKED_READU32(p_parser, p_node->word_offset + 1, id);
+			
+			if (id == p_entry->id)
+			{
+				p_entry->execution_modes[execution_mode_index].operands_count = 0;
+				
+				CHECKED_READU32_CAST(p_parser, p_node->word_offset + 2, SpvExecutionMode, p_entry->execution_modes[execution_mode_index].mode);
+				
+				switch(p_entry->execution_modes[execution_mode_index].mode)
+				{
+					case SpvExecutionModeInvocations:
+					case SpvExecutionModeOutputVertices:
+						p_entry->execution_modes[execution_mode_index].operands_count = 1;
+						break;
+					case SpvExecutionModeLocalSize:
+						p_entry->execution_modes[execution_mode_index].operands_count = 3;
+						break;
+					default:
+						break;
+				}
+				
+				if (p_entry->execution_modes[execution_mode_index].operands_count > 0)
+				{
+					p_entry->execution_modes[execution_mode_index].operands = (uint32_t*)calloc(p_entry->execution_modes[execution_mode_index].operands_count, sizeof(uint32_t));
+					if (IsNull(p_entry->execution_modes[execution_mode_index].operands)) {
+						return SPV_REFLECT_RESULT_ERROR_ALLOC_FAILED;
+					}
+					for (uint32_t j = 0; j < p_entry->execution_modes[execution_mode_index].operands_count; j++)
+					{
+						CHECKED_READU32(p_parser, p_node->word_offset + 3 + j, p_entry->execution_modes[execution_mode_index].operands[j]);
+					}
+				}
+				
+				execution_mode_index++;
+			}
+			
+			continue;
+		}
+	}
+	return SPV_REFLECT_RESULT_SUCCESS;
+}
+/* UE Change End: Parse execution mode parameters into the EntryPoint descriptor. */
 
 static SpvReflectResult ParseDescriptorBindings(Parser* p_parser, SpvReflectShaderModule* p_module)
 {
@@ -2601,6 +2679,13 @@ static SpvReflectResult ParseEntryPoints(Parser* p_parser, SpvReflectShaderModul
     if (result != SPV_REFLECT_RESULT_SUCCESS) {
       return result;
     }
+	  
+	/* UE Change Begin: Parse execution mode parameters into the EntryPoint descriptor. */
+	result = ParseExecutionMode(p_parser, p_module, p_entry_point);
+	if (result != SPV_REFLECT_RESULT_SUCCESS) {
+	  return result;
+	}
+	/* UE Change End: Parse execution mode parameters into the EntryPoint descriptor. */
   }
 
   SafeFree(uniforms);
@@ -3078,6 +3163,12 @@ void spvReflectDestroyShaderModule(SpvReflectShaderModule* p_module)
     for (uint32_t j = 0; j < p_entry->descriptor_set_count; ++j) {
       SafeFree(p_entry->descriptor_sets[j].bindings);
     }
+	/* UE Change Begin: Parse execution mode parameters into the EntryPoint descriptor. */
+	for (uint32_t j = 0; j < p_entry->execution_modes_count; ++j) {
+	  SafeFree(p_entry->execution_modes[j].operands);
+	}
+	SafeFree(p_entry->execution_modes);
+	/* UE Change End: Parse execution mode parameters into the EntryPoint descriptor. */
     SafeFree(p_entry->descriptor_sets);
     SafeFree(p_entry->input_variables);
     SafeFree(p_entry->output_variables);

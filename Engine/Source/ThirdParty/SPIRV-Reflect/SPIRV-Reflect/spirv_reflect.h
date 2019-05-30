@@ -339,6 +339,17 @@ typedef struct SpvReflectDescriptorSet {
   SpvReflectDescriptorBinding**     bindings;
 } SpvReflectDescriptorSet;
 
+/* UE Change Begin: Parse execution mode parameters into the EntryPoint descriptor. */
+/*! @struct SpvReflectExecutionMode
+ 
+ */
+typedef struct SpvReflectExecutionMode {
+	SpvExecutionMode	mode;
+	uint32_t			operands_count;
+	uint32_t*			operands;
+} SpvReflectExecutionMode;
+/* UE Change End: Parse execution mode parameters into the EntryPoint descriptor. */
+
 /*! @struct SpvReflectEntryPoint
 
  */
@@ -348,6 +359,11 @@ typedef struct SpvReflectEntryPoint {
 
   SpvExecutionModel                 spirv_execution_model;
   SpvReflectShaderStageFlagBits     shader_stage;
+	
+  /* UE Change Begin: Parse execution mode parameters into the EntryPoint descriptor. */
+  uint32_t							execution_modes_count;
+  SpvReflectExecutionMode*			execution_modes;
+  /* UE Change End: Parse execution mode parameters into the EntryPoint descriptor. */
 
   uint32_t                          input_variable_count;
   SpvReflectInterfaceVariable*      input_variables;
