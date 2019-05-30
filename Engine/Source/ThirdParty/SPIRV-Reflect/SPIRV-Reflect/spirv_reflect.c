@@ -3543,7 +3543,7 @@ SpvReflectResult spvReflectEnumerateExecutionModes(
     }
   }
   else {
-    *p_count = p_module->output_variable_count;
+    *p_count = p_module->execution_modes_count;
   }
 
   return SPV_REFLECT_RESULT_SUCCESS;
