@@ -584,14 +584,15 @@ bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
 			break;
 		}
 
-		if (Header->Uid >= Dispatches.Num())
+		uint16 Uid = uint16(Header->Uid & ((1 << 14) - 1));
+		if (Uid >= Dispatches.Num())
 		{
 			return false;
 		}
 
 		Transport->Advance(BlockSize);
 
-		const FDispatch* Dispatch = Dispatches[Header->Uid];
+		const FDispatch* Dispatch = Dispatches[Uid];
 
 		EventDataImpl->Dispatch = Dispatch;
 		EventDataImpl->Ptr = Header->EventData;

@@ -89,7 +89,7 @@ void Writer_InitializeTiming()
 {
 	GStartCycle = TimeGetTimestamp();
 
-	UE_TRACE_EVENT_BEGIN($Trace, Timing, Always)
+	UE_TRACE_EVENT_BEGIN($Trace, Timing, Always|Important)
 		UE_TRACE_EVENT_FIELD(uint64, StartCycle)
 		UE_TRACE_EVENT_FIELD(uint64, CycleFrequency)
 	UE_TRACE_EVENT_END()
@@ -774,7 +774,7 @@ static bool GInitialized = false;
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_LogHeader()
 {
-	UE_TRACE_EVENT_BEGIN($Trace, NewTrace, Always)
+	UE_TRACE_EVENT_BEGIN($Trace, NewTrace, Always|Important)
 		UE_TRACE_EVENT_FIELD(uint16, Endian)
 		UE_TRACE_EVENT_FIELD(uint8, Version)
 		UE_TRACE_EVENT_FIELD(uint8, PointerSize)
@@ -887,7 +887,10 @@ enum class EKnownEventUids : uint16
 	NewEvent		= FNewEventEvent::Uid,
 	User,
 	Max				= (1 << 14) - 1, // ...leaves two MSB bits for other uses.
+	UidMask			= Max,
 	Invalid			= Max,
+	Flag_Unused		= 1 << 14,
+	Flag_Important	= 1 << 15,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -934,6 +937,11 @@ void Writer_EventCreate(
 		return;
 	}
 
+	if (Flags & FEvent::Flag_Important)
+	{
+		Uid |= uint16(EKnownEventUids::Flag_Important);
+	}
+
 	uint32 LoggerHash = Writer_EventGetHash(LoggerName.Ptr);
 	uint32 NameHash = Writer_EventGetHash(EventName.Ptr);
 
@@ -959,7 +967,7 @@ void Writer_EventCreate(
 	auto& Event = *(FNewEventEvent*)Writer_BeginLog(uint16(EKnownEventUids::NewEvent), EventSize);
 
 	// Write event's main properties.
-	Event.EventUid = Target->Uid;
+	Event.EventUid = uint16(Uid) & uint16(EKnownEventUids::UidMask);
 	Event.LoggerNameSize = LoggerName.Length;
 	Event.EventNameSize = EventName.Length;
 

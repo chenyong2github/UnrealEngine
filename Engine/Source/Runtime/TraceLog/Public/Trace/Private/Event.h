@@ -46,7 +46,8 @@ public:
 
 	enum
 	{
-		Flag_Always	= 1 << 0,
+		Flag_Always		= 1 << 0,
+		Flag_Important	= 1 << 1,
 	};
 
 	class FLogScope

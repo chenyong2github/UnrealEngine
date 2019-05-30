@@ -47,6 +47,7 @@
 			static const bool bOnceOnly = [] () \
 			{ \
 				const uint32 Always = Trace::FEvent::Flag_Always; \
+				const uint32 Important = Trace::FEvent::Flag_Important; \
 				const uint32 Flags = (0, ##__VA_ARGS__); \
 				F##LoggerName##EventName##Fields Fields; \
 				const auto* Descs = (Trace::FFieldDesc*)(&Fields); \
