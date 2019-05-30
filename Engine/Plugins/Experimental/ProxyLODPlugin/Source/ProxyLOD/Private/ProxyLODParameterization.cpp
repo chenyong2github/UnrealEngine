@@ -9,12 +9,12 @@
 
 
 
-class FPoxyLODParameterizationImpl : public IPoxyLODParameterization
+class FProxyLODParameterizationImpl : public IProxyLODParameterization
 {
 public:
-	FPoxyLODParameterizationImpl() {}
+	FProxyLODParameterizationImpl() {}
 
-	virtual ~FPoxyLODParameterizationImpl() {};
+	virtual ~FProxyLODParameterizationImpl() {};
 
 
 	virtual bool ParameterizeMeshDescription(FMeshDescription& MeshDescription, int32 Width, int32 Height, float GutterSpace, float Stretch, int32 ChartNum, bool bUseNormals, bool bRecomputeTangentSpace, bool bPrintDebugMessages) const override
@@ -78,9 +78,9 @@ public:
 
 
 
-TUniquePtr<IPoxyLODParameterization> IPoxyLODParameterization::CreateTool()
+TUniquePtr<IProxyLODParameterization> IProxyLODParameterization::CreateTool()
 {
-	TUniquePtr<IPoxyLODParameterization> Tool = MakeUnique<FPoxyLODParameterizationImpl>();
+	TUniquePtr<IProxyLODParameterization> Tool = MakeUnique<FProxyLODParameterizationImpl>();
 
 	if (Tool == nullptr)
 	{
