@@ -2608,14 +2608,14 @@ namespace WindowsMixedReality
 		speechRecognizerIndex++;
 	}
 
-	void SpeechRecognizerInterop::AddKeyword(const wchar_t* keyword, std::function<void()> callback)
+	void SpeechRecognizerInterop::AddKeyword(const wchar_t* keyword, void(*CallbackPointer)())
 	{
 		if (speechRecognizerMap[id] == nullptr)
 		{
 			return;
 		}
 
-		speechRecognizerMap[id]->AddKeyword(winrt::hstring(keyword), callback);
+		speechRecognizerMap[id]->AddKeyword(winrt::hstring(keyword), CallbackPointer);
 	}
 
 	void SpeechRecognizerInterop::StartSpeechRecognition()
