@@ -1200,7 +1200,7 @@ bool FEditorBuildUtils::EditorBuildMaterialTextureStreamingData(UPackage* Packag
 				FMaterialResource* Resource = Material->GetMaterialResource(FeatureLevel);
 				if (Resource)
 				{
-					Resource->CacheShaders(GMaxRHIShaderPlatform, false);
+					Resource->CacheShaders(GMaxRHIShaderPlatform);
 					Materials.Add(Material);
 				}
 			}
@@ -1387,7 +1387,7 @@ bool FEditorBuildUtils::CompileShadersComplexityViewMode(EMaterialQualityLevel::
 
 		FMaterialShaderMapId ResourceId;
 		SpecialResource->GetShaderMapId(ShaderPlatform, ResourceId);
-		SpecialResource->CacheShaders(ResourceId, ShaderPlatform, false);
+		SpecialResource->CacheShaders(ResourceId, ShaderPlatform);
 
 		OfflineShaderResources.Add(SpecialResource);
 	}
