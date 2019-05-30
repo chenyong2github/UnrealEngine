@@ -6027,8 +6027,8 @@ void FBlueprintComponentDetails::OnTooltipTextCommitted(const FText& NewText, ET
 bool FBlueprintComponentDetails::OnVariableCategoryChangeEnabled() const
 {
 	check(CachedNodePtr.IsValid());
-
-	return !CachedNodePtr->CanRename();
+	
+	return !CachedNodePtr->IsInherited();
 }
 
 FText FBlueprintComponentDetails::OnGetVariableCategoryText() const
