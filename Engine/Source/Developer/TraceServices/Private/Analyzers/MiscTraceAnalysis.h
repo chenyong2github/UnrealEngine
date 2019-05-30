@@ -42,6 +42,10 @@ private:
 		RouteId_Bookmark,
 		RouteId_BeginFrame,
 		RouteId_EndFrame,
+		RouteId_BeginGameFrame,
+		RouteId_EndGameFrame,
+		RouteId_BeginRenderFrame,
+		RouteId_EndRenderFrame,
 	};
 
 	struct FThreadState
@@ -57,5 +61,6 @@ private:
 	Trace::FLogProvider& LogProvider;
 	Trace::FFrameProvider& FrameProvider;
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStateMap;
+	uint64 LastFrameCycle[TraceFrameType_Count] = { 0, 0 };
 };
 

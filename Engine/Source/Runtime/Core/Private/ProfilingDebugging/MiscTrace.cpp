@@ -8,48 +8,58 @@
 #include "HAL/PlatformTLS.h"
 #include "HAL/PlatformTime.h"
 
-UE_TRACE_EVENT_BEGIN(Misc, RegisterGameThread)
+UE_TRACE_EVENT_BEGIN(Misc, RegisterGameThread, Always)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Misc, CreateThread)
+UE_TRACE_EVENT_BEGIN(Misc, CreateThread, Always)
 	UE_TRACE_EVENT_FIELD(uint32, CurrentThreadId)
 	UE_TRACE_EVENT_FIELD(uint32, CreatedThreadId)
 	UE_TRACE_EVENT_FIELD(uint32, Priority)
 	UE_TRACE_EVENT_FIELD(uint16, NameSize)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Misc, SetThreadGroup)
+UE_TRACE_EVENT_BEGIN(Misc, SetThreadGroup, Always)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Misc, BeginThreadGroupScope)
+UE_TRACE_EVENT_BEGIN(Misc, BeginThreadGroupScope, Always)
 	UE_TRACE_EVENT_FIELD(uint32, CurrentThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Misc, EndThreadGroupScope)
+UE_TRACE_EVENT_BEGIN(Misc, EndThreadGroupScope, Always)
 	UE_TRACE_EVENT_FIELD(uint32, CurrentThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Misc, BookmarkSpec)
+UE_TRACE_EVENT_BEGIN(Misc, BookmarkSpec, Always)
 	UE_TRACE_EVENT_FIELD(const void*, BookmarkPoint)
 	UE_TRACE_EVENT_FIELD(int32, Line)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Misc, Bookmark)
+UE_TRACE_EVENT_BEGIN(Misc, Bookmark, Always)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(const void*, BookmarkPoint)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Misc, BeginFrame)
-	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint8, FrameType)
+UE_TRACE_EVENT_BEGIN(Misc, BeginGameFrame, Always)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Misc, EndFrame)
-	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint8, FrameType)
+UE_TRACE_EVENT_BEGIN(Misc, EndGameFrame, Always)
 UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Misc, BeginRenderFrame, Always)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Misc, EndRenderFrame, Always)
+UE_TRACE_EVENT_END()
+
+
+struct FMiscTraceInternal
+{
+	static uint64 LastFrameCycle[TraceFrameType_Count];
+};
+
+uint64 FMiscTraceInternal::LastFrameCycle[TraceFrameType_Count] = { 0, 0 };
 
 void FMiscTrace::OutputRegisterGameThread(uint32 Id)
 {
@@ -113,16 +123,44 @@ void FMiscTrace::OutputBookmarkInternal(const void* BookmarkPoint, uint16 Encode
 
 void FMiscTrace::OutputBeginFrame(ETraceFrameType FrameType)
 {
-	UE_TRACE_LOG(Misc, BeginFrame)
-		<< BeginFrame.Cycle(FPlatformTime::Cycles64())
-		<< BeginFrame.FrameType(uint8(FrameType));
+	uint64 Cycle = FPlatformTime::Cycles64();
+	uint64 CycleDiff = Cycle - FMiscTraceInternal::LastFrameCycle[FrameType];
+	FMiscTraceInternal::LastFrameCycle[FrameType] = Cycle;
+	uint8 Buffer[9];
+	uint8* BufferPtr = Buffer;
+	FTraceUtils::Encode7bit(CycleDiff, BufferPtr);
+	uint16 BufferSize = BufferPtr - Buffer;
+	if (FrameType == TraceFrameType_Game)
+	{
+		UE_TRACE_LOG(Misc, BeginGameFrame, BufferSize)
+			<< BeginGameFrame.Attachment(&Buffer, BufferSize);
+	}
+	else if (FrameType == TraceFrameType_Rendering)
+	{
+		UE_TRACE_LOG(Misc, BeginRenderFrame, BufferSize)
+			<< BeginRenderFrame.Attachment(&Buffer, BufferSize);
+	}
 }
 
 void FMiscTrace::OutputEndFrame(ETraceFrameType FrameType)
 {
-	UE_TRACE_LOG(Misc, EndFrame)
-		<< EndFrame.Cycle(FPlatformTime::Cycles64())
-		<< EndFrame.FrameType(uint8(FrameType));
+	uint64 Cycle = FPlatformTime::Cycles64();
+	uint64 CycleDiff = Cycle - FMiscTraceInternal::LastFrameCycle[FrameType];
+	FMiscTraceInternal::LastFrameCycle[FrameType] = Cycle;
+	uint8 Buffer[9];
+	uint8* BufferPtr = Buffer;
+	FTraceUtils::Encode7bit(CycleDiff, BufferPtr);
+	uint16 BufferSize = BufferPtr - Buffer;
+	if (FrameType == TraceFrameType_Game)
+	{
+		UE_TRACE_LOG(Misc, EndGameFrame, BufferSize)
+			<< EndGameFrame.Attachment(&Buffer, BufferSize);
+	}
+	else if (FrameType == TraceFrameType_Rendering)
+	{
+		UE_TRACE_LOG(Misc, EndRenderFrame, BufferSize)
+			<< EndRenderFrame.Attachment(&Buffer, BufferSize);
+	}
 }
 
 #endif
