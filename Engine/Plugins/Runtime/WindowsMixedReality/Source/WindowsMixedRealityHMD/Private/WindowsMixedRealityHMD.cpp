@@ -1422,7 +1422,7 @@ namespace WindowsMixedReality
 			}
 
 			speechInterop->StartSpeechRecognition();
-		}
+		} //-V773
 #endif
 	}
 
