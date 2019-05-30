@@ -2324,19 +2324,25 @@ void UHierarchicalInstancedStaticMeshComponent::ClearInstances()
 
 	InstanceUpdateCmdBuffer.Reset();
 
-	// Hide all instance until the build tree is completed
-	int32 NumInstances = PerInstanceSMData.Num();
-
-	for (int32 Index = 0; Index < NumInstances; ++Index)
+	// Don't try to queue hide command if there is no render instances
+	if (PerInstanceRenderData.IsValid() && PerInstanceRenderData->InstanceBuffer_GameThread->GetNumInstances() > 0)
 	{
-		int32 RenderIndex = InstanceReorderTable.IsValidIndex(Index) ? InstanceReorderTable[Index] : Index;
-		if (RenderIndex == INDEX_NONE)
-		{
-			// could be skipped by density settings
-			continue;
-		}
+		// Hide all instance until the build tree is completed but if there is a mismatch between game thread data and render thread data, only add command matching render thread data, 
+		// this can happen in a case where you perform many time add, clear, add, clear, in the same frame, so you might get a mismatch between both thread data
+		int32 NumInstances = FMath::Clamp(PerInstanceSMData.Num(), 0, PerInstanceRenderData->InstanceBuffer_GameThread->GetNumInstances());
 
-		InstanceUpdateCmdBuffer.HideInstance(RenderIndex);
+		for (int32 Index = 0; Index < NumInstances; ++Index)
+		{
+			int32 RenderIndex = InstanceReorderTable.IsValidIndex(Index) ? InstanceReorderTable[Index] : Index;
+
+			if (RenderIndex == INDEX_NONE) 
+			{
+				// could be skipped by density settings
+				continue;
+			}
+
+			InstanceUpdateCmdBuffer.HideInstance(RenderIndex);
+		}
 	}
 
 	// Clear all the per-instance data
