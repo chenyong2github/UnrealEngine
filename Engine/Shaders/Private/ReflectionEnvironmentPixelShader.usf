@@ -220,7 +220,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 	if(GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT )
 	{
 #if RAY_TRACED_REFLECTIONS
-		Color = float4(0, 0, 0, 0); // Clear coat reflection is expected to be computed on a black background
+		Color = float4(0, 0, 0, 1); // Clear coat reflection is expected to be computed on a black background
 #endif
 		const float ClearCoat = GBuffer.CustomData.x;
 		Color = lerp( Color, float4(0,0,0,1), ClearCoat );
@@ -273,9 +273,10 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 		Color.rgb *= LayerAttenuation;
 		Color.a = F;
 		
-			
+#if !RAY_TRACED_REFLECTIONS	
 		Color.rgb += SSR.rgb * F;
 		Color.a *= 1 - SSR.a;
+#endif
 			
 		Color.a *= SpecularOcclusion;
 
