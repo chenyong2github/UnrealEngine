@@ -1,14 +1,16 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/LoadTimeTrace.h"
+
+#if LOADTIMEPROFILERTRACE_ENABLED
+
 #include "LoadTimeTracePrivate.h"
 #include "Trace/Trace.h"
 #include "Misc/CString.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
+#include "UObject/Object.h"
 #include "UObject/UObjectGlobals.h"
-
-#if LOADTIMEPROFILERTRACE_ENABLED
 
 UE_TRACE_EVENT_BEGIN(LoadTime, StartAsyncLoading)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)

@@ -6,6 +6,8 @@
 
 #if LOADTIMEPROFILERTRACE_ENABLED
 
+#include "UObject/UObjectGlobals.h"
+
 class FArchive;
 struct FAsyncPackage;
 class FLinkerLoad;
