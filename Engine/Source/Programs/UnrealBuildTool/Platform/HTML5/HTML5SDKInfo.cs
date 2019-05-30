@@ -16,7 +16,7 @@ namespace UnrealBuildTool
 	public class HTML5SDKInfo
 	{
 		static string NODE_VER = "8.9.1_64bit";
-		static string PYTHON_VER = "2.7.13.1_64bit"; // Only used on Windows; other platforms use built-in Python.
+//		static string PYTHON_VER = "2.7.13.1_64bit"; // Only used on Windows; other platforms use built-in Python.
 
 		static string LLVM_VER = "e1.38.31_64bit";
 		static string SDKVersion = "1.38.31";
@@ -62,7 +62,7 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64
 					|| BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac
 					|| BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
 				{
@@ -163,13 +163,29 @@ namespace UnrealBuildTool
 				string python = GetEmscriptenConfigVar("PYTHON");
 				if (python != null) return python;
 
+// saving for reference
+//				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
+//				{
+//					return Path.Combine(SDKBase, "Win64", "python", PYTHON_VER, "python.exe");
+//				}
+//				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
+//				{
+//					return "/usr/bin/python";
+//				}
+
+				// use UE4's bundled python executable
+				string UE4PythonPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries", "ThirdParty", "Python").FullName;
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 				{
-					return Path.Combine(SDKBase, "Win64", "python", PYTHON_VER, "python.exe");
+					return Path.Combine(UE4PythonPath, "Win64", "python.exe");
 				}
-				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 				{
-					return "/usr/bin/python";
+					return Path.Combine(UE4PythonPath, "Mac", "bin", "python2.7");
+				}
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
+				{
+					return Path.Combine(UE4PythonPath, "Linux", "bin", "python2.7");
 				}
 				return "error_unknown_platform";
 			}

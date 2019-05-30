@@ -330,14 +330,20 @@ namespace UnrealBuildTool
 			// --------------------------------------------------
 			// emscripten memory
 
-			Result += " -s ALLOW_MEMORY_GROWTH=0";
-			Result += " -s TOTAL_MEMORY=512MB";
 			if (enableMultithreading)
 			{
+				Result += " -s ALLOW_MEMORY_GROWTH=0";
+//				Result += " -s TOTAL_MEMORY=512MB";
+				Result += " -s TOTAL_MEMORY=600MB";
 // NOTE: browsers needs to temporarly have some flags set:
 //  https://github.com/kripken/emscripten/wiki/Pthreads-with-WebAssembly
 //  https://kripken.github.io/emscripten-site/docs/porting/pthreads.html
 				Result += " -s PTHREAD_POOL_SIZE=4 -s PTHREAD_HINT_NUM_CORES=2";
+			}
+			else
+			{
+				Result += " -s ALLOW_MEMORY_GROWTH=1";
+				Result += " -s TOTAL_MEMORY=32MB";
 			}
 
 
