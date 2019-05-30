@@ -182,19 +182,13 @@ void FInsightsManager::SpawnAndActivateTabs()
 
 bool FInsightsManager::IsAnyLiveSessionAvailable(Trace::FSessionHandle& OutLastLiveSessionHandle) const
 {
-	TArray<Trace::FSessionHandle> AvailableSessions;
-	SessionService->GetAvailableSessions(AvailableSessions);
+	TArray<Trace::FSessionHandle> LiveSessions;
+	SessionService->GetLiveSessions(LiveSessions);
 
-	for (int32 SessionIndex = AvailableSessions.Num() - 1; SessionIndex >= 0; --SessionIndex)
+	if (LiveSessions.Num() > 0)
 	{
-		Trace::FSessionInfo SessionInfo;
-		SessionService->GetSessionInfo(AvailableSessions[SessionIndex], SessionInfo);
-
-		if (SessionInfo.bIsLive)
-		{
-			OutLastLiveSessionHandle = AvailableSessions[SessionIndex];
-			return true;
-		}
+		OutLastLiveSessionHandle = LiveSessions.Last();
+		return true;
 	}
 
 	return false;

@@ -410,6 +410,9 @@ protected:
 
 	bool bAssetLoadingMode;
 
+	FString EventAggregationStr;
+	FString ObjectTypeAggregationStr;
+
 	////////////////////////////////////////////////////////////
 	// File activity (I/O)
 
