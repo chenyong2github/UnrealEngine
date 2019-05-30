@@ -499,6 +499,21 @@ void FVTConversionWorker::FilterList(int32 SizeThreshold)
 	FindAllTexturesAndMaterials(Materials, Functions, Textures);
 }
 
+static void MarkTextureExpressionModified(UMaterialExpressionTextureBase* Expression)
+{
+	FPropertyChangedEvent SamplerTypeChangeEvent(UMaterialExpressionTextureBase::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureBase, SamplerType)));
+	FPropertyChangedEvent TextureChangeEvent(UMaterialExpressionTextureBase::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureBase, Texture)));
+
+	Expression->Modify();
+
+	// Nofity that we changed SamplerType
+	Expression->PostEditChangeProperty(SamplerTypeChangeEvent);
+
+	// Also notify that we changed Texture (technically didn't modify this property)
+	// This way code in FMaterialExpressionTextureBaseDetails will see the event, and refresh the list of valid sampler types for the updated texture
+	Expression->PostEditChangeProperty(TextureChangeEvent);
+}
+
 void FVTConversionWorker::DoConvert(bool backwards)
 {
 	const bool bVirtualTextureEnable = !backwards;
@@ -620,8 +635,7 @@ void FVTConversionWorker::DoConvert(bool backwards)
 						}
 						if (TextureCopy != nullptr || OldType != TexExpr->SamplerType)
 						{
-							TexExpr->Modify();
-							TexExpr->PostEditChange();
+							MarkTextureExpressionModified(TexExpr);
 							MatModified = true;
 						}
 					}
@@ -687,8 +701,7 @@ void FVTConversionWorker::DoConvert(bool backwards)
 						}
 						if (TextureCopy != nullptr || TexExpr->SamplerType != OldType)
 						{
-							TexExpr->Modify();
-							TexExpr->PostEditChange();
+							MarkTextureExpressionModified(TexExpr);
 							FuncModified = true;
 						}
 					}

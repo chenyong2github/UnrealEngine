@@ -14,6 +14,11 @@ TSharedRef<IDetailCustomization> FMaterialExpressionTextureBaseDetails::MakeInst
 	return MakeShareable(new FMaterialExpressionTextureBaseDetails);
 }
 
+FMaterialExpressionTextureBaseDetails::~FMaterialExpressionTextureBaseDetails()
+{
+	FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(DelegateHandle);
+}
+
 void FMaterialExpressionTextureBaseDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 {
 	TArray<TWeakObjectPtr<UObject>> Objects;
@@ -28,8 +33,13 @@ void FMaterialExpressionTextureBaseDetails::CustomizeDetails( IDetailLayoutBuild
 	TSharedPtr<IPropertyHandle> SamplerTypeHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureBase, SamplerType));
 	SamplerTypeHandle->AddRestriction(EnumRestriction.ToSharedRef());
 
+	// IPropertyHandle::SetOnPropertyValueChanged will catch property changes initiated by the editor
 	TSharedPtr<IPropertyHandle> TextureHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureBase, Texture));
 	TextureHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FMaterialExpressionTextureBaseDetails::OnTextureChanged));
+
+	// FCoreUObjectDelegates::OnObjectPropertyChanged will catch property changes initiated by C++
+	// This is required to ensure UI is properly updated when the VT conversion tool runs and updates textures/materials
+	DelegateHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FMaterialExpressionTextureBaseDetails::OnPropertyChanged);
 
 	OnTextureChanged();
 }
@@ -54,6 +64,14 @@ void FMaterialExpressionTextureBaseDetails::OnTextureChanged()
 		{
 			EnumRestriction->AddHiddenValue(MaterialSamplerTypeEnum->GetNameStringByValue(SamplerTypeIndex));
 		}
+	}
+}
+
+void FMaterialExpressionTextureBaseDetails::OnPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (ObjectBeingModified == Expression && PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureBase, Texture))
+	{
+		OnTextureChanged();
 	}
 }
 
