@@ -31,6 +31,8 @@
 
 #pragma comment( lib, "Advapi32.lib" )
 
+#pragma warning( disable : 6387 )
+
 #define LOCTEXT_NAMESPACE "HoloLensTargetSettingsCustomization"
 
 TArray<FHoloLensSDKVersion> FHoloLensSDKVersion::GetSDKVersions()
