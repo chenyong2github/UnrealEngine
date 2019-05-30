@@ -563,34 +563,44 @@ void UK2Node_FunctionEntry::GetRedirectPinNames(const UEdGraphPin& Pin, TArray<F
 	}
 }
 
-bool UK2Node_FunctionEntry::IsDeprecated() const
+bool UK2Node_FunctionEntry::HasDeprecatedReference() const
 {
 	// We only show deprecated for inherited functions
 	if (UFunction* const Function = FunctionReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
 	{
 		return Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction);
 	}
-
-	return false;
-}
-
-bool UK2Node_FunctionEntry::ShouldWarnOnDeprecation() const
-{
-	// Only warn on non-editable (i.e. override) usage. This allows the source graph to be marked as deprecated in the class that defines it without warning.
-	return !IsEditable();
-}
-
-FString UK2Node_FunctionEntry::GetDeprecationMessage() const
-{
-	FText Result;
-	if (UFunction* const Function = FunctionReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
+	else
 	{
-		FName FunctionName = FunctionReference.GetMemberName();
-		FString DetailedMessage = Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage);
-		Result = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(FText::FromName(FunctionName), FText::FromString(DetailedMessage));
+		return MetaData.bIsDeprecated;
+	}
+}
+
+FEdGraphNodeDeprecationResponse UK2Node_FunctionEntry::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
+{
+	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
+	if (DeprecationType == EEdGraphNodeDeprecationType::NodeHasDeprecatedReference)
+	{
+		// Only warn on non-editable (i.e. override) usage.
+		if (!IsEditable())
+		{
+			UFunction* const Function = FunctionReference.ResolveMember<UFunction>(GetBlueprintClassFromNode());
+			if (ensureMsgf(Function != nullptr, TEXT("This node should not be able to report having a deprecated reference if the override function cannot be resolved.")))
+			{
+				FText FunctionName = FText::FromName(FunctionReference.GetMemberName());
+				FText DetailedMessage = FText::FromString(Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage));
+				Response.MessageText = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(FunctionName, DetailedMessage);
+			}
+		}
+		else
+		{
+			// Allow the function to be marked as deprecated in the class that defines it without warning, but use a note to visually indicate that the definition itself has been deprecated.
+			Response.MessageType = EEdGraphNodeDeprecationMessageType::Note;
+			Response.MessageText = LOCTEXT("DeprecatedFunctionMessage", "@@: This function has been marked as deprecated. It can be safely deleted if all references have been replaced or removed.");
+		}
 	}
 
-	return Result.ToString();
+	return Response;
 }
 
 FText UK2Node_FunctionEntry::GetTooltipText() const

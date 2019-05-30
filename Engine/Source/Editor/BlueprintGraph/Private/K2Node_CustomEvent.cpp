@@ -544,17 +544,27 @@ FText UK2Node_CustomEvent::GetKeywords() const
 	return FText::Format(LOCTEXT("CustomEventKeywords", "{ParentKeywords} Custom"), Args);
 }
 
-bool UK2Node_CustomEvent::ShouldWarnOnDeprecation() const
+FEdGraphNodeDeprecationResponse UK2Node_CustomEvent::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
 {
-	// Only warn on override usage. This allows the source event to be marked as deprecated in the class that defines it without warning.
-	return IsOverride();
-}
+	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
+	if (DeprecationType == EEdGraphNodeDeprecationType::NodeHasDeprecatedReference)
+	{
+		// Only warn on override usage.
+		if (IsOverride())
+		{
+			FText EventName = FText::FromName(GetFunctionName());
+			FText DetailedMessage = FText::FromString(DeprecationMessage);
+			Response.MessageText = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(EventName, DetailedMessage);
+		}
+		else
+		{
+			// Allow the source event to be marked as deprecated in the class that defines it without warning, but use a note to visually indicate that the definition itself has been deprecated.
+			Response.MessageType = EEdGraphNodeDeprecationMessageType::Note;
+			Response.MessageText = LOCTEXT("DeprecatedCustomEventMessage", "@@: This custom event has been marked as deprecated. It can be safely deleted if all references have been replaced or removed.");
+		}
+	}
 
-FString UK2Node_CustomEvent::GetDeprecationMessage() const
-{
-	FText EventName = FText::FromName(GetFunctionName());
-	FText DetailedMessage = FText::FromString(DeprecationMessage);
-	return FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(EventName, DetailedMessage).ToString();
+	return Response;
 }
 
 #undef LOCTEXT_NAMESPACE

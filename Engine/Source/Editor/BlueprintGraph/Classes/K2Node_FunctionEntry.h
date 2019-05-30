@@ -42,9 +42,8 @@ class UK2Node_FunctionEntry : public UK2Node_FunctionTerminator
 	virtual void AllocateDefaultPins() override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual bool CanUserDeleteNode() const override { return false; }
-	virtual bool IsDeprecated() const override;
-	virtual bool ShouldWarnOnDeprecation() const override;
-	virtual FString GetDeprecationMessage() const override;
+	virtual bool HasDeprecatedReference() const override;
+	virtual FEdGraphNodeDeprecationResponse GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const override;
 	virtual FText GetTooltipText() const override;
 	virtual void FindDiffs(UEdGraphNode* OtherNode, struct FDiffResults& Results) override;
 	//~ End UEdGraphNode Interface

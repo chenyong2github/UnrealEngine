@@ -3148,7 +3148,7 @@ void FKismetCompilerContext::VerifyValidOverrideEvent(const UEdGraph* Graph)
 					(EventNode->EventReference.GetMemberParentClass(EventNode->GetBlueprintClassFromNode()) == FuncClass) &&
 					(EventNode->EventReference.GetMemberName() == FuncName))
 				{
-					if (EventNode->IsDeprecated())
+					if (EventNode->HasDeprecatedReference())
 					{
 						// The event cannot be placed because it has been deprecated. However, we already emit a
 						// warning in FGraphCompilerContext::ValidateNode(), so there's no need to repeat it here.

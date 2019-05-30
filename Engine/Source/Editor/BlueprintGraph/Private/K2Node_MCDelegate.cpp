@@ -270,28 +270,25 @@ void UK2Node_BaseMCDelegate::AutowireNewNode(UEdGraphPin* FromPin)
 	}
 }
 
-bool UK2Node_BaseMCDelegate::IsDeprecated() const
+bool UK2Node_BaseMCDelegate::HasDeprecatedReference() const
 {
-	// Check if either the node itself or the referenced delegate is deprecated.
-	return Super::IsDeprecated() || DelegateReference.IsDeprecated();
+	// Check if the referenced delegate is deprecated.
+	return DelegateReference.IsDeprecated();
 }
 
-FString UK2Node_BaseMCDelegate::GetDeprecationMessage() const
+FEdGraphNodeDeprecationResponse UK2Node_BaseMCDelegate::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
 {
-	// Handle the default case where the node itself has been deprecated (return the default message).
-	if (Super::IsDeprecated())
+	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
+	if (DeprecationType == EEdGraphNodeDeprecationType::NodeHasDeprecatedReference)
 	{
-		return Super::GetDeprecationMessage();
+		if (UProperty* DelegateProperty = DelegateReference.ResolveMember<UProperty>(GetBlueprintClassFromNode()))
+		{
+			FString DetailedMessage = DelegateProperty->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage);
+			Response.MessageText = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(GetPropertyDisplayName(), FText::FromString(DetailedMessage));
+		}
 	}
-
-	FText Result;
-	if (UProperty* DelegateProperty = DelegateReference.ResolveMember<UProperty>(GetBlueprintClassFromNode()))
-	{
-		FString DetailedMessage = DelegateProperty->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage);
-		Result = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(GetPropertyDisplayName(), FText::FromString(DetailedMessage));
-	}
-
-	return Result.ToString();
+	
+	return Response;
 }
 
 /////// UK2Node_AddDelegate ///////////

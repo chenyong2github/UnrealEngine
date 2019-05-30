@@ -170,6 +170,36 @@ struct FGraphNodeContextMenuBuilder
 	FGraphNodeContextMenuBuilder(const UEdGraph* InGraph, const UEdGraphNode* InNode, const UEdGraphPin* InPin, class FMenuBuilder* InMenuBuilder, bool bInDebuggingMode);
 };
 
+/** Deprecation types for node response. */
+enum class EEdGraphNodeDeprecationType
+{
+	/** The node type is deprecated. */
+	NodeTypeIsDeprecated,
+	/** The node references a deprecated member or type (e.g. variable or function). */
+	NodeHasDeprecatedReference
+};
+
+/** Deprecation response message types. */
+enum class EEdGraphNodeDeprecationMessageType
+{
+	/** No message. The Blueprint will compile successfully. */
+	None,
+	/** Emit the message as a note at compile time. This will appear as a note on the node and in the compiler log. */
+	Note,
+	/** Emit the message as a Blueprint compiler warning. This will appear as a warning on the node and in the compiler log. */
+	Warning
+};
+
+/** Deprecation response data. */
+struct FEdGraphNodeDeprecationResponse
+{
+	/** Message type. */
+	EEdGraphNodeDeprecationMessageType MessageType = EEdGraphNodeDeprecationMessageType::None;
+
+	/** Message text to display on the node and/or emit to the compile log. */
+	FText MessageText;
+};
+
 UCLASS()
 class ENGINE_API UEdGraphNode : public UObject
 {
@@ -723,10 +753,18 @@ public:
 	// Returns true if this node is deprecated
 	virtual bool IsDeprecated() const;
 
+	// Returns true if this node references a deprecated type or member
+	virtual bool HasDeprecatedReference() const { return false; }
+
+	// Returns the response to use when reporting a deprecation
+	virtual FEdGraphNodeDeprecationResponse GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const;
+
 	// Returns true if this node should produce a compiler warning on deprecation
-	virtual bool ShouldWarnOnDeprecation() const { return true; }
+	UE_DEPRECATED(4.23, "Use GetDeprecationResponse instead.")
+	virtual bool ShouldWarnOnDeprecation() const;
 
 	// Returns the string to use when reporting the deprecation
+	UE_DEPRECATED(4.23, "Use GetDeprecationResponse instead.")
 	virtual FString GetDeprecationMessage() const;
 
 	// Returns the object that should be focused when double-clicking on this node

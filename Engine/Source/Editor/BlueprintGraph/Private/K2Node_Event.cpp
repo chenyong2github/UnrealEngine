@@ -779,7 +779,7 @@ FText UK2Node_Event::GetMenuCategory() const
 	return FunctionCategory;
 }
 
-bool UK2Node_Event::IsDeprecated() const
+bool UK2Node_Event::HasDeprecatedReference() const
 {
 	if (UFunction* Function = EventReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
 	{
@@ -789,23 +789,31 @@ bool UK2Node_Event::IsDeprecated() const
 	return false;
 }
 
-bool UK2Node_Event::ShouldWarnOnDeprecation() const
+FEdGraphNodeDeprecationResponse UK2Node_Event::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
 {
-	// Only warn on override usage. This allows the source event to be marked as deprecated in the class that defines it without warning.
-	return bOverrideFunction;
-}
-
-FString UK2Node_Event::GetDeprecationMessage() const
-{
-	FText Result;
-	if (UFunction* Function = EventReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
+	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
+	if (DeprecationType == EEdGraphNodeDeprecationType::NodeHasDeprecatedReference)
 	{
-		FName EventName = GetFunctionName();
-		FString DetailedMessage = Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage);
-		Result = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(FText::FromName(EventName), FText::FromString(DetailedMessage));
+		// Only warn on override usage.
+		if (bOverrideFunction)
+		{
+			UFunction* Function = EventReference.ResolveMember<UFunction>(GetBlueprintClassFromNode());
+			if (ensureMsgf(Function != nullptr, TEXT("This node should not be able to report having a deprecated reference if the event override cannot be resolved.")))
+			{
+				FText EventName = FText::FromName(GetFunctionName());
+				FText DetailedMessage = FText::FromString(Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage));
+				Response.MessageText = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(EventName, DetailedMessage);
+			}
+		}
+		else
+		{
+			// Allow the source event to be marked as deprecated in the class that defines it without warning, but use a note to visually indicate that the definition itself has been deprecated.
+			Response.MessageType = EEdGraphNodeDeprecationMessageType::Note;
+			Response.MessageText = LOCTEXT("DeprecatedEventMessage", "@@: This event has been marked as deprecated. It can be safely deleted if all references have been replaced or removed.");
+		}
 	}
 
-	return Result.ToString();
+	return Response;
 }
 
 UObject* UK2Node_Event::GetJumpTargetForDoubleClick() const

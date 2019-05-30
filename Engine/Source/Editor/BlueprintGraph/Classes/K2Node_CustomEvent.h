@@ -49,9 +49,8 @@ class UK2Node_CustomEvent : public UK2Node_Event
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
 	virtual void AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const override;
 	virtual FText GetKeywords() const override;
-	virtual bool IsDeprecated() const override { return bIsDeprecated; }
-	virtual bool ShouldWarnOnDeprecation() const override;
-	virtual FString GetDeprecationMessage() const override;
+	virtual bool HasDeprecatedReference() const override { return bIsDeprecated; }
+	virtual FEdGraphNodeDeprecationResponse GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const override;
 	//~ End UEdGraphNode Interface
 
 	//~ Begin UK2Node Interface

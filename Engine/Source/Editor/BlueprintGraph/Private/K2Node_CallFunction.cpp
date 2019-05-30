@@ -437,30 +437,35 @@ UK2Node_CallFunction::UK2Node_CallFunction(const FObjectInitializer& ObjectIniti
 }
 
 
-bool UK2Node_CallFunction::IsDeprecated() const
+bool UK2Node_CallFunction::HasDeprecatedReference() const
 {
 	UFunction* Function = GetTargetFunction();
 	return (Function && Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction));
 }
 
-bool UK2Node_CallFunction::ShouldWarnOnDeprecation() const
+FEdGraphNodeDeprecationResponse UK2Node_CallFunction::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
 {
-	// TEMP:  Do not warn in the case of SpawnActor, as we have a special upgrade path for those nodes
-	return (FunctionReference.GetMemberName() != FName(TEXT("BeginSpawningActorFromBlueprint")));
-}
-
-FString UK2Node_CallFunction::GetDeprecationMessage() const
-{
-	FText Result;
-	if (UFunction* Function = GetTargetFunction())
+	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
+	if (DeprecationType == EEdGraphNodeDeprecationType::NodeHasDeprecatedReference)
 	{
-		FString DetailedMessage = Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage);
-		Result = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(GetUserFacingFunctionName(Function), FText::FromString(DetailedMessage));
+		// TEMP: Do not warn in the case of SpawnActor, as we have a special upgrade path for those nodes
+		if (FunctionReference.GetMemberName() == FName(TEXT("BeginSpawningActorFromBlueprint")))
+		{
+			Response.MessageType = EEdGraphNodeDeprecationMessageType::None;
+		}
+		else
+		{
+			UFunction* Function = GetTargetFunction();
+			if (ensureMsgf(Function != nullptr, TEXT("This node should not be able to report having a deprecated reference if the target function cannot be resolved.")))
+			{
+				FString DetailedMessage = Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage);
+				Response.MessageText = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(GetUserFacingFunctionName(Function), FText::FromString(DetailedMessage));
+			}
+		}
 	}
 	
-	return Result.ToString();
+	return Response;
 }
-
 
 FText UK2Node_CallFunction::GetFunctionContextString() const
 {

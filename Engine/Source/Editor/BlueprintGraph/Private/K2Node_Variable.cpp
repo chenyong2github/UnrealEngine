@@ -952,10 +952,10 @@ void UK2Node_Variable::PostPasteNode()
 	}
 }
 
-bool UK2Node_Variable::IsDeprecated() const
+bool UK2Node_Variable::HasDeprecatedReference() const
 {
-	// Check if either the node itself or the referenced variable is deprecated.
-	if (Super::IsDeprecated() || VariableReference.IsDeprecated())
+	// Check if the referenced variable is deprecated.
+	if (VariableReference.IsDeprecated())
 	{
 		return true;
 	}
@@ -972,23 +972,20 @@ bool UK2Node_Variable::IsDeprecated() const
 	return false;
 }
 
-FString UK2Node_Variable::GetDeprecationMessage() const
+FEdGraphNodeDeprecationResponse UK2Node_Variable::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
 {
-	// Handle the default case where the node itself has been deprecated (return the default message).
-	if (Super::IsDeprecated())
+	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
+	if (DeprecationType == EEdGraphNodeDeprecationType::NodeHasDeprecatedReference)
 	{
-		return Super::GetDeprecationMessage();
+		if (UProperty* VariableProperty = VariableReference.ResolveMember<UProperty>(GetBlueprintClassFromNode()))
+		{
+			FText MemberName = FText::FromName(VariableReference.GetMemberName());
+			FText DetailedMessage = FText::FromString(VariableProperty->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage));
+			Response.MessageText = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(MemberName, DetailedMessage);
+		}
 	}
 
-	FText Result;
-	if (UProperty* VariableProperty = VariableReference.ResolveMember<UProperty>(GetBlueprintClassFromNode()))
-	{
-		FName MemberName = VariableReference.GetMemberName();
-		FString DetailedMessage = VariableProperty->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage);
-		Result = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(FText::FromName(MemberName), FText::FromString(DetailedMessage));
-	}
-	
-	return Result.ToString();
+	return Response;
 }
 
 UObject* UK2Node_Variable::GetJumpTargetForDoubleClick() const

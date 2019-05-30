@@ -35,7 +35,7 @@ class UGameplayTagsK2Node_LiteralGameplayTag : public UK2Node
 	virtual bool IsNodePure() const override { return true; }
 	virtual bool IsDeprecated() const override { return true; } 
 	virtual void ConvertDeprecatedNode(UEdGraph* Graph, bool bOnlySafeChanges) override;
-	virtual FString GetDeprecationMessage() const override;
+	virtual FEdGraphNodeDeprecationResponse GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const override;
 	//~ End UK2Node Interface
 #endif
 

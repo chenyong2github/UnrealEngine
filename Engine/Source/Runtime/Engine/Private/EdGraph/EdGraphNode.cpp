@@ -535,9 +535,54 @@ bool UEdGraphNode::IsDeprecated() const
 	return GetClass()->HasAnyClassFlags(CLASS_Deprecated);
 }
 
+FEdGraphNodeDeprecationResponse UEdGraphNode::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
+{
+	FEdGraphNodeDeprecationResponse Response;
+
+	if (DeprecationType == EEdGraphNodeDeprecationType::NodeTypeIsDeprecated)
+	{
+		Response.MessageType = EEdGraphNodeDeprecationMessageType::Warning;
+		Response.MessageText = NSLOCTEXT("EdGraphCompiler", "NodeDeprecated_Warning", "@@ is deprecated; please replace or remove it.");
+	}
+	else if (DeprecationType == EEdGraphNodeDeprecationType::NodeHasDeprecatedReference)
+	{
+		Response.MessageType = EEdGraphNodeDeprecationMessageType::Warning;
+		Response.MessageText = NSLOCTEXT("EdGraphCompiler", "NodeDeprecatedReference_Note", "@@ has a deprecated reference; please replace or remove it.");
+	}
+
+	return Response;
+}
+
+// Deprecated; implemented for backwards-compatibility.
+bool UEdGraphNode::ShouldWarnOnDeprecation() const
+{
+	if (IsDeprecated())
+	{
+		return GetDeprecationResponse(EEdGraphNodeDeprecationType::NodeTypeIsDeprecated).MessageType == EEdGraphNodeDeprecationMessageType::Warning;
+	}
+	else if (HasDeprecatedReference())
+	{
+		return GetDeprecationResponse(EEdGraphNodeDeprecationType::NodeHasDeprecatedReference).MessageType == EEdGraphNodeDeprecationMessageType::Warning;
+	}
+
+	return false;
+}
+
+// Deprecated; implemented for backwards-compatibility.
 FString UEdGraphNode::GetDeprecationMessage() const
 {
-	return NSLOCTEXT("EdGraphCompiler", "NodeDeprecated_Warning", "@@ is deprecated; please replace or remove it.").ToString();
+	FText MessageText;
+
+	if (IsDeprecated())
+	{
+		MessageText = GetDeprecationResponse(EEdGraphNodeDeprecationType::NodeTypeIsDeprecated).MessageText;
+	}
+	else if (HasDeprecatedReference())
+	{
+		MessageText = GetDeprecationResponse(EEdGraphNodeDeprecationType::NodeHasDeprecatedReference).MessageText;
+	}
+
+	return MessageText.ToString();
 }
 
 void UEdGraphNode::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)

@@ -5428,6 +5428,11 @@ void UEdGraphSchema_K2::GetGraphDisplayInformation(const UEdGraph& Graph, /*out*
 		{
 			DisplayInfo.Notes.Add(TEXT("const"));
 		}
+
+		if (Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction))
+		{
+			DisplayInfo.Notes.Add(LOCTEXT("FunctionGraphDisplayInfo_Deprecated", "deprecated").ToString());
+		}
 	}
 
 	// Mark transient graphs as obviously so
