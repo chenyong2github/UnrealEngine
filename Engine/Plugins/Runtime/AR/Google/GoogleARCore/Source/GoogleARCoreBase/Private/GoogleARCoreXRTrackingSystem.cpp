@@ -370,7 +370,7 @@ bool FGoogleARCoreXRTrackingSystem::OnAddRuntimeCandidateImage(UARSessionConfig*
 				GrayscaleBuffer[i] = 0.2126 * R + 0.7152 * G + 0.0722 * B;
 			}
 		}
-		else if (PixelFormat == EPixelFormat::PF_G8)
+		else
 		{
 			ensureMsgf(RawImageData->GetBulkDataSize() == ImageWidth * ImageHeight,
 				TEXT("Unsupported texture data when adding runtime candidate image."));
