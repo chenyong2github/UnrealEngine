@@ -208,7 +208,8 @@ TSharedPtr<FInternetAddr> FSocketSubsystemBSDIPv6::GetAddressFromString(const FS
 		return ReturnAddress;
 	}
 
-	UE_LOG(LogSockets, Warning, TEXT("Could not serialize %s, got error code %d"), *InAddress, GetLastErrorCode());
+	ESocketErrors LastError = GetLastErrorCode();
+	UE_LOG(LogSockets, Warning, TEXT("Could not serialize %s, got error code %s [%d]"), *InAddress, GetSocketError(LastError), LastError);
 	return nullptr;
 }
 
