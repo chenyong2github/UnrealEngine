@@ -24,26 +24,40 @@ namespace MetadataTool
 		public string JobStepName;
 
 		/// <summary>
+		/// The url of this job step
+		/// </summary>
+		[DataMember(Order = 1)]
+		public string JobStepUrl;
+
+		/// <summary>
 		/// The diagnostic message
 		/// </summary>
-		[DataMember(Order = 1, IsRequired = true)]
+		[DataMember(Order = 2, IsRequired = true)]
 		public string Message;
 
 		/// <summary>
 		/// Url to the error
 		/// </summary>
-		[DataMember(Order = 2, IsRequired = true)]
+		[DataMember(Order = 3, IsRequired = true)]
 		public string ErrorUrl;
+
+		/// <summary>
+		/// Whether or not this diagnostic has been posted to the server
+		/// </summary>
+		[DataMember(Order = 4)]
+		public bool bPostedToServer = false;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="JobStepName">Name of the job step</param>
+		/// <param name="JobStepUrl">Url of the job step</param>
 		/// <param name="Message">Message to display</param>
 		/// <param name="ErrorUrl">Url to link to</param>
-		public BuildHealthDiagnostic(string JobStepName, string Message, string ErrorUrl)
+		public BuildHealthDiagnostic(string JobStepName, string JobStepUrl, string Message, string ErrorUrl)
 		{
 			this.JobStepName = JobStepName;
+			this.JobStepUrl = JobStepUrl;
 			this.Message = Message;
 			this.ErrorUrl = ErrorUrl;
 		}
@@ -108,12 +122,6 @@ namespace MetadataTool
 		/// </summary>
 		[DataMember(Order = 20)]
 		public string PostedSummary;
-
-		/// <summary>
-		/// The last posted issue details. Will be updated if it changes.
-		/// </summary>
-		[DataMember(Order = 21)]
-		public string PostedDetails;
 
 		/// <summary>
 		/// Whether we've posted an update to the resolved flag to the server

@@ -18,7 +18,7 @@ namespace MetadataTool
 		{
 			if(JobStep.Name.Contains("Check Asset References") && Regex.IsMatch(Diagnostic.Message, @"^\s*Log[a-zA-Z0-9]+: (?:Error|Warning):"))
 			{
-				BuildHealthIssue Issue = new BuildHealthIssue(Job.Project, Category, Job.Url, new BuildHealthDiagnostic(JobStep.Name, Diagnostic.Message, Diagnostic.Url));
+				BuildHealthIssue Issue = new BuildHealthIssue(Job.Project, Category, Job.Url, new BuildHealthDiagnostic(JobStep.Name, JobStep.Url, Diagnostic.Message, Diagnostic.Url));
 
 				// Use the error text to identify this error
 				Issue.Identifiers.Add(Diagnostic.Message);

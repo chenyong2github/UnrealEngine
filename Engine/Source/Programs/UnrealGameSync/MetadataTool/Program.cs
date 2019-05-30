@@ -32,6 +32,10 @@ namespace MetadataTool
 			new CommandHandler_Http("GetBuild", "GET", "/api/issuebuilds/{Build}"),
 			new CommandHandler_Http("UpdateBuild", "PUT", "/api/issuebuilds/{Build}", typeof(CommandTypes.UpdateBuild)),
 
+			// Diagnostics
+			new CommandHandler_Http("AddDiagnostic", "POST", "/api/issues/{Issue}/diagnostics", typeof(CommandTypes.AddDiagnostic)),
+			new CommandHandler_Http("GetDiagnostics", "GET", "/api/issues/{Issue}/diagnostics"),
+
 			// Watchers
 			new CommandHandler_Http("GetWatchers", "GET", "/api/issues/{Issue}/watchers"),
 			new CommandHandler_Http("AddWatcher", "POST", "/api/issues/{Issue}/watchers", typeof(CommandTypes.Watcher)),

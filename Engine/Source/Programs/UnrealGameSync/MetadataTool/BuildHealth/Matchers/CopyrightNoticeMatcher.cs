@@ -35,7 +35,7 @@ namespace MetadataTool
 			// If we found any source files, create a diagnostic category for them
 			if (SourceFileNames.Count > 0)
 			{
-				BuildHealthIssue Issue = new BuildHealthIssue(Job.Project, Category, Job.Url, new BuildHealthDiagnostic(JobStep.Name, Diagnostic.Message, Diagnostic.Url));
+				BuildHealthIssue Issue = new BuildHealthIssue(Job.Project, Category, Job.Url, new BuildHealthDiagnostic(JobStep.Name, JobStep.Url, Diagnostic.Message, Diagnostic.Url));
 				Issue.FileNames.UnionWith(SourceFileNames);
 				Issues.Add(Issue);
 				return true;

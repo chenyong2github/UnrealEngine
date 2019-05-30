@@ -24,9 +24,9 @@ namespace MetadataServer
 			);
 
 			config.Routes.MapHttpRoute(
-				name: "IssueEventsApi",
-				routeTemplate: "api/issues/{IssueId}/events",
-				defaults: new { controller = "IssueEvents" }
+				name: "IssueDiagnosticsSubApi",
+				routeTemplate: "api/issues/{IssueId}/diagnostics",
+				defaults: new { controller = "IssueDiagnosticsSub" }
 			);
 
 			config.Routes.MapHttpRoute(

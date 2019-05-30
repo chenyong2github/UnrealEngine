@@ -18,6 +18,12 @@ namespace MetadataTool
 	class BuildHealthJobStep : IComparable<BuildHealthJobStep>
 	{
 		/// <summary>
+		/// The id of this build on the server
+		/// </summary>
+		[DataMember(IsRequired = true)]
+		public long Id = -1;
+
+		/// <summary>
 		/// The changelist that this build was run at.
 		/// </summary>
 		[DataMember(IsRequired = true)]

@@ -240,18 +240,7 @@ namespace MetadataTool
 						continue;
 					}
 
-					StringBuilder DetailsBuilder = new StringBuilder();
-					foreach (BuildHealthDiagnostic Diagnostic in Issue.Diagnostics)
-					{
-						DetailsBuilder.AppendFormat("##{0}##\n{1}\n", Diagnostic.JobStepName, Diagnostic.Message);
-					}
-					if(DetailsBuilder.Length > CommandTypes.MaxIssueDetailsLength)
-					{
-						DetailsBuilder.Remove(CommandTypes.MaxIssueDetailsLength, DetailsBuilder.Length - CommandTypes.MaxIssueDetailsLength);
-					}
-
 					string Summary = Matcher.GetSummary(Issue);
-					string Details = DetailsBuilder.ToString().TrimEnd();
 					if (Issue.Id == -1)
 					{
 						Log.TraceInformation("Adding issue: {0}", Issue);
@@ -264,7 +253,6 @@ namespace MetadataTool
 						CommandTypes.AddIssue IssueBody = new CommandTypes.AddIssue();
 						IssueBody.Project = Issue.Project;
 						IssueBody.Summary = Summary;
-						IssueBody.Details = Details;
 
 						if(Issue.PendingWatchers.Count == 1)
 						{
@@ -282,19 +270,14 @@ namespace MetadataTool
 						}
 
 						Issue.PostedSummary = Summary;
-						Issue.PostedDetails = Details;
 						WriteState(StateFile, State);
 					}
-					else if(Issue.PostedSummary == null 
-							|| Issue.PostedDetails == null
-							|| !String.Equals(Issue.PostedSummary, Summary, StringComparison.Ordinal)
-							|| !String.Equals(Issue.PostedDetails, Details, StringComparison.Ordinal))
+					else if(Issue.PostedSummary == null || !String.Equals(Issue.PostedSummary, Summary, StringComparison.Ordinal)
 					{
 						Log.TraceInformation("Updating issue {0}", Issue.Id);
 
 						CommandTypes.UpdateIssue IssueBody = new CommandTypes.UpdateIssue();
 						IssueBody.Summary = Summary;
-						IssueBody.Details = Details;
 
 						using (HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}", ServerUrl, Issue.Id), "PUT", IssueBody))
 						{
@@ -306,21 +289,12 @@ namespace MetadataTool
 						}
 
 						Issue.PostedSummary = Summary;
-						Issue.PostedDetails = Details;
 						WriteState(StateFile, State);
 					}
 				}
 
-				// Update the summary for any issues that are still open
-				foreach (BuildHealthIssue Issue in State.Issues)
-				{
-					if (Issue.Id == -1)
-					{
-						Log.TraceInformation("Adding issue: {0}", Issue);
-					}
-				}
-
 				// Add any new builds associated with issues
+				Dictionary<string, long> JobStepUrlToId = new Dictionary<string, long>(StringComparer.Ordinal);
 				foreach (BuildHealthIssue Issue in State.Issues)
 				{
 					foreach(KeyValuePair<string, Dictionary<string, BuildHealthJobHistory>> StreamPair in Issue.Streams)
@@ -350,12 +324,64 @@ namespace MetadataTool
 										{
 											throw new Exception("Unable to add build");
 										}
+										Build.Id = ParseHttpResponse<CommandTypes.AddBuildResponse>(Response).Id;
 									}
 
 									Build.bPostedToServer = true;
 									WriteState(StateFile, State);
 								}
+								if(Build.Id != -1)
+								{
+									JobStepUrlToId[Build.JobStepUrl] = Build.Id;
+								}
 							}
+						}
+					}
+				}
+
+				// Add any new diagnostics
+				foreach(BuildHealthIssue Issue in State.Issues)
+				{
+					foreach(BuildHealthDiagnostic Diagnostic in Issue.Diagnostics)
+					{
+						if(!Diagnostic.bPostedToServer)
+						{
+							string Summary = Diagnostic.Message;
+
+							const int MaxLength = 40;
+							if(Summary.Length > MaxLength)
+							{
+								Summary = Summary.Substring(0, MaxLength).TrimEnd();
+							}
+
+							Log.TraceInformation("Adding diagnostic '{0}' to issue {1}", Summary, Issue.Id);
+
+							CommandTypes.AddDiagnostic AddDiagnostic = new CommandTypes.AddDiagnostic();
+
+							long BuildId;
+							if(Diagnostic.JobStepUrl != null && JobStepUrlToId.TryGetValue(Diagnostic.JobStepUrl, out BuildId))
+							{
+								AddDiagnostic.BuildId = BuildId;
+							}
+							else
+							{
+								Console.WriteLine("ERROR");
+							}
+
+							AddDiagnostic.Message = Diagnostic.Message;
+							AddDiagnostic.Url = Diagnostic.ErrorUrl;
+
+							using (HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}/diagnostics", ServerUrl, Issue.Id), "POST", AddDiagnostic))
+							{
+								int ResponseCode = (int)Response.StatusCode;
+								if (!(ResponseCode >= 200 && ResponseCode <= 299))
+								{
+									throw new Exception("Unable to add build");
+								}
+							}
+
+							Diagnostic.bPostedToServer = true;
+							WriteState(StateFile, State);
 						}
 					}
 				}
@@ -514,16 +540,18 @@ namespace MetadataTool
 				Matcher.Match(InputJob, InputJobStep, InputJobStep.Diagnostics, InputIssues);
 			}
 
-			// Add all the fingerprints to issues
+			// Merge the issues together
 			List<BuildHealthIssue> NewIssues = new List<BuildHealthIssue>();
 			foreach(BuildHealthIssue InputIssue in InputIssues)
 			{
-				if(!MergeIntoExistingIssue(Perforce, State, InputJob, InputJobStep, InputIssue, LazyChanges))
+				BuildHealthIssue OutputIssue = MergeIntoExistingIssue(Perforce, State, InputJob, InputJobStep, InputIssue, LazyChanges);
+				if(OutputIssue == null)
 				{
 					NewIssues.Add(InputIssue);
 					State.Issues.Add(InputIssue);
+					OutputIssue = InputIssue;
 				}
-				AddFailureToIssue(InputIssue, InputJob, InputJobStep, InputIssue.Diagnostics[0].ErrorUrl, State);
+				AddFailureToIssue(OutputIssue, InputJob, InputJobStep, InputIssue.Diagnostics[0].ErrorUrl, State);
 			}
 
 			// Update the watchers for any new issues
@@ -555,7 +583,7 @@ namespace MetadataTool
 		/// <param name="PreviousChange">The last changelist that was built before this one</param>
 		/// <param name="InputJob">Job containing the step to add</param>
 		/// <param name="InputJobStep">The job step to add</param>
-		bool MergeIntoExistingIssue(PerforceConnection Perforce, BuildHealthState State, InputJob InputJob, InputJobStep InputJobStep, BuildHealthIssue InputIssue, Lazy<IReadOnlyList<ChangeInfo>> LazyChanges)
+		BuildHealthIssue MergeIntoExistingIssue(PerforceConnection Perforce, BuildHealthState State, InputJob InputJob, InputJobStep InputJobStep, BuildHealthIssue InputIssue, Lazy<IReadOnlyList<ChangeInfo>> LazyChanges)
 		{
 			// Find the pattern matcher for this fingerprint
 			PatternMatcher Matcher = CategoryToMatcher[InputIssue.Category];
@@ -595,7 +623,7 @@ namespace MetadataTool
 
 				// Add the new build
 				Matcher.Merge(InputIssue, Issue);
-				return true;
+				return Issue;
 			}
 
 			// Check if this issue can be merged with an issue built in another stream
@@ -621,11 +649,11 @@ namespace MetadataTool
 
 					// Merge the issue
 					Matcher.Merge(InputIssue, Issue);
-					return true;
+					return Issue;
 				}
 			}
 
-			return false;
+			return null;
 		}
 
 		/// <summary>

@@ -18,7 +18,7 @@ namespace MetadataTool
 		{
 			string DefaultProject = String.Format("{0} (Unmatched)", Job.Project);
 
-			BuildHealthIssue Issue = new BuildHealthIssue(DefaultProject, Category, Job.Url, new BuildHealthDiagnostic(JobStep.Name, Diagnostic.Message, Diagnostic.Url));
+			BuildHealthIssue Issue = new BuildHealthIssue(DefaultProject, Category, Job.Url, new BuildHealthDiagnostic(JobStep.Name, JobStep.Url, Diagnostic.Message, Diagnostic.Url));
 			Issue.Identifiers.Add(Diagnostic.Message);
 			Issues.Add(Issue);
 			
