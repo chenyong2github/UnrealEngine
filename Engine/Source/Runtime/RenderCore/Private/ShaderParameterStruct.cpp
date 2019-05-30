@@ -287,7 +287,7 @@ void FShaderParameterBindings::BindForRootShaderParameters(const FShader* Shader
 	case SF_RayCallable:
 		break;
 	default:
-		checkf(0, TEXT("Invalid shader frequency for this shader binding technic."));
+		//checkf(0, TEXT("Invalid shader frequency for this shader binding technic."));
 		break;
 	}
 
