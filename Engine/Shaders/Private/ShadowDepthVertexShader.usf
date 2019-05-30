@@ -194,6 +194,7 @@ struct FShadowDepthDSToPS : FShadowDepthVSToPS
 #else
 	float4 Position : TEXCOORD6;
 #endif
+	float3 WorldNormal : TEXCOORD8;
 #else
 	float4 Position : SV_POSITION;
 #endif
@@ -220,15 +221,18 @@ FShadowDepthDSToPS PassFinalizeTessellationOutput(FShadowDepthVSToDS Interpolant
 	O.FactoryInterpolants = VertexFactoryAssignInterpolants(Interpolants.FactoryInterpolants);
 #endif
 
+	const float3 WorldNormal = MaterialParameters.TangentToWorld[2];
 
 #if ONEPASS_POINTLIGHT_SHADOW
-	O.Position = WorldPosition;
 #if USING_VERTEX_SHADER_LAYER
 	O.LayerIndex = Interpolants.LayerIndex;
 	O.Position = WorldPosition = mul(WorldPosition, PassStruct.ShadowViewProjectionMatrices[Interpolants.LayerIndex]);
-#endif
+	O.InterpPosition = WorldPosition;
 #else
-	const float3 WorldNormal = MaterialParameters.TangentToWorld[2];
+	O.Position = WorldPosition;
+#endif // USING_VERTEX_SHADER_LAYER
+	O.WorldNormal = WorldNormal;
+#else
 
 	float ShadowDepth;
 	SetShadowDepthOutputs(
