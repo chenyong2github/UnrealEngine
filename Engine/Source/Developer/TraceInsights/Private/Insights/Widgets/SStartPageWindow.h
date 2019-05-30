@@ -8,6 +8,7 @@
 #include "Layout/Visibility.h"
 #include "Misc/Guid.h"
 #include "SlateFwd.h"
+#include "TraceServices/SessionService.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SSplitter.h"
@@ -21,6 +22,7 @@
 
 class FActiveTimerHandle;
 class SVerticalBox;
+class SEditableTextBox;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -34,6 +36,19 @@ typedef TSharedRef<class SNotificationItem> SNotificationItemRef;
 typedef TWeakPtr<class SNotificationItem> SNotificationItemWeak;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FRecorderConnection
+{
+	Trace::FSessionHandle SessionHandle;
+	FText Name;
+	FText Uri;
+
+	FRecorderConnection(const Trace::FSessionHandle InSessionHandle, const Trace::FSessionInfo& InSessionInfo)
+		: SessionHandle(InSessionHandle)
+		, Name(FText::FromString(InSessionInfo.Name))
+		, Uri(FText::FromString(InSessionInfo.Uri))
+	{}
+};
 
 /** Implements the Start Page window. */
 class SStartPageWindow : public SCompoundWidget
@@ -57,8 +72,11 @@ public:
 	void CloseSettings();
 
 private:
-	TSharedRef<SWidget> ConstructRecorderStatus();
+	TSharedRef<SWidget> ConstructRecoderPanel();
 	TSharedRef<SWidget> ConstructModuleList();
+
+	/** Generate a new row for the Connections list view. */
+	TSharedRef<ITableRow> Connections_OnGenerateRow(TSharedPtr<FRecorderConnection> InConnection, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/** Callback for determining the visibility of the 'Please select a trace' overlay. */
 	EVisibility IsSessionOverlayVisible() const;
@@ -89,8 +107,15 @@ private:
 	FReply StartTraceRecorder_OnClicked();
 	FReply StopTraceRecorder_OnClicked();
 
+	EVisibility Modules_Visibility() const;
 	ECheckBoxState Module_IsChecked(int32 ModuleIndex) const;
 	void Module_OnCheckStateChanged(ECheckBoxState NewRadioState, int32 ModuleIndex);
+
+	FReply RefreshConnections_OnClicked();
+	FReply Connect_OnClicked();
+	void RefreshConnectionList();
+	void Connections_OnSelectionChanged(TSharedPtr<FRecorderConnection> Connection, ESelectInfo::Type SelectInfo);
+	EVisibility Connections_Visibility() const;
 
 	/** Updates the amount of time the profiler has been active. */
 	EActiveTimerReturnType UpdateActiveDuration(double InCurrentTime, float InDeltaTime);
@@ -175,6 +200,10 @@ private:
 	bool bIsAnySessionAvailable;
 	Trace::FSessionHandle LastSessionHandle;
 
+	TSharedPtr<SListView<TSharedPtr<FRecorderConnection>>> ConnectionsListView;
+	TArray<TSharedPtr<FRecorderConnection>> Connections;
+	TSharedPtr<SEditableTextBox> HostTextBox;
+	TSharedPtr<FRecorderConnection> SelectedConnection;
 	TArray<Trace::FModuleInfo> AvailableModules;
 	TArray<bool> AvailableModulesEnabledState;
 };
