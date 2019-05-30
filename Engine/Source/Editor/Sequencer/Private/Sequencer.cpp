@@ -854,7 +854,7 @@ FGuid FSequencer::CreateBinding(UObject& InObject, const FString& InName)
 
 	// Attempt to use the parent as a context if necessary
 	UObject* ParentObject = OwnerSequence->GetParentObject(&InObject);
-	UObject* BindingContext = GetPlaybackContext();
+	UObject* BindingContext = GetPlaybackContext(); //UWorld
 
 	AActor* ParentActorAdded = nullptr;
 	FGuid ParentGuid;
@@ -9131,46 +9131,7 @@ void FSequencer::NewCameraAdded(FGuid CameraGuid, ACameraActor* NewCamera)
 	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
 	UMovieScene* OwnerMovieScene = Sequence->GetMovieScene();
 
-	// If there's a cinematic shot track, no need to set this camera to a shot
-	UMovieSceneTrack* CinematicShotTrack = OwnerMovieScene->FindMasterTrack(UMovieSceneCinematicShotTrack::StaticClass());
-	if (CinematicShotTrack)
-	{
-		return;
-	}
-
-	UMovieSceneTrack* CameraCutTrack = OwnerMovieScene->GetCameraCutTrack();
-
-	// If there's a camera cut track with at least one section, no need to change the section
-	if (CameraCutTrack && CameraCutTrack->GetAllSections().Num() > 0)
-	{
-		return;
-	}
-
-	if (!CameraCutTrack)
-	{
-		CameraCutTrack = OwnerMovieScene->AddCameraCutTrack(UMovieSceneCameraCutTrack::StaticClass());
-	}
-
-	if (CameraCutTrack)
-	{
-		UMovieSceneSection* Section = MovieSceneHelpers::FindSectionAtTime(CameraCutTrack->GetAllSections(), GetLocalTime().Time.FloorToFrame());
-		UMovieSceneCameraCutSection* CameraCutSection = Cast<UMovieSceneCameraCutSection>(Section);
-
-		if (CameraCutSection)
-		{
-			CameraCutSection->Modify();
-			CameraCutSection->SetCameraGuid(CameraGuid);
-		}
-		else
-		{
-			CameraCutTrack->Modify();
-
-			UMovieSceneCameraCutSection* NewSection = Cast<UMovieSceneCameraCutSection>(CameraCutTrack->CreateNewSection());
-			NewSection->SetRange(GetPlaybackRange());
-			NewSection->SetCameraGuid(CameraGuid);
-			CameraCutTrack->AddSection(*NewSection);
-		}
-	}
+	MovieSceneToolHelpers::CameraAdded(OwnerMovieScene, CameraGuid, GetLocalTime().Time.FloorToFrame());
 }
 
 
@@ -9298,7 +9259,7 @@ void FSequencer::ImportFBX()
 		ObjectBindingNameMap.Add(ObjectBinding, RootObjectBindingNode.Get().GetDisplayName().ToString());
 	}
 
-	MovieSceneToolHelpers::ImportFBX(MovieScene, *this, ObjectBindingNameMap, TOptional<bool>());
+	MovieSceneToolHelpers::ImportFBXWithDialog(MovieScene, *this, ObjectBindingNameMap, TOptional<bool>());
 }
 
 void FSequencer::ImportFBXOntoSelectedNodes()
@@ -9320,7 +9281,7 @@ void FSequencer::ImportFBXOntoSelectedNodes()
 		}
 	}
 
-	MovieSceneToolHelpers::ImportFBX(MovieScene, *this, ObjectBindingNameMap, TOptional<bool>(false));
+	MovieSceneToolHelpers::ImportFBXWithDialog(MovieScene, *this, ObjectBindingNameMap, TOptional<bool>(false));
 }
 
 void FSequencer::ExportFBX()
@@ -9378,6 +9339,9 @@ void FSequencer::ExportFBX()
 		FString ExportFilename = SaveFilenames[0];
 		FEditorDirectories::Get().SetLastDirectory( ELastDirectory::FBX, FPaths::GetPath( ExportFilename ) ); // Save path as default for next time.
 
+		// Make sure external selection is up to date since export could happen on tracks that have been right clicked but not have their underlying bound objects selected yet since that happens on mouse up.
+		SynchronizeExternalSelectionWithSequencerSelection();
+		
 		// Select selected nodes if there are selected nodes
 		TArray<FGuid> Bindings;
 		for (const TSharedRef<FSequencerDisplayNode>& Node : Selection.GetSelectedOutlinerNodes())
@@ -9451,69 +9415,10 @@ void FSequencer::ExportFBXInternal(const FString& ExportFilename, TArray<FGuid>&
 		if (!ExportCancel)
 		{
 			UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
-
-			Exporter->CreateDocument();
-			Exporter->SetTrasformBaking(false);
-			Exporter->SetKeepHierarchy(true);
-
-			const bool bSelectedOnly = (Selection.GetSelectedTracks().Num() + Bindings.Num()) != 0;
-
-			// Make sure external selection is up to date since export could happen on tracks that have been right clicked but not have their underlying bound objects selected yet since that happens on mouse up.
-			if (bSelectedOnly)
-			{
-				SynchronizeExternalSelectionWithSequencerSelection();
-			}
-
-			UnFbx::FFbxExporter::FLevelSequenceNodeNameAdapter NodeNameAdapter(MovieScene, this, GetFocusedTemplateID());
-
-			// Export the persistent level and all of it's actors
 			UWorld* World = Cast<UWorld>(GetPlaybackContext());
-			const bool bSaveAnimSeq = false; //force off saving any AnimSequences since this can conflict when we export the level sequence animations.
-			Exporter->ExportLevelMesh(World->PersistentLevel, bSelectedOnly, NodeNameAdapter, bSaveAnimSeq);
-
-			// Export streaming levels and actors
-			for (int32 CurLevelIndex = 0; CurLevelIndex < World->GetNumLevels(); ++CurLevelIndex)
-			{
-				ULevel* CurLevel = World->GetLevel(CurLevelIndex);
-				if (CurLevel != NULL && CurLevel != (World->PersistentLevel))
-				{
-					Exporter->ExportLevelMesh(CurLevel, bSelectedOnly, NodeNameAdapter, bSaveAnimSeq);
-				}
-			}
-
-			// Export the movie scene data.
-			Exporter->ExportLevelSequence(MovieScene, Bindings, this, GetFocusedTemplateID());
-
-			// Export selected or all master tracks
-			if (Selection.GetSelectedOutlinerNodes().Num())
-			{
-				for (const TSharedRef<FSequencerDisplayNode>& Node : Selection.GetSelectedOutlinerNodes())
-				{
-					if (Node->GetType() == ESequencerNode::Track)
-					{
-						TSharedRef<FSequencerTrackNode> TrackNode = StaticCastSharedRef<FSequencerTrackNode>(Node);
-						UMovieSceneTrack* MasterTrack = TrackNode->GetTrack();
-						if (MovieScene->GetMasterTracks().Contains(MasterTrack))
-						{
-							TArray<UMovieSceneTrack*> Tracks;
-							Tracks.Add(MasterTrack);
-							Exporter->ExportLevelSequenceTracks(MovieScene, this, nullptr, nullptr, Tracks);
-						}
-					}
-				}
-			}
-			else
-			{
-				for (UMovieSceneTrack* MasterTrack : MovieScene->GetMasterTracks())
-				{
-					TArray<UMovieSceneTrack*> Tracks;
-					Tracks.Add(MasterTrack);
-					Exporter->ExportLevelSequenceTracks(MovieScene, this, nullptr, nullptr, Tracks);
-				}
-			}
-
-			// Save to disk
-			Exporter->WriteToFile(*ExportFilename);
+			FMovieSceneSequenceIDRef Template = GetFocusedTemplateID();
+			UnFbx::FFbxExporter::FLevelSequenceNodeNameAdapter NodeNameAdapter(MovieScene, this, Template);
+			MovieSceneToolHelpers::ExportFBX(World,MovieScene, this, Bindings, NodeNameAdapter, Template, ExportFilename);
 		}
 	}
 }
