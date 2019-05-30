@@ -1648,9 +1648,13 @@ static SpvReflectResult ParseExecutionMode(Parser* p_parser, SpvReflectShaderMod
 				{
 					case SpvExecutionModeInvocations:
 					case SpvExecutionModeOutputVertices:
+					case SpvExecutionModeVecTypeHint:
+					case SpvExecutionModeSubgroupSize:
+					case SpvExecutionModeSubgroupsPerWorkgroup:
 						p_entry->execution_modes[execution_mode_index].operands_count = 1;
 						break;
 					case SpvExecutionModeLocalSize:
+					case SpvExecutionModeLocalSizeHint:
 						p_entry->execution_modes[execution_mode_index].operands_count = 3;
 						break;
 					default:
