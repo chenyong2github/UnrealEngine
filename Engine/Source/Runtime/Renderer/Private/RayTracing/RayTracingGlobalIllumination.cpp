@@ -247,7 +247,7 @@ class FGlobalIlluminationRGS : public FGlobalShader
 class FRayTracingGlobalIlluminationCompositePS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FRayTracingGlobalIlluminationCompositePS)
-	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingGlobalIlluminationCompositePS, FGlobalShader)
+	SHADER_USE_PARAMETER_STRUCT(FRayTracingGlobalIlluminationCompositePS, FGlobalShader)
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -266,7 +266,7 @@ class FRayTracingGlobalIlluminationCompositePS : public FGlobalShader
 class FRayTracingGlobalIlluminationSceneColorCompositePS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FRayTracingGlobalIlluminationSceneColorCompositePS)
-	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingGlobalIlluminationSceneColorCompositePS, FGlobalShader)
+	SHADER_USE_PARAMETER_STRUCT(FRayTracingGlobalIlluminationSceneColorCompositePS, FGlobalShader)
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{

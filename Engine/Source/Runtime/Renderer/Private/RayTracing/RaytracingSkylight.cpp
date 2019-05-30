@@ -939,9 +939,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 class FCompositeSkyLightPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCompositeSkyLightPS)
-	SHADER_USE_ROOT_PARAMETER_STRUCT(FCompositeSkyLightPS, FGlobalShader)
+	SHADER_USE_PARAMETER_STRUCT(FCompositeSkyLightPS, FGlobalShader)
 
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
