@@ -656,6 +656,16 @@ namespace MetadataTool
 				}
 			}
 
+			// Check if it can be merged into an issue that's been created for this job. We only do this after exhausting all other options.
+			foreach (BuildHealthIssue Issue in State.Issues)
+			{
+				if(Issue.InitialJobUrl == InputIssue.InitialJobUrl && Matcher.CanMergeInitialJob(InputIssue, Issue))
+				{
+					Matcher.Merge(InputIssue, Issue);
+					return Issue;
+				}
+			}
+
 			return null;
 		}
 
