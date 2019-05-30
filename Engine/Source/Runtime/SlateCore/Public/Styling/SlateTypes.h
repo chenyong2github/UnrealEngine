@@ -1346,6 +1346,16 @@ struct SLATECORE_API FTableRowStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
 	FSlateBrush DropIndicator_Below;
 	FTableRowStyle& SetDropIndicator_Below(const FSlateBrush& InValue){ DropIndicator_Below = InValue; return *this; }
+	
+	/** Brush used when a highlighted row is active */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FSlateBrush ActiveHighlightedBrush;
+	FTableRowStyle& SetActiveHighlightedBrush( const FSlateBrush& InActiveHighlightedBrush ){ ActiveHighlightedBrush = InActiveHighlightedBrush; return *this; }
+	
+	/** Brush used when a highlighted row is inactive and hovered */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FSlateBrush InactiveHighlightedBrush;
+	FTableRowStyle& SetInactiveHighlightedBrush( const FSlateBrush& InInactiveHighlightedBrush){ InactiveHighlightedBrush = InInactiveHighlightedBrush; return *this; }
 
 	/**
 	 * Unlinks all colors in this style.

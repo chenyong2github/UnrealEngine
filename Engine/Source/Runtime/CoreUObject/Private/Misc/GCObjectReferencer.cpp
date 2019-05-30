@@ -16,17 +16,23 @@ extern bool GObjIncrementalPurgeIsInProgress;
 extern bool GObjUnhashUnreachableIsInProgress;
 
 void UGCObjectReferencer::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
-{	
+{
 	UGCObjectReferencer* This = CastChecked<UGCObjectReferencer>(InThis);
+
+	checkSlow(!This->bIsAddingReferencedObjects);
+	This->bIsAddingReferencedObjects = true;
 	// Note we're not locking ReferencedObjectsCritical here because we guard
 	// against adding new references during GC in AddObject and RemoveObject.
 	// Let each registered object handle its AddReferencedObjects call
 	for (FGCObject* Object : This->ReferencedObjects)
 	{
 		check(Object);
+		This->CurrentlySerializingObject = Object;
 		Object->AddReferencedObjects(Collector);
 	}
-	Super::AddReferencedObjects( This, Collector );
+	This->CurrentlySerializingObject = nullptr;
+	Super::AddReferencedObjects(This, Collector);
+	This->bIsAddingReferencedObjects = false;
 }
 
 void UGCObjectReferencer::AddObject(FGCObject* Object)
@@ -46,8 +52,23 @@ void UGCObjectReferencer::RemoveObject(FGCObject* Object)
 	check(NumRemoved == 1);
 }
 
-bool UGCObjectReferencer::GetReferencerName(UObject* Object, FString& OutName) const
+bool UGCObjectReferencer::GetReferencerName(UObject* Object, FString& OutName, bool bOnlyIfAddingReferenced) const
 {
+	if (bOnlyIfAddingReferenced)
+	{
+		if (!bIsAddingReferencedObjects || !CurrentlySerializingObject)
+		{
+			return false;
+		}
+		OutName = CurrentlySerializingObject->GetReferencerName();
+		FString ReferencerProperty;
+		if (CurrentlySerializingObject->GetReferencerPropertyName(Object, ReferencerProperty))
+		{
+			OutName += TEXT(":") + ReferencerProperty;
+		}
+		return true;
+	}
+
 	// Let each registered object handle its AddReferencedObjects call
 	for (int32 i = 0; i < ReferencedObjects.Num(); i++)
 	{
@@ -61,6 +82,11 @@ bool UGCObjectReferencer::GetReferencerName(UObject* Object, FString& OutName) c
 		if (ObjectArray.Contains(Object))
 		{
 			OutName = GCReporter->GetReferencerName();
+			FString ReferencerProperty;
+			if (GCReporter->GetReferencerPropertyName(Object, ReferencerProperty))
+			{
+				OutName += TEXT(":") + ReferencerProperty;
+			}
 			return true;
 		}
 	}

@@ -48,13 +48,13 @@ void* FMallocAnsi::Malloc( SIZE_T Size, uint32 Alignment )
 
 #if USE_ALIGNED_MALLOC
 	void* Result = _aligned_malloc( Size, Alignment );
-#elif PLATFORM_UNIX || PLATFORM_HTML5
+#elif PLATFORM_USE_ANSI_POSIX_MALLOC
 	void* Result;
 	if (UNLIKELY(posix_memalign(&Result, Alignment, Size) != 0))
 	{
 		Result = nullptr;
 	}
-#elif PLATFORM_PS4
+#elif PLATFORM_USE_ANSI_MEMALIGN
 	void* Result = memalign(Alignment, Size);
 #else
 	void* Ptr = malloc( Size + Alignment + sizeof(void*) + sizeof(SIZE_T) );
@@ -101,7 +101,7 @@ void* FMallocAnsi::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 		_aligned_free( Ptr );
 		Result = nullptr;
 	}
-#elif PLATFORM_UNIX || PLATFORM_HTML5
+#elif PLATFORM_USE_ANSI_POSIX_MALLOC
 	if( Ptr && NewSize )
 	{
 		SIZE_T UsableSize = malloc_usable_size( Ptr );
@@ -127,7 +127,7 @@ void* FMallocAnsi::Realloc( void* Ptr, SIZE_T NewSize, uint32 Alignment )
 		free( Ptr );
 		Result = nullptr;
 	}
-#elif PLATFORM_PS4
+#elif PLATFORM_USE_ANSI_MEMALIGN
 	Result = reallocalign(Ptr, NewSize, Alignment);
 #else
 	if( Ptr && NewSize )
@@ -162,7 +162,7 @@ void FMallocAnsi::Free( void* Ptr )
 	IncrementTotalFreeCalls();
 #if USE_ALIGNED_MALLOC
 	_aligned_free( Ptr );
-#elif PLATFORM_UNIX || PLATFORM_HTML5 || PLATFORM_PS4
+#elif PLATFORM_USE_ANSI_POSIX_MALLOC || PLATFORM_USE_ANSI_MEMALIGN
 	free( Ptr );
 #else
 	if( Ptr )
@@ -180,7 +180,7 @@ bool FMallocAnsi::GetAllocationSize( void *Original, SIZE_T &SizeOut )
 	}
 #if	USE_ALIGNED_MALLOC
 	SizeOut = _aligned_msize( Original,16,0 ); // Assumes alignment of 16
-#elif PLATFORM_UNIX || PLATFORM_HTML5 || PLATFORM_PS4
+#elif PLATFORM_USE_ANSI_POSIX_MALLOC || PLATFORM_USE_ANSI_MEMALIGN
 	SizeOut = malloc_usable_size( Original );
 #else
 	SizeOut = *( (SIZE_T*)( (uint8*)Original - sizeof(void*) - sizeof(SIZE_T)) );
@@ -190,14 +190,8 @@ bool FMallocAnsi::GetAllocationSize( void *Original, SIZE_T &SizeOut )
 
 bool FMallocAnsi::IsInternallyThreadSafe() const
 {
-#if PLATFORM_MAC
+#if PLATFORM_IS_ANSI_MALLOC_THREADSAFE
 		return true;
-#elif PLATFORM_IOS
-		return true;
-#elif PLATFORM_UNIX
-		return true;	// malloc()/free() is thread-safe on Linux
-#elif PLATFORM_PS4
-	return true;
 #else
 		return false;
 #endif

@@ -49,15 +49,19 @@ template <typename ItemType>
 class SListView : public STableViewBase, TListTypeTraits<ItemType>::SerializerType, public ITypedTableView< ItemType >
 {
 public:
-	typedef typename TListTypeTraits< ItemType >::NullableType NullableItemType;
+	using NullableItemType  = typename TListTypeTraits< ItemType >::NullableType;
+	using MapKeyFuncs       = typename TListTypeTraits<ItemType>::MapKeyFuncs;
+	using MapKeyFuncsSparse = typename TListTypeTraits<ItemType>::MapKeyFuncsSparse;
+	
+	using TItemSet          = TSet< ItemType, typename TListTypeTraits< ItemType >::SetKeyFuncs >;
 
-	typedef typename TSlateDelegates< ItemType >::FOnGenerateRow FOnGenerateRow;
-	typedef typename TSlateDelegates< ItemType >::FOnItemScrolledIntoView FOnItemScrolledIntoView;
-	typedef typename TSlateDelegates< NullableItemType >::FOnSelectionChanged FOnSelectionChanged;
-	typedef typename TSlateDelegates< ItemType >::FOnMouseButtonClick FOnMouseButtonClick;
-	typedef typename TSlateDelegates< ItemType >::FOnMouseButtonDoubleClick FOnMouseButtonDoubleClick;
+	using FOnGenerateRow            = typename TSlateDelegates< ItemType >::FOnGenerateRow;
+	using FOnItemScrolledIntoView   = typename TSlateDelegates< ItemType >::FOnItemScrolledIntoView;
+	using FOnSelectionChanged       = typename TSlateDelegates< NullableItemType >::FOnSelectionChanged;
+	using FOnMouseButtonClick       = typename TSlateDelegates< ItemType >::FOnMouseButtonClick ;
+	using FOnMouseButtonDoubleClick = typename TSlateDelegates< ItemType >::FOnMouseButtonDoubleClick ;
 
-	typedef typename TSlateDelegates< ItemType >::FOnItemToString_Debug FOnItemToString_Debug; 
+	typedef typename TSlateDelegates< ItemType >::FOnItemToString_Debug FOnItemToString_Debug;
 
 	DECLARE_DELEGATE_OneParam( FOnWidgetToBeRemoved, const TSharedRef<ITableRow>& );
 
@@ -659,7 +663,7 @@ private:
 		SListView<ItemType>* OwnerList;
 
 		/** Map of DataItems to corresponding SWidgets */
-		TMap< ItemType, TSharedRef<ITableRow> > ItemToWidgetMap;
+		TMap< ItemType, TSharedRef<ITableRow>, FDefaultSetAllocator, MapKeyFuncs > ItemToWidgetMap;
 
 		/** Map of SWidgets to DataItems from which they were generated */
 		TMap< const ITableRow*, ItemType > WidgetMapToItem;
@@ -761,7 +765,7 @@ public:
 		if( OnSelectionChanged.IsBound() )
 		{
 			NullableItemType SelectedItem = (SelectedItems.Num() > 0)
-				? (*typename TSet<ItemType>::TIterator(SelectedItems))
+				? (*typename TItemSet::TIterator(SelectedItems))
 				: TListTypeTraits< ItemType >::MakeNullPtr();
 
 			OnSelectionChanged.ExecuteIfBound(SelectedItem, SelectInfo );
@@ -789,6 +793,11 @@ public:
 		return nullptr != SelectedItems.Find(TheItem);
 	}
 
+	virtual bool Private_IsItemHighlighted(const ItemType& TheItem) const override
+	{
+		return nullptr != HighlightedItems.Find(TheItem);
+	}
+
 	virtual bool Private_IsItemExpanded( const ItemType& TheItem ) const override
 	{
 		// List View does not support item expansion.
@@ -814,6 +823,23 @@ public:
 	virtual int32 Private_GetNumSelectedItems() const override
 	{
 		return SelectedItems.Num();
+	}
+
+	virtual void Private_SetItemHighlighted(ItemType TheItem, bool bShouldBeHighlighted)
+	{
+		if (bShouldBeHighlighted)
+		{
+			HighlightedItems.Add(TheItem);
+		}
+		else
+		{
+			HighlightedItems.Remove(TheItem);
+		}
+	}
+
+	virtual void Private_ClearHighlightedItems()
+	{
+		HighlightedItems.Empty();
 	}
 
 	virtual int32 Private_GetNestingDepth( int32 ItemIndexInList ) const override
@@ -899,7 +925,7 @@ public:
 			{
 				// We are observing some items; they are potentially different.
 				// Unselect any that are no longer being observed.
-				TSet< ItemType > NewSelectedItems;
+				TItemSet NewSelectedItems;
 				for ( int32 ItemIndex = 0; ItemIndex < ItemsSource->Num(); ++ItemIndex )
 				{
 					ItemType CurItem = (*ItemsSource)[ItemIndex];
@@ -911,7 +937,7 @@ public:
 				}
 
 				// Look for items that were removed from the selection.
-				TSet< ItemType > SetDifference = SelectedItems.Difference( NewSelectedItems );
+				TItemSet SetDifference = SelectedItems.Difference( NewSelectedItems );
 				bSelectionChanged = (SetDifference.Num()) > 0;
 
 				// Update the selection to reflect the removal of any items from the ItemsSource.
@@ -1217,6 +1243,27 @@ public:
 		Private_SignalSelectionChanged(ESelectInfo::Direct);
 	}
 
+
+
+	/**
+	* Set the highlighted state of an item.
+	*
+	* @param TheItem      The Item whose highlight state you wish to modify
+	* @param bHighlighted True to enable the soft parent highlight, false to disable it.
+	*/
+	void SetItemHighlighted(const ItemType& TheItem, bool bHighlighted)
+	{
+		Private_SetItemHighlighted(TheItem, bHighlighted);
+	}
+
+	/**
+	* Empty the highlighted item set.
+	*/
+	void ClearHighlightedItems()
+	{
+		Private_ClearHighlightedItems();
+	}
+
 	/**
 	 * Gets the number of selected items.
 	 *
@@ -1242,7 +1289,7 @@ public:
 	{
 		TArray< ItemType > SelectedItemArray;
 		SelectedItemArray.Empty( SelectedItems.Num() );
-		for( typename TSet< ItemType >::TConstIterator SelectedItemIt( SelectedItems ); SelectedItemIt; ++SelectedItemIt )
+		for( typename TItemSet::TConstIterator SelectedItemIt( SelectedItems ); SelectedItemIt; ++SelectedItemIt )
 		{
 			SelectedItemArray.Add( *SelectedItemIt );
 		}
@@ -1252,7 +1299,7 @@ public:
 	int32 GetSelectedItems(TArray< ItemType >&SelectedItemArray) const
 	{
 		SelectedItemArray.Empty(SelectedItems.Num());
-		for (typename TSet< ItemType >::TConstIterator SelectedItemIt(SelectedItems); SelectedItemIt; ++SelectedItemIt)
+		for (typename TItemSet::TConstIterator SelectedItemIt(SelectedItems); SelectedItemIt; ++SelectedItemIt)
 		{
 			SelectedItemArray.Add(*SelectedItemIt);
 		}
@@ -1329,6 +1376,39 @@ public:
 		SetItemSelection( SoleSelectedItem, true, SelectInfo );
 	}
 
+	/** 
+	 * Set the current selection mode of the list.
+	 * If going from multi-select to a type of single-select and one item is selected, it will be maintained (otherwise all will be cleared).
+	 * If disabling selection, any current selections will be cleared.
+	 */
+	void SetSelectionMode(const TAttribute<ESelectionMode::Type>& NewSelectionMode)
+	{
+		const ESelectionMode::Type PreviousMode = SelectionMode.Get();
+		SelectionMode = NewSelectionMode;
+		const ESelectionMode::Type NewMode = NewSelectionMode.Get();
+		if (PreviousMode != NewMode)
+		{
+			if (NewMode == ESelectionMode::None)
+			{
+				ClearSelection();
+			}
+			else if (PreviousMode == ESelectionMode::Multi)
+			{
+				// We've gone to a single-selection mode, so if we already had a single item selected, preserve it
+				if (SelectedItems.Num() == 1)
+				{
+					SetSelection(*SelectedItems.CreateIterator());
+				}
+				else
+				{
+					// Otherwise, there's no way to know accurately which item was selected most recently, so just wipe it all
+					// The caller responsible for changing the mode can decide themselves which item they want to be selected
+					ClearSelection();
+				}
+			}
+		}
+	}
+
 	/**
 	 * Find a widget for this item if it has already been constructed.
 	 *
@@ -1381,20 +1461,9 @@ public:
 
 protected:
 
-	FOnItemToString_Debug GetDefaultDebugDelegate()
+	static FOnItemToString_Debug GetDefaultDebugDelegate()
 	{
-		return
-		FOnItemToString_Debug::CreateLambda([](ItemType InItem)
-		{
-			if (TListTypeTraits<ItemType>::IsPtrValid(InItem))
-			{
-				return FString::Printf(TEXT("0x%08x"), &(*InItem));
-			}
-			else
-			{
-				return FString(TEXT("nullptr"));
-			}
-		});
+		return FOnItemToString_Debug::CreateStatic(TListTypeTraits<ItemType>::DebugDump);
 	}
 
 	/**
@@ -1735,13 +1804,16 @@ protected:
 	FOnItemScrolledIntoView OnItemScrolledIntoView;
 
 	/** A set of selected data items */
-	TSet< ItemType > SelectedItems;
+	TItemSet SelectedItems;
 
 	/** The item to manipulate selection for */
 	NullableItemType SelectorItem;
 
 	/** The item which was last manipulated; used as a start for shift-click selection */
 	NullableItemType RangeSelectionStart;
+
+	/** A set of which items should be highlighted */
+	TItemSet HighlightedItems;
 
 	/** Pointer to the array of data items that we are observing */
 	const TArray<ItemType>* ItemsSource;

@@ -44,6 +44,8 @@ public:
 	virtual IXmppMultiUserChatPtr MultiUserChat() override { return NULL; }
 	virtual IXmppChatPtr PrivateChat() override { return NULL; }
 
+	virtual void DumpState() const override {}
+
 	// FXmppConnectionNull
 
 	FXmppConnectionNull() {};

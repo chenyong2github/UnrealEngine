@@ -93,6 +93,12 @@ PFNGLSAMPLERPARAMETERIPROC				glSamplerParameteri = NULL;
 PFNGLBINDSAMPLERPROC					glBindSampler = NULL;
 PFNGLPROGRAMPARAMETERIPROC				glProgramParameteri = NULL;
 
+PFNGLMEMORYBARRIERPROC					glMemoryBarrier = NULL;
+PFNGLDISPATCHCOMPUTEPROC				glDispatchCompute = NULL;
+PFNGLDISPATCHCOMPUTEINDIRECTPROC		glDispatchComputeIndirect = NULL;
+PFNGLBINDIMAGETEXTUREPROC				glBindImageTexture = NULL;
+
+
 PFNGLFRAMEBUFFERTEXTUREMULTIVIEWOVRPROC glFramebufferTextureMultiviewOVR = NULL;
 PFNGLFRAMEBUFFERTEXTUREMULTISAMPLEMULTIVIEWOVRPROC glFramebufferTextureMultisampleMultiviewOVR = NULL;
 
@@ -107,6 +113,10 @@ PFNeglQueryTimestampSupportedANDROID eglGetFrameTimestampsSupportedANDROID_p = N
 
 int32 FAndroidOpenGL::GLMajorVerion = 0;
 int32 FAndroidOpenGL::GLMinorVersion = 0;
+
+GLint FAndroidOpenGL::MaxComputeTextureImageUnits = -1;
+GLint FAndroidOpenGL::MaxComputeUniformComponents = -1;
+
 
 struct FPlatformOpenGLDevice
 {
@@ -892,6 +902,12 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		MaxMSAASamplesTileMem = 1;
 	}
 
+	if (bES31Support)
+	{
+		GET_GL_INT(GL_MAX_COMPUTE_TEXTURE_IMAGE_UNITS, 0, MaxComputeTextureImageUnits);
+		GET_GL_INT(GL_MAX_COMPUTE_UNIFORM_COMPONENTS, 0, MaxComputeUniformComponents);
+	}
+
 	bSupportsETC2 = bES30Support;
 	bUseES30ShadingLanguage = bES30Support;
 
@@ -1084,6 +1100,12 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		}
 
 		GSupportsDepthRenderTargetWithoutColorRenderTarget = true;
+
+		//
+		glMemoryBarrier = (PFNGLMEMORYBARRIERPROC)((void*)eglGetProcAddress("glMemoryBarrier"));
+		glDispatchCompute = (PFNGLDISPATCHCOMPUTEPROC)((void*)eglGetProcAddress("glDispatchCompute"));
+		glDispatchComputeIndirect = (PFNGLDISPATCHCOMPUTEINDIRECTPROC)((void*)eglGetProcAddress("glDispatchComputeIndirect"));
+		glBindImageTexture = (PFNGLBINDIMAGETEXTUREPROC)((void*)eglGetProcAddress("glBindImageTexture"));
 	}
 
 	if (bES30Support || bIsAdrenoBased)

@@ -229,6 +229,10 @@ namespace UnrealGameSync
 		public List<Tuple<string, bool>> EditorArguments = new List<Tuple<string,bool>>();
 		public bool bEditorArgumentsPrompt;
 
+		// Notification settings
+		public int NotifyUnassignedMinutes;
+		public int NotifyUnresolvedMinutes;
+
 		// Project settings
 		Dictionary<string, UserWorkspaceSettings> WorkspaceKeyToSettings = new Dictionary<string,UserWorkspaceSettings>();
 		Dictionary<string, UserProjectSettings> ProjectKeyToSettings = new Dictionary<string,UserProjectSettings>();
@@ -371,6 +375,10 @@ namespace UnrealGameSync
 			}
 			ScheduleAnyOpenProject = ConfigFile.GetValue("Schedule.AnyOpenProject", true);
 			ScheduleProjects = ReadProjectList("Schedule.Projects", "Schedule.ProjectFileNames");
+
+			// Notification settings
+			NotifyUnassignedMinutes = ConfigFile.GetValue("Notifications.NotifyUnassignedMinutes", -1);
+			NotifyUnresolvedMinutes = ConfigFile.GetValue("Notifications.NotifyUnresolvedMinutes", -1);
 
 			// Perforce settings
 			if(!int.TryParse(ConfigFile.GetValue("Perforce.NumRetries", "0"), out SyncOptions.NumRetries))
@@ -620,6 +628,18 @@ namespace UnrealGameSync
 			if(WindowBounds != null)
 			{
 				WindowSection.SetValue("Bounds", FormatRectangleValue(WindowBounds.Value));
+			}
+
+			// Notification settings
+			ConfigSection NotificationSection = ConfigFile.FindOrAddSection("Notifications");
+			NotificationSection.Clear();
+			if(NotifyUnassignedMinutes != -1)
+			{
+				NotificationSection.SetValue("NotifyUnassignedMinutes", NotifyUnassignedMinutes);
+			}
+			if(NotifyUnresolvedMinutes != -1)
+			{
+				NotificationSection.SetValue("NotifyUnresolvedMinutes", NotifyUnresolvedMinutes);
 			}
 
 			// Current workspace settings

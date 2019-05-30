@@ -16,7 +16,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The platform to be compiled/linked for.
 		/// </summary>
-		public readonly CppPlatform Platform;
+		public readonly UnrealTargetPlatform Platform;
 
 		/// <summary>
 		/// The configuration to be compiled/linked for.
@@ -270,11 +270,6 @@ namespace UnrealBuildTool
 		public List<FileItem> InputFiles = new List<FileItem>();
 
 		/// <summary>
-		/// A list of dependent static or import libraries that need to be linked.
-		/// </summary>
-		public List<FileItem> InputLibraries = new List<FileItem>();
-
-		/// <summary>
 		/// The default resource file to link in to every binary if a custom one is not provided
 		/// </summary>
 		public List<FileItem> DefaultResourceFiles = new List<FileItem>();
@@ -303,7 +298,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Default constructor.
 		/// </summary>
-		public LinkEnvironment(CppPlatform Platform, CppConfiguration Configuration, string Architecture)
+		public LinkEnvironment(UnrealTargetPlatform Platform, CppConfiguration Configuration, string Architecture)
 		{
 			this.Platform = Platform;
 			this.Configuration = Configuration;
@@ -362,7 +357,6 @@ namespace UnrealBuildTool
 			BundleVersion = Other.BundleVersion;
 			InstallName = Other.InstallName;
 			InputFiles.AddRange(Other.InputFiles);
-			InputLibraries.AddRange(Other.InputLibraries);
 			DefaultResourceFiles.AddRange(Other.DefaultResourceFiles);
 			CommonResourceFiles.AddRange(Other.CommonResourceFiles);
 			IncludeFunctions.AddRange(Other.IncludeFunctions);

@@ -289,6 +289,8 @@ public:
 
 	ULandscapeEditorObject* UISettings;
 
+	FText ErrorReasonOnMouseUp;
+
 	FLandscapeToolMode* CurrentToolMode;
 	FLandscapeTool* CurrentTool;
 	FLandscapeBrush* CurrentBrush;
@@ -354,14 +356,16 @@ public:
 	void InitializeTool_Ramp();
 	void InitializeTool_Mirror();
 	void InitializeTool_BPCustom();
-	void InitializeToolModes();
+	void UpdateToolModes();
 
 	/** Destructor */
 	virtual ~FEdModeLandscape();
 
 	/** ILandscapeEdModeInterface */
 	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const override;
-	virtual FGuid GetLandscapeSelectedLayer() const override;
+	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const override;
+	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const override;
+	virtual void OnCanHaveLayersContentChanged() override;
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -529,6 +533,8 @@ public:
 	void RefreshDetailPanel();
 
 	// Layers
+	bool CanHaveLandscapeLayersContent() const;
+	bool HasLandscapeLayersContent() const;
 	int32 GetLayerCount() const;
 	void SetCurrentLayer(int32 InLayerIndex);
 	int32 GetCurrentLayerIndex() const;
@@ -605,6 +611,8 @@ public:
 	{
 		return GetEditingState() == ELandscapeEditingState::Enabled;
 	}
+
+	void SetLandscapeInfo(ULandscapeInfo* InLandscapeInfo);
 	
 private:
 	TArray<TSharedRef<FLandscapeTargetListInfo>> LandscapeTargetList;
@@ -624,8 +632,7 @@ private:
 
 	FDelegateHandle OnLevelActorDeletedDelegateHandle;
 	FDelegateHandle OnLevelActorAddedDelegateHandle;
-	FDelegateHandle OnLandscapeLayerSystemFlagChangedDelegateHandle;
-
+	
 	/** Check if we are painting using the VREditor */
 	bool bIsPaintingInVR;
 

@@ -558,8 +558,8 @@ public:
 	// Cache off the RemoteRole and Role per connection to avoid issues with
 	// FScopedRoleDowngrade. See UE-66313 (among others).
 
-	ENetRole SavedRemoteRole = ROLE_MAX;
-	ENetRole SavedRole = ROLE_MAX;
+	TEnumAsByte<ENetRole> SavedRemoteRole = ROLE_MAX;
+	TEnumAsByte<ENetRole> SavedRole = ROLE_MAX;
 
 	/** Index in the buffer where changelist history starts (i.e., the Oldest changelist). */
 	int32 HistoryStart;
@@ -894,13 +894,14 @@ class FRepHandleIterator
 public:
 
 	FRepHandleIterator(
-		FChangelistIterator&	InChangelistIterator,
-		const TArray<FRepLayoutCmd>&		InCmds,
-		const TArray<FHandleToCmdIndex>&	InHandleToCmdIndex,
-		const int32							InElementSize,
-		const int32							InMaxArrayIndex,
-		const int32							InMinCmdIndex,
-		const int32							InMaxCmdIndex
+		UStruct const * const InOwner,
+		FChangelistIterator& InChangelistIterator,
+		const TArray<FRepLayoutCmd>& InCmds,
+		const TArray<FHandleToCmdIndex>& InHandleToCmdIndex,
+		const int32 InElementSize,
+		const int32 InMaxArrayIndex,
+		const int32 InMinCmdIndex,
+		const int32 InMaxCmdIndex
 	):
 		ChangelistIterator(InChangelistIterator),
 		Cmds(InCmds),
@@ -909,8 +910,12 @@ public:
 		ArrayElementSize(InElementSize),
 		MaxArrayIndex(InMaxArrayIndex),
 		MinCmdIndex(InMinCmdIndex),
-		MaxCmdIndex(InMaxCmdIndex)
-	{}
+		MaxCmdIndex(InMaxCmdIndex),
+		Owner(InOwner),
+		LastSuccessfulCmdIndex(INDEX_NONE)
+	{
+		ensureMsgf(MaxCmdIndex >= MinCmdIndex, TEXT("Invalid Min / Max Command Indices. Owner=%s, MinCmdIndex=%d, MaxCmdIndex=%d"), *GetPathNameSafe(Owner), MinCmdIndex, MaxCmdIndex);
+	}
 
 	/**
 	 * Moves the iterator to the next available handle.
@@ -977,6 +982,12 @@ public:
 
 	/** The Byte offset of Serialized Property data for a dynamic array to the current element. */
 	int32 ArrayOffset;
+
+	UStruct const * const Owner;
+
+private:
+
+	int32 LastSuccessfulCmdIndex;
 };
 
 enum class ECreateRepLayoutFlags

@@ -12,7 +12,7 @@ namespace Gauntlet
 	
 	public class MacDeviceFactory : IDeviceFactory
 	{
-		public bool CanSupportPlatform(UnrealTargetPlatform Platform)
+		public bool CanSupportPlatform(UnrealTargetPlatform? Platform)
 		{
 			return Platform == UnrealTargetPlatform.Mac;
 		}
@@ -86,7 +86,7 @@ namespace Gauntlet
 	{
 		public string Name { get; protected set; }
 
-		public UnrealTargetPlatform Platform { get { return UnrealTargetPlatform.Mac; } }
+		public UnrealTargetPlatform? Platform { get { return UnrealTargetPlatform.Mac; } }
 
 		public bool IsAvailable { get { return true; } }
 		public bool IsConnected { get { return true; } }

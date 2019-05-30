@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "LandscapeProxy.h"
 #include "LandscapeBPCustomBrush.h"
+#include "Delegates/DelegateCombinations.h"
 
 #include "Landscape.generated.h"
 
@@ -199,6 +200,7 @@ public:
 
 	//~ Begin ALandscapeProxy Interface
 	LANDSCAPE_API virtual ALandscape* GetLandscapeActor() override;
+	LANDSCAPE_API virtual const ALandscape* GetLandscapeActor() const override;
 #if WITH_EDITOR
 	//~ End ALandscapeProxy Interface
 
@@ -237,6 +239,7 @@ public:
 #if WITH_EDITOR
 	LANDSCAPE_API void RegisterLandscapeEdMode(ILandscapeEdModeInterface* InLandscapeEdMode) { LandscapeEdMode = InLandscapeEdMode; }
 	LANDSCAPE_API void UnregisterLandscapeEdMode() { LandscapeEdMode = nullptr; }
+	LANDSCAPE_API virtual bool HasLayersContent() const override;
 	LANDSCAPE_API void RequestLayersInitialization(bool bInRequestContentUpdate = true);
 	LANDSCAPE_API void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InModeMask = ELandscapeLayerUpdateMode::Update_All);
 	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InModeMask);
@@ -245,6 +248,7 @@ public:
 	LANDSCAPE_API void CreateLayer(FName InName = NAME_None);
 	LANDSCAPE_API void CreateDefaultLayer();
 	LANDSCAPE_API void CopyOldDataToDefaultLayer();
+	LANDSCAPE_API void CopyOldDataToDefaultLayer(ALandscapeProxy* Proxy);
 	LANDSCAPE_API void AddLayersToProxy(ALandscapeProxy* InProxy);
 	LANDSCAPE_API TMap<UTexture2D*, TArray<ULandscapeComponent*>> GenerateComponentsPerHeightmaps() const;
 	LANDSCAPE_API FIntPoint ComputeComponentCounts() const;
@@ -260,15 +264,17 @@ public:
 	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(int32 InLayerIndex) const;
 	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(const FGuid& InLayerGuid) const;
 	LANDSCAPE_API void ForEachLayer(TFunctionRef<void(struct FLandscapeLayer&)> Fn);
-	LANDSCAPE_API void ClearLayer(int32 InLayerIndex, bool bInUpdateCollision = true);
-	LANDSCAPE_API void ClearLayer(const FGuid& InLayerGuid, bool bInUpdateCollision = true);
+	LANDSCAPE_API void ClearLayer(int32 InLayerIndex, TSet<ULandscapeComponent*>* InComponents = nullptr);
+	LANDSCAPE_API void ClearLayer(const FGuid& InLayerGuid, TSet<ULandscapeComponent*>* InComponents = nullptr);
 	LANDSCAPE_API void DeleteLayer(int32 InLayerIndex);
+	LANDSCAPE_API void DeleteLayers();
 	LANDSCAPE_API void SetEditingLayer(const FGuid& InLayerGuid = FGuid());
+	LANDSCAPE_API void SetGrassUpdateEnabled(bool bInGrassUpdateEnabled);
 	LANDSCAPE_API const FGuid& GetEditingLayer() const;
 	LANDSCAPE_API bool IsMaxLayersReached() const;
 	LANDSCAPE_API void ShowOnlySelectedLayer(int32 InLayerIndex);
 	LANDSCAPE_API void ShowAllLayers();
-	LANDSCAPE_API void UpdateLandscapeSplines(const FGuid& InLayerGuid = FGuid(), bool bUpdateOnlySelected = false);
+	LANDSCAPE_API void UpdateLandscapeSplines(const FGuid& InLayerGuid = FGuid(), bool bInUpdateOnlySelected = false, bool bInForceUpdateAllCompoments = false);
 	LANDSCAPE_API void SetLandscapeSplinesReservedLayer(int32 InLayerIndex);
 	LANDSCAPE_API struct FLandscapeLayer* GetLandscapeSplinesReservedLayer();
 	LANDSCAPE_API const struct FLandscapeLayer* GetLandscapeSplinesReservedLayer() const;
@@ -287,11 +293,15 @@ public:
 	
 	LANDSCAPE_API void OnPreSave();
 
+	void ReleaseLayersRenderingResource();
+	
+	LANDSCAPE_API void ToggleCanHaveLayersContent();
+	LANDSCAPE_API void ForceUpdateLayersContent();
+
 private:
 	void TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
 	void CreateLayersRenderingResource();
-	void ReleaseLayersRenderingResource();
-	void UpdateLayersContent(bool bInWaitForStreaming = false);
+	void UpdateLayersContent(bool bInWaitForStreaming = false, bool bInSkipMonitorLandscapeEdModeChanges = false);
 	void MonitorShaderCompilation();
 	void MonitorLandscapeEdModeChanges();
 	int32 RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, bool bInWaitForStreaming);
@@ -351,12 +361,18 @@ private:
 public:
 
 #if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category=Experimental, AdvancedDisplay)
+	bool bCanHaveLayersContent = false;
+
 	/** Target Landscape Layer for Landscape Splines */
 	UPROPERTY()
 	FGuid LandscapeSplinesTargetLayerGuid;
 	
 	/** Current Editing Landscape Layer*/
 	FGuid EditingLayer;
+
+	/** Used to temporarily disable Grass Update in Editor */
+	bool bGrassUpdateEnabled;
 
 	UPROPERTY(TextExportTransient)
 	TArray<FLandscapeLayer> LandscapeLayers;
@@ -367,10 +383,12 @@ public:
 	UPROPERTY(Transient)
 	TArray<UTextureRenderTarget2D*> WeightmapRTList;
 
-	UPROPERTY(Transient)
-	bool bInitializedWithFlagExperimentalLandscapeLayers;
-
 private:
+
+	/** Components affected by landscape splines (used to partially clear Layer Reserved for Splines) */
+	UPROPERTY(Transient)
+	TSet<ULandscapeComponent*> LandscapeSplinesAffectedComponents;
+
 	/** Provides information from LandscapeEdMode */
 	ILandscapeEdModeInterface* LandscapeEdMode;
 
@@ -381,6 +399,7 @@ private:
 
 		int32 ViewMode;
 		FGuid SelectedLayer;
+		TWeakObjectPtr<ULandscapeLayerInfoObject> SelectedLayerInfoObject;
 		ELandscapeToolTargetType::Type ToolTarget;
 	};
 

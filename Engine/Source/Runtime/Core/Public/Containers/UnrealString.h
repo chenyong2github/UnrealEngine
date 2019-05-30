@@ -1409,8 +1409,23 @@ public:
 		return PrintfImpl(Fmt, Args...);
 	}
 
+	/**
+	 * Just like Printf, but appends the formatted text to the existing FString instead.
+	 * @return a reference to the modified string, so that it can be chained
+	 */
+	template <typename FmtType, typename... Types>
+	typename TEnableIf<TIsArrayOrRefOfType<FmtType, TCHAR>::Value, FString&>::Type Appendf(const FmtType& Fmt, Types... Args)
+	{
+		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Appendf");
+
+		AppendfImpl(*this, Fmt, Args...);
+		return *this;
+	}
+
 private:
 	static FString VARARGS PrintfImpl(const TCHAR* Fmt, ...);
+	static void VARARGS AppendfImpl(FString& AppendToMe, const TCHAR* Fmt, ...);
 public:
 
 	/**

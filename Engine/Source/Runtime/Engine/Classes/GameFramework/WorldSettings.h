@@ -463,7 +463,7 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World)
 	uint8 bEnableWorldComposition:1;
-
+		
 	/**
 	 * Enables client-side streaming volumes instead of server-side.
 	 * Expected usage scenario: server has all streaming levels always loaded, clients independently stream levels in/out based on streaming volumes.
@@ -714,7 +714,6 @@ public:
 	UPROPERTY()
 	TArray<UAssetUserData*> AssetUserData;
 
-private:
 	// If paused, PlayerState of person pausing the game.
 	UPROPERTY(transient, replicated)
 	class APlayerState* PauserPlayerState;

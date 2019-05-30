@@ -67,6 +67,7 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraTypes.h"
+#include "NiagaraSystemFactoryNew.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
 #include "MovieScene/Parameters/MovieSceneNiagaraFloatParameterTrack.h"
@@ -90,6 +91,9 @@
 #include "HAL/IConsoleManager.h"
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraThumbnailRenderer.h"
+#include "Misc/FeedbackContext.h"
+#include "Customizations/NiagaraStaticSwitchNodeDetails.h"
+#include "Customizations/NiagaraFunctionCallNodeDetails.h"
 
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
@@ -273,6 +277,83 @@ void DumpRapidIterationParamersForAsset(const TArray<FString>& Arguments)
 	}
 }
 
+void PreventSystemRecompile(FAssetData SystemAsset, TSet<UNiagaraEmitter*>& InOutCompiledEmitters)
+{
+	UNiagaraSystem* System = Cast<UNiagaraSystem>(SystemAsset.GetAsset());
+	if (System != nullptr)
+	{
+		for (const FNiagaraEmitterHandle& EmitterHandle : System->GetEmitterHandles())
+		{
+			UNiagaraEmitter* SourceEmitter = const_cast<UNiagaraEmitter*>(EmitterHandle.GetSource());
+			if (SourceEmitter != nullptr)
+			{
+				if (InOutCompiledEmitters.Contains(SourceEmitter) == false)
+				{
+					SourceEmitter->MarkPackageDirty();
+					UNiagaraSystem* TransientSystem = NewObject<UNiagaraSystem>(GetTransientPackage(), NAME_None, RF_Transient);
+					UNiagaraSystemFactoryNew::InitializeSystem(TransientSystem, true);
+					TransientSystem->AddEmitterHandle(*SourceEmitter, TEXT("Emitter")); // TODO Frank.Fella, resolve this properly...
+					FNiagaraStackGraphUtilities::RebuildEmitterNodes(*TransientSystem);
+					TransientSystem->RequestCompile(false);
+					TransientSystem->WaitForCompilationComplete();
+					InOutCompiledEmitters.Add(SourceEmitter);
+				}
+				System->UpdateFromEmitterChanges(*SourceEmitter, false);
+			}
+		}
+
+		System->MarkPackageDirty();
+		System->RequestCompile(false);
+		System->WaitForCompilationComplete();
+	}
+}
+
+void PreventSystemRecompile(const TArray<FString>& Arguments)
+{
+	if (Arguments.Num() > 0)
+	{
+		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		FAssetData SystemAsset = AssetRegistryModule.Get().GetAssetByObjectPath(*Arguments[0]);
+		if (SystemAsset.IsValid() == false)
+		{
+			TArray<FAssetData> AssetsInPackage;
+			AssetRegistryModule.Get().GetAssetsByPackageName(*Arguments[0], AssetsInPackage);
+			if (AssetsInPackage.Num() == 1)
+			{
+				SystemAsset = AssetsInPackage[0];
+			}
+		}
+		TSet<UNiagaraEmitter*> CompiledEmitters;
+		PreventSystemRecompile(SystemAsset, CompiledEmitters);
+	}
+}
+
+void PreventAllSystemRecompiles()
+{
+	const FText SlowTaskText = NSLOCTEXT("NiagaraEditor", "PreventAllSystemRecompiles", "Refreshing all systems to prevent recompiles.");
+	GWarn->BeginSlowTask(SlowTaskText, true, true);
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+
+	TArray<FAssetData> SystemAssets;
+	AssetRegistryModule.Get().GetAssetsByClass(UNiagaraSystem::StaticClass()->GetFName(), SystemAssets);
+
+	TSet<UNiagaraEmitter*> CompiledEmitters;
+	int32 ItemIndex = 0;
+	for (FAssetData& SystemAsset : SystemAssets)
+	{
+		if (GWarn->ReceivedUserCancel())
+		{
+			return;
+		}
+		GWarn->UpdateProgress(ItemIndex++, SystemAssets.Num());
+
+		PreventSystemRecompile(SystemAsset, CompiledEmitters);
+	}
+
+	GWarn->EndSlowTask();
+}
+
 class FNiagaraSystemBoolParameterTrackEditor : public FNiagaraSystemParameterTrackEditor<UMovieSceneNiagaraBoolParameterTrack, UMovieSceneBoolSection>
 {
 	virtual TSharedRef<ISequencerSection> MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding) override
@@ -313,6 +394,10 @@ void FNiagaraEditorModule::StartupModule()
 	// register details customization
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout("NiagaraComponent", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraComponentDetails::MakeInstance));
+
+	PropertyModule.RegisterCustomClassLayout("NiagaraNodeStaticSwitch", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraStaticSwitchNodeDetails::MakeInstance));
+
+	PropertyModule.RegisterCustomClassLayout("NiagaraNodeFunctionCall", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraFunctionCallNodeDetails::MakeInstance));
 	
 	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraFloat",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance)
@@ -486,6 +571,16 @@ void FNiagaraEditorModule::StartupModule()
 		TEXT("fx.DumpRapidIterationParametersForAsset"),
 		TEXT("Dumps the values of the rapid iteration parameters for the specified asset by path."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&DumpRapidIterationParamersForAsset));
+
+	PreventSystemRecompileCommand = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("fx.PreventSystemRecompile"),
+		TEXT("Forces the system to refresh all it's dependencies so it won't recompile on load.  This may mark multiple assets dirty for re-saving."),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&PreventSystemRecompile));
+
+	PreventSystemRecompileCommand = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("fx.PreventAllSystemRecompiles"),
+		TEXT("Loads all of the systems in the project and forces each system to refresh all it's dependencies so it won't recompile on load.  This may mark multiple assets dirty for re-saving."),
+		FConsoleCommandDelegate::CreateStatic(&PreventAllSystemRecompiles));
 
 	if (GIsEditor)
 	{

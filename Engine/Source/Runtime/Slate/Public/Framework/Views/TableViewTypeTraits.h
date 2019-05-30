@@ -6,6 +6,9 @@
 #include "UObject/UObjectBase.h"
 #include "UObject/GCObject.h"
 
+class ITableRow;
+struct FSparseItemInfo;
+
 /**
  * Lists/Trees only work with shared pointer types, and UObjbectBase*.
  * Type traits to ensure that the user does not accidentally make a List/Tree of value types.
@@ -95,6 +98,10 @@ template <typename T> struct TListTypeTraits< TSharedPtr<T, ESPMode::NotThreadSa
 public:
 	typedef TSharedPtr<T> NullableType;
 
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<TSharedPtr<T, ESPMode::NotThreadSafe>, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<TSharedPtr<T, ESPMode::NotThreadSafe>, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs<TSharedPtr<T, ESPMode::NotThreadSafe>>;
+
 	template<typename U>
 	static void AddReferencedObjects( FReferenceCollector&, 
 		TArray< TSharedPtr<T> >&, 
@@ -123,6 +130,11 @@ public:
 		return InPtr;
 	}
 
+	static FString DebugDump( TSharedPtr<T> InPtr )
+	{
+		return InPtr.IsValid() ? FString::Printf(TEXT("0x%08x"), InPtr.Get()) : FString(TEXT("nullptr"));
+	}
+
 	class SerializerType{};
 };
 
@@ -131,6 +143,10 @@ template <typename T> struct TListTypeTraits< TSharedPtr<T, ESPMode::ThreadSafe>
 {
 public:
 	typedef TSharedPtr<T, ESPMode::ThreadSafe> NullableType;
+
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<TSharedPtr<T, ESPMode::ThreadSafe>, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<TSharedPtr<T, ESPMode::ThreadSafe>, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs<TSharedPtr<T, ESPMode::ThreadSafe>>;
 
 	template<typename U>
 	static void AddReferencedObjects( FReferenceCollector&, 
@@ -160,6 +176,11 @@ public:
 		return InPtr;
 	}
 
+	static FString DebugDump( TSharedPtr<T, ESPMode::ThreadSafe> InPtr )
+	{
+		return InPtr.IsValid() ? FString::Printf(TEXT("0x%08x"), InPtr.Get()) : FString(TEXT("nullptr"));
+	}
+
 	class SerializerType{};
 };
 
@@ -168,6 +189,10 @@ template <typename T> struct TListTypeTraits< TSharedRef<T, ESPMode::NotThreadSa
 {
 public:
 	typedef TSharedPtr<T> NullableType;
+
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<TSharedRef<T, ESPMode::NotThreadSafe>, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<TSharedRef<T, ESPMode::NotThreadSafe>, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs<TSharedRef<T, ESPMode::NotThreadSafe>>;
 
 	template<typename U>
 	static void AddReferencedObjects( FReferenceCollector&, 
@@ -197,6 +222,11 @@ public:
 		return InPtr.ToSharedRef();
 	}
 
+	static FString DebugDump( TSharedRef<T> InPtr )
+	{
+		return FString::Printf(TEXT("0x%08x"), &InPtr.Get());
+	}
+
 	class SerializerType{};
 };
 
@@ -205,6 +235,10 @@ template <typename T> struct TListTypeTraits< TSharedRef<T, ESPMode::ThreadSafe>
 {
 public:
 	typedef TSharedPtr<T, ESPMode::ThreadSafe> NullableType;
+
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<TSharedRef<T, ESPMode::ThreadSafe>, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<TSharedRef<T, ESPMode::ThreadSafe>, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs<TSharedRef<T, ESPMode::ThreadSafe>>;
 
 	template<typename U>
 	static void AddReferencedObjects( FReferenceCollector&, 
@@ -234,6 +268,11 @@ public:
 		return InPtr.ToSharedRef();
 	}
 
+	static FString DebugDump( TSharedRef<T, ESPMode::ThreadSafe> InPtr )
+	{
+		return FString::Printf(TEXT("0x%08x"), &InPtr.Get());
+	}
+
 	class SerializerType{};
 };
 
@@ -245,6 +284,10 @@ template <typename T> struct TListTypeTraits< TWeakObjectPtr<T> >
 {
 public:
 	typedef TWeakObjectPtr<T> NullableType;
+
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<TWeakObjectPtr<T>, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<TWeakObjectPtr<T>, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs< TWeakObjectPtr<T> >;
 
 	template<typename U>
 	static void AddReferencedObjects( FReferenceCollector&, 
@@ -274,6 +317,12 @@ public:
 		return InPtr;
 	}
 
+	static FString DebugDump( TWeakObjectPtr<T> InPtr )
+	{
+		T* ObjPtr = InPtr.Get();
+		return ObjPtr ? FString::Printf(TEXT("0x%08x [%s]"), ObjPtr, *ObjPtr->GetName()) : FString(TEXT("nullptr"));
+	}
+
 	class SerializerType{};
 };
 
@@ -288,6 +337,10 @@ struct TListTypeTraits<T*, typename TEnableIf<TPointerIsConvertibleFromTo<T, UOb
 {
 public:
 	typedef T* NullableType;
+
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<T*, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<T*, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs<T*>;
 
 	template<typename U>
 	static void AddReferencedObjects( FReferenceCollector& Collector, 
@@ -317,6 +370,11 @@ public:
 
 	static T* NullableItemTypeConvertToItemType( T* InPtr ) { return InPtr; }
 
+	static FString DebugDump( T* InPtr )
+	{
+		return InPtr ? FString::Printf(TEXT("0x%08x [%s]"), InPtr, *InPtr->GetName()) : FString(TEXT("nullptr"));
+	}
+
 	typedef FGCObject SerializerType;
 };
 
@@ -325,6 +383,10 @@ struct TListTypeTraits<const T*, typename TEnableIf<TPointerIsConvertibleFromTo<
 {
 public:
 	typedef const T* NullableType;
+
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<const T*, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<const T*, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs<const T*>;
 
 	template<typename U>
 	static void AddReferencedObjects( FReferenceCollector& Collector, 
@@ -353,6 +415,11 @@ public:
 	static const T* MakeNullPtr() { return NULL; }
 
 	static const T* NullableItemTypeConvertToItemType( const T* InPtr ) { return InPtr; }
+
+	static FString DebugDump( const T* InPtr )
+	{
+		return InPtr ? FString::Printf(TEXT("0x%08x [%s]"), InPtr, *InPtr->GetName()) : FString(TEXT("nullptr"));
+	}
 
 	typedef FGCObject SerializerType;
 };

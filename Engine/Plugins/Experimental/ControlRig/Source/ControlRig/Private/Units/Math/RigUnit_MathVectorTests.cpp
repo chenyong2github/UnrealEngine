@@ -49,6 +49,15 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorMul)
 	return true;
 }
 
+IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorScale)
+{
+	Unit.Value = FVector(4.f, 6.f, 8.f);
+	Unit.Factor = 2.f;
+	InitAndExecute();
+	AddErrorIfFalse(FRigUnit_MathVectorTest_Utils::IsNearlyEqual(Unit.Result, FVector(8.f, 12.f, 16.f)), TEXT("unexpected result"));
+	return true;
+}
+
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorDiv)
 {
 	Unit.A = FVector(4.f, 6.f, 8.f);

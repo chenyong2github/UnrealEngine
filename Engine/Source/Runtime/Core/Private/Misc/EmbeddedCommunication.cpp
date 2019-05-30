@@ -43,6 +43,7 @@ void* FEmbeddedDelegates::GetNamedObject(const FString& Name)
 #if BUILD_EMBEDDED_APP
 
 static FEvent* GSleepEvent = nullptr;
+static TAtomic<bool> GTickAnotherFrame;
 static FCriticalSection GEmbeddedLock;
 //static TArray<TFunction<void()>> GEmbeddedQueues[5];
 static TQueue<TFunction<void()>> GEmbeddedQueues[5];
@@ -70,6 +71,7 @@ void FEmbeddedCommunication::Init()
 #if BUILD_EMBEDDED_APP
  	FScopeLock Lock(&GEmbeddedLock);
  	GSleepEvent = FPlatformProcess::GetSynchEventFromPool(false);
+	GTickAnotherFrame = false;
 
 	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&FEmbeddedCommunication::TickGameThread));
 #endif
@@ -199,6 +201,50 @@ void FEmbeddedCommunication::AllowSleep(FName Requester)
 #endif
 }
 
+#if BUILD_EMBEDDED_APP
+static FName NativeLogCategory("Native");
+#endif
+
+void FEmbeddedCommunication::UELogError(const TCHAR* String)
+{
+#if BUILD_EMBEDDED_APP
+	if (GWarn)
+	{
+		GWarn->Log(NativeLogCategory, ELogVerbosity::Error, String);
+	}
+#endif
+}
+
+void FEmbeddedCommunication::UELogWarning(const TCHAR* String)
+{
+#if BUILD_EMBEDDED_APP
+	if (GWarn)
+	{
+		GWarn->Log(NativeLogCategory, ELogVerbosity::Warning, String);
+	}
+#endif
+}
+
+void FEmbeddedCommunication::UELogLog(const TCHAR* String)
+{
+#if BUILD_EMBEDDED_APP
+	if (GLog)
+	{
+		GLog->Log(NativeLogCategory, ELogVerbosity::Log, String);
+	}
+#endif
+}
+
+void FEmbeddedCommunication::UELogVerbose(const TCHAR* String)
+{
+#if BUILD_EMBEDDED_APP
+	if (GLog)
+	{
+		GLog->Log(NativeLogCategory, ELogVerbosity::Verbose, String);
+	}
+#endif
+}
+
 bool FEmbeddedCommunication::IsAwakeForTicking()
 {
 #if BUILD_EMBEDDED_APP
@@ -242,6 +288,8 @@ void FEmbeddedCommunication::RunOnGameThread(int Priority, TFunction<void()> Lam
 void FEmbeddedCommunication::WakeGameThread()
 {
 #if BUILD_EMBEDDED_APP
+	// If the game thread is already running, this will make it loop again.
+	GTickAnotherFrame = true;
 	// wake up the game thread!
 	if (GSleepEvent)
 	{
@@ -273,12 +321,17 @@ bool FEmbeddedCommunication::TickGameThread(float DeltaTime)
 	{
 		LambdaToCall();
 	}
-	// sleep if nothing is going on 
-	else if (GRenderingWakeMap.Num() == 0 && GTickWakeMap.Num() == 0)
+	// sleep if nothing is going on
+	else if (GRenderingWakeMap.Num() == 0
+		&& GTickWakeMap.Num() == 0
+		&& !GTickAnotherFrame) // Don't sleep if we have been asked to tick another frame
  	{
  		// wake up every 5 seconds even if nothing to do
- 		GSleepEvent->Wait(5000);
+		UE_LOG(LogInit, VeryVerbose, TEXT("FEmbeddedCommunication Sleeping GameThread..."));
+ 		bool bWasTriggered = GSleepEvent->Wait(5000);
+		UE_LOG(LogInit, VeryVerbose, TEXT("FEmbeddedCommunication Woke up. Reason=[%s]"), bWasTriggered ? TEXT("Triggered") : TEXT("TimedOut"));
  	}
+	GTickAnotherFrame = false;
 #endif
 
 	return true;

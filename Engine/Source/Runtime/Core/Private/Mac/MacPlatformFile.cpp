@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "MacPlatformFile.h"
-#include "Apple/ApplePlatformFile.h"
+#include "Mac/MacPlatformFile.h"
 
 IPlatformFile& IPlatformFile::GetPlatformPhysical()
 {

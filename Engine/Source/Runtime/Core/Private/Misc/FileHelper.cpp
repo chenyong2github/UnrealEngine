@@ -188,14 +188,13 @@ bool FFileHelper::LoadFileToStringArray( TArray<FString>& Result, const TCHAR* F
  */
 bool FFileHelper::SaveArrayToFile(TArrayView<const uint8> Array, const TCHAR* Filename, IFileManager* FileManager /*= &IFileManager::Get()*/, uint32 WriteFlags)
 {
-	FArchive* Ar = FileManager->CreateFileWriter( Filename, WriteFlags );
+	TUniquePtr<FArchive> Ar = TUniquePtr<FArchive>( FileManager->CreateFileWriter( Filename, WriteFlags ) );
 	if( !Ar )
 	{
 		return false;
 	}
-	Ar->Serialize(const_cast<uint8*>(Array.GetData()), Array.Num());
-	delete Ar;
-	return true;
+	Ar->Serialize(const_cast<uint8*>(Array.GetData()), Array.Num());	
+	return !Ar->IsError() && !Ar->IsCriticalError();
 }
 
 /**
@@ -205,7 +204,7 @@ bool FFileHelper::SaveArrayToFile(TArrayView<const uint8> Array, const TCHAR* Fi
 bool FFileHelper::SaveStringToFile( const FString& String, const TCHAR* Filename,  EEncodingOptions EncodingOptions, IFileManager* FileManager /*= &IFileManager::Get()*/, uint32 WriteFlags )
 {
 	// max size of the string is a UCS2CHAR for each character and some UNICODE magic 
-	auto Ar = TUniquePtr<FArchive>( FileManager->CreateFileWriter( Filename, WriteFlags ) );
+	TUniquePtr<FArchive> Ar = TUniquePtr<FArchive>( FileManager->CreateFileWriter( Filename, WriteFlags ) );
 	if( !Ar )
 		return false;
 
@@ -242,7 +241,7 @@ bool FFileHelper::SaveStringToFile( const FString& String, const TCHAR* Filename
 		Ar->Serialize( (ANSICHAR*)Src.Get(), Src.Length() * sizeof(ANSICHAR) );
 	}
 
-	return true;
+	return !Ar->IsError() && !Ar->IsCriticalError();
 }
 
 bool FFileHelper::SaveStringArrayToFile( const TArray<FString>& Lines, const TCHAR* Filename, EEncodingOptions EncodingOptions, IFileManager* FileManager, uint32 WriteFlags )

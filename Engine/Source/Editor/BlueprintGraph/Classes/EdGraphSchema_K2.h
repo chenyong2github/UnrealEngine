@@ -216,6 +216,9 @@ public:
 	/** Metadata that signals to the editor that enum values correspond to mask values instead of bitshift (index) values. */
 	static const FName MD_UseEnumValuesAsMaskValuesInEditor;
 	
+	/** Stub function used internally by animation blueprints */
+	static const FName MD_AnimBlueprintFunction;
+
 private:
 	// This class should never be instantiated
 	FBlueprintMetadata() {}
@@ -729,6 +732,9 @@ public:
 	 * @return	true on success, false if the property is unsupported or invalid.
 	 */
 	bool ConvertPropertyToPinType(const UProperty* Property, /*out*/ FEdGraphPinType& TypeOut) const;
+
+	/** Returns true if the function has wildcard parameters, e.g. uses runtime type information that may require safe failure handling */
+	static bool HasWildcardParams(const UFunction* Function);
 
 	/** Determines if the specified param property is intended to be used as a wildcard (for custom thunk functions, like in our array library, etc.)*/
 	static bool IsWildcardProperty(const UProperty* ParamProperty);

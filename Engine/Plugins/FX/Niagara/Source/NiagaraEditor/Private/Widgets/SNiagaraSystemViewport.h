@@ -74,6 +74,7 @@ public:
 	enum EDrawElements
 	{
 		Bounds = 0x020,
+		InstructionCounts = 0x040,
 	};
 
 	bool GetDrawElement(EDrawElements Element) const;

@@ -240,7 +240,11 @@ namespace DeploymentServer
                         ReportIF.Error("Timed out while trying to connect to a mobile device.  Make sure one is connected.");
                     }
                 }
-                catch (Exception ex)
+				catch (ThreadAbortException)
+				{
+					// we expect this to happen so we don't log it
+				}
+				catch (Exception ex)
                 {
                     ReportIF.Error(String.Format("Error encountered ('{0}') while trying to connect to a mobile device.  Please verify that iTunes is installed", ex.Message));
                 }
@@ -540,7 +544,27 @@ namespace DeploymentServer
             });
         }
 
-        public bool BackupDocumentsDirectory(string BundleIdentifier, string DestinationDocumentsDirectory)
+		/// <summary>
+		/// Copies a single file from a specified location on the device for the given bundle
+		/// </summary>
+		public bool CopyFileFromDevice(string BundleIdentifier, string SourceFile, string DestFile)
+		{
+			return PerformActionOnAllDevices(StandardEnumerationDelayMS, delegate (MobileDeviceInstance Device)
+			{
+				bool bResult = true;
+				string DeviceType = Device.ProductType;
+				if (String.IsNullOrEmpty(DeviceId) || Device.DeviceId == DeviceId ||
+					(DeviceId.Contains("All_tvOS_On") && DeviceType.Contains("TV")) ||
+					(DeviceId.Contains("All_iOS_On") && !DeviceType.Contains("TV")))
+				{
+					bResult = Device.TryCopyFileOut(BundleIdentifier, SourceFile, DestFile);
+					ReportIF.Log("");
+				}
+				return bResult;
+			});
+		}
+
+		public bool BackupDocumentsDirectory(string BundleIdentifier, string DestinationDocumentsDirectory)
         {
             return PerformActionOnAllDevices(StandardEnumerationDelayMS, delegate(MobileDeviceInstance Device)
             {

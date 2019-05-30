@@ -954,7 +954,8 @@ inline bool DoesPlatformSupportDistanceFieldShadowing(EShaderPlatform Platform)
 		|| IsMetalSM5Platform(Platform)
 		|| Platform == SP_XBOXONE_D3D12
 		|| IsVulkanSM5Platform(Platform)
-	    || Platform == SP_SWITCH || Platform == SP_SWITCH_FORWARD;
+	    || Platform == SP_SWITCH || Platform == SP_SWITCH_FORWARD
+		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsDistanceFields;
 }
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileReflectionCaptureShaderParameters,ENGINE_API)
@@ -1008,9 +1009,6 @@ public:
 	float MinOcclusion;
 	FLinearColor OcclusionTint;
 	int32 SamplesPerPixel;
-	/** Used with mobile renderer */
-	TUniformBufferRef<FMobileReflectionCaptureShaderParameters> MobileUniformBuffer;
-
 
 #if RHI_RAYTRACING
 	bool IsDirtyImportanceSamplingData;
@@ -1043,7 +1041,6 @@ public:
 	}
 	FLinearColor GetEffectiveLightColor() const;
 
-	void UpdateMobileUniformBuffer();
 private:
 	FLinearColor LightColor;
 };

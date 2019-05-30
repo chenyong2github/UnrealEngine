@@ -91,6 +91,9 @@ struct FMaterialParticleParameters
 	half4 MacroUV;
 
 	/** Dynamic parameters used by particle systems. */
+#if NIAGARA_PARTICLE_FACTORY && (DYNAMIC_PARAMETERS_MASK != 0)
+	uint DynamicParameterValidMask;
+#endif
 	half4 DynamicParameter;
 
 #if( DYNAMIC_PARAMETERS_MASK & 2)
@@ -122,37 +125,27 @@ struct FMaterialParticleParameters
 float4 GetDynamicParameter(FMaterialParticleParameters Parameters, float4 Default, int ParameterIndex=0)
 {
 #if (NIAGARA_PARTICLE_FACTORY)
-	if(ParameterIndex == 0)
+	switch ( ParameterIndex)
 	{
-		return Parameters.DynamicParameter;
-	}
-#if (DYNAMIC_PARAMETERS_MASK & 2)
-	else if(ParameterIndex == 1)
-	{
-		return Parameters.DynamicParameter1;
-	}
-#endif
-#if (DYNAMIC_PARAMETERS_MASK & 4)
-	else if(ParameterIndex == 2)
-	{
-		return Parameters.DynamicParameter2;
-	}
-#endif	
-#if (DYNAMIC_PARAMETERS_MASK & 8)
-	else if(ParameterIndex == 3)
-	{
-		return Parameters.DynamicParameter3;
-	}
-#endif
-	else
-	{
-		return Default;
+	#if (DYNAMIC_PARAMETERS_MASK & 1)
+		case 0:	return (Parameters.DynamicParameterValidMask & 1) != 0 ? Parameters.DynamicParameter : Default;
+	#endif
+	#if (DYNAMIC_PARAMETERS_MASK & 2)
+		case 1:	return (Parameters.DynamicParameterValidMask & 2) != 0 ? Parameters.DynamicParameter1 : Default;
+	#endif
+	#if (DYNAMIC_PARAMETERS_MASK & 4)
+		case 2:	return (Parameters.DynamicParameterValidMask & 4) != 0 ? Parameters.DynamicParameter2 : Default;
+	#endif	
+	#if (DYNAMIC_PARAMETERS_MASK & 8)
+		case 3:	return (Parameters.DynamicParameterValidMask & 8) != 0 ? Parameters.DynamicParameter3 : Default;
+	#endif
+		default: return Default;
 	}
 #elif (PARTICLE_FACTORY)
 	return Parameters.DynamicParameter;
-#else
-	return Default;
 #endif
+	return Default;
+
 }
 
 /** 

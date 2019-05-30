@@ -1,16 +1,14 @@
 // Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
 
 #include "LC_CodeCave.h"
-#include "LC_VirtualMemory.h"
-#include "LC_Patch.h"
 #include "LC_Thread.h"
 
 
-CodeCave::CodeCave(process::Handle processHandle, unsigned int processId, unsigned int commandThreadId)
+CodeCave::CodeCave(process::Handle processHandle, unsigned int processId, unsigned int commandThreadId, const void* jumpToSelf)
 	: m_processHandle(processHandle)
 	, m_processId(processId)
 	, m_commandThreadId(commandThreadId)
-	, m_cave(nullptr)
+	, m_jumpToSelf(jumpToSelf)
 	, m_perThreadData()
 {
 	m_perThreadData.reserve(128u);
@@ -20,11 +18,6 @@ CodeCave::CodeCave(process::Handle processHandle, unsigned int processId, unsign
 void CodeCave::Install(void)
 {
 	process::Suspend(m_processHandle);
-
-	// prepare jump-to-self code cave
-	const uint32_t pageSize = virtualMemory::GetPageSize();
-	m_cave = virtualMemory::Allocate(m_processHandle, pageSize, virtualMemory::PageType::EXECUTE_READ_WRITE);
-	patch::InstallJumpToSelf(m_processHandle, m_cave);
 
 	// enumerate all threads of the process now that it's suspended
 	const std::vector<unsigned int>& threadIds = process::EnumerateThreads(m_processId);
@@ -52,7 +45,7 @@ void CodeCave::Install(void)
 		m_perThreadData[i].priority = thread::GetPriority(threadHandle);
 		m_perThreadData[i].originalIp = thread::ReadInstructionPointer(context);
 		thread::SetPriority(threadHandle, THREAD_PRIORITY_IDLE);
-		thread::WriteInstructionPointer(context, m_cave);
+		thread::WriteInstructionPointer(context, m_jumpToSelf);
 		thread::SetContext(threadHandle, context);
 		thread::Close(threadHandle);
 	}
@@ -84,7 +77,7 @@ void CodeCave::Uninstall(void)
 		// only set the original instruction pointer if the thread is really being held in the cave.
 		// in certain situations (e.g. after an exception), the debugger/OS already restored the context
 		// of all threads, and it would be fatal to interfere with this.
-		if (currentIp == m_cave)
+		if (currentIp == m_jumpToSelf)
 		{
 			thread::SetPriority(threadHandle, m_perThreadData[i].priority);
 			thread::WriteInstructionPointer(context, m_perThreadData[i].originalIp);
@@ -92,9 +85,6 @@ void CodeCave::Uninstall(void)
 		}
 		thread::Close(threadHandle);
 	}
-
-	// get rid of the code cave
-	virtualMemory::Free(m_processHandle, m_cave);
 
 	process::Resume(m_processHandle);
 }

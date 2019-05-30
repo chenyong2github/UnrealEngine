@@ -26,6 +26,7 @@
 #include "Misc/App.h"
 #include "Algo/AllOf.h"
 #include "Misc/App.h"
+#include "Misc/EmbeddedCommunication.h"
 #if USE_MUTE_SWITCH_DETECTION
 #include "SharkfoodMuteSwitchDetector.h"
 #include "SharkfoodMuteSwitchDetector.m"
@@ -273,6 +274,13 @@ static IOSAppDelegate* CachedDelegate = nil;
 		FIOSCoreDelegates::OnOpenURL.Broadcast(application, url, sourceApplication, annotation);
 	}
 	self.savedOpenUrlParameters = nil; // clear after saved openurl delegate running
+
+#if BUILD_EMBEDDED_APP
+	// tell the embedded app that the while 1 loop is going
+	FEmbeddedCallParamsHelper Helper;
+	Helper.Command = TEXT("engineisrunning");
+	FEmbeddedDelegates::GetEmbeddedToNativeParamsDelegateForSubsystem(TEXT("native")).Broadcast(Helper);
+#endif
 
 #if WITH_ACCESSIBILITY
 	// Initialize accessibility code if VoiceOver is enabled. This must happen after Slate has been initialized.

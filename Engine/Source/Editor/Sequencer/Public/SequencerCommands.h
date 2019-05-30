@@ -136,6 +136,9 @@ public:
 	/** Select all keys and sections that fall into the selection range*/
 	TSharedPtr< FUICommandInfo > SelectAllInSelectionRange;
 
+	/** Add selected actors to sequencer */
+	TSharedPtr< FUICommandInfo > AddActorsToSequencer;
+
 	/** Sets a key at the current time for the selected actor */
 	TSharedPtr< FUICommandInfo > SetKey;
 
@@ -339,10 +342,6 @@ public:
 
 	/** Toggle whether we should evaluate sub sequences in isolation */
 	TSharedPtr< FUICommandInfo > ToggleEvaluateSubSequencesInIsolation;
-
-	TSharedPtr<FUICommandInfo> SetAllCurveVisibility;
-	TSharedPtr<FUICommandInfo> SetSelectedCurveVisibility;
-	TSharedPtr<FUICommandInfo> SetAnimatedCurveVisibility;
 
 	/**
 	 * Initialize commands

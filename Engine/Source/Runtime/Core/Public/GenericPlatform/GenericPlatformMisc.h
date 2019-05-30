@@ -652,6 +652,12 @@ public:
 	 */
 	static void RequestExitWithStatus( bool Force, uint8 ReturnCode );
 
+
+	/**
+	 * Requests application to restart
+	 */
+	static bool RestartApplication();
+
 	/**
 	 * Returns the last system error code in string form.  NOTE: Only one return value is valid at a time!
 	 *

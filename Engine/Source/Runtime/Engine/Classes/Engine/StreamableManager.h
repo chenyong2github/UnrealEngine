@@ -333,6 +333,8 @@ struct ENGINE_API FStreamableManager : public FGCObject
 
 	/** Add referenced objects to stop them from GCing */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override { return TEXT("FStreamableManager"); }
+	virtual bool GetReferencerPropertyName(UObject* Object, FString& OutPropertyName) const override;
 
 	FStreamableManager();
 	~FStreamableManager();

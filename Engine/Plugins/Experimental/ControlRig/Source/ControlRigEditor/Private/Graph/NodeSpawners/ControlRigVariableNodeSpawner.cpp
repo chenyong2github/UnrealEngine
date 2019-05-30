@@ -10,8 +10,14 @@
 #include "EditorCategoryUtils.h"
 #include "K2Node_Variable.h"
 #include "BlueprintNodeTemplateCache.h"
+#include "ControlRigController.h"
+#include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintUtils.h"
 #include "Units/RigUnit.h"
+
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "ControlRigVariableNodeSpawner"
 
@@ -29,7 +35,8 @@ const TArray<FString> GControlRigVariableNodeSpawnerAllowedStructTypes = {
 	TEXT("FMatrix"),
 	TEXT("FRotationMatrix"),
 	TEXT("FScaleMatrix"),
-	TEXT("FTransform")
+	TEXT("FTransform"),
+	TEXT("FEulerTransform")
 };
 
 const TArray<FString> GControlRigVariableNodeSpawnerAllowedEnumTypes = {
@@ -76,8 +83,6 @@ UEdGraphNode* UControlRigVariableNodeSpawner::Invoke(UEdGraph* ParentGraph, FBin
 {
 	UControlRigGraphNode* NewNode = nullptr;
 
-//	const FScopedTransaction Transaction(LOCTEXT("AddRigPropertyNode", "Add Rig Property Node"));
-
 	bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph);
 
 	// First create a backing member for our node
@@ -85,16 +90,42 @@ UEdGraphNode* UControlRigVariableNodeSpawner::Invoke(UEdGraph* ParentGraph, FBin
 	FName MemberName = NAME_None;
 	if(!bIsTemplateNode)
 	{
-		MemberName = FControlRigBlueprintUtils::AddPropertyMember(Blueprint, EdGraphPinType, DefaultMenuSignature.MenuName.ToString());
+#if WITH_EDITOR
+		if (GEditor)
+		{
+			GEditor->CancelTransaction(0);
+		}
+#endif
+
+		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint))
+		{
+			FName DataType = EdGraphPinType.PinCategory;
+			if (UStruct* Struct = Cast<UStruct>(EdGraphPinType.PinSubCategoryObject))
+			{
+				DataType = Struct->GetFName();
+			}
+
+			FName Name = FControlRigBlueprintUtils::ValidateName(RigBlueprint, DefaultMenuSignature.MenuName.ToString());
+			if (RigBlueprint->ModelController->AddParameter(*Name.ToString(), DataType, EControlRigModelParameterType::Hidden, Location))
+			{
+				MemberName = RigBlueprint->LastNameFromNotification;
+				for (UEdGraphNode* Node : ParentGraph->Nodes)
+				{
+					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+					{
+						if (RigNode->GetPropertyName() == MemberName)
+						{
+							NewNode = RigNode;
+							break;
+						}
+					}
+				}
+			}
+		}
 	}
 	else
 	{
-		MemberName = FControlRigBlueprintUtils::GetNewPropertyMemberName(Blueprint, DefaultMenuSignature.MenuName.ToString());
-	}
-
-	if(MemberName != NAME_None)
-	{
-		NewNode = FControlRigBlueprintUtils::InstantiateGraphNodeForProperty(ParentGraph, MemberName, Location, EdGraphPinType);
+		NewNode = FControlRigBlueprintUtils::InstantiateGraphNodeForProperty(ParentGraph, *DefaultMenuSignature.MenuName.ToString(), Location, EdGraphPinType);
 	}
 
 	return NewNode;

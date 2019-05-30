@@ -88,6 +88,16 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 		]
 	];
 
+	TSharedRef<IPropertyHandle> PropertyHandle_CanHaveLayersContent = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, bCanHaveLayersContent));
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		NewLandscapeCategory.AddProperty(PropertyHandle_CanHaveLayersContent);
+	}
+	else
+	{
+		DetailBuilder.HideProperty(PropertyHandle_CanHaveLayersContent);
+	}
+
 	TSharedRef<IPropertyHandle> PropertyHandle_HeightmapFilename = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ImportLandscape_HeightmapFilename));
 	TSharedRef<IPropertyHandle> PropertyHandle_HeightmapImportResult = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ImportLandscape_HeightmapImportResult));
 	TSharedRef<IPropertyHandle> PropertyHandle_HeightmapErrorMessage = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ImportLandscape_HeightmapErrorMessage));
@@ -819,6 +829,7 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		const FVector Offset = FTransform(UISettings->NewLandscape_Rotation, FVector::ZeroVector, UISettings->NewLandscape_Scale).TransformVector(FVector(-ComponentCountX * QuadsPerComponent / 2, -ComponentCountY * QuadsPerComponent / 2, 0));
 		
 		ALandscape* Landscape = LandscapeEdMode->GetWorld()->SpawnActor<ALandscape>(UISettings->NewLandscape_Location + Offset, UISettings->NewLandscape_Rotation);
+		Landscape->bCanHaveLayersContent = UISettings->bCanHaveLayersContent;
 		Landscape->LandscapeMaterial = UISettings->NewLandscape_Material.Get();
 		Landscape->SetActorRelativeScale3D(UISettings->NewLandscape_Scale);
 
@@ -866,7 +877,7 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		}
 
 		LandscapeEdMode->UpdateLandscapeList();
-		LandscapeEdMode->CurrentToolTarget.LandscapeInfo = LandscapeInfo;
+		LandscapeEdMode->SetLandscapeInfo(LandscapeInfo);
 		LandscapeEdMode->CurrentToolTarget.TargetType = ELandscapeToolTargetType::Heightmap;
 		LandscapeEdMode->CurrentToolTarget.LayerInfo = nullptr;
 		LandscapeEdMode->CurrentToolTarget.LayerName = NAME_None;

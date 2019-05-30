@@ -25,15 +25,17 @@ public:
 	 * @param Body The more detailed description of the notification
 	 * @param Action The text to be displayed on the slider controller
 	 * @param ActivationEvent A string that is passed in the delegate callback when the app is brought into the foreground from the user activating the notification
+	 * @return A unique identifier used to cancel the notification
 	*/
-	virtual void ScheduleLocalNotificationAtTime(const FDateTime& FireDateTime, bool LocalTime, const FText& Title, const FText& Body, const FText& Action, const FString& ActivationEvent) = 0;
+	virtual int32 ScheduleLocalNotificationAtTime(const FDateTime& FireDateTime, bool LocalTime, const FText& Title, const FText& Body, const FText& Action, const FString& ActivationEvent) = 0;
 
 	/** Schedule a local notification badge at a specific time, inLocalTime specifies the current local time or if UTC time should be used
 	 * @param FireDateTime The time at which to fire the local notification
 	 * @param LocalTime If true the provided time is in the local timezone, if false it is in UTC
 	 * @param ActivationEvent A string that is passed in the delegate callback when the app is brought into the foreground from the user activating the notification
+	 * @return A unique identifier used to cancel the notification
 	*/
-	virtual void ScheduleLocalNotificationBadgeAtTime(const FDateTime& FireDateTime, bool LocalTime, const FString& ActivationEvent) = 0;
+	virtual int32 ScheduleLocalNotificationBadgeAtTime(const FDateTime& FireDateTime, bool LocalTime, const FString& ActivationEvent) = 0;
 
 	/** Get the local notification that was used to launch the app
 	 * @param NotificationLaunchedApp Return true if a notification was used to launch the app
@@ -46,6 +48,11 @@ public:
 	 * @param ActivationEvent The string passed into the Schedule call for the notification to be cancelled
 	*/
 	virtual void CancelLocalNotification(const FString& ActivationEvent) = 0;
+
+	/** Cancel a local notification given the ActivationEvent
+	 * @param NotificationId The Id returned from ScheduleLocalNotificationAtTime*
+	 */
+	virtual void CancelLocalNotification(int32 NotificationId) = 0;
 
 
 	/** Set the local notification that was used to launch the app

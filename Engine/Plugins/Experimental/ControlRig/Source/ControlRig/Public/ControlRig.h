@@ -17,8 +17,9 @@
 #include "ControlRig.generated.h"
 
 class IControlRigObjectBinding;
-struct FRigUnit;
 class UScriptStruct;
+struct FRigUnit;
+struct FControlRigIOVariable;
 
 /** Delegate used to optionally gather inputs before evaluating a ControlRig */
 DECLARE_DELEGATE_OneParam(FPreEvaluateGatherInput, UControlRig*);
@@ -50,6 +51,10 @@ public:
 	static const FName NodeColorMetaName;
 	static const FName KeywordsMetaName;
 	static const FName PrototypeNameMetaName;
+	static const FName AnimationInputMetaName;
+	static const FName AnimationOutputMetaName;
+	static const FName ExpandPinByDefaultMetaName;
+	static const FName DefaultArraySizeMetaName;
 
 private:
 	/** Current delta time */
@@ -132,6 +137,31 @@ public:
 		OnPostEvaluateQueryOutput.Unbind();
 	}
 
+	/* 
+	 * Query input output variables
+	 *
+	 * @param bInput - True if it's input. False if you want to query Output
+	 * @param OutVars - Output array of variables
+	 */
+	void QueryIOVariables(bool bInput, TArray<FControlRigIOVariable>& OutVars) const;
+	/*
+	 * Return true if the PropertyName is in IO
+	 *
+	 * @param bInput - True if it's input. False if you want to query Output
+	 * @return true if it's valid
+	 */
+	bool IsValidIOVariables(bool bInput, const FName& PropertyName) const;
+
+	/*
+	 * Get IO property path
+	 *
+	 * @param bInput - True if it's input. False if you want to query Output
+	 * @param InPropertyPath - Property path to query
+	 * @param OutCachedPath - output of cached path
+	 * @return true if succeed
+	 */
+	bool GetInOutPropertyPath(bool bInput, const FName& InPropertyPath, FCachedPropertyPath& OutCachedPath);
+
 #if WITH_EDITOR
 	// get class name of rig unit that is owned by this rig
 	FName GetRigClassNameFromRigUnit(const FRigUnit* InRigUnit) const;
@@ -192,6 +222,12 @@ private:
 	FControlRigLog* ControlRigLog;
 	bool bEnableControlRigLogging;
 #endif
+	// you either go Input or Output, currently if you put it in both place, Output will override
+	UPROPERTY()
+	TMap<FName, FCachedPropertyPath> InputProperties;
+
+	UPROPERTY()
+	TMap<FName, FCachedPropertyPath> OutputProperties;
 
 private:
 
@@ -230,14 +266,17 @@ private:
 
 	/** INodeMappingInterface implementation */
 	virtual void GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutNodeItems) const override;
+	
+	void ResolveInputOutputProperties();
 
 	friend class FControlRigBlueprintCompilerContext;
 	friend struct FRigHierarchyRef;
-	friend class FControlRigDetails;
 	friend class UControlRigEditorLibrary;
 	friend class URigUnitEditor_Base;
 	friend class FControlRigEditor;
 	friend class SRigHierarchy;
 	friend class UEngineTestControlRig;
-	friend class FControlRigEditMode;
+ 	friend class FControlRigEditMode;
+	friend class FControlRigIOHelper;
+	friend class UControlRigBlueprint;
 };

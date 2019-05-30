@@ -35,6 +35,8 @@
 #include "HierarchicalLOD.h"
 #include "IMeshMergeUtilities.h"
 #include "MeshMergeModule.h"
+#include "Settings/EditorExperimentalSettings.h"
+#include "Landscape.h"
 #endif 
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
@@ -686,7 +688,6 @@ void AWorldSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
-
 
 void UHierarchicalLODSetup::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {

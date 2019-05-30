@@ -29,6 +29,10 @@ class COREUOBJECT_API UGCObjectReferencer : public UObject
 	TArray<FGCObject*> ReferencedObjects;
 	/** Critical section used when adding and removing objects */
 	FCriticalSection ReferencedObjectsCritical;
+	/** True if we are currently inside AddReferencedObjects */
+	bool bIsAddingReferencedObjects = false;
+	/** Currently serializing FGCObject*, only valid if bIsAddingReferencedObjects */
+	FGCObject* CurrentlySerializingObject = nullptr;
 
 public:
 	DECLARE_CASTED_CLASS_INTRINSIC_WITH_API(UGCObjectReferencer, UObject, CLASS_Transient, TEXT("/Script/CoreUObject"), CASTCLASS_None, NO_API);
@@ -52,9 +56,10 @@ public:
 	 *
 	 * @param Object The object that we're looking for.
 	 * @param OutName the name of the FGCObject that reports this object.
+	 * @param bOnlyIfAddingReferenced Only try to find the name if we are currently inside AddReferencedObjects
 	 * @return true if the object was found.
 	 */
-	bool GetReferencerName(UObject* Object, FString& OutName) const;
+	bool GetReferencerName(UObject* Object, FString& OutName, bool bOnlyIfAddingReferenced = false) const;
 
 	/**
 	 * Forwards this call to all registered objects so they can reference
@@ -163,6 +168,14 @@ public:
 	virtual FString GetReferencerName() const
 	{
 		return "Unknown FGCObject";
+	}
+
+	/**
+	 * Use this method to report how the specified object is referenced, if necessary
+	 */
+	virtual bool GetReferencerPropertyName(UObject* Object, FString& OutPropertyName) const
+	{
+		return false;
 	}
 };
 

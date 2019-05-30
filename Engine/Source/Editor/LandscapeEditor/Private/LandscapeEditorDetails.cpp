@@ -21,7 +21,6 @@
 #include "LandscapeEditorCommands.h"
 #include "LandscapeEditorDetailWidgets.h"
 #include "LandscapeEditorDetailCustomization_LayersBrushStack.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "Landscape.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor"
@@ -53,7 +52,7 @@ void FLandscapeEditorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 			.Text_Static(&FLandscapeEditorDetails::GetTargetLandscapeName)
 		]
 	];
-
+		
 	FText Reason;
 	bool bDisabledEditing = LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid() && !LandscapeEdMode->CanEditCurrentTarget(&Reason);
 
@@ -134,7 +133,7 @@ void FLandscapeEditorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	Customization_AlphaBrush = MakeShareable(new FLandscapeEditorDetailCustomization_AlphaBrush);
 	Customization_AlphaBrush->CustomizeDetails(DetailBuilder);
 
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (LandscapeEdMode->CanHaveLandscapeLayersContent())
 	{
 		// Layers
 		Customization_Layers = MakeShareable(new FLandscapeEditorDetailCustomization_Layers);
@@ -155,6 +154,8 @@ FText FLandscapeEditorDetails::GetLocalizedName(FString Name)
 	static bool bInitialized = false;
 	if (!bInitialized)
 	{
+		FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+
 		bInitialized = true;
 		LOCTEXT("ToolSet_NewLandscape", "New Landscape");
 		LOCTEXT("ToolSet_ResizeLandscape", "Change Component Size");
@@ -170,7 +171,7 @@ FText FLandscapeEditorDetails::GetLocalizedName(FString Name)
 		LOCTEXT("ToolSet_Retopologize", "Retopologize");
 		LOCTEXT("ToolSet_Visibility", "Visibility");
 
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (LandscapeEdMode->CanHaveLandscapeLayersContent())
 		{
 			LOCTEXT("ToolSet_BPCustom", "Blueprint Custom");
 		}
@@ -319,7 +320,7 @@ TSharedRef<SWidget> FLandscapeEditorDetails::GetToolSelector()
 			MenuBuilder.BeginSection(NAME_None, LOCTEXT("SculptToolsTitle", "Sculpting Tools"));
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Sculpt"), NAME_None, LOCTEXT("Tool.Sculpt", "Sculpt"), LOCTEXT("Tool.Sculpt.Tooltip", "Sculpt height data.\nCtrl+Click to Raise, Ctrl+Shift+Click to lower"));
 			
-			if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (LandscapeEdMode->CanHaveLandscapeLayersContent())
 			{
 				MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Erase"), NAME_None, LOCTEXT("Tool.Erase", "Erase"), LOCTEXT("Tool.Erase.Tooltip", "Erase height data."));
 			}
@@ -333,7 +334,7 @@ TSharedRef<SWidget> FLandscapeEditorDetails::GetToolSelector()
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Retopologize"), NAME_None, LOCTEXT("Tool.Retopologize", "Retopologize"), LOCTEXT("Tool.Retopologize.Tooltip", "Automatically adjusts landscape vertices with an X/Y offset map to improve vertex density on cliffs, reducing texture stretching.\nNote: An X/Y offset map makes the landscape slower to render and paint on with other tools, so only use if needed"));
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Visibility"), NAME_None, LOCTEXT("Tool.Visibility", "Visibility"), LOCTEXT("Tool.Visibility.Tooltip", "Mask out individual quads in the landscape, leaving a hole."));
 
-			if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (LandscapeEdMode->CanHaveLandscapeLayersContent())
 			{
 				MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_BPCustom"), NAME_None, LOCTEXT("Tool.SculptBPCustom", "Blueprint Custom"), LOCTEXT("Tool.SculptBPCustom.Tooltip", "Custom sculpting tools created using Blueprint."));
 			}
@@ -355,7 +356,7 @@ TSharedRef<SWidget> FLandscapeEditorDetails::GetToolSelector()
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Flatten"), NAME_None, LOCTEXT("Tool.Flatten", "Flatten"), LOCTEXT("Tool.Flatten.Tooltip", "Flattens an area of heightmap or blend layer"));
 			MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_Noise"), NAME_None, LOCTEXT("Tool.Noise", "Noise"), LOCTEXT("Tool.Noise.Tooltip", "Adds noise to the heightmap or blend layer"));
 
-			if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (LandscapeEdMode->CanHaveLandscapeLayersContent())
 			{
 				MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_BPCustom"), NAME_None, LOCTEXT("Tool.PaintBPCustom", "Blueprint Custom"), LOCTEXT("Tool.PaintBPCustom.Tooltip", "Custom painting tools created using Blueprint."));
 			}

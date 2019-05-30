@@ -52,9 +52,14 @@
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_SetRelativeBoneTransform.h"
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_GetInitialBoneTransform.h"
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_AddBoneTransform.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
 #include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "ControlRigObjectVersion.h"
+#include "EdGraphUtilities.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "SNodePanel.h"
+#include "Kismet/Private/SMyBlueprint.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -71,8 +76,8 @@ namespace ControlRigEditorTabs
 
 FControlRigEditor::FControlRigEditor()
 	: ControlRig(nullptr)
-	, bSelecting(false)
 	, bControlRigEditorInitialized(false)
+	, bIsSelecting(false)
 {
 }
 
@@ -110,9 +115,11 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	PersonaToolkitArgs.OnPreviewSceneCreated = FOnPreviewSceneCreated::FDelegate::CreateSP(this, &FControlRigEditor::HandlePreviewSceneCreated);
 	PersonaToolkit = PersonaModule.CreatePersonaToolkit(InControlRigBlueprint, PersonaToolkitArgs);
 
+	// set delegate prior to setting mesh
+	// otherwise, you don't get delegate
+	PersonaToolkit->GetPreviewScene()->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &FControlRigEditor::HandlePreviewMeshChanged));
 	// Set a default preview mesh, if any
 	PersonaToolkit->SetPreviewMesh(InControlRigBlueprint->GetPreviewMesh(), false);
-	PersonaToolkit->GetPreviewScene()->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &FControlRigEditor::HandlePreviewMeshChanged));
 
 	Toolbox = SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
@@ -136,6 +143,8 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	TArray<UBlueprint*> ControlRigBlueprints;
 	ControlRigBlueprints.Add(InControlRigBlueprint);
 
+	InControlRigBlueprint->InitializeModel();
+
 	CommonInitialization(ControlRigBlueprints);
 
 	for (UBlueprint* Blueprint : ControlRigBlueprints)
@@ -148,6 +157,8 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 				continue;
 			}
 
+			RigGraph->Initialize(InControlRigBlueprint);
+
 			if (RigGraph->GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RemovalOfHierarchyRefPins)
 			{
 				// recompile in case this control rig requires a rebuild
@@ -155,7 +166,10 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 				Compile();
 			}
 		}
+
 	}
+
+	InControlRigBlueprint->OnModified().AddSP(this, &FControlRigEditor::HandleModelModified);
 
 	BindCommands();
 
@@ -174,9 +188,10 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 //	GetAssetEditorModeManager()->SetToolkitHost(GetToolkitHost());
 	GetAssetEditorModeManager()->SetDefaultMode(FControlRigEditorEditMode::ModeName);
 	GetAssetEditorModeManager()->ActivateMode(FControlRigEditorEditMode::ModeName);
-	GetEditMode().OnControlsSelected().AddSP(this, &FControlRigEditor::SetSelectedNodes);
 	GetEditMode().OnGetBoneTransform() = FOnGetBoneTransform::CreateSP(this, &FControlRigEditor::GetBoneTransform);
 	GetEditMode().OnSetBoneTransform() = FOnSetBoneTransform::CreateSP(this, &FControlRigEditor::SetBoneTransform);
+	InControlRigBlueprint->OnModified().AddSP(&GetEditMode(), &FControlRigEditMode::HandleModelModified);
+
 	UpdateControlRig();
 
 	// Post-layout initialization
@@ -190,6 +205,25 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 			{
 				OpenGraphAndBringToFront(Graph);
 				break;
+			}
+		}
+
+	}
+
+	if (InControlRigBlueprint)
+	{
+		if (UControlRigModel* Model = InControlRigBlueprint->Model)
+		{
+			if (Model->Nodes().Num() == 0)
+			{
+				if (UControlRigController* Controller = InControlRigBlueprint->ModelController)
+				{
+					Controller->AddNode(FRigUnit_BeginExecution::StaticStruct()->GetFName());
+				}
+			}
+			else
+			{
+				InControlRigBlueprint->RebuildGraphFromModel();
 			}
 		}
 	}
@@ -388,6 +422,190 @@ FLinearColor FControlRigEditor::GetWorldCentricTabColorScale() const
 	return FLinearColor( 0.5f, 0.25f, 0.35f, 0.5f );
 }
 
+void FControlRigEditor::DeleteSelectedNodes()
+{
+	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
+	if (RigBlueprint == nullptr)
+	{
+		return;
+	}
+
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	SetUISelectionState(NAME_None);
+
+	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+	{
+		if (UEdGraphNode* Node = Cast<UEdGraphNode>(*NodeIt))
+		{
+			if (Node->CanUserDeleteNode())
+			{
+				AnalyticsTrackNodeEvent(GetBlueprintObj(), Node, true);
+				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+				{
+					RigBlueprint->ModelController->RemoveNode(RigNode->PropertyName);
+				}
+				else
+				{
+					Node->GetGraph()->RemoveNode(Node);
+				}
+			}
+		}
+	}
+}
+
+void FControlRigEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const FVector2D& GraphLocation)
+{
+	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
+	if (RigBlueprint == nullptr)
+	{
+		return;
+	}
+
+	UControlRigGraph* TempGraph = NewObject<UControlRigGraph>(GetTransientPackage());
+	TempGraph->bIsTemporaryGraphForCopyPaste = true;
+	TempGraph->Schema = DestinationGraph->Schema;
+
+	// Grab the text to paste from the clipboard.
+	FString TextToImport;
+	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+
+	// Import the nodes
+	TSet<UEdGraphNode*> PastedNodes;
+	FEdGraphUtilities::ImportNodesFromText(TempGraph, TextToImport, PastedNodes);
+	if (PastedNodes.Num() == 0)
+	{
+		return;
+	}
+
+	FVector2D AvgNodePosition(0.0f, 0.0f);
+	for (TSet<UEdGraphNode*>::TIterator It(PastedNodes); It; ++It)
+	{
+		UEdGraphNode* Node = *It;
+		AvgNodePosition.X += Node->NodePosX;
+		AvgNodePosition.Y += Node->NodePosY;
+	}
+
+	float InvNumNodes = 1.0f / float(PastedNodes.Num());
+	AvgNodePosition.X *= InvNumNodes;
+	AvgNodePosition.Y *= InvNumNodes;
+
+	RigBlueprint->ModelController->OpenUndoBracket(TEXT("Pasted Nodes."));
+
+	TMap<FString, FString> NameMap;
+	for (TSet<UEdGraphNode*>::TIterator It(PastedNodes); It; ++It)
+	{
+		UEdGraphNode* Node = *It;
+		Node->NodePosX = (Node->NodePosX - AvgNodePosition.X) + GraphLocation.X;
+		Node->NodePosY = (Node->NodePosY - AvgNodePosition.Y) + GraphLocation.Y;
+		Node->SnapToGrid(SNodePanel::GetSnapGridSize());
+
+		UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
+		if (RigNode != nullptr)
+		{
+			FVector2D NodePosition = FVector2D(Node->NodePosX, Node->NodePosY);
+			UScriptStruct* ScriptStruct = RigNode->GetUnitScriptStruct();
+			bool bAddedNode = false;
+			if (ScriptStruct)
+			{
+				bAddedNode = RigBlueprint->ModelController->AddNode(ScriptStruct->GetFName(), NodePosition, RigNode->GetPropertyName());
+			}
+			else
+			{
+				FName DataType = RigNode->PinType.PinCategory;
+				if (UStruct* Struct = Cast<UStruct>(RigNode->PinType.PinSubCategoryObject))
+				{
+					DataType = Struct->GetFName();
+				}
+
+				bAddedNode = RigBlueprint->ModelController->AddParameter(RigNode->GetPropertyName(), DataType, EControlRigModelParameterType::Hidden, NodePosition);
+			}
+
+			if(bAddedNode && RigBlueprint->LastNameFromNotification != NAME_None)
+			{
+				FName AddedNodeName = RigBlueprint->LastNameFromNotification;
+				NameMap.Add(Node->GetName(), AddedNodeName.ToString());
+
+				for (UEdGraphPin* Pin : Node->Pins)
+				{
+					FString Left, Right;
+					RigBlueprint->Model->SplitPinPath(Pin->GetName(), Left, Right);
+					Left = *AddedNodeName.ToString();
+
+					if (Pin->PinType.ContainerType == EPinContainerType::Array)
+					{
+						RigBlueprint->ModelController->SetArrayPinSize(*Left, *Right, Pin->SubPins.Num());
+					}
+
+					if (RigNode->ExpandedPins.Contains(Pin->GetName()))
+					{
+						RigBlueprint->ModelController->ExpandPin(*Left, *Right, Pin->Direction == EGPD_Input, true);
+					}
+
+					if (Pin->Direction == EGPD_Input)
+					{
+						FString DefaultValue = Pin->DefaultValue;
+						if (DefaultValue.IsEmpty() && Pin->DefaultObject != nullptr)
+						{
+							DefaultValue = Pin->DefaultObject->GetPathName();
+						}
+						if (!DefaultValue.IsEmpty())
+						{
+							RigBlueprint->ModelController->SetPinDefaultValue(*Left, *Right, DefaultValue, false);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for (TSet<UEdGraphNode*>::TIterator It(PastedNodes); It; ++It)
+	{
+		UEdGraphNode* Node = *It;
+		UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
+		if (RigNode != nullptr)
+		{
+			for (UEdGraphPin* Pin : RigNode->Pins)
+			{
+				if (Pin->Direction == EGPD_Input)
+				{
+					continue;
+				}
+
+				for (UEdGraphPin* OtherPin : Pin->LinkedTo)
+				{
+					UControlRigGraphNode* OtherRigNode = Cast<UControlRigGraphNode>(OtherPin->GetOwningNode());
+					if (OtherRigNode)
+					{
+						FString* RemappedNodeName = NameMap.Find(RigNode->GetName());
+						FString* OtherRemappedNodeName = NameMap.Find(OtherRigNode->GetName());
+
+						if (RemappedNodeName != nullptr && OtherRemappedNodeName != nullptr)
+						{
+							FString PinPath = Pin->GetName();
+							if (PinPath.StartsWith(RigNode->GetPropertyName().ToString()))
+							{
+								PinPath = *RemappedNodeName + PinPath.RightChop(RigNode->GetPropertyName().ToString().Len());
+							}
+							FString OtherPinPath = OtherPin->GetName();
+							if (OtherPinPath.StartsWith(OtherRigNode->GetPropertyName().ToString()))
+							{
+								OtherPinPath = *OtherRemappedNodeName + OtherPinPath.RightChop(OtherRigNode->GetPropertyName().ToString().Len());
+							}
+
+							FString SourceLeft, SourceRight, TargetLeft, TargetRight;
+							RigBlueprint->Model->SplitPinPath(PinPath, SourceLeft, SourceRight);
+							RigBlueprint->Model->SplitPinPath(OtherPinPath, TargetLeft, TargetRight);
+							RigBlueprint->ModelController->MakeLink(*SourceLeft, *SourceRight, *TargetLeft, *TargetRight);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	RigBlueprint->ModelController->CloseUndoBracket();
+}
+
 void FControlRigEditor::OnToolkitHostingStarted(const TSharedRef<class IToolkit>& Toolkit)
 {
 	TSharedPtr<SWidget> InlineContent = Toolkit->GetInlineContent();
@@ -417,17 +635,15 @@ void FControlRigEditor::OnActiveTabChanged( TSharedPtr<SDockTab> PreviouslyActiv
 
 void FControlRigEditor::PostUndo(bool bSuccess)
 {
-	DocumentManager->CleanInvalidTabs();
-	DocumentManager->RefreshAllTabs();
-
-	OnHierarchyChanged();
+	//DocumentManager->CleanInvalidTabs();
+	//DocumentManager->RefreshAllTabs();
 
 	FBlueprintEditor::PostUndo(bSuccess);
 }
 
 void FControlRigEditor::PostRedo(bool bSuccess)
 {
-	DocumentManager->RefreshAllTabs();
+	//DocumentManager->RefreshAllTabs();
 
 	FBlueprintEditor::PostRedo(bSuccess);
 }
@@ -447,6 +663,22 @@ void FControlRigEditor::CreateDefaultTabContents(const TArray<UBlueprint*>& InBl
 	FBlueprintEditor::CreateDefaultTabContents(InBlueprints);
 }
 
+bool FControlRigEditor::IsSectionVisible(NodeSectionID::Type InSectionID) const
+{
+	switch (InSectionID)
+	{
+		case NodeSectionID::GRAPH:
+		{
+			return true;
+		}
+		default:
+		{
+			break;
+		}
+	}
+	return false;
+}
+
 FGraphAppearanceInfo FControlRigEditor::GetGraphAppearance(UEdGraph* InGraph) const
 {
 	FGraphAppearanceInfo AppearanceInfo = FBlueprintEditor::GetGraphAppearance(InGraph);
@@ -462,6 +694,59 @@ FGraphAppearanceInfo FControlRigEditor::GetGraphAppearance(UEdGraph* InGraph) co
 void FControlRigEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
 {
 	FBlueprintEditor::NotifyPostChange(PropertyChangedEvent, PropertyThatChanged);
+}
+
+void FControlRigEditor::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
+{
+	switch (InType)
+	{
+		case EControlRigModelNotifType::NodeSelected:
+		case EControlRigModelNotifType::NodeDeselected:
+		{
+			const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload;
+			if (Node != nullptr)
+			{
+				if (!bIsSelecting)
+				{
+					TGuardValue<bool> SelectingGuard(bIsSelecting, true);
+					if (FocusedGraphEdPtr.IsValid())
+					{
+						TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+						UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FocusedGraphEd->GetCurrentGraph());
+						if (RigGraph != nullptr)
+						{
+							UControlRigGraphNode* RigNode = RigGraph->FindNodeFromPropertyName(Node->Name);
+							if (RigNode != nullptr)
+							{
+								FocusedGraphEd->SetNodeSelection(RigNode, InType == EControlRigModelNotifType::NodeSelected);
+							}
+						}
+					}
+					break;
+				}
+
+				if (InType == EControlRigModelNotifType::NodeSelected)
+				{
+					UClass* Class = GetBlueprintObj()->GeneratedClass.Get();
+					if (Class)
+					{
+						UProperty* Property = Class->FindPropertyByName(Node->Name);
+						if (Property)
+						{
+							TSet<class UObject*> SelectedObjects;
+							SelectedObjects.Add(Property);
+							FBlueprintEditor::OnSelectedNodesChangedImpl(SelectedObjects);
+						}
+					}
+				}
+			}
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
 }
 
 void FControlRigEditor::Tick(float DeltaTime)
@@ -488,101 +773,34 @@ TStatId FControlRigEditor::GetStatId() const
 
 void FControlRigEditor::OnSelectedNodesChangedImpl(const TSet<class UObject*>& NewSelection)
 {
-	if(!bSelecting)
+	if (bIsSelecting)
 	{
-		TGuardValue<bool> GuardValue(bSelecting, true);
-		// Substitute any control rig nodes for their properties, so we display details for them instead
-		TSet<class UObject*> SelectedObjects;
-		TArray<FString> PropertyPathStrings;
-		for(UObject* Object : NewSelection)
-		{
-			UClass* ClassUsed = nullptr;
-			UClass* Class = GetBlueprintObj()->GeneratedClass.Get();
-			UClass* SkeletonClass = GetBlueprintObj()->SkeletonGeneratedClass.Get();
-			UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(Object);
-			if(ControlRigGraphNode)
-			{
-				UProperty* Property = nullptr;
-
-				if(Class && ControlRigGraphNode)
-				{
-					Property = Class->FindPropertyByName(ControlRigGraphNode->GetPropertyName());
-					ClassUsed = Class;
-				}
-
-				if(Property == nullptr)
-				{
-					if(SkeletonClass && ControlRigGraphNode)
-					{
-						Property = SkeletonClass->FindPropertyByName(ControlRigGraphNode->GetPropertyName());
-						ClassUsed = SkeletonClass;
-					}
-				}
-
-				if(Property)
-				{
-					SelectedObjects.Add(Property);
-
-					check(ClassUsed);
-
-					// @TODO: if we ever want to support sub-graphs, we will need a full property path here
-					PropertyPathStrings.Add(Property->GetName());
-				}
-			}
-			else
-			{
-				SelectedObjects.Add(Object);
-			}
-		}
-
-		OnGraphNodeSelectionChangedDelegate.Broadcast(NewSelection);
-
-		// Let the edit mode know about selection
-		FControlRigEditMode& EditMode = GetEditMode();
-		EditMode.ClearControlSelection();
-		EditMode.SetControlSelection(PropertyPathStrings, true);
-
-		FBlueprintEditor::OnSelectedNodesChangedImpl(SelectedObjects);
+		return;
 	}
-}
 
-void FControlRigEditor::SetSelectedNodes(const TArray<FString>& InSelectedPropertyPaths)
-{
-	if(!bSelecting)
+	TGuardValue<bool> SelectingGuard(bIsSelecting, true);
+
+	TArray<UControlRigGraphNode*> SelectedNodes;
+	for(UObject* Object : NewSelection)
 	{
-		TGuardValue<bool> GuardValue(bSelecting, true);
-
-		UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj());
-		if(UEdGraph* Graph = GetFocusedGraph())
+		UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(Object);
+		if(ControlRigGraphNode)
 		{
-			TSet<const UEdGraphNode*> Nodes;
-			TSet<UObject*> Objects;
+			SelectedNodes.Add(ControlRigGraphNode);
+		}
+	}
 
-			for(UEdGraphNode* GraphNode : Graph->Nodes)
+	UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj());
+	if (ControlRigBlueprint)
+	{
+		if (ControlRigBlueprint->ModelController)
+		{
+			TArray<FName> NodeNamesToSelect;
+			for (UControlRigGraphNode* SelectedNode : SelectedNodes)
 			{
-				if(UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
-				{
-					for(const FString& SelectedPropertyPath : InSelectedPropertyPaths)
-					{
-						if(ControlRigGraphNode->GetPropertyName().ToString() == SelectedPropertyPath)
-						{
-							Nodes.Add(GraphNode);
-							Objects.Add(GraphNode);
-							break;
-						}
-					}
-				}
+				NodeNamesToSelect.Add(SelectedNode->GetPropertyName());
 			}
-
-			FocusedGraphEdPtr.Pin()->ClearSelectionSet();
-			Graph->SelectNodeSet(Nodes);
-
-			OnGraphNodeSelectionChangedDelegate.Broadcast(Objects);
-
-			// Let the edit mode know about selection
-			FControlRigEditMode& EditMode = GetEditMode();
-			EditMode.ClearControlSelection();
-			EditMode.SetControlSelection(InSelectedPropertyPaths, true);
+			ControlRigBlueprint->ModelController->SetSelection(NodeNamesToSelect);
 		}
 	}
 }
@@ -630,6 +848,30 @@ void FControlRigEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIs
 		}
 
 		OnSelectedNodesChangedImpl(GetSelectedNodes());
+
+		UClass* Class = GetBlueprintObj()->GeneratedClass.Get();
+		if (Class)
+		{
+			TSet<class UObject*> SelectedObjects;
+			FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+			for (UObject* SelecteNode : SelectedNodes)
+			{
+				UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(SelecteNode);
+				if (RigNode == nullptr)
+				{
+					continue;
+				}
+				UProperty* Property = Class->FindPropertyByName(RigNode->GetPropertyName());
+				if (Property)
+				{
+					SelectedObjects.Add(Property);
+				}
+			}
+			if (SelectedObjects.Num() > 0)
+			{
+				FBlueprintEditor::OnSelectedNodesChangedImpl(SelectedObjects);
+			}
+		}
 	}
 }
 
@@ -1260,43 +1502,46 @@ void FControlRigEditor::HandleMakeBoneGetterSetter(EBoneGetterSetterType Type, b
 		return;
 	}
 
-	UControlRigUnitNodeSpawner* Spawner = NewObject<UControlRigUnitNodeSpawner>(GetTransientPackage());
-	Spawner->StructTemplate = StructTemplate;
-	Spawner->NodeClass = UControlRigGraphNode::StaticClass();
-	IBlueprintNodeBinder::FBindingSet Bindings;
+	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
+	if (Blueprint == nullptr)
+	{
+		return;
+	}
+	if (Blueprint->ModelController == nullptr)
+	{
+		return;
+	}
 
-	const FScopedTransaction Transaction(LOCTEXT("DroppedHierarchyItems", "Add Rig Units from Drag & Drop"));
+	Blueprint->ModelController->OpenUndoBracket(TEXT("Adding Nodes from Hierarchy"));
 
-	TSet<const UEdGraphNode*> NewNodes;
+	TArray<FName> NewNodeNames;
 	for (const FName& BoneName : BoneNames)
 	{
-		const TCHAR* BoneNameSuffix = TEXT(".Bone");
 		FVector2D NodePositionIncrement(0.f, 120.f);
 		if(!bIsGetter)
 		{
 			NodePositionIncrement = FVector2D(380.f, 0.f);
 		}
 
-		UControlRigGraphNode* Node = Cast<UControlRigGraphNode>(Spawner->Invoke(Graph, Bindings, NodePosition));
-		if (Node != nullptr)
+		FName Name = FControlRigBlueprintUtils::ValidateName(Blueprint, StructTemplate->GetName());
+		if (Blueprint->ModelController->AddNode(StructTemplate->GetFName(), NodePosition, Name))
 		{
-			NewNodes.Add(Node);
-
-			for (UEdGraphPin* Pin : Node->Pins)
+			const FControlRigModelNode* Node = Blueprint->Model->FindNode(Blueprint->LastNameFromNotification);
+			if (Node)
 			{
-				if (Pin->GetName().EndsWith(BoneNameSuffix))
-				{
-					Pin->DefaultValue = BoneName.ToString();
-				}
+				NewNodeNames.Add(Node->Name);
+				Blueprint->ModelController->SetPinDefaultValueName(Node->Name, TEXT("Bone"), BoneName, true);
 			}
 		}
 
 		NodePosition += NodePositionIncrement;
 	}
 
-	if (NewNodes.Num() > 0)
+	Blueprint->ModelController->CloseUndoBracket();
+
+	if (NewNodeNames.Num() > 0)
 	{
-		Graph->SelectNodeSet(NewNodes);
+		Blueprint->ModelController->SetSelection(NewNodeNames);
 	}
 }
 
@@ -1421,6 +1666,7 @@ void FControlRigEditor::UpdateGraphCompilerErrors()
 
 void FControlRigEditor::DumpUnitTestCode()
 {
+	/*
 	if (UEdGraph* Graph = GetFocusedGraph())
 	{
 		TArray<FString> Code;
@@ -1525,6 +1771,7 @@ void FControlRigEditor::DumpUnitTestCode()
 
 		UE_LOG(LogControlRigEditor, Display, TEXT("\n%s\n"), *FString::Join(Code, TEXT("\n")));
 	}
+	*/
 }
 
 #undef LOCTEXT_NAMESPACE

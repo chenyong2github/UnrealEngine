@@ -5,11 +5,11 @@
  */
 
 // Whether to fetch primitive values (eg LocalToWorld) by dynamically indexing a scene-wide buffer, or to reference a single Primitive uniform buffer
-#define VF_USE_PRIMITIVE_SCENE_DATA (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && VF_SUPPORTS_PRIMITIVE_SCENE_DATA)
+#define VF_USE_PRIMITIVE_SCENE_DATA ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && VF_SUPPORTS_PRIMITIVE_SCENE_DATA)
 
 #if VF_USE_PRIMITIVE_SCENE_DATA
 
-#define NUM_CUSTOM_PRIMITIVE_DATA 4 // Num float4s used for custom data. Must match FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s in SceneTypes.h
+#define NUM_CUSTOM_PRIMITIVE_DATA 8 // Num float4s used for custom data. Must match FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s in SceneTypes.h
 
 // Must match FPrimitiveUniformShaderParameters in C++
 struct FPrimitiveSceneData
@@ -34,15 +34,15 @@ struct FPrimitiveSceneData
 	uint LightingChannelMask;
 	float3 LocalObjectBoundsMax;
 	uint LightmapDataIndex;
-	float3 PreSkinnedLocalBounds;
+	float3 PreSkinnedLocalBoundsMin;
 	int SingleCaptureIndex;
+	float3 PreSkinnedLocalBoundsMax;
     uint OutputVelocity;
-	// <-- 12 byte padding here, feel free to use -->
 	float4 CustomPrimitiveData[NUM_CUSTOM_PRIMITIVE_DATA];
 };
 
 // Stride of a single primitive's data in float4's, must match C++
-#define PRIMITIVE_SCENE_DATA_STRIDE 31
+#define PRIMITIVE_SCENE_DATA_STRIDE 35
 
 // Fetch from scene primitive buffer
 FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId) 
@@ -95,10 +95,11 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.LocalObjectBoundsMax = View.PrimitiveSceneData[PrimitiveBaseOffset + 24].xyz;
 	PrimitiveData.LightmapDataIndex = asuint(View.PrimitiveSceneData[PrimitiveBaseOffset + 24].w);
 
-	PrimitiveData.PreSkinnedLocalBounds = View.PrimitiveSceneData[PrimitiveBaseOffset + 25].xyz;
+	PrimitiveData.PreSkinnedLocalBoundsMin = View.PrimitiveSceneData[PrimitiveBaseOffset + 25].xyz;
 	PrimitiveData.SingleCaptureIndex = View.PrimitiveSceneData[PrimitiveBaseOffset + 25].w;
 
-	PrimitiveData.OutputVelocity = asuint(View.PrimitiveSceneData[PrimitiveBaseOffset + 26].x);
+	PrimitiveData.PreSkinnedLocalBoundsMax = View.PrimitiveSceneData[PrimitiveBaseOffset + 26].xyz;
+	PrimitiveData.OutputVelocity = asuint(View.PrimitiveSceneData[PrimitiveBaseOffset + 26].w);
 
 	UNROLL
 	for (int i = 0; i < NUM_CUSTOM_PRIMITIVE_DATA; i++)

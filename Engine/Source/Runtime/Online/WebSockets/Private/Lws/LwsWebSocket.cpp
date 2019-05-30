@@ -10,6 +10,7 @@
 #if WITH_SSL
 #include "Ssl.h"
 #endif
+#include "Misc/EmbeddedCommunication.h"
 #include "Misc/ScopeLock.h"
 #include "HttpModule.h"
 #include "HttpManager.h"
@@ -272,19 +273,26 @@ int FLwsWebSocket::LwsCallback(lws* Instance, lws_callback_reasons Reason, void*
 	{
 		const SIZE_T BytesLeft = lws_remaining_packet_payload(Instance);
 		UE_LOG(LogWebSockets, VeryVerbose, TEXT("FLwsWebSocket[%d]::LwsCallback: Received LWS_CALLBACK_CLIENT_RECEIVE Length=%d BytesLeft=%d"), Identifier, Length, BytesLeft);
+		bool bWakeGameThread = false;
 		if (bWantsMessageEvents)
 		{
 			FUTF8ToTCHAR Convert((const ANSICHAR*)Data, Length);
 			ReceiveBuffer.Append(Convert.Get(), Convert.Length());
 			if (BytesLeft == 0)
 			{
+				bWakeGameThread = true;
 				ReceiveTextQueue.Enqueue(MakeUnique<FLwsReceiveBufferText>(MoveTemp(ReceiveBuffer)));
 				ReceiveBuffer.Empty();
 			}
 		}
 		if (bWantsRawMessageEvents)
 		{
+			bWakeGameThread = true;
 			ReceiveBinaryQueue.Enqueue(MakeUnique<FLwsReceiveBufferBinary>(static_cast<const uint8*>(Data), Length, BytesLeft));
+		}
+		if (bWakeGameThread)
+		{
+			FEmbeddedCommunication::WakeGameThread();
 		}
 		break;
 	}
@@ -321,6 +329,7 @@ int FLwsWebSocket::LwsCallback(lws* Instance, lws_callback_reasons Reason, void*
 				ClosedReason.CloseStatus = CloseStatus;
 				ClosedReason.bWasClean = true;
 			}
+			FEmbeddedCommunication::WakeGameThread();
 		}
 		else
 		{
@@ -342,23 +351,30 @@ int FLwsWebSocket::LwsCallback(lws* Instance, lws_callback_reasons Reason, void*
 				State = EState::Error;
 				ClosedReason.Reason = MoveTemp(CloseReasonString);
 			}
+			FEmbeddedCommunication::WakeGameThread();
 		}
 		else
 		{
 			if (State == EState::Connected)
 			{
-				FScopeLock ScopeLock(&StateLock);
-				State = EState::Closed;
-				ClosedReason.bWasClean = false;
-				ClosedReason.CloseStatus = LWS_CLOSE_STATUS_ABNORMAL_CLOSE;
+				{
+					FScopeLock ScopeLock(&StateLock);
+					State = EState::Closed;
+					ClosedReason.bWasClean = false;
+					ClosedReason.CloseStatus = LWS_CLOSE_STATUS_ABNORMAL_CLOSE;
+				}
+				FEmbeddedCommunication::WakeGameThread();
 			}
 			else if (State == EState::ClosingByRequest)
 			{
-				FScopeLock ScopeLock(&StateLock);
-				State = EState::Closed;
-				ClosedReason.Reason = TEXT("Successfully closed connection to our peer");
-				ClosedReason.CloseStatus = LWS_CLOSE_STATUS_NORMAL;
-				ClosedReason.bWasClean = true;
+				{
+					FScopeLock ScopeLock(&StateLock);
+					State = EState::Closed;
+					ClosedReason.Reason = TEXT("Successfully closed connection to our peer");
+					ClosedReason.CloseStatus = LWS_CLOSE_STATUS_NORMAL;
+					ClosedReason.bWasClean = true;
+				}
+				FEmbeddedCommunication::WakeGameThread();
 			}
 			UE_LOG(LogWebSockets, Verbose, TEXT("FLwsWebSocket[%d]::LwsCallback: Received LWS_CALLBACK_WSI_DESTROY, State=%s"), Identifier, ToString(State));
 		}
@@ -385,6 +401,7 @@ int FLwsWebSocket::LwsCallback(lws* Instance, lws_callback_reasons Reason, void*
 				ClosedReason.CloseStatus = LWS_CLOSE_STATUS_NORMAL;
 				ClosedReason.bWasClean = bClosingByRequest;
 			}
+			FEmbeddedCommunication::WakeGameThread();
 		}
 		else
 		{
@@ -399,6 +416,7 @@ int FLwsWebSocket::LwsCallback(lws* Instance, lws_callback_reasons Reason, void*
 
 		FUTF8ToTCHAR Convert((const ANSICHAR*)Data, Length);
 		FString CloseReasonString(Convert.Length(), Convert.Get());
+		bool bWakeGameThread = false;
 		UE_LOG(LogWebSockets, Verbose, TEXT("FLwsWebSocket[%d]::LwsCallback: Received LWS_CALLBACK_CLIENT_CONNECTION_ERROR, setting State=%s CloseReason=%s PreviousState=%s"),
 			Identifier, ToString(EState::Error), *CloseReasonString, ToString(State));
 		{
@@ -409,13 +427,20 @@ int FLwsWebSocket::LwsCallback(lws* Instance, lws_callback_reasons Reason, void*
 				State = EState::Closed;
 				ClosedReason.bWasClean = false;
 				ClosedReason.CloseStatus = LWS_CLOSE_STATUS_ABNORMAL_CLOSE;
+				bWakeGameThread = true;
 			}
 			else if (State != EState::Closed)
 			{
 				State = EState::Error;
+				bWakeGameThread = true;
 			}
 			ClosedReason.Reason = MoveTemp(CloseReasonString);
 		}
+		if (bWakeGameThread)
+		{
+			FEmbeddedCommunication::WakeGameThread();
+		}
+
 		return -1;
 	}
 	case LWS_CALLBACK_RECEIVE_PONG:
@@ -476,6 +501,7 @@ int FLwsWebSocket::LwsCallback(lws* Instance, lws_callback_reasons Reason, void*
 	default:
 		break;
 	}
+
 	return 0;
 }
 

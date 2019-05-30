@@ -3,6 +3,9 @@
 #include "PyReferenceCollector.h"
 #include "PyWrapperTypeRegistry.h"
 #include "PyWrapperBase.h"
+#include "PyWrapperObject.h"
+#include "PyWrapperStruct.h"
+#include "PyWrapperEnum.h"
 #include "PyWrapperDelegate.h"
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectHash.h"
@@ -55,19 +58,118 @@ void FPyReferenceCollector::PurgeUnrealObjectReferences(const TArrayView<const U
 
 		if (bIncludeInnerObjects)
 		{
-			TArray<UObject*> InnerObjects;
-			GetObjectsWithOuter(Object, InnerObjects, true);
-
-			for (const UObject* InnerObject : InnerObjects)
+			ForEachObjectWithOuter(Object, [&PurgingReferenceCollector](UObject* InnerObject)
 			{
 				PurgingReferenceCollector.AddObjectToPurge(InnerObject);
-			}
+			}, true);
 		}
 	}
 
 	if (PurgingReferenceCollector.HasObjectToPurge())
 	{
 		AddReferencedObjects(PurgingReferenceCollector);
+	}
+}
+
+void FPyReferenceCollector::PurgeUnrealGeneratedTypes()
+{
+	FPurgingReferenceCollector PurgingReferenceCollector;
+	TArray<FWeakObjectPtr> WeakReferencesToPurgedObjects;
+
+	auto FlagObjectForPurge = [&PurgingReferenceCollector, &WeakReferencesToPurgedObjects](UObject* InObject, const bool bMarkPendingKill)
+	{
+		check(!InObject->HasAnyInternalFlags(EInternalObjectFlags::Native));
+
+		if (InObject->IsRooted())
+		{
+			InObject->RemoveFromRoot();
+		}
+		InObject->ClearFlags(RF_Public | RF_Standalone);
+
+		if (!InObject->HasAnyFlags(RF_ClassDefaultObject))
+		{
+			if (bMarkPendingKill)
+			{
+				InObject->MarkPendingKill();
+			}
+			WeakReferencesToPurgedObjects.Add(InObject);
+		}
+
+		PurgingReferenceCollector.AddObjectToPurge(InObject);
+	};
+
+	// Clean-up Python generated class types and instances
+	// The class types are instances of UPythonGeneratedClass
+	{
+		ForEachObjectOfClass(UPythonGeneratedClass::StaticClass(), [&FlagObjectForPurge](UObject* InObject)
+		{
+			FlagObjectForPurge(InObject, /*bMarkPendingKill*/false);
+
+			UPythonGeneratedClass* PythonGeneratedClass = CastChecked<UPythonGeneratedClass>(InObject);
+			ForEachObjectOfClass(PythonGeneratedClass, [&FlagObjectForPurge](UObject* InInnerObject)
+			{
+				FlagObjectForPurge(InInnerObject, /*bMarkPendingKill*/true);
+			}, false, RF_NoFlags, EInternalObjectFlags::Native);
+		}, false, RF_ClassDefaultObject, EInternalObjectFlags::Native);
+	}
+
+	// Clean-up Python generated struct types
+	// The struct types are instances of UPythonGeneratedStruct
+	{
+		ForEachObjectOfClass(UPythonGeneratedStruct::StaticClass(), [&FlagObjectForPurge](UObject* InObject)
+		{
+			FlagObjectForPurge(InObject, /*bMarkPendingKill*/false);
+		}, false, RF_ClassDefaultObject, EInternalObjectFlags::Native);
+	}
+
+	// Clean-up Python generated enum types
+	// The enum types are instances of UPythonGeneratedEnum
+	{
+		ForEachObjectOfClass(UPythonGeneratedEnum::StaticClass(), [&FlagObjectForPurge](UObject* InObject)
+		{
+			FlagObjectForPurge(InObject, /*bMarkPendingKill*/false);
+		}, false, RF_ClassDefaultObject, EInternalObjectFlags::Native);
+	}
+
+	// Clean-up Python callable types and instances
+	// The callable types all derive directly from UPythonCallableForDelegate
+	{
+		TArray<UClass*> PythonCallableClasses;
+		GetDerivedClasses(UPythonCallableForDelegate::StaticClass(), PythonCallableClasses, true);
+
+		for (UClass* PythonCallableClass : PythonCallableClasses)
+		{
+			// The classes themselves don't hold Python resources, so it's not imperative that 
+			// they are destroyed, but we don't need them anymore so attempt to let them die
+			PythonCallableClass->ClearFlags(RF_Public | RF_Standalone);
+
+			ForEachObjectOfClass(PythonCallableClass, [&FlagObjectForPurge](UObject* InObject)
+			{
+				FlagObjectForPurge(InObject, /*bMarkPendingKill*/true);
+			}, false, RF_NoFlags, EInternalObjectFlags::Native);
+		}
+	}
+
+	if (PurgingReferenceCollector.HasObjectToPurge())
+	{
+		AddReferencedObjects(PurgingReferenceCollector);
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+
+		for (const FWeakObjectPtr& WeakReferencesToPurgedObject : WeakReferencesToPurgedObjects)
+		{
+			if (UObject* FailedToPurgeObject = WeakReferencesToPurgedObject.Get())
+			{
+				if (IPythonResourceOwner* PythonResourceOwner = Cast<IPythonResourceOwner>(FailedToPurgeObject))
+				{
+					UE_LOG(LogPython, Display, TEXT("Object '%s' was externally referenced when shutting down Python. Forcibly releasing its Python resources!"), *FailedToPurgeObject->GetPathName());
+					PythonResourceOwner->ReleasePythonResources();
+				}
+				else
+				{
+					UE_LOG(LogPython, Warning, TEXT("Object '%s' was externally referenced when shutting down Python and could not gracefully cleaned-up. This may lead to crashes!"), *FailedToPurgeObject->GetPathName());
+				}
+			}
+		}
 	}
 }
 

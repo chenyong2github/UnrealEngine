@@ -23,7 +23,7 @@
 #endif
 // When enabled, the heart beat thread will call abort() when a hang
 // is detected, rather than performing stack back-traces and logging.
-#define MINIMAL_FATAL_HANG_DETECTION	((PLATFORM_PS4 || PLATFORM_XBOXONE || PLATFORM_SWITCH) && 1)
+#define MINIMAL_FATAL_HANG_DETECTION	(PLATFORM_USE_MINIMAL_HANG_DETECTION && 1)
 
 #ifndef UE_ASSERT_ON_HANG
 	#define UE_ASSERT_ON_HANG 0

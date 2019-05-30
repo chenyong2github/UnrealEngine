@@ -16,6 +16,11 @@ void FXmppPubSubStrophe::OnDisconnect()
 
 }
 
+void FXmppPubSubStrophe::OnReconnect()
+{
+
+}
+
 bool FXmppPubSubStrophe::ReceiveStanza(const FStropheStanza& IncomingStanza)
 {
 	return false;

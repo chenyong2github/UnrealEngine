@@ -3,6 +3,8 @@
 #include "NiagaraLightRendererProperties.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraConstants.h"
+#include "NiagaraRendererLights.h"
+
 UNiagaraLightRendererProperties::UNiagaraLightRendererProperties()
 	: bUseInverseSquaredFalloff(1), bAffectsTranslucency(0), bOverrideRenderingEnabled(0), RadiusScale(1.0f), ColorAdd(FVector(0.0f, 0.0f, 0.0f))
 {
@@ -35,9 +37,11 @@ void UNiagaraLightRendererProperties::InitCDOPropertiesAfterModuleStartup()
 	CDO->VolumetricScatteringBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING);
 }
 
-NiagaraRenderer* UNiagaraLightRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel)
+FNiagaraRenderer* UNiagaraLightRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
 {
-	return new NiagaraRendererLights(FeatureLevel, this);
+	FNiagaraRenderer* NewRenderer = new FNiagaraRendererLights(FeatureLevel, this, Emitter);
+	NewRenderer->Initialize(FeatureLevel, this, Emitter);
+	return NewRenderer;
 }
 
 void UNiagaraLightRendererProperties::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials) const

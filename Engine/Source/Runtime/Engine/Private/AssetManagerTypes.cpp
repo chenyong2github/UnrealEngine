@@ -48,7 +48,15 @@ void FPrimaryAssetTypeInfo::FillRuntimeData(bool& bIsValid, bool& bBaseClassWasL
 	{
 		if (!PathRef.Path.IsEmpty())
 		{
-			AssetScanPaths.AddUnique(PathRef.Path);
+			if (PathRef.Path.EndsWith(TEXT("/")))
+			{
+				// Remove the trailing slash so searching with this behaves correctly
+				AssetScanPaths.AddUnique(PathRef.Path.LeftChop(1));
+			}
+			else
+			{
+				AssetScanPaths.AddUnique(PathRef.Path);
+			}
 		}
 	}
 
@@ -89,6 +97,29 @@ void FPrimaryAssetRules::OverrideRules(const FPrimaryAssetRules& OverrideRules)
 	if (OverrideRules.CookRule != DefaultRules.CookRule)
 	{
 		CookRule = OverrideRules.CookRule;
+	}
+}
+
+void FPrimaryAssetRulesExplicitOverride::OverrideRulesExplicitly(FPrimaryAssetRules& RulesToOverride) const
+{
+	if (bOverridePriority)
+	{
+		RulesToOverride.Priority = Rules.Priority;
+	}
+
+	if (bOverrideApplyRecursively)
+	{
+		RulesToOverride.bApplyRecursively = Rules.bApplyRecursively;
+	}
+
+	if (bOverrideChunkId)
+	{
+		RulesToOverride.ChunkId = Rules.ChunkId;
+	}
+
+	if (bOverrideCookRule)
+	{
+		RulesToOverride.CookRule = Rules.CookRule;
 	}
 }
 

@@ -3489,7 +3489,7 @@ public:
 
 			if( !FCompression::UncompressMemory(CompressionMethod, Output, Block.ProcessedSize, Block.Raw, Block.DecompressionRawSize) )
 			{
-				UE_LOG( LogPakFile, Fatal, TEXT("Pak Decompression failed. PakFile: %s. EntryOffset: %lld, EntrySize: %lld, CompressionMethod:%s Output:%p  ProcessedSize:%d  Buf:%p  Block.DecompressionRawSize:%d "), *PakFile.ToString(), FileEntry.Offset, FileEntry.Size, *CompressionMethod.ToString(), Output, Block.ProcessedSize, Block.Raw, Block.DecompressionRawSize );
+				UE_LOG( LogPakFile, Fatal, TEXT("Pak Decompression failed. PakFile: %s. EntryOffset: %lld, EntrySize: %lld, CompressionMethod:%s Output:%p  ProcessedSize:%d  Buf:%p  Block.DecompressionRawSize:%d  Crc32:%u"), *PakFile.ToString(), FileEntry.Offset, FileEntry.Size, *CompressionMethod.ToString(), Output, Block.ProcessedSize, Block.Raw, Block.DecompressionRawSize, FCrc::MemCrc32( Block.Raw, Block.DecompressionRawSize ) );
 			}
 			FMemory::Free(Block.Raw);
 			Block.Raw = nullptr;
@@ -5401,8 +5401,14 @@ FPakPlatformFile::FPakPlatformFile()
 
 FPakPlatformFile::~FPakPlatformFile()
 {
+	FCoreDelegates::GetRegisterEncryptionKeyDelegate().Unbind();
+
+	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
+
+	FCoreDelegates::OnMountAllPakFiles.Unbind();
 	FCoreDelegates::OnMountPak.Unbind();
 	FCoreDelegates::OnUnmountPak.Unbind();
+	FCoreDelegates::OnOptimizeMemoryUsageForMountedPaks.Unbind();
 
 #if USE_PAK_PRECACHE
 	FPakPrecacher::Shutdown();
@@ -5553,14 +5559,38 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 	FCoreDelegates::OnMountAllPakFiles.BindRaw(this, &FPakPlatformFile::MountAllPakFiles);
 	FCoreDelegates::OnMountPak.BindRaw(this, &FPakPlatformFile::HandleMountPakDelegate);
 	FCoreDelegates::OnUnmountPak.BindRaw(this, &FPakPlatformFile::HandleUnmountPakDelegate);
+	FCoreDelegates::OnOptimizeMemoryUsageForMountedPaks.BindRaw(this, &FPakPlatformFile::OptimizeMemoryUsageForMountedPaks);
 
+	FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FPakPlatformFile::OptimizeMemoryUsageForMountedPaks);
+
+	return !!LowerLevel;
+}
+
+void FPakPlatformFile::InitializeNewAsyncIO()
+{
+#if USE_PAK_PRECACHE
+#if !WITH_EDITOR
+	if (FPlatformProcess::SupportsMultithreading() && !FParse::Param(FCommandLine::Get(), TEXT("FileOpenLog")))
+	{
+		FPakPrecacher::Init(LowerLevel, GetPakSigningKey());
+	}
+	else
+#endif
+	{
+		UE_CLOG(FParse::Param(FCommandLine::Get(), TEXT("FileOpenLog")), LogPakFile, Display, TEXT("Disabled pak precacher to get an accurate load order. This should only be used to collect gameopenorder.log, as it is quite slow."));
+		GPakCache_Enable = 0;
+	}
+#endif
+}
+
+void FPakPlatformFile::OptimizeMemoryUsageForMountedPaks()
+{
 #if !(IS_PROGRAM || WITH_EDITOR)
-	FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([this] {
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Checking Pak Config\n"));
 			bool bUnloadPakEntryFilenamesIfPossible = FParse::Param(FCommandLine::Get(), TEXT("unloadpakentryfilenames"));
 			GConfig->GetBool(TEXT("Pak"), TEXT("UnloadPakEntryFilenamesIfPossible"), bUnloadPakEntryFilenamesIfPossible, GEngineIni);
 
-        if ((bUnloadPakEntryFilenamesIfPossible && !FParse::Param(FCommandLine::Get(), TEXT("nounloadpakentries"))) || FParse::Param(FCommandLine::Get(),TEXT("unloadpakentries")))
+	if ((bUnloadPakEntryFilenamesIfPossible && !FParse::Param(FCommandLine::Get(), TEXT("nounloadpakentries"))) || FParse::Param(FCommandLine::Get(), TEXT("unloadpakentries")))
 			{
 				// With [Pak] UnloadPakEntryFilenamesIfPossible enabled, [Pak] DirectoryRootsToKeepInMemoryWhenUnloadingPakEntryFilenames
 				// can contain pak entry directory wildcards of which the entire recursive directory structure of filenames underneath a
@@ -5584,26 +5614,6 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 				FPakPlatformFile* PakPlatformFile = (FPakPlatformFile*)(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
 				PakPlatformFile->ShrinkPakEntriesMemoryUsage();
 			}
-		});
-#endif
-
-	return !!LowerLevel;
-}
-
-void FPakPlatformFile::InitializeNewAsyncIO()
-{
-#if USE_PAK_PRECACHE
-#if !WITH_EDITOR
-	if (FPlatformProcess::SupportsMultithreading() && !FParse::Param(FCommandLine::Get(), TEXT("FileOpenLog")))
-	{
-		FPakPrecacher::Init(LowerLevel, GetPakSigningKey());
-	}
-	else
-#endif
-	{
-		UE_CLOG(FParse::Param(FCommandLine::Get(), TEXT("FileOpenLog")), LogPakFile, Display, TEXT("Disabled pak precacher to get an accurate load order. This should only be used to collect gameopenorder.log, as it is quite slow."));
-		GPakCache_Enable = 0;
-	}
 #endif
 }
 

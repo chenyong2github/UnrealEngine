@@ -25,6 +25,8 @@ struct FAnimationBlueprintEditorModes
 {
 	// Mode constants
 	static const FName AnimationBlueprintEditorMode;
+	static const FName AnimationBlueprintInterfaceEditorMode;
+
 	static FText GetLocalizedMode(const FName InMode)
 	{
 		static TMap< FName, FText > LocModes;
@@ -32,6 +34,7 @@ struct FAnimationBlueprintEditorModes
 		if (LocModes.Num() == 0)
 		{
 			LocModes.Add(AnimationBlueprintEditorMode, NSLOCTEXT("AnimationBlueprintEditorModes", "AnimationBlueprintEditorMode", "Animation Blueprint"));
+			LocModes.Add(AnimationBlueprintInterfaceEditorMode, NSLOCTEXT("AnimationBlueprintEditorModes", "AnimationBlueprintInterface EditorMode", "Animation Blueprint Interface"));
 		}
 
 		check(InMode != NAME_None);
@@ -84,6 +87,10 @@ public:
 	/** Update the inspector that displays information about the current selection*/
 	void SetDetailObjects(const TArray<UObject*>& InObjects);
 	void SetDetailObject(UObject* Obj);
+
+	/** IAnimationBlueprintEditor interface */
+	virtual const FEdGraphPinType& GetLastGraphPinTypeUsed() const override { return LastGraphPinType; }
+	virtual void SetLastGraphPinTypeUsed(const FEdGraphPinType& InType) override { LastGraphPinType = InType; }
 
 	/** IHasPersonaToolkit interface */
 	virtual TSharedRef<class IPersonaToolkit> GetPersonaToolkit() const { return PersonaToolkit.ToSharedRef(); }
@@ -297,6 +304,9 @@ private:
 
 	/** Delegate handle registered for when pin default values change */
 	FDelegateHandle OnPinDefaultValueChangedHandle;
+
+	/** The last pin type we added to a graph's inputs */
+	FEdGraphPinType LastGraphPinType;
 
     /** Configuration class used to store editor settings across sessions. */
 	UAnimationBlueprintEditorOptions* EditorOptions;

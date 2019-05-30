@@ -103,11 +103,8 @@ public:
 
 			// we have to setup our local environment according to AutoSDKs or the ITargetPlatform's IsSDkInstalled calls may fail
 			// before we get a change to setup for a given platform.  Use the platforminfo list to avoid any kind of interdependency.
-			int32 NumPlatforms;
-			const PlatformInfo::FPlatformInfo* PlatformInfoArray = PlatformInfo::GetPlatformInfoArray(NumPlatforms);
-			for (int32 i = 0; i < NumPlatforms; ++i)
+			for (const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 			{
-				const PlatformInfo::FPlatformInfo& PlatformInfo = PlatformInfoArray[i];
 				if (PlatformInfo.AutoSDKPath.Len() > 0)
 				{
 					SetupAndValidateAutoSDK(PlatformInfo.AutoSDKPath);

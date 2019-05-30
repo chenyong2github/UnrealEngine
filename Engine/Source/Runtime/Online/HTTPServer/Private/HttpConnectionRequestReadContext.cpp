@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "HttpConnectionRequestReadContext.h"
+#include "HttpServerConstants.h"
 #include "HttpServerConstantsPrivate.h"
 #include "HttpServerRequest.h"
 #include "HttpConnectionContext.h"
@@ -128,7 +129,7 @@ bool FHttpConnectionRequestReadContext::ParseBody(uint8* ByteBuffer, int32 Buffe
 	if (BufferLen > IncomingRequestBodyBytesToRead)
 	{
 		// Error - Sent data size exceeds expected 
-		AddError(FHttpServerErrorStrings::MismatchedContentLengthBodyTooLarge);
+		AddError(FHttpServerErrorStrings::MismatchedContentLengthBodyTooLarge, EHttpServerResponseCodes::BadRequest);
 		return false;
 	}
 
@@ -154,7 +155,7 @@ bool FHttpConnectionRequestReadContext::IsRequestValid(const FHttpServerRequest&
 		// Enforce content length missing or 0
 		if (bContentLengthSpecified && 0 != RequestContentLength)
 		{
-			AddError(FHttpServerErrorStrings::InvalidContentLengthHeader);
+			AddError(FHttpServerErrorStrings::InvalidContentLengthHeader, EHttpServerResponseCodes::BadRequest);
 			return false;
 		}
 		break;
@@ -164,13 +165,13 @@ bool FHttpConnectionRequestReadContext::IsRequestValid(const FHttpServerRequest&
 		// Content length must be set
 		if (!bContentLengthSpecified)
 		{
-			AddError(FHttpServerErrorStrings::MissingContentLengthHeader);
+			AddError(FHttpServerErrorStrings::MissingContentLengthHeader, EHttpServerResponseCodes::LengthRequired);
 			return false;
 		}
 		// Content length must be valid
 		if(RequestContentLength < 0)
 		{
-			AddError(FHttpServerErrorStrings::InvalidContentLengthHeader);
+			AddError(FHttpServerErrorStrings::InvalidContentLengthHeader, EHttpServerResponseCodes::LengthRequired);
 			return false;
 		}
 		break;
@@ -199,17 +200,17 @@ TSharedPtr<FHttpServerRequest> FHttpConnectionRequestReadContext::BuildRequest(c
 
 	if (0 == ParsedHeader.Num())
 	{
-		AddError(FHttpServerErrorStrings::MissingRequestHeaders);
+		AddError(FHttpServerErrorStrings::MissingRequestHeaders, EHttpServerResponseCodes::BadRequest);
 		return nullptr;
 	}
 
-	// Split HTTP Method Line (Path/Verb)
+	// Split HTTP Method Line (Path/Verb/Version)
 	TArray<FString> HttpMethodTokens;
 	const FString& HttpMethod = ParsedHeader[0];
 	HttpMethod.ParseIntoArrayWS(HttpMethodTokens);
-	if (HttpMethodTokens.Num() < 2)
+	if (HttpMethodTokens.Num() < 3)
 	{
-		AddError(FHttpServerErrorStrings::MalformedRequestHeaders);
+		AddError(FHttpServerErrorStrings::MalformedRequestHeaders, EHttpServerResponseCodes::BadRequest);
 		return nullptr;
 	}
 
@@ -241,10 +242,15 @@ TSharedPtr<FHttpServerRequest> FHttpConnectionRequestReadContext::BuildRequest(c
 	{
 		Request->Verb = EHttpServerRequestVerbs::VERB_PATCH;
 	}
+	else if (0 == RequestVerb.Compare(TEXT("OPTIONS"),
+		ESearchCase::IgnoreCase))
+	{
+		Request->Verb = EHttpServerRequestVerbs::VERB_OPTIONS;
+	}
 	else
 	{
 		// Unknown Verb
-		AddError(FHttpServerErrorStrings::UnknownRequestVerb);
+		AddError(FHttpServerErrorStrings::UnknownRequestVerb, EHttpServerResponseCodes::BadMethod);
 		return nullptr;
 	}
 
@@ -272,6 +278,14 @@ TSharedPtr<FHttpServerRequest> FHttpConnectionRequestReadContext::BuildRequest(c
 		}
 	}
 	Request->RelativePath.SetPath(RequestHttpPath);
+
+	// Parse/store http version
+	const FString& RequestHttpVersion = HttpMethodTokens[2];
+	if(!HttpVersion::FromString(RequestHttpVersion, Request->HttpVersion))
+	{
+		AddError(FHttpServerErrorStrings::UnsupportedHttpVersion, EHttpServerResponseCodes::VersionNotSup);
+		return nullptr;
+	}
 
 	// Parse/store headers
 	for (int i = 1; i < ParsedHeader.Num(); ++i)

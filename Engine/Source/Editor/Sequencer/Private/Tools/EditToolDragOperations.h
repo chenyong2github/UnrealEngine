@@ -39,7 +39,7 @@ public:
 protected:
 
 	/** begin a new scoped transaction for this drag */
-	void BeginTransaction( TArray< FSectionHandle >& Sections, const FText& TransactionDesc );
+	void BeginTransaction( TArray< TWeakObjectPtr<UMovieSceneSection> >& Sections, const FText& TransactionDesc );
 
 	/** End an existing scoped transaction if one exists */
 	void EndTransaction();
@@ -66,7 +66,7 @@ class FResizeSection
 public:
 
 	/** Create and initialize a new instance. */
-	FResizeSection( FSequencer& InSequencer, TArray<FSectionHandle> Sections, bool bInDraggingByEnd, bool bIsSlipping );
+	FResizeSection( FSequencer& InSequencer, const TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections, bool bInDraggingByEnd, bool bIsSlipping );
 
 public:
 
@@ -80,7 +80,7 @@ public:
 private:
 
 	/** The sections we are interacting with */
-	TArray<FSectionHandle> Sections;
+	TArray<TWeakObjectPtr<UMovieSceneSection>> Sections;
 
 	/********************************************************/
 	struct FPreDragChannelData
@@ -128,8 +128,7 @@ class FMoveKeysAndSections
 	: public FEditToolDragOperation
 {
 public:
-	FMoveKeysAndSections(FSequencer& InSequencer, const TSet<FSequencerSelectedKey>& InSelectedKeys, TArray<FSectionHandle> InSelectedSections, bool InbHotspotWasSection);
-	~FMoveKeysAndSections();
+	FMoveKeysAndSections(FSequencer& InSequencer, const TSet<FSequencerSelectedKey>& InSelectedKeys, const TSet<TWeakObjectPtr<UMovieSceneSection>>& InSelectedSections, bool InbHotspotWasSection);
 
 	// FEditToolDragOperation interface
 	virtual void OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea) override;
@@ -141,6 +140,10 @@ public:
 protected:
 	/** Calculate the possible horizontal movement we can, constrained by sections running into things. */
 	TOptional<FFrameNumber> GetMovementDeltaX(FFrameTime MouseTime);
+
+	/** Get the bounds within which the specified section can move based on its surrounding sections */
+	TRange<FFrameNumber> GetSectionBoundaries(const UMovieSceneSection* Section);
+
 	/** Move selected sections, if any. */
 	bool HandleSectionMovement(FFrameTime MouseTime, FVector2D VirtualMousePos, FVector2D LocalMousePos, TOptional<FFrameNumber> MaxDeltaX, FFrameNumber DesiredDeltaX);
 	/** Move selected keys, if any. */
@@ -153,7 +156,7 @@ protected:
 
 protected:
 	/** Array of sections that we're moving. */
-	TArray<FSectionHandle> Sections;
+	TArray<TWeakObjectPtr<UMovieSceneSection>> Sections;
 
 	/** Set of keys that are being moved. */
 	TSet<FSequencerSelectedKey> Keys;
@@ -200,9 +203,6 @@ protected:
 	/** Optional snap field to use when dragging */
 	TOptional<FSequencerSnapField> SnapField;
 
-	/** A handle for the sequencer node tree updated delegate. */
-	FDelegateHandle SequencerNodeTreeUpdatedHandle;
-
 	/** If the user is moving them via clicking on the Section then we'll allow vertical re-arranging, otherwise not. */
 	bool bHotspotWasSection;
 };
@@ -214,7 +214,7 @@ class FDuplicateKeysAndSections : public FMoveKeysAndSections
 {
 public:
 
-	FDuplicateKeysAndSections( FSequencer& InSequencer, const TSet<FSequencerSelectedKey>& InSelectedKeys, TArray<FSectionHandle> InSelectedSections, bool InbHotspotWasSection)
+	FDuplicateKeysAndSections( FSequencer& InSequencer, const TSet<FSequencerSelectedKey>& InSelectedKeys, const TSet<TWeakObjectPtr<UMovieSceneSection>>& InSelectedSections, bool InbHotspotWasSection)
 		: FMoveKeysAndSections(InSequencer, InSelectedKeys, InSelectedSections, InbHotspotWasSection)
 	{}
 
@@ -233,7 +233,7 @@ class FManipulateSectionEasing
 public:
 
 	/** Create and initialize a new instance. */
-	FManipulateSectionEasing( FSequencer& InSequencer, FSectionHandle InSection, bool bEaseIn );
+	FManipulateSectionEasing( FSequencer& InSequencer, TWeakObjectPtr<UMovieSceneSection> InSection, bool bEaseIn );
 
 public:
 
@@ -247,7 +247,7 @@ public:
 private:
 
 	/** The sections we are interacting with */
-	FSectionHandle Handle;
+	TWeakObjectPtr<UMovieSceneSection> WeakSection;
 
 	/** true if editing the section's ease in, false for ease out */
 	bool bEaseIn;

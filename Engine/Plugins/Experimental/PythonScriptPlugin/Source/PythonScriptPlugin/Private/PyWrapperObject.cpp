@@ -1687,6 +1687,16 @@ void UPythonGeneratedClass::PostInitInstance(UObject* InObj)
 	}
 }
 
+
+void UPythonGeneratedClass::ReleasePythonResources()
+{
+	PyType.Reset();
+	PyPostInitFunction.Reset();
+	PropertyDefs.Reset();
+	FunctionDefs.Reset();
+	PyMetaData = FPyWrapperObjectMetaData();
+}
+
 bool UPythonGeneratedClass::IsFunctionImplementedInScript(FName InFunctionName) const
 {
 	UFunction* Function = FindFunctionByName(InFunctionName);

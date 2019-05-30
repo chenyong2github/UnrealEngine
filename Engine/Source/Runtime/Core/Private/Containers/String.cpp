@@ -1387,6 +1387,38 @@ FString FString::PrintfImpl(const TCHAR* Fmt, ...)
 	return ResultString;
 }
 
+void FString::AppendfImpl(FString& AppendToMe, const TCHAR* Fmt, ...)
+{
+	int32		BufferSize = STARTING_BUFFER_SIZE;
+	TCHAR	StartingBuffer[STARTING_BUFFER_SIZE];
+	TCHAR*	Buffer = StartingBuffer;
+	int32		Result = -1;
+
+	// First try to print to a stack allocated location 
+	GET_VARARGS_RESULT(Buffer, BufferSize, BufferSize - 1, Fmt, Fmt, Result);
+
+	// If that fails, start allocating regular memory
+	if (Result == -1)
+	{
+		Buffer = nullptr;
+		while (Result == -1)
+		{
+			BufferSize *= 2;
+			Buffer = (TCHAR*)FMemory::Realloc(Buffer, BufferSize * sizeof(TCHAR));
+			GET_VARARGS_RESULT(Buffer, BufferSize, BufferSize - 1, Fmt, Fmt, Result);
+		};
+	}
+
+	Buffer[Result] = 0;
+
+	AppendToMe += Buffer;
+
+	if (BufferSize != STARTING_BUFFER_SIZE)
+	{
+		FMemory::Free(Buffer);
+	}
+}
+
 FArchive& operator<<( FArchive& Ar, FString& A )
 {
 	// > 0 for ANSICHAR, < 0 for UCS2CHAR serialization

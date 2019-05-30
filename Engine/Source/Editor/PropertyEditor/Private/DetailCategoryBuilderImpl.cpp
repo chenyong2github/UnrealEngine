@@ -311,7 +311,25 @@ IDetailPropertyRow& FDetailCategoryImpl::AddProperty(TSharedPtr<IPropertyHandle>
 
 IDetailPropertyRow* FDetailCategoryImpl::AddExternalObjects(const TArray<UObject*>& Objects, EPropertyLocation::Type Location /*= EPropertyLocation::Default*/)
 {
-	return AddExternalObjectProperty(Objects, NAME_None, Location);
+	FDetailLayoutCustomization NewCustomization;
+
+	FDetailPropertyRow::MakeExternalPropertyRowCustomization(Objects, NAME_None, AsShared(), NewCustomization, true);
+
+	TSharedPtr<FDetailPropertyRow> NewRow = NewCustomization.PropertyRow;
+
+	if (NewRow.IsValid())
+	{
+		bool bForAdvanced = false;
+		if (Location == EPropertyLocation::Advanced)
+		{
+			// Force advanced
+			bForAdvanced = true;
+		}
+
+		AddCustomLayout(NewCustomization, bForAdvanced);
+	}
+
+	return NewRow.Get();
 }
 
 IDetailPropertyRow* FDetailCategoryImpl::AddExternalObjectProperty(const TArray<UObject*>& Objects, FName PropertyName, EPropertyLocation::Type Location)

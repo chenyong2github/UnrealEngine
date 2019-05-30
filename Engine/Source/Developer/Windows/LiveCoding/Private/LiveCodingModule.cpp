@@ -23,10 +23,16 @@ bool GIsCompileActive = false;
 FString GLiveCodingConsolePath;
 FString GLiveCodingConsoleArguments;
 
+#if IS_MONOLITHIC
+extern const TCHAR* GLiveCodingEngineDir;
+extern const TCHAR* GLiveCodingProject;
+#endif
+
 FLiveCodingModule::FLiveCodingModule()
 	: bEnabledLastTick(false)
 	, bEnabledForSession(false)
 	, bStarted(false)
+	, bUpdateModulesInTick(false)
 	, FullEnginePluginsDir(FPaths::ConvertRelativePathToFull(FPaths::EnginePluginsDir()))
 	, FullProjectDir(FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()))
 	, FullProjectPluginsDir(FPaths::ConvertRelativePathToFull(FPaths::ProjectPluginsDir()))
@@ -46,10 +52,39 @@ void FLiveCodingModule::StartupModule()
 		ECVF_Cheat
 	);
 
+	CompileCommand = ConsoleManager.RegisterConsoleCommand(
+		TEXT("LiveCoding.Compile"),
+		TEXT("Initiates a live coding compile"),
+		FConsoleCommandDelegate::CreateRaw(this, &FLiveCodingModule::Compile),
+		ECVF_Cheat
+	);
+
+#if IS_MONOLITHIC
+	FString DefaultEngineDir = GLiveCodingEngineDir;
+#else
+	FString DefaultEngineDir = FPaths::EngineDir();
+#endif
+#if USE_DEBUG_LIVE_CODING_CONSOLE
+	static const TCHAR* DefaultConsolePath = TEXT("Binaries/Win64/LiveCodingConsole-Win64-Debug.exe");
+#else
+	static const TCHAR* DefaultConsolePath = TEXT("Binaries/Win64/LiveCodingConsole.exe");
+#endif 
 	ConsolePathVariable = ConsoleManager.RegisterConsoleVariable(
 		TEXT("LiveCoding.ConsolePath"),
-		FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / TEXT("Binaries/Win64/LiveCodingConsole.exe")),
+		FPaths::ConvertRelativePathToFull(DefaultEngineDir / DefaultConsolePath),
 		TEXT("Path to the live coding console application"),
+		ECVF_Cheat
+	);
+
+#if IS_MONOLITHIC
+	FString SourceProject = (GLiveCodingProject != nullptr)? GLiveCodingProject : TEXT("");
+#else
+	FString SourceProject = FPaths::IsProjectFilePathSet() ? FPaths::GetProjectFilePath() : TEXT("");
+#endif
+	SourceProjectVariable = ConsoleManager.RegisterConsoleVariable(
+		TEXT("LiveCoding.SourceProject"),
+		FPaths::ConvertRelativePathToFull(SourceProject),
+		TEXT("Path to the project that this target was built from"),
 		ECVF_Cheat
 	);
 
@@ -98,7 +133,9 @@ void FLiveCodingModule::ShutdownModule()
 	FCoreDelegates::OnEndFrame.Remove(EndFrameDelegateHandle);
 
 	IConsoleManager& ConsoleManager = IConsoleManager::Get();
+	ConsoleManager.UnregisterConsoleObject(SourceProjectVariable);
 	ConsoleManager.UnregisterConsoleObject(ConsolePathVariable);
+	ConsoleManager.UnregisterConsoleObject(CompileCommand);
 	ConsoleManager.UnregisterConsoleObject(EnableCommand);
 }
 
@@ -199,6 +236,12 @@ void FLiveCodingModule::Tick()
 		EnableForSession(Settings->bEnabled);
 		bEnabledLastTick = Settings->bEnabled;
 	}
+
+	if (bUpdateModulesInTick)
+	{
+		UpdateModules();
+		bUpdateModulesInTick = false;
+	}
 }
 
 bool FLiveCodingModule::StartLiveCoding()
@@ -220,6 +263,14 @@ bool FLiveCodingModule::StartLiveCoding()
 			return false;
 		}
 
+		// Get the source project filename
+		FString SourceProject = SourceProjectVariable->GetString();
+		if (SourceProject.Len() > 0 && !FPaths::FileExists(SourceProject))
+		{
+			UE_LOG(LogLiveCoding, Error, TEXT("Unable to start live coding session. Unable to find source project file '%s'."), *SourceProject);
+			return false;
+		}
+
 		UE_LOG(LogLiveCoding, Display, TEXT("Starting LiveCoding"));
 
 		// Enable external build system
@@ -234,14 +285,21 @@ bool FLiveCodingModule::StartLiveCoding()
 		Arguments += FString::Printf(TEXT("%s"), FPlatformMisc::GetUBTPlatform());
 		Arguments += FString::Printf(TEXT(" %s"), EBuildConfigurations::ToString(FApp::GetBuildConfiguration()));
 		Arguments += FString::Printf(TEXT(" -TargetType=%s"), FPlatformMisc::GetUBTTarget());
-		if(FPaths::IsProjectFilePathSet())
+		if(SourceProject.Len() > 0)
 		{
-			Arguments += FString::Printf(TEXT(" -Project=\"%s\""), *FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()));
+			Arguments += FString::Printf(TEXT(" -Project=\"%s\""), *FPaths::ConvertRelativePathToFull(SourceProject));
 		}
 		LppSetBuildArguments(*Arguments);
 
-		// Configure all the current modules
-		UpdateModules();
+		// Configure all the current modules. For non-commandlets, schedule it to be done in the first Tick() so we can batch everything together.
+		if (IsRunningCommandlet())
+		{
+			UpdateModules();
+		}
+		else
+		{
+			bUpdateModulesInTick = true;
+		}
 
 		// Register a delegate to listen for new modules loaded from this point onwards
 		ModulesChangedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FLiveCodingModule::OnModulesChanged);
@@ -255,29 +313,49 @@ bool FLiveCodingModule::StartLiveCoding()
 
 void FLiveCodingModule::UpdateModules()
 {
-#if IS_MONOLITHIC
-	wchar_t FullFilePath[WINDOWS_MAX_PATH];
-	verify(GetModuleFileName(hInstance, FullFilePath, ARRAY_COUNT(FullFilePath)));
-	LppEnableModule(FullFilePath);
-#else
-	TArray<FModuleStatus> ModuleStatuses;
-	FModuleManager::Get().QueryModules(ModuleStatuses);
-
-	extern void BeginCommandBatch();
-	BeginCommandBatch();
-
-	for (const FModuleStatus& ModuleStatus : ModuleStatuses)
+	if (bEnabledForSession)
 	{
-		if (ModuleStatus.bIsLoaded)
-		{
-			FString FullFilePath = FPaths::ConvertRelativePathToFull(ModuleStatus.FilePath);
-			ConfigureModule(FName(*ModuleStatus.Name), FullFilePath);
-		}
-	}
+#if IS_MONOLITHIC
+		wchar_t FullFilePath[WINDOWS_MAX_PATH];
+		verify(GetModuleFileName(hInstance, FullFilePath, ARRAY_COUNT(FullFilePath)));
+		LppEnableModule(FullFilePath);
+#else
+		TArray<FModuleStatus> ModuleStatuses;
+		FModuleManager::Get().QueryModules(ModuleStatuses);
 
-	extern void EndCommandBatch();
-	EndCommandBatch();
+		TArray<FString> EnableModules;
+		for (const FModuleStatus& ModuleStatus : ModuleStatuses)
+		{
+			if (ModuleStatus.bIsLoaded)
+			{
+				FName ModuleName(*ModuleStatus.Name);
+				if (!ConfiguredModules.Contains(ModuleName))
+				{
+					FString FullFilePath = FPaths::ConvertRelativePathToFull(ModuleStatus.FilePath);
+					if (ShouldPreloadModule(ModuleName, FullFilePath))
+					{
+						EnableModules.Add(FullFilePath);
+					}
+					else
+					{
+						LppEnableLazyLoadedModule(*FullFilePath);
+					}
+					ConfiguredModules.Add(ModuleName);
+				}
+			}
+		}
+
+		if (EnableModules.Num() > 0)
+		{
+			TArray<const TCHAR*> EnableModuleFileNames;
+			for (const FString& EnableModule : EnableModules)
+			{
+				EnableModuleFileNames.Add(*EnableModule);
+			}
+			LppEnableModules(EnableModuleFileNames.GetData(), EnableModuleFileNames.Num());
+		}
 #endif
+	}
 }
 
 void FLiveCodingModule::OnModulesChanged(FName ModuleName, EModuleChangeReason Reason)
@@ -285,30 +363,15 @@ void FLiveCodingModule::OnModulesChanged(FName ModuleName, EModuleChangeReason R
 #if !IS_MONOLITHIC
 	if (Reason == EModuleChangeReason::ModuleLoaded)
 	{
-		FModuleStatus Status;
-		if (FModuleManager::Get().QueryModule(ModuleName, Status))
+		// Assume that Tick() won't be called if we're running a commandlet
+		if (IsRunningCommandlet())
 		{
-			FString FullFilePath = FPaths::ConvertRelativePathToFull(Status.FilePath);
-			ConfigureModule(ModuleName, FullFilePath);
-		}
-	}
-#endif
-}
-
-void FLiveCodingModule::ConfigureModule(const FName& Name, const FString& FullFilePath)
-{
-#if !IS_MONOLITHIC
-	if (!ConfiguredModules.Contains(Name))
-	{
-		if (ShouldPreloadModule(Name, FullFilePath))
-		{
-			LppEnableModule(*FullFilePath);
+			UpdateModules();
 		}
 		else
 		{
-			LppEnableLazyLoadedModule(*FullFilePath);
+			bUpdateModulesInTick = true;
 		}
-		ConfiguredModules.Add(Name);
 	}
 #endif
 }

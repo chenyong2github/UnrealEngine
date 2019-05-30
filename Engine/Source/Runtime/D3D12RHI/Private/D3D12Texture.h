@@ -322,6 +322,10 @@ public:
 	{
 		RawTextureMemory = Memory;
 	}
+	FPlatformMemory::FPlatformVirtualMemoryBlock& GetRawTextureBlock()
+	{
+		return RawTextureBlock;
+	}
 #endif
 
 	const FD3D12TextureLayout& GetTextureLayout() const { return TextureLayout; }
@@ -338,6 +342,7 @@ private:
 
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 	void* RawTextureMemory;
+	FPlatformMemory::FPlatformVirtualMemoryBlock RawTextureBlock;
 #endif
 
 	FD3D12TextureLayout TextureLayout;

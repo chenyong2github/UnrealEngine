@@ -423,6 +423,11 @@ public:
 	 */
 	ENGINE_API static void UpdateResources( FRHICommandListImmediate& RHICmdList );
 
+	/**
+	 * Performs a deferred resource update on this resource if it exists in the UpdateList.
+	 */
+	ENGINE_API void FlushDeferredResourceUpdate( FRHICommandListImmediate& RHICmdList );
+
 	/** 
 	 * This is reset after all viewports have been rendered
 	 */

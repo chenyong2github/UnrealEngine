@@ -325,7 +325,7 @@ public:
 	bool NeedsTextureStage(int32 TextureStageIndex);
 	int32 MaxTextureStageUsed();
 	const TBitArray<>& GetTextureNeeds(int32& OutMaxTextureStageUsed);
-	bool NeedsUAVStage(int32 UAVStageIndex);
+	bool NeedsUAVStage(int32 UAVStageIndex) const;
 
 	FOpenGLLinkedProgram* LinkedProgram;
 };

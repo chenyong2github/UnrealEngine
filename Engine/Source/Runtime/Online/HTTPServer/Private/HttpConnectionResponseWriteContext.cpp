@@ -2,6 +2,7 @@
 
 #include "HttpConnectionResponseWriteContext.h"
 #include "HttpServerResponse.h"
+#include "HttpServerHttpVersion.h"
 #include "HttpServerConstantsPrivate.h"
 #include "Sockets.h"
 
@@ -29,7 +30,7 @@ void FHttpConnectionResponseWriteContext::ResetContext(TUniquePtr<FHttpServerRes
 		Response->Headers.Add(FHttpServerHeaderKeys::CONTENT_LENGTH, MoveTemp(ContentLengthValue));
 
 		// Serialize Headers
-		HeaderBytes.Append(SerializeHeadersUtf8(Response->Code, Response->Headers));
+		HeaderBytes.Append(SerializeHeadersUtf8(Response->HttpVersion, Response->Code, Response->Headers));
 	}
 }
 
@@ -101,9 +102,10 @@ bool FHttpConnectionResponseWriteContext::IsWriteBodyComplete() const
 	return BodyBytesWritten >= Response->Body.Num();
 }
 
-TArray<uint8> FHttpConnectionResponseWriteContext::SerializeHeadersUtf8(int32 ResponseCode, const TMap<FString, TArray<FString>>& HeadersMap)
+TArray<uint8> FHttpConnectionResponseWriteContext::SerializeHeadersUtf8(HttpVersion::EHttpServerHttpVersion HttpVersion, EHttpServerResponseCodes ResponseCode, const TMap<FString, TArray<FString>>& HeadersMap)
 {
-	FString ResponseHeaderStr = FString::Printf(TEXT("HTTP/1.1 %d\r\n"), ResponseCode);
+	FString ResponseHeaderStr = FString::Printf(TEXT("%s %d\r\n"),  
+		*HttpVersion::ToString(HttpVersion), ResponseCode);
 
 	for (const auto& KeyValuePair : HeadersMap)
 	{

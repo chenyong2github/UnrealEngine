@@ -6,7 +6,6 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraSystem.h"
-#include "NiagaraParameterBindingInstance.h"
 #include "NiagaraDataInterfaceBindingInstance.h"
 #include "Templates/UniquePtr.h"
 #include "NiagaraCommon.h"
@@ -17,9 +16,12 @@ class UNiagaraComponent;
 class FNiagaraSystemInstance;
 class FNiagaraSystemSimulation;
 class NiagaraEmitterInstanceBatcher;
+class FNiagaraGPUSystemTick;
 
 class NIAGARA_API FNiagaraSystemInstance 
 {
+	friend class FNiagaraGPUSystemTick;
+
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnInitialized);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnComplete, FNiagaraSystemInstance*);
@@ -73,6 +75,7 @@ public:
 	FORCEINLINE FNiagaraParameterStore& GetInstanceParameters() { return InstanceParameters; }
 	
 	FNiagaraWorldManager* GetWorldManager()const;
+	bool RequiresDistanceFieldData() const;
 
 	/** Requests the the simulation be reset on the next tick. */
 	void Reset(EResetMode Mode, bool bBindParams = false);
@@ -97,11 +100,11 @@ public:
 	FORCEINLINE bool IsDisabled()const { return ActualExecutionState == ENiagaraExecutionState::Disabled; }
 
 	/** Gets the simulation for the supplied emitter handle. */
-	TSharedPtr<FNiagaraEmitterInstance> GetSimulationForHandle(const FNiagaraEmitterHandle& EmitterHandle);
+	TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> GetSimulationForHandle(const FNiagaraEmitterHandle& EmitterHandle);
 
 	UNiagaraSystem* GetSystem()const;
 	FORCEINLINE UNiagaraComponent *GetComponent() { return Component; }
-	FORCEINLINE TArray<TSharedRef<FNiagaraEmitterInstance> > &GetEmitters()	{ return Emitters; }
+	FORCEINLINE TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > &GetEmitters()	{ return Emitters; }
 	FORCEINLINE FBox &GetSystemBounds()	{ return SystemBounds;  }
 
 	FNiagaraEmitterInstance* GetEmitterByID(FGuid InID);
@@ -133,6 +136,7 @@ public:
 #endif
 
 	FName GetIDName() { return IDName; }
+	FGuid GetId() { return ID; }
 
 	/** Returns the instance data for a particular interface for this System. */
 	FORCEINLINE void* FindDataInterfaceInstanceData(UNiagaraDataInterface* Interface) 
@@ -204,6 +208,11 @@ public:
 
 	NiagaraEmitterInstanceBatcher* GetBatcher() const { return Batcher; }
 
+	static bool AllocateSystemInstance(class UNiagaraComponent* InComponent, TUniquePtr< FNiagaraSystemInstance >& OutSystemInstanceAllocation);
+	static bool DeallocateSystemInstance(TUniquePtr< FNiagaraSystemInstance >& SystemInstanceAllocation);
+	/*void SetHasGPUEmitters(bool bInHasGPUEmitters) { bHasGPUEmitters = bInHasGPUEmitters; }
+	bool HasGPUEmitters() { return bHasGPUEmitters;  }*/
+
 	int32 GetDetailLevel()const;
 private:
 
@@ -214,12 +223,6 @@ private:
 	void ReInitInternal();
 	/** Resets for restart, assumes no change in emitter setup */
 	void ResetInternal(bool bResetSimulations);
-
-	/** Updates the renders for the simulations. Gathers both the EmitterRenderers that were previously set as well as the ones that we  create within.*/
-	void UpdateRenderModules(ERHIFeatureLevel::Type InFeatureLevel, TArray<NiagaraRenderer*>& OutNewRenderers, TArray<NiagaraRenderer*>& OutOldRenderers);
-
-	/** Updates the scene proxy for the System with the specified EmitterRenderer array. Note that this is pushed onto the rendering thread behind the scenes.*/
-	void UpdateProxy(TArray<NiagaraRenderer*>& InRenderers);
 
 	/** Call PrepareForSImulation on each data source from the simulations and determine which need per-tick updates.*/
 	void InitDataInterfaces();	
@@ -243,7 +246,7 @@ private:
 
 	TMap<FNiagaraDataSetID, FNiagaraDataSet> ExternalEvents;
 
-	TArray< TSharedRef<FNiagaraEmitterInstance> > Emitters;
+	TArray< TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > Emitters;
 
 	FOnInitialized OnInitializedDelegate;
 	FOnComplete OnCompleteDelegate;
@@ -318,6 +321,8 @@ private:
 
 	/** If this system is paused. When paused it will not tick and never complete etc. */
 	uint32 bPaused : 1;
+	/** If this system has emitters that will run GPU Simulations */
+	bool bHasGPUEmitters : 1;
 
 	/* Execution state requested by external code/BPs calling Activate/Deactivate. */
 	ENiagaraExecutionState RequestedExecutionState;
@@ -328,4 +333,9 @@ private:
 	bool bDataInterfacesInitialized;
 
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+public:
+	// Transient data that is accumulated during tick.
+	uint32 TotalParamSize = 0;
+	uint32 ActiveGPUEmitterCount = 0;
+	int32 GPUDataInterfaceInstanceDataSize = 0;
 };

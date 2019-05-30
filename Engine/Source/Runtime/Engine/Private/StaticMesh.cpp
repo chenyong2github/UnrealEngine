@@ -162,6 +162,67 @@ static void FillMaterialName(const TArray<FStaticMaterial>& StaticMaterials, TMa
 
 
 /*-----------------------------------------------------------------------------
+	FStaticMeshSectionAreaWeightedTriangleSamplerBuffer
+-----------------------------------------------------------------------------*/
+
+FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::FStaticMeshSectionAreaWeightedTriangleSamplerBuffer()
+{
+}
+
+FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::~FStaticMeshSectionAreaWeightedTriangleSamplerBuffer()
+{
+}
+
+void FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::InitRHI()
+{
+	ReleaseRHI();
+
+	if (Samplers && Samplers->Num() > 0)
+	{
+		FRHIResourceCreateInfo CreateInfo;
+		void* BufferData = nullptr;
+
+		// Count triangle count for all sections and required memory
+		const uint32 AllSectionCount = Samplers->Num();
+		uint32 TriangleCount = 0;
+		for (uint32 i = 0; i < AllSectionCount; ++i)
+		{
+			TriangleCount += (*Samplers)[i].GetNumEntries();
+		}
+		uint32 SizeByte = TriangleCount * sizeof(SectionTriangleInfo);
+
+		BufferSectionTriangleRHI = RHICreateAndLockVertexBuffer(SizeByte, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
+
+		// Now compute the alias look up table for unifor; distribution for all section and all triangles
+		SectionTriangleInfo* SectionTriangleInfoBuffer = (SectionTriangleInfo*)BufferData;
+		for (uint32 i = 0; i < AllSectionCount; ++i)
+		{
+			FStaticMeshSectionAreaWeightedTriangleSampler& sampler = (*Samplers)[i];
+			const TArray<float>& ProbTris = sampler.GetProb();
+			const TArray<int32>& AliasTris = sampler.GetAlias();
+			const uint32 NumTriangle = sampler.GetNumEntries();
+
+			for (uint32 t = 0; t < NumTriangle; ++t)
+			{
+				SectionTriangleInfo NewTriangleInfo = { ProbTris[t], (uint32)AliasTris[t], 0, 0 };
+				*SectionTriangleInfoBuffer = NewTriangleInfo;
+				SectionTriangleInfoBuffer++;
+			}
+		}
+		RHIUnlockVertexBuffer(BufferSectionTriangleRHI);
+
+		BufferSectionTriangleSRV = RHICreateShaderResourceView(BufferSectionTriangleRHI, sizeof(SectionTriangleInfo), PF_R32G32B32A32_UINT);
+	}
+}
+
+void FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::ReleaseRHI()
+{
+	BufferSectionTriangleSRV.SafeRelease();
+	BufferSectionTriangleRHI.SafeRelease();
+}
+
+
+/*-----------------------------------------------------------------------------
 	FStaticMeshLODResources
 -----------------------------------------------------------------------------*/
 
@@ -1078,6 +1139,11 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 		BeginInitResource(&AdditionalIndexBuffers->AdjacencyIndexBuffer);
 	}
 
+	if (Parent->bSupportGpuUniformlyDistributedSampling && Parent->bSupportUniformlyDistributedSampling && Parent->bAllowCPUAccess)
+	{
+		BeginInitResource(&AreaWeightedSectionSamplersBuffer);
+	}
+
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
@@ -1144,6 +1210,7 @@ void FStaticMeshLODResources::ReleaseResources()
 	BeginReleaseResource(&VertexBuffers.PositionVertexBuffer);
 	BeginReleaseResource(&VertexBuffers.ColorVertexBuffer);
 	BeginReleaseResource(&DepthOnlyIndexBuffer);
+	BeginReleaseResource(&AreaWeightedSectionSamplersBuffer);
 
 	if (AdditionalIndexBuffers)
 	{
@@ -1295,6 +1362,8 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 				if (bValid)
 				{
 #if WITH_EDITOR
+					check(LOD.DistanceFieldData != nullptr);
+
 					bool bDownSampling = Ar.IsCooking() && Ar.IsSaving();
 					
 					if (bDownSampling)
@@ -1304,8 +1373,6 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 
 						if (bDownSampling)
 						{
-							CA_ASSUME(LOD.DistanceFieldData != nullptr);
-
 							FDistanceFieldVolumeData DownSampledDFVolumeData = *LOD.DistanceFieldData;
 							IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>(TEXT("MeshUtilities"));
 
@@ -1316,15 +1383,17 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 					}
 
 					if (!bDownSampling)
-#endif
 					{
-						if (LOD.DistanceFieldData == nullptr)
-						{
-							LOD.DistanceFieldData = new FDistanceFieldVolumeData();
-						}
-
 						Ar << *(LOD.DistanceFieldData);
 					}
+#else
+					if (LOD.DistanceFieldData == nullptr)
+					{
+						LOD.DistanceFieldData = new FDistanceFieldVolumeData();
+					}
+
+					Ar << *(LOD.DistanceFieldData);
+#endif
 				}
 			}
 		}
@@ -2816,6 +2885,14 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		// Dont rebuild inside here.  We're doing that below.
 		bool bRebuild = false;
 		SetLODGroup(LODGroup, bRebuild);
+	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, ComplexCollisionMesh) && ComplexCollisionMesh != this)
+	{
+		if (BodySetup)
+		{
+			BodySetup->InvalidatePhysicsData();
+			BodySetup->CreatePhysicsMeshes();
+		}
 	}
 	LightMapResolution = FMath::Max(LightMapResolution, 0);
 
@@ -4566,6 +4643,15 @@ void UStaticMesh::PostLoad()
 
 	if (RenderData)
 	{
+		if (bSupportGpuUniformlyDistributedSampling)
+		{
+			// Initialise pointers to samplers
+			for (FStaticMeshLODResources &LOD : RenderData->LODResources)
+			{
+				LOD.AreaWeightedSectionSamplersBuffer.Init(&LOD.AreaWeightedSectionSamplers);
+			}
+		}
+
 		// check the MinLOD values are all within range
 		bool bFixedMinLOD = false;
 		int32 MinAvailableLOD = FMath::Max<int32>(RenderData->LODResources.Num() - 1, 0);
@@ -4889,7 +4975,7 @@ bool UStaticMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 		{
 			// To avoid async tasks from timing out the GC, we tick as Async to force completion if this is relevant.
 			// This could lead the asset from releasing the PendingUpdate, which will be deleted once the async task completes.
-			TickThread = FRenderAssetUpdate::TT_Async;
+			TickThread = FRenderAssetUpdate::TT_GameRunningAsync;
 		}
 		PendingUpdate->Tick(TickThread);
 
@@ -5023,6 +5109,10 @@ static int32 GetCollisionVertIndexForMeshVertIndex(int32 MeshVertIndex, TMap<int
 bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool bInUseAllTriData)
 {
 #if WITH_EDITORONLY_DATA
+	if (ComplexCollisionMesh)
+	{
+		return ComplexCollisionMesh->GetPhysicsTriMeshData(CollisionData, bInUseAllTriData);
+	}
 	check(HasValidRenderData());
 
 	// Get the LOD level to use for collision
@@ -5075,6 +5165,10 @@ bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionD
 bool UStaticMesh::ContainsPhysicsTriMeshData(bool bInUseAllTriData) const 
 {
 #if WITH_EDITORONLY_DATA
+	if (ComplexCollisionMesh)
+	{
+		ComplexCollisionMesh->ContainsPhysicsTriMeshData(bInUseAllTriData);
+	}
 	if(RenderData == nullptr || RenderData->LODResources.Num() == 0)
 	{
 		return false;

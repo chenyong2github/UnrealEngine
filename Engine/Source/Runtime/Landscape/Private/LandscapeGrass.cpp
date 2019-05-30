@@ -1398,7 +1398,11 @@ void ALandscapeProxy::TickGrass()
 
 	if (ALandscape* Landscape = GetLandscapeActor())
 	{
-		if (!Landscape->IsUpToDate())
+		if (!Landscape->IsUpToDate() 
+#if WITH_EDITORONLY_DATA
+			|| !Landscape->bGrassUpdateEnabled
+#endif
+			)
 		{
 			return;
 		}

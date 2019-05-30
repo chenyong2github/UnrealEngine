@@ -39,6 +39,7 @@ private:
 	bool bEnabledLastTick;
 	bool bEnabledForSession;
 	bool bStarted;
+	bool bUpdateModulesInTick;
 	TSet<FName> ConfiguredModules;
 
 	const FString FullEnginePluginsDir;
@@ -46,7 +47,9 @@ private:
 	const FString FullProjectPluginsDir;
 
 	IConsoleCommand* EnableCommand;
+	IConsoleCommand* CompileCommand;
 	IConsoleVariable* ConsolePathVariable;
+	IConsoleVariable* SourceProjectVariable;
 	FDelegateHandle EndFrameDelegateHandle;
 	FDelegateHandle ModulesChangedDelegateHandle;
 
@@ -56,7 +59,6 @@ private:
 
 	void UpdateModules();
 
-	void ConfigureModule(const FName& Name, const FString& FullFilePath);
 	bool ShouldPreloadModule(const FName& Name, const FString& FullFilePath) const;
 };
 

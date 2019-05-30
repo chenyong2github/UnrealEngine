@@ -19,11 +19,10 @@ LandscapeEdit.h: Classes for the editor to access to Landscape data
 #include "LandscapeLayerInfoObject.h"
 
 #if WITH_EDITOR
-
 #include "Containers/ArrayView.h"
-#include "Settings/EditorExperimentalSettings.h"
-
 #endif
+
+#include "Landscape.h"
 
 class ULandscapeComponent;
 class ULandscapeInfo;
@@ -49,7 +48,9 @@ class ILandscapeEdModeInterface
 {
 public:
 	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const = 0;
-	virtual FGuid GetLandscapeSelectedLayer() const = 0;
+	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const = 0;
+	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const = 0;
+	virtual void OnCanHaveLayersContentChanged() = 0;
 };
 
 struct FLandscapeTextureDataInfo
@@ -252,6 +253,10 @@ struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataI
 	static void ShrinkData(TArray<T>& Data, int32 OldMinX, int32 OldMinY, int32 OldMaxX, int32 OldMaxY, int32 NewMinX, int32 NewMinY, int32 NewMaxX, int32 NewMaxY);
 
 	const ALandscape* GetTargetLandscape() const;
+
+	bool CanHaveLandscapeLayersContent() const;
+	bool HasLandscapeLayersContent() const;
+
 private:
 	int32 ComponentSizeQuads;
 	int32 SubsectionSizeQuads;
@@ -338,6 +343,11 @@ struct FHeightmapAccessor
 		LandscapeEdit->GetHeightDataFast(X1, Y1, X2, Y2, Data);
 	}
 
+	void GetDataFast(int32 X1, int32 Y1, int32 X2, int32 Y2, uint16* Data)
+	{
+		LandscapeEdit->GetHeightDataFast(X1, Y1, X2, Y2, Data, 0);
+	}
+
 	void SetData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint16* Data, ELandscapeLayerPaintingRestriction PaintingRestriction = ELandscapeLayerPaintingRestriction::None)
 	{
 		TSet<ULandscapeComponent*> Components;
@@ -358,7 +368,7 @@ struct FHeightmapAccessor
 			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 
             // Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!LandscapeEdit->HasLandscapeLayersContent())
 			{
 				for (ULandscapeComponent* Component : Components)
 				{
@@ -414,11 +424,8 @@ struct FHeightmapAccessor
 
 	virtual ~FHeightmapAccessor()
 	{
-		delete LandscapeEdit;
-		LandscapeEdit = NULL;
-
 		// Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
-		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (!LandscapeEdit->HasLandscapeLayersContent())
 		{
 			// Update the bounds and navmesh for the components we edited
 			for (TSet<ULandscapeComponent*>::TConstIterator It(ChangedComponents); It; ++It)
@@ -435,6 +442,9 @@ struct FHeightmapAccessor
 				}
 			}
 		}
+
+		delete LandscapeEdit;
+		LandscapeEdit = NULL;
 	}
 
 private:
@@ -473,7 +483,7 @@ struct FAlphamapAccessor
 
 	~FAlphamapAccessor()
 	{
-		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (!LandscapeEdit.HasLandscapeLayersContent())
 		{
 			// Recreate collision for modified components to update the physical materials
 			for (ULandscapeComponent* Component : ModifiedComponents)
@@ -503,6 +513,11 @@ struct FAlphamapAccessor
 		LandscapeEdit.GetWeightDataFast(LayerInfo, X1, Y1, X2, Y2, Data);
 	}
 
+	void GetDataFast(int32 X1, int32 Y1, int32 X2, int32 Y2, uint8* Data)
+	{
+		LandscapeEdit.GetWeightDataFast(LayerInfo, X1, Y1, X2, Y2, Data, 0);
+	}
+
 	void SetData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint8* Data, ELandscapeLayerPaintingRestriction PaintingRestriction)
 	{
 		TSet<ULandscapeComponent*> Components;
@@ -515,7 +530,7 @@ struct FAlphamapAccessor
 				LandscapeComponent->RequestWeightmapUpdate();
 			}
 			
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!LandscapeEdit.HasLandscapeLayersContent())
 			{
 				ModifiedComponents.Append(Components);
 			}

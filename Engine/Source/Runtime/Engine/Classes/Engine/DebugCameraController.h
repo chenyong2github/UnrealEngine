@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/EngineTypes.h"
+#include "FinalPostProcessSettings.h"
 #include "SceneTypes.h"
 #include "GameFramework/PlayerController.h"
 #include "DebugCameraController.generated.h"
@@ -39,6 +40,14 @@ class ENGINE_API ADebugCameraController
 	/** When orbiting, true if using actor center as pivot, false if using last selected hitpoint */
 	UPROPERTY()
 	uint32 bOrbitPivotUseCenter:1;
+
+	/** Whether set view mode to display GBuffer visualization */
+	UPROPERTY()
+	uint32 bEnableBufferVisualization : 1;
+
+	/** Whether set view mode to display GBuffer visualization */
+	UPROPERTY()
+	uint32 bEnableBufferVisualizationFullMode : 1;
 
 	/** Visualizes the frustum of the camera */
 	UPROPERTY()
@@ -102,6 +111,37 @@ class ENGINE_API ADebugCameraController
 
 	/** Toggles camera orbit hitpoint */
 	void ToggleOrbitHitPoint();
+
+	/** Cycle view mode */
+	void CycleViewMode();
+
+	/** Toggle buffer visualization overview */
+	void ToggleBufferVisualizationOverviewMode();
+
+	/** Buffer overview move up */
+	void BufferVisualizationMoveUp();
+
+	/** Buffer overview move down */
+	void BufferVisualizationMoveDown();
+
+	/** Buffer overview move right */
+	void BufferVisualizationMoveRight();
+
+	/** Buffer overview move left */
+	void BufferVisualizationMoveLeft();
+
+	/** Toggle buffer visualization full display */
+	void ToggleBufferVisualizationFullMode();
+
+	/** Set buffer visualization full mode */
+	void SetBufferVisualizationFullMode(bool bFullMode);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+	/** Update visualize buffer post processing settings */
+	void UpdateVisualizeBufferPostProcessing(FFinalPostProcessSettings& InOutPostProcessingSettings);
+
+#endif
 
 public:
 
@@ -217,6 +257,15 @@ protected:
 
 	virtual void SetSpectatorPawn(class ASpectatorPawn* NewSpectatorPawn) override;
 
+	/** Get buffer visualization overview targets based on console var */
+	TArray<FString> GetBufferVisualizationOverviewTargets();
+
+	/** Get next buffer */
+	void GetNextBuffer(const TArray<FString>& OverviewBuffers, int32 Step = 1);
+
+	/** Get next buffer */
+	void GetNextBuffer(int32 Step = 1);
+
 private:
 
 	/** The normalized screen location when a drag starts */
@@ -230,6 +279,15 @@ private:
 
 	/** Current orbit radius, if orbit is enabled */
 	float OrbitRadius;
+
+	/** Last view mode index before buffer visualization overview was enabled, see enum EViewModeIndex for valid values */
+	int32 LastViewModeIndex;
+
+	/** Last index in settings array for cycle view modes */
+	int32 LastViewModeSettingsIndex;
+	
+	/** Last buffer selected in buffer visualization overview */
+	FString LastSelectedBuffer;
 
 	void OnTouchBegin(ETouchIndex::Type FingerIndex, FVector Location);
 	void OnTouchEnd(ETouchIndex::Type FingerIndex, FVector Location);

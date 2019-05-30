@@ -372,6 +372,9 @@ FReply SGraphPin::OnPinMouseDown( const FGeometry& SenderGeometry, const FPointe
 
 					// A weak reference to the node object that owns the pin
 					TWeakObjectPtr<UEdGraphNode> OwnerNodePtr;
+
+					// The direction of the pin
+					EEdGraphPinDirection Direction;
 				};
 
 				// Build a lookup table containing information about the set of pins that we're currently linked to
@@ -385,6 +388,7 @@ FReply SGraphPin::OnPinMouseDown( const FGeometry& SenderGeometry, const FPointe
 						FLinkedToPinInfo PinInfo;
 						PinInfo.PinName = (*PinWidget)->GetPinObj()->PinName;
 						PinInfo.OwnerNodePtr = (*PinWidget)->OwnerNodePtr.Pin()->GetNodeObj();
+						PinInfo.Direction = (*PinWidget)->GetPinObj()->Direction;
 						LinkedToPinInfoArray.Add(MoveTemp(PinInfo));
 					}
 				}
@@ -398,7 +402,7 @@ FReply SGraphPin::OnPinMouseDown( const FGeometry& SenderGeometry, const FPointe
 					{
 						for (UEdGraphPin* Pin : PinInfo.OwnerNodePtr.Get()->Pins)
 						{
-							if (Pin->PinName == PinInfo.PinName)
+							if (Pin->PinName == PinInfo.PinName && Pin->Direction == PinInfo.Direction)
 							{
 								if (TSharedRef<SGraphPin>* pWidget = PinToPinWidgetMap.Find(FGraphPinHandle(Pin)))
 								{

@@ -14,8 +14,8 @@ class FCompilerResultsLog;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 
-UCLASS(MinimalAPI, Abstract)
-class UAnimGraphNode_CustomProperty : public UAnimGraphNode_Base
+UCLASS(Abstract)
+class ANIMGRAPH_API UAnimGraphNode_CustomProperty : public UAnimGraphNode_Base
 {
 	GENERATED_BODY()
 
@@ -28,21 +28,19 @@ public:
 	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput /*= NULL*/) const override;
 	//~ End UEdGraphNode Interface.
 
-	// Gets the property on InOwnerInstanceClass that corresponds to InInputPin
-	ANIMGRAPH_API void GetInstancePinProperty(const UClass* InOwnerInstanceClass, UEdGraphPin* InInputPin, UProperty*& OutProperty);
-	// Gets the unique name for the property linked to a given pin
-	ANIMGRAPH_API FString GetPinTargetVariableName(const UEdGraphPin* InPin) const;
-	// Gets Target Class this properties to link
-	ANIMGRAPH_API UClass* GetTargetClass() const;
-	// Add Source and Target Properties - Check FAnimNode_CustomProperty
-	ANIMGRAPH_API void AddSourceTargetProperties(const FName& InSourcePropertyName, const FName& InTargetPropertyName);
+	// UAnimGraphNode_Base interface
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
-	// return true if this pin name is property exposed
-	// return false if this pin doesn't belong to property
-	virtual bool IsValidPropertyPin(const FName& PinName) const
-	{
-		return (PinName != FName(TEXT("Pose"), FNAME_Find));
-	}
+	// Gets the property on InOwnerInstanceClass that corresponds to InInputPin
+	void GetInstancePinProperty(const UClass* InOwnerInstanceClass, UEdGraphPin* InInputPin, UProperty*& OutProperty);
+	// Gets the unique name for the property linked to a given pin
+	FString GetPinTargetVariableName(const UEdGraphPin* InPin) const;
+	// Gets Target Class this properties to link
+	UClass* GetTargetClass() const;
+	// Add Source and Target Properties - Check FAnimNode_CustomProperty
+	void AddSourceTargetProperties(const FName& InSourcePropertyName, const FName& InTargetPropertyName);
+	// Helper used to get the skeleton class we are targeting
+	virtual UClass* GetTargetSkeletonClass() const;
 
 protected:
 
@@ -57,23 +55,34 @@ protected:
 	TArray<FName> ExposedPropertyNames;
 
 	// Searches the instance class for properties that we can expose (public and BP visible)
-	void GetExposableProperties(TArray<UProperty*>& OutExposableProperties) const;
+	virtual void GetExposableProperties(TArray<UProperty*>& OutExposableProperties) const;
 	// Gets a property's type as FText (for UI)
 	FText GetPropertyTypeText(UProperty* Property);
 	// Given a new class, rebuild the known property list (for tracking class changes and moving pins)
-	void RebuildExposedProperties(UClass* InNewClass);
+	virtual void RebuildExposedProperties();
 
 	// ----- UI CALLBACKS ----- //
+	// User changed the instance class etc.
+	void OnStructuralPropertyChanged(IDetailLayoutBuilder* DetailBuilder);
 	// If given property exposed on this node
-	ECheckBoxState IsPropertyExposed(FName PropertyName) const;
+	virtual ECheckBoxState IsPropertyExposed(FName PropertyName) const;
 	// User chose to expose, or unexpose a property
-	void OnPropertyExposeCheckboxChanged(ECheckBoxState NewState, FName PropertyName);
+	virtual void OnPropertyExposeCheckboxChanged(ECheckBoxState NewState, FName PropertyName);
+	// If all possible properties are exposed on this node
+	virtual ECheckBoxState AreAllPropertiesExposed() const;
+	// User chose to expose, or unexpose all properties
+	virtual void OnPropertyExposeAllCheckboxChanged(ECheckBoxState NewState);
 	// User changed the instance class
 	void OnInstanceClassChanged(IDetailLayoutBuilder* DetailBuilder);
 
 	// internal node accessor
-	virtual FAnimNode_CustomProperty* GetInternalNode() PURE_VIRTUAL(UAnimGraphNode_CustomProperty::GetInternalNode, return nullptr;);
-	virtual const FAnimNode_CustomProperty* GetInternalNode() const PURE_VIRTUAL(UAnimGraphNode_CustomProperty::GetInternalNode, return nullptr;);
+	virtual FAnimNode_CustomProperty* GetCustomPropertyNode() PURE_VIRTUAL(UAnimGraphNode_CustomProperty::GetCustomPropertyNode, return nullptr;);
+	virtual const FAnimNode_CustomProperty* GetCustomPropertyNode() const PURE_VIRTUAL(UAnimGraphNode_CustomProperty::GetCustomPropertyNode, return nullptr;);
 
-	friend class UAnimGraphNode_SubInstance;
+	// Check whether the specified property is structural (i.e. should we rebuild the UI if it changes)
+	virtual bool IsStructuralProperty(UProperty* InProperty) const { return false; }
+
+	// Whether this node needs a valid target class up-front
+	virtual bool NeedsToSpecifyValidTargetClass() const { return true; }
+
 };

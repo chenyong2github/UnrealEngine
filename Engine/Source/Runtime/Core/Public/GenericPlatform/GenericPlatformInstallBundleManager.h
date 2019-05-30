@@ -16,6 +16,7 @@ enum class EInstallBundleModuleInitResult : int
 	BuildMetaDataParsingError,
 	DistributionRootParseError,
 	DistributionRootDownloadError,
+	ManifestArchiveError,
 	ManifestCreationError,
 	ManifestDownloadError,
 	BackgroundDownloadsIniDownloadError,
@@ -33,6 +34,7 @@ inline const TCHAR* LexToString(EInstallBundleModuleInitResult Result)
 		TEXT("BuildMetaDataParsingError"),
 		TEXT("DistributionRootParseError"),
 		TEXT("DistributionRootDownloadError"),
+		TEXT("ManifestArchiveError"),
 		TEXT("ManifestCreationError"),
 		TEXT("ManifestDownloadError"),
 		TEXT("BackgroundDownloadsIniDownloadError"),
@@ -49,6 +51,7 @@ enum class EInstallBundleResult : int
 	FailedPrereqRequiresLatestClient,
 	InstallError,
 	InstallerOutOfDiskSpaceError,
+	ManifestArchiveError,
 	UserCancelledError,
 	InitializationError,
 	Count,
@@ -63,6 +66,7 @@ inline const TCHAR* LexToString(EInstallBundleResult Result)
 		TEXT("FailedPrereqRequiresLatestClient"),
 		TEXT("InstallError"),
 		TEXT("InstallerOutOfDiskSpaceError"),
+		TEXT("ManifestArchiveError"),
 		TEXT("UserCancelledError"),
 		TEXT("InitializationError"),
 	};
@@ -290,6 +294,8 @@ public:
 
 	virtual void RequestRemoveBundleOnNextInit(FName BundleName) = 0;
 
+	virtual void CancelRequestRemoveBundleOnNextInit(FName BundleName) = 0;
+
 	virtual void CancelBundle(FName BundleName, EInstallBundleCancelFlags Flags) = 0;
 
 	virtual void CancelAllBundles(EInstallBundleCancelFlags Flags) = 0;
@@ -307,9 +313,6 @@ public:
 	virtual bool IsNullInterface() const = 0;
 
 	virtual void SetErrorSimulationCommands(const FString& CommandLine) {}
-
-	// return true if we actually cleaned up a migration directory
-	virtual bool CleanupMigrationDirectory() { return false;  }
 };
 
 class IPlatformInstallBundleManagerModule : public IModuleInterface

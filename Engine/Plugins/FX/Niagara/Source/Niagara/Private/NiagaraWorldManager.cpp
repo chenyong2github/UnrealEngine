@@ -15,6 +15,7 @@
 #include "NiagaraStats.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Tick [GT]"), STAT_NiagaraWorldManTick, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait On Render [GT]"), STAT_NiagaraWorldManWaitOnRender, STATGROUP_Niagara);
 
 TGlobalResource<FNiagaraViewDataMgr> GNiagaraViewDataManager;
 
@@ -33,8 +34,6 @@ void FNiagaraViewDataMgr::Init()
 
 	GNiagaraViewDataManager.PostOpaqueDelegate.BindRaw(&GNiagaraViewDataManager, &FNiagaraViewDataMgr::PostOpaqueRender);
 	RendererModule.RegisterPostOpaqueRenderDelegate(GNiagaraViewDataManager.PostOpaqueDelegate);
-
-	RendererModule.OnPreSceneRender().AddRaw(&GNiagaraViewDataManager, &FNiagaraViewDataMgr::OnPreSceneRenderCalled);
 }
 
 void FNiagaraViewDataMgr::Shutdown()
@@ -60,8 +59,6 @@ FNiagaraWorldManager::FNiagaraWorldManager(UWorld* InWorld)
 	, CachedEffectsQuality(INDEX_NONE)
 {
 }
-
-
 
 FNiagaraWorldManager* FNiagaraWorldManager::Get(UWorld* World)
 {
@@ -171,6 +168,13 @@ void FNiagaraWorldManager::DestroySystemSimulation(UNiagaraSystem* System)
 	}	
 }
 
+void FNiagaraWorldManager::DestroySystemInstance(TUniquePtr<FNiagaraSystemInstance>& InPtr)
+{
+	check(IsInGameThread());
+	check(InPtr != nullptr);
+	DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Emplace(MoveTemp(InPtr));
+}
+
 void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResources)
 {
 	for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SimPair : SystemSimulations)
@@ -179,36 +183,20 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 	}
 	SystemSimulations.Empty();
 	CleanupParameterCollections();
+
+	for ( int32 i=0; i < NumDeferredQueues; ++i)
+	{
+		DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
+		DeferredDeletionQueue[i].Queue.Empty();
+	}
 }
 
 void FNiagaraWorldManager::Tick(float DeltaSeconds)
 {
-/*
-Some experimental tinkering with links to effects quality.
-Going off this idea tbh
-
-	int32 CurrentEffectsQuality = Scalability::GetEffectsQualityDirect(true);
-	if (CachedEffectsQuality != CurrentEffectsQuality)
-	{
-		CachedEffectsQuality = CurrentEffectsQuality;
-		FString SectionName = FString::Printf(TEXT("%s@%d"), TEXT("EffectsQuality"), CurrentEffectsQuality);
-		if (FConfigFile* File = GConfig->FindConfigFileWithBaseName(TEXT("Niagara")))
-		{
-			FString ScalabilityCollectionString;			
-			if (File->GetString(*SectionName, TEXT("ScalabilityCollection"), ScalabilityCollectionString))
-			{
-				//NewLandscape_Material = LoadObject<UMaterialInterface>(NULL, *NewLandsfgcapeMaterialName, NULL, LOAD_NoWarn);
-				UNiagaraParameterCollectionInstance* ScalabilityCollection = LoadObject<UNiagaraParameterCollectionInstance>(NULL, *ScalabilityCollectionString, NULL, LOAD_NoWarn);
-				if (ScalabilityCollection)
-				{
-					SetParameterCollection(ScalabilityCollection);
-				}
-			}
-		}
-	}
-*/
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManTick);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
+
+	FNiagaraSharedObject::FlushDeletionList();
 
 	SkeletalMeshGeneratedData.TickGeneratedData(DeltaSeconds);
 
@@ -233,4 +221,15 @@ Going off this idea tbh
 	{
 		SystemSimulations.Remove(DeadSystem);
 	}
+
+	// Enqueue fence for deferred deletion
+	DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.BeginFence();
+
+	// Remove instances from previous frame
+	DeferredDeletionQueueIndex = (DeferredDeletionQueueIndex + 1) % NumDeferredQueues;
+	{
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManWaitOnRender);
+		DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
+	}
+	DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Empty();
 }

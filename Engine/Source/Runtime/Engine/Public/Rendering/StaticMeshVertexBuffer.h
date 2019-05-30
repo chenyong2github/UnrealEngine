@@ -492,6 +492,9 @@ public:
 	{
 		return IsValidRef(TangentsVertexBuffer.VertexBufferRHI) && IsValidRef(TexCoordVertexBuffer.VertexBufferRHI);
 	}
+
+	const FShaderResourceViewRHIParamRef GetTangentsSRV() const { return TangentsSRV; }
+	const FShaderResourceViewRHIParamRef GetTexCoordsSRV() const { return TextureCoordinatesSRV; }
 private:
 
 	/** The vertex data storage type */

@@ -213,16 +213,24 @@ namespace UnrealBuildTool
 				Module.LoadingPhase = LoadingPhase;
 			}
 
-			UnrealTargetPlatform[] WhitelistPlatforms;
-			if (InObject.TryGetEnumArrayField<UnrealTargetPlatform>("WhitelistPlatforms", out WhitelistPlatforms))
+			try
 			{
-				Module.WhitelistPlatforms = WhitelistPlatforms;
-			}
+				string[] WhitelistPlatforms;
+				if (InObject.TryGetStringArrayField("WhitelistPlatforms", out WhitelistPlatforms))
+				{
+					Module.WhitelistPlatforms = Array.ConvertAll(WhitelistPlatforms, x => UnrealTargetPlatform.Parse(x));
+				}
 
-			UnrealTargetPlatform[] BlacklistPlatforms;
-			if (InObject.TryGetEnumArrayField<UnrealTargetPlatform>("BlacklistPlatforms", out BlacklistPlatforms))
+				string[] BlacklistPlatforms;
+				if (InObject.TryGetStringArrayField("BlacklistPlatforms", out BlacklistPlatforms))
+				{
+					Module.BlacklistPlatforms = Array.ConvertAll(BlacklistPlatforms, x => UnrealTargetPlatform.Parse(x));
+				}
+			}
+			catch (BuildException Ex)
 			{
-				Module.BlacklistPlatforms = BlacklistPlatforms;
+				ExceptionUtils.AddContext(Ex, "while parsing module descriptor '{0}'", Module.Name);
+				throw;
 			}
 
 			TargetType[] WhitelistTargets;

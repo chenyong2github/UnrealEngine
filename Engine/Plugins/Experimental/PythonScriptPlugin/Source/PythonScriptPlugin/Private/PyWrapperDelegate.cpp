@@ -15,25 +15,6 @@
 
 const FName UPythonCallableForDelegate::GeneratedFuncName = "CallPython";
 
-void UPythonCallableForDelegate::BeginDestroy()
-{
-#if WITH_PYTHON
-	// This may be called after Python has already shut down
-	if (Py_IsInitialized())
-	{
-		FPyScopedGIL GIL;
-		PyCallable.Reset();
-	}
-	else
-	{
-		// Release ownership if Python has been shut down to avoid attempting to delete the callable (which is already dead)
-		PyCallable.Release();
-	}
-#endif	// WITH_PYTHON
-
-	Super::BeginDestroy();
-}
-
 DEFINE_FUNCTION(UPythonCallableForDelegate::CallPythonNative)
 {
 #if WITH_PYTHON
@@ -118,6 +99,28 @@ DEFINE_FUNCTION(UPythonCallableForDelegate::CallPythonNative)
 }
 
 #if WITH_PYTHON
+void UPythonCallableForDelegate::BeginDestroy()
+{
+	// This may be called after Python has already shut down
+	if (Py_IsInitialized())
+	{
+		FPyScopedGIL GIL;
+		PyCallable.Reset();
+	}
+	else
+	{
+		// Release ownership if Python has been shut down to avoid attempting to delete the callable (which is already dead)
+		PyCallable.Release();
+	}
+
+	Super::BeginDestroy();
+}
+
+void UPythonCallableForDelegate::ReleasePythonResources()
+{
+	PyCallable.Reset();
+}
+
 PyObject* UPythonCallableForDelegate::GetCallable() const
 {
 	return (PyObject*)PyCallable.GetPtr();
@@ -1289,8 +1292,6 @@ PyTypeObject PyWrapperMulticastDelegateType = InitializePyWrapperMulticastDelega
 
 void FPyWrapperDelegateMetaData::AddReferencedObjects(FPyWrapperBase* Instance, FReferenceCollector& Collector)
 {
-	TPyWrapperDelegateMetaData<FPyWrapperDelegate>::AddReferencedObjects(Instance, Collector);
-
 	FPyWrapperDelegate* Self = static_cast<FPyWrapperDelegate*>(Instance);
 	if (Self->DelegateInstance)
 	{
@@ -1300,8 +1301,6 @@ void FPyWrapperDelegateMetaData::AddReferencedObjects(FPyWrapperBase* Instance, 
 
 void FPyWrapperMulticastDelegateMetaData::AddReferencedObjects(FPyWrapperBase* Instance, FReferenceCollector& Collector)
 {
-	TPyWrapperDelegateMetaData<FPyWrapperMulticastDelegate>::AddReferencedObjects(Instance, Collector);
-
 	FPyWrapperMulticastDelegate* Self = static_cast<FPyWrapperMulticastDelegate*>(Instance);
 	if (Self->DelegateInstance)
 	{

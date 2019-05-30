@@ -15,7 +15,6 @@
 #include "InstancedFoliageActor.h"
 #include "VREditorInteractor.h"
 #include "AI/NavigationSystemBase.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "Landscape.h"
 
 // VR Editor
@@ -698,7 +697,7 @@ struct FXYOffsetmapAccessor
 			
 			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!LandscapeEdit->HasLandscapeLayersContent())
 			{
 				for (ULandscapeComponent* Component : Components)
 				{
@@ -839,7 +838,7 @@ struct FFullWeightmapAccessor
 
 	~FFullWeightmapAccessor()
 	{
-		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (!LandscapeEdit.HasLandscapeLayersContent())
 		{
 			// Recreate collision for modified components to update the physical materials
 			for (ULandscapeComponent* Component : ModifiedComponents)
@@ -878,7 +877,7 @@ struct FFullWeightmapAccessor
 		{
 			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!LandscapeEdit.HasLandscapeLayersContent())
 			{
 				ModifiedComponents.Append(Components);
 			}
@@ -1129,7 +1128,7 @@ public:
 	{
 	}
 
-	virtual bool ShouldUpdateEditingLayer() const { return GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem; }
+	virtual bool ShouldUpdateEditingLayer() const { return EdMode->CanHaveLandscapeLayersContent(); }
 
 	virtual ELandscapeLayerUpdateMode GetBeginToolContentUpdateFlag() const
 	{
@@ -1157,6 +1156,7 @@ public:
 			{
 				Landscape->RequestLayersContentUpdate(GetBeginToolContentUpdateFlag());
 				Landscape->SetEditingLayer(this->EdMode->GetCurrentLayerGuid());
+				Landscape->SetGrassUpdateEnabled(false);
 			}
 		}
 
@@ -1235,6 +1235,7 @@ public:
 			{
 				Landscape->RequestLayersContentUpdate(GetEndToolContentUpdateFlag());
 				Landscape->SetEditingLayer();
+				Landscape->SetGrassUpdateEnabled(true);
 			}
 		}
 	}

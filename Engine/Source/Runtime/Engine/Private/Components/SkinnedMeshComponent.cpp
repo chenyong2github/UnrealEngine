@@ -586,9 +586,9 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent()
 				const bool bMorphTargetsAllowed = CVarEnableMorphTargets.GetValueOnAnyThread(true) != 0;
 
 				// Are morph targets disabled for this LOD?
-				if (bDisableMorphTarget || !bMorphTargetsAllowed)
+				if (!bDisableMorphTarget && bMorphTargetsAllowed)
 				{
-					ActiveMorphTargets.Empty();
+					RefreshMorphTargets();
 				}
 
 				MeshObject->Update(PredictedLODLevel, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::UpdatePrevious);  // send to rendering thread
@@ -1933,12 +1933,15 @@ void USkinnedMeshComponent::AddSocketOverride(FName SourceSocketName, FName Over
 {
 	if (FName* FoundName = SocketOverrideLookup.Find(SourceSocketName))
 	{
-		if (bWarnHasOverrided)
+		if (*FoundName != OverrideSocketName)
 		{
-			UE_LOG(LogSkinnedMeshComp, Warning, TEXT("AddSocketOverride(%s, %s): Component(%s) Actor(%s) has already defined an override for socket(%s), replacing %s as override"),
-				*SourceSocketName.ToString(), *OverrideSocketName.ToString(), *GetName(), *GetNameSafe(GetOuter()), *SourceSocketName.ToString(), *(FoundName->ToString()));
+			if (bWarnHasOverrided)
+			{
+				UE_LOG(LogSkinnedMeshComp, Warning, TEXT("AddSocketOverride(%s, %s): Component(%s) Actor(%s) has already defined an override for socket(%s), replacing %s as override"),
+					*SourceSocketName.ToString(), *OverrideSocketName.ToString(), *GetName(), *GetNameSafe(GetOuter()), *SourceSocketName.ToString(), *(FoundName->ToString()));
+			}
+			*FoundName = OverrideSocketName;
 		}
-		*FoundName = OverrideSocketName;
 	}
 	else
 	{

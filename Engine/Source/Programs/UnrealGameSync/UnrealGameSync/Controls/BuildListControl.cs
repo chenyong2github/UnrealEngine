@@ -12,7 +12,7 @@ using System.Windows.Forms;
 
 namespace UnrealGameSync
 {
-    public class BuildListControl : CustomListViewControl
+    class BuildListControl : CustomListViewControl
 	{
 		[StructLayout(LayoutKind.Sequential)]
 		public class SCROLLINFO

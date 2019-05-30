@@ -4,17 +4,34 @@
 
 #include "CoreTypes.h"
 #include "LC_Thread.h"
+#include "LC_CriticalSection.h"
+#include "LC_Semaphore.h"
 #include <string>
+#include <deque>
 
+class DuplexPipe;
 class DuplexPipeClient;
 class Event;
-class CriticalSection;
 
 
 // handles incoming commands from the host (the executable that loaded the Live++ DLL)
 class ClientUserCommandThread
 {
 public:
+	class BaseCommand
+	{
+	public:
+		explicit BaseCommand(bool expectResponse);
+		virtual ~BaseCommand(void);
+
+		virtual void Execute(DuplexPipe* pipe) = 0;
+
+		bool ExpectsResponse(void) const;
+
+	private:
+		bool m_expectResponse;
+	};
+
 	struct ExceptionResult
 	{
 		const void* returnAddress;
@@ -33,19 +50,17 @@ public:
 	// Joins this thread.
 	void Join(void);
 
-	void* EnableModule(const wchar_t* const nameOfExeOrDll);
-	void* EnableAllModules(const wchar_t* const nameOfExeOrDll);
+	void* EnableModule(const wchar_t* nameOfExeOrDll);
+	void* EnableModules(const wchar_t* namesOfExeOrDll[], unsigned int count);
+	void* EnableAllModules(const wchar_t* nameOfExeOrDll);
 
-	void* DisableModule(const wchar_t* const nameOfExeOrDll);
-	void* DisableAllModules(const wchar_t* const nameOfExeOrDll);
+	void* DisableModule(const wchar_t* nameOfExeOrDll);
+	void* DisableModules(const wchar_t* namesOfExeOrDll[], unsigned int count);
+	void* DisableAllModules(const wchar_t* nameOfExeOrDll);
 
 	void WaitForToken(void* token);
 	void TriggerRecompile(void);
 	void BuildPatch(const wchar_t* moduleNames[], const wchar_t* objPaths[], const wchar_t* amalgamatedObjPaths[], unsigned int count);
-
-	void InstallExceptionHandler(void);
-	ExceptionResult HandleException(EXCEPTION_RECORD* exception, CONTEXT* context, unsigned int threadId);
-	void End(void);
 
 	// BEGIN EPIC MOD - Adding ShowConsole command
 	void ShowConsole();
@@ -67,24 +82,31 @@ public:
 	void EnableLazyLoadedModule(const wchar_t* fileName, Windows::HMODULE moduleBase);
 	// END EPIC MOD
 
-	void ApplySettingBool(const char* const settingName, int value);
-	void ApplySettingInt(const char* const settingName, int value);
-	void ApplySettingString(const char* const settingName, const wchar_t* const value);
+	void ApplySettingBool(const char* settingName, int value);
+	void ApplySettingInt(const char* settingName, int value);
+	void ApplySettingString(const char* settingName, const wchar_t* value);
+
+	void InstallExceptionHandler(void);
+	ExceptionResult HandleException(EXCEPTION_RECORD* exception, CONTEXT* context, unsigned int threadId);
+	void End(void);
 
 private:
-	struct ThreadContext
-	{
-		ClientUserCommandThread* thisInstance;
-		Event* waitForStartEvent;
-		CriticalSection* pipeAccessCS;
-	};
+	// pushes a user command into the command queue
+	void PushUserCommand(BaseCommand* command);
 
-	static unsigned int __stdcall ThreadProxy(void* context);
+	// pops a user command from the command queue.
+	// blocks until a command becomes available.
+	BaseCommand* PopUserCommand(void);
+
 	unsigned int ThreadFunction(Event* waitForStartEvent, CriticalSection* pipeAccessCS);
 
 	thread::Handle m_thread;
 	std::wstring m_processGroupName;
 	DuplexPipeClient* m_pipe;
 	DuplexPipeClient* m_exceptionPipe;
-	Event* m_itemInQueueEvent;
+
+	// queue for working on commands received by user code
+	std::deque<BaseCommand*> m_userCommandQueue;
+	CriticalSection m_userCommandQueueCS;
+	Semaphore m_userCommandQueueSema;
 };

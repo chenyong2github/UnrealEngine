@@ -414,6 +414,12 @@ private:
 	UPROPERTY(AssetRegistrySearchable)
 	FMaterialShadingModelField ShadingModels;
 
+#if WITH_EDITORONLY_DATA
+	/** These are the shading models present in this material. Note that all these shading models might not be used in all feature levels and quality levels. */
+	UPROPERTY(VisibleAnywhere, Transient, Category=Material)
+	FString UsedShadingModels;
+#endif
+
 public:
 
 	/** If BlendMode is BLEND_Masked, the surface is not rendered where OpacityMask < OpacityMaskClipValue. */
@@ -1560,10 +1566,10 @@ public:
 	 * @param	Expression	The expression dynamic parameter to check for duplicates.
 	 */
 	ENGINE_API virtual bool HasDuplicateDynamicParameters(const UMaterialExpression* Expression);
-
-	/** Walk the material expression graph from the Shading Model input pin (or from the Material Attribute) and find all used Shading Models for this material and update the field in this material. */
-	ENGINE_API void RebuildShadingModelField();
 #endif // WITH_EDITOR
+
+	/** Collect all material expressions fomr this material and all its functions and figure out which possible shading models exist in this material */
+	ENGINE_API void RebuildShadingModelField();
 
 	/**
 	 * Iterate through all of the expression nodes and fix up changed properties on
@@ -1750,6 +1756,7 @@ private:
 	friend class FMaterialUpdateContext;
 	friend class FMaterialResource;
 	friend class FMaterialEditor;
+	friend class FMaterialDetailCustomization;
 
 	// DO NOT CALL outside of FMaterialEditor!
 	ENGINE_API static void ForceNoCompilationInPostLoad(bool bForceNoCompilation);
@@ -1816,6 +1823,65 @@ private:
 
 		return nullptr;
 	}
+
+#if WITH_EDITOR
+
+	template<typename ParameterType, typename ...Arguments>
+	bool SetParameterValueEditorOnly(FName InParameterName, Arguments... Args)
+	{
+		// Warning: in the case of duplicate parameters with different default values, this will find the first in the expression array, not necessarily the one that's used for rendering
+
+		// Lambda which calls SetParameterValue on a given parameter and triggers a PostEditChange event if successful
+		auto TrySetParameterValue = [&](ParameterType* Parameter) -> bool
+		{
+			if (Parameter && Parameter->SetParameterValue(InParameterName, Args...))
+			{
+				if (UProperty* ParamProperty = FindField<UProperty>(ParameterType::StaticClass(), "DefaultValue"))
+				{
+					FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
+					Parameter->PostEditChangeProperty(PropertyChangedEvent);
+					return true;
+				}
+			}
+			return false;
+		};
+
+		for (UMaterialExpression* Expression : Expressions)
+		{
+			if (TrySetParameterValue(Cast<ParameterType>(Expression)))
+			{
+				return true;
+			}
+			else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
+			{
+				if (FunctionCall->MaterialFunction)
+				{
+					TArray<UMaterialFunctionInterface*> Functions;
+					Functions.Add(FunctionCall->MaterialFunction);
+					FunctionCall->MaterialFunction->GetDependentFunctions(Functions);
+
+					for (UMaterialFunctionInterface* Function : Functions)
+					{
+						const TArray<UMaterialExpression*>* ExpressionPtr = Function->GetFunctionExpressions();
+						if (ExpressionPtr)
+						{
+							for (UMaterialExpression* FunctionExpression : *ExpressionPtr)
+							{
+								if (TrySetParameterValue(Cast<ParameterType>(FunctionExpression)))
+								{
+									return true;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+#endif // WITH_EDITOR
 
 };
 

@@ -24,6 +24,8 @@ namespace EAssetRegistryDependencyType
 
 		// Reference that says one object directly manages another object, set when Primary Assets manage things explicitly
 		HardManage = 0x10,
+
+		// Note: Also update FAssetRegistryDependencyOptions when adding more flags
 	};
 
 	static const Type None = (Type)(0);
@@ -33,7 +35,7 @@ namespace EAssetRegistryDependencyType
 }
 
 /**
-* HotReload module interface
+* Asset Registry module interface
 */
 class IAssetRegistryInterface : public IModuleInterface
 {

@@ -725,7 +725,8 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 
 	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
 
-	for(TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+	bool bHadDeferredActions = DeferredActions.Num() > 0;
+	auto PreProcessRootNode = [&bHadDeferredActions, this](TSharedPtr<FComplexPropertyNode> RootPropertyNode) 
 	{
 		check(RootPropertyNode.IsValid());
 
@@ -735,11 +736,25 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 			ObjectRoot->PurgeKilledObjects();
 		}
 
-		if(DeferredActions.Num() > 0)
+		if(bHadDeferredActions)
 		{		
 			// Any deferred actions are likely to cause the node  tree to be at least partially rebuilt
 			// Save the expansion state of existing nodes so we can expand them later
 			SaveExpandedItems(RootPropertyNode.ToSharedRef());
+		}
+	};
+
+	for (TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+	{
+		PreProcessRootNode(RootPropertyNode);
+	}
+
+	for (FDetailLayoutData& LayoutData : DetailLayouts)
+	{
+		FRootPropertyNodeList& ExternalRootPropertyNodes = LayoutData.DetailLayout->GetExternalRootPropertyNodes();
+		for (TSharedPtr<FComplexPropertyNode>& ExternalRootPropertyNode : ExternalRootPropertyNodes)
+		{
+			PreProcessRootNode(ExternalRootPropertyNode);
 		}
 	}
 
@@ -751,6 +766,25 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 			DeferredActions[ActionIndex].ExecuteIfBound();
 		}
 		DeferredActions.Empty();
+	}
+
+	if (bHadDeferredActions)
+	{
+		for (TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+		{
+			check(RootPropertyNode.IsValid());
+			RestoreExpandedItems(RootPropertyNode.ToSharedRef());
+		}
+
+		for (FDetailLayoutData& LayoutData : DetailLayouts)
+		{
+			FRootPropertyNodeList& ExternalRootPropertyNodes = LayoutData.DetailLayout->GetExternalRootPropertyNodes();
+			for (TSharedPtr<FComplexPropertyNode>& ExternalRootPropertyNode : ExternalRootPropertyNodes)
+			{
+				check(ExternalRootPropertyNode.IsValid());
+				RestoreExpandedItems(ExternalRootPropertyNode.ToSharedRef());
+			}
+		}
 	}
 
 	TSharedPtr<FComplexPropertyNode> LastRootPendingKill;
@@ -775,12 +809,6 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 	{
 		for(TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
 		{
-			if(RootPropertyNode == LastRootPendingKill)
-			{
-				ExpandedDetailNodes.Empty();
-				RestoreExpandedItems(RootPropertyNode.ToSharedRef());
-			}
-
 			EPropertyDataValidationResult Result = RootPropertyNode->EnsureDataIsValid();
 			if(Result == EPropertyDataValidationResult::PropertiesChanged || Result == EPropertyDataValidationResult::EditInlineNewValueChanged)
 			{

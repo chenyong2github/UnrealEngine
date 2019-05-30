@@ -20,7 +20,6 @@
 #include "ScopedTransaction.h"
 #include "Raster.h"
 #include "Landscape.h"
-#include "Settings/EditorExperimentalSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Landscape"
@@ -458,27 +457,24 @@ void RasterizeSegmentAlpha(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, F
 	LandscapeEdit.GetComponentsInRegion(MinX, MinY, MaxX, MaxY, &ModifiedComponents);
 }
 
-bool ULandscapeInfo::ApplySplines(bool bOnlySelected)
+bool ULandscapeInfo::ApplySplines(bool bOnlySelected, TSet<ULandscapeComponent*>* OutModifiedComponents)
 {
 	bool bResult = false;
 
 	ALandscape* Landscape = LandscapeActor.Get();
 	const FLandscapeLayer* Layer = Landscape ? Landscape->GetLandscapeSplinesReservedLayer() : nullptr;
-	FGuid SplinesTargetLayerGuid = Layer ? Layer->Guid : FGuid();
-	FScopedSetLandscapeEditingLayer Scope(Landscape, SplinesTargetLayerGuid, [=] 
-	{ 
-		Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
-	});
+	FGuid SplinesTargetLayerGuid = Layer ? Layer->Guid : Landscape ? Landscape->GetEditingLayer() : FGuid();
+	FScopedSetLandscapeEditingLayer Scope(Landscape, SplinesTargetLayerGuid, [=] { Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All); });
 
-	ForAllLandscapeProxies([&bResult, bOnlySelected, this](ALandscapeProxy* Proxy)
+	ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 	{
-		bResult |= ApplySplinesInternal(bOnlySelected, Proxy);
+		bResult |= ApplySplinesInternal(bOnlySelected, Proxy, OutModifiedComponents);
 	});
 
 	return bResult;
 }
 
-bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* Proxy)
+bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* Proxy, TSet<ULandscapeComponent*>* OutModifiedComponents)
 {
 	if (!Proxy || !Proxy->SplineComponent || Proxy->SplineComponent->ControlPoints.Num() == 0 || Proxy->SplineComponent->Segments.Num() == 0)
 	{
@@ -632,10 +628,14 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* P
 		
 	for (ULandscapeComponent* Component : ModifiedComponents)
 	{
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (Component->GetLandscapeProxy()->HasLayersContent())
 		{
 			Component->RequestHeightmapUpdate();
 			Component->RequestWeightmapUpdate();
+			if (OutModifiedComponents)
+			{
+				OutModifiedComponents->Add(Component);
+			}
 		}
 		else
 		{
@@ -730,7 +730,7 @@ namespace LandscapeSplineRaster
 
 		LandscapeEdit.Flush();
 
-		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (!LandscapeProxy->HasLayersContent())
 		{
 			for (ULandscapeComponent* Component : ModifiedComponents)
 			{

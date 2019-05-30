@@ -172,9 +172,15 @@ void UNiagaraNodeAssignment::PostLoad()
 	}
 }
 
-void UNiagaraNodeAssignment::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive)
+void UNiagaraNodeAssignment::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive) const
 {
 	Super::BuildParameterMapHistory(OutHistory, bRecursive);
+}
+
+void UNiagaraNodeAssignment::GatherExternalDependencyIDs(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FGuid>& InReferencedIDs, TArray<UObject*>& InReferencedObjs) const
+{
+	// Assignment nodes own their function graphs and therefore have no external dependencies so we override the default function behavior here to avoid 
+	// adding additional non-deterministic guids to the compile id generation which can invalid the DDC for compiled scripts, especially during emitter merging.
 }
 
 void UNiagaraNodeAssignment::GenerateScript()
@@ -233,7 +239,7 @@ void UNiagaraNodeAssignment::BuildCreateParameterMenu(FMenuBuilder& MenuBuilder,
 		TSet<FName> Names;
 		for (const UNiagaraGraph* Graph : Graphs)
 		{
-			for (const TPair<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& ParameterElement : Graph->GetParameterMap())
+			for (const TPair<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& ParameterElement : Graph->GetParameterReferenceMap())
 			{
 				Names.Add(ParameterElement.Key.GetName());
 			}
@@ -495,16 +501,18 @@ void UNiagaraNodeAssignment::InitializeScript(UNiagaraScript* NewScript)
 					const FNiagaraVariableMetaData* FoundMetaData = FNiagaraConstants::GetConstantMetaData(AssignmentTargets[i]);
 					if (FoundMetaData)
 					{
-						FNiagaraVariableMetaData& MetaData = CreatedGraph->FindOrAddMetaData(TargetVar);
-						MetaData.Description = FoundMetaData->Description;
-						MetaData.ReferencerNodes.Empty();
-						MetaData.ReferencerNodes.Add(GetNodes[0]);
+						FNiagaraVariableMetaData NewMetaData;
+						TOptional<FNiagaraVariableMetaData> ExistingMetaData = CreatedGraph->GetMetaData(TargetVar);
+						if (ExistingMetaData.IsSet())
+						{
+							NewMetaData = ExistingMetaData.GetValue();
+						}
+						NewMetaData.Description = FoundMetaData->Description;
+						CreatedGraph->SetMetaData(TargetVar, NewMetaData);
 					}
 				}
 			}
 		}
-
-		CreatedGraph->PurgeUnreferencedMetaData();
 	}
 }
 

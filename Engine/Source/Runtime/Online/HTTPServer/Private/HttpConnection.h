@@ -6,6 +6,8 @@
 #include "HttpConnectionRequestReadContext.h"
 #include "HttpConnectionResponseWriteContext.h"
 #include "HttpResultCallback.h"
+#include "HttpServerConstants.h"
+#include "HttpServerHttpVersion.h"
 
 class FSocket;
 class ISocketSubsystem;
@@ -25,7 +27,7 @@ public:
 	 * 
 	 * @param InSocket The underlying file descriptor
 	 */
-	FHttpConnection(FSocket* Socket, TSharedPtr<FHttpRouter> Router);
+	FHttpConnection(FSocket* Socket, TSharedPtr<FHttpRouter> Router, uint32 OriginPort, uint32 ConnectionId);
 
 	/**
 	 * Destructor
@@ -67,7 +69,7 @@ public:
 		return this->Socket == Other.Socket;
 	}
 
-	friend uint32 GetTypeHash(const FHttpConnection& Conn) 
+	friend uint32 GetTypeHash(const FHttpConnection& Conn)
 	{
 		return GetTypeHash(Conn.Socket);
 	}
@@ -147,16 +149,27 @@ private:
 	/**
 	 * Logs and responds with the caller-supplied error code
 	 *
-	 * @param ErrorCode The machine-readable error description
+	 * @param ErrorCode The HTTP error code
+	 * @param ErrorCodeStr The machine-readable error description
 	 */
-	void HandleReadError(const TCHAR* ErrorCode);
+	void HandleReadError(EHttpServerResponseCodes ErrorCode,  const TCHAR* ErrorCodeStr);
 
 	/**
 	 * Logs the caller-supplied error code and closes the connection
 	 *
-	 * @param ErrorCode The machine-readable error description
+	 * @param ErrorCodeStr The machine-readable error description
 	 */
-	void HandleWriteError(const TCHAR* ErrorCode);
+	void HandleWriteError(const TCHAR* ErrorCodeStr);
+
+	/**
+	* Determines whether KeepAlive is set based on the caller-supplied http version and connection headers
+	*
+	* @param HttpVersion         The http version of the request
+	* @param ConnectionHeaders   The request "Connection:" headers
+	* @return                    true if KeepAlive should be set, false otherwise
+    */
+	static bool ResolveKeepAlive(HttpVersion::EHttpServerHttpVersion HttpVersion, const TArray<FString>& ConnectionHeaders);
+
 
 private:
 
@@ -169,6 +182,12 @@ private:
 	/** Routing mechanism  */
 	const TSharedPtr<FHttpRouter> Router;
 
+	/** The origin port on which this connection was accepted */
+	uint32 OriginPort;
+
+	/** The connection identifier (used for logging purposes) */
+	uint32 ConnectionId;
+
 	/** Helper reader context to track the state of streaming request reads */
 	FHttpConnectionRequestReadContext ReadContext;
 
@@ -176,7 +195,7 @@ private:
 	FHttpConnectionResponseWriteContext WriteContext;
 
 	/** Whether to keep this connection alive after writing */
-	bool bKeepAlive = false;
+	bool bKeepAlive = true;
 
 	/** Whether to gracefully close pending current operations */
 	bool bGracefulDestroyRequested = false;

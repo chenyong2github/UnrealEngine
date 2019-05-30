@@ -55,7 +55,6 @@ LandscapeEdit.cpp: Landscape editing
 #include "Engine/TextureRenderTarget2D.h"
 #include "ScopedTransaction.h"
 #include "Editor.h"
-#include "Settings/EditorExperimentalSettings.h"
 #endif
 #include "Algo/Count.h"
 #include "Serialization/MemoryWriter.h"
@@ -122,7 +121,7 @@ void ULandscapeComponent::UpdateCachedBounds()
 	if (HFCollisionComponent)
 	{
         // In Landscape Layers the Collision Component is slave and doesn't need to be transacted
-		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (!GetLandscapeProxy()->HasLayersContent())
 		{
 			HFCollisionComponent->Modify();
 		}
@@ -559,7 +558,7 @@ void ULandscapeComponent::PostEditUndo()
 {
 	if (!IsPendingKill())
 	{
-		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (!GetLandscapeProxy()->HasLayersContent())
 		{
 			UpdateMaterialInstances();
 		}
@@ -570,14 +569,14 @@ void ULandscapeComponent::PostEditUndo()
 	if (!IsPendingKill())
 	{
 		EditToolRenderData.UpdateSelectionMaterial(EditToolRenderData.SelectedType, this);
-		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (!GetLandscapeProxy()->HasLayersContent())
 		{
 			EditToolRenderData.UpdateDebugColorMaterial(this);
             UpdateEditToolRenderData();
 		}	
 	}
 		
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (GetLandscapeProxy()->HasLayersContent())
 	{
 		TArray<ULandscapeComponent*> SingleComponent;
 		SingleComponent.Add(this);
@@ -800,7 +799,7 @@ public:
 	int32 SizeVertsSquare = 0;
 };
 
-void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const HeightmapTextureMipData, const FColor* const SimpleCollisionHeightmapTextureData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, bool bUpdateBounds/*=false*/, const FColor* XYOffsetTextureMipData/*=nullptr*/)
+void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const HeightmapTextureMipData, const FColor* const SimpleCollisionHeightmapTextureData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, bool bUpdateBounds/*=false*/, const FColor* XYOffsetTextureMipData/*=nullptr*/, bool bInUpdateHeightfieldRegion/*=true*/)
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
@@ -823,7 +822,7 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 	bool ChangeType = false;
 
     // In Landscape Layers the Collision Component is slave and doesn't need to be transacted
-	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (!Proxy->HasLayersContent())
 	{
 		if (CollisionComp)
 		{
@@ -866,7 +865,7 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 	}
 
 	CollisionHeightData = (uint16*)CollisionComp->CollisionHeightData.Lock(LOCK_READ_WRITE);
-
+	
 	if (XYOffsetmapTexture && MeshCollisionComponent)
 	{
 		CollisionXYOffsetData = (uint16*)MeshCollisionComponent->CollisionXYOffsetData.Lock(LOCK_READ_WRITE);
@@ -911,7 +910,7 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 	}
 
 	// If we updated an existing component, we need to update the phys x heightfield edit data
-	if (!CreatedNew)
+	if (!CreatedNew && bInUpdateHeightfieldRegion)
 	{
 		if (MeshCollisionComponent)
 		{
@@ -967,7 +966,7 @@ void ULandscapeComponent::DestroyCollisionData()
 	}
 }
 
-void ULandscapeComponent::UpdateCollisionData()
+void ULandscapeComponent::UpdateCollisionData(bool bInUpdateHeightfieldRegion)
 {
 	TArray<uint8> CollisionMipData;
 	TArray<uint8> SimpleCollisionMipData;
@@ -987,7 +986,7 @@ void ULandscapeComponent::UpdateCollisionData()
 		(FColor*)CollisionMipData.GetData(),
 		SimpleCollisionMipLevel > CollisionMipLevel ? (FColor*)SimpleCollisionMipData.GetData() : nullptr,
 		0, 0, MAX_int32, MAX_int32, true,
-		XYOffsetmapTexture ? (FColor*)XYOffsetMipData.GetData() : nullptr);
+		XYOffsetmapTexture ? (FColor*)XYOffsetMipData.GetData() : nullptr, bInUpdateHeightfieldRegion);
 }
 
 void ULandscapeComponent::RecreateCollisionComponent(bool bUseSimpleCollision)
@@ -1177,7 +1176,7 @@ void ULandscapeComponent::UpdateDominantLayerBuffer(int32 InComponentX1, int32 I
 {
 	const int32 MipSizeU = InWeightmapSizeU >> InCollisionMipLevel;
 
-	FCollisionSize CollisionSize = FCollisionSize::Create(NumSubsections, SubsectionSizeQuads, CollisionMipLevel);
+	FCollisionSize CollisionSize = FCollisionSize::Create(NumSubsections, SubsectionSizeQuads, InCollisionMipLevel);
 	
 	// Ratio to convert update region coordinate to collision mip coordinates
 	const float CollisionQuadRatio = (float)CollisionSize.SubsectionSizeQuads / (float)SubsectionSizeQuads;
@@ -2145,7 +2144,8 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 {
 	check(InGuid.IsValid());
 	check(InImportHeightData.Num() == InImportMaterialLayerInfos.Num());
-	check(GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem || InImportLayers == nullptr);
+
+	check(CanHaveLayersContent() || InImportLayers == nullptr);
 
 	GWarn->BeginSlowTask(LOCTEXT("BeingImportingLandscapeTask", "Importing Landscape"), true);
 
@@ -2765,7 +2765,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 	// Create and initialize landscape info object
 	ULandscapeInfo* LandscapeInfo = CreateLandscapeInfo();
 
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (CanHaveLayersContent())
 	{
 		// Components need to be registered to be able to import the layer content and we will remove them if they should have not been visible
 		bool ShouldComponentBeRegistered = GetLevel()->bIsVisible;
@@ -3835,6 +3835,15 @@ void ULandscapeInfo::PostponeTextureBaking()
 	});
 }
 
+bool ULandscapeInfo::CanHaveLayersContent() const
+{
+	if (ALandscape* Landscape = LandscapeActor.Get())
+	{
+		return Landscape->CanHaveLayersContent();
+	}
+	return false;
+}
+
 namespace
 {
 	inline float AdjustStaticLightingResolution(float StaticLightingResolution, int32 NumSubsections, int32 SubsectionSizeQuads, int32 ComponentSizeQuads)
@@ -4050,15 +4059,12 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	if (bRemovedAnyLayers)
 	{
 		ALandscapeProxy::InvalidateGeneratedComponentData(LandscapeComponents);
+		ALandscape* LandscapeActor = GetLandscapeActor();
 
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if(LandscapeActor != nullptr && LandscapeActor->HasLayersContent())
 		{
-			if(ALandscape* LandscapeActor = GetLandscapeActor())
-			{
-				LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
-			}
+			LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
 		}
-		
 	}
 
 	// Must do this *after* correcting the scale or reattaching the landscape components will crash!
@@ -4653,7 +4659,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 	ALandscapeProxy* TargetProxy = InTargetProxy ? InTargetProxy : GetLandscapeProxy();
 
 	FGuid EditingLayerGUID = GetEditingLayerGUID();
-	check(!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem || !InCanUseEditingWeightmap || EditingLayerGUID.IsValid());
+	check(!TargetProxy->HasLayersContent() || !InCanUseEditingWeightmap || EditingLayerGUID.IsValid());
 	FGuid TargetLayerGuid = InCanUseEditingWeightmap ? EditingLayerGUID : FGuid();
 
 	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(InCanUseEditingWeightmap);

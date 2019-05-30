@@ -944,6 +944,24 @@ void FHttpNetworkReplayStreamer::HttpRequestEventDataFinished(FHttpRequestPtr Ht
 	RequestEventDataCompleteDelegate.ExecuteIfBound(Result);
 }
 
+void FHttpNetworkReplayStreamer::RequestEventGroupData(const FString& Group, const FRequestEventGroupDataCallback& Delegate)
+{
+	UE_LOG(LogHttpReplay, Log, TEXT("FHttpNetworkReplayStreamer::RequestEventGroupData is currently unsupported."));
+	FRequestEventGroupDataResult Result;
+	Result.Result = EStreamingOperationResult::Unsupported;
+	Delegate.Execute(Result);
+}
+
+void FHttpNetworkReplayStreamer::RequestEventGroupData(const FString& ReplayName, const FString& Group, const FRequestEventGroupDataCallback& Delegate)
+{
+	RequestEventGroupData(Group, Delegate);
+}
+
+void FHttpNetworkReplayStreamer::RequestEventGroupData(const FString& ReplayName, const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate)
+{
+	RequestEventGroupData(Group, Delegate);
+}
+
 void FHttpNetworkReplayStreamer::GotoTimeInMS( const uint32 TimeInMS, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType )
 {
 	if ( !IsCheckpointTypeSupported(CheckpointType) )

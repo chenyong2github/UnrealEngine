@@ -71,7 +71,7 @@ public:
 			true,
 			300
 			);
-
+	
 		// register customizations
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomClassLayout("LandscapeEditorObject", FOnGetDetailCustomizationInstance::CreateStatic(&FLandscapeEditorDetails::MakeInstance));
@@ -162,7 +162,10 @@ public:
 					{
 						InMenuBuilder.AddMenuEntry(LandscapeActions.ViewModeLayerUsage, NAME_None, LOCTEXT("LandscapeViewModeLayerUsage", "Layer Usage"));
 						InMenuBuilder.AddMenuEntry(LandscapeActions.ViewModeLayerDebug, NAME_None, LOCTEXT("LandscapeViewModeLayerDebug", "Layer Debug"));
-						if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+
+						FEdModeLandscape* LandscapeMode = (FEdModeLandscape*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_Landscape);
+
+						if (LandscapeMode->CanHaveLandscapeLayersContent())
 						{
 							InMenuBuilder.AddMenuEntry(LandscapeActions.ViewModeLayerContribution, NAME_None, LOCTEXT("LandscapeViewModeLayerContribution", "Layer Contribution"));
 						}

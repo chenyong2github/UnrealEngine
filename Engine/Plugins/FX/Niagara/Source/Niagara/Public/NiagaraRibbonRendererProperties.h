@@ -8,6 +8,8 @@
 #include "NiagaraCommon.h"
 #include "NiagaraRibbonRendererProperties.generated.h"
 
+class FNiagaraEmitterInstance;
+
 UENUM()
 enum class ENiagaraRibbonFacingMode : uint8
 {
@@ -39,17 +41,30 @@ class UNiagaraRibbonRendererProperties : public UNiagaraRendererProperties
 public:
 	GENERATED_BODY()
 
-	UNiagaraRibbonRendererProperties()
-		: Material(nullptr)
-		, FacingMode(ENiagaraRibbonFacingMode::Screen)
-		, UV0TilingDistance(0.0f)
-		, UV0Scale(FVector2D(1.0f, 1.0f))
-		, UV0AgeOffsetMode(ENiagaraRibbonAgeOffsetMode::Scale)
-		, UV1TilingDistance(0.0f)
-		, UV1Scale(FVector2D(1.0f, 1.0f))
-		, UV1AgeOffsetMode(ENiagaraRibbonAgeOffsetMode::Scale)
-	{
-	}
+	UNiagaraRibbonRendererProperties();
+
+	//UObject Interface
+	virtual void PostInitProperties() override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	//UObject Interface END
+
+	static void InitCDOPropertiesAfterModuleStartup();
+
+	//UNiagaraRendererProperties Interface
+	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter) override;
+	virtual class FNiagaraBoundsCalculator* CreateBoundsCalculator() override;
+	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials) const override;
+	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return (InSimTarget == ENiagaraSimTarget::CPUSim); };
+#if WITH_EDITOR
+	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) override;
+	virtual void FixMaterial(UMaterial* Material);
+	virtual const TArray<FNiagaraVariable>& GetRequiredAttributes() override;
+	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
+#endif
+	//UNiagaraRendererProperties Interface END
+
 
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
 	UMaterialInterface* Material;
@@ -84,21 +99,6 @@ public:
 	/** If true, the particles are only sorted when using a translucent material. */
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
 	ENiagaraRibbonDrawDirection DrawDirection;
-
-	//~ UNiagaraRendererProperties interface
-	virtual NiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel) override;
-	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials) const override;
-	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return (InSimTarget == ENiagaraSimTarget::CPUSim); };
-#if WITH_EDITORONLY_DATA
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual const TArray<FNiagaraVariable>& GetRequiredAttributes() override;
-	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
-	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) override;
-	virtual void FixMaterial(UMaterial* Material);
-#endif
-
-	virtual void PostInitProperties() override;
-	static void InitCDOPropertiesAfterModuleStartup();
 
 
 	/** Which attribute should we use for position when generating ribbons?*/
@@ -157,8 +157,6 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
 	FNiagaraVariableAttributeBinding DynamicMaterial3Binding;
 
-	UPROPERTY(Transient)
-	int32 SyncId;
 protected:
 	void InitBindings();
 };

@@ -64,7 +64,7 @@ public:
 	TSharedPtr< FUICommandInfo > AddNewLocalVariable;
 	TSharedPtr< FUICommandInfo > AddNewFunction;
 	TSharedPtr< FUICommandInfo > AddNewMacroDeclaration;
-	TSharedPtr< FUICommandInfo > AddNewAnimationGraph;
+	TSharedPtr< FUICommandInfo > AddNewAnimationLayer;
 	TSharedPtr< FUICommandInfo > AddNewEventGraph;
 	TSharedPtr< FUICommandInfo > AddNewDelegate;
 

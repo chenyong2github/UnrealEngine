@@ -22,7 +22,6 @@ LandscapeEditInterface.cpp: Landscape editing interface
 #include "LandscapeRender.h"
 #include "ComponentReregisterContext.h"
 #include "Algo/Transform.h"
-#include "Settings/EditorExperimentalSettings.h"
 
 // Channel remapping
 extern const size_t ChannelOffsets[4] = {STRUCT_OFFSET(FColor,R), STRUCT_OFFSET(FColor,G), STRUCT_OFFSET(FColor,B), STRUCT_OFFSET(FColor,A)};
@@ -406,7 +405,7 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 			}
 												
 			Component->RequestHeightmapUpdate();
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!Component->GetLandscapeProxy()->HasLayersContent())
 			{
 				// See if we need to adjust the bounds. Note we never shrink the bounding box at this point
 				bool bUpdateBoxSphereBounds = false;
@@ -1749,7 +1748,7 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 	}
 
 	// Update the shaders for this component
-	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (!Component->GetLandscapeProxy()->HasLayersContent())
 	{
 		Component->UpdateMaterialInstances();
 		Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
@@ -1758,7 +1757,7 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 	Component->RequestWeightmapUpdate();
 	
 	// Update dominant layer info stored in collision component
-	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (!Component->GetLandscapeProxy()->HasLayersContent())
 	{
 		TArray<FColor*> CollisionWeightmapMipData;
 		for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
@@ -1804,7 +1803,7 @@ void FLandscapeEditDataInterface::DeleteLayer(ULandscapeLayerInfoObject* LayerIn
 
 	if (LandscapeInfo->LandscapeActor)
 	{
-		LandscapeInfo->LandscapeActor->RequestLayersContentUpdateForceAll();
+		LandscapeInfo->LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
 	}
 }
 
@@ -1952,7 +1951,7 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 	}
 
 	// Update the shaders for this component
-	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (!Component->GetLandscapeProxy()->HasLayersContent())
 	{
 		Component->UpdateMaterialInstances();
 		Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
@@ -1962,7 +1961,7 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 	Component->RequestWeightmapUpdate();
 
 	// Update dominant layer info stored in collision component
-	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (!Component->GetLandscapeProxy()->HasLayersContent())
 	{
 		TArray<FColor*> CollisionWeightmapMipData;
 		for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapTextures.Num(); WeightmapIdx++)
@@ -2226,7 +2225,7 @@ void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo,
 		// Remove the layer
 		ComponentWeightmapLayerAllocations.RemoveAt(FromLayerIdx);
 
-		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		if (!GetLandscapeProxy()->HasLayersContent())
 		{
 			// Update the shaders for this component
 			UpdateMaterialInstances();
@@ -2238,7 +2237,7 @@ void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo,
 
 	RequestWeightmapUpdate();
 
-	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (!LandscapeEdit.HasLandscapeLayersContent())
 	{
 		// Update dominant layer info stored in collision component
 		TArray<FColor*> CollisionWeightmapMipData;
@@ -2279,24 +2278,20 @@ void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLa
 		}
 	};
 
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (LandscapeInfo->LandscapeActor.IsValid() && LandscapeInfo->LandscapeActor->HasLayersContent())
 	{
-		if (LandscapeInfo->LandscapeActor)
+		LandscapeInfo->LandscapeActor->Modify();
+		LandscapeInfo->LandscapeActor->ForEachLayer([&](FLandscapeLayer& CurrentLayer)
 		{
-			LandscapeInfo->LandscapeActor->Modify();
-			LandscapeInfo->LandscapeActor->ForEachLayer([&](FLandscapeLayer& CurrentLayer)
+			bool OutValue;
+			if (CurrentLayer.WeightmapLayerAllocationBlend.RemoveAndCopyValue(FromLayerInfo, OutValue))
 			{
-				bool OutValue;
-				if (CurrentLayer.WeightmapLayerAllocationBlend.RemoveAndCopyValue(FromLayerInfo, OutValue))
-				{
-					CurrentLayer.WeightmapLayerAllocationBlend.Add(ToLayerInfo, OutValue);
-				}
-
-				FScopedSetLandscapeEditingLayer Scope(LandscapeInfo->LandscapeActor.Get(), CurrentLayer.Guid);
-				DoReplace();
-			});
-			LandscapeInfo->LandscapeActor->RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Update_Weightmap_All);
-		}
+				CurrentLayer.WeightmapLayerAllocationBlend.Add(ToLayerInfo, OutValue);
+			}
+			FScopedSetLandscapeEditingLayer Scope(LandscapeInfo->LandscapeActor.Get(), CurrentLayer.Guid);
+			DoReplace();
+		});
+		LandscapeInfo->LandscapeActor->RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Update_Weightmap_All);
 	}
 	else
 	{
@@ -2857,7 +2852,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 				new (ComponentWeightmapLayerAllocations) FWeightmapLayerAllocationInfo(LayerInfo);
 				Component->ReallocateWeightmaps(this);
 
-				if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+				if (!Component->GetLandscapeProxy()->HasLayersContent())
 				{
 					Component->UpdateMaterialInstances();
 					Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
@@ -3135,7 +3130,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 				}
 			}
 
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!Component->GetLandscapeProxy()->HasLayersContent())
 			{
 				// Update mipmaps
 				CollisionWeightmapMipData.Reset();
@@ -3196,7 +3191,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 
 			if (bRemovedLayer)
 			{
-				if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+				if (!Component->GetLandscapeProxy()->HasLayersContent())
 				{
 					Component->UpdateMaterialInstances();
 					Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
@@ -3306,7 +3301,7 @@ void FLandscapeEditDataInterface::SetAlphaData(const TSet<ULandscapeLayerInfoObj
 					}
 					Component->ReallocateWeightmaps(this);
 					
-					if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+					if (!Component->GetLandscapeProxy()->HasLayersContent())
 					{
 						Component->UpdateMaterialInstances();
 						Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
@@ -3422,7 +3417,7 @@ void FLandscapeEditDataInterface::SetAlphaData(const TSet<ULandscapeLayerInfoObj
 				}
 			}
 
-			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			if (!Component->GetLandscapeProxy()->HasLayersContent())
 			{
 				// Update mipmaps
 				CollisionWeightmapMipData.Reset();
@@ -3483,7 +3478,7 @@ void FLandscapeEditDataInterface::SetAlphaData(const TSet<ULandscapeLayerInfoObj
 
 			if (bRemovedLayer)
 			{
-				if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+				if (!Component->GetLandscapeProxy()->HasLayersContent())
 				{
 					Component->UpdateMaterialInstances();
 					Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
@@ -4568,7 +4563,11 @@ void FLandscapeEditDataInterface::GetEditToolTextureData(const int32 X1, const i
 
 			FLandscapeTextureDataInfo* TexDataInfo = NULL;
 			uint8* SelectTextureData = NULL;
-			UTexture2D* EditToolTexture = Component ? GetComponentTexture(Component) : nullptr;
+			UTexture2D* EditToolTexture = nullptr;
+			if (Component)
+			{
+				EditToolTexture = GetComponentTexture(Component);
+			}
 			if (EditToolTexture)
 			{
 				TexDataInfo = GetTextureDataInfo(EditToolTexture);
@@ -5542,6 +5541,17 @@ const ALandscape* FLandscapeEditDataInterface::GetTargetLandscape() const
 	return LandscapeInfo ? LandscapeInfo->LandscapeActor.Get() : nullptr;
 }
 
+bool FLandscapeEditDataInterface::CanHaveLandscapeLayersContent() const
+{
+	return LandscapeInfo ? LandscapeInfo->CanHaveLayersContent() : false;
+}
+
+bool FLandscapeEditDataInterface::HasLandscapeLayersContent() const
+{
+	const ALandscape* Landscape = GetTargetLandscape();
+	return Landscape ? Landscape->HasLayersContent() : false;
+}
+
 void FLandscapeEditDataInterface::GetXYOffsetDataFast(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, FVector2D* Data, int32 Stride)
 {
 	if( Stride==0 )
@@ -5581,6 +5591,7 @@ void FLandscapeEditDataInterface::GetXYOffsetDataFast(const int32 X1, const int3
 FLandscapeTextureDataInfo::FLandscapeTextureDataInfo(UTexture2D* InTexture)
 :	Texture(InTexture)
 {
+	check(InTexture->IsAsyncCacheComplete());
 	MipInfo.AddZeroed(Texture->Source.GetNumMips());
 	Texture->SetFlags(RF_Transactional);
 	Texture->TemporarilyDisableStreaming();

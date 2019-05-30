@@ -412,6 +412,11 @@ private:
 
 	UPROPERTY()
 	TMap<FGuid, FLandscapeLayerComponentData> LayersData;
+
+	/** Compoment's Data for Editing Layer */
+	FGuid LandscapeEditingLayer;
+	mutable FGuid CachedEditingLayer;
+	mutable FLandscapeLayerComponentData* CachedEditingLayerData;
 		
 	// Final layer data
 	UPROPERTY(Transient)
@@ -601,6 +606,7 @@ public:
 	LANDSCAPE_API TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnEditingWeightmap = false);
 	LANDSCAPE_API const TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnEditingWeightmap = false) const;
 
+	LANDSCAPE_API bool HasLayersData() const;
 	LANDSCAPE_API const FLandscapeLayerComponentData* GetLayerData(const FGuid& InLayerGuid) const;
 	LANDSCAPE_API FLandscapeLayerComponentData* GetLayerData(const FGuid& InLayerGuid);
 	LANDSCAPE_API void AddLayerData(const FGuid& InLayerGuid, const FLandscapeLayerComponentData& InData);
@@ -608,6 +614,7 @@ public:
 	LANDSCAPE_API void RemoveLayerData(const FGuid& InLayerGuid);
 	LANDSCAPE_API void ForEachLayer(TFunctionRef<void(const FGuid&, struct FLandscapeLayerComponentData&)> Fn);
 
+	LANDSCAPE_API void SetEditingLayer(const FGuid& InEditingLayer);
 	FLandscapeLayerComponentData* GetEditingLayer();
 	const FLandscapeLayerComponentData* GetEditingLayer() const;
 	FGuid GetEditingLayerGUID() const;
@@ -809,7 +816,7 @@ public:
 	 * @param XYOffsetTextureMipData: xy-offset map data
 	 * @returns True if CollisionComponent was created in this update.
 	 */
-	void UpdateCollisionHeightData(const FColor* HeightmapTextureMipData, const FColor* SimpleCollisionHeightmapTextureData, int32 ComponentX1=0, int32 ComponentY1=0, int32 ComponentX2=MAX_int32, int32 ComponentY2=MAX_int32, bool bUpdateBounds=false, const FColor* XYOffsetTextureMipData=nullptr);
+	void UpdateCollisionHeightData(const FColor* HeightmapTextureMipData, const FColor* SimpleCollisionHeightmapTextureData, int32 ComponentX1=0, int32 ComponentY1=0, int32 ComponentX2=MAX_int32, int32 ComponentY2=MAX_int32, bool bUpdateBounds=false, const FColor* XYOffsetTextureMipData=nullptr, bool bInUpdateHeightfieldRegion=true);
 
 	/**
 	 * Deletes Collision Component
@@ -818,7 +825,7 @@ public:
 
 	/** Updates collision component height data for the entire component, locking and unlocking heightmap textures
 	 */
-	void UpdateCollisionData();
+	void UpdateCollisionData(bool bInUpdateHeightfieldRegion = true);
 
 	/**
 	 * Update collision component dominant layer data

@@ -23,6 +23,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Commandlets/ChunkDependencyInfo.h"
+#include "Settings/ProjectPackagingSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "AssetManager"
@@ -811,7 +812,21 @@ void UAssetManager::SetPrimaryAssetTypeRules(FPrimaryAssetType PrimaryAssetType,
 
 void UAssetManager::SetPrimaryAssetRules(FPrimaryAssetId PrimaryAssetId, const FPrimaryAssetRules& Rules)
 {
-	if (Rules.IsDefault())
+	static FPrimaryAssetRules DefaultRules;
+
+	FPrimaryAssetRulesExplicitOverride ExplicitRules;
+	ExplicitRules.Rules = Rules;
+	ExplicitRules.bOverridePriority = (Rules.Priority != DefaultRules.Priority);
+	ExplicitRules.bOverrideApplyRecursively = (Rules.bApplyRecursively != DefaultRules.bApplyRecursively);
+	ExplicitRules.bOverrideChunkId = (Rules.ChunkId != DefaultRules.ChunkId);
+	ExplicitRules.bOverrideCookRule = (Rules.CookRule != DefaultRules.CookRule);
+	
+	SetPrimaryAssetRulesExplicitly(PrimaryAssetId, ExplicitRules);
+}
+
+void UAssetManager::SetPrimaryAssetRulesExplicitly(FPrimaryAssetId PrimaryAssetId, const FPrimaryAssetRulesExplicitOverride& ExplicitRules)
+{
+	if (!ExplicitRules.HasAnyOverride())
 	{
 		AssetRuleOverrides.Remove(PrimaryAssetId);
 	}
@@ -822,7 +837,7 @@ void UAssetManager::SetPrimaryAssetRules(FPrimaryAssetId PrimaryAssetId, const F
 			UE_LOG(LogAssetManager, Error, TEXT("Duplicate Rule overrides found for asset %s!"), *PrimaryAssetId.ToString());
 		}
 
-		AssetRuleOverrides.Add(PrimaryAssetId, Rules);
+		AssetRuleOverrides.Add(PrimaryAssetId, ExplicitRules);
 	}
 
 	bIsManagementDatabaseCurrent = false;
@@ -840,11 +855,11 @@ FPrimaryAssetRules UAssetManager::GetPrimaryAssetRules(FPrimaryAssetId PrimaryAs
 		Result = (*FoundType)->Info.Rules;
 
 		// Selectively override
-		const FPrimaryAssetRules* FoundRules = AssetRuleOverrides.Find(PrimaryAssetId);
+		const FPrimaryAssetRulesExplicitOverride* FoundRulesOverride = AssetRuleOverrides.Find(PrimaryAssetId);
 
-		if (FoundRules)
+		if (FoundRulesOverride)
 		{
-			Result.OverrideRules(*FoundRules);
+			FoundRulesOverride->OverrideRulesExplicitly(Result);
 		}
 
 		if (Result.Priority < 0)
@@ -1201,6 +1216,14 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 				}
 
 				DebugName += TEXT(")");
+			}
+
+			if (PathsToLoad.Num() == 0)
+			{
+				// New state has no assets to load. Set the CurrentState's bundles and clear the handle
+				NameData->CurrentState.BundleNames = NewBundleState;
+				NameData->CurrentState.Handle.Reset();
+				continue;
 			}
 
 			NewHandle = LoadAssetList(PathsToLoad.Array(), FStreamableDelegate(), Priority, DebugName);
@@ -2064,6 +2087,30 @@ void UAssetManager::LoadRedirectorMaps()
 	for (const FAssetManagerRedirect& Redirect : Settings.AssetPathRedirects)
 	{
 		AssetPathRedirects.Add(FName(*Redirect.Old), FName(*Redirect.New));
+	}
+
+	// Collapse all redirects to resolve recursive relationships.
+	for (const TPair<FName, FName>& Pair : AssetPathRedirects)
+	{
+		const FName OldPath = Pair.Key;
+		FName NewPath = Pair.Value;
+		TSet<FName> CollapsedPaths;
+		CollapsedPaths.Add(OldPath);
+		CollapsedPaths.Add(NewPath);
+		while (FName* NewPathValue = AssetPathRedirects.Find(NewPath)) // Does the NewPath exist as a key?
+		{
+			NewPath = *NewPathValue;
+			if (CollapsedPaths.Contains(NewPath))
+			{
+				UE_LOG(LogAssetManager, Error, TEXT("AssetPathRedirect cycle detected when redirecting: %s to %s"), *OldPath.ToString(), *NewPath.ToString());
+				break;
+			}
+			else
+			{
+				CollapsedPaths.Add(NewPath);
+			}
+		}
+		AssetPathRedirects[OldPath] = NewPath;
 	}
 }
 
@@ -3041,23 +3088,28 @@ void UAssetManager::UpdateManagementDatabase(bool bForceRefresh)
 		AssetRegistry.SetManageReferences(PrimaryAssetIdManagementMap, false, EAssetRegistryDependencyType::None);
 	}
 
-	// Update chunk package list for all chunks
-	for (FName PackageName : PackagesToUpdateChunksFor)
+	UProjectPackagingSettings* ProjectPackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
+	if (ProjectPackagingSettings && ProjectPackagingSettings->bGenerateChunks)
 	{
-		ChunkList.Reset();
-		OverrideChunkList.Reset();
-		GetPackageChunkIds(PackageName, nullptr, ExistingChunkList, ChunkList, &OverrideChunkList);
-
-		if (ChunkList.Num() > 0)
+		// Update the editor preview chunk package list for all chunks, but only if we actually care about chunks
+		// bGenerateChunks is settable per platform, but should be enabled on the default platform for preview to work
+		for (FName PackageName : PackagesToUpdateChunksFor)
 		{
-			for (int32 ChunkId : ChunkList)
-			{
-				CachedChunkMap.FindOrAdd(ChunkId).AllAssets.Add(PackageName);
+			ChunkList.Reset();
+			OverrideChunkList.Reset();
+			GetPackageChunkIds(PackageName, nullptr, ExistingChunkList, ChunkList, &OverrideChunkList);
 
-				if (OverrideChunkList.Contains(ChunkId))
+			if (ChunkList.Num() > 0)
+			{
+				for (int32 ChunkId : ChunkList)
 				{
-					// This was in the override list, so add an explicit dependency
-					CachedChunkMap.FindOrAdd(ChunkId).ExplicitAssets.Add(PackageName);
+					CachedChunkMap.FindOrAdd(ChunkId).AllAssets.Add(PackageName);
+
+					if (OverrideChunkList.Contains(ChunkId))
+					{
+						// This was in the override list, so add an explicit dependency
+						CachedChunkMap.FindOrAdd(ChunkId).ExplicitAssets.Add(PackageName);
+					}
 				}
 			}
 		}

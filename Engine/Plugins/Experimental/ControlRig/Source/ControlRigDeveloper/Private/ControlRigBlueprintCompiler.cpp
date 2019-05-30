@@ -75,8 +75,13 @@ void FControlRigBlueprintCompilerContext::BuildPropertyLinks()
 			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
 			if (RigGraph)
 			{
-				FControlRigGraphTraverser Traverser(ControlRigBlueprint, RigGraph);
-				Traverser.TraverseAndBuildPropertyLinks();
+				if (ControlRigBlueprint->Model == nullptr)
+				{
+					ControlRigBlueprint->PopulateModelFromGraph(RigGraph);
+				}
+
+				FControlRigGraphTraverser Traverser(ControlRigBlueprint->Model);
+				Traverser.TraverseAndBuildPropertyLinks(ControlRigBlueprint);
 
 				bool bEncounteredChange = false;
 				for (UEdGraphNode* Node : RigGraph->Nodes)
@@ -84,7 +89,7 @@ void FControlRigBlueprintCompilerContext::BuildPropertyLinks()
 					UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
 					if (RigNode)
 					{
-						bool bDisplayAsDisabled = !Traverser.IsWiredToExecution(RigNode);
+						bool bDisplayAsDisabled = !Traverser.IsWiredToExecution(RigNode->PropertyName);
 						if (bDisplayAsDisabled != RigNode->IsDisplayAsDisabledForced())
 						{
 							RigNode->SetForceDisplayAsDisabled(bDisplayAsDisabled);
@@ -387,19 +392,64 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 
 	FKismetCompilerContext::PostCompile();
 
-	// We need to copy any pin defaults over to underlying properties once the class is built
-	// as the defaults may not have been propagated from new nodes yet
-	for(UEdGraph* UbergraphPage : Blueprint->UbergraphPages)
+	// ask the model to update all defaults
+	bool bSetDefaultsFromModel = false;
+	if (ControlRigBlueprint)
 	{
-		if(UControlRigGraph* ControlRigGraph = Cast<UControlRigGraph>(UbergraphPage))
+		if (ControlRigBlueprint->ModelController)
 		{
-			for(UEdGraphNode* Node : ControlRigGraph->Nodes)
+			// ensure that blueprint storage arrays have the right size.
+			// they might get out of sync due to compilation order.
+			for (const FControlRigModelNode& Node : ControlRigBlueprint->Model->Nodes())
 			{
-				if(UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(Node))
+				for (const FControlRigModelPin& Pin : Node.Pins)
 				{
-					for(UEdGraphPin* Pin : ControlRigGraphNode->Pins)
+					if (Pin.Direction != EGPD_Input)
 					{
-						ControlRigGraphNode->CopyPinDefaultsToProperties(Pin, false, false);
+						continue;
+					}
+					if (!Pin.IsArray())
+					{
+						continue;
+					}
+
+					int32 ArraySize = Pin.ArraySize();
+					FString PinPath = ControlRigBlueprint->Model->GetPinPath(Pin.GetPair());
+					ControlRigBlueprint->PerformArrayOperation(PinPath, [ArraySize](FScriptArrayHelper& InArrayHelper, int32 InArrayIndex)
+					{
+						while (InArrayHelper.Num() < ArraySize)
+						{
+							InArrayHelper.AddValue();
+						}
+						while (InArrayHelper.Num() > ArraySize)
+						{
+							InArrayHelper.RemoveValues(InArrayHelper.Num() - 1);
+						}
+						return true;
+					}, true, true);
+				}
+			}
+
+			bSetDefaultsFromModel = ControlRigBlueprint->ModelController->ResendAllPinDefaultNotifications();
+		}
+	}
+
+	if (!bSetDefaultsFromModel)
+	{
+		// We need to copy any pin defaults over to underlying properties once the class is built
+		// as the defaults may not have been propagated from new nodes yet
+		for (UEdGraph* UbergraphPage : Blueprint->UbergraphPages)
+		{
+			if (UControlRigGraph* ControlRigGraph = Cast<UControlRigGraph>(UbergraphPage))
+			{
+				for (UEdGraphNode* Node : ControlRigGraph->Nodes)
+				{
+					if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(Node))
+					{
+						for (UEdGraphPin* Pin : ControlRigGraphNode->Pins)
+						{
+							ControlRigGraphNode->CopyPinDefaultsToModel(Pin);
+						}
 					}
 				}
 			}
@@ -418,6 +468,7 @@ void FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObjec
 		ControlRig->Hierarchy.BaseHierarchy = ControlRigBlueprint->Hierarchy;
 		// copy available rig units info, so that control rig can do things with it
 		ControlRig->AllowSourceAccessProperties = ControlRigBlueprint->AllowSourceAccessProperties;
+		ControlRigBlueprint->UpdateParametersOnControlRig(ControlRig);
 	}
 }
 

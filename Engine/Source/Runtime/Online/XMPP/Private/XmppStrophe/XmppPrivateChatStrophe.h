@@ -26,10 +26,11 @@ public:
 	virtual ~FXmppPrivateChatStrophe();
 
 	// XMPP Thread
-	void OnDisconnect();
 	bool ReceiveStanza(const FStropheStanza& IncomingStanza);
 
 	// Game Thread
+	void OnDisconnect();
+	void OnReconnect();
 
 	// IXmppChat
 	virtual bool SendChat(const FXmppUserJid& RecipientId, const FString& Message) override;

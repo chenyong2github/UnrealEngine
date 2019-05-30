@@ -8,22 +8,15 @@ public class RSA : ModuleRules
 	{
 		PrivateDependencyModuleNames.Add("Core");
 
-        switch (Target.Platform)
-        {
-			case UnrealTargetPlatform.Win64:
-			case UnrealTargetPlatform.Win32:
-			case UnrealTargetPlatform.Mac:
-			case UnrealTargetPlatform.Linux:
-				{
-					PrivateDependencyModuleNames.Add("OpenSSL");
-					PrivateDefinitions.Add("RSA_USE_OPENSSL=1");
-					break;
-				}
-			default:
-				{
-					PrivateDefinitions.Add("RSA_USE_OPENSSL=0");
-					break;
-				}
+        if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 ||
+			Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux)
+		{
+			PrivateDependencyModuleNames.Add("OpenSSL");
+			PrivateDefinitions.Add("RSA_USE_OPENSSL=1");
+		}
+		else
+		{
+			PrivateDefinitions.Add("RSA_USE_OPENSSL=0");
 		}
 	}
 }

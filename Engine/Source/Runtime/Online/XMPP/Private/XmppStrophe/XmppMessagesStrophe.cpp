@@ -35,6 +35,11 @@ void FXmppMessagesStrophe::OnDisconnect()
 	CleanupMessages();
 }
 
+void FXmppMessagesStrophe::OnReconnect()
+{
+
+}
+
 bool FXmppMessagesStrophe::ReceiveStanza(const FStropheStanza& IncomingStanza)
 {
 	if (IncomingStanza.GetName() != Strophe::SN_MESSAGE || // Must be a message

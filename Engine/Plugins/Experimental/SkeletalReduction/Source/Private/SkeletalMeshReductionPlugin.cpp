@@ -1927,7 +1927,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	FSkeletalMeshLODModel* NewModel = new FSkeletalMeshLODModel();
 
 	// Swap out the old model.  
-
+	FSkeletalMeshImportData RawMesh;
 	{
 		FSkeletalMeshLODModel* Old = LODModels[LODIndex];
 
@@ -1940,9 +1940,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		else if(bReducingSourceModel)
 		{
 			//In case we reduce the source model we want to keep the original import data
-			FSkeletalMeshImportData RawMesh;
 			SrcModel->RawSkeletalMeshBulkData.LoadRawMesh(RawMesh);
-			LODModels[LODIndex]->RawSkeletalMeshBulkData.SaveRawMesh(RawMesh);
 		}
 	}
 
@@ -2097,6 +2095,12 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 				}
 			}
 		}
+	}
+
+	if (bReducingSourceModel && RawMesh.Points.Num() > 0)
+	{
+		//Put back the original import data, we need it to allow inline reduction and skeletal mesh split workflow
+		SkeletalMeshResource.LODModels[LODIndex].RawSkeletalMeshBulkData.SaveRawMesh(RawMesh);
 	}
 
 	SkeletalMesh.CalculateRequiredBones(SkeletalMeshResource.LODModels[LODIndex], SkeletalMesh.RefSkeleton, &BonesToRemove);

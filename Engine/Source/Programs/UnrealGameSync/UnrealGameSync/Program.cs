@@ -44,19 +44,15 @@ namespace UnrealGameSync
 
 		static void InnerMain(Mutex InstanceMutex, EventWaitHandle ActivateEvent, string[] Args)
 		{
-			List<string> RemainingArgs = new List<string>(Args);
+			string ServerAndPort = null;
+			string UserName = null;
+			string UpdatePath = null;
+			Utility.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref UpdatePath);
 
-			string UpdatePath;
-			ParseArgument(RemainingArgs, "-updatepath=", out UpdatePath);
+			List<string> RemainingArgs = new List<string>(Args);
 
 			string UpdateSpawn;
 			ParseArgument(RemainingArgs, "-updatespawn=", out UpdateSpawn);
-
-			string ServerAndPort;
-			ParseArgument(RemainingArgs, "-p4port=", out ServerAndPort);
-
-			string UserName;
-			ParseArgument(RemainingArgs, "-p4user=", out UserName);
 
 			bool bRestoreState;
 			ParseOption(RemainingArgs, "-restorestate", out bRestoreState);

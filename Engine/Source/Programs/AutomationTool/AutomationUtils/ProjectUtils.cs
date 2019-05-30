@@ -118,12 +118,9 @@ namespace AutomationTool
 		/// <param name="RawProjectPath">Full project path.</param>
 		/// <param name="Platform">Platform type.</param>
 		/// <returns>Path to the binaries folder.</returns>
-		public static DirectoryReference GetProjectClientBinariesFolder(DirectoryReference ProjectClientBinariesPath, UnrealTargetPlatform Platform = UnrealTargetPlatform.Unknown)
+		public static DirectoryReference GetProjectClientBinariesFolder(DirectoryReference ProjectClientBinariesPath, UnrealTargetPlatform Platform)
 		{
-			if (Platform != UnrealTargetPlatform.Unknown)
-			{
-				ProjectClientBinariesPath = DirectoryReference.Combine(ProjectClientBinariesPath, Platform.ToString());
-			}
+			ProjectClientBinariesPath = DirectoryReference.Combine(ProjectClientBinariesPath, Platform.ToString());
 			return ProjectClientBinariesPath;
 		}
 
@@ -190,12 +187,9 @@ namespace AutomationTool
 			{
 				// No client target platforms, add all in
 				TargetPlatforms = new List<UnrealTargetPlatform>();
-				foreach (UnrealTargetPlatform TargetPlatformType in Enum.GetValues(typeof(UnrealTargetPlatform)))
+				foreach (UnrealTargetPlatform TargetPlatformType in UnrealTargetPlatform.GetValidPlatforms())
 				{
-					if (TargetPlatformType != UnrealTargetPlatform.Unknown)
-					{
-						TargetPlatforms.Add(TargetPlatformType);
-					}
+					TargetPlatforms.Add(TargetPlatformType);
 				}
 			}
 
@@ -398,22 +392,13 @@ namespace AutomationTool
 			{
 				CommandUtils.LogVerbose("Loading ini files for {0}", RawProjectPath);
 
-				foreach (UnrealTargetPlatform TargetPlatformType in Enum.GetValues(typeof(UnrealTargetPlatform)))
+				foreach (UnrealTargetPlatform TargetPlatformType in UnrealTargetPlatform.GetValidPlatforms())
 				{
-					if (TargetPlatformType != UnrealTargetPlatform.Unknown)
-					{
-						ConfigHierarchy Config = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, RawProjectPath.Directory, TargetPlatformType);
-						Properties.EngineConfigs.Add(TargetPlatformType, Config);
-					}
-				}
+					ConfigHierarchy EngineConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, RawProjectPath.Directory, TargetPlatformType);
+					Properties.EngineConfigs.Add(TargetPlatformType, EngineConfig);
 
-				foreach (UnrealTargetPlatform TargetPlatformType in Enum.GetValues(typeof(UnrealTargetPlatform)))
-				{
-					if (TargetPlatformType != UnrealTargetPlatform.Unknown)
-					{
-						ConfigHierarchy Config = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, RawProjectPath.Directory, TargetPlatformType);
-						Properties.GameConfigs.Add(TargetPlatformType, Config);
-					}
+					ConfigHierarchy GameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, RawProjectPath.Directory, TargetPlatformType);
+					Properties.GameConfigs.Add(TargetPlatformType, GameConfig);
 				}
 			}
 

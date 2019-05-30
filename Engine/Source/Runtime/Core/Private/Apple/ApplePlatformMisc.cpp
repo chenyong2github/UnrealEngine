@@ -48,7 +48,7 @@ FString FApplePlatformMisc::GetEnvironmentVariable(const TCHAR* VariableName)
 	}
 }
 
-void FApplePlatformMisc::LowLevelOutputDebugString( const TCHAR *Message )
+void FApplePlatformMisc::LocalPrint(const TCHAR* Message)
 {
 	//NsLog will out to all iOS output consoles, instead of just the Xcode console.
 	NSLog(@"[UE4] %s", TCHAR_TO_UTF8(Message));
@@ -350,12 +350,12 @@ void FApplePlatformMisc::EndNamedEvent()
 
 void FApplePlatformMisc::CustomNamedStat(const TCHAR* Text, float Value, const TCHAR* Graph, const TCHAR* Unit)
 {
-	FRAMEPRO_DYNAMIC_CUSTOM_STAT(TCHAR_TO_WCHAR(Text), Value, TCHAR_TO_WCHAR(Graph), TCHAR_TO_WCHAR(Unit));
+	FRAMEPRO_DYNAMIC_CUSTOM_STAT(TCHAR_TO_WCHAR(Text), Value, TCHAR_TO_WCHAR(Graph), TCHAR_TO_WCHAR(Unit), FRAMEPRO_COLOUR(255,255,255));
 }
 
 void FApplePlatformMisc::CustomNamedStat(const ANSICHAR* Text, float Value, const ANSICHAR* Graph, const ANSICHAR* Unit)
 {
-	FRAMEPRO_DYNAMIC_CUSTOM_STAT(Text, Value, Graph, Unit);
+	FRAMEPRO_DYNAMIC_CUSTOM_STAT(Text, Value, Graph, Unit, FRAMEPRO_COLOUR(255,255,255));
 }
 
 #endif // STATS || ENABLE_STATNAMEDEVENTS || APPLE_PROFILING_ENABLED
