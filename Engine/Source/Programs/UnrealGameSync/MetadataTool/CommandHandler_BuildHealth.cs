@@ -262,7 +262,7 @@ namespace MetadataTool
 							IssueBody.Owner = Issue.PendingWatchers.First();
 						}
 
-						using(HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues/{1}", ServerUrl, Issue.Id), "POST", IssueBody))
+						using(HttpWebResponse Response = SendHttpRequest(String.Format("{0}/api/issues", ServerUrl), "POST", IssueBody))
 						{
 							int ResponseCode = (int)Response.StatusCode;
 							if (!(ResponseCode >= 200 && ResponseCode <= 299))

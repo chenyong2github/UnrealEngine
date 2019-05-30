@@ -393,11 +393,10 @@ namespace MetadataServer.Connectors
 			{
 				Connection.Open();
 
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Issues] (Project, Summary, Details, OwnerId, CreatedAt, FixChange) VALUES (@Project, @Summary, @Details, @OwnerId, DATETIME('now'), 0)", Connection))
+				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Issues] (Project, Summary, OwnerId, CreatedAt, FixChange) VALUES (@Project, @Summary, @OwnerId, DATETIME('now'), 0)", Connection))
 				{
 					Command.Parameters.AddWithValue("@Project", Issue.Project);
 					Command.Parameters.AddWithValue("@Summary", SanitizeText(Issue.Summary, IssueSummaryMaxLength));
-					Command.Parameters.AddWithValue("@Details", "");
 					if (Issue.Owner != null)
 					{
 						Command.Parameters.AddWithValue("OwnerId", FindOrAddUserId(Issue.Owner, Connection));
