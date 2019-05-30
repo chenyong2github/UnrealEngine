@@ -19,7 +19,7 @@
 #include "XAudio2Effects.h"
 #include "Interfaces/IAudioFormat.h"
 #include "HAL/PlatformAffinity.h"
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS || PLATFORM_XBOXONE
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/AllowWindowsPlatformAtomics.h"

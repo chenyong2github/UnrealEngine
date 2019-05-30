@@ -6,7 +6,6 @@
 
 #pragma once
 
-// @ATG_CHANGE :  BEGIN HoloLens support
 #ifndef XAUDIO_SUPPORTS_XMA2WAVEFORMATEX
 	#define XAUDIO_SUPPORTS_XMA2WAVEFORMATEX	0
 #endif	//XAUDIO_SUPPORTS_XMA2WAVEFORMATEX
@@ -27,7 +26,7 @@
 #include "XAudio2Device.h"
 #include "AudioDecompress.h"
 #include "AudioEffect.h"
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS || PLATFORM_XBOXONE
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/AllowWindowsPlatformAtomics.h"
