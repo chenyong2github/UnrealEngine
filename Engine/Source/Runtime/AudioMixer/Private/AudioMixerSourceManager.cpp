@@ -2083,36 +2083,40 @@ namespace Audio
 				SourceInfo.SourceListener->OnEffectTailsDone();
 			}
 
-			// Only scale with distance attenuation and send to source audio to plugins if we're not in output-to-bus only mode
-			if (!SourceInfo.bOutputToBusOnly && !DisableFilteringCvar)
+			if (!SourceInfo.bOutputToBusOnly)
 			{
+				// Only scale with distance attenuation and send to source audio to plugins if we're not in output-to-bus only mode
+				const int32 NumOutputSamplesThisSource = NumOutputFrames * SourceInfo.NumInputChannels;
+
+				const bool BypassLPF = DisableFilteringCvar || (SourceInfo.LowPassFilter.GetCutoffFrequency() >= (MAX_FILTER_FREQUENCY - KINDA_SMALL_NUMBER));
+				const bool BypassHPF = DisableFilteringCvar || DisableHPFilteringCvar || (SourceInfo.HighPassFilter.GetCutoffFrequency() <= (MIN_FILTER_FREQUENCY + KINDA_SMALL_NUMBER));
+
 				float* PostDistanceAttenBufferPtr = SourceInfo.SourceBuffer.GetData();
+				float* HpfInputBuffer = PreDistanceAttenBufferPtr; // assume bypassing LPF (HPF uses input buffer as input)
 
-				// Process the filters after the source effects (Using optimized filters)
-				for (int32 SampleIndex = 0; SampleIndex < NumOutputFrames * SourceInfo.NumInputChannels; SampleIndex += SourceInfo.NumInputChannels)
+				if (!BypassLPF)
 				{
-					SourceInfo.LowPassFilter.ProcessAudioFrame(&PreDistanceAttenBufferPtr[SampleIndex], &PostDistanceAttenBufferPtr[SampleIndex]);
+					// Not bypassing LPF, so tell HPF to use LPF output buffer as input
+					HpfInputBuffer = PostDistanceAttenBufferPtr;
 
-					if (!DisableHPFilteringCvar)
-					{
-						SourceInfo.HighPassFilter.ProcessAudioFrame(&PostDistanceAttenBufferPtr[SampleIndex], &PostDistanceAttenBufferPtr[SampleIndex]);
-					}
+					// process LPF audio block
+					SourceInfo.LowPassFilter.ProcessAudioBuffer(PreDistanceAttenBufferPtr, PostDistanceAttenBufferPtr, NumOutputSamplesThisSource);
+				}
+
+				if(!BypassHPF)
+				{
+					// process HPF audio block
+					SourceInfo.HighPassFilter.ProcessAudioBuffer(HpfInputBuffer, PostDistanceAttenBufferPtr, NumOutputSamplesThisSource);
 				}
 
 				// We manually reset interpolation to avoid branches in filter code
 				SourceInfo.LowPassFilter.StopFrequencyInterpolation();
 				SourceInfo.HighPassFilter.StopFrequencyInterpolation();
 
-				// Apply distance attenuation
-				ApplyDistanceAttenuation(SourceInfo, NumSamples);
-
-				// Send source audio to plugins
-				ComputePluginAudio(SourceInfo, DownmixData, SourceId, NumSamples);
-			}
-			else if (DisableFilteringCvar)
-			{
-				float* PostDistanceAttenBufferPtr = SourceInfo.SourceBuffer.GetData();
-				FMemory::Memcpy(PostDistanceAttenBufferPtr, PreDistanceAttenBufferPtr, NumSamples * sizeof(float));
+				if (BypassLPF && BypassHPF)
+				{
+					FMemory::Memcpy(PostDistanceAttenBufferPtr, PreDistanceAttenBufferPtr, NumSamples * sizeof(float));
+				}
 
 				// Apply distance attenuation
 				ApplyDistanceAttenuation(SourceInfo, NumSamples);
