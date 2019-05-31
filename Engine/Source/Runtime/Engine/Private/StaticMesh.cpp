@@ -1295,6 +1295,8 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 				if (bValid)
 				{
 #if WITH_EDITOR
+					check(LOD.DistanceFieldData != nullptr);
+
 					bool bDownSampling = Ar.IsCooking() && Ar.IsSaving();
 					
 					if (bDownSampling)
