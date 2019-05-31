@@ -3,7 +3,6 @@
 #pragma once
 
 #include "IUserListEntry.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
 #include "IUserObjectListEntry.generated.h"
 
 /**
