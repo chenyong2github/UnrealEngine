@@ -774,6 +774,14 @@ public:
 				FEmbeddedCommunication::AllowSleep(Requester);
 				Message.OnCompleteDelegate({}, TEXT(""));
 			}
+			// execute any console commands
+			else if (Message.Command == TEXT("devicesleep"))
+			{
+				bool bEnabled = Message.Parameters.FindRef(TEXT("enabled")).ToBool();
+				FPlatformApplicationMisc::ControlScreensaver(bEnabled ? FGenericPlatformApplicationMisc::Enable : FGenericPlatformApplicationMisc::Disable);
+				Message.OnCompleteDelegate({}, TEXT(""));
+			}
+
 // disable things that are too scary to expose to a shipping external app/webview
 #if !UE_BUILD_SHIPPING
 			// execute any console commands
