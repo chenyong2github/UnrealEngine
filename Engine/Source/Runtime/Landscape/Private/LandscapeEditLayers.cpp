@@ -4316,6 +4316,32 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 		}
 	}
 
+// not thread safe
+struct FEnableCollisionHashOptimScope
+{
+	FEnableCollisionHashOptimScope(ULandscapeHeightfieldCollisionComponent* InCollisionComponent)
+	{
+		CollisionComponent = InCollisionComponent;
+		if (CollisionComponent)
+		{
+			// not reentrant
+			check(!CollisionComponent->bEnableCollisionHashOptim);
+			CollisionComponent->bEnableCollisionHashOptim = true;
+		}
+	}
+
+	~FEnableCollisionHashOptimScope()
+	{
+		if (CollisionComponent)
+		{
+			CollisionComponent->bEnableCollisionHashOptim = false;
+		}
+	}
+
+private:
+	ULandscapeHeightfieldCollisionComponent* CollisionComponent;
+};
+
 bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, const int32 InContentUpdateModes)
 {
 	bool bAllClientsUpdated = true;
@@ -4330,15 +4356,17 @@ bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& I
 	for (ULandscapeComponent* LandscapeComponent : InLandscapeComponents)
 	{
 		bool bDeferClientUpdateForComponent = false;
+		bool bDoUpdateClient = true;
 		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision, InContentUpdateModes))
 		{
 			if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->CollisionComponent.Get())
 			{
-				CollisionComp->RecreateCollision();
+				FEnableCollisionHashOptimScope Scope(CollisionComp);
+				bDoUpdateClient = CollisionComp->RecreateCollision();
 			}
 		}
 
-		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Client, InContentUpdateModes))
+		if (bDoUpdateClient && LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Client, InContentUpdateModes))
 		{
 			if (!GUndo)
 			{
