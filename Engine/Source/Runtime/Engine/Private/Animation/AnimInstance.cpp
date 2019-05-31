@@ -2538,15 +2538,8 @@ void UAnimInstance::SetLayerOverlay(TSubclassOf<UAnimInstance> InClass)
 			{
 				// If the class is null, then reset to default (which can be null)
 				UClass* ClassToSet = NewClass != nullptr ? NewClass : LayerPair.Value[0]->InstanceClass.Get();
-				if(ClassToSet != nullptr)
+				if(ClassToSet != nullptr && ClassToSet != GetClass())
 				{
-					if(ClassToSet == GetClass())
-					{
-						// Cant instance a version of this class, otherwise we will end up in an infinite recursion
-						UE_LOG(LogAnimation, Error, TEXT("Setting layer overlay: Potential infinite recursion - cant set an overlay to the same class as its layer's host (%s)"), *ClassToSet->GetName())
-						break;
-					}
-
 					// Create and add one sub-instance for this group
 					USkeletalMeshComponent* MeshComp = GetSkelMeshComponent();
 					UAnimInstance* NewSubInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);

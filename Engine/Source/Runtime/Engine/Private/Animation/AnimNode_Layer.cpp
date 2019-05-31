@@ -23,7 +23,7 @@ void FAnimNode_Layer::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy
 {
 	// We only initialize here if we are running a 'self' layer. Layers that use external instances need to be 
 	// initialized by the owning anim instance as they may share sub-instances via grouping.
-	if(Interface.Get() == nullptr)
+	if(Interface.Get() == nullptr || InstanceClass.Get() == nullptr)
 	{
 		UAnimInstance* CurrentTarget = GetTargetInstance<UAnimInstance>();
 

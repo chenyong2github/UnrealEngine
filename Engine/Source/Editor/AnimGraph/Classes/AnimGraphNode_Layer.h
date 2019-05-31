@@ -39,15 +39,12 @@ public:
 
 protected:
 	// ----- UI CALLBACKS ----- //
-	// Gets path to the currently selected interface class' blueprint
-	FString GetCurrentInterfaceBlueprintPath() const;
-	// Filter callback for interface blueprints (only accept anim blueprint interfaces)
-	bool OnShouldFilterInterfaceBlueprint(const FAssetData& AssetData) const;
-	// Interface was changed by user
-	void OnSetInterfaceBlueprint(const FAssetData& AssetData, TSharedRef<IPropertyHandle> InterfaceClassPropHandle);
 	// Handlers for layer combo
 	void GetLayerNames(TArray<TSharedPtr<FString>>& OutStrings, TArray<TSharedPtr<SToolTip>>& OutToolTips, TArray<bool>& OutRestrictedItems);
 	FString GetLayerName() const;
+	void OnLayerChanged(IDetailLayoutBuilder* DetailBuilder);
+	bool HasAvailableLayers() const;
+	bool HasValidNonSelfLayer() const;
 	// ----- END UI CALLBACKS ----- //
 
 	// Begin UAnimGraphNode_CustomProperty
@@ -63,4 +60,7 @@ protected:
 	virtual bool OnShouldFilterInstanceBlueprint(const FAssetData& AssetData) const override;
 	virtual FString GetCurrentInstanceBlueprintPath() const override;
 	virtual bool IsStructuralProperty(UProperty* InProperty) const override;
+
+	// Helper function to get the interface currently in use by the selected layer
+	TSubclassOf<UInterface> GetInterfaceForLayer() const;
 };
