@@ -6,7 +6,7 @@
 
 void FSinglePrimitiveStructuredBuffer::InitRHI() 
 {
-	if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
+	if (RHISupportsComputeShaders(GMaxRHIShaderPlatform))
 	{
 		FRHIResourceCreateInfo CreateInfo;
 		PrimitiveSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
@@ -20,7 +20,7 @@ void FSinglePrimitiveStructuredBuffer::InitRHI()
 		PrimitiveSceneDataBufferSRV = RHICreateShaderResourceView(PrimitiveSceneDataBufferRHI);
 	}
 
-	if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
+	if (RHISupportsComputeShaders(GMaxRHIShaderPlatform))
 	{
 		FRHIResourceCreateInfo CreateInfo;
 		LightmapSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), FLightmapSceneShaderData::LightmapDataStrideInFloat4s * sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
