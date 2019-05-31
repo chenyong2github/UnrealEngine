@@ -19,9 +19,16 @@ namespace Timing_Data_Investigator
         public MainWindow()
         {
             InitializeComponent();
+
+			Loaded += MainWindow_Loaded;
         }
 
-        private void LoadTimingFile(string FilePath)
+		private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+		{
+			ShowOpenFileDialog();
+		}
+
+		private void LoadTimingFile(string FilePath)
         {
 			TimingDataViewModel NewTimingData = TimingDataViewModel.FromBinaryFile(FileReference.FromString(FilePath));
 
@@ -54,9 +61,14 @@ namespace Timing_Data_Investigator
 
         private void OpenFile_Click(object sender, RoutedEventArgs e)
         {
+			ShowOpenFileDialog();
+		}
+
+		private void ShowOpenFileDialog()
+		{
 			OpenFileDialog OpenFileDialog = new OpenFileDialog();
             OpenFileDialog.Filter = "Timing Files (*.timing.bin)|*.timing.bin|All Files (*.*)|*.*";
-            if (OpenFileDialog.ShowDialog() == true)
+            if (OpenFileDialog.ShowDialog(this) == true)
             {
                 LoadTimingFile(OpenFileDialog.FileName);
             }
