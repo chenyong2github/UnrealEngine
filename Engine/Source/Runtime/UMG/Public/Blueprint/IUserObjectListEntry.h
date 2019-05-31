@@ -3,11 +3,12 @@
 #pragma once
 
 #include "IUserListEntry.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "IUserObjectListEntry.generated.h"
 
 /**
- * Implement for list entry widgets that represent UObject items.
- * Required for a widget to be usable as an entry in UMG lists (ListView, TileView, and TreeView)
+ * Required interface for any UUserWidget class to be usable as entry widget in a stock UMG list view - ListView, TileView, and TreeView
+ * Provides a change event and getter for the object item the entry is assigned to represent by the owning list view (in addition to functionality from IUserListEntry)
  */
 UINTERFACE()
 class UMG_API UUserObjectListEntry : public UUserListEntry
@@ -20,27 +21,46 @@ class UMG_API IUserObjectListEntry : public IUserListEntry
 	GENERATED_IINTERFACE_BODY()
 
 public:
-	static UObject* GetListItem(UUserWidget& EntryWidget);
-
+	/** Returns the UObject item in the owning UListView that this entry currently represents */
 	template <typename ItemObjectT = UObject>
 	ItemObjectT* GetListItem() const
 	{
 		static_assert(TIsDerivedFrom<ItemObjectT, UObject>::IsDerived, "Items represented by an ObjectListEntry are always expected to be UObjects.");
-		return Cast<ItemObjectT>(Execute_GetListItemObject(Cast<UObject>(this)));
+		return Cast<ItemObjectT>(GetListItemObjectInternal());
 	}
 
 protected:
-	virtual void SetListItemObjectInternal(UObject* InObject) {}
+	/** Follows the same pattern as the NativeOn[X] methods in UUserWidget - super calls are expected in order to route the event to BP. */
+	virtual void NativeOnListItemObjectSet(UObject* ListItemObject);
 	
-	/** Returns the item object that this entry currently represents */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = ObjectListEntry, meta = (AllowPrivateAccess = true))
-	UObject* GetListItemObject() const;
-
-	/** Called when the item object represented by this entry is established */
+	/** Called when this entry is assigned a new item object to represent by the owning list view */
 	UFUNCTION(BlueprintImplementableEvent, Category = ObjectListEntry)
 	void OnListItemObjectSet(UObject* ListItemObject);
 
+	UE_DEPRECATED(4.23, "Implementers of IUserObjectListEntry no longer need to manually implement the GetListItemObject method.")
+	virtual UObject* GetListItemObject_Implementation() const { return nullptr; }
+
+	UE_DEPRECATED(4.23, "Renamed to NativeOnListItemObjectSet, as caching the item object is no longer a hard requirement.")
+	virtual void SetListItemObjectInternal(UObject* InObject) {}
+
 private:
+	UObject* GetListItemObjectInternal() const;
+	
 	template <typename> friend class SObjectTableRow;
 	static void SetListItemObject(UUserWidget& ListEntryWidget, UObject* ListItemObject);
+};
+
+/** Static library to supply "for free" functionality to widgets that implement IUserListEntry */
+UCLASS()
+class UMG_API UUserObjectListEntryLibrary : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+
+public:
+	/** 
+	 * Returns the item in the owning list view that this entry is currently assigned to represent. 
+	 * @param UserObjectListEntry Note: Visually not transmitted, but this defaults to "self". No need to hook up if calling internally.
+	 */
+	UFUNCTION(BlueprintPure, Category = UserObjectListEntry, meta = (DefaultToSelf = UserObjectListEntry))
+	static UObject* GetListItemObject(TScriptInterface<IUserObjectListEntry> UserObjectListEntry);
 };
