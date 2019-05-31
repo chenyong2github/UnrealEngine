@@ -463,7 +463,7 @@ bool ULandscapeInfo::ApplySplines(bool bOnlySelected)
 
 	ALandscape* Landscape = LandscapeActor.Get();
 	const FLandscapeLayer* Layer = Landscape ? Landscape->GetLandscapeSplinesReservedLayer() : nullptr;
-	FGuid SplinesTargetLayerGuid = Layer ? Layer->Guid : FGuid();
+	FGuid SplinesTargetLayerGuid = Layer ? Layer->Guid : Landscape ? Landscape->GetEditingLayer() : FGuid();
 	FScopedSetLandscapeEditingLayer Scope(Landscape, SplinesTargetLayerGuid, [=] 
 	{ 
 		Landscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
