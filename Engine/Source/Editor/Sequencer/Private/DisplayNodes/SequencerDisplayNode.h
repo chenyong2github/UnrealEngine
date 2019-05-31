@@ -6,11 +6,13 @@
 #include "Misc/Attribute.h"
 #include "Styling/SlateColor.h"
 #include "Widgets/SWidget.h"
-#include "SequencerNodeTree.h"
 #include "Misc/FrameRate.h"
+#include "Tree/ICurveEditorTreeItem.h"
+#include "CurveEditorTypes.h"
 
 class FMenuBuilder;
 class FSequencer;
+class FSequencerNodeTree;
 class FSequencerDisplayNodeDragDropOp;
 class FSequencerObjectBindingNode;
 class IKeyArea;
@@ -54,42 +56,50 @@ namespace ESequencerNode
 		KeyArea,
 		/* Displays a category */
 		Category,
-		/* Benign spacer node */
-		Spacer,
+		/* Symbolic root node */
+		Root,
 		/* Folder node */
 		Folder
 	};
 }
 
+enum class EDisplayNodeSortType : uint8
+{
+	Folders,
+	Tracks,
+	ObjectBindings,
+	CameraCuts,
+	Shots,
+	Undefined,
+
+	NUM,
+};
 
 /**
  * Base Sequencer layout node.
  */
 class FSequencerDisplayNode
 	: public TSharedFromThis<FSequencerDisplayNode>
+	, public ICurveEditorTreeItem
 {
 public:
+
+	/** The serial number taken from the tree last time this node was encountered during a refresh.
+	 * When != FSequencerNodeTree::SerialNumber this node should be removed from all relevant structures */
+	uint32 TreeSerialNumber;
 
 	/**
 	 * Create and initialize a new instance.
 	 * 
 	 * @param InNodeName	The name identifier of then node
-	 * @param InParentNode	The parent of this node or nullptr if this is a root node
 	 * @param InParentTree	The tree this node is in
 	 */
-	FSequencerDisplayNode( FName InNodeName, TSharedPtr<FSequencerDisplayNode> InParentNode, FSequencerNodeTree& InParentTree );
+	FSequencerDisplayNode( FName InNodeName, FSequencerNodeTree& InParentTree);
 
 	/** Virtual destructor. */
 	virtual ~FSequencerDisplayNode(){}
 
 public:
-
-	/**
-	* Adds an object binding node to this node.
-	*
-	* @param ObjectBindingNode The node to add
-	*/
-	void AddObjectBindingNode( TSharedRef<FSequencerObjectBindingNode> ObjectBindingNode );
 
 	/** 
 	 * Finds any parent object binding node above this node in the hierarchy
@@ -98,22 +108,29 @@ public:
 	 */
 	TSharedPtr<FSequencerObjectBindingNode> FindParentObjectBindingNode() const;
 
-	/**
-	 * Adds a category to this node
-	 * 
-	 * @param CategoryName	Name of the category
-	 * @param DisplayName	Localized label to display in the animation outliner
+	/** 
+	 * Finds this display node's closest parent object binding GUID, or an empty FGuid if it there is none
 	 */
-	TSharedRef<class FSequencerSectionCategoryNode> AddCategoryNode( FName CategoryName, const FText& DisplayLabel );
+	FGuid GetObjectGuid() const;
 
 	/**
-	 * Adds a key area to this node
-	 *
-	 * @param KeyAreaName	Name of the key area
-	 * @param DisplayLabel	Localized label to display in the animation outliner
-	 * @param KeyArea		Key area interface for drawing and interaction with keys
+	 * Check whether this node is displayed at the root of the tree on the UI (ie, is part of the FSequencerNodeTree::GetRootNodes array)
+	 * @note: this is not the same as the node being the symbolic root node (FSequencerNodeTree::GetRootNode), of which there is only one.
 	 */
-	void AddKeyAreaNode( FName KeyAreaName, const FText& DisplayLabel, TSharedRef<IKeyArea> KeyArea );
+	bool IsRootNode() const;
+
+	/**
+	 * Checks whether this node's parent is still relevant to the specified serial number
+	 */
+	bool IsParentStillRelevant(uint32 SerialNumber) const;
+
+	/**
+	 * Retrieve the sort type of this node
+	 */
+	EDisplayNodeSortType GetSortType() const
+	{
+		return SortType;
+	}
 
 	/**
 	 * @return The type of node this is
@@ -256,6 +273,10 @@ public:
 	 */
 	virtual FText GetIconToolTipText() const;
 
+	// ICurveEditorTreeItem interface
+	virtual TSharedPtr<SWidget> GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID) override;
+	virtual void CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels) override;
+
 	/**
 	 * Get the display node that is ultimately responsible for constructing a section area widget for this node.
 	 * Could return this node itself, or a parent node
@@ -336,41 +357,43 @@ public:
 	bool TraverseVisible_ParentFirst(const TFunctionRef<bool(FSequencerDisplayNode&)>& InPredicate, bool bIncludeThisNode = true);
 
 	/**
-	 * Sorts the child nodes with the supplied predicate
+	 * Sort this node's immediate children using the persistent user-specifid reordering if possible
 	 */
-	template <class PREDICATE_CLASS>
-	void SortChildNodes(const PREDICATE_CLASS& Predicate)
-	{
-		ChildNodes.StableSort(Predicate);
+	void SortImmediateChildren();
 
-		for (TSharedRef<FSequencerDisplayNode> ChildNode : ChildNodes)
-		{
-			ChildNode->SortChildNodes(Predicate);
-		}
+	/**
+	 * Resort this node's immediate children, resetting any persistent user-specified reordering
+	 */
+	void ResortImmediateChildren();
+
+	/**
+	 * @return The parent of this node. Will return null if this node is part of the FSequencerNodeTree::GetRootNodes array.
+	 */
+	TSharedPtr<FSequencerDisplayNode> GetParent() const
+	{
+		TSharedPtr<FSequencerDisplayNode> Pinned = ParentNode.Pin();
+		return (Pinned && Pinned->GetType() != ESequencerNode::Root) ? Pinned : nullptr;
 	}
 
 	/**
-	 * @return The parent of this node
+	 * @return The parent of this node, or the symbolic root node if this node is part of the FSequencerNodeTree::GetRootNodes array.
 	 */
-	TSharedPtr<FSequencerDisplayNode> GetParent() const
+	TSharedPtr<FSequencerDisplayNode> GetParentOrRoot() const
 	{
 		return ParentNode.Pin();
 	}
 
 	/**
-	 * @return The outermost parent of this node
+	 * @return The outermost parent of this node, ignoring the symbolic root node (ie, will never return FSequencerNodeTree::GetRootNode()
 	 */
 	TSharedRef<FSequencerDisplayNode> GetOutermostParent()
 	{
-		TSharedPtr<FSequencerDisplayNode> Parent = ParentNode.Pin();
+		TSharedPtr<FSequencerDisplayNode> Parent = GetParent();
 		return Parent.IsValid() ? Parent->GetOutermostParent() : AsShared();
 	}
 	
 	/** Gets the sequencer that owns this node */
-	FSequencer& GetSequencer() const
-	{
-		return ParentTree.GetSequencer();
-	}
+	FSequencer& GetSequencer() const;
 	
 	/** Gets the parent tree that this node is in */
 	FSequencerNodeTree& GetParentTree() const
@@ -397,13 +420,20 @@ public:
 	bool IsHidden() const;
 
 	/**
+	 * @return Whether this node should be displayed on the tree view
+	 */
+	bool IsVisible() const;
+
+	/**
 	 * Check whether the node's tree view or track area widgets are hovered by the user's mouse.
 	 *
 	 * @return true if hovered, false otherwise. */
 	bool IsHovered() const;
 
-	/** Initialize this node with expansion states and virtual offsets */
-	void Initialize(float InVirtualTop, float InVirtualBottom);
+	/**
+	 * Called when the tree has been refreshed and this node has its new position in the hierarchy assigned
+	 */
+	void OnTreeRefreshed(float InVirtualTop, float InVirtualBottom);
 
 	/** @return this node's virtual offset from the top of the tree, irrespective of expansion states */
 	float GetVirtualTop() const
@@ -435,13 +465,20 @@ public:
 	 */
 	virtual void Drop( const TArray<TSharedRef<FSequencerDisplayNode>>& DraggedNodes, EItemDropZone DropZone ) { }
 
-protected:
 
-	/** Adds a child to this node, and sets it's parent to this node. */
-	void AddChildAndSetParent( TSharedRef<FSequencerDisplayNode> InChild );
 public:
-	/** Clears the parent of this node. */
-	void ClearParent() { ParentNode = nullptr; }
+
+	/** Assigns the parent of this node and adds it the the parent's child node list, removing it from its current parent's children if necessary. */
+	void SetParent(TSharedPtr<FSequencerDisplayNode> InParent);
+
+	/** Directly assigns the parent of this node without performing any other operation. Should only be used with care when child/parent relationships can be guaranteed. */
+	void SetParentDirectly(TSharedPtr<FSequencerDisplayNode> InParent);
+
+	/** Request that this node be reinitialized when the tree next refreshes. Currently Initialization only affects default expansion states. */
+	void RequestReinitialize()
+	{
+		bHasBeenInitialized = false;
+	}
 
 private:
 
@@ -462,7 +499,7 @@ protected:
 protected:
 
 	/** The parent of this node*/
-	TWeakPtr<FSequencerDisplayNode > ParentNode;
+	TWeakPtr<FSequencerDisplayNode> ParentNode;
 
 	/** List of children belonging to this node */
 	TArray<TSharedRef<FSequencerDisplayNode>> ChildNodes;
@@ -478,4 +515,12 @@ protected:
 
 	/** Event that is triggered when rename is requested */
 	FRequestRenameEvent RenameRequestedEvent;
+
+	/** The kind of thing that this node represents for sorting purposes */
+	EDisplayNodeSortType SortType;
+
+private:
+
+	/** Set to true when this node has been completely initialized for the first time */
+	bool bHasBeenInitialized;
 };

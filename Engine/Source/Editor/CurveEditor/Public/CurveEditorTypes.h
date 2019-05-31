@@ -5,6 +5,9 @@
 #include "CoreTypes.h"
 #include "Templates/TypeHash.h"
 #include "Curves/KeyHandle.h"
+#include "Containers/BitArray.h"
+#include "Containers/Array.h"
+#include "Templates/SharedPointer.h"
 
 /**
  * Enum for representing the type of a key point in the curve editor
@@ -14,11 +17,30 @@ enum class ECurvePointType : uint8
 	Key, ArriveTangent, LeaveTangent
 };
 
+enum class ECurveEditorTreeSelectionState : uint8
+{
+	None, Explicit, ImplicitChild
+};
+
+/** Enumeration identifying a single specific view type, or a combination thereof */
+enum class ECurveEditorViewID : uint64
+{
+	Invalid      = 0,
+
+	Absolute     = 1 << 0,
+	Normalized   = 1 << 1,
+	Stacked      = 1 << 2,
+
+	CUSTOM_START = 1 << 3,
+	ANY_BUILT_IN = Absolute | Normalized | Stacked,
+};
+ENUM_CLASS_FLAGS(ECurveEditorViewID);
+
 
 /**
  * A unique identifier for a curve model existing on a curve editor
  */
-struct FCurveModelID
+struct CURVEEDITOR_API FCurveModelID
 {
 	/**
 	 * Generate a new curve model ID
@@ -34,11 +56,32 @@ struct FCurveModelID
 	}
 
 	/**
+	 * Check two IDs for inequality
+	 */
+	FORCEINLINE friend bool operator!=(FCurveModelID A, FCurveModelID B)
+	{
+		return A.ID != B.ID;
+	}
+
+	/**
+	 * Test whether A is less than B
+	 */
+	FORCEINLINE friend bool operator<(FCurveModelID A, FCurveModelID B)
+	{
+		return A.ID < B.ID;
+	}
+
+	/**
 	 * Hash a curve model ID
 	 */
 	FORCEINLINE friend uint32 GetTypeHash(FCurveModelID In)
 	{
 		return GetTypeHash(In.ID);
+	}
+
+	FCurveModelID(const FCurveModelID& InOther)
+		: ID(InOther.ID)
+	{
 	}
 
 private:
@@ -66,4 +109,46 @@ struct FCurvePointHandle
 	ECurvePointType PointType;
 	/** The key handle for the underlying key */
 	FKeyHandle KeyHandle;
+};
+
+struct FCurveEditorTreeItemID
+{
+	FCurveEditorTreeItemID()
+		: Value(0)
+	{}
+
+	friend bool operator==(FCurveEditorTreeItemID A, FCurveEditorTreeItemID B)
+	{
+		return A.Value == B.Value;
+	}
+
+	friend bool operator!=(FCurveEditorTreeItemID A, FCurveEditorTreeItemID B)
+	{
+		return A.Value != B.Value;
+	}
+
+	friend uint32 GetTypeHash(FCurveEditorTreeItemID ID)
+	{
+		return GetTypeHash(ID.Value);
+	}
+
+	static FCurveEditorTreeItemID Invalid()
+	{
+		return FCurveEditorTreeItemID();
+	}
+
+	bool IsValid() const
+	{
+		return Value != 0;
+	}
+
+	uint32 GetValue() const
+	{
+		return Value;
+	}
+
+protected:
+
+	friend class FCurveEditorTree;
+	uint32 Value;
 };

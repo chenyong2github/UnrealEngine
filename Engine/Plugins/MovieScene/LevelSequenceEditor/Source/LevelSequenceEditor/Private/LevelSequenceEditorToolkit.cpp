@@ -273,6 +273,10 @@ FString FLevelSequenceEditorToolkit::GetWorldCentricTabPrefix() const
 
 void FLevelSequenceEditorToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
+	// For World Centric Asset Editors this isn't called until way too late in the initialization flow
+	// (ie: when you actually start to edit an asset), so the tab will be unrecognized upon restore.
+	// Because of this, the Sequencer Tab Spawner is actually registered in SLevelEditor.cpp manually
+	// which is early enough that you can restore the tab after an editor restart.
 	if (IsWorldCentricAssetEditor())
 	{
 		return;

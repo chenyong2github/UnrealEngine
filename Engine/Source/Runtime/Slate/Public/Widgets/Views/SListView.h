@@ -772,6 +772,11 @@ public:
 		return nullptr != SelectedItems.Find(TheItem);
 	}
 
+	virtual bool Private_IsItemHighlighted(const ItemType& TheItem) const override
+	{
+		return nullptr != HighlightedItems.Find(TheItem);
+	}
+
 	virtual bool Private_IsItemExpanded( const ItemType& TheItem ) const override
 	{
 		// List View does not support item expansion.
@@ -797,6 +802,23 @@ public:
 	virtual int32 Private_GetNumSelectedItems() const override
 	{
 		return SelectedItems.Num();
+	}
+
+	virtual void Private_SetItemHighlighted(ItemType TheItem, bool bShouldBeHighlighted)
+	{
+		if (bShouldBeHighlighted)
+		{
+			HighlightedItems.Add(TheItem);
+		}
+		else
+		{
+			HighlightedItems.Remove(TheItem);
+		}
+	}
+
+	virtual void Private_ClearHighlightedItems()
+	{
+		HighlightedItems.Empty();
 	}
 
 	virtual int32 Private_GetNestingDepth( int32 ItemIndexInList ) const override
@@ -1188,6 +1210,27 @@ public:
 		Private_SignalSelectionChanged(ESelectInfo::Direct);
 	}
 
+
+
+	/**
+	* Set the highlighted state of an item.
+	*
+	* @param TheItem      The Item whose highlight state you wish to modify
+	* @param bHighlighted True to enable the soft parent highlight, false to disable it.
+	*/
+	void SetItemHighlighted(const ItemType& TheItem, bool bHighlighted)
+	{
+		Private_SetItemHighlighted(TheItem, bHighlighted);
+	}
+
+	/**
+	* Empty the highlighted item set.
+	*/
+	void ClearHighlightedItems()
+	{
+		Private_ClearHighlightedItems();
+	}
+
 	/**
 	 * Gets the number of selected items.
 	 *
@@ -1385,20 +1428,9 @@ public:
 
 protected:
 
-	FOnItemToString_Debug GetDefaultDebugDelegate()
+	static FOnItemToString_Debug GetDefaultDebugDelegate()
 	{
-		return
-		FOnItemToString_Debug::CreateLambda([](ItemType InItem)
-		{
-			if (TListTypeTraits<ItemType>::IsPtrValid(InItem))
-			{
-				return FString::Printf(TEXT("0x%08x"), &(*InItem));
-			}
-			else
-			{
-				return FString(TEXT("nullptr"));
-			}
-		});
+		return FOnItemToString_Debug::CreateStatic(TListTypeTraits<ItemType>::DebugDump);
 	}
 
 	/**
@@ -1739,6 +1771,9 @@ protected:
 
 	/** The item which was last manipulated; used as a start for shift-click selection */
 	NullableItemType RangeSelectionStart;
+
+	/** A set of which items should be highlighted */
+	TItemSet HighlightedItems;
 
 	/** Pointer to the array of data items that we are observing */
 	const TArray<ItemType>* ItemsSource;

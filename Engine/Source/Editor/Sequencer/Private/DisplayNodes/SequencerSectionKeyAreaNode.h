@@ -20,16 +20,16 @@ class FSequencerSectionKeyAreaNode
 {
 public:
 
+	/** The display name of the key area. */
+	FText DisplayName;
+
 	/**
 	 * Create and initialize a new instance.
 	 * 
 	 * @param InNodeName The name identifier of then node.
-	 * @param InDisplayName Display name of the category.
-	 * @param InParentNode The parent of this node, or nullptr if this is a root node.
 	 * @param InParentTree The tree this node is in.
-	 * @param bInTopLevel If true the node is part of the section itself instead of taking up extra height in the section.
 	 */
-	FSequencerSectionKeyAreaNode(FName NodeName, const FText& InDisplayName, TSharedPtr<FSequencerDisplayNode> InParentNode, FSequencerNodeTree& InParentTree, bool bInTopLevel = false);
+	FSequencerSectionKeyAreaNode(FName NodeName, FSequencerNodeTree& InParentTree);
 
 public:
 
@@ -58,11 +58,7 @@ public:
 		return KeyAreas;
 	}
 
-	/** @return Whether the node is top level.  (I.E., is part of the section itself instead of taking up extra height in the section) */
-	bool IsTopLevel() const
-	{
-		return bTopLevel;
-	}
+	void ClearKeyAreas();
 
 	/** Retrieve the key area editor switcher widget, creating it if it doesn't yet exist */
 	TSharedRef<SWidget> GetOrCreateKeyAreaEditorSwitcher();
@@ -79,17 +75,14 @@ public:
 	virtual ESequencerNode::Type GetType() const override;
 	virtual void SetDisplayName(const FText& NewDisplayName) override;
 
-private:
+	// ICurveEditorTreeItem interface
+	virtual void CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels) override;
 
-	/** The display name of the key area. */
-	FText DisplayName;
+private:
 
 	/** All key areas on this node (one per section). */
 	TArray<TSharedRef<IKeyArea>> KeyAreas;
 
 	/** The outliner key editor switcher widget. */
 	TSharedPtr<SKeyAreaEditorSwitcher> KeyEditorSwitcher;
-
-	/** If true the node is part of the section itself instead of taking up extra height in the section. */
-	bool bTopLevel;
 };
