@@ -12,10 +12,16 @@ class UMaterialExpressionPreSkinnedLocalBounds : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
-	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
+	//~ Begin UMaterialExpression Interface
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-#endif
+	virtual void GetConnectorToolTip(int32 InputIndex, int32 OutputIndex, TArray<FString>& OutToolTip) override;
+	virtual void GetExpressionToolTip(TArray<FString>& OutToolTip) override;
 	//~ End UMaterialExpression Interface
+
+#if WITH_EDITORONLY_DATA
+	TArray<FString> OutputToolTips;
+#endif
+#endif
 };
