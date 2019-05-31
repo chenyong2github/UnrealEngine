@@ -8,6 +8,7 @@
 #include "PropertyEditorModule.h"
 #include "IPropertyChangeListener.h"
 #include "MovieSceneSequence.h"
+#include "ScopedTransaction.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSequencerTools, Log, All);
 
@@ -71,12 +72,24 @@ void FSequencerObjectChangeListener::BroadcastPropertyChanged( FKeyPropertyParam
 			for (TFieldIterator<UProperty> PropertyIterator(ObjectToKey->GetClass()); PropertyIterator; ++PropertyIterator)
 			{
 				UProperty* CheckProperty = *PropertyIterator;
-				if (CheckProperty == KeyPropertyParams.PropertyPath.GetRootProperty().Property.Get())
+
+				for (int32 Index = 0; Index < KeyPropertyParams.PropertyPath.GetNumProperties(); ++Index)
 				{
-					if (CanKeyProperty_Internal(FCanKeyPropertyParams(ObjectToKey->GetClass(), KeyPropertyParams.PropertyPath), Delegate, Property, PropertyPath))
+					const FPropertyInfo& PropertyInfo = KeyPropertyParams.PropertyPath.GetPropertyInfo(Index);
+
+					if (CheckProperty == PropertyInfo.Property.Get())
 					{
-						KeyableObjects.Add(ObjectToKey);
-						break;
+						FPropertyPath TrimmedPropertyPath;
+						for (int32 TrimmedIndex = Index; TrimmedIndex < KeyPropertyParams.PropertyPath.GetNumProperties(); ++TrimmedIndex)
+						{
+							TrimmedPropertyPath.AddProperty(KeyPropertyParams.PropertyPath.GetPropertyInfo(TrimmedIndex));
+						}
+
+						if (CanKeyProperty_Internal(FCanKeyPropertyParams(ObjectToKey->GetClass(), TrimmedPropertyPath), Delegate, Property, PropertyPath))
+						{
+							KeyableObjects.Add(ObjectToKey);
+							break;
+						}
 					}
 				}
 			}
