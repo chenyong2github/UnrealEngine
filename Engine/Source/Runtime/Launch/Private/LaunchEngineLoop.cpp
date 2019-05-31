@@ -2464,7 +2464,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		if (BundleManager == nullptr || BundleManager->IsNullInterface())
 		{
 			// Mount Paks that were installed during EarlyStartupScreen
-			if (FCoreDelegates::OnMountAllPakFiles.IsBound() )
+			if (FCoreDelegates::OnMountAllPakFiles.IsBound() && FPaths::HasProjectPersistentDownloadDir() )
 			{
 				SCOPED_BOOT_TIMING("MountPaksAfterEarlyStartupScreen");
 
