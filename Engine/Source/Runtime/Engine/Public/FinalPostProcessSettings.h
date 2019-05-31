@@ -21,6 +21,9 @@ public:
 	, HighResScreenshotMaskMaterial(NULL)
 	, HighResScreenshotCaptureRegionMaterial(NULL)
 	, bBufferVisualizationDumpRequired(false)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	, bBufferVisualizationOverviewTargetIsSelected(false)
+#endif
 	{
 		// to avoid reallocations we reserve some 
 		ContributingCubemaps.Reserve(8);
@@ -177,6 +180,12 @@ public:
 	// Current buffer visualization dumping settings
 	bool bBufferVisualizationDumpRequired;
 	FString BufferVisualizationDumpBaseFilename;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	// Optional selected buffer in the buffer visualization overview
+	bool bBufferVisualizationOverviewTargetIsSelected;
+	FString BufferVisualizationOverviewSelectedTargetMaterialName;
+#endif
 
 	/**
 	 * A map of buffer visualization material names to visualization pipes onto which each intermediate render target will be pushed, if set.
