@@ -85,15 +85,6 @@ void UControlRigGraphNode::ReconstructNode()
 		}
 	}
 
-#if WITH_EDITORONLY_DATA
-	// store the nodes connected to outputs of hierarchy refs.
-	// this is done for backwards compatibility
-	if (HasAnyFlags(RF_NeedPostLoad))
-	{
-		CacheHierarchyRefConnectionsOnPostLoad();
-	}
-#endif
-
 	Modify();
 
 	// Clear previously set messages
