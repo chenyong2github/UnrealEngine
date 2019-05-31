@@ -412,6 +412,11 @@ private:
 
 	UPROPERTY()
 	TMap<FGuid, FLandscapeLayerComponentData> LayersData;
+
+	/** Compoment's Data for Editing Layer */
+	FGuid LandscapeEditingLayer;
+	mutable FGuid CachedEditingLayer;
+	mutable FLandscapeLayerComponentData* CachedEditingLayerData;
 		
 	// Final layer data
 	UPROPERTY(Transient)
@@ -609,6 +614,7 @@ public:
 	LANDSCAPE_API void RemoveLayerData(const FGuid& InLayerGuid);
 	LANDSCAPE_API void ForEachLayer(TFunctionRef<void(const FGuid&, struct FLandscapeLayerComponentData&)> Fn);
 
+	LANDSCAPE_API void SetEditingLayer(const FGuid& InEditingLayer);
 	FLandscapeLayerComponentData* GetEditingLayer();
 	const FLandscapeLayerComponentData* GetEditingLayer() const;
 	FGuid GetEditingLayerGUID() const;
