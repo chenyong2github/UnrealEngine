@@ -913,63 +913,34 @@ int32 FAnimBlueprintCompilerContext::GetAllocationIndexOfNode(UAnimGraphNode_Bas
 
 void FAnimBlueprintCompilerContext::PruneIsolatedAnimationNodes(const TArray<UAnimGraphNode_Base*>& RootSet, TArray<UAnimGraphNode_Base*>& GraphNodes)
 {
-	struct FNodeVisitorDownWires
+	struct FNodeVisitorDownPoseWires
 	{
 		TSet<UEdGraphNode*> VisitedNodes;
-		TSet<UEdGraphNode*> VisitedNodesViaPropertyPins;
 		const UAnimationGraphSchema* Schema;
 
-		FNodeVisitorDownWires()
+		FNodeVisitorDownPoseWires()
 		{
 			Schema = GetDefault<UAnimationGraphSchema>();
 		}
 
-		void TraverseWires(UEdGraphNode* Node, bool bProperty = false)
+		void TraverseNodes(UEdGraphNode* Node)
 		{
-			if(bProperty)
-			{
-				VisitedNodesViaPropertyPins.Add(Node);
-
-				// We only care about sub-inputs here
-				if(Node->IsA<UAnimGraphNode_SubInput>())
-				{
-					VisitedNodes.Add(Node);
-				}
-			}
-			else
-			{
-				VisitedNodes.Add(Node);
-			}
+			VisitedNodes.Add(Node);
 
 			// Follow every exec output pin
 			for (int32 i = 0; i < Node->Pins.Num(); ++i)
 			{
 				UEdGraphPin* MyPin = Node->Pins[i];
 
-				if (MyPin->Direction == EGPD_Input)
+				if ((MyPin->Direction == EGPD_Input) && (Schema->IsPosePin(MyPin->PinType)))
 				{
-					if(Schema->IsPosePin(MyPin->PinType))
+					for (int32 j = 0; j < MyPin->LinkedTo.Num(); ++j)
 					{
-						for (int32 j = 0; j < MyPin->LinkedTo.Num(); ++j)
+						UEdGraphPin* OtherPin = MyPin->LinkedTo[j];
+						UEdGraphNode* OtherNode = OtherPin->GetOwningNode();
+						if (!VisitedNodes.Contains(OtherNode))
 						{
-							UEdGraphPin* OtherPin = MyPin->LinkedTo[j];
-							UEdGraphNode* OtherNode = OtherPin->GetOwningNode();
-							if (!VisitedNodes.Contains(OtherNode))
-							{
-								TraverseWires(OtherNode, false);
-							}
-						}
-					}
-					else
-					{
-						for (int32 j = 0; j < MyPin->LinkedTo.Num(); ++j)
-						{
-							UEdGraphPin* OtherPin = MyPin->LinkedTo[j];
-							UEdGraphNode* OtherNode = OtherPin->GetOwningNode();
-							if (!VisitedNodesViaPropertyPins.Contains(OtherNode) && !VisitedNodes.Contains(OtherNode))
-							{
-								TraverseWires(OtherNode, true);
-							}
+							TraverseNodes(OtherNode);
 						}
 					}
 				}
@@ -977,19 +948,21 @@ void FAnimBlueprintCompilerContext::PruneIsolatedAnimationNodes(const TArray<UAn
 		}
 	};
 
-	// Prune the nodes that aren't reachable via an animation pose link (or linked to a sub input node)
-	FNodeVisitorDownWires Visitor;
+	// Prune the nodes that aren't reachable via an animation pose link
+	FNodeVisitorDownPoseWires Visitor;
 
 	for (auto RootIt = RootSet.CreateConstIterator(); RootIt; ++RootIt)
 	{
 		UAnimGraphNode_Base* RootNode = *RootIt;
-		Visitor.TraverseWires(RootNode);
+		Visitor.TraverseNodes(RootNode);
 	}
 
 	for (int32 NodeIndex = 0; NodeIndex < GraphNodes.Num(); ++NodeIndex)
 	{
 		UAnimGraphNode_Base* Node = GraphNodes[NodeIndex];
-		if (!Visitor.VisitedNodes.Contains(Node) && !IsNodePure(Node))
+
+		// We cant prune sub-inputs as even if they are not linked to the root, they are needed for the dynamic link phase at runtime
+		if (!Visitor.VisitedNodes.Contains(Node) && !IsNodePure(Node) && !Node->IsA<UAnimGraphNode_SubInput>())
 		{
 			Node->BreakAllNodeLinks();
 			GraphNodes.RemoveAtSwap(NodeIndex);
