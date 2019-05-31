@@ -114,11 +114,11 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[24] = FVector4(PrimitiveUniformShaderParameters.LocalObjectBoundsMax, 0.0f);
 	Data[24].W = *(const float*)&PrimitiveUniformShaderParameters.LightmapDataIndex;
 
-	Data[25] = FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBounds, 0.0f);
+	Data[25] = FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBoundsMin, 0.0f);
 	Data[25].W = *(const float*)&PrimitiveUniformShaderParameters.SingleCaptureIndex;
 
-	Data[26] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-	Data[26].X = *(const float*)&PrimitiveUniformShaderParameters.OutputVelocity;
+	Data[26] = FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBoundsMax, 0.0f);
+	Data[26].W = *(const float*)&PrimitiveUniformShaderParameters.OutputVelocity;
 
 	Data[27] = PrimitiveUniformShaderParameters.CustomPrimitiveData[0];
 	Data[28] = PrimitiveUniformShaderParameters.CustomPrimitiveData[1];
