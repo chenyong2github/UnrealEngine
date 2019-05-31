@@ -270,7 +270,7 @@ public:
 	* @return Whether the import was successful
 	*/
 
-	static void ImportFBXCameraToExisting(UnFbx::FFbxImporter* FbxImporter, UMovieScene* InMovieScene, IMovieScenePlayer* Player, const FMovieSceneSequenceIDRef& TemplateID, TMap<FGuid, FString>& InObjectBindingMap, bool bMatchByNameOnly, bool bNotifySlate);
+	static void ImportFBXCameraToExisting(UnFbx::FFbxImporter* FbxImporter, UMovieScene* InMovieScene, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID, TMap<FGuid, FString>& InObjectBindingMap, bool bMatchByNameOnly, bool bNotifySlate);
 
 	/**
 	* Import FBX Node to existing actor/node
@@ -283,7 +283,7 @@ public:
 	* @param ObjectBinding Guid of the object we are importing onto.
 	* @return Whether the import was successful
 	*/
-	static bool ImportFBXNode(FString NodeName, UnFbx::FFbxCurvesAPI& CurveAPI, UMovieScene* InMovieScene, IMovieScenePlayer* Player, const FMovieSceneSequenceIDRef& TemplateID, FGuid ObjectBinding);
+	static bool ImportFBXNode(FString NodeName, UnFbx::FFbxCurvesAPI& CurveAPI, UMovieScene* InMovieScene, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID, FGuid ObjectBinding);
 
 
 	/**
