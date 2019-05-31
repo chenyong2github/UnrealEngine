@@ -1484,7 +1484,14 @@ public:
 
 	/** The type of travel to perform next when doing a server travel */
 	TEnumAsByte<ETravelType> NextTravelType;
-	
+
+private:
+	/** An internal count of how many streaming levels are currently loading */
+	uint16 NumStreamingLevelsBeingLoaded; // Move this somewhere better
+
+	friend struct FWorldNotifyStreamingLevelLoading;
+
+public:
 	/** The URL to be used for the upcoming server travel */
 	FString NextURL;
 
@@ -3583,6 +3590,25 @@ private:
 	FWorldDelegates() {}
 };
 
+/** Helper struct to allow ULevelStreaming to update its World on how many streaming levels are being loaded */
+struct FWorldNotifyStreamingLevelLoading
+{
+private:
+	static void Started(UWorld* World)
+	{
+		++World->NumStreamingLevelsBeingLoaded;
+	}
+
+	static void Finished(UWorld* World)
+	{
+		if (ensure(World->NumStreamingLevelsBeingLoaded > 0))
+		{
+			--World->NumStreamingLevelsBeingLoaded;
+		}
+	}
+
+	friend ULevelStreaming;
+};
 
 //////////////////////////////////////////////////////////////////////////
 // UWorld inlines:
