@@ -52,6 +52,8 @@ namespace NodeSectionID
 	{
 		NONE = 0,
 		GRAPH,					// Graph
+		ANIMGRAPH,				// Anim Graph
+		ANIMLAYER,				// Anim Layer
 		FUNCTION,				// Functions
 		FUNCTION_OVERRIDABLE,	// Overridable functions
 		INTERFACE,				// Interface
