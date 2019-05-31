@@ -7,7 +7,6 @@
 #include "AudioMixerSubmix.h"
 #include "IAudioExtensionPlugin.h"
 #include "AudioMixer.h"
-#include "Sound/SampleBuffer.h"
 
 DEFINE_STAT(STAT_AudioMixerHRTF);
 
@@ -729,8 +728,6 @@ namespace Audio
 					}
 				}
 			}
-
-			DebugAudioBuffer.Reset();
 
 			SourceInfo.CurrentFrameValues.Init(0.0f, InitParams.NumInputChannels);
 			SourceInfo.NextFrameValues.Init(0.0f, InitParams.NumInputChannels);
@@ -1463,9 +1460,7 @@ namespace Audio
 						const float NextFrameValue = SourceInfo.NextFrameValues[Channel];
 						const float CurrentAlpha = SourceInfo.CurrentFrameAlpha;
 
-						float PreDistSampleValue = FMath::Lerp(CurrFrameValue, NextFrameValue, CurrentAlpha);
-						DebugAudioBuffer.Add(PreDistSampleValue);
-						PreDistanceAttenBufferPtr[SampleIndex++] = PreDistSampleValue;
+						PreDistanceAttenBufferPtr[SampleIndex++] = FMath::Lerp(CurrFrameValue, NextFrameValue, CurrentAlpha);
 					}
 					const float CurrentPitchScale = SourceInfo.PitchSourceParam.Update();
 
@@ -1862,11 +1857,6 @@ namespace Audio
 			{
 				Audio::DownmixBuffer(DownmixData.NumInputChannels, 8, *DownmixData.PostEffectBuffers, DownmixData.SevenOneSubmixInfo.OutputBuffer, DownmixData.SevenOneSubmixInfo.ChannelMap.ChannelDestinationGains);
 			}
-
-			if (DownmixData.AmbisonicsSubmixInfo.bInUse)
-			{
-				Audio::DownmixBuffer(DownmixData.NumInputChannels, 4, *DownmixData.PostEffectBuffers, DownmixData.AmbisonicsSubmixInfo.OutputBuffer, DownmixData.AmbisonicsSubmixInfo.ChannelMap.ChannelDestinationGains);
-			}
 		}
 	}
 
@@ -2075,19 +2065,15 @@ namespace Audio
 			{
 				float* PostDistanceAttenBufferPtr = SourceInfo.SourceBuffer.GetData();
 
-				if (SourceInfo.LowPassFilter.GetCutoffFrequency() < (MAX_FILTER_FREQUENCY - KINDA_SMALL_NUMBER))
+				// Process the filters after the source effects (Using optimized filters)
+				for (int32 SampleIndex = 0; SampleIndex < NumOutputFrames * SourceInfo.NumInputChannels; SampleIndex += SourceInfo.NumInputChannels)
 				{
-					SourceInfo.LowPassFilter.ProcessAudio(PreDistanceAttenBufferPtr, NumSamples, PostDistanceAttenBufferPtr);
-				
-				}
-				else
-				{
-					FMemory::Memcpy(PostDistanceAttenBufferPtr, PreDistanceAttenBufferPtr, NumSamples * sizeof(float));
-				}
+					SourceInfo.LowPassFilter.ProcessAudioFrame(&PreDistanceAttenBufferPtr[SampleIndex], &PostDistanceAttenBufferPtr[SampleIndex]);
 
-				if (!DisableHPFilteringCvar)
-				{
-					SourceInfo.HighPassFilter.ProcessAudio(PostDistanceAttenBufferPtr, NumSamples, PostDistanceAttenBufferPtr);
+					if (!DisableHPFilteringCvar)
+					{
+						SourceInfo.HighPassFilter.ProcessAudioFrame(&PostDistanceAttenBufferPtr[SampleIndex], &PostDistanceAttenBufferPtr[SampleIndex]);
+					}
 				}
 
 				// We manually reset interpolation to avoid branches in filter code
@@ -2115,15 +2101,6 @@ namespace Audio
 			// Check the source effect tails condition
 			if (SourceInfo.bIsLastBuffer && SourceInfo.bEffectTailsDone)
 			{
-				TSampleBuffer<> DebugSampleBuffer(DebugAudioBuffer.GetData(), DebugAudioBuffer.Num(), SourceInfo.NumInputChannels, MixerDevice->GetDeviceSampleRate());
-
-				static int32 DebugWrites = 0;
-				FString DebugName = FString::Printf(TEXT("PreAttenDebug_%d"), DebugWrites++);
-				FString Path = FPaths::ProjectLogDir();
-
-				Audio::FSoundWavePCMWriter PCMWriter;
-				PCMWriter.BeginWriteToWavFile(DebugSampleBuffer, DebugName, Path);
-
 				// If we're done and our tails our done, clear everything out
 				SourceInfo.CurrentFrameValues.Reset();
 				SourceInfo.NextFrameValues.Reset();
