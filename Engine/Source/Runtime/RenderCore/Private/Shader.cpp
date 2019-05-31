@@ -2217,6 +2217,12 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_HWsRGB") : TEXT("");
 		}
 		
+		{
+			// make it per shader platform ?
+			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.SupportGPUScene"));
+			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_MobGPUSc") : TEXT("");
+		}
+		
 	}
 
 	if (Platform == SP_PS4)

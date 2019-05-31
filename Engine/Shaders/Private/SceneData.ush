@@ -5,7 +5,7 @@
  */
 
 // Whether to fetch primitive values (eg LocalToWorld) by dynamically indexing a scene-wide buffer, or to reference a single Primitive uniform buffer
-#define VF_USE_PRIMITIVE_SCENE_DATA (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && VF_SUPPORTS_PRIMITIVE_SCENE_DATA)
+#define VF_USE_PRIMITIVE_SCENE_DATA ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && VF_SUPPORTS_PRIMITIVE_SCENE_DATA)
 
 #if VF_USE_PRIMITIVE_SCENE_DATA
 
