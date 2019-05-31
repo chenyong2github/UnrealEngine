@@ -136,10 +136,8 @@ void SGraphNodeK2Base::UpdateCompactNode()
 	//            |_______|______|_______|
 	//
 	this->ContentScale.Bind( this, &SGraphNode::GetContentScale );
-	this->GetOrAddSlot( ENodeZone::Center )
-	.HAlign(HAlign_Center)
-	.VAlign(VAlign_Center)
-	[
+	
+	TSharedRef<SVerticalBox> InnerVerticalBox =
 		SNew(SVerticalBox)
 		+SVerticalBox::Slot()
 		[
@@ -160,13 +158,33 @@ void SGraphNodeK2Base::UpdateCompactNode()
 			[
 				NodeOverlay
 			]
-		]
-		+SVerticalBox::Slot()
+		];
+	
+	TSharedPtr<SWidget> EnabledStateWidget = GetEnabledStateWidget();
+	if (EnabledStateWidget.IsValid())
+	{
+		InnerVerticalBox->AddSlot()
+			.AutoHeight()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Top)
+			.Padding(FMargin(2, 0))
+			[
+				EnabledStateWidget.ToSharedRef()
+			];
+	}
+
+	InnerVerticalBox->AddSlot()
 		.AutoHeight()
 		.Padding( FMargin(5.0f, 1.0f) )
 		[
 			ErrorReporting->AsWidget()
-		]
+		];
+
+	this->GetOrAddSlot( ENodeZone::Center )
+	.HAlign(HAlign_Center)
+	.VAlign(VAlign_Center)
+	[
+		InnerVerticalBox
 	];
 
 	CreatePinWidgets();
