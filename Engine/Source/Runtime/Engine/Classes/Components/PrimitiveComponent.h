@@ -511,9 +511,6 @@ private:
 
 	FMaskFilter MoveIgnoreMask;
 
-	/** Custom data that can be read by a material through a material parameter expression. Set data using SetCustomPrimitiveData* functions */
-	UPROPERTY()
-	FCustomPrimitiveData CustomPrimitiveData;
 public:
 	/**
 	 * Determine whether a Character can step up onto this component.
@@ -537,6 +534,13 @@ public:
 	/** Optionally write this 0-255 value to the stencil buffer in CustomDepth pass (Requires project setting or r.CustomDepth == 3) */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering,  meta=(UIMin = "0", UIMax = "255", editcondition = "bRenderCustomDepth", DisplayName = "CustomDepth Stencil Value"))
 	int32 CustomDepthStencilValue;
+
+private:
+	/** Custom data that can be read by a material through a material parameter expression. Set data using SetCustomPrimitiveData* functions */
+	UPROPERTY()
+	FCustomPrimitiveData CustomPrimitiveData;
+
+public:
 
 	/**
 	 * Translucent objects with a lower sort priority draw behind objects with a higher priority.
