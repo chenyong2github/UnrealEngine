@@ -779,6 +779,11 @@ TSharedRef<SWidget> UWidget::TakeWidget_Private(ConstructMethodType ConstructMet
 		bRoutedSynchronizeProperties = false;
 #endif
 
+#if WIDGET_INCLUDE_RELFECTION_METADATA
+		// We only need to do this once, when the slate widget is created.
+		PublicWidget->AddMetadata<FReflectionMetaData>(MakeShared<FReflectionMetaData>(GetFName(), GetClass(), this, GetSourceAssetOrClass()));
+#endif
+
 		SynchronizeProperties();
 		VerifySynchronizeProperties();
 		OnWidgetRebuilt();
@@ -1156,10 +1161,6 @@ void UWidget::SynchronizeProperties()
 	{
 		SafeWidget->SetToolTipText(PROPERTY_BINDING(FText, ToolTipText));
 	}
-
-#if !UE_BUILD_SHIPPING
-	SafeWidget->AddMetadata<FReflectionMetaData>(MakeShared<FReflectionMetaData>(GetFName(), GetClass(), this, GetSourceAssetOrClass()));
-#endif
 }
 
 UObject* UWidget::GetSourceAssetOrClass() const
@@ -1171,9 +1172,9 @@ UObject* UWidget::GetSourceAssetOrClass() const
 	// where it comes from, what blueprint, what the name of the widget was...etc.
 	SourceAsset = WidgetGeneratedBy.Get();
 #else
-#if !UE_BUILD_SHIPPING
-	SourceAsset = WidgetGeneratedByClass.Get();
-#endif
+	#if !UE_BUILD_SHIPPING
+		SourceAsset = WidgetGeneratedByClass.Get();
+	#endif
 #endif
 
 	if (!SourceAsset)
