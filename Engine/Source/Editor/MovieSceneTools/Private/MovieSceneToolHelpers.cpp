@@ -2074,7 +2074,7 @@ bool MovieSceneToolHelpers::ExportFBX(UWorld* World, UMovieScene* MovieScene, IM
 		if (Actor != NULL)
 		{
 			FGuid ExistingGuid = Player->FindObjectId(*Actor, MovieSceneSequenceID::Root);
-			if (ExistingGuid.IsValid() && !bSelectedOnly || Bindings.Contains(ExistingGuid))
+			if (ExistingGuid.IsValid() && (!bSelectedOnly || Bindings.Contains(ExistingGuid)))
 			{
 				ActorToExport.Add(Actor);
 			}
