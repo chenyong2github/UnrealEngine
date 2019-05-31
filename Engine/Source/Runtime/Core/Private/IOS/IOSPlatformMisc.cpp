@@ -682,7 +682,7 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
 
 int FIOSPlatformMisc::GetDefaultStackSize()
 {
-	return 512 * 1024;
+	return 128 * 1024;
 }
 
 void FIOSPlatformMisc::SetMemoryWarningHandler(void (* InHandler)(const FGenericMemoryWarningContext& Context))
