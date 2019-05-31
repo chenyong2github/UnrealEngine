@@ -2,10 +2,10 @@
 
 #pragma once
 
+#include "ControlRig.h"
 #include "AnimNode_ControlRigBase.h"
 #include "AnimNode_ControlRig.generated.h"
 
-class UControlRig;
 class UNodeMappingContainer;
 
 /**
@@ -17,6 +17,7 @@ struct CONTROLRIG_API FAnimNode_ControlRig : public FAnimNode_ControlRigBase
 	GENERATED_BODY()
 
 	FAnimNode_ControlRig();
+	virtual ~FAnimNode_ControlRig();
 
 	UControlRig* GetControlRig() const { return ControlRig; }
 
@@ -28,6 +29,8 @@ struct CONTROLRIG_API FAnimNode_ControlRig : public FAnimNode_ControlRigBase
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
 	virtual void Evaluate_AnyThread(FPoseContext & Output) override;
 
+	void SetIOMapping(bool bInput, const FName& SourceProperty, const FName& TargetCurve);
+	FName GetIOMapping(bool bInput, const FName& SourceProperty) const;
 private:
 
 	UPROPERTY(EditAnywhere, Category = Links)
@@ -40,8 +43,29 @@ private:
 	UPROPERTY(transient)
 	UControlRig* ControlRig;
 
+	// we only save mapping, 
+	// we have to query control rig when runtime 
+	// to ensure type and everything is still valid or not
+	UPROPERTY()
+	TMap<FName, FName> InputMapping;
+
+	UPROPERTY()
+	TMap<FName, FName> OutputMapping;
+
+	TMap<FName, FName> InputTypes;
+	TMap<FName, FName> OutputTypes;
+
+#if WITH_EDITOR
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
+#endif // WITH_EDITOR
+protected:
+	virtual UClass* GetTargetClass() const override { return *ControlRigClass; } 
+	virtual void UpdateInput(UControlRig* InControlRig, const FPoseContext& InOutput) override;
+	virtual void UpdateOutput(UControlRig* InControlRig, FPoseContext& InOutput) override;
 public:
 	void PostSerialize(const FArchive& Ar);
+
+	friend class UAnimGraphNode_ControlRig;
 };
 
 template<>

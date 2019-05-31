@@ -7,6 +7,9 @@
 
 FAnimNode_CustomProperty::FAnimNode_CustomProperty()
 	: TargetInstance(nullptr)
+#if WITH_EDITOR
+	, bReinitializeProperties(false)
+#endif // WITH_EDITOR
 {
 
 }
@@ -40,6 +43,19 @@ void FAnimNode_CustomProperty::PropagateInputProperties(const UObject* InSourceI
 			}
 		}
 	}
+}
+
+void FAnimNode_CustomProperty::PreUpdate(const UAnimInstance* InAnimInstance) 
+{
+	FAnimNode_Base::PreUpdate(InAnimInstance);
+
+#if WITH_EDITOR
+	if (bReinitializeProperties)
+	{
+		InitializeProperties(InAnimInstance);
+		bReinitializeProperties = false;
+	}
+#endif// WITH_EDITOR
 }
 
 void FAnimNode_CustomProperty::InitializeProperties(const UObject* InSourceInstance)

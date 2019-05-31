@@ -18,6 +18,8 @@
 #include "Kismet2/KismetDebugUtilities.h"
 #include "PropertyPathHelpers.h"
 #include "UObject/PropertyPortFlags.h"
+#include "ControlRigBlueprint.h"
+#include "ControlRigController.h"
 
 #define LOCTEXT_NAMESPACE "SControlRigGraphNode"
 
@@ -106,7 +108,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 		{
 			for(const TSharedRef<FControlRigField>& Field : InItems)
 			{
-				if(InControlRigGraphNode->IsPinExpanded(Field->GetPropertyPath()))
+				if(InControlRigGraphNode->IsPinExpanded(Field->GetPinPath()))
 				{
 					TreeWidget->SetItemExpansion(Field, true);
 
@@ -179,6 +181,36 @@ TSharedPtr<SGraphPin> SControlRigGraphNode::GetHoveredPin(const FGeometry& MyGeo
 		}
 	}
 	return HoveredPin;
+}
+
+/** @param NewPosition  The Node should be relocated to this position in the graph panel */
+void SControlRigGraphNode::MoveTo( const FVector2D& NewPosition, FNodeSet& NodeFilter )
+{
+	if (!NodeFilter.Find(SharedThis(this)))
+	{
+		if (GraphNode && !RequiresSecondPassLayout())
+		{
+			UControlRigGraphNode* ControlRigGraphNode = CastChecked<UControlRigGraphNode>(GraphNode);
+			ControlRigGraphNode->GetBlueprint()->ModelController->SetNodePosition(ControlRigGraphNode->GetPropertyName(), NewPosition, false);
+		}
+	}
+}
+
+void SControlRigGraphNode::EndUserInteraction() const
+{
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		GEditor->CancelTransaction(0);
+	}
+#endif
+
+	if (GraphNode)
+	{
+		UControlRigGraphNode* ControlRigGraphNode = CastChecked<UControlRigGraphNode>(GraphNode);
+		FVector2D Position(ControlRigGraphNode->NodePosX, ControlRigGraphNode->NodePosY);
+		ControlRigGraphNode->GetBlueprint()->ModelController->SetNodePosition(ControlRigGraphNode->GetPropertyName(), Position, true);
+	}
 }
 
 void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd) 
@@ -638,7 +670,17 @@ void SControlRigGraphNode::HandleExpansionChanged(TSharedRef<FControlRigField> I
 {
 	if (GraphNode)
 	{
-		CastChecked<UControlRigGraphNode>(GraphNode)->SetPinExpansion(InItem->GetPropertyPath(), bExpanded);
+		UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(GraphNode->GetGraph()->GetOuter());
+		if (ControlRigBlueprint)
+		{
+			if (ControlRigBlueprint->ModelController)
+			{
+				FString PinPath = InItem->GetPinPath();
+				FString Left, Right;
+				ControlRigBlueprint->Model->SplitPinPath(PinPath, Left, Right);
+				ControlRigBlueprint->ModelController->ExpandPin(*Left, *Right, InItem->GetPin()->Direction == EGPD_Input, bExpanded);
+			}
+		}
 	}
 }
 
@@ -679,7 +721,8 @@ FReply SControlRigGraphNode::HandleAddArrayElement(TWeakPtr<FControlRigField> In
 	{
 		if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
 		{
-			ControlRigGraphNode->HandleAddArrayElement(Item->PropertyPath);
+			// todo ?
+			ControlRigGraphNode->HandleAddArrayElement(Item->GetPinPath());
 		}
 	}
 

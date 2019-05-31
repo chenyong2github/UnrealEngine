@@ -2,17 +2,16 @@
 
 #pragma once
 
-#include "Animation/AnimNodeBase.h"
+#include "Animation/AnimNode_CustomProperty.h"
 #include "AnimNode_ControlRigBase.generated.h"
 
 class UControlRig;
 class UNodeMappingContainer;
-
 /**
  * Animation node that allows animation ControlRig output to be used in an animation graph
  */
 USTRUCT()
-struct CONTROLRIG_API FAnimNode_ControlRigBase : public FAnimNode_Base
+struct CONTROLRIG_API FAnimNode_ControlRigBase : public FAnimNode_CustomProperty
 {
 	GENERATED_BODY()
 
@@ -32,7 +31,10 @@ struct CONTROLRIG_API FAnimNode_ControlRigBase : public FAnimNode_Base
 protected:
 	/** Rig Hierarchy node name mapping for the required bones array */
 	UPROPERTY(transient)
-	TArray<FName> RigHierarchyItemNameMapping;
+	TArray<FName> ContolRigNodeMapping;
+
+	UPROPERTY(transient)
+	TMap<FName, uint16> CurveMappingUIDs;
 
 	/** Node Mapping Container */
 	UPROPERTY(transient)
@@ -40,6 +42,7 @@ protected:
 
 	// update input/output to control rig
 	virtual void UpdateInput(UControlRig* ControlRig, const FPoseContext& InOutput);
-	virtual void UpdateOutput(const UControlRig* ControlRig, FPoseContext& InOutput);
+	virtual void UpdateOutput(UControlRig* ControlRig, FPoseContext& InOutput);
+	virtual UClass* GetTargetClass() const override;
 };
 

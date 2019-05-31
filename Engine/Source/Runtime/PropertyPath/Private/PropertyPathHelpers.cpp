@@ -814,6 +814,11 @@ void FCachedPropertyPath::RemoveFromStart(int32 InNumSegments)
 	}
 }
 
+UProperty* FCachedPropertyPath::GetUProperty() const
+{
+	return Cast<UProperty>(GetLastSegment().GetField());
+}
+
 namespace PropertyPathHelpers
 {
 	void FindFieldNameAndArrayIndex(int32 InCount, const TCHAR* InString, int32& OutCount, const TCHAR** OutPropertyName, int32& OutArrayIndex)

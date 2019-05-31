@@ -1667,8 +1667,13 @@ void USkeleton::HandleVirtualBoneChanges()
 		USkeletalMesh* SkelMesh = *ItMesh;
 		if (SkelMesh->Skeleton == this)
 		{
+			// also have to update retarget base pose
 			SkelMesh->RefSkeleton.RebuildRefSkeleton(this, bRebuildNameMap);
 			RebuildLinkup(SkelMesh);
+#if WITH_EDITOR
+			// whole bone count has changed, so it has to recalculate retarget base pose
+			SkelMesh->ReallocateRetargetBasePose();
+#endif // #if WITH_EDITOR
 		}
 	}
 
