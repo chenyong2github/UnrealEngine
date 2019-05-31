@@ -1881,7 +1881,7 @@ void UStaticMeshComponent::SetDistanceFieldSelfShadowBias(float NewValue)
 	}
 }
 
-void UStaticMeshComponent::SetCustomPrimitiveDataInternal(const TArray<float>& Values, int32 DataIndex)
+void UStaticMeshComponent::SetCustomPrimitiveDataInternal(int32 DataIndex, const TArray<float>& Values)
 {
 	// Can only set data on valid indices and only if there's actually any data to set
 	if (DataIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloats && Values.Num() > 0)
@@ -1906,24 +1906,24 @@ void UStaticMeshComponent::SetCustomPrimitiveDataInternal(const TArray<float>& V
 	}
 }
 
-void UStaticMeshComponent::SetCustomPrimitiveDataFloat(float Value, int32 DataIndex)
+void UStaticMeshComponent::SetCustomPrimitiveDataFloat(int32 DataIndex, float Value)
 {
-	SetCustomPrimitiveDataInternal({Value}, DataIndex);
+	SetCustomPrimitiveDataInternal(DataIndex, {Value});
 }
 
-void UStaticMeshComponent::SetCustomPrimitiveDataVector2(FVector2D Value, int32 DataIndex)
+void UStaticMeshComponent::SetCustomPrimitiveDataVector2(int32 DataIndex, FVector2D Value)
 {
-	SetCustomPrimitiveDataInternal({Value.X, Value.Y}, DataIndex);
+	SetCustomPrimitiveDataInternal(DataIndex, {Value.X, Value.Y});
 }
 
-void UStaticMeshComponent::SetCustomPrimitiveDataVector3(FVector Value, int32 DataIndex)
+void UStaticMeshComponent::SetCustomPrimitiveDataVector3(int32 DataIndex, FVector Value)
 {
-	SetCustomPrimitiveDataInternal({Value.X, Value.Y, Value.Z}, DataIndex);
+	SetCustomPrimitiveDataInternal(DataIndex, {Value.X, Value.Y, Value.Z});
 }
 
-void UStaticMeshComponent::SetCustomPrimitiveDataVector4(FVector4 Value, int32 DataIndex)
+void UStaticMeshComponent::SetCustomPrimitiveDataVector4(int32 DataIndex, FVector4 Value)
 {
-	SetCustomPrimitiveDataInternal({Value.X, Value.Y, Value.Z, Value.W}, DataIndex);
+	SetCustomPrimitiveDataInternal(DataIndex, {Value.X, Value.Y, Value.Z, Value.W});
 }
 
 void UStaticMeshComponent::SetReverseCulling(bool ReverseCulling)
