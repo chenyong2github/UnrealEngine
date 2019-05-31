@@ -1557,7 +1557,11 @@ void UPrimitiveComponent::SetCustomPrimitiveDataInternal(int32 DataIndex, const 
 		{
 			FMemory::Memcpy(&CustomPrimitiveData.Data[DataIndex], Values.GetData(), NumValuesToSet * sizeof(float));
 
-			GetWorld()->Scene->UpdateCustomPrimitiveData(this);
+			UWorld* World = GetWorld();
+			if (World && World->Scene)
+			{
+				World->Scene->UpdateCustomPrimitiveData(this);
+			}
 		}
 	}
 }
