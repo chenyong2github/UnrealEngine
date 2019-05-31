@@ -6352,17 +6352,48 @@ UMaterialExpressionVectorParameter::UMaterialExpressionVectorParameter(const FOb
 #if WITH_EDITOR
 int32 UMaterialExpressionVectorParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compiler->VectorParameter(ParameterName,DefaultValue);
+	if (bUseCustomPrimitiveData)
+	{
+		return Compiler->CustomPrimitiveData(PrimitiveDataIndex, MCT_Float4);
+	}
+	else
+	{
+		return Compiler->VectorParameter(ParameterName,DefaultValue);
+	}
 }
 
 void UMaterialExpressionVectorParameter::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(FString::Printf(
-		 TEXT("Param (%.3g,%.3g,%.3g,%.3g)"),
-		 DefaultValue.R,
-		 DefaultValue.G,
-		 DefaultValue.B,
-		 DefaultValue.A ));
+	if (bUseCustomPrimitiveData)
+	{
+		FString IndexString = FString::Printf(TEXT("Index %d"), PrimitiveDataIndex);
+
+		// Add info about remaining 3 components
+		for (int i = 1; i < 4; i++)
+		{
+			// Append index if it's valid, otherwise append N/A
+			if(PrimitiveDataIndex+i < FCustomPrimitiveData::NumCustomPrimitiveDataFloats)
+			{
+				IndexString.Append(FString::Printf(TEXT(", %d"), PrimitiveDataIndex+i));
+			}
+			else
+			{
+				IndexString.Append(FString::Printf(TEXT(", N/A")));
+			}
+		}
+
+		OutCaptions.Add(IndexString); 
+		OutCaptions.Add(FString::Printf(TEXT("Custom Primitive Data"))); 
+	}
+	else
+	{
+		OutCaptions.Add(FString::Printf(
+			 TEXT("Param (%.3g,%.3g,%.3g,%.3g)"),
+			 DefaultValue.R,
+			 DefaultValue.G,
+			 DefaultValue.B,
+			 DefaultValue.A ));
+	}
 
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString())); 
 }
@@ -6377,6 +6408,14 @@ bool UMaterialExpressionVectorParameter::IsNamedParameter(const FMaterialParamet
 	}
 
 	return false;
+}
+
+void UMaterialExpressionVectorParameter::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
+{
+	if (!bUseCustomPrimitiveData)
+	{
+		Super::GetAllParameterInfo(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
+	}
 }
 
 #if WITH_EDITOR
@@ -6399,6 +6438,12 @@ void UMaterialExpressionVectorParameter::PostEditChangeProperty(FPropertyChanged
 	{
 		// Callback into the editor
 		FEditorSupportDelegates::VectorParameterDefaultChanged.Broadcast(this, ParameterName, DefaultValue);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, PrimitiveDataIndex))
+	{
+		// Clamp value
+		const int32 PrimDataIndex = PrimitiveDataIndex;
+		PrimitiveDataIndex = (uint8)FMath::Clamp(PrimDataIndex, 0, FCustomPrimitiveData::NumCustomPrimitiveDataFloats-1);
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -6619,15 +6664,29 @@ UMaterialExpressionScalarParameter::UMaterialExpressionScalarParameter(const FOb
 #if WITH_EDITOR
 int32 UMaterialExpressionScalarParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compiler->ScalarParameter(ParameterName,DefaultValue);
+	if (bUseCustomPrimitiveData)
+	{
+		return Compiler->CustomPrimitiveData(PrimitiveDataIndex, MCT_Float);
+	}
+	else
+	{
+		return Compiler->ScalarParameter(ParameterName,DefaultValue);
+	}
 }
 
 void UMaterialExpressionScalarParameter::GetCaption(TArray<FString>& OutCaptions) const
 {
-	 OutCaptions.Add(FString::Printf(
-		 TEXT("Param (%.4g)"),
-		 DefaultValue )); 
-
+	if (bUseCustomPrimitiveData)
+	{
+		OutCaptions.Add(FString::Printf(TEXT("Index %d"), PrimitiveDataIndex)); 
+		OutCaptions.Add(FString::Printf(TEXT("Custom Primitive Data"))); 
+	}
+	else
+	{
+		OutCaptions.Add(FString::Printf(
+			 TEXT("Param (%.4g)"),
+			DefaultValue )); 
+	}
 	 OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString())); 
 }
 #endif // WITH_EDITOR
@@ -6641,6 +6700,14 @@ bool UMaterialExpressionScalarParameter::IsNamedParameter(const FMaterialParamet
 	}
 
 	return false;
+}
+
+void UMaterialExpressionScalarParameter::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
+{
+	if (!bUseCustomPrimitiveData)
+	{
+		Super::GetAllParameterInfo(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
+	}
 }
 
 #if WITH_EDITOR
@@ -6664,7 +6731,12 @@ void UMaterialExpressionScalarParameter::PostEditChangeProperty(FPropertyChanged
 		// Callback into the editor
 		FEditorSupportDelegates::ScalarParameterDefaultChanged.Broadcast(this, ParameterName, DefaultValue);
 	}
-
+	else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionScalarParameter, PrimitiveDataIndex))
+	{
+		// Clamp value
+		const int32 PrimDataIndex = PrimitiveDataIndex;
+		PrimitiveDataIndex = (uint8)FMath::Clamp(PrimDataIndex, 0, FCustomPrimitiveData::NumCustomPrimitiveDataFloats-1);
+	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
