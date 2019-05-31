@@ -3902,7 +3902,7 @@ void AActor::SetNetDriverName(FName NewNetDriverName)
 //
 // Return whether a function should be executed remotely.
 //
-int32 AActor::GetFunctionCallspace( UFunction* Function, void* Parameters, FFrame* Stack )
+int32 AActor::GetFunctionCallspace( UFunction* Function, FFrame* Stack )
 {
 	// Quick reject 1.
 	if ((Function->FunctionFlags & FUNC_Static))

@@ -524,7 +524,7 @@ bool UMinimalClient::PostSendRPC(FString RPCName, UObject* Target/*=nullptr*/)
 			}
 			else
 			{
-				int32 Callspace = TargetActor->GetFunctionCallspace(TargetFunc, nullptr, nullptr);
+				int32 Callspace = TargetActor->GetFunctionCallspace(TargetFunc, nullptr);
 
 				if (!(Callspace & FunctionCallspace::Remote))
 				{
