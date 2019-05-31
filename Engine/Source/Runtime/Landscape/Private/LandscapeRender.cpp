@@ -4276,17 +4276,25 @@ public:
 			else
 			{
 				// Landscape MICs are only for use with the Landscape vertex factories
+
+				// For now only compile FLandscapeFixedGridVertexFactory for runtime virtual texture page rendering (can change if we need for other cases)
 				// Todo: only compile LandscapeXYOffsetVertexFactory if we are using it
+				bool bIsRuntimeVirtualTextureShaderType = Algo::Find(GetRuntimeVirtualTextureShaderTypes(), ShaderType->GetFName());
+
 				static const FName LandscapeVertexFactory = FName(TEXT("FLandscapeVertexFactory"));
 				static const FName LandscapeXYOffsetVertexFactory = FName(TEXT("FLandscapeXYOffsetVertexFactory"));
-				static const FName LandscapeFixedGridVertexFactory = FName(TEXT("FLandscapeFixedGridVertexFactory"));
 				static const FName LandscapeVertexFactoryMobile = FName(TEXT("FLandscapeVertexFactoryMobile"));
 				if (VertexFactoryType->GetFName() == LandscapeVertexFactory ||
 					VertexFactoryType->GetFName() == LandscapeXYOffsetVertexFactory ||
-					VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactory ||
 					VertexFactoryType->GetFName() == LandscapeVertexFactoryMobile)
 				{
-					return FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
+					return !bIsRuntimeVirtualTextureShaderType && FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
+				}
+
+				static const FName LandscapeFixedGridVertexFactory = FName(TEXT("FLandscapeFixedGridVertexFactory"));
+				if (VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactory)
+				{
+					return bIsRuntimeVirtualTextureShaderType && FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
 				}
 			}
 		}
@@ -4538,6 +4546,20 @@ public:
 			FName(TEXT("TBasePassHSFPrecomputedVolumetricLightmapLightingPolicy")),
 		};
 		return ExcludedShaderTypes;
+	}
+
+	static const TArray<FName>& GetRuntimeVirtualTextureShaderTypes()
+	{
+		static const TArray<FName> ShaderTypes =
+		{
+			FName(TEXT("TVirtualTextureVSBaseColor")),
+			FName(TEXT("TVirtualTextureVSBaseColorNormal")),
+			FName(TEXT("TVirtualTextureVSBaseColorNormalSpecular")),
+			FName(TEXT("TVirtualTexturePSBaseColor")),
+			FName(TEXT("TVirtualTexturePSBaseColorNormal")),
+			FName(TEXT("TVirtualTexturePSBaseColorNormalSpecular")),
+		};
+		return ShaderTypes;
 	}
 };
 
