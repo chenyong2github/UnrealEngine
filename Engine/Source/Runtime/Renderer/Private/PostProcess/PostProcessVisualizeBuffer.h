@@ -22,17 +22,19 @@ public:
 	{
 		FRenderingCompositeOutputRef Source;
 		FString Name;
+		bool bIsSelected;
 
-		TileData(FRenderingCompositeOutputRef InSource, const FString& InName)
+		TileData(FRenderingCompositeOutputRef InSource, const FString& InName, bool bSelected)
 		: Source (InSource)
 		, Name (InName)
+		, bIsSelected(bSelected)
 		{
 
 		}
 	};
 
 	// constructor
-	void AddVisualizationBuffer(FRenderingCompositeOutputRef InSource, const FString& InName);
+	void AddVisualizationBuffer(FRenderingCompositeOutputRef InSource, const FString& InName, bool bIsSelected = false);
 
 	// interface FRenderingCompositePass ---------
 
