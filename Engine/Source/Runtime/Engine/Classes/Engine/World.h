@@ -2682,7 +2682,7 @@ public:
 	 * Transacts the specified level -- the correct way to modify a level
 	 * as opposed to calling Level->Modify.
 	 */
-	void ModifyLevel(ULevel* Level);
+	void ModifyLevel(ULevel* Level) const;
 
 	/**
 	 * Ensures that the collision detection tree is fully built. This should be called after the full level reload to make sure
