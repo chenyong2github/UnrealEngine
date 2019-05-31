@@ -298,13 +298,7 @@ void FD3D12TextureStats::D3D12TextureAllocated(TD3D12Texture2D<BaseResourceType>
 		}
 		else
 		{
-#if PLATFORM_XBOXONE
-			D3D12_RESOURCE_DESC Desc = D3D12Texture2D->GetDesc();
-			Desc.Layout = D3D12XBOX_BANK_ROTATED_TILE_MODE(Desc.Layout, 0);	// Remove bank rotation as this can cause the GetResourceAllocationInfo() to return 0
-#else
 			const D3D12_RESOURCE_DESC& Desc = D3D12Texture2D->GetDesc();
-#endif
-
 			const D3D12_RESOURCE_ALLOCATION_INFO AllocationInfo = Texture.GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
 			const int64 TextureSize = AllocationInfo.SizeInBytes;
 
