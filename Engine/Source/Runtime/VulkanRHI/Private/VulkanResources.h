@@ -1296,6 +1296,7 @@ public:
 		, NumMips(InNumMips)
 		, Size(0)
 		, SourceBuffer(nullptr)
+		, VolatileBufferHandle(VK_NULL_HANDLE)
 		, VolatileLockCounter(MAX_uint32)
 	{
 	}
@@ -1309,6 +1310,7 @@ public:
 		, NumMips(0)
 		, Size(InStructuredBuffer->GetSize())
 		, SourceBuffer(nullptr)
+		, VolatileBufferHandle(VK_NULL_HANDLE)
 		, VolatileLockCounter(MAX_uint32)
 	{
 	}
@@ -1345,6 +1347,7 @@ public:
 
 protected:
 	// Used to check on volatile buffers if a new BufferView is required
+	VkBuffer VolatileBufferHandle;
 	uint32 VolatileLockCounter;
 };
 
