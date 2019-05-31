@@ -1180,7 +1180,10 @@ void UAnimInstance::UpdateCurvesToComponents(USkeletalMeshComponent* Component /
 	// update curves to component
 	if (Component)
 	{
-		FAnimInstanceProxy& Proxy = GetProxyOnGameThread<FAnimInstanceProxy>();
+		// this is only any thread because EndOfFrameUpdate update can restart render state
+		// and this needs to restart from worker thread
+		// EndOfFrameUpdate is done after all tick is updated, so in theory you shouldn't have 
+		FAnimInstanceProxy& Proxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
 		Component->ApplyAnimationCurvesToComponent(&Proxy.GetAnimationCurves(EAnimCurveType::MaterialCurve), &Proxy.GetAnimationCurves(EAnimCurveType::MorphTargetCurve));
 	}
 }
