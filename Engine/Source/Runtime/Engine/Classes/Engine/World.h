@@ -13,7 +13,6 @@
 #include "Engine/EngineBaseTypes.h"
 #include "CollisionQueryParams.h"
 #include "WorldCollision.h"
-#include "GameFramework/Pawn.h"
 #include "EngineDefines.h"
 #include "Engine/Blueprint.h"
 #include "Engine/PendingNetGame.h"
@@ -31,6 +30,7 @@ class AController;
 class AGameModeBase;
 class AGameStateBase;
 class AMatineeActor;
+class APawn;
 class APhysicsVolume;
 class APlayerController;
 class AWorldSettings;
@@ -43,6 +43,7 @@ class UAISystemBase;
 class UCanvas;
 class UDemoNetDriver;
 class UGameViewportClient;
+class ULevel;
 class ULevelStreaming;
 class ULocalPlayer;
 class UMaterialParameterCollection;
@@ -62,12 +63,68 @@ template<typename,typename> class TOctree;
  * Misc. Iterator types
  *
  */
+template <typename ActorType> class TActorIterator;
 typedef TArray<TWeakObjectPtr<AController> >::TConstIterator FConstControllerIterator;
 typedef TArray<TWeakObjectPtr<APlayerController> >::TConstIterator FConstPlayerControllerIterator;
-typedef TArray<TWeakObjectPtr<APawn> >::TConstIterator FConstPawnIterator;	
 typedef TArray<TWeakObjectPtr<ACameraActor> >::TConstIterator FConstCameraActorIterator;
-typedef TArray<class ULevel*>::TConstIterator FConstLevelIterator;
+typedef TArray<ULevel*>::TConstIterator FConstLevelIterator;
 typedef TArray<TWeakObjectPtr<APhysicsVolume> >::TConstIterator FConstPhysicsVolumeIterator;
+
+/** Wrapper object that tries to imitate the TWeakObjectPtr interface for the objects previously in the PawnList and iterated by FConstPawnIterator. */
+struct ENGINE_API FPawnIteratorObject
+{
+	APawn* operator->() const { return Pawn; }
+	APawn& operator*() const { return *Pawn; }
+	APawn* Get() const { return Pawn; }
+
+private:
+	FPawnIteratorObject()
+		: Pawn(nullptr)
+	{
+	}
+
+	FPawnIteratorObject(APawn* InPawn)
+		: Pawn(InPawn)
+	{
+	}
+
+	APawn* Pawn;
+
+	friend class FConstPawnIterator;
+};
+
+template< class T > FORCEINLINE T* Cast(const FPawnIteratorObject& Src) { return Cast<T>(Src.Get()); }
+
+/** 
+ * Imitation iterator class that attempts to provide the basic interface that FConstPawnIterator previously did when a typedef of TArray<TWeakObjectPtr<APawn>>::Iterator.
+ * In general you should prefer not to use this iterator and instead use TActorIterator<APawn> or TActorRange<APawn> (or the desired more derived type).
+ * This iterator will likely be deprecated in a future release.
+ */
+class ENGINE_API FConstPawnIterator
+{
+private:
+	FConstPawnIterator(UWorld* World);
+
+public:
+	~FConstPawnIterator();
+
+	operator bool() const;
+	FPawnIteratorObject operator*() const;
+	TUniquePtr<FPawnIteratorObject> operator->() const;
+
+	FConstPawnIterator& operator++();
+	FConstPawnIterator& operator++(int);
+	UE_DEPRECATED(4.23, "Decrement operator no longer means anything on a pawn iterator")
+	FConstPawnIterator& operator--() { return *this; }
+	UE_DEPRECATED(4.23, "Decrement operator no longer means anything on a pawn iterator")
+	FConstPawnIterator& operator--(int) { return *this; }
+
+private:
+	TActorIterator<APawn>* Iterator;
+
+	friend UWorld;
+};
+
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSpawn, Warning, All);
 
@@ -1220,9 +1277,6 @@ private:
 	/** List of all the player controllers in the world. */
 	TArray<TWeakObjectPtr<class APlayerController> > PlayerControllerList;
 
-	/** List of all the pawns in the world. */
-	TArray<TWeakObjectPtr<class APawn> > PawnList;
-
 	/** List of all the cameras in the world that auto-activate for players. */
 	TArray<TWeakObjectPtr<ACameraActor> > AutoCameraActorList;
 
@@ -2022,6 +2076,7 @@ public:
 	FConstPawnIterator GetPawnIterator() const;
 	
 	/** @return Returns the number of Pawns. */
+	UE_DEPRECATED(4.23, "GetNumPawns is no longer a supported function on UWorld. The version that remains for backwards compatibility is significantly more expensive to call.")
 	int32 GetNumPawns() const;
 
 	/** @return Returns an iterator for the player controller list. */
@@ -2234,19 +2289,16 @@ public:
 	 */
 	void RemoveController( AController* Controller );
 
-	/**
-	 * Inserts the passed in pawn at the front of the linked list of pawns.
-	 *
-	 * @param	Pawn	Pawn to insert, use NULL to clear list
-	 */
-	void AddPawn( APawn* Pawn );
+	UE_DEPRECATED(4.23, "There is no longer a reason to AddPawn to UWorld")
+	void AddPawn( APawn* Pawn ) { }
 	
 	/**
 	 * Removes the passed in pawn from the linked list of pawns.
 	 *
 	 * @param	Pawn	Pawn to remove
 	 */
-	void RemovePawn( APawn* Pawn );
+	UE_DEPRECATED(4.23, "RemovePawn has been deprecated and should no longer need to be called as PawnList is no longer maintained and Unpossess should be handled by EndPlay.")
+	void RemovePawn( APawn* Pawn ) const;
 
 	/**
 	 * Adds the passed in actor to the special network actor list
@@ -2259,7 +2311,7 @@ public:
 	 * Removes the passed in actor to from special network actor list
 	 * @param	Actor	Actor to remove
 	 */
-	void RemoveNetworkActor( AActor* Actor );
+	void RemoveNetworkActor( AActor* Actor ) const;
 
 	/** Add a listener for OnActorSpawned events */
 	FDelegateHandle AddOnActorSpawnedHandler( const FOnActorSpawned::FDelegate& InHandler );
@@ -2275,14 +2327,14 @@ public:
 	 *	
 	 * @return	true if actor is contained by any of the loaded levels, false otherwise
 	 */
-	bool ContainsActor( AActor* Actor );
+	bool ContainsActor( AActor* Actor ) const;
 
 	/**
 	 * Returns whether audio playback is allowed for this scene.
 	 *
 	 * @return true if current world is GWorld, false otherwise
 	 */
-	virtual bool AllowAudioPlayback();
+	bool AllowAudioPlayback() const;
 
 	//~ Begin UObject Interface
 	virtual void Serialize( FArchive& Ar ) override;
@@ -2847,7 +2899,7 @@ public:
 	 * @param	Actor					Actor to remove.
 	 * @param	bShouldModifyLevel		If true, Modify() the level before removing the actor if in the editor.
 	 */
-	void RemoveActor( AActor* Actor, bool bShouldModifyLevel );
+	void RemoveActor( AActor* Actor, bool bShouldModifyLevel ) const;
 
 	/**
 	 * Spawn Actors with given transform and SpawnParameters
