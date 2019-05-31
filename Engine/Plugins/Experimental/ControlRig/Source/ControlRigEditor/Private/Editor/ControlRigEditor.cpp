@@ -52,6 +52,7 @@
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_SetRelativeBoneTransform.h"
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_GetInitialBoneTransform.h"
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_AddBoneTransform.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
 #include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "ControlRigObjectVersion.h"
@@ -201,6 +202,21 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 			{
 				OpenGraphAndBringToFront(Graph);
 				break;
+			}
+		}
+
+	}
+
+	if (InControlRigBlueprint)
+	{
+		if (UControlRigModel* Model = InControlRigBlueprint->Model)
+		{
+			if (Model->Nodes().Num() == 0)
+			{
+				if (UControlRigController* Controller = InControlRigBlueprint->ModelController)
+				{
+					Controller->AddNode(FRigUnit_BeginExecution::StaticStruct()->GetFName());
+				}
 			}
 		}
 	}
