@@ -44,6 +44,13 @@ UK2Node::UK2Node(const FObjectInitializer& ObjectInitializer)
 void UK2Node::PostLoad()
 {
 #if WITH_EDITORONLY_DATA
+
+	if (GIsEditor)
+	{
+		// We need to serialize string data references on load in editor builds so the cooker knows about them
+		FixupPinStringDataReferences(nullptr);
+	}
+
 	// Clean up win watches for any deprecated pins we are about to remove in Super::PostLoad
 	if (DeprecatedPins.Num() && HasValidBlueprint())
 	{
@@ -90,12 +97,6 @@ void UK2Node::Serialize(FArchive& Ar)
 	{
 		// Fix up pin default values, must be done before post load
 		FixupPinDefaultValues();
-
-		if (GIsEditor)
-		{
-			// We need to serialize string data references on load in editor builds so the cooker knows about them
-			FixupPinStringDataReferences(nullptr);
-		}
 	}
 }
 
