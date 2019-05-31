@@ -2384,6 +2384,7 @@ public:
 	  * The first is used for primitives with no lighting channels set.
 	  */
 	TUniformBufferRef<FMobileDirectionalLightShaderParameters> MobileDirectionalLightUniformBuffers[NUM_LIGHTING_CHANNELS+1];
+	TUniformBufferRef<FMobileReflectionCaptureShaderParameters> MobileSkyReflectionUniformBuffer;
 
 #if WITH_EDITOR
 	TUniformBufferRef<FSceneTexturesUniformParameters> EditorSelectionPassUniformBuffer;
