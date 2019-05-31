@@ -24,6 +24,7 @@ namespace symbolPatterns
 #else
 	extern const char* const EXCEPTION_RELATED_PATTERNS[10];
 #endif
+	extern const char* const EXCEPTION_UNWIND_PATTERNS[1];
 
 	extern const char* const EXCEPTION_CLAUSE_PATTERNS[1];
 

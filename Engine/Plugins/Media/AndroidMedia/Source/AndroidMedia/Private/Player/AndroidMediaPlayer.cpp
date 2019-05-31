@@ -3,7 +3,7 @@
 #include "AndroidMediaPlayer.h"
 #include "AndroidMediaPrivate.h"
 
-#include "Android/AndroidFile.h"
+#include "Android/AndroidPlatformFile.h"
 #include "AndroidMediaSettings.h"
 #include "IMediaEventSink.h"
 #include "MediaSamples.h"

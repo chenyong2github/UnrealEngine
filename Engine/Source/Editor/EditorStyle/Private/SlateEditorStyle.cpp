@@ -7542,11 +7542,25 @@ void FSlateEditorStyle::FStyle::SetupAutomationStyles()
 		Set( "Launcher.Platform.AllPlatforms.Large", new IMAGE_BRUSH( "Launcher/All_Platforms_128x", Icon64x64) );
 		Set( "Launcher.Platform.AllPlatforms.XLarge", new IMAGE_BRUSH( "Launcher/All_Platforms_128x", Icon128x128) );
 
-		for(const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::EnumeratePlatformInfoArray())
+		for(const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 		{
-			Set( PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal), new IMAGE_BRUSH( *PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::Normal), Icon24x24 ) );
-			Set( PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Large),  new IMAGE_BRUSH( *PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::Large),  Icon64x64 ) );
-			Set( PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::XLarge), new IMAGE_BRUSH( *PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::XLarge), Icon128x128 ) );
+			// @todo platplug: Add in .Small icons
+
+			// some platforms may specify a "rooted" path in the platform extensions directory, so look for that case here, and use a different path for the brush
+			FString NormalIconPath = PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::Normal);
+			if (NormalIconPath.StartsWith(TEXT("/Platforms/")))
+			{
+				#define PLATFORM_IMAGE_BRUSH( PlatformPath, ... ) FSlateImageBrush( PlatformPath.Replace(TEXT("/Platforms/"), *FPaths::PlatformExtensionsDir()) + TEXT(".png") , __VA_ARGS__ )
+				Set(PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal), new PLATFORM_IMAGE_BRUSH(NormalIconPath, Icon24x24));
+				Set(PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Large), new PLATFORM_IMAGE_BRUSH(PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::Large), Icon64x64));
+				Set(PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::XLarge), new PLATFORM_IMAGE_BRUSH(PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::XLarge), Icon128x128));
+			}
+			else
+			{
+				Set(PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal), new IMAGE_BRUSH(*NormalIconPath, Icon24x24));
+				Set(PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Large), new IMAGE_BRUSH(*PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::Large), Icon64x64));
+				Set(PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::XLarge), new IMAGE_BRUSH(*PlatformInfo.GetIconPath(PlatformInfo::EPlatformIconSize::XLarge), Icon128x128));
+			}
 		}
 #endif
 

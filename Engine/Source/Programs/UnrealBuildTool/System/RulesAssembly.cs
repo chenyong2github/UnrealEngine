@@ -18,6 +18,11 @@ namespace UnrealBuildTool
 	public class RulesAssembly
 	{
 		/// <summary>
+		/// Outers scope for items created by this assembly. Used for chaining assemblies together.
+		/// </summary>
+		internal readonly RulesScope Scope;
+
+		/// <summary>
 		/// The compiled assembly
 		/// </summary>
 		private Assembly CompiledAssembly;
@@ -43,9 +48,9 @@ namespace UnrealBuildTool
 		private Dictionary<string, FileReference> TargetNameToTargetFile = new Dictionary<string, FileReference>(StringComparer.InvariantCultureIgnoreCase);
 
 		/// <summary>
-		/// Mapping from module file to its plugin info.
+		/// Mapping from module file to its context.
 		/// </summary>
-		private Dictionary<FileReference, PluginInfo> ModuleFileToPluginInfo;
+		private Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext;
 
 		/// <summary>
 		/// Cache for whether a module has source code
@@ -76,22 +81,23 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor. Compiles a rules assembly from the given source files.
 		/// </summary>
+		/// <param name="Scope">The scope of items created by this assembly</param>
 		/// <param name="BaseDir">The base directory for this assembly</param>
 		/// <param name="Plugins">All the plugins included in this assembly</param>
-		/// <param name="ModuleFiles">List of module files to compile</param>
+		/// <param name="ModuleFileToContext">List of module files to compile</param>
 		/// <param name="TargetFiles">List of target files to compile</param>
-		/// <param name="ModuleFileToPluginInfo">Mapping of module file to the plugin that contains it</param>
 		/// <param name="AssemblyFileName">The output path for the compiled assembly</param>
 		/// <param name="bContainsEngineModules">Whether this assembly contains engine modules. Used to initialize the default value for ModuleRules.bTreatAsEngineModule.</param>
 		/// <param name="bUseBackwardsCompatibleDefaults">Whether modules in this assembly should use backwards-compatible defaults.</param>
 		/// <param name="bReadOnly">Whether the modules and targets in this assembly are installed, and should be created with the bUsePrecompiled flag set</param> 
 		/// <param name="bSkipCompile">Whether to skip compiling this assembly</param>
 		/// <param name="Parent">The parent rules assembly</param>
-		public RulesAssembly(DirectoryReference BaseDir, IReadOnlyList<PluginInfo> Plugins, List<FileReference> ModuleFiles, List<FileReference> TargetFiles, Dictionary<FileReference, PluginInfo> ModuleFileToPluginInfo, FileReference AssemblyFileName, bool bContainsEngineModules, bool bUseBackwardsCompatibleDefaults, bool bReadOnly, bool bSkipCompile, RulesAssembly Parent)
+		internal RulesAssembly(RulesScope Scope, DirectoryReference BaseDir, IReadOnlyList<PluginInfo> Plugins, Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext, List<FileReference> TargetFiles, FileReference AssemblyFileName, bool bContainsEngineModules, bool bUseBackwardsCompatibleDefaults, bool bReadOnly, bool bSkipCompile, RulesAssembly Parent)
 		{
+			this.Scope = Scope;
 			this.BaseDir = BaseDir;
 			this.Plugins = Plugins;
-			this.ModuleFileToPluginInfo = ModuleFileToPluginInfo;
+			this.ModuleFileToContext = ModuleFileToContext;
 			this.bContainsEngineModules = bContainsEngineModules;
 			this.bUseBackwardsCompatibleDefaults = bUseBackwardsCompatibleDefaults;
 			this.bReadOnly = bReadOnly;
@@ -99,7 +105,7 @@ namespace UnrealBuildTool
 
 			// Find all the source files
 			HashSet<FileReference> AssemblySourceFiles = new HashSet<FileReference>();
-			AssemblySourceFiles.UnionWith(ModuleFiles);
+			AssemblySourceFiles.UnionWith(ModuleFileToContext.Keys);
 			AssemblySourceFiles.UnionWith(TargetFiles);
 
 			// Compile the assembly
@@ -110,7 +116,7 @@ namespace UnrealBuildTool
 			}
 
 			// Setup the module map
-			foreach (FileReference ModuleFile in ModuleFiles)
+			foreach (FileReference ModuleFile in ModuleFileToContext.Keys)
 			{
 				string ModuleName = ModuleFile.GetFileNameWithoutAnyExtensions();
 				if (!ModuleNameToModuleFile.ContainsKey(ModuleName))
@@ -342,13 +348,13 @@ namespace UnrealBuildTool
 			// Currently, we expect the user's rules object type name to be the same as the module name
 			string ModuleTypeName = ModuleName;
 
-			// Make sure the module file is known to us
+			// Make sure the base module file is known to us
 			FileReference ModuleFileName;
-			if (!ModuleNameToModuleFile.TryGetValue(ModuleName, out ModuleFileName))
+			if (!ModuleNameToModuleFile.TryGetValue(ModuleTypeName, out ModuleFileName))
 			{
 				if (Parent == null)
 				{
-					throw new BuildException("Could not find definition for module '{0}' (referenced via {1})", ModuleName, ReferenceChain);
+					throw new BuildException("Could not find definition for module '{0}', (referenced via {1})", ModuleTypeName, ReferenceChain);
 				}
 				else
 				{
@@ -356,8 +362,33 @@ namespace UnrealBuildTool
 				}
 			}
 
-			// The build module must define a type named 'Rules' that derives from our 'ModuleRules' type.  
-			Type RulesObjectType = GetModuleRulesTypeInternal(ModuleName);
+			// get the standard Rules object class from the assembly
+			Type BaseRulesObjectType = GetModuleRulesTypeInternal(ModuleTypeName);
+
+			// look around for platform/group modules that we will use instead of the basic module
+			Type PlatformRulesObjectType = GetModuleRulesTypeInternal(ModuleTypeName + "_" + Target.Platform.ToString());
+			if (PlatformRulesObjectType == null)
+			{
+				foreach (UnrealPlatformGroup Group in UEBuildPlatform.GetPlatformGroups(Target.Platform))
+				{
+					// look to see if the group has an override
+					Type GroupRulesObjectType = GetModuleRulesTypeInternal(ModuleName + "_" + Group.ToString());
+
+					// we expect only one platform group to be found in the extensions
+					if (GroupRulesObjectType != null && PlatformRulesObjectType != null)
+					{
+						throw new BuildException("Found multiple platform group overrides ({0} and {1}) for module {2} without a platform specific override. Create a platform override with the class hierarchy as needed.", 
+							GroupRulesObjectType.Name, PlatformRulesObjectType.Name, ModuleName);
+					}
+
+					PlatformRulesObjectType = GroupRulesObjectType;
+				}
+			}
+
+	
+
+			// Figure out the best rules object to use
+			Type RulesObjectType = PlatformRulesObjectType != null ? PlatformRulesObjectType : BaseRulesObjectType;
 			if (RulesObjectType == null)
 			{
 				throw new BuildException("Expecting to find a type to be declared in a module rules named '{0}' in {1}.  This type must derive from the 'ModuleRules' type defined by Unreal Build Tool.", ModuleTypeName, CompiledAssembly.FullName);
@@ -368,14 +399,34 @@ namespace UnrealBuildTool
 			{
 				// Create an uninitialized ModuleRules object and set some defaults.
 				ModuleRules RulesObject = (ModuleRules)FormatterServices.GetUninitializedObject(RulesObjectType);
+				// even if we created a platform-extension version of the module rules, we are pretending to be
+				// the base type, so that no one else needs to manage this
 				RulesObject.Name = ModuleName;
 				RulesObject.File = ModuleFileName;
 				RulesObject.Directory = ModuleFileName.Directory;
-				ModuleFileToPluginInfo.TryGetValue(RulesObject.File, out RulesObject.Plugin);
+				RulesObject.Context = ModuleFileToContext[RulesObject.File];
+				RulesObject.Plugin = RulesObject.Context.Plugin;
 				RulesObject.bTreatAsEngineModule = bContainsEngineModules;
 				RulesObject.bUseBackwardsCompatibleDefaults = bUseBackwardsCompatibleDefaults && Target.bUseBackwardsCompatibleDefaults;
 				RulesObject.bPrecompile = (RulesObject.bTreatAsEngineModule || ModuleName.Equals("UE4Game", StringComparison.OrdinalIgnoreCase)) && Target.bPrecompile;
 				RulesObject.bUsePrecompiled = bReadOnly;
+
+				// go up the type hierarchy (if there is a hierarchy), looking for any extra directories for the module
+				if (RulesObjectType != BaseRulesObjectType && RulesObjectType != typeof(ModuleRules))
+				{
+					Type SubType = RulesObjectType;
+
+					RulesObject.DirectoriesForModuleSubClasses = new Dictionary<Type, DirectoryReference>();
+					while (SubType != BaseRulesObjectType)
+					{
+						FileReference SubTypeFileName;
+						if (TryGetFileNameFromType(SubType, out SubTypeFileName))
+						{
+							RulesObject.DirectoriesForModuleSubClasses.Add(SubType, SubTypeFileName.Directory);
+						}
+						SubType = SubType.BaseType;
+					}
+				}
 
 				// Call the constructor
 				ConstructorInfo Constructor = RulesObjectType.GetConstructor(new Type[] { typeof(ReadOnlyTargetRules) });
@@ -392,15 +443,6 @@ namespace UnrealBuildTool
 				Exception MessageEx = (Ex is TargetInvocationException && Ex.InnerException != null)? Ex.InnerException : Ex;
 				throw new BuildException(Ex, "Unable to instantiate module '{0}': {1}\n(referenced via {2})", ModuleName, MessageEx.ToString(), ReferenceChain);
 			}
-		}
-
-		/// <summary>
-		/// Determines whether the given module name is a game module (as opposed to an engine module)
-		/// </summary>
-		public bool IsGameModule(string InModuleName)
-		{
-			FileReference ModuleFileName = GetModuleFileName(InModuleName);
-			return (ModuleFileName != null && !UnrealBuildTool.IsUnderAnEngineDirectory(ModuleFileName.Directory));
 		}
 
 		/// <summary>
@@ -462,20 +504,9 @@ namespace UnrealBuildTool
 			}
 
 			// Set the default value for whether to use the shared build environment
-			if(Rules.BuildEnvironment == TargetBuildEnvironment.Default)
+			if(Rules.BuildEnvironment == TargetBuildEnvironment.Unique && UnrealBuildTool.IsEngineInstalled())
 			{
-				if(Rules.Type == TargetType.Program && TargetInfo.ProjectFile != null && TargetNameToTargetFile[Rules.Name].IsUnderDirectory(TargetInfo.ProjectFile.Directory))
-				{
-					Rules.BuildEnvironment = TargetBuildEnvironment.Unique;
-				}
-				else if(UnrealBuildTool.IsEngineInstalled() || Rules.LinkType != TargetLinkType.Monolithic)
-				{
-					Rules.BuildEnvironment = TargetBuildEnvironment.Shared;
-				}
-				else
-				{
-					Rules.BuildEnvironment = TargetBuildEnvironment.Unique;
-				}
+				throw new BuildException("Targets with a unique build environment cannot be built an installed engine.");
 			}
 
 			// Automatically include CoreUObject
@@ -660,14 +691,18 @@ namespace UnrealBuildTool
 		/// <returns>True if the module belongs to a plugin</returns>
 		public bool TryGetPluginForModule(FileReference ModuleFile, out PluginInfo Plugin)
 		{
-			if (ModuleFileToPluginInfo.TryGetValue(ModuleFile, out Plugin))
+			ModuleRulesContext Context;
+			if (ModuleFileToContext.TryGetValue(ModuleFile, out Context))
 			{
-				return true;
+				Plugin = Context.Plugin;
+				return Plugin != null;
 			}
-			else
+			if(Parent == null)
 			{
-				return (Parent == null) ? false : Parent.TryGetPluginForModule(ModuleFile, out Plugin);
+				Plugin = null;
+				return false;
 			}
+			return Parent.TryGetPluginForModule(ModuleFile, out Plugin);
 		}
 	}
 }

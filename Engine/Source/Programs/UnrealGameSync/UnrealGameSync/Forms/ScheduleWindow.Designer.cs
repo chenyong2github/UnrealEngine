@@ -48,7 +48,7 @@ namespace UnrealGameSync
 			// TimePicker
 			// 
 			this.TimePicker.Anchor = System.Windows.Forms.AnchorStyles.Left;
-			this.TimePicker.CustomFormat = "h:mm tt";
+			this.TimePicker.CustomFormat = "";
 			this.TimePicker.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
 			this.TimePicker.Location = new System.Drawing.Point(439, 3);
 			this.TimePicker.Name = "TimePicker";

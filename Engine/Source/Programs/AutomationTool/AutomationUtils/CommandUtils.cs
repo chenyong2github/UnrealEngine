@@ -2084,7 +2084,7 @@ namespace AutomationTool
 			}
 			else
 			{
-				return Enum.GetName(typeof(UnrealBuildTool.UnrealTargetPlatform), Platform);
+				return Platform.ToString();
 			}
 		}
 

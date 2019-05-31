@@ -229,8 +229,22 @@ namespace UnrealBuildTool
 			RawObject.TryGetStringField("MarketplaceURL", out MarketplaceURL);
 			RawObject.TryGetStringField("SupportURL", out SupportURL);
 			RawObject.TryGetStringField("EngineVersion", out EngineVersion);
-			RawObject.TryGetEnumArrayField<UnrealTargetPlatform>("SupportedTargetPlatforms", out SupportedTargetPlatforms);
 			RawObject.TryGetStringArrayField("SupportedPrograms", out SupportedPrograms);
+
+			try
+			{
+				string[] SupportedTargetPlatformNames;
+				if (RawObject.TryGetStringArrayField("SupportedTargetPlatforms", out SupportedTargetPlatformNames))
+				{
+					SupportedTargetPlatforms = Array.ConvertAll(SupportedTargetPlatformNames, x => UnrealTargetPlatform.Parse(x));
+				}
+			}
+			catch (BuildException Ex)
+			{
+				ExceptionUtils.AddContext(Ex, "while parsing SupportedTargetPlatforms in plugin with FriendlyName '{0}'", FriendlyName);
+				throw;
+			}
+
 
 			JsonObject[] ModulesArray;
 			if (RawObject.TryGetObjectArrayField("Modules", out ModulesArray))
@@ -347,7 +361,7 @@ namespace UnrealBuildTool
 
 			if(SupportedTargetPlatforms != null && SupportedTargetPlatforms.Length > 0)
 			{
-				Writer.WriteEnumArrayField<UnrealTargetPlatform>("SupportedTargetPlatforms", SupportedTargetPlatforms);
+				Writer.WriteStringArrayField("SupportedTargetPlatforms", SupportedTargetPlatforms.Select<UnrealTargetPlatform, string>(x => x.ToString()).ToArray());
 			}
 
 			if (SupportedPrograms != null && SupportedPrograms.Length > 0)

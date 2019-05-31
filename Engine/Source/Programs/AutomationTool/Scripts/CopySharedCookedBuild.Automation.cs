@@ -81,9 +81,7 @@ class CopySharedCookedBuild : BuildCommand
 
 			foreach (var SubPlatformName in SubPlatformNames)
 			{
-				UnrealTargetPlatform NewPlatformType = (UnrealTargetPlatform)Enum.Parse(typeof(UnrealTargetPlatform), SubPlatformName, true);
-
-				TargetPlatforms.Add(NewPlatformType);
+				TargetPlatforms.Add(UnrealTargetPlatform.Parse(SubPlatformName));
 			}
 		}
 

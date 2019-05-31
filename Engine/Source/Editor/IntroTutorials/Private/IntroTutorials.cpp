@@ -371,10 +371,13 @@ void FIntroTutorials::HandleCompilerNotFound()
 
 void FIntroTutorials::HandleSDKNotInstalled(const FString& PlatformName, const FString& InTutorialAsset)
 {
-	UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *InTutorialAsset);
-	if(Blueprint)
+	if (FPackageName::IsValidLongPackageName(InTutorialAsset, true))
 	{
-		LaunchTutorialByName( InTutorialAsset );
+		UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *InTutorialAsset);
+		if (Blueprint)
+		{
+			LaunchTutorialByName(InTutorialAsset);
+		}
 	}
 	else
 	{

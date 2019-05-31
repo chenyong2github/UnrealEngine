@@ -63,17 +63,18 @@ namespace UnrealBuildTool
 			{
 				if (CurrentPlatform == null)
 				{
-					switch (GetRuntimePlatform())
+					UnrealTargetPlatform RuntimePlatform = GetRuntimePlatform();
+					if (RuntimePlatform == UnrealTargetPlatform.Win64)
 					{
-						case UnrealTargetPlatform.Win64:
-							CurrentPlatform = new WindowsBuildHostPlatform();
-							break;
-						case UnrealTargetPlatform.Mac:
-							CurrentPlatform = new MacBuildHostPlatform();
-							break;
-						case UnrealTargetPlatform.Linux:
-							CurrentPlatform = new LinuxBuildHostPlatform();
-							break;
+						CurrentPlatform = new WindowsBuildHostPlatform();
+					}
+					else if (RuntimePlatform == UnrealTargetPlatform.Mac)
+					{
+						CurrentPlatform = new MacBuildHostPlatform();
+					}
+					else if (RuntimePlatform == UnrealTargetPlatform.Linux)
+					{
+						CurrentPlatform = new LinuxBuildHostPlatform();
 					}
 				}
 				return CurrentPlatform;
@@ -255,7 +256,7 @@ namespace UnrealBuildTool
 		{
 			get { return ShellType.Cmd; }
 		}
-			
+
 		internal override IEnumerable<ProjectFileFormat> GetDefaultProjectFileFormats()
 		{
 			yield return ProjectFileFormat.VisualStudio;

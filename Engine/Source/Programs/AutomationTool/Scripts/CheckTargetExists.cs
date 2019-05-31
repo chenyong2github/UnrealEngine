@@ -36,7 +36,7 @@ namespace AutomationTool
 				throw new AutomationException("Missing -Platform=... argument");
 			}
 			UnrealTargetPlatform Platform;
-			if(!Enum.TryParse(PlatformParam, true, out Platform))
+			if (!UnrealTargetPlatform.TryParse(PlatformParam, out Platform))
 			{
 				throw new AutomationException("Invalid platform '{0}'", PlatformParam);
 			}

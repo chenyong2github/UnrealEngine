@@ -99,7 +99,7 @@ namespace UnrealBuildTool
 			/// <returns>Hash value for this object</returns>
 			public override int GetHashCode()
 			{
-				return ((ProjectDir != null)? ProjectDir.GetHashCode() : 0) + ((int)Type * 123) + ((int)Platform * 345);
+				return ((ProjectDir != null)? ProjectDir.GetHashCode() : 0) + ((int)Type * 123) + ((Platform != null ? Platform.ToString() : "None").GetHashCode() * 345);
 			}
 		}
 

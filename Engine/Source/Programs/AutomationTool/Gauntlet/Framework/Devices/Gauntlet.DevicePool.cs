@@ -39,7 +39,7 @@ namespace Gauntlet
 		// legacy - remove!
 		public UnrealTargetPlatform Type;
 
-		public UnrealTargetPlatform Platform;
+		public UnrealTargetPlatform? Platform;
 
 		public EPerfSpec PerfSpec;
 
@@ -60,11 +60,11 @@ namespace Gauntlet
 	/// </summary>
 	public class UnrealTargetConstraint : IEquatable<UnrealTargetConstraint>
 	{
-		public readonly UnrealTargetPlatform Platform;
+		public readonly UnrealTargetPlatform? Platform;
 		public readonly EPerfSpec PerfSpec;
 		public readonly string Model;
 
-		public UnrealTargetConstraint(UnrealTargetPlatform Platform, EPerfSpec PerfSpec = EPerfSpec.Unspecified, string Model = null)
+		public UnrealTargetConstraint(UnrealTargetPlatform? Platform, EPerfSpec PerfSpec = EPerfSpec.Unspecified, string Model = null)
 		{
 			this.Platform = Platform;			
 			this.PerfSpec = PerfSpec;
@@ -534,8 +534,13 @@ namespace Gauntlet
 
 			// convert devices to request list
 			foreach (KeyValuePair<UnrealTargetConstraint, int> Entry in DeviceTypes)
-			{				
-                if (!DeviceMap.ContainsKey(Entry.Key.Platform))
+			{
+				if (Entry.Key.Platform == null)
+				{
+					continue;
+				}
+
+                if (!DeviceMap.ContainsKey(Entry.Key.Platform.Value))
 				{
 					// if an unsupported device, we can't reserve it
 					Log.Info("Unable to reserve service device of type: {0}", Entry.Key);
@@ -552,7 +557,7 @@ namespace Gauntlet
 				for (int i = 0; i < Entry.Value; i++)
 				{
 					// @todo: if any additional reservation requirements, encode constraint into json
-					Devices.Add(DeviceMap[Entry.Key.Platform] + ":" + Entry.Key.PerfSpec);
+					Devices.Add(DeviceMap[Entry.Key.Platform.Value] + ":" + Entry.Key.PerfSpec);
 				}				
 			}
 
@@ -663,7 +668,7 @@ namespace Gauntlet
 						Gauntlet.Log.Info("Adding {0}", Def);
 
 						// use Legacy field if it exists
-						if (Def.Platform == UnrealTargetPlatform.Unknown)
+						if (Def.Platform == null)
 						{
 							Def.Platform = Def.Type;
 						}
@@ -717,7 +722,7 @@ namespace Gauntlet
 
 						Def.RemoveOnShutdown = true;
 
-						if (Def.Platform == UnrealTargetPlatform.Unknown)
+						if (Def.Platform == null)
 						{
 							Def.Platform = DefaultPlatform;
 						}
@@ -753,7 +758,7 @@ namespace Gauntlet
 
 							if (M.Success)
 							{
-								if (Enum.TryParse(M.Groups[1].ToString(), true, out DevicePlatform) == false)
+								if (UnrealTargetPlatform.TryParse(M.Groups[1].ToString(), out DevicePlatform))
 								{
 									throw new AutomationException("platform {0} is not a recognized device type", M.Groups[1].ToString());
 								}
@@ -809,7 +814,7 @@ namespace Gauntlet
 				}
 
 				InitialConnectState[Device] = Device.IsConnected;
-				Constraints[Device] = Constraint ?? new UnrealTargetConstraint(Device.Platform);
+				Constraints[Device] = Constraint ?? new UnrealTargetConstraint(Device.Platform.Value);
 
 				AvailableDevices.Add(Device);
 
@@ -840,7 +845,7 @@ namespace Gauntlet
 
 			try
 			{
-				bool IsDesktop = UnrealBuildTool.Utils.GetPlatformsInClass(UnrealPlatformClass.Desktop).Contains(Def.Platform);
+				bool IsDesktop = Def.Platform != null && UnrealBuildTool.Utils.GetPlatformsInClass(UnrealPlatformClass.Desktop).Contains(Def.Platform.Value);
 
 				if (IsDesktop)
 				{

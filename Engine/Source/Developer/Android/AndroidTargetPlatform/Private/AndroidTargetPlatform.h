@@ -14,7 +14,7 @@
 #include "Delegates/Delegate.h"
 #include "Containers/Ticker.h"
 #include "Misc/ScopeLock.h"
-#include "Android/AndroidProperties.h"
+#include "Android/AndroidPlatformProperties.h"
 #include "Interfaces/ITargetPlatformModule.h"
 #include "Common/TargetPlatformBase.h"
 #include "Interfaces/IAndroidDeviceDetection.h"

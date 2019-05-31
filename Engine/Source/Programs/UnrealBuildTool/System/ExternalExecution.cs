@@ -114,6 +114,8 @@ namespace UnrealBuildTool
 		{
 			switch (ModuleType)
 			{
+				case ModuleHostType.Program:
+					return UHTModuleType.Program;
 				case ModuleHostType.Runtime:
 				case ModuleHostType.RuntimeNoCommandlet:
                 case ModuleHostType.RuntimeAndProgram:
@@ -134,6 +136,8 @@ namespace UnrealBuildTool
 		{
 			switch (ModuleType)
 			{
+				case ModuleHostType.Program:
+					return UHTModuleType.Program;
 				case ModuleHostType.Runtime:
 				case ModuleHostType.RuntimeNoCommandlet:
                 case ModuleHostType.RuntimeAndProgram:
@@ -376,7 +380,7 @@ namespace UnrealBuildTool
             UHTModuleType? Type = UHTModuleTypeExtensions.EngineModuleTypeFromHostType(Module.Type);
             if (Type == null)
             {
-                throw new BuildException("Unhandled engine module type {0}", Module.Type.ToString());
+                throw new BuildException("Unhandled engine module type {0} for {1}", Module.Type.ToString(), Module.Name);
             }
             return Type.GetValueOrDefault();
         }
@@ -390,36 +394,6 @@ namespace UnrealBuildTool
             }
             return Type.GetValueOrDefault();
         }
-
-		static UHTModuleType? GetEngineModuleTypeBasedOnLocation(DirectoryReference SourceDirectory, FileReference ModuleFileName)
-		{
-			if (ModuleFileName.IsUnderDirectory(DirectoryReference.Combine(SourceDirectory, "Runtime")))
-			{
-				return UHTModuleType.EngineRuntime;
-			}
-
-			if (ModuleFileName.IsUnderDirectory(DirectoryReference.Combine(SourceDirectory, "Developer")))
-			{
-				return UHTModuleType.EngineDeveloper;
-			}
-
-			if (ModuleFileName.IsUnderDirectory(DirectoryReference.Combine(SourceDirectory, "Editor")))
-			{
-				return UHTModuleType.EngineEditor;
-			}
-
-			if (ModuleFileName.IsUnderDirectory(DirectoryReference.Combine(SourceDirectory, "Programs")))
-			{
-				return UHTModuleType.Program;
-			}
-
-			if (ModuleFileName.IsUnderDirectory(DirectoryReference.Combine(SourceDirectory, "ThirdParty")))
-			{
-				return UHTModuleType.EngineThirdParty;
-			}
-
-			return null;
-		}
 
 		/// <summary>
 		/// Returns a copy of Nodes sorted by dependency.  Independent or circularly-dependent nodes should
@@ -485,84 +459,55 @@ namespace UnrealBuildTool
 		/// <returns>The module type</returns>
 		static UHTModuleType GetModuleType(ModuleRules RulesObject, ProjectDescriptor ProjectDescriptor)
 		{
-			// Get the type of module we're creating
-			UHTModuleType? ModuleType = null;
-
-			// Get the module descriptor for this module if it's a plugin
-			ModuleDescriptor PluginModuleDesc = null;
-			if (RulesObject.Plugin != null)
-			{
-				PluginModuleDesc = RulesObject.Plugin.Descriptor.Modules.FirstOrDefault(x => x.Name == RulesObject.Name);
-				if (PluginModuleDesc != null && PluginModuleDesc.Type == ModuleHostType.Program)
-				{
-					ModuleType = UHTModuleType.Program;
-				}
-			}
-
-			if (UnrealBuildTool.IsUnderAnEngineDirectory(RulesObject.File.Directory))
+			ModuleRulesContext Context = RulesObject.Context;
+			if (Context.bClassifyAsGameModuleForUHT)
 			{
 				if (RulesObject.Type == ModuleRules.ModuleType.External)
 				{
-					ModuleType = UHTModuleType.EngineThirdParty;
+					return UHTModuleType.GameThirdParty;
 				}
-				else
+				if (Context.DefaultUHTModuleType.HasValue)
 				{
-					if (!ModuleType.HasValue && PluginModuleDesc != null)
+					return Context.DefaultUHTModuleType.Value;
+				}
+				if (RulesObject.Plugin != null)
+				{
+					ModuleDescriptor Module = RulesObject.Plugin.Descriptor.Modules.FirstOrDefault(x => x.Name == RulesObject.Name);
+					if(Module != null)
 					{
-						ModuleType = ExternalExecution.GetEngineModuleTypeFromDescriptor(PluginModuleDesc);
-					}
-
-					if (!ModuleType.HasValue)
-					{
-						if (RulesObject.File.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
-						{
-							ModuleType = ExternalExecution.GetEngineModuleTypeBasedOnLocation(UnrealBuildTool.EngineSourceDirectory, RulesObject.File);
-						}
-						else if (RulesObject.File.IsUnderDirectory(UnrealBuildTool.EnterpriseSourceDirectory))
-						{
-							ModuleType = ExternalExecution.GetEngineModuleTypeBasedOnLocation(UnrealBuildTool.EnterpriseSourceDirectory, RulesObject.File);
-						}
+						return GetGameModuleTypeFromDescriptor(Module);
 					}
 				}
+				if(ProjectDescriptor != null && ProjectDescriptor.Modules != null)
+				{
+					ModuleDescriptor Module = ProjectDescriptor.Modules.FirstOrDefault(x => x.Name == RulesObject.Name);
+					if(Module != null)
+					{
+						return UHTModuleTypeExtensions.GameModuleTypeFromHostType(Module.Type) ?? UHTModuleType.GameRuntime;
+					}
+				}
+				return UHTModuleType.GameRuntime;
 			}
 			else
 			{
 				if (RulesObject.Type == ModuleRules.ModuleType.External)
 				{
-					ModuleType = UHTModuleType.GameThirdParty;
+					return UHTModuleType.EngineThirdParty;
 				}
-				else
+				if (Context.DefaultUHTModuleType.HasValue)
 				{
-					if (!ModuleType.HasValue && PluginModuleDesc != null)
+					return Context.DefaultUHTModuleType.Value;
+				}
+				if (RulesObject.Plugin != null)
+				{
+					ModuleDescriptor Module = RulesObject.Plugin.Descriptor.Modules.FirstOrDefault(x => x.Name == RulesObject.Name);
+					if (Module != null)
 					{
-						ModuleType = ExternalExecution.GetGameModuleTypeFromDescriptor(PluginModuleDesc);
-					}
-
-					if (!ModuleType.HasValue)
-					{
-						if (ProjectDescriptor != null)
-						{
-							ModuleDescriptor ProjectModule = (ProjectDescriptor.Modules == null)? null : ProjectDescriptor.Modules.FirstOrDefault(x => x.Name == RulesObject.Name);
-							if (ProjectModule != null)
-							{
-								ModuleType = UHTModuleTypeExtensions.GameModuleTypeFromHostType(ProjectModule.Type) ?? UHTModuleType.GameRuntime;
-							}
-							else
-							{
-								// No descriptor file or module was not on the list
-								ModuleType = UHTModuleType.GameRuntime;
-							}
-						}
+						return GetEngineModuleTypeFromDescriptor(Module);
 					}
 				}
-			}
-
-			if (!ModuleType.HasValue)
-			{
 				throw new BuildException("Unable to determine UHT module type for {0}", RulesObject.File);
 			}
-
-			return ModuleType.Value;
 		}
 
 		/// <summary>
@@ -1163,7 +1108,7 @@ namespace UnrealBuildTool
 
 						using(Timeline.ScopeEvent("Buildng UnrealHeaderTool"))
 						{
-							BuildMode.Build(TargetDescriptors, BuildConfiguration, WorkingSet, BuildOptions.Quiet);
+							BuildMode.Build(TargetDescriptors, BuildConfiguration, WorkingSet, BuildOptions.Quiet, null, null);
 						}
 					}
 

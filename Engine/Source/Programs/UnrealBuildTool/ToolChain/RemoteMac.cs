@@ -640,7 +640,7 @@ namespace UnrealBuildTool
 		/// <param name="Platform">The target platform</param>
 		/// <param name="InputDir">Input directory containing assets</param>
 		/// <param name="OutputFile">Path to the Assets.car file to produce</param>
-		public void RunAssetCatalogTool(CppPlatform Platform, DirectoryReference InputDir, FileReference OutputFile)
+		public void RunAssetCatalogTool(UnrealTargetPlatform Platform, DirectoryReference InputDir, FileReference OutputFile)
 		{
 			Log.TraceInformation("Running asset catalog tool for {0}: {1} -> {2}", Platform, InputDir, OutputFile);
 
