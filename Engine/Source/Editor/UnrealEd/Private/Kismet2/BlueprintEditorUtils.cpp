@@ -3955,7 +3955,8 @@ void FBlueprintEditorUtils::SetBlueprintFunctionOrMacroCategory(UEdGraph* Graph,
 	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(Graph);
 	if (FKismetUserDeclaredFunctionMetadata* MetaData = FBlueprintEditorUtils::GetGraphFunctionMetaData(Graph))
 	{
-		if(!MetaData->Category.EqualTo(InCategoryName))
+		const FText& NewCategory = InCategoryName.IsEmpty() ? UEdGraphSchema_K2::VR_DefaultCategory : InCategoryName;
+		if (!MetaData->Category.EqualTo(NewCategory))
 		{
 			FScopedTransaction Transaction(LOCTEXT("SetBlueprintFunctionOrMacroCategory", "Set Category"));
 
@@ -3971,7 +3972,6 @@ void FBlueprintEditorUtils::SetBlueprintFunctionOrMacroCategory(UEdGraph* Graph,
 				}
 			}
 
-			const FText& NewCategory = InCategoryName.IsEmpty() ? UEdGraphSchema_K2::VR_DefaultCategory : InCategoryName;
 			MetaData->Category = NewCategory;
 
 			if (Function)
@@ -4086,9 +4086,16 @@ bool FBlueprintEditorUtils::MoveGraphBeforeOtherGraph(UEdGraph* Graph, int32 New
 			}
 		}
 
-		if (bModified && !bDontRecompile)
+		if (bModified)
 		{
-			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+			if (!bDontRecompile)
+			{
+				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+			}
+			else
+			{
+				FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+			}
 		}
 
 		return bModified;
