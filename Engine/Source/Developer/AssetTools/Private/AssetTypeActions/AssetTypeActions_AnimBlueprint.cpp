@@ -102,11 +102,19 @@ UThumbnailInfo* FAssetTypeActions_AnimBlueprint::GetThumbnailInfo(UObject* Asset
 
 UFactory* FAssetTypeActions_AnimBlueprint::GetFactoryForBlueprintType(UBlueprint* InBlueprint) const
 {
-	UAnimBlueprintFactory* AnimBlueprintFactory = NewObject<UAnimBlueprintFactory>();
 	UAnimBlueprint* AnimBlueprint = CastChecked<UAnimBlueprint>(InBlueprint);
-	AnimBlueprintFactory->ParentClass = TSubclassOf<UAnimInstance>(*InBlueprint->GeneratedClass);
-	AnimBlueprintFactory->TargetSkeleton = AnimBlueprint->TargetSkeleton;
-	return AnimBlueprintFactory;
+
+	if(InBlueprint->BlueprintType == BPTYPE_Interface)
+	{
+		return NewObject<UAnimLayerInterfaceFactory>();
+	}
+	else
+	{
+		UAnimBlueprintFactory* AnimBlueprintFactory = NewObject<UAnimBlueprintFactory>();
+		AnimBlueprintFactory->ParentClass = TSubclassOf<UAnimInstance>(*InBlueprint->GeneratedClass);
+		AnimBlueprintFactory->TargetSkeleton = AnimBlueprint->TargetSkeleton;
+		return AnimBlueprintFactory;
+	}
 }
 
 void FAssetTypeActions_AnimBlueprint::OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor )
@@ -118,7 +126,7 @@ void FAssetTypeActions_AnimBlueprint::OpenAssetEditor( const TArray<UObject*>& I
 		auto AnimBlueprint = Cast<UAnimBlueprint>(*ObjIt);
 		if (AnimBlueprint != NULL && AnimBlueprint->SkeletonGeneratedClass && AnimBlueprint->GeneratedClass)
 		{
-			if(!AnimBlueprint->TargetSkeleton)
+			if(AnimBlueprint->BlueprintType != BPTYPE_Interface && !AnimBlueprint->TargetSkeleton)
 			{
 				FText ShouldRetargetMessage = LOCTEXT("ShouldRetarget_Message", "Could not find the skeleton for Anim Blueprint '{BlueprintName}' Would you like to choose a new one?");
 				

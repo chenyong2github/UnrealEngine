@@ -57,10 +57,11 @@ class UAnimationGraphSchema : public UEdGraphSchema_K2
 	virtual void GetAssetsGraphHoverMessage(const TArray<FAssetData>& Assets, const UEdGraph* HoverGraph, FString& OutTooltipText, bool& OutOkIcon) const override;
 	virtual void GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging) const override;
 	virtual FText GetPinDisplayName(const UEdGraphPin* Pin) const override;
-	virtual bool CanDuplicateGraph(UEdGraph* InSourceGraph) const override {	return false; }
+	virtual bool CanDuplicateGraph(UEdGraph* InSourceGraph) const override { return InSourceGraph->GetFName() != UEdGraphSchema_K2::GN_AnimGraph; }
 	virtual bool DoesSupportEventDispatcher() const	override { return false; }
 	virtual bool ShouldAlwaysPurgeOnModification() const override { return true; }
 	virtual bool TryCreateConnection(UEdGraphPin* A, UEdGraphPin* B) const override;
+	virtual void GetGraphDisplayInformation(const UEdGraph& Graph, /*out*/ FGraphDisplayInfo& DisplayInfo) const override;
 	//~ End UEdGraphSchema Interface.
 
 	//~ Begin UEdGraphSchema_K2 Interface
@@ -68,6 +69,7 @@ class UAnimationGraphSchema : public UEdGraphSchema_K2
 	virtual bool SearchForAutocastFunction(const UEdGraphPin* OutputPin, const UEdGraphPin* InputPin, /*out*/ FName& TargetFunction, /*out*/ UClass*& FunctionOwner) const override;
 	virtual bool ArePinsCompatible(const UEdGraphPin* PinA, const UEdGraphPin* PinB, const UClass* CallingContext = NULL, bool bIgnoreArray = false) const override;
 	virtual bool DoesSupportAnimNotifyActions() const override;
+	virtual void CreateFunctionGraphTerminators(UEdGraph& Graph, UClass* Class) const override;
 	//~ End UEdGraphSchema_K2 Interface
 
 	/** Spawn the correct node in the Animation Graph using the given AnimationAsset at the supplied location */
@@ -76,14 +78,29 @@ class UAnimationGraphSchema : public UEdGraphSchema_K2
 	/** Update the specified node to a new asset */
 	static void UpdateNodeWithAsset(class UK2Node* K2Node, UAnimationAsset* Asset);
 
-	// @todo document
+	/** Auto-arranges a graph's inputs and outputs. Does nothing to nodes that are not roots or inputs */
+	ANIMGRAPH_API static void AutoArrangeInterfaceGraph(UEdGraph& Graph);
+
+	/** Checks to see whether the passed-in pin type is a pose pin (local or component space) */
 	ANIMGRAPH_API static bool IsPosePin(const FEdGraphPinType& PinType);
 
-	// @todo document
+	/** Checks to see whether the passed-in pin type is a local space pose pin */
 	ANIMGRAPH_API static bool IsLocalSpacePosePin(const FEdGraphPinType& PinType);
 
-	// @todo document
+	/** Checks to see whether the passed-in pin type is a component space pose pin */
 	ANIMGRAPH_API static bool IsComponentSpacePosePin(const FEdGraphPinType& PinType);
+
+	/** Makes a local space pose pin type */
+	ANIMGRAPH_API static FEdGraphPinType MakeLocalSpacePosePin();
+
+	/** Makes a component space pose pin type */
+	ANIMGRAPH_API static FEdGraphPinType MakeComponentSpacePosePin();
+
+	/** Conforms an anim graph to an interface function */
+	ANIMGRAPH_API static void ConformAnimGraphToInterface(UBlueprint* InBlueprint, UEdGraph& InGraph, UFunction* InFunction);
+
+	/** Find a position for a newly created sub-input */
+	ANIMGRAPH_API static FVector2D GetPositionForNewSubInputNode(UEdGraph& InGraph);
 };
 
 

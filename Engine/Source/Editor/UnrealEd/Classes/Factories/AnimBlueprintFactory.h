@@ -41,3 +41,19 @@ class UAnimBlueprintFactory : public UFactory
 	//~ Begin UFactory Interface	
 };
 
+UCLASS(HideCategories=Object, MinimalAPI)
+class UAnimLayerInterfaceFactory : public UAnimBlueprintFactory
+{
+	GENERATED_BODY()
+
+	UAnimLayerInterfaceFactory();
+
+	// UFactory Interface
+	virtual FText GetDisplayName() const override;
+	virtual FName GetNewAssetThumbnailOverride() const override;
+	virtual uint32 GetMenuCategories() const override;
+	virtual FText GetToolTip() const override;
+	virtual FString GetToolTipDocumentationExcerpt() const override;
+	virtual FString GetDefaultNewAssetName() const override;
+	virtual bool ConfigureProperties() override;
+};

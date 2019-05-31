@@ -9,7 +9,9 @@
 #include "Animation/NodeMappingContainer.h"
 #include "AnimationRuntime.h"
 #include "ControlRigVariables.h"
+#if WITH_EDITOR
 #include "Editor.h"
+#endif
 
 FAnimNode_ControlRig::FAnimNode_ControlRig()
 	: ControlRig(nullptr)
@@ -32,7 +34,7 @@ void FAnimNode_ControlRig::OnInitializeAnimInstance(const FAnimInstanceProxy* In
 	}
 #endif // WITH_EDITOR
 
-	InitializeProperties(InAnimInstance);
+	InitializeProperties(InAnimInstance, GetTargetClass());
 }
 
 FAnimNode_ControlRig::~FAnimNode_ControlRig()

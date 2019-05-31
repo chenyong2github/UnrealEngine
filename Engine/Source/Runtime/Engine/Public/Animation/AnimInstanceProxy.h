@@ -111,9 +111,11 @@ public:
 		, CurrentDeltaSeconds(0.0f)
 		, CurrentTimeDilation(1.0f)
 		, RootNode(nullptr)
-		, SubInstanceInputNode(nullptr)
+		, DefaultSubInstanceInputNode(nullptr)
 		, SyncGroupWriteIndex(0)
 		, RootMotionMode(ERootMotionMode::NoRootMotionExtraction)
+		, FrameCounterForUpdate(0)
+		, bUpdatingRoot(false)
 		, bBoneCachesInvalidated(false)
 		, bShouldExtractRootMotion(false)
 #if WITH_EDITORONLY_DATA
@@ -130,9 +132,11 @@ public:
 		, CurrentDeltaSeconds(0.0f)
 		, CurrentTimeDilation(1.0f)
 		, RootNode(nullptr)
-		, SubInstanceInputNode(nullptr)
+		, DefaultSubInstanceInputNode(nullptr)
 		, SyncGroupWriteIndex(0)
 		, RootMotionMode(ERootMotionMode::NoRootMotionExtraction)
+		, FrameCounterForUpdate(0)
+		, bUpdatingRoot(false)
 		, bBoneCachesInvalidated(false)
 		, bShouldExtractRootMotion(false)
 #if WITH_EDITORONLY_DATA
@@ -212,8 +216,11 @@ public:
 		return UngroupedActivePlayerArrays[GetSyncGroupReadIndex()]; 
 	}
 
-	/** Tick active asset players */
+	/** Tick active asset players. */
 	void TickAssetPlayerInstances(float DeltaSeconds);
+
+	/** Tick active asset players. This overload with no parameters uses CurrentDeltaSeconds */
+	void TickAssetPlayerInstances();
 
 	/** Queues an Anim Notify from the shared list on our generated class */
 	void AddAnimNotifyFromGeneratedClass(int32 NotifyIndex);
@@ -369,6 +376,9 @@ public:
 	/** Gather debug data from this instance proxy and the blend tree for display */
 	void GatherDebugData(FNodeDebugData& DebugData);
 
+	/** Gather debug data from this instance proxy and the specified blend tree root for display */
+	void GatherDebugData_WithRoot(FNodeDebugData& DebugData, FAnimNode_Base* InRootNode, FName InLayerName);
+
 #if ENABLE_ANIM_DRAW_DEBUG
 	TArray<FQueuedDrawDebugItem> QueuedDrawDebugItems;
 
@@ -459,6 +469,9 @@ protected:
 	/** Updates the anim graph */
 	virtual void UpdateAnimationNode(float DeltaSeconds);
 
+	/** Updates the anim graph using a specified root node */
+	virtual void UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimNode_Base* InRootNode, FName InLayerName);
+
 	/** Called on the game thread pre-evaluate. */
 	virtual void PreEvaluateAnimation(UAnimInstance* InAnimInstance);
 
@@ -481,11 +494,25 @@ protected:
 	virtual void CacheBones();
 
 	/** 
+	 * Cache bones override point. You should call CacheBones on any nodes that need it here.
+	 * bBoneCachesInvalidated is used to only perform this when needed (e.g. when a LOD changes), 
+	 * as it is usually an expensive operation.
+	 */
+	virtual void CacheBones_WithRoot(FAnimNode_Base* InRootNode);
+
+	/** 
 	 * Evaluate override point 
 	 * @return true if this function is implemented, false otherwise.
 	 * Note: the node graph will not be evaluated if this function returns true
 	 */
 	virtual bool Evaluate(FPoseContext& Output) { return false; }
+
+	/** 
+	 * Evaluate override point with root node override.
+	 * @return true if this function is implemented, false otherwise.
+	 * Note: the node graph will not be evaluated if this function returns true
+	 */
+	virtual bool Evaluate_WithRoot(FPoseContext& Output, FAnimNode_Base* InRootNode) { return Evaluate(Output); }
 
 	/** Called after update so we can copy any data we need */
 	virtual void PostUpdate(UAnimInstance* InAnimInstance) const;
@@ -506,11 +533,20 @@ protected:
 	/** Calls Update(), updates the anim graph, ticks asset players */
 	void UpdateAnimation();
 
+	/** Calls Update(), updates the anim graph from the specified root, ticks asset players */
+	void UpdateAnimation_WithRoot(FAnimNode_Base* InRootNode, FName InLayerName);
+
 	/** Evaluates the anim graph if Evaluate() returns false */
 	void EvaluateAnimation(FPoseContext& Output);
 
+	/** Evaluates the anim graph given the specified root if Evaluate() returns false */
+	void EvaluateAnimation_WithRoot(FPoseContext& Output, FAnimNode_Base* InRootNode);
+
 	/** Evaluates the anim graph */
 	void EvaluateAnimationNode(FPoseContext& Output);
+
+	/** Evaluates the anim graph given the specified root */
+	void EvaluateAnimationNode_WithRoot(FPoseContext& Output, FAnimNode_Base* InRootNode);
 
 	// @todo document
 	void SequenceAdvanceImmediate(UAnimSequenceBase* Sequence, bool bLooping, float PlayRate, float DeltaSeconds, /*inout*/ float& CurrentTime, FMarkerTickRecord& MarkerTickRecord);
@@ -687,6 +723,9 @@ protected:
 	/** Initialize the root node - split into a separate function for backwards compatibility (initialization order) reasons */
 	void InitializeRootNode();
 
+	/** Initialize the specified root node */
+	void InitializeRootNode_WithRoot(FAnimNode_Base* InRootNode);
+
 	/** Manually add object references to GC */
 	void AddReferencedObjects(UAnimInstance* InAnimInstance, FReferenceCollector& Collector);
 
@@ -759,11 +798,11 @@ private:
 	/** Anim graph */
 	FAnimNode_Base* RootNode;
 
-	/** Subinstance input node if available */
-	FAnimNode_SubInput* SubInstanceInputNode;
+	/** Default sub-instance input node if available */
+	FAnimNode_SubInput* DefaultSubInstanceInputNode;
 
-	/** List of saved pose nodes to process after the graph has been updated */
-	TArray<FAnimNode_SaveCachedPose*> SavedPoseQueue;
+	/** Map of layer name to saved pose nodes to process after the graph has been updated */
+	TMap<FName, TArray<FAnimNode_SaveCachedPose*>> SavedPoseQueueMap;
 
 	/** The list of animation assets which are going to be evaluated this frame and need to be ticked (ungrouped) */
 	TArray<FAnimTickRecord> UngroupedActivePlayerArrays[2];
@@ -806,6 +845,9 @@ protected:
 	FGraphTraversalCounter UpdateCounter;
 	FGraphTraversalCounter EvaluationCounter;
 	FGraphTraversalCounter SlotNodeInitializationCounter;
+
+	// Sync counter
+	uint64 FrameCounterForUpdate;
 
 private:
 	// Root motion extracted from animation since the last time ConsumeExtractedRootMotion was called
@@ -862,6 +904,9 @@ private:
 	/** Cache of guids generated from previously sent messages so we can stop spam*/
 	TArray<FGuid> PreviouslyLoggedMessages;
 #endif
+
+	/** Scope guard to prevent duplicate work on re-entracy */
+	bool bUpdatingRoot;
 
 protected:
 

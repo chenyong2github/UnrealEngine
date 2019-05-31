@@ -12,6 +12,10 @@
 #include "Animation/AnimInstance.h"
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "Animation/AnimNode_SubInstance.h"
+#include "Animation/AnimNode_Root.h"
+#include "Animation/AnimNode_SubInput.h"
+#include "Animation/AnimNode_Layer.h"
 
 /////////////////////////////////////////////////////
 // FStateMachineDebugData
@@ -228,12 +232,11 @@ void FAnimationFrameSnapshot::CopyToInstance(UAnimInstance* Instance)
 #endif
 
 /////////////////////////////////////////////////////
-// UAnimBlueprintGeneratedClass
+// UAnimBlueprintGeneratedClas
 
 UAnimBlueprintGeneratedClass::UAnimBlueprintGeneratedClass(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	RootAnimNodeIndex = INDEX_NONE;
 }
 
 void UAnimBlueprintGeneratedClass::Serialize(FArchive& Ar)
@@ -248,32 +251,107 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 {
 	Super::Link(Ar, bRelinkExistingProperties);
 
-	// We cant reference FAnimNode_Root directly as it is in AnimGraphRuntime, so we just hard-code the name instead.
-	static const FName NAME_AnimNode_Root(TEXT("AnimNode_Root"));
+	static const FName DefaultAnimGraphName("AnimGraph");
 
 	// @TODO: Shouldn't be necessary to clear these, but currently the class gets linked twice during compilation
 	AnimNodeProperties.Empty();
-	RootAnimNodeProperty = NULL;
+	SubInstanceNodeProperties.Empty();
+	LayerNodeProperties.Empty();
+	AnimBlueprintFunctions.Empty();
 
-	// Initialize derived members
+	// Patch up blueprint function info
+	for (TFieldIterator<UFunction> It(this); It; ++It)
+	{
+		bool bFoundOutput = false;
+#if WITH_EDITOR
+		// In editor we can grab the group from metadata, otherwise we need to wait until CDO post load (LinkFunctionsToDefaultObjectNodes)
+		FText CategoryText = It->GetMetaDataText(TEXT("Category"), TEXT("UObjectCategory"), It->GetFullGroupName(false));
+		FName Group = CategoryText.IsEmpty() ? NAME_None : FName(*CategoryText.ToString());
+#endif
+		UStructProperty* OutputPoseNodeProperty = nullptr;
+		TArray<FName> InputPoseNames;
+		TArray<int32> InputPoseNodeIndices;
+		TArray<UStructProperty*> InputPoseNodeProperties;
+		TArray<UProperty*> InputProperties;
+
+		// grab the input/output poses, their indices will be patched up later once the CDO is loaded in PostLoadDefaultObject
+		for (TFieldIterator<UProperty> ItParam(*It); ItParam; ++ItParam)
+		{
+			if(UStructProperty* StructProperty = Cast<UStructProperty>(*ItParam))
+			{
+				if(StructProperty->Struct->IsChildOf(FPoseLink::StaticStruct()))
+				{
+					if(StructProperty->GetPropertyFlags() & CPF_OutParm)
+					{
+						if(!bFoundOutput)
+						{
+							OutputPoseNodeProperty = StructProperty;
+							bFoundOutput = true;
+						}
+						else
+						{
+							// our required signature needs us to have a single post link output, so null it out if we find more than one
+							OutputPoseNodeProperty = nullptr;
+						}
+					}
+					else
+					{
+						InputPoseNames.Add(StructProperty->GetFName());
+						InputPoseNodeIndices.Add(INDEX_NONE);
+						InputPoseNodeProperties.Add(nullptr);
+					}
+				}
+				else
+				{
+					InputProperties.Add(*ItParam);
+				}
+			}
+			else
+			{
+				InputProperties.Add(*ItParam);
+			}
+		}
+
+		if(OutputPoseNodeProperty)
+		{
+			// We use the undecorated name here, so trim the postfix
+			FAnimBlueprintFunction* AnimBlueprintFunction = nullptr;
+
+			// Make sure that the default graph is at index 0
+			FName FunctionName = It->GetFName();
+			if(FunctionName == DefaultAnimGraphName)
+			{
+				AnimBlueprintFunction = &AnimBlueprintFunctions.Insert_GetRef(FAnimBlueprintFunction(FunctionName), 0);
+			}
+			else
+			{
+				AnimBlueprintFunction = &AnimBlueprintFunctions.Emplace_GetRef(FunctionName);
+			}
+
+#if WITH_EDITOR
+			AnimBlueprintFunction->Group = Group;
+#endif
+			AnimBlueprintFunction->InputPoseNames.Append(MoveTemp(InputPoseNames));
+			AnimBlueprintFunction->InputPoseNodeIndices.Append(MoveTemp(InputPoseNodeIndices));
+			AnimBlueprintFunction->InputPoseNodeProperties.Append(MoveTemp(InputPoseNodeProperties));
+			AnimBlueprintFunction->InputProperties.Append(MoveTemp(InputProperties));
+		}
+	}
+
+	// Initialize the various tracked node arrays & fix up function internals
 	for (TFieldIterator<UProperty> It(this); It; ++It)
 	{
 		if (UStructProperty* StructProp = Cast<UStructProperty>(*It))
 		{
 			if (StructProp->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
 			{
-				if(StructProp->Struct->GetFName() == NAME_AnimNode_Root)
+				if(StructProp->Struct == FAnimNode_SubInstance::StaticStruct())
 				{
-					// If we are loading from a newer version, we must verify that there is only one root here.
-					// When linking an older version on load we may find multiple roots until the class is recompiled or saved
-#if DO_CHECK
-					if(Ar.IsLoading() && Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::LinkTimeAnimBlueprintRootDiscoveryBugFix)
-					{
-						check(RootAnimNodeProperty == nullptr);
-					}
-#endif
-					RootAnimNodeProperty = StructProp;
-					RootAnimNodeIndex = AnimNodeProperties.Num();
+					SubInstanceNodeProperties.Add(StructProp);
+				}
+				else if(StructProp->Struct == FAnimNode_Layer::StaticStruct())
+				{
+					LayerNodeProperties.Add(StructProp);
 				}
 				AnimNodeProperties.Add(StructProp);
 			}
@@ -289,34 +367,20 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 
 	if(RootClass != this)
 	{
-		// Copy root, state notifies and baked machines from the root class
+		// State notifies and baked machines from the root class
 		check(RootClass);
-		RootAnimNodeIndex = RootClass->RootAnimNodeIndex;
 		AnimNotifies = RootClass->AnimNotifies;
 		BakedStateMachines = RootClass->BakedStateMachines;
-	}
-
-	if (AnimNodeProperties.Num() > 0)
-	{
-		const bool bValidRootIndex = (RootAnimNodeIndex >= 0) && (RootAnimNodeIndex < AnimNodeProperties.Num());
-		if (!bValidRootIndex)
-		{
-			UE_LOG(LogAnimation, Warning, TEXT("Invalid animation root node index %d on '%s' (only %d nodes)"), RootAnimNodeIndex, *GetPathName(), AnimNodeProperties.Num());
-			AnimNodeProperties.Empty();
-
-			// After the log instead of in the if() to make sure the log statement is emitted
-			// @fixBG : this ensure is blocking copy up so commenting it out. 
-			// ensure(bValidRootIndex);
-		}
 	}
 
 	if(RootClass != this)
 	{
 		check(RootClass);
-		if(OrderedSavedPoseIndices.Num() != RootClass->OrderedSavedPoseIndices.Num() || OrderedSavedPoseIndices != RootClass->OrderedSavedPoseIndices)
+
+		if(OrderedSavedPoseIndicesMap.Num() != RootClass->OrderedSavedPoseIndicesMap.Num() || !OrderedSavedPoseIndicesMap.OrderIndependentCompareEqual(RootClass->OrderedSavedPoseIndicesMap))
 		{
 			// Derived and our parent has a new ordered pose order, copy over.
-			OrderedSavedPoseIndices = RootClass->OrderedSavedPoseIndices;
+			OrderedSavedPoseIndicesMap = RootClass->OrderedSavedPoseIndicesMap;
 		}
 	}
 }
@@ -355,6 +419,77 @@ void UAnimBlueprintGeneratedClass::PostLoadDefaultObject(UObject* Object)
 		FExposedValueHandler::Initialize(Iter->EvaluateGraphExposedInputs, Object);
 		Iter = Cast<UAnimBlueprintGeneratedClass>(Iter->GetSuperClass());
 	}
+
+	LinkFunctionsToDefaultObjectNodes(Object);
+}
+
+void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* DefaultObject)
+{
+	// Link functions to their nodes
+	for(int32 AnimNodeIndex = 0; AnimNodeIndex < AnimNodeProperties.Num(); ++AnimNodeIndex)
+	{
+		UStructProperty* StructProperty = AnimNodeProperties[AnimNodeIndex];
+		if (StructProperty->Struct->IsChildOf(FAnimNode_Root::StaticStruct()))
+		{
+			FAnimNode_Root* RootNode = StructProperty->ContainerPtrToValuePtr<FAnimNode_Root>(DefaultObject);
+			if(FAnimBlueprintFunction* FoundFunction = AnimBlueprintFunctions.FindByPredicate([RootNode](const FAnimBlueprintFunction& InFunction){ return InFunction.Name == RootNode->Name; }))
+			{
+				FoundFunction->Group = RootNode->Group;
+				FoundFunction->OutputPoseNodeIndex = AnimNodeIndex;
+				FoundFunction->OutputPoseNodeProperty = StructProperty;
+			}
+		}
+		else if(StructProperty->Struct->IsChildOf(FAnimNode_SubInput::StaticStruct()))
+		{
+			FAnimNode_SubInput* SubInputNode = StructProperty->ContainerPtrToValuePtr<FAnimNode_SubInput>(DefaultObject);
+			if(FAnimBlueprintFunction* FoundFunction = AnimBlueprintFunctions.FindByPredicate([SubInputNode](const FAnimBlueprintFunction& InFunction){ return InFunction.Name == SubInputNode->Graph; }))
+			{
+				for(int32 InputIndex = 0; InputIndex < FoundFunction->InputPoseNames.Num(); ++InputIndex)
+				{
+					if(FoundFunction->InputPoseNames[InputIndex] == SubInputNode->Name)
+					{
+						FoundFunction->InputPoseNodeIndices[InputIndex] = AnimNodeIndex;
+						FoundFunction->InputPoseNodeProperties[InputIndex] = StructProperty;
+					}
+				}
+			}
+		}
+	}
+
+	// Determine whether functions are 'implemented'
+	for(FAnimBlueprintFunction& AnimBlueprintFunction : AnimBlueprintFunctions)
+	{
+		if(AnimBlueprintFunction.OutputPoseNodeProperty)
+		{
+			FAnimNode_Root* RootNode = AnimBlueprintFunction.OutputPoseNodeProperty->ContainerPtrToValuePtr<FAnimNode_Root>(DefaultObject);
+			if(RootNode->Result.LinkID != INDEX_NONE)
+			{
+				AnimBlueprintFunction.bImplemented = true;
+			}
+		}
+	}
+
+#if DO_CHECK
+	if(!(GetClassFlags() | CLASS_Transient))
+	{
+		// Now verify we fixed up all our functions
+		for(const FAnimBlueprintFunction& AnimBlueprintFunction : AnimBlueprintFunctions)
+		{
+			check(AnimBlueprintFunction.Name != NAME_None);
+			check(AnimBlueprintFunction.OutputPoseNodeIndex != INDEX_NONE);
+			check(AnimBlueprintFunction.OutputPoseNodeProperty != nullptr);
+			check(AnimBlueprintFunction.InputPoseNames.Num() == AnimBlueprintFunction.InputPoseNodeIndices.Num());
+			check(AnimBlueprintFunction.InputPoseNames.Num() == AnimBlueprintFunction.InputPoseNodeProperties.Num());
+
+			for(int32 InputIndex = 0; InputIndex < AnimBlueprintFunction.InputPoseNames.Num(); ++InputIndex)
+			{
+				check(AnimBlueprintFunction.InputPoseNames[InputIndex] != NAME_None);
+				check(AnimBlueprintFunction.InputPoseNodeIndices[InputIndex] != INDEX_NONE);
+				check(AnimBlueprintFunction.InputPoseNodeProperties[InputIndex] != nullptr);
+			}
+		}
+	}
+#endif
 }
 
 #if WITH_EDITORONLY_DATA

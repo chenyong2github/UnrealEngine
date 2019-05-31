@@ -28,6 +28,9 @@ public:
 	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput /*= NULL*/) const override;
 	//~ End UEdGraphNode Interface.
 
+	// UAnimGraphNode_Base interface
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
 	// Gets the property on InOwnerInstanceClass that corresponds to InInputPin
 	void GetInstancePinProperty(const UClass* InOwnerInstanceClass, UEdGraphPin* InInputPin, UProperty*& OutProperty);
 	// Gets the unique name for the property linked to a given pin
@@ -36,21 +39,9 @@ public:
 	UClass* GetTargetClass() const;
 	// Add Source and Target Properties - Check FAnimNode_CustomProperty
 	void AddSourceTargetProperties(const FName& InSourcePropertyName, const FName& InTargetPropertyName);
+	// Helper used to get the skeleton class we are targeting
+	virtual UClass* GetTargetSkeletonClass() const;
 
-	// return true if this pin name is property exposed
-	// return false if this pin doesn't belong to property
-	virtual bool IsValidPropertyPin(const FName& PinName) const
-	{
-		return (PinName != FName(TEXT("Pose"), FNAME_Find));
-	}
-
-	// ----- UI CALLBACKS ----- //
-	// If given property exposed on this node
-	virtual ECheckBoxState IsPropertyExposed(FName PropertyName) const;
-	// User chose to expose, or unexpose a property
-	virtual void OnPropertyExposeCheckboxChanged(ECheckBoxState NewState, FName PropertyName);
-	// User changed the instance class
-	void OnInstanceClassChanged(IDetailLayoutBuilder* DetailBuilder);
 protected:
 
 	/** List of property names we know to exist on the target class, so we can detect when
@@ -70,8 +61,28 @@ protected:
 	// Given a new class, rebuild the known property list (for tracking class changes and moving pins)
 	virtual void RebuildExposedProperties();
 
+	// ----- UI CALLBACKS ----- //
+	// User changed the instance class etc.
+	void OnStructuralPropertyChanged(IDetailLayoutBuilder* DetailBuilder);
+	// If given property exposed on this node
+	virtual ECheckBoxState IsPropertyExposed(FName PropertyName) const;
+	// User chose to expose, or unexpose a property
+	virtual void OnPropertyExposeCheckboxChanged(ECheckBoxState NewState, FName PropertyName);
+	// If all possible properties are exposed on this node
+	virtual ECheckBoxState AreAllPropertiesExposed() const;
+	// User chose to expose, or unexpose all properties
+	virtual void OnPropertyExposeAllCheckboxChanged(ECheckBoxState NewState);
+	// User changed the instance class
+	void OnInstanceClassChanged(IDetailLayoutBuilder* DetailBuilder);
+
 	// internal node accessor
-	virtual FAnimNode_CustomProperty* GetInternalNode() PURE_VIRTUAL(UAnimGraphNode_CustomProperty::GetInternalNode, return nullptr;);
-	virtual const FAnimNode_CustomProperty* GetInternalNode() const PURE_VIRTUAL(UAnimGraphNode_CustomProperty::GetInternalNode, return nullptr;);
+	virtual FAnimNode_CustomProperty* GetCustomPropertyNode() PURE_VIRTUAL(UAnimGraphNode_CustomProperty::GetCustomPropertyNode, return nullptr;);
+	virtual const FAnimNode_CustomProperty* GetCustomPropertyNode() const PURE_VIRTUAL(UAnimGraphNode_CustomProperty::GetCustomPropertyNode, return nullptr;);
+
+	// Check whether the specified property is structural (i.e. should we rebuild the UI if it changes)
+	virtual bool IsStructuralProperty(UProperty* InProperty) const { return false; }
+
+	// Whether this node needs a valid target class up-front
+	virtual bool NeedsToSpecifyValidTargetClass() const { return true; }
 
 };
