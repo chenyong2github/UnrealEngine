@@ -1,6 +1,48 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigConnectionDrawingPolicy.h"
+#include "Graph/ControlRigGraph.h"
+#include "Graph/ControlRigGraphNode.h"
+#include "ControlRigBlueprint.h"
+#include "ControlRigController.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+
+void FControlRigConnectionDrawingPolicy::SetIncompatiblePinDrawState(const TSharedPtr<SGraphPin>& StartPin, const TSet< TSharedRef<SWidget> >& VisiblePins)
+{
+	UEdGraphPin* Pin = StartPin->GetPinObj();
+	if (Pin != nullptr)
+	{
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Pin->GetOwningNode());
+		UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
+		if (RigBlueprint != nullptr)
+		{
+			FString Left, Right;
+			RigBlueprint->Model->SplitPinPath(Pin->GetName(), Left, Right);
+			RigBlueprint->ModelController->PrepareCycleCheckingForPin(*Left, *Right, Pin->Direction == EGPD_Input);
+		}
+	}
+	FKismetConnectionDrawingPolicy::SetIncompatiblePinDrawState(StartPin, VisiblePins);
+}
+
+void FControlRigConnectionDrawingPolicy::ResetIncompatiblePinDrawState(const TSet< TSharedRef<SWidget> >& VisiblePins)
+{
+	if (VisiblePins.Num() > 0)
+	{
+		TSharedRef<SWidget> WidgetRef = *VisiblePins.begin();
+		const SGraphPin* PinWidget = (const SGraphPin*)&WidgetRef.Get();
+		UEdGraphPin* Pin = PinWidget->GetPinObj();
+		if (Pin != nullptr)
+		{
+			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Pin->GetOwningNode());
+			UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
+			if (RigBlueprint != nullptr)
+			{
+				RigBlueprint->ModelController->ResetCycleCheck();
+			}
+		}
+	}
+	FKismetConnectionDrawingPolicy::ResetIncompatiblePinDrawState(VisiblePins);
+}
 
 void FControlRigConnectionDrawingPolicy::BuildPinToPinWidgetMap(TMap<TSharedRef<SWidget>, FArrangedWidget>& InPinGeometries)
 {

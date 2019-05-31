@@ -51,6 +51,21 @@ protected:
 	UPROPERTY(Transient)
 	TArray<UProperty*> DestProperties;
 
+#if WITH_EDITOR
+	bool bReinitializeProperties;
+#endif // WITH_EDITOR
+
+	virtual bool HasPreUpdate() const override
+	{
+#if WITH_EDITOR
+		return true;
+#else
+		return false;
+#endif
+	}
+
+	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
+
 	/* Set Target Instance */
 	void SetTargetInstance(UObject* InInstance);
 

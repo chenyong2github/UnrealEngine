@@ -13,7 +13,7 @@
 /**
  * A searchable text combo box
  */
-class SSearchableComboBox : public SComboButton
+class PERSONA_API SSearchableComboBox : public SComboButton
 {
 public:
 	/** Type of list used for showing menu options. */

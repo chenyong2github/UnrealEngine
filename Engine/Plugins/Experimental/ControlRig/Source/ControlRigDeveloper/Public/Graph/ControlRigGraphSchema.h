@@ -74,15 +74,6 @@ public:
 	/** Automatically layout the passed-in nodes */
 	void LayoutNodes(UControlRigGraph* InGraph, const TArray<UControlRigGraphNode*>& InNodes) const;
 
-	/** Helper function to detect if a connection would cause a cycle */
-	bool TryCreateConnection_DetectCycle(UEdGraphPin* PinA, UEdGraphPin* PinB) const;
-
-	/** Helper function to allow us to apply extended logic to TryCreateConnection */
-	bool TryCreateConnection_Extended(UEdGraphPin* PinA, UEdGraphPin* PinB) const;
-
-	/** Helper function to allow us to apply extended logic to CanCreateConnection */
-	const FControlRigPinConnectionResponse CanCreateConnection_Extended(const UEdGraphPin* A, const UEdGraphPin* B) const;
-
 	/** Helper function to rename a node */
 	void RenameNode(UControlRigGraphNode* Node, const FName& InNewNodeName) const;
 

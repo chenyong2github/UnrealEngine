@@ -40,7 +40,7 @@ struct CONTROLRIG_API FRigUnit_Control : public FRigUnit
 
 #if WITH_EDITORONLY_DATA
 	/** Actor class to use to display this in the viewport */
-	UPROPERTY(EditAnywhere, Category="Control")
+	UPROPERTY()
 	TSubclassOf<AControlRigControl> ControlClass;
 #endif
 

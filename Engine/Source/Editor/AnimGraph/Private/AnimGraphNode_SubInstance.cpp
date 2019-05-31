@@ -179,7 +179,7 @@ void UAnimGraphNode_SubInstance::PostEditChangeProperty(FPropertyChangedEvent& P
 		if(ChangedProperty->GetFName() == GET_MEMBER_NAME_CHECKED(FAnimNode_SubInstance, InstanceClass))
 		{
 			bRequiresNodeReconstruct = true;
-			RebuildExposedProperties(*Node.InstanceClass);
+			RebuildExposedProperties();
 		}
 	}
 

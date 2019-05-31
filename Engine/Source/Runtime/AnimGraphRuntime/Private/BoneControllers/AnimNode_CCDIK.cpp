@@ -80,7 +80,7 @@ void FAnimNode_CCDIK::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseConte
 		const FTransform& BoneCSTransform = Output.Pose.GetComponentSpaceTransform(RootBoneIndex);
 
 		OutBoneTransforms[0] = FBoneTransform(RootBoneIndex, BoneCSTransform);
-		Chain.Add(CCDIKChainLink(BoneCSTransform, LocalTransform, RootBoneIndex, 0));
+		Chain.Add(CCDIKChainLink(BoneCSTransform, LocalTransform, 0));
 	}
 
 	// Go through remaining transforms
@@ -99,7 +99,7 @@ void FAnimNode_CCDIK::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseConte
 
 		if (!FMath::IsNearlyZero(BoneLength))
 		{
-			Chain.Add(CCDIKChainLink(BoneCSTransform, LocalTransform, BoneIndex, TransformIndex));
+			Chain.Add(CCDIKChainLink(BoneCSTransform, LocalTransform, TransformIndex));
 		}
 		else
 		{
@@ -110,53 +110,14 @@ void FAnimNode_CCDIK::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseConte
 		}
 	}
 
-	bool bBoneLocationUpdated = false;
-	int32 const NumChainLinks = BoneIndices.Num();
-
-	// iterate
-	{
-		int32 const TipBoneLinkIndex = NumChainLinks - 1;
-
-		// @todo optimize locally if no update, stop?
-		bool bLocalUpdated = false;
-		// check how far
-		const FVector TargetPos = CSEffectorLocation;
-		FVector TipPos = Chain[TipBoneLinkIndex].Transform.GetLocation();
-		float Distance = FVector::Dist(TargetPos, TipPos);
-		int32 IterationCount = 0;
-		while ((Distance > Precision) && (IterationCount++ < MaxIterations))
-		{
-			// iterate from tip to root
-			if (bStartFromTail)
-			{
-				for (int32 LinkIndex = TipBoneLinkIndex - 1; LinkIndex > 0; --LinkIndex)
-				{
-					bLocalUpdated |= UpdateChainLink(Chain, LinkIndex, TargetPos);
-				}
-			}
-			else
-			{
-				for (int32 LinkIndex = 1; LinkIndex < TipBoneLinkIndex; ++LinkIndex)
-				{
-					bLocalUpdated |= UpdateChainLink(Chain, LinkIndex, TargetPos);
-				}
-			}
-
-			Distance = FVector::Dist(Chain[TipBoneLinkIndex].Transform.GetLocation(), CSEffectorLocation);
-
-			bBoneLocationUpdated |= bLocalUpdated;
-
-			// no more update in this iteration
-			if (!bLocalUpdated)
-			{
-				break;
-			}
-		}
-	}
+	// solve
+	bool bBoneLocationUpdated = AnimationCore::SolveCCDIK(Chain, CSEffectorLocation, Precision, MaxIterations, bStartFromTail, bEnableRotationLimit, RotationLimitPerJoints);
 
 	// If we moved some bones, update bone transforms.
 	if (bBoneLocationUpdated)
 	{
+		int32 NumChainLinks = Chain.Num();
+
 		// First step: update bone transform positions from chain links.
 		for (int32 LinkIndex = 0; LinkIndex < NumChainLinks; LinkIndex++)
 		{
@@ -181,84 +142,6 @@ void FAnimNode_CCDIK::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseConte
 #endif // WITH_EDITOR
 
 	}
-}
-
-bool FAnimNode_CCDIK::UpdateChainLink(TArray<CCDIKChainLink>& Chain, int32 LinkIndex, const FVector& TargetPos) const
-{
-	int32 const TipBoneLinkIndex = Chain.Num() - 1;
-
-	ensure(Chain.IsValidIndex(TipBoneLinkIndex));
-	CCDIKChainLink& CurrentLink = Chain[LinkIndex];
-
-	// update new tip pos
-	FVector TipPos = Chain[TipBoneLinkIndex].Transform.GetLocation();
-
-	FTransform& CurrentLinkTransform = CurrentLink.Transform;
-	FVector ToEnd = TipPos - CurrentLinkTransform.GetLocation();
-	FVector ToTarget = TargetPos - CurrentLinkTransform.GetLocation();
-
-	ToEnd.Normalize();
-	ToTarget.Normalize();
-
-	float RotationLimitPerJointInRadian = FMath::DegreesToRadians(RotationLimitPerJoints[LinkIndex]);
-	float Angle = FMath::ClampAngle(FMath::Acos(FVector::DotProduct(ToEnd, ToTarget)), -RotationLimitPerJointInRadian, RotationLimitPerJointInRadian);
-	bool bCanRotate = (FMath::Abs(Angle) > KINDA_SMALL_NUMBER) && (!bEnableRotationLimit || RotationLimitPerJointInRadian > CurrentLink.CurrentAngleDelta);
-	if (bCanRotate)
-	{
-		// check rotation limit first, if fails, just abort
-		if (bEnableRotationLimit)
-		{
-			if (RotationLimitPerJointInRadian < CurrentLink.CurrentAngleDelta + Angle)
-			{
-				Angle = RotationLimitPerJointInRadian - CurrentLink.CurrentAngleDelta;
-				if (Angle <= KINDA_SMALL_NUMBER)
-				{
-					return false;
-				}
-			}
-
-			CurrentLink.CurrentAngleDelta += Angle;
-		}
-
-		// continue with rotating toward to target
-		FVector RotationAxis = FVector::CrossProduct(ToEnd, ToTarget);
-		if (RotationAxis.SizeSquared() > 0.f)
-		{
-			RotationAxis.Normalize();
-			// Delta Rotation is the rotation to target
-			FQuat DeltaRotation(RotationAxis, Angle);
-
-			FQuat NewRotation = DeltaRotation * CurrentLinkTransform.GetRotation();
-			NewRotation.Normalize();
-			CurrentLinkTransform.SetRotation(NewRotation);
-
-			// if I have parent, make sure to refresh local transform since my current transform has changed
-			if (LinkIndex > 0)
-			{
-				CCDIKChainLink const & Parent = Chain[LinkIndex - 1];
-				CurrentLink.LocalTransform = CurrentLinkTransform.GetRelativeTransform(Parent.Transform);
-				CurrentLink.LocalTransform.NormalizeRotation();
-			}
-
-			// now update all my children to have proper transform
-			FTransform CurrentParentTransform = CurrentLinkTransform;
-
-			// now update all chain
-			for (int32 ChildLinkIndex = LinkIndex + 1; ChildLinkIndex <= TipBoneLinkIndex; ++ChildLinkIndex)
-			{
-				CCDIKChainLink& ChildIterLink = Chain[ChildLinkIndex];
-				FCompactPoseBoneIndex ChildBoneIndex = ChildIterLink.BoneIndex;
-				const FTransform LocalTransform = ChildIterLink.LocalTransform;
-				ChildIterLink.Transform = LocalTransform * CurrentParentTransform;
-				ChildIterLink.Transform.NormalizeRotation();
-				CurrentParentTransform = ChildIterLink.Transform;
-			}
-
-			return true;
-		}
-	}
-
-	return false;
 }
 
 bool FAnimNode_CCDIK::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones)
