@@ -3995,7 +3995,8 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		ChangeTessellationComponentScreenSizeFalloff(TessellationComponentScreenSizeFalloff);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LODDistributionSetting)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0DistributionSetting))
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0DistributionSetting)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0ScreenSize))
 	{		
 		MarkComponentsRenderStateDirty();
 	}
@@ -4262,6 +4263,11 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	else if (PropertyName == FName(TEXT("LOD0DistributionSetting")))
 	{
 		LOD0DistributionSetting = FMath::Clamp<float>(LOD0DistributionSetting, 1.0f, 10.0f);
+		bPropagateToProxies = true;
+	}
+	else if (PropertyName == FName(TEXT("LOD0ScreenSize")))
+	{
+		LOD0ScreenSize = FMath::Clamp<float>(LOD0ScreenSize, 1.0f, 10.0f);
 		bPropagateToProxies = true;
 	}
 	else if (PropertyName == FName(TEXT("CollisionMipLevel")))

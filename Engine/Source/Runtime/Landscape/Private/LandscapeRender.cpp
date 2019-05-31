@@ -704,7 +704,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	}
 
 	float ScreenSizeRatioDivider = FMath::Max(InComponent->GetLandscapeProxy()->LOD0DistributionSetting * GLandscapeLOD0DistributionScale, 1.01f);
-	float CurrentScreenSizeRatio = 1.0f;
+	float CurrentScreenSizeRatio = InComponent->GetLandscapeProxy()->LOD0ScreenSize;
 
 	LODScreenRatioSquared.AddUninitialized(MaxLOD + 1);
 
@@ -1288,7 +1288,7 @@ float FLandscapeComponentSceneProxy::GetComponentScreenSize(const FSceneView* Vi
 	// Calculate screen-space projected radius
 	float SquaredScreenRadius = FMath::Square(ScreenMultiple * ElementRadius) / FMath::Max(1.0f, DistSquared);
 
-	return FMath::Min(SquaredScreenRadius * 2.0f, 1.0f);
+	return SquaredScreenRadius * 2.0f;
 }
 
 void FLandscapeComponentSceneProxy::BuildDynamicMeshElement(const FViewCustomDataLOD* InPrimitiveCustomData, bool InToolMesh, bool InHasTessellation, bool InDisableTessellation, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams, SceneRenderingAllocator>& OutStaticBatchParamArray) const
@@ -1796,7 +1796,7 @@ void FLandscapeComponentSceneProxy::CalculateBatchElementLOD(const FSceneView& I
 {
 	float SquaredViewLODScale = FMath::Square(InViewLODScale);
 
-	check(InMeshScreenSizeSquared >= 0.0f && InMeshScreenSizeSquared <= 1.0f);
+	check(InMeshScreenSizeSquared >= 0.0f);
 	float ComponentScreenSize = InMeshScreenSizeSquared;
 
 	if (NumSubsections > 1)
@@ -1900,7 +1900,7 @@ float FLandscapeComponentSceneProxy::ComputeBatchElementCurrentLOD(int32 InSelec
 	float NextLODScreenRatio = LastElement ? 0 : LODScreenRatioSquared[InSelectedLODIndex + 1];
 
 	float LODScreenRatioRange = CurrentLODScreenRatio - NextLODScreenRatio;
-	float ScreenSizeWithLODScale = InComponentScreenSize / InViewLODScale;
+	float ScreenSizeWithLODScale = FMath::Clamp(InComponentScreenSize / InViewLODScale, 0.0f, LODScreenRatioSquared[0]);
 
 	if (ScreenSizeWithLODScale > CurrentLODScreenRatio || ScreenSizeWithLODScale < NextLODScreenRatio)
 	{
@@ -1961,7 +1961,6 @@ void* FLandscapeComponentSceneProxy::InitViewCustomData(const FSceneView& InView
 
 	FViewCustomDataLOD* LODData = (FViewCustomDataLOD*)new(InCustomDataMemStack) FViewCustomDataLOD();
 
-	check(InMeshScreenSizeSquared <= 1.0f);
 	LODData->ComponentScreenSize = InMeshScreenSizeSquared;
 
 	// If a valid screen size was provided, we use it instead of recomputing it

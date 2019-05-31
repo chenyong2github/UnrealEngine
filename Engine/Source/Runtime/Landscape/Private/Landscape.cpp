@@ -1030,6 +1030,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	ComponentScreenSizeToUseSubSections = 0.65f;
 	UseTessellationComponentScreenSizeFalloff = true;
 	TessellationComponentScreenSizeFalloff = 0.75f;
+	LOD0ScreenSize = 1.0f;
 	LOD0DistributionSetting = 1.75f;
 	LODDistributionSetting = 2.0f;
 	bCastStaticShadow = true;
@@ -2386,6 +2387,7 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		TessellationComponentScreenSizeFalloff = Landscape->TessellationComponentScreenSizeFalloff;
 		LODDistributionSetting = Landscape->LODDistributionSetting;
 		LOD0DistributionSetting = Landscape->LOD0DistributionSetting;
+		LOD0ScreenSize = Landscape->LOD0ScreenSize;
 		OccluderGeometryLOD = Landscape->OccluderGeometryLOD;
 		NegativeZBoundsExtension = Landscape->NegativeZBoundsExtension;
 		PositiveZBoundsExtension = Landscape->PositiveZBoundsExtension;
@@ -2456,6 +2458,12 @@ void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 	if (LOD0DistributionSetting != Landscape->LOD0DistributionSetting)
 	{
 		LOD0DistributionSetting = Landscape->LOD0DistributionSetting;
+		bUpdated = true;
+	}
+
+	if (LOD0ScreenSize != Landscape->LOD0ScreenSize)
+	{
+		LOD0ScreenSize = Landscape->LOD0ScreenSize;
 		bUpdated = true;
 	}
 
