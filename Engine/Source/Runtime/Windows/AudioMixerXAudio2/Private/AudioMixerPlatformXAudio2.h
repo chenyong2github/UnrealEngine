@@ -4,7 +4,32 @@
 
 #include "AudioMixer.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
+
+#if PLATFORM_WINDOWS
+#ifndef WINAPI_PARTITION_TV_APP
+#define WINAPI_PARTITION_TV_APP 0
+#endif
+
+#ifndef WINAPI_PARTITION_TV_TITLE
+#define WINAPI_PARTITION_TV_TITLE 0
+#endif
+
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0A00
+#endif
+
+#ifndef NTDDI_WIN10_RS5
+#define NTDDI_WIN10_RS5 0x0A000006
+#endif
+#endif // #if PLATFORM_WINDOWS
+
 #include <xaudio2.h>
+
+#if PLATFORM_WINDOWS
+#pragma comment(lib,"xaudio2.lib")
+#pragma comment(lib,"ole32.lib")
+#endif
+
 #include "Windows/HideWindowsPlatformTypes.h"
 
 // Any platform defines
@@ -84,15 +109,12 @@ namespace Audio
 
 	private:
 
-		const TCHAR* GetErrorString(HRESULT Result);
 		bool AllowDeviceSwap();
 
 		// Used to teardown and reinitialize XAudio2.
 		// This must be done to repopulate the playback device list in XAudio 2.7.
 		bool ResetXAudio2System();
-
-		typedef TArray<long> TChannelTypeMap;
-		
+	
 #if PLATFORM_WINDOWS
 		// Handle to XAudio2DLL
 		static HMODULE XAudio2Dll;
@@ -102,7 +124,6 @@ namespace Audio
 		// And that we need to restart the audio device.
 		FThreadSafeBool bDeviceChanged;
 
-		TChannelTypeMap ChannelTypeMap;
 		IXAudio2* XAudio2System;
 		IXAudio2MasteringVoice* OutputAudioStreamMasteringVoice;
 		IXAudio2SourceVoice* OutputAudioStreamSourceVoice;
@@ -119,7 +140,6 @@ namespace Audio
 		// we check whether a new audio device was connected every second or so.
 		float TimeSinceNullDeviceWasLastChecked;
 
-		uint32 bIsComInitialized : 1;
 		uint32 bIsInitialized : 1;
 		uint32 bIsDeviceOpen : 1;
 
