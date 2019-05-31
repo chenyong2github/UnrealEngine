@@ -230,7 +230,7 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 			check(Widget);
 
 #if !UE_BUILD_SHIPPING
-			Widget->WidgetGeneratedByClass = WidgetClass;
+			//Widget->WidgetGeneratedByClass = WidgetClass;
 #endif
 
 			if ( UUserWidget* SubUserWidget = Cast<UUserWidget>(Widget) )
