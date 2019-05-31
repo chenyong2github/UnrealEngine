@@ -159,6 +159,7 @@ struct RENDERCORE_API FShaderCodeLibrary
 	/** Instantiate or retrieve a geometry shader from the cache for the provided code & hash. */
 	static FGeometryShaderRHIRef CreateGeometryShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code);
 	/** Instantiate or retrieve a geometry shader from the cache for the provided code & hash. */
+	UE_DEPRECATED(4.23, "Geometry Stream out is deprecated.")
 	static FGeometryShaderRHIRef CreateGeometryShaderWithStreamOutput(EShaderPlatform Platform, FSHAHash Hash, const TArray<uint8>& Code, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream);
 	/** Instantiate or retrieve a hull shader from the cache for the provided code & hash. */
 	static FHullShaderRHIRef CreateHullShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code);

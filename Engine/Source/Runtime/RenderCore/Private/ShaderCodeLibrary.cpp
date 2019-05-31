@@ -718,7 +718,9 @@ public:
 		{
 			TArray<uint8> UCode;
 			TArray<uint8>& UncompressedCode = FShaderLibraryHelperUncompressCode(Platform, Size, *Code, UCode);
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			Shader = RHICreateGeometryShaderWithStreamOutput(UncompressedCode, ElementList, NumStrides, Strides, RasterizedStream);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			CheckShaderCreation(Shader.GetReference(), Hash);
 			if (bWasSync)
 			{
@@ -1758,9 +1760,13 @@ public:
 		if (ShaderCodeArchive)
 		{
 			if (bNativeFormat || GRHILazyShaderCodeLoading)
+			{
 				Result = RHICreateVertexShader(ShaderCodeArchive, Hash);
+			}
 			else
+			{
 				Result = ((FShaderCodeArchive*)ShaderCodeArchive)->CreateVertexShader(Hash);
+			}
 		}
 		return Result;
 	}
@@ -1774,9 +1780,13 @@ public:
 		if (ShaderCodeArchive)
 		{
 			if (bNativeFormat || GRHILazyShaderCodeLoading)
+			{
 				Result = RHICreatePixelShader(ShaderCodeArchive, Hash);
+			}
 			else
+			{
 				Result = ((FShaderCodeArchive*)ShaderCodeArchive)->CreatePixelShader(Hash);
+			}
 		}
 		return Result;
 	}
@@ -1790,9 +1800,13 @@ public:
 		if (ShaderCodeArchive)
 		{
 			if (bNativeFormat || GRHILazyShaderCodeLoading)
+			{
 				Result = RHICreateGeometryShader(ShaderCodeArchive, Hash);
+			}
 			else
+			{
 				Result = ((FShaderCodeArchive*)ShaderCodeArchive)->CreateGeometryShader(Hash);
+			}
 		}
 		return Result;
 	}
@@ -1805,10 +1819,16 @@ public:
 		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
 		if (ShaderCodeArchive)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			if (bNativeFormat || GRHILazyShaderCodeLoading)
+			{
 				Result = RHICreateGeometryShaderWithStreamOutput(ElementList, NumStrides, Strides, RasterizedStream, ShaderCodeArchive, Hash);
+			}
 			else
+			{
 				Result = ((FShaderCodeArchive*)ShaderCodeArchive)->CreateGeometryShaderWithStreamOutput(Hash, ElementList, NumStrides, Strides, RasterizedStream);
+			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		return Result;
 	}
@@ -1822,9 +1842,13 @@ public:
 		if (ShaderCodeArchive)
 		{
 			if (bNativeFormat || GRHILazyShaderCodeLoading)
+			{
 				Result = RHICreateHullShader(ShaderCodeArchive, Hash);
+			}
 			else
+			{
 				Result = ((FShaderCodeArchive*)ShaderCodeArchive)->CreateHullShader(Hash);
+			}
 		}
 		return Result;
 	}
@@ -1838,9 +1862,13 @@ public:
 		if (ShaderCodeArchive)
 		{
 			if (bNativeFormat || GRHILazyShaderCodeLoading)
+			{
 				Result = RHICreateDomainShader(ShaderCodeArchive, Hash);
+			}
 			else
+			{
 				Result = ((FShaderCodeArchive*)ShaderCodeArchive)->CreateDomainShader(Hash);
+			}
 		}
 		return Result;
 	}
@@ -1854,9 +1882,13 @@ public:
 		if (ShaderCodeArchive)
 		{
 			if (bNativeFormat || GRHILazyShaderCodeLoading)
+			{
 				Result = RHICreateComputeShader(ShaderCodeArchive, Hash);
+			}
 			else
+			{
 				Result = ((FShaderCodeArchive*)ShaderCodeArchive)->CreateComputeShader(Hash);
+			}
 		}
 		return Result;
 	}
@@ -2324,7 +2356,9 @@ FGeometryShaderRHIRef FShaderCodeLibrary::CreateGeometryShaderWithStreamOutput(E
 	}
 	if (!IsValidRef(Shader))
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Shader = RHICreateGeometryShaderWithStreamOutput(Code, ElementList, NumStrides, Strides, RasterizedStream);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	SafeAssignHash(Shader, Hash);
 	return Shader;
