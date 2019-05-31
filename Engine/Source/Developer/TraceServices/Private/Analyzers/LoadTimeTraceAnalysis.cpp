@@ -127,12 +127,11 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	case RouteId_PackageSummary:
 	{
 		uint64 LinkerPtr = EventData.GetValue("Linker").As<uint64>();
-		//check(ActiveLinkersMap.Contains(LinkerPtr));
-		TSharedRef<FLinkerState> LinkerState = ActiveLinkersMap[LinkerPtr];
-		if (LinkerState->PackageInfo)
+		TSharedRef<FLinkerState>* LinkerState = ActiveLinkersMap.Find(LinkerPtr);
+		if (LinkerState && (*LinkerState)->PackageInfo)
 		{
 			Trace::FAnalysisSessionEditScope _(Session);
-			Trace::FPackageSummaryInfo& Summary = LinkerState->PackageInfo->Summary;
+			Trace::FPackageSummaryInfo& Summary = (*LinkerState)->PackageInfo->Summary;
 			Summary.TotalHeaderSize = EventData.GetValue("TotalHeaderSize").As<uint32>();
 			Summary.NameCount = EventData.GetValue("NameCount").As<uint32>();
 			Summary.ImportCount = EventData.GetValue("ImportCount").As<uint32>();
@@ -144,35 +143,36 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	{
 		Trace::FAnalysisSessionEditScope _(Session);
 
-		uint64 LinkerPtr = EventData.GetValue("Linker").As<uint64>();
-		//check(ActiveLinkersMap.Contains(LinkerPtr));
-		TSharedRef<FLinkerState> LinkerState = ActiveLinkersMap[LinkerPtr];
-		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
-		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
 		Trace::FPackageExportInfo& Export = LoadTimeProfilerProvider.CreateExport();
 		Export.SerialOffset = EventData.GetValue("SerialOffset").As<uint64>();
 		Export.SerialSize = EventData.GetValue("SerialSize").As<uint64>();
 		Export.IsAsset = EventData.GetValue("IsAsset").As<bool>();
-		if (LinkerState->PackageInfo)
-		{
-			LinkerState->PackageInfo->Exports.Add(&Export);
-		}
+		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
+		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
 		ThreadState->EnterExportScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue("Cycle").As<uint64>()), &Export, LoadTimeProfilerObjectEventType_Create);
+		uint64 LinkerPtr = EventData.GetValue("Linker").As<uint64>();
+		TSharedRef<FLinkerState>* LinkerState = ActiveLinkersMap.Find(LinkerPtr);
+		if (LinkerState && (*LinkerState)->PackageInfo)
+		{
+			(*LinkerState)->PackageInfo->Exports.Add(&Export);
+		}
 		break;
 	}
 	case RouteId_EndCreateExport:
 	{
+		Trace::FAnalysisSessionEditScope _(Session);
+
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
 		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
 		uint64 ObjectPtr = EventData.GetValue("Object").As<uint64>();
-		const Trace::FClassInfo* ObjectClass = GetClassInfo(EventData.GetValue("Class").As<uint64>());
 		Trace::FPackageExportInfo* Export = ThreadState->GetCurrentExportScope();
-		ExportsMap.Add(ObjectPtr, Export);
+		if (Export)
 		{
-			Trace::FAnalysisSessionEditScope _(Session);
+			ExportsMap.Add(ObjectPtr, Export);
+			const Trace::FClassInfo* ObjectClass = GetClassInfo(EventData.GetValue("Class").As<uint64>());
 			Export->Class = ObjectClass;
-			ThreadState->LeaveScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue("Cycle").As<uint64>()));
 		}
+		ThreadState->LeaveScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue("Cycle").As<uint64>()));
 		break;
 	}
 	case RouteId_BeginObjectScope:
@@ -201,7 +201,7 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	case RouteId_BeginRequest:
 	{
 		uint64 RequestId = EventData.GetValue("RequestId").As<uint64>();
-		check(!ActiveRequestsMap.Contains(RequestId));
+		//check(!ActiveRequestsMap.Contains(RequestId));
 		TSharedRef<FRequestState> RequestState = MakeShared<FRequestState>();
 		RequestState->Id = RequestId;
 		RequestState->WallTimeStartCycle = EventData.GetValue("Cycle").As<uint64>();
@@ -225,9 +225,11 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	case RouteId_EndRequest:
 	{
 		uint64 RequestId = EventData.GetValue("RequestId").As<uint64>();
-		check(ActiveRequestsMap .Contains(RequestId));
-		TSharedRef<FRequestState> RequestState = ActiveRequestsMap[RequestId];
-		RequestState->WallTimeEndCycle = EventData.GetValue("Cycle").As<uint64>();
+		TSharedRef<FRequestState>* RequestState = ActiveRequestsMap.Find(RequestId);
+		if (RequestState)
+		{
+			(*RequestState)->WallTimeEndCycle = EventData.GetValue("Cycle").As<uint64>();
+		}
 		break;
 	}
 	case RouteId_BeginLoadMap:
@@ -247,16 +249,17 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	{
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
 		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
-		TSharedRef<FLoadMapState> LoadMapState = ThreadState->ActiveLoadMap.ToSharedRef();
-		ThreadState->ActiveLoadMap = nullptr;
-		LoadMapState->WallTimeEndCycle = EventData.GetValue("Cycle").As<uint64>();
+		if (ThreadState->ActiveLoadMap)
+		{
+			ThreadState->ActiveLoadMap->WallTimeEndCycle = EventData.GetValue("Cycle").As<uint64>();
+			ThreadState->ActiveLoadMap = nullptr;
+		}
 		break;
 	}
-	
 	case RouteId_NewStreamableHandle:
 	{
 		uint64 Ptr = EventData.GetValue("StreamableHandle").As<uint64>();
-		check(!ActiveStreamableHandlesMap.Contains(Ptr));
+		//check(!ActiveStreamableHandlesMap.Contains(Ptr));
 		TSharedRef<FStreamableHandleState> StreamableHandleState = MakeShared<FStreamableHandleState>();
 		StreamableHandleState->Id = NextStreamableHandleId++;
 		StreamableHandleState->DebugName = FString((const char*)EventData.GetAttachment(), EventData.GetValue("DebugNameSize").As<uint16>());
@@ -275,36 +278,40 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	case RouteId_DestroyStreamableHandle:
 	{
 		uint64 Ptr = EventData.GetValue("StreamableHandle").As<uint64>();
-		check(ActiveStreamableHandlesMap.Contains(Ptr));
 		ActiveStreamableHandlesMap.Remove(Ptr);
 		break;
 	}
 	case RouteId_BeginLoadStreamableHandle:
 	{
 		uint64 Ptr = EventData.GetValue("StreamableHandle").As<uint64>();
-		check(ActiveStreamableHandlesMap.Contains(Ptr));
-		TSharedRef<FStreamableHandleState> StreamableHandleState = ActiveStreamableHandlesMap[Ptr];
-		StreamableHandleState->WallTimeStartCycle = EventData.GetValue("Cycle").As<uint64>();
+		TSharedRef<FStreamableHandleState>* StreamableHandleState = ActiveStreamableHandlesMap.Find(Ptr);
+		if (StreamableHandleState)
+		{
+			(*StreamableHandleState)->WallTimeStartCycle = EventData.GetValue("Cycle").As<uint64>();
+		}
 		break;
 	}
 	case RouteId_EndLoadStreamableHandle:
 	{
 		uint64 Ptr = EventData.GetValue("StreamableHandle").As<uint64>();
-		check(ActiveStreamableHandlesMap.Contains(Ptr));
-		TSharedRef<FStreamableHandleState> StreamableHandleState = ActiveStreamableHandlesMap[Ptr];
-		StreamableHandleState->WallTimeEndCycle = EventData.GetValue("Cycle").As<uint64>();
+		TSharedRef<FStreamableHandleState>* StreamableHandleState = ActiveStreamableHandlesMap.Find(Ptr);
+		if (StreamableHandleState)
+		{
+			(*StreamableHandleState)->WallTimeEndCycle = EventData.GetValue("Cycle").As<uint64>();
+		}
 		break;
 	}
 	case RouteId_BeginWaitForStreamableHandle:
 	{
 		uint64 Ptr = EventData.GetValue("StreamableHandle").As<uint64>();
-		check(ActiveStreamableHandlesMap.Contains(Ptr));
-		TSharedRef<FStreamableHandleState> StreamableHandleState = ActiveStreamableHandlesMap[Ptr];
-		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
-		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
-		check(!ThreadState->WaitForStreamableHandleHandle);
-		ThreadState->WaitForStreamableHandleHandle = StreamableHandleState;
-		ThreadState->WaitForStreamableHandleStartCycle = EventData.GetValue("Cycle").As<uint64>();
+		TSharedRef<FStreamableHandleState>* StreamableHandleState = ActiveStreamableHandlesMap.Find(Ptr);
+		if (StreamableHandleState)
+		{
+			uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
+			TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
+			ThreadState->WaitForStreamableHandleHandle = *StreamableHandleState;
+			ThreadState->WaitForStreamableHandleStartCycle = EventData.GetValue("Cycle").As<uint64>();
+		}
 		/*uint64 EventTypeId = StreamableHandlesTimelineEventTypeMap[ThreadState->WaitForStreamableHandleHandle->Id];
 
 		{
@@ -318,7 +325,6 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	{
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
 		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
-		check(ThreadState->WaitForStreamableHandleHandle);
 		ThreadState->WaitForStreamableHandleHandle = nullptr;
 
 		/*{
@@ -350,35 +356,40 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	case RouteId_StreamableHandleRequestAssociation:
 	{
 		uint64 StreamableHandlePtr = EventData.GetValue("StreamableHandle").As<uint64>();
-		check(ActiveStreamableHandlesMap.Contains(StreamableHandlePtr));
+		TSharedRef<FStreamableHandleState>* StreamableHandleState = ActiveStreamableHandlesMap.Find(StreamableHandlePtr);
 		uint64 RequestId = EventData.GetValue("RequestId").As<uint64>();
-		check(ActiveRequestsMap.Contains(RequestId));
-		ActiveStreamableHandlesMap[StreamableHandlePtr]->Requests.Add(ActiveRequestsMap[RequestId]);
+		TSharedRef<FRequestState>* RequestState = ActiveRequestsMap.Find(RequestId);
+		if (StreamableHandleState && RequestState)
+		{
+			(*StreamableHandleState)->Requests.Add(*RequestState);
+		}
 		break;
 	}
 	case RouteId_AsyncPackageRequestAssociation:
 	{
 		uint64 AsyncPackagePtr = EventData.GetValue("AsyncPackage").As<uint64>();
-		//check(ActiveAsyncPackagesMap.Contains(AsyncPackagePtr));
-		TSharedRef<FAsyncPackageState> AsyncPackageState = ActiveAsyncPackagesMap[AsyncPackagePtr];
+		TSharedRef<FAsyncPackageState>* AsyncPackageState = ActiveAsyncPackagesMap.Find(AsyncPackagePtr);
 		uint64 RequestId = EventData.GetValue("RequestId").As<uint64>();
-		check(ActiveRequestsMap.Contains(RequestId));
-		TSharedRef<FRequestState> RequestState = ActiveRequestsMap[RequestId];
-		RequestState->AsyncPackages.Add(AsyncPackageState);
-		AsyncPackageState->Requests.Add(RequestState);
+		TSharedRef<FRequestState>* RequestState = ActiveRequestsMap.Find(RequestId);
+		if (AsyncPackageState && RequestState)
+		{
+			(*RequestState)->AsyncPackages.Add(*AsyncPackageState);
+			(*AsyncPackageState)->Requests.Add(*RequestState);
+		}
 		break;
 	}
 	case RouteId_AsyncPackageLinkerAssociation:
 	{
 		uint64 LinkerPtr = EventData.GetValue("Linker").As<uint64>();
-		//check(ActiveLinkersMap.Contains(LinkerPtr));
-		TSharedRef<FLinkerState> LinkerState = ActiveLinkersMap[LinkerPtr];
+		TSharedRef<FLinkerState>* LinkerState = ActiveLinkersMap.Find(LinkerPtr);
 		uint64 AsyncPackagePtr = EventData.GetValue("AsyncPackage").As<uint64>();
-		//check(ActiveAsyncPackagesMap.Contains(AsyncPackagePtr));
-		TSharedRef<FAsyncPackageState> AsyncPackageState = ActiveAsyncPackagesMap[AsyncPackagePtr];
-		AsyncPackageState->LinkerState = LinkerState;
-		LinkerState->AsyncPackageState = AsyncPackageState;
-		LinkerState->PackageInfo = AsyncPackageState->PackageInfo;
+		TSharedRef<FAsyncPackageState>* AsyncPackageState = ActiveAsyncPackagesMap.Find(AsyncPackagePtr);
+		if (LinkerState && AsyncPackageState)
+		{
+			(*AsyncPackageState)->LinkerState = *LinkerState;
+			(*LinkerState)->AsyncPackageState = *AsyncPackageState;
+			(*LinkerState)->PackageInfo = (*AsyncPackageState)->PackageInfo;
+		}
 		break;
 	}
 	case RouteId_LinkerArchiveAssociation:
@@ -392,12 +403,11 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		Trace::FAnalysisSessionEditScope _(Session);
 
 		uint64 AsyncPackagePtr = EventData.GetValue("AsyncPackage").As<uint64>();
-		//check(ActiveAsyncPackagesMap.Contains(AsyncPackagePtr));
-		TSharedRef<FAsyncPackageState> AsyncPackageState = ActiveAsyncPackagesMap[AsyncPackagePtr];
+		TSharedRef<FAsyncPackageState>* AsyncPackageState = ActiveAsyncPackagesMap.Find(AsyncPackagePtr);
 		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
 		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
 		ELoadTimeProfilerPackageEventType EventType = static_cast<ELoadTimeProfilerPackageEventType>(EventData.GetValue("EventType").As<uint8>());
-		ThreadState->EnterPackageScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue("Cycle").As<uint64>()), AsyncPackageState->PackageInfo, EventType);
+		ThreadState->EnterPackageScope(Context.SessionContext.TimestampFromCycle(EventData.GetValue("Cycle").As<uint64>()), AsyncPackageState ? (*AsyncPackageState)->PackageInfo : nullptr, EventType);
 		break;
 	}
 	case RouteId_EndAsyncPackageScope:
@@ -418,7 +428,7 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		FlushAsyncLoadingStartCycle = EventData.GetValue("Cycle").As<uint64>();
 		if (FlushAsyncLoadingRequestId != INDEX_NONE)
 		{
-			check(ActiveRequestsMap.Contains(FlushAsyncLoadingRequestId));
+			//check(ActiveRequestsMap.Contains(FlushAsyncLoadingRequestId));
 			/*uint64 EventTypeId = RequestTimelineEventTypeMap[FlushAsyncLoadingRequestId];
 			BlockingRequestsTimeline->AppendBeginEvent(Context.SessionContext.TimestampFromCycle(FlushAsyncLoadingStartCycle), EventTypeId);*/
 		}

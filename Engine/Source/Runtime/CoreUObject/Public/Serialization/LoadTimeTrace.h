@@ -3,9 +3,10 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Trace/Trace.h"
 
-#if !IS_PROGRAM && !UE_BUILD_SHIPPING
-#define LOADTIMEPROFILERTRACE_ENABLED 0
+#if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
+#define LOADTIMEPROFILERTRACE_ENABLED 1
 #else
 #define LOADTIMEPROFILERTRACE_ENABLED 0
 #endif
@@ -23,6 +24,7 @@ enum ELoadTimeProfilerPackageEventType
 	LoadTimeProfilerPackageEventType_StartPostLoad,
 	LoadTimeProfilerPackageEventType_Tick,
 	LoadTimeProfilerPackageEventType_Finish,
+	LoadTimeProfilerPackageEventType_DeferredPostLoad,
 	LoadTimeProfilerPackageEventType_None,
 };
 

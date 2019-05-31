@@ -92,6 +92,9 @@ ITable<FLoadTimeProfilerAggregatedStats>* FLoadTimeProfilerProvider::CreateEvent
 		case LoadTimeProfilerPackageEventType_Tick:
 			Row.Name = TEXT("Tick");
 			break;
+		case LoadTimeProfilerPackageEventType_DeferredPostLoad:
+			Row.Name = TEXT("DeferredPostLoad");
+			break;
 		case LoadTimeProfilerPackageEventType_Finish:
 			Row.Name = TEXT("Finish");
 			break;

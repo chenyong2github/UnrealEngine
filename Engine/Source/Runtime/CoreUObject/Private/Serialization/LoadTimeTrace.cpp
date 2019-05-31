@@ -12,7 +12,7 @@
 #include "UObject/Object.h"
 #include "UObject/UObjectGlobals.h"
 
-UE_TRACE_EVENT_BEGIN(LoadTime, StartAsyncLoading)
+UE_TRACE_EVENT_BEGIN(LoadTime, StartAsyncLoading, Always)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
@@ -201,9 +201,53 @@ UE_TRACE_EVENT_BEGIN(LoadTime, QueueEvent)
 	UE_TRACE_EVENT_FIELD(uint8, EventType)
 UE_TRACE_EVENT_END();
 
-UE_TRACE_EVENT_BEGIN(LoadTime, ClassInfo)
+UE_TRACE_EVENT_BEGIN(LoadTime, ClassInfo, Always)
 	UE_TRACE_EVENT_FIELD(const UClass*, Class)
 UE_TRACE_EVENT_END()
+
+void FLoadTimeProfilerTracePrivate::Init(bool bStartEnabled)
+{
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, StartAsyncLoading);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, SuspendAsyncLoading);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, ResumeAsyncLoading);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, NewPackage);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, NewLinker);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, DestroyLinker);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, PackageSummary);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginLinkerScope);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndLinkerScope);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginCreateExport);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndCreateExport);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginObjectScope);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndObjectScope);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, LinkerArchiveAssociation);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginRequest);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndRequest);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginLoadMap);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndLoadMap);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, NewStreamableHandle);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, DestroyStreamableHandle);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginLoadStreamableHandle);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndLoadStreamableHandle);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginWaitForStreamableHandle);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndWaitForStreamableHandle);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, NewAsyncPackage);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, DestroyAsyncPackage);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, StreamableHandleRequestAssociation);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, AsyncPackageRequestAssociation);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, LoadImportDependency);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, AsyncPackageLinkerAssociation);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginAsyncPackageScope);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndAsyncPackageScope);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, BeginFlushAsyncLoading);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, EndFlushAsyncLoading);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, QueueEvent);
+	UE_TRACE_EVENT_IS_ENABLED(LoadTime, ClassInfo);
+	if (bStartEnabled)
+	{
+		Trace::ToggleEvent(TEXT("LoadTime"), true);
+	}
+}
 
 void FLoadTimeProfilerTracePrivate::OutputStartAsyncLoading()
 {

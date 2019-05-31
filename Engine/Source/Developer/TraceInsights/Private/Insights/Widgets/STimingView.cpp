@@ -1377,6 +1377,7 @@ const TCHAR* GetName(ELoadTimeProfilerPackageEventType Type)
 		case LoadTimeProfilerPackageEventType_StartPostLoad:			return TEXT("StartPostLoad");
 		case LoadTimeProfilerPackageEventType_Tick:						return TEXT("Tick");
 		case LoadTimeProfilerPackageEventType_Finish:					return TEXT("Finish");
+		case LoadTimeProfilerPackageEventType_DeferredPostLoad:			return TEXT("DeferredPostLoad");
 		case LoadTimeProfilerPackageEventType_None:						return TEXT("None");
 		default:														return TEXT("");
 	}
