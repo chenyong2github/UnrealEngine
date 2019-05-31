@@ -2,6 +2,7 @@
 
 #include "NiagaraMessageLogViewModel.h"
 #include "NiagaraScriptSourceBase.h"
+#include "Modules/ModuleManager.h"
 #include "MessageLog/Public/MessageLogModule.h"
 
 FNiagaraMessageLogViewModel::FNiagaraMessageLogViewModel(const FName& InMessageLogName, const FGuid& InMessageLogGuidKey, TSharedPtr<class SWidget>& OutMessageLogWidget)
