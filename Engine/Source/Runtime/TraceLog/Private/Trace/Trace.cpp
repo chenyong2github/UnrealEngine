@@ -61,4 +61,10 @@ void Flush()
 
 } // namespace Trace
 
+#else
+
+#if PLATFORM_MAC
+void Dummy() {}
+#endif // PLATFORM_MAC
+
 #endif // UE_TRACE_ENABLED
