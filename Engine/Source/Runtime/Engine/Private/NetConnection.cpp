@@ -116,6 +116,7 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 
 ,	QueuedBits			( 0 )
 ,	TickCount			( 0 )
+,	LastProcessedFrame	( 0 )
 ,	ConnectTime			( 0.0 )
 
 ,	AllowMerge			( false )
@@ -841,9 +842,6 @@ void UNetConnection::AssertValid()
 	// Make sure this connection is in a reasonable state.
 	check(State==USOCK_Closed || State==USOCK_Pending || State==USOCK_Open);
 
-}
-void UNetConnection::SendPackageMap()
-{
 }
 
 bool UNetConnection::ClientHasInitializedLevelFor(const AActor* TestActor) const

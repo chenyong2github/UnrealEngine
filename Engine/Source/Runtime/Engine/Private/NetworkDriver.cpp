@@ -4023,12 +4023,7 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 			}
 
 			// if the actor is now relevant or was recently relevant
-			const bool bIsRecentlyRelevant = bIsRelevant || ( Channel && Time - Channel->RelevantTime < RelevantTimeout ) || ActorInfo->bForceRelevantNextUpdate;
-
-			if (ActorInfo->bForceRelevantNextUpdate)
-			{
-				ProcessedForceRelevantActors.AddUnique(ActorInfo);
-			}
+			const bool bIsRecentlyRelevant = bIsRelevant || ( Channel && Time - Channel->RelevantTime < RelevantTimeout ) || (ActorInfo->ForceRelevantFrame >= Connection->LastProcessedFrame);
 
 			if ( bIsRecentlyRelevant )
 			{
@@ -4467,21 +4462,23 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 						Channel->RelevantTime = Time + 0.5f * FMath::SRand();
 					}
 				}
+
+				// If the actor was forced to relevant and didn't get processed, try again on the next update;
+				if (PriorityActors[k]->ActorInfo->ForceRelevantFrame >= Connection->LastProcessedFrame)
+				{
+					PriorityActors[k]->ActorInfo->ForceRelevantFrame = ReplicationFrame+1;
+				}
 			}
 			RelevantActorMark.Pop();
 
 			ConnectionViewers.Reset();
 
+			Connection->LastProcessedFrame = ReplicationFrame;
+
 			const bool bWasSaturated = GNumSaturatedConnections > LocalNumSaturated;
 			Connection->TrackReplicationForAnalytics(bWasSaturated);
 		}
 	}
-
-	for (FNetworkObjectInfo* ActorInfo : ProcessedForceRelevantActors)
-	{
-		ActorInfo->bForceRelevantNextUpdate = false;
-	}
-	ProcessedForceRelevantActors.Reset();
 
 	// shuffle the list of connections if not all connections were ticked
 	if (NumClientsToTick < ClientConnections.Num())

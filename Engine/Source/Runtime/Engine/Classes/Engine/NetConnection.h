@@ -368,6 +368,7 @@ public:
 	double			LastTickTime;			// Last time of polling.
 	int32			QueuedBits;			// Bits assumed to be queued up.
 	int32			TickCount;				// Count of ticks.
+	uint32			LastProcessedFrame;   // The last frame where we gathered and processed actors for this connection
 	/** The last time an ack was received */
 	float			LastRecvAckTime;
 	/** Time when connection request was first initiated */
@@ -932,7 +933,8 @@ public:
 	void PurgeAcks();
 
 	/** Send package map to the remote. */
-	void SendPackageMap();
+	UE_DEPRECATED(4.23, "This method will be removed.")
+	void SendPackageMap() {}
 
 	/** 
 	 * Appends the passed in data to the SendBuffer to be sent when FlushNet is called

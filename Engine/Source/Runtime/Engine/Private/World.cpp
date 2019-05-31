@@ -4572,7 +4572,6 @@ void UWorld::WelcomePlayer(UNetConnection* Connection)
 #endif
 
 	check(CurrentLevel);
-	Connection->SendPackageMap();
 
 	FString LevelName;
 
