@@ -427,6 +427,9 @@ static IOSAppDelegate* CachedDelegate = nil;
 {
 	[[NSNotificationCenter defaultCenter] addObserverForName:AVAudioSessionInterruptionNotification object:nil queue:nil usingBlock:^(NSNotification *notification)
 	{
+		// the audio context should resume immediately after interrupt, if suspended
+		FAppEntry::ResetAudioContextResumeTime();
+
 		switch ([[[notification userInfo] objectForKey:AVAudioSessionInterruptionTypeKey] unsignedIntegerValue])
 		{
 			case AVAudioSessionInterruptionTypeBegan:
@@ -435,6 +438,13 @@ static IOSAppDelegate* CachedDelegate = nil;
 				break;
 
 			case AVAudioSessionInterruptionTypeEnded:
+
+				NSNumber * interruptionOption = [[notification userInfo] objectForKey:AVAudioSessionInterruptionOptionKey];
+				if (interruptionOption != nil && interruptionOption.unsignedIntegerValue > 0)
+				{
+					FAppEntry::RestartAudio();
+				}
+
 				FAppEntry::Resume(true);
 				[self ToggleAudioSession:true force:true];
 				break;
@@ -1394,6 +1404,9 @@ FCriticalSection RenderSuspend;
 	FIOSAsyncTask* AsyncTask = [[FIOSAsyncTask alloc] init];
 	AsyncTask.GameThreadCallback = ^ bool(void)
 	{
+		// the audio context should resume immediately after interrupt, if suspended
+		FAppEntry::ResetAudioContextResumeTime();
+
 		FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Broadcast();
 		return true;
 	};
@@ -1411,6 +1424,9 @@ FCriticalSection RenderSuspend;
 	FIOSAsyncTask* AsyncTask = [[FIOSAsyncTask alloc] init];
 	AsyncTask.GameThreadCallback = ^ bool(void)
 	{
+		// the audio context should resume immediately after interrupt, if suspended
+		FAppEntry::ResetAudioContextResumeTime();
+
 		FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Broadcast();
 		return true;
 	};

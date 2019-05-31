@@ -70,9 +70,13 @@ namespace FAppEntry
 	void Init();
 	void Tick();
     void SuspendTick();
+	void ResumeAudioContext();
+	void ResetAudioContextResumeTime();
 	void Shutdown();
     void Suspend(bool bIsInterrupt = false);
     void Resume(bool bIsInterrupt = false);
+	void RestartAudio();
+
 	bool IsStartupMoviePlaying();
 
 	extern bool	gAppLaunchedWithLocalNotification;
