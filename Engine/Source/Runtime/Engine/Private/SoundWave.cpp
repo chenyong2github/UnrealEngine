@@ -31,10 +31,10 @@
 
 #include "Misc/CommandLine.h"
 
-static int32 BypassVirtualizeWhenSilentCVar = 0;
-FAutoConsoleVariableRef CVarBypassVirtualizeWhenSilent(
-	TEXT("au.BypassVirtualizeWhenSilent"),
-	BypassVirtualizeWhenSilentCVar,
+static int32 BypassPlayWhenSilentCVar = 0;
+FAutoConsoleVariableRef CVarBypassPlayWhenSilent(
+	TEXT("au.BypassPlayWhenSilent"),
+	BypassPlayWhenSilentCVar,
 	TEXT("When set to 1, ignores the Play When Silent flag for non-procedural sources.\n")
 	TEXT("0: Honor the Play When Silent flag, 1: stop all silent non-procedural sources."),
 	ECVF_Default);
@@ -300,7 +300,17 @@ void USoundWave::Serialize( FArchive& Ar )
 
 	if (Ar.IsSaving() || Ar.IsCooking())
 	{
-		bHasVirtualizeWhenSilent = bVirtualizeWhenSilent;
+		if (bHasVirtualizeWhenSilent_DEPRECATED)
+		{
+			bHasVirtualizeWhenSilent_DEPRECATED = 0;
+			bHasPlayWhenSilent = 1;
+		}
+
+		if (bVirtualizeWhenSilent_DEPRECATED)
+		{
+			bVirtualizeWhenSilent_DEPRECATED = 0;
+			bPlayWhenSilent = 1;
+		}
 
 #if WITH_ENGINE
 		// If there is an AutoStreamingThreshold set for the platform we're cooking to,
@@ -445,9 +455,9 @@ float USoundWave::GetSubtitlePriority() const
 	return SubtitlePriority;
 };
 
-bool USoundWave::IsAllowedVirtual() const
+bool USoundWave::SupportsSubtitles() const
 {
-	return bVirtualizeWhenSilent || (Subtitles.Num() > 0);
+	return bPlayWhenSilent || (Subtitles.Num() > 0);
 }
 
 void USoundWave::PostInitProperties()
@@ -693,7 +703,7 @@ void USoundWave::PostLoad()
 		return;
 	}
 
-	bHasVirtualizeWhenSilent = bVirtualizeWhenSilent;
+	bHasPlayWhenSilent = bPlayWhenSilent;
 
 #if WITH_EDITORONLY_DATA
 	// Log a warning after loading if the source has effect chains but has channels greater than 2.
@@ -1343,10 +1353,9 @@ void USoundWave::FreeResources()
 	DecompressionType = DTYPE_Setup;
 	bDecompressedFromOgg = false;
 
-	USoundWave* SoundWave = this;
-	if (SoundWave->ResourceState == ESoundWaveResourceState::Freeing)
+	if (ResourceState == ESoundWaveResourceState::Freeing)
 	{
-		SoundWave->ResourceState = ESoundWaveResourceState::Freed;
+		ResourceState = ESoundWaveResourceState::Freed;
 	}
 }
 
@@ -1449,19 +1458,19 @@ void USoundWave::FinishDestroy()
 	IStreamingManager::Get().GetAudioStreamingManager().RemoveStreamingSoundWave(this);
 }
 
-void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances )
+void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances)
 {
 	FWaveInstance* WaveInstance = ActiveSound.FindWaveInstance(NodeWaveInstanceHash);
 
 	// Create a new WaveInstance if this SoundWave doesn't already have one associated with it.
-	if( WaveInstance == NULL )
+	if (WaveInstance == NULL)
 	{
-		if( !ActiveSound.bRadioFilterSelected )
+		if (!ActiveSound.bRadioFilterSelected)
 		{
 			ActiveSound.ApplyRadioFilter(ParseParams);
 		}
 
-		WaveInstance = HandleStart( ActiveSound, NodeWaveInstanceHash);
+		WaveInstance = HandleStart(ActiveSound, NodeWaveInstanceHash);
 	}
 
 	// Looping sounds are never actually finished
@@ -1478,14 +1487,13 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 	}
 
 	// Check for finished paths.
-	if( !WaveInstance->bIsFinished )
+	if (!WaveInstance->bIsFinished)
 	{
 		// Propagate properties and add WaveInstance to outgoing array of FWaveInstances.
 		WaveInstance->SetVolume(ParseParams.Volume * Volume);
 		WaveInstance->SetVolumeMultiplier(ParseParams.VolumeMultiplier);
 		WaveInstance->SetDistanceAttenuation(ParseParams.DistanceAttenuation);
-		WaveInstance->SetVolumeApp(ParseParams.VolumeApp);
-		WaveInstance->Pitch = ParseParams.Pitch * Pitch;
+		WaveInstance->SetPitch(ParseParams.Pitch * Pitch);
 		WaveInstance->bEnableLowPassFilter = ParseParams.bEnableLowPassFilter;
 		WaveInstance->bIsOccluded = ParseParams.bIsOccluded;
 		WaveInstance->LowPassFilterFrequency = ParseParams.LowPassFilterFrequency;
@@ -1518,7 +1526,7 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 			// Use values from "parsed/ propagated" sound class properties
 			float VolumeMultiplier = WaveInstance->GetVolumeMultiplier();
 			WaveInstance->SetVolumeMultiplier(VolumeMultiplier* SoundClassProperties->Volume);
-			WaveInstance->Pitch *= SoundClassProperties->Pitch;
+			WaveInstance->SetPitch(WaveInstance->Pitch * SoundClassProperties->Pitch);
 			//TODO: Add in HighFrequencyGainMultiplier property to sound classes
 
 			WaveInstance->VoiceCenterChannelVolume = SoundClassProperties->VoiceCenterChannelVolume;
@@ -1626,18 +1634,21 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 		WaveInstance->SpatializationPluginSettings = ParseParams.SpatializationPluginSettings;
 		WaveInstance->OcclusionPluginSettings = ParseParams.OcclusionPluginSettings;
 		WaveInstance->ReverbPluginSettings = ParseParams.ReverbPluginSettings;
+		WaveInstance->ModulationPluginSettings = ParseParams.ModulationPluginSettings;
 
 		WaveInstance->bIsAmbisonics = bIsAmbisonics;
 
 		bool bAddedWaveInstance = false;
 
-		// Recompute the virtualizability here even though we did it up-front in the active sound parse.
-		// This is because an active sound can generate multiple sound waves, not all of them are necessarily virtualizable.
+		// Determine if can play when silent here even though we did it up-front in the active sound parse.
+		// This is because an active sound can generate multiple sound waves, not all of them are necessarily permitted
+		// to play when silent.
 		bool bHasSubtitles = ActiveSound.bHandleSubtitles && (ActiveSound.bHasExternalSubtitles || (Subtitles.Num() > 0));
 
-		// When the BypassVirtualizeWhenSilent cvar is enabled, we should only honor bVirtualizeWhenSilent for procedural sounds:
-		const bool bShouldVirtualize = bVirtualizeWhenSilent && (!BypassVirtualizeWhenSilentCVar || bProcedural);
-		if (WaveInstance->GetVolumeWithDistanceAttenuation() > KINDA_SMALL_NUMBER || ((bShouldVirtualize || bHasSubtitles) && AudioDevice->VirtualSoundsEnabled()))
+		// When the BypassPlayWhenSilent cvar is enabled, we should only honor bPlayWhenSilent for procedural sounds:
+		const bool bCanPlayWhenSilent = bPlayWhenSilent && (!BypassPlayWhenSilentCVar || bProcedural);
+		const float WaveInstanceVolume = WaveInstance->GetVolumeWithDistanceAttenuation() * WaveInstance->GetDynamicVolume();
+		if (WaveInstanceVolume > KINDA_SMALL_NUMBER || ((bCanPlayWhenSilent || bHasSubtitles) && AudioDevice->PlayWhenSilentEnabled()))
 		{
 			bAddedWaveInstance = true;
 			WaveInstances.Add(WaveInstance);
@@ -1650,7 +1661,7 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 		}
 
 		// Sanity check
-		if( NumChannels > 2 && WaveInstance->GetUseSpatialization() && !WaveInstance->bReportedSpatializationWarning)
+		if(NumChannels > 2 && WaveInstance->GetUseSpatialization() && !WaveInstance->bReportedSpatializationWarning)
 		{
 			static TSet<USoundWave*> ReportedSounds;
 			if (!ReportedSounds.Contains(this))
@@ -1670,17 +1681,17 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 						if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
 						{
 							AActor* SoundOwner = AudioComponent->GetOwner();
-							UE_LOG(LogAudio, Warning, TEXT( "%s Actor: %s AudioComponent: %s" ), *SoundWarningInfo, (SoundOwner ? *SoundOwner->GetName() : TEXT("None")), *AudioComponent->GetName() );
+							UE_LOG(LogAudio, Warning, TEXT("%s Actor: %s AudioComponent: %s"), *SoundWarningInfo, (SoundOwner ? *SoundOwner->GetName() : TEXT("None")), *AudioComponent->GetName());
 						}
 						else
 						{
-							UE_LOG(LogAudio, Warning, TEXT("%s"), *SoundWarningInfo );
+							UE_LOG(LogAudio, Warning, TEXT("%s"), *SoundWarningInfo);
 						}
 					});
 				}
 				else
 				{
-					UE_LOG(LogAudio, Warning, TEXT("%s"), *SoundWarningInfo );
+					UE_LOG(LogAudio, Warning, TEXT("%s"), *SoundWarningInfo);
 				}
 #endif
 

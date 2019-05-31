@@ -5,6 +5,14 @@
 #include "HAL/RunnableThread.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+
+
+// Defines the "Audio" category in the CSV profiler.
+// This should only be defined here. Modules who wish to use this category should contain the line
+// 		CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXER_API, Audio);
+// 		
+CSV_DEFINE_CATEGORY_MODULE(AUDIOMIXER_API, Audio, true);
 
 // Command to enable logging to display accurate audio render times
 static int32 LogRenderTimesCVar = 0;
@@ -47,18 +55,6 @@ FAutoConsoleVariableRef CVarOverrunTimeout(
 	OverrunTimeoutCVar,
 	TEXT("Amount of time to wait for the render thread to time out before swapping to the null device. \n"),
 	ECVF_Default);
-
-DEFINE_STAT(STAT_AudioMixerRenderAudio);
-DEFINE_STAT(STAT_AudioMixerSourceManagerUpdate);
-DEFINE_STAT(STAT_AudioMixerSourceBuffers);
-DEFINE_STAT(STAT_AudioMixerSourceEffectBuffers);
-DEFINE_STAT(STAT_AudioMixerSourceOutputBuffers);
-DEFINE_STAT(STAT_AudioMixerSubmixes);
-DEFINE_STAT(STAT_AudioMixerSubmixChildren);
-DEFINE_STAT(STAT_AudioMixerSubmixSource);
-DEFINE_STAT(STAT_AudioMixerSubmixEffectProcessing);
-DEFINE_STAT(STAT_AudioMixerMasterReverb);
-DEFINE_STAT(STAT_AudioMixerMasterEQ);
 
 namespace Audio
 {
@@ -143,7 +139,7 @@ namespace Audio
 
 	void FOutputBuffer::MixNextBuffer()
  	{
-		SCOPE_CYCLE_COUNTER(STAT_AudioMixerRenderAudio);
+		CSV_SCOPED_TIMING_STAT(Audio, RenderAudio);
 
 		// Zero the buffer
 		FPlatformMemory::Memzero(Buffer.GetData(), Buffer.Num() * sizeof(float));

@@ -328,9 +328,12 @@ class ENGINE_API USoundWave : public USoundBase
 	UPROPERTY(EditAnywhere, Category=Subtitles )
 	uint8 bSingleLine:1;
 
+	UPROPERTY()
+	uint8 bVirtualizeWhenSilent_DEPRECATED:1;
+
 	/** Allows sound to continue playing when silent. This prevents issues with sounds restarting when coming back in range, etc. */
 	UPROPERTY(EditAnywhere, Category=Sound, meta = (DisplayName = "Play When Silent"))
-	uint8 bVirtualizeWhenSilent:1;
+	uint8 bPlayWhenSilent:1;
 
 	/** Whether or not this source is ambisonics file format. */
 	UPROPERTY(EditAnywhere, Category = Sound)
@@ -593,7 +596,7 @@ public:
 	virtual void Parse( class FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances ) override;
 	virtual float GetDuration() override;
 	virtual float GetSubtitlePriority() const override;
-	virtual bool IsAllowedVirtual() const override;
+	virtual bool SupportsSubtitles() const override;
 	virtual bool GetSoundWavesWithCookedAnalysisData(TArray<USoundWave*>& OutSoundWaves) override;
 	virtual bool HasCookedFFTData() const override;
 	virtual bool HasCookedAmplitudeEnvelopeData() const override;

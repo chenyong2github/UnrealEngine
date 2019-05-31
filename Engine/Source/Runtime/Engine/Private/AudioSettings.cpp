@@ -54,7 +54,7 @@ UAudioSettings::UAudioSettings(const FObjectInitializer& ObjectInitializer)
 	SectionName = TEXT("Audio");
 	AddDefaultSettings();
 
-	bAllowVirtualizedSounds = true;
+	bAllowPlayWhenSilent = true;
 	bIsAudioMixerEnabled = false;
 
 	GlobalMinPitchScale = 0.4F;
@@ -66,7 +66,7 @@ void UAudioSettings::AddDefaultSettings()
 	FAudioQualitySettings DefaultSettings;
 	DefaultSettings.DisplayName = LOCTEXT("DefaultSettingsName", "Default");
 	QualityLevels.Add(DefaultSettings);
-	bAllowVirtualizedSounds = true;
+	bAllowPlayWhenSilent = true;
 	DefaultReverbSendLevel = 0.0f;
 	bEnableLegacyReverb = false;
 	VoiPSampleRate = EVoiceSampleRate::Low16000Hz;
@@ -102,7 +102,7 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 						bool bFoundDuplicate;
 						int32 NewQualityLevelIndex = 0;
 						FText NewLevelName;
-						do 
+						do
 						{
 							bFoundDuplicate = false;
 							NewLevelName = FText::Format(LOCTEXT("NewQualityLevelName","New Level{0}"), (NewQualityLevelIndex > 0 ? FText::FromString(FString::Printf(TEXT(" %d"),NewQualityLevelIndex)) : FText::GetEmpty()));
@@ -139,6 +139,20 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 }
 #endif
 
+void UAudioSettings::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	if (Ar.IsLoading() || Ar.IsSaving())
+	{
+		if (bAllowVirtualizedSounds_DEPRECATED)
+		{
+			bAllowVirtualizedSounds_DEPRECATED = 0;
+			bAllowPlayWhenSilent = 1;
+		}
+	}
+}
+
 const FAudioQualitySettings& UAudioSettings::GetQualityLevelSettings(int32 QualityLevel) const
 {
 	check(QualityLevels.Num() > 0);
@@ -158,7 +172,7 @@ const bool UAudioSettings::IsAudioMixerEnabled() const
 int32 UAudioSettings::GetHighestMaxChannels() const
 {
 	check(QualityLevels.Num() > 0);
-	
+
 	int32 HighestMaxChannels = -1;
 	for (const FAudioQualitySettings& Settings : QualityLevels)
 	{
