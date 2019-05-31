@@ -454,6 +454,7 @@ public:
 	//~ Begin UObject interface
 	void Serialize(FArchive& Ar)override;
 	virtual void PostLoad() override;
+	virtual bool IsDestructionThreadSafe() const override { return false; }
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
