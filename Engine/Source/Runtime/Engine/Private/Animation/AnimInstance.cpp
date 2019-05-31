@@ -2396,7 +2396,6 @@ void UAnimInstance::ClearMontageInstanceReferences(FAnimMontageInstance& InMonta
 
 FAnimNode_SubInput* UAnimInstance::GetSubInputNode(FName InSubInputName, FName InGraph)
 {
-	static const FName NAME_AnimGraph("AnimGraph");
 	const FAnimInstanceProxy& Proxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
 	if(InSubInputName == NAME_None && InGraph == NAME_None)
 	{
