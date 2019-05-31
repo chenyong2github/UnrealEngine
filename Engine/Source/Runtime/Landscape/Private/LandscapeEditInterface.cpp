@@ -5517,8 +5517,7 @@ const ALandscape* FLandscapeEditDataInterface::GetTargetLandscape() const
 
 bool FLandscapeEditDataInterface::CanHaveLandscapeLayersContent() const
 {
-	const ALandscape* Landscape = GetTargetLandscape();
-	return Landscape ? Landscape->CanHaveLayersContent() : false;
+	return LandscapeInfo ? LandscapeInfo->CanHaveLayersContent() : false;
 }
 
 bool FLandscapeEditDataInterface::HasLandscapeLayersContent() const

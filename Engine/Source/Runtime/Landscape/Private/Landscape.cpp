@@ -1091,6 +1091,7 @@ ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 	WeightmapScratchPackLayerTextureResource = nullptr;
 	bLandscapeLayersAreInitialized = false;
 	LandscapeEdMode = nullptr;	
+	bGrassUpdateEnabled = true;
 #endif // WITH_EDITORONLY_DATA
 }
 
