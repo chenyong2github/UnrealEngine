@@ -42,6 +42,7 @@ public:
 	virtual void CacheBones() override;
 	virtual void Initialize(UAnimInstance* InAnimInstance) override;
 	virtual void Update(float DeltaSeconds) override;
+	virtual FAnimNode_Base* GetCustomRootNode() override;
 
 	// FAnimSequencerInstanceProxy interface
 	virtual void ResetNodes() override;
