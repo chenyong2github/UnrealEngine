@@ -568,13 +568,24 @@ public:
 
 	/**
 	 * @param SegmentIndex index of first vertex of the edge
-	 * @param SegmentParam parameter in range [0,1] along segment
+	 * @param SegmentParam parameter in range [-Extent,Extent] along segment
 	 * @return point on the segment at the given parameter value
 	 */
-	FVector2<T> PointAt(int SegmentIndex, T SegmentParam) const
+	FVector2<T> GetSegmentPoint(int SegmentIndex, T SegmentParam) const
 	{
 		TSegment2<T> seg(Vertices[SegmentIndex], Vertices[(SegmentIndex + 1) % Vertices.Num()]);
 		return seg.PointAt(SegmentParam);
+	}
+
+	/**
+	 * @param SegmentIndex index of first vertex of the edge
+	 * @param SegmentParam parameter in range [0,1] along segment
+	 * @return point on the segment at the given parameter value
+	 */
+	FVector2<T> GetSegmentPointUnitParam(int SegmentIndex, T SegmentParam) const
+	{
+		TSegment2<T> seg(Vertices[SegmentIndex], Vertices[(SegmentIndex + 1) % Vertices.Num()]);
+		return seg.PointBetween(SegmentParam);
 	}
 
 

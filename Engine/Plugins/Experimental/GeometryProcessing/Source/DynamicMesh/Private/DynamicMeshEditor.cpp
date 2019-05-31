@@ -4,6 +4,7 @@
 #include "DynamicMeshEditor.h"
 #include "DynamicMeshAttributeSet.h"
 #include "Util/BufferUtil.h"
+#include "MeshRegionBoundaryLoops.h"
 
 
 
@@ -148,10 +149,93 @@ void FDynamicMeshEditor::DuplicateTriangles(const TArray<int>& Triangles, FMeshI
 
 		CopyAttributes(TriangleID, NewTriangleID, IndexMaps, ResultOut);
 
-		Mesh->CheckValidity(true);
+		//Mesh->CheckValidity(true);
 	}
 
 }
+
+
+
+
+bool FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, TArray<FLoopPairSet>& LoopSetOut)
+{
+	check(Mesh->HasAttributes() == false);  // not supported yet
+
+	// find the region boundary loops
+	FMeshRegionBoundaryLoops RegionLoops(Mesh, Triangles, false);
+	bool bOK = RegionLoops.Compute();
+	check(bOK);
+	if (!bOK)
+	{
+		return false;
+	}
+	TArray<FEdgeLoop>& Loops = RegionLoops.Loops;
+
+	// need to test Contains() many times
+	TSet<int> TriangleSet;
+	TriangleSet.Reserve(Triangles.Num() * 3);
+	for (int TriID : Triangles)
+	{
+		TriangleSet.Add(TriID);
+	}
+
+	// process each loop island
+	int NumLoops = Loops.Num();
+	LoopSetOut.SetNum(NumLoops);
+	for ( int li = 0; li < NumLoops; ++li)
+	{
+		FEdgeLoop& Loop = Loops[li];
+		FLoopPairSet& LoopPair = LoopSetOut[li];
+		LoopPair.LoopA = Loop;
+
+		// duplicate the vertices
+		int NumVertices = Loop.Vertices.Num();
+		TMap<int, int> LoopVertexMap; LoopVertexMap.Reserve(NumVertices);
+		TArray<int> NewVertexLoop; NewVertexLoop.SetNum(NumVertices);
+		for (int vi = 0; vi < NumVertices; ++vi)
+		{
+			int VertID = Loop.Vertices[vi];
+			int NewVertID = Mesh->AppendVertex(*Mesh, VertID);
+			LoopVertexMap.Add(Loop.Vertices[vi], NewVertID);
+			NewVertexLoop[vi] = NewVertID;
+		}
+
+		// for each border triangle, rewrite vertices
+		int NumEdges = Loop.Edges.Num();
+		for (int ei = 0; ei < NumEdges; ++ei)
+		{
+			int EdgeID = Loop.Edges[ei];
+			FIndex2i EdgeTris = Mesh->GetEdgeT(EdgeID);
+			int EditTID = TriangleSet.Contains(EdgeTris.A) ? EdgeTris.A : EdgeTris.B;
+			if (EditTID == FDynamicMesh3::InvalidID)
+			{
+				continue;		// happens on final edge, and on input boundary edges
+			}
+
+			FIndex3i OldTri = Mesh->GetTriangle(EditTID);
+			FIndex3i NewTri = OldTri;
+			int Modified = 0;
+			for (int j = 0; j < 3; ++j)
+			{
+				const int* NewVertID = LoopVertexMap.Find(OldTri[j]);
+				if (NewVertID != nullptr)
+				{
+					NewTri[j] = *NewVertID;
+					++Modified;
+				}
+			}
+			if (Modified > 0)
+			{
+				Mesh->SetTriangle(EditTID, NewTri, false);
+			}
+		}
+
+		LoopPair.LoopB.InitializeFromVertices(Mesh, NewVertexLoop, false);
+	}
+
+	return true;
+}
+
 
 
 
@@ -461,7 +545,7 @@ int FDynamicMeshEditor::FindOrCreateDuplicateVertex(int VertexID, FMeshIndexMapp
 	int NewVertexID = IndexMaps.GetNewVertex(VertexID);
 	if (NewVertexID == IndexMaps.InvalidID())
 	{
-		NewVertexID = Mesh->AppendVertex(Mesh, VertexID);
+		NewVertexID = Mesh->AppendVertex(*Mesh, VertexID);
 		IndexMaps.SetVertex(VertexID, NewVertexID);
 		ResultOut.NewVertices.Add(NewVertexID);
 	}
@@ -481,4 +565,50 @@ int FDynamicMeshEditor::FindOrCreateDuplicateGroup(int TriangleID, FMeshIndexMap
 		ResultOut.NewGroups.Add(NewGroupID);
 	}
 	return NewGroupID;
+}
+
+
+
+
+void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
+	FMeshIndexMappings& IndexMapsOut, FDynamicMeshEditResult& ResultOut,
+	TFunction<FVector3d(int, const FVector3d&)> PositionTransform,
+	TFunction<FVector3f(int, const FVector3f&)> NormalTransform)
+{
+	IndexMapsOut.Reset();
+
+	FIndexMapi& VertexMap = IndexMapsOut.GetVertexMap();
+	VertexMap.Reserve(AppendMesh->VertexCount());
+	for (int VertID : AppendMesh->VertexIndicesItr())
+	{
+		FVector3d Position = AppendMesh->GetVertex(VertID);
+		if (PositionTransform != nullptr)
+		{
+			Position = PositionTransform(VertID, Position);
+		}
+		int NewVertID = Mesh->AppendVertex(Position);
+		VertexMap.Add(VertID, NewVertID);
+
+		if (AppendMesh->HasVertexNormals() && Mesh->HasVertexNormals())
+		{
+			FVector3f Normal = AppendMesh->GetVertexNormal(VertID);
+			if (NormalTransform != nullptr)
+			{
+				Normal = NormalTransform(VertID, Normal);
+			}
+			Mesh->SetVertexNormal(NewVertID, Normal);
+		}
+
+		if (AppendMesh->HasVertexColors() && Mesh->HasVertexColors()) 
+		{
+			FVector3f Color = AppendMesh->GetVertexColor(VertID);
+			Mesh->SetVertexColor(NewVertID, Color);
+		}
+	}
+
+	for (int TriID : AppendMesh->TriangleIndicesItr())
+	{
+		FIndex3i Tri = AppendMesh->GetTriangle(TriID);
+		int NewTriID = Mesh->AppendTriangle(VertexMap.GetTo(Tri.A), VertexMap.GetTo(Tri.B), VertexMap.GetTo(Tri.C));
+	}
 }

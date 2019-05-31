@@ -128,7 +128,7 @@ bool FGeometrySet3::FindNearestCurveToRay(const FRay3d& Ray, FNearest& ResultOut
 			if (SegRayParam < CurveMinRayParamT)
 			{
 				FVector3d RayPosition = Ray.PointAt(SegRayParam);
-				FVector3d CurvePosition = Polyline.PointAt(si, SegSegParam);
+				FVector3d CurvePosition = Polyline.GetSegmentPoint(si, SegSegParam);
 				if (PointWithinToleranceTest(RayPosition, CurvePosition))
 				{
 					CurveMinRayParamT = SegRayParam;
@@ -159,7 +159,7 @@ bool FGeometrySet3::FindNearestCurveToRay(const FRay3d& Ray, FNearest& ResultOut
 		ResultOut.ID = NearestID;
 		ResultOut.bIsPoint = false;
 		ResultOut.NearestRayPoint = Ray.PointAt(MinRayParamT);
-		ResultOut.NearestGeoPoint = Curves[NearestIndex].Geometry.PointAt(NearestSegmentIdx, NearestSegmentParam);
+		ResultOut.NearestGeoPoint = Curves[NearestIndex].Geometry.GetSegmentPoint(NearestSegmentIdx, NearestSegmentParam);
 		ResultOut.RayParam = MinRayParamT;
 		ResultOut.PolySegmentIdx = NearestSegmentIdx;
 		ResultOut.PolySegmentParam = NearestSegmentParam;

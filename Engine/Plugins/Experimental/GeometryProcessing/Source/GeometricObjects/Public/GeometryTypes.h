@@ -99,6 +99,12 @@ public:
 		InvalidID = (IntType)-9999999;
 	}
 
+	void Reset()
+	{
+		ForwardMap.Reset();
+		ReverseMap.Reset();
+	}
+
 	/** @return the value used to indicate "invalid" in the mapping */
 	inline IntType GetInvalidID() const { return InvalidID; }
 
@@ -144,6 +150,18 @@ public:
 		check(bWantReverse);
 		const IntType* FoundVal = ReverseMap.Find(ToID);
 		return (FoundVal == nullptr) ? InvalidID : *FoundVal;
+	}
+
+	void Reserve(int NumElements)
+	{
+		if (bWantForward)
+		{
+			ForwardMap.Reserve(NumElements);
+		}
+		if (bWantReverse)
+		{
+			ReverseMap.Reserve(NumElements);
+		}
 	}
 };
 typedef TIndexMap<int> FIndexMapi;

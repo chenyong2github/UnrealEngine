@@ -209,7 +209,7 @@ protected:
 public:
 	virtual ~FDynamicMesh3();
 
-	FDynamicMesh3(bool bWantNormals = true, bool bWantColors = false, bool bWantUVs = false, bool bWantTriGroups = false);
+	explicit FDynamicMesh3(bool bWantNormals = true, bool bWantColors = false, bool bWantUVs = false, bool bWantTriGroups = false);
 
 	FDynamicMesh3(EMeshComponents flags)
 		: FDynamicMesh3(((int)flags & (int)EMeshComponents::VertexNormals) != 0, ((int)flags & (int)EMeshComponents::VertexColors) != 0,

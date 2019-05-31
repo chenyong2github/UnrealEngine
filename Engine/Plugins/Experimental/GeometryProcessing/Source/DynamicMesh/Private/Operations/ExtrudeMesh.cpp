@@ -99,23 +99,26 @@ bool FExtrudeMesh::Apply()
 		StitchPolygonIDs[LoopIndex] = StitchResult.NewGroups;
 
 		// for each polygon we created in stitch, set UVs and normals
-		int NumNewQuads = StitchResult.NewQuads.Num();
-		for (int k = 0; k < NumNewQuads; k++)
+		if (Mesh->HasAttributes())
 		{
-			FVector3f Normal = Editor.ComputeAndSetQuadNormal(StitchResult.NewQuads[k], true);
+			int NumNewQuads = StitchResult.NewQuads.Num();
+			for (int k = 0; k < NumNewQuads; k++)
+			{
+				FVector3f Normal = Editor.ComputeAndSetQuadNormal(StitchResult.NewQuads[k], true);
 
-			// @todo is there a simpler way to construct rotation from 3 known axes (third id Normal.Cross(UnitY))
-			//  (converting from matrix might end up being more efficient due to trig in ConstrainedAlignAxis?)
-			FFrame3f ProjectFrame(FVector3f::Zero(), Normal);
-			if (FMathd::Abs(ProjectFrame.Y().Dot(FVector3f::UnitY())) < 0.01)
-			{
-				ProjectFrame.ConstrainedAlignAxis(0, FVector3f::UnitX(), ProjectFrame.Z());
+				// @todo is there a simpler way to construct rotation from 3 known axes (third id Normal.Cross(UnitY))
+				//  (converting from matrix might end up being more efficient due to trig in ConstrainedAlignAxis?)
+				FFrame3f ProjectFrame(FVector3f::Zero(), Normal);
+				if (FMathd::Abs(ProjectFrame.Y().Dot(FVector3f::UnitY())) < 0.01)
+				{
+					ProjectFrame.ConstrainedAlignAxis(0, FVector3f::UnitX(), ProjectFrame.Z());
+				}
+				else
+				{
+					ProjectFrame.ConstrainedAlignAxis(1, FVector3f::UnitY(), ProjectFrame.Z());
+				}
+				Editor.SetQuadUVsFromProjection(StitchResult.NewQuads[k], ProjectFrame, UVScaleFactor);
 			}
-			else
-			{
-				ProjectFrame.ConstrainedAlignAxis(1, FVector3f::UnitY(), ProjectFrame.Z());
-			}
-			Editor.SetQuadUVsFromProjection(StitchResult.NewQuads[k], ProjectFrame, UVScaleFactor);
 		}
 
 		NewLoops[LoopIndex].InitializeFromVertices(Mesh, OffsetLoop);

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "DynamicMesh3.h"
+#include "EdgeLoop.h"
 
 
 
@@ -30,6 +31,21 @@ public:
 
 	/** @return the value used to indicate "invalid" in the mapping */
 	int InvalidID() { return VertexMap.GetInvalidID(); }
+
+	void Reset()
+	{
+		VertexMap.Reset();
+		TriangleMap.Reset();
+		GroupMap.Reset();
+		for (FIndexMapi& UVMap : UVMaps)
+		{
+			UVMap.Reset();
+		}
+		for (FIndexMapi& NormalMap : NormalMaps)
+		{
+			NormalMap.Reset();
+		}
+	}
 
 	FIndexMapi& GetVertexMap() { return VertexMap; }
 	inline void SetVertex(int FromID, int ToID) { VertexMap.Add(FromID, ToID); }
@@ -134,6 +150,25 @@ public:
 	 * @param ResultOut lists of newly created triangles/vertices/etc
 	 */
 	void DuplicateTriangles(const TArray<int>& Triangles, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
+
+
+	/**
+	 * Pair of associated edge loops.
+	 */
+	struct FLoopPairSet
+	{
+		FEdgeLoop LoopA;
+		FEdgeLoop LoopB;
+	};
+
+	/**
+	 * Finds boundary loops of connected components of a set of triangles, and duplicates the vertices
+	 * along the boundary, such that the triangles become disconnected.
+	 * @param Triangles set of triangles
+	 * @param LoopSetOut set of boundary loops. LoopA is original loop which remains with "outer" triangles, and LoopB is new boundary loop of triangle set
+	 * @return true on success
+	 */
+	bool DisconnectTriangles(const TArray<int>& Triangles, TArray<FLoopPairSet>& LoopSetOut);
 
 
 	/**
@@ -258,6 +293,11 @@ public:
 	void CopyAttributes(int FromTriangleID, int ToTriangleID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
 
 
+
+
+	void AppendMesh(const FDynamicMesh3* AppendMesh, FMeshIndexMappings& IndexMapsOut, FDynamicMeshEditResult& ResultOut,
+		TFunction<FVector3d(int, const FVector3d&)> PositionTransform = nullptr,
+		TFunction<FVector3f(int, const FVector3f&)> NormalTransform = nullptr);
 
 };
 

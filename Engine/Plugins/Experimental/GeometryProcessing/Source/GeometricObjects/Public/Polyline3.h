@@ -6,6 +6,7 @@
 #include "SegmentTypes.h"
 #include "LineTypes.h"
 #include "RayTypes.h"
+#include "BoxTypes.h"
 
 /**
  * TPolyline3 represents a 3D polyline stored as a list of Vertices.
@@ -218,15 +219,26 @@ public:
 
 	/**
 	 * @param SegmentIndex index of first vertex of the edge
-	 * @param SegmentParam parameter in range [0,1] along segment
+	 * @param SegmentParam parameter in range [-Extent,Extent] along segment
 	 * @return point on the segment at the given parameter value
 	 */
-	FVector3<T> PointAt(int SegmentIndex, T SegmentParam) const
+	FVector3<T> GetSegmentPoint(int SegmentIndex, T SegmentParam) const
 	{
 		TSegment3<T> seg(Vertices[SegmentIndex], Vertices[SegmentIndex + 1]);
 		return seg.PointAt(SegmentParam);
 	}
 
+
+	/**
+	 * @param SegmentIndex index of first vertex of the edge
+	 * @param SegmentParam parameter in range [0,1] along segment
+	 * @return point on the segment at the given parameter value
+	 */
+	FVector3<T> GetSegmentPointUnitParam(int SegmentIndex, T SegmentParam) const
+	{
+		TSegment3<T> seg(Vertices[SegmentIndex], Vertices[SegmentIndex + 1]);
+		return seg.PointBetween(SegmentParam);
+	}
 
 
 
@@ -396,6 +408,32 @@ public:
 			avg += Vertices[i].Distance(Vertices[i - 1]);
 		}
 		return avg / (T)(N-1);
+	}
+
+
+
+	/**
+	 * Produce a new polyline that is smoother than this one
+	 */
+	void SmoothSubdivide(TPolyline3<T>& NewPolyline) const
+	{
+		const T Alpha = (T)1 / (T)3;
+		const T OneMinusAlpha = (T)2 / (T)3;
+
+		int N = Vertices.Num();
+		NewPolyline.Vertices.SetNum(2*(N-1));
+		NewPolyline.Vertices[0] = Vertices[0];
+		N = N - 1;
+		int k = 1;
+		for (int i = 1; i < N; ++i)
+		{
+			const FVector3<T>& Prev = Vertices[i-1];
+			const FVector3<T>& Cur = Vertices[i];
+			const FVector3<T>& Next = Vertices[i+1];
+			NewPolyline.Vertices[k++] = Alpha * Prev + OneMinusAlpha * Cur;
+			NewPolyline.Vertices[k++] = OneMinusAlpha * Cur + Alpha * Next;
+		}
+		NewPolyline.Vertices[k] = Vertices[N];
 	}
 
 
