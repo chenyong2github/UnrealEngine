@@ -395,12 +395,6 @@ private:
 	void SetEntryNode();
 
 	UMulticastDelegateProperty* GetDelegateProperty() const;
-	FText OnGetTooltipText() const;
-	void OnTooltipTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
-	FText OnGetCategoryText() const;
-	void OnCategoryTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
-	TSharedRef< ITableRow > MakeCategoryViewWidget( TSharedPtr<FText> Item, const TSharedRef< STableViewBase >& OwnerTable );
-	void OnCategorySelectionChanged( TSharedPtr<FText> ProposedSelection, ESelectInfo::Type /*SelectInfo*/ );
 
 	void CollectAvailibleSignatures();
 	void OnFunctionSelected(TSharedPtr<FString> FunctionItemData, ESelectInfo::Type SelectInfo);
@@ -408,14 +402,6 @@ private:
 	EVisibility OnGetSectionTextVisibility(TWeakPtr<SWidget> RowWidget) const;
 
 private:
-
-	/** A list of all category names to choose from */
-	TArray<TSharedPtr<FText>> CategorySource;
-
-	/** Widgets for the categories */
-	TWeakPtr<SComboButton> CategoryComboButton;
-	TWeakPtr<SListView<TSharedPtr<FText>>> CategoryListView;
-
 	TArray<TSharedPtr<FString>> FunctionsToCopySignatureFrom;
 	TSharedPtr<STextComboBox> CopySignatureComboButton;
 };
