@@ -43,7 +43,7 @@ TSharedRef<FDeferredCleanupSlateBrush> FDeferredCleanupSlateBrush::CreateBrush(
 
 void FDeferredCleanupSlateBrush::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	InternalBrush.AddReferencedObjects(Collector, FGCObject::GGCObjectReferencer);
+	InternalBrush.AddReferencedObjects(Collector);
 }
 
 FString FDeferredCleanupSlateBrush::GetReferencerName() const
