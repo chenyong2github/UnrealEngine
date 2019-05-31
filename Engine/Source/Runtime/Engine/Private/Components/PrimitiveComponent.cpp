@@ -805,11 +805,6 @@ void UPrimitiveComponent::Serialize(FArchive& Ar)
 			LightmapType = ELightmapType::ForceSurface;
 		}
 	}
-	
-	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::CullDistanceRefactor_RemovedDefaultDistance)
-	{
-		LDMaxDrawDistance = 0.f;
-	}
 }
 
 #if WITH_EDITOR
