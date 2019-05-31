@@ -171,13 +171,6 @@ const FPlatformInfo* FindPlatformInfo(const FName& InPlatformName)
 		{
 			return &PlatformInfo;
 		}
-
-		// @ATG_CHANGE : BEGIN - HoloLens packaging & F5 support
-		if (PlatformInfo.TargetPlatformName == InPlatformName)
-		{
-			return &PlatformInfo;
-		}
-		// @ATG_CHANGE : END - HoloLens packaging & F5 support
 	}
 	return nullptr;
 }

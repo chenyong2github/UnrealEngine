@@ -11,9 +11,7 @@
 #include "Serialization/Archive.h"
 #include "Windows/COMPointer.h"
 
-// @ATG_CHANGE : BEGIN - Enable MFMedia for HoloLens
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-// @ATG_CHANGE : END
 	#include "Windows/AllowWindowsPlatformTypes.h"
 #else
 	#include "XboxOne/XboxOneAllowPlatformTypes.h"
@@ -353,9 +351,7 @@ STDMETHODIMP FMfMediaByteStream::Write(const BYTE* pb, ULONG cb, ULONG* pcbWritt
 }
 
 
-// @ATG_CHANGE : BEGIN - Enable MFMedia for HoloLens
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-// @ATG_CHANGE : END
 	#include "Windows/HideWindowsPlatformTypes.h"
 #else
 	#include "XboxOne/XboxOneHidePlatformTypes.h"

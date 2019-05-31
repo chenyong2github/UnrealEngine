@@ -79,7 +79,6 @@ public class PhysXVehicleLib : ModuleRules
         string PhysXLibDir = Target.UEThirdPartySourceDirectory + "PhysX3/Lib/";
 
         // Libraries and DLLs for windows platform
-		// @ATG_CHANGE: BEGIN HoloLens support
 		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens ||
             Target.Platform == UnrealTargetPlatform.Win32)
         {
@@ -87,7 +86,6 @@ public class PhysXVehicleLib : ModuleRules
 
             PublicAdditionalLibraries.Add(String.Format("PhysX3Vehicle{0}_{1}.lib", LibrarySuffix, Target.WindowsPlatform.GetArchitectureSubpath()));
         }
-		// @ATG_CHANGE: END HoloLens support
         else if (Target.Platform == UnrealTargetPlatform.Mac)
         {
             PublicLibraryPaths.Add(PhysXLibDir + "Mac");

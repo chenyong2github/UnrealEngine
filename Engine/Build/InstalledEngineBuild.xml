@@ -24,9 +24,7 @@
 	<Option Name="WithXboxOne" Restrict="true|false" DefaultValue="false" Description="Include the XboxOne target platform"/>
 	<Option Name="WithSwitch" Restrict="true|false" DefaultValue="false" Description="Include the Switch target platform"/>
 	<Option Name="WithLumin" Restrict="true|false" DefaultValue="true" Description="Include the Lumin target platform"/>
-	<!-- @ATG_CHANGE : BEGIN - Installed builds can now support HoloLens -->
 	<Option Name="WithHoloLens" Restrict="true|false" DefaultValue="false" Description="Include the HoloLens target platform"/>
-	<!-- @ATG_CHANGE : END -->
 	
 
 	<!-- Whether to create a prebuilt DDC -->
@@ -56,25 +54,16 @@
 			<Case If="'$(HostPlatform)' == 'Win64'">
 				<Property Name="WithMac" Value="false"/>
 				<Property Name="WithLinux" Value="false"/>
-				<!-- @ATG_CHANGE : BEGIN - Installed builds can now support HoloLens -->
-				<Property Name="WithHoloLens" Value="true"/>
-				<!-- @ATG_CHANGE : END -->
 			</Case>
 			<Case If="'$(HostPlatform)' == 'Mac'">
 				<Property Name="WithWin64" Value="false"/>
 				<Property Name="WithWin32" Value="false"/>
 				<Property Name="WithLinux" Value="false"/>
-				<!-- @ATG_CHANGE : BEGIN - Installed builds can now support HoloLens -->
-				<Property Name="WithHoloLens" Value="false"/>
-				<!-- @ATG_CHANGE : END -->
 			</Case>
 			<Case If="'$(HostPlatform)' == 'Linux'">
 				<Property Name="WithWin64" Value="false"/>
 				<Property Name="WithWin32" Value="false"/>
 				<Property Name="WithMac" Value="false"/>
-				<!-- @ATG_CHANGE : BEGIN - Installed builds can now support HoloLens -->
-				<Property Name="WithHoloLens" Value="false"/>
-				<!-- @ATG_CHANGE : END -->
 			</Case>
 			<Default>
 				<Error Message="$(HostPlatform) is not supported for making an installed build"/>
@@ -291,39 +280,6 @@
 			</Do>
 		</Node>
 
-		<!-- @ATG_CHANGE : BEGIN - Installed builds can now support HoloLens -->
-		<!-- Downstream monolithics and tools HoloLens -->
-		<Node Name="Compile UE4Game HoloLens" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game HoloLens;#UE4Game HoloLens Unstripped;#UE4Game HoloLens Stripped;#UE4Game HoloLens Unsigned;#UE4Game HoloLens Signed;#UE4Game HoloLens Includes">
-		
-			<ForEach Name="Configuration" Values="$(GameConfigurations)">
-				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="$(WindowsGameCompileArguments)"/>
-			</ForEach>
-
-			<Do If="$(EmbedSrcSrvInfo)">
-				<!-- Embed source info into the PDB files. Should be done from this machine to ensure that paths are correct. -->
-				<Log Message="Embedding source file information into PDB files..."/>
-				<Tag Files="Engine/Source/...;Engine/Plugins/..." Filter="*.c;*.h;*.cpp;*.hpp;*.inl" Except="Engine/Source/ThirdParty/..." With="#SourceFiles"/>
-				<SrcSrv BinaryFiles="#UE4Game HoloLens" SourceFiles="#SourceFiles" Branch="$(Branch)" Change="$(Change)"/>
-			</Do>
-
-			<Tag Files="#UE4Game HoloLens" Filter="$(HoloLensStripFilter)" With="#UE4Game HoloLens Unstripped"/>
-
-				<Switch>
-					<Case If="'$(WithFullDebugInfo)' == true">
-						<!-- Copy files for local debug builds -->
-						<Copy Files="#UE4Game HoloLens Unstripped" From="$(RootDir)" To="$(SavedOutput)"/>
-					</Case>
-					<Default>
-						<!-- Otherwise, strip the files for distribution -->
-						<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="HoloLens" Files="#UE4Game HoloLens Unstripped" Tag="#UE4Game HoloLens Stripped"/>
-					</Default>
-				</Switch>
-
-			<!-- Tag the generated includes for this target -->
-			<Tag Files="Engine/Intermediate/Build/HoloLens/UE4/Inc/...;Engine/Plugins/.../Intermediate/Build/HoloLens/UE4/Inc/..." With="#UE4Game HoloLens Includes"/>
-		</Node>
-		<!-- @ATG_CHANGE : END -->
-
 		<!-- Downstream monolithics and tools Linux -->
 		<Node Name="Compile UE4Game Linux" Requires="Compile UnrealHeaderTool $(HostPlatform)" Produces="#UE4Game Linux;#UE4Game Linux Unstripped;#UE4Game Linux Stripped">
 		
@@ -388,6 +344,16 @@
 				<Compile Target="UE4Game" Platform="Switch" Configuration="$(Configuration)" Tag="#UE4Game Switch" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
 			</ForEach>
 			
+		</Node>
+
+		<!-- Downstream monolithics and tools HoloLens -->
+		<Node Name="Compile UE4Game HoloLens" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game HoloLens;#UE4Game HoloLens Unstripped;#UE4Game HoloLens Stripped;#UE4Game HoloLens Unsigned;#UE4Game HoloLens Signed;#UE4Game HoloLens Includes">
+
+			<ForEach Name="Configuration" Values="$(GameConfigurations)">
+				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
+				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
+			</ForEach>
+
 		</Node>
 		
 		<Node Name="Compile UE4Game Lumin" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game Lumin;#UE4Game Lumin Unstripped;#UE4Game Lumin Stripped" If="'$(WithLumin)' == true">
@@ -583,9 +549,7 @@
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+XboxOne" If="'$(WithXboxOne)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+Switch" If="'$(WithSwitch)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+Lumin" If="'$(WithLumin)' == true"/>
-		<!-- @ATG_CHANGE : BEGIN - Installed builds can now support HoloLens -->
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+HoloLens" If="'$(WithHoloLens)' == true"/>
-		<!-- @ATG_CHANGE : END -->
 		
 	</Do>
 
@@ -740,9 +704,7 @@
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game XboxOne" If="'$(WithXboxOne)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Switch" If="'$(WithSwitch)' == true"/>
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game Lumin" If="'$(WithLumin)' == true"/>
-		<!-- @ATG_CHANGE : BEGIN - Installed builds can now support HoloLens -->
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UE4Game HoloLens" If="'$(WithHoloLens)' == true"/>
-		<!-- @ATG_CHANGE : END -->
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#CompressedDDCWin64" If="'$(WithDDC)' == true"/>
 		<!-- Feature packs -->
 		<Property Name="InstalledRequirements" Value="$(InstalledRequirements);Make Feature Packs"/>
@@ -825,13 +787,11 @@
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLuminFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLuminExceptions)"/>
 			</Do>
-			<!-- @ATG_CHANGE : BEGIN - Installed builds can now support HoloLens -->
 			<Do If="'$(WithHoloLens)' == true">
 				<Tag Files="#UE4Game HoloLens;#UE4Game HoloLens Includes" With="#Installed Win64"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyHoloLensFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyHoloLensExceptions)"/>
-			<!-- @ATG_CHANGE : END -->
-
+			</Do>
 			<!-- Tag any dependencies from all previous build products -->
 			<Tag Files="#Installed Win64" Filter="*.target" With="#TargetReceipts"/>
 			<TagReceipt Files="#TargetReceipts" RuntimeDependencies="true" With="#Installed Win64"/>

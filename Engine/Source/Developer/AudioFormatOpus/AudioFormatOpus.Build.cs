@@ -17,9 +17,7 @@ public class AudioFormatOpus : ModuleRules
 
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
 			(Target.Platform == UnrealTargetPlatform.Win32) ||
-// @ATG_CHANGE : BEGIN HoloLens support
 			(Target.Platform == UnrealTargetPlatform.HoloLens) ||
-// @ATG_CHANGE : END
 			(Target.Platform == UnrealTargetPlatform.Linux) ||
 			(Target.Platform == UnrealTargetPlatform.Mac) ||
 			(Target.Platform == UnrealTargetPlatform.XboxOne)

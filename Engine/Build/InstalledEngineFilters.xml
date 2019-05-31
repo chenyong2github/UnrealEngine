@@ -31,9 +31,7 @@
 	<Property Name="TVOSStripFilter" Value="*.a;"/>
 	<Property Name="LinuxStripFilter" Value="Engine\Binaries\Linux\*."/>
 	<Property Name="LuminStripFilter" Value="*.a;*.so"/>
-	<!-- @ATG_CHANGE : BEGIN - Installed builds can now support HoloLens -->
 	<Property Name="HoloLensStripFilter" Value="*.pdb"/>
-	<!-- @ATG_CHANGE : END -->
 
 
 	<Property Name="WindowsSignFilter" Value="*.exe;*.dll"/>
@@ -526,7 +524,6 @@
 	<Property Name="CopyLuminExceptions">
 	</Property>
 
-	<!-- @ATG_CHANGE : BEGIN - Installed builds can now support HoloLens -->
 	<!-- HoloLens -->
 	<Property Name="CopyHoloLensFilter">
 		<!-- Build Files -->
@@ -535,6 +532,5 @@
 
 	<Property Name="CopyHoloLensExceptions">
 	</Property>
-	<!-- @ATG_CHANGE : END -->
 
 </BuildGraph>
