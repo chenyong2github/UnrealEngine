@@ -32,7 +32,7 @@
 #include "Filters/CurveEditorFilterBase.h"
 #include "Filters/CurveEditorBakeFilter.h"
 #include "Filters/CurveEditorReduceFilter.h"
-#include "Widgets/Input/SNumericList.h"
+#include "SCurveValueSnapList.h"
 #include "Widgets/SFrameRatePicker.h"
 #include "CommonFrameRates.h"
 #include "CurveEditorViewRegistry.h"
@@ -1188,20 +1188,20 @@ FText SCurveEditorPanel::GetTimeSnapMenuTooltip() const
 
 TSharedRef<SWidget> SCurveEditorPanel::MakeValueSnapMenu()
 {
-	TArray<SNumericList<float>::FNamedValue> ValueSnapAmounts;
+	TArray<SCurveValueSnapList<float>::FNamedValue> ValueSnapAmounts;
 	// SnapValues.Add( SNumericDropDown<float>::FNamedValue( 0.001f, LOCTEXT( "Snap_OneThousandth", "0.001" ), LOCTEXT( "SnapDescription_OneThousandth", "Set snap to 1/1000th" ) ) );
 	//SnapValues.Add( SNumericDropDown<float>::FNamedValue( 0.01f, LOCTEXT( "Snap_OneHundredth", "0.01" ), LOCTEXT( "SnapDescription_OneHundredth", "Set snap to 1/100th" ) ) );
-	ValueSnapAmounts.Add(SNumericList<float>::FNamedValue(0.1f, LOCTEXT("Snap_OneTenth", "0.1"), LOCTEXT("SnapDescription_OneTenth", "Set snap to 1/10th")));
-	ValueSnapAmounts.Add(SNumericList<float>::FNamedValue(0.5f, LOCTEXT("Snap_OneHalf", "0.5"), LOCTEXT("SnapDescription_OneHalf", "Set snap to 1/2")));
-	ValueSnapAmounts.Add(SNumericList<float>::FNamedValue(1.0f, LOCTEXT("Snap_One", "1"), LOCTEXT("SnapDescription_One", "Set snap to 1")));
-	ValueSnapAmounts.Add(SNumericList<float>::FNamedValue(2.0f, LOCTEXT("Snap_Two", "2"), LOCTEXT("SnapDescription_Two", "Set snap to 2")));
-	ValueSnapAmounts.Add(SNumericList<float>::FNamedValue(5.0f, LOCTEXT("Snap_Five", "5"), LOCTEXT("SnapDescription_Five", "Set snap to 5")));
-	ValueSnapAmounts.Add(SNumericList<float>::FNamedValue(10.0f, LOCTEXT("Snap_Ten", "10"), LOCTEXT("SnapDescription_Ten", "Set snap to 10")));
-	ValueSnapAmounts.Add(SNumericList<float>::FNamedValue(50.0f, LOCTEXT("Snap_Fifty", "50"), LOCTEXT("SnapDescription_50", "Set snap to 50")));
-	ValueSnapAmounts.Add(SNumericList<float>::FNamedValue(100.0f, LOCTEXT("Snap_OneHundred", "100"), LOCTEXT("SnapDescription_OneHundred", "Set snap to 100")));
+	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(0.1f, LOCTEXT("Snap_OneTenth", "0.1"), LOCTEXT("SnapDescription_OneTenth", "Set snap to 1/10th")));
+	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(0.5f, LOCTEXT("Snap_OneHalf", "0.5"), LOCTEXT("SnapDescription_OneHalf", "Set snap to 1/2")));
+	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(1.0f, LOCTEXT("Snap_One", "1"), LOCTEXT("SnapDescription_One", "Set snap to 1")));
+	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(2.0f, LOCTEXT("Snap_Two", "2"), LOCTEXT("SnapDescription_Two", "Set snap to 2")));
+	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(5.0f, LOCTEXT("Snap_Five", "5"), LOCTEXT("SnapDescription_Five", "Set snap to 5")));
+	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(10.0f, LOCTEXT("Snap_Ten", "10"), LOCTEXT("SnapDescription_Ten", "Set snap to 10")));
+	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(50.0f, LOCTEXT("Snap_Fifty", "50"), LOCTEXT("SnapDescription_50", "Set snap to 50")));
+	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(100.0f, LOCTEXT("Snap_OneHundred", "100"), LOCTEXT("SnapDescription_OneHundred", "Set snap to 100")));
 
 	TSharedRef<SWidget> OutputSnapWidget =
-		SNew(SNumericList<float>)
+		SNew(SCurveValueSnapList<float>)
 		.DropDownValues(ValueSnapAmounts)
 		.MinDesiredValueWidth(60)
 		.Value_Lambda([this]() -> float { return this->CurveEditor->OutputSnapIntervalAttribute.Get(); })
