@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Units/RigUnit.h"
+#include "Units/Highlevel/RigUnit_HighlevelBase.h"
 #include "Hierarchy.h"
 #include "Constraint.h"
 #include "ControlRigDefines.h"
@@ -18,7 +19,7 @@ struct FConstraintTarget
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "FConstraintTarget")
-	FTransform	Transform;
+	FTransform Transform;
 
 	UPROPERTY(EditAnywhere, Category = "FConstraintTarget")
 	float Weight;
@@ -26,7 +27,7 @@ struct FConstraintTarget
 	UPROPERTY(EditAnywhere, Category = "FConstraintTarget")
 	bool bMaintainOffset;
 
-	UPROPERTY(EditAnywhere, Category = "FConstraintTarget")
+	UPROPERTY(EditAnywhere, Category = "FConstraintTarget", meta = (Constant))
 	FTransformFilter Filter;
 
 	FConstraintTarget()
@@ -35,8 +36,8 @@ struct FConstraintTarget
 	{}
 };
 
-USTRUCT(meta=(DisplayName="Constraint", Category="Transforms"))
-struct FRigUnit_TransformConstraint : public FRigUnitMutable
+USTRUCT(meta=(DisplayName="Transform Constraint", Category="Transforms"))
+struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
@@ -46,8 +47,8 @@ struct FRigUnit_TransformConstraint : public FRigUnitMutable
 
 	virtual void Execute(const FRigUnitContext& Context) override;
 
-	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
-	FName Joint;
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, Constant, BoneName))
+	FName Bone;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
 	ETransformSpaceMode BaseTransformSpace;
@@ -55,11 +56,12 @@ struct FRigUnit_TransformConstraint : public FRigUnitMutable
 	// Transform op option. Use if ETransformSpace is BaseTransform
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
 	FTransform BaseTransform;
-	// Transform op option. Use if ETransformSpace is BaseJoint
-	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
-	FName BaseJoint;
 
-	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	// Transform op option. Use if ETransformSpace is BaseJoint
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, Constant, BoneName))
+	FName BaseBone;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))
 	TArray<FConstraintTarget> Targets;
 
 private:
