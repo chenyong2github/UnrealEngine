@@ -1044,13 +1044,13 @@ void FAnimationRuntime::BlendPosesPerBoneFilter(
 	bool bMeshSpaceRotationBlend,
 	ECurveBlendOption::Type CurveBlendOption)
 {
-	EBlendPosesPerBoneFilterFlags blendFlags = EBlendPosesPerBoneFilterFlags::None;
+	EBlendPosesPerBoneFilterFlags BlendFlags = EBlendPosesPerBoneFilterFlags::None;
 	if (bMeshSpaceRotationBlend)
 	{
-		blendFlags |= EBlendPosesPerBoneFilterFlags::MeshSpaceRotation;
+		BlendFlags |= EBlendPosesPerBoneFilterFlags::MeshSpaceRotation;
 	}
 
-	return BlendPosesPerBoneFilter(BasePose, BlendPoses, BaseCurve, BlendedCurves, OutPose, OutCurve, BoneBlendWeights, blendFlags, CurveBlendOption);
+	return BlendPosesPerBoneFilter(BasePose, BlendPoses, BaseCurve, BlendedCurves, OutPose, OutCurve, BoneBlendWeights, BlendFlags, CurveBlendOption);
 }
 
 void FAnimationRuntime::BlendPosesPerBoneFilter(
@@ -1061,7 +1061,7 @@ void FAnimationRuntime::BlendPosesPerBoneFilter(
 	struct FCompactPose& OutPose, 
 	struct FBlendedCurve& OutCurve, 
 	TArray<FPerBoneBlendWeight>& BoneBlendWeights, 
-	EBlendPosesPerBoneFilterFlags blendFlags,
+	EBlendPosesPerBoneFilterFlags BlendFlags,
 	ECurveBlendOption::Type CurveBlendOption)
 {
 	SCOPE_CYCLE_COUNTER(STAT_BlendPosesPerBoneFilter);
@@ -1103,8 +1103,8 @@ void FAnimationRuntime::BlendPosesPerBoneFilter(
 	ScaleArray& BlendScales = ScratchArea.BlendScales;
 	ScaleArray& TargetScales = ScratchArea.TargetScales;
 
-	const bool bMeshSpaceRotationBlend = EnumHasAnyFlags(blendFlags, EBlendPosesPerBoneFilterFlags::MeshSpaceRotation);
-	const bool bMeshSpaceScaleBlend = EnumHasAnyFlags(blendFlags, EBlendPosesPerBoneFilterFlags::MeshSpaceScale);
+	const bool bMeshSpaceRotationBlend = EnumHasAnyFlags(BlendFlags, EBlendPosesPerBoneFilterFlags::MeshSpaceRotation);
+	const bool bMeshSpaceScaleBlend = EnumHasAnyFlags(BlendFlags, EBlendPosesPerBoneFilterFlags::MeshSpaceScale);
 
 	if (bMeshSpaceRotationBlend)
 	{

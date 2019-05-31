@@ -228,7 +228,8 @@ public:
 
 
 	/** Blending flags for BlendPosesPerBoneFilter */
-	enum class EBlendPosesPerBoneFilterFlags : uint32 {
+	enum class EBlendPosesPerBoneFilterFlags : uint32
+	{
 		None = 0,
 		MeshSpaceRotation = (1 << 0),	//! Blend bone rotations in mesh space instead of local space
 		MeshSpaceScale    = (1 << 1),	//! Blend bone scales in mesh space instead of local space
