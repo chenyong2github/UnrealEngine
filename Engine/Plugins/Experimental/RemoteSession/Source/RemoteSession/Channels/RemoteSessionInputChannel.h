@@ -31,7 +31,7 @@ public:
 
 protected:
 
-	TWeakPtr<FGenericApplicationMessageHandler> DefaultHandler;
+	TSharedPtr<FGenericApplicationMessageHandler> DefaultHandler;
 
 	TSharedPtr<FRecordingMessageHandler> RecordingHandler;
 
