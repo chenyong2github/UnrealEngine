@@ -34,7 +34,8 @@ public:
 	{
 		TT_None,	// No thread.
 		TT_Render,	// The render thread.
-		TT_Async	// An async work thread.
+		TT_Async,	// An async work thread.
+		TT_GameRunningAsync	// The game thread running async work.
 	};
 
 	/**  The state of scheduled work for the update process. */
