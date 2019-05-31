@@ -5401,6 +5401,7 @@ FPakPlatformFile::FPakPlatformFile()
 
 FPakPlatformFile::~FPakPlatformFile()
 {
+	FCoreDelegates::GetRegisterEncryptionKeyDelegate().Unbind();
 	FCoreDelegates::OnMountPak.Unbind();
 	FCoreDelegates::OnUnmountPak.Unbind();
 
