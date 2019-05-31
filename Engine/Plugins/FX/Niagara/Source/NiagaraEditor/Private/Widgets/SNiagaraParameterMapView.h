@@ -31,6 +31,7 @@ namespace NiagaraParameterMapSectionID
 	{
 		NONE = 0,
 		MODULE,
+		STATIC_SWITCH,
 		ENGINE,
 		PARAMETERCOLLECTION,
 		USER,
@@ -41,7 +42,7 @@ namespace NiagaraParameterMapSectionID
 	};
 
 	static FText OnGetSectionTitle(const NiagaraParameterMapSectionID::Type InSection);
-	static NiagaraParameterMapSectionID::Type OnGetSectionFromVariable(const FNiagaraVariable& InVar, FNiagaraParameterHandle& OutParameterHandle, const NiagaraParameterMapSectionID::Type DefaultType = NiagaraParameterMapSectionID::Type::NONE);
+	static NiagaraParameterMapSectionID::Type OnGetSectionFromVariable(const FNiagaraVariable& InVar, bool IsStaticSwitchVariable, FNiagaraParameterHandle& OutParameterHandle, const NiagaraParameterMapSectionID::Type DefaultType = NiagaraParameterMapSectionID::Type::NONE);
 };
 
 class FNiagaraParameterMapViewCommands : public TCommands<FNiagaraParameterMapViewCommands>
@@ -76,11 +77,11 @@ public:
 
 	virtual ~SNiagaraParameterMapView();
 
-	void Construct(const FArguments& InArgs, const TSharedRef<FNiagaraObjectSelection>& InSelectedObjects, const EToolkitType InToolkitType, const TSharedPtr<FUICommandList>& InToolkitCommands);
+	void Construct(const FArguments& InArgs, const TArray<TSharedRef<FNiagaraObjectSelection>>& InSelectedObjects, const EToolkitType InToolkitType, const TSharedPtr<FUICommandList>& InToolkitCommands);
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-	/** Wheter the add parameter button should be enabled. */
+	/** Whether the add parameter button should be enabled. */
 	bool ParameterAddEnabled() const;
 
 	/** Adds parameter to the graph parameter store and refreshes the menu. */
@@ -91,6 +92,8 @@ public:
 	void RefreshEmitterHandles(const TArray<TSharedPtr<class FNiagaraEmitterHandleViewModel>>& EmitterHandles);
 
 	static TSharedRef<SExpanderArrow> CreateCustomActionExpander(const struct FCustomExpanderData& ActionMenuData);
+
+	static bool IsStaticSwitchParameter(const FNiagaraVariable& Variable, const TArray<TWeakObjectPtr<UNiagaraGraph>>& Graphs);
 
 private:
 	/** Function to bind to SNiagaraAddParameterMenus to filter types we allow creating */
@@ -152,7 +155,8 @@ private:
 	TArray<TSharedPtr<SComboButton>> AddParameterButtons;
 
 	/** The selected objects being viewed and edited by this widget. */
-	TSharedPtr<FNiagaraObjectSelection> SelectedObjects;
+	TSharedPtr<FNiagaraObjectSelection> SelectedScriptObjects;
+	TSharedPtr<FNiagaraObjectSelection> SelectedVariableObjects;
 
 	TArray<TWeakObjectPtr<UNiagaraGraph>> Graphs;
 

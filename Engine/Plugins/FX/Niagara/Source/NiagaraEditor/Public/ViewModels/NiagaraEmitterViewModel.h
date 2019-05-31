@@ -11,7 +11,7 @@ class UNiagaraScript;
 class FNiagaraScriptViewModel;
 class FNiagaraScriptGraphViewModel;
 class UNiagaraEmitterEditorData;
-struct FNiagaraEmitterInstance;
+class FNiagaraEmitterInstance;
 struct FNiagaraVariable;
 struct FNiagaraParameterStore;
 struct FEdGraphEditAction;
@@ -28,17 +28,17 @@ public:
 
 public:
 	/** Creates a new emitter editor view model with the supplied emitter handle and simulation. */
-	FNiagaraEmitterViewModel(UNiagaraEmitter* InEmitter, TWeakPtr<FNiagaraEmitterInstance> InSimulation);
+	FNiagaraEmitterViewModel(UNiagaraEmitter* InEmitter, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation);
 	virtual ~FNiagaraEmitterViewModel();
 
 	/** Reuse this view model with new parameters.*/
-	bool Set(UNiagaraEmitter* InEmitter, TWeakPtr<FNiagaraEmitterInstance> InSimulation);
+	bool Set(UNiagaraEmitter* InEmitter, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation);
 
 	/** Sets this view model to a different emitter. */
 	void SetEmitter(UNiagaraEmitter* InEmitter);
 
 	/** Sets the current simulation for the emitter. */
-	void SetSimulation(TWeakPtr<FNiagaraEmitterInstance> InSimulation);
+	void SetSimulation(TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation);
 
 	/** Gets the emitter represented by this view model. */
 	NIAGARAEDITOR_API UNiagaraEmitter* GetEmitter();
@@ -101,7 +101,7 @@ private:
 	TWeakObjectPtr<UNiagaraEmitter> Emitter;
 
 	/** The runtime simulation for the emitter being displayed by the control */
-	TWeakPtr<FNiagaraEmitterInstance> Simulation;
+	TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation;
 	
 	/** The view model for the update/spawn/event script. */
 	TSharedPtr<FNiagaraScriptViewModel> SharedScriptViewModel;

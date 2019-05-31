@@ -386,7 +386,7 @@ bool SDeviceManager::HandlePowerOnActionCanExecute()
 
 		if (TargetDevice.IsValid())
 		{
-			return (TargetDevice->IsConnected() && TargetDevice->SupportsFeature(ETargetDeviceFeatures::PowerOn));
+			return (TargetDevice->SupportsFeature(ETargetDeviceFeatures::PowerOn));
 		}
 	}
 

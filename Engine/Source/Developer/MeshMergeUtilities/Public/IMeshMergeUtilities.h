@@ -125,6 +125,14 @@ public:
 	*/
 	virtual void CreateProxyMesh(const TArray<UStaticMeshComponent*>& InComponents, const struct FMeshProxySettings& InMeshProxySettings, UMaterialInterface* InBaseMaterial, UPackage* InOuter, const FString& InProxyBasePackageName, const FGuid InGuid, const FCreateProxyDelegate& InProxyCreatedDelegate, const bool bAllowAsync = false, const float ScreenSize = 1.0f) const = 0;
 
+    /**
+	*	Retrieve the mesh description for an imposter static mesh component.
+	*
+	*	@param	InImposterComponent		The static mesh component whose static mesh lowest LOD is an imposter mesh.
+	*	@param	OutImposterMesh			The extracted mesh description.
+	*/
+	virtual void ExtractImposterToRawMesh(const UStaticMeshComponent* InImposterComponent, FMeshDescription& OutImposterMesh) const = 0;
+
 	/** Checks whether or not the give material is valid as a base for the Proxy Material. This as it requires certain Material Parameters to be included to get a desirable material */
 	virtual bool IsValidBaseMaterial(const UMaterialInterface* InBaseMaterial, bool bShowToaster) const = 0;
 	

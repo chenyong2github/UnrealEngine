@@ -534,7 +534,7 @@ static IOSAppDelegate* CachedDelegate = nil;
 					
 					if ([self IsFeatureActive:EAudioFeature::VoiceChat])
 					{
-						Mode = AVAudioSessionModeVoiceChat;
+						Mode = self.bHighQualityVoiceChatEnabled ? AVAudioSessionModeVoiceChat : AVAudioSessionModeDefault;
 #if !PLATFORM_TVOS
 						// allow bluetooth for chatting and such
 						Options |= AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetooth | AVAudioSessionCategoryOptionAllowBluetoothA2DP;
@@ -614,7 +614,8 @@ static IOSAppDelegate* CachedDelegate = nil;
 						
 						if (@available(iOS 10, *))
 						{
-							[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord mode:AVAudioSessionModeDefault options:opts error:&ActiveError];
+							NSString* VoiceChatMode = self.bHighQualityVoiceChatEnabled ? AVAudioSessionModeVoiceChat : AVAudioSessionModeDefault;
+							[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord mode:VoiceChatMode options:opts error:&ActiveError];
 						}
 						else
 						{
@@ -687,7 +688,8 @@ static IOSAppDelegate* CachedDelegate = nil;
 					
 					if (@available(iOS 10, *))
 					{
-						[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord mode:AVAudioSessionModeDefault options:opts error:&ActiveError];
+						NSString* VoiceChatMode = self.bHighQualityVoiceChatEnabled ? AVAudioSessionModeVoiceChat : AVAudioSessionModeDefault;
+						[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord mode:VoiceChatMode options:opts error:&ActiveError];
 					}
 					else
 					{
@@ -717,7 +719,8 @@ static IOSAppDelegate* CachedDelegate = nil;
 			// Necessary for voice chat if audio is not active
 			if (@available(iOS 10, *))
 			{
-				[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord mode:AVAudioSessionModeDefault options:opts error:&ActiveError];
+				NSString* VoiceChatMode = self.bHighQualityVoiceChatEnabled ? AVAudioSessionModeVoiceChat : AVAudioSessionModeDefault;
+				[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord mode:VoiceChatMode options:opts error:&ActiveError];
 			}
 			else
 			{
@@ -747,6 +750,11 @@ static IOSAppDelegate* CachedDelegate = nil;
 {
 	AVAudioSession* Session = [AVAudioSession sharedInstance];
 	return Session.otherAudioPlaying;
+}
+
+-(void)EnableHighQualityVoiceChat:(bool)bEnable
+{
+	self.bHighQualityVoiceChatEnabled = bEnable;
 }
 
 - (void)EnableVoiceChat:(bool)bEnable
@@ -1079,7 +1087,7 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 		{
 			orient = UIImageOrientationRight;
 		}
-        else if (MainFrame.size.height == 568 || Device == FPlatformMisc::IOS_IPodTouch6)
+		else if (MainFrame.size.height == 568 || Device == FPlatformMisc::IOS_IPodTouch6 || Device == FPlatformMisc::IOS_IPodTouch7)
 		{
 			[ImageString appendString:@"-568h"];
 		}

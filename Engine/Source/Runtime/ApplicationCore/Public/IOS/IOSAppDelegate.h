@@ -196,6 +196,7 @@ APPLICATIONCORE_API
 - (void)ToggleAudioSession:(bool)bActive force:(bool)bForce;
 - (bool)IsBackgroundAudioPlaying;
 - (void)EnableVoiceChat:(bool)bEnable;
+- (void)EnableHighQualityVoiceChat:(bool)bEnable;
 - (bool)IsVoiceChatEnabled;
 
 - (void)SetFeature:(EAudioFeature)Feature Active:(bool)bIsActive;
@@ -203,6 +204,7 @@ APPLICATIONCORE_API
 
 @property (atomic) bool bAudioActive;
 @property (atomic) bool bVoiceChatEnabled;
+@property (atomic) bool bHighQualityVoiceChatEnabled;
 
 @property (atomic) bool bIsSuspended;
 @property (atomic) bool bHasSuspended;

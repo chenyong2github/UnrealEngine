@@ -327,28 +327,81 @@ struct CORE_API FGenericPlatformMemory
 	 */
 	static void BinnedFreeToOS( void* Ptr, SIZE_T Size );
 
-	/**
-	 * Reserves a virtual memory range.
-	 * 
-	 * Unlike BinnedAllocFromOS, this function does not have to return pointers with alignment larger than the VM page.
-	 */
-	static void* MemoryRangeReserve(SIZE_T Size, bool bCommit = false, int32 Node = -1);
+	class FBasicVirtualMemoryBlock
+	{
+	protected:
+		void *Ptr;
+		uint32 VMSizeDivVirtualSizeAlignment;
 
-	/**
-	 * Frees a virtual memory range.
-	 * 
-	 */
-	static void MemoryRangeFree(void* Ptr, SIZE_T Size);
+	public:
 
-	/**
-	 * Commits a virtual memory range. Can be no-op on platforms where just reservation of the range is not supported.
-	 */
-	static bool MemoryRangeCommit(void* Ptr, SIZE_T Size) { return true; }
+		FBasicVirtualMemoryBlock()
+			: Ptr(nullptr)
+			, VMSizeDivVirtualSizeAlignment(0)
+		{
+		}
 
-	/**
-	 * Decommits a virtual memory range. Can be no-op on platforms where just reservation of the range is not supported.
-	 */
-	static bool MemoryRangeDecommit(void* Ptr, SIZE_T Size) { return true; }
+		FBasicVirtualMemoryBlock(void *InPtr, uint32 InVMSizeDivVirtualSizeAlignment)
+			: Ptr(InPtr)
+			, VMSizeDivVirtualSizeAlignment(InVMSizeDivVirtualSizeAlignment)
+		{
+		}
+
+		FBasicVirtualMemoryBlock(const FBasicVirtualMemoryBlock& Other) = default;
+		FBasicVirtualMemoryBlock& operator=(const FBasicVirtualMemoryBlock& Other) = default;
+
+		FORCEINLINE uint32 GetActualSizeInPages() const
+		{
+			return VMSizeDivVirtualSizeAlignment;
+		}
+
+		FORCEINLINE void* GetVirtualPointer() const
+		{
+			return Ptr;
+		}
+
+		
+#if 0 // documentation, must be defined by the platform
+		void Commit(size_t InOffset, size_t InSize);
+		void Decommit(size_t InOffset, size_t InSize);
+		void FreeVirtual();
+
+		FORCEINLINE void CommitByPtr(void *InPtr, size_t InSize)
+		{
+			Commit(size_t(((uint8*)InPtr) - ((uint8*)Ptr)), InSize);
+		}
+
+		FORCEINLINE void DecommitByPtr(void *InPtr, size_t InSize)
+		{
+			Decommit(size_t(((uint8*)InPtr) - ((uint8*)Ptr)), InSize);
+		}
+
+		FORCEINLINE void Commit()
+		{
+			Commit(0, GetActualSize());
+		}
+
+		FORCEINLINE void Decommit()
+		{
+			Decommit(0, GetActualSize());
+		}
+
+		FORCEINLINE size_t GetActualSize() const
+		{
+			return VMSizeDivVirtualSizeAlignment * GetVirtualSizeAlignment();
+		}
+
+		/**
+		 * Returns uncommitted virtual memory
+		 *
+		 * @param Size Size of virtual memory block, must be aligned to GetVirtualSizeAlignment
+		 * @param InAlignment Alignment of returned virtual Ptr
+		 */
+		static FPlatformVirtualMemoryBlock AllocateVirtual(size_t Size, size_t InAlignment = FPlatformVirtualMemoryBlock::GetVirtualSizeAlignment());
+		static size_t GetCommitAlignment();
+		static size_t GetVirtualSizeAlignment();
+#endif
+	};
 
 	/**
 	 * Some platforms may pool allocations of this size to reduce OS calls. This function
@@ -358,12 +411,6 @@ struct CORE_API FGenericPlatformMemory
 	{
 		return false;
 	}
-
-	// These alloc/free memory that is mapped to the GPU
-	// Only for platforms with UMA (XB1/PS4/etc)
-	static void* GPUMalloc(SIZE_T Count, uint32 Alignment = 0) { return nullptr; };
-	static void* GPURealloc(void* Original, SIZE_T Count, uint32 Alignment = 0) { return nullptr; };
-	static void GPUFree(void* Original) { };
 
 	/** Dumps basic platform memory statistics into the specified output device. */
 	static void DumpStats( FOutputDevice& Ar );

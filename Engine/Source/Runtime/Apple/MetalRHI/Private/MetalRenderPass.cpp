@@ -1705,6 +1705,18 @@ void FMetalRenderPass::ConditionalSwitchToAsyncCompute(void)
 			}
 			PrologueEncoderFence = nullptr;
 		}
+		if (PassStartFence)
+		{
+			if(PassStartFence->NeedsWait(mtlpp::RenderStages::Vertex))
+			{
+				PrologueEncoder.WaitForFence(PassStartFence);
+			}
+			else
+			{
+				PrologueEncoder.WaitAndUpdateFence(PassStartFence);
+			}
+			PassStartFence = nullptr;
+		}
 #if METAL_DEBUG_OPTIONS
 //		if (GetEmitDrawEvents() && PrologueEncoder.GetEncoderFence())
 //		{

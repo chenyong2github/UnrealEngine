@@ -20,6 +20,7 @@ public:
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraObjectSelection> InSelectedObjects);
+	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraObjectSelection> InSelectedObjects, TSharedRef<FNiagaraObjectSelection> InSelectedObjects2);
 
 	/** Delegate to know when one of the properties has been changed.*/
 	FOnFinishedChangingProperties& OnFinishedChangingProperties() { return OnFinishedChangingPropertiesDelegate; }
@@ -27,13 +28,14 @@ public:
 private:
 	/** Called whenever the object selection changes. */
 	void SelectedObjectsChanged();
+	void SelectedObjectsChangedSecond();
 
 	/** Internal delegate to route to third parties. */
 	void OnDetailsPanelFinishedChangingProperties(const FPropertyChangedEvent& InEvent);
 
 private:
 	/** The selected objects being viewed and edited by this widget. */
-	TSharedPtr<FNiagaraObjectSelection> SelectedObjects;
+	TArray<TSharedPtr<FNiagaraObjectSelection>> SelectedObjectsArray;
 
 	/** The details view for the selected object. */
 	TSharedPtr<IDetailsView> DetailsView;

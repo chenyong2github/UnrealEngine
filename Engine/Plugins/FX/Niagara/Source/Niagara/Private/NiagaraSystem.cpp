@@ -91,6 +91,8 @@ void UNiagaraSystem::PostInitProperties()
 		SystemUpdateScript = NewObject<UNiagaraScript>(this, "SystemUpdateScript", RF_Transactional);
 		SystemUpdateScript->SetUsage(ENiagaraScriptUsage::SystemUpdateScript);
 	}
+
+	GenerateStatID();
 }
 
 bool UNiagaraSystem::IsLooping() const
@@ -460,7 +462,7 @@ bool UNiagaraSystem::ReferencesInstanceEmitter(UNiagaraEmitter& Emitter)
 	return false;
 }
 
-void UNiagaraSystem::UpdateFromEmitterChanges(UNiagaraEmitter& ChangedSourceEmitter)
+void UNiagaraSystem::UpdateFromEmitterChanges(UNiagaraEmitter& ChangedSourceEmitter, bool bRecompileOnChange)
 {
 	bool bNeedsCompile = false;
 	for(FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
@@ -472,7 +474,7 @@ void UNiagaraSystem::UpdateFromEmitterChanges(UNiagaraEmitter& ChangedSourceEmit
 		}
 	}
 
-	if (bNeedsCompile)
+	if (bNeedsCompile && bRecompileOnChange)
 	{
 		RequestCompile(false);
 	}
@@ -1072,4 +1074,43 @@ void UNiagaraSystem::InitEmitterSpawnAttributes()
 			}
 		}
 	}
+}
+
+TStatId UNiagaraSystem::GetStatID(bool bGameThread, bool bConcurrent)const
+{
+#if STATS
+	if (bGameThread)
+	{
+		if (bConcurrent)
+		{
+			return StatID_GT;
+		}
+		else
+		{
+			return StatID_GT_CNC;
+		}
+	}
+	else
+	{
+		if(bConcurrent)
+		{
+			return StatID_RT;
+		}
+		else
+		{
+			return StatID_RT_CNC;
+		}
+	}
+#endif
+	return TStatId();
+}
+
+void UNiagaraSystem::GenerateStatID()
+{
+#if STATS
+	StatID_GT = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraSystems>(GetPathName() + TEXT("[GT]"));
+	StatID_GT_CNC = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraSystems>(GetPathName() + TEXT("[GT_CNC]"));
+	StatID_RT = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraSystems>(GetPathName() + TEXT("[RT]"));
+	StatID_RT_CNC = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraSystems>(GetPathName() + TEXT("[RT_CNC]"));
+#endif
 }

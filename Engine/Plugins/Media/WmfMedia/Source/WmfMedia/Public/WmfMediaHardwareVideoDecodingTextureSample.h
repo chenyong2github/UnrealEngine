@@ -55,7 +55,8 @@ public:
 	 */
 	virtual IMediaTextureSampleConverter* GetMediaTextureSampleConverter() override
 	{
-		return this;
+		// Only use sample converter for Win8+
+		return FWindowsPlatformMisc::VerifyWindowsVersion(6, 2) ? this : nullptr;
 	}
 
 	/**

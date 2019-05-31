@@ -14,6 +14,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "NiagaraEditorUtilities.h"
+#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
@@ -108,9 +109,7 @@ void FAssetTypeActions_NiagaraEmitter::ExecuteNewNiagaraSystem(TArray<TWeakObjec
 			if (System != nullptr)
 			{
 				System->AddEmitterHandle(*Emitter, FName(*Emitter->GetName()));
-
-				FNiagaraSystemViewModel SystemViewModel = FNiagaraSystemViewModel(*System, SystemOptions);
-				SystemViewModel.GetSystemScriptViewModel()->RebuildEmitterNodes();
+				FNiagaraStackGraphUtilities::RebuildEmitterNodes(*System);
 
 				// Ensure the new System is compiled
 				if (!Emitter->AreAllScriptAndSourcesSynchronized())

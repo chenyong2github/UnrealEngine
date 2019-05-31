@@ -24,6 +24,11 @@ void FRigUnit_MathVectorMul::Execute(const FRigUnitContext& Context)
 	Result = A * B;
 }
 
+void FRigUnit_MathVectorScale::Execute(const FRigUnitContext& Context)
+{
+	Result = Value * Factor;
+}
+
 void FRigUnit_MathVectorDiv::Execute(const FRigUnitContext& Context)
 {
 	if(FMath::IsNearlyZero(B.X) || FMath::IsNearlyZero(B.Y) || FMath::IsNearlyZero(B.Z))

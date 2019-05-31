@@ -141,6 +141,7 @@ FAutoConsoleCommand CmdPrintNumLandscapeShadows(
 ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
+, CachedEditingLayerData(nullptr)
 , LayerUpdateFlagPerMode(0)
 , WeightmapsHash(0)
 #endif
@@ -1453,11 +1454,9 @@ void ULandscapeComponent::OnUnregister()
 UTexture2D* ULandscapeComponent::GetHeightmap(bool InReturnEditingHeightmap) const
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnEditingHeightmap && GetLandscapeProxy()->HasLayersContent())
+	if (InReturnEditingHeightmap)
 	{
-		const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
-
-		if (EditingLayer != nullptr)
+		if (const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer())
 		{
 			return EditingLayer->HeightmapData.Texture;
 		}
@@ -1470,11 +1469,9 @@ UTexture2D* ULandscapeComponent::GetHeightmap(bool InReturnEditingHeightmap) con
 const TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnEditingWeightmap) const
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnEditingWeightmap && GetLandscapeProxy()->HasLayersContent())
+	if (InReturnEditingWeightmap)
 	{
-		const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
-
-		if (EditingLayer != nullptr)
+		if (const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer())
 		{
 			return EditingLayer->WeightmapData.Textures;
 		}
@@ -1487,11 +1484,9 @@ const TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InRetu
 TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnEditingWeightmap)
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnEditingWeightmap && GetLandscapeProxy()->HasLayersContent())
+	if (InReturnEditingWeightmap)
 	{
-		FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
-
-		if (EditingLayer != nullptr)
+		if (FLandscapeLayerComponentData* EditingLayer = GetEditingLayer())
 		{
 			return EditingLayer->WeightmapData.Textures;
 		}
@@ -1504,11 +1499,9 @@ TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnEdit
 const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(bool InReturnEditingWeightmap) const
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnEditingWeightmap && GetLandscapeProxy()->HasLayersContent())
+	if (InReturnEditingWeightmap)
 	{
-		const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
-
-		if (EditingLayer != nullptr)
+		if (const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer())
 		{
 			return EditingLayer->WeightmapData.LayerAllocations;
 		}
@@ -1521,11 +1514,9 @@ const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLa
 TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(bool InReturnEditingWeightmap)
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnEditingWeightmap && GetLandscapeProxy()->HasLayersContent())
+	if (InReturnEditingWeightmap)
 	{
-		FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
-
-		if (EditingLayer != nullptr)
+		if (FLandscapeLayerComponentData* EditingLayer = GetEditingLayer())
 		{
 			return EditingLayer->WeightmapData.LayerAllocations;
 		}
@@ -1537,16 +1528,29 @@ TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAll
 
 #if WITH_EDITOR
 
+void ULandscapeComponent::SetEditingLayer(const FGuid& InEditingLayer)
+{
+	LandscapeEditingLayer = InEditingLayer;
+}
+
 FLandscapeLayerComponentData* ULandscapeComponent::GetEditingLayer()
-{	
-	ALandscape* Landscape = GetLandscapeActor();
-	return Landscape != nullptr ? LayersData.Find(Landscape->GetEditingLayer()) : nullptr;
+{
+	if (CachedEditingLayer != LandscapeEditingLayer)
+	{
+		CachedEditingLayer = LandscapeEditingLayer;
+		CachedEditingLayerData = CachedEditingLayer.IsValid() ? LayersData.Find(CachedEditingLayer) : nullptr;
+	}
+	return CachedEditingLayerData;
 }
 
 const FLandscapeLayerComponentData* ULandscapeComponent::GetEditingLayer() const
 {
-	ALandscape* Landscape = GetLandscapeActor();
-	return Landscape != nullptr ? LayersData.Find(Landscape->GetEditingLayer()) : nullptr;
+	if (CachedEditingLayer != LandscapeEditingLayer)
+	{
+		CachedEditingLayer = LandscapeEditingLayer;
+		CachedEditingLayerData = CachedEditingLayer.IsValid() ? const_cast<TMap<FGuid, FLandscapeLayerComponentData>&>(LayersData).Find(CachedEditingLayer) : nullptr;
+	}
+	return CachedEditingLayerData;
 }
 
 FGuid ULandscapeComponent::GetEditingLayerGUID() const
@@ -1581,6 +1585,7 @@ void ULandscapeComponent::ForEachLayer(TFunctionRef<void(const FGuid&, struct FL
 void ULandscapeComponent::AddLayerData(const FGuid& InLayerGuid, const FLandscapeLayerComponentData& InData)
 {
 	Modify();
+	check(!LandscapeEditingLayer.IsValid());
 	FLandscapeLayerComponentData& Data = LayersData.FindOrAdd(InLayerGuid);
 	Data = InData;
 }
@@ -1666,6 +1671,7 @@ void ULandscapeComponent::AddDefaultLayerData(const FGuid& InLayerGuid, const TA
 void ULandscapeComponent::RemoveLayerData(const FGuid& InLayerGuid)
 {
 	Modify();
+	check(!LandscapeEditingLayer.IsValid());
 	LayersData.Remove(InLayerGuid);
 }
 
@@ -1700,11 +1706,9 @@ void ULandscapeComponent::SetWeightmapLayerAllocations(const TArray<FWeightmapLa
 TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnEditingWeightmap)
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnEditingWeightmap && GetLandscapeProxy()->HasLayersContent())
+	if (InReturnEditingWeightmap)
 	{
-		FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
-
-		if (EditingLayer != nullptr)
+		if (FLandscapeLayerComponentData* EditingLayer = GetEditingLayer())
 		{
 			return EditingLayer->WeightmapData.TextureUsages;
 		}
@@ -1717,11 +1721,9 @@ TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsag
 const TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnEditingWeightmap) const
 {
 #if WITH_EDITORONLY_DATA
-	if (InReturnEditingWeightmap && GetLandscapeProxy()->HasLayersContent())
+	if (InReturnEditingWeightmap)
 	{
-		const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
-
-		if (EditingLayer != nullptr)
+		if (const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer())
 		{
 			return EditingLayer->WeightmapData.TextureUsages;
 		}
