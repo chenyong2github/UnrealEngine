@@ -366,7 +366,7 @@ void FHoldBuffer::Write(const void* Data, uint32 Size)
 	uint16 HotPageCount = uint16((NextUsed + (FHoldBuffer::PageSize - 1)) >> FHoldBuffer::PageShift);
 	if (HotPageCount > MappedPageCount)
 	{
-		if (HotPageCount >= FHoldBuffer::MaxPages)
+		if (HotPageCount > FHoldBuffer::MaxPages)
 		{
 			bFull = true;
 			return;
