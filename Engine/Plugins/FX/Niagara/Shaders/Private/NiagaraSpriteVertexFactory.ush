@@ -269,6 +269,9 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.Particle.Color = Interpolants.Color;
 #endif
 
+#if (DYNAMIC_PARAMETERS_MASK != 0)
+	Result.Particle.DynamicParameterValidMask = NiagaraSpriteVF.MaterialParamValidMask;
+#endif
 #if (DYNAMIC_PARAMETERS_MASK & 1)
 	Result.Particle.DynamicParameter = Interpolants.DynamicParameter;
 #endif
@@ -342,6 +345,9 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	// primitives using this VF are usually transparent and hence don't output velocity
 	Result.PrevFrameLocalToWorld = Primitive.LocalToWorld;
 
+#if (DYNAMIC_PARAMETERS_MASK != 0)
+	Result.Particle.DynamicParameterValidMask = NiagaraSpriteVF.MaterialParamValidMask;
+#endif
 #if (DYNAMIC_PARAMETERS_MASK & 1)
 	Result.Particle.DynamicParameter = Intermediates.DynamicParameter;
 #endif
