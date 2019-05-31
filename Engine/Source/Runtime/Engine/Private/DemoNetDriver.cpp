@@ -2366,6 +2366,22 @@ void UDemoNetDriver::RequestEventDataForActiveReplay(const FString& EventID, con
 	}
 }
 
+void UDemoNetDriver::RequestEventGroupDataForActiveReplay(const FString& Group, const FRequestEventGroupDataCallback& Delegate)
+{
+	if (ReplayStreamer.IsValid())
+	{
+		ReplayStreamer->RequestEventGroupData(ActiveReplayName, Group, Delegate);
+	}
+}
+
+void UDemoNetDriver::RequestEventGroupDataForActiveReplay(const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate)
+{
+	if (ReplayStreamer.IsValid())
+	{
+		ReplayStreamer->RequestEventGroupData(ActiveReplayName, Group, UserIndex, Delegate);
+	}
+}
+
 /**
 * FReplayViewer
 * Used when demo.UseNetRelevancy enabled

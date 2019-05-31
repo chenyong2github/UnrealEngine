@@ -1476,6 +1476,101 @@ void FSaveGameNetworkReplayStreamer::RequestEventData_Internal(const FString& Re
 	}
 }
 
+void FSaveGameNetworkReplayStreamer::RequestEventGroupData(const FString& Group, const FRequestEventGroupDataCallback& Delegate)
+{
+	UE_LOG(LogSaveGameReplay, Warning, TEXT("FSaveGameNetworkReplayStreamer::RequestEventGroupData: No replay name available, defaulting to FLocalFileStreamFArchive::RequestEventData"));
+	FLocalFileNetworkReplayStreamer::RequestEventGroupData(Group, Delegate);
+}
+
+void FSaveGameNetworkReplayStreamer::RequestEventGroupData(const FString& ReplayName, const FString& Group, const FRequestEventGroupDataCallback& Delegate)
+{
+	if (!IsSaveGameFileName(ReplayName))
+	{
+		FLocalFileNetworkReplayStreamer::RequestEventGroupData(ReplayName, Group, INDEX_NONE, Delegate);
+	}
+	else
+	{
+		UE_LOG(LogSaveGameReplay, Warning, TEXT("FSaveGameNetworkReplayStreamer::RequestEventGroupData - Invalid UserIndex."));
+		Delegate.ExecuteIfBound(FRequestEventGroupDataResult());
+	}
+}
+
+void FSaveGameNetworkReplayStreamer::RequestEventGroupData(const FString& ReplayName, const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate)
+{
+	if (!IsSaveGameFileName(ReplayName))
+	{
+		FLocalFileNetworkReplayStreamer::RequestEventGroupData(ReplayName, Group, UserIndex, Delegate);
+	}
+	else if (UserIndex != INDEX_NONE)
+	{
+		RequestEventGroupDataSaved(ReplayName, Group, UserIndex, Delegate);
+	}
+	else
+	{
+		UE_LOG(LogSaveGameReplay, Warning, TEXT("FSaveGameNetworkReplayStreamer::RequestEventGroupData - Invalid UserIndex."));
+		Delegate.ExecuteIfBound(FRequestEventGroupDataResult());
+	}
+}
+
+void FSaveGameNetworkReplayStreamer::RequestEventGroupDataSaved(const FString& ReplayName, const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate)
+{
+	using TAsyncTypes = SaveGameReplay::TAsyncTypes<FRequestEventGroupDataResult>;
+
+	auto AsyncWork = [this, ReplayName, Group, UserIndex]()
+	{
+		auto SharedResult = TAsyncTypes::MakeSharedResult();
+		RequestEventGroupData_Internal(ReplayName, Group, UserIndex, *SharedResult.Get());
+		return SharedResult;
+	};
+
+	auto PostAsyncWork = [Delegate](const FRequestEventGroupDataResult& Result)
+	{
+		Delegate.ExecuteIfBound(Result);
+	};
+
+	SaveGameReplay::FAsyncTaskManager::Get().StartTask<FRequestEventGroupDataResult>(*this, TEXT("RequestEventGroupData"), AsyncWork, PostAsyncWork);
+}
+
+void FSaveGameNetworkReplayStreamer::RequestEventGroupData_Internal(const FString& ReplayName, const FString& Group, const int32 UserIndex, FRequestEventGroupDataResult& Result)
+{
+	ISaveGameSystem* SaveGameSystem = IPlatformFeaturesModule::Get().GetSaveGameSystem();
+	if (!ensureMsgf(SaveGameSystem, TEXT("FSaveGameNetworkReplayStreamer::RequestEventGroupDataSaved: Unable to retrieve save game systems")))
+	{
+		return;
+	}
+
+	FSaveGameSanitizedNames SanitizedNames;
+	if (!StreamNameToSanitizedNames(ReplayName, SanitizedNames))
+	{
+		return;
+	}
+
+	FSaveGameMetaData MetaData;
+	if (ReadMetaDataFromSaveGame(*SaveGameSystem, SanitizedNames, UserIndex, MetaData, Result))
+	{
+		for (int32 i = 0; i < MetaData.VersionedInfo.Events.ReplayEvents.Num(); ++i)
+		{
+			const FReplayEventListItem& EventInfo = MetaData.VersionedInfo.Events.ReplayEvents[i];
+
+			if (EventInfo.Group == Group)
+			{
+				Result.Result = EStreamingOperationResult::Success;
+				
+				FReplayEventListItem& EventItem = Result.ReplayEventListItems.AddDefaulted_GetRef();
+				EventItem.ID = EventInfo.ID;
+				EventItem.Group = EventInfo.Group;
+				EventItem.Metadata = EventInfo.Metadata;
+				EventItem.Time1 = EventInfo.Time1;
+				EventItem.Time2 = EventInfo.Time2;
+
+				FRequestEventDataResult& EventDataResult = Result.ReplayEventListResults.AddDefaulted_GetRef();
+				EventDataResult.Result = EStreamingOperationResult::Success;
+				EventDataResult.ReplayEventListItem = MoveTemp(MetaData.VersionedInfo.EventData[i]);
+			}
+		}
+	}
+}
+
 bool FSaveGameNetworkReplayStreamer::ReadMetaDataFromLocalStream(FArchive& StreamArchive, FSaveGameMetaData& OutMetaData) const
 {
 	check(StreamArchive.IsLoading());
