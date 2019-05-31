@@ -12,7 +12,6 @@ UCLASS(EditInlineNew, Category = "Texture", meta = (DisplayName = "Texture Sampl
 class NIAGARA_API UNiagaraDataInterfaceTexture : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
-		bool bGPUBufferDirty;
 public:
 
 	UPROPERTY(EditAnywhere, Category = "Texture")
@@ -51,9 +50,24 @@ public:
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
+	void PushToRenderThread();
+
 
 	static const FName SampleTexture2DName;
 	static const FName SampleVolumeTextureName;
 	static const FName SamplePseudoVolumeTextureName;
 	static const FName TextureDimsName;
+};
+
+struct FNiagaraDataInterfaceProxyTexture : public FNiagaraDataInterfaceProxy
+{
+	FSamplerStateRHIRef SamplerStateRHI;
+	FTextureRHIRef TextureRHI;
+	float TexDims[2];
+
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FGuid& Instance) override { check(false); }
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
+	{
+		return 0;
+	}
 };

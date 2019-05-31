@@ -17,14 +17,14 @@ void FNiagaraCollisionBatch::KickoffNewBatch(FNiagaraEmitterInstance *Sim, float
 	FNiagaraVariable VelVar(FNiagaraTypeDefinition::GetVec3Def(), "Velocity");
 	FNiagaraVariable SizeVar(FNiagaraTypeDefinition::GetVec2Def(), "SpriteSize");
 	FNiagaraVariable TstVar(FNiagaraTypeDefinition::GetBoolDef(), "PerformCollision");
-	FNiagaraDataSetIterator<FVector> PosIt(Sim->GetData(), PosVar, 0, false);
-	FNiagaraDataSetIterator<FVector> VelIt(Sim->GetData(), VelVar, 0, false);
-	FNiagaraDataSetIterator<FVector2D> SizeIt(Sim->GetData(), SizeVar, 0, false);
+	FNiagaraDataSetAccessor<FVector> PosData(Sim->GetData(), PosVar);
+	FNiagaraDataSetAccessor<FVector> VelData(Sim->GetData(), VelVar);
+	FNiagaraDataSetAccessor<FVector2D> SizeData(Sim->GetData(), SizeVar);
 	//FNiagaraDataSetIterator<int32> TstIt(Sim->GetData(), TstVar, 0, false);
 
-	bool bUseSize = SizeIt.IsValid();
+	bool bUseSize = SizeData.IsValidForRead();
 
-	if (!PosIt.IsValid() || !VelIt.IsValid() /*|| !TstIt.IsValid()*/)
+	if (!PosData.IsValidForRead() || !VelData.IsValidForRead() /*|| !TstIt.IsValid()*/)
 	{
 		return;
 	}
@@ -34,25 +34,24 @@ void FNiagaraCollisionBatch::KickoffNewBatch(FNiagaraEmitterInstance *Sim, float
 	{
 		CollisionTraces.Empty();
 
-		for (uint32 i = 0; i < Sim->GetData().GetPrevNumInstances(); i++)
+		for (uint32 i = 0; i < Sim->GetData().GetCurrentDataChecked().GetNumInstances(); i++)
 		{
 			//int32 TestCollision = *TstIt;
 			//if (TestCollision)
 			{
-				check(PosIt.IsValid() && VelIt.IsValid() && (bUseSize == false || SizeIt.IsValid()));
 				FVector Position;
 				FVector EndPosition;
 				FVector Velocity;
 
-				PosIt.Get(Position);
-				VelIt.Get(Velocity);
+				PosData.Get(i, Position);
+				VelData.Get(i, Velocity);
 				EndPosition = Position + Velocity * DeltaSeconds;
 
 				if (bUseSize)
 				{
 					//TODO:  Handle mesh particles too.  Also this can probably be better and or faster.
 					FVector2D SpriteSize;
-					SizeIt.Get(SpriteSize);
+					SizeData.Get(i, SpriteSize);
 					float MaxSize = FMath::Max(SpriteSize.X, SpriteSize.Y);
 
 					float Length;
@@ -71,10 +70,6 @@ void FNiagaraCollisionBatch::KickoffNewBatch(FNiagaraEmitterInstance *Sim, float
 				Trace.SourceParticleIndex = i;
 				CollisionTraces.Add(Trace);
 			}
-
-			//TstIt.Advance();
-			PosIt.Advance();
-			VelIt.Advance();
 		}
 	}
 }
@@ -135,12 +130,13 @@ void FNiagaraCollisionBatch::GenerateEventsFromResults(FNiagaraEmitterInstance *
 			}
 		}
 
-		if (Payloads.Num())
+		int32 NumInstances = Payloads.Num();
+		if (NumInstances)
 		{
 			// now allocate the data set and write all the event structs
 			//
-			CollisionEventDataSet->Allocate(Payloads.Num());
-			CollisionEventDataSet->SetNumInstances(Payloads.Num());
+			CollisionEventDataSet->Allocate(NumInstances);
+			CollisionEventDataSet->GetDestinationDataChecked().SetNumInstances(NumInstances);
 			//FNiagaraVariable ValidVar(FNiagaraTypeDefinition::GetIntDef(), "Valid");
 			FNiagaraVariable PosVar(FNiagaraTypeDefinition::GetVec3Def(), "CollisionLocation");
 			FNiagaraVariable VelVar(FNiagaraTypeDefinition::GetVec3Def(), "CollisionVelocity");
@@ -148,34 +144,29 @@ void FNiagaraCollisionBatch::GenerateEventsFromResults(FNiagaraEmitterInstance *
 			FNiagaraVariable PhysMatIdxVar(FNiagaraTypeDefinition::GetIntDef(), "PhysicalMaterialIndex");
 			FNiagaraVariable ParticleIndexVar(FNiagaraTypeDefinition::GetIntDef(), "ParticleIndex");
 			//FNiagaraDataSetIterator<int32> ValidItr(*CollisionEventDataSet, ValidVar, 0, true);
-			FNiagaraDataSetIterator<FVector> PosItr(*CollisionEventDataSet, PosVar, 0, true);
-			FNiagaraDataSetIterator<FVector> NormItr(*CollisionEventDataSet, NormVar, 0, true);
-			FNiagaraDataSetIterator<FVector> VelItr(*CollisionEventDataSet, VelVar, 0, true);
-			FNiagaraDataSetIterator<int32> PhysMatItr(*CollisionEventDataSet, PhysMatIdxVar, 0, true);
-			FNiagaraDataSetIterator<int32> ParticleIndexItr(*CollisionEventDataSet, ParticleIndexVar, 0, true);
+			FNiagaraDataSetAccessor<FVector> PosItr(*CollisionEventDataSet, PosVar);
+			FNiagaraDataSetAccessor<FVector> NormItr(*CollisionEventDataSet, NormVar);
+			FNiagaraDataSetAccessor<FVector> VelItr(*CollisionEventDataSet, VelVar);
+			FNiagaraDataSetAccessor<int32> PhysMatItr(*CollisionEventDataSet, PhysMatIdxVar);
+			FNiagaraDataSetAccessor<int32> ParticleIndexItr(*CollisionEventDataSet, ParticleIndexVar);
 
-			for (FNiagaraCollisionEventPayload &Payload : Payloads)
+			for (int32 i = 0; i < NumInstances; ++i)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_NiagaraEventWrite);
+				FNiagaraCollisionEventPayload& Payload = Payloads[i];
 
 				check(/*ValidItr.IsValid() && */PosItr.IsValid() && VelItr.IsValid() && NormItr.IsValid() && PhysMatItr.IsValid());
 				//ValidItr.Set(1);
-				PosItr.Set(Payload.CollisionPos);
-				VelItr.Set(Payload.CollisionVelocity);
-				NormItr.Set(Payload.CollisionNormal);
-				ParticleIndexItr.Set(Payload.ParticleIndex);
-				PhysMatItr.Set(0);
-				//ValidItr.Advance();
-				PosItr.Advance();
-				VelItr.Advance();
-				NormItr.Advance();
-				PhysMatItr.Advance();
-				ParticleIndexItr.Advance();
+				PosItr.Set(i, Payload.CollisionPos);
+				VelItr.Set(i, Payload.CollisionVelocity);
+				NormItr.Set(i, Payload.CollisionNormal);
+				ParticleIndexItr.Set(i, Payload.ParticleIndex);
+				PhysMatItr.Set(i, 0);
 			}
 		}
 		else
 		{
-			CollisionEventDataSet->SetNumInstances(0);
+			CollisionEventDataSet->ResetBuffers();
 		}
 
 	}

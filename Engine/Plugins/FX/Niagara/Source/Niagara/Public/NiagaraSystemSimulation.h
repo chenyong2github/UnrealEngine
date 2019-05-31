@@ -68,16 +68,16 @@ struct FNiagaraParameterStoreToDataSetBinding
 		DataSet.CheckForNaNs();
 #endif
 
-		FNiagaraDataBuffer& CurrBuffer = DataSet.CurrData();
+		FNiagaraDataBuffer* CurrBuffer = DataSet.GetCurrentData();
 
 		for (const FDataOffsets& DataOffsets : FloatOffsets)
 		{
-			float* DataSetPtr = CurrBuffer.GetInstancePtrFloat(DataOffsets.DataSetComponentOffset, DataSetInstanceIndex);
+			float* DataSetPtr = CurrBuffer->GetInstancePtrFloat(DataOffsets.DataSetComponentOffset, DataSetInstanceIndex);
 			ParameterStore.SetParameterByOffset(DataOffsets.ParameterOffset, *DataSetPtr);
 		}
 		for (const FDataOffsets& DataOffsets : Int32Offsets)
 		{
-			int32* DataSetPtr = CurrBuffer.GetInstancePtrInt32(DataOffsets.DataSetComponentOffset, DataSetInstanceIndex);
+			int32* DataSetPtr = CurrBuffer->GetInstancePtrInt32(DataOffsets.DataSetComponentOffset, DataSetInstanceIndex);
 			ParameterStore.SetParameterByOffset(DataOffsets.ParameterOffset, *DataSetPtr);
 		}
 
@@ -90,7 +90,7 @@ struct FNiagaraParameterStoreToDataSetBinding
 
 	FORCEINLINE_DEBUGGABLE void ParameterStoreToDataSet(FNiagaraParameterStore& ParameterStore, FNiagaraDataSet& DataSet, int32 DataSetInstanceIndex)
 	{
-		FNiagaraDataBuffer& CurrBuffer = DataSet.CurrData();
+		FNiagaraDataBuffer& CurrBuffer = DataSet.GetDestinationDataChecked();
 		const uint8* ParameterData = ParameterStore.GetParameterDataArray().GetData();
 
 #if NIAGARA_NAN_CHECKING

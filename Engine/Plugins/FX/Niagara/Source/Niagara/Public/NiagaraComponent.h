@@ -14,7 +14,7 @@
 #include "NiagaraComponent.generated.h"
 
 class FMeshElementCollector;
-class NiagaraRenderer;
+class FNiagaraRenderer;
 class UNiagaraSystem;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
@@ -312,6 +312,8 @@ public:
 
 	const FNiagaraParameterStore& GetOverrideParameters() const { return OverrideParameters; }
 
+	bool IsWorldReadyToRun() const;
+
 	//~ End UObject Interface.
 
 	// Called when the particle system is done
@@ -432,9 +434,10 @@ public:
 	~FNiagaraSceneProxy();
 
 	/** Called on render thread to assign new dynamic data */
-	void SetDynamicData_RenderThread(struct FNiagaraDynamicDataBase* NewDynamicData);
-	TArray<class NiagaraRenderer*>& GetEmitterRenderers() { return EmitterRenderers; }
-	void UpdateEmitterRenderers(const TArray<NiagaraRenderer*>& InRenderers);
+	const TArray<class FNiagaraRenderer*>& GetEmitterRenderers() { return EmitterRenderers; }
+
+	void CreateRenderers(const UNiagaraComponent* InComponent);
+	void ReleaseRenderers();
 
 	/** Gets whether or not this scene proxy should be rendered. */
 	bool GetRenderingEnabled() const;
@@ -478,8 +481,16 @@ private:
 	uint32 GetAllocatedSize() const;
 
 private:
-	//class NiagaraRenderer* EmitterRenderer;
-	TArray<class NiagaraRenderer*>EmitterRenderers;
+	/** Emitter Renderers in the order they appear in the emitters. */
+	TArray<FNiagaraRenderer*> EmitterRenderers;
+	
+	/** Indices of renderers in the order they should be rendered. */
+	TArray<int32> RendererDrawOrder;
+
 	bool bRenderingEnabled;
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+
+#if STATS
+	TStatId SystemStatID;
+#endif
 };

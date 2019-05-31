@@ -1,11 +1,23 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraShaderModule.h"
+#include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
+#include "Interfaces/IPluginManager.h"
+#include "ShaderCore.h"
 
 IMPLEMENT_MODULE(INiagaraShaderModule, NiagaraShader);
 
 INiagaraShaderModule* INiagaraShaderModule::Singleton(nullptr);
+
+void INiagaraShaderModule::StartupModule()
+{
+	Singleton = this;
+
+	// Maps virtual shader source directory /Plugin/FX/Niagara to the plugin's actual Shaders directory.
+	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("Niagara"))->GetBaseDir(), TEXT("Shaders"));
+	AddShaderSourceDirectoryMapping(TEXT("/Plugin/FX/Niagara"), PluginShaderDir);
+}
 
 FDelegateHandle INiagaraShaderModule::SetOnProcessShaderCompilationQueue(FOnProcessQueue InOnProcessQueue)
 {

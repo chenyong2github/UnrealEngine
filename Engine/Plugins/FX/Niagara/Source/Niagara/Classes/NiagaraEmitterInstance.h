@@ -14,17 +14,19 @@ NiagaraEmitterInstance.h: Niagara emitter simulation class
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraScriptExecutionContext.h"
+#include "NiagaraBoundsCalculator.h"
 
 class FNiagaraSystemInstance;
-class NiagaraRenderer;
 struct FNiagaraEmitterHandle;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
 class NiagaraEmitterInstanceBatcher;
+
+
 /**
 * A Niagara particle simulation.
 */
-struct FNiagaraEmitterInstance
+class FNiagaraEmitterInstance
 {
 public:
 	explicit FNiagaraEmitterInstance(FNiagaraSystemInstance* InParentSystemInstance);
@@ -56,23 +58,27 @@ public:
 
 	uint32 CalculateEventSpawnCount(const FNiagaraEventScriptProperties &EventHandlerProps, TArray<int32, TInlineAllocator<16>>& EventSpawnCounts, FNiagaraDataSet *EventSet);
 
-	NIAGARA_API TOptional<FBox> CalculateDynamicBounds();
+	/** Generate system bounds, reading back data from the GPU will introduce a stall and should only be used for debug purposes. */
+	FBox CalculateDynamicBounds(const bool bReadGPUSimulation = false);
+	NIAGARA_API void CalculateFixedBounds(const FTransform& ToWorldSpace);
 
-	FNiagaraDataSet &GetData()	{ return *ParticleDataSet; }
-
-	int32 GetEmitterRendererNum() const {
-		return EmitterRenderer.Num();
-	}
-
-	NiagaraRenderer *GetEmitterRenderer(int32 Index)	{ return EmitterRenderer[Index]; }
-
+	FNiagaraDataSet& GetData()const { return *ParticleDataSet; }
+	
 	FORCEINLINE bool IsDisabled()const { return ExecutionState == ENiagaraExecutionState::Disabled; }
 	FORCEINLINE bool IsComplete()const { return ExecutionState == ENiagaraExecutionState::Complete || ExecutionState == ENiagaraExecutionState::Disabled; }
 		
 	/** Create a new NiagaraRenderer. The old renderer is not immediately deleted, but instead put in the ToBeRemoved list.*/
-	void NIAGARA_API UpdateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, TArray<NiagaraRenderer*>& ToBeAddedList, TArray<NiagaraRenderer*>& ToBeRemovedList);
+	//void NIAGARA_API UpdateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, TArray<NiagaraRenderer*>& ToBeAddedList, TArray<NiagaraRenderer*>& ToBeRemovedList);
 
-	FORCEINLINE int32 GetNumParticles()const	{ return ParticleDataSet->GetNumInstances(); }
+	FORCEINLINE int32 GetNumParticles()const
+	{
+		// Note: For ENiagaraSimTarget::GPUComputeSim this data is latent
+		if (ParticleDataSet->GetCurrentData())
+		{
+			return ParticleDataSet->GetCurrentData()->GetNumInstances();
+		}
+		return 0;
+	}
 	FORCEINLINE int32 GetTotalSpawnedParticles()const	{ return TotalSpawnedParticles; }
 
 	NIAGARA_API const FNiagaraEmitterHandle& GetEmitterHandle() const;
@@ -86,9 +92,6 @@ public:
 	void NIAGARA_API SetExecutionState(ENiagaraExecutionState InState);
 
 	FNiagaraDataSet* GetDataSet(FNiagaraDataSetID SetID);
-
-	/** Tell the renderer thread that we're done with the Niagara renderer on this simulation.*/
-	void ClearRenderer();
 
 	FBox GetBounds();
 
@@ -106,6 +109,13 @@ public:
 	void Dump()const;
 
 	bool WaitForDebugInfo();
+
+	FNiagaraComputeExecutionContext* GetGPUContext()const
+	{
+		return GPUExecContext;
+	}
+
+	void SetSystemFixedBoundsOverride(FBox SystemFixedBounds);
 
 private:
 
@@ -178,7 +188,6 @@ private:
 	/** particle simulation data. Must be a shared ref as various things on the RT can have direct ref to it. */
 	FNiagaraDataSet* ParticleDataSet;
 
-	TArray<NiagaraRenderer*> EmitterRenderer;
 	FNiagaraSystemInstance *ParentSystemInstance;
 
 	/** Raw pointer to the emitter that we're instanced from. Raw ptr should be safe here as we check for the validity of the system and it's emitters higher up before any ticking. */
@@ -194,17 +203,13 @@ private:
 
 	FName OwnerSystemInstanceName;
 
+	/** Cached fixed bounds of the parent system which override this Emitter Instances bounds if set. Whenever we initialize the owning SystemInstance we will reconstruct this
+	 ** EmitterInstance and the cached bounds will be unset. */
+	TOptional<FBox> CachedSystemFixedBounds;
+
 #if WITH_EDITORONLY_DATA
 	bool CheckAttributesForRenderer(int32 Index);
 #endif
-
-	FNiagaraDataSetAccessor<FVector> PositionAccessor;
-	FNiagaraDataSetAccessor<FVector2D> SizeAccessor;
-	FNiagaraDataSetAccessor<FVector> MeshScaleAccessor;
-
-	static const FName PositionName;
-	static const FName SizeName;
-	static const FName MeshScaleName;
 
 #if !UE_BUILD_SHIPPING
 	bool bEncounteredNaNs;
@@ -214,4 +219,11 @@ private:
 	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;
 
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+
+	/** Data required for handling events. */
+	TArray<FNiagaraEventHandlingInfo> EventHandlingInfo;
+	int32 EventSpawnTotal;
+
+	/** Optional list of bounds calculators. */
+	TArray<TUniquePtr<FNiagaraBoundsCalculator>, TInlineAllocator<1>> BoundsCalculators;
 };

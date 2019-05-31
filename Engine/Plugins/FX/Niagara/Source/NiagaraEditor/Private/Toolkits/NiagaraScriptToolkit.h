@@ -10,7 +10,6 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "UObject/GCObject.h"
 
-#include "NiagaraScript.h"
 #include "NiagaraEditorCommon.h"
 
 class IDetailsView;
@@ -79,7 +78,10 @@ private:
 	TSharedRef<SDockTab> SpawnTabNodeGraph(const FSpawnTabArgs& Args);
 
 	/** Spawns the tab with the script details inside. */
-	TSharedRef<SDockTab> SpawnTabNodeDetails(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTabScriptDetails(const FSpawnTabArgs& Args);
+
+	/** Spawns the tab with the details of the current selection. */
+	TSharedRef<SDockTab> SpawnTabSelectedDetails(const FSpawnTabArgs& Args);
 
 	/** Spawns the tab with the script details inside. */
 	TSharedRef<SDockTab> SpawnTabScriptParameters(const FSpawnTabArgs& Args);
@@ -127,7 +129,7 @@ private:
 	TSharedPtr<FNiagaraScriptViewModel> ScriptViewModel;
 
 	/** The selection displayed by the details tab. */
-	TSharedPtr<FNiagaraObjectSelection> DetailsSelection;
+	TSharedPtr<FNiagaraObjectSelection> DetailsScriptSelection;
 
 	/** Message log, with the log listing that it reflects */
 	TSharedPtr<class SWidget> NiagaraMessageLog;
@@ -135,7 +137,8 @@ private:
 
 	/**	The tab ids for the Niagara editor */
 	static const FName NodeGraphTabId; 
-	static const FName DetailsTabId;
+	static const FName ScriptDetailsTabId;
+	static const FName SelectedDetailsTabId;
 	static const FName ParametersTabId;
 	static const FName StatsTabId;
 	static const FName MessageLogTabID;

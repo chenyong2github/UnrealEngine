@@ -16,6 +16,11 @@ public:
 
 	FMovieSceneNiagaraParameterSectionTemplate(FNiagaraVariable InParameter);
 
+	virtual void SetupOverrides() override
+	{
+		EnableOverrides(RequiresInitializeFlag);
+	}
+
 private:
 	virtual UScriptStruct& GetScriptStructImpl() const override { return *StaticStruct(); }
 	virtual void Initialize(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const override;

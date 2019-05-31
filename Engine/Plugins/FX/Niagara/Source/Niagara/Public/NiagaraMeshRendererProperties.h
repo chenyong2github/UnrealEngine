@@ -9,6 +9,8 @@
 #include "NiagaraCommon.h"
 #include "NiagaraMeshRendererProperties.generated.h"
 
+class FNiagaraEmitterInstance;
+
 /** This enum decides how a mesh particle will orient its "facing" axis relative to camera. Must keep these in sync with NiagaraMeshVertexFactory.ush*/
 UENUM()
 enum class ENiagaraMeshFacingMode : uint8
@@ -31,13 +33,22 @@ public:
 
 	UNiagaraMeshRendererProperties();
 
+	//UObject Interface
+	virtual void PostInitProperties() override;
+#if WITH_EDITORONLY_DATA
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif// WITH_EDITORONLY_DATA
+	//UObject Interface END
+
+	static void InitCDOPropertiesAfterModuleStartup();
+
 	//~ UNiagaraRendererProperties interface
-	virtual NiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel) override;
+	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter) override;
+	virtual class FNiagaraBoundsCalculator* CreateBoundsCalculator() override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials) const override;
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return true; };
 
 #if WITH_EDITORONLY_DATA
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) override;
 	virtual void FixMaterial(UMaterial* Material) override;
 	virtual const TArray<FNiagaraVariable>& GetRequiredAttributes() override;
@@ -70,9 +81,6 @@ public:
 	/** Determines how the mesh orients itself relative to the camera.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
 	ENiagaraMeshFacingMode FacingMode; 
-	
-	virtual void PostInitProperties() override;
-	static void InitCDOPropertiesAfterModuleStartup();
 	
 	/** Which attribute should we use for position when generating instanced meshes?*/
 	UPROPERTY(EditAnywhere, Category = "Bindings")
@@ -122,8 +130,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding NormalizedAgeBinding;
 
-	UPROPERTY(Transient)
-	int32 SyncId;
 protected:
 	void InitBindings();
 };

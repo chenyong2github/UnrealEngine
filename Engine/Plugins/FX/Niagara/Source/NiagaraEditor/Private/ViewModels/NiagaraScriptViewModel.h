@@ -16,6 +16,7 @@ class FNiagaraScriptInputCollectionViewModel;
 class FNiagaraScriptOutputCollectionViewModel;
 class FNiagaraMetaDataCollectionViewModel;
 class UNiagaraEmitter;
+class FNiagaraObjectSelection;
 
 
 /** A view model for Niagara scripts which manages other script related view models. */
@@ -38,17 +39,14 @@ public:
 	/** Gets the view model for the output parameter collection. */
 	TSharedRef<FNiagaraScriptOutputCollectionViewModel> GetOutputCollectionViewModel();
 
-	/** Gets the view model for the metadata collection. */
-	TSharedRef<FNiagaraMetaDataCollectionViewModel> GetMetadataCollectionViewModel();
-
-	/** Refreshes the metadata collection */
-	void RefreshMetadataCollection();
-
 	TSharedRef<INiagaraParameterCollectionViewModel> GetInputParameterMapViewModel();
 	TSharedRef<INiagaraParameterCollectionViewModel> GetOutputParameterMapViewModel();
 
 	/** Gets the view model for the graph. */
 	TSharedRef<FNiagaraScriptGraphViewModel> GetGraphViewModel();
+
+	/** Gets the currently selected script variables. */
+	TSharedRef<FNiagaraObjectSelection> GetVariableSelection();
 
 	/** Updates the script with the latest compile status. */
 	void UpdateCompileStatus(ENiagaraScriptCompileStatus InAggregateCompileStatus, const FString& InAggregateCompileErrors,
@@ -109,11 +107,11 @@ protected:
 	/** The view model for the output parameter collection .*/
 	TSharedRef<FNiagaraScriptOutputCollectionViewModel> OutputCollectionViewModel;
 
-	/** The view model for the metadata collection .*/
-	TSharedRef<FNiagaraMetaDataCollectionViewModel> MetaDataCollectionViewModel;
-
 	/** The view model for the graph. */
 	TSharedRef<FNiagaraScriptGraphViewModel> GraphViewModel;
+
+	/** The set of variables currently selected in the graph or the parameters panel. */
+	TSharedRef<FNiagaraObjectSelection> VariableSelection;
 
 	/** A flag for preventing reentrancy when synchronizing selection. */
 	bool bUpdatingSelectionInternally;

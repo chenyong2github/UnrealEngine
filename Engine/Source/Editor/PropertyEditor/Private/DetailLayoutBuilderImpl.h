@@ -25,6 +25,8 @@ public:
 		const TSharedPtr<IDetailsViewPrivate>& InDetailsView,
 		bool bIsExternal);
 
+	~FDetailLayoutBuilderImpl();
+
 	/** IDetailLayoutBuilder Interface */
 	virtual const IDetailsView* GetDetailsView() const override;
 	virtual void GetObjectsBeingCustomized(TArray< TWeakObjectPtr<UObject> >& OutObjects) const override;
