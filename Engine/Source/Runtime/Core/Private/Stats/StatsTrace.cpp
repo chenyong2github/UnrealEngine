@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "Stats/StatsTrace.h"
 #include "ProfilingDebugging/MiscTrace.h"
-#include "Trace/Trace.h"
 #include "Templates/Atomic.h"
 #include "Misc/CString.h"
 #include "HAL/PlatformTime.h"
@@ -10,14 +9,14 @@
 
 #if STATSTRACE_ENABLED
 
-UE_TRACE_EVENT_BEGIN(Stats, Spec)
+UE_TRACE_EVENT_BEGIN(Stats, Spec, Always)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
 	UE_TRACE_EVENT_FIELD(bool, IsFloatingPoint)
 	UE_TRACE_EVENT_FIELD(bool, IsMemory)
 	UE_TRACE_EVENT_FIELD(bool, ShouldClearEveryFrame)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Stats, EventBatch)
+UE_TRACE_EVENT_BEGIN(Stats, EventBatch, Always)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 

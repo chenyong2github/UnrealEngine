@@ -3,9 +3,12 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Trace/Trace.h"
 
-#if STATS && !IS_PROGRAM && !UE_BUILD_SHIPPING
-#define STATSTRACE_ENABLED 0
+#define EXPERIMENTAL_STATSTRACE_ENABLED 0
+
+#if UE_TRACE_ENABLED && STATS && EXPERIMENTAL_STATSTRACE_ENABLED
+#define STATSTRACE_ENABLED 1
 #else
 #define STATSTRACE_ENABLED 0
 #endif

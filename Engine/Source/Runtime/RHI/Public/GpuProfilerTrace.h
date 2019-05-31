@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Trace/Trace.h"
 
-#if !IS_PROGRAM && !UE_BUILD_SHIPPING
+#if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
 #define GPUPROFILERTRACE_ENABLED 0
 #else
 #define GPUPROFILERTRACE_ENABLED 0

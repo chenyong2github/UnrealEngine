@@ -3,36 +3,35 @@
 
 #if PLATFORMFILETRACE_ENABLED
 
-#include "Trace/Trace.h"
 #include "Misc/CString.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, BeginOpen)
+UE_TRACE_EVENT_BEGIN(PlatformFile, BeginOpen, Always)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, TempHandle)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, EndOpen)
+UE_TRACE_EVENT_BEGIN(PlatformFile, EndOpen, Always)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, TempHandle)
 	UE_TRACE_EVENT_FIELD(uint64, FileHandle)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, BeginClose)
+UE_TRACE_EVENT_BEGIN(PlatformFile, BeginClose, Always)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, TempHandle)
 	UE_TRACE_EVENT_FIELD(uint64, FileHandle)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, EndClose)
+UE_TRACE_EVENT_BEGIN(PlatformFile, EndClose, Always)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, TempHandle)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, BeginRead)
+UE_TRACE_EVENT_BEGIN(PlatformFile, BeginRead, Always)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, ReadHandle)
 	UE_TRACE_EVENT_FIELD(uint64, FileHandle)
@@ -41,14 +40,14 @@ UE_TRACE_EVENT_BEGIN(PlatformFile, BeginRead)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, EndRead)
+UE_TRACE_EVENT_BEGIN(PlatformFile, EndRead, Always)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, ReadHandle)
 	UE_TRACE_EVENT_FIELD(uint64, SizeRead)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, BeginWrite)
+UE_TRACE_EVENT_BEGIN(PlatformFile, BeginWrite, Always)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, WriteHandle)
 	UE_TRACE_EVENT_FIELD(uint64, FileHandle)
@@ -57,7 +56,7 @@ UE_TRACE_EVENT_BEGIN(PlatformFile, BeginWrite)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, EndWrite)
+UE_TRACE_EVENT_BEGIN(PlatformFile, EndWrite, Always)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, WriteHandle)
 	UE_TRACE_EVENT_FIELD(uint64, SizeWritten)

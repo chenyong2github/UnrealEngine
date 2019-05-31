@@ -9,6 +9,7 @@
 #include "Modules/TimingProfilerModule.h"
 #include "Modules/LoadTimeProfilerModule.h"
 #include "Modules/StatsModule.h"
+#include "Stats/StatsTrace.h"
 
 class FTraceServicesModule
 	: public ITraceServicesModule
@@ -64,12 +65,16 @@ void FTraceServicesModule::StartupModule()
 {
 	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &TimingProfilerModule);
 	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &LoadTimeProfilerModule);
+#if EXPERIMENTAL_STATSTRACE_ENABLED
 	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &StatsModule);
+#endif
 }
 
 void FTraceServicesModule::ShutdownModule()
 {
+#if EXPERIMENTAL_STATSTRACE_ENABLED
 	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &StatsModule);
+#endif
 	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &LoadTimeProfilerModule);
 	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &TimingProfilerModule);
 }

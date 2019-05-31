@@ -170,7 +170,7 @@ void STimingView::Reset()
 {
 	bShowHideAllGpuTracks = true;
 	bShowHideAllCpuTracks = true;
-	bShowHideAllLoadingTracks = true;
+	bShowHideAllLoadingTracks = false;
 	bShowHideAllIoTracks = false;
 
 	//////////////////////////////////////////////////
