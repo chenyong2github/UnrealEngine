@@ -1069,7 +1069,7 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 		{
 			orient = UIImageOrientationRight;
 		}
-        else if (MainFrame.size.height == 568 || Device == FPlatformMisc::IOS_IPodTouch6)
+		else if (MainFrame.size.height == 568 || Device == FPlatformMisc::IOS_IPodTouch6 || Device == FPlatformMisc::IOS_IPodTouch7)
 		{
 			[ImageString appendString:@"-568h"];
 		}
