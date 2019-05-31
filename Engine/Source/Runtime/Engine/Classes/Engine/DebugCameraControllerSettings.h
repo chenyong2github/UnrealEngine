@@ -7,6 +7,8 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/EngineBaseTypes.h"
 #include "DebugCameraControllerSettings.generated.h"
 
 USTRUCT()
