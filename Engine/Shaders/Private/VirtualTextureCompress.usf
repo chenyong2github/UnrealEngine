@@ -10,16 +10,18 @@
 #include "BCCompressionCommon.ush"
 
 uint4 DestRect;
-SamplerState TextureSampler;
 Texture2D<float4> RenderTexture0;
+SamplerState TextureSampler0;
 Texture2D<float4> RenderTexture1;
+SamplerState TextureSampler1;
 Texture2D<float4> RenderTexture2;
+SamplerState TextureSampler2;
 RWTexture2D<uint2> OutCompressTexture0;
 RWTexture2D<uint4> OutCompressTexture1;
 RWTexture2D<float4> OutCopyTexture0;
 
 // Read a 4x4 color block ready for BC1 compression
-void ReadBlockRGB( Texture2D<float4> SourceTexture, float2 UV, out float3 Block[16] )
+void ReadBlockRGB( Texture2D<float4> SourceTexture, SamplerState TextureSampler, float2 UV, out float3 Block[16] )
 {
 	{
 		float4 Red = SourceTexture.GatherRed(TextureSampler, UV, int2(0,0));
@@ -60,7 +62,7 @@ void ReadBlockRGB( Texture2D<float4> SourceTexture, float2 UV, out float3 Block[
 }
 
 // Read a 4x4 block of XY channels from a normal texture ready for BC5 compression
-void ReadBlockRG( Texture2D<float4> SourceTexture, float2 UV, out float BlockR[16], out float BlockG[16] )
+void ReadBlockRG( Texture2D<float4> SourceTexture, SamplerState TextureSampler, float2 UV, out float BlockR[16], out float BlockG[16] )
 {
 	{
 		float4 Red = SourceTexture.GatherRed(TextureSampler, UV, int2(0,0));
@@ -118,7 +120,7 @@ void CompressBaseColorCS(
 	float2 SampleUV = float2(SamplePos) / float2(DestRect.zw);
 
 	float3 BlockBaseColor[16];
-	ReadBlockRGB(RenderTexture0, SampleUV, BlockBaseColor);
+	ReadBlockRGB(RenderTexture0, TextureSampler0, SampleUV, BlockBaseColor);
 
 	OutCompressTexture0[ThreadId.xy + DestRect.xy] = CompressBC1Block_SRGB(BlockBaseColor);
 }
@@ -136,11 +138,11 @@ void CompressBaseColorNormalCS(
 	float2 SampleUV = float2(SamplePos) / float2(DestRect.zw);
 
 	float3 BlockBaseColor[16];
-	ReadBlockRGB(RenderTexture0, SampleUV, BlockBaseColor);
+	ReadBlockRGB(RenderTexture0, TextureSampler0, SampleUV, BlockBaseColor);
 
 	float BlockNormalX[16];
 	float BlockNormalY[16];
-	ReadBlockRG(RenderTexture1, SampleUV, BlockNormalX, BlockNormalY);
+	ReadBlockRG(RenderTexture1, TextureSampler1, SampleUV, BlockNormalX, BlockNormalY);
 
 	OutCompressTexture0[ThreadId.xy + DestRect.xy] = CompressBC1Block_SRGB(BlockBaseColor);
 	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC5Block(BlockNormalX, BlockNormalY);
@@ -159,14 +161,14 @@ void CompressBaseColorNormalSpecularCS(
 	float2 SampleUV = float2(SamplePos) / float2(DestRect.zw);
 
 	float3 BlockBaseColor[16];
-	ReadBlockRGB(RenderTexture0, SampleUV, BlockBaseColor);
+	ReadBlockRGB(RenderTexture0, TextureSampler0, SampleUV, BlockBaseColor);
 
 	float BlockNormalX[16];
 	float BlockNormalY[16];
-	ReadBlockRG(RenderTexture1, SampleUV, BlockNormalX, BlockNormalY);
+	ReadBlockRG(RenderTexture1, TextureSampler1, SampleUV, BlockNormalX, BlockNormalY);
 
 	float3 BlockSpecular[16];
-	ReadBlockRGB(RenderTexture2, SampleUV, BlockSpecular);
+	ReadBlockRGB(RenderTexture2, TextureSampler2, SampleUV, BlockSpecular);
 
 	CombineNormalSpecularBlocksForBC3(BlockNormalY, BlockSpecular);
 
