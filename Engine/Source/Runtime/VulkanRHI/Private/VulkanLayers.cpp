@@ -757,6 +757,7 @@ void FVulkanDevice::ParseOptionalDeviceExtensions(const TArray<const ANSICHAR *>
 
 void FVulkanDynamicRHI::SetupValidationRequests()
 {
+#if VULKAN_HAS_DEBUGGING_ENABLED
 	int32 VulkanValidationOption = GValidationCvar.GetValueOnAnyThread();
 
 	// Command line overrides Cvar
@@ -769,4 +770,5 @@ void FVulkanDynamicRHI::SetupValidationRequests()
 	{
 		GValidationCvar->Set(VulkanValidationOption, ECVF_SetByCommandline);
 	}
+#endif
 }
