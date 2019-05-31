@@ -57,7 +57,8 @@ TSharedRef<IDetailCustomization> FAnimGraphNodeDetails::MakeInstance()
 
 void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuilder)
 {
-	TArray< TWeakObjectPtr<UObject> > SelectedObjectsList = DetailBuilder.GetSelectedObjects();
+	TArray< TWeakObjectPtr<UObject> > SelectedObjectsList;
+	DetailBuilder.GetObjectsBeingCustomized(SelectedObjectsList);
 
 	// Hide the pin options property; it's represented inline per-property instead
 	IDetailCategoryBuilder& PinOptionsCategory = DetailBuilder.EditCategory("PinOptions");
@@ -84,7 +85,7 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 	}
 
 	TargetSkeleton = AnimGraphNode->GetAnimBlueprint()->TargetSkeleton;
-	TargetSkeletonName = FString::Printf(TEXT("%s'%s'"), *TargetSkeleton->GetClass()->GetName(), *TargetSkeleton->GetPathName());
+	TargetSkeletonName = TargetSkeleton ? FString::Printf(TEXT("%s'%s'"), *TargetSkeleton->GetClass()->GetName(), *TargetSkeleton->GetPathName()) : FString(TEXT(""));
 
 	// Get the node property
 	const UStructProperty* NodeProperty = AnimGraphNode->GetFNodeProperty();

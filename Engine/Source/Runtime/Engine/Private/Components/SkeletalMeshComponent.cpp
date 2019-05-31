@@ -755,7 +755,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit)
 
 				if(FAnimNode_SubInput* InputNode = PostProcessAnimInstance->GetSubInputNode())
 				{
-					InputNode->InputPose.SetBoneContainer(&PostProcessAnimInstance->GetRequiredBones());
+					InputNode->CachedInputPose.SetBoneContainer(&PostProcessAnimInstance->GetRequiredBones());
 				}
 
 				bInitializedPostInstance = true;
@@ -1837,14 +1837,14 @@ void USkeletalMeshComponent::EvaluatePostProcessMeshInstance(TArray<FTransform>&
 		{
 			if (InOutPose.IsValid())
 			{
-				InputNode->InputPose.CopyBonesFrom(InOutPose);
-				InputNode->InputCurve.CopyFrom(OutCurve);
+				InputNode->CachedInputPose.CopyBonesFrom(InOutPose);
+				InputNode->CachedInputCurve.CopyFrom(OutCurve);
 			}
 			else
 			{
 				const FBoneContainer& RequiredBone = PostProcessAnimInstance->GetRequiredBonesOnAnyThread();
-				InputNode->InputPose.ResetToRefPose(RequiredBone);
-				InputNode->InputCurve.InitFrom(RequiredBone);
+				InputNode->CachedInputPose.ResetToRefPose(RequiredBone);
+				InputNode->CachedInputCurve.InitFrom(RequiredBone);
 			}
 		}
 
@@ -2710,16 +2710,37 @@ UAnimInstance* USkeletalMeshComponent::GetPostProcessInstance() const
 	return PostProcessAnimInstance;
 }
 
-UAnimInstance* USkeletalMeshComponent::GetSubInstanceByName(FName InName) const
+UAnimInstance* USkeletalMeshComponent::GetSubInstanceByTag(FName InName) const
 {
-	for(UAnimInstance* SubInstance : SubInstances)
+	if(AnimScriptInstance)
 	{
-		if(SubInstance->GetFName() == InName)
-		{
-			return SubInstance;
-		}
+		return AnimScriptInstance->GetSubInstanceByTag(InName);
 	}
+	return nullptr;
+}
 
+void USkeletalMeshComponent::GetSubInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutSubInstances) const
+{
+	if(AnimScriptInstance)
+	{
+		AnimScriptInstance->GetSubInstancesByTag(InTag, OutSubInstances);
+	}
+}
+
+void USkeletalMeshComponent::SetLayerOverlay(TSubclassOf<UAnimInstance> InClass)
+{
+	if(AnimScriptInstance)
+	{
+		AnimScriptInstance->SetLayerOverlay(InClass);
+	}
+}
+
+UAnimInstance* USkeletalMeshComponent::GetLayerSubInstanceByGroup(FName InGroup) const
+{
+	if(AnimScriptInstance)
+	{
+		return AnimScriptInstance->GetLayerSubInstanceByGroup(InGroup);
+	}
 	return nullptr;
 }
 

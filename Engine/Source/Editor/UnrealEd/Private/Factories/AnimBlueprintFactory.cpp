@@ -36,12 +36,13 @@
 #include "ContentBrowserModule.h"
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
+#include "Animation/AnimLayerInterface.h"
 
 #define LOCTEXT_NAMESPACE "AnimBlueprintFactory"
 
 static bool CanCreateAnimBlueprint(const FAssetData& Skeleton, UClass const * ParentClass)
 {
-	if (Skeleton.IsValid() && ParentClass != NULL)
+	if (Skeleton.IsValid() && ParentClass != nullptr)
 	{
 		if (UAnimBlueprintGeneratedClass const * GeneratedParent = Cast<const UAnimBlueprintGeneratedClass>(ParentClass))
 		{
@@ -368,28 +369,24 @@ UObject* UAnimBlueprintFactory::FactoryCreateNew(UClass* Class, UObject* InParen
 	// Make sure we are trying to factory a Anim Blueprint, then create and init one
 	check(Class->IsChildOf(UAnimBlueprint::StaticClass()));
 
-	// If they selected an interface, force the parent class to be UInterface
-	if (BlueprintType == BPTYPE_Interface)
-	{
-		ParentClass = UInterface::StaticClass();
-	}
-
-	if (TargetSkeleton == NULL)
+	// If they selected an interface, we dont need a target skeleton
+	if (BlueprintType != BPTYPE_Interface && TargetSkeleton == nullptr)
 	{
 		FMessageDialog::Open( EAppMsgType::Ok, LOCTEXT("NeedValidSkeleton", "Must specify a valid skeleton for the Anim Blueprint to target."));
-		return NULL;
+		return nullptr;
 	}
 
-	if ((ParentClass == NULL) || !FKismetEditorUtilities::CanCreateBlueprintOfClass(ParentClass) || !ParentClass->IsChildOf(UAnimInstance::StaticClass()))
+	if (BlueprintType != BPTYPE_Interface && ((ParentClass == nullptr) || !FKismetEditorUtilities::CanCreateBlueprintOfClass(ParentClass) || !ParentClass->IsChildOf(UAnimInstance::StaticClass())))
 	{
 		FFormatNamedArguments Args;
-		Args.Add( TEXT("ClassName"), (ParentClass != NULL) ? FText::FromString( ParentClass->GetName() ) : LOCTEXT("Null", "(null)") );
-		FMessageDialog::Open( EAppMsgType::Ok, FText::Format( LOCTEXT("CannotCreateAnimBlueprint", "Cannot create an Anim Blueprint based on the class '{0}'."), Args ) );
-		return NULL;
+		Args.Add( TEXT("ClassName"), (ParentClass != nullptr) ? FText::FromString( ParentClass->GetName() ) : LOCTEXT("Null", "(null)") );
+		FMessageDialog::Open( EAppMsgType::Ok, FText::Format( LOCTEXT("CannotCreateAnimBlueprint", "Cannot create an Anim Blueprint based on the class '{ClassName}'."), Args ) );
+		return nullptr;
 	}
 	else
 	{
-		UAnimBlueprint* NewBP = CastChecked<UAnimBlueprint>(FKismetEditorUtilities::CreateBlueprint(ParentClass, InParent, Name, BlueprintType, UAnimBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), CallingContext));
+		UClass* ClassToUse = BlueprintType == BPTYPE_Interface ? UAnimLayerInterface::StaticClass() : ParentClass.Get();
+		UAnimBlueprint* NewBP = CastChecked<UAnimBlueprint>(FKismetEditorUtilities::CreateBlueprint(ClassToUse, InParent, Name, BlueprintType, UAnimBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), CallingContext));
 		
 		// Inherit any existing overrides in parent class
 		if (NewBP->ParentAssetOverrides.Num() > 0)
@@ -422,6 +419,50 @@ UObject* UAnimBlueprintFactory::FactoryCreateNew(UClass* Class, UObject* InParen
 UObject* UAnimBlueprintFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
 	return FactoryCreateNew(Class, InParent, Name, Flags, Context, Warn, NAME_None);
+}
+
+/*------------------------------------------------------------------------------
+	UAnimLayerInterfaceFactory implementation.
+------------------------------------------------------------------------------*/
+
+UAnimLayerInterfaceFactory::UAnimLayerInterfaceFactory()
+{
+	BlueprintType = BPTYPE_Interface;
+}
+
+bool UAnimLayerInterfaceFactory::ConfigureProperties()
+{
+	return true;
+}
+
+FText UAnimLayerInterfaceFactory::GetDisplayName() const
+{
+	return LOCTEXT("AnimationLayerInterfaceFactoryDescription", "Animation Layer Interface");
+}
+
+FName UAnimLayerInterfaceFactory::GetNewAssetThumbnailOverride() const
+{
+	return TEXT("ClassThumbnail.BlueprintInterface");
+}
+
+uint32 UAnimLayerInterfaceFactory::GetMenuCategories() const
+{
+	return EAssetTypeCategories::Animation;
+}
+
+FText UAnimLayerInterfaceFactory::GetToolTip() const
+{
+	return LOCTEXT("AnimationLayerInterfaceTooltip", "An Animation Layer Interface is a collection of one or more animation graphs - name only, no implementation - that can be added to other Animation Blueprints. These other Blueprints are then expected to implement the graphs of the Animation Layer Interface in a unique manner.");
+}
+
+FString UAnimLayerInterfaceFactory::GetToolTipDocumentationExcerpt() const
+{
+	return TEXT("UAnimationBlueprint_LayerInterface");
+}
+
+FString UAnimLayerInterfaceFactory::GetDefaultNewAssetName() const
+{
+	return FString(TEXT("NewAnimLayerInterface"));
 }
 
 #undef LOCTEXT_NAMESPACE

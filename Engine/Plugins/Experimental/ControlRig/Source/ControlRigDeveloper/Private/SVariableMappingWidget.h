@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "SSearchableComboBox.h"
+#include "Widgets/Views/STreeView.h"
 
 //=====================================================================================
 // UI for displaying property info

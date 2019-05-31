@@ -103,7 +103,7 @@ protected:
 class KISMET_API FBlueprintInterfaceApplicationMode : public FApplicationMode
 {
 public:
-	FBlueprintInterfaceApplicationMode(TSharedPtr<class FBlueprintEditor> InBlueprintEditor);
+	FBlueprintInterfaceApplicationMode(TSharedPtr<class FBlueprintEditor> InBlueprintEditor, FName InModeName = FBlueprintEditorApplicationModes::BlueprintInterfaceMode, FText(*GetLocalizedMode)(const FName) = FBlueprintEditorApplicationModes::GetLocalizedMode);
 
 	virtual void RegisterTabFactories(TSharedPtr<FTabManager> InTabManager) override;
 	virtual void PreDeactivateMode() override;

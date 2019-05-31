@@ -33,6 +33,7 @@ public class AnimGraph : ModuleRules
 				"PropertyEditor",
 				"EditorStyle",
                 "ContentBrowser",
+				"KismetWidgets",
             }
 		);
 
@@ -48,6 +49,7 @@ public class AnimGraph : ModuleRules
                 "Persona",
                 "SkeletonEditor",
                 "AdvancedPreviewScene",
+                "AnimationBlueprintEditor",
             }
         );
     }

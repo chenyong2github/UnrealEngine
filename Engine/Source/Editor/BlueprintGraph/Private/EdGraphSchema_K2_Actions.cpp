@@ -114,7 +114,14 @@ void FEdGraphSchemaAction_K2Graph::MovePersistentItemToCategory(const FText& New
 {
 	if ((GraphType == EEdGraphSchemaAction_K2Graph::Function) || (GraphType == EEdGraphSchemaAction_K2Graph::Macro))
 	{
-		FBlueprintEditorUtils::SetBlueprintFunctionOrMacroCategory(EdGraph, NewCategoryName);
+		if(EdGraph->GetSchema()->GetClass()->GetFName() == TEXT("AnimationGraphSchema"))
+		{
+			FBlueprintEditorUtils::SetAnimationGraphLayerGroup(EdGraph, NewCategoryName);
+		}
+		else
+		{
+			FBlueprintEditorUtils::SetBlueprintFunctionOrMacroCategory(EdGraph, NewCategoryName);
+		}
 	}
 }
 
