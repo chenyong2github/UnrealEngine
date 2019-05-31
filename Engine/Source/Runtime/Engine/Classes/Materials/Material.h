@@ -1756,6 +1756,7 @@ private:
 	friend class FMaterialUpdateContext;
 	friend class FMaterialResource;
 	friend class FMaterialEditor;
+	friend class FMaterialDetailCustomization;
 
 	// DO NOT CALL outside of FMaterialEditor!
 	ENGINE_API static void ForceNoCompilationInPostLoad(bool bForceNoCompilation);
