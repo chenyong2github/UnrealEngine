@@ -43,8 +43,7 @@ namespace Audio
         virtual int32 GetNumFrames(const int32 InNumReqestedFrames) override;
         virtual void ResumeContext() override;
         virtual void SuspendContext() override;
-		virtual bool DisablePCMAudioCaching() const override { return true; }
-		//~ End IAudioMixerPlatformInterface
+        //~ End IAudioMixerPlatformInterface
         
 	private:
 		AudioStreamBasicDescription OutputFormat;
