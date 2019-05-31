@@ -12,6 +12,7 @@ ShaderComplexityRendering.h: Declarations used for the shader complexity viewmod
 #include "GlobalShader.h"
 #include "DebugViewModeRendering.h"
 #include "DebugViewModeInterface.h"
+#include "PostProcess/SceneRenderTargets.h"
 
 class FPrimitiveSceneProxy;
 struct FMeshBatchElement;
@@ -60,6 +61,9 @@ public:
 	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		OutEnvironment.SetDefine(TEXT("OUTPUT_QUAD_OVERDRAW"), AllowDebugViewShaderMode(DVSM_QuadComplexity, Platform, GetMaxSupportedFeatureLevel(Platform)));
+		TCHAR BufferRegister[] = { 'u', '0', 0 };
+		BufferRegister[1] += FSceneRenderTargets::GetQuadOverdrawUAVIndex(Platform, Material->GetFeatureLevel());
+		OutEnvironment.SetDefine(TEXT("QUAD_BUFFER_REGISTER"), BufferRegister);
 	}
 
 	virtual void GetDebugViewModeShaderBindings(
