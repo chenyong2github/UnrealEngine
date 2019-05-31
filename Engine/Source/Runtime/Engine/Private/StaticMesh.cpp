@@ -2817,6 +2817,14 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		bool bRebuild = false;
 		SetLODGroup(LODGroup, bRebuild);
 	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, ComplexCollisionMesh) && ComplexCollisionMesh != this)
+	{
+		if (BodySetup)
+		{
+			BodySetup->InvalidatePhysicsData();
+			BodySetup->CreatePhysicsMeshes();
+		}
+	}
 	LightMapResolution = FMath::Max(LightMapResolution, 0);
 
 	if (PropertyChangedEvent.MemberProperty 
@@ -5023,6 +5031,10 @@ static int32 GetCollisionVertIndexForMeshVertIndex(int32 MeshVertIndex, TMap<int
 bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool bInUseAllTriData)
 {
 #if WITH_EDITORONLY_DATA
+	if (ComplexCollisionMesh)
+	{
+		return ComplexCollisionMesh->GetPhysicsTriMeshData(CollisionData, bInUseAllTriData);
+	}
 	check(HasValidRenderData());
 
 	// Get the LOD level to use for collision
@@ -5075,6 +5087,10 @@ bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionD
 bool UStaticMesh::ContainsPhysicsTriMeshData(bool bInUseAllTriData) const 
 {
 #if WITH_EDITORONLY_DATA
+	if (ComplexCollisionMesh)
+	{
+		ComplexCollisionMesh->ContainsPhysicsTriMeshData(bInUseAllTriData);
+	}
 	if(RenderData == nullptr || RenderData->LODResources.Num() == 0)
 	{
 		return false;

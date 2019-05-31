@@ -154,6 +154,8 @@ private:
 	/** The static mesh being used in the editor. */
 	UStaticMesh* StaticMesh;
 
+	FTriMeshCollisionData CollisionMeshData;
+
 	/** Pointer back to the StaticMesh editor tool that owns us */
 	TWeakPtr<IStaticMeshEditor> StaticMeshEditorPtr;
 

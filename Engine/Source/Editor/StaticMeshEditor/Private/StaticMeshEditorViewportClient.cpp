@@ -439,6 +439,16 @@ bool FStaticMeshEditorViewportClient::ShouldOrbitCamera() const
 	return FEditorViewportClient::ShouldOrbitCamera();
 }
 
+void DrawCustomComplex(FPrimitiveDrawInterface* PDI, FTriMeshCollisionData Mesh, const FColor Color)
+{
+	for (int i = 0; i < Mesh.Indices.Num(); ++i)
+	{
+		PDI->DrawLine(Mesh.Vertices[Mesh.Indices[i].v0], Mesh.Vertices[Mesh.Indices[i].v1], Color, SDPG_World);
+		PDI->DrawLine(Mesh.Vertices[Mesh.Indices[i].v1], Mesh.Vertices[Mesh.Indices[i].v2], Color, SDPG_World);
+		PDI->DrawLine(Mesh.Vertices[Mesh.Indices[i].v2], Mesh.Vertices[Mesh.Indices[i].v0], Color, SDPG_World);
+	}
+}
+
 void FStaticMeshEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDrawInterface* PDI)
 {
 	FEditorViewportClient::Draw(View, PDI);
@@ -516,6 +526,18 @@ void FStaticMeshEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDraw
 
 			PDI->SetHitProxy(NULL);
 		}
+	}
+
+	if (bShowComplexCollision && StaticMesh->ComplexCollisionMesh && StaticMesh->BodySetup->CollisionTraceFlag != ECollisionTraceFlag::CTF_UseSimpleAsComplex)
+	{
+		const FColor SelectedColor(20, 20, 220);
+		const FColor UnselectedColor(0, 0, 125);
+
+		HSMECollisionProxy* HitProxy = new HSMECollisionProxy(EAggCollisionShape::Convex, 0);
+		PDI->SetHitProxy(HitProxy);
+		const FColor CollisionColor = StaticMeshEditor->IsSelectedPrim(HitProxy->PrimData) ? SelectedColor : UnselectedColor;
+		DrawCustomComplex(PDI, CollisionMeshData, CollisionColor);
+		PDI->SetHitProxy(nullptr);
 	}
 
 	if( bShowSockets )
@@ -1447,10 +1469,26 @@ void FStaticMeshEditorViewportClient::ToggleShowComplexCollision()
 {
 	bShowComplexCollision = !bShowComplexCollision;
 
-	if (StaticMeshComponent != nullptr)
+	if (StaticMesh)
 	{
-		StaticMeshComponent->bDrawMeshCollisionIfComplex = bShowComplexCollision;
-		StaticMeshComponent->MarkRenderStateDirty();
+		if (UObject* CDPObj = StaticMesh->ComplexCollisionMesh)
+		{
+			if (IInterface_CollisionDataProvider* CDP = Cast<IInterface_CollisionDataProvider>(CDPObj))
+			{
+				CollisionMeshData = FTriMeshCollisionData();
+				CDP->GetPhysicsTriMeshData(&CollisionMeshData, true);
+			}
+			if (StaticMeshComponent != nullptr)
+			{
+				StaticMeshComponent->bDrawMeshCollisionIfComplex = false;
+				StaticMeshComponent->MarkRenderStateDirty();
+			}
+		}
+		else if (StaticMeshComponent != nullptr)
+		{
+			StaticMeshComponent->bDrawMeshCollisionIfComplex = bShowComplexCollision;
+			StaticMeshComponent->MarkRenderStateDirty();
+		}
 	}
 
 	if (FEngineAnalytics::IsAvailable())

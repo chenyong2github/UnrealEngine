@@ -799,6 +799,8 @@ public:
 	UPROPERTY(Instanced, VisibleAnywhere, Category = EditableMesh)
 	class UObject* EditableMesh;
 
+	UPROPERTY(EditAnywhere, Category = Collision)
+	class UStaticMesh* ComplexCollisionMesh;
 	/**
 	 * Registers the mesh attributes required by the mesh description for a static mesh.
 	 */
