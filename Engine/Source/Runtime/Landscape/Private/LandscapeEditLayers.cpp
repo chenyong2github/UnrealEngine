@@ -4316,6 +4316,32 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 		}
 	}
 
+// not thread safe
+struct FEnableCollisionHashOptimScope
+{
+	FEnableCollisionHashOptimScope(ULandscapeHeightfieldCollisionComponent* InCollisionComponent)
+	{
+		CollisionComponent = InCollisionComponent;
+		if (CollisionComponent)
+		{
+			// not reentrant
+			check(!CollisionComponent->bEnableCollisionHashOptim);
+			CollisionComponent->bEnableCollisionHashOptim = true;
+		}
+	}
+
+	~FEnableCollisionHashOptimScope()
+	{
+		if (CollisionComponent)
+		{
+			CollisionComponent->bEnableCollisionHashOptim = false;
+		}
+	}
+
+private:
+	ULandscapeHeightfieldCollisionComponent* CollisionComponent;
+};
+
 bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, const int32 InContentUpdateModes)
 {
 	bool bAllClientsUpdated = true;
@@ -4330,15 +4356,17 @@ bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& I
 	for (ULandscapeComponent* LandscapeComponent : InLandscapeComponents)
 	{
 		bool bDeferClientUpdateForComponent = false;
+		bool bDoUpdateClient = true;
 		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision, InContentUpdateModes))
 		{
 			if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->CollisionComponent.Get())
 			{
-				CollisionComp->RecreateCollision();
+				FEnableCollisionHashOptimScope Scope(CollisionComp);
+				bDoUpdateClient = CollisionComp->RecreateCollision();
 			}
 		}
 
-		if (LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Client, InContentUpdateModes))
+		if (bDoUpdateClient && LandscapeComponent->IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Client, InContentUpdateModes))
 		{
 			if (!GUndo)
 			{
@@ -4984,12 +5012,19 @@ void ALandscape::ClearLayer(const FGuid& InLayerGuid, TSet<ULandscapeComponent*>
 	TArray<ULandscapeComponent*> Components;
 	if (InComponents)
 	{
+		TSet<ALandscapeProxy*> Proxies;
 		Components.Reserve(InComponents->Num());
-		for (ULandscapeComponent* Compoment : *InComponents)
+		for (ULandscapeComponent* Component : *InComponents)
 		{
-			if (Compoment)
+			if (Component)
 			{
-				Components.Add(Compoment);
+				Components.Add(Component);
+				ALandscapeProxy* Proxy = Component->GetLandscapeProxy();
+				if (!Proxies.Find(Proxy))
+				{
+					Proxies.Add(Proxy);
+					Proxy->Modify();
+				}
 			}
 		}
 	}
@@ -4997,6 +5032,7 @@ void ALandscape::ClearLayer(const FGuid& InLayerGuid, TSet<ULandscapeComponent*>
 	{
 		LandscapeInfo->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 		{
+			Proxy->Modify();
 			Components.Append(Proxy->LandscapeComponents);
 		});
 	}
@@ -5004,10 +5040,6 @@ void ALandscape::ClearLayer(const FGuid& InLayerGuid, TSet<ULandscapeComponent*>
 	FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
 	for (ULandscapeComponent* Component : Components)
 	{
-		ALandscapeProxy* Proxy = Component->GetLandscapeProxy();
-		Proxy->Modify();
-		Component->Modify();
-
 		int32 MinX = MAX_int32;
 		int32 MinY = MAX_int32;
 		int32 MaxX = MIN_int32;
@@ -5015,27 +5047,7 @@ void ALandscape::ClearLayer(const FGuid& InLayerGuid, TSet<ULandscapeComponent*>
 		Component->GetComponentExtent(MinX, MinY, MaxX, MaxY);
 		check(ComponentSizeQuads == (MaxX - MinX));
 		check(ComponentSizeQuads == (MaxY - MinY));
-
-		TArray<uint16> OldHeightData;
-		OldHeightData.AddZeroed((1 + MaxY - MinY) * (1 + MaxX - MinX));
-		LandscapeEdit.GetHeightData(MinX, MinY, MaxX, MaxY, OldHeightData.GetData(), 0);
-
-		TArray<uint8> OldHeightAlphaBlendData;
-		TArray<uint8> OldHeightFlagsData;
-		if (Layer->BlendMode == LSBM_AlphaBlend)
-		{
-			OldHeightAlphaBlendData.AddZeroed((1 + MaxY - MinY) * (1 + MaxX - MinX));
-			LandscapeEdit.GetHeightAlphaBlendData(MinX, MinY, MaxX, MaxY, OldHeightAlphaBlendData.GetData(), 0);
-			OldHeightFlagsData.AddZeroed((1 + MaxY - MinY) * (1 + MaxX - MinX));
-			LandscapeEdit.GetHeightFlagsData(MinX, MinY, MaxX, MaxY, OldHeightFlagsData.GetData(), 0);
-		}
-
-		if ((FMemory::Memcmp(OldHeightData.GetData(), NewHeightData.GetData(), NewHeightData.Num() * NewHeightData.GetTypeSize()) != 0) ||
-			(FMemory::Memcmp(OldHeightAlphaBlendData.GetData(), NewHeightAlphaBlendData.GetData(), NewHeightAlphaBlendData.Num() * NewHeightAlphaBlendData.GetTypeSize()) != 0) ||
-			(FMemory::Memcmp(OldHeightFlagsData.GetData(), NewHeightFlagsData.GetData(), NewHeightFlagsData.Num() * NewHeightFlagsData.GetTypeSize()) != 0))
-		{
-			LandscapeEdit.SetHeightData(MinX, MinY, MaxX, MaxY, NewHeightData.GetData(), 0, false, nullptr, NewHeightAlphaBlendData.GetData(), NewHeightFlagsData.GetData());
-		}
+		LandscapeEdit.SetHeightData(MinX, MinY, MaxX, MaxY, NewHeightData.GetData(), 0, false, nullptr, NewHeightAlphaBlendData.GetData(), NewHeightFlagsData.GetData());
 
 		// Clear weight maps
 		for (FLandscapeInfoLayerSettings& LayerSettings : LandscapeInfo->Layers)

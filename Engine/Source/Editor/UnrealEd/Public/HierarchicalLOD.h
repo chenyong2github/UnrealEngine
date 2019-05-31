@@ -98,6 +98,9 @@ struct UNREALED_API FHierarchicalLODBuilder
 	/** Saves HLOD meshes for actors in all the World's levels */
 	void SaveMeshesForActors();
 
+	/** Get the list of mesh packages to save for a given level */
+	void GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPackage*>& InHLODPackagesToSave, const FString& PreviousLevelName = "");
+
 	/** 
 	 * @param	bInForce	Whether to force the recalculation of this actor's build flag. If this is false then the cached flag is used an only recalculated every so often.
 	 * @return whether a build is needed (i.e. any LOD actors are dirty) 

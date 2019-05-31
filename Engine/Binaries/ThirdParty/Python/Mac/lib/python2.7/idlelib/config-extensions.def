@@ -44,7 +44,7 @@ try-open-completions=<KeyRelease-period> <KeyRelease-slash> <KeyRelease-backslas
 [AutoExpand]
 enable=True
 [AutoExpand_cfgBindings]
-expand-word=<Option-Key-slash>
+expand-word=<Alt-Key-slash>
 
 [CallTips]
 enable=True
@@ -68,7 +68,7 @@ toggle-code-context=
 enable=True
 max-width=72
 [FormatParagraph_cfgBindings]
-format-paragraph=<Option-Key-q>
+format-paragraph=<Alt-Key-q>
 
 [ParenMatch]
 enable=True
@@ -91,9 +91,9 @@ enable_shell=False
 enable_editor=True
 [ScriptBinding_cfgBindings]
 run-module=<Key-F5>
-check-module=<Option-Key-x>
+check-module=<Alt-Key-x>
 
 [ZoomHeight]
 enable=True
 [ZoomHeight_cfgBindings]
-zoom-height=<Option-Key-0>
+zoom-height=<Alt-Key-2>

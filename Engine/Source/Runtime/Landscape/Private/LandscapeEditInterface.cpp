@@ -952,8 +952,10 @@ FColor& FLandscapeEditDataInterface::GetHeightMapColor(const ULandscapeComponent
 		TextureData = (FColor*)TexDataInfo->GetMipData(0);	
 	}
 
-	int32 SizeU = Component->GetHeightmap(true)->Source.GetSizeX();
-	int32 SizeV = Component->GetHeightmap(true)->Source.GetSizeY();
+	// All Heightmaps of component have the same texture size
+	const FTextureSource& HeightmapTextureSource = Component->GetHeightmap()->Source;
+	int32 SizeU = HeightmapTextureSource.GetSizeX();
+	int32 SizeV = HeightmapTextureSource.GetSizeY();
 	int32 HeightmapOffsetX = Component->HeightmapScaleBias.Z * (float)SizeU;
 	int32 HeightmapOffsetY = Component->HeightmapScaleBias.W * (float)SizeV;
 
@@ -981,8 +983,8 @@ uint8 FLandscapeEditDataInterface::GetHeightMapFlagsData(const ULandscapeCompone
 	return TexData.A;
 }
 
-template<typename TDataAccess>
-void FLandscapeEditDataInterface::GetHeightDataInternal(int32& ValidX1, int32& ValidY1, int32& ValidX2, int32& ValidY2, TDataAccess& StoreData, TFunctionRef<typename TDataAccess::DataType(const ULandscapeComponent*, int32, int32, FColor*)> GetHeightMapDataFunction)
+template<typename TDataAccess, typename TGetHeightMapDataFunction>
+void FLandscapeEditDataInterface::GetHeightDataInternal(int32& ValidX1, int32& ValidY1, int32& ValidX2, int32& ValidY2, TDataAccess& StoreData, TGetHeightMapDataFunction GetHeightMapDataFunction)
 {
 	// Copy variables
 	int32 X1 = ValidX1, X2 = ValidX2, Y1 = ValidY1, Y2 = ValidY2;

@@ -18,6 +18,8 @@
 #include "HAL/PlatformMath.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/MallocBinnedCommon.h"
+#include "Misc/ScopeLock.h"
+
 
 #define BINNEDARENA_MAX_GMallocBinnedArenaMaxBundlesBeforeRecycle (8)
 
@@ -501,7 +503,7 @@ public:
 				{
 					// Reallocate to a smaller/bigger pool if necessary
 					BlockSize = PoolIndexToBlockSize(PoolIndex);
-					if ((!!NewSize) & (NewSize <= BlockSize) & IsAligned(BlockSize, Alignment) & ((!PoolIndex) | (NewSize > PoolIndexToBlockSize(PoolIndex - 1))))
+					if ((!!NewSize) & (NewSize <= BlockSize) & IsAligned(BlockSize, Alignment) & ((!PoolIndex) | (NewSize > PoolIndexToBlockSize(PoolIndex - 1)))) //-V792
 					{
 						return Ptr;
 					}

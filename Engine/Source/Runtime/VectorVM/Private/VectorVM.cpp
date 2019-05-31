@@ -1813,7 +1813,7 @@ void VectorVM::Exec(
 	//
 	for (int32 Idx = 0; Idx < DataSetMetaTable.Num(); Idx++)
 	{
-		uint32 DataSetOffset = DataSetMetaTable[Idx].NumVariables;
+		uint32 DataSetOffset = DataSetMetaTable[Idx].RegisterOffset;
 		DataSetOffsetTable.Add(DataSetOffset);
 		DataSetIndexTable.Add(DataSetMetaTable[Idx].DataSetAccessIndex);	// prime counter index table with the data set offset; will be incremented with every write for each instance
 	}

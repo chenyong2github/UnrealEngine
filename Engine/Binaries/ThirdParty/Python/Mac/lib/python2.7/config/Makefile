@@ -26,15 +26,15 @@ MODLIBS=        $(LOCALMODLIBS) $(BASEMODLIBS)
 
 # === Variables set by configure
 VERSION=	2.7
-srcdir=		/Users/sysadmin/build/v2.7.14
-VPATH=		/Users/sysadmin/build/v2.7.14
-abs_srcdir=	/Users/sysadmin/build/v2.7.14
-abs_builddir=	/private/tmp/_py/_bld/python
-build=		x86_64-apple-darwin10.8.0
-host=		x86_64-apple-darwin10.8.0
+srcdir=		.
 
-CC=		gcc-4.2
-CXX=		g++-4.2
+abs_srcdir=	/var/folders/fg/yssrsyhn27vb9nlw0fvscwpm0000gn/T/python-build.20190530142129.23034/Python-2.7.14
+abs_builddir=	/var/folders/fg/yssrsyhn27vb9nlw0fvscwpm0000gn/T/python-build.20190530142129.23034/Python-2.7.14
+build=		x86_64-apple-darwin17.7.0
+host=		x86_64-apple-darwin17.7.0
+
+CC=		clang
+CXX=		c++
 MAINCC=		$(CC)
 LINKCC=		$(PURIFY) $(MAINCC)
 AR=		ar
@@ -44,9 +44,9 @@ GITTAG=
 GITBRANCH=	
 PGO_PROF_GEN_FLAG=-fprofile-instr-generate
 PGO_PROF_USE_FLAG=-fprofile-instr-use=code.profclangd
-LLVM_PROF_MERGER='' merge -output=code.profclangd *.profclangr
+LLVM_PROF_MERGER=/usr/bin/xcrun llvm-profdata merge -output=code.profclangd *.profclangr
 LLVM_PROF_FILE=LLVM_PROFILE_FILE="code-%p.profclangr"
-LLVM_PROF_ERR=yes
+LLVM_PROF_ERR=no
 
 GNULD=          no
 
@@ -66,26 +66,26 @@ INSTALL_DATA=	${INSTALL} -m 644
 # Also, making them read-only seems to be a good idea...
 INSTALL_SHARED= ${INSTALL} -m 555
 
-MKDIR_P=	/Users/sysadmin/build/v2.7.14/install-sh -c -d
+MKDIR_P=	./install-sh -c -d
 
 MAKESETUP=      $(srcdir)/Modules/makesetup
 
 # Compiler options
 OPT=		-DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes
-BASECFLAGS=	 -fno-strict-aliasing -fno-common -dynamic
-CFLAGS=		$(BASECFLAGS) -isysroot /Developer/SDKs/MacOSX10.6.sdk -arch i386 -arch x86_64 -g $(OPT) $(EXTRA_CFLAGS)
+BASECFLAGS=	 -fno-strict-aliasing
+CFLAGS=		$(BASECFLAGS) -g -O2 $(OPT) $(EXTRA_CFLAGS)
 # Both CPPFLAGS and LDFLAGS need to contain the shell's value for setup.py to
 # be able to build extension modules using the directories specified in the
 # environment variables
-CPPFLAGS=	-I. -IInclude -I$(srcdir)/Include -isysroot /Developer/SDKs/MacOSX10.6.sdk 
-LDFLAGS=	-arch i386 -arch x86_64 -isysroot /Developer/SDKs/MacOSX10.6.sdk -isysroot /Developer/SDKs/MacOSX10.6.sdk -g
+CPPFLAGS=	-I. -IInclude -I$(srcdir)/Include -I/usr/local/opt/readline/include -I/usr/local/opt/readline/include -I/usr/local/opt/openssl/include -I/Users/nshin/.pyenv/versions/2.7.14/include 
+LDFLAGS=	-L/usr/local/opt/readline/lib -L/usr/local/opt/readline/lib -L/usr/local/opt/openssl/lib -L/Users/nshin/.pyenv/versions/2.7.14/lib 
 LDLAST=		
 SGI_ABI=	
 CCSHARED=	
-LINKFORSHARED=	-u _PyMac_Error $(PYTHONFRAMEWORKDIR)/Versions/$(VERSION)/$(PYTHONFRAMEWORK)
+LINKFORSHARED=	-u _PyMac_Error
 ARFLAGS=	rc
 # Extra C flags added for building the interpreter object files.
-CFLAGSFORSHARED=$(CCSHARED)
+CFLAGSFORSHARED=
 # C flags used for building the interpreter object files
 PY_CFLAGS=	$(CFLAGS) $(CPPFLAGS) $(CFLAGSFORSHARED) -DPy_BUILD_CORE
 
@@ -97,7 +97,7 @@ MACHDEP=	darwin
 MULTIARCH=	
 
 # Install prefix for architecture-independent files
-prefix=		/Library/Frameworks/Python.framework/Versions/2.7
+prefix=		/Users/nshin/.pyenv/versions/2.7.14
 
 # Install prefix for architecture-dependent files
 exec_prefix=	${prefix}
@@ -107,7 +107,7 @@ datarootdir=    ${prefix}/share
 
 # Expanded directories
 BINDIR=		${exec_prefix}/bin
-LIBDIR=		${exec_prefix}/lib
+LIBDIR=		/Users/nshin/.pyenv/versions/2.7.14/lib
 MANDIR=		${datarootdir}/man
 INCLUDEDIR=	${prefix}/include
 CONFINCLUDEDIR=	$(exec_prefix)/include
@@ -132,22 +132,22 @@ EXE=
 BUILDEXE=	.exe
 
 # Short name and location for Mac OS X Python framework
-UNIVERSALSDK=/Developer/SDKs/MacOSX10.6.sdk
-PYTHONFRAMEWORK=	Python
-PYTHONFRAMEWORKDIR=	Python.framework
-PYTHONFRAMEWORKPREFIX=	/Library/Frameworks
-PYTHONFRAMEWORKINSTALLDIR= /Library/Frameworks/Python.framework
+UNIVERSALSDK=
+PYTHONFRAMEWORK=	
+PYTHONFRAMEWORKDIR=	no-framework
+PYTHONFRAMEWORKPREFIX=	
+PYTHONFRAMEWORKINSTALLDIR= 
 # Deployment target selected during configure, to be checked
 # by distutils. The export statement is needed to ensure that the
 # deployment target is active during build.
-MACOSX_DEPLOYMENT_TARGET=10.6
+MACOSX_DEPLOYMENT_TARGET=10.13
 export MACOSX_DEPLOYMENT_TARGET
 
 # Options to enable prebinding (for fast startup prior to Mac OS X 10.3)
 OTHER_LIBTOOL_OPT=
 
 # Environment to run shared python without installed libraries
-RUNSHARED=       DYLD_FRAMEWORK_PATH=/private/tmp/_py/_bld/python
+RUNSHARED=       
 
 # ensurepip options
 ENSUREPIP=      no
@@ -159,7 +159,7 @@ EXEMODE=	755
 FILEMODE=	644
 
 # configure script arguments
-CONFIG_ARGS=	 '-C' '--enable-framework' '--enable-universalsdk=/Developer/SDKs/MacOSX10.6.sdk' '--with-universal-archs=intel' 'LDFLAGS=-g' 'CFLAGS=-g' 'CC=gcc-4.2'
+CONFIG_ARGS=	 '--prefix=/Users/nshin/.pyenv/versions/2.7.14' '--libdir=/Users/nshin/.pyenv/versions/2.7.14/lib' 'CC=clang' 'LDFLAGS=-L/usr/local/opt/readline/lib -L/usr/local/opt/readline/lib -L/usr/local/opt/openssl/lib -L/Users/nshin/.pyenv/versions/2.7.14/lib ' 'CPPFLAGS=-I/usr/local/opt/readline/include -I/usr/local/opt/readline/include -I/usr/local/opt/openssl/include -I/Users/nshin/.pyenv/versions/2.7.14/include ' 'PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig/:'
 
 
 # Subdirectories with code
@@ -176,8 +176,8 @@ DIST=		$(DISTFILES) $(DISTDIRS)
 
 
 LIBRARY=	libpython$(VERSION).a
-LDLIBRARY=      $(PYTHONFRAMEWORKDIR)/Versions/$(VERSION)/$(PYTHONFRAMEWORK)
-BLDLIBRARY=     
+LDLIBRARY=      libpython$(VERSION).a
+BLDLIBRARY=     $(LDLIBRARY)
 DLLLIBRARY=	
 LDLIBRARYDIR=   
 INSTSONAME=	$(LDLIBRARY)
@@ -200,10 +200,10 @@ UNICODE_OBJS=   Objects/unicodeobject.o Objects/unicodectype.o
 PYTHON=		python$(EXE)
 BUILDPYTHON=	python$(BUILDEXE)
 
-PYTHON_FOR_REGEN=python3
+PYTHON_FOR_REGEN=python2.7
 PYTHON_FOR_BUILD=./$(BUILDPYTHON) -E
 _PYTHON_HOST_PLATFORM=
-HOST_GNU_TYPE=  x86_64-apple-darwin10.8.0
+HOST_GNU_TYPE=  x86_64-apple-darwin17.7.0
 
 # Tcl and Tk config info from --with-tcltk-includes and -libs options
 TCLTK_INCLUDES=	
@@ -915,7 +915,7 @@ memtest:	all platform
 		$(TESTPYTHON) $(TESTPROG) $(MEMTESTOPTS)
 
 # Install everything
-install:	frameworkinstallstructure commoninstall bininstall maninstall frameworkinstallmaclib frameworkinstallapps frameworkinstallunixtools
+install:	 commoninstall bininstall maninstall 
 	if test "x$(ENSUREPIP)" != "xno"  ; then \
 		case $(ENSUREPIP) in \
 			upgrade) ensurepip="--upgrade" ;; \
@@ -936,10 +936,10 @@ altinstall:	commoninstall
 			$$ensurepip --root=$(DESTDIR)/ ; \
 	fi
 
-commoninstall:	frameworkinstallstructure bininstall maninstall \
+commoninstall:	 \
 		altbininstall libinstall inclinstall libainstall \
 		sharedinstall oldsharedinstall altmaninstall \
-		frameworkinstallmaclib frameworkinstallapps frameworkaltinstallunixtools
+		
 
 # Install shared libraries enabled by Setup
 DESTDIRS=	$(exec_prefix) $(LIBDIR) $(BINLIBDEST) $(DESTSHARED)

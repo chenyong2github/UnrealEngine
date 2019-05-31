@@ -5,7 +5,7 @@ set TOOLCHAIN_VERSION=v13
 
 set SVN_BINARY=%CD%\..\..\..\..\..\..\Binaries\ThirdParty\svn\Win64\svn.exe
 set CMAKE_BINARY=%CD%\..\..\..\..\..\..\Extras\ThirdPartyNotUE\CMake\bin\cmake.exe
-set PYTHON_BINARY=%CD%\..\..\..\..\..\..\Source\ThirdParty\Python\Win64\python.exe
+set PYTHON_BINARY=%CD%\..\..\..\..\..\..\Binaries\ThirdParty\Python\Win64\python.exe
 set NSIS_BINARY=C:\Program Files (x86)\NSIS\Bin\makensis.exe
 
 echo Checking if Linux toolchain is already built...
@@ -78,6 +78,7 @@ for %%G in (aarch64-unknown-linux-gnueabi arm-unknown-linux-gnueabihf x86_64-unk
     copy "install\bin\ld.lld.exe" OUTPUT\%%G\bin
     copy "install\bin\lld.exe" OUTPUT\%%G\bin
     copy "install\bin\llvm-ar.exe" OUTPUT\%%G\bin
+    copy "install\bin\llvm-profdata.exe" OUTPUT\%%G\bin
     copy "install\bin\LTO.dll" OUTPUT\%%G\bin
     xcopy "install\lib\clang" OUTPUT\%%G\lib\clang /s /e /y
 )

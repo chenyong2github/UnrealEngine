@@ -662,7 +662,9 @@ public:
 	* Generates mip maps for a texture.
 	*/
 	// FlushType: Flush Immediate (NP: this should be queued on the command list for RHI thread execution, not flushed)
-	virtual void RHIGenerateMips(FTextureRHIParamRef Texture) = 0;
+
+	//UE_DEPRECATED(4.23, "This function is deprecated and will be removed in future releases. Renderer version implemented.")
+	virtual void RHIGenerateMips(FTextureRHIParamRef Texture) {}
 
 	/**
 	* Computes the size in memory required by a given texture.
@@ -1141,6 +1143,7 @@ public:
 
 	virtual uint16 RHIGetPlatformTextureMaxSampleCount() { return 8; };
 
+	virtual bool RHIRequiresComputeGenerateMips() const { return false; };
 
 #if RHI_RAYTRACING
 	// #dxr_todo: reverted index buffer may be needed to support mirrored meshes
@@ -1344,6 +1347,11 @@ FORCEINLINE bool RHIGetAvailableResolutions(FScreenResolutionArray& Resolutions,
 FORCEINLINE void RHIGetSupportedResolution(uint32& Width, uint32& Height)
 {
 	GDynamicRHI->RHIGetSupportedResolution(Width, Height);
+}
+
+FORCEINLINE bool RHIRequiresComputeGenerateMips()
+{
+	return GDynamicRHI->RHIRequiresComputeGenerateMips();
 }
 
 FORCEINLINE class IRHICommandContext* RHIGetDefaultContext(FRHIGPUMask GPUMask = FRHIGPUMask::All())

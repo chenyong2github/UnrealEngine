@@ -8,7 +8,6 @@
 
 #if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
 #include "Logging/LogMacros.h"
-#include "Misc/ScopeLock.h"
 #include "Templates/Function.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
 #include "Stats/Stats.h"
@@ -850,7 +849,7 @@ bool FMallocBinnedGPU::IsInternallyThreadSafe() const
 void* FMallocBinnedGPU::MallocExternal(SIZE_T Size, uint32 Alignment)
 {
 	check(FMath::IsPowerOfTwo(Alignment));
-	checkf(DEFAULT_ALIGNMENT <= ArenaParams.MinimumAlignment, TEXT("DEFAULT_ALIGNMENT is assumed to be zero")); // used below
+	checkf(DEFAULT_ALIGNMENT <= ArenaParams.MinimumAlignment, TEXT("DEFAULT_ALIGNMENT is assumed to be zero")); //-V547
 
 	if (AdjustSmallBlockSizeForAlignment(Size, Alignment)) // there is some redundant work here... we already adjusted the size for alignment
 	{

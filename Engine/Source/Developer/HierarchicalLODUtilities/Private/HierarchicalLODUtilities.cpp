@@ -232,6 +232,107 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 	return BuildStaticMeshForLODActor(LODActor, Proxy, LODSetup, InBaseMaterial);
 }
 
+static FString GetImposterMeshName(const UMaterialInterface* InImposterMaterial)
+{
+	UPackage* MaterialOuterMost = InImposterMaterial->GetOutermost();
+
+	const FString BaseName = FPackageName::GetShortName(MaterialOuterMost->GetPathName());
+	return FString::Printf(TEXT("%s_ImposterMesh"), *BaseName);
+}
+
+static FString GetImposterMeshPackageName(const UMaterialInterface* InImposterMaterial)
+{
+	UPackage* MaterialOuterMost = InImposterMaterial->GetOutermost();
+
+	const FString PathName = FPackageName::GetLongPackagePath(MaterialOuterMost->GetPathName());
+	const FString BaseName = FPackageName::GetShortName(MaterialOuterMost->GetPathName());
+	return FString::Printf(TEXT("%s/%s_ImposterMesh"), *PathName, *BaseName);
+}
+
+UPackage* CreateOrRetrieveImposterMeshPackage(const UMaterialInterface* InImposterMaterial)
+{
+	checkf(InImposterMaterial != nullptr, TEXT("Invalid material supplied"));
+
+	const FString MeshPackageName = GetImposterMeshPackageName(InImposterMaterial);
+
+	UPackage* MeshPackage = CreatePackage(NULL, *MeshPackageName);
+	MeshPackage->FullyLoad();
+
+	// Target filename
+	const FString MeshPackageFileName = FPackageName::LongPackageNameToFilename(MeshPackageName);
+	// This is a hack to avoid save file dialog when we will be saving imposter mesh package
+	MeshPackage->FileName = FName(*MeshPackageFileName);
+
+	return MeshPackage;
+}
+
+UStaticMesh* CreateImposterStaticMesh(UStaticMeshComponent* InComponent, UMaterialInterface* InMaterial, const FMeshProxySettings& InProxySettings)
+{
+	UPackage* MeshPackage = CreateOrRetrieveImposterMeshPackage(InMaterial);
+
+	// check if our asset exists
+	const FString ImposterMeshName = GetImposterMeshName(InMaterial);
+	UStaticMesh* StaticMesh = FindObject<UStaticMesh>(MeshPackage, *ImposterMeshName);
+	if (StaticMesh == nullptr)
+	{
+		// Create the UStaticMesh object.
+		StaticMesh = NewObject<UStaticMesh>(MeshPackage, *ImposterMeshName, RF_Public | RF_Standalone);
+		StaticMesh->InitResources();
+
+		// make sure it has a new lighting guid
+		StaticMesh->LightingGuid = FGuid::NewGuid();
+
+		// Set it to use textured lightmaps. Note that Build Lighting will do the error-checking (texcoordindex exists for all LODs, etc).
+		StaticMesh->LightMapResolution = InProxySettings.LightMapResolution;
+		StaticMesh->LightMapCoordinateIndex = 1;
+
+		// Add one LOD for the base mesh
+		StaticMesh->SetNumSourceModels(0);
+		FStaticMeshSourceModel& SrcModel = StaticMesh->AddSourceModel();
+		/*Don't allow the engine to recalculate normals*/
+		SrcModel.BuildSettings.bRecomputeNormals = false;
+		SrcModel.BuildSettings.bRecomputeTangents = false;
+		SrcModel.BuildSettings.bRemoveDegenerates = true;
+		SrcModel.BuildSettings.bUseHighPrecisionTangentBasis = false;
+		SrcModel.BuildSettings.bUseFullPrecisionUVs = false;
+		SrcModel.BuildSettings.bGenerateLightmapUVs = InProxySettings.bGenerateLightmapUVs;
+		SrcModel.BuildSettings.bBuildReversedIndexBuffer = false;
+		SrcModel.BuildSettings.bBuildAdjacencyBuffer = InProxySettings.bAllowAdjacency;
+		if (!InProxySettings.bAllowDistanceField)
+		{
+			SrcModel.BuildSettings.DistanceFieldResolutionScale = 0.0f;
+		}
+
+		FMeshDescription* ImposterMesh = StaticMesh->CreateMeshDescription(0);
+		const IMeshMergeUtilities& MeshMergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
+		MeshMergeUtilities.ExtractImposterToRawMesh(InComponent, *ImposterMesh);
+	
+		// Commit mesh description and materials list to static mesh
+		StaticMesh->CommitMeshDescription(0);
+		StaticMesh->StaticMaterials = { InMaterial };
+
+		//Set the Imported version before calling the build
+		StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
+
+		StaticMesh->PostEditChange();
+
+		// Our imposters meshes are flat, but they actually represent a volume.
+		// Extend the imposteor bounds using the original mesh bounds.
+		if (StaticMesh->GetBoundingBox().GetVolume() == 0)
+		{
+			const FBox StaticMeshBox = StaticMesh->GetBoundingBox();
+			const FBox CombinedBox = StaticMeshBox + InComponent->GetStaticMesh()->GetBoundingBox();
+			StaticMesh->PositiveBoundsExtension = (CombinedBox.Max - StaticMeshBox.Max);
+			StaticMesh->NegativeBoundsExtension = (StaticMeshBox.Min - CombinedBox.Min);
+			StaticMesh->CalculateExtendedBounds();
+		}	
+	
+		StaticMesh->MarkPackageDirty();
+	}
+
+	return StaticMesh;
+}
+
 bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, UHLODProxy* Proxy, const FHierarchicalSimplification& LODSetup, UMaterialInterface* InBaseMaterial)
 {
 	if (Proxy && LODActor)
@@ -249,6 +350,25 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 
 		TArray<UPrimitiveComponent*> AllComponents;
 		UHLODProxy::ExtractComponents(LODActor, AllComponents);
+
+		TArray<UStaticMeshComponent*> AllImposters;
+		if (LODSetup.MergeSetting.bIncludeImposters)
+		{			
+			// Retrieve all imposters.
+			for (UPrimitiveComponent* Component : AllComponents)
+			{
+				if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
+				{
+					if (LODActor->GetImposterMaterial(StaticMeshComponent))
+					{
+						AllImposters.Add(StaticMeshComponent);
+					}
+				}
+			}
+
+			// Imposters won't be merged in the HLOD mesh
+			AllComponents.RemoveAll([&](UPrimitiveComponent* Component) { return AllImposters.Contains(Component); });
+		}
 
 		// it shouldn't even have come here if it didn't have any staticmesh
 		if (ensure(AllComponents.Num() > 0))
@@ -296,7 +416,6 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 				Algo::Transform(AllComponents, StaticMeshComponents, [](UPrimitiveComponent* InPrimitiveComponent) { return Cast<UStaticMeshComponent>(InPrimitiveComponent); });
 
 				MeshMergeUtilities.CreateProxyMesh(StaticMeshComponents, ProxySettings, InBaseMaterial, AssetsOuter, PackageName, JobID, Processor->GetCallbackDelegate(), true, OverrideLODSetup.TransitionScreenSize);
-				return true;
 			}
 			else
 			{
@@ -385,9 +504,42 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 
 				// Collect garbage to clean up old unreferenced data in the HLOD package
 				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-
-				return true;
 			}
+
+			// Add imposters
+			if (AllImposters.Num() > 0)
+			{
+				struct FLODImposterBatch
+				{
+					UStaticMesh*		StaticMesh;
+					TArray<FTransform>	Transforms;
+				};
+
+				// Get all meshes + transforms for all imposters type (per material)
+				TMap<UMaterialInterface*, FLODImposterBatch> ImposterBatches;
+				for(UStaticMeshComponent* Imposter : AllImposters)
+				{
+					UMaterialInterface* Material = LODActor->GetImposterMaterial(Imposter);
+					check(Material);
+
+					FLODImposterBatch& LODImposterBatch = ImposterBatches.FindOrAdd(Material);
+					LODImposterBatch.Transforms.Add(Imposter->GetOwner()->GetActorTransform());
+
+					// The static mesh hasn't been created yet, do it.
+					if(LODImposterBatch.StaticMesh == nullptr)
+					{
+						LODImposterBatch.StaticMesh = CreateImposterStaticMesh(Imposter, Material, LODSetup.ProxySetting);
+					}
+				}
+
+				// Add imposters to the LODActor
+				for(const TPair<UMaterialInterface*, FLODImposterBatch> ImposterBatch : ImposterBatches)
+				{
+					LODActor->SetupImposters(ImposterBatch.Key, ImposterBatch.Value.StaticMesh, ImposterBatch.Value.Transforms);
+				}
+			}
+
+			return true;
 		}
 	}
 	return false;

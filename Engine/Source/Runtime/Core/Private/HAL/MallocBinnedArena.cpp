@@ -8,7 +8,6 @@
 
 #if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
 #include "Logging/LogMacros.h"
-#include "Misc/ScopeLock.h"
 #include "Templates/Function.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
 #include "Stats/Stats.h"
@@ -839,7 +838,7 @@ bool FMallocBinnedArena::IsInternallyThreadSafe() const
 void* FMallocBinnedArena::MallocExternal(SIZE_T Size, uint32 Alignment)
 {
 	check(FMath::IsPowerOfTwo(Alignment));
-	checkf(DEFAULT_ALIGNMENT <= ArenaParams.MinimumAlignment, TEXT("DEFAULT_ALIGNMENT is assumed to be zero")); // used below
+	checkf(DEFAULT_ALIGNMENT <= ArenaParams.MinimumAlignment, TEXT("DEFAULT_ALIGNMENT is assumed to be zero")); //-V547
 
 	if (AdjustSmallBlockSizeForAlignment(Size, Alignment)) // there is some redundant work here... we already adjusted the size for alignment
 	{
@@ -940,7 +939,7 @@ void* FMallocBinnedArena::ReallocExternal(void* Ptr, SIZE_T NewSize, uint32 Alig
 		check(Ptr); // null is an OS allocation because it will not fall in our VM block
 		uint32 BlockSize = PoolIndexToBlockSize(PoolIndex);
 		if (
-			((NewSize <= BlockSize) & IsAligned(Ptr, Alignment)) && // one branch, not two
+			((NewSize <= BlockSize) & IsAligned(Ptr, Alignment)) && //-V792
 			(PoolIndex == 0 || NewSize > PoolIndexToBlockSize(PoolIndex - 1)))
 		{
 			return Ptr;

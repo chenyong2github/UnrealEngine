@@ -19,7 +19,8 @@ public class libstrophe : ModuleRules
 			Target.Platform == UnrealTargetPlatform.Win64 ||
 			Target.Platform == UnrealTargetPlatform.PS4 ||
 			Target.Platform == UnrealTargetPlatform.Mac ||
-			Target.Platform == UnrealTargetPlatform.Switch;
+			Target.Platform == UnrealTargetPlatform.Switch ||
+			Target.IsInPlatformGroup(UnrealPlatformGroup.Unix);
 
 		if (bIsSupported)
 		{
@@ -29,7 +30,10 @@ public class libstrophe : ModuleRules
 
 			string ConfigName = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" : "Release";
 
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "Expat");
+			if (!Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+			{
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "Expat");
+			}
 
 			if (Target.Platform == UnrealTargetPlatform.XboxOne)
 			{
@@ -71,6 +75,11 @@ public class libstrophe : ModuleRules
 			else if (Target.Platform == UnrealTargetPlatform.Switch)
 			{
 				PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, Target.Platform.ToString(), ConfigName, "libstrophe.a"));
+			}
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+			{
+				PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, "Linux", Target.Architecture.ToString(), ConfigName, "libstrophe" + ((Target.LinkType != TargetLinkType.Monolithic) ? "_fPIC" : "") + ".a"));
+				PublicAdditionalLibraries.Add("resolv");
 			}
 		}
 	}

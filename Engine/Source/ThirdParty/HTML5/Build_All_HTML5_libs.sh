@@ -19,10 +19,10 @@ LLVMBACKEND=0 # backend to use =>  0:WASM  1:LLVM
 # --------------------------------------------------------------------------------
 # this flag is used in all build scripts below
 
-#export UE_EMFLAGS="-msse2 -s SIMD=1 -s USE_PTHREADS=1"
-#export UE_EMFLAGS="       -s SIMD=0 -s USE_PTHREADS=1"
-#export UE_EMFLAGS="-msse2 -s SIMD=0 -s USE_PTHREADS=1 -s WASM=1 -s BINARYEN=1" # WASM still does not play nice with SIMD
-#export UE_EMFLAGS="-msse2           -s USE_PTHREADS=1 -s WASM=1 -s BINARYEN=1" # WASM still does not play nice with SIMD
+#export UE_EMFLAGS="-s SIMD=1 -s USE_PTHREADS=1"
+#export UE_EMFLAGS="-s SIMD=0 -s USE_PTHREADS=1"
+#export UE_EMFLAGS="-s SIMD=0 -s USE_PTHREADS=1 -s WASM=1 -s BINARYEN=1" # WASM still does not play nice with SIMD
+#export UE_EMFLAGS="          -s USE_PTHREADS=1 -s WASM=1 -s BINARYEN=1" # WASM still does not play nice with SIMD
 
 if [ $LLVMBACKEND == 1 ]; then
 	export UE_USE_BITECODE='OFF'
@@ -73,3 +73,5 @@ cd "$TPS_HTML5"/../SDL2
 cd "$TPS_HTML5"
 
 echo 'Success!'
+#play -q /usr/share/sounds/sound-icons/glass-water-1.wav
+

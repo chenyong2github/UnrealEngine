@@ -195,8 +195,20 @@ namespace UnrealBuildTool
 		/// <param name="OutputType">Type of build product</param>
 		public override bool ShouldAddDebugFileToReceipt(FileReference OutputFile, BuildProductType OutputType)
 		{
-			return OutputType == BuildProductType.Executable;
+			return OutputType == BuildProductType.Executable || OutputType == BuildProductType.DynamicLibrary;
 		}
+
+		public override FileReference GetDebugFile(FileReference OutputFile, string DebugExtension)
+		{
+			if (OutputFile.FullName.Contains(".framework"))
+			{
+				// need to put the debug info outside of the framework
+				return FileReference.Combine(OutputFile.Directory.ParentDirectory, OutputFile.ChangeExtension(DebugExtension).GetFileName());
+			}
+			//  by default, just change the extension to the debug extension
+			return OutputFile.ChangeExtension(DebugExtension);
+		}
+
 
 		string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
 		{
@@ -1569,7 +1581,17 @@ namespace UnrealBuildTool
 		private static void GenerateCrashlyticsData(string DsymZip, string ProjectDir, string ProjectName)
         {
 			Log.TraceInformation("Generating and uploading Crashlytics Data");
-            string FabricPath = UnrealBuildTool.EngineDirectory + "/Intermediate/UnzippedFrameworks/Crashlytics/Fabric.embeddedframework";
+
+			// Clean this folder as it's used for extraction
+			string TempPath = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Intermediate", "Unzipped");
+
+			if (Directory.Exists(TempPath))
+			{
+				Log.TraceInformation("Deleting temp path {0}", TempPath);
+				Directory.Delete(TempPath, true);
+			}
+
+			string FabricPath = UnrealBuildTool.EngineDirectory + "/Intermediate/UnzippedFrameworks/Crashlytics/Fabric.embeddedframework";
             if (Directory.Exists(FabricPath) && Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
             {
 				string PlistFile = ProjectDir + "/Intermediate/IOS/" + ProjectName + "-Info.plist";
@@ -1680,7 +1702,7 @@ namespace UnrealBuildTool
 
 			string AppName = Target.TargetName;
 
-			if (!Target.bSkipCrashlytics && !IsCompiledAsFramework(Target.OutputPath.FullName))
+			if (!Target.bSkipCrashlytics)
 			{
 				GenerateCrashlyticsData(PathToDsymZip, Target.ProjectDirectory.FullName, AppName);
 			}

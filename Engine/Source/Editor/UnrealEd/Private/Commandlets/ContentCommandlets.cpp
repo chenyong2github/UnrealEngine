@@ -1339,6 +1339,31 @@ bool UResavePackagesCommandlet::CanCheckoutFile(const FString& Filename, FString
 	return bCanCheckout;
 }
 
+void UResavePackagesCommandlet::CheckoutAndSavePackage(UPackage* Package, TArray<FString>& SublevelFilenames)
+{
+	check(Package);
+
+	FString PackageFilename;
+	if (FPackageName::TryConvertLongPackageNameToFilename(Package->GetName(), PackageFilename, FPackageName::GetAssetPackageExtension()))
+	{
+		if (IFileManager::Get().FileExists(*PackageFilename))
+		{
+			if (CheckoutFile(PackageFilename, true))
+			{
+				SublevelFilenames.Add(PackageFilename);
+			}
+			SavePackageHelper(Package, PackageFilename);
+		}
+		else
+		{
+			SavePackageHelper(Package, PackageFilename);
+			if (CheckoutFile(PackageFilename, true))
+			{
+				SublevelFilenames.Add(PackageFilename);
+			}
+		}
+	}
+}
 
 void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World, bool& bSavePackage)
 {
@@ -1383,8 +1408,8 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 		WorldContext.SetCurrentWorld(World);
 		GWorld = World;
 
-		TArray<FString> SublevelFilenames;
-		auto CheckOutLevelFile = [this,&bShouldProceedWithRebuild, &SublevelFilenames](ULevel* InLevel)
+		TArray<FString> CheckedOutPackagesFilenames;
+		auto CheckOutLevelFile = [this,&bShouldProceedWithRebuild, &CheckedOutPackagesFilenames](ULevel* InLevel)
 		{
 			if (InLevel && InLevel->MapBuildData)
 			{
@@ -1396,7 +1421,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 					{
 						if (CheckoutFile(MapBuildDataPackageName))
 						{
-							SublevelFilenames.Add(MapBuildDataPackageName);
+							CheckedOutPackagesFilenames.Add(MapBuildDataPackageName);
 						}
 						else
 						{
@@ -1420,8 +1445,8 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 			{
 				if (CanCheckoutFile(WorldPackageName, WorldPackageCheckedOutUser) || !bSkipCheckedOutFiles)
 				{
-				SublevelFilenames.Add(WorldPackageName);
-			}
+					CheckedOutPackagesFilenames.Add(WorldPackageName);
+				}
 				else 
 				{
 					bShouldProceedWithRebuild = false;
@@ -1432,7 +1457,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				// if we can't check out the main map or it's not up to date then we can't do the lighting rebuild at all!
 				if (CheckoutFile(WorldPackageName))
 				{
-					SublevelFilenames.Add(WorldPackageName);
+					CheckedOutPackagesFilenames.Add(WorldPackageName);
 
 					CheckOutLevelFile(World->PersistentLevel);
 				}
@@ -1469,8 +1494,8 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 						FString CurrentlyCheckedOutUser;
 						if (CanCheckoutFile(StreamingLevelPackageFilename, CurrentlyCheckedOutUser) || !bSkipCheckedOutFiles)
 						{
-						SublevelFilenames.Add(StreamingLevelPackageFilename);
-					}
+							CheckedOutPackagesFilenames.Add(StreamingLevelPackageFilename);
+						}
 						else 
 						{
 							UE_LOG(LogContentCommandlet, Warning, TEXT("[REPORT] Skipping %s as it is checked out by %s"), *StreamingLevelPackageFilename, *CurrentlyCheckedOutUser);
@@ -1481,7 +1506,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 						// check to see if we need to check this package out
 						if (CheckoutFile(StreamingLevelPackageFilename))
 						{
-							SublevelFilenames.Add(StreamingLevelPackageFilename);
+							CheckedOutPackagesFilenames.Add(StreamingLevelPackageFilename);
 						}
 						else
 						{
@@ -1586,44 +1611,22 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 					GShaderCompilingManager->ProcessAsyncResults(false, false);
 				}
 
-				IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
-				for (const ULevel* Level : GWorld->GetLevels())
+				// Get the list of packages needs to be saved.
+				TSet<UPackage*> PackagesToSave;
+				for(ULevel* Level : GWorld->GetLevels())
 				{
-					// Only meshes for clusters that are in a visible level
-					if (Level->bIsVisible)
+					if(Level->bIsVisible)
 					{
-						const int32 NumHLODLevels = Level->GetWorldSettings()->GetNumHierarchicalLODLevels();
+						Builder.GetMeshesPackagesToSave(Level, PackagesToSave);
+					}
+				}
 
-						for (int32 HLODIndex = 0; HLODIndex < NumHLODLevels; ++HLODIndex)
-						{
-							UPackage* HLODPackage = Utilities->CreateOrRetrieveLevelHLODPackage(Level, HLODIndex);
-
-							// skip packages we havent modified
-							if(HLODPackage->IsDirty())
-							{
-								FString HLODDataFilename;
-								if (FPackageName::TryConvertLongPackageNameToFilename(HLODPackage->GetName(), HLODDataFilename, FPackageName::GetAssetPackageExtension()))
-								{
-									if (IFileManager::Get().FileExists(*HLODDataFilename))
-									{
-										if (CheckoutFile(HLODDataFilename, true))
-										{
-											SublevelFilenames.Add(HLODDataFilename);
-										}
-
-										SavePackageHelper(HLODPackage, HLODDataFilename);
-									}
-									else
-									{
-										SavePackageHelper(HLODPackage, HLODDataFilename);
-										if (CheckoutFile(HLODDataFilename, true))
-										{
-											SublevelFilenames.Add(HLODDataFilename);
-										}
-									}
-								}
-							}
-						}
+				// Checkout and save each dirty package
+				for (UPackage* Package : PackagesToSave)
+				{
+					if (Package->IsDirty())
+					{
+						CheckoutAndSavePackage(Package, CheckedOutPackagesFilenames);
 					}
 				}
 			}
@@ -1653,37 +1656,14 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 
 				FEditorDelegates::OnLightingBuildFailed.Remove(BuildFailedDelegateHandle);
 			}
-			auto SaveMapBuildData = [this, &SublevelFilenames](ULevel* InLevel)
+			auto SaveMapBuildData = [this, &CheckedOutPackagesFilenames](ULevel* InLevel)
 			{
 				if (InLevel && InLevel->MapBuildData && (bShouldBuildLighting || bShouldBuildHLOD || bShouldBuildReflectionCaptures) )
 				{
 					UPackage* MapBuildDataPackage = InLevel->MapBuildData->GetOutermost();
-					FString MapBuildDataPackageName = MapBuildDataPackage->GetName();
-
 					if (MapBuildDataPackage != InLevel->GetOutermost())
 					{
-						FString MapBuildDataFilename;
-
-						if (FPackageName::TryConvertLongPackageNameToFilename(MapBuildDataPackageName, MapBuildDataFilename, FPackageName::GetAssetPackageExtension()))
-						{
-							if (IFileManager::Get().FileExists(*MapBuildDataFilename))
-							{
-								if ( CheckoutFile(MapBuildDataFilename, true) )
-								{
-									SublevelFilenames.Add(MapBuildDataFilename);
-								}
-
-								SavePackageHelper(MapBuildDataPackage, MapBuildDataFilename); 
-							}
-							else
-							{
-								SavePackageHelper(MapBuildDataPackage, MapBuildDataFilename);
-								if (CheckoutFile(MapBuildDataFilename, true))
-								{
-									SublevelFilenames.Add(MapBuildDataFilename);
-								}
-							}
-						}
+						CheckoutAndSavePackage(MapBuildDataPackage, CheckedOutPackagesFilenames);
 					}
 				}
 			};
@@ -1698,7 +1678,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				{
 					FString StreamingLevelPackageFilename;
 					const FString StreamingLevelWorldAssetPackageName = NextStreamingLevel->GetWorldAssetPackageName();
-					if (FPackageName::DoesPackageExist(StreamingLevelWorldAssetPackageName, NULL, &StreamingLevelPackageFilename) && SublevelFilenames.Contains(StreamingLevelPackageFilename))
+					if (FPackageName::DoesPackageExist(StreamingLevelWorldAssetPackageName, NULL, &StreamingLevelPackageFilename) && CheckedOutPackagesFilenames.Contains(StreamingLevelPackageFilename))
 					{
 						UPackage* SubLevelPackage = NextStreamingLevel->GetLoadedLevel()->GetOutermost();
 						bool bSaveSubLevelPackage = true;
@@ -1751,16 +1731,16 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 			ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 			
 			// revert all our packages
-			for (const auto& SublevelFilename : SublevelFilenames)
+			for (const auto& CheckedOutPackageFilename : CheckedOutPackagesFilenames)
 			{
-				SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), *SublevelFilename);
+				SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), *CheckedOutPackageFilename);
 			}
 		}
 		else
 		{
-			for(const auto& SublevelFilename : SublevelFilenames)
+			for(const auto& CheckedOutPackageFilename : CheckedOutPackagesFilenames)
 			{
-				FilesToSubmit.AddUnique(SublevelFilename);
+				FilesToSubmit.AddUnique(CheckedOutPackageFilename);
 			}
 
 			if(bShouldBuildHLOD && !bBuildingNonHLODData)

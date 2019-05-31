@@ -41,13 +41,17 @@ class ENGINE_API ADebugCameraController
 	UPROPERTY()
 	uint32 bOrbitPivotUseCenter:1;
 
-	/** Whether set view mode to display GBuffer visualization */
+	/** Whether set view mode to display GBuffer visualization overview */
 	UPROPERTY()
 	uint32 bEnableBufferVisualization : 1;
 
-	/** Whether set view mode to display GBuffer visualization */
+	/** Whether set view mode to display GBuffer visualization full */
 	UPROPERTY()
 	uint32 bEnableBufferVisualizationFullMode : 1;
+
+	/** Whether GBuffer visualization overview inputs are set up  */
+	UPROPERTY()
+	uint32 bIsBufferVisualizationInputSetup : 1;
 
 	/** Visualizes the frustum of the camera */
 	UPROPERTY()
@@ -130,6 +134,9 @@ class ENGINE_API ADebugCameraController
 	/** Buffer overview move left */
 	void BufferVisualizationMoveLeft();
 
+	/** Ignores axis motion */
+	void ConsumeAxisMotion(float Val);
+
 	/** Toggle buffer visualization full display */
 	void ToggleBufferVisualizationFullMode();
 
@@ -194,6 +201,9 @@ protected:
 	// Adjusts movement speed limits based on SpeedScale.
 	virtual void ApplySpeedScale();
 	virtual void SetupInputComponent() override;
+
+	/** Sets up or clears input for buffer visualization overview */
+	void SetupBufferVisualizationOverviewInput();
 
 public:
 

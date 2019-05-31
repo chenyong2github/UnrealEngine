@@ -18,6 +18,8 @@
 #include "HAL/PlatformMath.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/MallocBinnedCommon.h"
+#include "Misc/ScopeLock.h"
+
 
 #define BINNEDGPU_MAX_GMallocBinnedGPUMaxBundlesBeforeRecycle (8)
 
