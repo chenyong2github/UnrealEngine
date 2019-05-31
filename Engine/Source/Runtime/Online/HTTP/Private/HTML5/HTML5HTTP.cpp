@@ -195,16 +195,16 @@ void FHTML5HttpRequest::SetVerb(const FString& InVerb)
 	Verb = InVerb.ToUpper();
 }
 
-void FHTML5HttpRequest::StaticReceiveCallback(void *arg, void *buffer, uint32 size, void* httpHeaders)
+void FHTML5HttpRequest::StaticReceiveCallback(void *arg, void *buffer, uint32 size, void* httpHeaders, int httpStatusCode)
 {
 	UE_LOG(LogHttp, Verbose, TEXT("FHTML5HttpRequest::StaticReceiveDataCallback()"));
 
 	FHTML5HttpRequest* Request = reinterpret_cast<FHTML5HttpRequest*>(arg);
 
-	return Request->ReceiveCallback(arg, buffer, size, httpHeaders);
+	return Request->ReceiveCallback(arg, buffer, size, httpHeaders, httpStatusCode);
 }
 
-void FHTML5HttpRequest::ReceiveCallback(void *arg, void *buffer, uint32 size, void* httpHeaders)
+void FHTML5HttpRequest::ReceiveCallback(void *arg, void *buffer, uint32 size, void* httpHeaders, int httpStatusCode)
 {
 	UE_LOG(LogHttp, Verbose, TEXT("FHTML5HttpRequest::ReceiveDataCallback()"));
 	UE_LOG(LogHttp, Verbose, TEXT("Response size: %d"), size);
@@ -255,7 +255,7 @@ void FHTML5HttpRequest::ReceiveCallback(void *arg, void *buffer, uint32 size, vo
 
 		FMemory::Memcpy(static_cast<uint8*>(Response->Payload.GetData()), buffer, size);
 		Response->TotalBytesRead = size;
-		Response->HttpCode = 200;
+		Response->HttpCode = httpStatusCode;
 
 		UE_LOG(LogHttp, Verbose, TEXT("Payload length: %d"), Response->Payload.Num());
 
@@ -481,16 +481,15 @@ void FHTML5HttpRequest::FinishedRequest()
 	// Clean up session/request handles that may have been created
 	CleanupRequest();
 
-	if (Response.IsValid() &&
-		Response->bSucceeded)
+	if (Response.IsValid())
 	{
 		UE_LOG(LogHttp, Verbose, TEXT("%p: request has been successfully processed. HTTP code: %d, content length: %d, actual payload size: %d"), 
 			this, Response->HttpCode, Response->ContentLength, Response->Payload.Num() );
 
 		// Mark last request attempt as completed successfully
-		CompletionStatus = EHttpRequestStatus::Succeeded;
+		CompletionStatus = Response->bSucceeded ? EHttpRequestStatus::Succeeded : EHttpRequestStatus::Failed;
 		// Call delegate with valid request/response objects
-		OnProcessRequestComplete().ExecuteIfBound(SharedThis(this),Response,true);
+		OnProcessRequestComplete().ExecuteIfBound(SharedThis(this),Response,Response->bSucceeded);
 	}
 	else
 	{

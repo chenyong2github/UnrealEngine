@@ -59,10 +59,10 @@ typedef FHTML5Types FPlatformTypes;
 #ifdef __EMSCRIPTEN_PTHREADS__
 	#define PLATFORM_USE_PTHREADS							1
 	#if EXPERIMENTAL_OPENGL_RHITHREAD // see HTML5ToolChain.cs
+		#define PLATFORM_RHITHREAD_DEFAULT_BYPASS			1
+	#else
 		#define PLATFORM_RHITHREAD_DEFAULT_BYPASS			0
 		#define PLATFORM_SUPPORTS_EARLY_MOVIE_PLAYBACK		1 // movies will start before engine is initalized
-	#else
-		#define PLATFORM_RHITHREAD_DEFAULT_BYPASS			1
 	#endif
 #else
 	#define PLATFORM_USE_PTHREADS							0

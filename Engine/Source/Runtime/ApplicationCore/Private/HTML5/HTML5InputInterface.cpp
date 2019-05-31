@@ -182,12 +182,9 @@ void FHTML5InputInterface::SendControllerEvents()
 {
 	// game pads can only be polled.
 	static int PrevNumGamepads = 0;
-//#ifdef __EMSCRIPTEN_PTHREADS__
-//	/// XXX TODO Restore this, emscripten_get_num_gamepads() currently has a moderately high performance impact, so disabled for local testing
-//	static bool GamepadSupported = false;
-//#else
-	static bool GamepadSupported = true;
-//#endif
+
+	// XXX TODO warning, emscripten_get_num_gamepads() currently has a moderately high performance impact
+	static bool GamepadSupported = emscripten_sample_gamepad_data();
 
 	const double CurrentTime = FPlatformTime::Seconds();
 

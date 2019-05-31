@@ -154,41 +154,41 @@ function heuristicIs64Bit(type) {
 	if (contains(ua, ['intel mac os'])) return true;
 	return false;
 }
-
-// For best stability on 32-bit browsers, allocate asm.js/WebAssembly heap up front before proceeding
-// to load any other page content. This mitigates the chances that loading up page assets first would
-// fragment the memory area of the browser process.
-var pageSize = 64 * 1024;
 var heuristic64BitBrowser = heuristicIs64Bit('browser');
-function alignPageUp(size) { return pageSize * Math.ceil(size / pageSize); }
 
-// The absolute maximum that is possible is one memory page short of 2GB.
-var MAX_MEMORY = Module['UE4_MultiThreaded']
-					? 512 * 1024 * 1024					// multi  threaded - non-growable
-					: 2048 * 1024 * 1024 - pageSize;	// single threaded - growable
-
-// note: 32-bit browsers (single threaded) needs to start at 32MB
-var MIN_MEMORY = Module['UE4_MultiThreaded']
-					? 512 * 1024 * 1024		// multi  threaded - non-growable
-					:  32 * 1024 * 1024;	// single threaded - growable
-
-function allocateHeap() {
-	Module['wasmMemory'] = new WebAssembly.Memory({ initial: MIN_MEMORY / pageSize, maximum: MAX_MEMORY / pageSize });
-	if (!Module['wasmMemory']||!Module['wasmMemory'].buffer) {
-		throw 'Out of memory';
-	}
-	Module['buffer'] = Module['wasmMemory'].buffer;
-	if (Module['buffer'].byteLength < MIN_MEMORY) {
-		delete Module['buffer'];
-		throw 'Out of memory';
-	}
-	Module['TOTAL_MEMORY'] = Module['buffer'].byteLength;
-}
-allocateHeap();
-Module['MAX_MEMORY'] = MAX_MEMORY;
-
-function MB(x) { return (x/1024/1024) + 'MB'; }
-console.log('Initial memory size: ' + MB(Module['TOTAL_MEMORY']) + ' (MIN_MEMORY: ' + MB(MIN_MEMORY) + ', MAX_MEMORY: ' + MB(MAX_MEMORY) + ', heuristic64BitBrowser: ' + heuristic64BitBrowser + ', heuristic64BitOS: ' + heuristicIs64Bit('os') + ')');
+// // For best stability on 32-bit browsers, allocate asm.js/WebAssembly heap up front before proceeding
+// // to load any other page content. This mitigates the chances that loading up page assets first would
+// // fragment the memory area of the browser process.
+// var pageSize = 64 * 1024;
+// function alignPageUp(size) { return pageSize * Math.ceil(size / pageSize); }
+// 
+// // The absolute maximum that is possible is one memory page short of 2GB.
+// var MAX_MEMORY = Module['UE4_MultiThreaded']
+// 					? 512 * 1024 * 1024					// multi  threaded - non-growable
+// 					: 2048 * 1024 * 1024 - pageSize;	// single threaded - growable
+// 
+// // note: 32-bit browsers (single threaded) needs to start at 32MB
+// var MIN_MEMORY = Module['UE4_MultiThreaded']
+// 					? 512 * 1024 * 1024		// multi  threaded - non-growable
+// 					:  32 * 1024 * 1024;	// single threaded - growable
+// 
+// function allocateHeap() {
+// 	Module['wasmMemory'] = new WebAssembly.Memory({ initial: MIN_MEMORY / pageSize, maximum: MAX_MEMORY / pageSize });
+// 	if (!Module['wasmMemory']||!Module['wasmMemory'].buffer) {
+// 		throw 'Out of memory';
+// 	}
+// 	Module['buffer'] = Module['wasmMemory'].buffer;
+// 	if (Module['buffer'].byteLength < MIN_MEMORY) {
+// 		delete Module['buffer'];
+// 		throw 'Out of memory';
+// 	}
+// 	Module['TOTAL_MEMORY'] = Module['buffer'].byteLength;
+// }
+// allocateHeap();
+// Module['MAX_MEMORY'] = MAX_MEMORY;
+// 
+// function MB(x) { return (x/1024/1024) + 'MB'; }
+// console.log('Initial memory size: ' + MB(Module['TOTAL_MEMORY']) + ' (MIN_MEMORY: ' + MB(MIN_MEMORY) + ', MAX_MEMORY: ' + MB(MAX_MEMORY) + ', heuristic64BitBrowser: ' + heuristic64BitBrowser + ', heuristic64BitOS: ' + heuristicIs64Bit('os') + ')');
 
 
 
@@ -1028,10 +1028,10 @@ $(document).ready(function() {
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	// memory heap
-	if (!Module['buffer']) {
-		showErrorDialog('Failed to allocate ' + MB(MIN_MEMORY) + ' of linear memory for the WebAssembly heap!');
-		return;
-	}
+//	if (!Module['buffer']) {
+//		showErrorDialog('Failed to allocate ' + MB(MIN_MEMORY) + ' of linear memory for the WebAssembly heap!');
+//		return;
+//	}
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	// check for webgl and cache it for later (UE_BrowserWebGLVersion() reads this)
