@@ -49,6 +49,12 @@ extern void SetupMobileDirectionalLightUniformParameters(
 	bool bDynamicShadows,
 	FMobileDirectionalLightShaderParameters& Parameters);
 
+extern void SetupMobileSkyReflectionUniformParameters(
+	class FSkyLightSceneProxy* SkyLight,
+	FMobileReflectionCaptureShaderParameters& Parameters);
+
+
+
 class FPlanarReflectionSceneProxy;
 class FScene;
 
