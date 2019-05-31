@@ -282,6 +282,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		SetupMobileDistortionPassUniformBuffer(RHICmdList, View, DistortionPassParameters);
 		Scene->UniformBuffers.MobileDistortionPassUniformBuffer.UpdateUniformBufferImmediate(DistortionPassParameters);
 	}
+	UpdateSkyReflectionUniformBuffer();
 
 	// Now that the indirect lighting cache is updated, we can update the uniform buffers.
 	UpdatePrimitiveIndirectLightingCacheBuffers();
@@ -881,6 +882,21 @@ void FMobileSceneRenderer::UpdateDirectionalLightUniformBuffers(FRHICommandListI
 		SetupMobileDirectionalLightUniformParameters(*Scene, View, VisibleLightInfos, ChannelIdx, bDynamicShadows, Params);
 		Scene->UniformBuffers.MobileDirectionalLightUniformBuffers[ChannelIdx + 1].UpdateUniformBufferImmediate(Params);
 	}
+}
+
+void FMobileSceneRenderer::UpdateSkyReflectionUniformBuffer()
+{
+	FSkyLightSceneProxy* SkyLight = nullptr;
+	if (Scene->ReflectionSceneData.RegisteredReflectionCapturePositions.Num() == 0
+		&& Scene->SkyLight
+		&& Scene->SkyLight->ProcessedTexture->TextureRHI)
+	{
+		SkyLight = Scene->SkyLight;
+	}
+
+	FMobileReflectionCaptureShaderParameters Parameters;
+	SetupMobileSkyReflectionUniformParameters(SkyLight, Parameters);
+	Scene->UniformBuffers.MobileSkyReflectionUniformBuffer.UpdateUniformBufferImmediate(Parameters);
 }
 
 void FMobileSceneRenderer::CreateDirectionalLightUniformBuffers(FViewInfo& View)

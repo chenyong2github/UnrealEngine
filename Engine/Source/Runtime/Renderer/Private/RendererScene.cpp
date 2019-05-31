@@ -982,7 +982,9 @@ void FPersistentUniformBuffers::Initialize()
 	{
 		MobileDirectionalLightUniformBuffers[Index] = TUniformBufferRef<FMobileDirectionalLightShaderParameters>::CreateUniformBufferImmediate(MobileDirectionalLightShaderParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 	}
-	
+
+	FMobileReflectionCaptureShaderParameters MobileSkyReflectionShaderParameters;
+	MobileSkyReflectionUniformBuffer = TUniformBufferRef<FMobileReflectionCaptureShaderParameters>::CreateUniformBufferImmediate(MobileSkyReflectionShaderParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
 #if WITH_EDITOR
 	FSceneTexturesUniformParameters EditorSelectionPassParameters;
@@ -1854,11 +1856,6 @@ void FScene::SetSkyLight(FSkyLightSceneProxy* LightProxy)
 				// Mark the scene as needing static draw lists to be recreated if needed
 				// The base pass chooses shaders based on whether there's a skylight in the scene, and that is cached in static draw lists
 				Scene->bScenesPrimitivesNeedStaticMeshElementUpdate = true;
-			}
-
-			if (Scene->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1)
-			{
-				Scene->SkyLight->UpdateMobileUniformBuffer();
 			}
 		});
 }
