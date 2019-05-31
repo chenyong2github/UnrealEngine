@@ -54,7 +54,7 @@ void FModuleService::SetModuleEnabled(const FName& ModuleName, bool bEnabled)
 	{
 		return;
 	}
-	bool bWasEnabled = EnabledModules.Find(*FindIt);
+	bool bWasEnabled = !!EnabledModules.Find(*FindIt);
 	if (bEnabled == bWasEnabled)
 	{
 		return;
