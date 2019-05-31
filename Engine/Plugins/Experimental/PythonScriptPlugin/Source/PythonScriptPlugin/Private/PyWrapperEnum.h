@@ -110,13 +110,16 @@ typedef TPyPtr<FPyWrapperEnum> FPyWrapperEnumPtr;
 
 /** An Unreal enum that was generated from a Python type */
 UCLASS()
-class UPythonGeneratedEnum : public UEnum
+class UPythonGeneratedEnum : public UEnum, public IPythonResourceOwner
 {
 	GENERATED_BODY()
 
 #if WITH_PYTHON
 
 public:
+	//~ IPythonResourceOwner interface
+	virtual void ReleasePythonResources() override;
+
 	/** Generate an Unreal enum from the given Python type */
 	static UPythonGeneratedEnum* GenerateEnum(PyTypeObject* InPyType);
 
@@ -144,6 +147,12 @@ private:
 	FPyWrapperEnumMetaData PyMetaData;
 
 	friend class FPythonGeneratedEnumBuilder;
+
+#else	// WITH_PYTHON
+
+public:
+	//~ IPythonResourceOwner interface
+	virtual void ReleasePythonResources() override {}
 
 #endif	// WITH_PYTHON
 };
