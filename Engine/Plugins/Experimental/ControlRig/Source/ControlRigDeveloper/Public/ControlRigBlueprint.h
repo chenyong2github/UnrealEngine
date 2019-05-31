@@ -142,6 +142,7 @@ public:
 	FName LastNameFromNotification;
 
 	void PopulateModelFromGraph(const UControlRigGraph* InGraph);
+	void RebuildGraphFromModel();
 
 	UControlRigModel::FModifiedEvent& OnModified();
 

@@ -571,6 +571,7 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 TSharedPtr<FControlRigField> UControlRigGraphNode::CreateControlRigField(const FControlRigModelPin* InPin, const FString& InPinPath, int32 InArrayIndex) const
 {
 	TSharedPtr<FControlRigField> NewField = MakeShareable(new FControlRigPin(InPin, InPinPath, InArrayIndex));
+	NewField->DisplayNameText = InPin->DisplayNameText;
 	NewField->TooltipText = InPin->TooltipText;
 	NewField->InputPin = FindPin(InPinPath, EGPD_Input);
 	NewField->OutputPin = FindPin(InPinPath, EGPD_Output);
