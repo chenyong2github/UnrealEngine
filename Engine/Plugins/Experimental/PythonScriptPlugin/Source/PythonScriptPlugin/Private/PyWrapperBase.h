@@ -9,6 +9,7 @@
 #include "PyConversionResult.h"
 #include "Misc/Guid.h"
 #include "UObject/GCObject.h"
+#include "UObject/Interface.h"
 #include "PyWrapperBase.generated.h"
 
 #if WITH_PYTHON
