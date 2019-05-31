@@ -4643,7 +4643,7 @@ bool FSlateApplication::TakeScreenshot(const TSharedRef<SWidget>& Widget, const 
 	FWidgetPath WidgetPath;
 	FSlateApplication::Get().GeneratePathToWidgetChecked(Widget, WidgetPath);
 
-	FArrangedWidget ArrangedWidget = WidgetPath.FindArrangedWidget(Widget).Get(FArrangedWidget::NullWidget);
+	FArrangedWidget ArrangedWidget = WidgetPath.FindArrangedWidget(Widget).Get(FArrangedWidget::GetNullWidget());
 	FVector2D Position = ArrangedWidget.Geometry.AbsolutePosition;
 	FVector2D Size = ArrangedWidget.Geometry.GetDrawSize();
 	FVector2D WindowPosition = WidgetWindow->GetPositionInScreen();
