@@ -62,6 +62,10 @@ string MakeQualifiedNameWithSeparator(const string& parent_name,
 
 }  // namespace
 
+#ifdef DUMP_SYMS_WITH_EPIC_EXTENSIONS
+bool g_mangle_names = false;
+#endif
+
 namespace google_breakpad {
 
 // C++ language-specific operations.
@@ -76,6 +80,15 @@ class CPPLanguage: public Language {
 
   virtual DemangleResult DemangleName(const string& mangled,
                                       string* demangled) const {
+#ifdef DUMP_SYMS_WITH_EPIC_EXTENSIONS
+    // Android needs mangled names, so just always mangle them
+    if (g_mangle_names)
+    {
+      demangled->assign(mangled.c_str());
+      return kDemangleSuccess;
+    }
+#endif
+
 #if defined(__ANDROID__)
     // Android NDK doesn't provide abi::__cxa_demangle.
     demangled->clear();
