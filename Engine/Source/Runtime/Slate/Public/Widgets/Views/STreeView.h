@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved
  
 #pragma once
 
@@ -84,20 +84,25 @@ class STreeView : public SListView< ItemType >
 {
 public:
 
-	typedef typename TListTypeTraits< ItemType >::NullableType NullableItemType;
+	using NullableItemType  = typename TListTypeTraits< ItemType >::NullableType;
+	using MapKeyFuncs       = typename TListTypeTraits< ItemType >::MapKeyFuncs;
+	using MapKeyFuncsSparse = typename TListTypeTraits< ItemType >::MapKeyFuncsSparse;
 
-	typedef typename TSlateDelegates< ItemType >::FOnGetChildren FOnGetChildren;
-	typedef typename TSlateDelegates< ItemType >::FOnGenerateRow FOnGenerateRow;
-	typedef typename TSlateDelegates< ItemType >::FOnSetExpansionRecursive FOnSetExpansionRecursive;
-	typedef typename TSlateDelegates< ItemType >::FOnItemScrolledIntoView FOnItemScrolledIntoView;
-	typedef typename TSlateDelegates< NullableItemType >::FOnSelectionChanged FOnSelectionChanged;
-	typedef typename TSlateDelegates< ItemType >::FOnMouseButtonClick FOnMouseButtonClick;
-	typedef typename TSlateDelegates< ItemType >::FOnMouseButtonDoubleClick FOnMouseButtonDoubleClick;
-	typedef typename TSlateDelegates< ItemType >::FOnExpansionChanged FOnExpansionChanged;
+	using TSparseItemMap    = TMap< ItemType, FSparseItemInfo, FDefaultSetAllocator, MapKeyFuncsSparse >;
+	using TItemSet          = TSet< ItemType, typename TListTypeTraits< ItemType >::SetKeyFuncs >;
 
-	typedef typename TSlateDelegates< ItemType >::FOnItemToString_Debug FOnItemToString_Debug; 
+	using FOnGetChildren            = typename TSlateDelegates< ItemType >::FOnGetChildren;
+	using FOnGenerateRow            = typename TSlateDelegates< ItemType >::FOnGenerateRow;
+	using FOnSetExpansionRecursive  = typename TSlateDelegates< ItemType >::FOnSetExpansionRecursive;
+	using FOnItemScrolledIntoView   = typename TSlateDelegates< ItemType >::FOnItemScrolledIntoView;
+	using FOnSelectionChanged       = typename TSlateDelegates< NullableItemType >::FOnSelectionChanged;
+	using FOnMouseButtonClick       = typename TSlateDelegates< ItemType >::FOnMouseButtonClick;
+	using FOnMouseButtonDoubleClick = typename TSlateDelegates< ItemType >::FOnMouseButtonDoubleClick;
+	using FOnExpansionChanged       = typename TSlateDelegates< ItemType >::FOnExpansionChanged;
 
-	using FOnWidgetToBeRemoved = typename SListView<ItemType>::FOnWidgetToBeRemoved;
+	using FOnItemToString_Debug     = typename TSlateDelegates< ItemType >::FOnItemToString_Debug; 
+
+	using FOnWidgetToBeRemoved      = typename SListView< ItemType >::FOnWidgetToBeRemoved;
 
 public:
 	
@@ -451,8 +456,8 @@ public:
 				{
 					// We make copies of the old expansion and selection sets so that we can remove
 					// any items that are no longer seen by the tree.
-					TSet< ItemType > TempSelectedItemsMap;
-					TMap< ItemType, FSparseItemInfo > TempSparseItemInfo;
+					TItemSet TempSelectedItemsMap;
+					TSparseItemMap TempSparseItemInfo;
 					TArray<FItemInfo> TempDenseItemInfos;
 					
 					// Rebuild the linearized view of the tree data.
@@ -517,8 +522,8 @@ public:
 		TArray< ItemType >& InLinearizedItems,
 		TArray< FItemInfo >& NewDenseItemInfos,
 		TBitArray<> NeedsParentWire,
-		TSet< ItemType >& OutNewSelectedItems,
-		TMap< ItemType, FSparseItemInfo >& NewSparseItemInfo,
+		TItemSet& OutNewSelectedItems,
+		TSparseItemMap& NewSparseItemInfo,
 		bool bAddingItems )
 	{
 
@@ -673,9 +678,9 @@ public:
 	 *
 	 * @param ExpandedItems	The generated set of expanded items.
 	 */
-	void GetExpandedItems( TSet< ItemType >& ExpandedItems ) const
+	void GetExpandedItems( TItemSet& ExpandedItems ) const
 	{
-		for( typename TMap<ItemType, FSparseItemInfo>::TConstIterator InfoIterator(SparseItemInfos); InfoIterator; ++InfoIterator )
+		for( typename TSparseItemMap::TConstIterator InfoIterator(SparseItemInfos); InfoIterator; ++InfoIterator )
 		{
 			if ( InfoIterator.Value().bIsExpanded )
 			{
@@ -703,7 +708,7 @@ protected:
 	const TArray<ItemType>* TreeItemsSource;		
 		
 	/** Info needed by a small fraction of tree items; some of these are not visible to the user. */
-	TMap<ItemType, FSparseItemInfo> SparseItemInfos;
+	TSparseItemMap SparseItemInfos;
 
 	/** Info needed by every item in the linearized version of the tree. */
 	TArray<FItemInfo> DenseItemInfos;
