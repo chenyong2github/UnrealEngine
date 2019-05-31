@@ -816,6 +816,7 @@ namespace UnrealBuildTool
 		/// Currently disabled by default because it tends to behave a bit buggy on some computers (PDB-related compile errors).
 		/// </summary>
 		[CommandLine("-IncrementalLinking")]
+		[CommandLine("-NoIncrementalLinking", Value = "false")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bUseIncrementalLinking = false;
 
