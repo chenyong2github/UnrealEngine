@@ -587,6 +587,8 @@ void FAutomationTestFramework::DumpAutomationTestExecutionInfo( const TMap<FStri
 
 void FAutomationTestFramework::InternalStartTest( const FString& InTestToRun )
 {
+	Parameters.Empty();
+
 	FString TestName;
 	if (!InTestToRun.Split(TEXT(" "), &TestName, &Parameters, ESearchCase::CaseSensitive))
 	{
