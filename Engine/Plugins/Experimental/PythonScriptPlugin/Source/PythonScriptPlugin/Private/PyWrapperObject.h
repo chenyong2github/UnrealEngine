@@ -180,7 +180,7 @@ typedef TPyPtr<FPyWrapperObject> FPyWrapperObjectPtr;
 
 /** An Unreal class that was generated from a Python type */
 UCLASS()
-class UPythonGeneratedClass : public UClass
+class UPythonGeneratedClass : public UClass, public IPythonResourceOwner
 {
 	GENERATED_BODY()
 
@@ -192,6 +192,9 @@ public:
 
 	//~ UClass interface
 	virtual void PostInitInstance(UObject* InObj) override;
+
+	//~ IPythonResourceOwner interface
+	virtual void ReleasePythonResources() override;
 
 	/** Generate an Unreal class from the given Python type */
 	static UPythonGeneratedClass* GenerateClass(PyTypeObject* InPyType);
@@ -222,6 +225,12 @@ private:
 	FPyWrapperObjectMetaData PyMetaData;
 
 	friend class FPythonGeneratedClassBuilder;
+
+#else	// WITH_PYTHON
+
+public:
+	//~ IPythonResourceOwner interface
+	virtual void ReleasePythonResources() override {}
 
 #endif	// WITH_PYTHON
 };
