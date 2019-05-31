@@ -22,7 +22,7 @@ public class AudioMixerXAudio2 : ModuleRules
 		PrecompileForTargets = PrecompileTargetsType.None;
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target,
-			"XAudio2_9",
+			"DX11Audio",
 			"UEOgg",
 			"Vorbis",
 			"VorbisFile"
