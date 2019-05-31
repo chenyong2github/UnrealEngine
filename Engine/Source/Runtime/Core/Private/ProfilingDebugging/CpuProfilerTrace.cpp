@@ -81,7 +81,7 @@ void FCpuProfilerTrace::OutputBeginEvent(uint16 SpecId)
 	}
 	++ThreadState->Depth;
 	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(CpuProfiler, EventBatch);
-	if (!bEventEnabled & (bEventEnabled == ThreadState->bEnabled))
+	if ((!bEventEnabled) & (bEventEnabled == ThreadState->bEnabled))
 	{
 		return;
 	}
@@ -109,7 +109,7 @@ void FCpuProfilerTrace::OutputEndEvent()
 	FCpuProfilerTraceInternal::FThreadState* ThreadState = FCpuProfilerTraceInternal::ThreadLocalThreadState;
 	--ThreadState->Depth;
 	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(CpuProfiler, EventBatch);
-	if (!bEventEnabled & (bEventEnabled == ThreadState->bEnabled))
+	if ((!bEventEnabled) & (bEventEnabled == ThreadState->bEnabled))
 	{
 		return;
 	}
