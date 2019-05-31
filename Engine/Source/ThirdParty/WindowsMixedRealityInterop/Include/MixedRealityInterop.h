@@ -215,6 +215,14 @@ namespace WindowsMixedReality
 		DirectX::XMFLOAT3 direction;
 	};
 
+	struct PointerPoseInfo
+	{
+		DirectX::XMFLOAT3 origin;
+		DirectX::XMFLOAT3 direction;
+		DirectX::XMFLOAT3 up;
+		DirectX::XMFLOAT4 orientation;
+	};
+
 	class MIXEDREALITYINTEROP_API SpeechRecognizerInterop
 	{
 	private:
@@ -372,6 +380,10 @@ namespace WindowsMixedReality
 		//~ Eye gaze tracking
 
 		HMDTrackingStatus GetControllerTrackingStatus(HMDHand hand);
+
+		bool GetPointerPose(
+			HMDHand hand,
+			PointerPoseInfo& pose);
 
 		bool GetControllerOrientationAndPosition(
 			HMDHand hand,

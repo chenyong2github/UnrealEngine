@@ -182,6 +182,8 @@ namespace WindowsMixedReality
 	float3 ControllerPositions[2];
 	quaternion ControllerOrientations[2];
 
+	PointerPoseInfo PointerPoses[2];
+
 	// IDs for unhanded controllers.
 	int HandIDs[2];
 
@@ -1995,6 +1997,19 @@ namespace WindowsMixedReality
 		}
 	}
 
+	bool MixedRealityInterop::GetPointerPose(
+		HMDHand hand,
+		PointerPoseInfo& pose)
+	{
+		if (!IsInitialized())
+		{
+			return false;
+		}
+
+		pose = PointerPoses[(int)hand];
+		return true;
+	}
+
 	HMDTrackingStatus MixedRealityInterop::GetControllerTrackingStatus(HMDHand hand)
 	{
 		HMDTrackingStatus trackingStatus = HMDTrackingStatus::NotTracked;
@@ -2043,6 +2058,24 @@ namespace WindowsMixedReality
 				SpatialInteractionSourceLocation sourceLocation = prop.TryGetLocation(coordinateSystem);
 				if (sourceLocation != nullptr)
 				{
+					{
+						float3 pos = sourceLocation.SourcePointerPose().Position();
+						float3 forward = sourceLocation.SourcePointerPose().ForwardDirection();
+						float3 up = sourceLocation.SourcePointerPose().UpDirection();
+						quaternion rot = sourceLocation.SourcePointerPose().Orientation();
+
+						PointerPoses[(int)hand].origin = DirectX::XMFLOAT3(pos.x, pos.y, pos.z);
+						PointerPoses[(int)hand].direction = DirectX::XMFLOAT3(forward.x, forward.y, forward.z);
+						PointerPoses[(int)hand].up = DirectX::XMFLOAT3(up.x, up.y, up.z);
+						PointerPoses[(int)hand].orientation = DirectX::XMFLOAT4(rot.x, rot.y, rot.z, rot.w);
+
+						if (trackingOrigin == HMDTrackingOrigin::Eye)
+						{
+							// Add a vertical offset if using eye tracking so the player does not start in the floor.
+							PointerPoses[(int)hand].origin.y -= defaultPlayerHeight;
+						}
+					}
+
 					if (sourceLocation.Position() != nullptr)
 					{
 						ControllerPositions[(int)hand] = sourceLocation.Position().Value();

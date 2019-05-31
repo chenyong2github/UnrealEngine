@@ -91,3 +91,27 @@ bool UWindowsMixedRealityFunctionLibrary::IsTrackingAvailable()
 	return false;
 #endif
 }
+
+FPointerPoseInfo UWindowsMixedRealityFunctionLibrary::GetPointerPoseInfo(EControllerHand hand)
+{
+	FPointerPoseInfo info;
+
+#if WITH_WINDOWS_MIXED_REALITY
+
+	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
+	if (hmd == nullptr)
+	{
+		return info;
+	}
+
+	WindowsMixedReality::PointerPoseInfo p;
+	hmd->GetPointerPose(hand, p);
+
+	info.Origin = FVector(p.origin.x, p.origin.y, p.origin.z);
+	info.Direction = FVector(p.direction.x, p.direction.y, p.direction.z);
+	info.Up = FVector(p.up.x, p.up.y, p.up.z);
+	info.Orientation = FQuat(p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w);
+#endif
+
+	return info;
+}

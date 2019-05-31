@@ -270,6 +270,8 @@ namespace WindowsMixedReality
 			float value);
 		bool QueryCoordinateSystem(ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem *& pCoordinateSystem, WindowsMixedReality::HMDTrackingOrigin& trackingOrigin);
 		bool IsTrackingAvailable();
+
+		void GetPointerPose(EControllerHand hand, PointerPoseInfo& pi);
 #endif
 		void LockMouseToCenter(bool locked)
 		{

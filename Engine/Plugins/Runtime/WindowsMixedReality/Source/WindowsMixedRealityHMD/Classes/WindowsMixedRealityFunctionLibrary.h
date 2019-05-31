@@ -8,6 +8,7 @@
 
 #if WITH_WINDOWS_MIXED_REALITY
 #include "MixedRealityInterop.h"
+#include "WindowsMixedRealityInteropUtility.h"
 #endif
 
 #include "WindowsMixedRealityFunctionLibrary.Generated.h"
@@ -20,6 +21,24 @@ enum class EHMDSpatialLocatability : uint8
 	PositionalTrackingActivating = 2,
 	PositionalTrackingActive = 3,
 	PositionalTrackingInhibited = 4,
+};
+
+USTRUCT(BlueprintType)
+struct FPointerPoseInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WindowsMixedRealityHMD")
+	FVector Origin;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WindowsMixedRealityHMD")
+	FVector Direction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WindowsMixedRealityHMD")
+	FVector Up;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WindowsMixedRealityHMD")
+	FQuat Orientation;
 };
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FTrackingChangeCallback, EHMDSpatialLocatability, locatability);
@@ -74,4 +93,10 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "WindowsMixedRealityHMD")
 	static bool IsTrackingAvailable();
+
+	/**
+	 * Returns the pose information to determine what a WMR device is pointing at.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD")
+	static FPointerPoseInfo GetPointerPoseInfo(EControllerHand hand);
 };
