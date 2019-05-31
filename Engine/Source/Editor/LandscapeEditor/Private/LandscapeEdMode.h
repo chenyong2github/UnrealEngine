@@ -333,6 +333,7 @@ public:
 	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const override;
 	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const override;
 	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const override;
+	virtual void OnCanHaveLayersContentChanged() override;
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -599,8 +600,7 @@ private:
 
 	FDelegateHandle OnLevelActorDeletedDelegateHandle;
 	FDelegateHandle OnLevelActorAddedDelegateHandle;
-	FDelegateHandle OnLandscapeLayerSystemFlagChangedDelegateHandle;
-
+	
 	/** Check if we are painting using the VREditor */
 	bool bIsPaintingInVR;
 
