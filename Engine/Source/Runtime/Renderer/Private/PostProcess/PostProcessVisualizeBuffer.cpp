@@ -40,6 +40,7 @@ public:
 	FSceneTextureShaderParameters SceneTextureParameters;
 	FShaderResourceParameter SourceTexture;
 	FShaderResourceParameter SourceTextureSampler;
+	FShaderParameter SelectionColor;
 
 	/** Initialization constructor. */
 	FPostProcessVisualizeBufferPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -47,6 +48,7 @@ public:
 	{
 		PostprocessParameter.Bind(Initializer.ParameterMap);
 		SceneTextureParameters.Bind(Initializer);
+		SelectionColor.Bind(Initializer.ParameterMap, TEXT("SelectionColor"));
 
 		if (bDrawingTile)
 		{
@@ -81,11 +83,18 @@ public:
 		}
 	}
 	
+	void SetSelectionColor(FRHICommandList& RHICmdList, const FVector4& InColor)
+	{
+		SetShaderValue(RHICmdList, GetPixelShader(), SelectionColor, InColor);
+	}
+
 	// FShader interface.
 	virtual bool Serialize(FArchive& Ar) override
 	{
 		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 		Ar << PostprocessParameter << SceneTextureParameters << SourceTexture << SourceTextureSampler;
+		Ar << SelectionColor;
+
 		return bShaderHasOutdatedParameters;
 	}
 
@@ -100,9 +109,9 @@ public:
 	}
 };
 
-void FRCPassPostProcessVisualizeBuffer::AddVisualizationBuffer(FRenderingCompositeOutputRef InSource, const FString& InName)
+void FRCPassPostProcessVisualizeBuffer::AddVisualizationBuffer(FRenderingCompositeOutputRef InSource, const FString& InName, bool bIsSelected)
 {
-	Tiles.Add(TileData(InSource, InName));
+	Tiles.Add(TileData(InSource, InName, bIsSelected));
 
 	if (InSource.IsValid())
 	{
@@ -224,6 +233,17 @@ void FRCPassPostProcessVisualizeBuffer::Process(FRenderingCompositePassContext& 
 				int32 TileY = CurrentTileIndex / MaxTilesX;
 
 				PixelShader->SetSourceTexture(Context.RHICmdList, Texture);
+
+				const FLinearColor SelectedColor = FLinearColor::Yellow;
+				const FLinearColor NotSelectedColor = FLinearColor::Transparent;
+				if (It->bIsSelected)
+				{
+					PixelShader->SetSelectionColor(Context.RHICmdList, SelectedColor);
+				}
+				else
+				{
+					PixelShader->SetSelectionColor(Context.RHICmdList, NotSelectedColor);
+				}
 
 				DrawRectangle(
 					Context.RHICmdList,
