@@ -201,6 +201,50 @@ void FEmbeddedCommunication::AllowSleep(FName Requester)
 #endif
 }
 
+#if BUILD_EMBEDDED_APP
+static FName NativeLogCategory("Native");
+#endif
+
+void FEmbeddedCommunication::UELogError(const TCHAR* String)
+{
+#if BUILD_EMBEDDED_APP
+	if (GWarn)
+	{
+		GWarn->Log(NativeLogCategory, ELogVerbosity::Error, String);
+	}
+#endif
+}
+
+void FEmbeddedCommunication::UELogWarning(const TCHAR* String)
+{
+#if BUILD_EMBEDDED_APP
+	if (GWarn)
+	{
+		GWarn->Log(NativeLogCategory, ELogVerbosity::Warning, String);
+	}
+#endif
+}
+
+void FEmbeddedCommunication::UELogLog(const TCHAR* String)
+{
+#if BUILD_EMBEDDED_APP
+	if (GLog)
+	{
+		GLog->Log(NativeLogCategory, ELogVerbosity::Log, String);
+	}
+#endif
+}
+
+void FEmbeddedCommunication::UELogVerbose(const TCHAR* String)
+{
+#if BUILD_EMBEDDED_APP
+	if (GLog)
+	{
+		GLog->Log(NativeLogCategory, ELogVerbosity::Verbose, String);
+	}
+#endif
+}
+
 bool FEmbeddedCommunication::IsAwakeForTicking()
 {
 #if BUILD_EMBEDDED_APP

@@ -1800,6 +1800,32 @@ JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_AllowSleep(JNIEnv* jenv, jobj
 	FEmbeddedCommunication::AllowSleep(*Requester);
 }
 
+JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_UELogError(JNIEnv* jenv, jobject thiz, jstring InString)
+{
+	const auto chars = jenv->GetStringUTFChars(InString, 0);
+	FEmbeddedCommunication::UELogError(UTF8_TO_TCHAR(chars));
+	jenv->ReleaseStringUTFChars(InString, chars);
+}
+
+JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_UELogWarning(JNIEnv* jenv, jobject thiz, jstring InString)
+{
+	const auto chars = jenv->GetStringUTFChars(InString, 0);
+	FEmbeddedCommunication::UELogWarning(UTF8_TO_TCHAR(chars));
+	jenv->ReleaseStringUTFChars(InString, chars);
+}
+JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_UELogLog(JNIEnv* jenv, jobject thiz, jstring InString)
+{
+	const auto chars = jenv->GetStringUTFChars(InString, 0);
+	FEmbeddedCommunication::UELogLog(UTF8_TO_TCHAR(chars));
+	jenv->ReleaseStringUTFChars(InString, chars);
+}
+
+JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_UELogVerbose(JNIEnv* jenv, jobject thiz, jstring InString)
+{
+	const auto chars = jenv->GetStringUTFChars(InString, 0);
+	FEmbeddedCommunication::UELogVerbose(UTF8_TO_TCHAR(chars));
+	jenv->ReleaseStringUTFChars(InString, chars);
+}
 
 void FJavaWrapper::SetupEmbeddedCommunication(JNIEnv* Env)
 {

@@ -28,4 +28,16 @@ public class NativeCalls
 
 	@SuppressWarnings("JniMissingFunction")
 	public static native void RouteServiceIntent(String action, String payload);
+
+	@SuppressWarnings("JniMissingFunction")
+	public static native void UELogError(String msg);
+
+	@SuppressWarnings("JniMissingFunction")
+	public static native void UELogWarning(String msg);
+
+	@SuppressWarnings("JniMissingFunction")
+	public static native void UELogLog(String msg);
+
+	@SuppressWarnings("JniMissingFunction")
+	public static native void UELogVerbose(String msg);
 }
