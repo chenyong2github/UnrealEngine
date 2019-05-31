@@ -3424,8 +3424,11 @@ void FOpenGLDynamicRHI::RHIBlockUntilGPUIdle()
 
 void FOpenGLDynamicRHI::RHISubmitCommandsAndFlushGPU()
 {
-	FOpenGL::Flush();
-	RHIPollOcclusionQueries();
+	RunOnGLRenderContextThread([&]()
+	{
+		FOpenGL::Flush();
+		RHIPollOcclusionQueries();
+	});
 }
 
 /**
