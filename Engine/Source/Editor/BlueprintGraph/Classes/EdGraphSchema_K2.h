@@ -216,6 +216,9 @@ public:
 	/** Metadata that signals to the editor that enum values correspond to mask values instead of bitshift (index) values. */
 	static const FName MD_UseEnumValuesAsMaskValuesInEditor;
 	
+	/** Stub function used internally by animation blueprints */
+	static const FName MD_AnimBlueprintFunction;
+
 private:
 	// This class should never be instantiated
 	FBlueprintMetadata() {}

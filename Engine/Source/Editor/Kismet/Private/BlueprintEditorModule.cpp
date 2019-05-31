@@ -326,6 +326,16 @@ void FBlueprintEditorModule::UnregisterVariableCustomization(UStruct* InStruct)
 	VariableCustomizations.Remove(InStruct);
 }
 
+void FBlueprintEditorModule::RegisterGraphCustomization(const UEdGraphSchema* InGraphSchema, FOnGetGraphCustomizationInstance InOnGetGraphCustomization)
+{
+	GraphCustomizations.Add(InGraphSchema, InOnGetGraphCustomization);
+}
+
+void FBlueprintEditorModule::UnregisterGraphCustomization(const UEdGraphSchema* InGraphSchema)
+{
+	GraphCustomizations.Remove(InGraphSchema);
+}
+
 TArray<TSharedPtr<IDetailCustomization>> FBlueprintEditorModule::CustomizeVariable(UStruct* InStruct, TSharedPtr<IBlueprintEditor> InBlueprintEditor)
 {
 	TArray<TSharedPtr<IDetailCustomization>> DetailsCustomizations;
@@ -344,6 +354,40 @@ TArray<TSharedPtr<IDetailCustomization>> FBlueprintEditorModule::CustomizeVariab
 		for (UStruct* StructToQuery : ParentStructsToQuery)
 		{
 			FOnGetVariableCustomizationInstance* CustomizationDelegate = VariableCustomizations.Find(StructToQuery);
+			if (CustomizationDelegate && CustomizationDelegate->IsBound())
+			{
+				TSharedPtr<IDetailCustomization> Customization = CustomizationDelegate->Execute(InBlueprintEditor);
+				if(Customization.IsValid())
+				{ 
+					DetailsCustomizations.Add(Customization);
+				}
+			}
+		}
+	}
+
+	return DetailsCustomizations;
+}
+
+TArray<TSharedPtr<IDetailCustomization>> FBlueprintEditorModule::CustomizeGraph(const UEdGraphSchema* InGraphSchema, TSharedPtr<IBlueprintEditor> InBlueprintEditor)
+{
+	TArray<TSharedPtr<IDetailCustomization>> DetailsCustomizations;
+	TArray<UClass*> ParentSchemaClassesToQuery;
+	if (InGraphSchema)
+	{
+		UClass* GraphSchemaClass = InGraphSchema->GetClass();
+		ParentSchemaClassesToQuery.Add(InGraphSchema->GetClass());
+
+		UClass* ParentSchemaClass = GraphSchemaClass->GetSuperClass();
+		while (ParentSchemaClass && ParentSchemaClass->IsChildOf(UEdGraphSchema::StaticClass()))
+		{
+			ParentSchemaClassesToQuery.Add(ParentSchemaClass);
+			ParentSchemaClass = ParentSchemaClass->GetSuperClass();
+		}
+
+		for (UClass* ClassToQuery : ParentSchemaClassesToQuery)
+		{
+			UEdGraphSchema* SchemaToQuery = CastChecked<UEdGraphSchema>(ClassToQuery->GetDefaultObject());
+			FOnGetGraphCustomizationInstance* CustomizationDelegate = GraphCustomizations.Find(SchemaToQuery);
 			if (CustomizationDelegate && CustomizationDelegate->IsBound())
 			{
 				TSharedPtr<IDetailCustomization> Customization = CustomizationDelegate->Execute(InBlueprintEditor);

@@ -206,6 +206,8 @@ public:
 
 	//~ Begin IBlueprintEditor Interface
 	virtual void RefreshEditors(ERefreshBlueprintEditorReason::Type Reason = ERefreshBlueprintEditorReason::UnknownReason) override;
+	virtual void RefreshMyBlueprint();
+	virtual void RefreshInspector();
 	virtual void AddToSelection(UEdGraphNode* InNode) override;
 	virtual void JumpToHyperlink(const UObject* ObjectReference, bool bRequestRename = false) override;
 	virtual void JumpToPin(const class UEdGraphPin* Pin) override;
@@ -481,7 +483,7 @@ public:
 		CGT_NewVariable,
 		CGT_NewFunctionGraph,
 		CGT_NewMacroGraph,
-		CGT_NewAnimationGraph,
+		CGT_NewAnimationLayer,
 		CGT_NewEventGraph,
 		CGT_NewLocalVariable
 	};

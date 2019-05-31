@@ -52,17 +52,15 @@ void FAnimNode_CustomProperty::PreUpdate(const UAnimInstance* InAnimInstance)
 #if WITH_EDITOR
 	if (bReinitializeProperties)
 	{
-		InitializeProperties(InAnimInstance);
+		InitializeProperties(InAnimInstance, GetTargetClass());
 		bReinitializeProperties = false;
 	}
 #endif// WITH_EDITOR
 }
 
-void FAnimNode_CustomProperty::InitializeProperties(const UObject* InSourceInstance)
+void FAnimNode_CustomProperty::InitializeProperties(const UObject* InSourceInstance, UClass* InTargetClass)
 {
-	UClass* TargetClass = GetTargetClass();
-
-	if(TargetClass)
+	if(InTargetClass)
 	{
 		// Build property lists
 		SourceProperties.Reset(SourcePropertyNames.Num());
@@ -78,7 +76,7 @@ void FAnimNode_CustomProperty::InitializeProperties(const UObject* InSourceInsta
 			UClass* SourceClass = InSourceInstance->GetClass();
 
 			UProperty* SourceProperty = FindField<UProperty>(SourceClass, SourceName);
-			UProperty* DestProperty = FindField<UProperty>(TargetClass, DestName);
+			UProperty* DestProperty = FindField<UProperty>(InTargetClass, DestName);
 
 			if (SourceProperty && DestProperty
 #if WITH_EDITOR

@@ -730,12 +730,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (Keywords = "AnimBlueprint"))
 	UAnimInstance* GetPostProcessInstance() const;
 
+	UE_DEPRECATED(4.23, "This function is deprecated. Please use GetSubInstanceByTag")
+	UAnimInstance* GetSubInstanceByName(FName InTag) const { return GetSubInstanceByTag(InTag); }
+
 	/**
-	 * Returns the a tagged sub-instance node. If non sub instances are found or none are tagged with the
+	 * Returns the a tagged sub-instance node. If no sub instances are found or none are tagged with the
 	 * supplied name, this will return NULL.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (Keywords = "AnimBlueprint"))
-	UAnimInstance* GetSubInstanceByName(FName InName) const;
+	UAnimInstance* GetSubInstanceByTag(FName InTag) const;
+
+	/**
+	 * Returns all tagged sub-instance nodes that match the tag.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (Keywords = "AnimBlueprint"))
+	void GetSubInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutSubInstances) const;
+
+	/** 
+	 * Runs through all layer nodes, attempting to find nodes that are implemented by the specified class, then sets up a sub instance of the class for each.
+	 * Allocates one sub instance to run each of the groups specified in the class, so state is shared.
+	 * If InClass is null, then layers are reset to their defaults.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Layers")
+	void SetLayerOverlay(TSubclassOf<UAnimInstance> InClass);
+
+	/** Gets the sub instance corresponding to the specified group */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh|Layers")
+	UAnimInstance* GetLayerSubInstanceByGroup(FName InGroup) const;
 
 	/** 
 	 * Returns whether there are any valid instances to run, currently this means whether we have

@@ -92,6 +92,15 @@ public:
 	{
 	}
 
+public:
+	FAnimationUpdateContext WithOtherProxy(FAnimInstanceProxy* InAnimInstanceProxy) const
+	{
+		FAnimationUpdateContext Result(InAnimInstanceProxy, DeltaTime);
+		Result.CurrentWeight = CurrentWeight;
+		Result.RootMotionWeightModifier = RootMotionWeightModifier;
+		return Result;
+	}
+
 	FAnimationUpdateContext FractionalWeight(float Multiplier) const
 	{
 		FAnimationUpdateContext Result(AnimInstanceProxy, DeltaTime);
@@ -414,6 +423,8 @@ public:
 	void AttemptRelink(const FAnimationBaseContext& Context);
 	/** This only used by custom handlers, and it is advanced feature. */
 	void SetLinkNode(struct FAnimNode_Base* NewLinkNode);
+	/** This only used when dynamic linking other graphs to this one. */
+	void SetDynamicLinkNode(struct FPoseLinkBase* InPoseLink);
 	/** This only used by custom handlers, and it is advanced feature. */
 	FAnimNode_Base* GetLinkNode();
 };
