@@ -91,7 +91,14 @@ public:
 			}
 			else if (Type == EReferenceType::AddReferencedObjects)
 			{
-				return TEXT("::AddReferencedObjects()");
+				if (!ReferencerName.IsNone())
+				{
+					return FString::Printf(TEXT("::AddReferencedObjects(): %s"), *ReferencerName.ToString());
+				}
+				else
+				{
+					return TEXT("::AddReferencedObjects()");
+				}
 			}
 			return FString();
 		}
@@ -183,19 +190,22 @@ public:
 	};
 
 	/** Constructs a new search engine and finds references to the specified object */
-	FReferenceChainSearch(UObject* InObjectToFindReferencesTo, EReferenceChainSearchMode Mode = EReferenceChainSearchMode::PrintResults);
+	COREUOBJECT_API FReferenceChainSearch(UObject* InObjectToFindReferencesTo, EReferenceChainSearchMode Mode = EReferenceChainSearchMode::PrintResults);
 
 	/** Destructor */
-	~FReferenceChainSearch();
+	COREUOBJECT_API ~FReferenceChainSearch();
 
-	/** 
-	 * Dumps results to log 
+	/**
+	 * Dumps results to log
 	 * @param bDumpAllChains - if set to false, the output will be trimmed to the first 100 reference chains
 	 */
-	void PrintResults(bool bDumpAllChains = false);
+	COREUOBJECT_API void PrintResults(bool bDumpAllChains = false) const;
+
+	/** Returns a string with a short report explaining the root path, will contain newlines */
+	COREUOBJECT_API FString GetRootPath() const;
 
 	/** Returns all reference chains */
-	const TArray<FReferenceChain*>& GetReferenceChains() const
+	COREUOBJECT_API const TArray<FReferenceChain*>& GetReferenceChains() const
 	{
 		return ReferenceChains;
 	}
@@ -235,5 +245,7 @@ private:
 	static FString GetObjectFlags(UObject* InObject);
 	/** Dumps a reference chain to log */
 	static void DumpChain(FReferenceChain* Chain);
+	/** Writes a reference chain to a string */
+	static void WriteChain(FReferenceChain* Chain, FString& OutString);
 };
 
