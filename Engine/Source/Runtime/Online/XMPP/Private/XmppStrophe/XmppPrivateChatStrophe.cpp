@@ -27,6 +27,11 @@ void FXmppPrivateChatStrophe::OnDisconnect()
 	CleanupMessages();
 }
 
+void FXmppPrivateChatStrophe::OnReconnect()
+{
+
+}
+
 bool FXmppPrivateChatStrophe::ReceiveStanza(const FStropheStanza& IncomingStanza)
 {
 	if (IncomingStanza.GetName() != Strophe::SN_MESSAGE || // Must be a message

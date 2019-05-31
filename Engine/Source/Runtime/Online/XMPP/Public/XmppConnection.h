@@ -303,5 +303,8 @@ public:
 	virtual IXmppMultiUserChatPtr MultiUserChat() = 0;
 	/** @return PrivateChat interface if available. NULL otherwise */
 	virtual IXmppChatPtr PrivateChat() = 0;
+	
+	/** Debug dump of this connection */
+	virtual void DumpState() const = 0;
 };
 
