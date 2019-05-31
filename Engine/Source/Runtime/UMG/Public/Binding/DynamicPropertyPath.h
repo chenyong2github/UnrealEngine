@@ -22,7 +22,6 @@ public:
 	FDynamicPropertyPath(const FString& Path);
 
 	/** */
-	UE_DEPRECATED(4.23, "FDynamicPropertyPath(const FString& Path)")
 	FDynamicPropertyPath(const TArray<FString>& PropertyChain);
 
 	/** Get the value represented by this property path */
