@@ -26,6 +26,8 @@
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
+CSV_DEFINE_CATEGORY(TextureStreaming, true);
+
 static TAutoConsoleVariable<int32> CVarStreamingOverlapAssetAndLevelTicks(
 	TEXT("r.Streaming.OverlapAssetAndLevelTicks"),
 	!WITH_EDITOR && (PLATFORM_PS4 || PLATFORM_XBOXONE),
@@ -1259,6 +1261,11 @@ void FRenderAssetStreamingManager::UpdateStats()
 	MaxEverRequired = FMath::Max<int64>(MaxEverRequired, DisplayedStats.RequiredPool);
 }
 
+void FRenderAssetStreamingManager::UpdateCSVOnlyStats()
+{
+	DisplayedStats = GatheredStats;
+}
+
 void FRenderAssetStreamingManager::LogViewLocationChange()
 {
 #if STREAMING_LOG_VIEWCHANGES
@@ -1347,6 +1354,12 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 	LogViewLocationChange();
 	STAT(DisplayedStats.Apply();)
 
+	CSV_CUSTOM_STAT(TextureStreaming, StreamingPool, ((float)(DisplayedStats.RequiredPool + (GPoolSizeVRAMPercentage > 0 ? 0 : DisplayedStats.NonStreamingMips))) / (1024.0f * 1024.0f), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(TextureStreaming, SafetyPool, ((float)DisplayedStats.SafetyPool) / (1024.0f * 1024.0f), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(TextureStreaming, TemporaryPool, ((float)DisplayedStats.TemporaryPool) / (1024.0f * 1024.0f), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(TextureStreaming, CachedMips, ((float)DisplayedStats.CachedMips) / (1024.0f * 1024.0f), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(TextureStreaming, WantedMips, ((float)DisplayedStats.WantedMips) / (1024.0f * 1024.0f), ECsvCustomStatOp::Set);
+
 	RenderAssetInstanceAsyncWork->EnsureCompletion();
 
 	if (NumRenderAssetProcessingStages <= 0 || bProcessEverything)
@@ -1373,7 +1386,11 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 		STAT(GatheredStats.UpdateStreamingDataCycles = 0);
 		STAT(GatheredStats.StreamTexturesCycles = 0);
 		STAT(GatheredStats.CallbacksCycles = 0);
-		STAT(UpdateStats();)
+#if STATS
+		UpdateStats();
+#elif UE_BUILD_TEST
+		UpdateCSVOnlyStats();
+#endif // STATS
 	}
 	else if (ProcessingStage == 0)
 	{
@@ -1451,7 +1468,11 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 		ProcessingStage = 0;
 
 		STAT(GatheredStats.StreamTexturesCycles += FPlatformTime::Cycles();)
-		STAT(UpdateStats();)
+#if STATS
+			UpdateStats();
+#elif UE_BUILD_TEST
+			UpdateCSVOnlyStats();
+#endif // STATS
 	}
 
 	if (!bProcessEverything)
