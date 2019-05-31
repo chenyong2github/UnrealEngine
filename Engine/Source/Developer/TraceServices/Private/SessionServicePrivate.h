@@ -3,7 +3,6 @@
 #pragma once
 
 #include "TraceServices/SessionService.h"
-#include "HAL/PlatformProcess.h"
 #include "Misc/ScopeLock.h"
 #include "Containers/Ticker.h"
 #include "Trace/Recorder.h"
@@ -46,7 +45,7 @@ private:
 	};
 
 	FModuleService& ModuleService;
-	FPlatformProcess::FSemaphore* RecorderMutex = nullptr;
+	void* RecorderEvent = nullptr;
 	FString LocalSessionDirectory;
 	TSharedPtr<IStore> TraceStore;
 	TSharedPtr<IRecorder> TraceRecorder;

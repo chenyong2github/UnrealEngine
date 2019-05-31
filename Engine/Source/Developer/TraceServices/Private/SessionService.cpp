@@ -9,6 +9,12 @@
 #include "Trace/ControlClient.h"
 #include "IPAddress.h"
 
+#if PLATFORM_WINDOWS
+	#include "Windows/AllowWindowsPlatformTypes.h"
+	#include "Windows/MinWindows.h"
+	#include "Windows/HideWindowsPlatformTypes.h"
+#endif
+
 namespace Trace
 {
 
@@ -35,10 +41,14 @@ FSessionService::~FSessionService()
 bool FSessionService::StartRecorderServer()
 {
 	bool bOk = TraceRecorder->StartRecording();
-	if (bOk && RecorderMutex == nullptr)
+#if PLATFORM_WINDOWS
+	// Create a named event that other processes can use detect a running
+	// recorder and connect to it automatically
+	if (bOk && RecorderEvent == nullptr)
 	{
-		RecorderMutex = FPlatformProcess::NewInterprocessSynchObject("UnrealInsightsRecorder", true);
+		RecorderEvent = ::CreateEvent(nullptr, true, false, TEXT("Local\\UnrealInsightsRecorder"));
 	}
+#endif // PLATFORM_WINDOWS
 	return bOk;
 }
 
@@ -49,11 +59,13 @@ bool FSessionService::IsRecorderServerRunning() const
 
 void FSessionService::StopRecorderServer()
 {
-	if (RecorderMutex != nullptr)
+#if PLATFORM_WINDOWS
+	if (RecorderEvent != nullptr)
 	{
-		FPlatformProcess::DeleteInterprocessSynchObject(RecorderMutex);
-		RecorderMutex = nullptr;
+		::CloseHandle(RecorderEvent);
+		RecorderEvent = nullptr;
 	}
+#endif // PLATFORM_WINDOWS
 	TraceRecorder->StopRecording();
 }
 

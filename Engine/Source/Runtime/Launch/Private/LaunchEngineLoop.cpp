@@ -1223,10 +1223,12 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 #if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
 		else
 		{
-			if (FPlatformProcess::FSemaphore* Mutex = FPlatformProcess::NewInterprocessSynchObject("UnrealInsightsRecorder", false))
+			// If we can detect a named event then we can try and auto-connect to UnrealInsights.
+			HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
+			if (KnownEvent != nullptr)
 			{
 				Trace::Connect(TEXT("127.0.0.1"));
-				FPlatformProcess::DeleteInterprocessSynchObject(Mutex);
+				::CloseHandle(KnownEvent);
 			}
 		}
 #endif // PLATFORM_WINDOWS
