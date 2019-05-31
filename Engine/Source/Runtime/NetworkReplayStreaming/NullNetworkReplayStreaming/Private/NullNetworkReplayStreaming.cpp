@@ -440,6 +440,24 @@ void FNullNetworkReplayStreamer::RequestEventData(const FString& EventID, const 
 	Delegate.Execute(Result);
 }
 
+void FNullNetworkReplayStreamer::RequestEventGroupData(const FString& Group, const FRequestEventGroupDataCallback& Delegate)
+{
+	UE_LOG(LogNullReplay, Log, TEXT("FNullNetworkReplayStreamer::RequestEventGroupData is currently unsupported."));
+	FRequestEventGroupDataResult Result;
+	Result.Result = EStreamingOperationResult::Unsupported;
+	Delegate.Execute(Result);
+}
+
+void FNullNetworkReplayStreamer::RequestEventGroupData(const FString& ReplayName, const FString& Group, const FRequestEventGroupDataCallback& Delegate)
+{
+	RequestEventGroupData(Group, Delegate);
+}
+
+void FNullNetworkReplayStreamer::RequestEventGroupData(const FString& ReplayName, const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate)
+{
+	RequestEventGroupData(Group, Delegate);
+}
+
 void FNullNetworkReplayStreamer::SearchEvents(const FString& EventGroup, const FSearchEventsCallback& Delegate)
 {
 	UE_LOG(LogNullReplay, Log, TEXT("FNullNetworkReplayStreamer::SearchEvents is currently unsupported."));
