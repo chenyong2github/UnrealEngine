@@ -650,6 +650,16 @@ bool FXmppModule::HandleXmppCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		}
 		return true;
 	}
+	else if (FParse::Command(&Cmd, TEXT("Dump")))
+	{
+		UE_LOG(LogXmpp, Warning, TEXT("Dumping %d XMPP connections: "), ActiveConnections.Num());
+		for (const auto& Pair : ActiveConnections)
+		{
+			const TSharedRef<IXmppConnection>& Connection = Pair.Value;
+			Connection->DumpState();
+		}
+		return true;
+	}
 
 	return false;
 }
