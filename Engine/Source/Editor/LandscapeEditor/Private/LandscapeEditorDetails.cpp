@@ -52,7 +52,7 @@ void FLandscapeEditorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 			.Text_Static(&FLandscapeEditorDetails::GetTargetLandscapeName)
 		]
 	];
-
+		
 	FText Reason;
 	bool bDisabledEditing = LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid() && !LandscapeEdMode->CanEditCurrentTarget(&Reason);
 

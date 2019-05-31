@@ -8,6 +8,7 @@
 #include "IDetailCustomization.h"
 
 class IDetailLayoutBuilder;
+class ALandscape;
 
 class FLandscapeUIDetails : public IDetailCustomization
 {
@@ -22,7 +23,11 @@ public:
 	/** End IDetailCustomization interface */
 
 private:
+	void OnEditorExperimentalSettingsChanged(FName PropertyName);
+	FReply ToggleCanHaveLayersContent(ALandscape* Landscape);
 
 	/** Use MakeInstance to create an instance of this class */
 	FLandscapeUIDetails();
+
+	IDetailLayoutBuilder* DetailLayoutBuilder = nullptr;
 };
