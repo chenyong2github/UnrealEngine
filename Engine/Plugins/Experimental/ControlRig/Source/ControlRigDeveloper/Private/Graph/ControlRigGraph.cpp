@@ -300,8 +300,8 @@ void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, ECon
 					RigNode->NodePosX = (int32)Node->Position.X;
 					RigNode->NodePosY = (int32)Node->Position.Y;
 					RigNode->Modify();
+					RigNode->ParameterType = (int32)Node->ParameterType;
 				}
-				RigNode->ParameterType = (int32)Node->ParameterType;
 			}
 			break;
 		}
