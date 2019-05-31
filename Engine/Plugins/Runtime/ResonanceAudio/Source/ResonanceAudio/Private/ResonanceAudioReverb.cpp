@@ -26,12 +26,8 @@ namespace ResonanceAudio
 	{
 		if (GlobalReverbPluginPreset)
 		{
-#if !WITH_EDITOR
 			GlobalReverbPluginPreset->RemoveFromRoot();
-#endif
-			GlobalReverbPluginPreset = nullptr;
 		}
-		ReverbPluginPreset = nullptr;
 	}
 
 	void FResonanceAudioReverb::Initialize(const FAudioPluginInitializationParams InitializationParams)
@@ -134,7 +130,6 @@ namespace ResonanceAudio
 		}
 		else
 		{
-			ReverbPluginPreset = nullptr;
 			return nullptr;
 		}
 	}
@@ -288,10 +283,7 @@ void FResonanceAudioReverbPlugin::Init(const FSoundEffectSubmixInitData& InData)
 void FResonanceAudioReverbPlugin::OnPresetChanged()
 {
 	GET_EFFECT_SETTINGS(ResonanceAudioReverbPlugin);
-	if (ResonanceAudioReverb)
-	{
-		ResonanceAudioReverb->UpdateRoomEffects();
-	}
+	ResonanceAudioReverb->UpdateRoomEffects();
 }
 
 uint32 FResonanceAudioReverbPlugin::GetDesiredInputChannelCountOverride() const
@@ -301,10 +293,7 @@ uint32 FResonanceAudioReverbPlugin::GetDesiredInputChannelCountOverride() const
 
 void FResonanceAudioReverbPlugin::OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
 {
-	if (ResonanceAudioReverb)
-	{
-		ResonanceAudioReverb->ProcessMixedAudio(InData, OutData);
-	}
+	ResonanceAudioReverb->ProcessMixedAudio(InData, OutData);
 }
 
 void FResonanceAudioReverbPlugin::SetResonanceAudioReverbPlugin(ResonanceAudio::FResonanceAudioReverb* InResonanceAudioReverbPlugin)

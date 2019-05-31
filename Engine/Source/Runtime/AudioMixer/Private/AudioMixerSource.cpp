@@ -1037,11 +1037,15 @@ namespace Audio
 			{
 				ESubmixChannelFormat ChannelType = (ESubmixChannelFormat)i;
 
-				check(Buffer);
-				const uint32 NumChannels = Buffer->NumChannels;
-				if (ComputeChannelMap(ChannelType, Buffer->NumChannels, ChannelMapInfo.ChannelMap))
+				// We don't need to compute speaker maps for ambisonics channel maps since we're not doing downmixing on ambisonics sources
+				if (ChannelType != ESubmixChannelFormat::Ambisonics)
 				{
-					MixerSourceVoice->SetChannelMap(ChannelType, NumChannels, ChannelMapInfo.ChannelMap, bIs3D, WaveInstance->bCenterChannelOnly);
+					check(Buffer);
+					const uint32 NumChannels = Buffer->NumChannels;
+					if (ComputeChannelMap(ChannelType, Buffer->NumChannels, ChannelMapInfo.ChannelMap))
+					{
+						MixerSourceVoice->SetChannelMap(ChannelType, NumChannels, ChannelMapInfo.ChannelMap, bIs3D, WaveInstance->bCenterChannelOnly);
+					}
 				}
 			}
 		}
