@@ -9,6 +9,7 @@
 #include "Animation/NodeMappingContainer.h"
 #include "AnimationRuntime.h"
 #include "ControlRigVariables.h"
+#include "Editor.h"
 
 FAnimNode_ControlRig::FAnimNode_ControlRig()
 	: ControlRig(nullptr)
