@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 #include "IDetailKeyframeHandler.h"
+#include "ControlRigModel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class IDetailsView;
@@ -49,6 +50,6 @@ private:
 
 	/** Called when a manipulator is selected in the picker */
 	void OnManipulatorsPicked(const TArray<FString>& Manipulators);
-	/** Called when edit mode selection set changes */
-	void OnSelectionSetChanged(const TArray<FString>& SelectedManipulators);
+
+	void HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload);
 };

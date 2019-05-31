@@ -9,6 +9,7 @@
 #include "ControlRigDefines.h"
 #include "ControlRigLog.h"
 #include "Drawing/ControlRigDrawInterface.h"
+#include "ControlRigModel.h"
 
 class UControlRigBlueprint;
 class IPersonaToolkit;
@@ -16,9 +17,6 @@ class SWidget;
 class SBorder;
 class USkeletalMesh;
 class FStructOnScope;
-
-/** Delegate fired when node selection has changed */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnGraphNodeSelectionChanged, const TSet<UObject*>& /*Selection*/);
 
 struct FControlRigEditorModes
 {
@@ -75,7 +73,9 @@ public:
 
 	// BlueprintEditor interface
 	virtual bool CanAddNewLocalVariable() const override { return false; }
-	
+	virtual void DeleteSelectedNodes();
+	virtual void PasteNodesHere(class UEdGraph* DestinationGraph, const FVector2D& GraphLocation) override;
+
 	// IToolkitHost Interface
 	virtual void OnToolkitHostingStarted(const TSharedRef<class IToolkit>& Toolkit) override;
 	virtual void OnToolkitHostingFinished(const TSharedRef<class IToolkit>& Toolkit) override;
@@ -95,8 +95,6 @@ public:
 
 	void ClearDetailObject();
 
-	FOnGraphNodeSelectionChanged& OnGraphNodeSelectionChanged() { return OnGraphNodeSelectionChangedDelegate; }
-
 	/** Get the persona toolkit */
 	TSharedRef<IPersonaToolkit> GetPersonaToolkit() const { return PersonaToolkit.ToSharedRef(); }
 
@@ -106,8 +104,6 @@ public:
 	/** Get the edit mode */
 	FControlRigEditorEditMode& GetEditMode() { return *static_cast<FControlRigEditorEditMode*>(GetAssetEditorModeManager()->GetActiveMode(FControlRigEditorEditMode::ModeName)); }
 
-	/** Try to set the selected nodes form some external source */
-	void SetSelectedNodes(const TArray<FString>& InSelectedPropertyPaths);
 	void SelectBone(const FName& InBone);
 	// this changes everytime you compile, so don't cache it expecting it will last. 
 	UControlRig* GetInstanceRig() const { return ControlRig;  }
@@ -138,6 +134,8 @@ protected:
 
 	// FNotifyHook Interface
 	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override;
+
+	void HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload);
 
 	// FGCObject Interface
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
@@ -214,16 +212,11 @@ protected:
 	/** Preview instance inspector widget */
 	TSharedPtr<SWidget> PreviewEditor;
 
-	FOnGraphNodeSelectionChanged OnGraphNodeSelectionChangedDelegate;
-
 	/** Our currently running control rig instance */
 	UControlRig* ControlRig;
 
 	/** preview scene */
 	TSharedPtr<IPersonaPreviewScene> PreviewScene;
-
-	/** Recursion guard for selection */
-	bool bSelecting;
 
 	/** Bone Selection related */
 	FTransform GetBoneTransform(const FName& InBone, bool bLocal) const;
@@ -236,6 +229,7 @@ protected:
 	FName SelectedBone;
 
 	bool bControlRigEditorInitialized;
+	bool bIsSelecting;
 
 	/** The log to use for errors resulting from the init phase of the units */
 	FControlRigLog ControlRigLog;

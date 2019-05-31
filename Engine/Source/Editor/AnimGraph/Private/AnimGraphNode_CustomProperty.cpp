@@ -136,19 +136,15 @@ FText UAnimGraphNode_CustomProperty::GetPropertyTypeText(UProperty* Property)
 	return PropertyTypeText;
 }
 
-void UAnimGraphNode_CustomProperty::RebuildExposedProperties(UClass* InNewClass)
+void UAnimGraphNode_CustomProperty::RebuildExposedProperties()
 {
 	ExposedPropertyNames.Empty();
 	KnownExposableProperties.Empty();
-	if(InNewClass)
+	TArray<UProperty*> ExposableProperties;
+	GetExposableProperties(ExposableProperties);
+	for(UProperty* Property : ExposableProperties)
 	{
-		TArray<UProperty*> ExposableProperties;
-		GetExposableProperties(ExposableProperties);
-
-		for(UProperty* Property : ExposableProperties)
-		{
-			KnownExposableProperties.Add(Property->GetFName());
-		}
+		KnownExposableProperties.Add(Property->GetFName());
 	}
 }
 

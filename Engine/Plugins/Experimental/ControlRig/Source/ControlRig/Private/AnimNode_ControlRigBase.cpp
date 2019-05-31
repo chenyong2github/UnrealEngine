@@ -23,6 +23,7 @@ void FAnimNode_ControlRigBase::OnInitializeAnimInstance(const FAnimInstanceProxy
 		if (BlueprintClass)
 		{
 			UBlueprint* Blueprint = Cast<UBlueprint>(BlueprintClass->ClassGeneratedBy);
+			// node mapping container will be saved on the initialization part
 			NodeMappingContainer = Component->SkeletalMesh->GetNodeMappingContainer(Blueprint);
 		}
 	}
@@ -35,6 +36,8 @@ void FAnimNode_ControlRigBase::Initialize_AnyThread(const FAnimationInitializeCo
 	if (UControlRig* ControlRig = GetControlRig())
 	{
 		ControlRig->Initialize();
+
+		SetTargetInstance(ControlRig);
 	}
 }
 
@@ -66,25 +69,26 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 	// first I need to convert to local pose
 	MeshPoses.InitPose(InOutput.Pose);
 
-	// should we also update refpose? 
-	const int32 NumNodes = RigHierarchyItemNameMapping.Num();
+	// @re-think - now control rig contains init pose from their default hierarchy and current pose from this instance.
+	// we may need this init pose somewhere (instance refpose)
+	const int32 NumNodes = ContolRigNodeMapping.Num();
 	for (int32 Index = 0; Index < NumNodes; ++Index)
 	{
-		if (RigHierarchyItemNameMapping[Index] != NAME_None)
+		if (ContolRigNodeMapping[Index] != NAME_None)
 		{
 			FCompactPoseBoneIndex CompactPoseIndex(Index);
 			FTransform ComponentTransform = MeshPoses.GetComponentSpaceTransform(CompactPoseIndex);
 			if (NodeMappingContainer.IsValid())
 			{
-				ComponentTransform = NodeMappingContainer->GetSourceToTargetTransform(RigHierarchyItemNameMapping[Index]).GetRelativeTransformReverse(ComponentTransform);
+				ComponentTransform = NodeMappingContainer->GetSourceToTargetTransform(ContolRigNodeMapping[Index]).GetRelativeTransformReverse(ComponentTransform);
 			}
 
-			ControlRig->SetGlobalTransform(RigHierarchyItemNameMapping[Index], ComponentTransform);
+			ControlRig->SetGlobalTransform(ContolRigNodeMapping[Index], ComponentTransform);
 		}
 	}
 }
 
-void FAnimNode_ControlRigBase::UpdateOutput(const UControlRig* ControlRig, FPoseContext& InOutput)
+void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContext& InOutput)
 {
 	// copy output of the rig
 	const FBoneContainer& RequiredBones = InOutput.Pose.GetBoneContainer();
@@ -93,33 +97,23 @@ void FAnimNode_ControlRigBase::UpdateOutput(const UControlRig* ControlRig, FPose
 	FCSPose<FCompactPose> MeshPoses;
 	MeshPoses.InitPose(InOutput.Pose);
 
-	const int32 NumNodes = RigHierarchyItemNameMapping.Num();
+	const int32 NumNodes = ContolRigNodeMapping.Num();
 	for (int32 Index = 0; Index < NumNodes; ++Index)
 	{
-		if (RigHierarchyItemNameMapping[Index] != NAME_None)
+		if (ContolRigNodeMapping[Index] != NAME_None)
 		{
 			FCompactPoseBoneIndex CompactPoseIndex(Index);
-			FTransform ComponentTransform = ControlRig->GetGlobalTransform(RigHierarchyItemNameMapping[Index]);
+			FTransform ComponentTransform = ControlRig->GetGlobalTransform(ContolRigNodeMapping[Index]);
 			if (NodeMappingContainer.IsValid())
 			{
-				ComponentTransform = NodeMappingContainer->GetSourceToTargetTransform(RigHierarchyItemNameMapping[Index]) * ComponentTransform;
+				ComponentTransform = NodeMappingContainer->GetSourceToTargetTransform(ContolRigNodeMapping[Index]) * ComponentTransform;
 			}
 
 			MeshPoses.SetComponentSpaceTransform(CompactPoseIndex, ComponentTransform);
 		}
 	}
 
-	// now convert to what you'd like
-	// initialize with refpose
-	InOutput.ResetToRefPose();
-	for (int32 Index = 0; Index < NumNodes; ++Index)
-	{
-		if (RigHierarchyItemNameMapping[Index] != NAME_None)
-		{
-			FCompactPoseBoneIndex CompactPoseIndex(Index);
-			InOutput.Pose[CompactPoseIndex] = MeshPoses.GetLocalSpaceTransform(CompactPoseIndex);
-		}
-	}
+	FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(MeshPoses, InOutput.Pose);
 }
 
 void FAnimNode_ControlRigBase::Evaluate_AnyThread(FPoseContext& Output)
@@ -148,8 +142,8 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 		FBoneContainer& RequiredBones = Context.AnimInstanceProxy->GetRequiredBones();
 		const TArray<FBoneIndexType>& RequiredBonesArray = RequiredBones.GetBoneIndicesArray();
 		const int32 NumBones = RequiredBonesArray.Num();
-		RigHierarchyItemNameMapping.Reset(NumBones);
-		RigHierarchyItemNameMapping.AddDefaulted(NumBones);
+		ContolRigNodeMapping.Reset(NumBones);
+		ContolRigNodeMapping.AddDefaulted(NumBones);
 
 		const FReferenceSkeleton& RefSkeleton = RequiredBones.GetReferenceSkeleton();
 
@@ -166,18 +160,26 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 				// get bone name, and find reverse mapping
 				FName TargetNodeName = RefSkeleton.GetBoneName(RequiredBonesArray[Index]);
 				FName* SourceName = TargetToSourceMappingTable.Find(TargetNodeName);
-				RigHierarchyItemNameMapping[Index] = (SourceName)? *SourceName : NAME_None;
+				ContolRigNodeMapping[Index] = (SourceName)? *SourceName : NAME_None;
 			}
-
-			UE_LOG(LogAnimation, Log, TEXT("%s : %d"), *GetNameSafe(ControlRig), RigHierarchyItemNameMapping.Num());
+			UE_LOG(LogAnimation, Log, TEXT("%s : %d"), *GetNameSafe(ControlRig), ContolRigNodeMapping.Num());
 		}
 		else
 		{
 			for (int32 Index = 0; Index < NumBones; ++Index)
 			{
-				RigHierarchyItemNameMapping[Index] = RefSkeleton.GetBoneName(RequiredBonesArray[Index]);
+				ContolRigNodeMapping[Index] = RefSkeleton.GetBoneName(RequiredBonesArray[Index]);
 			}
 		}
-
 	}
+}
+
+UClass* FAnimNode_ControlRigBase::GetTargetClass() const
+{
+	if (UControlRig* ControlRig = GetControlRig())
+	{
+		return ControlRig->GetClass();
+	}
+
+	return nullptr;
 }
