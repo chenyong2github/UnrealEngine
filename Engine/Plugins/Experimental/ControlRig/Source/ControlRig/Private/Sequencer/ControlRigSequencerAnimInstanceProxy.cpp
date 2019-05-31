@@ -38,6 +38,11 @@ void FControlRigSequencerAnimInstanceProxy::Update(float DeltaSeconds)
 	FAnimSequencerInstanceProxy::Update(DeltaSeconds);
 }
 
+FAnimNode_Base* FControlRigSequencerAnimInstanceProxy::GetCustomRootNode()
+{
+	return &SequencerRootNode;
+}
+
 void FControlRigSequencerAnimInstanceProxy::CacheBones()
 {
 	// As we dont use the RootNode (this is not using anim blueprint), 
