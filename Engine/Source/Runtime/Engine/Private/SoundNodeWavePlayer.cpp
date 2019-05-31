@@ -169,7 +169,7 @@ bool USoundNodeWavePlayer::IsPlayWhenSilent() const
 {
 	if (SoundWave)
 	{
-		return SoundWave->bPlayWhenSilent;
+		return SoundWave->VirtualizationMode == EVirtualizationMode::PlayWhenSilent;
 	}
 	return false;
 }
