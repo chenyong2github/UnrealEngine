@@ -1413,6 +1413,45 @@ void FScene::UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive)
 	}
 }
 
+void FScene::UpdateCustomPrimitiveData(UStaticMeshComponent* StaticMesh)
+{
+	SCOPE_CYCLE_COUNTER(STAT_UpdateCustomPrimitiveDataGT);
+
+	// This path updates the primitive data directly in the GPUScene. 
+	if(StaticMesh->SceneProxy) 
+	{
+		struct FUpdateParams
+		{
+			FScene* Scene;
+			FStaticMeshSceneProxy* PrimitiveSceneProxy;
+			FCustomPrimitiveData CustomPrimitiveData;
+		};
+
+		FUpdateParams UpdateParams;
+		UpdateParams.Scene = this;
+		UpdateParams.PrimitiveSceneProxy = static_cast<FStaticMeshSceneProxy*>(StaticMesh->SceneProxy);
+		UpdateParams.CustomPrimitiveData = StaticMesh->CustomPrimitiveData; 
+
+		ENQUEUE_RENDER_COMMAND(UpdateCustomPrimitiveDataCommand)(
+			[UpdateParams](FRHICommandListImmediate& RHICmdList)
+			{
+				FScopeCycleCounter Context(UpdateParams.PrimitiveSceneProxy->GetStatId());
+				UpdateParams.PrimitiveSceneProxy->CustomPrimitiveData = UpdateParams.CustomPrimitiveData;
+
+				// No need to do any of this if GPUScene isn't used (the custom primitive data will make it to the primitive uniform buffer through FPrimitiveSceneProxy::UpdateUniformBuffer if that's the case)
+				if (UseGPUScene(GMaxRHIShaderPlatform, UpdateParams.Scene->GetFeatureLevel()))
+				{
+					AddPrimitiveToUpdateGPU(*UpdateParams.Scene, UpdateParams.PrimitiveSceneProxy->GetPrimitiveSceneInfo()->PackedIndex);
+				}
+				else
+				{
+					// Make sure the uniform buffer is updated before rendering
+					UpdateParams.PrimitiveSceneProxy->GetPrimitiveSceneInfo()->SetNeedsUniformBufferUpdate(true);
+				}
+			});
+	}
+}
+
 void FScene::UpdatePrimitiveDistanceFieldSceneData_GameThread(UPrimitiveComponent* Primitive)
 {
 	check(IsInGameThread());
@@ -3417,6 +3456,7 @@ public:
 	/** Updates the transform of a primitive which has already been added to the scene. */
 	virtual void UpdatePrimitiveTransform(UPrimitiveComponent* Primitive) override {}
 	virtual void UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive) override {}
+	virtual void UpdateCustomPrimitiveData(UStaticMeshComponent* Primitive) override {}
 
 	virtual void AddLight(ULightComponent* Light) override {}
 	virtual void RemoveLight(ULightComponent* Light) override {}

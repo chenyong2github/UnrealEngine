@@ -108,13 +108,13 @@ static FAutoConsoleCommand GToggleForceDefaultMaterialCmd(
 /** Initialization constructor. */
 FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, bool bForceLODsShareStaticLighting)
 	: FPrimitiveSceneProxy(InComponent, InComponent->GetStaticMesh()->GetFName())
+	, CustomPrimitiveData(InComponent->CustomPrimitiveData)
 	, RenderData(InComponent->GetStaticMesh()->RenderData.Get())
 	, OccluderData(InComponent->GetStaticMesh()->OccluderData.Get())
 	, ForcedLodModel(InComponent->ForcedLodModel)
 	, bCastShadow(InComponent->CastShadow)
 	, bReverseCulling(InComponent->bReverseCulling)
 	, MaterialRelevance(InComponent->GetMaterialRelevance(GetScene().GetFeatureLevel()))
-	, CustomPrimitiveData(InComponent->CustomPrimitiveData)
 #if WITH_EDITORONLY_DATA
 	, StreamingDistanceMultiplier(FMath::Max(0.0f, InComponent->StreamingDistanceMultiplier))
 	, StreamingTransformScale(InComponent->GetTextureStreamingTransformScale())

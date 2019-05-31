@@ -5482,13 +5482,50 @@ protected:
 
 	}
 
-	virtual int32 CustomPrimitiveData(int32 OutputIndex) override
+	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) override
 	{
-		const int32 CustomDataIndex = OutputIndex / FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s;
-		const int32 ElementIndex = OutputIndex % 4; // Index x, y, z or w
+		check(OutputIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloats);
 
-		FString HlslName = FString::Printf(TEXT("CustomPrimitiveData[%d][%d]"), CustomDataIndex, ElementIndex);
-		return GetPrimitiveProperty(MCT_Float, TEXT("CustomPrimitiveData"), *HlslName);
+		const int32 NumComponents = GetNumComponents(Type);
+
+		FString HlslCode;
+			
+		// Only float2, float3 and float4 need this
+		if (NumComponents > 1)
+		{
+			HlslCode.Append(FString::Printf(TEXT("float%d("), NumComponents));
+		}
+
+		for (int i = 0; i < NumComponents; i++)
+		{
+			const int32 CurrentOutputIndex = OutputIndex + i;
+
+			// Check if we are accessing inside the array, otherwise default to 0
+			if (CurrentOutputIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloats)
+			{
+				const int32 CustomDataIndex = CurrentOutputIndex / FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s;
+				const int32 ElementIndex = CurrentOutputIndex % 4; // Index x, y, z or w
+
+				HlslCode.Append(FString::Printf(TEXT("GetPrimitiveData(Parameters.PrimitiveId).CustomPrimitiveData[%d][%d]"), CustomDataIndex, ElementIndex));
+			}
+			else
+			{
+				HlslCode.Append(TEXT("0.0f"));
+			}
+
+			if (i+1 < NumComponents)
+			{
+				HlslCode.Append(", ");
+			}
+		}
+
+		// This is the matching parenthesis to the first append
+		if (NumComponents > 1)
+		{
+			HlslCode.AppendChar(')');
+		}
+
+		return AddCodeChunk(Type, TEXT("%s"), *HlslCode);
 	}
 
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) override
