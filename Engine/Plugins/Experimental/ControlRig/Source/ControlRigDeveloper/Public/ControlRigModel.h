@@ -342,7 +342,7 @@ private:
 	static void SetNodePinDefaultsForFunction(FControlRigModelNode& Node);
 	static void AddNodePinsForParameter(FControlRigModelNode& Node, const FEdGraphPinType& InDataType);
 	static void SetNodePinDefaultsForParameter(FControlRigModelNode& Node, const FEdGraphPinType& InDataType);
-	static void ConfigurePinFromField(FControlRigModelPin& Pin, UProperty* Property);
+	static void ConfigurePinFromField(FControlRigModelPin& Pin, UProperty* Property, FControlRigModelNode& Node);
 	static int32 AddPinsRecursive(FControlRigModelNode& Node, int32 ParentIndex, const UStruct* Struct, EEdGraphPinDirection PinDirection, int32& LastAddedIndex);
 	int32 RemovePinsRecursive(FControlRigModelNode& Node, int32 ParentIndex, bool bUndo = true);
 	static void ConfigurePinIndices(FControlRigModelNode& Node);
