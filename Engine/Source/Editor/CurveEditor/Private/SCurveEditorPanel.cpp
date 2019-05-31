@@ -989,19 +989,6 @@ TSharedPtr<FExtender> SCurveEditorPanel::GetToolbarExtender()
 	{
 		static void FillToolbar(FToolBarBuilder& ToolBarBuilder, TSharedRef<SCurveKeyDetailPanel> InKeyDetailsPanel, TSharedRef<SCurveEditorPanel> InEditorPanel)
 		{
-
-			ToolBarBuilder.BeginSection("Tools");
-			{
-				ToolBarBuilder.AddToolBarButton(FCurveEditorCommands::Get().DeactivateCurrentTool);
-			}
-			ToolBarBuilder.EndSection();
-
-			ToolBarBuilder.BeginSection("Key Details");
-			{
-				ToolBarBuilder.AddWidget(InKeyDetailsPanel);
-			}
-			ToolBarBuilder.EndSection();
-
 			ToolBarBuilder.BeginSection("View");
 			{
 				// Dropdown Menu for choosing your viewing mode
@@ -1046,6 +1033,18 @@ TSharedPtr<FExtender> SCurveEditorPanel::GetToolbarExtender()
 					LOCTEXT("CurveEditorCurveOptionsToolTip", "Curve Options"),
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCurveEditor.VisibilityOptions"));
 
+			}
+			ToolBarBuilder.EndSection();
+
+			ToolBarBuilder.BeginSection("Key Details");
+			{
+				ToolBarBuilder.AddWidget(InKeyDetailsPanel);
+			}
+			ToolBarBuilder.EndSection();
+
+			ToolBarBuilder.BeginSection("Tools");
+			{
+				ToolBarBuilder.AddToolBarButton(FCurveEditorCommands::Get().DeactivateCurrentTool);
 			}
 			ToolBarBuilder.EndSection();
 
