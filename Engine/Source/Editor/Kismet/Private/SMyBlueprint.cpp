@@ -1340,34 +1340,34 @@ void SMyBlueprint::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 
 void SMyBlueprint::CollectStaticSections(TArray<int32>& StaticSectionIDs)
 {
+	TSharedPtr<FBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
+	const bool bIsEditor = BlueprintEditor.IsValid();
+
 	if ( IsShowingEmptySections() )
 	{
-		TSharedPtr<FBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
-		const bool bIsEditor = BlueprintEditor.IsValid();
-
-		if (!bIsEditor || BlueprintEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewEventGraph))
+		if (!bIsEditor || (BlueprintEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewEventGraph) && BlueprintEditor->IsSectionVisible(NodeSectionID::GRAPH)))
 		{
 			StaticSectionIDs.Add(NodeSectionID::GRAPH);
 		}
-		if (!bIsEditor || BlueprintEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewMacroGraph))
+		if (!bIsEditor || (BlueprintEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewMacroGraph) && BlueprintEditor->IsSectionVisible(NodeSectionID::MACRO)))
 		{
 			StaticSectionIDs.Add(NodeSectionID::MACRO);
 		}
-		if (!bIsEditor || BlueprintEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewFunctionGraph))
+		if (!bIsEditor || (BlueprintEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewFunctionGraph) && BlueprintEditor->IsSectionVisible(NodeSectionID::FUNCTION)))
 		{
 			StaticSectionIDs.Add(NodeSectionID::FUNCTION);
 		}
-		if (!bIsEditor || BlueprintEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewVariable))
+		if (!bIsEditor || (BlueprintEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewVariable) && BlueprintEditor->IsSectionVisible(NodeSectionID::VARIABLE)))
 		{
 			StaticSectionIDs.Add(NodeSectionID::VARIABLE);
 		}
-		if (!bIsEditor || BlueprintEditor->FBlueprintEditor::AddNewDelegateIsVisible())
+		if (!bIsEditor || (BlueprintEditor->FBlueprintEditor::AddNewDelegateIsVisible() && BlueprintEditor->IsSectionVisible(NodeSectionID::DELEGATE)))
 		{
 			StaticSectionIDs.Add(NodeSectionID::DELEGATE);
 		}
 	}
 
-	if ( GetLocalActionsListVisibility().IsVisible() )
+	if ( GetLocalActionsListVisibility().IsVisible() && (!bIsEditor || BlueprintEditor->IsSectionVisible(NodeSectionID::LOCAL_VARIABLE)))
 	{
 		StaticSectionIDs.Add(NodeSectionID::LOCAL_VARIABLE);
 	}

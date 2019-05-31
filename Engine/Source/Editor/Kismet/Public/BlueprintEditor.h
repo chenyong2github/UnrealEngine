@@ -45,6 +45,11 @@ class UUserDefinedEnum;
 class UUserDefinedStruct;
 struct Rect;
 
+namespace NodeSectionID
+{
+	enum Type;
+}
+
 /////////////////////////////////////////////////////
 // FCustomDebugObjectEntry - Used to pass a custom debug object override around
 
@@ -474,7 +479,8 @@ public:
 	bool AddNewDelegateIsVisible() const;
 
 	// Called to see if the new document menu items is visible for this type
-	bool NewDocument_IsVisibleForType(ECreatedDocumentType GraphType) const;
+	virtual bool IsSectionVisible(NodeSectionID::Type InSectionID) const { return true; }
+	virtual bool NewDocument_IsVisibleForType(ECreatedDocumentType GraphType) const;
 	EVisibility NewDocument_GetVisibilityForType(ECreatedDocumentType GraphType) const
 	{
 		return NewDocument_IsVisibleForType(GraphType) ? EVisibility::Visible : EVisibility::Collapsed;
@@ -796,7 +802,7 @@ protected:
 	void SelectAllNodes();
 	bool CanSelectAllNodes() const;
 
-	void DeleteSelectedNodes();
+	virtual void DeleteSelectedNodes();
 	bool CanDeleteNodes() const;
 
 	void DeleteSelectedDuplicatableNodes();
