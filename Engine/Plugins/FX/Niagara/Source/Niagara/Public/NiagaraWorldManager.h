@@ -82,6 +82,9 @@ public:
 	void OnWorldCleanup(bool bSessionEnded, bool bCleanupResources);
 	
 	FORCEINLINE FNDI_SkeletalMesh_GeneratedData& GetSkeletalMeshGeneratedData() { return SkeletalMeshGeneratedData; }
+
+	TArrayView<const FVector> GetCachedPlayerViewLocations() const { return MakeArrayView(CachedPlayerViewLocations); }
+
 private:
 	UWorld* World;
 
@@ -90,6 +93,8 @@ private:
 	TMap<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>> SystemSimulations;
 
 	int32 CachedEffectsQuality;
+
+	TArray<FVector, TInlineAllocator<8> > CachedPlayerViewLocations;
 
 	/** Generated data used by data interfaces*/
 	FNDI_SkeletalMesh_GeneratedData SkeletalMeshGeneratedData;
