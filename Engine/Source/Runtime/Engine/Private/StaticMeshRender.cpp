@@ -108,7 +108,6 @@ static FAutoConsoleCommand GToggleForceDefaultMaterialCmd(
 /** Initialization constructor. */
 FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, bool bForceLODsShareStaticLighting)
 	: FPrimitiveSceneProxy(InComponent, InComponent->GetStaticMesh()->GetFName())
-	, CustomPrimitiveData(InComponent->CustomPrimitiveData)
 	, RenderData(InComponent->GetStaticMesh()->RenderData.Get())
 	, OccluderData(InComponent->GetStaticMesh()->OccluderData.Get())
 	, ForcedLodModel(InComponent->ForcedLodModel)

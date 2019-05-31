@@ -1413,24 +1413,24 @@ void FScene::UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive)
 	}
 }
 
-void FScene::UpdateCustomPrimitiveData(UStaticMeshComponent* StaticMesh)
+void FScene::UpdateCustomPrimitiveData(UPrimitiveComponent* Primitive)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateCustomPrimitiveDataGT);
 
 	// This path updates the primitive data directly in the GPUScene. 
-	if(StaticMesh->SceneProxy) 
+	if(Primitive->SceneProxy) 
 	{
 		struct FUpdateParams
 		{
 			FScene* Scene;
-			FStaticMeshSceneProxy* PrimitiveSceneProxy;
+			FPrimitiveSceneProxy* PrimitiveSceneProxy;
 			FCustomPrimitiveData CustomPrimitiveData;
 		};
 
 		FUpdateParams UpdateParams;
 		UpdateParams.Scene = this;
-		UpdateParams.PrimitiveSceneProxy = static_cast<FStaticMeshSceneProxy*>(StaticMesh->SceneProxy);
-		UpdateParams.CustomPrimitiveData = StaticMesh->CustomPrimitiveData; 
+		UpdateParams.PrimitiveSceneProxy = Primitive->SceneProxy;
+		UpdateParams.CustomPrimitiveData = Primitive->GetCustomPrimitiveData(); 
 
 		ENQUEUE_RENDER_COMMAND(UpdateCustomPrimitiveDataCommand)(
 			[UpdateParams](FRHICommandListImmediate& RHICmdList)
@@ -3451,7 +3451,7 @@ public:
 	/** Updates the transform of a primitive which has already been added to the scene. */
 	virtual void UpdatePrimitiveTransform(UPrimitiveComponent* Primitive) override {}
 	virtual void UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive) override {}
-	virtual void UpdateCustomPrimitiveData(UStaticMeshComponent* Primitive) override {}
+	virtual void UpdateCustomPrimitiveData(UPrimitiveComponent* Primitive) override {}
 
 	virtual void AddLight(ULightComponent* Light) override {}
 	virtual void RemoveLight(ULightComponent* Light) override {}
