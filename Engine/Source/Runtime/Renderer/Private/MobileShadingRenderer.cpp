@@ -572,7 +572,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 	    RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
 		// flush
-		RHICmdList.SubmitCommandsAndFlushGPU();
+		RHICmdList.SubmitCommandsHint();
 		// Issue occlusion queries
 	    RenderOcclusion(RHICmdList);
 	    RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
